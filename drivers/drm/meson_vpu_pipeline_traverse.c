@@ -32,7 +32,7 @@ static struct meson_vpu_block *stack_pop(struct meson_vpu_stack *mvs)
 	return mvb;
 }
 
-static struct meson_vpu_block *neighbour(struct meson_vpu_block_state *mvbs,
+static struct meson_vpu_block *neighbor(struct meson_vpu_block_state *mvbs,
 					 int *index,
 					 struct drm_atomic_state *state)
 {
@@ -123,7 +123,7 @@ static void pipeline_dfs(int osd_index, struct meson_vpu_pipeline_state *mvps,
 		} else {
 			curr = mvs->stack[mvs->top - 1];
 			curr_state = meson_vpu_block_get_state(curr, state);
-			next = neighbour(curr_state, &index, state);
+			next = neighbor(curr_state, &index, state);
 
 			if (next) {
 				MESON_DRM_TRAVERSE("next->id=%d,name=%s\n",
