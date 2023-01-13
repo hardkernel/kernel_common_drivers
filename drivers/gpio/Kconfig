@@ -32,6 +32,15 @@ config AMLOGIC_GPIOLIB_SYSFS
 	  from kernel drivers/gpio/ and add some modification.
 	  It can not exist with common GPIO_SYSFS.
 
+config AMLOGIC_GPIO_DEBUG
+	bool "Amlogic gpio debug function"
+	depends on AMLOGIC_GPIO
+	default n
+	help
+	  Say Y here if you want to use the
+	  amlogic gpio debug function. This is used to create debug node
+	  under debugfs.
+
 source "$(COMMON_DRIVERS_DIR)/drivers/gpio/irqchip/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/gpio/pinctrl/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/gpio/meson_pmic6b/Kconfig"

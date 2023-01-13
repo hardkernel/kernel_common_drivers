@@ -51,6 +51,10 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/seq_file.h>
+#include <linux/debugfs.h>
+#include <linux/string.h>
+#include <linux/string_helpers.h>
+#include <linux/ctype.h>
 
 #include <pinctrl/core.h>
 #include <pinctrl/pinctrl-utils.h>
@@ -987,6 +991,213 @@ int meson_a1_parse_dt_extra(struct meson_pinctrl *pc)
 }
 EXPORT_SYMBOL(meson_a1_parse_dt_extra);
 
+#ifdef CONFIG_AMLOGIC_GPIO_DEBUG
+#ifdef CONFIG_DEBUG_FS
+static int get_pin_from_name(struct pinctrl_dev *pctldev, const char *name)
+{
+	unsigned int i, pin;
+
+	for (i = 0; i < pctldev->desc->npins; i++) {
+		struct pin_desc *desc;
+
+		pin = pctldev->desc->pins[i].number;
+		desc = pin_desc_get(pctldev, pin);
+		/* Pin space may be sparse */
+		if (desc && !strcmp(name, desc->name))
+			return pin;
+	}
+
+	return -EINVAL;
+}
+
+/* GPIO_TEST_N output_high */
+#define MAX_STRING_LEN	25
+static int handle_buf_param(const char __user *user_buf, size_t len,
+			    int *pin, char *value, struct meson_pinctrl *pc)
+{
+	char *buf, *strip_buf;
+	const char *pin_name = NULL;
+	int i, ret = 0;
+
+	if (len > MAX_STRING_LEN)
+		return -ENOMEM;
+
+	buf = kzalloc(len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = strncpy_from_user(buf, user_buf, len);
+	if (ret < 0)
+		goto free_buf;
+
+	buf[len - 1] = '\0';
+
+	/* strip leading and tailing space */
+	strip_buf = strstrip(buf);
+	if (*strip_buf == '\0') {
+		ret = -ENOMEM;
+		goto free_buf;
+	}
+
+	/* search first space between two value */
+	for (i = 0; (i < strlen(strip_buf)) && !isspace(*(strip_buf + i)); i++) {
+		if (*strip_buf == '\0') {
+			ret = -EINVAL;
+			goto free_buf;
+		}
+	}
+
+	/* change string to uppercase */
+	string_upper(strip_buf, strip_buf);
+
+	pin_name = kstrndup(strip_buf, i, GFP_KERNEL);
+	if (!pin_name) {
+		ret = -EINVAL;
+		goto free_buf;
+	}
+
+	/* search pin number by name*/
+	*pin = get_pin_from_name(pc->pcdev, pin_name);
+	if (*pin < 0) {
+		ret = -EINVAL;
+		goto free_pin;
+	}
+
+	/* get 2nd param */
+	if (i >= strlen(strip_buf)) {
+		ret = -EINVAL;
+		goto free_pin;
+	}
+
+	strip_buf = skip_spaces(strip_buf + i + 1);
+	value = strncpy(value, strip_buf, len - i);
+	ret = 0;
+
+free_pin:
+	kfree(pin_name);
+free_buf:
+	kfree(buf);
+	if (ret)
+		pr_err("input param wrong %d\n", ret);
+	return ret;
+}
+
+static ssize_t drive_strength_write(struct file *file, const char __user *user_buf,
+				    size_t len, loff_t *ppos)
+{
+	int pin, ds, ret = 0;
+	char *value = NULL;
+	struct seq_file *sfile = file->private_data;
+	struct meson_pinctrl *pc = sfile->private;
+
+	value = kzalloc(len, GFP_KERNEL);
+
+	ret = handle_buf_param(user_buf, len, &pin, value, pc);
+	if (ret)
+		goto error;
+
+	ret = kstrtouint(value, 0, &ds);
+	if (ret < 0)
+		goto error;
+
+	ret = meson_pinconf_set_drive_strength(pc, pin, ds);
+	if (ret)
+		pr_info("Usage: echo gpiox_y 500/2500/3000/4000 > drive_strength\n");
+error:
+	kfree(value);
+	return len;
+}
+
+static ssize_t bias_write(struct file *file, const char __user *user_buf,
+			  size_t len, loff_t *ppos)
+{
+	int pin, ret = 0;
+	char *value = NULL;
+	struct seq_file *sfile = file->private_data;
+	struct meson_pinctrl *pc = sfile->private;
+
+	value = kzalloc(len, GFP_KERNEL);
+
+	ret = handle_buf_param(user_buf, len, &pin, value, pc);
+	if (ret)
+		goto error;
+
+	string_lower(value, value);
+
+	if (!strcmp(value, "bias-disable"))
+		meson_pinconf_disable_bias(pc, pin);
+
+	else if (!strcmp(value, "bias-up"))
+		meson_pinconf_enable_bias(pc, pin, true);
+
+	else if (!strcmp(value, "bias-down"))
+		meson_pinconf_enable_bias(pc, pin, false);
+	else
+		pr_info("Usage: echo gpiox_y bias-disable/up/down > bias\n");
+error:
+	kfree(value);
+
+	return len;
+}
+
+static ssize_t gpio_write(struct file *file, const char __user *user_buf,
+			  size_t len, loff_t *ppos)
+{
+	int pin, ret = 0;
+	char *value = NULL;
+	struct seq_file *sfile = file->private_data;
+	struct meson_pinctrl *pc = sfile->private;
+
+	value = kzalloc(len, GFP_KERNEL);
+
+	ret = handle_buf_param(user_buf, len, &pin, value, pc);
+	if (ret)
+		goto error;
+
+	string_lower(value, value);
+
+	pc->data->pmx_ops->gpio_request_enable(pc->pcdev, NULL, pin);
+
+	if (!strcmp(value, "input")) {
+		meson_pinconf_set_output(pc, pin, false);
+
+	} else if (!strcmp(value, "output-high")) {
+		meson_pinconf_set_output(pc, pin, true);
+		meson_pinconf_set_drive(pc, pin, true);
+	}
+
+	else if (!strcmp(value, "output-low")) {
+		meson_pinconf_set_output(pc, pin, true);
+		meson_pinconf_set_drive(pc, pin, false);
+	} else {
+		pr_info("Usage: echo gpiox_y input/output-high/output-low > gpio\n");
+	}
+error:
+	kfree(value);
+	return len;
+}
+
+#define DFF_FILE_OPS(p)							\
+static int p##_open(struct inode *inode, struct file *file)		\
+{									\
+	return single_open(file, NULL, inode->i_private);		\
+}									\
+									\
+static const struct file_operations p##_fops = {			\
+	.owner = THIS_MODULE,						\
+	.open = p##_open,						\
+	.write = p##_write,						\
+	.llseek = no_llseek,						\
+	.release = single_release,					\
+}
+
+DFF_FILE_OPS(gpio);
+DFF_FILE_OPS(bias);
+DFF_FILE_OPS(drive_strength);
+
+#endif //end of CONFIG_DEBUG_FS
+#endif //end of CONFIG_AMLOGIC_GPIO_DEBUG
+
 int meson_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1032,7 +1243,14 @@ int meson_pinctrl_probe(struct platform_device *pdev)
 		dev_err(pc->dev, "can't register pinctrl device");
 		return PTR_ERR(pc->pcdev);
 	}
-
+#ifdef CONFIG_AMLOGIC_GPIO_DEBUG
+#ifdef CONFIG_DEBUG_FS
+	debugfs_create_file("driver-strength", 0444, pc->pcdev->device_root, pc,
+			    &drive_strength_fops);
+	debugfs_create_file("bias", 0444, pc->pcdev->device_root, pc, &bias_fops);
+	debugfs_create_file("gpio", 0444, pc->pcdev->device_root, pc, &gpio_fops);
+#endif
+#endif
 	return meson_gpiolib_register(pc);
 }
 EXPORT_SYMBOL(meson_pinctrl_probe);

@@ -5,3 +5,6 @@
   i2c_smbus_write_byte
   devm_fwnode_pwm_get
   thermal_zone_get_temp
+
+# amlogic-gpio.ko
+  kstrndup
