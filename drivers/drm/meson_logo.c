@@ -754,8 +754,7 @@ static void am_meson_load_logo(struct drm_device *dev,
 		return;
 	}
 
-	connector_set = kmalloc_array(1, sizeof(struct drm_connector *),
-				      GFP_KERNEL);
+	connector_set = vmalloc(sizeof(struct drm_connector *));
 	if (!connector_set)
 		return;
 
@@ -777,7 +776,7 @@ static void am_meson_load_logo(struct drm_device *dev,
 		DRM_INFO("[%s]am_meson_drm_set_config fail\n", __func__);
 	drm_modeset_unlock_all(dev);
 
-	kfree(connector_set);
+	vfree(connector_set);
 }
 
 static int parse_reserve_mem_resource(struct device_node *np,
