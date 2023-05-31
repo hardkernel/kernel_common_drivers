@@ -71,6 +71,7 @@
 #include <trace/hooks/mm.h>
 #include <linux/amlogic/gki_module.h>
 #include <linux/swap.h>
+#include <trace/events/meson_atrace.h>
 
 #define MAX_DEBUG_LEVEL		5
 #define MAX_JOB_NUM		40
@@ -1719,6 +1720,7 @@ static void aml_cma_alloc(void *data, struct cma *cma, unsigned long count,
 		preempt_enable();
 	}
 
+	cma_alloc_trace_start(cma->name, count);
 	in_tick = sched_clock();
 
 	if (!cma || !cma->count || !cma->bitmap)
@@ -1860,6 +1862,8 @@ out:
 
 	*bypass = 1;
 	*rpage = page;
+
+	cma_alloc_trace_end(cma->name, count, page);
 }
 
 static void *get_symbol_addr(const char *symbol_name)

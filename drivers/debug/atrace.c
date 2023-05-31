@@ -32,6 +32,7 @@ struct {
 	TAG_INFO(DDR_BW),
 	TAG_INFO(DIM),
 	TAG_INFO(DRM),
+	TAG_INFO(MEMORY),
 	{ NULL, 0 }
 };
 
@@ -49,6 +50,9 @@ void set_atrace_tag_enabled(unsigned short tag, int enable)
 		atrace_tag |= (u64)1 << tag;
 	else
 		atrace_tag &= ~((u64)1 << tag);
+
+	if (enable && tag == KERNEL_ATRACE_TAG_MEMORY)
+		atrace_mem_init();
 }
 EXPORT_SYMBOL(set_atrace_tag_enabled);
 
@@ -148,6 +152,19 @@ void meson_atrace(int tag, const char *name, unsigned int flags,
 	}
 }
 EXPORT_SYMBOL(meson_atrace);
+
+void meson_atrace_task(int tag, const char *name, unsigned int flags,
+	 unsigned long value)
+{
+	char buf[256];
+
+	if (get_atrace_tag_enabled(tag)) {
+		snprintf(buf, sizeof(buf), "%s|%d|%s|%lu\n",
+			print_flags_type(flags), current->tgid, name, value);
+		tracing_mark_write(buf);
+	}
+}
+EXPORT_SYMBOL(meson_atrace_task);
 
 void __aml_trace_printk(unsigned long ip, const char *fmt, ...)
 {
