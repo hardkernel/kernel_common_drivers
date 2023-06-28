@@ -1963,3 +1963,23 @@ function build_android_32bit () {
 
 }
 export -f build_android_32bit
+
+function clear_files_compressed_with_lzma_in_last_build () {
+	file_lzma="Image.lzma boot-lzma.img boot.img.lzma"
+	for remove_file in ${file_lzma}
+	do
+		file_path=`find -name $remove_file`
+		if [[ -n ${file_path} ]]; then
+			rm ${file_path}
+		fi
+	done
+}
+export -f clear_files_compressed_with_lzma_in_last_build
+
+function generate_lzma_format_image () {
+	pushd ${DIST_DIR}
+	lzma -z -k -f -9 Image Image.lzma
+	lzma -z -k -f -9 boot.img
+	popd
+}
+export -f generate_lzma_format_image
