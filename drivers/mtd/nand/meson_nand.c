@@ -23,6 +23,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/reboot.h>
+#include <linux/amlogic/key_manage.h>
 
 struct mtd_info *aml_mtd_info[NAND_MAX_DEVICE];
 u8 aml_mtd_devnum;
@@ -1958,6 +1959,8 @@ static int meson_nfc_probe(struct platform_device *pdev)
 	ret = readl(nfc->nand_clk_reg);
 	ret = clk_get_rate(nfc->nand_div_clk);
 	ret = readl(nfc->reg_base + NFC_REG_CFG);
+
+	auto_attach();
 
 	return 0;
 err_clk:

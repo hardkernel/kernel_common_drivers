@@ -18,6 +18,7 @@
 #if defined(CONFIG_AMLOGIC_EFUSE)
 #include <linux/amlogic/efuse.h>
 #endif
+#include <linux/amlogic/key_manage.h>
 #include "unifykey.h"
 #include "amlkey_if.h"
 
@@ -205,8 +206,10 @@ static int key_unify_init(struct aml_uk_dev *ukdev, char *buf,
 	int ret;
 	int enc_type;
 
-	if (unlikely(!ukdev))
+	if (unlikely(!ukdev)) {
+		pr_err("device not found\n");
 		return -EINVAL;
+	}
 
 	if (ukdev->init_flag == 1) {
 		pr_info("already inited!\n");
@@ -221,8 +224,26 @@ static int key_unify_init(struct aml_uk_dev *ukdev, char *buf,
 	}
 
 	ukdev->init_flag = 1;
+	pr_info("attach success!\n");
 	return 0;
 }
+
+void auto_attach(void)
+{
+	int ret = 0;
+	struct aml_uk_dev *ukdev =  get_ukdev();
+
+	if (!ukdev) {
+		pr_err("not found unifykey device\n");
+		return;
+	}
+	ret = key_unify_init(ukdev, NULL, KEY_UNIFY_NAME_LEN);
+	if (ret < 0) {
+		pr_err("%s:%d,key unify init fail\n",
+				__func__, __LINE__);
+	}
+}
+EXPORT_SYMBOL(auto_attach);
 
 int key_unify_write(struct aml_uk_dev *ukdev, char *name,
 		    unsigned char *data, unsigned int len)

@@ -520,6 +520,9 @@ void emmc_key_init(struct mmc_card *card, int *retp)
 		goto exit_err1;
 	}
 	pr_info("emmc key: %s:%d ok.\n", __func__, __LINE__);
+
+	auto_attach();
+
 exit_err1:
 		kfree(uk_type);
 exit_err:
