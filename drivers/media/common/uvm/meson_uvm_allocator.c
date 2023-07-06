@@ -45,8 +45,6 @@ static int enable_screencap;
 module_param_named(enable_screencap, enable_screencap, int, 0664);
 static int mua_debug_level = MUA_ERROR;
 module_param(mua_debug_level, int, 0644);
-static int realloc_size;
-module_param(realloc_size, int, 0644);
 static int force_skip_fill;
 module_param_named(force_skip_fill, force_skip_fill, int, 0664);
 
@@ -247,20 +245,15 @@ static void mua_handle_free(struct uvm_buf_obj *obj)
 	kfree(buffer);
 }
 
-size_t mua_calc_real_dmabuf_size(struct mua_buffer *buffer)
+size_t mua_calc_real_dmabuf_size(unsigned int align, unsigned int byte_stride,
+			   unsigned int height)
 {
-	if (!buffer)
-		return 0;
+	size_t size = 0;
+	int align_height = ALIGN(height, align);
 
-	int align = buffer->align;
-	int byte_stride = buffer->byte_stride;
-	int height = ALIGN(buffer->height, align);
-	size_t size = byte_stride * height * 3 / 2;
-
-	if (realloc_size > 0)
-		size = realloc_size;
-	MUA_PRINTK(MUA_INFO, "%s. align=%d byte_stride=%d height=%d size:%zu\n",
-			__func__, align, byte_stride, height, size);
+	size = byte_stride * align_height * 3 / 2;
+	MUA_PRINTK(MUA_INFO, "%s. align=%d byte_stride=%d height=%d align_height=%d size:%zu\n",
+		   __func__, align, byte_stride, height, align_height, size);
 	return size;
 }
 
@@ -272,7 +265,7 @@ int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf)
 	struct avbc_input *in;
 	struct avbc_output *out;
 	int ret = -1;
-	size_t buf_size = mua_calc_real_dmabuf_size(buffer) * 2 / 3;
+	size_t buf_size = 0;
 	u8 *virt_addr;
 
 	is_dec_vf = is_valid_mod_type(dmabuf, VF_SRC_DECODER);
@@ -322,6 +315,8 @@ int avbcd_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf)
 	MUA_PRINTK(MUA_INFO, "crop info: top=%u left=%u bottom=%u right=%u\n",
 		in->img.crop.top, in->img.crop.left, in->img.crop.bottom, in->img.crop.right);
 
+	buf_size = mua_calc_real_dmabuf_size(buffer->align,
+			buffer->byte_stride, buffer->height) * 2 / 3;
 	MUA_PRINTK(MUA_INFO, "fill dummy data buf size=%zu\n", buf_size);
 
 	virt_addr = codec_mm_vmap_noncache(buffer->paddr, buf_size * 3 / 2);
@@ -372,7 +367,7 @@ int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf, vo
 	val_data.dst_addr = vaddr;
 	val_data.byte_stride = buffer->byte_stride;
 	val_data.width = buffer->width;
-	val_data.height = buffer->height;
+	val_data.height = ALIGN(buffer->height, buffer->align);
 	val_data.size = buffer->idmabuf[1]->size;
 	val_data.phy_addr[0] = buffer->paddr;
 	MUA_PRINTK(MUA_INFO, "%s. width=%d height=%d byte_stride=%d align=%d size=%zu\n",
@@ -407,10 +402,12 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	struct dma_buf_attachment *attachment = NULL;
 
 	buffer = container_of(obj, struct mua_buffer, base);
+	if (!buffer)
+		return 0;
 	MUA_PRINTK(MUA_INFO, "%s.dmabuf(%px) buf_scalar=%d WxH: %dx%d\n",
 		__func__, dmabuf, scalar, buffer->width, buffer->height);
-	memset(&info, 0, sizeof(info));
 
+	memset(&info, 0, sizeof(info));
 	MUA_PRINTK(MUA_INFO, "%s, current->tgid:%d mua_dev->pid:%d buffer->commit_display:%d.\n",
 		__func__, current->tgid, mua_dev->pid, buffer->commit_display);
 
@@ -427,12 +424,19 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 
 	if (buffer->idmabuf[1])
 		pre_size = buffer->idmabuf[1]->size;
+	else if (buffer->idmabuf[0])
+		pre_size = buffer->idmabuf[0]->size;
 	else
 		pre_size = dmabuf->size;
+
 	if (buffer->ion_flags & MUA_SIZE_SKIP)
 		new_size = buffer->origin_size;
 	else
-		new_size = mua_calc_real_dmabuf_size(buffer);
+		new_size = mua_calc_real_dmabuf_size(buffer->align,
+				buffer->byte_stride, buffer->height);
+	/* dmabuf->size will do page align when alloc by ion or dmaheap,
+	 * so we need align it before check with pre_size
+	 */
 	new_size = PAGE_ALIGN(new_size);
 	MUA_PRINTK(MUA_INFO, "buffer(0x%px)->size:%zu realloc new_size=%zu, pre_size = %zu\n",
 			buffer, buffer->size, new_size, pre_size);
@@ -559,7 +563,8 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 
 	//start to filldata
 	if (skip_fill_buf) {
-		size_t buf_size = mua_calc_real_dmabuf_size(buffer) * 2 / 3;
+		size_t buf_size = mua_calc_real_dmabuf_size(buffer->align,
+				buffer->byte_stride, buffer->height) * 2 / 3;
 
 		MUA_PRINTK(MUA_INFO, "%s buf size=%zu\n", __func__, buf_size);
 		memset(vaddr, 0x15, buf_size);
@@ -744,9 +749,9 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 			return -ENOMEM;
 		}
 
-		idmabuf = dma_heap_buffer_alloc(heap, dmabuf->size, O_RDWR,
+		idmabuf = dma_heap_buffer_alloc(heap, alloc_buf_size, O_RDWR,
 			DMA_HEAP_VALID_HEAP_FLAGS);
-		if (IS_ERR(idmabuf)) {
+		if (IS_ERR_OR_NULL(idmabuf)) {
 			MUA_PRINTK(MUA_ERROR, "%s: dma_heap_buffer_alloc fail. name is %s\n",
 				__func__, name);
 			kfree(buffer);
@@ -783,8 +788,8 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 		info.scalar = data->scalar;
 		info.gpu_realloc = mua_process_gpu_realloc;
 		info.free = mua_handle_free;
-		MUA_PRINTK(MUA_INFO, "UVM FLAGS is MUA_IMM_ALLOC, %px  sgt = %px\n",
-			   info.obj, info.sgt);
+		MUA_PRINTK(MUA_INFO, "UVM FLAGS is MUA_IMM_ALLOC, %px  sgt = %px, dmabuf = %px\n",
+			   info.obj, info.sgt, idmabuf);
 	} else if (data->flags & MUA_DELAY_ALLOC) {
 		info.size = data->size;
 		info.obj = &buffer->base;
@@ -849,6 +854,7 @@ static int mua_get_meta_data(int fd, ulong arg)
 	if (IS_ERR_OR_NULL(vfp)) {
 		dmabuf_put_vframe(dmabuf);
 		dma_buf_put(dmabuf);
+		MUA_PRINTK(MUA_DBG, "vframe is null.\n");
 		return -EINVAL;
 	}
 	/* check source type. */
@@ -1032,6 +1038,8 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int fd = 0;
 	size_t usage = 0;
 	int alloc_buf_size = 0;
+	unsigned int align_size = 0;
+	unsigned int sync_size = 0;
 
 	md = file->private_data;
 
@@ -1114,6 +1122,11 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					__func__, data.alloc_data.size,
 					data.alloc_data.width, data.alloc_data.height);
 
+		MUA_PRINTK(MUA_INFO, "scaled_buf_size:%d align=%d flags=%d\n",
+			   data.alloc_data.scaled_buf_size,
+			   data.alloc_data.align,
+			   data.alloc_data.flags);
+
 		data.alloc_data.size = PAGE_ALIGN(data.alloc_data.size);
 		data.alloc_data.scaled_buf_size =
 				PAGE_ALIGN(data.alloc_data.scaled_buf_size);
@@ -1122,19 +1135,46 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			alloc_buf_size = data.alloc_data.scaled_buf_size;
 		else
 			alloc_buf_size = data.alloc_data.size;
-		MUA_PRINTK(MUA_INFO, "%s. buf_scalar=%d scaled_buf_size=%d flags=0x%x\n",
+		MUA_PRINTK(MUA_INFO, "%s. buf_scalar=%d scaled_buf_size=%d\n",
 					__func__, data.alloc_data.scalar,
-					data.alloc_data.scaled_buf_size,
-					data.alloc_data.flags);
+					data.alloc_data.scaled_buf_size);
 
-		dmabuf = uvm_alloc_dmabuf(alloc_buf_size,
+		if (data.alloc_data.flags & MUA_SIZE_SKIP) {
+			align_size = data.alloc_data.size;
+		} else {
+			/* fake size shouldn't be used */
+			align_size = mua_calc_real_dmabuf_size(data.alloc_data.align,
+					data.alloc_data.byte_stride,
+					data.alloc_data.height);
+			/* dmabuf->size will do page align when alloc by ion or dmaheap,
+			 * so we need align it before check with pre_size
+			 */
+			align_size = PAGE_ALIGN(align_size);
+		}
+
+		sync_size = alloc_buf_size;
+
+		if (!((data.alloc_data.flags & BIT(UVM_SKIP_REALLOC)) ||
+		    (data.alloc_data.flags & BIT(UVM_SECURE_ALLOC))) &&
+		    align_size > alloc_buf_size) {
+			sync_size = align_size;
+		}
+		MUA_PRINTK(MUA_INFO, "%s. align_size=%d sync_size=%d alloc_buf_size=%d\n",
+					__func__, align_size, sync_size, alloc_buf_size);
+
+		dmabuf = uvm_alloc_dmabuf(sync_size,
 					  data.alloc_data.align,
 					  data.alloc_data.flags);
-		if (IS_ERR(dmabuf))
+		if (IS_ERR_OR_NULL(dmabuf)) {
+			MUA_PRINTK(MUA_ERROR, "%s. uvm_alloc_dmabuf fail\n",
+					__func__);
 			return -ENOMEM;
+		}
 
 		ret = mua_handle_alloc(dmabuf, &data.alloc_data, alloc_buf_size);
 		if (ret < 0) {
+			MUA_PRINTK(MUA_ERROR, "%s. mua_handle_alloc fail\n",
+					__func__);
 			dma_buf_put(dmabuf);
 			return -ENOMEM;
 		}

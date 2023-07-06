@@ -184,7 +184,8 @@ union uvm_ioctl_arg {
 #define UVM_IOC_GET_DECODER_PARA _IOWR(UVM_IOC_MAGIC, 13, \
 				struct uvm_decoder_para)
 
-size_t mua_calc_real_dmabuf_size(struct mua_buffer *buffer);
+size_t mua_calc_real_dmabuf_size(unsigned int align, unsigned int byte_stride,
+			   unsigned int height);
 int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf, void *vaddr);
 
 #endif
