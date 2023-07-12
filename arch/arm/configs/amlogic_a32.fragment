@@ -396,6 +396,9 @@ CONFIG_AMLOGIC_SMARTCARD=y
 # amlogic-dvb-demux.ko
 CONFIG_AMLOGIC_DVB_DMX=m
 
+# dvb ci ko
+CONFIG_AMLOGIC_DVB_CI=m
+
 # amlogic-dvb-usbcam
 CONFIG_AMLOGIC_USBCAM=m
 
