@@ -154,4 +154,14 @@ config AMLOGIC_PINCTRL_MESON_T5D
 	  when enable this config.
 	  T5D pinctrl can work.
 	  otherwise T5D pinctrl can't work
+
+config AMLOGIC_PINCTRL_MESON_S7
+	tristate "Meson S7 SoC pinctrl driver"
+	default n
+	help
+	  the chip of S7 will be built
+	  when enable this config.
+	  S7 pinctrl can work.
+	  otherwise S7 pinctrl can't work
+
 endif

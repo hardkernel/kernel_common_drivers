@@ -908,7 +908,7 @@
 			};
 
 			periphs_pinctrl: pinctrl@4000 {
-				compatible = "amlogic,meson-s4-periphs-pinctrl";
+				compatible = "amlogic,meson-s7-periphs-pinctrl";
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges;
