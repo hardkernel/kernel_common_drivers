@@ -79,6 +79,9 @@ CONFIG_AMLOGIC_COMMON_AO_CLK_T5W=m
 # amlogic-clk-soc-txhd2.ko
 CONFIG_AMLOGIC_COMMON_CLK_TXHD2=m
 
+# amlogic-clk-soc-s7.ko
+CONFIG_AMLOGIC_COMMON_CLK_S7=m
+
 # amlogic-aoclk-soc-ao-txhd2.ko
 CONFIG_AMLOGIC_COMMON_AO_CLK_TXHD2=m
 
