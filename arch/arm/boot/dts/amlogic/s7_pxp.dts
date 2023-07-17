@@ -392,7 +392,7 @@
 		/* interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>; */
 		/* interrupt-names = "demod_isr"; */
 
-		power-domains = <&pwrdm PDID_S4_DEMOD>;
+		//power-domains = <&pwrdm PDID_S4_DEMOD>;
 		/* clocks = <&clkc CLKID_DAC_CLK>; */
 		/* clock-names = "vdac_clk_gate"; */
 

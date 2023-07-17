@@ -8,7 +8,7 @@
 #include <dt-bindings/clock/g12a-aoclkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/power/s4-pd.h>
+#include <dt-bindings/power/s7-pd.h>
 #include <dt-bindings/clock/amlogic,sc2-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-s4-gpio.h>
@@ -308,9 +308,9 @@
 	};
 
 	pwrdm: power-domains {
-		compatible = "amlogic,s4-power-domain";
+		compatible = "amlogic,s7-power-domain";
 		#power-domain-cells = <1>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	jtag {
@@ -1216,7 +1216,7 @@
 			#size-cells = <1>;
 			ranges = <0x0 0xFE330000 0x3000>;
 
-			power-domains = <&pwrdm PDID_S4_AUDIO>;
+			//power-domains = <&pwrdm PDID_S4_AUDIO>;
 
 			clkaudio: audio_clocks {
 				compatible = "amlogic, sc2-audio-clocks";
@@ -1445,7 +1445,7 @@
 			      <0xfe024000 0x8>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			power-domains = <&pwrdm PDID_S4_ETH>;
+			//power-domains = <&pwrdm PDID_S4_ETH>;
 			clocks = <&clkc CLKID_ETH>,
 				 <&clkc CLKID_FCLK_DIV2>,
 				 <&clkc CLKID_MPLL2>;
@@ -1553,10 +1553,10 @@
 			"mailbox_1",
 			"mailbox_2",
 			"parser_b";
-		power-domains = <&pwrdm PDID_S4_DOS_VDEC>,
-			<&pwrdm PDID_S4_DOS_HEVC>;
-		power-domain-names = "pwrc-vdec",
-			"pwrc-hevc";
+		//power-domains = <&pwrdm PDID_S4_DOS_VDEC>,
+		//	<&pwrdm PDID_S4_DOS_HEVC>;
+		//power-domain-names = "pwrc-vdec",
+		//	"pwrc-hevc";
 	};
 	vdec_cpu_ver: cpu_ver_name {
 		compatible = "amlogic, cpu-major-id-s4d";
@@ -2108,7 +2108,7 @@
 			"clk_ge2d",
 			"clk_ge2d_gate";
 		reg = <0xff040000 0x100>;
-		power-domains = <&pwrdm PDID_S4_GE2D>;
+		//power-domains = <&pwrdm PDID_S4_GE2D>;
 	};
 
 	aml_bt: aml_bt {
