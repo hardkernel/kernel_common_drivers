@@ -4,7 +4,7 @@
  */
 
 #include <dt-bindings/display/meson-drm-ids.h>
-#include "meson-s4d.dtsi"
+#include "meson-s7.dtsi"
 
 / {
 	drm_amhdmitx: drm-amhdmitx {
