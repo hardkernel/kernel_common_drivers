@@ -40,6 +40,7 @@ struct rdma_partition_ins_s {
 };
 
 #define RDMA_TRIGGER_VSYNC_INPUT 0x1
+#define RDMA_TRIGGER_VDIN0_INPUT BIT(1)
 #define RDMA_TRIGGER_LINE_INPUT  BIT(8)
 #define RDMA_TRIGGER_VPP1_VSYNC_INPUT BIT(9)
 #define RDMA_TRIGGER_VPP2_VSYNC_INPUT BIT(19)
@@ -86,6 +87,12 @@ struct rdma_device_data_s {
 	enum rdma_ver_e rdma_ver;
 	u32 trigger_mask_len;
 	u32 channel_num;
+};
+
+struct reg_handle {
+	u32 offset;   /* read-only, offset in register table */
+	u32 reg_addr; /* VCBus register address offset */
+	struct list_head list;
 };
 
 u32 is_meson_g12b_revb(void);
@@ -138,9 +145,13 @@ u32 rdma_read_reg_write_table(int handle, u32 adr, bool *is_found);
 
 int rdma_clear(int handle);
 
-s32 rdma_add_read_reg(int handle, u32 adr);
+s32 rdma_add_read_reg(int handle, struct reg_handle *reg_hnd);
 
-u32 *rdma_get_read_back_addr(int handle);
+s32 rdma_remove_read_reg(int handle, struct reg_handle *reg_hnd, u32 count);
+
+u32 *rdma_get_read_back_addr(int handle, struct reg_handle *reg_hnd);
+
+struct reg_handle *rdma_query_read_handle(int handle, u32 index);
 
 int rdma_buffer_unlock(int handle);
 int rdma_buffer_lock(int handle);

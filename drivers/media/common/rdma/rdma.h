@@ -39,6 +39,8 @@ extern unsigned int use_rdma_done_detect;
 extern unsigned int rdma_done_detect_cnt;
 extern unsigned int rdma_done_detect_reg;
 extern int enc_num_configed[];
+extern int read_rdma_en;
+extern int read_rdma_trigger;
 
 ulong get_enc_time_start(u8 index);
 u32 get_enc_num_start(u8 index);
@@ -107,4 +109,8 @@ u32 VCBUS_RD_MPEG_REG(u32 adr);
 int VCBUS_WR_MPEG_REG(u32 adr, u32 val);
 int VCBUS_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 bool get_part_flag_status(int vpp_index, int tbl_index);
+
+s32 VSYNC_ADD_RD_REG(struct reg_handle *reg_hnd);
+s32 VSYNC_REMOVE_RD_REG(struct reg_handle *reg_hnd, u32 count);
+u32 *VSYNC_GET_RD_BACK_ADDR(struct reg_handle *reg_hnd);
 #endif

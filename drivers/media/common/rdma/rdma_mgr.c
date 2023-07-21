@@ -55,6 +55,8 @@
 /* #define SKIP_OSD_CHANNEL */
 #define RDMA_NUM        16
 int has_multi_vpp;
+int read_rdma_en;
+int read_rdma_trigger = RDMA_TRIGGER_VSYNC_INPUT;
 int rdma_mgr_irq_request;
 int rdma_reset_trigger_flag[RDMA_NUM];
 
@@ -134,6 +136,7 @@ struct rdma_instance_s {
 	unsigned char used;
 	int prev_trigger_type;
 	int prev_read_count;
+	struct reg_handle reg_handle;
 	int lock_flag;
 	int irq_count;
 	int rdma_config_count;
@@ -547,7 +550,7 @@ static struct rdma_regadr_s rdma_regadr_t3x[] = {
 static int handle_trans_vpp(int handle)
 {
 	int ret;
-	int rdma_type;
+	int rdma_type = -1;
 
 	rdma_type = get_rdma_type(handle);
 	if (rdma_type < 0 || rdma_type > EX_VSYNC_RDMA)
@@ -2273,23 +2276,25 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 }
 EXPORT_SYMBOL(rdma_write_reg_bits);
 
-s32 rdma_add_read_reg(int handle, u32 adr)
+s32 rdma_add_read_reg(int handle, struct reg_handle *reg_hnd)
 {
 	struct rdma_device_info *info = &rdma_info;
 	struct rdma_instance_s *ins = NULL;
 
-	if (handle > 0 && handle < rdma_meson_dev.channel_num) {
+	if (reg_hnd && handle > 0 && handle < RDMA_NUM) {
 		ins = &info->rdma_ins[handle];
 		if (((ins->rdma_item_count + 1) << 1) <
 			(ins->rdma_table_size / sizeof(u32))) {
-			ins->reg_buf[ins->rdma_item_count] = adr;
+			ins->reg_buf[ins->rdma_item_count] = reg_hnd->reg_addr;
+			reg_hnd->offset = ins->rdma_item_count;
 			ins->rdma_item_count++;
-			return (ins->rdma_item_count - 1);
+			list_add_tail(&reg_hnd->list, &ins->reg_handle.list);
+			return 0;
 		}
-		pr_info("%s: out of bound\n", __func__);
+		pr_err("%s: out of bound\n", __func__);
 		return -1;
 	}
-	pr_info("%s: handle is error\n", __func__);
+	pr_err("%s: handle is error\n", __func__);
 	return -1;
 }
 EXPORT_SYMBOL(rdma_add_read_reg);
@@ -2331,20 +2336,67 @@ int rdma_update_reg_buf(int handle, u32 *rdma_item, u32 count)
 }
 EXPORT_SYMBOL(rdma_update_reg_buf);
 
-u32 *rdma_get_read_back_addr(int handle)
+s32 rdma_remove_read_reg(int handle, struct reg_handle *reg_hnd, u32 count)
+{
+	struct rdma_device_info *info = &rdma_info;
+	struct rdma_instance_s *ins = NULL;
+	u32 i;
+	struct list_head *tmp_list;
+	struct reg_handle *tmp_hnd;
+
+	if (reg_hnd && handle > 0 && handle < RDMA_NUM) {
+		ins = &info->rdma_ins[handle];
+		if (ins->rdma_item_count &&
+		    (reg_hnd->offset + count) <= ins->rdma_item_count) {
+			ins->rdma_item_count -= count;
+
+			/* remove register(s) in reg_buf table */
+			memmove(ins->reg_buf + reg_hnd->offset,
+				ins->reg_buf + reg_hnd->offset + count,
+				sizeof(*ins->reg_buf) *
+				(ins->rdma_item_count - reg_hnd->offset));
+
+			/* remove node(s) in read list */
+			tmp_list = &reg_hnd->list;
+			for (i = 0; i < count; i++) {
+				tmp_hnd = list_entry(tmp_list,
+				     struct reg_handle,
+				     list);
+				__list_del_entry(tmp_list);
+				tmp_list = tmp_list->next;
+			}
+			for (i = 0; i < ins->rdma_item_count - reg_hnd->offset;
+			     i++) {
+				tmp_hnd = list_entry(tmp_list,
+						     struct reg_handle,
+						     list);
+				tmp_hnd->offset -= count;
+				tmp_list = tmp_list->next;
+			}
+			return 0;
+		}
+		pr_err("%s: out of bound\n", __func__);
+		return -1;
+	}
+	pr_err("%s: handle is error\n", __func__);
+	return -1;
+}
+EXPORT_SYMBOL(rdma_remove_read_reg);
+
+u32 *rdma_get_read_back_addr(int handle, struct reg_handle *reg_hnd)
 {
 	struct rdma_device_info *info = &rdma_info;
 	struct rdma_instance_s *ins = NULL;
 	u32 *table;
 
-	if (handle > 0 && handle < rdma_meson_dev.channel_num) {
+	if (reg_hnd && handle > 0 && handle < RDMA_NUM) {
 		ins = &info->rdma_ins[handle];
 		table = ins->rdma_table_addr;
 		if (debug_flag & 2)
 			pr_info("%s, handle: %d, pre_count: %d\n",
 				__func__, handle, ins->prev_read_count);
 
-		return (table + ins->prev_read_count);
+		return (table + ins->prev_read_count + reg_hnd->offset);
 	}
 
 	return NULL;
@@ -2364,6 +2416,29 @@ int get_rdma_item_count(int handle)
 	return rdma_item_count;
 }
 EXPORT_SYMBOL(get_rdma_item_count);
+
+struct reg_handle *rdma_query_read_handle(int handle, u32 index)
+{
+	struct rdma_device_info *info = &rdma_info;
+	struct rdma_instance_s *ins = NULL;
+	int i;
+	struct list_head *tmp_list;
+
+	if (handle > 0 && handle < RDMA_NUM) {
+		ins = &info->rdma_ins[handle];
+		if (index < ins->rdma_item_count) {
+			tmp_list = &ins->reg_handle.list;
+			for (i = 0; i <= index; i++)
+				tmp_list = tmp_list->next;
+
+			return list_entry(tmp_list, struct reg_handle, list);
+		}
+		pr_err("%s: out of bound\n", __func__);
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(rdma_query_read_handle);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static struct rdma_device_data_s rdma_meson = {
@@ -3104,15 +3179,23 @@ static int __init rdma_probe(struct platform_device *pdev)
 		prop = of_get_property(pdev->dev.of_node, "rdma_table_page_count", NULL);
 		if (prop)
 			rdma_table_size = of_read_ulong(prop, 1) * PAGE_SIZE;
-
-		prop = of_get_property(pdev->dev.of_node, "line_n_rdma", NULL);
-		if (prop) {
-			line_n_rdma_en = of_read_ulong(prop, 1);
-			pr_info("line_n_rdma_en = %d\n", line_n_rdma_en);
-		} else {
-			pr_info("line_n_rdma_en = %d\n", line_n_rdma_en);
-		}
 	}
+
+	prop = of_get_property(pdev->dev.of_node, "line_n_rdma", NULL);
+	if (prop)
+		line_n_rdma_en = of_read_ulong(prop, 1);
+
+	prop = of_get_property(pdev->dev.of_node, "rdma_read_enable", NULL);
+	if (prop)
+		read_rdma_en = of_read_ulong(prop, 1);
+
+	prop = of_get_property(pdev->dev.of_node, "rdma_read_trigger", NULL);
+	if (prop)
+		read_rdma_trigger = of_read_ulong(prop, 1);
+
+	pr_info("line_n_rdma_en = %d, read_rdma_en = %d, read_trigger = %d\n",
+		line_n_rdma_en, read_rdma_en, read_rdma_trigger);
+
 	pr_info("%s,cpu_type:%d, ver:%d, len:%d,rdma_table_size:%d\n", __func__,
 		rdma_meson_dev.cpu_type,
 		rdma_meson_dev.rdma_ver, rdma_meson_dev.trigger_mask_len, rdma_table_size);
@@ -3153,6 +3236,7 @@ static int __init rdma_probe(struct platform_device *pdev)
 		info->rdma_ins[i].used = 0;
 		info->rdma_ins[i].prev_trigger_type = 0;
 		info->rdma_ins[i].rdma_write_count = 0;
+		INIT_LIST_HEAD(&info->rdma_ins[i].reg_handle.list);
 		info->rdma_ins[i].lock_flag = 0;
 		enable[i] = 1;
 	}
@@ -3214,7 +3298,7 @@ static int __init rdma_probe(struct platform_device *pdev)
 	handle = rdma_register(get_rdma_ops(VSYNC_RDMA),
 			       NULL, rdma_table_size);
 	set_rdma_handle(VSYNC_RDMA, handle);
-	if (!has_multi_vpp) {
+	if (!has_multi_vpp || read_rdma_en) {
 		handle = rdma_register(get_rdma_ops(VSYNC_RDMA_READ),
 				       NULL, rdma_table_size);
 		set_rdma_handle(VSYNC_RDMA_READ, handle);
