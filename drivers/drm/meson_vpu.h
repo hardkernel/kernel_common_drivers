@@ -19,6 +19,7 @@ struct meson_vpu_pipeline;
 
 struct meson_vpu_crtc_func {
 	struct rdma_reg_ops *reg_ops;
+	void (*pre_init)(struct meson_vpu_pipeline *pipeline, struct device *dev);
 	void (*init_default_reg)(void);
 };
 
@@ -38,6 +39,7 @@ struct meson_vpu_data {
 	struct meson_plane_supported_formats *video_formats;
 	int enc_method;
 	int slice_mode;
+	unsigned int max_osdblend_width, max_osdblend_height;
 };
 
 enum meson_vout_event {
