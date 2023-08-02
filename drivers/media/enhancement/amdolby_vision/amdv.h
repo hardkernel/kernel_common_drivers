@@ -109,6 +109,8 @@
 #define DEBUG_FORCE_BYPASS_TOP2 0x1000
 #define HDMI_ONLY_UPDATE_HIST_FOR_NEW_FRAME 0x2000 /*case5351 5356*/
 
+#define MAX_CFG_SIZE (1024 * 10)
+#define MAX_BIN_SIZE (1024 * 150)
 
 enum core1_switch_type {
 	NO_SWITCH = 0,
@@ -657,7 +659,12 @@ struct tv_input_info_s {
 	s32 content_fps;
 	s32 gd_rf_adjust;
 	s32 tid;
-	s32 debug_buf[497];
+	u8 content_type;
+	u8 white_point;
+	u8 L11_byte2;
+	u8 L11_byte3;
+	int enable_debug;
+	s32 debug_buf[495];
 };
 
 /* top1 output L1/L4*/

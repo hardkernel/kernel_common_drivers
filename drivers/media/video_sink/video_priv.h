@@ -768,6 +768,7 @@ void amdv_set_toggle_flag(int flag);
 void config_dvel_position(struct video_layer_s *layer,
 			  struct mif_pos_s *setting,
 			  struct vframe_s *el_vf);
+void set_amdv_delay_work_flag(void);
 #ifdef CONFIG_AMLOGIC_VOUT
 s32 config_dvel_pps(struct video_layer_s *layer,
 		    struct scaler_setting_s *setting,

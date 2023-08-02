@@ -461,6 +461,10 @@ u32 ambient_test_mode;
 module_param(ambient_test_mode, uint, 0664);
 MODULE_PARM_DESC(ambient_test_mode, "\n ambient_test_mode\n");
 
+static unsigned int lightsense_test_mode;
+module_param(lightsense_test_mode, uint, 0664);
+MODULE_PARM_DESC(lightsense_test_mode, "\n lightsense_test_mode\n");
+
 struct ambient_cfg_s ambient_darkdetail = {16, 0, 0, 0, 0, 0, 1};
 
 u32 content_fps = 60000;
@@ -641,6 +645,10 @@ static bool update_control_path_flag;
 static bool hdmi_in_allm;
 static bool local_allm;
 #define MAX_PARAM   8
+
+struct apo_value_s apo_value;
+static bool amdv_apo_flag;
+
 bool is_aml_gxm(void)
 {
 	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_GXM)
@@ -8138,6 +8146,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 		tv_input_info->content_fps = content_fps * (1 << 16);
 		tv_input_info->gd_rf_adjust = gd_rf_adjust;
 		tv_input_info->tid = get_pic_mode();
+		tv_input_info->enable_debug = debug_ko;
 		if (debug_dolby & 0x400)
 			do_gettimeofday(&start);
 		/*for hdmi in cert, only run control_path for different frame*/
@@ -8172,6 +8181,20 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 					p_ambient = &ambient_darkdetail;
 				}
 			}
+
+			if (lightsense_test_mode == 1 && toggle_mode == 1) {
+				if ((frame_count % 100) < 50)
+					p_ambient = &lightsense_test_cfg[0];
+				else
+					p_ambient = &lightsense_test_cfg[1];
+			} else if (((struct pq_config *)pq_config_fake)->
+				tdc.ambient_config.ambient) {
+				/*only if cfg enables ambient we allow use light sense feature*/
+				/*light sense: update rear and front*/
+				p_ambient = &ambient_config_new;
+				update_ambient_lightsense(p_ambient);
+			}
+
 			if (debug_dolby & 0x200)
 				pr_dv_dbg("[count %d %d]dark_detail from cfg:%d,from api:%d\n",
 					     hdmi_frame_count, frame_count,
@@ -8195,6 +8218,22 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 				vsem_if_buf, vsem_if_size,
 				p_ambient,
 				tv_input_info);
+
+			if (apo_value.content_type != tv_input_info->content_type ||
+				apo_value.white_point != tv_input_info->white_point) {
+				apo_value.content_type = tv_input_info->content_type;
+				apo_value.white_point = tv_input_info->white_point;
+				apo_value.L11_byte2 = tv_input_info->L11_byte2;
+				apo_value.L11_byte3 = tv_input_info->L11_byte3;
+				set_amdv_apo_enable(true);
+			}
+
+			if (debug_dolby & 0x200)
+				pr_dv_dbg("checkout dv content type = %d, white_point = %d, L11_byte2 = %d, L11_byte3 = %d\n",
+						tv_input_info->content_type,
+						tv_input_info->white_point,
+						tv_input_info->L11_byte2,
+						tv_input_info->L11_byte3);
 
 			if (debug_dolby & 0x400) {
 				do_gettimeofday(&end);
@@ -13253,6 +13292,18 @@ void set_amdv_enable(bool enable)
 }
 EXPORT_SYMBOL(set_amdv_enable);
 
+int get_amdv_apo_enable(void)
+{
+	return amdv_apo_flag;
+}
+EXPORT_SYMBOL(get_amdv_apo_enable);
+
+void set_amdv_apo_enable(bool enable)
+{
+	amdv_apo_flag = enable;
+}
+EXPORT_SYMBOL(set_amdv_apo_enable);
+
 /* bit 0 for HDR10: 1=by dv, 0-by vpp */
 /* bit 1 for HLG: 1=by dv, 0-by vpp */
 /* bit 5 for SDR: 1=by dv, 0-by vpp */
@@ -14505,6 +14556,7 @@ static long amdolby_vision_ioctl(struct file *file,
 {
 #define MAX_BYTES (128)
 	int ret = 0;
+	int size = 0;
 	int mode_num = 0;
 	int mode_id = 0;
 	s16 pq_value = 0;
@@ -14516,10 +14568,13 @@ static long amdolby_vision_ioctl(struct file *file,
 	struct dv_full_pq_info_s pq_full_info;
 	struct dv_config_file_s config_file;
 	struct dv_config_data_s config_data;
+	struct dv_user_cfg_s user_cfg;
+	struct light_sensor_s light_sensor;
 	void __user *argp = (void __user *)arg;
 	unsigned char bin_name[MAX_BYTES] = "";
 	unsigned char cfg_name[MAX_BYTES] = "";
 	int dark_detail = 0;
+	char *user_cfg_data = NULL;
 
 	if (debug_dolby & 0x200)
 		pr_info("[DV]: %s: cmd_nr = 0x%x\n",
@@ -14672,14 +14727,28 @@ static long amdolby_vision_ioctl(struct file *file,
 		if (copy_from_user(&config_data, argp,
 				   sizeof(struct dv_config_data_s)) == 0) {
 			if (config_data.file_name == 0) {
-				cfg_size = config_data.file_size;
+				/*check cfg size copy_from_user*/
+				if (config_data.file_size > MAX_CFG_SIZE ||
+					config_data.file_size <= 0)  {
+					ret = -EFAULT;
+					pr_dv_dbg("common cfg size check fail!!\n");
+					break;
+				}
+				cfg_size = config_data.file_size * sizeof(char);
 				cfg_data = kmalloc(cfg_size, GFP_KERNEL);
 				argp = (void __user *)config_data.file_data;
 				if (copy_from_user(cfg_data, argp, cfg_size))
 					ret = -EFAULT;
 			}
 			if (config_data.file_name == 1) {
-				bin_size = config_data.file_size;
+				/*check bin size copy_from_user*/
+				if (config_data.file_size > MAX_BIN_SIZE ||
+					config_data.file_size <= 0)  {
+					ret = -EFAULT;
+					pr_dv_dbg("common bin size check fail!!\n");
+					break;
+				}
+				bin_size = config_data.file_size * sizeof(char);
 				bin_data = kmalloc(bin_size, GFP_KERNEL);
 				argp = (void __user *)config_data.file_data;
 				if (copy_from_user(bin_data, argp, bin_size))
@@ -14701,6 +14770,47 @@ static long amdolby_vision_ioctl(struct file *file,
 			if (debug_dolby & 0x200)
 				pr_info("[DV]: set config success, cfg_size=%d, bin_size=%d\n",
 					cfg_size, bin_size);
+		} else {
+			ret = -EFAULT;
+		}
+		break;
+	case DV_IOC_SET_DV_USER_CFG:
+		if (copy_from_user(&user_cfg, argp,
+			sizeof(struct dv_user_cfg_s)) == 0) {
+			/*check user cfg size copy_from_user*/
+			if (user_cfg.cfg_size > MAX_CFG_SIZE ||
+				user_cfg.cfg_size <= 0)  {
+				ret = -EFAULT;
+				pr_dv_dbg("user_cfg size check fail!!\n");
+				break;
+			}
+
+			size = (user_cfg.cfg_size + 1) * sizeof(char);
+			user_cfg_data = kmalloc(size, GFP_KERNEL);
+			if (!user_cfg_data) {
+				ret = -EFAULT;
+				pr_dv_dbg("user_cfg_data kmalloc fail!\n");
+				break;
+			}
+
+			argp = (void __user *)user_cfg.cfg_data;
+			if (copy_from_user(user_cfg_data, argp, size)) {
+				ret = -EFAULT;
+				pr_dv_dbg("user_cfg copy from user fail!\n");
+				break;
+			}
+
+			user_cfg_data[user_cfg.cfg_size] = '\0';
+			if (is_aml_tm2_tvmode() ||
+			    is_aml_t7_tvmode() ||
+			    is_aml_t3_tvmode() ||
+			    is_aml_t5w() ||
+			    is_aml_t5m() ||
+			    p_funcs_tv)
+				user_cfg_to_bin(user_cfg_data, size);
+			if (debug_dolby & 0x200)
+				pr_dv_dbg("[DV]: set user cfg success, user cfg size %d\n",
+					user_cfg.cfg_size);
 		} else {
 			ret = -EFAULT;
 		}
@@ -14736,6 +14846,23 @@ static long amdolby_vision_ioctl(struct file *file,
 			if (dark_detail != cfg_info[mode_id].dark_detail) {
 				need_update_cfg = true;
 				cfg_info[mode_id].dark_detail = dark_detail;
+			}
+		} else {
+			ret = -EFAULT;
+		}
+		break;
+	case DV_IOC_SET_DV_LIGHT_SENSE:
+		mode_id = get_pic_mode();
+		if (copy_from_user(&light_sensor, argp,
+			sizeof(struct light_sensor_s)) == 0) {
+			if (debug_dolby & 0x200)
+				pr_info("[DV]: cur mode %d, light_sense %d, t_frontLux %d\n",
+					mode_id, light_sensor.flag, light_sensor.t_frontLux);
+			if (light_sensor.flag != cfg_info[mode_id].light_sense ||
+				light_sensor.t_frontLux != cfg_info[mode_id].t_front_lux) {
+				need_update_cfg = true;
+				cfg_info[mode_id].light_sense = light_sensor.flag;
+				cfg_info[mode_id].t_front_lux = light_sensor.t_frontLux;
 			}
 		} else {
 			ret = -EFAULT;
@@ -15115,6 +15242,46 @@ static ssize_t amdolby_vision_config_file_store
 	pr_info("parm[0]: %s, parm[1]: %s\n", parm[0], parm[1]);
 	if (is_aml_tm2_tvmode() || p_funcs_tv)
 		load_dv_pq_config_data(parm[0], parm[1]);
+
+	kfree(buf_orig);
+	return count;
+}
+
+static ssize_t	amdolby_vision_user_cfg_file_show
+	(struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	const char *str =
+		"echo user_cfg > /sys/class/amdolby_vision/user_cfg_file";
+	return sprintf(buf, "%s\n", str);
+}
+
+static ssize_t amdolby_vision_user_cfg_file_store
+	(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+
+{
+	char *buf_orig, *parm[MAX_PARAM] = {NULL};
+
+	if (!buf)
+		return -EFAULT;
+
+	if (!module_installed)
+		return -EAGAIN;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	parse_param_amdv(buf_orig, (char **)&parm);
+	if (!parm[0]) {
+		pr_info("missing parameter... param1:user_cfg\n");
+		kfree(buf_orig);
+		return -EINVAL;
+	}
+	pr_info("parm[0]: %s\n", parm[0]);
+	if (is_aml_tm2_tvmode() || p_funcs_tv) {
+		load_user_cfg_by_name(parm[0]);
+		calculate_user_pq_config();
+	}
 
 	kfree(buf_orig);
 	return count;
@@ -16585,6 +16752,9 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(config_file, 0644,
 	       amdolby_vision_config_file_show,
 	       amdolby_vision_config_file_store),
+	__ATTR(user_cfg_file, 0644,
+	       amdolby_vision_user_cfg_file_show,
+	       amdolby_vision_user_cfg_file_store),
 	__ATTR(copy_core1a, 0644,
 	       amdolby_vision_copy_core1a_show,
 	       amdolby_vision_copy_core1a_store),
