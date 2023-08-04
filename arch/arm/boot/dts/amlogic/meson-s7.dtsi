@@ -1782,21 +1782,21 @@
 		};
 	};
 	vpu: vpu {
-		compatible = "amlogic, vpu-s4d";
-		status = "disabled";
+		compatible = "amlogic, vpu-s7";
+		status = "okay";
 		reg =	<0xfe000000 0x100    /* clk */
 			 0xfe00c000 0x70     /* pwrctrl */
 			 0xff000000 0xa000>; /* vcbus */
-		//clocks = <&clkc CLKID_VAPB>,
-		//	<&clkc CLKID_VPU_INTR>,
-		//	<&clkc CLKID_VPU_0>,
-		//	<&clkc CLKID_VPU_1>,
-		//	<&clkc CLKID_VPU>;
-		//clock-names =	"vapb_clk",
-		//		"vpu_intr_gate",
-		//		"vpu_clk0",
-		//		"vpu_clk1",
-		//		"vpu_clk";
+		clocks = <&clkc CLKID_VAPB>,
+			<&clkc CLKID_VPU_INTR>,
+			<&clkc CLKID_VPU_0>,
+			<&clkc CLKID_VPU_1>,
+			<&clkc CLKID_VPU>;
+		clock-names =	"vapb_clk",
+				"vpu_intr_gate",
+				"vpu_clk0",
+				"vpu_clk1",
+				"vpu_clk";
 		clk_level = <7>;
 		/* 0: 100.0M    1: 166.7M    2: 200.0M    3: 250.0M */
 		/* 4: 333.3M    5: 400.0M    6: 500.0M    7: 666.7M */

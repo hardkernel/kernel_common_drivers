@@ -1570,10 +1570,6 @@
 	status = "disabled";
 };
 
-&vpu {
-	clk_level = <5>;
-};
-
 /*if you want to use vdin just modify status to "ok"*/
 &vdin0 {
 	/*compatible = "amlogic, vdin-sc2";*/
