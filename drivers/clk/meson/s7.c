@@ -696,7 +696,7 @@ MESON_CLK_FIXED_FACTOR(fclk_div5_div, 1, 5, &fixed_pll.hw, 0);
 MESON_CLK_GATE_RO(fclk_div5, ANACTRL_FIXPLL_CTRL1, 28, 0, &fclk_div5_div.hw, 0);
 MESON_CLK_FIXED_FACTOR(fclk_div7_div, 1, 7, &fixed_pll.hw, 0);
 MESON_CLK_GATE_RO(fclk_div7, ANACTRL_FIXPLL_CTRL1, 29, 0, &fclk_div7_div.hw, 0);
-MESON_CLK_FIXED_FACTOR(fclk_div2p5_div, 5, 2, &fixed_pll.hw, 0);
+MESON_CLK_FIXED_FACTOR(fclk_div2p5_div, 2, 5, &fixed_pll.hw, 0);
 MESON_CLK_GATE_RO(fclk_div2p5, ANACTRL_FIXPLL_CTRL0, 25, 0, &fclk_div2p5_div.hw, 0);
 MESON_CLK_FIXED_FACTOR(fclk_clk50m_div, 1, 40, &fixed_pll.hw, 0);
 MESON_CLK_GATE_RO(fclk_clk50m, ANACTRL_FIXPLL_CTRL1, 31, 0, &fclk_clk50m_div.hw, 0);
