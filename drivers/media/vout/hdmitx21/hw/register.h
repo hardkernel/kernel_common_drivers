@@ -36,6 +36,7 @@ void init_reg_map(u32 type);
 #define PADCTRL_GPIOW_I               PADCTRL_REG_ADDR(0x0090)
 #define PADCTRL_GPIOH_I               PADCTRL_REG_ADDR(0x00D0)
 #define PADCTRL_GPIOH_I_S1A           PADCTRL_REG_ADDR(0x0050)
+#define PADCTRL_GPIOH_I_S7            PADCTRL_REG_ADDR(0x0050)
 
 //  SYS_CTRL
 #define SYSCTRL_VPU_SECURE_REG0       SYSCTRL_REG_ADDR(0x0061)
@@ -397,7 +398,6 @@ void init_reg_map(u32 type);
 #define VPU_HDMI_MATRIX_PRE_OFFSET0_1 VPUCTRL_REG_ADDR(0x278d)
 #define VPU_HDMI_MATRIX_PRE_OFFSET2   VPUCTRL_REG_ADDR(0x278e)
 #define VPU_HDMI_MATRIX_EN_CTRL       VPUCTRL_REG_ADDR(0x278f)
-
 
 #endif // __REGISTER_H__
 

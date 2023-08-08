@@ -149,6 +149,9 @@ static void hdmitx_phy_bandgap_en(struct hdmitx_dev *hdev)
 	case MESON_CPU_ID_S1A:
 		hdmitx21_phy_bandgap_en_t7();
 		break;
+	case MESON_CPU_ID_S7:
+		hdmitx21_phy_bandgap_en_s7();
+		break;
 	default:
 		break;
 	}
@@ -248,8 +251,22 @@ static void intr_status_save_and_clear(void)
 {
 	int i;
 	struct intr_t *pint = (struct intr_t *)&hdmi_all_intrs;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	for (i = 0; i < sizeof(union intr_u) / sizeof(struct intr_t); i++) {
+		if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) {
+			if (hdev->tx_comm.hdcp_mode != 1) {
+				if (pint->intr_st_reg == TPI_INTR_ST0_IVCTX)
+					continue;
+			}
+			if (hdev->tx_comm.hdcp_mode != 2) {
+				if (pint->intr_st_reg == CP2TX_INTR0_IVCTX ||
+					pint->intr_st_reg == CP2TX_INTR1_IVCTX ||
+					pint->intr_st_reg == CP2TX_INTR2_IVCTX ||
+					pint->intr_st_reg == CP2TX_INTR3_IVCTX)
+					continue;
+			}
+		}
 		pint->st_data = hdmitx21_rd_reg(pint->intr_st_reg);
 		/* if (pint->intr_st_reg == TPI_INTR_ST0_IVCTX) */
 			/*HDMITX_INFO("TPI_INTR_ST0_IVCTX :0x%x\n", pint->st_data); */

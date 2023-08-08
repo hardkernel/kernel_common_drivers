@@ -454,3 +454,17 @@ void hdmi_gcppkt_manual_set(bool en)
 		hdmitx_infoframe_send(HDMI_PACKET_TYPE_GCP, NULL);
 }
 
+void hdmi_sbtm_infoframe_rawset(u8 *hb, u8 *pb)
+{
+	u8 body[31] = {0};
+
+	if (!hb || !pb) {
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_SBTM, NULL);
+		return;
+	}
+
+	memcpy(body, hb, 3);
+	memcpy(&body[3], pb, 28);
+	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_SBTM, body);
+}
+

@@ -22,6 +22,7 @@
 #define HDCP_DS_KSVLIST_RETRY_TIMER 5000//200
 #define HDCP_RCVIDLIST_CHECK_TIMER 3000//200
 #define HDMI_INFOFRAME_TYPE_EMP 0x7f
+#define HDMI_INFOFRAME_TYPE_SBTM 0xA //SBTM-EM PKT use GEN5
 #define DEFAULT_STREAM_TYPE 0
 #define VIDEO_MUTE_PATH_1 0x8000000 //mute by vid_mute sysfs node
 #define VIDEO_MUTE_PATH_2 0x4000000 //mute by stream type 1
@@ -104,7 +105,10 @@ void hdmi_drm_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmi_emp_infoframe_set(enum emp_type type, struct emp_packet_st *info);
 void hdmi_emp_frame_set_member(struct emp_packet_st *info,
 	enum emp_component_conf conf, u32 val);
+void hdmi_sbtm_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmitx_dhdr_send(u8 *body, int max_size);
+void hdmitx21_write_dhdr_sram(void);
+void hdmitx21_read_dhdr_sram(void);
 
 struct mvrr_const_val {
 	/* unit: 100  6000, 5994, 5000, 3000, 2997, 2500, 2400, 2397 */

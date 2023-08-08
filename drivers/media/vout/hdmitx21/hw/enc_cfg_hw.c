@@ -746,3 +746,147 @@ void hdmitx21_venc_en(bool en, bool pi_mode)
 		hd21_write_reg(ENCI_VIDEO_EN, 1);
 	}
 }
+
+//--------------------------
+// Pbist config
+//--------------------------
+void hdmitx21_pbist_config(struct hdmitx_dev *hdev, enum hdmi_vic vic, int reg_pbist_en)
+{
+	const struct hdmi_timing *tp = NULL;
+	struct hdmi_timing timing = {0};
+	u32 data32;
+	u8 data8;
+	u32 blank_pixels;
+	u32 active_pixels;
+	u32 hsync_pixels;
+	u32 front_porch;
+	u32 blank_lines;
+	u32 active_lines;
+	u32 vsync_lines;
+	u32 eof_lines;
+
+	tp = hdmitx_mode_vic_to_hdmi_timing(vic);
+	if (!tp) {
+		pr_err("not find hdmitx vic %d timing\n", vic);
+		return;
+	}
+	pr_debug("find hdmitx vic %d timing\n", vic);
+	if (reg_pbist_en && hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)
+		hd21_set_reg_bits(HDMITX_TOP_CLK_GATE, 1, 0, 1);//enable pbist
+	else
+		hd21_set_reg_bits(HDMITX_TOP_CLK_GATE, 0, 0, 1);//disable pbist
+
+	timing = *tp;
+	tp = &timing;
+
+	blank_pixels = tp->h_blank;
+	active_pixels = tp->h_active;
+	hsync_pixels = tp->h_sync;
+	front_porch = tp->h_front;
+	blank_lines =  tp->v_blank;
+	active_lines = tp->v_active;
+	vsync_lines = tp->v_sync;
+	eof_lines = tp->v_front;
+
+	data8  = 0;
+	data8 |= (0              << 5);
+	data8 |= (0              << 4);
+	data8 |= (reg_pbist_en   << 3);
+	data8 |= (0              << 1);
+	data8 |= (0              << 0);
+	hdmitx21_wr_reg(SYS_CTRL3_IVCTX, data8);
+
+	data8  = 0;
+	data8 |= (0       << 2); //[2] reg_out_sel 0:
+	data8 |= (0       << 1);
+	data8 |= (0       << 0);
+	hdmitx21_wr_reg(BIST_CTRL2_IVCTX, data8);
+
+	data8  = 0;//[1:0] 0:8bit; 1:10bit;2:12bit;
+	hdmitx21_wr_reg(REG_PXL_BIST_BIT_MODE_IVCTX, data8);
+
+	data8  = 0;
+	//[7:4] reg_stpg_sel : 0:red; 1: green; 2: blue; 3: black; 4: white;
+	// 5: ramps; 6: chess; 7: color bar; 8:simp92
+	data8 |= (0       << 3); //[3]   reg_bist_video_mode
+	data8 |= (7       << 4);
+	data8 |= (0       << 0); //[2:0] ri_stpg_ramp_n
+	hdmitx21_wr_reg(BIST_VIDEO_MODE_IVCTX, data8);
+
+	//htotal
+	data32 = blank_pixels + active_pixels;
+	hdmitx21_wr_reg(PBIST_H_TOTAL_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_H_TOTAL_HIGH_IVCTX, (data32 >> 8));
+
+	//hwidth(hactive)
+	data32 = active_pixels;
+	hdmitx21_wr_reg(PBIST_H_WIDTH_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_H_WIDTH_HIGH_IVCTX, (data32 >> 8));
+
+	//hsync width
+	data32 = hsync_pixels;
+	hdmitx21_wr_reg(PBIST_HSYNC_WIDTH_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_HSYNC_WIDTH_HIGH_IVCTX, (data32 >> 8));
+
+	//h backporch
+	data32 = blank_pixels - hsync_pixels - front_porch;
+	hdmitx21_wr_reg(PBIST_HSYNC_BACK_PORCH_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_HSYNC_BACK_PORCH_HIGH_IVCTX, (data32 >> 8));
+
+	//h frontporch
+	data32 = front_porch;
+	hdmitx21_wr_reg(PBIST_HSYNC_FRONT_PORCH_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_HSYNC_FRONT_PORCH_HIGH_IVCTX, (data32 >> 8));
+
+	//v total
+	data32 = blank_lines + active_lines;
+	hdmitx21_wr_reg(PBIST_V_TOTAL_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_V_TOTAL_HIGH_IVCTX, (data32 >> 8));
+
+	//v height(vactive)
+	data32 = active_lines;
+	hdmitx21_wr_reg(PBIST_V_HEIGHT_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_V_HEIGHT_HIGH_IVCTX, (data32 >> 8));
+
+	//vsync width
+	data32 = vsync_lines;
+	hdmitx21_wr_reg(PBIST_VSYNC_WIDTH_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_VSYNC_WIDTH_HIGH_IVCTX, (data32 >> 8));
+
+	//v backporch
+	data32 = blank_lines - vsync_lines - eof_lines;
+	hdmitx21_wr_reg(PBIST_VSYNC_BACK_PORCH_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_VSYNC_BACK_PORCH_HIGH_IVCTX, (data32 >> 8));
+
+	//v frontporch
+	data32 = eof_lines;
+	hdmitx21_wr_reg(PBIST_VSYNC_FRONT_PORCH_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_VSYNC_FRONT_PORCH_HIGH_IVCTX, (data32 >> 8));
+
+	//BIST TIMING
+	data8  = 0;
+	data8 |= (5                 << 4); //[7:4] reg_time_mode  5: programmable resolution
+	data8 |= (0                 << 2); //[3:2] reg_refresh
+	hdmitx21_wr_reg(BIST_TIMING_CTRL_IVCTX, data8);
+
+	//TEST SEL
+	data8  = 0;
+	data8 |= (0                 << 5); //[6:5] reg_bist_test_select
+	//[4:0] reg_bist_pattern_select, bit[0] must set 1 for TX!!!
+	data8 |= (5                 << 0);
+	hdmitx21_wr_reg(BIST_TEST_SEL_IVCTX, data8);
+
+	//BIST CTRL
+	data8  = 0;
+	data8 |= (0                 << 6); //[6] reg_ycc420_en
+	data8 |= (0			      << 5); //[5] ri_splt_evn_odd_frm
+	data8 |= (reg_pbist_en      << 4); //[4] reg_bist_start_wp
+	data8 |= (1                 << 3); //[3] reg_bist_cont_prog_duration
+	data8 |= (reg_pbist_en      << 2); //[2] reg_stpg_en
+	data8 |= (0                 << 1); //[1] reg_bist_reset
+	data8 |= (reg_pbist_en      << 0); //[0] reg_bist_enable
+
+	hdmitx21_wr_reg(BIST_CTRL_IVCTX, data8);
+
+} //pbist end
+

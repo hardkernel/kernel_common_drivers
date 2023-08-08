@@ -119,6 +119,11 @@ static struct amhdmitx_data_s amhdmitx_data_s1a = {
 	.chip_name = "s1a",
 };
 
+static struct amhdmitx_data_s amhdmitx_data_s7 = {
+	.chip_type = MESON_CPU_ID_S7,
+	.chip_name = "s7",
+};
+
 static const struct of_device_id meson_amhdmitx_of_match[] = {
 	{
 		.compatible	 = "amlogic, amhdmitx-t7",
@@ -131,6 +136,10 @@ static const struct of_device_id meson_amhdmitx_of_match[] = {
 	{
 		.compatible	 = "amlogic, amhdmitx-s1a",
 		.data = &amhdmitx_data_s1a,
+	},
+	{
+		.compatible	 = "amlogic, amhdmitx-s7",
+		.data = &amhdmitx_data_s7,
 	},
 	{},
 };
@@ -1432,6 +1441,49 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 				HDMITX_HDR_MODE_CUVA);
 }
 
+//SBTM PKT test
+void hdmitx21_send_sbtm_pkt(void)
+{
+	u8 hb[3] = {0x0};
+	u8 pb[28] = {0x0};
+
+	hb[0] = 0x7f; //header[7:0] packet type; EMP packet = 0x7f
+	hb[1] = 0xc0; //header[15:8]; [7]:first; [6]:last
+	hb[2] = 0x00; //sequence_index;
+
+	pb[0] = 0x96; //[7]:new; [6]:end; [5:4]:DS_type; [3]:AFR; [2]:VFR;
+	pb[1] = 0x00; //reserved
+	pb[2] = 0x01; //Organization_ID
+	pb[3] = 0x00; //data_set_tag(msb)
+	pb[4] = 0x03; //data_set_tag(lsb)
+	pb[5] = 0x00; //data_set_length(msb) when ID>0, then length = 0
+	pb[6] = 0x00; //data_set_length(lsb)
+
+	pb[7] = 0x11;
+	pb[8] = 0x12;
+	pb[9] = 0x13;
+	pb[10] = 0x14;
+	pb[11] = 0x15;
+	pb[12] = 0x16;
+	pb[13] = 0x17;
+	pb[14] = 0x18;
+	pb[15] = 0x19;
+	pb[16] = 0x1a;
+	pb[17] = 0x1b;
+	pb[18] = 0x1c;
+	pb[19] = 0x1d;
+	pb[20] = 0x1e;
+	pb[21] = 0x1f;
+	pb[22] = 0x20;
+	pb[23] = 0x21;
+	pb[24] = 0x22;
+	pb[25] = 0x23;
+	pb[26] = 0x24;
+	pb[27] = 0x25;
+
+	hdmi_sbtm_infoframe_rawset(hb, pb);
+}
+
 /* reserved,  left blank here, move to hdmi_tx_vrr.c file */
 static void hdmitx_set_emp_pkt(u8 *data, u32 type, u32 size)
 {
@@ -1446,6 +1498,10 @@ static ssize_t config_store(struct device *dev,
 	struct hdr10plus_para hdr_data = {0x1, 0x2, 0x3};
 	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
 	struct cuva_hdr_vs_emds_para cuva_data = {0x1, 0x2, 0x3};
+	unsigned char pb[28] = {0x46, 0xD0, 0x00, 0x00, 0x00, 0x00, 0x46, 0xD0,
+	0x00, 0x10, 0x21, 0xaa, 0x9b, 0x96, 0x19, 0xfc, 0x19, 0x75, 0xd5, 0x78,
+	0x10, 0x21, 0xaa, 0x9b, 0x96, 0x19, 0xfc, 0x19};
+	unsigned char hb[3] = {0x01, 0x02, 0x03};
 
 	HDMITX_INFO("config: %s\n", buf);
 
@@ -1516,6 +1572,16 @@ static ssize_t config_store(struct device *dev,
 		hdmitx_set_hdr10plus_pkt(1, &hdr_data);
 	} else if (strncmp(buf, "cuva", 4) == 0) {
 		hdmitx_set_cuva_hdr_vs_emds(&cuva_data);
+	} else if (strncmp(buf, "w_dhdr", 6) == 0) {
+		hdmitx21_write_dhdr_sram();
+	} else if (strncmp(buf, "r_dhdr", 6) == 0) {
+		hdmitx21_read_dhdr_sram();
+	} else if (strncmp(buf, "t_avi", 5) == 0) {
+		hdmi_avi_infoframe_rawset(hb, pb);
+	} else if (strncmp(buf, "t_audio", 7) == 0) {
+		hdmi_audio_infoframe_rawset(hb, pb);
+	} else if (strncmp(buf, "t_sbtm", 6) == 0) {
+		hdmitx21_send_sbtm_pkt();
 	}
 	return count;
 }

@@ -121,24 +121,30 @@ void hdmitx_set_s5_clkdiv(struct hdmitx_dev *hdev);
 void set_htxpll4_od(const u32 y420);
 void disable_hdmitx_s5_plls(struct hdmitx_dev *hdev);
 void hdmitx_set_s5_phypara(enum frl_rate_enum frl_rate, u32 tmds_clk);
+void disable_hdmitx_s7_plls(struct hdmitx_dev *hdev);
 
 void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index,
 	enum hdmi_vic vic, u32 enable);
 void set_tv_enci_new(struct hdmitx_dev *hdev, u32 enc_index,
 	enum hdmi_vic vic, u32 enable);
 void hdmitx21_venc_en(bool en, bool pi_mode);
+void hdmitx21_pbist_config(struct hdmitx_dev *hdev, enum hdmi_vic vic, int pbist_en);
 
 void hdmitx21_phy_bandgap_en_t7(void);
 void hdmitx21_phy_bandgap_en_s5(void);
+void hdmitx21_phy_bandgap_en_s7(void);
 
 void set21_phy_by_mode_t7(u32 mode);
 void set21_phy_by_mode_s5(u32 mode);
 void set21_phy_by_mode_s1a(u32 mode);
+void set21_phy_by_mode_s7(u32 mode);
 void hdmitx_s5_phy_pre_init(struct hdmitx_dev *hdev);
+void hdmitx_s7_phy_pre_init(struct hdmitx_dev *hdev);
 void set21_phy_by_frl_mode_s5(enum frl_rate_enum frl_mode);
 
 void hdmitx21_sys_reset_t7(void);
 void hdmitx21_sys_reset_s5(void);
+void hdmitx21_sys_reset_s7(void);
 
 void hdmitx21_debugfs_init(void);
 
@@ -146,6 +152,8 @@ void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk);
 void set21_s5_htxpll_clk_out(u32 clk, u32 div);
 void set21_s1a_hpll_clk_out(u32 frac_rate, u32 clk);
 void s1a_reset_div_clk(struct hdmitx_dev *hdev);
+void set21_s7_htxpll_clk_out(u32 clk, u32 div);
+void set_hdmitx_s7_htx_pll(struct hdmitx_dev *hdev);
 void set21_hpll_od0_t7(u32 div);
 void set21_hpll_od1_t7(u32 div);
 void set21_hpll_od2_t7(u32 div);
@@ -157,6 +165,7 @@ void set21_txpll_4_od_s5(u8 od);
 
 void set21_hpll_sspll_t7(enum hdmi_vic vic);
 void set21_hpll_sspll_s5(enum hdmi_vic vic);
+void set21_hpll_sspll_s7(enum hdmi_vic vic);
 
 void dump_hdmitx_reg(void);
 void dump_infoframe_packets(struct seq_file *s);

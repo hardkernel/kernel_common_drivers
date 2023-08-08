@@ -149,7 +149,7 @@ void hdcp_mode_set(unsigned int mode)
 	hdcp_schedule_work(&p_hdcp->timer_hdcp_start, 1, 0);
 }
 
-void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
+void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev) //s7 todo
 {
 	/* lstore: 0 by default, 0x11/0x12 for debug usage
 	 * 0: enable hdcp mode based on stored key and downstream hdcp cap
@@ -167,6 +167,8 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 
 	if (hdev->lstore == 0) {
 		if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
+			//s7 todo
+			// enable hdcp gate
 			hdev->tx_comm.hdcp_mode = 2;
 			rx_hdcp2_ver = 1;
 			hdcp_mode_set(2);

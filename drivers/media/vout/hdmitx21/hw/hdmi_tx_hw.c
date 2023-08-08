@@ -67,6 +67,8 @@ static enum hdmi_vic get_vic_from_pkt(void);
 static void audio_mute_op(bool flag);
 
 static DEFINE_MUTEX(aud_mutex);
+static void pkt_send_position_change(u32 enable_mask, u8 mov_val);
+static void hdmitx_set_div40(u32 div40);
 
 #define EDID_RAM_ADDR_SIZE	 (8)
 
@@ -172,6 +174,8 @@ int hdmitx21_hpd_hw_op(enum hpd_op cmd)
 		return !!(hd21_read_reg(PADCTRL_GPIOH_I) & (1 << 2));
 	case MESON_CPU_ID_S1A:
 		return !!(hd21_read_reg(PADCTRL_GPIOH_I_S1A) & (1 << 2));
+	case MESON_CPU_ID_S7:
+		return !!(hd21_read_reg(PADCTRL_GPIOH_I_S7) & (1 << 2));
 	case MESON_CPU_ID_T7:
 	default:
 		return !!(hd21_read_reg(PADCTRL_GPIOW_I) & (1 << 15));
@@ -327,6 +331,9 @@ void hdmitx21_sys_reset(void)
 		hdmitx21_sys_reset_s5();
 		break;
 #endif
+	case MESON_CPU_ID_S7:
+		hdmitx21_sys_reset_s7();
+		break;
 	default:
 		break;
 	}
@@ -414,7 +421,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 {
 	u32 data32;
 
-	if (hdev->tx_hw.chip_data->chip_type >= MESON_CPU_ID_S5) {
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S5) {//s7 todo
 		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 7, 0, 3);
 		hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, 1, 20, 1);
 		hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, 1, 12, 1);
@@ -505,8 +512,8 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 	data32 = 0;
 	data32 |= (1 << 24); // [26:24] infilter_ddc_intern_clk_divide
 	data32 |= (0 << 16); // [23:16] infilter_ddc_sample_clk_divide
-	hdmitx21_wr_reg(hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_T7 ?
-		HDMITX_T7_TOP_INFILTER : HDMITX_S5_TOP_INFILTER, data32);
+	hdmitx21_wr_reg(hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S5 ?
+		HDMITX_S5_TOP_INFILTER : HDMITX_T7_TOP_INFILTER, data32);
 	hdmitx21_set_reg_bits(AON_CYP_CTL_IVCTX, 2, 0, 2);
 	audio_mute_op(1); /* enable audio default */
 }
@@ -649,6 +656,10 @@ static void hdmitx_phy_pre_init(struct hdmitx_dev *hdev)
 	/* only need for s5 or later */
 	if (hdev->tx_hw.chip_data->chip_type <= MESON_CPU_ID_T7)
 		return;
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) {
+		hdmitx_s7_phy_pre_init(hdev);
+		return;
+	}
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	hdmitx_s5_phy_pre_init(hdev);
 #endif
@@ -673,6 +684,9 @@ static void set_phy_by_mode(u32 mode)
 		tmds_clk = hdev->tx_comm.fmt_para.tmds_clk;
 		HDMITX_INFO("%s[%d] tmds_clk %d\n", __func__, __LINE__, tmds_clk);
 		hdmitx_set_s5_phypara(hdev->frl_rate, tmds_clk);
+		break;
+	case MESON_CPU_ID_S7:
+		set21_phy_by_mode_s7(mode);
 		break;
 #endif
 	default:
@@ -769,7 +783,8 @@ static void set_hdmitx_fe_clk(void)
 
 	hd21_set_reg_bits(vid_clk_cntl2, 1, 9, 1);
 	tmp = (hd21_read_reg(vid_clk_div) >> 24) & 0xf;
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S1A)
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S1A ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)//s7 todo
 		hd21_set_reg_bits(hdmi_clk_cntl, 0, 20, 4);
 	else
 		hd21_set_reg_bits(hdmi_clk_cntl, tmp, 20, 4);
@@ -781,11 +796,12 @@ static void _hdmitx21_set_clk(void)
 
 	set_vid_clk_div(1);
 	set_hdmi_tx_pixel_div(1);
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S1A)
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S1A ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) //s7 todo
 		set_encp_div(0);
 	else
 		set_encp_div(1);
-	//hdmitx_enable_encp_clk();
+	hdmitx_enable_encp_clk();
 	set_hdmitx_fe_clk();
 }
 
@@ -905,7 +921,7 @@ static void set_hdmitx_enc_idx(unsigned int val)
 	arm_smccc_smc(HDCPTX_IOOPR, CONF_ENC_IDX, 1, !!val, 0, 0, 0, 0, &res);
 }
 
-//new future for s1a
+//new future for s1a and S7
 static void vpu_hdmi_set_matrix_ycbcr2rgb(void)
 {
 	//regVPP_MATRIX_COEF00_01 =VPU_HDMI_MATRIX_COEF00_01;
@@ -1039,21 +1055,39 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 	// [21:12] hdmi_dith_new
 	// [23:22] chroma_dnsmp_v. 0=use line 0; 1=use line 1; 2=use average.
 	// [27:24] pix_repeat
-	data32 = 0;
-	data32 = (((para->cs == HDMI_COLORSPACE_YUV420) ? 2 :
-		  (para->cs == HDMI_COLORSPACE_YUV422) ? 1 : 0) << 0) |
-		  (2 << 2) |
-		  (0 << 4) |
-		  (0 << 5) |
-		  (0 << 6) |
-		  (((para->cd == COLORDEPTH_24B) ? 1 : 0) << 10) |
-		  (0 << 11) |
-		  (0 << 12) |
-		  (2 << 22) |
-		  (0 << 24);
-	if (hdev->tx_hw.chip_data->chip_type >= MESON_CPU_ID_S5 &&
-	    (hdev->frl_rate && para->cs == HDMI_COLORSPACE_YUV420))
-		data32 |= 3 << 0; // 3:420 dual port
+	switch (hdev->tx_hw.chip_data->chip_type) {
+	case MESON_CPU_ID_S1A:
+	case MESON_CPU_ID_S7:
+		//bit[1,0] = 3 enable ycbcr2rgb
+		data32 = (((para->cs == HDMI_COLORSPACE_RGB) ? 3 : 0) << 0) |
+			  (2 << 2) |
+			  (0 << 4) |
+			  (0 << 5) |
+			  (0 << 6) |
+			  (((para->cd == COLORDEPTH_24B) ? 1 : 0) << 10) |
+			  (0 << 11) |
+			  (0 << 12) |
+			  (2 << 22) |
+			  (0 << 24);
+		break;
+	case MESON_CPU_ID_T7:
+	case MESON_CPU_ID_S5:
+	default:
+		data32 = (((para->cs == HDMI_COLORSPACE_YUV420) ? 2 :
+			  (para->cs == HDMI_COLORSPACE_YUV422) ? 1 : 0) << 0) |
+			  (2 << 2) |
+			  (0 << 4) |
+			  (0 << 5) |
+			  (0 << 6) |
+			  (((para->cd == COLORDEPTH_24B) ? 1 : 0) << 10) |
+			  (0 << 11) |
+			  (0 << 12) |
+			  (2 << 22) |
+			  (0 << 24);
+		if (hdev->frl_rate && para->cs == HDMI_COLORSPACE_YUV420)
+			data32 |= 3 << 0; // 3:420 dual port
+		break;
+	}
 	hd21_write_reg(VPU_HDMI_FMT_CTRL, data32);
 
 	// [    2] inv_hsync_b
@@ -1177,7 +1211,8 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 		}
 	}
 
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S1A) {
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S1A ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) {
 		if (para->timing.pi_mode == 0 &&
 		(para->timing.v_active == 480 || para->timing.v_active == 576))
 			hd21_set_reg_bits(VPU_HDMI_SETTING, 1, 0, 2);
@@ -1865,6 +1900,8 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	int ret;
 	unsigned long adr = 0;
 	unsigned long value = 0;
+	unsigned int enable_mask;
+	unsigned int mov_val;
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
 	struct vinfo_s *vinfo = &hdev->tx_comm.hdmitx_vinfo;
 
@@ -1996,6 +2033,11 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		hd21_write_reg(VENC_VIDEO_TST_CLRBAR_STRT, 0x113);
 		hd21_write_reg(VENC_VIDEO_TST_CLRBAR_WIDTH, value / 8);
 		return;
+	} else if (strncmp(tmpbuf, "pbist", 5) == 0) {
+		if (strncmp(tmpbuf + 5, "en", 2) == 0)
+			hdmitx21_pbist_config(hdev, hdev->tx_comm.fmt_para.vic, 1);
+		if (strncmp(tmpbuf + 5, "off", 3) == 0)
+			hdmitx21_pbist_config(hdev, hdev->tx_comm.fmt_para.vic, 0);
 	} else if (strncmp(tmpbuf, "testaudio", 9) == 0) {
 		hdmitx_set_audmode(&hdev->tx_hw.base, NULL);
 	} else if (strncmp(tmpbuf, "dumpintr", 8) == 0) {
@@ -2140,6 +2182,16 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hdmitx_hw_cntl_ddc(&hdev->tx_hw.base,
 				DDC_SCDC_DIV40_SCRAMB, value);
 		}
+
+	} else if (strncmp(buf, "pkt_move", 8) == 0) {
+		ret = sscanf(buf, "pkt_move %x %x", &enable_mask, &mov_val);
+		if (ret == 2)
+			pkt_send_position_change(enable_mask, mov_val);
+	} else if (strncmp(tmpbuf, "div40", 5) == 0) {
+		if (strncmp(tmpbuf + 5, "1", 1) == 0)
+			hdmitx_set_div40(1);
+		if (strncmp(tmpbuf + 5, "0", 1) == 0)
+			hdmitx_set_div40(0);
 	}
 }
 
@@ -2237,11 +2289,17 @@ static void set_top_div40(u32 div40)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_T7 ||
-		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S1A)
-		set_t7_top_div40(div40);
-	else
+	switch (hdev->tx_hw.chip_data->chip_type) {
+	case MESON_CPU_ID_S5:
 		set_s5_top_div40(div40, hdev->frl_rate);
+		break;
+	case MESON_CPU_ID_S7:
+	case MESON_CPU_ID_S1A:
+	case MESON_CPU_ID_T7:
+	default:
+		set_t7_top_div40(div40);
+		break;
+	}
 }
 
 static void hdmitx_set_div40(u32 div40)
@@ -2415,6 +2473,7 @@ static int hdmitx_tmds_rxsense(void)
 	switch (hdev->tx_hw.chip_data->chip_type) {
 	case MESON_CPU_ID_T7:
 	case MESON_CPU_ID_S1A:
+	case MESON_CPU_ID_S7:
 		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL0, 1, 16, 1);
 		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 1, 23, 1);
 		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 0, 24, 1);
@@ -2611,7 +2670,8 @@ static void hdmi_phy_suspend(void)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_T7 ||
-		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S1A)
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S1A ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)
 		phy_cntl5 = ANACTRL_HDMIPHY_CTRL5;
 	else
 		phy_cntl5 = ANACTRL_HDMIPHY_CTRL6;
@@ -3019,7 +3079,7 @@ void hdmitx_dhdr_send(u8 *body, int max_size)
 	active_lines = para->timing.v_active;
 	blank_lines = para->timing.v_blank;
 
-	hdr_emp_num = (3 - 1) * 28 + 21;	//emds total send 3 packet as one dhdr
+	hdr_emp_num = (3 - 1) * 28 + 21;	//emds total send 3 packet as one d_hdr
 	//  step1: hdr timing
 	hdmitx21_wr_reg(D_HDR_VB_LE_IVCTX, (blank_lines & 0xff)); //reg_vb_le default 0x20
 	hdmitx21_wr_reg(D_HDR_SPARE_3_IVCTX, 0x2); //[1] reg_fapa_fsm_proper_move
@@ -3063,5 +3123,144 @@ void hdmitx_dhdr_send(u8 *body, int max_size)
 		hdmitx21_wr_reg(D_HDR_MEM_WDATA_IVCTX, data);
 	}
 	hdmitx21_wr_reg(D_HDR_INSERT_CTRL_IVCTX, 0x3);
+}
+
+static void pkt_send_position_change(u32 enable_mask, u8 mov_val)
+{
+	if (enable_mask & 0x1) {
+		pr_debug("enable to change AVI packet send position begin\n");
+		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xfe);
+		hdmitx21_wr_reg(PKT_LOC_AVI_IVCTX, mov_val);
+		pr_debug("enable to change AVI packet send position end\n");
+	}
+	if (enable_mask & 0x2) {
+		pr_debug("enable to change GAMUT packet send position begin\n");
+		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xfd);
+		hdmitx21_wr_reg(PKT_LOC_GAMUT_IVCTX, mov_val);
+		pr_debug("enable to change GAMUT packet send position end\n");
+	}
+	if (enable_mask & 0x4) {
+		pr_debug("enable to change AUD packet send position begin\n");
+		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xfb);
+		hdmitx21_wr_reg(PKT_LOC_AUD_IVCTX, mov_val);
+		pr_debug("enable to change AUD packet send position end\n");
+	}
+	if (enable_mask & 0x8) {
+		pr_debug("enable to change SPD packet send position begin\n");
+		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xf7);
+		hdmitx21_wr_reg(PKT_LOC_SPD_IVCTX, mov_val);
+		pr_debug("enable to change SPD packet send position end\n");
+	}
+	if (enable_mask & 0x10) {
+		pr_debug("enable to change MPEG packet send position begin\n");
+		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xef);
+		hdmitx21_wr_reg(PKT_LOC_MPEG_IVCTX, mov_val);
+		pr_debug("enable to change MPEG packet send position end\n");
+	}
+	if (enable_mask & 0x20) {
+		pr_debug("enable to change VSIF packet send position begin\n");
+		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xdf);
+		hdmitx21_wr_reg(PKT_LOC_VSIF_IVCTX, mov_val);
+		pr_debug("enable to change VSIF packet send position end\n");
+	}
+	if (enable_mask & 0x40) {
+		pr_debug("enable to change GEN packet send position begin\n");
+		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xbf);
+		hdmitx21_wr_reg(PKT_LOC_GEN_IVCTX, mov_val);
+		pr_debug("enable to change GEN packet send position end\n");
+	}
+	if (enable_mask & 0x80) {
+		pr_debug("enable to change GEN2 packet send position begin\n");
+		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0x7f);
+		hdmitx21_wr_reg(PKT_LOC_GEN2_IVCTX, mov_val);
+		pr_debug("enable to change GEN2 packet send position end\n");
+	}
+	if (enable_mask & 0x100) {
+		pr_debug("enable to change GEN3 packet send position begin\n");
+		hdmitx21_wr_reg(PKT_AUTO_1_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xe);
+		hdmitx21_wr_reg(PKT_LOC_GEN3_IVCTX, mov_val);
+		pr_debug("enable to change GEN3 packet send position end\n");
+	}
+	if (enable_mask & 0x200) {
+		pr_debug("enable to change GEN4 packet send position begin\n");
+		hdmitx21_wr_reg(PKT_AUTO_1_IVCTX, hdmitx21_rd_reg(PKT_AUTO_1_IVCTX) & 0xd);
+		hdmitx21_wr_reg(PKT_LOC_GEN4_IVCTX, mov_val);
+		pr_debug("enable to change GEN4 packet send position end\n");
+	}
+	if (enable_mask & 0x400) {
+		pr_debug("enable to change GEN5 packet send position begin\n");
+		hdmitx21_wr_reg(PKT_AUTO_1_IVCTX, hdmitx21_rd_reg(PKT_AUTO_1_IVCTX) & 0xb);
+		hdmitx21_wr_reg(PKT_LOC_GEN5_IVCTX, mov_val);
+		pr_debug("enable to change GEN5 packet send position end\n");
+	}
+	if (enable_mask & 0x800) {
+		pr_debug("enable to change VTEM packet send position begin\n");
+		hdmitx21_wr_reg(PKT_AUTO_1_IVCTX, hdmitx21_rd_reg(PKT_AUTO_1_IVCTX) & 0x7);
+		hdmitx21_wr_reg(PKT_LOC_VTEM_IVCTX, mov_val);
+		pr_debug("enable to change VTEM packet send position end\n");
+	}
+}
+
+//for test
+void hdmitx21_write_dhdr_sram(void)
+{
+	u32 data32;
+	u8 data8;
+	int i, h;
+
+	//force reset
+	data32 = hdmitx21_rd_reg(HDMITX_TOP_SW_RESET);
+	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, data32 & 0xfffffffe);
+	//open sel
+	hdmitx21_wr_reg(HDMITX_TOP_SEC_SCRATCH, data32 | 0x00000001);
+	hdmitx21_wr_reg(D_HDR_INSERT_PAYLOAD_1_IVCTX, 0xff); //payload [15:8] ==> pb5 length msb
+	hdmitx21_wr_reg(D_HDR_INSERT_PAYLOAD_0_IVCTX, 0xff); //payload [7:0] ==> pb6 length lsb
+	hdmitx21_wr_reg(D_HDR_GEN_CTL_IVCTX, 1); //mux src path
+	hdmitx21_wr_reg(D_HDR_MEM_READ_EN_IVCTX, 1); //open x_fifo debug path
+	//write
+	pr_debug("write start\n");
+	hdmitx21_wr_reg(D_HDR_INSERT_CTRL_IVCTX, 1); //open register write enable
+	for (h = 0; h < 64; h++)  {
+		for (i = 0; i < 28; i++) {
+			data8 = i + h;
+			hdmitx21_wr_reg(D_HDR_MEM_WDATA_IVCTX, data8);
+		}
+	}
+	pr_debug("write end\n");
+}
+
+void hdmitx21_read_dhdr_sram(void)
+{
+	u8 rd_data8;
+	u32 data32;
+	int i, h;
+
+	pr_debug("read start\n");
+	//force reset
+	data32 = hdmitx21_rd_reg(HDMITX_TOP_SW_RESET);
+	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, data32 & 0xfffffffe);
+	//open sel
+	hdmitx21_wr_reg(HDMITX_TOP_SEC_SCRATCH, data32 | 0x00000001);
+
+	hdmitx21_set_reg_bits(D_HDR_GEN_CTL_IVCTX, 1, 3, 1); //reset
+	hdmitx21_wr_reg(D_HDR_GEN_CTL_IVCTX, 1); //mux src path
+	hdmitx21_wr_reg(D_HDR_MEM_READ_EN_IVCTX, 1); //open x_fifo debug path
+	for (h = 0; h < 64; h++) {
+		//read address, open reg_x_fifo_rd, start read xdata; loop for raddr +1
+		hdmitx21_rd_reg(D_HDR_MEM_X_FIFO_IVCTX);
+		for (i = 0; i < 28; i++) {
+			//loop read address, every read for addr + 1
+			rd_data8 = hdmitx21_rd_reg(D_HDR_MEM_XDATA_IVCTX);
+			pr_debug("data[%d] = 0x%x\n", i, rd_data8);
+		}
+	}
+	hdmitx21_wr_reg(D_HDR_MEM_READ_EN_IVCTX, 0);  //close x_fifo debug path
+	//release rst
+	data32 = hdmitx21_rd_reg(HDMITX_TOP_SW_RESET);
+	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, data32 | 0x00000001);
+	//close sel
+	data32 = hdmitx21_rd_reg(HDMITX_TOP_SEC_SCRATCH);
+	hdmitx21_wr_reg(HDMITX_TOP_SEC_SCRATCH, data32 & 0xfffffffe);
+	pr_debug("read end\n");
 }
 
