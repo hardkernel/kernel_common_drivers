@@ -1347,22 +1347,22 @@
 				<0xfe004000 0x4>;
 			interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
-			//clocks = <&clkc CLKID_NAND>,
-			//	<&clkc CLKID_SD_EMMC_C_CLK_MUX>,
-			//	 <&clkc CLKID_SD_EMMC_C_CLK>,
-			//	 <&xtal>,
-			//	 <&clkc CLKID_GP1_PLL>,
-			//	 <&clkc CLKID_GP1_PLL>;
-			//clock-names = "core", "mux0", "mux1",
-			//		"clkin0", "clkin1", "clkin2";
+			clocks = <&clkc CLKID_SD_EMMC_C>,
+				<&clkc CLKID_SD_EMMC_C_CLK_MUX>,
+				 <&clkc CLKID_SD_EMMC_C_CLK>,
+				 <&xtal>,
+				 <&clkc CLKID_FCLK_DIV2>,
+				 <&clkc CLKID_FCLK_DIV2>;
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1", "clkin2";
 			no-sdio;
 			no-sd;
 			card_type = <1>;
 			ignore_desc_busy;
 			mmc_debug_flag;
-			src_clk_rate = <1152000000>;
-			tx_delay = <8>;
-			nwr_cnt = <0>;
+		//	src_clk_rate = <1152000000>;
+		//	tx_delay = <8>;
+		//	nwr_cnt = <0>;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
 
@@ -1373,13 +1373,13 @@
 				<0xfe004024 0x4>;
 			interrupts = <GIC_SPI 177 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
-			//clocks = <&clkc CLKID_SD_EMMC_B>,
-			//	<&clkc CLKID_SD_EMMC_B_CLK_MUX>,
-			//	 <&clkc CLKID_SD_EMMC_B_CLK>,
-			//	 <&xtal>,
-			//	 <&clkc CLKID_FCLK_DIV2>;
-			//clock-names = "core", "mux0", "mux1",
-			//		"clkin0", "clkin1";
+			clocks = <&clkc CLKID_SD_EMMC_B>,
+				<&clkc CLKID_SD_EMMC_B_CLK_MUX>,
+				 <&clkc CLKID_SD_EMMC_B_CLK>,
+				 <&xtal>,
+				 <&clkc CLKID_FCLK_DIV2>;
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1";
 			card_type = <5>;
 			mmc_debug_flag;
 			no-mmc;
@@ -1394,13 +1394,13 @@
 				<0xfe00400c 0x4>;
 			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
-			//clocks = <&clkc CLKID_SD_EMMC_A>,
-			//	<&clkc CLKID_SD_EMMC_A_CLK_MUX>,
-			//	 <&clkc CLKID_SD_EMMC_A_CLK>,
-			//	 <&xtal>,
-			//	 <&clkc CLKID_FCLK_DIV2>;
-			//clock-names = "core", "mux0", "mux1",
-			//		"clkin0", "clkin1";
+			clocks = <&clkc CLKID_SD_EMMC_A>,
+				<&clkc CLKID_SD_EMMC_A_CLK_MUX>,
+				 <&clkc CLKID_SD_EMMC_A_CLK>,
+				 <&xtal>,
+				 <&clkc CLKID_FCLK_DIV2>;
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1";
 			card_type = <3>;
 			mmc_debug_flag;
 			cap-sdio-irq;
