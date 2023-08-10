@@ -210,7 +210,7 @@ struct hdmirx_dev_s {
 	dev_t                       devt;
 	struct cdev                 cdev;
 	struct device               *dev;
-	struct tvin_parm_s          param;
+	struct tvin_parm_s          param[2]; //for main & sub port
 	struct timer_list           timer;
 	struct tvin_frontend_s		frontend;
 	unsigned int			irq[4];
@@ -815,7 +815,9 @@ struct rx_info_s {
 	u8 vp_cor0_port;
 	u8 vp_cor1_port;
 	bool boot_flag;
-	bool open_fg;
+	bool main_port_open;
+	bool sub_port_open;
+	bool pip_on;
 	u8 vrr_min;
 	u8 vrr_max;
 	u32 arc_port;
@@ -1039,6 +1041,8 @@ void __weak hdmitx_update_latency_info(struct tvin_latency_s *latency_info)
 {
 }
 
+u8 rx_get_port_type(u8 port);
+bool rx_is_pip_on(void);
 int rx_set_global_variable(const char *buf, int size);
 void rx_get_global_variable(const char *buf);
 int rx_pr(const char *fmt, ...);

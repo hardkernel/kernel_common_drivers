@@ -3698,7 +3698,7 @@ void aml_phy_short_bist_t3x_20(void)
 		rx_pr("long bist done\n");
 	else
 		rx_pr("short bist done\n");
-	if (rx_info.open_fg)
+	if (rx_info.main_port_open)
 		rx_info.aml_phy.pre_int = 1;
 }
 
@@ -3935,6 +3935,10 @@ void aml_phy_switch_port_t3x(u8 port)
 		break;
 	case 3:
 		data32 = 0;
+		if (rx_is_pip_on() && rx_info.sub_port_open) {
+			data32 |= (1 << (8 + rx_info.sub_port * 2));
+			data32 |= (1 << rx_info.sub_port);
+		}
 		data32 |= (2 << (8 + rx_info.main_port * 2));
 		data32 |= (1 << (rx_info.main_port + 4));
 		hdmirx_wr_top_common(HDMIRX_TOP_FSW_CNTL, data32);

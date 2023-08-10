@@ -689,31 +689,27 @@ u32 rx_pkt_type_mapping(enum pkt_type_e pkt_type)
 	return rt;
 }
 
-void rx_pkt_initial(void)
+void rx_pkt_initial(u8 port)
 {
-	int i = 0;
 	int j = 0;
 
-	for (i = 0; i < E_PORT_NUM; i++) {
-		memset(&rxpktsts[i], 0, sizeof(struct rxpkt_st));
-		j = 0;
-		while (j < VSI_TYPE_MAX)
-			memset(&rx_pkt[i].multi_vs_info[j++], 0, sizeof(struct pd_infoframe_s));
-		memset(&rx_pkt[i].avi_info, 0, sizeof(struct pd_infoframe_s));
-		memset(&rx_pkt[i].spd_info, 0, sizeof(struct pd_infoframe_s));
-		memset(&rx_pkt[i].aud_pktinfo, 0, sizeof(struct pd_infoframe_s));
-		memset(&rx_pkt[i].mpegs_info, 0, sizeof(struct pd_infoframe_s));
-		memset(&rx_pkt[i].ntscvbi_info, 0, sizeof(struct pd_infoframe_s));
-		memset(&rx_pkt[i].drm_info, 0, sizeof(struct pd_infoframe_s));
-		memset(&rx_pkt[i].emp_info, 0, sizeof(struct pd_infoframe_s));
-		memset(&rx_pkt[i].acr_info, 0, sizeof(struct pd_infoframe_s));
-		memset(&rx_pkt[i].gcp_info, 0, sizeof(struct pd_infoframe_s));
-		memset(&rx_pkt[i].acp_info, 0, sizeof(struct pd_infoframe_s));
-		memset(&rx_pkt[i].isrc1_info, 0, sizeof(struct pd_infoframe_s));
-		memset(&rx_pkt[i].isrc2_info, 0, sizeof(struct pd_infoframe_s));
-		memset(&rx_pkt[i].gameta_info, 0, sizeof(struct pd_infoframe_s));
-		memset(&rx_pkt[i].amp_info, 0, sizeof(struct pd_infoframe_s));
-	}
+	memset(&rxpktsts[port], 0, sizeof(struct rxpkt_st));
+	while (j < VSI_TYPE_MAX)
+		memset(&rx_pkt[port].multi_vs_info[j++], 0, sizeof(struct pd_infoframe_s));
+	memset(&rx_pkt[port].avi_info, 0, sizeof(struct pd_infoframe_s));
+	memset(&rx_pkt[port].spd_info, 0, sizeof(struct pd_infoframe_s));
+	memset(&rx_pkt[port].aud_pktinfo, 0, sizeof(struct pd_infoframe_s));
+	memset(&rx_pkt[port].mpegs_info, 0, sizeof(struct pd_infoframe_s));
+	memset(&rx_pkt[port].ntscvbi_info, 0, sizeof(struct pd_infoframe_s));
+	memset(&rx_pkt[port].drm_info, 0, sizeof(struct pd_infoframe_s));
+	memset(&rx_pkt[port].emp_info, 0, sizeof(struct pd_infoframe_s));
+	memset(&rx_pkt[port].acr_info, 0, sizeof(struct pd_infoframe_s));
+	memset(&rx_pkt[port].gcp_info, 0, sizeof(struct pd_infoframe_s));
+	memset(&rx_pkt[port].acp_info, 0, sizeof(struct pd_infoframe_s));
+	memset(&rx_pkt[port].isrc1_info, 0, sizeof(struct pd_infoframe_s));
+	memset(&rx_pkt[port].isrc2_info, 0, sizeof(struct pd_infoframe_s));
+	memset(&rx_pkt[port].gameta_info, 0, sizeof(struct pd_infoframe_s));
+	memset(&rx_pkt[port].amp_info, 0, sizeof(struct pd_infoframe_s));
 }
 
 /*please ignore checksum byte*/

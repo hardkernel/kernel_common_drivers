@@ -1121,7 +1121,7 @@ void rx_pkt_status(u8 port);
 void rx_pkt_debug(void);
 void rx_debug_pktinfo(char input[][20], u8 port);
 void rx_pkt_dump(enum pkt_type_e typeid, u8 port);
-void rx_pkt_initial(void);
+void rx_pkt_initial(u8 port);
 int rx_pkt_handler(enum pkt_decode_type pkt_int_src, u8 port);
 u32 rx_pkt_type_mapping(enum pkt_type_e pkt_type);
 void rx_pkt_buffclear(enum pkt_type_e pkt_type, u8 port);

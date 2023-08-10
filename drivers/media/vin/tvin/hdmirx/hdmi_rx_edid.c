@@ -1019,7 +1019,7 @@ unsigned char rx_parse_arc_aud_type(const unsigned char *buff)
 		if (need_support_atmos_bit != 1) {
 			need_support_atmos_bit = 1;
 			hdmi_rx_top_edid_update();
-			if (rx_info.open_fg && rx_info.main_port != rx_info.arc_port) {
+			if (rx_info.main_port_open && rx_info.main_port != rx_info.arc_port) {
 				if (atmos_edid_update_hpd_en)
 					rx_send_hpd_pulse(rx_info.main_port);
 				rx_pr("*update edid-atmos*\n");
@@ -1033,7 +1033,7 @@ unsigned char rx_parse_arc_aud_type(const unsigned char *buff)
 		if (need_support_atmos_bit) {
 			need_support_atmos_bit = 0;
 			hdmi_rx_top_edid_update();
-			if (rx_info.open_fg && rx_info.main_port != rx_info.arc_port) {
+			if (rx_info.main_port_open && rx_info.main_port != rx_info.arc_port) {
 				if (atmos_edid_update_hpd_en)
 					rx_send_hpd_pulse(rx_info.main_port);
 				rx_pr("*update edid-no atmos*\n");
@@ -1135,7 +1135,7 @@ bool rx_edid_set_aud_sad(u_char *sad, u_char len)
 		tmp_sad_len = len;
 	}
 	hdmi_rx_top_edid_update();
-	if (rx_info.open_fg && rx_info.main_port != rx_info.arc_port) {
+	if (rx_info.main_port_open && rx_info.main_port != rx_info.arc_port) {
 		if (atmos_edid_update_hpd_en)
 			rx_send_hpd_pulse(rx_info.main_port);
 		if (log_level & AUDIO_LOG)
@@ -1154,7 +1154,7 @@ void rx_earc_hpd_cntl(void)
 {
 	if (rx_info.chip_id == CHIP_ID_NONE)
 		return;
-	if (rx_info.open_fg && rx_info.main_port == rx_info.arc_port) {
+	if (rx_info.main_port_open && rx_info.main_port == rx_info.arc_port) {
 		rx_send_hpd_pulse(rx_info.main_port);
 		if (log_level & AUDIO_LOG)
 			rx_pr("earc_hpd_cntl\n");
@@ -3211,7 +3211,7 @@ bool rx_set_earc_cap_ds(unsigned char *data, unsigned int len)
 	rx_pr("*update earc cap_ds to edid*\n");
 	hdmi_rx_top_edid_update();
 	/* if currently in arc port, don't reset hpd */
-	if (rx_info.open_fg && rx_info.main_port != rx_info.arc_port) {
+	if (rx_info.main_port_open && rx_info.main_port != rx_info.arc_port) {
 		if (earc_cap_ds_update_hpd_en)
 			rx_send_hpd_pulse(rx_info.main_port);
 	} else {
@@ -3244,7 +3244,7 @@ bool rx_set_vsvdb(unsigned char *data, unsigned int len)
 	recv_vsvdb_len = len;
 	rx_pr("*update vsvdb by DV, len=%d*\n", len);
 	hdmi_rx_top_edid_update();
-	if (rx_info.open_fg) {
+	if (rx_info.main_port_open) {
 		if (vsvdb_update_hpd_en)
 			rx_send_hpd_pulse(rx_info.main_port);
 	} else {

@@ -914,7 +914,8 @@ static const struct file_operations am656in_fops = {
 };
 
 /*called by vdin && sever for v4l2 framework*/
-void am656in_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
+void am656in_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt,
+	enum tvin_port_type_e port_type)
 {
 	struct am656in_dev_s *devp;
 
@@ -925,7 +926,8 @@ void am656in_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
 	mutex_unlock(&bt656_mutex);
 }
 
-static void am656in_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
+static void am656in_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
+	enum tvin_port_type_e port_type)
 {
 	struct am656in_dev_s *devp;
 
@@ -942,7 +944,8 @@ static void am656in_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 }
 
 static void am656in_get_sig_property(struct tvin_frontend_s *fe,
-				     struct tvin_sig_property_s *prop)
+				     struct tvin_sig_property_s *prop,
+				     enum tvin_port_type_e port_type)
 {
 	struct am656in_dev_s *devp;
 
@@ -956,7 +959,7 @@ static void am656in_get_sig_property(struct tvin_frontend_s *fe,
  *1--there is no sleep,
  *2--it is better to shorter the time,
  */
-int am656in_isr(struct tvin_frontend_s *fe, unsigned int hcnt)
+int am656in_isr(struct tvin_frontend_s *fe, unsigned int hcnt, enum tvin_port_type_e port_type)
 {
 	unsigned int ccir656_status = 0;
 	struct am656in_dev_s *devp;
@@ -992,7 +995,8 @@ int am656in_isr(struct tvin_frontend_s *fe, unsigned int hcnt)
  *power on 656 module&init the parameters,such as
  *power color fmt...,will be used by vdin
  */
-static int am656in_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port)
+static int am656in_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port,
+	enum tvin_port_type_e port_type)
 {
 	struct am656in_dev_s *devp;
 	struct vdin_parm_s *parm = fe->private_data;
@@ -1030,7 +1034,7 @@ static int am656in_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port)
 /*
  *power off the 656 module,clear the parameters
  */
-static void am656in_feclose(struct tvin_frontend_s *fe)
+static void am656in_feclose(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
 	struct am656in_dev_s *devp = NULL;
 	enum tvin_port_e port = 0;

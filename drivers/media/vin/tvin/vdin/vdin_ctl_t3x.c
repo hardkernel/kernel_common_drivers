@@ -562,16 +562,17 @@ void vdin_set_top_t3x(struct vdin_dev_s *devp, enum tvin_port_e port,
 		wr(0, VDIN_INTF_VDI4B_SIZE, vdi_size);
 		break;
 	case 0x40: /* hdmi rx hdmi0~1,vp core0--->vdi4b */
-//		if (port == TVIN_PORT_HDMI0 || port == TVIN_PORT_HDMI1) {
-//			vdin_mux = VDIN_VDI4B_HDMIRX_T3X;
-//			wr(0, VDIN_INTF_VDI4B_CTRL, 0xe4);
-//			wr(0, VDIN_INTF_VDI4B_SIZE, vdi_size);
-//		} else {
+		if (devp->index) { //4b--->vdin1
+		//if (port == TVIN_PORT_HDMI0 || port == TVIN_PORT_HDMI1) {
+			vdin_mux = VDIN_VDI4B_HDMIRX_T3X;
+			wr(0, VDIN_INTF_VDI4B_CTRL, 0xe4);
+			wr(0, VDIN_INTF_VDI4B_SIZE, vdi_size);
+		} else { //4a--->vdin0
 		/* hdmi rx hdmi2~3,vp core1--->vdi4a */
 			vdin_mux = VDIN_VDI4A_HDMIRX_T3X;
 			wr(0, VDIN_INTF_VDI4A_CTRL, 0xe4);
 			wr(0, VDIN_INTF_VDI4A_SIZE, vdi_size);
-//		}
+		}
 		vdin_data_bus_0 = VDIN_MAP_RCR;
 		vdin_data_bus_1 = VDIN_MAP_Y_G;
 		vdin_data_bus_2 = VDIN_MAP_BPB;
@@ -759,7 +760,7 @@ void vdin_set_decimation_t3x(struct vdin_dev_s *devp)
 
 void vdin_fix_nonstd_vsync_t3x(struct vdin_dev_s *devp)
 {
-	wr_bits(devp->addr_offset, VDIN_WRMIF_URGENT_CTRL, 1,
+	wr_bits(devp->addr_offset, VDIN0_WRMIF_URGENT_CTRL, 1,
 		0, 16);
 }
 
@@ -2630,7 +2631,7 @@ void vdin_enable_module_t3x(struct vdin_dev_s *devp, bool enable)
 {
 	//unsigned int offset = devp->addr_offset;
 
-	W_VCBUS_BIT(VPU_WRARB_UGT_L2C1, 2,
+	W_VCBUS_BIT(VPU_WRARB_UGT_L2C1, 3,
 		VPU_WRARB_UGT_VDIN_BIT, VPU_WRARB_UGT_VDIN_WID);
 
 	if (enable)	{

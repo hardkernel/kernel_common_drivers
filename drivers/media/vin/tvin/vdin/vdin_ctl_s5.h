@@ -91,7 +91,6 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp,
 void vdin_dolby_addr_update(struct vdin_dev_s *devp, unsigned int index);
 void vdin_dolby_addr_alloc(struct vdin_dev_s *devp, unsigned int size);
 void vdin_dolby_addr_release(struct vdin_dev_s *devp, unsigned int size);
-int vdin_event_cb(int type, void *data, void *op_arg);
 void vdin_hdmiin_patch(struct vdin_dev_s *devp);
 void vdin_set_top_s5(struct vdin_dev_s *devp, enum tvin_port_e port,
 		  enum tvin_color_fmt_e input_cfmt, enum bt_path_e bt_path);

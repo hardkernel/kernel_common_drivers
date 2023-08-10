@@ -504,18 +504,28 @@ int hdmirx_dec_support(struct tvin_frontend_s *fe, enum tvin_port_e port)
  * @fe: frontend device of tvin interface
  * @port: port index of specified frontend
  */
-int hdmirx_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
+int hdmirx_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
+	enum tvin_port_type_e port_type)
 {
 	struct hdmirx_dev_s *devp;
 
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
-	devp->param.port = port;
+	devp->param[port_type].port = port;
 
 	/* should enable the adc ref signal for audio pll */
 	/* vdac_enable(1, VDAC_MODULE_AUDIO_OUT); */
-	hdmirx_open_port(port);
-	rx_info.open_fg = 1;
-	rx_pr("%s port:%x ok\n", __func__, port);
+	if (port_type == TVIN_PORT_MAIN) {
+		rx_info.main_port = (port - TVIN_PORT_HDMI0) & 0xff;
+		if (!rx_info.sub_port_open)
+			rx_info.sub_port = 0xff;
+	} else if (port_type == TVIN_PORT_SUB) {
+		rx_info.pip_on = true;
+		rx_info.sub_port = (port - TVIN_PORT_HDMI0) & 0xff;
+	} else {
+		return -1;
+	}
+	hdmirx_open_port(rx_info.main_port, rx_info.sub_port);
+	rx_pr("%s main_port:%x, sub_port:%x\n", __func__, rx_info.main_port, rx_info.sub_port);
 	return 0;
 }
 
@@ -525,16 +535,17 @@ int hdmirx_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
  * @fe: frontend device of tvin interface
  * @fmt: format in which vdin process
  */
-void hdmirx_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
+void hdmirx_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt,
+	enum tvin_port_type_e port_type)
 {
 	struct hdmirx_dev_s *devp;
 	struct tvin_parm_s *parm;
 
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
-	parm = &devp->param;
+	parm = &devp->param[port_type];
 	parm->info.fmt = fmt;
 	parm->info.status = TVIN_SIG_STATUS_STABLE;
-	rx_pr("%s fmt:%d ok\n", __func__, fmt);
+	rx_pr("%s port_type:%d, fmt:%d ok\n", __func__, port_type, fmt);
 }
 
 /*
@@ -543,32 +554,33 @@ void hdmirx_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
  * @fe: frontend device of tvin interface
  * @port: port index of specified frontend
  */
-void hdmirx_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
+void hdmirx_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
+	enum tvin_port_type_e port_type)
 {
 	struct hdmirx_dev_s *devp;
 	struct tvin_parm_s *parm;
 
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
-	parm = &devp->param;
+	parm = &devp->param[port_type];
 	if (vpp_mute_enable) {
-		if (get_video_mute())// && rx[port].vpp_mute)
+		if (get_video_mute() && port_type != TVIN_PORT_SUB)// && rx[port].vpp_mute)
 			set_video_mute(HDMI_RX_MUTE_SET, false);
 		//rx[port].vpp_mute = false;
 	}
 	/* parm->info.fmt = TVIN_SIG_FMT_NULL; */
 	/* parm->info.status = TVIN_SIG_STATUS_NULL; */
-	rx_pr("%s ok\n", __func__);
+	rx_pr("%s port_type:%d, ok\n", __func__, port_type);
 }
 
 /*
  * hdmirx_dec_open - close frontend
  * @fe: frontend device of tvin interface
  */
-void hdmirx_dec_close(struct tvin_frontend_s *fe)
+void hdmirx_dec_close(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
 	struct hdmirx_dev_s *devp;
 	struct tvin_parm_s *parm;
-	u8 port = rx_info.main_port;  //todo for pip
+	u32 port;
 
 	/*
 	 * txl:should disable the adc ref signal for audio pll
@@ -579,9 +591,19 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 	/* if (rx_info.chip_id == CHIP_ID_TXL) */
 		/* vdac_enable(0, VDAC_MODULE_AUDIO_OUT); */
 	/* open_flage = 0; */
-	rx_info.open_fg = 0;
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
-	parm = &devp->param;
+	parm = &devp->param[port_type];
+	port = parm->port - TVIN_PORT_HDMI0;
+	if (port_type) {
+		rx_info.sub_port_open = false;
+		if (rx[port].cur_5v_sts)
+			rx[port].state = FSM_SIG_HOLD;
+		else
+			rx[port].state = FSM_5V_LOST;
+		rx_info.pip_on = false;
+	} else {
+		rx_info.main_port_open = false;
+	}
 	port_hpd_rst_flag |= (1 << port);
 	rx[port].vs_info_details.hdmi_allm = 0;
 	rx[port].cur.cn_type = 0;
@@ -595,37 +617,41 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 		hdmitx_update_latency_info(&latency_info);
 #endif
 	/*del_timer_sync(&devp->timer);*/
-	hdmirx_close_port();
+	hdmirx_close_port(port);
 	parm->info.fmt = TVIN_SIG_FMT_NULL;
 	parm->info.status = TVIN_SIG_STATUS_NULL;
 	/* clear vpp mute, such as after unplug */
 	if (vpp_mute_enable) {
-		if (get_video_mute())// && rx[port].vpp_mute)
+		if (get_video_mute() && port != rx_info.sub_port)// && rx[port].vpp_mute)
 			set_video_mute(HDMI_RX_MUTE_SET, false);
 		//rx[port].vpp_mute = false;
 	}
-	rx_pr("%s ok\n", __func__);
+	if (!rx_info.pip_on)
+		rx_info.sub_port = 0xff;
+	rx_pr("%s port_type:%d, ok\n", __func__, port_type);
 }
 
 /*
  * hdmirx_dec_isr - interrupt handler
  * @fe: frontend device of tvin interface
  */
-int hdmirx_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
+int hdmirx_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64,
+	enum tvin_port_type_e port_type)
 {
 	struct hdmirx_dev_s *devp;
 	struct tvin_parm_s *parm;
 	u32 avmute_flag;
-	u8 port = rx_info.main_port;  //todo
+	u32 port;
 
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
-	parm = &devp->param;
+	parm = &devp->param[port_type];
+	port = parm->port - TVIN_PORT_HDMI0;
 
 	if (!rx[port].var.force_pattern) {
 		/*prevent spurious pops or noise when pw down*/
 		if (rx[port].state == FSM_SIG_READY) {
 			avmute_flag = rx_get_avmute_sts(port);
-			if (avmute_flag == 1) {
+			if (avmute_flag == 1 && port_type == TVIN_PORT_MAIN) {
 				rx[port].avmute_skip += 1;
 				rx[port].vpp_mute_cnt = vpp_mute_cnt;
 				gcp_mute_flag[port] = 1;
@@ -691,6 +717,11 @@ static struct tvin_decoder_ops_s hdmirx_dec_ops = {
 	.callmaster_det = hdmi_dec_callmaster,
 };
 
+u8 rx_get_port_from_type(enum tvin_port_type_e port_type)
+{
+	return port_type == TVIN_PORT_SUB ? rx_info.sub_port : rx_info.main_port;
+}
+
 /*
  * hdmirx_is_nosig
  * @fe: frontend device of tvin interface
@@ -698,12 +729,11 @@ static struct tvin_decoder_ops_s hdmirx_dec_ops = {
  * return true if no signal is detected,
  * otherwise return false.
  */
-bool hdmirx_is_nosig(struct tvin_frontend_s *fe)
+bool hdmirx_is_nosig(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
 	bool ret = 0;
-	u8 port = rx_info.main_port; //todo
 
-	ret = rx_is_nosig(port);
+	ret = rx_is_nosig(rx_get_port_from_type(port_type));
 	return ret;
 }
 
@@ -714,16 +744,17 @@ bool hdmirx_is_nosig(struct tvin_frontend_s *fe)
  *	return true if video format changed, otherwise
  *	return false.
  ***************************************************/
-bool hdmirx_fmt_chg(struct tvin_frontend_s *fe)
+bool hdmirx_fmt_chg(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
 	bool ret = false;
 	enum tvin_sig_fmt_e fmt = TVIN_SIG_FMT_NULL;
 	struct hdmirx_dev_s *devp;
 	struct tvin_parm_s *parm;
-	u8 port = rx_info.main_port; //todo
+	u8 port;
 
+	port = rx_get_port_from_type(port_type);
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
-	parm = &devp->param;
+	parm = &devp->param[port_type];
 	if (rx_is_sig_ready(port) == false) {
 		ret = true;
 	} else {
@@ -744,12 +775,11 @@ bool hdmirx_fmt_chg(struct tvin_frontend_s *fe)
  * hdmirx_fmt_chg - get current video format
  * @fe: frontend device of tvin interface
  */
-enum tvin_sig_fmt_e hdmirx_get_fmt(struct tvin_frontend_s *fe)
+enum tvin_sig_fmt_e hdmirx_get_fmt(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
 	enum tvin_sig_fmt_e fmt = TVIN_SIG_FMT_NULL;
-	u8 port = rx_info.main_port; //todo
 
-	fmt = hdmirx_hw_get_fmt(port);
+	fmt = hdmirx_hw_get_fmt(rx_get_port_from_type(port_type));
 	return fmt;
 }
 
@@ -1372,7 +1402,7 @@ void hdmirx_get_latency_info(struct tvin_sig_property_s *prop, u8 port)
 	prop->latency.it_content = rx[port].cur.it_content;
 	prop->latency.cn_type = rx[port].cur.cn_type;
 #ifdef CONFIG_AMLOGIC_HDMITX
-	if (rx_info.open_fg  &&
+	if (rx_info.main_port_open  &&
 		(latency_info.allm_mode != rx[port].vs_info_details.hdmi_allm ||
 		latency_info.it_content != rx[port].cur.it_content ||
 		latency_info.cn_type != rx[port].cur.cn_type)) {
@@ -1588,33 +1618,42 @@ void hdmirx_get_up_sample_en(struct tvin_sig_property_s *prop, u8 port)
  *func: hdmirx_get_sig_property - get signal property
  **************************************************/
 void hdmirx_get_sig_prop(struct tvin_frontend_s *fe,
-			     struct tvin_sig_property_s *prop)
+	struct tvin_sig_property_s *prop, enum tvin_port_type_e port_type)
 {
-	hdmirx_get_dvi_info(prop, rx_info.main_port);
-	hdmirx_get_colordepth(prop, rx_info.main_port);
-	hdmirx_get_fps_info(prop, rx_info.main_port);
-	hdmirx_get_color_fmt(prop, rx_info.main_port);
-	hdmirx_get_repetition_info(prop, rx_info.main_port);
-	hdmirx_set_timing_info(prop, rx_info.main_port);
-	hdmirx_get_hdr_info(prop, rx_info.main_port);
-	hdmirx_get_vsi_info(prop, rx_info.main_port);
-	hdmirx_get_spd_info(prop, rx_info.main_port);
-	hdmirx_get_latency_info(prop, rx_info.main_port);
-	hdmirx_get_emp_dv_info(prop, rx_info.main_port);
-	hdmirx_get_vtem_info(prop, rx_info.main_port);
-	hdmirx_get_sbtm_info(prop, rx_info.main_port);
-	hdmirx_get_cuva_emds_info(prop, rx_info.main_port);
-	hdmirx_get_fmm_info(prop, rx_info.main_port);
-	hdmirx_get_active_aspect_ratio(prop, rx_info.main_port);
-	hdmirx_get_hdcp_sts(prop, rx_info.main_port);
-	hdmirx_get_hw_vic(prop, rx_info.main_port);
-	hdmirx_get_avi_ext_colorimetry(prop, rx_info.main_port);
-	hdmirx_get_up_sample_en(prop, rx_info.main_port);
+	u8 cur_port;
+
+	cur_port = rx_get_port_from_type(port_type);
+
+	if (cur_port >= HDMIRX_PORT_MAX) {
+		rx_pr("[error]type:%d,port:[%#x,%#x,%#x]\n",
+			port_type, cur_port, rx_info.main_port, rx_info.sub_port);
+		return;
+	}
+
+	hdmirx_get_dvi_info(prop, cur_port);
+	hdmirx_get_colordepth(prop, cur_port);
+	hdmirx_get_fps_info(prop, cur_port);
+	hdmirx_get_color_fmt(prop, cur_port);
+	hdmirx_get_repetition_info(prop, cur_port);
+	hdmirx_set_timing_info(prop, cur_port);
+	hdmirx_get_hdr_info(prop, cur_port);
+	hdmirx_get_vsi_info(prop, cur_port);
+	hdmirx_get_spd_info(prop, cur_port);
+	hdmirx_get_latency_info(prop, cur_port);
+	hdmirx_get_emp_dv_info(prop, cur_port);
+	hdmirx_get_vtem_info(prop, cur_port);
+	hdmirx_get_sbtm_info(prop, cur_port);
+	hdmirx_get_cuva_emds_info(prop, cur_port);
+	hdmirx_get_fmm_info(prop, cur_port);
+	hdmirx_get_active_aspect_ratio(prop, cur_port);
+	hdmirx_get_hdcp_sts(prop, cur_port);
+	hdmirx_get_hw_vic(prop, cur_port);
+	hdmirx_get_avi_ext_colorimetry(prop, cur_port);
 	prop->skip_vf_num = vdin_drop_frame_cnt;
 	if (log_level & SIG_PROP_LOG) {
-		rx_pr("dvi:%#x,color[%d,%#x,%#x,%#x],fps:%d,spd[%#x,%#x]\n",
-			prop->dvi_info, prop->colordepth, prop->color_format, prop->dest_cfmt,
-			prop->color_fmt_range, prop->fps,
+		rx_pr("cur_port:%#x,dvi:%#x,color[%d,%#x,%#x,%#x],fps:%d,spd[%#x,%#x]\n",
+			cur_port, prop->dvi_info, prop->colordepth, prop->color_format,
+			prop->dest_cfmt, prop->color_fmt_range, prop->fps,
 			prop->spd_data.data[5], prop->spd_data.data[7]);
 		rx_pr("lat:[%#x,%#x,%#x],vic:%d,ec:%d\n",
 			prop->latency.allm_mode, prop->latency.cn_type,
@@ -1802,7 +1841,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 		/* ref board ui can only be set in current hdmi port */
 		if (edid_delivery_mothed == EDID_DELIVERY_ALL_PORT) {
 			rx_irq_en(false, rx_info.main_port);
-			if (rx_info.open_fg) {
+			if (rx_info.main_port_open) {
 				rx_set_cur_hpd(0, 4, rx_info.main_port);
 				rx[rx_info.main_port].var.edid_update_flag = 1;
 			}
@@ -1836,7 +1875,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 		if (rx_info.main_port == port_idx)
 			pre_port = 0xff;
 
-		if (!rx_info.open_fg) {
+		if (!rx_info.main_port_open) {
 			port_hpd_rst_flag |= (1 << port_idx);
 			hdmi_rx_top_edid_update();
 		} else {
@@ -1942,7 +1981,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 		 * it will inform driver that 2.2 not support via ioctl
 		 */
 		//hdcp22_on = 0;
-		//if (rx_info.open_fg)
+		//if (rx_info.main_port_open)
 			//rx_send_hpd_pulse();
 		//else
 			//hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);
@@ -2362,7 +2401,7 @@ static ssize_t hw_info_show(struct device *dev,
 
 	memset(&info, 0, sizeof(info));
 	info.cur_5v = rx[port].cur_5v_sts;
-	info.open = rx_info.open_fg;
+	info.open = rx_info.main_port_open;
 	info.frame_rate = rx[port].pre.frame_rate / 100;
 	info.signal_stable = ((rx[port].state == FSM_SIG_READY) ? 1 : 0);
 	return sprintf(buf, "%x\n", *((unsigned int *)&info));
@@ -3313,6 +3352,8 @@ static void hdmirx_early_suspend(struct early_suspend *h)
 		rx_irq_en(false, E_PORT1);
 		rx_irq_en(false, E_PORT2);
 		rx_irq_en(false, E_PORT3);
+		rx[rx_info.main_port].state = FSM_HPD_LOW;
+		sm_pause = 1;
 	}
 	rx_phy_suspend();
 	rx_pr("%s- ok\n", __func__);
@@ -3326,6 +3367,8 @@ static void hdmirx_late_resume(struct early_suspend *h)
 	early_suspend_flag = false;
 	if (!rx[rx_info.main_port].resume_flag)
 		rx_phy_resume();
+	if (rx_info.chip_id == CHIP_ID_T3X)
+		sm_pause = 0;
 	rx_pr("%s- ok\n", __func__);
 };
 
@@ -4242,6 +4285,16 @@ static struct platform_driver hdmirx_driver = {
 #endif
 	}
 };
+
+u8 rx_get_port_type(u8 port)
+{
+	return (port == rx_info.sub_port) ? TVIN_PORT_SUB : TVIN_PORT_MAIN;
+}
+
+bool rx_is_pip_on(void)
+{
+	return rx_info.pip_on;
+}
 
 int __init hdmirx_init(void)
 {

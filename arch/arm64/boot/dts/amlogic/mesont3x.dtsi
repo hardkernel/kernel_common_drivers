@@ -2696,7 +2696,7 @@
 		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
 		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <0>;
-		/* s5:export vdin id to other module or app */
+		/* export vdin id to other module or app */
 		vdin_export_id = <0>;
 		/*vdin write mem color depth support:
 		 * bit0:support 8bit
@@ -2723,6 +2723,7 @@
 		cr_lossy_ratio = <50>; /* the compression ration in cr_lossy mode */
 		/* urgent_en; */
 		double_write_en;
+		/* dbg_no_wr_check; */
 		/* vdin v4l2 */
 		v4l_support_en = <0>;
 		v4l_vd_num = <70>;
@@ -2759,18 +2760,18 @@
 		/*cma_size = <174>;*/
 		/*frame_buff_num = <6>;*/
 		interrupts = <0 117 1 /* vdin1 vsync */
-				0 120 1 /* vdin1 write_done_int */
+				/*0 120 1*/ /* vdin1 write_done_int */
 				/*0 206 1*/ /* mif2_meta_wr_done_int */
 				/*0 126 1*/>; /* vpu_crash_int */
-		interrupt-names = "vsync_int",
-				"write_done_int";
+		interrupt-names = "vsync_int";
+				/*"write_done_int";*/
 				/*"mif2_meta_wr_done_int"*/
 				/*"vpu_crash_int",*/
 		rdma-irq = <4>;
 //		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS_GATE>;
 //		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <1>;
-		/* s5:export vdin id to other module or app */
+		/* export vdin id to other module or app */
 		vdin_export_id = <2>;
 		/*vdin write mem color depth support:
 		 * bit0:support 8bit
@@ -2791,7 +2792,8 @@
 		 * bit6 -- afbce for 720p
 		 * bit7 -- afbce for smaller resolution
 		 */
-		afbce_bit_mode = <0x11>;
+		afbce_bit_mode = <0x13>;
+		chk_wr_done_en;
 		/* urgent_en; */
 		double_write_en;
 		/* vdin v4l2 */
@@ -2799,7 +2801,7 @@
 		v4l_vd_num = <70>;
 		/* v4l2 capability */
 		driver   = "vdinvideo";
-		bus_info = "vdin0 v4l2";
+		bus_info = "vdin1 v4l2";
 		version  = <0x20220120>;
 		/* fe_ports refer to tvin.h */
 		fe_ports = <0x00001001   /* CVBS1 */

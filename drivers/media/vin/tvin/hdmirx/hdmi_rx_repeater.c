@@ -126,7 +126,7 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 		}
 		rx_irq_en(false, rx_info.main_port);
 		rx_set_cur_hpd(0, 4, rx_info.main_port);
-		if (!rx_info.open_fg)
+		if (!rx_info.main_port_open)
 			port_hpd_rst_flag = 7;
 		//if (hdmirx_repeat_support())
 		rx[rx_info.main_port].hdcp.repeat = true;
@@ -156,7 +156,7 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 			rx_pr("tx_hdr_priority = %d\n", tx_hdr_priority);
 		rx_irq_en(false, rx_info.main_port);
 		rx_set_cur_hpd(0, 4, rx_info.main_port);
-		if (!rx_info.open_fg)
+		if (!rx_info.main_port_open)
 			port_hpd_rst_flag = 7;
 		fsm_restart(rx_info.main_port);
 		ret = NOTIFY_OK;
@@ -288,7 +288,7 @@ unsigned char *rx_get_dw_edid_addr(void)
 
 bool get_rx_active_sts(void)
 {
-	return rx_info.open_fg;
+	return rx_info.main_port_open;
 }
 EXPORT_SYMBOL(get_rx_active_sts);
 

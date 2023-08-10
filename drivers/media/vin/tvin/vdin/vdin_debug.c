@@ -1876,7 +1876,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		vdin_trans_irq_flag_to_str(devp->vdin_irq_flag));
 	pr_info("vpu crash irq cnt: %d\n", devp->vpu_crash_cnt);
 	pr_info("vdin_drop_cnt: %d frame_cnt:%d ignore_frames:%d\n",
-		vdin_drop_cnt, devp->frame_cnt, devp->ignore_frames);
+		devp->vdin_drop_cnt, devp->frame_cnt, devp->ignore_frames);
 	pr_info("game_mode cfg :  0x%x\n", game_mode);
 	pr_info("game_mode cur:  0x%x bypass_game_mode:%#x\n",
 		devp->game_mode, devp->debug.bypass_game_mode);
@@ -1988,7 +1988,7 @@ static int seq_file_vdin_state_show(struct seq_file *seq, void *v)
 	struct tvin_parm_s *cur_parm;
 	struct vf_pool *vfp;
 
-	devp = vdin_get_dev(0);
+	devp = vdin_get_dev(0);//todo
 	vf = &devp->curr_wr_vfe->vf;
 	cur_parm = &devp->parm;
 	vfp = devp->vfp;
@@ -2125,7 +2125,7 @@ static void vdin_dump_count(struct vdin_dev_s *devp)
 	pr_info("frame_cnt:%d\n", devp->frame_cnt);
 	pr_info("ignore_frames:%d\n", devp->ignore_frames);
 	pr_info("frame_drop_num:%d\n", devp->frame_drop_num);
-	pr_info("vdin_drop_cnt: %d\n", vdin_drop_cnt);
+	pr_info("vdin_drop_cnt: %d\n", devp->vdin_drop_cnt);
 	pr_info("vdin_drop_num:%d\n", devp->vdin_drop_num);
 	pr_info("dbg_fr_ctl:%d,drop_ctl_cnt:%d\n", devp->dbg_fr_ctl, devp->vdin_drop_ctl_cnt);
 
@@ -4382,7 +4382,12 @@ start_chk:
 			devp->vdin_drop_num = temp;
 			pr_info("vdin_drop_num:%d\n", devp->vdin_drop_num);
 		}
-	} else if (!strcmp(parm[0], "vdin_input_data_threshold")) {
+	} else if (!strcmp(parm[0], "vdin_isr_drop_num")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			devp->vdin_isr_drop_num = temp;
+			pr_info("vdin_isr_drop_num:%d\n", devp->vdin_isr_drop_num);
+		}
+	} else if (!strcmp(parm[0], "vdin_pcs_reset_threshold")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->vdin_input_data_threshold = temp;
 			pr_info("vdin_input_data_threshold:%d\n",
@@ -4444,6 +4449,18 @@ start_chk:
 			pr_info("vdin%d,vdin_unreg_dmc_notifier\n", devp->index);
 			vdin_unreg_dmc_notifier(devp->index);
 		}
+	} else if (!strcmp(parm[0], "dbg_pip")) {
+		if (kstrtouint(parm[1], 0, &temp) == 0)
+			devp->pip.en = temp;
+		if (kstrtouint(parm[2], 0, &temp) == 0)
+			devp->pip.main_port = temp + TVIN_PORT_HDMI0;
+		if (kstrtouint(parm[3], 0, &temp) == 0)
+			devp->pip.sub_port = temp + TVIN_PORT_HDMI0;
+
+		pr_info("vdin%d,pip,en:%d,main:(%#x)%s,sub:(%#x)%s\n",
+			devp->index, devp->pip.en,
+			devp->pip.main_port, tvin_port_str(devp->pip.main_port),
+			devp->pip.sub_port, tvin_port_str(devp->pip.sub_port));
 	}
 #endif
 	else if (!strcmp(parm[0], "state")) {
@@ -5296,7 +5313,7 @@ static int vdin_dmc_dev_access_notify(struct notifier_block *nb, unsigned long i
 		size = tmp->size;
 		pr_info("vdin this is %ld trust handle func,addr:%lx,size:%lx\n", id,
 			addr, size);
-		devp = vdin_get_dev(vdin_idx);
+		devp = vdin_get_dev(vdin_idx);//todo
 		device_id = devp->debug.dbg_device_id;
 		if (device_id == VDIN_DMC_DEVICE_META)
 			vdin_dmc_meta(devp);

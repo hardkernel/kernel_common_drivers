@@ -2683,8 +2683,8 @@ bool rx_clr_tmds_valid(u8 port)
 		return ret;
 	if (rx[port].state >= FSM_SIG_STABLE) {
 		rx[port].state = FSM_WAIT_CLK_STABLE;
-		if (vpp_mute_enable) {
-			rx_mute_vpp();
+		if (vpp_mute_enable && port != rx_info.sub_port) {
+			rx_mute_vpp(rx_get_port_type(port));
 			rx[port].vpp_mute = true;
 			set_video_mute(HDMI_RX_MUTE_SET, true);
 			rx_pr("vpp mute\n");
@@ -3746,7 +3746,7 @@ static void hdmirx_cor_reset(void)
 
 void rx_afifo_monitor(u8 port)
 {
-	if (rx[port].state != FSM_SIG_READY)
+	if (rx[port].state != FSM_SIG_READY || port == rx_info.sub_port)
 		return;
 
 	if (rx_info.chip_id < CHIP_ID_T7) {
@@ -3773,12 +3773,12 @@ void rx_afifo_monitor(u8 port)
 	}
 	rx[port].afifo_sts = hdmirx_rd_cor(RX_INTR4_PWD_IVCRX, port) & 3;
 	hdmirx_wr_cor(RX_INTR4_PWD_IVCRX, 3, port);
-	if (rx[rx_info.main_port].afifo_sts & 2) {
+	if (rx[port].afifo_sts & 2) {
 		afifo_overflow_cnt++;
 		hdmirx_audio_fifo_rst(port);
 		if (log_level & AUDIO_LOG)
 			rx_pr("overflow\n");
-	} else if (rx[rx_info.main_port].afifo_sts & 1) {
+	} else if (rx[port].afifo_sts & 1) {
 		afifo_underflow_cnt++;
 		hdmirx_audio_fifo_rst(port);
 		if (log_level & AUDIO_LOG)
@@ -3856,7 +3856,7 @@ void rx_hdcp_monitor(u8 port)
 	}
 }
 
-bool rx_special_func_en(void)
+bool rx_special_func_en(u8 port)
 {
 	bool ret = false;
 
@@ -3864,10 +3864,10 @@ bool rx_special_func_en(void)
 		return ret;
 
 #ifdef CVT_DEF_FIXED_HPD_PORT
-	if (rx_info.main_port  == E_PORT0 && ((CVT_DEF_FIXED_HPD_PORT & (1 << E_PORT0)) != 0))
+	if (port == E_PORT0 && ((CVT_DEF_FIXED_HPD_PORT & (1 << E_PORT0)) != 0))
 		ret = true;
 
-	if (rx_info.boot_flag && rx_info.main_port == E_PORT0) {
+	if (rx_info.boot_flag && port == E_PORT0) {
 		if (hdmirx_rd_cor(SCDCS_TMDS_CONFIG_SCDC_IVCRX) & 2)
 			ret = true;
 		//no hdcp
@@ -4319,9 +4319,9 @@ void hdmirx_output_en(bool en)
 	if (rx_info.chip_id < CHIP_ID_T7)
 		return;
 	if (en)
-		hdmirx_wr_top_common(TOP_OVID_OVERRIDE0, 0);
+		hdmirx_wr_top_common_1(TOP_OVID_OVERRIDE0, 0);
 	else
-		hdmirx_wr_top_common(TOP_OVID_OVERRIDE0, 0x80000000);
+		hdmirx_wr_top_common_1(TOP_OVID_OVERRIDE0, 0x80000000);
 }
 
 void hdmirx_hw_config(u8 port)
@@ -5138,10 +5138,18 @@ void hdmirx_set_vp_mapping(enum colorspace_e cs, u8 port)
 		}
 		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX, data32 & 0xff, port);
 		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX + 1, (data32 >> 8) & 0xff, port);
-		data32 = hdmirx_rd_top_common_1(TOP_VID_CNTL);
-		data32 &= (~(0x7 << 24));
-		data32 |= 2 << 24;
-		hdmirx_wr_top_common_1(TOP_VID_CNTL, data32);//to do
+		if (rx_info.main_port_open) {
+			data32 = hdmirx_rd_top_common_1(TOP_VID_CNTL);
+			data32 &= (~(0x7 << 24));
+			data32 |= 2 << 24;
+			hdmirx_wr_top_common_1(TOP_VID_CNTL, data32);//to do
+		}
+		if (rx_info.sub_port_open) {
+			data32 = hdmirx_rd_top_common(TOP_VID_CNTL);
+			data32 &= (~(0x7 << 24));
+			data32 |= 2 << 24;
+			hdmirx_wr_top_common(TOP_VID_CNTL, data32);
+		}
 		return;
 	}
 
@@ -5195,6 +5203,8 @@ void hdmirx_set_video_mute(bool mute, u8 port)
 {
 	static bool pre_mute_flag;
 
+	if (port == rx_info.sub_port)
+		return;
 	/* bluescreen cfg */
 	if (rx_info.chip_id >= CHIP_ID_T5M) {
 		if (rx[port].pre.colorspace == E_COLOR_RGB) {
@@ -5407,7 +5417,7 @@ void rx_clkmsr_monitor(void)
 	rx[E_PORT1].clk.cable_clk_pre = rx[E_PORT1].clk.cable_clk;
 	rx[E_PORT2].clk.cable_clk_pre = rx[E_PORT2].clk.cable_clk;
 	rx[E_PORT3].clk.cable_clk_pre = rx[E_PORT3].clk.cable_clk;
-	if (rx_info.open_fg || rx_info.chip_id == CHIP_ID_T3X)
+	if (rx_info.main_port_open || rx_info.chip_id == CHIP_ID_T3X)
 		schedule_work(&clkmsr_dwork);
 }
 

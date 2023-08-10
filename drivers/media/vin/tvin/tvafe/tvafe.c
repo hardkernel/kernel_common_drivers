@@ -415,7 +415,8 @@ int tvafe_bringup_detect_signal(struct tvafe_dev_s *devp, enum tvin_port_e port)
 /*
  * tvafe open port and init register
  */
-static int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
+static int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
+	enum tvin_port_type_e port_type)
 {
 	struct tvafe_dev_s *devp = container_of(fe, struct tvafe_dev_s,
 						frontend);
@@ -521,7 +522,8 @@ static int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 /*
  * tvafe start after signal stable
  */
-static void tvafe_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
+static void tvafe_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt,
+	enum tvin_port_type_e port_type)
 {
 	struct tvafe_dev_s *devp = container_of(fe, struct tvafe_dev_s,
 						frontend);
@@ -581,7 +583,8 @@ static void tvafe_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
 /*
  * tvafe stop port
  */
-static void tvafe_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
+static void tvafe_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
+	enum tvin_port_type_e port_type)
 {
 	struct tvafe_dev_s *devp = container_of(fe, struct tvafe_dev_s,
 						frontend);
@@ -641,7 +644,7 @@ static void tvafe_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 /*
  * tvafe close port
  */
-static void tvafe_dec_close(struct tvin_frontend_s *fe)
+static void tvafe_dec_close(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
 	struct tvafe_dev_s *devp = container_of(fe, struct tvafe_dev_s,
 						frontend);
@@ -731,7 +734,8 @@ static void tvafe_dec_close(struct tvin_frontend_s *fe)
 /*
  * tvafe vsync interrupt function
  */
-static int tvafe_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
+static int tvafe_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64,
+	enum tvin_port_type_e port_type)
 {
 	struct tvafe_dev_s *devp = container_of(fe, struct tvafe_dev_s,
 						frontend);
@@ -918,7 +922,7 @@ static bool white_pattern_reset_pag(enum tvin_port_e port,
 /*
  * tvafe signal status: signal on/off
  */
-static bool tvafe_is_nosig(struct tvin_frontend_s *fe)
+static bool tvafe_is_nosig(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
 	bool ret = false;
 	/* Get the per-device structure that contains this frontend */
@@ -991,7 +995,7 @@ static bool tvafe_is_nosig(struct tvin_frontend_s *fe)
 /*
  * tvafe signal mode status: change/unchangeable
  */
-bool tvafe_fmt_chg(struct tvin_frontend_s *fe)
+bool tvafe_fmt_chg(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
 	bool ret = false;
 	/* Get the per-device structure that contains this frontend */
@@ -1025,7 +1029,7 @@ bool tvafe_pll_lock(struct tvin_frontend_s *fe)
 /*
  * tvafe search format number
  */
-enum tvin_sig_fmt_e tvafe_get_fmt(struct tvin_frontend_s *fe)
+enum tvin_sig_fmt_e tvafe_get_fmt(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
 	enum tvin_sig_fmt_e fmt = TVIN_SIG_FMT_NULL;
 	/* Get the per-device structure that contains this frontend */
@@ -1162,7 +1166,7 @@ static void tvafe_cutwindow_update(struct tvafe_info_s *tvafe,
  * tvafe signal property: 2D/3D, color format, aspect ratio, pixel repeat
  */
 static void tvafe_get_sig_property(struct tvin_frontend_s *fe,
-		struct tvin_sig_property_s *prop)
+		struct tvin_sig_property_s *prop, enum tvin_port_type_e port_type)
 {
 	struct tvafe_dev_s *devp = container_of(fe, struct tvafe_dev_s,
 						frontend);

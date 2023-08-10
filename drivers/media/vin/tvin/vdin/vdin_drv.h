@@ -1126,6 +1126,11 @@ struct vdin_dev_s {
 	unsigned int err_active;
 	unsigned int vdin_input_data_threshold;
 	unsigned int report_size_abnormal_cnt;/* drop frames casued by report_hv abnormal*/
+	struct vdin_pip_s pip;
+	enum tvin_port_type_e port_type;
+	unsigned int vdin_drop_cnt;
+	unsigned int vdin_isr_drop;
+	unsigned int vdin_isr_drop_num;
 };
 
 extern unsigned int max_ignore_frame_cnt;

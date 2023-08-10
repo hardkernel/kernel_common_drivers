@@ -50,10 +50,14 @@ EXPORT_SYMBOL(vdin_get_support_pixel_format);
 int vdin_capture_picture(struct vdin_parm_s *vdin_cap_param,
 			 struct dma_buf *cap_buf)
 {
+	unsigned int index = 1;
 	struct page *page;
 	struct vdin_dev_s *devp;
 
-	devp = vdin_get_dev(1);
+	if (is_meson_t3x_cpu())
+		index = 2;
+
+	devp = vdin_get_dev(index);
 	if (!devp) {
 		pr_info("devp is null\n");
 		return -1;
@@ -98,7 +102,11 @@ EXPORT_SYMBOL(vdin_capture_picture);
 
 int vdin_screen_get_secure_flag(bool *secure_flag)
 {
+	unsigned int index = 1;
 	struct vdin_dev_s *devp;
+
+	if (is_meson_t3x_cpu())
+		index = 2;
 
 	devp = vdin_get_dev(1);
 	if (!devp) {

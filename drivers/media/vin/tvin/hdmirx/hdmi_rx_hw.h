@@ -3389,9 +3389,9 @@ void aml_phy_iq_skew_monitor(void);
 void aml_eq_eye_monitor(u8 port);
 void aml_phy_power_off(void);
 void rx_dig_clk_en(bool en);
-void rx_mute_vpp(void);
 void rx_clr_scdc(u8 port);
 void scdc_dwork_handler(struct work_struct *work);
+void rx_mute_vpp(u8 port);
 
 /* tl1 tl2 extern */
 void dump_reg_phy_tl1_tm2(void);
@@ -3436,7 +3436,7 @@ void hdmirx_output_en(bool en);
 void hdmirx_hbr2spdif(u8 val, u8 port);
 void rx_hdcp_monitor(u8 port);
 bool rx_sw_scramble_en(void);
-bool rx_special_func_en(void);
+bool rx_special_func_en(u8 port);
 void rx_afifo_monitor(u8 port);
 void rx_ddc_active_monitor(u8 port);
 void rx_clkmsr_monitor(void);
@@ -3467,7 +3467,7 @@ int rx_get_hdcp_auth_sts(u8 port);
 void rx_set_color_bar(bool en, unsigned int lvl, u8 port);
 void reset_pcs(u8 port);
 bool is_earc_hpd_low(void);
-void rx_mute_vpp(void);
+void rx_mute_vpp(u8 port);
 
 /* t3x  */
 void hdmi_tx_rx_frl_training_main(u8 port);

@@ -543,6 +543,12 @@ struct vdin_set_canvas_s {
 	int index;
 };
 
+struct vdin_pip_s {
+	__u8 en;
+	int main_port;
+	int sub_port;
+};
+
 enum tvin_sg_chg_flg {
 	TVIN_SIG_CHG_NONE = 0,
 	TVIN_SIG_CHG_SDR2HDR	= 0x01,
@@ -610,6 +616,7 @@ enum tvin_sg_chg_flg {
 #define TVIN_IOC_G_VRR_STATUS		_IOR(_TM_T, 0x53, struct vdin_vrr_freesync_param_s)
 #define TVIN_IOC_G_VDIN_STATUS         _IOR(_TM_T, 0x54, unsigned int)
 #define TVIN_IOC_G_IMAX_STATUS         _IOR(_TM_T, 0x55, bool)
+#define TVIN_IOC_S_PIP			_IOW(_TM_T, 0x56, struct vdin_pip_s)
 
 #define TVIN_IOC_S_CANVAS_RECOVERY  _IO(_TM_T, 0x0a)
 /* TVAFE */

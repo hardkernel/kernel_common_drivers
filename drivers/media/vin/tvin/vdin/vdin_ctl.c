@@ -6108,7 +6108,7 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 {
 	unsigned long flags;
 	struct vf_pool *p;
-	struct vdin_dev_s *devp = vdin_get_dev(0);
+	struct vdin_dev_s *devp = NULL;
 
 	if (!op_arg) {
 		if (vdin_ctl_dbg & CTL_DEBUG_EVENT_OP_ARG)
@@ -6120,7 +6120,10 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 			pr_info("%s:data is NULL!\n", __func__);
 		return -1;
 	}
+
 	p = (struct vf_pool *)op_arg;
+	devp = (struct vdin_dev_s *)p->priv;
+
 	if (type & VFRAME_EVENT_RECEIVER_GET_AUX_DATA) {
 		struct provider_aux_req_s *req =
 			(struct provider_aux_req_s *)data;
@@ -7398,4 +7401,12 @@ bool vdin_is_auto_pc_mode(struct vdin_dev_s *devp)
 		return true;
 	else
 		return false;
+}
+
+enum tvin_port_type_e vdin_get_port_type(struct vdin_dev_s *devp)
+{
+	if (is_meson_t3x_cpu() && devp->index == 1)
+		return TVIN_PORT_SUB;
+
+	return TVIN_PORT_MAIN;
 }

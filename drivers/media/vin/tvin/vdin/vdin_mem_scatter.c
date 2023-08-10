@@ -91,7 +91,7 @@ void vdin_sct_free_wr_list_idx(struct vf_pool *p, struct vframe_s *vf)
 	}
 
 	if (vfe->sct_stat != VFRAME_SCT_STATE_INIT) {
-		devp = vdin_get_dev(0);
+		devp = (struct vdin_dev_s *)p->priv;
 		if (!devp->afbce_info) {
 			pr_err("%s vdin%d,afbce_info == NULL!!!\n", __func__, devp->index);
 			return;
@@ -227,7 +227,7 @@ void vdin_sct_free(struct vf_pool *p, int index)
 	struct vdin_msct_top_s *psct;
 	struct vdin_dev_s *devp = NULL;
 
-	devp = vdin_get_dev(0);
+	devp = (struct vdin_dev_s *)p->priv;
 
 	if (devp->mem_type != VDIN_MEM_TYPE_SCT)
 		return;

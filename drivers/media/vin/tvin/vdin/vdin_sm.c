@@ -480,7 +480,7 @@ void vdin_auto_de_handler(struct vdin_dev_s *devp)
 	sm_ops = devp->frontend->sm_ops;
 	if ((devp->flags & VDIN_FLAG_DEC_STARTED) &&
 	    sm_ops->get_sig_property) {
-		sm_ops->get_sig_property(devp->frontend, prop);
+		sm_ops->get_sig_property(devp->frontend, prop, devp->port_type);
 		cur_vs = prop->vs;
 		cur_ve = prop->ve;
 		cur_hs = prop->hs;
@@ -545,7 +545,7 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 			if (IS_TVAFE_SRC(devp->parm.port) ||
 			    vdin_get_prop_in_sm_en)
 				sm_ops->get_sig_property(devp->frontend,
-					&devp->prop);
+					&devp->prop, devp->port_type);
 			/*devp->dv.dv_flag = devp->prop.dolby_vision;*/
 		}
 	}
@@ -819,7 +819,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 		    (devp->flags & VDIN_FLAG_SNOW_FLAG))
 			tvafe_snow_config_clamp(1);
 #endif
-		if (sm_ops->nosig(devp->frontend)) {
+		if (sm_ops->nosig(devp->frontend, devp->port_type)) {
 			sm_p->exit_nosig_cnt = 0;
 			if (sm_p->state_cnt >= nosig_in_cnt) {
 				sm_p->state_cnt = nosig_in_cnt;
@@ -856,7 +856,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 
 	case TVIN_SM_STATUS_UNSTABLE:
 		++sm_p->state_cnt;
-		if (sm_ops->nosig(devp->frontend)) {
+		if (sm_ops->nosig(devp->frontend, devp->port_type)) {
 			sm_p->back_stable_cnt = 0;
 			++sm_p->back_nosig_cnt;
 			if (sm_p->back_nosig_cnt >= sm_p->back_nosig_max_cnt) {
@@ -873,7 +873,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 			}
 		} else {
 			sm_p->back_nosig_cnt = 0;
-			if (sm_ops->fmt_changed(devp->frontend)) {
+			if (sm_ops->fmt_changed(devp->frontend, devp->port_type)) {
 				sm_p->back_stable_cnt = 0;
 				if (IS_TVAFE_ATV_SRC(port) &&
 				    devp->unstable_flag &&
@@ -908,7 +908,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 					if (sm_ops->get_fmt &&
 					    sm_ops->get_sig_property) {
 						info->fmt =
-							sm_ops->get_fmt(fe);
+							sm_ops->get_fmt(fe, devp->port_type);
 						/*sm_ops->get_sig_property(fe,*/
 						/*prop);*/
 						info->cfmt = prop->color_format;
@@ -962,7 +962,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 		    (devp->flags & VDIN_FLAG_SNOW_FLAG))
 			tvafe_snow_config_clamp(0);
 #endif
-		if (sm_ops->nosig(devp->frontend)) {
+		if (sm_ops->nosig(devp->frontend, devp->port_type)) {
 			nosig = true;
 			if (sm_debug_enable && !(sm_print_prestable & 0x1)) {
 				pr_info("[smr.%d] warning: no signal\n",
@@ -971,7 +971,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 			}
 		}
 
-		if (sm_ops->fmt_changed(devp->frontend)) {
+		if (sm_ops->fmt_changed(devp->frontend, devp->port_type)) {
 			fmt_changed = true;
 			if (sm_debug_enable && !(sm_print_prestable & 0x2)) {
 				pr_info("[smr.%d] warning: format changed\n",
@@ -1083,7 +1083,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 		unsigned int stable_fmt = 0;
 
 		devp->unstable_flag = true;
-		if (sm_ops->nosig(devp->frontend)) {
+		if (sm_ops->nosig(devp->frontend, devp->port_type)) {
 			nosig = true;
 			if (sm_debug_enable && !sm_print_fmt_nosig) {
 				pr_info("[smr.%d] warning: no signal\n",
@@ -1092,7 +1092,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 			}
 		}
 
-		if (sm_ops->fmt_changed(devp->frontend)) {
+		if (sm_ops->fmt_changed(devp->frontend, devp->port_type)) {
 			fmt_changed = true;
 			if (sm_debug_enable && !sm_print_fmt_chg) {
 				pr_info("[smr.%d] warning: format changed\n",
@@ -1105,7 +1105,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 			vdin_auto_de_handler(devp);
 
 		if (IS_TVAFE_SRC(port) && sm_ops->get_sig_property) {
-			sm_ops->get_sig_property(devp->frontend, prop);
+			sm_ops->get_sig_property(devp->frontend, prop, devp->port_type);
 			devp->parm.info.fps = prop->fps;
 		}
 
@@ -1144,11 +1144,11 @@ void tvin_smr(struct vdin_dev_s *devp)
 				(devp->flags & VDIN_FLAG_SNOW_FLAG) &&
 				(sm_ops->get_fmt && sm_ops->get_sig_property)) {
 				sm_p->state_cnt = 0;
-				stable_fmt = sm_ops->get_fmt(fe);
+				stable_fmt = sm_ops->get_fmt(fe, devp->port_type);
 				if (sm_atv_prestable_fmt != stable_fmt &&
 				    stable_fmt != TVIN_SIG_FMT_NULL) {
 					/*cvbs in*/
-					sm_ops->get_sig_property(fe, prop);
+					sm_ops->get_sig_property(fe, prop, devp->port_type);
 					memcpy(pre_prop, prop,
 					       sizeof(struct
 						      tvin_sig_property_s));
@@ -1192,7 +1192,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 	}
 
 	if (sm_debug_enable & VDIN_SM_LOG_L_5)
-		pr_info("status:%x %x %x\n",
+		pr_info("[smr.%d]status:%x %x %x\n", devp->index,
 			sm_p->state, info->status, sm_p->sig_status);
 
 	if (devp->flags & VDIN_FLAG_DEC_OPENED) {

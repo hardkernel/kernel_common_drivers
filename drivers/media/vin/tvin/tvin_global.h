@@ -383,6 +383,12 @@ enum tvin_hdr_state_e {
 	HDR_STATE_SET,
 };
 
+/* hdmirx have main/sub ports on t3x */
+enum tvin_port_type_e {
+	TVIN_PORT_MAIN,
+	TVIN_PORT_SUB,
+};
+
 struct tvin_hdr_property_s {
 	unsigned int x;/* max */
 	unsigned int y;/* min */

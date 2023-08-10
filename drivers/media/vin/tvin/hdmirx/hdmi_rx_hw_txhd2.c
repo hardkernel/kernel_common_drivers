@@ -1951,7 +1951,7 @@ void aml_phy_short_bist_txhd2(void)
 		rx_pr("long bist done\n");
 	else
 		rx_pr("short bist done\n");
-	if (rx_info.open_fg)
+	if (rx_info.main_port_open)
 		rx_info.aml_phy.pre_int = 1;
 }
 

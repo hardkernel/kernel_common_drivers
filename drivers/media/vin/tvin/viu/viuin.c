@@ -663,7 +663,8 @@ static void viuin_set_wr_bak_ctrl(enum tvin_port_e port)
 
 /*g12a/g12b and before: use viu_loop encl/encp*/
 /*tl1: use viu_loop vpp */
-static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
+static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
+	enum tvin_port_type_e port_type)
 {
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);
 	unsigned int viu_mux = 0;
@@ -767,7 +768,7 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	return 0;
 }
 
-static void viuin_close(struct tvin_frontend_s *fe)
+static void viuin_close(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);
 
@@ -790,7 +791,8 @@ static void viuin_close(struct tvin_frontend_s *fe)
 		wr_viu(VPU_VIU2VDIN_HDN_CTRL, 0x0);
 }
 
-static void viuin_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
+static void viuin_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt,
+	enum tvin_port_type_e port_type)
 {
 	/* do something the same as start_amvdec_viu_in */
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);
@@ -804,7 +806,8 @@ static void viuin_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
 	devp->flag = AMVIUIN_DEC_START;
 }
 
-static void viuin_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
+static void viuin_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
+	enum tvin_port_type_e port_type)
 {
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);
 
@@ -821,7 +824,8 @@ static void viuin_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 #endif
 }
 
-static int viuin_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
+static int viuin_isr(struct tvin_frontend_s *fe, unsigned int hcnt64,
+	enum tvin_port_type_e port_type)
 {
 	int curr_port;
 
@@ -853,7 +857,8 @@ static struct tvin_decoder_ops_s viu_dec_ops = {
 };
 
 static void viuin_sig_property(struct tvin_frontend_s *fe,
-			       struct tvin_sig_property_s *prop)
+			       struct tvin_sig_property_s *prop,
+			       enum tvin_port_type_e port_type)
 {
 	static const struct vinfo_s *vinfo;
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);

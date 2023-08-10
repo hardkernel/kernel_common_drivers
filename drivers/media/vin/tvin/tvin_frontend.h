@@ -37,11 +37,15 @@ struct tvin_decoder_ops_s {
 	 * return 0 if not supported, return other if supported.
 	 */
 	int (*support)(struct tvin_frontend_s *fe, enum tvin_port_e port);
-	int (*open)(struct tvin_frontend_s *fe, enum tvin_port_e port);
-	void (*start)(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt);
-	void (*stop)(struct tvin_frontend_s *fe, enum tvin_port_e port);
-	void (*close)(struct tvin_frontend_s *fe);
-	int (*decode_isr)(struct tvin_frontend_s *fe, unsigned int hcnt64);
+	int (*open)(struct tvin_frontend_s *fe, enum tvin_port_e port,
+		enum tvin_port_type_e port_type);
+	void (*start)(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt,
+		enum tvin_port_type_e port_type);
+	void (*stop)(struct tvin_frontend_s *fe, enum tvin_port_e port,
+		enum tvin_port_type_e port_type);
+	void (*close)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
+	int (*decode_isr)(struct tvin_frontend_s *fe, unsigned int hcnt64,
+		enum tvin_port_type_e port_type);
 	int (*callmaster_det)(enum tvin_port_e port,
 			      struct tvin_frontend_s *fe);
 	int (*ioctl)(struct tvin_frontend_s *fe, void *args);
@@ -49,14 +53,16 @@ struct tvin_decoder_ops_s {
 };
 
 struct tvin_state_machine_ops_s {
-	bool (*nosig)(struct tvin_frontend_s *fe);
-	bool (*fmt_changed)(struct tvin_frontend_s *fe);
-	enum tvin_sig_fmt_e (*get_fmt)(struct tvin_frontend_s *fe);
+	bool (*nosig)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
+	bool (*fmt_changed)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
+	enum tvin_sig_fmt_e (*get_fmt)(struct tvin_frontend_s *fe,
+				       enum tvin_port_type_e port_type);
 	void (*fmt_config)(struct tvin_frontend_s *fe);
 	bool (*adc_cal)(struct tvin_frontend_s *fe);
 	bool (*pll_lock)(struct tvin_frontend_s *fe);
 	void (*get_sig_property)(struct tvin_frontend_s *fe,
-				 struct tvin_sig_property_s *prop);
+				 struct tvin_sig_property_s *prop,
+				 enum tvin_port_type_e port_type);
 	void (*get_sig_property2)(struct tvin_frontend_s *fe,
 				 struct tvin_sig_property_s *prop);
 	void (*vga_set_param)(struct tvafe_vga_parm_s *vga_parm,
@@ -98,7 +104,7 @@ struct tvin_frontend_s *tvin_get_frontend(enum tvin_port_e port, int index);
 struct tvin_decoder_ops_s *tvin_get_fe_ops(enum tvin_port_e port, int index);
 struct tvin_state_machine_ops_s *tvin_get_sm_ops(enum tvin_port_e port,
 						 int index);
-void tvin_notify_vdin_skip_frame(unsigned int drop_num);
+void tvin_notify_vdin_skip_frame(unsigned int drop_num,  enum tvin_port_type_e port_type);
 void tvin_update_vdin_prop(void);
 void viuin_select_loopback_path(void);
 void viuin_clear_loopback_path(void);

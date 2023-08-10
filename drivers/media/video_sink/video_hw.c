@@ -6437,10 +6437,12 @@ bool is_panel_output(void)
 }
 EXPORT_SYMBOL(is_panel_output);
 
-void rx_mute_vpp(void)
+void rx_mute_vpp(u8 port_type)
 {
 	u32 black_val;
 
+	if (port_type)
+		return;
 	black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T7) ||
 		cur_dev->display_module == OLD_DISPLAY_MODULE) {

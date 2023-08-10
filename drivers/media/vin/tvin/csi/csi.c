@@ -148,7 +148,8 @@ static const struct file_operations amcsi_fops = {
 	.release  = amcsi_release,
 };
 
-void amcsi_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
+void amcsi_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt,
+	enum tvin_port_type_e port_type)
 {
 	struct amcsi_dev_s *csi_devp;
 
@@ -156,7 +157,8 @@ void amcsi_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
 	start_amvdec_csi(csi_devp);
 }
 
-static void amcsi_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
+static void amcsi_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
+	enum tvin_port_type_e port_type)
 {
 	struct amcsi_dev_s *devp =
 		container_of(fe, struct amcsi_dev_s, frontend);
@@ -169,7 +171,8 @@ static void amcsi_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 }
 
 void amcsi_get_sig_property(struct tvin_frontend_s *fe,
-		struct tvin_sig_property_s *prop)
+		struct tvin_sig_property_s *prop,
+		enum tvin_port_type_e port_type)
 {
 	struct amcsi_dev_s *devp =
 		container_of(fe, struct amcsi_dev_s, frontend);
@@ -181,7 +184,7 @@ void amcsi_get_sig_property(struct tvin_frontend_s *fe,
 	prop->decimation_ratio = 0;
 }
 
-int amcsi_isr(struct tvin_frontend_s *fe, unsigned int hcnt)
+int amcsi_isr(struct tvin_frontend_s *fe, unsigned int hcnt, enum tvin_port_type_e port_type)
 {
 	struct amcsi_dev_s *devp =
 		container_of(fe, struct amcsi_dev_s, frontend);
@@ -317,7 +320,8 @@ static ssize_t hw_info_store(struct device *dev,
 //static DEVICE_ATTR(hw_info, 640, csi_attr_show, csi_attr_store);
 static DEVICE_ATTR_RW(hw_info);
 
-static int amcsi_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port)
+static int amcsi_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port,
+	enum tvin_port_type_e port_type)
 {
 	struct amcsi_dev_s *csi_devp =
 		container_of(fe, struct amcsi_dev_s, frontend);
@@ -351,7 +355,7 @@ static int amcsi_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	return 0;
 }
 
-static void amcsi_feclose(struct tvin_frontend_s *fe)
+static void amcsi_feclose(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
 	struct amcsi_dev_s *devp =
 		container_of(fe, struct amcsi_dev_s, frontend);

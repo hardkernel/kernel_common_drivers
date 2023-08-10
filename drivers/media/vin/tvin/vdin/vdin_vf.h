@@ -182,6 +182,7 @@ struct vf_pool {
 	unsigned int skip_vf_num;/*skip pre vframe num*/
 	unsigned int vf_move_prt_cnt;
 	enum vframe_disp_mode_e	disp_mode[VFRAME_DISP_MAX_NUM];
+	void *priv;
 };
 
 extern unsigned int dolby_size_byte;

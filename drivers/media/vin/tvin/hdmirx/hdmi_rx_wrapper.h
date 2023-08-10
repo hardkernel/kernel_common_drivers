@@ -21,6 +21,7 @@
 #define ERR_CNT_EN		0x800
 #define TMDS_VALID_EN		0x1000
 #define ECC_ERR_CNT_EN      0x2000
+#define HDMIRX_PORT_MAX		4
 
 /* aud sample rate stable range */
 /* #define AUD_SR_RANGE 2000 */
@@ -135,15 +136,15 @@ extern int flt_ready_max;
 extern int frl_debug_en;
 
 enum tvin_sig_fmt_e hdmirx_hw_get_fmt(u8 port);
-void rx_mute_vpp(void);
+void rx_mute_vpp(u8 port_type);
 void rx_main_state_machine(void);
 void rx_port2_main_state_machine(void);
 void dump_audio_status(u8 port);
 void rx_nosig_monitor(u8 port);
 bool rx_is_nosig(u8 port);
 bool rx_is_sig_ready(u8 port);
-void hdmirx_open_port(enum tvin_port_e port);
-void hdmirx_close_port(void);
+void hdmirx_open_port(u8 main_port, u8 sub_port);
+void hdmirx_close_port(u8 port);
 bool is_clk_stable(u8 port);
 unsigned int rx_get_pll_lock_sts(void);
 unsigned int rx_get_scdc_clkrate_sts(u8 port);
