@@ -5273,6 +5273,19 @@ static struct osd_device_hw_s t3x_dev_property = {
 	.s5_display = 1,
 };
 
+static struct osd_device_hw_s s7_dev_property = {
+	.display_type = NORMAL_DISPLAY,
+	.has_8G_addr = 1,
+	.multi_afbc_core = 0,
+	.share_afbc_core = 0,
+	.has_multi_vpp = 0,
+	.new_blend_bypass = 0,
+	.path_ctrl_independ = 0,
+	.remove_afbc = 0,
+	.remove_pps = 0,
+	.prevsync_support = 0,
+};
+
 static struct osd_device_data_s osd_txhd2 = {
 	.cpu_id = __MESON_CPU_MAJOR_ID_TXHD2,
 	.osd_ver = OSD_HIGH_ONE,
@@ -5293,6 +5306,23 @@ static struct osd_device_data_s osd_txhd2 = {
 	.has_vpp2 = 0,
 };
 #endif
+
+static struct osd_device_data_s osd_s7 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_S7,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 2,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 0,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
+	.mif_linear = 1,
+};
 
 static const struct of_device_id meson_fb_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
@@ -5408,6 +5438,10 @@ static const struct of_device_id meson_fb_dt_match[] = {
 	{
 		.compatible = "amlogic, fb-txhd2",
 		.data = &osd_txhd2,
+	},
+	{
+		.compatible = "amlogic, fb-s7",
+		.data = &osd_s7,
 	},
 #endif
 	{},
@@ -5547,6 +5581,9 @@ static int __init osd_probe(struct platform_device *pdev)
 		       sizeof(struct osd_device_hw_s));
 	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T3X)
 		memcpy(&osd_dev_hw, &t3x_dev_property,
+		       sizeof(struct osd_device_hw_s));
+	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_S7)
+		memcpy(&osd_dev_hw, &s7_dev_property,
 		       sizeof(struct osd_device_hw_s));
 	else
 		memcpy(&osd_dev_hw, &legcy_dev_property,
