@@ -16,6 +16,8 @@
 #include "reg_helper.h"
 #include "frame_lock_policy.h"
 #include "vlock.h"
+#include <linux/amlogic/media/vout/lcd/aml_ldim.h>
+#include <linux/amlogic/media/vout/lcd/aml_bl.h>
 
 #define framelock_pr_info(fmt, args...)      pr_info("FrameLock: " fmt "", ## args)
 #define FrameLockERR(fmt, args...)     pr_err("FrameLock ERR: " fmt "", ## args)
@@ -26,6 +28,8 @@
 #define VRR_POLICY_LOCK_STATUS_DEBUG_FLAG	BIT(2)
 #define VRR_POLICY_DEBUG_RANGE_FLAG			BIT(3)
 #define VRR_POLICY_DEBUG_FREERUN_FLAG		BIT(4)
+#define VRR_POLICY_DEBUG_VF_FLAG			BIT(5)
+#define VRR_POLICY_DEBUG_LD_FLAG			BIT(6)
 
 #define VRRLOCK_SUP_MODE	(VRRLOCK_SUPPORT_HDMI | VRRLOCK_SUPPORT_CVBS)
 
@@ -52,6 +56,10 @@ static unsigned int vrr_display_mode_chg_cmd;
 static unsigned int vrr_mode_chg_skip_cnt = 10;
 
 static struct completion vrr_off_done;
+
+struct freesync_vsif_s freesync_vsif_data;
+struct freesync_vtem_s freesync_vtem_data;
+static unsigned int freesync_pb6_data_pre;
 
 struct vrr_sig_sts frame_sts = {
 	.vrr_support = false,
@@ -140,6 +148,79 @@ void frame_lock_parse_param(char *buf_orig, char **parm)
 			continue;
 		parm[n++] = token;
 	}
+}
+
+void frame_lock_local_dimming_ctrl(u8 freesync_spd_pb6)
+{
+#ifdef CONFIG_AMLOGIC_BL_LDIM
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+#endif
+
+	if (freesync_spd_pb6 & 0x20 && freesync_spd_pb6 & 0x8) {
+		if (frame_lock_debug & VRR_POLICY_DEBUG_LD_FLAG)
+			framelock_pr_info("disable local dimming!!!");
+#ifdef CONFIG_AMLOGIC_BL_LDIM
+		if (ldim_drv->ld_sel_ctrl)
+			ldim_drv->ld_sel_ctrl(0);
+#endif
+	} else {
+		if (frame_lock_debug & VRR_POLICY_DEBUG_LD_FLAG)
+			framelock_pr_info("enable local dimming!!!");
+#ifdef CONFIG_AMLOGIC_BL_LDIM
+			if (ldim_drv->ld_sel_ctrl)
+				ldim_drv->ld_sel_ctrl(1);
+#endif
+	}
+}
+
+int frame_lock_parse_spd_data(struct vframe_s *vf)
+{
+	int ret = -1;
+
+	if (!vf) {
+		if (frame_lock_debug & VRR_POLICY_DEBUG_VF_FLAG)
+			framelock_pr_info("vf is NULL!!!");
+		return ret;
+	}
+
+	if (!vf->spd.addr) {
+		if (frame_lock_debug & VRR_POLICY_DEBUG_VF_FLAG)
+			framelock_pr_info("vf->spd.addr is NULL!!!");
+		return ret;
+	}
+
+	if (vf->spd.size == 0) {
+		if (frame_lock_debug & VRR_POLICY_DEBUG_VF_FLAG)
+			framelock_pr_info("vf->spd.size = 0, return !!!");
+		return ret;
+	}
+
+	if (!vf->vtem.addr) {
+		if (frame_lock_debug & VRR_POLICY_DEBUG_VF_FLAG)
+			framelock_pr_info("vf->vtem.addr is NULL!!!");
+		return ret;
+	}
+
+	if (vf->vtem.size == 0) {
+		if (frame_lock_debug & VRR_POLICY_DEBUG_VF_FLAG)
+			framelock_pr_info("vf->vtem.size = 0");
+		return ret;
+	}
+
+	if (frame_lock_debug & VRR_POLICY_DEBUG_VF_FLAG)
+		framelock_pr_info("vtem.size = %d vf->spd.size = %d", vf->vtem.size, vf->spd.size);
+
+	memset(&freesync_vsif_data, 0, sizeof(struct freesync_vsif_s));
+	memset(&freesync_vtem_data, 0, sizeof(struct freesync_vtem_s));
+	memcpy(&freesync_vsif_data, vf->spd.addr, vf->spd.size * sizeof(u8));
+	memcpy(&freesync_vtem_data, vf->vtem.addr, vf->vtem.size * sizeof(u8));
+
+	if (freesync_pb6_data_pre != freesync_vsif_data.freesync_ctr1)
+		frame_lock_local_dimming_ctrl(freesync_vsif_data.freesync_ctr1);
+
+	freesync_pb6_data_pre = freesync_vsif_data.freesync_ctr1;
+
+	return ret;
 }
 
 int flock_vrr_nfy_callback(struct notifier_block *block, unsigned long cmd,
@@ -628,6 +709,8 @@ void frame_lock_process(struct vframe_s *vf,
 	default:
 		break;
 	}
+
+	frame_lock_parse_spd_data(vf);
 
 	frame_sts.vrr_frame_pre_sts = frame_sts.vrr_frame_lock_type;
 	frame_sts.vrr_policy_pre = frame_sts.vrr_policy;

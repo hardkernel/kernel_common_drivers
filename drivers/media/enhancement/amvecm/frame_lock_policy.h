@@ -39,6 +39,29 @@ struct vrr_sig_sts {
 	u32 vrr_frame_out_fps_max;
 };
 
+struct freesync_vsif_s {
+	u8 pkttype;
+	u8 vsif_version;
+	u8 length;
+	u8 checksum;
+	u8 amd_ieee_oui[3];
+	u8 reserved_pb4_pb5[2];
+	u8 freesync_ctr1;
+	u8 freesync_min_fps;
+	u8 freesync_max_fps;
+	u8 freesync_ctr2;
+	u8 reserved_pb10_pb27[18];
+};
+
+struct freesync_vtem_s {
+	u8 vrr_en;
+	u8 m_const;
+	u8 fva_factor_m1;
+	u8 base_vfront;
+	u8 rb;
+	u16 base_framerate;
+};
+
 extern unsigned int probe_ok;
 extern unsigned int vecm_latch_flag;
 extern unsigned int vlock_en;
