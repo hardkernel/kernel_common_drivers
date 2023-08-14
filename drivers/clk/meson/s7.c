@@ -750,26 +750,12 @@ MESON_CLK_PLL_RW(gp0_pll, ANACTRL_GP0PLL_CTRL0, 28, 1,  /* en */
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table gp1_pll_param_table[] = {
-	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=1200M*/
-	PLL_PARAMS(116, 1, 1), /*DCO=2784 OD=1392M*/
-	PLL_PARAMS(125, 1, 1), /*DCO=3000 OD=1500M*/
-	PLL_PARAMS(67, 1, 0), /*DCO=1608M OD=1608MM*/
-	PLL_PARAMS(71, 1, 0), /*DCO=1704MM OD=1704M*/
-	PLL_PARAMS(75, 1, 0), /*DCO=1800M OD=1800M*/
-	PLL_PARAMS(79, 1, 0), /*DCO=1896M OD=1896M*/
-	PLL_PARAMS(81, 1, 0), /*DCO=1944M OD=1944M*/
+	PLL_PARAMS(71, 1, 1), /*DCO=1704MM OD=852M*/
 	{ /* sentinel */ }
 };
 #else
 static const struct pll_params_table gp1_pll_param_table[] = {
-	PLL_PARAMS(100, 1), /* DCO=2400M */
-	PLL_PARAMS(116, 1), /* DCO=2784 */
-	PLL_PARAMS(125, 1), /* DCO=3000 */
-	PLL_PARAMS(67, 1), /* DCO=1608M */
 	PLL_PARAMS(71, 1), /* DCO=1704M */
-	PLL_PARAMS(75, 1), /* DCO=1800M */
-	PLL_PARAMS(79, 1), /* DCO=1896M */
-	PLL_PARAMS(81, 1), /* DCO=1944M */
 	{ /* sentinel */ }
 };
 #endif
@@ -1435,10 +1421,10 @@ MESON_CLK_GATE_RW(ts_clk, CLKCTRL_TS_CLK_CTRL, 8, 0,
  * 1.gp0 pll only support the 846M, avoid other rate 500/400M from it
  * 2.hifi pll is used for other module, skip it, avoid some rate from it
  */
+static u32 mali_01_parent_table[] = { 0, 1, 3, 4, 5, 6, 7 };
 static const struct clk_parent_data mali_01_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &gp1_pll.hw },
-	{ .hw = &hifi_pll.hw },
 	{ .hw = &fclk_div2p5.hw },
 	{ .hw = &fclk_div3.hw },
 	{ .hw = &fclk_div4.hw },
@@ -1447,12 +1433,12 @@ static const struct clk_parent_data mali_01_parent_data[] = {
 };
 
 MESON_CLK_COMPOSITE_RW(mali_0, CLKCTRL_MALI_CLK_CTRL, 0x7, 9,
-		       NULL, 0, mali_01_parent_data, 0,
+		       mali_01_parent_table, 0, mali_01_parent_data, 0,
 		       CLKCTRL_MALI_CLK_CTRL, 0, 7, NULL, 0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_MALI_CLK_CTRL, 8, 0, CLK_SET_RATE_PARENT);
 
 MESON_CLK_COMPOSITE_RW(mali_1, CLKCTRL_MALI_CLK_CTRL, 0x7, 25,
-		       NULL, 0, mali_01_parent_data, 0,
+		       mali_01_parent_table, 0, mali_01_parent_data, 0,
 		       CLKCTRL_MALI_CLK_CTRL, 16, 7, NULL, 0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_MALI_CLK_CTRL, 24, 0, CLK_SET_RATE_PARENT);
 
