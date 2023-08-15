@@ -611,8 +611,13 @@ static void g12a_osd_afbc_set_state(struct meson_vpu_block *vblk,
 				 line_stride, 0, 12);
 
 	/* set frame addr */
-	reg_ops->rdma_write_reg(osd_reg->viu_osd_blk1_cfg_w4,
-			out_addr & 0xffffffff);
+	if (afbc->shift_bits) {
+		reg_ops->rdma_write_reg(osd_reg->viu_osd_blk1_cfg_w4,
+				(out_addr >> 4) & 0xffffffff);
+	} else {
+		reg_ops->rdma_write_reg(osd_reg->viu_osd_blk1_cfg_w4,
+				out_addr & 0xffffffff);
+	}
 
 	/* set afbc color reorder and mali src*/
 	reg_ops->rdma_write_reg_bits(osd_reg->viu_osd_mali_unpack_ctrl,
@@ -1550,6 +1555,23 @@ static void osd_afbc_hw_init(struct meson_vpu_block *vblk)
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static void s7_osd_afbc_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_pipeline *pipeline = vblk->pipeline;
+	struct meson_vpu_afbc *afbc = to_afbc_block(vblk);
+
+	afbc->afbc_regs = &afbc_osd_regs[vblk->index];
+	afbc->status_regs = &afbc_status_regs;
+	afbc->shift_bits = 1;
+
+	pipeline->subs[0].reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0, 23, 1);
+
+    /* disable osd1 afbc */
+	osd_afbc_enable(vblk, pipeline->subs[0].reg_ops, vblk->index, 0);
+
+	DRM_DEBUG("%s hw_init called.\n", afbc->base.name);
+}
+
 static void t7_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_afbc *afbc = to_afbc_block(vblk);
@@ -1656,6 +1678,15 @@ struct meson_vpu_block_ops afbc_ops = {
 };
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+struct meson_vpu_block_ops s7_afbc_ops = {
+	.check_state = osd_afbc_check_state,
+	.update_state = g12a_osd_afbc_set_state,
+	.enable = osd_afbc_hw_enable,
+	.disable = osd_afbc_hw_disable,
+	.dump_register = osd_afbc_dump_register,
+	.init = s7_osd_afbc_hw_init,
+};
+
 struct meson_vpu_block_ops t7_afbc_ops = {
 	.check_state = osd_afbc_check_state,
 	.update_state = t7_osd_afbc_set_state,

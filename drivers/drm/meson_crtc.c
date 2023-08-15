@@ -26,6 +26,7 @@ MODULE_PARM_DESC(crtc_force_hint, "\n force modesetting hint\n");
 module_param(crtc_force_hint, int, 0644);
 
 int gamma_ctl = 1;
+int meson_gamma_ctl = -1;
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 bool get_amdv_mode(void)
@@ -1183,7 +1184,10 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	meson_vpu_reg_handle_register(sub_pipeline);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
-	if (gamma_ctl) {
+	ret = of_property_read_u32(priv->dev->of_node, "gamma_ctl", &meson_gamma_ctl);
+	if (!gamma_ctl || !meson_gamma_ctl) {
+		DRM_INFO("skip gamma init\n");
+	} else {
 		amvecm_drm_init(0);
 		gamma_lut_size = amvecm_drm_get_gamma_size(0);
 		drm_mode_crtc_set_gamma_size(crtc, gamma_lut_size);

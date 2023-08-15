@@ -1159,6 +1159,31 @@ static void txhd2_postblend_hw_init(struct meson_vpu_block *vblk)
 	MESON_DRM_BLOCK("%s hw_init called.\n", postblend->base.name);
 }
 
+static void s7_postblend_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	struct rdma_reg_ops *reg_ops = vblk->pipeline->subs[0].reg_ops;
+	//s7 pxp bringup VPU workaround
+	reg_ops->rdma_write_reg(VPU_RDARB_MODE_L2C1, 0x0);
+	//s7 pxp bringup enable dolby bypass
+	reg_ops->rdma_write_reg(DOLBY_PATH_CTRL, 0x0c880c0f);
+	//s7 pxp bringup HDR workaround
+	reg_ops->rdma_write_reg(OSD1_HDR2_CTRL, 0x00010000);
+	reg_ops->rdma_write_reg(OSD1_HDR2_MATRIXI_COEF00_01, 0x00bb0275);
+	reg_ops->rdma_write_reg(OSD1_HDR2_MATRIXI_COEF02_10, 0x003f1f99);
+	reg_ops->rdma_write_reg(OSD1_HDR2_MATRIXI_COEF11_12, 0x1ea601c2);
+	reg_ops->rdma_write_reg(OSD1_HDR2_MATRIXI_COEF20_21, 0x01c21e67);
+	reg_ops->rdma_write_reg(OSD1_HDR2_MATRIXI_COEF22, 0x00001fd7);
+	reg_ops->rdma_write_reg(OSD1_HDR2_MATRIXI_OFFSET0_1, 0x00400200);
+	reg_ops->rdma_write_reg(OSD1_HDR2_MATRIXI_OFFSET2, 0x00000200);
+	reg_ops->rdma_write_reg(OSD1_HDR2_MATRIXI_PRE_OFFSET0_1, 0x00000000);
+	reg_ops->rdma_write_reg(OSD1_HDR2_MATRIXI_PRE_OFFSET2, 0x00000000);
+	reg_ops->rdma_write_reg(OSD1_HDR2_MATRIXI_EN_CTRL, 0x1);
+
+	postblend->reg = &postblend_reg;
+	DRM_DEBUG("%s hw_init called.\n", postblend->base.name);
+}
+
 static void t7_postblend_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
@@ -1235,6 +1260,15 @@ struct meson_vpu_block_ops g12b_postblend_ops = {
 	.disable = g12b_postblend_hw_disable,
 	.dump_register = postblend_dump_register,
 	.init = postblend_hw_init,
+};
+
+struct meson_vpu_block_ops s7_postblend_ops = {
+	.check_state = postblend_check_state,
+	.update_state = postblend_set_state,
+	.enable = postblend_hw_enable,
+	.disable = postblend_hw_disable,
+	.dump_register = postblend_dump_register,
+	.init = s7_postblend_hw_init,
 };
 
 struct meson_vpu_block_ops t7_postblend_ops = {

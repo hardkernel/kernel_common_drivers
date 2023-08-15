@@ -456,7 +456,10 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			vf_info.release_fence = video->fence;
 			video_vfm_convert_to_vfminfo(mvvs, &vf_info);
 			vf_info.phy_addr[0] = mvvs->phy_addr[0];
-			vf_info.phy_addr[1] = mvvs->phy_addr[1];
+			if (!mvvs->phy_addr[1])
+				vf_info.phy_addr[1] = mvvs->phy_addr[0] + byte_stride * src_h;
+			else
+				vf_info.phy_addr[1] = mvvs->phy_addr[1];
 			vf_info.reserved[0] = video_type_get(pixel_format);
 			dma_resv_add_excl_fence(vf_info.dmabuf->resv, vf_info.release_fence);
 #ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER

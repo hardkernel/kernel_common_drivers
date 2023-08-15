@@ -6,7 +6,7 @@
 /dts-v1/;
 
 #include "meson-s7.dtsi"
-#include "mesons4d_drm.dtsi"
+#include "mesons7_drm.dtsi"
 / {
 	amlogic-dt-id = "s7_pxp";
 	compatible = "s7_pxp";
@@ -1544,7 +1544,7 @@
 };
 
 &drm_vpu {
-	status = "disabled";
+	status = "okay";
 	logo_addr = "0x1fc00000";
 
 };
@@ -1562,10 +1562,6 @@
 };
 
 &drm_amcvbsout {
-	status = "disabled";
-};
-
-&drm_lcd {
 	status = "disabled";
 };
 

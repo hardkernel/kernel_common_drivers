@@ -350,6 +350,7 @@ struct meson_vpu_afbc {
 	struct afbc_osd_reg_s *afbc_regs;
 	struct afbc_status_reg_s *status_regs;
 	u32 num_of_4k_osd;
+	int shift_bits;
 };
 
 struct meson_vpu_afbc_state {
@@ -725,6 +726,8 @@ extern struct meson_vpu_block_ops s5_postblend_ops;
 extern struct meson_vpu_block_ops slice2ppc_ops;
 extern struct meson_vpu_block_ops t3x_osdblend_ops;
 extern struct meson_vpu_block_ops t3x_afbc_ops;
+extern struct meson_vpu_block_ops s7_afbc_ops;
+extern struct meson_vpu_block_ops s7_postblend_ops;
 
 extern struct meson_vpu_block_ops txhd2_osdblend_ops;
 extern struct meson_vpu_block_ops txhd2_postblend_ops;
