@@ -20,6 +20,7 @@
 #include <linux/amlogic/aml_spi_nand.h>
 #include <linux/amlogic/aml_spi_mem.h>
 #include <linux/amlogic/aml_pageinfo.h>
+#include <linux/amlogic/nand_encryption.h>
 
 static int spinand_read_reg_op(struct spinand_device *spinand, u8 reg, u8 *val)
 {
@@ -365,6 +366,11 @@ static int spinand_read_from_cache_op(struct spinand_device *spinand,
 	void *buf = NULL;
 	u16 column = 0;
 	ssize_t ret;
+#ifdef CONFIG_NAND_ENCRYPTION
+	struct encrypt_partition *encrypt_region;
+	unsigned int i, row = nanddev_pos_to_row(nand, &req->pos);
+	unsigned char *temp_buf;
+#endif
 
 	if (req->mode == MTD_OPS_RAW)
 		spi_mem_set_xfer_flag(SPI_XFER_RAW);
@@ -402,6 +408,20 @@ static int spinand_read_from_cache_op(struct spinand_device *spinand,
 			return -EIO;
 		}
 
+#ifdef CONFIG_NAND_ENCRYPTION
+		encrypt_region = is_need_encrypted(row * nanddev_page_size(nand));
+		if (!column && encrypt_region) {
+			temp_buf = buf;
+			for (i = 0; i < nanddev_page_size(nand); i++) {
+				if (temp_buf[i] != 0xff) {
+					nand_decrypt_page(encrypt_region,
+							  nanddev_page_size(nand),
+							  temp_buf, row);
+					break;
+				}
+			}
+		}
+#endif
 		nbytes -= ret;
 		column += ret;
 		buf += ret;
@@ -435,6 +455,10 @@ static int spinand_write_to_cache_op(struct spinand_device *spinand,
 	unsigned int nbytes, column = 0;
 	void *buf = spinand->databuf;
 	ssize_t ret;
+#ifdef CONFIG_NAND_ENCRYPTION
+	struct encrypt_partition *encrypt_region;
+	unsigned int row = nanddev_pos_to_row(nand, &req->pos);
+#endif
 
 	/*
 	 * Looks like PROGRAM LOAD (AKA write cache) does not necessarily reset
@@ -449,9 +473,17 @@ static int spinand_write_to_cache_op(struct spinand_device *spinand,
 	nbytes = nanddev_page_size(nand) + nanddev_per_page_oobsize(nand);
 	memset(spinand->databuf, 0xff, nanddev_page_size(nand));
 
-	if (req->datalen)
-		memcpy(spinand->databuf + req->dataoffs, req->databuf.out,
-		       req->datalen);
+	if (req->datalen) {
+		memcpy(spinand->databuf + req->dataoffs,
+		       req->databuf.out, req->datalen);
+#ifdef CONFIG_NAND_ENCRYPTION
+		encrypt_region = is_need_encrypted(row * nanddev_page_size(nand));
+		if (encrypt_region)
+			nand_encrypt_page(encrypt_region,
+					  nanddev_page_size(nand),
+					  spinand->databuf, row);
+#endif
+	}
 
 	if (req->ooblen) {
 		if (req->mode == MTD_OPS_AUTO_OOB) {

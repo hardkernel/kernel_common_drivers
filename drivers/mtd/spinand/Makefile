@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 MODULE_NAME = amlogic-spinand
-spinand-objs := core.o gigadevice.o macronix.o micron.o paragon.o toshiba.o winbond.o dosilicon.o meson_spinand.o
+spinand-objs := core.o gigadevice.o macronix.o micron.o paragon.o toshiba.o winbond.o dosilicon.o meson_spinand.o crypto.o
 obj-$(CONFIG_AMLOGIC_MTD_SPI_NAND) += spinand.o
 
 PR_FMT = $(subst amlogic-,,$(MODULE_NAME))
