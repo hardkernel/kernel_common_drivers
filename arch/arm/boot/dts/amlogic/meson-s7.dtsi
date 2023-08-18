@@ -2947,27 +2947,30 @@
 	 * MALI_0 and MALI_1 muxed to a single clock by a glitch
 	 * free mux to safely change frequency while running.
 	 */
-	assigned-clocks = <&clkc CLKID_MALI_0_SEL>,
+	assigned-clocks = <&clkc CLKID_GP1_PLL>,
+			<&clkc CLKID_MALI_0_SEL>,
 			<&clkc CLKID_MALI_0>,
 			<&clkc CLKID_MALI_MUX>; /* Glitch free mux */
-	assigned-clock-parents = <&clkc CLKID_FCLK_DIV4>,
+	assigned-clock-parents = <0>, /* Do Nothing */
+				<&clkc CLKID_FCLK_DIV4>,
 				<0>, /* Do Nothing */
 				<&clkc CLKID_MALI_0>;
-	assigned-clock-rates = <0>, /* Do Nothing */
-			       <500000000>,
-			       <0>; /* Do Nothing */
+	assigned-clock-rates = <852000000>,
+				<0>, /* Do Nothing */
+				<500000000>,
+				<0>; /* Do Nothing */
 
-	tbl = <&dvfs500_cfg
+	tbl = <&dvfs285_cfg
+		&dvfs400_cfg
 		&dvfs500_cfg
-		&dvfs500_cfg
-		&dvfs500_cfg
-		&dvfs500_cfg
-		&dvfs500_cfg>;
+		&dvfs666_cfg
+		&dvfs850_cfg
+		&dvfs850_cfg>;
 
 	dvfs850_cfg:dvfs850_cfg {
-		clk_freq = <846000000>;
+		clk_freq = <852000000>;
 		clk_parent = "gp1_pll";
-		clkp_freq = <846000000>;
+		clkp_freq = <852000000>;
 		clk_reg = <0x200>;
 		voltage = <1150>;
 		keep_count = <5>;
