@@ -7,8 +7,9 @@
 #define _INC_AML_LCD_TCON_FW_H
 #include <linux/types.h>
 #include <linux/stddef.h>
+#include <linux/completion.h>
 
-#define TCON_FW_PARA_VER            2
+#define TCON_FW_PARA_VER            3
 
 enum tcon_fw_chip_e {
 	TCON_CHIP_TL1 = 0,
@@ -40,6 +41,11 @@ struct tcon_fw_config_s {
 	unsigned int if_type;
 	unsigned char axi_cnt;
 	struct tcon_fw_axi_rmem_s *axi_rmem;
+
+	unsigned char *core_reg;    //full tcon bin
+	unsigned int core_reg_size; //size of tcon bin
+	struct lcd_tcon_init_block_header_s *core_reg_header;  //tcon bin header
+	unsigned char *core_reg_table;  //tcon bin register map
 };
 
 struct tcon_fw_base_timing_s {
@@ -96,13 +102,19 @@ struct tcon_fw_data_header_s {
 #define TCON_FW_STATE_OD_VALID        0x00010000
 #define TCON_FW_STATE_LOD_VALID       0x00100000
 
+#define FWCMD_AUTOCALC_SET_QK_REG  0x1
+#define FWCMD_AUTOCALC_GET_RDY_FLG 0x2
+
 struct lcd_tcon_fw_s {
 	/* init by driver */
 	unsigned int para_ver;
 	unsigned int para_size;
 	unsigned char valid;
+
+	// bit[8]: dccd flag, indicate running dccd flow
 	unsigned int flag; //for some state update
 	unsigned int tcon_state;
+	struct completion alg_comp;  //indicate alg handle done
 
 	/* init by fw */
 	char fw_ver[20];
@@ -142,6 +154,7 @@ struct lcd_tcon_fw_s {
 	int (*tcon_alg)(struct lcd_tcon_fw_s *fw, unsigned int flag);
 	ssize_t (*debug_show)(struct lcd_tcon_fw_s *fw, char *buf);
 	ssize_t (*debug_store)(struct lcd_tcon_fw_s *fw, const char *buf, size_t count);
+	int (*cmd_handler)(struct lcd_tcon_fw_s *fw, unsigned int cmd, void *data);
 };
 
 struct lcd_tcon_fw_s *aml_lcd_tcon_get_fw(void);

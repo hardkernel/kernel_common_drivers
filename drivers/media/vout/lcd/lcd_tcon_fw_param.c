@@ -143,6 +143,10 @@ static struct tcon_fw_config_s lcd_tcon_fw_config = {
 	.if_type = TCON_IF_TYPE_MAX,
 	.axi_cnt = 0,
 	.axi_rmem = NULL,
+	.core_reg = NULL,
+	.core_reg_size  = 0,
+	.core_reg_header = NULL,
+	.core_reg_table = NULL,
 };
 
 static struct tcon_fw_base_timing_s lcd_tcon_fw_base_timing;
@@ -305,6 +309,32 @@ void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *t
 		lcd_tcon_fw.config->axi_rmem[i].mem_size = tcon_rmem->axi_rmem[i].mem_size;
 	}
 
+	if (!mm_table->core_reg_table || !mm_table->core_reg_header) {
+		LCDERR("Invalid core reg table\n");
+		kfree(lcd_tcon_fw.config->axi_rmem);
+		lcd_tcon_fw.config->axi_rmem = NULL;
+		lcd_tcon_fw.config->axi_cnt = 0;
+		return;
+	}
+
+	if (pdrv->boot_ctrl->dccd_flag) {
+		lcd_tcon_fw.config->core_reg_size = mm_table->core_reg_header->header_size +
+			mm_table->core_reg_table_size;
+		lcd_tcon_fw.config->core_reg =
+			kzalloc(lcd_tcon_fw.config->core_reg_size, GFP_KERNEL);
+		if (lcd_tcon_fw.config->core_reg) {
+			memmove(lcd_tcon_fw.config->core_reg, mm_table->core_reg_header,
+				mm_table->core_reg_header->header_size);
+			memmove(lcd_tcon_fw.config->core_reg +
+				mm_table->core_reg_header->header_size,
+				mm_table->core_reg_table, mm_table->core_reg_table_size);
+			lcd_tcon_fw.config->core_reg_header =
+				(struct lcd_tcon_init_block_header_s *)lcd_tcon_fw.config->core_reg;
+			lcd_tcon_fw.config->core_reg_table = lcd_tcon_fw.config->core_reg +
+				lcd_tcon_fw.config->core_reg_header->header_size;
+		}
+	}
+
 	if (pdrv->status & LCD_STATUS_IF_ON)
 		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_TCON_EN;
 	if (mm_table->lut_valid_flag & LCD_TCON_DATA_VALID_VAC)
@@ -321,9 +351,11 @@ void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *t
 		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_LOD_VALID;
 
 	lcd_tcon_fw_base_timing_update(pdrv);
+	init_completion(&lcd_tcon_fw.alg_comp);
 
 	lcd_tcon_fw.drvdat = (void *)pdrv;
 	lcd_tcon_fw.dev = pdrv->dev;
+	lcd_tcon_fw.flag |= (((unsigned int)pdrv->boot_ctrl->dccd_flag) << 8);
 
 	lcd_tcon_fw.valid = 1;
 

@@ -1228,18 +1228,22 @@ long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned lon
 	struct aml_lcd_tcon_bin_s lcd_tcon_buff;
 	struct tcon_rmem_s *tcon_rmem = get_lcd_tcon_rmem();
 	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
+	struct lcd_tcon_fw_s *tcon_fw = aml_lcd_tcon_get_fw();
 	struct lcd_tcon_data_block_header_s block_header, block_header_old;
+	struct aml_lcd_dccd_config_s dccd_config;
 	unsigned int size = 0, old_size, temp, m = 0, header_size = 0;
 	struct device *dev;
 	phys_addr_t paddr = 0, paddr_old = 0;
 	unsigned char *mem_vaddr = NULL, *vaddr = NULL, *vaddr_old = NULL;
 	char *str = NULL;
+	unsigned char *buf = NULL;
 	int index = 0;
 	int ret = 0;
 
 	if (!pdrv)
 		return -EFAULT;
 
+	memset(&dccd_config, 0, sizeof(dccd_config));
 	argp = (void __user *)arg;
 	switch (mcd_nr) {
 	case LCD_IOC_GET_TCON_BIN_MAX_CNT_INFO:
@@ -1373,6 +1377,77 @@ set_tcon_bin_error_break:
 			kfree(vaddr);
 		ret = -EFAULT;
 		break;
+	case TCON_IOC_SET_DCCD:
+		ret = -EINVAL;
+		if (copy_from_user(&dccd_config, argp, sizeof(dccd_config)))
+			goto __dccd_set_exit;
+		if (dccd_config.size < 4 || dccd_config.size > 0x10000)
+			goto __dccd_set_exit;
+
+		argp = (void __user *)dccd_config.data.ptr;
+		buf = kzalloc(dccd_config.size, GFP_KERNEL);
+		if (unlikely(!buf)) {
+			LCDERR("Alloc dccd size=%d fail\n", dccd_config.size);
+			goto __dccd_set_exit;
+		}
+
+		if (copy_from_user(buf, argp, dccd_config.size)) {
+			LCDERR("Copy ptr size=%d fail\n", dccd_config.size);
+			goto __dccd_set_exit;
+		}
+		dccd_config.data.ptr = buf;
+		tcon_fw->buf_table_in = (void *)&dccd_config;
+		if (tcon_fw->tcon_alg)
+			ret = tcon_fw->tcon_alg(tcon_fw, 0);
+__dccd_set_exit:
+		kfree(buf);
+		if (!ret)
+			complete_all(&tcon_fw->alg_comp);
+		break;
+	case TCON_IOC_SET_QUICK_REG:
+		ret = -EINVAL;
+		if (!copy_from_user(&temp, argp, sizeof(temp))) {
+			if (tcon_fw->cmd_handler) {
+				ret = tcon_fw->cmd_handler(tcon_fw,
+					FWCMD_AUTOCALC_SET_QK_REG, &temp);
+			}
+		}
+		break;
+	case TCON_IOC_GET_DCCD_FLG:
+		temp = !!(tcon_fw->flag & (1 << 8));
+		if (!copy_to_user(argp, &temp, sizeof(temp)))
+			ret = 0;
+		LCDPR("Get dccd flag(%d) %s!\n", temp, !ret ? "ok" : "error");
+		break;
+	case TCON_IOC_GET_CALC_STATUS:
+		temp = 0;
+		ret = -EINVAL;
+		if (tcon_fw->cmd_handler) {
+			ret = tcon_fw->cmd_handler(tcon_fw,
+				FWCMD_AUTOCALC_GET_RDY_FLG, &temp);
+		}
+		if (!ret && !copy_to_user(argp, &temp, sizeof(temp)))
+			ret = 0;
+		LCDPR("Get dccd status(%d) %s!\n", temp, !ret ? "ok" : "error");
+		break;
+	case TCON_IOC_GET_CALC_BUF:
+		if (!tcon_fw->config || !tcon_fw->config->core_reg)
+			goto __tcon_get_calc_exit;
+		if (copy_from_user(&dccd_config, argp, sizeof(dccd_config)))
+			goto __tcon_get_calc_exit;
+
+		dccd_config.size = tcon_fw->config->core_reg_size;
+		if (copy_to_user(argp, &dccd_config, sizeof(dccd_config)))
+			goto __tcon_get_calc_exit;
+
+		argp = (void __user *)dccd_config.data.ptr;
+		if (copy_to_user(argp, tcon_fw->config->core_reg, dccd_config.size))
+			goto __tcon_get_calc_exit;
+		ret = 0;
+
+__tcon_get_calc_exit:
+		LCDPR("Get tcon calc buf %s\n", ret ? "fail" : "ok");
+		break;
 	default:
 		LCDERR("tcon: don't support ioctl cmd_nr: 0x%x\n", mcd_nr);
 		ret = -EINVAL;
@@ -1424,7 +1499,12 @@ static long lcd_tcon_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	case LCD_IOC_SET_TCON_DATA_INDEX_INFO:
 	case LCD_IOC_GET_TCON_BIN_PATH_INFO:
 	case LCD_IOC_SET_TCON_BIN_DATA_INFO:
-		lcd_tcon_ioctl_handler(pdrv, mcd_nr, arg);
+	case TCON_IOC_SET_DCCD:
+	case TCON_IOC_SET_QUICK_REG:
+	case TCON_IOC_GET_DCCD_FLG:
+	case TCON_IOC_GET_CALC_BUF:
+	case TCON_IOC_GET_CALC_STATUS:
+		ret = lcd_tcon_ioctl_handler(pdrv, mcd_nr, arg);
 		break;
 	default:
 		LCDERR("tcon: don't support ioctl cmd_nr: 0x%x\n", mcd_nr);

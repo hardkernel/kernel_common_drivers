@@ -80,6 +80,14 @@ struct aml_lcd_ss_ctl_s {
 	unsigned int mode;
 };
 
+struct aml_lcd_dccd_config_s {
+	unsigned int size;
+	union {
+		void *ptr;
+		unsigned long long unuse;
+	} data;
+};
+
 #define LCD_IOC_TYPE               'C'
 #define LCD_IOC_NR_GET_HDR_INFO    0x0
 #define LCD_IOC_NR_SET_HDR_INFO    0x1
@@ -95,6 +103,15 @@ struct aml_lcd_ss_ctl_s {
 #define LCD_IOC_GET_PHY_PARAM     0xb
 #define LCD_IOC_SET_SS            0xc
 #define LCD_IOC_GET_SS            0xd
+
+/*
+ * tcon use 0x20~0x2f
+ */
+#define TCON_IOC_SET_DCCD         0x20
+#define TCON_IOC_SET_QUICK_REG    0x21
+#define TCON_IOC_GET_DCCD_FLG     0x22
+#define TCON_IOC_GET_CALC_BUF     0x23
+#define TCON_IOC_GET_CALC_STATUS  0x24
 
 #define LCD_IOC_CMD_GET_HDR_INFO   \
 	_IOR(LCD_IOC_TYPE, LCD_IOC_NR_GET_HDR_INFO, struct lcd_optical_info_s)
@@ -121,6 +138,17 @@ struct aml_lcd_ss_ctl_s {
 	_IOW(LCD_IOC_TYPE, LCD_IOC_SET_SS, struct aml_lcd_ss_ctl_s)
 #define LCD_IOC_CMD_GET_SS   \
 	_IOR(LCD_IOC_TYPE, LCD_IOC_GET_SS, struct aml_lcd_ss_ctl_s)
+
+#define TCON_IOC_CMD_SET_DCCD \
+	_IOW(LCD_IOC_TYPE, TCON_IOC_SET_DCCD, struct aml_lcd_dccd_config_s)
+#define TCON_IOC_CMD_SET_QUICK_REG \
+	_IOW(LCD_IOC_TYPE, TCON_IOC_SET_QUICK_REG, unsigned int)
+#define TCON_IOC_CMD_GET_DCCD_FLG \
+	_IOR(LCD_IOC_TYPE, TCON_IOC_GET_DCCD_FLG, unsigned int)
+#define TCON_IOC_CMD_GET_CALC_BUF \
+	_IOR(LCD_IOC_TYPE, TCON_IOC_GET_CALC_BUF, struct aml_lcd_dccd_config_s)
+#define TCON_IOC_CMD_GET_CALC_STATUS \
+	_IOR(LCD_IOC_TYPE, TCON_IOC_GET_CALC_STATUS, unsigned int)
 
 #endif
 

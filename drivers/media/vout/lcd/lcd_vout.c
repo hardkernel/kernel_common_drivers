@@ -1530,7 +1530,12 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case LCD_IOC_SET_TCON_DATA_INDEX_INFO:
 	case LCD_IOC_GET_TCON_BIN_PATH_INFO:
 	case LCD_IOC_SET_TCON_BIN_DATA_INFO:
-		lcd_tcon_ioctl_handler(pdrv, mcd_nr, arg);
+	case TCON_IOC_SET_DCCD:
+	case TCON_IOC_SET_QUICK_REG:
+	case TCON_IOC_GET_DCCD_FLG:
+	case TCON_IOC_GET_CALC_BUF:
+	case TCON_IOC_GET_CALC_STATUS:
+		ret = lcd_tcon_ioctl_handler(pdrv, mcd_nr, arg);
 		break;
 	case LCD_IOC_POWER_CTRL:
 		if (copy_from_user((void *)&temp, argp, sizeof(unsigned int))) {
@@ -2081,6 +2086,11 @@ static void lcd_config_default(struct aml_lcd_drv_s *pdrv)
 	pdrv->config.timing.dft_timing.v_period = pdrv->config.timing.act_timing.v_period;
 
 	if (init_state) {
+		if (pdrv->boot_ctrl->dccd_flag) {
+			pdrv->boot_ctrl->init_level = LCD_INIT_LEVEL_KERNEL_ON;
+			LCDPR("DCCD flow detected!\n");
+		}
+
 		switch (pdrv->boot_ctrl->init_level) {
 		case LCD_INIT_LEVEL_NORMAL:
 			pdrv->status = (LCD_STATUS_ON | LCD_STATUS_PREPARE | LCD_STATUS_POWER);
@@ -2735,6 +2745,7 @@ static int lcd_boot_ctrl_setup(char *str)
 	boot_ctrl->lcd_bits = (data32 >> 4) & 0xf;
 	boot_ctrl->advanced_flag = (data32 >> 8) & 0xff;
 	boot_ctrl->custom_pinmux = (data32 >> 16) & 0x1;
+	boot_ctrl->dccd_flag = (data32 >> 17) & 0x1;
 	boot_ctrl->init_level = (data32 >> 18) & 0x3;
 	boot_ctrl->ppc = (data32 >> 20) & 0x3;
 	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
@@ -2762,6 +2773,7 @@ static int lcd1_boot_ctrl_setup(char *str)
 	boot_ctrl->lcd_bits = (data32 >> 4) & 0xf;
 	boot_ctrl->advanced_flag = (data32 >> 8) & 0xff;
 	boot_ctrl->custom_pinmux = (data32 >> 16) & 0x1;
+	boot_ctrl->dccd_flag = (data32 >> 17) & 0x1;
 	boot_ctrl->init_level = (data32 >> 18) & 0x3;
 	boot_ctrl->ppc = (data32 >> 20) & 0x3;
 	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
@@ -2789,6 +2801,7 @@ static int lcd2_boot_ctrl_setup(char *str)
 	boot_ctrl->lcd_bits = (data32 >> 4) & 0xf;
 	boot_ctrl->advanced_flag = (data32 >> 8) & 0xff;
 	boot_ctrl->custom_pinmux = (data32 >> 16) & 0x1;
+	boot_ctrl->dccd_flag = (data32 >> 17) & 0x1;
 	boot_ctrl->init_level = (data32 >> 18) & 0x3;
 	boot_ctrl->ppc = (data32 >> 20) & 0x3;
 	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
