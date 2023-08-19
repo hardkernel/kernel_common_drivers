@@ -4463,6 +4463,18 @@ start_chk:
 			devp->index, devp->pip.en,
 			devp->pip.main_port, tvin_port_str(devp->pip.main_port),
 			devp->pip.sub_port, tvin_port_str(devp->pip.sub_port));
+	} else if (!strcmp(parm[0], "dbg_dv_hw5")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))
+			devp->debug.dbg_dv_hw5 = temp;
+		if (parm[2] && (kstrtouint(parm[2], 0, &temp) == 0))
+			devp->debug.dbg_dw_h = temp;
+		if (parm[3] && (kstrtouint(parm[3], 0, &temp) == 0))
+			devp->debug.dbg_dw_v = temp;
+		if (parm[4] && (kstrtouint(parm[4], 0, &temp) == 0))
+			devp->debug.dbg_dw_dfmt = temp;
+		pr_info("vdin%d:dbg_dv_hw5:%#x;%d,%d,%d\n", devp->index,
+			devp->debug.dbg_dv_hw5, devp->debug.dbg_dw_h, devp->debug.dbg_dw_v,
+			devp->debug.dbg_dw_dfmt);
 	}
 #endif
 	else if (!strcmp(parm[0], "state")) {

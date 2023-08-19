@@ -684,6 +684,8 @@ void vdin_set_top_t3x(struct vdin_dev_s *devp, enum tvin_port_e port,
 	if (devp->v_skip_en)
 		wr_bits(0, VPU_VDIN_HDMI0_CTRL1, 1, 7, 1); /* reg_vskip_en */
 	wr_bits(0, VPU_VDIN_HDMI0_CTRL1, devp->pre_prop.up_sample_en, 30, 1);
+
+	vdin_set_scl_mode_t3x(devp, devp->debug.dbg_dv_hw5 & BIT0);
 }
 
 /*this function will set the bellow parameters of devp:
@@ -2849,7 +2851,8 @@ static void vdin_set_hscale_t3x(struct vdin_dev_s *devp, unsigned int dst_w)
 	/* enable hscale */
 	wr_bits(offset, VDIN0_PP_CTRL, 1, PP_HSC_EN_BIT, PP_HSC_EN_WID);
 
-	devp->h_active = dst_w;
+	if (!(devp->debug.dbg_dv_hw5 & BIT0)) //if scaler in vdin_pp_top
+		devp->h_active = dst_w;
 }
 
 /*
@@ -2900,7 +2903,9 @@ static void vdin_set_vscale_t3x(struct vdin_dev_s *devp)
 	wr(offset, VDIN0_VSC_DUMMY_DATA, 0x8080);
 	/* enable vscale */
 	wr_bits(offset, VDIN0_PP_CTRL, 1, PP_VSC_EN_BIT, PP_VSC_EN_WID);
-	devp->v_active = dst_h;
+
+	if (!(devp->debug.dbg_dv_hw5 & BIT0)) //if scaler in vdin_pp_top
+		devp->v_active = dst_h;
 }
 
 static void vdin_pre_hsc_param_init(struct vdin_dev_s *devp, struct vdin_pre_hsc_s *pre_hsc)
@@ -2976,7 +2981,11 @@ static void vdin_set_h_shrink_t3x(struct vdin_dev_s *devp)
 		return;
 	}
 
-	hshrk_mode = src_w / dst_w;
+	if (devp->debug.dbg_dv_hw5 & BIT0) //if scaler in vdin_pp_top
+		return;
+
+	if (dst_w)
+		hshrk_mode = src_w / dst_w;
 
 	/*check maximum value*/
 	if (hshrk_mode < 2 || hshrk_mode > 64) {
@@ -3001,8 +3010,8 @@ static void vdin_set_h_shrink_t3x(struct vdin_dev_s *devp)
 		       hshrk_mode);
 		return;
 	}
-//int hsk_mode = (int)(ceil((float)(vdin->vdin_dw_top.in_hsize) /
-//(float)(vdin->vdin_dw_top.out_hsize)));
+	//int hsk_mode = (int)(ceil((float)(vdin->vdin_dw_top.in_hsize)
+	//(float)(vdin->vdin_dw_top.out_hsize)));
 	coef = 64 / hshrk_mode;
 	coef = (coef << 24) | (coef << 16) | (coef << 8) | coef;
 
@@ -3045,7 +3054,11 @@ static void vdin_set_v_shrink_t3x(struct vdin_dev_s *devp)
 		return;
 	}
 
-	vshrk_mode = src_h / devp->v_shrink_out;
+	if (devp->debug.dbg_dv_hw5 & BIT0) //if scaler in vdin_pp_top
+		return;
+
+	if (devp->v_shrink_out)
+		vshrk_mode = src_h / devp->v_shrink_out;
 
 	pr_err("%s vdin.%d h:%d,v:%d,src:%d %d;mode:%d\n", __func__,
 		   devp->index, devp->h_active, devp->v_active,
@@ -3144,6 +3157,11 @@ set_hv_shrink:
 	}
 	devp->h_shrink_out = devp->h_active / devp->h_shrink_times;
 	devp->v_shrink_out = devp->v_active / devp->v_shrink_times;
+
+	if (devp->debug.dbg_dv_hw5 & BIT0) {
+		devp->h_shrink_out = devp->prop.scaling4w;
+		devp->v_shrink_out = devp->prop.scaling4h;
+	}
 
 	if (devp->double_wr || K_FORCE_HV_SHRINK || devp->debug.dbg_force_shrink_en) {
 		if (devp->h_shrink_out < devp->h_active)
@@ -3269,6 +3287,11 @@ void vdin_set_bitdepth_t3x(struct vdin_dev_s *devp)
 	if (!vdin_is_support_10bit_for_dw_t3x(devp))
 		wr_bits(offset, VDIN0_WRMIF_CTRL2, MIF_8BIT,
 			VDIN_WR_10BIT_MODE_BIT,	VDIN_WR_10BIT_MODE_WID);
+	if (devp->debug.dbg_dv_hw5 & BIT3) {
+		pr_info("%s dw_wrmif_444_10bit\n", __func__);
+		wr_bits(offset, VDIN0_WRMIF_CTRL2, 1,
+			VDIN_WR_10BIT_MODE_BIT, VDIN_WR_10BIT_MODE_WID);
+	}
 	if (vdin_dbg_en)
 		pr_info("%s %d cfg:0x%x prop.dep:%x\n", __func__, devp->source_bitdepth,
 			devp->color_depth_config, devp->prop.colordepth);
@@ -3510,6 +3533,8 @@ void vdin_descramble_setting_t3x(struct vdin_dev_s *devp,
 
 	if (devp->index >= 2) /* vdin2 */
 		return;
+	if (devp->debug.dbg_dv_hw5 & BIT1)
+		return;
 
 	if (vdin_dbg_en)
 		pr_info("vdin DSC in:(%d, %d)(%d, %d)(%d, %d)\n",
@@ -3523,7 +3548,7 @@ void vdin_descramble_setting_t3x(struct vdin_dev_s *devp,
 	wr_bits(offset, VDIN0_DSC_CFMT_W, devp->h_active_org, 16, 13);
 	/* reg_dsc_detunnel_hsize */
 	wr_bits(offset, VDIN0_DSC_HSIZE, devp->h_active_org, 16, 13);
-	wr(offset, VDIN0_DSC_DETUNNEL_SEL, 0x152b);
+	wr(offset, VDIN0_DSC_DETUNNEL_SEL, 0x2c2d0);
 	wr(offset, VDIN0_DSC_CFMT_CTRL, 0x3);
 	wr(offset, VDIN0_DSC_CTRL, 0x125);
 	/* TODO:If reg_dolby_en = 1,we should set detunnel before dolby in vdin core */
@@ -3531,7 +3556,6 @@ void vdin_descramble_setting_t3x(struct vdin_dev_s *devp,
 	if (on_off) {
 		/* reg_dsc_en */
 		wr_bits(offset, VDIN0_DW_CTRL, 1, 4, 1);
-		wr(offset, VDIN0_DSC_DETUNNEL_SEL, 0x152b);
 		/* reg_dsc_detunnel_en */
 		wr_bits(offset, VDIN0_DSC_CTRL, 0x1, 2, 1);
 	} else {
@@ -3550,8 +3574,11 @@ void vdin_scramble_setting_t3x(struct vdin_dev_s *devp,
 {
 	unsigned int offset = devp->addr_offset;
 
+	if (devp->debug.dbg_dv_hw5 & BIT2)
+		return;
+
 	wr(offset, VDIN0_SCB_CTRL, 0x10);
-	wr(offset, VDIN0_SCB_TUNNEL, 0x12221d9);
+	wr(offset, VDIN0_SCB_TUNNEL, 0xc07622);
 	wr_bits(offset, VDIN0_SCB_SIZE, devp->v_active, 0, 13);
 	wr_bits(offset, VDIN0_SCB_SIZE, devp->h_active, 16, 13);
 	if (on_off) {
@@ -3572,7 +3599,7 @@ void vdin_dv_tunnel_set_t3x(struct vdin_dev_s *devp)
 	if (!vdin_is_dolby_signal_in(devp))
 		return;
 
-	if (!devp->dtdata->de_tunnel_tunnel)
+	if (!devp->dtdata->de_tunnel_tunnel && !devp->debug.dbg_dv_hw5)
 		return;
 
 	if (vdin_dbg_en) {
@@ -3804,4 +3831,12 @@ unsigned int vdin_get_div_t3x(struct vdin_dev_s *devp)
 		div_val = 1;
 
 	return div_val;
+}
+
+void vdin_set_scl_mode_t3x(struct vdin_dev_s *devp, bool on_off)
+{
+	if (on_off)
+		wr_bits(devp->addr_offset, VDIN0_PP_CTRL, 0x1, 9, 1);
+	else
+		wr_bits(devp->addr_offset, VDIN0_PP_CTRL, 0x0, 9, 1);
 }

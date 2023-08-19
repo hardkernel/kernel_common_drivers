@@ -239,5 +239,5 @@ void vdin_bist_t3x(struct vdin_dev_s *devp, unsigned int mode);
 bool vdin_is_wrmif_done_t3x(struct vdin_dev_s *devp);
 void vdin_clr_write_done_t3x(struct vdin_dev_s *devp);
 unsigned int vdin_get_div_t3x(struct vdin_dev_s *devp);
+void vdin_set_scl_mode_t3x(struct vdin_dev_s *devp, bool on_off);
 #endif
-

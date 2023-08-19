@@ -1093,6 +1093,14 @@ static void vdin_scale_and_cutwin_handle(struct vdin_dev_s *devp)
 		devp->prop.scaling4h = devp->parm.dest_height;
 	}
 
+	if (devp->debug.dbg_dw_h && devp->debug.dbg_dw_v &&
+		devp->debug.dbg_dw_dfmt) {
+		devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
+		devp->debug.scaling4w = devp->fmt_info_p->h_active / devp->debug.dbg_dw_h;
+		devp->debug.scaling4h = devp->fmt_info_p->v_active / devp->debug.dbg_dw_v;
+		devp->debug.dest_cfmt = devp->debug.dbg_dw_dfmt;
+	}
+
 	/* prevent display of resolution beyond specification */
 	if (IS_HDMI_SRC(devp->parm.port) && vdin0_max_w_h) {
 		if (devp->fmt_info_p->h_active > (vdin0_max_w_h >> 16))

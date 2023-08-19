@@ -582,6 +582,7 @@ struct vdin_debug_s {
 	unsigned int dbg_pattern;
 	unsigned int dbg_device_id;
 	unsigned int dbg_sct_ctl;
+	unsigned int dbg_wrmif_444;
 	unsigned int dbg_de_interlanced_ctl;
 	unsigned short scaling4h;/* for vertical scaling */
 	unsigned short scaling4w;/* for horizontal scaling */
@@ -607,6 +608,11 @@ struct vdin_debug_s {
 	unsigned int dbg_reg_addr[DBG_REG_LENGTH];
 	unsigned int dbg_reg_val[DBG_REG_LENGTH];
 	unsigned int dbg_reg_bit[DBG_REG_LENGTH];
+	/* bit0:scl_mode;bit1:bypass dsc;bit2:bypass sc */
+	unsigned int dbg_dv_hw5;
+	unsigned int dbg_dw_h;
+	unsigned int dbg_dw_v;
+	unsigned int dbg_dw_dfmt;
 };
 
 struct vdin_dv_s {
