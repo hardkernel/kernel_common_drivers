@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/clkdev.h>
+#include <linux/arm-smccc.h>
 
 #include "clk-pll.h"
 #include "clk-regmap.h"
@@ -603,70 +604,6 @@ static const struct clk_parent_data pll_dco_parent = {
 	.fw_name = "xtal",
 };
 
-#ifdef CONFIG_ARM
-static const struct pll_params_table sys_pll_params_table[] = {
-	PLL_PARAMS(67, 1, 0), /*DCO=1608M OD=1608MM*/
-	PLL_PARAMS(71, 1, 0), /*DCO=1704MM OD=1704M*/
-	PLL_PARAMS(75, 1, 0), /*DCO=1800M OD=1800M*/
-	PLL_PARAMS(79, 1, 0), /*DCO=1896M OD=1896M*/
-	PLL_PARAMS(84, 1, 0), /*DCO=2016M OD=2016M*/
-	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=1200M*/
-	PLL_PARAMS(116, 1, 1), /*DCO=2784M OD=1392M*/
-	PLL_PARAMS(126, 1, 1), /*DCO=3024M OD=1512M*/
-	PLL_PARAMS(133, 1, 1), /*DCO=3192M OD=1596M*/
-	{ /* sentinel */ }
-};
-#else
-static const struct pll_params_table sys_pll_params_table[] = {
-	PLL_PARAMS(67, 1), /*DCO=1608M*/
-	PLL_PARAMS(71, 1), /*DCO=1704M*/
-	PLL_PARAMS(75, 1), /*DCO=1800M*/
-	PLL_PARAMS(79, 1), /*DCO=1896M*/
-	PLL_PARAMS(84, 1), /*DCO=2016M*/
-	PLL_PARAMS(100, 1), /*DCO=2400M*/
-	PLL_PARAMS(116, 1), /*DCO=2784M*/
-	PLL_PARAMS(126, 1), /*DCO=3024M*/
-	PLL_PARAMS(133, 1), /*DCO=3192M*/
-	{ /* sentinel */ }
-};
-#endif
-
-MESON_CLK_PLL_SEC(sys_pll, ANACTRL_SYS0PLL_CTRL0, 28, 1,  /* en */
-		  ANACTRL_SYS0PLL_CTRL0, 0, 9,  /* m */
-		  0, 0, 0,  /* frac */
-		  ANACTRL_SYS0PLL_CTRL0, 11, 5,  /* n */
-		  ANACTRL_SYS0PLL_CTRL0, 31, 1,  /* lock */
-		  ANACTRL_SYS0PLL_CTRL0, 29, 1,  /* rst */
-		  NULL, sys_pll_params_table,
-		  SECURE_PLL_CLK, SECID_SYS0_DCO_PLL, SECID_SYS0_DCO_PLL_DIS,
-		  0,
-		  &pll_dco_parent, 0,
-		  ANACTRL_SYS0PLL_CTRL0, 9, 2   /* od */
-#ifdef CONFIG_ARM
-		  );
-#else
-		  , NULL, SECURE_PLL_CLK, SECID_SYS0_PLL_OD,
-		  CLK_DIVIDER_POWER_OF_TWO);
-#endif
-
-MESON_CLK_PLL_SEC(sys1_pll, ANACTRL_SYS1PLL_CTRL0, 28, 1,  /* en */
-		  ANACTRL_SYS1PLL_CTRL0, 0, 9,  /* m */
-		  0, 0, 0,  /* frac */
-		  ANACTRL_SYS1PLL_CTRL0, 11, 5,  /* n */
-		  ANACTRL_SYS1PLL_CTRL0, 31, 1,  /* lock */
-		  ANACTRL_SYS1PLL_CTRL0, 29, 1,  /* rst */
-		  NULL, sys_pll_params_table,
-		  SECURE_PLL_CLK, SECID_SYS1_DCO_PLL, SECID_SYS1_DCO_PLL_DIS,
-		  0,
-		  &pll_dco_parent, 0,
-		  ANACTRL_SYS1PLL_CTRL0, 9, 2   /* od */
-#ifdef CONFIG_ARM
-		  );
-#else
-		  , NULL, SECURE_PLL_CLK, SECID_SYS1_PLL_OD,
-		  CLK_DIVIDER_POWER_OF_TWO);
-#endif
-
 MESON_CLK_PLL_RO(fixed_pll, ANACTRL_FIXPLL_CTRL0, 28, 1,  /* en */
 		 ANACTRL_FIXPLL_CTRL0, 0,  9,  /* m */
 		 0, 0,  0,  /* frac */
@@ -772,141 +709,6 @@ MESON_CLK_PLL_SEC(gp1_pll, ANACTRL_GP1PLL_CTRL0, 28, 1,  /* en */
 		  , NULL, SECURE_PLL_CLK, SECID_GP1_PLL_OD,
 		  CLK_DIVIDER_POWER_OF_TWO);
 #endif
-
-/*cpu_clk*/
-static const struct cpu_dyn_table cpu_dyn_parent_table[] = {
-	CPU_LOW_PARAMS(24000000, 0, 0, 0),
-	CPU_LOW_PARAMS(100000000, 1, 1, 9),
-	CPU_LOW_PARAMS(250000000, 1, 1, 3),
-	CPU_LOW_PARAMS(333333333, 2, 1, 1),
-	CPU_LOW_PARAMS(500000000, 1, 1, 1),
-	CPU_LOW_PARAMS(666666666, 2, 0, 0),
-	CPU_LOW_PARAMS(1000000000, 1, 0, 0)
-};
-
-static const struct clk_parent_data cpu_dyn_parent_data[] = {
-	{ .fw_name = "xtal", },
-	{ .hw = &fclk_div2.hw },
-	{ .hw = &fclk_div3.hw },
-	{ .hw = &fclk_div2p5.hw }
-};
-
-MESON_CLK_CPU_DYN_SEC_RW(cpu_dyn_clk, SECID_CPU_CLK_DYN, SECID_CPU_CLK_RD,
-			 cpu_dyn_parent_table, cpu_dyn_parent_data, 0);
-
-static const struct clk_parent_data cpu_parent_data[] = {
-	{ .hw = &cpu_dyn_clk.hw },
-	{ .hw = &sys_pll.hw }
-};
-
-MESON_CLK_MUX_SEC(cpu_clk, CPUCTRL_SYS_CPU_CLK_CTRL, 0x1, 11,
-			NULL, SECURE_CPU_CLK, SECID_CPU_CLK_SEL, SECID_CPU_CLK_RD,
-			0, cpu_parent_data,
-			CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE);
-
-/*dsu_clk*/
-static const struct clk_parent_data dsu_dyn_parent_data[] = {
-	{ .fw_name = "xtal", },
-	{ .hw = &fclk_div2.hw },
-	{ .hw = &fclk_div3.hw },
-	{ .hw = &sys1_pll.hw }
-};
-
-MESON_CLK_CPU_DYN_SEC_RW(dsu_dyn_clk, SECID_DSU_CLK_DYN, SECID_DSU_CLK_RD,
-			 cpu_dyn_parent_table, dsu_dyn_parent_data, 0);
-
-static const struct clk_parent_data dsu_parent_data[] = {
-	{ .hw = &dsu_dyn_clk.hw },
-	{ .hw = &sys_pll.hw }
-};
-
-MESON_CLK_MUX_SEC(dsu_clk, CPUCTRL_SYS_CPU_CLK_CTRL5, 0x1, 11,
-		  NULL, SECURE_CPU_CLK, SECID_DSU_CLK_SEL, SECID_DSU_CLK_RD,
-		  0, dsu_parent_data,
-		  CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE);
-
-static const struct clk_parent_data dsu_final_parent_data[] = {
-	{ .hw = &dsu_clk.hw },
-	{ .hw = &cpu_clk.hw }
-};
-
-MESON_CLK_MUX_SEC(dsu_final_clk, CPUCTRL_SYS_CPU_CLK_CTRL6, 0x1, 27,
-		  NULL, SECURE_CPU_CLK, SECID_DSU_FINAL_CLK_SEL, SECID_DSU_FINAL_CLK_RD,
-		  0, dsu_final_parent_data,
-		  CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE);
-
-struct s7_sys_pll_nb_data {
-	struct notifier_block nb;
-	struct clk_hw *sys_pll;
-	struct clk_hw *cpu_clk;
-	struct clk_hw *cpu_dyn_clk;
-};
-
-static int s7_sys_pll_notifier_cb(struct notifier_block *nb,
-				  unsigned long event, void *data)
-{
-	struct s7_sys_pll_nb_data *nb_data =
-		container_of(nb, struct s7_sys_pll_nb_data, nb);
-
-	switch (event) {
-	case PRE_RATE_CHANGE:
-		/*
-		 * This notifier means sys_pll clock will be changed
-		 * to feed cpu_clk, this the current path :
-		 * cpu_clk
-		 *    \- sys_pll
-		 *          \- sys_pll_dco
-		 */
-
-		/* make sure cpu_clk 1G*/
-		if (clk_set_rate(nb_data->cpu_dyn_clk->clk, 1000000000))
-			pr_err("%s in %d\n", __func__, __LINE__);
-		/* Configure cpu_clk to use cpu_dyn_clk */
-		clk_hw_set_parent(nb_data->cpu_clk,
-				  nb_data->cpu_dyn_clk);
-
-		/*
-		 * Now, cpu_clk uses the dyn path
-		 * cpu_clk
-		 *    \- cpu_dyn_clk
-		 *          \- cpu_clk_dynX
-		 *                \- cpu_clk_dynX_mux
-		 *		     \- cpu_clk_dynX_div
-		 *                      \- xtal/fclk_div2/fclk_div3
-		 *                   \- xtal/fclk_div2/fclk_div3
-		 */
-
-		return NOTIFY_OK;
-
-	case POST_RATE_CHANGE:
-		/*
-		 * The sys_pll has ben updated, now switch back cpu_clk to
-		 * sys_pll
-		 */
-
-		/* Configure cpu_clk to use sys_pll */
-		clk_hw_set_parent(nb_data->cpu_clk,
-				  nb_data->sys_pll);
-
-		/* new path :
-		 * cpu_clk
-		 *    \- sys_pll
-		 *          \- sys_pll_dco
-		 */
-
-		return NOTIFY_OK;
-
-	default:
-		return NOTIFY_DONE;
-	}
-}
-
-static struct s7_sys_pll_nb_data s7_sys_pll_nb_data = {
-	.sys_pll = &sys_pll.hw,
-	.cpu_clk = &cpu_clk.hw,
-	.cpu_dyn_clk = &cpu_dyn_clk.hw,
-	.nb.notifier_call = s7_sys_pll_notifier_cb,
-};
 
 /* hifi_pll */
 static const struct clk_parent_data hifi_pll_dco_parent_data = {
@@ -1890,6 +1692,155 @@ MESON_CLK_GATE_AXI_CLK(axi_sys_nic, CLKCTRL_AXI_CLK_EN0, 0);
 MESON_CLK_GATE_AXI_CLK(axi_sram, CLKCTRL_AXI_CLK_EN0, 0);
 MESON_CLK_GATE_AXI_CLK(axi_dev0_mmc, CLKCTRL_AXI_CLK_EN0, 0);
 
+struct aml_cpu_clk_data {
+	const unsigned long *rate;
+	u32 smc_id;
+	u8 rate_cnt;
+	u8 secid_rd;
+	u8 secid;
+};
+
+static inline struct aml_cpu_clk_data *aml_cpu_clk_data(struct clk_regmap *clk)
+{
+	return (struct aml_cpu_clk_data *)clk->data;
+}
+
+static unsigned long aml_secure_cpu_clk_recalc_rate(struct clk_hw *hw,
+						    unsigned long parent_rate)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct aml_cpu_clk_data *cpu_clk = aml_cpu_clk_data(clk);
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(cpu_clk->smc_id, cpu_clk->secid_rd,
+		      0, 0, 0, 0, 0, 0, &res);
+
+	return res.a0;
+}
+
+static int aml_secure_cpu_clk_determine_rate(struct clk_hw *hw,
+					     struct clk_rate_request *req)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct aml_cpu_clk_data *cpu_clk = aml_cpu_clk_data(clk);
+	int i;
+	unsigned long best_rate = 0;
+
+	/*
+	 * The minimum frequency is matched when the request frequency is less
+	 * than the minimum frequency in clk users
+	 */
+	if (req->rate < req->min_rate)
+		req->rate = req->min_rate;
+
+	if (req->rate < cpu_clk->rate[0]) {
+		req->rate = cpu_clk->rate[0];
+		goto out;
+	}
+
+	if (req->rate > cpu_clk->rate[cpu_clk->rate_cnt - 1]) {
+		req->rate = cpu_clk->rate[cpu_clk->rate_cnt - 1];
+		goto out;
+	}
+
+	for (i = 0; i < cpu_clk->rate_cnt; i++) {
+		if (req->rate == cpu_clk->rate[i]) {
+			best_rate = cpu_clk->rate[i];
+			break;
+		} else if (req->rate > cpu_clk->rate[i]) {
+			best_rate = cpu_clk->rate[i];
+		} else {
+			if (abs(cpu_clk->rate[i] - req->rate) < best_rate)
+				best_rate = cpu_clk->rate[i];
+			break;
+		}
+	}
+
+	req->rate = best_rate;
+out:
+	return 0;
+}
+
+static int aml_secure_cpu_clk_set_rate(struct clk_hw *hw, unsigned long rate,
+				       unsigned long parent_rate)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct aml_cpu_clk_data *cpu_clk = aml_cpu_clk_data(clk);
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(cpu_clk->smc_id, cpu_clk->secid, rate, 0, 0, 0, 0, 0, &res);
+
+	return 0;
+}
+
+const struct clk_ops aml_secure_cpu_clk_ops = {
+	.recalc_rate	= aml_secure_cpu_clk_recalc_rate,
+	.determine_rate	= aml_secure_cpu_clk_determine_rate,
+	.set_rate	= aml_secure_cpu_clk_set_rate,
+};
+
+static unsigned long cpu_clk_rate[] = {
+	100000000,
+	250000000,
+	500000000,
+	666666000,
+	1000000000,
+	1200000000,
+	1404000000,
+	1500000000,
+	1608000000,
+	1704000000,
+	1800000000,
+	1920000000,
+	2016000000
+};
+
+static struct clk_regmap cpu_clk = {
+	.data = &(struct aml_cpu_clk_data){
+		.rate = cpu_clk_rate,
+		.rate_cnt = ARRAY_SIZE(cpu_clk_rate),
+		.smc_id = SECURE_CPU_CLK,
+		.secid = SECID_CPU_CLK_SET,
+		.secid_rd = SECID_CPU_CLK_GET,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "cpu_clk",
+		.ops = &aml_secure_cpu_clk_ops,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
+		.num_parents = 1,
+	},
+};
+
+static unsigned long dsu_clk_rate[] = {
+	100000000,
+	250000000,
+	500000000,
+	666666000,
+	1000000000,
+	1200000000,
+	1500000000
+};
+
+static struct clk_regmap dsu_clk = {
+	.data = &(struct aml_cpu_clk_data){
+		.rate = dsu_clk_rate,
+		.rate_cnt = ARRAY_SIZE(dsu_clk_rate),
+		.smc_id = SECURE_CPU_CLK,
+		.secid = SECID_DSU_CLK_SET,
+		.secid_rd = SECID_DSU_CLK_GET,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "dsu_clk",
+		.ops = &aml_secure_cpu_clk_ops,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
+		.num_parents = 1,
+	},
+};
+
 /* Array of all clocks provided by this provider */
 static struct clk_hw_onecell_data s7_hw_onecell_data = {
 	.hws = {
@@ -1897,14 +1848,6 @@ static struct clk_hw_onecell_data s7_hw_onecell_data = {
 		[CLKID_FIXED_PLL_DCO]		= &fixed_pll_dco.hw,
 #endif
 		[CLKID_FIXED_PLL]		= &fixed_pll.hw,
-#ifndef CONFIG_ARM
-		[CLKID_SYS0_PLL_DCO]		= &sys_pll_dco.hw,
-#endif
-		[CLKID_SYS0_PLL]		= &sys_pll.hw,
-#ifndef CONFIG_ARM
-		[CLKID_SYS1_PLL_DCO]		= &sys1_pll_dco.hw,
-#endif
-		[CLKID_SYS1_PLL]		= &sys1_pll.hw,
 		[CLKID_FCLK_DIV2_DIV]		= &fclk_div2_div.hw,
 		[CLKID_FCLK_DIV2]		= &fclk_div2.hw,
 		[CLKID_FCLK_DIV3_DIV]		= &fclk_div3_div.hw,
@@ -1928,14 +1871,8 @@ static struct clk_hw_onecell_data s7_hw_onecell_data = {
 		[CLKID_GP1_PLL_DCO]		= &gp1_pll_dco.hw,
 #endif
 		[CLKID_GP1_PLL]			= &gp1_pll.hw,
-
-		[CLKID_CPU_DYN_CLK]		= &cpu_dyn_clk.hw,
 		[CLKID_CPU_CLK]			= &cpu_clk.hw,
-
-		[CLKID_DSU_DYN_CLK]		= &dsu_dyn_clk.hw,
 		[CLKID_DSU_CLK]			= &dsu_clk.hw,
-		[CLKID_DSU_FINAL_CLK]		= &dsu_final_clk.hw,
-
 #ifndef CONFIG_ARM
 		[CLKID_HIFI_PLL_DCO]		= &hifi_pll_dco.hw,
 #endif
@@ -2474,16 +2411,7 @@ static struct clk_regmap *const s7_clk_regmaps[] = {
 	&sys_pwm_a,
 	&axi_sys_nic,
 	&axi_sram,
-	&axi_dev0_mmc,
-};
-
-static struct clk_regmap *const s7_cpu_clk_regmaps[] = {
-	&cpu_dyn_clk,
-	&cpu_clk,
-
-	&dsu_dyn_clk,
-	&dsu_clk,
-	&dsu_final_clk
+	&axi_dev0_mmc
 };
 
 static struct clk_regmap *const s7_pll_clk_regmaps[] = {
@@ -2491,14 +2419,6 @@ static struct clk_regmap *const s7_pll_clk_regmaps[] = {
 	&fixed_pll_dco,
 #endif
 	&fixed_pll,
-#ifndef CONFIG_ARM
-	&sys_pll_dco,
-#endif
-	&sys_pll,
-#ifndef CONFIG_ARM
-	&sys1_pll_dco,
-#endif
-	&sys1_pll,
 	&fclk_div2,
 	&fclk_div3,
 	&fclk_div4,
@@ -2524,21 +2444,6 @@ static struct clk_regmap *const s7_pll_clk_regmaps[] = {
 #endif
 	&hifi1_pll
 };
-
-static int meson_s7_dvfs_setup(struct platform_device *pdev)
-{
-	int ret;
-
-	/* Setup clock notifier for sys_pll */
-	ret = clk_notifier_register(sys_pll.hw.clk,
-				    &s7_sys_pll_nb_data.nb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register sys_pll notifier\n");
-		return ret;
-	}
-
-	return 0;
-}
 
 static struct regmap_config clkc_regmap_config = {
 	.reg_bits       = 32,
@@ -2576,7 +2481,6 @@ static int meson_s7_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct regmap *basic_map;
 	struct regmap *pll_map;
-	struct regmap *cpu_clk_map;
 	const struct clk_hw_onecell_data *hw_onecell_data;
 	struct clk *clk;
 	int ret, i;
@@ -2613,18 +2517,9 @@ static int meson_s7_probe(struct platform_device *pdev)
 		return PTR_ERR(pll_map);
 	}
 
-	cpu_clk_map = s7_regmap_resource(dev, "cpu_clk");
-	if (IS_ERR(cpu_clk_map)) {
-		dev_err(dev, "cpu clk registers not found\n");
-		return PTR_ERR(cpu_clk_map);
-	}
-
 	/* Populate regmap for the regmap backed clocks */
 	for (i = 0; i < ARRAY_SIZE(s7_clk_regmaps); i++)
 		s7_clk_regmaps[i]->map = basic_map;
-
-	for (i = 0; i < ARRAY_SIZE(s7_cpu_clk_regmaps); i++)
-		s7_cpu_clk_regmaps[i]->map = cpu_clk_map;
 
 	for (i = 0; i < ARRAY_SIZE(s7_pll_clk_regmaps); i++)
 		s7_pll_clk_regmaps[i]->map = pll_map;
@@ -2653,8 +2548,6 @@ static int meson_s7_probe(struct platform_device *pdev)
 		}
 #endif
 	}
-
-	meson_s7_dvfs_setup(pdev);
 
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 					   (void *)hw_onecell_data);
