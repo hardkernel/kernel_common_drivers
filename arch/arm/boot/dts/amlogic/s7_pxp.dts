@@ -767,10 +767,6 @@
 	};
 };
 
-&pwm_ij {
-	status = "disabled";
-};
-
 &i2c3 {
 	status = "disabled";
 	pinctrl-names="default";
@@ -1356,7 +1352,7 @@
 
 /* SD card */
 &sd_emmc_b {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&sdcard_pins>;
 	pinctrl-1 = <&sdcard_clk_gate_pins>;
 	pinctrl-2 = <&sd_1bit_pins>;
@@ -1395,7 +1391,7 @@
 };
 
 &sd_emmc_c {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -1609,12 +1605,6 @@
 	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	btwakeup-gpios = <&gpio    GPIOX_18 GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
-};
-
-&pwm_ef {
-	pinctrl-0 = <&pwm_e_pins1>;
-	pinctrl-names = "default";
-	status = "disabled";
 };
 
 &uart_A {
