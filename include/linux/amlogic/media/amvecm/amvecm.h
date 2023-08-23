@@ -358,7 +358,8 @@ enum chip_type {
 	chip_s5,
 	chip_t3x,
 	chip_txhd2,
-	chip_s1a
+	chip_s1a,
+	chip_s7,
 };
 
 enum chip_cls_e {

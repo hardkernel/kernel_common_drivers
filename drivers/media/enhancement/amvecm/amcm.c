@@ -476,6 +476,9 @@ void amcm_disable(enum wr_md_e md, int vpp_index)
 	int i;
 	int slice_max;
 
+	if (chip_type_id == chip_s7)
+		return;
+
 	if (chip_type_id == chip_s5 ||
 		chip_type_id == chip_t3x) {
 		slice_max = get_slice_max();
@@ -595,6 +598,9 @@ void amcm_enable(enum wr_md_e md, int vpp_index)
 	struct cm_port_s cm_port;
 	int i;
 	int slice_max;
+
+	if (chip_type_id == chip_s7)
+		return;
 
 	if (chip_type_id == chip_s5 ||
 		chip_type_id == chip_t3x) {
@@ -1066,6 +1072,9 @@ void cm_regmap_latch(struct am_regs_s *am_regs, unsigned int reg_map, int vpp_in
 
 void cm_latch_process(int vpp_index)
 {
+	if (chip_type_id == chip_s7)
+		return;
+
 	/*if ((vecm_latch_flag & FLAG_REG_MAP0) ||*/
 	/*(vecm_latch_flag & FLAG_REG_MAP1) ||*/
 	/*(vecm_latch_flag & FLAG_REG_MAP2) ||*/

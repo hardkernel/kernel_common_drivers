@@ -514,7 +514,8 @@ bool is_hdr_stb_mode(void)
 		is_meson_gxm_cpu() || is_meson_g12a_cpu() ||
 		is_meson_g12b_cpu() || is_meson_sm1_cpu() ||
 		is_meson_sc2_cpu() || is_meson_s4d_cpu() ||
-		is_meson_s5_cpu() || is_meson_s4_cpu())
+		is_meson_s5_cpu() || is_meson_s4_cpu() ||
+		is_meson_s7_cpu())
 		return true;
 	else
 		return false;
@@ -735,6 +736,9 @@ static void amvecm_size_patch(struct vframe_s *vf,
 	int vpp_index)
 {
 	unsigned int hs, he, vs, ve;
+
+	if (chip_type_id == chip_s7)
+		return;
 
 	if (chip_type_id == chip_s5 ||
 		chip_type_id == chip_t3x) {
@@ -1774,6 +1778,9 @@ void vpp_demo_func(struct vframe_s *vf,
 		pr_amvecm_dbg("sr hsize: %d, vsize: %d, sr_demo = %d\n",
 			sps_hsize, sps_vsize, p->en_st[E_DEMO_SR]);
 	}
+
+	if (chip_type_id == chip_s7)
+		return;
 
 	if (p->update_flag[E_DEMO_CM] ||
 		(cm_size_chg && p->en_st[E_DEMO_CM])) {
@@ -6940,8 +6947,8 @@ static ssize_t amvecm_set_post_matrix_show(struct class *cla,
 	pr_info("48: osd1 output\n");
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
 		!is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
-		chip_type_id != chip_txhd2 &&
-		chip_type_id != chip_s1a) {
+		chip_type_id != chip_txhd2 && chip_type_id != chip_s1a && 
+		chip_type_id != chip_s7) {
 		val = READ_VPP_REG(VPP_PROBE_CTRL);
 		pr_info("current setting: %d\n", val & 0x3f);
 	} else {
@@ -6963,7 +6970,8 @@ static ssize_t amvecm_set_post_matrix_store(struct class *cla,
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
 		!is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
 		chip_type_id != chip_txhd2 &&
-		chip_type_id != chip_s1a) {
+		chip_type_id != chip_s1a &&
+	       	chip_type_id != chip_s7) {
 		reg_val = READ_VPP_REG(VPP_PROBE_CTRL);
 		reg_val = reg_val & 0xffffffc0;
 		/*reg_val |= 0x10000;*/
@@ -7003,7 +7011,8 @@ static ssize_t amvecm_post_matrix_pos_show(struct class *cla,
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
 	    !is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
 	    chip_type_id != chip_txhd2 &&
-	    chip_type_id != chip_s1a)
+	    chip_type_id != chip_s1a && 
+	    chip_type_id != chip_s7)
 		val = READ_VPP_REG(VPP_PROBE_POS);
 	else
 		val = READ_VPP_REG(VPP_MATRIX_PROBE_POS);
@@ -7040,7 +7049,8 @@ static ssize_t amvecm_post_matrix_pos_store(struct class *cla,
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
 		!is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
 		chip_type_id != chip_txhd2 &&
-		chip_type_id != chip_s1a)
+		chip_type_id != chip_s1a && 
+		chip_type_id != chip_s7)
 		reg_val = READ_VPP_REG(VPP_PROBE_POS);
 	else
 		reg_val = READ_VPP_REG(VPP_MATRIX_PROBE_POS);
@@ -7050,7 +7060,8 @@ static ssize_t amvecm_post_matrix_pos_store(struct class *cla,
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
 		!is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
 		chip_type_id != chip_txhd2 &&
-		chip_type_id != chip_s1a)
+		chip_type_id != chip_s1a && 
+		chip_type_id != chip_s7)
 		WRITE_VPP_REG(VPP_PROBE_POS, reg_val);
 	else
 		WRITE_VPP_REG(VPP_MATRIX_PROBE_POS, reg_val);
@@ -7070,7 +7081,8 @@ static ssize_t amvecm_post_matrix_data_show(struct class *cla,
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
 		!is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
 		chip_type_id != chip_txhd2 &&
-		chip_type_id != chip_s1a) {
+		chip_type_id != chip_s1a && 
+		chip_type_id != chip_s7) {
 		probe_color = VPP_PROBE_COLOR;
 		probe_color1 = VPP_PROBE_COLOR1;
 	} else {
@@ -9659,6 +9671,9 @@ static void cm_init_config(int bitdepth)
 	int slice_max;
 #endif
 
+	if (chip_type_id == chip_s7)
+		return;
+
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		am_set_regmap(&cm_default, 0);
 	else
@@ -12065,7 +12080,8 @@ void init_pq_setting(void)
 		 is_meson_sm1_cpu() ||
 		 get_cpu_type() == MESON_CPU_MAJOR_ID_SC2 ||
 		 is_meson_s4_cpu() ||
-		 is_meson_s4d_cpu()) {
+		 is_meson_s4d_cpu() ||
+		 is_meson_s7_cpu()) {
 		if (is_meson_s4_cpu())
 			bitdepth = 10;
 		else
@@ -12417,6 +12433,7 @@ static void amvecm_wb_init(bool en)
 void amvecm_3dlut_init(bool en)
 {
 	if (chip_type_id == chip_s5 ||
+		chip_type_id == chip_s7 ||
 		chip_type_id == chip_t3x)
 		return;
 
@@ -12793,6 +12810,11 @@ static const struct vecm_match_data_s vecm_dt_txhd2 = {
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 	.vrr_support_flag = 0,
 };
+
+static const struct vecm_match_data_s vecm_dt_s7 = {
+	.chip_id = chip_s7,
+	.chip_cls = STB_CHIP,
+};
 #endif
 
 static const struct vecm_match_data_s vecm_dt_s1a = {
@@ -12867,6 +12889,10 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm-txhd2",
 		.data = &vecm_dt_txhd2,
+	},
+	{
+		.compatible = "amlogic, vecm-s7",
+		.data = &vecm_dt_s7,
 	},
 #endif
 	{
@@ -13039,6 +13065,7 @@ static void aml_vecm_dt_parse(struct amvecm_dev_s *devp, struct platform_device 
 		frame_lock_param_config(node);
 #endif
 	}
+
 	/* init module status */
 #ifdef CONFIG_AMLOGIC_PIXEL_PROBE
 	vpp_probe_enable();
@@ -13158,6 +13185,8 @@ static int aml_vecm_lc_curve_irq_init(void)
 			lc_curve_isr_defined = 1;
 			pr_info("request res_lc_curve_irq successful\n");
 		}
+	} else {
+		pr_info("no support res_lc_curve_irq\n");
 	}
 
 	return 0;

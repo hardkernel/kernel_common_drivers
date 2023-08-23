@@ -2142,7 +2142,11 @@ void lc_process(struct vframe_s *vf,
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1)
 		return;
 
-	if (chip_type_id == chip_s5)
+	pr_amlc_dbg("%s: chip_type_id = %d",
+		__func__, chip_type_id);
+
+	if (chip_type_id == chip_s5 ||
+		chip_type_id == chip_s7)
 		return;
 
 	if (!lc_malloc_ok) {
