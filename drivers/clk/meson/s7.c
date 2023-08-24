@@ -572,7 +572,7 @@ static struct clk_regmap _g_name = {					\
 			       _d_reg, _d_shift, _d_width, _d_table,	\
 			       _d_dflags, _d_iflags,			\
 			       _g_reg, _g_bit, _g_dflags, _g_iflags)	\
-	__MESON_CLK_COMPOSITE(_cname ## _mux, _m_reg, _m_mask, _m_shift,\
+	__MESON_CLK_COMPOSITE(_cname ## _sel, _m_reg, _m_mask, _m_shift,\
 			      _m_table, _m_dflags, &clk_regmap_mux_ops,	\
 			      NULL, _m_pdata, NULL,			\
 			      ARRAY_SIZE(_m_pdata), _m_iflags,		\
@@ -588,7 +588,7 @@ static struct clk_regmap _g_name = {					\
 			       _d_reg, _d_shift, _d_width, _d_table,	\
 			       _d_dflags, _d_iflags,			\
 			       _g_reg, _g_bit, _g_dflags, _g_iflags)	\
-	__MESON_CLK_COMPOSITE(_cname ## _mux, _m_reg, _m_mask, _m_shift,\
+	__MESON_CLK_COMPOSITE(_cname ## _sel, _m_reg, _m_mask, _m_shift,\
 			      _m_table, CLK_MUX_READ_ONLY | (_m_dflags),\
 			      &clk_regmap_mux_ro_ops,			\
 			      NULL, _m_pdata, NULL,			\
@@ -958,7 +958,7 @@ MESON_CLK_PLL_RW(hifi_pll, ANACTRL_HIFI0PLL_CTRL0, 28, 1,  /* en */
 		 ANACTRL_HIFI0PLL_CTRL0, 0, 9,  /* m */
 		 ANACTRL_HIFI0PLL_CTRL2, 0, 19,  /* frac */
 		 ANACTRL_HIFI0PLL_CTRL0, 11, 5,  /* n */
-		 ANACTRL_HIFI0PLL_CTRL0, 31, 0,  /* lock */
+		 ANACTRL_HIFI0PLL_CTRL0, 31, 1,  /* lock */
 		 ANACTRL_HIFI0PLL_CTRL0, 29, 1,  /* rst */
 		 //0, 0, 0,  /* th */
 		 hifi_init_regs, &hifi_pll_m, hifi_pll_table,
@@ -985,7 +985,7 @@ MESON_CLK_PLL_RW(hifi1_pll, ANACTRL_HIFI1PLL_CTRL0, 28, 1,  /* en */
 		 ANACTRL_HIFI1PLL_CTRL0, 0, 9,  /* m */
 		 ANACTRL_HIFI1PLL_CTRL2, 0, 19,  /* frac */
 		 ANACTRL_HIFI1PLL_CTRL0, 11, 5,  /* n */
-		 ANACTRL_HIFI1PLL_CTRL0, 31, 0,  /* lock */
+		 ANACTRL_HIFI1PLL_CTRL0, 31, 1,  /* lock */
 		 ANACTRL_HIFI1PLL_CTRL0, 29, 1,  /* rst */
 		 //0, 0, 0,  /* th */
 		 hifi1_init_regs, &hifi_pll_m, hifi_pll_table,
@@ -1030,48 +1030,48 @@ MESON_CLK_PLL_RW(hifi1_pll, ANACTRL_HIFI1PLL_CTRL0, 28, 1,  /* en */
 /*
  * rtc 32k clock in gate
  */
-static const struct clk_parent_data rtc_xtal_clkin_parent = {
+static const struct clk_parent_data rtc_dual_clkin_parent = {
 	.fw_name = "xtal",
 };
 
-__MESON_CLK_GATE(rtc_xtal_clkin, CLKCTRL_RTC_BY_OSCIN_CTRL0, 31, 0,
-		 &clk_regmap_gate_ops, NULL, &rtc_xtal_clkin_parent, NULL, 0);
+__MESON_CLK_GATE(rtc_dual_clkin, CLKCTRL_RTC_BY_OSCIN_CTRL0, 31, 0,
+		 &clk_regmap_gate_ops, NULL, &rtc_dual_clkin_parent, NULL, 0);
 
-static const struct meson_clk_dualdiv_param rtc_32k_div_table[] = {
+static const struct meson_clk_dualdiv_param rtc_dual_div_table[] = {
 	{ 733, 732, 8, 11, 1 },
 	{ /* sentinel */ }
 };
 
-MESON_CLK_DUALDIV_RW(rtc_32k_div, CLKCTRL_RTC_BY_OSCIN_CTRL0, 0,  12,    /* n1 */
+MESON_CLK_DUALDIV_RW(rtc_dual_div, CLKCTRL_RTC_BY_OSCIN_CTRL0, 0,  12,    /* n1 */
 		     CLKCTRL_RTC_BY_OSCIN_CTRL0, 12, 12,        /* n2 */
 		     CLKCTRL_RTC_BY_OSCIN_CTRL1, 0,  12,        /* m1 */
 		     CLKCTRL_RTC_BY_OSCIN_CTRL1, 12, 12,        /* m2 */
-		     CLKCTRL_RTC_BY_OSCIN_CTRL0, 28, 1, rtc_32k_div_table,
-		     &rtc_xtal_clkin.hw, 0);
+		     CLKCTRL_RTC_BY_OSCIN_CTRL0, 28, 1, rtc_dual_div_table,
+		     &rtc_dual_clkin.hw, 0);
 
-static const struct clk_parent_data rtc_32k_mux_parent_data[] = {
-	{ .hw = &rtc_32k_div.hw },
-	{ .hw = &rtc_xtal_clkin.hw }
+static const struct clk_parent_data rtc_dual_sel_parent_data[] = {
+	{ .hw = &rtc_dual_div.hw },
+	{ .hw = &rtc_dual_clkin.hw }
 };
 
-MESON_CLK_MUX_RW(rtc_32k_mux, CLKCTRL_RTC_BY_OSCIN_CTRL1, 0x1, 24, NULL, 0,
-		 rtc_32k_mux_parent_data, CLK_SET_RATE_PARENT);
+MESON_CLK_MUX_RW(rtc_dual_sel, CLKCTRL_RTC_BY_OSCIN_CTRL1, 0x1, 24, NULL, 0,
+		 rtc_dual_sel_parent_data, CLK_SET_RATE_PARENT);
 
-MESON_CLK_GATE_RW(rtc_32k, CLKCTRL_RTC_BY_OSCIN_CTRL0, 30, 0,
-		  &rtc_32k_mux.hw, CLK_SET_RATE_PARENT);
+MESON_CLK_GATE_RW(rtc_dual_clkout, CLKCTRL_RTC_BY_OSCIN_CTRL0, 30, 0,
+		  &rtc_dual_sel.hw, CLK_SET_RATE_PARENT);
 
-static const struct clk_parent_data rtc_clk_mux_parent_data[] = {
+static const struct clk_parent_data rtc_clk_parent_data[] = {
 	{ .fw_name = "xtal", },
-	{ .hw = &rtc_32k.hw },
+	{ .hw = &rtc_dual_clkout.hw },
 	{ .fw_name = "pad", }
 };
 
 MESON_CLK_MUX_RW(rtc_clk, CLKCTRL_RTC_CTRL, 0x3, 0, NULL, 0,
-		  rtc_clk_mux_parent_data, CLK_SET_RATE_PARENT);
+		  rtc_clk_parent_data, CLK_SET_RATE_PARENT);
 
 /* sys clk */
-static u32 sys_ab_clk_parent_table[] = { 0, 1, 2, 3, 4, 7 };
-static const struct clk_parent_data sys_ab_clk_parent_data[] = {
+static u32 sys_clk_pre_parent_table[] = { 0, 1, 2, 3, 4, 7 };
+static const struct clk_parent_data sys_clk_pre_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &fclk_div2.hw },
 	{ .hw = &fclk_div3.hw },
@@ -1080,25 +1080,25 @@ static const struct clk_parent_data sys_ab_clk_parent_data[] = {
 	{ .hw = &rtc_clk.hw }
 };
 
-MESON_CLK_COMPOSITE_RW(sysclk_a, CLKCTRL_SYS_CLK_CTRL0, 0x7, 10,
-		       sys_ab_clk_parent_table, 0, sys_ab_clk_parent_data, 0,
+MESON_CLK_COMPOSITE_RW(sysclk_0, CLKCTRL_SYS_CLK_CTRL0, 0x7, 10,
+		       sys_clk_pre_parent_table, 0, sys_clk_pre_parent_data, 0,
 		       CLKCTRL_SYS_CLK_CTRL0, 0, 10, NULL, 0, 0,
 		       CLKCTRL_SYS_CLK_CTRL0, 13, 0, CLK_IGNORE_UNUSED);
-MESON_CLK_COMPOSITE_RW(sysclk_b, CLKCTRL_SYS_CLK_CTRL0, 0x7, 26,
-		       sys_ab_clk_parent_table, 0, sys_ab_clk_parent_data, 0,
+MESON_CLK_COMPOSITE_RW(sysclk_1, CLKCTRL_SYS_CLK_CTRL0, 0x7, 26,
+		       sys_clk_pre_parent_table, 0, sys_clk_pre_parent_data, 0,
 		       CLKCTRL_SYS_CLK_CTRL0, 16, 10, NULL, 0, 0,
 		       CLKCTRL_SYS_CLK_CTRL0, 29, 0, CLK_IGNORE_UNUSED);
 static const struct clk_parent_data sys_clk_parent_data[] = {
-	{ .hw = &sysclk_a.hw },
-	{ .hw = &sysclk_b.hw }
+	{ .hw = &sysclk_0.hw },
+	{ .hw = &sysclk_1.hw }
 };
 
 MESON_CLK_MUX_RO(sys_clk, CLKCTRL_SYS_CLK_CTRL0, 1, 15, NULL, 0,
 		 sys_clk_parent_data, 0);
 
 /*axi clk*/
-static u32 axi_ab_clk_parent_table[] = { 0, 1, 2, 3, 4, 7 };
-static const struct clk_parent_data axi_ab_clk_parent_data[] = {
+static u32 axi_clk_pre_parent_table[] = { 0, 1, 2, 3, 4, 7 };
+static const struct clk_parent_data axi_clk_pre_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &fclk_div2.hw },
 	{ .hw = &fclk_div3.hw },
@@ -1107,71 +1107,71 @@ static const struct clk_parent_data axi_ab_clk_parent_data[] = {
 	{ .hw = &rtc_clk.hw }
 };
 
-MESON_CLK_COMPOSITE_RW(axiclk_a, CLKCTRL_AXI_CLK_CTRL0, 0x7, 10,
-		       axi_ab_clk_parent_table, 0, axi_ab_clk_parent_data, 0,
+MESON_CLK_COMPOSITE_RW(axiclk_0, CLKCTRL_AXI_CLK_CTRL0, 0x7, 10,
+		       axi_clk_pre_parent_table, 0, axi_clk_pre_parent_data, 0,
 		       CLKCTRL_AXI_CLK_CTRL0, 0, 10, NULL, 0, 0,
 		       CLKCTRL_AXI_CLK_CTRL0, 13, 0, CLK_IGNORE_UNUSED);
-MESON_CLK_COMPOSITE_RW(axiclk_b, CLKCTRL_AXI_CLK_CTRL0, 0x7, 26,
-		       axi_ab_clk_parent_table, 0, axi_ab_clk_parent_data, 0,
+MESON_CLK_COMPOSITE_RW(axiclk_1, CLKCTRL_AXI_CLK_CTRL0, 0x7, 26,
+		       axi_clk_pre_parent_table, 0, axi_clk_pre_parent_data, 0,
 		       CLKCTRL_AXI_CLK_CTRL0, 16, 10, NULL, 0, 0,
 		       CLKCTRL_AXI_CLK_CTRL0, 29, 0, CLK_IGNORE_UNUSED);
 static const struct clk_parent_data axi_clk_parent_data[] = {
-	{ .hw = &axiclk_a.hw },
-	{ .hw = &axiclk_b.hw }
+	{ .hw = &axiclk_0.hw },
+	{ .hw = &axiclk_1.hw }
 };
 
 MESON_CLK_MUX_RW(axi_clk, CLKCTRL_AXI_CLK_CTRL0, 1, 15, NULL, 0,
 		 axi_clk_parent_data, CLK_IGNORE_UNUSED);
 
 /* cecb_clk */
-static const struct clk_parent_data cecb_xtal_clkin_parent = {
+static const struct clk_parent_data cecb_dual_clkin_parent = {
 	.fw_name = "xtal",
 };
 
-__MESON_CLK_GATE(cecb_xtal_clkin, CLKCTRL_CECB_CTRL0, 31, 0,
-		 &clk_regmap_gate_ops, NULL, &cecb_xtal_clkin_parent, NULL, 0);
+__MESON_CLK_GATE(cecb_dual_clkin, CLKCTRL_CECB_CTRL0, 31, 0,
+		 &clk_regmap_gate_ops, NULL, &cecb_dual_clkin_parent, NULL, 0);
 
 static const struct meson_clk_dualdiv_param cecb_32k_div_table[] = {
 	{ 733, 732, 8, 11, 1 },
 	{ /* sentinel */ }
 };
 
-MESON_CLK_DUALDIV_RW(cecb_32k_div, CLKCTRL_CECB_CTRL0, 0,  12,
+MESON_CLK_DUALDIV_RW(cecb_dual_div, CLKCTRL_CECB_CTRL0, 0,  12,
 		     CLKCTRL_CECB_CTRL0, 12, 12,
 		     CLKCTRL_CECB_CTRL1, 0,  12,
 		     CLKCTRL_CECB_CTRL1, 12, 12,
 		     CLKCTRL_CECB_CTRL0, 28, 1, cecb_32k_div_table,
-		     &cecb_xtal_clkin.hw, 0);
+		     &cecb_dual_clkin.hw, 0);
 
-static const struct clk_parent_data cecb_32k_mux_pre_parent_data[] = {
-	{ .hw = &cecb_xtal_clkin.hw },
-	{ .hw = &cecb_32k_div.hw }
+static const struct clk_parent_data cecb_dual_sel_parent_data[] = {
+	{ .hw = &cecb_dual_clkin.hw },
+	{ .hw = &cecb_dual_div.hw }
 };
 
-MESON_CLK_MUX_RW(cecb_32k_mux_pre, CLKCTRL_CECB_CTRL1, 0x1, 24, NULL, 0,
-		 cecb_32k_mux_pre_parent_data, CLK_SET_RATE_PARENT);
+MESON_CLK_MUX_RW(cecb_dual_sel, CLKCTRL_CECB_CTRL1, 0x1, 24, NULL, 0,
+		 cecb_dual_sel_parent_data, CLK_SET_RATE_PARENT);
 
-static const struct clk_parent_data cecb_32k_mux_parent_data[] = {
-	{ .hw = &cecb_32k_mux_pre.hw },
+MESON_CLK_GATE_RW(cec_dual_clkout, CLKCTRL_CECB_CTRL0, 30, 0,
+		  &cecb_dual_sel.hw, CLK_SET_RATE_PARENT);
+
+static const struct clk_parent_data cecb_clk_parent_data[] = {
+	{ .hw = &cec_dual_clkout.hw },
 	{ .hw = &rtc_clk.hw }
 };
 
-MESON_CLK_MUX_RW(cecb_32k_mux, CLKCTRL_CECB_CTRL1, 0x1, 31, NULL, 0,
-		 cecb_32k_mux_parent_data, CLK_SET_RATE_PARENT);
-
-MESON_CLK_GATE_RW(cecb_32k_clkout, CLKCTRL_CECB_CTRL0, 30, 0,
-		  &cecb_32k_mux.hw, CLK_SET_RATE_PARENT);
+MESON_CLK_MUX_RW(cecb_clk, CLKCTRL_CECB_CTRL1, 0x1, 31, NULL, 0,
+		 cecb_clk_parent_data, CLK_SET_RATE_PARENT);
 
 /*cts_sc_clk*/
-static const struct clk_parent_data sc_clk_parent_data[] = {
+static const struct clk_parent_data sc_parent_data[] = {
 	{ .hw = &fclk_div2.hw },
 	{ .hw = &fclk_div3.hw },
 	{ .hw = &fclk_div5.hw },
 	{ .fw_name = "xtal", }
 };
 
-MESON_CLK_COMPOSITE_RW(sc_clk, CLKCTRL_SC_CLK_CTRL, 0x3, 9,
-				NULL, 0, sc_clk_parent_data, 0,
+MESON_CLK_COMPOSITE_RW(sc, CLKCTRL_SC_CLK_CTRL, 0x3, 9,
+				NULL, 0, sc_parent_data, 0,
 				CLKCTRL_SC_CLK_CTRL, 0, 8, NULL, 0,
 				CLK_SET_RATE_PARENT, CLKCTRL_SC_CLK_CTRL, 8,
 				0, CLK_SET_RATE_PARENT);
@@ -1181,12 +1181,12 @@ static const struct clk_parent_data clk_12_24m_parent_data = {
 	 .fw_name = "xtal",
 };
 
-__MESON_CLK_GATE(cts_24M_clk, CLKCTRL_CLK12_24_CTRL, 11, 0,
+__MESON_CLK_GATE(clk_12_24m_in, CLKCTRL_CLK12_24_CTRL, 11, 0,
 		 &clk_regmap_gate_ops,
 		 NULL, &clk_12_24m_parent_data, NULL, 0);
 
-MESON_CLK_DIV_RW(cts_12M_clk, CLKCTRL_CLK12_24_CTRL, 10, 1, NULL, 0,
-		 &cts_24M_clk.hw, 0);
+MESON_CLK_DIV_RW(clk_12_24m, CLKCTRL_CLK12_24_CTRL, 10, 1, NULL, 0,
+		 &clk_12_24m_in.hw, 0);
 
 /*vclk*/
 static u32 vclk_parent_table[] = { 1, 2, 4, 5, 6, 7 };
@@ -1199,11 +1199,11 @@ static const struct clk_parent_data vclk_parent_data[] = {
 	{ &fclk_div7.hw }
 };
 
-MESON_CLK_MUX_RW(vclk_mux, CLKCTRL_VID_CLK_CTRL, 0x7, 16,
+MESON_CLK_MUX_RW(vclk_sel, CLKCTRL_VID_CLK_CTRL, 0x7, 16,
 		 vclk_parent_table, 0, vclk_parent_data, 0);
 
 MESON_CLK_GATE_RW(vclk_input, CLKCTRL_VID_CLK_DIV, 16, 0,
-		  &vclk_mux.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
+		  &vclk_sel.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
 MESON_CLK_DIV_RW(vclk_div, CLKCTRL_VID_CLK_DIV, 0, 8, NULL, 0,
 		 &vclk_input.hw, CLK_SET_RATE_PARENT);
@@ -1235,11 +1235,11 @@ MESON_CLK_GATE_RW(vclk_div12_en, CLKCTRL_VID_CLK_CTRL, 4, 0,
 MESON_CLK_FIXED_FACTOR(vclk_div12, 1, 12, &vclk_div12_en.hw, CLK_SET_RATE_PARENT);
 
 /*vclk2*/
-MESON_CLK_MUX_RW(vclk2_mux, CLKCTRL_VIID_CLK_CTRL, 0x7, 16,
+MESON_CLK_MUX_RW(vclk2_sel, CLKCTRL_VIID_CLK_CTRL, 0x7, 16,
 		 vclk_parent_table, 0, vclk_parent_data, 0);
 
 MESON_CLK_GATE_RW(vclk2_input, CLKCTRL_VIID_CLK_DIV, 16, 0,
-		  &vclk2_mux.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
+		  &vclk2_sel.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
 MESON_CLK_DIV_RW(vclk2_div, CLKCTRL_VIID_CLK_CTRL, 0, 8, NULL, 0,
 		 &vclk2_input.hw, CLK_SET_RATE_PARENT);
@@ -1271,8 +1271,8 @@ MESON_CLK_GATE_RW(vclk2_div12_en, CLKCTRL_VIID_CLK_CTRL, 4, 0,
 MESON_CLK_FIXED_FACTOR(vclk2_div12, 1, 12, &vclk2_div12_en.hw, CLK_SET_RATE_PARENT);
 
 /*video clk*/
-static u32 cts_vld_clk_parent_table[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
-static const struct clk_parent_data cts_vid_clk_parent_data[] = {
+static u32 vid_clk_parent_table[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
+static const struct clk_parent_data vid_clk_parent_data[] = {
 	{ &vclk_div1.hw },
 	{ &vclk_div2.hw },
 	{ &vclk_div4.hw },
@@ -1285,53 +1285,53 @@ static const struct clk_parent_data cts_vid_clk_parent_data[] = {
 	{ &vclk2_div12.hw }
 };
 
-MESON_CLK_MUX_RW(cts_enci_mux, CLKCTRL_VID_CLK_DIV, 0xf, 28,
-		 cts_vld_clk_parent_table, 0, cts_vid_clk_parent_data, 0);
+MESON_CLK_MUX_RW(enci_sel, CLKCTRL_VID_CLK_DIV, 0xf, 28,
+		 vid_clk_parent_table, 0, vid_clk_parent_data, 0);
 
-MESON_CLK_GATE_RW(cts_enci, CLKCTRL_VID_CLK_CTRL2, 0, 0,
-		  &cts_enci_mux.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
+MESON_CLK_GATE_RW(enci, CLKCTRL_VID_CLK_CTRL2, 0, 0,
+		  &enci_sel.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
-MESON_CLK_MUX_RW(cts_encp_mux, CLKCTRL_VID_CLK_DIV, 0xf, 24,
-		 cts_vld_clk_parent_table, 0, cts_vid_clk_parent_data, 0);
+MESON_CLK_MUX_RW(encp_sel, CLKCTRL_VID_CLK_DIV, 0xf, 24,
+		 vid_clk_parent_table, 0, vid_clk_parent_data, 0);
 
-MESON_CLK_GATE_RW(cts_encp, CLKCTRL_VID_CLK_CTRL2, 2, 0,
-		  &cts_encp_mux.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
+MESON_CLK_GATE_RW(encp, CLKCTRL_VID_CLK_CTRL2, 2, 0,
+		  &encp_sel.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
-MESON_CLK_MUX_RW(cts_encl_mux, CLKCTRL_VIID_CLK_DIV, 0xf, 12,
-		 cts_vld_clk_parent_table, 0, cts_vid_clk_parent_data, 0);
+MESON_CLK_MUX_RW(encl_sel, CLKCTRL_VIID_CLK_DIV, 0xf, 12,
+		 vid_clk_parent_table, 0, vid_clk_parent_data, 0);
 
-MESON_CLK_GATE_RW(cts_encl, CLKCTRL_VID_CLK_CTRL2, 3, 0,
-		  &cts_encl_mux.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
+MESON_CLK_GATE_RW(encl, CLKCTRL_VID_CLK_CTRL2, 3, 0,
+		  &encl_sel.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
-MESON_CLK_MUX_RW(cts_vdac_mux, CLKCTRL_VIID_CLK_DIV, 0xf, 28,
-		 cts_vld_clk_parent_table, 0, cts_vid_clk_parent_data, 0);
+MESON_CLK_MUX_RW(vdac_sel, CLKCTRL_VIID_CLK_DIV, 0xf, 28,
+		 vid_clk_parent_table, 0, vid_clk_parent_data, 0);
 
-MESON_CLK_GATE_RW(cts_vdac, CLKCTRL_VID_CLK_CTRL2, 4, 0,
-		  &cts_vdac_mux.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
+MESON_CLK_GATE_RW(vdac, CLKCTRL_VID_CLK_CTRL2, 4, 0,
+		  &vdac_sel.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
-MESON_CLK_MUX_RW(hdmi_tx_pixel_mux, CLKCTRL_HDMI_CLK_CTRL, 0xf, 16,
-		 cts_vld_clk_parent_table, 0, cts_vid_clk_parent_data, 0);
+MESON_CLK_MUX_RW(hdmi_tx_pixel_sel, CLKCTRL_HDMI_CLK_CTRL, 0xf, 16,
+		 vid_clk_parent_table, 0, vid_clk_parent_data, 0);
 
 MESON_CLK_GATE_RW(hdmi_tx_pixel, CLKCTRL_VID_CLK_CTRL2, 5, 0,
-		  &hdmi_tx_pixel_mux.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
+		  &hdmi_tx_pixel_sel.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
-MESON_CLK_MUX_RW(hdmi_tx_fe_mux, CLKCTRL_HDMI_CLK_CTRL, 0xf, 20,
-		 cts_vld_clk_parent_table, 0, cts_vid_clk_parent_data, 0);
+MESON_CLK_MUX_RW(hdmi_tx_fe_sel, CLKCTRL_HDMI_CLK_CTRL, 0xf, 20,
+		 vid_clk_parent_table, 0, vid_clk_parent_data, 0);
 
 MESON_CLK_GATE_RW(hdmi_tx_fe, CLKCTRL_VID_CLK_CTRL2, 9, 0,
-		  &hdmi_tx_fe_mux.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
+		  &hdmi_tx_fe_sel.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
 /*lcd_an_clk_ph*/
-static const struct clk_parent_data lcd_an_clk_parent_data[] = {
+static const struct clk_parent_data lcd_an_clk_ph23_sel_parent_data[] = {
 	{ &vclk_div6.hw },
 	{ &vclk_div12.hw }
 };
 
-MESON_CLK_MUX_RW(lcd_an_clk_ph23_mux, CLKCTRL_VID_CLK_CTRL, 0x1, 13,
-		 NULL, 0, lcd_an_clk_parent_data, 0);
+MESON_CLK_MUX_RW(lcd_an_clk_ph23_sel, CLKCTRL_VID_CLK_CTRL, 0x1, 13,
+		 NULL, 0, lcd_an_clk_ph23_sel_parent_data, 0);
 
 MESON_CLK_GATE_RW(lcd_an_clk_ph23, CLKCTRL_VID_CLK_CTRL, 14, 0,
-		  &lcd_an_clk_ph23_mux.hw, CLK_SET_RATE_PARENT);
+		  &lcd_an_clk_ph23_sel.hw, CLK_SET_RATE_PARENT);
 
 MESON_CLK_GATE_RW(lcd_an_clk_ph2, CLKCTRL_VID_CLK_CTRL2, 7, 0,
 		  &lcd_an_clk_ph23.hw, CLK_SET_RATE_PARENT);
@@ -1340,51 +1340,51 @@ MESON_CLK_GATE_RW(lcd_an_clk_ph3, CLKCTRL_VID_CLK_CTRL2, 6, 0,
 		  &lcd_an_clk_ph23.hw, CLK_SET_RATE_PARENT);
 
 /*hdmitx_clk*/
-static const struct clk_parent_data hdmitx_parent_data[] = {
+static const struct clk_parent_data hdmi_tx_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &fclk_div4.hw },
 	{ .hw = &fclk_div3.hw },
 	{ .hw = &fclk_div5.hw }
 };
 
-MESON_CLK_COMPOSITE_RW(hdmitx_sys, CLKCTRL_HDMI_CLK_CTRL, 0x3, 9,
-		       NULL, 0, hdmitx_parent_data, 0,
+MESON_CLK_COMPOSITE_RW(hdmi_tx_sys, CLKCTRL_HDMI_CLK_CTRL, 0x3, 9,
+		       NULL, 0, hdmi_tx_parent_data, 0,
 		       CLKCTRL_HDMI_CLK_CTRL, 0, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_HDMI_CLK_CTRL, 8,
 		       0, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
-MESON_CLK_COMPOSITE_RW(hdmitx_prif, CLKCTRL_HTX_CLK_CTRL0, 0x3, 9,
-		       NULL, 0, hdmitx_parent_data, 0,
+MESON_CLK_COMPOSITE_RW(hdmi_tx_prif, CLKCTRL_HTX_CLK_CTRL0, 0x3, 9,
+		       NULL, 0, hdmi_tx_parent_data, 0,
 		       CLKCTRL_HTX_CLK_CTRL0, 0, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_HTX_CLK_CTRL0, 8,
 		       0, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
-MESON_CLK_COMPOSITE_RW(hdmitx_200m, CLKCTRL_HTX_CLK_CTRL0, 0x3, 25,
-		       NULL, 0, hdmitx_parent_data, 0,
+MESON_CLK_COMPOSITE_RW(hdmi_tx_200m, CLKCTRL_HTX_CLK_CTRL0, 0x3, 25,
+		       NULL, 0, hdmi_tx_parent_data, 0,
 		       CLKCTRL_HTX_CLK_CTRL0, 16, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_HTX_CLK_CTRL0, 24,
 		       0, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
-MESON_CLK_COMPOSITE_RW(hdmitx_aud, CLKCTRL_HTX_CLK_CTRL1, 0x3, 9,
-		       NULL, 0, hdmitx_parent_data, 0,
+MESON_CLK_COMPOSITE_RW(hdmi_tx_aud, CLKCTRL_HTX_CLK_CTRL1, 0x3, 9,
+		       NULL, 0, hdmi_tx_parent_data, 0,
 		       CLKCTRL_HTX_CLK_CTRL1, 0, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_HTX_CLK_CTRL1, 8,
 		       0, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
 /*vid_lock*/
-static const struct clk_parent_data vid_lock_clk_parent_data[] = {
+static const struct clk_parent_data vid_lock_parent_data[] = {
 	{ .fw_name = "xtal", },
-	{ .hw = &cts_encl.hw },
-	{ .hw = &cts_enci.hw },
-	{ .hw = &cts_encp.hw }
+	{ .hw = &encl.hw },
+	{ .hw = &enci.hw },
+	{ .hw = &encp.hw }
 };
 
 MESON_CLK_COMPOSITE_RW(vid_lock, CLKCTRL_VID_LOCK_CLK_CTRL, 0x3, 8,
-		       NULL, 0, vid_lock_clk_parent_data, 0,
+		       NULL, 0, vid_lock_parent_data, 0,
 		       CLKCTRL_VID_LOCK_CLK_CTRL, 0, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_VID_LOCK_CLK_CTRL, 7,
@@ -1397,20 +1397,20 @@ MESON_CLK_DIV_RW(eth_rmii_div, CLKCTRL_ETH_CLK_CTRL, 0, 7, NULL, 0,
 MESON_CLK_GATE_RW(eth_rmii, CLKCTRL_ETH_CLK_CTRL, 8, 0, &eth_rmii_div.hw,
 		  CLK_SET_RATE_PARENT);
 
-MESON_CLK_FIXED_FACTOR(eth_125m_div, 1, 8, &fclk_div2.hw, 0);
+MESON_CLK_FIXED_FACTOR(eth_125m_div8, 1, 8, &fclk_div2.hw, 0);
 
-MESON_CLK_GATE_RW(eth_125m, CLKCTRL_ETH_CLK_CTRL, 7, 0, &eth_125m_div.hw, 0);
+MESON_CLK_GATE_RW(eth_125m, CLKCTRL_ETH_CLK_CTRL, 7, 0, &eth_125m_div8.hw, 0);
 
 /*ts_clk*/
-static const struct clk_parent_data ts_clk_parent_data = {
+static const struct clk_parent_data ts_div_parent_data = {
 	.fw_name = "xtal",
 };
 
-__MESON_CLK_DIV(ts_clk_div, CLKCTRL_TS_CLK_CTRL, 0, 8, NULL, 0, 0, 0,
-		&clk_regmap_divider_ops, NULL, &ts_clk_parent_data, NULL, 0);
+__MESON_CLK_DIV(ts_div, CLKCTRL_TS_CLK_CTRL, 0, 8, NULL, 0, 0, 0,
+		&clk_regmap_divider_ops, NULL, &ts_div_parent_data, NULL, 0);
 
-MESON_CLK_GATE_RW(ts_clk, CLKCTRL_TS_CLK_CTRL, 8, 0,
-					&ts_clk_div.hw, CLK_SET_RATE_PARENT);
+MESON_CLK_GATE_RW(ts, CLKCTRL_TS_CLK_CTRL, 8, 0,
+					&ts_div.hw, CLK_SET_RATE_PARENT);
 
 /*mali_clk*/
 /*
@@ -1421,8 +1421,8 @@ MESON_CLK_GATE_RW(ts_clk, CLKCTRL_TS_CLK_CTRL, 8, 0,
  * 1.gp0 pll only support the 846M, avoid other rate 500/400M from it
  * 2.hifi pll is used for other module, skip it, avoid some rate from it
  */
-static u32 mali_01_parent_table[] = { 0, 1, 3, 4, 5, 6, 7 };
-static const struct clk_parent_data mali_01_parent_data[] = {
+static u32 mali_pre_parent_table[] = { 0, 1, 3, 4, 5, 6, 7 };
+static const struct clk_parent_data mali_pre_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &gp1_pll.hw },
 	{ .hw = &fclk_div2p5.hw },
@@ -1433,25 +1433,25 @@ static const struct clk_parent_data mali_01_parent_data[] = {
 };
 
 MESON_CLK_COMPOSITE_RW(mali_0, CLKCTRL_MALI_CLK_CTRL, 0x7, 9,
-		       mali_01_parent_table, 0, mali_01_parent_data, 0,
+		       mali_pre_parent_table, 0, mali_pre_parent_data, 0,
 		       CLKCTRL_MALI_CLK_CTRL, 0, 7, NULL, 0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_MALI_CLK_CTRL, 8, 0, CLK_SET_RATE_PARENT);
 
 MESON_CLK_COMPOSITE_RW(mali_1, CLKCTRL_MALI_CLK_CTRL, 0x7, 25,
-		       mali_01_parent_table, 0, mali_01_parent_data, 0,
+		       mali_pre_parent_table, 0, mali_pre_parent_data, 0,
 		       CLKCTRL_MALI_CLK_CTRL, 16, 7, NULL, 0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_MALI_CLK_CTRL, 24, 0, CLK_SET_RATE_PARENT);
 
-static const struct clk_parent_data mali_clk_parent_data[] = {
+static const struct clk_parent_data mali_parent_data[] = {
 	{ .hw = &mali_0.hw },
 	{ .hw = &mali_1.hw }
 };
 
 MESON_CLK_MUX_RW(mali, CLKCTRL_MALI_CLK_CTRL, 1, 31, NULL, 0,
-		 mali_clk_parent_data, CLK_SET_RATE_PARENT);
+		 mali_parent_data, CLK_SET_RATE_PARENT);
 
 /* cts_vdec_clk */
-static const struct clk_parent_data vdec_clk_parent_data[] = {
+static const struct clk_parent_data vdec_pre_parent_data[] = {
 	{ .hw = &fclk_div2p5.hw },
 	{ .hw = &fclk_div3.hw },
 	{ .hw = &fclk_div4.hw },
@@ -1462,53 +1462,53 @@ static const struct clk_parent_data vdec_clk_parent_data[] = {
 	{ .fw_name = "xtal", }
 };
 
-MESON_CLK_COMPOSITE_RW(vdec_p0, CLKCTRL_VDEC_CLK_CTRL, 0x7, 9,
-		       NULL, 0, vdec_clk_parent_data, 0,
+MESON_CLK_COMPOSITE_RW(vdec_0, CLKCTRL_VDEC_CLK_CTRL, 0x7, 9,
+		       NULL, 0, vdec_pre_parent_data, 0,
 		       CLKCTRL_VDEC_CLK_CTRL, 0, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_VDEC_CLK_CTRL, 8,
 		       0, CLK_SET_RATE_PARENT);
 
-MESON_CLK_COMPOSITE_RW(vdec_p1, CLKCTRL_VDEC3_CLK_CTRL, 0x7, 9,
-		       NULL, 0, vdec_clk_parent_data, 0,
+MESON_CLK_COMPOSITE_RW(vdec_1, CLKCTRL_VDEC3_CLK_CTRL, 0x7, 9,
+		       NULL, 0, vdec_pre_parent_data, 0,
 		       CLKCTRL_VDEC3_CLK_CTRL, 0, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_VDEC3_CLK_CTRL, 8,
 		       0, CLK_SET_RATE_PARENT);
 
-static const struct clk_parent_data vdec_mux_parent_data[] = {
-	{ .hw = &vdec_p0.hw },
-	{ .hw = &vdec_p1.hw }
+static const struct clk_parent_data vdec_parent_data[] = {
+	{ .hw = &vdec_0.hw },
+	{ .hw = &vdec_1.hw }
 };
 
 MESON_CLK_MUX_RW(vdec, CLKCTRL_VDEC3_CLK_CTRL, 0x1, 15, NULL, 0,
-		 vdec_mux_parent_data, CLK_SET_RATE_PARENT);
+		 vdec_parent_data, CLK_SET_RATE_PARENT);
 
 /* cts_hevcf_clk */
-MESON_CLK_COMPOSITE_RW(hevcf_p0, CLKCTRL_VDEC2_CLK_CTRL, 0x7, 9,
-		       NULL, 0, vdec_clk_parent_data, 0,
+MESON_CLK_COMPOSITE_RW(hevcf_0, CLKCTRL_VDEC2_CLK_CTRL, 0x7, 9,
+		       NULL, 0, vdec_pre_parent_data, 0,
 		       CLKCTRL_VDEC2_CLK_CTRL, 0, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_VDEC2_CLK_CTRL, 8,
 		       0, CLK_SET_RATE_PARENT);
 
-MESON_CLK_COMPOSITE_RW(hevcf_p1, CLKCTRL_VDEC4_CLK_CTRL, 0x7, 9,
-		       NULL, 0, vdec_clk_parent_data, 0,
+MESON_CLK_COMPOSITE_RW(hevcf_1, CLKCTRL_VDEC4_CLK_CTRL, 0x7, 9,
+		       NULL, 0, vdec_pre_parent_data, 0,
 		       CLKCTRL_VDEC4_CLK_CTRL, 0, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_VDEC4_CLK_CTRL, 8,
 		       0, CLK_SET_RATE_PARENT);
 
 static const struct clk_parent_data hevcf_parent_data[] = {
-	{ .hw = &hevcf_p0.hw },
-	{ .hw = &hevcf_p1.hw }
+	{ .hw = &hevcf_0.hw },
+	{ .hw = &hevcf_1.hw }
 };
 
 MESON_CLK_MUX_RW(hevcf, CLKCTRL_VDEC4_CLK_CTRL, 0x1, 15, NULL, 0,
 		 hevcf_parent_data, CLK_SET_RATE_PARENT);
 
 /* cts_vpu_clk */
-static u32 vpu_parent_mux_table[] = { 0, 1, 2, 3, 4, 6, 7 };
+static u32 vpu_pre_parent_table[] = { 0, 1, 2, 3, 4, 6, 7 };
 
 static const struct clk_parent_data vpu_pre_parent_data[] = {
 	{ &fclk_div3.hw },
@@ -1521,14 +1521,14 @@ static const struct clk_parent_data vpu_pre_parent_data[] = {
 };
 
 MESON_CLK_COMPOSITE_RW(vpu_0, CLKCTRL_VPU_CLK_CTRL, 0x7, 9,
-		       vpu_parent_mux_table, 0, vpu_pre_parent_data, 0,
+		       vpu_pre_parent_table, 0, vpu_pre_parent_data, 0,
 		       CLKCTRL_VPU_CLK_CTRL, 0, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_VPU_CLK_CTRL, 8,
 		       0, CLK_SET_RATE_PARENT);
 
 MESON_CLK_COMPOSITE_RW(vpu_1, CLKCTRL_VPU_CLK_CTRL, 0x7, 25,
-		       vpu_parent_mux_table, 0, vpu_pre_parent_data, 0,
+		       vpu_pre_parent_table, 0, vpu_pre_parent_data, 0,
 		       CLKCTRL_VPU_CLK_CTRL, 16, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_VPU_CLK_CTRL, 24,
@@ -1576,14 +1576,14 @@ static const struct clk_parent_data vpu_clkc_pre_parent_data[] = {
 	{ &gp1_pll.hw }
 };
 
-MESON_CLK_COMPOSITE_RW(vpu_clkc_p0, CLKCTRL_VPU_CLKC_CTRL, 0x7, 9,
+MESON_CLK_COMPOSITE_RW(vpu_clkc_0, CLKCTRL_VPU_CLKC_CTRL, 0x7, 9,
 		       vpu_clkc_pre_parent_table, 0, vpu_clkc_pre_parent_data, 0,
 		       CLKCTRL_VPU_CLKC_CTRL, 0, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_VPU_CLKC_CTRL, 8,
 		       0, CLK_SET_RATE_PARENT);
 
-MESON_CLK_COMPOSITE_RW(vpu_clkc_p1, CLKCTRL_VPU_CLKC_CTRL, 0x7, 25,
+MESON_CLK_COMPOSITE_RW(vpu_clkc_1, CLKCTRL_VPU_CLKC_CTRL, 0x7, 25,
 		       vpu_clkc_pre_parent_table, 0, vpu_clkc_pre_parent_data, 0,
 		       CLKCTRL_VPU_CLKC_CTRL, 16, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
@@ -1591,8 +1591,8 @@ MESON_CLK_COMPOSITE_RW(vpu_clkc_p1, CLKCTRL_VPU_CLKC_CTRL, 0x7, 25,
 		       0, CLK_SET_RATE_PARENT);
 
 static const struct clk_parent_data vpu_clkc_parent_data[] = {
-	{ .hw = &vpu_clkc_p0.hw },
-	{ .hw = &vpu_clkc_p1.hw }
+	{ .hw = &vpu_clkc_0.hw },
+	{ .hw = &vpu_clkc_1.hw }
 };
 
 MESON_CLK_MUX_RW(vpu_clkc, CLKCTRL_VPU_CLKC_CTRL, 0x1, 31, NULL, 0,
@@ -1637,9 +1637,9 @@ MESON_CLK_GATE_RW(ge2d, CLKCTRL_VAPBCLK_CTRL, 30, 0,
 		  &vapb.hw, CLK_SET_RATE_PARENT);
 
 /* cts_vdin_meas_clk */
-static u32 vdin_meas_pre_parent_table[] = { 0, 1, 2, 3 };
+static u32 vdin_meas_parent_table[] = { 0, 1, 2, 3 };
 
-static const struct clk_parent_data vdin_meas_pre_parent_data[]  = {
+static const struct clk_parent_data vdin_meas_parent_data[]  = {
 	{ .fw_name = "xtal", },
 	{ .hw = &fclk_div4.hw },
 	{ .hw = &fclk_div3.hw },
@@ -1647,7 +1647,7 @@ static const struct clk_parent_data vdin_meas_pre_parent_data[]  = {
 };
 
 MESON_CLK_COMPOSITE_RW(vdin_meas, CLKCTRL_VDIN_MEAS_CLK_CTRL, 0x7, 9,
-		       vdin_meas_pre_parent_table, 0, vdin_meas_pre_parent_data, 0,
+		       vdin_meas_parent_table, 0, vdin_meas_parent_data, 0,
 		       CLKCTRL_VDIN_MEAS_CLK_CTRL, 0, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_VDIN_MEAS_CLK_CTRL, 8,
@@ -1713,7 +1713,7 @@ static const struct clk_parent_data spicc_parent_data[] = {
 	{ .hw = &gp1_pll.hw }
 };
 
-MESON_CLK_COMPOSITE_RW(spicc0, CLKCTRL_SPICC_CLK_CTRL, 0x7, 7,
+MESON_CLK_COMPOSITE_RW(spicc, CLKCTRL_SPICC_CLK_CTRL, 0x7, 7,
 		       NULL, 0, spicc_parent_data, 0,
 		       CLKCTRL_SPICC_CLK_CTRL, 0, 6, NULL,
 		       0, CLK_SET_RATE_PARENT,
@@ -1805,7 +1805,7 @@ static const struct clk_parent_data sar_adc_parent_data[] = {
 	{ .hw = &sys_clk.hw },
 };
 
-MESON_CLK_COMPOSITE_RW(saradc, CLKCTRL_SAR_CLK_CTRL0, 0x3, 9,
+MESON_CLK_COMPOSITE_RW(sar_adc, CLKCTRL_SAR_CLK_CTRL0, 0x3, 9,
 		       NULL, 0, sar_adc_parent_data, 0,
 		       CLKCTRL_SAR_CLK_CTRL0, 0, 8, NULL,
 		       0, CLK_SET_RATE_PARENT,
@@ -1815,7 +1815,7 @@ MESON_CLK_COMPOSITE_RW(saradc, CLKCTRL_SAR_CLK_CTRL0, 0x3, 9,
 /* gen clk */
 static u32 gen_parent_table[] = { 0, 1, 5, 6, 7, 19, 20, 21, 22, 23, 24 };
 
-static const struct clk_parent_data gen_clk_parent_data[] = {
+static const struct clk_parent_data gen_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &rtc_clk.hw },
 	{ .hw = &gp0_pll.hw },
@@ -1830,7 +1830,7 @@ static const struct clk_parent_data gen_clk_parent_data[] = {
 };
 
 MESON_CLK_COMPOSITE_RW(gen, CLKCTRL_GEN_CLK_CTRL, 0x1f, 12,
-		       gen_parent_table, 0, gen_clk_parent_data, 0,
+		       gen_parent_table, 0, gen_parent_data, 0,
 		       CLKCTRL_GEN_CLK_CTRL, 0, 11, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_GEN_CLK_CTRL, 11,
@@ -1908,29 +1908,29 @@ static struct clk_hw_onecell_data s7_hw_onecell_data = {
 #ifndef CONFIG_ARM
 		[CLKID_FIXED_PLL_DCO]		= &fixed_pll_dco.hw,
 #endif
-		[CLKID_FIXED_PLL]		    = &fixed_pll.hw,
+		[CLKID_FIXED_PLL]		= &fixed_pll.hw,
 #ifndef CONFIG_ARM
 		[CLKID_SYS0_PLL_DCO]		= &sys_pll_dco.hw,
 #endif
-		[CLKID_SYS0_PLL]			= &sys_pll.hw,
+		[CLKID_SYS0_PLL]		= &sys_pll.hw,
 #ifndef CONFIG_ARM
 		[CLKID_SYS1_PLL_DCO]		= &sys1_pll_dco.hw,
 #endif
-		[CLKID_SYS1_PLL]			= &sys1_pll.hw,
+		[CLKID_SYS1_PLL]		= &sys1_pll.hw,
 		[CLKID_FCLK_DIV2_DIV]		= &fclk_div2_div.hw,
-		[CLKID_FCLK_DIV2]		    = &fclk_div2.hw,
+		[CLKID_FCLK_DIV2]		= &fclk_div2.hw,
 		[CLKID_FCLK_DIV3_DIV]		= &fclk_div3_div.hw,
-		[CLKID_FCLK_DIV3]		    = &fclk_div3.hw,
+		[CLKID_FCLK_DIV3]		= &fclk_div3.hw,
 		[CLKID_FCLK_DIV4_DIV]		= &fclk_div4_div.hw,
-		[CLKID_FCLK_DIV4]		    = &fclk_div4.hw,
+		[CLKID_FCLK_DIV4]		= &fclk_div4.hw,
 		[CLKID_FCLK_DIV5_DIV]		= &fclk_div5_div.hw,
-		[CLKID_FCLK_DIV5]		    = &fclk_div5.hw,
+		[CLKID_FCLK_DIV5]		= &fclk_div5.hw,
 		[CLKID_FCLK_DIV7_DIV]		= &fclk_div7_div.hw,
-		[CLKID_FCLK_DIV7]		    = &fclk_div7.hw,
+		[CLKID_FCLK_DIV7]		= &fclk_div7.hw,
 		[CLKID_FCLK_DIV2P5_DIV]		= &fclk_div2p5_div.hw,
-		[CLKID_FCLK_DIV2P5]		    = &fclk_div2p5.hw,
+		[CLKID_FCLK_DIV2P5]		= &fclk_div2p5.hw,
 		[CLKID_FCLK_CLK50M_DIV]		= &fclk_clk50m_div.hw,
-		[CLKID_FCLK_CLK50M]		    = &fclk_clk50m.hw,
+		[CLKID_FCLK_CLK50M]		= &fclk_clk50m.hw,
 
 #ifndef CONFIG_ARM
 		[CLKID_GP0_PLL_DCO]		= &gp0_pll_dco.hw,
@@ -1946,285 +1946,284 @@ static struct clk_hw_onecell_data s7_hw_onecell_data = {
 
 		[CLKID_DSU_DYN_CLK]		= &dsu_dyn_clk.hw,
 		[CLKID_DSU_CLK]			= &dsu_clk.hw,
-		[CLKID_DSU_FINAL_CLK]	= &dsu_final_clk.hw,
+		[CLKID_DSU_FINAL_CLK]		= &dsu_final_clk.hw,
 
 #ifndef CONFIG_ARM
-		[CLKID_HIFI_PLL_DCO]	= &hifi_pll_dco.hw,
+		[CLKID_HIFI_PLL_DCO]		= &hifi_pll_dco.hw,
 #endif
 		[CLKID_HIFI_PLL]		= &hifi_pll.hw,
 #ifndef CONFIG_ARM
-		[CLKID_HIFI1_PLL_DCO]	= &hifi1_pll_dco.hw,
+		[CLKID_HIFI1_PLL_DCO]		= &hifi1_pll_dco.hw,
 #endif
 		[CLKID_HIFI1_PLL]		= &hifi1_pll.hw,
 
-		[CLKID_RTC_32K_CLKIN]	= &rtc_xtal_clkin.hw,
-		[CLKID_RTC_32K_DIV]		= &rtc_32k_div.hw,
-		[CLKID_RTC_32K_MUX]		= &rtc_32k_mux.hw,
-		[CLKID_RTC_32K]		    = &rtc_32k.hw,
+		[CLKID_RTC_DUAL_CLKIN]		= &rtc_dual_clkin.hw,
+		[CLKID_RTC_DUAL_DIV]		= &rtc_dual_div.hw,
+		[CLKID_RTC_DUAL_SEL]		= &rtc_dual_sel.hw,
+		[CLKID_RTC_DUAL_CLKOUT]		= &rtc_dual_clkout.hw,
 		[CLKID_RTC_CLK]			= &rtc_clk.hw,
 
-		[CLKID_SYS_CLK_B_MUX]		= &sysclk_b_mux.hw,
-		[CLKID_SYS_CLK_B_DIV]		= &sysclk_b_div.hw,
-		[CLKID_SYS_CLK_B_GATE]		= &sysclk_b.hw,
-		[CLKID_SYS_CLK_A_MUX]		= &sysclk_a_mux.hw,
-		[CLKID_SYS_CLK_A_DIV]		= &sysclk_a_div.hw,
-		[CLKID_SYS_CLK_A_GATE]		= &sysclk_a.hw,
-		[CLKID_SYS_CLK]			    = &sys_clk.hw,
+		[CLKID_SYS_CLK_0_SEL]		= &sysclk_0_sel.hw,
+		[CLKID_SYS_CLK_0_DIV]		= &sysclk_0_div.hw,
+		[CLKID_SYS_CLK_0]		= &sysclk_0.hw,
+		[CLKID_SYS_CLK_1_SEL]		= &sysclk_1_sel.hw,
+		[CLKID_SYS_CLK_1_DIV]		= &sysclk_1_div.hw,
+		[CLKID_SYS_CLK_1]		= &sysclk_1.hw,
+		[CLKID_SYS_CLK]			= &sys_clk.hw,
 
-		[CLKID_AXI_CLK_B_MUX]		= &axiclk_b_mux.hw,
-		[CLKID_AXI_CLK_B_DIV]		= &axiclk_b_div.hw,
-		[CLKID_AXI_CLK_B_GATE]		= &axiclk_b.hw,
-		[CLKID_AXI_CLK_A_MUX]		= &axiclk_a_mux.hw,
-		[CLKID_AXI_CLK_A_DIV]		= &axiclk_a_div.hw,
-		[CLKID_AXI_CLK_A_GATE]		= &axiclk_a.hw,
-		[CLKID_AXI_CLK]			    = &axi_clk.hw,
+		[CLKID_AXI_CLK_0_SEL]		= &axiclk_0_sel.hw,
+		[CLKID_AXI_CLK_0_DIV]		= &axiclk_0_div.hw,
+		[CLKID_AXI_CLK_0]		= &axiclk_0.hw,
+		[CLKID_AXI_CLK_1_SEL]		= &axiclk_1_sel.hw,
+		[CLKID_AXI_CLK_1_DIV]		= &axiclk_1_div.hw,
+		[CLKID_AXI_CLK_1]		= &axiclk_1.hw,
+		[CLKID_AXI_CLK]			= &axi_clk.hw,
 
+		[CLKID_CECB_DUAL_CLKIN]		= &cecb_dual_clkin.hw,
+		[CLKID_CECB_DUAL_DIV]		= &cecb_dual_div.hw,
+		[CLKID_CECB_DUAL_SEL]		= &cecb_dual_sel.hw,
+		[CLKID_CECB_DUAL_CLKOUT]	= &cec_dual_clkout.hw,
+		[CLKID_CECB_CLK]		= &cecb_clk.hw,
 
-		[CLKID_CECB_32K_CLKIN]		= &cecb_xtal_clkin.hw,
-		[CLKID_CECB_32K_DIV]		= &cecb_32k_div.hw,
-		[CLKID_CECB_32K_MUX_PRE]	= &cecb_32k_mux_pre.hw,
-		[CLKID_CECB_32K_MUX]		= &cecb_32k_mux.hw,
-		[CLKID_CECB_32K_CLKOUT]		= &cecb_32k_clkout.hw,
+		[CLKID_SC_SEL]			= &sc_sel.hw,
+		[CLKID_SC_DIV]			= &sc_div.hw,
+		[CLKID_SC]			= &sc.hw,
 
-		[CLKID_SC_CLK_MUX]		    = &sc_clk_mux.hw,
-		[CLKID_SC_CLK_DIV]		    = &sc_clk_div.hw,
-		[CLKID_SC_CLK_GATE]		    = &sc_clk.hw,
+		[CLKID_12_24M_IN]		= &clk_12_24m_in.hw,
+		[CLKID_12_24M]			= &clk_12_24m.hw,
 
-		[CLKID_24M_CLK_GATE]		= &cts_24M_clk.hw,
-		[CLKID_12M_CLK_GATE]		= &cts_12M_clk.hw,
-
-		[CLKID_VCLK_MUX]		    = &vclk_mux.hw,
-		[CLKID_VCLK2_MUX]		    = &vclk2_mux.hw,
-		[CLKID_VCLK_INPUT]		    = &vclk_input.hw,
-		[CLKID_VCLK2_INPUT]		    = &vclk2_input.hw,
-		[CLKID_VCLK_DIV]		    = &vclk_div.hw,
-		[CLKID_VCLK2_DIV]		    = &vclk2_div.hw,
-		[CLKID_VCLK]			    = &vclk.hw,
-		[CLKID_VCLK2]			    = &vclk2.hw,
-		[CLKID_VCLK_DIV1]		    = &vclk_div1.hw,
+		[CLKID_VCLK_SEL]		= &vclk_sel.hw,
+		[CLKID_VCLK2_SEL]		= &vclk2_sel.hw,
+		[CLKID_VCLK_INPUT]		= &vclk_input.hw,
+		[CLKID_VCLK2_INPUT]		= &vclk2_input.hw,
+		[CLKID_VCLK_DIV]		= &vclk_div.hw,
+		[CLKID_VCLK2_DIV]		= &vclk2_div.hw,
+		[CLKID_VCLK]			= &vclk.hw,
+		[CLKID_VCLK2]			= &vclk2.hw,
+		[CLKID_VCLK_DIV1]		= &vclk_div1.hw,
 		[CLKID_VCLK_DIV2_EN]		= &vclk_div2_en.hw,
 		[CLKID_VCLK_DIV4_EN]		= &vclk_div4_en.hw,
 		[CLKID_VCLK_DIV6_EN]		= &vclk_div6_en.hw,
 		[CLKID_VCLK_DIV12_EN]		= &vclk_div12_en.hw,
-		[CLKID_VCLK2_DIV1]		    = &vclk2_div1.hw,
+		[CLKID_VCLK2_DIV1]		= &vclk2_div1.hw,
 		[CLKID_VCLK2_DIV2_EN]		= &vclk2_div2_en.hw,
 		[CLKID_VCLK2_DIV4_EN]		= &vclk2_div4_en.hw,
 		[CLKID_VCLK2_DIV6_EN]		= &vclk2_div6_en.hw,
 		[CLKID_VCLK2_DIV12_EN]		= &vclk2_div12_en.hw,
-		[CLKID_VCLK_DIV2]		    = &vclk_div2.hw,
-		[CLKID_VCLK_DIV4]		    = &vclk_div4.hw,
-		[CLKID_VCLK_DIV6]		    = &vclk_div6.hw,
-		[CLKID_VCLK_DIV12]		    = &vclk_div12.hw,
-		[CLKID_VCLK2_DIV2]		    = &vclk2_div2.hw,
-		[CLKID_VCLK2_DIV4]		    = &vclk2_div4.hw,
-		[CLKID_VCLK2_DIV6]		    = &vclk2_div6.hw,
-		[CLKID_VCLK2_DIV12]		    = &vclk2_div12.hw,
-		[CLKID_CTS_ENCI_MUX]		= &cts_enci_mux.hw,
-		[CLKID_CTS_ENCL_MUX]		= &cts_encl_mux.hw,
-		[CLKID_CTS_ENCP_MUX]		= &cts_encp_mux.hw,
-		[CLKID_CTS_VDAC_MUX]		= &cts_vdac_mux.hw,
-		[CLKID_HDMI_TX_PIXEL_MUX]	= &hdmi_tx_pixel_mux.hw,
-		[CLKID_HDMI_TX_FE_MUX]		= &hdmi_tx_fe_mux.hw,
-		[CLKID_CTS_ENCI]		    = &cts_enci.hw,
-		[CLKID_CTS_ENCL]		    = &cts_encl.hw,
-		[CLKID_CTS_ENCP]		    = &cts_encp.hw,
-		[CLKID_CTS_VDAC]		    = &cts_vdac.hw,
+		[CLKID_VCLK_DIV2]		= &vclk_div2.hw,
+		[CLKID_VCLK_DIV4]		= &vclk_div4.hw,
+		[CLKID_VCLK_DIV6]		= &vclk_div6.hw,
+		[CLKID_VCLK_DIV12]		= &vclk_div12.hw,
+		[CLKID_VCLK2_DIV2]		= &vclk2_div2.hw,
+		[CLKID_VCLK2_DIV4]		= &vclk2_div4.hw,
+		[CLKID_VCLK2_DIV6]		= &vclk2_div6.hw,
+		[CLKID_VCLK2_DIV12]		= &vclk2_div12.hw,
+		[CLKID_ENCI_SEL]		= &enci_sel.hw,
+		[CLKID_ENCL_SEL]		= &encl_sel.hw,
+		[CLKID_ENCP_SEL]		= &encp_sel.hw,
+		[CLKID_VDAC_SEL]		= &vdac_sel.hw,
+		[CLKID_HDMI_TX_PIXEL_SEL]	= &hdmi_tx_pixel_sel.hw,
+		[CLKID_HDMI_TX_FE_SEL]		= &hdmi_tx_fe_sel.hw,
+		[CLKID_ENCI]			= &enci.hw,
+		[CLKID_ENCL]			= &encl.hw,
+		[CLKID_ENCP]			= &encp.hw,
+		[CLKID_VDAC]			= &vdac.hw,
 		[CLKID_HDMI_TX_PIXEL]		= &hdmi_tx_pixel.hw,
-		[CLKID_HDMI_TX_FE]			= &hdmi_tx_fe.hw,
-		[CLKID_LCD_AN_CLK_PH23_SEL]	= &lcd_an_clk_ph23_mux.hw,
-		[CLKID_LCD_AN_CLK_PH23_GATE]	= &lcd_an_clk_ph23.hw,
+		[CLKID_HDMI_TX_FE]		= &hdmi_tx_fe.hw,
+		[CLKID_LCD_AN_CLK_PH23_SEL]	= &lcd_an_clk_ph23_sel.hw,
+		[CLKID_LCD_AN_CLK_PH23]		= &lcd_an_clk_ph23.hw,
 		[CLKID_LCD_AN_CLK_PH2]		= &lcd_an_clk_ph2.hw,
 		[CLKID_LCD_AN_CLK_PH3]		= &lcd_an_clk_ph3.hw,
 
-		[CLKID_HDMITX_SYS_MUX]		= &hdmitx_sys_mux.hw,
-		[CLKID_HDMITX_SYS_DIV]		= &hdmitx_sys_div.hw,
-		[CLKID_HDMITX_SYS]			= &hdmitx_sys.hw,
-		[CLKID_HDMITX_PRIF_MUX]		= &hdmitx_prif_mux.hw,
-		[CLKID_HDMITX_PRIF_DIV]		= &hdmitx_prif_div.hw,
-		[CLKID_HDMITX_PRIF]			= &hdmitx_prif.hw,
-		[CLKID_HDMITX_200M_MUX]		= &hdmitx_200m_mux.hw,
-		[CLKID_HDMITX_200M_DIV]		= &hdmitx_200m_div.hw,
-		[CLKID_HDMITX_200M]			= &hdmitx_200m.hw,
-		[CLKID_HDMITX_AUD_MUX]		= &hdmitx_aud_mux.hw,
-		[CLKID_HDMITX_AUD_DIV]		= &hdmitx_aud_div.hw,
-		[CLKID_HDMITX_AUD]			= &hdmitx_aud.hw,
-		[CLKID_VID_LOCK_MUX]	= &vid_lock_mux.hw,
-		[CLKID_VID_LOCK_DIV]	= &vid_lock_div.hw,
+		[CLKID_HDMI_TX_SYS_SEL]		= &hdmi_tx_sys_sel.hw,
+		[CLKID_HDMI_TX_SYS_DIV]		= &hdmi_tx_sys_div.hw,
+		[CLKID_HDMI_TX_SYS]		= &hdmi_tx_sys.hw,
+		[CLKID_HDMI_TX_PRIF_SEL]	= &hdmi_tx_prif_sel.hw,
+		[CLKID_HDMI_TX_PRIF_DIV]	= &hdmi_tx_prif_div.hw,
+		[CLKID_HDMI_TX_PRIF]		= &hdmi_tx_prif.hw,
+		[CLKID_HDMI_TX_200M_SEL]	= &hdmi_tx_200m_sel.hw,
+		[CLKID_HDMI_TX_200M_DIV]	= &hdmi_tx_200m_div.hw,
+		[CLKID_HDMI_TX_200M]		= &hdmi_tx_200m.hw,
+		[CLKID_HDMI_TX_AUD_SEL]		= &hdmi_tx_aud_sel.hw,
+		[CLKID_HDMI_TX_AUD_DIV]		= &hdmi_tx_aud_div.hw,
+		[CLKID_HDMI_TX_AUD]		= &hdmi_tx_aud.hw,
+		[CLKID_VID_LOCK_SEL]		= &vid_lock_sel.hw,
+		[CLKID_VID_LOCK_DIV]		= &vid_lock_div.hw,
 		[CLKID_VID_LOCK]		= &vid_lock.hw,
-		[CLKID_ETH_RMII_DIV]	= &eth_rmii_div.hw,
+		[CLKID_ETH_RMII_DIV]		= &eth_rmii_div.hw,
 		[CLKID_ETH_RMII]		= &eth_rmii.hw,
-		[CLKID_ETH_125M_DIV]	= &eth_125m_div.hw,
+		[CLKID_ETH_125M_DIV8]		= &eth_125m_div8.hw,
 		[CLKID_ETH_125M]		= &eth_125m.hw,
 
-		[CLKID_TS_CLK_DIV]		= &ts_clk_div.hw,
-		[CLKID_TS_CLK_GATE]		= &ts_clk.hw,
+		[CLKID_TS_DIV]			= &ts_div.hw,
+		[CLKID_TS]			= &ts.hw,
 
-		[CLKID_MALI_0_SEL]		= &mali_0_mux.hw,
+		[CLKID_MALI_0_SEL]		= &mali_0_sel.hw,
 		[CLKID_MALI_0_DIV]		= &mali_0_div.hw,
 		[CLKID_MALI_0]			= &mali_0.hw,
-		[CLKID_MALI_1_SEL]		= &mali_1_mux.hw,
+		[CLKID_MALI_1_SEL]		= &mali_1_sel.hw,
 		[CLKID_MALI_1_DIV]		= &mali_1_div.hw,
 		[CLKID_MALI_1]			= &mali_1.hw,
-		[CLKID_MALI_MUX]		= &mali.hw,
+		[CLKID_MALI]			= &mali.hw,
 
-		[CLKID_VDEC_P0_MUX]		= &vdec_p0_mux.hw,
-		[CLKID_VDEC_P0_DIV]		= &vdec_p0_div.hw,
-		[CLKID_VDEC_P0]			= &vdec_p0.hw,
-		[CLKID_VDEC_P1_MUX]		= &vdec_p1_mux.hw,
-		[CLKID_VDEC_P1_DIV]		= &vdec_p1_div.hw,
-		[CLKID_VDEC_P1]			= &vdec_p1.hw,
-		[CLKID_VDEC_MUX]		= &vdec.hw,
+		[CLKID_VDEC_0_SEL]		= &vdec_0_sel.hw,
+		[CLKID_VDEC_0_DIV]		= &vdec_0_div.hw,
+		[CLKID_VDEC_0]			= &vdec_0.hw,
+		[CLKID_VDEC_1_SEL]		= &vdec_1_sel.hw,
+		[CLKID_VDEC_1_DIV]		= &vdec_1_div.hw,
+		[CLKID_VDEC_1]			= &vdec_1.hw,
+		[CLKID_VDEC]			= &vdec.hw,
 
-		[CLKID_HEVCF_P0_MUX]	= &hevcf_p0_mux.hw,
-		[CLKID_HEVCF_P0_DIV]	= &hevcf_p0_div.hw,
-		[CLKID_HEVCF_P0]		= &hevcf_p0.hw,
-		[CLKID_HEVCF_P1_MUX]	= &hevcf_p1_mux.hw,
-		[CLKID_HEVCF_P1_DIV]	= &hevcf_p1_div.hw,
-		[CLKID_HEVCF_P1]		= &hevcf_p1.hw,
-		[CLKID_HEVCF_MUX]		= &hevcf.hw,
+		[CLKID_HEVCF_0_SEL]		= &hevcf_0_sel.hw,
+		[CLKID_HEVCF_0_DIV]		= &hevcf_0_div.hw,
+		[CLKID_HEVCF_0]			= &hevcf_0.hw,
+		[CLKID_HEVCF_1_SEL]		= &hevcf_1_sel.hw,
+		[CLKID_HEVCF_1_DIV]		= &hevcf_1_div.hw,
+		[CLKID_HEVCF_1]			= &hevcf_1.hw,
+		[CLKID_HEVCF]			= &hevcf.hw,
 
-		[CLKID_VPU_0_MUX]		= &vpu_0_mux.hw,
+		[CLKID_VPU_0_SEL]		= &vpu_0_sel.hw,
 		[CLKID_VPU_0_DIV]		= &vpu_0_div.hw,
 		[CLKID_VPU_0]			= &vpu_0.hw,
-		[CLKID_VPU_1_MUX]		= &vpu_1_mux.hw,
+		[CLKID_VPU_1_SEL]		= &vpu_1_sel.hw,
 		[CLKID_VPU_1_DIV]		= &vpu_1_div.hw,
 		[CLKID_VPU_1]			= &vpu_1.hw,
-		[CLKID_VPU]			    = &vpu.hw,
+		[CLKID_VPU]			= &vpu.hw,
 
-		[CLKID_VPU_CLKB_TMP_MUX]	= &vpu_clkb_tmp_mux.hw,
+		[CLKID_VPU_CLKB_TMP_SEL]	= &vpu_clkb_tmp_sel.hw,
 		[CLKID_VPU_CLKB_TMP_DIV]	= &vpu_clkb_tmp_div.hw,
 		[CLKID_VPU_CLKB_TMP]		= &vpu_clkb_tmp.hw,
 		[CLKID_VPU_CLKB_DIV]		= &vpu_clkb_div.hw,
-		[CLKID_VPU_CLKB]		    = &vpu_clkb.hw,
-		[CLKID_VPU_CLKC_P0_MUX]		= &vpu_clkc_p0_mux.hw,
-		[CLKID_VPU_CLKC_P0_DIV]		= &vpu_clkc_p0_div.hw,
-		[CLKID_VPU_CLKC_P0]		    = &vpu_clkc_p0.hw,
-		[CLKID_VPU_CLKC_P1_MUX]		= &vpu_clkc_p1_mux.hw,
-		[CLKID_VPU_CLKC_P1_DIV]		= &vpu_clkc_p1_div.hw,
-		[CLKID_VPU_CLKC_P1]		    = &vpu_clkc_p1.hw,
-		[CLKID_VPU_CLKC_MUX]		= &vpu_clkc.hw,
+		[CLKID_VPU_CLKB]		= &vpu_clkb.hw,
+		[CLKID_VPU_CLKC_0_SEL]		= &vpu_clkc_0_sel.hw,
+		[CLKID_VPU_CLKC_0_DIV]		= &vpu_clkc_0_div.hw,
+		[CLKID_VPU_CLKC_0]		= &vpu_clkc_0.hw,
+		[CLKID_VPU_CLKC_1_SEL]		= &vpu_clkc_1_sel.hw,
+		[CLKID_VPU_CLKC_1_DIV]		= &vpu_clkc_1_div.hw,
+		[CLKID_VPU_CLKC_1]		= &vpu_clkc_1.hw,
+		[CLKID_VPU_CLKC]		= &vpu_clkc.hw,
 
-		[CLKID_VAPB_0_MUX]		= &vapb_0_mux.hw,
+		[CLKID_VAPB_0_SEL]		= &vapb_0_sel.hw,
 		[CLKID_VAPB_0_DIV]		= &vapb_0_div.hw,
 		[CLKID_VAPB_0]			= &vapb_0.hw,
-		[CLKID_VAPB_1_MUX]		= &vapb_1_mux.hw,
+		[CLKID_VAPB_1_SEL]		= &vapb_1_sel.hw,
 		[CLKID_VAPB_1_DIV]		= &vapb_1_div.hw,
 		[CLKID_VAPB_1]			= &vapb_1.hw,
 		[CLKID_VAPB]			= &vapb.hw,
 
 		[CLKID_GE2D]			= &ge2d.hw,
 
-		[CLKID_VDIN_MEAS_MUX]		= &vdin_meas_mux.hw,
+		[CLKID_VDIN_MEAS_SEL]		= &vdin_meas_sel.hw,
 		[CLKID_VDIN_MEAS_DIV]		= &vdin_meas_div.hw,
-		[CLKID_VDIN_MEAS_GATE]		= &vdin_meas.hw,
+		[CLKID_VDIN_MEAS]		= &vdin_meas.hw,
 
-		[CLKID_SD_EMMC_C_CLK_MUX]	= &sd_emmc_c_mux.hw,
-		[CLKID_SD_EMMC_C_CLK_DIV]	= &sd_emmc_c_div.hw,
-		[CLKID_SD_EMMC_C_CLK]		= &sd_emmc_c.hw,
-		[CLKID_SD_EMMC_A_CLK_MUX]	= &sd_emmc_a_mux.hw,
-		[CLKID_SD_EMMC_A_CLK_DIV]	= &sd_emmc_a_div.hw,
-		[CLKID_SD_EMMC_A_CLK]		= &sd_emmc_a.hw,
-		[CLKID_SD_EMMC_B_CLK_MUX]	= &sd_emmc_b_mux.hw,
-		[CLKID_SD_EMMC_B_CLK_DIV]	= &sd_emmc_b_div.hw,
-		[CLKID_SD_EMMC_B_CLK]		= &sd_emmc_b.hw,
+		[CLKID_SD_EMMC_C_SEL]		= &sd_emmc_c_sel.hw,
+		[CLKID_SD_EMMC_C_DIV]		= &sd_emmc_c_div.hw,
+		[CLKID_SD_EMMC_C]		= &sd_emmc_c.hw,
+		[CLKID_SD_EMMC_A_SEL]		= &sd_emmc_a_sel.hw,
+		[CLKID_SD_EMMC_A_DIV]		= &sd_emmc_a_div.hw,
+		[CLKID_SD_EMMC_A]		= &sd_emmc_a.hw,
+		[CLKID_SD_EMMC_B_SEL]		= &sd_emmc_b_sel.hw,
+		[CLKID_SD_EMMC_B_DIV]		= &sd_emmc_b_div.hw,
+		[CLKID_SD_EMMC_B]		= &sd_emmc_b.hw,
 
-		[CLKID_CDAC_MUX]		= &cdac_mux.hw,
+		[CLKID_CDAC_SEL]		= &cdac_sel.hw,
 		[CLKID_CDAC_DIV]		= &cdac_div.hw,
-		[CLKID_CDAC]		    = &cdac.hw,
+		[CLKID_CDAC]			= &cdac.hw,
 
-		[CLKID_SPICC0_MUX]		= &spicc0_mux.hw,
-		[CLKID_SPICC0_DIV]		= &spicc0_div.hw,
-		[CLKID_SPICC0_GATE]		= &spicc0.hw,
+		[CLKID_SPICC_SEL]		= &spicc_sel.hw,
+		[CLKID_SPICC_DIV]		= &spicc_div.hw,
+		[CLKID_SPICC]			= &spicc.hw,
 
-		[CLKID_PWM_A_MUX]		= &pwm_a_mux.hw,
+		[CLKID_PWM_A_SEL]		= &pwm_a_sel.hw,
 		[CLKID_PWM_A_DIV]		= &pwm_a_div.hw,
-		[CLKID_PWM_A_GATE]		= &pwm_a.hw,
-		[CLKID_PWM_B_MUX]		= &pwm_b_mux.hw,
+		[CLKID_PWM_A]			= &pwm_a.hw,
+		[CLKID_PWM_B_SEL]		= &pwm_b_sel.hw,
 		[CLKID_PWM_B_DIV]		= &pwm_b_div.hw,
-		[CLKID_PWM_B_GATE]		= &pwm_b.hw,
-		[CLKID_PWM_C_MUX]		= &pwm_c_mux.hw,
+		[CLKID_PWM_B]			= &pwm_b.hw,
+		[CLKID_PWM_C_SEL]		= &pwm_c_sel.hw,
 		[CLKID_PWM_C_DIV]		= &pwm_c_div.hw,
-		[CLKID_PWM_C_GATE]		= &pwm_c.hw,
-		[CLKID_PWM_D_MUX]		= &pwm_d_mux.hw,
+		[CLKID_PWM_C]			= &pwm_c.hw,
+		[CLKID_PWM_D_SEL]		= &pwm_d_sel.hw,
 		[CLKID_PWM_D_DIV]		= &pwm_d_div.hw,
-		[CLKID_PWM_D_GATE]		= &pwm_d.hw,
-		[CLKID_PWM_E_MUX]		= &pwm_e_mux.hw,
+		[CLKID_PWM_D]			= &pwm_d.hw,
+		[CLKID_PWM_E_SEL]		= &pwm_e_sel.hw,
 		[CLKID_PWM_E_DIV]		= &pwm_e_div.hw,
-		[CLKID_PWM_E_GATE]		= &pwm_e.hw,
-		[CLKID_PWM_F_MUX]		= &pwm_f_mux.hw,
+		[CLKID_PWM_E]			= &pwm_e.hw,
+		[CLKID_PWM_F_SEL]		= &pwm_f_sel.hw,
 		[CLKID_PWM_F_DIV]		= &pwm_f_div.hw,
-		[CLKID_PWM_F_GATE]		= &pwm_f.hw,
-		[CLKID_PWM_G_MUX]		= &pwm_g_mux.hw,
+		[CLKID_PWM_F]			= &pwm_f.hw,
+		[CLKID_PWM_G_SEL]		= &pwm_g_sel.hw,
 		[CLKID_PWM_G_DIV]		= &pwm_g_div.hw,
-		[CLKID_PWM_G_GATE]		= &pwm_g.hw,
-		[CLKID_PWM_H_MUX]		= &pwm_h_mux.hw,
+		[CLKID_PWM_G]			= &pwm_g.hw,
+		[CLKID_PWM_H_SEL]		= &pwm_h_sel.hw,
 		[CLKID_PWM_H_DIV]		= &pwm_h_div.hw,
-		[CLKID_PWM_H_GATE]		= &pwm_h.hw,
-		[CLKID_PWM_I_MUX]		= &pwm_i_mux.hw,
+		[CLKID_PWM_H]			= &pwm_h.hw,
+		[CLKID_PWM_I_SEL]		= &pwm_i_sel.hw,
 		[CLKID_PWM_I_DIV]		= &pwm_i_div.hw,
-		[CLKID_PWM_I_GATE]		= &pwm_i.hw,
-		[CLKID_PWM_J_MUX]		= &pwm_j_mux.hw,
+		[CLKID_PWM_I]			= &pwm_i.hw,
+		[CLKID_PWM_J_SEL]		= &pwm_j_sel.hw,
 		[CLKID_PWM_J_DIV]		= &pwm_j_div.hw,
-		[CLKID_PWM_J_GATE]		= &pwm_j.hw,
+		[CLKID_PWM_J]			= &pwm_j.hw,
 
-		[CLKID_SARADC_MUX]		= &saradc_mux.hw,
-		[CLKID_SARADC_DIV]		= &saradc_div.hw,
-		[CLKID_SARADC_GATE]		= &saradc.hw,
+		[CLKID_SAR_ADC_SEL]		= &sar_adc_sel.hw,
+		[CLKID_SAR_ADC_DIV]		= &sar_adc_div.hw,
+		[CLKID_SAR_ADC]			= &sar_adc.hw,
 
-		[CLKID_GEN_MUX]			= &gen_mux.hw,
+		[CLKID_GEN_SEL]			= &gen_sel.hw,
 		[CLKID_GEN_DIV]			= &gen_div.hw,
-		[CLKID_GEN_GATE]		= &gen.hw,
+		[CLKID_GEN]			= &gen.hw,
 
-		[CLKID_DDR]			    = &sys_ddr.hw,
-		[CLKID_DOS]			    = &sys_dos.hw,
-		[CLKID_ETHPHY]			= &sys_ethphy.hw,
-		[CLKID_MALI_GATE]		= &sys_mali.hw,
-		[CLKID_AOCPU]			= &sys_aocpu.hw,
-		[CLKID_AUCPU]			= &sys_aucpu.hw,
-		[CLKID_CEC]			    = &sys_cec.hw,
-		[CLKID_SD_EMMC_A]		= &sys_sdemmc_a.hw,
-		[CLKID_SD_EMMC_B]		= &sys_sdemmc_b.hw,
-		[CLKID_SD_EMMC_C]		= &sys_sdemmc_c.hw,
-		[CLKID_SMARTCARD]		= &sys_smartcard.hw,
-		[CLKID_ACODEC]			= &sys_acodec.hw,
-		[CLKID_MSR_CLK]			= &sys_msr_clk.hw,
-		[CLKID_IR_CTRL]			= &sys_ir_ctrl.hw,
+		[CLKID_SYS_DDR]			= &sys_ddr.hw,
+		[CLKID_SYS_DOS]			= &sys_dos.hw,
+		[CLKID_SYS_ETHPHY]		= &sys_ethphy.hw,
+		[CLKID_SYS_MALI_GATE]		= &sys_mali.hw,
+		[CLKID_SYS_AOCPU]		= &sys_aocpu.hw,
+		[CLKID_SYS_AUCPU]		= &sys_aucpu.hw,
+		[CLKID_SYS_CEC]			= &sys_cec.hw,
+		[CLKID_SYS_SD_EMMC_A]		= &sys_sdemmc_a.hw,
+		[CLKID_SYS_SD_EMMC_B]		= &sys_sdemmc_b.hw,
+		[CLKID_SYS_SD_EMMC_C]		= &sys_sdemmc_c.hw,
+		[CLKID_SYS_SMARTCARD]		= &sys_smartcard.hw,
+		[CLKID_SYS_ACODEC]		= &sys_acodec.hw,
+		[CLKID_SYS_MSR_CLK]		= &sys_msr_clk.hw,
+		[CLKID_SYS_IR_CTRL]		= &sys_ir_ctrl.hw,
 
-		[CLKID_AUDIO]			= &sys_audio.hw,
-		[CLKID_ETH]			    = &sys_eth.hw,
-		[CLKID_UART_A]			= &sys_uart_a.hw,
-		[CLKID_UART_B]			= &sys_uart_b.hw,
-		[CLKID_TS_PLL]			= &sys_ts_pll.hw,
-		[CLKID_G2D]			    = &sys_g2d.hw,
-		[CLKID_SPICC0]			= &sys_spicc0.hw,
-		[CLKID_USB]			    = &sys_usb.hw,
-		[CLKID_I2C_M_A]			= &sys_i2c_m_a.hw,
-		[CLKID_I2C_M_B]			= &sys_i2c_m_b.hw,
-		[CLKID_I2C_M_C]			= &sys_i2c_m_c.hw,
-		[CLKID_I2C_M_D]			= &sys_i2c_m_d.hw,
-		[CLKID_I2C_M_E]			= &sys_i2c_m_e.hw,
-		[CLKID_HDMITX_APB]		= &sys_hdmitx_apb.hw,
-		[CLKID_I2C_S_A]			= &sys_i2c_s_a.hw,
-		[CLKID_HDMI20_AES]		= &sys_hdmi20_aes.hw,
-		[CLKID_MMC_APB]			= &sys_mmc_apb.hw,
-		[CLKID_CPU_APB]			= &sys_cpu_apb.hw,
-		[CLKID_VPU_INTR]		= &sys_vpu_intr.hw,
-		[CLKID_SAR_ADC]			= &sys_sar_adc.hw,
-		[CLKID_PWM_J]			= &sys_pwm_j.hw,
-		[CLKID_GIC]				= &sys_gic.hw,
-		[CLKID_PWM_I]			= &sys_pwm_i.hw,
-		[CLKID_PWM_H]			= &sys_pwm_h.hw,
-		[CLKID_PWM_G]			= &sys_pwm_g.hw,
-		[CLKID_PWM_F]			= &sys_pwm_f.hw,
-		[CLKID_PWM_E]			= &sys_pwm_e.hw,
-		[CLKID_PWM_D]			= &sys_pwm_d.hw,
-		[CLKID_PWM_C]			= &sys_pwm_c.hw,
-		[CLKID_PWM_B]			= &sys_pwm_b.hw,
-		[CLKID_PWM_A]			= &sys_pwm_a.hw,
+		[CLKID_SYS_AUDIO]		= &sys_audio.hw,
+		[CLKID_SYS_ETH]			= &sys_eth.hw,
+		[CLKID_SYS_UART_A]		= &sys_uart_a.hw,
+		[CLKID_SYS_UART_B]		= &sys_uart_b.hw,
+		[CLKID_SYS_TS_PLL]		= &sys_ts_pll.hw,
+		[CLKID_SYS_G2D]			= &sys_g2d.hw,
+		[CLKID_SYS_SPICC0]		= &sys_spicc0.hw,
+		[CLKID_SYS_USB]			= &sys_usb.hw,
+		[CLKID_SYS_I2C_M_A]		= &sys_i2c_m_a.hw,
+		[CLKID_SYS_I2C_M_B]		= &sys_i2c_m_b.hw,
+		[CLKID_SYS_I2C_M_C]		= &sys_i2c_m_c.hw,
+		[CLKID_SYS_I2C_M_D]		= &sys_i2c_m_d.hw,
+		[CLKID_SYS_I2C_M_E]		= &sys_i2c_m_e.hw,
+		[CLKID_SYS_HDMITX_APB]		= &sys_hdmitx_apb.hw,
+		[CLKID_SYS_I2C_S_A]		= &sys_i2c_s_a.hw,
+		[CLKID_SYS_HDMI20_AES]		= &sys_hdmi20_aes.hw,
+		[CLKID_SYS_MMC_APB]		= &sys_mmc_apb.hw,
+		[CLKID_SYS_CPU_APB]		= &sys_cpu_apb.hw,
+		[CLKID_SYS_VPU_INTR]		= &sys_vpu_intr.hw,
+		[CLKID_SYS_SAR_ADC]		= &sys_sar_adc.hw,
+		[CLKID_SYS_PWM_J]		= &sys_pwm_j.hw,
+		[CLKID_SYS_GIC]			= &sys_gic.hw,
+		[CLKID_SYS_PWM_I]		= &sys_pwm_i.hw,
+		[CLKID_SYS_PWM_H]		= &sys_pwm_h.hw,
+		[CLKID_SYS_PWM_G]		= &sys_pwm_g.hw,
+		[CLKID_SYS_PWM_F]		= &sys_pwm_f.hw,
+		[CLKID_SYS_PWM_E]		= &sys_pwm_e.hw,
+		[CLKID_SYS_PWM_D]		= &sys_pwm_d.hw,
+		[CLKID_SYS_PWM_C]		= &sys_pwm_c.hw,
+		[CLKID_SYS_PWM_B]		= &sys_pwm_b.hw,
+		[CLKID_SYS_PWM_A]		= &sys_pwm_a.hw,
 
-		[CLKID_SYS_NIC]			= &axi_sys_nic.hw,
-		[CLKID_SRAM]			= &axi_sram.hw,
-		[CLKID_DEV0_MMC]		= &axi_dev0_mmc.hw,
+		[CLKID_AXI_SYS_NIC]		= &axi_sys_nic.hw,
+		[CLKID_AXI_SRAM]		= &axi_sram.hw,
+		[CLKID_AXI_DEV0_MMC]		= &axi_dev0_mmc.hw,
 
 		[NR_CLKS]			= NULL
 	},
@@ -2233,42 +2232,42 @@ static struct clk_hw_onecell_data s7_hw_onecell_data = {
 
 /* Convenience table to populate regmap in .probe */
 static struct clk_regmap *const s7_clk_regmaps[] = {
-	&rtc_xtal_clkin,
-	&rtc_32k_div,
-	&rtc_32k_mux,
-	&rtc_32k,
+	&rtc_dual_clkin,
+	&rtc_dual_div,
+	&rtc_dual_sel,
+	&rtc_dual_clkout,
 	&rtc_clk,
 
-	&sysclk_b_mux,
-	&sysclk_b_div,
-	&sysclk_b,
-	&sysclk_a_mux,
-	&sysclk_a_div,
-	&sysclk_a,
+	&sysclk_0_sel,
+	&sysclk_0_div,
+	&sysclk_0,
+	&sysclk_1_sel,
+	&sysclk_1_div,
+	&sysclk_1,
 	&sys_clk,
 
-	&axiclk_b_mux,
-	&axiclk_b_div,
-	&axiclk_b,
-	&axiclk_a_mux,
-	&axiclk_a_div,
-	&axiclk_a,
+	&axiclk_0_sel,
+	&axiclk_0_div,
+	&axiclk_0,
+	&axiclk_1_sel,
+	&axiclk_1_div,
+	&axiclk_1,
 	&axi_clk,
 
-	&cecb_xtal_clkin,
-	&cecb_32k_div,
-	&cecb_32k_mux_pre,
-	&cecb_32k_mux,
-	&cecb_32k_clkout,
+	&cecb_dual_clkin,
+	&cecb_dual_div,
+	&cecb_dual_sel,
+	&cec_dual_clkout,
+	&cecb_clk,
 
-	&sc_clk_mux,
-	&sc_clk_div,
-	&sc_clk,
+	&sc_sel,
+	&sc_div,
+	&sc,
 
-	&cts_24M_clk,
-	&cts_12M_clk,
-	&vclk_mux,
-	&vclk2_mux,
+	&clk_12_24m_in,
+	&clk_12_24m,
+	&vclk_sel,
+	&vclk2_sel,
 	&vclk_input,
 	&vclk2_input,
 	&vclk_div,
@@ -2285,158 +2284,158 @@ static struct clk_regmap *const s7_clk_regmaps[] = {
 	&vclk2_div4_en,
 	&vclk2_div6_en,
 	&vclk2_div12_en,
-	&cts_enci_mux,
-	&cts_encl_mux,
-	&cts_encp_mux,
-	&cts_vdac_mux,
-	&hdmi_tx_pixel_mux,
-	&hdmi_tx_fe_mux,
-	&cts_enci,
-	&cts_encl,
-	&cts_encp,
-	&cts_vdac,
+	&enci_sel,
+	&encl_sel,
+	&encp_sel,
+	&vdac_sel,
+	&hdmi_tx_pixel_sel,
+	&hdmi_tx_fe_sel,
+	&enci,
+	&encl,
+	&encp,
+	&vdac,
 	&hdmi_tx_pixel,
 	&hdmi_tx_fe,
 
-	&lcd_an_clk_ph23_mux,
+	&lcd_an_clk_ph23_sel,
 	&lcd_an_clk_ph23,
 	&lcd_an_clk_ph2,
 	&lcd_an_clk_ph3,
 
-	&hdmitx_sys_mux,
-	&hdmitx_sys_div,
-	&hdmitx_sys,
-	&hdmitx_prif_mux,
-	&hdmitx_prif_div,
-	&hdmitx_prif,
-	&hdmitx_200m_mux,
-	&hdmitx_200m_div,
-	&hdmitx_200m,
-	&hdmitx_aud_mux,
-	&hdmitx_aud_div,
-	&hdmitx_aud,
+	&hdmi_tx_sys_sel,
+	&hdmi_tx_sys_div,
+	&hdmi_tx_sys,
+	&hdmi_tx_prif_sel,
+	&hdmi_tx_prif_div,
+	&hdmi_tx_prif,
+	&hdmi_tx_200m_sel,
+	&hdmi_tx_200m_div,
+	&hdmi_tx_200m,
+	&hdmi_tx_aud_sel,
+	&hdmi_tx_aud_div,
+	&hdmi_tx_aud,
 
-	&vid_lock_mux,
+	&vid_lock_sel,
 	&vid_lock_div,
 	&vid_lock,
 	&eth_rmii_div,
 	&eth_rmii,
 	&eth_125m,
-	&ts_clk_div,
-	&ts_clk,
+	&ts_div,
+	&ts,
 
-	&mali_0_mux,
+	&mali_0_sel,
 	&mali_0_div,
 	&mali_0,
-	&mali_1_mux,
+	&mali_1_sel,
 	&mali_1_div,
 	&mali_1,
 	&mali,
 
-	&vdec_p0_mux,
-	&vdec_p0_div,
-	&vdec_p0,
-	&vdec_p1_mux,
-	&vdec_p1_div,
-	&vdec_p1,
+	&vdec_0_sel,
+	&vdec_0_div,
+	&vdec_0,
+	&vdec_1_sel,
+	&vdec_1_div,
+	&vdec_1,
 	&vdec,
 
-	&hevcf_p0_mux,
-	&hevcf_p0_div,
-	&hevcf_p0,
-	&hevcf_p1_mux,
-	&hevcf_p1_div,
-	&hevcf_p1,
+	&hevcf_0_sel,
+	&hevcf_0_div,
+	&hevcf_0,
+	&hevcf_1_sel,
+	&hevcf_1_div,
+	&hevcf_1,
 	&hevcf,
 
-	&vpu_0_mux,
+	&vpu_0_sel,
 	&vpu_0_div,
 	&vpu_0,
-	&vpu_1_mux,
+	&vpu_1_sel,
 	&vpu_1_div,
 	&vpu_1,
 	&vpu,
-	&vpu_clkb_tmp_mux,
+	&vpu_clkb_tmp_sel,
 	&vpu_clkb_tmp_div,
 	&vpu_clkb_tmp,
 	&vpu_clkb_div,
 	&vpu_clkb,
-	&vpu_clkc_p0_mux,
-	&vpu_clkc_p0_div,
-	&vpu_clkc_p0,
-	&vpu_clkc_p1_mux,
-	&vpu_clkc_p1_div,
-	&vpu_clkc_p1,
+	&vpu_clkc_0_sel,
+	&vpu_clkc_0_div,
+	&vpu_clkc_0,
+	&vpu_clkc_1_sel,
+	&vpu_clkc_1_div,
+	&vpu_clkc_1,
 	&vpu_clkc,
 
-	&vapb_0_mux,
+	&vapb_0_sel,
 	&vapb_0_div,
 	&vapb_0,
-	&vapb_1_mux,
+	&vapb_1_sel,
 	&vapb_1_div,
 	&vapb_1,
 	&vapb,
 
 	&ge2d,
 
-	&vdin_meas_mux,
+	&vdin_meas_sel,
 	&vdin_meas_div,
 	&vdin_meas,
 
-	&sd_emmc_c_mux,
+	&sd_emmc_c_sel,
 	&sd_emmc_c_div,
 	&sd_emmc_c,
-	&sd_emmc_a_mux,
+	&sd_emmc_a_sel,
 	&sd_emmc_a_div,
 	&sd_emmc_a,
-	&sd_emmc_b_mux,
+	&sd_emmc_b_sel,
 	&sd_emmc_b_div,
 	&sd_emmc_b,
 
-	&cdac_mux,
+	&cdac_sel,
 	&cdac_div,
 	&cdac,
 
-	&spicc0_mux,
-	&spicc0_div,
-	&spicc0,
+	&spicc_sel,
+	&spicc_div,
+	&spicc,
 
-	&pwm_a_mux,
+	&pwm_a_sel,
 	&pwm_a_div,
 	&pwm_a,
-	&pwm_b_mux,
+	&pwm_b_sel,
 	&pwm_b_div,
 	&pwm_b,
-	&pwm_c_mux,
+	&pwm_c_sel,
 	&pwm_c_div,
 	&pwm_c,
-	&pwm_d_mux,
+	&pwm_d_sel,
 	&pwm_d_div,
 	&pwm_d,
-	&pwm_e_mux,
+	&pwm_e_sel,
 	&pwm_e_div,
 	&pwm_e,
-	&pwm_f_mux,
+	&pwm_f_sel,
 	&pwm_f_div,
 	&pwm_f,
-	&pwm_g_mux,
+	&pwm_g_sel,
 	&pwm_g_div,
 	&pwm_g,
-	&pwm_h_mux,
+	&pwm_h_sel,
 	&pwm_h_div,
 	&pwm_h,
-	&pwm_i_mux,
+	&pwm_i_sel,
 	&pwm_i_div,
 	&pwm_i,
-	&pwm_j_mux,
+	&pwm_j_sel,
 	&pwm_j_div,
 	&pwm_j,
 
-	&saradc_mux,
-	&saradc_div,
-	&saradc,
+	&sar_adc_sel,
+	&sar_adc_div,
+	&sar_adc,
 
-	&gen_mux,
+	&gen_sel,
 	&gen_div,
 	&gen,
 

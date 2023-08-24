@@ -1347,9 +1347,9 @@
 				<0xfe004000 0x4>;
 			interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
-			clocks = <&clkc CLKID_SD_EMMC_C>,
-				<&clkc CLKID_SD_EMMC_C_CLK_MUX>,
-				 <&clkc CLKID_SD_EMMC_C_CLK>,
+			clocks = <&clkc CLKID_SYS_SD_EMMC_C>,
+				<&clkc CLKID_SD_EMMC_C_SEL>,
+				 <&clkc CLKID_SD_EMMC_C>,
 				 <&xtal>,
 				 <&clkc CLKID_FCLK_DIV2>,
 				 <&clkc CLKID_FCLK_DIV2>;
@@ -1373,9 +1373,9 @@
 				<0xfe004024 0x4>;
 			interrupts = <GIC_SPI 177 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
-			clocks = <&clkc CLKID_SD_EMMC_B>,
-				<&clkc CLKID_SD_EMMC_B_CLK_MUX>,
-				 <&clkc CLKID_SD_EMMC_B_CLK>,
+			clocks = <&clkc CLKID_SYS_SD_EMMC_B>,
+				<&clkc CLKID_SD_EMMC_B_SEL>,
+				 <&clkc CLKID_SD_EMMC_B>,
 				 <&xtal>,
 				 <&clkc CLKID_FCLK_DIV2>;
 			clock-names = "core", "mux0", "mux1",
@@ -1394,9 +1394,9 @@
 				<0xfe00400c 0x4>;
 			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
-			clocks = <&clkc CLKID_SD_EMMC_A>,
-				<&clkc CLKID_SD_EMMC_A_CLK_MUX>,
-				 <&clkc CLKID_SD_EMMC_A_CLK>,
+			clocks = <&clkc CLKID_SYS_SD_EMMC_A>,
+				<&clkc CLKID_SD_EMMC_A_SEL>,
+				 <&clkc CLKID_SD_EMMC_A>,
 				 <&xtal>,
 				 <&clkc CLKID_FCLK_DIV2>;
 			clock-names = "core", "mux0", "mux1",
@@ -1519,16 +1519,16 @@
 			<0xfe036000 0x2000>;
 		reg-names = "dosbus",
 			"dmcbus";
-		clocks = <&clkc CLKID_DOS
-			&clkc CLKID_VDEC_MUX
-			&clkc CLKID_HEVCF_MUX>;
+		clocks = <&clkc CLKID_SYS_DOS
+			&clkc CLKID_VDEC
+			&clkc CLKID_HEVCF>;
 		clock-names = "vdec",
 			"clk_vdec_mux",
 			"clk_hevcf_mux";
-		assigned-clock-parents = <&clkc CLKID_VDEC_P0>,
-			<&clkc CLKID_HEVCF_P0>;
-		assigned-clocks = <&clkc CLKID_VDEC_MUX>,
-			<&clkc CLKID_HEVCF_MUX>;
+		assigned-clock-parents = <&clkc CLKID_VDEC_0>,
+			<&clkc CLKID_HEVCF_0>;
+		assigned-clocks = <&clkc CLKID_VDEC>,
+			<&clkc CLKID_HEVCF>;
 	};
 
 	vdec {
@@ -1798,7 +1798,7 @@
 			 0xfe00c000 0x70     /* pwrctrl */
 			 0xff000000 0xa000>; /* vcbus */
 		clocks = <&clkc CLKID_VAPB>,
-			<&clkc CLKID_VPU_INTR>,
+			<&clkc CLKID_SYS_VPU_INTR>,
 			<&clkc CLKID_VPU_0>,
 			<&clkc CLKID_VPU_1>,
 			<&clkc CLKID_VPU>;
@@ -2103,7 +2103,7 @@
 		interrupts = <GIC_SPI 217 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ge2d";
 		clocks = <&clkc CLKID_VAPB>,
-			<&clkc CLKID_G2D>,
+			<&clkc CLKID_SYS_G2D>,
 			<&clkc CLKID_GE2D>;
 		clock-names = "clk_vapb_0",
 			"clk_ge2d",
@@ -2944,7 +2944,7 @@
 	interrupt-names = "GPU", "MMU", "JOB";
 	clk_cntl_reg = <0x57>;
 
-	clocks = <&clkc CLKID_MALI_MUX>;
+	clocks = <&clkc CLKID_MALI>;
 	clock-names = "gpu_mux";
 
 	/*
@@ -2955,7 +2955,7 @@
 	assigned-clocks = <&clkc CLKID_GP1_PLL>,
 			<&clkc CLKID_MALI_0_SEL>,
 			<&clkc CLKID_MALI_0>,
-			<&clkc CLKID_MALI_MUX>; /* Glitch free mux */
+			<&clkc CLKID_MALI>; /* Glitch free mux */
 	assigned-clock-parents = <0>, /* Do Nothing */
 				<&clkc CLKID_FCLK_DIV4>,
 				<0>, /* Do Nothing */
