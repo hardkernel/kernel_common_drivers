@@ -921,20 +921,16 @@ static const struct clk_parent_data hifi_pll_dco_parent_data = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table hifi_pll_table[] = {
-	PLL_PARAMS(70, 1, 1), /* DCO = 1680M OD = 2 PLL = 840M */
-	PLL_PARAMS(132, 1, 2), /* DCO = 3168M OD = 4 PLL = 792M */
-	PLL_PARAMS(128, 1, 2), /* DCO = 3072M OD = 4 PLL = 768M */
-	PLL_PARAMS(124, 1, 2), /* DCO = 2976M OD = 4 PLL = 744M */
-	PLL_PARAMS(96, 1, 1), /* DCO = 2304M OD = 2 PLL = 1152M */
+	PLL_PARAMS(75, 1, 0), /* DCO = 1800M OD = 0 PLL = 1800M */
+	PLL_PARAMS(75, 1, 2), /* DCO = 1800M OD = 4 PLL = 450M */
+	PLL_PARAMS(81, 1, 2), /* DCO = 1944M OD = 4 PLL = 486M */
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table hifi_pll_table[] = {
-	PLL_PARAMS(70, 1), /* DCO = 1680M */
-	PLL_PARAMS(132, 1), /* DCO = 3168M */
-	PLL_PARAMS(128, 1), /* DCO = 3072M */
-	PLL_PARAMS(124, 1), /* DCO = 2976M */
-	PLL_PARAMS(96, 1), /* DCO = 2304M  */
+	PLL_PARAMS(75, 1, 0), /* DCO = 1800M */
+	PLL_PARAMS(75, 1, 2), /* DCO = 1800M */
+	PLL_PARAMS(81, 1, 2), /* DCO = 1944M */
 	{ /* sentinel */  }
 };
 #endif
