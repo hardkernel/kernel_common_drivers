@@ -1772,7 +1772,10 @@ static void update_current_para(struct hdmitx_dev *hdev)
 	struct vinfo_s *info = hdmitx_get_current_vinfo(NULL);
 
 	memset(mode, 0, sizeof(mode));
-	strncpy(mode, info->name, sizeof(mode) - 1);
+	if (!info || !info->name)
+		strncpy(mode, " ", sizeof(mode) - 1);
+	else
+		strncpy(mode, info->name, sizeof(mode) - 1);
 	if (strstr(hdev->tx_comm.fmt_attr, "420")) {
 		if (!strstr(mode, "420"))
 			strncat(mode, "420", sizeof(mode) - strlen("420") - 1);
