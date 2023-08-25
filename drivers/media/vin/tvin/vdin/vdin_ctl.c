@@ -6428,6 +6428,8 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 	/* filmmaker check */
 	vdin_fmm_check(devp, vf);
 
+	vf->ext_signal_type = vdin_get_rx_avi_colorimetry(devp, vf->ext_signal_type);
+
 	memcpy(&devp->dv.dv_vsif_raw, &devp->prop.dv_vsif_raw,
 		sizeof(struct tvin_dv_vsif_raw_s));
 	vf->vsif.addr = &devp->dv.dv_vsif_raw;
@@ -7467,3 +7469,15 @@ enum vdin_vrr_mode_e get_cur_vrr_status(struct vdin_dev_s *devp)
 	return ret;
 }
 
+unsigned int vdin_get_rx_avi_colorimetry(struct vdin_dev_s *devp, unsigned int colorimetry)
+{
+	/* avi_ext_colorimetry is ext_signal_type bit[15:12]
+	 * avi_colorimetry is ext_signal_type bit[11:8]
+	 */
+	colorimetry = (devp->prop.avi_ext_colorimetry << 12) |
+		(colorimetry & (~0xF000));
+	colorimetry = (devp->prop.avi_colorimetry << 8) |
+		(colorimetry & (~0xF00));
+
+	return colorimetry;
+}

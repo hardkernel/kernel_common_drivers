@@ -681,7 +681,9 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 		devp->parm.info.low_latency = 0;
 
 	devp->parm.info.signal_type = signal_type;
-	devp->parm.info.input_colorimetry = devp->prop.avi_ec;
+	/* hdmirx avi colorimetry bit[11:8] + ext_colorimetry bit[15:12] */
+	devp->parm.info.input_colorimetry =
+		vdin_get_rx_avi_colorimetry(devp, devp->parm.info.input_colorimetry);
 
 	return signal_chg;
 }

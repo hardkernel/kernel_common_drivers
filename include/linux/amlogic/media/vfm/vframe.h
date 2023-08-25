@@ -689,7 +689,12 @@ struct vframe_s {
 	 */
 	u32 signal_type;
 	/*
-	 *bit 0: FMM flag
+	 * bit 0: FMM flag
+	 * bit[8-11]: modify to avi_colorimetry 00:NULL  01:SMPTE_ST_170    10:BT_709
+	 * bit[12-15] modify to avi_ext_colorimetry 00:XVYCC_601  01:XVYCC_709  10:SYCC_601
+	 *	11:OPYCC_601  100:OP_RGB  101:BT_2020_YCC  110:BI_2020_RGBORYCC
+	 *	111:SMPTE_ST_2113_P3D65RGB  1000:SMPTE_ST_2113_P3DCIRGB
+	 *	1001:BT_2100
 	 */
 	u32 ext_signal_type;
 	u32 orientation;

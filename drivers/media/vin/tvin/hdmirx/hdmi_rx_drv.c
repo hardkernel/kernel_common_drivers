@@ -1596,15 +1596,19 @@ void hdmirx_get_hdr_info(struct tvin_sig_property_s *prop, u8 port)
  #define E_ADDITIONAL_VALID 7
 void hdmirx_get_avi_ext_colorimetry(struct tvin_sig_property_s *prop, u8 port)
 {
-	prop->avi_ec = rx[port].cur.ext_colorimetry;
-	if (rx[port].cur.colorimetry != E_EXTENDED_VALID) {
-		prop->avi_ec = rx[port].cur.colorimetry;
-	} else {
-		if (rx[port].cur.ext_colorimetry != E_ADDITIONAL_VALID)
-			prop->avi_ec = E_EXTENDED_VALID + rx[port].cur.ext_colorimetry;
-		else
-			prop->avi_ec = E_ADDITIONAL_VALID;//todo
-	}
+	prop->avi_colorimetry = rx[port].cur.colorimetry;
+	prop->avi_ext_colorimetry = rx[port].cur.ext_colorimetry;
+
+	/*
+	 *if (rx[port].cur.colorimetry != E_EXTENDED_VALID) {
+	 *	prop->avi_ec = rx[port].cur.colorimetry;
+	 *} else {
+	 *	if (rx[port].cur.ext_colorimetry != E_ADDITIONAL_VALID)
+	 *		prop->avi_ec = E_EXTENDED_VALID + rx[port].cur.ext_colorimetry;
+	 *	else
+	 *		prop->avi_ec = E_ADDITIONAL_VALID;//todo
+	 *}
+	 */
 }
 
 /* frl is 2ppc or 4ppc; tmds is 1ppc (420+2ppc;420+4ppc up_sample_en need enable to 1) */
@@ -1657,9 +1661,10 @@ void hdmirx_get_sig_prop(struct tvin_frontend_s *fe,
 			cur_port, prop->dvi_info, prop->colordepth, prop->color_format,
 			prop->dest_cfmt, prop->color_fmt_range, prop->fps,
 			prop->spd_data.data[5], prop->spd_data.data[7]);
-		rx_pr("lat:[%#x,%#x,%#x],vic:%d,ec:%d\n",
+		rx_pr("lat:[%#x,%#x,%#x],vic:%d,avi_c:%d,avi_ec:%d\n",
 			prop->latency.allm_mode, prop->latency.cn_type,
-			prop->latency.it_content, prop->hw_vic, prop->avi_ec);
+			prop->latency.it_content, prop->hw_vic, prop->avi_colorimetry,
+			prop->avi_ext_colorimetry);
 	}
 }
 
@@ -1690,9 +1695,10 @@ void hdmirx_get_sig_prop2(struct tvin_frontend_s *fe,
 			prop->dvi_info, prop->colordepth, prop->color_format, prop->dest_cfmt,
 			prop->color_fmt_range, prop->fps,
 			prop->spd_data.data[5], prop->spd_data.data[7]);
-		rx_pr("lat:[%#x,%#x,%#x],vic:%d,ec:%d\n",
+		rx_pr("lat:[%#x,%#x,%#x],vic:%d,avi_c:%d,avi_ec:%d\n",
 			prop->latency.allm_mode, prop->latency.cn_type,
-			prop->latency.it_content, prop->hw_vic, prop->avi_ec);
+			prop->latency.it_content, prop->hw_vic, prop->avi_colorimetry,
+			prop->avi_ext_colorimetry);
 	}
 }
 
