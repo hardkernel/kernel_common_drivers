@@ -13548,7 +13548,10 @@ int video_hw_init(void)
 		/* arb rd2:  vpp_arb1, */
 		/* VPU[0x3978]=0x0aa00000 */
 		/* VPU[0x279d]=0x00900000 */
-		WRITE_VCBUS_REG(VPU_RDARB_UGT_L2C1, 0xffff);
+		/*
+		 *setting move to vpu arb driver init
+		 *WRITE_VCBUS_REG(VPU_RDARB_UGT_L2C1, 0xffff);
+		 */
 	} else if (video_is_meson_t5m_cpu()) {
 		/* vpu port map for t5m */
 		/* vpp_arb0: vd1, vd2, dolby0 */
