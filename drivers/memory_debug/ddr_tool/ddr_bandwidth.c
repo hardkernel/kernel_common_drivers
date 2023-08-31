@@ -1364,6 +1364,7 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 #endif
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S7
 	case DMC_TYPE_S7:
+	case DMC_TYPE_S7D:
 		band->ops = &s7_ddr_bw_ops;
 		aml_db->channels = 8;
 		aml_db->mali_port[0] = 12;
@@ -1688,6 +1689,10 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 	{
 		.compatible = "amlogic,ddr-bandwidth-s7",
 		.data = (void *)DMC_TYPE_S7,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-s7d",
+		.data = (void *)DMC_TYPE_S7D,
 	},
 #endif
 	{
