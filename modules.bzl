@@ -9,6 +9,7 @@ OEM_PROJECT_MODULES = [
 AMLOGIC_GKI20_MODULES = [
     "common_drivers/drivers/memory_ext/aml_cma.ko",
     "common_drivers/drivers/memory_ext/mem_debug.ko",
+    "common_drivers/drivers/memory_ext/page_trace.ko",
     "common_drivers/drivers/memory_ext/user_fault.ko",
 ]
 
@@ -75,7 +76,6 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/drivers/media/camera/amlogic-camera.ko",
     "common_drivers/drivers/memory_debug/amlogic-memory-debug.ko",
     "common_drivers/drivers/memory_ext/aml_smmu.ko",
-    "common_drivers/drivers/memory_ext/page_trace.ko",
     "common_drivers/drivers/mmc/host/amlogic-mmc.ko",
     "common_drivers/drivers/net/ethernet/stmicro/stmmac/amlogic-phy-debug.ko",
     "common_drivers/drivers/net/ethernet/stmicro/stmmac/dwmac-dwc-qos-eth.ko",
