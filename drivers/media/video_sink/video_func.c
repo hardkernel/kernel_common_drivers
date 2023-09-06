@@ -5863,6 +5863,7 @@ void set_vsync_2to1_mode(u8 enable)
 		cur_dev->vsync_2to1_enable = enable;
 }
 EXPORT_SYMBOL(set_vsync_2to1_mode);
+
 /*********************************************************
  * Utilities
  *********************************************************/
