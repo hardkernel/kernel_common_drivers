@@ -20,6 +20,8 @@
 #define SPI_NAND_TPL_COPY_NUM		4
 #define SPI_NAND_NBITS		2
 
+extern const struct spinand_manufacturer dosilicon_spinand_manufacturer;
+
 enum info_page_mode {
 	NORMAL_INFO_P = 0,
 	FRONT_INFO_P = 1,
