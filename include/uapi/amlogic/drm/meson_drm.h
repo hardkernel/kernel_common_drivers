@@ -93,12 +93,6 @@ struct drm_meson_present_fence {
 	__u32 fd;
 };
 
-struct drm_mode_test_attr {
-	char modename[32];
-	char attr[32];
-	__u32 valid;
-};
-
 /*Memory related.*/
 #define DRM_IOCTL_MESON_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + \
 		0x00, struct drm_meson_gem_create)
