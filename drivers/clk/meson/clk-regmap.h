@@ -11,6 +11,8 @@
 #include <linux/regmap.h>
 #include "clk-cpu-dyndiv.h"
 
+extern int bypass_clk_disable;
+
 /**
  * struct clk_regmap - regmap backed clock
  *
