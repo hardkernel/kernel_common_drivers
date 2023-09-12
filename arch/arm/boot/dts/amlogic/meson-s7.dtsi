@@ -1017,48 +1017,48 @@
 				interrupts = <GIC_SPI 160 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				//clocks = <&clkc CLKID_I2C_M_A>;
+				clocks = <&clkc CLKID_SYS_I2C_M_A>;
 				status = "disabled";
 			};
 
-			i2c1: i2c@68000 {
+			i2c1: i2c@66400 {
 				compatible = "amlogic,meson-i2c";
-				reg = <0x68000 0x48>;
+				reg = <0x66400 0x48>;
 				interrupts = <GIC_SPI 161 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				//clocks = <&clkc CLKID_I2C_M_B>;
+				clocks = <&clkc CLKID_SYS_I2C_M_B>;
 				status = "disabled";
 			};
 
-			i2c2: i2c@6a000 {
+			i2c2: i2c@66800 {
 				compatible = "amlogic,meson-i2c";
-				reg = <0x6a000 0x48>;
+				reg = <0x66800 0x48>;
 				interrupts = <GIC_SPI 162 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				//clocks = <&clkc CLKID_I2C_M_C>;
+				clocks = <&clkc CLKID_SYS_I2C_M_C>;
 				status = "disabled";
 			};
 
-			i2c3: i2c@6c000 {
+			i2c3: i2c@66c00 {
 				compatible = "amlogic,meson-i2c";
-				reg = <0x6c000 0x48>;
+				reg = <0x66c00 0x48>;
 				interrupts = <GIC_SPI 163 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				//clocks = <&clkc CLKID_I2C_M_D>;
+				clocks = <&clkc CLKID_SYS_I2C_M_D>;
 				status = "disabled";
 			};
 
-			i2c4: i2c@6e000 {
+			i2c4: i2c@67000 {
 				compatible = "amlogic,meson-i2c";
-				reg = <0x6e000 0x48>;
+				reg = <0x67000 0x48>;
 				interrupts = <GIC_SPI 164 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				//clocks = <&clkc CLKID_I2C_M_E>;
-				status = "okay";
+				clocks = <&clkc CLKID_SYS_I2C_M_E>;
+				status = "disabled";
 			};
 
 			uart_B: serial@7a000 {
