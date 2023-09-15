@@ -211,7 +211,7 @@ static struct sec_pm_domain_data c2_pm_domain_data __initdata = {
 };
 
 static struct sec_pm_private_domain sc2_pm_domains[] __initdata = {
-	[PDID_SC2_DSP] = POWER_DOMAIN(dsp, PDID_SC2_DSP, DOMAIN_INIT_OFF, 0),
+	[PDID_SC2_DSP] = POWER_DOMAIN(dsp, PDID_SC2_DSP, DOMAIN_INIT_ON, GENPD_FLAG_ACTIVE_WAKEUP),
 	[PDID_SC2_DOS_HCODEC] = POWER_DOMAIN(hcodec, PDID_SC2_DOS_HCODEC, DOMAIN_INIT_OFF, 0),
 	[PDID_SC2_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_SC2_DOS_HEVC, DOMAIN_INIT_OFF, 0),
 	[PDID_SC2_DOS_VDEC] = POWER_DOMAIN(vdec, PDID_SC2_DOS_VDEC, DOMAIN_INIT_OFF, 0),
@@ -223,7 +223,8 @@ static struct sec_pm_private_domain sc2_pm_domains[] __initdata = {
 	[PDID_SC2_PCIE] = POWER_DOMAIN(pcie, PDID_SC2_PCIE, DOMAIN_INIT_OFF, 0),
 	[PDID_SC2_GE2D] = POWER_DOMAIN(ge2d, PDID_SC2_GE2D, DOMAIN_INIT_OFF, 0),
 	[PDID_SC2_ETH] = POWER_DOMAIN(eth, PDID_SC2_ETH, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
-	[PDID_SC2_AUDIO] = POWER_DOMAIN(audio, PDID_SC2_AUDIO, DOMAIN_INIT_OFF, 0),
+	[PDID_SC2_AUDIO] = POWER_DOMAIN(audio, PDID_SC2_AUDIO, DOMAIN_INIT_ON,
+		GENPD_FLAG_ALWAYS_ON),
 };
 
 static struct sec_pm_domain_data sc2_pm_domain_data __initdata = {
