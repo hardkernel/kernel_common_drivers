@@ -60,6 +60,7 @@ struct meson_clk_pll_data {
 	struct parm l;
 	struct parm rst;
 	struct parm th; /* threshold */
+	struct parm fl; /* force lock */
 	/* for 32bit dco overflow */
 	struct parm od;
 	/*for pcie*/

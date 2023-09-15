@@ -851,6 +851,7 @@ static int meson_clk_pll_v3_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct parm *pn = &pll->n;
 	struct parm *pth = &pll->th;
 	struct parm *pfrac = &pll->frac;
+	struct parm *pfl = &pll->fl;
 	unsigned int m, n, frac;
 	unsigned int val;
 	const struct reg_sequence *init_regs = pll->init_regs;
@@ -936,6 +937,11 @@ static int meson_clk_pll_v3_set_rate(struct clk_hw *hw, unsigned long rate,
 				val &= CLRPMASK(pfrac->width, pfrac->shift);
 				val |= frac << pfrac->shift;
 				regmap_write(clk->map, pfrac->reg_off, val);
+			} else if (MESON_PARM_APPLICABLE(&pll->fl) &&
+				   pfl->reg_off == init_regs[i].reg) {
+				val = init_regs[i].def;
+				val &= CLRPMASK(pfl->width, pfl->shift);
+				regmap_write(clk->map, pfl->reg_off, val);
 			} else {
 				val = init_regs[i].def;
 				regmap_write(clk->map, init_regs[i].reg, val);
@@ -944,15 +950,28 @@ static int meson_clk_pll_v3_set_rate(struct clk_hw *hw, unsigned long rate,
 				udelay(init_regs[i].delay_us);
 		}
 
-		if (!meson_clk_pll_wait_lock(hw))
+		if (!meson_clk_pll_wait_lock(hw)) {
+			/*
+			 * In special scenarios (such as ESD interference), the pll clock
+			 * source may fluctuate due to interference, and the fluctuations
+			 * will recover in a short time. enable the fl bit to prevent the
+			 * pll from ignoring interference and force lock
+			 */
+			if (MESON_PARM_APPLICABLE(&pll->fl))
+				regmap_update_bits(clk->map, pfl->reg_off, BIT(pfl->shift),
+						   BIT(pfl->shift));
+
 			break;
+		}
 		retry--;
 	} while (retry > 0);
 
-	if (retry == 0)
+	if (retry == 0) {
 		pr_err("%s pll locked failed\n", clk_hw_get_name(hw));
+		ret = -EIO;
+	}
 
-	return 0;
+	return ret;
 }
 
 static int meson_clk_pll_v3_enable(struct clk_hw *hw)
