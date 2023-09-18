@@ -617,7 +617,7 @@ static void osdblend_set_state(struct meson_vpu_block *vblk,
 		return;
 	}
 
-	if (pipeline_state->pipeline->osd_version == OSD_V1) {
+	if (pipeline_state->pipeline->osd_version <= OSD_V5) {
 		mvobs->input_mask |= 5;
 		for (i = 0; i < MAX_DIN_NUM; i++) {
 			if (mvobs->din_channel_mux[i] == 0)
