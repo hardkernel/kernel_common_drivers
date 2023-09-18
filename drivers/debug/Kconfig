@@ -35,7 +35,6 @@ config AMLOGIC_BOOT_TIME
 
 config AMLOGIC_DEBUG_PRINTK
 	tristate "Amlogic printk support"
-	depends on AMLOGIC_BREAK_GKI_20
 	depends on PRINTK_CALLER
 	default n
 	help
