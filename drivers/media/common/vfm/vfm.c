@@ -19,6 +19,7 @@
 #include <linux/amlogic/major.h>
 #include <linux/compat.h>
 /* Amlogic headers */
+#include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
@@ -439,6 +440,9 @@ static void vfm_init(void)
 #endif
 	char def_dvhdmiin_id[VFM_NAME_LEN] = "dvhdmiin";
 	char def_dvhdmiin_chain[] = "dv_vdin amvideo";
+
+	char tvpath_pip_id[VFM_NAME_LEN] = "tvpath_pip";
+	char tvpath_pip_chain[] = "vdin2 dimulti.1 videoqueue.1";
 	int i;
 
 	for (i = 0; i < VFM_MAP_COUNT; i++)
@@ -461,6 +465,8 @@ static void vfm_init(void)
 	vfm_map_add(def_dvel_id2, def_dvel_chain2);
 #endif
 	vfm_map_add(def_dvhdmiin_id, def_dvhdmiin_chain);
+	if (is_meson_t3x_cpu())
+		vfm_map_add(tvpath_pip_id, tvpath_pip_chain);
 	local_dump_buf = kzalloc(DUMP_BUFFER_SIZE, GFP_KERNEL);
 }
 

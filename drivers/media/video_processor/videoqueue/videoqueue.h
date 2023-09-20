@@ -72,9 +72,28 @@ struct video_queue_dev {
 	u32 vdin_hold_count;
 	bool vlock_locked;
 	int vdin_err_crc_count;
-	bool need_keep_frame;
 	int dv_inst;
 	int frame_skip_check_cnt;
+
+	int total_get_count;
+	int total_put_count;
+	int di_get_count;
+	int di_put_count;
+	int dump_index;
+	int dump_index_last;
+	u64 vframe_get_delay;
+	int force_game_mode;
+	int fence_dq_count;
+	int fence_put_count;
+	int fence_null_count;
+	int resync_open;
+	int unknown_check;
+	bool sync_start;
+	int wakeup;
+	u64 pcr_time;
+	//used for 29.976 59.94 119.88fps
+	bool is_special_fps;
+	u32 vsync_no;
 	struct mutex mutex_file;/*for file_q*/
 };
 
