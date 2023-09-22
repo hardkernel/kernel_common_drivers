@@ -117,6 +117,7 @@ struct meson_drm {
 	bool recovery_mode;
 	u32 osd_occupied_index;
 	u8 dummyl_from_hdmitx;
+	u8 remove_get_vblank_timestamp;
 };
 
 /*component bind functions*/
