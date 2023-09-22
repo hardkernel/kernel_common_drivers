@@ -1138,6 +1138,11 @@ static int meson_cpufreq_exit(struct cpufreq_policy *policy)
 					      &freq_table[cur_cluster]);
 		dev_pm_opp_of_cpumask_remove_table(policy->related_cpus);
 	}
+
+	if (!IS_ERR_OR_NULL(cpufreq_data->reg))
+		devm_regulator_put(cpufreq_data->reg);
+	if (!IS_ERR_OR_NULL(cpufreq_data->reg_dsu))
+		regulator_put(cpufreq_data->reg_dsu);
 	dev_dbg(cpu_dev, "%s: Exited, cpu: %d\n", __func__, policy->cpu);
 	kfree(cpufreq_data);
 
@@ -1183,6 +1188,26 @@ static int meson_cpufreq_verify(struct cpufreq_policy_data *pd)
 	return ret;
 }
 
+static int meson_cpufreq_online(struct cpufreq_policy *policy)
+{
+	return 0;
+}
+
+static int meson_cpufreq_offline(struct cpufreq_policy *policy)
+{
+	struct meson_cpufreq_driver_data *freq_data;
+	int c_idx;
+
+	freq_data = policy->driver_data;
+	if (IS_ERR_OR_NULL(freq_data))
+		return 0;
+	c_idx = freq_data->clusterid;
+	dsu_voltage_vote_result[c_idx] = 0;
+	dsu_freq_vote_result[c_idx] = 0;
+
+	return 0;
+}
+
 static struct cpufreq_driver meson_cpufreq_driver = {
 	.name			= "arm-big-little",
 	.flags			= CPUFREQ_IS_COOLING_DEV |
@@ -1197,6 +1222,8 @@ static struct cpufreq_driver meson_cpufreq_driver = {
 	.suspend		= meson_cpufreq_suspend,
 	.resume			= meson_cpufreq_resume,
 	.register_em	= meson_cpufreq_register_em,
+	.online			= meson_cpufreq_online,
+	.offline		= meson_cpufreq_offline,
 };
 
 static void meson_get_cluster_cores(void)
