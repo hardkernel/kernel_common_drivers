@@ -72,6 +72,7 @@
 #include <linux/swap.h>
 
 #define MAX_DEBUG_LEVEL		5
+#define MAX_JOB_NUM		40
 
 struct work_cma {
 	struct list_head list;
@@ -82,11 +83,9 @@ struct work_cma {
 };
 
 struct cma_pcp {
-	struct list_head list;
 	struct completion start;
 	struct completion end;
 	struct task_struct *task;
-	spinlock_t  list_lock;		/* protect job list */
 	int cpu;
 };
 
@@ -99,6 +98,8 @@ static int cma_alloc_trace;
 int cma_debug_level;
 static int allow_cma_tasks;
 static unsigned long cma_isolated;
+static struct list_head work_list;
+static spinlock_t work_list_lock;		/* protect job list */
 
 static atomic_t cma_allocate;
 
@@ -192,8 +193,6 @@ static void cma_clear_bitmap(struct dummy_cma *cma, unsigned long pfn,
 
 unsigned long aml_totalcma_pages;
 
-void (*aml_lru_cache_disable)(void);
-
 #ifdef CONFIG_PAGE_PINNER
 static void __nocfi aml_page_pinner_failure_detect(struct page *page)
 {
@@ -213,8 +212,6 @@ static void aml_page_pinner_failure_detect(struct page *page)
 }
 #endif /* CONFIG_PAGE_PINNER */
 
-void (*aml_lru_cache_enable)(void);
-
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 void (*aml_prep_huge_page)(struct page *page);
 #else /* CONFIG_TRANSPARENT_HUGEPAGE */
@@ -231,7 +228,7 @@ void (*aml_undo_isolate_page_range)(unsigned long start_pfn, unsigned long end_p
 unsigned long (*aml_iso_free_range)(struct compact_control *cc,
 			unsigned long start_pfn, unsigned long end_pfn);
 void (*aml_drain_all_pages)(struct zone *zone);
-void (*aml_lru_add_drain)(void);
+void (*aml_lru_add_drain_all)(void);
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
 int (*aml_start_isolate_page_range)(unsigned long start_pfn, unsigned long end_pfn,
 			     unsigned int migratetype, int flags,
@@ -814,11 +811,6 @@ static int __nocfi aml_alloc_contig_migrate_range(struct compact_control *cc,
 		.gfp_mask = GFP_USER | __GFP_MOVABLE | __GFP_RETRY_MAYFAIL,
 	};
 
-#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
-	lru_cache_disable();
-#else
-	aml_lru_cache_disable();
-#endif
 	while (pfn < end || !list_empty(&cc->migratepages)) {
 		if (fatal_signal_pending(host)) {
 			ret = -EINTR;
@@ -864,11 +856,6 @@ static int __nocfi aml_alloc_contig_migrate_range(struct compact_control *cc,
 			break;
 	}
 
-#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
-	lru_cache_enable();
-#else
-	aml_lru_cache_enable();
-#endif
 	if (ret < 0) {
 		if (ret == -EBUSY) {
 			struct page *page;
@@ -922,31 +909,37 @@ static int __nocfi cma_boost_work_func(void *cma_data)
 			pr_err("%s, cpu %d is not work cpu:%d\n",
 			       __func__, this_cpu, c_work->cpu);
 		}
-		spin_lock(&c_work->list_lock);
-		if (list_empty(&c_work->list)) {
+again:
+		spin_lock(&work_list_lock);
+		if (list_empty(&work_list)) {
 			/* NO job todo ? */
-			pr_err("%s,%d, list empty\n", __func__, __LINE__);
-			spin_unlock(&c_work->list_lock);
+			spin_unlock(&work_list_lock);
+			cma_debug(1, NULL, "%s,%d, list empty\n", __func__, __LINE__);
 			goto next;
 		}
-		job = list_first_entry(&c_work->list, struct work_cma, list);
+		job = list_first_entry(&work_list, struct work_cma, list);
 		list_del(&job->list);
-		spin_unlock(&c_work->list_lock);
+		spin_unlock(&work_list_lock);
 
 		INIT_LIST_HEAD(&cc.migratepages);
-	#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
-		lru_add_drain();
-	#else
-		aml_lru_add_drain();
-	#endif
 		pfn      = job->pfn;
 		cc.zone  = page_zone(pfn_to_page(pfn));
 		end      = pfn + job->count;
 		ret      = aml_alloc_contig_migrate_range(&cc, pfn, end,
 							  1, job->host);
 		job->ret = ret;
-		if (ret)
-			cma_debug(1, NULL, "failed, ret:%d\n", ret);
+		if (!ret) {
+			goto again;
+		} else if (ret == -EBUSY) {
+			spin_lock(&work_list_lock);
+			job->ret = 0;
+			list_add(&job->list, &work_list);
+			spin_unlock(&work_list_lock);
+			cma_debug(1, pfn_to_page(pfn), "contig migrate failed\n");
+			goto again;
+		} else {
+			pr_err("failed, ret:%d\n", ret);
+		}
 next:
 		complete(&c_work->end);
 		if (kthread_should_stop()) {
@@ -963,6 +956,8 @@ static int __init init_cma_boost_task(void)
 	struct task_struct *task;
 	struct cma_pcp *work;
 	char task_name[20] = {};
+	INIT_LIST_HEAD(&work_list);
+	spin_lock_init(&work_list_lock);
 
 	for_each_possible_cpu(cpu) {
 		memset(task_name, 0, sizeof(task_name));
@@ -970,8 +965,6 @@ static int __init init_cma_boost_task(void)
 		work = &per_cpu(cma_pcp_thread, cpu);
 		init_completion(&work->start);
 		init_completion(&work->end);
-		INIT_LIST_HEAD(&work->list);
-		spin_lock_init(&work->list_lock);
 		work->cpu = cpu;
 		task = kthread_create(cma_boost_work_func, work, task_name);
 		if (!IS_ERR(task)) {
@@ -1003,7 +996,7 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 	unsigned long cnt;
 	unsigned long flags;
 	struct cma_pcp *work;
-	struct work_cma job[NR_CPUS] = {};
+	struct work_cma job[MAX_JOB_NUM] = {};
 
 	cpumask_clear(&has_work);
 
@@ -1011,23 +1004,46 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 		cpus = allow_cma_tasks;
 	else
 		cpus = num_online_cpus() - 1;
-	cnt   = count;
-	delta = count / cpus;
+
+	/* cnt   = count; */
+	if (count < pageblock_nr_pages) {
+		delta = count / cpus;
+		cnt = cpus;
+	} else if (count <= pageblock_nr_pages * 10) {
+		delta = 256;
+		cnt = count / delta;
+	} else if (count <= pageblock_nr_pages * 20) {
+		delta = 512;
+		cnt = count / delta;
+	} else {
+		delta = count / MAX_JOB_NUM;
+		cnt = MAX_JOB_NUM;
+	}
+	if (cnt > MAX_JOB_NUM) {
+		pr_err("cnt too large: %ld, delta: %ld, count: %ld\n", cnt, delta, count);
+		return -ENOMEM;
+	}
+	spin_lock(&work_list_lock);
+	if (!list_empty(&work_list))
+		list_del_init(&work_list);
+	for (i = 0; i < cnt; i++) {
+		INIT_LIST_HEAD(&job[i].list);
+		job[i].pfn   = start_pfn + i * delta;
+		job[i].count = delta;
+		job[i].ret   = 0;
+		job[i].host  = current;
+		if (i == cnt - 1)
+			job[i].count = count - i * delta;
+		list_add(&job[i].list, &work_list);
+	}
+	spin_unlock(&work_list_lock);
+	i = 0;
+
 	atomic_set(&ok, 0);
 	local_irq_save(flags);
 	for_each_online_cpu(cpu) {
 		work = &per_cpu(cma_pcp_thread, cpu);
-		spin_lock(&work->list_lock);
-		INIT_LIST_HEAD(&job[cpu].list);
-		job[cpu].pfn   = start_pfn + i * delta;
-		job[cpu].count = delta;
-		job[cpu].ret   = -1;
-		job[cpu].host  = current;
-		if (i == cpus - 1)
-			job[cpu].count = count - i * delta;
 		cpumask_set_cpu(cpu, &has_work);
-		list_add(&job[cpu].list, &work->list);
-		spin_unlock(&work->list_lock);
 		complete(&work->start);
 		i++;
 		if (i == cpus) {
@@ -1244,10 +1260,10 @@ int __nocfi aml_cma_alloc_range(unsigned long start, unsigned long end,
 	cma_isolated += (aml_pfn_max_align_up(end) - pfn_max_align_down(start));
 try_again:
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
-	lru_add_drain();
+	lru_add_drain_all();
 	drain_all_pages(cc.zone);
 #else
-	aml_lru_add_drain();
+	aml_lru_add_drain_all();
 	aml_drain_all_pages(cc.zone);
 #endif
 	/*
@@ -1879,8 +1895,6 @@ static int __nocfi common_symbol_init(void *data)
 	aml_kallsyms_lookup_name = (unsigned long (*)(const char *name))kp_lookup_name.addr;
 
 	aml_totalcma_pages = *(unsigned long *)aml_kallsyms_lookup_name("totalcma_pages");
-	aml_lru_cache_disable = (void (*)(void))get_symbol_addr("lru_cache_disable");
-	aml_lru_cache_enable = (void (*)(void))aml_kallsyms_lookup_name("lru_cache_enable");
 	aml_prep_huge_page = (void (*)(struct page *page))get_symbol_addr("prep_transhuge_page");
 	aml_reclaim_clean_pages_from_list = (unsigned int (*)(struct zone *zone,
 		struct list_head *page_list))get_symbol_addr("reclaim_clean_pages_from_list");
@@ -1893,7 +1907,7 @@ static int __nocfi common_symbol_init(void *data)
 	aml_iso_free_range = (unsigned long (*)(struct compact_control *cc, unsigned long start_pfn,
 		unsigned long end_pfn))get_symbol_addr("isolate_freepages_range");
 	aml_drain_all_pages = (void (*)(struct zone *zone))get_symbol_addr("drain_all_pages");
-	aml_lru_add_drain = (void (*)(void))get_symbol_addr("lru_add_drain");
+	aml_lru_add_drain_all = (void (*)(void))get_symbol_addr("lru_add_drain_all");
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
 	aml_start_isolate_page_range = (int (*)(unsigned long start_pfn, unsigned long end_pfn,
 			unsigned int migratetype, int flags,
