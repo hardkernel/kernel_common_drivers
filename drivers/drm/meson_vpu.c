@@ -346,6 +346,9 @@ static const struct meson_vpu_data vpu_g12b_data = {
 };
 
 static const struct meson_vpu_data vpu_s7_data = {
+	.crtc_func = {
+		.reg_ops = common_reg_ops,
+	},
 	.pipe_ops = &g12a_vpu_pipeline_ops,
 	.osd_ops = &t7_osd_ops,
 	.afbc_ops = &s7_afbc_ops,

@@ -173,7 +173,7 @@ enum vdin_hw_ver_e {
 	VDIN_HW_SM1,
 	VDIN_HW_TL1,
 	/*
-	 * tm2 vdin0/vdin1 all support up to 40k
+	 * tm2 vdin0/vdin1 all support up to 4k
 	 */
 	VDIN_HW_TM2,
 	VDIN_HW_TM2_B,
@@ -202,6 +202,7 @@ enum vdin_hw_ver_e {
 	VDIN_HW_T5M,
 	VDIN_HW_T3X,
 	VDIN_HW_TXHD2,
+	VDIN_HW_S7,
 };
 
 /* 20230607: game mode optimize and add debug */

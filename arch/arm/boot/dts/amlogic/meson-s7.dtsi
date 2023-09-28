@@ -2045,9 +2045,9 @@
 
 	/*if you want to use vdin just modify status to "ok"*/
 	vdin0: vdin0 {
-		compatible = "amlogic, vdin-s4d";
+		compatible = "amlogic, vdin-s7";
 		dev_name = "vdin0";
-		status = "disabled";
+		status = "okay";
 		reserve-iomap = "true";
 		flag_cma = <0>;/*1:share with codec_mm;2:cma alone*/
 		/*MByte, if 10bit disable: 64M(YUV422),
@@ -2079,9 +2079,9 @@
 		/* vdin v4l2 end */
 	};
 	vdin1: vdin1 {
-		compatible = "amlogic, vdin-s4d";
+		compatible = "amlogic, vdin-s7";
 		dev_name = "vdin1";
-		status = "disabled";
+		status = "okay";
 		reserve-iomap = "true";
 		flag_cma = <0>;/*1:share with codec_mm;0:cma alone*/
 		interrupts = <0 212 1>;
