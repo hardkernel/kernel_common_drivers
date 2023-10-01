@@ -2556,7 +2556,9 @@ struct dim_pvpp_hw_s {
 
 	unsigned char blkt_n[K_BLK_T_NUB]; /*for mem alloc*/
 	int dbg_m_mode;
-	unsigned char last_dct_bypass;
+	bool last_dct_bypass;
+	char dct_delay_cnt;
+	char cur_dct_delay;
 };
 
 /* ds */
