@@ -58,6 +58,7 @@ struct video_display_frame_info_t {
 	u32 signal_fmt;
 	u32 type;
 	u32 bitdepth;
+	u32 rotation;
 	u32 reserved[10];
 };
 

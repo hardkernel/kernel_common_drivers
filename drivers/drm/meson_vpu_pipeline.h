@@ -312,6 +312,7 @@ struct meson_vpu_video_layer_info {
 	u32 fb_size[2];
 	u32 pixel_blend;
 	u32 crtc_index;
+	u32 rotation;
 	struct vframe_s *vf;
 	struct dma_buf *dmabuf;
 	u32 vfm_mode;
@@ -381,6 +382,7 @@ struct meson_vpu_video_state {
 	u32 pixel_blend;
 	u32 afbc_en;
 	u32 repeat_frame;
+	u32 rotation;
 	struct vframe_s *vf;
 	struct dma_buf *dmabuf;
 	bool is_uvm;

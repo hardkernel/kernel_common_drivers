@@ -1562,6 +1562,8 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 	plane_info->plane_index = video_plane->plane_index;
 	plane_info->vfm_mode = video_plane->vfm_mode;
 	plane_info->zorder = state->zpos + plane_info->plane_index;
+	plane_info->rotation = state->rotation;
+
 	plane_state = to_am_meson_video_plane_state(state);
 	plane_info->signal_fmt = plane_state->signal_fmt;
 
@@ -2286,6 +2288,9 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 				 video_fbc_modifier,
 				 DRM_PLANE_TYPE_OVERLAY, const_plane_name);
 
+	drm_plane_create_rotation_property(plane,
+				DRM_MODE_ROTATE_0,
+				DRM_MODE_ROTATE_MASK);
 	drm_plane_create_zpos_property(plane, zpos, min_zpos, max_zpos);
 	meson_video_plane_create_signal_fmt_property(video_plane,
 				BIT(SIGNAL_FMT_SDR) |

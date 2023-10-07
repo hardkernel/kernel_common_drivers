@@ -53,6 +53,8 @@ static u32 vsync_pts_inc_scale_base[MAX_VD_LAYERS];
 #define PATTERN_44_DETECT_RANGE 5
 #define PATTERN_55_DETECT_RANGE 5
 
+#define ROTATION_180_DEGREES BIT(2)
+
 /*if add new patten, need change dev->patten[X]*/
 enum video_refresh_pattern {
 	PATTERN_32 = 0,
@@ -1587,6 +1589,9 @@ int video_display_setframe(int layer_index,
 	}
 
 	if (!(is_dec_vf || is_v4l_vf)) {
+		if (frame_info->rotation & ROTATION_180_DEGREES)
+			vf->flag |= VFRAME_FLAG_MIRROR_H | VFRAME_FLAG_MIRROR_V;
+
 		vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
 		vf->plane_num = 1;
 		vf->canvas0Addr = -1;
