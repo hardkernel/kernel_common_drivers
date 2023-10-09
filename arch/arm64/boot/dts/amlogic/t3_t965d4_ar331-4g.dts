@@ -379,13 +379,6 @@
 		mboxes = <&mbox_fifo T3_REE2AO_KEYPAD>;
 	};
 
-	provisionkey {
-		compatible = "amlogic, provisionkey";
-		status = "disabled";
-		key-permit-default = "write";
-		KEY_PROVISION_XXX { };
-	};//End provisionkey
-
 	unifykey {
 		compatible = "amlogic,unifykey";
 		status = "okay";

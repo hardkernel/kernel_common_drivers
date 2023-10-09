@@ -202,6 +202,15 @@
 		method = "smc";
 	};
 
+	provisionkey {
+		compatible = "amlogic, provisionkey";
+		status = "okay";
+		key-permit-default = "write";
+		//new key not need add dts if started with KEY_PROVISION_
+		KEY_PROVISION_XXX { };
+		//test_my_added_keyname { };
+	};//End provisionkey
+
 	meson_suspend:pm {
 		compatible = "amlogic, pm";
 		status = "okay";
