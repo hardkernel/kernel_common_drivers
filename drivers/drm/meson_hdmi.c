@@ -398,6 +398,7 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 				mode->hsync_start >>= 1;
 				mode->hsync_end >>= 1;
 				mode->htotal >>= 1;
+				mode->clock >>= 1;
 			}
 
 			mode->hskew = 0;
