@@ -45,6 +45,7 @@ static void vout_meas_ctrl_init_dft(struct platform_device *pdev, struct vout_mu
 {
 	struct clk *fclk_div5;
 	unsigned int clk_msr_val;
+	int ret;
 
 	if (!vdata)
 		return;
@@ -61,8 +62,10 @@ static void vout_meas_ctrl_init_dft(struct platform_device *pdev, struct vout_mu
 		return;
 	}
 
-	clk_set_parent(vdata->msr_clk, fclk_div5);
-	clk_set_rate(vdata->msr_clk, VDIN_MEAS_CLK_FREQ);
+	ret = clk_set_parent(vdata->msr_clk, fclk_div5);
+	if (ret)
+		return;
+
 	clk_prepare_enable(vdata->msr_clk);
 	clk_msr_val = clk_get_rate(vdata->msr_clk);
 	VOUTPR("%s: vdin_meas_clk %dHZ\n", __func__, clk_msr_val);
@@ -76,6 +79,7 @@ static void vout_meas_ctrl_init_s5(struct platform_device *pdev, struct vout_mux
 {
 	struct clk *fclk_div5;
 	unsigned int clk_msr_val;
+	int ret;
 
 	if (!vdata)
 		return;
@@ -92,8 +96,10 @@ static void vout_meas_ctrl_init_s5(struct platform_device *pdev, struct vout_mux
 		return;
 	}
 
-	clk_set_parent(vdata->msr_clk, fclk_div5);
-	clk_set_rate(vdata->msr_clk, VDIN_MEAS_CLK_FREQ);
+	ret = clk_set_parent(vdata->msr_clk, fclk_div5);
+	if (ret)
+		return;
+
 	clk_prepare_enable(vdata->msr_clk);
 	clk_msr_val = clk_get_rate(vdata->msr_clk);
 	VOUTPR("%s: vdin_meas_clk %dHZ\n", __func__, clk_msr_val);
