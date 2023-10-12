@@ -43,6 +43,15 @@ enum ai_scenes {
 	DEFAUT_SETTING,
 };
 
+#define SC_DELAY_TH 4
+enum sc_mode {
+	SC_MODE_NO_CHANGE = 0,
+	SC_MODE_HWC_CHANGE,
+	SC_MODE_VPP_CHANGE,
+	SC_MODE_BOTH_CHANGE,
+	SC_MODE_MAX,
+};
+
 struct ai_scenes_pq {
 	enum ai_scenes pq_scenes;
 	int pq_values[SCENES_VALUE];

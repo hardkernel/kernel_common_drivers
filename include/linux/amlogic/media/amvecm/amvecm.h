@@ -329,6 +329,7 @@ struct ve_pq_overscan_s {
 
 extern struct ve_pq_overscan_s overscan_table[TIMING_MAX];
 
+extern unsigned int vpp_new_frame;
 /*3D LUT IOCTL command list*/
 struct table_3dlut_s {
 	unsigned int data[17 * 17 * 17][3];

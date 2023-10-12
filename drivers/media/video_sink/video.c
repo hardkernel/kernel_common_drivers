@@ -766,6 +766,8 @@ u32 get_aipq_set_policy(void)
 {
 	if (video_is_meson_s5_cpu())
 		aipq_set_policy = 2;
+	if (video_is_meson_t5m_cpu())
+		aipq_set_policy = 3;
 
 	return aipq_set_policy;
 }

@@ -486,6 +486,8 @@ static struct pre_gamma_table_s pre_gamma;
 struct eye_protect_s eye_protect;
 static int hist_chl;
 
+unsigned int vpp_new_frame;
+
 static unsigned int cm_slice_idx;
 
 bool is_hdr_stb_mode(void)
@@ -2557,6 +2559,8 @@ void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf)
 #endif
 
 	if (vf || rpt_vf) {
+		if (vf)
+			vpp_new_frame = 1;
 		vpp_get_vframe_hist_info(vf ? vf : rpt_vf);
 		pr_amvecm_bringup_dbg("[on_vs] refresh get_vframe_hist_info done.\n");
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
