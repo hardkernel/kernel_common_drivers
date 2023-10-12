@@ -1381,6 +1381,10 @@ static void meson_mmc_check_resampling(struct meson_host *host,
 		writel(val, host->regs + SD_EMMC_IRQ_EN);
 		val = readl(host->regs + SD_EMMC_INTF3);
 		val |= SD_INTF3;
+		if (host->mmc->caps2 & MMC_CAP2_HS400_ES) {
+			ios->clock = host->mmc->f_max;
+			val |= RESP_DS;
+		}
 		writel(val, host->regs + SD_EMMC_INTF3);
 		mmc_phase_set = &host->sd_mmc.hs4;
 		break;
@@ -2679,6 +2683,21 @@ static void aml_post_hs400_timming(struct mmc_host *mmc)
 	aml_save_tuning_para(mmc);
 }
 
+/* disable enhanced_strobe mode when initialization
+ * enable enhanced_strobe mode and tuning intf3 when mmc_select_hs400es
+ */
+static void meson_mmc_enhance_strobe(struct mmc_host *mmc, struct mmc_ios *ios)
+{
+	struct meson_host *host = mmc_priv(mmc);
+
+	if (!host->mmc->ios.enhanced_strobe)
+		return;
+	mmc->retune_crc_disable = true;
+	aml_sd_emmc_clktest(mmc);
+	emmc_ds_manual_sht(mmc);
+	dev_notice(host->dev, "[%s] done.\n", __func__);
+}
+
 static void aml_sd_emmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 {
 	struct meson_host *host = mmc_priv(mmc);
@@ -3596,6 +3615,7 @@ static const struct mmc_host_ops meson_mmc_ops = {
 	.hs400_complete = aml_post_hs400_timming,
 	.card_busy	= meson_mmc_card_busy,
 	.start_signal_voltage_switch = meson_mmc_voltage_switch,
+	.hs400_enhanced_strobe = meson_mmc_enhance_strobe,
 //	.init_card      = sdio_get_card,
 };
 
