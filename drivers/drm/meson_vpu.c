@@ -37,8 +37,6 @@
 
 #define AM_VOUT_NULL_MODE "null"
 
-static int irq_init_done;
-
 void meson_vout_notify_mode_change(int idx,
 		enum vmode_e mode, enum meson_vout_event event)
 {
@@ -157,8 +155,9 @@ void am_meson_crtc_handle_vsync(struct am_meson_crtc *amcrtc)
 static irqreturn_t am_meson_vpu_irq(int irq, void *arg)
 {
 	struct am_meson_crtc *amcrtc = arg;
+	struct meson_drm *priv = amcrtc->priv;
 
-	if (!irq_init_done)
+	if (!priv->irq_enabled)
 		return IRQ_NONE;
 
 	am_meson_crtc_handle_vsync(amcrtc);
@@ -241,8 +240,6 @@ static int am_meson_vpu_bind(struct device *dev,
 					IRQF_SHARED, dev_name(dev), amcrtc);
 		if (ret)
 			return ret;
-		/* IRQ is initially disabled; it gets enabled in crtc_enable */
-		disable_irq(amcrtc->irq);
 	}
 
 	vpu_pipeline_pre_init(pipeline, dev);
@@ -261,7 +258,6 @@ static int am_meson_vpu_bind(struct device *dev,
 		pipeline->video[i]->vfm_mode =
 			private->video_planes[i]->vfm_mode;
 
-	irq_init_done = 1;
 	DRM_DEBUG("%s out[%d]\n", __func__, __LINE__);
 	return 0;
 }

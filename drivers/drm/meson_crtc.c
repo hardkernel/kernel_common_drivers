@@ -690,7 +690,6 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	       sizeof(struct drm_display_mode));
 
 	drm_crtc_vblank_on(crtc);
-	enable_irq(amcrtc->irq);
 
 	DRM_DEBUG("%s-[%d]: out\n", __func__, amcrtc->crtc_index);
 }
@@ -729,7 +728,6 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 		spin_unlock_irq(&crtc->dev->event_lock);
 		crtc->state->event = NULL;
 	}
-	disable_irq(amcrtc->irq);
 
 	if ((meson_crtc_state->vmode & VMODE_MASK) == VMODE_LCD) {
 		DRM_INFO("%s[%d], lcd skip setting null vmode\n", __func__,
