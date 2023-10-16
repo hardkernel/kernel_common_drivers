@@ -2777,7 +2777,7 @@ static int amvideo_early_proc(u8 layer_id)
 			vd_layer[0].property_changed = true;
 			vd_layer[1].property_changed = true;
 			vd_layer[2].property_changed = true;
-			pr_info("detect vout mode change!!!!!!!!!!!!\n");
+			pr_debug("detect vout mode change!!!!!!!!!!!!\n");
 			strcpy(old_vmode, new_vmode);
 		}
 	}
@@ -3578,7 +3578,7 @@ static struct vframe_s *vdx_swap_frame(u8 layer_id,
 			vd_layer[0].property_changed = true;
 			vd_layer[1].property_changed = true;
 			vd_layer[2].property_changed = true;
-			pr_info("detect vout mode change!!!!!!!!!!!!\n");
+			pr_debug("detect vout mode change!!!!!!!!!!!!\n");
 			strcpy(old_vmode, new_vmode);
 		}
 	}

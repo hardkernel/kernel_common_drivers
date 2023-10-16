@@ -1120,7 +1120,7 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 				set_vsync_2to1_mode(0);
 			}
 		}
-		pr_frc(0, "vout:w-%d,h-%d,rate-%d\n",
+		pr_frc(1, "vout:w-%d,h-%d,rate-%d\n",
 				frc_devp->out_sts.vout_width,
 				frc_devp->out_sts.vout_height,
 				frc_devp->out_sts.out_framerate);
