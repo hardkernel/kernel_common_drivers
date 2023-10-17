@@ -6508,6 +6508,8 @@ static void check_video_mute(void)
 				if (video_mute_status != VIDEO_MUTE_ON_VPP) {
 					/* vpp black */
 					mute_vpp();
+					if (is_aisr_enable(&vd_layer[0]))
+						aisr_sr1_nn_enable_sync(false);
 					pr_info("DV: %s: VIDEO_MUTE_ON_VPP\n", __func__);
 				}
 				video_mute_status = VIDEO_MUTE_ON_VPP;
@@ -6522,6 +6524,8 @@ static void check_video_mute(void)
 		} else {
 			if (video_mute_status != VIDEO_MUTE_ON_VPP) {
 				mute_vpp();
+				if (is_aisr_enable(&vd_layer[0]))
+					aisr_sr1_nn_enable_sync(false);
 				pr_info("%s: VIDEO_MUTE_ON_VPP\n", __func__);
 			}
 			video_mute_status = VIDEO_MUTE_ON_VPP;
@@ -6532,6 +6536,8 @@ static void check_video_mute(void)
 				/*tv mode, unmute vpp*/
 				if (video_mute_status != VIDEO_MUTE_OFF) {
 					unmute_vpp();
+					if (is_aisr_enable(&vd_layer[0]))
+						aisr_sr1_nn_enable_sync(true);
 					pr_info("DV: %s: VIDEO_MUTE_OFF dv off\n", __func__);
 				}
 				video_mute_status = VIDEO_MUTE_OFF;
@@ -6545,6 +6551,8 @@ static void check_video_mute(void)
 		} else {
 			if (video_mute_status != VIDEO_MUTE_OFF) {
 				unmute_vpp();
+				if (is_aisr_enable(&vd_layer[0]))
+					aisr_sr1_nn_enable_sync(true);
 				pr_info("%s: VIDEO_MUTE_OFF vpp\n", __func__);
 			}
 			video_mute_status = VIDEO_MUTE_OFF;
