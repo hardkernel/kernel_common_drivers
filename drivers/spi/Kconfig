@@ -16,6 +16,13 @@ config AMLOGIC_SPI_MESON_SPICC_V2
 	  This enables master mode support for the SPICC (SPI communication
 	  controller) available in A4, T3X Amlogic Meson SoCs.
 
+config SPICC_TEST
+	tristate "Amlogic Meson SPICC controller test entry"
+	help
+	  Specially test entryes for Amlogic Meson SPICC controller.
+	  This creates a configurable test device, which supports multi
+	  tansfers, private interfaces, private parameters test and so on
+
 config AMLOGIC_SPI_MESON_SPIFC
 	tristate "Amlogic Meson SPIFC controller"
 	depends on REGMAP_MMIO
