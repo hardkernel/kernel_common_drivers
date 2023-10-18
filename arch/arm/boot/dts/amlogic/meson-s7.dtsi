@@ -2062,11 +2062,16 @@
 	};
 
 	meson-amvideom {
-		compatible = "amlogic, amvideom-s4";
+		compatible = "amlogic, amvideom-s7";
 		dev_name = "amvideom";
-		status = "disabled";
+		status = "okay";
 		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vsync";
+	};
+
+	lut_dma:lut_dma {
+		compatible = "amlogic, meson-s5, lut_dma";
+		status = "okay";
 	};
 
 	video_composer {

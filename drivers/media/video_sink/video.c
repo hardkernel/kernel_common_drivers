@@ -14461,6 +14461,57 @@ static struct amvideo_device_data_s amvideo_s1a = {
 };
 #endif
 
+static struct amvideo_device_data_s amvideo_s7 = {
+	.cpu_type = MESON_CPU_MAJOR_ID_S7_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 1,
+	.layer_support[2] = 0,
+	.afbc_support[0] = 1,
+	.afbc_support[1] = 1,
+	.afbc_support[2] = 0,
+	.pps_support[0] = 1,
+	.pps_support[1] = 1,
+	.pps_support[2] = 0,
+	.alpha_support[0] = 1,
+	.alpha_support[1] = 1,
+	.alpha_support[2] = 0,
+	.dv_support = 0,
+	.sr0_support = 1,
+	.sr1_support = 0,
+	.core_v_disable_width_max[0] = 4096,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 2048,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = CORE0_BEFORE_PPS,
+	.fgrain_support[0] = 1,
+	.fgrain_support[1] = 0,
+	.fgrain_support[2] = 0,
+	.has_hscaler_8tap[0] = 1,
+	.has_hscaler_8tap[1] = 1,
+	.has_hscaler_8tap[2] = 0,
+	.has_pre_hscaler_ntap[0] = 1,
+	.has_pre_hscaler_ntap[1] = 1,
+	.has_pre_hscaler_ntap[2] = 0,
+	.has_pre_vscaler_ntap[0] = 1,
+	.has_pre_vscaler_ntap[1] = 1,
+	.has_pre_vscaler_ntap[2] = 0,
+	.src_width_max[0] = 4096,
+	.src_width_max[1] = 2048,
+	.src_width_max[2] = 2048,
+	.src_height_max[0] = 2160,
+	.src_height_max[1] = 1080,
+	.src_height_max[2] = 1080,
+	.ofifo_size = 0x1000,
+	.afbc_conv_lbuf_len[0] = 0x100,
+	.afbc_conv_lbuf_len[1] = 0x100,
+	.mif_linear = 1,
+	.display_module = 0,
+	.max_vd_layers = 2,
+	.is_tv_panel = 0,
+};
+
 static struct video_device_hw_s legcy_dev_property = {
 	.vd2_independ_blend_ctrl = 0,
 	.aisr_support = 0,
@@ -14604,6 +14655,10 @@ static const struct of_device_id amlogic_amvideom_dt_match[] = {
 		.compatible = "amlogic, amvideom-s1a",
 		.data = &amvideo_s1a,
 	},
+	{
+		.compatible = "amlogic, amvideom-s7",
+		.data = &amvideo_s7,
+	},
 #endif
 	{}
 };
@@ -14729,6 +14784,15 @@ bool video_is_meson_s1a_cpu(void)
 {
 	if (amvideo_meson_dev.cpu_type ==
 		MESON_CPU_MAJOR_ID_S1A_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_meson_s7_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_S7_)
 		return true;
 	else
 		return false;
