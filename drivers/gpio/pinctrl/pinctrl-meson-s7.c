@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2023 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -97,7 +97,10 @@ static const struct pinctrl_pin_desc meson_s7_periphs_pins[] = {
 	MESON_PIN(GPIOZ_11),
 	MESON_PIN(GPIOZ_12),
 
-	MESON_PIN(GPIO_TEST_N)
+	MESON_PIN(GPIO_TEST_N),
+
+	MESON_PIN(GPIO_CC1),
+	MESON_PIN(GPIO_CC2)
 };
 
 /* BANK E func1 */
@@ -355,6 +358,10 @@ static const unsigned int pwm_e_z_pins[]		= { GPIOZ_6 };
 static const unsigned int gen_clk_z9_pins[]		= { GPIOZ_9 };
 static const unsigned int gen_clk_z12_pins[]		= { GPIOZ_12 };
 
+/* Bank CC func1 */
+static const unsigned int i2cm_a_sda_pins[]		= { GPIO_CC1 };
+static const unsigned int i2cm_a_scl_pins[]		= { GPIO_CC2 };
+
 static struct meson_pmx_group meson_s7_periphs_groups[] __initdata = {
 	GPIO_GROUP(GPIOE_0),
 	GPIO_GROUP(GPIOE_1),
@@ -445,6 +452,9 @@ static struct meson_pmx_group meson_s7_periphs_groups[] __initdata = {
 	GPIO_GROUP(GPIOZ_12),
 
 	GPIO_GROUP(GPIO_TEST_N),
+
+	GPIO_GROUP(GPIO_CC1),
+	GPIO_GROUP(GPIO_CC2),
 
 	/* BANK E func1 */
 	GROUP(i2c0_sda,			1),
@@ -699,7 +709,11 @@ static struct meson_pmx_group meson_s7_periphs_groups[] __initdata = {
 
 	/* Bank Z func7 */
 	GROUP(gen_clk_z9,		7),
-	GROUP(gen_clk_z12,		7)
+	GROUP(gen_clk_z12,		7),
+
+	/* Bank CC func1 */
+	GROUP(i2cm_a_sda,		1),
+	GROUP(i2cm_a_scl,		1)
 };
 
 static const char * const gpio_periphs_groups[] = {
@@ -727,7 +741,9 @@ static const char * const gpio_periphs_groups[] = {
 	"GPIOZ_6", "GPIOZ_7", "GPIOZ_8", "GPIOZ_9", "GPIOZ_10",
 	"GPIOZ_11", "GPIOZ_12",
 
-	"GPIO_TEST_N"
+	"GPIO_TEST_N",
+
+	"GPIO_CC1", "GPIO_CC2"
 };
 
 static const char * const i2c0_groups[] = {
@@ -952,6 +968,10 @@ static const char * const tsin_a_groups[] = {
 	"tsin_a_clk", "tsin_a_sop", "tsin_a_valid", "tsin_a_din0"
 };
 
+static const char * const i2cm_a_groups[] = {
+	"i2cm_a_sda", "i2cm_a_scl"
+};
+
 static struct meson_pmx_func meson_s7_periphs_functions[] __initdata = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(i2c0),
@@ -1002,10 +1022,11 @@ static struct meson_pmx_func meson_s7_periphs_functions[] __initdata = {
 	FUNCTION(sdio),
 	FUNCTION(i2c_slave),
 	FUNCTION(tsin_a),
+	FUNCTION(i2cm_a),
 };
 
 static struct meson_bank meson_s7_periphs_banks[] = {
-	/* name  first  last  irq  pullen  pull  dir  out  in */
+	/*      name  first  last   irq   pullen  pull   dir  out  in   ds */
 	BANK_DS("B", GPIOB_0,    GPIOB_13,  0, 13,
 		0x63,  0,  0x64,  0,  0x62, 0,  0x61, 0,  0x60, 0, 0x67, 0),
 	BANK_DS("C", GPIOC_0,    GPIOC_7,   14, 21,
@@ -1020,20 +1041,23 @@ static struct meson_bank meson_s7_periphs_banks[] = {
 		0x13,  0,  0x14,  0,  0x12, 0,  0x11, 0,  0x10, 0, 0x17, 0),
 	BANK_DS("Z", GPIOZ_0,    GPIOZ_12,  68, 80,
 		0x03,  0,  0x04,  0,  0x02, 0,  0x01, 0,  0x00, 0, 0x07, 0),
-	BANK_DS("TEST_N", GPIO_TEST_N,    GPIO_TEST_N,   -1, -1,
-		0x83,  0,  0x84,  0,  0x82, 0,  0x81,  0, 0x80, 0, 0x87, 0),
+	BANK_DS("TEST_N", GPIO_TEST_N,    GPIO_TEST_N,   81, 81,
+		0x83,  0,  0x84,  0,  0x82, 0,  0x81, 0,  0x80, 0, 0x87, 0),
+	BANK_DS("CC", GPIO_CC1,  GPIO_CC2,  82, 83,
+		0x91,  2,  0x91,  4,  0x92, 0,  0x91, 0,  0x90, 0, 0x91, 6),
 };
 
 static struct meson_pmx_bank meson_s7_periphs_pmx_banks[] = {
-	/*     name	    first	 last        reg offset */
-	BANK_PMX("B",      GPIOB_0,     GPIOB_13,    0x00, 0),
-	BANK_PMX("C",      GPIOC_0,     GPIOC_7,     0x9,  0),
-	BANK_PMX("E",      GPIOE_0,     GPIOE_1,     0x12, 0),
-	BANK_PMX("D",      GPIOD_0,     GPIOD_11,    0x10, 0),
-	BANK_PMX("H",      GPIOH_0,     GPIOH_11,    0xb,  0),
-	BANK_PMX("X",      GPIOX_0,     GPIOX_19,    0x3,  0),
-	BANK_PMX("Z",      GPIOZ_0,     GPIOZ_12,    0x6,  0),
-	BANK_PMX("TEST_N", GPIO_TEST_N, GPIO_TEST_N, 0xf,  0),
+	/*     name	    first	 last        reg    offset */
+	BANK_PMX("B",      GPIOB_0,     GPIOB_13,    0x00,   0),
+	BANK_PMX("C",      GPIOC_0,     GPIOC_7,     0x9,    0),
+	BANK_PMX("E",      GPIOE_0,     GPIOE_1,     0x12,   0),
+	BANK_PMX("D",      GPIOD_0,     GPIOD_11,    0x10,   0),
+	BANK_PMX("H",      GPIOH_0,     GPIOH_11,    0xb,    0),
+	BANK_PMX("X",      GPIOX_0,     GPIOX_19,    0x3,    0),
+	BANK_PMX("Z",      GPIOZ_0,     GPIOZ_12,    0x6,    0),
+	BANK_PMX("TEST_N", GPIO_TEST_N, GPIO_TEST_N, 0xf,    0),
+	BANK_PMX("CC",     GPIO_CC1,    GPIO_CC2,    0x5,    24),
 };
 
 static struct meson_axg_pmx_data meson_s7_periphs_pmx_banks_data = {
