@@ -85,4 +85,86 @@ index fb163458337f..e009b61422f8 100644
  
 -- 
 2.25.1
+From d6753b600d00ca82eacda354e98308db9eb96c72 Mon Sep 17 00:00:00 2001
+From: yao zhang1 <yao.zhang1@amlogic.com>
+Date: Mon, 21 Jun 2021 15:11:41 +0800
+Subject: [PATCH] Bootup: Use the async method to add sysfs params [2/2]
+
+PD#SWPL-52793
+
+Problem:
+Add sysfs params too slow,Kernel bootup block 1 hour in pxp.
+
+Solution:
+Use async add sysfs params when kernel builtin.
+
+Verify:
+T7&P1
+
+Change-Id: I92bed190846043dbfe1b61c1a0ba1aacc3560e97
+Signed-off-by: yao zhang1 <yao.zhang1@amlogic.com>
+(cherry picked from commit bf50d5c808214a7e7a34041ce76b8c9929482328)
+---
+ kernel/params.c | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/params.c b/kernel/params.c
+index 8299bd764e42..6fcadb0fa9b0 100644
+--- a/kernel/params.c
++++ b/kernel/params.c
+@@ -13,6 +13,14 @@
+ #include <linux/slab.h>
+ #include <linux/ctype.h>
+ #include <linux/security.h>
++#if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
++#include <linux/async.h>
++#endif
++
++#if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
++static bool async_long_initcall;
++core_param(async_long_initcall, async_long_initcall, bool, 0644);
++#endif
+ 
+ #ifdef CONFIG_SYSFS
+ /* Protects all built-in parameters, modules use their own param_lock */
+@@ -953,9 +961,19 @@ struct kobj_type module_ktype = {
+ 	.sysfs_ops =	&module_sysfs_ops,
+ };
+ 
++#if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
++static void __init async_param_sysfs_builtin(void *data, async_cookie_t cookie)
++{
++	param_sysfs_builtin();
++}
++#endif
++
+ /*
+  * param_sysfs_init - wrapper for built-in params support
+  */
++#if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
++static async_cookie_t populate_initrootfs_cookie;
++#endif
+ static int __init param_sysfs_init(void)
+ {
+ 	module_kset = kset_create_and_add("module", &module_uevent_ops, NULL);
+@@ -967,8 +985,15 @@ static int __init param_sysfs_init(void)
+ 	module_sysfs_initialized = 1;
+ 
+ 	version_sysfs_builtin();
++#if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
++	pr_debug("async_long_initcall = %d\n", async_long_initcall);
++	if (!async_long_initcall)
++		param_sysfs_builtin();
++	else if (async_long_initcall)
++		populate_initrootfs_cookie = async_schedule(async_param_sysfs_builtin, NULL);
++#else
+ 	param_sysfs_builtin();
+-
++#endif
+ 	return 0;
+ }
+ subsys_initcall(param_sysfs_init);
+-- 
+2.42.0
+
 
