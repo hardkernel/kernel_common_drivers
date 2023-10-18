@@ -8,6 +8,8 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/of.h>
+//#include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/pm_runtime.h>
@@ -17,7 +19,6 @@
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/of.h>
 #include <linux/acpi.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/usb/ch9.h>
@@ -27,9 +28,9 @@
 #include <linux/amlogic/usbtype.h>
 #include <linux/clk.h>
 #include <linux/phy/phy.h>
-#include "xhci.h"
-#include "xhci-plat.h"
-#include "crg_xhci.h"
+#include "../xhci_amlogic/xhci-meson.h"
+#include "../xhci_amlogic/xhci-plat-meson.h"
+//#include "crg_xhci.h"
 
 #define CRG_DEFAULT_AUTOSUSPEND_DELAY	5000 /* ms */
 #define CRG_XHCI_RESOURCES_NUM	2
@@ -56,7 +57,7 @@ struct crg {
 	struct clk		*general_clk;
 };
 
-static const struct xhci_plat_priv crg_xhci_plat_priv = {
+static const struct aml_xhci_plat_priv crg_xhci_plat_priv = {
 	.quirks = XHCI_NO_64BIT_SUPPORT | XHCI_RESET_ON_RESUME,
 };
 
@@ -205,7 +206,7 @@ int crg_host_init(struct crg *crg)
 	crg->xhci_resources[1].flags = res->flags;
 	crg->xhci_resources[1].name = res->name;
 
-	xhci = platform_device_alloc("xhci-hcd", PLATFORM_DEVID_AUTO);
+	xhci = platform_device_alloc("xhci-hcd-meson", PLATFORM_DEVID_AUTO);
 	if (!xhci) {
 		dev_err(crg->dev, "couldn't allocate xHCI device\n");
 		return -ENOMEM;
@@ -242,7 +243,7 @@ int crg_host_init(struct crg *crg)
 		}
 	}
 
-	crg_xhci_init();
+//	crg_xhci_init();
 	ret = platform_device_add_data(xhci, &crg_xhci_plat_priv,
 								sizeof(crg_xhci_plat_priv));
 	if (ret)

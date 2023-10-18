@@ -30,11 +30,11 @@
 
 #include <linux/kthread.h>
 
-#include "xhci.h"
-#include "xhci-plat.h"
-#include "crg_xhci.h"
+#include "../xhci_amlogic/xhci-meson.h"
+#include "../xhci_amlogic/xhci-plat-meson.h"
+//#include "crg_xhci.h"
 
-static const struct xhci_plat_priv crg_xhci_plat_priv = {
+static const struct aml_xhci_plat_priv crg_xhci_plat_priv = {
 	.quirks = XHCI_NO_64BIT_SUPPORT | XHCI_RESET_ON_RESUME,
 };
 
@@ -231,7 +231,7 @@ static int crg_host_init(struct crg_drd *crg)
 	crg->xhci_resources[1].flags = res->flags;
 	crg->xhci_resources[1].name = res->name;
 
-	xhci = platform_device_alloc("xhci-hcd", PLATFORM_DEVID_AUTO);
+	xhci = platform_device_alloc("xhci-hcd-meson", PLATFORM_DEVID_AUTO);
 	if (!xhci) {
 		dev_err(crg->dev, "couldn't allocate xHCI device\n");
 		return -ENOMEM;
@@ -267,7 +267,7 @@ static int crg_host_init(struct crg_drd *crg)
 			goto err1;
 		}
 	}
-	crg_xhci_init();
+//	crg_xhci_init();
 	ret = platform_device_add_data(xhci, &crg_xhci_plat_priv,
 								sizeof(crg_xhci_plat_priv));
 	if (ret)

@@ -3,3 +3,6 @@
   si_swapinfo
   __tracepoint_android_vh_calc_alloc_flags
   __traceiter_android_vh_calc_alloc_flags
+
+# amlogic-usb.ko
+  extcon_get_state

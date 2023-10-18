@@ -17,5 +17,7 @@ include $(COMMON_DRIVERS_DIR)/drivers/usb/usbc2phy/Makefile
 include $(COMMON_DRIVERS_DIR)/drivers/usb/usbotg/Makefile
 include $(COMMON_DRIVERS_DIR)/drivers/usb/cc/Makefile
 include $(COMMON_DRIVERS_DIR)/drivers/usb/bc/Makefile
+include $(COMMON_DRIVERS_DIR)/drivers/usb/dwc3_amlogic/Makefile
+include $(COMMON_DRIVERS_DIR)/drivers/usb/xhci_amlogic/Makefile
 include $(COMMON_DRIVERS_DIR)/drivers/usb/crg/Makefile
 include $(COMMON_DRIVERS_DIR)/drivers/usb/dwc_otg/310/Makefile
