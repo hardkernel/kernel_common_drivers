@@ -1385,22 +1385,6 @@ static int dummy_encl_disable(enum vmode_e cur_vmod, void *data)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int dummy_encl_suspend(void *data)
-{
-	dummy_encl_disable(VMODE_DUMMY_ENCL, data);
-	VOUTPR("%s finished\n", __func__);
-	return 0;
-}
-
-static int dummy_encl_resume(void *data)
-{
-	dummy_encl_set_current_vmode(VMODE_DUMMY_ENCL, data);
-	VOUTPR("%s finished\n", __func__);
-	return 0;
-}
-#endif
-
 static int dummy_encl_vout_state;
 static int dummy_encl_vout_set_state(int bit, void *data)
 {
@@ -2317,8 +2301,6 @@ static int dummy_venc_resume(struct platform_device *pdev)
 		dummy_encp_resume((void *)dummy_encp_drv);
 	if (dummy_enci_drv && dummy_enci_drv->vout_valid)
 		dummy_enci_resume((void *)dummy_enci_drv);
-	if (dummy_encl_drv && dummy_encl_drv->vout_valid)
-		dummy_encl_resume((void *)dummy_encl_drv);
 
 	return 0;
 }
@@ -2329,8 +2311,6 @@ static int dummy_venc_suspend(struct platform_device *pdev, pm_message_t state)
 		dummy_encp_suspend((void *)dummy_encp_drv);
 	if (dummy_enci_drv && dummy_enci_drv->status)
 		dummy_enci_suspend((void *)dummy_enci_drv);
-	if (dummy_encl_drv && dummy_encl_drv->status)
-		dummy_encl_suspend((void *)dummy_encl_drv);
 
 	return 0;
 }
