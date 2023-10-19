@@ -2054,7 +2054,7 @@ void set_scdc_cfg(int hpdlow, int pwr_provided, u8 port)
 	case CHIP_ID_T5M:
 	case CHIP_ID_TXHD2:
 	default:
-		//hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, pwr_provided);
+		rx_clr_scdc(port);
 		break;
 	}
 }
@@ -2831,34 +2831,39 @@ void rx_set_term_value(unsigned char port, bool value)
 		rx_set_term_value_pre(port, value);
 }
 
+void rx_clr_scdc(u8 port)
+{
+	if (rx_info.chip_id < CHIP_ID_T7)
+		return;
+	scdc_dwork.port = port;
+	queue_work(scdc_wq, &scdc_dwork.work_wq);
+}
+
+void scdc_dwork_handler(struct work_struct *work)
+{
+	struct work_data *dd = container_of(work, struct work_data, work_wq);
+
+	if (rx_info.chip_id < CHIP_ID_T7)
+		return;
+	hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x0, dd->port);
+	mdelay(2);
+	hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x1, dd->port);
+}
+
 int rx_set_port_hpd(u8 port_id, bool val)
 {
-	u8 port;
-
 	if (port_id < E_PORT_NUM) {
 		if (val) {
-			if (rx_info.chip_id >= CHIP_ID_T7)
-				hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x1, port_id);
 			hdmirx_wr_bits_top_common(TOP_HPD_PWR5V, _BIT(port_id), 1);
 			rx_i2c_edid_cfg_with_port(0xf, true);
 			rx_set_term_value(port_id, 1);
 		} else {
-			if (rx_info.chip_id >= CHIP_ID_T7)
-				hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x0, port_id);
 			rx_i2c_edid_cfg_with_port(port_id, false);
 			hdmirx_wr_bits_top_common(TOP_HPD_PWR5V, _BIT(port_id), 0);
 			rx_set_term_value(port_id, 0);
 		}
 	} else if (port_id == ALL_PORTS) {
 		if (val) {
-			if (rx_info.chip_id >= CHIP_ID_T7) {
-				if (rx_info.chip_id == CHIP_ID_T3X) {
-					for (port = 0; port < 4; port++)
-						hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x1, port);
-				} else {
-					hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x1, E_PORT0);
-				}
-			}
 			rx_i2c_edid_cfg_with_port(0xf, true);
 			hdmirx_wr_bits_top_common(TOP_HPD_PWR5V, MSK(4, 0), 0xF);
 			rx_set_term_value(port_id, 1);

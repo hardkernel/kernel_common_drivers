@@ -94,6 +94,9 @@ struct delayed_work	esm_dwork;
 struct workqueue_struct	*esm_wq;
 struct delayed_work	repeater_dwork;
 struct workqueue_struct	*repeater_wq;
+struct work_data scdc_dwork;
+struct workqueue_struct	*scdc_wq;
+
 //struct phy_port_data aml_phy_dwork;
 struct work_struct     aml_phy_dwork_port0;
 struct workqueue_struct *aml_phy_wq_port0;
@@ -1805,7 +1808,8 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 			}
 			port_hpd_rst_flag |= (1 << rx_info.main_port);
 		}
-		fsm_restart(rx_info.main_port);
+		for (port_idx = E_PORT0; port_idx < E_PORT_NUM; port_idx++)
+			fsm_restart(port_idx);
 		if (hdmi_cec_en && rx_info.boot_flag)
 			rx_force_hpd_rxsense_cfg(1);
 		rx_pr("*update edid*\n");
@@ -3751,7 +3755,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 	/* create for hot plug function */
 	eq_wq = create_singlethread_workqueue(hdevp->frontend.name);
 	INIT_DELAYED_WORK(&eq_dwork, eq_dwork_handler);
-
+	/* clear scdc function*/
+	scdc_wq = create_workqueue(hdevp->frontend.name);
+	INIT_WORK(&scdc_dwork.work_wq, scdc_dwork_handler);
 	if (rx_info.chip_id < CHIP_ID_T7) {
 		esm_wq = create_singlethread_workqueue(hdevp->frontend.name);
 		INIT_DELAYED_WORK(&esm_dwork, rx_hpd_to_esm_handle);
@@ -4017,6 +4023,9 @@ static int hdmirx_remove(struct platform_device *pdev)
 
 	cancel_delayed_work_sync(&eq_dwork);
 	destroy_workqueue(eq_wq);
+
+	cancel_work_sync(&scdc_dwork.work_wq);
+	destroy_workqueue(scdc_wq);
 
 	cancel_delayed_work_sync(&esm_dwork);
 	destroy_workqueue(esm_wq);

@@ -3327,7 +3327,7 @@ static void signal_status_init(u8 port)
 	rx[port].err_rec_mode = ERR_REC_EQ_RETRY;
 	rx_irq_en(false, port);
 	rx_esm_reset(2);
-	set_scdc_cfg(1, 0, port);
+	//set_scdc_cfg(1, 0, port);
 	rx[port].state = FSM_INIT;
 	rx[port].fsm_ext_state = FSM_NULL;
 	/*if (hdcp22_on)*/
@@ -3612,7 +3612,8 @@ void fsm_restart(u8 port)
 	rx_esm_reset(2);
 	hdmi_rx_top_edid_update();
 	hdmirx_hw_config(port);
-	set_scdc_cfg(1, 0, port);
+	if (rx[port].var.edid_update_flag)
+		set_scdc_cfg(1, 0, port);
 	hdmirx_audio_disabled(port);
 	rx[port].var.vic_check_en = false;
 	rx[port].var.dvi_check_en = true;
@@ -4608,6 +4609,7 @@ void hdmirx_open_port(enum tvin_port_e port)
 	(rx_get_cur_hpd_sts(rx_info.main_port) == 0) ||
 	/* when open specific port, force to enable it */
 	(disable_port_en && rx_info.main_port == disable_port_num))) {
+		set_scdc_cfg(1, 0, port);
 		rx_esm_reset(1);
 		if (rx[rx_info.main_port].state > FSM_HPD_LOW)
 			rx[rx_info.main_port].state = FSM_HPD_LOW;
@@ -4755,8 +4757,7 @@ void rx_5v_monitor(void)
 			aml_phy_power_off_t3x(E_PORT3);
 		}
 		for (i = 0; i < rx_info.port_num; i++) {
-			rx[i].cur_5v_sts = (tmp_5v >> i) & 1;
-			if (rx[i].cur_5v_sts == 0)
+			if (((tmp_5v >> i) & 1) == 0)
 				aml_phy_power_off_t3x(i);
 		}
 	}
@@ -4777,10 +4778,11 @@ void rx_5v_monitor(void)
 			if (rx[i].cur_5v_sts != ((pwr_sts >> i) & 1)) {
 				rx[i].cur_5v_sts = (pwr_sts >> i) & 1;
 				if (rx_info.chip_id == CHIP_ID_T3X) {
-					set_fsm_state(FSM_5V_LOST, i);
-					rx_set_cur_hpd(0, 5, i);
-					if (rx[i].cur_5v_sts == 0)
+					if (rx[i].cur_5v_sts == 0) {
+						set_fsm_state(FSM_5V_LOST, i);
+						rx_set_cur_hpd(0, 5, i);
 						aml_phy_power_off_t3x(i);
+					}
 				} else {
 					if (rx[i].cur_5v_sts == 0)
 						set_fsm_state(FSM_5V_LOST, i);
@@ -4969,7 +4971,6 @@ void rx_main_state_machine(void)
 	case FSM_HPD_LOW:
 		/* disable irq before hpd low */
 		rx_irq_en(false, port);
-		rx_set_cur_hpd(0, 0, port);
 		set_scdc_cfg(1, 0, port);
 		rx[port].state = FSM_INIT;
 		break;
@@ -5000,7 +5001,6 @@ void rx_main_state_machine(void)
 		rx_set_cur_hpd(1, 0, port);
 		rx[port].clk.cable_clk = 0;
 		rx[port].phy.cablesel = 0;
-		set_scdc_cfg(0, 1, port);
 		/* rx[port].hdcp.hdcp_version = HDCP_VER_NONE; */
 		rx[port].state = FSM_WAIT_CLK_STABLE;
 		break;
@@ -5463,7 +5463,6 @@ void rx_port0_main_state_machine(void)
 		/* disable irq before hpd low */
 		rx_irq_en(false, port);
 		rx_set_cur_hpd(0, 0, port);
-		set_scdc_cfg(1, 0, port);
 		rx[port].state = FSM_INIT;
 		break;
 	case FSM_INIT:
@@ -5491,7 +5490,6 @@ void rx_port0_main_state_machine(void)
 		rx_set_cur_hpd(1, 0, port);
 		rx[port].clk.cable_clk = 0;
 		rx[port].phy.cablesel = 0;
-		set_scdc_cfg(0, 1, port);
 		/* rx[port].hdcp.hdcp_version = HDCP_VER_NONE; */
 		rx[port].state = FSM_WAIT_CLK_STABLE;
 		break;
@@ -5956,7 +5954,6 @@ void rx_port1_main_state_machine(void)
 		/* disable irq before hpd low */
 		rx_irq_en(false, port);
 		rx_set_cur_hpd(0, 0, port);
-		set_scdc_cfg(1, 0, port);
 		rx[port].state = FSM_INIT;
 		break;
 	case FSM_INIT:
@@ -5984,7 +5981,6 @@ void rx_port1_main_state_machine(void)
 		rx_set_cur_hpd(1, 0, port);
 		rx[port].clk.cable_clk = 0;
 		rx[port].phy.cablesel = 0;
-		set_scdc_cfg(0, 1, port);
 		/* rx[port].hdcp.hdcp_version = HDCP_VER_NONE; */
 		rx[port].state = FSM_WAIT_CLK_STABLE;
 		break;
@@ -6422,8 +6418,8 @@ void rx_port1_main_state_machine(void)
 	if (rx[port].state != rx[port].pre_state) {
 		if (!(log_level & COR1_LOG))
 			rx_pr("fsm20 (%s) to (%s)\n",
-			      fsm_st[rx[port].pre_state],
-			      fsm_st[rx[port].state]);
+				fsm_st[rx[port].pre_state],
+				fsm_st[rx[port].state]);
 		rx[port].pre_state = rx[port].state;
 	}
 }

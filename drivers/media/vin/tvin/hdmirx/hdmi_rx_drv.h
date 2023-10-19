@@ -913,9 +913,16 @@ struct phy_port_data {
 	struct workqueue_struct *aml_phy_wq;
 };
 
+struct work_data {
+	struct work_struct work_wq;
+	u8 port;
+};
+
 /* system */
 extern struct delayed_work	eq_dwork;
 extern struct workqueue_struct	*eq_wq;
+extern struct work_data     scdc_dwork;
+extern struct workqueue_struct *scdc_wq;
 extern struct delayed_work	esm_dwork;
 extern struct workqueue_struct	*esm_wq;
 extern struct delayed_work	repeater_dwork;
