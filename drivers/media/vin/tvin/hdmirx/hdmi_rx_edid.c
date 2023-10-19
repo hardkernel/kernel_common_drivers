@@ -57,6 +57,7 @@ u32 vsvdb_update_hpd_en = 1;
 int edid_mode;
 u8 port_hpd_rst_flag;
 int port_map;
+
 MODULE_PARM_DESC(port_map, "\n port_map\n");
 module_param(port_map, int, 0664);
 
@@ -328,7 +329,7 @@ static struct cta_blk_pair cta_blk[] = {
 		.blk_name = "VESA_DTC_DB",
 	},
 	{
-		.tag_code = (USE_EXTENDED_TAG << 8) | VCDB_TAG,
+		.tag_code = EXTENDED_VCDB_TAG,
 		.blk_name = "Video_Cap_DB",
 	},
 	{
@@ -340,51 +341,51 @@ static struct cta_blk_pair cta_blk[] = {
 		.blk_name = "VSVDB_HDR10P",
 	},
 	{
-		.tag_code = (USE_EXTENDED_TAG << 8) | VDDDB_TAG,
+		.tag_code = EXTENDED_VDDDB_TAG,
 		.blk_name = "VESA_Display_Device_DB",
 	},
 	{
-		.tag_code = (USE_EXTENDED_TAG << 8) | VVTBE_TAG,
+		.tag_code = EXTENDED_VVTBE_TAG,
 		.blk_name = "VESA_Video_Timing_Blk_Ext",
 	},
 	{
-		.tag_code = (USE_EXTENDED_TAG << 8) | CDB_TAG,
+		.tag_code = EXTENDED_CDB_TAG,
 		.blk_name = "Colorimetry_DB",
 	},
 	{
-		.tag_code = (USE_EXTENDED_TAG << 8) | HDR_STATIC_TAG,
+		.tag_code = EXTENDED_HDR_STATIC_TAG,
 		.blk_name = "HDR_Static_Metadata",
 	},
 	{
-		.tag_code = (USE_EXTENDED_TAG << 8) | HDR_DYNAMIC_TAG,
+		.tag_code = EXTENDED_HDR_DYNAMIC_TAG,
 		.blk_name = "HDR_Dynamic_Metadata",
 	},
 	{
-		.tag_code = (USE_EXTENDED_TAG << 8) | VFPDB_TAG,
+		.tag_code = EXTENDED_VFPDB_TAG,
 		.blk_name = "Video_Fmt_Preference_DB",
 	},
 	{
-		.tag_code = (USE_EXTENDED_TAG << 8) | Y420VDB_TAG,
+		.tag_code = EXTENDED_Y420VDB_TAG,
 		.blk_name = "YCbCr_420_Video_DB",
 	},
 	{
-		.tag_code = (USE_EXTENDED_TAG << 8) | Y420CMDB_TAG,
+		.tag_code = EXTENDED_Y420CMDB_TAG,
 		.blk_name = "YCbCr_420_Cap_Map_DB",
 	},
 	{
-		.tag_code = (USE_EXTENDED_TAG << 8) | VSADB_TAG,
+		.tag_code = EXTENDED_VSADB_TAG,
 		.blk_name = "Vendor_Specific_Audio_DB",
 	},
 	{
-		.tag_code = (USE_EXTENDED_TAG << 8) | RCDB_TAG,
+		.tag_code = EXTENDED_RCDB_TAG,
 		.blk_name = "Room_Configuration_DB",
 	},
 	{
-		.tag_code = (USE_EXTENDED_TAG << 8) | SLDB_TAG,
+		.tag_code = EXTENDED_SLDB_TAG,
 		.blk_name = "Speaker_Location_DB",
 	},
 	{
-		.tag_code = (USE_EXTENDED_TAG << 8) | IFDB_TAG,
+		.tag_code = EXTENDED_IFDB_TAG,
 		.blk_name = "Infoframe_DB",
 	},
 	{
@@ -621,10 +622,10 @@ void rx_edid_update_hdr_dv_info(unsigned char *p_edid)
 
 	if (tx_hdr_priority == 1) {
 		//remove DV
-		edid_rm_db_by_tag(p_edid, (USE_EXTENDED_TAG << 8) | VSVDB_TAG);
+		edid_rm_db_by_tag(p_edid, EXTENDED_VSVDB_TAG);
 	} else if (tx_hdr_priority == 2) {
 		//remove dv+hdr+hdr10p
-		edid_rm_db_by_tag(p_edid, (USE_EXTENDED_TAG << 8) | HDR_STATIC_TAG);
+		edid_rm_db_by_tag(p_edid, EXTENDED_HDR_STATIC_TAG);
 		edid_rm_db_by_tag(p_edid, VSVDB_HDR10P_TAG);
 		edid_rm_db_by_tag(p_edid, VSVDB_DV_TAG);
 	}
@@ -734,9 +735,9 @@ u16 rx_get_tag_code(u_char *edid_data)
 			else if (ieee_oui == 0x90848B)
 				tag_code = VSVDB_HDR10P_TAG;
 		} else if (edid_data[1] == HDR_STATIC_TAG) {
-			tag_code = HDR_STATIC_TAG;
+			tag_code = EXTENDED_HDR_STATIC_TAG;
 		} else if (edid_data[1] == HDR_DYNAMIC_TAG) {
-			tag_code = HDR_DYNAMIC_TAG;
+			tag_code = EXTENDED_HDR_DYNAMIC_TAG;
 		} else {
 			tag_code =
 				(USE_EXTENDED_TAG << 8) | edid_data[1];
@@ -3721,12 +3722,13 @@ static void rpt_edid_extension_num_extraction(unsigned char *p_edid)
 static void rpt_edid_rm_hf_eeodb(unsigned char *p_edid)
 {
 	/* HF-EEODB occupy byte 4~6 of block1, fixed location */
-	edid_rm_db_by_tag(p_edid, (USE_EXTENDED_TAG << 8) | HF_EEODB);
+	edid_rm_db_by_tag(p_edid, EXTENDED_HF_EEODB);
 }
 
 void rpt_edid_hf_vs_db_extraction(unsigned char *p_edid)
 {
 	u8 hf_vsdb_start = 0;
+	u8 tx_hf_vsdb_start = 0;
 	struct hf_vsdb_s hf_vsdb_tx, hf_vsdb_def, hf_vsdb_dest;
 	u8 tag_len_tx, tag_len_def, i;
 
@@ -3741,15 +3743,15 @@ void rpt_edid_hf_vs_db_extraction(unsigned char *p_edid)
 	tag_len_def = p_edid[hf_vsdb_start] & 0x1f;
 	memcpy(&hf_vsdb_def, p_edid + hf_vsdb_start, tag_len_def + 1);
 
-	hf_vsdb_start = rx_get_cea_tag_offset(edid_tx, HF_VENDOR_DB_TAG);
-	if (!hf_vsdb_start) {
+	tx_hf_vsdb_start = rx_get_cea_tag_offset(edid_tx, HF_VENDOR_DB_TAG);
+	if (!tx_hf_vsdb_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("no hf-vsdb\n");
 		edid_rm_db_by_tag(p_edid, HF_VENDOR_DB_TAG);
 		return;
 	}
-	tag_len_tx = edid_tx[hf_vsdb_start] & 0x1f;
-	memcpy(&hf_vsdb_tx, edid_tx + hf_vsdb_start, tag_len_tx + 1);
+	tag_len_tx = edid_tx[tx_hf_vsdb_start] & 0x1f;
+	memcpy(&hf_vsdb_tx, edid_tx + tx_hf_vsdb_start, tag_len_tx + 1);
 
 	hf_vsdb_dest.tag = hf_vsdb_tx.tag;
 	hf_vsdb_dest.version = hf_vsdb_tx.version;
@@ -3839,17 +3841,19 @@ void rpt_edid_hf_vs_db_extraction(unsigned char *p_edid)
 _end:
 	//p_edid[hf_vsdb_start] = 0x60 + hf_vsdb_dest.len;
 	memcpy(p_edid + hf_vsdb_start, &hf_vsdb_dest, hf_vsdb_dest.len + 1);
-	for (i = hf_vsdb_start + hf_vsdb_dest.len + 1; i < 255 - tag_len_tx + hf_vsdb_dest.len; i++)
-		p_edid[i] = p_edid[i + tag_len_tx - hf_vsdb_dest.len];
+	i = hf_vsdb_start + hf_vsdb_dest.len + 1;
+	for (; i < 255 - tag_len_def + hf_vsdb_dest.len; i++)
+		p_edid[i] = p_edid[i + tag_len_def - hf_vsdb_dest.len];
 	for (; i < 255; i++)
 		p_edid[i] = 0;
 	/* dtd offset modify */
-	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len_tx - hf_vsdb_dest.len;
+	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len_def - hf_vsdb_dest.len;
 }
 
 void rpt_edid_14_vs_db_extraction(unsigned char *p_edid)
 {
 	u8 vsdb_start = 0;
+	u8 tx_vsdb_start = 0;
 	struct vsdb_s vsdb_tx, vsdb_def, vsdb_dest;
 	u8 tag_len_tx, tag_len_def, i, j, k;
 	u8 tx_hdmi_vic[4] = {0};
@@ -3906,15 +3910,15 @@ void rpt_edid_14_vs_db_extraction(unsigned char *p_edid)
 		//unsupport 3d format by default
 	}
 _end1:
-	vsdb_start = rx_get_cea_tag_offset(edid_tx, VENDOR_TAG);
-	if (!vsdb_start) {
+	tx_vsdb_start = rx_get_cea_tag_offset(edid_tx, VENDOR_TAG);
+	if (!tx_vsdb_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("no vsdb\n");
 		edid_rm_db_by_tag(p_edid, VENDOR_TAG);
 		return;
 	}
-	tag_len_tx = edid_tx[vsdb_start] & 0x1f;
-	memcpy(&vsdb_tx, edid_tx + vsdb_start, tag_len_tx + 1);
+	tag_len_tx = edid_tx[tx_vsdb_start] & 0x1f;
+	memcpy(&vsdb_tx, edid_tx + tx_vsdb_start, tag_len_tx + 1);
 	//TX edid parsing
 	i = 5;
 	if (tag_len_tx <= i) {
@@ -3927,31 +3931,31 @@ _end1:
 		goto _end2;
 	if (vsdb_tx.latency_fields_present) {
 		i++;
-		vsdb_tx.video_latency = edid_tx[vsdb_start + i];
+		vsdb_tx.video_latency = edid_tx[tx_vsdb_start + i];
 		i++;
-		vsdb_tx.audio_latency = edid_tx[vsdb_start + i];
+		vsdb_tx.audio_latency = edid_tx[tx_vsdb_start + i];
 	}
 	if (vsdb_tx.i_latency_fields_present) {
 		i++;
-		vsdb_tx.interlaced_video_latency = edid_tx[vsdb_start + i];
+		vsdb_tx.interlaced_video_latency = edid_tx[tx_vsdb_start + i];
 		i++;
-		vsdb_tx.interlaced_audio_latency = edid_tx[vsdb_start + i];
+		vsdb_tx.interlaced_audio_latency = edid_tx[tx_vsdb_start + i];
 	}
 	if (tag_len_tx <= i)
 		goto _end2;
 	if (vsdb_tx.hdmi_video_present) {
 		i++;
-		vsdb_tx.image_size = (edid_tx[vsdb_start + i] >> 3) & 3;
-		vsdb_tx._3d_multi_present = (edid_tx[vsdb_start + i] >> 5) & 3;
-		vsdb_tx._3d_present = (edid_tx[vsdb_start + i] >> 7) & 1;
+		vsdb_tx.image_size = (edid_tx[tx_vsdb_start + i] >> 3) & 3;
+		vsdb_tx._3d_multi_present = (edid_tx[tx_vsdb_start + i] >> 5) & 3;
+		vsdb_tx._3d_present = (edid_tx[tx_vsdb_start + i] >> 7) & 1;
 		i++;
-		vsdb_tx.hdmi_3d_len = edid_tx[vsdb_start + i] & 0x1f;
-		vsdb_tx.hdmi_vic_len = (edid_tx[vsdb_start + i] >> 5) & 0x07;
+		vsdb_tx.hdmi_3d_len = edid_tx[tx_vsdb_start + i] & 0x1f;
+		vsdb_tx.hdmi_vic_len = (edid_tx[tx_vsdb_start + i] >> 5) & 0x07;
 	}
 	if (vsdb_tx.hdmi_vic_len) {
 		i++;
 		for (j = 0; j < vsdb_tx.hdmi_vic_len; j++)
-			tx_hdmi_vic[j] = (edid_tx[vsdb_start + i + j]);
+			tx_hdmi_vic[j] = (edid_tx[tx_vsdb_start + i + j]);
 	}
 	//if (vsdb_tx.hdmi_3d_len)
 		//todo
@@ -4144,17 +4148,18 @@ _end3:
 		vsdb_dest.len = i > vsdb_dest.len ? vsdb_dest.len : i;
 	}
 	p_edid[vsdb_start] = (VENDOR_TAG << 5) + vsdb_dest.len;
-	for (i = vsdb_start + vsdb_dest.len + 1; i < 255 - tag_len_tx + vsdb_dest.len; i++)
-		p_edid[i] = p_edid[i + tag_len_tx - vsdb_dest.len];
+	for (i = vsdb_start + vsdb_dest.len + 1; i < 255 - tag_len_def + vsdb_dest.len; i++)
+		p_edid[i] = p_edid[i + tag_len_def - vsdb_dest.len];
 	for (; i < 255; i++)
 		p_edid[i] = 0;
 	/* dtd offset modify */
-	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len_tx - vsdb_dest.len;
+	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len_def - vsdb_dest.len;
 }
 
 void rpt_edid_video_db_extraction(unsigned char *p_edid)
 {
 	u8 vdb_start = 0;
+	u8 tx_vdb_start = 0;
 	u8 vdb_dest[31];
 	u8 tx_native_list[31];
 	u8 tag_len_tx, tag_len_def;
@@ -4177,15 +4182,15 @@ void rpt_edid_video_db_extraction(unsigned char *p_edid)
 		if (def_vic_list[i] >= 129 && def_vic_list[i] <= 192)
 			def_vic_list[i] = def_vic_list[i] & 0x7f;
 	}
-	vdb_start = rx_get_cea_tag_offset(edid_tx, VIDEO_TAG);
-	if (!vdb_start) {
+	tx_vdb_start = rx_get_cea_tag_offset(edid_tx, VIDEO_TAG);
+	if (!tx_vdb_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("no vdb\n");
 		return;
 	}
-	tag_len_tx = edid_tx[vdb_start] & 0x1f;
+	tag_len_tx = edid_tx[tx_vdb_start] & 0x1f;
 	memset(tx_vic_list, 0, 31);
-	memcpy(tx_vic_list, edid_tx + vdb_start + 1, tag_len_tx);
+	memcpy(tx_vic_list, edid_tx + tx_vdb_start + 1, tag_len_tx);
 	for (i = 0; i < tag_len_tx; i++) {
 		if (tx_vic_list[i] >= 129 && tx_vic_list[i] <= 192) {
 			tx_vic_list[i] = tx_vic_list[i] & 0x7f;
@@ -4212,17 +4217,18 @@ void rpt_edid_video_db_extraction(unsigned char *p_edid)
 		rx_pr("vdb_size = %d\n", tag_len_dest);
 	p_edid[vdb_start] = (VIDEO_TAG << 5) + tag_len_dest;
 	memcpy(p_edid + vdb_start + 1, vdb_dest, tag_len_dest);
-	for (i = vdb_start + tag_len_dest + 1; i < 255 - tag_len_tx + tag_len_dest; i++)
-		p_edid[i] = p_edid[i + tag_len_tx - tag_len_dest];
+	for (i = vdb_start + tag_len_dest + 1; i < 255 - tag_len_def + tag_len_dest; i++)
+		p_edid[i] = p_edid[i + tag_len_def - tag_len_dest];
 	for (; i < 255; i++)
 		p_edid[i] = 0;
 	/* dtd offset modify */
-	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len_tx - tag_len_dest;
+	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len_def - tag_len_dest;
 }
 
 void rpt_edid_audio_db_extraction(unsigned char *p_edid)
 {
 	u8 adb_start = 0;
+	u8 tx_adb_start = 0;
 	struct edid_audio_block_t adb_tx[10], adb_def[10], adb_dest[10];
 	u8 tag_len_tx, tag_len_def;
 	u8 i, j, tag_len_dest = 0;
@@ -4243,19 +4249,19 @@ void rpt_edid_audio_db_extraction(unsigned char *p_edid)
 		return;
 	}
 	memcpy((u8 *)adb_def, p_edid + adb_start + 1, tag_len_def);
-	adb_start = rx_get_cea_tag_offset(edid_tx, AUDIO_TAG);
-	if (!adb_start) {
+	tx_adb_start = rx_get_cea_tag_offset(edid_tx, AUDIO_TAG);
+	if (!tx_adb_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("no adb\n");
 		return;
 	}
-	tag_len_tx = edid_tx[adb_start] & 0x1f;
+	tag_len_tx = edid_tx[tx_adb_start] & 0x1f;
 	if (tag_len_tx % 3) {
 		if (log_level & EDID_LOG)
 			rx_pr("aud db err\n");
 		return;
 	}
-	memcpy((u8 *)adb_tx, edid_tx + adb_start + 1, tag_len_tx);
+	memcpy((u8 *)adb_tx, edid_tx + tx_adb_start + 1, tag_len_tx);
 	for (i = 0; i < tag_len_def / 3; i++) {
 		for (j = 0; j < tag_len_tx / 3; j++) {
 			if (adb_tx[j].format_code == adb_def[i].format_code) {
@@ -4310,17 +4316,18 @@ void rpt_edid_audio_db_extraction(unsigned char *p_edid)
 		rx_pr("adb_size = %d\n", tag_len_dest);
 	p_edid[adb_start] = (AUDIO_TAG << 5) + tag_len_dest;
 	memcpy(p_edid + adb_start + 1, adb_dest, tag_len_dest);
-	for (i = adb_start + tag_len_dest + 1; i < 255 - tag_len_tx + tag_len_dest; i++)
-		p_edid[i] = p_edid[i + tag_len_tx - tag_len_dest];
+	for (i = adb_start + tag_len_dest + 1; i < 255 - tag_len_def + tag_len_dest; i++)
+		p_edid[i] = p_edid[i + tag_len_def - tag_len_dest];
 	for (; i < 255; i++)
 		p_edid[i] = 0;
 		/* dtd offset modify */
-	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len_tx - tag_len_dest;
+	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len_def - tag_len_dest;
 }
 
 void rpt_edid_colorimetry_db_extraction(unsigned char *p_edid)
 {
 	u8 db_start = 0;
+	u8 tx_db_start = 0;
 	u8 colorimetry_tx[2], colorimetry_def[2], colorimetry_dest[2];
 	u8 def_tag_len = 0;
 	u8 i = 0;
@@ -4328,7 +4335,7 @@ void rpt_edid_colorimetry_db_extraction(unsigned char *p_edid)
 	if (!p_edid)
 		return;
 
-	db_start = rx_get_cea_tag_offset(p_edid, (USE_EXTENDED_TAG << 8) | CDB_TAG);
+	db_start = rx_get_cea_tag_offset(p_edid, EXTENDED_CDB_TAG);
 	if (!db_start) {
 		//abnormal condition, only for errordebug
 		if (log_level & EDID_LOG)
@@ -4338,13 +4345,14 @@ void rpt_edid_colorimetry_db_extraction(unsigned char *p_edid)
 		def_tag_len = 3;
 		memcpy(colorimetry_def, p_edid + db_start + 2, 2);
 	}
-	db_start = rx_get_cea_tag_offset(edid_tx, (USE_EXTENDED_TAG << 8) | CDB_TAG);
-	if (!db_start) {
+	tx_db_start = rx_get_cea_tag_offset(edid_tx, EXTENDED_CDB_TAG);
+	if (!tx_db_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("no colorimetry\n");
+		edid_rm_db_by_tag(p_edid, EXTENDED_CDB_TAG);
 		return;
 	}
-	memcpy(colorimetry_tx, edid_tx + db_start + 2, 2);
+	memcpy(colorimetry_tx, edid_tx + tx_db_start + 2, 2);
 	for (i = 0; i < 2; i++)
 		colorimetry_dest[i] = colorimetry_tx[i] & colorimetry_def[i];
 	memcpy(p_edid + db_start + 2, colorimetry_dest, 2);
@@ -4354,6 +4362,8 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 {
 	u8 _420_vdb_start = 0;
 	u8 _420_cmdb_start = 0;
+	u8 tx_420_vdb_start = 0;
+	u8 tx_420_cmdb_start = 0;
 	u8 vdb_start = 0;
 	u8 tx_420vic_list[31] = { 0 };
 	u8 def_420vic_list[31] = { 0 };
@@ -4375,7 +4385,7 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 		return;
 
 	//420cmdb
-	_420_cmdb_start = rx_get_cea_tag_offset(p_edid, (USE_EXTENDED_TAG << 8) | Y420CMDB_TAG);
+	_420_cmdb_start = rx_get_cea_tag_offset(p_edid, EXTENDED_Y420CMDB_TAG);
 	if (_420_cmdb_start) {
 		def_cmdb_len = (p_edid[_420_cmdb_start]) & 0x1f;
 		if (def_cmdb_len > 5) {
@@ -4394,7 +4404,7 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 		}
 	}
 	//420vdb
-	_420_vdb_start = rx_get_cea_tag_offset(p_edid, (USE_EXTENDED_TAG << 8) | Y420VDB_TAG);
+	_420_vdb_start = rx_get_cea_tag_offset(p_edid, EXTENDED_Y420VDB_TAG);
 	if (_420_vdb_start) {
 		def_420_vdb_len = (p_edid[_420_vdb_start]) & 0x1f;
 		if (j + def_420_vdb_len - 1 > 31) {
@@ -4412,9 +4422,9 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 	//TX EDID parsing
 	//420cmdb
 	j = 0;
-	_420_cmdb_start = rx_get_cea_tag_offset(p_edid, (USE_EXTENDED_TAG << 8) | Y420CMDB_TAG);
-	if (_420_cmdb_start) {
-		tx_cmdb_len = (p_edid[_420_cmdb_start]) & 0x1f;
+	tx_420_cmdb_start = rx_get_cea_tag_offset(edid_tx, EXTENDED_Y420CMDB_TAG);
+	if (tx_420_cmdb_start) {
+		tx_cmdb_len = (edid_tx[tx_420_cmdb_start]) & 0x1f;
 		if (tx_cmdb_len > 5) {
 			if (log_level & EDID_LOG)
 				rx_pr("cmdb len error:%d\n", tx_cmdb_len);
@@ -4422,7 +4432,7 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 		}
 		cmdb_map = 0;
 		for (i = 0; i <  tx_cmdb_len - 1; i++)
-			cmdb_map += edid_tx[_420_cmdb_start + 2 + i] << (i * 8);
+			cmdb_map += edid_tx[tx_420_cmdb_start + 2 + i] << (i * 8);
 		j = 0;
 		for (i = 0; i < 31; i++) {
 			if ((cmdb_map >> i) & 1) {
@@ -4433,20 +4443,20 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 		}
 	}
 	//420vdb
-	_420_vdb_start = rx_get_cea_tag_offset(edid_tx, (USE_EXTENDED_TAG << 8) | Y420VDB_TAG);
-	if (_420_vdb_start) {
-		tx_420_vdb_len = (edid_tx[_420_vdb_start]) & 0x1f;
+	tx_420_vdb_start = rx_get_cea_tag_offset(edid_tx, EXTENDED_Y420VDB_TAG);
+	if (tx_420_vdb_start) {
+		tx_420_vdb_len = (edid_tx[tx_420_vdb_start]) & 0x1f;
 		if (j + tx_420_vdb_len - 1 > 31) {
 			rx_pr("420DB error\n");
 			return;
 		}
-		memcpy(tx_420vic_list + j, edid_tx + _420_vdb_start + 2, tx_420_vdb_len - 1);
+		memcpy(tx_420vic_list + j, edid_tx + tx_420_vdb_start + 2, tx_420_vdb_len - 1);
 	}
 	if (tx_420_vdb_len == 0 && tx_cmdb_len == 0) {
 		if (log_level & EDID_LOG)
 			rx_pr("no 420 block\n");
-		edid_rm_db_by_tag(p_edid, (USE_EXTENDED_TAG << 8) | Y420CMDB_TAG);
-		edid_rm_db_by_tag(p_edid, (USE_EXTENDED_TAG << 8) | Y420VDB_TAG);
+		edid_rm_db_by_tag(p_edid, EXTENDED_Y420CMDB_TAG);
+		edid_rm_db_by_tag(p_edid, EXTENDED_Y420VDB_TAG);
 		return;
 	}
 	k = 0;
@@ -4485,7 +4495,7 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid)
 		}
 		if (k == 0) {
 			cmdb_map = 0;
-			edid_rm_db_by_tag(p_edid, (USE_EXTENDED_TAG << 8) | Y420CMDB_TAG);
+			edid_rm_db_by_tag(p_edid, EXTENDED_Y420CMDB_TAG);
 			tx_cmdb_len = 0;
 			goto end1;
 		} else {
@@ -4520,7 +4530,7 @@ end1:
 			if (new_420vdb_list[0] && l) {
 				_420_vdb_start =
 					rx_get_cea_tag_offset(p_edid,
-						(USE_EXTENDED_TAG << 8) | Y420VDB_TAG);
+						EXTENDED_Y420VDB_TAG);
 				p_edid[_420_vdb_start] = (USE_EXTENDED_TAG << 5) + l + 1;
 				memcpy(p_edid + _420_vdb_start + 2, new_420vdb_list, l);
 				for (i = _420_vdb_start + l + 1;
@@ -4532,7 +4542,7 @@ end1:
 				p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -=
 					def_420_vdb_len - l - 1;
 			} else {
-				edid_rm_db_by_tag(p_edid, (USE_EXTENDED_TAG << 8) | Y420VDB_TAG);
+				edid_rm_db_by_tag(p_edid, EXTENDED_Y420VDB_TAG);
 			}
 		}
 	} else if (def_420_vdb_len) {
@@ -4547,7 +4557,7 @@ end1:
 			p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -=
 				def_420_vdb_len - k - 1;
 		} else {
-			edid_rm_db_by_tag(p_edid, (USE_EXTENDED_TAG << 8) | Y420VDB_TAG);
+			edid_rm_db_by_tag(p_edid, EXTENDED_Y420VDB_TAG);
 		}
 	}
 }
@@ -4555,6 +4565,7 @@ end1:
 void rpt_edid_hdr_static_db_extraction(unsigned char *p_edid)
 {
 	u8 db_start = 0;
+	u8 tx_db_start = 0;
 	u8 tx_db[31], def_db[31];
 	u8 tx_len = 0;
 	u8 def_len = 0;
@@ -4562,8 +4573,7 @@ void rpt_edid_hdr_static_db_extraction(unsigned char *p_edid)
 
 	if (!p_edid)
 		return;
-
-	db_start = rx_get_cea_tag_offset(p_edid, (USE_EXTENDED_TAG << 8) | HDR_STATIC_TAG);
+	db_start = rx_get_cea_tag_offset(p_edid, EXTENDED_HDR_STATIC_TAG);
 	if (!db_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("unsupported HDR!!\n");
@@ -4572,20 +4582,21 @@ void rpt_edid_hdr_static_db_extraction(unsigned char *p_edid)
 		def_len = (p_edid[db_start]) & 0x1f;
 		memcpy(def_db, p_edid + db_start + 2, def_len - 1);
 	}
-	db_start = rx_get_cea_tag_offset(edid_tx, (USE_EXTENDED_TAG << 8) | HDR_STATIC_TAG);
-	if (!db_start) {
+	tx_db_start = rx_get_cea_tag_offset(edid_tx, EXTENDED_HDR_STATIC_TAG);
+	if (!tx_db_start) {
 		if (log_level & EDID_LOG)
 			rx_pr("no HDR!!\n");
 		//remove p_edid's block, not edid_tx!!!!!!
-		edid_rm_db_by_tag(p_edid, (USE_EXTENDED_TAG << 8) | HDR_STATIC_TAG);
+		edid_rm_db_by_tag(p_edid, EXTENDED_HDR_STATIC_TAG);
 		return;
 	} else {
-		tx_len = (edid_tx[db_start]) & 0x1f;
-		memcpy(tx_db, edid_tx + db_start + 2, tx_len - 1);
+		tx_len = (edid_tx[tx_db_start]) & 0x1f;
+		memcpy(tx_db, edid_tx + tx_db_start + 2, tx_len - 1);
 	}
+	/*
 	for (i = 0; i < 2; i++)
 		tx_db[i] = tx_db[i] & def_db[i];
-
+	*/
 	if (def_len && tx_len) {
 		//keep using tx data block, only BYTE 3 && 4 changed.
 		for (i = 0; i < 2; i++)
@@ -4601,9 +4612,32 @@ void rpt_edid_hdr_static_db_extraction(unsigned char *p_edid)
 	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tx_len - def_len;
 }
 
+void rpt_edid_vsv_hdr10plus_extraction(unsigned char *p_edid)
+{
+	u8 db_start = 0;
+
+	if (!p_edid)
+		return;
+
+	db_start = rx_get_cea_tag_offset(p_edid, VSVDB_HDR10P_TAG);
+	if (!db_start) {
+		if (log_level & EDID_LOG)
+			rx_pr("rx no vsv hdr10+!!\n");
+		return;
+	}
+
+	db_start = rx_get_cea_tag_offset(edid_tx, VSVDB_HDR10P_TAG);
+	if (!db_start) {
+		if (log_level & EDID_LOG)
+			rx_pr("tx no vsv hdr10+, need remove rx vsv hdr10+\n");
+		edid_rm_db_by_tag(p_edid, VSVDB_HDR10P_TAG);
+	}
+}
+
 void rpt_edid_vsv_db_extraction(unsigned char *p_edid)
 {
 	u8 db_start = 0;
+	u8 tx_db_start = 0;
 	u8 tx_len = 0;
 	u8 db_version;
 
@@ -4611,10 +4645,9 @@ void rpt_edid_vsv_db_extraction(unsigned char *p_edid)
 		return;
 
 	db_start = rx_get_cea_tag_offset(p_edid, VSVDB_DV_TAG);
-
 	if (!db_start) {
 		if (log_level & EDID_LOG)
-			rx_pr("no vsvdb!!\n");
+			rx_pr("rx no vsvdb!!\n");
 		return;
 	}
 
@@ -4629,6 +4662,35 @@ void rpt_edid_vsv_db_extraction(unsigned char *p_edid)
 	p_edid[db_start + 7] &= 0xFE; //remove interface 420
 	p_edid[db_start + 8] &= 0xFE; //remove 444 12bit
 	p_edid[db_start + 9] &= 0xFE; //remove 444 10bit
+
+	tx_db_start = rx_get_cea_tag_offset(edid_tx, VSVDB_DV_TAG);
+	if (!tx_db_start) {
+		if (log_level & EDID_LOG)
+			rx_pr("tx no vsvdb!!,need remove rx vsvdb\n");
+		edid_rm_db_by_tag(p_edid, VSVDB_DV_TAG);
+	}
+}
+
+void rpt_edid_vsg_freesync_extraction(unsigned char *p_edid)
+{
+	u8 db_start = 0;
+
+	if (!p_edid)
+		return;
+
+	db_start = rx_get_cea_tag_offset(p_edid, VSDB_FREESYNC_TAG);
+	if (!db_start) {
+		if (log_level & EDID_LOG)
+			rx_pr("rx no vsg freesync!!\n");
+		return;
+	}
+
+	db_start = rx_get_cea_tag_offset(edid_tx, VSDB_FREESYNC_TAG);
+	if (!db_start) {
+		if (log_level & EDID_LOG)
+			rx_pr("tx no vsg freesync, need remove rx vsg freesync\n");
+		edid_rm_db_by_tag(p_edid, VSDB_FREESYNC_TAG);
+	}
 }
 
 bool get_dtd_data(u8 *p_edid, struct edid_info_s *edid_info)
@@ -4799,6 +4861,8 @@ void rpt_edid_extraction(unsigned char *p_edid)
 	rpt_edid_420_vdb_extraction(p_edid);
 	rpt_edid_colorimetry_db_extraction(p_edid);
 	rpt_edid_hdr_static_db_extraction(p_edid);
+	rpt_edid_vsv_hdr10plus_extraction(p_edid);
+	rpt_edid_vsg_freesync_extraction(p_edid);
 	rpt_edid_vsv_db_extraction(p_edid);
 }
 

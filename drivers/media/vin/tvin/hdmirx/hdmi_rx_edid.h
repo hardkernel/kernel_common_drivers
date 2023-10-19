@@ -46,25 +46,40 @@
 #define VSVDB_HDR10P_TAG ((USE_EXTENDED_TAG << 8) + VSVDB_TAG + VSVDB_OFFSET)
 #define VDDDB_TAG 2 /* VESA Display Device Data Block */
 #define VVTBE_TAG 3 /* VESA Video Timing Block Extension */
+#define EXTENDED_VCDB_TAG ((USE_EXTENDED_TAG << 8) + VCDB_TAG)
+#define EXTENDED_VSVDB_TAG ((USE_EXTENDED_TAG << 8) + VSVDB_TAG)
+#define EXTENDED_VDDDB_TAG ((USE_EXTENDED_TAG << 8) + VDDDB_TAG)
+#define EXTENDED_VVTBE_TAG ((USE_EXTENDED_TAG << 8) + VVTBE_TAG)
 /* extend tag code 0x4: Reserved for HDMI Video Data Block */
 #define CDB_TAG 0x5 /* Colorimetry Data Block */
 #define HDR_STATIC_TAG 6 /* HDR Static Metadata Data Block */
 #define HDR_DYNAMIC_TAG 7 /* HDR Dynamic Metadata Data Block */
+#define EXTENDED_CDB_TAG ((USE_EXTENDED_TAG << 8) + CDB_TAG)
+#define EXTENDED_HDR_STATIC_TAG ((USE_EXTENDED_TAG << 8) + HDR_STATIC_TAG)
+#define EXTENDED_HDR_DYNAMIC_TAG ((USE_EXTENDED_TAG << 8) + HDR_DYNAMIC_TAG)
 /* extend tag code 8-12: reserved */
 #define VFPDB_TAG 13 /* Video Format Preference Data Block */
 #define Y420VDB_TAG 14 /* YCBCR 4:2:0 Video Data Block */
 #define Y420CMDB_TAG 15 /* YCBCR 4:2:0 Capability Map Data Block */
+#define EXTENDED_VFPDB_TAG ((USE_EXTENDED_TAG << 8) + VFPDB_TAG)
+#define EXTENDED_Y420VDB_TAG ((USE_EXTENDED_TAG << 8) + Y420VDB_TAG)
+#define EXTENDED_Y420CMDB_TAG ((USE_EXTENDED_TAG << 8) + Y420CMDB_TAG)
 /* extend tag code 16: Reserved for CTA Miscellaneous Audio Fields */
 #define VSADB_TAG 17 /* Vendor-Specific Audio Data Block */
 /* extend tag code 18: Reserved for HDMI Audio Data Block */
 #define RCDB_TAG 19 /* Room Configuration Data Block */
 #define SLDB_TAG 20	/* Speaker Location Data Block */
+#define EXTENDED_VSADB_TAG ((USE_EXTENDED_TAG << 8) + VSADB_TAG)
+#define EXTENDED_RCDB_TAG ((USE_EXTENDED_TAG << 8) + RCDB_TAG)
+#define EXTENDED_SLDB_TAG ((USE_EXTENDED_TAG << 8) + SLDB_TAG)
 /* extend tag code 21~31: Reserved */
 #define IFDB_TAG 32 /* infoframe data block */
 #define HF_EEODB 0x78 /* HDMI forum EDID extension override data block */
 #define HDMI_VIC420_OFFSET 0x100
 #define HDMI_3D_OFFSET 0x180
 #define HDMI_VESA_OFFSET 0x200
+#define EXTENDED_IFDB_TAG ((USE_EXTENDED_TAG << 8) + IFDB_TAG)
+#define EXTENDED_HF_EEODB ((USE_EXTENDED_TAG << 8) + HF_EEODB)
 
 /* eARC Rx Capabilities Data Structure version */
 #define CAP_DS_VER 0x1
@@ -827,7 +842,6 @@ extern unsigned int edid_reset_max;
 #ifdef CONFIG_AMLOGIC_HDMITX
 extern u32 tx_hdr_priority;
 #endif
-
 int rx_set_hdr_lumi(unsigned char *data, int len);
 void rx_edid_physical_addr(int a, int b, int c, int d);
 unsigned char rx_parse_arc_aud_type(const unsigned char *buff);

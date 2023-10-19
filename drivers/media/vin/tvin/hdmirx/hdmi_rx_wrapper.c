@@ -8208,6 +8208,11 @@ int hdmirx_debug(const char *buf, int size)
 		txhd2_aud_clk_cal();
 	} else if (strncmp(tmpbuf, "info", 4) == 0) {
 		show_boot_info();
+	} else if (strncmp(tmpbuf, "reg_map", 7) == 0) {
+		for (i = 0; i < MAP_ADDR_MODULE_NUM; i++) {
+			rx_pr("phy_addr = 0x%x, size = 0x%x, maped:%px\n",
+				rx_reg_maps[i].phy_addr, size, rx_reg_maps[i].p);
+		}
 	}
 	return 0;
 }
