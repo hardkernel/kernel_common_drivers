@@ -335,6 +335,7 @@ static void vd_vsync_video_pattern(struct composer_dev *dev, int pattern, struct
 			factor1, factor2, dev->pre_pat_trace, patten_trace[dev->index],
 			vf->omx_index, dev->last_vf_index);
 	} else {
+		vc_print(dev->index, PRINT_PATTERN, "invalid case, reset to 0.\n");
 		dev->pattern[pattern] = 0;
 	}
 }
@@ -424,6 +425,32 @@ static void vd_vsync_video_pattern_22323(struct composer_dev *dev, struct vframe
 	}
 }
 
+static void vd_vsync_video_pattern_13213(struct composer_dev *dev, struct vframe_s *vf)
+{
+	int i = 0, sum = 0, ave = 0;
+	int vsync_pts_inc = 16 * 90000 *
+		vsync_pts_inc_scale[dev->index] / vsync_pts_inc_scale_base[dev->index];
+	int vframe_duration = vf->duration * 15;
+
+	if (vsync_pts_inc * 2 != vframe_duration) {
+		vc_print(dev->index, PRINT_PATTERN, "%s: not 13213 condition.\n", __func__);
+		return;
+	}
+
+	for (i = 0; i < PATTEN_FACTOR_MAX; i++)
+		sum += dev->patten_factor[i];
+
+	ave = sum / PATTEN_FACTOR_MAX;
+	if (ave == 2) {
+		dev->pattern_detected = PATTERN_22;
+		dev->pattern[PATTERN_22] = PATTERN_22_DETECT_RANGE;
+		dev->pattern_enter_cnt++;
+		vc_print(dev->index, PRINT_PATTERN, "%s: video 13213 mode detected\n", __func__);
+	} else {
+		vc_print(dev->index, PRINT_PATTERN, "%s: not 13213 mode.\n", __func__);
+	}
+}
+
 static void vsync_video_pattern(struct composer_dev *dev, struct vframe_s *vf)
 {
 	vd_vsync_video_pattern(dev, PATTERN_32, vf);
@@ -431,6 +458,10 @@ static void vsync_video_pattern(struct composer_dev *dev, struct vframe_s *vf)
 	vd_vsync_video_pattern_22323(dev, vf);
 	vd_vsync_video_pattern(dev, PATTERN_44, vf);
 	vd_vsync_video_pattern(dev, PATTERN_55, vf);
+	if (dev->pattern_detected != PATTERN_22 ||
+		(dev->pattern_detected == PATTERN_22 &&
+			dev->pattern[PATTERN_22] != PATTERN_22_DETECT_RANGE))
+		vd_vsync_video_pattern_13213(dev, vf);
 	/*vd_vsync_video_pattern(dev, PTS_41_PATTERN);*/
 }
 
@@ -846,7 +877,6 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			if (dev->patten_factor_index == PATTEN_FACTOR_MAX)
 				dev->patten_factor_index = 0;
 			dev->patten_factor[dev->patten_factor_index] = patten_trace[dev->index];
-
 			vsync_video_pattern(dev, vf);
 			dev->pre_pat_trace = patten_trace[dev->index];
 			patten_trace[dev->index] = 0;
