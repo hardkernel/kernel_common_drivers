@@ -1189,7 +1189,7 @@
 		};
 
 		dwc3: dwc3@fde00000 {
-				compatible = "snps,dwc3";
+				compatible = "snps,dwc3-meson";
 				status = "disable";
 				reg = <0xfde00000 0x100000>;
 				interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
