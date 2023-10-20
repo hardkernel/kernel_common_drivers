@@ -2262,6 +2262,11 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 		tv_hw5_setting->top2.video_height = debug_cp_res & 0xffff;
 		v_inst_info->video_width = (debug_cp_res & 0xffff0000) >> 16;
 		v_inst_info->video_height = debug_cp_res & 0xffff;
+	} else if (output_4k240hz && w == 3840 && h == 2160) {
+		tv_hw5_setting->top2.video_width = 3840;
+		tv_hw5_setting->top2.video_height = 1080;
+		v_inst_info->video_width = 3840;
+		v_inst_info->video_height = 1080;
 	}
 	tv_hw5_setting->top2.input_mode = input_mode;
 	tv_hw5_setting->top2.in_md = v_inst_info->md_buf[v_inst_info->current_id];

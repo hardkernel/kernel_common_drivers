@@ -377,8 +377,8 @@
 //Bit 15:0  reg_rdma_size11      //unsigned, RW, default=0, rdma lut11 size
 
 #define DOLBY_TOP2_PYRD_CTRL    0x0c08
-//Bit 31    reg_pyrdmif_sw_rst  //unsigned, RW, default=0, sw rst for pyramif rdmif
-//Bit 30    reg_mmu_sw_rst  //unsigned, RW, default=0, sw rst for pyramif rdmif
+//Bit 31    reg_pyrdmif_sw_rst  //unsigned, RW, default=0, sw rst for pyramid rdmif
+//Bit 30    reg_mmu_sw_rst  //unsigned, RW, default=0, sw rst for pyramid mmu
 //Bit 29:20 reserved
 //Bit 19:4  reg_gclk_ctrl       //unsigned, RW, default=0, clk gating ctrl
 //Bit 3     reserved
@@ -755,5 +755,5 @@
 #define VPU_TOP_MISC               0x2709
 #define T3X_VD1_BLEND_SRC_CTRL     0x1d0d
 #define T3X_VENC_CRC               0x278c /*venc CRC*/
-
+#define VPU_RDARB_UGT_L2C1         0x27c2
 #endif

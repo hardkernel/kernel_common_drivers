@@ -9,7 +9,7 @@
 /*#define V2_4_3*/
 
 /*  driver version */
-#define DRIVER_VER "202301013"
+#define DRIVER_VER "202301020"
 
 #include <linux/types.h>
 #include "amdv_pq_config.h"
@@ -103,6 +103,9 @@
 #define DEBUG_FIXED_REG             0x40
 #define DEBUG_5065_RGB_BUG          0x80
 #define DEBUG_SDR2020_FORCE_HLG     0x100
+#define DEBUG_FORCE_BYPASS_PRECISION_RENDERING  0x200
+#define DEBUG_FORCE_ZERO_PYRAMID    0x400
+#define DEBUG_AUTOMATICALLY_PYRAMID 0x800
 
 enum core1_switch_type {
 	NO_SWITCH = 0,
@@ -897,6 +900,8 @@ extern u32 num_downsamplers;
 extern u32 force_sdr10;
 extern u32 need_pps;
 extern u32 trace_amdv_isr;
+extern u32 output_4k240hz;
+extern int pyramid_read_urgent;
 extern bool py_enabled;
 extern bool l1l4_enabled;
 extern u32 l1l4_distance;
