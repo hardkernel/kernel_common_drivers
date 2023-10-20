@@ -108,11 +108,10 @@
 		/*};*/
 
 		logo_reserved:linux,meson-fb {
-			compatible = "shared-dma-pool";
-			reusable;
+			compatible = "amlogic, meson-fb";
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
-			reg = <0x0 0x3e800000 0x0 0x800000>;
+			reg = <0x0 0xdf800000 0x0 0x800000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
@@ -1844,14 +1843,14 @@
 	display_size_default = <3840 2160 3840 4320 32>;
 	mem_size = <0x00800000 0x4000000 0x100000>;
 	4k2k_fb = <1>;
-	logo_addr = "0x3e800000";
+	logo_addr = "0xdf800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
 &drm_vpu {
 	status = "okay";
-	logo_addr = "0x3e800000";
+	logo_addr = "0xdf800000";
 
 	connectors_dev: port@1 {
 		drm_to_lcd0: endpoint@0 {

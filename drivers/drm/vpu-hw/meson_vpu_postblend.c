@@ -23,6 +23,7 @@
 #include "meson_vpu_util.h"
 #include "meson_vpu_reg.h"
 #include "meson_vpu_postblend.h"
+#include "meson_osd_proc.h"
 
 static u32 osd_vpp_misc_mask = 0x33330;
 static u32 osd_vpp1_bld_ctrl;
@@ -1193,7 +1194,23 @@ static void s5_postblend_hw_init(struct meson_vpu_block *vblk)
 
 static void t3x_postblend_hw_init(struct meson_vpu_block *vblk)
 {
+	int reg_h = 0, reg_v = 0;
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	struct meson_vpu_pipeline *pipeline = postblend->base.pipeline;
+	struct meson_vpu_sub_pipeline_state *mvsps;
+	struct meson_vpu_pipeline_state *mvps;
+
 	s5_postblend_hw_init(vblk);
+
+	mvps = priv_to_pipeline_state(pipeline->obj.state);
+	mvsps = &mvps->sub_states[0];
+	reg_h = meson_drm_read_reg(postblend->reg->vpp_osd1_bld_h_scope);
+	reg_v = meson_drm_read_reg(postblend->reg->vpp_osd1_bld_v_scope);
+	vpp_osd1_scope.h_start = (reg_h & 0xffff0000) >> 16;
+	vpp_osd1_scope.v_start = (reg_v & 0xffff0000) >> 16;
+	vpp_osd1_scope.h_end = reg_h & 0xffff;
+	vpp_osd1_scope.v_end = reg_v & 0xffff;
+
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 	register_vpp_postblend_info_func(get_postblend_osd1_scope);
 #endif
