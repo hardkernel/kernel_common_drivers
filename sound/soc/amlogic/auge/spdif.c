@@ -585,7 +585,7 @@ static int aml_spdif_platform_resume(struct platform_device *pdev)
 			dev_err(&pdev->dev, "regulator spdif3v3 enable failed:   %d\n", ret);
 	}
 
-	if (!IS_ERR_OR_NULL(p_spdif->pin_ctl)) {
+	if (!IS_ERR_OR_NULL(p_spdif->pin_ctl) && !p_spdif->mute) {
 		state = pinctrl_lookup_state
 		(p_spdif->pin_ctl, "spdif_pins");
 		if (!IS_ERR_OR_NULL(state))
