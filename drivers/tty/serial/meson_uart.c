@@ -4,7 +4,6 @@
  */
 
 // #define DEBUG
-#define SKIP_IO_TRACE
 
 #if defined(CONFIG_AMLOGIC_SERIAL_MESON_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ

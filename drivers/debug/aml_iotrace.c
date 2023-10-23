@@ -24,9 +24,12 @@
 #include <linux/workqueue.h>
 #include <trace/hooks/module.h>
 #include <linux/rbtree.h>
+#include <linux/sched/clock.h>
+#include <linux/delay.h>
 #define AML_PERSISTENT_RAM_SIG (0x4c4d41) /* AML */
 
-static int ramoops_ftrace_en;
+int ramoops_ftrace_en;
+EXPORT_SYMBOL(ramoops_ftrace_en);
 
 /*
  * bit0: io_trace
@@ -55,7 +58,7 @@ static int ramoops_trace_mask_setup(char *buf)
 }
 __setup("ramoops_trace_mask=", ramoops_trace_mask_setup);
 
-int ramoops_io_skip = 1;
+int ramoops_io_skip;
 
 static int ramoops_io_skip_setup(char *buf)
 {
@@ -71,8 +74,7 @@ static int ramoops_io_skip_setup(char *buf)
 }
 __setup("ramoops_io_skip=", ramoops_io_skip_setup);
 
-int ramoops_io_en;
-EXPORT_SYMBOL(ramoops_io_en);
+static int ramoops_io_en;
 
 static int ramoops_io_en_setup(char *buf)
 {
@@ -144,12 +146,50 @@ struct percpu_trace_data {
 	unsigned long total_size;
 };
 
+static char get_disirq_flag(bool dis_irq)
+{
+	if (dis_irq)
+		return 'd';
+	else
+		return '.';
+}
+
+static char get_irq_flag(bool irq, bool softirq)
+{
+	if (irq) {
+		if (softirq)
+			return 'H';
+		else
+			return 'h';
+	} else {
+		if (softirq)
+			return 's';
+		else
+			return '.';
+	}
+}
+
 struct record_head {
 	u32 magic;		/* 0xabcdef */
-	int pid;
+	unsigned short pid;
+	struct {
+		unsigned short irq:1;
+		unsigned short softirq:1;
+		unsigned short dis_irq:1;
+		unsigned short io_flag:2;
+		unsigned short :11;
+	} flag;
 	u64 time;
-	char comm[16];
-	ssize_t size;
+	char comm[12];
+	unsigned int size;
+};
+
+/* integrated record_head and io_trace_data,
+ * write this struct into pstore memory directly
+ */
+struct iotrace_data {
+	struct record_head head;
+	struct io_trace_data io_data;
 };
 
 struct aml_persistent_ram_buffer {
@@ -166,6 +206,8 @@ struct aml_persistent_ram_zone {
 	enum aml_pstore_type_id type;
 	int cpu;
 	struct aml_persistent_ram_buffer *buffer;
+	atomic_t quick_start;/* equal to buffer->start, purpose for quick read */
+	atomic_t quick_size;	/* equcl to buffer->size, purpose for quick read */
 	size_t buffer_size;
 	char *old_log;
 	size_t old_log_size;
@@ -255,6 +297,13 @@ static int aml_ramoops_parse_dt(void)
 	of_property_read_u32(node, "irq-size", &cxt->irq_size);
 	of_property_read_u32(node, "smc-size", &cxt->smc_size);
 	of_property_read_u32(node, "misc-size", &cxt->misc_size);
+
+	/* dts size design for 8 cpus, enlarge size according to actual possible cpu */
+	cxt->io_size = cxt->io_size * (8 / possible_cpu);
+	cxt->sched_size = cxt->sched_size * (8 / possible_cpu);
+	cxt->irq_size = cxt->irq_size * (8 / possible_cpu);
+	cxt->smc_size = cxt->smc_size * (8 / possible_cpu);
+	cxt->misc_size = cxt->misc_size * (8 / possible_cpu);
 
 	if (((cxt->io_size + cxt->sched_size + cxt->irq_size + cxt->smc_size +
 			cxt->misc_size) * possible_cpu) > cxt->size) {
@@ -379,7 +428,9 @@ static int aml_persistent_ram_post_init(struct aml_persistent_ram_zone *prz)
 	}
 
 	atomic_set(&prz->buffer->start, 0);
+	atomic_set(&prz->quick_start, 0);
 	atomic_set(&prz->buffer->size, 0);
+	atomic_set(&prz->quick_size, 0);
 
 	return 0;
 }
@@ -420,7 +471,6 @@ static struct aml_persistent_ram_zone *aml_persistent_ram_new(phys_addr_t start,
 	prz->size = size;
 	prz->cpu = cpu;
 	prz->paddr = start + cpu * size;
-	prz->size = size;
 
 	prz->vaddr = aml_persistent_ram_vmap(prz->paddr, prz->size);
 	if (!prz->vaddr)
@@ -504,11 +554,12 @@ static size_t aml_buffer_start_add(struct aml_persistent_ram_zone *prz, size_t a
 	int old;
 	int new;
 
-	old = atomic_read(&prz->buffer->start);
+	old = atomic_read(&prz->quick_start);
 	new = old + a;
 	while (unlikely(new >= prz->buffer_size))
 		new -= prz->buffer_size;
 	atomic_set(&prz->buffer->start, new);
+	atomic_set(&prz->quick_start, new);
 
 	return old;
 }
@@ -518,7 +569,7 @@ static void aml_buffer_size_add(struct aml_persistent_ram_zone *prz, size_t a)
 	size_t old;
 	size_t new;
 
-	old = atomic_read(&prz->buffer->size);
+	old = atomic_read(&prz->quick_size);
 	if (old == prz->buffer_size)
 		return;
 
@@ -526,8 +577,8 @@ static void aml_buffer_size_add(struct aml_persistent_ram_zone *prz, size_t a)
 	if (new > prz->buffer_size)
 		new = prz->buffer_size;
 	atomic_set(&prz->buffer->size, new);
+	atomic_set(&prz->quick_size, new);
 }
-
 static void notrace aml_persistent_ram_update(struct aml_persistent_ram_zone *prz,
 	const void *s, unsigned int start, unsigned int count)
 {
@@ -589,37 +640,58 @@ static void notrace aml_ramoops_pstore_write(int cpu, enum aml_pstore_type_id ty
 	}
 }
 
-void aml_pstore_write(enum aml_pstore_type_id type, char *buf, unsigned long size)
-{
-	struct record_head head;
-	char buf_tmp[1024];
-	int cpu;
-	unsigned long flags = 0;
+/* Defined as global variable, in order to save memset time
+ * Local variables, the compiler will automatically memset
+ * 8 means max cpu number
+ */
+static char *buf_tmp[8];
 
-	if (!ramoops_ftrace_en || !ramoops_io_en)
+void __nocfi aml_pstore_write(enum aml_pstore_type_id type, char *buf, unsigned long size,
+				unsigned int dis_irq, unsigned int io_flag)
+{
+	int cpu = raw_smp_processor_id();
+
+	if (!ramoops_ftrace_en)
 		return;
 
 	if (!size)
-		size = strlen(buf);
+		size = strlen(buf) + 1;
 
-	local_irq_save(flags);
-	memset(buf_tmp, 0, sizeof(buf_tmp));
-#ifdef CONFIG_STACKTRACE
-	head.time = trace_clock_local();
-#endif
-	head.pid = current->pid;
-	head.magic = 0xabcdef;
-	head.size = roundup(size, 8); // round up to 8
-	strscpy(head.comm, current->comm, sizeof(head.comm));
-	memcpy(buf_tmp, &head, sizeof(struct record_head));
-	memcpy(buf_tmp + sizeof(struct record_head), buf, size);
+	if (type == AML_PSTORE_TYPE_IO) {
+		struct iotrace_data data;
 
-	if (head.size + sizeof(struct record_head) + 1 > sizeof(buf_tmp))
-		head.size = sizeof(buf_tmp) - sizeof(struct record_head);
+		/* IO TYPE no need to disable irq, because pstore_io_save has disabled */
+		data.head.magic = 0xabcdef;
+		data.head.time = sched_clock();
+		strscpy(data.head.comm, current->comm, sizeof(data.head.comm));
+		data.head.pid = current->pid;
+		data.head.flag.irq = in_hardirq() ? 1 : 0;
+		data.head.flag.softirq = in_serving_softirq() ? 1 : 0;
+		data.head.flag.dis_irq = dis_irq ? 1 : 0;
+		data.head.size = roundup(size, 8); // round up to 8
+		data.head.flag.io_flag = io_flag;
+		data.io_data = *(struct io_trace_data *)buf;
+		aml_ramoops_pstore_write(cpu, type, (void *)&data, sizeof(struct iotrace_data));
+	} else {
+		unsigned long flags = 0;
+		struct record_head *head = (struct record_head *)buf_tmp[cpu];
 
-	cpu = smp_processor_id();
-	aml_ramoops_pstore_write(cpu, type, buf_tmp, head.size + sizeof(struct record_head));
-	local_irq_restore(flags);
+		raw_local_irq_save(flags);
+		head->magic = 0xabcdef;
+		head->time = sched_clock();
+		strscpy(head->comm, current->comm, sizeof(head->comm));
+		head->pid = current->pid;
+		head->flag.irq = in_hardirq() ? 1 : 0;
+		head->flag.softirq = in_serving_softirq() ? 1 : 0;
+		head->flag.dis_irq = dis_irq ? 1 : 0;
+		head->size = roundup(size, 8); // round up to 8
+		if (sizeof(struct record_head) + size >= BUF_SIZE)
+			size = BUF_SIZE - sizeof(struct record_head);
+		memcpy(buf_tmp[cpu] + sizeof(struct record_head), buf, size);
+		aml_ramoops_pstore_write(cpu, type, buf_tmp[cpu],
+			head->size + sizeof(struct record_head));
+		raw_local_irq_restore(flags);
+	}
 }
 EXPORT_SYMBOL(aml_pstore_write);
 
@@ -715,7 +787,6 @@ static void *percpu_trace_next(struct seq_file *s, void *v, loff_t *pos)
 
 static int percpu_trace_show(struct seq_file *s, void *v)
 {
-	char buf[1024];
 	unsigned long sec = 0, us = 0;
 	unsigned long long time;
 	struct aml_persistent_ram_zone *prz;
@@ -736,15 +807,19 @@ static int percpu_trace_show(struct seq_file *s, void *v)
 	if (prz->type == AML_PSTORE_TYPE_IO) {
 		struct io_trace_data *io_data =
 		(struct io_trace_data *)(data->ptr + sizeof(struct record_head));
-		seq_printf(s, "[%04ld.%06ld@%d] <%s-%d> <%6s %08x-%8x>  <%ps <- %pS>\n",
-			sec, us, prz->cpu, head->comm, head->pid, record_name[io_data->flag],
-			io_data->reg, io_data->val, (void *)(convert_pc_val(io_data->ip) & ~(0x3)),
-			(void *)(convert_pc_val(io_data->parent_ip)));
+		seq_printf(s, "[%04ld.%06ld@%d %c%c] <%s-%d> <%6s %08x-%8x>  <%pS <- %pS>\n",
+			sec, us, prz->cpu, get_disirq_flag(head->flag.dis_irq),
+			get_irq_flag(head->flag.irq, head->flag.softirq), head->comm,
+			head->pid, record_name[head->flag.io_flag], io_data->reg,
+			io_data->val, (void *)convert_pc_val(io_data->ip),
+			(void *)convert_pc_val(io_data->parent_ip));
 	} else {
-		memset(buf, 0, sizeof(buf));
-		memcpy(buf, (void *)head + sizeof(struct record_head), head->size);
-		seq_printf(s, "[%04ld.%06ld@%d] <%s-%d> <%s>\n",
-					sec, us, prz->cpu, head->comm, head->pid, buf);
+		if (sizeof(struct record_head) + head->size >= BUF_SIZE)
+			head->size = BUF_SIZE - sizeof(struct record_head);
+		seq_printf(s, "[%04ld.%06ld@%d %c%c] <%s-%d> <%s>\n",
+			sec, us, prz->cpu, get_disirq_flag(head->flag.dis_irq),
+			get_irq_flag(head->flag.irq, head->flag.softirq), head->comm,
+			head->pid, (char *)((void *)head + sizeof(struct record_head)));
 	}
 
 	return 0;
@@ -936,7 +1011,6 @@ static void trace_show_iter(struct seq_file *s, struct prz_record_iter *iter)
 	unsigned long sec = 0, us = 0;
 	unsigned long long time;
 	struct record_head *head = (struct record_head *)iter->ptr;
-	char buf[1024];
 
 	time = head->time;
 	do_div(time, 1000);
@@ -944,17 +1018,21 @@ static void trace_show_iter(struct seq_file *s, struct prz_record_iter *iter)
 	sec = (unsigned long)time;
 
 	if (iter->type == AML_PSTORE_TYPE_IO) {
-		struct io_trace_data *data =
+		struct io_trace_data *io_data =
 		(struct io_trace_data *)(iter->ptr + sizeof(struct record_head));
-		seq_printf(s, "[%04ld.%06ld@%d] <%s-%d> <%6s %08x-%8x>  <%ps <- %pS>\n",
-			sec, us, iter->cpu, head->comm, head->pid, record_name[data->flag],
-			data->reg, data->val, (void *)(data->ip & ~(0x3)),
-			(void *)(data->parent_ip));
+		seq_printf(s, "[%04ld.%06ld@%d %c%c] <%s-%d> <%6s %08x-%8x>  <%pS <- %pS>\n",
+			sec, us, iter->cpu, get_disirq_flag(head->flag.dis_irq),
+			get_irq_flag(head->flag.irq, head->flag.softirq), head->comm,
+			head->pid, record_name[head->flag.io_flag], io_data->reg,
+			io_data->val, (void *)convert_pc_val(io_data->ip),
+			(void *)convert_pc_val(io_data->parent_ip));
 	} else {
-		memset(buf, 0, sizeof(buf));
-		memcpy(buf, (void *)head + sizeof(struct record_head), head->size);
-		seq_printf(s, "[%04ld.%06ld@%d] <%s-%d> <%s>\n",
-					sec, us, iter->cpu, head->comm, head->pid, buf);
+		if (sizeof(struct record_head) + head->size >= BUF_SIZE)
+			head->size = BUF_SIZE - sizeof(struct record_head);
+		seq_printf(s, "[%04ld.%06ld@%d %c%c] <%s-%d> <%s>\n",
+			sec, us, iter->cpu, get_disirq_flag(head->flag.dis_irq),
+			get_irq_flag(head->flag.irq, head->flag.softirq), head->comm,
+			head->pid, (char *)((void *)head + sizeof(struct record_head)));
 	}
 }
 
@@ -1075,10 +1153,10 @@ static void proc_init(void)
 
 static void trace_auto_show_iter(struct prz_record_iter *iter)
 {
+	static unsigned int autodump_rec_num;
 	unsigned long sec = 0, us = 0;
 	unsigned long long time;
 	struct record_head *head = (struct record_head *)iter->ptr;
-	char buf[1024];
 
 	time = head->time;
 	do_div(time, 1000);
@@ -1086,20 +1164,27 @@ static void trace_auto_show_iter(struct prz_record_iter *iter)
 	sec = (unsigned long)time;
 
 	if (iter->type == AML_PSTORE_TYPE_IO) {
-		struct io_trace_data *data =
+		struct io_trace_data *io_data =
 		(struct io_trace_data *)(iter->ptr + sizeof(struct record_head));
-		pr_info("[%04ld.%06ld@%d] <%s-%d> <%6s %08x-%8x>  <%ps <- %pS>\n",
-			sec, us, iter->cpu, head->comm, head->pid, record_name[data->flag],
-			data->reg, data->val, (void *)(convert_pc_val(data->ip) & ~(0x3)),
-			(void *)(convert_pc_val(data->parent_ip)));
+		pr_info("[%04ld.%06ld@%d %c%c] <%s-%d> <%6s %08x-%8x>  <%pS <- %pS>\n",
+			sec, us, iter->cpu, get_disirq_flag(head->flag.dis_irq),
+			get_irq_flag(head->flag.irq, head->flag.softirq), head->comm,
+			head->pid, record_name[head->flag.io_flag], io_data->reg,
+			io_data->val, (void *)convert_pc_val(io_data->ip),
+			(void *)convert_pc_val(io_data->parent_ip));
 	} else {
-		memset(buf, 0, sizeof(buf));
-		memcpy(buf, (void *)head + sizeof(struct record_head), head->size);
-		pr_info("[%04ld.%06ld@%d] <%s-%d> <%s>\n",
-					sec, us, iter->cpu, head->comm, head->pid, buf);
+		if (sizeof(struct record_head) + head->size >= BUF_SIZE)
+			head->size = BUF_SIZE - sizeof(struct record_head);
+		pr_info("[%04ld.%06ld@%d %c%c] <%s-%d> <%s>\n",
+			sec, us, iter->cpu, get_disirq_flag(head->flag.dis_irq),
+			get_irq_flag(head->flag.irq, head->flag.softirq), head->comm,
+			head->pid, (char *)((void *)head + sizeof(struct record_head)));
 	}
 	iter->size += sizeof(struct record_head) + head->size;
 	iter->ptr += sizeof(struct record_head) + head->size;
+
+	if (!(autodump_rec_num++ % 100))
+		msleep(50);
 }
 
 void iotrace_auto_dump(void)
@@ -1117,6 +1202,7 @@ void iotrace_auto_dump(void)
 
 		trace_auto_show_iter(aml_oops_cxt.curr_record_iter);
 	}
+	pr_info("iotrace log auto dump finished\n");
 }
 
 static int pc_lockup_symbol_insert(struct rb_root *root, struct pc_lockup_symbol *new)
@@ -1221,7 +1307,8 @@ static void module_base_hook(void *data, const struct module *mod)
 	mod_data.last_mod_base = (unsigned long)mod->core_layout.base;
 	mod_data.curr_mod_base = 0x0;
 
-	aml_pstore_write(AML_PSTORE_TYPE_MISC, (void *)&mod_data, sizeof(struct pc_lockup_symbol));
+	aml_pstore_write(AML_PSTORE_TYPE_MISC, (void *)&mod_data, sizeof(struct pc_lockup_symbol),
+				irqs_disabled(), 0);
 
 	/* update module curr core_layout base */
 
@@ -1247,6 +1334,10 @@ static void module_base_hook(void *data, const struct module *mod)
 int __init aml_iotrace_init(void)
 {
 	int ret = 0;
+	int cpu;
+
+	if (!ramoops_io_en)
+		return 0;
 
 	ret = aml_ramoops_init();
 	if (ret) {
@@ -1257,24 +1348,33 @@ int __init aml_iotrace_init(void)
 	proc_init();
 	ftrace_ramoops_init();
 
+	parse_module_base();
+#ifdef CONFIG_ANDROID_VENDOR_HOOKS
+	register_trace_android_vh_set_module_permit_after_init(module_base_hook, NULL);
+#endif
+	if (ramoops_io_dump) {
+		INIT_DELAYED_WORK(&iotrace_work, iotrace_work_func);
+		queue_delayed_work(system_unbound_wq, &iotrace_work,
+				   ramoops_io_dump_delay_secs * HZ);
+	}
+
+	for (cpu = 0; cpu < num_possible_cpus(); cpu++) {
+		buf_tmp[cpu] = kmalloc(BUF_SIZE, GFP_KERNEL);
+		if (!buf_tmp[cpu])
+			return 0;
+	}
+
 	ramoops_ftrace_en = 1;
+
 	/*
 	 * V1: iotrace builtin,like 5.4/4.9
 	 * V2: iotrace built to ko
 	 * V3: iotrace do not modify module init_layout free,
 	 *	   use offset to record pc_symbol
+	 * V4: iotrace read/write use vendor hooks
+	 *	   depends on 13-5.15-16 or 14-5.15-9
 	 */
-	pr_info("Amlogic debug-iotrace driver version V3\n");
-
-	if (ramoops_io_dump) {
-#ifdef CONFIG_ANDROID_VENDOR_HOOKS
-		register_trace_android_vh_set_module_permit_after_init(module_base_hook, NULL);
-#endif
-		parse_module_base();
-		INIT_DELAYED_WORK(&iotrace_work, iotrace_work_func);
-		queue_delayed_work(system_unbound_wq, &iotrace_work,
-				   ramoops_io_dump_delay_secs * HZ);
-	}
+	pr_info("Amlogic debug-iotrace driver version V4\n");
 
 	return 0;
 }

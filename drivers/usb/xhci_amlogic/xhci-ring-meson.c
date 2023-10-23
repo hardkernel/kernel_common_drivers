@@ -59,6 +59,10 @@
 #include "xhci-meson.h"
 #include "xhci-trace-meson.h"
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+#include <linux/amlogic/aml_iotrace.h>
+#endif
+
 static int queue_command(struct aml_xhci_hcd *xhci, struct aml_xhci_command *cmd,
 			 u32 field1, u32 field2,
 			 u32 field3, u32 field4, bool command_must_succeed);
@@ -3212,6 +3216,12 @@ irqreturn_t aml_xhci_irq(struct usb_hcd *hcd)
 	int event_loop = 0;
 	u32 temp;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+	__this_cpu_write(usb_iotrace_cut, 1);
+	if (ramoops_ftrace_en && ramoops_trace_mask & 0x2)
+		aml_pstore_write(AML_PSTORE_TYPE_SCHED, "usb in", 0, irqs_disabled(), 0);
+#endif
+
 	spin_lock(&xhci->lock);
 	/* Check if the xHC generated the interrupt, or the irq is shared */
 	status = readl(&xhci->op_regs->status);
@@ -3288,6 +3298,12 @@ irqreturn_t aml_xhci_irq(struct usb_hcd *hcd)
 
 out:
 	spin_unlock(&xhci->lock);
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+	__this_cpu_write(usb_iotrace_cut, 0);
+	if (ramoops_ftrace_en && ramoops_trace_mask & 0x2)
+		aml_pstore_write(AML_PSTORE_TYPE_SCHED, "usb out", 0, irqs_disabled(), 0);
+#endif
 
 	return ret;
 }

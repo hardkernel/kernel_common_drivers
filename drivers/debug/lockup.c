@@ -178,17 +178,16 @@ static void __maybe_unused isr_in_hook(void *data, int irq, struct irqaction *ac
 	int cpu;
 	unsigned long long now;
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	char buf[20];
+	char buf[BUF_SIZE];
 #endif
 
 	if (irq >= IRQ_CNT || !isr_check_en)
 		return;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	if (ramoops_io_en && (ramoops_trace_mask & 0x4)) {
-		memset(buf, 0, sizeof(buf));
-		snprintf(buf, 20, "isr-in irq:%d", irq);
-		aml_pstore_write(AML_PSTORE_TYPE_IRQ, buf, 0);
+	if ((ramoops_ftrace_en) && (ramoops_trace_mask & 0x4)) {
+		snprintf(buf, BUF_SIZE, "isr-in irq:%d", irq);
+		aml_pstore_write(AML_PSTORE_TYPE_IRQ, buf, 0, irqs_disabled(), 0);
 	}
 #endif
 
@@ -216,7 +215,7 @@ static void __maybe_unused isr_out_hook(void *data, int irq, struct irqaction *a
 	int cpu;
 	unsigned long long now, delta, this_period_time;
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	char buf[20];
+	char buf[BUF_SIZE];
 #endif
 
 	if (irq >= IRQ_CNT || !isr_check_en)
@@ -232,10 +231,9 @@ static void __maybe_unused isr_out_hook(void *data, int irq, struct irqaction *a
 		return;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	if (ramoops_io_en && (ramoops_trace_mask & 0x4)) {
-		memset(buf, 0, sizeof(buf));
-		snprintf(buf, 20, "isr-out irq:%d", irq);
-		aml_pstore_write(AML_PSTORE_TYPE_IRQ, buf, 0);
+	if ((ramoops_ftrace_en) && (ramoops_trace_mask & 0x4)) {
+		snprintf(buf, BUF_SIZE, "isr-out irq:%d", irq);
+		aml_pstore_write(AML_PSTORE_TYPE_IRQ, buf, 0, irqs_disabled(), 0);
 	}
 #endif
 
@@ -347,12 +345,11 @@ static void smc_in_hook(unsigned long smcid, unsigned long val, bool noret)
 	int cpu;
 	struct lockup_info *info;
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	char buf[50];
+	char buf[BUF_SIZE];
 
-	if (ramoops_io_en && (ramoops_trace_mask & 0x8)) {
-		memset(buf, 0, sizeof(buf));
-		snprintf(buf, 50, "smc-in smcid:%lx, val:%lx, noret:%d", smcid, val, noret);
-		aml_pstore_write(AML_PSTORE_TYPE_SMC, buf, 0);
+	if ((ramoops_ftrace_en) && (ramoops_trace_mask & 0x8)) {
+		snprintf(buf, BUF_SIZE, "smc-in smcid:%lx, arg:%lx, noret:%d", smcid, val, noret);
+		aml_pstore_write(AML_PSTORE_TYPE_SMC, buf, 0, irqs_disabled(), 0);
 	}
 #endif
 
@@ -377,12 +374,11 @@ static void smc_out_hook(unsigned long smcid, unsigned long val)
 	int cpu;
 	struct lockup_info *info;
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	char buf[50];
+	char buf[BUF_SIZE];
 
-	if (ramoops_io_en && (ramoops_trace_mask & 0x8)) {
-		memset(buf, 0, sizeof(buf));
-		snprintf(buf, 50, "smc-out smcid:%lx, val:%lx", smcid, val);
-		aml_pstore_write(AML_PSTORE_TYPE_SMC, buf, 0);
+	if ((ramoops_ftrace_en) && (ramoops_trace_mask & 0x8)) {
+		snprintf(buf, BUF_SIZE, "smc-out smcid:%lx, retval:%lx", smcid, val);
+		aml_pstore_write(AML_PSTORE_TYPE_SMC, buf, 0, irqs_disabled(), 0);
 	}
 #endif
 
@@ -426,7 +422,7 @@ void __arm_smccc_smc_glue(unsigned long a0, unsigned long a1,
 
 	smc_in_hook(a0, a1, noret_smc);
 	__arm_smccc_smc(a0, a1, a2, a3, a4, a5, a6, a7, res, quirk);
-	smc_out_hook(a0, a1);
+	smc_out_hook(a0, res->a0);
 
 	if (not_in_idle && !noret_smc)
 		preempt_enable_notrace();
@@ -954,10 +950,9 @@ static void __maybe_unused ftrace_format_check_hook(void *data, bool *ftrace_che
 #else
 #define S_PREEMPT ""
 #endif
-
 #define S_SMP " SMP"
 
-static void do_undefinstr_hook(void *data, struct pt_regs *regs)
+static void __maybe_unused do_undefinstr_hook(void *data, struct pt_regs *regs)
 {
 	static int die_counter;
 	const char *str;

@@ -77,6 +77,9 @@
 #include "video_priv.h"
 #include "video_reg.h"
 #include "video_func.h"
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+#include <linux/amlogic/aml_iotrace.h>
+#endif
 
 static unsigned int vpp_new_frame;
 
@@ -4810,6 +4813,12 @@ void post_vsync_process(void)
 	struct cur_line_info_t *cur_line_info = NULL;
 	int enc_line;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+	__this_cpu_write(vsync_iotrace_cut, 1);
+	if (ramoops_ftrace_en && ramoops_trace_mask & 0x2)
+		aml_pstore_write(AML_PSTORE_TYPE_SCHED, "vsync in", 0, irqs_disabled(), 0);
+#endif
+
 	set_cur_line_info(0);
 	enc_line = get_cur_enc_line();
 	cur_line_info = get_cur_line_info(0);
@@ -5151,6 +5160,11 @@ LATE_PROC:
 		pr_info("%s, vsync_count_started\n", __func__);
 	}
 
+#endif
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+	__this_cpu_write(vsync_iotrace_cut, 0);
+	if (ramoops_ftrace_en  && ramoops_trace_mask & 0x2)
+		aml_pstore_write(AML_PSTORE_TYPE_SCHED, "vsync out", 0, irqs_disabled(), 0);
 #endif
 }
 

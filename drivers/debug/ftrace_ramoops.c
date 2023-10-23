@@ -23,22 +23,133 @@
 #include <linux/ftrace.h>
 #include <linux/kprobes.h>
 #include <linux/pm_domain.h>
+#include <linux/workqueue.h>
 #include <trace/hooks/sched.h>
 #include <linux/amlogic/aml_iotrace.h>
 #include <linux/amlogic/gki_module.h>
+#include <trace/events/rwmmio.h>
+#include <linux/of_address.h>
+#include <linux/scs.h>
+
+#ifdef CONFIG_SHADOW_CALL_STACK
+#define SCS_MASK (~(SCS_SIZE - 1))
+#endif
 
 static DEFINE_PER_CPU(int, en);
 
 #define IRQ_D	1
 #define MAX_DETECT_REG 10
 
+/*
+ * bit0: skip vdec-core,vdec irqthread read/write
+ * bit1: skip frc tasklet read/write
+ * bit2: skip vsync isr read/write
+ * bit3: skip amvecm isr read/write
+ * bit4: skip usb isr read/write
+ */
+static int ramoops_io_blacklist = 0x1f;
+
+static int ramoops_io_blacklist_setup(char *buf)
+{
+	if (!buf)
+		return -EINVAL;
+
+	if (kstrtoint(buf, 0, &ramoops_io_blacklist)) {
+		pr_err("ramoops_io_blacklist error: %s\n", buf);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+__setup("ramoops_io_blacklist=", ramoops_io_blacklist_setup);
+
 static unsigned int check_reg[MAX_DETECT_REG];
 static unsigned int check_mask[MAX_DETECT_REG];
 static unsigned int *virt_addr[MAX_DETECT_REG];
 unsigned long old_val_reg[MAX_DETECT_REG];
 
-int reg_check_panic;
-bool reg_check_flag;
+DEFINE_PER_CPU(bool, frc_iotrace_cut);
+EXPORT_PER_CPU_SYMBOL_GPL(frc_iotrace_cut);
+
+DEFINE_PER_CPU(bool, vsync_iotrace_cut);
+EXPORT_PER_CPU_SYMBOL_GPL(vsync_iotrace_cut);
+
+DEFINE_PER_CPU(bool, amvecm_iotrace_cut);
+EXPORT_PER_CPU_SYMBOL_GPL(amvecm_iotrace_cut);
+
+DEFINE_PER_CPU(bool, usb_iotrace_cut);
+EXPORT_PER_CPU_SYMBOL_GPL(usb_iotrace_cut);
+
+#if 0
+static struct delayed_work find_vdec_pid_work;
+static pid_t vdec_core_pid, vdec_irqthread_pid0, vdec_irqthread_pid1;
+static int retry_times;
+
+static void find_vdec_pid(struct work_struct *work)
+{
+	struct task_struct *task;
+
+	for_each_process(task) {
+		if (!task->mm) {
+			if (!vdec_core_pid && !strncmp(task->comm, "vdec-core", 16))
+				vdec_core_pid = task->pid;
+			if (!vdec_irqthread_pid0 && strstr(task->comm, "vdec-0"))
+				vdec_irqthread_pid0 = task->pid;
+			if (!vdec_irqthread_pid1 && strstr(task->comm, "vdec-1"))
+				vdec_irqthread_pid1 = task->pid;
+		}
+	}
+
+	if (!vdec_core_pid || !vdec_irqthread_pid0 || !vdec_irqthread_pid1) {
+		if (retry_times++ > 3)
+			cancel_delayed_work(&find_vdec_pid_work);
+		else
+			queue_delayed_work(system_wq, &find_vdec_pid_work, retry_times * 10 * HZ);
+	} else {
+		cancel_delayed_work(&find_vdec_pid_work);
+	}
+}
+
+static bool is_vdec_pid(void)
+{
+	if (current->pid == vdec_core_pid || current->pid == vdec_irqthread_pid0 ||
+		current->pid == vdec_irqthread_pid1)
+		return true;
+	else
+		return false;
+}
+#endif
+
+static bool is_in_frc_tasklet(void)
+{
+	unsigned int cpu = raw_smp_processor_id();
+
+	return per_cpu(frc_iotrace_cut, cpu);
+}
+
+static bool is_in_vsync_isr(void)
+{
+	unsigned int cpu = raw_smp_processor_id();
+
+	return per_cpu(vsync_iotrace_cut, cpu);
+}
+
+static bool is_in_amvecm_isr(void)
+{
+	unsigned int cpu = raw_smp_processor_id();
+
+	return per_cpu(amvecm_iotrace_cut, cpu);
+}
+
+static bool is_in_usb_isr(void)
+{
+	unsigned int cpu = raw_smp_processor_id();
+
+	return per_cpu(usb_iotrace_cut, cpu);
+}
+
+static int reg_check_panic;
+static bool reg_check_flag;
 
 static int reg_check_panic_setup(char *buf)
 {
@@ -166,44 +277,139 @@ static int check_mask_setup(char *ptr)
 
 __setup("check_mask=", check_mask_setup);
 
+#define REG_MAX_NUM	5
+static struct resource gic_mem[REG_MAX_NUM];
+
+static char *gic_compatible[] = {
+	"arm,gic-400",
+	"arm,arm11mp-gic",
+	"arm,arm1176jzf-devchip-gic",
+	"arm,cortex-a15-gic",
+	"arm,cortex-a9-gic",
+	"arm,cortex-a7-gic",
+	"arm,p1390"
+};
+
+static int gic_reg_num;
+
+static void aml_ramoops_filter_dt(void)
+{
+	struct device_node *node_gic = NULL;
+	int i, ret = 0;
+
+	for (i = 0; i < ARRAY_SIZE(gic_compatible); i++) {
+		node_gic = of_find_compatible_node(NULL, NULL, gic_compatible[i]);
+		if (node_gic)
+			break;
+	}
+	if (node_gic) {
+		for (i = 0; i < REG_MAX_NUM; i++) {
+			ret = of_address_to_resource(node_gic, i, &gic_mem[i]);
+			if (ret)
+				break;
+		}
+		gic_reg_num = i;
+	}
+}
+
+static int is_filter_reg(unsigned int reg)
+{
+	int i;
+
+	/* filter the gic register. */
+	for (i = 0; i < gic_reg_num; i++)
+		if (reg >= gic_mem[i].start && reg <= gic_mem[i].end)
+			return 1;
+
+	return 0;
+}
+
+#ifdef CONFIG_SHADOW_CALL_STACK
+unsigned long get_prev_lr_val(unsigned long lr, unsigned long offset)
+{
+	unsigned long lr_mask = lr & SCS_MASK;
+
+	return ((lr - offset) & SCS_MASK) == lr_mask ? *(u64 *)(lr - offset) : 0x0;
+}
+EXPORT_SYMBOL(get_prev_lr_val);
+#endif
+
 void __nocfi pstore_io_save(unsigned long reg, unsigned long val, unsigned int flag,
 									unsigned long *irq_flags)
 {
-	int cpu;
 	struct io_trace_data data;
+#ifdef CONFIG_SHADOW_CALL_STACK
+	unsigned long lr;
+#endif
+	int cpu = raw_smp_processor_id();
 
-	if (!ramoops_io_en || !(ramoops_trace_mask & 0x1))
+	if (!ramoops_ftrace_en || !(ramoops_trace_mask & 0x1))
 		return;
+
+#if 0
+	if (((is_vdec_pid() && in_task() && ramoops_io_blacklist & 0x1) ||
+		(is_in_frc_tasklet() && !in_irq() && ramoops_io_blacklist & 0x2) ||
+		(is_in_vsync_isr() && ramoops_io_blacklist & 0x4)) ||
+		(is_in_amvecm_isr() && ramoops_io_blacklist & 0x8) ||
+		(is_in_usb_isr() && ramoops_io_blacklist & 0x10))
+		return;
+#else
+	if ((is_in_frc_tasklet() && !in_irq() && ramoops_io_blacklist & 0x2) ||
+		(is_in_vsync_isr() && ramoops_io_blacklist & 0x4) ||
+		(is_in_amvecm_isr() && ramoops_io_blacklist & 0x8) ||
+		(is_in_usb_isr() && ramoops_io_blacklist & 0x10))
+		return;
+#endif
+
+#ifdef CONFIG_SHADOW_CALL_STACK
+	/* get lr from scs */
+	asm volatile("mov %0, x18\n"
+		: "=&r" (lr));
+#endif
 
 	if ((flag == PSTORE_FLAG_IO_R || flag == PSTORE_FLAG_IO_W) && IRQ_D)
 		local_irq_save(*irq_flags);
 
-	data.flag = flag;
 	data.reg = (unsigned int)page_to_phys(vmalloc_to_page((const void *)reg)) +
 				offset_in_page(reg);
 	data.val = (unsigned int)val;
 
-	if (flag == PSTORE_FLAG_IO_W_END)
+	if (reg_check_flag && flag == PSTORE_FLAG_IO_W_END)
 		reg_check_func();
 
-	switch (ramoops_io_skip) {
-	case 1:
-		data.ip = CALLER_ADDR1 | flag;
-		data.parent_ip = CALLER_ADDR2;
-		break;
-	case 2:
-		data.ip = CALLER_ADDR2 | flag;
-		data.parent_ip = CALLER_ADDR3;
-		break;
-	case 3:
-		data.ip = CALLER_ADDR3 | flag;
-		data.parent_ip = CALLER_ADDR4;
-		break;
-	default:
-		data.ip = CALLER_ADDR0 | flag;
-		data.parent_ip = CALLER_ADDR1;
-		break;
+#ifdef CONFIG_SHADOW_CALL_STACK
+	if (flag == PSTORE_FLAG_IO_W || flag == PSTORE_FLAG_IO_R) {
+		data.ip = get_prev_lr_val(lr, (ramoops_io_skip + 4) * sizeof(unsigned long));
+		data.parent_ip = get_prev_lr_val(lr, (ramoops_io_skip + 5) * sizeof(unsigned long));
+	} else {
+		data.ip = get_prev_lr_val(lr, (ramoops_io_skip + 8) * sizeof(unsigned long));
+		data.parent_ip = get_prev_lr_val(lr, (ramoops_io_skip + 9) * sizeof(unsigned long));
 	}
+#else
+	if (flag == PSTORE_FLAG_IO_W || flag == PSTORE_FLAG_IO_R) {
+		switch (ramoops_io_skip) {
+		case 0:
+			data.ip = CALLER_ADDR2;
+			data.parent_ip = CALLER_ADDR3;
+			break;
+		case 1:
+			data.ip = CALLER_ADDR3;
+			data.parent_ip = CALLER_ADDR4;
+			break;
+		case 2:
+			data.ip = CALLER_ADDR4;
+			data.parent_ip = CALLER_ADDR5;
+			break;
+		default:
+			data.ip = CALLER_ADDR0;
+			data.parent_ip = CALLER_ADDR1;
+			break;
+		}
+	} else {
+		data.ip = 0;
+		data.parent_ip = 0;
+	}
+#endif
 
 	cpu = raw_smp_processor_id();
 	if (unlikely(oops_in_progress) || unlikely(per_cpu(en, cpu))) {
@@ -214,13 +420,16 @@ void __nocfi pstore_io_save(unsigned long reg, unsigned long val, unsigned int f
 
 	per_cpu(en, cpu) = 1;
 
-	aml_pstore_write(AML_PSTORE_TYPE_IO, (void *)&data, sizeof(struct io_trace_data));
+	if (!is_filter_reg(data.reg))
+		aml_pstore_write(AML_PSTORE_TYPE_IO, (void *)&data, sizeof(struct io_trace_data),
+				  irqs_disabled_flags(*irq_flags), flag);
 
 	per_cpu(en, cpu) = 0;
 
 	if ((flag == PSTORE_FLAG_IO_R_END || flag == PSTORE_FLAG_IO_W_END) &&
 	    IRQ_D)
 		local_irq_restore(*irq_flags);
+
 }
 EXPORT_SYMBOL(pstore_io_save);
 
@@ -228,166 +437,72 @@ EXPORT_SYMBOL(pstore_io_save);
 static void schedule_hook(void *data, struct task_struct *prev, struct task_struct *next,
 							struct rq *rq)
 {
-	char buf[100];
+	char buf[BUF_SIZE];
 
 	if (!(ramoops_trace_mask & 0x2))
 		return;
 
-	memset(buf, 0, sizeof(buf));
 	sprintf(buf, "next_task:%s,pid:%d", next->comm, next->pid);
 
-	aml_pstore_write(AML_PSTORE_TYPE_SCHED, buf, 0);
+	aml_pstore_write(AML_PSTORE_TYPE_SCHED, buf, 0, irqs_disabled(), 0);
+}
 
+static DEFINE_PER_CPU(unsigned long, irqflag);
+
+static void __nocfi rwmmio_write_hook(void *data, unsigned long caller_addr,
+		u64 val, u8 width, volatile void __iomem *addr)
+{
+	unsigned int cpu = get_cpu();
+
+	pstore_ftrace_io_wr((unsigned long)addr, val, per_cpu(irqflag, cpu));
+}
+
+static void __nocfi rwmmio_post_write_hook(void *data, unsigned long caller_addr,
+		u64 val, u8 width, volatile void __iomem *addr)
+{
+	unsigned int cpu = raw_smp_processor_id();
+
+	pstore_ftrace_io_wr_end((unsigned long)addr, val, per_cpu(irqflag, cpu));
+	put_cpu();
+}
+
+static void __nocfi rwmmio_read_hook(void *data, unsigned long caller_addr,
+		u8 width, const volatile void __iomem *addr)
+{
+	unsigned int cpu = get_cpu();
+
+	pstore_ftrace_io_rd((unsigned long)addr, per_cpu(irqflag, cpu));
+}
+
+static void __nocfi rwmmio_post_read_hook(void *data, unsigned long caller_addr,
+		u64 val, u8 width, const volatile void __iomem *addr)
+{
+	unsigned int cpu = raw_smp_processor_id();
+
+	pstore_ftrace_io_rd_end((unsigned long)addr, val, per_cpu(irqflag, cpu));
+	put_cpu();
 }
 #endif
-
-#if IS_MODULE(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-/*
- * struct regmap_mmio_context sync from common/drivers/base/regmap/regmap-mmio.c
- */
-struct regmap_mmio_context {
-	void __iomem *regs;
-	unsigned int val_bytes;
-	bool relaxed_mmio;
-
-	bool attached_clk;
-	struct clk *clk;
-
-	void (*reg_write)(struct regmap_mmio_context *ctx,
-			  unsigned int reg, unsigned int val);
-	unsigned int (*reg_read)(struct regmap_mmio_context *ctx,
-					unsigned int reg);
-};
-
-struct regmap_data {
-	unsigned long reg;
-	unsigned long val;
-	unsigned long flag;
-};
-
-static int regmap_read_entry_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
-{
-	struct regmap_data *data;
-#if defined(CONFIG_ARM64)
-	unsigned long reg = (unsigned long)
-			(((struct regmap_mmio_context *)regs->regs[0])->regs + regs->regs[1]);
-#elif defined(CONFIG_ARM)
-	unsigned long reg = (unsigned long)
-			(((struct regmap_mmio_context *)regs->ARM_r0)->regs + regs->ARM_r1);
-#endif
-	/*
-	 * #define pstore_ftrace_io_rd(reg)		\
-	 * unsigned long irqflg;					\
-	 * pstore_io_save(reg, 0, PSTORE_FLAG_IO_R, &irqflg)
-	 */
-	pstore_ftrace_io_rd(reg);
-
-	data = (struct regmap_data *)ri->data;
-	(*data).reg = reg;
-	(*data).flag = irqflg;
-
-	return 0;
-}
-
-static int regmap_read_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
-{
-	struct regmap_data data = *(struct regmap_data *)ri->data;
-	unsigned long irqflg = data.flag;
-
-	/*
-	 * #define pstore_ftrace_io_rd_end(reg, val)	\
-	 * pstore_io_save(reg, 0, PSTORE_FLAG_IO_R_END, &irqflg)
-	 */
-	pstore_ftrace_io_rd_end(data.reg, data.val);
-
-	return 0;
-}
-
-static struct kretprobe regmap_mmio_read_krp = {
-	.handler = regmap_read_ret_handler,
-	.entry_handler = regmap_read_entry_handler,
-	.data_size = sizeof(struct regmap_data),
-};
-
-static int regmap_write_entry_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
-{
-	struct regmap_data *data;
-#if defined(CONFIG_ARM64)
-	unsigned long reg = (unsigned long)
-			(((struct regmap_mmio_context *)regs->regs[0])->regs + regs->regs[1]);
-	unsigned long val = (unsigned long)regs->regs[2];
-#elif defined(CONFIG_ARM)
-	unsigned long reg = (unsigned long)
-			(((struct regmap_mmio_context *)regs->ARM_r0)->regs + regs->ARM_r1);
-	unsigned long val = (unsigned long)regs->ARM_r2;
-#endif
-	/*
-	 * #define pstore_ftrace_io_wr(reg, val)	\
-	 * unsigned long irqflg;					\
-	 * pstore_io_save(reg, val, PSTORE_FLAG_IO_W, &irqflg)
-	 */
-	pstore_ftrace_io_wr(reg, val);
-
-	data = (struct regmap_data *)ri->data;
-	(*data).reg = reg;
-	(*data).val = val;
-	(*data).flag = irqflg;
-
-	return 0;
-}
-
-static int regmap_write_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
-{
-	struct regmap_data data = *(struct regmap_data *)ri->data;
-	unsigned long irqflg = data.flag;
-
-	/*
-	 * #define pstore_ftrace_io_wr_end(reg, val)	\
-	 * pstore_io_save(reg, val, PSTORE_FLAG_IO_W_END, &irqflg)
-	 */
-	pstore_ftrace_io_wr_end(data.reg, data.val);
-
-	return 0;
-}
-
-static struct kretprobe regmap_mmio_write_krp = {
-	.handler = regmap_write_ret_handler,
-	.entry_handler = regmap_write_entry_handler,
-	.data_size = sizeof(struct regmap_data),
-};
-#endif /* CONFIG_AMLOGIC_DEBUG_IOTRACE */
 
 int ftrace_ramoops_init(void)
 {
-#if IS_MODULE(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	int ret;
-#endif
-
-	if (!ramoops_io_en)
-		return 0;
-
 	if (reg_check_flag)
 		reg_check_init();
 
+	aml_ramoops_filter_dt();
+
 #ifdef CONFIG_ANDROID_VENDOR_HOOKS
 	register_trace_android_rvh_schedule(schedule_hook, NULL);
+
+	register_trace_rwmmio_write(rwmmio_write_hook, NULL);
+	register_trace_rwmmio_post_write(rwmmio_post_write_hook, NULL);
+
+	register_trace_rwmmio_read(rwmmio_read_hook, NULL);
+	register_trace_rwmmio_post_read(rwmmio_post_read_hook, NULL);
 #endif
-
-#if IS_MODULE(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	regmap_mmio_read_krp.kp.symbol_name = "regmap_mmio_read";
-	ret = register_kretprobe(&regmap_mmio_read_krp);
-	if (ret < 0) {
-		pr_err("register kretprobe 'regmap_mmio_read' failed, returned %d\n", ret);
-		return ret;
-	}
-
-	regmap_mmio_write_krp.kp.symbol_name = "regmap_mmio_write";
-	ret = register_kretprobe(&regmap_mmio_write_krp);
-	if (ret < 0) {
-		pr_err("register kretprobe 'regmap_mmio_write' failed, returned %d\n", ret);
-		return ret;
-	}
+#if 0
+	INIT_DELAYED_WORK(&find_vdec_pid_work, find_vdec_pid);
+	queue_delayed_work(system_wq, &find_vdec_pid_work, 10 * HZ);
 #endif
-
 	return 0;
 }

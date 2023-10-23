@@ -41,17 +41,6 @@ config AMLOGIC_DEBUG_PRINTK
 	  if you want to print information such as cpu irq,
 	  please use this option switch it.
 
-config AMLOGIC_BGKI_DEBUG_IOTRACE
-	bool "Amlogic ftrace pstore debug"
-	depends on AMLOGIC_BREAK_GKI
-	depends on AMLOGIC_BREAK_GKI_20
-	select PSTORE_FTRACE
-	default n
-	help
-	  Dump function call and register access to ramoops after watchdog
-	  reboot.
-	  Enable if doubt
-
 config AMLOGIC_DEBUG_FILE
 	bool "Amlogic dump log to debug file"
 	default n
