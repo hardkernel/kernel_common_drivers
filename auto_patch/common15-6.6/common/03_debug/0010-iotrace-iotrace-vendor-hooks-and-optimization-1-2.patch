@@ -1,0 +1,206 @@
+From c889331d2b5fe70e428d2812ab3602362f3f6afa Mon Sep 17 00:00:00 2001
+From: "qiankun.wang" <qiankun.wang@amlogic.com>
+Date: Mon, 23 Oct 2023 14:24:14 +0800
+Subject: [PATCH] iotrace: iotrace vendor hooks and optimization [1/2]
+
+PD#SWPL-142603
+
+Problem:
+iotrace read/write use vendor hooks.
+iotrace optimization
+
+Solution:
+iotrace read/write use vendor hooks.
+iotrace optimization
+
+Verify:
+sc2_ah212
+
+Change-Id: If8728f6b64a546fb50c49a32a491a3c8789de33c
+Signed-off-by: qiankun.wang <qiankun.wang@amlogic.com>
+---
+ arch/arm/Kconfig               |  1 +
+ arch/arm/include/asm/io.h      | 13 +++++--------
+ arch/arm64/include/asm/io.h    |  7 -------
+ arch/arm64/kernel/image-vars.h |  5 -----
+ arch/arm64/kernel/io.c         |  6 ------
+ drivers/irqchip/irq-gic.c      |  3 ---
+ fs/pstore/ram_core.c           |  3 ---
+ include/asm-generic/io.h       |  7 +++++++
+ 8 files changed, 13 insertions(+), 32 deletions(-)
+
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 10346dbb28c6..e92c8821eba1 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -26,6 +26,7 @@ config ARM
+ 	select ARCH_HAS_TEARDOWN_DMA_OPS if MMU
+ 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+ 	select ARCH_HAVE_NMI_SAFE_CMPXCHG if CPU_V7 || CPU_V7M || CPU_V6K
++	select ARCH_HAVE_TRACE_MMIO_ACCESS if AMLOGIC_DEBUG_IOTRACE
+ 	select ARCH_HAS_GCOV_PROFILE_ALL
+ 	select ARCH_KEEP_MEMBLOCK
+ 	select ARCH_HAS_UBSAN_SANITIZE_ALL
+diff --git a/arch/arm/include/asm/io.h b/arch/arm/include/asm/io.h
+index 7f0a6896673c..6ff30810b227 100644
+--- a/arch/arm/include/asm/io.h
++++ b/arch/arm/include/asm/io.h
+@@ -50,11 +50,6 @@ void __raw_readsb(const volatile void __iomem *addr, void *data, int bytelen);
+ void __raw_readsw(const volatile void __iomem *addr, void *data, int wordlen);
+ void __raw_readsl(const volatile void __iomem *addr, void *data, int longlen);
+ 
+-#if IS_BUILTIN(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+-#include <linux/amlogic/io_32.h>
+-#elif IS_MODULE(CONFIG_AMLOGIC_DEBUG_IOTRACE) && defined(MODULE)
+-#include <linux/amlogic/io_32.h>
+-#else
+ #if __LINUX_ARM_ARCH__ < 6
+ /*
+  * Half-word accesses are problematic with RiscPC due to limitations of
+@@ -120,7 +115,6 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
+ 		     : "Qo" (*(volatile u32 __force *)addr));
+ 	return val;
+ }
+-#endif /* CONFIG_AMLOGIC_DEBUG_IOTRACE */
+ /*
+  * Architecture ioremap implementation.
+  */
+@@ -276,6 +270,8 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
+  * IO port primitives for more information.
+  */
+ #ifndef readl
++/* use the macro definitions in include/asm-generic/io.h */
++#if !IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+ #define readb_relaxed(c) ({ u8  __r = __raw_readb(c); __r; })
+ #define readw_relaxed(c) ({ u16 __r = le16_to_cpu((__force __le16) \
+ 					__raw_readw(c)); __r; })
+@@ -301,6 +297,7 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
+ #define writesb(p,d,l)		__raw_writesb(p,d,l)
+ #define writesw(p,d,l)		__raw_writesw(p,d,l)
+ #define writesl(p,d,l)		__raw_writesl(p,d,l)
++#endif
+ 
+ #ifndef __ARMBE__
+ static inline void memset_io(volatile void __iomem *dst, unsigned c,
+@@ -326,11 +323,11 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
+ 	mmiocpy((void __force *)to, from, count);
+ }
+ #define memcpy_toio(to,from,count) memcpy_toio(to,from,count)
+-#else /* __ARMBE__ */
++#else
+ #define memset_io(c,v,l)	_memset_io(c,(v),(l))
+ #define memcpy_fromio(a,c,l)	_memcpy_fromio((a),c,(l))
+ #define memcpy_toio(c,a,l)	_memcpy_toio(c,(a),(l))
+-#endif /*__ARMBE__ */
++#endif
+ 
+ #endif	/* readl */
+ 
+diff --git a/arch/arm64/include/asm/io.h b/arch/arm64/include/asm/io.h
+index 4436f7a3f0f3..3b694511b98f 100644
+--- a/arch/arm64/include/asm/io.h
++++ b/arch/arm64/include/asm/io.h
+@@ -18,12 +18,6 @@
+ #include <asm/alternative.h>
+ #include <asm/cpufeature.h>
+ 
+-/* builtin code include iotrace can cause some symbols crc changed */
+-#if IS_BUILTIN(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+-#include <linux/amlogic/io_64.h>
+-#elif (IS_MODULE(CONFIG_AMLOGIC_DEBUG_IOTRACE)) && defined(MODULE)
+-#include <linux/amlogic/io_64.h>
+-#else
+ /*
+  * Generic IO read/write.  These perform native-endian accesses.
+  */
+@@ -95,7 +89,6 @@ static __always_inline u64 __raw_readq(const volatile void __iomem *addr)
+ 		     : "=r" (val) : "r" (addr));
+ 	return val;
+ }
+-#endif
+ 
+ /* IO barriers */
+ #define __io_ar(v)							\
+diff --git a/arch/arm64/kernel/image-vars.h b/arch/arm64/kernel/image-vars.h
+index faf29c158d81..35f3c7959513 100644
+--- a/arch/arm64/kernel/image-vars.h
++++ b/arch/arm64/kernel/image-vars.h
+@@ -106,11 +106,6 @@ KVM_NVHE_ALIAS(__hyp_rodata_end);
+ /* pKVM static key */
+ KVM_NVHE_ALIAS(kvm_protected_mode_initialized);
+ 
+-#if IS_BUILTIN(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+-KVM_NVHE_ALIAS(pstore_io_save);
+-KVM_NVHE_ALIAS(vabits_actual);
+-#endif
+-
+ #endif /* CONFIG_KVM */
+ 
+ #ifdef CONFIG_EFI_ZBOOT
+diff --git a/arch/arm64/kernel/io.c b/arch/arm64/kernel/io.c
+index 9186cd23516d..aa7a4ec6a3ae 100644
+--- a/arch/arm64/kernel/io.c
++++ b/arch/arm64/kernel/io.c
+@@ -7,13 +7,7 @@
+ 
+ #include <linux/export.h>
+ #include <linux/types.h>
+-#if IS_BUILTIN(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+-#define SKIP_IO_TRACE
+ #include <linux/io.h>
+-#undef SKIP_IO_TRACE
+-#else
+-#include <linux/io.h>
+-#endif
+ 
+ /*
+  * Copy data from IO memory space to "real" memory space.
+diff --git a/drivers/irqchip/irq-gic.c b/drivers/irqchip/irq-gic.c
+index ae9dade320bc..c0efa764a914 100644
+--- a/drivers/irqchip/irq-gic.c
++++ b/drivers/irqchip/irq-gic.c
+@@ -17,9 +17,6 @@
+  * As such, the enable set/clear, pending set/clear and active bit
+  * registers are banked per-cpu for these sources.
+  */
+-#if IS_BUILTIN(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+-#define SKIP_IO_TRACE
+-#endif
+ #include <linux/init.h>
+ #include <linux/kernel.h>
+ #include <linux/kstrtox.h>
+diff --git a/fs/pstore/ram_core.c b/fs/pstore/ram_core.c
+index 500d8462eb0e..650e437b55e6 100644
+--- a/fs/pstore/ram_core.c
++++ b/fs/pstore/ram_core.c
+@@ -5,9 +5,6 @@
+ 
+ #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+ 
+-#if IS_BUILTIN(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+-#define SKIP_IO_TRACE
+-#endif
+ #include <linux/device.h>
+ #include <linux/err.h>
+ #include <linux/errno.h>
+diff --git a/include/asm-generic/io.h b/include/asm-generic/io.h
+index bac63e874c7b..166c3d94f16c 100644
+--- a/include/asm-generic/io.h
++++ b/include/asm-generic/io.h
+@@ -19,6 +19,13 @@
+ #include <asm/mmiowb.h>
+ #include <asm-generic/pci_iomap.h>
+ 
++/* get the macro ' _THIS_IP_' definition */
++#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
++#ifdef CONFIG_ARM
++#include <linux/kernel.h>
++#endif
++#endif
++
+ #ifndef __io_br
+ #define __io_br()      barrier()
+ #endif
+-- 
+2.43.0
+

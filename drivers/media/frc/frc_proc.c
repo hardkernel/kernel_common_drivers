@@ -50,6 +50,9 @@
 #include "frc_proc.h"
 #include "frc_hw.h"
 #include "frc_rdma.h"
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+#include <linux/amlogic/aml_iotrace.h>
+#endif
 
 int frc_enable_cnt = 1;
 int frc_disable_cnt = 1;
@@ -263,6 +266,11 @@ void frc_input_tasklet_pro(unsigned long arg)
 	}
 	if (devp->clk_state == FRC_CLOCK_OFF)
 		return;
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+	__this_cpu_write(frc_iotrace_cut, 1);
+	if (ramoops_ftrace_en && ramoops_trace_mask & 0x2)
+		aml_pstore_write(AML_PSTORE_TYPE_SCHED, "frc_input in", 0, irqs_disabled(), 0);
+#endif
 	devp->in_sts.vs_tsk_cnt++;
 	if (!devp->frc_fw_pause) {
 		timestamp = sched_clock();
@@ -273,6 +281,11 @@ void frc_input_tasklet_pro(unsigned long arg)
 		if (devp->ud_dbg.inud_time_en)
 			frc_in_task_print(sched_clock() - timestamp);
 	}
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+	__this_cpu_write(frc_iotrace_cut, 0);
+	if (ramoops_ftrace_en  && ramoops_trace_mask & 0x2)
+		aml_pstore_write(AML_PSTORE_TYPE_SCHED, "frc_input out", 0, irqs_disabled(), 0);
+#endif
 }
 
 irqreturn_t frc_output_isr(int irq, void *dev_id)
@@ -328,6 +341,11 @@ void frc_output_tasklet_pro(unsigned long arg)
 	if (devp->clk_state == FRC_CLOCK_OFF)
 		return;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+	__this_cpu_write(frc_iotrace_cut, 1);
+	if (ramoops_ftrace_en  && ramoops_trace_mask & 0x2)
+		aml_pstore_write(AML_PSTORE_TYPE_SCHED, "frc_output in", 0, irqs_disabled(), 0);
+#endif
 	devp->out_sts.vs_tsk_cnt++;
 	if (!devp->frc_fw_pause) {
 		timestamp = sched_clock();
@@ -340,6 +358,11 @@ void frc_output_tasklet_pro(unsigned long arg)
 		if (devp->ud_dbg.outud_time_en)
 			frc_out_task_print(sched_clock() - timestamp);
 	}
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+	__this_cpu_write(frc_iotrace_cut, 0);
+	if (ramoops_ftrace_en  && ramoops_trace_mask & 0x2)
+		aml_pstore_write(AML_PSTORE_TYPE_SCHED, "frc_output out", 0, irqs_disabled(), 0);
+#endif
 }
 
 irqreturn_t frc_axi_crash_isr(int irq, void *dev_id)

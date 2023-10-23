@@ -75,7 +75,7 @@ void free_iotrace_reserved_memory(void)
 		return;
 
 	// free reserved-memory if no need
-	if (!ramoops_io_en) {
+	if (!ramoops_ftrace_en) {
 		aml_free_reserved_area(__va(res.start), __va(PAGE_ALIGN(res.end)), 0,
 								"free_reserved");
 		pr_debug("free iotrace reserved_memory\n");
