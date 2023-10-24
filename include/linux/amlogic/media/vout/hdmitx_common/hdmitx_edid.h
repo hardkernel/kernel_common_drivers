@@ -12,6 +12,8 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_hw_common.h>
 #include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 
+struct hdmitx_common;
+
 /* the default max_tmds_clk is 165MHz/5 in H14b Table 8-16 */
 #define DEFAULT_MAX_TMDS_CLK    33
 
@@ -277,5 +279,7 @@ void hdmitx_edid_print(u8 *edid_buf);
 void hdmitx_edid_buffer_clear(u8 *edid_buf, int size);
 void hdmitx_edid_rxcap_clear(struct rx_cap *prxcap);
 bool hdmitx_edid_only_support_sd(struct rx_cap *prxcap);
+int hdmitx_edid_init(struct hdmitx_common *tx_base);
+int hdmitx_edid_uninit(void);
 
 #endif

@@ -831,7 +831,7 @@ bool is_tv_changed(char *cur_edid_chksum, char *boot_param_edid_chksum)
 	return ret;
 }
 
-/* common work for plugout/suspend, witch is done in lock */
+/* common work for plugout/suspend, which is done in lock */
 void hdmitx_common_edid_clear(struct hdmitx_common *tx_comm)
 {
 	/* clear edid */

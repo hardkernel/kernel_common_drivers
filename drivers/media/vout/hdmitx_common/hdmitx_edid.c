@@ -27,6 +27,7 @@
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_edid.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include "hdmitx_log.h"
 
 #define CEA_DATA_BLOCK_COLLECTION_ADDR_1STP 0x04
@@ -82,6 +83,7 @@
 #define GET_BITS_FILED(val, start, len) \
 	(((val) >> (start)) & ((1 << (len)) - 1))
 
+static struct hdmitx_common *global_tx_base;
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
 static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data);
 static void hdmitx_edid_set_default_aud(struct rx_cap *prxcap);
@@ -108,47 +110,63 @@ static void phy_addr_clear(struct vsdb_phyaddr *vsdb_phy_addr)
 	vsdb_phy_addr->valid = 0;
 }
 
-static bool hdmitx_edid_header_invalid(u8 *buf)
+static bool hdmitx_edid_header_invalid(const u8 *buf)
 {
-	bool base_blk_invalid = false;
-	bool ext_blk_invalid = false;
-	bool ret = false;
 	int i = 0;
 
 	if (!buf)
-		return false;
+		return true;
 
-	if (buf[0] != 0 || buf[7] != 0) {
-		base_blk_invalid = true;
-	} else {
-		for (i = 1; i < 7; i++) {
-			if (buf[i] != 0xff) {
-				base_blk_invalid = true;
-				break;
-			}
-		}
-	}
-	/* judge header strictly, only if both header invalid */
-	if (buf[0x7e] > 0) {
-		if (buf[0x80] != 0x2 && buf[0x80] != 0xf0)
-			ext_blk_invalid = true;
-		ret = base_blk_invalid && ext_blk_invalid;
-	} else {
-		ret = base_blk_invalid;
+	if (buf[0] != 0 || buf[7] != 0)
+		return true;
+	for (i = 1; i < 7; i++) {
+		if (buf[i] != 0xff)
+			return true;
 	}
 
-	return ret;
+	return false;
+}
+
+/* return the blocks of extension CTA */
+static unsigned char hdmitx_edid_get_cta_block_count(const u8 *edid_buf)
+{
+	unsigned char cta_block_count = 0;
+
+	if (!edid_buf)
+		return 0;
+
+	cta_block_count = edid_buf[0x7E];
+	/* HFR-EEODB */
+	if (cta_block_count && edid_buf[128 + 4] == EXTENSION_EEODB_EXT_TAG &&
+		edid_buf[128 + 5] == EXTENSION_EEODB_EXT_CODE)
+		cta_block_count = edid_buf[128 + 6];
+	/* limit cta_block_count to EDID_MAX_BLOCK - 1 */
+	if (cta_block_count > EDID_MAX_BLOCK - 1)
+		cta_block_count = EDID_MAX_BLOCK - 1;
+
+	return cta_block_count;
+}
+
+/* return all the blocks of the EDID */
+static unsigned char hdmitx_edid_get_block_count(const u8 *edid_buf)
+{
+	if (!edid_buf)
+		return 0;
+
+	return hdmitx_edid_get_cta_block_count(edid_buf) + 1;
 }
 
 bool hdmitx_edid_is_all_zeros(u8 *rawedid)
 {
 	unsigned int i = 0, j = 0;
 	unsigned int chksum = 0;
+	unsigned char block_count = 1;
 
 	if (!rawedid)
 		return false;
 
-	for (j = 0; j < EDID_MAX_BLOCK; j++) {
+	block_count = hdmitx_edid_get_block_count(rawedid);
+	for (j = 0; j < block_count; j++) {
 		chksum = 0;
 		for (i = 0; i < 128; i++)
 			chksum += rawedid[i + j * 128];
@@ -205,15 +223,12 @@ static bool _check_base_structure(unsigned char *buf)
 bool hdmitx_edid_check_data_valid(unsigned char *buf)
 {
 	int i;
-	int blk_cnt;
+	int blk_cnt = 1;
 
 	if (!buf)
 		return false;
 
-	blk_cnt = buf[0x7e] + 1;
-	/* limit blk_cnt to EDID_MAX_BLOCK  */
-	if (blk_cnt > EDID_MAX_BLOCK)
-		blk_cnt = EDID_MAX_BLOCK;
+	blk_cnt = hdmitx_edid_get_block_count(buf);
 
 	/* check block 0 */
 	if (_check_base_structure(&buf[0]) == 0)
@@ -1680,8 +1695,7 @@ static void hdmitx_edid_parse_hdmi14(struct rx_cap *prxcap,
 	prxcap->ieeeoui = HDMI_IEEE_OUI;
 	set_vsdb_phy_addr(prxcap, &block_buf[offset + 3]);
 
-	prxcap->ColorDeepSupport =
-	(count > 5) ? block_buf[offset + 5] : 0;
+	prxcap->ColorDeepSupport = (count > 5) ? block_buf[offset + 5] : 0;
 	set_vsdb_dc_cap(prxcap);
 	prxcap->Max_TMDS_Clock1 =
 		(count > 6) ? block_buf[offset + 6] : DEFAULT_MAX_TMDS_CLK;
@@ -2744,7 +2758,7 @@ static void _edid_parse_base_structure(struct rx_cap *prxcap, unsigned char *EDI
 	edid_physical_size_parse(prxcap, &EDID_buf[21]);
 	prxcap->blk0_chksum = EDID_buf[0x7F];
 
-	cta_block_count = EDID_buf[0x7E];
+	cta_block_count = hdmitx_edid_get_cta_block_count(EDID_buf);
 
 	if (cta_block_count == 0) {
 		HDMITX_INFO("EDID BlockCount=0\n");
@@ -2813,6 +2827,7 @@ static int update_edid_chksum(struct rx_cap *prxcap, u8 *edid_buf)
 int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 {
 	unsigned char cta_block_count;
+	unsigned char block_count;
 	int i;
 	int idx[4];
 	struct dv_info *dv;
@@ -2820,17 +2835,22 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 	if (!edid_buf || !prxcap)
 		return -1;
 
+	cta_block_count = hdmitx_edid_get_cta_block_count(edid_buf);
+	block_count = hdmitx_edid_get_block_count(edid_buf);
 	dv = &prxcap->dv_info;
 	prxcap->edid_parsing = hdmitx_edid_check_data_valid(edid_buf);
 
 	prxcap->head_err = hdmitx_edid_header_invalid(&edid_buf[0]);
-	// TODO
-	/*if (prxcap->head_err)
-	 *	hdmitx_current_status(HDMITX_EDID_HEAD_ERROR);
-	 *prxcap->chksum_err = !edid_check_valid(&EDID_buf[0]);
-	 *if (prxcap->chksum_err)
-	 *	hdmitx_current_status(HDMITX_EDID_CHECKSUM_ERROR);
-	 */
+	for (i = 0; i < block_count; i++) {
+		if (_check_edid_blk_chksum(edid_buf + i * 128) == 0) {
+			prxcap->chksum_err = 1;
+			break;
+		}
+	}
+	if (prxcap->head_err)
+		hdmitx_tracer_write_event(global_tx_base->tx_tracer, HDMITX_EDID_HEAD_ERROR);
+	if (prxcap->chksum_err)
+		hdmitx_tracer_write_event(global_tx_base->tx_tracer, HDMITX_EDID_CHECKSUM_ERROR);
 
 	pr_debug(EDID "EDID Parser:\n");
 
@@ -2842,14 +2862,6 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 	if (_check_base_structure(edid_buf))
 		_edid_parse_base_structure(prxcap, edid_buf);
 
-	cta_block_count = edid_buf[0x7E];
-	/* HFR-EEODB */
-	if (cta_block_count && edid_buf[128 + 4] == EXTENSION_EEODB_EXT_TAG &&
-		edid_buf[128 + 5] == EXTENSION_EEODB_EXT_CODE)
-		cta_block_count = edid_buf[128 + 6];
-	/* limit cta_block_count to EDID_MAX_BLOCK - 1 */
-	if (cta_block_count > EDID_MAX_BLOCK - 1)
-		cta_block_count = EDID_MAX_BLOCK - 1;
 	for (i = 1; i <= cta_block_count; i++) {
 		if (edid_buf[i * 0x80] == 0x02)
 			hdmitx_edid_cta_block_parse(prxcap, &edid_buf[i * 0x80]);
@@ -2983,10 +2995,10 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 	if (edid_zero_data(edid_buf) || prxcap->VIC_count == 0)
 		hdmitx_edid_set_default_vic(prxcap);
 	if (prxcap->ieeeoui == HDMI_IEEE_OUI) {
-		// hdmitx_current_status(HDMITX_EDID_HDMI_DEVICE);
+		hdmitx_tracer_write_event(global_tx_base->tx_tracer, HDMITX_EDID_HDMI_DEVICE);
 	} else {
 		prxcap->physical_addr = 0xffff;
-		// hdmitx_current_status(HDMITX_EDID_DVI_DEVICE);
+		hdmitx_tracer_write_event(global_tx_base->tx_tracer, HDMITX_EDID_DVI_DEVICE);
 	}
 	return 0;
 }
@@ -3297,5 +3309,20 @@ int hdmitx_edid_print_sink_cap(const struct rx_cap *prxcap,
 			"checkvalue: %s\n", prxcap->hdmichecksum);
 
 	return pos;
+}
+
+int hdmitx_edid_init(struct hdmitx_common *tx_base)
+{
+	if (global_tx_base)
+		HDMITX_ERROR("global_tx_base [%p] already init\n", global_tx_base);
+
+	global_tx_base = tx_base;
+	return 0;
+}
+
+int hdmitx_edid_uninit(void)
+{
+	global_tx_base = 0;
+	return 0;
 }
 

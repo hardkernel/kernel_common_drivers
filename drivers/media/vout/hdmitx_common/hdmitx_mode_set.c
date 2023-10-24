@@ -156,6 +156,7 @@ static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
 	if (tx_comm->hpd_state == 0 || tx_comm->suspend_flag) {
 		HDMITX_ERROR("current hpd_state/suspend (%d,%d), exit %s\n",
 			__func__, tx_comm->hpd_state, tx_comm->suspend_flag);
+		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_SKIP);
 		return -1;
 	}
 
@@ -207,13 +208,6 @@ int hdmitx_common_do_mode_setting(struct hdmitx_common *tx_comm,
 
 	new_para = &new_state->para;
 
-	if (0) {
-		if (new_state->mode & VMODE_INIT_BIT_MASK) {
-			tx_comm->ctrl_ops->init_uboot_mode(new_state->mode);
-			return 0;
-		}
-	}
-
 	mutex_lock(&tx_comm->hdmimode_mutex);
 	ret = hdmitx_common_pre_enable_mode(tx_comm, new_para);
 	if (ret < 0) {
@@ -237,7 +231,12 @@ int hdmitx_common_do_mode_setting(struct hdmitx_common *tx_comm,
 		goto fail;
 	}
 
+	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_ENABLE_OUTPUT);
+
 fail:
+	if (ret < 0)
+		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_ERROR);
+
 	mutex_unlock(&tx_comm->hdmimode_mutex);
 	return ret;
 }
@@ -261,6 +260,7 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 	if (phy_dis) {
 		tx_comm->ready = 0;
 		hdmitx_hw_cntl_misc(tx_hw_base, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
+		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_DISABLE_OUTPUT);
 	}
 
 	/* disable frl/dsc/vrr */
@@ -528,7 +528,7 @@ void hdmitx_vout_uninit(void)
 #endif
 }
 
-/* common work for plugin/resume, witch is done in lock */
+/* common work for plugin/resume, which is done in lock */
 void hdmitx_plugin_common_work(struct hdmitx_common *tx_comm)
 {
 	/* trace event */

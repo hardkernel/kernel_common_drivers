@@ -205,7 +205,7 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
  * there're below cases need to disable hdcp:
  * 1.suspend, 2.before switch mode, 3.plug out
  * note disable hdcp mode should mutex with EDID
- * operation(plugin bottom half), witch already
+ * operation(plugin bottom half), which already
  * mutexed with above 3 operations
  */
 void hdmitx21_disable_hdcp(struct hdmitx_dev *hdev)

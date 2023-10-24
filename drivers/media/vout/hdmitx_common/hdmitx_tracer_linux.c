@@ -30,6 +30,10 @@ const char *hdmitx_event_to_str(enum hdmitx_event_log_bits event)
 		return "hdmitx_edid_hdmi_device\n";
 	case HDMITX_EDID_DVI_DEVICE:
 		return "hdmitx_edid_dvi_device\n";
+	case HDMITX_KMS_DISABLE_OUTPUT:
+		return "output_disable\n";
+	case HDMITX_KMS_ENABLE_OUTPUT:
+		return "output_enable\n";
 	case HDMITX_EDID_HEAD_ERROR:
 		return "hdmitx_edid_head_error\n";
 	case HDMITX_EDID_CHECKSUM_ERROR:
@@ -64,6 +68,10 @@ const char *hdmitx_event_to_str(enum hdmitx_event_log_bits event)
 		return "hdmitx_hdcp_auth_repeater_delay_error\n";
 	case HDMITX_HDCP_I2C_ERROR:
 		return "hdmitx_hdcp_i2c_error\n";
+	case HDMITX_KMS_ERROR:
+		return "KMS_ERROR\n";
+	case HDMITX_KMS_SKIP:
+		return "KMS_SKIP\n";
 	default:
 		return "Unknown event\n";
 	}
@@ -122,10 +130,11 @@ int hdmitx_tracer_write_event(struct hdmitx_tracer *tracer,
 		if (event & tracer->previous_error_event) {
 			// Found, skip duplicate logging.
 			// For example, UEvent spamming of HDCP support (b/220687552).
-			return 0;
+			if (event == tracer->previous_error_event)
+				return 0;
+			tracer->previous_error_event = event;
 		}
 		HDMITX_INFO("Record HDMI error: %s\n", hdmitx_event_to_str(event));
-		tracer->previous_error_event |= event;
 	}
 
 	log_str = hdmitx_event_to_str(event);

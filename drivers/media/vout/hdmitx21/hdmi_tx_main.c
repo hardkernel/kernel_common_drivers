@@ -3210,7 +3210,7 @@ static void hdmitx_process_plugin(struct hdmitx_dev *hdev, bool set_audio)
 	hdmitx_common_notify_hpd_status(&hdev->tx_comm, false);
 }
 
-/* action witch is done in lock, it copy the flow of plugin handler.
+/* action which is done in lock, it copy the flow of plugin handler.
  * only set audio if it's already enable in uboot, only check edid
  * if hdmitx output is enabled under uboot.
  * uboot_output_state is indicated in ready flag, can be replaced by
@@ -3262,7 +3262,7 @@ static void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
 	hdmitx_fire_drm_hpd_cb_unlocked(&hdev->tx_comm);
 }
 
-/* common work for plugout flow, witch should be done in lock */
+/* common work for plugout flow, which should be done in lock */
 static void hdmitx_process_plugout(struct hdmitx_dev *hdev)
 {
 	hdmitx_plugout_common_work(&hdev->tx_comm);
@@ -3898,7 +3898,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	tx_tracer = hdmitx_tracer_create(tx_event_mgr);
 	hdmitx_common_attch_platform_data(tx_comm,
 		HDMITX_PLATFORM_TRACER, tx_tracer);
-
+	hdmitx_edid_init(tx_comm);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	hdmitx_early_suspend_handler.param = hdev;
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -4012,6 +4012,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	tee_comm_dev_unreg(hdev);
 	/*unbind from drm.*/
 	hdmitx_unhook_drm(&pdev->dev);
+	hdmitx_edid_uninit();
 
 	cancel_work_sync(&hdev->work_hdr);
 	/* cancel_work_sync(&hdev->work_hdr_unmute); */

@@ -98,6 +98,14 @@ struct hdmitx_common {
 	/* 0.1% clock shift, 1080p60hz->59.94hz */
 	u32 frac_rate_policy;
 
+	/* audio */
+	/* if switching from 48k pcm to 48k DD, the ACR/N parameter is same,
+	 * so there is no need to update ACR/N. but for mode change, different
+	 * sample rate, need to update ACR/N.
+	 */
+	struct aud_para cur_audio_param;
+	/*audio end*/
+
 	/****** device config ******/
 	/* 0: TV product, 1: stb/soundbar product;
 	 * used to check if need to notify edid to
@@ -136,14 +144,6 @@ struct hdmitx_common {
 	struct hdmitx_tracer *tx_tracer;
 	struct hdmitx_event_mgr *event_mgr;
 	struct st_debug_param debug_param;
-
-	/* audio */
-	/* if switching from 48k pcm to 48k DD, the ACR/N parameter is same,
-	 * so there is no need to update ACR/N. but for mode change, different
-	 * sample rate, need to update ACR/N.
-	 */
-	struct aud_para cur_audio_param;
-	/*audio end*/
 };
 
 void hdmitx_get_init_state(struct hdmitx_common *tx_common,
@@ -263,13 +263,13 @@ void hdrinfo_to_vinfo(struct hdr_info *hdrinfo, struct hdmitx_common *tx_comm);
 void set_dummy_dv_info(struct vout_device_s *vdev);
 void hdmitx_build_fmt_attr_str(struct hdmitx_common *tx_comm);
 
-/* common work for plugin/resume, witch is done in lock */
+/* common work for plugin/resume, which is done in lock */
 void hdmitx_plugin_common_work(struct hdmitx_common *tx_comm);
 /* common work for plugout */
 void hdmitx_plugout_common_work(struct hdmitx_common *tx_comm);
-/* common edid clear, witch is done in lock */
+/* common edid clear, which is done in lock */
 void hdmitx_common_edid_clear(struct hdmitx_common *tx_comm);
-/* common work for late resume, witch is done in lock */
+/* common work for late resume, which is done in lock */
 void hdmitx_common_late_resume(struct hdmitx_common *tx_comm);
 /* common disable hdmitx output api */
 void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
