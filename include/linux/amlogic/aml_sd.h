@@ -27,6 +27,14 @@
 #define aml_card_type_sdio(c)		((c)->card_type == CARD_TYPE_SDIO)
 #define aml_card_type_non_sdio(c)	((c)->card_type == CARD_TYPE_NON_SDIO)
 
+#define EMMC_CMD_FALLING_SML BIT(0)
+#define EMMC_CMD_RISING_SML BIT(1)
+#define EMMC_CMD_CORE_CLK_SML BIT(2)
+#define EMMC_CMD_SD_CLK_SML BIT(3)
+
+#define EMMC_CMD_LINE_DELAY_MODE BIT(0)
+#define EMMC_CMD_RX_DELAY_MODE BIT(1)
+
 /* flag is "@ML" */
 #define TUNED_FLAG            0x004C4D40
 /* version is "V1" */
@@ -217,6 +225,7 @@ struct meson_host {
 	spinlock_t lock; /* lock for claim and bus ops */
 	bool src_clk_cfg_done;
 	bool tdma;
+	bool sd_clk_sample;
 	struct dentry *debugfs_root;
 	struct clk *src_clk;
 	unsigned int f_min;
@@ -365,6 +374,7 @@ void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
 
 #define SD_EMMC_DELAY1 0x4
 #define SD_EMMC_DELAY2 0x8
+#define   DELAY2_CMD_MASK GENMASK(29, 24)
 #define SD_EMMC_V3_ADJUST 0xc
 #define	  CALI_SEL_MASK GENMASK(11, 8)
 #define	  CALI_ENABLE BIT(12)

@@ -1458,6 +1458,8 @@
 			mmc_debug_flag;
 			tx_delay = <32>;
 			src_clk_rate = <1488000000>;
+			mmc-hs400-enhanced-strobe;
+			sd-clock-sample;
 		//  resets = <&reset RESET_SD_EMMC_C>;
 		};
 
