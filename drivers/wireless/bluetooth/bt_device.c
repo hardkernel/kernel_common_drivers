@@ -387,6 +387,8 @@ static void bt_earlysuspend(struct early_suspend *h)
 
 static void bt_lateresume(struct early_suspend *h)
 {
+	pr_debug("%s,btwake_event=%d\n", __func__, btwake_evt);
+	btwake_evt = 2;
 }
 #endif
 
