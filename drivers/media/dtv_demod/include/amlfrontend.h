@@ -143,6 +143,7 @@
 /*  V3.5.016 optimize dvbs rssi for rt720 */
 /*  V3.5.017 increase the speed of dvbc blind scanning */
 /*  V3.5.018 optimize dvbs blind scan progress */
+/*  V3.5.019 fix dvbt lock failed in weak signal */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -159,9 +160,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.18"
-#define DTVDEMOD_VER	"2023/11/1: optimize dvbs blind scan progress"
-#define AMLDTVDEMOD_T2_FW_VER "V1558.20230628"
+#define AMLDTVDEMOD_VER "V3.5.19"
+#define DTVDEMOD_VER	"2023/11/09: fix dvbt lock failed in weak signal"
+#define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENGTH_ATSC (-87)
