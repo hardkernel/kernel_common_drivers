@@ -12,3 +12,4 @@ obj-$(CONFIG_AMLOGIC_USER_FAULT)	+= user_fault.o
 obj-$(CONFIG_AMLOGIC_PIN_LOCKED_FILE)	+= pin_file.o
 obj-$(CONFIG_AMLOGIC_PCIE_DMA_OPS)	+= dma_pcie_mapping.o
 obj-$(CONFIG_AMLOGIC_FAKE_SMMU)		+= aml_smmu.o
+obj-$(CONFIG_AMLOGIC_MIX_ZRAM)		+= mix_zram.o

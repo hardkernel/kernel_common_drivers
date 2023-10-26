@@ -11,6 +11,16 @@ menuconfig AMLOGIC_MEMORY_EXTEND
 		Amlogic memory extend is drivers which extend for memory management
 		functions, can be used for memory debug or other features.
 
+config AMLOGIC_MIX_ZRAM
+	bool "Amlogic mixed zram"
+	depends on AMLOGIC_MEMORY_EXTEND
+	depends on CRYPTO_ZSTD
+	depends on CRYPTO_LZ4
+	default n
+	help
+		Mix compress algorithm of zram. This can get speed benifit of lz4 and
+		compress ratio of zstd.
+
 config AMLOGIC_PAGE_TRACE
 	tristate "Amlogic trace for page allocate"
 	depends on KALLSYMS
