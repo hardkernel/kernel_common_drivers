@@ -7248,6 +7248,17 @@ void vdin_sw_reset(struct vdin_dev_s *devp)
 	else if (is_meson_t3x_cpu())
 		vdin_sw_reset_t3x(devp);
 #endif
+	if (devp->index) {
+		wr_bits(0, VDIN_TOP_MISC, 1, 27, 1); //vdin1
+		wr_bits(0, VDIN_TOP_MISC, 0, 27, 1); //vdin1
+		wr_bits(0, VDIN_TOP_MISC, 1, 30, 1); //wrmif1
+		wr_bits(0, VDIN_TOP_MISC, 0, 30, 1); //wrmif1
+	} else {
+		wr_bits(0, VDIN_TOP_MISC, 1, 26, 1); //vdin0
+		wr_bits(0, VDIN_TOP_MISC, 0, 26, 1); //vdin0
+		wr_bits(0, VDIN_TOP_MISC, 1, 29, 1); //wrmif0
+		wr_bits(0, VDIN_TOP_MISC, 0, 29, 1); //wrmif0
+	}
 }
 
 void vdin_bist(struct vdin_dev_s *devp, unsigned int mode)
