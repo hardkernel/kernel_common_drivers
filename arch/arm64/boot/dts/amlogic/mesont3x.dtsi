@@ -3166,8 +3166,8 @@
 	gpu_opp_table: gpu_opp_table {
 		compatible = "operating-points-v2";
 
-		opp-285 {
-			opp-hz = /bits/ 64 <285714281>;
+		opp-250 {
+			opp-hz = /bits/ 64 <250000000>;
 			opp-microvolt = <1150>;
 		};
 		opp-400 {
@@ -3182,8 +3182,8 @@
 			opp-hz = /bits/ 64 <666666666>;
 			opp-microvolt = <1150>;
 		};
-		opp-852 {
-			opp-hz = /bits/ 64 <852000000>;
+		opp-828 {
+			opp-hz = /bits/ 64 <828000000>;
 			opp-microvolt = <1150>;
 		};
 	};
@@ -4663,8 +4663,8 @@
 		&dvfs400_cfg
 		&dvfs500_cfg
 		&dvfs666_cfg
-		&dvfs852_cfg
-		&dvfs852_cfg>;
+		&dvfs828_cfg
+		&dvfs828_cfg>;
 
 //	reset_cfg:reset_cfg {
 //		reg_level = <0x16>;
