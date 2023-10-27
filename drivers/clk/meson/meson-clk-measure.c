@@ -58,6 +58,7 @@ struct meson_msr {
 static spinlock_t measure_lock;
 static struct meson_msr *glo_meson_msr;
 static unsigned int measure_num;
+struct meson_msr_id *msr_table;
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct meson_msr_id clk_msr_m8[] __initdata = {
@@ -3371,7 +3372,6 @@ DEFINE_SHOW_ATTRIBUTE(clk_msr);
 
 static int clk_msr_summary_show(struct seq_file *s, void *data)
 {
-	struct meson_msr_id *msr_table = s->private;
 	unsigned int precision = 0;
 	int val, i;
 
@@ -3396,6 +3396,19 @@ static int clk_msr_summary_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(clk_msr_summary);
 
+static char *clk_msr_class_devnode(struct device *dev, umode_t *mode)
+{
+	if (mode)
+		*mode = 0444;
+
+	return NULL;
+}
+
+static struct class clk_msr_class = {
+	.name = "measure_summary",
+	.devnode = clk_msr_class_devnode,
+};
+
 static struct regmap_config meson_clk_msr_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -3408,7 +3421,7 @@ static int meson_msr_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct dentry *root, *clks;
 	void __iomem *base;
-	int i;
+	int i, ret;
 	struct meson_msr_id *table;
 	struct meson_msr_data *msr_data;
 
@@ -3431,6 +3444,7 @@ static int meson_msr_probe(struct platform_device *pdev)
 	memcpy(table, priv->data->msr_table,
 	       priv->data->table_size * sizeof(*table));
 	priv->data->msr_table = table;
+	msr_table = table;
 	measure_num = priv->data->table_size;
 
 	/* alloc space for measure data, store the platform data */
@@ -3461,6 +3475,13 @@ static int meson_msr_probe(struct platform_device *pdev)
 
 	debugfs_create_file("measure_summary", 0444, root,
 			    priv->data->msr_table, &clk_msr_summary_fops);
+	ret = class_register(&clk_msr_class);
+		if (ret) {
+			dev_err(&pdev->dev, "Creat clk_msr class failed\n");
+			return ret;
+		}
+	ret = register_chrdev(0, "measure_summary", &clk_msr_summary_fops);
+	device_create(&clk_msr_class, &pdev->dev, MKDEV(ret, 0), NULL, "measure_summary");
 
 	glo_meson_msr = priv;
 
