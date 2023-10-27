@@ -9,6 +9,10 @@
 #include <linux/device.h>
 #include <media/dvb_frontend.h>
 
+#if IS_ENABLED(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND)
+#include <linux/amlogic/pm.h>
+#endif
+
 #define DVB_CFGDEV_BASEMINOR            1
 #define DVB_CFGDEV_COUNT                1
 #define DVB_CFGDEV_IOC_MAGIC             'y'
@@ -76,6 +80,10 @@ struct dvb_extern_device {
 	/* to set config from userspace */
 	struct device cdev;
 	dev_t cfgdevno;
+
+#if IS_ENABLED(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND)
+	struct early_suspend suspend;
+#endif
 };
 
 struct device *aml_get_dvb_extern_dev(void);

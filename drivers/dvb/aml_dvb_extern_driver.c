@@ -23,7 +23,7 @@
 #include "aml_dvb_extern_driver.h"
 
 #define AML_DVB_EXTERN_DEVICE_NAME "aml_dvb_extern"
-#define AML_DVB_EXTERN_VERSION     "V1.20"
+#define AML_DVB_EXTERN_VERSION     "V1.21"
 
 static struct dvb_extern_device *dvb_extern_dev;
 static struct mutex dvb_extern_mutex;
@@ -1310,6 +1310,50 @@ struct device *aml_get_dvb_extern_dev(void)
 	return dvb_extern_dev->dev;
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND)
+static void aml_dvb_early_suspend(struct early_suspend *h)
+{
+	struct dvb_extern_device *dvbdev = (struct dvb_extern_device *)h->param;
+	struct tuner_ops *ttops = NULL;
+	struct demod_ops *dtops = NULL;
+	struct dvb_tuner *tuner = get_dvb_tuners();
+	struct dvb_demod *demod = get_dvb_demods();
+
+	if (IS_ERR_OR_NULL(dvbdev))
+		return;
+
+	list_for_each_entry(ttops, &tuner->list, list) {
+		if (ttops->fe.ops.tuner_ops.suspend)
+			ttops->fe.ops.tuner_ops.suspend(&ttops->fe);
+		else if (ttops->fe.ops.tuner_ops.sleep)
+			ttops->fe.ops.tuner_ops.sleep(&ttops->fe);
+	}
+
+	list_for_each_entry(dtops, &demod->list, list) {
+		if (dtops->fe && dtops->fe->ops.sleep)
+			dtops->fe->ops.sleep(dtops->fe);
+	}
+
+	aml_dvb_extern_set_power(&dvbdev->dvb_power, 0);
+
+	pr_info("%s: OK.\n", __func__);
+}
+
+static void aml_dvb_early_resume(struct early_suspend *h)
+{
+	struct dvb_extern_device *dvbdev = (struct dvb_extern_device *)h->param;
+
+	if (IS_ERR_OR_NULL(dvbdev))
+		return;
+
+	aml_dvb_extern_set_power(&dvbdev->dvb_power, 1);
+
+	schedule_work(&dvbdev->resume_work);
+
+	pr_info("%s: OK.\n", __func__);
+}
+#endif
+
 static int aml_dvb_extern_probe(struct platform_device *pdev)
 {
 	int ret = -1, i = 0;
@@ -1527,6 +1571,14 @@ PROPERTY_DEMOD:
 	INIT_WORK(&dvbdev->resume_work, aml_dvb_extern_resume_work);
 	INIT_WORK(&dvbdev->attach_work.work, aml_dvb_extern_attach_work);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND)
+	dvbdev->suspend.suspend = aml_dvb_early_suspend;
+	dvbdev->suspend.resume = aml_dvb_early_resume;
+	dvbdev->suspend.param = dvbdev;
+
+	register_early_suspend(&dvbdev->suspend);
+#endif
+
 PROPERTY_DONE:
 	dvb_extern_dev = dvbdev;
 
@@ -1567,6 +1619,10 @@ static int aml_dvb_extern_remove(struct platform_device *pdev)
 	class_unregister(&dvbdev->class);
 	if (dvbdev->debug_proc_dir)
 		proc_remove(dvbdev->debug_proc_dir);
+
+#if IS_ENABLED(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND)
+	unregister_early_suspend(&dvbdev->suspend);
+#endif
 
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 0);
 
