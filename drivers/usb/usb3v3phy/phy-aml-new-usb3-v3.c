@@ -20,11 +20,13 @@
 #include <linux/workqueue.h>
 #include <linux/notifier.h>
 #include <linux/amlogic/usbtype.h>
+#include <linux/amlogic/usb-v2-common.h>
 //#include <dt-bindings/power/amlogic,pd.h>
-#include "../phy/phy-aml-new-usb-v2.h"
+//#include "../phy/phy-aml-new-usb-v2.h"
 
 #define HOST_MODE	0
 #define DEVICE_MODE	1
+#define	phy_to_amlusb(x)	container_of((x), struct amlogic_usb_v2, phy)
 
 struct usb_aml_regs_v2 usb_new_aml_regs_v3;
 
@@ -46,7 +48,7 @@ static void amlogic_new_usb3phy_shutdown(struct usb_phy *x)
 	phy->suspend_flag = 1;
 }
 
-static void cr_bus_addr(struct amlogic_usb_v2 *phy_v3, unsigned int addr)
+static void cr_bus_addr_30(struct amlogic_usb_v2 *phy_v3, unsigned int addr)
 {
 	union phy3_r4 phy_r4 = {.d32 = 0};
 	union phy3_r5 phy_r5 = {.d32 = 0};
@@ -76,14 +78,14 @@ static void cr_bus_addr(struct amlogic_usb_v2 *phy_v3, unsigned int addr)
 		time_is_after_jiffies(timeout_jiffies));
 }
 
-static int cr_bus_read(struct amlogic_usb_v2 *phy_v3, unsigned int addr)
+static int cr_bus_read_30(struct amlogic_usb_v2 *phy_v3, unsigned int addr)
 {
 	int data;
 	union phy3_r4 phy_r4 = {.d32 = 0};
 	union phy3_r5 phy_r5 = {.d32 = 0};
 	unsigned long timeout_jiffies;
 
-	cr_bus_addr(phy_v3, addr);
+	cr_bus_addr_30(phy_v3, addr);
 
 	phy_r4.b.phy_cr_read = 0;
 	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
@@ -111,14 +113,14 @@ static int cr_bus_read(struct amlogic_usb_v2 *phy_v3, unsigned int addr)
 	return data;
 }
 
-static void cr_bus_write(struct amlogic_usb_v2 *phy_v3,
+static void cr_bus_write_30(struct amlogic_usb_v2 *phy_v3,
 			 unsigned int addr, unsigned int data)
 {
 	union phy3_r4 phy_r4 = {.d32 = 0};
 	union phy3_r5 phy_r5 = {.d32 = 0};
 	unsigned long timeout_jiffies;
 
-	cr_bus_addr(phy_v3, addr);
+	cr_bus_addr_30(phy_v3, addr);
 
 	phy_r4.b.phy_cr_data_in = data;
 	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
@@ -293,14 +295,14 @@ static void usb3_phy_cr_config_30(struct amlogic_usb_v2 *phy)
 	 * LANE0.TX_ALT_BLOCK.EN_ALT_BUS to enable TX to use alt bus
 	 * mode
 	 */
-	data = cr_bus_read(phy, 0x102d);
+	data = cr_bus_read_30(phy, 0x102d);
 	data |= (1 << 7);
-	cr_bus_write(phy, 0x102D, data);
+	cr_bus_write_30(phy, 0x102D, data);
 
-	data = cr_bus_read(phy, 0x1010);
+	data = cr_bus_read_30(phy, 0x1010);
 	data &= ~0xff0;
 	data |= 0x20;
-	cr_bus_write(phy, 0x1010, data);
+	cr_bus_write_30(phy, 0x1010, data);
 
 	/*
 	 * Fix RX Equalization setting as follows
@@ -309,13 +311,13 @@ static void usb3_phy_cr_config_30(struct amlogic_usb_v2 *phy)
 	 * LANE0.RX_OVRD_IN_HI.RX_EQ set to 3
 	 * LANE0.RX_OVRD_IN_HI.RX_EQ_OVRD set to 1
 	 */
-	data = cr_bus_read(phy, 0x1006);
+	data = cr_bus_read_30(phy, 0x1006);
 	data &= ~(1 << 6);
 	data |= (1 << 7);
 	data &= ~(0x7 << 8);
 	data |= (0x3 << 8);
 	data |= (0x1 << 11);
-	cr_bus_write(phy, 0x1006, data);
+	cr_bus_write_30(phy, 0x1006, data);
 
 	/*
 	 * S	et EQ and TX launch amplitudes as follows
@@ -323,20 +325,20 @@ static void usb3_phy_cr_config_30(struct amlogic_usb_v2 *phy)
 	 * LANE0.TX_OVRD_DRV_LO.AMPLITUDE set to 127
 	 * LANE0.TX_OVRD_DRV_LO.EN set to 1.
 	 */
-	data = cr_bus_read(phy, 0x1002);
+	data = cr_bus_read_30(phy, 0x1002);
 	data &= ~0x3f80;
 	data |= (0x16 << 7);
 	data &= ~0x7f;
 	data |= (0x7f | (1 << 14));
-	cr_bus_write(phy, 0x1002, data);
+	cr_bus_write_30(phy, 0x1002, data);
 
 	/*
 	 * MPLL_LOOP_CTL.PROP_CNTRL
 	 */
-	data = cr_bus_read(phy, 0x30);
+	data = cr_bus_read_30(phy, 0x30);
 	data &= ~(0xf << 4);
 	data |= (0x8 << 4);
-	cr_bus_write(phy, 0x30, data);
+	cr_bus_write_30(phy, 0x30, data);
 	udelay(2);
 }
 
@@ -549,7 +551,7 @@ static int amlogic_new_usb3_v3_probe(struct platform_device *pdev)
 	if (retval < 0)
 		return -EINVAL;
 
-	phy3_base = devm_ioremap_nocache
+	phy3_base = devm_ioremap
 				(&pdev->dev, (resource_size_t)phy3_mem,
 				(unsigned long)phy3_mem_size);
 	if (!phy3_base)
@@ -565,7 +567,7 @@ static int amlogic_new_usb3_v3_probe(struct platform_device *pdev)
 	if (retval < 0)
 		return -EINVAL;
 
-	phy31_base = devm_ioremap_nocache
+	phy31_base = devm_ioremap
 				(&pdev->dev, (resource_size_t)phy31_mem,
 				(unsigned long)phy31_mem_size);
 	if (!phy31_base)
@@ -581,7 +583,7 @@ static int amlogic_new_usb3_v3_probe(struct platform_device *pdev)
 	if (retval < 0)
 		return -EINVAL;
 
-	reset_base = devm_ioremap_nocache
+	reset_base = devm_ioremap
 				(&pdev->dev, (resource_size_t)reset_mem,
 				(unsigned long)reset_mem_size);
 	if (!reset_base)
