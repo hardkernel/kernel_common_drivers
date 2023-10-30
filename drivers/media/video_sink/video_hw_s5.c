@@ -1602,6 +1602,7 @@ static void disable_vd1_slice_blend_s5(struct video_layer_s *layer, u8 slice)
 		layer->vf_ext = NULL;
 	}
 	layer->new_vframe_count = 0;
+	layer->slice_num = 0;
 }
 
 void disable_vd1_blend_s5(struct video_layer_s *layer)
@@ -1658,6 +1659,7 @@ void disable_vd1_blend_s5(struct video_layer_s *layer)
 		layer->vf_ext = NULL;
 	}
 	layer->new_vframe_count = 0;
+	layer->slice_num = 0;
 }
 
 void disable_vd2_blend_s5(struct video_layer_s *layer)
@@ -1705,6 +1707,7 @@ void disable_vd2_blend_s5(struct video_layer_s *layer)
 	last_el_status = 0;
 	need_disable_vd[1] = false;
 	layer->new_vframe_count = 0;
+	layer->slice_num = 0;
 }
 
 static void vpu_module_clk_disable_s5(u32 vpp_index, u32 module, bool async)
@@ -11625,17 +11628,28 @@ void set_video_slice_policy(struct video_layer_s *layer,
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	n2m_setting = frc_get_n2m_setting();
 #endif
-	if (layer->layer_id == 0) {
+	if (layer->layer_id == 0 && vinfo) {
 		/* check output */
-		if (vinfo) {
-			/* output: (4k-8k], input <= 4k */
-			if ((vinfo->width > 4096 && vinfo->height > 2160) &&
-				(src_width <= 4096 && src_height <= 2160)) {
-				pi_en = 1;
-			/* 4k 120hz */
-			} else if (vinfo->width > 1920 && vinfo->height > 1080 &&
-				(vinfo->sync_duration_num /
-			    vinfo->sync_duration_den > 60)) {
+		/* output: (4k-8k], input <= 4k */
+		if ((vinfo->width > 4096 && vinfo->height > 2160) &&
+			(src_width <= 4096 && src_height <= 2160)) {
+			pi_en = 1;
+		/* 4k 120hz */
+		} else if (vinfo->width > 1920 && vinfo->height > 1080 &&
+			(vinfo->sync_duration_num /
+			vinfo->sync_duration_den > 60)) {
+			if (vf->duration < 1600 ||
+				vinfo->sync_duration_num / vinfo->sync_duration_den == 144 ||
+				vinfo->sync_duration_num / vinfo->sync_duration_den == 288) {
+				/* input frame rate > 60(ref vf_rate_table) frc always disable */
+				/* output is 144hz or 288hz frc always disable */
+				slice_num = 2;
+				slice_stable = true;
+				if (is_aisr_enable(layer)) {
+					layer->property_changed = true;
+					layer->aisr_mif_setting.aisr_enable = 0;
+				}
+			} else {
 				/* 4k120hz and frc_n2m_worked && aisr enable 1 slice */
 				if (frc_n2m_is_stable(layer)) {
 					if (is_aisr_enable(layer)) {
@@ -11652,30 +11666,30 @@ void set_video_slice_policy(struct video_layer_s *layer,
 						layer->aisr_mif_setting.aisr_enable = 0;
 					}
 				}
-				if (debug_common_flag & DEBUG_FLAG_COMMON_AMDV)
-					pr_info("%s:dv on=%d\n", __func__, is_amdv_on());
-				if (slice_num == 2 &&
-					video_is_meson_s5_cpu() && is_amdv_enable())
-					vd1s1_vd2_prebld_en = 1;
-				if (vd1s1_vd2_prebld_en != last_vd1s1_vd2_prebld_en)
-					vd_layer[0].property_changed = true;
-				last_vd1s1_vd2_prebld_en = vd1s1_vd2_prebld_en;
-			} else if (vinfo->width > 1920 &&
-				vinfo->height >= 1080 &&
-				(vinfo->sync_duration_num /
-			    vinfo->sync_duration_den > 144)) {
-				slice_num = 2;
-				if (debug_common_flag & DEBUG_FLAG_COMMON_AMDV)
-					pr_info("%s:dv on=%d\n", __func__, is_amdv_on());
-				if (slice_num == 2 &&
-					video_is_meson_s5_cpu() && is_amdv_enable())
-					vd1s1_vd2_prebld_en = 1;
-				if (vd1s1_vd2_prebld_en != last_vd1s1_vd2_prebld_en)
-					vd_layer[0].property_changed = true;
-				last_vd1s1_vd2_prebld_en = vd1s1_vd2_prebld_en;
-			} else {
-				slice_num = 1;
 			}
+			if (debug_common_flag & DEBUG_FLAG_COMMON_AMDV)
+				pr_info("%s:dv on=%d\n", __func__, is_amdv_on());
+			if (slice_num == 2 &&
+				video_is_meson_s5_cpu() && is_amdv_enable())
+				vd1s1_vd2_prebld_en = 1;
+			if (vd1s1_vd2_prebld_en != last_vd1s1_vd2_prebld_en)
+				vd_layer[0].property_changed = true;
+			last_vd1s1_vd2_prebld_en = vd1s1_vd2_prebld_en;
+		} else if (vinfo->width > 1920 &&
+			vinfo->height >= 1080 &&
+			(vinfo->sync_duration_num /
+			vinfo->sync_duration_den > 144)) {
+			slice_num = 2;
+			if (debug_common_flag & DEBUG_FLAG_COMMON_AMDV)
+				pr_info("%s:dv on=%d\n", __func__, is_amdv_on());
+			if (slice_num == 2 &&
+				video_is_meson_s5_cpu() && is_amdv_enable())
+				vd1s1_vd2_prebld_en = 1;
+			if (vd1s1_vd2_prebld_en != last_vd1s1_vd2_prebld_en)
+				vd_layer[0].property_changed = true;
+			last_vd1s1_vd2_prebld_en = vd1s1_vd2_prebld_en;
+		} else {
+			slice_num = 1;
 		}
 		if (src_width > 4096 && src_height > 2160) {
 			/* input: (4k-8k] */
@@ -11683,16 +11697,22 @@ void set_video_slice_policy(struct video_layer_s *layer,
 			vd1s1_vd2_prebld_en = 0;
 		}
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
-		if (n2m_setting == 2 &&
-			slice_num != layer->slice_num) {
-			layer->property_changed = true;
-			if (slice_stable) {
+		if (slice_num != layer->slice_num) {
+			if (slice_num)
+				layer->property_changed = true;
+			if (n2m_setting == 2) {
+				if (slice_stable) {
+					video_prop_status |= VIDEO_PROP_CHANGE_SLICE_NUM;
+					slice_stable = false;
+				}
+			} else {
 				video_prop_status |= VIDEO_PROP_CHANGE_SLICE_NUM;
-				slice_stable = false;
 			}
 			if (debug_flag)
-				pr_info("%s n2m_setting=%d, slice_num=%d-> %d\n",
-					__func__, n2m_setting, layer->slice_num, slice_num);
+				pr_info("%s n2m_setting=%d, slice_num=%d-> %d, video_prop_status=%d\n",
+					__func__, n2m_setting,
+					layer->slice_num, slice_num,
+					video_prop_status);
 		}
 #endif
 		layer->slice_num = slice_num;
