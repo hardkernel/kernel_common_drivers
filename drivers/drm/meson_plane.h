@@ -60,6 +60,7 @@ struct am_osd_plane {
 	u32 dump_size;
 	bool bflg;
 	u32 *receive_palette;
+	int osd_permanent_blank;
 };
 
 struct am_video_plane {

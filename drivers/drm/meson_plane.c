@@ -1192,6 +1192,12 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	plane_info->enable = 1;
+
+	if (osd_plane->osd_permanent_blank) {
+		plane_info->enable = 0;
+		DRM_INFO("osd-%d is forcibly disabled by debug node.\n", osd_plane->plane_index);
+	}
+
 	if (state->crtc)
 		plane_info->crtc_index = state->crtc->index;
 

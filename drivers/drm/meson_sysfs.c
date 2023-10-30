@@ -20,6 +20,10 @@ static const char osd1_group_name[] = "osd1";
 static const char osd2_group_name[] = "osd2";
 static const char osd3_group_name[] = "osd3";
 int osd_index[MESON_MAX_OSDS] = {0, 1, 2, 3};
+static const char crtc0_group_name[] = "crtc0";
+static const char crtc1_group_name[] = "crtc1";
+static const char crtc2_group_name[] = "crtc2";
+int crtc_index[MESON_MAX_POSTBLEND] = {0, 1, 2};
 u32 pages;
 //EXPORT_SYMBOL_GPL(vpu_group_name);
 
@@ -75,60 +79,23 @@ static void am_meson_drm_unmap_phyaddr(u8 *vaddr)
 	vunmap(addr);
 }
 
-static ssize_t vpu_blank_show(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static void parse_param(char *buf_orig, char **parm)
 {
-	ssize_t len = 0;
-	struct drm_minor *minor = dev_get_drvdata(dev);
-	struct drm_crtc *crtc;
-	struct am_meson_crtc *amc;
+	char *ps, *token;
+	unsigned int n = 0;
+	char delim1[3] = " ";
+	char delim2[2] = "\n";
 
-	if (!minor || !minor->dev)
-		return -EINVAL;
-
-	crtc = drm_crtc_from_index(minor->dev, 0);
-	if (!crtc)
-		return -EINVAL;
-
-	amc = to_am_meson_crtc(crtc);
-
-	len += scnprintf(&buf[len], PAGE_SIZE - len, "%s\n",
-			"echo 1 > vpu_blank to blank the osd plane");
-	len += scnprintf(&buf[len], PAGE_SIZE - len, "%s\n",
-			"echo 0 > vpu_blank to unblank the osd plane");
-	len += scnprintf(&buf[len], PAGE_SIZE - len,
-			"blank_enable: %d\n", amc->blank_enable);
-
-	return len;
-}
-
-static ssize_t vpu_blank_store(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t n)
-{
-	struct drm_minor *minor = dev_get_drvdata(dev);
-	struct drm_crtc *crtc;
-	struct am_meson_crtc *amc;
-
-	if (!minor || !minor->dev)
-		return -EINVAL;
-
-	crtc = drm_crtc_from_index(minor->dev, 0);
-	if (!crtc)
-		return -EINVAL;
-
-	amc = to_am_meson_crtc(crtc);
-
-	if (sysfs_streq(buf, "1")) {
-		amc->blank_enable = 1;
-		DRM_INFO("enable the osd blank\n");
-	} else if (sysfs_streq(buf, "0")) {
-		amc->blank_enable = 0;
-		DRM_INFO("disable the osd blank\n");
-	} else {
-		return -EINVAL;
+	ps = buf_orig;
+	strcat(delim1, delim2);
+	while (1) {
+		token = strsep(&ps, delim1);
+		if (!token)
+			break;
+		if (*token == '\0')
+			continue;
+		parm[n++] = token;
 	}
-
-	return n;
 }
 
 static ssize_t debug_show(struct device *dev, struct device_attribute *attr,
@@ -154,25 +121,6 @@ static ssize_t debug_show(struct device *dev, struct device_attribute *attr,
 	}
 
 	return pos;
-}
-
-static void parse_param(char *buf_orig, char **parm)
-{
-	char *ps, *token;
-	unsigned int n = 0;
-	char delim1[3] = " ";
-	char delim2[2] = "\n";
-
-	ps = buf_orig;
-	strcat(delim1, delim2);
-	while (1) {
-		token = strsep(&ps, delim1);
-		if (!token)
-			break;
-		if (*token == '\0')
-			continue;
-		parm[n++] = token;
-	}
 }
 
 static ssize_t debug_store(struct device *dev, struct device_attribute *attr,
@@ -264,11 +212,9 @@ static ssize_t debug_store(struct device *dev, struct device_attribute *attr,
 	return n;
 }
 
-static DEVICE_ATTR_RW(vpu_blank);
 static DEVICE_ATTR_RW(debug);
 
 static struct attribute *vpu_attrs[] = {
-	&dev_attr_vpu_blank.attr,
 	&dev_attr_debug.attr,
 	NULL,
 };
@@ -512,6 +458,78 @@ static ssize_t osd_fbdump_store(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
+static ssize_t osd_blank_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	struct meson_drm *priv;
+	int osd_index = *(int *)attr->private;
+	int pos = 0;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (off > 0)
+		return 0;
+
+	priv = minor->dev->dev_private;
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 1 > enable osd-%d blank\n", *(int *)attr->private);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 0 > disable osd-%d blank\n", *(int *)attr->private);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"osd-%d blank status is %d\n", *(int *)attr->private,
+		priv->osd_planes[osd_index]->osd_permanent_blank);
+
+	return pos;
+}
+
+static ssize_t osd_blank_store(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	int osd_index = *(int *)attr->private;
+	struct meson_drm *priv;
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_atomic_state *state;
+	int err;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (buf[0] != '0' && buf[0] != '1')
+		return -EINVAL;
+
+	priv = minor->dev->dev_private;
+	state = ERR_PTR(-EINVAL);
+
+	if (buf[0] == '1') {
+		priv->osd_planes[osd_index]->osd_permanent_blank = 1;
+		DRM_INFO("osd-%d enable blank\n", osd_index);
+	} else if (buf[0] == '0') {
+		priv->osd_planes[osd_index]->osd_permanent_blank = 0;
+		DRM_INFO("osd-%d disable blank\n", osd_index);
+	} else {
+		return -EINVAL;
+	}
+
+	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
+	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
+	if (IS_ERR(state))
+		return -EFAULT;
+	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
+	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
+	if (IS_ERR(state))
+		return -EFAULT;
+	drm_atomic_state_put(state);
+
+	return count;
+}
+
 static ssize_t state_show(struct file *filp, struct kobject *kobj,
 			 struct bin_attribute *attr, char *buf, loff_t off,
 			 size_t count)
@@ -574,6 +592,89 @@ static ssize_t reg_dump_show(struct file *filp, struct kobject *kobj,
 	return ret;
 }
 
+static ssize_t crtc_blank_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	struct drm_crtc *crtc;
+	struct am_meson_crtc *amc;
+	int crtc_index = *(int *)attr->private;
+	int pos = 0;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	crtc = drm_crtc_from_index(minor->dev, crtc_index);
+	if (!crtc)
+		return -EINVAL;
+
+	amc = to_am_meson_crtc(crtc);
+
+	if (off > 0)
+		return 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 1 > crtc_blank enable crtc-%d blank\n", crtc_index);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 0 > crtc_blank disable crtc-%d blank\n", crtc_index);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"crtc-%d blank status is %d\n", crtc_index,
+		amc->blank_enable);
+
+	return pos;
+}
+
+static ssize_t crtc_blank_store(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	struct drm_crtc *crtc;
+	struct am_meson_crtc *amc;
+	int crtc_index = *(int *)attr->private;
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_atomic_state *state;
+	int err;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	crtc = drm_crtc_from_index(minor->dev, crtc_index);
+	if (!crtc)
+		return -EINVAL;
+
+	amc = to_am_meson_crtc(crtc);
+	state = ERR_PTR(-EINVAL);
+
+	if (buf[0] != '0' && buf[0] != '1')
+		return -EINVAL;
+
+	if (buf[0] == '1') {
+		amc->blank_enable = 1;
+		DRM_INFO("crtc-%d enable blank\n", crtc_index);
+	} else if (buf[0] == '0') {
+		amc->blank_enable = 0;
+		DRM_INFO("crtc-%d disable blank\n", crtc_index);
+	} else {
+		return -EINVAL;
+	}
+
+	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
+	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
+	if (IS_ERR(state))
+		return -EFAULT;
+	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
+	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
+	if (IS_ERR(state))
+		return -EFAULT;
+	drm_atomic_state_put(state);
+
+	return count;
+}
+
 static struct bin_attribute osd0_attr[] = {
 	{
 		.attr.name = "osd_reverse",
@@ -604,6 +705,13 @@ static struct bin_attribute osd0_attr[] = {
 		.write = osd_fbdump_store,
 		.size = 36864000,
 	},
+	{
+		.attr.name = "blank",
+		.attr.mode = 0664,
+		.private = &osd_index[0],
+		.read = osd_blank_show,
+		.write = osd_blank_store,
+	},
 };
 
 static struct bin_attribute *osd0_bin_attrs[] = {
@@ -611,6 +719,7 @@ static struct bin_attribute *osd0_bin_attrs[] = {
 	&osd0_attr[1],
 	&osd0_attr[2],
 	&osd0_attr[3],
+	&osd0_attr[4],
 	NULL,
 };
 
@@ -644,6 +753,13 @@ static struct bin_attribute osd1_attr[] = {
 		.write = osd_fbdump_store,
 		.size = 36864000,
 	},
+	{
+		.attr.name = "blank",
+		.attr.mode = 0664,
+		.private = &osd_index[1],
+		.read = osd_blank_show,
+		.write = osd_blank_store,
+	},
 };
 
 static struct bin_attribute *osd1_bin_attrs[] = {
@@ -651,6 +767,7 @@ static struct bin_attribute *osd1_bin_attrs[] = {
 	&osd1_attr[1],
 	&osd1_attr[2],
 	&osd1_attr[3],
+	&osd1_attr[4],
 	NULL,
 };
 
@@ -684,6 +801,14 @@ static struct bin_attribute osd2_attr[] = {
 		.write = osd_fbdump_store,
 		.size = 36864000,
 	},
+	{
+		.attr.name = "blank",
+		.attr.mode = 0664,
+		.private = &osd_index[2],
+		.read = osd_blank_show,
+		.write = osd_blank_store,
+	},
+
 };
 
 static struct bin_attribute *osd2_bin_attrs[] = {
@@ -691,6 +816,7 @@ static struct bin_attribute *osd2_bin_attrs[] = {
 	&osd2_attr[1],
 	&osd2_attr[2],
 	&osd2_attr[3],
+	&osd2_attr[4],
 	NULL,
 };
 
@@ -724,6 +850,14 @@ static struct bin_attribute osd3_attr[] = {
 		.write = osd_fbdump_store,
 		.size = 36864000,
 	},
+	{
+		.attr.name = "blank",
+		.attr.mode = 0664,
+		.private = &osd_index[3],
+		.read = osd_blank_show,
+		.write = osd_blank_store,
+	},
+
 };
 
 static struct bin_attribute *osd3_bin_attrs[] = {
@@ -731,6 +865,7 @@ static struct bin_attribute *osd3_bin_attrs[] = {
 	&osd3_attr[1],
 	&osd3_attr[2],
 	&osd3_attr[3],
+	&osd3_attr[4],
 	NULL,
 };
 
@@ -750,6 +885,66 @@ static const struct attribute_group osd_attr_group[MESON_MAX_OSDS] = {
 	{
 		.name = osd3_group_name,
 		.bin_attrs = osd3_bin_attrs,
+	},
+};
+
+static struct bin_attribute crtc0_attr[] = {
+	{
+		.attr.name = "blank",
+		.attr.mode = 0664,
+		.private = &crtc_index[0],
+		.read = crtc_blank_show,
+		.write = crtc_blank_store,
+	},
+};
+
+static struct bin_attribute *crtc0_bin_attrs[] = {
+	&crtc0_attr[0],
+	NULL,
+};
+
+static struct bin_attribute crtc1_attr[] = {
+	{
+		.attr.name = "blank",
+		.attr.mode = 0664,
+		.private = &crtc_index[1],
+		.read = crtc_blank_show,
+		.write = crtc_blank_store,
+	},
+};
+
+static struct bin_attribute *crtc1_bin_attrs[] = {
+	&crtc1_attr[0],
+	NULL,
+};
+
+static struct bin_attribute crtc2_attr[] = {
+	{
+		.attr.name = "blank",
+		.attr.mode = 0664,
+		.private = &crtc_index[2],
+		.read = crtc_blank_show,
+		.write = crtc_blank_store,
+	},
+};
+
+static struct bin_attribute *crtc2_bin_attrs[] = {
+	&crtc2_attr[0],
+	NULL,
+};
+
+static const struct attribute_group crtc_attr_group[MESON_MAX_POSTBLEND] = {
+	{
+		.name = crtc0_group_name,
+		.bin_attrs = crtc0_bin_attrs,
+	},
+	{
+		.name = crtc1_group_name,
+		.bin_attrs = crtc1_bin_attrs,
+	},
+	{
+		.name = crtc2_group_name,
+		.bin_attrs = crtc2_bin_attrs,
 	},
 };
 
@@ -778,13 +973,15 @@ int meson_drm_sysfs_register(struct drm_device *drm_dev)
 
 	for (i = 0; i < priv->pipeline->num_osds; i++)
 		rc = sysfs_create_group(&dev->kobj, &osd_attr_group[i]);
+	for (i = 0; i < priv->pipeline->num_postblend; i++)
+		rc = sysfs_create_group(&dev->kobj, &crtc_attr_group[i]);
 
 	return rc;
 }
 
 void meson_drm_sysfs_unregister(struct drm_device *drm_dev)
 {
-	int rc, i;
+	int i;
 	struct meson_drm *priv = drm_dev->dev_private;
 	struct device *dev = drm_dev->primary->kdev;
 
@@ -793,7 +990,8 @@ void meson_drm_sysfs_unregister(struct drm_device *drm_dev)
 	sysfs_remove_bin_file(&dev->kobj, &reg_dump_attr);
 
 	for (i = 0; i < priv->pipeline->num_osds; i++)
-		rc = sysfs_create_group(&dev->kobj, &osd_attr_group[i]);
-
+		sysfs_remove_group(&dev->kobj, &osd_attr_group[i]);
+	for (i = 0; i < priv->pipeline->num_postblend; i++)
+		sysfs_remove_group(&dev->kobj, &crtc_attr_group[i]);
 }
 
