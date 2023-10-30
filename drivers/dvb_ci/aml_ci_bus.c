@@ -27,7 +27,7 @@
 //gpio irq is can used.
 //
 static struct aml_ci_bus ci_bus;
-static int aml_ci_bus_debug = 1;
+static int aml_ci_bus_debug;
 static int aml_ci_bus_time = 500;
 static int aml_ci_bus_set_delay;
 
