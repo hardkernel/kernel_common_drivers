@@ -820,7 +820,8 @@ void hdmirx_wr_cor(u32 addr, u8 data, u8 port)
 		dev_offset = rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
 	if (rx_info.chip_id >= CHIP_ID_T3X) {
 		if ((addr >= 0x1800 && addr <= 0x1bff) ||
-			(addr >= 0x1400 && addr <= 0x14ff)) {
+			(addr >= 0x1400 && addr <= 0x14ff) ||
+			addr == 0x1c48 || addr == 0x1c65 || addr == 0x1c4d) {
 			;//todo rd vp_core & audio
 			if (rx_info.main_port == port)
 				dev_offset -= 0x1000;
@@ -4362,8 +4363,13 @@ void hdmirx_hw_probe(void)
 
 	if (rx_info.chip_id < CHIP_ID_T7)
 		hdmirx_wr_top(TOP_MEM_PD, 0, port);
-	if (rx_info.chip_id == CHIP_ID_T3X)
+	if (rx_info.chip_id == CHIP_ID_T3X) {
 		rx_pwrcntl_mem_pd_cfg();
+		rx_cor_reset_t3x(E_PORT0);
+		rx_cor_reset_t3x(E_PORT1);
+		rx_cor_reset_t3x(E_PORT2);
+		rx_cor_reset_t3x(E_PORT3);
+	}
 	hdmirx_top_irq_en(0, 0, 0);
 	hdmirx_top_irq_en(0, 0, 1);
 	hdmirx_top_irq_en(0, 0, 2);
@@ -5512,6 +5518,7 @@ void rx_clkmsr_handler(struct work_struct *work)
 					fpll_clk_sel ?
 					meson_clk_measure(9) :
 					meson_clk_measure_with_precision(9, clk_msr_param);
+					rx[E_PORT2].clk.p_clk = p_clk;
 				} else {
 					rx[E_PORT2].clk.fpll_clk = fpll_clk_sel ?
 						meson_clk_measure(9) :
@@ -5535,6 +5542,7 @@ void rx_clkmsr_handler(struct work_struct *work)
 						meson_clk_measure_with_precision(41, 32);
 					rx[E_PORT3].clk.tmds_clk =
 						meson_clk_measure_with_precision(46, 32);
+					rx[E_PORT3].clk.p_clk = p_clk;
 				} else {
 					rx[E_PORT3].clk.fpll_clk = fpll_clk_sel ?
 						meson_clk_measure(11) :
@@ -7104,35 +7112,90 @@ void rx_set_color_bar(bool en, u32 lvl, u8 port)
 {
 	int data32;
 
-	data32 = 0;
-	data32 |= (en << 3);//reg_px1_bist2vpcout
-	data32 |= (0 << 2);//reg_px1_bist2vpcin_en
-	data32 |= (0 << 1);//reg_px1_bist_in_rpt_px1
-	data32 |= (0 << 0);//reg_px1_bist_in_vpc_sel
-	hdmirx_wr_cor(PXL_BIST_CTRL_PWD_IVCRX, data32, port);
-	data32 = 0;
-	data32 |= (1 << 1);//bist reset
-	hdmirx_wr_cor(BIST_CTRL_PBIST_IVCRX, data32, port);
-	data32 = 0;
-	data32 |= (1 << 4);//start bist
-	data32 |= (1 << 3);//run continuously
-	data32 |= (1 << 2);// stpg set
-	data32 |= (0 << 1);//bist reset
-	data32 |= (1 << 0);//bist enable
-	hdmirx_wr_cor(BIST_CTRL_PBIST_IVCRX, data32, port);
-	data32 = 0;
-	data32 |= (1 << 5);//stpg use external or pbist timing
-	data32 |= (0 << 4);//stpg inv vsync or not inv
-	data32 |= (0 << 3);//stpg inv hsync or not inv
-	data32 |= (0 << 2);//PGEN out or STPG out
-	data32 |= (0 << 1);//inv vsync or not inv
-	data32 |= (0 << 0);//inv hsync or not inv
-	hdmirx_wr_cor(BIST_CTRL2_PBIST_IVCRX, data32, port);
-	data32 = 0;
-	data32 |= (lvl << 4);//reg_stpg_sel
-	data32 |= (0 << 3);//de follow tmds_de for stpg
-	data32 |= (5 << 0);//resample mode pixel repeat
-	hdmirx_wr_cor(BIST_VIDEO_MODE_PBIST_IVCRX, data32, port);
+	if (rx_info.chip_id == CHIP_ID_T3X) {
+		if (en) {
+			hdmirx_wr_top_common_1(TOP_VID_CNTL2, 0);
+			data32 = 0;
+			data32 |= (1 << 2);
+			data32 |= (0 << 1);
+			data32 |= (0 << 0);
+			hdmirx_wr_top_common_1(HDMIRX_TOP_PXL_BIST, data32);
+
+			data32 = 0;
+			data32 |= (1 << 1);
+			hdmirx_wr_cor(BIST_CTRL_PBIST_IVCRX, data32, port);
+
+			data32 = 0;
+			data32 |= (1 << 4);//start bist
+			data32 |= (1 << 3);//run continuously
+			data32 |= (1 << 2);// stpg set
+			data32 |= (0 << 1);//bist reset
+			data32 |= (1 << 0);//bist enable
+			hdmirx_wr_cor(BIST_CTRL_PBIST_IVCRX, data32, port);
+
+			data32 = 0;
+			data32 |= (1 << 5);//stpg use external or pbist timing
+			data32 |= (0 << 4);//stpg inv vsync or not inv
+			data32 |= (0 << 3);//stpg inv hsync or not inv
+			data32 |= (0 << 2);//PGEN out or STPG out
+			data32 |= (0 << 1);//inv vsync or not inv
+			data32 |= (0 << 0);//inv hsync or not inv
+			hdmirx_wr_cor(BIST_CTRL2_PBIST_IVCRX, data32, port);
+
+			data32 = 0;
+			data32 |= (lvl << 4);//reg_stpg_sel
+			data32 |= (0 << 3);//de follow tmds_de for stpg
+			data32 |= (5 << 0);//resample mode pixel repeat
+			hdmirx_wr_cor(BIST_VIDEO_MODE_PBIST_IVCRX, data32, port);
+		} else {
+			data32 = 0;
+			data32 |= (0 << 2);
+			data32 |= (0 << 1);
+			data32 |= (0 << 0);
+			hdmirx_wr_top_common_1(HDMIRX_TOP_PXL_BIST, data32);
+			data32 = 0;
+			data32 |= 0	<< 20;
+			data32 |= 0	<< 8;
+			data32 |= 0x0a	<< 0;
+			hdmirx_wr_top_common(TOP_VID_CNTL2, data32);//to do
+			if (port == rx_info.main_port) {
+				if (rx[port].cur.vactive >= 2100 || rx[port].cur.hactive >= 3800)
+					hdmirx_wr_bits_top_common_1(TOP_VID_CNTL2, _BIT(31), 1);
+				else
+					hdmirx_wr_bits_top_common_1(TOP_VID_CNTL2, _BIT(31), 0);
+			}
+		}
+	} else {
+		data32 = 0;
+		data32 |= (en << 3);//reg_px1_bist2vpcout
+		data32 |= (0 << 2);//reg_px1_bist2vpcin_en
+		data32 |= (0 << 1);//reg_px1_bist_in_rpt_px1
+		data32 |= (0 << 0);//reg_px1_bist_in_vpc_sel
+		hdmirx_wr_cor(PXL_BIST_CTRL_PWD_IVCRX, data32, port);
+		data32 = 0;
+		data32 |= (1 << 1);//bist reset
+		hdmirx_wr_cor(BIST_CTRL_PBIST_IVCRX, data32, port);
+		data32 = 0;
+		data32 |= (1 << 4);//start bist
+		data32 |= (1 << 3);//run continuously
+		data32 |= (1 << 2);// stpg set
+		data32 |= (0 << 1);//bist reset
+		data32 |= (1 << 0);//bist enable
+		hdmirx_wr_cor(BIST_CTRL_PBIST_IVCRX, data32, port);
+		data32 = 0;
+		data32 |= (1 << 5);//stpg use external or pbist timing
+		data32 |= (0 << 4);//stpg inv vsync or not inv
+		data32 |= (0 << 3);//stpg inv hsync or not inv
+		data32 |= (0 << 2);//PGEN out or STPG out
+		data32 |= (0 << 1);//inv vsync or not inv
+		data32 |= (0 << 0);//inv hsync or not inv
+		hdmirx_wr_cor(BIST_CTRL2_PBIST_IVCRX, data32, port);
+		data32 = 0;
+		data32 |= (lvl << 4);//reg_stpg_sel
+		data32 |= (0 << 3);//de follow tmds_de for stpg
+		data32 |= (5 << 0);//resample mode pixel repeat
+		hdmirx_wr_cor(BIST_VIDEO_MODE_PBIST_IVCRX, data32, port);
+	}
 }
 
 u32 rx_get_ecc_pkt_cnt(u8 port)

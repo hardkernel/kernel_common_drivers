@@ -5907,3 +5907,11 @@ void hdmirx_vga_gain_tuning(u8 port)
 		rx_pr("vga tuning done\n");
 }
 
+void rx_cor_reset_t3x(u8 port)
+{
+	rx_pr("cor reset\n");
+	hdmirx_wr_top(TOP_SW_RESET, 1, port);
+	udelay(1);
+	hdmirx_wr_top(TOP_SW_RESET, 0, port);
+}
+

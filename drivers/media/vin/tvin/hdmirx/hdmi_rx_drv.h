@@ -57,7 +57,8 @@
 //2023.10.07 CTS2-79 for IP2.0
 //2023.10.11 increase interval time of HPD low
 //2023.10.27 hdmirx device vendor and product
-#define RX_VER0 "ver.2023/10/27"
+//2023.11.3 add bist for debug
+#define RX_VER0 "ver.2023/11/03"
 
 
 /*print type*/

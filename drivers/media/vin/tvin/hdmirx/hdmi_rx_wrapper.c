@@ -3937,11 +3937,11 @@ void rx_get_global_variable(const char *buf)
 	pr_var(hdcp_22_en, i++);
 	pr_var(phy_term_lel_t3x_21, i++);
 	pr_var(flt_ready_max, i++);
-	pr_var(frl_debug_en, i++);
 	pr_var(vpp_mute_cnt, i++);
 	pr_var(gcp_mute_cnt, i++);
 	pr_var(fps_unready_max, i++);
 	pr_var(clk_msr_param, i++);
+	pr_var(frl_debug_en, i++);
 }
 
 bool str_cmp(unsigned char *buff, unsigned char *str)
@@ -4514,9 +4514,6 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(flt_ready_max),
 		&flt_ready_max, value))
 		return pr_var(flt_ready_max, index);
-	if (set_pr_var(tmpbuf, var_to_str(frl_debug_en),
-		&frl_debug_en, value))
-		return pr_var(frl_debug_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(phy_term_lel_t3x_21),
 		&phy_term_lel_t3x_21, value))
 		return pr_var(phy_term_lel_t3x_21, index);
@@ -4535,6 +4532,9 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(fpll_clk_sel),
 		&fpll_clk_sel, value))
 		return pr_var(fpll_clk_sel, index);
+	if (set_pr_var(tmpbuf, var_to_str(frl_debug_en),
+		&frl_debug_en, value))
+		return pr_var(frl_debug_en, index);
 	return 0;
 }
 
@@ -4899,10 +4899,9 @@ char *fsm_st[] = {
 	"FSM_INIT",
 	"FSM_HPD_LOW",
 	"FSM_HPD_HIGH",
+	"FSM_COR_RST",
 	"FSM_FRL_FLT_READY",
 	"FLT_RX_LTS_3",
-	"FLT_RX_LTS_3_PHY_INIT",
-	"FLT_RX_LTS_3_LPT",
 	"FLT_RX_LTS_P",
 	"FSM_FRL_TRN",
 	"FSM_WAIT_FRL_TRN_DONE",
@@ -6473,6 +6472,10 @@ void rx_port2_main_state_machine(void)
 		rx[port].phy.cablesel = 0;
 		//set_scdc_cfg(0, 1, port);
 		/* rx[port].hdcp.hdcp_version = HDCP_VER_NONE; */
+		rx[port].state = FSM_COR_RESET;
+		break;
+	case FSM_COR_RESET:
+		rx_cor_reset_t3x(port);
 		rx[port].state = FSM_FRL_FLT_READY;
 		break;
 	case FSM_FRL_FLT_READY:
@@ -6812,7 +6815,10 @@ void rx_port2_main_state_machine(void)
 			//rx_sw_reset(2);
 			hdmirx_top_irq_en(0, 0, port);
 			hdmirx_output_en(false);
-			rx[port].state = FSM_FRL_FLT_READY;
+			if (frl_debug_en)
+				rx[port].state = FSM_COR_RESET;
+			else
+				rx[port].state = FSM_FRL_FLT_READY;
 			rx[port].var.vic_check_en = false;
 			rx[port].skip = 0;
 			rx[port].var.mute_cnt = 0;
@@ -6841,7 +6847,10 @@ void rx_port2_main_state_machine(void)
 				//rx_sw_reset(2, port);
 				hdmirx_top_irq_en(0, 0, port);
 				hdmirx_output_en(false);
-				rx[port].state = FSM_FRL_FLT_READY;
+				if (frl_debug_en)
+					rx[port].state = FSM_COR_RESET;
+				else
+					rx[port].state = FSM_FRL_FLT_READY;
 				rx[port].var.vic_check_en = false;
 				rx[port].skip = 0;
 				rx[port].var.mute_cnt = 0;
@@ -7017,6 +7026,10 @@ void rx_port3_main_state_machine(void)
 		//set_scdc_cfg(0, 1, port);
 		/* rx[port].hdcp.hdcp_version = HDCP_VER_NONE; */
 		rx[port].var.flt_ready_cnt = 0;
+		rx[port].state = FSM_COR_RESET;
+		break;
+	case FSM_COR_RESET:
+		rx_cor_reset_t3x(port);
 		rx[port].state = FSM_FRL_FLT_READY;
 		break;
 	case FSM_FRL_FLT_READY:
@@ -7355,7 +7368,10 @@ void rx_port3_main_state_machine(void)
 			//rx_sw_reset(2);
 			hdmirx_top_irq_en(0, 0, port);
 			hdmirx_output_en(false);
-			rx[port].state = FSM_FRL_FLT_READY;
+			if (frl_debug_en)
+				rx[port].state = FSM_COR_RESET;
+			else
+				rx[port].state = FSM_FRL_FLT_READY;
 			rx[port].var.vic_check_en = false;
 			rx[port].skip = 0;
 			rx[port].var.mute_cnt = 0;
@@ -7384,7 +7400,10 @@ void rx_port3_main_state_machine(void)
 				//rx_sw_reset(2, port);
 				hdmirx_top_irq_en(0, 0, port);
 				hdmirx_output_en(false);
-				rx[port].state = FSM_FRL_FLT_READY;
+				if (frl_debug_en)
+					rx[port].state = FSM_COR_RESET;
+				else
+					rx[port].state = FSM_FRL_FLT_READY;
 				rx[port].var.vic_check_en = false;
 				rx[port].skip = 0;
 				rx[port].var.mute_cnt = 0;
@@ -7926,6 +7945,10 @@ int hdmirx_debug(const char *buf, int size)
 			rx_pr(" hdmirx phy init 8bit\n");
 			hdmirx_phy_init(port);
 		} else if (tmpbuf[5] == '3') {
+			rx_pr("cor reset\n");
+			hdmirx_wr_top(TOP_SW_RESET, 1, port);
+			udelay(1);
+			hdmirx_wr_top(TOP_SW_RESET, 0, port);
 		} else if (tmpbuf[5] == '4') {
 			rx_pr(" edid update\n");
 			hdmi_rx_top_edid_update();
@@ -8070,12 +8093,15 @@ int hdmirx_debug(const char *buf, int size)
 		else
 			set_video_mute(HDMI_RX_MUTE_SET, true);
 	} else if (strncmp(tmpbuf, "bist", 4) == 0) {
-		if (tmpbuf[4] == '1')
+		if (tmpbuf[4] == '1') {
 			rx_set_color_bar(true, tmpbuf[5] - '0', port);
-		else if (tmpbuf[4] == '0')
+			//hdmirx_set_video_mute(1, port);
+		} else if (tmpbuf[4] == '0') {
 			rx_set_color_bar(false, tmpbuf[5] - '0', port);
-		else
+			//hdmirx_set_video_mute(0, port);
+		} else {
 			rx_phy_short_bist(port);
+		}
 	} else if (strncmp(tmpbuf, "eye", 3) == 0) {
 		sm_pause = 1;
 		aml_eq_eye_monitor(port);

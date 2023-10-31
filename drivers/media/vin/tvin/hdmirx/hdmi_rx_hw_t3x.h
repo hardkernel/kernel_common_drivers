@@ -219,6 +219,7 @@ void aml_phy_power_off_t3x_port0(void);
 void aml_phy_power_off_t3x_port1(void);
 void aml_phy_power_off_t3x_port2(void);
 void aml_phy_power_off_t3x_port3(void);
+void rx_cor_reset_t3x(u8 port);
 
 //void reset_pcs(void);
 
