@@ -3,6 +3,7 @@ RAMDISK_MODULES_LOAD_LIST=(
 	amlogic-uart
 	amlogic-hwspinlock
 	amlogic-gkitool
+	amlogic-cpuinfo
 	amlogic-memory-debug
 	amlogic-secmon
 	amlogic-clk
@@ -16,7 +17,6 @@ RAMDISK_MODULES_LOAD_LIST=(
 	gpio-regulator.ko
 	amlogic-reset
 	amlogic-power
-	amlogic-cpuinfo
 	amlogic-cpufreq
 	amlogic-efuse-unifykey
 	amlogic-mmc
