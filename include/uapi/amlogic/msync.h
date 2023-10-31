@@ -24,7 +24,7 @@ struct pts_tri {
 	uint32_t wall_clock;
 	uint32_t pts;
 	uint32_t delay;
-	uint32_t mono_ts;
+	uint64_t mono_ts;
 };
 
 struct pcr_pair {

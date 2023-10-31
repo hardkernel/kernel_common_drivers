@@ -26,6 +26,9 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/major.h>
 #include <uapi/amlogic/msync.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_MINFO
+#include <uapi/amlogic/media_info.h>
+#endif
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_MSYNC
 #include <trace/events/meson_atrace.h>
 #include <linux/compat.h>
@@ -35,7 +38,7 @@
 #define DEFAULT_WALL_ADJ_THRES (UNIT90K / 10) //100ms
 #define MAX_SESSION_NUM 4
 #define CHECK_INTERVAL ((HZ / 10) * 3) //300ms
-#define WAIT_INTERVAL (2 * (HZ)) //2s
+#define WAIT_INTERVAL (2000) //2s
 #define TRANSIT_INTERVAL (HZ) //1s
 #define DISC_THRE_MIN (UNIT90K / 3)
 #define DISC_THRE_MAX (UNIT90K * 20)
@@ -160,6 +163,7 @@ struct sync_session {
 	struct delayed_work transit_work;
 	bool audio_change_work_on;
 	struct delayed_work audio_change_work;
+	/* async audio start */
 	bool start_posted;
 	bool v_timeout;
 
@@ -173,6 +177,7 @@ struct sync_session {
 	u64 d_vsync_last;
 	char atrace_v[8];
 	char atrace_a[8];
+	int sync_status_cnt;
 
 	/* audio disc recovery */
 	int audio_drop_cnt;
@@ -192,6 +197,10 @@ struct msync {
 
 	/* callback for vout_register_client() */
 	struct notifier_block msync_notifier;
+#ifdef CONFIG_AMLOGIC_MEDIA_MINFO
+	/* callback from minfo */
+	struct notifier_block msync_minfo_notifier;
+#endif
 	/* ready to receive vsync */
 	bool ready;
 
@@ -214,6 +223,7 @@ enum {
 	LOG_INFO = 2,
 	LOG_DEBUG = 3,
 	LOG_TRACE = 4,
+	LOG_AVSYNC = 5,
 };
 
 #define msync_dbg(level, x...) \
@@ -223,7 +233,7 @@ enum {
 	} while (0)
 
 static struct msync sync;
-static int log_level;
+static int log_level = LOG_INFO;
 static void pcr_set(struct sync_session *session);
 static void start_transit_work(struct sync_session *session);
 
@@ -358,6 +368,22 @@ static int msync_notify_callback(struct notifier_block *block,
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_MINFO
+static int minfo_notify_callback(struct notifier_block *block,
+		unsigned long cmd, void *para)
+{
+	switch (cmd) {
+	case 0:
+		msync_dbg(LOG_INFO, "msync %d render delay %s", __LINE__, (char *)para);
+		break;
+	default:
+		msync_dbg(LOG_ERR, "msync %d invalid cmd", __LINE__);
+		break;
+	}
+	return 0;
+}
+#endif
+
 static unsigned int session_poll(struct file *file, poll_table *wait_table)
 {
 	struct sync_session *session = file->private_data;
@@ -374,7 +400,8 @@ static void wakeup_poll(struct sync_session *session, u32 flag)
 		session->event_pending |= WAKE_V;
 	if (session->a_active && (flag & WAKE_A))
 		session->event_pending |= WAKE_A;
-	wake_up_interruptible(&session->poll_wait);
+	if (session->event_pending)
+		wake_up_interruptible(&session->poll_wait);
 }
 
 static void transit_work_func(struct work_struct *work)
@@ -433,6 +460,7 @@ static void wait_work_func(struct work_struct *work)
 			!session->start_posted) {
 		msync_dbg(LOG_DEBUG, "[%d]start posted\n", session->id);
 		session->start_posted = true;
+		session->stat = AVS_STAT_STARTED;
 		wake = true;
 	}
 
@@ -457,8 +485,7 @@ static void audio_change_work_func(struct work_struct *work)
 		mutex_unlock(&session->session_mutex);
 		return;
 	}
-	if (session->start_policy.policy == AMSYNC_START_ALIGN &&
-			!session->start_posted) {
+	if (!session->start_posted) {
 		session->start_posted = true;
 		session->stat = AVS_STAT_STARTED;
 		msync_dbg(LOG_WARN, "[%d] audio allow start\n",
@@ -710,6 +737,10 @@ static void session_video_start(struct sync_session *session, u32 pts)
 			if ((int)(session->first_apts.pts - pts) > 900) {
 				u32 delay = (session->first_apts.pts - pts) / 90;
 
+				if (session->start_policy.timeout != -1 &&
+						delay > session->start_policy.timeout)
+					delay = session->start_policy.timeout;
+
 				msync_dbg(LOG_INFO,
 					"[%d]%d video start %u ad %u\n",
 					session->id, __LINE__, pts, delay);
@@ -724,6 +755,7 @@ static void session_video_start(struct sync_session *session, u32 pts)
 				cancel_delayed_work_sync(&session->wait_work);
 				session->wait_work_on = false;
 				session->start_posted = true;
+				session->stat = AVS_STAT_STARTED;
 				wakeup = true;
 				msync_dbg(LOG_INFO, "[%d]%d video start %u\n",
 					session->id, __LINE__, pts);
@@ -803,8 +835,8 @@ static u32 session_audio_start(struct sync_session *session,
 	mutex_lock(&session->session_mutex);
 	if (session->audio_switching) {
 		update_f_apts(session, pts);
-		if (session->wall_clock > pts ||
-		    session->start_policy.policy != AMSYNC_START_ALIGN) {
+		if ((int)(session->wall_clock - pts) >= 0 ||
+				session->start_policy.policy != AMSYNC_START_ALIGN) {
 			/* audio start immediately pts to small */
 			/* (need drop) or no wait */
 			session->stat = AVS_STAT_STARTED;
@@ -812,15 +844,20 @@ static u32 session_audio_start(struct sync_session *session,
 				"[%d]%d audio immediate start %u clock %u\n",
 				session->id, __LINE__, pts,
 				session->wall_clock);
-			if (session->start_policy.policy == AMSYNC_START_ALIGN &&
-					!session->start_posted) {
+			if (!session->start_posted) {
 				session->start_posted = true;
+				session->stat = AVS_STAT_STARTED;
 				wakeup = true;
 			}
 		} else if (session->start_policy.policy == AMSYNC_START_ALIGN) {
 			// normal case, wait audio start point
-			u32 diff_ms =  (pts - session->wall_clock) / 90;
-			u32 delay_jiffies = msecs_to_jiffies(diff_ms);
+			u32 diff_ms =  (int)(pts - session->wall_clock) / 90;
+			u32 delay_jiffies;
+
+			if (session->start_policy.timeout != -1 &&
+					diff_ms > jiffies_to_msecs(session->start_policy.timeout))
+				diff_ms = session->start_policy.timeout;
+			delay_jiffies = msecs_to_jiffies(diff_ms);
 
 			msync_dbg(LOG_INFO,
 				"[%d]%d audio start %u def %u ms clock %u\n",
@@ -850,7 +887,7 @@ static u32 session_audio_start(struct sync_session *session,
 				cancel_delayed_work_sync(&session->wait_work);
 			queue_delayed_work(session->wq,
 				&session->wait_work,
-				session->start_policy.timeout);
+				msecs_to_jiffies(session->start_policy.timeout));
 			session->wait_work_on = true;
 			session->stat = AVS_STAT_STARTING;
 			ret = AVS_START_ASYNC;
@@ -865,25 +902,24 @@ static u32 session_audio_start(struct sync_session *session,
 						"[%d]%d audio start %u\n",
 						session->id, __LINE__, pts);
 					session->clock_start = true;
-					session->start_posted = true;
 					session->stat = AVS_STAT_STARTED;
-					wakeup = true;
 					goto exit;
 				}
-				/* use video as start, delay audio start */
+				/* use video as start, audio will adjust wall on first PTS */
 				delay = (pts - vpts) / 90;
+				if (session->start_policy.timeout != -1 &&
+						delay > session->start_policy.timeout) {
+					msync_dbg(LOG_WARN,
+							"[%d]%d audio start %u late then video %ums\n",
+							session->id, __LINE__, pts, delay);
+				}
+
 				msync_dbg(LOG_INFO,
 					"[%d]%d audio start %u deferred %ums\n",
 					session->id, __LINE__, pts, delay);
 				session_set_wall_clock(session, vpts);
 				session->clock_start = true;
-				if (session->wait_work_on)
-					cancel_delayed_work_sync(&session->wait_work);
-				queue_delayed_work(session->wq,
-					&session->wait_work,
-					msecs_to_jiffies(delay));
-				session->wait_work_on = true;
-				session->stat = AVS_STAT_STARTING;
+				session->stat = AVS_STAT_STARTED;
 			} else {
 				session->clock_start = true;
 				session->stat = AVS_STAT_STARTED;
@@ -973,6 +1009,31 @@ exit:
 	return ret;
 }
 
+static void session_stop_audio_wait(struct sync_session *session)
+{
+	mutex_lock(&session->session_mutex);
+	if (session->start_policy.policy != AMSYNC_START_ALIGN ||
+		session->clock_start)
+		goto exit;
+	if (session->wait_work_on) {
+		cancel_delayed_work_sync(&session->wait_work);
+		session->wait_work_on = false;
+		msync_dbg(LOG_DEBUG, "[%d]stop audio wait\n", session->id);
+	} else {
+		goto exit;
+	}
+	if (!session->a_active)
+		goto exit;
+	session->a_active = false;
+	mutex_unlock(&session->session_mutex);
+
+	session->event_pending |= WAKE_A;
+	wake_up_interruptible(&session->poll_wait);
+	return;
+exit:
+	mutex_unlock(&session->session_mutex);
+}
+
 static void session_pause(struct sync_session *session, bool pause)
 {
 	mutex_lock(&session->session_mutex);
@@ -990,12 +1051,14 @@ static void session_pause(struct sync_session *session, bool pause)
 			session->stat = AVS_STAT_PAUSED;
 		else
 			session->stat = AVS_STAT_STARTED;
+		session->d_vsync_last  = -1;
 	}
 	mutex_unlock(&session->session_mutex);
 }
 
 static void session_video_stop(struct sync_session *session)
 {
+	bool wakeup = true;
 	session->v_active = false;
 	update_f_vpts(session, AVS_INVALID_PTS);
 
@@ -1004,7 +1067,9 @@ static void session_video_stop(struct sync_session *session)
 		session->clock_start = false;
 		session->start_posted = false;
 		session->v_timeout = false;
+		session->event_pending = 0;
 		session->stat = AVS_STAT_INIT;
+		wakeup = false;
 		msync_dbg(LOG_INFO, "[%d]%s clock stop\n",
 			session->id, __func__);
 	} else if (LIVE_MODE(session->mode)) {
@@ -1029,11 +1094,13 @@ static void session_video_stop(struct sync_session *session)
 			div64_u64((u64)jiffies * UNIT90K, HZ);
 	}
 	mutex_unlock(&session->session_mutex);
-	wakeup_poll(session, WAKE_A);
+	if (wakeup)
+		wakeup_poll(session, WAKE_A);
 }
 
 static void session_audio_stop(struct sync_session *session)
 {
+	bool wakeup = true;
 	session->a_active = false;
 	session->audio_drop_cnt = 0;
 	update_f_apts(session, AVS_INVALID_PTS);
@@ -1043,7 +1110,9 @@ static void session_audio_stop(struct sync_session *session)
 		session->clock_start = false;
 		session->start_posted = false;
 		session->v_timeout = false;
+		session->event_pending = 0;
 		session->stat = AVS_STAT_INIT;
+		wakeup = false;
 		msync_dbg(LOG_INFO, "[%d]%d clock stop\n",
 			session->id, __LINE__);
 	} else if (session->audio_switching) {
@@ -1052,6 +1121,8 @@ static void session_audio_stop(struct sync_session *session)
 			cancel_delayed_work_sync(&session->audio_change_work);
 			session->audio_change_work_on = false;
 		}
+		wakeup = false;
+		session->event_pending &= ~SRC_A;
 		msync_dbg(LOG_INFO, "[%d]%s audio switching stop audio\n",
 				session->id, __func__);
 	} else if (LIVE_MODE(session->mode)) {
@@ -1072,7 +1143,8 @@ static void session_audio_stop(struct sync_session *session)
 		session->last_check_apts_cnt = 0;
 	}
 	mutex_unlock(&session->session_mutex);
-	wakeup_poll(session, WAKE_V);
+	if (wakeup)
+		wakeup_poll(session, WAKE_V);
 }
 
 static void session_video_disc_iptv(struct sync_session *session, u32 pts)
@@ -1244,7 +1316,7 @@ static void session_update_apts(struct sync_session *session)
 			session->wall_adj_thres) {
 			unsigned long flags;
 
-			if (session->rate != 1000) {
+			if (session->audio_switching) {
 				msync_dbg(LOG_DEBUG,
 					"[%d]ignore reset %u --> %u\n",
 					session->id, session->wall_clock, pts);
@@ -1274,7 +1346,7 @@ static void pcr_check(struct sync_session *session)
 	u32 checkin_vpts = AVS_INVALID_PTS;
 	u32 checkin_apts = AVS_INVALID_PTS;
 	u32 min_pts = AVS_INVALID_PTS;
-	int max_gap = 40;
+	int max_gap = sync.start_buf_thres / 900 * 4 / 3;
 	u32 flag, last_pts, gap_cnt = 0;
 
 	if (session->a_active) {
@@ -1622,8 +1694,8 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 
 		get_user(mode, (u32 __user *)argp);
 		msync_dbg(LOG_INFO,
-			"session[%d] mode %d --> %d\n",
-			session->id, session->mode, mode);
+			"session[%d] mode %d --> %d by %s\n",
+			session->id, session->mode, mode, current->comm);
 		mutex_lock(&session->session_mutex);
 		if (session->mode != AVS_MODE_PCR_MASTER &&
 			mode == AVS_MODE_PCR_MASTER &&
@@ -1678,16 +1750,14 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 
 		if (!copy_from_user(&policy, argp, sizeof(policy))) {
 			msync_dbg(LOG_DEBUG,
-				"session[%d] policies %u timeout %u, old timeout=%d.\n",
+				"session[%d] policy %u timeout %u, old timeout=%d.\n",
 				session->id, policy.policy,
 				policy.timeout, session->start_policy.timeout);
 			session->start_policy.policy = policy.policy;
-			if (policy.timeout >= 0) {
-				session->start_policy.timeout = msecs_to_jiffies(policy.timeout);
-				msync_dbg(LOG_DEBUG,
+			session->start_policy.timeout = policy.timeout;
+			msync_dbg(LOG_DEBUG,
 					"session[%d]new timeout %u.\n",
 					session->id, session->start_policy.timeout);
-			}
 		}
 		break;
 	}
@@ -1709,6 +1779,8 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			session->last_vpts = ts;
 			session_update_vpts(session);
 			ATRACE_COUNTER(session->atrace_v, ts.pts);
+		} else {
+			msync_dbg(LOG_ERR, "fail copy %d\n", __LINE__);
 		}
 		break;
 	}
@@ -1730,7 +1802,24 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 					session->wall_clock);
 			session->last_apts = ts;
 			session_update_apts(session);
+
+			session->sync_status_cnt++;
+			if (session->sync_status_cnt > 4) {
+				session->sync_status_cnt = 0;
+				msync_dbg(LOG_AVSYNC,
+					"last v/%x a/%x,diff-ms a-w %d v-w %d a-v %d\n",
+					session->last_vpts.pts - session->last_vpts.delay,
+					session->last_apts.pts,
+					(int)(session->last_apts.pts - session->wall_clock) / 90,
+					(int)(session->last_vpts.pts - session->wall_clock -
+						session->last_vpts.delay) / 90,
+					(int)(session->last_apts.pts - session->last_vpts.pts +
+						session->last_vpts.delay) / 90);
+			}
+
 			ATRACE_COUNTER(session->atrace_a, ts.pts);
+		} else {
+			msync_dbg(LOG_ERR, "fail copy %d\n", __LINE__);
 		}
 		break;
 	}
@@ -1767,9 +1856,9 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		stat.audio_switch = session->audio_switching;
 		if (copy_to_user(argp, &stat, sizeof(stat)))
 			return -EFAULT;
-		if (session->v_active && flag == SRC_V)
+		if (stat.clean_poll && session->v_active && flag == SRC_V)
 			session->event_pending &= ~SRC_V;
-		else if (session->a_active && flag == SRC_A)
+		else if (stat.clean_poll && session->a_active && flag == SRC_A)
 			session->event_pending &= ~SRC_A;
 		break;
 	}
@@ -1796,6 +1885,7 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	{
 		struct pts_wall wall;
 
+		memset(&wall, 0, sizeof(wall));
 		wall.interval = sync.vsync_pts_inc;
 		if (session->mode != AVS_MODE_PCR_MASTER) {
 			if (session->clock_start)
@@ -1888,6 +1978,11 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSYNCS_IOC_GET_CLK_DEV:
 	{
 		put_user(session->clk_dev, (int __user *)argp);
+		break;
+	}
+	case AMSYNCS_IOC_SET_STOP_AUDIO_WAIT:
+	{
+		session_stop_audio_wait(session);
 		break;
 	}
 	default:
@@ -2011,14 +2106,17 @@ static ssize_t session_stat_show(struct class *cla,
 
 	session = container_of(cla, struct sync_session, session_class);
 	return sprintf(buf,
-		"active v/%d a/%d\n"
+		"id: %u\n"
+		"active v/%d a/%d mode %d\n"
 		"first v/%x a/%x\n"
 		"last  v/%x a/%x\n"
 		"diff-ms a-w %d v-w %d a-v %d\n"
-		"start %d r %d\n"
+		"start %d r %u\n"
 		"w %x pcr(%c) %x\n"
-		"audio switch %c\n",
-		session->v_active, session->a_active,
+		"audio switch %c\n"
+		"poll event %x\n",
+		session->id,
+		session->v_active, session->a_active, session->mode,
 		session->first_vpts.pts,
 		session->first_apts.pts,
 		session->last_vpts.pts - session->last_vpts.delay,
@@ -2032,7 +2130,8 @@ static ssize_t session_stat_show(struct class *cla,
 		session->wall_clock,
 		session->use_pcr ? 'y' : 'n',
 		session->pcr_clock.pts,
-		session->audio_switching ? 'y' : 'n');
+		session->audio_switching ? 'y' : 'n',
+		session->event_pending);
 }
 
 static ssize_t pcr_stat_show(struct class *cla,
@@ -2232,6 +2331,7 @@ static int create_session(u32 id)
 	session->audio_drop_start = 0;
 	session->start_policy.policy = AMSYNC_START_ASAP;
 	session->start_policy.timeout = WAIT_INTERVAL;
+	session->sync_status_cnt = 0;
 	INIT_DELAYED_WORK(&session->wait_work, wait_work_func);
 	INIT_DELAYED_WORK(&session->transit_work, transit_work_func);
 	INIT_DELAYED_WORK(&session->pcr_start_work, pcr_start_work_func);
@@ -2563,6 +2663,11 @@ int __init msync_init(void)
 	sync.ready = true;
 	sync.start_buf_thres = UNIT90K / 5;
 
+#ifdef CONFIG_AMLOGIC_MEDIA_MINFO
+	sync.msync_minfo_notifier.notifier_call = minfo_notify_callback;
+	media_info_register_event("vport/latency", &sync.msync_minfo_notifier);
+#endif
+
 	for (i = 0 ; i < MAX_SESSION_NUM ; i++) {
 		struct sync_session *s = NULL;
 
@@ -2626,6 +2731,9 @@ void __exit msync_exit(void)
 	}
 	unregister_chrdev(AMSYNC_MAJOR, "aml_msync");
 	vout_unregister_client(&sync.msync_notifier);
+#ifdef CONFIG_AMLOGIC_MEDIA_MINFO
+	media_info_unregister_event(&sync.msync_minfo_notifier);
+#endif
 }
 
 #ifndef MODULE
