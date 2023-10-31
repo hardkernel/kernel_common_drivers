@@ -47,16 +47,25 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DTV_DEMOD) += dtv_demod/demod_dbg.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DTV_DEMOD) += dtv_demod/aml_demod.o
 
 ifneq ($(findstring AML_DEMOD_SUPPORT_DVBS, $(ccflags-y)),)
+ccflags-y += -DAML_DVBS_SUPPORT_GPIO_LNBC
+ifneq ($(CONFIG_AMLOGIC_ZAPPER_CUT), y)
+cflags-y += -DAML_DVBS_SUPPORT_I2C_LNBC
+endif
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DTV_DEMOD) += dtv_demod/dvbs/dvbs.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DTV_DEMOD) += dtv_demod/dvbs/dvbs_frontend.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DTV_DEMOD) += dtv_demod/dvbs/dvbs_diseqc.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DTV_DEMOD) += dtv_demod/dvbs/dvbs_singlecable.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DTV_DEMOD) += dtv_demod/lnb_controller/gpio/gpio_lnbc.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DTV_DEMOD) += dtv_demod/lnb_controller/wt20_1811/wt20_1811.o
 ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/dtv_demod/dvbs
 ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/dtv_demod/lnb_controller
+ifneq ($(findstring DAML_DVBS_SUPPORT_GPIO_LNBC, $(ccflags-y)),)
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DTV_DEMOD) += dtv_demod/lnb_controller/gpio/gpio_lnbc.o
 ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/dtv_demod/lnb_controller/wt20_1811
 ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/dtv_demod/lnb_controller/gpio
+endif
+ifneq ($(findstring DAML_DVBS_SUPPORT_I2C_LNBC, $(ccflags-y)),)
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DTV_DEMOD) += dtv_demod/lnb_controller/wt20_1811/wt20_1811.o
+ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/dtv_demod/lnb_controller/wt20_1811
+endif
 endif
 
 ifneq ($(findstring AML_DEMOD_SUPPORT_ISDBT, $(ccflags-y)),)

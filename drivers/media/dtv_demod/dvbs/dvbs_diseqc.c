@@ -25,8 +25,12 @@
 #include "demod_func.h"
 #include "dvbs.h"
 #include "dvbs_diseqc.h"
+#ifdef AML_DVBS_SUPPORT_GPIO_LNBC
 #include "gpio_lnbc.h"
+#endif
+#ifdef AML_DVBS_SUPPORT_I2C_LNBC
 #include "wt20_1811.h"
+#endif
 #ifdef DISEQC_SAR_ADC_RX
 #include "meson_saradc.h"
 #endif
@@ -581,11 +585,15 @@ void aml_diseqc_attach(struct device *dev, struct dvb_frontend *fe)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+#ifdef AML_DVBS_SUPPORT_GPIO_LNBC
 	struct gpio_desc *gpio_en = NULL, *gpio_sel = NULL;
+#endif
+#ifdef AML_DVBS_SUPPORT_I2C_LNBC
 	struct device_node *node = NULL;
 	struct i2c_adapter *i2c_adap = NULL;
 	unsigned char i2c_addr = 0;
 	u32 value = 0;
+#endif
 	int ret = 0;
 	struct aml_diseqc *diseqc = &devp->diseqc;
 
@@ -619,6 +627,7 @@ void aml_diseqc_attach(struct device *dev, struct dvb_frontend *fe)
 	}
 
 	if (!strcmp(diseqc->name, "wt20_1811")) {
+#ifdef AML_DVBS_SUPPORT_I2C_LNBC
 		node = of_parse_phandle(dev->of_node, "lnbc_i2c_adap", 0);
 		if (!IS_ERR_OR_NULL(node)) {
 			i2c_adap = of_find_i2c_adapter_by_node(node);
@@ -640,7 +649,9 @@ void aml_diseqc_attach(struct device *dev, struct dvb_frontend *fe)
 
 		if (diseqc->lnbc.init)
 			diseqc->lnbc.init(&diseqc->lnbc);
+#endif
 	} else {
+#ifdef AML_DVBS_SUPPORT_GPIO_LNBC
 		gpio_en = devm_gpiod_get(dev, "lnb_en", GPIOD_OUT_LOW);
 		if (IS_ERR_OR_NULL(gpio_en)) {
 			gpio_en = NULL;
@@ -657,6 +668,7 @@ void aml_diseqc_attach(struct device *dev, struct dvb_frontend *fe)
 
 		if (diseqc->lnbc.init)
 			diseqc->lnbc.init(&diseqc->lnbc);
+#endif
 	}
 
 	dvbs2_diseqc_init();

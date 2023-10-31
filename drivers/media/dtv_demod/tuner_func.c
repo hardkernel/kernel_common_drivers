@@ -204,19 +204,3 @@ int atsc_get_power_strength(int agc_gain, int tuner_strength)
 	return strength;
 }
 
-unsigned int atsc_read_reg_v4(unsigned int addr)
-{
-	unsigned int tmp;
-
-	if (!get_dtvpll_init_flag())
-		return 0;
-
-	demod_mutex_lock();
-
-	tmp = readl(gbase_atsc() + (addr << 2));
-
-	demod_mutex_unlock();
-
-	return tmp;
-}
-

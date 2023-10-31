@@ -6,8 +6,7 @@
 #ifndef __DVBS_FUNC_H__
 #define __DVBS_FUNC_H__
 #include <media/dvb_frontend.h>
-#define ALIGN_24	16777216
-#define SR_LOW_THRD	11000000
+
 
 #define BLIND_SEARCH_AGC2BANDWIDTH_40 (40)
 #define BLIND_SEARCH_AGC2BANDWIDTH_60 (60)
@@ -19,9 +18,10 @@
 
 #define CNR_HIGH	0xcae
 #define CNR_LOW		0xcad
-#define AUTOSR_REG 0x922
-#define AUTOSR_OFF 0xcc
+
 #define AUTOSR_ON  0xdc
+
+extern unsigned int diseqc_out_invert;
 
 enum diseq_irq_flag {
 	DISEQ_IRQGAPBURST = 0x01,
@@ -109,13 +109,12 @@ struct fft_total_result {
 
 #define DVBS_REG_DISIRQCFG	0x300
 #define DVBS_REG_DISIRQSTAT	0x301
-#define DVBS_REG_DISTXCFG	0x302
+
 #define DVBS_REG_DISTXSTATUS	0x303
 #define DVBS_REG_DISTXBYTES	0x304
 #define DVBS_REG_DISTXFIFO	0x305
 #define DVBS_REG_DISTXF22	0x306
 #define DVBS_REG_DISTXWAIT	0x307
-#define DVBS_REG_DISTIMEOCFG	0x308
 #define DVBS_REG_DISTIMEOUT	0x309
 #define DVBS_REG_DISRXCFG	0x30A
 #define DVBS_REG_DISRXSTAT1	0x30B
@@ -140,8 +139,6 @@ struct fft_total_result {
 #define DVBS_REG_ACRDIV		0x31F
 
 #define DVBS_REG_DSQADCINCFG	0x121
-
-#define DSTATUS		0x934
 
 /* carrier offset */
 #define	CFR12	0x9cf

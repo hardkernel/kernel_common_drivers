@@ -163,55 +163,6 @@ int convert_snr(int in_snr)
 	return out_snr;
 }
 
-//static void dtvdemod_do_8vsb_rst(void)
-//{
-	//union atsc_cntl_reg_0x20 val;
-
-	//val.bits = atsc_read_reg_v4(ATSC_CNTR_REG_0X20);
-	//val.b.cpu_rst = 1;
-	//atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
-	//val.b.cpu_rst = 0;
-	//atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
-//}
-
-//static int amdemod_check_8vsb_rst(struct aml_dtvdemod *demod)
-//{
-	//int ret = 0;
-
-	/* for tl1/tm2, first time of pwr on,
-	 * reset after signal locked
-	 * for lock event, 0x79 is safe for reset
-	 */
-	//if (demod->atsc_rst_done == 0) {
-		//if (demod->atsc_rst_needed) {
-			//dtvdemod_do_8vsb_rst();
-			//demod->atsc_rst_done = 1;
-			//ret = 0;
-			//PR_ATSC("reset done\n");
-		//}
-
-		//if (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) >= 0x79) {
-			//demod->atsc_rst_needed = 1;
-			//ret = 0;
-			//PR_ATSC("need reset\n");
-		//} else {
-			//demod->atsc_rst_wait_cnt++;
-			//PR_ATSC("wait cnt: %d\n",
-					//demod->atsc_rst_wait_cnt);
-		//}
-
-		//if (demod->atsc_rst_wait_cnt >= 3 &&
-		    //(atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) >= 0x76)) {
-			//demod->atsc_rst_done = 1;
-			//ret = 1;
-		//}
-	//} else if (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) >= 0x76) {
-		//ret = 1;
-	//}
-
-	//return ret;
-//}
-
 unsigned int demod_is_t5d_cpu(struct amldtvdemod_device_s *devp)
 {
 	enum dtv_demod_hw_ver_e hw_ver = devp->data->hw_ver;
@@ -792,6 +743,7 @@ static void delsys_exit(struct aml_dtvdemod *demod, unsigned int ldelsys,
 #endif
 	} else if ((is_meson_t5w_cpu() || is_meson_t3_cpu() ||
 		demod_is_t5d_cpu(devp)) && ldelsys == SYS_DVBT2) {
+#ifdef AML_DEMOD_SUPPORT_DVBT
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 		dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
@@ -806,8 +758,10 @@ static void delsys_exit(struct aml_dtvdemod *demod, unsigned int ldelsys,
 
 		if (is_meson_t5w_cpu())
 			t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
+#endif
 	} else if ((is_meson_t5w_cpu() || is_meson_t3_cpu() ||
 		demod_is_t5d_cpu(devp)) && ldelsys == SYS_ISDBT) {
+#ifdef AML_DEMOD_SUPPORT_ISDBT
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x011021b);
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x011001b);
@@ -817,6 +771,7 @@ static void delsys_exit(struct aml_dtvdemod *demod, unsigned int ldelsys,
 
 		if (is_meson_t5w_cpu())
 			t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
+#endif
 	}
 #endif
 
@@ -2940,7 +2895,6 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 	struct isdbt_tmcc_info tmcc_info;
 #endif
 	s16 strength = 0;
-	int ret = 0;
 
 	mutex_lock(&devp->lock);
 
@@ -3119,30 +3073,30 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 #ifdef AML_DEMOD_SUPPORT_DVBS
 		case SYS_DVBS:
 		case SYS_DVBS2:
-			ret = dtvdemod_dvbs_read_signal_strength(fe, &strength);
+			dtvdemod_dvbs_read_signal_strength(fe, &strength);
 			break;
 #endif
 #ifdef AML_DEMOD_SUPPORT_DVBC
 		case SYS_DVBC_ANNEX_A:
 		case SYS_DVBC_ANNEX_C:
-			ret = gxtv_demod_dvbc_read_signal_strength(fe, &strength);
+			gxtv_demod_dvbc_read_signal_strength(fe, &strength);
 			break;
 #endif
 #ifdef AML_DEMOD_SUPPORT_DVBT
 		case SYS_DVBT:
 		case SYS_DVBT2:
-			ret = gxtv_demod_dvbt_read_signal_strength(fe, &strength);
+			gxtv_demod_dvbt_read_signal_strength(fe, &strength);
 			break;
 #endif
 #ifdef AML_DEMOD_SUPPORT_ISDBT
 		case SYS_ISDBT:
-			ret = gxtv_demod_isdbt_read_signal_strength(fe, &strength);
+			gxtv_demod_isdbt_read_signal_strength(fe, &strength);
 			break;
 #endif
 #ifdef AML_DEMOD_SUPPORT_ATSC
 		case SYS_ATSC:
 		case SYS_ATSCMH:
-			ret = gxtv_demod_atsc_read_signal_strength(fe, &strength);
+			gxtv_demod_atsc_read_signal_strength(fe, &strength);
 			break;
 #endif
 #ifdef AML_DEMOD_SUPPORT_J83B
@@ -3152,7 +3106,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 #endif
 #ifdef AML_DEMOD_SUPPORT_DTMB
 		case SYS_DTMB:
-			ret = gxtv_demod_dtmb_read_signal_strength(fe, &strength);
+			gxtv_demod_dtmb_read_signal_strength(fe, &strength);
 			break;
 #endif
 		default:
@@ -3248,10 +3202,20 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 
 	demod->id = devp->index;
 	demod->act_dtmb = false;
+
+#if defined AML_DEMOD_SUPPORT_ATSC || defined AML_DEMOD_SUPPORT_J83B
 	demod->timeout_atsc_ms = TIMEOUT_ATSC;
+#endif
+#ifdef AML_DEMOD_SUPPORT_DVBT
 	demod->timeout_dvbt_ms = TIMEOUT_DVBT;
+#endif
+#ifdef AML_DEMOD_SUPPORT_DVBS
 	demod->timeout_dvbs_ms = TIMEOUT_DVBS;
+#endif
+#ifdef AML_DEMOD_SUPPORT_DVBC
 	demod->timeout_dvbc_ms = TIMEOUT_DVBC;
+#endif
+
 	demod->timeout_ddr_leave = TIMEOUT_DDR_LEAVE;
 	demod->last_qam_mode = QAM_MODE_NUM;
 	demod->last_lock = -1;
