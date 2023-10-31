@@ -3,7 +3,6 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-//#define DEBUG
 #include <linux/pm.h>
 #include <linux/suspend.h>
 #include <linux/module.h>
@@ -17,7 +16,6 @@
 #include <linux/of.h>
 #include <linux/psci.h>
 #include <linux/errno.h>
-#include <linux/suspend.h>
 #include <asm/suspend.h>
 #include <linux/of_address.h>
 #include <linux/input.h>
@@ -30,6 +28,7 @@
 #include <../kernel/power/power.h>
 #include <linux/amlogic/power_domain.h>
 #include <linux/syscore_ops.h>
+#include <linux/amlogic/gki_module.h>
 
 bool is_clr_resume_reason;
 
@@ -52,6 +51,8 @@ unsigned int early_suspend_state;
  * Avoid run early_suspend/late_resume repeatedly.
  */
 unsigned int already_early_suspend;
+/* early suspend debug flag */
+unsigned int early_suspend_debug;
 
 void register_early_suspend(struct early_suspend *handler)
 {
@@ -78,6 +79,20 @@ void unregister_early_suspend(struct early_suspend *handler)
 }
 EXPORT_SYMBOL(unregister_early_suspend);
 
+static int suspend_get_pm_env(char *buf)
+{
+	if (!buf)
+		return -EINVAL;
+
+	if (kstrtoint(buf, 0, &early_suspend_debug)) {
+		pr_err("early_suspend_debug error: %s\n", buf);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+__setup("initcall_debug=", suspend_get_pm_env);
+
 static inline void early_suspend(void)
 {
 	struct early_suspend *pos;
@@ -89,14 +104,17 @@ static inline void early_suspend(void)
 	else
 		goto end_early_suspend;
 
-	pr_debug("%s: call handlers\n", __func__);
+	if (early_suspend_debug)
+		pr_info("%s: call handlers\n", __func__);
 	list_for_each_entry(pos, &early_suspend_handlers, link)
 		if (pos->suspend) {
-			pr_debug("%s: %ps\n", __func__, pos->suspend);
+			if (early_suspend_debug)
+				pr_info("%s: %ps\n", __func__, pos->suspend);
 			pos->suspend(pos);
 		}
 
-	pr_debug("%s: done\n", __func__);
+	if (early_suspend_debug)
+		pr_info("%s: done\n", __func__);
 
 end_early_suspend:
 	mutex_unlock(&early_suspend_lock);
@@ -113,13 +131,16 @@ static inline void late_resume(void)
 	else
 		goto end_late_resume;
 
-	pr_debug("%s: call handlers\n", __func__);
+	if (early_suspend_debug)
+		pr_info("%s: call handlers\n", __func__);
 	list_for_each_entry_reverse(pos, &early_suspend_handlers, link)
 		if (pos->resume) {
-			pr_debug("%s: %ps\n", __func__, pos->resume);
+			if (early_suspend_debug)
+				pr_info("%s: %ps\n", __func__, pos->resume);
 			pos->resume(pos);
 		}
-	pr_debug("%s: done\n", __func__);
+	if (early_suspend_debug)
+		pr_info("%s: done\n", __func__);
 
 end_late_resume:
 	mutex_unlock(&early_suspend_lock);
