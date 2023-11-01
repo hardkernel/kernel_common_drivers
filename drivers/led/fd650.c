@@ -224,23 +224,86 @@ static ssize_t fd650_display_store(struct device *dev,
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct fd650_bus *bus = container_of(led_cdev,
 			struct fd650_bus, cdev);
-	char display_str[4];
+	char display_str[10];
+	int colon_on;
+	int res;
 
-	if (size - 1 > 4) {
-		dev_err(dev, "Over display numbers\n");
+	res = sscanf(buf, "%d %s", &colon_on, display_str);
+	if (res != 2) {
+		dev_err(dev, "Can't parse! usage:[colon_on(1/0) strings]\n");
 		return -EINVAL;
 	}
-
-	memcpy(display_str, buf, size);
-	led_show_650(bus, display_str, 1, 1);
+	led_show_650(bus, display_str, colon_on, 1);
 
 	return size;
 }
 
+static ssize_t fd650_clear_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t size)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct fd650_bus *bus = container_of(led_cdev,
+			struct fd650_bus, cdev);
+	led_show_650(bus, "****", 0, 1);
+
+	return size;
+}
+
+static ssize_t fd650_sec_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t size)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct fd650_bus *bus = container_of(led_cdev,
+			struct fd650_bus, cdev);
+	int leds_num, sec_num, res;
+
+	res = sscanf(buf, "%d %d", &leds_num, &sec_num);
+	if (res != 2 || leds_num > 4 || sec_num > 7) {
+		dev_err(dev, "Can't parse! usage:[leds_num sec_num]\n");
+		return -EINVAL;
+	}
+/*          -3--                      -0--
+ *       2 |    | 4                5 |    | 1
+ *          -7--        -------->     -6--
+ *       1 |    | 5                4 |    | 2
+ *          -6--                      -3--
+ */
+	if (sec_num < 3)
+		sec_num += 3;
+	else if (sec_num > 6)
+		sec_num = 6;
+	else
+		sec_num -= 3;
+	switch (leds_num) {
+	case 1:
+		fd650_write(bus, FD650_DIG0 | (1 << sec_num));
+		break;
+	case 2:
+		fd650_write(bus, FD650_DIG1 | (1 << sec_num));
+		break;
+	case 3:
+		fd650_write(bus, FD650_DIG2 | (1 << sec_num));
+		break;
+	case 4:
+		fd650_write(bus, FD650_DIG3 | (1 << sec_num));
+		break;
+	default:
+		break;
+	}
+
+	return size;
+}
+
+static DEVICE_ATTR_WO(fd650_sec);
+static DEVICE_ATTR_WO(fd650_clear);
 static DEVICE_ATTR_RW(fd650_display);
 
 static struct attribute *fd650_attributes[] = {
 	&dev_attr_fd650_display.attr,
+	&dev_attr_fd650_clear.attr,
+	&dev_attr_fd650_sec.attr,
 	NULL
 };
 
