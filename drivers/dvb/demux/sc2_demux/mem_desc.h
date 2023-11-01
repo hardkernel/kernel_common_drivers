@@ -43,6 +43,7 @@ struct chan_id {
 	/*just for DVR sec direct mem*/
 	unsigned int sec_mem;
 	unsigned int sec_size;
+	int format;
 };
 
 enum bufferid_mode {
@@ -54,6 +55,7 @@ enum bufferid_mode {
 	u8 is_es;
 	enum bufferid_mode mode;
 	u8 req_id;
+	int format;
 };
 
 typedef int (*dmx_dump_cb) (int sid, int pid,
@@ -199,8 +201,9 @@ int SC2_bufferid_move_read_rp(struct chan_id *pchan, unsigned int len, int flag)
 int SC2_add_dump_cb(struct list_head *node, dmx_dump_cb cb);
 
 int _alloc_buff(unsigned int len, int sec_level,
-		unsigned long *vir_mem, unsigned long *phy_mem);
-void _free_buff(unsigned long buf, unsigned int len, int sec_level);
+		unsigned long *vir_mem, unsigned long *phy_mem, int format);
+void _free_buff(unsigned long vir_mem, unsigned long phy_mem,
+		unsigned int len, int sec_level, int format);
 
 int cache_status_info(char *buf);
 int cache_clear(void);

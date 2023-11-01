@@ -1199,7 +1199,7 @@ static int create_aucpu_pts(struct out_elem *pout)
 		ret =
 		    _alloc_buff(pout->aucpu_pts_mem_size, 0,
 					&pout->aucpu_pts_mem,
-					&pout->aucpu_pts_mem_phy);
+					&pout->aucpu_pts_mem_phy, 0);
 		if (ret != 0) {
 			dprint("aucpu pts alloc buf fail\n");
 			return -1;
@@ -1217,8 +1217,9 @@ static int create_aucpu_pts(struct out_elem *pout)
 		pout->aucpu_pts_handle = aml_aucpu_strm_create(&src,
 				&dst, &cfg);
 		if (pout->aucpu_pts_handle < 0) {
-			_free_buff(pout->aucpu_pts_mem_phy,
-				pout->aucpu_pts_mem_size, 0);
+			_free_buff(pout->aucpu_pts_mem,
+				pout->aucpu_pts_mem_phy,
+				pout->aucpu_pts_mem_size, 0, 0);
 			pout->aucpu_pts_mem = 0;
 
 			dprint("%s create aucpu pts fail, ret:%d\n",
@@ -1267,7 +1268,7 @@ static int create_aucpu_inst(struct out_elem *pout)
 		pout->aucpu_mem_size = pout->pchan->mem_size;
 		ret =
 		    _alloc_buff(pout->aucpu_mem_size, 0, &pout->aucpu_mem,
-				&pout->aucpu_mem_phy);
+				&pout->aucpu_mem_phy, 0);
 		if (ret != 0) {
 			dprint("aucpu mem alloc fail\n");
 			return -1;
@@ -1283,8 +1284,9 @@ static int create_aucpu_inst(struct out_elem *pout)
 		cfg.config_flags = 0;
 		pout->aucpu_handle = aml_aucpu_strm_create(&src, &dst, &cfg);
 		if (pout->aucpu_handle < 0) {
-			_free_buff(pout->aucpu_mem_phy,
-				pout->aucpu_mem_size, 0);
+			_free_buff(pout->aucpu_mem,
+				pout->aucpu_mem_phy,
+				pout->aucpu_mem_size, 0, 0);
 			pout->aucpu_mem = 0;
 			dprint("%s create aucpu fail, ret:%d\n",
 			       __func__, pout->aucpu_handle);
@@ -2730,6 +2732,7 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 	pout->decoder_rp_offset = INVALID_DECODE_RP;
 	memset(&attr, 0, sizeof(struct bufferid_attr));
 	attr.mode = OUTPUT_MODE;
+	attr.format = format;
 
 	if (format == ES_FORMAT) {
 		attr.is_es = 1;
@@ -2862,8 +2865,9 @@ int ts_output_close(struct out_elem *pout)
 			pr_dbg("aucpu_strm_remove fail ret:%d\n", ret);
 		pout->aucpu_handle = -1;
 
-		_free_buff(pout->aucpu_mem_phy,
-				pout->aucpu_mem_size, 0);
+		_free_buff(pout->aucpu_mem,
+				pout->aucpu_mem_phy,
+				pout->aucpu_mem_size, 0, 0);
 		pout->aucpu_mem = 0;
 	}
 
@@ -2885,8 +2889,9 @@ int ts_output_close(struct out_elem *pout)
 			pr_dbg("aucpu_strm_remove pts fail ret:%d\n", ret);
 		pout->aucpu_pts_handle = -1;
 
-		_free_buff(pout->aucpu_pts_mem_phy,
-				pout->aucpu_pts_mem_size, 0);
+		_free_buff(pout->aucpu_pts_mem,
+				pout->aucpu_pts_mem_phy,
+				pout->aucpu_pts_mem_size, 0, 0);
 		pout->aucpu_pts_mem = 0;
 	}
 

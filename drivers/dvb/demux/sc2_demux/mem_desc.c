@@ -12,6 +12,9 @@
 #include <linux/fs.h>
 #include <linux/syscalls.h>
 #include <linux/delay.h>
+#include <linux/cma.h>
+#include <linux/dma-map-ops.h>
+#include <linux/amlogic/cpu_version.h>
 
 #include <linux/highmem.h>
 
@@ -68,6 +71,10 @@ module_param(dmc_keep_alive, int, 0644);
 MODULE_PARM_DESC(write_timeout_ms, "\n\t\t write timeout default 1s");
 static int write_timeout_ms = 1000;
 module_param(write_timeout_ms, int, 0644);
+
+MODULE_PARM_DESC(pvr_memory_reserved, "\n\t\t pvr memory from reserved cma");
+static int pvr_memory_reserved;
+module_param(pvr_memory_reserved, int, 0644);
 
 struct mem_cache {
 	unsigned long start_virt;
@@ -703,8 +710,88 @@ int dmc_mem_dump_info(char *buf)
 	return total;
 }
 
+/**
+ * dma_alloc_from_contiguous_dmx() - allocate pages from contiguous area
+ * @dev:   Pointer to device for which the allocation is performed.
+ * @count: Requested number of pages.
+ * @align: Requested alignment of pages (in PAGE_SIZE order).
+ * @no_warn: Avoid printing message about failed allocation.
+ *
+ * This function allocates memory buffer for specified device. It uses
+ * device specific contiguous memory area if available or the default
+ * global one. Requires architecture specific dev_get_cma_area() helper
+ * function.
+ */
+struct page *dma_alloc_from_contiguous_dmx(struct device *dev, size_t count,
+				       unsigned int align, bool no_warn)
+{
+	if (align > CONFIG_CMA_ALIGNMENT)
+		align = CONFIG_CMA_ALIGNMENT;
+
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+	if (no_warn)
+		return cma_alloc(dev_get_cma_area(dev), count, align, GFP_KERNEL | __GFP_NOWARN);
+	else
+		return cma_alloc(dev_get_cma_area(dev), count, align, GFP_KERNEL);
+#else
+	return cma_alloc(dev_get_cma_area(dev), count, align, no_warn);
+#endif
+}
+
+/**
+ * dma_release_from_contiguous_dmx() - release allocated pages
+ * @dev:   Pointer to device for which the pages were allocated.
+ * @pages: Allocated pages.
+ * @count: Number of allocated pages.
+ *
+ * This function releases memory allocated by dma_alloc_from_contiguous().
+ * It returns false when provided pages do not belong to contiguous area and
+ * true otherwise.
+ */
+bool dma_release_from_contiguous_dmx(struct device *dev, struct page *pages,
+				 int count)
+{
+	return cma_release(dev_get_cma_area(dev), pages, count);
+}
+
+int _alloc_buff_cma(unsigned int len,	unsigned long *vir_mem, unsigned long *phy_mem)
+{
+	struct page *pages;
+	int count;
+	unsigned long virt_tmp;
+	unsigned long phy_tmp;
+
+	count = PAGE_ALIGN(len) / PAGE_SIZE;
+	pages = dma_alloc_from_contiguous_dmx(aml_get_device(), count, 4 + PAGE_SHIFT, 0);
+	if (pages) {
+		virt_tmp = (unsigned long)page_address(pages);
+		phy_tmp = page_to_phys(pages);
+		if (virt_tmp == 0 || phy_tmp == 0) {
+			dprint_i("%s transfer fail\n", __func__);
+			return -1;
+		}
+		*vir_mem = virt_tmp;
+		*phy_mem = phy_tmp;
+		return 0;
+	}
+	return -1;
+}
+
+void _free_buff_cma(unsigned long phy_buf, unsigned int len)
+{
+	struct page *pages;
+	bool ret;
+	int count;
+
+	pages = phys_to_page(phy_buf);
+	count = PAGE_ALIGN(len) / PAGE_SIZE;
+	ret = dma_release_from_contiguous_dmx(aml_get_device(), pages, count);
+	if (!ret)
+		dprint_i("dma_release_from_contiguous fail\n");
+}
+
 int _alloc_buff(unsigned int len, int sec_level,
-		unsigned long *vir_mem, unsigned long *phy_mem)
+		unsigned long *vir_mem, unsigned long *phy_mem, int format)
 {
 	int flags = 0;
 	int buf_page_num = 0;
@@ -736,6 +823,21 @@ int _alloc_buff(unsigned int len, int sec_level,
 		*phy_mem = buf_start;
 		return 0;
 	}
+	if (pvr_memory_reserved &&
+		format == DVR_FORMAT) {
+		iret = _alloc_buff_cma(len, &buf_start_virt, &buf_start);
+		if (iret == 0) {
+			dprint("init cma phy:0x%lx, virt:0x%lx, len:%d\n",
+				(unsigned long)buf_start, (unsigned long)buf_start_virt, len);
+			memset((char *)buf_start_virt, 0xa5, len);
+
+			*vir_mem = buf_start_virt;
+			*phy_mem = buf_start;
+			return 0;
+		}
+		dprint("%s cma fail, len:0x%0x\n", __func__, len);
+		return -1;
+	}
 
 	if (len < BEN_LEVEL_SIZE)
 		flags = CODEC_MM_FLAGS_DMA_CPU;
@@ -766,20 +868,26 @@ int _alloc_buff(unsigned int len, int sec_level,
 	return 0;
 }
 
-void _free_buff(unsigned long buf, unsigned int len, int sec_level)
+void _free_buff(unsigned long vir_mem, unsigned long phy_mem,
+					unsigned int len, int sec_level, int format)
 {
 	int iret = 0;
 
 	if (sec_level) {
-		dmc_mem_free(buf, len, sec_level);
+		dmc_mem_free(phy_mem, len, sec_level);
 		return;
 	}
 
-	iret = cache_free(len, buf);
+	iret = cache_free(len, phy_mem);
 	if (iret == 0)
 		return;
 
-	codec_mm_free_for_dma("dmx", buf);
+	if (pvr_memory_reserved &&
+		format == DVR_FORMAT) {
+		_free_buff_cma(phy_mem, len);
+		return;
+	}
+	codec_mm_free_for_dma("dmx", phy_mem);
 }
 
 static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
@@ -807,8 +915,7 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 			pr_dbg("use sec phy mem:0x%lx, virt:0x%lx size:0x%x\n",
 					mem_phy, mem, mem_size);
 		} else {
-			ret = _alloc_buff(mem_size, sec_level, &mem,
-				&mem_phy);
+			ret = _alloc_buff(mem_size, sec_level, &mem, &mem_phy, pchan->format);
 			if (ret != 0) {
 				dprint("%s malloc fail\n", __func__);
 				return -1;
@@ -818,9 +925,9 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 		}
 	}
 	ret =
-	    _alloc_buff(sizeof(union mem_desc), 0, &memdescs, &memdescs_phy);
+	    _alloc_buff(sizeof(union mem_desc), 0, &memdescs, &memdescs_phy, pchan->format);
 	if (ret != 0) {
-		_free_buff(mem_phy, mem_size, sec_level);
+		_free_buff(mem, mem_phy, mem_size, sec_level, pchan->format);
 		dprint("%s malloc 2 fail\n", __func__);
 		return -1;
 	}
@@ -855,11 +962,13 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 static void _bufferid_free_desc_mem(struct chan_id *pchan)
 {
 	if (pchan->mem && pchan->sec_size == 0)
-		_free_buff((unsigned long)pchan->mem_phy,
-			   pchan->mem_size, pchan->sec_level);
+		_free_buff((unsigned long)pchan->mem,
+				(unsigned long)pchan->mem_phy,
+			   pchan->mem_size, pchan->sec_level, pchan->format);
 	if (pchan->memdescs)
-		_free_buff((unsigned long)pchan->memdescs_phy,
-			   sizeof(union mem_desc), 0);
+		_free_buff((unsigned long)pchan->memdescs,
+				(unsigned long)pchan->memdescs_phy,
+			   sizeof(union mem_desc), 0, pchan->format);
 	pchan->mem = 0;
 	pchan->mem_phy = 0;
 	pchan->mem_size = 0;
@@ -870,7 +979,7 @@ static void _bufferid_free_desc_mem(struct chan_id *pchan)
 	pchan->sec_size = 0;
 }
 
-static int _bufferid_alloc_chan_w_for_es(struct chan_id **pchan,
+static int _bufferid_alloc_chan_w_for_es(struct bufferid_attr *attr, struct chan_id **pchan,
 					 struct chan_id **pchan1)
 {
 	int i = 0;
@@ -885,6 +994,8 @@ static int _bufferid_alloc_chan_w_for_es(struct chan_id **pchan,
 			pchan1_tmp->used = 1;
 			pchan_tmp->is_es = 1;
 			pchan1_tmp->is_es = 1;
+			pchan_tmp->format = attr->format;
+			pchan1_tmp->format = attr->format;
 			*pchan = pchan_tmp;
 			*pchan1 = pchan1_tmp;
 			break;
@@ -898,7 +1009,7 @@ static int _bufferid_alloc_chan_w_for_es(struct chan_id **pchan,
 	return -1;
 }
 
-static int _bufferid_alloc_chan_w_for_ts(struct chan_id **pchan)
+static int _bufferid_alloc_chan_w_for_ts(struct bufferid_attr *attr, struct chan_id **pchan)
 {
 	int i = 0;
 	struct chan_id *pchan_tmp;
@@ -907,6 +1018,7 @@ static int _bufferid_alloc_chan_w_for_ts(struct chan_id **pchan)
 		pchan_tmp = &chan_id_table_w[i];
 		if (pchan_tmp->used == 0) {
 			pchan_tmp->used = 1;
+			pchan_tmp->format = attr->format;
 			break;
 		}
 	}
@@ -916,17 +1028,18 @@ static int _bufferid_alloc_chan_w_for_ts(struct chan_id **pchan)
 	return 0;
 }
 
-static int _bufferid_alloc_chan_r_for_ts(struct chan_id **pchan, u8 req_id)
+static int _bufferid_alloc_chan_r_for_ts(struct bufferid_attr *attr, struct chan_id **pchan)
 {
 	struct chan_id *pchan_tmp;
 
-	if (req_id >= R_MAX_MEM_CHAN_NUM)
+	if (attr->req_id >= R_MAX_MEM_CHAN_NUM)
 		return -1;
-	pchan_tmp = &chan_id_table_r[req_id];
+	pchan_tmp = &chan_id_table_r[attr->req_id];
 	if (pchan_tmp->used == 1)
 		return -1;
 
 	pchan_tmp->used = 1;
+	pchan_tmp->format = attr->format;
 	*pchan = pchan_tmp;
 	return 0;
 }
@@ -1015,12 +1128,12 @@ int SC2_bufferid_alloc(struct bufferid_attr *attr,
 	pr_dbg("%s enter\n", __func__);
 
 	if (attr->mode == INPUT_MODE)
-		return _bufferid_alloc_chan_r_for_ts(pchan, attr->req_id);
+		return _bufferid_alloc_chan_r_for_ts(attr, pchan);
 
 	if (attr->is_es)
-		return _bufferid_alloc_chan_w_for_es(pchan, pchan1);
+		return _bufferid_alloc_chan_w_for_es(attr, pchan, pchan1);
 	else
-		return _bufferid_alloc_chan_w_for_ts(pchan);
+		return _bufferid_alloc_chan_w_for_ts(attr, pchan);
 }
 
 /**
@@ -1034,6 +1147,7 @@ int SC2_bufferid_dealloc(struct chan_id *pchan)
 	pr_dbg("%s enter\n", __func__);
 	_bufferid_free_desc_mem(pchan);
 	pchan->is_es = 0;
+	pchan->format = 0;
 	pchan->used = 0;
 	return 0;
 }
