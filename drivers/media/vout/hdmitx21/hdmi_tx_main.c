@@ -2900,9 +2900,9 @@ static int hdmitx21_pre_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_f
 	if (tx_comm->rxcap.max_frl_rate) {
 		hdev->frl_rate = hdmitx_select_frl_rate(hdev->dsc_en, para->vic,
 			para->cs, para->cd);
-		if (hdev->frl_rate > hdev->tx_hw.tx_max_frl_rate)
+		if (hdev->frl_rate > tx_comm->tx_hw->txcap.tx_max_frl_rate)
 			HDMITX_INFO("Current frl_rate %d is larger than tx_max_frl_rate %d\n",
-				hdev->frl_rate, hdev->tx_hw.tx_max_frl_rate);
+				hdev->frl_rate, tx_comm->tx_hw->txcap.tx_max_frl_rate);
 	}
 	/* if manual_frl_rate is true, set to force frl_rate */
 	if (hdev->manual_frl_rate)
@@ -2981,9 +2981,9 @@ static int hdmitx21_init_uboot_mode(enum vmode_e mode)
 			hdev->frl_rate = hdmitx_select_frl_rate(hdev->dsc_en,
 				tx_comm->fmt_para.vic, hdev->tx_comm.fmt_para.cs,
 				hdev->tx_comm.fmt_para.cd);
-			if (hdev->frl_rate > hdev->tx_hw.tx_max_frl_rate)
+			if (hdev->frl_rate > tx_comm->tx_hw->txcap.tx_max_frl_rate)
 				HDMITX_INFO("Current frl_rate %d larger than tx_max_frl_rate %d\n",
-					hdev->frl_rate, hdev->tx_hw.tx_max_frl_rate);
+					hdev->frl_rate, tx_comm->tx_hw->txcap.tx_max_frl_rate);
 		}
 		edidinfo_attach_to_vinfo(&hdev->tx_comm);
 		update_vinfo_from_formatpara(&hdev->tx_comm);
@@ -3502,13 +3502,13 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 					   "cedst_en", &val);
 		if (!ret)
 			hdev->tx_comm.cedst_en = !!val;
-		hdev->tx_hw.tx_max_frl_rate = FRL_10G4L; /* default */
+		hdev->tx_comm.tx_hw->txcap.tx_max_frl_rate = FRL_NONE; /* default */
 		ret = of_property_read_u32(pdev->dev.of_node, "tx_max_frl_rate", &val);
 		if (!ret) {
 			if (val > FRL_12G4L || val == FRL_NONE)
 				HDMITX_INFO("wrong tx_max_frl_rate %d\n", val);
 			else
-				hdev->tx_hw.tx_max_frl_rate = val;
+				hdev->tx_comm.tx_hw->txcap.tx_max_frl_rate = val;
 		}
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "hdcp_type_policy", &val);

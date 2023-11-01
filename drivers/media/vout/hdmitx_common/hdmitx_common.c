@@ -147,7 +147,7 @@ int hdmitx_common_validate_format_para(struct hdmitx_common *tx_comm,
 			return -ERANGE;
 	}
 
-	ret = hdmitx_edid_validate_format_para(&tx_comm->rxcap, para);
+	ret = hdmitx_edid_validate_format_para(&tx_comm->tx_hw->txcap, &tx_comm->rxcap, para);
 
 	return ret;
 }

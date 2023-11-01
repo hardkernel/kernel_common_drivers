@@ -25,7 +25,6 @@ struct amhdmitx_data_s {
 struct hdmitx21_hw {
 	struct hdmitx_hw_common base;
 	struct amhdmitx_data_s *chip_data;
-	u8 tx_max_frl_rate; /* configure in dts file */
 	unsigned int dongle_mode:1;
 	u32 enc_idx;
 	struct hdmitx_infoframe *infoframes;

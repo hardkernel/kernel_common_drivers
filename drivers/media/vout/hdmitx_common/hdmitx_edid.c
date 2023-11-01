@@ -458,15 +458,15 @@ bool hdmitx_edid_validate_mode(struct rx_cap *rxcap, u32 vic)
  * Such as EDID declare support 2160p60hz(Y444 8bit), but no valid
  * Max_TMDS_Clock2 to indicate that it can support 5.94G signal.
  */
-int hdmitx_edid_validate_format_para(struct rx_cap *prxcap,
-		struct hdmi_format_para *para)
+int hdmitx_edid_validate_format_para(struct tx_cap *txcap,
+		struct rx_cap *prxcap, struct hdmi_format_para *para)
 {
 	const struct dv_info *dv;
 	unsigned int calc_tmds_clk = 0;
 	unsigned int rx_max_tmds_clk = 0;
 	int ret = 0;
 
-	if (!prxcap || !para)
+	if (!txcap || !prxcap || !para)
 		return -EPERM;
 
 	dv = &prxcap->dv_info;
@@ -511,10 +511,13 @@ int hdmitx_edid_validate_format_para(struct rx_cap *prxcap,
 	calc_tmds_clk = para->tmds_clk / 1000;
 	if (calc_tmds_clk > rx_max_tmds_clk)
 		ret = -ERANGE;
-	/* If tmds check failed, try frl
-	 * FOR hdmi 2.1 : check frl limitation.
+	/* If tmds check failed,
+	 * try frl FOR hdmi 2.1 : check frl limitation
 	 */
 	if (ret != 0) {
+		/*  check box frl capability */
+		if (!txcap->tx_max_frl_rate)
+			return -ERANGE;
 		u32 frl_rate = hdmitx_select_frl_rate(0, para->timing.vic, para->cs, para->cd);
 
 		if (frl_rate && prxcap->max_frl_rate >= frl_rate)

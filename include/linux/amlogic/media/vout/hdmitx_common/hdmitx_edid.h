@@ -9,6 +9,7 @@
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_mode.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_format_para.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_hw_common.h>
 #include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 
 /* the default max_tmds_clk is 165MHz/5 in H14b Table 8-16 */
@@ -257,8 +258,8 @@ bool hdmitx_edid_check_y420_support(struct rx_cap *prxcap,
 	enum hdmi_vic vic);
 
 bool hdmitx_edid_validate_mode(struct rx_cap *rxcap, u32 vic);
-int hdmitx_edid_validate_format_para(struct rx_cap *prxcap,
-		struct hdmi_format_para *para);
+int hdmitx_edid_validate_format_para(struct tx_cap *txcap,
+		struct rx_cap *prxcap, struct hdmi_format_para *para);
 
 /*dump rx cap information in edid*/
 int hdmitx_edid_print_sink_cap(const struct rx_cap *prxcap, char *buffer, int buffer_len);

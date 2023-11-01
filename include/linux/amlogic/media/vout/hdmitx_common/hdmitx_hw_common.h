@@ -234,6 +234,11 @@ enum hdmi_ll_mode {
 /***********************************************************************
  *             HDMITX COMMON STRUCT & API
  **********************************************************************/
+struct tx_cap {
+	/* configure in dts file */
+	u8 tx_max_frl_rate;
+};
+
 struct hdmitx_hw_common {
 	/*uninit when destroy*/
 	void (*uninit)(struct hdmitx_hw_common *tx_hw);
@@ -278,6 +283,8 @@ struct hdmitx_hw_common {
 
 	/* hdcp repeater enable, such as on T7 platform */
 	u32 hdcp_repeater_en:1;
+
+	struct tx_cap txcap;
 };
 
 int hdmitx_hw_cntl_config(struct hdmitx_hw_common *tx_hw,

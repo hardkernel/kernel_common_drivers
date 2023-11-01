@@ -491,7 +491,7 @@ static int hdmitx_validate_mode(struct hdmitx_hw_common *tx_hw, u32 vic)
 static int hdmitx21_calc_formatpara(struct hdmitx_hw_common *tx_hw,
 	struct hdmi_format_para *para)
 {
-	enum frl_rate_enum tx_max_frl_rate = global_tx_hw->tx_max_frl_rate;
+	enum frl_rate_enum tx_max_frl_rate = tx_hw->txcap.tx_max_frl_rate;
 
 	/* check current tx para with TMDS mode */
 	para->tmds_clk = hdmitx_calc_tmds_clk(para->timing.pixel_freq,
