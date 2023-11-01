@@ -109,7 +109,7 @@ void *aml_slub_alloc_large(size_t size, gfp_t flags, int order)
 			p++;
 			saved++;
 		}
-		pr_debug("%s, page:%p, all:%5ld, size:%5ld, save:%5ld, f:%ps\n",
+		pr_info("%s, page:%p, all:%5ld, size:%5ld, save:%5ld, f:%ps\n",
 			__func__, page_address(page), total_pages * PAGE_SIZE,
 			(long)size, saved * PAGE_SIZE, (void *)fun);
 		return page;
@@ -125,7 +125,7 @@ static void aml_slub_free_large(struct page *page, const void *obj)
 		__ClearPageHead(page);
 		ClearPageOwnerPriv1(page);
 		nr_pages = page->index;
-		pr_debug("%s, page:%p, pages:%d, obj:%p\n",
+		pr_info("%s, page:%p, pages:%d, obj:%p\n",
 			__func__, page_address(page), nr_pages, obj);
 		for (i = 0; i < nr_pages; i++)  {
 			__free_pages(page, 0);

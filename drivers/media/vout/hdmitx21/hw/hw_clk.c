@@ -196,10 +196,10 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	switch (hdev->tx_hw.chip_data->chip_type) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case MESON_CPU_ID_T7:
 		set21_hpll_sspll_t7(vic);
 		break;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case MESON_CPU_ID_S5:
 		set21_hpll_sspll_s5(vic);
 		break;
@@ -760,6 +760,7 @@ static struct hw_enc_clk_val_group setting_3dfp_enc_clk_val[] = {
 		3450000, 1, 2, 2, VID_PLL_DIV_5, 1, 1, 1, 1, 1},
 };
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 /* if vsync likes 24000, 30000, ... etc, return 1 */
 static bool is_vsync_int(u32 clk)
 {
@@ -814,7 +815,6 @@ static u32 check_clock_shift(enum hdmi_vic vic, u32 frac_policy)
 	return 0;
 }
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static void set_hdmitx_s5_htx_pll(struct hdmitx_dev *hdev)
 {
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
@@ -1095,6 +1095,7 @@ int likely_frac_rate_mode(const char *m)
 		return 0;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static void hdmitx_set_fpll_without_dsc(struct hdmitx_dev *hdev)
 {
 	u32 fpll_vco = 2376000;
@@ -1276,12 +1277,15 @@ void hdmitx_set_gp2pll(struct hdmitx_dev *hdev)
 
 	hdmitx_set_s5_gp2pll(gp2pll_vco, div);
 }
+#endif
 
 void hdmitx_set_clkdiv(struct hdmitx_dev *hdev)
 {
 	switch (hdev->tx_hw.chip_data->chip_type) {
 	case MESON_CPU_ID_S5:
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		hdmitx_set_s5_clkdiv(hdev);
+#endif
 		break;
 	default:
 		break;
@@ -1425,6 +1429,7 @@ void hdmitx21_set_clk(struct hdmitx_dev *hdev)
 		break;
 	case MESON_CPU_ID_S5:
 	default:
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		disable_hdmitx_s5_plls(hdev);
 		/* typical 3 modes: legacy tmds, FRL w/o DSC, FRL w/ DSC */
 		set_hdmitx_htx_pll(hdev, &test_clks);
@@ -1433,6 +1438,7 @@ void hdmitx21_set_clk(struct hdmitx_dev *hdev)
 			if (hdev->dsc_en)
 				hdmitx_set_gp2pll(hdev);
 		}
+#endif
 		break;
 	}
 	return;

@@ -239,6 +239,7 @@ static struct notifier_block panic_notifier = {
 	.notifier_call	= panic_notify,
 };
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 ssize_t reboot_reason_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
@@ -256,6 +257,7 @@ ssize_t reboot_reason_show(struct device *dev,
 }
 
 static DEVICE_ATTR_RO(reboot_reason);
+#endif
 
 static ssize_t reset_test_store(struct device *dev,
 			   struct device_attribute *attr,  const char *buf, size_t count)
@@ -345,10 +347,12 @@ static int aml_restart_probe(struct platform_device *pdev)
 
 	reboot_reason_vaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (!IS_ERR(reboot_reason_vaddr)) {
+	#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		ret = device_create_file(&pdev->dev, &dev_attr_reboot_reason);
 		if (ret != 0)
 			pr_err("%s, device create file failed, ret = %d!\n",
 			       __func__, ret);
+	#endif
 
 		support_reboot_reason_ext = of_property_read_bool(pdev->dev.of_node,
 				"extend_reboot_reason");

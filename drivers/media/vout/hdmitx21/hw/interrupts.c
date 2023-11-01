@@ -283,10 +283,12 @@ RE_ISR:
 	return IRQ_HANDLED;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static irqreturn_t vrr_vsync_intr_handler(int irq, void *dev)
 {
 	return hdmitx_vrr_vsync_handler((struct hdmitx_dev *)dev);
 }
+#endif
 
 static irqreturn_t vsync_intr_handler(int irq, void *dev)
 {
@@ -313,9 +315,11 @@ void hdmitx_setupirqs(struct hdmitx_dev *phdev)
 			IRQF_SHARED, "hdmitx",
 			(void *)phdev);
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	r = request_irq(phdev->irq_vrr_vsync, &vrr_vsync_intr_handler,
 			IRQF_SHARED, "hdmitx_vrr_vsync",
 			(void *)phdev);
+#endif
 	if (r != 0)
 		HDMITX_INFO(SYS "can't request vrr_vsync irq\n");
 	r = request_irq(phdev->irq_vrr_vsync, &vsync_intr_handler,

@@ -76,7 +76,7 @@ extern u8 ksvlist[10];
 
 int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 				     unsigned long value, void *p);
-#ifdef CONFIG_AMLOGIC_HDMITX
+#ifdef CONFIG_AMLOGIC_HDMITX21
 u8 hdmitx_reauth_request(u8 hdcp_version);
 #else
 u8 __weak hdmitx_reauth_request(u8 hdcp_version)

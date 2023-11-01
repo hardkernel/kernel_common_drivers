@@ -242,6 +242,7 @@ static void hdmitx21_reset_hdcp(struct hdmitx_common *tx_comm)
 	hdmitx21_audio_mute_op(1, AUDIO_MUTE_PATH_3);
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 /* hdmi21 specific functions disable */
 static void hdmitx21_disable_21_work(void)
 {
@@ -249,6 +250,7 @@ static void hdmitx21_disable_21_work(void)
 	hdmitx_vrr_disable();
 	/* TODO: DSC */
 }
+#endif
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
@@ -313,11 +315,15 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 	struct hdmitx_dev *hdev = container_of(nb, struct hdmitx_dev, nb);
 
 	hdev->tx_comm.ready = 0;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	hdmitx_vrr_disable();
+#endif
 
 	hdmitx_common_avmute_locked(&hdev->tx_comm, SET_AVMUTE, AVMUTE_PATH_HDMITX);
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	frl_tx_stop();
+#endif
 	if (hdev->tx_comm.rxsense_policy)
 		cancel_delayed_work(&hdev->tx_comm.work_rxsense);
 	if (hdev->tx_comm.cedst_en)
@@ -2053,6 +2059,7 @@ bool hdmitx_update_latency_info(struct tvin_latency_s *latency_info)
 }
 EXPORT_SYMBOL(hdmitx_update_latency_info);
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static ssize_t vrr_cap_show(struct device *dev,
 			    struct device_attribute *attr,
 			    char *buf)
@@ -2112,6 +2119,7 @@ static ssize_t vrr_mode_store(struct device *dev,
 
 	return count;
 }
+#endif
 
 static ssize_t rxsense_policy_store(struct device *dev,
 				    struct device_attribute *attr,
@@ -2922,8 +2930,10 @@ static ssize_t not_restart_hdcp_store(struct device *dev,
 static DEVICE_ATTR_RW(disp_mode);
 static DEVICE_ATTR_RW(vid_mute);
 static DEVICE_ATTR_WO(config);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static DEVICE_ATTR_RO(vrr_cap);
 static DEVICE_ATTR_RW(vrr_mode);
+#endif
 static DEVICE_ATTR_RW(aud_mute);
 static DEVICE_ATTR_RO(lipsync_cap);
 static DEVICE_ATTR_RO(hdmi_hdr_status);
@@ -3014,9 +3024,11 @@ static int hdmitx21_post_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_
 
 static int hdmitx21_disable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para)
 {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	hdmitx_unregister_vrr(hdev);
+#endif
 	return 0;
 }
 
@@ -3026,7 +3038,9 @@ static int hdmitx21_init_uboot_mode(enum vmode_e mode)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	hdmitx_register_vrr(hdev);
+#endif
 	if (!(mode & VMODE_INIT_BIT_MASK)) {
 		HDMITX_ERROR("warning, echo /sys/class/display/mode is disabled\n");
 	} else {
@@ -3072,7 +3086,9 @@ static struct hdmitx_ctrl_ops tx21_ctrl_ops = {
 	.init_uboot_mode = hdmitx21_init_uboot_mode,
 	.reset_hdcp = hdmitx21_reset_hdcp,
 	.clear_pkt = hdmitx21_clear_packets,
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	.disable_21_work = hdmitx21_disable_21_work,
+#endif
 };
 
 static bool drm_hdmitx_get_vrr_cap(void)
@@ -3679,6 +3695,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 			return -ENXIO;
 	}
 	HDMITX_INFO("hpd irq = %d\n", hdev->irq_hpd);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	tx_vrr_params_init();
 	hdev->irq_vrr_vsync = platform_get_irq_byname(pdev, "vrr_vsync");
 	if (hdev->irq_vrr_vsync == -ENXIO) {
@@ -3687,6 +3704,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 			return -ENXIO;
 	}
 	HDMITX_INFO("vrr vsync irq = %d\n", hdev->irq_vrr_vsync);
+#endif
 	ret = of_property_read_u32(pdev->dev.of_node, "arc_rx_en", &val);
 	if (!ret)
 		hdev->arc_rx_en = val;
@@ -3875,8 +3893,10 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_disp_mode);
 	ret = device_create_file(dev, &dev_attr_vid_mute);
 	ret = device_create_file(dev, &dev_attr_config);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	ret = device_create_file(dev, &dev_attr_vrr_cap);
 	ret = device_create_file(dev, &dev_attr_vrr_mode);
+#endif
 	ret = device_create_file(dev, &dev_attr_lipsync_cap);
 	ret = device_create_file(dev, &dev_attr_hdmi_hdr_status);
 	ret = device_create_file(dev, &dev_attr_aud_mute);
@@ -4061,9 +4081,11 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_disp_mode);
 	device_remove_file(dev, &dev_attr_vid_mute);
 	device_remove_file(dev, &dev_attr_config);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	device_remove_file(dev, &dev_attr_vrr_cap);
 	device_remove_file(dev, &dev_attr_vrr_mode);
 	device_remove_file(dev, &dev_attr_vrr_cap);
+#endif
 	device_remove_file(dev, &dev_attr_ll_mode);
 	device_remove_file(dev, &dev_attr_ll_user_mode);
 	device_remove_file(dev, &dev_attr_ready);
@@ -4297,7 +4319,9 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.register_hdcp_notify = drm_hdmitx_register_hdcp_notify,
 	.get_vrr_cap = drm_hdmitx_get_vrr_cap,
 	.get_vrr_mode_group = drm_hdmitx_get_vrr_mode_group,
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	.set_vframe_rate_hint = hdmitx_set_fr_hint,
+#endif
 };
 
 int hdmitx_hook_drm(struct device *device)

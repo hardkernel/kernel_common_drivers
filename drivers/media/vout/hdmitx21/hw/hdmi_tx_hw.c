@@ -1215,8 +1215,10 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 			if (dfm_type == 2)
 				hdmitx_dfm_cfg(2, 0);
 		}
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if (hdev->tx_comm.rxcap.max_frl_rate)
 			frl_tx_training_handler(hdev);
+#endif
 	}
 	return 0;
 }
@@ -1880,10 +1882,12 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		hdev->tx_comm.fmt_para.vic = value;
 		hdmitx21_set_clk(hdev);
 		return;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	} else if (strncmp(tmpbuf, "frl", 3) == 0) {
 		hdev->manual_frl_rate = tmpbuf[3] - '0';
 		frl_tx_training_handler(hdev);
 		return;
+#endif
 	} else if (strncmp(tmpbuf, "testedid", 8) == 0) {
 		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_RESET_EDID, 0);
 		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_EDID_READ_DATA, 0);
@@ -2450,7 +2454,9 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case MISC_IS_FRL_MODE:
 		return !!(hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL) & (1 << 19));
 	case MISC_CLK_DIV_RST:
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		hdmitx21_s5_clk_div_rst(argv);
+#endif
 		break;
 	case MISC_HPD_MUX_OP:
 		if (argv == PIN_MUX)

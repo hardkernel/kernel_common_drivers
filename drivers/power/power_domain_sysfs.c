@@ -84,6 +84,7 @@ static ssize_t power_status_store(struct device *_dev,
 }
 static DEVICE_ATTR_RW(power_status);
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static ssize_t power_unused_show(struct device *_dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -99,6 +100,7 @@ static ssize_t power_unused_show(struct device *_dev,
 	return 0;
 }
 static DEVICE_ATTR_RO(power_unused);
+#endif
 
 void pd_dev_create_file(struct device *dev, int cnt_start, int cnt_end,
 			struct generic_pm_domain **domains)
@@ -110,7 +112,9 @@ void pd_dev_create_file(struct device *dev, int cnt_start, int cnt_end,
 	WARN_ON(device_create_file(dev, &dev_attr_power_status));
 	WARN_ON(device_create_file(dev, &dev_attr_power_on));
 	WARN_ON(device_create_file(dev, &dev_attr_power_off));
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	WARN_ON(device_create_file(dev, &dev_attr_power_unused));
+#endif
 }
 
 void pd_dev_remove_file(struct device *dev)
@@ -118,5 +122,7 @@ void pd_dev_remove_file(struct device *dev)
 	device_remove_file(dev, &dev_attr_power_status);
 	device_remove_file(dev, &dev_attr_power_on);
 	device_remove_file(dev, &dev_attr_power_off);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	device_remove_file(dev, &dev_attr_power_unused);
+#endif
 }

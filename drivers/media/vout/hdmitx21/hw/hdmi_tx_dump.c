@@ -602,6 +602,7 @@ static const struct file_operations dump_audcts_fops = {
 	.release	= single_release,
 };
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static int dump_hdmivrr_show(struct seq_file *s, void *p)
 {
 	return hdmitx_dump_vrr_status(s, p);
@@ -617,6 +618,7 @@ static const struct file_operations dump_hdmivrr_fops = {
 	.read		= seq_read,
 	.release	= single_release,
 };
+#endif
 
 static void dump_clkctrl_regs(struct seq_file *s, const u32 *val)
 {
@@ -816,7 +818,9 @@ static struct hdmitx_dbg_files_s hdmitx_dbg_files[] = {
 	{"hdmi_pkt", S_IFREG | 0444, &dump_hdmipkt_fops},
 	{"hdmi_ver", S_IFREG | 0444, &dump_hdmiver_fops},
 	{"aud_cts", S_IFREG | 0444, &dump_audcts_fops},
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	{"hdmi_vrr", S_IFREG | 0444, &dump_hdmivrr_fops},
+#endif
 	{"cts_enc_clk", S_IFREG | 0444, &dump_cts_enc_clk_fops},
 	{"frl_status", S_IFREG | 0444, &dump_frl_status_fops},
 };

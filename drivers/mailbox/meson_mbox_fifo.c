@@ -533,6 +533,7 @@ static int mbox_fifo_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 struct mbox_domain sc2_mbox_domains[] = {
 	[SC2_DSPA2REE0] = MBOX_DOMAIN(SC2_DSPA2REE0, SC2_MBOX_DSPA2REE, 0),
 	[SC2_REE2DSPA0] = MBOX_DOMAIN(SC2_REE2DSPA0, SC2_MBOX_REE2DSPA, 0),
@@ -657,6 +658,7 @@ static struct mbox_domain_data s5_mbox_domains_data __initdata = {
 	.mbox_domains = s5_mbox_domains,
 	.domain_counts = ARRAY_SIZE(s5_mbox_domains),
 };
+#endif
 
 struct mbox_domain s1a_mbox_domains[] = {
 	[S1A_AO2REE]    = MBOX_DOMAIN(S1A_AO2REE, S1A_MBOX_AO2REE, 0),
@@ -674,6 +676,7 @@ static struct mbox_domain_data s1a_mbox_domains_data __initdata = {
 };
 
 static const struct of_device_id mbox_of_match[] = {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	{
 		.compatible = "amlogic, t3-mbox-fifo",
 		.data = &t3_mbox_domains_data,
@@ -702,6 +705,7 @@ static const struct of_device_id mbox_of_match[] = {
 		.compatible = "amlogic, s5-mbox-fifo",
 		.data = &s5_mbox_domains_data,
 	},
+#endif
 	{
 		.compatible = "amlogic, s1a-mbox-fifo",
 		.data = &s1a_mbox_domains_data,

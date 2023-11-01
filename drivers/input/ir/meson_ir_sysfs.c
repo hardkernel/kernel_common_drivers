@@ -196,6 +196,7 @@ static ssize_t enable_store(struct device *dev,
 	return count;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static ssize_t map_tables_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -215,6 +216,7 @@ static ssize_t map_tables_show(struct device *dev,
 	spin_unlock_irqrestore(&chip->slock, flags);
 	return len;
 }
+#endif
 
 static ssize_t led_blink_show(struct device *dev, struct device_attribute *attr,
 			      char *buf)
@@ -367,11 +369,15 @@ DEVICE_ATTR_RW(protocol);
 DEVICE_ATTR_RW(keymap);
 DEVICE_ATTR_RW(debug_enable);
 DEVICE_ATTR_RW(enable);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 DEVICE_ATTR_RO(map_tables);
+#endif
 
 static struct attribute *meson_ir_sysfs_attrs[] = {
 	&dev_attr_protocol.attr,
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	&dev_attr_map_tables.attr,
+#endif
 	&dev_attr_keymap.attr,
 	&dev_attr_debug_enable.attr,
 	&dev_attr_enable.attr,
