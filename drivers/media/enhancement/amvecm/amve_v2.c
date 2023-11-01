@@ -675,6 +675,7 @@ void post_gainoff_cfg(struct tcon_rgb_ogo_s *p,
 	if (mode == WR_VCB) {
 		WRITE_VPP_REG(reg_ctl0,
 			((p->en << 31) & 0x80000000) |
+			((1 << 30) & 0x40000000) |
 			((p->r_gain << 16) & 0x07ff0000) |
 			((p->g_gain <<  0) & 0x000007ff));
 		WRITE_VPP_REG(reg_ctl1,
@@ -691,6 +692,7 @@ void post_gainoff_cfg(struct tcon_rgb_ogo_s *p,
 	} else if (mode == WR_DMA) {
 		VSYNC_WRITE_VPP_REG(reg_ctl0,
 			((p->en << 31) & 0x80000000) |
+			((1 << 30) & 0x40000000) |
 			((p->r_gain << 16) & 0x07ff0000) |
 			((p->g_gain <<	0) & 0x000007ff));
 		VSYNC_WRITE_VPP_REG(reg_ctl1,

@@ -12720,7 +12720,10 @@ static void aml_vecm_dt_parse(struct amvecm_dev_s *devp, struct platform_device 
 #ifdef CONFIG_AMLOGIC_PIXEL_PROBE
 	vpp_probe_enable();
 #endif
-	amvecm_wb_init(wb_en);
+
+	if (chip_type_id != chip_t3x)
+		amvecm_wb_init(wb_en);
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	amvecm_gamma_init(gamma_en);
 	amvecm_3dlut_init(lut3d_en);
