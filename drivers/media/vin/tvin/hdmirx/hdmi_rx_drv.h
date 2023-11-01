@@ -951,6 +951,7 @@ extern struct tasklet_struct rx_tasklet;
 extern struct device *hdmirx_dev;
 extern struct rx_s rx[4];
 extern struct rx_info_s rx_info;
+extern char boot_info[30][128];
 //extern struct phy_port_data aml_phy_dwork;
 //extern u8 port_idx;
 

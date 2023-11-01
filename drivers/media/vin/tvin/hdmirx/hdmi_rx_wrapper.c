@@ -7529,6 +7529,35 @@ void rx_port3_main_state_machine(void)
 	}
 }
 
+static void show_boot_info(void)
+{
+	u8 i;
+
+	for (i = 0; i < MAP_ADDR_MODULE_NUM; ++i)
+		rx_pr("phy_addr = 0x%x, size = 0x%x, maped:%px\n",
+			rx_reg_maps[i].phy_addr, rx_reg_maps[i].size,
+			rx_reg_maps[i].p);
+	for (i = 0; i < 30; ++i) {
+		if (boot_info[i][0] == '\0')
+			break;
+		rx_pr("%s\n", boot_info[i]);
+	}
+	rx_pr("pkt_buffa_a=0x%p\n", rx_info.emp_buff_a.store_a);
+	rx_pr("pkt_buffa_b=0x%p\n", rx_info.emp_buff_a.store_b);
+	//page_address
+	rx_pr("buffa_a paddr=0x%p\n",
+		(void *)rx_info.emp_buff_a.p_addr_a);
+	rx_pr("buffa_b paddr=0x%p\n",
+		(void *)rx_info.emp_buff_a.p_addr_b);
+	rx_pr("pkt_buffb_a=0x%p\n", rx_info.emp_buff_b.store_a);
+	rx_pr("pkt_buffb_b=0x%p\n", rx_info.emp_buff_b.store_b);
+	//page_address
+	rx_pr("buffb_a paddr=0x%p\n",
+		(void *)rx_info.emp_buff_b.p_addr_a);
+	rx_pr("buffb_b paddr=0x%p\n",
+		(void *)rx_info.emp_buff_b.p_addr_b);
+}
+
 unsigned int hdmirx_show_info(unsigned char *buf, int size, u8 port)
 {
 	int pos = 0;
@@ -8133,11 +8162,8 @@ int hdmirx_debug(const char *buf, int size)
 		hdmirx_wr_bits_top_common(TOP_EDID_RAM_OVR0_DATA, _BIT(0), 1);
 	} else if (strncmp(tmpbuf, "aud_cal", 7) == 0) {
 		txhd2_aud_clk_cal();
-	} else if (strncmp(tmpbuf, "reg_map", 7) == 0) {
-		for (i = 0; i < MAP_ADDR_MODULE_NUM; i++) {
-			rx_pr("phy_addr = 0x%x, size = 0x%x, maped:%px\n",
-				rx_reg_maps[i].phy_addr, size, rx_reg_maps[i].p);
-		}
+	} else if (strncmp(tmpbuf, "info", 4) == 0) {
+		show_boot_info();
 	}
 	return 0;
 }

@@ -115,7 +115,7 @@ struct workqueue_struct *frl_train_wq;
 struct work_struct     frl_train_1_dwork;
 struct workqueue_struct *frl_train_1_wq;
 
-
+char boot_info[30][128];
 unsigned int hdmirx_addr_port;
 unsigned int hdmirx_data_port;
 unsigned int hdmirx_ctrl_port;
@@ -397,7 +397,7 @@ int rx_init_reg_map(struct platform_device *pdev)
 
 		//remove to echo reg_map > /sys/class/hdmirx/hdmirx0/debug;
 		//rx_pr("phy_addr = 0x%x, size = 0x%x, maped:%px\n",
-		      //rx_reg_maps[i].phy_addr, size, rx_reg_maps[i].p);
+		//	rx_reg_maps[i].phy_addr, size, rx_reg_maps[i].p);
 	}
 	return ret;
 }
@@ -3028,8 +3028,6 @@ void rx_emp_resource_allocate(struct device *dev)
 				rx_info.emp_buff_a.store_a + (EMP_BUFFER_SIZE >> 1);
 		else
 			rx_pr("emp buff err-0\n");
-		rx_pr("pkt_buffa_a=0x%p\n", rx_info.emp_buff_a.store_a);
-		rx_pr("pkt_buffa_b=0x%p\n", rx_info.emp_buff_a.store_b);
 		rx_info.emp_buff_a.dump_mode = DUMP_MODE_EMP;
 		/* allocate buffer for hw access*/
 		rx_info.emp_buff_a.pg_addr =
@@ -3041,11 +3039,6 @@ void rx_emp_resource_allocate(struct device *dev)
 			rx_info.emp_buff_a.p_addr_a = page_to_phys(rx_info.emp_buff_a.pg_addr);
 			rx_info.emp_buff_a.p_addr_b =
 				rx_info.emp_buff_a.p_addr_a + (EMP_BUFFER_SIZE >> 1);
-			//page_address
-			rx_pr("buffa_a paddr=0x%p\n",
-			      (void *)rx_info.emp_buff_a.p_addr_a);
-			rx_pr("buffa_b paddr=0x%p\n",
-			      (void *)rx_info.emp_buff_a.p_addr_b);
 		} else {
 			rx_pr("emp buff err-1\n");
 		}
@@ -3067,8 +3060,6 @@ void rx_emp1_resource_allocate(struct device *dev)
 			rx_info.emp_buff_b.store_a + (EMP_BUFFER_SIZE >> 1);
 	else
 		rx_pr("emp buff err-0\n");
-	rx_pr("pkt_buffb_a=0x%p\n", rx_info.emp_buff_b.store_a);
-	rx_pr("pkt_buffb_b=0x%p\n", rx_info.emp_buff_b.store_b);
 	rx_info.emp_buff_b.dump_mode = DUMP_MODE_EMP;
 	/* allocate buffer for hw access*/
 	rx_info.emp_buff_b.pg_addr =
@@ -3081,11 +3072,6 @@ void rx_emp1_resource_allocate(struct device *dev)
 			page_to_phys(rx_info.emp_buff_b.pg_addr);
 		rx_info.emp_buff_b.p_addr_b =
 			rx_info.emp_buff_b.p_addr_a + (EMP_BUFFER_SIZE >> 1);
-		//page_address
-		rx_pr("buffb_a paddr=0x%p\n",
-		      (void *)rx_info.emp_buff_b.p_addr_a);
-		rx_pr("buffb_b paddr=0x%p\n",
-		      (void *)rx_info.emp_buff_b.p_addr_b);
 	} else {
 		rx_pr("emp1 buff err-1\n");
 	}
@@ -3355,6 +3341,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	int port = 0;
+	u8 i = 0;
 	struct hdmirx_dev_s *hdevp;
 	//struct resource *res;
 	struct clk *xtal_clk;
@@ -3794,13 +3781,13 @@ static int hdmirx_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node,
 					   "ops_port", &ops_port);
 	if (ret) {
-		rx_pr("ops_port not found.\n");
+		sprintf(boot_info[i++], "ops_port not found.");
 		ops_port = 0xf0;
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "en_4k_2_2k", &en_4k_2_2k);
 	if (ret) {
-		rx_pr("en_4k_2_2k not found.\n");
+		sprintf(boot_info[i++], "en_4k_2_2k not found.");
 		en_4k_2_2k = 0;
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
@@ -3811,13 +3798,13 @@ static int hdmirx_probe(struct platform_device *pdev)
 				   "vrr_range_dynamic_update_en", &vrr_range_dynamic_update_en);
 	if (ret) {
 		vrr_range_dynamic_update_en = 0;
-		rx_pr("vrr_range_dynamic_update_en not found.\n");
+		sprintf(boot_info[i++], "vrr_range_dynamic_update_en not found.");
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "allm_update_en", &allm_update_en);
 	if (ret) {
 		allm_update_en = 0;
-		rx_pr("allm_update_en not found.\n");
+		sprintf(boot_info[i++], "allm_update_en not found.");
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "hpd_low_cec_off", &hpd_low_cec_off);
@@ -3834,47 +3821,47 @@ static int hdmirx_probe(struct platform_device *pdev)
 		disable_port_num = disable_port & 0xF;
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
-				   "arc_port", &rx_info.arc_port);
+		"arc_port", &rx_info.arc_port);
 	if (ret) {
 		/* default arc port is port B */
 		rx_info.arc_port = 0x1;
-		rx_pr("not find arc_port, portB by default\n");
+		sprintf(boot_info[i++], "not find arc_port, portB by default.");
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node,
-				   "aud_compose_type",
-				   &rpt_edid_selection);
+		"aud_compose_type",
+		&rpt_edid_selection);
 	if (ret) {
 		rpt_edid_selection = 1;
-		rx_pr("not find aud_compose_type, soundbar by default\n");
+		sprintf(boot_info[i++], "not find aud_compose_type, soundbar by default.");
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
-				   "rpt_only_mode",
-				   &rpt_only_mode);
+		"rpt_only_mode",
+		&rpt_only_mode);
 	if (ret) {
 		rpt_only_mode = 0;
-		rx_pr("not find rpt_only_mode, soundbar by default\n");
+		sprintf(boot_info[i++], "not find rpt_only_mode, soundbar by default.");
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
-				   "disable_hdr",
-				   &disable_hdr);
+		"disable_hdr",
+		&disable_hdr);
 	if (ret) {
 		disable_hdr = 0;
-		rx_pr("not find disable_hdr, hdr enable by default\n");
+		sprintf(boot_info[i++], "not find disable_hdr, hdr enable by default.");
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
-				   "rx_5v_wake_up_en",
-				   &rx_5v_wake_up_en);
+		"rx_5v_wake_up_en",
+		&rx_5v_wake_up_en);
 	if (ret) {
 		rx_5v_wake_up_en = 0;
-		rx_pr("not find rx_5v_wake_up_en, soundbar by default\n");
+		sprintf(boot_info[i++], "not find rx_5v_wake_up_en, soundbar by default.");
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
-				   "phy_term_lel_t3x_21",
-				   &phy_term_lel_t3x_21);
+		"phy_term_lel_t3x_21",
+		&phy_term_lel_t3x_21);
 	if (ret) {
 		phy_term_lel_t3x_21 = 0;
-		rx_pr("not find phy_term_lel_t3x_21, soundbar by default\n");
+		sprintf(boot_info[i++], "not find phy_term_lel_t3x_21, soundbar by default.");
 	}
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0)
