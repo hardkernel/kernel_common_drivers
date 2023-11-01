@@ -971,6 +971,7 @@ static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data,
 	u8 *y_dst, *vu_dst;
 	short *y_dst_10, *vu_dst_10;
 	int bit_10;
+	int convert_to_8bit = 0;
 	struct timeval start, end;
 	struct fbc_decoder_param param;
 	unsigned long time_use = 0;
@@ -985,7 +986,8 @@ static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data,
 		 vf->width, vf->height, vf->compWidth, vf->compHeight, bit_10);
 	if (v4l_data->byte_stride == v4l_data->width && bit_10 == 1) {
 		bit_10 = 0;
-		pr_info("memory not enough,force to 8bit.\n");
+		convert_to_8bit  = 1;
+		pr_info("memory not enough,convert 10bit to 8bit.\n");
 	}
 	for (i = 0; i < 4; i++) {
 		planes[i] = vmalloc(y_size);
@@ -1034,6 +1036,8 @@ static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data,
 			tmp = (u8 *)(s2c);
 			if (bit_10)
 				*(y_dst_10 + j) = *s2c << 6 & convert_mask;
+			else if (convert_to_8bit)
+				*(y_dst + j) = (*s2c >> 2) & 0xff;
 			else
 				*(y_dst + j) = tmp[0];
 		}
@@ -1052,6 +1056,9 @@ static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data,
 			if (bit_10) {
 				*(vu_dst_10 + j) = *s2c1 << 6 & convert_mask;
 				*(vu_dst_10 + j + 1) = *s2c << 6 & convert_mask;
+			} else if (convert_to_8bit) {
+				*(vu_dst + j) = *s2c >> 2 & 0xff;
+				*(vu_dst + j + 1) = *s2c1 >> 2 & 0xff;
 			} else {
 				*(vu_dst + j) = tmp[0];
 				*(vu_dst + j + 1) = tmp1[0];
