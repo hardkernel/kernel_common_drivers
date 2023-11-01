@@ -592,6 +592,10 @@ static void s5_postblend_set_state(struct meson_vpu_block *vblk,
 		scope.v_end = mvsps->blend_dout_vsize[0] - 1;
 	}
 
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+		secure_config(OSD_MODULE, mvps->sec_src, crtc_index);
+#endif
+
 	vpp_osd1_blend_scope_set(vblk, reg_ops, reg, scope);
 
 	if (amc->blank_enable) {
@@ -631,6 +635,11 @@ static void t3x_postblend_set_state(struct meson_vpu_block *vblk,
 	MESON_DRM_BLOCK("%s set_state called.\n", postblend->base.name);
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
 	mvsps = &mvps->sub_states[0];
+
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	secure_config(OSD_MODULE, mvps->sec_src, crtc_index);
+#endif
+
 	if (crtc_index == 0) {
 		scope.h_start = 0;
 		scope.v_start = 0;
