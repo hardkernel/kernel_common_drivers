@@ -1,7 +1,7 @@
-From cdb09fef141ec1c697b0e93775f7085226e6b797 Mon Sep 17 00:00:00 2001
+From 5c6b052b852c2414fe1ed6c5f5a178b129ae8321 Mon Sep 17 00:00:00 2001
 From: Tao Zeng <tao.zeng@amlogic.com>
 Date: Thu, 20 Jan 2022 15:09:43 +0800
-Subject: [PATCH 01/11] mm: add pagetrace support [1/2]
+Subject: [PATCH] mm: add pagetrace support [1/2]
 
 PD#SWPL-70022
 
@@ -22,8 +22,8 @@ Change-Id: I69cc8b4f4fa4c323204f86e5c76613cd3d6087df
  init/main.c              |  8 ++++++++
  mm/compaction.c          |  6 ++++++
  mm/mm_init.c             |  5 +++++
- mm/page_alloc.c          | 10 ++++++++++
- 6 files changed, 55 insertions(+)
+ mm/page_alloc.c          | 13 +++++++++++++
+ 6 files changed, 58 insertions(+)
 
 diff --git a/include/linux/mm.h b/include/linux/mm.h
 index e7616c8d8284..a9d1bfa9190e 100644
@@ -54,7 +54,7 @@ index e7616c8d8284..a9d1bfa9190e 100644
  #define ZONES_PGOFF		(NODES_PGOFF - ZONES_WIDTH)
  #define LAST_CPUPID_PGOFF	(ZONES_PGOFF - LAST_CPUPID_WIDTH)
 diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index d290cba826fc..e1e7b5edc53e 100644
+index 42786e6364ef..1c5941316611 100644
 --- a/include/linux/mm_types.h
 +++ b/include/linux/mm_types.h
 @@ -70,8 +70,18 @@ struct mem_cgroup;
@@ -77,7 +77,7 @@ index d290cba826fc..e1e7b5edc53e 100644
  	 * Five words (20/40 bytes) are available in this union.
  	 * WARNING: bit 0 of the first word is used for PageTail(). That
 diff --git a/init/main.c b/init/main.c
-index 649d9e4201a8..e60c08a1ff8e 100644
+index f2579303f6a0..5680a03fe8aa 100644
 --- a/init/main.c
 +++ b/init/main.c
 @@ -114,6 +114,10 @@
@@ -91,7 +91,7 @@ index 649d9e4201a8..e60c08a1ff8e 100644
  static int kernel_init(void *);
  
  extern void init_IRQ(void);
-@@ -846,6 +850,10 @@ static void __init mm_init(void)
+@@ -859,6 +863,10 @@ static void __init mm_init(void)
  	kfence_alloc_pool();
  	report_meminit();
  	stack_depot_init();
@@ -144,7 +144,7 @@ index 0d7b2bd2454a..9383fd4c80bc 100644
  		- LAST_CPUPID_SHIFT - KASAN_TAG_WIDTH - LRU_GEN_WIDTH - LRU_REFS_WIDTH;
  	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_widths",
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 30f6a533408e..9540bfaf9c3a 100644
+index 97aeb9a9b0df..8820f3fafaf8 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -81,6 +81,10 @@
@@ -158,7 +158,7 @@ index 30f6a533408e..9540bfaf9c3a 100644
  /* Free Page Internal flags: for internal, non-pcp variants of free_pages(). */
  typedef int __bitwise fpi_t;
  
-@@ -1405,6 +1409,9 @@ static __always_inline bool free_pages_prepare(struct page *page,
+@@ -1483,6 +1487,9 @@ static __always_inline bool free_pages_prepare(struct page *page,
  
  	debug_pagealloc_unmap_pages(page, 1 << order);
  
@@ -168,7 +168,17 @@ index 30f6a533408e..9540bfaf9c3a 100644
  	return true;
  }
  
-@@ -5597,6 +5604,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
+@@ -5596,6 +5603,9 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
+ 		else
+ 			page_array[nr_populated] = page;
+ 		nr_populated++;
++	#ifdef CONFIG_AMLOGIC_PAGE_TRACE
++		set_page_trace(page, 0, gfp, NULL);
++	#endif /* CONFIG_AMLOGIC_PAGE_TRACE */
+ 	}
+ 
+ 	pcp_spin_unlock_irqrestore(pcp, flags);
+@@ -5688,6 +5698,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
  	}
  
  	trace_mm_page_alloc(page, order, alloc_gfp, ac.migratetype);
@@ -179,5 +189,5 @@ index 30f6a533408e..9540bfaf9c3a 100644
  	return page;
  }
 -- 
-2.25.1
+2.42.0
 
