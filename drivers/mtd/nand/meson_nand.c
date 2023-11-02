@@ -125,6 +125,96 @@ static void meson_nfc_select_chip(struct nand_chip *nand, int chip)
 	}
 }
 
+int meson_nand_rsv_erase(struct mtd_info *mtd, struct erase_info *instr)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	int page, chipnr, ret = 0;
+
+	page = (int)(instr->addr >> chip->page_shift);
+	chipnr = (int)(instr->addr >> chip->chip_shift);
+	nand_select_target(chip, chipnr);
+	ret = nand_erase_op(chip, (page & chip->pagemask) >>
+				(chip->phys_erase_shift - chip->page_shift));
+	nand_deselect_target(chip);
+
+	return ret;
+}
+
+int meson_nand_rsv_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	int oob_required = ops->oobbuf ? 1 : 0;
+	int chipnr, realpage, page;
+	int ret;
+
+	chipnr = (int)(to >> chip->chip_shift);
+	realpage = (int)(to >> chip->page_shift);
+	page = realpage & chip->pagemask;
+	meson_nfc_select_chip(chip, chipnr);
+	memset(chip->oob_poi, 0xff, mtd->oobsize);
+	mtd_ooblayout_set_databytes(mtd, ops->oobbuf, chip->oob_poi,
+					ops->ooboffs, ops->ooblen);
+	ret = chip->ecc.write_page(chip, ops->datbuf, oob_required, page);
+	meson_nfc_select_chip(chip, -1);
+
+	return ret;
+}
+
+int meson_nand_rsv_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct mtd_ecc_stats stats;
+	int page, realpage, chipnr, oob_required, ret = 0;
+
+	stats = mtd->ecc_stats;
+	oob_required = ops->oobbuf ? 1 : 0;
+
+	chipnr = (int)(from >> chip->chip_shift);
+	realpage = (int)(from >> chip->page_shift);
+	page = realpage & chip->pagemask;
+
+	meson_nfc_select_chip(chip, chipnr);
+	if (!ops->datbuf) {
+		ret = chip->ecc.read_oob(chip, page);
+	} else {
+		ret = chip->ecc.read_page(chip, chip->data_buf,
+				oob_required, page);
+		memcpy(ops->datbuf, chip->data_buf, ops->len);
+	}
+	meson_nfc_select_chip(chip, -1);
+
+	if (ret < 0 || mtd->ecc_stats.failed - stats.failed)
+		return -EBADMSG;
+
+	mtd_ooblayout_get_databytes(mtd, ops->oobbuf,
+								chip->oob_poi, ops->ooboffs,
+								ops->ooblen);
+
+	return 0;
+}
+
+int meson_nand_rsv_isbad(struct mtd_info *mtd, loff_t offs)
+{
+	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct meson_nfc *nfc = nand_get_controller_data(chip);
+	int block, status;
+
+	block = (int)(offs >> chip->bbt_erase_shift);
+	status = nfc->block_status[block];
+
+	return status ? 1 : 0;
+}
+
+int meson_nand_rsv_get_device(struct mtd_info *mtd)
+{
+	return nand_get_device(mtd_to_nand(mtd));
+}
+
+void meson_nand_rsv_release_device(struct mtd_info *mtd)
+{
+	nand_release_device(mtd_to_nand(mtd));
+}
+
 static void meson_nfc_cmd_idle(struct meson_nfc *nfc, u32 time)
 {
 	writel(nfc->param.chip_select | NFC_CMD_IDLE | (time & 0x3ff),
@@ -1640,6 +1730,14 @@ meson_nfc_nand_chip_init(struct device *dev,
 	mtd->_block_isbad =  meson_nand_block_isbad;
 	mtd->_block_markbad = meson_nand_block_markbad;
 	if (aml_mtd_devnum != 0) {
+		nfc->rsv->mtd = mtd;
+		nfc->rsv->rsv_ops._erase = meson_nand_rsv_erase;
+		nfc->rsv->rsv_ops._write_oob = meson_nand_rsv_write_oob;
+		nfc->rsv->rsv_ops._read_oob = meson_nand_rsv_read_oob;
+		nfc->rsv->rsv_ops._block_markbad = NULL;
+		nfc->rsv->rsv_ops._block_isbad = meson_nand_rsv_isbad;
+		nfc->rsv->rsv_ops._get_device = meson_nand_rsv_get_device;
+		nfc->rsv->rsv_ops._release_device = meson_nand_rsv_release_device;
 		meson_rsv_init(mtd, nfc->rsv);
 		nfc->block_status = kzalloc((mtd->size >> mtd->erasesize_shift),
 					    GFP_KERNEL);

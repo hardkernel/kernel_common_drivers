@@ -748,6 +748,48 @@ static int spinand_mtd_read(struct mtd_info *mtd, loff_t from,
 	return ret ? ret : max_bitflips;
 }
 
+int spinand_mtd_read_unlock(struct mtd_info *mtd, loff_t from,
+			    struct mtd_oob_ops *ops)
+{
+	struct spinand_device *spinand = mtd_to_spinand(mtd);
+	struct nand_device *nand = mtd_to_nanddev(mtd);
+	unsigned int max_bitflips = 0;
+	struct nand_io_iter iter;
+	bool disable_ecc = false;
+	bool ecc_failed = false;
+	int ret = 0;
+
+	if (ops->mode == MTD_OPS_RAW || !spinand->eccinfo.ooblayout)
+		disable_ecc = true;
+
+	nanddev_io_for_each_page(nand, NAND_PAGE_READ, from, ops, &iter) {
+		if (disable_ecc)
+			iter.req.mode = MTD_OPS_RAW;
+
+		ret = spinand_select_target(spinand, iter.req.pos.target);
+		if (ret)
+			break;
+
+		ret = spinand_read_page(spinand, &iter.req);
+		if (ret < 0 && ret != -EBADMSG)
+			break;
+
+		if (ret == -EBADMSG)
+			ecc_failed = true;
+		else
+			max_bitflips = max_t(unsigned int, max_bitflips, ret);
+
+		ret = 0;
+		ops->retlen += iter.req.datalen;
+		ops->oobretlen += iter.req.ooblen;
+	}
+
+	if (ecc_failed && !ret)
+		ret = -EBADMSG;
+
+	return ret ? ret : max_bitflips;
+}
+
 static int spinand_mtd_write(struct mtd_info *mtd, loff_t to,
 			     struct mtd_oob_ops *ops)
 {
@@ -779,6 +821,37 @@ static int spinand_mtd_write(struct mtd_info *mtd, loff_t to,
 	}
 
 	mutex_unlock(&spinand->lock);
+
+	return ret;
+}
+
+int spinand_mtd_write_unlock(struct mtd_info *mtd, loff_t to,
+			     struct mtd_oob_ops *ops)
+{
+	struct spinand_device *spinand = mtd_to_spinand(mtd);
+	struct nand_device *nand = mtd_to_nanddev(mtd);
+	struct nand_io_iter iter;
+	bool disable_ecc = false;
+	int ret = 0;
+
+	if (ops->mode == MTD_OPS_RAW || !mtd->ooblayout)
+		disable_ecc = true;
+
+	nanddev_io_for_each_page(nand, NAND_PAGE_WRITE, to, ops, &iter) {
+		if (disable_ecc)
+			iter.req.mode = MTD_OPS_RAW;
+
+		ret = spinand_select_target(spinand, iter.req.pos.target);
+		if (ret)
+			break;
+
+		ret = spinand_write_page(spinand, &iter.req);
+		if (ret)
+			break;
+
+		ops->retlen += iter.req.datalen;
+		ops->oobretlen += iter.req.ooblen;
+	}
 
 	return ret;
 }

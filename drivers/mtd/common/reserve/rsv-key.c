@@ -11,6 +11,7 @@
 #include <linux/amlogic/aml_rsv.h>
 #include <linux/amlogic/key_manage.h>
 
+extern struct meson_rsv_handler_t *rsv_handler;
 static struct meson_rsv_info_t *meson_rsv_key;
 
 /*
@@ -19,6 +20,7 @@ static struct meson_rsv_info_t *meson_rsv_key;
 s32 amlnf_key_read(u8 *buf, u32 len, u32 *actual_length)
 {
 	struct meson_rsv_info_t *aml_key = meson_rsv_key;
+	struct meson_rsv_ops *rsv_ops = &rsv_handler->rsv_ops;
 	u8 *key_ptr = NULL;
 	u32 keysize = 0;
 
@@ -45,10 +47,13 @@ s32 amlnf_key_read(u8 *buf, u32 len, u32 *actual_length)
 	if (!key_ptr)
 		return -ENOMEM;
 
+	rsv_ops->_get_device(rsv_handler->mtd);
 	meson_rsv_key_read(key_ptr, keysize);
+	rsv_ops->_release_device(rsv_handler->mtd);
 	memcpy(buf, key_ptr, min_t(int, keysize, len));
 
 	kfree(key_ptr);
+
 	return 0;
 }
 
@@ -58,6 +63,7 @@ s32 amlnf_key_read(u8 *buf, u32 len, u32 *actual_length)
 s32 amlnf_key_write(u8 *buf, u32 len, u32 *actual_length)
 {
 	struct meson_rsv_info_t *aml_key = meson_rsv_key;
+	struct meson_rsv_ops *rsv_ops = &rsv_handler->rsv_ops;
 	/*struct mtd_info *mtd = aml_chip->mtd;*/
 	u8 *key_ptr = NULL;
 	u32 keysize = 0;
@@ -87,9 +93,12 @@ s32 amlnf_key_write(u8 *buf, u32 len, u32 *actual_length)
 		return -ENOMEM;
 
 	memcpy(key_ptr, buf, keysize);
+	rsv_ops->_get_device(rsv_handler->mtd);
 	error = meson_rsv_key_write(key_ptr, len);
+	rsv_ops->_release_device(rsv_handler->mtd);
 
 	kfree(key_ptr);
+
 	return error;
 }
 

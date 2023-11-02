@@ -81,6 +81,10 @@ int meson_spinand_init(struct spinand_device *spinand, struct mtd_info *mtd);
 int meson_add_mtd_partitions(struct mtd_info *mtd);
 void spinand_get_tpl_info(u32 *fip_size, u32 *fip_copies);
 bool meson_spinand_isbad(struct nand_device *nand, const struct nand_pos *pos);
+int spinand_mtd_write_unlock(struct mtd_info *mtd, loff_t to,
+			     struct mtd_oob_ops *ops);
+int spinand_mtd_read_unlock(struct mtd_info *mtd, loff_t from,
+			    struct mtd_oob_ops *ops);
 /* spinand add info page support */
 bool spinand_is_info_page(struct nand_device *nand, int page);
 int spinand_set_info_page(struct mtd_info *mtd, void *buf);

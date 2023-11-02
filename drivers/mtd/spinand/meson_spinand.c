@@ -57,6 +57,53 @@ struct meson_spinand {
 
 struct meson_spinand *meson_spinand_global;
 
+int meson_spinand_rsv_erase(struct mtd_info *mtd, struct erase_info *einfo)
+{
+	int ret;
+
+	ret = nanddev_mtd_erase(mtd, einfo);
+
+	return ret;
+}
+
+int meson_spinand_rsv_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
+{
+	return spinand_mtd_write_unlock(mtd, to, ops);
+}
+
+int meson_spinand_rsv_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
+{
+	return spinand_mtd_read_unlock(mtd, from, ops);
+}
+
+int meson_spinand_rsv_isbad(struct mtd_info *mtd, loff_t offs)
+{
+	struct meson_spinand *meson_spinand = meson_spinand_global;
+	int eraseblock;
+	u8 status;
+
+	eraseblock = (int)(offs >> (ffs(mtd->erasesize) - 1));
+	status = meson_spinand->block_status[eraseblock];
+
+	return status ? 1 : 0;
+}
+
+int meson_spinand_rsv_get_device(struct mtd_info *mtd)
+{
+	struct spinand_device *spinand = mtd_to_spinand(mtd);
+
+	mutex_lock(&spinand->lock);
+
+	return 0;
+}
+
+void meson_spinand_rsv_release_device(struct mtd_info *mtd)
+{
+	struct spinand_device *spinand = mtd_to_spinand(mtd);
+
+	mutex_unlock(&spinand->lock);
+}
+
 void spinand_get_tpl_info(u32 *fip_size, u32 *fip_copies)
 {
 	if (meson_spinand_global->pdata) {
@@ -193,6 +240,14 @@ int meson_spinand_init(struct spinand_device *spinand, struct mtd_info *mtd)
 	mtd->erasesize_shift = meson_spinand->erasesize_shift;
 	mtd->writesize_shift = ffs(mtd->writesize) - 1;
 
+	meson_spinand->rsv->mtd = mtd;
+	meson_spinand->rsv->rsv_ops._erase = meson_spinand_rsv_erase;
+	meson_spinand->rsv->rsv_ops._write_oob = meson_spinand_rsv_write_oob;
+	meson_spinand->rsv->rsv_ops._read_oob = meson_spinand_rsv_read_oob;
+	meson_spinand->rsv->rsv_ops._block_markbad = NULL;
+	meson_spinand->rsv->rsv_ops._block_isbad = meson_spinand_rsv_isbad;
+	meson_spinand->rsv->rsv_ops._get_device = meson_spinand_rsv_get_device;
+	meson_spinand->rsv->rsv_ops._release_device = meson_spinand_rsv_release_device;
 	meson_rsv_init(mtd, meson_spinand->rsv);
 
 	err = meson_spinand_bbt_check(mtd);
