@@ -802,8 +802,7 @@ void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 	enum hdmi_audio_sampsize n_size = aud_size_map(aud_param->size);
 	int audio_param_update_flag = 0;
 
-	if (tx_aud_param->prepare) {
-		tx_aud_param->prepare = 0;
+	if (aud_param->prepare) {
 		hdmitx_hw_cntl_misc(tx_hw_base, MISC_AUDIO_ACR_CTRL, 0);
 		hdmitx_hw_cntl_misc(tx_hw_base, MISC_AUDIO_PREPARE, 0);
 		tx_aud_param->type = CT_PREPARE;
