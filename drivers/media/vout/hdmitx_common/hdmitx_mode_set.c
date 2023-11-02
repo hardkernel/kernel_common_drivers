@@ -557,56 +557,37 @@ void hdmitx_plugin_common_work(struct hdmitx_common *tx_comm)
 	tx_comm->last_hpd_handle_done_stat = HDMI_TX_HPD_PLUGIN;
 }
 
+/* common work for plugout flow, witch should be done in lock */
+void hdmitx_plugout_common_work(struct hdmitx_common *tx_comm)
+{
+	HDMITX_INFO(SYS "plugout\n");
+	/* trace event */
+	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_HPD_PLUGOUT);
+
+	/* step1: disable output */
+	hdmitx_common_output_disable(tx_comm, true, true, true, true);
+	//hdmitx_hw_cntl_ddc(tx_hw_base, DDC_HDCP_SET_TOPO_INFO, 0);
+
+	/* step2: SW: status update */
+	tx_comm->hpd_state = 0;
+	tx_comm->last_hpd_handle_done_stat = HDMI_TX_HPD_PLUGOUT;
+}
+
 void hdmitx_common_late_resume(struct hdmitx_common *tx_comm)
 {
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
 
 	tx_hw_base->debug_hpd_lock = 0;
 
-	/* TODO: special for RDK */
-	/* for RDK userspace, after receive plug change uevent,
-	 * it will check connector state before enable encoder.
-	 * so should not change hpd_state other than in plug handler
-	 */
-	/* if (tx_comm->hdcp_ctl_lvl != 0x1) */
-		/* tx_comm->hpd_state = hpd_state; */
-
-	/* step1: SW: force HPD/EDID update, as there may be
-	 * no hpd event during suspend/resume stage but edid
-	 * have been cleared when suspend
-	 */
-	tx_comm->hpd_state = !!(hdmitx_hw_cntl_misc(tx_hw_base, MISC_HPD_GPI_ST, 0));
-	if (tx_comm->hpd_state)
-		tx_comm->already_used = 1;
-
-	HDMITX_INFO("hdmitx hpd state: %d\n", tx_comm->hpd_state);
-
-	if (tx_comm->hpd_state) {
-		/* if there's hpd plugin event during early suspend,
-		 * then hdmitx_plugin_common_work() have been done,
-		 * no need to call again except edid abnormal
-		 */
-		if (tx_comm->rxcap.edid_parsing == 0)
-			hdmitx_plugin_common_work(tx_comm);
-	} else {
-		/* Note: if plugout event and resume come together
-		 * here clear edid info, as later will post
-		 * plugout uevent and system may check edid/cap
-		 * and find it not in clear state.
-		 */
-		hdmitx_common_edid_clear(tx_comm);
-		/* other work will be done in plugout handler */
-	}
-
-	/* step2: SW: status update */
+	/* step1: SW: status update */
 	tx_comm->suspend_flag = false;
 	hdmitx_hw_cntl_misc(tx_hw_base, MISC_SUSFLAG, 0);
 
-	/* step3: HW: reset HW */
+	/* step2: HW: reset HW */
 	hdmitx_hw_cntl(tx_hw_base, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_LATE_RESUME);
 
-	/* step4: SW: post uevent to system */
+	/* step3: SW: post uevent to system */
 	hdmitx_common_notify_hpd_status(tx_comm, true);
 	hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
 		HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP, false);

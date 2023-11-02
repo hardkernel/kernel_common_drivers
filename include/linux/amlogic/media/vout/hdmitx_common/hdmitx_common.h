@@ -265,6 +265,8 @@ void hdmitx_build_fmt_attr_str(struct hdmitx_common *tx_comm);
 
 /* common work for plugin/resume, witch is done in lock */
 void hdmitx_plugin_common_work(struct hdmitx_common *tx_comm);
+/* common work for plugout */
+void hdmitx_plugout_common_work(struct hdmitx_common *tx_comm);
 /* common edid clear, witch is done in lock */
 void hdmitx_common_edid_clear(struct hdmitx_common *tx_comm);
 /* common work for late resume, witch is done in lock */

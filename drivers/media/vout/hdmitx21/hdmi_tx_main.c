@@ -274,7 +274,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	HDMITX_INFO("Early Suspend\n");
 	/* step2: clear ready status/disable phy/packets/hdcp HW */
 	hdmitx_common_output_disable(&hdev->tx_comm,
-		true, true, true, true);
+		true, true, true, false);
 	/* TOCONFIRM: note it will disable hpll for T7/S1A */
 	hdmitx_hw_cntl(&hdev->tx_hw.base, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_EARLY_SUSPEND);
@@ -286,12 +286,6 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 }
 
-/* resume and hpd_irq sequence is unknown, there may be such case:
- * plugin irq->hdmitx resume + read EDID + resume uevent->mode setting
- * + hdcp auth->plugin handler read EDID, now EDID already read done
- * and hdcp already started, not read EDID again, use
- * last_hpd_handle_done_state flag to indicate it.
- */
 static void hdmitx_late_resume(struct early_suspend *h)
 {
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)h->param;
@@ -3198,25 +3192,15 @@ static void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
 /* common work for plugout flow, witch should be done in lock */
 static void hdmitx_process_plugout(struct hdmitx_dev *hdev)
 {
-	HDMITX_INFO(SYS "plugout\n");
-	/* trace event */
-	/* hdmitx_current_status(HDMITX_HPD_PLUGOUT); */
-
-	/* step1: HW/SW: reset hdcp hw/sw setting */
-	hdmitx_common_output_disable(&hdev->tx_comm, true, true, true, true);
+	hdmitx_plugout_common_work(&hdev->tx_comm);
 	hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_SET_TOPO_INFO, 0);
-
-	/* step2: SW: status update */
-	hdev->tx_comm.hpd_state = 0;
-	hdev->tx_comm.last_hpd_handle_done_stat = HDMI_TX_HPD_PLUGOUT;
 	/* Reset the ll_enabled_in_auto_mode flag used for auto mode
 	 * status. If we are in auto mode, gaming signal should be enabled
 	 * when the request arrives again from the input device or playback
 	 * and not on hotplug.
 	 */
 	hdev->ll_enabled_in_auto_mode = false;
-
-	/* step3: SW: notify event to user space and other modules */
+	/* SW: notify event to user space and other modules */
 	hdmitx_common_notify_hpd_status(&hdev->tx_comm, false);
 }
 
@@ -4031,7 +4015,8 @@ static int amhdmitx_suspend(struct platform_device *pdev,
 	 * now resume and stay in early resume stage, still
 	 * need to respond to plugin irq and read/update EDID.
 	 * so clear last_hpd_handle_done_stat for re-enter
-	 * plugin handle
+	 * plugin handle. Note there may be re-enter plugout/in
+	 * handler under suspend
 	 */
 	hdev->tx_comm.last_hpd_handle_done_stat = HDMI_TX_NONE;
 	HDMITX_INFO("amhdmitx: suspend\n");
@@ -4040,9 +4025,24 @@ static int amhdmitx_suspend(struct platform_device *pdev,
 
 static int amhdmitx_resume(struct platform_device *pdev)
 {
-	/* struct hdmitx_dev *hdev = dev_get_drvdata(&pdev->dev); */
+	struct hdmitx_dev *hdev = dev_get_drvdata(&pdev->dev);
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
 
 	HDMITX_INFO("amhdmitx: resume\n");
+	mutex_lock(&tx_comm->hdmimode_mutex);
+	/* need to update EDID in case TV changed during suspend */
+	tx_comm->hpd_state = !!(hdmitx_hw_cntl_misc(tx_hw_base, MISC_HPD_GPI_ST, 0));
+	if (tx_comm->hpd_state)
+		hdmitx_plugin_common_work(tx_comm);
+	else
+		hdmitx_plugout_common_work(tx_comm);
+	hdmitx_common_notify_hpd_status(tx_comm, false);
+	mutex_unlock(&tx_comm->hdmimode_mutex);
+
+	/* notify to drm hdmi */
+	hdmitx_fire_drm_hpd_cb_unlocked(tx_comm);
+
 	return 0;
 }
 #endif
