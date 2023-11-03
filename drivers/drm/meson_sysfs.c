@@ -141,6 +141,8 @@ static ssize_t debug_show(struct device *dev, struct device_attribute *attr,
 	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 		"echo wv reg val > debug to overwrite the register\n");
 	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo wvb reg val start lens > debug to overwrite the specific bits in register\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 		"echo ow 1 > debug to enable overwrite register\n");
 	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 		"\noverwrote status: %s\n", overwrite_enable ? "on" : "off");
@@ -179,16 +181,16 @@ static ssize_t debug_store(struct device *dev, struct device_attribute *attr,
 	char dst_buf[64];
 	long val;
 	int i;
-	unsigned int reg_addr, reg_val;
+	unsigned int reg_addr, reg_val, tmp_val, read_val, start, len;
 	char *bufp, *parm[8] = {NULL};
-	int len = strlen(buf);
+	int lens = strlen(buf);
 
-	if (len > sizeof(dst_buf) - 1)
+	if (lens > sizeof(dst_buf) - 1)
 		return -EINVAL;
 
-	memcpy(dst_buf, buf, len);
+	memcpy(dst_buf, buf, lens);
 
-	dst_buf[len] = '\0';
+	dst_buf[lens] = '\0';
 	bufp = dst_buf;
 	parse_param(bufp, (char **)&parm);
 	if (!strcmp(parm[0], "rv")) {
@@ -209,7 +211,7 @@ static ssize_t debug_store(struct device *dev, struct device_attribute *attr,
 		for (i = 0; i < reg_num; i++) {
 			if (overwrite_reg[i] == reg_addr) {
 				overwrite_val[i] = reg_val;
-				return len;
+				return lens;
 			}
 		}
 
@@ -228,6 +230,34 @@ static ssize_t debug_store(struct device *dev, struct device_attribute *attr,
 				overwrite_val[i] = 0;
 			}
 			reg_num = 0;
+		}
+	} else if (!strcmp(parm[0], "wvb")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		reg_addr = val;
+
+		if (kstrtouint(parm[2], 10, &tmp_val) < 0)
+			return -EINVAL;
+		if (kstrtouint(parm[3], 10, &start) < 0)
+			return -EINVAL;
+		if (kstrtouint(parm[4], 10, &len) < 0)
+			return -EINVAL;
+
+		read_val = meson_drm_read_reg(reg_addr);
+		reg_val = (read_val & ~(((1L << (len)) - 1) << (start))) |
+				((unsigned int)(tmp_val) << (start));
+
+		for (i = 0; i < reg_num; i++) {
+			if (overwrite_reg[i] == reg_addr) {
+				overwrite_val[i] = reg_val;
+				return lens;
+			}
+		}
+
+		if (i == reg_num) {
+			overwrite_reg[i] = reg_addr;
+			overwrite_val[i] = reg_val;
+			reg_num++;
 		}
 	}
 
