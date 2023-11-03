@@ -373,4 +373,6 @@ void vdin_ioctl_get_hist(struct vdin_dev_s *devp, struct vdin_hist_s *vdin1_hist
 bool vdin_is_auto_game_mode(struct vdin_dev_s *devp);
 bool vdin_is_auto_pc_mode(struct vdin_dev_s *devp);
 enum tvin_port_type_e vdin_get_port_type(struct vdin_dev_s *devp);
+bool vdin_is_vrr_state(struct vdin_dev_s *devp);
+enum vdin_vrr_mode_e get_cur_vrr_status(struct vdin_dev_s *devp);
 #endif

@@ -21,7 +21,7 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_mem_scat
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_v4l2.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_v4l2_dbg.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_v4l2_if.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_dv.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_hdr.o
 endif
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_ctl.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_screen.o
