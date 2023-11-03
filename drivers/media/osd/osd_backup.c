@@ -1101,6 +1101,26 @@ static struct reg_item blend_recovery_table_g12a[] = {
 	{VIU_OSD_BLEND_CTRL1, 0x0, 0x00037337, 1},
 };
 
+static struct reg_item blend_recovery_table_txhd2[] = {
+	{VIU_OSD_BLEND_CTRL, 0x0, 0xffffffff, 0},
+	{VIU_OSD_BLEND_DIN0_SCOPE_H, 0x0, 0x1fff1fff, 0},
+	{VIU_OSD_BLEND_DIN0_SCOPE_V, 0x0, 0x1fff1fff, 0},
+	{VIU_OSD_BLEND_DIN1_SCOPE_H, 0x0, 0x1fff1fff, 0},
+	{VIU_OSD_BLEND_DIN1_SCOPE_V, 0x0, 0x1fff1fff, 0},
+	{VIU_OSD_BLEND_DIN2_SCOPE_H, 0x0, 0x1fff1fff, 0},
+	{VIU_OSD_BLEND_DIN2_SCOPE_V, 0x0, 0x1fff1fff, 0},
+	{VIU_OSD_BLEND_DIN3_SCOPE_H, 0x0, 0x1fff1fff, 0},
+	{VIU_OSD_BLEND_DIN3_SCOPE_V, 0x0, 0x1fff1fff, 0},
+	{VIU_OSD_BLEND_DUMMY_DATA0, 0x0, 0x00ffffff, 0},
+	{VIU_OSD_BLEND_DUMMY_ALPHA, 0x0, 0x1fffffff, 0},
+	{VIU_OSD_BLEND_BLEND0_SIZE, 0x0, 0x1fff1fff, 0},
+	{VIU_OSD_BLEND_BLEND1_SIZE, 0x0, 0x1fff1fff, 0},
+	INVALID_REG_ITEM, /* 0x39bd */
+	INVALID_REG_ITEM, /* 0x39be */
+	INVALID_REG_ITEM, /* 0x39bf */
+	{VIU_OSD_BLEND_CTRL1, 0x0, 0x00037337, 0},
+};
+
 static struct reg_item blend_recovery_table_s5[] = {
 	{S5_VIU_OSD_BLEND_CTRL, 0x0, 0xffffffff, 1},
 	{S5_VIU_OSD_BLEND_DIN0_SCOPE_H, 0x0, 0x1fff1fff, 1},
@@ -1284,6 +1304,7 @@ static void recovery_regs_init_old(void)
 static void recovery_regs_init_g12a(void)
 {
 	int i = 0;
+	int cpu_id = osd_hw.osd_meson_dev.cpu_id;
 
 	gRecovery[i].base_addr = VIU_OSD1_CTRL_STAT;
 	gRecovery[i].size = sizeof(osd12_recovery_table_g12a)
@@ -1348,11 +1369,19 @@ static void recovery_regs_init_g12a(void)
 		(struct reg_item *)&osd3_afbcd_recovery_table_g12a[0];
 
 	i++;
-	gRecovery[i].base_addr = VIU_OSD_BLEND_CTRL;
-	gRecovery[i].size = sizeof(blend_recovery_table_g12a)
-		/ sizeof(struct reg_item);
-	gRecovery[i].table =
-		(struct reg_item *)&blend_recovery_table_g12a[0];
+	if (cpu_id == __MESON_CPU_MAJOR_ID_TXHD2) {
+		gRecovery[i].base_addr = VIU_OSD_BLEND_CTRL;
+		gRecovery[i].size = sizeof(blend_recovery_table_txhd2)
+			/ sizeof(struct reg_item);
+		gRecovery[i].table =
+			(struct reg_item *)&blend_recovery_table_txhd2[0];
+	} else {
+		gRecovery[i].base_addr = VIU_OSD_BLEND_CTRL;
+		gRecovery[i].size = sizeof(blend_recovery_table_g12a)
+			/ sizeof(struct reg_item);
+		gRecovery[i].table =
+			(struct reg_item *)&blend_recovery_table_g12a[0];
+	}
 
 	i++;
 	gRecovery[i].base_addr = VPP_VD2_HDR_IN_SIZE;
@@ -1588,11 +1617,12 @@ void recovery_regs_init(void)
 		return;
 	memset(gRecovery, 0, sizeof(gRecovery));
 
-	if (cpu_id >= __MESON_CPU_MAJOR_ID_S5)
+	if (osd_dev_hw.display_type == S5_DISPLAY)
 		recovery_regs_init_s5();
-	else if (cpu_id >= __MESON_CPU_MAJOR_ID_T7)
+	else if (osd_dev_hw.display_type == T7_DISPLAY)
 		recovery_regs_init_t7();
-	else if (cpu_id >= __MESON_CPU_MAJOR_ID_G12A)
+	else if (osd_dev_hw.display_type == NORMAL_DISPLAY &&
+		cpu_id >= __MESON_CPU_MAJOR_ID_G12A)
 		recovery_regs_init_g12a();
 	else
 		recovery_regs_init_old();
@@ -3348,11 +3378,12 @@ int update_recovery_item(u32 addr, u32 value)
 	if (!recovery_enable)
 		return ret;
 
-	if (cpu_id >= __MESON_CPU_MAJOR_ID_S5)
+	if (osd_dev_hw.display_type == S5_DISPLAY)
 		ret = update_recovery_item_s5(addr, value);
-	else if (cpu_id >= __MESON_CPU_MAJOR_ID_T7)
+	else if (osd_dev_hw.display_type == T7_DISPLAY)
 		ret = update_recovery_item_t7(addr, value);
-	else if (cpu_id >= __MESON_CPU_MAJOR_ID_G12A)
+	else if (osd_dev_hw.display_type == NORMAL_DISPLAY  &&
+		cpu_id >= __MESON_CPU_MAJOR_ID_G12A)
 		ret = update_recovery_item_g12a(addr, value);
 	else
 		ret = update_recovery_item_old(addr, value);
@@ -3368,11 +3399,12 @@ s32 get_recovery_item(u32 addr, u32 *value, u32 *mask)
 	if (!recovery_enable)
 		return ret;
 
-	if (cpu_id >= __MESON_CPU_MAJOR_ID_S5)
+	if (osd_dev_hw.display_type == S5_DISPLAY)
 		ret = get_recovery_item_s5(addr, value, mask);
-	else if (cpu_id >= __MESON_CPU_MAJOR_ID_T7)
+	else if (osd_dev_hw.display_type == T7_DISPLAY)
 		ret = get_recovery_item_t7(addr, value, mask);
-	else if (cpu_id >= __MESON_CPU_MAJOR_ID_G12A)
+	else if (osd_dev_hw.display_type == NORMAL_DISPLAY &&
+		cpu_id >= __MESON_CPU_MAJOR_ID_G12A)
 		ret = get_recovery_item_g12a(addr, value, mask);
 	else
 		ret = get_recovery_item_old(addr, value, mask);
