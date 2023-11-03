@@ -490,6 +490,22 @@ unsigned int vpp_new_frame;
 
 static unsigned int cm_slice_idx;
 
+unsigned int osd_pic_en;
+
+#define COEFF_NORM(a) ((int)((((a) * 2048.0) + 1) / 2))
+#define MATRIX_5x3_COEF_SIZE 24
+
+static int RGB709_to_YUV709l_coeff[MATRIX_5x3_COEF_SIZE] = {
+	0, 0, 0, /* pre offset */
+	COEFF_NORM(0.181873),	COEFF_NORM(0.611831),	COEFF_NORM(0.061765),
+	COEFF_NORM(-0.100251),	COEFF_NORM(-0.337249),	COEFF_NORM(0.437500),
+	COEFF_NORM(0.437500),	COEFF_NORM(-0.397384),	COEFF_NORM(-0.040116),
+	0, 0, 0, /* 10'/11'/12' */
+	0, 0, 0, /* 20'/21'/22' */
+	64, 512, 512, /* offset */
+	0, 0, 0 /* mode, right_shift, clip_en */
+};
+
 bool is_hdr_stb_mode(void)
 {
 	if ((is_meson_txlx_cpu() && !vinfo_lcd_support()) ||
@@ -2084,6 +2100,19 @@ static int vpp_mtx_update(struct vpp_mtx_info_s *mtx_info, int vpp_index)
 		matrix_pre_offset2 = VPP2_POST2_MATRIX_PRE_OFFSET2;
 		matrix_en_ctrl = VPP2_POST2_MATRIX_EN_CTRL;
 		break;
+	case OSD_MTX:
+		matrix_coef00_01 = OSD1_HDR2_MATRIXI_COEF00_01;
+		matrix_coef02_10 = OSD1_HDR2_MATRIXI_COEF02_10;
+		matrix_coef11_12 = OSD1_HDR2_MATRIXI_COEF11_12;
+		matrix_coef20_21 = OSD1_HDR2_MATRIXI_COEF20_21;
+		matrix_coef22 = OSD1_HDR2_MATRIXI_COEF22;
+		matrix_clip = OSD1_HDR2_MATRIXI_CLIP;
+		matrix_offset0_1 = OSD1_HDR2_MATRIXI_OFFSET0_1;
+		matrix_offset2 = OSD1_HDR2_MATRIXI_OFFSET2;
+		matrix_pre_offset0_1 = OSD1_HDR2_MATRIXI_PRE_OFFSET0_1;
+		matrix_pre_offset2 = OSD1_HDR2_MATRIXI_PRE_OFFSET2;
+		matrix_en_ctrl = OSD1_HDR2_MATRIXI_EN_CTRL;
+		break;
 
 	case MTX_NULL:
 	default:
@@ -2202,6 +2231,229 @@ void eye_prot_update(struct eye_protect_s *eye_prot, int vpp_index)
 		vecm_latch_flag2 &= ~VPP_EYE_PROTECT_UPDATE;
 	}
 }
+
+static int amvecm_set_osd_mtx_en(int enable)
+{
+	int *m = NULL;
+
+	if (!enable || chip_type_id != chip_t5m)
+		return 0;
+
+	/* RGB -> 709 limit */
+	m = RGB709_to_YUV709l_coeff;
+	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET0_1,
+		((m[0] & 0xfff) << 16) | (m[1] & 0xfff));
+	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET2,
+		m[2] & 0xfff);
+	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_COEF00_01,
+		((m[3] & 0x1fff) << 16) | (m[4] & 0x1fff));
+	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_COEF02_10,
+		((m[5]  & 0x1fff) << 16) | (m[6] & 0x1fff));
+	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_COEF11_12,
+		((m[7] & 0x1fff) << 16) | (m[8] & 0x1fff));
+	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_COEF20_21,
+		((m[9] & 0x1fff) << 16) | (m[10] & 0x1fff));
+	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_COEF22,
+		m[11] & 0x1fff);
+	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_OFFSET0_1,
+		((m[18] & 0xfff) << 16) | (m[19] & 0xfff));
+	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_OFFSET2,
+		m[20] & 0xfff);
+	WRITE_VPP_REG_BITS(VPP_WRAP_OSD1_MATRIX_EN_CTRL, 1, 0, 1);
+
+	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_PRE_OFFSET0_1,
+		(0x7c0 << 16) | 0x600);
+	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_PRE_OFFSET2,
+		0x600);
+	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_COEF00_01, 0x400 << 16);
+	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_COEF02_10, 0x0);
+	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_COEF11_12, 0x400 << 16);
+	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_COEF20_21, 0x0);
+	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_COEF22, 0x400);
+	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_OFFSET0_1,
+		(0x0040 << 16) | 0x0200);
+	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_OFFSET2,
+		0x0200);
+	WRITE_VPP_REG_BITS(OSD1_HDR2_MATRIXI_EN_CTRL, 1, 0, 1);
+	WRITE_VPP_REG_BITS(OSD1_HDR2_MATRIXI_CLIP, 0, 5, 3);
+
+	return 0;
+}
+
+static int amvecm_set_osd_brightness(int val)
+{
+	struct vpp_mtx_info_s *mtx_p = &mtx_info;
+
+	if (osd_pic_en && chip_type_id == chip_t5m) {
+		mtx_p->mtx_sel = OSD_MTX;
+		vecm_latch_flag2 |= VPP_MARTIX_GET;
+		vpp_mtx_update(mtx_p, VPP_TOP0);
+
+		if (val < 0)
+			val += 2048;
+		mtx_p->mtx_coef.pre_offset[0] = val;
+		vecm_latch_flag2 |= VPP_MARTIX_UPDATE;
+	} else {
+		pr_info("osd pq setting: only for t5m enable osd_pic_en\n");
+	}
+	return 0;
+}
+
+static int amvecm_set_osd_contrast(int val)
+{
+	struct vpp_mtx_info_s *mtx_p = &mtx_info;
+
+	if (osd_pic_en && chip_type_id == chip_t5m) {
+		mtx_p->mtx_sel = OSD_MTX;
+		vecm_latch_flag2 |= VPP_MARTIX_GET;
+		vpp_mtx_update(mtx_p, VPP_TOP0);
+
+		mtx_p->mtx_coef.matrix_coef[0][0] = val + 1024;
+		vecm_latch_flag2 |= VPP_MARTIX_UPDATE;
+	} else {
+		pr_info("osd pq setting: only for t5m enable osd_pic_en\n");
+	}
+	return 0;
+}
+
+static int amvecm_set_osd_saturation(int val)
+{
+	struct vpp_mtx_info_s *mtx_p = &mtx_info;
+	u16 sat_val, sat_u, sat_v;
+
+	if (osd_pic_en && chip_type_id == chip_t5m) {
+		mtx_p->mtx_sel = OSD_MTX;
+		vecm_latch_flag2 |= VPP_MARTIX_GET;
+		vpp_mtx_update(mtx_p, VPP_TOP0);
+
+		sat_val = val + 128;
+		sat_u = sat_val << 3;
+		sat_v = sat_val << 3;
+		if (sat_u > 2047)
+			sat_u = 2047;
+		if (sat_v > 2047)
+			sat_v = 2047;
+		mtx_p->mtx_coef.matrix_coef[1][1] = sat_u;
+		mtx_p->mtx_coef.matrix_coef[2][2] = sat_v;
+		vecm_latch_flag2 |= VPP_MARTIX_UPDATE;
+	} else {
+		pr_info("osd pq setting: only for t5m enable osd_pic_en\n");
+	}
+	return 0;
+}
+
+static ssize_t osd_brightness_show(struct class *cla,
+					struct class_attribute *attr,
+					char *buf)
+{
+	struct vpp_mtx_info_s *mtx_p = &mtx_info;
+	int brightness;
+
+	if (osd_pic_en && chip_type_id == chip_t5m) {
+		mtx_p->mtx_sel = OSD_MTX;
+		vecm_latch_flag2 |= VPP_MARTIX_GET;
+		vpp_mtx_update(mtx_p, VPP_TOP0);
+
+		brightness = mtx_p->mtx_coef.pre_offset[0];
+		if (brightness > 1023)
+			brightness -= 2048;
+
+		return sprintf(buf, "%d\n", brightness);
+	} else {
+		return -EINVAL;
+	}
+}
+
+static ssize_t osd_brightness_store(struct class *cla,
+					 struct class_attribute *attr,
+					 const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+
+	r = sscanf(buf, "%d\n", &val);
+	if (val < -1024 || val > 1023)
+		return -EINVAL;
+
+	amvecm_set_osd_brightness(val);
+	return count;
+}
+
+static ssize_t osd_contrast_show(struct class *cla,
+					struct class_attribute *attr,
+					char *buf)
+{
+	struct vpp_mtx_info_s *mtx_p = &mtx_info;
+
+	if (osd_pic_en && chip_type_id == chip_t5m) {
+		mtx_p->mtx_sel = OSD_MTX;
+		vecm_latch_flag2 |= VPP_MARTIX_GET;
+		vpp_mtx_update(mtx_p, VPP_TOP0);
+
+		return sprintf(buf, "%d\n",
+			(int)(mtx_p->mtx_coef.matrix_coef[0][0] - 1024));
+	} else {
+		return -EINVAL;
+	}
+}
+
+static ssize_t osd_contrast_store(struct class *cla,
+					 struct class_attribute *attr,
+					 const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+
+	r = sscanf(buf, "%d\n", &val);
+	if (val < -1024 || val > 1023)
+		return -EINVAL;
+
+	amvecm_set_osd_contrast(val);
+	return count;
+}
+
+static ssize_t osd_saturation_show(struct class *cla,
+					struct class_attribute *attr,
+					char *buf)
+{
+	struct vpp_mtx_info_s *mtx_p = &mtx_info;
+	u16 sat_val, sat_u, sat_v;
+
+	if (osd_pic_en && chip_type_id == chip_t5m) {
+		mtx_p->mtx_sel = OSD_MTX;
+		vecm_latch_flag2 |= VPP_MARTIX_GET;
+		vpp_mtx_update(mtx_p, VPP_TOP0);
+		sat_u = mtx_p->mtx_coef.matrix_coef[1][1];
+		sat_v = mtx_p->mtx_coef.matrix_coef[2][2];
+		if (sat_u == 2047)
+			sat_u = 2048;
+		if (sat_v == 2047)
+			sat_v = 2048;
+		mtx_p->mtx_coef.matrix_coef[1][1] = sat_u >> 3;
+		mtx_p->mtx_coef.matrix_coef[2][2] = sat_v >> 3;
+		sat_val = (sat_u >> 3) - 128;
+
+		return sprintf(buf, "%d\n", sat_val);
+	} else {
+		return -EINVAL;
+	}
+}
+
+static ssize_t osd_saturation_store(struct class *cla,
+					 struct class_attribute *attr,
+					 const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+
+	r = sscanf(buf, "%d\n", &val);
+	if (val < -128 || val > 128)
+		return -EINVAL;
+
+	amvecm_set_osd_saturation(val);
+	return count;
+}
+
 #endif
 
 void amvecm_saturation_hue_update(int offset_val)
@@ -12206,6 +12458,12 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(contrast2, 0644,
 	       video_adj2_contrast_show, video_adj2_contrast_store),
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	__ATTR(brightness_osd, 0644,
+	       osd_brightness_show, osd_brightness_store),
+	__ATTR(contrast_osd, 0644,
+	       osd_contrast_show, osd_contrast_store),
+	__ATTR(saturation_osd, 0644,
+	       osd_saturation_show, osd_saturation_store),
 	__ATTR(help, 0644,
 	       amvecm_usage_show, NULL),
 #endif
@@ -12703,6 +12961,11 @@ static void aml_vecm_dt_parse(struct amvecm_dev_s *devp, struct platform_device 
 			pr_amvecm_dbg("Can't find  tx_op_color_primary.\n");
 		else
 			tx_op_color_primary = val;
+		ret = of_property_read_u32(node, "osd_pic_en", &val);
+		if (ret)
+			pr_amvecm_dbg("Can't find  osd_pic_en.\n");
+		else
+			osd_pic_en = val;
 #endif
 
 		/*get compatible matched device, to get chip related data*/
@@ -12761,6 +13024,8 @@ static void aml_vecm_dt_parse(struct amvecm_dev_s *devp, struct platform_device 
 	/*pr_info("cm_init done.\n");*/
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	amvecm_set_osd_mtx_en(osd_pic_en);
+
 	res_viu2_vsync_irq =
 		platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync2");
 	res_lc_curve_irq =

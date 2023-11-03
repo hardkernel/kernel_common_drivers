@@ -3065,6 +3065,13 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		(module_sel == VD2_HDR || module_sel == OSD1_HDR))
 		return hdr_process_select;
 
+	if (osd_pic_en &&
+		chip_type_id == chip_t5m &&
+		(module_sel == OSD1_HDR ||
+		module_sel == OSD2_HDR ||
+		module_sel == OSD3_HDR))
+		return hdr_process_select;
+
 	if (((module_sel == OSD1_HDR && vpp_index == VPP_TOP1) ||
 		(module_sel == OSD3_HDR && vpp_index == VPP_TOP0)) &&
 		(get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
@@ -3098,9 +3105,12 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		module_sel == OSD3_HDR) &&
 	    cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/* turn off OSD mtx and use HDR for g12, sm1, tl1 */
-		/* VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_EN_CTRL, 0, vpp_sel); */
-		if (!is_amdv_on())
-			hdr_process_select |= RGB_OSD;
+		if (!osd_pic_en ||
+			chip_type_id != chip_t5m) {
+			/* VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_EN_CTRL, 0, vpp_sel); */
+			if (!is_amdv_on())
+				hdr_process_select |= RGB_OSD;
+		}
 
 		/*for g12a/g12b osd blend shift rtl bug*/
 		if (is_meson_g12a_cpu() ||
@@ -4496,6 +4506,13 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 		(module_sel == VD2_HDR || module_sel == OSD1_HDR))
 		return hdr_process_select;
 
+	if (osd_pic_en &&
+		chip_type_id == chip_t5m &&
+		(module_sel == OSD1_HDR ||
+		module_sel == OSD2_HDR ||
+		module_sel == OSD3_HDR))
+		return hdr_process_select;
+
 	if (((module_sel == OSD1_HDR && vpp_index == VPP_TOP1) ||
 		(module_sel == OSD3_HDR && vpp_index == VPP_TOP0)) &&
 		(get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
@@ -4513,9 +4530,12 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 		module_sel == OSD3_HDR) &&
 	    (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))) {
 		/* turn off OSD mtx and use HDR for g12, sm1, tl1 */
-		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_EN_CTRL, 0, 0);
-		if (!is_amdv_on())
-			hdr_process_select |= RGB_OSD;
+		if (!osd_pic_en ||
+			chip_type_id != chip_t5m) {
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_EN_CTRL, 0, 0);
+			if (!is_amdv_on())
+				hdr_process_select |= RGB_OSD;
+		}
 	}
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))

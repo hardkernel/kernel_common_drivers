@@ -623,4 +623,17 @@ extern struct am_regs_s r_lut_hdr_sdr_level3;
 
 #define VPP_VD2_HDR_IN_SIZE                0x1df0
 #define VPP_VD3_HDR_IN_SIZE                0x1a59
+
+/* VPP WRAP OSD1 matrix */
+#define VPP_WRAP_OSD1_MATRIX_COEF00_01            0x3d60
+#define VPP_WRAP_OSD1_MATRIX_COEF02_10            0x3d61
+#define VPP_WRAP_OSD1_MATRIX_COEF11_12            0x3d62
+#define VPP_WRAP_OSD1_MATRIX_COEF20_21            0x3d63
+#define VPP_WRAP_OSD1_MATRIX_COEF22               0x3d64
+#define VPP_WRAP_OSD1_MATRIX_OFFSET0_1            0x3d69
+#define VPP_WRAP_OSD1_MATRIX_OFFSET2              0x3d6a
+#define VPP_WRAP_OSD1_MATRIX_PRE_OFFSET0_1        0x3d6b
+#define VPP_WRAP_OSD1_MATRIX_PRE_OFFSET2          0x3d6c
+#define VPP_WRAP_OSD1_MATRIX_EN_CTRL              0x3d6d
+
 #endif

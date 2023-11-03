@@ -474,6 +474,8 @@ extern enum chip_cls_e chip_cls_id;
 
 extern enum output_format_e output_format;
 
+extern unsigned int osd_pic_en;
+
 int amvecm_on_vs(struct vframe_s *display_vf,
 		 struct vframe_s *toggle_vf,
 		 int flags,
