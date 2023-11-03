@@ -41,6 +41,12 @@
 		#size-cells = <2>;
 		ranges;
 
+		dmc_reserved:linux,dmc_monitor {
+			compatible = "shared-dma-pool";
+			reusable;
+			reg = <0x0 0x0 0x0 0x400000>;
+		};
+
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			no-map;

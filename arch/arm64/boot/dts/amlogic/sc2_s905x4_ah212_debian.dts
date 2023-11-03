@@ -51,8 +51,9 @@
 		};
 
 		dmc_reserved:linux,dmc_monitor {
-			compatible = "amlogic,dmc_monitor-reserved";
-			reg = <0x0 0x0 0x0 0x80000>;
+			compatible = "shared-dma-pool";
+			reusable;
+			reg = <0x0 0x0 0x0 0x400000>;
 		};
 
 		secmon_reserved:linux,secmon {

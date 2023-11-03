@@ -1901,6 +1901,7 @@
 	dmc_monitor {
 		compatible = "amlogic,dmc_monitor-g12b";
 		status = "okay";
+		memory-region = <&dmc_reserved>;
 		reg_base = <0xff639000>;
 		interrupts = <0 51 IRQ_TYPE_LEVEL_HIGH>;
 	};

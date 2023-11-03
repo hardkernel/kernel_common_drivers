@@ -28,6 +28,9 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/arm-smccc.h>
 #include <linux/highmem.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include "dmc_monitor.h"
 #include "ddr_port.h"
 #include <linux/amlogic/gki_module.h>
@@ -49,6 +52,9 @@ static unsigned long init_dev_mask;
 static unsigned long init_start_addr;
 static unsigned long init_end_addr;
 static unsigned long init_dmc_debug;
+
+static bool dmc_reserved_flag;
+static int dmc_original_debug;
 
 static int early_dmc_param(char *buf)
 {
@@ -536,6 +542,62 @@ static void dmc_set_default(struct dmc_monitor *mon)
 		dmc_mon->ops->set_monitor(dmc_mon);
 }
 
+static void dmc_clear_reserved_memory(struct dmc_monitor *mon)
+{
+	if (dmc_reserved_flag) {
+		mon->debug = dmc_original_debug;
+		mon->device = 0;
+		mon->addr_start = 0;
+		mon->addr_end = 0;
+		dmc_reserved_flag = 0;
+	}
+}
+
+static void dmc_enabled_reserved_memory(struct platform_device *pdev, struct dmc_monitor *mon)
+{
+	struct device_node *node;
+	struct reserved_mem *rmem;
+
+	node = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
+	if (!node)
+		return;
+
+	rmem = of_reserved_mem_lookup(node);
+	if (!rmem) {
+		pr_info("no such reserved mem of dmc_monitor\n");
+		return;
+	}
+
+	if (!rmem->size)
+		return;
+
+	mon->addr_start = rmem->base;
+	mon->addr_end = rmem->base + rmem->size - 1;
+
+	dmc_original_debug = mon->debug;
+
+	if (dmc_dev_is_byte(mon)) {
+		mon->device = 0x0201;
+		mon->debug &= ~DMC_DEBUG_INCLUDE;
+	} else {
+		mon->device = get_all_dev_mask();
+#ifdef CONFIG_ARM64
+		mon->device &= 0xfffffffffffffffe;
+#endif
+	}
+
+	mon->debug &= ~DMC_DEBUG_TRACE;
+	mon->debug |= DMC_DEBUG_CMA;
+	mon->debug |= DMC_DEBUG_SAME;
+	dmc_reserved_flag = 1;
+
+	if (mon->addr_start < mon->addr_end && mon->ops && mon->ops->set_monitor) {
+		pr_emerg("DMC DEBUG MEMORY ENABLED: range:%lx-%lx, device=%llx, debug=%x\n",
+				mon->addr_start, mon->addr_end, mon->device, mon->debug);
+		mon->ops->set_monitor(mon);
+	}
+}
+
 size_t dump_dmc_reg(char *buf)
 {
 	size_t sz = 0, i;
@@ -736,6 +798,7 @@ int dmc_set_monitor(unsigned long start, unsigned long end,
 	if (!dmc_mon)
 		return -EINVAL;
 
+	dmc_clear_reserved_memory(dmc_mon);
 	dmc_mon->addr_start = start;
 	dmc_mon->addr_end   = end;
 	dmc_regulation_dev(dev_mask, en);
@@ -810,6 +873,8 @@ static ssize_t device_store(struct class *cla,
 		pr_err("Can't find ops for chip:%x\n", dmc_mon->chip);
 		return count;
 	}
+
+	dmc_clear_reserved_memory(dmc_mon);
 
 	if (!strncmp(buf, "none", 4)) {
 		dmc_monitor_disable();
@@ -960,9 +1025,7 @@ static ssize_t debug_store(struct class *cla,
 		return count;
 	}
 
-	if (dmc_mon->addr_start < dmc_mon->addr_end && dmc_mon->ops &&
-			dmc_mon->ops->set_monitor)
-		dmc_mon->ops->set_monitor(dmc_mon);
+	dmc_set_monitor(dmc_mon->addr_start, dmc_mon->addr_end, dmc_mon->device, 1);
 
 	return count;
 }
@@ -1333,6 +1396,8 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 		dmc_mon = NULL;
 		return -EINVAL;
 	}
+
+	dmc_enabled_reserved_memory(pdev, dmc_mon);
 
 	if (init_dmc_debug)
 		dmc_mon->debug = init_dmc_debug;

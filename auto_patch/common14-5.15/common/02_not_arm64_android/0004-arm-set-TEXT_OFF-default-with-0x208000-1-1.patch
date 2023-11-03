@@ -1,0 +1,41 @@
+From 61ac00495214adbaf5eb184eb44b4be1027311fb Mon Sep 17 00:00:00 2001
+From: "qinglin.li" <qinglin.li@amlogic.com>
+Date: Thu, 9 Nov 2023 19:34:05 +0800
+Subject: [PATCH] arm: set TEXT_OFF default with 0x208000 [1/1]
+
+PD#SWPL-144091
+
+Problem:
+swapper_pg_dir is the virtual address of the initial page table.
+It will use this value as the starting address for the reserved memory.
+the value depend on TEXT_OFF in arm, and default is 0x8000.
+In 5.4, CONFIG_ARCH_MESON be set, it be set 0x208000, but
+in 5.15, CONFIG_ARCH_MESON not set, so the start addr conflict with dmc.
+
+Solution:
+set TEXT_OFF default with 0x208000
+
+Verify:
+planck
+
+Change-Id: Iea66ca0edcd360f9f54e8df3574553170403d571
+Signed-off-by: qinglin.li <qinglin.li@amlogic.com>
+---
+ arch/arm/Makefile | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm/Makefile b/arch/arm/Makefile
+index fa45837b8065..790d4418a070 100644
+--- a/arch/arm/Makefile
++++ b/arch/arm/Makefile
+@@ -152,6 +152,7 @@ textofs-$(CONFIG_ARCH_MSM8X60) := 0x00208000
+ textofs-$(CONFIG_ARCH_MSM8960) := 0x00208000
+ textofs-$(CONFIG_ARCH_MESON) := 0x00208000
+ textofs-$(CONFIG_ARCH_AXXIA) := 0x00308000
++textofs-$(CONFIG_AMLOGIC_DRIVER) := 0x00208000
+ 
+ # Machine directory name.  This list is sorted alphanumerically
+ # by CONFIG_* macro name.
+-- 
+2.42.0
+

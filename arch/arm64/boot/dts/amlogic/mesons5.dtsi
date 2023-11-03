@@ -2041,6 +2041,7 @@
 	dmc_monitor {
 		compatible = "amlogic,dmc_monitor-s5";
 		status = "okay";
+		memory-region = <&dmc_reserved>;
 		reg = <0 0xfe036000 0 0x200
 		       0 0xfe034000 0 0x200
 		       0 0xfe032000 0 0x200

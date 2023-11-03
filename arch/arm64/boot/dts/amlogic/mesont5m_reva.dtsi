@@ -296,6 +296,7 @@
 	dmc_monitor {
 		compatible = "amlogic,dmc_monitor-t5m";
 		status = "okay";
+		memory-region = <&dmc_reserved>;
 		reg = <0 0xfe036000 0 0x400
 		       0 0xfe034000 0 0x400>;
 		reg_base = <0xfe036000>;

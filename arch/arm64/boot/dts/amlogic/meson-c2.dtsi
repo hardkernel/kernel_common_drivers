@@ -1396,6 +1396,7 @@
 	dmc_monitor {
 		compatible = "amlogic,dmc_monitor-c2";
 		status = "okay";
+		memory-region = <&dmc_reserved>;
 		reg_base = <0xfe024180>;
 		reg = <0x0 0xFE024180 0x0 0x100>;
 		interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;

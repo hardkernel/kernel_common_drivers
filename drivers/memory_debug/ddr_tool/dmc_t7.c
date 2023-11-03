@@ -189,7 +189,7 @@ static int t7_dmc_mon_set(struct dmc_monitor *mon)
 		return 0;
 
 	start = mon->addr_start >> PAGE_SHIFT;
-	end   = ALIGN(mon->addr_end, PAGE_SIZE);
+	end   = ALIGN_DOWN(mon->addr_end, PAGE_SIZE);
 	end   = end >> PAGE_SHIFT;
 	dev1  = mon->device & 0xffffffff;
 	dev2  = mon->device >> 32;

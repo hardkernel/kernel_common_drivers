@@ -36,6 +36,12 @@
 		#size-cells = <2>;
 		ranges;
 
+		dmc_reserved:linux,dmc_monitor {
+			compatible = "shared-dma-pool";
+			reusable;
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+
 		dsp_fw_reserved0:linux,dsp_fw0 {
 			compatible = "amlogic, dsp";
 			size = <0x0 0x1000000>;

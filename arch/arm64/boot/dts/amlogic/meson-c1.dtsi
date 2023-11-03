@@ -781,8 +781,9 @@
 	dmc_monitor {
 		compatible = "amlogic,dmc_monitor-c1";
 		status = "okay";
+		memory-region = <&dmc_reserved>;
 		reg_base = <0xfe025000>;
-		interrupts = <GIC_SPI 172 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	galcore {

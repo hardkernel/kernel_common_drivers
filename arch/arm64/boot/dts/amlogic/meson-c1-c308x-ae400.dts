@@ -76,6 +76,12 @@
 			no-map;
 		};
 
+		dmc_reserved:linux,dmc_monitor {
+			compatible = "shared-dma-pool";
+			reusable;
+			reg = <0x0 0x0 0x0 0x400000>;
+		};
+
 		debug_reserved:linux,iotrace {
 			compatible = "amlogic, iotrace";
 			reg = <0x0 0x0ff00000 0x0 0x00100000>;

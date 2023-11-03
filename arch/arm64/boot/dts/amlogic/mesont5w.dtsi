@@ -2066,6 +2066,7 @@
 		dmc_monitor {
 			compatible = "amlogic,dmc_monitor-t5w";
 			status = "okay";
+			memory-region = <&dmc_reserved>;
 			reg = <0x0 0xff638000 0x0 0x400>;
 			reg_base = <0xff639000>;
 			interrupts = <0 52 IRQ_TYPE_LEVEL_HIGH>;

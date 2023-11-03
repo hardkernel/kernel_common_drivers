@@ -1635,6 +1635,7 @@
 	dmc_monitor {
 		compatible = "amlogic,dmc_monitor-c3";
 		status = "okay";
+		memory-region = <&dmc_reserved>;
 		reg_base = <0xfe037000>;
 		reg = <0xfe036000 0x400>;
 		interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;

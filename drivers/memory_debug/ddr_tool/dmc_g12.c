@@ -141,7 +141,7 @@ static int g12_dmc_mon_set(struct dmc_monitor *mon)
 
 	/* aligned to 64KB */
 	wb = mon->addr_start & 0x01;
-	end = ALIGN(mon->addr_end, DMC_ADDR_SIZE);
+	end = ALIGN_DOWN(mon->addr_end, DMC_ADDR_SIZE);
 
 	dmc_prot_rw(NULL, DMC_SEC_STATUS, 0x3, DMC_WRITE);
 
