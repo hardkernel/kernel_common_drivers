@@ -5735,6 +5735,52 @@ static struct clk_regmap *const sc2_pll_clk_regmaps[] = {
 	&sc2_mpll3
 };
 
+struct sc2_dspa_mux_nb_data {
+	struct notifier_block nb;
+	struct clk_hw *clk_mux0;
+	struct clk_hw *clk_mux1;
+	struct clk_hw *clk_mux;
+};
+
+static int sc2_dspa_clk_mux_notifier_cb(struct notifier_block *nb,
+				   unsigned long event, void *data)
+{
+	struct clk_notifier_data *cnd = (struct clk_notifier_data *)data;
+	struct sc2_dspa_mux_nb_data *nb_data =
+		container_of(nb, struct sc2_dspa_mux_nb_data, nb);
+
+	switch (event) {
+	case PRE_RATE_CHANGE:
+		if (!clk_hw_is_enabled(nb_data->clk_mux0))
+			clk_prepare_enable(nb_data->clk_mux0->clk);
+		clk_set_rate(nb_data->clk_mux1->clk, cnd->new_rate);
+		clk_prepare_enable(nb_data->clk_mux1->clk);
+		clk_hw_set_parent(nb_data->clk_mux, nb_data->clk_mux1);
+
+		udelay(5);
+
+		return NOTIFY_OK;
+
+	case POST_RATE_CHANGE:
+		clk_hw_set_parent(nb_data->clk_mux, nb_data->clk_mux0);
+		clk_disable_unprepare(nb_data->clk_mux1->clk);
+
+		udelay(5);
+
+		return NOTIFY_OK;
+
+	default:
+		return NOTIFY_DONE;
+	}
+}
+
+static struct sc2_dspa_mux_nb_data sc2_dspa_clk_nb_data = {
+	.clk_mux0 = &sc2_dspa_a_gate.hw,
+	.clk_mux1 = &sc2_dspa_b_gate.hw,
+	.clk_mux = &sc2_dspa_mux.hw,
+	.nb.notifier_call = sc2_dspa_clk_mux_notifier_cb,
+};
+
 static int meson_sc2_dvfs_setup(struct platform_device *pdev)
 {
 	int ret;
@@ -5744,6 +5790,21 @@ static int meson_sc2_dvfs_setup(struct platform_device *pdev)
 				    &sc2_sys_pll_nb_data.nb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register sys_pll notifier\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int meson_sc2_dspa_no_glitch_mux_setup(struct platform_device *pdev)
+{
+	int ret;
+
+	/* Setup clock notifier for dspa_mux */
+	ret = clk_notifier_register(sc2_dspa_clk_nb_data.clk_mux0->clk,
+				    &sc2_dspa_clk_nb_data.nb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register dspa_clk notifier\n");
 		return ret;
 	}
 
@@ -5860,6 +5921,7 @@ static int meson_sc2_probe(struct platform_device *pdev)
 	}
 
 	meson_sc2_dvfs_setup(pdev);
+	meson_sc2_dspa_no_glitch_mux_setup(pdev);
 
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 					   &sc2_hw_onecell_data);
