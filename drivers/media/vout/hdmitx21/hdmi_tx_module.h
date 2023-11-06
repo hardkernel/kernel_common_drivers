@@ -161,6 +161,7 @@ struct hdmitx_dev {
 	u32 hdr10plus_feature;
 	enum eotf_type hdmi_current_eotf_type;
 	enum mode_type hdmi_current_tunnel_mode;
+	bool hdmi_current_signal_sdr;
 	u32 flag_3dfp:1;
 	u32 flag_3dtb:1;
 	u32 flag_3dss:1;

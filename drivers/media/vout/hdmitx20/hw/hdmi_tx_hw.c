@@ -6445,8 +6445,6 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, 0x8, 0, 4);
 
 	hdmitx_set_avi_colorimetry(para);
-	if (hdev->hdr_color_feature == C_BT2020)
-		hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_AVI_BT2020, SET_AVI_BT2020);
 
 	data32  = 0;
 	data32 |= (((0 == HDMI_QUANTIZATION_RANGE_FULL) ? 1 : 0) << 2);
@@ -6525,18 +6523,9 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 
 	/* packet scheduler configuration for AVI, GCP, AUDI, ACR. */
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 0xe, 0, 6);
-	/* If RX  support 2084 or hlg , and the hdr_src_feature is 2020
-	 *  then enable HDR send out
-	 */
-	if ((hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0xc) &&
-	    hdev->hdr_color_feature == C_BT2020) {
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 6, 1);
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 7, 1);
-	} else {
-		/* If RX don't support HDR, then enable HDR send out*/
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 0, 6, 1);
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 7, 1);
-	}
+
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 0, 6, 1);
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 7, 1);
 
 	/* If RX  support 3D, then enable 3D send out */
 	if (hdev->flag_3dfp || hdev->flag_3dtb || hdev->flag_3dss) {

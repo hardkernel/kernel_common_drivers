@@ -214,7 +214,7 @@ static inline void hdmitx_notify_hpd_to_rx(int hpd, void *p)
 static void hdmitx21_clear_packets(struct hdmitx_hw_common *tx_hw_base)
 {
 	hdmitx_set_drm_pkt(NULL);
-	hdmitx_set_vsif_pkt(0, 0, NULL, true);
+	hdmitx_set_vsif_pkt(EOTF_T_NULL, 0, NULL, true);
 	hdmitx_set_hdr10plus_pkt(0, NULL);
 	/* clear any VSIF packet left over because of vendor<->vendor2 switch */
 	hdmi_vend_infoframe_rawset(NULL, NULL);
@@ -693,6 +693,11 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		return;
 	HDMITX_DEBUG_PACKET("%s[%d]\n", __func__, __LINE__);
 	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
+	/* if ready is 0, only can clear pkt */
+	if (hdev->tx_comm.ready == 0 && data) {
+		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
+		return;
+	}
 	if (hdr_status_pos == 4) {
 		/* zero hdr10+ VSIF being sent - disable it */
 		HDMITX_INFO("%s: disable hdr10+ zero vsif\n", __func__);
@@ -708,11 +713,27 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	 *	1:bt709 0xe:bt2020-10 0x10:smpte-st-2084 0x12:hlg(TODO)
 	 */
 	if (data) {
-		hdev->hdr_transfer_feature = (data->features >> 8) & 0xff;
-		hdev->hdr_color_feature = (data->features >> 16) & 0xff;
-		hdev->colormetry = (data->features >> 30) & 0x1;
+		if ((hdev->hdr_transfer_feature !=
+			((data->features >> 8) & 0xff)) ||
+			(hdev->hdr_color_feature !=
+			((data->features >> 16) & 0xff)) ||
+			(hdev->colormetry !=
+			((data->features >> 30) & 0x1))) {
+			hdev->hdr_transfer_feature =
+				(data->features >> 8) & 0xff;
+			hdev->hdr_color_feature =
+				(data->features >> 16) & 0xff;
+			hdev->colormetry =
+				(data->features >> 30) & 0x1;
+			HDMITX_INFO("%s: tf=%d, cf=%d, colormetry=%d\n",
+				__func__,
+				hdev->hdr_transfer_feature,
+				hdev->hdr_color_feature,
+				hdev->colormetry);
+		}
+	} else {
+		HDMITX_INFO("%s: disable drm pkt\n", __func__);
 	}
-
 	if (hdr_status_pos != 1 && hdr_status_pos != 3)
 		HDMITX_INFO("%s: tf=%d, cf=%d, colormetry=%d\n",
 			__func__,
@@ -830,7 +851,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		     hdev->hdr_transfer_feature == T_HLG))
 			hdev->hdmi_current_hdr_mode = 3;
 	}
-
 	switch (hdev->hdmi_current_hdr_mode) {
 	case 1:
 		/*standard HDR*/
@@ -940,8 +960,8 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 	vsif_debug_info.type = type;
 	vsif_debug_info.tunnel_mode = tunnel_mode;
 	vsif_debug_info.signal_sdr = signal_sdr;
-
-	if (hdev->tx_comm.ready == 0) {
+	/* if ready is 0, only can clear pkt */
+	if (hdev->tx_comm.ready == 0 && type != EOTF_T_NULL) {
 		ltype = EOTF_T_NULL;
 		ltmode = -1;
 		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
@@ -952,6 +972,15 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			HDMITX_INFO("TV not support DV, clr dv_vsif\n");
 	}
 
+	if (hdev->hdmi_current_eotf_type != type ||
+		hdev->hdmi_current_tunnel_mode != tunnel_mode ||
+		hdev->hdmi_current_signal_sdr != signal_sdr) {
+		hdev->hdmi_current_eotf_type = type;
+		hdev->hdmi_current_tunnel_mode = tunnel_mode;
+		hdev->hdmi_current_signal_sdr = signal_sdr;
+		HDMITX_INFO("%s: type=%d, tunnel_mode=%d, signal_sdr=%d\n",
+			__func__, type, tunnel_mode, signal_sdr);
+	}
 	if (hdr_status_pos != 2)
 		HDMITX_INFO("%s: type = %d\n", __func__, type);
 	hdr_status_pos = 2;
@@ -1214,6 +1243,9 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 		return;
 	HDMITX_DEBUG_PACKET("%s[%d]\n", __func__, __LINE__);
 	if (hdev->bist_lock)
+		return;
+	/* if ready is 0, only can clear pkt */
+	if (hdev->tx_comm.ready == 0 && data)
 		return;
 	if (flag == HDR10_PLUS_ZERO_VSIF) {
 		/* needed during hdr10+ to sdr transition */
@@ -3378,6 +3410,17 @@ static int amhdmitx21_device_init(struct hdmitx_dev *hdev)
 	hdev->tx_comm.rxcap.physical_addr = 0xffff;
 	hdev->hdmi_last_hdr_mode = 0;
 	hdev->hdmi_current_hdr_mode = 0;
+
+	/* hdr/vsif packet status init, no need to get actual status,
+	 * force to print function callback for confirmation.
+	 */
+	hdev->hdr_transfer_feature = T_UNKNOWN;
+	hdev->hdr_color_feature = C_UNKNOWN;
+	hdev->colormetry = 0;
+	hdev->hdmi_current_eotf_type = EOTF_T_NULL;
+	hdev->hdmi_current_tunnel_mode = 0;
+	hdev->hdmi_current_signal_sdr = true;
+
 	hdev->tx_comm.ready = 0;
 	hdev->tx_comm.rxsense_policy = 0; /* no RxSense by default */
 	/* enable or disable HDMITX SSPLL, enable by default */

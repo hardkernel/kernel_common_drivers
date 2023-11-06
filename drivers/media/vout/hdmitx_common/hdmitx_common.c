@@ -834,10 +834,9 @@ bool is_tv_changed(char *cur_edid_chksum, char *boot_param_edid_chksum)
 /* common work for plugout/suspend, witch is done in lock */
 void hdmitx_common_edid_clear(struct hdmitx_common *tx_comm)
 {
-	/* clear edid and related vinfo */
+	/* clear edid */
 	hdmitx_edid_buffer_clear(tx_comm->EDID_buf, sizeof(tx_comm->EDID_buf));
 	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
-	edidinfo_detach_to_vinfo(tx_comm);
 	if (tx_comm->hdmi_repeater == 1)
 		rx_edid_physical_addr(0, 0, 0, 0);
 }

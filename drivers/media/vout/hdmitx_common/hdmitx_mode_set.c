@@ -188,11 +188,13 @@ static int hdmitx_common_post_enable_mode(struct hdmitx_common *tx_comm,
 		cancel_delayed_work(&tx_comm->work_cedst);
 		queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst, 0);
 	}
-
+	/* attach vinfo, if hdr_cap and dv_cap change, the HDR/DV module will
+	 * call the packet sending function, need to set ready flag to 1 first
+	 */
+	tx_comm->ready = 1;
 	edidinfo_attach_to_vinfo(tx_comm);
 	update_vinfo_from_formatpara(tx_comm);
 
-	tx_comm->ready = 1;
 	return 0;
 }
 
@@ -246,28 +248,38 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 {
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
 
-	/* step1: HW: disable hdmitx phy, SW: clear status */
+	/* step1 detach vinfo
+	 * detach vinfo is common operate for plugout and suspend and switch resolution.
+	 * After setting the mode, you need to set ready to 1 first, and then attach
+	 * vinfo to notify HDR/DV to send the package to ensure that pkt can be sent
+	 * normally. In disable mode, first detach vinfo, notify HDR/DV to no longer
+	 * send packets, and then set ready to 0
+	 */
+	edidinfo_detach_to_vinfo(tx_comm);
+
+	/* step2: HW: disable hdmitx phy, SW: clear status */
 	if (phy_dis) {
 		tx_comm->ready = 0;
 		hdmitx_hw_cntl_misc(tx_hw_base, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	}
+
 	/* disable frl/dsc/vrr */
 	if (tx_comm->ctrl_ops->disable_21_work)
 		tx_comm->ctrl_ops->disable_21_work();
 
-	/* step2: clear edid vinfo */
+	/* step3: clear edid */
 	if (edid_clear)
 		hdmitx_common_edid_clear(tx_comm);
 
-	/* step3: HW: clear packets */
+	/* step4: HW: clear packets */
 	if (pkt_clear)
 		tx_comm->ctrl_ops->clear_pkt(tx_hw_base);
 
-	/* step4: reset hdcp */
+	/* step5: reset hdcp */
 	if (hdcp_reset)
 		tx_comm->ctrl_ops->reset_hdcp(tx_comm);
 
-	/* step5: SW: cancel ced work */
+	/* step6: SW: cancel ced work */
 	if (tx_comm->cedst_en)
 		cancel_delayed_work(&tx_comm->work_cedst);
 }
@@ -278,9 +290,10 @@ int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
 	struct hdmi_format_para *para;
 
 	HDMITX_DEBUG("%s to disable ready state\n", __func__);
+	mutex_lock(&tx_comm->hdmimode_mutex);
 	/* TODO: clear pkt */
 	hdmitx_common_output_disable(tx_comm,
-		true, true, false, false);
+		true, true, true, false);
 
 	hdmitx_format_para_reset(&tx_comm->fmt_para);
 	reset_vinfo(&tx_comm->hdmitx_vinfo);
@@ -292,6 +305,7 @@ int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
 
 	if (tx_comm->ctrl_ops->disable_mode)
 		tx_comm->ctrl_ops->disable_mode(tx_comm, para);
+	mutex_unlock(&tx_comm->hdmimode_mutex);
 
 	return 0;
 }

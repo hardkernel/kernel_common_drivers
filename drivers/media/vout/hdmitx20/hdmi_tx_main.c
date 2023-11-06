@@ -187,7 +187,7 @@ static void hdmitx20_clear_packets(struct hdmitx_hw_common *tx_hw_base)
 {
 	/* HW: clear hdr related packets */
 	hdmitx_set_drm_pkt(NULL);
-	hdmitx_set_vsif_pkt(0, 0, NULL, true);
+	hdmitx_set_vsif_pkt(EOTF_T_NULL, 0, NULL, true);
 	hdmitx_set_hdr10plus_pkt(0, NULL);
 	hdmitx_hw_cntl_config(tx_hw_base, CONF_CLR_AVI_PACKET, 0);
 }
@@ -677,7 +677,11 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		hsty_drm_config_num++;
 	else
 		hsty_drm_config_num = 8;
-
+	/* if ready is 0, only can clear pkt */
+	if (hdev->tx_comm.ready == 0 && data) {
+		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
+		return;
+	}
 	init_drm_db0(hdev, &DRM_DB[0]);
 	if (hdr_status_pos == 4) {
 		/* zero hdr10+ VSIF being sent - disable it */
@@ -714,7 +718,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	} else {
 		HDMITX_INFO("%s: disable drm pkt\n", __func__);
 	}
-
 	hdr_status_pos = 1;
 	/* if VSIF/DV or VSIF/HDR10P packet is enabled, disable it */
 	if (hdmitx_dv_en()) {
@@ -977,8 +980,8 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 		hsty_vsif_config_num++;
 	else
 		hsty_vsif_config_num = 8;
-
-	if (hdev->tx_comm.ready == 0) {
+	/* if ready is 0, only can clear pkt */
+	if (hdev->tx_comm.ready == 0 && type != EOTF_T_NULL) {
 		ltype = EOTF_T_NULL;
 		ltmode = -1;
 		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
@@ -1281,6 +1284,10 @@ static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 		hsty_hdr10p_config_num++;
 	else
 		hsty_hdr10p_config_num = 8;
+
+	/* if ready is 0, only can clear pkt */
+	if (hdev->tx_comm.ready == 0 && data)
+		return;
 
 	if (flag == HDR10_PLUS_ZERO_VSIF) {
 		/* needed during hdr10+ to sdr transition */
