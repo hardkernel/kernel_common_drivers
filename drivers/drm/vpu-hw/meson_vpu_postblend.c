@@ -531,9 +531,9 @@ static void t7_postblend_set_state(struct meson_vpu_block *vblk,
 			val = vppx_bld | 2 << 4 | 1 << 31;
 
 		if (crtc_index == 1)
-			osd_vpp1_bld_ctrl = val;
+			osd_vpp1_bld_ctrl = val | osd_vpp_bld_ctrl_update_mask;
 		else if (crtc_index == 2)
-			osd_vpp2_bld_ctrl = val;
+			osd_vpp2_bld_ctrl = val | osd_vpp_bld_ctrl_update_mask;
 		else
 			MESON_DRM_BLOCK("invalid crtc index\n");
 
@@ -667,6 +667,7 @@ static void t3x_postblend_set_state(struct meson_vpu_block *vblk,
 			scope.h_start, scope.h_end, scope.v_start, scope.v_end);
 	}
 	if (crtc_index == 1) {
+		u32 val, vpp1_bld;
 		/* 1:vd1-din0, 2:osd1-din1*/
 		scope.h_start = mvps->plane_info[2].dst_x;
 		scope.h_end = scope.h_start + mvps->scaler_param[2].output_width - 1;
@@ -677,10 +678,18 @@ static void t3x_postblend_set_state(struct meson_vpu_block *vblk,
 					(scope.h_start << 16) | scope.h_end);
 		reg_ops->rdma_write_reg(VPP1_OSD3_BLD_V_SCOPE,
 					(scope.v_start << 16) | scope.v_end);
-		reg_ops->rdma_write_reg(VPP1_BLD_CTRL_T3X,
-		(reg_ops->rdma_read_reg(VPP1_BLD_CTRL_T3X) & (3 << 29)) |
-		1 << 31 | 2 << 4 | 1 << 29);
-		//osd3 link vsync2
+
+		vpp1_bld = reg_ops->rdma_read_reg(VPP1_BLD_CTRL_T3X);
+		if (amc->blank_enable)
+			val = (vpp1_bld & ~0xf0) | 1 << 31;
+		else
+			val = (vpp1_bld & (3 << 29)) | 1 << 31 | 2 << 4 | 1 << 29;
+
+		osd_vpp1_bld_ctrl = val | osd_vpp_bld_ctrl_update_mask;
+		drm_postblend_notify_amvideo();
+		MESON_DRM_BLOCK("notify dv osd_vpp1_bld_ctrl = %d\n",
+						osd_vpp1_bld_ctrl);
+
 		reg_ops->rdma_write_reg_bits(VIU_OSD3_MISC, 1, 0, 1);
 		reg_ops->rdma_write_reg_bits(OSD_PROC_1MUX3_SEL, 0, 4, 2);
 		reg_ops->rdma_write_reg_bits(OSD_SYS_5MUX4_SEL, 5, 8, 4);
@@ -712,9 +721,9 @@ static void postblend_hw_disable(struct meson_vpu_block *vblk,
 		vppx_bld = reg_ops->rdma_read_reg(reg1->vpp_bld_ctrl);
 		vppx_bld = vppx_bld & 0xffffff0f;
 		if (crtc_index == 1)
-			osd_vpp1_bld_ctrl = vppx_bld;
+			osd_vpp1_bld_ctrl = vppx_bld | osd_vpp_bld_ctrl_update_mask;
 		else if (crtc_index == 2)
-			osd_vpp2_bld_ctrl = vppx_bld;
+			osd_vpp2_bld_ctrl = vppx_bld | osd_vpp_bld_ctrl_update_mask;
 		else
 			MESON_DRM_BLOCK("invalid crtc index\n");
 
@@ -807,9 +816,18 @@ static void g12b_postblend_hw_disable(struct meson_vpu_block *vblk,
 static void s5_postblend_hw_disable(struct meson_vpu_block *vblk,
 				    struct meson_vpu_block_state *state)
 {
+	u32 vpp1_bld;
+	int crtc_index = vblk->index;
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
 
 	vpp_osd1_postblend_5mux_set(vblk, state->sub->reg_ops, postblend->reg, VPP_NULL);
+	if (crtc_index == 1) {
+		vpp1_bld = reg_ops->rdma_read_reg(VPP1_BLD_CTRL_T3X);
+		vpp1_bld = vpp1_bld & 0xffffff0f;
+		osd_vpp1_bld_ctrl = vpp1_bld | osd_vpp_bld_ctrl_update_mask;
+		drm_postblend_notify_amvideo();
+	}
 	MESON_DRM_BLOCK("%s disable called.\n", postblend->base.name);
 }
 #endif
