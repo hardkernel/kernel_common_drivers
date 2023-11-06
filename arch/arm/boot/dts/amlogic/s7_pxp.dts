@@ -1500,7 +1500,11 @@
 };
 
 &saradc {
-	status = "disabled";
+	status = "okay";
+
+	pd {
+		enabled;
+	};
 };
 
 &ethmac {

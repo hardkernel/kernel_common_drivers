@@ -133,3 +133,4 @@ extern const struct meson_sar_adc_param meson_sar_adc_txlx_param __initconst;
 extern const struct meson_sar_adc_param meson_sar_adc_g12a_param __initconst;
 extern const struct meson_sar_adc_param meson_sar_adc_c2_param __initconst;
 extern const struct meson_sar_adc_param meson_sar_adc_txhd2_param __initconst;
+extern const struct meson_sar_adc_param meson_sar_adc_s7_param __initconst;
