@@ -3121,8 +3121,11 @@ bool is_hlg_frame(struct vframe_s *vf)
 	/* 3. stb v2.4 when hlg not processed by dv, why?*/
 	if ((is_aml_tvmode() || multi_dv_mode ||
 		(get_amdv_hdr_policy() & 2) == 0) &&
-		(signal_transfer_characteristic == 18) &&
-		signal_color_primaries == 9 && !signal_cuva)
+		((signal_transfer_characteristic == 18 &&
+		signal_color_primaries == 9) ||
+		(signal_transfer_characteristic == 14 &&
+		signal_color_primaries == 9 &&
+		(test_dv & DEBUG_SDR2020_FORCE_HLG))) && !signal_cuva)
 		return true;
 
 	return false;
@@ -7499,7 +7502,8 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 		/* check source format */
 		fmt = get_vframe_src_fmt(vf);
 		if ((fmt == VFRAME_SIGNAL_FMT_DOVI ||
-		    fmt == VFRAME_SIGNAL_FMT_INVALID) &&
+		    fmt == VFRAME_SIGNAL_FMT_INVALID ||
+		    vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE) &&
 		    !vf->discard_dv_data) {
 			vf_notify_provider_by_name
 				(dv_provider[0],
@@ -9024,7 +9028,8 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 		/* check source format */
 		fmt = get_vframe_src_fmt(vf);
 		if ((fmt == VFRAME_SIGNAL_FMT_DOVI ||
-		    fmt == VFRAME_SIGNAL_FMT_INVALID) &&
+		    fmt == VFRAME_SIGNAL_FMT_INVALID ||
+		    vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE) &&
 		    !vf->discard_dv_data) {
 			vf_notify_provider_by_name
 				(dv_provider[vd_path],
@@ -13266,13 +13271,13 @@ void amdv_update_backlight(void)
 	if (is_aml_tvmode()) {
 		if (!force_disable_dv_backlight) {
 			bl_delay_cnt++;
-			if ((debug_dolby & 1) || (debug_dolby & 0x100))
+			if (debug_dolby & 1)
 				pr_dv_dbg("bl_delay_cnt %d\n", bl_delay_cnt);
 			if (tv_backlight_changed &&
 			    final_backlight_delay_vsync == bl_delay_cnt) {
 				new_bl = use_12b_bl ? tv_backlight << 4 :
 					tv_backlight;
-				if ((debug_dolby & 1) || (debug_dolby & 0x100))
+				if (debug_dolby & 1)
 					pr_dv_dbg("dv set backlight %d %d\n", new_bl, tv_backlight);
 				aml_lcd_atomic_notifier_call_chain
 					(LCD_EVENT_BACKLIGHT_GD_DIM,
@@ -14995,6 +15000,15 @@ static ssize_t amdolby_vision_debug_store
 			return -EINVAL;
 		output_4k240hz = val ? 1 : 0;
 		pr_info("set 4k240hz_output %d\n", output_4k240hz);
+	} else if (!strcmp(parm[0], "force_ignore_top1_result")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		force_ignore_top1_result = val;
+		if (val == 0)
+			force_ignore_top1_result = 0;
+		else
+			force_ignore_top1_result = 1;
+		pr_info("set force_ignore_top1_result %d\n", force_ignore_top1_result);
 	} else if (!strcmp(parm[0], "pyramid_read_urgent")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;

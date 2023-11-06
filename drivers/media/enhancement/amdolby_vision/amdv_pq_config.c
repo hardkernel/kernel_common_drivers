@@ -50,6 +50,7 @@ static struct dv_pq_range_s pq_range[4];
 static int num_picture_mode;
 static int default_pic_mode = 1;/*bright(standard) mode as default*/
 int cur_pic_mode;/*current picture mode id*/
+bool pic_mode_changed;
 
 bool load_bin_config;
 
@@ -1922,6 +1923,7 @@ void set_pic_mode(int mode)
 		update_cp_cfg();
 		update_vsvdb_to_rx();
 		update_pwm_control();
+		pic_mode_changed = true;
 	}
 }
 

@@ -1119,7 +1119,8 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 		/* check source format */
 		fmt = get_vframe_src_fmt(vf);
 		if ((fmt == VFRAME_SIGNAL_FMT_DOVI ||
-		    fmt == VFRAME_SIGNAL_FMT_INVALID) &&
+		    fmt == VFRAME_SIGNAL_FMT_INVALID ||
+		    vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE) &&
 		    !vf->discard_dv_data) {
 			vf_notify_provider_by_name
 				(dv_provider[0],
@@ -1837,7 +1838,8 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 		/* check source format */
 		fmt = get_vframe_src_fmt(vf);
 		if ((fmt == VFRAME_SIGNAL_FMT_DOVI ||
-		    fmt == VFRAME_SIGNAL_FMT_INVALID) &&
+		    fmt == VFRAME_SIGNAL_FMT_INVALID ||
+		    vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE) &&
 		    !vf->discard_dv_data) {
 			vf_notify_provider_by_name
 				(dv_provider[0],
@@ -2363,10 +2365,16 @@ int amdv_wait_metadata_hw5(struct vframe_s *vf)
 	enum signal_format_enum check_format;
 	bool vd1_on = false;
 	bool temp_done = false;
+	static struct timeval start_wait_time;
+	struct timeval cur_time;
+	unsigned long wait_us = 0;
+	static bool is_waiting;
 
 	/*only for first frame. next frame will update in parser_metadata_hw5_top1*/
-	if (!top1_info.core_on && !top2_info.core_on)
+	if (!top2_info.core_on || pic_mode_changed) {
 		update_top1_onoff(vf);
+		pic_mode_changed = false;
+	}
 
 	if (single_step_enable_v2(0, VD1_PATH)) {
 		if (dolby_vision_flags & FLAG_SINGLE_STEP)
@@ -2428,14 +2436,36 @@ int amdv_wait_metadata_hw5(struct vframe_s *vf)
 				if (!top1_info.core_on) {
 					if (vf && (debug_dolby & 8))
 						pr_dv_dbg("wait top1 and need to do top1\n");
+
+					do_gettimeofday(&cur_time);
+					is_waiting = true;
+					start_wait_time = cur_time;
 					return 4;
 				}
 				if (top1_info.core_on &&
-					(!top1_done && !ignore_top1_result/*&& !temp_done*/)) {
+					(!top1_done && !ignore_top1_result &&
+					!force_ignore_top1_result)) {
 					if (vf && (debug_dolby & 8))
 						pr_dv_dbg("wait top1\n");
-					return 5;
+
+					do_gettimeofday(&cur_time);
+
+					wait_us = (cur_time.tv_sec - start_wait_time.tv_sec) *
+						1000000 +
+						(cur_time.tv_usec - start_wait_time.tv_usec);
+
+					if (!is_waiting)
+						start_wait_time = cur_time;
+
+					if (wait_us > 2 * 1000 * 1000) {
+						pr_dv_dbg("top1 not finished after %5ld us,no longer wait\n",
+						wait_us);
+					} else {
+						is_waiting = true;
+						return 5;
+					}
 				}
+				is_waiting = false;
 			}
 		}
 

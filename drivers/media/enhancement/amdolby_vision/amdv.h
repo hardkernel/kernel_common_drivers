@@ -106,6 +106,7 @@
 #define DEBUG_FORCE_BYPASS_PRECISION_RENDERING  0x200
 #define DEBUG_FORCE_ZERO_PYRAMID    0x400
 #define DEBUG_AUTOMATICALLY_PYRAMID 0x800
+#define DEBUG_FORCE_BYPASS_TOP2 0x1000
 
 enum core1_switch_type {
 	NO_SWITCH = 0,
@@ -906,6 +907,7 @@ extern bool py_enabled;
 extern bool l1l4_enabled;
 extern u32 l1l4_distance;
 extern bool ignore_top1_result;
+extern bool force_ignore_top1_result;
 extern u8 force_drm[32];
 extern bool dv_unique_drm;
 extern char *cfg_data;
