@@ -796,7 +796,11 @@ unsigned long __nocfi find_back_trace(void)
 #if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
 	backtrace_pc = 0;
 	backtrace_skip = 0;
+#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 	f_arch_stack_walk(aml_dump_backtrace_entry, KERN_DEFAULT, current, NULL);
+#else
+	arch_stack_walk(aml_dump_backtrace_entry, KERN_DEFAULT, current, NULL);
+#endif
 	if (backtrace_pc)
 		return backtrace_pc;
 #else

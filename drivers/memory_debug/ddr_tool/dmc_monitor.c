@@ -309,6 +309,7 @@ static unsigned long dmc_unpack_ip(struct page_trace *trace)
 	return unpack_ip(trace);
 }
 #endif
+EXPORT_SYMBOL(dmc_get_page_trace);
 
 unsigned long read_violation_mem(unsigned long addr, char rw)
 {
@@ -1480,6 +1481,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 static void arm64_serror_panic(void *data, struct pt_regs *regs, unsigned long esr)
 {
 	serror_dump_dmc_reg();
+	oops_in_progress++;
 }
 
 /* Synchronous Serror*/
@@ -1491,6 +1493,7 @@ static void do_sea(void *data, unsigned long addr, unsigned long esr, struct pt_
 static void do_serror(void *data, struct pt_regs *regs, unsigned int esr, int *ret)
 {
 	serror_dump_dmc_reg();
+	oops_in_progress++;
 }
 #endif
 #endif
