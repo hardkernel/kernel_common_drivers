@@ -12,7 +12,7 @@ menuconfig AMLOGIC_MEMORY_EXTEND
 		functions, can be used for memory debug or other features.
 
 config AMLOGIC_MIX_ZRAM
-	bool "Amlogic mixed zram"
+	tristate "Amlogic mixed zram"
 	depends on AMLOGIC_MEMORY_EXTEND
 	depends on CRYPTO_ZSTD
 	depends on CRYPTO_LZ4
