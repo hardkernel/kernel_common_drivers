@@ -2395,11 +2395,11 @@ void clk_init_cor_txhd2(void)
 
 void rx_dig_clk_en_txhd2(bool en)
 {
-	hdmirx_wr_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL3, METER_CLK_EN, en);
+	hdmirx_wr_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL0, CLK_2M_EN, en);
+	hdmirx_wr_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL0, CLK_5M_EN, en);
 	hdmirx_wr_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL1, CFG_CLK_EN, en);
-	hdmirx_wr_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL1, MODET_CLK_EN, en);
-	hdmirx_wr_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL0, _BIT(24), en);
-	hdmirx_wr_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL0, _BIT(8), en);
+	hdmirx_wr_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL1, HDCP2X_ECLK_EN, en);
+	hdmirx_wr_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL3, METER_CLK_EN, en);
 }
 
 int calc_pow(int x, int n)
