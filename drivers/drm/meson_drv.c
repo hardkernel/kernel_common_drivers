@@ -122,6 +122,7 @@ static const struct drm_ioctl_desc meson_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MESON_CREAT_PRESENT_FENCE,
 			meson_crtc_creat_present_fence_ioctl, 0),
 	#endif
+	DRM_IOCTL_DEF_DRV(MESON_MUTE_PLANE, meson_plane_mute_ioctl, 0)
 };
 
 DEFINE_DRM_GEM_FOPS(meson_drm_fops);

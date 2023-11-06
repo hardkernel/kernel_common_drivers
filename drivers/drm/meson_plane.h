@@ -124,4 +124,7 @@ void meson_video_set_vfmmode(struct device_node *of_node,
 int am_meson_dmabuf_export_sync_file_ioctl(struct drm_device *dev,
 	void *data, struct drm_file *file_priv);
 #endif
+int meson_plane_mute_ioctl(struct drm_device *dev,
+	void *data, struct drm_file *file_priv);
+
 #endif

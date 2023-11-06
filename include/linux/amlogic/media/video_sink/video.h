@@ -342,6 +342,7 @@ enum mediasync_parameter_e {
 #define HDMI_RX_MUTE_SET       1
 #define USER_MUTE_SET          2
 #define AML_DOLBY_MUTE_SET     3
+#define DRM_MUTE_SET           4
 
 struct mediasync_parameter {
 	u32 vsync_period;
