@@ -484,7 +484,7 @@ static void t7_osd_afbc_enable(struct meson_vpu_block *vblk,
 /*only supports one 4k fb at most for osd plane*/
 static
 int osd_afbc_check_uhd_count(struct meson_vpu_osd_layer_info *plane_info,
-			     struct meson_vpu_pipeline_state *mvps)
+			     struct meson_vpu_pipeline_state *mvps, u32 num_of_4k_osd)
 {
 	int cnt;
 	int uhd_plane_sum = 0;
@@ -499,7 +499,7 @@ int osd_afbc_check_uhd_count(struct meson_vpu_osd_layer_info *plane_info,
 	}
 	for (cnt = 0; cnt < MESON_MAX_OSDS; cnt++) {
 		uhd_plane_sum += mvps->plane_info[cnt].uhd_plane_index;
-		if (uhd_plane_sum > 1)
+		if (uhd_plane_sum > num_of_4k_osd)
 			return -EINVAL;
 	}
 	return ret;
@@ -521,9 +521,9 @@ static int osd_afbc_check_state(struct meson_vpu_block *vblk,
 		return 0;
 
 	state->checked = true;
-	ret = osd_afbc_check_uhd_count(plane_info, mvps);
+	ret = osd_afbc_check_uhd_count(plane_info, mvps, afbc->num_of_4k_osd);
 	if (ret < 0) {
-		DRM_INFO("plane%d,uhd osd plane is greater than 1,return!\n",
+		DRM_INFO("plane%d,uhd osd plane is greater than upper limit,return!\n",
 			 osd_index);
 	}
 	MESON_DRM_BLOCK("%s check_state called.\n", afbc->base.name);
@@ -1539,6 +1539,7 @@ static void osd_afbc_hw_init(struct meson_vpu_block *vblk)
 
 	afbc->afbc_regs = &afbc_osd_regs[vblk->index];
 	afbc->status_regs = &afbc_status_regs;
+	afbc->num_of_4k_osd = 1;
 
 	pipeline->subs[0].reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0, 23, 1);
 
@@ -1555,6 +1556,7 @@ static void t7_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 
 	afbc->afbc_regs = &afbc_osd_t7_regs[0];
 	afbc->status_regs = &afbc_status_t7_regs[vblk->index];
+	afbc->num_of_4k_osd = 1;
 
 	MESON_DRM_BLOCK("%s hw_init called.\n", afbc->base.name);
 }
@@ -1566,6 +1568,7 @@ static void t3_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 
 	afbc->afbc_regs = &afbc_osd_t7_regs[0];
 	afbc->status_regs = &afbc_status_t3_regs[vblk->index];
+	afbc->num_of_4k_osd = 1;
 
 	/* disable osd1 afbc */
 	t7_osd_afbc_enable(vblk, pipeline->subs[0].reg_ops,
@@ -1581,6 +1584,7 @@ static void s5_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 
 	afbc->afbc_regs = &afbc_osd_t7_regs[0];
 	afbc->status_regs = &afbc_status_s5_regs[vblk->index];
+	afbc->num_of_4k_osd = 2;
 
 	/* disable osd1 afbc */
 	t7_osd_afbc_enable(vblk, pipeline->subs[0].reg_ops, afbc->status_regs, vblk->index, 0);
@@ -1595,6 +1599,7 @@ static void t3x_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 
 	afbc->afbc_regs = &afbc_osd_t3x_regs[0];
 	afbc->status_regs = &afbc_status_t3x_regs[vblk->index];
+	afbc->num_of_4k_osd = 2;
 
 	/* disable osd1 afbc */
 	t7_osd_afbc_enable(vblk, pipeline->subs[0].reg_ops, afbc->status_regs, vblk->index, 0);

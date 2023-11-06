@@ -347,6 +347,7 @@ struct meson_vpu_afbc {
 	struct meson_vpu_block base;
 	struct afbc_osd_reg_s *afbc_regs;
 	struct afbc_status_reg_s *status_regs;
+	u32 num_of_4k_osd;
 };
 
 struct meson_vpu_afbc_state {
