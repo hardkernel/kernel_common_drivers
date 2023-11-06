@@ -61,6 +61,8 @@
 #include <linux/amlogic/secmon.h>
 #endif
 
+#include "../memory_debug/ddr_tool/dmc_monitor.h"
+
 #ifndef CONFIG_RISCV
 #ifndef CONFIG_ARM64
 #include <asm/ptrace.h>
@@ -245,6 +247,25 @@ static void show_regs_pfn(struct pt_regs *regs)
 		if (regs->regs[i] < (unsigned long)PAGE_OFFSET) {
 			continue;
 		} else if (regs->regs[i] <= (unsigned long)high_memory) {
+#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
+			page = virt_to_page((void *)regs->regs[i]);
+			if (page)
+				pr_info("R%-2d : %016llx, PFN:%5lx L, f: %ps\n",
+					i, regs->regs[i], virt_to_pfn((void *)regs->regs[i]),
+					(void *)dmc_get_page_trace(page));
+			else
+				pr_info("R%-2d : %016llx, PFN:%5lx L\n",
+					i, regs->regs[i], virt_to_pfn((void *)regs->regs[i]));
+		} else {
+			page = vmalloc_to_page((void *)regs->regs[i]);
+			if (page)
+				pr_info("R%-2d : %016llx, PFN:%5lx V, f: %ps\n",
+					i, regs->regs[i], page_to_pfn(page),
+					(void *)dmc_get_page_trace(page));
+			else
+				pr_info("R%-2d : %016llx, PFN:***** V\n", i, regs->regs[i]);
+		}
+#else
 			pr_info("R%-2d : %016llx, PFN:%5lx L\n",
 				i, regs->regs[i], virt_to_pfn((void *)regs->regs[i]));
 		} else {
@@ -255,6 +276,7 @@ static void show_regs_pfn(struct pt_regs *regs)
 			else
 				pr_info("R%-2d : %016llx, PFN:***** V\n", i, regs->regs[i]);
 		}
+#endif
 	}
 }
 
@@ -811,15 +833,20 @@ void _dump_dmc_reg(void)
 void show_user_fault_info(struct pt_regs *regs, u64 lr, u64 sp)
 {
 #ifdef CONFIG_ARM64
+	if (!user_mode(regs) && !oops_in_progress)
+		return;
+
 	if (user_mode(regs)) {
 		show_vma(current->mm, instruction_pointer(regs));
 		show_vma(current->mm, lr);
 		show_vma(current->mm, read_sysreg(far_el1));
+		show_all_pfn(current, regs);
+	} else {
+		show_pfn(instruction_pointer(regs), "PC");
+		show_pfn(sp, "SP");
+		show_pfn(read_sysreg(far_el1), "FAR");
+		show_regs_pfn(regs);
 	}
-	show_pfn(instruction_pointer(regs), "PC");
-	show_pfn(sp, "SP");
-	show_pfn(read_sysreg(far_el1), "FAR");
-	show_regs_pfn(regs);
 #elif defined CONFIG_ARM
 	if (user_mode(regs)) {
 		show_vma(current->mm, instruction_pointer(regs));
@@ -839,6 +866,11 @@ void show_user_fault_info(struct pt_regs *regs, u64 lr, u64 sp)
 
 void show_extra_reg_data(struct pt_regs *regs)
 {
+#ifdef CONFIG_ARM64
+	if (!user_mode(regs) && !oops_in_progress)
+		return;
+#endif
+
 	if (!user_mode(regs))
 		show_extra_register_data(regs, 128);
 	else
@@ -853,6 +885,38 @@ static struct kprobe kp_show_regs = {
 
 static struct kprobe kp_bad_el0_sync = {
 	.symbol_name	= "bad_el0_sync",
+};
+
+static int unhandled_signal_entry_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+#if defined(CONFIG_ARM64)
+	*ri->data = regs->regs[1];
+#elif defined(CONFIG_ARM)
+	*ri->data = regs->ARM_r1;
+#endif
+
+	return 0;
+}
+
+static int unhandled_signal_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+	int sig = *ri->data;
+
+	if (sig == SIGILL || sig == SIGBUS || sig == SIGSEGV) {
+#if defined(CONFIG_ARM64)
+		regs->regs[0] = 1;
+#elif defined(CONFIG_ARM)
+		regs->ARM_r0 = 1;
+#endif
+	}
+
+	return 0;
+}
+
+static struct kretprobe unhandled_signal_krp = {
+	.handler = unhandled_signal_ret_handler,
+	.entry_handler = unhandled_signal_entry_handler,
+	.data_size = sizeof(int),
 };
 
 static void __kprobes show_regs_handler_post(struct kprobe *p,
@@ -911,6 +975,13 @@ static int __nocfi user_fault_register_kprobe(void *data)
 		pr_err("register_kprobe %s failed, returned %d\n",
 			kp_bad_el0_sync.symbol_name, ret);
 		return -1;
+	}
+
+	unhandled_signal_krp.kp.symbol_name = "unhandled_signal";
+	ret = register_kretprobe(&unhandled_signal_krp);
+	if (ret < 0) {
+		pr_err("register kretprobe 'unhandled_signal' failed, returned %d\n", ret);
+		return ret;
 	}
 
 	return 0;

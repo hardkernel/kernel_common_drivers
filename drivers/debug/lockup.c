@@ -972,10 +972,9 @@ static void do_undefinstr_hook(void *data, struct pt_regs *regs)
 	pr_emerg("Internal error: %s: %x [#%d]" S_PREEMPT S_SMP "\n",
 		 str, err, ++die_counter);
 
-	show_regs(regs);
-
 	/* Avoid to print call stack again when panic */
 	oops_in_progress = 2;
+	show_regs(regs);
 
 	if (in_interrupt())
 		panic("%s: Fatal exception in interrupt", str);

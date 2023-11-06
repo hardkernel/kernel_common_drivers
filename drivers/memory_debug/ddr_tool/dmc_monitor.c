@@ -245,6 +245,7 @@ unsigned long dmc_get_page_trace(struct page *page)
 	return get_page_trace(page);
 }
 #endif
+EXPORT_SYMBOL(dmc_get_page_trace);
 
 unsigned long read_violation_mem(unsigned long addr, char rw)
 {
@@ -1289,7 +1290,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	}
 }
 
-#if defined(CONFIG_AMLOGIC_USER_FAULT) && \
+#if IS_ENABLED(CONFIG_AMLOGIC_USER_FAULT) && \
 	defined(CONFIG_TRACEPOINTS) && \
 	defined(CONFIG_ANDROID_VENDOR_HOOKS)
 
@@ -1298,6 +1299,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 static void arm64_serror_panic(void *data, struct pt_regs *regs, unsigned int esr)
 {
 	serror_dump_dmc_reg();
+	oops_in_progress++;
 }
 
 /* Synchronous Serror*/
@@ -1309,6 +1311,7 @@ static void do_sea(void *data, unsigned long addr, unsigned int esr, struct pt_r
 static void do_serror(void *data, struct pt_regs *regs, unsigned int esr, int *ret)
 {
 	serror_dump_dmc_reg();
+	oops_in_progress++;
 }
 #endif
 #endif
@@ -1404,7 +1407,7 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 		dmc_set_monitor(init_start_addr,
 				init_end_addr, init_dev_mask, 1);
 	}
-#if defined(CONFIG_AMLOGIC_USER_FAULT) && \
+#if IS_ENABLED(CONFIG_AMLOGIC_USER_FAULT) && \
 	defined(CONFIG_TRACEPOINTS) && \
 	defined(CONFIG_ANDROID_VENDOR_HOOKS)
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
