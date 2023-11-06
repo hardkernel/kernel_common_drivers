@@ -67,6 +67,10 @@
 #include <linux/amlogic/user_fault.h>
 #endif
 
+#include <trace/hooks/mm.h>
+#include <linux/amlogic/gki_module.h>
+#include <linux/swap.h>
+
 #define MAX_DEBUG_LEVEL		5
 
 struct work_cma {
@@ -1926,6 +1930,73 @@ static int __nocfi common_symbol_init(void *data)
 	return 0;
 }
 
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+static int cma_enabled;
+module_param(cma_enabled, int, 0644);
+
+static int cma_enabled_setup(char *str)
+{
+	if (kstrtoint(str, 0, &cma_enabled)) {
+		pr_err("cma_enabled: bad arg:%s\n", str);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+__setup("cma_enabled=", cma_enabled_setup);
+
+static int cma_enabled_swap_ratio = 70;
+module_param(cma_enabled_swap_ratio, int, 0644);
+
+static int cma_enabled_swap_ratio_setup(char *str)
+{
+	if (kstrtoint(str, 0, &cma_enabled_swap_ratio)) {
+		pr_err("cma_enabled_swap_ratio: bad arg:%s\n", str);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+__setup("cma_enabled_swap_ratio=", cma_enabled_swap_ratio_setup);
+
+static struct timer_list cma_enabled_timer;
+
+static void cma_enabled_timer_fn(struct timer_list *timer)
+{
+	struct sysinfo i;
+
+	if (cma_enabled)
+		return;
+
+	si_swapinfo(&i);
+
+	if (i.totalswap && i.freeswap * 100 < i.totalswap * cma_enabled_swap_ratio) {
+		pr_info("swap free low(MB):%lu/%lu, ratio=%d, enable cma now!\n",
+				i.freeswap * 4 / 1024,
+				i.totalswap * 4 / 1024,
+				cma_enabled_swap_ratio);
+		cma_enabled = 1;
+	} else {
+		mod_timer(timer, jiffies + HZ / 10);
+	}
+}
+
+static void __maybe_unused delay_enable_cma_hook(void *data,
+		gfp_t gfp_mask, unsigned int *alloc_flags, bool *bypass)
+{
+	if (!cma_enabled)
+		*bypass = 1;
+}
+
+static void delay_enable_cma_init(void)
+{
+	register_trace_android_vh_calc_alloc_flags(delay_enable_cma_hook, NULL);
+
+	timer_setup(&cma_enabled_timer, cma_enabled_timer_fn, 0);
+	mod_timer(&cma_enabled_timer, jiffies + HZ);
+}
+#endif
+
 static int __init aml_cma_module_init(void)
 {
 	atomic_set(&cma_allocate, 0);
@@ -1942,6 +2013,10 @@ static int __init aml_cma_module_init(void)
 
 	low_cma_init();
 
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+	delay_enable_cma_init();
+#endif
+
 	return 0;
 }
 
@@ -1952,5 +2027,6 @@ static void __exit aml_cma_module_exit(void)
 module_init(aml_cma_module_init);
 module_exit(aml_cma_module_exit);
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(MINIDUMP);
 #endif
 

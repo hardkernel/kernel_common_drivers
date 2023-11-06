@@ -26,3 +26,8 @@
   __drm_puts_seq_file
   __drm_printfn_coredump
   __drm_puts_coredump
+
+# aml_cma.ko
+  si_swapinfo
+  __tracepoint_android_vh_calc_alloc_flags
+  __traceiter_android_vh_calc_alloc_flags
