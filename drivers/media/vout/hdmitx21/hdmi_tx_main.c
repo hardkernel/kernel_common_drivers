@@ -3096,7 +3096,7 @@ static bool drm_hdmitx_get_vrr_cap(void)
 	return false;
 }
 
-static bool is_vic_supported(enum hdmi_vic brr_vic)
+static bool is_rx_supported_vic(enum hdmi_vic brr_vic)
 {
 	int i;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -3115,18 +3115,20 @@ static void add_vic_to_group(enum hdmi_vic vic, struct drm_vrr_mode_group *group
 	const struct hdmi_timing *timing;
 
 	timing = hdmitx_mode_vic_to_hdmi_timing(vic);
-	if (timing && is_vic_supported(vic)) {
-		group->brr_vic = vic;
-		group->width = timing->h_active;
-		group->height = timing->v_active;
-		group->vrr_min = 24; /* fixed value */
-		group->vrr_max = timing->v_freq / 1000;
-	}
+	if (!timing)
+		return;
+	group->brr_vic = vic;
+	group->width = timing->h_active;
+	group->height = timing->v_active;
+	group->vrr_min = 24; /* fixed value */
+	group->vrr_max = timing->v_freq / 1000;
 }
 
 static int drm_hdmitx_get_vrr_mode_group(struct drm_vrr_mode_group *group, int max_group)
 {
-	int i;
+	int i = 0, j = 0;
+	const struct hdmi_timing *timing;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	enum hdmi_vic brr_vic[] = {
 		HDMI_16_1920x1080p60_16x9,
 		HDMI_63_1920x1080p120_16x9,
@@ -3136,16 +3138,24 @@ static int drm_hdmitx_get_vrr_mode_group(struct drm_vrr_mode_group *group, int m
 		HDMI_102_4096x2160p60_256x135,
 	};
 
-	if (!drm_hdmitx_get_vrr_cap())
-		return 0;
-
 	if (!group || max_group == 0)
 		return 0;
+	/* check RX VRR capabilities */
+	if (!drm_hdmitx_get_vrr_cap())
+		return 0;
+	for (i = 0, j = 0; i < ARRAY_SIZE(brr_vic); i++) {
+		timing = hdmitx_mode_vic_to_hdmi_timing(brr_vic[i]);
+		if (!timing)
+			continue;
+		/* check both TX and RX support current vic */
+		if ((hdmitx_common_validate_vic(&hdev->tx_comm, brr_vic[i]) >= 0) &&
+			is_rx_supported_vic(brr_vic[i])) {
+			add_vic_to_group(brr_vic[i], group + j);
+			j++;
+		}
+	}
 
-	for (i = 0; i < ARRAY_SIZE(brr_vic); i++)
-		add_vic_to_group(brr_vic[i], group + i);
-
-	return i;
+	return j;
 }
 
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)

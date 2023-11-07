@@ -761,6 +761,7 @@ int hdmitx_dump_vrr_status(struct seq_file *s, void *p)
 {
 	struct tx_vrr_params *vrr = &vrr_para;
 	struct vrr_conf_para *conf = &vrr_para.conf_params;
+	const struct hdmi_timing *timing = NULL;
 
 	seq_puts(s, "\n--------HDMITX VRR--------\n");
 
@@ -778,7 +779,12 @@ int hdmitx_dump_vrr_status(struct seq_file *s, void *p)
 
 	seq_printf(s, "vrr_enabled %d\n", conf->vrr_enabled);
 	seq_printf(s, "fva_factor %d\n", conf->fva_factor);
-	seq_printf(s, "brr_vic %d\n", conf->brr_vic);
+	timing = hdmitx_mode_vic_to_hdmi_timing(conf->brr_vic);
+	if (timing)
+		seq_printf(s, "brr_vic %d %s\n", conf->brr_vic,
+			timing->sname ? timing->sname : timing->name);
+	else
+		seq_printf(s, "brr_vic %d\n", conf->brr_vic);
 	seq_printf(s, "duration %d\n", conf->duration);
 	seq_printf(s, "fapa_end_extended %d\n", conf->fapa_end_extended);
 	seq_printf(s, "qms support %d\n", conf->qms_sup);
@@ -1136,6 +1142,9 @@ int hdmitx_set_fr_hint(int rate, void *data)
 
 	/* check current rate, should less or equal than current rate of BRR */
 	tmp_rate = fmt_para->timing.v_freq / 10;
+	/* TODO, BRR mode should have frac_rate_policy as 0 */
+	if (tx_comm->frac_rate_policy == 1)
+		tmp_rate = tmp_rate + 2 + tmp_rate / 1000;
 	if (rate < 2397 || rate > 120000 || rate > tmp_rate) {
 		HDMITX_INFO("vrr rate over range %d [2397~%d]\n", rate, tmp_rate);
 		return 0;
