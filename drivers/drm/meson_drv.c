@@ -56,18 +56,26 @@
 #define MAX_CONNECTOR_NUM (3)
 
 static int skip_logo;
+int recovery_mode;
 
-static int quiescent_ctl(char *str)
+static int check_reboot_mode(char *str)
 {
 	if (strncmp("qui", str, 3) == 0)
 		skip_logo = 1;
 	else
 		skip_logo = 0;
 
+	if (strncmp("factory", str, 7) == 0 ||
+	    strncmp("recovery", str, 8) == 0) {
+		recovery_mode = 1;
+	} else {
+		recovery_mode = 0;
+	}
+
 	return 0;
 }
 
-__setup("reboot_mode=", quiescent_ctl);
+__setup("reboot_mode=", check_reboot_mode);
 
 static void am_meson_fb_output_poll_changed(struct drm_device *dev)
 {
@@ -269,6 +277,9 @@ static int am_meson_drm_bind(struct device *dev)
 	drm->mode_config.funcs = &meson_mode_config_funcs;
 	drm->mode_config.helper_private	= &meson_mode_config_helpers;
 	drm->mode_config.allow_fb_modifiers = true;
+
+	if (recovery_mode)
+		priv->recovery_mode = true;
 
 	/* Try to bind all sub drivers. */
 	ret = component_bind_all(dev, &priv->bound_data);

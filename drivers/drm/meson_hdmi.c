@@ -219,13 +219,19 @@ static struct hdmitx_color_attr *meson_hdmitx_get_candidate_attr_list
 {
 	const char *outputmode = crtc_state->base.adjusted_mode.name;
 	struct hdmitx_color_attr *attr_list = NULL;
+	enum hdmi_hdr_status hdr_status = SDR;
+
+	if (am_hdmi_info.recovery_mode)
+		hdr_status = am_hdmi_info.hdmitx_dev->get_hdmi_hdr_status();
 
 	/* filter some color value options, aimed at some modes. */
 	if (crtc_state->crtc_eotf_type ==
-			HDMI_EOTF_MESON_DOLBYVISION) {
+			HDMI_EOTF_MESON_DOLBYVISION ||
+			hdr_status == dolbyvision_std) {
 		attr_list = dv_color_attr_list;
 	} else if (crtc_state->crtc_eotf_type ==
-			HDMI_EOTF_MESON_DOLBYVISION_LL) {
+			HDMI_EOTF_MESON_DOLBYVISION_LL ||
+			hdr_status == dolbyvision_lowlatency) {
 		attr_list = dv_ll_color_attr_list;
 	} else if (!strcmp(outputmode, MODE_4K2K60HZ) ||
 	    !strcmp(outputmode, MODE_4K2K50HZ) ||
@@ -1747,6 +1753,10 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 		hdmitx_state->hdr_priority = hdmitx_state->hcs.hdr_priority;
 	}
 
+	/*The recovery mode not have composer to set attr*/
+	if (!meson_crtc_state->uboot_mode_init && am_hdmi_info.recovery_mode)
+		meson_hdmitx_decide_color_attr(meson_crtc_state, attr);
+
 	ret = hdmitx_common_build_format_para(common, &hdmitx_state->hcs.para,
 					      vic, common->frac_rate_policy,
 					      attr->colorformat,
@@ -1861,12 +1871,20 @@ static void meson_hdmitx_init_colorspace_property(struct drm_device *drm_dev,
 {
 	struct drm_property *prop;
 
+	char attr_init[16];
+	struct hdmitx_color_attr attr_param;
+	struct hdmitx_common *common = am_hdmi_info.hdmitx_dev->hdmitx_common;
+
+	hdmitx_get_attr(common, attr_init);
+	convert_attrstr(attr_init, &attr_param);
+
 	prop = drm_property_create_enum(drm_dev, 0, "color_space",
 					hdmi_color_space_enum_list,
 					ARRAY_SIZE(hdmi_color_space_enum_list));
 	if (prop) {
 		am_hdmi->color_space_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop,
+		attr_param.colorformat);
 	} else {
 		DRM_ERROR("Failed to color_space property\n");
 	}
@@ -1877,12 +1895,20 @@ static void meson_hdmitx_init_colordepth_property(struct drm_device *drm_dev,
 {
 	struct drm_property *prop;
 
+	char attr_init[16];
+	struct hdmitx_color_attr attr_param;
+	struct hdmitx_common *common = am_hdmi_info.hdmitx_dev->hdmitx_common;
+
+	hdmitx_get_attr(common, attr_init);
+	convert_attrstr(attr_init, &attr_param);
+
 	prop = drm_property_create_range(drm_dev, 0,
 			"color_depth", 0, 16);
 
 	if (prop) {
 		am_hdmi->color_depth_prop = prop;
-		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop,
+		attr_param.bitdepth);
 	} else {
 		DRM_ERROR("Failed to color_depth property\n");
 	}
@@ -2142,6 +2168,8 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 		am_hdmi_info.hdcp_mode = HDCP_NULL;
 		am_hdmi_info.hdcp_state = HDCP_STATE_DISCONNECT;
 	}
+
+	am_hdmi_info.recovery_mode = priv->recovery_mode;
 
 	drm_connector_attach_content_type_property(connector);
 	drm_connector_attach_vrr_capable_property(connector);

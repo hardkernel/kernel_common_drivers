@@ -49,6 +49,7 @@ struct am_hdmi_tx {
 
 	/*TODO: android compatible, remove later*/
 	bool android_path;
+	bool recovery_mode;
 
 	/*amlogic property: force hdmitx update
 	 *colorspace/colordepth from sysfs.
