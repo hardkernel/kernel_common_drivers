@@ -1649,6 +1649,91 @@ static void vpu_power_init(void)
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static struct vpu_data_s vpu_data_tm2 = {
+	.chip_type = VPU_CHIP_TM2,
+	.chip_name = "tm2",
+	.clk_level_dft = CLK_LEVEL_DFT_G12A,
+	.clk_level_max = CLK_LEVEL_MAX_G12A,
+	.fclk_div_table = fclk_div_table_g12a,
+	.clk_table = vpu_clk_table,
+	.reg_map_table = vpu_reg_table,
+	.test_reg_table = vcbus_test_reg,
+
+	.vpu_clk_reg = HHI_VPU_CLK_CNTL,
+	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
+
+	.gp_pll_valid = 0,
+	.mem_pd_reg[0] = HHI_VPU_MEM_PD_REG0,
+	.mem_pd_reg[1] = HHI_VPU_MEM_PD_REG1,
+	.mem_pd_reg[2] = HHI_VPU_MEM_PD_REG2,
+	.mem_pd_reg[3] = HHI_VPU_MEM_PD_REG3,
+	.mem_pd_reg[4] = HHI_VPU_MEM_PD_REG4,
+	.mem_pd_reg_flag = 0,
+
+	.pwrctrl_id_table = NULL,
+
+	.power_table = vpu_power_g12a,
+	.iso_table = vpu_iso_sm1,
+	.reset_table = vpu_reset_tl1,
+	.module_init_table = NULL,
+
+	.mem_pd_table = vpu_mem_pd_tm2,
+	.clk_gate_table = vpu_clk_gate_g12a,
+
+	.power_on = vpu_power_on,
+	.power_off = vpu_power_off,
+	.mem_pd_init_off = vpu_mem_pd_init_off,
+	.module_init_config = vpu_module_init_config,
+	.power_init_check = vpu_power_init_check_dft,
+	.mempd_switch = vpu_vmod_mem_pd_switch,
+	.mempd_get = vpu_vmod_mem_pd_get,
+	.clk_apply = vpu_clk_apply_dft,
+	.clktree_init = vpu_clktree_init_dft,
+};
+
+static struct vpu_data_s vpu_data_tm2b = {
+	.chip_type = VPU_CHIP_TM2B,
+	.chip_name = "tm2b",
+
+	.clk_level_dft = CLK_LEVEL_DFT_G12A,
+	.clk_level_max = CLK_LEVEL_MAX_G12A,
+	.fclk_div_table = fclk_div_table_g12a,
+	.clk_table = vpu_clk_table,
+	.reg_map_table = vpu_reg_table,
+	.test_reg_table = vcbus_test_reg,
+
+	.vpu_clk_reg = HHI_VPU_CLK_CNTL,
+	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
+
+	.gp_pll_valid = 0,
+	.mem_pd_reg[0] = HHI_VPU_MEM_PD_REG0,
+	.mem_pd_reg[1] = HHI_VPU_MEM_PD_REG1,
+	.mem_pd_reg[2] = HHI_VPU_MEM_PD_REG2,
+	.mem_pd_reg[3] = HHI_VPU_MEM_PD_REG3,
+	.mem_pd_reg[4] = HHI_VPU_MEM_PD_REG4,
+	.mem_pd_reg_flag = 0,
+
+	.pwrctrl_id_table = NULL,
+
+	.power_table = vpu_power_g12a,
+	.iso_table = vpu_iso_sm1,
+	.reset_table = vpu_reset_tl1,
+	.module_init_table = NULL,
+
+	.mem_pd_table = vpu_mem_pd_tm2b,
+	.clk_gate_table = vpu_clk_gate_g12a,
+
+	.power_on = vpu_power_on,
+	.power_off = vpu_power_off,
+	.mem_pd_init_off = vpu_mem_pd_init_off,
+	.module_init_config = vpu_module_init_config,
+	.power_init_check = vpu_power_init_check_dft,
+	.mempd_switch = vpu_vmod_mem_pd_switch,
+	.mempd_get = vpu_vmod_mem_pd_get,
+	.clk_apply = vpu_clk_apply_dft,
+	.clktree_init = vpu_clktree_init_dft,
+};
+
 static struct vpu_data_s vpu_data_sc2 = {
 	.chip_type = VPU_CHIP_SC2,
 	.chip_name = "sc2",
@@ -2459,6 +2544,14 @@ static const struct of_device_id vpu_of_table[] = {
 	{
 		.compatible = "amlogic, vpu-txhd2",
 		.data = &vpu_data_txhd2,
+	},
+	{
+		.compatible = "amlogic, vpu-tm2",
+		.data = &vpu_data_tm2,
+	},
+	{
+		.compatible = "amlogic, vpu-tm2b",
+		.data = &vpu_data_tm2b,
 	},
 #endif
 	{
