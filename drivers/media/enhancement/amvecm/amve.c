@@ -48,6 +48,7 @@
 #endif
 #include "amcm.h"
 #include "reg_helper.h"
+#include "amcsc.h"
 
 #define pr_amve_dbg(fmt, args...)\
 	do {\
@@ -1983,12 +1984,28 @@ void amvecm_bricon_process(signed int bri_val,
 			   signed int cont_val, struct vframe_s *vf)
 {
 	if (vecm_latch_flag & FLAG_VADJ1_BRI) {
-		vecm_latch_flag &= ~FLAG_VADJ1_BRI;
-		vpp_vd_adj1_brightness(bri_val, vf);
-		pr_amve_dbg("\n[amve..] set vd1_brightness OK!!!\n");
-		if (amve_debug & 0x100)
-			pr_info("\n[amve..]%s :brightness:%d!!!\n",
-				__func__, bri_val);
+		if (vf->source_type != VFRAME_SOURCE_TYPE_HWC &&
+			!get_video_mute()) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			if (is_video_layer_on(VD1_PATH)) {
+#endif
+				vecm_latch_flag &= ~FLAG_VADJ1_BRI;
+				vpp_vd_adj1_brightness(bri_val, vf);
+				pr_amve_dbg("\n[%s] set OK, brightness:%d, type:%d\n",
+					__func__, bri_val, vf->source_type);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			}
+#endif
+		} else {
+			pr_amve_dbg("\n[%s] HWC or mute or video disable skip.\n",
+				__func__);
+		}
+	}
+
+	if (vf && vf->source_type == VFRAME_SOURCE_TYPE_HWC) {
+		vpp_vd_adj1_brightness(VD1_PATH, vf);
+		pr_amve_dbg("\n[%s] HWC reset brightness.\n",
+			__func__);
 	}
 
 	if (vecm_latch_flag & FLAG_VADJ1_CON) {
