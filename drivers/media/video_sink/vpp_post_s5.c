@@ -1374,8 +1374,9 @@ static int check_vpp_info_changed(struct vpp_post_input_s *vpp_input, u8 vpp_ind
 			vpp_input->din_x_start[i] != g_vpp_input_pre.din_x_start[i] ||
 			vpp_input->din_y_start[i] != g_vpp_input_pre.din_y_start[i]) {
 			changed = 1;
-			pr_info("%s %d hit vpp_input vd[%d]:new:%d, %d, %d, %d, pre: %d, %d, %d, %d\n",
-			__func__, vpp_index,
+			if (debug_flag_s5 & DEBUG_VPP_POST)
+				pr_info("%s %d hit vpp_input vd[%d]:new:%d, %d, %d, %d, pre: %d, %d, %d, %d\n",
+				__func__, vpp_index,
 			i,
 			vpp_input->din_x_start[i],
 			vpp_input->din_y_start[i],
@@ -1394,13 +1395,14 @@ static int check_vpp_info_changed(struct vpp_post_input_s *vpp_input, u8 vpp_ind
 			vpp_input->bld_out_hsize != g_vpp_input_pre.bld_out_hsize ||
 			vpp_input->bld_out_vsize != g_vpp_input_pre.bld_out_vsize) {
 			changed = 1;
-			pr_info("hit vpp_input->slice_num=%d, %d, %d, %d, %d, %d\n",
-				vpp_input->slice_num,
-				vpp_input->bld_out_hsize,
-				vpp_input->bld_out_vsize,
-				g_vpp_input_pre.slice_num,
-				g_vpp_input_pre.bld_out_hsize,
-				g_vpp_input_pre.bld_out_vsize);
+			if (debug_flag_s5 & DEBUG_VPP_POST)
+				pr_info("hit vpp_input->slice_num=%d, %d, %d, %d, %d, %d\n",
+					vpp_input->slice_num,
+					vpp_input->bld_out_hsize,
+					vpp_input->bld_out_vsize,
+					g_vpp_input_pre.slice_num,
+					g_vpp_input_pre.bld_out_hsize,
+					g_vpp_input_pre.bld_out_vsize);
 		}
 	}
 	/* check padding pram */
@@ -1576,17 +1578,18 @@ static int check_vpp1_info_changed(struct vpp_post_input_s *vpp_input)
 			vpp_input->din_x_start[i] != g_vpp1_input_pre.din_x_start[i] ||
 			vpp_input->din_y_start[i] != g_vpp1_input_pre.din_y_start[i]) {
 			changed = 1;
-			pr_info("%s hit vpp_input vd[%d]:new:%d, %d, %d, %d, pre: %d, %d, %d, %d\n",
-			__func__,
-			i,
-			vpp_input->din_x_start[i],
-			vpp_input->din_y_start[i],
-			vpp_input->din_hsize[i],
-			vpp_input->din_vsize[i],
-			g_vpp1_input_pre.din_x_start[i],
-			g_vpp1_input_pre.din_y_start[i],
-			g_vpp1_input_pre.din_hsize[i],
-			g_vpp1_input_pre.din_vsize[i]);
+			if (debug_flag_s5 & DEBUG_VPP1_POST)
+				pr_info("%s hit vpp_input vd[%d]:new:%d, %d, %d, %d, pre: %d, %d, %d, %d\n",
+				__func__,
+				i,
+				vpp_input->din_x_start[i],
+				vpp_input->din_y_start[i],
+				vpp_input->din_hsize[i],
+				vpp_input->din_vsize[i],
+				g_vpp1_input_pre.din_x_start[i],
+				g_vpp1_input_pre.din_y_start[i],
+				g_vpp1_input_pre.din_hsize[i],
+				g_vpp1_input_pre.din_vsize[i]);
 			break;
 		}
 	}
@@ -1596,13 +1599,14 @@ static int check_vpp1_info_changed(struct vpp_post_input_s *vpp_input)
 			vpp_input->bld_out_hsize != g_vpp1_input_pre.bld_out_hsize ||
 			vpp_input->bld_out_vsize != g_vpp1_input_pre.bld_out_vsize) {
 			changed = 1;
-			pr_info("hit vpp_input->slice_num=%d, %d, %d, %d, %d, %d\n",
-				vpp_input->slice_num,
-				vpp_input->bld_out_hsize,
-				vpp_input->bld_out_vsize,
-				g_vpp1_input_pre.slice_num,
-				g_vpp1_input_pre.bld_out_hsize,
-				g_vpp1_input_pre.bld_out_vsize);
+			if (debug_flag_s5 & DEBUG_VPP1_POST)
+				pr_info("hit vpp_input->slice_num=%d, %d, %d, %d, %d, %d\n",
+					vpp_input->slice_num,
+					vpp_input->bld_out_hsize,
+					vpp_input->bld_out_vsize,
+					g_vpp1_input_pre.slice_num,
+					g_vpp1_input_pre.bld_out_hsize,
+					g_vpp1_input_pre.bld_out_vsize);
 		}
 	}
 	memcpy(&g_vpp1_input, vpp_input, sizeof(struct vpp_post_input_s));
