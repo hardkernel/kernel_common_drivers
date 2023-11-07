@@ -18,7 +18,7 @@
 #define HDMITX_TX20_VERSION			02
 #define HDMITX_TX21_VERSION			01
 /*change history*/
-#define CHANGE_VERSION				20231002
+#define CHANGE_VERSION				20231107
 
 #define _TO_STRING(x) #x
 #define HDMITX_VER_STR(x) _TO_STRING(x)
