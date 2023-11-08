@@ -165,6 +165,7 @@ void hdmirx_init_params(u8 port);
 void edid_auto_mode_init(void);
 void rx_dwc_reset(u8 port);
 void set_video_mute(u32 owner, bool on);
+u8 get_frame_interval_cnt(u8 cnt, u8 port);
 void __weak set_video_mute(u32 owner, bool on)
 {
 }

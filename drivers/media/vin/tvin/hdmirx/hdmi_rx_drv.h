@@ -61,7 +61,7 @@
 //2023.11.09 clr gcp write&the respective av mute related filed
 //2023.11.16 rm gb check when dvi input
 //2023.11.29 set main_port_open when resume
-#define RX_VER0 "ver.2023/11/29"
+#define RX_VER0 "ver.2023/12/7"
 
 /*print type*/
 #define COR1_LOG	0x10000
@@ -85,6 +85,9 @@
 #define EDID_DATA_LOG	0x20000
 #define RP_LOG		0x40000
 #define FRL_LOG		0x80000
+
+#define FRAME_RATE_MIN 20
+#define FRAME_RATE_MAX 300
 
 /* fix 3d timing issue and panasonic 1080p */
 /* 0323: t3x bringup*/

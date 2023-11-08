@@ -464,6 +464,10 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 					devp->csc_cfg);
 			vdin_get_format_convert(devp);
 			devp->csc_cfg = 1;
+			if (!devp->game_mode && color_range_force == COLOR_RANGE_AUTO) {
+				vdin_vf_skip_all_disp(devp->vfp);
+				devp->chg_drop_frame_cnt = vdin_re_cfg_drop_cnt;
+			}
 		}
 	}
 
@@ -671,10 +675,10 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 			devp->prop.hdr_info.hdr_data.eotf, devp->prop.vdin_hdr_flag,
 			devp->prop.vdin_vrr_flag, signal_type);
 
-	if (devp->prop.vdin_hdr_flag &&
-	    devp->parm.info.signal_type != signal_type) {
-		signal_chg |= TVIN_SIG_CHG_SDR2HDR;
-	}
+	//if (devp->prop.vdin_hdr_flag &&
+	    //devp->parm.info.signal_type != signal_type) {
+		//signal_chg |= TVIN_SIG_CHG_SDR2HDR;
+	//}
 	/* check HDR 10+ end */
 
 	/* check vrr begin */

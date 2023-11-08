@@ -329,7 +329,6 @@ struct match_data_s {
 #define VDIN_SELF_STOP_START		BIT(0)
 #define VDIN_V4L2_IOCTL_CHK		BIT(1)
 #define VDIN_ADJUST_VLOCK		BIT(4)
-#define VDIN_PROP_RX_UPDATE		BIT(5)
 #define VDIN_GAME_NOT_TANSFER		BIT(6) //control for tx output when game mode
 #define VDIN_FORCE_444_NOT_CONVERT	BIT(7) //commercial display control
 #define VDIN_SET_DISPLAY_RATIO		BIT(9)
@@ -439,7 +438,7 @@ enum vdin_vf_put_md {
 #define VDIN_DBG_CNTL_IOCTL	BIT(10)
 #define VDIN_DBG_CNTL_FLUSH	BIT(11)
 
-#define SEND_LAST_FRAME_GET_PROP	2
+#define CURRENT_FRAME_GET_PROP	BIT(0)
 
 /* *********************************************************************** */
 /* *** enum definitions ********************************************* */
@@ -593,6 +592,7 @@ struct vdin_debug_s {
 	/* vdin1 hdr set bypass */
 	bool vdin1_set_hdr_bypass;
 	bool dbg_force_shrink_en;
+	bool bypass_update_prop;
 	bool bypass_pc_mode;//bypass pc mode set
 	bool bypass_game_mode;//bypass game mode set
 	bool bypass_tunnel;
@@ -632,6 +632,12 @@ struct vdin_dv_s {
 	bool low_latency;
 	unsigned int chg_cnt;
 	unsigned int allm_chg_cnt;
+};
+
+struct vdin_hdr_s {
+	u8 rawdata[HDR_RAW_DATA_SIZE];
+	u8 empbuf[HDR_EMP_DATA_SIZE];
+	u8 emp_size;
 };
 
 struct vdin_afbce_s {
@@ -794,6 +800,7 @@ struct vdin_dev_s {
 	struct tvin_sig_property_s prop;
 	struct vframe_provider_s vf_provider;
 	struct vdin_dv_s dv;
+	struct vdin_hdr_s hdr;
 	struct delayed_work vlock_dwork;
 	struct vdin_afbce_s *afbce_info;
 	struct tvin_to_vpp_info_s vdin2vpp_info;
@@ -821,8 +828,8 @@ struct vdin_dev_s {
 	unsigned int mif_fmt;/*enum vdin_mif_fmt*/
 	enum vdin_color_deeps_e source_bitdepth;
 	enum vdin_matrix_csc_e csc_idx;
-	struct vf_entry *curr_wr_vfe;
-	struct vf_entry *last_wr_vfe;
+	struct vf_entry *curr_wr_vfe;//current isr config addr because RDMA next isr write this addr
+	struct vf_entry *last_wr_vfe;//last isr config addr because RDMA current isr write this addr
 	unsigned int vdin_delay_vfe2rd_list;
 	unsigned int curr_field_type;
 	unsigned int curr_dv_flag;

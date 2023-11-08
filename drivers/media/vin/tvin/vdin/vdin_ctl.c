@@ -6430,16 +6430,17 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 
 	vf->ext_signal_type = vdin_get_rx_avi_colorimetry(devp, vf->ext_signal_type);
 
+	/* dv visf raw data */
 	memcpy(&devp->dv.dv_vsif_raw, &devp->prop.dv_vsif_raw,
 		sizeof(struct tvin_dv_vsif_raw_s));
 	vf->vsif.addr = &devp->dv.dv_vsif_raw;
-	if (devp->dv.dv_flag) {
+	if (devp->dv.dv_flag)
 		vf->vsif.size = sizeof(struct tvin_dv_vsif_raw_s);
-		vdin_pr_vsif_data(devp, vf);
-	} else {
+	else
 		vf->vsif.size = 0;
-	}
+	vdin_pr_vsif_data(devp, vf);
 
+	/* hdr drm data */
 	vf->drm_if.addr = &devp->prop.hdr_info.hdr_data.rawdata;
 	if (devp->prop.vdin_hdr_flag) {
 		vf->drm_if.size = sizeof(devp->prop.hdr_info.hdr_data.rawdata);
@@ -6513,6 +6514,36 @@ void vdin_set_freesync_data(struct vdin_dev_s *devp, struct vframe_s *vf)
 	vdin_pr_vrr_data(devp, vf);
 }
 
+static inline bool vdin_is_vrr_state_chg(struct vdin_dev_s *devp)
+{
+	if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en ||
+	    vdin_check_spd_data_chg(devp))
+		return true;
+	else
+		return false;
+}
+
+/* describe:
+ *	vdin isr is Vsync run,
+ *	but HDMI is DE start complete packet reception
+ *	So need check immediately status whether change prevent abnormal frame
+ * return value:
+ *	true: state change
+ *	false: state not change
+ */
+bool vdin_package_done_check_state(struct vdin_dev_s *devp)
+{
+	if (devp->dv.dv_flag != devp->prop.dolby_vision ||
+	    devp->prop.vdin_hdr_flag != devp->pre_prop.vdin_hdr_flag ||
+	    devp->prop.latency.allm_mode != devp->pre_prop.latency.allm_mode ||
+	    vdin_is_vrr_state_chg(devp) ||
+	    devp->prop.color_format != devp->pre_prop.color_format ||
+	    devp->parm.info.status != TVIN_SIG_STATUS_STABLE)
+		return true;
+	else
+		return false;
+}
+
 void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 {
 	if (IS_HDMI_SRC(devp->parm.port)) {
@@ -6550,8 +6581,7 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 		else
 			devp->sg_chg_fps_cnt = 0;
 
-		if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en ||
-			vdin_check_spd_data_chg(devp))
+		if (vdin_is_vrr_state_chg(devp))
 			devp->vrr_data.vrr_chg_cnt++;
 		else
 			devp->vrr_data.vrr_chg_cnt = 0;

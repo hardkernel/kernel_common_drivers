@@ -2002,6 +2002,7 @@ void rx_set_irq_t7(bool en, u8 port)
 		data8 |= 0 << 4; /* intr_new_unrec en */
 		data8 |= 0 << 2; /* intr_new_aud */
 		data8 |= 1 << 1; /* intr_spd */
+		data8 |= 1 << 0; /* intr_spd */
 		hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, data8, port);
 
 		data8 = 0;

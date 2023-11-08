@@ -5948,6 +5948,9 @@ int _video_set_disable(u32 val)
 			layer->property_changed = true;
 		}
 	}
+	if (get_video_debug_flags() & DEBUG_FLAG_HDMI_DV_CRC)
+		dump_stack();
+
 	return 0;
 }
 

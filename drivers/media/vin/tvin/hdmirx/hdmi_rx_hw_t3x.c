@@ -3969,14 +3969,15 @@ void rx_set_irq_t3x(bool en, u8 port)
 	if (en) {
 		data8 = 0;
 		data8 |= 1 << 4; /* intr_new_unrec en */
-		data8 |= 1 << 2; /* intr_new_aud */
+		data8 |= 0 << 2; /* intr_new_aud */
 		data8 |= 1 << 1; /* intr_spd */
+		data8 |= 1 << 0; /* intr_avi */
 		hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, data8, port);
 
 		data8 = 0;
-		data8 |= 1 << 4; /* intr_cea_repeat_hf_vsi en */
-		data8 |= 1 << 3; /* intr_cea_new_hf_vsi en */
-		data8 |= 1 << 2; /* intr_cea_new_vsi */
+		data8 |= 0 << 4; /* intr_cea_repeat_hf_vsi en */
+		data8 |= 0 << 3; /* intr_cea_new_hf_vsi en */
+		data8 |= 0 << 2; /* intr_cea_new_vsi */
 		hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, data8, port);
 
 		hdmirx_wr_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, 0x25, port);

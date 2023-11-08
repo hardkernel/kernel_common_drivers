@@ -565,12 +565,14 @@ void hdmirx_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
 
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param[port_type];
+	#ifdef CONFIG_AMLOGIC_HDMITX
 	if (vpp_mute_enable) {
 		if (get_video_mute_val(HDMI_RX_MUTE_SET) &&
 			port_type != TVIN_PORT_SUB)// && rx[port].vpp_mute)
 			set_video_mute(HDMI_RX_MUTE_SET, false);
 		//rx[port].vpp_mute = false;
 	}
+	#endif
 	/* parm->info.fmt = TVIN_SIG_FMT_NULL; */
 	/* parm->info.status = TVIN_SIG_STATUS_NULL; */
 	rx_pr("%s port_type:%d, ok\n", __func__, port_type);
@@ -1202,7 +1204,6 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop, u8 port)
 		if (log_level & PACKET_LOG) {
 			rx_pr("!!!vsi state = %d\n",
 			      rx[port].vs_info_details.vsi_state);
-			rx_pr("1:4K3D;2:vsi21;3:HDR10+;4:DV10;5:DV15\n");
 		}
 		prop->trans_fmt = TVIN_TFMT_2D;
 		prop->dolby_vision = DV_NULL;
@@ -1440,9 +1441,11 @@ void hdmirx_get_emp_dv_info(struct tvin_sig_property_s *prop, u8 port)
 		}
 	}
 #ifndef HDMIRX_SEND_INFO_TO_VDIN
-	if (emp_irq_cnt == rx[port].emp_info->irq_cnt)
-		rx[port].vs_info_details.emp_pkt_cnt = 0;
-	emp_irq_cnt = rx[port].emp_info->irq_cnt;
+	if (rx[port].emp_info) {
+		if (emp_irq_cnt == rx[port].emp_info->irq_cnt)
+			rx[port].vs_info_details.emp_pkt_cnt = 0;
+		emp_irq_cnt = rx[port].emp_info->irq_cnt;
+	}
 #endif
 }
 
@@ -1503,7 +1506,7 @@ void rx_set_sig_info(void)
 
 void rx_update_sig_info(u8 port)
 {
-	rx_check_pkt_flag(port);
+	//rx_check_pkt_flag(port);
 	rx_get_vsi_info(port);
 	rx_get_em_info(port);
 	//rx_get_aif_info(port);
@@ -1748,6 +1751,12 @@ void hdmirx_de_hactive(bool en, struct tvin_frontend_s *fe)
 	hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(30), en, port);
 }
 
+bool hdmirx_clr_pkts(struct tvin_frontend_s *fe)
+{
+	rx_pkt_initial(rx_info.main_port);
+	return 0;
+}
+
 static struct tvin_state_machine_ops_s hdmirx_sm_ops = {
 	.nosig            = hdmirx_is_nosig,
 	.fmt_changed      = hdmirx_fmt_chg,
@@ -1764,6 +1773,7 @@ static struct tvin_state_machine_ops_s hdmirx_sm_ops = {
 	.hdmi_clr_vsync	= hdmirx_clr_vsync,
 	.hdmi_reset_pcs = hdmirx_pcs_reset,
 	.hdmi_de_hactive = hdmirx_de_hactive,
+	.hdmi_clr_pkts	= hdmirx_clr_pkts,
 };
 
 /*

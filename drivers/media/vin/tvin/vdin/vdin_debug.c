@@ -4351,6 +4351,10 @@ start_chk:
 		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
 			devp->debug.change_get_drm = temp;
 		pr_info("change_get_drm:%#x\n", devp->debug.change_get_drm);
+	}  else if (!strcmp(parm[0], "bypass_update_prop")) {
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+			devp->debug.bypass_update_prop = temp;
+		pr_info("bypass_update_prop:%#x\n", devp->debug.bypass_update_prop);
 	}  else if (!strcmp(parm[0], "force_shrink")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dbg_force_shrink_en = temp;
