@@ -25,6 +25,7 @@
 #include <dt-bindings/mailbox/c2-mbox.h>
 #include <dt-bindings/mailbox/a1-mbox.h>
 #include <dt-bindings/mailbox/c1-mbox.h>
+#include <dt-bindings/mailbox/tm2-mbox.h>
 #include "meson_mbox_pl.h"
 #include "meson_mbox_comm.h"
 
@@ -469,6 +470,22 @@ static struct mbox_domain_data c1_mbox_domains_data __initdata = {
 	.domain_counts = ARRAY_SIZE(c1_mbox_domains),
 };
 
+struct mbox_domain tm2_mbox_domains_pl1[] = {
+	[TM2_DSPA2REE0] = MBOX_DOMAIN(TM2_DSPA2REE0, TM2_MBOX_DSPA2REE, 0),
+	[TM2_REE2DSPA0] = MBOX_DOMAIN(TM2_REE2DSPA0, TM2_MBOX_REE2DSPA, 0),
+	[TM2_REE2DSPA1] = MBOX_DOMAIN(TM2_REE2DSPA1, TM2_MBOX_REE2DSPA, 0),
+	[TM2_REE2DSPA2] = MBOX_DOMAIN(TM2_REE2DSPA2, TM2_MBOX_REE2DSPA, 0),
+	[TM2_DSPB2REE0] = MBOX_DOMAIN(TM2_DSPB2REE0, TM2_MBOX_DSPB2REE, 0),
+	[TM2_REE2DSPB0] = MBOX_DOMAIN(TM2_REE2DSPB0, TM2_MBOX_REE2DSPB, 0),
+	[TM2_REE2DSPB1] = MBOX_DOMAIN(TM2_REE2DSPB1, TM2_MBOX_REE2DSPB, 0),
+	[TM2_REE2DSPB2] = MBOX_DOMAIN(TM2_REE2DSPB2, TM2_MBOX_REE2DSPB, 0),
+};
+
+static struct mbox_domain_data tm2_mbox_domains_data __initdata = {
+	.mbox_domains = tm2_mbox_domains_pl1,
+	.domain_counts = ARRAY_SIZE(tm2_mbox_domains_pl1),
+};
+
 static const struct of_device_id mbox_of_match[] = {
 	{
 		.compatible = "amlogic, c2-mbox-pl",
@@ -481,6 +498,10 @@ static const struct of_device_id mbox_of_match[] = {
 	{
 		.compatible = "amlogic, c1-mbox-pl",
 		.data = &c1_mbox_domains_data,
+	},
+	{
+		.compatible = "amlogic, tm2-mbox-pl",
+		.data = &tm2_mbox_domains_data,
 	},
 	{}
 };
