@@ -3218,8 +3218,11 @@ static void hdmitx_process_plugin(struct hdmitx_dev *hdev, bool set_audio)
  */
 static void hdmitx_bootup_plugin_handler(struct hdmitx_dev *hdev)
 {
-	if (hdev->tx_comm.fmt_para.tmds_clk_div40)
-		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_SCDC_DIV40_SCRAMB, 1);
+	/* if current mode is TMDS/nonFRL, then resend_div40 */
+	if (hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_IS_FRL_MODE, 0) == FRL_NONE) {
+		if (hdev->tx_comm.fmt_para.tmds_clk_div40)
+			hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_SCDC_DIV40_SCRAMB, 1);
+	}
 	hdmitx_process_plugin(hdev, hdev->tx_comm.ready);
 }
 
