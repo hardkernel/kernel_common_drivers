@@ -1731,7 +1731,8 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	struct hdmitx_common *common = am_hdmi_info.hdmitx_dev->hdmitx_common;
 	int ret = 0;
 
-	if (strstr(modename, "dummy"))
+	/* do not atomic check if hpd is low*/
+	if (strstr(modename, "dummy") || !hdmitx_get_hpd_state(common))
 		return 0;
 
 	vic = hdmitx_common_parse_vic_in_edid(common, modename);
