@@ -6449,9 +6449,14 @@ void rx_mute_vpp(void)
 			if (vd_layer[0].dispbuf->type & VIDTYPE_RGB_444)
 				black_val = (0x0 << 20) | (0x0 << 10) | 0x0; /* RGB */
 	}
-
-	WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, black_val);
-	WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, black_val);
+	pr_info("call %s to mute video\n", __func__);
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		rx_mute_vpp_s5(black_val);
+	} else {
+		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, black_val);
+		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, black_val);
+	}
+	video_mute_array[HDMI_RX_MUTE_SET] = true;
 }
 EXPORT_SYMBOL(rx_mute_vpp);
 
