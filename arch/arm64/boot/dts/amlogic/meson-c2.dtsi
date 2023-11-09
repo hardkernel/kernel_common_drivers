@@ -1479,6 +1479,7 @@
 			dr_mode = "host";
 			maximum-speed = "high-speed";
 			snps,dis_u2_susphy_quirk;
+			snps,usb2-lpm-disable;
 			usb-phy = <&usb2_phy_v2>, <&usb3_phy_v2>;
 			clocks = <&clkc CLKID_USB_CTRL>;
 			clock-names = "usb_general";
