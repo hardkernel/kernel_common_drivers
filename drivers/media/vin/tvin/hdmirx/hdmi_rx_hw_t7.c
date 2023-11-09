@@ -2152,8 +2152,11 @@ void rx_sw_reset_t7(int level, u8 port)
 {
 	/* deep color fifo */
 	hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(4), 1, port);
+	/* clr gcp write&the respective av mute related filed */
+	hdmirx_wr_bits_cor(DEC_AV_MUTE_DP2_IVCRX, _BIT(5), 1, port);
 	udelay(1);
 	hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(4), 0, port);
+	hdmirx_wr_bits_cor(DEC_AV_MUTE_DP2_IVCRX, _BIT(5), 0, port);
 	//TODO..
 }
 
