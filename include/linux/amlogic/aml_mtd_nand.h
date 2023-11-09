@@ -83,6 +83,9 @@
 #define NAND_MAX_DEVICE	4
 
 /* eMMC clock register, misc control */
+#define CLK_SELECT_SRC_MASK	GENMASK(7, 6)
+#define CLK_SELECT_SRC_FIXDIV2PLL	BIT(6)
+#define CLK_ALWAYS_ON	BIT(28)
 #define CLK_SELECT_NAND		BIT(31)
 
 #define NFC_CLK_CYCLE		6
