@@ -49,3 +49,7 @@
   phy_restore_page
   phy_select_page
   phy_write_paged
+
+# aml_drm.ko
+  drm_connector_list_iter_begin
+  drm_connector_list_iter_end

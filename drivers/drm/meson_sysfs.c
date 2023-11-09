@@ -6,12 +6,15 @@
 #include <linux/seq_file.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_atomic_uapi.h>
+#include <drm/drmP.h>
 #include <drm/drm_modeset_lock.h>
 #include <linux/kernel.h>
 
 #include "meson_sysfs.h"
 #include "meson_crtc.h"
 #include "meson_plane.h"
+#include "meson_hdmi.h"
 #include "meson_vpu_pipeline.h"
 
 static const char vpu_group_name[] = "vpu";
@@ -361,7 +364,7 @@ static ssize_t osd_read_port_show(struct file *filp, struct kobject *kobj,
 	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 		"echo 0 > disable read port setting\n");
 	pos += snprintf(buf + pos, PAGE_SIZE - pos,
-		"\nstatus：%d\n", (amp->osd_read_ports == 1) ? 1 : 0);
+		"\nstatus: %d\n", (amp->osd_read_ports == 1) ? 1 : 0);
 
 	return pos;
 }
@@ -675,6 +678,324 @@ static ssize_t crtc_blank_store(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
+struct drm_atomic_state *
+meson_drm_duplicate_state(struct drm_device *dev, struct drm_modeset_acquire_ctx *ctx,
+			  struct drm_crtc *dst_crtc, struct drm_connector *dst_conn,
+			  const struct drm_display_mode *mode)
+{
+	struct drm_atomic_state *state;
+	struct drm_connector *conn;
+	struct drm_connector_state *conn_state;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	int hdisplay, vdisplay;
+	int ret, err = 0;
+
+	state = drm_atomic_state_alloc(dev);
+	if (!state)
+		return ERR_PTR(-ENOMEM);
+
+	state->acquire_ctx = ctx;
+	state->duplicated = true;
+
+	drm_for_each_crtc(crtc, dev) {
+		if (crtc != dst_crtc)
+			continue;
+
+		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (IS_ERR(crtc_state)) {
+			DRM_ERROR("%s, %d, get_crtc_state error\n", __func__, __LINE__);
+			err = PTR_ERR(crtc_state);
+			goto free;
+		}
+
+		ret = drm_atomic_set_mode_for_crtc(crtc_state, mode);
+		if (ret != 0) {
+			DRM_ERROR("%s, %d, set_mode_for_crtc error\n", __func__, __LINE__);
+			goto free;
+		}
+		crtc_state->active = true;
+	}
+
+	drm_mode_get_hv_timing(mode, &hdisplay, &vdisplay);
+
+	drm_for_each_plane(plane, dev) {
+		plane_state = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(plane_state)) {
+			err = PTR_ERR(plane_state);
+			DRM_ERROR("%s, %d, get_plane_state error\n", __func__, __LINE__);
+			goto free;
+		}
+		plane_state->crtc_x = 0;
+		plane_state->crtc_y = 0;
+		plane_state->crtc_w = hdisplay;
+		plane_state->crtc_h = vdisplay;
+	}
+
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(conn, &conn_iter) {
+		if (conn != dst_conn)
+			continue;
+
+		conn_state = drm_atomic_get_connector_state(state, conn);
+		if (IS_ERR(conn_state)) {
+			err = PTR_ERR(conn_state);
+			drm_connector_list_iter_end(&conn_iter);
+			DRM_ERROR("%s, %d, get_conn_state error\n", __func__, __LINE__);
+			goto free;
+		}
+		ret = drm_atomic_set_crtc_for_connector(conn_state, dst_crtc);
+		if (ret != 0) {
+			DRM_ERROR("%s, %d, set_crtc_for_connector error\n", __func__, __LINE__);
+			goto free;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	/* clear the acquire context so that it isn't accidentally reused */
+	state->acquire_ctx = NULL;
+
+free:
+	if (err < 0) {
+		drm_atomic_state_put(state);
+		state = ERR_PTR(err);
+	}
+
+	return state;
+}
+
+static ssize_t crtc_mode_store(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	int found, num_modes, ret = 0;
+	char mode_name[DRM_DISPLAY_MODE_LEN];
+	struct drm_display_mode *mode;
+	struct drm_connector *connector;
+	struct drm_modeset_acquire_ctx *ctx;
+	struct drm_crtc *crtc;
+	struct am_meson_crtc *am_crtc;
+	struct device *dev_ = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev_);
+	struct drm_device *dev = minor->dev;
+	struct meson_drm *private = dev->dev_private;
+	int crtc_index = *(int *)attr->private;
+	struct drm_atomic_state *state;
+
+	crtc = &private->crtcs[crtc_index]->base;
+	am_crtc = to_am_meson_crtc(crtc);
+
+	memset(mode_name, 0, DRM_DISPLAY_MODE_LEN);
+	memcpy(mode_name, buf, (strlen(buf) < DRM_DISPLAY_MODE_LEN) ?
+	       strlen(buf) - 1 : DRM_DISPLAY_MODE_LEN - 1);
+
+	DRM_INFO("drm set mode to %s\n", mode_name);
+	/*init all connector and found matched uboot mode.*/
+	found = 0;
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		drm_modeset_lock_all(dev);
+		if (drm_modeset_is_locked(&dev->mode_config.connection_mutex))
+			drm_modeset_unlock(&dev->mode_config.connection_mutex);
+		num_modes = connector->funcs->fill_modes(connector,
+							 dev->mode_config.max_width,
+							 dev->mode_config.max_height);
+		drm_modeset_unlock_all(dev);
+
+		if (num_modes) {
+			list_for_each_entry(mode, &connector->modes, head) {
+				if (!strcmp(mode->name, mode_name)) {
+					found = 1;
+					break;
+				}
+			}
+			if (found)
+				break;
+		}
+
+		DRM_DEBUG("Connector[%d] status[%d], %d\n",
+			connector->connector_type, connector->status, found);
+	}
+
+	if (found) {
+		DRM_INFO("Found Connector[%d] mode[%s]\n",
+			connector->connector_type, mode->name);
+	} else {
+		DRM_INFO("No Found mode[%s]\n", mode_name);
+		if (!strcmp("null", mode_name)) {
+			drm_atomic_helper_shutdown(dev);
+			return count;
+		}
+	}
+
+	drm_modeset_lock_all(dev);
+	ctx = dev->mode_config.acquire_ctx;
+	state = meson_drm_duplicate_state(dev, ctx, crtc, connector, mode);
+	ret = drm_atomic_helper_commit_duplicated_state(state, ctx);
+	drm_modeset_unlock_all(dev);
+
+	return count;
+}
+
+static ssize_t crtc_mode_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	int pos = 0;
+	struct drm_crtc *crtc;
+	struct am_meson_crtc *am_crtc;
+	struct drm_display_mode *mode;
+	struct device *dev_ = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev_);
+	struct drm_device *dev = minor->dev;
+	struct meson_drm *private = dev->dev_private;
+	int crtc_index = *(int *)attr->private;
+
+	crtc = &private->crtcs[crtc_index]->base;
+	am_crtc = to_am_meson_crtc(crtc);
+	mode = &crtc->state->adjusted_mode;
+
+	if (off > 0)
+		return 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "%s\n", mode->name);
+	return pos;
+}
+
+static ssize_t hdmitx_attr_store(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	char attr_str[16];
+	int cs, cd;
+	struct drm_crtc *crtc;
+	struct drm_connector *conn;
+	struct drm_connector_list_iter conn_iter;
+	struct am_hdmitx_connector_state *am_conn_state;
+	struct device *dev_ = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev_);
+	struct drm_device *dev = minor->dev;
+	struct meson_drm *private = dev->dev_private;
+	int crtc_index = *(int *)attr->private;
+	bool found = false;
+
+	crtc = &private->crtcs[crtc_index]->base;
+	memset(attr_str, 0, sizeof(attr_str));
+	memcpy(attr_str, buf, (strlen(buf) < sizeof(attr_str)) ?
+	       strlen(buf) - 1 : sizeof(attr_str) - 1);
+
+	if (strstr(attr_str, "420"))
+		cs = HDMI_COLORSPACE_YUV420;
+	else if (strstr(attr_str, "422"))
+		cs = HDMI_COLORSPACE_YUV422;
+	else if (strstr(attr_str, "444"))
+		cs = HDMI_COLORSPACE_YUV444;
+	else if (strstr(attr_str, "rgb"))
+		cs = HDMI_COLORSPACE_RGB;
+	else
+		cs = HDMI_COLORSPACE_YUV444;
+
+	/*parse colorspace success*/
+	if (strstr(attr_str, "12bit"))
+		cd = 12;
+	else if (strstr(attr_str, "10bit"))
+		cd = 10;
+	else if (strstr(attr_str, "8bit"))
+		cd = 8;
+	else
+		cd = 8;
+
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(conn, &conn_iter) {
+		if (conn->connector_type != DRM_MODE_CONNECTOR_HDMIA)
+			continue;
+
+		if (!conn->state)
+			continue;
+
+		if (conn->state->crtc == crtc) {
+			found = true;
+			break;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	if (found) {
+		am_conn_state = to_am_hdmitx_connector_state(conn->state);
+		am_conn_state->color_attr_para.colorformat = cs;
+		am_conn_state->color_attr_para.bitdepth = cd;
+		DRM_INFO("%s set cs-%d, cd-%d\n", __func__, cs, cd);
+	} else {
+		DRM_INFO("%s not found hdmi state\n", __func__);
+	}
+
+	return count;
+}
+
+static ssize_t hdmitx_attr_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	int pos = 0;
+	const char *colorspace;
+	int cs, cd;
+	struct drm_crtc *crtc;
+	struct drm_connector *conn;
+	struct drm_connector_list_iter conn_iter;
+	struct am_hdmitx_connector_state *am_conn_state;
+	struct device *dev_ = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev_);
+	struct drm_device *dev = minor->dev;
+	struct meson_drm *private = dev->dev_private;
+	int crtc_index = *(int *)attr->private;
+
+	crtc = &private->crtcs[crtc_index]->base;
+	if (off > 0)
+		return 0;
+
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(conn, &conn_iter) {
+		if (conn->connector_type != DRM_MODE_CONNECTOR_HDMIA)
+			continue;
+
+		if (!conn->state)
+			continue;
+
+		if (conn->state->crtc == crtc)
+			break;
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	am_conn_state = to_am_hdmitx_connector_state(conn->state);
+	cs = am_conn_state->color_attr_para.colorformat;
+	cd = am_conn_state->color_attr_para.bitdepth;
+
+	switch (cs) {
+	case HDMI_COLORSPACE_YUV420:
+		colorspace = "420";
+		break;
+	case HDMI_COLORSPACE_YUV422:
+		colorspace = "422";
+		break;
+	case HDMI_COLORSPACE_YUV444:
+		colorspace = "444";
+		break;
+	case HDMI_COLORSPACE_RGB:
+		colorspace = "rgb";
+		break;
+	default:
+		colorspace = "rgb";
+		DRM_ERROR("Unknown colospace value %d\n", cs);
+		break;
+	};
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "%s,%dbit\n", colorspace, cd);
+
+	return pos;
+}
+
 static struct bin_attribute osd0_attr[] = {
 	{
 		.attr.name = "osd_reverse",
@@ -896,10 +1217,27 @@ static struct bin_attribute crtc0_attr[] = {
 		.read = crtc_blank_show,
 		.write = crtc_blank_store,
 	},
+	{
+		.attr.name = "mode",
+		.attr.mode = 0664,
+		.private = &crtc_index[0],
+		.read = crtc_mode_show,
+		.write = crtc_mode_store,
+	},
+	{
+		.attr.name = "attr",
+		.attr.mode = 0664,
+		.private = &crtc_index[0],
+		.read = hdmitx_attr_show,
+		.write = hdmitx_attr_store,
+	},
+
 };
 
 static struct bin_attribute *crtc0_bin_attrs[] = {
 	&crtc0_attr[0],
+	&crtc0_attr[1],
+	&crtc0_attr[2],
 	NULL,
 };
 
@@ -911,10 +1249,27 @@ static struct bin_attribute crtc1_attr[] = {
 		.read = crtc_blank_show,
 		.write = crtc_blank_store,
 	},
+	{
+		.attr.name = "mode",
+		.attr.mode = 0664,
+		.private = &crtc_index[1],
+		.read = crtc_mode_show,
+		.write = crtc_mode_store,
+	},
+	{
+		.attr.name = "attr",
+		.attr.mode = 0664,
+		.private = &crtc_index[1],
+		.read = hdmitx_attr_show,
+		.write = hdmitx_attr_store,
+	},
+
 };
 
 static struct bin_attribute *crtc1_bin_attrs[] = {
 	&crtc1_attr[0],
+	&crtc1_attr[1],
+	&crtc1_attr[2],
 	NULL,
 };
 
@@ -926,10 +1281,26 @@ static struct bin_attribute crtc2_attr[] = {
 		.read = crtc_blank_show,
 		.write = crtc_blank_store,
 	},
+	{
+		.attr.name = "mode",
+		.attr.mode = 0664,
+		.private = &crtc_index[2],
+		.read = crtc_mode_show,
+		.write = crtc_mode_store,
+	},
+	{
+		.attr.name = "attr",
+		.attr.mode = 0664,
+		.private = &crtc_index[2],
+		.read = hdmitx_attr_show,
+		.write = hdmitx_attr_store,
+	},
 };
 
 static struct bin_attribute *crtc2_bin_attrs[] = {
 	&crtc2_attr[0],
+	&crtc2_attr[1],
+	&crtc2_attr[2],
 	NULL,
 };
 
