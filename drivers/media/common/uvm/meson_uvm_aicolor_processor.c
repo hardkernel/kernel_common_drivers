@@ -21,6 +21,9 @@
 #include <linux/amlogic/media/ge2d/ge2d_func.h>
 #include <linux/amlogic/media/video_processor/video_pp_common.h>
 #include <linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+#include <linux/amlogic/media/video_sink/video.h>
+#endif
 
 #include "meson_uvm_aicolor_processor.h"
 static struct dma_buf *dmabuf_last;
@@ -340,8 +343,8 @@ int attach_aicolor_hook_mod_info(int shared_fd,
 	struct uvm_handle *handle;
 	bool attached = false;
 	struct uvm_aicolor_info *aicolor_info = (struct uvm_aicolor_info *)buf;
+	int output_fps, output_pts_inc_scale = 0, output_pts_inc_scale_base = 0;
 	struct vframe_s *vf = NULL;
-	bool enable_aicolor = true;
 
 	aicolor_info->need_do_aicolor = 1;
 	aicolor_info->dw_height = 0;
@@ -349,11 +352,10 @@ int attach_aicolor_hook_mod_info(int shared_fd,
 
 	if (!uvm_open_aicolor) {
 		aicolor_info->need_do_aicolor = 0;
-		enable_aicolor = false;
 	} else {
 		vf = aicolor_get_dw_vf(aicolor_info);
 		if (IS_ERR_OR_NULL(vf)) {
-			aicolor_print(PRINT_OTHER, "get no vf\n");
+			aicolor_print(PRINT_ERROR, "get no vf\n");
 			return -EINVAL;
 		}
 		aicolor_info->dw_height = vf->height;
@@ -364,7 +366,21 @@ int attach_aicolor_hook_mod_info(int shared_fd,
 			aicolor_print(PRINT_OTHER, "bypass %d %d\n",
 				vf->width, vf->height);
 			aicolor_info->need_do_aicolor = 0;
-			enable_aicolor = false;
+		}
+
+		get_output_pcrscr_info(&output_pts_inc_scale, &output_pts_inc_scale_base);
+		if (!output_pts_inc_scale_base) {
+			aicolor_print(PRINT_OTHER, "get output pcrscr info failed.\n");
+			output_fps = 0;
+		} else {
+			output_fps = 90000 * 16 * (u64)output_pts_inc_scale;
+			output_fps = div64_u64(output_fps, output_pts_inc_scale_base);
+		}
+		aicolor_print(PRINT_OTHER, "scale: %d, base: %d, output_fps is %d.\n",
+			output_pts_inc_scale, output_pts_inc_scale_base, output_fps);
+		if (output_fps < 24000) {
+			aicolor_print(PRINT_OTHER, "output fps more than 60, bypass ai_sr.\n");
+			aicolor_info->need_do_aicolor = 0;
 		}
 	}
 
@@ -420,7 +436,7 @@ int attach_aicolor_hook_mod_info(int shared_fd,
 	else
 		aicolor_info->omx_index = -1;
 
-	if (enable_aicolor)
+	if (aicolor_info->need_do_aicolor)
 		aicolor_print(PRINT_OTHER, "nn_aicolor=%px, omx_index=%d\n",
 			nn_aicolor, aicolor_info->omx_index);
 
