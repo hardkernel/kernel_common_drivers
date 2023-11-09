@@ -1853,6 +1853,7 @@ u32 rx_get_hdmi5v_sts(void)
 {
 	return (hdmirx_rd_top_common(TOP_HPD_PWR5V) >> 20) & 0xf;
 }
+EXPORT_SYMBOL(rx_get_hdmi5v_sts);
 
 /*
  * rx_get_hpd_sts - get current hpd status on all ports

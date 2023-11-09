@@ -42,6 +42,7 @@
 #include "spdif_hw.h"
 #include "audio_uevent.h"
 #include "audio_controller.h"
+#include "hdmirx_arc_iomap.h"
 
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
@@ -111,6 +112,7 @@ struct earc_chipinfo {
 	bool unstable_tick_sel;
 	bool rx_enable;
 	bool tx_enable;
+	int arc_version;
 };
 
 struct earc {
@@ -180,7 +182,7 @@ struct earc {
 	struct snd_pcm_substream *substreams[2];
 
 	struct work_struct rx_dmac_int_work;
-	struct work_struct tx_resume_work;
+	struct delayed_work tx_resume_work;
 	u8 rx_cds_data[CDS_MAX_BYTES];
 	u8 tx_cds_data[CDS_MAX_BYTES];
 	enum sharebuffer_srcs samesource_sel;
@@ -2114,26 +2116,46 @@ static void earc_resume(void)
 	if (!p_earc->chipinfo->tx_enable)
 		return;
 
-	/* earc device, and the state is arc, need recovery earc */
-	if (!IS_ERR(p_earc->tx_cmdc_map) &&
-	    p_earc->tx_earc_mode &&
-	    p_earc->earctx_connected_device_type == ATNDTYP_EARC &&
-	    earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_ARC)
-		schedule_work(&p_earc->tx_resume_work);
+	dev_info(p_earc->dev, "%s arc_version %d, earc mode is %d\n",
+		__func__, p_earc->chipinfo->arc_version, p_earc->tx_earc_mode);
+	/* open bandgap, bit [1] = 0 */
+	if (p_earc->chipinfo->arc_version == TM2_ARC)
+		aml_hiubus_update_bits(HHI_HDMIRX_PHY_MISC2, 0x1 << 1, 0);
+	else if (p_earc->chipinfo->arc_version >= T7_ARC)
+		hdmirx_arc_update_reg(HDMIRX_PHY_MISC2, 0x1 << 1, 0);
+
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
+	defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
+	/* earc port, need reset for earc discovery when earc mode is on */
+	if (!IS_ERR(p_earc->tx_cmdc_map) && p_earc->tx_earc_mode) {
+		if (p_earc->earctx_5v) {
+			earctx_set_earc_mode(p_earc, p_earc->tx_earc_mode);
+		} else {
+			/* cable is plugout, but 5v is on, that means
+			 * the hdmirx callback is mistaked, so we neeed
+			 * reset hpd, and then init earctx for earc disconnery.
+			 */
+			if (p_earc->earctx_port >= 0 &&
+			    (rx_get_hdmi5v_sts() & (0x1 << p_earc->earctx_port))) {
+				p_earc->earctx_5v = true;
+				rx_earc_hpd_cntl(); /* reset hpd */
+				/* wait hpd is high, time is 600ms */
+				schedule_delayed_work(&p_earc->tx_resume_work,
+					msecs_to_jiffies(600));
+			}
+		}
+	}
+#endif
 
 	p_earc->resumed = true;
 }
 
 static void tx_resume_work_func(struct work_struct *p_work)
 {
-	struct earc *p_earc = container_of(p_work, struct earc, tx_resume_work);
+	struct earc *p_earc = container_of(p_work, struct earc, tx_resume_work.work);
 
-	msleep(2500);
-	dev_info(p_earc->dev, "%s reset hpd\n", __func__);
-	if (!p_earc->resumed)
-		earc_resume();
-
-	earctx_set_earc_mode(p_earc, true);
+	dev_info(p_earc->dev, "%s earctx_init", __func__);
+	earctx_init(p_earc->earctx_port, true);
 }
 
 int earctx_earc_mode_put(struct snd_kcontrol *kcontrol,
@@ -2716,6 +2738,7 @@ struct earc_chipinfo tm2_earc_chipinfo = {
 	.rx_dmac_sync_int = false,
 	.rx_enable = true,
 	.tx_enable = true,
+	.arc_version = TM2_ARC,
 };
 
 struct earc_chipinfo tm2_revb_earc_chipinfo = {
@@ -2723,6 +2746,7 @@ struct earc_chipinfo tm2_revb_earc_chipinfo = {
 	.rx_dmac_sync_int = true,
 	.rx_enable = true,
 	.tx_enable = true,
+	.arc_version = TM2_ARC,
 };
 
 struct earc_chipinfo sc2_earc_chipinfo = {
@@ -2741,6 +2765,7 @@ struct earc_chipinfo t7_earc_chipinfo = {
 	.unstable_tick_sel = true,
 	.rx_enable = true,
 	.tx_enable = true,
+	.arc_version = T7_ARC,
 };
 
 struct earc_chipinfo t3_earc_chipinfo = {
@@ -2752,6 +2777,7 @@ struct earc_chipinfo t3_earc_chipinfo = {
 	.unstable_tick_sel = true,
 	.rx_enable = false,
 	.tx_enable = true,
+	.arc_version = T7_ARC,
 };
 
 struct earc_chipinfo s5_earc_chipinfo = {
@@ -3133,6 +3159,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 		else
 			dev_info(dev, "%s, irq_earc_tx:%d\n", __func__, p_earc->irq_earc_tx);
 		earc_dai[0].playback = pcm_stream;
+		p_earc->earctx_port = -1;
 	}
 
 	/* default is mute, need HDMI ARC Switch */
@@ -3167,7 +3194,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 #endif
 		earctx_ss_ops.private = p_earc;
 		register_samesrc_ops(SHAREBUFFER_EARCTX, &earctx_ss_ops);
-		INIT_WORK(&p_earc->tx_resume_work, tx_resume_work_func);
+		INIT_DELAYED_WORK(&p_earc->tx_resume_work, tx_resume_work_func);
 		INIT_WORK(&p_earc->send_uevent, send_uevent_work_func);
 		INIT_WORK(&p_earc->tx_hold_bus_work, tx_hold_bus_work_func);
 		INIT_DELAYED_WORK(&p_earc->gain_disable, gain_disable_work_func);
@@ -3208,9 +3235,6 @@ static int earc_platform_resume(struct platform_device *pdev)
 {
 	struct earc *p_earc = dev_get_drvdata(&pdev->dev);
 
-	/* restore the power */
-	if (!IS_ERR(p_earc->tx_cmdc_map))
-		aml_earctx_enable_d2a(true);
 	if (!p_earc->resumed)
 		earc_resume();
 
