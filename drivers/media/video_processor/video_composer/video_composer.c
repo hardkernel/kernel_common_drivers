@@ -3395,14 +3395,15 @@ static void video_composer_task(struct composer_dev *dev)
 					vf->crop[1],
 					vf->crop[2],
 					vf->crop[3]);
-			} else if (pic_w > frame_info->buffer_w ||
-				pic_h > frame_info->buffer_h) {
-			/*omx receive w*h is small than actual w*h;such as 8k*/
+			} else if ((pic_w > MAX(frame_info->reserved[0], frame_info->buffer_w)) ||
+				(pic_h > MAX(frame_info->reserved[1], frame_info->buffer_h))) {
+				/*omx receive w*h is small than actual w*h;such as 8k*/
 				vf->crop[0] = 0;
 				vf->crop[1] = 0;
 				vf->crop[2] = 0;
 				vf->crop[3] = 0;
-				vc_print(dev->index, PRINT_AXIS, "crop info is error!\n");
+				vc_print(dev->index, PRINT_AXIS,
+					"crop info is error!\n");
 			} else {
 				vf->crop[0] = frame_info->crop_y;
 				vf->crop[1] = frame_info->crop_x;
@@ -3662,6 +3663,7 @@ static void video_composer_task(struct composer_dev *dev)
 				vc_print(dev->index, PRINT_ERROR,
 					 "by_pass ready_q is full\n");
 			ready_count = kfifo_len(&dev->ready_q);
+
 			/* dev->video_render_index == 5 means T7 dual screen mode */
 			if (ready_count > 3 && dev->video_render_index == 5)
 				vc_print(dev->index, PRINT_OTHER,

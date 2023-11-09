@@ -88,6 +88,14 @@
 
 extern int actual_delay_count[MAX_VD_LAYERS];
 
+#ifndef MAX
+#define MAX(a, b) ({ \
+	typeof(a) _a = a; \
+	typeof(b) _b = b; \
+	_a > _b ? _a : _b; \
+	})
+#endif // MAX
+
 enum vc_transform_t {
 	/* flip source image horizontally */
 	VC_TRANSFORM_FLIP_H = 1,
