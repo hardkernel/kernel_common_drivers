@@ -88,6 +88,10 @@ int aml_demod_debug = DBG_INFO;
 module_param(aml_demod_debug, int, 0644);
 MODULE_PARM_DESC(aml_demod_debug, "set debug level (info=bit1, reg=bit2, atsc=bit4,");
 
+static unsigned int cma_mem_size;
+module_param(cma_mem_size, uint, 0644);
+MODULE_PARM_DESC(cma_mem_size, "\n\t\t cma_mem_size");
+
 /*-----------------------------------*/
 static struct amldtvdemod_device_s *dtvdd_devp;
 
@@ -239,12 +243,12 @@ bool dtvdemod_cma_alloc(struct amldtvdemod_device_s *devp,
 	int flags = CODEC_MM_FLAGS_CMA_FIRST | CODEC_MM_FLAGS_CMA_CLEAR |
 			CODEC_MM_FLAGS_DMA;
 
-	if (!mem_size) {
-		PR_INFO("%s: mem_size == 0.\n", __func__);
-		return false;
-	}
-
 	if (devp->cma_flag) {
+		if (!mem_size) {
+			PR_INFO("%s: mem_size == 0.\n", __func__);
+			return false;
+		}
+
 		/*	dma_alloc_from_contiguous*/
 		devp->venc_pages = dma_alloc_from_contiguous(&devp->this_pdev->dev,
 				mem_size >> PAGE_SHIFT, 0, 0);
@@ -259,24 +263,30 @@ bool dtvdemod_cma_alloc(struct amldtvdemod_device_s *devp,
 			ret = false;
 		}
 	} else {
-		if (delsys == SYS_ISDBT || delsys == SYS_DTMB) {
-			if (mem_size > 16 * SZ_1M)
-				mem_size = 16 * SZ_1M;
+		if (cma_mem_size && (cma_mem_size * SZ_1M) > devp->cma_mem_size) {
+			mem_size = cma_mem_size * SZ_1M;
+			PR_INFO("%s: use user-defined size %d M.\n", __func__, cma_mem_size);
 		} else {
-			if (delsys != SYS_DVBT2 && mem_size > 8 * SZ_1M)
+			if (delsys == SYS_ISDBT || delsys == SYS_DTMB)
 				mem_size = 8 * SZ_1M;
+			else if (delsys == SYS_DVBT2)
+				mem_size = 16 * SZ_1M;
+			else
+				mem_size = 0;
 		}
 
-		devp->mem_start = codec_mm_alloc_for_dma(DEMOD_DEVICE_NAME,
-			mem_size / PAGE_SIZE, 0, flags);
-		devp->mem_size = mem_size;
-		if (devp->mem_start == 0) {
-			PR_INFO("%s: codec_mm fail.\n", __func__);
-			ret = false;
-		} else {
-			devp->flg_cma_allc = true;
-			PR_INFO("%s: codec_mm mem_start = 0x%x, mem_size = 0x%x.\n",
-					__func__, devp->mem_start, devp->mem_size);
+		if (mem_size) {
+			devp->mem_start = codec_mm_alloc_for_dma(DEMOD_DEVICE_NAME,
+				mem_size / PAGE_SIZE, 0, flags);
+			devp->mem_size = mem_size;
+			if (devp->mem_start == 0) {
+				PR_INFO("%s: codec_mm fail.\n", __func__);
+				ret = false;
+			} else {
+				devp->flg_cma_allc = true;
+				PR_INFO("%s: codec_mm mem_start = 0x%x, mem_size = 0x%x.\n",
+						__func__, devp->mem_start, devp->mem_size);
+			}
 		}
 	}
 #endif
@@ -511,7 +521,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 			dvbc_create_cci_task(demod);
 #endif
 
-	if (!devp->flg_cma_allc && devp->cma_mem_size) {
+	if (!devp->flg_cma_allc && (devp->cma_mem_size || cma_mem_size)) {
 		if (!dtvdemod_cma_alloc(devp, delsys)) {
 			ret = -ENOMEM;
 			return ret;
@@ -747,7 +757,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 		demod_32k_ctrl(0);
 		set_agc_pinmux(demod, delsys, 0);
 
-		if (devp->flg_cma_allc && devp->cma_mem_size) {
+		if (devp->flg_cma_allc && (devp->cma_mem_size || cma_mem_size)) {
 			dtvdemod_cma_release(devp);
 			devp->flg_cma_allc = false;
 		}
@@ -1485,7 +1495,7 @@ static void dtvdemod_fw_dwork(struct work_struct *work)
 	ret = dtvdemod_download_firmware(devp);
 
 	if ((ret < 0) && (cnt < 10))
-		schedule_delayed_work(&devp->fw_dwork, 5 * HZ);
+		schedule_delayed_work(&devp->fw_dwork, 3 * HZ);
 	else
 		cancel_delayed_work(&devp->fw_dwork);
 
@@ -1612,7 +1622,7 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 			dtvdd_devp->data->hw_ver != DTVDEMOD_HW_TXHD2 &&
 			dtvdd_devp->data->hw_ver != DTVDEMOD_HW_S1A) {
 			INIT_DELAYED_WORK(&devp->fw_dwork, dtvdemod_fw_dwork);
-			schedule_delayed_work(&devp->fw_dwork, 10 * HZ);
+			schedule_delayed_work(&devp->fw_dwork, 5 * HZ);
 		}
 
 		/* workqueue for blind scan process */
