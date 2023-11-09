@@ -376,7 +376,7 @@ void update_src_format_hw5(enum signal_format_enum src_format, struct vframe_s *
 		update_pwm_control();
 		if ((debug_dolby & 1) || (debug_dolby & 0x100))
 			pr_dv_dbg
-			("update src fmt: %s => %s, signal_type 0x%x, src fmt %d\n",
+			("update src fmt: %s => %s,signal_type 0x%x,src fmt %d\n",
 			input_str[cur_format],
 			input_str[top2_v_info.amdv_src_format],
 			vf ? vf->signal_type : 0,

@@ -3243,10 +3243,14 @@ void update_pwm_control(void)
 			if (pq_config_dvp_fake &&
 				((struct pq_config_dvp *)pq_config_dvp_fake)
 				->tdc.gd_config.global_dimming &&
-				amdv_src_format == 3)
+				top2_v_info.amdv_src_format == 3)
 				gd_en = 1;
 			else
 				gd_en = 0;
+			if ((debug_dolby & 1) || (debug_dolby & 0x100))
+				pr_dv_dbg("%s: %s, src %d, gd_en %d, bl %d\n",
+				     __func__, get_cur_pic_mode_name(),
+				     top2_v_info.amdv_src_format, gd_en, tv_backlight);
 		} else {
 			if (pq_config_fake &&
 			    ((struct pq_config *)pq_config_fake)
@@ -3255,11 +3259,11 @@ void update_pwm_control(void)
 				gd_en = 1;
 			else
 				gd_en = 0;
+			if ((debug_dolby & 1) || (debug_dolby & 0x100))
+				pr_dv_dbg("%s: %s, src %d, gd_en %d, bl %d\n",
+				     __func__, get_cur_pic_mode_name(),
+				     amdv_src_format, gd_en, tv_backlight);
 		}
-		if ((debug_dolby & 1) || (debug_dolby & 0x100))
-			pr_dv_dbg("%s: %s, src %d, gd_en %d, bl %d\n",
-			     __func__, get_cur_pic_mode_name(),
-			     amdv_src_format, gd_en, tv_backlight);
 
 #ifdef CONFIG_AMLOGIC_LCD
 		if (!force_disable_dv_backlight) {
@@ -4474,7 +4478,10 @@ int is_amdv_frame(struct vframe_s *vf)
 	if (fmt == VFRAME_SIGNAL_FMT_DOVI)
 		return true;
 
-	if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+	/*hdmi case, magic_code is not set but fmt is updated to sdr/hdr,*/
+	/*need to further to confirm if it is dv*/
+	if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
+		vf->src_fmt.sei_magic_code == SEI_MAGIC_CODE)
 		return false;
 
 	req.vf = vf;
