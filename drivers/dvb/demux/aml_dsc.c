@@ -825,6 +825,8 @@ int dsc_set_sid(int id, int sid)
 
 	if (!advb->dsc[id])
 		return -1;
+	if (advb->dsc[id]->sid == sid)
+		return 0;
 	advb->dsc[id]->sid = sid;
 	dsc = advb->dsc[id];
 	if (dsc->dev) {
