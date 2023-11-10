@@ -19,7 +19,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-map-ops.h>
 #include <linux/sched/clock.h>
-
+#include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #include "../tvin_global.h"
@@ -3775,4 +3775,33 @@ void vdin_clr_write_done_t3x(struct vdin_dev_s *devp)
 {
 	wr_bits(devp->addr_offset, VDIN0_CORE_CTRL, 0xf, 15, 4);
 	wr_bits(devp->addr_offset, VDIN0_CORE_CTRL, 0x0, 15, 4);
+}
+
+/* In 2/4 ppc mode,vdin report value will be half/quarter */
+unsigned int vdin_get_div_t3x(struct vdin_dev_s *devp)
+{
+	unsigned int div_val = 1;
+	static const struct vinfo_s *vinfo;
+
+	if (devp->parm.port >= TVIN_PORT_VIU1 &&
+		devp->parm.port <= TVIN_PORT_VIU1_MAX)
+		vinfo = get_current_vinfo();
+	else if (devp->parm.port >= TVIN_PORT_VIU2 &&
+		devp->parm.port <= TVIN_PORT_VIU2_MAX)
+	#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+		vinfo = get_current_vinfo2();
+	#else
+		;
+	#endif
+	else
+		return 1;
+
+	if (vinfo && vinfo->cur_enc_ppc == 2)
+		div_val = 2;
+	else if (vinfo && vinfo->cur_enc_ppc == 4)
+		div_val = 4;
+	else
+		div_val = 1;
+
+	return div_val;
 }

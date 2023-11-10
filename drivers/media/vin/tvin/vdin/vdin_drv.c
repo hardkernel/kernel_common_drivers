@@ -2882,11 +2882,15 @@ static void vdin_set_vfe_info(struct vdin_dev_s *devp, struct vf_entry *vfe)
 static bool vdin_is_input_valid(struct vdin_dev_s *devp)
 {
 	int h_diff_val, v_diff_val;
-	unsigned int h_report, v_report;
+	unsigned int h_report, v_report, div = 1;
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (is_meson_t3x_cpu())
+		div = vdin_get_div_t3x(devp);
+#endif
 	h_report = vdin_get_active_h(devp);
 	v_report = vdin_get_active_v(devp);
-	h_diff_val = devp->h_active_org - h_report;
+	h_diff_val = devp->h_active_org / div - h_report;
 	v_diff_val = devp->v_active_org - v_report;
 
 	if (abs(h_diff_val) > devp->vdin_input_data_threshold ||
