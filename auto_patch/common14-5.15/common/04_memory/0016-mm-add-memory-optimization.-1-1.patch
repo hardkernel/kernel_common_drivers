@@ -1,4 +1,4 @@
-From cd3f8df10d48d44dd5333f46202aaf70aca9203d Mon Sep 17 00:00:00 2001
+From 7cb3b2d6d36599371ea1bcfad6ae52f693b5d99f Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Tue, 20 Jun 2023 19:32:11 +0800
 Subject: [PATCH] mm: add memory optimization. [1/1]
@@ -24,8 +24,9 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  init/init_task.c               |  2 ++
  kernel/Makefile                |  2 ++
  kernel/fork.c                  |  2 ++
+ kernel/scs.c                   | 17 +++++++++++++++++
  mm/slab_common.c               |  4 ++++
- 8 files changed, 32 insertions(+), 1 deletion(-)
+ 9 files changed, 49 insertions(+), 1 deletion(-)
 
 diff --git a/include/linux/android_kabi.h b/include/linux/android_kabi.h
 index f6dd7f00b386..ee6b29e8d796 100644
@@ -91,7 +92,7 @@ index 9497f6b98339..83e8cfd192e8 100644
  #define pr_fmt(fmt) fmt
  #endif
 diff --git a/include/linux/scs.h b/include/linux/scs.h
-index 4ab5bdc898cf..db157506346d 100644
+index 4ab5bdc898cf..fb908446abbc 100644
 --- a/include/linux/scs.h
 +++ b/include/linux/scs.h
 @@ -16,7 +16,11 @@
@@ -99,7 +100,7 @@ index 4ab5bdc898cf..db157506346d 100644
  
  #define SCS_ORDER		0
 +#ifdef CONFIG_AMLOGIC_MEMORY_OPT
-+#define SCS_SIZE		SZ_1K
++#define SCS_SIZE		(SZ_1K)
 +#else
  #define SCS_SIZE		(PAGE_SIZE << SCS_ORDER)
 +#endif
@@ -124,7 +125,7 @@ index 559eff84a620..dfe427268949 100644
  EXPORT_SYMBOL(init_task);
  
 diff --git a/kernel/Makefile b/kernel/Makefile
-index ce5fc348b16a..27790124a651 100644
+index c058819ecdcf..864a118e14b3 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
 @@ -81,7 +81,9 @@ obj-$(CONFIG_UTS_NS) += utsname.o
@@ -138,10 +139,10 @@ index ce5fc348b16a..27790124a651 100644
  obj-$(CONFIG_KPROBES_SANITY_TEST) += test_kprobes.o
  obj-$(CONFIG_AUDIT) += audit.o auditfilter.o
 diff --git a/kernel/fork.c b/kernel/fork.c
-index abc1fd6c19c4..936f8162c4e4 100644
+index a6b881efb1df..d7d0677a3847 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
-@@ -1019,9 +1019,11 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
+@@ -1037,9 +1037,11 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
  #ifdef CONFIG_MEMCG
  	tsk->active_memcg = NULL;
  #endif
@@ -153,11 +154,73 @@ index abc1fd6c19c4..936f8162c4e4 100644
  #endif
  	trace_android_vh_dup_task_struct(tsk, orig);
  	return tsk;
+diff --git a/kernel/scs.c b/kernel/scs.c
+index d7809affe740..aa4135c3c43e 100644
+--- a/kernel/scs.c
++++ b/kernel/scs.c
+@@ -11,6 +11,9 @@
+ #include <linux/scs.h>
+ #include <linux/vmalloc.h>
+ #include <linux/vmstat.h>
++#ifdef CONFIG_AMLOGIC_MEMORY_OPT
++#include <linux/slab.h>
++#endif
+ 
+ #ifdef CONFIG_DYNAMIC_SCS
+ DEFINE_STATIC_KEY_FALSE(dynamic_scs_enabled);
+@@ -36,16 +39,22 @@ static void *__scs_alloc(int node)
+ 	for (i = 0; i < NR_CACHED_SCS; i++) {
+ 		s = this_cpu_xchg(scs_cache[i], NULL);
+ 		if (s) {
++		#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ 			s = kasan_unpoison_vmalloc(s, SCS_SIZE,
+ 						   KASAN_VMALLOC_PROT_NORMAL);
++		#endif
+ 			memset(s, 0, SCS_SIZE);
+ 			goto out;
+ 		}
+ 	}
+ 
++#ifdef CONFIG_AMLOGIC_MEMORY_OPT
++	s = kmalloc(SCS_SIZE, GFP_SCS);
++#else
+ 	s = __vmalloc_node_range(SCS_SIZE, 1, VMALLOC_START, VMALLOC_END,
+ 				    GFP_SCS, PAGE_KERNEL, 0, node,
+ 				    __builtin_return_address(0));
++#endif
+ 
+ out:
+ 	return kasan_reset_tag(s);
+@@ -86,8 +95,12 @@ void scs_free(void *s)
+ 		if (this_cpu_cmpxchg(scs_cache[i], 0, s) == NULL)
+ 			return;
+ 
++#ifdef CONFIG_AMLOGIC_MEMORY_OPT
++	kfree(s);
++#else
+ 	kasan_unpoison_vmalloc(s, SCS_SIZE, KASAN_VMALLOC_PROT_NORMAL);
+ 	vfree_atomic(s);
++#endif
+ }
+ 
+ static int scs_cleanup(unsigned int cpu)
+@@ -96,7 +109,11 @@ static int scs_cleanup(unsigned int cpu)
+ 	void **cache = per_cpu_ptr(scs_cache, cpu);
+ 
+ 	for (i = 0; i < NR_CACHED_SCS; i++) {
++	#ifdef CONFIG_AMLOGIC_MEMORY_OPT
++		kfree(cache[i]);
++	#else
+ 		vfree(cache[i]);
++	#endif
+ 		cache[i] = NULL;
+ 	}
+ 
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 8cf667b3065e..1a05fbf0e817 100644
+index 9fad291c443c..2d727cb4c5c3 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
-@@ -64,7 +64,11 @@ static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
+@@ -67,7 +67,11 @@ static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
  /*
   * Merge control. If this is set then no merging of slab caches will occur.
   */
@@ -170,5 +233,5 @@ index 8cf667b3065e..1a05fbf0e817 100644
  static int __init setup_slab_nomerge(char *str)
  {
 -- 
-2.25.1
+2.42.0
 
