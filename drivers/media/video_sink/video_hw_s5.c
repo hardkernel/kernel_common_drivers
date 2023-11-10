@@ -2960,6 +2960,53 @@ static void cal_pps_dout_hsize(u32 *o_dout_hsize,
 #endif
 }
 
+static u32 cal_overlap_size(struct vpp_frame_par_s *cur_frame_par,
+	u32 ratio)
+{
+	u32 vd1_overlap_hsize = 32, horz_phase_step = 0;
+	u32 sr0_h_scaleup_en = 0, sr1_h_scaleup_en = 0;
+	const struct vinfo_s *vinfo = get_current_vinfo();
+
+	/* t3x 144hz/288hz output */
+	if (video_is_meson_t3x_cpu() &&
+		(vinfo->width > 1920 && vinfo->height >= 1080 &&
+			(vinfo->sync_duration_num /
+			vinfo->sync_duration_den > 120))) {
+		horz_phase_step = cur_frame_par->vpp_filter.vpp_hsc_start_phase_step;
+		sr0_h_scaleup_en = cur_frame_par->supsc0_enable &&
+			cur_frame_par->supsc0_hori_ratio;
+		sr1_h_scaleup_en = cur_frame_par->supsc1_enable &&
+			cur_frame_par->supsc1_hori_ratio;
+		if (ratio > 2 &&
+			(sr0_h_scaleup_en || sr1_h_scaleup_en)) {
+			vd1_overlap_hsize = 32 * 2 / ratio;
+			/* force disable sr */
+			if (vd1_overlap_hsize < 8) {
+				if (sr0_h_scaleup_en) {
+					cur_frame_par->supsc0_hori_ratio = 0;
+					horz_phase_step >>=  1;
+					cur_frame_par->vpp_filter.vpp_hsc_start_phase_step =
+						horz_phase_step;
+					if (debug_flag_s5 & DEBUG_VD_PROC)
+						pr_info("%s: disable sr0 horz, adjust horz_phase_step:%x\n",
+							__func__, horz_phase_step);
+				}
+				if (sr1_h_scaleup_en) {
+					cur_frame_par->supsc1_hori_ratio = 0;
+					horz_phase_step >>=  1;
+					cur_frame_par->vpp_filter.vpp_hsc_start_phase_step =
+						horz_phase_step;
+					if (debug_flag_s5 & DEBUG_VD_PROC)
+						pr_info("%s: disable sr1 horz, adjust horz_phase_step:%x\n",
+							__func__, horz_phase_step);
+				}
+				vd1_overlap_hsize = 8;
+			}
+		}
+	}
+	return vd1_overlap_hsize;
+}
+
 static void set_vd_proc_info(struct video_layer_s *layer)
 {
 	u32 horz_phase_step = 0, vert_phase_step = 0;
@@ -3166,10 +3213,18 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 				/* whole vd1 output size */
 				vd_proc_vd1_info->vd1_dout_hsize[0] = dst_w;
 				vd_proc_vd1_info->vd1_dout_vsize[0] = dst_h;
-				if (cur_dev->amdv_tvcore && is_amdv_enable())
+				if (cur_dev->amdv_tvcore && is_amdv_enable()) {
 					vd_proc_vd1_info->vd1_overlap_hsize = 96;
-				else
-					vd_proc_vd1_info->vd1_overlap_hsize = 32;
+				} else {
+					u32 ratio = 0;
+
+					ratio = dst_w / src_w;
+					vd_proc_vd1_info->vd1_overlap_hsize =
+						cal_overlap_size(cur_frame_par,
+							ratio);
+					horz_phase_step =
+						cur_frame_par->vpp_filter.vpp_hsc_start_phase_step;
+				}
 				break;
 			case VD1_SLICES_DOUT_PI:
 				/* 4 pic */
