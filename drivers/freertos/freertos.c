@@ -225,6 +225,12 @@ static unsigned long freertos_allow_coreup(void)
 		      0, 0, 0, 0, 0, 0, &res);
 	return res.a0;
 }
+
+unsigned long freertos_is_run(void)
+{
+	return 0;
+}
+EXPORT_SYMBOL(freertos_is_run);
 #endif
 
 //////////temporary walk around method///////////
