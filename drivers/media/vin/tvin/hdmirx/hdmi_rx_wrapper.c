@@ -4568,6 +4568,8 @@ void hdmirx_open_main_port_t3x(u8 port)
 {
 	rx_info.main_port_open = true;
 	aml_phy_switch_port(port);
+	if (rx[port].state >= FSM_SIG_READY)
+		hdmirx_top_irq_en(1, 2, port);
 }
 
 /***********************
@@ -4622,13 +4624,11 @@ static void hdmirx_open_main_port(u8 port)
 			hdmi_rx_top_edid_update();
 		//hdmirx_hw_config();
 	} else {
-		aml_phy_switch_port(port);
-		if (rx_info.chip_id != CHIP_ID_T3X) {
-			if (rx[port].state >= FSM_SIG_STABLE)
-				rx[port].state = FSM_SIG_STABLE;
-			else
-				rx[port].state = FSM_HPD_LOW;
-		}
+		//aml_phy_switch_port(port);
+		if (rx[port].state >= FSM_SIG_STABLE)
+			rx[port].state = FSM_SIG_STABLE;
+		else
+			rx[port].state = FSM_HPD_LOW;
 	}
 	rx[port].var.edid_update_flag = 0;
 	rx_pkt_initial(port);
@@ -4646,6 +4646,8 @@ static void hdmirx_open_sub_port(u8 port)
 {
 	rx_info.sub_port_open = true;
 	aml_phy_switch_port(port);
+	if (rx[port].state >= FSM_SIG_READY)
+		hdmirx_top_irq_en(1, 2, port);
 	rx_pr("%s:%d\n", __func__, port);
 }
 

@@ -116,7 +116,8 @@
 /* 2023.10.8 t3x some compatibility problem */
 /* 2023.10.10 fix t3x frl audio problem */
 /* 2023.10.30 fix t3x clk msr fail */
-#define RX_VER1 "ver.2023/10/30"
+/* 2023.11.13 fix t3x irq issue */
+#define RX_VER1 "ver.2023/11/13"
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 
