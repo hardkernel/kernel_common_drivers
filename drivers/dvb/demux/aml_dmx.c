@@ -2025,12 +2025,6 @@ static int _dmx_connect_frontend(struct dmx_demux *dmx,
 	demux->last_len = 0;
 	dmx->frontend = frontend;
 	mutex_unlock(demux->pmutex);
-
-	if (frontend->source == DMX_MEMORY_FE)
-		demux->dmx_ext.set_input(&demux->dmx_ext.dmx, INPUT_LOCAL);
-	else
-		demux->dmx_ext.set_input(&demux->dmx_ext.dmx, INPUT_DEMOD);
-
 	return 0;
 }
 
