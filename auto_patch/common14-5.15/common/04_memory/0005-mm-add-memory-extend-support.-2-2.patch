@@ -1,4 +1,4 @@
-From 45eb88852f5cc724afb0462d7f5e4a919278daa3 Mon Sep 17 00:00:00 2001
+From db8e4d39e4122ecf0866f6b410e913db444900af Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Thu, 24 Feb 2022 19:30:46 +0800
 Subject: [PATCH] mm: add memory extend support. [2/2]
@@ -30,7 +30,7 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  arch/arm64/include/asm/cache.h      |  4 ++
  drivers/dma-buf/heaps/system_heap.c |  8 ++++
  drivers/of/fdt.c                    | 10 +++++
- drivers/of/of_reserved_mem.c        | 10 +++++
+ drivers/of/of_reserved_mem.c        | 14 ++++++
  fs/dcache.c                         |  4 ++
  fs/inode.c                          |  4 ++
  include/linux/mmzone.h              | 11 +++++
@@ -38,7 +38,7 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  mm/page_alloc.c                     | 68 +++++++++++++++++++++++++++++
  mm/slab_common.c                    | 25 +++++++++++
  mm/vmscan.c                         |  2 +
- 11 files changed, 150 insertions(+)
+ 11 files changed, 154 insertions(+)
 
 diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
 index b61289b98309..374ee4c5dc60 100644
@@ -114,7 +114,7 @@ index 8d9f6f0771cf..28895dd1b282 100644
  			pr_info("Reserved memory: failed to reserve memory for node '%s': base %pa, size %lu MiB\n",
  				uname, &base, (unsigned long)(size / SZ_1M));
 diff --git a/drivers/of/of_reserved_mem.c b/drivers/of/of_reserved_mem.c
-index 22c186cc0af8..f8a5b62b47a8 100644
+index 22c186cc0af8..5f3890c944e0 100644
 --- a/drivers/of/of_reserved_mem.c
 +++ b/drivers/of/of_reserved_mem.c
 @@ -9,7 +9,9 @@
@@ -142,6 +142,17 @@ index 22c186cc0af8..f8a5b62b47a8 100644
  				rmem->name, compat);
 +		#endif
  			break;
+ 		}
+ 	}
+@@ -296,6 +306,10 @@ void __init fdt_init_reserved_mem(void)
+ 					nomap ? "nomap" : "map",
+ 					reusable ? "reusable" : "non-reusable",
+ 					rmem->name ? rmem->name : "unknown");
++			#if defined(CONFIG_ARM) && defined(CONFIG_AMLOGIC_MEMORY_EXTEND)
++				if (rmem->size / SZ_1M > 100 && end < 0x30000000)
++					WARN(1, "This cma pool in low memory.\n");
++			#endif
+ 			}
  		}
  	}
 diff --git a/fs/dcache.c b/fs/dcache.c
@@ -226,7 +237,7 @@ index da70a24d1b7a..349996aa9f13 100644
  	return 0;
  }
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d0609fb4d4f4..69a1d1367dc8 100644
+index ef89d5e5d2ac..4636f493748d 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -87,6 +87,9 @@
@@ -282,7 +293,7 @@ index d0609fb4d4f4..69a1d1367dc8 100644
  }
  
  /*
-@@ -5765,6 +5783,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
+@@ -5774,6 +5792,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
  	 */
  	alloc_flags |= alloc_flags_nofragment(ac.preferred_zoneref->zone, gfp);
  
@@ -292,7 +303,7 @@ index d0609fb4d4f4..69a1d1367dc8 100644
  	/* First allocation attempt */
  	page = get_page_from_freelist(alloc_gfp, order, alloc_flags, &ac);
  	if (likely(page))
-@@ -6444,6 +6465,9 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+@@ -6453,6 +6474,9 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
  		unsigned int order;
  		unsigned long nr[MAX_ORDER], flags, total = 0;
  		unsigned char types[MAX_ORDER];
@@ -302,7 +313,7 @@ index d0609fb4d4f4..69a1d1367dc8 100644
  
  		if (show_mem_node_skip(filter, zone_to_nid(zone), nodemask))
  			continue;
-@@ -6460,6 +6484,9 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+@@ -6469,6 +6493,9 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
  
  			types[order] = 0;
  			for (type = 0; type < MIGRATE_TYPES; type++) {
@@ -312,7 +323,7 @@ index d0609fb4d4f4..69a1d1367dc8 100644
  				if (!free_area_empty(area, type))
  					types[order] |= 1 << type;
  			}
-@@ -6472,6 +6499,12 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+@@ -6481,6 +6508,12 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
  				show_migration_types(types[order]);
  		}
  		printk(KERN_CONT "= %lukB\n", K(total));
@@ -325,7 +336,7 @@ index d0609fb4d4f4..69a1d1367dc8 100644
  	}
  
  	hugetlb_show_meminfo();
-@@ -9936,6 +9969,41 @@ bool take_page_off_buddy(struct page *page)
+@@ -9945,6 +9978,41 @@ bool take_page_off_buddy(struct page *page)
  }
  #endif
  
@@ -429,10 +440,10 @@ index 8cf667b3065e..f578c80c3666 100644
  	trace_android_vh_cache_show(m, &sinfo, s);
  	seq_putc(m, '\n');
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9a343d5e78cc..1fe863ea5d61 100644
+index 1dd7e4365f73..35a4055bf328 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2136,8 +2136,10 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
+@@ -2156,8 +2156,10 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
  	 * won't get blocked by normal direct-reclaimers, forming a circular
  	 * deadlock.
  	 */
@@ -444,5 +455,5 @@ index 9a343d5e78cc..1fe863ea5d61 100644
  #ifdef CONFIG_AMLOGIC_CMA
  	check_cma_isolated(&isolated, inactive, inactive);
 -- 
-2.25.1
+2.42.0
 
