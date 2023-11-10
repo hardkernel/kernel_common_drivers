@@ -1,0 +1,141 @@
+From e93821bd1e5bfdcb6dd3e8494fb141cac612e5c0 Mon Sep 17 00:00:00 2001
+From: Tao Zeng <tao.zeng@amlogic.com>
+Date: Fri, 20 Oct 2023 18:50:01 +0800
+Subject: [PATCH] trace: add white list for trace event [1/1]
+
+PD#SWPL-145324
+
+Problem:
+There are too many trace event inodes
+
+Solution:
+Add white list for trace event, this can save about 10MB memory
+
+Verify:
+t5m
+
+Change-Id: I290020fc93e6114650313328ec8757720bfc8b1d
+Signed-off-by: Tao Zeng <tao.zeng@amlogic.com>
+---
+ fs/tracefs/inode.c          | 49 +++++++++++++++++++++++++++++++++++++
+ kernel/trace/trace_events.c |  8 ++++++
+ 2 files changed, 57 insertions(+)
+
+diff --git a/fs/tracefs/inode.c b/fs/tracefs/inode.c
+index 8c11efca87fe..9f7498fe9fe0 100644
+--- a/fs/tracefs/inode.c
++++ b/fs/tracefs/inode.c
+@@ -536,6 +536,51 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
+ 	return end_creating(dentry);
+ }
+ 
++#ifdef CONFIG_AMLOGIC_MEMORY_OPT
++static char * const allow_trace[] = {
++	"sched",
++	"irq",
++	"freq",
++	"idle",
++	"block",
++	"binder",
++	"bpf_trace",
++	"cgroup",
++	"compaction",
++	"ext4",
++	"f2fs",
++	"ftrace",
++	"kmem",
++	"ion",
++	"mmap",
++	"power",
++	"rcu",
++	"task",
++	"events",
++	"signal",
++	"options",
++	"dmc_monitor",
++	"kprobes",
++	"vmscan",
++	"timer",
++	"workqueue",
++};
++
++static int is_allowed_trace(const char *name)
++{
++	int i;
++
++	for (i = 0; i  < ARRAY_SIZE(allow_trace); i++) {
++		if (!strcmp(name, allow_trace[i]))
++			return 1;
++	}
++	return 0;
++}
++
++static int allow_trace_enable = 1;
++core_param(allow_trace_enable, allow_trace_enable, int, 0644);
++#endif
++
+ /**
+  * tracefs_create_dir - create a directory in the tracefs filesystem
+  * @name: a pointer to a string containing the name of the directory to
+@@ -555,6 +600,10 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
+  */
+ struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
+ {
++#ifdef CONFIG_AMLOGIC_MEMORY_OPT
++	if (allow_trace_enable && !is_allowed_trace(name))
++		return NULL;
++#endif
+ 	return __create_dir(name, parent, &simple_dir_inode_operations);
+ }
+ 
+diff --git a/kernel/trace/trace_events.c b/kernel/trace/trace_events.c
+index 67169a50f92a..b7baf29d3f08 100644
+--- a/kernel/trace/trace_events.c
++++ b/kernel/trace/trace_events.c
+@@ -2320,7 +2320,9 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
+ 
+ 	dir->entry = tracefs_create_dir(name, parent);
+ 	if (!dir->entry) {
++	#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ 		pr_warn("Failed to create system directory %s\n", name);
++	#endif
+ 		__put_system(system);
+ 		goto out_free;
+ 	}
+@@ -2420,7 +2422,9 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
+ 	name = trace_event_name(call);
+ 	file->dir = tracefs_create_dir(name, d_events);
+ 	if (!file->dir) {
++	#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ 		pr_warn("Could not create tracefs '%s' directory\n", name);
++	#endif
+ 		return -1;
+ 	}
+ 
+@@ -3019,9 +3023,11 @@ __trace_add_event_dirs(struct trace_array *tr)
+ 
+ 	list_for_each_entry(call, &ftrace_events, list) {
+ 		ret = __trace_add_new_event(call, tr);
++	#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ 		if (ret < 0)
+ 			pr_warn("Could not create directory for event %s\n",
+ 				trace_event_name(call));
++	#endif
+ 	}
+ }
+ 
+@@ -3485,9 +3491,11 @@ static void __trace_early_add_event_dirs(struct trace_array *tr)
+ 
+ 	list_for_each_entry(file, &tr->events, list) {
+ 		ret = event_create_dir(tr->event_dir, file);
++	#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ 		if (ret < 0)
+ 			pr_warn("Could not create directory for event %s\n",
+ 				trace_event_name(file->event_call));
++	#endif
+ 	}
+ }
+ 
+-- 
+2.42.0
+
