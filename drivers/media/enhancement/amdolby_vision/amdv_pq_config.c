@@ -937,6 +937,8 @@ struct target_config_dvp def_tgt_dvp_cfg = {
 	0, 0, 0, 0, 0, 0} /* padding */
 };
 
+u32 variable_fps[VARIABLE_FPS_COUNT] = {23976, 24000, 30000, 120000};
+
 void calculate_panel_max_pq(enum signal_format_enum src_format,
 			    const struct vinfo_s *vinfo,
 			    void *p_config)

@@ -58,6 +58,7 @@ MODULE_PARM_DESC(force_update_top2, "\n force_update_top2\n");
 
 struct dv5_top1_vd_info top1_vd_info;
 struct vframe_s *vf_tmp;
+static u32 last_vf_valid_crc_top1;
 
 #define signal_cuva ((vf->signal_type >> 31) & 1)
 #define signal_color_primaries ((vf->signal_type >> 16) & 0xff)
@@ -167,6 +168,9 @@ void dump_top1_frame(int force_w, int force_h)
 static void get_top1_vd_info(struct vframe_s *vf,
 	struct dv5_top1_vd_info *top1_vd_info)
 {
+	if (!vf)
+		return;
+
 	top1_vd_info->width = vf->width;
 	top1_vd_info->height = vf->height;
 	if (is_src_crop_valid(vf->src_crop)) {
@@ -188,8 +192,20 @@ static void get_top1_vd_info(struct vframe_s *vf,
 	top1_vd_info->buf_width = vf->canvas0_config[0].width;
 	top1_vd_info->buf_height = vf->canvas0_config[0].height;
 
+	/*all hdmi idk cases are 444-10bit */
+	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI) {
+		top1_vd_info->buf_width = top1_vd_info->width;/*no canvas0_config for hdmi*/
+		top1_vd_info->buf_height = top1_vd_info->height;
+		top1_vd_info->bitdepth = 10;
+		top1_vd_info->blk_mode = 0;
+		top1_vd_info->type &= (~VIDTYPE_VIU_NV21);
+		top1_vd_info->type &= (~VIDTYPE_VIU_NV12);
+		top1_vd_info->type &= (~VIDTYPE_VIU_422);
+		top1_vd_info->type |= VIDTYPE_VIU_444;
+	}
+
 	if (debug_dolby & 0x80000) {
-		pr_info("vf %px,w,h:%d,%d,cw,ch:%d,%d,%d,%d,%d,%d,%d,%d,type:0x%x,bdp:%d,p:%d,addr:0x%lx,0x%lx,0x%lx,b %d\n",
+		pr_info("vf %px,w,h:%d,%d,cw,ch:%d,%d,%d,%d,%d,%d,%d,%d,type:0x%x,%x,bdp:%d,p:%d,addr:0x%lx,0x%lx,0x%lx,b %d\n",
 			vf,
 			top1_vd_info->width,
 			top1_vd_info->height,
@@ -201,6 +217,7 @@ static void get_top1_vd_info(struct vframe_s *vf,
 			vf->canvas0_config[1].height,
 			vf->canvas0_config[2].width,
 			vf->canvas0_config[2].height,
+			vf->type,
 			top1_vd_info->type,
 			top1_vd_info->bitdepth,
 			top1_vd_info->plane,
@@ -858,6 +875,59 @@ int parse_sei_and_meta_hw5(struct vframe_s *vf,
 	return ret;
 }
 
+void set_vf_crc_valid_top1(int val)
+{
+	last_vf_valid_crc_top1 = val;
+}
+
+/*for hdmi cert: not run cp when vf not change*/
+/*sometimes  even if frame is same but  frame crc changed, maybe ucd or rx not stable,*/
+/*so need to check  few more frames*/
+bool check_vf_changed_top1(struct vframe_s *vf)
+{
+//#define MAX_VF_CRC_CHECK_COUNT_TOP1 0
+
+	static u32 new_vf_crc;
+	static u32 vf_crc_repeat_cnt;
+	bool changed = false;
+
+	if (!vf)
+		return true;
+
+	if (debug_dolby & 1)
+		pr_dv_dbg("top1 vf %px, crc %x, last valid crc %x, rpt %d\n",
+				vf, vf->crc, last_vf_valid_crc_top1,
+				vf_crc_repeat_cnt);
+
+	//vf->src_fmt.hdmi_new_frame = false;
+
+	if (vf->crc == 0) {
+		/*invalid crc, maybe vdin dropped last frame*/
+		return changed;
+	}
+	if (last_vf_valid_crc_top1 == 0) {
+		last_vf_valid_crc_top1 = vf->crc;
+		changed = true;
+		pr_dv_dbg("top1 first new frame\n");
+	} else if (vf->crc != last_vf_valid_crc_top1) {
+		if (vf->crc != new_vf_crc)
+			vf_crc_repeat_cnt = 0;
+		else
+			++vf_crc_repeat_cnt;
+
+		//if (vf_crc_repeat_cnt >= MAX_VF_CRC_CHECK_COUNT_TOP1) {
+		vf_crc_repeat_cnt = 0;
+		last_vf_valid_crc_top1 = vf->crc;
+		changed = true;
+		pr_dv_dbg("top1 new frame\n");
+		//}
+	} else {
+		vf_crc_repeat_cnt = 0;
+	}
+	new_vf_crc = vf->crc;
+	return changed;
+}
+
 /*for top1 parser + controlpath*/
 int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 {
@@ -942,7 +1012,7 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 		input_mode = IN_MODE_HDMI;
 
 		if ((dolby_vision_flags & FLAG_CERTIFICATION) && enable_vf_check)
-			vf_changed = check_vf_changed(vf);
+			vf_changed = check_vf_changed_top1(vf);
 
 		/* meta */
 		if ((dolby_vision_flags & FLAG_RX_EMP_VSEM) &&
@@ -1035,10 +1105,10 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 					vsem_if_buf[9],	vsem_if_buf[10], vsem_if_buf[11]);
 			}
 		}
+		src_chroma_format = 2;/*fixed CF_P444 for hdmi dw data*/;
 		if ((dolby_vision_flags & FLAG_FORCE_DV_LL) ||
 		    req.low_latency == 1) {
 			src_format = FORMAT_DOVI_LL;
-			src_chroma_format = 0;
 			for (i = 0; i < 2; i++) {
 				if (v_inst_info->md_buf[i])
 					memset(v_inst_info->md_buf[i], 0, MD_BUF_SIZE);
@@ -1056,8 +1126,6 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 			src_format = FORMAT_DOVI;
 		} else {
 			src_format =  tv_hw5_setting->top1.src_format;
-			if (vf->type & VIDTYPE_VIU_422)
-				src_chroma_format = 1;
 			p_mdc =	&vf->prop.master_display_colour;
 			if (is_hdr10_frame(vf) || force_hdmin_fmt == 1) {
 				src_format = FORMAT_HDR10;
@@ -1066,16 +1134,18 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 				prepare_hdr10_param
 					(p_mdc, &v_inst_info->hdr10_param);
 				req.dv_enhance_exist = 0;
-				src_bdp = 12;
+				src_bdp = 10;
 			}
 			if (src_format != FORMAT_DOVI &&
 				(is_hlg_frame(vf) || force_hdmin_fmt == 2)) {
 				src_format = FORMAT_HLG;
-				src_bdp = 12;
+				src_bdp = 10;
 			}
-			if (src_format == FORMAT_SDR &&
-				!req.dv_enhance_exist)
-				src_bdp = 12;
+			if (src_format == FORMAT_SDR && force_sdr10 == 1)
+				src_format = FORMAT_SDR10;
+
+			if (src_format == FORMAT_SDR10)
+				src_bdp = 10;
 		}
 		if ((debug_dolby & 4) && req.aux_size) {
 			pr_dv_dbg("metadata(%d):\n", req.aux_size);
@@ -1508,7 +1578,7 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 
 			if (debug_dolby & 1) {
 				pr_dv_dbg
-				("tv setting %s-%d:flag=%x,md=%d,comp=%d\n",
+				("top1 tv setting %s-%d:flag=%x,md=%d,comp=%d\n",
 					 input_mode == IN_MODE_HDMI ?
 					 "hdmi" : "ott",
 					 src_format,
@@ -1576,6 +1646,7 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 	u32 cur_id = 0;
 	struct video_inst_s *v_inst_info = &top2_v_info;
 	struct vd_proc_info_t *vd_proc_info;
+	u32 test_count = 0;
 
 	if (!p_funcs_tv || !p_funcs_tv->tv_hw5_control_path || !tv_hw5_setting)
 		return -1;
@@ -2220,18 +2291,24 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 		}
 		p_ambient = &dynamic_config_new;
 	} else {
+		if (vf && vf->source_type == VFRAME_SOURCE_TYPE_HDMI)
+			test_count = hdmi_frame_count;
+		else if (vf && vf->source_type == VFRAME_SOURCE_TYPE_OTHERS &&
+			v_inst_info)
+			test_count = v_inst_info->frame_count;
+
 		if (ambient_test_mode == 1 && toggle_mode == 1 &&
-		    v_inst_info->frame_count < AMBIENT_CFG_FRAMES) {
-			p_ambient = &dynamic_test_cfg[v_inst_info->frame_count];
+		    test_count < AMBIENT_CFG_FRAMES) {
+			p_ambient = &dynamic_test_cfg[test_count];
 		} else if (ambient_test_mode == 2 && toggle_mode == 1 &&
-			   v_inst_info->frame_count < AMBIENT_CFG_FRAMES) {
-			p_ambient = &dynamic_test_cfg_2[v_inst_info->frame_count];
+			   test_count < AMBIENT_CFG_FRAMES) {
+			p_ambient = &dynamic_test_cfg_2[test_count];
 		} else if (ambient_test_mode == 3 && toggle_mode == 1 &&
-			   hdmi_frame_count < AMBIENT_CFG_FRAMES) {
-			p_ambient = &dynamic_test_cfg_3[hdmi_frame_count];
+			   test_count < AMBIENT_CFG_FRAMES) {
+			p_ambient = &dynamic_test_cfg_3[test_count];
 		} else if (ambient_test_mode == 4 && toggle_mode == 1 &&
-			   v_inst_info->frame_count < AMBIENT_CFG_FRAMES_2) {
-			p_ambient = &dynamic_test_cfg_4[v_inst_info->frame_count];
+			   test_count < AMBIENT_CFG_FRAMES_2) {
+			p_ambient = &dynamic_test_cfg_4[test_count];
 		} else if (((struct pq_config_dvp *)pq_config_dvp_fake)->
 			tdc.ambient_config.dark_detail) {
 			/*only if cfg enables darkdetail we allow the API to set*/
@@ -2240,6 +2317,13 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 			p_ambient = &dynamic_darkdetail;
 		}
 	}
+	if (variable_fps_mode == 1 && toggle_mode == 1 &&
+		vf && vf->source_type == VFRAME_SOURCE_TYPE_HDMI &&
+		hdmi_frame_count < VARIABLE_FPS_COUNT) {
+		content_fps = variable_fps[hdmi_frame_count];
+		if (debug_dolby & 1)
+			pr_dv_dbg("variable_fps %d\n", content_fps);
+	}
 	if (debug_dolby & 0x200)
 		pr_dv_dbg("[count %d %d]dark_detail from cfg:%d,from api:%d\n",
 			     hdmi_frame_count, v_inst_info->frame_count,
@@ -2247,8 +2331,19 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 			     tdc.ambient_config.dark_detail,
 			     cfg_info[cur_pic_mode].dark_detail);
 
-	if (vf)
-		get_l1l4_hist();
+	if (vf && enable_top1) {
+		if ((dolby_vision_flags & FLAG_CERTIFICATION) &&
+			(test_dv & HDMI_ONLY_UPDATE_HIST_FOR_NEW_FRAME) &&
+			vf && vf->source_type == VFRAME_SOURCE_TYPE_HDMI) {
+			if (debug_dolby & 1)
+				pr_dv_dbg("hdmi in, hdmi_new_frame %d\n",
+				vf->src_fmt.hdmi_new_frame);
+			if (vf->src_fmt.hdmi_new_frame)
+				get_l1l4_hist();
+		} else {
+			get_l1l4_hist();
+		}
+	}
 
 	v_inst_info->src_format = src_format;
 	v_inst_info->input_mode = input_mode;
@@ -2500,7 +2595,7 @@ int amdv_wait_metadata_hw5(struct vframe_s *vf)
 		ret = 1;
 
 	if (vf && (debug_dolby & 8))
-		pr_dv_dbg("wait return %d, vf %p(index %d), runcount %d\n",
+		pr_dv_dbg("wait return %d, vf %px(index %d), runcount %d\n",
 			      ret, vf, vf->omx_index, top2_info.run_mode_count);
 
 	return ret;
@@ -2692,6 +2787,11 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 			     vf_top1, vf_top2, vf->omx_index, dolby_vision_mode,
 			     top1_info.core_on, top2_info.core_on,
 			     h_size, v_size, vf->type);
+	else
+		pr_dv_dbg("proc: mode %d,on %d %d,size %d %d\n",
+			     dolby_vision_mode,
+			     top1_info.core_on, top2_info.core_on,
+			     h_size, v_size);
 
 	if (vf_top1 && !vf_top2) {
 		/*only_top1*/

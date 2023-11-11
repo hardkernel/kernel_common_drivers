@@ -107,6 +107,8 @@
 #define DEBUG_FORCE_ZERO_PYRAMID    0x400
 #define DEBUG_AUTOMATICALLY_PYRAMID 0x800
 #define DEBUG_FORCE_BYPASS_TOP2 0x1000
+#define HDMI_ONLY_UPDATE_HIST_FOR_NEW_FRAME 0x2000 /*case5351 5356*/
+
 
 enum core1_switch_type {
 	NO_SWITCH = 0,
@@ -897,6 +899,7 @@ extern u8 *y_vaddr;
 extern u8 *uv_vaddr;
 extern bool force_enable_top12_lut;
 extern u32 content_fps;
+extern u32 variable_fps_mode;
 extern u32 num_downsamplers;
 extern u32 force_sdr10;
 extern u32 need_pps;
@@ -1206,6 +1209,7 @@ void set_operate_mode(int mode);
 int get_operate_mode(void);
 void set_dv_control_backlight_status(bool flag);
 void set_vf_crc_valid(int val);
+void set_vf_crc_valid_top1(int val);
 int get_dv_vpu_mem_power_status(enum vpu_mod_e mode);
 void calculate_panel_max_pq
 	(enum signal_format_enum src_format,

@@ -377,6 +377,7 @@ struct vframe_src_fmt_s {
 	u32 play_id;
 	int dv_id;
 	bool pr_done;/*mark pyramid status*/
+	bool hdmi_new_frame;
 };
 
 enum pic_mode_provider_e {

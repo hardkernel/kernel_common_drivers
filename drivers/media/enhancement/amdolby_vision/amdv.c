@@ -427,6 +427,7 @@ u32 need_pps;/*idk5.1 case5364 2160x3840 need pps*/
 u32 trace_amdv_isr;/*3ms 4ms 8ms 16ms*/
 u32 output_4k240hz;
 int pyramid_read_urgent = -1;
+u32 variable_fps_mode;
 
 /*1: force bypass 1d93 bit0=1; 2: force not bypass 1d93 bit0=0;*/
 static int force_bypass_pps_sr_cm;
@@ -7159,7 +7160,7 @@ int vsem_check(unsigned char *control_data, unsigned char *vsem_payload)
 /*so need to check  few more frames*/
 bool check_vf_changed(struct vframe_s *vf)
 {
-#define MAX_VF_CRC_CHECK_COUNT 4
+#define MAX_VF_CRC_CHECK_COUNT 3
 
 	static u32 new_vf_crc;
 	static u32 vf_crc_repeat_cnt;
@@ -7169,10 +7170,11 @@ bool check_vf_changed(struct vframe_s *vf)
 		return true;
 
 	if (debug_dolby & 1)
-		pr_dv_dbg("vf %p, crc %x, last valid crc %x, rpt %d\n",
+		pr_dv_dbg("vf %px, crc %x, last valid crc %x, rpt %d\n",
 				vf, vf->crc, last_vf_valid_crc,
 				vf_crc_repeat_cnt);
 
+	vf->src_fmt.hdmi_new_frame = false;
 	if (vf->crc == 0) {
 		/*invalid crc, maybe vdin dropped last frame*/
 		return changed;
@@ -7181,7 +7183,8 @@ bool check_vf_changed(struct vframe_s *vf)
 		last_vf_valid_crc = vf->crc;
 		changed = true;
 		hdmi_frame_count = 0;
-		pr_dv_dbg("first frame\n");
+		vf->src_fmt.hdmi_new_frame = true;
+		pr_dv_dbg("first new frame\n");
 	} else if (vf->crc != last_vf_valid_crc) {
 		if (vf->crc != new_vf_crc)
 			vf_crc_repeat_cnt = 0;
@@ -7193,6 +7196,7 @@ bool check_vf_changed(struct vframe_s *vf)
 			last_vf_valid_crc = vf->crc;
 			changed = true;
 			++hdmi_frame_count;
+			vf->src_fmt.hdmi_new_frame = true;
 			pr_dv_dbg("new frame\n");
 		}
 	} else {
@@ -11289,6 +11293,10 @@ void calculate_crc(void)
 					if (venc_crc_enable)
 						crc = READ_VPP_DV_REG(T3X_VENC_CRC);
 					snprintf(cur_crc, sizeof(cur_crc), "0x%08x", crc);
+					if (debug_dolby & 0x2000)
+						pr_info("CRC input 0x%x,output 0x%x\n",
+							READ_VPP_DV_REG(DOLBY5_CORE2_CRC_IN_FRM),
+							READ_VPP_DV_REG(DOLBY5_CORE2_CRC_OUT_FRM));
 					//}
 					crc_count++;
 					crc_read_delay = 0;
@@ -14910,10 +14918,13 @@ static ssize_t amdolby_vision_debug_store
 	} else if (!strcmp(parm[0], "enable_vf_check")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
-		if (val == 0)
+		if (val == 0) {
 			enable_vf_check = 0;
-		else
+		} else {
 			enable_vf_check = 1;
+			set_vf_crc_valid(0);
+			set_vf_crc_valid_top1(0);
+		}
 		pr_info("set enable_vf_check %d\n",
 			enable_vf_check);
 	} else if (!strcmp(parm[0], "force_hdmin_fmt")) {
@@ -15043,6 +15054,11 @@ static ssize_t amdolby_vision_debug_store
 			pyramid_read_urgent = val;
 			WRITE_VPP_DV_REG_BITS(VPU_RDARB_UGT_L2C1, val, 6, 2);
 		}
+	} else if (!strcmp(parm[0], "variable_fps_mode")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		variable_fps_mode = val;
+		pr_info("set variable_fps_mode %d\n", variable_fps_mode);
 	} else {
 		pr_info("unsupport cmd\n");
 	}

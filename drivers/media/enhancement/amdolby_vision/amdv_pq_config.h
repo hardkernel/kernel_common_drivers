@@ -17,6 +17,7 @@
 #define MAX_DV_PICTUREMODES 40
 #define AMBIENT_CFG_FRAMES 46
 #define AMBIENT_CFG_FRAMES_2 120
+#define VARIABLE_FPS_COUNT 4
 
 # pragma pack(push, 1)
 struct tgt_out_csc_cfg {
@@ -315,7 +316,7 @@ extern struct dynamic_cfg_s dynamic_test_cfg_3[AMBIENT_CFG_FRAMES];
 extern struct dynamic_cfg_s dynamic_test_cfg_4[AMBIENT_CFG_FRAMES_2];
 extern struct target_config_dvp def_tgt_dvp_cfg;
 extern bool pic_mode_changed;
-
+extern u32 variable_fps[VARIABLE_FPS_COUNT];
 void restore_dv_pq_setting(enum pq_reset_e pq_reset);
 bool load_dv_pq_config_data(char *bin_path, char *txt_path);
 bool cp_dv_pq_config_data(void);
