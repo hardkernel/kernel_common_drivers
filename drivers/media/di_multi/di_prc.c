@@ -7251,7 +7251,7 @@ static noinline int __invoke_psci_fn_vpub_smc(u64 function_id, u64 arg0,
 
 void di_probe_vpub_en_set(u32 enable)
 {
-	if (DIM_IS_IC(S5) && cfgg(HF)) {
+	if ((DIM_IS_IC(S5) || DIM_IS_IC(T3X)) && cfgg(HF)) {
 		if (enable)
 			__invoke_psci_fn_vpub_smc(0x82000080, 1, 0, 0);
 		else

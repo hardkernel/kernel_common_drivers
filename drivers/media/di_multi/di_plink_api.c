@@ -4050,12 +4050,12 @@ void dpvpp_secure_pre_en(bool is_tvp)
 		if (DIM_IS_IC_EF(SC2)) {
 			DIM_DI_WR(DI_PRE_SEC_IN, 0x3F);//secure
 		} else {
-		#ifdef CONFIG_AMLOGIC_TEE
+		#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 			tee_config_device_state(16, 1);
 		#endif
 		}
-		if (DIM_IS_IC(S5)) {
-		#ifdef CONFIG_AMLOGIC_TEE
+		if (DIM_IS_IC(S5) || DIM_IS_IC(T3X)) {
+		#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 			tee_write_reg_bits
 				(((DI_VIUB_SECURE_REG << 2) + 0xff800000),
 				 1, 8, 1);// HF secure Polarity
@@ -4066,12 +4066,12 @@ void dpvpp_secure_pre_en(bool is_tvp)
 		if (DIM_IS_IC_EF(SC2)) {
 			DIM_DI_WR(DI_PRE_SEC_IN, 0x0);
 		} else {
-		#ifdef CONFIG_AMLOGIC_TEE
+		#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 			tee_config_device_state(16, 0);
 		#endif
 		}
-		if (DIM_IS_IC(S5)) {
-		#ifdef CONFIG_AMLOGIC_TEE
+		if (DIM_IS_IC(S5) || DIM_IS_IC(T3X)) {
+		#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 			tee_write_reg_bits
 				(((DI_VIUB_SECURE_REG << 2) + 0xff800000),
 				 0, 8, 1);// HF secure Polarity
