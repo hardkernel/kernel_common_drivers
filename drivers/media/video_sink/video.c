@@ -13468,11 +13468,13 @@ static struct mconfig video_configs[] = {
 };
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+#include <linux/amlogic/media/di/di_interface.h>
 static void video_early_suspend(struct early_suspend *h)
 {
 	safe_switch_videolayer(0, false, false);
 	safe_switch_videolayer(1, false, false);
 	safe_switch_videolayer(2, false, false);
+	di_disable_prelink_notify(0);
 	video_suspend = true;
 	pr_info("%s ok\n", __func__);
 }
