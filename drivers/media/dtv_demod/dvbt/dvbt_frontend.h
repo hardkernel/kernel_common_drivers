@@ -7,8 +7,6 @@
 
 #define __DVBT_FRONTEND_H__
 
-int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status);
-int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status);
 int dvbt_read_ber(struct dvb_frontend *fe, u32 *ber);
 int dvbt_read_snr(struct dvb_frontend *fe, u16 *snr);
 int dvbt2_read_snr(struct dvb_frontend *fe, u16 *snr);
@@ -18,6 +16,8 @@ int dvbt2_set_frontend(struct dvb_frontend *fe);
 int dvbt_tune(struct dvb_frontend *fe, bool re_tune,
 	unsigned int mode_flags, unsigned int *delay, enum fe_status *status);
 int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
+	unsigned int mode_flags, unsigned int *delay, enum fe_status *status);
+int dvbtx_tune(struct dvb_frontend *fe, bool re_tune,
 	unsigned int mode_flags, unsigned int *delay, enum fe_status *status);
 unsigned int dvbt_init(struct aml_dtvdemod *demod);
 unsigned int dtvdemod_dvbt2_init(struct aml_dtvdemod *demod);

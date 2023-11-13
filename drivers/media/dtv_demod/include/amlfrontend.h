@@ -151,6 +151,7 @@
 /*  V3.5.024 fix dvbs diseqc timing */
 /*  V3.5.025 fix dvbc blind scan init issue */
 /*  V3.5.026 support dtmb 6M BW */
+/*  V3.5.027 Support switching auto between dvb-t and t2 */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -167,8 +168,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.26"
-#define DTVDEMOD_VER	"2023/11/30: support dtmb 6M BW"
+#define AMLDTVDEMOD_VER "V3.5.027"
+#define DTVDEMOD_VER	"2023/12/01: Support switching auto between dvb-t and t2"
 #define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

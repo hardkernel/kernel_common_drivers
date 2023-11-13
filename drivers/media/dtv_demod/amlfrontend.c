@@ -80,9 +80,15 @@
 #include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 
+//dvb-c
 MODULE_PARM_DESC(dvbc_new_driver, "\n\t\t use dvbc new driver to work");
 static unsigned char dvbc_new_driver;
 module_param(dvbc_new_driver, byte, 0644);
+
+//dvb-t/t2 auto
+static unsigned char dvbtx_auto;
+MODULE_PARM_DESC(dvbtx_auto, "\n\t\t dvb-t/t2 auto switch");
+module_param(dvbtx_auto, byte, 0644);
 
 int aml_demod_debug = DBG_INFO;
 module_param(aml_demod_debug, int, 0644);
@@ -1850,7 +1856,7 @@ void __exit aml_dtvdemod_exit(void)
 	PR_INFO("%s ok.\n", __func__);
 }
 
-static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
+int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	enum fe_delivery_system ldelsys = demod->last_delsys;
@@ -2720,11 +2726,17 @@ static int aml_dtvdm_tune(struct dvb_frontend *fe, bool re_tune,
 #endif
 #ifdef AML_DEMOD_SUPPORT_DVBT
 	case SYS_DVBT:
-		ret = dvbt_tune(fe, re_tune, mode_flags, delay, status);
+		if (dvbtx_auto)
+			ret = dvbtx_tune(fe, re_tune, mode_flags, delay, status);
+		else
+			ret = dvbt_tune(fe, re_tune, mode_flags, delay, status);
 		break;
 
 	case SYS_DVBT2:
-		ret = dvbt2_tune(fe, re_tune, mode_flags, delay, status);
+		if (dvbtx_auto)
+			ret = dvbtx_tune(fe, re_tune, mode_flags, delay, status);
+		else
+			ret = dvbt2_tune(fe, re_tune, mode_flags, delay, status);
 		break;
 #endif
 #ifdef AML_DEMOD_SUPPORT_ISDBT

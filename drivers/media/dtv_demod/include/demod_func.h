@@ -1132,5 +1132,6 @@ void demod_enable_frontend_agc(struct aml_dtvdemod *demod,
 void fe_l2a_set_symbol_rate(struct fe_l2a_internal_param *pparams, unsigned int symbol_rate);
 #endif
 void fe_l2a_get_agc2accu(struct fe_l2a_internal_param *pparams, unsigned int *pintegrator);
+int delsys_set(struct dvb_frontend *fe, unsigned int delsys);
 
 #endif
