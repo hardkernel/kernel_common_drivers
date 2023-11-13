@@ -12622,7 +12622,7 @@ static const struct vecm_match_data_s vecm_dt_sm1 = {
 
 static const struct vecm_match_data_s vecm_dt_tm2 = {
 	.chip_id = chip_other,
-	.chip_cls = STB_CHIP,
+	.chip_cls = TV_CHIP,
 	.vlk_chip = vlock_chip_tm2,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -12633,7 +12633,7 @@ static const struct vecm_match_data_s vecm_dt_tm2 = {
 
 static const struct vecm_match_data_s vecm_dt_tm2_verb = {
 	.chip_id = chip_other,
-	.chip_cls = STB_CHIP,
+	.chip_cls = TV_CHIP,
 	.vlk_chip = vlock_chip_tm2,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -13428,8 +13428,8 @@ static int amvecm_drv_suspend(struct platform_device *pdev,
 	if (probe_ok == 1)
 		probe_ok = 0;
 
-	//if (is_meson_t5d_cpu())
-	vlock_clk_suspend();
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
+		vlock_clk_suspend();
 	pr_info("amvecm: suspend module\n");
 	return 0;
 }
@@ -13439,8 +13439,8 @@ static int amvecm_drv_resume(struct platform_device *pdev)
 	if (probe_ok == 0)
 		probe_ok = 1;
 
-	//if (is_meson_t5d_cpu())
-	vlock_clk_resume();
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
+		vlock_clk_resume();
 	pr_info("amvecm: resume module\n");
 	return 0;
 }
