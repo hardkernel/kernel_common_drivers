@@ -349,17 +349,44 @@ ssize_t suspend_reason_store(struct class *class,
 
 	ret = kstrtouint(buf, 0, &suspend_reason);
 
-	switch (ret) {
-	case 1:
-		__invoke_psci_fn_smc(0x82000042, suspend_reason, 0, 0);
-		break;
-	default:
+	if (ret)
 		return -EINVAL;
-	}
+
 	return count;
 }
 
 static CLASS_ATTR_RW(suspend_reason);
+
+static unsigned int suspend_mode;
+
+ssize_t suspend_mode_show(struct class *class,
+			    struct class_attribute *attr,
+			    char *buf)
+{
+	unsigned int len;
+
+	len = sprintf(buf, "%d\n", suspend_mode);
+
+	return len;
+}
+
+ssize_t suspend_mode_store(struct class *class,
+			     struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	int ret;
+
+	ret = kstrtouint(buf, 0, &suspend_mode);
+
+	if (ret)
+		return ret;
+
+	__invoke_psci_fn_smc(0x82000042, suspend_mode, 0, 0);
+
+	return count;
+}
+
+static CLASS_ATTR_RW(suspend_mode);
 
 ssize_t time_out_show(struct class *class, struct class_attribute *attr,
 		      char *buf)
@@ -396,6 +423,7 @@ static CLASS_ATTR_RW(time_out);
 
 static struct attribute *meson_pm_attrs[] = {
 	&class_attr_suspend_reason.attr,
+	&class_attr_suspend_mode.attr,
 	&class_attr_time_out.attr,
 #if IS_ENABLED(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND)
 	&class_attr_early_suspend_trigger.attr,
