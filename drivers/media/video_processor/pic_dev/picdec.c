@@ -1494,6 +1494,8 @@ int picdec_buffer_init(void)
 	picdec_device.vinfo = get_current_vinfo();
 	picdec_device.disp_width = picdec_device.vinfo->width;
 	picdec_device.disp_height = picdec_device.vinfo->height;
+	if (picdec_device.disp_width == 3840 && picdec_device.disp_height == 1080)
+		picdec_device.disp_height = 2160;
 
 	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) &&
 	    ((picdec_device.disp_width * picdec_device.disp_height) >=
