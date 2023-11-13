@@ -2145,7 +2145,7 @@ void v4lvideo_recycle_vf(void *caller_data, struct file *file, int instance_id)
 	if (vf_p) {
 		if (!v4lvideo_file) {
 			pr_err("%s: vf_p && v4lvideo_file is NULL\n", __func__);
-			mutex_unlock(&v4lvideo_buf_mgr_mutex);
+			mutex_unlock(&dev->mutex_input);
 			return;
 		}
 		if (file_private_data->is_keep) {
