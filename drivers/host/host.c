@@ -100,6 +100,38 @@ static int host_dump_memory(const void *buf, unsigned int bytes, int col)
 	return 0;
 }
 
+static unsigned int host_mbox_transfer(struct host_module *host)
+{
+	u32 cfg0;
+	u32 addr;
+	int ret;
+
+	switch (host->start_pos) {
+	case PURE_DDR:
+		addr = host->phys_ddr_addr;
+		break;
+	case PURE_SRAM:
+		addr = host->phys_sram_addr;
+		break;
+	default:
+		return 0;
+	};
+
+	cfg0 = 0x1 |  1 << 1 | 1 << 2;
+	host->mbox_buf.id = host->hostid;
+	host->mbox_buf.addr = addr;
+	host->mbox_buf.cfg0 = cfg0;
+
+	ret = aml_mbox_transfer_data(host->init_mbox_chan, MBOX_CMD_INIT_DSP,
+			&host->mbox_buf, sizeof(host->mbox_buf), NULL, 0, MBOX_SYNC);
+	if (ret < 0) {
+		dev_err(host->dev, "mbox transfer data  error %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
 static unsigned long host_psci_smc(struct host_module *host)
 {
 	struct arm_smccc_res res = {0};
@@ -150,7 +182,10 @@ static int host_clk_enable(struct host_module *host)
 static void host_bootup(struct host_module *host)
 {
 	host_clk_enable(host);
-	host_psci_smc(host);
+	if (!IS_ERR_OR_NULL(host->init_mbox_chan))
+		host_mbox_transfer(host);
+	else
+		host_psci_smc(host);
 }
 
 static int host_fw_copy_to_memory(const struct firmware *fw,
