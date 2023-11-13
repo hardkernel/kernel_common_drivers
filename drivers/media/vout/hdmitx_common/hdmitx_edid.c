@@ -492,9 +492,9 @@ int hdmitx_edid_validate_format_para(struct tx_cap *txcap,
 		break;
 	}
 
-	/* DVI case, only 8bit */
+	/* DVI case, only rgb,8bit */
 	if (prxcap->ieeeoui != HDMI_IEEE_OUI) {
-		if (para->cd != COLORDEPTH_24B)
+		if (para->cd != COLORDEPTH_24B || para->cs != HDMI_COLORSPACE_RGB)
 			return -EPERM;
 	}
 
