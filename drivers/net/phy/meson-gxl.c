@@ -347,13 +347,19 @@ static int custom_internal_config(struct phy_device *phydev)
 	}
 	/*txhd2*/
 	if (voltage_phy == 2) {
-		phy_tst_write(phydev, 0x16, 0x8400);
-		pr_debug("setup voltage phy %x\n", phy_tst_read(phydev, 0x16));
+		phy_tst_write(phydev, 0x16, 0x8402);
+		phy_tst_write(phydev, 0x15, 0x4408);
+		pr_debug("setup voltage phy reg16 %x reg15 %x\n",
+				phy_tst_read(phydev, 0x16),
+				phy_tst_read(phydev, 0x15));
 	}
 	/*s1a*/
 	if (voltage_phy == 3) {
-		phy_tst_write(phydev, 0x16, 0x8400);
-		pr_debug("setup voltage phy %x\n", phy_tst_read(phydev, 0x16));
+		phy_tst_write(phydev, 0x16, 0x8402);
+		phy_tst_write(phydev, 0x15, 0x4408);
+		pr_debug("setup voltage phy reg16 %x reg15 %x\n",
+				phy_tst_read(phydev, 0x16),
+				phy_tst_read(phydev, 0x15));
 	}
 	return 0;
 }
