@@ -1473,10 +1473,9 @@ static bool edid_y420cmdb_postprocess(struct rx_cap *rxcap)
 		p = &rxcap->y420cmdb_bitmap[i];
 		for (j = 0; j < 8; j++) {
 			valid = ((*p >> j) & 0x1);
-			vic = rxcap->VIC[i * 8 + j];
+			vic = rxcap->SVD_VIC[i * 8 + j];
 			if (valid != 0 &&
 			    hdmitx_mode_validate_y420_vic(rxcap->VIC[i * 8 + j])) {
-				store_cea_idx(rxcap, vic);
 				store_y420_idx(rxcap, vic);
 			}
 		}
@@ -1986,6 +1985,8 @@ static void _store_vics(struct rx_cap *prxcap, u8 vic_dat)
 		return;
 
 	if (vic_bit6_0 >= 1 && vic_bit6_0 <= 64) {
+		prxcap->SVD_VIC[prxcap->SVD_VIC_count] = vic_bit6_0;
+		prxcap->SVD_VIC_count++;
 		store_cea_idx(prxcap, vic_bit6_0);
 		if (vic_bit7) {
 			if (prxcap->native_vic && !prxcap->native_vic2)
@@ -1994,6 +1995,8 @@ static void _store_vics(struct rx_cap *prxcap, u8 vic_dat)
 				prxcap->native_vic = vic_bit6_0;
 		}
 	} else {
+		prxcap->SVD_VIC[prxcap->SVD_VIC_count] = vic_dat;
+		prxcap->SVD_VIC_count++;
 		store_cea_idx(prxcap, vic_dat);
 	}
 }
@@ -2025,7 +2028,9 @@ static int hdmitx_edid_cta_block_parse(struct rx_cap *prxcap, u8 *block_buf)
 	end = block_buf[2]; /* CEA description. */
 	prxcap->native_Mode = block_buf[1] >= 2 ? block_buf[3] : 0;
 	prxcap->number_of_dtd += block_buf[1] >= 2 ? (block_buf[3] & 0xf) : 0;
-
+	/* Initialize SVD_VIC used for SVD storage in the video data block */
+	prxcap->SVD_VIC_count = 0;
+	memset(prxcap->SVD_VIC, 0, sizeof(prxcap->SVD_VIC));
 	/* do not reset anything during parsing as there could be
 	 * more than one block. Below variable should be reset once
 	 * before parsing and are already being reset before parse
@@ -2082,6 +2087,9 @@ static int hdmitx_edid_cta_block_parse(struct rx_cap *prxcap, u8 *block_buf)
 					VIC &= (~0x80);
 					prxcap->native_vic = VIC;
 				}
+				/* The SVD in the video data block is stored in SVD_VIC
+				 * and mapped with 420 CMDB
+				 */
 				_store_vics(prxcap, block_buf[offset + i]);
 			}
 			offset += count;

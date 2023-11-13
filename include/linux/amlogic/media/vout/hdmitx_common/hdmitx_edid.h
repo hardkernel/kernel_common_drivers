@@ -98,8 +98,10 @@ struct rx_cap {
 	u32 native_Mode;
 	/*video*/
 	u32 VIC[VIC_MAX_NUM];
+	u32 SVD_VIC[SVD_VIC_MAX_NUM]; /* used to store SVD in VDB */
 	u32 y420_vic[Y420_VIC_MAX_NUM];
 	u32 VIC_count;
+	u32 SVD_VIC_count;
 	u32 native_vic;
 	u32 native_vic2; /* some Rx has two native mode, normally only one */
 

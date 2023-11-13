@@ -12,6 +12,7 @@
 
 /* half for valid vic, half for vic with y420*/
 #define VIC_MAX_NUM 512
+#define SVD_VIC_MAX_NUM 128
 #define VESA_MAX_TIMING 64
 #define Y420_VIC_MAX_NUM 32 /* vic numbers for y420 */
 
