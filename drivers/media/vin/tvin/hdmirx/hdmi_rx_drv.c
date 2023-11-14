@@ -159,7 +159,7 @@ int en_4k_timing = 1;
 u32 ops_port;
 int cec_dev_en;
 bool dev_is_apple_tv_v2;
-bool hdmi_cec_en;
+int hdmi_cec_en = 0xff;
 static bool tv_auto_power_on;
 int vdin_drop_frame_cnt = 1;
 int vdin_reset_pcs_en;

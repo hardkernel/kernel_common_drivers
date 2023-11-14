@@ -227,6 +227,7 @@ void cor_debug_t3x(u8 port);
 void clr_frl_fifo_status(u8 port);
 void rx_rcc_err_frl_config(u8 port);
 void rx_read_ecc_err(u8 port);
+bool is_fsm_ready_t3x(void);
 
 //void reset_pcs(void);
 

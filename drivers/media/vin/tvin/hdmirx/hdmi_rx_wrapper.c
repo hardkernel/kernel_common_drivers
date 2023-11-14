@@ -100,7 +100,7 @@ int reset_pcs_cnt = 10;
 int port_debug_en;
 int flt_ready_max = 3;
 //for rs err test
-int frl_debug_en;
+int frl_debug_en = 2;
 int rs_err_chk;
 int err_cnt = 100;
 //static int auds_rcv_sts;
@@ -5580,6 +5580,7 @@ void rx_port0_main_state_machine(void)
 		dbg_port)
 		return;
 
+	rx_cable_clk_monitor(port);
 	if (port != rx_info.main_port && port != rx_info.sub_port) {
 		if (rx[port].state >= FSM_SIG_HOLD)
 			rx[port].state = FSM_SIG_HOLD;
@@ -6066,7 +6067,7 @@ void rx_port1_main_state_machine(void)
 	if ((dbg_port - 1 != port) &&
 		dbg_port)
 		return;
-
+	rx_cable_clk_monitor(port);
 	if (port != rx_info.main_port && port != rx_info.sub_port) {
 		if (rx[port].state >= FSM_SIG_HOLD)
 			rx[port].state = FSM_SIG_HOLD;
@@ -6559,6 +6560,7 @@ void rx_port2_main_state_machine(void)
 	if ((dbg_port - 1 != port) &&
 		dbg_port)
 		return;
+	rx_cable_clk_monitor(port);
 	if (port != rx_info.main_port && port != rx_info.sub_port) {
 		if (rx[port].state >= FSM_SIG_HOLD)
 			rx[port].state = FSM_SIG_HOLD;
@@ -7117,6 +7119,7 @@ void rx_port3_main_state_machine(void)
 	if ((dbg_port - 1 != port) &&
 		dbg_port)
 		return;
+	rx_cable_clk_monitor(port);
 	if (port != rx_info.main_port && port != rx_info.sub_port) {
 		if (rx[port].state >= FSM_SIG_HOLD)
 			rx[port].state = FSM_SIG_HOLD;
@@ -8325,7 +8328,8 @@ void rx_ext_state_monitor(u8 port)
 		rx[port].fsm_ext_state = FSM_NULL;
 		if (rx[port].state != rx[port].pre_state) {
 			if (log_level & LOG_EN)
-				rx_pr("fsm (%s) to (%s)\n",
+				rx_pr("fsm %d (%s) to (%s)\n",
+				port,
 				fsm_st[rx[port].pre_state],
 				fsm_st[rx[port].state]);
 			rx[port].pre_state = rx[port].state;
@@ -8381,10 +8385,69 @@ void rx_hpd_monitor(void)
 	}
 }
 
+void hdmirx_timer_t3x(void)
+{
+	int port;
+
+	if (is_fsm_ready_t3x()) {
+		if (!sm_pause) {
+			for (port = E_PORT0; port < E_PORT_NUM; port++) {
+				if (rx_info.main_port_open)
+					rx_nosig_monitor(port);
+				rx_clk_rate_monitor(port);
+				//t3x do not need ddc monitor
+				//rx_ddc_active_monitor(port);
+				rx_hdcp_monitor(port);
+				//rm cor reset for t3x txhd2 t5m
+				rx_afifo_monitor(port);
+				// no need hdcp22_decrypt
+				//hdcp22_decrypt_monitor(port);
+				rx_ext_state_monitor(port);
+			}
+			rx_port0_main_state_machine();
+			rx_port1_main_state_machine();
+			rx_port2_main_state_machine();
+			rx_port3_main_state_machine();
+		}
+		#ifdef K_TEST_CHK_ERR_CNT
+		if (err_chk_en) {
+			for (port = E_PORT0; port < E_PORT_NUM; port++)
+				rx_monitor_error_counter(port);
+		}
+		#endif
+	}
+}
+
+void hdmirx_timer_t3x_pre(void)
+{
+	if (rx_info.main_port_open || rx[rx_info.main_port].resume_flag) {
+		rx_nosig_monitor(rx_info.main_port);
+		rx_cable_clk_monitor(rx_info.main_port);
+		rx_check_repeat(rx_info.main_port);
+		if (!(rpt_only_mode && !rx[rx_info.main_port].hdcp.repeat)) {
+			if (!sm_pause) {
+				rx_clk_rate_monitor(rx_info.main_port);
+				rx_ddc_active_monitor(rx_info.main_port);
+				rx_hdcp_monitor(rx_info.main_port);
+				rx_afifo_monitor(rx_info.main_port);
+				hdcp22_decrypt_monitor(rx_info.main_port);
+				rx_ext_state_monitor(rx_info.main_port);
+				rx_main_state_machine();
+				//rx_hpd_monitor();
+			}
+			/* rx_pkt_check_content(rx_info.main_port); */
+			#ifdef K_TEST_CHK_ERR_CNT
+			if (err_chk_en) {
+				rx_monitor_error_counter(rx_info.main_port);
+			}
+			#endif
+		}
+	}
+}
+
 void hdmirx_timer_handler(struct timer_list *t)
 {
 	struct hdmirx_dev_s *devp = from_timer(devp, t, timer);
-	int port;
 
 	if (term_flag && term_cal_en) {
 		rx_phy_rt_cal();
@@ -8393,41 +8456,10 @@ void hdmirx_timer_handler(struct timer_list *t)
 	rx_5v_monitor();
 	rx_clkmsr_monitor();
 	rx_hpd_monitor();
-	if (rx_info.main_port_open || rx[rx_info.main_port].resume_flag) {
-		for (port = E_PORT0; port < E_PORT_NUM; port++) {
-			rx_nosig_monitor(port);
-			rx_cable_clk_monitor(port);
-			rx_check_repeat(port);
-		}
-		if (!(rpt_only_mode && !rx[rx_info.main_port].hdcp.repeat)) {
-			if (!sm_pause) {
-				for (port = E_PORT0; port < E_PORT_NUM; port++) {
-					rx_clk_rate_monitor(port);
-					rx_ddc_active_monitor(port);
-					rx_hdcp_monitor(port);
-					rx_afifo_monitor(port);
-					hdcp22_decrypt_monitor(port);
-					rx_ext_state_monitor(port);
-				}
-				if (rx_info.chip_id < CHIP_ID_T3X) {
-					rx_main_state_machine();
-					rx_hpd_monitor();
-				} else {
-					rx_port0_main_state_machine();
-					rx_port1_main_state_machine();
-					rx_port2_main_state_machine();
-					rx_port3_main_state_machine();
-				}
-			}
-			/* rx_pkt_check_content(rx_info.main_port); */
-			#ifdef K_TEST_CHK_ERR_CNT
-			if (err_chk_en) {
-				for (port = E_PORT0; port < E_PORT_NUM; port++)
-					rx_monitor_error_counter(port);
-			}
-			#endif
-		}
-	}
+	if (rx_info.chip_id == CHIP_ID_T3X)
+		hdmirx_timer_t3x();
+	else
+		hdmirx_timer_t3x_pre();
 	devp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&devp->timer);
 }
