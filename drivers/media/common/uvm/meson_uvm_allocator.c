@@ -50,6 +50,17 @@ module_param_named(force_skip_fill, force_skip_fill, int, 0664);
 			pr_info("MUA: " fmt, ## arg); \
 	} while (0)
 
+#define UVM_DECODER_NODE_NUM 32
+#define UVM_DECODER_PARA_NUM 6 // (sizeof(struct uvm_decoder_para) / sizeof(uint32_t))
+static int uvm_decoder_para_num = UVM_DECODER_PARA_NUM * UVM_DECODER_NODE_NUM;
+/*
+ * The values in the array represent width and height respectively.
+ * If the first value is 0, the second value represents size.
+ * If both values are 0, it means that the node has been released.
+ */
+static int decoder_para[UVM_DECODER_PARA_NUM * UVM_DECODER_NODE_NUM] = { 0 };
+module_param_array(decoder_para, uint, &uvm_decoder_para_num, 0644);
+
 static bool mua_is_valid_dmabuf(int fd)
 {
 	struct dma_buf *dmabuf = NULL;
@@ -714,6 +725,44 @@ static int mua_detach(int fd, int type)
 	return ret;
 }
 
+static int mua_set_decoder_para(struct uvm_decoder_para *para)
+{
+	int ret = 0;
+	struct uvm_decoder_para *node;
+
+	if (para->slot_id >= UVM_DECODER_NODE_NUM) {
+		MUA_PRINTK(MUA_ERROR, "%s: slot_id = %u is invalid!\n", __func__, para->slot_id);
+		return -EINVAL;
+	}
+
+	node = (struct uvm_decoder_para *)decoder_para + para->slot_id;
+	*node = *para;
+
+	MUA_PRINTK(MUA_INFO, "%s: set for slot %u. w*h(%u*%u) align_w*h(%u*%u) size(%u)\n",
+		__func__, para->slot_id, para->width, para->height,
+		para->w_align, para->h_align, para->size);
+	return ret;
+}
+
+static int mua_get_decoder_para(struct uvm_decoder_para *para)
+{
+	int ret = 0;
+	struct uvm_decoder_para *node;
+
+	if (para->slot_id >= UVM_DECODER_NODE_NUM) {
+		MUA_PRINTK(MUA_ERROR, "%s: slot_id = %u is invalid!\n", __func__, para->slot_id);
+		return -EINVAL;
+	}
+
+	node = (struct uvm_decoder_para *)decoder_para + para->slot_id;
+	*para = *node;
+
+	MUA_PRINTK(MUA_INFO, "%s: get for slot %u. w*h(%u*%u) align_w*h(%u*%u) size(%u)\n",
+		__func__, para->slot_id, para->width, para->height,
+		para->w_align, para->h_align, para->size);
+	return ret;
+}
+
 static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct mua_device *md;
@@ -902,6 +951,14 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		data.fd_info.type = videotype;
 		data.fd_info.timestamp = timestamp;
 
+		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
+			return -EFAULT;
+		break;
+	case UVM_IOC_SET_DECODER_PARA:
+		ret = mua_set_decoder_para(&data.decode_para);
+		break;
+	case UVM_IOC_GET_DECODER_PARA:
+		ret = mua_get_decoder_para(&data.decode_para);
 		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
 			return -EFAULT;
 		break;
