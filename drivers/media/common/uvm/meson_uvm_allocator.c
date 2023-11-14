@@ -41,6 +41,8 @@ static int mua_debug_level = MUA_ERROR;
 module_param(mua_debug_level, int, 0644);
 static int realloc_size;
 module_param(realloc_size, int, 0644);
+static int force_skip_fill;
+module_param_named(force_skip_fill, force_skip_fill, int, 0664);
 
 #define MUA_PRINTK(level, fmt, arg...) \
 	do {	\
@@ -171,6 +173,11 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		skip_fill_buf = true;
 	}
 
+	if (force_skip_fill) {
+		MUA_PRINTK(MUA_DBG, "gpu_realloc: force skip fill buffer.\n");
+		skip_fill_buf = true;
+	}
+
 	if (buffer->idmabuf[1])
 		pre_size = buffer->idmabuf[1]->size;
 	else
@@ -179,6 +186,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		new_size = buffer->origin_size;
 	else
 		new_size = mua_calc_real_dmabuf_size(buffer);
+	new_size = PAGE_ALIGN(new_size);
 	MUA_PRINTK(MUA_INFO, "buffer(0x%p)->size:%zu realloc new_size=%zu, pre_size = %zu\n",
 			buffer, buffer->size, new_size, pre_size);
 	if (new_size < pre_size)
