@@ -266,8 +266,6 @@ struct optee_timer_data {
 	u32 timeout;
 	struct delayed_work work;
 	struct list_head list_node;
-	u32 delay_cancel;
-	u32 working;
 };
 
 static void timer_work_task(struct work_struct *work)
@@ -302,22 +300,15 @@ static void timer_work_task(struct work_struct *work)
 	arg.session = timer_data->sess;
 	arg.num_params = 4;
 	arg.func = 0xFFFFFFFE;
-	mutex_lock(&timer->mutex);
-	timer_data->working = 1;
-	mutex_unlock(&timer->mutex);
 	ret = optee_invoke_func(ctx, &arg, params);
 	if (ret != 0)
 		pr_err("%s: invoke cmd failed ret = 0x%x\n", __func__, ret);
 
-	mutex_lock(&timer->mutex);
-	if (timer_data->delay_cancel ||
-			(!(timer_data->flags & TEE_SECURE_TIMER_FLAG_PERIOD))) {
+	if (!(timer_data->flags & TEE_SECURE_TIMER_FLAG_PERIOD)) {
 		list_del(&timer_data->list_node);
 		kfree(timer_data);
-		mutex_unlock(&timer->mutex);
+		return;
 	} else {
-		timer_data->working = 0;
-		mutex_unlock(&timer->mutex);
 		queue_delayed_work(wq, &timer_data->work,
 				msecs_to_jiffies(timer_data->timeout));
 	}
@@ -366,10 +357,6 @@ void optee_timer_missed_destroy(struct tee_context *ctx, u32 session)
 	mutex_lock(&timer->mutex);
 	list_for_each_entry_safe(timer_data, temp, &timer->timer_list, list_node) {
 		if (timer_data && timer_data->ctx == ctx && timer_data->sess == session) {
-			if (timer_data->working) {
-				timer_data->delay_cancel = 1;
-				continue;
-			}
 			cancel_delayed_work_sync(&timer_data->work);
 			list_del(&timer_data->list_node);
 			kfree(timer_data);
@@ -405,8 +392,6 @@ static void handle_rpc_func_cmd_timer_create(struct tee_context *ctx,
 	timer_data->handle = arg->params[0].u.value.b;
 	timer_data->timeout = arg->params[1].u.value.a;
 	timer_data->flags = arg->params[1].u.value.b;
-	timer_data->delay_cancel = 0;
-	timer_data->working = 0;
 	INIT_DELAYED_WORK(&timer_data->work, timer_work_task);
 
 	mutex_lock(&timer->mutex);
@@ -438,12 +423,7 @@ static void handle_rpc_func_cmd_timer_destroy(struct tee_context *ctx,
 	mutex_lock(&timer->mutex);
 	list_for_each_entry(timer_data, &timer->timer_list, list_node) {
 		if (timer_data->handle == handle) {
-			if (timer_data->working) {
-				timer_data->delay_cancel = 1;
-				arg->ret = TEEC_SUCCESS;
-				goto out;
-			}
-			cancel_delayed_work(&timer_data->work);
+			cancel_delayed_work_sync(&timer_data->work);
 			list_del(&timer_data->list_node);
 			kfree(timer_data);
 
