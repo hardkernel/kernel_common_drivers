@@ -2326,6 +2326,12 @@
 	vout_mux: vout_mux {
 		compatible = "amlogic, vout_mux-s5";
 		status = "okay";
+		assigned-clocks = <&clkc CLKID_VIN_MEAS_SEL>,
+				<&clkc CLKID_VIN_MEAS>;
+		assigned-clock-parents = <&clkc CLKID_FCLK_DIV5>,
+				<0>; /* Do Nothing */
+		assigned-clock-rates = <0>, /* Do Nothing */
+				<50000000>;
 		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VIN_MEAS>;
 		clock-names = "fclk_div5", "vdin_meas_clk";
 	};
