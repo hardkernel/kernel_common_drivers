@@ -114,6 +114,8 @@ int aipq_vf_set_value(struct uvm_aipq_info *aipq_info, bool enable_aipq)
 			vf = &file_private_data->vf;
 	}
 	if (vf) {
+		aipq_print(PRINT_OTHER, "%s: omx->index: %d, vf: %px, vf_ext: %px.\n",
+			__func__, vf->omx_index, vf, vf->vf_ext);
 		if (aipq_info->nn_do_aipq_type == NN_USE_HARDWARE) {
 			vf->aipq_flag = 0;
 			vf->aipq_flag |= AIPQ_FLAG_VERSION_1;
@@ -331,6 +333,8 @@ struct vframe_s *aipq_get_dw_vf(struct uvm_aipq_info *aipq_info)
 		dma_buf_put(dmabuf);
 		return NULL;
 	}
+	aipq_print(PRINT_OTHER, "%s: omx->index: %d, vf: %px, vf_ext: %px.\n",
+		__func__, vf->omx_index, vf, vf->vf_ext);
 	dma_buf_put(dmabuf);
 	return vf;
 }
@@ -422,10 +426,6 @@ int ge2d_vf_process(struct vframe_s *vf, struct ge2d_output_t *output)
 		ge2d_config->src_planes[2].h = cs2.height;
 		ge2d_config->src_para.canvas_index = vf->canvas0Addr;
 	}
-
-	aipq_print(PRINT_OTHER, "src width: %d, height: %d\n",
-		input_width, input_height);
-
 #ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
 	src_format = get_ge2d_input_format(vf);
 #endif
@@ -567,7 +567,6 @@ int attach_aipq_hook_mod_info(int shared_fd,
 	}
 
 	dmabuf = dma_buf_get(shared_fd);
-
 	if (IS_ERR_OR_NULL(dmabuf)) {
 		aipq_print(PRINT_ERROR,
 			"Invalid dmabuf %s %d\n", __func__, __LINE__);
