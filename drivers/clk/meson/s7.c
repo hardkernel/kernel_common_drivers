@@ -499,14 +499,13 @@ static struct clk_regmap _od_name = {					\
 			_n_reg, _n_shift, _n_width,			\
 			_l_reg, _l_shift, _l_width,			\
 			_r_reg, _r_shift, _r_width,			\
-			_od_reg, _od_shift, _od_width,			\
 			NULL, 0, _range, _table,			\
 			_smcid, _secid, _secid_dis, _dflags,		\
 			&meson_secure_pll_v2_ops,			\
 			NULL, _pdata, NULL, _iflags,			\
 			_name, _od_reg, _od_shift, _od_width,		\
 			_od_table, _od_smcid, _od_secid, _od_dflags,	\
-			&clk_regmap_divider_ro_ops, CLK_SET_RATE_PARENT)
+			&clk_regmap_secure_v2_divider_ops, CLK_SET_RATE_PARENT)
 #endif
 
 #define __MESON_CLK_COMPOSITE(_m_name, _m_reg, _m_mask, _m_shift,	\
@@ -638,7 +637,6 @@ MESON_CLK_PLL_SEC(sys_pll, ANACTRL_SYS0PLL_CTRL0, 28, 1,  /* en */
 		  ANACTRL_SYS0PLL_CTRL0, 11, 5,  /* n */
 		  ANACTRL_SYS0PLL_CTRL0, 31, 1,  /* lock */
 		  ANACTRL_SYS0PLL_CTRL0, 29, 1,  /* rst */
-		  //0, 0, 0,  /* th */
 		  NULL, sys_pll_params_table,
 		  SECURE_PLL_CLK, SECID_SYS0_DCO_PLL, SECID_SYS0_DCO_PLL_DIS,
 		  0,
@@ -657,7 +655,6 @@ MESON_CLK_PLL_SEC(sys1_pll, ANACTRL_SYS1PLL_CTRL0, 28, 1,  /* en */
 		  ANACTRL_SYS1PLL_CTRL0, 11, 5,  /* n */
 		  ANACTRL_SYS1PLL_CTRL0, 31, 1,  /* lock */
 		  ANACTRL_SYS1PLL_CTRL0, 29, 1,  /* rst */
-		  //0, 0, 0,  /* th */
 		  NULL, sys_pll_params_table,
 		  SECURE_PLL_CLK, SECID_SYS1_DCO_PLL, SECID_SYS1_DCO_PLL_DIS,
 		  0,
@@ -676,7 +673,6 @@ MESON_CLK_PLL_RO(fixed_pll, ANACTRL_FIXPLL_CTRL0, 28, 1,  /* en */
 		 ANACTRL_FIXPLL_CTRL0, 11, 5,  /* n */
 		 ANACTRL_FIXPLL_CTRL0, 31, 1,  /* lock */
 		 ANACTRL_FIXPLL_CTRL0, 29, 1,  /* rst */
-		 //0, 0, 0,  /* th */
 		 NULL, NULL,
 		 0, &pll_dco_parent, 0,
 		 ANACTRL_FIXPLL_CTRL0, 9, 2     /* od */
@@ -737,7 +733,6 @@ MESON_CLK_PLL_RW(gp0_pll, ANACTRL_GP0PLL_CTRL0, 28, 1,  /* en */
 		 ANACTRL_GP0PLL_CTRL0, 11, 5,  /* n */
 		 ANACTRL_GP0PLL_CTRL0, 31, 1,  /* lock */
 		 ANACTRL_GP0PLL_CTRL0, 29, 1,  /* rst */
-		 //0, 0, 0,  /* th */
 		 gp0_init_regs, NULL, gp0_pll_table,
 		 CLK_MESON_PLL_IGNORE_INIT,
 		 &pll_dco_parent, 0,
@@ -766,7 +761,6 @@ MESON_CLK_PLL_SEC(gp1_pll, ANACTRL_GP1PLL_CTRL0, 28, 1,  /* en */
 		  ANACTRL_GP1PLL_CTRL0, 11, 5,  /* n */
 		  ANACTRL_GP1PLL_CTRL0, 31, 1,  /* lock */
 		  ANACTRL_GP1PLL_CTRL0, 29, 1,  /* rst */
-		  //0, 0, 0,  /* th */
 		  NULL, gp1_pll_param_table,
 		  SECURE_PLL_CLK, SECID_GP1_DCO_PLL, SECID_GP1_DCO_PLL_DIS,
 		  0,
@@ -928,9 +922,9 @@ static const struct pll_params_table hifi_pll_table[] = {
 };
 #else
 static const struct pll_params_table hifi_pll_table[] = {
-	PLL_PARAMS(75, 1, 0), /* DCO = 1800M */
-	PLL_PARAMS(75, 1, 2), /* DCO = 1800M */
-	PLL_PARAMS(81, 1, 2), /* DCO = 1944M */
+	PLL_PARAMS(75, 1), /* DCO = 1800M */
+	PLL_PARAMS(75, 1), /* DCO = 1800M */
+	PLL_PARAMS(81, 1), /* DCO = 1944M */
 	{ /* sentinel */  }
 };
 #endif
@@ -956,7 +950,6 @@ MESON_CLK_PLL_RW(hifi_pll, ANACTRL_HIFI0PLL_CTRL0, 28, 1,  /* en */
 		 ANACTRL_HIFI0PLL_CTRL0, 11, 5,  /* n */
 		 ANACTRL_HIFI0PLL_CTRL0, 31, 1,  /* lock */
 		 ANACTRL_HIFI0PLL_CTRL0, 29, 1,  /* rst */
-		 //0, 0, 0,  /* th */
 		 hifi_init_regs, &hifi_pll_m, hifi_pll_table,
 		 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION,
 		 &hifi_pll_dco_parent_data, 0,
@@ -983,7 +976,6 @@ MESON_CLK_PLL_RW(hifi1_pll, ANACTRL_HIFI1PLL_CTRL0, 28, 1,  /* en */
 		 ANACTRL_HIFI1PLL_CTRL0, 11, 5,  /* n */
 		 ANACTRL_HIFI1PLL_CTRL0, 31, 1,  /* lock */
 		 ANACTRL_HIFI1PLL_CTRL0, 29, 1,  /* rst */
-		 //0, 0, 0,  /* th */
 		 hifi1_init_regs, &hifi_pll_m, hifi_pll_table,
 		 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION,
 		 &hifi_pll_dco_parent_data, 0,
