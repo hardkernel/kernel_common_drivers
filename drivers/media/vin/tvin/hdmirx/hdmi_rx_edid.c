@@ -475,8 +475,8 @@ void hdmirx_fill_edid_buf(const char *buf, int size)
 		//port2
 		u_offset += 256;
 		memcpy(edid_buf3, buf + u_offset, 256);
-		//if (!is_valid_edid_data(edid_buf3))
-			//err_chk = true;
+		if (!is_valid_edid_data(edid_buf3))
+			err_chk = true;
 		u_offset += 256;
 		memcpy(edid_buf3 + EDID_SIZE, buf + u_offset, 256);
 		if (!is_valid_edid_data(edid_buf3 + EDID_SIZE))
@@ -876,7 +876,7 @@ bool rx_edid_cal_phy_addr(u_int up_addr,
 		if (i == 4)
 			root_offset = 4;
 
-		for (i = 0; i < E_PORT_NUM; i++) {
+		for (i = 0; i < rx_info.port_num; i++) {
 			if (root_offset == 0)
 				phy_addr[i] = 0xFFFF;
 			else
@@ -887,7 +887,7 @@ bool rx_edid_cal_phy_addr(u_int up_addr,
 			phy_addr[i] = rx_exchange_bits(phy_addr[i]);
 		}
 	} else {
-		for (i = 0; i < E_PORT_NUM; i++)
+		for (i = 0; i < rx_info.port_num; i++)
 			phy_addr[i] = ((portmap >> i * 4) & 0xf) << 4;
 	}
 
@@ -4866,15 +4866,17 @@ void rpt_edid_extraction(unsigned char *p_edid)
 	rpt_edid_vsv_db_extraction(p_edid);
 }
 
-u_char rx_edid_calc_cksum(u_char *pedid)
+u_char rx_edid_calc_cksum(u_char *pedid, u8 blk_num)
 {
 	u_int i;
 	u_int checksum = 0;
+	u8 start = blk_num * EDID_BLK_SIZE;
+	u8 end = END_OF_BLK(blk_num);
 
 	if (!pedid)
 		return 0;
-	for (i = 0x80; i <= 0xFF; i++) {
-		if (i < 0xFF) {
+	for (i = start; i <= end; i++) {
+		if (i < end) {
 			checksum += pedid[i];
 			checksum &= 0xFF;
 		} else {
@@ -4926,7 +4928,7 @@ u_char *rx_get_cur_used_edid(u_char port)
 	return &edid_cur[0];
 }
 
-void rx_pirnt_edid_support(void)
+void rx_print_edid_support(void)
 {
 	rx_pr("****Capacity info****\n");
 	rx_pr("support vrr: %d\n", rx_info.edid_cap.vrr);
@@ -4956,6 +4958,7 @@ bool hdmi_rx_top_edid_update(void)
 	u_char *pedid = NULL;
 	u_int i = 0;
 	u_int j = 0;
+	u8 ext_blk_num;
 	static int edid_reset_cnt;
 
 	rx_edid_module_reset();
@@ -4969,7 +4972,7 @@ bool hdmi_rx_top_edid_update(void)
 			rx_pr("port-%d edid err!\n", i);
 			return false;
 		}
-
+		ext_blk_num = pedid[126];
 		rx_edid_update_hdr_dv_info(pedid);
 		rx_edid_update_sad(pedid);
 		rx_edid_update_vsvdb(pedid, recv_vsvdb, recv_vsvdb_len);
@@ -4978,13 +4981,14 @@ bool hdmi_rx_top_edid_update(void)
 		if (allm_update_en)
 			rx_edid_update_allm_info(pedid);
 		rpt_edid_extraction(pedid);
-		pedid[0xff] = rx_edid_calc_cksum(pedid);
+		for (j = 0; j <= ext_blk_num; ++j)
+			pedid[END_OF_BLK(j)] = rx_edid_calc_cksum(pedid, j);
 		for (j = 0; j < EDID_SIZE; j++)
 			hdmirx_wr_top(edid_addr[i] + j, pedid[j], i);
 		rx_get_edid_support(i);
 	}
 	if (log_level & EDID_LOG)
-		rx_pirnt_edid_support();
+		rx_print_edid_support();
 	return true;
 }
 

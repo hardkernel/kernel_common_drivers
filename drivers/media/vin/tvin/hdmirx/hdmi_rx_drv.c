@@ -1849,7 +1849,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 			}
 			port_hpd_rst_flag |= (1 << rx_info.main_port);
 		}
-		for (port_idx = E_PORT0; port_idx < E_PORT_NUM; port_idx++)
+		for (port_idx = E_PORT0; port_idx < rx_info.port_num; port_idx++)
 			fsm_restart(port_idx);
 		if (hdmi_cec_en && rx_info.boot_flag)
 			rx_force_hpd_rxsense_cfg(1);
@@ -2532,7 +2532,7 @@ static ssize_t info_show(struct device *dev,
 	if (rx_info.chip_id < CHIP_ID_T3X) {
 		pos = hdmirx_show_info(buf, PAGE_SIZE, port);
 	} else {
-		for (port = E_PORT0; port < E_PORT_NUM; port++)
+		for (port = E_PORT0; port < rx_info.port_num; port++)
 			pos += hdmirx_show_info(buf, PAGE_SIZE, port);
 	}
 
@@ -3924,7 +3924,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	hdmirx_hw_probe();
 	if (rx_info.chip_id >= CHIP_ID_TL1 && phy_tdr_en)
 		term_cal_en = (!is_ft_trim_done());
-	for (port = E_PORT0; port < E_PORT_NUM; port++)
+	for (port = E_PORT0; port < rx_info.port_num; port++)
 		hdmirx_init_params(port);
 	hdmirx_switch_pinmux(&pdev->dev);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND

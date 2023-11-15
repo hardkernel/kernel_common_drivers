@@ -100,7 +100,7 @@ void rx_pkt_debug(void)
 	u32 data32;
 	u8 i;
 
-	for (i = 0; i < E_PORT_NUM; i++)
+	for (i = 0; i < rx_info.port_num; i++)
 		memset(&rxpktsts[i], 0, sizeof(struct rxpkt_st));
 
 	data32 = hdmirx_rd_dwc(DWC_PDEC_CTRL);

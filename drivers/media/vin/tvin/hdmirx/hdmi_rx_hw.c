@@ -443,6 +443,11 @@ u32 hdmirx_rd_bits_top_common(u16 addr, u32 mask)
 	return rx_get_bits(hdmirx_rd_top_common(addr), mask);
 }
 
+u32 hdmirx_rd_bits_top_common_1(u16 addr, u32 mask)
+{
+	return rx_get_bits(hdmirx_rd_top_common_1(addr), mask);
+}
+
 /*
  * hdmirx_wr_top - Write data to hdmirx top reg
  * @addr: register address
@@ -1851,7 +1856,8 @@ EXPORT_SYMBOL(rx_set_audio_param);
  */
 u32 rx_get_hdmi5v_sts(void)
 {
-	return (hdmirx_rd_top_common(TOP_HPD_PWR5V) >> 20) & 0xf;
+	return (hdmirx_rd_top_common(TOP_HPD_PWR5V) >> 20) &
+		MSK(rx_info.port_num, 0);
 }
 EXPORT_SYMBOL(rx_get_hdmi5v_sts);
 
@@ -2746,7 +2752,7 @@ void rx_set_term_value_pre(unsigned char port, bool value)
 			wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32);
 		}
 	} else {
-		if (port < E_PORT_NUM) {
+		if (port < rx_info.port_num) {
 			if (value)
 				hdmirx_wr_bits_phy(PHY_MAIN_FSM_OVERRIDE1,
 						   _BIT(port + 4), 1);
@@ -2796,7 +2802,7 @@ void rx_set_term_value_t5m(unsigned char port, bool value)
 	u32 data32;
 
 	data32 = hdmirx_rd_amlphy(T5M_HDMIRX20PHY_DCHA_MISC2);
-	if (port < E_PORT_NUM) {
+	if (port < rx_info.port_num) {
 		if (value) {
 			data32 |= (1 << (28 + port));
 		} else {
@@ -2854,7 +2860,7 @@ void scdc_dwork_handler(struct work_struct *work)
 
 int rx_set_port_hpd(u8 port_id, bool val)
 {
-	if (port_id < E_PORT_NUM) {
+	if (port_id < rx_info.port_num) {
 		if (val) {
 			hdmirx_wr_bits_top_common(TOP_HPD_PWR5V, _BIT(port_id), 1);
 			rx_i2c_edid_cfg_with_port(0xf, true);
@@ -3723,7 +3729,6 @@ bool rx_clk_rate_monitor(u8 port)
 		rx[port].cableclk_stb_flg = false;
 		//if (rx[port].state >= FSM_WAIT_CLK_STABLE)
 			//rx[port].state = FSM_WAIT_CLK_STABLE;
-		rx[port].cableclk_stb_flg = false;
 		i2c_err_cnt[port] = 0;
 	}
 	return changed;
@@ -3834,6 +3839,7 @@ void rx_hdcp_monitor(u8 port)
 		else if (rx[port].hdcp.hdcp_version == HDCP_VER_14)
 			rx_hdcp_14_sent_reauth(port);
 		rx_pr("reauth-err:%d\n", rx[port].ecc_err);
+		rx[port].hdcp.hdcp_version = HDCP_VER_NONE;
 		rx[port].state = FSM_SIG_WAIT_STABLE;
 		rx[port].ecc_err = 0;
 		rx[port].ecc_err_frames_cnt = 0;
@@ -5094,6 +5100,27 @@ void rx_get_ecc_info(u8 port)
 	rx[port].ecc_pkt_cnt = rx_get_ecc_pkt_cnt(port);
 }
 
+static void rx_fmt_override(bool override_en, u8 port)
+{
+	if (rx_info.chip_id == CHIP_ID_T3X && port == rx_info.main_port) {
+		if (override_en) {
+			hdmirx_wr_bits_top_common_1(TOP_VID_CNTL, VID_FMT_OVERRIDE, 1);
+			hdmirx_wr_bits_top_common_1(TOP_VID_CNTL, VID_FMT_VAL,
+				rx[port].cur.colorspace);
+		} else {
+			hdmirx_wr_bits_top_common_1(TOP_VID_CNTL, VID_FMT_OVERRIDE, 0);
+		}
+	} else {
+		if (override_en) {
+			hdmirx_wr_bits_top_common(TOP_VID_CNTL, VID_FMT_OVERRIDE, 1);
+			hdmirx_wr_bits_top_common(TOP_VID_CNTL, VID_FMT_VAL,
+				rx[port].cur.colorspace);
+		} else {
+			hdmirx_wr_bits_top_common(TOP_VID_CNTL, VID_FMT_OVERRIDE, 0);
+		}
+	}
+}
+
 /*
  * rx_get_video_info - get current avi info
  */
@@ -5274,6 +5301,7 @@ void set_dv_ll_mode(bool en, u8 port)
 void hdmirx_config_video(u8 port)
 {
 	u32 temp = 0;
+	u32 top_vid_fmt;
 	u8 data8;
 	u8 pixel_rpt_cnt;
 	int reg_clk_vp_core_div, reg_clk_vp_out_div;
@@ -5329,13 +5357,21 @@ void hdmirx_config_video(u8 port)
 		hdmirx_wr_cor(RX_VP_INPUT_FORMAT_HI, data8, port);
 	}
 
-	if (rx_info.chip_id >= CHIP_ID_T3) {
+	if (rx_info.chip_id >= CHIP_ID_T7) {
 		if (rx[port].pre.sw_vic >= HDMI_VESA_OFFSET ||
 			rx[port].pre.sw_vic == HDMI_640x480p60 ||
 			rx[port].pre.sw_dvi)
 			hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(7), 1, port);
 		else//use auto de-repeat
 			hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(7), 0, port);
+		if (rx_info.chip_id == CHIP_ID_T3X && port == rx_info.main_port)
+			top_vid_fmt = hdmirx_rd_bits_top_common_1(TOP_VID_STAT, TOP_VID_FMT);
+		else
+			top_vid_fmt = hdmirx_rd_bits_top_common(TOP_VID_STAT, TOP_VID_FMT);
+		if (top_vid_fmt != rx[port].cur.colorspace)
+			rx_fmt_override(true, port);
+		else
+			rx_fmt_override(false, port);
 	}
 	if (rx_info.chip_id >= CHIP_ID_T3X && port == rx_info.main_port) {
 		rx[port].emp_vid_idx = 1;
@@ -5426,7 +5462,7 @@ void rx_clkmsr_monitor(void)
 	rx[E_PORT1].clk.cable_clk_pre = rx[E_PORT1].clk.cable_clk;
 	rx[E_PORT2].clk.cable_clk_pre = rx[E_PORT2].clk.cable_clk;
 	rx[E_PORT3].clk.cable_clk_pre = rx[E_PORT3].clk.cable_clk;
-	if (rx_info.main_port_open || rx_info.chip_id == CHIP_ID_T3X)
+	if ((rx_info.main_port_open || rx_info.chip_id == CHIP_ID_T3X) && rx_get_hdmi5v_sts())
 		schedule_work(&clkmsr_dwork);
 }
 
@@ -5443,7 +5479,7 @@ void rx_clkmsr_handler(struct work_struct *work)
 		rx[E_PORT0].clk.tmds_clk = meson_clk_measure_with_precision(25, 32);
 		rx[E_PORT0].clk.tmds_clk = hdmirx_rd_dwc(DWC_HDMI_CKM_RESULT) & 0xffff;
 		rx[E_PORT0].clk.tmds_clk = rx[E_PORT0].clk.tmds_clk * 158000 / 4095 * 1000;
-		for (port = E_PORT1; port < E_PORT_NUM; port++) {
+		for (port = E_PORT1; port < rx_info.port_num; port++) {
 			rx[port].clk.aud_pll = rx[E_PORT0].clk.aud_pll;
 			rx[port].clk.pixel_clk = rx[E_PORT0].clk.pixel_clk;
 			rx[port].clk.tmds_clk = rx[E_PORT0].clk.tmds_clk;
@@ -5456,7 +5492,7 @@ void rx_clkmsr_handler(struct work_struct *work)
 		rx[E_PORT0].clk.aud_pll = meson_clk_measure_with_precision(74, 32);
 		/* renamed to clk81_hdmirx_pclk,id=7 */
 		rx[E_PORT0].clk.p_clk = meson_clk_measure_with_precision(7, 32);
-		for (port = E_PORT1; port < E_PORT_NUM; port++) {
+		for (port = E_PORT1; port < rx_info.port_num; port++) {
 			rx[port].clk.cable_clk = rx[E_PORT0].clk.cable_clk;
 			rx[port].clk.tmds_clk = rx[E_PORT0].clk.tmds_clk;
 			rx[port].clk.aud_pll = rx[E_PORT0].clk.aud_pll;
@@ -5469,7 +5505,7 @@ void rx_clkmsr_handler(struct work_struct *work)
 		rx[E_PORT0].clk.tmds_clk = meson_clk_measure_with_precision(63, 32);
 		rx[E_PORT0].clk.aud_pll = meson_clk_measure_with_precision(74, 32);
 		rx[E_PORT0].clk.pixel_clk = meson_clk_measure_with_precision(29, 32);
-		for (port = E_PORT1; port < E_PORT_NUM; port++) {
+		for (port = E_PORT1; port < rx_info.port_num; port++) {
 			rx[port].clk.cable_clk = rx[E_PORT0].clk.cable_clk;
 			rx[port].clk.tmds_clk = rx[E_PORT0].clk.tmds_clk;
 			rx[port].clk.aud_pll = rx[E_PORT0].clk.aud_pll;
@@ -5485,7 +5521,7 @@ void rx_clkmsr_handler(struct work_struct *work)
 		rx[E_PORT0].clk.tmds_clk = meson_clk_measure_with_precision(43, 32);
 		rx[E_PORT0].clk.aud_pll = meson_clk_measure_with_precision(104, 32);
 		rx[E_PORT0].clk.p_clk = meson_clk_measure_with_precision(0, 32);
-		for (port = E_PORT1; port < E_PORT_NUM; port++) {
+		for (port = E_PORT1; port < rx_info.port_num; port++) {
 			rx[port].clk.cable_clk = rx[E_PORT0].clk.cable_clk;
 			rx[port].clk.tmds_clk = rx[E_PORT0].clk.tmds_clk;
 			rx[port].clk.aud_pll = rx[E_PORT0].clk.aud_pll;
@@ -5499,7 +5535,7 @@ void rx_clkmsr_handler(struct work_struct *work)
 		rx[E_PORT0].clk.tmds_clk = meson_clk_measure_with_precision(63, 32);
 		rx[E_PORT0].clk.aud_pll = meson_clk_measure_with_precision(104, 32);
 		rx[E_PORT0].clk.pixel_clk = meson_clk_measure_with_precision(29, 32);
-		for (port = E_PORT1; port < E_PORT_NUM; port++) {
+		for (port = E_PORT1; port < rx_info.port_num; port++) {
 			rx[port].clk.cable_clk = rx[E_PORT0].clk.cable_clk;
 			rx[port].clk.tmds_clk = rx[E_PORT0].clk.tmds_clk;
 			rx[port].clk.aud_pll = rx[E_PORT0].clk.aud_pll;
@@ -5507,75 +5543,68 @@ void rx_clkmsr_handler(struct work_struct *work)
 		}
 		break;
 	case CHIP_ID_T3X:
-		//port-A
-		if (rx_get_hdmi5v_sts()) {
-			aud_pll = meson_clk_measure_with_precision(147, 32);
-			p_clk = meson_clk_measure_with_precision(0, 32);
-			if (rx[E_PORT0].cur_5v_sts) {
-				rx[E_PORT0].clk.cable_clk =
-					meson_clk_measure_with_precision(42, 32);
-				rx[E_PORT0].clk.tmds_clk = meson_clk_measure_with_precision(47, 32);
-				rx[E_PORT0].clk.aud_pll = aud_pll;
-				rx[E_PORT0].clk.p_clk = p_clk;
-			}
-				//Port-B
-			if (rx[E_PORT1].cur_5v_sts) {
-				rx[E_PORT1].clk.cable_clk =
-					meson_clk_measure_with_precision(43, 32);
-				rx[E_PORT1].clk.tmds_clk = meson_clk_measure_with_precision(48, 32);
-				rx[E_PORT1].clk.aud_pll = aud_pll;
-				rx[E_PORT1].clk.p_clk = p_clk;
-			}
-				//Port-C
-			if (rx[E_PORT2].cur_5v_sts) {
-				rx[E_PORT2].clk.t_clk_pre = rx[E_PORT2].clk.tclk;
-				rx[E_PORT2].clk.aud_pll = aud_pll;
-				if (!rx[E_PORT2].var.frl_rate) {
-					rx[E_PORT2].clk.cable_clk =
-						meson_clk_measure_with_precision(40, 32);
-					rx[E_PORT2].clk.tmds_clk = meson_clk_measure(45);
-					rx[E_PORT2].clk.fpll_clk =
-					fpll_clk_sel ?
+		aud_pll = meson_clk_measure_with_precision(147, 32);
+		p_clk = meson_clk_measure_with_precision(0, 32);
+		if (rx[E_PORT0].cur_5v_sts) {
+			rx[E_PORT0].clk.cable_clk =
+				meson_clk_measure_with_precision(42, 32);
+			rx[E_PORT0].clk.tmds_clk = meson_clk_measure_with_precision(47, 32);
+			rx[E_PORT0].clk.aud_pll = aud_pll;
+			rx[E_PORT0].clk.p_clk = p_clk;
+		}
+			//Port-B
+		if (rx[E_PORT1].cur_5v_sts) {
+			rx[E_PORT1].clk.cable_clk =
+				meson_clk_measure_with_precision(43, 32);
+			rx[E_PORT1].clk.tmds_clk = meson_clk_measure_with_precision(48, 32);
+			rx[E_PORT1].clk.aud_pll = aud_pll;
+			rx[E_PORT1].clk.p_clk = p_clk;
+		}
+			//Port-C
+		if (rx[E_PORT2].cur_5v_sts) {
+			rx[E_PORT2].clk.t_clk_pre = rx[E_PORT2].clk.tclk;
+			rx[E_PORT2].clk.aud_pll = aud_pll;
+			if (!rx[E_PORT2].var.frl_rate) {
+				rx[E_PORT2].clk.cable_clk =
+					meson_clk_measure_with_precision(40, 32);
+				rx[E_PORT2].clk.tmds_clk = meson_clk_measure(45);
+				rx[E_PORT2].clk.p_clk = p_clk;
+			} else {
+				rx[E_PORT2].clk.fpll_clk = fpll_clk_sel ?
 					meson_clk_measure(9) :
 					meson_clk_measure_with_precision(9, clk_msr_param);
-					rx[E_PORT2].clk.p_clk = p_clk;
-				} else {
-					rx[E_PORT2].clk.fpll_clk = fpll_clk_sel ?
-						meson_clk_measure(9) :
-						meson_clk_measure_with_precision(9, clk_msr_param);
-					rx[E_PORT2].clk.p_clk = p_clk;
-					rx[E_PORT2].clk.tclk =
-					((hdmirx_rd_cor(H21RXSB_REQM2_M42H_IVCRX, port) &
-					0Xf) << 16) |
-					(hdmirx_rd_cor(H21RXSB_REQM1_M42H_IVCRX,
-					port) << 8) |
-					hdmirx_rd_cor(H21RXSB_REQM0_M42H_IVCRX,
-					port);
-				}
+				rx[E_PORT2].clk.p_clk = p_clk;
+				rx[E_PORT2].clk.tclk =
+				((hdmirx_rd_cor(H21RXSB_REQM2_M42H_IVCRX, port) &
+				0Xf) << 16) |
+				(hdmirx_rd_cor(H21RXSB_REQM1_M42H_IVCRX,
+				port) << 8) |
+				hdmirx_rd_cor(H21RXSB_REQM0_M42H_IVCRX,
+				port);
 			}
-				//Port-D
-			if (rx[E_PORT3].cur_5v_sts) {
-				rx[E_PORT3].clk.t_clk_pre = rx[E_PORT3].clk.tclk;
-				rx[E_PORT3].clk.aud_pll = aud_pll;
-				if (!rx[E_PORT3].var.frl_rate) {
-					rx[E_PORT3].clk.cable_clk =
-						meson_clk_measure_with_precision(41, 32);
-					rx[E_PORT3].clk.tmds_clk =
-						meson_clk_measure_with_precision(46, 32);
-					rx[E_PORT3].clk.p_clk = p_clk;
-				} else {
-					rx[E_PORT3].clk.fpll_clk = fpll_clk_sel ?
-						meson_clk_measure(11) :
-						meson_clk_measure_with_precision(11, clk_msr_param);
-					rx[E_PORT3].clk.p_clk = p_clk;
-					rx[E_PORT3].clk.tclk =
-					((hdmirx_rd_cor(H21RXSB_REQM2_M42H_IVCRX, port) &
-					0Xf) << 16) |
-					(hdmirx_rd_cor(H21RXSB_REQM1_M42H_IVCRX,
-					port) << 8) |
-					hdmirx_rd_cor(H21RXSB_REQM0_M42H_IVCRX,
-					port);
-				}
+		}
+			//Port-D
+		if (rx[E_PORT3].cur_5v_sts) {
+			rx[E_PORT3].clk.t_clk_pre = rx[E_PORT3].clk.tclk;
+			rx[E_PORT3].clk.aud_pll = aud_pll;
+			if (!rx[E_PORT3].var.frl_rate) {
+				rx[E_PORT3].clk.cable_clk =
+					meson_clk_measure_with_precision(41, 32);
+				rx[E_PORT3].clk.tmds_clk =
+					meson_clk_measure_with_precision(46, 32);
+				rx[E_PORT3].clk.p_clk = p_clk;
+			} else {
+				rx[E_PORT3].clk.fpll_clk = fpll_clk_sel ?
+					meson_clk_measure(11) :
+					meson_clk_measure_with_precision(11, clk_msr_param);
+				rx[E_PORT3].clk.p_clk = p_clk;
+				rx[E_PORT3].clk.tclk =
+				((hdmirx_rd_cor(H21RXSB_REQM2_M42H_IVCRX, port) &
+				0Xf) << 16) |
+				(hdmirx_rd_cor(H21RXSB_REQM1_M42H_IVCRX,
+				port) << 8) |
+				hdmirx_rd_cor(H21RXSB_REQM0_M42H_IVCRX,
+				port);
 			}
 		}
 		break;
@@ -6449,7 +6478,7 @@ void aml_phy_power_off(void)
 		aml_phy_power_off_txhd2();
 		break;
 	case PHY_VER_T3X:
-		aml_phy_power_off_t3x(E_PORT_NUM);
+		aml_phy_power_off_t3x(rx_info.port_num);
 		break;
 	default:
 		rx_pr("rx not poweroff\n");

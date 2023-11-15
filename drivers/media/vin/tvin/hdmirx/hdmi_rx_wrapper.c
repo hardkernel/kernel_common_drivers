@@ -3404,7 +3404,7 @@ void edid_auto_mode_init(void)
 {
 	unsigned char i = 0;
 
-	for (i = 0; i < E_PORT_NUM; i++) {
+	for (i = 0; i < rx_info.port_num; i++) {
 		rx[i].edid_auto_mode.hdcp_ver = HDCP_VER_NONE;
 		rx[i].edid_auto_mode.edid_ver = EDID_V14;
 	}
@@ -4725,7 +4725,7 @@ static void rx_cable_clk_monitor(u8 port)
 
 void rx_clr_edid_auto_sts(unsigned char port)
 {
-	if (port >= E_PORT_NUM)
+	if (port >= rx_info.port_num)
 		return;
 
 	rx[port].edid_auto_mode.hdcp_ver = HDCP_VER_NONE;
@@ -4741,7 +4741,7 @@ u8 rx_update_edid_auto_sts(u8 sts)
 	if (rx_info.chip_id < CHIP_ID_TL1)
 		return 0;
 
-	for (i = 0; i < E_PORT_NUM; i++) {
+	for (i = 0; i < rx_info.port_num; i++) {
 		if ((sts & (1 << i)) == 0)
 			rx_clr_edid_auto_sts(i);
 		else
@@ -5000,7 +5000,7 @@ void rx_main_state_machine(void)
 	case FSM_HPD_LOW:
 		/* disable irq before hpd low */
 		rx_irq_en(false, port);
-		set_scdc_cfg(1, 0, port);
+		rx_set_cur_hpd(0, 0, port);
 		rx[port].state = FSM_INIT;
 		break;
 	case FSM_INIT:
@@ -7851,7 +7851,10 @@ void dump_video_status(u8 port)
 	      "auto" : (edid_slt == EDID_V20 ? "2.0" : "1.4"));
 	rx_pr("edid_parse_ver: %s\n",
 	      edid_ver == EDID_V20 ? "2.0" : "1.4");
-	rx_pirnt_edid_support();
+	rx_pr("edid status = %d\n",
+		is_valid_edid_data(rx_get_cur_used_edid(port)));
+	if (log_level & EDID_LOG)
+		rx_print_edid_support();
 }
 
 void dump_audio_status(u8 port)

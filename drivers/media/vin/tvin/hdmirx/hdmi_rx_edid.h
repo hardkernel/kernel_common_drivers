@@ -107,6 +107,7 @@
 #define EDID_TYPE_256_PLUS_256 0
 #define EDID_TYPE_512_PLUS_512 1
 #define EDID_TYPE_256_PLUS_512 2
+#define END_OF_BLK(x) (((x) + 1) * EDID_BLK_SIZE - 1)
 
 enum edid_audio_format_e {
 	AUDIO_FORMAT_HEADER,
@@ -904,7 +905,7 @@ void rpt_edid_420_vdb_extraction(unsigned char *p_edid);
 void rpt_edid_hdr_static_db_extraction(unsigned char *p_edid);
 void rpt_edid_extraction(unsigned char *p_edid);
 void rx_get_edid_support(u8 port);
-void rx_pirnt_edid_support(void);
+void rx_print_edid_support(void);
 bool is_valid_edid_data(unsigned char *p_edid);
 #endif
 #endif
