@@ -147,6 +147,10 @@ struct meson_pwm {
 	 */
 	spinlock_t lock;
 	struct regmap *regmap_base;
+#ifdef CONFIG_HIBERNATION
+#define PWM_REG_NUMS			8
+	u32 regs_restore[PWM_REG_NUMS];
+#endif
 };
 
 /*the functions only use for meson pwm driver*/

@@ -916,6 +916,59 @@ static struct regmap_config meson_pwm_regmap_config = {
 };
 #endif
 
+#ifdef CONFIG_HIBERNATION
+static int meson_pwm_freeze(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct meson_pwm *meson = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < PWM_REG_NUMS; i++) {
+		meson->regs_restore[i] = readl(meson->base + 4 * i);
+		pr_debug("pwm freeze, reg%d: 0x%x\n", i, meson->regs_restore[i]);
+	}
+
+	return 0;
+}
+
+static int meson_pwm_thaw(struct device *dev)
+{
+	return 0;
+}
+
+static int meson_pwm_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct meson_pwm *meson = platform_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < PWM_REG_NUMS; i++) {
+		writel(meson->regs_restore[i], meson->base + 4 * i);
+		pr_debug("pwm restore, reg%d: 0x%x\n", i, meson->regs_restore[i]);
+	}
+
+	return 0;
+}
+
+static int meson_pwm_pm_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int meson_pwm_pm_resume(struct device *dev)
+{
+	return 0;
+}
+
+const struct dev_pm_ops meson_pwm_pm = {
+	.freeze		= meson_pwm_freeze,
+	.thaw		= meson_pwm_thaw,
+	.restore	= meson_pwm_restore,
+	.suspend	= meson_pwm_pm_suspend,
+	.resume		= meson_pwm_pm_resume,
+};
+#endif
+
 static int meson_pwm_probe(struct platform_device *pdev)
 {
 	struct meson_pwm *meson;
@@ -1027,6 +1080,9 @@ static struct platform_driver meson_pwm_driver = {
 	.driver = {
 		.name = "meson-pwm",
 		.of_match_table = meson_pwm_matches,
+#ifdef CONFIG_HIBERNATION
+		.pm = &meson_pwm_pm,
+#endif
 	},
 	.probe = meson_pwm_probe,
 	.remove = meson_pwm_remove,
