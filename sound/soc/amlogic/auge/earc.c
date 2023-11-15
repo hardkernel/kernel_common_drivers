@@ -1326,13 +1326,16 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			dev_info(substream->pcm->card->dev, "eARC/ARC TX disable\n");
-
-			earctx_enable(p_earc->tx_top_map,
-				      p_earc->tx_cmdc_map,
-				      p_earc->tx_dmac_map,
-				      p_earc->tx_audio_coding_type,
-				      false,
-				      p_earc->chipinfo->rterm_on);
+			if (!p_earc->tx_dmac_clk_on) {
+				dev_info(substream->pcm->card->dev, "clk is disable\n");
+			} else {
+				earctx_enable(p_earc->tx_top_map,
+					      p_earc->tx_cmdc_map,
+					      p_earc->tx_dmac_map,
+					      p_earc->tx_audio_coding_type,
+					      false,
+					      p_earc->chipinfo->rterm_on);
+			}
 			aml_frddr_enable(p_earc->fddr, false);
 			p_earc->tx_stream_state = SNDRV_PCM_STATE_DISCONNECTED;
 		} else {
