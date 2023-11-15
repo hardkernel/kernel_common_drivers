@@ -351,14 +351,16 @@
 		mbox-dests = <MAILBOX_AOCPU>;
 	};
 
-	vddcpu0: pwm_j-regulator {
+	vddcpu0: pwm_a-regulator {
 		compatible = "pwm-regulator";
-		// pwms = <&pwm_ij MESON_PWM_1 1500 0>;
+		pwms = <&pwm_a MESON_PWM_0 1500 0>;
 		regulator-name = "vddcpu0";
 		regulator-min-microvolt = <689000>;
 		regulator-max-microvolt = <1049000>;
 		regulator-always-on;
 		max-duty-cycle = <1500>;
+		amlogic,vsel-step = <3>;
+		amlogic,usleep-time = <200>;
 		/* Voltage Duty-Cycle */
 		voltage-table = <1049000 0>,
 				<1039000 3>,
