@@ -215,7 +215,8 @@ enum vdin_hw_ver_e {
 /* 20231013: dv 444 low-latency need convert to 422 */
 /* 20231022: add auto pc game and optimize tvin_update_vdin_prop */
 /* 20231109: add freesync type rate low and source-led */
-#define VDIN_VER_V1 "20231109: add freesync type rate low and source-led"
+/* 20231117: compare in and out frame rate has problem */
+#define VDIN_VER_V1 "20231117: compare in and out frame rate has problem"
 
 enum vdin_irq_flg_e {
 	VDIN_IRQ_FLG_NO_END = 1,
