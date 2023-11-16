@@ -439,6 +439,9 @@ CONFIG_AMLOGIC_DVB_DMX=m
 # amlogic-dvb-ci.ko
 CONFIG_AMLOGIC_DVB_CI=m
 
+# amlogic-dvb-usbcam
+CONFIG_AMLOGIC_USBCAM=m
+
 # aml_drm.ko
 CONFIG_AMLOGIC_DRM=m
 CONFIG_AMLOGIC_DRM_VPU=y

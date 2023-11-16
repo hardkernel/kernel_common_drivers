@@ -4,6 +4,17 @@
   __tracepoint_android_vh_calc_alloc_flags
   __traceiter_android_vh_calc_alloc_flags
 
+# amlogic-usb-cam.ko
+  usb_deregister_dev
+  usb_find_interface
+  usb_get_dev
+  usb_kill_urb
+  usb_lock_device_for_reset
+  usb_put_dev
+  usb_register_dev
+  usb_reset_device
+  usb_unlink_urb
+
 # amlogic-usb.ko
   extcon_get_state
   usb_ep_type_string
