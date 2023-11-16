@@ -938,6 +938,7 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 							  PAGE_SHIFT, false);
 			mem->from_flags = AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA;
 			if (mem->mem_handle) {
+				mem->vbuffer = mem->mem_handle;
 				mem->phy_addr =
 					page_to_phys((struct page *)mem->mem_handle);
 				if (!mgt->tvp_enable) {
@@ -1022,6 +1023,9 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 				mem->phy_addr =
 					page_to_phys((struct page *)
 						mem->mem_handle);
+				if (mem->flags & CODEC_MM_FLAGS_CPU)
+					mem->vbuffer =
+						codec_mm_map_phyaddr(mem);
 
 				if (!mgt->tvp_enable) {
 					dma_sync_single_for_device(mgt->dev,
