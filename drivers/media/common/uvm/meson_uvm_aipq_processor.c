@@ -647,13 +647,15 @@ int aipq_setinfo(void *arg, char *buf)
 	return ret;
 }
 
-static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_aipq_info *info)
+static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_aipq_info *info, int num)
 {
 #ifdef CONFIG_AMLOGIC_ENABLE_VIDEO_PIPELINE_DUMP_DATA
 	struct file *fp;
 	char name_buf[32];
 	int write_size;
+	int write_size_uv;
 	u8 *data;
+	u8 *data_uv;
 	loff_t pos;
 
 	if (IS_ERR_OR_NULL(vf) || IS_ERR_OR_NULL(info)) {
@@ -665,40 +667,48 @@ static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_aipq_info 
 		aipq_print(PRINT_ERROR, "%s: security vf.\n", __func__);
 		return;
 	}
-
-	snprintf(name_buf, sizeof(name_buf), "/data/aipq_ge2dOut.rgb");
+	snprintf(name_buf, sizeof(name_buf), "/data/aipq_ge2dOut_%d.rgb", num);
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
-	if (IS_ERR(fp))
+	if (IS_ERR(fp)) {
+		aipq_print(PRINT_ERROR, "open file path %s failed.\n", name_buf);
 		return;
+	}
 	write_size = info->nn_input_frame_height * info->nn_input_frame_width * 3;
 	data = codec_mm_vmap(addr, write_size);
 	if (!data)
 		return;
 	pos = 0;
 	kernel_write(fp, data, write_size, &pos);
-	aipq_print(PRINT_ERROR, "aipq: write %u size to addr%p\n",
+	aipq_print(PRINT_NN_DUMP, "aipq: write %u size to addr%p\n",
 		write_size, data);
-	aipq_print(PRINT_ERROR, "aipq: ge2dout w %d, h %d.\n",
+	aipq_print(PRINT_NN_DUMP, "aipq: ge2dout w %d, h %d.\n",
 		info->nn_input_frame_width, info->nn_input_frame_height);
 	codec_mm_unmap_phyaddr(data);
 	filp_close(fp, NULL);
 
-	snprintf(name_buf, sizeof(name_buf), "/data/aipq_dec.yuv");
+	snprintf(name_buf, sizeof(name_buf), "/data/aipq_dec_%d.yuv", num);
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return;
-	write_size = vf->canvas0_config[0].width * vf->canvas0_config[0].height
-		* 3 / 2;
+	write_size = vf->canvas0_config[0].width * vf->canvas0_config[0].height;
+	write_size_uv = vf->canvas0_config[1].width * vf->canvas0_config[1].height / 2;
 	data = codec_mm_vmap(vf->canvas0_config[0].phy_addr, write_size);
-	if (!data)
+	data_uv = codec_mm_vmap(vf->canvas0_config[1].phy_addr, write_size_uv);
+	if (!data || !data_uv) {
+		aipq_print(PRINT_ERROR, "%s: vmap failed.\n", __func__);
 		return;
+	}
 	pos = 0;
 	kernel_write(fp, data, write_size, &pos);
-	aipq_print(PRINT_ERROR, "aipq: write %u size to addr%p\n",
+	kernel_write(fp, data_uv, write_size_uv, &pos);
+	aipq_print(PRINT_NN_DUMP, "aipq: write y data %u size from addr%p\n",
 		write_size, data);
-	aipq_print(PRINT_ERROR, "aipq: yuv w %d, h %d.\n",
+	aipq_print(PRINT_NN_DUMP, "aipq: write uv data %u size from addr%p\n",
+		write_size_uv, data_uv);
+	aipq_print(PRINT_NN_DUMP, "aipq: yuv w %d, h %d.\n",
 		vf->canvas0_config[0].width, vf->canvas0_config[0].height);
 	codec_mm_unmap_phyaddr(data);
+	codec_mm_unmap_phyaddr(data_uv);
 	filp_close(fp, NULL);
 #endif
 }
@@ -719,6 +729,7 @@ int aipq_getinfo(void *arg, char *buf)
 	struct dma_buf_attachment *attach = NULL;
 	struct sg_table *table = NULL;
 	struct page *page = NULL;
+	static int dump_count;
 
 	aipq_info = (struct uvm_aipq_info *)buf;
 
@@ -782,8 +793,15 @@ int aipq_getinfo(void *arg, char *buf)
 			+ (end_time.tv_usec - begin_time.tv_usec)) / 1000;
 		aipq_print(PRINT_OTHER, "ge2d cost: %d ms\n", cost_time);
 		if (uvm_aipq_dump) {
-			uvm_aipq_dump = 0;
-			dump_vf(vf, (ulong)phy_addr, aipq_info);
+			if (dump_count < uvm_aipq_dump) {
+				dump_vf(vf, (ulong)phy_addr, aipq_info, dump_count + 1);
+				dump_count++;
+			} else {
+				aipq_print(PRINT_ERROR, "finish dump %d vframe.\n",
+					uvm_aipq_dump);
+				uvm_aipq_dump = 0;
+				dump_count = 0;
+			}
 		}
 	}
 	return 0;
