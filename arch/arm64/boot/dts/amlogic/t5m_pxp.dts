@@ -42,9 +42,9 @@
 		ranges;
 
 		dmc_reserved:linux,dmc_monitor {
-			compatible = "shared-dma-pool";
-			reusable;
-			reg = <0x0 0x0 0x0 0x400000>;
+			compatible = "amlogic,dmc_monitor-reserved";
+			reg = <0x0 0x0 0x0 0x80000>;
+			no-map;
 		};
 
 		secmon_reserved:linux,secmon {

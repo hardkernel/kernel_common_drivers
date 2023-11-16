@@ -577,13 +577,10 @@ static void dmc_enabled_reserved_memory(struct platform_device *pdev, struct dmc
 	dmc_original_debug = mon->debug;
 
 	if (dmc_dev_is_byte(mon)) {
-		mon->device = 0x0201;
+		mon->device = 0x02;
 		mon->debug &= ~DMC_DEBUG_INCLUDE;
 	} else {
 		mon->device = get_all_dev_mask();
-#ifdef CONFIG_ARM64
-		mon->device &= 0xfffffffffffffffe;
-#endif
 	}
 
 	mon->debug &= ~DMC_DEBUG_TRACE;
