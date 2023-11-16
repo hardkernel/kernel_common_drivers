@@ -3762,6 +3762,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		else
 			put_md = VDIN_VF_PUT;
 
+		vdin_get_crc_val(&devp->last_wr_vfe->vf, devp);
 		vdin_vframe_put_and_recycle(devp, devp->last_wr_vfe,
 					    put_md);
 		devp->last_wr_vfe = NULL;
@@ -3795,8 +3796,6 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	vdin_set_vframe_prop_info(curr_wr_vf, devp);
 	vdin_backup_histgram(curr_wr_vf, devp);
 	vdin_hist_tgt(devp, curr_wr_vf);
-
-	vdin_get_crc_val(curr_wr_vf, devp);
 
 	if (devp->frontend && devp->frontend->dec_ops) {
 		dec_ops = devp->frontend->dec_ops;
