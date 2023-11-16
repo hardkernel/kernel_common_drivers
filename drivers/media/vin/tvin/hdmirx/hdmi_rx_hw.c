@@ -5101,6 +5101,15 @@ void rx_get_video_info(u8 port)
 {
 	/* DVI mode */
 	rx[port].cur.hw_dvi = rx_get_dvi_mode(port);
+	// new ip rm gb check when dvi input
+	// avmute depend on vsync with gb check
+	// rm gb check to make vsync valid when dvi input
+	if (rx_info.chip_id == CHIP_ID_TXHD2) {
+		if (rx[port].cur.hw_dvi)
+			hdmirx_wr_cor(RX_PREAMBLE_CRIT_PWD_IVCRX, 0x0, port);
+		else
+			hdmirx_wr_cor(RX_PREAMBLE_CRIT_PWD_IVCRX, 0x6, port);
+	}
 	/* HDCP sts*/
 	rx_get_hdcp_type(port);
 	/* AVI parameters */

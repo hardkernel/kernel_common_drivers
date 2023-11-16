@@ -59,7 +59,8 @@
 //2023.10.27 hdmirx device vendor and product
 //2023.11.3 add bist for debug
 //2023.11.09 clr gcp write&the respective av mute related filed
-#define RX_VER0 "ver.2023/11/09"
+//2023.11.16 rm gb check when dvi input
+#define RX_VER0 "ver.2023/11/16"
 
 
 /*print type*/
