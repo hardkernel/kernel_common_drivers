@@ -11,8 +11,8 @@
 	amlogic-dt-id = "s7_pxp";
 	compatible = "s7_pxp";
 	interrupt-parent = <&gic>;
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	aliases {
 		serial0 = &uart_B;
@@ -32,23 +32,23 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x80000000>;
+		linux,usable-memory = <0x0 0x0 0x0 0x80000000>;
 	};
 
 	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
+		#address-cells = <2>;
+		#size-cells = <2>;
 		ranges;
 
 		ramdump_bl33z@00000000 {
-			reg = <0x0 0x1800000>; /* 0 ~ 24M */
+			reg = <0x0 0x0 0x0 0x1800000>; /* 0 ~ 24M */
 			status = "disabled";
 		};
 
 		/* global autoconfigured region for contiguous allocations */
 		ramoops@0x07400000 {
 			compatible = "ramoops";
-			reg = <0x07400000 0x00100000>;
+			reg = <0x0 0x07400000 0x0 0x00100000>;
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
@@ -58,7 +58,7 @@
 
 		debug_reserved:linux,iotrace {
 			compatible = "amlogic, iotrace";
-			reg = <0x04f00000 0x00100000>;
+			reg = <0x0 0x04f00000 0x0 0x00100000>;
 			io-size = <0x1b000>;
 			sched-size = <0x2000>;
 			irq-size = <0x1000>;
@@ -70,40 +70,41 @@
 			compatible = "shared-dma-pool";
 			/*reusable;*/
 			no-map;
-			size = <0x400000>;
-			alignment = <0x400000>;
-			reg = <0x05000000 0x400000>;
+			size = <0x0 0x400000>;
+			alignment = <0x0 0x400000>;
+			reg = <0x0 0x05000000 0x0 0x3400000>;
 		};
 
 		logo_reserved:linux,meson-fb {
 			compatible = "amlogic, meson-fb";
-			alignment = <0x400000>;
-			reg = <0x1f800000 0x800000>;
+			alignment = <0x0 0x400000>;
+			reg = <0x0 0x1f800000 0x0 0x800000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0>;
-			alignment = <0x400000>;
+			size = <0x0 0x8000000>;
+			alignment = <0x0 0x400000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0>;
-			alignment = <0x400000>;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x400000>;
 		};
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x1000000>;
-			alignment = <0x400000>;
+			/* 1080p STB androidT size 56M */
+			size = <0x0 0x1000000>;
+			alignment = <0x0 0x400000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0>;
-			alignment = <0x400000>;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x400000>;
 		};
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
@@ -118,29 +119,29 @@
 			 */
 			//size = <0x0 0x0B000000>;
 			//size = <0x0 0x0>;
-			alignment = <0x400000>;
+			alignment = <0x0 0x400000>;
 		};
 
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "shared-dma-pool";
-			size = <0x0>;
+			size = <0x0 0x0>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0xd000000>;
-			alignment = <0x400000>;
+			size = <0x0 0xd000000>;
+			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
 
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
-			size = <0x0>;
-			alignment = <0x100000>;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x100000>;
 			//no-map;
 		};
 
@@ -151,24 +152,25 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-		//	size = <0x01400000>;
-		//	alignment = <0x400000>;
+		//	size = <0x0 0x01400000>;
+		//	alignment = <0x0 0x400000>;
 		//};
 		/*  vdin1 CMA pool */
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 420 mode:1280x720x2x4=8MB */
-			/* 444 mode:1280x720x3x4=12MB */
-			size = <0x01400000>;
-			alignment = <0x400000>;
+			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			 * 1920x1080x2x5 = 20 M
+			 */
+			size = <0x0 0x01400000>;
+			alignment = <0x0 0x400000>;
 		};
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x800000>;
-			alignment = <0x400000>;
+			size = <0x0 0x800000>;
+			alignment = <0x0 0x400000>;
 			linux,cma-default;
 			alloc-ranges = <0x0 0x30000000>;
 		};
@@ -286,7 +288,7 @@
 		dev_name = "dvb-demux";
 		status = "disabled";
 
-		reg = <0xfe000000 0x480000>;
+		reg = <0x0 0xfe000000 0x0 0x480000>;
 
 		dmxdev_num = <0x11>;
 
@@ -395,10 +397,10 @@
 		/* clocks = <&clkc CLKID_DAC_CLK>; */
 		/* clock-names = "vdac_clk_gate"; */
 
-		reg = <0xfe350000 0x10000	/* dtv demod base */
-			   0xfe000000 0x2000	/* div base */
-			   0xff800000 0x1000	/* io_aobus_base */
-			   0xffd01000 0x1000	/* reset */
+		reg = <0x0 0xfe350000 0x0 0x10000	/* dtv demod base */
+			   0x0 0xfe000000 0x0 0x2000	/* div base */
+			   0x0 0xff800000 0x0 0x1000	/* io_aobus_base */
+			   0x0 0xffd01000 0x0 0x1000	/* reset */
 			>;
 
 		spectrum = <1>;
