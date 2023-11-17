@@ -1,4 +1,4 @@
-From e93821bd1e5bfdcb6dd3e8494fb141cac612e5c0 Mon Sep 17 00:00:00 2001
+From 0b6a0eff8eb58eaab370ad941918342fa9ebe7bb Mon Sep 17 00:00:00 2001
 From: Tao Zeng <tao.zeng@amlogic.com>
 Date: Fri, 20 Oct 2023 18:50:01 +0800
 Subject: [PATCH] trace: add white list for trace event [1/1]
@@ -17,15 +17,16 @@ t5m
 Change-Id: I290020fc93e6114650313328ec8757720bfc8b1d
 Signed-off-by: Tao Zeng <tao.zeng@amlogic.com>
 ---
- fs/tracefs/inode.c          | 49 +++++++++++++++++++++++++++++++++++++
- kernel/trace/trace_events.c |  8 ++++++
- 2 files changed, 57 insertions(+)
+ fs/tracefs/inode.c          | 65 +++++++++++++++++++++++++++++++++++++
+ kernel/trace/trace.c        |  2 ++
+ kernel/trace/trace_events.c |  8 +++++
+ 3 files changed, 75 insertions(+)
 
 diff --git a/fs/tracefs/inode.c b/fs/tracefs/inode.c
-index 8c11efca87fe..9f7498fe9fe0 100644
+index 8c11efca87fe..d5e19aa5a5ed 100644
 --- a/fs/tracefs/inode.c
 +++ b/fs/tracefs/inode.c
-@@ -536,6 +536,51 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
+@@ -536,6 +536,67 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
  	return end_creating(dentry);
  }
  
@@ -71,13 +72,29 @@ index 8c11efca87fe..9f7498fe9fe0 100644
 +}
 +
 +static int allow_trace_enable = 1;
-+core_param(allow_trace_enable, allow_trace_enable, int, 0644);
++
++static int __init early_allow_trace_enable_param(char *buf)
++{
++	if (!buf)
++		return -EINVAL;
++
++	if (strcmp(buf, "off") == 0)
++		allow_trace_enable = 0;
++	else if (strcmp(buf, "on") == 0)
++		allow_trace_enable = 1;
++
++	pr_debug("allow_trace_enable %sabled\n", allow_trace_enable ? "en" : "dis");
++
++	return 0;
++}
++
++early_param("allow_trace_enable", early_allow_trace_enable_param);
 +#endif
 +
  /**
   * tracefs_create_dir - create a directory in the tracefs filesystem
   * @name: a pointer to a string containing the name of the directory to
-@@ -555,6 +600,10 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
+@@ -555,6 +616,10 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
   */
  struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
  {
@@ -88,6 +105,21 @@ index 8c11efca87fe..9f7498fe9fe0 100644
  	return __create_dir(name, parent, &simple_dir_inode_operations);
  }
  
+diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
+index c29f3b6b452e..844f87f53ad1 100644
+--- a/kernel/trace/trace.c
++++ b/kernel/trace/trace.c
+@@ -8664,8 +8664,10 @@ static struct dentry *tracing_dentry_percpu(struct trace_array *tr, int cpu)
+ 
+ 	tr->percpu_dir = tracefs_create_dir("per_cpu", d_tracer);
+ 
++#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ 	MEM_FAIL(!tr->percpu_dir,
+ 		  "Could not create tracefs directory 'per_cpu/%d'\n", cpu);
++#endif
+ 
+ 	return tr->percpu_dir;
+ }
 diff --git a/kernel/trace/trace_events.c b/kernel/trace/trace_events.c
 index 67169a50f92a..b7baf29d3f08 100644
 --- a/kernel/trace/trace_events.c
