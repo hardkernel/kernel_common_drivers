@@ -269,8 +269,8 @@ void set21_s1a_hpll_clk_out(u32 frac_rate, u32 clk)
 		HDMITX_INFO("HPLL: 0x%x\n", hd21_read_reg(ANACTRL_HDMIPLL_CTRL0));
 		break;
 	case 4115866:
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x030004a8);
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0xfd00);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x030004ab);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x0000fd22);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x01000000);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x40218000);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x05501000);
