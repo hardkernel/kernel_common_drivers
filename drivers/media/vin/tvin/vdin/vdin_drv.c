@@ -6356,7 +6356,10 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 			vdin_addr_offset[1] = 0x100;
 	}
-	if (devp->vdin_function_sel & VDIN_HV_REVERSE_EN)
+
+	if (devp->set_canvas_manual)
+		devp->hv_reverse_en = 0;
+	else
 		devp->hv_reverse_en = 1;
 
 	devp->addr_offset = vdin_addr_offset[devp->index];
