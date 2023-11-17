@@ -5536,9 +5536,9 @@ void set_video_mute(u32 owner, bool on)
 }
 EXPORT_SYMBOL(set_video_mute);
 
-int get_video_mute_val(void)
+bool get_video_mute_val(u32 owner)
 {
-	return video_mute_on;
+	return video_mute_array[owner];
 }
 EXPORT_SYMBOL(get_video_mute_val);
 

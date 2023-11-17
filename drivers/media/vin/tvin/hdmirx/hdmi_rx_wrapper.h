@@ -169,9 +169,9 @@ void __weak set_video_mute(u32 owner, bool on)
 {
 }
 
-int get_video_mute(void);
-int __weak get_video_mute(void)
+bool get_video_mute_val(u32 owner);
+bool __weak get_video_mute_val(u32 owner)
 {
-	return 0;
+	return false;
 }
 #endif

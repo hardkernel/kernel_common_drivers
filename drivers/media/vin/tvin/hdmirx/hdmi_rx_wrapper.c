@@ -5403,7 +5403,8 @@ void rx_main_state_machine(void)
 					break;
 				}
 				/* clear vpp mute after signal stable */
-				if (get_video_mute() && port != rx_info.sub_port) {
+				if (get_video_mute_val(HDMI_RX_MUTE_SET) &&
+					port != rx_info.sub_port) {
 					if (rx[port].var.mute_cnt++ < one_frame_cnt + 1)
 						break;
 					rx[port].var.mute_cnt = 0;
@@ -5889,7 +5890,8 @@ void rx_port0_main_state_machine(void)
 					break;
 				}
 				/* clear vpp mute after signal stable */
-				if (get_video_mute() && port != rx_info.sub_port) {
+				if (get_video_mute_val(HDMI_RX_MUTE_SET) &&
+					port != rx_info.sub_port) {
 					if (rx[port].var.mute_cnt++ < one_frame_cnt + 1)
 						break;
 					rx[port].var.mute_cnt = 0;
@@ -6385,7 +6387,8 @@ void rx_port1_main_state_machine(void)
 					break;
 				}
 				/* clear vpp mute after signal stable */
-				if (get_video_mute() && port != rx_info.sub_port) {
+				if (get_video_mute_val(HDMI_RX_MUTE_SET) &&
+					port != rx_info.sub_port) {
 					if (rx[port].var.mute_cnt++ < one_frame_cnt + 1)
 						break;
 					rx[port].var.mute_cnt = 0;
@@ -6943,7 +6946,8 @@ void rx_port2_main_state_machine(void)
 					break;
 				}
 				/* clear vpp mute after signal stable */
-				if (get_video_mute() && port != rx_info.sub_port) {
+				if (get_video_mute_val(HDMI_RX_MUTE_SET) &&
+					port != rx_info.sub_port) {
 					if (rx[port].var.mute_cnt++ < one_frame_cnt + 1)
 						break;
 					rx[port].var.mute_cnt = 0;
@@ -7500,7 +7504,8 @@ void rx_port3_main_state_machine(void)
 					break;
 				}
 				/* clear vpp mute after signal stable */
-				if (get_video_mute() && port != rx_info.sub_port) {
+				if (get_video_mute_val(HDMI_RX_MUTE_SET) &&
+					port != rx_info.sub_port) {
 					if (rx[port].var.mute_cnt++ < one_frame_cnt + 1)
 						break;
 					rx[port].var.mute_cnt = 0;
@@ -8159,7 +8164,7 @@ int hdmirx_debug(const char *buf, int size)
 		}
 		rx_pr("ieee=%x\n", emp_p->emp_tagid);
 	} else if (strncmp(tmpbuf, "muteget", 7) == 0) {
-		rx_pr("mute sts: %x\n", get_video_mute());
+		rx_pr("mute sts: %x\n", get_video_mute_val(HDMI_RX_MUTE_SET));
 	} else if (strncmp(tmpbuf, "muteset", 7) == 0) {
 		if (tmpbuf[7] == '0')
 			set_video_mute(HDMI_RX_MUTE_SET, false);

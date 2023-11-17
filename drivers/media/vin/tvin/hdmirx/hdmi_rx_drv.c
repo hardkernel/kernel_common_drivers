@@ -563,7 +563,8 @@ void hdmirx_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param[port_type];
 	if (vpp_mute_enable) {
-		if (get_video_mute() && port_type != TVIN_PORT_SUB)// && rx[port].vpp_mute)
+		if (get_video_mute_val(HDMI_RX_MUTE_SET) &&
+			port_type != TVIN_PORT_SUB)// && rx[port].vpp_mute)
 			set_video_mute(HDMI_RX_MUTE_SET, false);
 		//rx[port].vpp_mute = false;
 	}
@@ -622,7 +623,8 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe, enum tvin_port_type_e port_typ
 	parm->info.status = TVIN_SIG_STATUS_NULL;
 	/* clear vpp mute, such as after unplug */
 	if (vpp_mute_enable) {
-		if (get_video_mute() && port != rx_info.sub_port)// && rx[port].vpp_mute)
+		if (get_video_mute_val(HDMI_RX_MUTE_SET) &&
+			port != rx_info.sub_port)// && rx[port].vpp_mute)
 			set_video_mute(HDMI_RX_MUTE_SET, false);
 		//rx[port].vpp_mute = false;
 	}
