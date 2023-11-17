@@ -39,7 +39,6 @@
 		dmc_reserved:linux,dmc_monitor {
 			compatible = "amlogic,dmc_monitor-reserved";
 			reg = <0x0 0x0 0x0 0x0>;
-			no-map;
 		};
 
 		dsp_fw_reserved0:linux,dsp_fw0 {

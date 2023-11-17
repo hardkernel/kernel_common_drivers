@@ -577,10 +577,11 @@ static void dmc_enabled_reserved_memory(struct platform_device *pdev, struct dmc
 	dmc_original_debug = mon->debug;
 
 	if (dmc_dev_is_byte(mon)) {
-		mon->device = 0x02;
+		mon->device = 0x0102;
 		mon->debug &= ~DMC_DEBUG_INCLUDE;
 	} else {
 		mon->device = get_all_dev_mask();
+		mon->device &= 0xfffffffffffffffe;
 	}
 
 	mon->debug &= ~DMC_DEBUG_TRACE;
@@ -1394,10 +1395,10 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	dmc_enabled_reserved_memory(pdev, dmc_mon);
-
 	if (init_dmc_debug)
 		dmc_mon->debug = init_dmc_debug;
+
+	dmc_enabled_reserved_memory(pdev, dmc_mon);
 
 	if (init_dev_mask) {
 		dmc_set_monitor(init_start_addr,
