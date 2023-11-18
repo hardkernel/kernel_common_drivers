@@ -374,10 +374,25 @@ static void amcsi_feclose(struct tvin_frontend_s *fe, enum tvin_port_type_e port
 	memset(&devp->para, 0, sizeof(struct vdin_parm_s));
 }
 
+/*
+ * amcsi_get_fmt - get current video format
+ * @fe: frontend device of tvin interface
+ */
+static enum tvin_sig_fmt_e amcsi_get_fmt(struct tvin_frontend_s *fe,
+	enum tvin_port_type_e port_type)
+{
+	enum tvin_sig_fmt_e fmt = TVIN_SIG_FMT_NULL;
+
+	//todo:get fmt from sensor
+	fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
+
+	return fmt;
+}
+
 static struct tvin_state_machine_ops_s amcsi_machine_ops = {
 	.nosig               = NULL,
 	.fmt_changed         = NULL,
-	.get_fmt             = NULL,
+	.get_fmt             = amcsi_get_fmt,
 	.fmt_config          = NULL,
 	.adc_cal             = NULL,
 	.pll_lock            = NULL,

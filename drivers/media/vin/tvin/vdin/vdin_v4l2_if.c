@@ -1263,15 +1263,27 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	devp->work_mode = VDIN_WORK_MD_V4L;
 	devp->afbce_flag = 0;
 
-	if (devp->index == 0 && !(devp->flags & VDIN_FLAG_DEC_OPENED)) {
+	if (devp->parm.port != TVIN_PORT_MIPI && devp->index == 0 &&
+		!(devp->flags & VDIN_FLAG_DEC_OPENED)) {
 		ret = vdin_open_fe(devp->parm.port, 0, devp);
 		if (ret) {
 			pr_err("TVIN_IOC_OPEN(%d) failed to open port 0x%x\n",
-				   devp->index, devp->parm.port);
+				devp->index, devp->parm.port);
 			mutex_unlock(&devp->fe_lock);
 			return -EFAULT;
 		}
 	}
+
+	/* mipi-csi donot support state_machine */
+	if (devp->parm.port == TVIN_PORT_MIPI) {
+		if (devp->frontend && devp->frontend->sm_ops &&
+			devp->frontend->sm_ops->get_fmt)
+			devp->parm.info.fmt =
+				devp->frontend->sm_ops->get_fmt(devp->frontend, 0);
+		else
+			devp->parm.info.fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
+	}
+
 	mutex_unlock(&devp->fe_lock);
 
 	pr_info("%s current port:%#x(%s)\n", __func__,
@@ -2077,6 +2089,15 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *devp)
 	}
 	if (vdin_cap_param.frame_rate == 0)
 		vdin_cap_param.frame_rate = 60;
+
+	if (devp->parm.port == TVIN_PORT_MIPI) {
+		//vdin_cap_param.frame_rate = 30;
+		vdin_cap_param.cfmt = TVIN_YUV422;
+		//vdin_cap_param.bt_path = BT_PATH_CSI2;
+		vdin_cap_param.hsync_phase = 1;
+		vdin_cap_param.vsync_phase = 1;
+	}
+
 	/* vdin can not do scale up */
 	if (devp->v4l2_fmt.fmt.pix_mp.width > vdin_cap_param.h_active ||
 		devp->v4l2_fmt.fmt.pix_mp.height > vdin_cap_param.v_active) {

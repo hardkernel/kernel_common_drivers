@@ -384,14 +384,16 @@ int vdin_open_fe(enum tvin_port_e port, int index,  struct vdin_dev_s *devp)
 	if (ret)
 		return 1;
 
+	if (IS_HDMI_SRC(port) || IS_TVAFE_SRC(port)) {
+		/* init vdin state machine */
+		tvin_smr_init(devp->index);
+		/* for 5.4 init_timer(&devp->timer);*/
+		/*devp->timer.data = (ulong)devp;*/
+		devp->timer.function = vdin_timer_func;
+		devp->timer.expires = jiffies + VDIN_PUT_INTERVAL;
+		add_timer(&devp->timer);
+	}
 	devp->flags |= VDIN_FLAG_DEC_OPENED;
-	/* init vdin state machine */
-	tvin_smr_init(devp->index);
-	/* for 5.4 init_timer(&devp->timer);*/
-	/*devp->timer.data = (ulong)devp;*/
-	devp->timer.function = vdin_timer_func;
-	devp->timer.expires = jiffies + VDIN_PUT_INTERVAL;
-	add_timer(&devp->timer);
 
 	pr_info("%s port:0x%x ok\n", __func__, port);
 	return 0;
@@ -416,8 +418,8 @@ void vdin_close_fe(struct vdin_dev_s *devp)
 		clk_disable_unprepare(devp->msr_clk);
 		devp->vdin_clk_flag = 0;
 	}
-
-	del_timer_sync(&devp->timer);
+	if (IS_HDMI_SRC(devp->parm.port) || IS_TVAFE_SRC(devp->parm.port))
+		del_timer_sync(&devp->timer);
 	if (devp->frontend && devp->frontend->dec_ops->close) {
 		devp->frontend->dec_ops->close(devp->frontend, devp->port_type);
 		devp->frontend = NULL;
