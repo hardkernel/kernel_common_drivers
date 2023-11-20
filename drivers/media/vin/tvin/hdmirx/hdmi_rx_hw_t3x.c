@@ -5923,3 +5923,23 @@ void rx_cor_reset_t3x(u8 port)
 	hdmirx_wr_top(TOP_SW_RESET, 0, port);
 }
 
+void clr_frl_fifo_status(u8 port)
+{
+	hdmirx_wr_cor(VP_FDET_IRQ_STATUS_VID_IVCRX, 0xff, port);
+	udelay(1);
+	hdmirx_wr_cor(VP_FDET_IRQ_STATUS_VID_IVCRX + 1, 0xff, port);
+	udelay(1);
+	hdmirx_wr_cor(VP_FDET_IRQ_STATUS_VID_IVCRX + 2, 0xff, port);
+}
+
+void cor_debug_t3x(u8 port)
+{
+	hdmirx_wr_cor(VP_FDET_IRQ_MASK_VID_IVCRX, 0x80, port);
+	udelay(1);
+	hdmirx_wr_cor(VP_FDET_IRQ_MASK_VID_IVCRX + 1, 0x7, port);
+	udelay(1);
+	hdmirx_wr_cor(VP_FDET_IRQ_MASK_VID_IVCRX + 2, 0x0, port);
+	udelay(1);
+	hdmirx_wr_bits_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, _BIT(1), 1, port);
+}
+

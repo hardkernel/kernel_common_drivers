@@ -5315,6 +5315,8 @@ void hdmirx_config_video(u8 port)
 	set_dv_ll_mode(false, port);
 	hdmirx_output_en(true);
 	rx_irq_en(true, port);
+	if (rx[port].var.frl_rate)
+		cor_debug_t3x(port);
 	hdmirx_top_irq_en(1, 2, port);
 
 	if (rx_info.chip_id < CHIP_ID_T7)

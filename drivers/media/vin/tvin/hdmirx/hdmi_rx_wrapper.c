@@ -75,6 +75,7 @@ static int wait_no_sig_max = 600;
 static int fpll_stable_max = 50;
 u32 vrr_func_en = 1;
 u32 allm_func_en = 0xff;
+u32 htotal_cnt;
 
 typedef void (*pf_callback)(int earc_port, bool st);
 static pf_callback earc_hdmirx_hpdst;
@@ -2257,6 +2258,7 @@ irqreturn_t irq2_handler(int irq, void *params)
 	int error = 0;
 	bool emp_rcvd;
 	u32 tmp = 0;
+	int status = 0;
 
 	if (params == 0) {
 		rx_pr("%s: %s\n", __func__,
@@ -2394,6 +2396,18 @@ irqreturn_t irq2_handler(int irq, void *params)
 			rx_pr("overlap!!! 0x152f:0x%x, 0x1563:0x%x\n", tmp,
 				hdmirx_rd_cor(H21RXSB_INTR3_M42H_IVCRX, E_PORT2));
 		}
+		if (rx[E_PORT2].var.frl_rate && rx[E_PORT2].state >= FSM_SIG_STABLE) {
+			status = hdmirx_rd_bits_cor(VP_FDET_IRQ_STATUS_VID_IVCRX,
+				MSK(4, 7), E_PORT2);
+			if (status != 0) {
+				clr_frl_fifo_status(E_PORT2);
+				htotal_cnt++;
+				if (htotal_cnt >= 10) {
+					rx_cor_reset_t3x(E_PORT2);
+					htotal_cnt = 0;
+				}
+			}
+		}
 	}
 	if (hdmirx_top_intr_stat & (1 << 0))
 		if (log_level & COR_LOG)
@@ -2410,6 +2424,7 @@ irqreturn_t irq3_handler(int irq, void *params)
 	int error = 0;
 	bool emp_rcvd;
 	u32 tmp = 0;
+	int status = 0;
 
 	if (params == 0) {
 		rx_pr("%s: %s\n", __func__,
@@ -2546,6 +2561,19 @@ irqreturn_t irq3_handler(int irq, void *params)
 			hdmirx_wr_cor(H21RXSB_INTR2_M42H_IVCRX, 0xff, E_PORT3);
 			rx_pr("overlap!!! 0x152f:0x%x, 0x1563:0x%x\n", tmp,
 				hdmirx_rd_cor(H21RXSB_INTR3_M42H_IVCRX, E_PORT3));
+		}
+		if (rx[E_PORT3].var.frl_rate && rx[E_PORT3].state >= FSM_SIG_STABLE) {
+			status = hdmirx_rd_bits_cor(VP_FDET_IRQ_STATUS_VID_IVCRX,
+				MSK(4, 7), E_PORT3);
+			if (status != 0) {
+				clr_frl_fifo_status(E_PORT3);
+				htotal_cnt++;
+				if (htotal_cnt >= 10) {
+					if (rx[E_PORT3].var.dbg_ve)
+						rx_cor_reset_t3x(E_PORT3);
+					htotal_cnt = 0;
+				}
+			}
 		}
 	}
 	if (hdmirx_top_intr_stat & (1 << 0))
@@ -6581,6 +6609,8 @@ void rx_port2_main_state_machine(void)
 		}
 		rx[port].state =  FSM_SIG_UNSTABLE;
 		rx[port].var.clk_stable_cnt = 0;
+		htotal_cnt = 0;
+		clr_frl_fifo_status(port);
 		break;
 	case FSM_WAIT_CLK_STABLE:
 		if (rx[port].cur_5v_sts == 0)
@@ -7135,6 +7165,8 @@ void rx_port3_main_state_machine(void)
 		}
 		rx[port].state = FSM_SIG_UNSTABLE;
 		rx[port].var.clk_stable_cnt = 0;
+		htotal_cnt = 0;
+		clr_frl_fifo_status(port);
 		break;
 	case FSM_WAIT_CLK_STABLE:
 		if (rx[port].cur_5v_sts == 0)
