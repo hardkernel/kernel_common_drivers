@@ -1930,3 +1930,11 @@ void earctx_dmac_force_mode(struct regmap *dmac_map, bool enable)
 	else
 		mmio_write(dmac_map, EARCTX_DMAC_TOP_CTRL0, 0);
 }
+
+void earcrx_err_correction_force_mode(struct regmap *dmac_map, bool enable)
+{
+	unsigned int val = !!enable;
+
+	/* EARCRX_ERR_CORRECT_CTRL0 force mode enable */
+	mmio_update_bits(dmac_map, EARCRX_ERR_CORRECT_CTRL0, 0x3, val);
+}

@@ -508,6 +508,7 @@ static irqreturn_t rx_handler(int irq, void *data)
 static irqreturn_t earc_rx_isr(int irq, void *data)
 {
 	struct earc *p_earc = (struct earc *)data;
+	unsigned long flags;
 
 	if (p_earc->rx_status0 & INT_EARCRX_CMDC_TIMEOUT) {
 		earcrx_update_attend_event(p_earc,
@@ -549,6 +550,7 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 	if (p_earc->rx_status0 & INT_EARCRX_CMDC_STATUS_CH)
 		dev_info(p_earc->dev, "EARCRX_CMDC_STATUS_CH\n");
 
+	spin_lock_irqsave(&p_earc->rx_lock, flags);
 	if (p_earc->rx_dmac_clk_on) {
 		if (p_earc->rx_status1 & INT_EARCRX_ANA_RST_C_EARCRX_DIV2_HOLD_SET)
 			dev_info(p_earc->dev, "EARCRX_ANA_RST_C_EARCRX_DIV2_HOLD_SET\n");
@@ -567,8 +569,13 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true);
 		}
 
-		if (p_earc->rx_status0 & INT_EARCRX_CMDC_HB_STATUS)
+		if (p_earc->rx_status0 & INT_EARCRX_CMDC_HB_STATUS) {
+			if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_C_CHST_MUTE_CLR) {
+				earcrx_err_correction_force_mode(p_earc->rx_dmac_map, true);
+				dev_dbg(p_earc->dev, "INT_ARCRX_BIPHASE_DECODE_C_CHST_MUTE_CLR\n");
+			}
 			dev_dbg(p_earc->dev, "EARCRX_CMDC_HB_STATUS\n");
+		}
 		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_C_FIND_PAPB)
 			dev_dbg(p_earc->dev, "ARCRX_C_FIND_PAPB\n");
 		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_C_VALID_CHANGE)
@@ -585,6 +592,8 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 				earcrx_pll_refresh(p_earc->rx_top_map,
 						   RST_BY_SELF, true);
 			}
+			if (!mute)
+				earcrx_err_correction_force_mode(p_earc->rx_dmac_map, false);
 		}
 		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_I_SAMPLE_MODE_CHANGE)
 			dev_dbg(p_earc->dev, "ARCRX_I_SAMPLE_MODE_CHANGE\n");
@@ -600,6 +609,7 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true);
 		}
 	}
+	spin_unlock_irqrestore(&p_earc->rx_lock, flags);
 
 	return IRQ_HANDLED;
 }

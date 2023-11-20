@@ -332,4 +332,5 @@ u8 earcrx_cmdc_get_rx_stat_bits(struct regmap *cmdc_map);
 void earctx_cmdc_earc_mode(struct regmap *cmdc_map, bool enable);
 void earctx_dmac_hold_bus_and_mute(struct regmap *dmac_map, bool enable);
 void earctx_dmac_force_mode(struct regmap *dmac_map, bool enable);
+void earcrx_err_correction_force_mode(struct regmap *dmac_map, bool enable);
 #endif
