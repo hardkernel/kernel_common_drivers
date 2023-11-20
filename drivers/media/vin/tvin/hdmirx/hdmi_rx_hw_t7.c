@@ -157,7 +157,6 @@ void aml_pll_bw_cfg_t7(void)
 	bw = aml_phy_pll_band(rx[port].clk.cable_clk, clk_rate);
 	if (!is_clk_stable(port) || !cableclk)
 		return;
-
 	od_div = apll_tab_t7[bw].od_div;
 	od = apll_tab_t7[bw].od;
 	if (rx_info.aml_phy.osc_mode && idx == PHY_BW_5) {

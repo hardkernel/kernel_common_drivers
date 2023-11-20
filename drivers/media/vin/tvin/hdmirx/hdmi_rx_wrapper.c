@@ -5037,12 +5037,11 @@ void rx_main_state_machine(void)
 		if (rx[port].cur_5v_sts == 0)
 			break;
 		if (rx[port].cableclk_stb_flg && !rx[port].ddc_filter_en) {
-			if (rx[port].var.clk_unstable_cnt != 0) {
-				if (rx[port].var.clk_stable_cnt < clk_stable_max) {
-					rx[port].var.clk_stable_cnt++;
-					break;
-				}
+			if (rx[port].var.clk_unstable_cnt != 0)
 				rx_pr("wait clk cnt %d\n", rx[port].var.clk_unstable_cnt);
+			if (rx[port].var.clk_stable_cnt < clk_stable_max) {
+				rx[port].var.clk_stable_cnt++;
+				break;
 			}
 			rx[port].state = FSM_EQ_START;
 			rx[port].var.clk_stable_cnt = 0;
@@ -5137,7 +5136,8 @@ void rx_main_state_machine(void)
 						force_clk_rate = 0x11;
 					rx_pr("force_clk=%x\n", force_clk_rate);
 				}
-				if (rx[port].var.esd_phy_rst_cnt++ < esd_phy_rst_max) {
+				if (rx[port].var.esd_phy_rst_cnt < esd_phy_rst_max) {
+					rx[port].var.esd_phy_rst_cnt++;
 					rx[port].phy.cablesel++;
 					//rx[port].clk.cable_clk = 0;
 					//hdmirx_phy_init();
