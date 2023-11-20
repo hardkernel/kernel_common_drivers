@@ -365,7 +365,7 @@ function mod_probe() {
 	local install_sh=$3
 	local loop
 	for loop in `grep "^${ko}:" ${dep_file} | sed 's/.*://'`; do
-		[[ `grep ${loop} ${install_sh}` ]] && continue
+		[[ `grep "^${loop}" ${install_sh}` ]] && continue
 		mod_probe ${dep_file} ${loop} ${install_sh}
 		echo insmod ${loop} >> ${install_sh}
 	done
@@ -388,7 +388,7 @@ function create_install_and_order_filles() {
 
 	for loop in `cat ${modules_dep_file} | sed 's/:.*//'`; do
 		echo ${loop} >> ${modules_order_file}.tmp
-		[[ `grep ${loop} ${install_file}.tmp` ]] && continue
+		[[ `grep "^${loop}" ${install_file}.tmp` ]] && continue
 		mod_probe ${modules_dep_file} ${loop} ${install_file}.tmp
 		echo insmod ${loop} >> ${install_file}.tmp
 	done
@@ -555,8 +555,8 @@ function adjust_sequence_modules_loading() {
 
 		for module in ${GKI_MODULES_LOAD_BLACK_LIST[@]}; do
 			echo Delete module: ${module}
-			sed -n "/${module}:/p" modules.dep.temp
-			sed -i "/${module}:/d" modules.dep.temp
+			sed -n "/^${module}:/p" modules.dep.temp
+			sed -i "/^${module}:/d" modules.dep.temp
 		done
 	fi
 
