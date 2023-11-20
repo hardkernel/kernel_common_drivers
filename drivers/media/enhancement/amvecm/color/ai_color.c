@@ -272,30 +272,47 @@ void ai_color_cfg(struct sa_adj_param_s *sa_adj_param)
 	int en;
 	int *s_gain;
 	int *l_gain;
-	int i;
+	int i, j;
+	int s5_slice_mode = get_s5_slice_mode();
+	unsigned int sa_ctl = SA_CTRL;
+	unsigned int sa_adj = SA_ADJ;
+	unsigned int sa_s_gain_0 = SA_S_GAIN_0;
+	unsigned int sa_l_gain_0 = SA_L_GAIN_0;
+
+	if (s5_slice_mode < 1 || s5_slice_mode > 4)
+		return;
 
 	s_gain_en = sa_adj_param->reg_sat_s_gain_en;
 	l_gain_en = sa_adj_param->reg_sat_l_gain_en;
 
-	en = s_gain_en | l_gain_en;
-	VSYNC_WR_MPEG_REG_BITS(SA_CTRL, en, 0, 1);
-	if (!en)
-		return;
-	VSYNC_WR_MPEG_REG_BITS(SA_ADJ, (s_gain_en << 1) | l_gain_en, 27, 2);
+	for (j = 0; j < s5_slice_mode; j++) {
+		sa_ctl += aice_offset[j];
+		sa_adj += aice_offset[j];
+		sa_s_gain_0 += aice_offset[j];
+		sa_l_gain_0 += aice_offset[j];
 
-	s_gain = sa_adj_param->reg_s_gain_lut;
-	l_gain = sa_adj_param->reg_l_gain_lut;
+		en = s_gain_en | l_gain_en;
+		VSYNC_WR_MPEG_REG_BITS(sa_ctl, en, 0, 1);
+		if (!en)
+			return;
+		VSYNC_WR_MPEG_REG_BITS(sa_adj, (s_gain_en << 1) | l_gain_en, 27, 2);
 
-	if (s_gain_en) {
-		for (i = 0; i < 60; i++)
-			VSYNC_WR_MPEG_REG(SA_S_GAIN_0 + i,
-				((s_gain[2 * i] & 0xfff) << 16) | (s_gain[2 * i + 1] & 0xfff));
-	}
+		s_gain = sa_adj_param->reg_s_gain_lut;
+		l_gain = sa_adj_param->reg_l_gain_lut;
 
-	if (l_gain_en) {
-		for (i = 0; i < 32; i++)
-			VSYNC_WR_MPEG_REG(SA_L_GAIN_0 + i,
-				((l_gain[2 * i] & 0x3ff) << 16) | (l_gain[2 * i + 1] & 0x3ff));
+		if (s_gain_en) {
+			for (i = 0; i < 60; i++)
+				VSYNC_WR_MPEG_REG(sa_s_gain_0 + i,
+					((s_gain[2 * i] & 0xfff) << 16) |
+					(s_gain[2 * i + 1] & 0xfff));
+		}
+
+		if (l_gain_en) {
+			for (i = 0; i < 32; i++)
+				VSYNC_WR_MPEG_REG(sa_l_gain_0 + i,
+					((l_gain[2 * i] & 0x3ff) << 16) |
+					(l_gain[2 * i + 1] & 0x3ff));
+		}
 	}
 }
 
