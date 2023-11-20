@@ -1,4 +1,4 @@
-From 285cb1ca8774a514cd0e94c957cd8379bf9a87fe Mon Sep 17 00:00:00 2001
+From ed51ca11a171a4cc9472a7fd7d47083a2399f798 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Thu, 24 Feb 2022 19:30:46 +0800
 Subject: [PATCH] mm: add memory extend support. [2/2]
@@ -37,8 +37,8 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  kernel/dma/contiguous.c             |  4 ++
  mm/page_alloc.c                     | 68 +++++++++++++++++++++++++++++
  mm/slab_common.c                    | 25 +++++++++++
- mm/vmscan.c                         |  2 +
- 11 files changed, 155 insertions(+)
+ mm/vmscan.c                         | 17 ++++++++
+ 11 files changed, 170 insertions(+)
 
 diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
 index b61289b98309..374ee4c5dc60 100644
@@ -441,10 +441,40 @@ index 8cf667b3065e..f578c80c3666 100644
  	trace_android_vh_cache_show(m, &sinfo, s);
  	seq_putc(m, '\n');
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 1dd7e4365f73..35a4055bf328 100644
+index 1dd7e4365f73..8bf766c37319 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2156,8 +2156,10 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
+@@ -1404,6 +1404,17 @@ static unsigned int demote_page_list(struct list_head *demote_pages,
+ 	return nr_succeeded;
+ }
+ 
++#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++static int can_unmap_files(struct scan_control *sc, struct page *page)
++{
++	if (!current_is_kswapd())
++		return 1;
++	if (page_mapcount(page) > 1)
++		return 0;
++	return 1;
++}
++#endif
++
+ /*
+  * shrink_page_list() returns the number of reclaimed pages
+  */
+@@ -1450,7 +1461,11 @@ static unsigned int shrink_page_list(struct list_head *page_list,
+ 		if (unlikely(!page_evictable(page)))
+ 			goto activate_locked;
+ 
++	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++		if (!can_unmap_files(sc, page))
++	#else
+ 		if (!sc->may_unmap && page_mapped(page))
++	#endif
+ 			goto keep_locked;
+ 
+ 		/* page_update_gen() tried to promote this page? */
+@@ -2156,8 +2171,10 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
  	 * won't get blocked by normal direct-reclaimers, forming a circular
  	 * deadlock.
  	 */
