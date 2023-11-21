@@ -906,14 +906,14 @@
 			};
 
 			periphs_pinctrl: pinctrl@4000 {
-				compatible = "amlogic,meson-s7-periphs-pinctrl";
+				compatible = "amlogic,meson-s7d-periphs-pinctrl";
 				#address-cells = <2>;
 				#size-cells = <2>;
 				ranges;
 
 				gpio: bank@4000 {
 					reg = <0x0 0x4000 0x0 0x004c>,
-					      <0x0 0x40c0 0x0 0x0220>;
+					      <0x0 0x40c0 0x0 0x02cc>;
 					reg-names = "mux", "gpio";
 					gpio-controller;
 					#gpio-cells = <2>;

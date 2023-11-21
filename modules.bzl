@@ -65,6 +65,7 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/drivers/gpio/amlogic-pinctrl-soc-t5w.ko",
     "common_drivers/drivers/gpio/amlogic-pinctrl-soc-t7.ko",
     "common_drivers/drivers/gpio/amlogic-pinctrl-soc-s7.ko",
+    "common_drivers/drivers/gpio/amlogic-pinctrl-soc-s7d.ko",
     "common_drivers/drivers/host/amlogic-host.ko",
     "common_drivers/drivers/hwspinlock/amlogic-hwspinlock.ko",
     "common_drivers/drivers/i2c/busses/amlogic-i2c.ko",
