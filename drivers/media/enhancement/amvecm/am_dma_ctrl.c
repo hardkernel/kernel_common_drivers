@@ -290,7 +290,7 @@ void am_dma_set_mif_wr_status(int enable)
 
 	addr = ADDR_PARAM(dma_reg_cfg.page,
 		dma_reg_cfg.reg_sr_mode_l2c1);
-	WRITE_VPP_REG_S5(addr, 0x00420000);
+	WRITE_VPP_REG_BITS_S5(addr, 1, 22, 1);
 }
 
 void am_dma_set_mif_wr(enum lut_dma_wr_id_e dma_wr_id,
