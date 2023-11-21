@@ -24,6 +24,7 @@
 #include <dt-bindings/power/t3x-pd.h>
 #include <dt-bindings/power/txhd2-pd.h>
 #include <dt-bindings/power/s1a-pd.h>
+#include <dt-bindings/power/s7d-pd.h>
 #include <linux/kallsyms.h>
 
 struct sec_pm_private_domain {
@@ -768,6 +769,40 @@ static struct sec_pm_domain_data c3_pm_domain_data __initdata = {
 
 #endif
 
+static struct sec_pm_private_domain s7d_pm_domains[] __initdata = {
+	[PDID_S7_DOS_HCODEC] = POWER_DOMAIN(hcode, PDID_S7_DOS_HCODEC, DOMAIN_INIT_ON,
+					GENPD_FLAG_ALWAYS_ON),
+	[PDID_S7_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_S7_DOS_HEVC, DOMAIN_INIT_ON,
+				       GENPD_FLAG_ALWAYS_ON),
+	[PDID_S7_DOS_VDEC] = POWER_DOMAIN(vdec, PDID_S7_DOS_VDEC, DOMAIN_INIT_ON,
+					  GENPD_FLAG_ALWAYS_ON),
+	[PDID_S7_VPU_HDMI] = POWER_DOMAIN(hdmi, PDID_S7_VPU_HDMI, DOMAIN_INIT_ON,
+					  GENPD_FLAG_ALWAYS_ON),
+	[PDID_S7_USB_COMB] = POWER_DOMAIN(usb_comb, PDID_S7_USB_COMB, DOMAIN_INIT_ON,
+					GENPD_FLAG_ALWAYS_ON),
+	[PDID_S7_SD_EMMC_C] = POWER_DOMAIN(sd_emmc_c, PDID_S7_SD_EMMC_C, DOMAIN_INIT_ON,
+				       GENPD_FLAG_ALWAYS_ON),
+	[PDID_S7_GE2D] = POWER_DOMAIN(ge2d, PDID_S7_GE2D, DOMAIN_INIT_ON,
+					  GENPD_FLAG_ALWAYS_ON),
+	[PDID_S7_SD_EMMC_A] = POWER_DOMAIN(sd_emmc_a, PDID_S7_SD_EMMC_A, DOMAIN_INIT_ON,
+					  GENPD_FLAG_ALWAYS_ON),
+	[PDID_S7_SD_EMMC_B] = POWER_DOMAIN(sd_emmc_b, PDID_S7_SD_EMMC_B, DOMAIN_INIT_ON,
+					GENPD_FLAG_ALWAYS_ON),
+	[PDID_S7_ETH] = POWER_DOMAIN(eth, PDID_S7_ETH, DOMAIN_INIT_ON,
+				       GENPD_FLAG_ALWAYS_ON),
+	[PDID_S7_AUCPU] = POWER_DOMAIN(aucpu, PDID_S7_AUCPU, DOMAIN_INIT_ON,
+					  GENPD_FLAG_ALWAYS_ON),
+	[PDID_S7_AUDIO] = POWER_DOMAIN(audio, PDID_S7_AUDIO, DOMAIN_INIT_ON,
+					  GENPD_FLAG_ALWAYS_ON),
+	[PDID_S7_AMFC] = POWER_DOMAIN(amfc, PDID_S7_AMFC, DOMAIN_INIT_ON,
+					  GENPD_FLAG_ALWAYS_ON),
+};
+
+static struct sec_pm_domain_data s7d_pm_domain_data __initdata = {
+	.domains = s7d_pm_domains,
+	.domains_count = ARRAY_SIZE(s7d_pm_domains),
+};
+
 static int sec_pd_probe(struct platform_device *pdev)
 {
 	int ret, i;
@@ -934,6 +969,10 @@ static const struct of_device_id pd_match_table[] = {
 	{
 		.compatible = "amlogic,s7-power-domain",
 		.data = &s7_pm_domain_data,
+	},
+	{
+		.compatible = "amlogic,s7d-power-domain",
+		.data = &s7d_pm_domain_data,
 	},
 #endif
 	{
