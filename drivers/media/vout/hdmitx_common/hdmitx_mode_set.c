@@ -305,10 +305,16 @@ struct vinfo_s *hdmitx_get_current_vinfo(void *data)
 
 static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 {
-	if (!(mode & VMODE_INIT_BIT_MASK))
+	if (!(mode & VMODE_INIT_BIT_MASK)) {
 		HDMITX_INFO("warning, echo /sys/class/display/mode is disabled\n");
-	else
+	} else {
 		HDMITX_INFO("already display in uboot\n");
+		/* During the kernel startup process, the HDR/DV module will use
+		 * vinfo information, it needs to attach vinfo after the EDID is
+		 * parsed and before the HDR/DV module is enabled.
+		 */
+		edidinfo_attach_to_vinfo(global_tx_common);
+	}
 
 	return 0;
 }
