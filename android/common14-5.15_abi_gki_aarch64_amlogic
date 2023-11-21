@@ -58,3 +58,8 @@
   usb_register_dev
   usb_reset_device
   usb_unlink_urb
+
+# amlogic-memory-debug.ko
+  sprint_symbol_no_offset
+  task_sched_runtime
+  bpf_trace_run9
