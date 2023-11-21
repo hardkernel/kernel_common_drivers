@@ -1015,6 +1015,53 @@ static ssize_t sink_type_show(struct device *dev,
 
 static DEVICE_ATTR_RO(sink_type);
 
+static ssize_t hdmirx_info_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE,
+		"************hdmirx_info************\n");
+
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"******hpd_edid_parsing******\n");
+	pos += snprintf(buf + pos, PAGE_SIZE, "hpd:");
+	pos += hpd_state_show(dev, attr, buf + pos);
+	pos += snprintf(buf + pos, PAGE_SIZE, "\nedid_parsing:");
+	pos += edid_parsing_show(dev, attr, buf + pos);
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "\n******edid******\n");
+	pos += edid_show(dev, attr, buf + pos);
+
+	pos += snprintf(buf + pos, PAGE_SIZE,
+		"\n******dc_cap******\n");
+	pos += dc_cap_show(dev, attr, buf + pos);
+
+	pos += snprintf(buf + pos, PAGE_SIZE,
+		"\n******disp_cap******\n");
+	pos += disp_cap_show(dev, attr, buf + pos);
+
+	pos += snprintf(buf + pos, PAGE_SIZE,
+		"\n******dv_cap******\n");
+	pos += dv_cap_show(dev, attr, buf + pos);
+
+	pos += snprintf(buf + pos, PAGE_SIZE,
+		"\n******hdr_cap******\n");
+	pos += hdr_cap_show(dev, attr, buf + pos);
+
+	pos += snprintf(buf + pos, PAGE_SIZE,
+		"\n******aud_cap******\n");
+	pos += aud_cap_show(dev, attr, buf + pos);
+
+	pos += snprintf(buf + pos, PAGE_SIZE,
+		"\n******rawedid******\n");
+	pos += rawedid_show(dev, attr, buf + pos);
+
+	return pos;
+}
+
+static DEVICE_ATTR_RO(hdmirx_info);
+
 static ssize_t support_3d_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
@@ -1153,6 +1200,7 @@ int hdmitx_sysfs_common_create(struct device *dev,
 	ret = device_create_file(dev, &dev_attr_dv_cap);
 	ret = device_create_file(dev, &dev_attr_dv_cap2);
 	ret = device_create_file(dev, &dev_attr_sink_type);
+	ret = device_create_file(dev, &dev_attr_hdmirx_info);
 
 	ret = device_create_file(dev, &dev_attr_phy);
 	ret = device_create_file(dev, &dev_attr_avmute);
@@ -1195,6 +1243,7 @@ int hdmitx_sysfs_common_destroy(struct device *dev)
 	device_remove_file(dev, &dev_attr_dv_cap);
 	device_remove_file(dev, &dev_attr_dv_cap2);
 	device_remove_file(dev, &dev_attr_sink_type);
+	device_remove_file(dev, &dev_attr_hdmirx_info);
 
 	device_remove_file(dev, &dev_attr_phy);
 	device_remove_file(dev, &dev_attr_avmute);

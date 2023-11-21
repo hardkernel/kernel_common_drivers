@@ -45,6 +45,8 @@ struct hdmitx20_hw {
 
 struct hdmitx20_hw *get_hdmitx20_hw_instance(void);
 
+ssize_t _show20_clkmsr(char *buf);
+
 unsigned int hdmitx_rd_reg(unsigned int addr);
 
 /*

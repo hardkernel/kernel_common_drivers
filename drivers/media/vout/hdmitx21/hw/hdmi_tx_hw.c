@@ -81,6 +81,89 @@ static DEFINE_MUTEX(aud_mutex);
 /* Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit. */
 #define TX_COLOR_DEPTH		 COLORDEPTH_24B
 
+struct _hdmi_clkmsr {
+	int idx;
+	char *name;
+};
+
+static const struct _hdmi_clkmsr hdmiclkmsr_t7[] = {
+	{51, "hdmi_vid_pll_clk"},
+	{55, "cts_vpu_clk_buf"},
+	{59, "cts_hdmi_tx_pixel_clk"},
+	{61, "cts_vpu_clk"},
+	{62, "cts_vpu_clkb"},
+	{63, "cts_vpu_clkb_tmp"},
+	{64, "cts_vpu_clkc"},
+	{76, "hdmitx_tmds_clk"},
+	{77, "cts_hdmitx_sys_clk"},
+	{78, "cts_hdmitx_fe_clk"},
+	{80, "cts_hdmitx_prif_clk"},
+	{81, "cts_hdmitx_200m_clk"},
+	{82, "cts_hdmitx_aud_clk"},
+	{83, "cts_hdmitx_pnx_clk"},
+	{100, "cts_hdmi_aud_pll_clk"},
+	{101, "cts_hdmi_acr_ref_clk"},
+	{102, "cts_hdmi_meter_clk"},
+	{103, "cts_hdmi_vid_clk"},
+	{104, "cts_hdmi_aud_clk"},
+	{104, "cts_hdmi_dsd_clk"},
+	{219, "cts_enc0_if_clk"},
+	{220, "cts_enc2_clk"},
+	{221, "cts_enc1_clk"},
+	{222, "cts_enc0_clk"},
+};
+
+static const struct _hdmi_clkmsr hdmiclkmsr_s1a[] = {
+	{51, "cts_enci_clk"},
+	{52, "cts_encp_clk"},
+	{53, "cts_encl_clk"},
+	{59, "cts_hdmi_tx_pixel_clk"},
+	{61, "cts_vpu_clk"},
+	{62, "cts_vpu_clkb"},
+	{63, "cts_vpu_clkb_tmp"},
+	{64, "cts_vpu_clkc"},
+	{76, "hdmitx_tmds_clk"},
+	{77, "cts_hdmitx_sys_clk"},
+	{78, "cts_hdmitx_fe_clk"},
+	{80, "cts_hdmitx_prif_clk"},
+	{81, "cts_hdmitx_200m_clk"},
+	{82, "cts_hdmitx_aud_clk"},
+	{84, "audio_tohdmitx_mclk"},
+	{85, "audio_tohdmitx_bclk"},
+	{86, "audio_tohdmitx_lrclk"},
+	{87, "audio__tohdmitx_spdif_clk"},
+};
+
+static const struct _hdmi_clkmsr hdmiclkmsr_s5[] = {
+	{4, "fpll_tmds_clk"},
+	{8, "fpll_pixel_clk"},
+	{16, "vid_pll0_clk"},
+	{63, "cts_vpu_clk"},
+	{64, "cts_vpu_clkb"},
+	{66, "cts_vapbclk"},
+	{68, "cts_hdmi_tx_pixel_clk"},
+	{69, "cts_hdmi_tx_pnx_clk"},
+	{70, "cts_hdmi_tx_fe_clk"},
+	{71, "cts_hdmitx_aud_clk"},
+	{72, "cts_hdmitx_200m_clk"},
+	{73, "cts_hdmitx_prif_clk"},
+	{74, "cts_hdmitx_sys_clk"},
+	{75, "audio_tohdmitx_mclk"},
+	{76, "audio_tohdmi_spdif_clk"},
+	{79, "htx_aes_clk"},
+	{82, "audio_tohdmitx_bclk"},
+	{89, "htx_tmds20_clk"},
+	{90, "htx_ch_clk"},
+	{91, "htx_phy_clk1618"},
+	{92, "cts_htx_tmds_clk"},
+	{93, "hdmi_clk_todig"},
+	{94, "hdmi_clk_out2"},
+	{95, "htx_spll_ref_clk_in"},
+	{217, "o_tohdmitx_bclk"},
+	{218, "o_tohdmitx_mclk"},
+	{219, "o_tohdmitx_spdif_clk"},
+};
+
 /* only for hpd level */
 int hdmitx21_hpd_hw_op(enum hpd_op cmd)
 {
@@ -1733,6 +1816,36 @@ static void hdmitx_dump_intr(void)
 {
 }
 
+ssize_t _show21_clkmsr(char *buf)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	static const struct _hdmi_clkmsr *hdmiclkmsr;
+	int i = 0, len = 0, pos = 0;
+
+	switch (hdev->tx_hw.chip_data->chip_type) {
+	case MESON_CPU_ID_T7:
+		hdmiclkmsr = hdmiclkmsr_t7;
+		len = ARRAY_SIZE(hdmiclkmsr_t7);
+		break;
+	case MESON_CPU_ID_S1A:
+		hdmiclkmsr = hdmiclkmsr_s1a;
+		len = ARRAY_SIZE(hdmiclkmsr_s1a);
+		break;
+	case MESON_CPU_ID_S5:
+		hdmiclkmsr = hdmiclkmsr_s5;
+		len = ARRAY_SIZE(hdmiclkmsr_s5);
+		break;
+	default:
+		break;
+	}
+	for (i = 0; i < len; i++)
+		pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"[%d] %d %s\n", hdmiclkmsr[i].idx,
+			meson_clk_measure(hdmiclkmsr[i].idx),
+			hdmiclkmsr[i].name);
+	return pos;
+}
+
 static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -1761,49 +1874,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	} else if (strncmp(tmpbuf, "frl", 3) == 0) {
 		hdev->manual_frl_rate = tmpbuf[3] - '0';
 		frl_tx_training_handler(hdev);
-		return;
-	} else if (strncmp(tmpbuf, "clkmsr", 6) == 0) {
-		struct _hdmi_clkmsr {
-			int idx;
-			char *name;
-		};
-		static const struct _hdmi_clkmsr hdmiclkmsr[] = {
-			{4, "fpll_tmds_clk"},
-			{8, "fpll_pixel_clk"},
-			{16, "vid_pll0_clk"},
-			{63, "cts_vpu_clk"},
-			{64, "cts_vpu_clkb"},
-			{66, "cts_vapbclk"},
-			{68, "cts_hdmi_tx_pixel_clk"},
-			{69, "cts_hdmi_tx_pnx_clk"},
-			{70, "cts_hdmi_tx_fe_clk"},
-			{71, "cts_hdmitx_aud_clk"},
-			{72, "cts_hdmitx_200m_clk"},
-			{73, "cts_hdmitx_prif_clk"},
-			{74, "cts_hdmitx_sys_clk"},
-			{75, "audio_tohdmitx_mclk"},
-			{76, "audio_tohdmi_spdif_clk"},
-			{79, "htx_aes_clk"},
-			{82, "audio_tohdmitx_bclk"},
-			{89, "htx_tmds20_clk"},
-			{90, "htx_ch_clk"},
-			{91, "htx_phy_clk1618"},
-			{92, "cts_htx_tmds_clk"},
-			{93, "hdmi_clk_todig"},
-			{94, "hdmi_clk_out2"},
-			{95, "htx_spll_ref_clk_in"},
-		};
-		if (tmpbuf[6] == 'p') {
-			for (i = 0; i < ARRAY_SIZE(hdmiclkmsr); i++)
-				HDMITX_INFO("[%d] %d %s\n", hdmiclkmsr[i].idx,
-					meson_clk_measure_with_precision(hdmiclkmsr[i].idx, 32),
-					hdmiclkmsr[i].name);
-			return;
-		}
-		for (i = 0; i < ARRAY_SIZE(hdmiclkmsr); i++)
-			HDMITX_INFO("[%d] %d %s\n", hdmiclkmsr[i].idx,
-				meson_clk_measure(hdmiclkmsr[i].idx),
-				hdmiclkmsr[i].name);
 		return;
 	} else if (strncmp(tmpbuf, "testedid", 8) == 0) {
 		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_RESET_EDID, 0);

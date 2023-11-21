@@ -46,10 +46,49 @@
 #include "reg_sc2.h"
 #include "hdmi_tx_debug_reg.h"
 #include "../hdmi_tx_module.h"
+#include <linux/amlogic/clk_measure.h>
 
 #define HDMITX_VIC_MASK			0xff
 
 static struct hdmitx20_hw *global_tx_hw;
+
+struct _hdmi_clkmsr {
+	int idx;
+	char *name;
+};
+
+static const struct _hdmi_clkmsr hdmiclkmsr_G12A[] = {
+	{6, "cts_enci_clk"},
+	{8, "cts_encp_clk"},
+	{9, "cts_encl_clk"},
+	{36, "cts_hdmi_tx_pixel_clk"},
+	{46, "cts_vpu_clk"},
+	{54, "cts_vpu_clkc"},
+	{68, "cts_hdcp22_esmclk"},
+	{69, "cts_hdcp22_skpclk"},
+	{90, "cts_hdmitx_sys_clk"},
+	{96, "cts_vpu_clkb"},
+	{97, "cts_vpu_clkb_tmp"},
+};
+
+static const struct _hdmi_clkmsr hdmiclkmsr_SC2[] = {
+	{51, "cts_enci_clk"},
+	{52, "cts_encp_clk"},
+	{53, "cts_encl_clk"},
+	{59, "cts_hdmi_tx_pixel_clk"},
+	{61, "cts_vpu_clk"},
+	{62, "cts_vpu_clkb"},
+	{63, "cts_vpu_clkb_tmp"},
+	{64, "cts_vpu_clkc"},
+	{68, "cts_hdcp22_esmclk"},
+	{69, "cts_hdcp22_skpclk"},
+	{76, "hdmitx_tmds_clk"},
+	{77, "cts_hdmitx_sys_clk"},
+	{78, "cts_hdmitx_fe_clk"},
+	{184, "vpu_osc_ring0(SVT24)"},
+	{185, "vpu_osc_ring1(LVT20)"},
+	{186, "vpu_osc_ring2(LVT16)"},
+};
 
 static void mode420_half_horizontal_para(void);
 static void hdmi_phy_suspend(void);
@@ -3126,6 +3165,34 @@ int hdmitx_debug_reg_dump(struct hdmitx_dev *hdev, char *buf, int len)
 		}
 	}
 
+	return pos;
+}
+
+ssize_t _show20_clkmsr(char *buf)
+{
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+	static const struct _hdmi_clkmsr *hdmiclkmsr;
+	int i = 0, len = 0, pos = 0;
+
+	switch (hdev->tx_hw.chip_data->chip_type) {
+	case MESON_CPU_ID_G12A:
+	case MESON_CPU_ID_G12B:
+	case MESON_CPU_ID_SM1:
+		hdmiclkmsr = hdmiclkmsr_G12A;
+		len = ARRAY_SIZE(hdmiclkmsr_G12A);
+		break;
+	case MESON_CPU_ID_SC2:
+		hdmiclkmsr = hdmiclkmsr_SC2;
+		len = ARRAY_SIZE(hdmiclkmsr_SC2);
+		break;
+	default:
+		break;
+	}
+	for (i = 0; i < len; i++)
+		pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"[%d] %d %s\n", hdmiclkmsr[i].idx,
+			meson_clk_measure(hdmiclkmsr[i].idx),
+			hdmiclkmsr[i].name);
 	return pos;
 }
 
