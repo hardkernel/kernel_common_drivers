@@ -54,3 +54,8 @@
   drm_connector_list_iter_begin
   drm_connector_list_iter_end
   drm_wait_one_vblank
+
+# amlogic-memory-debug.ko
+  sprint_symbol_no_offset
+  task_sched_runtime
+  bpf_trace_run9
