@@ -29,7 +29,6 @@ unsigned int dvbc_fast_search(struct dvb_frontend *fe, unsigned int *delay, bool
 int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 	unsigned int mode_flags, unsigned int *delay, enum fe_status *status);
 enum fe_modulation dvbc_get_dvbc_qam(enum qam_md_e am_qam);
-void dvbc_set_speedup(struct aml_dtvdemod *demod);
 void dvbc_set_srspeed(struct aml_dtvdemod *demod, int high);
 int dvbc_set_frontend(struct dvb_frontend *fe);
 int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tune);

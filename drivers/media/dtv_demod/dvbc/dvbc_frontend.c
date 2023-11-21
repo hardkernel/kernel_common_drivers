@@ -912,16 +912,6 @@ enum fe_modulation dvbc_get_dvbc_qam(enum qam_md_e am_qam)
 	return QAM_256;
 }
 
-void dvbc_set_speedup(struct aml_dtvdemod *demod)
-{
-	qam_write_reg(demod, 0x65, 0x400c);
-	qam_write_reg(demod, 0x60, 0x10466000);
-	qam_write_reg(demod, 0xac, (qam_read_reg(demod, 0xac) & (~0xff00))
-		| 0x800);
-	qam_write_reg(demod, 0xae, (qam_read_reg(demod, 0xae)
-		& (~0xff000000)) | 0x8000000);
-}
-
 void dvbc_set_srspeed(struct aml_dtvdemod *demod, int high)
 {
 	if (high) {
@@ -971,8 +961,6 @@ int dvbc_set_frontend(struct dvb_frontend *fe)
 	dvbc_set_ch(demod, &param, fe);
 
 	dvbc_init_reg_ext(demod);
-
-	dvbc_set_speedup(demod);
 
 	demod_dvbc_store_qam_cfg(demod);
 
@@ -1140,8 +1128,7 @@ int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tu
 
 		time_start_qam = 0;
 		if (demod->last_lock == 0 && (demod->time_passed < 600 ||
-			(demod->time_passed < 2000 && ASR_times < 2) ||
-			(peak == 1 && AQAM_times < qam_try_cnt && c->modulation == QAM_AUTO))) {
+			(demod->time_passed < 2000 && ASR_times < 2))) {
 			fsm_status = 0;
 		} else if (demod->last_lock == 0) {
 			*status = FE_TIMEDOUT;

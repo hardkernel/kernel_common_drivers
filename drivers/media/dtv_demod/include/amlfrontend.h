@@ -147,6 +147,7 @@
 /*  V3.5.020 fix pm runtime error */
 /*  V3.5.021 optimize the ddr size of cma(max 40M reduced to 16M) */
 /*  V3.5.022 delsys code isolation */
+/*  V3.5.023 fix no timeout when dvbc signal is abnormal */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -163,8 +164,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.21"
-#define DTVDEMOD_VER	"2023/11/15: delsys code isolation"
+#define AMLDTVDEMOD_VER "V3.5.23"
+#define DTVDEMOD_VER	"2023/11/24: fix no timeout when dvbc signal is abnormal"
 #define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
