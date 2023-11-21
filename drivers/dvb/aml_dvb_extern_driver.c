@@ -27,7 +27,7 @@
 #define AML_DVB_EXTERN_MODULE_NAME    "aml_dvb_extern"
 #define AML_DVB_EXTERN_CLASS_NAME     "aml_dvb_extern"
 
-#define AML_DVB_EXTERN_VERSION    "V1.16"
+#define AML_DVB_EXTERN_VERSION    "V1.17"
 
 static struct dvb_extern_device *dvb_extern_dev;
 static struct mutex dvb_extern_mutex;
@@ -210,10 +210,10 @@ static ssize_t tuner_debug_store(struct class *class,
 		parm[n++] = token;
 	}
 
-	if (!parm[0] || !fe)
+	if (!parm[0])
 		goto EXIT;
 
-	if (strncmp(parm[0], "attach", 6) && strncmp(parm[0], "status", 6)) {
+	if (!fe && strncmp(parm[0], "attach", 6) && strncmp(parm[0], "status", 6)) {
 		pr_err("please attach first:\n");
 		pr_err("echo attach [tuner_id] > /sys/class/aml_dvb_extern/tuner_debug\n");
 		goto EXIT;
@@ -419,6 +419,7 @@ static ssize_t tuner_debug_store(struct class *class,
 		}
 	} else if (!strncmp(parm[0], "detach", 6)) {
 		tuner->attach(tuner, false);
+		dev->tuner_fe = NULL;
 	} else if (!strncmp(parm[0], "match", 5)) {
 		if (parm[1] && !kstrtoul(parm[1], 0, &val))
 			fe_type = val;
@@ -618,10 +619,10 @@ static ssize_t demod_debug_store(struct class *class,
 		parm[n++] = token;
 	}
 
-	if (!parm[0] || !fe)
+	if (!parm[0])
 		goto EXIT;
 
-	if (strncmp(parm[0], "attach", 6) && strncmp(parm[0], "status", 6)) {
+	if (!fe && strncmp(parm[0], "attach", 6) && strncmp(parm[0], "status", 6)) {
 		pr_err("please attach first:\n");
 		pr_err("echo attach [demod_id] > /sys/class/aml_dvb_extern/demod_debug\n");
 		goto EXIT;
