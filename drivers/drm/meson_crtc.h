@@ -81,6 +81,7 @@ struct am_meson_crtc_state {
 	int prev_vrefresh;
 	int prev_height;
 	int hdr_conversion_ctrl;
+	bool attr_changed;
 };
 
 struct am_meson_crtc {

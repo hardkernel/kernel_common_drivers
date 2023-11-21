@@ -163,6 +163,7 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->prev_vrefresh = cur_state->prev_vrefresh;
 	new_state->prev_height = cur_state->prev_height;
 	new_state->hdr_conversion_ctrl = cur_state->hdr_conversion_ctrl;
+	new_state->attr_changed = false;
 
 	/*reset dynamic info.*/
 	if (amcrtc->priv->logo_show_done)
@@ -675,7 +676,8 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 
 		if (crtc->state->vrr_enabled &&
 			adjusted_mode->hdisplay == old_mode->hdisplay &&
-			adjusted_mode->vdisplay == old_mode->vdisplay) {
+			adjusted_mode->vdisplay == old_mode->vdisplay &&
+			!meson_crtc_state->attr_changed) {
 			drm_crtc_vblank_on(crtc);
 			return;
 		}
@@ -718,7 +720,8 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	if (crtc->state->vrr_enabled &&
 		adjusted_mode->hdisplay == old_mode->hdisplay &&
-		adjusted_mode->vdisplay == old_mode->vdisplay) {
+		adjusted_mode->vdisplay == old_mode->vdisplay &&
+		!meson_crtc_state->attr_changed) {
 		DRM_INFO("%s, vrr enable, skip crtc disable\n", __func__);
 		return;
 	}
