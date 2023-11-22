@@ -117,6 +117,9 @@ static bool hdmitx_edid_header_invalid(const u8 *buf)
 	if (!buf)
 		return true;
 
+	if (global_tx_base->edid_check & 0x01)
+		return false;
+
 	if (buf[0] != 0 || buf[7] != 0)
 		return true;
 	for (i = 1; i < 7; i++) {
@@ -185,6 +188,9 @@ static bool _check_edid_blk_chksum(unsigned char *block)
 	if (!block)
 		return false;
 
+	if (global_tx_base->edid_check & 0x02)
+		return true;
+
 	for (chksum = 0, i = 0; i < 0x80; i++)
 		chksum += block[i];
 	if ((chksum & 0xff) != 0)
@@ -200,13 +206,16 @@ static bool _check_base_structure(unsigned char *buf)
 
 	if (!buf)
 		return false;
-	/* check block 0 first 8 bytes */
-	if (buf[0] != 0 && buf[7] != 0)
-		return false;
 
-	for (i = 1; i < 7; i++) {
-		if (buf[i] != 0xff)
+	if (!(global_tx_base->edid_check & 0x01)) {
+		/* check block 0 first 8 bytes */
+		if (buf[0] != 0 || buf[7] != 0)
 			return false;
+
+		for (i = 1; i < 7; i++) {
+			if (buf[i] != 0xff)
+				return false;
+		}
 	}
 
 	if (_check_edid_blk_chksum(buf) == false)
@@ -237,13 +246,16 @@ bool hdmitx_edid_check_data_valid(unsigned char *buf)
 	if (blk_cnt == 1)
 		return true;
 	/* check block 1 extension tag */
-	if (!(buf[0x80] == 0x2 || buf[0x80] == 0xf0))
-		return false;
-
+	if (!(global_tx_base->edid_check & 0x01)) {
+		if (!(buf[0x80] == 0x2 || buf[0x80] == 0xf0))
+			return false;
+	}
 	/* check extension block 1 and more */
 	for (i = 1; i < blk_cnt; i++) {
-		if (buf[i * 0x80] == 0)
-			return false;
+		if (!(global_tx_base->edid_check & 0x01)) {
+			if (buf[i * 0x80] == 0)
+				return false;
+		}
 		if (_check_edid_blk_chksum(&buf[i * 0x80]) == false)
 			return false;
 	}
@@ -2030,18 +2042,6 @@ static int hdmitx_edid_cta_block_parse(struct rx_cap *prxcap, u8 *block_buf)
 	if (!prxcap || !block_buf)
 		return -1;
 
-	/* CEA-861 implementations are required to use Tag = 0x02
-	 * for the CEA Extension Tag and Sources should ignore
-	 * Tags that are not understood. but for Samsung LA32D400E1
-	 * its extension tag is 0x0 while other bytes normal,
-	 * so continue parse as other sources do
-	 */
-	if (block_buf[0] == 0x0) {
-		HDMITX_INFO("unknown Extension Tag detected, continue\n");
-	} else if (block_buf[0] != 0x02) {
-		HDMITX_INFO("skip the block of tag: 0x%02x%02x", block_buf[0], block_buf[1]);
-		return -1; /* not a CEA BLOCK. */
-	}
 	end = block_buf[2]; /* CEA description. */
 	prxcap->native_Mode = block_buf[1] >= 2 ? block_buf[3] : 0;
 	prxcap->number_of_dtd += block_buf[1] >= 2 ? (block_buf[3] & 0xf) : 0;
@@ -2864,7 +2864,7 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 		_edid_parse_base_structure(prxcap, edid_buf);
 
 	for (i = 1; i <= cta_block_count; i++) {
-		if (edid_buf[i * 0x80] == 0x02)
+		if (edid_buf[i * 0x80] == 0x02 || global_tx_base->edid_check & 0x01)
 			hdmitx_edid_cta_block_parse(prxcap, &edid_buf[i * 0x80]);
 	}
 

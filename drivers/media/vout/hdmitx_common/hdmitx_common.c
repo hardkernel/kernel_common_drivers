@@ -47,6 +47,7 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	tx_comm->config_csc_en = boot_param->config_csc;
 	tx_comm->res_1080p = 0;
 	tx_comm->max_refreshrate = 60;
+	tx_comm->edid_check = boot_param->edid_check;
 
 	tx_comm->tx_hw = hw_comm;
 	hw_comm->hdcp_repeater_en = 0;

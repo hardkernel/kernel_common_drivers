@@ -3242,6 +3242,17 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	} else if (strncmp(tmpbuf, "i2c_reactive", 12) == 0) {
 		hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_I2C_RESET, 0);
 		return;
+	} else if (strncmp(tmpbuf, "edid_check", 10) == 0) {
+		if (strncmp(tmpbuf + 10, "=0", 2) == 0)
+			hdev->tx_comm.edid_check = 0;
+		else if (strncmp(tmpbuf + 10, "=1", 2) == 0)
+			hdev->tx_comm.edid_check = 1;
+		else if (strncmp(tmpbuf + 10, "=2", 2) == 0)
+			hdev->tx_comm.edid_check = 2;
+		else if (strncmp(tmpbuf + 10, "=3", 2) == 0)
+			hdev->tx_comm.edid_check = 3;
+		HDMITX_INFO("edid_check = %d\n", hdev->tx_comm.edid_check);
+		return;
 	} else if (strncmp(tmpbuf, "bist", 4) == 0) {
 		if (strncmp(tmpbuf + 4, "off", 3) == 0) {
 			hdev->bist_lock = 0;
