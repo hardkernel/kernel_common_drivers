@@ -118,6 +118,7 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
 	unsigned int m, n, frac, od;
+	unsigned long rate;
 
 	n = meson_parm_read(clk->map, &pll->n);
 	m = meson_parm_read(clk->map, &pll->m);
@@ -129,7 +130,12 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 		meson_parm_read(clk->map, &pll->frac) :
 		0;
 
-	return __pll_params_to_rate(parent_rate, m, n, frac, pll, od);
+	rate = __pll_params_to_rate(parent_rate, m, n, frac, pll, od);
+	if ((pll->flags & CLK_MESON_PLL_FIXED_EN0P5) ||
+	    (MESON_PARM_APPLICABLE(&pll->en0p5) && meson_parm_read(clk->map, &pll->en0p5)))
+		rate = rate >> 1;
+
+	return rate;
 }
 #else
 static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
@@ -138,24 +144,21 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
 	unsigned int m, n, frac;
+	unsigned long rate;
 
 	n = meson_parm_read(clk->map, &pll->n);
-
-	/*
-	 * On some HW, N is set to zero on init. This value is invalid as
-	 * it would result in a division by zero. The rate can't be
-	 * calculated in this case
-	 */
-	if (n == 0)
-		return 0;
-
 	m = meson_parm_read(clk->map, &pll->m);
 
 	frac = MESON_PARM_APPLICABLE(&pll->frac) ?
 		meson_parm_read(clk->map, &pll->frac) :
 		0;
 
-	return __pll_params_to_rate(parent_rate, m, n, frac, pll);
+	rate = __pll_params_to_rate(parent_rate, m, n, frac, pll);
+	if ((pll->flags & CLK_MESON_PLL_FIXED_EN0P5) ||
+	    (MESON_PARM_APPLICABLE(&pll->en0p5) && meson_parm_read(clk->map, &pll->en0p5)))
+		rate = rate >> 1;
+
+	return rate;
 }
 #endif
 

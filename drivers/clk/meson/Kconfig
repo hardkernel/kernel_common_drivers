@@ -303,4 +303,13 @@ config AMLOGIC_COMMON_CLK_S7
           Support for the clock controller on Amlogic S7
           devices, aka s7. Say Y if you want peripherals to work.
 
+config AMLOGIC_COMMON_CLK_S7D
+	tristate "Meson S7D clock controller"
+	depends on AMLOGIC_COMMON_CLK_MESON_REGMAP
+	depends on AMLOGIC_COMMON_CLK_MESON_DUALDIV
+	depends on AMLOGIC_COMMON_CLK_MESON_PLL
+	depends on MFD_SYSCON
+	help
+	  Support for the clock controller on Amlogic S7D
+	  devices, aka ao s7d. Say Y if you want peripherals to work.
 endmenu

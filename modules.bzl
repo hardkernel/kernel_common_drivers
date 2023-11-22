@@ -40,6 +40,7 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/drivers/clk/meson/amlogic-clk-soc-t5w.ko",
     "common_drivers/drivers/clk/meson/amlogic-clk-soc-s7.ko",
     "common_drivers/drivers/clk/meson/amlogic-clk-soc-t7.ko",
+    "common_drivers/drivers/clk/meson/amlogic-clk-soc-s7d.ko",
     "common_drivers/drivers/cpufreq/amlogic-cpufreq.ko",
     "common_drivers/drivers/cpu_info/amlogic-cpuinfo.ko",
     "common_drivers/drivers/crypto/amlogic-crypto-dma.ko",
