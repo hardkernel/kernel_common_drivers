@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
+#include <linux/delay.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include "hdmitx_sysfs_common.h"
@@ -688,18 +689,30 @@ static ssize_t phy_store(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	int cmd = TMDS_PHY_ENABLE;
+	global_tx_hw->tmds_phy_op = TMDS_PHY_NONE;
+	unsigned int mute_us;
+	int cnt = 0;
 
 	HDMITX_INFO("%s %s\n", __func__, buf);
-
-	if (strncmp(buf, "0", 1) == 0)
-		cmd = TMDS_PHY_DISABLE;
-	else if (strncmp(buf, "1", 1) == 0)
-		cmd = TMDS_PHY_ENABLE;
-	else
+	mute_us = hdmitx_get_frame_duration();
+	if (strncmp(buf, "0", 1) == 0) {
+		global_tx_hw->tmds_phy_op = TMDS_PHY_DISABLE;
+		/* It is necessary to finish disable phy during the vsync interrupt
+		 * before performing other actions. If the vsync interrupt does not come,
+		 * there is a 3-frame timeout mechanism.
+		 */
+		while (global_tx_hw->tmds_phy_op) {
+			usleep_range(mute_us, mute_us + 10);
+			cnt++;
+			if (cnt > 3)
+				break;
+		}
+	} else if (strncmp(buf, "1", 1) == 0) {
+		global_tx_hw->tmds_phy_op = TMDS_PHY_ENABLE;
+		hdmitx_hw_cntl_misc(global_tx_hw, MISC_TMDS_PHY_OP, TMDS_PHY_ENABLE);
+	} else {
 		HDMITX_INFO("set phy wrong: %s\n", buf);
-
-	hdmitx_hw_cntl_misc(global_tx_hw, MISC_TMDS_PHY_OP, cmd);
+	}
 	return count;
 }
 

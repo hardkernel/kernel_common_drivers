@@ -61,6 +61,7 @@
 	#define HPLL_SET            0x3
 
 #define MISC_TMDS_PHY_OP        (CMD_MISC_OFFSET + 0x04)
+	#define TMDS_PHY_NONE       0x0
 	#define TMDS_PHY_ENABLE     0x1
 	#define TMDS_PHY_DISABLE    0x2
 
@@ -285,6 +286,8 @@ struct hdmitx_hw_common {
 	u32 hdcp_repeater_en:1;
 
 	struct tx_cap txcap;
+
+	unsigned char tmds_phy_op;
 };
 
 int hdmitx_hw_cntl_config(struct hdmitx_hw_common *tx_hw,

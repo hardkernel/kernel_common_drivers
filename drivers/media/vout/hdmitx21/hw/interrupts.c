@@ -275,6 +275,19 @@ static irqreturn_t vrr_vsync_intr_handler(int irq, void *dev)
 	return hdmitx_vrr_vsync_handler((struct hdmitx_dev *)dev);
 }
 
+static irqreturn_t vsync_intr_handler(int irq, void *dev)
+{
+	struct hdmitx_dev *hdev = (struct hdmitx_dev *)dev;
+
+	if (hdev->tx_comm.tx_hw->tmds_phy_op == TMDS_PHY_DISABLE) {
+		hdmitx_hw_cntl_misc(&hdev->tx_hw.base,
+			MISC_TMDS_PHY_OP, hdev->tx_comm.tx_hw->tmds_phy_op);
+		hdev->tx_comm.tx_hw->tmds_phy_op = TMDS_PHY_NONE;
+	}
+
+	return IRQ_HANDLED;
+}
+
 void hdmitx_setupirqs(struct hdmitx_dev *phdev)
 {
 	int r;
@@ -292,4 +305,9 @@ void hdmitx_setupirqs(struct hdmitx_dev *phdev)
 			(void *)phdev);
 	if (r != 0)
 		HDMITX_INFO(SYS "can't request vrr_vsync irq\n");
+	r = request_irq(phdev->irq_vrr_vsync, &vsync_intr_handler,
+			IRQF_SHARED, "hdmi_vsync",
+			(void *)phdev);
+	if (r != 0)
+		HDMITX_INFO(SYS "can't request hdmi_vsync irq\n");
 }

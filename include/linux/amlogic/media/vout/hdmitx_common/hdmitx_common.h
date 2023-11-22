@@ -279,6 +279,7 @@ void hdmitx_common_late_resume(struct hdmitx_common *tx_comm);
 /* common disable hdmitx output api */
 void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 	bool phy_dis, bool hdcp_reset, bool pkt_clear, bool edid_clear);
+unsigned int hdmitx_get_frame_duration(void);
 
 /*******************************drm hdmitx api*******************************/
 

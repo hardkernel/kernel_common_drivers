@@ -540,19 +540,6 @@ static void hdmitx_sdr_hdr_uevent(struct hdmitx_dev *hdev)
 	}
 }
 
-static unsigned int hdmitx_get_frame_duration(void)
-{
-	unsigned int frame_duration;
-	struct vinfo_s *vinfo = hdmitx_get_current_vinfo(NULL);
-
-	if (!vinfo || !vinfo->sync_duration_num)
-		return 0;
-
-	frame_duration =
-		1000000 * vinfo->sync_duration_den / vinfo->sync_duration_num;
-	return frame_duration;
-}
-
 static void hdr_unmute_work_func(struct work_struct *work)
 {
 	unsigned int mute_us;

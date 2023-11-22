@@ -790,3 +790,17 @@ void hdmitx_common_edid_clear(struct hdmitx_common *tx_comm)
 	if (tx_comm->hdmi_repeater == 1)
 		rx_edid_physical_addr(0, 0, 0, 0);
 }
+
+unsigned int hdmitx_get_frame_duration(void)
+{
+	unsigned int frame_duration;
+	struct vinfo_s *vinfo = hdmitx_get_current_vinfo(NULL);
+
+	if (!vinfo || !vinfo->sync_duration_num)
+		return 0;
+
+	frame_duration =
+		1000000 * vinfo->sync_duration_den / vinfo->sync_duration_num;
+	return frame_duration;
+}
+
