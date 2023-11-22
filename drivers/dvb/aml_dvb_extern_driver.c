@@ -27,7 +27,7 @@
 #define AML_DVB_EXTERN_MODULE_NAME    "aml_dvb_extern"
 #define AML_DVB_EXTERN_CLASS_NAME     "aml_dvb_extern"
 
-#define AML_DVB_EXTERN_VERSION    "V1.17"
+#define AML_DVB_EXTERN_VERSION    "V1.18"
 
 static struct dvb_extern_device *dvb_extern_dev;
 static struct mutex dvb_extern_mutex;
@@ -576,6 +576,8 @@ static ssize_t tuner_debug_show(struct class *class,
 					if_frequency[1],
 					if_frequency[0] ? "inverted" : "normal");
 		}
+		if (tuner->used->fe.ops.tuner_ops.calc_regs)
+			tuner->used->fe.ops.tuner_ops.calc_regs(NULL, NULL, 0);
 	}
 
 	n += sprintf(buff + n, "\n");
