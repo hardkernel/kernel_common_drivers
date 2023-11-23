@@ -5,6 +5,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/uaccess.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include "hdmitx_sysfs_common.h"
@@ -100,6 +101,110 @@ static ssize_t edid_show(struct device *dev,
 	return hdmitx_edid_print_sink_cap(&global_tx_common->rxcap, buf, PAGE_SIZE);
 }
 
+static int load_edid_string_data(char *string)
+{
+	size_t str_len;
+	int i;
+	bool valid_len;
+	unsigned char *buf = NULL;
+	bool ret;
+	size_t edid_len;
+	unsigned char tmp[3];
+
+	if (!string)
+		return 0;
+
+	str_len = strlen(string);
+	valid_len = 0;
+	for (i = 1; i <= EDID_MAX_BLOCK; i++) {
+		if (str_len == (256 * i + 1)) {
+			valid_len = 1;
+			break;
+		}
+	}
+	if (valid_len == 0)
+		return 0;
+
+	edid_len = (str_len - 1) / 2;
+	buf = kmalloc(edid_len, GFP_KERNEL);
+	if (!buf)
+		return 0;
+	memset(buf, 0, edid_len);
+	/* convert the edid string to hex data */
+	for (i = 0; i < edid_len; i++) {
+		tmp[0] = string[i * 2];
+		tmp[1] = string[i * 2 + 1];
+		tmp[2] = '\0';
+		ret = kstrtou8(tmp, 16, &buf[i]);
+		if (ret)
+			pr_info("%s[%d] covert error %c%c ret = %d\n", __func__, __LINE__,
+				string[i * 2], string[i * 2 + 1], ret);
+	}
+
+	hdmitx_edid_buffer_clear(global_tx_common->EDID_buf, sizeof(global_tx_common->EDID_buf));
+	memcpy(global_tx_common->EDID_buf, buf, edid_len);
+
+	kfree(buf);
+	pr_info("%s: %zu bytes loaded from edid string\n", __func__, str_len);
+	return 1;
+}
+
+int hdmitx_load_edid_file(u32 type, char *path)
+{
+	if (type == 1)
+		return load_edid_string_data(path);
+	return 0;
+}
+
+int hdmitx_save_edid_file(unsigned char *rawedid, char *path)
+{
+#ifdef CONFIG_AMLOGIC_ENABLE_MEDIA_FILE
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	char line[128] = {0};
+	u32 i = 0, j = 0, k = 0, size = 0, block_cnt = 0;
+	u32 index = 0, tmp = 0;
+
+	filp = filp_open(path, O_RDWR | O_CREAT, 0666);
+	if (IS_ERR(filp)) {
+		HDMITX_INFO("[%s] failed to open/create file: |%s|\n",
+			__func__, path);
+		goto PROCESS_END;
+	}
+
+	block_cnt = rawedid[0x7e] + 1;
+	if (rawedid[0x7e] && rawedid[128 + 4] == EXTENSION_EEODB_EXT_TAG &&
+		rawedid[128 + 5] == EXTENSION_EEODB_EXT_CODE)
+		block_cnt = rawedid[128 + 6] + 1;
+
+	/* dump as txt file*/
+	for (i = 0; i < block_cnt; i++) {
+		for (j = 0; j < 8; j++) {
+			for (k = 0; k < 16; k++) {
+				index = i * 128 + j * 16 + k;
+				tmp = rawedid[index];
+				snprintf((char *)&line[k * 6], 7,
+					 "0x%02x, ",
+					 tmp);
+			}
+			line[16 * 6 - 1] = '\n';
+			line[16 * 6] = 0x0;
+			pos = (i * 8 + j) * 16 * 6;
+		}
+	}
+
+	HDMITX_INFO("[%s] write %d bytes to file %s\n", __func__, size, path);
+
+	vfs_fsync(filp, 0);
+	filp_close(filp, NULL);
+
+PROCESS_END:
+#else
+	HDMITX_ERROR("Not support write file.\n");
+#endif
+	return 0;
+}
+
 static ssize_t edid_store(struct device *dev,
 			  struct device_attribute *attr,
 			  const char *buf, size_t count)
@@ -107,6 +212,7 @@ static ssize_t edid_store(struct device *dev,
 	u32 argn = 0;
 	char *p = NULL, *para = NULL, *argv[8] = {NULL};
 	u32 path_length = 0;
+	int ret = 0;
 
 	p = kstrdup(buf, GFP_KERNEL);
 	if (!p)
@@ -150,11 +256,24 @@ static ssize_t edid_store(struct device *dev,
 			goto PROCESS_END;
 		}
 
+		/* get the EDID from current RX device */
+		if (strncmp(argv[1], "0000000000000000", 16) == 0) {
+			pr_info("%s[%d] get current RX edid\n", __func__, __LINE__);
+			global_tx_common->forced_edid = 0;
+			hdmitx_common_get_edid(global_tx_common);
+			goto PROCESS_END;
+		}
+
 		/* clean '\n' from file path*/
 		path_length = strlen(argv[1]);
-		if (argv[1][path_length - 1] == '\n')
-			argv[1][path_length - 1] = 0x0;
-		hdmitx_load_edid_file(argv[1]);
+		ret = hdmitx_load_edid_file(1, argv[1]); /* edid data as string for debug */
+		if (ret == 1) {
+			global_tx_common->forced_edid = 1;
+			hdmitx_edid_parse(&global_tx_common->rxcap, global_tx_common->EDID_buf);
+			hdmitx_edid_print(global_tx_common->EDID_buf);
+			// TODO pr_info
+			pr_info("%s[%d] using the fixed edid\n", __func__, __LINE__);
+		}
 	}
 
 PROCESS_END:

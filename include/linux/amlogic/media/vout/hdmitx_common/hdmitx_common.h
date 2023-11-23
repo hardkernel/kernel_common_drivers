@@ -52,6 +52,7 @@ struct hdmitx_common {
 	/*edid related*/
 	/* edid hdr/dv cap lock, hdr/dv handle in irq, need spinlock*/
 	spinlock_t edid_spinlock;
+	u32 forced_edid; /* for external loading EDID */
 	unsigned char EDID_buf[EDID_MAX_BLOCK * 128];
 	struct rx_cap rxcap;
 
@@ -250,7 +251,7 @@ int hdmitx_get_hdr_priority(struct hdmitx_common *tx_comm, u32 *hdr_priority);
 bool is_tv_changed(char *cur_edid_chksum, char *boot_param_edid_chksum);
 
 /*debug functions*/
-int hdmitx_load_edid_file(char *path);
+int hdmitx_load_edid_file(u32 type, char *path);
 int hdmitx_save_edid_file(unsigned char *rawedid, char *path);
 
 void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx_hw);

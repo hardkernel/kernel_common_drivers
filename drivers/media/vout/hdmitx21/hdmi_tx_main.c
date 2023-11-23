@@ -3975,9 +3975,10 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	/* init power_uevent state */
 	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	/* reset EDID/vinfo */
-	hdmitx_edid_buffer_clear(hdev->tx_comm.EDID_buf, sizeof(hdev->tx_comm.EDID_buf));
-	hdmitx_edid_rxcap_clear(&hdev->tx_comm.rxcap);
-
+	if (!hdev->tx_comm.forced_edid) {
+		hdmitx_edid_buffer_clear(hdev->tx_comm.EDID_buf, sizeof(hdev->tx_comm.EDID_buf));
+		hdmitx_edid_rxcap_clear(&hdev->tx_comm.rxcap);
+	}
 	/* hpd process of bootup stage */
 	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
 	/* enable irq firstly before any hpd handler to prevent missing irq. */

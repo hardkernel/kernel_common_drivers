@@ -691,66 +691,16 @@ int hdmitx_common_avmute_locked(struct hdmitx_common *tx_comm,
 EXPORT_SYMBOL(hdmitx_common_avmute_locked);
 
 /********************************Debug function***********************************/
-int hdmitx_load_edid_file(char *path)
-{
-	/*TODO: sync function <load_edid_data>.*/
-	return 0;
-}
-
-int hdmitx_save_edid_file(unsigned char *rawedid, char *path)
-{
-#ifdef CONFIG_AMLOGIC_ENABLE_MEDIA_FILE
-	struct file *filp = NULL;
-	loff_t pos = 0;
-	char line[128] = {0};
-	u32 i = 0, j = 0, k = 0, size = 0, block_cnt = 0;
-	u32 index = 0, tmp = 0;
-
-	filp = filp_open(path, O_RDWR | O_CREAT, 0666);
-	if (IS_ERR(filp)) {
-		HDMITX_INFO("[%s] failed to open/create file: |%s|\n",
-			__func__, path);
-		goto PROCESS_END;
-	}
-
-	block_cnt = rawedid[0x7e] + 1;
-	if (rawedid[0x7e] && rawedid[128 + 4] == EXTENSION_EEODB_EXT_TAG &&
-		rawedid[128 + 5] == EXTENSION_EEODB_EXT_CODE)
-		block_cnt = rawedid[128 + 6] + 1;
-
-	/* dump as txt file*/
-	for (i = 0; i < block_cnt; i++) {
-		for (j = 0; j < 8; j++) {
-			for (k = 0; k < 16; k++) {
-				index = i * 128 + j * 16 + k;
-				tmp = rawedid[index];
-				snprintf((char *)&line[k * 6], 7,
-					 "0x%02x, ",
-					 tmp);
-			}
-			line[16 * 6 - 1] = '\n';
-			line[16 * 6] = 0x0;
-			pos = (i * 8 + j) * 16 * 6;
-		}
-	}
-
-	HDMITX_INFO("[%s] write %d bytes to file %s\n", __func__, size, path);
-
-	vfs_fsync(filp, 0);
-	filp_close(filp, NULL);
-
-PROCESS_END:
-#else
-	HDMITX_ERROR("Not support write file.\n");
-#endif
-	return 0;
-}
 
 int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 {
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
 	unsigned long flags = 0;
 
+	if (tx_comm->forced_edid) {
+		HDMITX_INFO("using fixed edid\n");
+		return 0;
+	}
 	hdmitx_edid_buffer_clear(tx_comm->EDID_buf, sizeof(tx_comm->EDID_buf));
 
 	hdmitx_hw_cntl_misc(tx_hw_base, MISC_I2C_RESET, 0); /* reset i2c before edid read */
