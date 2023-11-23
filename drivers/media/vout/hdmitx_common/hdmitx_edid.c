@@ -488,6 +488,10 @@ int hdmitx_edid_validate_format_para(struct tx_cap *txcap,
 	case HDMI_22_720x576i50_16x9:
 		if (para->cs == HDMI_COLORSPACE_YUV422)
 			return -EPERM;
+		break;
+	/* don't support 640x480p60 */
+	case HDMI_1_640x480p60_4x3:
+		return -EACCES;
 	default:
 		break;
 	}
@@ -712,8 +716,6 @@ static void edid_established_timings(struct rx_cap *prxcap, u8 *data)
 	if (!prxcap || !data)
 		return;
 
-	if (data[0] & (1 << 5))
-		store_vesa_idx(prxcap, HDMIV_640x480p60hz);
 	if (data[0] & (1 << 0))
 		store_vesa_idx(prxcap, HDMIV_800x600p60hz);
 	if (data[1] & (1 << 3))
@@ -1987,7 +1989,9 @@ static void _store_vics(struct rx_cap *prxcap, u8 vic_dat)
 	if (vic_bit6_0 >= 1 && vic_bit6_0 <= 64) {
 		prxcap->SVD_VIC[prxcap->SVD_VIC_count] = vic_bit6_0;
 		prxcap->SVD_VIC_count++;
-		store_cea_idx(prxcap, vic_bit6_0);
+		/* don't support 640x480p60 */
+		if (vic_bit6_0 > 1)
+			store_cea_idx(prxcap, vic_bit6_0);
 		if (vic_bit7) {
 			if (prxcap->native_vic && !prxcap->native_vic2)
 				prxcap->native_vic2 = vic_bit6_0;
