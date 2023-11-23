@@ -1122,7 +1122,7 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 	struct file *filp = NULL;
 	loff_t pos = 0;
 	void *buf = NULL;
-	unsigned int i, j;
+	unsigned int i, j, offset = 0;
 	unsigned int span = 0, count = 0;
 	int highmem_flag;
 	unsigned long high_addr;
@@ -1174,11 +1174,17 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 			vdin_dma_flush(devp, buf, devp->canvas_w,
 				       DMA_FROM_DEVICE);
 			kernel_write(filp, buf, devp->canvas_active_w, &pos);
+			offset = devp->canvas_active_w % 8;
+			if (offset && pos) {
+				pos = pos - offset;
+				kernel_write(filp, buf + devp->canvas_active_w + 8 - 2 * offset,
+					offset, &pos);
+			}
 			buf += devp->canvas_w;
 		}
 		/*kernel_write(filp, buf, devp->canvas_max_size, &pos);*/
-		pr_info("write buffer %2d of %2u  to %s.\n",
-			buf_num, devp->canvas_max_num, path);
+		pr_info("write buffer %2d of %2u  to %s.offset=%d\n",
+			buf_num, devp->canvas_max_num, path, offset);
 	} else {
 		pr_info("high mem area: one line size (%d, active:%d)\n",
 			devp->canvas_w, devp->canvas_active_w);
