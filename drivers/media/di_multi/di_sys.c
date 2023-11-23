@@ -4173,6 +4173,12 @@ static void dim_shutdown(struct platform_device *pdev)
 		diext_clk_b_sw(false);
 	if (!DIM_IS_IC(T5) && !DIM_IS_IC(T5DB) && !DIM_IS_IC(T5D))
 		clk_disable_unprepare(di_devp->vpu_clk_mux);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
+#ifdef CLK_TREE_SUPPORT
+		clk_disable_unprepare(di_devp->vpu_clkb);
+#endif
+	}
+
 	PR_INF("%s.\n", __func__);
 }
 

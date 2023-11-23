@@ -2567,17 +2567,9 @@ static int vpu_remove(struct platform_device *pdev)
 
 static void vpu_shutdown(struct platform_device *pdev)
 {
-	int i = 0;
-
-	if (vpu_conf.data->gp_pll_valid  &&
-		__clk_is_enabled(vpu_conf.gp_pll)) {
-		clk_disable_unprepare(vpu_conf.gp_pll);
-	}
-
-	for (i = 0; i < 2; i++) {
-		/*uboot will enable vpu_clk one time*/
+	if (!IS_ERR_OR_NULL(vpu_conf.vpu_clk) &&
+		__clk_is_enabled(vpu_conf.vpu_clk))
 		clk_disable_unprepare(vpu_conf.vpu_clk);
-	}
 
 	if (!IS_ERR_OR_NULL(vpu_conf.vpu_intr))
 		clk_disable_unprepare(vpu_conf.vpu_intr);
