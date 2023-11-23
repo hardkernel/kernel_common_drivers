@@ -32,6 +32,9 @@
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
+#include <linux/amlogic/media/utils/am_com.h>
+#include <linux/amlogic/media/vout/vinfo.h>
+#include <linux/amlogic/media/vout/vout_notify.h>
 #ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
@@ -76,6 +79,8 @@ static int rdma_table_size = RDMA_TABLE_SIZE;
 static int g_vsync_rdma_item_count;
 static int g_vsync_rdma_item_count_max;
 static int enable[RDMA_NUM];
+int rdma_configured[RDMA_NUM];
+ulong rdma_config_us[RDMA_NUM];
 
 MODULE_PARM_DESC(g_vsync_rdma_item_count, "\n g_vsync_rdma_item_count\n");
 module_param(g_vsync_rdma_item_count, uint, 0664);
@@ -742,7 +747,8 @@ int rdma_config(int handle, u32 trigger_type)
 	bool auto_start = false;
 	bool rdma_read = false;
 	int buffer_lock = 0;
-	int trigger_type_backup = trigger_type;
+	int trigger_type_backup = trigger_type, rdma_type;
+	bool rdma_configured = 0;
 
 	if (handle <= 0 || handle >= rdma_meson_dev.channel_num) {
 		pr_info
@@ -1000,6 +1006,17 @@ int rdma_config(int handle, u32 trigger_type)
 		ret = 1;
 	}
 
+	rdma_type = get_rdma_type(handle);
+	if (rdma_type >= 0) {
+		rdma_configured = ret ? 1 : 0;
+		if (rdma_configured) {
+			struct timeval t;
+
+			do_gettimeofday(&t);
+			rdma_config_us[rdma_type] =
+				t.tv_sec * 1000000 + t.tv_usec;
+		}
+	}
 	/* don't reset rdma_item_count for read function */
 	if (handle != get_rdma_handle(VSYNC_RDMA_READ) &&
 		!buffer_lock) {
