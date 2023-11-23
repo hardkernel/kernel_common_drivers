@@ -98,7 +98,6 @@ static struct tl1_acodec_chipinfo acodec_cinfo_v1 = {
 	.is_bclk_cap_inv = true,
 	.is_bclk_o_inv = false,
 	.is_lrclk_inv = false,
-	.is_codec_sw_cap_inv = true,
 
 	.separate_toacodec_en = true,
 	.dac_num = 4,
@@ -110,7 +109,6 @@ static struct tl1_acodec_chipinfo acodec_cinfo_v2 = {
 	.is_bclk_cap_inv = true,
 	.is_bclk_o_inv = false,
 	.is_lrclk_inv = false,
-	.is_codec_sw_cap_inv = true,
 
 	.separate_toacodec_en = true,
 	.dac_num = 2,
@@ -122,7 +120,6 @@ static struct tl1_acodec_chipinfo acodec_cinfo_v3 = {
 	.is_bclk_cap_inv = true,
 	.is_bclk_o_inv = false,
 	.is_lrclk_inv = false,
-	.is_codec_sw_cap_inv = true,
 
 	.separate_toacodec_en = true,
 	.dac_num = 2,
@@ -222,10 +219,6 @@ static int tl1_acodec_reg_init(struct snd_soc_component *component)
 
 	if (aml_acodec && aml_acodec->dac_output_invert == 1)
 		snd_soc_component_update_bits(component, ACODEC_0, 0x3 << 20, 0 << 20);
-	if (aml_acodec->chipinfo->is_bclk_cap_inv) {
-		snd_soc_component_update_bits(component, ACODEC_0, 0x3 << 18,
-							0x3 << 18);
-	}
 	return 0;
 }
 

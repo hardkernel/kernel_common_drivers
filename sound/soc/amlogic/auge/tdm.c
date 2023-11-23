@@ -149,6 +149,7 @@ struct aml_tdm {
 #endif
 	int tdmout_lane_mute_status[LANE_MAX3];
 	bool earc_use_48k;
+	int ext_amp_ws_inv;
 };
 
 #define to_aml_tdm(x)   container_of(x, struct aml_tdm, clk_nb)
@@ -617,7 +618,8 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 			   p_tdm->clk_sel, p_tdm->id, fmt, 1, 1,
 			   tdmin_src_hdmirx,
 			   tdmin_src_hdmirxb,
-			   p_tdm->chipinfo->use_vadtop);
+			   p_tdm->chipinfo->use_vadtop,
+			   p_tdm->ext_amp_ws_inv);
 	if (p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
 		int ret = clk_prepare_enable(p_tdm->mclk);
 
@@ -2770,6 +2772,12 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		pr_debug("TDM id %d output clk enable:%d\n",
 			p_tdm->id, p_tdm->start_clk_enable);
 
+	ret = of_property_read_u32(node, "ext_amp_ws_inv", &p_tdm->ext_amp_ws_inv);
+	if (ret < 0)
+		p_tdm->ext_amp_ws_inv = 0;
+	else
+		pr_debug("TDM id %d ext_amp_ws_inv:%d\n",
+			p_tdm->id, p_tdm->ext_amp_ws_inv);
 	ret = of_property_read_u32(node, "ctrl_gain", &p_tdm->ctrl_gain_enable);
 	if (ret < 0)
 		p_tdm->ctrl_gain_enable = 0;
