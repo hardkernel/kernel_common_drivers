@@ -1552,23 +1552,23 @@
 	};
 
 	vcodec_dos_dev: vcodec_dos_dev {
-		compatible = "amlogic, cpu-major-id-s7";
+		compatible = "amlogic, cpu-major-id-s7d";
 		dev_name = "vcodec_dos_dev";
 		status = "okay";
 		reg = <0x0 0xfe320000 0x0 0x10000>,
 			<0x0 0xfe036000 0x0 0x2000>;
 		reg-names = "dosbus",
 			"dmcbus";
-		//clocks = <&clkc CLKID_SYS_DOS
-		//	&clkc CLKID_VDEC
-		//	&clkc CLKID_HEVCF>;
-		//clock-names = "vdec",
-		//	"clk_vdec_mux",
-		//	"clk_hevcf_mux";
-		//assigned-clock-parents = <&clkc CLKID_VDEC_0>,
-		//	<&clkc CLKID_HEVCF_0>;
-		//assigned-clocks = <&clkc CLKID_VDEC>,
-		//	<&clkc CLKID_HEVCF>;
+		clocks = <&clkc CLKID_SYS_DOS
+			&clkc CLKID_VDEC
+			&clkc CLKID_HEVCF>;
+		clock-names = "vdec",
+			"clk_vdec_mux",
+			"clk_hevcf_mux";
+		assigned-clock-parents = <&clkc CLKID_VDEC_0>,
+			<&clkc CLKID_HEVCF_0>;
+		assigned-clocks = <&clkc CLKID_VDEC>,
+			<&clkc CLKID_HEVCF>;
 	};
 
 	vdec {
@@ -1589,12 +1589,12 @@
 			"mailbox_1",
 			"mailbox_2",
 			"parser_b";
-		//power-domains = <&pwrdm PDID_S7_DOS_VDEC>,
-		//	<&pwrdm PDID_S7_DOS_HEVC>,
-		//	<&pwrdm PDID_S7_DOS_HCODEC>;
-		//power-domain-names = "pwrc-vdec",
-			//"pwrc-hevc",
-			//"pwrc-hcodec";
+		power-domains = <&pwrdm PDID_S7_DOS_VDEC>,
+			<&pwrdm PDID_S7_DOS_HEVC>,
+			<&pwrdm PDID_S7_DOS_HCODEC>;
+		power-domain-names = "pwrc-vdec",
+			"pwrc-hevc",
+			"pwrc-hcodec";
 	};
 
 	vcodec_dec {
