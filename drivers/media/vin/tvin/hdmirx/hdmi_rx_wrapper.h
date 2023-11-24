@@ -45,6 +45,7 @@ enum fsm_states_e {
 	FSM_HPD_HIGH,
 	FSM_COR_RESET,
 	FSM_FRL_FLT_READY,
+	FSM_WAIT_SIG,
 	FLT_RX_LTS_3,
 	FLT_RX_LTS_P,
 	FSM_FRL_TRN,
@@ -134,7 +135,9 @@ extern int color_bar_debug_en;
 extern int port_debug_en;
 extern int flt_ready_max;
 extern int frl_debug_en;
-
+extern int fsm_debug;
+extern int rs_err_chk;
+extern int err_cnt;
 enum tvin_sig_fmt_e hdmirx_hw_get_fmt(u8 port);
 void rx_mute_vpp(u8 port_type);
 void rx_main_state_machine(void);
@@ -175,4 +178,7 @@ bool __weak get_video_mute_val(u32 owner)
 {
 	return false;
 }
+
+void rx_monitor_error_counter(u8 port);
+
 #endif

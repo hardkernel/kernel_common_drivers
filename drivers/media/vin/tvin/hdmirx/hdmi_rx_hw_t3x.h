@@ -85,6 +85,7 @@
 	#define HYPER_GAIN	MSK(4, 16)
 	#define BUF_BST		MSK(3, 28)
 	#define LEQ_POLE	MSK(3, 20)
+	#define BUF_GAIN	MSK(3, 24)
 #define T3X_HDMIRX21PHY_DCHA_DFE        (0x49 << 2)
 	#define VGA_GAIN	MSK(16, 0)
 	#define DFE_TAP_EN	MSK(9, 16)
@@ -160,6 +161,8 @@ extern int rterm_trim_val_t3x_21;
 extern int rterm_trim_flag_t3x_21;
 extern int phy_term_lel_t3x_21;
 extern int tuning_cnt;
+extern int vga_tuning_min;
+extern int vga_tuning_max;
 
 /*--------------------------function declare------------------*/
 /* T3X */
@@ -222,6 +225,8 @@ void aml_phy_power_off_t3x_port3(void);
 void rx_cor_reset_t3x(u8 port);
 void cor_debug_t3x(u8 port);
 void clr_frl_fifo_status(u8 port);
+void rx_rcc_err_frl_config(u8 port);
+void rx_read_ecc_err(u8 port);
 
 //void reset_pcs(void);
 
