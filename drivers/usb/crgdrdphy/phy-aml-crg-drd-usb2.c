@@ -258,7 +258,7 @@ static int amlogic_crg_drd_usb2_init(struct usb_phy *x)
 	for (i = 0; i < phy->portnum; i++) {
 		for (j = 0; j < 2; j++) {
 			u2p_aml_regs.u2p_r_v2[j] = (void __iomem	*)
-				((unsigned long)phy->regs + 4 * j);
+				((unsigned long)phy->regs + 0x20 * i + 4 * j);
 		}
 
 		reg0.d32 = readl(u2p_aml_regs.u2p_r_v2[0]);
@@ -278,7 +278,7 @@ static int amlogic_crg_drd_usb2_init(struct usb_phy *x)
 	for (i = 0; i < phy->portnum; i++) {
 		for (j = 0; j < 2; j++) {
 			u2p_aml_regs.u2p_r_v2[j] = (void __iomem	*)
-				((unsigned long)phy->regs + 4 * j);
+				((unsigned long)phy->regs + 0x20 * i + 4 * j);
 		}
 		usb_set_calibration_trim(phy->phy_cfg[i], phy);
 
