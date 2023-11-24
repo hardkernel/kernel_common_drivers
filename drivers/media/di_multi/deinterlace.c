@@ -5194,7 +5194,7 @@ static void re_build_buf(struct di_ch_s *pch, enum EDI_SGN sgn)
 	mm->cfg.num_post = ptab->num_post;
 	mm->cfg.num_step1_post = ptab->num_step1_post;
 
-	post_nub = cfgg(POST_NUB);
+	post_nub = cfggch(pch, POST_NUB);
 	if (post_nub && post_nub < POST_BUF_NUM)
 		mm->cfg.num_post = post_nub;
 
