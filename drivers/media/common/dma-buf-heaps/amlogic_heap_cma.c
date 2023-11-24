@@ -268,6 +268,7 @@ static void meson_cma_heap_dma_buf_release(struct dma_buf *dmabuf)
 	}
 
 	meson_cma_heap_zero_buffer(buffer);
+	sg_free_table(&buffer->sg_table);
 	/* free page list */
 	kfree(buffer->pages);
 	/* release memory */
