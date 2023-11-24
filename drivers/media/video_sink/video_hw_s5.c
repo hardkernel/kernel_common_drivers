@@ -1871,13 +1871,13 @@ static void vd_proc_sr0_set(u32 vpp_index,
 		if ((tmp_data & 0x1) != 0)
 			rdma_wr_bits(vd_sr_slice_reg->vd_proc_sr0_ctrl,
 					       0, 0, 1);
-		vpu_module_clk_disable_s5(VPP0, SR0, 0);
+		vpu_module_clk_disable_s5(vpp_index, SR0, 0);
 	} else {
 		if (((tmp_data >> 1) & 0x1) != 1)
 			rdma_wr_bits(vd_sr_slice_reg->vd_proc_sr0_ctrl,
 					       1, 1, 1);
 		if ((tmp_data & 0x1) != 1)
-			vpu_module_clk_enable_s5(VPP0, SR0, 0);
+			vpu_module_clk_enable_s5(vpp_index, SR0, 0);
 		rdma_wr_bits(vd_sr_slice_reg->vd_proc_sr0_ctrl, 1, 0, 1);
 	}
 
@@ -1960,7 +1960,7 @@ static void vd_proc_sr1_set(u32 vpp_index,
 			pr_info("%s:disable sr1 core tmp_data: %x\n",
 				__func__,
 				tmp_data);
-		vpu_module_clk_disable_s5(VPP0, SR1, 0);
+		vpu_module_clk_disable_s5(vpp_index, SR1, 0);
 	} else {
 		if (debug_flag_s5 & DEBUG_SR)
 			pr_info("%s:enable sr1 core tmp_data: %x\n",
@@ -1970,7 +1970,7 @@ static void vd_proc_sr1_set(u32 vpp_index,
 			rdma_wr_bits(vd_sr_slice_reg->vd_proc_sr1_ctrl,
 					       1, 1, 1);
 		if ((tmp_data & 0x1) != 1)
-			vpu_module_clk_enable_s5(VPP0, SR1, 0);
+			vpu_module_clk_enable_s5(vpp_index, SR1, 0);
 		rdma_wr_bits(vd_sr_slice_reg->vd_proc_sr1_ctrl, 1, 0, 1);
 	}
 
@@ -2502,11 +2502,12 @@ static struct mosaic_frame_s *get_mosaic_frame(u32 slice)
 	return mosaic_frame;
 }
 
-static void vd1_proc_set(u32 vpp_index, struct vd_proc_s *vd_proc)
+static void vd1_proc_set(struct video_layer_s *layer,
+	struct vd_proc_s *vd_proc)
 {
 	int i;
 	struct vd_proc_unit_s *vd_proc_unit;
-
+	u32 vpp_index = layer->vpp_index;
 	vd_proc_bypass_preblend(vpp_index, vd_proc);
 
 	for (i = 0; i < vd_proc->vd_proc_vd1_info.slice_num; i++) {
@@ -2521,7 +2522,7 @@ static void vd1_proc_set(u32 vpp_index, struct vd_proc_s *vd_proc)
 		vd_proc_unit_set(vpp_index, vd_proc_unit);
 		/* pps */
 		if (!vd_layer[0].mosaic_mode) {
-			vd1_scaler_setting_s5(&vd_layer[0], &vd_layer[0].sc_setting, i);
+			vd1_scaler_setting_s5(layer, &layer->sc_setting, i);
 		} else {
 			struct mosaic_frame_s *mosaic_frame = NULL;
 			struct video_layer_s *virtual_layer = NULL;
@@ -2576,14 +2577,14 @@ static void vd_3mux3_set(u8 vpp_index)
 	}
 }
 
-static void vd2_proc_set(u32 vpp_index, struct vd2_proc_s *vd2_proc)
+static void vd2_proc_set(struct video_layer_s *layer,
+	struct vd2_proc_s *vd2_proc)
 {
+	u32 vpp_index = layer->vpp_index;
 	struct vd2_proc_misc_reg_s *vd2_proc_misc_reg = NULL;
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
-	struct video_layer_s *layer = NULL;
 
-	layer = get_vd_layer(1);
 	vd2_proc_misc_reg = &vd_proc_reg.vd2_proc_misc_reg;
 	rdma_wr(vd2_proc_misc_reg->vd2_proc_in_size,
 		vd2_proc->din_hsize << 16 |
@@ -2594,9 +2595,9 @@ static void vd2_proc_set(u32 vpp_index, struct vd2_proc_s *vd2_proc)
 	vd2_proc_bypass_hdr(vpp_index, vd2_proc->bypass_hdr);
 	/* pps */
 	if (vd2_proc->bypass_pps) {
-		vd_layer[1].sc_setting.sc_top_enable = false;
-		vd_layer[1].sc_setting.sc_h_enable = false;
-		vd_layer[1].sc_setting.sc_v_enable = false;
+		layer->sc_setting.sc_top_enable = false;
+		layer->sc_setting.sc_h_enable = false;
+		layer->sc_setting.sc_v_enable = false;
 	}
 	vdx_scaler_setting_s5(layer, &layer->sc_setting);
 	if (vd2_proc->vd2_dout_dpsel == VD2_DOUT_PI) {
@@ -2617,12 +2618,14 @@ static void vd2_proc_set(u32 vpp_index, struct vd2_proc_s *vd2_proc)
 	vd_3mux3_set(vpp_index);
 }
 
-static void vd_proc_set(u32 vpp_index, struct vd_proc_s *vd_proc)
+static void vd_proc_set(struct video_layer_s *layer,
+	struct vd_proc_s *vd_proc)
 {
 	u32 vd1_work_mode = 0;
 	u32 vd1_slices_dout_dpsel = 0;
 	u32 mosaic_mode, hsize = 0;
 	u32 vd1_dout_hsize = 0, vd1_dout_vsize = 0;
+	u32 vpp_index = layer->vpp_index;
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 	struct vd_proc_mosaic_s *vd_proc_mosaic = NULL;
@@ -2642,13 +2645,17 @@ static void vd_proc_set(u32 vpp_index, struct vd_proc_s *vd_proc)
 		pr_info("%s: vd1_work_mode=%d, vd1_slices_dout_dpsel=%d, vd1_dout_hsize=%d, vd1_dout_vsize=%d\n",
 			__func__, vd1_work_mode, vd1_slices_dout_dpsel,
 			vd1_dout_hsize, vd1_dout_vsize);
-	if (vd_proc->vd1_used)
-		vd1_proc_set(vpp_index, vd_proc);
-	if (vd_proc->vd2_used)
-		vd2_proc_set(vpp_index, &vd_proc->vd2_proc);
-	if (vd_proc->vd_proc_preblend_info.vd1s0_vd2_prebld_en ||
-		vd_proc->vd_proc_preblend_info.vd1s1_vd2_prebld_en)
-		vd2_pre_blend_set(vpp_index, &vd_proc->vd_proc_preblend);
+	if (vd_proc->vd1_used && layer->layer_id == 0)
+		vd1_proc_set(layer, vd_proc);
+
+	if (vd_proc->vd2_used) {
+		if (vd_proc->vd_proc_preblend_info.vd1s1_vd2_prebld_en ||
+			vd_proc->vd_proc_preblend_info.vd1s0_vd2_prebld_en)
+			vd2_proc_set(get_vd_layer(1), &vd_proc->vd2_proc);
+		else
+			vd2_proc_set(layer, &vd_proc->vd2_proc);
+	}
+	vd2_pre_blend_set(vpp_index, &vd_proc->vd_proc_preblend);
 
 	/* path sel set */
 	switch (vd1_work_mode) {
@@ -3397,16 +3404,16 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 
 	if (vd_proc->vd1_used &&
 		debug_flag_s5 & DEBUG_VD_PROC) {
-		pr_info("%s:vd_proc_vd1_info->slice_num=%d\n",
-			__func__, vd_proc_vd1_info->slice_num);
+		pr_info("%s:layer_id=%d vd_proc_vd1_info->slice_num=%d\n",
+			__func__, layer->layer_id, vd_proc_vd1_info->slice_num);
 		pr_info("%s:vd1_work_mode=0x%x, vd1_slices_dout_dpsel=0x%x, overlap=%d\n",
 			__func__, vd_proc_vd1_info->vd1_work_mode,
 			vd_proc_vd1_info->vd1_slices_dout_dpsel,
 			vd_proc_vd1_info->vd1_overlap_hsize);
 	} else if (vd_proc->vd2_used &&
 		debug_flag_s5 & DEBUG_VD2_PROC) {
-		pr_info("%s: vd2 used vpp_index=%d, vd2_dout_dpsel=%d, vd1s0_vd2_prebld_en=%d\n",
-			__func__, layer->vpp_index,
+		pr_info("%s: layer_id=%d vd2 used vpp_index=%d, vd2_dout_dpsel=%d, vd1s0_vd2_prebld_en=%d\n",
+			__func__, layer->layer_id, layer->vpp_index,
 			vd_proc_vd2_info->vd2_dout_dpsel,
 			vd_proc_preblend_info->vd1s0_vd2_prebld_en);
 	}
@@ -5716,10 +5723,11 @@ static void vd_proc_param_set(struct vd_proc_s *vd_proc, u32 frm_idx)
 		vd_proc->vd_proc_unit[1].reg_bypass_prebld = 1;
 	}
 	if (debug_flag_s5 & DEBUG_VD_PROC) {
-		pr_info("%s:reg_bypass_prebld: %d, %d\n",
+		pr_info("%s:reg_bypass_prebld: %d, %d, prebld bld_out_en=%d\n",
 			__func__,
 			vd_proc->vd_proc_unit[0].reg_bypass_prebld,
-			vd_proc->vd_proc_unit[1].reg_bypass_prebld);
+			vd_proc->vd_proc_unit[1].reg_bypass_prebld,
+			vd_proc->vd_proc_preblend.bld_out_en);
 	}
 }
 
@@ -5945,7 +5953,7 @@ void vd_s5_hw_set(struct video_layer_s *layer,
 	/* update info for amvecm */
 	update_vd_proc_amvecm_info(vd_proc);
 
-	vd_proc_set(vpp_index, vd_proc);
+	vd_proc_set(layer, vd_proc);
 
 	if (layer->mosaic_mode) {
 		vd_mosaic_slices_padding_set(vpp_index, 0, vd_proc);
@@ -5963,7 +5971,7 @@ void vd_s5_hw_set(struct video_layer_s *layer,
 		//	      frame_par,
 		//	      dispbuf);
 		//_vd_fgrain_setting_s5(layer, dispbuf);
-		vd_proc_set(vpp_index, vd_proc);
+		vd_proc_set(layer, vd_proc);
 		vd_mosaic_slices_padding_set(vpp_index, 1, vd_proc);
 		/* set back to frame 0 */
 		vd_switch_frm_idx(vpp_index, 0);

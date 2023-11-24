@@ -5468,6 +5468,7 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 
 	if (!layer || !layer->cur_frame_par || !layer->dispbuf)
 		return;
+	vpp_index = layer->vpp_index;
 	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
 		switch_3d_view_per_vsync_s5(layer);
 		return;
@@ -6523,7 +6524,7 @@ static void check_video_mute_state(void)
 static inline void mute_vpp(void)
 {
 	u32 black_val;
-	u8 vpp_index = VPP0;
+	u8 vpp_index = vd_layer[0].vpp_index;
 	struct clip_setting_s setting;
 
 	black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
@@ -6549,7 +6550,7 @@ static inline void mute_vpp(void)
 
 static inline void unmute_vpp(void)
 {
-	u8 vpp_index = VPP0;
+	u8 vpp_index = vd_layer[0].vpp_index;
 	struct clip_setting_s setting;
 
 	setting.clip_done = false;
@@ -9352,10 +9353,10 @@ static void set_mosaic_vframe_info(struct video_layer_s *layer,
 		layer->pi_enable = 0;
 		layer->vd1s1_vd2_prebld_en = 0;
 		g_mosaic_mode = 1;
-		enable_mosaic_mode(VPP0, 1);
+		enable_mosaic_mode(layer->vpp_index, 1);
 	} else {
 		g_mosaic_mode = 0;
-		enable_mosaic_mode(VPP0, 0);
+		enable_mosaic_mode(layer->vpp_index, 0);
 	}
 	layer->mosaic_mode = g_mosaic_mode;
 	if (layer->mosaic_mode) {
@@ -9608,7 +9609,7 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 
 	if (layer->layer_id == 0 && layer->slice_num > 1) {
 		if (layer->mosaic_mode)
-			vd_switch_frm_idx(VPP0, frame_id);
+			vd_switch_frm_idx(layer->vpp_index, frame_id);
 		for (slice = 0; slice < layer->slice_num; slice++) {
 			if (layer->vd1s1_vd2_prebld_en &&
 				layer->slice_num == 2 &&
@@ -9629,7 +9630,7 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 		}
 		if (layer->mosaic_mode) {
 			frame_id = 1;
-			vd_switch_frm_idx(VPP0, frame_id);
+			vd_switch_frm_idx(layer->vpp_index, frame_id);
 			for (slice = 0; slice < layer->slice_num; slice++) {
 				/* switch frame, set pic2/3 */
 				set_layer_mosaic_display_canvas_s5(layer, vf,
@@ -9637,7 +9638,7 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 			}
 			layer->mosaic_frame = true;
 			frame_id = 0;
-			vd_switch_frm_idx(VPP0, frame_id);
+			vd_switch_frm_idx(layer->vpp_index, frame_id);
 		}
 		return 0;
 	}
