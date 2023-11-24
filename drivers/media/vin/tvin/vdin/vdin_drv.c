@@ -328,7 +328,7 @@ void tvin_notify_vdin_skip_frame(unsigned int drop_num, enum tvin_port_type_e po
 
 	vdin_vf_skip_all_disp(devp->vfp);
 
-	if (devp->game_mode || IS_TVAFE_SRC(devp->parm.port))
+	if (devp->game_mode & VDIN_GAME_MODE_2)
 		vdin_pause_hw_write(devp, 0);
 
 	devp->frame_drop_num = drop_num;
