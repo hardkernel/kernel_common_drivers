@@ -565,6 +565,7 @@ static unsigned int framepacking_width = 1920;
 static unsigned int framepacking_height = 2205;
 static int pause_one_3d_fl_frame;
 u32 framepacking_support;
+u32 g_framepacking_support;
 unsigned int framepacking_blank = 45;
 unsigned int process_3d_type;
 #ifdef TV_3D_FUNCTION_OPEN
@@ -10214,8 +10215,8 @@ module_param(bypass_pps, bool, 0664);
 MODULE_PARM_DESC(process_3d_type, "\n process_3d_type\n");
 module_param(process_3d_type, uint, 0664);
 
-MODULE_PARM_DESC(framepacking_support, "\n framepacking_support\n");
-module_param(framepacking_support, uint, 0664);
+MODULE_PARM_DESC(g_framepacking_support, "\n g_framepacking_support\n");
+module_param(g_framepacking_support, uint, 0664);
 
 MODULE_PARM_DESC(framepacking_width, "\n framepacking_width\n");
 module_param(framepacking_width, uint, 0664);

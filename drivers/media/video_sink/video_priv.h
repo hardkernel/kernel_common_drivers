@@ -898,6 +898,7 @@ extern u32 osd2_postbld_src;
 extern u32 osd2_blend_path_sel;
 extern u32 osd_preblend_en;
 extern u32 framepacking_support;
+extern u32 g_framepacking_support;
 extern unsigned int framepacking_blank;
 extern unsigned int process_3d_type;
 #ifdef TV_3D_FUNCTION_OPEN
