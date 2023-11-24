@@ -6147,7 +6147,7 @@ bool is_ft_trim_done(void)
 /*T5 todo:*/
 void aml_phy_get_trim_val_tl1_tm2(void)
 {
-	phy_trim_val = rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL1);
+	phy_trim_val = def_trim_value;
 	dts_debug_flag = (phy_term_lel >> 4) & 0x1;
 	rlevel = phy_term_lel & 0xf;
 	if (rlevel > 11)
@@ -7336,5 +7336,25 @@ void reset_pcs(u8 port)
 {
 	hdmirx_wr_top(TOP_SW_RESET, 0x2080, port);
 	hdmirx_wr_top(TOP_SW_RESET, 0, port);
+}
+
+int aml_phy_get_def_trim_value(void)
+{
+	// t3x to do
+	if (rx_info.chip_id >= CHIP_ID_TL1 &&
+		rx_info.chip_id <= CHIP_ID_TM2)
+		return rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL1);
+	else if (rx_info.chip_id >= CHIP_ID_T5 &&
+		rx_info.chip_id <= CHIP_ID_T5D)
+		return hdmirx_rd_amlphy(T5_HHI_RX_PHY_MISC_CNTL1);
+	else if (rx_info.chip_id >= CHIP_ID_T7 &&
+		rx_info.chip_id <= CHIP_ID_T5W)
+		return hdmirx_rd_amlphy(T7_HHI_RX_PHY_MISC_CNTL1);
+	else if (rx_info.chip_id == CHIP_ID_T5M)
+		return hdmirx_rd_amlphy(T5M_HDMIRX20PHY_DCHA_MISC1);
+	else if (rx_info.chip_id == CHIP_ID_TXHD2)
+		return hdmirx_rd_amlphy(TXHD2_HDMIRX20PHY_DCHA_MISC1);
+	else
+		return 0;
 }
 

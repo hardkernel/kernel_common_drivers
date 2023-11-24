@@ -645,7 +645,7 @@ void aml_phy_offset_cal_t5m(void)
 	data32 = 0xffe00100;
 	if (rterm_trim_flag_t5m) {
 		data32 = ((data32 & (~((0xf << 12) | 0x1))) |
-			(rterm_trim_val_t5m << 12) | rterm_trim_flag_t5m);
+			(rterm_trim_val_t5m << 12) | rterm_trim_flag_t5m << 4);
 	}
 	hdmirx_wr_amlphy(T5M_HDMIRX20PHY_DCHA_MISC1, data32);
 	usleep_range(10, 20);
@@ -1285,7 +1285,7 @@ void aml_phy_get_trim_val_t5m(void)
 
 	dts_debug_flag = (phy_term_lel >> 4) & 0x1;
 	if (dts_debug_flag == 0) {
-		data32 = hdmirx_rd_amlphy(T5M_HDMIRX20PHY_DCHA_MISC1);
+		data32 = def_trim_value;
 		rterm_trim_val_t5m = (data32 >> 12) & 0xf;
 		rterm_trim_flag_t5m = data32 & 0x1;
 	} else {
@@ -1349,7 +1349,7 @@ void aml_phy_cfg_t5m(void)
 			if (dts_debug_flag)
 				rterm_trim_val_t5m = t5m_rlevel[rlevel];
 			data32 = ((data32 & (~((0xf << 12) | 0x1))) |
-				(rterm_trim_val_t5m << 12) | rterm_trim_flag_t5m);
+				(rterm_trim_val_t5m << 12) | rterm_trim_flag_t5m << 4);
 		}
 		hdmirx_wr_amlphy(T5M_HDMIRX20PHY_DCHA_MISC1, data32);
 		usleep_range(5, 10);

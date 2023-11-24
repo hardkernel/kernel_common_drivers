@@ -145,7 +145,8 @@
 /* 2023 09 27 reduce phy power */
 /* optimize afifo configuration */
 /* 2023.11.03 disable DDR access when suspend */
-#define RX_VER2 "ver.2023/11/03"
+/* 2023.12.1 fix trim value err when resume */
+#define RX_VER2 "ver.2023/12/01"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
@@ -1033,6 +1034,7 @@ extern char edid_cur[EDID_SIZE];
 extern int vpp_mute_cnt;
 extern int gcp_mute_cnt;
 extern int gcp_mute_flag[4];
+extern int def_trim_value;
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 extern struct notifier_block vrr_notify;
 #endif

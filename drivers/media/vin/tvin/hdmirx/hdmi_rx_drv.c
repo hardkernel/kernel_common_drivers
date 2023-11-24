@@ -206,7 +206,7 @@ int disable_hdr;
 int vrr_range_dynamic_update_en;
 int allm_update_en;
 int rx_phy_level = 1;
-
+int def_trim_value;
 static struct notifier_block aml_hdcp22_pm_notifier = {
 	.notifier_call = aml_hdcp22_pm_notify,
 };
@@ -3925,6 +3925,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (rx_info.chip_id >= CHIP_ID_T3X)
 		rx_emp1_resource_allocate(&pdev->dev);
 	//rx[rx_info.main_port].port = rx[rx_info.main_port].arc_port;
+	def_trim_value = aml_phy_get_def_trim_value();
 	aml_phy_get_trim_val();
 	edid_auto_mode_init();
 	hdmirx_hw_probe();

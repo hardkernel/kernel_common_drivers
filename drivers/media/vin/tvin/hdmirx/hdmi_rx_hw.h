@@ -3474,6 +3474,7 @@ void rx_set_color_bar(bool en, unsigned int lvl, u8 port);
 void reset_pcs(u8 port);
 bool is_earc_hpd_low(void);
 void rx_mute_vpp(u8 port);
+int aml_phy_get_def_trim_value(void);
 
 /* t3x  */
 void hdmi_tx_rx_frl_training_main(u8 port);
