@@ -129,6 +129,7 @@ struct hw_osd_blend_reg_s hw_osd_reg_blend;
 struct hw_osd_slice2ppc_reg_s hw_osd_reg_slice2ppc;
 struct hw_osd_slice2ppc_s osd_slice2ppc;
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 struct hw_osd_reg_s hw_osd_reg_array_g12a[HW_OSD_COUNT] = {
 	{
 		VIU_OSD1_CTRL_STAT,
@@ -1340,6 +1341,7 @@ struct hw_osd_reg_s hw_osd_reg_array_t3x[HW_OSD_COUNT] = {
 		OSD3_PROC_OUT_SIZE,
 	},
 };
+#endif
 
 struct hw_osd_blend_reg_s hw_osd_blend_reg_legacy = {
 	/* osd_blend */
@@ -1371,6 +1373,7 @@ struct hw_osd_blend_reg_s hw_osd_blend_reg_legacy = {
 	OSD2_BLEND_SRC_CTRL
 };
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 struct hw_osd_blend_reg_s hw_osd_blend_reg_s5 = {
 	/* osd_blend */
 	S5_VIU_OSD_BLEND_CTRL,
@@ -1400,6 +1403,7 @@ struct hw_osd_blend_reg_s hw_osd_blend_reg_s5 = {
 	S5_OSD1_BLEND_SRC_CTRL,
 	S5_OSD2_BLEND_SRC_CTRL
 };
+#endif
 
 struct hw_osd_slice2ppc_reg_s hw_osd_slice2ppc_reg =  {
 	OSD_2SLICE2PPC_IN_SIZE,
@@ -14722,11 +14726,13 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		osd_hw.vpp_num++;
 	osd_vpu_power_on();
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	if (osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_S5 ||
 	    osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_T3X)
 		memcpy(&hw_osd_reg_blend, &hw_osd_blend_reg_s5,
 		       sizeof(struct hw_osd_blend_reg_s));
 	else
+#endif
 		memcpy(&hw_osd_reg_blend, &hw_osd_blend_reg_legacy,
 		       sizeof(struct hw_osd_blend_reg_s));
 
@@ -14737,6 +14743,7 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 	if (osd_meson->osd_count == 3 &&
 	    osd_meson->has_viu2) {
 		/* VIU1 2 OSD + 1 VIU2 1 OSD*/
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 		memcpy(&hw_osd_reg_array[0], &hw_osd_reg_array_tl1[0],
 		       sizeof(struct hw_osd_reg_s) *
 		       osd_hw.osd_meson_dev.osd_count);
@@ -14752,11 +14759,13 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		memcpy(&hw_osd_reg_array[0], &hw_osd_reg_array_t3[0],
 		       sizeof(struct hw_osd_reg_s) *
 		       osd_hw.osd_meson_dev.osd_count);
+#endif
 	} else if (osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_C3) {
 		/* one osd, no afbc, no osd blend */
 		memcpy(&hw_osd_reg_array[0], &hw_osd_reg_array_c3[0],
 			   sizeof(struct hw_osd_reg_s) *
 			   osd_hw.osd_meson_dev.osd_count);
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	} else if (osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_S5) {
 		/* 2 OSD (OSD1 + OSD3), multi_afbc_core */
 		memcpy(&hw_osd_reg_array[0], &hw_osd_reg_array_s5[0],
@@ -14772,6 +14781,7 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		memcpy(&hw_osd_reg_array[0], &hw_osd_reg_array_g12a[0],
 		       sizeof(struct hw_osd_reg_s) *
 		       osd_hw.osd_meson_dev.osd_count);
+#endif
 	}
 	if (osd_dev_hw.display_type == T7_DISPLAY ||
 		osd_dev_hw.s5_display) {

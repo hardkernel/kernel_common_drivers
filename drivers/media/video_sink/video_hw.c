@@ -6908,6 +6908,7 @@ static int vpp_zorder_check(void)
 	return force_flush;
 }
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static int vpp_zorder_check_t7(void)
 {
 	int force_flush = 0;
@@ -6995,6 +6996,7 @@ static int vpp_zorder_check_t7(void)
 	}
 	return force_flush;
 }
+#endif
 
 static void post_blend_dummy_data_update(u32 vpp_index)
 {
@@ -7031,6 +7033,7 @@ static void post_blend_dummy_data_update(u32 vpp_index)
 	}
 }
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 {
 	static u32 t7_vd1_enabled, vpp_misc_set_save;
@@ -7872,6 +7875,7 @@ static void vpp_blend_update_s5(const struct vinfo_s *vinfo, u8 vpp_index)
 	if (video1_off_req)
 		disable_vd1_blend(&vd_layer[0]);
 }
+#endif
 
 void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 {
@@ -7908,6 +7912,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 	check_video_mute();
 	check_output_mute();
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
 		vpp_blend_update_s5(vinfo, vpp_index);
 		return;
@@ -7916,6 +7921,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 		vpp_blend_update_t7(vinfo);
 		return;
 	}
+#endif
 
 	if (vd_layer[0].enable_3d_mode == mode_3d_mvc_enable)
 		mode |= COMPOSE_MODE_3D;
@@ -13051,6 +13057,7 @@ void di_used_vd1_afbc(bool di_used)
 		WRITE_VCBUS_REG_BITS(VD1_AFBCD0_MISC_CTRL, 0, 1, 1);
 }
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 int get_vpu_urgent_info_t5m(void)
 {
 	u32 value;
@@ -13275,6 +13282,7 @@ int set_vpu_super_urgent_t3(u32 module_id, u32 low_level, u32 high_level)
 		low_level << 8 | high_level);
 	return 0;
 }
+#endif
 
 static void video_hw_init_c3(void)
 {

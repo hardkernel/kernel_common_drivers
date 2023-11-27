@@ -79,6 +79,7 @@ static int sec_pm_domain_power_on(struct generic_pm_domain *genpd)
 #define POWER_DOMAIN(_name, index, status, flag)	\
 	TOP_DOMAIN(_name, index, status, flag, 0)
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static struct sec_pm_private_domain a1_pm_domains[] __initdata = {
 	[PDID_DSP_A] =  POWER_DOMAIN(dsp_a, PDID_DSP_A, DOMAIN_INIT_ON, GENPD_FLAG_ACTIVE_WAKEUP),
@@ -703,6 +704,39 @@ static struct sec_pm_domain_data s1a_pm_domain_data __initdata = {
 	.domains = s1a_pm_domains,
 	.domains_count = ARRAY_SIZE(s1a_pm_domains),
 };
+#else
+static struct sec_pm_private_domain c3_pm_domains[] __initdata = {
+	[PDID_C3_NNA] = POWER_DOMAIN(nna, PDID_C3_NNA, DOMAIN_INIT_OFF, 0),
+	[PDID_C3_AUDIO] = POWER_DOMAIN(audio, PDID_C3_AUDIO, DOMAIN_INIT_ON,
+				       GENPD_FLAG_ALWAYS_ON),
+	[PDID_C3_SDIOA] = POWER_DOMAIN(sdioa, PDID_C3_SDIOA, DOMAIN_INIT_ON,
+					  GENPD_FLAG_ALWAYS_ON),
+	[PDID_C3_EMMC] = POWER_DOMAIN(emmc, PDID_C3_EMMC, DOMAIN_INIT_ON,
+					  GENPD_FLAG_ALWAYS_ON),
+	[PDID_C3_USB_COMB] = POWER_DOMAIN(usb_comb, PDID_C3_USB_COMB, DOMAIN_INIT_ON,
+					  GENPD_FLAG_ALWAYS_ON),
+	[PDID_C3_SDCARD] = POWER_DOMAIN(sdcard, PDID_C3_SDCARD, DOMAIN_INIT_ON,
+					GENPD_FLAG_ALWAYS_ON),
+	[PDID_C3_ETH] = POWER_DOMAIN(eth, PDID_C3_ETH, DOMAIN_INIT_ON,
+				     GENPD_FLAG_ALWAYS_ON),
+	[PDID_C3_GE2D] = POWER_DOMAIN(ge2d, PDID_C3_GE2D, DOMAIN_INIT_ON, 0),
+	[PDID_C3_CVE] = POWER_DOMAIN(cve, PDID_C3_CVE, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_C3_GDC_WRAP] = POWER_DOMAIN(cdg_wrap, PDID_C3_GDC_WRAP, DOMAIN_INIT_ON,
+					  GENPD_FLAG_ALWAYS_ON),
+	[PDID_C3_ISP_TOP] = POWER_DOMAIN(isp_top, PDID_C3_ISP_TOP, DOMAIN_INIT_ON,
+					 GENPD_FLAG_ALWAYS_ON),
+	[PDID_C3_MIPI_ISP_WRAP] = POWER_DOMAIN(isp_warp, PDID_C3_MIPI_ISP_WRAP, DOMAIN_INIT_ON,
+					       GENPD_FLAG_ALWAYS_ON),
+	[PDID_C3_VCODEC] = POWER_DOMAIN(vcodec, PDID_C3_VCODEC, DOMAIN_INIT_ON,
+					GENPD_FLAG_ALWAYS_ON),
+};
+
+static struct sec_pm_domain_data c3_pm_domain_data __initdata = {
+	.domains = c3_pm_domains,
+	.domains_count = ARRAY_SIZE(c3_pm_domains),
+};
+
+#endif
 
 static int sec_pd_probe(struct platform_device *pdev)
 {
@@ -799,6 +833,7 @@ out:
 }
 
 static const struct of_device_id pd_match_table[] = {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic,c1-power-domain",
@@ -871,6 +906,12 @@ static const struct of_device_id pd_match_table[] = {
 		.compatible = "amlogic,s1a-power-domain",
 		.data = &s1a_pm_domain_data,
 	},
+#else
+	{
+		.compatible = "amlogic,c3-power-domain",
+		.data = &c3_pm_domain_data,
+	},
+#endif
 	{}
 };
 

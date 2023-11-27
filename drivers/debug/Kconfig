@@ -131,6 +131,12 @@ config AMLOGIC_REMOVE_OLD
 	help
 	  remove more for zapper
 
+config AMLOGIC_C3_REMOVE
+	bool "c3 project cut"
+	default n
+	help
+	  remove more for c3 project
+
 config AMLOGIC_DEBUG_IOTRACE
 	tristate "amlogic debug iotrace config"
 	default n

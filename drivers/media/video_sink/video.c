@@ -12109,6 +12109,7 @@ static ssize_t frc_delay_show(struct class *class,
 static ssize_t vpu_module_urgent_show(struct class *cla,
 			     struct class_attribute *attr, char *buf)
 {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	if (video_is_meson_t3_cpu()) {
 		get_vpu_urgent_info_t3();
 	} else if (video_is_meson_t7_cpu()) {
@@ -12128,9 +12129,11 @@ static ssize_t vpu_module_urgent_show(struct class *cla,
 		pr_info("vpp_arb0: vd1, vd2, dolby0\n");
 		pr_info("vpp_arb1: osd1, osd2, osd3, mali-afbc\n");
 	}
+#endif
 	return 0;
 }
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static const char vpu_module_urgent_help_t3[] = "Usage:\n"
 "  echo module_id low_level(0-7) high_level(0-7)> /sys/class/video/urgent_set\n"
 "  FRC0_R: 0\n"
@@ -12173,11 +12176,13 @@ static const char vpu_module_urgent_help_t5m[] = "Usage:\n"
 "  TCON_P1: 5\n"
 "  DCNTR_GRID: 4\n"
 "  TCON_P2: 6\n\n";
+#endif
 
 static ssize_t vpu_module_urgent_set(struct class *class,
 			struct class_attribute *attr,
 			const char *buf, size_t count)
 {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	int parsed[3];
 	int ret = -1;
 
@@ -12204,6 +12209,7 @@ static ssize_t vpu_module_urgent_set(struct class *class,
 		else if (video_is_meson_t5m_cpu())
 			pr_info("%s", vpu_module_urgent_help_t5m);
 	}
+#endif
 	return count;
 }
 
@@ -13595,6 +13601,7 @@ static struct early_suspend video_early_suspend_handler = {
 };
 #endif
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct amvideo_device_data_s amvideo = {
 	.cpu_type = MESON_CPU_MAJOR_ID_COMPATIBLE,
 	.sr_reg_offt = 0xff,
@@ -14109,6 +14116,7 @@ static struct amvideo_device_data_s amvideo_t5w = {
 	.has_vpp2 = 0,
 	.is_tv_panel = 1,
 };
+#endif
 
 static struct amvideo_device_data_s amvideo_c3 = {
 	.cpu_type = MESON_CPU_MAJOR_ID_C3_,
@@ -14163,6 +14171,7 @@ static struct amvideo_device_data_s amvideo_c3 = {
 	.is_tv_panel = 1,
 };
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct amvideo_device_data_s amvideo_s5 = {
 	.cpu_type = MESON_CPU_MAJOR_ID_S5_,
 	.sr_reg_offt = 0x1e00,
@@ -14421,6 +14430,7 @@ static struct amvideo_device_data_s amvideo_s1a = {
 	.max_vd_layers = 2,
 	.is_tv_panel = 0,
 };
+#endif
 
 static struct video_device_hw_s legcy_dev_property = {
 	.vd2_independ_blend_ctrl = 0,
@@ -14430,6 +14440,7 @@ static struct video_device_hw_s legcy_dev_property = {
 	.sr01_num = 1,
 };
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct video_device_hw_s t3_dev_property = {
 	.vd2_independ_blend_ctrl = 1,
 	.aisr_support = 1,
@@ -14448,6 +14459,7 @@ static struct video_device_hw_s t5w_dev_property = {
 	.sr_in_size = 1,
 	.sr01_num = 1,
 };
+#endif
 
 static struct video_device_hw_s c3_dev_property = {
 	.vd2_independ_blend_ctrl = 0,
@@ -14458,6 +14470,7 @@ static struct video_device_hw_s c3_dev_property = {
 	.sr01_num = 1,
 };
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct video_device_hw_s s5_dev_property = {
 	.vd2_independ_blend_ctrl = 1,
 	.aisr_support = 1,
@@ -14492,8 +14505,10 @@ static struct video_device_hw_s t3x_dev_property = {
 	.amdv_tvcore = 1,
 	.vpp_in_padding_support = 1,
 };
+#endif
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic, amvideom",
 		.data = &amvideo,
@@ -14534,10 +14549,12 @@ static const struct of_device_id amlogic_amvideom_dt_match[] = {
 		.compatible = "amlogic, amvideom-t5w",
 		.data = &amvideo_t5w,
 	},
+#endif
 	{
 		.compatible = "amlogic, amvideom-c3",
 		.data = &amvideo_c3,
 	},
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic, amvideom-s5",
 		.data = &amvideo_s5,
@@ -14558,6 +14575,7 @@ static const struct of_device_id amlogic_amvideom_dt_match[] = {
 		.compatible = "amlogic, amvideom-s1a",
 		.data = &amvideo_s1a,
 	},
+#endif
 	{}
 };
 
@@ -14873,6 +14891,7 @@ static int amvideom_probe(struct platform_device *pdev)
 		}
 	}
 	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_T3_) {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 		memcpy(&amvideo_meson_dev.dev_property, &t3_dev_property,
 		       sizeof(struct video_device_hw_s));
 		aisr_en = 1;
@@ -14892,9 +14911,11 @@ static int amvideom_probe(struct platform_device *pdev)
 		memcpy(&amvideo_meson_dev.dev_property, &t5w_dev_property,
 		       sizeof(struct video_device_hw_s));
 		cur_dev->power_ctrl = true;
+#endif
 	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_C3_) {
 		memcpy(&amvideo_meson_dev.dev_property, &c3_dev_property,
 			   sizeof(struct video_device_hw_s));
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S5_) {
 		memcpy(&amvideo_meson_dev.dev_property, &s5_dev_property,
 		       sizeof(struct video_device_hw_s));
@@ -14908,6 +14929,7 @@ static int amvideom_probe(struct platform_device *pdev)
 		       sizeof(struct video_device_hw_s));
 		aisr_en = 1;
 		cur_dev->power_ctrl = true;
+#endif
 	} else {
 		memcpy(&amvideo_meson_dev.dev_property, &legcy_dev_property,
 		       sizeof(struct video_device_hw_s));

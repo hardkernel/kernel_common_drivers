@@ -1261,6 +1261,7 @@ static struct ge2d_ctrl_s runtime_poweroff_ctrl[] = {
 struct ge2d_power_table_s runtime_poweron_table = {1, runtime_poweron_ctrl};
 struct ge2d_power_table_s runtime_poweroff_table = {1, runtime_poweroff_ctrl};
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct ge2d_device_data_s ge2d_gxl = {
 	.ge2d_rate = 400000000,
@@ -1450,8 +1451,10 @@ static struct ge2d_device_data_s ge2d_s4 = {
 	.src2_repeat = 1,
 };
 #endif
+#endif
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct ge2d_device_data_s ge2d_p1 = {
 	.ge2d_rate = 667000000,
 	.src2_alp = 1,
@@ -1485,6 +1488,7 @@ static struct ge2d_device_data_s ge2d_t5w = {
 	.dst_sign_mode = 1,
 	.blk_stride_mode = 1,
 };
+#endif
 
 static struct ge2d_device_data_s ge2d_c3 = {
 	.ge2d_rate = 667000000,
@@ -1505,6 +1509,7 @@ static struct ge2d_device_data_s ge2d_c3 = {
 	.cmd_queue_mode = 1,
 };
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct ge2d_device_data_s ge2d_t5m = {
 	.ge2d_rate = 667000000,
 	.src2_alp = 1,
@@ -1561,7 +1566,9 @@ static struct ge2d_device_data_s ge2d_t3x = {
 	.cmd_queue_mode = 1,
 };
 #endif
+#endif
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct ge2d_device_data_s ge2d_s1a = {
 	.ge2d_rate = 500000000,
 	.src2_alp = 1,
@@ -1577,8 +1584,10 @@ static struct ge2d_device_data_s ge2d_s1a = {
 	.src2_repeat = 1,
 	.cmd_queue_mode = 1,
 };
+#endif
 
 static const struct of_device_id ge2d_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, ge2d-gxl",
@@ -1641,7 +1650,9 @@ static const struct of_device_id ge2d_dt_match[] = {
 		.data = &ge2d_s4,
 	},
 #endif
+#endif
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic, ge2d-p1",
 		.data = &ge2d_p1,
@@ -1650,10 +1661,12 @@ static const struct of_device_id ge2d_dt_match[] = {
 		.compatible = "amlogic, ge2d-t5w",
 		.data = &ge2d_t5w,
 	},
+#endif
 	{
 		.compatible = "amlogic, ge2d-c3",
 		.data = &ge2d_c3,
 	},
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic, ge2d-t5m",
 		.data = &ge2d_t5m,
@@ -1667,10 +1680,13 @@ static const struct of_device_id ge2d_dt_match[] = {
 		.data = &ge2d_t3x,
 	},
 #endif
+#endif
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic, ge2d-s1a",
 		.data = &ge2d_s1a,
 	},
+#endif
 	{},
 };
 

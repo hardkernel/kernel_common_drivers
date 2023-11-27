@@ -667,6 +667,7 @@ static void lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_
 	}
 
 	switch (pdrv->data->chip_type) {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	case LCD_CHIP_AXG:
 		lcd_clk_config_chip_init_axg(pdrv, cconf);
 		break;
@@ -701,15 +702,18 @@ static void lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_
 	case LCD_CHIP_T5W:
 		lcd_clk_config_chip_init_t5w(pdrv, cconf);
 		break;
+#endif
 	case LCD_CHIP_C3:
 		lcd_clk_config_chip_init_c3(pdrv, cconf);
 		break;
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	case LCD_CHIP_T3X:
 		lcd_clk_config_chip_init_t3x(pdrv, cconf);
 		break;
 	case LCD_CHIP_TXHD2:
 		lcd_clk_config_chip_init_txhd2(pdrv, cconf);
 		break;
+#endif
 	default:
 		LCDPR("[%d]: %s: invalid chip type\n", pdrv->index, __func__);
 		return;

@@ -253,6 +253,7 @@ static int vpu_vmod_clk_release(unsigned int vmod)
 	return ret;
 }
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static int vpu_vmod_mem_pd_switch(unsigned int vmod, int flag)
 {
@@ -401,6 +402,7 @@ static int vpu_vmod_mem_pd_get_new(unsigned int vmod)
 	else
 		return VPU_MEM_POWER_DOWN;
 }
+#endif
 
 static int vpu_vmod_clk_gate_switch(unsigned int vmod, int flag)
 {
@@ -1648,6 +1650,7 @@ static void vpu_power_init(void)
 		vpu_conf.data->module_init_config();
 }
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static struct vpu_data_s vpu_data_tm2 = {
 	.chip_type = VPU_CHIP_TM2,
@@ -2123,6 +2126,7 @@ static struct vpu_data_s vpu_data_s1a = {
 	.clk_apply = vpu_clk_apply_dft,
 	.clktree_init = vpu_clktree_init_dft,
 };
+#endif
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static struct vpu_data_s vpu_data_c3 = {
@@ -2168,6 +2172,7 @@ static struct vpu_data_s vpu_data_c3 = {
 	.clktree_init = vpu_clktree_init_c3,
 };
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct vpu_data_s vpu_data_s5 = {
 	.chip_type = VPU_CHIP_S5,
 	.chip_name = "s5",
@@ -2470,8 +2475,10 @@ static struct vpu_data_s vpu_data_txhd2 = {
 	.clktree_init = vpu_clktree_init_dft,
 };
 #endif
+#endif
 
 static const struct of_device_id vpu_of_table[] = {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	{
 		.compatible = "amlogic, vpu-sc2",
@@ -2500,7 +2507,9 @@ static const struct of_device_id vpu_of_table[] = {
 		.data = &vpu_data_s4d,
 	},
 #endif
+#endif
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic, vpu-t3",
 		.data = &vpu_data_t3,
@@ -2509,10 +2518,12 @@ static const struct of_device_id vpu_of_table[] = {
 		.compatible = "amlogic, vpu-t5w",
 		.data = &vpu_data_t5w,
 	},
+#endif
 	{
 		.compatible = "amlogic, vpu-c3",
 		.data = &vpu_data_c3,
 	},
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic, vpu-t7c",
 		.data = &vpu_data_t7,
@@ -2554,10 +2565,13 @@ static const struct of_device_id vpu_of_table[] = {
 		.data = &vpu_data_tm2b,
 	},
 #endif
+#endif
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic, vpu-s1a",
 		.data = &vpu_data_s1a,
 	},
+#endif
 	{}
 };
 

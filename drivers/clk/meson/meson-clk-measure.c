@@ -60,6 +60,7 @@ static struct meson_msr *glo_meson_msr;
 static unsigned int measure_num;
 struct meson_msr_id *msr_table;
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct meson_msr_id clk_msr_m8[] __initdata = {
 	CLK_MSR_ID(0, "ring_osc_out_ee0"),
@@ -510,8 +511,10 @@ static struct meson_msr_id clk_msr_s1a[] __initdata = {
 	CLK_MSR_ID(185, "top_osc_ring[1](SVT35)"),
 	CLK_MSR_ID(186, "top_osc_ring[2](HVT35)"),
 };
+#endif
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct meson_msr_id clk_msr_g12a[] __initdata = {
 	CLK_MSR_ID(0, "ring_osc_out_ee_0"),
 	CLK_MSR_ID(1, "ring_osc_out_ee_1"),
@@ -2081,6 +2084,7 @@ static struct meson_msr_id clk_msr_c2[] __initdata = {
 	CLK_MSR_ID(94, "osc_ring_cpu0"),
 	CLK_MSR_ID(95, "osc_ring_cpu0"),
 };
+#endif
 
 static struct meson_msr_id clk_msr_c3[] __initdata = {
 	CLK_MSR_ID(0,	"cts_sys_clk"),
@@ -2221,6 +2225,7 @@ static struct meson_msr_id clk_msr_c3[] __initdata = {
 	CLK_MSR_ID(203,	"rng_ring_osc_clk_1[3]"),
 };
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct meson_msr_id clk_msr_a1[] __initdata = {
 	CLK_MSR_ID(0, "tdmout_b_sclk"),
 	CLK_MSR_ID(1, "tdmout_a_sclk"),
@@ -3248,6 +3253,7 @@ static struct meson_msr_id clk_msr_c1[] __initdata = {
 	CLK_MSR_ID(92, "ddr_dpll_pt_clk"),
 };
 #endif
+#endif
 
 static int meson_measure_id(struct meson_msr_id *clk_msr_id,
 			    unsigned int duration)
@@ -3498,6 +3504,7 @@ static int meson_msr_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct meson_msr_data meson_gx_data __initdata = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_gx,
@@ -3546,8 +3553,10 @@ static struct meson_msr_data meson_s1a_data __initdata = {
 	.reg1_offset = 0x4,
 	.reg2_offset = 0x8,
 };
+#endif
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct meson_msr_data meson_g12a_data __initdata = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_g12a,
 	.table_size = ARRAY_SIZE(clk_msr_g12a),
@@ -3637,6 +3646,7 @@ static struct meson_msr_data meson_c2_data __initdata = {
 	.reg1_offset = 0x4,
 	.reg2_offset = 0x8,
 };
+#endif
 
 static struct meson_msr_data meson_c3_data __initdata = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_c3,
@@ -3647,6 +3657,7 @@ static struct meson_msr_data meson_c3_data __initdata = {
 	.reg2_offset = 0x8,
 };
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct meson_msr_data meson_a1_data __initdata = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_a1,
 	.table_size = ARRAY_SIZE(clk_msr_a1),
@@ -3709,8 +3720,10 @@ static struct meson_msr_data meson_c1_data __initdata = {
 	.reg2_offset = 0x8,
 };
 #endif
+#endif
 
 static const struct of_device_id meson_msr_match_table[] = {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic,meson-gx-clk-measure",
@@ -3739,7 +3752,9 @@ static const struct of_device_id meson_msr_match_table[] = {
 		.compatible = "amlogic,meson-s1a-clk-measure",
 		.data = &meson_s1a_data,
 	},
+#endif
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic,meson-g12a-clk-measure",
 		.data = &meson_g12a_data,
@@ -3788,11 +3803,12 @@ static const struct of_device_id meson_msr_match_table[] = {
 		.compatible = "amlogic,c2-clk-measure",
 		.data = &meson_c2_data,
 	},
-
+#endif
 	{
 		.compatible = "amlogic,c3-clk-measure",
 		.data = &meson_c3_data,
 	},
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic,a1-clk-measure",
 		.data = &meson_a1_data,
@@ -3821,6 +3837,7 @@ static const struct of_device_id meson_msr_match_table[] = {
 		.compatible = "amlogic,meson-c1-clk-measure",
 		.data = &meson_c1_data,
 	},
+#endif
 #endif
 	{ /* sentinel */ }
 };

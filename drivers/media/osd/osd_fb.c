@@ -4670,6 +4670,7 @@ static void mem_free_work(struct work_struct *work)
 	}
 }
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct osd_device_data_s osd_gxbb = {
 	.cpu_id = __MESON_CPU_MAJOR_ID_GXBB,
@@ -5064,6 +5065,7 @@ static struct osd_device_hw_s t5w_dev_property = {
 	.remove_pps = 3,
 	.prevsync_support = 0,
 };
+#endif
 
 static struct osd_device_hw_s c3_dev_property = {
 	.display_type = C3_DISPLAY,
@@ -5078,6 +5080,7 @@ static struct osd_device_hw_s c3_dev_property = {
 	.prevsync_support = 0,
 };
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct osd_device_hw_s t5m_dev_property = {
 	.display_type = T7_DISPLAY,
 	.has_8G_addr = 1,
@@ -5159,6 +5162,7 @@ static struct osd_device_data_s osd_t5w = {
 	.has_vpp1 = 1,
 	.has_vpp2 = 0,
 };
+#endif
 
 static struct osd_device_data_s osd_c3 = {
 	.cpu_id = __MESON_CPU_MAJOR_ID_C3,
@@ -5179,6 +5183,7 @@ static struct osd_device_data_s osd_c3 = {
 	.has_vpp2 = 0,
 };
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct osd_device_data_s osd_t5m = {
 	.cpu_id = __MESON_CPU_MAJOR_ID_T5M,
 	.osd_ver = OSD_HIGH_ONE,
@@ -5287,8 +5292,10 @@ static struct osd_device_data_s osd_txhd2 = {
 	.has_vpp1 = 0,
 	.has_vpp2 = 0,
 };
+#endif
 
 static const struct of_device_id meson_fb_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, fb-gxbb",
@@ -5380,10 +5387,12 @@ static const struct of_device_id meson_fb_dt_match[] = {
 		.compatible = "amlogic, fb-t5w",
 		.data = &osd_t5w,
 	},
+#endif
 	{
 		.compatible = "amlogic, fb-c3",
 		.data = &osd_c3,
 	},
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic, fb-t5m",
 		.data = &osd_t5m,
@@ -5400,6 +5409,7 @@ static const struct of_device_id meson_fb_dt_match[] = {
 		.compatible = "amlogic, fb-txhd2",
 		.data = &osd_txhd2,
 	},
+#endif
 	{},
 };
 
@@ -5512,6 +5522,7 @@ static int __init osd_probe(struct platform_device *pdev)
 		amlfb_virtual_probe(pdev);
 		return 0;
 	}
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T7)
 		memcpy(&osd_dev_hw, &t7_dev_property,
 		       sizeof(struct osd_device_hw_s));
@@ -5522,8 +5533,12 @@ static int __init osd_probe(struct platform_device *pdev)
 		memcpy(&osd_dev_hw, &t5w_dev_property,
 		       sizeof(struct osd_device_hw_s));
 	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_C3)
+#else
+	if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_C3)
+#endif
 		memcpy(&osd_dev_hw, &c3_dev_property,
 		       sizeof(struct osd_device_hw_s));
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T5M)
 		memcpy(&osd_dev_hw, &t5m_dev_property,
 		       sizeof(struct osd_device_hw_s));
@@ -5536,6 +5551,7 @@ static int __init osd_probe(struct platform_device *pdev)
 	else
 		memcpy(&osd_dev_hw, &legcy_dev_property,
 		       sizeof(struct osd_device_hw_s));
+#endif
 
 	prop = of_get_property(pdev->dev.of_node, "display_device_cnt", NULL);
 	if (prop)
