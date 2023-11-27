@@ -393,11 +393,12 @@ static void ss_mute(int samesource_sel, bool mute)
 
 	pr_debug("%s() %d, mute %d, id %d\n", __func__, __LINE__,
 		mute, samesource_sel - 3);
-	aml_spdifout_mute_without_actrl(samesource_sel - 3, mute);
 
 	ops = get_samesrc_ops(samesource_sel);
 	if (ops && ops->private) {
 		struct aml_spdif *p_spdif = ops->private;
+
+		aml_spdifout_mute_without_actrl(samesource_sel - 3, !mute, p_spdif->mute);
 
 		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
 		    get_samesrc_ops(p_spdif->samesource_sel) &&
@@ -691,7 +692,8 @@ static int aml_audio_set_spdif_mute(struct snd_kcontrol *kcontrol,
 				pinctrl_select_state(p_spdif->pin_ctl, state);
 		}
 	} else {
-		aml_spdif_out_mute(p_spdif->actrl, p_spdif->id, mute);
+		if (aml_spdif_out_get_mute(p_spdif->actrl, p_spdif->id) != mute)
+			aml_spdif_out_mute(p_spdif->actrl, p_spdif->id, mute);
 	}
 
 	p_spdif->mute = mute;
@@ -1402,9 +1404,6 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 			if (p_spdif->samesource_sel != SHAREBUFFER_NONE)
 				spdif_sharebuffer_trigger(p_spdif, runtime->channels,
 							  SNDRV_PCM_TRIGGER_STOP);
-			if (!p_spdif->mute)
-				aml_spdif_mute(p_spdif->actrl,
-					substream->stream, p_spdif->id, false);
 		}
 
 		if (get_hdmitx_audio_src(rtd->card) == p_spdif->id) {
@@ -1499,9 +1498,7 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 
 			aml_frddr_enable(p_spdif->fddr, 1);
 			udelay(100);
-			if (!p_spdif->mute)
-				aml_spdif_mute(p_spdif->actrl,
-					substream->stream, p_spdif->id, false);
+			aml_spdifout_mute_without_actrl(p_spdif->id, true, p_spdif->mute);
 			if (p_spdif->samesource_sel != SHAREBUFFER_NONE)
 				spdif_sharebuffer_mute(p_spdif, false);
 		} else {
@@ -1528,9 +1525,7 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 			 * only mute, ensure spdif outputs zero data.
 			 */
 			if (p_spdif->clk_cont) {
-				if (!p_spdif->mute)
-					aml_spdif_mute(p_spdif->actrl,
-						substream->stream, p_spdif->id, true);
+				aml_spdifout_mute_without_actrl(p_spdif->id, false, true);
 				if (p_spdif->samesource_sel != SHAREBUFFER_NONE)
 					spdif_sharebuffer_mute(p_spdif, true);
 			} else {

@@ -18,14 +18,9 @@ void aml_spdif_enable(struct aml_audio_controller *actrl,
 	int index,
 	bool is_enable);
 
-void aml_spdif_mute(struct aml_audio_controller *actrl,
-	int stream,
-	int index,
-	bool is_mute);
+void aml_spdifout_mute_without_actrl(int index, bool start, bool is_mute);
 
-void aml_spdifout_mute_without_actrl(int index,
-	bool is_mute);
-
+int aml_spdif_out_get_mute(struct aml_audio_controller *actrl, int index);
 void aml_spdif_out_mute(struct aml_audio_controller *actrl,
 	int index, bool is_mute);
 

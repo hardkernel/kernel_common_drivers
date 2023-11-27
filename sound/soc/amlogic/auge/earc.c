@@ -2388,6 +2388,7 @@ static int earctx_clk_get(struct snd_kcontrol *kcontrol,
 	if (!IS_ERR(p_earc->clk_tx_dmac)) {
 		ucontrol->value.enumerated.item[0] =
 				clk_get_rate(p_earc->clk_tx_dmac);
+		p_earc->tx_dmac_freq = ucontrol->value.enumerated.item[0];
 	}
 	return 0;
 }
