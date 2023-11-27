@@ -19,6 +19,26 @@ static struct hdmitx_hw_common *global_tx_hw;
 const char *hdmitx_mode_get_timing_name(enum hdmi_vic vic);
 
 /************************common sysfs*************************/
+static ssize_t hdmi_efuse_state_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDMI_60HZ = %d\n\r",
+		global_tx_common->efuse_dis_hdmi_4k60);
+	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_OUTPUT_4K = %d\n\r",
+		global_tx_common->efuse_dis_output_4k);
+	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDCP_TX_22 = %d\n\r",
+		global_tx_common->efuse_dis_hdcp_tx22);
+	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDMI_TX_3D = %d\n\r",
+		global_tx_common->efuse_dis_hdmi_tx3d);
+	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDMI = %d\n\r",
+		global_tx_common->efuse_dis_hdcp_tx14);
+	return pos;
+}
+
+static DEVICE_ATTR_RO(hdmi_efuse_state);
+
 static ssize_t attr_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
@@ -1340,6 +1360,7 @@ int hdmitx_sysfs_common_create(struct device *dev,
 	global_tx_common = tx_comm;
 	global_tx_hw = tx_hw;
 
+	ret = device_create_file(dev, &dev_attr_hdmi_efuse_state);
 	ret = device_create_file(dev, &dev_attr_attr);
 	ret = device_create_file(dev, &dev_attr_test_attr);
 	ret = device_create_file(dev, &dev_attr_hpd_state);
@@ -1384,6 +1405,7 @@ int hdmitx_sysfs_common_create(struct device *dev,
 
 int hdmitx_sysfs_common_destroy(struct device *dev)
 {
+	device_remove_file(dev, &dev_attr_hdmi_efuse_state);
 	device_remove_file(dev, &dev_attr_attr);
 	device_remove_file(dev, &dev_attr_test_attr);
 	device_remove_file(dev, &dev_attr_hpd_state);

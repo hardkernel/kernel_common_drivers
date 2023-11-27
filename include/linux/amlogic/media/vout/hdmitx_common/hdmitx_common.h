@@ -121,6 +121,15 @@ struct hdmitx_common {
 	u32 enc_idx;
 	/*soc limitation config*/
 	u32 res_1080p;
+	/* efuse ctrl state
+	 * 1 disable the function
+	 * 0 dont disable the function
+	 */
+	bool efuse_dis_hdmi_4k60;	/* 4k50,60hz */
+	bool efuse_dis_output_4k;	/* all 4k resolution*/
+	bool efuse_dis_hdcp_tx22;	/* hdcptx22 */
+	bool efuse_dis_hdmi_tx3d;	/* 3d */
+	bool efuse_dis_hdcp_tx14;	/* s1a hdcptx14 */
 	u32 max_refreshrate;
 	/*for color space conversion*/
 	bool config_csc_en;
@@ -289,5 +298,6 @@ void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 	struct hdmitx_hw_common *tx_hw_base,
 	struct notifier_block *block,
 	unsigned long cmd, void *para);
+void get_hdmi_efuse(struct hdmitx_common *tx_comm);
 
 #endif

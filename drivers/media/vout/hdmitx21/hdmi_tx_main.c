@@ -2380,10 +2380,18 @@ static ssize_t hdcp_mode_store(struct device *dev,
 	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
 
 	if (strncmp(buf, "f1", 2) == 0) {
+		if (hdev->tx_comm.efuse_dis_hdcp_tx14) {
+			HDMITX_ERROR("warning, efuse disable hdcptx14\n");
+			return count;
+		}
 		hdev->tx_comm.hdcp_mode = 0x1;
 		hdcp_mode_set(1);
 	}
 	if (strncmp(buf, "f2", 2) == 0) {
+		if (hdev->tx_comm.efuse_dis_hdcp_tx22) {
+			HDMITX_ERROR("warning, efuse disable hdcptx22\n");
+			return count;
+		}
 		hdev->tx_comm.hdcp_mode = 0x2;
 		hdcp_mode_set(2);
 	}
@@ -3945,6 +3953,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		aout_register_client(&hdmitx_notifier_nb_a);
 #endif
 
+	/* get efuse ctrl state */
+	get_hdmi_efuse(tx_comm);
 	spin_lock_init(&hdev->tx_comm.edid_spinlock);
 	INIT_WORK(&hdev->work_hdr, hdr_work_func);
 	hdev->hdmi_hpd_wq = alloc_ordered_workqueue(DEVICE_NAME,
