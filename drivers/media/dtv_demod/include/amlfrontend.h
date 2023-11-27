@@ -149,6 +149,7 @@
 /*  V3.5.022 delsys code isolation */
 /*  V3.5.023 fix no timeout when dvbc signal is abnormal */
 /*  V3.5.024 fix dvbs diseqc timing */
+/*  V3.5.025 fix dvbc blind scan init issue */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -165,8 +166,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.024"
-#define DTVDEMOD_VER	"2023/11/27: fix dvbs diseqc timing"
+#define AMLDTVDEMOD_VER "V3.5.25"
+#define DTVDEMOD_VER	"2023/11/27: fix dvbc blind scan init issue"
 #define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

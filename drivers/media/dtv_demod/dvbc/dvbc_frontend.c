@@ -1320,11 +1320,13 @@ void dvbc_blind_scan_work(struct aml_dtvdemod *demod)
 	//disable dvbc_blind_scan mode to avoid hang when switch to other demod
 	demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 
-	//5.init dvbc for stage 2
-	devp->dvbc_inited = false;
-	gxtv_demod_dvbc_init(demod, ADC_MODE);
-
 	if (!devp->blind_scan_stop) {
+		//5.init dvbc for stage 2
+		devp->blind_scan_stop = 1;
+		devp->dvbc_inited = false;
+		gxtv_demod_dvbc_init(demod, ADC_MODE);
+		devp->blind_scan_stop = 0;
+
 		//the time usage of first stage is 10% of the overall time usage.
 		demod->blind_result_frequency = 100;
 		demod->blind_result_symbol_rate = 0;
