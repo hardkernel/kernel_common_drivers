@@ -156,6 +156,14 @@ static int __init mix_mod_init(void)
 static void __exit mix_mod_exit(void)
 {
 	crypto_unregister_alg(&mix_alg);
+	if (direct_zstd.cctx) {
+		__zstd_exit(&direct_zstd);
+		direct_zstd.cctx = NULL;
+	}
+	if (kswap_zstd.cctx) {
+		__zstd_exit(&kswap_zstd);
+		kswap_zstd.cctx = NULL;
+	}
 }
 
 module_init(mix_mod_init);
