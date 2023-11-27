@@ -408,6 +408,7 @@ struct vpp_post_info_t {
 struct vd_proc_info_t {
 	bool vd2_prebld_4k120_en;
 	u8 slice_num;
+	u32 overlap_size_amdvin;
 	u32 overlap_size;
 	struct slice_info slice[VD_SLICE_NUM];
 };

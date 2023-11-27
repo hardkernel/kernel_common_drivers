@@ -237,6 +237,7 @@ struct vd_proc_vd1_info_s {
 	u32 slice_num;
 	u32 vd1_work_mode;
 	u32 vd1_slices_dout_dpsel;
+	u32 vd1_overlap_hsize_amdvin;
 	u32 vd1_overlap_hsize;
 	/* whole frame in hsize */
 	u32 vd1_src_din_hsize[SLICE_NUM];

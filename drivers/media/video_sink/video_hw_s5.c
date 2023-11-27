@@ -3127,16 +3127,19 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 			if (layer->pi_enable) {
 				vd_proc_vd1_info->vd1_work_mode = VD1_1SLICES_MODE;
 				vd_proc_vd1_info->vd1_slices_dout_dpsel = VD1_SLICES_DOUT_PI;
+				vd_proc_vd1_info->vd1_overlap_hsize_amdvin = 0;
 				vd_proc_vd1_info->vd1_overlap_hsize = 0;
 			} else {
 				vd_proc_vd1_info->vd1_work_mode = VD1_1SLICES_MODE;
 				vd_proc_vd1_info->vd1_slices_dout_dpsel = VD1_SLICES_DOUT_1S4P;
+				vd_proc_vd1_info->vd1_overlap_hsize_amdvin = 0;
 				vd_proc_vd1_info->vd1_overlap_hsize = 0;
 			}
 			vd_proc_unit->sr0_dpath_sel = SR0_IN_SLICE0;
 		} else if (layer->slice_num == 2) {
 			vd_proc_vd1_info->vd1_work_mode = VD1_SLICES01_MODE;
 			vd_proc_vd1_info->vd1_slices_dout_dpsel = VD1_SLICES_DOUT_2S4P;
+			vd_proc_vd1_info->vd1_overlap_hsize_amdvin = 32;
 			vd_proc_vd1_info->vd1_overlap_hsize = 32;
 			if (cur_dev->sr01_num == 1) {
 				vd_proc_unit->sr0_dpath_sel = SR0_IN_SLICE1;
@@ -3145,6 +3148,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 		} else if (layer->slice_num == 4) {
 			vd_proc_vd1_info->vd1_work_mode = VD1_4SLICES_MODE;
 			vd_proc_vd1_info->vd1_slices_dout_dpsel = VD1_SLICES_DOUT_4S4P;
+			vd_proc_vd1_info->vd1_overlap_hsize_amdvin = 32;
 			vd_proc_vd1_info->vd1_overlap_hsize = 32;
 			vd_proc_unit->sr0_dpath_sel = SR0_IN_SLICE0;
 		}
@@ -3170,6 +3174,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 			vd_proc_vd1_info->vd1_dout_vsize[0] = dst_h;
 			vd_proc_vd1_info->vd1_dout_x_start[0] = h_start;
 			vd_proc_vd1_info->vd1_dout_y_start[0] = v_start;
+			vd_proc_vd1_info->vd1_overlap_hsize_amdvin = 0;
 			vd_proc_vd1_info->vd1_overlap_hsize = 0;
 			break;
 		case VD1_4SLICES_MODE:
@@ -3201,6 +3206,8 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 				} else {
 					vd_proc_vd1_info->vd1_overlap_hsize = 32;
 				}
+				vd_proc_vd1_info->vd1_overlap_hsize_amdvin =
+					vd_proc_vd1_info->vd1_overlap_hsize;
 				break;
 			case VD1_SLICES_DOUT_PI:
 				/* 4 pic */
@@ -3227,9 +3234,8 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 				/* whole vd1 output size */
 				vd_proc_vd1_info->vd1_dout_hsize[0] = dst_w;
 				vd_proc_vd1_info->vd1_dout_vsize[0] = dst_h;
-				if (cur_dev->amdv_tvcore && is_amdv_enable()) {
-					vd_proc_vd1_info->vd1_overlap_hsize = 96;
-				} else {
+
+				if (video_is_meson_t3x_cpu()) {
 					u32 ratio = 0;
 
 					ratio = dst_w / src_w;
@@ -3239,6 +3245,11 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 					horz_phase_step =
 						cur_frame_par->vpp_filter.vpp_hsc_start_phase_step;
 				}
+				if (cur_dev->amdv_tvcore && is_amdv_on())
+					vd_proc_vd1_info->vd1_overlap_hsize_amdvin = 96;
+				else
+					vd_proc_vd1_info->vd1_overlap_hsize_amdvin =
+						vd_proc_vd1_info->vd1_overlap_hsize;
 				break;
 			case VD1_SLICES_DOUT_PI:
 				/* 4 pic */
@@ -3413,9 +3424,10 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 		debug_flag_s5 & DEBUG_VD_PROC) {
 		pr_info("%s:layer_id=%d vd_proc_vd1_info->slice_num=%d\n",
 			__func__, layer->layer_id, vd_proc_vd1_info->slice_num);
-		pr_info("%s:vd1_work_mode=0x%x, vd1_slices_dout_dpsel=0x%x, overlap=%d\n",
+		pr_info("%s:vd1_work_mode=0x%x, vd1_slices_dout_dpsel=0x%x, overlap=%d, %d\n",
 			__func__, vd_proc_vd1_info->vd1_work_mode,
 			vd_proc_vd1_info->vd1_slices_dout_dpsel,
+			vd_proc_vd1_info->vd1_overlap_hsize_amdvin,
 			vd_proc_vd1_info->vd1_overlap_hsize);
 	} else if (vd_proc->vd2_used &&
 		debug_flag_s5 & DEBUG_VD2_PROC) {
@@ -4220,8 +4232,8 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 			vd_proc_slice_info->vd1_slice_din_hsize[slice] =
 				o_valid_pix_din_hsize[slice] +
 				((slice == 0 || slice == 3) ?
-				vd_proc_vd1_info->vd1_overlap_hsize :
-				vd_proc_vd1_info->vd1_overlap_hsize * 2);
+				vd_proc_vd1_info->vd1_overlap_hsize_amdvin :
+				vd_proc_vd1_info->vd1_overlap_hsize_amdvin * 2);
 			switch (slice) {
 			case 0:
 				vd_proc_slice_info->vd1_slice_x_st[slice] =
@@ -4234,25 +4246,25 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 				vd_proc_slice_info->vd1_slice_x_st[slice] =
 					vd_proc_slice_info->vd1_slice_x_st[0] +
 					vd_proc_slice_info->vd1_slice_din_hsize[0] -
-					vd_proc_vd1_info->vd1_overlap_hsize * 2;
+					vd_proc_vd1_info->vd1_overlap_hsize_amdvin * 2;
 				vd_proc_slice_info->vd1_slice_x_end[slice] =
 					vd_proc_slice_info->vd1_slice_x_st[0] +
 					vd_proc_slice_info->vd1_slice_din_hsize[0] +
 					vd_proc_slice_info->vd1_slice_din_hsize[1] -
-					vd_proc_vd1_info->vd1_overlap_hsize * 2 - 1;
+					vd_proc_vd1_info->vd1_overlap_hsize_amdvin * 2 - 1;
 				break;
 			case 2:
 				vd_proc_slice_info->vd1_slice_x_st[slice] =
 					vd_proc_slice_info->vd1_slice_x_st[0] +
 					vd_proc_slice_info->vd1_slice_din_hsize[0] +
 					vd_proc_slice_info->vd1_slice_din_hsize[1] -
-					vd_proc_vd1_info->vd1_overlap_hsize * 4;
+					vd_proc_vd1_info->vd1_overlap_hsize_amdvin * 4;
 				vd_proc_slice_info->vd1_slice_x_end[slice] =
 					vd_proc_slice_info->vd1_slice_x_st[0] +
 					vd_proc_slice_info->vd1_slice_din_hsize[0] +
 					vd_proc_slice_info->vd1_slice_din_hsize[1] +
 					vd_proc_slice_info->vd1_slice_din_hsize[2] -
-					vd_proc_vd1_info->vd1_overlap_hsize * 4 - 1;
+					vd_proc_vd1_info->vd1_overlap_hsize_amdvin * 4 - 1;
 				break;
 			case 3:
 #ifdef NEW_PRE_SCALER
@@ -4335,7 +4347,7 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 
 			vd_proc_slice_info->vd1_slice_din_hsize[slice] =
 				o_valid_pix_din_hsize[slice] +
-				vd_proc_vd1_info->vd1_overlap_hsize;
+				vd_proc_vd1_info->vd1_overlap_hsize_amdvin;
 
 			if (slice == 0) {
 				vd_proc_slice_info->vd1_slice_x_st[slice] =
@@ -4400,7 +4412,7 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 					0);
 				vd_proc_slice_info->vd1_slice_din_hsize[slice] =
 					o_valid_pix_din_hsize[slice] +
-					vd_proc_vd1_info->vd1_overlap_hsize;
+					vd_proc_vd1_info->vd1_overlap_hsize_amdvin;
 				if (slice == 2) {
 					vd_proc_slice_info->vd1_slice_x_st[slice] = 0;
 					vd_proc_slice_info->vd1_slice_x_end[slice] =
@@ -4813,7 +4825,7 @@ static void recalc_vd1_slices_din_params(struct vd_proc_s *vd_proc, u32 slice)
 static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 {
 	u32 i, h_no_scale;
-	u32 din_hsize, din_vsize;
+	u32 slice_din_hsize, din_hsize, din_vsize;
 	u32 dout_hsize[SLICE_NUM], dout_vsize;
 	u32 overlap_hsize;
 	u32 s0_din_hsize_tmp = 0, s0_din_vsize_tmp = 0;
@@ -4846,7 +4858,10 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 	vd_proc_vd1_info = &vd_proc->vd_proc_vd1_info;
 	vd_proc_slice_info = &vd_proc->vd_proc_slice_info;
 	vd_proc_unit = &vd_proc->vd_proc_unit[slice];
-	din_hsize = vd_proc_slice_info->vd1_slice_din_hsize[slice];
+	slice_din_hsize = vd_proc_slice_info->vd1_slice_din_hsize[slice];
+	din_hsize = slice_din_hsize -
+		vd_proc_vd1_info->vd1_overlap_hsize_amdvin +
+		vd_proc_vd1_info->vd1_overlap_hsize;
 	din_vsize = vd_proc_slice_info->vd1_slice_din_vsize[slice];
 
 	dout_vsize = vd_proc_vd1_info->vd1_proc_unit_dout_vsize[slice];
@@ -5331,7 +5346,7 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 		pps_dout_vsize = dout_vsize;
 		break;
 	}
-	vd_proc_unit->din_hsize = din_hsize;
+	vd_proc_unit->din_hsize = slice_din_hsize;
 	vd_proc_unit->din_vsize = din_vsize;
 	vd_proc_unit->dout_hsize = dout_hsize[slice];
 	vd_proc_unit->dout_vsize = dout_vsize;
@@ -5784,6 +5799,7 @@ static void update_vd_proc_amdv_info(struct vd_proc_s *vd_proc)
 	vd_proc_amdv.vd2_prebld_4k120_en =
 		vd_proc->vd_proc_preblend_info.vd1s1_vd2_prebld_en;
 	vd_proc_amdv.slice_num = vd_proc->vd_proc_vd1_info.slice_num;
+	vd_proc_amdv.overlap_size_amdvin = vd_proc->vd_proc_vd1_info.vd1_overlap_hsize_amdvin;
 	vd_proc_amdv.overlap_size = vd_proc->vd_proc_vd1_info.vd1_overlap_hsize;
 	for (i = 0; i < vd_proc->vd_proc_vd1_info.slice_num; i++) {
 		/* slice input */

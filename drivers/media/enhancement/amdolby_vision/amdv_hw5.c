@@ -819,7 +819,7 @@ static void dolby5_dpth_ctrl(int hsize, int vsize, struct vd_proc_info_t *vd_pro
 	u32 vd1_slice0_vsize = 2160;/*2160*/
 	u32 vd1_slice1_hsize = 1920 + 96;/*1920 + 96*/
 	u32 vd1_slice1_vsize = 2160;/*2160*/
-	u32 slice0_extra_size = 7;
+	u32 slice0_extra_size = 7;/*output overlap*/
 	u32 slice1_extra_size = 9;
 	u32 max_output_extra;
 	u32 input_extra = OVLAP_HSIZE;
@@ -833,23 +833,23 @@ static void dolby5_dpth_ctrl(int hsize, int vsize, struct vd_proc_info_t *vd_pro
 			vd1_slice0_vsize = vd_proc_info->slice[0].vsize;
 			vd1_slice1_hsize = vd_proc_info->slice[1].hsize;
 			vd1_slice1_vsize = vd_proc_info->slice[1].vsize;
-			if (vd_proc_info->slice[0].scaler_in_hsize >= vd1_hsize / 2)
-				slice0_extra_size =
-				vd_proc_info->slice[0].scaler_in_hsize - vd1_hsize / 2;
-			if (vd_proc_info->slice[1].scaler_in_hsize >= vd1_hsize / 2)
-				slice1_extra_size =
-				vd_proc_info->slice[1].scaler_in_hsize - vd1_hsize / 2;
+			slice0_extra_size = vd_proc_info->overlap_size;/*amdv output overlap*/
+			slice1_extra_size =	vd_proc_info->overlap_size;
 		}
+	} else {
+		pr_dv_dbg("please check vd_proc_info\n");
 	}
 
 	slice_en = slice_num == 2 ? 0x3 : 0x1;
 	ovlp_en = slice_num == 2 ? 0x1 : 0x0;
 
-	if ((debug_dolby & 0x80000))
-		pr_info("slice %d,size %d %d %d %d %d %d %d %d\n",
+	if ((debug_dolby & 0x80000) && vd_proc_info)
+		pr_info("slice %d,size %d %d %d %d %d %d %d %d %d %d\n",
 				slice_num, vd1_hsize, vd1_vsize,
 				vd1_slice0_hsize, vd1_slice0_vsize,
 				vd1_slice1_hsize, vd1_slice1_vsize,
+				vd_proc_info->overlap_size_amdvin,
+				vd_proc_info->overlap_size,
 				slice0_extra_size, slice1_extra_size);
 
 	VSYNC_WR_DV_REG_BITS(VPU_DOLBY_WRAP_CTRL, core2_src & 0x3, 0, 2);//reg_dv_out_sel
@@ -905,11 +905,11 @@ static void dolby5_dpth_ctrl(int hsize, int vsize, struct vd_proc_info_t *vd_pro
 		pr_dv_dbg("dolby5 path ctrl: err config");
 	}
 
-	if (slice_num == 2) {
+	if (slice_num == 2 && vd_proc_info) {
 		if (vd1_slice0_hsize > vd1_hsize / 2) {
 			input_extra = vd1_slice0_hsize - vd1_hsize / 2;
 			if (input_extra != OVLAP_HSIZE ||
-				vd_proc_info->overlap_size != OVLAP_HSIZE)
+				vd_proc_info->overlap_size_amdvin != OVLAP_HSIZE)
 				pr_info("amdv input extra overlap %d != %d\n",
 						input_extra, OVLAP_HSIZE);
 
