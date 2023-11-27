@@ -2283,19 +2283,6 @@ irqreturn_t irq2_handler(int irq, void *params)
 		irq_err_cnt++;
 	else
 		irq_err_cnt = 0;
-	if (irq_err_cnt >= irq_err_max) {
-		rx_pr("DE ERR\n");
-		if (video_mute_enabled(E_PORT2)) {
-			rx_mute_vpp(rx_get_port_type(E_PORT2));
-			set_video_mute(HDMI_RX_MUTE_SET, true);
-			rx_pr("vpp mute\n");
-		}
-		irq_err_cnt = 0;
-		hdmirx_top_irq_en(0, 0, E_PORT2);
-		hdmirx_output_en(false);
-		if (rx[E_PORT2].state > FSM_WAIT_CLK_STABLE)
-			rx[E_PORT2].state = FSM_WAIT_CLK_STABLE;
-	}
 	hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT, E_PORT2);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat, E_PORT2);
 
@@ -2455,19 +2442,6 @@ irqreturn_t irq3_handler(int irq, void *params)
 		irq_err_cnt++;
 	else
 		irq_err_cnt = 0;
-	if (irq_err_cnt >= irq_err_max) {
-		rx_pr("DE ERR\n");
-		if (video_mute_enabled(E_PORT3)) {
-			rx_mute_vpp(rx_get_port_type(E_PORT3));
-			set_video_mute(HDMI_RX_MUTE_SET, true);
-			rx_pr("vpp mute\n");
-		}
-		irq_err_cnt = 0;
-		hdmirx_top_irq_en(0, 0, E_PORT3);
-		hdmirx_output_en(false);
-		if (rx[E_PORT3].state > FSM_WAIT_CLK_STABLE)
-			rx[E_PORT3].state = FSM_WAIT_CLK_STABLE;
-	}
 	hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT, E_PORT3);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat, E_PORT3);
 
