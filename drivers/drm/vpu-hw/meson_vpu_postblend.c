@@ -716,17 +716,19 @@ static void postblend_hw_disable(struct meson_vpu_block *vblk,
 	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
 	struct postblend1_reg_s *reg1 = postblend->reg1;
 
-	if (vblk->index == 0)
+	if (vblk->index == 0) {
 		vpp_osd1_postblend_mux_set(vblk, state->sub->reg_ops, postblend->reg, VPP_NULL);
-	else if (vblk->index == 1 || vblk->index == 2) {
+	} else if (vblk->index == 1 || vblk->index == 2) {
 		vppx_bld = reg_ops->rdma_read_reg(reg1->vpp_bld_ctrl);
 		vppx_bld = vppx_bld & 0xffffff0f;
-		if (crtc_index == 1)
+		if (crtc_index == 1) {
+			reg_ops->rdma_write_reg(reg1->vpp_bld_ctrl, vppx_bld);
 			osd_vpp1_bld_ctrl = vppx_bld | osd_vpp_bld_ctrl_update_mask;
-		else if (crtc_index == 2)
+		} else if (crtc_index == 2) {
 			osd_vpp2_bld_ctrl = vppx_bld | osd_vpp_bld_ctrl_update_mask;
-		else
+		} else {
 			MESON_DRM_BLOCK("invalid crtc index\n");
+		}
 
 		drm_postblend_notify_amvideo();
 	}
