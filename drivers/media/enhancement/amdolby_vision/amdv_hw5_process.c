@@ -2343,6 +2343,8 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 		} else {
 			get_l1l4_hist();
 		}
+	} else {
+		tv_hw5_setting->top1_stats.enable = false;
 	}
 
 	v_inst_info->src_format = src_format;
