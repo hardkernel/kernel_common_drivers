@@ -301,15 +301,19 @@ static void dump_vpp_in_padcut_reg(void)
 	vpp_post_in_padcut_regs = &vpp_post_reg.vpp_post_in_padcut_reg;
 	pr_info("vpp post in_padcut regs:\n");
 	reg_addr = vpp_post_in_padcut_regs->vpp_post_padcut_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X [vpp_post_padcut_ctrl]\n",
 		   reg_addr, reg_val);
 	reg_addr = vpp_post_in_padcut_regs->vpp_post_padcut_hsize;
+	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X [vpp_post_padcut_hsize]\n",
 		   reg_addr, reg_val);
 	reg_addr = vpp_post_in_padcut_regs->vpp_post_padcut_vsize;
+	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X [vpp_post_padcut_vsize]\n",
 		   reg_addr, reg_val);
 	reg_addr = vpp_post_in_padcut_regs->vpp_post_win_cut_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X [vpp_post_win_cut_ctrl]\n",
 		   reg_addr, reg_val);
 }
@@ -811,7 +815,8 @@ static int vpp_post_in_padcut_param_set(struct vpp_post_input_s *vpp_input,
 	if (!vpp_input || !vpp_post)
 		return -1;
 	/* need check padding or not */
-	if (vd_layer[0].vpp_index == VPP0) {
+	if (vd_layer[0].vpp_index == VPP0 ||
+		vd_layer[0].vpp_index == PRE_VSYNC) {
 		if (vpp_input->vpp_post_in_pad_en)
 			vpp_post->vpp_pad_cut.cut_en = 1;
 		else
