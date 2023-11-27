@@ -13,6 +13,7 @@ RAMDISK_MODULES_LOAD_LIST=(
 	amlogic-mailbox
 	amlogic-pwm
 	pwm-regulator
+	gpio-regulator.ko
 	amlogic-reset
 	amlogic-power
 	amlogic-cpuinfo
