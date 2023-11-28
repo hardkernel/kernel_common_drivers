@@ -53,6 +53,19 @@ struct drm_meson_fbdev_rect {
 	__u32 mask;
 };
 
+struct drm_vrr_mode_group {
+	__u32 brr_vic;
+	__u32 width;
+	__u32 height;
+	__u32 vrr_min;
+	__u32 vrr_max;
+};
+
+struct drm_vrr_mode_groups {
+	__u32 num;
+	struct drm_vrr_mode_group gropus[12];
+};
+
 /**
  * struct drm_meson_dma_buf_export_sync_file - Get a sync_file from a dma-buf
  *
@@ -113,6 +126,8 @@ struct drm_meson_plane_mute {
 		0x11, struct drm_mode_test_attr) /*hdmitx related.*/
 #define DRM_IOCTL_MESON_MUTE_PLANE DRM_IOWR(DRM_COMMAND_BASE + \
 		0x12, struct drm_meson_plane_mute)
+#define DRM_IOCTL_MESON_GET_VRR_RANGE DRM_IOWR(DRM_COMMAND_BASE + \
+		0x13, struct drm_vrr_mode_groups)/*hdmitx relatde*/
 
 /*present fence*/
 #define DRM_IOCTL_MESON_CREAT_PRESENT_FENCE	DRM_IOWR(DRM_COMMAND_BASE + \

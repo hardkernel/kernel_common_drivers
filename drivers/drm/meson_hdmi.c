@@ -2278,3 +2278,29 @@ int am_meson_mode_testattr_ioctl(struct drm_device *dev,
 
 	return 0;
 }
+
+int am_meson_get_vrr_range_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file_priv)
+{
+	int num_group = 0;
+	struct drm_vrr_mode_groups *groups = data;
+	struct drm_vrr_mode_group *group;
+	int i = 0;
+
+	num_group = am_hdmi_info.hdmitx_dev->get_vrr_mode_group(groups->gropus,
+							   MAX_VRR_MODE_GROUP);
+	if (!num_group) {
+		DRM_ERROR("get vrr error or not support qms\n");
+		return -EINVAL;
+	}
+
+	groups->num = num_group;
+
+	for (i = 0; i < num_group; i++) {
+		group = &groups->gropus[i];
+		DRM_DEBUG("%s,%d, %d, %d, %d\n", __func__,
+		group->vrr_max, group->vrr_min, group->width, group->height);
+	}
+
+	return 0;
+}

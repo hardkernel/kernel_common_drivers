@@ -109,5 +109,7 @@ void convert_attrstr(char *attr_str, struct hdmitx_color_attr *attr_param);
 
 int am_meson_mode_testattr_ioctl(struct drm_device *dev, void *data,
 	struct drm_file *file_priv);
+int am_meson_get_vrr_range_ioctl(struct drm_device *dev, void *data,
+	struct drm_file *file_priv);
 
 #endif
