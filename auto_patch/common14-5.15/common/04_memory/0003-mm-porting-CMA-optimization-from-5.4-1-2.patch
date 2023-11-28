@@ -1,4 +1,4 @@
-From eaa195e7f59a6e7373346dc40a1a42028ead92fd Mon Sep 17 00:00:00 2001
+From d81b8b2d72da452c42e15f4c1214f679eefee482 Mon Sep 17 00:00:00 2001
 From: Tao Zeng <tao.zeng@amlogic.com>
 Date: Wed, 26 Jan 2022 16:04:08 +0800
 Subject: [PATCH] mm: porting CMA optimization from 5.4 [1/2]
@@ -37,13 +37,13 @@ Change-Id: Ib82b898a596eba62e1aa1cb13719eab41f03ae58
  mm/internal.h             |   3 ++
  mm/ksm.c                  |  11 +++++
  mm/memory.c               |  18 +++++++
- mm/migrate.c              |  48 ++++++++++++++++++
+ mm/migrate.c              |  44 +++++++++++++++++
  mm/page_alloc.c           | 100 ++++++++++++++++++++++++++++++++++++++
  mm/readahead.c            |   5 ++
  mm/shmem.c                |  13 +++++
  mm/swap_state.c           |   4 ++
  mm/vmscan.c               |  21 ++++++++
- 15 files changed, 410 insertions(+)
+ 15 files changed, 406 insertions(+)
 
 diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
 index 4b61541853ea..f028deeec940 100644
@@ -542,7 +542,7 @@ index 255bd4888d60..f9b263775a3d 100644
  		bool split;
  
 diff --git a/mm/memory.c b/mm/memory.c
-index 63e98bac29f5..939eb3445e2e 100644
+index de45717e3a72..5148c66d91c3 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
 @@ -3173,13 +3173,25 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
@@ -571,7 +571,7 @@ index 63e98bac29f5..939eb3445e2e 100644
  		if (!new_page)
  			goto out;
  
-@@ -4900,6 +4912,12 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
+@@ -4896,6 +4908,12 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
  	p4d_t *p4d;
  	vm_fault_t ret;
  
@@ -585,7 +585,7 @@ index 63e98bac29f5..939eb3445e2e 100644
  	if (flags & FAULT_FLAG_SPECULATIVE) {
  		pgd_t pgdval;
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 6ed8c744f091..804686ccb64c 100644
+index 6ed8c744f091..052d6440f0a3 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
 @@ -50,6 +50,10 @@
@@ -670,18 +670,7 @@ index 6ed8c744f091..804686ccb64c 100644
  		return -EAGAIN;
  	}
  
-@@ -1100,6 +1135,10 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
- 		else
- 			putback_lru_page(newpage);
- 	}
-+#ifdef CONFIG_AMLOGIC_CMA
-+	if (rc != MIGRATEPAGE_SUCCESS)
-+		cma_debug(2, page, " unmap and move failed\n");
-+#endif
- 
- 	return rc;
- }
-@@ -1528,6 +1567,9 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+@@ -1528,6 +1563,9 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
  
  				/* Hugetlb migration is unsupported */
  				nr_failed++;
@@ -691,7 +680,7 @@ index 6ed8c744f091..804686ccb64c 100644
  				break;
  			case -ENOMEM:
  				/*
-@@ -1546,6 +1588,9 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+@@ -1546,6 +1584,9 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
  					goto out;
  				}
  				nr_failed++;
@@ -701,7 +690,7 @@ index 6ed8c744f091..804686ccb64c 100644
  				goto out;
  			case -EAGAIN:
  				if (is_thp) {
-@@ -1575,6 +1620,9 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+@@ -1575,6 +1616,9 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
  					break;
  				}
  				nr_failed++;
@@ -712,7 +701,7 @@ index 6ed8c744f091..804686ccb64c 100644
  			}
  		}
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index aa9b7d5d1311..909123a1f580 100644
+index 8820f3fafaf8..ef89d5e5d2ac 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -84,6 +84,9 @@
@@ -861,7 +850,7 @@ index aa9b7d5d1311..909123a1f580 100644
  	/*
  	 * Check watermarks for an order-0 allocation request. If these
  	 * are not met, then a high-order request also cannot go ahead
-@@ -5642,6 +5739,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
+@@ -5645,6 +5742,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
  	gfp_t alloc_gfp; /* The gfp_t that was actually used for allocation */
  	struct alloc_context ac = { };
  
