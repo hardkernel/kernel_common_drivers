@@ -205,6 +205,16 @@ void vdin_update_prop(struct vdin_dev_s *devp)
 	       sizeof(struct tvin_sig_property_s));
 }
 
+static inline void vdin_update_parm(struct vdin_dev_s *devp)
+{
+	devp->parm.info.trans_fmt =
+		devp->prop.trans_fmt;
+	devp->parm.info.is_dvi =
+		devp->prop.dvi_info;
+	devp->parm.info.fps =
+		devp->prop.fps;
+}
+
 /*
  * check hdmirx color format
  */
@@ -915,12 +925,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 						/*prop);*/
 						info->cfmt = prop->color_format;
 						memcpy(pre_prop, prop, cnt);
-						devp->parm.info.trans_fmt =
-							prop->trans_fmt;
-						devp->parm.info.is_dvi =
-							prop->dvi_info;
-						devp->parm.info.fps =
-							prop->fps;
 					}
 
 					if (sm_ops->fmt_config)
@@ -1033,6 +1037,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 					sm_p->state = TVIN_SM_STATUS_STABLE;
 					info->status = TVIN_SIG_STATUS_STABLE;
 					vdin_update_prop(devp);
+					vdin_update_parm(devp);
 					/* vrr case */
 					devp->vrr_data.vdin_vrr_en_flag =
 						devp->pre_prop.vtem_data.vrr_en;
@@ -1060,6 +1065,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 				sm_p->state = TVIN_SM_STATUS_STABLE;
 				info->status = TVIN_SIG_STATUS_STABLE;
 				vdin_update_prop(devp);
+				vdin_update_parm(devp);
 				/* vrr case */
 				devp->vrr_data.vdin_vrr_en_flag =
 					devp->pre_prop.vtem_data.vrr_en;

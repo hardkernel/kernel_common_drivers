@@ -4825,7 +4825,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		vdin_ioctl_get_hist(devp, &vdin1_hist_temp);
 
 		if (vdin1_hist_temp.height == 0 || vdin1_hist_temp.width == 0) {
-			pr_info("vdin1_hist height or width == 0\n");
+			pr_err("vdin1_hist height or width == 0\n");
 			ret = -EFAULT;
 		} else if (copy_to_user(argp, &vdin1_hist_temp,
 				      sizeof(struct vdin_hist_s))) {
