@@ -3410,20 +3410,33 @@ void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link)
 
 	if (!DIM_IS_IC(T5DB))
 		return;
-	if (vpp_link && afbc_is_supported_for_plink()) {
-		if (get_vd1_vd2_mux()) {
-			PR_WARN("%s: vd1_vd2_mux 1\n", __func__);
-			set_vd1_vd2_mux(0);
+	if (afbc_is_supported_for_plink()) {
+		dbg_reg("afbc_is_supported_for_plink\n");
+		if (vpp_link) {
+			dbg_reg("vpp_link true\n");
+			if (get_vd1_vd2_mux()) {
+				PR_WARN("%s: vd1_vd2_mux 1\n", __func__);
+				set_vd1_vd2_mux(0);
+			}
+			en = 1;
+		} else {
+			en = 0;
 		}
-		en = 1;
-	} else if (!vpp_link && afbc_is_supported()) {
-		if (!get_vd1_vd2_mux()) {
-			PR_WARN("%s: vd1_vd2_mux 0\n", __func__);
-			set_vd1_vd2_mux(1);
+	} else {
+		dbg_reg("no support\n");
+		if (afbc_is_supported()) {
+			dbg_reg("afbc support\n");
+			if (!get_vd1_vd2_mux()) {
+				PR_WARN("%s: vd1_vd2_mux 0\n", __func__);
+				set_vd1_vd2_mux(1);
+			}
+			en = 2;
+		} else {
+			en = 0;
 		}
-		en = 2;
 	}
 	if (en) {
+		dbg_reg("en: %d\n", en);
 		PR_INF("t5dvb afbcd on\n");
 		/* afbcd is shared */
 		if (DIM_IS_IC_TXHD2) {
@@ -3435,9 +3448,11 @@ void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link)
 				op->wr(VD1_AFBCD0_MISC_CTRL, 0x401200);
 			}
 		} else {
-			val = op->rd(VD1_AFBCD0_MISC_CTRL);
-			val |= (DI_BIT1 | DI_BIT10 | DI_BIT12 | DI_BIT22);
-			op->wr(VD1_AFBCD0_MISC_CTRL, val);
+			if (en == 2) {
+				val = op->rd(VD1_AFBCD0_MISC_CTRL);
+				val |= (DI_BIT1 | DI_BIT10 | DI_BIT12 | DI_BIT22);
+				op->wr(VD1_AFBCD0_MISC_CTRL, val);
+			}
 		}
 		dbg_reg("%s:t5d vb on\n 0x%x,0x%x\n",
 			__func__,
