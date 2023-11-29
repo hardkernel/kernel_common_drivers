@@ -15,6 +15,13 @@
   usb_reset_device
   usb_unlink_urb
 
+# gpio-led.ko
+  device_get_next_child_node
+  devm_fwnode_gpiod_get_index
+  devm_led_classdev_register_ext
+  gpiod_cansleep
+  led_init_default_state_get
+
 # amlogic-usb.ko
   extcon_get_state
   usb_ep_type_string

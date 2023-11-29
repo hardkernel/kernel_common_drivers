@@ -108,6 +108,7 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-tl1.ko",
     "drivers/dma-buf/heaps/system_heap.ko",
     "drivers/i2c/i2c-dev.ko",
+    "drivers/leds/leds-gpio.ko",
     "drivers/media/dvb-core/dvb-core.ko",
     "drivers/media/v4l2-core/v4l2-async.ko",
     "drivers/media/v4l2-core/v4l2-fwnode.ko",
