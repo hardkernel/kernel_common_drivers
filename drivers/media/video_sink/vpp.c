@@ -972,7 +972,7 @@ static int vpp_process_speed_check
 	u32 vtotal, htotal = 0, clk_in_pps = 0, clk_vpu = 0, clk_temp;
 	u32 input_time_us = 0, display_time_us = 0, dummy_time_us = 0;
 	u32 width_out = 0;
-	u32 vpu_clk = 0, max_height = 4320; /* 8k mode */
+	u32 vpu_clk = 0, max_height = 2160;
 	u32 slice_num, max_proc_height_temp = 0;
 	u32 pi_enable, clk_calc = 0, overlap_size = 0;
 
@@ -1012,6 +1012,11 @@ static int vpp_process_speed_check
 		/* ((3840 * 2160) / 1920) *  (vpu_clk / 1000000) / 666 */
 		max_height =  4320 *  (vpu_clk / 1000000) / 666;
 	}
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	/* 8k mode */
+	if (video_is_meson_s5_cpu())
+		max_height = 4320;
+#endif
 	slice_num = get_slice_num(layer_id);
 	pi_enable = get_pi_enabled(layer_id);
 	if (pi_enable)
