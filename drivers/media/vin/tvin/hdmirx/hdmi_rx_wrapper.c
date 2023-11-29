@@ -4581,6 +4581,7 @@ static void hdmirx_open_main_port(u8 port)
 {
 	u32 fsmst = sm_pause;
 
+	rx_info.main_port_open = true;
 	/* stop fsm when switch port */
 	if (rx[port].resume_flag) {
 		rx[port].resume_flag = false;
@@ -4640,7 +4641,6 @@ static void hdmirx_open_main_port(u8 port)
 	if (rx_info.phy_ver >= PHY_VER_TM2)
 		//rx_info.aml_phy.pre_int = 1;
 		hdmirx_phy_var_init();
-	rx_info.main_port_open = true;
 	rx_pr("%s:%d\n", __func__, port);
 }
 

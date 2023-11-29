@@ -60,8 +60,8 @@
 //2023.11.3 add bist for debug
 //2023.11.09 clr gcp write&the respective av mute related filed
 //2023.11.16 rm gb check when dvi input
-#define RX_VER0 "ver.2023/11/16"
-
+//2023.11.29 set main_port_open when resume
+#define RX_VER0 "ver.2023/11/29"
 
 /*print type*/
 #define COR1_LOG	0x10000
