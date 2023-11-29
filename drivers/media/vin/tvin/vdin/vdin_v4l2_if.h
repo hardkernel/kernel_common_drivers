@@ -35,6 +35,12 @@
 #define AML_V4L2_SET_DRM_MODE		(V4L2_CID_USER_AMLOGIC_BASE + 0)
 //sky project end
 
+enum rx_edid_update_e {
+	RX_EDID_DEFAULT = 0,
+	RX_EDID_REMOVE_AMDV = 1,  //remove amdv
+	RX_EDID_REMOVE_HDR = 2, //remove dv+hdr+hdr10p
+};
+
 struct vdin_v4l2_pix_fmt {
 	u32 fourcc; /* v4l2 format id */
 	int depth;

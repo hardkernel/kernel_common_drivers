@@ -585,6 +585,19 @@ void unregister_cec_callback(void)
 }
 EXPORT_SYMBOL(unregister_cec_callback);
 
+void rx_update_edid_callback(enum tvin_port_e tvin_port, u32 hdr_priority)
+{
+	u8 port;
+
+	port = (tvin_port - TVIN_PORT_HDMI0) & 0xff;
+	tx_hdr_priority = hdr_priority;
+	rx_pr(" edid update:%d\n", tx_hdr_priority);
+	hdmi_rx_top_edid_update();
+	port_hpd_rst_flag |= (1 << rx_info.main_port);
+	rx[port].state = FSM_HPD_LOW;
+}
+EXPORT_SYMBOL(rx_update_edid_callback);
+
 static bool video_mute_enabled(u8 port)
 {
 	if (rx[port].state != FSM_SIG_READY || port == rx_info.sub_port)
@@ -8108,8 +8121,13 @@ int hdmirx_debug(const char *buf, int size)
 			udelay(1);
 			hdmirx_wr_top(TOP_SW_RESET, 0, port);
 		} else if (tmpbuf[5] == '4') {
-			rx_pr(" edid update\n");
+			if (kstrtou32(tmpbuf + 6, 16, &value) < 0)
+				return -EINVAL;
+			tx_hdr_priority = value;
+			rx_pr(" edid update:%d\n", tx_hdr_priority);
 			hdmi_rx_top_edid_update();
+			port_hpd_rst_flag |= (1 << rx_info.main_port);
+			rx_set_port_hpd(rx_info.main_port, 0);
 		} else if (tmpbuf[5] == '5') {
 			hdmirx_hdcp22_esm_rst();
 		}
