@@ -4468,6 +4468,8 @@ static struct device_attribute osd_attrs_viu2[] = {
 	       show_fence_count, NULL),
 	__ATTR(game_mode, 0644,
 	       show_game_mode, store_game_mode),
+	__ATTR(force_dim, 0644,
+	       show_force_dimm, store_force_dimm),
 };
 
 #ifdef CONFIG_PM
