@@ -826,7 +826,7 @@
 		compatible = "amlogic,aw9523b_led";
 		reg = <0x5b>;
 		status = "disabled";
-		reset-gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
+		//reset-gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
 		platform = <4>;
 
 		led1 {
@@ -1393,7 +1393,7 @@
 };
 
 &sd_emmc_c {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
