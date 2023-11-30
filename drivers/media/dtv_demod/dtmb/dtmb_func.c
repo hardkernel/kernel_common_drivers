@@ -278,6 +278,7 @@ int check_dtmb_fec_lock(void)
 		status = 1;
 	else
 		status = 0;
+
 	return status;
 }
 
@@ -452,6 +453,7 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 			}
 		}
 	}
+
 	return 0;
 }
 
@@ -487,6 +489,7 @@ int dtmb_check_fsm(void)
 			has_signal = 1;
 		}
 	}
+
 	return has_signal;
 }
 
@@ -586,8 +589,10 @@ int dtmb_check_status_gxtv(struct dvb_frontend *fe)
 		dtmb_check_cci();
 		dtmb_bch_check(fe);
 	}
+
 	if (check_dtmb_fec_lock() == 1)
 		dtmb_write_reg(DTMB_TOP_CTRL_LOOP, 0xf);
+
 	return 0;
 }
 
@@ -693,12 +698,10 @@ int dtmb_set_ch(struct aml_dtvdemod *demod,
 		struct aml_demod_dtmb *demod_dtmb)
 {
 	int ret = 0;
-	u8 demod_mode;
-	u8 bw, sr, ifreq, agc_mode;
-	u32 ch_freq;
+	u8 demod_mode = 0;
+	u8 ifreq = 0, agc_mode = 0;
+	u32 ch_freq = 0;
 
-	bw = demod_dtmb->bw;
-	sr = demod_dtmb->sr;
 	ifreq = demod_dtmb->ifreq;
 	agc_mode = demod_dtmb->agc_mode;
 	ch_freq = demod_dtmb->ch_freq;
@@ -706,9 +709,47 @@ int dtmb_set_ch(struct aml_dtvdemod *demod,
 	demod->demod_status.ch_mode = demod_dtmb->mode;	/* TODO */
 	demod->demod_status.agc_mode = agc_mode;
 	demod->demod_status.ch_freq = ch_freq;
-	demod->demod_status.ch_bw = (8 - bw) * 1000;
+
 	dtmb_initial(demod);
+
+	if (demod->demod_status.ch_bw == 6000) { // 6M BW
+		dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x006aaaab);  //(0x25)
+
+		dtmb_write_reg(DTMB_FRONT_ACF_BYPASS, 0x1e81bc);    //(0x2a)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET1, 0x1450a9);     //(0x2b)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET2, 0x18);         //(0x2c)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET3, 0x3b7379);     //(0x2d)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET4, 0x1b0);        //(0x2e)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET5, 0x1e901f);     //(0x2f)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET6, 0x3c3617);     //(0x30)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET7, 0x71);         //(0x31)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET8, 0x59586a06);   //(0x32)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET9, 0x1b201400);   //(0x33)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET10, 0x2e272d);    //(0x34)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET11, 0x3d0c1411);  //(0x35)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET12, 0x06383031); //(0x36)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET13, 0x39040d0e);  //(0x37)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET14, 0x81e17);     //(0x38)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET15, 0x14180007);  //(0x39)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET16, 0xa08021b);   //(0x3a)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET17, 0x18191d03);  //(0x3b)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET18, 0x663fcbc);   //(0x3c)
+		dtmb_write_reg(DTMB_FRONT_COEF_SET19, 0x03442fee);  //(0x3d)
+		dtmb_write_reg(DTMB_FRONT_SRC_CONFIG1, 0x1321dcc8); //(0x3e)
+
+		dtmb_write_reg(0x57, 0x0275025c); //(0x57)
+		dtmb_write_reg(0x58, 0x022f008c); //(0x58)
+		dtmb_write_reg(0x59, 0x0f2e00e2); //(0x59)
+		dtmb_write_reg(0x5a, 0x07935023); //(0x5a)
+		dtmb_write_reg(0x5b, 0x3c7b0a25); //(0x5b)
+		dtmb_write_reg(0x5c, 0x10ee0a32); //(0x5c)
+		dtmb_write_reg(0x5e, 0x042103b0); //(0x5e)
+		dtmb_write_reg(0x5f, 0x07ed038a); //(0x5f)
+		dtmb_write_reg(0x60, 0x07570347); //(0x60)
+	}
+
 	PR_DTMB("DTMB mode\n");
+
 	return ret;
 }
 
@@ -833,7 +874,6 @@ unsigned int dtmb_detect_first(void)
 		//timeout = 1;	/*FE_TIMEDOUT;*/
 		timeout = 0;	/*FE_TIMEDOUT;*/
 		PR_DTMB("\t timeout\n");
-
 	} else {
 		/*timeout = 2; *//*have signal*/
 		PR_DTMB("\thave signal\n");
