@@ -605,6 +605,9 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 		break;
 	}
 
+	if (is_meson_t3x_cpu())
+		dvbt_t2_wrb(0x2a04, 0xaa);
+
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
 	riscv_ctl_write_reg(0x30, 0);
 
