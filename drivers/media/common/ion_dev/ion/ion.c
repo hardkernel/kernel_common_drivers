@@ -225,7 +225,7 @@ static struct sg_table *dup_sg_table(struct sg_table *table)
 	new_sg = new_table->sgl;
 	for_each_sgtable_sg(table, sg, i) {
 		memcpy(new_sg, sg, sizeof(*sg));
-		new_sg->dma_address = 0;
+		new_sg->dma_address = sg->dma_address;
 		new_sg = sg_next(new_sg);
 	}
 
