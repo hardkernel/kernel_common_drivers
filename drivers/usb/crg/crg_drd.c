@@ -335,6 +335,8 @@ static int crg_probe(struct platform_device *pdev)
 	int	ret;
 	void *mem;
 	u32 tmp;
+	const void *prop;
+	unsigned int wr_outstanding_tune = 0;
 
 	mem = devm_kzalloc(dev, sizeof(*crg) + CRG_ALIGN_MASK, GFP_KERNEL);
 	if (!mem)
@@ -424,6 +426,16 @@ static int crg_probe(struct platform_device *pdev)
 	ret = crg_core_init_mode(crg);
 	if (ret)
 		goto err0;
+
+	prop = of_get_property(pdev->dev.of_node, "wr-outstanding-tune", NULL);
+	if (prop)
+		wr_outstanding_tune = of_read_ulong(prop, 1);
+
+	if (wr_outstanding_tune) {
+		wr_outstanding_tune = readl((void __iomem *)((unsigned long)crg->regs + 0x210c));
+		wr_outstanding_tune &= (~0x7f000);
+		writel(wr_outstanding_tune, (void __iomem *)((unsigned long)crg->regs + 0x210c));
+	}
 
 	pm_runtime_put(dev);
 

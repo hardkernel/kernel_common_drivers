@@ -1484,6 +1484,7 @@
 			clock-src = "usb3.0";
 			clocks = <&clkc CLKID_CLK81_USB_GENERAL>;
 			clock-names = "crg_general";
+			wr-outstanding-tune = <1>;
 		};
 
 		crg_udc_2: crgudc2@0xff690000 {
