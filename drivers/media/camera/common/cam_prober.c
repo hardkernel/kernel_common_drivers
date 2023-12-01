@@ -1024,7 +1024,7 @@ static inline void GXBB_cam_enable_clk(void)
 
 	clk = clk_get(&cam_pdev->dev, "clk_camera_24");
 	if (IS_ERR(clk)) {
-		pr_info("cannot get camera m-clock\n");
+		pr_err("cannot get camera m-clock\n");
 		clk = NULL;
 	} else {
 		cam_clk = clk;
@@ -1047,7 +1047,7 @@ static inline void GX12_cam_enable_clk(void)
 
 	clk = devm_clk_get(&cam_pdev->dev, "g12a_24m");
 	if (IS_ERR(clk)) {
-		pr_info("cannot get camera m-clock\n");
+		pr_err("cannot get camera m-clock\n");
 		clk = NULL;
 	} else {
 		cam_clk = clk;
@@ -1062,7 +1062,7 @@ static inline void GX12_cam_disable_clk(int spread_spectrum)
 	if (cam_clk) {
 		clk_disable_unprepare(cam_clk);
 		devm_clk_put(&cam_pdev->dev, cam_clk);
-		pr_info("Success disable mclk\n");
+		pr_debug("Success disable mclk\n");
 	}
 }
 
@@ -1120,27 +1120,27 @@ void aml_cam_init(struct aml_cam_info_s *cam_dev)
 
 	msleep(20);
 
-	pr_info("aml_cams: %s init OK\n", cam_dev->name);
+	pr_debug("aml_cams: %s init OK\n", cam_dev->name);
 }
 
 void aml_cam_uninit(struct aml_cam_info_s *cam_dev)
 {
 	int ret;
 
-	pr_info("aml_cams: %s uninit.\n", cam_dev->name);
+	pr_debug("aml_cams: %s uninit.\n", cam_dev->name);
 	/*set camera power disable*/
 	/*coding style need: msleep < 20ms can sleep for up to 20ms*/
 	/*msleep(20);*/
 
 	ret = gpio_direction_output(cam_dev->pwdn_pin, cam_dev->pwdn_act);
 	if (ret < 0)
-		pr_info("%s pwdn_pin output pwdn_act failed\n", __func__);
+		pr_warn("%s pwdn_pin output pwdn_act failed\n", __func__);
 
 	msleep(20);
 
 	ret = gpio_direction_output(cam_dev->rst_pin, 0);
 	if (ret < 0)
-		pr_info("%s rst_pin output rst_pin failed\n", __func__);
+		pr_warn("%s rst_pin output rst_pin failed\n", __func__);
 
 	msleep(20);
 
@@ -1813,12 +1813,13 @@ static struct platform_driver aml_cams_prober_driver = {
 
 int __init aml_cams_prober_init(void)
 {
+	vm_init_module();
+
 	if (platform_driver_register(&aml_cams_prober_driver)) {
 		pr_err("aml_cams_probre_driver register failed\n");
 		return -ENODEV;
 	}
 	flashlight_init();
-	vm_init_module();
 
 	return 0;
 }
