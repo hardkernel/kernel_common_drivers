@@ -4089,8 +4089,8 @@ static void misc_late_proc(void)
 		first_irq = false;
 		goto RUN_FIRST_RDMA;
 	}
-	//if (new_frame_mask && is_vsync_rdma_enable())
-	//	update_over_field_states(OVER_FIELD_NEW_VF, false);
+	if (new_frame_mask && is_vsync_rdma_enable())
+		update_over_field_states(OVER_FIELD_NEW_VF, false);
 
 	for (i = 0; i < cur_dev->max_vd_layers; i++)
 		if (vd_layer[i].vd_func.vd_misc_late_proc)
