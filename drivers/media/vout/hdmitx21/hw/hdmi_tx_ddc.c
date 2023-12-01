@@ -50,6 +50,15 @@ void hdmitx21_read_edid(u8 *_rx_edid)
 	u8 ext_block_num = 0;
 	u8 *rx_edid = _rx_edid;
 
+	if (0) {
+		//DDC_DELAY_CNT_IVCTX, config scl fre 100k
+		hdmitx21_wr_reg(DDC_DELAY_CNT_IVCTX, 0x3e);
+		//DDC_ST_STOP_DELAY_0, for stop to start timing debug config, 4.7us
+		hdmitx21_wr_reg(DDC_ST_STOP_DELAY_0, 0x69);
+		//DDC_SCL_DUTY_MODE_ADDR, bit1 open st_stop counter
+		hdmitx21_wr_reg(DDC_SCL_DUTY_MODE_ADDR,
+			hdmitx21_rd_reg(DDC_SCL_DUTY_MODE_ADDR) | 0x2);
+	}
 	// Read complete EDID data sequentially
 	while (blk_idx < (1 + ext_block_num)) {
 		hdmitx_ddcm_read(blk_idx >> 1, DDC_EDID_ADDR, (blk_idx * 128) & 0xff,

@@ -327,6 +327,21 @@ enum hdmi_tf_type hdmitx_hw_get_hdr_st(struct hdmitx_hw_common *tx_hw);
 enum hdmi_tf_type hdmitx_hw_get_dv_st(struct hdmitx_hw_common *tx_hw);
 enum hdmi_tf_type hdmitx_hw_get_hdr10p_st(struct hdmitx_hw_common *tx_hw);
 
+enum pkt_op {
+	AVI_PKT,
+	GAMUT_PKT,
+	AUDIO_PKT,
+	SPD_PKT,
+	MPEG_PKT,
+	VSIF_PKT,
+	GEN_PKT,
+	GEN2_PKT,
+	GEN3_PKT,
+	GEN4_PKT,
+	GEN5_PKT,
+	VTEM_PKT,
+};
+
 /*utils functions shared for hdmitx hw module.*/
 
 #endif

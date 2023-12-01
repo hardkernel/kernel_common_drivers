@@ -158,7 +158,6 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	}
 	// 0x00000900 - 0x00000933
 	dumpcor(s, SCRCTL_IVCTX, FRL_LTP_OVR_VAL1_IVCTX);
-
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S5) {
 		// 0x00000934 - 0x0000097a
 		dumpcor(s, RSVD1_HDMI2_IVCTX, H21TXSB_SPARE_9_IVCTX);
@@ -223,7 +222,8 @@ static int dump_hdmivpfdet_show(struct seq_file *s, void *p)
 
 	seq_puts(s, "\n--------vp fdet info--------\n");
 
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D)
 		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 1, 1, 1);//enable fdet gate
 	hdmitx21_wr_reg(VP_FDET_CLEAR_IVCTX, 0);
 	hdmitx21_wr_reg(VP_FDET_STATUS_IVCTX, 0);
@@ -475,7 +475,9 @@ static int dump_hdmivpfdet_show(struct seq_file *s, void *p)
 		PR_DETAIL(22, "frame_and_pixel_cnt_done");
 		seq_puts(s, "\n");
 	}
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)
+
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D)
 		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 0, 1, 1);//disable fdet gate
 	return 0;
 }
@@ -902,3 +904,4 @@ void hdmitx21_debugfs_init(void)
 				hdmitx_dbg_files[i].name);
 	}
 }
+

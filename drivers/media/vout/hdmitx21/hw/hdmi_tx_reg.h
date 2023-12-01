@@ -76,13 +76,13 @@
 #define HDMITX_TOP_DONT_TOUCH0        (TOP_SEC_OFFSET_MASK + (0x0FE << 2)) // 0x3F8
 #define HDMITX_TOP_DONT_TOUCH1        (TOP_SEC_OFFSET_MASK + (0x0FF << 2)) // 0x3FC
 
-//for s7
+//for s7&s7d
 /* bit[0] : reg_pbist_gate_en
  * bit[1] : reg_fdet_gate_en
  * bit[2] : reg_p2t_p0_gate_en
  * bit[3] : reg_p2t_p1_gate_en
  * bit[12] : reg_src_free_ck
- * bit[13] : reg_aud_fifo_free_ck: reserved
+ * bit[13] : reg_aud_fifo_free_ck: reserve
  * bit[14] : reg_regtx_free_ck
  * bit[15] : reg_hdr_free_ck
  * bit[16] : reg_hdcp2x_gate_en
@@ -163,6 +163,12 @@
 #define INTR1_MASK_IVCTX 0x0017
 
 #define AON_CYP_CTL_IVCTX 0x0018
+
+#define DDC_SCL_DUTY_MODE_ADDR 0x001D
+
+#define DDC_ST_STOP_DELAY_1 0x001E
+
+#define DDC_ST_STOP_DELAY_0 0x001F
 
 //==================== REGTX_AON_SOC ====================
 

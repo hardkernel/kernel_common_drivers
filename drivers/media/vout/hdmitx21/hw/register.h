@@ -37,6 +37,7 @@ void init_reg_map(u32 type);
 #define PADCTRL_GPIOH_I               PADCTRL_REG_ADDR(0x00D0)
 #define PADCTRL_GPIOH_I_S1A           PADCTRL_REG_ADDR(0x0050)
 #define PADCTRL_GPIOH_I_S7            PADCTRL_REG_ADDR(0x0050)
+#define PADCTRL_GPIOH_I_S7D           PADCTRL_REG_ADDR(0x0050)
 
 //  SYS_CTRL
 #define SYSCTRL_VPU_SECURE_REG0       SYSCTRL_REG_ADDR(0x0061)

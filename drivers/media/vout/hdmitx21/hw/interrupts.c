@@ -221,6 +221,9 @@ static void hdmitx_phy_bandgap_en(struct hdmitx_dev *hdev)
 	case MESON_CPU_ID_S7:
 		hdmitx21_phy_bandgap_en_s7();
 		break;
+	case MESON_CPU_ID_S7D:
+		hdmitx21_phy_bandgap_en_s7d();
+		break;
 #endif
 	default:
 		break;

@@ -130,6 +130,11 @@ static struct amhdmitx_data_s amhdmitx_data_s7 = {
 	.chip_name = "s7",
 };
 
+static struct amhdmitx_data_s amhdmitx_data_s7d = {
+	.chip_type = MESON_CPU_ID_S7D,
+	.chip_name = "s7d",
+};
+
 static const struct of_device_id meson_amhdmitx_of_match[] = {
 	{
 		.compatible	 = "amlogic, amhdmitx-t7",
@@ -146,6 +151,10 @@ static const struct of_device_id meson_amhdmitx_of_match[] = {
 	{
 		.compatible	 = "amlogic, amhdmitx-s7",
 		.data = &amhdmitx_data_s7,
+	},
+	{
+		.compatible	 = "amlogic, amhdmitx-s7d",
+		.data = &amhdmitx_data_s7d,
 	},
 	{},
 };
@@ -4766,9 +4775,10 @@ static struct platform_driver amhdmitx_driver = {
 int  __init amhdmitx21_init(void)
 {
 	struct hdmitx_boot_param *param = get_hdmitx_boot_params();
-
-	if (param->init_state & INIT_FLAG_NOT_LOAD)
+	if (param->init_state & INIT_FLAG_NOT_LOAD) {
+		pr_info("INIT_FLAG_NOT_LOAD");
 		return 0;
+	}
 
 	return platform_driver_register(&amhdmitx_driver);
 }
@@ -5064,4 +5074,3 @@ static void tee_comm_dev_unreg(struct hdmitx_dev *hdev)
 }
 
 /****** tee_hdcp key related end ******/
-
