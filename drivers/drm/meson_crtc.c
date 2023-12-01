@@ -1140,6 +1140,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	struct am_meson_crtc *amcrtc;
 	struct drm_crtc *crtc;
 	struct meson_vpu_pipeline *pipeline = priv->pipeline;
+	struct meson_vpu_sub_pipeline *sub_pipeline;
 	struct drm_plane *primary_plane;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 	int gamma_lut_size = 0;
@@ -1161,6 +1162,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	crtc = &amcrtc->base;
 	plane_index = priv->primary_plane_index[idx];
 	primary_plane = &priv->osd_planes[plane_index]->base;
+	sub_pipeline = &pipeline->subs[idx];
 
 	snprintf(crtc_name, 64, "%s-%d", "VPP", amcrtc->crtc_index);
 
@@ -1178,7 +1180,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 
 	drm_crtc_helper_add(crtc, &am_crtc_helper_funcs);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	meson_vpu_reg_handle_register(amcrtc->crtc_index);
+	meson_vpu_reg_handle_register(sub_pipeline);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 	if (gamma_ctl) {

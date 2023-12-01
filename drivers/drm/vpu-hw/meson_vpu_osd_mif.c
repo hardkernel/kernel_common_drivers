@@ -1610,6 +1610,47 @@ static void osd_hw_init(struct meson_vpu_block *vblk)
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static void g12b_osd_detect_reset(struct meson_vpu_block *vblk,
+			  struct meson_vpu_block_state *state)
+{
+	struct meson_vpu_osd *osd;
+	struct meson_vpu_osd_state *mvos;
+	struct osd_mif_reg_s *reg;
+	u32 val;
+	u32 reset_bit_pos;
+
+	if (!vblk || !state) {
+		MESON_DRM_BLOCK("detect_reset break for NULL.\n");
+		return;
+	}
+
+	mvos = to_osd_state(state);
+	osd = to_osd_block(vblk);
+	reg = osd->reg;
+	if (!reg) {
+		MESON_DRM_BLOCK("detect_reset break for NULL OSD mixer reg.\n");
+		return;
+	}
+
+	val = meson_drm_read_reg(reg->viu_osd_fifo_ctrl_stat);
+	if (((val & OSD_FIFO_ST_BITMASK) >> 20) == 2) {
+		DRM_WARN("FIFO request aborting (%x), reset OSD!\n", val);
+		/* crtc0 */
+		if (mvos->crtc_index == 0) {
+			reset_bit_pos = 14 + vblk->index;
+			meson_drm_write_reg_bits(VIU_SW_RESET, 1, reset_bit_pos, 1);
+			meson_drm_write_reg_bits(VIU_SW_RESET, 0, reset_bit_pos, 1);
+		/* crtc1 with VIU2 OSD1 */
+		} else if (mvos->crtc_index == 1) {
+			meson_drm_write_reg_bits(VIU2_SW_RESET, 1, 0, 1);
+			meson_drm_write_reg_bits(VIU2_SW_RESET, 0, 0, 1);
+		} else {
+			DRM_WARN("crtc %d is not supported!\n", mvos->crtc_index);
+		}
+	}
+
+	MESON_DRM_BLOCK("%s detect_reset done.\n", osd->base.name);
+}
 
 #define OSD_GLOBAL_ALPHA_DEF 0x100
 static void g12b_osd_hw_init(struct meson_vpu_block *vblk)
@@ -1782,6 +1823,7 @@ struct meson_vpu_block_ops osd_ops = {
 struct meson_vpu_block_ops g12b_osd_ops = {
 	.check_state = osd_check_state,
 	.update_state = osd_set_state,
+	.detect_reset = g12b_osd_detect_reset,
 	.enable = osd_hw_enable,
 	.disable = osd_hw_disable,
 	.dump_register = osd_dump_register,

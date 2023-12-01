@@ -319,6 +319,10 @@
 #define VIU_OSD4_DIMM_CTRL_S5                   0x42e0
 #define VIU_OSD4_NORMAL_SWAP_S5                 0x42e1
 
+#define VIU_SW_RESET     0x1a01
+#define VIU2_SW_RESET     0x1e01
+#define OSD_FIFO_ST_BITMASK 0x300000
+
 struct osd_mif_reg_s {
 	u32 viu_osd_ctrl_stat;
 	u32 viu_osd_ctrl_stat2;

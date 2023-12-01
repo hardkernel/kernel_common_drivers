@@ -496,6 +496,36 @@ void vpu_pipeline_check_finish_reg(int crtc_index)
 			  crtc_index, drm_rdma_cnt[crtc_index].val >> 8, val >> 8);
 }
 
+void vpu_pipeline_detect_reset(struct meson_vpu_sub_pipeline *sub_pipeline)
+{
+	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
+	struct meson_vpu_pipeline_state *new_mvps;
+	struct meson_vpu_sub_pipeline_state *new_mvsps;
+	struct meson_vpu_block *mvb;
+	struct meson_vpu_block_state *mvbs;
+	unsigned long affected_blocks = 0;
+	unsigned long id;
+
+	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
+	new_mvsps = &new_mvps->sub_states[sub_pipeline->index];
+	affected_blocks = new_mvsps->enable_blocks;
+	DRM_DEBUG("detect reset, enable blocks:%lx\n",
+			affected_blocks);
+
+	for_each_set_bit(id, &affected_blocks, 32) {
+		mvb = vpu_blocks[id];
+		if (mvb->type != MESON_BLK_OSD)
+			continue;
+
+		mvbs = priv_to_block_state(mvb->obj.state);
+		if ((affected_blocks & BIT(id)) && mvb->ops->detect_reset) {
+			DRM_DEBUG("detect reset, block %s: mvbs new-%p\n",
+					mvb->name, mvbs);
+			mvb->ops->detect_reset(mvb, mvbs);
+		}
+	}
+}
+
 int vpu_pipeline_check(struct meson_vpu_pipeline *pipeline,
 		       struct drm_atomic_state *state)
 {

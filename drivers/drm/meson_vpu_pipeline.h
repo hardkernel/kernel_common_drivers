@@ -103,6 +103,8 @@ struct meson_vpu_block_ops {
 	void (*update_state)(struct meson_vpu_block *vblk,
 			     struct meson_vpu_block_state *new_state,
 			     struct meson_vpu_block_state *old_state);
+	void (*detect_reset)(struct meson_vpu_block *vblk,
+			     struct meson_vpu_block_state *new_state);
 	void (*enable)(struct meson_vpu_block *vblk,
 		       struct meson_vpu_block_state *new_state);
 	void (*disable)(struct meson_vpu_block *vblk,
@@ -691,6 +693,7 @@ int vpu_pipeline_check_osdblend(u32 *out_port, int num_planes,
 int vpu_video_pipeline_check_block(struct meson_vpu_pipeline_state *mvps,
 				   struct drm_atomic_state *state);
 void vpu_pipeline_check_finish_reg(int crtc_index);
+void vpu_pipeline_detect_reset(struct meson_vpu_sub_pipeline *sub_pipeline);
 void sort_osd_by_zorder(struct osd_zorder_s *din, u32 osd_num);
 
 extern struct rdma_reg_ops common_reg_ops[3];
