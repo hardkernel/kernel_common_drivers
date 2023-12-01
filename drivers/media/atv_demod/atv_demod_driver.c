@@ -69,7 +69,8 @@
 /*                          fix nicam bg output again. */
 /* 2023/09/11 --- V3.02 --- Fix afc(+/-2MHz). */
 /* 2023/10/09 --- V3.03 --- Delete debug logs in probe. */
-#define AMLATVDEMOD_VER "V3.03"
+/* 2023/12/01 --- V3.04 --- Fix prop setting. */
+#define AMLATVDEMOD_VER "V3.04"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
