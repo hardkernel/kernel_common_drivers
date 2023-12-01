@@ -18,6 +18,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/meson_ir.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
+#include <dt-bindings/mailbox/s7d-mbox.h>
 #include "meson-ir-map.dtsi"
 #include "mesong12a-bifrost.dtsi"
 / {
@@ -290,7 +291,6 @@
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xfe010288 0x0 0x4>;
 		status = "okay";
-		mboxes = <&mailbox_mhu_fifo 1>;
 	};
 
 	audio_data: audio_data {
@@ -322,32 +322,29 @@
 		pinctrl-1=<&jtag_b_pins>;
 	};
 
-	mailbox_mhu_fifo: mhu@0 {
+	mbox_fifo: mbox_fifo@0xfe006000 {
 		status = "okay";
-		compatible = "amlogic, meson_mhu_fifo";
+		compatible = "amlogic, s7d-mbox-fifo";
 		reg = <0x0 0xfe006000 0x0 0x800>,  /* mbox wr fifo */
 		      <0x0 0xfe006800 0x0 0x800>,  /* mbox rd fifo */
 		      <0x0 0xfe0070c0 0x0 0x40>,   /* mbox set reg */
 		      <0x0 0xfe007100 0x0 0x40>,   /* mbox clr reg */
 		      <0x0 0xfe007140 0x0 0x40>,   /* mbox sts reg */
 		      <0x0 0xfe007020 0x0 0x40>;   /* mbox irqctrl reg */
-		interrupts = <0 248 1>;   /* irq top */
+		interrupts = <GIC_SPI 248 IRQ_TYPE_EDGE_RISING>;   /* mbox top irq */
 		mbox-irqctlr = <0>;
-		mbox-nums = <2>;
-		mbox-names = "ao_dev",
-			     "ap_to_ao";
-		mboxes = <&mailbox_mhu_fifo 0>,
-			 <&mailbox_mhu_fifo 1>;
-		mbox-id = <0x2 0x3>;
+		mbox-nums = <S7D_MBOX_NUMS>;
+		mboxids = <S7D_MBOX_AO2REE>,
+			  <S7D_MBOX_REE2AO>;
 		#mbox-cells = <1>;
 	};
 
-	mbox_user: mbox-user@0 {
+	mbox_devfs {
 		status = "okay";
-		compatible = "amlogic, meson-mbox-user";
+		compatible = "amlogic, mbox-devfs";
 		mbox-nums = <1>;
 		mbox-names = "ree2aocpu";
-		mboxes = <&mailbox_mhu_fifo 1>;
+		mboxes = <&mbox_fifo S7D_REE2AO_DEV>;
 		mbox-dests = <MAILBOX_AOCPU>;
 	};
 
