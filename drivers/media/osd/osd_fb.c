@@ -5322,6 +5322,24 @@ static struct osd_device_data_s osd_s7 = {
 	.osd0_sc_independ = 0,
 	.mif_linear = 1,
 };
+
+static struct osd_device_data_s osd_s7d = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_S7D,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 2,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 1,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
+	.mif_linear = 1,
+};
+
 #endif
 
 static const struct of_device_id meson_fb_dt_match[] = {
@@ -5442,6 +5460,10 @@ static const struct of_device_id meson_fb_dt_match[] = {
 	{
 		.compatible = "amlogic, fb-s7",
 		.data = &osd_s7,
+	},
+	{
+		.compatible = "amlogic, fb-s7d",
+		.data = &osd_s7d,
 	},
 #endif
 	{},
@@ -5583,6 +5605,9 @@ static int __init osd_probe(struct platform_device *pdev)
 		memcpy(&osd_dev_hw, &t3x_dev_property,
 		       sizeof(struct osd_device_hw_s));
 	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_S7)
+		memcpy(&osd_dev_hw, &s7_dev_property,
+		       sizeof(struct osd_device_hw_s));
+	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_S7D)
 		memcpy(&osd_dev_hw, &s7_dev_property,
 		       sizeof(struct osd_device_hw_s));
 	else

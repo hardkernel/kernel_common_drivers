@@ -2004,7 +2004,7 @@
 	};
 
 	fb: fb {
-		compatible = "amlogic, fb-s7";
+		compatible = "amlogic, fb-s7d";
 		memory-region = <&logo_reserved>;
 		status = "disabled";
 		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING

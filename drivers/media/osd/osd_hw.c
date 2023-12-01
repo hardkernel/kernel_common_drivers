@@ -14862,7 +14862,9 @@ static void osd_hw_init(u32 logo_loaded)
 			osd_hw.osd_meson_dev.cpu_id !=
 			__MESON_CPU_MAJOR_ID_S7 &&
 			osd_hw.osd_meson_dev.cpu_id !=
-			__MESON_CPU_MAJOR_ID_T7)
+			__MESON_CPU_MAJOR_ID_T7 &&
+			osd_hw.osd_meson_dev.cpu_id !=
+			__MESON_CPU_MAJOR_ID_S7D)
 			osd_set_two_ports(true);
 		if (osd_dev_hw.prevsync_support) {
 			u32 vpp0_pre_go_field = 0;
