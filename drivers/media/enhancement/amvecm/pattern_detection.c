@@ -32,6 +32,7 @@
 #endif
 #include "arch/vpp_regs.h"
 #include "amve.h"
+#include "amcm.h"
 #include "reg_helper.h"
 #include "pattern_detection.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AFE
@@ -324,7 +325,7 @@ static void setting_set_regmap(int index)
 
 	if (vpp_set) {
 		regs = (struct am_regs_s *)(&vpp_set[index]);
-		am_set_regmap(regs);
+		am_set_regmap(regs, 0);
 	}
 
 	pr_pattern_detect_dbg("leave\n");

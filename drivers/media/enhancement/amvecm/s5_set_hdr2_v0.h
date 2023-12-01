@@ -47,7 +47,7 @@ void vpu_lut_dma(enum hdr_module_sel module_sel,
 void s5_hdr_reg_dump(unsigned int offset);
 void hdr_lut_buffer_malloc(struct platform_device *pdev);
 void hdr_lut_buffer_free(struct platform_device *pdev);
-void disable_ai_color(void);
+void disable_ai_color(enum vpp_index_e vpp_index);
 void read_dma_buf(void);
 void write_dma_buf(u32 table_offset, u32 tbl_id, u32 value);
 void init_vpu_lut_dma(struct VPU_LUT_DMA_t       *vpu_lut_dma);

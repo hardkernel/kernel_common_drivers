@@ -6,7 +6,7 @@
 #ifndef __AM_LUT3D_H
 #define __AM_LUT3D_H
 
-void lut3d_set_api(void);
+void lut3d_set_api(int vpp_index);
 
 #endif
 #endif

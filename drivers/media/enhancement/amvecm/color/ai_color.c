@@ -265,7 +265,7 @@ void SLut_gen(struct sa_adj_param_s *reg_sat,
 	}
 }
 
-void ai_color_cfg(struct sa_adj_param_s *sa_adj_param)
+void ai_color_cfg(struct sa_adj_param_s *sa_adj_param, int vpp_index)
 {
 	int s_gain_en;
 	int l_gain_en;
@@ -292,31 +292,32 @@ void ai_color_cfg(struct sa_adj_param_s *sa_adj_param)
 		sa_l_gain_0 += aice_offset[j];
 
 		en = s_gain_en | l_gain_en;
-		VSYNC_WR_MPEG_REG_BITS(sa_ctl, en, 0, 1);
+		VSYNC_WRITE_VPP_REG_BITS_EX_VPP_SEL(sa_ctl, en, 0, 1, 0, vpp_index);
 		if (!en)
 			return;
-		VSYNC_WR_MPEG_REG_BITS(sa_adj, (s_gain_en << 1) | l_gain_en, 27, 2);
+		VSYNC_WRITE_VPP_REG_BITS_EX_VPP_SEL(sa_adj,
+			(s_gain_en << 1) | l_gain_en, 27, 2, 0, vpp_index);
 
 		s_gain = sa_adj_param->reg_s_gain_lut;
 		l_gain = sa_adj_param->reg_l_gain_lut;
 
 		if (s_gain_en) {
 			for (i = 0; i < 60; i++)
-				VSYNC_WR_MPEG_REG(sa_s_gain_0 + i,
+				VSYNC_WRITE_VPP_REG_EX_VPP_SEL(sa_s_gain_0 + i,
 					((s_gain[2 * i] & 0xfff) << 16) |
-					(s_gain[2 * i + 1] & 0xfff));
+					(s_gain[2 * i + 1] & 0xfff), 0, vpp_index);
 		}
 
 		if (l_gain_en) {
 			for (i = 0; i < 32; i++)
-				VSYNC_WR_MPEG_REG(sa_l_gain_0 + i,
+				VSYNC_WRITE_VPP_REG_EX_VPP_SEL(sa_l_gain_0 + i,
 					((l_gain[2 * i] & 0x3ff) << 16) |
-					(l_gain[2 * i + 1] & 0x3ff));
+					(l_gain[2 * i + 1] & 0x3ff), 0, vpp_index);
 		}
 	}
 }
 
-void ai_color_proc(struct vframe_s *vf)
+void ai_color_proc(struct vframe_s *vf, int vpp_index)
 {
 	int i;
 
@@ -347,7 +348,7 @@ void ai_color_proc(struct vframe_s *vf)
 	}
 
 	SLut_gen(&sa_adj_parm, &sa_fw_parm);
-	ai_color_cfg(&sa_adj_parm);
+	ai_color_cfg(&sa_adj_parm, vpp_index);
 
 	if (ai_clr_dbg > 0) {
 		for (i = 0; i < 120; i++)
@@ -357,16 +358,18 @@ void ai_color_proc(struct vframe_s *vf)
 	}
 }
 
-void ai_clr_config(int enable)
+void ai_clr_config(int enable, int vpp_index)
 {
 	int i;
+	unsigned int val;
 	int s5_slice_mode = get_s5_slice_mode();
 
 	if (s5_slice_mode < 1 || s5_slice_mode > 4)
 		return;
 
+	val = (1 << 8) | (enable << 0);
 	for (i = 0; i < s5_slice_mode; i++)
-		WRITE_VPP_REG_BITS_S5(SA_CTRL + aice_offset[i], enable, 0, 1);
+		VSYNC_WRITE_VPP_REG_EX_VPP_SEL(SA_CTRL + aice_offset[i], val, 0, vpp_index);
 }
 
 int ai_color_debug_store(char **parm)

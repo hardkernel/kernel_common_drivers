@@ -1595,7 +1595,7 @@ u32 s5_hist_maxrgb_luminance[128] = {
 };
 
 /*AI color disable*/
-void disable_ai_color(void)
+void disable_ai_color(enum vpp_index_e vpp_index)
 {
 	if (chip_type_id == chip_s5) {
 		WRITE_VPP_REG_BITS_S5(S5_VD1_SLICE2_HDR2_CTRL, 0, 14, 2);
@@ -1607,7 +1607,7 @@ void disable_ai_color(void)
 		WRITE_VPP_REG_BITS_S5(S5_OSD1_HDR2_CTRL, 0, 14, 2);
 	}
 
-	ai_clr_config(0);
+	ai_clr_config(0, vpp_index);
 }
 
 void s5_set_hist(enum hdr_module_sel module_sel, int enable,

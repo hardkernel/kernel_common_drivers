@@ -366,19 +366,21 @@ void dnlp_alg_param_init(void)
 	}
 }
 
-static void ve_dnlp_add_cm(unsigned int value)
+static void ve_dnlp_add_cm(unsigned int value, int vpp_index)
 {
 	unsigned int reg_value;
 
 	if (chip_type_id != chip_t3x) {
-		VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x207);
-		reg_value = VSYNC_READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_CHROMA_ADDR_PORT, 0x207, vpp_index);
+		reg_value =
+			VSYNC_READ_VPP_REG_VPP_SEL(VPP_CHROMA_DATA_PORT, vpp_index);
 		reg_value = (reg_value & 0xf000ffff) | (value << 16);
-		VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x207);
-		VSYNC_WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, reg_value);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_CHROMA_ADDR_PORT, 0x207, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_CHROMA_DATA_PORT,
+			reg_value, vpp_index);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	} else {
-		ve_dnlp_sat_set(value);
+		ve_dnlp_sat_set(value, vpp_index);
 #endif
 	}
 }
@@ -458,50 +460,52 @@ static int load_histogram(int *osamebin_num, struct vframe_s *vf,
 /* dnlp saturation compensations */
 /* input: ve_dnlp_tgt[]; */
 /* output: ve_dnlp_add_cm(nTmp + 512), and delta saturation; */
-int dnlp_sat_compensation(void)
+int dnlp_sat_compensation(int vpp_index)
 {
-	int nT0, nT1, nTmp0, nTmp, i;
+	int nt0, nt1, ntmp0, ntmp, i;
 	unsigned int pre_stur = 0;
 
-	nT0 = 0;	nT1 = 0;
+	nt0 = 0;
+	nt1 = 0;
 	for (i = 1; i < 64; i++) {
 		if (ve_dnlp_tgt_copy[i] > 4 * i) {
-			nT0 += (ve_dnlp_tgt_copy[i] - 4 * i) * (65 - i);
-			nT1 += (65 - i);
+			nt0 += (ve_dnlp_tgt_copy[i] - 4 * i) * (65 - i);
+			nt1 += (65 - i);
 		}
 	}
-	nTmp0 = nT0 * dnlp_alg_param.dnlp_satur_rat + (nT1 >> 1);
-	nTmp0 = nTmp0 / (nT1 + 1);
-	nTmp0 = ((nTmp0 + 4) >> 3);
+	ntmp0 = nt0 * dnlp_alg_param.dnlp_satur_rat + (nt1 >> 1);
+	ntmp0 = ntmp0 / (nt1 + 1);
+	ntmp0 = ((ntmp0 + 4) >> 3);
 
-	nTmp =	(dnlp_alg_param.dnlp_satur_max << 3);
-	if (nTmp0 < nTmp)
-		nTmp = nTmp0;
+	ntmp =	(dnlp_alg_param.dnlp_satur_max << 3);
+	if (ntmp0 < ntmp)
+		ntmp = ntmp0;
 
 	if (((dnlp_dbg_print) & 0x2))
 		pr_info("#sat_comp: pre(%3d) => %5d / %3d => %3d cur(%3d)\n",
-			pre_stur, nT0, nT1, nTmp0, nTmp);
+			pre_stur, nt0, nt1, ntmp0, ntmp);
 
 	if (dnlp_alg_param.dnlp_set_saturtn == 0) {
-		if (nTmp != pre_stur) {
-			ve_dnlp_add_cm(nTmp + 512);
-			pre_stur = nTmp;
+		if (ntmp != pre_stur) {
+			ve_dnlp_add_cm(ntmp + 512, vpp_index);
+			pre_stur = ntmp;
 		}
 	} else {
 		if (pre_stur != dnlp_alg_param.dnlp_set_saturtn) {
 			if (dnlp_alg_param.dnlp_set_saturtn < 512)
 				ve_dnlp_add_cm(dnlp_alg_param.dnlp_set_saturtn +
-					512);
+					512, vpp_index);
 			else
-				ve_dnlp_add_cm(dnlp_alg_param.dnlp_set_saturtn);
+				ve_dnlp_add_cm(dnlp_alg_param.dnlp_set_saturtn,
+					vpp_index);
 			pre_stur = dnlp_alg_param.dnlp_set_saturtn;
 		}
 	}
 
-	return	nTmp;
+	return	ntmp;
 }
 
-int ve_dnlp_calculate_tgtx(struct vframe_s *vf)
+int ve_dnlp_calculate_tgtx(struct vframe_s *vf, int vpp_index)
 {
 	struct vframe_prop_s *p = &vf->prop;
 
@@ -549,7 +553,7 @@ int ve_dnlp_calculate_tgtx(struct vframe_s *vf)
 	}
 
 	dnlp_alg_function->dnlp_algorithm_main(raw_hst_sum);
-	dnlp_sat_compensation();
+	dnlp_sat_compensation(vpp_index);
 
 	return 1;
 }

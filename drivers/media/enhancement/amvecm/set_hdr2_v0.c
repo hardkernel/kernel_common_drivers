@@ -1403,7 +1403,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
 		vpp_sel = VPP_TOP2;
 	else
-		vpp_sel = VPP_TOP0;
+		vpp_sel = vpp_index;
 
 	if (module_sel == VD1_HDR) {
 		MATRIXI_COEF00_01 = VD1_HDR2_MATRIXI_COEF00_01;
@@ -2299,7 +2299,7 @@ void set_eotf_lut(enum hdr_module_sel module_sel,
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
 		vpp_sel = VPP_TOP2;
 	else
-		vpp_sel = VPP_TOP0;
+		vpp_sel = vpp_index;
 
 	if (module_sel == VD1_HDR) {
 		eotf_lut_addr_port = VD1_EOTF_LUT_ADDR_PORT;
@@ -2373,7 +2373,7 @@ void set_ootf_lut(enum hdr_module_sel module_sel,
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
 		vpp_sel = VPP_TOP2;
 	else
-		vpp_sel = VPP_TOP0;
+		vpp_sel = vpp_index;
 
 	if (module_sel == VD1_HDR) {
 		ootf_lut_addr_port = VD1_OGAIN_LUT_ADDR_PORT;
@@ -2451,7 +2451,7 @@ void set_oetf_lut(enum hdr_module_sel module_sel,
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
 		vpp_sel = VPP_TOP2;
 	else
-		vpp_sel = VPP_TOP0;
+		vpp_sel = vpp_index;
 
 	if (module_sel == VD1_HDR) {
 		oetf_lut_addr_port = VD1_OETF_LUT_ADDR_PORT;
@@ -2539,7 +2539,7 @@ void set_c_gain(enum hdr_module_sel module_sel,
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
 		vpp_sel = VPP_TOP2;
 	else
-		vpp_sel = VPP_TOP0;
+		vpp_sel = vpp_index;
 
 	if (module_sel == VD1_HDR) {
 		cgain_lut_addr_port = VD1_CGAIN_LUT_ADDR_PORT;
@@ -2856,7 +2856,7 @@ void hdr_hist_config(enum hdr_module_sel module_sel,
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
 		vpp_sel = VPP_TOP2;
 	else
-		vpp_sel = VPP_TOP0;
+		vpp_sel = vpp_index;
 
 	if (module_sel == VD1_HDR) {
 		hist_ctrl = VD1_HDR2_HIST_CTRL;
@@ -2922,7 +2922,7 @@ void clip_func_after_ootf(int mtx_gamut_mode,
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
 		vpp_sel = VPP_TOP2;
 	else
-		vpp_sel = VPP_TOP0;
+		vpp_sel = vpp_index;
 
 	/* if Dynamic TMO+ enable : clip_en = 1 clip_max = 524288
 	 * (hdr_process_select is HDR_SDR or HDR10P_SDR);
@@ -3088,7 +3088,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
 		vpp_sel = VPP_TOP2;
 	else
-		vpp_sel = VPP_TOP0;
+		vpp_sel = vpp_index;
 
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));

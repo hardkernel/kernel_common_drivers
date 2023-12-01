@@ -750,21 +750,21 @@ static uint force_csc_type = 0xff;
 module_param(force_csc_type, uint, 0664);
 MODULE_PARM_DESC(force_csc_type, "\n force colour space convert type\n");
 
-static uint cur_hdr_support[VPP_TOP_MAX_S];
+static uint cur_hdr_support[VD_PATH_MAX];
 module_param_array(cur_hdr_support, uint, &vpp_top_max, 0444);
 MODULE_PARM_DESC(cur_hdr_support, "\n current cur_hdr_support\n");
 
 
-static uint cur_colorimetry_support[VPP_TOP_MAX_S];
+static uint cur_colorimetry_support[VD_PATH_MAX];
 module_param_array(cur_colorimetry_support, uint, &vpp_top_max, 0444);
 MODULE_PARM_DESC(cur_colorimetry_support, "\n current cur_colorimetry_support\n");
 
-static uint cur_hlg_support[VPP_TOP_MAX_S];
+static uint cur_hlg_support[VD_PATH_MAX];
 module_param_array(cur_hlg_support, uint, &vpp_top_max, 0444);
 MODULE_PARM_DESC(cur_hlg_support, "\n current cur_hlg_support\n");
 
 
-static uint cur_color_fmt[VPP_TOP_MAX_S];
+static uint cur_color_fmt[VD_PATH_MAX];
 module_param_array(cur_color_fmt, uint, &vpp_top_max, 0664);
 MODULE_PARM_DESC(cur_color_fmt, "\n current cur_color_fmt\n");
 
@@ -4382,27 +4382,27 @@ int signal_type_changed(struct vframe_s *vf,
 		}
 	}
 
-	if (cur_hdr_support[vpp_index]
+	if (cur_hdr_support[vd_path]
 		!= (vinfo->hdr_info.hdr_support & 0x4)) {
 		pr_csc(1, "Tx HDR support changed.\n");
 		change_flag |= SIG_HDR_SUPPORT;
-		cur_hdr_support[vpp_index] =
+		cur_hdr_support[vd_path] =
 			vinfo->hdr_info.hdr_support & 0x4;
 	}
-	if (cur_colorimetry_support[vpp_index] != vinfo->hdr_info.colorimetry_support) {
+	if (cur_colorimetry_support[vd_path] != vinfo->hdr_info.colorimetry_support) {
 		pr_csc(1, "Tx colorimetry support changed.\n");
 		change_flag |= SIG_COLORIMETRY_SUPPORT;
-		cur_colorimetry_support[vpp_index] = vinfo->hdr_info.colorimetry_support;
+		cur_colorimetry_support[vd_path] = vinfo->hdr_info.colorimetry_support;
 	}
-	if (cur_color_fmt[vpp_index] != vinfo->viu_color_fmt) {
+	if (cur_color_fmt[vd_path] != vinfo->viu_color_fmt) {
 		pr_csc(1, "color format changed.\n");
 		change_flag |= SIG_OP_CHG;
-		cur_color_fmt[vpp_index] = vinfo->viu_color_fmt;
+		cur_color_fmt[vd_path] = vinfo->viu_color_fmt;
 	}
-	if (cur_hlg_support[vpp_index] != (vinfo->hdr_info.hdr_support & 0x8)) {
+	if (cur_hlg_support[vd_path] != (vinfo->hdr_info.hdr_support & 0x8)) {
 		pr_csc(1, "Tx HLG support changed.\n");
 		change_flag |= SIG_HLG_SUPPORT;
-		cur_hlg_support[vpp_index] = vinfo->hdr_info.hdr_support & 0x8;
+		cur_hlg_support[vd_path] = vinfo->hdr_info.hdr_support & 0x8;
 	}
 
 	if (cur_eye_protect_mode != wb_val[0] ||
@@ -7918,7 +7918,8 @@ static int notify_vd_signal_to_amvideo(struct vd_signal_info_s *vd_signal,
 {
 	static int pre_signal = -1;
 
-	if (vpp_index != VPP_TOP0)
+	if (vpp_index != VPP_TOP0 &&
+		vpp_index != VPP_PRE_VS)
 		return -1;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
@@ -8931,7 +8932,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	}
 
 	if (ai_color_enable)
-		ai_color_proc(vf);
+		ai_color_proc(vf, vpp_index);
 
 	/* eye protection mode */
 	if (signal_change_flag & SIG_WB_CHG)
@@ -8947,8 +8948,8 @@ static struct vframe_s last_vf_backup[VD_PATH_MAX];
 static struct vframe_s *last_vf[VD_PATH_MAX];
 static int last_vf_signal_type[VD_PATH_MAX];
 static int null_vf_cnt[VD_PATH_MAX] = {2, 2, 2};
-static int prev_color_fmt[3];
-static int prev_vmode[3] = {0xff, 0xff, 0xff};
+static int prev_color_fmt[VD_PATH_MAX];
+static int prev_vmode[VD_PATH_MAX] = {0xff, 0xff, 0xff};
 static bool dovi_on;
 
 static unsigned int fg_vf_sw_dbg;
@@ -8994,8 +8995,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 
 	if (vinfo->mode == VMODE_NULL ||
 	    vinfo->mode == VMODE_INVALID) {
-		current_hdr_cap[vpp_index] = 0;
-		current_sink_available[vpp_index] = 0;
+		current_hdr_cap[vd_path] = 0;
+		current_sink_available[vd_path] = 0;
 		return 0;
 	}
 
@@ -9072,15 +9073,15 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		}
 	}
 	sink_changed = is_sink_cap_changed(vinfo,
-					   &current_hdr_cap[vpp_index],
-					   &current_sink_available[vpp_index],
+					   &current_hdr_cap[vd_path],
+					   &current_sink_available[vd_path],
 					   vpp_index);
 	if (sink_changed) {
 		cap_changed = sink_changed & 0x02;
 		pr_csc(4, "sink %s, cap%s 0x%x, vd%d %s %p %p vpp%d hdr_cap = 0x%x\n",
-		       current_sink_available[vpp_index] ? "on" : "off",
+		       current_sink_available[vd_path] ? "on" : "off",
 		       cap_changed ? " changed" : "",
-		       current_hdr_cap[vpp_index],
+		       current_hdr_cap[vd_path],
 		       vd_path + 1,
 		       is_video_layer_on(vd_path) ? "on" : "off",
 		       vf, vf_rpt, vpp_index,
@@ -9184,28 +9185,28 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		}
 
 		/* handle change between output mode*/
-		if (prev_vmode[vpp_index] != vinfo->mode) {
+		if (prev_vmode[vd_path] != vinfo->mode) {
 			if (is_video_layer_on(vd_path))
 				null_vf_cnt[vd_path] = 0;
 			else
 				force_fake = true;
-			prev_vmode[vpp_index] = vinfo->mode;
+			prev_vmode[vd_path] = vinfo->mode;
 			pr_csc(4, "vd%d: output display mode changed\n",
 			       vd_path + 1);
 		}
 
 		/* handle change between output mode*/
-		if (prev_color_fmt[vpp_index] != vinfo->viu_color_fmt) {
+		if (prev_color_fmt[vd_path] != vinfo->viu_color_fmt) {
 			if (is_video_layer_on(vd_path))
 				null_vf_cnt[vd_path] = 0;
 			else
 				force_fake = true;
-			prev_color_fmt[vpp_index] = vinfo->viu_color_fmt;
+			prev_color_fmt[vd_path] = vinfo->viu_color_fmt;
 			pr_csc(4, "vd%d: output color format changed\n",
 			       vd_path + 1);
 			pr_csc(4, "p_c_fmt[top%d] = %d v_c_fmt = %d",
-				   vpp_index,
-				   prev_color_fmt[vpp_index],
+				   vd_path,
+				   prev_color_fmt[vd_path],
 				   vinfo->viu_color_fmt);
 		}
 

@@ -416,7 +416,8 @@ enum vpp_index_e {
 	VPP_TOP0 = 0,
 	VPP_TOP1 = 1,
 	VPP_TOP2 = 2,
-	VPP_TOP_MAX_S = 3
+	VPP_PRE_VS = 3,
+	VPP_TOP_MAX_S = 4
 };
 
 enum vpp_slice_e {
@@ -484,9 +485,9 @@ int amvecm_on_vs(struct vframe_s *display_vf,
 		 unsigned int cm_in_h,
 		 enum vd_path_e vd_path,
 		 enum vpp_index_e vpp_index);
-void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf);
-void pc_mode_process(void);
-void pq_user_latch_process(void);
+void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf, u32 vpp_index);
+void pc_mode_process(int vpp_index);
+void pq_user_latch_process(int vpp_index);
 void vlock_process(struct vframe_s *vf,
 		   struct vpp_frame_par_s *cur_video_sts);
 void frame_lock_process(struct vframe_s *vf,
@@ -495,7 +496,7 @@ int frc_input_handle(struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts)
 void get_hdr_process_name(int id, char *name, char *output_fmt);
 
 void vpp_vd_adj1_saturation_hue(signed int sat_val,
-				signed int hue_val, struct vframe_s *vf);
+				signed int hue_val, struct vframe_s *vf, int vpp_index);
 void amvecm_sharpness_enable(int sel);
 int metadata_read_u32(uint32_t *value);
 int metadata_wait(struct vframe_s *vf);
@@ -524,7 +525,7 @@ bool di_api_mov_sel(unsigned int mode,
 enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path,
 	enum vpp_index_e vpp_index);
 
-int amvecm_set_saturation_hue(int mab, enum wr_md_e mode);
+int amvecm_set_saturation_hue(int mab, enum wr_md_e mode, int vpp_index);
 void amvecm_saturation_hue_update(int offset_val);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC

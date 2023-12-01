@@ -895,7 +895,7 @@ static int lowlatency_vsync(u8 instance_id)
 	else
 		frame_par = vd_layer[0].cur_frame_par;
 
-	refresh_on_vs(new_frame, vd_layer[0].dispbuf);
+	refresh_on_vs(new_frame, vd_layer[0].dispbuf, VPP_TOP0);
 
 	amvecm_on_vs
 		(!is_local_vf(vd_layer[0].dispbuf)

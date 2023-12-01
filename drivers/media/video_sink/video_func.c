@@ -2287,6 +2287,8 @@ void amvecm_process(struct path_id_s *path_id,
 			    struct video_recv_s *p_gvideo_recv,
 			    struct vframe_s *new_frame)
 {
+	u32 vpp_index = VPP0;
+
 	if (path_id->vd1_path_id == p_gvideo_recv->path_id)
 		amvecm_on_vs
 			((p_gvideo_recv->cur_buf !=
@@ -2301,8 +2303,12 @@ void amvecm_process(struct path_id_s *path_id,
 			0,
 			0,
 			VD1_PATH,
-			VPP_TOP0);
-	else if (path_id->vd2_path_id == p_gvideo_recv->path_id)
+			vd_layer[0].vpp_index);
+	else if (path_id->vd2_path_id == p_gvideo_recv->path_id) {
+		if (p_gvideo_recv->vpp_id != VPP0)
+			vpp_index = vd_layer_vpp[p_gvideo_recv->vpp_id - VPP0].vpp_index;
+		else
+			vpp_index = vd_layer[1].vpp_index;
 		amvecm_on_vs
 			((p_gvideo_recv->cur_buf !=
 			 &p_gvideo_recv->local_buf)
@@ -2316,8 +2322,12 @@ void amvecm_process(struct path_id_s *path_id,
 			0,
 			0,
 			VD2_PATH,
-			VPP_TOP0);
-	else if (path_id->vd3_path_id == p_gvideo_recv->path_id)
+			vpp_index);
+	} else if (path_id->vd3_path_id == p_gvideo_recv->path_id) {
+		if (p_gvideo_recv->vpp_id != VPP0)
+			vpp_index = vd_layer_vpp[p_gvideo_recv->vpp_id - VPP0].vpp_index;
+		else
+			vpp_index = vd_layer[2].vpp_index;
 		amvecm_on_vs
 			((p_gvideo_recv->cur_buf !=
 			 &p_gvideo_recv->local_buf)
@@ -2331,7 +2341,8 @@ void amvecm_process(struct path_id_s *path_id,
 			0,
 			0,
 			VD3_PATH,
-			VPP_TOP0);
+			vpp_index);
+	}
 }
 #endif
 
@@ -3110,7 +3121,7 @@ int amvecm_update(u8 layer_id, u8 path_index, struct vframe_s *vf)
 		0,
 		0,
 		layer_id,
-		VPP_TOP0);
+		vd_layer[path_index].vpp_index);
 #else
 	return 0;
 #endif
@@ -3791,7 +3802,7 @@ static void do_vd1_swap_frame(u8 layer_id,
 	else
 		frame_par = vd_layer[0].cur_frame_par;
 
-	refresh_on_vs(new_frame, vd_layer[0].dispbuf);
+	refresh_on_vs(new_frame, vd_layer[0].dispbuf, vd_layer[0].vpp_index);
 
 	amvecm_on_vs
 		(!is_local_vf(vd_layer[0].dispbuf)
@@ -3817,7 +3828,7 @@ static void do_vd1_swap_frame(u8 layer_id,
 		frame_par->cm_input_h :
 		0,
 		VD1_PATH,
-		VPP_TOP0);
+		vd_layer[0].vpp_index);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
 	prime_sl_process(vd_layer[0].dispbuf);
@@ -3994,7 +4005,7 @@ static void do_vdx_swap_frame(u8 layer_id,
 		frame_par->cm_input_h :
 		0,
 		layer_id,
-		VPP_TOP0);
+		vd_layer[layer_id].vpp_index);
 #endif
 
 	if (need_disable_vd[layer_id]) {

@@ -60,6 +60,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include "video_receiver.h"
 
 #ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+struct video_layer_s vd_layer_vpp[2];
 bool is_vpp0(u8 layer_id)
 {
 	return true;

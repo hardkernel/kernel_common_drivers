@@ -110,7 +110,7 @@ int get_slice_max(void)
 
 static void ve_brightness_cfg(int val,
 	enum wr_md_e mode, enum vadj_index_e vadj_idx,
-	enum vpp_slice_e slice)
+	enum vpp_slice_e slice, int vpp_index)
 {
 	int reg;
 	int slice_max;
@@ -139,7 +139,7 @@ static void ve_brightness_cfg(int val,
 	if (mode == WR_VCB)
 		WRITE_VPP_REG_BITS(reg, val, 8, 11);
 	else if (mode == WR_DMA)
-		VSYNC_WRITE_VPP_REG_BITS(reg, val, 8, 11);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg, val, 8, 11, vpp_index);
 
 	pr_amve_v2("brigtness: val = %d, slice = %d\n", val, slice);
 	pr_amve_v2("brigtness: addr = %x\n", reg);
@@ -147,7 +147,7 @@ static void ve_brightness_cfg(int val,
 
 static void ve_contrast_cfg(int val,
 	enum wr_md_e mode, enum vadj_index_e vadj_idx,
-	enum vpp_slice_e slice)
+	enum vpp_slice_e slice, int vpp_index)
 {
 	int reg;
 	int slice_max;
@@ -177,7 +177,7 @@ static void ve_contrast_cfg(int val,
 	if (mode == WR_VCB)
 		WRITE_VPP_REG_BITS(reg, val, 0, 8);
 	else if (mode == WR_DMA)
-		VSYNC_WRITE_VPP_REG_BITS(reg, val, 0, 8);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg, val, 0, 8, vpp_index);
 
 	pr_amve_v2("contrast: val = %d, slice = %d\n", val, slice);
 	pr_amve_v2("contrast: addr = %x\n", reg);
@@ -185,7 +185,7 @@ static void ve_contrast_cfg(int val,
 
 static void ve_sat_hue_mab_cfg(int mab,
 	enum wr_md_e mode, enum vadj_index_e vadj_idx,
-	enum vpp_slice_e slice)
+	enum vpp_slice_e slice, int vpp_index)
 {
 	int reg_mab;
 	int slice_max;
@@ -216,7 +216,7 @@ static void ve_sat_hue_mab_cfg(int mab,
 	if (mode == WR_VCB)
 		WRITE_VPP_REG(reg_mab, mab);
 	else if (mode == WR_DMA)
-		VSYNC_WRITE_VPP_REG(reg_mab, mab);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_mab, mab, vpp_index);
 
 	pr_amve_v2("sat_hue: mab = %d, slice = %d\n", mab, slice);
 	pr_amve_v2("sat_hue: addr = %x\n", reg_mab);
@@ -224,7 +224,8 @@ static void ve_sat_hue_mab_cfg(int mab,
 
 static void ve_sat_hue_mcd_cfg(int mcd,
 	enum wr_md_e mode, enum vadj_index_e vadj_idx,
-	enum vpp_slice_e slice)
+	enum vpp_slice_e slice,
+	int vpp_index)
 {
 	int reg_mcd;
 	int slice_max;
@@ -255,7 +256,7 @@ static void ve_sat_hue_mcd_cfg(int mcd,
 	if (mode == WR_VCB)
 		WRITE_VPP_REG(reg_mcd, mcd);
 	else if (mode == WR_DMA)
-		VSYNC_WRITE_VPP_REG(reg_mcd, mcd);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_mcd, mcd, vpp_index);
 
 	pr_amve_v2("sat_hue: mcd = %d, slice = %d\n", mcd, slice);
 	pr_amve_v2("sat_hue: addr = %x\n", reg_mcd);
@@ -263,7 +264,8 @@ static void ve_sat_hue_mcd_cfg(int mcd,
 
 void ve_brigtness_set(int val,
 	enum vadj_index_e vadj_idx,
-	enum wr_md_e mode)
+	enum wr_md_e mode,
+	int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -271,12 +273,13 @@ void ve_brigtness_set(int val,
 	slice_max = get_slice_max();
 
 	for (i = SLICE0; i < slice_max; i++)
-		ve_brightness_cfg(val, mode, vadj_idx, i);
+		ve_brightness_cfg(val, mode, vadj_idx, i, vpp_index);
 }
 
 void ve_contrast_set(int val,
 	enum vadj_index_e vadj_idx,
-	enum wr_md_e mode)
+	enum wr_md_e mode,
+	int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -284,12 +287,13 @@ void ve_contrast_set(int val,
 	slice_max = get_slice_max();
 
 	for (i = SLICE0; i < slice_max; i++)
-		ve_contrast_cfg(val, mode, vadj_idx, i);
+		ve_contrast_cfg(val, mode, vadj_idx, i, vpp_index);
 }
 
 void ve_color_mab_set(int mab,
 	enum vadj_index_e vadj_idx,
-	enum wr_md_e mode)
+	enum wr_md_e mode,
+	int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -297,12 +301,13 @@ void ve_color_mab_set(int mab,
 	slice_max = get_slice_max();
 
 	for (i = SLICE0; i < slice_max; i++)
-		ve_sat_hue_mab_cfg(mab, mode, vadj_idx, i);
+		ve_sat_hue_mab_cfg(mab, mode, vadj_idx, i, vpp_index);
 }
 
 void ve_color_mcd_set(int mcd,
 	enum vadj_index_e vadj_idx,
-	enum wr_md_e mode)
+	enum wr_md_e mode,
+	int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -310,7 +315,7 @@ void ve_color_mcd_set(int mcd,
 	slice_max = get_slice_max();
 
 	for (i = SLICE0; i < slice_max; i++)
-		ve_sat_hue_mcd_cfg(mcd, mode, vadj_idx, i);
+		ve_sat_hue_mcd_cfg(mcd, mode, vadj_idx, i, vpp_index);
 }
 
 int ve_brightness_contrast_get(enum vadj_index_e vadj_idx)
@@ -333,7 +338,8 @@ int ve_brightness_contrast_get(enum vadj_index_e vadj_idx)
 
 void vpp_mtx_config_v2(struct matrix_coef_s *coef,
 	enum wr_md_e mode, enum vpp_slice_e slice,
-	enum vpp_matrix_e mtx_sel)
+	enum vpp_matrix_e mtx_sel,
+	int vpp_index)
 {
 	int reg_pre_offset0_1 = 0;
 	int reg_pre_offset2 = 0;
@@ -501,29 +507,38 @@ void vpp_mtx_config_v2(struct matrix_coef_s *coef,
 		WRITE_VPP_REG_BITS(reg_en_ctl, coef->en, 0, 1);
 		break;
 	case WR_DMA:
-		VSYNC_WRITE_VPP_REG(reg_pre_offset0_1,
-			(coef->pre_offset[0] << 16) | coef->pre_offset[1]);
-		VSYNC_WRITE_VPP_REG(reg_pre_offset2, coef->pre_offset[2]);
-		VSYNC_WRITE_VPP_REG(reg_coef00_01,
-			(coef->matrix_coef[0][0] << 16) | coef->matrix_coef[0][1]);
-		VSYNC_WRITE_VPP_REG(reg_coef02_10,
-			(coef->matrix_coef[0][2] << 16) | coef->matrix_coef[1][0]);
-		VSYNC_WRITE_VPP_REG(reg_coef11_12,
-			(coef->matrix_coef[1][1] << 16) | coef->matrix_coef[1][2]);
-		VSYNC_WRITE_VPP_REG(reg_coef20_21,
-			(coef->matrix_coef[2][0] << 16) | coef->matrix_coef[2][1]);
-		VSYNC_WRITE_VPP_REG(reg_coef22, coef->matrix_coef[2][2]);
-		VSYNC_WRITE_VPP_REG(reg_offset0_1,
-			(coef->post_offset[0] << 16) | coef->post_offset[1]);
-		VSYNC_WRITE_VPP_REG(reg_offset2, coef->post_offset[2]);
-		VSYNC_WRITE_VPP_REG_BITS(reg_en_ctl, coef->en, 0, 1);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_pre_offset0_1,
+			(coef->pre_offset[0] << 16) | coef->pre_offset[1], vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_pre_offset2, coef->pre_offset[2],
+			vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_coef00_01,
+			(coef->matrix_coef[0][0] << 16) | coef->matrix_coef[0][1],
+			vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_coef02_10,
+			(coef->matrix_coef[0][2] << 16) | coef->matrix_coef[1][0],
+			vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_coef11_12,
+			(coef->matrix_coef[1][1] << 16) | coef->matrix_coef[1][2],
+			vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_coef20_21,
+			(coef->matrix_coef[2][0] << 16) | coef->matrix_coef[2][1],
+			vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_coef22, coef->matrix_coef[2][2],
+			vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_offset0_1,
+			(coef->post_offset[0] << 16) | coef->post_offset[1],
+			vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_offset2, coef->post_offset[2],
+			vpp_index);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg_en_ctl, coef->en, 0, 1,
+			vpp_index);
 		break;
 	default:
 		break;
 	}
 }
 
-void cm_top_ctl(enum wr_md_e mode, int en)
+void cm_top_ctl(enum wr_md_e mode, int en, int vpp_index)
 {
 	unsigned int reg = VPP_VE_ENABLE_CTRL;
 
@@ -543,14 +558,14 @@ void cm_top_ctl(enum wr_md_e mode, int en)
 		}
 		break;
 	case WR_DMA:
-		VSYNC_WRITE_VPP_REG_BITS(reg, en, 4, 1);
-		VSYNC_WRITE_VPP_REG_BITS(VPP_SLICE1_VE_ENABLE_CTRL,
-			en, 4, 1);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg, en, 4, 1, vpp_index);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_SLICE1_VE_ENABLE_CTRL,
+			en, 4, 1, vpp_index);
 		if (chip_type_id == chip_s5) {
-			VSYNC_WRITE_VPP_REG_BITS(VPP_SLICE2_VE_ENABLE_CTRL,
-				en, 4, 1);
-			VSYNC_WRITE_VPP_REG_BITS(VPP_SLICE3_VE_ENABLE_CTRL,
-				en, 4, 1);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_SLICE2_VE_ENABLE_CTRL,
+				en, 4, 1, vpp_index);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_SLICE3_VE_ENABLE_CTRL,
+				en, 4, 1, vpp_index);
 		}
 		break;
 	default:
@@ -658,7 +673,8 @@ void cm_hist_by_type_get(enum cm_hist_e hist_sel,
 
 /*modules after post matrix*/
 void post_gainoff_cfg(struct tcon_rgb_ogo_s *p,
-	enum wr_md_e mode, enum vpp_slice_e slice)
+	enum wr_md_e mode, enum vpp_slice_e slice,
+	int vpp_index)
 {
 	unsigned int reg_ctl0;
 	unsigned int reg_ctl1;
@@ -690,22 +706,27 @@ void post_gainoff_cfg(struct tcon_rgb_ogo_s *p,
 		WRITE_VPP_REG(reg_ctl4,
 			((p->b_pre_offset  <<  0) & 0x00001fff));
 	} else if (mode == WR_DMA) {
-		VSYNC_WRITE_VPP_REG(reg_ctl0,
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_ctl0,
 			((p->en << 31) & 0x80000000) |
 			((1 << 30) & 0x40000000) |
 			((p->r_gain << 16) & 0x07ff0000) |
-			((p->g_gain <<	0) & 0x000007ff));
-		VSYNC_WRITE_VPP_REG(reg_ctl1,
+			((p->g_gain <<	0) & 0x000007ff),
+			vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_ctl1,
 			((p->b_gain << 16) & 0x07ff0000) |
-			((p->r_post_offset <<  0) & 0x00001fff));
-		VSYNC_WRITE_VPP_REG(reg_ctl2,
+			((p->r_post_offset <<  0) & 0x00001fff),
+			vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_ctl2,
 			((p->g_post_offset << 16) & 0x1fff0000) |
-			((p->b_post_offset <<  0) & 0x00001fff));
-		VSYNC_WRITE_VPP_REG(reg_ctl3,
+			((p->b_post_offset <<  0) & 0x00001fff),
+			vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_ctl3,
 			((p->r_pre_offset  << 16) & 0x1fff0000) |
-			((p->g_pre_offset  <<  0) & 0x00001fff));
-		VSYNC_WRITE_VPP_REG(reg_ctl4,
-			((p->b_pre_offset  <<  0) & 0x00001fff));
+			((p->g_pre_offset  <<  0) & 0x00001fff),
+			vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_ctl4,
+			((p->b_pre_offset  <<  0) & 0x00001fff),
+			vpp_index);
 	}
 
 	pr_amve_v2("go_en: %d, slice = %d\n",
@@ -719,7 +740,8 @@ void post_gainoff_cfg(struct tcon_rgb_ogo_s *p,
 }
 
 void post_gainoff_set(struct tcon_rgb_ogo_s *p,
-	enum wr_md_e mode)
+	enum wr_md_e mode,
+	int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -727,7 +749,7 @@ void post_gainoff_set(struct tcon_rgb_ogo_s *p,
 	slice_max = get_slice_max();
 
 	for (i = SLICE0; i < slice_max; i++)
-		post_gainoff_cfg(p, mode, i);
+		post_gainoff_cfg(p, mode, i, vpp_index);
 }
 
 void post_pre_gamma_set(int *lut)
@@ -762,7 +784,8 @@ void post_pre_gamma_set(int *lut)
 }
 
 /*vpp module enable/disable control*/
-void ve_vadj_ctl(enum wr_md_e mode, enum vadj_index_e vadj_idx, int en)
+void ve_vadj_ctl(enum wr_md_e mode, enum vadj_index_e vadj_idx, int en,
+	int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -788,14 +811,14 @@ void ve_vadj_ctl(enum wr_md_e mode, enum vadj_index_e vadj_idx, int en)
 		break;
 	case WR_DMA:
 		if (vadj_idx == VE_VADJ1) {
-			VSYNC_WRITE_VPP_REG_BITS(reg, en, 0, 1);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg, en, 0, 1, vpp_index);
 			for (i = SLICE1; i < slice_max; i++)
-				VSYNC_WRITE_VPP_REG_BITS(VPP_SLICE1_VADJ1_MISC +
-					ve_reg_ofst[i - 1], en, 0, 1);
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_SLICE1_VADJ1_MISC +
+					ve_reg_ofst[i - 1], en, 0, 1, vpp_index);
 		} else if (vadj_idx == VE_VADJ2) {
 			for (i = SLICE0; i < slice_max; i++)
-				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC +
-					pst_reg_ofst[i], en, 0, 1);
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ2_MISC +
+					pst_reg_ofst[i], en, 0, 1, vpp_index);
 		}
 		break;
 	default:
@@ -806,7 +829,7 @@ void ve_vadj_ctl(enum wr_md_e mode, enum vadj_index_e vadj_idx, int en)
 }
 
 /*blue stretch can only use on slice0 on s5*/
-void ve_bs_ctl(enum wr_md_e mode, int en)
+void ve_bs_ctl(enum wr_md_e mode, int en, int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -828,18 +851,19 @@ void ve_bs_ctl(enum wr_md_e mode, int en)
 					ve_reg_ofst[i - 1], en, 31, 1);
 		}
 	} else if (mode == WR_DMA) {
-		VSYNC_WRITE_VPP_REG_BITS(reg_bs_0, en, 31, 1);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg_bs_0, en, 31, 1,
+			vpp_index);
 		if (chip_type_id == chip_t3x) {
 			for (i = SLICE1; i < slice_max; i++)
-				VSYNC_WRITE_VPP_REG_BITS(reg_bs_0_slice1 +
-					ve_reg_ofst[i - 1], en, 31, 1);
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg_bs_0_slice1 +
+					ve_reg_ofst[i - 1], en, 31, 1, vpp_index);
 		}
 	}
 
 	pr_amve_v2("bs_ctl: en = %d\n", en);
 }
 
-void ve_ble_ctl(enum wr_md_e mode, int en)
+void ve_ble_ctl(enum wr_md_e mode, int en, int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -856,16 +880,16 @@ void ve_ble_ctl(enum wr_md_e mode, int en)
 			WRITE_VPP_REG_BITS(VPP_SLICE1_VE_ENABLE_CTRL +
 				ve_reg_ofst[i - 1], en, 3, 1);
 	} else if (mode == WR_DMA) {
-		VSYNC_WRITE_VPP_REG_BITS(reg, en, 3, 1);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg, en, 3, 1, vpp_index);
 		for (i = SLICE1; i < slice_max; i++)
-			VSYNC_WRITE_VPP_REG_BITS(VPP_SLICE1_VE_ENABLE_CTRL +
-				ve_reg_ofst[i - 1], en, 3, 1);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_SLICE1_VE_ENABLE_CTRL +
+				ve_reg_ofst[i - 1], en, 3, 1, vpp_index);
 	}
 
 	pr_amve_v2("ble_ctl: en = %d\n", en);
 }
 
-void ve_cc_ctl(enum wr_md_e mode, int en)
+void ve_cc_ctl(enum wr_md_e mode, int en, int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -882,16 +906,16 @@ void ve_cc_ctl(enum wr_md_e mode, int en)
 			WRITE_VPP_REG_BITS(VPP_SLICE1_VE_ENABLE_CTRL +
 				ve_reg_ofst[i - 1], en, 1, 1);
 	} else if (mode == WR_DMA) {
-		VSYNC_WRITE_VPP_REG_BITS(reg, en, 1, 1);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg, en, 1, 1, vpp_index);
 		for (i = SLICE1; i < slice_max; i++)
-			VSYNC_WRITE_VPP_REG_BITS(VPP_SLICE1_VE_ENABLE_CTRL +
-				ve_reg_ofst[i - 1], en, 1, 1);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_SLICE1_VE_ENABLE_CTRL +
+				ve_reg_ofst[i - 1], en, 1, 1, vpp_index);
 	}
 
 	pr_amve_v2("cc_ctl: en = %d\n", en);
 }
 
-void post_wb_ctl(enum wr_md_e mode, int en)
+void post_wb_ctl(enum wr_md_e mode, int en, int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -904,14 +928,14 @@ void post_wb_ctl(enum wr_md_e mode, int en)
 				pst_reg_ofst[i], en, 31, 1);
 	} else if (mode == WR_DMA) {
 		for (i = SLICE0; i < slice_max; i++)
-			VSYNC_WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0 +
-				pst_reg_ofst[i], en, 31, 1);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_GAINOFF_CTRL0 +
+				pst_reg_ofst[i], en, 31, 1, vpp_index);
 	}
 
 	pr_amve_v2("wb_ctl: en = %d\n", en);
 }
 
-void post_pre_gamma_ctl(enum wr_md_e mode, int en)
+void post_pre_gamma_ctl(enum wr_md_e mode, int en, int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -924,8 +948,8 @@ void post_pre_gamma_ctl(enum wr_md_e mode, int en)
 				pst_reg_ofst[i], en, 0, 1);
 	} else if (mode == WR_DMA) {
 		for (i = SLICE0; i < slice_max; i++)
-			VSYNC_WRITE_VPP_REG_BITS(VPP_GAMMA_CTRL +
-				pst_reg_ofst[i], en, 0, 1);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_GAMMA_CTRL +
+				pst_reg_ofst[i], en, 0, 1, vpp_index);
 	}
 
 	pr_amve_v2("pre_gamma_ctl: en = %d\n", en);
@@ -1316,7 +1340,8 @@ int ve_multi_slice_case_get(void)
 
 void ve_vadj_misc_set(int val,
 	enum wr_md_e mode, enum vadj_index_e vadj_idx,
-	enum vpp_slice_e slice, int start, int len)
+	enum vpp_slice_e slice, int start, int len,
+	int vpp_index)
 {
 	int reg;
 	int slice_max;
@@ -1347,7 +1372,7 @@ void ve_vadj_misc_set(int val,
 	if (mode == WR_VCB)
 		WRITE_VPP_REG_BITS(reg, val, start, len);
 	else if (mode == WR_DMA)
-		VSYNC_WRITE_VPP_REG_BITS(reg, val, start, len);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg, val, start, len, vpp_index);
 }
 
 int ve_vadj_misc_get(enum vadj_index_e vadj_idx,
@@ -1545,7 +1570,8 @@ void ve_mtrx_setting(enum vpp_matrix_e mtx_sel,
 	/*pr_info("mtx_sel:%d, mtx_csc:0x%x\n", mtx_sel, mtx_csc);*/
 }
 
-void ve_sharpness_ctl(enum wr_md_e mode, int sr0_en, int sr1_en)
+void ve_sharpness_ctl(enum wr_md_e mode, int sr0_en,
+	int sr1_en, int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -1563,10 +1589,10 @@ void ve_sharpness_ctl(enum wr_md_e mode, int sr0_en, int sr1_en)
 		}
 	} else if (mode == WR_DMA) {
 		for (i = SLICE0; i < slice_max; i++) {
-			VSYNC_WRITE_VPP_REG_BITS(sr0_reg + sr_sharp_reg_ofst[i],
-				sr0_en, 1, 1);
-			VSYNC_WRITE_VPP_REG_BITS(sr1_reg + sr_sharp_reg_ofst[i],
-				sr1_en, 1, 1);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(sr0_reg + sr_sharp_reg_ofst[i],
+				sr0_en, 1, 1, vpp_index);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(sr1_reg + sr_sharp_reg_ofst[i],
+				sr1_en, 1, 1, vpp_index);
 		}
 	}
 
@@ -1607,7 +1633,7 @@ void ve_dnlp_ctl(int enable)
 	}
 }
 
-void ve_dnlp_sat_set(unsigned int value)
+void ve_dnlp_sat_set(unsigned int value, int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -1624,12 +1650,15 @@ void ve_dnlp_sat_set(unsigned int value)
 		addr_reg = cm_port.cm_addr_port[i];
 		data_reg = cm_port.cm_data_port[i];
 
-		VSYNC_WRITE_VPP_REG(addr_reg, 0x207);
-		reg_value = VSYNC_READ_VPP_REG(data_reg);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(addr_reg, 0x207, vpp_index);
+		reg_value =
+			VSYNC_READ_VPP_REG_VPP_SEL(data_reg, vpp_index);
 		reg_value = (reg_value & 0xf000ffff) | (value << 16);
 
-		VSYNC_WRITE_VPP_REG(addr_reg, 0x207);
-		VSYNC_WRITE_VPP_REG(data_reg, reg_value);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(addr_reg,
+			0x207, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(data_reg,
+			reg_value, vpp_index);
 	}
 
 	pr_amve_v2("%s: val = %d", __func__, value);
@@ -2012,7 +2041,8 @@ static void _lc_mtrx_set(enum lc_mtx_sel_e mtrx_sel,
 }
 
 static void _lc_blk_bdry_cfg(unsigned int height,
-	unsigned int width, int h_num, int v_num, int rdma_mode)
+	unsigned int width, int h_num, int v_num, int rdma_mode,
+	int vpp_index)
 {
 	int lc_reg;
 	unsigned int value;
@@ -2030,7 +2060,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 	value |= width & GET_BITS(0, 14);
 	value |= (0 << 16) & GET_BITS(16, 14);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, value);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2040,7 +2070,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 	value |= (width * 3) & GET_BITS(0, 14);
 	value |= ((width * 2) << 16) & GET_BITS(16, 14);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, value);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2050,7 +2080,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 	value |= (width * 5) & GET_BITS(0, 14);
 	value |= ((width * 4) << 16) & GET_BITS(16, 14);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, value);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2063,7 +2093,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 		value |= (width * 7) & GET_BITS(0, 14);
 	value |= ((width * 6) << 16) & GET_BITS(16, 14);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, value);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2078,7 +2108,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 		value |= ((width * 8) << 16) & GET_BITS(16, 14);
 	}
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, value);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2088,7 +2118,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 	value |= (width * 11) & GET_BITS(0, 14);
 	value |= ((width * 10) << 16) & GET_BITS(16, 14);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, value);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2097,7 +2127,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 	value &= 0xffffc000;
 	value |= (width * h_num) & GET_BITS(0, 14);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, value);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2108,7 +2138,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 	value |= height & GET_BITS(0, 14);
 	value |= (0 << 16) & GET_BITS(16, 14);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, value);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2118,7 +2148,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 	value |= (height * 3) & GET_BITS(0, 14);
 	value |= ((height * 2) << 16) & GET_BITS(16, 14);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, value);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2128,7 +2158,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 	value |= (height * 5) & GET_BITS(0, 14);
 	value |= ((height * 4) << 16) & GET_BITS(16, 14);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, value);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2138,7 +2168,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 	value |= (height * 7) & GET_BITS(0, 14);
 	value |= ((height * 6) << 16) & GET_BITS(16, 14);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, value);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2147,7 +2177,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 	value &= 0xffffc000;
 	value |= (height * v_num) & GET_BITS(0, 14);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, value);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2160,7 +2190,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 		value |= lc_overlap & GET_BITS(0, 14);
 		value |= (0 << 16) & GET_BITS(16, 14);
 		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG(lc_reg, value);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 		else
 			WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2170,7 +2200,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 		value |= (width * 2 + lc_overlap) & GET_BITS(0, 14);
 		value |= ((width * 1 + lc_overlap) << 16) & GET_BITS(16, 14);
 		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG(lc_reg, value);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 		else
 			WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2180,7 +2210,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 		value |= (width * 4 + lc_overlap) & GET_BITS(0, 14);
 		value |= ((width * 3 + lc_overlap) << 16) & GET_BITS(16, 14);
 		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG(lc_reg, value);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 		else
 			WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2190,7 +2220,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 		value |= (width * 6 + lc_overlap) & GET_BITS(0, 14);
 		value |= ((width * 5 + lc_overlap) << 16) & GET_BITS(16, 14);
 		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG(lc_reg, value);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 		else
 			WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2200,7 +2230,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 		value |= (width * 8 + lc_overlap) & GET_BITS(0, 14);
 		value |= ((width * 7 + lc_overlap) << 16) & GET_BITS(16, 14);
 		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG(lc_reg, value);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 		else
 			WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2210,7 +2240,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 		value |= (width * 10 + lc_overlap) & GET_BITS(0, 14);
 		value |= ((width * 9 + lc_overlap) << 16) & GET_BITS(16, 14);
 		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG(lc_reg, value);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 		else
 			WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2219,7 +2249,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 		value &= 0xffffc000;
 		value |= (width * h_num) & GET_BITS(0, 14);
 		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG(lc_reg, value);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 		else
 			WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2230,7 +2260,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 		value |= height & GET_BITS(0, 14);
 		value |= (0 << 16) & GET_BITS(16, 14);
 		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG(lc_reg, value);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 		else
 			WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2240,7 +2270,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 		value |= (height * 3) & GET_BITS(0, 14);
 		value |= ((height * 2) << 16) & GET_BITS(16, 14);
 		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG(lc_reg, value);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 		else
 			WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2250,7 +2280,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 		value |= (height * 5) & GET_BITS(0, 14);
 		value |= ((height * 4) << 16) & GET_BITS(16, 14);
 		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG(lc_reg, value);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 		else
 			WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2260,7 +2290,7 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 		value |= (height * 7) & GET_BITS(0, 14);
 		value |= ((height * 6) << 16) & GET_BITS(16, 14);
 		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG(lc_reg, value);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 		else
 			WRITE_VPP_REG_S5(lc_reg, value);
 
@@ -2269,14 +2299,15 @@ static void _lc_blk_bdry_cfg(unsigned int height,
 		value &= 0xffffc000;
 		value |= (height * v_num) & GET_BITS(0, 14);
 		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG(lc_reg, value);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 		else
 			WRITE_VPP_REG_S5(lc_reg, value);
 	}
 }
 
 void ve_lc_stts_blk_cfg(unsigned int height,
-	unsigned int width, int h_num, int v_num, int rdma_mode)
+	unsigned int width, int h_num, int v_num, int rdma_mode,
+	int vpp_index)
 {
 	int lc_reg;
 	int row_start = 0;
@@ -2387,7 +2418,7 @@ void ve_lc_stts_blk_cfg(unsigned int height,
 	/*15:12 slice1 h_num*/
 	data32 = (h_num << 12) | data32;
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
@@ -2395,134 +2426,134 @@ void ve_lc_stts_blk_cfg(unsigned int height,
 	data32 = (((row_start_s1 & 0x1fff) << 16) & 0xffff0000) |
 		(row_start & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((vend1 & 0x1fff) << 16) | (vend0 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((vend3 & 0x1fff) << 16) | (vend2 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((vend5 & 0x1fff) << 16) | (vend4 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((vend7 & 0x1fff) << 16) | (vend6 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((vend1_s1 & 0x1fff) << 16) | (vend0_s1 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((vend3_s1 & 0x1fff) << 16) | (vend2_s1 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((vend5_s1 & 0x1fff) << 16) | (vend4_s1 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((vend7_s1 & 0x1fff) << 16) | (vend6_s1 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = (((col_start_s1 & 0x1fff) << 16) & 0xffff0000) |
 		(col_start & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((hend1 & 0x1fff) << 16) | (hend0 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((hend3 & 0x1fff) << 16) | (hend2 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((hend5 & 0x1fff) << 16) | (hend4 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((hend7 & 0x1fff) << 16) | (hend6 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((hend9 & 0x1fff) << 16) | (hend8 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((hend11 & 0x1fff) << 16) | (hend10 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((hend1_s1 & 0x1fff) << 16) | (hend0_s1 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((hend3_s1 & 0x1fff) << 16) | (hend2_s1 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((hend5_s1 & 0x1fff) << 16) | (hend4_s1 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((hend7_s1 & 0x1fff) << 16) | (hend6_s1 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((hend9_s1 & 0x1fff) << 16) | (hend8_s1 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 
 	data32 = ((hend11_s1 & 0x1fff) << 16) | (hend10_s1 & 0x1fff);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(lc_reg, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(lc_reg, data32);
 }
@@ -2531,7 +2562,8 @@ void ve_lc_stts_en(int enable,
 	unsigned int height, unsigned int width,
 	int pix_drop_mode, int eol_en, int hist_mode,
 	int lpf_en, int din_sel, int bitdepth,
-	int flag, int flag_full, int thd_black, int rdma_mode)
+	int flag, int flag_full, int thd_black,
+	int rdma_mode, int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -2554,16 +2586,16 @@ void ve_lc_stts_en(int enable,
 
 	data32 = ((height - 1) << 16) | (slice0_hsize - 1);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(VPP_LC_STTS1_WIDTHM1_HEIGHTM1,
-			data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS1_WIDTHM1_HEIGHTM1,
+			data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(VPP_LC_STTS1_WIDTHM1_HEIGHTM1,
 			data32);
 
 	data32 = ((height - 1) << 16) | (slice1_hsize - 1);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(VPP_LC_STTS2_WIDTHM1_HEIGHTM1,
-			data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS2_WIDTHM1_HEIGHTM1,
+			data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(VPP_LC_STTS2_WIDTHM1_HEIGHTM1,
 			data32);
@@ -2585,7 +2617,8 @@ void ve_lc_stts_en(int enable,
 	data32 = data32 | ((hist_mode & 0x1) << 22);
 	data32 = data32 | ((lpf_en & 0x3) << 20);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(VPP_LC_STTS_HIST_REGION_IDX, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_HIST_REGION_IDX,
+			data32, vpp_index);
 	else
 		WRITE_VPP_REG_S5(VPP_LC_STTS_HIST_REGION_IDX, data32);
 
@@ -2606,7 +2639,8 @@ void ve_lc_stts_en(int enable,
 	data32 = READ_VPP_REG_S5(VPP_LC_STTS_CTRL0);
 	data32 = (data32 & 0xffffffc7) | ((din_sel & 0x7) << 3);
 	if (rdma_mode)
-		VSYNC_WRITE_VPP_REG(VPP_LC_STTS_CTRL0, data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_CTRL0,
+			data32, vpp_index);
 	else
 		WRITE_VPP_REG_BITS_S5(VPP_LC_STTS_CTRL0, din_sel, 3, 3);
 
@@ -2618,7 +2652,8 @@ void ve_lc_stts_en(int enable,
 
 		data32 = (0x1 << 3) | (data32 << 16);
 		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG(VPP_LC_STTS_CTRL1, data32);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_CTRL1,
+				data32, vpp_index);
 		else
 			WRITE_VPP_REG_S5(VPP_LC_STTS_CTRL1, data32);
 	}
@@ -2639,36 +2674,39 @@ void ve_lc_stts_en(int enable,
 	if (rdma_mode) {
 		data32 = READ_VPP_REG_S5(VPP_LC_STTS_HIST_REGION_IDX);
 		data32 = (data32 & 0x3fffffff) | ((enable & 0x3) << 30);
-		VSYNC_WRITE_VPP_REG(VPP_LC_STTS_HIST_REGION_IDX,
-			data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_HIST_REGION_IDX,
+			data32, vpp_index);
 
 		data32 = READ_VPP_REG_S5(VPP_LC_STTS_BLACK_INFO1);
 		data32 = (data32 & 0xffffff00) | (thd_black & 0xff);
-		VSYNC_WRITE_VPP_REG(VPP_LC_STTS_BLACK_INFO1,
-			data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_BLACK_INFO1,
+			data32, vpp_index);
 
 		if (slice_case) {
 			data32 = READ_VPP_REG_S5(VPP_LC_STTS_BLACK_INFO2);
 			data32 = (data32 & 0xffffff00) | (thd_black & 0xff);
-			VSYNC_WRITE_VPP_REG(VPP_LC_STTS_BLACK_INFO2,
-				data32);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_BLACK_INFO2,
+				data32, vpp_index);
 
 			data32 = READ_VPP_REG_S5(VPP_LC_STTS_CTRL);
 			data32 = (data32 & 0xfffffff8) | 0x1;
-			VSYNC_WRITE_VPP_REG(VPP_LC_STTS_CTRL, data32);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_CTRL,
+				data32, vpp_index);
 		} else if (multi_picture_case) {
 			data32 = READ_VPP_REG_S5(VPP_LC_STTS_BLACK_INFO2);
 			data32 = (data32 & 0xffffff00) | (thd_black & 0xff);
-			VSYNC_WRITE_VPP_REG(VPP_LC_STTS_BLACK_INFO2,
-				data32);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_BLACK_INFO2,
+				data32, vpp_index);
 
 			data32 = READ_VPP_REG_S5(VPP_LC_STTS_CTRL);
 			data32 = (data32 & 0xfffffff8) | 0x6;
-			VSYNC_WRITE_VPP_REG(VPP_LC_STTS_CTRL, data32);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_CTRL,
+				data32, vpp_index);
 		} else {
 			data32 = READ_VPP_REG_S5(VPP_LC_STTS_CTRL);
 			data32 = (data32 & 0xfffffff8) | 0x0;
-			VSYNC_WRITE_VPP_REG(VPP_LC_STTS_CTRL, data32);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_CTRL,
+				data32, vpp_index);
 		}
 	} else {
 		WRITE_VPP_REG_BITS_S5(VPP_LC_STTS_HIST_REGION_IDX,
@@ -2712,7 +2750,7 @@ void ve_lc_blk_num_get(int *h_num, int *v_num,
 	*v_num = dwtemp & 0x1f;
 }
 
-void ve_lc_disable(int rdma_mode)
+void ve_lc_disable(int rdma_mode, int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -2727,7 +2765,8 @@ void ve_lc_disable(int rdma_mode)
 		if (rdma_mode) {
 			data32 = READ_VPP_REG_S5(lc_reg);
 			data32 = (data32 & 0xffffffef) | (0x0 << 4);
-			VSYNC_WRITE_VPP_REG(lc_reg, data32);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg,
+				data32, vpp_index);
 		} else {
 			WRITE_VPP_REG_BITS_S5(lc_reg, 0, 4, 1);
 		}
@@ -2737,7 +2776,8 @@ void ve_lc_disable(int rdma_mode)
 		if (rdma_mode) {
 			data32 = READ_VPP_REG_S5(lc_reg);
 			data32 = (data32 & 0xfffffffe) | 0x0;
-			VSYNC_WRITE_VPP_REG(lc_reg, data32);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg,
+				data32, vpp_index);
 		} else {
 			WRITE_VPP_REG_BITS_S5(lc_reg, 0, 0, 1);
 		}
@@ -2747,7 +2787,8 @@ void ve_lc_disable(int rdma_mode)
 		if (rdma_mode) {
 			data32 = READ_VPP_REG_S5(lc_reg);
 			data32 = (data32 & 0xfffffffe) | 0x0;
-			VSYNC_WRITE_VPP_REG(lc_reg, data32);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg,
+				data32, vpp_index);
 		} else {
 			WRITE_VPP_REG_BITS_S5(lc_reg, 0, 0, 1);
 		}
@@ -2756,8 +2797,8 @@ void ve_lc_disable(int rdma_mode)
 	if (rdma_mode) {
 		data32 = READ_VPP_REG_S5(VPP_LC_STTS_HIST_REGION_IDX);
 		data32 = (data32 & 0x3fffffff) | (0x0 << 30);
-		VSYNC_WRITE_VPP_REG(VPP_LC_STTS_HIST_REGION_IDX,
-			data32);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LC_STTS_HIST_REGION_IDX,
+			data32, vpp_index);
 	} else {
 		WRITE_VPP_REG_BITS_S5(VPP_LC_STTS_HIST_REGION_IDX,
 			0, 30, 2);
@@ -2766,7 +2807,8 @@ void ve_lc_disable(int rdma_mode)
 
 void ve_lc_curve_ctrl_cfg(int enable,
 	unsigned int height, unsigned int width,
-	int h_num, int v_num, int rdma_mode)
+	int h_num, int v_num, int rdma_mode,
+	int vpp_index)
 {
 	unsigned int histvld_thrd;
 	unsigned int blackbar_mute_thrd;
@@ -2798,7 +2840,8 @@ void ve_lc_curve_ctrl_cfg(int enable,
 			if (rdma_mode) {
 				data32 = READ_VPP_REG_S5(lc_reg);
 				data32 = (data32 & 0xfffffffe) | 0x0;
-				VSYNC_WRITE_VPP_REG(lc_reg, data32);
+				VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32,
+					vpp_index);
 			} else {
 				WRITE_VPP_REG_BITS_S5(lc_reg, 0, 0, 1);
 			}
@@ -2806,21 +2849,24 @@ void ve_lc_curve_ctrl_cfg(int enable,
 			lc_reg = VPP_LC1_CURVE_HV_NUM +
 				lc_reg_ofst[i];
 			if (rdma_mode)
-				VSYNC_WRITE_VPP_REG(lc_reg, (h_num << 8) | v_num);
+				VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg,
+					(h_num << 8) | v_num, vpp_index);
 			else
 				WRITE_VPP_REG_S5(lc_reg, (h_num << 8) | v_num);
 
 			lc_reg = VPP_LC1_CURVE_HISTVLD_THRD +
 				lc_reg_ofst[i];
 			if (rdma_mode)
-				VSYNC_WRITE_VPP_REG(lc_reg, histvld_thrd);
+				VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, histvld_thrd,
+					vpp_index);
 			else
 				WRITE_VPP_REG_S5(lc_reg, histvld_thrd);
 
 			lc_reg = VPP_LC1_CURVE_BB_MUTE_THRD +
 				lc_reg_ofst[i];
 			if (rdma_mode)
-				VSYNC_WRITE_VPP_REG(lc_reg, blackbar_mute_thrd);
+				VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, blackbar_mute_thrd,
+					vpp_index);
 			else
 				WRITE_VPP_REG_S5(lc_reg, blackbar_mute_thrd);
 
@@ -2829,7 +2875,8 @@ void ve_lc_curve_ctrl_cfg(int enable,
 			if (rdma_mode) {
 				data32 = READ_VPP_REG_S5(lc_reg);
 				data32 = (data32 & 0x7ffffffe) | 0x1 | (0x1 << 31);
-				VSYNC_WRITE_VPP_REG(lc_reg, data32);
+				VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32,
+					vpp_index);
 			} else {
 				WRITE_VPP_REG_BITS_S5(lc_reg, 1, 0, 1);
 				WRITE_VPP_REG_BITS_S5(lc_reg, 1, 31, 1);
@@ -2840,7 +2887,7 @@ void ve_lc_curve_ctrl_cfg(int enable,
 
 void ve_lc_top_cfg(int enable, int h_num, int v_num,
 	unsigned int height, unsigned int width, int bitdepth,
-	int flag, int flag_full, int rdma_mode)
+	int flag, int flag_full, int rdma_mode, int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -2881,13 +2928,13 @@ void ve_lc_top_cfg(int enable, int h_num, int v_num,
 		value |= v_num & GET_BITS(0, 5);
 		value |= (h_num << 8) & GET_BITS(8, 5);
 		if (rdma_mode)
-			VSYNC_WRITE_VPP_REG(lc_reg, value);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, value, vpp_index);
 		else
 			WRITE_VPP_REG_S5(lc_reg, value);
 	}
 
 	/*lc curve mapping config*/
-	_lc_blk_bdry_cfg(height, width, h_num, v_num, rdma_mode);
+	_lc_blk_bdry_cfg(height, width, h_num, v_num, rdma_mode, vpp_index);
 
 	for (i = SLICE0; i < slice_max; i++) {
 		lc_reg = VPP_SRSHARP1_LC_TOP_CTRL +
@@ -2899,7 +2946,7 @@ void ve_lc_top_cfg(int enable, int h_num, int v_num,
 				data32 = (data32 & 0xfffeffef) |
 					((enable & 0x1) << 4) |
 					((sync_ctrl & 0x1) << 16);
-				VSYNC_WRITE_VPP_REG(lc_reg, data32);
+				VSYNC_WRITE_VPP_REG_VPP_SEL(lc_reg, data32, vpp_index);
 			} else {
 				WRITE_VPP_REG_BITS_S5(lc_reg, enable, 4, 1);
 			}
@@ -3129,7 +3176,7 @@ void ve_lc_contrast_lmt_set(int *data)
 }
 
 void ve_lc_curve_set(int init_flag,
-	int demo_mode, int *data, int slice)
+	int demo_mode, int *data, int slice, int vpp_index)
 {
 	int i, j, k;
 	int slice_max;
@@ -3186,8 +3233,8 @@ void ve_lc_curve_set(int init_flag,
 	if (slice == 1)
 		offset = 5;
 
-	VSYNC_WRITE_VPP_REG(ctrl_reg, 1);
-	VSYNC_WRITE_VPP_REG(addr_reg, 0);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(ctrl_reg, 1, vpp_index);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(addr_reg, 0, vpp_index);
 
 	for (i = 0; i < v_num; i++) {
 		for (j = 0; j < h_num; j++) {
@@ -3239,12 +3286,12 @@ void ve_lc_curve_set(int init_flag,
 				break;
 			}
 
-			VSYNC_WRITE_VPP_REG(data_reg, tmp);
-			VSYNC_WRITE_VPP_REG(data_reg, tmp1);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(data_reg, tmp, vpp_index);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(data_reg, tmp1, vpp_index);
 		}
 	}
 
-	VSYNC_WRITE_VPP_REG(ctrl_reg, 0);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(ctrl_reg, 0, vpp_index);
 }
 
 void ve_lc_base_init(void)
@@ -3665,7 +3712,7 @@ void dump_dnlp_reg(void)
 	}
 }
 
-void post_lut3d_ctl(enum wr_md_e mode, int en)
+void post_lut3d_ctl(enum wr_md_e mode, int en, int vpp_index)
 {
 	int i;
 	int slice_max;
@@ -3690,15 +3737,15 @@ void post_lut3d_ctl(enum wr_md_e mode, int en)
 			tmp = READ_VPP_REG(VPP_LUT3D_CTRL +
 				pst_reg_ofst[i]);
 			tmp = (tmp & 0xffffff8e) | (en & 0x1) | (0x7 << 4);
-			VSYNC_WRITE_VPP_REG(VPP_LUT3D_CTRL +
-				pst_reg_ofst[i], tmp);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LUT3D_CTRL +
+				pst_reg_ofst[i], tmp, vpp_index);
 		}
 	}
 
 	pr_amve_v2("lut3d_ctl: en = %d\n", en);
 }
 
-void post_lut3d_update(unsigned int *lut3d_data)
+void post_lut3d_update(unsigned int *lut3d_data, int vpp_index)
 {
 	int i;
 	int j;
@@ -3714,15 +3761,15 @@ void post_lut3d_update(unsigned int *lut3d_data)
 		reg_addr = VPP_LUT3D_RAM_ADDR + pst_reg_ofst[i];
 		reg_data = VPP_LUT3D_RAM_DATA + pst_reg_ofst[i];
 
-		VSYNC_WRITE_VPP_REG(reg_ram_ctrl, 1);
-		VSYNC_WRITE_VPP_REG(reg_addr, 0 | (0 << 31));
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_ram_ctrl, 1, vpp_index);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_addr, 0 | (0 << 31), vpp_index);
 
 		for (j = 0; j < 17 * 17 * 17; j++) {
-			VSYNC_WRITE_VPP_REG(reg_data,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_data,
 				((lut3d_data[j * 3 + 1] & 0xfff) << 16) |
-				(lut3d_data[j * 3 + 2] & 0xfff));
-			VSYNC_WRITE_VPP_REG(reg_data,
-				(lut3d_data[j * 3 + 0] & 0xfff)); /*MSB*/
+				(lut3d_data[j * 3 + 2] & 0xfff), vpp_index);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(reg_data,
+				(lut3d_data[j * 3 + 0] & 0xfff), vpp_index); /*MSB*/
 			if (vev2_dbg == 17 && (j < 17 * 17))
 				pr_info("%d: %03x %03x %03x\n",
 					j,
@@ -3731,7 +3778,7 @@ void post_lut3d_update(unsigned int *lut3d_data)
 					lut3d_data[i * 3 + 2]);
 		}
 
-		VSYNC_WRITE_VPP_REG(reg_ram_ctrl, 0);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(reg_ram_ctrl, 0, vpp_index);
 	}
 }
 

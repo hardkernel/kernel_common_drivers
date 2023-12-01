@@ -2313,7 +2313,8 @@ static int notify_vd_signal_to_amvideo(struct vd_signal_info_s *vd_signal,
 {
 	static int pre_signal = -1;
 
-	if (vpp_index != VPP_TOP0)
+	if (vpp_index != VPP_TOP0 &&
+		vpp_index != VPP_PRE_VS)
 		return -1;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
@@ -2377,7 +2378,8 @@ void hdmi_packet_process(int signal_change_flag,
 		return;
 	if (!vinfo->vout_device) {
 		/* pr_info("vinfo->vout_device is null, return\n"); */
-		if (vpp_index == VPP_TOP0) {
+		if (vpp_index == VPP_TOP0 ||
+			vpp_index == VPP_PRE_VS) {
 			vd_signal.signal_type = SIGNAL_SDR;
 			notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 		}
@@ -3360,8 +3362,10 @@ void video_post_process(struct vframe_s *vf,
 					__func__,
 					vd_path + 1,
 					source_type[vd_path]);
-				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 0, 1, 1);
-				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 0, 1, 1);
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ1_MISC,
+					0, 1, 1, vpp_index);
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ2_MISC,
+					0, 1, 1, vpp_index);
 				if (vpp_index == VPP_TOP1)
 					mtx_setting(VPP1_POST2_MTX,
 						MATRIX_YUV709F_RGB, MTX_ON);
@@ -3378,8 +3382,10 @@ void video_post_process(struct vframe_s *vf,
 					source_type[vd_path]);
 				/*VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);*/
 				/*VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);*/
-				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 0, 1, 1);
-				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 0, 1, 1);
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ1_MISC,
+					0, 1, 1, vpp_index);
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ2_MISC,
+					0, 1, 1, vpp_index);
 				if (csc_type == VPP_MATRIX_YUV709F_RGB)
 					mtx_csc = MATRIX_YUV709F_RGB;
 				else
