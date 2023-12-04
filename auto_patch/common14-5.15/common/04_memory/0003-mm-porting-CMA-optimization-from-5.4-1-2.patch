@@ -1,4 +1,4 @@
-From d81b8b2d72da452c42e15f4c1214f679eefee482 Mon Sep 17 00:00:00 2001
+From 839c896cb29a497206e830870d37d538303dee81 Mon Sep 17 00:00:00 2001
 From: Tao Zeng <tao.zeng@amlogic.com>
 Date: Wed, 26 Jan 2022 16:04:08 +0800
 Subject: [PATCH] mm: porting CMA optimization from 5.4 [1/2]
@@ -35,15 +35,15 @@ Change-Id: Ib82b898a596eba62e1aa1cb13719eab41f03ae58
  mm/cma.c                  |  64 ++++++++++++++++++++++++
  mm/compaction.c           |  97 ++++++++++++++++++++++++++++++++++++
  mm/internal.h             |   3 ++
- mm/ksm.c                  |  11 +++++
+ mm/ksm.c                  |  11 ++++
  mm/memory.c               |  18 +++++++
- mm/migrate.c              |  44 +++++++++++++++++
- mm/page_alloc.c           | 100 ++++++++++++++++++++++++++++++++++++++
+ mm/migrate.c              |  44 ++++++++++++++++
+ mm/page_alloc.c           | 102 ++++++++++++++++++++++++++++++++++++++
  mm/readahead.c            |   5 ++
  mm/shmem.c                |  13 +++++
  mm/swap_state.c           |   4 ++
  mm/vmscan.c               |  21 ++++++++
- 15 files changed, 406 insertions(+)
+ 15 files changed, 408 insertions(+)
 
 diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
 index 4b61541853ea..f028deeec940 100644
@@ -77,10 +77,10 @@ index 18abafb135e0..e38a86cdee11 100644
  	bdev = I_BDEV(inode);
  	mutex_init(&bdev->bd_fsfreeze_mutex);
 diff --git a/drivers/usb/host/xhci.c b/drivers/usb/host/xhci.c
-index 1fd2f6a850eb..93b1abf7daa0 100644
+index 0fda980a7cc6..7b97e2f02498 100644
 --- a/drivers/usb/host/xhci.c
 +++ b/drivers/usb/host/xhci.c
-@@ -2057,7 +2057,11 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
+@@ -2063,7 +2063,11 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
  	 * process context, not interrupt context (or so documenation
  	 * for usb_set_interface() and usb_set_configuration() claim).
  	 */
@@ -139,7 +139,7 @@ index b86ae05b4282..5723bfd6f2a7 100644
  /**
   * DOC: Useful GFP flag combinations
 diff --git a/mm/cma.c b/mm/cma.c
-index 9743ade56872..702fd055eaf8 100644
+index f7f60890d6d9..dcd8f340afe4 100644
 --- a/mm/cma.c
 +++ b/mm/cma.c
 @@ -41,6 +41,16 @@
@@ -222,7 +222,7 @@ index 9743ade56872..702fd055eaf8 100644
  	for (;;) {
  		struct acr_info info = {0};
  
-@@ -516,7 +558,11 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+@@ -518,7 +560,11 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
  
  		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
  		mutex_lock(&cma_mutex);
@@ -234,7 +234,7 @@ index 9743ade56872..702fd055eaf8 100644
  		cma_info.nr_migrated += info.nr_migrated;
  		cma_info.nr_reclaimed += info.nr_reclaimed;
  		cma_info.nr_mapped += info.nr_mapped;
-@@ -545,6 +591,7 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+@@ -547,6 +593,7 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
  		trace_cma_alloc_busy_retry(cma->name, pfn, pfn_to_page(pfn),
  					   count, align);
  
@@ -242,7 +242,7 @@ index 9743ade56872..702fd055eaf8 100644
  		if (info.failed_pfn && gfp_mask & __GFP_NORETRY) {
  			/* try again from following failed page */
  			start = (pfn_max_align_up(info.failed_pfn + 1) -
-@@ -554,6 +601,16 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+@@ -556,6 +603,16 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
  			/* try again with a bit different memory target */
  			start = bitmap_no + mask + 1;
  		}
@@ -259,7 +259,7 @@ index 9743ade56872..702fd055eaf8 100644
  	}
  
  	trace_cma_alloc_finish(cma->name, pfn, page, count, align);
-@@ -586,6 +643,9 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+@@ -588,6 +645,9 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
  		if (cma)
  			cma_sysfs_account_fail_pages(cma, count);
  	}
@@ -269,7 +269,7 @@ index 9743ade56872..702fd055eaf8 100644
  
  	return page;
  }
-@@ -618,7 +678,11 @@ bool cma_release(struct cma *cma, const struct page *pages,
+@@ -620,7 +680,11 @@ bool cma_release(struct cma *cma, const struct page *pages,
  
  	VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
  
@@ -282,7 +282,7 @@ index 9743ade56872..702fd055eaf8 100644
  	trace_cma_release(cma->name, pfn, pages, count);
  
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 2a1c09a813d6..f33b5b466e88 100644
+index 286bfdf50db6..e48d19d0dedd 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
 @@ -27,6 +27,9 @@
@@ -454,18 +454,18 @@ index 2a1c09a813d6..f33b5b466e88 100644
  			}
  
  			/*
-@@ -1601,6 +1678,9 @@ static void isolate_freepages(struct compact_control *cc)
- 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
+@@ -1602,6 +1679,9 @@ static void isolate_freepages(struct compact_control *cc)
  	struct list_head *freelist = &cc->freepages;
  	unsigned int stride;
+ 	bool bypass = false;
 +#ifdef CONFIG_AMLOGIC_CMA
 +	int migrate_type;
 +#endif /* CONFIG_AMLOGIC_CMA */
  
  	/* Try a small search of the free lists for a candidate */
  	isolate_start_pfn = fast_isolate_freepages(cc);
-@@ -1656,6 +1736,16 @@ static void isolate_freepages(struct compact_control *cc)
- 		if (!isolation_suitable(cc, page))
+@@ -1661,6 +1741,16 @@ static void isolate_freepages(struct compact_control *cc)
+ 		if (bypass)
  			continue;
  
 +	#ifdef CONFIG_AMLOGIC_CMA
@@ -481,7 +481,7 @@ index 2a1c09a813d6..f33b5b466e88 100644
  		/* Found a block suitable for isolating free pages from. */
  		nr_isolated = isolate_freepages_block(cc, &isolate_start_pfn,
  					block_end_pfn, freelist, stride, false);
-@@ -1721,9 +1811,13 @@ static struct page *compaction_alloc(struct page *migratepage,
+@@ -1726,9 +1816,13 @@ static struct page *compaction_alloc(struct page *migratepage,
  			return NULL;
  	}
  
@@ -495,7 +495,7 @@ index 2a1c09a813d6..f33b5b466e88 100644
  #ifdef CONFIG_AMLOGIC_PAGE_TRACE
  	replace_page_trace(freepage, migratepage);
  #endif
-@@ -2534,6 +2628,9 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
+@@ -2539,6 +2633,9 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
  			cc->zone->compact_cached_free_pfn = free_pfn;
  	}
  
@@ -542,10 +542,10 @@ index 255bd4888d60..f9b263775a3d 100644
  		bool split;
  
 diff --git a/mm/memory.c b/mm/memory.c
-index de45717e3a72..5148c66d91c3 100644
+index 3b10c2ea7231..f4d18e05d6f6 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -3173,13 +3173,25 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
+@@ -3182,13 +3182,25 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
  	}
  
  	if (is_zero_pfn(pte_pfn(vmf->orig_pte))) {
@@ -571,7 +571,7 @@ index de45717e3a72..5148c66d91c3 100644
  		if (!new_page)
  			goto out;
  
-@@ -4896,6 +4908,12 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
+@@ -4912,6 +4924,12 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
  	p4d_t *p4d;
  	vm_fault_t ret;
  
@@ -701,20 +701,21 @@ index 6ed8c744f091..052d6440f0a3 100644
  			}
  		}
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8820f3fafaf8..ef89d5e5d2ac 100644
+index 4556353ed7a2..fad705671604 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -84,6 +84,9 @@
- #ifdef CONFIG_AMLOGIC_PAGE_TRACE
+@@ -85,6 +85,10 @@
  #include <linux/amlogic/page_trace.h>
  #endif
+ 
 +#ifdef CONFIG_AMLOGIC_CMA
 +#include <linux/amlogic/aml_cma.h>
 +#endif
++
+ EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_alloc);
  
  /* Free Page Internal flags: for internal, non-pcp variants of free_pages(). */
- typedef int __bitwise fpi_t;
-@@ -3155,6 +3158,18 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
+@@ -3167,6 +3171,18 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
  {
  	struct page *page;
  
@@ -733,7 +734,7 @@ index 8820f3fafaf8..ef89d5e5d2ac 100644
  retry:
  	page = __rmqueue_smallest(zone, order, migratetype);
  
-@@ -3167,6 +3182,31 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
+@@ -3179,6 +3195,31 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
  	return page;
  }
  
@@ -765,7 +766,7 @@ index 8820f3fafaf8..ef89d5e5d2ac 100644
  #ifdef CONFIG_CMA
  static struct page *__rmqueue_cma(struct zone *zone, unsigned int order,
  				  int migratetype,
-@@ -3868,6 +3908,12 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
+@@ -3889,6 +3930,12 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
  {
  	struct page *page = NULL;
  	struct list_head *list = NULL;
@@ -778,7 +779,7 @@ index 8820f3fafaf8..ef89d5e5d2ac 100644
  
  	do {
  		/* First try to get CMA pages */
-@@ -3885,6 +3931,48 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
+@@ -3906,6 +3953,48 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
  		}
  
  		page = list_first_entry(list, struct page, pcp_list);
@@ -827,7 +828,7 @@ index 8820f3fafaf8..ef89d5e5d2ac 100644
  		list_del(&page->pcp_list);
  		pcp->count -= 1 << order;
  	} while (check_new_pcp(page));
-@@ -3940,6 +4028,12 @@ struct page *rmqueue(struct zone *preferred_zone,
+@@ -3961,6 +4050,12 @@ struct page *rmqueue(struct zone *preferred_zone,
  			int migratetype)
  {
  	struct page *page;
@@ -840,7 +841,7 @@ index 8820f3fafaf8..ef89d5e5d2ac 100644
  
  	if (likely(pcp_allowed_order(order))) {
  		page = rmqueue_pcplist(preferred_zone, zone, order,
-@@ -4099,6 +4193,9 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+@@ -4120,6 +4215,9 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
  			min -= min / 4;
  	}
  
@@ -850,16 +851,17 @@ index 8820f3fafaf8..ef89d5e5d2ac 100644
  	/*
  	 * Check watermarks for an order-0 allocation request. If these
  	 * are not met, then a high-order request also cannot go ahead
-@@ -5645,6 +5742,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
+@@ -5672,6 +5770,10 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
  	gfp_t alloc_gfp; /* The gfp_t that was actually used for allocation */
  	struct alloc_context ac = { };
  
 +#ifdef CONFIG_AMLOGIC_CMA
 +	update_gfp_flags(&gfp);
 +#endif
++
+ 	trace_android_vh_alloc_pages_entry(&gfp, order, preferred_nid, nodemask);
  	/*
  	 * There are several places where we assume that the order value is sane
- 	 * so bail out early if the request is out of bound.
 diff --git a/mm/readahead.c b/mm/readahead.c
 index 4d06d4be07ea..fe41d689eb24 100644
 --- a/mm/readahead.c
@@ -877,7 +879,7 @@ index 4d06d4be07ea..fe41d689eb24 100644
  	/*
  	 * Preallocate as many pages as we will need.
 diff --git a/mm/shmem.c b/mm/shmem.c
-index 55c837973f90..201f6073300f 100644
+index 3e7e0b7a23b3..646268797c01 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
 @@ -1523,7 +1523,11 @@ static struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
