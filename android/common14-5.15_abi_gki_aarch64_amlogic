@@ -25,3 +25,22 @@
 # amlogic-usb.ko
   extcon_get_state
   usb_ep_type_string
+
+# realtek.ko
+  __genphy_config_aneg
+  __mdiobus_read
+  __mdiobus_write
+  __phy_modify
+  genphy_handle_interrupt_no_ack
+  genphy_read_abilities
+  genphy_read_mmd_unsupported
+  genphy_write_mmd_unsupported
+  phy_basic_t1_features
+  phy_modify
+  phy_modify_changed
+  phy_modify_paged
+  phy_modify_paged_changed
+  phy_read_paged
+  phy_restore_page
+  phy_select_page
+  phy_write_paged
