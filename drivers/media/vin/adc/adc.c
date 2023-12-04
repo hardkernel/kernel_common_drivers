@@ -1332,6 +1332,12 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		pr_err("%s:module: 0x%x wrong module index !! ", __func__, module_sel);
 		break;
 	}
+
+	//if locked set force lock pll prevent clk changes
+	if ((devp->plat_data->chip_id == ADC_CHIP_TXHD2 ||
+	     devp->plat_data->chip_id == ADC_CHIP_S1A) && adc_pll_sts)
+		adc_wr_hiu_bits(devp->plat_data->pll_addr.adc_pll_cntl_2, 1, 8, 1);
+
 	if (devp->print_en & ADC_DBG_EN)
 		pr_info("%s:init flag on:%d,module:%#x,flag:%#x cnt:%#x\n",
 			__func__, on, module_sel, devp->pll_flg, adc_pll_lock_cnt);
