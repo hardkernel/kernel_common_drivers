@@ -1389,6 +1389,8 @@ static void adc_pll_down(void)
 	if (!adc_devp->pll_flg && is_meson_tl1_cpu() &&
 	    adc_rd_hiu_bits(pll_addr->adc_pll_cntl_0 + reg_offset, 28, 1)) {
 		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0 + reg_offset, 0, 28, 1);
+		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0 + reg_offset, 1, 29, 1);
+		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0 + reg_offset, 0, 29, 1);
 	}
 
 	if (!adc_devp->pll_flg && adc_devp->plat_data->chip_id >= ADC_CHIP_T5) {
@@ -1829,6 +1831,7 @@ static const struct adc_platform_data_s adc_data_tl1 = {
 	ADC_ADDR_TL1_TO_S4,
 	ADC_PLL_ADDR_TL1,
 	.chip_id = ADC_CHIP_TL1,
+	.is_tv_chip = true,
 };
 #endif
 
