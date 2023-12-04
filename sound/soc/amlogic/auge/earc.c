@@ -1053,51 +1053,23 @@ static int earc_dai_prepare(struct snd_pcm_substream *substream,
 /* normal 1 audio clk src both for 44.1k and 48k */
 static void earctx_set_dmac_freq_normal_1(struct earc *p_earc, unsigned int freq,  bool tune)
 {
-	unsigned int mpll_freq = 0;
-	char *clk_name = (char *)__clk_get_name(p_earc->clk_tx_dmac_srcpll);
-
-	if (freq == 0) {
-		dev_err(p_earc->dev, "%s(), clk 0 err\n", __func__);
-		return;
-	}
-
-	mpll_freq = freq *
+	unsigned int mpll_freq = freq *
 		mpll2dmac_clk_ratio_by_type(p_earc->tx_audio_coding_type);
 
 	/* make sure mpll_freq doesn't exceed MPLL max freq */
 	while (mpll_freq > AML_MPLL_FREQ_MAX)
 		mpll_freq = mpll_freq >> 1;
 
-	dev_info(p_earc->dev,
-		"%s, set freq:%d, get freq:%lu, set src freq:%d, get src freq:%lu clk_name %s\n",
-		__func__,
-		freq,
-		clk_get_rate(p_earc->clk_tx_dmac),
-		mpll_freq,
-		clk_get_rate(p_earc->clk_tx_dmac_srcpll),
-		clk_name);
-
-	if (freq == p_earc->tx_dmac_freq)
-		return;
-
+	dev_info(p_earc->dev, "%s, set src freq:%d\n", __func__, mpll_freq);
 	/* same with tdm mpll */
 	clk_set_rate(p_earc->clk_tx_dmac_srcpll, mpll_freq);
-	p_earc->tx_dmac_freq = freq;
-	if (!tune)
-		clk_set_rate(p_earc->clk_tx_dmac, freq);
 }
 
 /* 2 audio clk src each for 44.1k and 48k */
 static void earctx_set_dmac_freq_normal_2(struct earc *p_earc, unsigned int freq,  bool tune)
 {
 	int ret = 0;
-	char *clk_name = (char *)__clk_get_name(p_earc->clk_tx_dmac_srcpll);
 	int ratio = 0;
-
-	if (freq == 0) {
-		dev_err(p_earc->dev, "%s(), freq setting error\n", __func__);
-		return;
-	}
 
 	if (p_earc->standard_tx_freq % 8000 == 0) {
 		ret = clk_set_parent(p_earc->clk_tx_dmac, p_earc->clk_tx_dmac_srcpll);
@@ -1115,26 +1087,47 @@ static void earctx_set_dmac_freq_normal_2(struct earc *p_earc, unsigned int freq
 		dev_warn(p_earc->dev, "unsupport clock rate %d\n",
 			p_earc->standard_tx_freq);
 	}
+	dev_info(p_earc->dev, "%s, set src freq:%d\n", __func__, freq * ratio);
+}
+
+static void earctx_set_dmac_freq_normal(struct earc *p_earc, unsigned int freq,  bool tune)
+{
+	if (freq == 0) {
+		dev_err(p_earc->dev, "%s(), clk 0 err\n", __func__);
+		return;
+	}
+
+	if (IS_ERR(p_earc->clk_src_cd))
+		earctx_set_dmac_freq_normal_1(p_earc, freq, tune);
+	else
+		earctx_set_dmac_freq_normal_2(p_earc, freq, tune);
+
+	p_earc->tx_dmac_freq = freq;
 	if (!tune)
 		clk_set_rate(p_earc->clk_tx_dmac, freq);
-	p_earc->tx_dmac_freq = freq;
+
+	if (!p_earc->tx_dmac_clk_on) {
+		int ret;
+		unsigned long flags;
+
+		ret = clk_prepare_enable(p_earc->clk_tx_dmac);
+
+		spin_lock_irqsave(&s_earc->tx_lock, flags);
+		if (ret)
+			dev_err(p_earc->dev, "Can't enable earc clk_tx_dmac: %d\n", ret);
+		else
+			p_earc->tx_dmac_clk_on = true;
+		spin_unlock_irqrestore(&s_earc->tx_lock, flags);
+	}
+
 	dev_info(p_earc->dev,
-		"%s, tune 0x%x p_earc->standard_tx_freq %d set freq:%d, get freq:%lu, get src freq:%lu, clk_name %s, standard_tx_dmac %d\n",
+		"%s, tune 0x%x p_earc->standard_tx_freq %d set freq:%d, get freq:%lu, get src freq:%lu, standard_tx_dmac %d\n",
 		__func__, tune,
 		p_earc->standard_tx_freq,
 		freq,
 		clk_get_rate(p_earc->clk_tx_dmac),
 		clk_get_rate(p_earc->clk_tx_dmac_srcpll),
-		clk_name,
 		p_earc->standard_tx_dmac);
-}
-
-static void earctx_set_dmac_freq_normal(struct earc *p_earc, unsigned int freq,  bool tune)
-{
-	if (IS_ERR(p_earc->clk_src_cd))
-		earctx_set_dmac_freq_normal_1(p_earc, freq, tune);
-	else
-		earctx_set_dmac_freq_normal_2(p_earc, freq, tune);
 }
 
 static void earctx_set_dmac_freq(struct earc *p_earc, unsigned int freq,  bool tune)
@@ -1195,7 +1188,10 @@ int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_type)
 		channels = s_earc->ss_info.channels;
 		rate = s_earc->ss_info.rate;
 	}
-	earctx_update_clk(s_earc, channels, rate);
+	if (channels > 0 && rate > 0)
+		earctx_update_clk(s_earc, channels, rate);
+	else
+		return 0;
 
 	spin_lock_irqsave(&s_earc->tx_lock, flags);
 	if (!s_earc->tx_dmac_clk_on)
@@ -1230,9 +1226,8 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 	enum attend_type earc_type;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int bit_depth = snd_pcm_format_width(runtime->format);
-	int i, ret;
+	int i;
 	unsigned int chmask = 0, swap_masks = 0;
-	unsigned long flags;
 
 	if (!s_earc)
 		return -ENOTCONN;
@@ -1245,16 +1240,6 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 
 	if (IS_ERR(s_earc->clk_tx_dmac) || IS_ERR(s_earc->clk_tx_dmac_srcpll))
 		return -ENOTCONN;
-
-	/* tx dmac clk */
-	ret = clk_prepare_enable(s_earc->clk_tx_dmac);
-	if (ret) {
-		dev_err(s_earc->dev, "Can't enable earc clk_tx_dmac: %d\n", ret);
-		return ret;
-	}
-	spin_lock_irqsave(&s_earc->tx_lock, flags);
-	s_earc->tx_dmac_clk_on = true;
-	spin_unlock_irqrestore(&s_earc->tx_lock, flags);
 
 	/* same source channels always 2 */
 	s_earc->ss_info.channels =  2;
@@ -1410,22 +1395,8 @@ static int earc_dai_startup(struct snd_pcm_substream *substream,
 {
 	struct earc *p_earc = snd_soc_dai_get_drvdata(cpu_dai);
 	int ret;
-	unsigned long flags;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (IS_ERR(p_earc->clk_tx_dmac) || IS_ERR(p_earc->clk_tx_dmac_srcpll))
-			return -ENOTCONN;
-		/* tx dmac clk */
-		ret = clk_prepare_enable(p_earc->clk_tx_dmac);
-		if (ret) {
-			dev_err(p_earc->dev, "Can't enable earc clk_tx_dmac: %d\n", ret);
-			goto err;
-		}
-		spin_lock_irqsave(&p_earc->tx_lock, flags);
-		p_earc->tx_dmac_clk_on = true;
-		spin_unlock_irqrestore(&p_earc->tx_lock, flags);
-		p_earc->tx_stream_state = SNDRV_PCM_STATE_SETUP;
-	} else {
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		unsigned long flags;
 
 		if (IS_ERR(p_earc->clk_rx_dmac) || IS_ERR(p_earc->clk_rx_dmac_srcpll))
