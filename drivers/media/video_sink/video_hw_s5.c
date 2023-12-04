@@ -12780,8 +12780,6 @@ int video_early_init_s5(struct amvideo_device_data_s *p_amvideo)
 	memcpy(&vd_layer_vpp[1], &vd_layer[2], sizeof(struct video_layer_s));
 	/* init vpp_post */
 	memset(&g_vpp_post, 0, sizeof(struct vpp_post_s));
-	/* for tx3 dual screen display */
-	g_vpp1_bypass_slice1 = 1;
 	return r;
 }
 

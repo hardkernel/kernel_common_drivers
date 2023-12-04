@@ -21,7 +21,6 @@
 #include "video_reg_s5.h"
 #include <linux/amlogic/media/video_sink/video.h>
 
-extern u32 g_vpp1_bypass_slice1;
 /* VPP POST input src: 3VD, 2 OSD */
 /* S5 only VD1, VD2 */
 #define VPP_POST_VD_NUM   3
