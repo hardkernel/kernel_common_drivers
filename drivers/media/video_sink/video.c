@@ -7323,6 +7323,18 @@ static ssize_t video_seek_flag_store(struct class *cla,
 	return count;
 }
 
+static ssize_t video_max_src_show(struct class *cla,
+			       struct class_attribute *attr,
+			       char *buf)
+{
+	int src_width, src_height;
+	struct disp_info_s *layer = &glayer_info[0];
+
+	src_width = layer->src_width_max;
+	src_height = layer->src_height_max;
+	return snprintf(buf, 40, "%d %d\n", src_width, src_height);
+}
+
 #ifdef PTS_TRACE_DEBUG
 static ssize_t pts_trace_show(struct class *cla,
 			      struct class_attribute *attr,
@@ -10185,6 +10197,30 @@ static ssize_t videopip2_zorder_store(struct class *cla,
 		vd_layer[2].property_changed = true;
 	}
 	return count;
+}
+
+static ssize_t videopip_max_src_show(struct class *cla,
+			       struct class_attribute *attr,
+			       char *buf)
+{
+	int src_width, src_height;
+	struct disp_info_s *layer = &glayer_info[1];
+
+	src_width = layer->src_width_max;
+	src_height = layer->src_height_max;
+	return snprintf(buf, 40, "%d %d\n", src_width, src_height);
+}
+
+static ssize_t videopip2_max_src_show(struct class *cla,
+			       struct class_attribute *attr,
+			       char *buf)
+{
+	int src_width, src_height;
+	struct disp_info_s *layer = &glayer_info[2];
+
+	src_width = layer->src_width_max;
+	src_height = layer->src_height_max;
+	return snprintf(buf, 40, "%d %d\n", src_width, src_height);
 }
 
 static ssize_t aisr_state_show(char *buf)
@@ -13104,6 +13140,15 @@ static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(vpu_venc_status, 0664,
 		vpu_venc_status_show,
 		vpu_venc_status_store),
+	__ATTR(video_max_src, 0664,
+		video_max_src_show,
+		NULL),
+	__ATTR(videopip_max_src, 0664,
+		videopip_max_src_show,
+		NULL),
+	__ATTR(videopip2_max_src, 0664,
+		videopip2_max_src_show,
+		NULL),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
