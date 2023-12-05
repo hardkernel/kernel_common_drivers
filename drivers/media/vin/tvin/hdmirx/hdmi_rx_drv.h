@@ -146,7 +146,8 @@
 /* optimize afifo configuration */
 /* 2023.11.03 disable DDR access when suspend */
 /* 2023.12.1 fix trim value err when resume */
-#define RX_VER2 "ver.2023/12/01"
+/* 2023.12.06 fix resume panic issue */
+#define RX_VER2 "ver.2023/12/06"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
@@ -831,6 +832,7 @@ struct rx_info_s {
 	struct emp_info_s emp_buff_a; //for vid0
 	struct emp_info_s emp_buff_b; //for vid1
 	struct edid_capacity edid_cap;
+	bool suspend_flag;
 };
 
 struct rx_s {
@@ -952,6 +954,8 @@ extern struct work_struct     frl_train_dwork;
 extern struct workqueue_struct *frl_train_wq;
 extern struct work_struct     frl_train_1_dwork;
 extern struct workqueue_struct *frl_train_1_wq;
+
+extern wait_queue_head_t tx_wait_queue;
 
 extern struct tasklet_struct rx_tasklet;
 extern struct device *hdmirx_dev;

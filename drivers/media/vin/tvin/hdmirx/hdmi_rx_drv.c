@@ -115,6 +115,9 @@ struct workqueue_struct *frl_train_wq;
 struct work_struct     frl_train_1_dwork;
 struct workqueue_struct *frl_train_1_wq;
 
+/* TX does work_hpd_plugin work until RX resumes */
+wait_queue_head_t tx_wait_queue;
+
 char boot_info[30][128];
 unsigned int hdmirx_addr_port;
 unsigned int hdmirx_data_port;
@@ -3827,6 +3830,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 
 	frl_train_1_wq = create_workqueue(hdevp->frontend.name);
 	INIT_WORK(&frl_train_1_dwork, rx_frl_train_handler_1);
+
+	init_waitqueue_head(&tx_wait_queue);
+
 	/*repeater_wq = create_singlethread_workqueue(hdevp->frontend.name);*/
 	/*INIT_DELAYED_WORK(&repeater_dwork, repeater_dwork_handle);*/
 	ret = of_property_read_u32(pdev->dev.of_node,
@@ -4188,6 +4194,7 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 	rx_set_suspend_edid_clk(true);
 	rx_dig_clk_en(0);
 	rx_emp_hw_enable(false);
+	rx_info.suspend_flag = true;
 	rx_pr("hdmirx: suspend success\n");
 	return 0;
 }
@@ -4219,6 +4226,8 @@ static int hdmirx_resume(struct platform_device *pdev)
 			EV_KEY, KEY_POWER, 0);
 		input_sync(hdevp->hdmirx_input_dev);
 	}
+	rx_info.suspend_flag = false;
+	wake_up_interruptible(&tx_wait_queue);
 	return 0;
 }
 #endif

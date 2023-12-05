@@ -118,6 +118,10 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 
 	switch (value) {
 	case HDMITX_PLUG:
+		if (wait_event_interruptible(tx_wait_queue, !rx_info.suspend_flag) < 0) {
+			ret = NOTIFY_STOP;
+			break;
+		}
 		if (log_level & EDID_LOG)
 			rx_pr("%s, HDMITX_PLUG\n", __func__);
 		if (p) {
