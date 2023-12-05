@@ -353,28 +353,6 @@ static void restore_mute(void)
 	}
 }
 
-static int set_disp_mode(struct hdmitx_dev *hdev, const char *mode)
-{
-	int ret =  -1;
-	enum hdmi_vic vic;
-	const struct hdmi_timing *timing = NULL;
-
-	/*function for debug, only get vic and check if ip can support*/
-	timing = hdmitx_mode_match_timing_name(mode);
-	if (!timing)
-		return 0;
-
-	vic = timing->vic;
-
-	ret = hdmitx21_set_display(hdev, vic);
-	if (ret >= 0) {
-		hdmitx_hw_cntl(&hdev->tx_hw.base, HDMITX_AVMUTE_CNTL, AVMUTE_CLEAR);
-		restore_mute();
-	}
-
-	return ret;
-}
-
 static void hdmitx_up_hdcp_timeout_handler(struct work_struct *work)
 {
 	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
@@ -534,8 +512,11 @@ static ssize_t disp_mode_store(struct device *dev,
 			       const char *buf, size_t count)
 {
 	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
+	int ret = 0;
 
-	set_disp_mode(hdev, buf);
+	ret = set_disp_mode(&hdev->tx_comm, buf);
+	if (ret < 0)
+		HDMITX_INFO("%s: set mode failed\n", __func__);
 	return count;
 }
 

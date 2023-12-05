@@ -32,6 +32,30 @@ static ssize_t attr_show(struct device *dev,
 
 static DEVICE_ATTR_RO(attr);
 
+/* for pxp test */
+static ssize_t test_attr_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	char fmt_attr[16] = {0};
+
+	memcpy(fmt_attr, global_tx_common->tst_fmt_attr, sizeof(fmt_attr));
+	pos = snprintf(buf, PAGE_SIZE, "%s\n\r", fmt_attr);
+
+	return pos;
+}
+
+static ssize_t test_attr_store(struct device *dev,
+		   struct device_attribute *attr,
+		   const char *buf, size_t count)
+{
+	strncpy(global_tx_common->tst_fmt_attr, buf, sizeof(global_tx_common->tst_fmt_attr));
+	global_tx_common->tst_fmt_attr[15] = '\0';
+
+	return count;
+}
+static DEVICE_ATTR_RW(test_attr);
+
 static ssize_t hpd_state_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -1303,6 +1327,7 @@ int hdmitx_sysfs_common_create(struct device *dev,
 	global_tx_hw = tx_hw;
 
 	ret = device_create_file(dev, &dev_attr_attr);
+	ret = device_create_file(dev, &dev_attr_test_attr);
 	ret = device_create_file(dev, &dev_attr_hpd_state);
 	ret = device_create_file(dev, &dev_attr_frac_rate_policy);
 
@@ -1346,6 +1371,7 @@ int hdmitx_sysfs_common_create(struct device *dev,
 int hdmitx_sysfs_common_destroy(struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_attr);
+	device_remove_file(dev, &dev_attr_test_attr);
 	device_remove_file(dev, &dev_attr_hpd_state);
 	device_remove_file(dev, &dev_attr_frac_rate_policy);
 

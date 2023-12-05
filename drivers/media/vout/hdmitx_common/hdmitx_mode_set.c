@@ -10,6 +10,7 @@
 #include "hdmitx_log.h"
 
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
+static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data);
 
 /*!!Only one instance supported.*/
 static struct hdmitx_common *global_tx_common;
@@ -241,6 +242,133 @@ fail:
 	return ret;
 }
 EXPORT_SYMBOL(hdmitx_common_do_mode_setting);
+
+/* below for pxp mode set test */
+static void convert_attr_str(char *attr_str, enum hdmi_colorspace *cs, int *cd)
+{
+	if (!attr_str || !cs || !cd)
+		return;
+
+	if (strstr(attr_str, "420")) {
+		*cs = HDMI_COLORSPACE_YUV420;
+	} else if (strstr(attr_str, "422")) {
+		*cs = HDMI_COLORSPACE_YUV422;
+	} else if (strstr(attr_str, "444")) {
+		*cs = HDMI_COLORSPACE_YUV444;
+	} else if (strstr(attr_str, "rgb")) {
+		*cs = HDMI_COLORSPACE_RGB;
+	} else {
+		*cs = HDMI_COLORSPACE_RGB;
+		HDMITX_ERROR("%s wrong color format, fallback to default rgb\n");
+	}
+
+	/*parse colorspace success*/
+	if (strstr(attr_str, "12bit")) {
+		*cd = COLORDEPTH_36B;
+	} else if (strstr(attr_str, "10bit")) {
+		*cd = COLORDEPTH_30B;
+	} else if (strstr(attr_str, "8bit")) {
+		*cd = COLORDEPTH_24B;
+	} else {
+		*cd = COLORDEPTH_24B;
+		HDMITX_ERROR("%s wrong color depth, fallback to default 8bit\n");
+	}
+}
+
+static int hdmitx_setup_fmt_para(struct hdmitx_common *tx_comm, struct hdmi_format_para *fmt_para,
+	enum hdmi_vic vic, char *attr_str)
+{
+	int ret = 0;
+	enum hdmi_colorspace cs = HDMI_COLORSPACE_RGB;
+	int cd = 8;
+
+	if (!tx_comm || !fmt_para || !attr_str)
+		return -1;
+
+	convert_attr_str(attr_str, &cs, &cd);
+
+	ret = hdmitx_common_build_format_para(tx_comm, fmt_para,
+					      vic, tx_comm->frac_rate_policy,
+					      cs, cd, HDMI_QUANTIZATION_RANGE_FULL);
+	return ret;
+}
+
+/* sync with hdmitx_common_do_mode_setting() */
+static int hdmitx_common_do_mode_setting_test(struct hdmitx_common *tx_comm,
+				  enum hdmi_vic vic, char *attr_str)
+{
+	int ret = 0;
+	struct hdmi_format_para new_para;
+
+	if (!tx_comm || !attr_str)
+		return -1;
+
+	mutex_lock(&tx_comm->hdmimode_mutex);
+	memset(&new_para, 0, sizeof(new_para));
+	ret = hdmitx_setup_fmt_para(tx_comm, &new_para, vic, attr_str);
+	if (ret < 0) {
+		HDMITX_ERROR("%s format para build fail\n", __func__);
+		goto fail;
+	}
+	ret = hdmitx_common_pre_enable_mode(tx_comm, &new_para);
+	if (ret < 0) {
+		HDMITX_ERROR("pre mode enable fail\n");
+		goto fail;
+	}
+	ret = hdmitx_common_enable_mode(tx_comm, &new_para);
+	if (ret < 0) {
+		HDMITX_ERROR("mode enable fail\n");
+		goto fail;
+	}
+	ret = hdmitx_common_post_enable_mode(tx_comm, &new_para);
+	if (ret < 0) {
+		HDMITX_ERROR("post mode enable fail\n");
+		goto fail;
+	}
+
+fail:
+	mutex_unlock(&tx_comm->hdmimode_mutex);
+	return ret;
+}
+
+static void hdmitx_common_disable_mode_test(void)
+{
+	hdmitx_module_disable(VMODE_HDMI, NULL);
+}
+
+int set_disp_mode(struct hdmitx_common *tx_comm, const char *mode)
+{
+	int ret = 0;
+	enum hdmi_vic vic;
+	const struct hdmi_timing *timing = NULL;
+
+	if (!tx_comm || !mode)
+		return -1;
+
+	if (!strncmp(mode, "off", strlen("off")) ||
+		!strncmp(mode, "null", strlen("null")) ||
+		!strncmp(mode, "invalid", strlen("invalid"))) {
+		hdmitx_common_disable_mode_test();
+		HDMITX_INFO("%s: disable hdmi mode\n", __func__);
+		return 0;
+	}
+	/* function for debug, only get vic and check if ip can support, skip rx cap check. */
+	timing = hdmitx_mode_match_timing_name(mode);
+	if (!timing || timing->vic == HDMI_0_UNKNOWN) {
+		HDMITX_ERROR("unknown mode %s\n", mode);
+		return -EINVAL;
+	}
+
+	vic = timing->vic;
+	/* force set mode for test purpose, not check HW support or not */
+	/* if (hdmitx_common_validate_vic(tx_comm, timing->vic) != 0) { */
+	/* HDMITX_ERROR("ip cannot support mode %s. %d\n", mode, timing->vic); */
+	/* return -EINVAL; */
+	/* } */
+	ret = hdmitx_common_do_mode_setting_test(tx_comm,
+					  vic, tx_comm->tst_fmt_attr);
+	return ret;
+}
 
 void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 	bool phy_dis, bool hdcp_reset, bool pkt_clear, bool edid_clear)

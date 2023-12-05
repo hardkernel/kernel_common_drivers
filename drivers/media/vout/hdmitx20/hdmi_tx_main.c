@@ -300,32 +300,6 @@ static struct early_suspend hdmitx_early_suspend_handler = {
 };
 #endif
 
-static  int  set_disp_mode(struct hdmitx_dev *hdev, const char *mode)
-{
-	int ret =  -1;
-	enum hdmi_vic vic;
-	const struct hdmi_timing *timing = 0;
-
-	/*function for debug, only get vic and check if ip can support, skip rx cap check.*/
-	timing = hdmitx_mode_match_timing_name(mode);
-	if (!timing || timing->vic == HDMI_0_UNKNOWN) {
-		HDMITX_ERROR("unknown mode %s\n", mode);
-		return -EINVAL;
-	}
-
-	vic = timing->vic;
-	if (hdmitx_common_validate_vic(&hdev->tx_comm, timing->vic) != 0) {
-		HDMITX_ERROR("ip cannot support mode %s. %d\n", mode, timing->vic);
-		return -EINVAL;
-	}
-
-	ret = hdmitx_set_display(hdev, vic);
-	if (ret >= 0)
-		hdmitx_hw_cntl(&hdev->tx_hw.base, HDMITX_AVMUTE_CNTL, AVMUTE_CLEAR);
-
-	return ret;
-}
-
 /*disp_mode attr*/
 static ssize_t disp_mode_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
@@ -343,8 +317,11 @@ static ssize_t disp_mode_store(struct device *dev,
 			       const char *buf, size_t count)
 {
 	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
+	int ret = 0;
 
-	set_disp_mode(hdev, buf);
+	ret = set_disp_mode(&hdev->tx_comm, buf);
+	if (ret < 0)
+		HDMITX_INFO("%s: set mode failed\n", __func__);
 	return count;
 }
 

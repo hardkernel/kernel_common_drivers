@@ -48,6 +48,8 @@ struct hdmitx_common {
 	struct connector_hpd_cb drm_hpd_cb;/*drm hpd notify*/
 
 	char fmt_attr[16];
+	/* for pxp test */
+	char tst_fmt_attr[16];
 
 	/*edid related*/
 	/* edid hdr/dv cap lock, hdr/dv handle in irq, need spinlock*/
@@ -225,6 +227,7 @@ int hdmitx_common_do_mode_setting(struct hdmitx_common *tx_comm,
 				  struct hdmitx_common_state *old);
 int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
 			       struct hdmitx_common_state *new_state);
+int set_disp_mode(struct hdmitx_common *tx_comm, const char *mode);
 
 /*packet api*/
 int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
