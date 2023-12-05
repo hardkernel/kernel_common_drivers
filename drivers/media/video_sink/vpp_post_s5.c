@@ -419,8 +419,12 @@ static void vpp_post_in_padcut_set(u32 vpp_index,
 	struct vpp_post_in_padcut_reg_s *vpp_reg = NULL;
 	u32 slice_num;
 
-	slice_num = vpp_post->slice_num;
-
+	//slice_num = vpp_post->slice_num;
+	/* for t3x vpp_in_padding calc need slice_num = 2;*/
+	if (video_is_meson_t3x_cpu())
+		slice_num = 2;
+	else
+		slice_num = vpp_post->slice_num;
 	vpp_reg = &vpp_post_reg.vpp_post_in_padcut_reg;
 	rdma_wr(vpp_reg->vpp_post_padcut_ctrl,
 		(vpp_post->vpp_pad_cut.cut_en & 1) << 31 |
@@ -835,6 +839,7 @@ static int vpp_post_in_padcut_param_set(struct vpp_post_input_s *vpp_input,
 			vpp_post->vpp_pad_cut.v_cut_en = 0;
 
 		vpp_post_in_pad_hsize = roundup(vpp_input->vpp_post_in_pad_hsize, 2);
+
 		vpp_post->vpp_pad_cut.cut_in_hsize = vpp_input->bld_out_hsize +
 			vpp_post_in_pad_hsize;
 		vpp_post->vpp_pad_cut.cut_in_vsize = vpp_input->bld_out_vsize +
@@ -864,8 +869,8 @@ static int vpp_post_in_padcut_param_set(struct vpp_post_input_s *vpp_input,
 				vpp_input->down_move,
 				vpp_post->vpp_pad_cut.cut_v_bgn,
 				vpp_post->vpp_pad_cut.cut_v_end,
-				vpp_input->right_move,
 				vpp_post->vpp_pad_cut.h_cut_en,
+				vpp_input->right_move,
 				vpp_post->vpp_pad_cut.cut_h_bgn,
 				vpp_post->vpp_pad_cut.cut_h_end);
 		}
@@ -1669,6 +1674,7 @@ void get_vpp_in_padding_axis(u32 *enable, int *h_padding, int *v_padding)
 		*v_padding = 0;
 	}
 }
+EXPORT_SYMBOL(get_vpp_in_padding_axis);
 
 void set_vpp_in_padding_axis(u32 enable, int h_padding, int v_padding)
 {
@@ -1710,6 +1716,7 @@ void set_vpp_in_padding_axis(u32 enable, int h_padding, int v_padding)
 				g_vpp_in_padding.vpp_post_in_pad_vsize);
 	}
 }
+EXPORT_SYMBOL(set_vpp_in_padding_axis);
 
 void vpp_clip_setting_s5(u8 vpp_index, struct clip_setting_s *setting)
 {
