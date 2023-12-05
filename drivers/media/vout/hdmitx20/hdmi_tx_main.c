@@ -3753,8 +3753,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	/*	return ret; */
 
 	amhdmitx_clktree_probe(device, hdev);
-	hdmitx_audio_register_ctrl_callback(hdmitx20_ext_set_audio_output,
-		hdmitx20_ext_get_audio_status);
 
 	r = alloc_chrdev_region(&hdev->hdmitx_id, 0, HDMI_TX_COUNT,
 				DEVICE_NAME);
@@ -3824,6 +3822,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	tx_tracer = hdmitx_tracer_create(tx_uevent_mgr);
 	hdmitx_common_attch_platform_data(tx_comm,
 		HDMITX_PLATFORM_TRACER, tx_tracer);
+	hdmitx_audio_register_ctrl_callback(tx_tracer, hdmitx20_ext_set_audio_output,
+		hdmitx20_ext_get_audio_status);
 	hdmitx_edid_init(tx_comm);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	hdmitx_early_suspend_handler.param = hdev;

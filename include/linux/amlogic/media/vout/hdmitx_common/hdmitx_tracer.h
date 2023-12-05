@@ -43,6 +43,11 @@ enum hdmitx_event_log_bits {
 	/* Mode setting erros */
 	HDMITX_KMS_ERROR                        = HDMITX_HDMI_ERROR_MASK | 13,
 	HDMITX_KMS_SKIP                         = HDMITX_HDMI_ERROR_MASK | 14,
+	/* AUDIO format setting */
+	HDMITX_AUDIO_MODE_SETTING               = HDMITX_HDMI_ERROR_MASK | 15,
+	HDMITX_AUDIO_MUTE                       = HDMITX_HDMI_ERROR_MASK | 16,
+	HDMITX_AUDIO_UNMUTE                     = HDMITX_HDMI_ERROR_MASK | 17,
+
 };
 
 struct hdmitx_tracer;

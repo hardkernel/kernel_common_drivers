@@ -847,27 +847,36 @@ void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 		if (tx_comm->hpd_state == 1) {
 			tx_aud_param->aud_notify_update = 1;
 			tx_hw_base->setaudmode(tx_hw_base, tx_aud_param);
+			hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_AUDIO_MODE_SETTING);
 			tx_aud_param->aud_notify_update = 0;
 			HDMITX_INFO("set audio param\n");
 		}
 	}
 }
 
+struct hdmitx_tracer *tx_tracer;
 static audio_en_callback cb_set_audio_output_en;
 static audio_st_callback cb_get_audio_status;
 
-int hdmitx_audio_register_ctrl_callback(audio_en_callback cb1, audio_st_callback cb2)
+int hdmitx_audio_register_ctrl_callback(struct hdmitx_tracer *tracer,
+						audio_en_callback cb1, audio_st_callback cb2)
 {
 	if (!cb1 || !cb2)
 		return -1;
+
+	tx_tracer = tracer;
 	cb_set_audio_output_en = cb1;
 	cb_get_audio_status = cb2;
+
 	return 0;
 }
 
 void hdmitx_ext_set_audio_output(int enable)
 {
 	cb_set_audio_output_en ? cb_set_audio_output_en(enable) : 0;
+	if (cb_set_audio_output_en && tx_tracer)
+		hdmitx_tracer_write_event(tx_tracer,
+			enable ? HDMITX_AUDIO_UNMUTE : HDMITX_AUDIO_MUTE);
 }
 EXPORT_SYMBOL(hdmitx_ext_set_audio_output);
 

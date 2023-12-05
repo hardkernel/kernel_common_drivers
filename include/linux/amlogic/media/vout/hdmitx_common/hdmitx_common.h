@@ -237,7 +237,8 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 
 int hdmitx_register_hpd_cb(struct hdmitx_common *tx_comm, struct connector_hpd_cb *hpd_cb);
 int hdmitx_fire_drm_hpd_cb_unlocked(struct hdmitx_common *tx_comm);
-int hdmitx_audio_register_ctrl_callback(audio_en_callback cb1, audio_st_callback cb2);
+int hdmitx_audio_register_ctrl_callback(struct hdmitx_tracer *tracer,
+						audio_en_callback cb1, audio_st_callback cb2);
 
 int hdmitx_get_hpd_state(struct hdmitx_common *tx_comm);
 unsigned char *hdmitx_get_raw_edid(struct hdmitx_common *tx_comm);

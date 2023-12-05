@@ -72,6 +72,12 @@ const char *hdmitx_event_to_str(enum hdmitx_event_log_bits event)
 		return "KMS_ERROR\n";
 	case HDMITX_KMS_SKIP:
 		return "KMS_SKIP\n";
+	case HDMITX_AUDIO_MODE_SETTING:
+		return "hdmitx_audio_mode_setting\n";
+	case HDMITX_AUDIO_MUTE:
+		return "hdmitx_audio_mute\n";
+	case HDMITX_AUDIO_UNMUTE:
+		return "hdmitx_audio_unmute\n";
 	default:
 		return "Unknown event\n";
 	}
