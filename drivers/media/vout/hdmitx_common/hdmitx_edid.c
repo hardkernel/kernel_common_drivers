@@ -2160,6 +2160,8 @@ static int hdmitx_edid_cta_block_parse(struct rx_cap *prxcap, u8 *block_buf)
 					rx_set_hdr_lumi(&block_buf[offset],
 							(block_buf[offset] &
 							 0x1f) + 1);
+					hdmitx_tracer_write_event(global_tx_base->tx_tracer,
+						HDMITX_EDID_HDR_SUPPORT);
 					break;
 				case EXTENSION_DRM_DYNAMIC_TAG:
 					edid_parsedrmdb(prxcap, &block_buf[offset]);
@@ -2872,6 +2874,9 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 	check_dv_truly_support(prxcap, dv);
 	dv = &prxcap->dv_info2;
 	check_dv_truly_support(prxcap, dv);
+	if (dv->ieeeoui == DV_IEEE_OUI || dv->block_flag == CORRECT)
+		hdmitx_tracer_write_event(global_tx_base->tx_tracer, HDMITX_EDID_DV_SUPPORT);
+
 	edid_check_pcm_declare(prxcap);
 	/* move parts that may contain cea timing parse behind
 	 * VDB parse, so that to not affect VDB index which
