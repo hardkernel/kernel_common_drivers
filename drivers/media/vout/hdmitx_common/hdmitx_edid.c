@@ -1464,7 +1464,7 @@ static bool edid_y420cmdb_postprocess(struct rx_cap *rxcap)
 		return false;
 
 	if (rxcap->y420_all_vic == 1)
-		return edid_y420cmdb_fill_all_vic(rxcap);
+		edid_y420cmdb_fill_all_vic(rxcap);
 
 	if (rxcap->bitmap_valid == 0)
 		goto PROCESS_END;
