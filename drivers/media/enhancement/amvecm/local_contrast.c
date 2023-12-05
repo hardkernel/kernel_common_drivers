@@ -403,37 +403,16 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 				WRITE_VPP_REG(matrix_pre_offset0_1, 0x400200);
 				WRITE_VPP_REG(matrix_clip, 0x3ff);
 			} else {
-				if (cpu_after_eq_t7()) {
-					WRITE_VPP_REG(matrix_coef00_01,
-						      0x04A80000);
-					WRITE_VPP_REG(matrix_coef02_10,
-						      0x072C04A8);
-					WRITE_VPP_REG(matrix_coef11_12,
-						      0x1F261DDD);
-					WRITE_VPP_REG(matrix_coef20_21,
-						      0x04A80876);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
-				} else if (is_meson_tm2_cpu()) {
-					WRITE_VPP_REG(matrix_coef00_01,
-						      0x012a0000);
-					WRITE_VPP_REG(matrix_coef02_10,
-						      0x01cb012a);
-					WRITE_VPP_REG(matrix_coef11_12,
-						      0x1fc90f77);
-					WRITE_VPP_REG(matrix_coef20_21,
-						      0x012a021d);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
-				} else {
-					WRITE_VPP_REG(matrix_coef00_01,
-						      0x04A80000);
-					WRITE_VPP_REG(matrix_coef02_10,
-						      0x072C04A8);
-					WRITE_VPP_REG(matrix_coef11_12,
-						      0x1F261DDD);
-					WRITE_VPP_REG(matrix_coef20_21,
-						      0x04A80876);
-					WRITE_VPP_REG(matrix_coef22, 0x0);
-				}
+				WRITE_VPP_REG(matrix_coef00_01,
+						     0x04A80000);
+				WRITE_VPP_REG(matrix_coef02_10,
+						     0x072C04A8);
+				WRITE_VPP_REG(matrix_coef11_12,
+						     0x1F261DDD);
+				WRITE_VPP_REG(matrix_coef20_21,
+						     0x04A80876);
+				WRITE_VPP_REG(matrix_coef22, 0x0);
+
 				WRITE_VPP_REG(matrix_pre_offset0_1, 0x01000800);
 				WRITE_VPP_REG(matrix_clip, 0xfff);
 			}
