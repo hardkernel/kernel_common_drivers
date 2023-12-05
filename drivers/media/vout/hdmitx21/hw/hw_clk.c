@@ -365,6 +365,7 @@ static void clocks_set_vid_clk_div_for_hdmi(int div_sel)
 
 	switch (hdev->tx_hw.chip_data->chip_type) {
 	case MESON_CPU_ID_S1A:
+	case MESON_CPU_ID_S7:
 		reg_vid_pll = CLKCTRL_VID_PLL_CLK0_DIV;
 		break;
 	case MESON_CPU_ID_T7:
@@ -968,10 +969,6 @@ void set_hdmitx_s7_htx_pll(struct hdmitx_dev *hdev)
 			break;
 		}
 	}
-	if (check_clock_shift(vic, frac_rate) == 1)
-		base_pixel_clk = base_pixel_clk - base_pixel_clk / 1001;
-	if (check_clock_shift(vic, frac_rate) == 2)
-		base_pixel_clk = base_pixel_clk + base_pixel_clk / 1000;
 	base_pixel_clk = base_pixel_clk * 10; /* for tmds modes, here should multi 10 */
 	if (cs == HDMI_COLORSPACE_YUV420)
 		base_pixel_clk /= 2;
@@ -990,9 +987,6 @@ void set_hdmitx_s7_htx_pll(struct hdmitx_dev *hdev)
 		div *= 2;
 		htx_vco *= 2;
 	} while (div <= 32);
-
-	/* the hdmi phy works under DUAL mode, and the div should be multiply 2 */
-	div *= 2;
 
 	set21_s7_htxpll_clk_out(htx_vco, div);
 }
@@ -1063,6 +1057,8 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 	}
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) { //s7 todo
 		set_hdmitx_s7_htx_pll(hdev);
+		if (hdev->tx_hw.s7_clk_config)
+			return;
 		if (cs != HDMI_COLORSPACE_YUV422) {
 			if (cd == COLORDEPTH_36B)
 				clk_div_val = VID_PLL_DIV_7p5;
@@ -1072,32 +1068,6 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 				clk_div_val = VID_PLL_DIV_5;
 		}
 		clocks_set_vid_clk_div_for_hdmi(clk_div_val);
-		// set crt_vid_mux_div
-		//[19] disable clk_div0
-		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 0, 19, 1);
-		// bit[18:16] crt_vid_mux_div source select
-		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 0, 16, 3);
-		hd21_set_reg_bits(CLKCTRL_VID_CLK0_DIV, 0, 0, 8);
-		// bit[2:0] crt_vid_mux_div div1/2/4 enable
-		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 7, 0, 3);
-		// cts_encl_clk div and enable
-		hd21_set_reg_bits(CLKCTRL_VIID_CLK0_DIV, 0, 12, 4);
-		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, 1, 3, 1);
-
-		// hdmi_tx_fe_clk div and enable
-		hd21_set_reg_bits(CLKCTRL_HDMI_CLK_CTRL, 0, 20, 4);
-		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, 1, 9, 1);
-
-		// enc0_hdmi_tx_pnx_clk div and enable
-		hd21_set_reg_bits(CLKCTRL_HDMI_CLK_CTRL, 0, 24, 4);
-		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, 1, 10, 1);
-
-		// hdmi_tx_pixel_clk div and enable
-		hd21_set_reg_bits(CLKCTRL_HDMI_CLK_CTRL, 0, 16, 4);
-		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, 1, 5, 1);
-
-		//[19] enable clk_div0
-		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 1, 19, 1);
 		return;
 	}
 #endif

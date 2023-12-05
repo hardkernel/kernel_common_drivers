@@ -33,24 +33,39 @@ static void dump32(struct seq_file *s, u32 start, u32 end)
 
 static int dump_regs_show(struct seq_file *s, void *p)
 {
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
 	seq_puts(s, "\n--------misc registers--------\n");
 
-	// ((0x0000 << 2) + 0xfe008000) ~ ((0x00f3 << 2) + 0xfe008000)
-	dump32(s, ANACTRL_SYS0PLL_CTRL0, ANACTRL_DIF_PHY_STS);
-	// ((0x0001 << 2) + 0xfe000000) ~ ((0x0128 << 2) + 0xfe000000)
-	dump32(s, CLKCTRL_OSCIN_CTRL, CLKCTRL_FPLL_STS);
-	// ((0x0000 << 2) + 0xfe00c000) ~ ((0x027f << 2) + 0xfe00c000)
-	dump32(s, PWRCTRL_PWR_ACK0, PWRCTRL_A73TOP_FSM_JUMP);
-	// ((0x1b00 << 2) + 0xff000000) ~ ((0x1bea << 2) + 0xff000000)
-	dump32(s, ENCI_VIDEO_MODE, ENCP_VRR_CTRL1);
-	// ((0x1c00 << 2) + 0xff000000) ~((0x1cfc << 2) + 0xff000000)
-	dump32(s, ENCI_DVI_HSO_BEGIN, VPU_VENCL_DITH_LUT_12);
-	// ((0x2158 << 2) + 0xff000000) ~ ((0x2250 << 2) + 0xff000000)
-	dump32(s, ENCP1_VFIFO2VD_CTL, ENCP1_VFIFO2VD_CTL2);
-	// ((0x2358 << 2) + 0xff000000) ~ ((0x2450 << 2) + 0xff000000)
-	dump32(s, ENCP2_VFIFO2VD_CTL, ENCP2_VFIFO2VD_CTL2);
-	// ((0x2451 << 2) + 0xff000000) ~ ((0x24fc << 2) + 0xff000000)
-	dump32(s, VENC2_DVI_SETTING_MORE, VPU2_VENCL_DITH_LUT_12);
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) {
+		// ((0x0000 << 2) + 0xfe008000) ~ ((0x00e0 << 2) + 0xfe008000)
+		dump32(s, ANACTRL_SYS0PLL_CTRL0, ANACTRL_CHIP_TEST_STS);
+		// ((0x0001 << 2) + 0xfe000000) ~ ((0x0126 << 2) + 0xfe000000)
+		dump32(s, CLKCTRL_OSCIN_CTRL, CLKCTRL_EFUSE_LOCK);
+		// ((0x0000 << 2) + 0xfe00c000) ~ ((0x012f << 2) + 0xfe00c000)
+		dump32(s, PWRCTRL_PWR_ACK0, PWRCTRL_CPUTOP_FSM_JUMP);
+		// ((0x1b00 << 2) + 0xff000000) ~ ((0x1bea << 2) + 0xff000000)
+		dump32(s, ENCI_VIDEO_MODE, ENCP_VRR_CTRL1);
+		// ((0x1c00 << 2) + 0xff000000) ~((0x1cd7 << 2) + 0xff000000)
+		dump32(s, ENCI_DVI_HSO_BEGIN, ENCL_INBUF_FIX_PIX_NUM);
+	} else {
+		// ((0x0000 << 2) + 0xfe008000) ~ ((0x00f3 << 2) + 0xfe008000)
+		dump32(s, ANACTRL_SYS0PLL_CTRL0, ANACTRL_DIF_PHY_STS);
+		// ((0x0001 << 2) + 0xfe000000) ~ ((0x0128 << 2) + 0xfe000000)
+		dump32(s, CLKCTRL_OSCIN_CTRL, CLKCTRL_FPLL_STS);
+		// ((0x0000 << 2) + 0xfe00c000) ~ ((0x027f << 2) + 0xfe00c000)
+		dump32(s, PWRCTRL_PWR_ACK0, PWRCTRL_A73TOP_FSM_JUMP);
+		// ((0x1b00 << 2) + 0xff000000) ~ ((0x1bea << 2) + 0xff000000)
+		dump32(s, ENCI_VIDEO_MODE, ENCP_VRR_CTRL1);
+		// ((0x1c00 << 2) + 0xff000000) ~((0x1cfc << 2) + 0xff000000)
+		dump32(s, ENCI_DVI_HSO_BEGIN, VPU_VENCL_DITH_LUT_12);
+		// ((0x2158 << 2) + 0xff000000) ~ ((0x2250 << 2) + 0xff000000)
+		dump32(s, ENCP1_VFIFO2VD_CTL, ENCP1_VFIFO2VD_CTL2);
+		// ((0x2358 << 2) + 0xff000000) ~ ((0x2450 << 2) + 0xff000000)
+		dump32(s, ENCP2_VFIFO2VD_CTL, ENCP2_VFIFO2VD_CTL2);
+		// ((0x2451 << 2) + 0xff000000) ~ ((0x24fc << 2) + 0xff000000)
+		dump32(s, VENC2_DVI_SETTING_MORE, VPU2_VENCL_DITH_LUT_12);
+	}
 	// ((0x2701 << 2) + 0xff000000) ~ ((0x24fc << 2) + 0xff000000)
 	dump32(s, VPU_CRC_CTRL, VPUCTRL_REG_ADDR(0x27fd));
 
@@ -128,7 +143,13 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	// 0x00000800 - 0x00000879
 	dumpcor(s, CP2TX_CTRL_0_IVCTX, CP2TX_IPT_CTR_39TO32_IVCTX);
 	// 0x000008a0 - 0x000008d0
-	dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) {
+		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 1, 16, 2);//enable hdcp2x gate
+		dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
+		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 0, 16, 1);//disable hdcp2x gate
+	} else {
+		dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
+	}
 	// 0x00000900 - 0x00000933
 	dumpcor(s, SCRCTL_IVCTX, FRL_LTP_OVR_VAL1_IVCTX);
 
@@ -152,7 +173,8 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	// 0x00000f00 - 0x00000f26
 	dumpcor(s, D_HDR_GEN_CTL_IVCTX, D_HDR_SPARE_9_IVCTX);
 	// 0x00000f80 - 0x00000fa9
-	dumpcor(s, DSC_PKT_GEN_CTL_IVCTX, DSC_PKT_SPARE_9_IVCTX);
+	if (!(hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7))
+		dumpcor(s, DSC_PKT_GEN_CTL_IVCTX, DSC_PKT_SPARE_9_IVCTX);
 	dump_infoframe_packets(s);
 	return 0;
 }
@@ -196,7 +218,7 @@ static int dump_hdmivpfdet_show(struct seq_file *s, void *p)
 	seq_puts(s, "\n--------vp fdet info--------\n");
 
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)
-		hd21_set_reg_bits(HDMITX_TOP_CLK_GATE, 1, 1, 1);//enable fdet gate
+		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 1, 1, 1);//enable fdet gate
 	hdmitx21_wr_reg(VP_FDET_CLEAR_IVCTX, 0);
 	hdmitx21_wr_reg(VP_FDET_STATUS_IVCTX, 0);
 	mdelay(hdev->pxp_mode ? 10 : 50); /* at least 1 frame? */
@@ -448,7 +470,7 @@ static int dump_hdmivpfdet_show(struct seq_file *s, void *p)
 		seq_puts(s, "\n");
 	}
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)
-		hd21_set_reg_bits(HDMITX_TOP_CLK_GATE, 0, 1, 1);//disable fdet gate
+		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 0, 1, 1);//disable fdet gate
 	return 0;
 }
 
