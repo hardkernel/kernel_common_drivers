@@ -387,6 +387,9 @@ struct slice_info {
 	u32 hsize;     /*slice hsize*/
 	u32 vsize;     /*slice vsize*/
 	u32 scaler_in_hsize;
+	u32 vd1_slice_in_hsize;
+	u32 vd1_slice_in_vsize;
+	u32 vd1_overlap;
 };
 
 struct vppx_post_info_t {

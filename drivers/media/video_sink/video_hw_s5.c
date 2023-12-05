@@ -5860,9 +5860,11 @@ static void update_vd_proc_amvecm_info(struct vd_proc_s *vd_proc)
 	struct vd_proc_pps_s *vd_proc_pps = NULL;
 	struct vd_proc_sr_s *vd_proc_sr1 = NULL;
 	struct vd_proc_sr_s *vd_proc_sr0 = NULL;
+	struct vd_proc_slice_info_s *vd_proc_slice_info = NULL;
 
 	vd_proc_vd1_info = &vd_proc->vd_proc_vd1_info;
 	vd_proc_vd2_info = &vd_proc->vd_proc_vd2_info;
+	vd_proc_slice_info = &vd_proc->vd_proc_slice_info;
 
 	vd_proc_amvecm.slice_num = vd_proc_vd1_info->slice_num;
 	vd_proc_amvecm.vd1_in_hsize = vd_proc_vd1_info->vd1_src_din_hsize[0];
@@ -5907,6 +5909,12 @@ static void update_vd_proc_amvecm_info(struct vd_proc_s *vd_proc)
 					vd_proc_pps->dout_vsize;
 			}
 		}
+		vd_proc_amvecm.slice[i].vd1_slice_in_hsize =
+			vd_proc_slice_info->vd1_slice_din_hsize[i];
+		vd_proc_amvecm.slice[i].vd1_slice_in_vsize =
+			vd_proc_slice_info->vd1_slice_din_vsize[i];
+		vd_proc_amvecm.slice[i].vd1_overlap =
+			vd_proc_vd1_info->vd1_overlap_hsize;
 	}
 	vd_proc_amvecm.vd2_in_hsize = vd_proc_vd2_info->vd2_din_hsize;
 	vd_proc_amvecm.vd2_in_vsize = vd_proc_vd2_info->vd2_din_vsize;

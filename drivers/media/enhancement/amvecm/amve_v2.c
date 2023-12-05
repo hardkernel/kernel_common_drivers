@@ -1043,18 +1043,20 @@ void get_luma_hist(struct vframe_s *vf)
 
 	if (vd_info) {
 		if (slice_case)
-			overlap = 32;
+			overlap = vd_info->slice[0].vd1_overlap;
 		else
 			overlap = 0;
 
-		width = vd_info->slice[0].hsize - overlap;
-		height = vd_info->slice[0].vsize;
+		width = vd_info->slice[0].vd1_slice_in_hsize - overlap;
+		height = vd_info->slice[0].vd1_slice_in_vsize;
 	} else {
-		width = vf->width;
-		height = vf->height;
+		width = (vf->type & VIDTYPE_COMPRESS) ?
+			vf->compWidth : vf->width;
+		height =  (vf->type & VIDTYPE_COMPRESS) ?
+			vf->compHeight : vf->height;
 
 		if (slice_case)
-			width = vf->width >> 1;
+			width = width >> 1;
 	}
 
 	if (pre_w != width || pre_h != height) {
