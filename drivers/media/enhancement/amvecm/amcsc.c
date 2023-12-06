@@ -8931,7 +8931,10 @@ static int vpp_matrix_update(struct vframe_s *vf,
 				vd_path, p, vpp_index);
 	}
 
-	if (ai_color_enable)
+	if (ai_color_enable &&
+		vd_path == VD1_PATH &&
+		sdr_process_mode[vd_path] == PROC_SDR_AC_SDR &&
+		csc_type < VPP_MATRIX_BT2020YUV_BT2020RGB)
 		ai_color_proc(vf, vpp_index);
 
 	/* eye protection mode */
@@ -9398,6 +9401,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				dbg_vf[vd_path] = NULL;
 				video_process_status[vd_path] =
 					HDR_MODULE_BYPASS;
+				cur_signal_type[vd_path] = 0xffffffff;
 				pr_csc(4,
 				       "%d: set video_process_status[VD%d] = HDR_MODULE_BYPASS\n",
 				       __LINE__, vd_path + 1);

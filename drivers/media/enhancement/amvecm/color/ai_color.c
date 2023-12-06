@@ -321,8 +321,12 @@ void ai_color_proc(struct vframe_s *vf, int vpp_index)
 {
 	int i;
 
-	if (!vf || !vf->vc_private)
+	if (!vf || !vf->vc_private) {
+		ai_clr_config(0, vpp_index);
+		if (ai_clr_dbg & 0x20000)
+			pr_info("vf: NULL or vc_private: NULL\n");
 		return;
+	}
 
 	if (sa_adj_parm.reg_sat_s_gain_en == 0 &&
 		sa_adj_parm.reg_sat_l_gain_en == 0)
@@ -330,10 +334,8 @@ void ai_color_proc(struct vframe_s *vf, int vpp_index)
 
 	if (!vf->vc_private->aicolor_info ||
 		(vf->vc_private->flag & VC_FLAG_AI_COLOR) == 0) {
-		if (ai_clr_dbg) {
+		if (ai_clr_dbg & 0x10000)
 			pr_info("no aicolor_info\n");
-			ai_clr_dbg--;
-		}
 		return;
 	}
 
@@ -341,7 +343,7 @@ void ai_color_proc(struct vframe_s *vf, int vpp_index)
 		sa_adj_parm.reg_s_gain_lut[i] =
 			(int)vf->vc_private->aicolor_info->color_value[i];
 
-	if (ai_clr_dbg > 0) {
+	if (ai_clr_dbg & 0xffff) {
 		for (i = 0; i < 120; i++)
 			pr_info("input: reg_s_gain_lut[%d] = %d\n", i,
 				sa_adj_parm.reg_s_gain_lut[i]);
@@ -350,7 +352,7 @@ void ai_color_proc(struct vframe_s *vf, int vpp_index)
 	SLut_gen(&sa_adj_parm, &sa_fw_parm);
 	ai_color_cfg(&sa_adj_parm, vpp_index);
 
-	if (ai_clr_dbg > 0) {
+	if (ai_clr_dbg & 0xffff) {
 		for (i = 0; i < 120; i++)
 			pr_info("output-> reg_s_gain_lut[%d] = %d\n", i,
 				sa_adj_parm.reg_s_gain_lut[i]);
@@ -362,10 +364,10 @@ void ai_clr_config(int enable, int vpp_index)
 {
 	int i;
 	unsigned int val;
-	int s5_slice_mode = get_s5_slice_mode();
+	int s5_slice_mode = 4;
 
-	if (s5_slice_mode < 1 || s5_slice_mode > 4)
-		return;
+	if (chip_type_id == chip_t3x)
+		s5_slice_mode = 2;
 
 	val = (1 << 8) | (enable << 0);
 	for (i = 0; i < s5_slice_mode; i++)

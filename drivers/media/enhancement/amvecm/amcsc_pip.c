@@ -72,7 +72,7 @@ static const char *module_str[15] = {
 	"VICP"
 };
 
-static const char *process_str[29] = {
+static const char *process_str[30] = {
 	"UNKNOWN",
 	"HDR_BYPASS",
 	"HDR_SDR",
@@ -101,6 +101,7 @@ static const char *process_str[29] = {
 	"CUVAHLG_HDR",
 	"CUVAHLG_HLG",
 	"CUVAHLG_CUVA",
+	"AI_COLOR_PROC",
 	"PROCESS_MAX"
 };
 
@@ -175,7 +176,7 @@ static void hdr_proc(struct vframe_s *vf,
 
 	index = 0;
 	for (i = 0; i < 28; i++) {
-		if (BIT(i) == (hdr_process_select & 0x07ffffff)) {
+		if (BIT(i) == (hdr_process_select & 0x0fffffff)) {
 			index = i + 1;
 			break;
 		}
@@ -207,6 +208,9 @@ static void hdr_proc_multi_slices(struct vframe_s *vf,
 			module_str[module_sel], module_sel);
 		return;
 	}
+
+	pr_csc(8, "am_vecm: hdr module=%s %d, slice_num = %d\n",
+		module_str[module_sel], module_sel, slice_mode);
 
 	if (slice_mode == VD1_1SLICE) {
 		hdr_proc(vf, VD1_HDR, hdr_process_select, vinfo, gmt_mtx, vpp_index);
@@ -2376,6 +2380,11 @@ void hdmi_packet_process(int signal_change_flag,
 
 	if (!vinfo)
 		return;
+
+	if (vinfo->mode == VMODE_LCD ||
+		vinfo->mode == VMODE_DUMMY_ENCP)
+		return;
+
 	if (!vinfo->vout_device) {
 		/* pr_info("vinfo->vout_device is null, return\n"); */
 		if (vpp_index == VPP_TOP0 ||
