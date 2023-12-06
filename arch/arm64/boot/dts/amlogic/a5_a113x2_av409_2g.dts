@@ -112,6 +112,7 @@
 		gpio = <&gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-boot-on;
+		regulator-always-on;
 	};
 
 	vcc_1v8_reg: fixed@vcc_1v8_reg{
@@ -121,6 +122,7 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-boot-on;
+		regulator-always-on;
 	};
 
 	sdcard_power: regulator-sdcard {
