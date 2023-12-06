@@ -4295,7 +4295,6 @@ bool ndis_move_keep2idle(struct di_ch_s *pch, struct dim_ndis_s *ndis)
 
 #ifdef MARK_HIS //no used
 /* */
-panjianxiong
 void ndis_back2_idle(struct di_ch_s *pch)
 {
 	struct buf_que_s *pbufq;

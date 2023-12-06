@@ -774,12 +774,11 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
  * Bit 27:24,   reg_NM_calc_length	  Length mode of the Noise
  * measurement sample number for statistics.
  *		0:  256 samples;    1: 512 samples;    2: 1024 samples;
- * ¡­X: 2^(8+x) samples
- * Bit 23:20,   reg_NM_inc_step	      Loop filter input gain increase step.
- * Bit 19:16,   reg_NM_dec_step	      Loop filter input gain decrease step.
- * Bit 15:8,	   reg_NM_YHPmot_thrd	  Luma channel HP portion motion
+ * Bit 23:20,   reg_NM_inc_step              Loop filter input gain increase step.
+ * Bit 19:16,   reg_NM_dec_step              Loop filter input gain decrease step.
+ * Bit 15:8,      reg_NM_YHPmot_thrd     Luma channel HP portion motion
  * for condition of pixels included in Luma Noise measurement.
- * Bit 7:0,	   reg_NM_CHPmot_thrd	  Chroma channel HP portion motion
+ * Bit 7:0,       reg_NM_CHPmot_thrd     Chroma channel HP portion motion
  * for condition of pixels included in Chroma Noise measurement.
  */
 #define NR2_MET_NM_YCTRL                  ((0x1746)) /* << 2) + 0xd0100000) */

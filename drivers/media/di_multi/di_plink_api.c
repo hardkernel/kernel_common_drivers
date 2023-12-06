@@ -7487,7 +7487,6 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 		/* set on*/
 		ext_vpp_prelink_real_sw(true, false);
 		val = op->rd(VD1_AFBCD0_MISC_CTRL);
-		//WR(VD1_AFBCD0_MISC_CTRL,0X401300);//cqq
 		if (DIM_IS_IC_EF(SC2)) {
 			/* ? */
 			op->bwr(DI_TOP_CTRL, 1, 0, 1);// 1:pre link vpp  0:post link vpp
