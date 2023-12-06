@@ -164,6 +164,7 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->prev_height = cur_state->prev_height;
 	new_state->hdr_conversion_ctrl = cur_state->hdr_conversion_ctrl;
 	new_state->attr_changed = false;
+	new_state->brr_update = false;
 
 	/*reset dynamic info.*/
 	if (amcrtc->priv->logo_show_done)
@@ -357,6 +358,9 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->hdr_conversion_cap_property) {
 		*val = get_hdr_conversion_cap();
 		return 0;
+	} else if (property == meson_crtc->brr_update_property) {
+		*val = crtc_state->brr_update;
+		return 0;
 	}
 
 	return ret;
@@ -390,6 +394,9 @@ static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
 		return 0;
 	} else if (property == meson_crtc->hdr_conversion_ctrl_property) {
 		crtc_state->hdr_conversion_ctrl = val;
+		return 0;
+	} else if (property == meson_crtc->brr_update_property) {
+		crtc_state->brr_update = val;
 		return 0;
 	}
 
@@ -677,7 +684,8 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		if (crtc->state->vrr_enabled &&
 			adjusted_mode->hdisplay == old_mode->hdisplay &&
 			adjusted_mode->vdisplay == old_mode->vdisplay &&
-			!meson_crtc_state->attr_changed) {
+			!meson_crtc_state->attr_changed &&
+			!meson_crtc_state->brr_update) {
 			drm_crtc_vblank_on(crtc);
 			return;
 		}
@@ -721,7 +729,8 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 	if (crtc->state->vrr_enabled &&
 		adjusted_mode->hdisplay == old_mode->hdisplay &&
 		adjusted_mode->vdisplay == old_mode->vdisplay &&
-		!meson_crtc_state->attr_changed) {
+		!meson_crtc_state->attr_changed &&
+		!meson_crtc_state->brr_update) {
 		DRM_INFO("%s, vrr enable, skip crtc disable\n", __func__);
 		return;
 	}
@@ -807,6 +816,9 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 			crtc_state->mode_changed = true;
 
 		if (cur_state->hdr_conversion_ctrl != new_state->hdr_conversion_ctrl)
+			crtc_state->mode_changed = true;
+
+		if (cur_state->brr_update)
 			crtc_state->mode_changed = true;
 	}
 
@@ -1020,6 +1032,20 @@ static void meson_crtc_init_dv_enable_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_crtc_init_brr_update_property(struct drm_device *drm_dev,
+						  struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "brr_update");
+	if (prop) {
+		amcrtc->brr_update_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to brr_update property\n");
+	}
+}
+
 static void meson_crtc_init_dv_mode_property(struct drm_device *drm_dev,
 						  struct am_meson_crtc *amcrtc)
 {
@@ -1171,6 +1197,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	meson_crtc_init_property(priv->drm, amcrtc);
 	meson_crtc_init_hdmi_eotf_property(priv->drm, amcrtc);
 	meson_crtc_init_dv_enable_property(priv->drm, amcrtc);
+	meson_crtc_init_brr_update_property(priv->drm, amcrtc);
 	meson_crtc_init_dv_mode_property(priv->drm, amcrtc);
 	meson_crtc_add_bgcolor_property(priv->drm, amcrtc);
 	meson_crtc_init_osd_pixelformat_property(priv->drm, amcrtc);

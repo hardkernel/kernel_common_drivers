@@ -1648,7 +1648,8 @@ int meson_encoder_vrr_change(struct drm_encoder *encoder,
 	if (new_state->vrr_enabled &&
 		new_mode->hdisplay == old_mode->hdisplay &&
 		new_mode->vdisplay == old_mode->vdisplay &&
-		!meson_crtc_state->attr_changed) {
+		!meson_crtc_state->attr_changed &&
+		!meson_crtc_state->brr_update) {
 		DRM_INFO("[%s], vrr, skip encoder %s\n", __func__,
 			 status == 1 ? "enable" : "disable");
 		return 1;
@@ -1802,7 +1803,8 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	}
 
 	if (!am_hdmi_info.android_path ||
-		(crtc_state->vrr_enabled && !meson_crtc_state->attr_changed))
+		(crtc_state->vrr_enabled && !meson_crtc_state->attr_changed &&
+		!meson_crtc_state->brr_update))
 		return 0;
 
 	if (hdmitx_common_validate_format_para(common, &hdmitx_state->hcs.para)) {

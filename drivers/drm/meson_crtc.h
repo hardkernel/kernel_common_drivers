@@ -82,6 +82,7 @@ struct am_meson_crtc_state {
 	int prev_height;
 	int hdr_conversion_ctrl;
 	bool attr_changed;
+	bool brr_update;
 };
 
 struct am_meson_crtc {
@@ -99,6 +100,7 @@ struct am_meson_crtc {
 	struct drm_property *hdr_policy;
 	struct drm_property *hdmi_eotf;
 	struct drm_property *dv_enable_property;
+	struct drm_property *brr_update_property;
 	struct drm_property *dv_mode_property;
 	struct drm_property *bgcolor_property;
 	struct drm_property *video_pixelformat_property;
