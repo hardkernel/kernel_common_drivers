@@ -1,0 +1,144 @@
+From cb9fffaf8257ad6a1f16623069bfb57eee2c5277 Mon Sep 17 00:00:00 2001
+From: "chengbing.wu" <chengbing.wu@amlogic.com>
+Date: Thu, 8 Jun 2023 14:18:31 +0800
+Subject: [PATCH] regulator: k5.15 common driver bringup patches [1/1]
+
+PD#SWPL-135783
+
+Problem:
+1. need use regulator to delay dvfs voltage set;
+2. for boot to kernel vddcpu/vddee voltage
+change to max problem;
+
+Solution:
+1. add dvfs delay time at s7 pxp;
+2. add init voltage at txhd2 trunk;
+
+Verify:
+build pass
+
+Change-Id: I877e9affaced264b57c887c05f4545ad22816789
+Signed-off-by: chengbing.wu <chengbing.wu@amlogic.com>
+---
+ drivers/regulator/Kconfig         | 10 +++++++
+ drivers/regulator/pwm-regulator.c | 48 +++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+)
+
+diff --git a/drivers/regulator/Kconfig b/drivers/regulator/Kconfig
+index 4fd13b06231f..302f016e07ff 100644
+--- a/drivers/regulator/Kconfig
++++ b/drivers/regulator/Kconfig
+@@ -916,6 +916,16 @@ config REGULATOR_PWM
+ 	  This driver supports PWM controlled voltage regulators. PWM
+ 	  duty cycle can increase or decrease the voltage.
+ 
++config AMLOGIC_PWM_REGULATOR
++	bool "PWM voltage regulator for AMLOGIC define"
++	depends on REGULATOR_PWM
++	default n if REGULATOR_PWM
++	help
++	  This driver supports some feature of PWM regulators.
++	  such as:
++	  1. need use regulator to delay dvfs voltage setting;
++	  2. deal with problem of voltage by changed to max booting to kernel;
++
+ config REGULATOR_QCOM_RPM
+ 	tristate "Qualcomm RPM regulator driver"
+ 	depends on MFD_QCOM_RPM
+diff --git a/drivers/regulator/pwm-regulator.c b/drivers/regulator/pwm-regulator.c
+index 7629476d94ae..9131a5cf7deb 100644
+--- a/drivers/regulator/pwm-regulator.c
++++ b/drivers/regulator/pwm-regulator.c
+@@ -18,6 +18,12 @@
+ #include <linux/pwm.h>
+ #include <linux/gpio/consumer.h>
+ 
++#ifdef CONFIG_AMLOGIC_PWM_REGULATOR
++#include <linux/delay.h>
++#define USLEEP_TIME 200
++int usleep_time;
++#endif
++
+ struct pwm_continuous_reg_data {
+ 	unsigned int min_uV_dutycycle;
+ 	unsigned int max_uV_dutycycle;
+@@ -51,6 +57,7 @@ struct pwm_voltages {
+ /*
+  * Voltage table call-backs
+  */
++#ifdef CONFIG_AMLOGIC_PWM_REGULATOR
+ static void pwm_regulator_init_state(struct regulator_dev *rdev)
+ {
+ 	struct pwm_regulator_data *drvdata = rdev_get_drvdata(rdev);
+@@ -61,13 +68,42 @@ static void pwm_regulator_init_state(struct regulator_dev *rdev)
+ 	pwm_get_state(drvdata->pwm, &pwm_state);
+ 	dutycycle = pwm_get_relative_duty_cycle(&pwm_state, 100);
+ 
++	pr_debug("[%s] Default drvdata->state: %d\n", __func__, drvdata->state);
+ 	for (i = 0; i < rdev->desc->n_voltages; i++) {
++		pr_debug("[%s] i:%d n_voltages:%d, dutycycle:%d = [i].dutycycle:%d\n",
++			__func__, i, rdev->desc->n_voltages, dutycycle,
++			drvdata->duty_cycle_table[i].dutycycle);
+ 		if (dutycycle == drvdata->duty_cycle_table[i].dutycycle) {
+ 			drvdata->state = i;
++			pr_info("[%s] Get return == i: %d\n", __func__, drvdata->state);
++			return;
++		} else if (dutycycle < drvdata->duty_cycle_table[i].dutycycle) {
++			drvdata->state = i - 1;
++			pr_info("[%s] Get return < i-1:%d\n", __func__, drvdata->state);
+ 			return;
+ 		}
+ 	}
++	pr_info("[%s] Get drvdata->state: %d\n", __func__, drvdata->state);
+ }
++#else /* CONFIG_AMLOGIC_PWM_REGULATOR */
++static void pwm_regulator_init_state(struct regulator_dev *rdev)
++{
++	struct pwm_regulator_data *drvdata = rdev_get_drvdata(rdev);
++	struct pwm_state pwm_state;
++	unsigned int dutycycle;
++	int i;
++
++	pwm_get_state(drvdata->pwm, &pwm_state);
++	dutycycle = pwm_get_relative_duty_cycle(&pwm_state, 100);
++
++	for (i = 0; i < rdev->desc->n_voltages; i++) {
++		if (dutycycle == drvdata->duty_cycle_table[i].dutycycle) {
++			drvdata->state = i;
++			return;
++		}
++	}
++}
++#endif /* CONFIG_AMLOGIC_PWM_REGULATOR */
+ 
+ static int pwm_regulator_get_voltage_sel(struct regulator_dev *rdev)
+ {
+@@ -98,6 +134,11 @@ static int pwm_regulator_set_voltage_sel(struct regulator_dev *rdev,
+ 
+ 	drvdata->state = selector;
+ 
++#ifdef CONFIG_AMLOGIC_PWM_REGULATOR
++	if (drvdata->desc.vsel_step)
++		usleep_range(usleep_time - 10, usleep_time);
++#endif
++
+ 	return 0;
+ }
+ 
+@@ -284,6 +325,13 @@ static int pwm_regulator_init_table(struct platform_device *pdev,
+ 	drvdata->desc.ops = &pwm_regulator_voltage_table_ops;
+ 	drvdata->desc.n_voltages	= length / sizeof(*duty_cycle_table);
+ 
++#ifdef CONFIG_AMLOGIC_PWM_REGULATOR
++	of_property_read_u32(np, "amlogic,vsel-step", &drvdata->desc.vsel_step);
++	ret = of_property_read_u32(np, "amlogic,usleep-time", &usleep_time);
++	if (ret || usleep_time < 10)
++		usleep_time = USLEEP_TIME;
++#endif
++
+ 	return 0;
+ }
+ 
+-- 
+2.42.0
+
