@@ -626,6 +626,15 @@ int vpu_pipeline_check_block(int *combination, int num_planes,
 				}
 			}
 
+			if (block->type == MESON_BLK_GFCD) {
+				in_port = find_in_port(mvb[j - 1], block);
+				out_port = find_out_port(block, mvb[j + 1]);
+				if (in_port != out_port) {
+					MESON_DRM_TRAVERSE("gfcd prev next not match.\n");
+					return -1;
+				}
+			}
+
 			if (block->ops && block->ops->check_state) {
 				mvbs = meson_vpu_block_get_state(block, state);
 				ret = block->ops->check_state(block,

@@ -34,6 +34,7 @@ $(MESON_DRM_MODULE_NAME)-y += meson_drv.o meson_plane.o \
                               meson_dummyl.o meson_dummyp.o \
                               vpu-hw/meson_vpu_video_wrapper.o \
                               vpu-hw/meson_vpu_osd_mif.o \
+                              vpu-hw/meson_osd_gfcd.o \
                               vpu-hw/meson_osd_afbc.o \
                               vpu-hw/meson_osd_scaler.o \
                               vpu-hw/meson_osd_proc.o \

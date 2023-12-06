@@ -1772,6 +1772,8 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	struct drm_display_mode *adj_mode = &crtc_state->adjusted_mode;
 	char *modename = adj_mode->name;
 	struct hdmitx_common *common = am_hdmi_info.hdmitx_dev->hdmitx_common;
+	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc_state->crtc);
+	struct meson_drm *priv = amcrtc->priv;
 	int ret = 0;
 	bool do_valid = true;
 	char attr_str[HDMITX_ATTR_LEN_MAX];
@@ -1789,7 +1791,7 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	if (!am_hdmi_info.android_path ||
 		(crtc_state->vrr_enabled && !meson_crtc_state->attr_changed &&
 		!meson_crtc_state->brr_update &&
-		!(adj_mode->flags & DRM_MODE_FLAG_INTERLACE)))
+		!(adj_mode->flags & DRM_MODE_FLAG_INTERLACE)) || priv->pxp_mode)
 		do_valid = false;
 
 

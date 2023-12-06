@@ -1190,7 +1190,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 	ret = of_property_read_u32(priv->dev->of_node, "gamma_ctl", &meson_gamma_ctl);
-	if (!gamma_ctl || !meson_gamma_ctl) {
+	if (!gamma_ctl || !meson_gamma_ctl || priv->pxp_mode) {
 		DRM_INFO("skip gamma init\n");
 	} else {
 		amvecm_drm_init(0);

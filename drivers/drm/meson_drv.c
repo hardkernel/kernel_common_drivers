@@ -101,6 +101,8 @@ static const struct drm_mode_config_funcs meson_mode_config_funcs = {
 #else
 	.fb_create           = drm_gem_fb_create,
 #endif
+	.get_format_info     = am_meson_get_format_info,
+
 };
 
 static const struct drm_mode_config_helper_funcs meson_mode_config_helpers = {
@@ -159,6 +161,7 @@ static const struct drm_ioctl_desc meson_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MESON_TESTATTR, am_meson_mode_testattr_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(MESON_GET_VRR_RANGE, am_meson_get_vrr_range_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(MESON_RMFB, am_meson_mode_rmfb_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(MESON_ADDFB2, am_meson_mode_addfb2_ioctl, 0),
 	#if IS_ENABLED(CONFIG_SYNC_FILE)
 	DRM_IOCTL_DEF_DRV(MESON_DMABUF_EXPORT_SYNC_FILE, am_meson_dmabuf_export_sync_file_ioctl,
 			  DRM_MASTER),
@@ -553,7 +556,6 @@ static int am_meson_drv_probe(struct platform_device *pdev)
 	struct component_match *match = NULL;
 	int i;
 
-	DRM_DEBUG("%s in[%d]\n", __func__, __LINE__);
 	if (am_meson_drv_use_osd())
 		return am_meson_drv_probe_prune(pdev);
 
@@ -606,7 +608,6 @@ static int am_meson_drv_probe(struct platform_device *pdev)
 		am_meson_add_endpoints(dev, &match, port);
 		of_node_put(port);
 	}
-	DRM_DEBUG("%s out[%d]\n", __func__, __LINE__);
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	disable_vout_mode_set_sysfs();
 #endif

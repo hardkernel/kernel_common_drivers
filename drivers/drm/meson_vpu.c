@@ -493,6 +493,24 @@ static const struct meson_vpu_data vpu_txhd2_data = {
 	.osd_formats = &osd_formats,
 	.video_formats = &video_formats,
 };
+
+static const struct meson_vpu_data vpu_s7d_data = {
+		.crtc_func = {
+		.reg_ops = common_reg_ops,
+	},
+	.pipe_ops = &g12a_vpu_pipeline_ops,
+	.osd_ops = &s7d_osd_ops,
+	.gfcd_ops = &gfcd_ops,
+	.afbc_ops = &s7d_afbc_ops,
+	.scaler_ops = &scaler_ops,
+	.osdblend_ops = &osdblend_ops,
+	.hdr_ops = &hdr_ops,
+	.dv_ops = &db_ops,
+	.postblend_ops = &postblend_ops,
+	.video_ops = &video_ops,
+	.osd_formats = &osd_formats_s7d,
+	.video_formats = &video_formats,
+};
 #endif
 
 static const struct meson_vpu_data vpu_s1a_data = {
@@ -557,6 +575,8 @@ static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
 	 .data = &vpu_t5m_data,},
 	{.compatible = "amlogic, meson-s7-vpu",
 	  .data = &vpu_s7_data,},
+	{.compatible = "amlogic, meson-s7d-vpu",
+	  .data = &vpu_s7d_data,},
 #endif
 	{.compatible = "amlogic, meson-s1a-vpu",
 	  .data = &vpu_s1a_data,},

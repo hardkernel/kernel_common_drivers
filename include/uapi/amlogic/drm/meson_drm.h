@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
- * Copyright © 2019-2022 Amlogic Inc.
+ * Copyright (c) 2019-2022 Amlogic Inc.
  */
 
 #ifndef _MESON_DRM_H_
 #define _MESON_DRM_H_
 
 #include <drm/drm.h>
+#include <drm/drm_fourcc.h>
 
 /* Use flags */
 #define MESON_USE_NONE			0
@@ -26,6 +27,9 @@
 #define FBIOGET_DISPLAY_MODE             0x4580
 
 #define MAX_VRR_MODE_GROUP 12
+/* 40 bpp RGB */
+#define DRM_FORMAT_RGBA10101010	fourcc_code('A', 'B', '4', '0')
+		/* [39:0] A:B:G:R 10:10:10:10 little endian */
 
 /**
  * User-desired buffer creation information structure.
@@ -123,6 +127,8 @@ struct drm_meson_plane_mute {
 		0x01, unsigned int)
 #define DRM_IOCTL_MESON_DMABUF_EXPORT_SYNC_FILE	DRM_IOWR(DRM_COMMAND_BASE + \
 		0x02, struct drm_meson_dma_buf_export_sync_file)
+#define DRM_IOCTL_MESON_ADDFB2	DRM_IOWR(DRM_COMMAND_BASE + \
+		0x03, struct drm_mode_fb_cmd2)
 
 /*KMS related.*/
 #define DRM_IOCTL_MESON_ASYNC_ATOMIC    DRM_IOWR(DRM_COMMAND_BASE + \

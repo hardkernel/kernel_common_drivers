@@ -1,6 +1,8 @@
 # aml_drm.ko
   drm_connector_list_iter_end
   drm_wait_one_vblank
+  drm_get_format_info
+  drm_format_info_min_pitch
 
 # amlogic-memory-debug.ko
   bpf_trace_run9

@@ -169,9 +169,9 @@ static void parse_vpu_node(struct device_node *child_node,
 		}
 		para->outputs_mask = out_mask;
 	}
-	DRM_DEBUG("id=%d,index=%d,num_in_links=%d,num_out_links=%d\n",
+	DRM_DEBUG("id=%d,index=%d,num_in_links=%d,num_out_links=%d, name=%s\n",
 		 para->id, para->index,
-		para->num_inputs, para->num_outputs);
+		para->num_inputs, para->num_outputs, para->name);
 	DRM_DEBUG("in_mask=0x%llx,out_mask=0x%llx\n", in_mask, out_mask);
 }
 
@@ -277,6 +277,18 @@ meson_vpu_create_block(struct meson_vpu_block_para *para,
 
 		mvb = create_block(blk_size, para, ops, pipeline);
 		pipeline->slice2ppc = to_slice2ppc_block(mvb);
+		break;
+	case MESON_BLK_GFCD:
+		blk_size = sizeof(struct meson_vpu_gfcd);
+		if (pipeline->priv && pipeline->priv->vpu_data &&
+		    pipeline->priv->vpu_data->gfcd_ops)
+			ops = pipeline->priv->vpu_data->gfcd_ops;
+		else
+			ops = &gfcd_ops;
+
+		mvb = create_block(blk_size, para, ops, pipeline);
+		pipeline->gfcd[mvb->index] = to_gfcd_block(mvb);
+		pipeline->num_gfcd++;
 		break;
 	case MESON_BLK_VIDEO:
 		blk_size = sizeof(struct meson_vpu_video);
@@ -571,6 +583,11 @@ void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline)
 
 	if (pipeline->slice2ppc)
 		VPU_PIPELINE_HW_INIT(&pipeline->slice2ppc->base);
+
+	for (i = 0; i < pipeline->num_gfcd; i++) {
+		if (pipeline->gfcd[i])
+			VPU_PIPELINE_HW_INIT(&pipeline->gfcd[i]->base);
+	}
 }
 
 void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline)

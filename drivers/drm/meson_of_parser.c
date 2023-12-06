@@ -137,6 +137,9 @@ void meson_of_init(struct device *vpu_dev, struct drm_device *dev,
 	ret = of_property_read_u8(dev->dev->of_node,
 				"remove_get_vblank_timestamp", &priv->remove_get_vblank_timestamp);
 
+	ret = of_property_read_u32(dev->dev->of_node,
+					"pxp_mode", &priv->pxp_mode);
+
 	am_meson_vpu_get_plane_crtc_mask(priv, "crtcmask_of_osd",
 		pipeline->num_osds, conf->crtcmask_osd);
 	am_meson_vpu_get_plane_crtc_mask(priv, "crtcmask_of_video",

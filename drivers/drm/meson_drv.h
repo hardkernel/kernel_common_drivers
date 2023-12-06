@@ -121,6 +121,8 @@ struct meson_drm {
 	u32 osd_occupied_index;
 	u8 dummyl_from_hdmitx;
 	u8 remove_get_vblank_timestamp;
+
+	u32 pxp_mode;
 };
 
 /*component bind functions*/

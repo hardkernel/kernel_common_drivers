@@ -439,6 +439,59 @@ meson_vpu_slice2ppc_state_init(struct meson_drm *private,
 /*slice2ppc block state ops end
  */
 
+/* gfcd block */
+static struct drm_private_state *
+meson_vpu_gfcd_atomic_duplicate_state(struct drm_private_obj *obj)
+{
+	struct meson_vpu_block *mvb;
+	struct meson_vpu_gfcd_state *state;
+
+	mvb = priv_to_block(obj);
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state->base.pblk = mvb;
+
+	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base.obj);
+	vpu_pipeline_state_set(mvb, &state->base);
+
+	return &state->base.obj;
+}
+
+static void
+meson_vpu_gfcd_atomic_destroy_state(struct drm_private_obj *obj,
+					 struct drm_private_state *state)
+{
+	struct meson_vpu_block_state *mvbs = priv_to_block_state(state);
+	struct meson_vpu_gfcd_state *mvss = to_gfcd_state(mvbs);
+
+	kfree(mvss);
+}
+
+static const struct drm_private_state_funcs meson_vpu_gfcd_obj_funcs = {
+	.atomic_duplicate_state = meson_vpu_gfcd_atomic_duplicate_state,
+	.atomic_destroy_state = meson_vpu_gfcd_atomic_destroy_state,
+};
+
+static int
+meson_vpu_gfcd_state_init(struct meson_drm *private,
+			       struct meson_vpu_gfcd *gfcd)
+{
+	struct meson_vpu_gfcd_state *state;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return -ENOMEM;
+
+	state->base.pblk = &gfcd->base;
+	drm_atomic_private_obj_init(private->drm, &gfcd->base.obj,
+				    &state->base.obj,
+				    &meson_vpu_gfcd_obj_funcs);
+	return 0;
+}
+
+/*gfcd block state ops end
+ */
+
 static struct drm_private_state *
 meson_vpu_pipeline_atomic_duplicate_state(struct drm_private_obj *obj)
 {
@@ -650,5 +703,12 @@ int meson_vpu_block_state_init(struct meson_drm *private,
 			return ret;
 	}
 
+	for (i = 0; i < pipeline->num_gfcd; i++) {
+		if (pipeline->gfcd[i]) {
+			ret = meson_vpu_gfcd_state_init(private, pipeline->gfcd[i]);
+			if (ret)
+				return ret;
+		}
+	}
 	return 0;
 }

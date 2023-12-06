@@ -22,6 +22,18 @@
 #include "meson_gem.h"
 #include "meson_logo.h"
 
+static int force_gfcd_mode;
+module_param(force_gfcd_mode, int, 0664);
+MODULE_PARM_DESC(force_gfcd_mode, "force_gfcd_mode");
+
+static int force_dst_w;
+module_param(force_dst_w, int, 0664);
+MODULE_PARM_DESC(force_dst_w, "force_dst_w");
+
+static int force_dst_h;
+module_param(force_dst_h, int, 0664);
+MODULE_PARM_DESC(force_dst_h, "force_dst_h");
+
 static u64 afbc_modifier[] = {
 	/*
 	 * - TOFIX Support AFBC modifiers for YUV formats (16x16 + TILED)
@@ -56,6 +68,10 @@ static u64 afbc_modifier[] = {
 				AFBC_FORMAT_MOD_YTR |
 				AFBC_FORMAT_MOD_SPARSE |
 				AFBC_FORMAT_MOD_SPLIT),
+	//AFRC
+	DRM_FORMAT_MOD_ARM_AFRC(AFRC_FORMAT_MOD_CU_SIZE_16),
+	DRM_FORMAT_MOD_ARM_AFRC(AFRC_FORMAT_MOD_CU_SIZE_24),
+	DRM_FORMAT_MOD_ARM_AFRC(AFRC_FORMAT_MOD_CU_SIZE_32),
 	DRM_FORMAT_MOD_LINEAR,
 	DRM_FORMAT_MOD_INVALID
 };
@@ -138,6 +154,26 @@ u32 supported_drm_formats_v4[] = {
 	DRM_FORMAT_RGBA1010102,
 	DRM_FORMAT_ABGR2101010,
 	DRM_FORMAT_C8,
+};
+
+/* default groups + 10101010 format for s7d*/
+u32 supported_drm_formats_v5[] = {
+	DRM_FORMAT_RGBA10101010,
+	DRM_FORMAT_RGBA1010102,
+	DRM_FORMAT_ARGB2101010,
+	DRM_FORMAT_ABGR2101010,
+	DRM_FORMAT_BGRA1010102,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
+	DRM_FORMAT_RGB565,
 };
 
 static u64 video_fbc_modifier[] = {
@@ -282,6 +318,11 @@ struct meson_plane_supported_formats osd_formats_s1a = {
 	.format_num = ARRAY_SIZE(supported_drm_formats_v4),
 };
 
+struct meson_plane_supported_formats osd_formats_s7d = {
+	.formats = supported_drm_formats_v5,
+	.format_num = ARRAY_SIZE(supported_drm_formats_v5),
+};
+
 struct meson_plane_supported_formats video_formats = {
 	.formats = video_supported_drm_formats,
 	.format_num = ARRAY_SIZE(video_supported_drm_formats),
@@ -322,6 +363,11 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 	plane_info->dst_y = state->crtc_y;
 	plane_info->dst_w = state->crtc_w;
 	plane_info->dst_h = state->crtc_h;
+
+	if (force_dst_w)
+		plane_info->dst_w = force_dst_w;
+	if (force_dst_h)
+		plane_info->dst_h = force_dst_h;
 	plane_info->rotation = state->rotation;
 	DRM_DEBUG("original destination: dst_x=%d, dst_y=%d, dst_w=%d, dst_h=%d\n",
 		plane_info->dst_x, plane_info->dst_y, plane_info->dst_w, plane_info->dst_h);
@@ -662,36 +708,58 @@ static int meson_plane_get_fb_info(struct drm_plane *plane,
 	}
 	plane_info->pixel_format = fb->format->format;
 	plane_info->byte_stride = fb->pitches[0];
-	plane_info->afbc_en = 0;
-	plane_info->afbc_inter_format = 0;
 	plane_info->fb_w = fb->width;
 	plane_info->fb_h = fb->height;
 
-	/*setup afbc info*/
+	plane_info->afbc_en = 0;
+	plane_info->afbc_inter_format = 0;
+	plane_info->process_unit = MIF_MODE;
+	plane_info->afrc_cu_bits = 0;
+
 	if (fb->modifier) {
-		plane_info->afbc_en = 1;
-		plane_info->afbc_inter_format = AFBC_EN;
+		//afrc
+		if ((fb->modifier >> 52 & 0xf) ==
+			DRM_FORMAT_MOD_ARM_TYPE_AFRC) {
+			if ((fb->modifier & AFRC_FORMAT_MOD_CU_SIZE_MASK) ==
+				AFRC_FORMAT_MOD_CU_SIZE_16)
+				plane_info->afrc_cu_bits = 0;
+			else if ((fb->modifier & AFRC_FORMAT_MOD_CU_SIZE_MASK) ==
+				AFRC_FORMAT_MOD_CU_SIZE_24)
+				plane_info->afrc_cu_bits = 1;
+			else if ((fb->modifier & AFRC_FORMAT_MOD_CU_SIZE_MASK) ==
+				AFRC_FORMAT_MOD_CU_SIZE_32)
+				plane_info->afrc_cu_bits = 2;
+
+			plane_info->process_unit = GFCD_AFRC;
+		} else {
+			if (force_gfcd_mode) {
+				plane_info->process_unit = GFCD_AFBC;
+			} else {
+				plane_info->afbc_en = 1;
+				plane_info->afbc_inter_format = AFBC_EN;
+			}
+
+			if (fb->modifier & AFBC_FORMAT_MOD_YTR)
+				plane_info->afbc_inter_format |= YUV_TRANSFORM;
+
+			if (fb->modifier & AFBC_FORMAT_MOD_SPLIT)
+				plane_info->afbc_inter_format |= BLOCK_SPLIT;
+
+			if (fb->modifier & AFBC_FORMAT_MOD_TILED)
+				plane_info->afbc_inter_format |= TILED_HEADER_EN;
+
+			if ((fb->modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK) ==
+			    AFBC_FORMAT_MOD_BLOCK_SIZE_32x8)
+				plane_info->afbc_inter_format |= SUPER_BLOCK_ASPECT;
+		}
 	}
 
-	if (fb->modifier & AFBC_FORMAT_MOD_YTR)
-		plane_info->afbc_inter_format |= YUV_TRANSFORM;
-
-	if (fb->modifier & AFBC_FORMAT_MOD_SPLIT)
-		plane_info->afbc_inter_format |= BLOCK_SPLIT;
-
-	if (fb->modifier & AFBC_FORMAT_MOD_TILED)
-		plane_info->afbc_inter_format |= TILED_HEADER_EN;
-
-	if ((fb->modifier & AFBC_FORMAT_MOD_BLOCK_SIZE_MASK) ==
-	    AFBC_FORMAT_MOD_BLOCK_SIZE_32x8)
-		plane_info->afbc_inter_format |= SUPER_BLOCK_ASPECT;
-
 	DRM_DEBUG("flags:%d pixel_format:%d,modifier=%llu\n",
-		  fb->flags, fb->format->format,
-				fb->modifier);
+		  fb->flags, fb->format->format, fb->modifier);
 	DRM_DEBUG("plane afbc_en=%u, afbc_inter_format=%x\n",
 		  plane_info->afbc_en, plane_info->afbc_inter_format);
-
+	DRM_DEBUG("process_unit=%d, afrc_cu_bits=%d\n",
+		  plane_info->process_unit, plane_info->afrc_cu_bits);
 	DRM_DEBUG("phy_addr=0x%pa,byte_stride=%d,pixel_format=%d\n",
 		  &plane_info->phy_addr, plane_info->byte_stride,
 		  plane_info->pixel_format);
@@ -962,11 +1030,14 @@ bool am_meson_vpu_check_format_mod(struct drm_plane *plane,
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ABGR8888:
 	case DRM_FORMAT_ABGR2101010:
+	case DRM_FORMAT_RGBA10101010:
+	case DRM_FORMAT_RGBA1010102:
+	case DRM_FORMAT_RGBA8888:
 		return true;
 	case DRM_FORMAT_RGB888:
 		/* YTR is forbidden for non XBGR formats */
-		if (modifier & AFBC_FORMAT_MOD_YTR)
-			return false;
+		//if (modifier & AFBC_FORMAT_MOD_YTR)
+		//	return false;
 		return true;
 	case DRM_FORMAT_RGB565:
 		/* YTR is forbidden for non XBGR formats */
@@ -1093,6 +1164,7 @@ static void meson_osd_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tafbc_inter_format=%u\n",
 					plane_info->afbc_inter_format);
 	drm_printf(p, "\t\tafbc_en=%u\n", plane_info->afbc_en);
+	drm_printf(p, "\t\tprocess_unit=%u\n", plane_info->process_unit);
 	drm_printf(p, "\t\tfb_size=%u\n", plane_info->fb_size);
 	drm_printf(p, "\t\tpixel_blend=%u\n", plane_info->pixel_blend);
 	drm_printf(p, "\t\trotation=%u\n", plane_info->rotation);

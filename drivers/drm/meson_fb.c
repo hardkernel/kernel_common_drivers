@@ -8,6 +8,11 @@
 #include "meson_fb.h"
 #include "meson_vpu.h"
 
+static const struct drm_format_info meson_formats[] = {
+	{ .format = DRM_FORMAT_RGBA10101010,	.depth = 40, .num_planes = 1,
+		.cpp = { 5, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true },
+};
+
 void am_meson_fb_destroy(struct drm_framebuffer *fb)
 {
 	struct am_meson_fb *meson_fb = to_am_meson_fb(fb);
@@ -192,4 +197,252 @@ int am_meson_mode_rmfb_ioctl(struct drm_device *dev,
 	u32 *fb_id = data;
 
 	return am_meson_mode_rmfb(dev, *fb_id, file_priv);
+}
+
+static const struct drm_format_info *
+lookup_format_info(const struct drm_format_info formats[],
+		   int num_formats, u32 format)
+{
+	int i;
+
+	for (i = 0; i < num_formats; i++) {
+		if (formats[i].format == format)
+			return &formats[i];
+	}
+
+	return NULL;
+}
+
+const struct drm_format_info *
+am_meson_get_format_info(const struct drm_mode_fb_cmd2 *cmd)
+{
+	return lookup_format_info(meson_formats,
+				  ARRAY_SIZE(meson_formats),
+				  cmd->pixel_format);
+}
+
+static int fb_plane_width(int width,
+			  const struct drm_format_info *format, int plane)
+{
+	if (plane == 0)
+		return width;
+
+	return DIV_ROUND_UP(width, format->hsub);
+}
+
+static int fb_plane_height(int height,
+			   const struct drm_format_info *format, int plane)
+{
+	if (plane == 0)
+		return height;
+
+	return DIV_ROUND_UP(height, format->vsub);
+}
+
+static int meson_framebuffer_check(struct drm_device *dev,
+			     const struct drm_mode_fb_cmd2 *r)
+{
+	const struct drm_format_info *info;
+	int i;
+
+	/* check if the format is supported at all */
+	if (!drm_get_format_info(dev, r)) {
+		DRM_DEBUG_KMS("bad framebuffer format %d\n",
+			      r->pixel_format);
+		return -EINVAL;
+	}
+
+	if (r->width == 0) {
+		DRM_DEBUG_KMS("bad framebuffer width %u\n", r->width);
+		return -EINVAL;
+	}
+
+	if (r->height == 0) {
+		DRM_DEBUG_KMS("bad framebuffer height %u\n", r->height);
+		return -EINVAL;
+	}
+
+	/* now let the driver pick its own format info */
+	info = drm_get_format_info(dev, r);
+
+	for (i = 0; i < info->num_planes; i++) {
+		unsigned int width = fb_plane_width(r->width, info, i);
+		unsigned int height = fb_plane_height(r->height, info, i);
+		unsigned int block_size = info->char_per_block[i];
+		u64 min_pitch = drm_format_info_min_pitch(info, i, width);
+
+		if (!block_size && r->modifier[i] == DRM_FORMAT_MOD_LINEAR) {
+			DRM_DEBUG_KMS("Format requires non-linear modifier for plane %d\n", i);
+			return -EINVAL;
+		}
+
+		if (!r->handles[i]) {
+			DRM_DEBUG_KMS("no buffer object handle for plane %d\n", i);
+			return -EINVAL;
+		}
+
+		if (min_pitch > UINT_MAX)
+			return -ERANGE;
+
+		if ((uint64_t)height * r->pitches[i] + r->offsets[i] > UINT_MAX)
+			return -ERANGE;
+
+		if (block_size && r->pitches[i] < min_pitch) {
+			DRM_DEBUG_KMS("bad pitch %u for plane %d %lld\n",
+				r->pitches[i], i, min_pitch);
+			return -EINVAL;
+		}
+
+		if (r->modifier[i] && !(r->flags & DRM_MODE_FB_MODIFIERS)) {
+			DRM_DEBUG_KMS("bad fb modifier %llu for plane %d\n",
+				      r->modifier[i], i);
+			return -EINVAL;
+		}
+
+		if (r->flags & DRM_MODE_FB_MODIFIERS &&
+		    r->modifier[i] != r->modifier[0]) {
+			DRM_DEBUG_KMS("bad fb modifier %llu for plane %d\n",
+				      r->modifier[i], i);
+			return -EINVAL;
+		}
+
+		/* modifier specific checks: */
+		switch (r->modifier[i]) {
+		case DRM_FORMAT_MOD_SAMSUNG_64_32_TILE:
+			/* NOTE: the pitch restriction may be lifted later if it turns
+			 * out that no hw has this restriction:
+			 */
+			if (r->pixel_format != DRM_FORMAT_NV12 ||
+					width % 128 || height % 32 ||
+					r->pitches[i] % 128) {
+				DRM_DEBUG_KMS("bad modifier data for plane %d\n", i);
+				return -EINVAL;
+			}
+			break;
+
+		default:
+			break;
+		}
+	}
+
+	for (i = info->num_planes; i < 4; i++) {
+		if (r->modifier[i]) {
+			DRM_DEBUG_KMS("non-zero modifier for unused plane %d\n", i);
+			return -EINVAL;
+		}
+
+		/* Pre-FB_MODIFIERS userspace didn't clear the structs properly. */
+		if (!(r->flags & DRM_MODE_FB_MODIFIERS))
+			continue;
+
+		if (r->handles[i]) {
+			DRM_DEBUG_KMS("buffer object handle for unused plane %d\n", i);
+			return -EINVAL;
+		}
+
+		if (r->pitches[i]) {
+			DRM_DEBUG_KMS("non-zero pitch for unused plane %d\n", i);
+			return -EINVAL;
+		}
+
+		if (r->offsets[i]) {
+			DRM_DEBUG_KMS("non-zero offset for unused plane %d\n", i);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static struct drm_framebuffer *
+meson_internal_framebuffer_create(struct drm_device *dev,
+				const struct drm_mode_fb_cmd2 *r,
+				struct drm_file *file_priv)
+{
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_framebuffer *fb;
+	int ret;
+
+	if (r->flags & ~(DRM_MODE_FB_INTERLACED | DRM_MODE_FB_MODIFIERS)) {
+		DRM_DEBUG_KMS("bad framebuffer flags 0x%08x\n", r->flags);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (config->min_width > r->width || r->width > config->max_width) {
+		DRM_DEBUG_KMS("bad framebuffer width %d, should be >= %d && <= %d\n",
+			  r->width, config->min_width, config->max_width);
+		return ERR_PTR(-EINVAL);
+	}
+	if (config->min_height > r->height || r->height > config->max_height) {
+		DRM_DEBUG_KMS("bad framebuffer height %d, should be >= %d && <= %d\n",
+			  r->height, config->min_height, config->max_height);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (r->flags & DRM_MODE_FB_MODIFIERS &&
+	    !dev->mode_config.allow_fb_modifiers) {
+		DRM_DEBUG_KMS("driver does not support fb modifiers\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	ret = meson_framebuffer_check(dev, r);
+	if (ret)
+		return ERR_PTR(ret);
+
+	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
+	if (IS_ERR(fb)) {
+		DRM_DEBUG_KMS("could not create framebuffer\n");
+		return fb;
+	}
+
+	return fb;
+}
+
+static int meson_mode_addfb2(struct drm_device *dev,
+		    void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_fb_cmd2 *r = data;
+	struct drm_framebuffer *fb;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EOPNOTSUPP;
+
+	fb = meson_internal_framebuffer_create(dev, r, file_priv);
+	if (IS_ERR(fb))
+		return PTR_ERR(fb);
+
+	DRM_DEBUG_KMS("[FB:%d]\n", fb->base.id);
+	r->fb_id = fb->base.id;
+
+	/* Transfer ownership to the filp for reaping on close */
+	mutex_lock(&file_priv->fbs_lock);
+	list_add(&fb->filp_head, &file_priv->fbs);
+	mutex_unlock(&file_priv->fbs_lock);
+
+	return 0;
+}
+
+int am_meson_mode_addfb2_ioctl(struct drm_device *dev,
+			  void *data, struct drm_file *file_priv)
+{
+#ifdef __BIG_ENDIAN
+	if (!dev->mode_config.quirk_addfb_prefer_host_byte_order) {
+		/*
+		 * Drivers must set the
+		 * quirk_addfb_prefer_host_byte_order quirk to make
+		 * the drm_mode_addfb() compat code work correctly on
+		 * bigendian machines.
+		 *
+		 * If they don't they interpret pixel_format values
+		 * incorrectly for bug compatibility, which in turn
+		 * implies the ADDFB2 ioctl does not work correctly
+		 * then.  So block it to make userspace fallback to
+		 * ADDFB.
+		 */
+		DRM_DEBUG_KMS("addfb2 broken on bigendian");
+		return -EOPNOTSUPP;
+	}
+#endif
+
+	return meson_mode_addfb2(dev, data, file_priv);
 }

@@ -350,7 +350,7 @@ struct osd_mif_reg_s {
 /**
  * struct meson_drm_format_info - information about a DRM format
  * @format: 4CC format identifier (DRM_FORMAT_*)
- * @hw_blkmode: Define the OSD block’s input pixel format
+ * @hw_blkmode: Define the OSD block's input pixel format
  * @hw_colormat: Applicable only to 16-bit color mode (OSD_BLK_MODE=4),
  *	32-bit mode (OSD_BLK_MODE=5) and 24-bit mode (OSD_BLK_MODE=7),
  *	defines the bit-field allocation of the pixel data.
@@ -358,6 +358,8 @@ struct osd_mif_reg_s {
 struct meson_drm_format_info {
 	u32 format;
 	u8 hw_blkmode;
+	u8 gfcd_hw_blkmode_afbc;
+	u8 gfcd_hw_blkmode_afrc;
 	u8 hw_colormat;
 	u8 alpha_replace;
 };
@@ -380,6 +382,16 @@ enum osd_blk_mode_e {
 	BLOCK_MODE_RGB888 = 7,
 	BLOCK_MODE_YUV422_10BIT,
 	BLOCK_MODE_RGBA1010102,
+	/*gfcd afbc mode*/
+	GFCD_AFBC_BLOCK_MODE_RGBA8888 = 0,
+	GFCD_AFBC_BLOCK_MODE_RGBA1010102,
+	GFCD_AFBC_BLOCK_MODE_RGB888,
+	GFCD_AFBC_BLOCK_MODE_RGBA10101010,
+	/*gfcd afrc mode*/
+	GFCD_AFRC_BLOCK_MODE_RGBA8888 = 0,
+	GFCD_AFRC_BLOCK_MODE_RGBA10101010,
+
+	BLOCK_MODE_RESERVED = 0xff,
 };
 
 enum osd_color_matrix_e {

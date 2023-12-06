@@ -1717,6 +1717,23 @@ static void t3x_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 
 	MESON_DRM_BLOCK("%s hw_init called.\n", afbc->base.name);
 }
+
+static void s7d_osd_afbc_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_pipeline *pipeline = vblk->pipeline;
+	struct meson_vpu_afbc *afbc = to_afbc_block(vblk);
+
+	afbc->afbc_regs = &afbc_osd_regs[vblk->index];
+	afbc->status_regs = &afbc_status_regs;
+	afbc->shift_bits = 1;
+
+	pipeline->subs[0].reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0, 23, 1);
+
+	/* disable osd1 afbc */
+	osd_afbc_enable(vblk, pipeline->subs[0].reg_ops, vblk->index, 0);
+
+	DRM_DEBUG("%s hw_init called.\n", afbc->base.name);
+}
 #endif
 
 void arm_fbc_start(struct meson_vpu_pipeline_state *pipeline_state)
@@ -1810,5 +1827,14 @@ struct meson_vpu_block_ops t3x_afbc_ops = {
 	.disable = t7_osd_afbc_hw_disable,
 	.dump_register = osd_afbc_dump_register,
 	.init = t3x_osd_afbc_hw_init,
+};
+
+struct meson_vpu_block_ops s7d_afbc_ops = {
+	.check_state = osd_afbc_check_state,
+	.update_state = g12a_osd_afbc_set_state,
+	.enable = osd_afbc_hw_enable,
+	.disable = osd_afbc_hw_disable,
+	.dump_register = osd_afbc_dump_register,
+	.init = s7d_osd_afbc_hw_init,
 };
 #endif

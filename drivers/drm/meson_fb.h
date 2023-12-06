@@ -41,4 +41,8 @@ am_meson_fb_alloc(struct drm_device *dev,
 int am_meson_mode_rmfb_ioctl(struct drm_device *dev,
 			void *data, struct drm_file *file_priv);
 
+const struct drm_format_info *
+am_meson_get_format_info(const struct drm_mode_fb_cmd2 *cmd);
+int am_meson_mode_addfb2_ioctl(struct drm_device *dev,
+			  void *data, struct drm_file *file_priv);
 #endif
