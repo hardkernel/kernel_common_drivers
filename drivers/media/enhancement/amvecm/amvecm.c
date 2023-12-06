@@ -11966,15 +11966,17 @@ struct gamma_data_s *get_gm_data(void)
 void amvecm_gamma_init(bool en)
 {
 	unsigned int i, j, k;
-	unsigned short data[256];
+	unsigned short data[257];
 	unsigned short temp;
 	struct gamma_data_s *p_gm;
 
 	if (chip_cls_id == STB_CHIP)
 		return;
 
-	for (i = 0; i < 256; i++) {
+	for (i = 0; i < 257; i++) {
 		data[i] = i << 2;
+		if (data[i] >= (1 << 10))
+			data[i] = (1 << 10) - 1;
 		video_gamma_table_r.data[i] = data[i];
 		video_gamma_table_g.data[i] = data[i];
 		video_gamma_table_b.data[i] = data[i];
@@ -13232,7 +13234,7 @@ int __init aml_vecm_init(void)
 {
 	/*unsigned int hiu_reg_base;*/
 
-	pr_info("%s:module init_20230911-0\n", __func__);
+	pr_info("%s:module init_20231206-0\n", __func__);
 
 	if (platform_driver_register(&aml_vecm_driver)) {
 		pr_err("failed to register bl driver module\n");
