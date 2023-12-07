@@ -53,6 +53,9 @@ housekeeping_cpumask_pre_handler(struct kprobe *p, struct pt_regs *regs)
 
 static struct kprobe kp_housekeeping_cpumask = {
 	.symbol_name = "housekeeping_cpumask",
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+	.offset = 0x4,
+#endif
 	.pre_handler = housekeeping_cpumask_pre_handler,
 };
 
