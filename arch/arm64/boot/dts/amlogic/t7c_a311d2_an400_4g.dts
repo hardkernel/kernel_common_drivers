@@ -1783,7 +1783,7 @@
 	max-frequency = <200000000>;
 
 	disable-wp;
-
+	use_intf3_tuning;
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
 	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&sd_3v3>;
