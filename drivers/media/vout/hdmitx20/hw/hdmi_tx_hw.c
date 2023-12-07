@@ -698,6 +698,9 @@ static int hdmitx_validate_mode(struct hdmitx_hw_common *tx_hw, u32 vic)
 static int hdmitx_calc_formatpara(struct hdmitx_hw_common *tx_hw,
 	struct hdmi_format_para *para)
 {
+	if (!tx_hw || !para)
+		return -EINVAL;
+
 	/*update tmds clock.*/
 	para->tmds_clk = hdmitx_calc_tmds_clk(para->timing.pixel_freq,
 		para->cs, para->cd);
@@ -2452,6 +2455,7 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 	case HDMI_PACKET_AVI:
 		break;
 	case HDMI_PACKET_VEND:
+	case HDMI_INFOFRAME_TYPE_VENDOR:
 	/* 21 allm will use vendor2 */
 	case HDMI_INFOFRAME_TYPE_VENDOR2:
 		if (!DB || !HB) {
@@ -5466,7 +5470,7 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 	case CONF_GET_AVI_BT2020:
 		if (((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xC0) == 0xC0) &&
 		    ((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0x70) == 0x60))
-			ret = 1;
+			ret = HDMI_EXTENDED_COLORIMETRY_BT2020;
 		else
 			ret = 0;
 		break;
@@ -5493,23 +5497,19 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, argv, 2, 2);
 		break;
 	case CONF_CT_MODE:
-		if (argv == SET_CT_OFF) {
+		if ((argv & 0xF) == SET_CT_OFF) {
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 0, 7, 1);
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, 0, 0, 2);
-		}
-		if (argv == SET_CT_GAME) {
+		} else if ((argv & 0xF) == SET_CT_GAME) {
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 1, 7, 1);
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, 3, 0, 2);
-		}
-		if (argv == SET_CT_GRAPHICS) {
+		} else if ((argv & 0xF) == SET_CT_GRAPHICS) {
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 1, 7, 1);
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, 0, 0, 2);
-		}
-		if (argv == SET_CT_PHOTO) {
+		} else if ((argv & 0xF) == SET_CT_PHOTO) {
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 1, 7, 1);
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, 1, 0, 2);
-		}
-		if (argv == SET_CT_CINEMA) {
+		} else if ((argv & 0xF) == SET_CT_CINEMA) {
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 1, 7, 1);
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF3, 2, 0, 2);
 		}

@@ -28,7 +28,7 @@
 			} \
 		} \
 		if (cnt < 9) \
-			pr_info("pll[0x%x] reset %d times\n", reg, 9 - cnt);\
+			HDMITX_INFO("pll[0x%x] reset %d times\n", reg, 9 - cnt);\
 	} while (0)
 
 static const char od_map[9] = {
@@ -94,7 +94,7 @@ void set21_s7_htxpll_clk_out(const u32 clk, u32 div)
 	cs = para->cs;
 	cd = para->cd;
 
-	pr_info("%s[%d] htxpll vco %d div %d\n", __func__, __LINE__, clk, div);
+	HDMITX_INFO("%s[%d] htxpll vco %d div %d\n", __func__, __LINE__, clk, div);
 
 	if (clk <= 3000000 || clk > 6000000) {
 		pr_err("%s[%d] %d out of htxpll range(3~6G]\n", __func__, __LINE__, clk);
@@ -155,7 +155,7 @@ void set21_s7_htxpll_clk_out(const u32 clk, u32 div)
 		pll_od3 = 2;//pll_div3 = 7.5;
 
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 1, 19, 1);
-	pr_info("pll_od1 = %d, pll_od2 = %d, pll_od3 = %d\n",
+	HDMITX_INFO("pll_od1 = %d, pll_od2 = %d, pll_od3 = %d\n",
 		pll_od1, pll_od2, pll_od3);
 	if (hdev->tx_hw.s7_clk_config)
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, pll_od3, 9, 2);
@@ -242,7 +242,7 @@ void set21_hpll_sspll_s7(enum hdmi_vic vic)
  */
 static int gate_bit_mask = 0x01c7f;
 module_param(gate_bit_mask, int, 0644);
-MODULE_PARM_DESC(gate_bit_mask, "for hdcp debug");
+MODULE_PARM_DESC(gate_bit_mask, "for gate_bit_mask");
 
 void hdmitx_s7_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en)
 {

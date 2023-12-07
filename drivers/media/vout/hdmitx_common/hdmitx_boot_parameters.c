@@ -223,3 +223,23 @@ static int hdmitx_boot_edid_check(char *str)
 
 __setup("edid_check=", hdmitx_boot_edid_check);
 
+static int hdmitx_boot_dsc_policy(char *str)
+{
+	unsigned int val = 0;
+
+	if ((strncmp("0", str, 1) == 0) ||
+		(strncmp("1", str, 1) == 0) ||
+		(strncmp("2", str, 1) == 0) ||
+		(strncmp("3", str, 1) == 0) ||
+		(strncmp("4", str, 1) == 0)) {
+		val = str[0] - '0';
+		tx_params.dsc_policy = val;
+		pr_debug("hdmitx boot dsc_policy: %d\n", val);
+	} else {
+		/* default policy */
+		tx_params.dsc_policy = 0;
+	}
+	return 0;
+}
+__setup("dsc_policy=", hdmitx_boot_dsc_policy);
+

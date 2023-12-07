@@ -193,7 +193,7 @@ static void hdmitx20_clear_packets(struct hdmitx_hw_common *tx_hw_base)
 	hdmitx_hw_cntl_config(tx_hw_base, CONF_CLR_AVI_PACKET, 0);
 }
 
-static void hdmitx20_reset_hdcp(struct hdmitx_common *tx_comm)
+static void hdmitx20_ops_disable_hdcp(struct hdmitx_common *tx_comm)
 {
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
 
@@ -246,20 +246,9 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_SUSPEND);
 	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 0);
 
-	/* special process */
-	/* for huawei TV, it will display green screen pattern under
-	 * 4k50/60hz y420 deep color when receive amvute. After disable
-	 * phy of box, TV will continue mute and stay in still frame
-	 * mode for a few frames, if it receives scdc clk ratio change
-	 * during this period, it may recognize it as signal unstable
-	 * instead of no signal, and keep mute pattern for several
-	 * seconds. Here keep hdmi output disabled for a few frames
-	 * so let TV exit its still frame mode and not show pattern
-	 */
-	if (need_rst_ratio) {
-		usleep_range(120000, 120010);
+	if (need_rst_ratio)
 		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_SCDC_DIV40_SCRAMB, 0);
-	}
+
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 }
 
@@ -532,10 +521,10 @@ void hdmitx20_video_mute_op(unsigned int flag)
  */
 static void hdmitx_sdr_hdr_uevent(struct hdmitx_dev *hdev)
 {
-	if (hdev->hdmi_current_hdr_mode != 0) {
+	if (hdev->tx_comm.hdmi_current_hdr_mode != 0) {
 		/* SDR -> HDR*/
 		hdmitx_set_uevent(HDMITX_HDR_EVENT, 1);
-	} else if (hdev->hdmi_current_hdr_mode == 0) {
+	} else if (hdev->tx_comm.hdmi_current_hdr_mode == 0) {
 		/* HDR -> SDR*/
 		hdmitx_set_uevent(HDMITX_HDR_EVENT, 0);
 	}
@@ -580,8 +569,8 @@ static void hdr_work_func(struct work_struct *work)
 		}
 		if (hdev->hdr_transfer_feature == T_BT709 &&
 		    hdev->hdr_color_feature == C_BT709) {
-			hdev->hdmi_current_hdr_mode = 0;
-			hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
+			hdev->tx_comm.hdmi_current_hdr_mode = 0;
+			hdev->tx_comm.hdmi_last_hdr_mode = hdev->tx_comm.hdmi_current_hdr_mode;
 			hdmitx_sdr_hdr_uevent(hdev);
 		} else {
 			HDMITX_INFO("%s: tf=%d, cf=%d\n",
@@ -603,13 +592,6 @@ static void init_drm_db0(struct hdmitx_dev *hdev, unsigned char *dat)
 		once_flag = 0;
 		*dat = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_HDR_TYPE, 0);
 	}
-}
-
-static bool hdmitx_dv_en(void)
-{
-	struct hdmitx_dev *hdev = get_hdmitx_device();
-
-	return (hdmitx_hw_get_dv_st(&hdev->tx_hw.base) & HDMI_DV_TYPE) == HDMI_DV_TYPE;
 }
 
 #define GET_LOW8BIT(a)	((a) & 0xff)
@@ -701,7 +683,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		HDMITX_INFO("%s: disable drm pkt\n", __func__);
 	}
 	/* if VSIF/DV or VSIF/HDR10P packet is enabled, disable it */
-	if (hdmitx_dv_en()) {
+	if (hdmitx_dv_en(&hdev->tx_hw.base)) {
 		hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_AVI_RGBYCC_INDIC,
 			hdev->tx_comm.fmt_para.cs);
 /* if using VSIF/DOVI, then only clear DV_VS10_SIG, else disable VSIF */
@@ -826,16 +808,16 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	}
 
 	/*must clear hdr mode*/
-	hdev->hdmi_current_hdr_mode = 0;
+	hdev->tx_comm.hdmi_current_hdr_mode = 0;
 
 	/* SMPTE ST 2084 and (BT2020 or NON_STANDARD) */
 	if (hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0x4) {
 		if (hdev->hdr_transfer_feature == T_SMPTE_ST_2084 &&
 		    hdev->hdr_color_feature == C_BT2020)
-			hdev->hdmi_current_hdr_mode = 1;
+			hdev->tx_comm.hdmi_current_hdr_mode = 1;
 		else if (hdev->hdr_transfer_feature == T_SMPTE_ST_2084 &&
 			 hdev->hdr_color_feature != C_BT2020)
-			hdev->hdmi_current_hdr_mode = 2;
+			hdev->tx_comm.hdmi_current_hdr_mode = 2;
 	}
 
 	/*HLG and BT2020*/
@@ -843,10 +825,10 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		if (hdev->hdr_color_feature == C_BT2020 &&
 		    (hdev->hdr_transfer_feature == T_BT2020_10 ||
 		     hdev->hdr_transfer_feature == T_HLG))
-			hdev->hdmi_current_hdr_mode = 3;
+			hdev->tx_comm.hdmi_current_hdr_mode = 3;
 	}
 
-	switch (hdev->hdmi_current_hdr_mode) {
+	switch (hdev->tx_comm.hdmi_current_hdr_mode) {
 	case 1:
 		/*standard HDR*/
 		DRM_DB[0] = 0x02; /* SMPTE ST 2084 */
@@ -886,9 +868,9 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	}
 
 	/* if sdr/hdr mode change ,notify uevent to userspace*/
-	if (hdev->hdmi_current_hdr_mode != hdev->hdmi_last_hdr_mode) {
+	if (hdev->tx_comm.hdmi_current_hdr_mode != hdev->tx_comm.hdmi_last_hdr_mode) {
 		/* NOTE: for HDR <-> HLG, also need update last mode */
-		hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
+		hdev->tx_comm.hdmi_last_hdr_mode = hdev->tx_comm.hdmi_current_hdr_mode;
 		if (hdr_mute_frame) {
 			hdmitx20_video_mute_op(0);
 			HDMITX_INFO("SDR->HDR enter mute\n");
@@ -900,9 +882,9 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		schedule_work(&hdev->work_hdr);
 	}
 
-	if (hdev->hdmi_current_hdr_mode == 1 ||
-		hdev->hdmi_current_hdr_mode == 2 ||
-		hdev->hdmi_current_hdr_mode == 3) {
+	if (hdev->tx_comm.hdmi_current_hdr_mode == 1 ||
+		hdev->tx_comm.hdmi_current_hdr_mode == 2 ||
+		hdev->tx_comm.hdmi_current_hdr_mode == 3) {
 		/* currently output y444,8bit or rgb,8bit, and EDID
 		 * support Y422, then switch to y422,12bit mode
 		 */
@@ -2421,14 +2403,6 @@ static ssize_t ready_show(struct device *dev,
 	return pos;
 }
 
-static ssize_t ready_store(struct device *dev,
-			   struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	HDMITX_ERROR("%s should NOT work!\n", __func__);
-	return 0;
-}
-
 /*For hdcp daemon, dont del.*/
 static ssize_t hdmitx_drm_flag_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -2607,33 +2581,24 @@ static ssize_t hdmitx_basic_config_show(struct device *dev,
 	pos += snprintf(buf + pos, PAGE_SIZE, "hdr_status in:");
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR10P, 0);
 	if (type) {
-		if (type == HDMI_HDR10P_DV_VSIF) {
+		if (type == HDMI_HDR10P_DV_VSIF)
 			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10Plus-VSIF");
-			return pos;
-		}
 	}
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_DV, 0);
 	if (type) {
-		if (type == HDMI_DV_VSIF_STD) {
+		if (type == HDMI_DV_VSIF_STD)
 			pos += snprintf(buf + pos, PAGE_SIZE, "DolbyVision-Std");
-			return pos;
-		} else if (type == HDMI_DV_VSIF_LL) {
+		else if (type == HDMI_DV_VSIF_LL)
 			pos += snprintf(buf + pos, PAGE_SIZE, "DolbyVision-Lowlatency");
-			return pos;
-		}
 	}
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR, 0);
 	if (type) {
-		if (type == HDMI_HDR_SMPTE_2084) {
+		if (type == HDMI_HDR_SMPTE_2084)
 			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-GAMMA_ST2084");
-			return pos;
-		} else if (type == HDMI_HDR_HLG) {
+		else if (type == HDMI_HDR_HLG)
 			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-GAMMA_HLG");
-			return pos;
-		} else if (type == HDMI_HDR_HDR) {
+		else if (type == HDMI_HDR_HDR)
 			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-others");
-			return pos;
-		}
 	}
 	/* default is SDR */
 	pos += snprintf(buf + pos, PAGE_SIZE, "SDR");
@@ -3086,7 +3051,7 @@ static DEVICE_ATTR_RW(hdcp_ctrl);
 static DEVICE_ATTR_RO(hdcp_ver);
 static DEVICE_ATTR_RO(rxsense_state);
 static DEVICE_ATTR_RO(max_exceed);
-static DEVICE_ATTR_RW(ready);
+static DEVICE_ATTR_RO(ready);
 static DEVICE_ATTR_RO(hdmi_hsty_config);
 static DEVICE_ATTR_RO(hdmitx_drm_flag);
 static DEVICE_ATTR_RW(hdr_mute_frame);
@@ -3139,7 +3104,7 @@ static struct hdmitx_ctrl_ops tx20_ctrl_ops = {
 	.post_enable_mode = NULL,
 	.disable_mode = NULL,
 	.init_uboot_mode = hdmitx20_init_uboot_mode,
-	.reset_hdcp = hdmitx20_reset_hdcp,
+	.disable_hdcp = hdmitx20_ops_disable_hdcp,
 	.clear_pkt = hdmitx20_clear_packets,
 	.disable_21_work = NULL,
 };
@@ -3449,31 +3414,6 @@ void hdmitx_current_status(enum hdmitx_event_log_bits event)
 	hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer, event);
 }
 
-static void hdmitx_hdr_state_init(struct hdmitx_dev *hdev)
-{
-	enum hdmi_tf_type hdr_type = HDMI_NONE;
-	unsigned int colorimetry = 0;
-	unsigned int hdr_mode = 0;
-
-	hdr_type = hdmitx_hw_get_hdr_st(&hdev->tx_hw.base);
-	colorimetry = hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_GET_AVI_BT2020, 0);
-	/* 1:standard HDR, 2:non-standard, 3:HLG, 0:other */
-	if (hdr_type == HDMI_HDR_SMPTE_2084) {
-		if (colorimetry == 1)
-			hdr_mode = 1;
-		else
-			hdr_mode = 2;
-	} else if (hdr_type == HDMI_HDR_HLG) {
-		if (colorimetry == 1)
-			hdr_mode = 3;
-	} else {
-		hdr_mode = 0;
-	}
-
-	hdev->hdmi_last_hdr_mode = hdr_mode;
-	hdev->hdmi_current_hdr_mode = hdr_mode;
-}
-
 static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 {
 	/* there's common_driver commit id in boot up log */
@@ -3481,8 +3421,8 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 
 	hdmi_dev->hdtx_dev = NULL;
 
-	hdmi_dev->hdmi_last_hdr_mode = 0;
-	hdmi_dev->hdmi_current_hdr_mode = 0;
+	hdmi_dev->tx_comm.hdmi_last_hdr_mode = 0;
+	hdmi_dev->tx_comm.hdmi_current_hdr_mode = 0;
 	/* hdr/vsif packet status init, no need to get actual status,
 	 * force to print function callback for confirmation.
 	 */
@@ -3512,6 +3452,10 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 	hdmi_dev->tx_comm.ctrl_ops = &tx20_ctrl_ops;
 	hdmi_dev->tx_comm.vdev = &hdmitx_vdev;
 	set_dummy_dv_info(&hdmitx_vdev);
+
+	/* not capable of DSC/FRL */
+	hdmi_dev->tx_hw.base.hdmi_tx_cap.dsc_capable = false;
+	hdmi_dev->tx_hw.base.hdmi_tx_cap.tx_max_frl_rate = FRL_NONE;
 
 	return 0;
 }
@@ -3610,7 +3554,14 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 		ret = of_property_read_u32(pdev->dev.of_node, "res_1080p",
 					   &hdev->tx_comm.res_1080p);
 		hdev->tx_comm.res_1080p = !!hdev->tx_comm.res_1080p;
-
+		/* the max tmds cap is 600Mhz by default,
+		 * if soc limit to 1080p maximum, then the
+		 * max tmds cap is 225Mhz
+		 */
+		if (hdev->tx_comm.res_1080p)
+			hdev->tx_comm.tx_hw->hdmi_tx_cap.tx_max_tmds_clk = 225;
+		else
+			hdev->tx_comm.tx_hw->hdmi_tx_cap.tx_max_tmds_clk = 600;
 		ret = of_property_read_u32(pdev->dev.of_node, "max_refreshrate",
 					   &refreshrate_limit);
 		if (ret == 0 && refreshrate_limit > 0)
@@ -3813,7 +3764,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	amhdmitx_device_init(hdev);
 	/*init txcommon*/
 	hdmitx_common_init(tx_comm, &hdev->tx_hw.base);
-
 	ret = amhdmitx_get_dt_info(pdev, hdev);
 	/* if (ret) */
 	/*	return ret; */
@@ -3904,12 +3854,16 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	if (tx_comm->fmt_para.vic != HDMI_0_UNKNOWN)
 		hdev->tx_comm.ready = 1;
 
-	/* update fmt_attr: userspace still need this.*/
+	/* update fmt_attr string from fmt_para, note that fmt_attr is already
+	 * set by hdmitx_common_init() with boot arg, and below is un-necessary,
+	 * and it will set attr sysfs node as empty if hdmitx not enabled under
+	 * uboot as fmt para is in reset state
+	 */
 	hdmitx_format_para_rebuild_fmtattr_str(&hdev->tx_comm.fmt_para,
 		hdev->tx_comm.fmt_attr, sizeof(hdev->tx_comm.fmt_attr));
 
 	/* load init hdr state for HW info */
-	hdmitx_hdr_state_init(hdev);
+	hdmitx_hdr_state_init(tx_comm);
 	hdmitx_vout_init(tx_comm, &hdev->tx_hw.base);
 
 	/* load init audio fmt for HW info */
@@ -4174,7 +4128,7 @@ int  __init amhdmitx_init(void)
 
 void __exit amhdmitx_exit(void)
 {
-	pr_info(SYS "%s...\n", __func__);
+	HDMITX_INFO(SYS "%s\n", __func__);
 	platform_driver_unregister(&amhdmitx_driver);
 }
 

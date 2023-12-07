@@ -416,6 +416,7 @@ static void am_hdmitx_set_hdmi_mode(void)
 		return;
 	}
 
+	/* TODO: sync meson_hdmi.c meson_hdmitx_encoder_atomic_enable() */
 	set_vout_mode_pre_process(vmode);
 	set_vout_vmode(vmode);
 	set_vout_mode_post_process(vmode);
@@ -441,6 +442,7 @@ static void am_hdmitx_set_out_mode(void)
 		last_hdcp_mode = meson_hdcp.hdcp_execute_type;
 		meson_hdcp_disable();
 	}
+	/* TODO: sync meson_hdmi.c meson_hdmitx_encoder_atomic_enable() */
 	set_vout_mode_pre_process(vmode);
 	set_vout_vmode(vmode);
 	set_vout_mode_post_process(vmode);
