@@ -3115,6 +3115,9 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 		vd_proc_vd2_info->vd2_dout_dpsel = VD2_DOUT_PREBLD1;
 		//vd_proc->vd2_used = 1;
 	}
+	/* set initial values */
+	vd_proc->vd1_used = 0;
+	vd_proc->vd2_used = 0;
 	if (layer->layer_id == 0) {
 		vd_proc->vd1_used = 1;
 		vd_proc_vd1_info->crop_left = crop_left;
