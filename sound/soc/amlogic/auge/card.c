@@ -222,7 +222,7 @@ static int aml_audio_hal_format_set_enum(struct snd_kcontrol *kcontrol,
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 
 	audio_send_uevent(&snd->ctl_dev, AUDIO_SPDIF_FMT_EVENT, hal_format);
-	pr_info("update audio atmos flag! audio_type = %d\n", hal_format);
+	pr_debug("update audio atmos flag! audio_type = %d\n", hal_format);
 
 	if (p_aml_audio->hal_fmt != hal_format)
 		p_aml_audio->hal_fmt = hal_format;
@@ -1005,7 +1005,7 @@ static int aml_card_parse_gpios(struct device_node *node,
 				msleep(500);
 			gpiod_direction_output(priv->avout_mute_desc,
 				GPIOF_OUT_INIT_HIGH);
-			pr_info("av out status: %s\n",
+			pr_debug("av out status: %s\n",
 				gpiod_get_value(priv->avout_mute_desc) ?
 				"high" : "low");
 		} else {
@@ -1111,7 +1111,7 @@ static int aml_card_parse_of(struct device_node *node,
 			ret = aml_card_dai_link_of(np, priv,
 							   i, false);
 			if (ret < 0) {
-				dev_err(dev, "parse dai_link-%d fail\n", i);
+				dev_dbg(dev, "parse dai_link-%d fail\n", i);
 				of_node_put(np);
 				goto card_parse_end;
 			}
@@ -1321,7 +1321,7 @@ static int aml_card_probe(struct platform_device *pdev)
 	if (np && of_device_is_available(np)) {
 		ret = aml_card_parse_of(np, priv);
 		if (ret < 0) {
-			dev_err(dev, "%s, aml_card_parse_of error %d %s\n",
+			dev_dbg(dev, "%s, aml_card_parse_of error %d %s\n",
 				__func__,
 				ret,
 				(ret == -EPROBE_DEFER) ? "PROBE RETRY" : "");

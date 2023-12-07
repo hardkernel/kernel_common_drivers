@@ -929,7 +929,7 @@ static int resample_platform_probe(struct platform_device *pdev)
 	unsigned int resample_module;
 	int ret = 0;
 
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	p_resample = kzalloc(sizeof(*p_resample), GFP_KERNEL);
 	if (!p_resample) {

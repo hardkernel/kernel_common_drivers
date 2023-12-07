@@ -2458,7 +2458,7 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		p_chipinfo->lane_cnt = LANE_MAX1;
 
 	p_tdm->lane_cnt = p_chipinfo->lane_cnt;
-	pr_info("%s, tdm ID = %u, lane_cnt = %d\n", __func__,
+	pr_debug("%s, tdm ID = %u, lane_cnt = %d\n", __func__,
 			p_tdm->id, p_tdm->lane_cnt);
 
 	/* get audio controller */
@@ -2476,14 +2476,14 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		dev_src = of_find_device_by_node(np_src);
 		of_node_put(np_src);
 		p_tdm->pcpd_monitor_src = platform_get_drvdata(dev_src);
-		pr_info("%s(), pcpd src found\n", __func__);
+		pr_debug("%s(), pcpd src found\n", __func__);
 	}
 	ret = of_property_read_u32(dev->of_node, "src-clk-freq",
 				   &p_tdm->syssrc_clk_rate);
 	if (ret < 0)
 		p_tdm->syssrc_clk_rate = 0;
 	else
-		pr_info("%s sys-src clk rate from dts:%d\n",
+		pr_debug("%s sys-src clk rate from dts:%d\n",
 			__func__, p_tdm->syssrc_clk_rate);
 
 	/* get tdm mclk sel configs */
@@ -2538,7 +2538,7 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	if (ret < 0)
 		p_tdm->i2s2hdmitx = 0;
 	else
-		pr_info("TDM id %d i2s2hdmi:%d\n",
+		pr_debug("TDM id %d i2s2hdmi:%d\n",
 			p_tdm->id,
 			p_tdm->i2s2hdmitx);
 
@@ -2615,13 +2615,13 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		clk_prepare_enable(p_tdm->clk_gate);
 	p_tdm->pin_ctl = devm_pinctrl_get_select(dev, "tdm_pins");
 	if (IS_ERR(p_tdm->pin_ctl))
-		pr_info("aml_tdm_get_pins error!\n");
+		pr_debug("aml_tdm_get_pins error!\n");
 
 	ret = of_property_read_u32(node, "start_clk_enable", &p_tdm->start_clk_enable);
 	if (ret < 0)
 		p_tdm->start_clk_enable = 0;
 	else
-		pr_info("TDM id %d output clk enable:%d\n",
+		pr_debug("TDM id %d output clk enable:%d\n",
 			p_tdm->id, p_tdm->start_clk_enable);
 
 	ret = of_property_read_u32(node, "ctrl_gain", &p_tdm->ctrl_gain_enable);
@@ -2653,7 +2653,7 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	if (ret < 0)
 		p_tdm->clk_tuning_enable = 0;
 	else
-		pr_info("TDM id %d tuning clk enable:%d\n",
+		pr_debug("TDM id %d tuning clk enable:%d\n",
 			p_tdm->id, p_tdm->clk_tuning_enable);
 
 	ret = of_property_read_u32(node, "tdm_for_speaker",
@@ -2661,7 +2661,7 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	if (ret < 0)
 		p_tdm->tdm_for_speaker = 0;
 	else
-		pr_info("TDM id %d tdm_for_speaker\n", p_tdm->id);
+		pr_debug("TDM id %d tdm_for_speaker\n", p_tdm->id);
 
 	if (p_tdm->chipinfo->regulator) {
 		p_tdm->regulator_vcc3v3 = devm_regulator_get(dev, "tdm3v3");

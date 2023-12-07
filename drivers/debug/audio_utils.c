@@ -28,7 +28,7 @@ static int lib_size;
 
 static int audio_utils_open(struct inode *inode, struct file *file)
 {
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 	return 0;
 }
 
@@ -242,7 +242,7 @@ loff_t audio_utils_seek(struct file *file, loff_t offset, int whence)
 
 static int audio_utils_release(struct inode *inode, struct file *file)
 {
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 	return 0;
 }
 
