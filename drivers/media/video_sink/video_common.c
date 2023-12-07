@@ -265,7 +265,8 @@ void vframe_canvas_set(struct canvas_config_s *config,
 bool is_layer_aisr_supported(struct video_layer_s *layer)
 {
 	/* only vd1 has aisr for t3 */
-	if (!layer || layer->layer_id != 0)
+	if (!cur_dev->aisr_support ||
+		!layer || layer->layer_id != 0)
 		return false;
 	else
 		return true;
@@ -510,6 +511,12 @@ static void dump_pps_reg(void)
 	u32 reg_addr, reg_val = 0;
 
 	for (i = 0; i < cur_dev->max_vd_layers; i++) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (cur_dev->vd1_vsr_safa_support && i == 0) {
+			dump_vd_vsr_safa_reg();
+			continue;
+		}
+#endif
 		pr_info("vd%d pps regs:\n", i);
 		reg_addr = vd_layer[i].pps_reg.vd_vsc_region12_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
@@ -725,6 +732,9 @@ static void dump_fgrain_reg(void)
 static void dump_aisr_reg(void)
 {
 	u32 reg_addr, reg_val = 0;
+
+	if (cur_dev->vd1_vsr_safa_support)
+		return;
 
 	pr_info("aisr reshape regs:\n");
 	reg_addr = aisr_reshape_reg.aisr_reshape_ctrl0;

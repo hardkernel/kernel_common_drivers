@@ -110,6 +110,8 @@ struct vppfilter_mode_s {
 	u32 vpp_hsc_start_phase_step;
 	bool vpp_pre_vsc_en;
 	bool vpp_pre_hsc_en;
+	u32 vpp_pre_vsc_ratio;
+	u32 vpp_pre_hsc_ratio;
 	u32 vpp_vert_filter;
 	u32 vpp_horz_filter;
 	const u32 *vpp_vert_chroma_coeff;
@@ -250,6 +252,7 @@ struct disp_info_s {
 	bool lut_dma_support;
 	bool dv_support;
 	bool alpha_support;
+	bool vsr_safa_support;
 	u32 mirror;
 	u32 src_width_max;
 	u32 src_height_max;

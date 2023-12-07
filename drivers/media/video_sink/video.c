@@ -631,6 +631,7 @@ bool reverse;
 u32  video_mirror;
 bool vd1_vd2_mux;
 bool aisr_en;
+bool vsr_top_en;
 bool video_suspend;
 u32 video_suspend_cycle;
 int log_out;
@@ -4119,9 +4120,10 @@ struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 					    vd_path_id[0] == VFM_PATH_AUTO)
 						dv_new_vf =
 						dv_toggle_frame(vf, VD1_PATH, true);
-					/*coverity[Unused value]*/
-					if (hold_video)
+					if (hold_video) {
+						/*coverity[Event value_over_write]*/
 						dv_new_vf = NULL;
+					}
 #endif
 					frame_repeat_count = 0;
 
@@ -10548,6 +10550,33 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 		} else {
 			len += sprintf(buf + len, "afd: disable\n");
 		}
+		if (layer_info->vsr_safa_support) {
+			struct vsr_setting_s *vsr;
+
+			vsr = &_vd_layer->sc_setting.vsr;
+			len += sprintf(buf + len,
+				"vsr top 422_en:%d, h/vsize_in %d,%d, h/vsize_out:%d,%d\n",
+				vsr->vsr_top.input_422_en,
+				vsr->vsr_top.hsize_in,
+				vsr->vsr_top.vsize_in,
+				vsr->vsr_top.hsize_out,
+				vsr->vsr_top.vsize_out);
+			len += sprintf(buf + len, "safa preh/v_en %d,%d, ratio:%d, %d\n",
+				vsr->vsr_safa.preh_en,
+				vsr->vsr_safa.preh_ratio,
+				vsr->vsr_safa.prev_en,
+				vsr->vsr_safa.prev_ratio);
+			len += sprintf(buf + len, "safa pre_h/vsize %d,%d, postsc_en:%d\n",
+				vsr->vsr_safa.pre_hsize,
+				vsr->vsr_safa.pre_vsize,
+				vsr->vsr_safa.postsc_en);
+			len += sprintf(buf + len, "pi en:%d, h/vsize_in %d,%d, h/vsize_out:%d %d\n",
+				vsr->vsr_pi.pi_en,
+				vsr->vsr_pi.hsize_in,
+				vsr->vsr_pi.vsize_in,
+				vsr->vsr_pi.hsize_out,
+				vsr->vsr_pi.vsize_out);
+		}
 	}
 	return len;
 }
@@ -10824,6 +10853,7 @@ static ssize_t pip_alpha_store
 			pr_info("layer_id=%d, win_num=%d, win_en=%d\n",
 				layer_id, win_num, win_en);
 			vd_layer[layer_id].alpha_win_en = win_en;
+			/*coverity[uninit_use_in_call]*/
 			memcpy(&vd_layer[layer_id].alpha_win, &alpha_win,
 				sizeof(struct pip_alpha_scpxn_s));
 			vd_layer[0].property_changed = true;
@@ -11815,6 +11845,8 @@ static ssize_t aisr_en_store(struct class *cla,
 	if (res != aisr_en) {
 		aisr_en = res;
 		aisr_sr1_nn_enable_sync(aisr_en);
+		if (cur_dev->vd1_vsr_safa_support)
+			vd_layer[0].property_changed = true;
 	}
 	return count;
 }
@@ -12708,6 +12740,33 @@ static ssize_t vpu_venc_status_store(struct class *cla,
 	return count;
 }
 
+static ssize_t vsr_top_en_show(struct class *cla,
+				struct class_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, 40, "vsr_top_en:%d\n", vsr_top_en);
+}
+
+static ssize_t vsr_top_en_store(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	if (res != vsr_top_en) {
+		vsr_top_en = res;
+		if (cur_dev->vd1_vsr_safa_support)
+			vd_layer[0].property_changed = true;
+	}
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -13284,6 +13343,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(videopip2_max_src, 0664,
 		videopip2_max_src_show,
 		NULL),
+	__ATTR(vsr_top,
+		0664,
+		vsr_top_en_show,
+		vsr_top_en_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
@@ -14527,7 +14590,7 @@ static struct amvideo_device_data_s amvideo_s7 = {
 	.core_v_disable_width_max[1] = 4096,
 	.core_v_enable_width_max[0] = 2048,
 	.core_v_enable_width_max[1] = 2048,
-	.supscl_path = CORE0_BEFORE_PPS,
+	.supscl_path = VSR_BEFORE_VE,
 	.fgrain_support[0] = 1,
 	.fgrain_support[1] = 0,
 	.fgrain_support[2] = 0,
@@ -14554,6 +14617,58 @@ static struct amvideo_device_data_s amvideo_s7 = {
 	.max_vd_layers = 2,
 	.is_tv_panel = 0,
 };
+
+static struct amvideo_device_data_s amvideo_s7d = {
+	.cpu_type = MESON_CPU_MAJOR_ID_S7D_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 1,
+	.layer_support[2] = 0,
+	.afbc_support[0] = 1,
+	.afbc_support[1] = 1,
+	.afbc_support[2] = 0,
+	.pps_support[0] = 1,
+	.pps_support[1] = 1,
+	.pps_support[2] = 0,
+	.alpha_support[0] = 1,
+	.alpha_support[1] = 1,
+	.alpha_support[2] = 0,
+	.dv_support = 0,
+	.sr0_support = 0,
+	.sr1_support = 0,
+	.core_v_disable_width_max[0] = 4096,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 2048,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = VSR_BEFORE_VE,
+	.fgrain_support[0] = 1,
+	.fgrain_support[1] = 0,
+	.fgrain_support[2] = 0,
+	.has_hscaler_8tap[0] = 1,
+	.has_hscaler_8tap[1] = 1,
+	.has_hscaler_8tap[2] = 0,
+	.has_pre_hscaler_ntap[0] = 1,
+	.has_pre_hscaler_ntap[1] = 1,
+	.has_pre_hscaler_ntap[2] = 0,
+	.has_pre_vscaler_ntap[0] = 1,
+	.has_pre_vscaler_ntap[1] = 1,
+	.has_pre_vscaler_ntap[2] = 0,
+	.src_width_max[0] = 4096,
+	.src_width_max[1] = 2048,
+	.src_width_max[2] = 2048,
+	.src_height_max[0] = 2160,
+	.src_height_max[1] = 1080,
+	.src_height_max[2] = 1080,
+	.ofifo_size = 0x1000,
+	.afbc_conv_lbuf_len[0] = 0x100,
+	.afbc_conv_lbuf_len[1] = 0x80,
+	.mif_linear = 1,
+	.display_module = 0,
+	.max_vd_layers = 2,
+	.is_tv_panel = 0,
+};
+
 #endif
 
 static struct video_device_hw_s legcy_dev_property = {
@@ -14629,6 +14744,16 @@ static struct video_device_hw_s t3x_dev_property = {
 	.amdv_tvcore = 1,
 	.vpp_in_padding_support = 1,
 };
+
+static struct video_device_hw_s s7d_dev_property = {
+	.vd2_independ_blend_ctrl = 0,
+	.aisr_support = 0,
+	.prevsync_support = 0,
+	.sr_in_size = 0,
+	.sr01_num = 0,
+	.vd1_vsr_safa_support = 1,
+};
+
 #endif
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {
@@ -14702,6 +14827,10 @@ static const struct of_device_id amlogic_amvideom_dt_match[] = {
 	{
 		.compatible = "amlogic, amvideom-s7",
 		.data = &amvideo_s7,
+	},
+	{
+		.compatible = "amlogic, amvideom-s7d",
+		.data = &amvideo_s7d,
 	},
 #endif
 	{}
@@ -14837,6 +14966,15 @@ bool video_is_meson_s7_cpu(void)
 {
 	if (amvideo_meson_dev.cpu_type ==
 		MESON_CPU_MAJOR_ID_S7_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_meson_s7d_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_S7D_)
 		return true;
 	else
 		return false;
@@ -15063,6 +15201,11 @@ static int amvideom_probe(struct platform_device *pdev)
 		       sizeof(struct video_device_hw_s));
 	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_T3X_) {
 		memcpy(&amvideo_meson_dev.dev_property, &t3x_dev_property,
+		       sizeof(struct video_device_hw_s));
+		aisr_en = 1;
+		cur_dev->power_ctrl = true;
+	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S7D_) {
+		memcpy(&amvideo_meson_dev.dev_property, &s7d_dev_property,
 		       sizeof(struct video_device_hw_s));
 		aisr_en = 1;
 		cur_dev->power_ctrl = true;

@@ -2711,6 +2711,19 @@ RESTART:
 	    filter->vpp_hsc_start_phase_step == filter->vpp_hf_start_phase_step &&
 	    pre_scaler_en) ||
 	    pre_scaler[input->layer_id].force_pre_scaler) {
+		if (input->vsr_safa_support) {
+			if (filter->vpp_hf_start_phase_step >= 0x8000000 &&
+				filter->vpp_vsc_start_phase_step >= 0x8000000)
+				pre_scaler[input->layer_id].pre_vscaler_rate = 4;
+			else if (filter->vpp_hf_start_phase_step >= 0x4000000 &&
+				filter->vpp_vsc_start_phase_step >= 0x4000000)
+				pre_scaler[input->layer_id].pre_vscaler_rate = 2;
+			else
+				pre_scaler[input->layer_id].pre_vscaler_rate = 1;
+		} else {
+			pre_scaler[input->layer_id].pre_vscaler_rate = 1;
+		}
+
 		filter->vpp_pre_vsc_en = 1;
 		filter->vpp_vsc_start_phase_step >>=
 			pre_scaler[input->layer_id].pre_vscaler_rate;
@@ -2726,6 +2739,18 @@ RESTART:
 	    pre_scaler_en) ||
 	    pre_scaler[input->layer_id].force_pre_scaler) {
 		filter->vpp_pre_hsc_en = 1;
+		if (input->vsr_safa_support) {
+			if (filter->vpp_hf_start_phase_step >= 0x8000000 &&
+				filter->vpp_hsc_start_phase_step >= 0x8000000)
+				pre_scaler[input->layer_id].pre_hscaler_rate = 4;
+			else if (filter->vpp_hf_start_phase_step >= 0x4000000 &&
+				filter->vpp_hsc_start_phase_step >= 0x4000000)
+				pre_scaler[input->layer_id].pre_hscaler_rate = 2;
+			else
+				pre_scaler[input->layer_id].pre_hscaler_rate = 1;
+		} else {
+			pre_scaler[input->layer_id].pre_hscaler_rate = 1;
+		}
 		filter->vpp_hf_start_phase_step >>=
 			pre_scaler[input->layer_id].pre_hscaler_rate;
 		filter->vpp_hsc_start_phase_step >>=
@@ -3500,6 +3525,9 @@ int vpp_set_super_scaler_regs(struct video_layer_s *layer,
 	u32 sr_support;
 	u8 vpp_index;
 
+	/* vsr safa has no pre sr */
+	if (cur_dev->vd1_vsr_safa_support && layer->layer_id == 0)
+		return 0;
 	vpp_index = layer->vpp_index;
 	sr = &sr_info;
 	sr_support = sr->sr_support;
@@ -5517,8 +5545,10 @@ RERTY:
 				next_frame_par->video_input_h;
 		}
 	}
-	aisr_set_filters(&local_input, next_frame_par, vf, vinfo, vpp_flags);
-	sr_pps_phase_auto_calculation(next_frame_par);
+	if (!cur_dev->vd1_vsr_safa_support) {
+		aisr_set_filters(&local_input, next_frame_par, vf, vinfo, vpp_flags);
+		sr_pps_phase_auto_calculation(next_frame_par);
+	}
 	return ret;
 }
 

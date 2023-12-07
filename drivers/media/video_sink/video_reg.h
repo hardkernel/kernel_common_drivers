@@ -225,6 +225,48 @@ struct hw_aisr_reshape_reg_s {
 	u32 aisr_sr1_nn_post_top;
 };
 
+struct hw_vsr_safa_reg_s {
+	/* top */
+	u32 vpp_vsr_top_c42c44_mode;
+	u32 vpp_vsr_top_misc;
+	/* pi */
+	u32 vpp_pi_en_mode;
+	u32 vpp_pi_misc;
+	u32 vpp_pi_dict_num;
+	u32 vpp_pi_win_ofst;
+	u32 vpp_pi_in_hsc_part;
+	u32 vpp_pi_in_hsc_ini;
+	u32 vpp_pi_in_vsc_part;
+	u32 vpp_pi_in_vsc_ini;
+	u32 vpp_pi_hf_hsc_part;
+	u32 vpp_pi_hf_hsc_ini;
+	u32 vpp_pi_hf_vsc_part;
+	u32 vpp_pi_hf_vsc_ini;
+	/* safa */
+	u32 safa_pps_sr_422_en;
+	u32 safa_pps_pre_scale;
+	u32 safa_pps_pre_hscale_coef_y1;
+	u32 safa_pps_pre_hscale_coef_y0;
+	u32 safa_pps_pre_hscale_coef_c1;
+	u32 safa_pps_pre_hscale_coef_c0;
+	u32 safa_pps_pre_vscale_coef;
+	u32 safa_pps_hw_ctrl;
+	u32 safa_pps_interp_en_mode;
+	u32 safa_pps_yuv_sharpen_en;
+	u32 safa_pps_dir_en_mode;
+	u32 safa_pps_sr_alp_info;
+	u32 safa_pps_pi_info;
+	u32 safa_pps_hsc_start_phase_step;
+	u32 safa_pps_vsc_start_phase_step;
+	u32 safa_pps_vsc_init;
+	u32 safa_pps_hsc_init;
+	u32 safa_pps_sc_misc;
+	u32 safa_pps_cntl_scale_coef_idx_luma;
+	u32 safa_pps_cntl_scale_coef_luma;
+	u32 safa_pps_cntl_scale_coef_idx_chro;
+	u32 safa_pps_cntl_scale_coef_chro;
+};
+
 extern struct hw_vd_reg_s vd_mif_reg_legacy_array[MAX_VD_LAYER_G12];
 extern struct hw_vd_reg_s vd_mif_reg_g12_array[MAX_VD_LAYER_G12];
 extern struct hw_vd_reg_s vd_mif_reg_sc2_array[MAX_VD_LAYER_G12];
@@ -250,4 +292,5 @@ extern struct hw_vd_reg_s vd_mif_reg_c3_array[MAX_VD_LAYER_C3];
 extern struct hw_vd_linear_reg_s vd_mif_linear_reg_c3_array[MAX_VD_LAYER_C3];
 
 extern struct hw_aisr_reshape_reg_s aisr_reshape_reg;
+extern struct hw_vsr_safa_reg_s vsr_safa_reg;
 #endif

@@ -293,6 +293,7 @@ struct video_dev_s {
 	u8 vpp_in_padding_support;
 	u8 has_vpp1;
 	u8 has_vpp2;
+	u8 vd1_vsr_safa_support;
 };
 
 struct video_layer_s;
@@ -343,10 +344,69 @@ struct mif_pos_s {
 	u8 block_mode;
 };
 
+struct vsr_top_setting_s {
+	u32 hsize_in; //13 bits source pic hsize
+	u32 vsize_in; //13 bits source pic vsize
+	u32 hsize_out; //13 bits source pic hsize
+	u32 vsize_out; //13 bits source pic vsize
+
+	u32 input_422_en; //1 bits 0: yuv444 pc mode 1: yuv422
+	u32 vsr_en;
+	u32 pi_safa_hsc_ini_phase;
+	u32 pi_safa_hsc_ini_integer;
+	u32 pi_safa_hsc_integer_part;
+	u32 pi_safa_hsc_fraction_part;
+	u32 pi_safa_vsc_ini_phase;
+	u32 pi_safa_vsc_ini_integer;
+	u32 pi_safa_vsc_integer_part;
+	u32 pi_safa_vsc_fraction_part;
+};
+
+struct vsr_safa_setting_s {
+	u32 pre_hsize;//calc later
+	u32 pre_vsize;//calc later
+	u32 preh_en; //1 bits prehscaler en
+	u32 prev_en; //1 bits prevscaler en
+	u32 preh_ratio; //2 bits prehor ds ratio 0:1/1 1:1/2 2:1/4 3:1/8
+	u32 prev_ratio; //2 bits prever ds ratio 0:1/1 1:1/2 2:1/4 3:1/8
+	u32 postsc_en; //1 bits postscaler en
+};
+
+struct vsr_pi_setting_s {
+	u32 index; //0:vd1
+	u32 pi_en;
+	u32 hsize_in; //13 bits source pic hsize
+	u32 vsize_in; //13 bits source pic vsize
+	u32 hsize_out; //13 bits source pic hsize
+	u32 vsize_out; //13 bits source pic vsize
+	u32 pi_dict_num;
+	u32 pi_out_scl_mode;
+	u32 pi_out_win;
+	u32 pi_in_win;
+	u32 pi_out_ofst;
+	u32 pi_hf_hsc_ini_phase;
+	u32 pi_hf_hsc_ini_integer;
+	u32 pi_hf_hsc_integer_part;
+	u32 pi_hf_hsc_fraction_part;
+	u32 pi_hf_vsc_ini_phase;
+	u32 pi_hf_vsc_ini_integer;
+	u32 pi_hf_vsc_integer_part;
+	u32 pi_hf_vsc_fraction_part;
+};
+
+struct vsr_setting_s {
+	u8 layer_id;
+	u8 vpp_index;
+	struct vsr_top_setting_s vsr_top;
+	struct vsr_safa_setting_s vsr_safa;
+	struct vsr_pi_setting_s vsr_pi;
+};
+
 struct scaler_setting_s {
 	u32 id;
 	u32 misc_reg_offt;
 	bool support;
+	bool vsr_safa_support;
 
 	bool sc_h_enable;
 	bool sc_v_enable;
@@ -360,6 +420,7 @@ struct scaler_setting_s {
 	/* u32 VPP_line_in_length_; */
 
 	struct vpp_frame_par_s *frame_par;
+	struct vsr_setting_s vsr;
 };
 
 struct blend_setting_s {
@@ -504,6 +565,7 @@ struct video_layer_s {
 	struct hw_afbc_reg_s vd_afbc_reg;
 	struct hw_fg_reg_s fg_reg;
 	struct hw_pps_reg_s pps_reg;
+	struct hw_vsr_safa_reg_s vsr_safa_reg;
 	struct hw_vpp_blend_reg_s vpp_blend_reg;
 	u8 cur_canvas_id;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
@@ -631,6 +693,7 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_TXHD2_,
 	MESON_CPU_MAJOR_ID_S1A_,
 	MESON_CPU_MAJOR_ID_S7_,
+	MESON_CPU_MAJOR_ID_S7D_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
@@ -645,6 +708,7 @@ struct video_device_hw_s {
 	u8 cr_loss;
 	u8 amdv_tvcore;
 	u8 vpp_in_padding_support;
+	u8 vd1_vsr_safa_support;
 };
 
 struct amvideo_device_data_s {
@@ -985,6 +1049,7 @@ bool video_is_meson_t5m_cpu(void);
 bool video_is_meson_txhd2_cpu(void);
 bool video_is_meson_s1a_cpu(void);
 bool video_is_meson_s7_cpu(void);
+bool video_is_meson_s7d_cpu(void);
 void alpha_win_set(struct video_layer_s *layer);
 void fgrain_config(struct video_layer_s *layer,
 		   struct vpp_frame_par_s *frame_par,
@@ -1024,6 +1089,8 @@ s32 config_aisr_position(struct video_layer_s *layer,
 void aisr_demo_enable(void);
 void aisr_demo_axis_set(struct video_layer_s *layer);
 void aisr_reshape_output(u32 enable);
+void set_vsr_scaler(struct vsr_setting_s *vsr);
+void dump_vd_vsr_safa_reg(void);
 void pre_process_for_3d(struct vframe_s *vf);
 int get_vpu_urgent_info_t3(void);
 int set_vpu_super_urgent_t3(u32 module_id, u32 low_level, u32 high_level);
