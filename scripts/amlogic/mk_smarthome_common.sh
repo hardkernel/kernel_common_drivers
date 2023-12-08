@@ -86,9 +86,9 @@ make_menuconfig_cmd_for_smarthome
 
 build_kernel_for_different_cpu_architecture
 
-eval ${POST_KERNEL_BUILD_CMDS}
+prepare_module_build
 build_ext_modules
-eval ${EXTRA_CMDS}
+extra_cmds
 
 copy_modules_and_rebuild_rootfs_for_smarthome
 
