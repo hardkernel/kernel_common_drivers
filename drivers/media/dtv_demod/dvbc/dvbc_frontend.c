@@ -192,6 +192,8 @@ int gxtv_demod_dvbc_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
+//WARNING: cloned by gxtv_demod_atsc_j83b_read_signal_strength
+//if it's modified, MUSt modify gxtv_demod_atsc_j83b_read_signal_strength too!
 int gxtv_demod_dvbc_read_signal_strength(struct dvb_frontend *fe,
 	s16 *strength)
 {

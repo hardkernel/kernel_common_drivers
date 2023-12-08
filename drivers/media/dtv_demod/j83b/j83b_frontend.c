@@ -196,6 +196,7 @@ int gxtv_demod_atsc_j83b_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
+//WARNING: clone from gxtv_demod_dvbc_read_signal_strength
 int gxtv_demod_atsc_j83b_read_signal_strength(struct dvb_frontend *fe,
 		s16 *strength)
 {
@@ -206,23 +207,19 @@ int gxtv_demod_atsc_j83b_read_signal_strength(struct dvb_frontend *fe,
 	if (tuner_find_by_name(fe, "r842") ||
 		tuner_find_by_name(fe, "r836") ||
 		tuner_find_by_name(fe, "r850")) {
-		if (fe->dtv_property_cache.modulation <= QAM_AUTO &&
-			fe->dtv_property_cache.modulation != QPSK)
-			*strength += 18;
-		else
-			*strength += 15;
+		*strength += 22;
 
 		if (*strength <= -80) {
-			agc_gain = atsc_read_reg_v4(0x44) & 0xfff;
-			*strength = (s16)atsc_get_power_strength(agc_gain, *strength);
+			agc_gain = qam_read_reg(demod, 0x27) & 0x7ff;
+			*strength = dvbc_get_power_strength(agc_gain, *strength);
 		}
 
-		*strength += 8;
+		*strength += 10;
 	} else if (tuner_find_by_name(fe, "mxl661")) {
 		*strength += 3;
 	}
 
-	PR_ATSC("demod [id %d] signal strength %d dBm\n", demod->id, *strength);
+	PR_DVBC("demod [id %d] signal strength %d dBm\n", demod->id, *strength);
 
 	return 0;
 }

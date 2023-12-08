@@ -153,6 +153,7 @@
 /*  V3.5.026 support dtmb 6M BW */
 /*  V3.5.027 Support switching auto between dvb-t and t2 */
 /*  V3.5.028 fix not lock signal in dvbt2 DTG161 case */
+/*  V3.5.029 fix atsc-c signal strength issue */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -169,8 +170,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.28"
-#define DTVDEMOD_VER	"2023/12/01: fix not lock signal in dvbt2 DTG161 case"
+#define AMLDTVDEMOD_VER "V3.5.29"
+#define DTVDEMOD_VER	"2023/12/08: fix atsc-c signal strength issue"
 #define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
