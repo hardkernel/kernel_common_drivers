@@ -32,6 +32,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
+#include <linux/of_gpio.h>
 #include <linux/reboot.h>
 #include <linux/i2c.h>
 #include <linux/miscdevice.h>
@@ -3465,6 +3466,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 	const struct of_device_id *match;
 #endif
 	u32 refreshrate_limit = 0;
+	struct hdmitx_hw_common *tx_hw_base;
 
 	match = of_match_device(meson_amhdmitx_of_match, &pdev->dev);
 	if (!match) {
@@ -3496,6 +3498,20 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 	} else {
 		HDMITX_INFO("node null\n");
 	}
+
+	tx_hw_base = &hdev->tx_hw.base;
+	tx_hw_base->hdmitx_gpios_hpd = of_get_named_gpio_flags(pdev->dev.of_node,
+		"hdmitx-gpios-hpd", 0, NULL);
+	if (tx_hw_base->hdmitx_gpios_hpd == -EPROBE_DEFER)
+		HDMITX_ERROR("get hdmitx-gpios-hpd error\n");
+	tx_hw_base->hdmitx_gpios_scl = of_get_named_gpio_flags(pdev->dev.of_node,
+		"hdmitx-gpios-scl", 0, NULL);
+	if (tx_hw_base->hdmitx_gpios_scl == -EPROBE_DEFER)
+		HDMITX_ERROR("get hdmitx-gpios-scl error\n");
+	tx_hw_base->hdmitx_gpios_sda = of_get_named_gpio_flags(pdev->dev.of_node,
+		"hdmitx-gpios-sda", 0, NULL);
+	if (tx_hw_base->hdmitx_gpios_sda == -EPROBE_DEFER)
+		HDMITX_ERROR("get hdmitx-gpios-sda error\n");
 
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node) {

@@ -21,6 +21,9 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/rtc.h>
+#include <linux/timekeeping.h>
+#include <linux/gpio.h>
 #include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 #include "common.h"
 
@@ -183,6 +186,16 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 				dat_top &= ~(1 << 2);
 			else
 				dat_top &= ~(1 << 1);
+		}
+		/* bit[2:1] of dat_top means HPD falling and rising */
+		if ((dat_top & 0x6) && hdev->tx_hw.base.hdmitx_gpios_hpd != -EPROBE_DEFER) {
+			struct timespec64 kts;
+			struct rtc_time tm;
+
+			ktime_get_real_ts64(&kts);
+			rtc_time64_to_tm(kts.tv_sec, &tm);
+			HDMITX_INFO("UTC+0 %ptRd %ptRt HPD %s\n", &tm, &tm,
+				gpio_get_value(hdev->tx_hw.base.hdmitx_gpios_hpd) ? "HIGH" : "LOW");
 		}
 		if ((dat_top & 0x6) && hdev->tx_hw.base.debug_hpd_lock) {
 			HDMITX_INFO("HDMI hpd locked\n");

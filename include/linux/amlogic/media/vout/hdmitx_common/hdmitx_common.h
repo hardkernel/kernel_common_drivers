@@ -138,11 +138,6 @@ struct hdmitx_common {
 	struct vinfo_s hdmitx_vinfo;
 	struct vout_device_s *vdev;
 
-	/****** TODO: MOVE TO HW ******/
-	int hdmitx_gpios_hpd;
-	int hdmitx_gpios_scl;
-	int hdmitx_gpios_sda;
-
 	/****** debug & log ******/
 	struct hdmitx_tracer *tx_tracer;
 	struct hdmitx_event_mgr *event_mgr;
