@@ -1296,11 +1296,11 @@ static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev)
 	if (para && para->timing.name && likely_frac_rate_mode(para->timing.name)) {
 		;
 	} else {
-		HDMITX_INFO("this mode doesn't have frac_rate\n");
+		HDMITX_DEBUG("this mode doesn't have frac_rate\n");
 		frac_rate = 0;
 	}
 
-	HDMITX_INFO("frac_rate = %d\n", hdev->tx_comm.frac_rate_policy);
+	HDMITX_DEBUG("frac_rate = %d\n", hdev->tx_comm.frac_rate_policy);
 }
 
 /*

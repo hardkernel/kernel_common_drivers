@@ -656,7 +656,7 @@ static ssize_t frac_rate_policy_store(struct device *dev,
 
 	if (isdigit(buf[0])) {
 		val = buf[0] - '0';
-		HDMITX_INFO("set frac_rate_policy as %d\n", val);
+		HDMITX_DEBUG("set frac_rate_policy as %d\n", val);
 		if (val == 0 || val == 1)
 			global_tx_common->frac_rate_policy = val;
 		else

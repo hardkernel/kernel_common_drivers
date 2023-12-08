@@ -474,7 +474,7 @@ u32 hdmitx_hw_get_audio_n_paras(enum hdmi_audio_fs fs,
 	u32 i, n;
 	u32 N_multiples = 1;
 
-	HDMITX_INFO("fs = %d, cd = %d, tmds_clk = %d\n", fs, cd, tmds_clk);
+	HDMITX_DEBUG("fs = %d, cd = %d, tmds_clk = %d\n", fs, cd, tmds_clk);
 	switch (fs) {
 	case FS_32K:
 		p = all_aud_paras[0];

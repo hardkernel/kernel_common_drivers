@@ -32,7 +32,7 @@ void hdmi_physical_size_to_vinfo(struct hdmitx_common *tx_comm)
 			info->screen_real_width = width;
 			info->screen_real_height = height;
 		}
-		HDMITX_INFO("update physical size: %d %d\n",
+		HDMITX_DEBUG("update physical size: %d %d\n",
 			info->screen_real_width, info->screen_real_height);
 	}
 }
