@@ -17,23 +17,23 @@
 
 /* G12A */
 /* freq max=666M, default=666M */
-#define CLK_LEVEL_DFT_G12A     7
-#define CLK_LEVEL_MAX_G12A     8
+#define CLK_LEVEL_DFT_G12A     8
+#define CLK_LEVEL_MAX_G12A     9
 
 /* T5D */
 /* freq max=400M, default=400M */
-#define CLK_LEVEL_DFT_T5D     5
-#define CLK_LEVEL_MAX_T5D     6
+#define CLK_LEVEL_DFT_T5D     6
+#define CLK_LEVEL_MAX_T5D     7
 
 /* C3 */
 /* freq max=333M, default=333M */
-#define CLK_LEVEL_DFT_C3     4
-#define CLK_LEVEL_MAX_C3     5
+#define CLK_LEVEL_DFT_C3     5
+#define CLK_LEVEL_MAX_C3     6
 
 /* T3X */
 /* freq max=800M, default=800M */
-#define CLK_LEVEL_DFT_T3X    8
-#define CLK_LEVEL_MAX_T3X    11
+#define CLK_LEVEL_DFT_T3X    9
+#define CLK_LEVEL_MAX_T3X    12
 
 /* vpu clk setting */
 static struct fclk_div_s fclk_div_table_g12a[] = {
@@ -47,7 +47,7 @@ static struct fclk_div_s fclk_div_table_g12a[] = {
 
 static struct vpu_clk_s vpu_clk_suspend = {
 	/* frequency   clk_mux       div */
-	50000000,    FCLK_DIV5,      7
+	24000000,    FCLK_DIV5,      17
 };
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -72,18 +72,19 @@ __maybe_unused static struct fclk_div_s fclk_div_table_t3x[] = {
 
 static struct vpu_clk_s vpu_clk_table[] = {
 	/* frequency   clk_mux       div */
-	{100000000,    FCLK_DIV5,    3}, /* 0 */
-	{166666667,    FCLK_DIV3,    3}, /* 1 */
-	{200000000,    FCLK_DIV5,    1}, /* 2 */
-	{250000000,    FCLK_DIV4,    1}, /* 3 */
-	{333333333,    FCLK_DIV3,    1}, /* 4 */
-	{400000000,    FCLK_DIV5,    0}, /* 5 */
-	{500000000,    FCLK_DIV4,    0}, /* 6 */
-	{666666667,    FCLK_DIV3,    0}, /* 7 */
-	{800000000,    FCLK_DIV2P5,  0}, /* 8 */
-	{744000000,    GPLL_CLK,     0}, /* 9 */
-	{768000000,    GPLL_CLK,     0}, /* 10 */
-	{850000000,    FCLK_DIV_MAX, 0}, /* 11 */ /* invalid */
+	{24000000,     FCLK_DIV5,    17}, /* 0 */
+	{100000000,    FCLK_DIV5,    3}, /* 1 */
+	{166666667,    FCLK_DIV3,    3}, /* 2 */
+	{200000000,    FCLK_DIV5,    1}, /* 3 */
+	{250000000,    FCLK_DIV4,    1}, /* 4 */
+	{333333333,    FCLK_DIV3,    1}, /* 5 */
+	{400000000,    FCLK_DIV5,    0}, /* 6 */
+	{500000000,    FCLK_DIV4,    0}, /* 7 */
+	{666666667,    FCLK_DIV3,    0}, /* 8 */
+	{800000000,    FCLK_DIV2P5,  0}, /* 9 */
+	{744000000,    GPLL_CLK,     0}, /* 10 */
+	{768000000,    GPLL_CLK,     0}, /* 11 */
+	{850000000,    FCLK_DIV_MAX, 0}, /* 12 */ /* invalid */
 };
 
 /* ******************************************************* */

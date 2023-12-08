@@ -33,7 +33,7 @@ enum vpu_chip_e {
 };
 
 #define CLK_FPLL_FREQ           2000 /* MHz */
-#define VPU_CLK_TOLERANCE       1000000 /* Hz */
+#define VPU_CLK_TOLERANCE       100000 /* Hz */
 
 #define VPU_HDMI_ISO_CNT_MAX    5
 #define VPU_RESET_CNT_MAX       10

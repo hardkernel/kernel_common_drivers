@@ -1014,9 +1014,9 @@ static const char *vpu_usage_str = {
 "	request & release will change vpu clk if the max level in all vmod vpu clk holdings is unequal to current vpu clk level.\n"
 "	vclk both support level(1~10) and frequency value (unit in Hz).\n"
 "	vclk level & frequency:\n"
-"		0: 100M    1: 167M    2: 200M    3: 250M\n"
-"		4: 333M    5: 400M    6: 500M    7: 667M\n"
-"		8: 800M    9: 744M    10:768M\n"
+"		0: 24M     1: 100M    2: 167M    3: 200M\n"
+"		4: 250M    5: 333M    6: 400M    7: 500M\n"
+"		8: 667M    9: 800M    10: 744M   11:768M\n"
 "\n"
 "	echo <0|1> > /sys/class/vpu/print ; set debug print flag\n"
 };
