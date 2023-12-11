@@ -163,4 +163,13 @@ config AMLOGIC_PINCTRL_MESON_A4
 	  when enable this config.
 	  A4 pinctrl can work.
 	  otherwise A4 pinctrl can't work
+
+config AMLOGIC_PINCTRL_MESON_A5
+	tristate "Meson A5 Soc pinctrl driver"
+	default n
+	help
+	  the chip of A5 will be built
+	  when enable this config.
+	  A5 pinctrl can work.
+	  otherwise A5 pinctrl can't work
 endif
