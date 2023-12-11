@@ -1240,8 +1240,6 @@
 		ctrl_gain = <1>;
 		src-clk-freq = <491520000>;
 
-		/* pcpd_monitor*/
-		pcpd_monitor_src = <&pcpd_monitor_a>;
 		suspend-clk-off = <1>;
 		status = "okay";
 
@@ -1264,6 +1262,9 @@
 				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
+
+		/* pcpd_monitor*/
+		pcpd_monitor_src = <&pcpd_monitor_a>;
 
 		/* enable control gain */
 		ctrl_gain = <1>;
