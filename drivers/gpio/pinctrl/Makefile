@@ -116,3 +116,10 @@ $(T5D_MODULE_NAME)-y += pinctrl/pinctrl-meson-t5d.o
 PR_FMT_T5D = $(subst amlogic-,,$(T5D_MODULE_NAME))
 PR_FMT_DEFINE_T5D="-Dpr_fmt(fmt)= \"[$(PR_FMT_T5D)]: \" fmt"
 CFLAGS_pinctrl-meson-t5d.o += $(PR_FMT_DEFINE_T5D)
+
+A4_MODULE_NAME = amlogic-pinctrl-soc-a4
+obj-$(CONFIG_AMLOGIC_PINCTRL_MESON_A4) += $(A4_MODULE_NAME).o
+$(A4_MODULE_NAME)-y += pinctrl/pinctrl-meson-a4.o
+PR_FMT_A4 = $(subst amlogic-,,$(A4_MODULE_NAME))
+PR_FMT_DEFINE_A4="-Dpr_fmt(fmt)= \"[$(PR_FMT_A4)]: \" fmt"
+CFLAGS_pinctrl-meson-a4.o += $(PR_FMT_DEFINE_A4)
