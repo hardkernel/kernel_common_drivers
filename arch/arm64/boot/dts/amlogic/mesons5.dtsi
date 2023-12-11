@@ -68,7 +68,7 @@
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			capacity-dmips-mhz = <512>;
-			dynamic-power-coefficient = <1024>;
+			dynamic-power-coefficient = <341>;
 			cpu-supply = <&vddcpua>;
 			cpu_supply_external_used;
 			dsu-opp-table = <1200000 879000 1500000 939000>;
@@ -101,7 +101,7 @@
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			capacity-dmips-mhz = <512>;
-			dynamic-power-coefficient = <1024>;
+			dynamic-power-coefficient = <341>;
 			cpu-supply = <&vddcpua>;
 			cpu_supply_external_used;
 			dsu-opp-table = <1200000 879000 1500000 939000>;
@@ -134,7 +134,7 @@
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			capacity-dmips-mhz = <512>;
-			dynamic-power-coefficient = <1024>;
+			dynamic-power-coefficient = <341>;
 			cpu-supply = <&vddcpua>;
 			cpu_supply_external_used;
 			dsu-opp-table = <1200000 879000 1500000 939000>;
@@ -167,7 +167,7 @@
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			capacity-dmips-mhz = <512>;
-			dynamic-power-coefficient = <1024>;
+			dynamic-power-coefficient = <341>;
 			cpu-supply = <&vddcpua>;
 			cpu_supply_external_used;
 			dsu-opp-table = <1200000 879000 1500000 939000>;
