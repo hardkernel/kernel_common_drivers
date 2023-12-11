@@ -55,6 +55,7 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
+
 #include "xhci-meson.h"
 #include "xhci-trace-meson.h"
 
@@ -463,6 +464,11 @@ void aml_xhci_ring_ep_doorbell(struct aml_xhci_hcd *xhci,
 	if ((ep_state & EP_STOP_CMD_PENDING) || (ep_state & SET_DEQ_PENDING) ||
 	    (ep_state & EP_HALTED) || (ep_state & EP_CLEARING_TT))
 		return;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (xhci->meson_quirks & XHCI_CRG_HOST_003)
+		if (db_wait == 1)
+			return;
+#endif
 
 	trace_aml_xhci_ring_ep_doorbell(slot_id, DB_VALUE(ep_index, stream_id));
 
@@ -2230,8 +2236,42 @@ static int finish_td(struct aml_xhci_hcd *xhci, struct aml_xhci_virt_ep *ep,
 {
 	struct aml_xhci_ep_ctx *ep_ctx;
 	int trbs_freed;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	int i = 0;
+	int offset;
+	dma_addr_t tmp_dma_align;
+	struct aml_urb_priv *urb_priv;
+	struct urb *urb = td->urb;
+#endif
 
 	ep_ctx = aml_xhci_get_ep_ctx(xhci, ep->vdev->out_ctx, ep->ep_index);
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (xhci->meson_quirks & XHCI_CRG_HOST_010)
+		urb_priv = urb->hcpriv;
+	if ((xhci->meson_quirks & XHCI_CRG_HOST_010) &&
+		urb_priv->need_div == 1) {
+		tmp_dma_align = (urb_priv->tmp_dma + 1023) / 1024 * 1024;
+		offset = (u64)tmp_dma_align - (u64)urb_priv->tmp_dma;
+		if (urb_priv->tmp_buf) {
+			while (urb_priv->dst_buf[i] != 0) {
+				memcpy(phys_to_virt(urb_priv->dst_dma[i]),
+					phys_to_virt(tmp_dma_align + 512 * i), 512);
+				dma_sync_single_for_device(urb->dev->bus->controller,
+					(unsigned long)phys_to_virt(urb_priv->dst_dma[i]),
+					512, DMA_BIDIRECTIONAL);
+				i++;
+			}
+			urb_priv->need_div = 0;
+			/* amlogic add */
+			wmb();
+			dma_unmap_single(urb->dev->bus->controller,
+				urb_priv->tmp_dma, 4096, DMA_FROM_DEVICE);
+			//kfree(urb_priv->tmp_buf);
+		urb_priv->tmp_buf = NULL;
+		urb_priv->tmp_dma = 0;
+		}
+	}
+#endif
 
 	switch (trb_comp_code) {
 	case COMP_STOPPED_LENGTH_INVALID:
@@ -2547,6 +2587,9 @@ static int process_bulk_intr_td(struct aml_xhci_hcd *xhci, struct aml_xhci_virt_
 	struct aml_xhci_slot_ctx *slot_ctx;
 	u32 trb_comp_code;
 	u32 remaining, requested, ep_trb_len;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	struct aml_urb_priv *urb_priv;
+#endif
 
 	slot_ctx = aml_xhci_get_slot_ctx(xhci, ep->vdev->out_ctx);
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
@@ -2557,9 +2600,23 @@ static int process_bulk_intr_td(struct aml_xhci_hcd *xhci, struct aml_xhci_virt_
 	switch (trb_comp_code) {
 	case COMP_SUCCESS:
 		ep_ring->err_count = 0;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		urb_priv = td->urb->hcpriv;
+		if ((xhci->meson_quirks & XHCI_CRG_HOST_007) &&
+			urb_priv && urb_priv->need_event_data) {
+			td->urb->actual_length = requested;
+			remaining = 0;
+		}
+#endif
 		/* handle success with untransferred data as short packet */
 		if (ep_trb != td->last_trb || remaining) {
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+			if ((xhci->meson_quirks & XHCI_CRG_HOST_007) &&
+				urb_priv && !urb_priv->need_event_data)
+				aml_xhci_warn(xhci, "WARN Successful completion on short TX\n");
+#else
 			aml_xhci_warn(xhci, "WARN Successful completion on short TX\n");
+#endif
 			aml_xhci_dbg(xhci, "ep %#x - asked for %d bytes, %d bytes untransferred\n",
 				 td->urb->ep->desc.bEndpointAddress,
 				 requested, remaining);
@@ -2692,12 +2749,23 @@ static int handle_tx_event(struct aml_xhci_hcd *xhci,
 		if (EVENT_TRB_LEN(le32_to_cpu(event->transfer_len)) == 0)
 			break;
 		if (xhci->quirks & XHCI_TRUST_TX_LENGTH ||
-		    ep_ring->last_td_was_short)
+		    ep_ring->last_td_was_short) {
 			trb_comp_code = COMP_SHORT_PACKET;
-		else
+		} else {
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+			if ((xhci->meson_quirks & XHCI_CRG_HOST_007) ||
+				(xhci->meson_quirks & XHCI_CRG_HOST_008))
+				;
+			else
+				aml_xhci_warn_ratelimited(xhci,
+						"WARN Successful completion on short TX for slot %u ep %u: needs XHCI_TRUST_TX_LENGTH quirk?\n",
+						slot_id, ep_index);
+#else
 			aml_xhci_warn_ratelimited(xhci,
-					      "WARN Successful completion on short TX for slot %u ep %u: needs XHCI_TRUST_TX_LENGTH quirk?\n",
-					      slot_id, ep_index);
+						"WARN Successful completion on short TX for slot %u ep %u: needs XHCI_TRUST_TX_LENGTH quirk?\n",
+						slot_id, ep_index);
+#endif
+		}
 		break;
 	case COMP_SHORT_PACKET:
 		break;
@@ -2818,6 +2886,21 @@ static int handle_tx_event(struct aml_xhci_hcd *xhci,
 			  trb_comp_code, slot_id, ep_index);
 		goto cleanup;
 	}
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (xhci->meson_quirks & XHCI_CRG_HOST_EPROTO) {
+		if (status == -EPROTO) {
+			xhci->xhci_trans_err_cnt++;
+			if (xhci->xhci_trans_err_cnt == XHCI_TRANS_ERRS_CNT) {
+				status = -ENOENT;
+				aml_xhci_info(xhci, "-71 errors have been %d\n",
+					xhci->xhci_trans_err_cnt);
+				xhci->xhci_trans_err_cnt = 0;
+			}
+		} else {
+			xhci->xhci_trans_err_cnt = 0;
+		}
+	}
+#endif
 
 	do {
 		/* This TRB should be in the TD at the head of this ring's
@@ -2898,11 +2981,20 @@ static int handle_tx_event(struct aml_xhci_hcd *xhci,
 					goto cleanup;
 				}
 				/* HC is busted, give up! */
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+				if (!(xhci->meson_quirks & XHCI_CRG_HOST_008))
+					aml_xhci_err(xhci,
+						"ERROR Transfer event TRB DMA ptr not "
+						"part of current TD ep_index %d "
+						"comp_code %u\n", ep_index,
+						trb_comp_code);
+#else
 				aml_xhci_err(xhci,
 					"ERROR Transfer event TRB DMA ptr not "
 					"part of current TD ep_index %d "
 					"comp_code %u\n", ep_index,
 					trb_comp_code);
+#endif
 				aml_trb_in_td(xhci, ep_ring->deq_seg,
 					  ep_ring->dequeue, td->last_trb,
 					  ep_trb_dma, true);
@@ -3212,9 +3304,15 @@ irqreturn_t aml_xhci_msi_irq(int irq, void *hcd)
  * @more_trbs_coming:	Will you enqueue more TRBs before calling
  *			prepare_transfer()?
  */
-static void queue_trb(struct aml_xhci_hcd *xhci, struct aml_xhci_ring *ring,
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+void aml_queue_trb(struct aml_xhci_hcd *xhci, struct aml_xhci_ring *ring,
 		bool more_trbs_coming,
 		u32 field1, u32 field2, u32 field3, u32 field4)
+#else
+static void aml_queue_trb(struct aml_xhci_hcd *xhci, struct aml_xhci_ring *ring,
+		bool more_trbs_coming,
+		u32 field1, u32 field2, u32 field3, u32 field4)
+#endif
 {
 	struct aml_xhci_generic_trb *trb;
 
@@ -3631,6 +3729,26 @@ int aml_xhci_queue_bulk_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 	int sent_len, ret;
 	u32 field, length_field, remainder;
 	u64 addr, send_addr;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	u32 loop_cnt = 0;
+	u32 len_array[32] = {0};
+	u64 addr_array[32] = {0};
+	//u64 event_data_ptr;
+	u32 tmp_num_sgs;
+	u32 tmp_block_len;
+	struct scatterlist *tmp_sg;
+	u64 tmp_addr;
+	dma_addr_t		tmp_dma_align;
+	int i, k, len1, len2;
+	u64 j, event_data_ptr = 0;
+
+	urb_priv = urb->hcpriv;
+	if ((xhci->meson_quirks & XHCI_CRG_HOST_007) &&
+		urb->dev->level >= 2 && urb_priv &&
+		urb->dev->speed == USB_SPEED_LOW &&
+		(usb_endpoint_xfer_int(&urb->ep->desc)))
+		urb_priv->need_event_data = 1;
+#endif
 
 	ring = xhci_urb_to_transfer_ring(xhci, urb);
 	if (!ring)
@@ -3649,9 +3767,137 @@ int aml_xhci_queue_bulk_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 		addr = (u64) urb->transfer_dma;
 		block_len = full_len;
 	}
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (xhci->meson_quirks & XHCI_CRG_HOST_010 && urb_priv) {
+		if (urb_priv->need_div == 1) {
+			urb_priv->need_div = 0;
+			if (urb->num_sgs > 1) {
+				tmp_num_sgs = num_sgs;
+				tmp_block_len = block_len;
+				tmp_sg = sg;
+				tmp_addr = addr;
+				while (tmp_sg) {
+					if (tmp_block_len % 1024 && tmp_num_sgs != 1 &&
+							sg_next(tmp_sg))
+						urb_priv->need_div = 1;
+					--tmp_num_sgs;
+					tmp_sg = sg_next(tmp_sg);
+					if (tmp_num_sgs != 0 && tmp_sg) {
+						tmp_block_len = sg_dma_len(tmp_sg);
+						tmp_addr = (u64)sg_dma_address(tmp_sg);
+					}
+				}
+			}
+		}
+
+		if (urb_priv->need_div) {
+			i = 0;
+			j = 0;
+			k = 0;
+			len1 = 0;
+			len2 = 0;
+			tmp_num_sgs = num_sgs;
+			tmp_block_len = block_len;
+			tmp_sg = sg;
+			tmp_addr = addr;
+
+			urb_priv->tmp_buf = kmalloc(4096, GFP_ATOMIC);
+			if (!urb_priv->tmp_buf) {
+				urb_priv->need_div = 0;
+				goto out_host010;
+			}
+			memset(urb_priv->tmp_buf, 0, 4096);
+
+			memset(urb_priv->dst_dma, 0, sizeof(urb_priv->dst_dma));
+			memset(urb_priv->dst_buf, 0, sizeof(urb_priv->dst_buf));
+
+			urb_priv->tmp_dma = dma_map_single(urb->dev->bus->controller,
+				urb_priv->tmp_buf, 4096, DMA_FROM_DEVICE);
+			tmp_dma_align = (urb_priv->tmp_dma + 1023) / 1024 * 1024;
+
+			while (tmp_sg) {
+				if (len1) {
+					len_array[i] = 1024;
+					addr_array[i] = tmp_dma_align + 1024 * j++;
+					urb_priv->dst_dma[k] = tmp_addr;
+					urb_priv->dst_buf[k++] = (u64)(uintptr_t)sg_virt(tmp_sg) +
+						(u64)sg_dma_len(tmp_sg) - (u64)len1;
+					len1 = 0;
+					tmp_block_len = 0;
+					i++;
+					goto NEXT_SG;
+				}
+
+				if (len2) {
+					urb_priv->dst_dma[k] = tmp_addr;
+					urb_priv->dst_buf[k++] = (u64)(uintptr_t)sg_virt(tmp_sg);
+					tmp_block_len -= len2;
+					tmp_addr += len2;
+					len2 = 0;
+				}
+
+			if (tmp_block_len >= TRB_MAX_BUFF_SIZE) {
+				len_array[i] = TRB_MAX_BUFF_SIZE;
+				addr_array[i] = tmp_addr;
+				tmp_block_len -= TRB_MAX_BUFF_SIZE;
+				tmp_addr += TRB_MAX_BUFF_SIZE;
+				i++;
+				continue;
+			} else if (tmp_block_len > 0) {
+				if ((tmp_block_len % 1024) && (sg_next(tmp_sg))) {
+					len1 = tmp_block_len % 1024;
+					len2 = 1024 - len1;
+					if (tmp_block_len > len1) {
+						len_array[i] = tmp_block_len - len1;
+						addr_array[i] = tmp_addr;
+						tmp_addr = addr_array[i] + len_array[i];
+						tmp_block_len = len1;
+						i++;
+					}
+					continue;
+				} else {
+					len_array[i] = tmp_block_len;
+					addr_array[i] = tmp_addr;
+					tmp_block_len = 0;
+					i++;
+				}
+			}
+NEXT_SG:
+				--tmp_num_sgs;
+				tmp_sg = sg_next(tmp_sg);
+				if (tmp_num_sgs != 0 && tmp_sg) {
+					tmp_block_len = sg_dma_len(tmp_sg);
+					tmp_addr = (u64)sg_dma_address(tmp_sg);
+				} else {
+					break;
+				}
+			}
+		}
+	}
+
+out_host010:
+	if (xhci->meson_quirks & XHCI_CRG_HOST_007) {
+		if (urb_priv->need_event_data) {
+			ret = prepare_transfer(xhci, xhci->devs[slot_id],
+				ep_index, urb->stream_id,
+				num_trbs + 1, urb, 0, mem_flags);
+		} else {
+			ret = prepare_transfer(xhci, xhci->devs[slot_id],
+				ep_index, urb->stream_id,
+				num_trbs, urb, 0, mem_flags);
+		}
+	} else {
+		ret = prepare_transfer(xhci, xhci->devs[slot_id],
+			ep_index, urb->stream_id,
+			num_trbs, urb, 0, mem_flags);
+	}
+
+#else
 	ret = prepare_transfer(xhci, xhci->devs[slot_id],
 			ep_index, urb->stream_id,
 			num_trbs, urb, 0, mem_flags);
+#endif
+
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -3679,10 +3925,26 @@ int aml_xhci_queue_bulk_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 
 		/* TRB buffer should not cross 64KB boundaries */
 		trb_buff_len = TRB_BUFF_LEN_UP_TO_BOUNDARY(addr);
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (xhci->meson_quirks & XHCI_CRG_HOST_010)
+		trb_buff_len = TRB_MAX_BUFF_SIZE;
+#endif
 		trb_buff_len = min_t(unsigned int, trb_buff_len, block_len);
 
 		if (enqd_len + trb_buff_len > full_len)
 			trb_buff_len = full_len - enqd_len;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		if (xhci->meson_quirks & XHCI_CRG_HOST_010) {
+			if (urb_priv->need_div) {
+				trb_buff_len = len_array[loop_cnt];
+				send_addr = addr_array[loop_cnt];
+
+				if (!send_addr || !trb_buff_len)
+					WARN_ON(1);
+				loop_cnt++;
+			}
+		}
+#endif
 
 		/* Don't change the cycle bit of the first TRB until later */
 		if (first_trb) {
@@ -3697,6 +3959,21 @@ int aml_xhci_queue_bulk_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 		 */
 		if (enqd_len + trb_buff_len < full_len) {
 			field |= TRB_CHAIN;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		if (xhci->meson_quirks & XHCI_CRG_HOST_010) {
+			if (!(usb_urb_dir_in(urb) && ring->type == TYPE_BULK &&
+				urb->dev->speed >= USB_SPEED_SUPER &&
+				urb_priv->need_div == 1) &&
+				trb_is_link(ring->enqueue + 1)) {
+				if (xhci_align_td(xhci, urb,
+						enqd_len, &trb_buff_len,
+						ring->enq_seg)) {
+					send_addr = ring->enq_seg->bounce_dma;
+					/* assuming TD won't span 2 segs */
+					td->bounce_seg = ring->enq_seg;
+				}
+			}
+		} else {
 			if (trb_is_link(ring->enqueue + 1)) {
 				if (xhci_align_td(xhci, urb, enqd_len,
 						  &trb_buff_len,
@@ -3707,10 +3984,39 @@ int aml_xhci_queue_bulk_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 				}
 			}
 		}
+#else
+		if (trb_is_link(ring->enqueue + 1)) {
+			if (xhci_align_td(xhci, urb, enqd_len,
+					  &trb_buff_len,
+					  ring->enq_seg)) {
+				send_addr = ring->enq_seg->bounce_dma;
+				/* assuming TD won't span 2 segs */
+				td->bounce_seg = ring->enq_seg;
+			}
+		}
+#endif
+		}
 		if (enqd_len + trb_buff_len >= full_len) {
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+			if ((xhci->meson_quirks & XHCI_CRG_HOST_007) &&
+				urb_priv->need_event_data) {
+				field |= TRB_CHAIN;
+				field &= ~TRB_IOC;
+				more_trbs_coming = true;
+				event_data_ptr = ring->enq_seg->dma +
+					(le64_to_cpu((long)ring->enqueue) -
+					le64_to_cpu((long)ring->enq_seg->trbs));
+
+			} else {
+				field &= ~TRB_CHAIN;
+				field |= TRB_IOC;
+				more_trbs_coming = false;
+			}
+#else
 			field &= ~TRB_CHAIN;
 			field |= TRB_IOC;
 			more_trbs_coming = false;
+#endif
 			td->last_trb = ring->enqueue;
 			td->last_trb_seg = ring->enq_seg;
 			if (xhci_urb_suitable_for_idt(urb)) {
@@ -3733,7 +4039,7 @@ int aml_xhci_queue_bulk_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 			TRB_TD_SIZE(remainder) |
 			TRB_INTR_TARGET(0);
 
-		queue_trb(xhci, ring, more_trbs_coming | need_zero_pkt,
+		aml_queue_trb(xhci, ring, more_trbs_coming | need_zero_pkt,
 				lower_32_bits(send_addr),
 				upper_32_bits(send_addr),
 				length_field,
@@ -3757,6 +4063,20 @@ int aml_xhci_queue_bulk_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 		send_addr = addr;
 	}
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if ((xhci->meson_quirks & XHCI_CRG_HOST_007) &&
+		urb_priv->need_event_data && event_data_ptr) {
+		field = TRB_TYPE(TRB_EVENT_DATA) | ring->cycle_state | TRB_IOC;
+		urb_priv->td[0].last_trb = ring->enqueue;
+		urb_priv->td[0].last_trb_seg = ring->enq_seg;
+		aml_queue_trb(xhci, ring, false,
+			lower_32_bits(event_data_ptr),
+			upper_32_bits(event_data_ptr),
+			TRB_INTR_TARGET(0), field);
+		td->num_trbs++;
+	}
+#endif
+
 	if (need_zero_pkt) {
 		ret = prepare_transfer(xhci, xhci->devs[slot_id],
 				       ep_index, urb->stream_id,
@@ -3764,7 +4084,7 @@ int aml_xhci_queue_bulk_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 		urb_priv->td[1].last_trb = ring->enqueue;
 		urb_priv->td[1].last_trb_seg = ring->enq_seg;
 		field = TRB_TYPE(TRB_NORMAL) | ring->cycle_state | TRB_IOC;
-		queue_trb(xhci, ring, 0, 0, 0, TRB_INTR_TARGET(0), field);
+		aml_queue_trb(xhci, ring, 0, 0, 0, TRB_INTR_TARGET(0), field);
 		urb_priv->td[1].num_trbs++;
 	}
 
@@ -3844,7 +4164,7 @@ int aml_xhci_queue_ctrl_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 		}
 	}
 
-	queue_trb(xhci, ep_ring, true,
+	aml_queue_trb(xhci, ep_ring, true,
 		  setup->bRequestType | setup->bRequest << 8 | le16_to_cpu(setup->wValue) << 16,
 		  le16_to_cpu(setup->wIndex) | le16_to_cpu(setup->wLength) << 16,
 		  TRB_LEN(8) | TRB_INTR_TARGET(0),
@@ -3880,7 +4200,7 @@ int aml_xhci_queue_ctrl_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 				TRB_INTR_TARGET(0);
 		if (setup->bRequestType & USB_DIR_IN)
 			field |= TRB_DIR_IN;
-		queue_trb(xhci, ep_ring, true,
+		aml_queue_trb(xhci, ep_ring, true,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
 				length_field,
@@ -3897,7 +4217,7 @@ int aml_xhci_queue_ctrl_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 		field = 0;
 	else
 		field = TRB_DIR_IN;
-	queue_trb(xhci, ep_ring, false,
+	aml_queue_trb(xhci, ep_ring, false,
 			0,
 			0,
 			TRB_INTR_TARGET(0),
@@ -4089,6 +4409,16 @@ static int xhci_queue_isoc_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 	bool more_trbs_coming;
 	struct aml_xhci_virt_ep *xep;
 	int frame_id;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	u64 event_data_ptr;
+
+	if ((xhci->meson_quirks & XHCI_CRG_HOST_008) &&
+		(le16_to_cpu(urb->dev->descriptor.bDeviceClass) == 0xef) &&
+		urb->dev->speed >= USB_SPEED_SUPER) {
+		urb_priv = urb->hcpriv;
+		urb_priv->need_event_data_flag = 1;
+	}
+#endif
 
 	xep = &xhci->devs[slot_id]->eps[ep_index];
 	ep_ring = xhci->devs[slot_id]->eps[ep_index].ring;
@@ -4126,6 +4456,15 @@ static int xhci_queue_isoc_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 
 		trbs_per_td = count_isoc_trbs_needed(urb, i);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		if ((xhci->meson_quirks & XHCI_CRG_HOST_008) &&
+			urb_priv->need_event_data_flag)
+			trbs_per_td++;
+
+		if (xhci->meson_quirks & XHCI_CRG_HOST_010)
+			if (urb->dev->speed == USB_SPEED_HIGH)
+				trbs_per_td = 1;
+#endif
 		ret = prepare_transfer(xhci, xhci->devs[slot_id], ep_index,
 				urb->stream_id, trbs_per_td, urb, i, mem_flags);
 		if (ret < 0) {
@@ -4169,6 +4508,15 @@ static int xhci_queue_isoc_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 			/* Only set interrupt on short packet for IN EPs */
 			if (usb_urb_dir_in(urb))
 				field |= TRB_ISP;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+			if ((xhci->meson_quirks & XHCI_CRG_HOST_008) &&
+				(j == (trbs_per_td - 2)) &&
+				urb_priv->need_event_data_flag) {
+				event_data_ptr = ep_ring->enq_seg->dma +
+					(le64_to_cpu((long)ep_ring->enqueue) -
+					le64_to_cpu((long)ep_ring->enq_seg->trbs));
+			}
+#endif
 
 			/* Set the chain bit for all except the last TRB  */
 			if (j < trbs_per_td - 1) {
@@ -4178,7 +4526,18 @@ static int xhci_queue_isoc_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 				more_trbs_coming = false;
 				td->last_trb = ep_ring->enqueue;
 				td->last_trb_seg = ep_ring->enq_seg;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+				if (xhci->meson_quirks & XHCI_CRG_HOST_008) {
+					if (urb_priv->need_event_data_flag) {
+						field = TRB_TYPE(TRB_EVENT_DATA) |
+							ep_ring->cycle_state | TRB_IOC;
+					} else {
+						field |= TRB_IOC;
+					}
+				}
+#else
 				field |= TRB_IOC;
+#endif
 				if (trb_block_event_intr(xhci, num_tds, i))
 					field |= TRB_BEI;
 			}
@@ -4186,6 +4545,11 @@ static int xhci_queue_isoc_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 			trb_buff_len = TRB_BUFF_LEN_UP_TO_BOUNDARY(addr);
 			if (trb_buff_len > td_remain_len)
 				trb_buff_len = td_remain_len;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+			else if ((xhci->meson_quirks & XHCI_CRG_HOST_010) &&
+				urb->dev->speed == USB_SPEED_HIGH)
+				trb_buff_len = td_remain_len;
+#endif
 
 			/* Set the TRB length, TD size, & interrupter fields. */
 			remainder = xhci_td_remainder(xhci, running_total,
@@ -4201,8 +4565,22 @@ static int xhci_queue_isoc_tx(struct aml_xhci_hcd *xhci, gfp_t mem_flags,
 			else
 				length_field |= TRB_TD_SIZE(remainder);
 			first_trb = false;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+			if (xhci->meson_quirks & XHCI_CRG_HOST_008) {
+				if (urb_priv->need_event_data_flag &&
+					(j == (trbs_per_td - 1))) {
+					addr = event_data_ptr;
+					/* amlogic fix */
+					wmb();
+					/* amlogic fix */
+					wmb();
+					/* amlogic fix */
+					wmb();
+				}
+			}
+#endif
 
-			queue_trb(xhci, ep_ring, more_trbs_coming,
+			aml_queue_trb(xhci, ep_ring, more_trbs_coming,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
 				length_field,
@@ -4386,7 +4764,7 @@ static int queue_command(struct aml_xhci_hcd *xhci, struct aml_xhci_command *cmd
 
 	list_add_tail(&cmd->cmd_list, &xhci->cmd_list);
 
-	queue_trb(xhci, xhci->cmd_ring, false, field1, field2, field3,
+	aml_queue_trb(xhci, xhci->cmd_ring, false, field1, field2, field3,
 			field4 | xhci->cmd_ring->cycle_state);
 	return 0;
 }
@@ -4445,6 +4823,68 @@ int aml_xhci_queue_evaluate_context(struct aml_xhci_hcd *xhci, struct aml_xhci_c
 			command_must_succeed);
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+void xhci_start_stop_endpoint_work(struct aml_xhci_hcd *xhci, int slot_id, unsigned int ep_index)
+{
+	if (xhci && xhci->meson_quirks & XHCI_CRG_HOST_011) {
+		struct usb_device *udev;
+		struct aml_xhci_virt_ep *eps;
+		struct usb_host_endpoint *endpoint;
+		struct usb_hcd *hcd;
+
+		if (xhci->devs[slot_id] && xhci->devs[slot_id]->udev)
+			udev = xhci->devs[slot_id]->udev;
+		else
+			return;
+
+		eps = &xhci->devs[slot_id]->eps[ep_index];
+
+		if (ep_index % 2)
+			endpoint = udev->ep_out[(ep_index + 1) / 2];
+		else
+			endpoint = udev->ep_in[(ep_index + 1) / 2];
+
+		hcd = bus_to_hcd(udev->bus);
+		if (endpoint && (usb_endpoint_xfer_isoc(&endpoint->desc) ||
+			usb_endpoint_xfer_int(&endpoint->desc))  &&
+			udev->descriptor.bDeviceClass == 0xef &&
+			udev->speed == USB_SPEED_HIGH) {
+			eps->udev = udev;
+			eps->bendpointaddress = endpoint->desc.bEndpointAddress;
+			schedule_work(&eps->stop_work);
+			//usleep_range(200, 250);
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(xhci_start_stop_endpoint_work);
+
+void xhci_stop_endpoint_command_timer(struct timer_list *t)
+{
+	struct aml_xhci_virt_ep *ep = from_timer(ep, t, stop_cmd_queue_timer);
+	struct aml_xhci_hcd *xhci = ep->xhci;
+	struct aml_xhci_command *command;
+	unsigned long flags;
+
+	aml_xhci_info(xhci, "start stop ep=%d, slot=%d\n", ep->ep_index, ep->slot_id);
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	command = aml_xhci_alloc_command(xhci, false, GFP_ATOMIC);
+	if (!command) {
+		aml_xhci_info(xhci, "not stop ep=%d, slot=%d\n", ep->ep_index, ep->slot_id);
+		return;
+	}
+	ep->ep_state |= EP_STOP_CMD_PENDING;
+	ep->stop_cmd_timer.expires = jiffies +
+		XHCI_STOP_EP_CMD_TIMEOUT * HZ;
+	add_timer(&ep->stop_cmd_timer);
+	aml_xhci_queue_stop_endpoint(xhci, command, ep->slot_id,
+					 ep->ep_index, 0);
+	aml_xhci_ring_cmd_db(xhci);
+
+	spin_unlock_irqrestore(&xhci->lock, flags);
+}
+#endif
+
 /*
  * Suspend is set to indicate "Stop Endpoint Command" is being issued to stop
  * activity on an endpoint that is about to be suspended.
@@ -4457,6 +4897,9 @@ int aml_xhci_queue_stop_endpoint(struct aml_xhci_hcd *xhci, struct aml_xhci_comm
 	u32 type = TRB_TYPE(TRB_STOP_RING);
 	u32 trb_suspend = SUSPEND_PORT_FOR_TRB(suspend);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	xhci_start_stop_endpoint_work(xhci, slot_id, ep_index);
+#endif
 	return queue_command(xhci, cmd, 0, 0, 0,
 			trb_slot_id | trb_ep_index | type | trb_suspend, false);
 }

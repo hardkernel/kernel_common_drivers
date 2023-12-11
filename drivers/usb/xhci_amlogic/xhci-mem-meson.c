@@ -18,6 +18,10 @@
 #include "xhci-trace-meson.h"
 #include "xhci-debugfs-meson.h"
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+static DEFINE_SPINLOCK(crg_urb_lock);
+#endif
+
 /*
  * Allocates a generic ring segment from the ring pool, sets the dma address,
  * initializes the segment to zero, and sets the private next pointer to NULL.
@@ -795,6 +799,11 @@ static void xhci_init_endpoint_timer(struct aml_xhci_hcd *xhci,
 {
 	timer_setup(&ep->stop_cmd_timer, aml_xhci_stop_endpoint_command_watchdog,
 		    0);
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (xhci->meson_quirks & XHCI_CRG_HOST_DELAY)
+		timer_setup(&ep->stop_cmd_queue_timer, xhci_stop_endpoint_command_timer,
+				0);
+#endif
 	ep->xhci = xhci;
 }
 
@@ -972,6 +981,96 @@ out:
 	aml_xhci_free_virt_device(xhci, slot_id);
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+int aml_xhci_usb_get_status(struct usb_device *dev, int recip, int type, int target,
+		void *data)
+{
+	int ret;
+	void *status;
+	int length;
+
+	switch (type) {
+	case USB_STATUS_TYPE_STANDARD:
+		length = 2;
+		break;
+	case USB_STATUS_TYPE_PTM:
+		if (recip != USB_RECIP_DEVICE)
+			return -EINVAL;
+
+		length = 4;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	status =  kmalloc(length, GFP_KERNEL);
+	if (!status)
+		return -ENOMEM;
+
+	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
+		USB_REQ_GET_STATUS, USB_DIR_IN | recip, USB_STATUS_TYPE_STANDARD,
+		target, status, length, USB_CTRL_GET_TIMEOUT);
+
+	switch (ret) {
+	case 4:
+		if (type != USB_STATUS_TYPE_PTM) {
+			ret = -EIO;
+			break;
+		}
+
+		*(u32 *)data = le32_to_cpu(*(__le32 *)status);
+		ret = 0;
+		break;
+	case 2:
+		if (type != USB_STATUS_TYPE_STANDARD) {
+			ret = -EIO;
+			break;
+		}
+
+		*(u16 *)data = le16_to_cpu(*(__le16 *)status);
+		ret = 0;
+		break;
+	default:
+		ret = -EIO;
+	}
+
+	kfree(status);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(aml_xhci_usb_get_status);
+
+void stop_ep_cmd_work(struct work_struct *work)
+{
+	struct aml_xhci_hcd *xhci;
+	//struct aml_xhci_ep_ctx *ep_ctx;
+	struct usb_device *udev;
+	u32 i;
+	struct aml_xhci_virt_ep		*eps =
+		container_of(work, struct aml_xhci_virt_ep, stop_work);
+	//int ep_index = eps->ep_index;
+
+	xhci = eps->xhci;
+	if (eps->q_status_count == 0)
+		eps->q_status_count = 12;
+	while (1) {
+		if (eps->xhci  && eps->udev) {
+			u16 stat;
+
+			udev = eps->udev;
+			//ep_ctx = aml_xhci_get_ep_ctx(xhci,
+			//xhci->devs[udev->slot_id]->out_ctx, ep_index);
+			//dev_warn(&udev->dev, " host011 start ...\n");
+			for (i = 0; i < eps->q_status_count; i++) {
+				aml_xhci_usb_get_status(udev, USB_RECIP_ENDPOINT,
+					USB_STATUS_TYPE_STANDARD, eps->bendpointaddress, &stat);
+				//usleep_range(500, 501);
+			}
+		}
+		break;
+	}
+}
+#endif
+
 int aml_xhci_alloc_virt_device(struct aml_xhci_hcd *xhci, int slot_id,
 		struct usb_device *udev, gfp_t flags)
 {
@@ -1013,6 +1112,12 @@ int aml_xhci_alloc_virt_device(struct aml_xhci_hcd *xhci, int slot_id,
 		xhci_init_endpoint_timer(xhci, &dev->eps[i]);
 		INIT_LIST_HEAD(&dev->eps[i].cancelled_td_list);
 		INIT_LIST_HEAD(&dev->eps[i].bw_endpoint_list);
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (xhci->meson_quirks & XHCI_CRG_HOST_011) {
+		dev->eps[i].xhci = xhci;
+		INIT_WORK(&dev->eps[i].stop_work, stop_ep_cmd_work);
+	}
+#endif
 	}
 
 	/* Allocate endpoint 0 ring */
@@ -1445,7 +1550,6 @@ int aml_xhci_endpoint_init(struct aml_xhci_hcd *xhci,
 
 	ep_index = aml_xhci_get_endpoint_index(&ep->desc);
 	ep_ctx = aml_xhci_get_ep_ctx(xhci, virt_dev->in_ctx, ep_index);
-
 	endpoint_type = xhci_get_endpoint_type(ep);
 	if (!endpoint_type)
 		return -EINVAL;
@@ -1498,13 +1602,32 @@ int aml_xhci_endpoint_init(struct aml_xhci_hcd *xhci,
 		mult = 0;
 
 	/* Set up the endpoint ring */
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (xhci->meson_quirks & XHCI_CRG_HOST_008)
+		virt_dev->eps[ep_index].new_ring =
+			aml_xhci_ring_alloc(xhci, 18, 1, ring_type, max_packet, mem_flags);
+	else
+		virt_dev->eps[ep_index].new_ring =
+			aml_xhci_ring_alloc(xhci, 2, 1, ring_type, max_packet, mem_flags);
+#else
 	virt_dev->eps[ep_index].new_ring =
 		aml_xhci_ring_alloc(xhci, 2, 1, ring_type, max_packet, mem_flags);
+#endif
 	if (!virt_dev->eps[ep_index].new_ring)
 		return -ENOMEM;
 
 	virt_dev->eps[ep_index].skip = false;
 	ep_ring = virt_dev->eps[ep_index].new_ring;
+
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if ((xhci->meson_quirks & XHCI_CRG_HOST_010) &&
+		udev->speed == USB_SPEED_SUPER) {
+		if (endpoint_type == BULK_IN_EP) {
+			max_burst = 0;
+			aml_xhci_warn(xhci, "##### crg set max_burst 0\n");
+		}
+	}
+#endif
 
 	/* Fill the endpoint context */
 	ep_ctx->ep_info = cpu_to_le32(EP_MAX_ESIT_PAYLOAD_HI(max_esit_payload) |
@@ -1787,10 +1910,37 @@ struct aml_xhci_command *aml_xhci_alloc_command_with_ctx(struct aml_xhci_hcd *xh
 	return command;
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+void aml_xhci_urb_free_priv(struct aml_urb_priv *urb_priv)
+{
+	unsigned long flags;
+	struct usb_hcd  *hcd;
+	struct aml_xhci_hcd *xhci;
+
+	if (urb_priv && urb_priv->urb && urb_priv->need_div) {
+		hcd = bus_to_hcd(urb_priv->urb->dev->bus);
+		xhci = hcd_to_xhci(hcd);
+		if (xhci->meson_quirks & XHCI_CRG_HOST_010) {
+			spin_lock_irqsave(&crg_urb_lock, flags);
+			memset(urb_priv->dst_buf, 0, sizeof(urb_priv->dst_buf));
+			if (urb_priv->tmp_dma)
+				dma_unmap_single(urb_priv->urb->dev->bus->controller,
+				urb_priv->tmp_dma, 4096, DMA_FROM_DEVICE);
+			kfree(urb_priv->tmp_buf);
+
+			urb_priv->tmp_dma = 0;
+			urb_priv->tmp_buf = NULL;
+			spin_unlock_irqrestore(&crg_urb_lock, flags);
+		}
+	}
+	kfree(urb_priv);
+}
+#else
 void aml_xhci_urb_free_priv(struct aml_urb_priv *urb_priv)
 {
 	kfree(urb_priv);
 }
+#endif
 
 void aml_xhci_free_command(struct aml_xhci_hcd *xhci,
 		struct aml_xhci_command *command)
@@ -2527,8 +2677,18 @@ int aml_xhci_mem_init(struct aml_xhci_hcd *xhci, gfp_t flags)
 	 * the event ring segment table (ERST).  Section 4.9.3.
 	 */
 	aml_xhci_dbg_trace(xhci, trace_aml_xhci_dbg_init, "// Allocating event ring");
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (xhci->meson_quirks & XHCI_CRG_HOST_008)
+		xhci->event_ring = aml_xhci_ring_alloc(xhci, AML_ERST_NUM_SEGS, 1, TYPE_EVENT,
+							0, flags);
+	else
+		xhci->event_ring = aml_xhci_ring_alloc(xhci, ERST_NUM_SEGS, 1, TYPE_EVENT,
+					0, flags);
+#else
 	xhci->event_ring = aml_xhci_ring_alloc(xhci, ERST_NUM_SEGS, 1, TYPE_EVENT,
 					0, flags);
+#endif
+
 	if (!xhci->event_ring)
 		goto fail;
 	if (xhci_check_trb_in_td_math(xhci) < 0)
@@ -2541,7 +2701,15 @@ int aml_xhci_mem_init(struct aml_xhci_hcd *xhci, gfp_t flags)
 	/* set ERST count with the number of entries in the segment table */
 	val = readl(&xhci->ir_set->erst_size);
 	val &= ERST_SIZE_MASK;
-	val |= ERST_NUM_SEGS;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		if (xhci->meson_quirks & XHCI_CRG_HOST_008)
+			val |= AML_ERST_NUM_SEGS;
+		else
+			val |= ERST_NUM_SEGS;
+#else
+		val |= ERST_NUM_SEGS;
+#endif
+
 	aml_xhci_dbg_trace(xhci, trace_aml_xhci_dbg_init,
 			"// Write ERST size = %i to ir_set 0 (some bits preserved)",
 			val);

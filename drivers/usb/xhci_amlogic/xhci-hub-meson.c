@@ -472,7 +472,11 @@ int aml_xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct aml_xhci_hcd *xhci
  * to complete.
  * suspend will set to 1, if suspend bit need to set in command.
  */
-static int xhci_stop_device(struct aml_xhci_hcd *xhci, int slot_id, int suspend)
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+int aml_xhci_stop_device(struct aml_xhci_hcd *xhci, int slot_id, int suspend)
+#else
+static int aml_xhci_stop_device(struct aml_xhci_hcd *xhci, int slot_id, int suspend)
+#endif
 {
 	struct aml_xhci_virt_device *virt_dev;
 	struct aml_xhci_command *cmd;
@@ -1229,7 +1233,7 @@ static int xhci_test_suspend_resume(struct usb_hcd *hcd,
 	}
 	/* unlock to execute stop endpoint commands */
 	spin_unlock_irqrestore(&xhci->lock, flags);
-	xhci_stop_device(xhci, slot_id, 1);
+	aml_xhci_stop_device(xhci, slot_id, 1);
 	spin_lock_irqsave(&xhci->lock, flags);
 
 	aml_xhci_set_link_state(xhci, port, XDEV_U3);
@@ -1378,6 +1382,14 @@ int aml_xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			break;
 		}
 		temp = aml_xhci_port_state_to_neutral(temp);
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		if (xhci->meson_quirks & XHCI_CRG_HOST_014 &&
+			hcd->self.root_hub->descriptor.bDeviceProtocol >= USB_HUB_PR_SS &&
+			wValue == USB_PORT_FEAT_RESET) {
+			wValue = USB_PORT_FEAT_BH_PORT_RESET;
+			aml_xhci_info(xhci, "change hot reset to warm reset\n");
+		}
+#endif
 		/* FIXME: What new port features do we need to support? */
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
@@ -1410,7 +1422,7 @@ int aml_xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			}
 			/* unlock to execute stop endpoint commands */
 			spin_unlock_irqrestore(&xhci->lock, flags);
-			xhci_stop_device(xhci, slot_id, 1);
+			aml_xhci_stop_device(xhci, slot_id, 1);
 			spin_lock_irqsave(&xhci->lock, flags);
 
 			aml_xhci_set_link_state(xhci, ports[wIndex], XDEV_U3);
@@ -1544,7 +1556,7 @@ int aml_xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					 * commands */
 					spin_unlock_irqrestore(&xhci->lock,
 								flags);
-					xhci_stop_device(xhci, slot_id, 1);
+					aml_xhci_stop_device(xhci, slot_id, 1);
 					spin_lock_irqsave(&xhci->lock, flags);
 				}
 				aml_xhci_set_link_state(xhci, ports[wIndex], USB_SS_PORT_LS_U3);
@@ -1913,7 +1925,7 @@ retry:
 							    port_index + 1);
 			if (slot_id) {
 				spin_unlock_irqrestore(&xhci->lock, flags);
-				xhci_stop_device(xhci, slot_id, 1);
+				aml_xhci_stop_device(xhci, slot_id, 1);
 				spin_lock_irqsave(&xhci->lock, flags);
 			}
 		}

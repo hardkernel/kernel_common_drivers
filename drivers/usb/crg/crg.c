@@ -28,6 +28,7 @@
 #include <linux/amlogic/usbtype.h>
 #include <linux/clk.h>
 #include <linux/phy/phy.h>
+#include <linux/amlogic/cpu_version.h>
 #include "../xhci_amlogic/xhci-meson.h"
 #include "../xhci_amlogic/xhci-plat-meson.h"
 //#include "crg_xhci.h"
@@ -158,9 +159,11 @@ static int crg_core_get_phy(struct crg *crg)
 	return 0;
 }
 
+static struct property_entry	props[64];
+
 int crg_host_init(struct crg *crg)
 {
-	struct property_entry	props[4];
+	//struct property_entry	props[64];
 	struct platform_device	*xhci;
 	int			ret, irq;
 	struct resource		*res;
@@ -234,6 +237,33 @@ int crg_host_init(struct crg *crg)
 
 	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host");
 	props[prop_idx++] = PROPERTY_ENTRY_BOOL("usb2-lpm-disable");
+
+	if (is_meson_t5_cpu() || is_meson_t5d_cpu())
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-003");
+
+	if (is_meson_t7_cpu() || is_meson_t3_cpu()) {
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-007");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-010");
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-014");
+	}
+
+	if (is_meson_t7_cpu() || is_meson_t3_cpu() ||
+		is_meson_t5_cpu() || is_meson_t5d_cpu() ||
+		is_meson_s4_cpu() || is_meson_s4d_cpu())
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-008");
+
+	if (is_meson_s4_cpu() || is_meson_s4d_cpu())
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-009");
+
+	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-plug-died");
+
+	if (is_meson_t5w_cpu() || is_meson_t3_cpu() ||
+		is_meson_t5_cpu() || is_meson_t5d_cpu() ||
+		is_meson_s4_cpu() || is_meson_s4d_cpu())
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-011");
+
+	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-eproto");
+	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-016");
 
 	if (prop_idx) {
 		ret = device_create_managed_software_node(&xhci->dev, props, NULL);

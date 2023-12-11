@@ -6,3 +6,4 @@
 
 # amlogic-usb.ko
   extcon_get_state
+  usb_ep_type_string
