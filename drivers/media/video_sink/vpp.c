@@ -2706,24 +2706,34 @@ RESTART:
 	}
 
 	/*pre hsc&vsc in pps for scaler down*/
-	if ((filter->vpp_hf_start_phase_step >= 0x2000000 &&
+	if (cur_dev->vd1_vsr_safa_support &&
+		((filter->vpp_vsc_start_phase_step >= 0x2000000 &&
+		pre_scaler_en) ||
+		pre_scaler[input->layer_id].force_pre_scaler)) {
+		if (filter->vpp_hf_start_phase_step >= 0x8000000 &&
+			filter->vpp_vsc_start_phase_step >= 0x8000000) {
+			pre_scaler[input->layer_id].pre_vscaler_rate = 3;
+			filter->vpp_pre_vsc_ratio = 3;
+		} else if (filter->vpp_hf_start_phase_step >= 0x4000000 &&
+			filter->vpp_vsc_start_phase_step >= 0x4000000) {
+			pre_scaler[input->layer_id].pre_vscaler_rate = 2;
+			filter->vpp_pre_vsc_ratio = 2;
+		} else {
+			pre_scaler[input->layer_id].pre_vscaler_rate = 1;
+			filter->vpp_pre_vsc_ratio = 1;
+		}
+		filter->vpp_pre_vsc_en = 1;
+		filter->vpp_vsc_start_phase_step >>=
+			pre_scaler[input->layer_id].pre_vscaler_rate;
+		ratio_y >>= pre_scaler[input->layer_id].pre_vscaler_rate;
+		f2v_get_vertical_phase(ratio_y, ini_vphase,
+				       next_frame_par->VPP_vf_ini_phase_,
+				       vpp_flags & VPP_FLAG_INTERLACE_OUT);
+	} else if ((filter->vpp_hf_start_phase_step >= 0x2000000 &&
 	    filter->vpp_vsc_start_phase_step >= 0x2000000 &&
 	    filter->vpp_hsc_start_phase_step == filter->vpp_hf_start_phase_step &&
 	    pre_scaler_en) ||
 	    pre_scaler[input->layer_id].force_pre_scaler) {
-		if (input->vsr_safa_support) {
-			if (filter->vpp_hf_start_phase_step >= 0x8000000 &&
-				filter->vpp_vsc_start_phase_step >= 0x8000000)
-				pre_scaler[input->layer_id].pre_vscaler_rate = 4;
-			else if (filter->vpp_hf_start_phase_step >= 0x4000000 &&
-				filter->vpp_vsc_start_phase_step >= 0x4000000)
-				pre_scaler[input->layer_id].pre_vscaler_rate = 2;
-			else
-				pre_scaler[input->layer_id].pre_vscaler_rate = 1;
-		} else {
-			pre_scaler[input->layer_id].pre_vscaler_rate = 1;
-		}
-
 		filter->vpp_pre_vsc_en = 1;
 		filter->vpp_vsc_start_phase_step >>=
 			pre_scaler[input->layer_id].pre_vscaler_rate;
@@ -4390,6 +4400,55 @@ static void vpp_set_super_scaler
 	}
 }
 
+static void set_vsr_postion(struct disp_info_s *input,
+	struct vpp_frame_par_s *next_frame_par)
+{
+	u32 width_out = next_frame_par->VPP_hsc_endp -
+		next_frame_par->VPP_hsc_startp + 1;
+	u32 height_out = next_frame_par->VPP_vsc_endp -
+		next_frame_par->VPP_vsc_startp + 1;
+	u32 src_width = next_frame_par->video_input_w;
+	u32 src_height = next_frame_par->video_input_h;
+	struct sr_info_s *sr;
+	u32 vpp_index = vd_layer[input->layer_id].vpp_index;
+	u32 path = 0;
+	u32 ve_in_size = 0;
+
+	sr = &sr_info;
+	if (scaler_path_sel >= SCALER_PATH_MAX)
+		next_frame_par->supscl_path = sr->supscl_path;
+	else
+		next_frame_par->supscl_path = scaler_path_sel;
+
+	if (next_frame_par->supscl_path == VSR_BEFORE_VE) {
+		path = 1;
+		ve_in_size = width_out << 16 | height_out;
+	} else if (next_frame_par->supscl_path == VSR_AFTER_VE) {
+		path = 0;
+		ve_in_size = src_width << 16 | src_height;
+	}
+	cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
+		path, 1, 1);
+	cur_dev->rdma_func[vpp_index].rdma_wr(VPP_VE_H_V_SIZE,
+		ve_in_size);
+}
+
+static void set_vd1_frm2fld_en(struct disp_info_s *input, u32 vpp_flags)
+{
+	u32 vpp_index = vd_layer[input->layer_id].vpp_index;
+	u32 frm2fld_en = 0;
+
+	if (vpp_flags & VPP_FLAG_INTERLACE_OUT)
+		frm2fld_en = 1;
+
+	/* bit4 reg_frm2fld_en, bit5: reg_bgn_bot_top */
+	cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
+		frm2fld_en, 4, 1);
+	if (frm2fld_en)
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
+			0, 5, 1);
+}
+
 void adjust_vpp_filter_parm(struct vpp_frame_par_s *frame_par,
 	u32 supsc1_hori_ratio,
 	u32 supsc1_vert_ratio,
@@ -4719,6 +4778,11 @@ static int vpp_set_filters_no_scaler_internal
 	next_frame_par->nocomp = false;
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
 		next_frame_par->vscale_skip_count++;
+	/* safa have no p to i transfer */
+	if (input->vsr_safa_support) {
+		set_vd1_frm2fld_en(input, vpp_flags);
+		vpp_flags &= ~VPP_FLAG_INTERLACE_OUT;
+	}
 	if (vpp_flags & VPP_FLAG_INTERLACE_OUT)
 		height_shift++;
 
@@ -5518,17 +5582,21 @@ RERTY:
 	}
 #endif
 	if (local_input.layer_id == 0) {
-		slice_num = get_slice_num(local_input.layer_id);
-		if (slice_num == SLICE_NUM)
-			disable_super_scaler(next_frame_par);
-		else
-			vpp_set_super_scaler
-				(&local_input,
-				wide_mode,
-				vinfo, next_frame_par,
-				(bypass_sr0 | bypass_spscl0),
-				(bypass_sr1 | bypass_spscl1),
-				vpp_flags);
+		if (local_input.vsr_safa_support) {
+			set_vsr_postion(&local_input, next_frame_par);
+		} else {
+			slice_num = get_slice_num(local_input.layer_id);
+			if (slice_num == SLICE_NUM)
+				disable_super_scaler(next_frame_par);
+			else
+				vpp_set_super_scaler
+					(&local_input,
+					wide_mode,
+					vinfo, next_frame_par,
+					(bypass_sr0 | bypass_spscl0),
+					(bypass_sr1 | bypass_spscl1),
+					vpp_flags);
+		}
 		/* cm input size will be set in super scaler function */
 	} else {
 		if (local_input.pps_support) {

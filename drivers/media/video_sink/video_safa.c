@@ -227,8 +227,6 @@ static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 	int i;
 	u8 vpp_index = vsr->vpp_index;
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
-	rdma_wr_bits_op rdma_wr_bits =
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 	int pps_lut_tap4_s11_default[33][4] = {
 		{0,   512,  0,   0},
 		{-5,  512,  5,   0},
@@ -339,8 +337,7 @@ static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 
 	/*postsc coef lut*/
 	/* dir 4tap */
-	rdma_wr_bits(SAFA_PPS_CNTL_SCALE_COEF_IDX,
-		0x0000, 0, 9);
+	rdma_wr(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0000);
 	for (i = 0; i < 33; i++) {
 		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap4_s11_default[i][0] >> 8) & 0xff) << 24) |
@@ -356,8 +353,7 @@ static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 	}
 
 	/* hor 8tap */
-	rdma_wr_bits(SAFA_PPS_CNTL_SCALE_COEF_IDX,
-		0x0080, 0, 9);
+	rdma_wr(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0080);
 	for (i = 0; i < 33; i++) {
 		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap8_s11_default[i][0] >> 8) & 0xff) << 24) |
@@ -372,8 +368,7 @@ static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 			((pps_lut_tap8_s11_default[i][3] & 0xff) << 0));
 	}
 
-	rdma_wr_bits(SAFA_PPS_CNTL_SCALE_COEF_IDX,
-		0x0100, 0, 9);
+	rdma_wr(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0100);
 	for (i = 0; i < 33; i++) {
 		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap8_s11_default[i][4] >> 8) & 0xff) << 24) |
@@ -388,8 +383,7 @@ static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 	}
 
 	/* hor 4tap */
-	rdma_wr_bits(SAFA_PPS_CNTL_SCALE_COEF_IDX,
-		0x0180, 0, 9);
+	rdma_wr(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0180);
 	for (i = 0; i < 33; i++) {
 		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap4_s11_default[i][0] >> 8) & 0xff) << 24) |
@@ -404,8 +398,7 @@ static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 	}
 
 	/* ver 6tap */
-	rdma_wr_bits(SAFA_PPS_CNTL_SCALE_COEF_IDX,
-		0x0200, 0, 9);
+	rdma_wr(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0200);
 	for (i = 0; i < 33; i++) {
 		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap6_s11_default[i][0] >> 8) & 0xff) << 24) |
@@ -420,8 +413,7 @@ static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 			((pps_lut_tap6_s11_default[i][3] & 0xff) << 0));
 	}
 
-	rdma_wr_bits(SAFA_PPS_CNTL_SCALE_COEF_IDX,
-		0x0280, 0, 9);
+	rdma_wr(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0280);
 	for (i = 0; i < 33; i++) {
 		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap6_s11_default[i][4] >> 8) & 0xff) << 24) |
@@ -431,8 +423,7 @@ static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 	}
 
 	/* ver 4tap */
-	rdma_wr_bits(SAFA_PPS_CNTL_SCALE_COEF_IDX,
-		0x0300, 0, 9);
+	rdma_wr(SAFA_PPS_CNTL_SCALE_COEF_IDX, 0x0300);
 	for (i = 0; i < 33; i++) {
 		rdma_wr(SAFA_PPS_CNTL_SCALE_COEF,
 			(((pps_lut_tap4_s11_default[i][0] >> 8) & 0xff) << 24) |
@@ -545,6 +536,22 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 			pi_scl_rate,
 			out_pi_xsize,
 			out_pi_ysize);
+		pr_info("%s pi_hf_sc integer_part: h = %u v= %u, fraction_part: h = %u v = %u, ini_phase: h = %u v = %u\n",
+			__func__,
+			vsr_pi->pi_hf_hsc_integer_part,
+			vsr_pi->pi_hf_vsc_integer_part,
+			vsr_pi->pi_hf_hsc_fraction_part,
+			vsr_pi->pi_hf_vsc_fraction_part,
+			vsr_pi->pi_hf_hsc_ini_phase,
+			vsr_pi->pi_hf_vsc_ini_phase);
+		pr_info("%s pi_safa_sc integer_part: h = %u v= %u, fraction_part: h = %u v = %u, ini_phase: h = %u v = %u\n",
+			__func__,
+			vsr_top->pi_safa_hsc_integer_part,
+			vsr_top->pi_safa_vsc_integer_part,
+			vsr_top->pi_safa_hsc_fraction_part,
+			vsr_top->pi_safa_vsc_fraction_part,
+			vsr_top->pi_safa_hsc_ini_phase,
+			vsr_top->pi_safa_vsc_ini_phase);
 	}
 }
 
@@ -826,8 +833,23 @@ static void set_vsr_input_format(struct vsr_setting_s *vsr)
 			vsr->vsr_top.input_422_en);
 }
 
+static void set_vsr_input_size(struct vsr_setting_s *vsr)
+{
+	u8 vpp_index = vsr->vpp_index;
+	u32 hsize_in = vsr->vsr_top.hsize_in;
+	u32 vsize_in = vsr->vsr_top.vsize_in;
+	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
+
+	if (vsr->vsr_top.vsr_en) {
+		rdma_wr(VPP_LINE_IN_LENGTH, hsize_in);
+		rdma_wr(VPP_PIC_IN_HEIGHT, vsize_in);
+		rdma_wr(VPP_PREBLEND_H_SIZE, vsize_in << 16 | hsize_in);
+	}
+}
+
 void set_vsr_scaler(struct vsr_setting_s *vsr)
 {
+	set_vsr_input_size(vsr);
 	set_vsr_input_format(vsr);
 	if (vsr->vsr_top.vsr_en) {
 		set_cfg_pi_safa(vsr);

@@ -786,6 +786,7 @@ extern bool hscaler_8tap_enable[MAX_VD_LAYER];
 extern struct pre_scaler_info pre_scaler[MAX_VD_LAYER];
 extern bool vd1_vd2_mux;
 extern bool aisr_en;
+extern bool vsr_top_en;
 extern u32 vd1_vd2_mux_dts;
 extern u32 osd_vpp1_bld_ctrl;
 extern u32 osd_vpp2_bld_ctrl;

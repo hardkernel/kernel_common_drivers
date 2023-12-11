@@ -13347,6 +13347,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0664,
 		vsr_top_en_show,
 		vsr_top_en_store),
+
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {

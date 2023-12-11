@@ -279,6 +279,8 @@ enum select_scaler_path_e {
 	/* t5d only have core1, support below tow mode */
 	PPS_POSTBLEND_CORE1,
 	PPS_CORE1_CM,
+	VSR_AFTER_VE = 11,
+	VSR_BEFORE_VE,
 	SCALER_PATH_MAX,
 };
 
