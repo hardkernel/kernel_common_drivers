@@ -341,9 +341,9 @@ DEFINE_EVENT(dwc3_log_ep, aml_dwc3_gadget_ep_disable,
 /* this part has to be here */
 
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/usb/dwc3_amlogic
 
 #undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_FILE dwc3_amlogic/trace-meson
+#define TRACE_INCLUDE_FILE trace-meson
 
 #include <trace/define_trace.h>

@@ -623,9 +623,9 @@ DEFINE_EVENT(xhci_dbc_log_request, aml_xhci_dbc_giveback_request,
 /* this part must be outside header guard */
 
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/usb/xhci_amlogic
 
 #undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_FILE xhci_amlogic/xhci-trace-meson
+#define TRACE_INCLUDE_FILE xhci-trace-meson
 
 #include <trace/define_trace.h>
