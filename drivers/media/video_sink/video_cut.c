@@ -613,6 +613,7 @@ static void update_process_hdmi_avsync_flag(bool flag);
 static void hdmi_in_delay_maxmin_reset(void);
 
 static u32 lowlatency_enable = 1;
+module_param(lowlatency_enable, uint, 0664);
 MODULE_PARM_DESC(lowlatency_enable, "\n lowlatency_enable\n");
 
 static u32 thread_vsync_in;

@@ -59,7 +59,9 @@ static u32 cur_vsync_handle_id;
 static int ex_vsync_rdma_enable;
 static u32 rdma_reset;
 static int g_set_threshold[RDMA_NUM];
+static int g_set_threshold2[RDMA_NUM];
 static int g_cur_threshold[RDMA_NUM];
+static int g_cur_threshold2[RDMA_NUM];
 ulong rdma_done_us[RDMA_NUM];
 ulong rdma_vsync_us[RDMA_NUM];
 
@@ -153,12 +155,22 @@ void set_force_rdma_config(void)
 }
 EXPORT_SYMBOL(set_force_rdma_config);
 
-bool need_to_rdma_config(int rdma_type)
+/*
+ * Description: Determine whether to execute RDMA configuration.
+ * Return:
+ *    0: Do not execute RDMA configuration.
+ *    1: Execute RDMA configuration.
+ *    2: Skip the judgment.
+ */
+int need_to_rdma_config(int rdma_type)
 {
 	struct vinfo_s *vinfo = NULL;
 	ulong sync_interval = 0, interval1 = 0, interval2 = 0;
-	bool run_config = 0;
-	int threshold = 0;
+	int run_config = 0;
+	int threshold = 0, threshold2 = 0;
+
+	if (get_lowlatency_mode() || is_video_process_in_thread())
+		return 2;
 
 	switch (rdma_type) {
 	case VSYNC_RDMA_VPP1:
@@ -192,9 +204,15 @@ bool need_to_rdma_config(int rdma_type)
 		interval2 = abs(t1 - t3);
 
 		threshold = sync_interval / 2;
+		threshold2 = threshold;
+
+		/* for debugging */
 		if (g_set_threshold[rdma_type])
 			threshold = g_set_threshold[rdma_type];
+		if (g_set_threshold2[rdma_type])
+			threshold2 = g_set_threshold2[rdma_type];
 		g_cur_threshold[rdma_type] = threshold;
+		g_cur_threshold2[rdma_type] = threshold2;
 
 		/* compare latest time and rdma_config time
 		 * if too close, don't do rdma configuration
@@ -204,7 +222,7 @@ bool need_to_rdma_config(int rdma_type)
 			 * determine which comes first.
 			 * use the latter one to do rdma configuration.
 			 */
-			if (interval2 > threshold)
+			if (interval2 > threshold2)
 				run_config = 0;
 			else
 				run_config = 1;
@@ -247,6 +265,8 @@ int _vsync_rdma_config(int rdma_type)
 	}
 
 	to_config = need_to_rdma_config(rdma_type);
+	if (to_config == 2)
+		to_config = 0;
 
 	if (rdma_type == EX_VSYNC_RDMA) {
 		spin_lock_irqsave(&lock, flags);
@@ -1368,8 +1388,8 @@ static ssize_t show_threshold(struct class *class,
 	int len = 0, i;
 
 	for (i = VSYNC_RDMA; i < RDMA_NUM; i++)
-		len += sprintf(buf + len, "rdma_type:%d threshold:%d\n",
-			       i, g_cur_threshold[i]);
+		len += sprintf(buf + len, "rdma_type:%d threshold:%d threshold2:%d\n",
+			       i, g_cur_threshold[i], g_cur_threshold2[i]);
 
 	return len;
 }
@@ -1378,18 +1398,20 @@ static ssize_t store_threshold(struct class *class,
 				      struct class_attribute *attr,
 				      const char *buf, size_t count)
 {
-	int parsed[2];
+	int parsed[3];
 	int rdma_type = VSYNC_RDMA;
 
-	if (likely(parse_para(buf, 2, parsed) == 2)) {
+	if (likely(parse_para(buf, 3, parsed) == 3)) {
 		rdma_type = parsed[0];
 		if (rdma_type < RDMA_NUM) {
 			g_set_threshold[rdma_type] = parsed[1];
-			pr_info("rdma_type:%d threshold:%d\n",
-				rdma_type, g_set_threshold[rdma_type]);
+			g_set_threshold2[rdma_type] = parsed[2];
+			pr_info("rdma_type:%d threshold:%d threshold2:%d\n",
+				rdma_type, g_set_threshold[rdma_type],
+				g_set_threshold2[rdma_type]);
 		}
 	} else {
-		pr_info("error please input: rdma_type threshold\n");
+		pr_info("error please input: rdma_type threshold threshold2\n");
 	}
 
 	return count;

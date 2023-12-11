@@ -56,6 +56,7 @@ int is_in_pre_vsync_isr(void);
 int is_in_vsync_isr_viu2(void);
 int is_in_vsync_isr_viu3(void);
 int is_video_process_in_thread(void);
+bool get_lowlatency_mode(void);
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 int is_in_ldim_vsync_isr(void);
 #endif
