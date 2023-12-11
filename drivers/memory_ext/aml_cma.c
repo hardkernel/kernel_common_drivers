@@ -1815,60 +1815,6 @@ struct kprobe kp_cma_release = {
 	.pre_handler = cma_release_pre_handler,
 };
 
-static int compaction_alloc_debug;
-module_param(compaction_alloc_debug, int, 0644);
-
-static unsigned long low_cma_pfn = -1UL; //max
-module_param(low_cma_pfn, ulong, 0644);
-
-struct cma;
-static int low_cma_func(struct cma *cma, void *data)
-{
-	struct dummy_cma *d_cma = (struct dummy_cma *)cma;
-
-	if (d_cma->base_pfn < low_cma_pfn)
-		low_cma_pfn = d_cma->base_pfn;
-
-	return 0;
-}
-
-static __nocfi void low_cma_init(void)
-{
-	cma_for_each_area(low_cma_func, NULL);
-	pr_info("low_cma_pfn=%lx\n", low_cma_pfn);
-
-	if (low_cma_pfn < 500 * 1024 / 4) {
-		pr_err("low_cma_pfn less than 500M ignore\n");
-		low_cma_pfn = -1UL;
-	}
-}
-
-static int __nocfi __kprobes compaction_alloc_pre_handler(struct kprobe *p, struct pt_regs *regs)
-{
-#ifdef CONFIG_ARM64
-	struct compact_control *cc = (struct compact_control *)regs->regs[1];
-#elif CONFIG_ARM
-	struct compact_control *cc = (struct compact_control *)regs->ARM_r1;
-#endif
-
-	if (list_empty(&cc->freepages)) {
-		if (cc->free_pfn >= low_cma_pfn) {
-			if (compaction_alloc_debug)
-				pr_info("compaction_alloc: set free_pfn %lx->%lx\n",
-						cc->free_pfn, low_cma_pfn - pageblock_nr_pages);
-
-			cc->free_pfn = low_cma_pfn - pageblock_nr_pages;
-		}
-	}
-
-	return 0;
-}
-
-struct kprobe kp_compaction_alloc = {
-	.symbol_name  = "compaction_alloc",
-	.pre_handler = compaction_alloc_pre_handler,
-};
-
 static void *get_symbol_addr(const char *symbol_name)
 {
 	struct kprobe kp = {
@@ -1885,6 +1831,16 @@ static void *get_symbol_addr(const char *symbol_name)
 	unregister_kprobe(&kp);
 
 	return kp.addr;
+}
+
+static void aml_bypass_cma_page(void *data,
+		struct compact_control *cc, struct page *page, bool *bypass)
+{
+	int migrate_type = get_pageblock_migratetype(page);
+
+	if (is_migrate_cma(migrate_type) ||
+	    is_migrate_isolate(migrate_type))
+		*bypass = 1;
 }
 
 static int __nocfi common_symbol_init(void *data)
@@ -1940,12 +1896,9 @@ static int __nocfi common_symbol_init(void *data)
 		return 1;
 	}
 
-	ret = register_kprobe(&kp_compaction_alloc);
-	if (ret < 0) {
-		pr_err("register_kprobe:%s failed, returned %d\n",
-		       kp_compaction_alloc.symbol_name, ret);
-		return 1;
-	}
+	ret = register_trace_android_vh_isolate_freepages(aml_bypass_cma_page, NULL);
+	if (ret)
+		pr_err("register_trace_android_vh_isolate_freepages fail ret=%d\n", ret);
 
 	return 0;
 }
@@ -2030,8 +1983,6 @@ static int __init aml_cma_module_init(void)
 
 	init_cma_boost_task();
 	kthread_run(common_symbol_init, NULL, "AML_CMA_TASK");
-
-	low_cma_init();
 
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
 	delay_enable_cma_init();
