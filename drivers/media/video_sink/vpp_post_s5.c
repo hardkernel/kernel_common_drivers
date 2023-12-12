@@ -617,6 +617,9 @@ static void vpp1_post_blend_set(struct vpp1_post_blend_s *vpp_blend)
 		pr_info("%s: vpp1_postblend_vd1_v_start_end=%x\n",
 			__func__, vpp_blend->bld_din0_v_start << 16 |
 			vpp_blend->bld_din0_v_end);
+		pr_info("%s: bld_src2_sel:%d, bld_src1_sel:%d\n", __func__,
+			vpp_blend->bld_src2_sel,
+			vpp_blend->bld_src1_sel);
 	}
 }
 
@@ -1037,12 +1040,24 @@ static int vpp_blend_param_set(struct vpp_post_input_s *vpp_input,
 static int vpp1_blend_param_set(struct vpp_post_input_s *vpp1_input,
 	struct vpp1_post_blend_s *vpp1_post_blend)
 {
-	int vpp1_osd_en = osd_vpp1_bld_ctrl;
+	static int first_config = true;
+	int vpp1_osd_en = 0;
+	struct vpp1_post_blend_reg_s *vpp_reg = &vpp_post_reg.vpp1_post_blend_reg;
 
 	if (!vpp1_input || !vpp1_post_blend)
 		return -1;
 	memset(vpp1_post_blend, 0x0, sizeof(struct vpp1_post_blend_s));
 	vpp1_post_blend->bld_dummy_data = 0x008080;
+
+	if (first_config) {
+		u32 vpp_postblend_ctrl;
+
+		vpp_postblend_ctrl = READ_VCBUS_REG(vpp_reg->vpp_postblend_ctrl);
+		if (vpp_postblend_ctrl & 0xf0)
+			osd_vpp1_bld_ctrl = 1;
+		first_config = false;
+	}
+	vpp1_osd_en = osd_vpp1_bld_ctrl;
 
 	if (vd_layer_vpp[0].vppx_blend_en || vpp1_osd_en) {
 		vpp1_post_blend->bld_out_en = 1;
@@ -1540,12 +1555,6 @@ int update_vpp_input_info(const struct vinfo_s *info, u8 vpp_index)
 			vpp_input.din_hsize[3] = vpp_input.bld_out_hsize;
 			vpp_input.din_vsize[3] = vpp_input.bld_out_vsize;
 		}
-		if (debug_flag_s5 & DEBUG_VPP1_POST)
-			pr_info("%s:%d, %d, %d, %d\n", __func__,
-				vpp_input.din_x_start[3],
-				vpp_input.din_y_start[3],
-				vpp_input.din_hsize[3],
-				vpp_input.din_vsize[3]);
 	} else {
 		vpp_input.din_hsize[3] = 0;
 		vpp_input.din_vsize[3] = 0;
@@ -1635,12 +1644,13 @@ static int check_vpp1_info_changed(struct vpp_post_input_s *vpp_input)
 	/* check other param */
 	if (!changed) {
 		if (g_vpp1_bypass_slice1 != 0xff &&
-		    g_vpp1_bypass_slice1 != g_vpp1_bypass_slice1_pre)
+		    g_vpp1_bypass_slice1 != g_vpp1_bypass_slice1_pre) {
 			changed = 1;
-		if (debug_flag_s5 & DEBUG_VPP1_POST)
-			pr_info("%s hit vpp1_bypass_slice1=%d\n",
-				__func__,
-				g_vpp1_bypass_slice1);
+			if (debug_flag_s5 & DEBUG_VPP1_POST)
+				pr_info("%s hit vpp1_bypass_slice1=%d\n",
+					__func__,
+					g_vpp1_bypass_slice1);
+		}
 	}
 	memcpy(&g_vpp1_input, vpp_input, sizeof(struct vpp_post_input_s));
 	memcpy(&g_vpp1_input_pre, vpp_input, sizeof(struct vpp_post_input_s));
