@@ -2710,16 +2710,18 @@ int amdolby_vision_process_hw5_top1(struct vframe_s *vf_top1,
 	}
 
 	if (vf && (debug_dolby & 0x8))
-		pr_dv_dbg("top1_proc: vf %px(index %d),mode %d,core_on %d %d,flag %x\n",
+		pr_dv_dbg("top1_proc: vf %px(index %d),mode %d,core_on %d %d,%d %d,flag %x\n",
 				  vf, vf->omx_index, dolby_vision_mode,
-				  top1_info.core_on, top2_info.core_on, dolby_vision_flags);
+				  top1_info.core_on, top2_info.core_on,
+				  h_size, v_size, dolby_vision_flags);
 
 	if (dolby_vision_mode == AMDV_OUTPUT_MODE_BYPASS)
 		return 0;
 	reset_flag =
 		(amdv_reset & 1) &&
-		(!top2_info.core_on) &&
-		(top2_info.run_mode_count == 0);
+		(!top1_info.core_on) &&
+		(top1_info.core_on_cnt == 0);
+
 	if (vf && (vf->type & VIDTYPE_VIU_422))
 		src_chroma_format = 2;
 	else if (vf)
@@ -2755,6 +2757,9 @@ int amdolby_vision_process_hw5_top1(struct vframe_s *vf_top1,
 		 src_is_42210bit, reset_flag, true, false);
 
 	enable_amdv(1);
+	if (tv_hw5_setting && last_tv_hw5_setting)
+		memcpy(last_tv_hw5_setting, tv_hw5_setting,
+			sizeof(*tv_hw5_setting));
 	vf_top1->src_fmt.pr_done = true;
 	return 0;
 }
@@ -2797,7 +2802,7 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 			     vf_top1, vf_top2, vf->omx_index, dolby_vision_mode,
 			     top1_info.core_on, top2_info.core_on,
 			     h_size, v_size, vf->type);
-	else
+	else if ((debug_dolby & 0x8))
 		pr_dv_dbg("proc: mode %d,on %d %d,size %d %d\n",
 			     dolby_vision_mode,
 			     top1_info.core_on, top2_info.core_on,
@@ -2850,6 +2855,21 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 			top2_info.core_disp_hsize = h_size;
 			top2_info.core_disp_vsize = v_size;
 		}
+		/*check if vd1 data same as vframe*/
+		if (enable_top1 && dolby_vision_mode != AMDV_OUTPUT_MODE_BYPASS) {
+			if (h_size != tv_hw5_setting->top1.video_width ||
+				v_size != tv_hw5_setting->top1.video_height) {
+				if (debug_dolby & 1)
+					pr_dv_dbg("small window mode, bypass precision! %d %d\n",
+						h_size, v_size);
+				enable_top1 = false;
+				top1_enable_changed = true;
+				force_bypass_precision = true;
+			} else {
+				force_bypass_precision = false;
+			}
+		}
+
 		if (!vf || toggle_mode != 1) {
 			/* log to monitor if has dv toggles not needed */
 			if (debug_dolby & 0x100)
@@ -2979,11 +2999,18 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 	pr_done = vf ?  vf->src_fmt.pr_done : false;
 
 	if (dolby_vision_flags & FLAG_TOGGLE_FRAME) {
-		if (!(dolby_vision_flags & FLAG_CERTIFICATION))
-			reset_flag =
-				(amdv_reset & 1) &&
-				(!top2_info.core_on) &&
-				(top2_info.run_mode_count == 0);
+		if (!(dolby_vision_flags & FLAG_CERTIFICATION)) {
+			if (enable_top1) {
+				if ((amdv_reset & 1) && !top1_info.core_on &&
+					top1_info.core_on_cnt == 0)
+					reset_flag = true;
+			} else {
+				if ((amdv_reset & 1) && !top2_info.core_on &&
+					top2_info.core_on_cnt == 0)
+					reset_flag = true;
+			}
+		}
+
 		if (top2_v_info.tv_dovi_setting_change_flag || force_set) {
 			if (vf && (vf->type & VIDTYPE_VIU_422))
 				src_chroma_format = 2;
@@ -3022,7 +3049,7 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 			if (!h_size || !v_size)
 				top2_info.amdv_setting_video_flag = false;
 			if (top2_info.amdv_setting_video_flag &&
-			    top2_info.run_mode_count == 0) {
+			    top2_info.core_on_cnt == 0) {
 				if (debug_dolby & 0x100)
 					pr_dv_dbg("first frame reset %d\n",
 					     reset_flag);
@@ -3053,6 +3080,9 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 				update_amdv_status(tv_hw5_setting->top2.src_format);
 			}
 			top2_v_info.tv_dovi_setting_change_flag = false;
+			if (tv_hw5_setting && last_tv_hw5_setting)
+				memcpy(last_tv_hw5_setting, tv_hw5_setting,
+				sizeof(*tv_hw5_setting));
 		}
 		dolby_vision_flags &= ~FLAG_TOGGLE_FRAME;
 	} else if (top2_info.core_on) {

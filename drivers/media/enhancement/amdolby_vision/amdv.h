@@ -9,7 +9,7 @@
 /*#define V2_4_3*/
 
 /*  driver version */
-#define DRIVER_VER "202301221"
+#define DRIVER_VER "202301225"
 
 #include <linux/types.h>
 #include "amdv_pq_config.h"
@@ -109,6 +109,7 @@
 #define DEBUG_FORCE_BYPASS_TOP2 0x1000
 #define HDMI_ONLY_UPDATE_HIST_FOR_NEW_FRAME 0x2000 /*case5351 5356*/
 #define FORCE_ONE_SLICE 0x4000 /*case5011b 5055a 5055b*/
+#define DEBUG_IGNORE_IOCTL 0x8000
 
 #define MAX_CFG_SIZE (1024 * 10)
 #define MAX_BIN_SIZE (1024 * 150)
@@ -892,6 +893,7 @@ extern struct core_inst_s top1_info;
 extern struct core_inst_s top2_info;
 extern struct tv_hw5_setting_s *tv_hw5_setting;
 extern struct tv_hw5_setting_s *invalid_hw5_setting;
+extern struct tv_hw5_setting_s *last_tv_hw5_setting;
 extern u32 hw5_reg_from_file;
 extern u32 test_dv;
 extern struct video_inst_s top1_v_info;/*video info*/
@@ -925,6 +927,10 @@ extern char *cfg_data;
 extern char *bin_data;
 extern int cfg_size;
 extern int bin_size;
+extern u32 vpp_vsync_id;
+extern int force_vsync_id;
+extern bool top1_enable_changed;
+extern bool force_bypass_precision;
 /************/
 
 #define pr_dv_dbg(fmt, args...)\

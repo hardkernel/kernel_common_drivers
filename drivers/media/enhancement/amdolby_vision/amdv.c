@@ -344,6 +344,8 @@ u32 py_size[7] = {737280, 184320, 46080, 13824, 4608, 1152, 576};
 
 struct dolby5_top1_md_hist dv5_md_hist;
 
+u32 vpp_vsync_id;
+
 /*mode 0:10bit, 1: 12bit, 2: 8bit, 3: 10bit>>2*/
 static u32 probe_mode;
 static u32 probe_en;
@@ -542,6 +544,7 @@ struct dovi_setting_s new_dovi_setting;
 void *pq_config_fake;
 struct tv_dovi_setting_s *tv_dovi_setting;
 struct tv_hw5_setting_s *tv_hw5_setting;
+struct tv_hw5_setting_s *last_tv_hw5_setting;
 struct tv_hw5_setting_s *invalid_hw5_setting;
 void *pq_config_dvp_fake;
 
@@ -1011,20 +1014,48 @@ static u32 addr_map(u32 adr)
 u32 VSYNC_RD_DV_REG(u32 adr)
 {
 	adr = addr_map(adr);
-	return VSYNC_RD_MPEG_REG(adr);
+	if (vpp_vsync_id == 0)
+		return VSYNC_RD_MPEG_REG(adr);
+	else if (vpp_vsync_id == 1)
+		return VSYNC_RD_MPEG_REG_VPP1(adr);
+	else if (vpp_vsync_id == 2)
+		return VSYNC_RD_MPEG_REG_VPP2(adr);
+	else if (vpp_vsync_id == 3)
+		return PRE_VSYNC_RD_MPEG_REG(adr);
+
+	pr_dv_error("error vpp_vsync_id %d\n", vpp_vsync_id);
+	return 0;
 }
 
 int VSYNC_WR_DV_REG(u32 adr, u32 val)
 {
 	adr = addr_map(adr);
-	VSYNC_WR_MPEG_REG(adr, val);
+	if (vpp_vsync_id == 0)
+		VSYNC_WR_MPEG_REG(adr, val);
+	else if (vpp_vsync_id == 1)
+		VSYNC_WR_MPEG_REG_VPP1(adr, val);
+	else if (vpp_vsync_id == 2)
+		VSYNC_WR_MPEG_REG_VPP2(adr, val);
+	else if (vpp_vsync_id == 3)
+		PRE_VSYNC_WR_MPEG_REG(adr, val);
+	else
+		pr_dv_error("error vpp_vsync_id %d\n", vpp_vsync_id);
 	return 0;
 }
 
 int VSYNC_WR_DV_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 {
 	adr = addr_map(adr);
-	VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
+	if (vpp_vsync_id == 0)
+		VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
+	else if (vpp_vsync_id == 1)
+		VSYNC_WR_MPEG_REG_BITS_VPP1(adr, val, start, len);
+	else if (vpp_vsync_id == 2)
+		VSYNC_WR_MPEG_REG_BITS_VPP2(adr, val, start, len);
+	else if (vpp_vsync_id == 3)
+		PRE_VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
+	else
+		pr_dv_error("error vpp_vsync_id %d\n", vpp_vsync_id);
 	return 0;
 }
 
@@ -1906,6 +1937,7 @@ void reset_dv_param(void)
 		py_wr_id = 0;
 		py_rd_id = 0;
 		l1l4_distance = 0;
+		force_bypass_precision = false;
 		memset(&dv5_md_hist.hist[0], 0, sizeof(dv5_md_hist.hist));
 		memset(&dv5_md_hist.l1l4_md[0], 0, sizeof(dv5_md_hist.l1l4_md));
 		memset(dv5_md_hist.hist_vaddr[0], 0, dv5_md_hist.hist_size);
@@ -1915,6 +1947,14 @@ void reset_dv_param(void)
 			tv_hw5_setting->top2.video_width = 0xffff;
 			tv_hw5_setting->top2.video_height = 0xffff;
 			tv_hw5_setting->top2.src_format = FORMAT_INVALID;
+		}
+		if (last_tv_hw5_setting) {
+			memset(&last_tv_hw5_setting->top1_reg[0], 0,
+				sizeof(last_tv_hw5_setting->top1_reg));
+			memset(&last_tv_hw5_setting->top1b_reg[0], 0,
+				sizeof(last_tv_hw5_setting->top1b_reg));
+			memset(&last_tv_hw5_setting->top2_reg[0], 0,
+				sizeof(last_tv_hw5_setting->top2_reg));
 		}
 	} else {
 		core1_disp_hsize = 0;
@@ -13129,6 +13169,7 @@ EXPORT_SYMBOL(amdolby_vision_process);
  */
 bool is_amdv_on(void)
 {
+	pr_dv_dbg("is_amdv_on %d %d\n", amdv_wait_on, dolby_vision_on);
 	return dolby_vision_on ||
 		amdv_wait_on ||
 		amdv_on_in_uboot;
@@ -14093,6 +14134,17 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 				p_funcs_tv = NULL;
 				return -ENOMEM;
 			}
+			last_tv_hw5_setting = vmalloc(sizeof(*last_tv_hw5_setting));
+			if (!last_tv_hw5_setting) {
+				vfree(pq_config_dvp_fake);
+				pq_config_dvp_fake = NULL;
+				vfree(tv_hw5_setting);
+				tv_hw5_setting = NULL;
+				vfree(invalid_hw5_setting);
+				invalid_hw5_setting = NULL;
+				p_funcs_tv = NULL;
+				return -ENOMEM;
+			}
 			tv_hw5_setting->top1.src_format = FORMAT_SDR;
 			tv_hw5_setting->top2.src_format = FORMAT_SDR;
 			tv_hw5_setting->num_input = 1;
@@ -14109,6 +14161,8 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 				p_funcs_tv = NULL;
 				vfree(tv_hw5_setting);
 				tv_hw5_setting = NULL;
+				vfree(last_tv_hw5_setting);
+				last_tv_hw5_setting = NULL;
 				return -ENOMEM;
 			}
 			memset(tv_input_info, 0, sizeof(struct tv_input_info_s));
@@ -14592,7 +14646,7 @@ static long amdolby_vision_ioctl(struct file *file,
 		pr_info("[DV] module not install\n");
 		return ret;
 	}
-	if (dolby_vision_flags & FLAG_CERTIFICATION) {
+	if ((dolby_vision_flags & FLAG_CERTIFICATION) || (test_dv & DEBUG_IGNORE_IOCTL)) {
 		if (debug_dolby & 0x200)
 			pr_info("IDK cert mode, ignore user setting\n");
 		return ret;
@@ -15188,12 +15242,18 @@ static ssize_t amdolby_vision_debug_store
 		if (val >= 0 && val < 4) {
 			pyramid_read_urgent = val;
 			WRITE_VPP_DV_REG_BITS(VPU_RDARB_UGT_L2C1, val, 6, 2);
+			WRITE_VPP_DV_REG_BITS(VPU_WRARB_UGT_L2C1, val, 16, 2);
 		}
 	} else if (!strcmp(parm[0], "variable_fps_mode")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
 		variable_fps_mode = val;
 		pr_info("set variable_fps_mode %d\n", variable_fps_mode);
+	} else if (!strcmp(parm[0], "force_vsync_id")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		force_vsync_id = val;
+		pr_info("set force_vsync_id 0x%x\n", force_vsync_id);
 	} else {
 		pr_info("unsupport cmd\n");
 	}

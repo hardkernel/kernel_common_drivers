@@ -54,7 +54,7 @@ static struct dv_pq_range_s pq_range[4];
 
 static int num_picture_mode;
 static int default_pic_mode = 1;/*bright(standard) mode as default*/
-int cur_pic_mode;/*current picture mode id*/
+int cur_pic_mode = 1;/*current picture mode id*/
 bool pic_mode_changed;
 
 bool load_bin_config;
@@ -2364,6 +2364,8 @@ static bool is_valid_pq_inter_value(s16 exter_value)
 
 void set_pic_mode(int mode)
 {
+	if (debug_dolby & 1)
+		pr_dv_dbg("update mode %d -> %d\n", cur_pic_mode, mode);
 	if (cur_pic_mode != mode) {
 		cur_pic_mode = mode;
 		if (dv_user_cfg_flag)

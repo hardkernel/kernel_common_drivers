@@ -756,4 +756,7 @@
 #define T3X_VD1_BLEND_SRC_CTRL     0x1d0d
 #define T3X_VENC_CRC               0x278c /*venc CRC*/
 #define VPU_RDARB_UGT_L2C1         0x27c2
+/* VPU_WRARB_UGT_L2C1 0x27c3 bit[1:0]vdin urgent, bit[9:8]di urgent, bit[17:16]dv urgent*/
+#define VPU_WRARB_UGT_L2C1         0x27c3
+
 #endif

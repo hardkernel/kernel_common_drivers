@@ -567,4 +567,5 @@ int register_vpp_postblend_info_func(void (*get_vpp_osd1_scope)
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 int get_amdv_mode(void);
 #endif
+u32 get_vpp_vsync_index(u32 layerid);
 #endif /* VIDEO_H */

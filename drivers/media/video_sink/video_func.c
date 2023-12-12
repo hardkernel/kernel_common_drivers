@@ -2890,6 +2890,11 @@ static int video_early_proc(u8 layer_id, u8 fake_layer_id)
 {
 	u8 func_id = 0, path_index = 0;
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		if (is_amdv_on() && layer_id == 0)
+			print_dv_ro();
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	if (cur_dev->vsync_2to1_enable &&
 		layer_id == 0 &&
@@ -4803,11 +4808,6 @@ void post_vsync_process(void)
 	struct cur_line_info_t *cur_line_info = NULL;
 	int enc_line;
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_amdv_on())
-		print_dv_ro();
-#endif
-
 	set_cur_line_info(0);
 	enc_line = get_cur_enc_line();
 	cur_line_info = get_cur_line_info(0);
@@ -6188,6 +6188,17 @@ void set_post_blend_dummy_data(u32 vpp_index,
 	}
 }
 EXPORT_SYMBOL(set_post_blend_dummy_data);
+
+/*return index: 0 post vsync, 3 pre vsync*/
+u32 get_vpp_vsync_index(u32 layerid)
+{
+	if (layerid < MAX_VD_LAYER)
+		return vd_layer[layerid].vpp_index;
+
+	pr_info("error layerid %d\n", layerid);
+	return 0;
+}
+EXPORT_SYMBOL(get_vpp_vsync_index);
 
 MODULE_PARM_DESC(stop_update, "\n stop_update\n");
 module_param(stop_update, uint, 0664);
