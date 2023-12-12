@@ -7,34 +7,36 @@
 
 / {
     partitions: partitions{
-		parts = <27>;
+		parts = <29>;
 		part-0 = <&frp>;
 		part-1 = <&factory>;
 		part-2 = <&vendor_boot_a>;
 		part-3 = <&vendor_boot_b>;
-		part-4 = <&tee>;
-		part-5 = <&logo>;
-		part-6 = <&misc>;
-		part-7 = <&dtbo_a>;
-		part-8 = <&dtbo_b>;
-		part-9 = <&cri_data>;
-		part-10 = <&param>;
-		part-11 = <&odm_ext_a>;
-		part-12 = <&odm_ext_b>;
-		part-13 = <&oem_a>;
-		part-14 = <&oem_b>;
-		part-15 = <&boot_a>;
-		part-16 = <&boot_b>;
-		part-17 = <&init_boot_a>;
-		part-18 = <&init_boot_b>;
-		part-19 = <&rsv>;
-		part-20 = <&metadata>;
-		part-21 = <&vbmeta_a>;
-		part-22 = <&vbmeta_b>;
-		part-23 = <&vbmeta_system_a>;
-		part-24 = <&vbmeta_system_b>;
-		part-25 = <&super>;
-		part-26 = <&userdata>;
+		part-4 = <&bootloader_a>;
+		part-5 = <&bootloader_b>;
+		part-6 = <&tee>;
+		part-7 = <&logo>;
+		part-8 = <&misc>;
+		part-9 = <&dtbo_a>;
+		part-10 = <&dtbo_b>;
+		part-11 = <&cri_data>;
+		part-12 = <&param>;
+		part-13 = <&odm_ext_a>;
+		part-14 = <&odm_ext_b>;
+		part-15 = <&oem_a>;
+		part-16 = <&oem_b>;
+		part-17 = <&boot_a>;
+		part-18 = <&boot_b>;
+		part-19 = <&init_boot_a>;
+		part-20 = <&init_boot_b>;
+		part-21 = <&rsv>;
+		part-22 = <&metadata>;
+		part-23 = <&vbmeta_a>;
+		part-24 = <&vbmeta_b>;
+		part-25 = <&vbmeta_system_a>;
+		part-26 = <&vbmeta_system_b>;
+		part-27 = <&super>;
+		part-28 = <&userdata>;
 
 		frp:frp{
 			pname = "frp";
@@ -54,6 +56,16 @@
 		vendor_boot_b:vendor_boot_b{
 			pname = "vendor_boot_b";
 			size = <0x0 0x4000000>;
+			mask = <1>;
+		};
+		bootloader_a:bootloader_a{
+			pname = "bootloader_a";
+			size = <0x0 0x800000>;
+			mask = <1>;
+		};
+		bootloader_b:bootloader_b{
+			pname = "bootloader_b";
+			size = <0x0 0x800000>;
 			mask = <1>;
 		};
 		tee:tee{
