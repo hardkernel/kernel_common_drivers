@@ -1492,7 +1492,7 @@ static bool edid_y420cmdb_postprocess(struct rx_cap *rxcap)
 			valid = ((*p >> j) & 0x1);
 			vic = rxcap->SVD_VIC[i * 8 + j];
 			if (valid != 0 &&
-			    hdmitx_mode_validate_y420_vic(rxcap->VIC[i * 8 + j])) {
+			    hdmitx_mode_validate_y420_vic(vic)) {
 				store_y420_idx(rxcap, vic);
 			}
 		}
