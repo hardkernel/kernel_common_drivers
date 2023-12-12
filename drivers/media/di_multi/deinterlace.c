@@ -3479,10 +3479,9 @@ void config_di_mif(struct DI_MIF_S *di_mif, struct di_buf_s *di_buf,
 		if ((di_buf->vframe->type & VIDTYPE_VIU_NV21) ||
 			(di_buf->vframe->type & VIDTYPE_VIU_NV12)) {
 			di_mif->set_separate_en = 2;
-			if (DIM_IS_IC_TXHD2 && (di_buf->vframe->type & VIDTYPE_VIU_NV21))
-				if (di_mif == &ppre->di_mem_mif && di_buf->vframe->type &
-					(VIDTYPE_VIU_FIELD | VIDTYPE_INTERLACE))
-					di_mif->set_separate_en = 0;
+			if (DIM_IS_IC_TXHD2 &&
+				(di_mif == &ppre->di_mem_mif || di_mif == &ppre->di_chan2_mif))
+				di_mif->set_separate_en = 0;
 		}
 		else
 			di_mif->set_separate_en = 1;
