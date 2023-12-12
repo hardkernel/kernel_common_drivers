@@ -986,7 +986,7 @@ int hdmirx_set_cec_cfg(u32 cfg)
 	case 2:
 		hdmi_cec_en = 1;
 		tv_auto_power_on = 1;
-		if (rx_info.boot_flag)
+		if (is_valid_edid_data(edid_cur))
 			rx_force_hpd_rxsense_cfg(1);
 		break;
 	case 0:
