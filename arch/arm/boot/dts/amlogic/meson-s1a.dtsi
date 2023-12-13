@@ -875,11 +875,14 @@
 			compatible = "amlogic,spi-nfc";
 			status = "okay";
 			reg = <0xfe08d000 0x200>,
-				  <0xfe08c000 0xc>;
+				  <0xfe08c000 0xc>,
+				  <0xfe010180 0x4>;
 			clocks = <&clkc CLKID_SYS_SD_EMMC_C>,
 					<&clkc CLKID_FCLK_DIV2>;
 			clock-names = "gate", "fdiv2pll";
 			nand_clk_ctrl = <0xfe08c000>;
+			/* disabled host ecc poc bit */
+			dis_host_ecc = <4>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 		};

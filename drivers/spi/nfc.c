@@ -9,7 +9,7 @@
 #include "page_info.h"
 #include <linux/amlogic/aml_spi_mem.h>
 
-struct regmap *nfc_regmap[2];
+struct regmap *nfc_regmap[3];
 
 struct nfc_clk_provider clk_provider[MAX_CLK_PROVIDER] = {
 	{OSC_CLK_24MHZ, CLK_6MHZ,	1, 4, 0, 1},

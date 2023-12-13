@@ -216,7 +216,6 @@ static void page_info_init_from_mtd(struct mtd_info *mtd, u8 cmd, u32 fip_size, 
 		goto _cal_sum;
 
 	ecc_steps = mtd->writesize >> 9;
-	page_info->host_cfg.n2m_cmd = (DEFAULT_ECC_MODE & (~0x3F)) | ecc_steps;
 	page_info->host_cfg.frequency_index = 0xFF;
 	page_info->dev_cfg1.ca_lanes = 0;
 	page_info->dev_cfg1.cs_deselect_time = 0xFF;
