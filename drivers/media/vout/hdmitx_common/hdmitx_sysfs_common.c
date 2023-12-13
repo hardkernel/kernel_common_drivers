@@ -821,7 +821,8 @@ static ssize_t disp_cap_show(struct device *dev,
 			// HDMITX_ERROR("%s: vic[%d] over range.\n", __func__, vic);
 			continue;
 		}
-
+		if (hdmitx_common_check_valid_para_of_vic(global_tx_common, vic) != 0)
+			continue;
 		mode_name = timing->sname ? timing->sname : timing->name;
 
 		pos += snprintf(buf + pos, PAGE_SIZE, "%s", mode_name);
