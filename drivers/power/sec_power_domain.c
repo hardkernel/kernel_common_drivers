@@ -23,6 +23,8 @@
 #include <dt-bindings/power/t3x-pd.h>
 #include <dt-bindings/power/txhd2-pd.h>
 #include <dt-bindings/power/s1a-pd.h>
+#include <dt-bindings/power/a4-pd.h>
+#include <dt-bindings/power/a5-pd.h>
 #include <linux/kallsyms.h>
 
 struct sec_pm_private_domain {
@@ -704,6 +706,68 @@ static struct sec_pm_domain_data s1a_pm_domain_data __initdata = {
 	.domains_count = ARRAY_SIZE(s1a_pm_domains),
 };
 
+static struct sec_pm_private_domain a4_pm_domains[] = {
+	[PDID_A4_AUDIO] = POWER_DOMAIN(audio, PDID_A4_AUDIO,
+			DOMAIN_INIT_ON, 0),
+	[PDID_A4_SDIOA] = POWER_DOMAIN(sdioa, PDID_A4_SDIOA,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A4_EMMC] = POWER_DOMAIN(emmc, PDID_A4_EMMC,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A4_USB_COMB] = POWER_DOMAIN(comb, PDID_A4_USB_COMB,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A4_ETH] = POWER_DOMAIN(eth, PDID_A4_ETH,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A4_VOUT] = POWER_DOMAIN(vout,
+			PDID_A4_VOUT, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A4_AUDIO_PDM] = POWER_DOMAIN(pdm, PDID_A4_AUDIO_PDM,
+			DOMAIN_INIT_ON, 0),
+	[PDID_A4_DMC] = POWER_DOMAIN(dmc, PDID_A4_DMC,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A4_SYS_WRAP] = POWER_DOMAIN(sys, PDID_A4_SYS_WRAP,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A4_AO_I2C_S] = POWER_DOMAIN(i2c, PDID_A4_AO_I2C_S,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A4_AO_UART] = POWER_DOMAIN(uart, PDID_A4_AO_UART,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A4_AO_IR] = POWER_DOMAIN(ir, PDID_A4_AO_IR,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+};
+
+static struct sec_pm_domain_data a4_pm_domain_data = {
+	.domains = a4_pm_domains,
+	.domains_count = ARRAY_SIZE(a4_pm_domains),
+};
+
+static struct sec_pm_private_domain a5_pm_domains[] = {
+	[PDID_A5_NNA] = POWER_DOMAIN(nna, PDID_A5_NNA,
+			DOMAIN_INIT_OFF, 0),
+	[PDID_A5_AUDIO] = POWER_DOMAIN(audio, PDID_A5_AUDIO,
+			DOMAIN_INIT_ON, 0),
+	[PDID_A5_SDIOA] = POWER_DOMAIN(sdioa, PDID_A5_SDIOA,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A5_EMMC] = POWER_DOMAIN(emmc, PDID_A5_EMMC,
+			DOMAIN_INIT_ON, 0),
+	[PDID_A5_USB_COMB] = POWER_DOMAIN(usb_comb, PDID_A5_USB_COMB,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A5_ETH] = POWER_DOMAIN(eth,
+			PDID_A5_ETH, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A5_RSA] = POWER_DOMAIN(rsa, PDID_A5_RSA,
+			DOMAIN_INIT_ON, 0),
+	[PDID_A5_AUDIO_PDM] = POWER_DOMAIN(audio_pdm, PDID_A5_AUDIO_PDM,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A5_DMC] = POWER_DOMAIN(dmc, PDID_A5_DMC,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A5_SYS_WRAP] = POWER_DOMAIN(sys_wrap, PDID_A5_SYS_WRAP,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_A5_DSPA] = POWER_DOMAIN(dspa, PDID_A5_DSPA,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+};
+
+static struct sec_pm_domain_data a5_pm_domain_data = {
+	.domains = a5_pm_domains,
+	.domains_count = ARRAY_SIZE(a5_pm_domains),
+};
+
 static int sec_pd_probe(struct platform_device *pdev)
 {
 	int ret, i;
@@ -870,6 +934,14 @@ static const struct of_device_id pd_match_table[] = {
 	{
 		.compatible = "amlogic,s1a-power-domain",
 		.data = &s1a_pm_domain_data,
+	},
+		{
+		.compatible = "amlogic,a4-power-domain",
+		.data = &a4_pm_domain_data,
+	},
+	{
+		.compatible = "amlogic,a5-power-domain",
+		.data = &a5_pm_domain_data,
 	},
 	{}
 };
