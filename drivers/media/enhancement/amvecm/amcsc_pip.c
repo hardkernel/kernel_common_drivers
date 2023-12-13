@@ -2385,6 +2385,12 @@ void hdmi_packet_process(int signal_change_flag,
 		vinfo->mode == VMODE_DUMMY_ENCP)
 		return;
 
+	if (is_meson_t7_cpu() && vinfo_lcd_support() &&
+					vd_path != VD2_PATH) {
+		pr_csc(8, "t7c BDS not send pkt in vd1/vd3\n");
+		return;
+	}
+
 	if (!vinfo->vout_device) {
 		/* pr_info("vinfo->vout_device is null, return\n"); */
 		if (vpp_index == VPP_TOP0 ||
