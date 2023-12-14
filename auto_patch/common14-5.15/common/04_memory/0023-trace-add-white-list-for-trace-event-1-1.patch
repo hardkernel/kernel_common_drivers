@@ -71,7 +71,7 @@ index 8c11efca87fe..d5e19aa5a5ed 100644
 +	return 0;
 +}
 +
-+static int allow_trace_enable = 1;
++static int allow_trace_enable;
 +
 +static int __init early_allow_trace_enable_param(char *buf)
 +{
