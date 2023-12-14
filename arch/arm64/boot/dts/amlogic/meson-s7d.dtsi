@@ -1561,9 +1561,11 @@
 			"dmcbus";
 		clocks = <&clkc CLKID_SYS_DOS
 			&clkc CLKID_VDEC
+			&clkc CLKID_HCODEC
 			&clkc CLKID_HEVCF>;
 		clock-names = "vdec",
 			"clk_vdec_mux",
+			"clk_hcodec_mux",
 			"clk_hevcf_mux";
 		assigned-clock-parents = <&clkc CLKID_VDEC_0>,
 			<&clkc CLKID_HEVCF_0>;
@@ -1779,45 +1781,27 @@
 	amvenc_avc{
 		compatible = "amlogic, amvenc_avc";
 		dev_name = "amvenc_avc";
-		status = "disabled";
-		//clocks = <&clkc CLKID_HCODEC_P0>;
-		//clock-names = "cts_hcodec_aclk";
+		status = "okay";
+		clocks = <&clkc CLKID_HCODEC>;
+		clock-names = "cts_hcodec_aclk";
 		interrupts = <0 93 1>;
 		interrupt-names = "mailbox_2";
 		reset-names = "hcodec_rst";
-		//resets = <&reset RESET_BRG_HCODEC_PIPL0>;
+		power-domains = <&pwrdm PDID_S7_DOS_HCODEC>;
 	};
 	jpegenc{
 		compatible = "amlogic, jpegenc";
 		dev_name = "jpegenc";
-		status = "disabled";
-		//clocks = <&clkc CLKID_HCODEC_P0>;
-		//clock-names = "cts_jpegenc_aclk";
+		status = "okay";
+		clocks = <&clkc CLKID_HCODEC>;
+		power-domains = <&pwrdm PDID_S7_DOS_HCODEC>;
+		clock-names = "clk_jpeg_enc";
 		interrupts = <0 93 1>;
 		interrupt-names = "mailbox_2";
-		reset-names = "jpegenc_rst";
+		//reset-names = "jpegenc_rst";
 		//resets = <&reset RESET_BRG_HCODEC_PIPL0>;
 	};
-	hevc_enc{
-		compatible = "cnm, HevcEnc";
-		//memory-region = <&hevc_enc_reserved>;
-		dev_name = "HevcEnc";
-		status = "disabled";
-		interrupts = <0 94 1>;
-		interrupt-names = "wave420l_irq";
-		#address-cells=<2>;
-		#size-cells=<2>;
-		//clocks = <&clkc CLKID_WAVE_A_GATE
-		//		&clkc CLKID_WAVE_B_GATE
-		//		&clkc CLKID_WAVE_C_GATE>;
-		//clock-names = "cts_wave420_aclk",
-		//		"cts_wave420_bclk",
-		//		"cts_wave420_cclk";
-		ranges;
-		io_reg_base{
-				reg = <0x0 0xfe310000 0x0 0x4000>;
-		};
-	};
+
 	vpu: vpu {
 		compatible = "amlogic, vpu-s7d";
 		status = "okay";
