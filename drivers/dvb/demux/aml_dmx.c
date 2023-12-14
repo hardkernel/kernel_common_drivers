@@ -28,6 +28,7 @@
 #include <linux/uaccess.h>
 #include <asm/div64.h>
 #include <linux/jiffies.h>
+#include <linux/amlogic/kernel_versions.h>
 #include "aml_dmx.h"
 #include "sc2_demux/mem_desc.h"
 #include "sc2_demux/ts_output.h"
@@ -2592,8 +2593,9 @@ int dmx_destroy(struct aml_dmx *pdmx)
 #ifdef OPEN_REGISTER_NODE
 static int reg_addr;
 
-static ssize_t register_addr_show(struct class *class,
-				  struct class_attribute *attr, char *buf)
+static ssize_t register_addr_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret;
 
@@ -2601,9 +2603,9 @@ static ssize_t register_addr_show(struct class *class,
 	return ret;
 }
 
-static ssize_t register_addr_store(struct class *class,
-				   struct class_attribute *attr,
-				   const char *buf, size_t size)
+static ssize_t register_addr_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	int addr = 0;
 	/*addr = simple_strtol(buf, 0, 16); */
@@ -2615,8 +2617,9 @@ static ssize_t register_addr_store(struct class *class,
 	return size;
 }
 
-static ssize_t register_value_show(struct class *class,
-				   struct class_attribute *attr, char *buf)
+static ssize_t register_value_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret, value;
 
@@ -2625,9 +2628,9 @@ static ssize_t register_value_show(struct class *class,
 	return ret;
 }
 
-static ssize_t register_value_store(struct class *class,
-				    struct class_attribute *attr,
-				    const char *buf, size_t size)
+static ssize_t register_value_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	int value = 0;
 	/*value = simple_strtol(buf, 0, 16); */
@@ -2640,16 +2643,17 @@ static ssize_t register_value_store(struct class *class,
 }
 #endif
 
-static ssize_t dump_register_show(struct class *class,
-				  struct class_attribute *attr, char *buf)
+static ssize_t dump_register_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	sc2_dump_register();
 	return 0;
 }
 
-static ssize_t dump_register_store(struct class *class,
-				   struct class_attribute *attr,
-				   const char *buf, size_t size)
+static ssize_t dump_register_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	return size;
 }
@@ -2780,8 +2784,9 @@ static int dump_filter_ringbuffer(char *buf)
 	return total;
 }
 
-static ssize_t dump_filter_show(struct class *class,
-				struct class_attribute *attr, char *buf)
+static ssize_t dump_filter_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t size;
 	struct aml_dvb *advb = aml_get_dvb_device();
@@ -2795,15 +2800,16 @@ static ssize_t dump_filter_show(struct class *class,
 	return size;
 }
 
-static ssize_t dump_filter_store(struct class *class,
-				 struct class_attribute *attr,
-				 const char *buf, size_t size)
+static ssize_t dump_filter_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	return size;
 }
 
-static ssize_t dump_ringbuffer_show(struct class *class,
-				struct class_attribute *attr, char *buf)
+static ssize_t dump_ringbuffer_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t size;
 	struct aml_dvb *advb = aml_get_dvb_device();
@@ -2817,15 +2823,16 @@ static ssize_t dump_ringbuffer_show(struct class *class,
 	return size;
 }
 
-static ssize_t dump_ringbuffer_store(struct class *class,
-				 struct class_attribute *attr,
-				 const char *buf, size_t size)
+static ssize_t dump_ringbuffer_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	return size;
 }
 
-static ssize_t cache_status_show(struct class *class,
-				struct class_attribute *attr, char *buf)
+static ssize_t cache_status_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t size;
 	struct aml_dvb *advb = aml_get_dvb_device();
@@ -2838,9 +2845,9 @@ static ssize_t cache_status_show(struct class *class,
 	return size;
 }
 
-static ssize_t cache_status_store(struct class *class,
-				 struct class_attribute *attr,
-				 const char *buf, size_t size)
+static ssize_t cache_status_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	int cache0_count = 0;
 	int cache1_count = 0;
@@ -2863,8 +2870,9 @@ static ssize_t cache_status_store(struct class *class,
 	return size;
 }
 
-static ssize_t dump_av_level_show(struct class *class,
-				struct class_attribute *attr, char *buf)
+static ssize_t dump_av_level_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_dvb *advb = aml_get_dvb_device();
 	struct dmx_filter_mem_info info;
@@ -2953,15 +2961,16 @@ static ssize_t dump_av_level_show(struct class *class,
 	return total;
 }
 
-static ssize_t dmx_source_show(struct class *class,
-				struct class_attribute *attr, char *buf)
+static ssize_t dmx_source_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return dmx_setting_show(class, attr, buf);
 }
 
-static ssize_t dmx_source_store(struct class *class,
-				 struct class_attribute *attr,
-				 const char *buf, size_t size)
+static ssize_t dmx_source_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	int dmx_id = 1;
 	char input_str[255];
@@ -3020,8 +3029,9 @@ error_handle:
 	return size;
 }
 
-static ssize_t ts_clone_show(struct class *class,
-				struct class_attribute *attr, char *buf)
+static ssize_t ts_clone_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret;
 	int r = 0;
@@ -3036,9 +3046,9 @@ static ssize_t ts_clone_show(struct class *class,
 	return r + ret + size;
 }
 
-static ssize_t ts_clone_store(struct class *class,
-				 struct class_attribute *attr,
-				 const char *buf, size_t size)
+static ssize_t ts_clone_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	int ts_clone = 0;
 	int cpu_type;

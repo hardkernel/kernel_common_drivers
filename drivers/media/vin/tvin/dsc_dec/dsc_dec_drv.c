@@ -27,6 +27,7 @@
 #include "dsc_dec_debug.h"
 
 #include <linux/amlogic/gki_module.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #define DSC_CDEV_NAME  "aml_dsc_dec"
 
@@ -159,7 +160,7 @@ static int dsc_dec_global_init_once(void)
 		goto dsc_dec_global_init_once_err;
 	}
 
-	dsc_dec_cdev->class = class_create(THIS_MODULE, "aml_dsc_dec");
+	dsc_dec_cdev->class = kv_class_create(THIS_MODULE, "aml_dsc_dec");
 	if (IS_ERR_OR_NULL(dsc_dec_cdev->class)) {
 		ret = 2;
 		goto dsc_dec_global_init_once_err_1;

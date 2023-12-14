@@ -23,6 +23,8 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
+
+#include <linux/amlogic/kernel_versions.h>
 #include "meson_ir_core.h"
 #include "meson_ir_main.h"
 
@@ -126,8 +128,8 @@ void meson_ir_keydown(struct meson_ir_dev *dev, int scancode, int status)
 	u32 keycode;
 
 	if (dev->led_blink)
-		led_trigger_blink_oneshot(dev->led_feedback, &dev->delay_on,
-					  &dev->delay_off, 0);
+		kv_led_trigger_blink_oneshot(dev->led_feedback, &dev->delay_on,
+					     &dev->delay_off, 0);
 
 	if (status != IR_STATUS_REPEAT) {
 		if (dev->is_valid_custom && !dev->is_valid_custom(dev)) {

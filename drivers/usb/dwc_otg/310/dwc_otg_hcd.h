@@ -89,7 +89,7 @@ struct dwc_otg_hcd_urb {
 	uint32_t flags;
 	uint16_t interval;
 	struct dwc_otg_hcd_pipe_info pipe_info;
-	struct dwc_otg_hcd_iso_packet_desc iso_descs[0];
+	struct dwc_otg_hcd_iso_packet_desc iso_descs[];
 };
 
 

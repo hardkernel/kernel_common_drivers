@@ -7,10 +7,10 @@ OEM_PROJECT_MODULES = [
 ]
 
 AMLOGIC_GKI20_MODULES = [
-    "common_drivers/drivers/memory_ext/aml_cma.ko",
+    #"common_drivers/drivers/memory_ext/aml_cma.ko",
     "common_drivers/drivers/memory_ext/mem_debug.ko",
-    "common_drivers/drivers/memory_ext/page_trace.ko",
-    "common_drivers/drivers/memory_ext/user_fault.ko",
+    #"common_drivers/drivers/memory_ext/page_trace.ko",
+    #"common_drivers/drivers/memory_ext/user_fault.ko",
 ]
 
 AMLOGIC_GKI10_MODULES = [
@@ -80,7 +80,7 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/drivers/net/ethernet/stmicro/stmmac/amlogic-phy-debug.ko",
     "common_drivers/drivers/net/mdio/amlogic-mdio-g12a.ko",
     "common_drivers/drivers/net/phy/amlogic-inphy.ko",
-    "common_drivers/drivers/pci/controller/amlogic_pcie_v2_host.ko",
+    #"common_drivers/drivers/pci/controller/amlogic_pcie_v2_host.ko",
     "common_drivers/drivers/pci/controller/amlogic-pcie-v3_host.ko",
     "common_drivers/drivers/pm/amlogic-pm.ko",
     "common_drivers/drivers/power/amlogic-power.ko",
@@ -107,10 +107,12 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-tas5805.ko",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-tl1.ko",
     "drivers/dma-buf/heaps/system_heap.ko",
+    "drivers/gpu/drm/drm_dma_helper.ko",
+    "drivers/gpu/drm/display/drm_display_helper.ko",
     "drivers/i2c/i2c-dev.ko",
     "drivers/media/dvb-core/dvb-core.ko",
-    "drivers/media/v4l2-core/v4l2-async.ko",
-    "drivers/media/v4l2-core/v4l2-fwnode.ko",
+    #"drivers/media/v4l2-core/v4l2-async.ko",
+    #"drivers/media/v4l2-core/v4l2-fwnode.ko",
     "drivers/media/v4l2-core/videobuf-core.ko",
     "drivers/media/v4l2-core/videobuf-vmalloc.ko",
     "drivers/mmc/host/cqhci.ko",

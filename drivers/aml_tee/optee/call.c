@@ -494,6 +494,35 @@ static bool is_normal_memory(pgprot_t p)
 #endif
 }
 
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+//KV_TODO: review
+int optee_check_mem_type(unsigned long start, size_t num_pages)
+{
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma;
+	int rc = 0;
+
+	VMA_ITERATOR(vmi, mm, 0);
+
+	/*
+	 * Allow kernel address to register with OP-TEE as kernel
+	 * pages are configured as normal memory only.
+	 */
+	if (virt_addr_valid((void *)start) || is_vmalloc_addr((void *)start))
+		return 0;
+
+	mmap_read_lock(mm);
+	for_each_vma(vmi, vma) {
+		if (is_normal_memory(vma->vm_page_prot))
+			continue;
+		rc = -EINVAL;
+		break;
+	}
+	mmap_read_unlock(mm);
+
+	return rc;
+}
+#else
 static int __check_mem_type(struct vm_area_struct *vma, unsigned long end)
 {
 	while (vma && is_normal_memory(vma->vm_page_prot)) {
@@ -524,3 +553,4 @@ int optee_check_mem_type(unsigned long start, size_t num_pages)
 
 	return rc;
 }
+#endif

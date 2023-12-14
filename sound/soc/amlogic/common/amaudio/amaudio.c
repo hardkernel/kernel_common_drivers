@@ -28,6 +28,7 @@
 /* Amlogic headers */
 #include <linux/amlogic/major.h>
 #include <linux/amlogic/iomap.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #define AMAUDIO_MODULE_NAME "amaudio"
 #define AMAUDIO_DRIVER_NAME "amaudio"
@@ -121,8 +122,9 @@ static char dtsm6_apres_assets_Array[32] = { 0 };
 
 static void __iomem *base;
 static unsigned int dtsm6_HPS_hint;
-static ssize_t store_debug(struct class *class, struct class_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t store_debug(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	if (strncmp(buf, "dtsm6_stream_type_set", 21) == 0) {
 		if (kstrtoint(buf + 21, 10, &dtsm6_stream_type))
@@ -163,8 +165,9 @@ static ssize_t store_debug(struct class *class, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t show_debug(struct class *class, struct class_attribute *attr,
-			  char *buf)
+static ssize_t show_debug(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int pos = 0;
 
@@ -181,8 +184,9 @@ static ssize_t show_debug(struct class *class, struct class_attribute *attr,
 	return pos;
 }
 
-static ssize_t dts_enable_show(struct class *class,
-				struct class_attribute *attr, char *buf)
+static ssize_t dts_enable_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int val;
 
@@ -197,8 +201,9 @@ static ssize_t dts_enable_show(struct class *class,
 	return sprintf(buf, "0x%x\n", val);
 }
 
-static ssize_t dolby_enable_show(struct class *class,
-				struct class_attribute *attr, char *buf)
+static ssize_t dolby_enable_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int val;
 
@@ -213,9 +218,9 @@ static ssize_t dolby_enable_show(struct class *class,
 	return sprintf(buf, "0x%x\n", val);
 }
 
-static ssize_t codec_report_info_store(struct class *class,
-				       struct class_attribute *attr,
-				       const char *buf, size_t count)
+static ssize_t codec_report_info_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	if (strncmp(buf, "decoded_frames", 14) == 0) {
 		if (kstrtoint(buf + 15, 10, (uint32_t *)&decoded_frames)) {
@@ -249,8 +254,9 @@ static ssize_t codec_report_info_store(struct class *class,
 	return count;
 }
 
-static ssize_t codec_report_info_show(struct class *cla,
-				      struct class_attribute *attr, char *buf)
+static ssize_t codec_report_info_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int pos = 0;
 
@@ -288,10 +294,10 @@ static struct attribute *amaudio_class_attrs[] = {
 ATTRIBUTE_GROUPS(amaudio_class);
 
 static struct class amaudio_class = {
-	.name = AMAUDIO_CLASS_NAME,
-	.owner = THIS_MODULE,
-	.class_groups = amaudio_class_groups,
-	//.class_attrs = amaudio_attrs,
+	.name		= AMAUDIO_CLASS_NAME,
+	KV_CLASS_DEF_OWNER
+	.class_groups	= amaudio_class_groups,
+	//.class_attrs	= amaudio_attrs,
 };
 
 static int amaudio_probe(struct platform_device *pdev)
@@ -344,7 +350,7 @@ int __init amaudio_init(void)
 		goto err;
 	}
 
-	amaudio_classp = class_create(THIS_MODULE, AMAUDIO_DEVICE_NAME);
+	amaudio_classp = kv_class_create(THIS_MODULE, AMAUDIO_DEVICE_NAME);
 	if (IS_ERR(amaudio_classp)) {
 		ret = PTR_ERR(amaudio_classp);
 		goto err1;

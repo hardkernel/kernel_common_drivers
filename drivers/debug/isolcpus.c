@@ -32,9 +32,14 @@ static int isolcpus_speedup_boot;
 static int __nocfi __kprobes
 housekeeping_cpumask_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
-	enum hk_flags flags = REG_0;
+	unsigned long long flags = REG_0;
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+	if (flags == BIT(HK_TYPE_DOMAIN)) {
+#else
 	if (flags == HK_FLAG_DOMAIN) {
+#endif
 		if (isolcpus_speedup_boot)
 			REG_0 = (unsigned long)cpu_possible_mask;
 		else

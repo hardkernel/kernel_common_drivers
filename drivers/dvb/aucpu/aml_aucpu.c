@@ -32,7 +32,7 @@
 #include <linux/sysfs.h>
 
 #include <linux/amlogic/secmon.h>
-
+#include <linux/amlogic/kernel_versions.h>
 #include "aml_aucpu.h"
 
 #define AUCPU_PLATFORM_DEVICE_NAME "aml_aucpu"
@@ -1125,8 +1125,9 @@ static const struct file_operations aucpu_fops = {
 #endif
 };
 
-static ssize_t aucpu_status_show(struct class *cla,
-				 struct class_attribute *attr, char *buf)
+static ssize_t aucpu_status_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	char *pbuf = buf;
 
@@ -1352,7 +1353,6 @@ ERROR_PROVE_DEVICE:
 	}
 	if (s_aucpu_delaywork_requested) {
 		cancel_delayed_work_sync(&pctx->dbg_work);
-		flush_scheduled_work();
 		s_aucpu_delaywork_requested = false;
 	}
 	if (s_aucpu_register_base)
@@ -1384,7 +1384,6 @@ static s32 aucpu_remove(struct platform_device *pdev)
 	}
 	if (s_aucpu_delaywork_requested) {
 		cancel_delayed_work_sync(&s_aucpu_ctx->dbg_work);
-		flush_scheduled_work();
 		s_aucpu_delaywork_requested = false;
 	}
 

@@ -25,6 +25,7 @@
 #include <linux/of.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <linux/amlogic/kernel_versions.h>
 #include "tvafe_avin_detect.h"
 #include "tvafe.h"
 #include "tvafe_regs.h"
@@ -132,7 +133,6 @@ static int tvafe_avin_dts_parse(struct platform_device *pdev)
 	int ret;
 	int i;
 	int value;
-	struct resource *res;
 	struct tvafe_avin_det_s *av_dev;
 
 	av_dev = platform_get_drvdata(pdev);
@@ -202,13 +202,12 @@ static int tvafe_avin_dts_parse(struct platform_device *pdev)
 	}
 	/* get irq no*/
 	for (i = 0; i < av_dev->device_num; i++) {
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
-		if (!res) {
+		av_dev->dts_param.irq[i] = platform_get_irq(pdev, i);
+		if (av_dev->dts_param.irq[i] < 0) {
 			tvafe_pr_err("%s: can't get avin(%d) irq resource\n",
 				__func__, i);
 			goto fail_get_resource_irq;
 		}
-		av_dev->dts_param.irq[i] = res->start;
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node, "function_select", &value);
@@ -674,7 +673,7 @@ static int tvafe_register_avin_dev(struct tvafe_avin_det_s *avin_data)
 	}
 
 	strcpy(avin_data->config_name, TVAFE_AVIN_NAME);
-	avin_data->config_class = class_create(THIS_MODULE,
+	avin_data->config_class = kv_class_create(THIS_MODULE,
 		avin_data->config_name);
 	avin_data->config_dev = device_create(avin_data->config_class, NULL,
 		avin_data->avin_devno, NULL, avin_data->config_name);

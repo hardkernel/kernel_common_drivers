@@ -9,9 +9,11 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
-#include "cpucore_cooling.h"
 #include <linux/cpumask.h>
+
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/meson_cooldev.h>
+#include "cpucore_cooling.h"
 #include "thermal_core.h"
 
 /**
@@ -111,6 +113,7 @@ static int calculate_hotstep(struct thermal_instance *instance)
 	struct thermal_cooling_device *cdev;
 	struct cpucore_cooling_device *cpucore_dev;
 	int hyst = 0, trip_temp;
+	struct thermal_trip trip;
 
 	if (!instance)
 		return -EINVAL;
@@ -123,8 +126,9 @@ static int calculate_hotstep(struct thermal_instance *instance)
 
 	cpucore_dev = cdev->devdata;
 
-	tz->ops->get_trip_hyst(tz, instance->trip, &hyst);
-	tz->ops->get_trip_temp(tz, instance->trip, &trip_temp);
+	kv_thermal_zone_get_trip(tz, instance->trip, &trip);
+	trip_temp = trip.temperature;
+	hyst = trip.hysteresis;
 
 	if (tz->temperature >= (trip_temp + (cpucore_dev->hotstep + 1) * hyst)) {
 		cpucore_dev->hotstep++;

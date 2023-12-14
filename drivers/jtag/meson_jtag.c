@@ -11,6 +11,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/arm-smccc.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <linux/amlogic/jtag.h>
 #include <linux/arm-smccc.h>
@@ -19,6 +20,7 @@
 #ifdef CONFIG_MACH_MESON8B
 #include <linux/amlogic/meson-secure.h>
 #endif
+#include <linux/amlogic/kernel_versions.h>
 
 #include "meson_jtag.h"
 
@@ -468,8 +470,9 @@ static int aml_jtag_setup(struct aml_jtag_dev *jdev)
 	return 0;
 }
 
-static ssize_t select_show(struct class *cls,
-			   struct class_attribute *attr, char *buf)
+static ssize_t select_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int len = 0;
 	struct jtag_id_desc *tmp = NULL;
@@ -490,15 +493,15 @@ static ssize_t select_show(struct class *cls,
 	return len;
 }
 
-static ssize_t select_store(struct class *cls,
-			    struct class_attribute *attr,
-			    const char *buffer, size_t count)
+static ssize_t select_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buffer, size_t count)
 {
 	struct aml_jtag_dev *jdev;
 	int ret;
 	char tmp[MAX_PARAM_LENGTH] = {0};
 
-	jdev = container_of(cls, struct aml_jtag_dev, cls);
+	jdev = container_of(class, struct aml_jtag_dev, cls);
 	count = min_t(size_t, MAX_PARAM_LENGTH, count);
 	strncpy(tmp, buffer, count - 1);
 	aml_jtag_option_parse(tmp, &jtag_select, &jtag_cluster);
@@ -578,7 +581,7 @@ static int aml_jtag_probe(struct platform_device *pdev)
 
 	/* create class attributes */
 	jdev->cls.name = AML_JTAG_NAME;
-	jdev->cls.owner = THIS_MODULE;
+	kv_set_class_owner(&jdev->cls);
 	jdev->cls.class_groups = aml_jtag_groups;
 	ret = class_register(&jdev->cls);
 	if (ret) {

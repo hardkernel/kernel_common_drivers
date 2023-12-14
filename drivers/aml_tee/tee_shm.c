@@ -20,15 +20,14 @@ static void shm_put_kernel_pages(struct page **pages, size_t page_count)
 		put_page(pages[n]);
 }
 
+//KV_TODO: review
 static int shm_get_kernel_pages(unsigned long start, size_t page_count,
 				struct page **pages)
 {
+	struct page *page;
 	size_t n;
-	int rc;
 
 	if (is_vmalloc_addr((void *)start)) {
-		struct page *page;
-
 		for (n = 0; n < page_count; n++) {
 			page = vmalloc_to_page((void *)(start + PAGE_SIZE * n));
 			if (!page)
@@ -37,24 +36,15 @@ static int shm_get_kernel_pages(unsigned long start, size_t page_count,
 			get_page(page);
 			pages[n] = page;
 		}
-		rc = page_count;
 	} else {
-		struct kvec *kiov;
-
-		kiov = kcalloc(page_count, sizeof(*kiov), GFP_KERNEL);
-		if (!kiov)
-			return -ENOMEM;
-
+		page = virt_to_page(start);
 		for (n = 0; n < page_count; n++) {
-			kiov[n].iov_base = (void *)(start + n * PAGE_SIZE);
-			kiov[n].iov_len = PAGE_SIZE;
+			pages[n] = page + n;
+			get_page(pages[n]);
 		}
-
-		rc = get_kernel_pages(kiov, page_count, 0, pages);
-		kfree(kiov);
 	}
 
-	return rc;
+	return page_count;
 }
 
 static void release_registered_pages(struct tee_shm *shm)

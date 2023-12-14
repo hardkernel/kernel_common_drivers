@@ -14,6 +14,7 @@
 #include <linux/uaccess.h>
 #include <linux/sched/clock.h>
 #include <linux/sched/debug.h>
+#include <linux/sched/cputime.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/stacktrace.h>
@@ -31,9 +32,7 @@
 #endif
 #include <trace/events/irq.h>
 #include <trace/hooks/cpuidle.h>
-#include <trace/hooks/dtask.h>
 #include <trace/hooks/sched.h>
-#include <trace/hooks/preemptirq.h>
 #include <trace/hooks/gic_v3.h>
 #include <trace/hooks/ftrace_dump.h>
 #include <linux/time.h>
@@ -946,6 +945,7 @@ static void __maybe_unused ftrace_format_check_hook(void *data, bool *ftrace_che
 	*ftrace_check = 0;
 }
 
+#ifdef CONFIG_ANDROID_VENDOR_HOOKS
 #ifdef CONFIG_ARM64
 #ifdef CONFIG_PREEMPT
 #define S_PREEMPT " PREEMPT"
@@ -982,6 +982,7 @@ static void do_undefinstr_hook(void *data, struct pt_regs *regs)
 	else
 		panic("%s: Fatal exception", str);
 }
+#endif
 #endif
 
 #if (defined CONFIG_ARM64) || (defined CONFIG_AMLOGIC_ARMV8_AARCH32)

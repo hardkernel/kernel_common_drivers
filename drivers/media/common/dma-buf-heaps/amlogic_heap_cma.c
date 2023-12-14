@@ -16,6 +16,8 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
+#include <linux/amlogic/kernel_versions.h>
+
 struct meson_cma_heap {
 	struct dma_heap *heap;
 	struct cma *cma;
@@ -198,7 +200,7 @@ static void *meson_cma_heap_do_vmap(struct meson_cma_heap_buffer *buffer)
 	return vaddr;
 }
 
-static int meson_cma_heap_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
+static int meson_cma_heap_vmap(struct dma_buf *dmabuf, struct kv_drm_vmap_map *map)
 {
 	struct meson_cma_heap_buffer *buffer = dmabuf->priv;
 	void *vaddr;
@@ -207,7 +209,7 @@ static int meson_cma_heap_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 	mutex_lock(&buffer->lock);
 	if (buffer->vmap_cnt) {
 		buffer->vmap_cnt++;
-		dma_buf_map_set_vaddr(map, buffer->vaddr);
+		kv_map_set_vaddr(map, buffer->vaddr);
 		goto out;
 	}
 
@@ -218,14 +220,14 @@ static int meson_cma_heap_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 	}
 	buffer->vaddr = vaddr;
 	buffer->vmap_cnt++;
-	dma_buf_map_set_vaddr(map, buffer->vaddr);
+	kv_map_set_vaddr(map, buffer->vaddr);
 out:
 	mutex_unlock(&buffer->lock);
 
 	return ret;
 }
 
-static void meson_cma_heap_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
+static void meson_cma_heap_vunmap(struct dma_buf *dmabuf, struct kv_drm_vmap_map *map)
 {
 	struct meson_cma_heap_buffer *buffer = dmabuf->priv;
 
@@ -235,7 +237,7 @@ static void meson_cma_heap_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *ma
 		buffer->vaddr = NULL;
 	}
 	mutex_unlock(&buffer->lock);
-	dma_buf_map_clear(map);
+	kv_map_clear(map);
 }
 
 static int meson_cma_heap_zero_buffer(struct meson_cma_heap_buffer *buffer)

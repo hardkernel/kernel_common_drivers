@@ -60,7 +60,7 @@ struct ir_map_tab {
 	__u32 vendor;
 	__u32 product;
 	__u32 version;
-	union _codemap codemap[0];
+	union _codemap codemap[];
 };
 
 /**

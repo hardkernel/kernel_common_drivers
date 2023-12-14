@@ -23,6 +23,7 @@
 #include <linux/err.h>
 #include <linux/uaccess.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
+#include <linux/amlogic/kernel_versions.h>
 
 /* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
 /* TODO: for stream buffer register bit define only */
@@ -1406,8 +1407,9 @@ EXPORT_SYMBOL(tsync_set_apts);
 
 /*********************************************************/
 
-static ssize_t pcr_recover_show(struct class *class,
-				struct class_attribute *attr, char *buf)
+static ssize_t pcr_recover_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%s %s\n",
 			((tsync_pcr_recover_enable) ? "on" : "off"),
@@ -1578,21 +1580,23 @@ void tsync_set_mode(int mode)
 }
 EXPORT_SYMBOL(tsync_set_mode);
 
-static ssize_t pcr_recover_store(struct class *class,
-				 struct class_attribute *attr,
-				 const char *buf, size_t size)
+static ssize_t pcr_recover_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	return size;
 }
 
-static ssize_t pts_video_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
+static ssize_t pts_video_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%x\n", timestamp_vpts_get());
 }
 
-static ssize_t pts_video_u64_show(struct class *class,
-			     struct class_attribute *attr, char *buf)
+static ssize_t pts_video_u64_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	u64 pts_val;
 
@@ -1600,9 +1604,9 @@ static ssize_t pts_video_u64_show(struct class *class,
 	return sprintf(buf, "0x%llx\n", pts_val);
 }
 
-static ssize_t pts_video_store(struct class *class,
-			       struct class_attribute *attr,
-			       const char *buf, size_t size)
+static ssize_t pts_video_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int pts;
 	ssize_t r;
@@ -1617,20 +1621,23 @@ static ssize_t pts_video_store(struct class *class,
 	return size;
 }
 
-static ssize_t demux_pcr_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
+static ssize_t demux_pcr_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%x\n", timestamp_tsdemux_pcr_get());
 }
 
-static ssize_t pts_audio_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
+static ssize_t pts_audio_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%x\n", timestamp_apts_get());
 }
 
-static ssize_t pts_audio_u64_show(struct class *class,
-			     struct class_attribute *attr, char *buf)
+static ssize_t pts_audio_u64_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	u64 pts_val;
 
@@ -1638,9 +1645,9 @@ static ssize_t pts_audio_u64_show(struct class *class,
 	return sprintf(buf, "0x%llx\n", pts_val);
 }
 
-static ssize_t pts_audio_store(struct class *class,
-			       struct class_attribute *attr,
-			       const char *buf, size_t size)
+static ssize_t pts_audio_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int pts;
 	ssize_t r;
@@ -1654,17 +1661,18 @@ static ssize_t pts_audio_store(struct class *class,
 	return size;
 }
 
-static ssize_t dobly_av_sync_show(struct class *class,
-				  struct class_attribute *attr, char *buf)
+static ssize_t dobly_av_sync_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf,
 		"avsync:cur value is %d\n 0:no set(default)\n 1:avsync test\n",
 		dobly_avsync_test ? 1 : 0);
 }
 
-static ssize_t dobly_av_sync_store(struct class *class,
-				   struct class_attribute *attr,
-				   const char *buf, size_t size)
+static ssize_t dobly_av_sync_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int value;
 	ssize_t r;
@@ -1683,14 +1691,16 @@ static ssize_t dobly_av_sync_store(struct class *class,
 	return size;
 }
 
-static ssize_t pts_pcrscr_show(struct class *class,
-			       struct class_attribute *attr, char *buf)
+static ssize_t pts_pcrscr_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%x\n", timestamp_pcrscr_get());
 }
 
-static ssize_t pts_pcrscr_u64_show(struct class *class,
-			       struct class_attribute *attr, char *buf)
+static ssize_t pts_pcrscr_u64_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	u64 pts_val;
 
@@ -1698,15 +1708,16 @@ static ssize_t pts_pcrscr_u64_show(struct class *class,
 	return sprintf(buf, "0x%llx\n", pts_val);
 }
 
-static ssize_t apts_checkin_flag_show(struct class *class,
-				      struct class_attribute *attr, char *buf)
+static ssize_t apts_checkin_flag_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", first_pts_checkin_complete(PTS_TYPE_AUDIO));
 }
 
-static ssize_t pts_pcrscr_store(struct class *class,
-				struct class_attribute *attr,
-				const char *buf, size_t size)
+static ssize_t pts_pcrscr_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int pts;
 	ssize_t r;
@@ -1723,9 +1734,9 @@ static ssize_t pts_pcrscr_store(struct class *class,
 	return size;
 }
 
-static ssize_t event_store(struct class *class,
-			   struct class_attribute *attr,
-			   const char *buf, size_t size)
+static ssize_t event_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	int i;
 
@@ -1757,8 +1768,9 @@ static ssize_t event_store(struct class *class,
 	return -EINVAL;
 }
 
-static ssize_t mode_show(struct class *class,
-			 struct class_attribute *attr, char *buf)
+static ssize_t mode_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (tsync_mode <= TSYNC_MODE_PCRMASTER) {
 		return sprintf(buf, "%d: %s\n", tsync_mode,
@@ -1768,9 +1780,9 @@ static ssize_t mode_show(struct class *class,
 	return sprintf(buf, "invalid mode");
 }
 
-static ssize_t mode_store(struct class *class,
-			  struct class_attribute *attr,
-			  const char *buf, size_t size)
+static ssize_t mode_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int mode;
 	ssize_t r;
@@ -1792,8 +1804,9 @@ static ssize_t mode_store(struct class *class,
 	return size;
 }
 
-static ssize_t enable_show(struct class *class,
-			   struct class_attribute *attr, char *buf)
+static ssize_t enable_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (tsync_enable)
 		return sprintf(buf, "1: enabled\n");
@@ -1801,9 +1814,9 @@ static ssize_t enable_show(struct class *class,
 	return sprintf(buf, "0: disabled\n");
 }
 
-static ssize_t enable_store(struct class *class,
-			    struct class_attribute *attr,
-			    const char *buf, size_t size)
+static ssize_t enable_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int mode;
 	ssize_t r;
@@ -1820,8 +1833,9 @@ static ssize_t enable_store(struct class *class,
 	return size;
 }
 
-static ssize_t discontinue_show(struct class *class,
-				struct class_attribute *attr, char *buf)
+static ssize_t discontinue_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pts_discontinue = vpts_discontinue || apts_discontinue;
 	if (pts_discontinue) {
@@ -1832,9 +1846,9 @@ static ssize_t discontinue_show(struct class *class,
 	return sprintf(buf, "0: pts_continue\n");
 }
 
-static ssize_t discontinue_store(struct class *class,
-				 struct class_attribute *attr,
-				 const char *buf, size_t size)
+static ssize_t discontinue_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int discontinue;
 	ssize_t r;
@@ -1850,8 +1864,9 @@ static ssize_t discontinue_store(struct class *class,
 	return size;
 }
 
-static ssize_t debug_pts_checkin_show(struct class *class,
-				      struct class_attribute *attr, char *buf)
+static ssize_t debug_pts_checkin_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (debug_pts_checkin)
 		return sprintf(buf, "1: debug pts checkin on\n");
@@ -1859,9 +1874,9 @@ static ssize_t debug_pts_checkin_show(struct class *class,
 	return sprintf(buf, "0: debug pts checkin off\n");
 }
 
-static ssize_t debug_pts_checkin_store(struct class *class,
-				       struct class_attribute *attr,
-				       const char *buf, size_t size)
+static ssize_t debug_pts_checkin_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int mode;
 	ssize_t r;
@@ -1877,8 +1892,9 @@ static ssize_t debug_pts_checkin_store(struct class *class,
 	return size;
 }
 
-static ssize_t debug_pts_checkout_show(struct class *class,
-				       struct class_attribute *attr, char *buf)
+static ssize_t debug_pts_checkout_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (debug_pts_checkout)
 		return sprintf(buf, "1: debug pts checkout on\n");
@@ -1886,9 +1902,9 @@ static ssize_t debug_pts_checkout_show(struct class *class,
 	return sprintf(buf, "0: debug pts checkout off\n");
 }
 
-static ssize_t debug_pts_checkout_store(struct class *class,
-					struct class_attribute *attr,
-					const char *buf, size_t size)
+static ssize_t debug_pts_checkout_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int mode;
 	ssize_t r;
@@ -1904,8 +1920,9 @@ static ssize_t debug_pts_checkout_store(struct class *class,
 	return size;
 }
 
-static ssize_t debug_video_pts_show(struct class *class,
-				    struct class_attribute *attr, char *buf)
+static ssize_t debug_video_pts_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (debug_vpts)
 		return sprintf(buf, "1: debug vpts on\n");
@@ -1913,9 +1930,9 @@ static ssize_t debug_video_pts_show(struct class *class,
 	return sprintf(buf, "0: debug vpts off\n");
 }
 
-static ssize_t debug_video_pts_store(struct class *class,
-				     struct class_attribute *attr,
-				     const char *buf, size_t size)
+static ssize_t debug_video_pts_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int mode;
 	ssize_t r;
@@ -1931,8 +1948,9 @@ static ssize_t debug_video_pts_store(struct class *class,
 	return size;
 }
 
-static ssize_t debug_audio_pts_show(struct class *class,
-				    struct class_attribute *attr, char *buf)
+static ssize_t debug_audio_pts_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (debug_apts)
 		return sprintf(buf, "1: debug apts on\n");
@@ -1940,9 +1958,9 @@ static ssize_t debug_audio_pts_show(struct class *class,
 	return sprintf(buf, "0: debug apts off\n");
 }
 
-static ssize_t debug_audio_pts_store(struct class *class,
-				     struct class_attribute *attr,
-				     const char *buf, size_t size)
+static ssize_t debug_audio_pts_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int mode;
 	ssize_t r;
@@ -1958,16 +1976,17 @@ static ssize_t debug_audio_pts_store(struct class *class,
 	return size;
 }
 
-static ssize_t av_threshold_min_show(struct class *class,
-				     struct class_attribute *attr, char *buf)
+static ssize_t av_threshold_min_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "tsync_av_threshold_min=%d\n",
 		       tsync_av_threshold_min);
 }
 
-static ssize_t av_threshold_min_store(struct class *class,
-				      struct class_attribute *attr,
-				      const char *buf, size_t size)
+static ssize_t av_threshold_min_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int min;
 	ssize_t r;
@@ -1982,16 +2001,17 @@ static ssize_t av_threshold_min_store(struct class *class,
 	return size;
 }
 
-static ssize_t av_threshold_max_show(struct class *class,
-				     struct class_attribute *attr, char *buf)
+static ssize_t av_threshold_max_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "tsync_av_threshold_max=%d\n",
 		       tsync_av_threshold_max);
 }
 
-static ssize_t av_threshold_max_store(struct class *class,
-				      struct class_attribute *attr,
-				      const char *buf, size_t size)
+static ssize_t av_threshold_max_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int max;
 	ssize_t r;
@@ -2006,8 +2026,9 @@ static ssize_t av_threshold_max_store(struct class *class,
 	return size;
 }
 
-static ssize_t last_checkin_apts_show(struct class *class,
-				      struct class_attribute *attr, char *buf)
+static ssize_t last_checkin_apts_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int last_apts;
 
@@ -2015,8 +2036,9 @@ static ssize_t last_checkin_apts_show(struct class *class,
 	return sprintf(buf, "0x%x\n", last_apts);
 }
 
-static ssize_t last_checkin_vpts_show(struct class *class,
-		struct class_attribute *attr, char *buf)
+static ssize_t last_checkin_vpts_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int last_vpts;
 
@@ -2024,27 +2046,30 @@ static ssize_t last_checkin_vpts_show(struct class *class,
 	return sprintf(buf, "0x%x\n", last_vpts);
 }
 
-static ssize_t firstvpts_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
+static ssize_t firstvpts_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%x\n", timestamp_firstvpts_get());
 }
 
-static ssize_t videostarted_show(struct class *class,
-				struct class_attribute *attr, char *buf)
+static ssize_t videostarted_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%x\n", tsync_video_started);
 }
 
-static ssize_t firstapts_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
+static ssize_t firstapts_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%x\n", timestamp_firstapts_get());
 }
 
-static ssize_t firstapts_store(struct class *class,
-			       struct class_attribute *attr,
-			       const char *buf, size_t size)
+static ssize_t firstapts_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int pts;
 	ssize_t r;
@@ -2060,27 +2085,30 @@ static ssize_t firstapts_store(struct class *class,
 	return size;
 }
 
-static ssize_t checkin_firstvpts_show(struct class *class,
-				      struct class_attribute *attr, char *buf)
+static ssize_t checkin_firstvpts_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%x\n", timestamp_checkin_firstvpts_get());
 }
 
-static ssize_t checkin_firstapts_show(struct class *class,
-				      struct class_attribute *attr, char *buf)
+static ssize_t checkin_firstapts_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%x\n", timestamp_checkin_firstapts_get());
 }
 
-static ssize_t vpause_flag_show(struct class *class,
-				struct class_attribute *attr, char *buf)
+static ssize_t vpause_flag_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%x\n", tsync_get_vpause_flag());
 }
 
-static ssize_t vpause_flag_store(struct class *class,
-				 struct class_attribute *attr,
-				 const char *buf, size_t size)
+static ssize_t vpause_flag_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int mode;
 	ssize_t r;
@@ -2094,16 +2122,17 @@ static ssize_t vpause_flag_store(struct class *class,
 	return size;
 }
 
-static ssize_t slowsync_enable_show(struct class *class,
-				    struct class_attribute *attr, char *buf)
+static ssize_t slowsync_enable_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "slowsync enable:0x%x\n",
 		       tsync_get_slowsync_enable());
 }
 
-static ssize_t slowsync_enable_store(struct class *class,
-				     struct class_attribute *attr,
-				     const char *buf, size_t size)
+static ssize_t slowsync_enable_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int mode;
 	ssize_t r;
@@ -2118,21 +2147,23 @@ static ssize_t slowsync_enable_store(struct class *class,
 	return size;
 }
 
-static ssize_t startsync_mode_show(struct class *class,
-				   struct class_attribute *attr, char *buf)
+static ssize_t startsync_mode_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%x\n", tsync_get_startsync_mode());
 }
 
-static ssize_t pts_latency_show(struct class *class,
-			    struct class_attribute *attr, char *buf)
+static ssize_t pts_latency_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%u\n", timestamp_get_pcrlatency());
 }
 
-static ssize_t pts_latency_store(struct class *class,
-			     struct class_attribute *attr,
-			     const char *buf, size_t size)
+static ssize_t pts_latency_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int latency = 0;
 	ssize_t r;
@@ -2144,15 +2175,16 @@ static ssize_t pts_latency_store(struct class *class,
 	return size;
 }
 
-static ssize_t avsync_count_show(struct class *class,
-				  struct class_attribute *attr, char *buf)
+static ssize_t avsync_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%u\n", timestamp_avsync_counter_get());
 }
 
-static ssize_t avsync_count_store(struct class *class,
-				   struct class_attribute *attr,
-				   const char *buf, size_t size)
+static ssize_t avsync_count_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int counts = 0;
 	ssize_t r;
@@ -2164,8 +2196,9 @@ static ssize_t avsync_count_store(struct class *class,
 	return size;
 }
 
-static ssize_t apts_lookup_show(struct class *class,
-				struct class_attribute *attribute, char *buf)
+static ssize_t apts_lookup_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	u32 frame_size;
 	unsigned int  pts = 0xffffffff;
@@ -2175,10 +2208,9 @@ static ssize_t apts_lookup_show(struct class *class,
 	return sprintf(buf, "0x%x\n", pts);
 }
 
-static ssize_t apts_lookup_store(struct class *class,
-				 struct class_attribute *attr,
-				 const char *buf,
-				 size_t size)
+static ssize_t apts_lookup_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int offset;
 	ssize_t r;
@@ -2192,9 +2224,9 @@ static ssize_t apts_lookup_store(struct class *class,
 	return size;
 }
 
-static ssize_t startsync_mode_store(struct class *class,
-				    struct class_attribute *attr,
-				    const char *buf, size_t size)
+static ssize_t startsync_mode_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int mode;
 	ssize_t r;

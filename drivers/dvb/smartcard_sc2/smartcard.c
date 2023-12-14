@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/gpio/consumer.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/sched/clock.h>
 #include <linux/of.h>
@@ -57,6 +58,7 @@
 #include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/mod_devicetable.h>
 #include <linux/ktime.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #include "c_stb_regs_define.h"
 #include "smc_reg.h"
@@ -468,8 +470,9 @@ static int smc_hw_deactive(struct smc_dev *smc);
 static int smc_hw_get_status(struct smc_dev *smc, int *sret);
 static void smc_clk_enable(int enable);
 
-static ssize_t gpio_pull_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
+static ssize_t gpio_pull_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (ENA_GPIO_PULL > 0)
 		return sprintf(buf, "%s\n", "enable GPIO pull low");
@@ -564,9 +567,9 @@ static int sc2_smc_addr(struct platform_device *pdev)
 #define SMC_READ_REG(a)          READ_CBUS_REG(SMARTCARD_##a)
 #define SMC_WRITE_REG(a, b)      WRITE_CBUS_REG(SMARTCARD_##a, b)
 
-static ssize_t gpio_pull_store(struct class *class,
-			     struct class_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t gpio_pull_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int dbg;
 
@@ -577,8 +580,9 @@ static ssize_t gpio_pull_store(struct class *class,
 	return count;
 }
 
-static ssize_t ctrl_5v3v_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
+static ssize_t ctrl_5v3v_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct smc_dev *smc = NULL;
 	int enable_5v3v = 0;
@@ -591,9 +595,9 @@ static ssize_t ctrl_5v3v_show(struct class *class,
 	return sprintf(buf, "5v3v_pin level = %d\n", enable_5v3v);
 }
 
-static ssize_t ctrl_5v3v_store(struct class *class,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t ctrl_5v3v_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int enable_5v3v = 0;
 	struct smc_dev *smc = NULL;
@@ -616,9 +620,9 @@ static ssize_t ctrl_5v3v_store(struct class *class,
 	return count;
 }
 
-static ssize_t debug_reset_store(struct class *class,
-				 struct class_attribute *attr,
-				 const char *buf, size_t count)
+static ssize_t debug_reset_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int enable_5v3v = 0;
 	struct smc_dev *smc = NULL;
@@ -635,9 +639,9 @@ static ssize_t debug_reset_store(struct class *class,
 	return count;
 }
 
-static ssize_t enable_reset_store(struct class *class,
-				  struct class_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t enable_reset_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int enable_reset = 0;
 	struct smc_dev *smc = NULL;
@@ -655,9 +659,9 @@ static ssize_t enable_reset_store(struct class *class,
 	return count;
 }
 
-static ssize_t enable_cmd_store(struct class *class,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t enable_cmd_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int enable_cmd = 0;
 	struct smc_dev *smc = NULL;
@@ -677,9 +681,9 @@ static ssize_t enable_cmd_store(struct class *class,
 	return count;
 }
 
-static ssize_t enable_clk_store(struct class *class,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t enable_clk_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int enable_clk = 0;
 	struct smc_dev *smc = NULL;
@@ -697,15 +701,16 @@ static ssize_t enable_clk_store(struct class *class,
 	return count;
 }
 
-static ssize_t freq_show(struct class *class,
-			 struct class_attribute *attr, char *buf)
+static ssize_t freq_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%dKHz\n", smc_dev[0].param.freq);
 }
 
-static ssize_t freq_store(struct class *class,
-			  struct class_attribute *attr,
-			  const char *buf, size_t count)
+static ssize_t freq_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int freq = 0;
 
@@ -719,15 +724,16 @@ static ssize_t freq_store(struct class *class,
 	return count;
 }
 
-static ssize_t div_smc_show(struct class *class,
-			    struct class_attribute *attr, char *buf)
+static ssize_t div_smc_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "div -> %d\n", DIV_SMC);
 }
 
-static ssize_t div_smc_store(struct class *class,
-			     struct class_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t div_smc_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int div = 0;
 
@@ -742,8 +748,9 @@ static ssize_t div_smc_store(struct class *class,
 }
 
 #ifdef MEM_DEBUG
-static ssize_t debug_show(struct class *class,
-			  struct class_attribute *attr, char *buf)
+static ssize_t debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_inf("Usage:\n");
 	pr_inf("\techo [ 1 | 2 | 0 | dump | reset ] >");
@@ -752,9 +759,9 @@ static ssize_t debug_show(struct class *class,
 	return 0;
 }
 
-static ssize_t debug_store(struct class *class,
-			   struct class_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int smc_debug_level = 0;
 
@@ -829,8 +836,9 @@ static int c7_pins_mode;
 static int c4_pins_mode = -1;
 static int c8_pins_mode = -1;
 
-static ssize_t pins_mode_show(struct class *class, struct class_attribute *attr,
-			      char *buf)
+static ssize_t pins_mode_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int r, total = 0;
 
@@ -943,9 +951,9 @@ static int save_pin_mode(const char *buf)
 	return 0;
 }
 
-static ssize_t pins_mode_store(struct class *class,
-			       struct class_attribute *attr, const char *buf,
-			       size_t count)
+static ssize_t pins_mode_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char name[32];
 	int valid = 0;
@@ -2547,14 +2555,11 @@ static int _set_gpio(struct smc_dev *smc, struct gpio_desc **gpiod,
 
 static int smc_dev_init(struct smc_dev *smc, int id)
 {
-#ifndef CONFIG_OF
-	struct resource *res;
-#else
+#ifdef CONFIG_OF
 	int ret;
 	u32 value;
 	char buf[32];
 	const char *dts_str;
-	struct resource *res;
 #endif
 
 #if defined(MESON_CPU_TYPE_MESON8) && (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8)
@@ -2620,13 +2625,11 @@ static int smc_dev_init(struct smc_dev *smc, int id)
 	if (smc->irq_num == -1) {
 		snprintf(buf, sizeof(buf), "smc%d_irq", id);
 
-		res = platform_get_resource_byname(smc->pdev,
-			IORESOURCE_IRQ, buf);
-		if (!res) {
+		smc->irq_num = platform_get_irq_byname(smc->pdev, buf);
+		if (smc->irq_num < 0) {
 			pr_error("cannot get resource \"%s\"\n", buf);
 			return -1;
 		}
-		smc->irq_num = res->start;
 	}
 	smc->pin_clk_pinmux_reg = -1;
 	snprintf(buf, sizeof(buf), "smc%d_clk_pinmux_reg", id);
@@ -2698,7 +2701,7 @@ static int smc_dev_init(struct smc_dev *smc, int id)
 	if (!ret) {
 		pr_error("cannot get resource \"%s\"\n", buf);
 	} else {
-		smc->detect_pin = res->start;
+		smc->detect_pin = smc->irq_num;
 		_gpio_request(smc->detect_pin, SMC_DETECT_PIN_NAME);
 	}
 #endif /*CONFIG_OF */

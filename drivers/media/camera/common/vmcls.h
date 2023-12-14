@@ -17,13 +17,15 @@
  *
  */
 
+#include <linux/amlogic/kernel_versions.h>
 #define VM_CLASS_NAME				"vm"
 
 void interleave_uv(unsigned char *pU, unsigned char *pV,
 			  unsigned char *pUV, unsigned int size_u_or_v);
 
-static ssize_t show_vm_info(struct class *cla, struct class_attribute *attr,
-			    char *buf)
+static ssize_t show_vm_info(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 //	resource_size_t bstart;
 //	unsigned int bsize;
@@ -35,15 +37,16 @@ static ssize_t show_vm_info(struct class *cla, struct class_attribute *attr,
 }
 
 static char attr_dat0[3] = "-1";
-static ssize_t read_attr0(struct class *cla, struct class_attribute *attr,
-			  char *buf)
+static ssize_t read_attr0(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 3, "%s", attr_dat0);
 }
 
-static ssize_t write_attr0(struct class *cla,
-			   struct class_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t write_attr0(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	/* struct display_device *dsp = dev_get_drvdata(dev); */
 	ssize_t ret = -EINVAL;
@@ -71,15 +74,16 @@ static ssize_t write_attr0(struct class *cla,
 }
 
 static char attr_dat1[3] = "-1";
-static ssize_t read_attr1(struct class *cla, struct class_attribute *attr,
-			  char *buf)
+static ssize_t read_attr1(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 3, "%s", attr_dat1);
 }
 
-static ssize_t write_attr1(struct class *cla,
-			   struct class_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t write_attr1(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	/* struct display_device *dsp = dev_get_drvdata(dev); */
 	ssize_t ret = -EINVAL;
@@ -108,15 +112,16 @@ static ssize_t write_attr1(struct class *cla,
 
 int disable_gt2005;
 
-static ssize_t read_attr2(struct class *cla, struct class_attribute *attr,
-			  char *buf)
+static ssize_t read_attr2(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return disable_gt2005;
 }
 
-static ssize_t write_attr2(struct class *cla,
-			   struct class_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t write_attr2(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	/* struct display_device *dsp = dev_get_drvdata(dev); */
 	ssize_t ret = -EINVAL;
@@ -129,8 +134,9 @@ static ssize_t write_attr2(struct class *cla,
 
 int camera_mirror_flag;  /* 0: disable, 1: l&r mirror,2 t-b mirror */
 
-static ssize_t mirror_read(struct class *cla, struct class_attribute *attr,
-			   char *buf)
+static ssize_t mirror_read(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (camera_mirror_flag == 1)
 		return snprintf(buf, 80,
@@ -146,9 +152,9 @@ static ssize_t mirror_read(struct class *cla, struct class_attribute *attr,
 		camera_mirror_flag);
 }
 
-static ssize_t mirror_write(struct class *cla,
-			    struct class_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t mirror_write(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	ssize_t size;
 	char *endp = "1";
@@ -159,23 +165,18 @@ static ssize_t mirror_write(struct class *cla,
 }
 
 static struct class_attribute vm_class_attrs[] = {
-				__ATTR(info, 0644,
-				show_vm_info, NULL),
-				__ATTR(attr0, 0644,
-				read_attr0, write_attr0),
-				__ATTR(attr1, 0644,
-				read_attr1, write_attr1),
-				__ATTR(attr2, 0644,
-				read_attr2, write_attr2),
-				__ATTR(mirror, 0644,
-					mirror_read, mirror_write),
-				__ATTR_NULL
+	__ATTR(info, 0644, show_vm_info, NULL),
+	__ATTR(attr0, 0644, read_attr0, write_attr0),
+	__ATTR(attr1, 0644, read_attr1, write_attr1),
+	__ATTR(attr2, 0644, read_attr2, write_attr2),
+	__ATTR(mirror, 0644, mirror_read, mirror_write),
+	__ATTR_NULL
 };
 
 static struct class vm_class = {
-		.name = VM_CLASS_NAME,
-		.class_attrs = vm_class_attrs,
-	};
+	.name = VM_CLASS_NAME,
+	.class_attrs = vm_class_attrs,
+};
 
 struct class *init_vm_cls(void)
 {

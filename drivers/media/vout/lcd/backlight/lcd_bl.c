@@ -39,6 +39,7 @@
 #include "../lcd_common.h"
 
 #include <linux/amlogic/gki_module.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #define BL_CDEV_NAME  "aml_bl"
 struct bl_cdev_s {
@@ -1654,8 +1655,8 @@ static int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pde
 		aml_ldim_probe(pdev);
 #endif
 
-	bdrv->res_vsync_irq[0] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
-	if (!bdrv->res_vsync_irq[0]) {
+	bdrv->vsync_irq[0] = platform_get_irq_byname(pdev, "vsync");
+	if (bdrv->vsync_irq[0] < 0) {
 		ret = -ENODEV;
 		BLERR("[%d]: bl_vsync_irq[0] resource error\n", bdrv->index);
 		return -1;
@@ -2365,8 +2366,8 @@ static irqreturn_t bl_vsync_isr(int irq, void *data)
 
 static int bl_vsync_irq_init(struct aml_bl_drv_s *bdrv)
 {
-	if (bdrv->res_vsync_irq[0]) {
-		if (request_irq(bdrv->res_vsync_irq[0]->start,
+	if (bdrv->vsync_irq[0] >= 0) {
+		if (request_irq(bdrv->vsync_irq[0],
 				bl_vsync_isr, IRQF_SHARED,
 				"bl_vsync", (void *)bdrv)) {
 			BLPR("[%d]: can't request bl_vsync_irq\n", bdrv->index);
@@ -2383,8 +2384,8 @@ static int bl_vsync_irq_init(struct aml_bl_drv_s *bdrv)
 
 static void bl_vsync_irq_remove(struct aml_bl_drv_s *bdrv)
 {
-	if (bdrv->res_vsync_irq[0])
-		free_irq(bdrv->res_vsync_irq[0]->start, (void *)"bl_vsync");
+	if (bdrv->vsync_irq[0] >= 0)
+		free_irq(bdrv->vsync_irq[0], (void *)"bl_vsync");
 }
 
 /***************************************************************/
@@ -3761,7 +3762,7 @@ static int bl_global_init_once(void)
 		goto bl_global_init_once_err;
 	}
 
-	bl_cdev->class = class_create(THIS_MODULE, "aml_bl");
+	bl_cdev->class = kv_class_create(THIS_MODULE, "aml_bl");
 	if (IS_ERR_OR_NULL(bl_cdev->class)) {
 		ret = 2;
 		goto bl_global_init_once_err_1;

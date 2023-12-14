@@ -126,6 +126,7 @@ static void __exit media_main_exit(void)
 	vdetect_exit();
 	msync_exit();
 }
+MODULE_IMPORT_NS(DMA_BUF);
 module_init(media_main_init);
 module_exit(media_main_exit);
 MODULE_LICENSE("GPL v2");

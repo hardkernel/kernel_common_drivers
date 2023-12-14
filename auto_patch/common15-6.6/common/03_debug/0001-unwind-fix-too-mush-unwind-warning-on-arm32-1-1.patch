@@ -1,0 +1,53 @@
+From 6107c72fe957e00319504bb922d25a7350374fe8 Mon Sep 17 00:00:00 2001
+From: "qiankun.wang" <qiankun.wang@amlogic.com>
+Date: Fri, 12 May 2023 14:33:37 +0800
+Subject: [PATCH 1/9] unwind: fix too mush unwind warning on arm32 [1/1]
+
+PD#SWPL-114632
+
+Problem:
+too much unwind warning when pt_regs pc register is invalid
+
+Solution:
+use pt_regs lr register to unwind, replace pc register
+
+Verify:
+C3
+
+Change-Id: I53bc7739e2909818c04d6e50b2172a06984bd883
+Signed-off-by: qiankun.wang <qiankun.wang@amlogic.com>
+---
+ arch/arm/kernel/unwind.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/arch/arm/kernel/unwind.c b/arch/arm/kernel/unwind.c
+index 9d2192156087..14b1955f8125 100644
+--- a/arch/arm/kernel/unwind.c
++++ b/arch/arm/kernel/unwind.c
+@@ -418,6 +418,15 @@ int unwind_frame(struct stackframe *frame)
+ 		 frame->pc, frame->lr, frame->sp);
+ 
+ 	idx = unwind_find_idx(frame->pc);
++#if IS_ENABLED(CONFIG_AMLOGIC_ARM_UNWIND)
++	if (!idx)
++		idx = unwind_find_idx(frame->lr);
++	if (!idx) {
++		pr_warn("unwind: Index not found, pc=%pS, lr=%pS\n",
++			(void *)frame->pc, (void *)frame->lr);
++		return -URC_FAILURE;
++	}
++#else
+ 	if (!idx) {
+ 		if (frame->pc && kernel_text_address(frame->pc)) {
+ 			if (in_module_plt(frame->pc) && frame->pc != frame->lr) {
+@@ -433,6 +442,7 @@ int unwind_frame(struct stackframe *frame)
+ 		}
+ 		return -URC_FAILURE;
+ 	}
++#endif
+ 
+ 	ctrl.vrs[FP] = frame->fp;
+ 	ctrl.vrs[SP] = frame->sp;
+-- 
+2.41.0
+

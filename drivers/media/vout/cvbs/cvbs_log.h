@@ -19,7 +19,7 @@
 #ifndef _CVBS_LOG_H_
 #define _CVBS_LOG_H_
 
-#include <stdarg.h>
+#include <linux/stdarg.h>
 #include <linux/printk.h>
 
 #undef pr_fmt

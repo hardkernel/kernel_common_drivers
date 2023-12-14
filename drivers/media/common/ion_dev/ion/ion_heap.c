@@ -13,6 +13,7 @@
 #include <linux/scatterlist.h>
 #include <linux/vmalloc.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/ion.h>
 
 void *ion_heap_map_kernel(struct ion_heap *heap,
@@ -283,5 +284,5 @@ int ion_heap_init_shrinker(struct ion_heap *heap)
 	heap->shrinker.seeks = DEFAULT_SEEKS;
 	heap->shrinker.batch = 0;
 
-	return register_shrinker(&heap->shrinker);
+	return kv_register_shrinker(&heap->shrinker, "ion-heap");
 }

@@ -18,6 +18,8 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
+
+#include <linux/amlogic/kernel_versions.h>
 #include "acm8625.h"
 
 #define ACM8625_DRV_NAME    "acm8625"
@@ -1220,8 +1222,7 @@ static int acm8625_parse_dt(struct acm8625_priv *acm8625, struct device_node *np
 	return ret;
 }
 
-static int acm8625_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static int acm8625_i2c_probe(struct i2c_client *i2c KV_I2C_PROBE_ID)
 {
 	struct regmap *regmap;
 	struct regmap_config config = acm8625_regmap;
@@ -1278,7 +1279,7 @@ static int acm8625_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int acm8625_i2c_remove(struct i2c_client *i2c)
+static KV_I2C_REMOVE_TYPE acm8625_i2c_remove(struct i2c_client *i2c)
 {
 	struct acm8625_priv *acm8625 =
 			(struct acm8625_priv *)i2c_get_clientdata(i2c);
@@ -1289,7 +1290,7 @@ static int acm8625_i2c_remove(struct i2c_client *i2c)
 	devm_kfree(&i2c->dev, acm8625->pdata);
 	devm_kfree(&i2c->dev, i2c_get_clientdata(i2c));
 
-	return 0;
+	KV_I2C_REMOVE_RET(0);
 }
 
 static void acm8625_i2c_shutdown(struct i2c_client *i2c)

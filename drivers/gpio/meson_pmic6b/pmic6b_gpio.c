@@ -25,7 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
-
+#include <linux/gpio/driver.h>
 #include <linux/amlogic/pmic/meson_pmic6b.h>
 
 enum {

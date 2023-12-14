@@ -36,6 +36,7 @@
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/registers/regs/vpp_regs.h>
 #include <linux/amlogic/media/utils/vdec_reg.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #include "vpu_security.h"
 #include "vpu_security_reg.h"
@@ -492,8 +493,9 @@ int secure_config(enum secure_module_e module, int secure_src, u32 vpp_index)
 }
 EXPORT_SYMBOL(secure_config);
 
-static ssize_t vpu_security_info_show(struct class *cla,
-				      struct class_attribute *attr, char *buf)
+static ssize_t vpu_security_info_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct vpu_security_device_info *info = &vpu_security_info;
 
@@ -501,15 +503,16 @@ static ssize_t vpu_security_info_show(struct class *cla,
 		info->mismatch_cnt);
 }
 
-static ssize_t log_level_show(struct class *cla,
-			      struct class_attribute *attr, char *buf)
+static ssize_t log_level_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 40, "%d\n", log_level);
 }
 
-static ssize_t log_level_store(struct class *cla,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t log_level_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -520,8 +523,9 @@ static ssize_t log_level_store(struct class *cla,
 	return count;
 }
 
-static ssize_t debug_value_show(struct class *cla,
-			      struct class_attribute *attr, char *buf)
+static ssize_t debug_value_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t len = 0;
 
@@ -543,9 +547,9 @@ static ssize_t debug_value_show(struct class *cla,
 	return len;
 }
 
-static ssize_t debug_value_store(struct class *cla,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t debug_value_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -649,8 +653,7 @@ static int vpu_security_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 #endif
-	info->clsp = class_create(THIS_MODULE,
-				  CLASS_NAME);
+	info->clsp = kv_class_create(THIS_MODULE,  CLASS_NAME);
 	if (IS_ERR(info->clsp)) {
 		ret = PTR_ERR(info->clsp);
 		pr_err("fail to create class\n");

@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/ctype.h>
 #include <linux/compat.h>
+#include <linux/amlogic/kernel_versions.h>
 #if defined(CONFIG_AMLOGIC_EFUSE)
 #include <linux/amlogic/efuse.h>
 #endif
@@ -720,9 +721,9 @@ exit:
 	return ret;
 }
 
-static ssize_t version_show(struct class *cla,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t version_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t n = 0;
 
@@ -732,9 +733,9 @@ static ssize_t version_show(struct class *cla,
 	return n;
 }
 
-static ssize_t list_show(struct class *cla,
-			 struct class_attribute *attr,
-			 char *buf)
+static ssize_t list_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_uk_dev *ukdev;
 	ssize_t			n = 0;
@@ -761,9 +762,9 @@ static ssize_t list_show(struct class *cla,
 	return n;
 }
 
-static ssize_t exist_show(struct class *cla,
-			  struct class_attribute *attr,
-			  char *buf)
+static ssize_t exist_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_uk_dev *ukdev;
 	struct key_item_t	*curkey;
@@ -798,9 +799,9 @@ static ssize_t exist_show(struct class *cla,
 	return n;
 }
 
-static ssize_t secure_show(struct class *cla,
-			   struct class_attribute *attr,
-			   char *buf)
+static ssize_t secure_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_uk_dev *ukdev;
 	struct key_item_t	*curkey;
@@ -835,9 +836,9 @@ _out:
 	return n;
 }
 
-static ssize_t encrypt_show(struct class *cla,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t encrypt_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_uk_dev *ukdev;
 	struct key_item_t	*curkey;
@@ -872,9 +873,9 @@ _out:
 	return n;
 }
 
-static ssize_t size_show(struct class *cla,
-			 struct class_attribute *attr,
-			 char *buf)
+static ssize_t size_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_uk_dev *ukdev;
 	struct key_item_t	*curkey;
@@ -903,9 +904,9 @@ static ssize_t size_show(struct class *cla,
 	return n;
 }
 
-static ssize_t name_show(struct class *cla,
-			 struct class_attribute *attr,
-			 char *buf)
+static ssize_t name_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_uk_dev *ukdev;
 	struct key_item_t	*curkey;
@@ -924,9 +925,9 @@ static ssize_t name_show(struct class *cla,
 	return n;
 }
 
-static ssize_t name_store(struct class *cla,
-			  struct class_attribute *attr,
-			  const char *buf, size_t count)
+static ssize_t name_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct aml_uk_dev *ukdev;
 	struct key_item_t	*curkey;
@@ -991,9 +992,9 @@ static ssize_t name_store(struct class *cla,
 	return reval;
 }
 
-static ssize_t read_show(struct class *cla,
-			 struct class_attribute *attr,
-			 char *buf)
+static ssize_t read_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_uk_dev *ukdev;
 	struct key_item_t	*curkey;
@@ -1046,9 +1047,9 @@ _out:
 	return n;
 }
 
-static ssize_t write_store(struct class *cla,
-			   struct class_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t write_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct aml_uk_dev *ukdev;
 	struct key_item_t	*curkey;
@@ -1098,9 +1099,9 @@ _out:
 	return count;
 }
 
-static ssize_t attach_show(struct class *cla,
-			   struct class_attribute *attr,
-			   char *buf)
+static ssize_t attach_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_uk_dev *ukdev;
 	ssize_t n = 0;
@@ -1113,9 +1114,9 @@ static ssize_t attach_show(struct class *cla,
 	return n;
 }
 
-static ssize_t attach_store(struct class *cla,
-			    struct class_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t attach_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct aml_uk_dev *ukdev;
 
@@ -1125,9 +1126,9 @@ static ssize_t attach_store(struct class *cla,
 	return count;
 }
 
-static ssize_t lock_show(struct class *cla,
-			 struct class_attribute *attr,
-			 char *buf)
+static ssize_t lock_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_uk_dev *ukdev;
 	ssize_t n = 0;
@@ -1141,9 +1142,9 @@ static ssize_t lock_show(struct class *cla,
 	return n;
 }
 
-static ssize_t lock_store(struct class *cla,
-			  struct class_attribute *attr,
-			  const char *buf, size_t count)
+static ssize_t lock_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct aml_uk_dev *ukdev;
 	unsigned int state, len;
@@ -1195,9 +1196,9 @@ static const char *unifykeys_help_str = {
 "echo 0 > lock //set unlock\n"
 };
 
-static ssize_t help_show(struct class *cla,
-			 struct class_attribute *attr,
-			 char *buf)
+static ssize_t help_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t n = 0;
 
@@ -1307,7 +1308,7 @@ static int __init aml_unifykeys_probe(struct platform_device *pdev)
 	pr_debug("unifykey_devno: %x\n", ukdev->uk_devno);
 
 	ukdev->cls.name = UNIFYKEYS_CLASS_NAME;
-	ukdev->cls.owner = THIS_MODULE;
+	kv_set_class_owner(&ukdev->cls);
 	ukdev->cls.class_groups = unifykey_class_groups;
 	ret = class_register(&ukdev->cls);
 	if (ret != 0)

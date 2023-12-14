@@ -11,4 +11,4 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx20/meson_hdcp.o
 
 ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmitx_common
 
-include $(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmitx20/hw/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/hdmitx20/hw/Makefile

@@ -11,7 +11,9 @@
 
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 #include <linux/dma-iommu.h>
+#endif
 #include <linux/err.h>
 #include <linux/iommu.h>
 #include <linux/module.h>
@@ -228,6 +230,20 @@ static void aml_smmu_release_device(struct device *dev)
 	return;
 }
 
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+static struct iommu_ops aml_smmu_ops = {
+	.owner		= THIS_MODULE,
+	.domain_alloc	= aml_smmu_domain_alloc,
+	.probe_device	= aml_smmu_add_device,
+	.device_group	= aml_smmu_device_group,
+	.of_xlate	= aml_smmu_of_xlate,
+	.pgsize_bitmap	= -1UL, /* Restricted during device attach */
+	.release_device	= aml_smmu_release_device,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev	= aml_smmu_attach_dev,
+	}
+};
+#else
 static struct iommu_ops aml_smmu_ops = {
 	.owner		= THIS_MODULE,
 	.domain_alloc	= aml_smmu_domain_alloc,
@@ -238,6 +254,7 @@ static struct iommu_ops aml_smmu_ops = {
 	.pgsize_bitmap	= -1UL, /* Restricted during device attach */
 	.release_device	= aml_smmu_release_device,
 };
+#endif
 
 /*************************************************/
 /*

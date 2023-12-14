@@ -1,0 +1,194 @@
+From 59b7c6596ca287b4e5a77b4463faf35fb82fdfca Mon Sep 17 00:00:00 2001
+From: Tao Zeng <tao.zeng@amlogic.com>
+Date: Thu, 20 Jan 2022 15:09:43 +0800
+Subject: [PATCH 1/3] mm: add pagetrace support [1/2]
+
+PD#SWPL-70022
+
+Problem:
+No pagetrace function on 5.15 kernel
+
+Solution:
+porting it from 5.4
+
+Verify:
+local
+
+Signed-off-by: Tao Zeng <tao.zeng@amlogic.com>
+Change-Id: I69cc8b4f4fa4c323204f86e5c76613cd3d6087df
+---
+ include/linux/mm_types.h | 10 ++++++++++
+ include/linux/mmzone.h   | 16 ++++++++++++++++
+ init/main.c              |  4 ++++
+ mm/compaction.c          |  7 +++++++
+ mm/mm_init.c             |  9 +++++++++
+ mm/page_alloc.c          | 13 +++++++++++++
+ 6 files changed, 59 insertions(+)
+
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 36c5b43999e6..d8f8c16a1e60 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -72,8 +72,18 @@ struct mem_cgroup;
+ #endif
+ 
+ struct page {
++#ifdef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
++	union {
++		unsigned long flags;
++		struct {
++			unsigned int s_flags;
++			unsigned int trace;
++		};
++	};
++#else
+ 	unsigned long flags;		/* Atomic flags, some possibly
+ 					 * updated asynchronously */
++#endif /* CONFIG_AMLOGIC_PAGE_TRACE_INLINE */
+ 	/*
+ 	 * Five words (20/40 bytes) are available in this union.
+ 	 * WARNING: bit 0 of the first word is used for PageTail(). That
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 450efe348599..9e587ea4462f 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1039,7 +1039,23 @@ static inline bool zone_is_empty(struct zone *zone)
+  */
+ 
+ /* Page flags: | [SECTION] | [NODE] | ZONE | [LAST_CPUPID] | ... | FLAGS | */
++#ifdef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
++/*
++ * We use high 32bit of page->flags for page trace, Make sure:
++ * __NR_PAGEFLAGS    : about 21 bits
++ * ZONES_WIDTH       : about  2 bits, MAX 4 zone types
++ * NODES_WIDTH       : about  2 bits if open CONFIG_NUMA, else 0 bit
++ * SECTIONS_WIDTH    : 0 bit if defined CONFIG_SPARSEMEM_VMEMMAP otherwise 18
++ *                     bits on ARM64
++ * LAST_CPUPID_SHIFT : 0 bit if not define CONFIG_NUMA_BALANCING, otherwise
++ *                     8 + NR_CPUS_BITS
++ * All of these macros should be using less than 32bits in total, otherwise
++ * compile will fail
++ */
++#define SECTIONS_PGOFF		((sizeof(unsigned int)*8) - SECTIONS_WIDTH)
++#else
+ #define SECTIONS_PGOFF		((sizeof(unsigned long)*8) - SECTIONS_WIDTH)
++#endif /* CONFIG_AMLOGIC_PAGE_TRACE_INLINE */
+ #define NODES_PGOFF		(SECTIONS_PGOFF - NODES_WIDTH)
+ #define ZONES_PGOFF		(NODES_PGOFF - ZONES_WIDTH)
+ #define LAST_CPUPID_PGOFF	(ZONES_PGOFF - LAST_CPUPID_WIDTH)
+diff --git a/init/main.c b/init/main.c
+index 03a73e4c68e2..2868da527bad 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -109,6 +109,10 @@
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/initcall.h>
+ 
++#ifdef CONFIG_AMLOGIC_PAGE_TRACE
++#include <linux/amlogic/page_trace.h>
++#endif
++
+ static int kernel_init(void *);
+ 
+ /*
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 38c8d216c6a3..87973724636b 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -25,6 +25,10 @@
+ #include <linux/psi.h>
+ #include "internal.h"
+ 
++#ifdef CONFIG_AMLOGIC_PAGE_TRACE
++#include <linux/amlogic/page_trace.h>
++#endif
++
+ #ifdef CONFIG_COMPACTION
+ /*
+  * Fragmentation score check interval for proactive compaction purposes.
+@@ -1775,6 +1779,9 @@ static struct folio *compaction_alloc(struct folio *src, unsigned long data)
+ 	dst = list_entry(cc->freepages.next, struct folio, lru);
+ 	list_del(&dst->lru);
+ 	cc->nr_freepages--;
++#ifdef CONFIG_AMLOGIC_PAGE_TRACE
++	replace_page_trace(dst->page, src->page);
++#endif
+ 
+ 	return dst;
+ }
+diff --git a/mm/mm_init.c b/mm/mm_init.c
+index 50f2f34745af..4f1e739a132c 100644
+--- a/mm/mm_init.c
++++ b/mm/mm_init.c
+@@ -79,7 +79,12 @@ void __init mminit_verify_pageflags_layout(void)
+ 	int shift, width;
+ 	unsigned long or_mask, add_mask;
+ 
++#ifdef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
++	/* high 32bits have been taken by pagetrace, avoid bug in line 117 */
++	shift = 8 * sizeof(unsigned int);
++#else
+ 	shift = BITS_PER_LONG;
++#endif
+ 	width = shift - SECTIONS_WIDTH - NODES_WIDTH - ZONES_WIDTH
+ 		- LAST_CPUPID_SHIFT - KASAN_TAG_WIDTH - LRU_GEN_WIDTH - LRU_REFS_WIDTH;
+ 	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_widths",
+@@ -2775,6 +2780,10 @@ void __init mm_core_init(void)
+ 	report_meminit();
+ 	kmsan_init_shadow();
+ 	stack_depot_early_init();
++#ifdef CONFIG_AMLOGIC_PAGE_TRACE
++	/* allocate memory before first page allocated */
++	page_trace_mem_init();
++#endif
+ 	mem_init();
+ 	mem_init_print_info();
+ 	kmem_cache_init();
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 85741403948f..ae30b86ec4a6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -57,6 +57,10 @@
+ #include "shuffle.h"
+ #include "page_reporting.h"
+ 
++#ifdef CONFIG_AMLOGIC_PAGE_TRACE
++#include <linux/amlogic/page_trace.h>
++#endif
++
+ /* Free Page Internal flags: for internal, non-pcp variants of free_pages(). */
+ typedef int __bitwise fpi_t;
+ 
+@@ -1172,6 +1176,9 @@ static __always_inline bool free_pages_prepare(struct page *page,
+ 
+ 	debug_pagealloc_unmap_pages(page, 1 << order);
+ 
++#ifdef CONFIG_AMLOGIC_PAGE_TRACE
++	reset_page_trace(page, order);
++#endif /* CONFIG_AMLOGIC_PAGE_TRACE */
+ 	return true;
+ }
+ 
+@@ -4356,6 +4363,9 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
+ 		else
+ 			page_array[nr_populated] = page;
+ 		nr_populated++;
++	#ifdef CONFIG_AMLOGIC_PAGE_TRACE
++		set_page_trace(page, 0, gfp, NULL);
++	#endif /* CONFIG_AMLOGIC_PAGE_TRACE */
+ 	}
+ 
+ 	pcp_spin_unlock(pcp);
+@@ -4447,6 +4457,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
+ 
+ 	trace_mm_page_alloc(page, order, alloc_gfp, ac.migratetype);
+ 	kmsan_alloc_page(page, order, alloc_gfp);
++#ifdef CONFIG_AMLOGIC_PAGE_TRACE
++	set_page_trace(page, order, gfp, NULL);
++#endif /* CONFIG_AMLOGIC_PAGE_TRACE */
+ 
+ 	return page;
+ }
+-- 
+2.41.0
+

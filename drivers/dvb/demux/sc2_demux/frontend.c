@@ -25,6 +25,7 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/reset.h>
 #include <linux/of_gpio.h>
+#include <linux/amlogic/kernel_versions.h>
 #include "../aml_dvb.h"
 //#include "demod_gt.h"
 #include <linux/amlogic/aml_dvb_extern.h>
@@ -48,8 +49,9 @@ module_param(debug_frontend, int, 0644);
 
 static u8 enable_tsinb_clk;
 
-ssize_t ts_setting_show(struct class *class,
-			struct class_attribute *attr, char *buf)
+ssize_t ts_setting_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int r, total = 0;
 	int i;
@@ -97,9 +99,9 @@ ssize_t ts_setting_show(struct class *class,
 	return total;
 }
 
-ssize_t ts_setting_store(struct class *class,
-			 struct class_attribute *attr,
-			 const char *buf, size_t count)
+ssize_t ts_setting_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int id, ctrl, r, mode;
 	char mname[32];

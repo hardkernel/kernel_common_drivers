@@ -461,7 +461,8 @@ static int sspicc_probe(struct platform_device *pdev)
 #ifdef SSPICC_TEST_ENTRY
 	spicc->cls.name = dev_name(&pdev->dev);
 	spicc->cls.class_attrs = spicc_class_attrs;
-	class_register(&spicc->cls);
+	if (class_register(&spicc->cls) < 0)
+		goto out;
 #endif
 
 	return 0;

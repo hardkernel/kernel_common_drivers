@@ -46,6 +46,7 @@
 #include "lcd_common.h"
 
 #include <linux/amlogic/gki_module.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #define LCD_CDEV_NAME  "lcd"
 
@@ -1537,7 +1538,7 @@ static int lcd_global_init_once(struct platform_device *pdev)
 		goto lcd_cdev_init_once_err;
 	}
 
-	lcd_cdev->class = class_create(THIS_MODULE, "aml_lcd");
+	lcd_cdev->class = kv_class_create(THIS_MODULE, "aml_lcd");
 	if (IS_ERR_OR_NULL(lcd_cdev->class)) {
 		ret = 2;
 		goto lcd_cdev_init_once_err_1;
@@ -1577,9 +1578,9 @@ static void lcd_global_remove_once(void)
 static int lcd_vsync_irq_init(struct aml_lcd_drv_s *pdrv)
 {
 	init_completion(&pdrv->vsync_done);
-	if (pdrv->res_vsync_irq[0]) {
+	if (pdrv->vsync_irq[0] >= 0) {
 		snprintf(pdrv->vsync_isr_name[0], 15, "lcd%d_vsync", pdrv->index);
-		if (request_irq(pdrv->res_vsync_irq[0]->start,
+		if (request_irq(pdrv->vsync_irq[0],
 				lcd_vsync_isr, IRQF_SHARED,
 				pdrv->vsync_isr_name[0], (void *)pdrv)) {
 			LCDERR("[%d]: can't request %s\n",
@@ -1592,9 +1593,9 @@ static int lcd_vsync_irq_init(struct aml_lcd_drv_s *pdrv)
 		}
 	}
 
-	if (pdrv->res_vsync_irq[1]) {
+	if (pdrv->vsync_irq[1] >= 0) {
 		snprintf(pdrv->vsync_isr_name[1], 15, "lcd%d_vsync2", pdrv->index);
-		if (request_irq(pdrv->res_vsync_irq[1]->start,
+		if (request_irq(pdrv->vsync_irq[1],
 				lcd_vsync2_isr, IRQF_SHARED,
 				pdrv->vsync_isr_name[1], (void *)pdrv)) {
 			LCDERR("[%d]: can't request %s\n",
@@ -1607,9 +1608,9 @@ static int lcd_vsync_irq_init(struct aml_lcd_drv_s *pdrv)
 		}
 	}
 
-	if (pdrv->res_vsync_irq[2]) {
+	if (pdrv->vsync_irq[2] >= 0) {
 		snprintf(pdrv->vsync_isr_name[2], 15, "lcd%d_vsync3", pdrv->index);
-		if (request_irq(pdrv->res_vsync_irq[2]->start,
+		if (request_irq(pdrv->vsync_irq[2],
 				lcd_vsync3_isr, IRQF_SHARED,
 				pdrv->vsync_isr_name[2], (void *)pdrv)) {
 			LCDERR("[%d]: can't request %s\n",
@@ -1634,12 +1635,12 @@ static int lcd_vsync_irq_init(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_vsync_irq_remove(struct aml_lcd_drv_s *pdrv)
 {
-	if (pdrv->res_vsync_irq[0])
-		free_irq(pdrv->res_vsync_irq[0]->start, (void *)pdrv);
-	if (pdrv->res_vsync_irq[1])
-		free_irq(pdrv->res_vsync_irq[1]->start, (void *)pdrv);
-	if (pdrv->res_vsync_irq[2])
-		free_irq(pdrv->res_vsync_irq[2]->start, (void *)pdrv);
+	if (pdrv->vsync_irq[0] >= 0)
+		free_irq(pdrv->vsync_irq[0], (void *)pdrv);
+	if (pdrv->vsync_irq[1] >= 0)
+		free_irq(pdrv->vsync_irq[1], (void *)pdrv);
+	if (pdrv->vsync_irq[2] >= 0)
+		free_irq(pdrv->vsync_irq[2], (void *)pdrv);
 
 	if (pdrv->vsync_none_timer_flag) {
 		del_timer_sync(&pdrv->vs_none_timer);
@@ -1908,11 +1909,11 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	if (ret)
 		return -1;
 
-	pdrv->res_vsync_irq[0] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
-	pdrv->res_vsync_irq[1] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync2");
-	pdrv->res_vsync_irq[2] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync3");
-	pdrv->res_vx1_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vbyone");
-	pdrv->res_tcon_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "tcon");
+	pdrv->vsync_irq[0] = platform_get_irq_byname(pdev, "vsync");
+	pdrv->vsync_irq[1] = platform_get_irq_byname(pdev, "vsync2");
+	pdrv->vsync_irq[2] = platform_get_irq_byname(pdev, "vsync3");
+	pdrv->vx1_irq = platform_get_irq_byname(pdev, "vbyone");
+	pdrv->tcon_irq = platform_get_irq_byname(pdev, "tcon");
 
 	lcd_clk_config_probe(pdrv);
 	lcd_phy_config_init(pdrv);

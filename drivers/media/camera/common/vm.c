@@ -68,6 +68,8 @@
 #include <linux/list.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <uapi/linux/sched/types.h>
+#include <linux/amlogic/kernel_versions.h>
+
 extern struct vframe_provider_s *vf_get_provider(const char *receiver_name);
 
 /*class property info.*/
@@ -2198,7 +2200,7 @@ vm_init_module(void)
 		pr_err("%s: failed to allocate major number\n", __func__);
 		goto fail_alloc_cdev_region;
 	}
-	vm_clsp = class_create(THIS_MODULE, VM_CLS_NAME);
+	vm_clsp = kv_class_create(THIS_MODULE, VM_CLS_NAME);
 	if (IS_ERR(vm_clsp)) {
 		ret = PTR_ERR(vm_clsp);
 		pr_err("%s: failed to create class\n", __func__);

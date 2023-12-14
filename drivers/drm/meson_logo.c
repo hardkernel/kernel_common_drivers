@@ -30,11 +30,10 @@
 #include <drm/drm_flip_work.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_blend.h>
 
 #ifdef CONFIG_AMLOGIC_DRM_USE_ION
 #include "meson_gem.h"

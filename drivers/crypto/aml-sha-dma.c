@@ -49,8 +49,9 @@
 #define SHA_OP_UPDATE	1
 #define SHA_OP_FINAL	2
 
+//KV_TODO: modify
 #define SHA_BUFFER_LEN	\
-	ALIGN_DOWN((HASH_MAX_STATESIZE - sizeof(struct aml_sha_reqctx)), 64)
+	ALIGN_DOWN((512 - sizeof(struct aml_sha_reqctx)), 64)
 
 #define AML_DIGEST_BUFSZ (SHA256_DIGEST_SIZE + 16)
 

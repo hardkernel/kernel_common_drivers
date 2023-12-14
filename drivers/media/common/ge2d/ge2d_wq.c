@@ -19,6 +19,7 @@
 #include <linux/pm_runtime.h>
 
 /* Amlogic Headers */
+#include <linux/amlogic/kernel_versions.h>
 #if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
 #include <linux/amlogic/dmc_dev_access.h>
 #endif
@@ -233,8 +234,9 @@ static int get_queue_member_count(struct list_head *head)
 	return member_count;
 }
 
-ssize_t work_queue_status_show(struct class *cla, struct class_attribute *attr,
-			       char *buf)
+ssize_t work_queue_status_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct ge2d_context_s *wq = ge2d_manager.current_wq;
 
@@ -244,8 +246,9 @@ ssize_t work_queue_status_show(struct class *cla, struct class_attribute *attr,
 			get_queue_member_count(&wq->work_queue));
 }
 
-ssize_t free_queue_status_show(struct class *cla, struct class_attribute *attr,
-			       char *buf)
+ssize_t free_queue_status_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct ge2d_context_s *wq = ge2d_manager.current_wq;
 

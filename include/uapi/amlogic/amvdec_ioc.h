@@ -341,7 +341,7 @@ struct vdec_info {
 	unsigned int b_decoded_frames;
 	unsigned int b_lost_frames;
 	unsigned int b_concealed_frames;
-	char endipb_line[0];
+	char endipb_line[];
 };
 
 struct am_io_param {

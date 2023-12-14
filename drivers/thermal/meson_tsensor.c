@@ -26,6 +26,7 @@
 #include "thermal_hwmon.h"
 #include "cpucore_cooling.h"
 #include <linux/reset.h>
+#include <linux/amlogic/kernel_versions.h>
 
 /*r1p1 thermal sensor version*/
 #define R1P1_TS_CFG_REG1	(0x1 * 4)
@@ -156,6 +157,7 @@ static void meson_report_trigger(struct meson_tsensor_data *p)
 	struct thermal_zone_device *tz = p->tzd;
 	int temp;
 	unsigned int i;
+	struct thermal_trip trip;
 
 	if (!tz) {
 		pr_err("No thermal zone device defined\n");
@@ -172,8 +174,9 @@ static void meson_report_trigger(struct meson_tsensor_data *p)
 
 	mutex_lock(&tz->lock);
 	/* Find the level for which trip happened */
-	for (i = 0; i < of_thermal_get_ntrips(tz); i++) {
-		tz->ops->get_trip_temp(tz, i, &temp);
+	for (i = 0; i < kv_thermal_get_num_trips(tz); i++) {
+		kv___thermal_zone_get_trip(tz, i, &trip);
+		temp = trip.temperature;
 		if (tz->last_temperature < temp)
 			break;
 	}
@@ -299,13 +302,15 @@ static int meson_tsensor_trips_initialize(struct platform_device *pdev)
 {
 	struct meson_tsensor_data *data = platform_get_drvdata(pdev);
 	int ret;
+	int ntrips;
 
-	if (of_thermal_get_ntrips(data->tzd) > data->ntrip) {
+	ntrips = kv_thermal_get_num_trips(data->tzd);
+	if (ntrips > data->ntrip) {
 		dev_info_once(&pdev->dev,
 			 "More trip points than supported by this tsensor.\n");
 		dev_info_once(&pdev->dev,
 			 "%d trip points should be configured in polling mode.\n",
-			 (of_thermal_get_ntrips(data->tzd) - data->ntrip));
+			 (ntrips - data->ntrip));
 	}
 	mutex_lock(&data->lock);
 	ret = data->tsensor_trips_initialize(pdev);
@@ -393,7 +398,7 @@ static int r1p1_tsensor_trips_initialize(struct platform_device *pdev)
 	int ret = 0, threshold_code, i;
 	int temp, temp_hist;
 	unsigned int reg_off, bit_off;
-
+	struct thermal_trip trip;
 	/*
 	 * Write temperature code for rising and falling threshold
 	 * On r1p1 tsensor there are 4 rising and 4 falling threshold
@@ -420,9 +425,10 @@ static int r1p1_tsensor_trips_initialize(struct platform_device *pdev)
 	for (i = (data->ntrip - 1); i >= 0; i--) {
 		reg_off = (i / 2) << 2;
 		bit_off = ((i + 1) % 2);
-		tz->ops->get_trip_temp(tz, i, &temp);
+		kv___thermal_zone_get_trip(tz, i, &trip);
+		temp = trip.temperature;
+		temp_hist = trip.hysteresis;
 		temp /= MCELSIUS;
-		tz->ops->get_trip_hyst(tz, i, &temp_hist);
 		temp_hist = temp - (temp_hist / MCELSIUS);
 
 		/* Set 12-bit temperature code for rising threshold levels */
@@ -504,28 +510,30 @@ static void r1p1_tsensor_update_irqs(struct meson_tsensor_data *data)
 {
 	struct thermal_zone_device *tz = data->tzd;
 	int temp;
+	struct thermal_trip trip;
 	unsigned int i, con;
 
 	/* Find the level for which trip happened */
-	for (i = 0; i < of_thermal_get_ntrips(tz); i++) {
-		tz->ops->get_trip_temp(tz, i, &temp);
+	for (i = 0; i < kv_thermal_get_num_trips(tz); i++) {
+		kv___thermal_zone_get_trip(tz, i, &trip);
+		temp = trip.temperature;
 		if (tz->last_temperature < temp)
 			break;
 	}
 
 	con = readl(data->base_c + R1P1_TS_CFG_REG1);
 	con &= ~(R1P1_TS_IRQ_ALL_EN);
-	con |= (of_thermal_is_trip_valid(tz, i)
+	con |= (!kv___thermal_zone_get_trip(tz, i, &trip)
 			<< (R1P1_TS_IRQ_RISE0_EN_SHIT + i));
-	con |= (of_thermal_is_trip_valid(tz, i - 1)
+	con |= (!kv___thermal_zone_get_trip(tz, i - 1, &trip)
 			<< (R1P1_TS_IRQ_FALL0_EN_SHIT + i - 1));
 	con &= ~(R1P1_TS_IRQ_ALL_CLR);
 	writel(con, data->base_c + R1P1_TS_CFG_REG1);
 }
 
-static int meson_get_temp(void *p, int *temp)
+static int meson_get_temp(kv_get_temp_p_or_tz *p, int *temp)
 {
-	struct meson_tsensor_data *data = p;
+	struct meson_tsensor_data *data = kv_get_temp_meson_data(p);
 
 	if (!data->tsensor_read)
 		return -EINVAL;
@@ -791,11 +799,13 @@ static void meson_handle_thermal_trip(struct thermal_zone_device *tz, int trip, 
 	static u32 last_state_set;
 	unsigned long state_get;
 	int tz_temp;
+	struct thermal_trip ttrip;
 
 	if (temp < 0)
 		return;
 
-	tz->ops->get_trip_type(tz, trip, &type);
+	kv___thermal_zone_get_trip(tz, trip, &ttrip);
+	type = ttrip.type;
 	if (type == THERMAL_TRIP_HOT) {
 		mutex_lock(&tz->lock);
 		tz_temp = tz->temperature;
@@ -820,7 +830,7 @@ static void meson_handle_thermal_trip(struct thermal_zone_device *tz, int trip, 
 	}
 }
 
-static struct thermal_zone_of_device_ops meson_sensor_ops = {
+static kv_thermal_zone_device_ops meson_sensor_ops = {
 	.get_temp = meson_get_temp,
 
 };
@@ -876,11 +886,7 @@ static ssize_t tsensor_tempwrite_write(struct file *file, const char __user *use
 	if (kstrtoint(buf, 0, &temperature))
 		return -EINVAL;
 
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
-	for (i = 0; i < tz->num_trips; i++)
-#else
-	for (i = 0; i < tz->trips; i++)
-#endif
+	for (i = 0; i < kv_thermal_get_num_trips(tz); i++)
 		meson_handle_thermal_trip(tz, i, temperature);
 
 	return count;
@@ -910,6 +916,7 @@ static int meson_tsensor_probe(struct platform_device *pdev)
 	int ret, i;
 	char name[10] = {0};
 	struct dentry *debugfs_dir, *tsensor_drvinfo_file, *temp_write_file;
+	struct thermal_trip trip;
 
 	pr_debug("meson ts init\n");
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
@@ -931,10 +938,8 @@ static int meson_tsensor_probe(struct platform_device *pdev)
 
 	INIT_WORK(&data->irq_work, meson_tsensor_work);
 
-	data->tzd = devm_thermal_zone_of_sensor_register(&pdev->dev,
-							 data->id,
-							 data,
-							 &meson_sensor_ops);
+	data->tzd = kv_devm_thermal_zone_register(&pdev->dev,
+				data->id, data, &meson_sensor_ops);
 	if (IS_ERR(data->tzd)) {
 		ret = PTR_ERR(data->tzd);
 		dev_err(&pdev->dev, "Failed to register tsensor: %d\n", ret);
@@ -942,12 +947,9 @@ static int meson_tsensor_probe(struct platform_device *pdev)
 	}
 
 	tz = data->tzd;
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
-	for (i = 0; i < tz->num_trips; i++) {
-#else
-	for (i = 0; i < tz->trips; i++) {
-#endif
-		tz->ops->get_trip_type(tz, i, &trip_type);
+	for (i = 0; i < kv_thermal_get_num_trips(tz); i++) {
+		kv___thermal_zone_get_trip(tz, i, &trip);
+		trip_type = trip.type;
 		switch (trip_type) {
 		case THERMAL_TRIP_HOT:
 			tz->ops->hot = meson_thermal_hot_callback;
@@ -989,7 +991,7 @@ out:
 	return 0;
 
 err_thermal:
-	thermal_zone_of_sensor_unregister(&pdev->dev, data->tzd);
+	kv_devm_thermal_zone_unregister(&pdev->dev, data->tzd);
 
 	return ret;
 }
@@ -999,7 +1001,7 @@ static int meson_tsensor_remove(struct platform_device *pdev)
 	struct meson_tsensor_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tzd = data->tzd;
 
-	thermal_zone_of_sensor_unregister(&pdev->dev, tzd);
+	kv_devm_thermal_zone_unregister(&pdev->dev, tzd);
 	meson_tsensor_control(pdev, false);
 	clk_unprepare(data->clk);
 	devm_kfree(&pdev->dev, data);
@@ -1061,7 +1063,8 @@ static void meson_tsensor_shutdown(struct platform_device *pdev)
 	struct meson_tsensor_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tzd = data->tzd;
 
-	thermal_zone_of_sensor_unregister(&pdev->dev, tzd);
+	kv_devm_thermal_zone_unregister(&pdev->dev, tzd);
+
 	meson_tsensor_suspend(&pdev->dev);
 }
 

@@ -20,6 +20,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/of_device.h>
+#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
@@ -1595,8 +1596,9 @@ static const char *dummy_venc_debug_usage_str = {
 "    echo reg > /sys/class/dummy_venc/encl ; dump regs for encl\n"
 };
 
-static ssize_t dummy_venc_debug_show(struct class *class,
-				     struct class_attribute *attr, char *buf)
+static ssize_t dummy_venc_debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%s\n", dummy_venc_debug_usage_str);
 }
@@ -1677,9 +1679,9 @@ static unsigned int dummy_encl_reg_dump[] = {
 	0xffff
 };
 
-static ssize_t dummy_encp_debug_store(struct class *class,
-				      struct class_attribute *attr,
-				      const char *buf, size_t count)
+static ssize_t dummy_encp_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int offset, reg, i;
 
@@ -1712,9 +1714,9 @@ static ssize_t dummy_encp_debug_store(struct class *class,
 	return count;
 }
 
-static ssize_t dummy_encp_projector_fps_store(struct class *class,
-				      struct class_attribute *attr,
-				      const char *buf, size_t count)
+static ssize_t dummy_encp_projector_fps_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int ret;
 	int projector_fps_ctl;
@@ -1734,15 +1736,16 @@ static ssize_t dummy_encp_projector_fps_store(struct class *class,
 	return count;
 }
 
-static ssize_t dummy_encp_projector_fps_show(struct class *class,
-				     struct class_attribute *attr, char *buf)
+static ssize_t dummy_encp_projector_fps_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", vout_vcbus_getb(VIU_MISC_CTRL0, 12, 1));
 }
 
-static ssize_t dummy_enci_debug_store(struct class *class,
-				      struct class_attribute *attr,
-				      const char *buf, size_t count)
+static ssize_t dummy_enci_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int offset, reg, i;
 
@@ -1775,9 +1778,9 @@ static ssize_t dummy_enci_debug_store(struct class *class,
 	return count;
 }
 
-static ssize_t dummy_encl_debug_store(struct class *class,
-				      struct class_attribute *attr,
-				      const char *buf, size_t count)
+static ssize_t dummy_encl_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int offset, reg, i;
 
@@ -1826,7 +1829,7 @@ static int dummy_venc_creat_class(void)
 {
 	int i;
 
-	debug_class = class_create(THIS_MODULE, "dummy_venc");
+	debug_class = kv_class_create(THIS_MODULE, "dummy_venc");
 	if (IS_ERR(debug_class)) {
 		VOUTERR("create debug class failed\n");
 		return -1;

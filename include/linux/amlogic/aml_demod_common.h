@@ -229,7 +229,6 @@ int aml_gpio_request(int gpio, const char *label);
 int aml_demod_gpio_set(int gpio, int dir, int value, const char *label);
 int aml_demod_gpio_config(struct gpio_config *cfg, const char *label);
 
-struct class *aml_class_create(struct module *owner, const char *name);
 void aml_class_destroy(struct class *cls);
 int aml_class_create_file(struct class *class,
 		const struct class_attribute *attr);
@@ -301,12 +300,6 @@ static inline __maybe_unused int aml_demod_gpio_config(struct gpio_config *cfg,
 		const char *label)
 {
 	return 0;
-}
-
-static inline __maybe_unused struct class *aml_class_create(
-		struct module *owner, const char *name)
-{
-	return NULL;
 }
 
 static inline __maybe_unused void aml_class_destroy(struct class *cls)

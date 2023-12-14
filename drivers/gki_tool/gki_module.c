@@ -21,6 +21,7 @@
 #include <linux/amlogic/gki_module.h>
 #include <linux/kconfig.h>
 #include <linux/security.h>
+
 #include "gki_tool.h"
 
 #if defined(CONFIG_CMDLINE_FORCE)
@@ -46,6 +47,17 @@ static const char *config_cmdline = "";
 static char *cmdline;
 struct cmd_param_val *cpv;
 int cpv_count;
+
+static inline unsigned long gki_symbol_value(const struct kernel_symbol *sym)
+{
+#ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
+	const int *off = &sym->value_offset;
+
+	return (unsigned long)((unsigned long)off + *off);
+#else
+	return sym->value;
+#endif
+}
 
 static char dash2underscore(char c)
 {

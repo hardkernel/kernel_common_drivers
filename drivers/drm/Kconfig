@@ -5,9 +5,9 @@ config AMLOGIC_DRM
 	default n
 	depends on AMLOGIC_DRIVER && DRM && OF && (ARM || ARM64)
 	depends on DRM_KMS_HELPER
-	depends on DRM_KMS_CMA_HELPER
-	depends on DRM_GEM_CMA_HELPER
 	depends on VIDEOMODE_HELPERS
+	select DRM_GEM_DMA_HELPER
+	select DRM_DISPLAY_HELPER
 	help
 		amlogic new soc display controller
 		use the pipeline and modularized
@@ -27,6 +27,7 @@ config AMLOGIC_DRM_HDMI
 	default n
 	depends on AMLOGIC_DRM
 	depends on AMLOGIC_HDMITX
+	select DRM_DISPLAY_HDCP_HELPER
 	help
 		add drm hdmi support.
 		use internal amlogic media vout hdmi driver.

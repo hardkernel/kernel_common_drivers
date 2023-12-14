@@ -19,6 +19,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #include "ldim_drv.h"
@@ -731,8 +732,9 @@ static int iw7038_power_off(void)
 	return 0;
 }
 
-static ssize_t iw7038_show(struct class *class,
-			   struct class_attribute *attr, char *buf)
+static ssize_t iw7038_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct iw7038_s *bl = container_of(class, struct iw7038_s, cls);
@@ -785,9 +787,9 @@ static ssize_t iw7038_show(struct class *class,
 }
 
 #define MAX_ARG_NUM 4
-static ssize_t iw7038_store(struct class *class,
-			    struct class_attribute *attr, const char *buf,
-			    size_t count)
+static ssize_t iw7038_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct iw7038_s *bl = container_of(class, struct iw7038_s, cls);

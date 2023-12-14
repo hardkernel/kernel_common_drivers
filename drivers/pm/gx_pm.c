@@ -26,6 +26,7 @@
 #include <linux/amlogic/pm.h>
 #include <linux/kobject.h>
 #include <../kernel/power/power.h>
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/power_domain.h>
 #include <linux/syscore_ops.h>
 #include <linux/amlogic/gki_module.h>
@@ -146,9 +147,9 @@ end_late_resume:
 	mutex_unlock(&early_suspend_lock);
 }
 
-static ssize_t early_suspend_trigger_show(struct class *class,
-					  struct class_attribute *attr,
-					  char *buf)
+static ssize_t early_suspend_trigger_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int len;
 
@@ -157,9 +158,9 @@ static ssize_t early_suspend_trigger_show(struct class *class,
 	return len;
 }
 
-static ssize_t early_suspend_trigger_store(struct class *class,
-					   struct class_attribute *attr,
-					   const char *buf, size_t count)
+static ssize_t early_suspend_trigger_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int ret;
 
@@ -327,9 +328,9 @@ EXPORT_SYMBOL_GPL(is_pm_s2idle_mode);
 
 /*Call it as suspend_reason because of historical reasons. */
 /*Actually, we should call it wakeup_reason.               */
-ssize_t suspend_reason_show(struct class *class,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t suspend_reason_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int len;
 	unsigned int val;
@@ -341,9 +342,9 @@ ssize_t suspend_reason_show(struct class *class,
 	return len;
 }
 
-ssize_t suspend_reason_store(struct class *class,
-			     struct class_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t suspend_reason_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int ret;
 
@@ -359,9 +360,9 @@ static CLASS_ATTR_RW(suspend_reason);
 
 static unsigned int suspend_mode;
 
-ssize_t suspend_mode_show(struct class *class,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t suspend_mode_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int len;
 
@@ -370,9 +371,9 @@ ssize_t suspend_mode_show(struct class *class,
 	return len;
 }
 
-ssize_t suspend_mode_store(struct class *class,
-			     struct class_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t suspend_mode_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int ret;
 
@@ -388,8 +389,9 @@ ssize_t suspend_mode_store(struct class *class,
 
 static CLASS_ATTR_RW(suspend_mode);
 
-ssize_t time_out_show(struct class *class, struct class_attribute *attr,
-		      char *buf)
+static ssize_t time_out_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int val = 0, len;
 
@@ -400,8 +402,9 @@ ssize_t time_out_show(struct class *class, struct class_attribute *attr,
 }
 
 static int sys_time_out;
-ssize_t time_out_store(struct class *class, struct class_attribute *attr,
-		       const char *buf, size_t count)
+static ssize_t time_out_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int time_out;
 	int ret;
@@ -435,7 +438,7 @@ ATTRIBUTE_GROUPS(meson_pm);
 
 static struct class meson_pm_class = {
 	.name		= "meson_pm",
-	.owner		= THIS_MODULE,
+	KV_CLASS_DEF_OWNER
 	.class_groups = meson_pm_groups,
 };
 

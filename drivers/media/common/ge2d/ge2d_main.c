@@ -28,6 +28,7 @@
 #include <linux/timer.h>
 
 /* Amlogic Headers */
+#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_AMLOGIC_FREERTOS
 #include <linux/amlogic/freertos.h>
 #endif
@@ -84,24 +85,6 @@ static long ge2d_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long args);
 #endif
 static int ge2d_release(struct inode *inode, struct file *file);
-static ssize_t log_level_show(struct class *cla,
-			      struct class_attribute *attr,
-			      char *buf);
-static ssize_t log_level_store(struct class *cla,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count);
-static ssize_t dump_reg_enable_show(struct class *cla,
-				    struct class_attribute *attr,
-				    char *buf);
-static ssize_t dump_reg_enable_store(struct class *cla,
-				     struct class_attribute *attr,
-				     const char *buf, size_t count);
-static ssize_t dump_reg_cnt_show(struct class *cla,
-				 struct class_attribute *attr,
-				 char *buf);
-static ssize_t dump_reg_cnt_store(struct class *cla,
-				  struct class_attribute *attr,
-				  const char *buf, size_t count);
 
 static const struct file_operations ge2d_fops = {
 	.owner = THIS_MODULE,
@@ -112,6 +95,81 @@ static const struct file_operations ge2d_fops = {
 #endif
 	.release = ge2d_release,
 };
+
+#ifdef CONFIG_AMLOGIC_FREERTOS
+struct timer_data_s {
+	int irq;
+	struct clk *clk_gate;
+	struct timer_list timer;
+	struct work_struct work;
+};
+
+static struct timer_data_s timer_data;
+#define TIMER_MS (2000)
+#endif
+
+static ssize_t dump_reg_enable_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
+{
+	return snprintf(buf, 40, "%d\n", ge2d_dump_reg_enable);
+}
+
+static ssize_t dump_reg_enable_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	ge2d_log_info("ge2d dump_reg_enable: %d->%d\n",
+		      ge2d_dump_reg_enable, res);
+	ge2d_dump_reg_enable = res;
+
+	return count;
+}
+
+static ssize_t dump_reg_cnt_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
+{
+	return snprintf(buf, 40, "%d\n", ge2d_dump_reg_cnt);
+}
+
+static ssize_t dump_reg_cnt_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	ge2d_log_info("ge2d dump_reg: %d->%d\n", ge2d_dump_reg_cnt, res);
+	ge2d_dump_reg_cnt = res;
+	return count;
+}
+
+static ssize_t log_level_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
+{
+	return snprintf(buf, 40, "%d\n", ge2d_log_level);
+}
+
+static ssize_t log_level_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	ge2d_log_info("ge2d log_level: %d->%d\n", ge2d_log_level, res);
+	ge2d_log_level = res;
+
+	return count;
+}
 
 static CLASS_ATTR_RO(work_queue_status);
 static CLASS_ATTR_RO(free_queue_status);
@@ -133,81 +191,6 @@ static struct class ge2d_class = {
 	.name = GE2D_CLASS_NAME,
 	.class_groups = ge2d_class_groups,
 };
-
-#ifdef CONFIG_AMLOGIC_FREERTOS
-struct timer_data_s {
-	int irq;
-	struct clk *clk_gate;
-	struct timer_list timer;
-	struct work_struct work;
-};
-
-static struct timer_data_s timer_data;
-#define TIMER_MS (2000)
-#endif
-
-static ssize_t dump_reg_enable_show(struct class *cla,
-				    struct class_attribute *attr,
-				    char *buf)
-{
-	return snprintf(buf, 40, "%d\n", ge2d_dump_reg_enable);
-}
-
-static ssize_t dump_reg_enable_store(struct class *cla,
-				     struct class_attribute *attr,
-				     const char *buf, size_t count)
-{
-	int res = 0;
-	int ret = 0;
-
-	ret = kstrtoint(buf, 0, &res);
-	ge2d_log_info("ge2d dump_reg_enable: %d->%d\n",
-		      ge2d_dump_reg_enable, res);
-	ge2d_dump_reg_enable = res;
-
-	return count;
-}
-
-static ssize_t dump_reg_cnt_show(struct class *cla,
-				 struct class_attribute *attr,
-				 char *buf)
-{
-	return snprintf(buf, 40, "%d\n", ge2d_dump_reg_cnt);
-}
-
-static ssize_t dump_reg_cnt_store(struct class *cla,
-				  struct class_attribute *attr,
-				  const char *buf, size_t count)
-{
-	int res = 0;
-	int ret = 0;
-
-	ret = kstrtoint(buf, 0, &res);
-	ge2d_log_info("ge2d dump_reg: %d->%d\n", ge2d_dump_reg_cnt, res);
-	ge2d_dump_reg_cnt = res;
-	return count;
-}
-
-static ssize_t log_level_show(struct class *cla,
-			      struct class_attribute *attr,
-			      char *buf)
-{
-	return snprintf(buf, 40, "%d\n", ge2d_log_level);
-}
-
-static ssize_t log_level_store(struct class *cla,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count)
-{
-	int res = 0;
-	int ret = 0;
-
-	ret = kstrtoint(buf, 0, &res);
-	ge2d_log_info("ge2d log_level: %d->%d\n", ge2d_log_level, res);
-	ge2d_log_level = res;
-
-	return count;
-}
 
 static int ge2d_open(struct inode *inode, struct file *file)
 {

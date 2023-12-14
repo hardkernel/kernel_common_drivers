@@ -7,6 +7,7 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
+#include <drm/drm_blend.h>
 
 #ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
 #include <linux/amlogic/media/canvas/canvas.h>

@@ -30,6 +30,7 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/gpio/consumer.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/pmic/meson_pmic6b.h>
 
 #define	PMIC6B_IRQ_MASK0_OFFSET		0
@@ -131,10 +132,15 @@ static const struct regmap_irq_chip meson_pmic6b_irq_chip = {
 	.num_irqs = ARRAY_SIZE(meson_pmic6b_irqs),
 	.num_regs = 2,
 	.status_base = PMIC6B_IRQ_STATUS_CLR0,
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+	.unmask_base = PMIC6B_IRQ_MASK0,
+#else
 	.mask_base = PMIC6B_IRQ_MASK0,
+	.mask_invert = true,
+#endif
 	.ack_base = PMIC6B_IRQ_STATUS_CLR0,
 	.init_ack_masked = true,
-	.mask_invert = true,
 	.ack_invert = true,
 };
 
@@ -349,8 +355,7 @@ int meson_pmic6b_device_init(struct meson_pmic6b *meson_pmic, unsigned int irq)
 	return ret;
 }
 
-static int meson_pmic6b_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int meson_pmic6b_probe(struct i2c_client *i2c KV_I2C_PROBE_ID)
 {
 	struct meson_pmic6b *meson_pmic;
 	struct gpio_desc *pmic_irq;

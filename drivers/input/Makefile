@@ -9,6 +9,6 @@ ccflags-y += $(PR_FMT_DEFINE)
 obj-$(CONFIG_AMLOGIC_INPUT) = $(MODULE_NAME).o
 $(MODULE_NAME)-y = main.o
 
-include $(COMMON_DRIVERS_DIR)/drivers/input/ir/Makefile
-include $(COMMON_DRIVERS_DIR)/drivers/input/keyboard/Makefile
-include $(COMMON_DRIVERS_DIR)/drivers/input/meson_pmic6b/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/input/ir/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/input/keyboard/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/input/meson_pmic6b/Makefile

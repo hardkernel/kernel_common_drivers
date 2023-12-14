@@ -23,6 +23,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #include "meson_ir_main.h"
 
 static ssize_t protocol_show(struct device *dev,
@@ -392,8 +393,8 @@ ATTRIBUTE_GROUPS(meson_ir_sysfs);
 
 static struct class meson_ir_class = {
 	.name		= "remote",
-	.owner		= THIS_MODULE,
-	.dev_groups = meson_ir_sysfs_groups,
+	KV_CLASS_DEF_OWNER
+	.dev_groups	= meson_ir_sysfs_groups,
 };
 
 int meson_ir_sysfs_init(struct meson_ir_chip *chip)

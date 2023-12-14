@@ -7,8 +7,6 @@
 #include <drm/drm_plane.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_gem_cma_helper.h>
 
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
@@ -21,6 +19,7 @@
 #include <linux/sync_file.h>
 
 /* Amlogic Headers */
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 #include <linux/amlogic/media/amvecm/amvecm.h>

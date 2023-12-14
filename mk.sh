@@ -112,7 +112,7 @@ build_part_of_kernel
 if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BAZEL} == 1 ]]; then
 	args=$@
 	[[ -z ${PREBUILT_GKI} ]] && args="${args} --lto=${LTO}"
-	[[ -z ${GKI_CONFIG} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode"
+	args="${args} --notrim --nokmi_symbol_list_strict_mode"
 
 	PROJECT_DIR=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/project
 	[[ -d ${PROJECT_DIR} ]] || mkdir -p ${PROJECT_DIR}
@@ -185,7 +185,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	echo 						>> ${PROJECT_DIR}/dtb.bzl
 
 	echo "AMLOGIC_DTBS = ["				>> ${PROJECT_DIR}/dtb.bzl
-	cat  ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/${ARCH}/boot/dts/amlogic/Makefile | grep -n "dtb" | cut -d "=" -f 2 | sed 's/[[:space:]][[:space:]]*/ /g' | sed 's/^[ ]*//' | sed 's/[ ]*$//' | sed '/^#/d;/^$/d' | sed 's/^/    "/' | sed 's/$/",/' >> ${PROJECT_DIR}/dtb.bzl
+	cat  ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/${ARCH}/boot/dts/amlogic/Makefile | grep -n "dtb" | cut -d "=" -f 2 | sed 's/[[:space:]][[:space:]]*/ /g' | sed 's/^[ ]*//' | sed 's/[ ]*$//' | sed '/^#/d;/^$/d' | sed 's/^/    "/' | sed 's/$/",/' | uniq >> ${PROJECT_DIR}/dtb.bzl
 	echo "]"					>> ${PROJECT_DIR}/dtb.bzl
 
 	if [[ "${GKI_CONFIG}" != "gki_20" || -n ${KASAN} || -z ${ANDROID_PROJECT} ]]; then
@@ -212,13 +212,13 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		fi
 		${GOOGLE_BAZEL_BUILD_COMMAND_LINE}
 	elif [[ "${ABI}" -eq "1" ]]; then
-		tools/bazel run //common:amlogic_abi_update_symbol_list --sandbox_debug --verbose_failures ${args}
-		tools/bazel run //common:kernel_aarch64_abi_dist --sandbox_debug --verbose_failures ${args}
+		tools/bazel run //common:amlogic_abi_update_symbol_list ${args}
+		tools/bazel run //common:kernel_aarch64_abi_dist ${args}
 		exit
 	elif [[ -n ${PREBUILT_GKI} ]]; then
-		tools/bazel run --use_prebuilt_gki=${PREBUILT_GKI} //common:amlogic_dist --sandbox_debug --verbose_failures ${args}
+		tools/bazel run --use_prebuilt_gki=${PREBUILT_GKI} //common:amlogic_dist ${args}
 	else
-		tools/bazel run //common:amlogic_dist --sandbox_debug --verbose_failures ${args}
+		tools/bazel run //common:amlogic_dist ${args}
 	fi
 	set +x
 

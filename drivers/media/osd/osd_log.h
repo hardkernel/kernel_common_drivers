@@ -6,7 +6,7 @@
 #ifndef _OSD_LOG_H_
 #define _OSD_LOG_H_
 
-#include <stdarg.h>
+#include <linux/stdarg.h>
 #include <linux/printk.h>
 
 #define OSD_LOG_LEVEL_NULL   0

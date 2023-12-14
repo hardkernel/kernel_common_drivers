@@ -21,6 +21,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_fw.h>
+#include <linux/amlogic/kernel_versions.h>
 #include "lcd_reg.h"
 #include "lcd_common.h"
 #include "lcd_tcon.h"
@@ -1683,7 +1684,7 @@ void lcd_tcon_debug_file_add(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_local_c
 	if (!local_cfg)
 		return;
 
-	local_cfg->clsp = class_create(THIS_MODULE, AML_TCON_CLASS_NAME);
+	local_cfg->clsp = kv_class_create(THIS_MODULE, AML_TCON_CLASS_NAME);
 	if (IS_ERR(local_cfg->clsp)) {
 		LCDERR("tcon: failed to create class\n");
 		return;

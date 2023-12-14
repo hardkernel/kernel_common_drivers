@@ -1010,9 +1010,9 @@ static int meson_spicc_setup(struct spi_device *spi)
 	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
 	struct  spicc_controller_data *cdata;
 
-	if (!spi->controller_state && gpio_is_valid(spi->cs_gpio)) {
-		gpio_request(spi->cs_gpio, dev_name(&spi->dev));
-		gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
+	if (!spi->controller_state && gpio_is_valid(desc_to_gpio(spi->cs_gpiod))) {
+		gpio_request(desc_to_gpio(spi->cs_gpiod), dev_name(&spi->dev));
+		gpio_direction_output(desc_to_gpio(spi->cs_gpiod), !(spi->mode & SPI_CS_HIGH));
 	}
 
 	cdata = (struct spicc_controller_data *)spi->controller_data;
@@ -1036,8 +1036,8 @@ static int meson_spicc_setup(struct spi_device *spi)
 
 static void meson_spicc_cleanup(struct spi_device *spi)
 {
-	if (gpio_is_valid(spi->cs_gpio))
-		gpio_free(spi->cs_gpio);
+	if (gpio_is_valid(desc_to_gpio(spi->cs_gpiod)))
+		gpio_free(desc_to_gpio(spi->cs_gpiod));
 	spi->controller_state = NULL;
 }
 
@@ -1113,8 +1113,6 @@ static void dirspi_set_cs(struct spi_device *spi, bool enable)
 
 	if (spi->cs_gpiod)
 		gpiod_set_value(spi->cs_gpiod, !enable);
-	else if (gpio_is_valid(spi->cs_gpio))
-		gpio_set_value(spi->cs_gpio, !enable);
 }
 
 void dirspi_start(struct spi_device *spi)
@@ -1235,7 +1233,7 @@ static ssize_t test_store(struct device *dev, struct device_attribute *attr,
 		goto test_end;
 	}
 
-	m.spi->cs_gpio = (cs_gpio > 0) ? cs_gpio : -ENOENT;
+	m.spi->cs_gpiod = (cs_gpio > 0) ? gpio_to_desc(cs_gpio) : NULL;
 	m.spi->max_speed_hz = speed;
 	m.spi->mode = mode & 0xffff;
 	m.spi->bits_per_word = bits_per_word;

@@ -1,0 +1,42 @@
+From 0fb3727841329093c9b20e2022f8fd78de09ed03 Mon Sep 17 00:00:00 2001
+From: "min.yang" <min.yang@amlogic.com>
+Date: Tue, 21 Feb 2023 11:01:04 +0800
+Subject: [PATCH 11/11] dvb-core: fix blind scan fail [1/2]
+
+PD#SWPL-111880
+
+Problem:
+do blind scan,unable to search channel
+
+Solution:
+sync code from 5.4
+
+Verify:
+S905C3
+
+Change-Id: Ida030f278d19b7169dca337d80e56d18e88bcebf
+Signed-off-by: min.yang <min.yang@amlogic.com>
+---
+ drivers/media/dvb-core/dvb_frontend.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/media/dvb-core/dvb_frontend.c b/drivers/media/dvb-core/dvb_frontend.c
+index 43ab1102aeba..422d4d33c02b 100644
+--- a/drivers/media/dvb-core/dvb_frontend.c
++++ b/drivers/media/dvb-core/dvb_frontend.c
+@@ -2183,6 +2183,12 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
+ 	case DTV_BLIND_SCAN_FRE_RANGE:
+ 	case DTV_BLIND_SCAN_FRE_STEP:
+ 	case DTV_BLIND_SCAN_TIMEOUT:
++	case DTV_SINGLE_CABLE_VER:
++	case DTV_SINGLE_CABLE_USER_BAND:
++	case DTV_SINGLE_CABLE_BAND_FRE:
++	case DTV_SINGLE_CABLE_BANK:
++	case DTV_SINGLE_CABLE_UNCOMMITTED:
++	case DTV_SINGLE_CABLE_COMMITTED:
+ 		r = 0;
+ 		break;
+ #endif
+-- 
+2.41.0
+

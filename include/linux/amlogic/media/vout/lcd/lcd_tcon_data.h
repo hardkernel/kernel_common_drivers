@@ -254,7 +254,7 @@ struct lcd_tcon_data_part_pdf_action_s {
 	unsigned char part_type;
 	unsigned char src_id;
 	unsigned char dst_cnt;
-	unsigned char dst_array[0];
+	unsigned char dst_array[];
 };
 
 union lcd_tcon_data_part_u {

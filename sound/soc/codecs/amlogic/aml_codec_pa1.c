@@ -10,7 +10,6 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
-#include <linux/amlogic/aml_gpio_consumer.h>
 
 #include <sound/initval.h>
 #include <sound/core.h>
@@ -19,7 +18,10 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 
+#include <linux/amlogic/kernel_versions.h>
+#include <linux/amlogic/aml_gpio_consumer.h>
 #include "aml_codec_pa1.h"
+
 #define PA1_DRV_NAME    "pa1_acodec"
 #define PA1_RATES	(SNDRV_PCM_RATE_8000 | \
 			SNDRV_PCM_RATE_11025 | \
@@ -1315,8 +1317,7 @@ static int pa1_acodec_parse_dt(struct pa1_acodec_priv *pa1_acodec,
 	return ret;
 }
 
-static int pa1_acodec_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static int pa1_acodec_i2c_probe(struct i2c_client *i2c KV_I2C_PROBE_ID)
 {
 	struct regmap *regmap;
 	struct regmap_config config = pa1_acodec_regmap;
@@ -1360,10 +1361,11 @@ static int pa1_acodec_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int pa1_acodec_i2c_remove(struct i2c_client *i2c)
+static KV_I2C_REMOVE_TYPE pa1_acodec_i2c_remove(struct i2c_client *i2c)
 {
 	devm_kfree(&i2c->dev, i2c_get_clientdata(i2c));
-	return 0;
+
+	KV_I2C_REMOVE_RET(0);
 }
 
 static void pa1_acodec_i2c_shutdown(struct i2c_client *i2c)

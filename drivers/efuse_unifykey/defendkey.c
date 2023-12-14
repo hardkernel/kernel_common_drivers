@@ -18,6 +18,7 @@
 #include <linux/amlogic/gki_module.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/io.h>
+#include <linux/amlogic/kernel_versions.h>
 #include "defendkey.h"
 
 #define DEFENDKEY_DEVICE_NAME   "defendkey"
@@ -238,21 +239,23 @@ exit:
 	return ret_value;
 }
 
-static ssize_t version_show(struct class *cla,
-			    struct class_attribute *attr, char *buf)
+static ssize_t version_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "version:2.00\n");
 }
 
-static ssize_t secure_check_show(struct class *cla,
-				 struct class_attribute *attr, char *buf)
+static ssize_t secure_check_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t n = 0;
 	int ret;
 
 	struct aml_defendkey_dev *defendkey_dev;
 
-	defendkey_dev = container_of(cla, struct aml_defendkey_dev, cls);
+	defendkey_dev = container_of(class, struct aml_defendkey_dev, cls);
 
 	ret = aml_is_secure_set(defendkey_dev->reg_base, defendkey_dev->sb_mask);
 	if (ret < 0)
@@ -265,21 +268,23 @@ static ssize_t secure_check_show(struct class *cla,
 	return n;
 }
 
-static ssize_t secure_verify_show(struct class *cla,
-				  struct class_attribute *attr, char *buf)
+static ssize_t secure_verify_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return 0;
 }
 
-static ssize_t decrypt_dtb_show(struct class *cla,
-				struct class_attribute *attr, char *buf)
+static ssize_t decrypt_dtb_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", defendkey_type.decrypt_dtb);
 }
 
-static ssize_t decrypt_dtb_store(struct class *cla,
-				 struct class_attribute *attr,
-				 const char *buf, size_t count)
+static ssize_t decrypt_dtb_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int len;
 
@@ -402,7 +407,7 @@ static int defendkey_probe(struct platform_device *pdev)
 
 	defendkey_dev->reg_base = reg_base;
 	defendkey_dev->cls.name = DEFENDKEY_CLASS_NAME;
-	defendkey_dev->cls.owner = THIS_MODULE;
+	kv_set_class_owner(&defendkey_dev->cls);
 	defendkey_dev->cls.class_groups = defendkey_class_groups;
 
 	ret = class_register(&defendkey_dev->cls);

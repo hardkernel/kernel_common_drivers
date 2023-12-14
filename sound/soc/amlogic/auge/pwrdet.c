@@ -16,6 +16,7 @@
 
 #include <sound/pcm.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #include "pwrdet.h"
 #include "pwrdet_hw.h"
 #include "ddr_mngr.h"
@@ -78,8 +79,9 @@ void pwrdet_set(bool enable)
 		audiobus_read(EE_AUDIO_POW_DET_TH_LO));
 }
 
-static ssize_t pwrdet_enable_show(struct class *cla,
-				  struct class_attribute *attr, char *buf)
+static ssize_t pwrdet_enable_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int enable = 1;
 

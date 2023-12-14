@@ -20,12 +20,11 @@
 #include <drm/drm_self_refresh_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_fb_helper.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #include "meson_drv.h"
 #include "meson_crtc.h"
 #include "meson_plane.h"

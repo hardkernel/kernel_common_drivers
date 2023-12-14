@@ -1,0 +1,166 @@
+From 8c6ad5a35cda3af33ef4c7cbf8ad27bb63348828 Mon Sep 17 00:00:00 2001
+From: "qiankun.wang" <qiankun.wang@amlogic.com>
+Date: Fri, 12 May 2023 15:09:23 +0800
+Subject: [PATCH 7/9] debug: misc modifications [1/1]
+
+PD#SWPL-114632
+
+Problem:
+gki optimize
+
+Solution:
+code optimize
+
+Verify:
+s4
+
+Change-Id: I4561d2c235baacaf73fd82e5b850dda74148724e
+Signed-off-by: qiankun.wang <qiankun.wang@amlogic.com>
+---
+ drivers/base/dd.c       | 14 ++++++++++++++
+ init/main.c             | 37 +++++++++++++++++++++++++++++++++++++
+ kernel/sched/topology.c |  8 +++++++-
+ kernel/workqueue.c      |  8 ++++++++
+ 4 files changed, 66 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/base/dd.c b/drivers/base/dd.c
+index a528cec24264..3b91f72ffccf 100644
+--- a/drivers/base/dd.c
++++ b/drivers/base/dd.c
+@@ -57,6 +57,11 @@ static LIST_HEAD(deferred_probe_active_list);
+ static atomic_t deferred_trigger_count = ATOMIC_INIT(0);
+ static bool initcalls_done;
+ 
++#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
++static int deferred_probe_printk;
++core_param(deferred_probe_printk, deferred_probe_printk, int, 0644);
++#endif
++
+ /* Save the async probe drivers' name from kernel cmdline */
+ #define ASYNC_DRV_NAMES_MAX_LEN	256
+ static char async_probe_drv_names[ASYNC_DRV_NAMES_MAX_LEN];
+@@ -184,6 +189,15 @@ void driver_deferred_probe_trigger(void)
+ 	 */
+ 	mutex_lock(&deferred_probe_mutex);
+ 	atomic_inc(&deferred_trigger_count);
++#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
++	if (deferred_probe_printk && !list_empty(&deferred_probe_pending_list)) {
++		struct device_private *p;
++
++		pr_warn("deferred probe trigger count %d\n", atomic_read(&deferred_trigger_count));
++		list_for_each_entry(p, &deferred_probe_pending_list, deferred_probe)
++			dev_info(p->device, "deferred probe pending\n");
++	}
++#endif
+ 	list_splice_tail_init(&deferred_probe_pending_list,
+ 			      &deferred_probe_active_list);
+ 	mutex_unlock(&deferred_probe_mutex);
+diff --git a/init/main.c b/init/main.c
+index 66c754c83971..03a73e4c68e2 100644
+--- a/init/main.c
++++ b/init/main.c
+@@ -564,6 +564,19 @@ static int __init unknown_bootoption(char *param, char *val,
+ 		}
+ 		argv_init[i] = param;
+ 	}
++#ifdef CONFIG_AMLOGIC_ENV_DEBUG
++	if (panic_later) {
++		int k;
++
++		pr_err("Dump init args\n");
++		for (k = 0; argv_init[k] && k < MAX_INIT_ARGS; k++)
++			pr_err("[%2d]: %s\n", k, argv_init[k]);
++
++		pr_err("Dump env args\n");
++		for (k = 0; envp_init[k] && k < MAX_INIT_ENVS; k++)
++			pr_err("[%2d]: %s\n", k, envp_init[k]);
++	}
++#endif
+ 	return 0;
+ }
+ 
+@@ -1146,10 +1159,34 @@ static bool __init_or_module initcall_blacklisted(initcall_t fn)
+ 	strreplace(fn_name, ' ', '\0');
+ 
+ 	list_for_each_entry(entry, &blacklisted_initcalls, next) {
++#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
++		char *str = strstr(fn_name, entry->buf);
++
++		if (!str)
++			continue;
++		/*
++		 * The judgment condition before "||" is for gcc compiler
++		 * and atfer "||" for clang compiler.
++		 * clang compiler will modify kernel symbol,the first character
++		 * before the kernel symbol is always '_',and the first two
++		 * characters are always numbers. we use this format to check
++		 * blacklisted init method.
++		 *
++		 * for example:
++		 * fn_name = __initstub__kmod_amlogic_debug__289_21_debug_main_init4
++		 * entry->buf = debug_main_init
++		 */
++		if (str == fn_name ||
++		    ((str >= fn_name + 2) && *(str - 1) == '_' && isdigit(*(str - 2)))) {
++			pr_info("initcall %s blacklisted, fn_name: %s\n", entry->buf, fn_name);
++			return true;
++		}
++#else
+ 		if (!strcmp(fn_name, entry->buf)) {
+ 			pr_debug("initcall %s blacklisted\n", fn_name);
+ 			return true;
+ 		}
++#endif
+ 	}
+ 
+ 	return false;
+diff --git a/kernel/sched/topology.c b/kernel/sched/topology.c
+index 6e2bbec5a73d..2f10844f61c9 100644
+--- a/kernel/sched/topology.c
++++ b/kernel/sched/topology.c
+@@ -1418,8 +1418,12 @@ static void asym_cpu_capacity_scan(void)
+  * Initializers for schedule domains
+  * Non-inlined to reduce accumulated stack pressure in build_sched_domains()
+  */
+-
++#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
++/* default enable SD_BALANCE_WAKE */
++static int default_relax_domain_level = 1;
++#else
+ static int default_relax_domain_level = -1;
++#endif
+ int sched_domain_level_max;
+ 
+ static int __init setup_relax_domain_level(char *str)
+@@ -1580,7 +1584,9 @@ sd_init(struct sched_domain_topology_level *tl,
+ 					| 1*SD_BALANCE_EXEC
+ 					| 1*SD_BALANCE_FORK
+ 					| 0*SD_BALANCE_WAKE
++#if !IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
+ 					| 1*SD_WAKE_AFFINE
++#endif
+ 					| 0*SD_SHARE_CPUCAPACITY
+ 					| 0*SD_SHARE_PKG_RESOURCES
+ 					| 0*SD_SERIALIZE
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+index 4ba56eebf9af..5d9a93db7fb2 100644
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -2555,6 +2555,14 @@ __acquires(&pool->lock)
+ 	struct lockdep_map lockdep_map;
+ 
+ 	lockdep_copy_map(&lockdep_map, &work->lockdep_map);
++#endif
++#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
++	if (!pwq) {
++		WARN_ONCE(1, "<%s> pwq_NULL <%lx> <%ps>, <%ps> %s\n",
++			__func__, atomic_long_read(&work->data),
++			work->func, worker->current_func, worker->desc);
++		return;
++	}
+ #endif
+ 	/* ensure we're on the correct CPU */
+ 	WARN_ON_ONCE(!(pool->flags & POOL_DISASSOCIATED) &&
+-- 
+2.41.0
+

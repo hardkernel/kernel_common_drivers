@@ -18,6 +18,7 @@
 
 #ifndef VIDEO_COMMON_HH
 #define VIDEO_COMMON_HH
+#include <linux/amlogic/kernel_versions.h>
 #include "video_priv.h"
 
 extern int debug_common_flag;
@@ -40,9 +41,9 @@ void vframe_canvas_set(struct canvas_config_s *config,
 	u32 planes,
 	u32 *index);
 bool is_layer_aisr_supported(struct video_layer_s *layer);
-ssize_t reg_dump_store(struct class *cla,
-				 struct class_attribute *attr,
-				const char *buf, size_t count);
+ssize_t reg_dump_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count);
 bool frc_n2m_worked(void);
 bool frc_n2m_1st_frame_worked(struct video_layer_s *layer);
 bool frc_n2m_is_stable(struct video_layer_s *layer);

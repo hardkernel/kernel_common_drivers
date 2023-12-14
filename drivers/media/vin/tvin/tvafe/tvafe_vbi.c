@@ -31,6 +31,7 @@
 #include <linux/vmalloc.h>
 #include <linux/io.h> /* for virt_to_phys */
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
+#include <linux/amlogic/kernel_versions.h>
 
 /* Local include */
 #include "tvafe_regs.h"
@@ -2334,7 +2335,7 @@ static int vbi_probe(struct platform_device *pdev)
 		goto fail_alloc_cdev_region;
 	}
 
-	vbi_clsp = class_create(THIS_MODULE, VBI_NAME);
+	vbi_clsp = kv_class_create(THIS_MODULE, VBI_NAME);
 	if (IS_ERR(vbi_clsp)) {
 		tvafe_pr_err(": can't get vbi_clsp\n");
 		goto fail_class_create;
@@ -2477,13 +2478,12 @@ static int vbi_probe(struct platform_device *pdev)
 	vbi_dev->slicer->buffer.data = NULL;
 	vbi_dev->slicer->state = VBI_STATE_FREE;
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
+	vbi_dev->vs_irq = platform_get_irq(pdev, 0);
+	if (vbi_dev->vs_irq < 0) {
 		tvafe_pr_err("%s: can't get irq resource\n", __func__);
 		ret = -ENXIO;
 		goto fail_get_resource_irq;
 	}
-	vbi_dev->vs_irq = res->start;
 	snprintf(vbi_dev->irq_name, sizeof(vbi_dev->irq_name),
 			"vbi-irq");
 	tvafe_pr_info("vbi irq: %d\n", vbi_dev->vs_irq);

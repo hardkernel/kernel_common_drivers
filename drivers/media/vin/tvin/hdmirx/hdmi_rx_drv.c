@@ -37,6 +37,8 @@
 #include <linux/highmem.h>
 #include <linux/notifier.h>
 #include <linux/sched/clock.h>
+#include <linux/pinctrl/consumer.h>
+
 /* Amlogic headers */
 /*#include <linux/amlogic/amports/vframe_provider.h>*/
 /*#include <linux/amlogic/amports/vframe_receiver.h>*/
@@ -50,6 +52,7 @@
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
 #endif
+#include <linux/amlogic/kernel_versions.h>
 
 /* Local include */
 #include "hdmi_rx_repeater.h"
@@ -405,20 +408,17 @@ int rx_init_reg_map(struct platform_device *pdev)
 int rx_init_irq(struct platform_device *pdev, struct hdmirx_dev_s *hdevp)
 {
 	int i;
-	struct resource *res = 0;
 	int ret[4] = {0};
 
 	irqreturn_t (*irq_handler[4])(int, void*) = {
 		irq0_handler, irq1_handler, irq2_handler, irq3_handler};
 
 	for (i = 0; i < 4; i++) {
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
-		ret[i] = res ? 0 : -ENXIO;
-		if (!res) {
+		hdevp->irq[i] = platform_get_irq(pdev, i);
+		if (hdevp->irq[i] < 0) {
 			rx_pr("%s: can't get irq resource\n", __func__);
 			break;
 		}
-		hdevp->irq[i] = res->start;
 		snprintf(hdevp->irq_name[i], sizeof(hdevp->irq_name[i]),
 			"hdmirx%d-irq", i);
 		rx_pr("hdevp irq: %d, %d\n", i, hdevp->irq[i]);
@@ -4318,7 +4318,7 @@ int __init hdmirx_init(void)
 		goto fail_alloc_cdev_region;
 	}
 
-	hdmirx_clsp = class_create(THIS_MODULE, TVHDMI_NAME);
+	hdmirx_clsp = kv_class_create(THIS_MODULE, TVHDMI_NAME);
 	if (IS_ERR(hdmirx_clsp)) {
 		rx_pr("hdmirx: can't get hdmirx_clsp\n");
 		ret = PTR_ERR(hdmirx_clsp);

@@ -7,9 +7,11 @@
 #include <linux/thermal.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/io.h>
+
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media_cooling.h>
 #include <linux/amlogic/meson_cooldev.h>
-#include <linux/io.h>
 #include "thermal_core.h"
 
 struct device_node *media_np;
@@ -59,6 +61,7 @@ static unsigned long calculate_hotstep(struct thermal_instance *instance)
 	struct thermal_cooling_device *cdev;
 	struct media_cooling_device *media_dev;
 	int hyst = 0, trip_temp;
+	struct thermal_trip trip;
 
 	if (!instance)
 		return -EINVAL;
@@ -71,8 +74,9 @@ static unsigned long calculate_hotstep(struct thermal_instance *instance)
 
 	media_dev = cdev->devdata;
 
-	tz->ops->get_trip_hyst(tz, instance->trip, &hyst);
-	tz->ops->get_trip_temp(tz, instance->trip, &trip_temp);
+	kv_thermal_zone_get_trip(tz, instance->trip, &trip);
+	trip_temp = trip.temperature;
+	hyst = trip.hysteresis;
 
 	if (tz->temperature >= (trip_temp + (media_dev->hotstep + 1) * hyst)) {
 		media_dev->hotstep++;

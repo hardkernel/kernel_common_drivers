@@ -6,6 +6,8 @@
 #ifndef __GKI_MODULE_AMLOGIC_H
 #define __GKI_MODULE_AMLOGIC_H
 
+#include <linux/amlogic/kernel_versions.h>
+
 #define GKI_MODULE_SETUP_MAGIC1 0x014589cd
 #define GKI_MODULE_SETUP_MAGIC2 0x2367abef
 
@@ -33,17 +35,6 @@ extern int cpv_count;
 		   str, fn, early};                                     \
 	EXPORT_SYMBOL(__gki_setup_##fn)
 
-static inline unsigned long gki_symbol_value(const struct kernel_symbol *sym)
-{
-#ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
-	const int *off = &sym->value_offset;
-
-	return (unsigned long)((unsigned long)off + *off);
-#else
-	return sym->value;
-#endif
-}
-
 #ifdef MODULE
 
 #undef __setup
@@ -55,16 +46,6 @@ static inline unsigned long gki_symbol_value(const struct kernel_symbol *sym)
 
 #define early_param(str, fn)						\
 		__setup_gki_module(str, fn, 1)
-
-void __module_init_hook(struct module *m);
-
-#define module_init_hook(initfn)      \
-	int __init init_module(void) \
-	{       \
-		__module_init_hook(THIS_MODULE); \
-		return initfn();     \
-	}	\
-	__CFI_ADDRESSABLE(init_module, __initdata);
 
 #undef early_initcall
 #undef core_initcall

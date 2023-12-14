@@ -98,7 +98,7 @@ struct amblt_drv_s {
 	struct cdev cdev;
 	struct device *dev;
 	struct class *clsp;
-	struct resource *res_vs_irq;
+	int vs_irq;
 	spinlock_t isr_lock; //for vsync ir
 	struct mutex power_mutex; //for on/off sequence
 };

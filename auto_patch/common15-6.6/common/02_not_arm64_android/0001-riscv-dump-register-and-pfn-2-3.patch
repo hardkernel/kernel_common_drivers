@@ -1,0 +1,127 @@
+From eb71a56058ca577f84cdf7481cfe6102b93aefa9 Mon Sep 17 00:00:00 2001
+From: Lei Zhang <lei.zhang@amlogic.com>
+Date: Wed, 28 Sep 2022 11:29:44 +0800
+Subject: [PATCH 1/2] riscv: dump register and pfn [2/3]
+
+PD#SWPL-94239
+
+Problem:
+dump register and pfn
+
+Solution:
+dump register and pfn
+
+Verify:
+on PXP
+
+Signed-off-by: Lei Zhang <lei.zhang@amlogic.com>
+Change-Id: I9acbabb63e4647b8619c29f822d54ade9abcb1ba
+---
+ arch/riscv/Kconfig          |  1 +
+ arch/riscv/kernel/process.c | 11 +++++++++++
+ arch/riscv/kernel/traps.c   |  7 +++++++
+ arch/riscv/mm/init.c        |  8 ++++++++
+ 4 files changed, 27 insertions(+)
+
+diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
+index 0b55d7f19cf2..3d1592463837 100644
+--- a/arch/riscv/Kconfig
++++ b/arch/riscv/Kconfig
+@@ -38,6 +38,7 @@ config RISCV
+ 	select ARCH_HAS_SYSCALL_WRAPPER
+ 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+ 	select ARCH_HAS_UBSAN_SANITIZE_ALL
++	select ARCH_KEEP_MEMBLOCK if AMLOGIC_MEM_DEBUG
+ 	select ARCH_HAS_VDSO_DATA
+ 	select ARCH_OPTIONAL_KERNEL_RWX if ARCH_HAS_STRICT_KERNEL_RWX
+ 	select ARCH_OPTIONAL_KERNEL_RWX_DEFAULT
+diff --git a/arch/riscv/kernel/process.c b/arch/riscv/kernel/process.c
+index e32d737e039f..c5a98365dfd6 100644
+--- a/arch/riscv/kernel/process.c
++++ b/arch/riscv/kernel/process.c
+@@ -26,6 +26,10 @@
+ #include <asm/cpuidle.h>
+ #include <asm/vector.h>
+ 
++#ifdef CONFIG_AMLOGIC_USER_FAULT
++#include <linux/amlogic/user_fault.h>
++#endif
++
+ register unsigned long gp_in_global __asm__("gp");
+ 
+ #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_STACKPROTECTOR_PER_TASK)
+@@ -43,6 +47,9 @@ void arch_cpu_idle(void)
+ 
+ void __show_regs(struct pt_regs *regs)
+ {
++#ifdef CONFIG_AMLOGIC_USER_FAULT
++	show_user_fault_info(regs, regs->ra, regs->sp);
++#endif
+ 	show_regs_print_info(KERN_DEFAULT);
+ 
+ 	if (!user_mode(regs)) {
+@@ -75,6 +82,10 @@ void __show_regs(struct pt_regs *regs)
+ 
+ 	pr_cont("status: " REG_FMT " badaddr: " REG_FMT " cause: " REG_FMT "\n",
+ 		regs->status, regs->badaddr, regs->cause);
++
++#ifdef CONFIG_AMLOGIC_USER_FAULT
++	show_extra_reg_data(regs);
++#endif
+ }
+ void show_regs(struct pt_regs *regs)
+ {
+diff --git a/arch/riscv/kernel/traps.c b/arch/riscv/kernel/traps.c
+index fae8f610d867..9930e2144f1f 100644
+--- a/arch/riscv/kernel/traps.c
++++ b/arch/riscv/kernel/traps.c
+@@ -32,6 +32,10 @@
+ #include <asm/vector.h>
+ #include <asm/irq_stack.h>
+ 
++#ifdef CONFIG_AMLOGIC_USER_FAULT
++#include <linux/amlogic/user_fault.h>
++#endif
++
+ int show_unhandled_signals = 1;
+ 
+ static DEFINE_SPINLOCK(die_lock);
+@@ -107,6 +111,9 @@ void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
+ 		print_vma_addr(KERN_CONT " in ", instruction_pointer(regs));
+ 		pr_cont("\n");
+ 		__show_regs(regs);
++#ifdef CONFIG_AMLOGIC_USER_FAULT
++		show_all_pfn(current, regs);
++#endif
+ 	}
+ 
+ 	force_sig_fault(signo, code, (void __user *)addr);
+diff --git a/arch/riscv/mm/init.c b/arch/riscv/mm/init.c
+index 0798bd861dcb..06a7038f0d1e 100644
+--- a/arch/riscv/mm/init.c
++++ b/arch/riscv/mm/init.c
+@@ -36,6 +36,10 @@
+ 
+ #include "../kernel/head.h"
+ 
++#ifdef CONFIG_AMLOGIC_MEM_DEBUG
++#include <linux/amlogic/mem_debug.h>
++#endif
++
+ struct kernel_mapping kernel_map __ro_after_init;
+ EXPORT_SYMBOL(kernel_map);
+ #ifdef CONFIG_XIP_KERNEL
+@@ -167,6 +171,10 @@ void __init mem_init(void)
+ 	swiotlb_init(max_pfn > PFN_DOWN(dma32_phys_limit), SWIOTLB_VERBOSE);
+ 	memblock_free_all();
+ 
++#ifdef CONFIG_AMLOGIC_MEM_DEBUG
++	dump_mem_layout_boot_phase();
++#endif
++
+ 	print_vm_layout();
+ }
+ 
+-- 
+2.41.0
+

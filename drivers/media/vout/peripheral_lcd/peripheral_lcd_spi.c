@@ -14,8 +14,10 @@
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/delay.h>
-#include <linux/amlogic/media/vout/peripheral_lcd.h>
 #include <linux/interrupt.h>
+
+#include <linux/amlogic/kernel_versions.h>
+#include <linux/amlogic/media/vout/peripheral_lcd.h>
 #include "peripheral_lcd_drv.h"
 
 inline void spi_dcx_init(void)
@@ -149,7 +151,7 @@ static int plcd_spi_dev_probe(struct spi_device *spi)
 	return ret;
 }
 
-static int plcd_spi_dev_remove(struct spi_device *spi)
+static KV_SPI_REMOVE_TYPE plcd_spi_dev_remove(struct spi_device *spi)
 {
 	// struct per_lcd_driver_s *plcd_drv = peripheral_lcd_get_driver();
 
@@ -158,7 +160,8 @@ static int plcd_spi_dev_remove(struct spi_device *spi)
 
 	plcd_drv->pcfg->spi_cfg.spi_dev = NULL;
 	dev_set_drvdata(&spi->dev, NULL);
-	return 0;
+	
+	KV_SPI_REMOVE_RET(0);
 }
 
 static struct spi_driver plcd_spi_dev_driver = {
@@ -181,7 +184,11 @@ int plcd_spi_driver_add(void)
 		return -1;
 	}
 
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+	ctlr = NULL;
+#else
 	ctlr = spi_busnum_to_master(plcd_drv->pcfg->spi_cfg.spi_info->bus_num);
+#endif
 	if (!ctlr) {
 		LCDERR("get busnum failed\n");
 		return -1;
@@ -236,11 +243,11 @@ int plcd_spi_vsync_irq_init(void)
 	unsigned int spi_vs_irq = 0;
 	int ret;
 
-	if (!plcd_drv->res_vs_irq) {
+	if (plcd_drv->vs_irq < 0) {
 		LCDERR("%s: no spi vsync_irq\n", __func__);
 		return -1;
 	}
-	spi_vs_irq = plcd_drv->res_vs_irq->start;
+	spi_vs_irq = plcd_drv->vs_irq;
 	ret = request_irq(spi_vs_irq, spi_vsync_isr, IRQF_TRIGGER_RISING,
 			"per_lcd_spi_vsync_irq", (void *)"per_lcd");
 	if (ret) {

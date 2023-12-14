@@ -14,6 +14,8 @@
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/codec_mm/dmabuf_manage.h>
 #include <linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h>
@@ -251,7 +253,7 @@ static void *codec_mm_heap_do_vmap(struct codec_mm_heap_buffer *buffer)
 	return vaddr;
 }
 
-static int codec_mm_heap_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
+static int codec_mm_heap_vmap(struct dma_buf *dmabuf, struct kv_drm_vmap_map *map)
 {
 	struct codec_mm_heap_buffer *buffer = dmabuf->priv;
 	void *vaddr;
@@ -260,7 +262,7 @@ static int codec_mm_heap_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 	mutex_lock(&buffer->lock);
 	if (buffer->vmap_cnt) {
 		buffer->vmap_cnt++;
-		dma_buf_map_set_vaddr(map, buffer->vaddr);
+		kv_map_set_vaddr(map, buffer->vaddr);
 		goto out;
 	}
 
@@ -272,14 +274,14 @@ static int codec_mm_heap_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 
 	buffer->vaddr = vaddr;
 	buffer->vmap_cnt++;
-	dma_buf_map_set_vaddr(map, buffer->vaddr);
+	kv_map_set_vaddr(map, buffer->vaddr);
 out:
 	mutex_unlock(&buffer->lock);
 
 	return ret;
 }
 
-static void codec_mm_heap_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
+static void codec_mm_heap_vunmap(struct dma_buf *dmabuf, struct kv_drm_vmap_map *map)
 {
 	struct codec_mm_heap_buffer *buffer = dmabuf->priv;
 
@@ -289,7 +291,7 @@ static void codec_mm_heap_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map
 		buffer->vaddr = NULL;
 	}
 	mutex_unlock(&buffer->lock);
-	dma_buf_map_clear(map);
+	kv_map_clear(map);
 }
 
 static int codec_mm_heap_zero_buffer(struct codec_mm_heap_buffer *buffer)

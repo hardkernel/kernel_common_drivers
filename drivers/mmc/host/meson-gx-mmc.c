@@ -40,10 +40,14 @@
 #include <linux/debugfs.h>
 #include "mmc_key.h"
 #include "mmc_dtb.h"
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION == 13515
 #include <trace/hooks/mmc.h>
+#endif
 #include <linux/moduleparam.h>
 #include <linux/amlogic/gki_module.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #include "meson-cqhci.h"
 
 struct mmc_gpio {
@@ -3274,7 +3278,6 @@ static void sdio_rescan(struct mmc_host *mmc)
 
 static void sdio_reset_comm(struct mmc_card *card)
 {
-	struct mmc_host *host = card->host;
 	int i = 0, err = 0;
 
 	while (i < SDIO_MAX_FUNCS && !card->sdio_func[i])
@@ -3282,7 +3285,7 @@ static void sdio_reset_comm(struct mmc_card *card)
 	if (WARN_ON(i == SDIO_MAX_FUNCS))
 		return;
 	sdio_claim_host(card->sdio_func[i]);
-	err = mmc_sw_reset(host);
+	err = kv_mmc_sw_reset(card);
 	sdio_release_host(card->sdio_func[i]);
 	if (err)
 		pr_info("%s Failed, error = %d\n", __func__, err);

@@ -556,8 +556,9 @@ static void wss_dispatch_cmd(char *p)
  **	aml_wss sysfs interface
  **
  ******************************************************************/
-ssize_t aml_CVBS_attr_wss_show(struct class *class,
-			       struct class_attribute *attr, char *buf)
+ssize_t aml_CVBS_attr_wss_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int line = 0;
 	unsigned int data = 0;
@@ -601,9 +602,9 @@ ssize_t aml_CVBS_attr_wss_show(struct class *class,
 	return len;
 }
 
-ssize_t aml_CVBS_attr_wss_store(struct class *class,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+ssize_t aml_CVBS_attr_wss_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *p = NULL;
 

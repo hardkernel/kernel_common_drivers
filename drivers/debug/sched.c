@@ -22,11 +22,16 @@
 #include <linux/kprobes.h>
 #include <linux/time.h>
 #include <linux/delay.h>
+#include <linux/sched/cputime.h>
+#include <linux/sched/sysctl.h>
 #include <sched.h>
 
 #include <trace/hooks/sched.h>
 #include <trace/hooks/dtask.h>
+#include <trace/events/sched.h>
 #include <trace/events/meson_atrace.h>
+
+#include <linux/amlogic/kernel_versions.h>
 
 #if defined(CONFIG_ANDROID_VENDOR_HOOKS) && defined(CONFIG_FAIR_GROUP_SCHED)
 static int sched_big_weight = 10; // * NICE_0_LOAD
@@ -454,6 +459,7 @@ static void aml_pick_next_task(void *data, struct rq *rq, struct task_struct **p
 	}
 }
 
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static inline u64 max_vruntime(u64 max_vruntime, u64 vruntime)
 {
 	s64 delta = (s64)(vruntime - max_vruntime);
@@ -490,6 +496,7 @@ static void aml_place_entity(void *data, struct cfs_rq *cfs_rq, struct sched_ent
 				      se->vruntime, cfs_rq->min_vruntime, vruntime_new);
 	}
 }
+#endif
 
 static void aml_check_preempt_tick(void *data, struct task_struct *p, unsigned long *ideal_runtime,
 				   bool *skip_preempt, unsigned long delta_exec, struct cfs_rq *cfs_rq,
@@ -566,7 +573,7 @@ static void __maybe_unused sched_show_task_hook(void *data, struct task_struct *
 }
 
 static void sched_switch_hook(void *data, bool mode, struct task_struct *prev,
-			      struct task_struct *next)
+			      struct task_struct *next KV_SCHED_SWITCH_HOOK_PREV_STAT)
 {
 	unsigned long long now;
 
@@ -595,7 +602,10 @@ int aml_sched_init(void)
 	register_trace_android_rvh_select_task_rq_rt(aml_select_rt_nice, NULL);
 	register_trace_android_rvh_check_preempt_wakeup(aml_check_preempt_wakeup, NULL);
 	register_trace_android_rvh_replace_next_task_fair(aml_pick_next_task, NULL);
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	register_trace_android_rvh_place_entity(aml_place_entity, NULL);
+#endif
 	register_trace_android_rvh_check_preempt_tick(aml_check_preempt_tick, NULL);
 #endif
 

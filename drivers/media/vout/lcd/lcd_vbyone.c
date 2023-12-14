@@ -1514,11 +1514,11 @@ int lcd_vbyone_interrupt_up(struct aml_lcd_drv_s *pdrv)
 
 	INIT_WORK(&pdrv->vx1_reset_work, lcd_vx1_timeout_reset);
 
-	if (!pdrv->res_vx1_irq) {
-		LCDERR("[%d]: res_vx1_irq is null\n", pdrv->index);
+	if (pdrv->vx1_irq < 0) {
+		LCDERR("[%d]: vx1_irq is null\n", pdrv->index);
 		return -1;
 	}
-	venc_vx1_irq = pdrv->res_vx1_irq->start;
+	venc_vx1_irq = pdrv->vx1_irq;
 	LCDPR("[%d]: venc_vx1_irq: %d\n", pdrv->index, venc_vx1_irq);
 
 	snprintf(pdrv->vbyone_isr_name, 10, "vbyone%d", pdrv->index);
@@ -1555,7 +1555,7 @@ void lcd_vbyone_interrupt_down(struct aml_lcd_drv_s *pdrv)
 
 	lcd_vx1_vsync_isr_en = 0;
 	lcd_vbyone_interrupt_enable(pdrv, 0);
-	free_irq(pdrv->res_vx1_irq->start, (void *)pdrv);
+	free_irq(pdrv->vx1_irq, (void *)pdrv);
 	cancel_work_sync(&pdrv->vx1_reset_work);
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)

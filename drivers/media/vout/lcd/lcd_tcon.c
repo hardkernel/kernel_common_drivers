@@ -3089,11 +3089,11 @@ static void lcd_tcon_intr_init(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int tcon_irq = 0;
 
-	if (!pdrv->res_tcon_irq) {
-		LCDERR("res_tcon_irq is null\n");
+	if (pdrv->tcon_irq < 0) {
+		LCDERR("tcon_irq is null\n");
 		return;
 	}
-	tcon_irq = pdrv->res_tcon_irq->start;
+	tcon_irq = pdrv->tcon_irq;
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("tcon_irq: %d\n", tcon_irq);
 

@@ -415,6 +415,7 @@ static int crg_probe(struct platform_device *pdev)
 	case USB_SPEED_SUPER:
 		tmp = CRG_U3DC_CFG0_MAXSPEED_SS;
 		writel(tmp, crg->regs + 0x2410);
+		break;
 	case USB_SPEED_SUPER_PLUS:
 		break;
 	default:

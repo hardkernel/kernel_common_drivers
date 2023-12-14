@@ -9,5 +9,5 @@ ccflags-y += $(PR_FMT_DEFINE)
 obj-$(CONFIG_AMLOGIC_WIRELESS) = $(MODULE_NAME).o
 $(MODULE_NAME)-y = main.o
 
-include $(COMMON_DRIVERS_DIR)/drivers/wireless/bluetooth/Makefile
-include $(COMMON_DRIVERS_DIR)/drivers/wireless/wifi/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/wireless/bluetooth/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/wireless/wifi/Makefile

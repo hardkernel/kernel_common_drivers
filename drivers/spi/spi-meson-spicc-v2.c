@@ -1061,7 +1061,7 @@ static ssize_t test_dev_store(struct device *dev,
 				memset(spi->controller_data, 0,
 					sizeof(struct spicc_controller_data));
 				testdev->spi->chip_select = 0;
-				testdev->spi->cs_gpio = -ENOENT;
+				testdev->spi->cs_gpiod = NULL;
 				testdev->spi->max_speed_hz = 10000000;
 				testdev->spi->bits_per_word = 8;
 				testdev->nxfers = 0;
@@ -1081,7 +1081,7 @@ static ssize_t test_dev_store(struct device *dev,
 	cdata = (struct spicc_controller_data *)spi->controller_data;
 
 	if (!spicc_getopt(argc, argv, "cs_gpio", &v, NULL, 10))
-		spi->cs_gpio = v;
+		spi->cs_gpiod = gpio_to_desc(v);
 	if (!spicc_getopt(argc, argv, "cs", &v, NULL, 10))
 		spi->chip_select = v;
 	if (!spicc_getopt(argc, argv, "speed", &v, NULL, 10))
@@ -1136,7 +1136,7 @@ static ssize_t test_dev_show(struct device *dev,
 	spi = testdev->spi;
 	cdata = (struct spicc_controller_data *)spi->controller_data;
 
-	len = snprintf(buf, PAGE_SIZE, "cs_gpio: %d\n", spi->cs_gpio);
+	len = snprintf(buf, PAGE_SIZE, "cs_gpio: %d\n", desc_to_gpio(spi->cs_gpiod));
 	len += snprintf(buf + len, PAGE_SIZE, "cs: %d\n", spi->chip_select);
 	len += snprintf(buf + len, PAGE_SIZE, "speed: %d\n", spi->max_speed_hz);
 	len += snprintf(buf + len, PAGE_SIZE, "mode: 0x%x\n", spi->mode);
@@ -1345,7 +1345,7 @@ static ssize_t test_store(struct device *dev, struct device_attribute *attr,
 		goto test_end;
 	}
 
-	m.spi->cs_gpio = (cs_gpio > 0) ? cs_gpio : -ENOENT;
+	m.spi->cs_gpiod = (cs_gpio > 0) ? gpio_to_desc(cs_gpio) : NULL;
 	m.spi->max_speed_hz = speed;
 	m.spi->mode = mode & 0xffff;
 	m.spi->bits_per_word = bits_per_word;

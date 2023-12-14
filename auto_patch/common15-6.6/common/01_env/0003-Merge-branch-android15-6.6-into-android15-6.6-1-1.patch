@@ -1,0 +1,49 @@
+From 24e344e7b04d26524780a3447cea11b695fd1f88 Mon Sep 17 00:00:00 2001
+From: Wanwei Jiang <wanwei.jiang@amlogic.com>
+Date: Tue, 7 Feb 2023 17:19:36 +0800
+Subject: [PATCH] Merge branch 'android15-6.6' into android15-6.6 [1/1]
+
+PD#SWPL-87897
+
+Problem:
+record merge upstream information
+
+Solution:
+AML_KERNEL_VERSION      1
+UPSTREAM_VERSION        "f0fb694baae6"
+AML_PATCH_VERSION       "f0fb694baae6"
+MERGE_DATE              "2023-12-08"
+
+Verify:
+sc2
+
+Change-Id: I69f8a7d5d122dec79a63283b9def5eea59a50559
+Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
+---
+ include/linux/upstream_version.h | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+ create mode 100644 include/linux/upstream_version.h
+
+diff --git a/include/linux/upstream_version.h b/include/linux/upstream_version.h
+new file mode 100644
+index 000000000000..c669fa4d270f
+--- /dev/null
++++ b/include/linux/upstream_version.h
+@@ -0,0 +1,14 @@
++/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
++/*
++ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
++ */
++
++#ifndef _LINUX_UPSTREAM_VERSION_H
++#define _LINUX_UPSTREAM_VERSION_H
++
++#define AML_KERNEL_VERSION	1
++#define UPSTREAM_VERSION	"fc4fbf8342e0"
++#define AML_PATCH_VERSION	"fc4fbf8342e0"
++#define MERGE_DATE		"2023-12-08"
++
++#endif
+-- 
+2.42.0
+

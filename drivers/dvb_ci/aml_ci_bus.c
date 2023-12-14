@@ -12,11 +12,13 @@
 #include <linux/platform_device.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/gpio/consumer.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/of_irq.h>
 #include <linux/irq.h>
 #include <linux/compat.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #include "aml_ci_bus.h"
 #include "aml_ci.h"
@@ -471,7 +473,7 @@ static int ci_bus_get_gpio_by_name(struct aml_ci_bus *ci_bus_dev,
 		return -1;
 	}
 
-	*pin_value = of_get_named_gpio_flags(child, str, 0, NULL);
+	*pin_value = of_get_named_gpio(child, str, 0);
 	*gpiod = gpio_to_desc(*pin_value);
 	if (IS_ERR(*gpiod)) {
 		pr_dbg("ci bus %s request failed\n", str);
@@ -909,7 +911,6 @@ static int aml_ci_bus_get_config_from_dts(struct aml_ci_bus *ci_bus_dev)
 	}
 	//below is get cd1 cd2 pwr irq reset gpio info
 	if (ci_bus_dev->io_device_type == AML_DVB_IO_TYPE_CIBUS) {
-		struct resource *res;
 		char buf[32];
 		int ival;
 
@@ -920,10 +921,8 @@ static int aml_ci_bus_get_config_from_dts(struct aml_ci_bus *ci_bus_dev)
 			ci_bus_dev->irq_cmp = -1;
 		memset(buf, 0, 32);
 		snprintf(buf, sizeof(buf), "%s", "irq_cmp");
-		res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, buf);
-		if (res)
-			ci_bus_dev->irq_cmp = res->start;
-		else
+		ci_bus_dev->irq_cmp = platform_get_irq_byname(pdev, buf);
+		if (ci_bus_dev->irq_cmp < 0)
 			pr_err("get irq cmp error\r\n");
 		if (USED_IRQ)
 			ci_bus_dev->irq_timeout = 187;
@@ -931,10 +930,8 @@ static int aml_ci_bus_get_config_from_dts(struct aml_ci_bus *ci_bus_dev)
 			ci_bus_dev->irq_timeout = -1;
 		memset(buf, 0, 32);
 		snprintf(buf, sizeof(buf), "%s", "irq_timeout");
-		res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, buf);
-		if (res)
-			ci_bus_dev->irq_timeout = res->start;
-		else
+		ci_bus_dev->irq_timeout = platform_get_irq_byname(pdev, buf);
+		if (ci_bus_dev->irq_timeout < 0)
 			pr_err("get irq irq_timeout error\r\n");
 		//pin config
 		pr_dbg("ci bus irq[%d]cmp[%d] \r\n", ci_bus_dev->irq_cmp, ci_bus_dev->irq_timeout);
@@ -1675,8 +1672,9 @@ static int dvb_ca_en50221_parse_attributes(void)
 	return 0;
 }
 
-static ssize_t reset_show(struct class *class,
-		struct class_attribute *attr, char *buf)
+static ssize_t reset_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret;
 
@@ -1684,8 +1682,9 @@ static ssize_t reset_show(struct class *class,
 	return ret;
 }
 
-static ssize_t reset_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t size)
+static ssize_t reset_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	int ret;
 
@@ -1696,8 +1695,9 @@ static ssize_t reset_store(struct class *class,
 }
 
 static CLASS_ATTR_RW(reset);
-static ssize_t pwr_show(struct class *class,
-		struct class_attribute *attr, char *buf)
+static ssize_t pwr_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret;
 
@@ -1705,8 +1705,9 @@ static ssize_t pwr_show(struct class *class,
 	return ret;
 }
 
-static ssize_t pwr_store(struct class *class,
-	struct class_attribute *attr, const char *buf, size_t size)
+static ssize_t pwr_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	int ret = 0;
 	int enable = 0;
@@ -1719,8 +1720,9 @@ static ssize_t pwr_store(struct class *class,
 }
 
 static CLASS_ATTR_RW(pwr);
-static ssize_t start_show(struct class *class,
-	struct class_attribute *attr, char *buf)
+static ssize_t start_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret;
 
@@ -1728,8 +1730,9 @@ static ssize_t start_show(struct class *class,
 	return ret;
 }
 
-static ssize_t start_store(struct class *class,
-	struct class_attribute *attr, const char *buf, size_t size)
+static ssize_t start_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	int enable = 0;
 	long value;
@@ -1745,8 +1748,9 @@ static ssize_t start_store(struct class *class,
 
 static CLASS_ATTR_RW(start);
 
-static ssize_t wakeup_show(struct class *class,
-	struct class_attribute *attr, char *buf)
+static ssize_t wakeup_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret;
 
@@ -1754,8 +1758,9 @@ static ssize_t wakeup_show(struct class *class,
 	return ret;
 }
 
-static ssize_t wakeup_store(struct class *class,
-	struct class_attribute *attr, const char *buf, size_t size)
+static ssize_t wakeup_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	int enable = 0;
 	long value;
@@ -1770,8 +1775,9 @@ static ssize_t wakeup_store(struct class *class,
 
 static CLASS_ATTR_RW(wakeup);
 
-static ssize_t status_show(struct class *class,
-	struct class_attribute *attr, char *buf)
+static ssize_t status_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret;
 	struct aml_ci *ci = (struct aml_ci *)ci_bus.priv;
@@ -1783,8 +1789,9 @@ static ssize_t status_show(struct class *class,
 
 static CLASS_ATTR_RO(status);
 
-static ssize_t irq_show(struct class *class,
-	struct class_attribute *attr, char *buf)
+static ssize_t irq_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret;
 
@@ -1795,8 +1802,9 @@ static ssize_t irq_show(struct class *class,
 
 static CLASS_ATTR_RO(irq);
 
-static ssize_t iotest_show(struct class *class,
-	struct class_attribute *attr, char *buf)
+static ssize_t iotest_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret;
 
@@ -1805,8 +1813,9 @@ static ssize_t iotest_show(struct class *class,
 	return ret;
 }
 
-static ssize_t iotest_store(struct class *class,
-	struct class_attribute *attr, const char *buf, size_t size)
+static ssize_t iotest_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	int n = 0;
 	int i = 0;
@@ -2043,7 +2052,7 @@ int  aml_ci_bus_mod_init(void)
 		return -ENOMEM;
 
 	snprintf((char *)clp->name, CLASS_NAME_LEN, "aml_ci_bus_%s", "test");
-	clp->owner = THIS_MODULE;
+	kv_set_class_owner(clp);
 	clp->class_groups = aml_ci_bus_groups;
 	ret = class_register(clp);
 	if (ret)

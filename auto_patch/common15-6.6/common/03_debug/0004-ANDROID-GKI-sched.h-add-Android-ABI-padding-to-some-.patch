@@ -1,0 +1,136 @@
+From 87f0b6dacfa8fa954c4d76054f040a49346b32c8 Mon Sep 17 00:00:00 2001
+From: Greg Kroah-Hartman <gregkh@google.com>
+Date: Tue, 10 Mar 2020 18:39:57 +0100
+Subject: [PATCH] ANDROID: GKI: sched.h: add Android ABI padding to some
+ structures
+
+Try to mitigate potential future driver core api changes by adding a
+pointer to struct signal_struct, struct sched_entity, struct
+sched_rt_entity, and struct task_struct.
+
+Based on a patch from Michal Marek <mmarek@suse.cz> from the SLES kernel
+
+Leaf changes summary: 3 artifacts changed
+Changed leaf types summary: 3 leaf types changed
+Removed/Changed/Added functions summary: 0 Removed, 0 Changed, 0 Added function
+Removed/Changed/Added variables summary: 0 Removed, 0 Changed, 0 Added variable
+
+'struct sched_entity at sched.h:444:1' changed:
+  type size changed from 3584 to 4096 (in bits)
+  4 data member insertions:
+    'u64 sched_entity::android_kabi_reserved1', at offset 3584 (in bits) at sched.h:481:1
+    'u64 sched_entity::android_kabi_reserved2', at offset 3648 (in bits) at sched.h:482:1
+    'u64 sched_entity::android_kabi_reserved3', at offset 3712 (in bits) at sched.h:483:1
+    'u64 sched_entity::android_kabi_reserved4', at offset 3776 (in bits) at sched.h:484:1
+  1435 impacted interfaces:
+
+'struct sched_rt_entity at sched.h:481:1' changed:
+  type size changed from 384 to 640 (in bits)
+  4 data member insertions:
+    'u64 sched_rt_entity::android_kabi_reserved1', at offset 384 (in bits) at sched.h:504:1
+    'u64 sched_rt_entity::android_kabi_reserved2', at offset 448 (in bits) at sched.h:505:1
+    'u64 sched_rt_entity::android_kabi_reserved3', at offset 512 (in bits) at sched.h:506:1
+    'u64 sched_rt_entity::android_kabi_reserved4', at offset 576 (in bits) at sched.h:507:1
+  1435 impacted interfaces:
+
+'struct task_struct at sched.h:624:1' changed:
+  type size changed from 28672 to 30208 (in bits)
+  8 data member insertions:
+    'u64 task_struct::android_kabi_reserved1', at offset 20992 (in bits) at sched.h:1294:1
+    'u64 task_struct::android_kabi_reserved2', at offset 21056 (in bits) at sched.h:1295:1
+    'u64 task_struct::android_kabi_reserved3', at offset 21120 (in bits) at sched.h:1296:1
+    'u64 task_struct::android_kabi_reserved4', at offset 21184 (in bits) at sched.h:1297:1
+    'u64 task_struct::android_kabi_reserved5', at offset 21248 (in bits) at sched.h:1298:1
+    'u64 task_struct::android_kabi_reserved6', at offset 21312 (in bits) at sched.h:1299:1
+    'u64 task_struct::android_kabi_reserved7', at offset 21376 (in bits) at sched.h:1300:1
+    'u64 task_struct::android_kabi_reserved8', at offset 21440 (in bits) at sched.h:1301:1
+  there are data member changes:
+  1435 impacted interfaces:
+
+Bug: 151154716
+Signed-off-by: Greg Kroah-Hartman <gregkh@google.com>
+Change-Id: I1449735b836399e9b356608727092334daf5c36b
+---
+ include/linux/sched.h        | 20 ++++++++++++++++++++
+ include/linux/sched/signal.h |  6 ++++++
+ 2 files changed, 26 insertions(+)
+
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 68cfa656b9b1..fc5ab66058fb 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -38,6 +38,7 @@
+ #include <linux/rv.h>
+ #include <linux/livepatch_sched.h>
+ #include <linux/android_vendor.h>
++#include <linux/android_kabi.h>
+ #include <asm/kmap_size.h>
+ 
+ /* task_struct member predeclarations (sorted alphabetically): */
+@@ -587,6 +588,11 @@ struct sched_entity {
+ 	 */
+ 	struct sched_avg		avg;
+ #endif
++
++	ANDROID_KABI_RESERVE(1);
++	ANDROID_KABI_RESERVE(2);
++	ANDROID_KABI_RESERVE(3);
++	ANDROID_KABI_RESERVE(4);
+ };
+ 
+ struct sched_rt_entity {
+@@ -605,6 +611,11 @@ struct sched_rt_entity {
+ 	/* rq "owned" by this entity/group: */
+ 	struct rt_rq			*my_q;
+ #endif
++
++	ANDROID_KABI_RESERVE(1);
++	ANDROID_KABI_RESERVE(2);
++	ANDROID_KABI_RESERVE(3);
++	ANDROID_KABI_RESERVE(4);
+ } __randomize_layout;
+ 
+ struct sched_dl_entity {
+@@ -1532,6 +1543,15 @@ struct task_struct {
+ 	struct callback_head		l1d_flush_kill;
+ #endif
+ 
++	ANDROID_KABI_RESERVE(1);
++	ANDROID_KABI_RESERVE(2);
++	ANDROID_KABI_RESERVE(3);
++	ANDROID_KABI_RESERVE(4);
++	ANDROID_KABI_RESERVE(5);
++	ANDROID_KABI_RESERVE(6);
++	ANDROID_KABI_RESERVE(7);
++	ANDROID_KABI_RESERVE(8);
++
+ #ifdef CONFIG_RV
+ 	/*
+ 	 * Per-task RV monitor. Nowadays fixed in RV_PER_TASK_MONITORS.
+diff --git a/include/linux/sched/signal.h b/include/linux/sched/signal.h
+index 0014d3adaf84..ddde8ecaaa0a 100644
+--- a/include/linux/sched/signal.h
++++ b/include/linux/sched/signal.h
+@@ -12,6 +12,7 @@
+ #include <linux/posix-timers.h>
+ #include <linux/mm_types.h>
+ #include <asm/ptrace.h>
++#include <linux/android_kabi.h>
+ 
+ /*
+  * Types defining task->signal and task->sighand and APIs using them:
+@@ -245,6 +246,11 @@ struct signal_struct {
+ 						 * and may have inconsistent
+ 						 * permissions.
+ 						 */
++
++	ANDROID_KABI_RESERVE(1);
++	ANDROID_KABI_RESERVE(2);
++	ANDROID_KABI_RESERVE(3);
++	ANDROID_KABI_RESERVE(4);
+ } __randomize_layout;
+ 
+ /*
+-- 
+2.41.0
+

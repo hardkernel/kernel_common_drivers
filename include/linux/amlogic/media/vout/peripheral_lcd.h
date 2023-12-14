@@ -119,7 +119,7 @@ struct peripheral_lcd_driver_s {
 	unsigned char probe_flag;
 	unsigned char init_flag;
 
-	struct resource *res_vs_irq;
+	int vs_irq;
 	int irq_num;
 
 	struct per_lcd_reg_map_s *plcd_reg_map;

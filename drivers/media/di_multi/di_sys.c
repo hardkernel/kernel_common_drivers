@@ -52,6 +52,7 @@
 #include <linux/amlogic/media/vpu/vpu.h>
 /*dma_get_cma_size_int_byte*/
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #include "deinterlace_dbg.h"
 #include "deinterlace.h"
@@ -3826,7 +3827,7 @@ static int dim_probe(struct platform_device *pdev)
 		goto fail_alloc_cdev_region;
 	}
 	dbg_reg("%s: major %d\n", __func__, MAJOR(di_pdev->devno));
-	di_pdev->pclss = class_create(THIS_MODULE, CLASS_NAME);
+	di_pdev->pclss = kv_class_create(THIS_MODULE, CLASS_NAME);
 	if (IS_ERR(di_pdev->pclss)) {
 		ret = PTR_ERR(di_pdev->pclss);
 		PR_ERR("%s: failed to create class\n", __func__);

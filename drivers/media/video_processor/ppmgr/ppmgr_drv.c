@@ -31,6 +31,7 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/utils/amports_config.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
@@ -193,9 +194,9 @@ static int parse_para(const char *para, int para_num, int *result)
 	return count;
 }
 
-static ssize_t ppmgr_info_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t ppmgr_info_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int bstart;
 	unsigned int bsize;
@@ -207,15 +208,17 @@ static ssize_t ppmgr_info_show(struct class *cla,
 			bstart, bsize / (1024 * 1024));
 }
 
-static ssize_t angle_show(struct class *cla, struct class_attribute *attr,
-			  char *buf)
+static ssize_t angle_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "current angel is %d\n",
 			ppmgr_device.global_angle);
 }
 
-static ssize_t angle_store(struct class *cla, struct class_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t angle_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	ulong angle;
 	int ret = kstrtoul(buf, 0, &angle);
@@ -236,9 +239,9 @@ static ssize_t angle_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t orientation_show(struct class *cla,
-				struct class_attribute *attr,
-				char *buf)
+static ssize_t orientation_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "current orientation is %d\n",
 			ppmgr_device.orientation * 90);
@@ -247,9 +250,9 @@ static ssize_t orientation_show(struct class *cla,
 /* set the initial orientation for video,
  * it should be set before video start.
  */
-static ssize_t orientation_store(struct class *cla,
-				 struct class_attribute *attr,
-				 const char *buf, size_t count)
+static ssize_t orientation_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	ssize_t ret; /* , size; */
 	unsigned long tmp;
@@ -289,15 +292,17 @@ static ssize_t orientation_store(struct class *cla,
 	return count;
 }
 
-static ssize_t bypass_show(struct class *cla, struct class_attribute *attr,
-			   char *buf)
+static ssize_t bypass_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "current bypass is %d\n",
 			ppmgr_device.bypass);
 }
 
-static ssize_t bypass_store(struct class *cla, struct class_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t bypass_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 
@@ -313,17 +318,18 @@ static ssize_t bypass_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t ppmgr_debug_show(struct class *cla,
-				struct class_attribute *attr, char *buf)
+static ssize_t ppmgr_debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80,
 			"current ppmgr_debug is %d\n",
 			ppmgr_device.ppmgr_debug);
 }
 
-static ssize_t ppmgr_debug_store(struct class *cla,
-				 struct class_attribute *attr,
-				 const char *buf, size_t count)
+static ssize_t ppmgr_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -337,17 +343,18 @@ static ssize_t ppmgr_debug_store(struct class *cla,
 	return count;
 }
 
-static ssize_t debug_first_frame_show(struct class *cla,
-				      struct class_attribute *attr, char *buf)
+static ssize_t debug_first_frame_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80,
 			"current debug_first_frame is %d\n",
 			ppmgr_device.debug_first_frame);
 }
 
-static ssize_t debug_first_frame_store(struct class *cla,
-				       struct class_attribute *attr,
-				       const char *buf, size_t count)
+static ssize_t debug_first_frame_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -361,8 +368,9 @@ static ssize_t debug_first_frame_store(struct class *cla,
 	return count;
 }
 
-static ssize_t debug_ppmgr_flag_show(struct class *cla,
-				     struct class_attribute *attr, char *buf)
+static ssize_t debug_ppmgr_flag_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf,
 		80,
@@ -370,9 +378,9 @@ static ssize_t debug_ppmgr_flag_show(struct class *cla,
 		ppmgr_device.debug_ppmgr_flag);
 }
 
-static ssize_t debug_ppmgr_flag_store(struct class *cla,
-				      struct class_attribute *attr,
-				      const char *buf, size_t count)
+static ssize_t debug_ppmgr_flag_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 
@@ -386,8 +394,9 @@ static ssize_t debug_ppmgr_flag_store(struct class *cla,
 	return count;
 }
 
-static ssize_t get_count_show(struct class *cla,
-			      struct class_attribute *attr, char *buf)
+static ssize_t get_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf,
 		80,
@@ -395,9 +404,9 @@ static ssize_t get_count_show(struct class *cla,
 		ppmgr_device.get_count);
 }
 
-static ssize_t get_count_store(struct class *cla,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t get_count_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 
@@ -411,8 +420,9 @@ static ssize_t get_count_store(struct class *cla,
 	return count;
 }
 
-static ssize_t put_count_show(struct class *cla,
-			      struct class_attribute *attr, char *buf)
+static ssize_t put_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf,
 		80,
@@ -420,9 +430,9 @@ static ssize_t put_count_show(struct class *cla,
 		ppmgr_device.put_count);
 }
 
-static ssize_t put_count_store(struct class *cla,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t put_count_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 
@@ -436,8 +446,9 @@ static ssize_t put_count_store(struct class *cla,
 	return count;
 }
 
-static ssize_t get_dec_count_show(struct class *cla,
-				  struct class_attribute *attr, char *buf)
+static ssize_t get_dec_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf,
 		80,
@@ -445,9 +456,9 @@ static ssize_t get_dec_count_show(struct class *cla,
 		ppmgr_device.get_dec_count);
 }
 
-static ssize_t get_dec_count_store(struct class *cla,
-				   struct class_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t get_dec_count_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 
@@ -460,8 +471,9 @@ static ssize_t get_dec_count_store(struct class *cla,
 	return count;
 }
 
-static ssize_t put_dec_count_show(struct class *cla,
-				  struct class_attribute *attr, char *buf)
+static ssize_t put_dec_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf,
 		80,
@@ -469,9 +481,9 @@ static ssize_t put_dec_count_show(struct class *cla,
 		ppmgr_device.put_dec_count);
 }
 
-static ssize_t put_dec_count_store(struct class *cla,
-				   struct class_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t put_dec_count_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 
@@ -485,8 +497,9 @@ static ssize_t put_dec_count_store(struct class *cla,
 	return count;
 }
 
-static ssize_t peek_dec_show(struct class *cla,
-			     struct class_attribute *attr, char *buf)
+static ssize_t peek_dec_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf,
 		80,
@@ -494,9 +507,9 @@ static ssize_t peek_dec_show(struct class *cla,
 		ppmgr_device.peek_dec);
 }
 
-static ssize_t peek_dec_store(struct class *cla,
-			      struct class_attribute *attr,
-			      const char *buf, size_t count)
+static ssize_t peek_dec_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 
@@ -510,8 +523,9 @@ static ssize_t peek_dec_store(struct class *cla,
 	return count;
 }
 
-static ssize_t rect_show(struct class *cla, struct class_attribute *attr,
-			 char *buf)
+static ssize_t rect_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "rotate rect:\nl:%d,t:%d,w:%d,h:%d\n",
 			ppmgr_device.left,
@@ -520,8 +534,9 @@ static ssize_t rect_show(struct class *cla, struct class_attribute *attr,
 			ppmgr_device.height);
 }
 
-static ssize_t rect_store(struct class *cla, struct class_attribute *attr,
-			  const char *buf, size_t count)
+static ssize_t rect_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *errstr =
 		"data error,access string is \"left,top,width,height\"\n";
@@ -578,16 +593,18 @@ static ssize_t rect_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t dump_path_show(struct class *cla, struct class_attribute *attr,
-			      char *buf)
+static ssize_t dump_path_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80,
 			"ppmgr dump path is: %s\n",
 			ppmgr_device.dump_path);
 }
 
-static ssize_t dump_path_store(struct class *cla, struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t dump_path_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *tmp;
 
@@ -608,8 +625,9 @@ static ssize_t dump_path_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t disp_show(struct class *cla, struct class_attribute *attr,
-			 char *buf)
+static ssize_t disp_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "disp width is %d ; disp height is %d\n",
 			ppmgr_device.disp_width, ppmgr_device.disp_height);
@@ -632,8 +650,9 @@ static void set_disp_para(const char *para)
 	}
 }
 
-static ssize_t disp_store(struct class *cla, struct class_attribute *attr,
-			  const char *buf, size_t count)
+static ssize_t disp_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	ssize_t buflen;
 
@@ -644,9 +663,9 @@ static ssize_t disp_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t ppmgr_receiver_show(struct class *cla,
-				   struct class_attribute *attr,
-				   char *buf)
+static ssize_t ppmgr_receiver_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (ppmgr_device.receiver == 1)
 		return snprintf(buf, 80, "video stream out to video4linux\n");
@@ -654,9 +673,9 @@ static ssize_t ppmgr_receiver_show(struct class *cla,
 		return snprintf(buf, 80, "video stream out to player\n");
 }
 
-static ssize_t ppmgr_receiver_store(struct class *cla,
-				    struct class_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t ppmgr_receiver_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	ulong tmp;
 	int ret;
@@ -680,8 +699,9 @@ static ssize_t ppmgr_receiver_store(struct class *cla,
 	return count;
 }
 
-static ssize_t platform_type_show(struct class *cla,
-				  struct class_attribute *attr, char *buf)
+static ssize_t platform_type_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (platform_type == PLATFORM_TV)
 		return snprintf(buf, 80, "current platform is TV\n");
@@ -693,9 +713,9 @@ static ssize_t platform_type_show(struct class *cla,
 		return snprintf(buf, 80, "current platform is MBX\n");
 }
 
-static ssize_t platform_type_store(struct class *cla,
-				   struct class_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t platform_type_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	ulong tmp;
 	/* platform_type = simple_strtoul(buf, &endp, 0); */
@@ -711,17 +731,18 @@ static ssize_t platform_type_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tb_detect_show(struct class *cla,
-			      struct class_attribute *attr, char *buf)
+static ssize_t tb_detect_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int detect = ppmgr_device.tb_detect;
 
 	return snprintf(buf, 80, "current T/B detect mode is %d\n", detect);
 }
 
-static ssize_t tb_detect_store(struct class *cla,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t tb_detect_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned long tmp;
 	int ret = kstrtoul(buf, 0, &tmp);
@@ -735,17 +756,18 @@ static ssize_t tb_detect_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tb_detect_period_show(struct class *cla,
-				     struct class_attribute *attr, char *buf)
+static ssize_t tb_detect_period_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int period = ppmgr_device.tb_detect_period;
 
 	return snprintf(buf, 80, "current T/B detect period is %d\n", period);
 }
 
-static ssize_t tb_detect_period_store(struct class *cla,
-				      struct class_attribute *attr,
-				      const char *buf, size_t count)
+static ssize_t tb_detect_period_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned long tmp;
 	/* platform_type = simple_strtoul(buf, &endp, 0); */
@@ -760,17 +782,18 @@ static ssize_t tb_detect_period_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tb_detect_len_show(struct class *cla,
-				  struct class_attribute *attr, char *buf)
+static ssize_t tb_detect_len_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int len = ppmgr_device.tb_detect_buf_len;
 
 	return snprintf(buf, 80, "current T/B detect buff len is %d\n", len);
 }
 
-static ssize_t tb_detect_len_store(struct class *cla,
-				   struct class_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t tb_detect_len_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned long tmp;
 	/* platform_type = simple_strtoul(buf, &endp, 0); */
@@ -790,17 +813,18 @@ static ssize_t tb_detect_len_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tb_detect_mute_show(struct class *cla,
-				   struct class_attribute *attr, char *buf)
+static ssize_t tb_detect_mute_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int mute = ppmgr_device.tb_detect_init_mute;
 
 	return snprintf(buf, 80, "current T/B detect init mute is %d\n", mute);
 }
 
-static ssize_t tb_detect_mute_store(struct class *cla,
-				    struct class_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t tb_detect_mute_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned long tmp;
 	/* platform_type = simple_strtoul(buf, &endp, 0); */
@@ -817,23 +841,25 @@ static ssize_t tb_detect_mute_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tb_status_show(struct class *cla,
-			      struct class_attribute *attr, char *buf)
+static ssize_t tb_status_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	get_tb_detect_status();
 	return snprintf(buf, 80, "#################\n");
 }
 
-static ssize_t secure_mode_show(struct class *cla,
-				struct class_attribute *attr, char *buf)
+static ssize_t secure_mode_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "secure_debug is %d secure_mode is %d\n",
 		ppmgr_secure_debug, ppmgr_secure_mode);
 }
 
-static ssize_t secure_mode_store(struct class *cla,
-				 struct class_attribute *attr,
-				 const char *buf, size_t count)
+static ssize_t secure_mode_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int parsed[2];
 
@@ -847,8 +873,9 @@ static ssize_t secure_mode_store(struct class *cla,
 	return count;
 }
 
-static ssize_t dump_grid_show(struct class *cla,
-					struct class_attribute *attr, char *buf)
+static ssize_t dump_grid_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int dump_grid = ppmgr_device.tb_detect_init_mute;
 
@@ -857,9 +884,9 @@ static ssize_t dump_grid_show(struct class *cla,
 }
 
 #define Rd(adr) aml_read_vcbus(adr)
-static ssize_t dump_grid_store(struct class *cla,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t dump_grid_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned long tmp;
 	int ret = kstrtoul(buf, 0, &tmp);
@@ -872,8 +899,9 @@ static ssize_t dump_grid_store(struct class *cla,
 	return count;
 }
 
-static ssize_t bypass_decontour_show(struct class *cla,
-					struct class_attribute *attr, char *buf)
+static ssize_t bypass_decontour_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int  bypass_decontour = ppmgr_device.bypass_decontour;
 
@@ -881,9 +909,9 @@ static ssize_t bypass_decontour_show(struct class *cla,
 		 bypass_decontour);
 }
 
-static ssize_t  bypass_decontour_store(struct class *cla,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t bypass_decontour_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned long tmp;
 	int ret = kstrtoul(buf, 0, &tmp);
@@ -896,8 +924,9 @@ static ssize_t  bypass_decontour_store(struct class *cla,
 	return count;
 }
 
-static ssize_t debug_decontour_show(struct class *cla,
-					struct class_attribute *attr, char *buf)
+static ssize_t debug_decontour_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int debug_decontour = ppmgr_device.debug_decontour;
 
@@ -905,9 +934,9 @@ static ssize_t debug_decontour_show(struct class *cla,
 		 debug_decontour);
 }
 
-static ssize_t  debug_decontour_store(struct class *cla,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t debug_decontour_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned long tmp;
 	int ret = kstrtoul(buf, 0, &tmp);
@@ -920,8 +949,9 @@ static ssize_t  debug_decontour_store(struct class *cla,
 	return count;
 }
 
-static ssize_t i_do_decontour_show(struct class *cla,
-					struct class_attribute *attr, char *buf)
+static ssize_t i_do_decontour_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int i_do_decontour = ppmgr_device.i_do_decontour;
 
@@ -929,9 +959,9 @@ static ssize_t i_do_decontour_show(struct class *cla,
 		 i_do_decontour);
 }
 
-static ssize_t  i_do_decontour_store(struct class *cla,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t i_do_decontour_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned long tmp;
 	int ret = kstrtoul(buf, 0, &tmp);
@@ -943,8 +973,10 @@ static ssize_t  i_do_decontour_store(struct class *cla,
 	ppmgr_device.i_do_decontour = tmp;
 	return count;
 }
-static ssize_t mirror_show(struct class *cla, struct class_attribute *attr,
-			   char *buf)
+
+static ssize_t mirror_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (ppmgr_device.mirror_flag == 1)
 		return snprintf(buf, 80,
@@ -960,8 +992,9 @@ static ssize_t mirror_show(struct class *cla, struct class_attribute *attr,
 				ppmgr_device.mirror_flag);
 }
 
-static ssize_t mirror_store(struct class *cla, struct class_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t mirror_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret = kstrtol(buf, 0, &tmp);
@@ -978,8 +1011,9 @@ static ssize_t mirror_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t is_used_show(struct class *cla,
-					struct class_attribute *attr, char *buf)
+static ssize_t is_used_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int is_used = ppmgr_device.is_used;
 
@@ -987,9 +1021,9 @@ static ssize_t is_used_show(struct class *cla,
 		 is_used);
 }
 
-static ssize_t  is_used_store(struct class *cla,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t is_used_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned long tmp;
 	int ret = kstrtoul(buf, 0, &tmp);
@@ -1008,9 +1042,9 @@ static ssize_t  is_used_store(struct class *cla,
  */
 /* extern int vf_ppmgr_get_states(struct vframe_states *states); */
 
-static ssize_t ppmgr_vframe_states_show(struct class *cla,
-					struct class_attribute *attr,
-					char *buf)
+static ssize_t ppmgr_vframe_states_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret = 0;
 	struct vframe_states states;

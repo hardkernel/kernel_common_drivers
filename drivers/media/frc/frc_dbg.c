@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/frc/frc_reg.h>
 #include <linux/amlogic/media/frc/frc_common.h>
 #include <linux/amlogic/media/vout/vinfo.h>
@@ -63,9 +64,9 @@ static void frc_debug_parse_param(char *buf_orig, char **parm)
 	}
 }
 
-ssize_t frc_reg_show(struct class *class,
-	struct class_attribute *attr,
-	char *buf)
+ssize_t frc_reg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_frc(0, "read:  echo r reg > /sys/class/frc/reg\n");
 	pr_frc(0, "write: echo w reg value > /sys/class/frc/reg\n");
@@ -73,18 +74,17 @@ ssize_t frc_reg_show(struct class *class,
 	return 0;
 }
 
-ssize_t frc_reg_store(struct class *class,
-	struct class_attribute *attr,
-	const char *buf,
-	size_t count)
+ssize_t frc_reg_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	frc_reg_io(buf);
 	return count;
 }
 
-ssize_t frc_tool_debug_show(struct class *class,
-	struct class_attribute *attr,
-	char *buf)
+ssize_t frc_tool_debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct tool_debug_s *read_parm = NULL;
 	struct frc_dev_s *devp = get_frc_devp();
@@ -94,10 +94,9 @@ ssize_t frc_tool_debug_show(struct class *class,
 		read_parm->reg_read, read_parm->reg_read_val);
 }
 
-ssize_t frc_tool_debug_store(struct class *class,
-	struct class_attribute *attr,
-	const char *buf,
-	size_t count)
+ssize_t frc_tool_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
@@ -105,19 +104,18 @@ ssize_t frc_tool_debug_store(struct class *class,
 	return count;
 }
 
-ssize_t frc_debug_show(struct class *class,
-	struct class_attribute *attr,
-	char *buf)
+ssize_t frc_debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
 	return frc_debug_if_help(devp, buf);
 }
 
-ssize_t frc_debug_store(struct class *class,
-	struct class_attribute *attr,
-	const char *buf,
-	size_t count)
+ssize_t frc_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
@@ -126,19 +124,18 @@ ssize_t frc_debug_store(struct class *class,
 	return count;
 }
 
-ssize_t frc_buf_show(struct class *class,
-	struct class_attribute *attr,
-	char *buf)
+ssize_t frc_buf_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
 	return frc_debug_buf_if_help(devp, buf);
 }
 
-ssize_t frc_buf_store(struct class *class,
-	struct class_attribute *attr,
-	const char *buf,
-	size_t count)
+ssize_t frc_buf_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
@@ -147,19 +144,18 @@ ssize_t frc_buf_store(struct class *class,
 	return count;
 }
 
-ssize_t frc_rdma_show(struct class *class,
-	struct class_attribute *attr,
-	char *buf)
+ssize_t frc_rdma_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
 	return frc_debug_rdma_if_help(devp, buf);
 }
 
-ssize_t frc_rdma_store(struct class *class,
-	struct class_attribute *attr,
-	const char *buf,
-	size_t count)
+ssize_t frc_rdma_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
@@ -168,19 +164,19 @@ ssize_t frc_rdma_store(struct class *class,
 	return count;
 }
 
-ssize_t frc_param_show(struct class *class,
-	struct class_attribute *attr,
-	char *buf)
+ssize_t frc_param_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
 	return frc_debug_param_if_help(devp, buf);
 }
 
-ssize_t frc_param_store(struct class *class,
-	struct class_attribute *attr,
-	const char *buf,
-	size_t count)
+ssize_t frc_param_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf,
+			size_t count)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
@@ -189,19 +185,18 @@ ssize_t frc_param_store(struct class *class,
 	return count;
 }
 
-ssize_t frc_other_show(struct class *class,
-	struct class_attribute *attr,
-	char *buf)
+ssize_t frc_other_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
 	return frc_debug_other_if_help(devp, buf);
 }
 
-ssize_t frc_other_store(struct class *class,
-	struct class_attribute *attr,
-	const char *buf,
-	size_t count)
+ssize_t frc_other_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 

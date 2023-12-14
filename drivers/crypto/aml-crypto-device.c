@@ -2051,7 +2051,6 @@ static int aml_crypto_dev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *match;
-	struct resource *res_irq = 0;
 	const struct meson_crypto_dev_data *priv_data = NULL;
 	int err = 0;
 	u8 thread = 0;
@@ -2070,8 +2069,6 @@ static int aml_crypto_dev_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-
 	of_property_read_u8(pdev->dev.of_node, "thread", &thread);
 
 	priv_data = match->data;
@@ -2079,7 +2076,7 @@ static int aml_crypto_dev_probe(struct platform_device *pdev)
 	crypto_dd->thread = thread;
 	crypto_dd->status = priv_data->status + thread;
 	crypto_dd->algo_cap = priv_data->algo_cap;
-	crypto_dd->irq = res_irq->start;
+	crypto_dd->irq = platform_get_irq(pdev, 0);
 	crypto_dd->processing = NULL;
 	mutex_init(&crypto_dd->lock);
 	platform_set_drvdata(pdev, crypto_dd);

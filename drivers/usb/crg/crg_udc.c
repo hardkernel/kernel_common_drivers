@@ -33,6 +33,7 @@
 #include <linux/amlogic/usb-v2.h>
 #include <linux/usb/composite.h>
 #include <linux/configfs.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #define CRG_MTP_WR 1
 #define MAX_PACKET_SIZE 1024
@@ -4839,7 +4840,7 @@ int crg_otg_write_UDC(const char *udc_name)
 			goto err;
 		}
 		gi->composite.gadget_driver.udc_name = name;
-		ret = usb_gadget_probe_driver(&gi->composite.gadget_driver);
+		ret = kv_usb_gadget_register_driver(&gi->composite.gadget_driver);
 		if (ret) {
 			gi->composite.gadget_driver.udc_name = NULL;
 			goto err;

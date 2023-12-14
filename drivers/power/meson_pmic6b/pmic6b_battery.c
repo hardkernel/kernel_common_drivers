@@ -16,6 +16,7 @@
 #include <asm/div64.h>
 #include <linux/regmap.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/pmic/meson_pmic6b.h>
 
 #define SAR_IRQ_TIMEOUT		5000
@@ -808,23 +809,24 @@ static const struct power_supply_desc pmic6b_bat_desc = {
 	.get_property	= pmic6b_bat_get_prop,
 };
 
+//KV_TODO: review
 int pmic6b_bat_hw_init(struct pmic6b_bat *bat)
 {
 	int ret = 0;
-	struct power_supply_battery_info info = { };
+	struct power_supply_battery_info *info;
 	struct power_supply_battery_ocv_table *table;
 
-	ret = power_supply_get_battery_info(bat->battery, &info);
+	ret = kv_power_supply_get_battery_info(bat->battery, &info);
 	if (ret) {
 		dev_err(bat->dev, "failed to get battery information\n");
 		return ret;
 	}
-	bat->total_cap = info.charge_full_design_uah / 1000;
-	bat->max_volt = info.constant_charge_voltage_max_uv / 1000;
-	bat->internal_resist = info.factory_internal_resistance_uohm / 1000;
-	bat->min_volt = info.voltage_min_design_uv;
+	bat->total_cap = info->charge_full_design_uah / 1000;
+	bat->max_volt = info->constant_charge_voltage_max_uv / 1000;
+	bat->internal_resist = info->factory_internal_resistance_uohm / 1000;
+	bat->min_volt = info->voltage_min_design_uv;
 
-	table = power_supply_find_ocv2cap_table(&info, 20, &bat->table_len);
+	table = power_supply_find_ocv2cap_table(info, 20, &bat->table_len);
 	if (!table)
 		return -EINVAL;
 
@@ -832,7 +834,7 @@ int pmic6b_bat_hw_init(struct pmic6b_bat *bat)
 				      bat->table_len * sizeof(*table),
 				      GFP_KERNEL);
 	if (!bat->cap_table) {
-		power_supply_put_battery_info(bat->battery, &info);
+		power_supply_put_battery_info(bat->battery, info);
 		return -ENOMEM;
 	}
 
@@ -840,7 +842,7 @@ int pmic6b_bat_hw_init(struct pmic6b_bat *bat)
 						     bat->table_len,
 						     bat->min_volt);
 
-	power_supply_put_battery_info(bat->battery, &info);
+	kv_power_supply_put_battery_info(bat->battery, info);
 
 	return ret;
 }

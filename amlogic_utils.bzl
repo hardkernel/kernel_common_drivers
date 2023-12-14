@@ -19,7 +19,6 @@ load(
     "merged_kernel_uapi_headers",
 )
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
-load("//build/kernel/kleaf/impl:gki_artifacts.bzl", "gki_artifacts", "gki_artifacts_prebuilts")
 load("//build/kernel/kleaf:print_debug.bzl", "print_debug")
 load("@kernel_toolchain_info//:dict.bzl", "BRANCH", "common_kernel_package")
 

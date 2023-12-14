@@ -39,6 +39,7 @@ ulong canvas_get_addr(u32 index)
 #ifdef CONFIG_AMLOGIC_MEDIA_CODEC_MM
 #include <linux/amlogic/media/codec_mm/configs.h>
 #endif
+#include <linux/amlogic/kernel_versions.h>
 /* Local headers */
 #include "vftrace.h"
 #include "vfm.h"
@@ -511,8 +512,9 @@ int dump_vfm_state(char *buf)
 	return len;
 }
 
-static ssize_t map_show(struct class *class,
-			struct class_attribute *attr, char *buf)
+static ssize_t map_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return (ssize_t)dump_vfm_state(buf);
 }
@@ -693,10 +695,9 @@ static void add_dummy_receiver(char *vfm_name_)
  * <name> the name of the path.
  * <node1 node2 ...> the name of the nodes in the path.
  */
-static ssize_t map_store(struct class *class,
-			 struct class_attribute *attr,
-			 const char *buf,
-			 size_t count)
+static ssize_t map_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *ps, *token;
 	int i = 0;
@@ -747,9 +748,9 @@ static ssize_t map_store(struct class *class,
 	return count;
 }
 
-static ssize_t vfm_debug_flag_show(struct class *class,
-				   struct class_attribute *attr,
-				   char *buf)
+static ssize_t vfm_debug_flag_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t size = 0;
 
@@ -758,9 +759,9 @@ static ssize_t vfm_debug_flag_show(struct class *class,
 	return size;
 }
 
-static ssize_t vfm_debug_flag_store(struct class *class,
-				    struct class_attribute *attr,
-				    const char *buf, size_t size)
+static ssize_t vfm_debug_flag_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int val;
 	ssize_t ret;
@@ -775,9 +776,9 @@ static ssize_t vfm_debug_flag_store(struct class *class,
 	return size;
 }
 
-static ssize_t vfm_map_num_show(struct class *class,
-				struct class_attribute *attr,
-				char *buf)
+static ssize_t vfm_map_num_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t size = 0;
 
@@ -786,9 +787,9 @@ static ssize_t vfm_map_num_show(struct class *class,
 	return size;
 }
 
-static ssize_t vfm_map_num_store(struct class *class,
-				 struct class_attribute *attr,
-				 const char *buf, size_t size)
+static ssize_t vfm_map_num_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int val;
 	ssize_t ret;
@@ -803,8 +804,9 @@ static ssize_t vfm_map_num_store(struct class *class,
 	return size;
 }
 
-static ssize_t vfm_trace_enable_show(struct class *class,
-				     struct class_attribute *attr, char *buf)
+static ssize_t vfm_trace_enable_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t size = 0;
 
@@ -813,9 +815,9 @@ static ssize_t vfm_trace_enable_show(struct class *class,
 	return size;
 }
 
-static ssize_t vfm_trace_enable_store(struct class *class,
-				      struct class_attribute *attr,
-				      const char *buf, size_t size)
+static ssize_t vfm_trace_enable_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int val;
 	ssize_t ret;
@@ -830,9 +832,9 @@ static ssize_t vfm_trace_enable_store(struct class *class,
 	return size;
 }
 
-static ssize_t vfm_trace_num_show(struct class *class,
-				  struct class_attribute *attr,
-				  char *buf)
+static ssize_t vfm_trace_num_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t size = 0;
 
@@ -841,9 +843,9 @@ static ssize_t vfm_trace_num_show(struct class *class,
 	return size;
 }
 
-static ssize_t vfm_trace_num_store(struct class *class,
-				   struct class_attribute *attr,
-				   const char *buf, size_t size)
+static ssize_t vfm_trace_num_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int val;
 	ssize_t ret;

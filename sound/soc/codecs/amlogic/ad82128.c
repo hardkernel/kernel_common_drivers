@@ -34,6 +34,8 @@
 #include <sound/initval.h>
 #include <linux/regmap.h>
 #include <linux/of_gpio.h>
+
+#include <linux/amlogic/kernel_versions.h>
 #include "ad82128.h"
 
 // Define how often to check (and clear) the fault status register (in ms)
@@ -697,7 +699,8 @@ static const struct snd_soc_component_driver soc_component_dev_ad82128 = {
 	.idle_bias_on = 1,
 	.use_pmdown_time = 1,
 	.endianness = 1,
-	.non_legacy_dai_naming = 1,
+	//KV_TODO: modify .legacy_dai_naming
+	KV_SND_SOC_DRIVER_DEF_NON_LEGACY_NAMEING(1)
 };
 
 /* PCM rates supported by the AD82128 driver */
@@ -778,14 +781,20 @@ static int ad82128_parse_dt(struct ad82128_data *ad82128,
 	return ret;
 }
 
-static int ad82128_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static const struct i2c_device_id ad82128_id[] = {
+	{ "ad82128", AD82128 },
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, ad82128_id);
+
+static int ad82128_probe(struct i2c_client *client KV_I2C_PROBE_ID)
 {
 	struct device *dev = &client->dev;
 	struct ad82128_data *data;
 	const struct regmap_config *regmap_config;
 	int ret;
 	int i;
+	KV_I2C_PROBE_DEF_ID(client, ad82128_id);
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -852,13 +861,6 @@ static void ad82128_i2c_shutdown(struct i2c_client *client)
 	if (data->reset_pin)
 		gpio_direction_output(data->reset_pin, GPIOF_OUT_INIT_LOW);
 }
-
-static const struct i2c_device_id ad82128_id[] = {
-	{ "ad82128", AD82128 },
-	{}
-};
-
-MODULE_DEVICE_TABLE(i2c, ad82128_id);
 
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id ad82128_of_match[] = {

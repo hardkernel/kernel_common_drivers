@@ -41,6 +41,7 @@
 
 #include <asm-generic/bug.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #include "videotunnel_priv.h"
 #include "videotunnel.h"
 
@@ -1924,7 +1925,8 @@ static unsigned int vt_ioctl_dir(unsigned int cmd)
 	}
 }
 
-static long vt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+//KV_TODO: modify conflicting include/linux/tty.h:504 vt_ioctl()
+static long videotunnel_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
 	union vt_ioctl_arg data;
@@ -2195,8 +2197,9 @@ static ssize_t instance_show_locked(struct vt_instance *instance, char *buf)
 	return pos;
 }
 
-static ssize_t instance_show(struct class *class,
-			     struct class_attribute *attr, char *buf)
+static ssize_t instance_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct vt_dev *dev = vdev;
 	struct vt_instance *instance = NULL;
@@ -2221,8 +2224,9 @@ static ssize_t instance_show(struct class *class,
 	return count;
 }
 
-static ssize_t state_show(struct class *class,
-			  struct class_attribute *attr, char *buf)
+static ssize_t state_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t pos = 0;
 	struct vt_state *state = &vdev->state;
@@ -2288,9 +2292,9 @@ static const struct file_operations vt_fops = {
 	.owner = THIS_MODULE,
 	.open = vt_open,
 	.release = vt_release,
-	.unlocked_ioctl = vt_ioctl,
+	.unlocked_ioctl = videotunnel_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl = vt_ioctl,
+	.compat_ioctl = videotunnel_ioctl,
 #endif
 	.poll = vt_poll,
 };

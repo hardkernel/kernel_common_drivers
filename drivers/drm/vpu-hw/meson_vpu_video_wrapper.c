@@ -8,6 +8,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
@@ -424,7 +425,9 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			vf_info.reserved[0] = 0;
 			vf_info.phy_addr[0] = mvvs->phy_addr[0];
 			vf_info.phy_addr[1] = mvvs->phy_addr[1];
-			dma_resv_add_excl_fence(vf_info.dmabuf->resv, vf_info.release_fence);
+//KV_TODO: modify
+			kv_dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
+					      DMA_RESV_USAGE_READ);
 			MESON_DRM_FENCE("dmabuf(%px), release_fence(%px)\n",
 				vf_info.dmabuf, vf_info.release_fence);
 			MESON_DRM_BLOCK("vf-info crop:%u, %u, %u, %u, pic:%u, %u\n",
@@ -458,7 +461,9 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			vf_info.phy_addr[0] = mvvs->phy_addr[0];
 			vf_info.phy_addr[1] = mvvs->phy_addr[1];
 			vf_info.reserved[0] = video_type_get(pixel_format);
-			dma_resv_add_excl_fence(vf_info.dmabuf->resv, vf_info.release_fence);
+//KV_TODO: modify
+			kv_dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
+					   DMA_RESV_USAGE_READ);
 #ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
 			video_display_setframe(vblk->index, &vf_info, 0);
 #endif

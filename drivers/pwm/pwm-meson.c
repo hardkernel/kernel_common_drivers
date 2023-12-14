@@ -43,6 +43,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_AMLOGIC_MODIFY
 #include <linux/amlogic/pwm-meson.h>
 
@@ -544,8 +545,9 @@ static void meson_v2_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm
 }
 #endif
 
-static void meson_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
-				struct pwm_state *state)
+static KV_PWM_GET_STATE_TYPE meson_pwm_get_state(struct pwm_chip *chip,
+						 struct pwm_device *pwm,
+						 struct pwm_state *state)
 {
 	struct meson_pwm *meson = to_meson_pwm(chip);
 	struct meson_pwm_channel_data *channel_data;
@@ -557,11 +559,13 @@ static void meson_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 #endif
 
 	if (!state)
-		return;
+		goto state_return;
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-	if (meson->data->extern_clk)
-		return meson_v2_pwm_get_state(chip, pwm, state);
+	if (meson->data->extern_clk) {
+		meson_v2_pwm_get_state(chip, pwm, state);
+		goto state_return;
+	}
 	switch (pwm->hwpwm) {
 	case 0:
 		constant_mask = MISC_A_CONSTANT;
@@ -577,9 +581,10 @@ static void meson_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	case 3:
 		constant_mask = MISC_B_CONSTANT;
+		goto state_return;
 
 	default:
-		return;
+		goto state_return;
 	}
 #endif
 
@@ -640,6 +645,9 @@ static void meson_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		state->duty_cycle = 0;
 	}
 #endif
+
+state_return:
+	KV_PWM_GET_STATE_RET(0);
 }
 
 static const struct pwm_ops meson_pwm_ops = {

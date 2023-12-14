@@ -24,6 +24,7 @@
 #include <linux/list.h>
 #include <linux/amlogic/aml_mbox.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
+#include <linux/amlogic/kernel_versions.h>
 #include "meson_mbox_devfs.h"
 
 #define DRIVER_NAME		"mbox-devfs"
@@ -223,7 +224,7 @@ static int mbox_cdev_init(struct device *dev)
 		return -1;
 	}
 
-	mbox_class = class_create(THIS_MODULE, "mbox_devfs");
+	mbox_class = kv_class_create(THIS_MODULE, "mbox_devfs");
 	if (IS_ERR(mbox_class))
 		goto err;
 

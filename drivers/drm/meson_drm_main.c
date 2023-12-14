@@ -49,6 +49,6 @@ static void __exit meson_drm_main_exit(void)
 
 module_init(meson_drm_main_init);
 module_exit(meson_drm_main_exit);
-
+MODULE_IMPORT_NS(DMA_BUF);
 MODULE_LICENSE("GPL v2");
 #endif

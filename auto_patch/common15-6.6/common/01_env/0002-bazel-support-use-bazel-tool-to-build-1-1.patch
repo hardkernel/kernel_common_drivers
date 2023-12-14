@@ -1,0 +1,59 @@
+From b27c81a8a586f824020d91eea2d1b73eab48465e Mon Sep 17 00:00:00 2001
+From: Wanwei Jiang <wanwei.jiang@amlogic.com>
+Date: Fri, 17 Mar 2023 17:35:31 +0800
+Subject: [PATCH 2/3] bazel: support use bazel tool to build [1/1]
+
+PD#SWPL-112151
+
+Problem:
+support use bazel tool to build
+
+Solution:
+support use bazel tool to build
+
+Verify:
+sc2
+
+Change-Id: I96e80b97ed481f32239955748ffa52e7d40a85aa
+Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
+---
+ BUILD.bazel | 3 +++
+ modules.bzl | 6 ++++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/BUILD.bazel b/BUILD.bazel
+index f05c9ed817b8..4b1c82122200 100644
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -951,3 +951,6 @@ zip_archive(
+     srcs = [":kselftest_tests_arm64"],
+     out = "tests.zip",
+ )
++
++load("//common:common_drivers/amlogic.bzl", "define_amlogic")
++define_amlogic()
+diff --git a/modules.bzl b/modules.bzl
+index 84ba6081298a..0909995225a5 100644
+--- a/modules.bzl
++++ b/modules.bzl
+@@ -6,6 +6,8 @@ This module contains a full list of kernel modules
+  compiled by GKI.
+ """
+ 
++load("//common:common_drivers/modules.bzl", "ALL_MODULES_REMOVE")
++
+ _COMMON_GKI_MODULES_LIST = [
+     # keep sorted
+     "drivers/android/memhealth.ko",
+@@ -129,4 +131,8 @@ def get_gki_modules_list(arch = None):
+             arch,
+         ))
+ 
++    remove_modules_items = {module: None for module in depset(ALL_MODULES_REMOVE).to_list()}
++    gki_modules_list = [module for module in depset(gki_modules_list).to_list() if module not in remove_modules_items] \
++			if remove_modules_items else gki_modules_list
++
+     return gki_modules_list
+-- 
+2.41.0
+

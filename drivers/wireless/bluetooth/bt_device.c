@@ -33,7 +33,7 @@
 #include <linux/amlogic/pm.h>
 #include <linux/irq.h>
 #include <linux/amlogic/gki_module.h>
-
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/input.h>
 
 #if defined(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND) && defined(CONFIG_AMLOGIC_GX_SUSPEND)
@@ -74,32 +74,33 @@ static int distinguish_module(void)
 	return 0;
 }
 
-static ssize_t value_show(struct class *cls,
-	struct class_attribute *attr, char *_buf)
+static ssize_t value_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	char local_addr[6];
 
-	if (!_buf)
+	if (!buf)
 		return -EINVAL;
 
 	if (strlen(bt_addr) == 0) {
 		local_addr[0] = 0x22;
 		local_addr[1] = 0x22;
-		local_addr[2] = prandom_u32();
-		local_addr[3] = prandom_u32();
-		local_addr[4] = prandom_u32();
-		local_addr[5] = prandom_u32();
+		local_addr[2] = kv_aml_random_u32();
+		local_addr[3] = kv_aml_random_u32();
+		local_addr[4] = kv_aml_random_u32();
+		local_addr[5] = kv_aml_random_u32();
 		sprintf(bt_addr, "%02x:%02x:%02x:%02x:%02x:%02x",
 		local_addr[0], local_addr[1], local_addr[2],
 		local_addr[3], local_addr[4], local_addr[5]);
 	}
 
-	return sprintf(_buf, "%s\n", bt_addr);
+	return sprintf(buf, "%s\n", bt_addr);
 }
 
-static ssize_t value_store(struct class *cls,
-			   struct class_attribute *attr,
-			   const char __user *buf, size_t count)
+static ssize_t value_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int ret = -EINVAL;
 
@@ -460,9 +461,9 @@ static int bt_probe(struct platform_device *pdev)
 			pr_warn("not get gpio_reset\n");
 			pdata->gpio_reset = 0;
 		} else {
-			pdata->gpio_reset = of_get_named_gpio_flags
+			pdata->gpio_reset = of_get_named_gpio
 							(pdev->dev.of_node,
-							"reset-gpios", 0, NULL);
+							"reset-gpios", 0);
 		}
 
 		ret = of_property_read_string(pdev->dev.of_node,
@@ -471,9 +472,9 @@ static int bt_probe(struct platform_device *pdev)
 			pr_debug("not get gpio_en\n");
 			pdata->gpio_en = 0;
 		} else {
-			pdata->gpio_en = of_get_named_gpio_flags
+			pdata->gpio_en = of_get_named_gpio
 							(pdev->dev.of_node,
-							"bt_en-gpios", 0, NULL);
+							"bt_en-gpios", 0);
 		}
 		ret = of_property_read_string(pdev->dev.of_node,
 					      "hostwake-gpios", &str);
@@ -481,10 +482,10 @@ static int bt_probe(struct platform_device *pdev)
 			pr_debug("not get gpio_hostwake\n");
 			pdata->gpio_hostwake = 0;
 		} else {
-			pdata->gpio_hostwake = of_get_named_gpio_flags
+			pdata->gpio_hostwake = of_get_named_gpio
 							(pdev->dev.of_node,
 							"hostwake-gpios",
-							0, NULL);
+							0);
 		}
 		/*gpio_btwakeup = BT_WAKE_HOST*/
 		ret = of_property_read_string(pdev->dev.of_node,
@@ -493,10 +494,10 @@ static int bt_probe(struct platform_device *pdev)
 			pr_debug("not get btwakeup-gpios\n");
 			pdata->gpio_btwakeup = 0;
 		} else {
-			pdata->gpio_btwakeup = of_get_named_gpio_flags
+			pdata->gpio_btwakeup = of_get_named_gpio
 							(pdev->dev.of_node,
 							"btwakeup-gpios",
-							0, NULL);
+							0);
 		}
 
 		prop = of_get_property(pdev->dev.of_node,
@@ -537,7 +538,7 @@ static int bt_probe(struct platform_device *pdev)
 #else
 	pdata = (struct bt_dev_data *)(pdev->dev.platform_data);
 #endif
-	bt_addr_class = class_create(THIS_MODULE, "bt_addr");
+	bt_addr_class = kv_class_create(THIS_MODULE, "bt_addr");
 	ret = class_create_file(bt_addr_class, &class_attr_value);
 
 	bt_device_init(pdata);

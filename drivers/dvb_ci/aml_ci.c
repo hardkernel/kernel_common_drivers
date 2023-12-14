@@ -14,6 +14,7 @@
 #include <linux/sysfs.h>
 #include <linux/of.h>
 #include <dvbdev.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #include "aml_ci.h"
 
@@ -349,8 +350,9 @@ void aml_ci_exit(struct aml_ci *ci)
 
 static struct aml_ci *ci_dev;
 
-static ssize_t ts_show(struct class *class,
-	struct class_attribute *attr, char *buf)
+static ssize_t ts_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret;
 
@@ -379,7 +381,7 @@ static int aml_ci_register_class(struct aml_ci *ci)
 		return -ENOMEM;
 
 	snprintf((char *)clp->name, CLASS_NAME_LEN, "amlci-%d", ci->id);
-	clp->owner = THIS_MODULE;
+	kv_set_class_owner(clp);
 	clp->class_groups = aml_ci_groups;
 	ret = class_register(clp);
 	if (ret)

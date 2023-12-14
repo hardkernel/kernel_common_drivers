@@ -31,7 +31,7 @@ struct user_logger_entry_compat {
 	__s32		tid;
 	__s32		sec;
 	__s32		nsec;
-	char		msg[0];
+	char		msg[];
 };
 
 /**
@@ -57,7 +57,7 @@ struct logger_entry {
 	__s32		sec;
 	__s32		nsec;
 	kuid_t		euid;
-	char		msg[0];
+	char		msg[];
 };
 
 #define LOGGER_LOG_RADIO	"log_radio"	/* radio-related messages */

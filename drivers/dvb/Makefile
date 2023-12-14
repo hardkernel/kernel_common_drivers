@@ -19,9 +19,9 @@ $(MODULE_NAME)-$(CONFIG_AMLOGIC_DVB_EXTERN) += aml_dtvdemod.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_DVB_EXTERN) += aml_tuner_ops.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_DVB_EXTERN) += aml_demod_ops.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_DVB_EXTERN) += aml_dvb_extern_driver.o
-include $(COMMON_DRIVERS_DIR)/drivers/dvb/aucpu/Makefile
-include $(COMMON_DRIVERS_DIR)/drivers/dvb/dsm/Makefile
-include $(COMMON_DRIVERS_DIR)/drivers/dvb/smartcard/Makefile
-include $(COMMON_DRIVERS_DIR)/drivers/dvb/smartcard_sc2/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/dvb/aucpu/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/dvb/dsm/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/dvb/smartcard/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/dvb/smartcard_sc2/Makefile
 
 obj-$(CONFIG_AMLOGIC_DVB_DMX) += demux/

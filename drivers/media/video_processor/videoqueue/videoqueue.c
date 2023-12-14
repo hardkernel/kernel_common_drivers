@@ -20,6 +20,7 @@
 #include <linux/compat.h>
 #include <linux/delay.h>
 #include <uapi/linux/sched/types.h>
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
@@ -1187,18 +1188,18 @@ static const struct vframe_receiver_op_s video_vf_receiver = {
 	.event_cb = video_receiver_event_fun
 };
 
-static ssize_t print_close_show(struct class *cla,
-				struct class_attribute *attr,
-				char *buf)
+static ssize_t print_close_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80,
 			"current print_close is %d\n",
 			print_close);
 }
 
-static ssize_t print_close_store(struct class *cla,
-				 struct class_attribute *attr,
-				 const char *buf, size_t count)
+static ssize_t print_close_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -1212,18 +1213,18 @@ static ssize_t print_close_store(struct class *cla,
 	return count;
 }
 
-static ssize_t print_flag_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t print_flag_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80,
 			"current print_flag is %d\n",
 			print_flag);
 }
 
-static ssize_t print_flag_store(struct class *cla,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t print_flag_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -1237,9 +1238,9 @@ static ssize_t print_flag_store(struct class *cla,
 	return count;
 }
 
-static ssize_t buf_count_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t buf_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_dev)
 		return snprintf(buf, 80, "videoqueue is not enable.\n.");
@@ -1249,9 +1250,9 @@ static ssize_t buf_count_show(struct class *cla,
 			vq_dev->di_get_count, vq_dev->di_put_count);
 }
 
-static ssize_t dump_index_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t dump_index_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_dev)
 		return snprintf(buf, 80, "videoqueue is not enable.\n.");
@@ -1259,9 +1260,9 @@ static ssize_t dump_index_show(struct class *cla,
 			vq_dev->dump_index);
 }
 
-static ssize_t dump_index_store(struct class *cla,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t dump_index_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -1279,9 +1280,9 @@ static ssize_t dump_index_store(struct class *cla,
 	return count;
 }
 
-static ssize_t delay_vsync_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t delay_vsync_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_dev)
 		return snprintf(buf, 80, "videoqueue is not enable.\n.");
@@ -1290,9 +1291,9 @@ static ssize_t delay_vsync_show(struct class *cla,
 			vq_dev->delay_vsync_count);
 }
 
-static ssize_t delay_vsync_store(struct class *cla,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t delay_vsync_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -1310,9 +1311,9 @@ static ssize_t delay_vsync_store(struct class *cla,
 	return count;
 }
 
-static ssize_t vframe_get_delay_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t vframe_get_delay_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_dev)
 		return snprintf(buf, 80, "videoqueue is not enable.\n.");
@@ -1321,18 +1322,18 @@ static ssize_t vframe_get_delay_show(struct class *cla,
 			vq_dev->vframe_get_delay);
 }
 
-static ssize_t force_delay_ms_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t force_delay_ms_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80,
 			"current force_delay_ms is %d\n",
 			force_delay_ms);
 }
 
-static ssize_t force_delay_ms_store(struct class *cla,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t force_delay_ms_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -1350,9 +1351,9 @@ static ssize_t force_delay_ms_store(struct class *cla,
 	return count;
 }
 
-static ssize_t game_mode_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t game_mode_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_dev)
 		return snprintf(buf, 80, "videoqueue is not enable.\n.");
@@ -1360,9 +1361,9 @@ static ssize_t game_mode_show(struct class *cla,
 			vq_dev->game_mode);
 }
 
-static ssize_t game_mode_store(struct class *cla,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t game_mode_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	bool tmp;
 	int ret;
@@ -1380,9 +1381,9 @@ static ssize_t game_mode_store(struct class *cla,
 	return count;
 }
 
-static ssize_t force_game_mode_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t force_game_mode_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_dev)
 		return snprintf(buf, 80, "videoqueue is not enable.\n.");
@@ -1391,9 +1392,9 @@ static ssize_t force_game_mode_show(struct class *cla,
 			vq_dev->force_game_mode);
 }
 
-static ssize_t force_game_mode_store(struct class *cla,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t force_game_mode_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -1411,9 +1412,9 @@ static ssize_t force_game_mode_store(struct class *cla,
 	return count;
 }
 
-static ssize_t fence_dq_count_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t fence_dq_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_dev)
 		return snprintf(buf, 80, "videoqueue is not enable.\n.");
@@ -1422,9 +1423,9 @@ static ssize_t fence_dq_count_show(struct class *cla,
 			vq_dev->fence_dq_count);
 }
 
-static ssize_t fence_put_count_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t fence_put_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_dev)
 		return snprintf(buf, 80, "videoqueue is not enable.\n.");
@@ -1433,9 +1434,9 @@ static ssize_t fence_put_count_show(struct class *cla,
 			vq_dev->fence_put_count);
 }
 
-static ssize_t fence_null_count_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t fence_null_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_dev)
 		return snprintf(buf, 80, "videoqueue is not enable.\n.");
@@ -1444,9 +1445,9 @@ static ssize_t fence_null_count_show(struct class *cla,
 			vq_dev->fence_null_count);
 }
 
-static ssize_t resync_open_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t resync_open_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_dev)
 		return snprintf(buf, 80, "videoqueue is not enable.\n.");
@@ -1455,9 +1456,9 @@ static ssize_t resync_open_show(struct class *cla,
 			vq_dev->resync_open);
 }
 
-static ssize_t resync_open_store(struct class *cla,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t resync_open_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -1475,9 +1476,9 @@ static ssize_t resync_open_store(struct class *cla,
 	return count;
 }
 
-static ssize_t unknown_check_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t unknown_check_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_dev)
 		return snprintf(buf, 80, "videoqueue is not enable.\n.");
@@ -1486,9 +1487,9 @@ static ssize_t unknown_check_show(struct class *cla,
 			vq_dev->unknown_check);
 }
 
-static ssize_t unknown_check_store(struct class *cla,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t unknown_check_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -1506,9 +1507,9 @@ static ssize_t unknown_check_store(struct class *cla,
 	return count;
 }
 
-static ssize_t buf_count_pip_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t buf_count_pip_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_pip_dev)
 		return snprintf(buf, 80, "pip is not enable\n.");
@@ -1518,9 +1519,9 @@ static ssize_t buf_count_pip_show(struct class *cla,
 			vq_pip_dev->di_get_count, vq_pip_dev->di_put_count);
 }
 
-static ssize_t dump_index_pip_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t dump_index_pip_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_pip_dev)
 		return snprintf(buf, 80, "pip is not enable.\n.");
@@ -1528,9 +1529,9 @@ static ssize_t dump_index_pip_show(struct class *cla,
 			vq_pip_dev->dump_index);
 }
 
-static ssize_t dump_index_pip_store(struct class *cla,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t dump_index_pip_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -1548,9 +1549,9 @@ static ssize_t dump_index_pip_store(struct class *cla,
 	return count;
 }
 
-static ssize_t vframe_get_delay_pip_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t vframe_get_delay_pip_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_pip_dev)
 		return snprintf(buf, 80, "pip is not enable\n.");
@@ -1559,9 +1560,9 @@ static ssize_t vframe_get_delay_pip_show(struct class *cla,
 			vq_pip_dev->vframe_get_delay);
 }
 
-static ssize_t game_mode_pip_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t game_mode_pip_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_pip_dev)
 		return snprintf(buf, 80, "pip is not enable\n.");
@@ -1570,9 +1571,9 @@ static ssize_t game_mode_pip_show(struct class *cla,
 			vq_pip_dev->game_mode);
 }
 
-static ssize_t game_mode_pip_store(struct class *cla,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t game_mode_pip_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	bool tmp;
 	int ret;
@@ -1590,9 +1591,9 @@ static ssize_t game_mode_pip_store(struct class *cla,
 	return count;
 }
 
-static ssize_t force_game_mode_pip_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t force_game_mode_pip_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_pip_dev)
 		return snprintf(buf, 80, "pip is not enable\n.");
@@ -1601,9 +1602,9 @@ static ssize_t force_game_mode_pip_show(struct class *cla,
 			vq_pip_dev->force_game_mode);
 }
 
-static ssize_t force_game_mode_pip_store(struct class *cla,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t force_game_mode_pip_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -1621,9 +1622,9 @@ static ssize_t force_game_mode_pip_store(struct class *cla,
 	return count;
 }
 
-static ssize_t fence_dq_count_pip_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t fence_dq_count_pip_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_pip_dev)
 		return snprintf(buf, 80, "pip is not enable\n.");
@@ -1632,9 +1633,9 @@ static ssize_t fence_dq_count_pip_show(struct class *cla,
 			vq_pip_dev->fence_dq_count);
 }
 
-static ssize_t fence_put_count_pip_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t fence_put_count_pip_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_pip_dev)
 		return snprintf(buf, 80, "pip is not enable\n.");
@@ -1643,9 +1644,9 @@ static ssize_t fence_put_count_pip_show(struct class *cla,
 			vq_pip_dev->fence_put_count);
 }
 
-static ssize_t fence_null_count_pip_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t fence_null_count_pip_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_pip_dev)
 		return snprintf(buf, 80, "pip is not enable\n.");
@@ -1654,9 +1655,9 @@ static ssize_t fence_null_count_pip_show(struct class *cla,
 			vq_pip_dev->fence_null_count);
 }
 
-static ssize_t resync_open_pip_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t resync_open_pip_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_pip_dev)
 		return snprintf(buf, 80, "pip is not enable\n.");
@@ -1665,9 +1666,9 @@ static ssize_t resync_open_pip_show(struct class *cla,
 			vq_pip_dev->resync_open);
 }
 
-static ssize_t resync_open_pip_store(struct class *cla,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t resync_open_pip_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -1685,9 +1686,9 @@ static ssize_t resync_open_pip_store(struct class *cla,
 	return count;
 }
 
-static ssize_t unknown_check_pip_show(struct class *cla,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t unknown_check_pip_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (!vq_pip_dev)
 		return snprintf(buf, 80, "pip is not enable\n.");
@@ -1696,9 +1697,9 @@ static ssize_t unknown_check_pip_show(struct class *cla,
 			vq_pip_dev->unknown_check);
 }
 
-static ssize_t unknown_check_pip_store(struct class *cla,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t unknown_check_pip_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;

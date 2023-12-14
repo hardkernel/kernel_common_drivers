@@ -269,6 +269,7 @@ static void set_hpll_clk_out(struct hdmitx20_hw *tx_hw, unsigned int clk)
 		break;
 	case MESON_CPU_ID_SC2:
 		set_sc2_hpll_clk_out(frac_rate, clk);
+		break;
 	default:
 		break;
 	}

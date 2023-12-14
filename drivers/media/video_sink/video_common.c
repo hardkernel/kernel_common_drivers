@@ -30,6 +30,7 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/ctype.h>
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
@@ -1252,9 +1253,9 @@ static void dump_vppx_blend_reg(void)
 	}
 }
 
-ssize_t reg_dump_store(struct class *cla,
-				 struct class_attribute *attr,
-				const char *buf, size_t count)
+ssize_t reg_dump_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -1290,9 +1291,9 @@ ssize_t reg_dump_store(struct class *cla,
 }
 
 #else
-ssize_t reg_dump_store(struct class *cla,
-				 struct class_attribute *attr,
-				const char *buf, size_t count)
+ssize_t reg_dump_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;

@@ -9,11 +9,14 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_modeset_lock.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_edid.h>
 
 #include <linux/component.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/device.h>
+
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
 
 #include "meson_writeback.h"
@@ -422,10 +425,12 @@ int am_meson_writeback_create(struct drm_device *drm)
 	/* register Connector */
 	drm_connector_helper_add(&wb_connector->base,
 			&am_writeback_connector_helper_funcs);
-	ret = drm_writeback_connector_init(drm, wb_connector,
+	//KV_TODO: review
+	ret = kv_drm_writeback_connector_init(drm, wb_connector,
 			&am_writeback_connector_funcs,
 			&am_writeback_encoder_helper_funcs,
-			writeback_fmts, ARRAY_SIZE(writeback_fmts));
+			writeback_fmts, ARRAY_SIZE(writeback_fmts),
+			wb_connector->encoder.possible_crtcs);
 	if (ret) {
 		DRM_ERROR("Failed to init writeback connector\n");
 		return ret;

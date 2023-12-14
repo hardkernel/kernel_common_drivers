@@ -13,4 +13,4 @@ PR_FMT = $(subst amlogic-,,$(MODULE_NAME))
 PR_FMT_DEFINE="-Dpr_fmt(fmt)= \"[$(PR_FMT)]: \" fmt"
 ccflags-y += $(PR_FMT_DEFINE)
 
-include $(COMMON_DRIVERS_DIR)/drivers/power/meson_pmic6b/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/power/meson_pmic6b/Makefile

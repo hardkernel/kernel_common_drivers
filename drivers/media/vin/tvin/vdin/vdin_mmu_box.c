@@ -3,6 +3,7 @@
  * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
+#include <linux/amlogic/kernel_versions.h>
 #include "vdin_mmu_box.h"
 
 static struct vdin_mmu_box_mgr global_mgr;
@@ -400,9 +401,9 @@ static int vdin_mmu_box_dump_all(void *buf, int size)
 	return tsize;
 }
 
-static ssize_t
-box_dump_show(struct class *class,
-		       struct class_attribute *attr, char *buf)
+static ssize_t box_dump_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t ret = 0;
 
@@ -428,10 +429,9 @@ struct vdin_mmu_box *vdin_mmu_box_find_box_by_name(char *name)
 	return NULL;
 }
 
-static ssize_t
-box_dump_store(struct class *class,
-		struct class_attribute *attr,
-		const char *buf, size_t size)
+static ssize_t box_dump_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 //	char cmd[16];
 //	static char name[32];

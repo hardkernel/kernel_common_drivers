@@ -14,8 +14,9 @@
 #include <linux/kfifo.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
-#include <linux/amlogic/media/codec_mm/codec_mm_scatter.h>
 #include <linux/platform_device.h>
+#include <linux/amlogic/kernel_versions.h>
+#include <linux/amlogic/media/codec_mm/codec_mm_scatter.h>
 
 #define PR_ERR(fmt, args ...)		pr_err("dim:err:" fmt, ##args)
 
@@ -411,9 +412,9 @@ int di_mmu_box_dump_all(void *buf, int size)
 
 #ifdef TMP_NO_USED //ary
 
-static ssize_t
-box_dump_show(struct class *class,
-		       struct class_attribute *attr, char *buf)
+static ssize_t box_dump_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t ret = 0;
 

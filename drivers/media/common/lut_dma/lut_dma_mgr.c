@@ -36,6 +36,7 @@
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
 #include <linux/amlogic/media/lut_dma/lut_dma.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #include "lut_dma_mgr.h"
 #include "lut_dma_io.h"
@@ -968,15 +969,16 @@ static int parse_para(const char *para, int para_num, int *result)
 	return count;
 }
 
-static ssize_t lut_dma_loglevel_show(struct class *cla,
-				     struct class_attribute *attr, char *buf)
+static ssize_t lut_dma_loglevel_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%x\n", log_level);
 }
 
-static ssize_t lut_dma_loglevel_stroe(struct class *cla,
-				      struct class_attribute *attr,
-				      const char *buf, size_t count)
+static ssize_t lut_dma_loglevel_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int ret = 0;
 
@@ -986,8 +988,9 @@ static ssize_t lut_dma_loglevel_stroe(struct class *cla,
 	return count;
 }
 
-static ssize_t lut_dma_test_show(struct class *cla,
-				 struct class_attribute *attr, char *buf)
+static ssize_t lut_dma_test_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_info("test mode - 1: WR MANUAL; 2: WR AUTO; 3:RD AUTO\n");
 	return snprintf(buf, PAGE_SIZE, "mode:%d, channel:%d\n",
@@ -995,9 +998,9 @@ static ssize_t lut_dma_test_show(struct class *cla,
 		lut_dma_test_channel);
 }
 
-static ssize_t lut_dma_test_stroe(struct class *cla,
-				  struct class_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t lut_dma_test_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *table_data = NULL;
 	int table_size = 1024;
@@ -1033,8 +1036,9 @@ static ssize_t lut_dma_test_stroe(struct class *cla,
 	return count;
 }
 
-static ssize_t lut_dma_register_show(struct class *cla,
-				     struct class_attribute *attr, char *buf)
+static ssize_t lut_dma_register_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_info("register mode - 1: WR MANUAL; 2: WR AUTO; 3:RD AUTO\n");
 	return snprintf(buf, PAGE_SIZE, "mode:%d, channel:%d\n",
@@ -1042,9 +1046,9 @@ static ssize_t lut_dma_register_show(struct class *cla,
 		lut_dma_test_channel);
 }
 
-static ssize_t lut_dma_register_stroe(struct class *cla,
-				      struct class_attribute *attr,
-				      const char *buf, size_t count)
+static ssize_t lut_dma_register_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct lut_dma_device_info *info = &lut_dma_info;
 	struct lut_dma_set_t lut_dma_set;
@@ -1104,8 +1108,9 @@ static ssize_t lut_dma_register_stroe(struct class *cla,
 	return count;
 }
 
-static ssize_t lut_dma_unregister_show(struct class *cla,
-				       struct class_attribute *attr, char *buf)
+static ssize_t lut_dma_unregister_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_info("unregister mode - 1: WR MANUAL; 2: WR AUTO; 3:RD AUTO\n");
 	return snprintf(buf, PAGE_SIZE, "mode:%d, channel:%d\n",
@@ -1113,9 +1118,9 @@ static ssize_t lut_dma_unregister_show(struct class *cla,
 		lut_dma_test_channel);
 }
 
-static ssize_t lut_dma_unregister_stroe(struct class *cla,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t lut_dma_unregister_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int parsed[2];
 
@@ -1139,13 +1144,13 @@ static ssize_t lut_dma_unregister_stroe(struct class *cla,
 
 static struct class_attribute lut_dma_attrs[] = {
 	__ATTR(level, 0664,
-	       lut_dma_loglevel_show, lut_dma_loglevel_stroe),
+	       lut_dma_loglevel_show, lut_dma_loglevel_store),
 	__ATTR(test, 0664,
-	       lut_dma_test_show, lut_dma_test_stroe),
+	       lut_dma_test_show, lut_dma_test_store),
 	__ATTR(register, 0664,
-	       lut_dma_register_show, lut_dma_register_stroe),
+	       lut_dma_register_show, lut_dma_register_store),
 	__ATTR(unregister, 0664,
-	       lut_dma_unregister_show, lut_dma_unregister_stroe),
+	       lut_dma_unregister_show, lut_dma_unregister_store),
 };
 
 static int lut_dma_probe(struct platform_device *pdev)
@@ -1185,8 +1190,7 @@ static int lut_dma_probe(struct platform_device *pdev)
 		vpu_dev_mem_power_on(vpu_dma);
 	}
 
-	info->clsp = class_create(THIS_MODULE,
-				  CLASS_NAME);
+	info->clsp = kv_class_create(THIS_MODULE, CLASS_NAME);
 	if (IS_ERR(info->clsp)) {
 		ret = PTR_ERR(info->clsp);
 		pr_err("fail to create class\n");

@@ -4117,6 +4117,7 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 			break;
 		case BT2100_IPT:
 			hdr_cap |= DV_SUPPORT;
+			break;
 		default:
 			break;
 		}

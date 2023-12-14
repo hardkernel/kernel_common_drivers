@@ -38,6 +38,7 @@
 #include <linux/of_device.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #include "hdcp.h"
 
@@ -333,8 +334,8 @@ static int alloc_dma_areas(struct esm_device *esm,
 	}
 
 	if (randomize_mem) {
-		prandom_bytes(esm->code, esm->code_size);
-		prandom_bytes(esm->data, esm->data_size);
+		kv_get_random_bytes(esm->code, esm->code_size);
+		kv_get_random_bytes(esm->data, esm->data_size);
 	}
 
 	if (!esm_debugfs) {

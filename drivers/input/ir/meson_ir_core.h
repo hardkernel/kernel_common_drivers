@@ -48,7 +48,7 @@ enum raw_event_type {
 struct pulse_group {
 	int len;
 	/*bit 30-0 durations, bit31: level*/
-	u32 pulse[0];
+	u32 pulse[];
 };
 
 struct meson_ir_raw_handle;

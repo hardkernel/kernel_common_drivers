@@ -19,6 +19,7 @@
 #include <linux/of.h>
 
 /* Amlogic Headers */
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/ion.h>
 #include <dev_ion.h>
 #include <linux/amlogic/media/vfm/vframe.h>
@@ -75,16 +76,16 @@ static int has_unused_pool(void)
 	return -1;
 }
 
-static ssize_t log_level_show(struct class *cla,
-			      struct class_attribute *attr,
-			      char *buf)
+static ssize_t log_level_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 40, "%d\n", dummy_video_log_level);
 }
 
-static ssize_t log_level_store(struct class *cla,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t log_level_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;

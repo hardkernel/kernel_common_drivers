@@ -16,6 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/compat.h>
 #include <linux/random.h>
+#include <linux/amlogic/kernel_versions.h>
 #include "aml_dsm.h"
 
 #define DEVICE_NAME "aml_dsm"
@@ -423,8 +424,9 @@ const struct file_operations dsm_fops = {
 	size += snprintf(buf + size, PAGE_SIZE - size, format, args); \
 }
 
-static ssize_t usage_show(struct class *class,
-			  struct class_attribute *attr, char *buf)
+static ssize_t usage_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct list_head *pos1, *tmp1;
 	struct list_head *pos2, *tmp2;
@@ -492,7 +494,7 @@ int __init dsm_init(void)
 		goto fail0;
 	}
 
-	dsm_class = class_create(THIS_MODULE, DEVICE_CLASS_NAME);
+	dsm_class = kv_class_create(THIS_MODULE, DEVICE_CLASS_NAME);
 
 	if (IS_ERR(dsm_class)) {
 		result = PTR_ERR(dsm_class);

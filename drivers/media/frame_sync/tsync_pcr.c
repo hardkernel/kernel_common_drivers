@@ -16,6 +16,7 @@
 #include <linux/amlogic/media/frame_sync/tsync_pcr.h>
 /* media module used media/registers/cpu_version.h since kernel 5.4 */
 #include <linux/amlogic/media/registers/cpu_version.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #ifdef CONFIG_AM_PCRSYNC_LOG
 #define AMLOG
@@ -1871,14 +1872,16 @@ EXPORT_SYMBOL(tsync_pcr_stop);
 /* ------------------------------------------------------------------------ */
 /* define of tsync pcr class node */
 
-static ssize_t play_mode_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
+static ssize_t play_mode_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", play_mode);
 }
 
-static ssize_t pcr_diff_show(struct class *class,
-			     struct class_attribute *attr, char *buf)
+static ssize_t pcr_diff_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d %d %d %s\n", tsync_pcr_jiffes_diff * 90,
 		       tysnc_pcr_systime_diff,
@@ -1886,18 +1889,18 @@ static ssize_t pcr_diff_show(struct class *class,
 		       "ms");
 }
 
-static ssize_t tsync_pcr_discontinue_point_show(struct class *class,
-						struct class_attribute *attr,
-						char *buf)
+static ssize_t tsync_pcr_discontinue_point_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_info("[%s:%d] tsync_pcr_discontinue_point:%x, HZ:%x,\n",
 		__func__, __LINE__, tsync_pcr_discontinue_point, HZ);
 	return sprintf(buf, "0x%x\n", tsync_pcr_discontinue_point);
 }
 
-static ssize_t tsync_pcr_discontinue_point_store(struct class *class,
-						 struct class_attribute *attr,
-						 const char *buf, size_t size)
+static ssize_t tsync_pcr_discontinue_point_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int pts;
 	ssize_t r;
@@ -1915,9 +1918,9 @@ static ssize_t tsync_pcr_discontinue_point_store(struct class *class,
 	return size;
 }
 
-static ssize_t audio_resample_type_store(struct class *class,
-					 struct class_attribute *attr,
-					 const char *buf, size_t size)
+static ssize_t audio_resample_type_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int type;
 	ssize_t r;
@@ -1936,37 +1939,37 @@ static ssize_t audio_resample_type_store(struct class *class,
 	return size;
 }
 
-static ssize_t tsync_pcr_mode_show(struct class *cla,
-					   struct class_attribute *attr,
-					   char *buf)
+static ssize_t tsync_pcr_mode_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_use_demux_pcr);
 }
 
-static ssize_t tsync_audio_mode_show(struct class *cla,
-				     struct class_attribute *attr,
-				     char *buf)
+static ssize_t tsync_audio_mode_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_audio_mode);
 }
 
-static ssize_t tsync_audio_state_show(struct class *cla,
-				      struct class_attribute *attr,
-				      char *buf)
+static ssize_t tsync_audio_state_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_audio_state);
 }
 
-static ssize_t tsync_video_state_show(struct class *cla,
-				      struct class_attribute *attr,
-				      char *buf)
+static ssize_t tsync_video_state_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_video_state);
 }
 
-static ssize_t tsync_audio_mode_store(struct class *cla,
-		struct class_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t tsync_audio_mode_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -1976,16 +1979,16 @@ static ssize_t tsync_audio_mode_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tsync_pcr_latency_value_show(struct class *cla,
-		struct class_attribute *attr,
-		char *buf)
+static ssize_t tsync_pcr_latency_value_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_pcr_latency_value);
 }
 
-static ssize_t tsync_pcr_latency_value_store(struct class *cla,
-		struct class_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t tsync_pcr_latency_value_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -1995,16 +1998,16 @@ static ssize_t tsync_pcr_latency_value_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tsync_disable_demux_pcr_show(struct class *cla,
-		struct class_attribute *attr,
-		char *buf)
+static ssize_t tsync_disable_demux_pcr_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_disable_demux_pcr);
 }
 
-static ssize_t tsync_disable_demux_pcr_store(struct class *cla,
-		struct class_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t tsync_disable_demux_pcr_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -2014,9 +2017,9 @@ static ssize_t tsync_disable_demux_pcr_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tsync_vpts_adjust_store(struct class *cla,
-				       struct class_attribute *attr,
-				       const char *buf, size_t count)
+static ssize_t tsync_vpts_adjust_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -2030,16 +2033,16 @@ static ssize_t tsync_vpts_adjust_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tsync_vpts_adjust_show(struct class *cla,
-		struct class_attribute *attr,
-		char *buf)
+static ssize_t tsync_vpts_adjust_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_vpts_adjust);
 }
 
-static ssize_t tsync_audio_level_show(struct class *cla,
-				      struct class_attribute *attr,
-				      char *buf)
+static ssize_t tsync_audio_level_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	u32 audio_level;
 
@@ -2047,16 +2050,16 @@ static ssize_t tsync_audio_level_show(struct class *cla,
 	return sprintf(buf, "%d\n", audio_level);
 }
 
-static ssize_t tsync_audio_underrun_maxgap_show(struct class *cla,
-		struct class_attribute *attr,
-		char *buf)
+static ssize_t tsync_audio_underrun_maxgap_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_audio_underrun_maxgap);
 }
 
-static ssize_t tsync_audio_underrun_maxgap_store(struct class *cla,
-		struct class_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t tsync_audio_underrun_maxgap_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -2066,16 +2069,16 @@ static ssize_t tsync_audio_underrun_maxgap_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tsync_audio_underrun_show(struct class *cla,
-		struct class_attribute *attr,
-		char *buf)
+static ssize_t tsync_audio_underrun_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_audio_underrun);
 }
 
-static ssize_t tsync_vdiscontinue_show(struct class *cla,
-				       struct class_attribute *attr,
-				       char *buf)
+static ssize_t tsync_vdiscontinue_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	u32 vdiscontinue;
 
@@ -2083,9 +2086,9 @@ static ssize_t tsync_vdiscontinue_show(struct class *cla,
 	return sprintf(buf, "%d\n", vdiscontinue);
 }
 
-static ssize_t tsync_pcr_apts_diff_show(struct class *cla,
-					struct class_attribute *attr,
-					char *buf)
+static ssize_t tsync_pcr_apts_diff_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	u32 t1, apts_diff;
 
@@ -2094,17 +2097,16 @@ static ssize_t tsync_pcr_apts_diff_show(struct class *cla,
 	return sprintf(buf, "%d\n", apts_diff);
 }
 
-static ssize_t
-tsync_last_discontinue_checkin_apts_show(struct class *cla,
-					 struct class_attribute *attr,
-					 char *buf)
+static ssize_t tsync_last_discontinue_checkin_apts_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%x\n", last_discontinue_checkin_apts);
 }
 
-static ssize_t tsync_pcr_reset_flag_show(struct class *class,
-					 struct class_attribute *attr,
-					 char *buf)
+static ssize_t tsync_pcr_reset_flag_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t size = 0;
 
@@ -2113,23 +2115,23 @@ static ssize_t tsync_pcr_reset_flag_show(struct class *class,
 	return size;
 }
 
-static ssize_t tsync_pcr_apause_flag_show(struct class *class,
-					  struct class_attribute *attr,
-					  char *buf)
+static ssize_t tsync_pcr_apause_flag_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_pcr_apause_flag);
 }
 
-static ssize_t tsync_pcr_recovery_span_show(struct class *cla,
-					    struct class_attribute *attr,
-					    char *buf)
+static ssize_t tsync_pcr_recovery_span_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_pcr_recovery_span);
 }
 
-static ssize_t tsync_pcr_recovery_span_store(struct class *cla,
-					     struct class_attribute *attr,
-					     const char *buf, size_t count)
+static ssize_t tsync_pcr_recovery_span_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -2145,16 +2147,16 @@ static ssize_t tsync_pcr_recovery_span_store(struct class *cla,
 }
 
 /* add it for dolby av sync 20160126 */
-static ssize_t tsync_apts_adj_value_show(struct class *cla,
-					 struct class_attribute *attr,
-					 char *buf)
+static ssize_t tsync_apts_adj_value_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_apts_adj_value);
 }
 
-static ssize_t tsync_apts_adj_value_store(struct class *cla,
-					  struct class_attribute *attr,
-					  const char *buf, size_t count)
+static ssize_t tsync_apts_adj_value_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -2169,15 +2171,16 @@ static ssize_t tsync_apts_adj_value_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tsync_pcr_adj_value_show(struct class *cla,
-					struct class_attribute *attr, char *buf)
+static ssize_t tsync_pcr_adj_value_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_pcr_adj_value);
 }
 
-static ssize_t tsync_pcr_adj_value_store(struct class *cla,
-					 struct class_attribute *attr,
-					 const char *buf, size_t count)
+static ssize_t tsync_pcr_adj_value_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -2192,16 +2195,16 @@ static ssize_t tsync_pcr_adj_value_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tsync_pcr_discontinue_show(struct class *cla,
-					  struct class_attribute *attr,
-					  char *buf)
+static ssize_t tsync_pcr_discontinue_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%x\n", tsync_pcr_tsdemux_pcr_discontinue);
 }
 
-static ssize_t tsync_pcr_debug_store(struct class *cla,
-				     struct class_attribute *attr,
-				     const char *buf, size_t count)
+static ssize_t tsync_pcr_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -2214,15 +2217,16 @@ static ssize_t tsync_pcr_debug_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tsync_pcr_debug_show(struct class *cla,
-				    struct class_attribute *attr,
-				    char *buf)
+static ssize_t tsync_pcr_debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_pcr_debug);
 }
 
-static ssize_t tsync_vstream_cache_show(struct class *class,
-					struct class_attribute *attr, char *buf)
+static ssize_t tsync_vstream_cache_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int cur_vpts = timestamp_vpts_get();
 	unsigned int last_checkin_vpts = get_last_checkin_pts(PTS_TYPE_VIDEO);
@@ -2235,9 +2239,9 @@ static ssize_t tsync_vstream_cache_show(struct class *class,
 	return sprintf(buf, "%d\n", diff);
 }
 
-static ssize_t tsync_astream_cache_show(struct class *class,
-					struct class_attribute *attr,
-					char *buf)
+static ssize_t tsync_astream_cache_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int cur_apts = timestamp_apts_get();
 	unsigned int last_checkin_apts = get_last_checkin_pts(PTS_TYPE_AUDIO);
@@ -2251,16 +2255,16 @@ static ssize_t tsync_astream_cache_show(struct class *class,
 	return sprintf(buf, "%d\n", diff);
 }
 
-static ssize_t tsync_enable_demuxpcr_check_show(struct class *cla,
-		struct class_attribute *attr,
-		char *buf)
+static ssize_t tsync_enable_demuxpcr_check_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_enable_demuxpcr_check);
 }
 
-static ssize_t tsync_enable_demuxpcr_check_store(struct class *cla,
-		struct class_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t tsync_enable_demuxpcr_check_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -2270,16 +2274,16 @@ static ssize_t tsync_enable_demuxpcr_check_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tsync_enable_bufferlevel_tune_show(struct class *cla,
-		struct class_attribute *attr,
-		char *buf)
+static ssize_t tsync_enable_bufferlevel_tune_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_enable_bufferlevel_tune);
 }
 
-static ssize_t tsync_enable_bufferlevel_tune_store(struct class *cla,
-		struct class_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t tsync_enable_bufferlevel_tune_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -2289,30 +2293,30 @@ static ssize_t tsync_enable_bufferlevel_tune_store(struct class *cla,
 	return count;
 }
 
-static ssize_t tsync_pcr_inited_flag_show(struct class *cla,
-		struct class_attribute *attr,
-		char *buf)
+static ssize_t tsync_pcr_inited_flag_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_pcr_inited_flag);
 }
 
-static ssize_t tsync_demux_pcr_valid_show(struct class *cla,
-		struct class_attribute *attr,
-		char *buf)
+static ssize_t tsync_demux_pcr_valid_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_demux_pcr_valid);
 }
 
-static ssize_t tsync_pcr_ref_latency_show(struct class *cla,
-		struct class_attribute *attr,
-		char *buf)
+static ssize_t tsync_pcr_ref_latency_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", tsync_pcr_ref_latency);
 }
 
-static ssize_t tsync_pcr_ref_latency_store(struct class *cla,
-		struct class_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t tsync_pcr_ref_latency_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 

@@ -23,12 +23,11 @@
 #include <drm/drm_flip_work.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_fb_helper.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #include "meson_fbdev.h"
 #ifdef CONFIG_AMLOGIC_DRM_USE_ION
 #include "meson_gem.h"
@@ -127,6 +126,7 @@ static const struct drm_ioctl_desc meson_ioctls[] = {
 
 DEFINE_DRM_GEM_FOPS(meson_drm_fops);
 
+//KV_TODO: modify
 static struct drm_driver meson_driver = {
 	/*driver_features setting move to probe functions*/
 	.driver_features	= 0,
@@ -135,8 +135,10 @@ static struct drm_driver meson_driver = {
 #endif
 #ifdef CONFIG_AMLOGIC_DRM_USE_ION
 	/* PRIME Ops */
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
+#endif
 
 	.gem_prime_import	= am_meson_drm_gem_prime_import,
 	/*
@@ -144,11 +146,15 @@ static struct drm_driver meson_driver = {
 	 * by meson driver can be imported ok.
 	 */
 	.gem_prime_import_sg_table = am_meson_gem_prime_import_sg_table,
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	.gem_prime_mmap = drm_gem_prime_mmap,
+#endif
 
 	/* GEM Ops */
 	.dumb_create			= am_meson_gem_dumb_create,
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	.dumb_destroy		= am_meson_gem_dumb_destroy,
+#endif
 	.dumb_map_offset		= am_meson_gem_dumb_map_offset,
 	.ioctls			= meson_ioctls,
 	.num_ioctls		= ARRAY_SIZE(meson_ioctls),
@@ -162,7 +168,9 @@ static struct drm_driver meson_driver = {
 
 	/* GEM Ops */
 	.dumb_create		= drm_gem_cma_dumb_create,
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	.dumb_destroy		= drm_gem_dumb_destroy,
+#endif
 	.dumb_map_offset	= drm_gem_dumb_map_offset,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
@@ -277,7 +285,7 @@ static int am_meson_drm_bind(struct device *dev)
 	drm->mode_config.max_height = max_height;
 	drm->mode_config.funcs = &meson_mode_config_funcs;
 	drm->mode_config.helper_private	= &meson_mode_config_helpers;
-	drm->mode_config.allow_fb_modifiers = true;
+	kv_set_drm_allow_fb_modifiers(drm, true);
 
 	if (recovery_mode)
 		priv->recovery_mode = true;

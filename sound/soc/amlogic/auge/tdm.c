@@ -24,6 +24,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/clk-provider.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/pm.h>
 #include <linux/amlogic/clk_measure.h>
 #include <linux/amlogic/cpu_version.h>
@@ -2068,7 +2069,7 @@ static int aml_dai_set_tdm_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 
-	return aml_tdm_set_fmt(p_tdm, fmt, cpu_dai->stream_active[1]);
+	return aml_tdm_set_fmt(p_tdm, fmt, snd_soc_dai_stream_active(cpu_dai, 1));
 }
 
 static int aml_dai_set_bclk_ratio(struct snd_soc_dai *cpu_dai,
@@ -2288,6 +2289,7 @@ static int aml_set_default_tdm_clk(struct aml_tdm *p_tdm)
 }
 
 static struct snd_soc_dai_ops aml_dai_tdm_ops = {
+	KV_SND_DAI_OPS_DEF_PROBE(aml_dai_tdm_probe)
 	.prepare = aml_dai_tdm_prepare,
 	.hw_params = aml_dai_tdm_hw_params,
 	.hw_free = aml_dai_tdm_hw_free,
@@ -2306,7 +2308,7 @@ static struct snd_soc_dai_driver aml_tdm_dai[] = {
 	{
 		.name = "TDM-A",
 		.id = 1,
-		.probe = aml_dai_tdm_probe,
+		KV_SND_DAI_DRIVER_DEF_PROBE(aml_dai_tdm_probe)
 		.playback = {
 		      .channels_min = 1,
 		      .channels_max = 32,
@@ -2325,7 +2327,7 @@ static struct snd_soc_dai_driver aml_tdm_dai[] = {
 	{
 		.name = "TDM-B",
 		.id = 2,
-		.probe = aml_dai_tdm_probe,
+		KV_SND_DAI_DRIVER_DEF_PROBE(aml_dai_tdm_probe)
 		.playback = {
 		      .channels_min = 1,
 		      .channels_max = 32,
@@ -2344,7 +2346,7 @@ static struct snd_soc_dai_driver aml_tdm_dai[] = {
 	{
 		.name = "TDM-C",
 		.id = 3,
-		.probe = aml_dai_tdm_probe,
+		KV_SND_DAI_DRIVER_DEF_PROBE(aml_dai_tdm_probe)
 		.playback = {
 		      .channels_min = 1,
 		      .channels_max = 32,
@@ -2363,7 +2365,7 @@ static struct snd_soc_dai_driver aml_tdm_dai[] = {
 	{
 		.name = "TDM-D",
 		.id = 4,
-		.probe = aml_dai_tdm_probe,
+		KV_SND_DAI_DRIVER_DEF_PROBE(aml_dai_tdm_probe)
 		.playback = {
 		      .channels_min = 1,
 		      .channels_max = 32,

@@ -10,7 +10,6 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_connector.h>
-#include <drm/drm_hdcp.h>
 #include <drm/drm_modeset_lock.h>
 
 #include <linux/component.h>
@@ -21,6 +20,7 @@
 #include <linux/kthread.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>

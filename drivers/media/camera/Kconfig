@@ -6,7 +6,6 @@ config AMLOGIC_VIDEO_CAPTURE
 	select VIDEOBUF_VMALLOC
 	depends on MEDIA_SUPPORT
 	depends on VIDEO_DEV
-	depends on VIDEO_V4L2
 	default n
 	help
 	  Amlogic capture driver interface in v4l style.

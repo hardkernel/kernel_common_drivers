@@ -21,6 +21,7 @@
 #include <linux/cma.h>
 #include <linux/kasan.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #include "ge2d_log.h"
 #include "ge2d_dmabuf.h"
 
@@ -187,7 +188,7 @@ static int aml_dma_mmap(void *buf_priv, struct vm_area_struct *vma)
 		pr_err("Remapping memory, error: %d\n", ret);
 		return ret;
 	}
-	vma->vm_flags |= VM_DONTEXPAND;
+	kv_vm_flags_set(vma, VM_DONTEXPAND);
 	ge2d_log_dbg("mapped dma addr 0x%08lx at 0x%08lx, size %d\n",
 		     (unsigned long)buf->dma_addr, vma->vm_start,
 		     buf->size);
@@ -266,15 +267,24 @@ static struct sg_table *aml_dmabuf_ops_map(struct dma_buf_attachment *db_attach,
 {
 	struct aml_attachment *attach = db_attach->priv;
 	/* stealing dmabuf mutex to serialize map/unmap operations */
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	struct mutex *lock = &db_attach->dmabuf->lock;
+#endif
 	struct sg_table *sgt;
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	mutex_lock(lock);
+#endif
 
 	sgt = &attach->sgt;
 	/* return previously mapped sg table */
 	if (attach->dma_dir == dma_dir) {
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 		mutex_unlock(lock);
+#endif
 		return sgt;
 	}
 
@@ -289,13 +299,19 @@ static struct sg_table *aml_dmabuf_ops_map(struct dma_buf_attachment *db_attach,
 				dma_dir);
 	if (!sgt->nents) {
 		pr_err("failed to map scatterlist\n");
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 		mutex_unlock(lock);
+#endif
 		return (void *)(-EIO);
 	}
 
 	attach->dma_dir = dma_dir;
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	mutex_unlock(lock);
+#endif
 	return sgt;
 }
 
@@ -315,12 +331,13 @@ static void aml_dmabuf_ops_release(struct dma_buf *dbuf)
 		aml_dma_put(buf);
 }
 
-static int aml_dmabuf_ops_vmap(struct dma_buf *dbuf, struct dma_buf_map *map)
+static int aml_dmabuf_ops_vmap(struct dma_buf *dbuf, struct kv_drm_vmap_map *map)
 {
 	struct aml_dma_buf_priv *buf_priv = dbuf->priv;
 	struct aml_dma_buf *buf = buf_priv->aml_buf;
 
-	dma_buf_map_set_vaddr(map, buf->vaddr);  //change in kernel5.15
+	kv_map_set_vaddr(map, buf->vaddr);
+
 	return 0;
 }
 

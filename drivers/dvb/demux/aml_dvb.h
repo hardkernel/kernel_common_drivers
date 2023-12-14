@@ -6,6 +6,7 @@
 #ifndef _AML_DVB_H_
 #define _AML_DVB_H_
 
+#include <linux/amlogic/kernel_versions.h>
 #include "aml_dmx.h"
 #include "aml_dsc.h"
 //#include "hw_demux/hwdemux.h"
@@ -71,8 +72,9 @@ int get_dvb_loop_tsn(void);
 int tsn_source_force_set(int source);
 
 extern int is_security_dmx;
-ssize_t dmx_setting_show(struct class *class,
-	struct class_attribute *attr, char *buf);
+ssize_t dmx_setting_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf);
 
 enum {
 	SUPPORT_ES_HEADER_NEED_AUCPU,

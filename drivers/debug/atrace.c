@@ -7,6 +7,7 @@
 
 #include <trace/events/meson_atrace.h>
 #include <linux/device/class.h>
+#include <linux/amlogic/kernel_versions.h>
 
 static u64 atrace_tag;
 
@@ -51,8 +52,9 @@ void set_atrace_tag_enabled(unsigned short tag, int enable)
 }
 EXPORT_SYMBOL(set_atrace_tag_enabled);
 
-static ssize_t show_atrace_tag(struct class *class,
-		struct class_attribute *attr, char *buf)
+static ssize_t show_atrace_tag(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t size = 0;
 	int i;
@@ -66,9 +68,9 @@ static ssize_t show_atrace_tag(struct class *class,
 	return size;
 }
 
-static ssize_t store_atrace_tag(struct class *class,
-		struct class_attribute *attr,
-		const char *buf, size_t size)
+static ssize_t store_atrace_tag(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	unsigned int tag;
 	ssize_t r;

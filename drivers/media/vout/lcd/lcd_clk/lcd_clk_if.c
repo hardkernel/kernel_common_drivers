@@ -92,6 +92,7 @@ void lcd_clk_frac_generate(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_EDP:
 		lcd_edp_bit_rate_config(pdrv);
+		break;
 	default:
 		break;
 	}
@@ -123,6 +124,7 @@ void lcd_clk_generate_parameter(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_EDP:
 		lcd_edp_bit_rate_config(pdrv);
+		break;
 	default:
 		break;
 	}
@@ -540,6 +542,7 @@ lcd_clk_clkmsr_print_step_2:
 		n = lcd_debug_info_len(len + offset);
 		len += snprintf((buf + len), n,
 			"tcon_clk:    %u\n", clk);
+		break;
 	default:
 		break;
 	}

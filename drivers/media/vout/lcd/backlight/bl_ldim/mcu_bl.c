@@ -18,6 +18,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #include "../../lcd_common.h"
@@ -290,7 +291,9 @@ static int blmcu_power_off(struct aml_ldim_driver_s *ldim_drv)
 	return 0;
 }
 
-static ssize_t blmcu_show(struct class *class, struct class_attribute *attr, char *buf)
+static ssize_t blmcu_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_dev_driver_s *dev_drv;
@@ -343,8 +346,9 @@ static ssize_t blmcu_show(struct class *class, struct class_attribute *attr, cha
 	return len;
 }
 
-static ssize_t blmcu_store(struct class *class, struct class_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t blmcu_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_dev_driver_s *dev_drv;

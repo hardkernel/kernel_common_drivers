@@ -28,6 +28,7 @@
 
 /* #include <asm/fiq.h> */
 #include <linux/uaccess.h>
+#include <linux/amlogic/kernel_versions.h>
 #include "aml_demod.h"
 #include "demod_func.h"
 #include "demod_dbg.h"
@@ -68,14 +69,16 @@ unsigned int demod_id;
 static DECLARE_WAIT_QUEUE_HEAD(lock_wq);
 static struct mutex demod_lock;
 
-static ssize_t aml_demod_info_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
+static ssize_t aml_demod_info_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	return count;
 }
 
-static ssize_t aml_demod_info_show(struct class *class,
-		struct class_attribute *attr, char *buf)
+static ssize_t aml_demod_info_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return 0;
 }
@@ -528,7 +531,7 @@ static const struct file_operations aml_demod_ui_fops = {
 };
 
 #if 0
-static ssize_t aml_demod_ui_info(struct class *cla,
+static ssize_t aml_demod_ui_info(struct class *class,
 				 struct class_attribute *attr, char *buf)
 {
 	return 0;

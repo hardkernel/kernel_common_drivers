@@ -17,6 +17,7 @@
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 /* media module used media/registers/cpu_version.h since kernel 5.4 */
 #include <linux/amlogic/media/registers/cpu_version.h>
+#include <linux/amlogic/kernel_versions.h>
 
 //#define DEBUG
 static struct canvas_pool *global_pool;
@@ -360,9 +361,9 @@ u32 canvas_pool_canvas_alloced(int index)
 }
 EXPORT_SYMBOL(canvas_pool_canvas_alloced);
 
-static ssize_t
-canvas_pool_map_show(struct class *class,
-		     struct class_attribute *attr, char *buf)
+static ssize_t canvas_pool_map_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct canvas_pool *pool = get_canvas_pool();
 	int max = min(pool->next_dump_index + 64, pool->canvas_max);
@@ -406,9 +407,9 @@ canvas_pool_map_show(struct class *class,
 }
 static CLASS_ATTR_RO(canvas_pool_map);
 
-static ssize_t
-canvas_pool_states_show(struct class *class,
-			struct class_attribute *attr, char *buf)
+static ssize_t canvas_pool_states_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t size = 0;
 	int i;
@@ -435,9 +436,9 @@ canvas_pool_states_show(struct class *class,
 }
 static CLASS_ATTR_RO(canvas_pool_states);
 
-static ssize_t
-canvas_pool_debug_show(struct class *class,
-		       struct class_attribute *attr, char *buf)
+static ssize_t canvas_pool_debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t size = 0;
 
@@ -449,10 +450,9 @@ canvas_pool_debug_show(struct class *class,
 	return size;
 }
 
-static ssize_t
-canvas_pool_debug_store(struct class *class,
-			struct class_attribute *attr, const char *buf,
-			size_t size)
+static ssize_t canvas_pool_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t size)
 {
 	u32 val;
 	ssize_t ret = 0;

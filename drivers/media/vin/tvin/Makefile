@@ -7,10 +7,10 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN) += vin/tvin/tvin_format_table.
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN) += vin/tvin/tvin_frontend.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN) += vin/tvin/tvin_global.o
 
-include $(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/vdin/Makefile
-include $(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/tvafe/Makefile
-include $(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/viu/Makefile
-include $(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/bt656/Makefile
-include $(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/csi/Makefile
-include $(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/hdmirx/Makefile
-include $(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/dsc_dec/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/vdin/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/tvafe/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/viu/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/bt656/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/csi/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/hdmirx/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vin/tvin/dsc_dec/Makefile

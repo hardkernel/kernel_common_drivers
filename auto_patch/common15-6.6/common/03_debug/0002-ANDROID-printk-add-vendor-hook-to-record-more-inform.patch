@@ -1,0 +1,105 @@
+From 7aa8fabba3bb9bd62c5f41570516f12c8d09fe17 Mon Sep 17 00:00:00 2001
+From: Ben Dai <ben.dai@unisoc.com>
+Date: Wed, 9 Mar 2022 17:10:33 +0800
+Subject: [PATCH 2/9] ANDROID: printk: add vendor hook to record more
+ information about caller
+
+With these hooks, printk can provide more information, such as the
+processor ID.
+
+Bug: 223302138
+Signed-off-by: Ben Dai <ben.dai@unisoc.com>
+Change-Id: Iac60ffd49640d8badf5c5dd446c211d37bbbc6a6
+---
+ drivers/android/vendor_hooks.c |  3 +++
+ include/trace/hooks/printk.h   | 10 ++++++++++
+ kernel/printk/printk.c         | 21 +++++++++++++++++----
+ 3 files changed, 30 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/android/vendor_hooks.c b/drivers/android/vendor_hooks.c
+index 0cd73b4f24c5..136f934ebc82 100644
+--- a/drivers/android/vendor_hooks.c
++++ b/drivers/android/vendor_hooks.c
+@@ -45,6 +45,9 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_wq_lockup_pool);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ipi_stop);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sysrq_crash);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_printk_hotplug);
++EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_printk_caller_id);
++EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_printk_caller);
++EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_printk_ext_header);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_show_suspend_epoch_val);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_show_resume_epoch_val);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_freq_table_limits);
+diff --git a/include/trace/hooks/printk.h b/include/trace/hooks/printk.h
+index 2598490b1449..b3e9598386c7 100644
+--- a/include/trace/hooks/printk.h
++++ b/include/trace/hooks/printk.h
+@@ -13,6 +13,16 @@ DECLARE_HOOK(android_vh_printk_hotplug,
+ 	TP_PROTO(int *flag),
+ 	TP_ARGS(flag));
+ 
++DECLARE_HOOK(android_vh_printk_caller_id,
++	TP_PROTO(u32 *caller_id),
++	TP_ARGS(caller_id));
++DECLARE_HOOK(android_vh_printk_caller,
++	TP_PROTO(char *caller, size_t size, u32 id, int *ret),
++	TP_ARGS(caller, size, id, ret));
++DECLARE_HOOK(android_vh_printk_ext_header,
++	TP_PROTO(char *caller, size_t size, u32 id, int *ret),
++	TP_ARGS(caller, size, id, ret));
++
+ #endif /* _TRACE_HOOK_PRINTK_H */
+ /* This part must be outside protection */
+ #include <trace/define_trace.h>
+diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
+index 374715b66ef2..e47426c1cb2d 100644
+--- a/kernel/printk/printk.c
++++ b/kernel/printk/printk.c
+@@ -629,10 +629,14 @@ static ssize_t info_print_ext_header(char *buf, size_t size,
+ 	u64 ts_usec = info->ts_nsec;
+ 	char caller[20];
+ #ifdef CONFIG_PRINTK_CALLER
++	int vh_ret = 0;
+ 	u32 id = info->caller_id;
+ 
+-	snprintf(caller, sizeof(caller), ",caller=%c%u",
+-		 id & 0x80000000 ? 'C' : 'T', id & ~0x80000000);
++	trace_android_vh_printk_ext_header(caller, sizeof(caller), id, &vh_ret);
++
++	if (!vh_ret)
++		snprintf(caller, sizeof(caller), ",caller=%c%u",
++			 id & 0x80000000 ? 'C' : 'T', id & ~0x80000000);
+ #else
+ 	caller[0] = '\0';
+ #endif
+@@ -1334,9 +1338,12 @@ static size_t print_time(u64 ts, char *buf)
+ static size_t print_caller(u32 id, char *buf)
+ {
+ 	char caller[12];
++	int vh_ret = 0;
+ 
+-	snprintf(caller, sizeof(caller), "%c%u",
+-		 id & 0x80000000 ? 'C' : 'T', id & ~0x80000000);
++	trace_android_vh_printk_caller(caller, sizeof(caller), id, &vh_ret);
++	if (!vh_ret)
++		snprintf(caller, sizeof(caller), "%c%u",
++			 id & 0x80000000 ? 'C' : 'T', id & ~0x80000000);
+ 	return sprintf(buf, "[%6s]", caller);
+ }
+ #else
+@@ -2071,6 +2078,12 @@ static inline void printk_delay(int level)
+ 
+ static inline u32 printk_caller_id(void)
+ {
++	u32 caller_id = 0;
++
++	trace_android_vh_printk_caller_id(&caller_id);
++	if (caller_id)
++		return caller_id;
++
+ 	return in_task() ? task_pid_nr(current) :
+ 		0x80000000 + smp_processor_id();
+ }
+-- 
+2.41.0
+

@@ -25,6 +25,8 @@
 #include <linux/tty_flip.h>
 #include <linux/pinctrl/consumer.h>
 
+#include <linux/amlogic/kernel_versions.h>
+
 /* Register offsets */
 #define AML_UART_WFIFO			0x00
 #define AML_UART_RFIFO			0x04
@@ -92,15 +94,15 @@ static void meson_uart_enable_tx_engine(struct uart_port *port)
 	writel_relaxed(val, port->membase + AML_UART_CONTROL);
 }
 
-static void meson_console_putchar(struct uart_port *port, int ch)
+static void meson_console_putchar(struct uart_port *port, kv_uart_putchar_char_type ch)
 {
 	if (!port->membase)
 		return;
 
-	while (readl_relaxed(port->membase + AML_UART_STATUS) &
+	while (readl(port->membase + AML_UART_STATUS) &
 	       AML_UART_TX_FULL)
 		cpu_relax();
-	writel_relaxed(ch, port->membase + AML_UART_WFIFO);
+	writel(ch, port->membase + AML_UART_WFIFO);
 }
 
 static void meson_serial_port_write(struct uart_port *port, const char *s,

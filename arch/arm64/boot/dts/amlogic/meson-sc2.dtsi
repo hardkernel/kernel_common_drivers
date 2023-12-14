@@ -2238,10 +2238,10 @@
 		wifi_static_buf = <2>;  /* if use bcm wifi, config dhd_static_buf */
 		//pinctrl-0 = <&pwm_e_pins>;
 		//pinctrl-names = "default";
-		pwm_config = <&wifi_pwm_conf>;
-	};
+		//pwm_config = <&wifi_pwm_conf>;
+	//};
 
-	wifi_pwm_conf:wifi_pwm_conf{
+	//wifi_pwm_conf:wifi_pwm_conf{
 		pwm_channel1_conf {
 			pwms = <&pwm_ef 0 30550 0>;
 			duty-cycle = <15270>;

@@ -67,14 +67,12 @@
 #include <drm/drm_agpsupport.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_hashtab.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_os_linux.h>
 #include <drm/drm_sarea.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_print.h>
-#include <drm/drm_pci.h>
 #include <drm/drm_file.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_ioctl.h>
@@ -82,6 +80,8 @@
 #include <drm/drm_vblank.h>
 #include <drm/drm_irq.h>
 #include <drm/drm_device.h>
+
+#include <linux/amlogic/kernel_versions.h>
 
 struct module;
 

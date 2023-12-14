@@ -29,15 +29,15 @@
 #include <linux/mtd/partitions.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <linux/genhd.h>
 #include <linux/blkdev.h>
 #include <linux/scatterlist.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
-#include <linux/amlogic/key_manage.h>
 
+#include <linux/amlogic/kernel_versions.h>
+#include <linux/amlogic/key_manage.h>
 #include <linux/amlogic/aml_sd.h>
 #include "mmc_common.h"
 

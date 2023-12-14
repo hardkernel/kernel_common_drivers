@@ -40,6 +40,7 @@
 
 /* Local include */
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
+#include <linux/amlogic/kernel_versions.h>
 #include "../tvin_frontend.h"
 #include "../tvin_global.h"
 #include "../tvin_format_table.h"
@@ -1838,7 +1839,7 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	}
 	tvafe_pr_info("%s: major %d\n", __func__, MAJOR(tvafe_devno));
 
-	tvafe_clsp = class_create(THIS_MODULE, TVAFE_NAME);
+	tvafe_clsp = kv_class_create(THIS_MODULE, TVAFE_NAME);
 	if (IS_ERR(tvafe_clsp)) {
 		ret = PTR_ERR(tvafe_clsp);
 		tvafe_pr_err("%s: failed to create class\n", __func__);

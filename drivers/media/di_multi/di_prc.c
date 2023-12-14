@@ -20,6 +20,7 @@
 #include <linux/err.h>
 #include <linux/seq_file.h>
 #include <linux/arm-smccc.h>
+#include <linux/of.h>
 
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "deinterlace.h"

@@ -24,6 +24,8 @@
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
 #include <sound/control.h>
+
+#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
 #endif
@@ -163,7 +165,10 @@ struct aml_card_data {
 	int hp_gpio_det;
 	int hp_detect_flag;
 	bool hp_det_enable;
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	enum of_gpio_flags hp_det_flags;
+#endif
 	int micphone_last_state;
 	int micphone_cur_state;
 	int micphone_det_status;
@@ -273,7 +278,12 @@ static int aml_audio_hal_format_set_enum(struct snd_kcontrol *kcontrol,
 
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+	audio_send_uevent(snd->ctl_dev, AUDIO_SPDIF_FMT_EVENT, hal_format);
+#else
 	audio_send_uevent(&snd->ctl_dev, AUDIO_SPDIF_FMT_EVENT, hal_format);
+#endif
 	pr_info("update audio atmos flag! audio_type = %d\n", hal_format);
 
 	if (p_aml_audio->hal_fmt != hal_format)
@@ -567,6 +577,8 @@ static void jack_timer_func(struct timer_list *t)
 	mod_timer(&card_data->timer, jiffies + delay);
 }
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static int jack_audio_hp_detect(struct aml_card_data *card_data)
 {
 	int loop_num = 0;
@@ -747,9 +759,9 @@ static int aml_card_init_jack(struct snd_soc_card *card,
 		state = gpiod_set_pull(gpio_to_desc(det), GPIOD_PULL_DIS);
 		if (state)
 			pr_err("set gpiod pull failed, ret %d\n", state);
-		snd_soc_card_jack_new(card, pin_name, mask,
-				      &sjack->jack,
-				      &sjack->pin, 1);
+		kv_snd_soc_card_jack_new(card, pin_name, mask,
+					 &sjack->jack,
+					 &sjack->pin, 1);
 	} else {
 		pr_info("detect gpio is invalid\n");
 	}
@@ -763,12 +775,16 @@ static int aml_card_init_jack(struct snd_soc_card *card,
 	}
 	return 0;
 }
+#endif
 
 static void audio_jack_detect(struct aml_card_data *card_data)
 {
 	timer_setup(&card_data->timer, jack_timer_func, 0);
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	INIT_WORK(&card_data->work, jack_work_func);
+#endif
 
 	jack_audio_start_timer(card_data,
 			msecs_to_jiffies(5000));
@@ -831,13 +847,22 @@ static int aml_card_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+#endif
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai_link *dai_link = aml_priv_to_link(priv, rtd->num);
 	struct aml_dai_props *dai_props = aml_priv_to_props(priv, rtd->num);
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+	unsigned int mclk_fs = 0;
+	int ret = 0;
+#else
 	unsigned int mclk = 0, mclk_fs = 0;
 	int i = 0, ret = 0;
+#endif
 
 	if (priv->mclk_fs)
 		mclk_fs = priv->mclk_fs;
@@ -845,6 +870,8 @@ static int aml_card_hw_params(struct snd_pcm_substream *substream,
 		mclk_fs = dai_props->mclk_fs;
 
 	if (mclk_fs) {
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 		mclk = params_rate(params) * mclk_fs;
 
 		for (i = 0; i < rtd->num_codecs; i++) {
@@ -857,7 +884,7 @@ static int aml_card_hw_params(struct snd_pcm_substream *substream,
 				goto err;
 			}
 		}
-
+#endif
 		ret = snd_soc_dai_set_fmt(cpu_dai, dai_link->dai_fmt);
 		if (ret && ret != -ENOTSUPP) {
 			pr_err("cpu_dai soc dai set fmt failed\n");
@@ -877,16 +904,26 @@ static struct snd_soc_ops aml_card_ops = {
 static int aml_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	struct snd_soc_dai *codec = asoc_rtd_to_codec(rtd, 0);
+#endif
 	struct snd_soc_dai *cpu = asoc_rtd_to_cpu(rtd, 0);
 	struct aml_dai_props *dai_props = aml_priv_to_props(priv, rtd->num);
 	static int hp_mic_detect_cnt;
 	bool idle_clk = false;
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+	int ret;
+#else
 	int ret, i;
+#endif
 
 	/* enable dai-link mclk when CONTINUOUS clk setted */
 	idle_clk = !!(rtd->dai_link->dai_fmt & SND_SOC_DAIFMT_CONT);
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	for (i = 0; i < rtd->num_codecs; i++) {
 		codec = asoc_rtd_to_codec(rtd, i);
 
@@ -894,14 +931,18 @@ static int aml_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 		if (ret < 0)
 			return ret;
 	}
+#endif
 
 	ret = aml_card_init_dai(cpu, &dai_props->cpu_dai, idle_clk);
 	if (ret < 0)
 		return ret;
 
 	if (hp_mic_detect_cnt == 0) {
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 		aml_card_init_hp(rtd->card, &priv->hp_jack, PREFIX);
 		aml_card_init_mic(rtd->card, &priv->mic_jack, PREFIX);
+#endif
 		hp_mic_detect_cnt = 1;
 	}
 
@@ -1124,6 +1165,8 @@ static const struct snd_kcontrol_new card_controls[] = {
 			    spk_mute_set),
 };
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static int aml_card_parse_gpios(struct device_node *node,
 					   struct aml_card_data *priv)
 {
@@ -1194,6 +1237,7 @@ static int aml_card_parse_gpios(struct device_node *node,
 
 	return 0;
 }
+#endif
 
 static int aml_card_parse_of(struct device_node *node,
 				     struct aml_card_data *priv)
@@ -1283,6 +1327,8 @@ static int card_work_thread(void *data)
 	dev = aml_priv_to_dev(priv);
 	np = dev->of_node;
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	do {
 		if (wait_event_interruptible(priv->wq,
 						priv->gpio_set_flag == 1 ||
@@ -1293,6 +1339,7 @@ static int card_work_thread(void *data)
 			}
 		}
 	} while (!kthread_should_stop());
+#endif
 
 	pr_debug("%s card thread exit\n", __func__);
 
@@ -1302,12 +1349,18 @@ static int card_work_thread(void *data)
 static int card_suspend_pre(struct snd_soc_card *card)
 {
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	struct device *dev = aml_priv_to_dev(priv);
 	struct device_node *np = dev->of_node;
+#endif
 
 	priv->av_mute_enable = 1;
 	priv->spk_mute_enable = 1;
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	aml_card_parse_gpios(np, priv);
+#endif
 
 	pr_info("it is card_pre_suspend\n");
 
@@ -1641,7 +1694,10 @@ static void aml_card_platform_shutdown(struct platform_device *pdev)
 
 	priv->av_mute_enable = 1;
 	priv->spk_mute_enable = 1;
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	aml_card_parse_gpios(pdev->dev.of_node, priv);
+#endif
 
 	if (priv->thread) {
 		kthread_stop(priv->thread);

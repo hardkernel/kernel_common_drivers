@@ -28,6 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/notifier.h>
 #include <linux/kstrtox.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #define FREEMEM_DEV_NAME "ac_freemem"
 
@@ -110,8 +111,9 @@ static void free_reserved_mem(unsigned long start, unsigned long size)
 	}
 }
 
-static ssize_t free_reserved_show(struct class *cls,
-				  struct class_attribute *attr, char *buf)
+static ssize_t free_reserved_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (free_memory == 1)
 		pr_info("Memory is freed at 0x%pa, size %ld MiB\n",
@@ -123,9 +125,9 @@ static ssize_t free_reserved_show(struct class *cls,
 	return 0;
 }
 
-static ssize_t free_reserved_store(struct class *cls,
-				   struct class_attribute *attr,
-	       const char *buffer, size_t count)
+static ssize_t free_reserved_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	bool free;
 	int ret;

@@ -35,6 +35,7 @@
 #include <linux/amlogic/media/video_sink/video_keeper.h>
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <linux/amlogic/media/vfm/amlogic_fbc_hook_v1.h>
 #include <linux/amlogic/media/di/di.h>
@@ -2988,9 +2989,10 @@ static int v4lvideo_fd_link(int src_fd, int dst_fd)
 	link_fd_count++;
 	return 0;
 }
-static ssize_t sei_cnt_show(struct class *class,
-			    struct class_attribute *attr,
-			    char *buf)
+
+static ssize_t sei_cnt_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t r;
 	int cnt;
@@ -3000,9 +3002,9 @@ static ssize_t sei_cnt_show(struct class *class,
 	return r;
 }
 
-static ssize_t sei_cnt_store(struct class *class,
-			     struct class_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t sei_cnt_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;
@@ -3016,16 +3018,16 @@ static ssize_t sei_cnt_store(struct class *class,
 	return count;
 }
 
-static ssize_t alloc_sei_debug_show(struct class *class,
-				    struct class_attribute *attr,
-				    char *buf)
+static ssize_t alloc_sei_debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "alloc sei: %d\n", alloc_sei);
 }
 
-static ssize_t alloc_sei_debug_store(struct class *class,
-				     struct class_attribute *attr,
-				     const char *buf, size_t count)
+static ssize_t alloc_sei_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;
@@ -3042,18 +3044,18 @@ static ssize_t alloc_sei_debug_store(struct class *class,
 	return count;
 }
 
-static ssize_t video_nr_base_show(struct class *cla,
-				  struct class_attribute *attr,
-				  char *buf)
+static ssize_t video_nr_base_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80,
 			"current video_nr_base is %d\n",
 			video_nr_base);
 }
 
-static ssize_t video_nr_base_store(struct class *cla,
-				   struct class_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t video_nr_base_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -3065,18 +3067,18 @@ static ssize_t video_nr_base_store(struct class *cla,
 	return count;
 }
 
-static ssize_t n_devs_show(struct class *cla,
-			   struct class_attribute *attr,
-			   char *buf)
+static ssize_t n_devs_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80,
 			"current n_devs is %d\n",
 			n_devs);
 }
 
-static ssize_t n_devs_store(struct class *cla,
-			    struct class_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t n_devs_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -3090,18 +3092,18 @@ static ssize_t n_devs_store(struct class *cla,
 	return count;
 }
 
-static ssize_t debug_show(struct class *cla,
-			  struct class_attribute *attr,
-			  char *buf)
+static ssize_t debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80,
 			"current debug is %d\n",
 			debug);
 }
 
-static ssize_t debug_store(struct class *cla,
-			   struct class_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -3115,9 +3117,9 @@ static ssize_t debug_store(struct class *cla,
 	return count;
 }
 
-static ssize_t get_count_show(struct class *cla,
-			      struct class_attribute *attr,
-			      char *buf)
+static ssize_t get_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "get_count: %d,%d,%d,%d,%d,%d,%d,%d,%d\n",
 		get_count[0], get_count[1], get_count[2],
@@ -3125,9 +3127,9 @@ static ssize_t get_count_show(struct class *cla,
 		get_count[6], get_count[7], get_count[8]);
 }
 
-static ssize_t get_count_store(struct class *cla,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t get_count_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -3147,9 +3149,9 @@ static ssize_t get_count_store(struct class *cla,
 	return count;
 }
 
-static ssize_t put_count_show(struct class *cla,
-			      struct class_attribute *attr,
-			      char *buf)
+static ssize_t put_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "put_count: %d,%d,%d,%d,%d,%d,%d,%d,%d\n",
 		put_count[0], put_count[1], put_count[2],
@@ -3157,9 +3159,9 @@ static ssize_t put_count_show(struct class *cla,
 		put_count[6], put_count[7], put_count[8]);
 }
 
-static ssize_t put_count_store(struct class *cla,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t put_count_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -3179,8 +3181,9 @@ static ssize_t put_count_store(struct class *cla,
 	return count;
 }
 
-static ssize_t q_count_show(struct class *class,
-			    struct class_attribute *attr, char *buf)
+static ssize_t q_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "q_count: %d,%d,%d,%d,%d,%d,%d,%d,%d\n",
 		q_count[0], q_count[1], q_count[2],
@@ -3188,9 +3191,9 @@ static ssize_t q_count_show(struct class *class,
 		q_count[6], q_count[7], q_count[8]);
 }
 
-static ssize_t q_count_store(struct class *class,
-			     struct class_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t q_count_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;
@@ -3209,8 +3212,9 @@ static ssize_t q_count_store(struct class *class,
 	return count;
 }
 
-static ssize_t dq_count_show(struct class *class,
-			     struct class_attribute *attr, char *buf)
+static ssize_t dq_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "dq_count: %d,%d,%d,%d,%d,%d,%d,%d,%d\n",
 		dq_count[0], dq_count[1], dq_count[2],
@@ -3218,9 +3222,9 @@ static ssize_t dq_count_show(struct class *class,
 		dq_count[6], dq_count[7], dq_count[8]);
 }
 
-static ssize_t dq_count_store(struct class *class,
-			      struct class_attribute *attr,
-			      const char *buf, size_t count)
+static ssize_t dq_count_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;
@@ -3239,15 +3243,16 @@ static ssize_t dq_count_store(struct class *class,
 	return count;
 }
 
-static ssize_t cts_use_di_show(struct class *class,
-			       struct class_attribute *attr, char *buf)
+static ssize_t cts_use_di_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "cts_use_di: %d\n", cts_use_di);
 }
 
-static ssize_t cts_use_di_store(struct class *class,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t cts_use_di_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;
@@ -3263,15 +3268,16 @@ static ssize_t cts_use_di_store(struct class *class,
 	return count;
 }
 
-static ssize_t render_use_dec_show(struct class *class,
-				   struct class_attribute *attr, char *buf)
+static ssize_t render_use_dec_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "render_use_dec: %d\n", render_use_dec);
 }
 
-static ssize_t render_use_dec_store(struct class *class,
-				    struct class_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t render_use_dec_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;
@@ -3287,15 +3293,16 @@ static ssize_t render_use_dec_store(struct class *class,
 	return count;
 }
 
-static ssize_t dec_count_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
+static ssize_t dec_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "dec_count: %d\n", dec_count);
 }
 
-static ssize_t dec_count_store(struct class *class,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t dec_count_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;
@@ -3311,18 +3318,18 @@ static ssize_t dec_count_store(struct class *class,
 	return count;
 }
 
-static ssize_t vf_dump_show(struct class *cla,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t vf_dump_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80,
 			"current vf_dump is %d\n",
 			vf_dump);
 }
 
-static ssize_t vf_dump_store(struct class *cla,
-			     struct class_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t vf_dump_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -3335,44 +3342,44 @@ static ssize_t vf_dump_store(struct class *cla,
 	return count;
 }
 
-static ssize_t open_fd_count_show(struct class *cla,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t open_fd_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "open_fd_count is %d\n", open_fd_count);
 }
 
-static ssize_t release_fd_count_show(struct class *cla,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t release_fd_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "release_fd_count is %d\n", release_fd_count);
 }
 
-static ssize_t link_fd_count_show(struct class *cla,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t link_fd_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "link_fd_count is %d\n", link_fd_count);
 }
 
-static ssize_t link_put_fd_count_show(struct class *cla,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t link_put_fd_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "link_put_fd_count is %d\n", link_put_fd_count);
 }
 
-static ssize_t v4lvideo_version_show(struct class *cla,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t v4lvideo_version_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "v4lvideo_version is %d\n", v4lvideo_version);
 }
 
-static ssize_t total_get_count_show(struct class *cla,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t total_get_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "total_get_count: %d,%d,%d,%d,%d,%d,%d,%d,%d\n",
 		total_get_count[0], total_get_count[1], total_get_count[2],
@@ -3380,9 +3387,9 @@ static ssize_t total_get_count_show(struct class *cla,
 		total_get_count[6], total_get_count[7], total_get_count[8]);
 }
 
-static ssize_t total_put_count_show(struct class *cla,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t total_put_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "total_put_count: %d,%d,%d,%d,%d,%d,%d,%d,%d\n",
 		total_put_count[0], total_put_count[1], total_put_count[2],
@@ -3390,9 +3397,9 @@ static ssize_t total_put_count_show(struct class *cla,
 		total_put_count[6], total_put_count[7], total_put_count[8]);
 }
 
-static ssize_t total_release_count_show(struct class *cla,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t total_release_count_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "total_release_count: %d,%d,%d,%d,%d,%d,%d,%d,%d\n",
 		total_release_count[0], total_release_count[1],
@@ -3402,16 +3409,16 @@ static ssize_t total_release_count_show(struct class *cla,
 		total_release_count[8]);
 }
 
-static ssize_t print_flag_show(struct class *cla,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t print_flag_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80, "print_flag is %d\n", print_flag);
 }
 
-static ssize_t print_flag_store(struct class *cla,
-			     struct class_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t print_flag_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -3424,15 +3431,16 @@ static ssize_t print_flag_store(struct class *cla,
 	return count;
 }
 
-static ssize_t cts_video_flag_show(struct class *class,
-				   struct class_attribute *attr, char *buf)
+static ssize_t cts_video_flag_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "cts_video_flag: %d\n", cts_video_flag);
 }
 
-static ssize_t cts_video_flag_store(struct class *class,
-				    struct class_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t cts_video_flag_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;
@@ -3448,18 +3456,18 @@ static ssize_t cts_video_flag_store(struct class *class,
 	return count;
 }
 
-static ssize_t inactive_check_disp_show(struct class *cla,
-			    struct class_attribute *attr,
-			    char *buf)
+static ssize_t inactive_check_disp_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 80,
 			"current inactive_check_disp is %d\n",
 			inactive_check_disp);
 }
 
-static ssize_t inactive_check_disp_store(struct class *cla,
-			     struct class_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t inactive_check_disp_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long tmp;
 	int ret;

@@ -693,7 +693,7 @@ int aml_get_dts_demod_config(struct device_node *node,
 
 		cfg->reset.pin = -1;
 	} else {
-		cfg->reset.pin = of_get_named_gpio_flags(node, buf, 0, NULL);
+		cfg->reset.pin = of_get_named_gpio(node, buf, 0);
 		//pr_err("Demod: get %s: %d.\n", buf, cfg->reset.pin);
 	}
 
@@ -726,8 +726,7 @@ int aml_get_dts_demod_config(struct device_node *node,
 
 		cfg->ant_power.pin = -1;
 	} else {
-		cfg->ant_power.pin = of_get_named_gpio_flags(
-				node, buf, 0, NULL);
+		cfg->ant_power.pin = of_get_named_gpio(node, buf, 0);
 		//pr_err("Demod: get %s: %d\n", buf, cfg->ant_power.pin);
 	}
 
@@ -760,8 +759,7 @@ int aml_get_dts_demod_config(struct device_node *node,
 
 		cfg->lnb_en.pin = -1;
 	} else {
-		cfg->lnb_en.pin = of_get_named_gpio_flags(
-				node, buf, 0, NULL);
+		cfg->lnb_en.pin = of_get_named_gpio(node, buf, 0);
 		//pr_err("Demod: get %s: %d\n", buf, cfg->lnb_en.pin);
 	}
 
@@ -796,8 +794,7 @@ int aml_get_dts_demod_config(struct device_node *node,
 
 		cfg->lnb_sel.pin = -1;
 	} else {
-		cfg->lnb_sel.pin = of_get_named_gpio_flags(
-				node, buf, 0, NULL);
+		cfg->lnb_sel.pin = of_get_named_gpio(node, buf, 0);
 		//pr_err("Demod: get %s: %d\n", buf, cfg->lnb_sel.pin);
 	}
 
@@ -832,8 +829,7 @@ int aml_get_dts_demod_config(struct device_node *node,
 
 		cfg->other.pin = -1;
 	} else {
-		cfg->other.pin = of_get_named_gpio_flags(
-				node, buf, 0, NULL);
+		cfg->other.pin = of_get_named_gpio(node, buf, 0);
 		//pr_err("Demod: get %s: %d\n", buf, cfg->other.pin);
 	}
 

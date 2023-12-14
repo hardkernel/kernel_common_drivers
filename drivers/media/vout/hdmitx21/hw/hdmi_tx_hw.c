@@ -2506,6 +2506,7 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case MISC_AUDIO_PREPARE:
 		//mute aud sample
 		hdmitx21_set_reg_bits(AUDP_TXCTRL_IVCTX, 1, 7, 1);
+		break;
 	case MISC_AUDIO_ACR_CTRL:
 	default:
 		break;

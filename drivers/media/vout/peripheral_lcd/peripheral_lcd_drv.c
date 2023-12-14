@@ -69,9 +69,8 @@ static int plcd_get_basic_config_dts(struct platform_device *pdev)
 	if (plcd_drv->dev_index < 0xff)
 		LCDPR("get peripheral_lcd_dev_index = %d\n", plcd_drv->dev_index);
 
-	plcd_drv->res_vs_irq = platform_get_resource_byname(pdev,
-		IORESOURCE_IRQ, "per_lcd_vsync");
-	if (!plcd_drv->res_vs_irq)
+	plcd_drv->vs_irq = platform_get_irq_byname(pdev, "per_lcd_vsync");
+	if (plcd_drv->vs_irq < 0)
 		LCDPR("no per_lcd_vsync interrupts exist\n");
 
 	return 0;

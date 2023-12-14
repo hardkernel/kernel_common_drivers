@@ -19,6 +19,7 @@
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/platform_device.h>
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #include <linux/amlogic/media/vout/lcd/ldim_fw.h>
@@ -261,8 +262,9 @@ static void ldim_get_test_matrix_info(struct aml_ldim_driver_s *ldim_drv)
 	kfree(buf);
 }
 
-static ssize_t ldim_attr_show(struct class *cla, struct class_attribute *attr,
-			      char *buf)
+static ssize_t ldim_attr_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
@@ -299,8 +301,9 @@ static ssize_t ldim_attr_show(struct class *cla, struct class_attribute *attr,
 	return len;
 }
 
-static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
-			       const char *buf, size_t len)
+static ssize_t ldim_attr_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t len)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
@@ -629,8 +632,9 @@ ldim_attr_store_err:
 	return -EINVAL;
 }
 
-static ssize_t ldim_func_en_show(struct class *class,
-				 struct class_attribute *attr, char *buf)
+static ssize_t ldim_func_en_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	int ret = 0;
@@ -640,9 +644,9 @@ static ssize_t ldim_func_en_show(struct class *class,
 	return ret;
 }
 
-static ssize_t ldim_func_en_store(struct class *class,
-				  struct class_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t ldim_func_en_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	unsigned int val = 0;
@@ -655,8 +659,9 @@ static ssize_t ldim_func_en_store(struct class *class,
 	return count;
 }
 
-static ssize_t ldim_remap_show(struct class *class,
-			       struct class_attribute *attr, char *buf)
+static ssize_t ldim_remap_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	int ret = 0;
@@ -666,9 +671,9 @@ static ssize_t ldim_remap_show(struct class *class,
 	return ret;
 }
 
-static ssize_t ldim_remap_store(struct class *class,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t ldim_remap_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	unsigned int val = 0;
@@ -681,8 +686,9 @@ static ssize_t ldim_remap_store(struct class *class,
 	return count;
 }
 
-static ssize_t ldim_para_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
+static ssize_t ldim_para_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
@@ -693,8 +699,9 @@ static ssize_t ldim_para_show(struct class *class,
 	return len;
 }
 
-static ssize_t ldim_para_store(struct class *class, struct class_attribute *attr,
-				  const char *buf, size_t len)
+static ssize_t ldim_para_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t len)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
@@ -712,8 +719,9 @@ static ssize_t ldim_para_store(struct class *class, struct class_attribute *attr
 	return len;
 }
 
-static ssize_t ldim_mem_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
+static ssize_t ldim_mem_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
@@ -724,8 +732,9 @@ static ssize_t ldim_mem_show(struct class *class,
 	return len;
 }
 
-static ssize_t ldim_mem_store(struct class *class, struct class_attribute *attr,
-			      const char *buf, size_t len)
+static ssize_t ldim_mem_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t len)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
@@ -743,8 +752,9 @@ static ssize_t ldim_mem_store(struct class *class, struct class_attribute *attr,
 	return len;
 }
 
-static ssize_t ldim_reg_show(struct class *class,
-			     struct class_attribute *attr, char *buf)
+static ssize_t ldim_reg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
@@ -755,8 +765,9 @@ static ssize_t ldim_reg_show(struct class *class,
 	return len;
 }
 
-static ssize_t ldim_reg_store(struct class *class, struct class_attribute *attr,
-			      const char *buf, size_t len)
+static ssize_t ldim_reg_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t len)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
@@ -774,8 +785,9 @@ static ssize_t ldim_reg_store(struct class *class, struct class_attribute *attr,
 	return len;
 }
 
-static ssize_t ldim_dbg_reg_show(struct class *class,
-				 struct class_attribute *attr, char *buf)
+static ssize_t ldim_dbg_reg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
@@ -786,8 +798,9 @@ static ssize_t ldim_dbg_reg_show(struct class *class,
 	return len;
 }
 
-static ssize_t ldim_dbg_reg_store(struct class *class, struct class_attribute *attr,
-				  const char *buf, size_t len)
+static ssize_t ldim_dbg_reg_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t len)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
@@ -805,7 +818,9 @@ static ssize_t ldim_dbg_reg_store(struct class *class, struct class_attribute *a
 	return len;
 }
 
-static ssize_t ldim_demo_show(struct class *class, struct class_attribute *attr, char *buf)
+static ssize_t ldim_demo_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	int ret = 0;
@@ -815,13 +830,16 @@ static ssize_t ldim_demo_show(struct class *class, struct class_attribute *attr,
 	return ret;
 }
 
-static ssize_t ldim_demo_store(struct class *class, struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t ldim_demo_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	return 0;
 }
 
-static ssize_t ldim_debug_show(struct class *class, struct class_attribute *attr, char *buf)
+static ssize_t ldim_debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
@@ -832,8 +850,9 @@ static ssize_t ldim_debug_show(struct class *class, struct class_attribute *attr
 	return len;
 }
 
-static ssize_t ldim_debug_store(struct class *class, struct class_attribute *attr,
-				const char *buf, size_t len)
+static ssize_t ldim_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t len)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;

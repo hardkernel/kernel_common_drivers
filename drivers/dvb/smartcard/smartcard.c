@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/gpio/consumer.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/sched/clock.h>
 #include <linux/compat.h>
@@ -1820,7 +1821,6 @@ static int smc_dev_init(struct smc_dev *smc, int id)
 	u32 value;
 	char buf[32];
 	const char *dts_str;
-	struct resource *res;
 
 #if defined(MESON_CPU_TYPE_MESON8) && (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8)
 	CLK_GATE_ON(SMART_CARD_MPEG_DOMAIN);
@@ -1884,13 +1884,11 @@ static int smc_dev_init(struct smc_dev *smc, int id)
 	if (smc->irq_num == -1) {
 		snprintf(buf, sizeof(buf), "smc%d_irq", id);
 
-		res = platform_get_resource_byname(smc->pdev,
-						   IORESOURCE_IRQ, buf);
-		if (!res) {
+		smc->irq_num = platform_get_irq_byname(smc->pdev, buf);
+		if (smc->irq_num < 0) {
 			pr_error("cannot get resource \"%s\"\n", buf);
 			return -1;
 		}
-		smc->irq_num = res->start;
 	}
 
 	snprintf(buf, sizeof(buf), "smc%d_clk_pinmux_reg", id);

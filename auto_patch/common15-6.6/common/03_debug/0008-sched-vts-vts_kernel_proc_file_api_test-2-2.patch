@@ -1,0 +1,147 @@
+From 78b040628f02d069170e0ca00770eb50d46c3b3f Mon Sep 17 00:00:00 2001
+From: "qiankun.wang" <qiankun.wang@amlogic.com>
+Date: Fri, 19 May 2023 15:26:35 +0800
+Subject: [PATCH 8/9] sched: vts: vts_kernel_proc_file_api_test [2/2]
+
+PD#SWPL-124519
+
+Problem:
+vts_kernel_proc_file_api_test module 3 fail
+
+Solution:
+add 3 proc file interfaces 'sched_latency_ns',
+'sched_wakeup_granularity_ns',
+'sched_tunable_scaling'
+
+Verify:
+SC2
+
+Change-Id: I514cea758d73825252a14cb7c39e1f233d075f2e
+Signed-off-by: qiankun.wang <qiankun.wang@amlogic.com>
+---
+ include/linux/sched/sysctl.h | 11 ++++++++++
+ kernel/sched/fair.c          | 25 +++++++++++++++++++++
+ kernel/sysctl.c              | 42 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 78 insertions(+)
+
+diff --git a/include/linux/sched/sysctl.h b/include/linux/sched/sysctl.h
+index 5a64582b086b..c9ec64f360cf 100644
+--- a/include/linux/sched/sysctl.h
++++ b/include/linux/sched/sysctl.h
+@@ -19,6 +19,17 @@ enum sched_tunable_scaling {
+ 	SCHED_TUNABLESCALING_END,
+ };
+ 
++#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_SCHED_SYSCTL)
++extern enum sched_tunable_scaling sysctl_sched_tunable_scaling;
++extern unsigned int sysctl_sched_latency;
++extern unsigned int sysctl_sched_min_granularity;
++extern unsigned int sysctl_sched_wakeup_granularity;
++
++int sched_proc_update_handler(struct ctl_table *table, int write,
++		void __user *buffer, size_t *length,
++		loff_t *ppos);
++#endif
++
+ #define NUMA_BALANCING_DISABLED		0x0
+ #define NUMA_BALANCING_NORMAL		0x1
+ #define NUMA_BALANCING_MEMORY_TIERING	0x2
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 0e144aa8188a..4b378a328cae 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -1028,6 +1028,31 @@ int sched_update_scaling(void)
+ 	return 0;
+ }
+ #endif
++
++#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_SCHED_SYSCTL)
++int sched_proc_update_handler(struct ctl_table *table, int write,
++				void __user *buffer, size_t *lenp,
++				loff_t *ppos)
++{
++	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
++	unsigned int factor = get_update_sysctl_factor();
++
++	if (ret || !write)
++		return ret;
++
++	sched_nr_latency = DIV_ROUND_UP(sysctl_sched_latency,
++		sysctl_sched_min_granularity);
++
++#define WRT_SYSCTL(name) \
++	(normalized_sysctl_##name = sysctl_##name / (factor))
++	WRT_SYSCTL(sched_min_granularity);
++	WRT_SYSCTL(sched_latency);
++	WRT_SYSCTL(sched_wakeup_granularity);
++#undef WRT_SYSCTL
++
++	return 0;
++}
++#endif
+ #endif
+ 
+ static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se);
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 354a2d294f52..431c6054e416 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -135,6 +135,17 @@ static enum sysctl_writes_mode sysctl_writes_strict = SYSCTL_WRITES_STRICT;
+ int sysctl_legacy_va_layout;
+ #endif
+ 
++#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_SCHED_SYSCTL)
++static int min_sched_granularity_ns = 100000;           /* 100 usecs */
++static int max_sched_granularity_ns = NSEC_PER_SEC;     /* 1 second */
++static int min_wakeup_granularity_ns;                   /* 0 usecs */
++static int max_wakeup_granularity_ns = NSEC_PER_SEC;    /* 1 second */
++#ifdef CONFIG_SMP
++static int min_sched_tunable_scaling = SCHED_TUNABLESCALING_NONE;
++static int max_sched_tunable_scaling = SCHED_TUNABLESCALING_END - 1;
++#endif /* CONFIG_SMP */
++#endif
++
+ #endif /* CONFIG_SYSCTL */
+ 
+ /*
+@@ -2042,6 +2053,37 @@ static struct ctl_table kern_table[] = {
+ 		.extra1		= SYSCTL_ONE,
+ 		.extra2		= SYSCTL_INT_MAX,
+ 	},
++#endif
++#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_SCHED_SYSCTL)
++	{
++		.procname       = "sched_latency_ns",
++		.data           = &sysctl_sched_latency,
++		.maxlen         = sizeof(unsigned int),
++		.mode           = 0644,
++		.proc_handler   = sched_proc_update_handler,
++		.extra1         = &min_sched_granularity_ns,
++		.extra2         = &max_sched_granularity_ns,
++	},
++	{
++		.procname       = "sched_wakeup_granularity_ns",
++		.data           = &sysctl_sched_wakeup_granularity,
++		.maxlen         = sizeof(unsigned int),
++		.mode           = 0644,
++		.proc_handler   = sched_proc_update_handler,
++		.extra1         = &min_wakeup_granularity_ns,
++		.extra2         = &max_wakeup_granularity_ns,
++	},
++#ifdef CONFIG_SMP
++	{
++		.procname       = "sched_tunable_scaling",
++		.data           = &sysctl_sched_tunable_scaling,
++		.maxlen         = sizeof(enum sched_tunable_scaling),
++		.mode           = 0644,
++		.proc_handler   = sched_proc_update_handler,
++		.extra1         = &min_sched_tunable_scaling,
++		.extra2         = &max_sched_tunable_scaling,
++	},
++#endif
+ #endif
+ 	{ }
+ };
+-- 
+2.41.0
+

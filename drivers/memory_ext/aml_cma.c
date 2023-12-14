@@ -44,7 +44,9 @@
 #include <linux/vmalloc.h>
 #include <asm/system_misc.h>
 #include <asm/pgtable.h>
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 #include <linux/page_pinner.h>
+#endif
 #include <trace/events/page_isolation.h>
 #if IS_MODULE(CONFIG_AMLOGIC_CMA)
 #include <linux/debugfs.h>
@@ -705,6 +707,46 @@ static unsigned long aml_pfn_max_align_up(unsigned long pfn)
 				pageblock_nr_pages));
 }
 
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+static struct folio *get_migrate_page(struct folio *src, unsigned long private)
+{
+	struct migration_target_control *mtc;
+	gfp_t gfp_mask;
+	unsigned int order = 0;
+	int nid;
+	int zidx;
+
+	mtc = (struct migration_target_control *)private;
+	gfp_mask = mtc->gfp_mask;
+	nid = mtc->nid;
+	if (nid == NUMA_NO_NODE)
+		nid = folio_nid(src);
+
+	if (folio_test_hugetlb(src)) {
+		struct hstate *h = folio_hstate(src);
+
+		gfp_mask = htlb_modify_alloc_mask(h, gfp_mask);
+		return alloc_hugetlb_folio_nodemask(h, nid,
+						mtc->nmask, gfp_mask);
+	}
+
+	if (folio_test_large(src)) {
+		/*
+		 * clear __GFP_RECLAIM to make the migration callback
+		 * consistent with regular THP allocations.
+		 */
+		gfp_mask &= ~__GFP_RECLAIM;
+		gfp_mask |= GFP_TRANSHUGE;
+		order = folio_order(src);
+	}
+	zidx = zone_idx(folio_zone(src));
+	if (is_highmem_idx(zidx) || zidx == ZONE_MOVABLE)
+		gfp_mask |= __GFP_HIGHMEM;
+
+	return __folio_alloc(gfp_mask, order, nid, mtc->nmask);
+}
+
+#else
 static struct page *get_migrate_page(struct page *page, unsigned long private)
 {
 	struct migration_target_control *mtc;
@@ -734,8 +776,7 @@ static struct page *get_migrate_page(struct page *page, unsigned long private)
 
 		gfp_mask |= htlb_modify_alloc_mask(h, gfp_mask);
 		new_page = alloc_huge_page_nodemask(h,
-					       page_to_nid(page),
-					       0, gfp_mask);
+					page_to_nid(page), 0, gfp_mask);
 	#if (IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE) && IS_MODULE(CONFIG_AMLOGIC_CMA)) || \
 		(IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE) && IS_BUILTIN(CONFIG_AMLOGIC_CMA))
 	#ifdef CONFIG_HUGETLB_PAGE
@@ -773,6 +814,7 @@ static struct page *get_migrate_page(struct page *page, unsigned long private)
 #endif
 	return new_page;
 }
+#endif
 
 #if defined(CONFIG_DYNAMIC_DEBUG) || \
 	(defined(CONFIG_DYNAMIC_DEBUG_CORE) && defined(DYNAMIC_DEBUG_MODULE))
@@ -1439,8 +1481,13 @@ void aml_cma_free(unsigned long pfn, unsigned int nr_pages, int update)
 	}
 }
 
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+static bool cma_vma_show(struct folio *folio, struct vm_area_struct *vma,
+			 unsigned long addr, void *arg)
+#else
 static bool cma_vma_show(struct page *page, struct vm_area_struct *vma,
 			 unsigned long addr, void *arg)
+#endif
 {
 #if defined(CONFIG_AMLOGIC_USER_FAULT) && IS_BUILTIN(CONFIG_AMLOGIC_CMA)
 	struct mm_struct *mm = vma->vm_mm;

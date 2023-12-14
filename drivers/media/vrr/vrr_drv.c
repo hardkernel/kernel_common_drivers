@@ -29,6 +29,7 @@
 #include "vrr_reg.h"
 
 #include <linux/amlogic/gki_module.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #define VRR_CDEV_NAME  "aml_vrr"
 struct vrr_cdev_s {
@@ -115,7 +116,6 @@ struct aml_vrr_drv_s *vrr_drv_get(int index)
 static int vrr_config_load(struct aml_vrr_drv_s *vdrv, struct platform_device *pdev)
 {
 	unsigned int temp;
-	struct resource *res;
 	int ret;
 
 	ret = of_property_read_u32(pdev->dev.of_node, "line_delay", &temp);
@@ -130,10 +130,11 @@ static int vrr_config_load(struct aml_vrr_drv_s *vdrv, struct platform_device *p
 	      vdrv->index, __func__, vdrv->line_dly);
 
 	spin_lock_init(&vdrv->vrr_isr_lock);
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
-	if (res) {
+	vdrv->vsync_irq = platform_get_irq_byname(pdev, "vsync");
+	if (vdrv->vsync_irq < 0) {
+		VRRERR("[%d]: %s: can't get vsync irq\n", vdrv->index, __func__);
+	} else {
 		vdrv->state |= VRR_STATE_VS_IRQ;
-		vdrv->vsync_irq = res->start;
 		sprintf(vdrv->vs_isr_name, "vrr%d_vsync", vdrv->index);
 		if (request_irq(vdrv->vsync_irq, vrr_vsync_isr_handler, IRQF_SHARED,
 				vdrv->vs_isr_name, (void *)vdrv)) {
@@ -142,8 +143,6 @@ static int vrr_config_load(struct aml_vrr_drv_s *vdrv, struct platform_device *p
 		} else {
 			vdrv->state |= VRR_STATE_VS_IRQ_EN;
 		}
-	} else {
-		VRRERR("[%d]: %s: can't get vsync irq\n", vdrv->index, __func__);
 	}
 
 	vdrv->lfc_shift = 10;
@@ -1175,7 +1174,7 @@ static int vrr_global_init_once(void)
 		goto vrr_global_init_once_err;
 	}
 
-	vrr_cdev->class = class_create(THIS_MODULE, "aml_vrr");
+	vrr_cdev->class = kv_class_create(THIS_MODULE, "aml_vrr");
 	if (IS_ERR_OR_NULL(vrr_cdev->class)) {
 		ret = 2;
 		goto vrr_global_init_once_err_1;

@@ -14,18 +14,18 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_tcon_pdf.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_vbyone.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_drm.o
 
-include $(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_venc/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_venc/Makefile
 
-include $(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_tv/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_tv/Makefile
 
-include $(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_tablet/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_tablet/Makefile
 
-include $(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_clk/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_clk/Makefile
 
-include $(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_phy/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_phy/Makefile
 
-include $(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_extern/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_extern/Makefile
 
-include $(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/backlight/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/backlight/Makefile
 
-include $(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/ambilight/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/ambilight/Makefile

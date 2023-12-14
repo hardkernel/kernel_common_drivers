@@ -19,6 +19,7 @@
 #include <linux/ctype.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
@@ -5660,8 +5661,9 @@ int pip2_receiver_event_fun(int type,
 }
 
 ///////////////////////////////////////////////////////
-ssize_t blend_conflict_show(struct class *cla,
-		struct class_attribute *attr, char *buf)
+ssize_t blend_conflict_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "blend_conflict_cnt: %d\n", blend_conflict_cnt);
 }

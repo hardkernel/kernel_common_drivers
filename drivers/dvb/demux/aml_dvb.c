@@ -38,6 +38,7 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 #include <linux/amlogic/media/frame_sync/tsync.h>
 #endif
+#include <linux/amlogic/kernel_versions.h>
 
 #define dprint_i(fmt, args...)  \
 	dprintk(LOG_ERROR, debug_dvb, fmt, ## args)
@@ -88,8 +89,9 @@ static void demux_config_pipeline(int cfg_demod_tsn, int cfg_tsn_out)
 	pr_dbg("tee_write_reg_bits value:%d, ret:%d\n", value, ret);
 }
 
-ssize_t get_pcr_show(struct class *class,
-		     struct class_attribute *attr, char *buf)
+static ssize_t get_pcr_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_dvb *dvb = aml_get_dvb_device();
 	int r, total = 0;
@@ -129,9 +131,9 @@ ssize_t get_pcr_show(struct class *class,
 	return total;
 }
 
-ssize_t get_pcr_store(struct class *class,
-			 struct class_attribute *attr,
-			 const char *buf, size_t count)
+static ssize_t get_pcr_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	if (!strncmp(buf, "dmx", 3))
 		print_dmx = buf[4] - 0x30;
@@ -143,8 +145,9 @@ ssize_t get_pcr_store(struct class *class,
 	return count;
 }
 
-ssize_t dmx_setting_show(struct class *class, struct class_attribute *attr,
-			 char *buf)
+ssize_t dmx_setting_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int r, total = 0;
 	int i;
@@ -187,8 +190,9 @@ ssize_t dmx_setting_show(struct class *class, struct class_attribute *attr,
 	return total;
 }
 
-ssize_t dsc_setting_show(struct class *class, struct class_attribute *attr,
-			 char *buf)
+static ssize_t dsc_setting_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int total = 0;
 
@@ -230,8 +234,9 @@ static ssize_t get_chip_version(char *buf)
 	return total;
 }
 
-ssize_t dmx_ver_show(struct class *class, struct class_attribute *attr,
-			 char *buf)
+static ssize_t dmx_ver_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return get_chip_version(buf);
 }
@@ -267,8 +272,9 @@ int demux_get_pcr(int demux_device_index, int index, u64 *pcr)
 }
 EXPORT_SYMBOL(demux_get_pcr);
 
-ssize_t tsn_source_show(struct class *class,
-			struct class_attribute *attr, char *buf)
+static ssize_t tsn_source_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int r, total = 0;
 	u32 value = 0;
@@ -301,9 +307,9 @@ ssize_t tsn_source_show(struct class *class,
 	return total;
 }
 
-ssize_t tsn_source_store(struct class *class,
-			 struct class_attribute *attr,
-			 const char *buf, size_t count)
+static ssize_t tsn_source_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct aml_dvb *advb = aml_get_dvb_device();
 	int tsn_in_reg = 0;
@@ -374,8 +380,9 @@ int tsn_source_force_set(int source)
 	return 0;
 }
 
-ssize_t tso_source_show(struct class *class,
-			struct class_attribute *attr, char *buf)
+static ssize_t tso_source_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int r, total = 0;
 
@@ -389,9 +396,9 @@ ssize_t tso_source_show(struct class *class,
 	return total;
 }
 
-ssize_t tso_source_store(struct class *class,
-			 struct class_attribute *attr,
-			 const char *buf, size_t count)
+static ssize_t tso_source_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct aml_dvb *advb = aml_get_dvb_device();
 
@@ -414,8 +421,9 @@ ssize_t tso_source_store(struct class *class,
 	return count;
 }
 
-ssize_t tsn_loop_show(struct class *class,
-			struct class_attribute *attr, char *buf)
+static ssize_t tsn_loop_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_dvb *advb = aml_get_dvb_device();
 	int r, total = 0;
@@ -439,9 +447,9 @@ ssize_t tsn_loop_show(struct class *class,
 	return total;
 }
 
-ssize_t tsn_loop_store(struct class *class,
-			 struct class_attribute *attr,
-			 const char *buf, size_t count)
+static ssize_t tsn_loop_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct aml_dvb *advb = aml_get_dvb_device();
 	long val = 0;
@@ -470,8 +478,9 @@ ssize_t tsn_loop_store(struct class *class,
 
 static int lock_err_status;
 
-ssize_t dmx_mutex_show(struct class *class,
-			struct class_attribute *attr, char *buf)
+static ssize_t dmx_mutex_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int r, total = 0;
 
@@ -482,9 +491,9 @@ ssize_t dmx_mutex_show(struct class *class,
 	return total;
 }
 
-ssize_t dmx_mutex_store(struct class *class,
-			 struct class_attribute *attr,
-			 const char *buf, size_t count)
+static ssize_t dmx_mutex_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct aml_dvb *advb = aml_get_dvb_device();
 
@@ -502,15 +511,16 @@ ssize_t dmx_mutex_store(struct class *class,
 	return count;
 }
 
-ssize_t dmc_mem_show(struct class *class,
-			struct class_attribute *attr, char *buf)
+static ssize_t dmc_mem_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return dmc_mem_dump_info(buf);
 }
 
-ssize_t dmc_mem_store(struct class *class,
-			 struct class_attribute *attr,
-			 const char *buf, size_t count)
+static ssize_t dmc_mem_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct aml_dvb *advb = aml_get_dvb_device();
 	int sec_level = 0;
@@ -535,8 +545,9 @@ ssize_t dmc_mem_store(struct class *class,
 	return count;
 }
 
-ssize_t demod_out_show(struct class *class,
-			struct class_attribute *attr, char *buf)
+static ssize_t demod_out_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int r, total = 0;
 	u32 val = 0;
@@ -557,9 +568,9 @@ ssize_t demod_out_show(struct class *class,
 	return total;
 }
 
-ssize_t demod_out_store(struct class *class,
-			 struct class_attribute *attr,
-			 const char *buf, size_t count)
+static ssize_t demod_out_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int version = get_dmx_version();
 	unsigned int value;
@@ -903,7 +914,8 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	}
 	frontend_config_ts_sid();
 
-	class_register(&aml_stb_class);
+	if (class_register(&aml_stb_class) < 0)
+		goto INIT_ERR;
 	dmx_regist_dmx_class();
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC

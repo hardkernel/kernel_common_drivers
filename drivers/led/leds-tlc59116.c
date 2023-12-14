@@ -18,6 +18,8 @@
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
 #include <linux/leds.h>
+
+#include <linux/amlogic/kernel_versions.h>
 #include "leds-tlc59116.h"
 
 #define MESON_TLC59116_I2C_NAME			"tlc59116_led"
@@ -609,8 +611,7 @@ static int meson_tlc59116_parse_led_dt(struct meson_tlc59116 *tlc59116,
 	return ret;
 }
 
-static int meson_tlc59116_i2c_probe(struct i2c_client *i2c,
-				    const struct i2c_device_id *id)
+static int meson_tlc59116_i2c_probe(struct i2c_client *i2c KV_I2C_PROBE_ID)
 {
 	struct device_node *np = i2c->dev.of_node;
 	struct meson_tlc59116 *tlc59116;
@@ -691,7 +692,7 @@ static int meson_tlc59116_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
-static int meson_tlc59116_i2c_remove(struct i2c_client *i2c)
+static KV_I2C_REMOVE_TYPE meson_tlc59116_i2c_remove(struct i2c_client *i2c)
 {
 	struct meson_tlc59116 *tlc59116 = i2c_get_clientdata(i2c);
 
@@ -699,7 +700,7 @@ static int meson_tlc59116_i2c_remove(struct i2c_client *i2c)
 			   &tlc59116_attribute_group);
 	led_classdev_unregister(&tlc59116->cdev);
 
-	return 0;
+	KV_I2C_REMOVE_RET(0);
 }
 
 static int meson_tlc59116_suspend(struct device *dev)

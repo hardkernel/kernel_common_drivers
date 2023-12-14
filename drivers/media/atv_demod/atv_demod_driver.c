@@ -24,6 +24,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <dvb_frontend.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #include "atv_demod_debug.h"
 #include "atv_demod_driver.h"
@@ -76,8 +77,9 @@ struct aml_atvdemod_device *amlatvdemod_devp;
 unsigned int audio_gain_shift;
 unsigned int audio_gain_lpr;
 
-static ssize_t atvdemod_debug_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
+static ssize_t atvdemod_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int n = 0;
 	int ret = 0;
@@ -450,8 +452,9 @@ EXIT:
 	return count;
 }
 
-static ssize_t atvdemod_debug_show(struct class *class,
-		struct class_attribute *attr, char *buff)
+static ssize_t atvdemod_debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buff)
 {
 	struct aml_atvdemod_device *dev =
 			container_of(class, struct aml_atvdemod_device, cls);
@@ -650,7 +653,7 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 	dev->name = ATVDEMOD_DEVICE_NAME;
 	dev->dev = &pdev->dev;
 	dev->cls.name = ATVDEMOD_DEVICE_NAME;
-	dev->cls.owner = THIS_MODULE;
+	kv_set_class_owner(&dev->cls);
 	dev->cls.class_groups = atvdemod_class_groups;
 
 	ret = class_register(&dev->cls);
@@ -659,13 +662,10 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 		goto fail_class_register;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
+	dev->irq = platform_get_irq(pdev, 0);
+	if (dev->irq < 0) {
 		dev->irq = -1;
 		//pr_err("can't get irq resource.\n");
-	} else {
-		dev->irq = res->start;
-		//pr_err("get irq resource %d.\n", dev->irq);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

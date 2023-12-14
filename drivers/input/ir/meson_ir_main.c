@@ -563,7 +563,6 @@ static struct regmap_config meson_ir_regmap_config = {
 
 static int meson_ir_get_devtree_pdata(struct platform_device *pdev)
 {
-	struct resource *res_irq;
 	struct resource *res_mem;
 	struct regmap *reg_base;
 	resource_size_t *res_start[2];
@@ -621,14 +620,12 @@ static int meson_ir_get_devtree_pdata(struct platform_device *pdev)
 		chip->ir_contr[i].base = reg_base;
 	}
 
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (IS_ERR_OR_NULL(res_irq)) {
-		dev_err(chip->dev, "get IORESOURCE_IRQ error, %ld\n",
-			PTR_ERR(res_irq));
-		return PTR_ERR(res_irq);
+	chip->irqno = platform_get_irq(pdev, 0);
+	if (chip->irqno < 0) {
+		dev_err(chip->dev, "get IORESOURCE_IRQ error, %d\n",
+			chip->irqno);
+		return chip->irqno;
 	}
-
-	chip->irqno = res_irq->start;
 
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "max_frame_time", &value);

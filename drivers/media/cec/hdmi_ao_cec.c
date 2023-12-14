@@ -49,6 +49,7 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/aml_mbox.h>
 #include <linux/amlogic/pm.h>
+#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 static struct early_suspend aocec_suspend_handler;
@@ -459,7 +460,7 @@ try_again:
 		CEC_ERR("TX FAIL_BUSY(controller busy), pin_status: %d\n", get_pin_status());
 		if (retry > 0) {
 			retry--;
-			msleep(100 + (prandom_u32() & 0x07) * 10);
+			msleep(100 + (kv_aml_random_u32() & 0x07) * 10);
 			dprintk(L_2, "retry0 %d\n", retry);
 			goto try_again;
 		}
@@ -481,7 +482,7 @@ try_again:
 	if (ret != CEC_FAIL_NONE && ret != CEC_FAIL_NACK) {
 		if (retry > 0) {
 			retry--;
-			msleep(100 + (prandom_u32() & 0x07) * 10);
+			msleep(100 + (kv_aml_random_u32() & 0x07) * 10);
 			dprintk(L_2, "retry1 %d\n", retry);
 			goto try_again;
 		}
@@ -870,15 +871,16 @@ static void cec_wakeup_task(struct work_struct *work)
 }
 
 /******************** cec class interface *************************/
-static ssize_t device_type_show(struct class *cla,
-				struct class_attribute *attr, char *buf)
+static ssize_t device_type_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%ld\n", cec_dev->dev_type);
 }
 
-static ssize_t device_type_store(struct class *cla,
-				 struct class_attribute *attr,
-				 const char *buf, size_t count)
+static ssize_t device_type_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int type;
 
@@ -890,8 +892,9 @@ static ssize_t device_type_store(struct class *cla,
 	return count;
 }
 
-static ssize_t menu_language_show(struct class *cla,
-				  struct class_attribute *attr, char *buf)
+static ssize_t menu_language_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	char a, b, c;
 
@@ -901,9 +904,9 @@ static ssize_t menu_language_show(struct class *cla,
 	return sprintf(buf, "%c%c%c\n", a, b, c);
 }
 
-static ssize_t menu_language_store(struct class *cla,
-				   struct class_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t menu_language_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char a, b, c;
 
@@ -915,14 +918,16 @@ static ssize_t menu_language_store(struct class *cla,
 	return count;
 }
 
-static ssize_t vendor_id_show(struct class *cla,
-			      struct class_attribute *attr, char *buf)
+static ssize_t vendor_id_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%x\n", cec_dev->cec_info.vendor_id);
 }
 
-static ssize_t vendor_id_store(struct class *cla, struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t vendor_id_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int id;
 
@@ -932,33 +937,37 @@ static ssize_t vendor_id_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t port_num_show(struct class *cla,
-			     struct class_attribute *attr, char *buf)
+static ssize_t port_num_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", cec_dev->port_num);
 }
 
-static ssize_t dump_reg_show(struct class *cla,
-			     struct class_attribute *attr, char *b)
+static ssize_t dump_reg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *b)
 {
 	return dump_cec_reg(b);
 }
 
-static ssize_t arc_port_show(struct class *cla,
-			     struct class_attribute *attr, char *buf)
+static ssize_t arc_port_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%x\n", cec_dev->arc_port);
 }
 
-static ssize_t osd_name_show(struct class *cla,
-			     struct class_attribute *attr, char *buf)
+static ssize_t osd_name_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%s\n", cec_dev->cec_info.osd_name);
 }
 
-static ssize_t port_seq_store(struct class *cla,
-			      struct class_attribute *attr,
-			      const char *buf, size_t count)
+static ssize_t port_seq_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int seq;
 
@@ -970,14 +979,16 @@ static ssize_t port_seq_store(struct class *cla,
 	return count;
 }
 
-static ssize_t port_seq_show(struct class *cla,
-			     struct class_attribute *attr, char *buf)
+static ssize_t port_seq_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%x\n", cec_dev->port_seq);
 }
 
-static ssize_t port_status_show(struct class *cla,
-				struct class_attribute *attr, char *buf)
+static ssize_t port_status_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int tmp;
 	unsigned int tx_hpd;
@@ -995,8 +1006,9 @@ static ssize_t port_status_show(struct class *cla,
 	return sprintf(buf, "%x\n", tmp);
 }
 
-static ssize_t pin_status_show(struct class *cla,
-			       struct class_attribute *attr, char *buf)
+static ssize_t pin_status_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int tx_hpd;
 	char p;
@@ -1021,17 +1033,18 @@ static ssize_t pin_status_show(struct class *cla,
 	}
 }
 
-static ssize_t physical_addr_show(struct class *cla,
-				  struct class_attribute *attr, char *buf)
+static ssize_t physical_addr_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int tmp = cec_dev->phy_addr;
 
 	return sprintf(buf, "%04x\n", tmp);
 }
 
-static ssize_t physical_addr_store(struct class *cla,
-				   struct class_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t physical_addr_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int addr;
 
@@ -1048,14 +1061,16 @@ static ssize_t physical_addr_store(struct class *cla,
 	return count;
 }
 
-static ssize_t dbg_en_show(struct class *cla,
-			   struct class_attribute *attr, char *buf)
+static ssize_t dbg_en_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%x\n", cec_msg_dbg_en);
 }
 
-static ssize_t dbg_en_store(struct class *cla, struct class_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t dbg_en_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int en;
 
@@ -1069,8 +1084,9 @@ static ssize_t dbg_en_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t cmd_store(struct class *cla, struct class_attribute *attr,
-			 const char *bu, size_t count)
+static ssize_t cmd_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *bu, size_t count)
 {
 	char buf[20] = {};
 	int tmpbuf[20] = {};
@@ -1097,8 +1113,9 @@ static ssize_t cmd_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t cmda_store(struct class *cla, struct class_attribute *attr,
-			  const char *bu, size_t count)
+static ssize_t cmda_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *bu, size_t count)
 {
 	char buf[20] = {};
 	int tmpbuf[20] = {};
@@ -1124,8 +1141,9 @@ static ssize_t cmda_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t cmdb_store(struct class *cla, struct class_attribute *attr,
-			  const char *bu, size_t count)
+static ssize_t cmdb_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *bu, size_t count)
 {
 	char buf[20] = {};
 	int tmpbuf[20] = {};
@@ -1151,14 +1169,16 @@ static ssize_t cmdb_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t wake_up_show(struct class *cla,
-			    struct class_attribute *attr, char *buf)
+static ssize_t wake_up_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%x\n", *((unsigned int *)&cec_dev->wakeup_data));
 }
 
-static ssize_t fun_cfg_store(struct class *cla, struct class_attribute *attr,
-			     const char *bu, size_t count)
+static ssize_t fun_cfg_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *bu, size_t count)
 {
 	int cnt, val;
 
@@ -1175,23 +1195,26 @@ static ssize_t fun_cfg_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t fun_cfg_show(struct class *cla,
-			    struct class_attribute *attr, char *buf)
+static ssize_t fun_cfg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int reg = cec_config(0, 0);
 
 	return sprintf(buf, "0x%x\n", reg & 0xff);
 }
 
-static ssize_t cec_version_show(struct class *cla,
-				struct class_attribute *attr, char *buf)
+static ssize_t cec_version_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	/*CEC_INFO("driver date:%s\n", CEC_DRIVER_VERSION);*/
 	return sprintf(buf, "%d\n", cec_dev->cec_info.cec_version);
 }
 
-static ssize_t log_addr_store(struct class *cla, struct class_attribute *attr,
-			      const char *bu, size_t count)
+static ssize_t log_addr_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *bu, size_t count)
 {
 	int cnt, val;
 
@@ -1206,14 +1229,16 @@ static ssize_t log_addr_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t log_addr_show(struct class *cla,
-			     struct class_attribute *attr, char *buf)
+static ssize_t log_addr_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%x\n", cec_dev->cec_info.log_addr);
 }
 
-static ssize_t dbg_store(struct class *cla, struct class_attribute *attr,
-			 const char *bu, size_t count)
+static ssize_t dbg_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *bu, size_t count)
 {
 	const char *delim = " ";
 	char *token;
@@ -1433,15 +1458,17 @@ static ssize_t dbg_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t dbg_show(struct class *cla,
-			struct class_attribute *attr, char *buf)
+static ssize_t dbg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	/*CEC_INFO(" %s\n", __func__);*/
 	return 0;
 }
 
-static ssize_t port_info_show(struct class *cla,
-			struct class_attribute *attr, char *buf)
+static ssize_t port_info_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned char i = 0;
 	int pos = 0;
@@ -1480,8 +1507,9 @@ static ssize_t port_info_show(struct class *cla,
  * bit[3~0] stands for HDMIRX PCB port D~A,
  * bit value 1: plug, 0: unplug
  */
-static ssize_t conn_status_show(struct class *cla,
-			struct class_attribute *attr, char *buf)
+static ssize_t conn_status_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int tmp = 0;
 
@@ -1494,8 +1522,9 @@ static ssize_t conn_status_show(struct class *cla,
 	return sprintf(buf, "0x%x\n", tmp);
 }
 
-static ssize_t dump_status_show(struct class *cla,
-			struct class_attribute *attr, char *buf)
+static ssize_t dump_status_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return dump_cec_status(buf);
 }
@@ -1934,7 +1963,7 @@ static unsigned int cec_poll(struct file *filp, poll_table *wait)
 }
 
 /* for improve rw permission */
-static char *aml_cec_class_devnode(struct device *dev, umode_t *mode)
+static char *aml_cec_class_devnode(KV_CLASS_DEV_CONST struct device *dev, umode_t *mode)
 {
 	if (mode) {
 		*mode = 0666;
@@ -1996,10 +2025,10 @@ static struct attribute *aocec_class_attrs[] = {
 
 ATTRIBUTE_GROUPS(aocec_class);
 static struct class aocec_class = {
-	.name = CEC_DEV_NAME,
-	.owner = THIS_MODULE,
-	.class_groups = aocec_class_groups,
-	.devnode = aml_cec_class_devnode,
+	.name		= CEC_DEV_NAME,
+	KV_CLASS_DEF_OWNER
+	.class_groups	= aocec_class_groups,
+	.devnode	= aml_cec_class_devnode,
 };
 
 static const struct file_operations hdmitx_cec_fops = {

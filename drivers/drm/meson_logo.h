@@ -5,7 +5,7 @@
 
 #ifndef __AM_MESON_LOGO_H
 #define __AM_MESON_LOGO_H
-#include <stdarg.h>
+#include <linux/stdarg.h>
 
 #define VMODE_NAME_LEN_MAX    64
 

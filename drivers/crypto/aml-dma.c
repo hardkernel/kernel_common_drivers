@@ -171,7 +171,6 @@ static int aml_dma_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct resource *res_base = 0;
-	struct resource *res_irq = 0;
 	const struct of_device_id *match;
 	int err = -EPERM;
 	const struct meson_dma_data *priv_data;
@@ -201,8 +200,7 @@ static int aml_dma_probe(struct platform_device *pdev)
 		}
 	}
 
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	dma_dd->irq = res_irq->start;
+	dma_dd->irq = platform_get_irq(pdev, 0);
 	dma_dd->dma_busy = 0;
 	platform_set_drvdata(pdev, dma_dd);
 	spin_lock_init(&dma_dd->dma_lock);

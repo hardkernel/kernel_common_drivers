@@ -67,6 +67,7 @@
 #include <linux/amlogic/media/utils/am_com.h>
 #include "../../common/vfm/vfm.h"
 #include <linux/amlogic/media/utils/vdec_reg.h>
+#include <linux/amlogic/kernel_versions.h>
 
 DEFINE_SPINLOCK(amdv_lock);
 
@@ -13352,19 +13353,17 @@ void parse_param_amdv(char *buf_orig, char **parm)
 	}
 }
 
-static ssize_t amdolby_vision_use_inter_pq_show
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 char *buf)
+static ssize_t amdolby_vision_use_inter_pq_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 40, "%d\n",
 		get_inter_pq_flag());
 }
 
-static ssize_t amdolby_vision_use_inter_pq_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_use_inter_pq_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 
 {
 	size_t r;
@@ -13378,10 +13377,9 @@ static ssize_t amdolby_vision_use_inter_pq_store
 	return count;
 }
 
-static ssize_t amdolby_vision_load_cfg_status_show
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 char *buf)
+static ssize_t amdolby_vision_load_cfg_status_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int value = 0;
 
@@ -13389,10 +13387,9 @@ static ssize_t amdolby_vision_load_cfg_status_show
 	return snprintf(buf, 40, "%d\n", value);
 }
 
-static ssize_t amdolby_vision_load_cfg_status_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_load_cfg_status_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int value = 0;
@@ -13412,27 +13409,25 @@ static ssize_t amdolby_vision_load_cfg_status_store
 	return count;
 }
 
-static ssize_t  amdolby_vision_pq_info_show
-		(struct class *cla,
-		 struct class_attribute *attr, char *buf)
+static ssize_t  amdolby_vision_pq_info_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int pos = get_dv_pq_info(buf);
 	return pos;
 }
 
-static ssize_t amdolby_vision_pq_info_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_pq_info_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int ret = set_dv_pq_info(buf, count);
 	return ret;
 }
 
-static ssize_t amdolby_vision_bin_config_show
-	(struct class *cla,
-	 struct class_attribute *attr,
-	 char *buf)
+static ssize_t amdolby_vision_bin_config_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (is_aml_hw5())
 		get_dv_bin_config_hw5();
@@ -13441,18 +13436,16 @@ static ssize_t amdolby_vision_bin_config_show
 	return 0;
 }
 
-static ssize_t amdolby_vision_core1_detunnel_show
-	 (struct class *cla,
-	  struct class_attribute *attr,
-	  char *buf)
+static ssize_t amdolby_vision_core1_detunnel_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 40, "%d\n", dv_core1_detunnel);
 }
 
-static ssize_t amdolby_vision_core1_detunnel_store
-	 (struct class *cla,
-	  struct class_attribute *attr,
-	  const char *buf, size_t count)
+static ssize_t amdolby_vision_core1_detunnel_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int value = 0;
@@ -13466,10 +13459,9 @@ static ssize_t amdolby_vision_core1_detunnel_store
 	return count;
 }
 
-static ssize_t amdolby_vision_load_reg_file_show
-	(struct class *cla,
-	 struct class_attribute *attr,
-	 char *buf)
+static ssize_t amdolby_vision_load_reg_file_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	u64 *pbuf;
 	u32 *pbuf32;
@@ -13533,10 +13525,9 @@ static ssize_t amdolby_vision_load_reg_file_show
 }
 
 /*para1:file type, para2: reg_file_name*/
-static ssize_t amdolby_vision_load_reg_file_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_load_reg_file_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[MAX_PARAM] = {NULL};
 	void *top1_reg_txt = NULL;
@@ -14783,17 +14774,16 @@ static const char *amdolby_vision_debug_usage_str = {
 	"echo output_4k240hz value > /sys/class/amdolby_vision/debug;\n"
 };
 
-static ssize_t  amdolby_vision_debug_show
-		(struct class *cla,
-		 struct class_attribute *attr, char *buf)
+static ssize_t  amdolby_vision_debug_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%s\n",  amdolby_vision_debug_usage_str);
 }
 
-static ssize_t amdolby_vision_debug_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_debug_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[MAX_PARAM] = {NULL};
 	long val = 0;
@@ -15048,35 +15038,33 @@ static ssize_t amdolby_vision_debug_store
 	return count;
 }
 
-static ssize_t	amdolby_vision_primary_show
-	(struct class *cla,
-	 struct class_attribute *attr, char *buf)
+static ssize_t amdolby_vision_primary_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return get_dv_debug_tprimary(buf);
 }
 
-static ssize_t amdolby_vision_primary_store
-	(struct class *cla,
-	 struct class_attribute *attr,
-	 const char *buf, size_t count)
+static ssize_t amdolby_vision_primary_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int ret = set_dv_debug_tprimary(buf, count);
 	return ret;
 }
 
-static ssize_t	amdolby_vision_config_file_show
-	(struct class *cla,
-	struct class_attribute *attr, char *buf)
+static ssize_t	amdolby_vision_config_file_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	const char *str =
 		"echo bin cfg > /sys/class/amdolby_vision/config_file";
 	return sprintf(buf, "%s\n", str);
 }
 
-static ssize_t amdolby_vision_config_file_store
-	(struct class *cla,
-	struct class_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t amdolby_vision_config_file_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[MAX_PARAM] = {NULL};
 
@@ -15101,9 +15089,9 @@ static ssize_t amdolby_vision_config_file_store
 	return count;
 }
 
-static ssize_t	amdolby_vision_dv_provider_show
-	(struct class *cla,
-	struct class_attribute *attr, char *buf)
+static ssize_t	amdolby_vision_dv_provider_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (multi_dv_mode)
 		return sprintf(buf, "%s %s\n", dv_provider[0], dv_provider[1]);
@@ -15111,17 +15099,16 @@ static ssize_t	amdolby_vision_dv_provider_show
 		return sprintf(buf, "%s\n", dv_provider[0]);
 }
 
-static ssize_t	amdolby_vision_num_downsamplers_show
-	(struct class *cla,
-	struct class_attribute *attr, char *buf)
+static ssize_t	amdolby_vision_num_downsamplers_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "num_downsamplers: %d\n", num_downsamplers);
 }
 
-static ssize_t amdolby_vision_num_downsamplers_store
-	(struct class *cla,
-	struct class_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t amdolby_vision_num_downsamplers_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -15135,17 +15122,16 @@ static ssize_t amdolby_vision_num_downsamplers_store
 	return count;
 }
 
-static ssize_t	amdolby_vision_content_fps_show
-	(struct class *cla,
-	struct class_attribute *attr, char *buf)
+static ssize_t	amdolby_vision_content_fps_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "content_fps: %d\n", content_fps);
 }
 
-static ssize_t amdolby_vision_content_fps_store
-	(struct class *cla,
-	struct class_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t amdolby_vision_content_fps_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -15159,17 +15145,16 @@ static ssize_t amdolby_vision_content_fps_store
 	return count;
 }
 
-static ssize_t	amdolby_vision_gd_rf_adjust_show
-	(struct class *cla,
-	struct class_attribute *attr, char *buf)
+static ssize_t	amdolby_vision_gd_rf_adjust_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "gd_rf_adjust: %d\n", gd_rf_adjust);
 }
 
-static ssize_t amdolby_vision_gd_rf_adjust_store
-	(struct class *cla,
-	struct class_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t amdolby_vision_gd_rf_adjust_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -15183,17 +15168,16 @@ static ssize_t amdolby_vision_gd_rf_adjust_store
 	return count;
 }
 
-static ssize_t	amdolby_vision_force_disable_bl_show
-	(struct class *cla,
-	struct class_attribute *attr, char *buf)
+static ssize_t	amdolby_vision_force_disable_bl_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "force disable dv bl: %d\n", force_disable_dv_backlight);
 }
 
-static ssize_t amdolby_vision_force_disable_bl_store
-	(struct class *cla,
-	struct class_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t amdolby_vision_force_disable_bl_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -15213,17 +15197,16 @@ static ssize_t amdolby_vision_force_disable_bl_store
 	return count;
 }
 
-static ssize_t	amdolby_vision_use_cfg_target_lum_show
-	(struct class *cla,
-	 struct class_attribute *attr, char *buf)
+static ssize_t	amdolby_vision_use_cfg_target_lum_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "use_target_lum_from_cfg: %d\n", use_target_lum_from_cfg);
 }
 
-static ssize_t amdolby_vision_use_cfg_target_lum_store
-	(struct class *cla,
-	 struct class_attribute *attr,
-	 const char *buf, size_t count)
+static ssize_t amdolby_vision_use_cfg_target_lum_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -15239,17 +15222,16 @@ static ssize_t amdolby_vision_use_cfg_target_lum_store
 	return count;
 }
 
-static ssize_t	amdolby_vision_hdmi_in_allm_show
-	(struct class *cla,
-	 struct class_attribute *attr, char *buf)
+static ssize_t	amdolby_vision_hdmi_in_allm_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "hdmi_in_allm: %d\n", hdmi_in_allm);
 }
 
-static ssize_t amdolby_vision_hdmi_in_allm_store
-	(struct class *cla,
-	 struct class_attribute *attr,
-	 const char *buf, size_t count)
+static ssize_t amdolby_vision_hdmi_in_allm_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int tmp;
@@ -15267,17 +15249,16 @@ static ssize_t amdolby_vision_hdmi_in_allm_store
 	return count;
 }
 
-static ssize_t	amdolby_vision_local_allm_show
-	(struct class *cla,
-	 struct class_attribute *attr, char *buf)
+static ssize_t	amdolby_vision_local_allm_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "local_allm: %d\n", local_allm);
 }
 
-static ssize_t amdolby_vision_local_allm_store
-	(struct class *cla,
-	 struct class_attribute *attr,
-	 const char *buf, size_t count)
+static ssize_t amdolby_vision_local_allm_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int tmp;
@@ -15295,9 +15276,9 @@ static ssize_t amdolby_vision_local_allm_store
 	return count;
 }
 
-static ssize_t	amdolby_vision_brightness_off_show
-	(struct class *cla,
-	struct class_attribute *attr, char *buf)
+static ssize_t	amdolby_vision_brightness_off_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t len = 0;
 
@@ -15315,10 +15296,9 @@ static ssize_t	amdolby_vision_brightness_off_show
 	return len;
 }
 
-static ssize_t amdv_probe_en_store
-	(struct class *cla,
-	struct class_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t amdv_probe_en_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int ret;
 
@@ -15333,9 +15313,9 @@ static ssize_t amdv_probe_en_store
 	return count;
 }
 
-static ssize_t amdv_probe_sel_show(struct class *cla,
-					   struct class_attribute *attr,
-					   char *buf)
+static ssize_t amdv_probe_sel_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (is_aml_t3x()) {
 		pr_info("Usage:\n");
@@ -15352,9 +15332,9 @@ static ssize_t amdv_probe_sel_show(struct class *cla,
 	return 0;
 }
 
-static ssize_t amdv_probe_sel_store(struct class *cla,
-					    struct class_attribute *attr,
-					    const char *buf, size_t count)
+static ssize_t amdv_probe_sel_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long val = 0;
 	u32 mode = 0;
@@ -15379,9 +15359,9 @@ static ssize_t amdv_probe_sel_store(struct class *cla,
 }
 
 /*set w,h*/
-static ssize_t amdv_probe_size_store(struct class *cla,
-					    struct class_attribute *attr,
-					    const char *buf, size_t count)
+static ssize_t amdv_probe_size_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long w, h;
 	char *buf_orig, *parm[MAX_PARAM] = {NULL};
@@ -15409,9 +15389,9 @@ static ssize_t amdv_probe_size_store(struct class *cla,
 }
 
 /*set x,y*/
-static ssize_t amdv_probe_pos_store(struct class *cla,
-					    struct class_attribute *attr,
-					    const char *buf, size_t count)
+static ssize_t amdv_probe_pos_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long val_x, val_y;
 	char *buf_orig, *parm[MAX_PARAM] = {NULL};
@@ -15438,9 +15418,9 @@ static ssize_t amdv_probe_pos_store(struct class *cla,
 	return strnlen(buf, count);
 }
 
-static ssize_t amdv_probe_data_show(struct class *cla,
-					    struct class_attribute *attr,
-					    char *buf)
+static ssize_t amdv_probe_data_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t len = 0;
 	u32 probe_data0;
@@ -15751,8 +15731,9 @@ static const char *amdolby_vision_mode_str = {
 	"\tAMDV_OUTPUT_MODE_SDR8		5\n"
 };
 
-static ssize_t amdolby_vision_dv_mode_show(struct class *cla,
-			struct class_attribute *attr, char *buf)
+static ssize_t amdolby_vision_dv_mode_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t len = 0;
 
@@ -15765,10 +15746,9 @@ static ssize_t amdolby_vision_dv_mode_show(struct class *cla,
 	return len;
 }
 
-static ssize_t amdolby_vision_dv_mode_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_dv_mode_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int val;
@@ -15805,10 +15785,9 @@ static void parse_param(char *buf_orig, char **parm)
 	}
 }
 
-static ssize_t amdolby_vision_reg_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_reg_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long val = 0;
@@ -15863,18 +15842,17 @@ static ssize_t amdolby_vision_reg_store
 	return count;
 }
 
-static ssize_t amdolby_vision_core1_switch_show
-		(struct class *cla,
-		 struct class_attribute *attr, char *buf)
+static ssize_t amdolby_vision_core1_switch_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 40, "%d\n",
 		core1_switch);
 }
 
-static ssize_t amdolby_vision_core1_switch_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_core1_switch_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	u32 reg = 0, mask = 0xfaa1f00, set = 0;
@@ -15910,27 +15888,26 @@ static ssize_t amdolby_vision_core1_switch_store
 	return count;
 }
 
-static ssize_t amdolby_vision_core3_switch_show
-		(struct class *cla,
-		 struct class_attribute *attr, char *buf)
+static ssize_t amdolby_vision_core3_switch_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 40, "%d\n",
 		core3_switch);
 }
 
-static ssize_t amdolby_vision_dv_support_info_show
-	(struct class *cla,
-	 struct class_attribute *attr, char *buf)
+static ssize_t amdolby_vision_dv_support_info_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_dv_dbg("show dv capability %d\n", support_info);
 	return snprintf(buf, 40, "%d\n",
 		support_info);
 }
 
-static ssize_t amdolby_vision_core3_switch_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_core3_switch_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -15956,19 +15933,18 @@ static ssize_t amdolby_vision_core3_switch_store
 	return count;
 }
 
-static ssize_t amdolby_vision_copy_core1a_show
-	(struct class *cla,
-	 struct class_attribute *attr, char *buf)
+static ssize_t amdolby_vision_copy_core1a_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_dv_dbg("copy_core1a %d\n", copy_core1a);
 	return snprintf(buf, 40, "%d\n",
 		copy_core1a);
 }
 
-static ssize_t amdolby_vision_copy_core1a_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_copy_core1a_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -15978,19 +15954,18 @@ static ssize_t amdolby_vision_copy_core1a_store
 	return count;
 }
 
-static ssize_t amdolby_vision_core2_sel_show
-	(struct class *cla,
-	 struct class_attribute *attr, char *buf)
+static ssize_t amdolby_vision_core2_sel_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_dv_dbg("core2_sel %d\n", core2_sel);
 	return snprintf(buf, 40, "%d\n",
 		core2_sel);
 }
 
-static ssize_t amdolby_vision_core2_sel_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_core2_sel_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 
@@ -16002,27 +15977,27 @@ static ssize_t amdolby_vision_core2_sel_store
 	return count;
 }
 
-static ssize_t  amdolby_vision_crc_show(struct class *cla,
-		struct class_attribute *attr, char *buf)
+static ssize_t  amdolby_vision_crc_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if ((debug_dolby & 0x10000))
 		pr_dv_dbg("get crc %s\n", cur_crc);
 	return sprintf(buf, "%s\n", cur_crc);
 }
 
-static ssize_t amdolby_vision_enable_multi_core1_show
-	(struct class *cla,
-	 struct class_attribute *attr, char *buf)
+static ssize_t amdolby_vision_enable_multi_core1_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_dv_dbg("enable_multi_core1 %d\n", enable_multi_core1);
 	return snprintf(buf, 40, "%d\n",
 		enable_multi_core1);
 }
 
-static ssize_t amdolby_vision_enable_multi_core1_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_enable_multi_core1_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int ret;
@@ -16038,19 +16013,18 @@ static ssize_t amdolby_vision_enable_multi_core1_store
 	return count;
 }
 
-static ssize_t amdolby_vision_force_pri_input_show
-	(struct class *cla,
-	 struct class_attribute *attr, char *buf)
+static ssize_t amdolby_vision_force_pri_input_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_dv_dbg("force_pri_input %d\n", force_pri_input);
 	return snprintf(buf, 40, "%d\n",
 		force_pri_input);
 }
 
-static ssize_t amdolby_vision_force_pri_input_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_force_pri_input_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int ret;
@@ -16092,9 +16066,9 @@ static const char *debug_format_str[9] = {
 	"MVC"
 };
 
-static ssize_t amdolby_vision_src_format_show
-	(struct class *cla,
-	 struct class_attribute *attr, char *buf)
+static ssize_t amdolby_vision_src_format_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t len = 0;
 	int i;
@@ -16173,10 +16147,9 @@ static ssize_t amdolby_vision_src_format_show
 	return len;
 }
 
-static ssize_t amdolby_vision_force_priority_show
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 char *buf)
+static ssize_t amdolby_vision_force_priority_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t len = 0;
 	char *priority_str = {
@@ -16190,10 +16163,9 @@ static ssize_t amdolby_vision_force_priority_show
 	return len;
 }
 
-static ssize_t amdolby_vision_force_priority_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_force_priority_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 
 {
 	size_t r;
@@ -16206,10 +16178,9 @@ static ssize_t amdolby_vision_force_priority_store
 	return count;
 }
 
-static ssize_t amdolby_vision_inst_status_show
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 char *buf)
+static ssize_t amdolby_vision_inst_status_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t len = 0;
 	int i;
@@ -16278,10 +16249,9 @@ static ssize_t amdolby_vision_inst_status_show
 	return len;
 }
 
-static ssize_t amdolby_vision_inst_debug_show
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 char *buf)
+static ssize_t amdolby_vision_inst_debug_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t len = 0;
 
@@ -16292,10 +16262,9 @@ static ssize_t amdolby_vision_inst_debug_show
 	return len;
 }
 
-static ssize_t amdolby_vision_inst_debug_store
-		(struct class *cla,
-		 struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amdolby_vision_inst_debug_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 
 {
 	char *buf_orig, *parm[8] = {NULL};
@@ -16340,18 +16309,16 @@ static ssize_t amdolby_vision_inst_debug_store
 	return count;
 }
 
-static ssize_t amdolby_vision_operate_mode_show
-	 (struct class *cla,
-	  struct class_attribute *attr,
-	  char *buf)
+static ssize_t amdolby_vision_operate_mode_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 40, "%d\n", get_operate_mode());
 }
 
-static ssize_t amdolby_vision_operate_mode_store
-	 (struct class *cla,
-	  struct class_attribute *attr,
-	  const char *buf, size_t count)
+static ssize_t amdolby_vision_operate_mode_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int value = 0;
@@ -16365,10 +16332,9 @@ static ssize_t amdolby_vision_operate_mode_store
 	return count;
 }
 
-static ssize_t amdolby_vision_graphic_fmt_show
-	 (struct class *cla,
-	  struct class_attribute *attr,
-	  char *buf)
+static ssize_t amdolby_vision_graphic_fmt_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t len = 0;
 	int fmt;
@@ -16384,10 +16350,9 @@ static ssize_t amdolby_vision_graphic_fmt_show
 	return len;
 }
 
-static ssize_t amdolby_vision_graphic_fmt_store
-	 (struct class *cla,
-	  struct class_attribute *attr,
-	  const char *buf, size_t count)
+static ssize_t amdolby_vision_graphic_fmt_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int value = 0;
@@ -16400,10 +16365,9 @@ static ssize_t amdolby_vision_graphic_fmt_store
 	return count;
 }
 
-static ssize_t amdolby_vision_graphic_md_show
-	 (struct class *cla,
-	  struct class_attribute *attr,
-	  char *buf)
+static ssize_t amdolby_vision_graphic_md_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int i = 0;
 
@@ -16425,10 +16389,9 @@ static ssize_t amdolby_vision_graphic_md_show
 	return 0;
 }
 
-static ssize_t amdolby_vision_graphic_md_store
-	(struct class *cla,
-	 struct class_attribute *attr,
-	 const char *buf, size_t count)
+static ssize_t amdolby_vision_graphic_md_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 #ifdef CONFIG_AMLOGIC_ENABLE_MEDIA_FILE
 	char *buf_orig, *parm[MAX_PARAM] = {NULL};
@@ -16827,8 +16790,7 @@ static int amdolby_vision_probe(struct platform_device *pdev)
 	ret = alloc_chrdev_region(&devp->devno, 0, 1, AMDOLBY_VISION_NAME);
 	if (ret < 0)
 		goto fail_alloc_region;
-	devp->clsp = class_create(THIS_MODULE,
-		AMDOLBY_VISION_CLASS_NAME);
+	devp->clsp = kv_class_create(THIS_MODULE, AMDOLBY_VISION_CLASS_NAME);
 	if (IS_ERR(devp->clsp)) {
 		ret = PTR_ERR(devp->clsp);
 		goto fail_create_class;

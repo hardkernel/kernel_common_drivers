@@ -84,6 +84,7 @@
 #include "vdin_v4l2_if.h"
 #include "vdin_mem_scatter.h"
 
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/gki_module.h>
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -5244,7 +5245,7 @@ static int vdin_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_pgoff = off >> PAGE_SHIFT;
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
+	kv_vm_flags_set(vma, (VM_IO | VM_DONTEXPAND | VM_DONTDUMP));
 
 	size = vma->vm_end - vma->vm_start;
 	pfn  = off >> PAGE_SHIFT;
@@ -5576,20 +5577,18 @@ static bool vdin_set_sig_property(struct tvin_frontend_s *fe)
 int vdin_get_irq_from_dts(struct platform_device *pdev,
 					struct vdin_dev_s *devp)
 {
-	struct resource *res;
 	int ret;
 
 	/* vdin vsync interrupt, first id is vsync int */
 	devp->irq = of_irq_get_byname(pdev->dev.of_node, "vsync_int");
 	if (devp->irq <= 0) {
 		/* get irq from resource */
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-		if (!res) {
+		devp->irq = platform_get_irq(pdev, 0);
+		if (devp->irq < 0) {
 			pr_err("%s: can't get irq resource\n", __func__);
 			ret = -ENXIO;
 			return ret;
 		}
-		devp->irq = res->start;
 	}
 
 	snprintf(devp->irq_name, sizeof(devp->irq_name),
@@ -5598,8 +5597,7 @@ int vdin_get_irq_from_dts(struct platform_device *pdev,
 
 	/* get vpu crash irq number */
 	if (devp->hw_core == VDIN_HW_CORE_NORMAL) {
-		devp->vpu_crash_irq =
-			of_irq_get_byname(pdev->dev.of_node, "vpu_crash_int");
+		devp->vpu_crash_irq = platform_get_irq_byname(pdev, "vpu_crash_int");
 		snprintf(devp->vpu_crash_irq_name,
 			 sizeof(devp->vpu_crash_irq_name),
 			 "vpu_crash_int");
@@ -6767,7 +6765,7 @@ int __init vdin_drv_init(void)
 	}
 	pr_info("%s: major %d ver:%s\n", __func__, MAJOR(vdin_devno), VDIN_VER);
 
-	vdin_class = class_create(THIS_MODULE, VDIN_CLS_NAME);
+	vdin_class = kv_class_create(THIS_MODULE, VDIN_CLS_NAME);
 	if (IS_ERR_OR_NULL(vdin_class)) {
 		ret = PTR_ERR(vdin_class);
 		pr_err("%s: failed to create class or ret=NULL\n", __func__);

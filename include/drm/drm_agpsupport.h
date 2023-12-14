@@ -10,21 +10,10 @@
 #include <linux/types.h>
 #include <uapi/drm/drm.h>
 
+#include <linux/amlogic/kernel_versions.h>
+
 struct drm_device;
 struct drm_file;
-
-struct drm_agp_head {
-	struct agp_kern_info agp_info;
-	struct list_head memory;
-	unsigned long mode;
-	struct agp_bridge_data *bridge;
-	int enabled;
-	int acquired;
-	unsigned long base;
-	int agp_mtrr;
-	int cant_use_aperture;
-	unsigned long page_mask;
-};
 
 #if IS_ENABLED(CONFIG_AGP)
 

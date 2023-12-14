@@ -32,6 +32,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/proc_fs.h>
 #include <linux/amlogic/gki_module.h>
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/reboot.h>
 
 #define CREATE_TRACE_POINTS
@@ -714,7 +715,7 @@ static int opptable_show(struct seq_file *m, void *v)
 		list_for_each_entry(opp, &opp_table->opp_list, node) {
 			if (!opp->available)
 				continue;
-			seq_printf(m, "%lu %lu\n", opp->rate, opp->supplies[0].u_volt);
+			seq_printf(m, "%lu %lu\n", KV_OPP_RATE(opp, 0), opp->supplies[0].u_volt);
 		}
 		dev_pm_opp_put_opp_table(opp_table);
 		mutex_unlock(&opp_table->lock);
@@ -744,7 +745,7 @@ static int get_index_from_freq(struct cpufreq_frequency_table *table, int freq)
 static ssize_t  meson_maxfreq_write(struct file *file, const char __user *userbuf,
 	size_t count, loff_t *ppos)
 {
-	struct cpufreq_policy *policy = PDE_DATA(file_inode(file));
+	struct cpufreq_policy *policy = kv_pde_data(file_inode(file));
 	struct meson_cpufreq_driver_data *driver_data = policy->driver_data;
 	char buf[10] = {0};
 	int maxfreq, index;
@@ -766,12 +767,12 @@ static ssize_t  meson_maxfreq_write(struct file *file, const char __user *userbu
 
 static int meson_opptable_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, opptable_show, PDE_DATA(inode));
+	return single_open(file, opptable_show, kv_pde_data(inode));
 }
 
 static int meson_maxfreq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, maxfreq_show, PDE_DATA(inode));
+	return single_open(file, maxfreq_show, kv_pde_data(inode));
 }
 
 static const struct proc_ops meson_opptable_fops = {
@@ -1317,7 +1318,7 @@ static int meson_cpufreq_probe(struct platform_device *pdev)
 
 static int meson_cpufreq_remove(struct platform_device *pdev)
 {
-	return cpufreq_unregister_driver(&meson_cpufreq_driver);
+	return kv_cpufreq_unregister_driver(&meson_cpufreq_driver);
 }
 
 static const struct of_device_id amlogic_cpufreq_meson_dt_match[] = {

@@ -14,6 +14,7 @@
 #include <linux/amlogic/major.h>
 #include <linux/platform_device.h>
 #include <uapi/amlogic/media_info.h>
+#include <linux/amlogic/kernel_versions.h>
 
 enum {
 	LOG_ERR = 0,
@@ -588,16 +589,16 @@ static int minfo_notifier_call_chain(unsigned long val, void *v)
 	return blocking_notifier_call_chain(&minfo_notifier_list, val, v);
 }
 
-static ssize_t log_level_show(struct class *cla,
-		struct class_attribute *attr,
-		char *buf)
+static ssize_t log_level_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", log_level);
 }
 
-static ssize_t log_level_store(struct class *cla,
-		struct class_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t log_level_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int r;
 
@@ -608,8 +609,9 @@ static ssize_t log_level_store(struct class *cla,
 	return count;
 }
 
-static ssize_t list_all_record_show(struct class *cla,
-		struct class_attribute *attr, char *buf)
+static ssize_t list_all_record_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct list_head *p;
 	struct record *r = NULL;
@@ -625,8 +627,9 @@ static ssize_t list_all_record_show(struct class *cla,
 	return sprintf(buf, "print to kernel log\n");
 }
 
-static ssize_t list_all_trigger_show(struct class *cla,
-		struct class_attribute *attr, char *buf)
+static ssize_t list_all_trigger_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct list_head *p;
 	struct koi *k = NULL;

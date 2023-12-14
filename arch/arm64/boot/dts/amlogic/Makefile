@@ -3,7 +3,11 @@ dtb-y += s4d_s905y4_ap222_drm.dtb
 dtb-y += c2_c305x_af400.dtb
 dtb-y += a1-a113l-ad401.dtb
 dtb-y += a1-a113l-ad409.dtb
+ifeq ($(VERSION),5)
 dtbo-y += android_overlay_dt.dtbo
+else
+dtb-y += android_overlay_dt.dtbo
+endif
 dtb-y += a1-a113l-ad403.dtb
 dtb-y += a1-a113l-ad403-spk.dtb
 dtb-y += a1-a113l-ad40ae.dtb

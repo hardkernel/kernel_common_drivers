@@ -49,6 +49,7 @@
 #include <linux/poll.h>
 #include <linux/workqueue.h>
 #include <linux/sched/clock.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #ifdef CONFIG_AMLOGIC_LCD
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
@@ -140,8 +141,8 @@ struct work_struct aml_lcd_vlock_param_work;
 
 static struct amvecm_dev_s amvecm_dev;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static struct resource *res_viu2_vsync_irq;
-static struct resource *res_lc_curve_irq;
+static int viu2_vsync_irq;
+static int lc_curve_irq;
 static struct workqueue_struct *aml_cabc_queue;
 static struct work_struct cabc_proc_work;
 static struct work_struct cabc_bypass_work;
@@ -742,9 +743,9 @@ static void amvecm_size_patch(struct vframe_s *vf,
 #endif
 
 /* video adj1 */
-static ssize_t video_adj1_brightness_show(struct class *cla,
-					  struct class_attribute *attr,
-					  char *buf)
+static ssize_t video_adj1_brightness_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	s32 val = 0;
 
@@ -777,9 +778,9 @@ static ssize_t video_adj1_brightness_show(struct class *cla,
 	return sprintf(buf, "%d\n", val << 1);
 }
 
-static ssize_t video_adj1_brightness_store(struct class *cla,
-					   struct class_attribute *attr,
-					   const char *buf, size_t count)
+static ssize_t video_adj1_brightness_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int val;
@@ -815,9 +816,9 @@ static ssize_t video_adj1_brightness_store(struct class *cla,
 	return count;
 }
 
-static ssize_t video_adj1_contrast_show(struct class *cla,
-					struct class_attribute *attr,
-					char *buf)
+static ssize_t video_adj1_contrast_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (chip_type_id == chip_s5 ||
@@ -834,9 +835,9 @@ static ssize_t video_adj1_contrast_show(struct class *cla,
 			(int)(READ_VPP_REG(VPP_VADJ1_Y) & 0xff) - 0x80);
 }
 
-static ssize_t video_adj1_contrast_store(struct class *cla,
-					 struct class_attribute *attr,
-					 const char *buf, size_t count)
+static ssize_t video_adj1_contrast_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int val;
@@ -865,9 +866,9 @@ static ssize_t video_adj1_contrast_store(struct class *cla,
 }
 
 /* video adj2 */
-static ssize_t video_adj2_brightness_show(struct class *cla,
-					  struct class_attribute *attr,
-					  char *buf)
+static ssize_t video_adj2_brightness_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	s32 val = 0;
 
@@ -900,8 +901,8 @@ static ssize_t video_adj2_brightness_show(struct class *cla,
 	return sprintf(buf, "%d\n", val << 1);
 }
 
-static ssize_t video_adj2_brightness_store(struct class *cla,
-					   struct class_attribute *attr,
+static ssize_t video_adj2_brightness_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	size_t r;
@@ -914,9 +915,9 @@ static ssize_t video_adj2_brightness_store(struct class *cla,
 	return count;
 }
 
-static ssize_t video_adj2_contrast_show(struct class *cla,
-					struct class_attribute *attr,
-					char *buf)
+static ssize_t video_adj2_contrast_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (chip_type_id == chip_s5 ||
@@ -933,9 +934,9 @@ static ssize_t video_adj2_contrast_show(struct class *cla,
 			(int)(READ_VPP_REG(VPP_VADJ2_Y) & 0xff) - 0x80);
 }
 
-static ssize_t video_adj2_contrast_store(struct class *cla,
-					 struct class_attribute *attr,
-					 const char *buf, size_t count)
+static ssize_t video_adj2_contrast_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int val;
@@ -948,8 +949,9 @@ static ssize_t video_adj2_contrast_store(struct class *cla,
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static ssize_t amvecm_usage_show(struct class *cla,
-				 struct class_attribute *attr, char *buf)
+static ssize_t amvecm_usage_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_info("Usage:");
 	pr_info("brightness_val range:-255~255\n");
@@ -1016,8 +1018,9 @@ static void amvecm_3d_sync_status(void)
 	pr_info("sync_3d_sync_to_vbo:%d\n", sync_3d_sync_to_vbo);
 }
 
-static ssize_t amvecm_3d_sync_show(struct class *cla,
-				   struct class_attribute *attr, char *buf)
+static ssize_t amvecm_3d_sync_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t len = 0;
 
@@ -1046,9 +1049,9 @@ static ssize_t amvecm_3d_sync_show(struct class *cla,
 	return len;
 }
 
-static ssize_t amvecm_3d_sync_store(struct class *cla,
-				    struct class_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t amvecm_3d_sync_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long val;
@@ -1132,28 +1135,30 @@ static ssize_t amvecm_3d_sync_store(struct class *cla,
 	return count;
 }
 
-static ssize_t amvecm_vlock_show(struct class *cla,
-				 struct class_attribute *attr, char *buf)
+static ssize_t amvecm_vlock_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return vlock_debug_show(cla, attr, buf);
 }
 
-static ssize_t amvecm_vlock_store(struct class *cla,
-				  struct class_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t amvecm_vlock_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	return vlock_debug_store(cla, attr, buf, count);
 }
 
-static ssize_t amvecm_frame_lock_show(struct class *cla,
-				 struct class_attribute *attr, char *buf)
+static ssize_t amvecm_frame_lock_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return frame_lock_debug_show(cla, attr, buf);
 }
 
-static ssize_t amvecm_frame_lock_store(struct class *cla,
-				  struct class_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t amvecm_frame_lock_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	return frame_lock_debug_store(cla, attr, buf, count);
 }
@@ -4017,9 +4022,9 @@ static long amvecm_compat_ioctl(struct file *file, unsigned int cmd,
 static unsigned int dnlp_dbg_flag;
 static int dnlp_rd_param;
 static char dnlp_rd_curve[400];
-static ssize_t amvecm_dnlp_debug_show(struct class *cla,
-				      struct class_attribute *attr,
-				      char *buf)
+static ssize_t amvecm_dnlp_debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (dnlp_dbg_flag & DNLP_PARAM_RD_UPDATE) {
 		dnlp_dbg_flag &= ~DNLP_PARAM_RD_UPDATE;
@@ -4034,9 +4039,9 @@ static ssize_t amvecm_dnlp_debug_show(struct class *cla,
 	return 0;
 }
 
-static ssize_t amvecm_dnlp_debug_store(struct class *cla,
-				       struct class_attribute *attr,
-				       const char *buf, size_t count)
+static ssize_t amvecm_dnlp_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int i, *p;
 	long val = 0;
@@ -4828,8 +4833,9 @@ free_buf:
 	return -EINVAL;
 }
 
-static ssize_t amvecm_cabc_aad_show(struct class *cla,
-				    struct class_attribute *attr, char *buf)
+static ssize_t amvecm_cabc_aad_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t len = 0;
 
@@ -4837,9 +4843,9 @@ static ssize_t amvecm_cabc_aad_show(struct class *cla,
 	return len;
 }
 
-static ssize_t amvecm_cabc_aad_store(struct class *cla,
-				     struct class_attribute *attr,
-				     const char *buf, size_t count)
+static ssize_t amvecm_cabc_aad_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int ret;
 	char *buf_orig, *parm[8] = {NULL};
@@ -4860,15 +4866,16 @@ static ssize_t amvecm_cabc_aad_store(struct class *cla,
 }
 #endif
 
-static ssize_t amvecm_brightness_show(struct class *cla,
-				      struct class_attribute *attr, char *buf)
+static ssize_t amvecm_brightness_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", vd1_brightness);
 }
 
-static ssize_t amvecm_brightness_store(struct class *cla,
-				       struct class_attribute *attr,
-				       const char *buf, size_t count)
+static ssize_t amvecm_brightness_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int val;
@@ -4883,15 +4890,16 @@ static ssize_t amvecm_brightness_store(struct class *cla,
 	return count;
 }
 
-static ssize_t amvecm_contrast_show(struct class *cla,
-				    struct class_attribute *attr, char *buf)
+static ssize_t amvecm_contrast_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", vd1_contrast);
 }
 
-static ssize_t amvecm_contrast_store(struct class *cla,
-				     struct class_attribute *attr,
-		const char *buf, size_t count)
+static ssize_t amvecm_contrast_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int val;
@@ -4906,9 +4914,9 @@ static ssize_t amvecm_contrast_store(struct class *cla,
 	return count;
 }
 
-static ssize_t amvecm_saturation_hue_show(struct class *cla,
-					  struct class_attribute *attr,
-					  char *buf)
+static ssize_t amvecm_saturation_hue_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		return sprintf(buf, "0x%x\n",
@@ -4918,9 +4926,9 @@ static ssize_t amvecm_saturation_hue_show(struct class *cla,
 			READ_VPP_REG(VPP_VADJ1_MA_MB));
 }
 
-static ssize_t amvecm_saturation_hue_store(struct class *cla,
-					   struct class_attribute *attr,
-					   const char *buf, size_t count)
+static ssize_t amvecm_saturation_hue_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	s32 mab = 0;
@@ -5006,16 +5014,16 @@ void vpp_vd_adj1_saturation_hue(signed int sat_val,
 	}
 };
 
-static ssize_t amvecm_saturation_hue_pre_show(struct class *cla,
-					      struct class_attribute *attr,
-					      char *buf)
+static ssize_t amvecm_saturation_hue_pre_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 20, "%d %d\n", saturation_pre, hue_pre);
 }
 
-static ssize_t amvecm_saturation_hue_pre_store(struct class *cla,
-					       struct class_attribute *attr,
-					       const char *buf, size_t count)
+static ssize_t amvecm_saturation_hue_pre_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int parsed[2];
 
@@ -5033,16 +5041,16 @@ static ssize_t amvecm_saturation_hue_pre_store(struct class *cla,
 	return count;
 }
 
-static ssize_t amvecm_saturation_hue_post_show(struct class *cla,
-					       struct class_attribute *attr,
-					       char *buf)
+static ssize_t amvecm_saturation_hue_post_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 20, "%d %d\n", saturation_post, hue_post);
 }
 
-static ssize_t amvecm_saturation_hue_post_store(struct class *cla,
-						struct class_attribute *attr,
-						const char *buf, size_t count)
+static ssize_t amvecm_saturation_hue_post_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int parsed[2], ret;
 
@@ -5056,8 +5064,9 @@ static ssize_t amvecm_saturation_hue_post_store(struct class *cla,
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static ssize_t amvecm_cm2_show(struct class *cla,
-			       struct class_attribute *attr, char *buf)
+static ssize_t amvecm_cm2_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_info("Usage:");
 	pr_info(" echo wm addr data0 data1 data2 data3 data4 ");
@@ -5066,9 +5075,9 @@ static ssize_t amvecm_cm2_show(struct class *cla,
 	return 0;
 }
 
-static ssize_t amvecm_cm2_store(struct class *cls,
-				struct class_attribute *attr,
-				const char *buffer, size_t count)
+static ssize_t amvecm_cm2_store(KV_CLASS_CONST struct class *cls,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buffer, size_t count)
 {
 	int n = 0;
 	char *buf_orig, *ps, *token;
@@ -5217,15 +5226,16 @@ static ssize_t amvecm_cm2_store(struct class *cls,
 }
 
 /*cm2 v2 cmd used for s5 4slice*/
-static ssize_t amvecm_cm2_idx_show(struct class *cla,
-			       struct class_attribute *attr, char *buf)
+static ssize_t amvecm_cm2_idx_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", cm_slice_idx);
 }
 
-static ssize_t amvecm_cm2_idx_store(struct class *cls,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t amvecm_cm2_idx_store(KV_CLASS_CONST struct class *cls,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int val;
@@ -5239,16 +5249,17 @@ static ssize_t amvecm_cm2_idx_store(struct class *cls,
 }
 #endif
 
-static ssize_t amvecm_cm_reg_show(struct class *cla,
-				  struct class_attribute *attr, char *buf)
+static ssize_t amvecm_cm_reg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_info("Usage: echo addr value > /sys/class/amvecm/cm_reg");
 	return 0;
 }
 
-static ssize_t amvecm_cm_reg_store(struct class *cls,
-				   struct class_attribute *attr,
-		 const char *buffer, size_t count)
+static ssize_t amvecm_cm_reg_store(KV_CLASS_CONST struct class *cls,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buffer, size_t count)
 {
 	int data[5] = {0};
 	unsigned int addr, value;
@@ -5329,8 +5340,9 @@ static ssize_t amvecm_cm_reg_store(struct class *cls,
 	return count;
 }
 
-static ssize_t amvecm_write_reg_show(struct class *cla,
-				     struct class_attribute *attr, char *buf)
+static ssize_t amvecm_write_reg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_info("Usage: echo w addr value > /sys/class/amvecm/pq_reg_rw\n");
 	pr_info("Usage: echo bw addr value start length > /...\n");
@@ -5339,9 +5351,9 @@ static ssize_t amvecm_write_reg_show(struct class *cla,
 	return 0;
 }
 
-static ssize_t amvecm_write_reg_store(struct class *cls,
-				      struct class_attribute *attr,
-		 const char *buffer, size_t count)
+static ssize_t amvecm_write_reg_store(KV_CLASS_CONST struct class *cls,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buffer, size_t count)
 {
 	unsigned int addr, value, bitstart, bitlength;
 	long val = 0;
@@ -5429,8 +5441,8 @@ static unsigned int cal_crc32(unsigned int crc, const unsigned char *buf, int bu
 	return ~crcu32;
 }
 
-static ssize_t amvecm_gamma_show(struct class *cls,
-				 struct class_attribute *attr,
+static ssize_t amvecm_gamma_show(KV_CLASS_CONST struct class *cls,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
 			char *buf)
 {
 	int i;
@@ -5490,8 +5502,8 @@ static ssize_t amvecm_gamma_show(struct class *cls,
 	return 0;
 }
 
-static ssize_t amvecm_gamma_store(struct class *cls,
-				  struct class_attribute *attr,
+static ssize_t amvecm_gamma_store(KV_CLASS_CONST struct class *cls,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
 			const char *buffer, size_t count)
 {
 	int n = 0;
@@ -5706,8 +5718,8 @@ free_buf:
 	return -EINVAL;
 }
 
-static ssize_t amvecm_gamma_v2_show(struct class *cls,
-				 struct class_attribute *attr,
+static ssize_t amvecm_gamma_v2_show(KV_CLASS_CONST struct class *cls,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
 			char *buf)
 {
 	int i;
@@ -5776,8 +5788,8 @@ static ssize_t amvecm_gamma_v2_show(struct class *cls,
 	return 0;
 }
 
-static ssize_t amvecm_gamma_v2_store(struct class *cls,
-				  struct class_attribute *attr,
+static ssize_t amvecm_gamma_v2_store(KV_CLASS_CONST struct class *cls,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
 			const char *buffer, size_t count)
 {
 	int n = 0;
@@ -6042,8 +6054,9 @@ free_buf:
 	return -EINVAL;
 }
 
-static ssize_t set_gamma_pattern_show(struct class *cla,
-				      struct class_attribute *attr, char *buf)
+static ssize_t set_gamma_pattern_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_info("8bit: echo r g b > /sys/class/amvecm/gamma_pattern\n");
 	pr_info("10bit: echo r g b 0xa > /sys/class/amvecm/gamma_pattern\n");
@@ -6053,8 +6066,8 @@ static ssize_t set_gamma_pattern_show(struct class *cla,
 	return 0;
 }
 
-static ssize_t set_gamma_pattern_store(struct class *cls,
-				       struct class_attribute *attr,
+static ssize_t set_gamma_pattern_store(KV_CLASS_CONST struct class *cls,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
 			const char *buffer, size_t count)
 {
 	static unsigned short r_val[257], g_val[257], b_val[257];
@@ -6263,8 +6276,9 @@ void white_balance_adjust_sub(int sel, int value)
 
 static int wb_dbg_flag;
 static int wb_rd_val;
-static ssize_t amvecm_wb_show(struct class *cla,
-			      struct class_attribute *attr, char *buf)
+static ssize_t amvecm_wb_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	if (wb_dbg_flag & WB_PARAM_RD_UPDATE) {
 		wb_dbg_flag &= ~WB_PARAM_RD_UPDATE;
@@ -6283,8 +6297,8 @@ static ssize_t amvecm_wb_show(struct class *cla,
 	return 0;
 }
 
-static ssize_t amvecm_wb_store(struct class *cls,
-			       struct class_attribute *attr,
+static ssize_t amvecm_wb_store(KV_CLASS_CONST struct class *cls,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
 			const char *buffer, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
@@ -6538,8 +6552,9 @@ static ssize_t amvecm_wb_store(struct class *cls,
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static ssize_t set_hdr_289lut_show(struct class *cla,
-				   struct class_attribute *attr, char *buf)
+static ssize_t set_hdr_289lut_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int i;
 
@@ -6551,9 +6566,9 @@ static ssize_t set_hdr_289lut_show(struct class *cla,
 	return 0;
 }
 
-static ssize_t set_hdr_289lut_store(struct class *cls,
-				    struct class_attribute *attr,
-				    const char *buffer, size_t count)
+static ssize_t set_hdr_289lut_store(KV_CLASS_CONST struct class *cls,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buffer, size_t count)
 {
 	int n = 0;
 	char *buf_orig, *ps, *token;
@@ -6614,9 +6629,9 @@ static ssize_t set_hdr_289lut_store(struct class *cls,
 	return count;
 }
 
-static ssize_t amvecm_set_post_matrix_show(struct class *cla,
-					   struct class_attribute *attr,
-					   char *buf)
+static ssize_t amvecm_set_post_matrix_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int val;
 
@@ -6646,9 +6661,9 @@ static ssize_t amvecm_set_post_matrix_show(struct class *cla,
 	return 0;
 }
 
-static ssize_t amvecm_set_post_matrix_store(struct class *cla,
-					    struct class_attribute *attr,
-					    const char *buf, size_t count)
+static ssize_t amvecm_set_post_matrix_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int val, reg_val;
 
@@ -6685,9 +6700,9 @@ static ssize_t amvecm_set_post_matrix_store(struct class *cla,
 	return count;
 }
 
-static ssize_t amvecm_post_matrix_pos_show(struct class *cla,
-					   struct class_attribute *attr,
-					   char *buf)
+static ssize_t amvecm_post_matrix_pos_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int val;
 
@@ -6707,9 +6722,9 @@ static ssize_t amvecm_post_matrix_pos_show(struct class *cla,
 	return 0;
 }
 
-static ssize_t amvecm_post_matrix_pos_store(struct class *cla,
-					    struct class_attribute *attr,
-					    const char *buf, size_t count)
+static ssize_t amvecm_post_matrix_pos_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int val_x, val_y, reg_val;
 	char *buf_orig, *parm[2] = {NULL};
@@ -6753,9 +6768,9 @@ static ssize_t amvecm_post_matrix_pos_store(struct class *cla,
 	return count;
 }
 
-static ssize_t amvecm_post_matrix_data_show(struct class *cla,
-					    struct class_attribute *attr,
-					    char *buf)
+static ssize_t amvecm_post_matrix_data_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int len = 0, val1 = 0, val2 = 0;
 	u8 bit_depth = 12;
@@ -6803,16 +6818,16 @@ static ssize_t amvecm_post_matrix_data_show(struct class *cla,
 	return len;
 }
 
-static ssize_t amvecm_post_matrix_data_store(struct class *cla,
-					     struct class_attribute *attr,
-					     const char *buf, size_t count)
+static ssize_t amvecm_post_matrix_data_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	return 0;
 }
 
-static ssize_t amvecm_sr1_reg_show(struct class *cla,
-				   struct class_attribute *attr,
-				   char *buf)
+static ssize_t amvecm_sr1_reg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int addr;
 
@@ -6821,9 +6836,9 @@ static ssize_t amvecm_sr1_reg_show(struct class *cla,
 			addr, sr1_ret_val[sr1_index]);
 }
 
-static ssize_t amvecm_sr1_reg_store(struct class *cla,
-				    struct class_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t amvecm_sr1_reg_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	unsigned int addr, off_addr = 0;
@@ -6839,16 +6854,16 @@ static ssize_t amvecm_sr1_reg_store(struct class *cla,
 	return count;
 }
 
-static ssize_t amvecm_write_sr1_reg_val_show(struct class *cla,
-					     struct class_attribute *attr,
-					     char *buf)
+static ssize_t amvecm_write_sr1_reg_val_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return 0;
 }
 
-static ssize_t amvecm_write_sr1_reg_val_store(struct class *cla,
-					      struct class_attribute *attr,
-					      const char *buf, size_t count)
+static ssize_t amvecm_write_sr1_reg_val_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	unsigned int val;
@@ -6862,9 +6877,9 @@ static ssize_t amvecm_write_sr1_reg_val_store(struct class *cla,
 }
 #endif
 
-static ssize_t amvecm_dump_reg_show(struct class *cla,
-				    struct class_attribute *attr,
-				    char *buf)
+static ssize_t amvecm_dump_reg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int addr;
 	unsigned int value;
@@ -6992,32 +7007,32 @@ static ssize_t amvecm_dump_reg_show(struct class *cla,
 	return 0;
 }
 
-static ssize_t amvecm_dump_reg_store(struct class *cla,
-				     struct class_attribute *attr,
-				     const char *buf, size_t count)
+static ssize_t amvecm_dump_reg_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	return 0;
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static ssize_t amvecm_dump_vpp_hist_show(struct class *cla,
-					 struct class_attribute *attr,
-					 char *buf)
+static ssize_t amvecm_dump_vpp_hist_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	vpp_dump_histgram();
 	return 0;
 }
 
-static ssize_t amvecm_dump_vpp_hist_store(struct class *cla,
-					  struct class_attribute *attr,
-					   const char *buf, size_t count)
+static ssize_t amvecm_dump_vpp_hist_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	return 0;
 }
 
-static ssize_t amvecm_hdr_dbg_show(struct class *cla,
-				   struct class_attribute *attr,
-				   char *buf)
+static ssize_t amvecm_hdr_dbg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret;
 
@@ -7026,9 +7041,9 @@ static ssize_t amvecm_hdr_dbg_show(struct class *cla,
 	return 0;
 }
 
-static ssize_t amvecm_hdr_dbg_store(struct class *cla,
-				    struct class_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t amvecm_hdr_dbg_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long val = 0;
 	char *buf_orig, *parm[5] = {NULL};
@@ -7126,9 +7141,9 @@ free_buf:
 	return count;
 }
 
-static ssize_t amvecm_hdr_reg_show(struct class *cla,
-				   struct class_attribute *attr,
-				   char *buf)
+static ssize_t amvecm_hdr_reg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret;
 
@@ -7137,15 +7152,16 @@ static ssize_t amvecm_hdr_reg_show(struct class *cla,
 	return 0;
 }
 
-static ssize_t amvecm_hdr_reg_store(struct class *cla,
-				    struct class_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t amvecm_hdr_reg_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	return 0;
 }
 
-static ssize_t amvecm_hdr_tmo_show(struct class *cla,
-			struct class_attribute *attr, char *buf)
+static ssize_t amvecm_hdr_tmo_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int len = 0;
 
@@ -7155,16 +7171,16 @@ static ssize_t amvecm_hdr_tmo_show(struct class *cla,
 
 }
 
-static ssize_t amvecm_hdr_tmo_store(struct class *cla,
-			struct class_attribute *attr,
+static ssize_t amvecm_hdr_tmo_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	return 0;
 }
 
-static ssize_t amvecm_pc_mode_show(struct class *cla,
-				   struct class_attribute *attr,
-				   char *buf)
+static ssize_t amvecm_pc_mode_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_info("pc:echo 0x0 > /sys/class/amvecm/pc_mode\n");
 	pr_info("other:echo 0x1 > /sys/class/amvecm/pc_mode\n");
@@ -7172,9 +7188,9 @@ static ssize_t amvecm_pc_mode_show(struct class *cla,
 	return 0;
 }
 
-static ssize_t amvecm_pc_mode_store(struct class *cla,
-				    struct class_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t amvecm_pc_mode_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int val;
@@ -7197,15 +7213,16 @@ static ssize_t amvecm_pc_mode_store(struct class *cla,
 	return count;
 }
 
-static ssize_t amvecm_color_tune_show(struct class *cla,
-				    struct class_attribute *attr, char *buf)
+static ssize_t amvecm_color_tune_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return 0;
 }
 
-static ssize_t amvecm_color_tune_store(struct class *cla,
-				     struct class_attribute *attr,
-				     const char *buf, size_t count)
+static ssize_t amvecm_color_tune_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int ret;
 	char *buf_orig, *parm[8] = {NULL};
@@ -7225,16 +7242,17 @@ static ssize_t amvecm_color_tune_store(struct class *cla,
 	return count;
 }
 
-static ssize_t amvecm_dma_buf_show(struct class *cla,
-				    struct class_attribute *attr, char *buf)
+static ssize_t amvecm_dma_buf_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	read_dma_buf();
 	return 0;
 }
 
-static ssize_t amvecm_dma_buf_store(struct class *cla,
-				     struct class_attribute *attr,
-				     const char *buf, size_t count)
+static ssize_t amvecm_dma_buf_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long tbl_id;
@@ -7262,8 +7280,9 @@ static ssize_t amvecm_dma_buf_store(struct class *cla,
 	return count;
 }
 
-static ssize_t amvecm_ble_whe_dbg_show(struct class *cla,
-	struct class_attribute *attr, char *buf)
+static ssize_t amvecm_ble_whe_dbg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t len = 0;
 
@@ -7306,9 +7325,9 @@ static ssize_t amvecm_ble_whe_dbg_show(struct class *cla,
 	return len;
 }
 
-static ssize_t amvecm_ble_whe_dbg_store(struct class *cla,
-	struct class_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t amvecm_ble_whe_dbg_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	long val = 0;
 	char *buf_orig, *parm[8] = {NULL};
@@ -7823,15 +7842,16 @@ static const char *amvecm_pq_user_usage_str = {
 
 };
 
-static ssize_t amvecm_pq_user_show(struct class *cla,
-				   struct class_attribute *attr, char *buf)
+static ssize_t amvecm_pq_user_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%s\n", amvecm_pq_user_usage_str);
 }
 
-static ssize_t amvecm_pq_user_store(struct class *cla,
-				    struct class_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t amvecm_pq_user_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long val = 0;
@@ -7903,15 +7923,16 @@ static const char *dnlp_insmod_debug_usage_str = {
 	"usage: echo 1 > /sys/class/amvecm/dnlp_insmod\n"
 };
 
-static ssize_t amvecm_dnlp_insmod_show(struct class *cla,
-				       struct class_attribute *attr, char *buf)
+static ssize_t amvecm_dnlp_insmod_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%s\n", dnlp_insmod_debug_usage_str);
 }
 
-static ssize_t amvecm_dnlp_insmod_store(struct class *cla,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t amvecm_dnlp_insmod_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	int val;
@@ -7926,9 +7947,9 @@ static ssize_t amvecm_dnlp_insmod_store(struct class *cla,
 	return count;
 }
 
-static ssize_t amvecm_vpp_demo_show(struct class *cla,
-				    struct class_attribute *attr,
-				    char *buf)
+static ssize_t amvecm_vpp_demo_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_info("echo sr_demo val(0/1) > /sys/class/amvecm/vpp_demo\n");
 	pr_info("echo cm_demo val(0/1) > /sys/class/amvecm/vpp_demo\n");
@@ -7936,9 +7957,9 @@ static ssize_t amvecm_vpp_demo_show(struct class *cla,
 	return 0;
 }
 
-static ssize_t amvecm_vpp_demo_store(struct class *cla,
-				     struct class_attribute *attr,
-				     const char *buf, size_t count)
+static ssize_t amvecm_vpp_demo_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long val = 0;
@@ -8679,16 +8700,16 @@ static void vpp_clip_config(unsigned int mode_sel, unsigned int color,
 }
 
 #define MAX_CLIP_VAL ((1 << 30) - 1)
-static ssize_t amvecm_clamp_color_top_show(struct class *cla,
-					   struct class_attribute *attr,
-					   char *buf)
+static ssize_t amvecm_clamp_color_top_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%08x\n", READ_VPP_REG(VPP_CLIP_MISC0));
 }
 
-static ssize_t amvecm_clamp_color_top_store(struct class *cla,
-					    struct class_attribute *attr,
-					    const char *buf, size_t count)
+static ssize_t amvecm_clamp_color_top_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	u32 val;
@@ -8701,16 +8722,16 @@ static ssize_t amvecm_clamp_color_top_store(struct class *cla,
 	return count;
 }
 
-static ssize_t amvecm_clamp_color_bottom_show(struct class *cla,
-					      struct class_attribute *attr,
-					      char *buf)
+static ssize_t amvecm_clamp_color_bottom_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "0x%08x\n", READ_VPP_REG(VPP_CLIP_MISC1));
 }
 
-static ssize_t amvecm_clamp_color_bottom_store(struct class *cla,
-					       struct class_attribute *attr,
-					       const char *buf, size_t count)
+static ssize_t amvecm_clamp_color_bottom_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	size_t r;
 	u32 val;
@@ -8724,15 +8745,16 @@ static ssize_t amvecm_clamp_color_bottom_store(struct class *cla,
 }
 #endif
 
-static ssize_t amvecm_cpu_ver_show(struct class *cla,
-				   struct class_attribute *attr, char *buf)
+static ssize_t amvecm_cpu_ver_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	pr_info("echo r cpu_ver > /sys/class/amvecm/cpu_ver");
 	return 0;
 }
 
-static ssize_t amvecm_cpu_ver_store(struct class *cla,
-				    struct class_attribute *attr,
+static ssize_t amvecm_cpu_ver_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
@@ -8769,8 +8791,9 @@ static ssize_t amvecm_cpu_ver_store(struct class *cla,
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static ssize_t amvecm_cm2_hue_show(struct class *cla,
-				   struct class_attribute *attr, char *buf)
+static ssize_t amvecm_cm2_hue_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int i;
 	int pos = 0;
@@ -8785,9 +8808,9 @@ static ssize_t amvecm_cm2_hue_show(struct class *cla,
 	return pos;
 }
 
-static ssize_t amvecm_cm2_hue_store(struct class *cla,
-				    struct class_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t amvecm_cm2_hue_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long val = 0;
@@ -8852,9 +8875,9 @@ kfree_buf:
 	return -EINVAL;
 }
 
-static ssize_t amvecm_cm2_luma_show(struct class *cla,
-				    struct class_attribute *attr,
-				    char *buf)
+static ssize_t amvecm_cm2_luma_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int i;
 	int pos = 0;
@@ -8869,9 +8892,9 @@ static ssize_t amvecm_cm2_luma_show(struct class *cla,
 	return pos;
 }
 
-static ssize_t amvecm_cm2_luma_store(struct class *cla,
-				     struct class_attribute *attr,
-				     const char *buf, size_t count)
+static ssize_t amvecm_cm2_luma_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long val = 0;
@@ -8936,9 +8959,9 @@ kfree_buf:
 	return -EINVAL;
 }
 
-static ssize_t amvecm_cm2_sat_show(struct class *cla,
-				   struct class_attribute *attr,
-				   char *buf)
+static ssize_t amvecm_cm2_sat_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int i;
 	int pos = 0;
@@ -8953,9 +8976,9 @@ static ssize_t amvecm_cm2_sat_show(struct class *cla,
 	return pos;
 }
 
-static ssize_t amvecm_cm2_sat_store(struct class *cla,
-				    struct class_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t amvecm_cm2_sat_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long val = 0;
@@ -9020,9 +9043,9 @@ kfree_buf:
 	return -EINVAL;
 }
 
-static ssize_t amvecm_cm2_hue_by_hs_show(struct class *cla,
-					 struct class_attribute *attr,
-					 char *buf)
+static ssize_t amvecm_cm2_hue_by_hs_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int i;
 	int pos = 0;
@@ -9037,9 +9060,9 @@ static ssize_t amvecm_cm2_hue_by_hs_show(struct class *cla,
 	return pos;
 }
 
-static ssize_t amvecm_cm2_hue_by_hs_store(struct class *cla,
-					  struct class_attribute *attr,
-					  const char *buf, size_t count)
+static ssize_t amvecm_cm2_hue_by_hs_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long val = 0;
@@ -9550,8 +9573,9 @@ static const char *amvecm_debug_usage_str = {
 	"echo vpp_mtrx_test sel csc on slice > /sys/class/amvecm/debug;\n"
 };
 
-static ssize_t amvecm_debug_show(struct class *cla,
-				 struct class_attribute *attr, char *buf)
+static ssize_t amvecm_debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	pr_info("cm2_debug:%d\n", cm2_debug);
@@ -9560,9 +9584,9 @@ static ssize_t amvecm_debug_show(struct class *cla,
 	return sprintf(buf, "%s\n", amvecm_debug_usage_str);
 }
 
-static ssize_t amvecm_debug_store(struct class *cla,
-				  struct class_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t amvecm_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long val = 0;
@@ -10689,15 +10713,16 @@ static const char *amvecm_reg_usage_str = {
 	"echo dv|c|h addr(H) num > /sys/class/amvecm/reg; dump reg from addr\n"
 };
 
-static ssize_t amvecm_reg_show(struct class *cla,
-			       struct class_attribute *attr, char *buf)
+static ssize_t amvecm_reg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%s\n", amvecm_reg_usage_str);
 }
 
-static ssize_t amvecm_reg_store(struct class *cla,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t amvecm_reg_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long val = 0;
@@ -10803,16 +10828,16 @@ static ssize_t amvecm_reg_store(struct class *cla,
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static ssize_t amvecm_get_hdr_type_show(struct class *cla,
-					struct class_attribute *attr,
-					char *buf)
+static ssize_t amvecm_get_hdr_type_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%x\n", hdr_source_type);
 }
 
-static ssize_t amvecm_get_hdr_type_store(struct class *cls,
-					 struct class_attribute *attr,
-					 const char *buffer, size_t count)
+static ssize_t amvecm_get_hdr_type_store(KV_CLASS_CONST struct class *cls,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buffer, size_t count)
 {
 	return count;
 }
@@ -11195,8 +11220,9 @@ static int lc_dbg_flag;
 static enum lc_reg_lut_e reg_sel;
 static int lc_temp;
 static char lc_dbg_curve[100];
-static ssize_t amvecm_lc_show(struct class *cla,
-			      struct class_attribute *attr, char *buf)
+static ssize_t amvecm_lc_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	ssize_t len = 0;
 	char *temp_cur;
@@ -11286,9 +11312,9 @@ static ssize_t amvecm_lc_show(struct class *cla,
 	return len;
 }
 
-static ssize_t amvecm_lc_store(struct class *cls,
-			       struct class_attribute *attr,
-		 const char *buf, size_t count)
+static ssize_t amvecm_lc_store(KV_CLASS_CONST struct class *cls,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
 	int reg_lut[63] = {0};
@@ -12750,10 +12776,8 @@ static void aml_vecm_dt_parse(struct amvecm_dev_s *devp, struct platform_device 
 	/*pr_info("cm_init done.\n");*/
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	res_viu2_vsync_irq =
-		platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync2");
-	res_lc_curve_irq =
-		platform_get_resource_byname(pdev, IORESOURCE_IRQ, "lc_curve");
+	viu2_vsync_irq = platform_get_irq_byname(pdev, "vsync2");
+	lc_curve_irq = platform_get_irq_byname(pdev, "lc_curve");
 #endif
 }
 
@@ -12814,8 +12838,8 @@ static struct notifier_block flock_vdin_vrr_en_notifier_nb = {
 
 static int aml_vecm_viu2_vsync_irq_init(void)
 {
-	if (res_viu2_vsync_irq) {
-		if (request_irq(res_viu2_vsync_irq->start,
+	if (viu2_vsync_irq >= 0) {
+		if (request_irq(viu2_vsync_irq,
 				amvecm_viu2_vsync_isr, IRQF_SHARED,
 				"amvecm_vsync2", (void *)"amvecm_vsync2")) {
 			pr_err("can't request amvecm_vsync2_irq\n");
@@ -12829,14 +12853,14 @@ static int aml_vecm_viu2_vsync_irq_init(void)
 
 static int aml_vecm_lc_curve_irq_init(void)
 {
-	if (res_lc_curve_irq) {
-		if (request_irq(res_lc_curve_irq->start,
+	if (lc_curve_irq >= 0) {
+		if (request_irq(lc_curve_irq,
 				amvecm_lc_curve_isr, IRQF_SHARED,
 				"lc_curve_isr", (void *)"lc_curve_isr")) {
-			pr_err("can't request res_lc_curve_irq\n");
+			pr_err("can't request lc_curve_irq\n");
 		} else {
 			lc_curve_isr_defined = 1;
-			pr_info("request res_lc_curve_irq successful\n");
+			pr_info("request lc_curve_irq successful\n");
 		}
 	}
 
@@ -12955,7 +12979,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto fail_alloc_region;
 
-	devp->clsp = class_create(THIS_MODULE, AMVECM_CLASS_NAME);
+	devp->clsp = kv_class_create(THIS_MODULE, AMVECM_CLASS_NAME);
 	if (IS_ERR(devp->clsp)) {
 		ret = PTR_ERR(devp->clsp);
 		goto fail_create_class;
@@ -13102,8 +13126,8 @@ static int __exit aml_vecm_remove(struct platform_device *pdev)
 	struct amvecm_dev_s *devp = &amvecm_dev;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (res_viu2_vsync_irq) {
-		free_irq(res_viu2_vsync_irq->start,
+	if (viu2_vsync_irq >= 0) {
+		free_irq(viu2_vsync_irq,
 			 (void *)"amvecm_vsync2");
 	}
 

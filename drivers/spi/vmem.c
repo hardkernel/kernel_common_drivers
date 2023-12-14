@@ -8,6 +8,7 @@
 #include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/amlogic/vmem.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #define TEST_VMEM_ENTRY
 
@@ -161,8 +162,9 @@ static int test_vmem_data_notify(u8 cmd_val, int offset, int size)
 	return 0;
 }
 
-static ssize_t create_store(struct class *class, struct class_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t create_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct vmem_controller *vmemctlr;
 	unsigned int bus_num, dev_num, size;
@@ -191,8 +193,9 @@ static ssize_t create_store(struct class *class, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t destroy_store(struct class *class, struct class_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t destroy_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	if (test_vmem) {
 		vmem_destroy_device(test_vmem);
@@ -201,8 +204,9 @@ static ssize_t destroy_store(struct class *class, struct class_attribute *attr,
 	return count;
 }
 
-static ssize_t data_show(struct class *class, struct class_attribute *attr,
-			 char *buf)
+static ssize_t data_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int i;
 
@@ -228,9 +232,11 @@ static struct attribute *test_vmem_class_attrs[] = {
 ATTRIBUTE_GROUPS(test_vmem_class);
 
 static struct class test_vmem_class = {
-	.name = "test_vmem",
-	.owner = THIS_MODULE,
-	.class_groups = test_vmem_class_groups
+	.name		= "test_vmem",
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
+	.owner		= THIS_MODULE,
+#endif
+	.class_groups	= test_vmem_class_groups
 };
 
 #ifdef MODULE

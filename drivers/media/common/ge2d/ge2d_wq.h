@@ -5,17 +5,22 @@
 
 #ifndef _GE2D_WQ_H_
 #define _GE2D_WQ_H_
+
+#include <linux/amlogic/kernel_versions.h>
+
 #ifdef CONFIG_AMLOGIC_ION
 #include <linux/amlogic/ion.h>
 
 extern struct ion_client *ge2d_ion_client;
 #endif
 
-ssize_t work_queue_status_show(struct class *cla,
-			       struct class_attribute *attr, char *buf);
+ssize_t work_queue_status_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf);
 
-ssize_t free_queue_status_show(struct class *cla,
-			       struct class_attribute *attr, char *buf);
+ssize_t free_queue_status_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf);
 
 int ge2d_setup(int irq, struct reset_control *rstc);
 int ge2d_wq_init(struct platform_device *pdev,

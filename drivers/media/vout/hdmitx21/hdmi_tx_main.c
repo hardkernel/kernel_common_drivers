@@ -63,6 +63,7 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_format_para.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_platform_linux.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_audio.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #define HDMI_TX_COUNT 32
 #define HDMI_TX_POOL_NUM  6
@@ -3859,7 +3860,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdev->cdev.owner = THIS_MODULE;
 	r = cdev_add(&hdev->cdev, hdev->hdmitx_id, HDMI_TX_COUNT);
 
-	hdmitx_class = class_create(THIS_MODULE, "amhdmitx");
+	hdmitx_class = kv_class_create(THIS_MODULE, "amhdmitx");
 	if (IS_ERR(hdmitx_class)) {
 		unregister_chrdev_region(hdev->hdmitx_id, HDMI_TX_COUNT);
 		return -1;

@@ -111,9 +111,7 @@ function autotest(){
 	if [[ -d ${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/.git/hooks/ ]]; then
 		if [[ ! -f ${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/.git/hooks/pre-commit ]]; then
 			cp ${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/scripts/amlogic/pre-commit ${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/.git/hooks/pre-commit
-			cp ${KERNEL_DIR}/scripts/amlogic/pre-commit ${KERNEL_DIR}/.git/hooks/pre-commit
 			chmod +x ${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/.git/hooks/pre-commit
-			chmod +x ${KERNEL_DIR}/.git/hooks/pre-commit
 		fi
 	fi
 }

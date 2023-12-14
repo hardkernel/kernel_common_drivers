@@ -32,6 +32,7 @@
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <uapi/amlogic/vout_ioc.h>
+#include <linux/amlogic/kernel_versions.h>
 
 /* Local Headers */
 #include "vout_func.h"
@@ -335,8 +336,9 @@ static int set_vout2_init_mode(void)
 /* ************************************************************* */
 /* vout sysfs                                                    */
 /* ************************************************************* */
-static ssize_t vout2_mode_show(struct class *class,
-			       struct class_attribute *attr, char *buf)
+static ssize_t vout2_mode_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret = 0;
 
@@ -345,9 +347,9 @@ static ssize_t vout2_mode_show(struct class *class,
 	return ret;
 }
 
-static ssize_t vout2_mode_store(struct class *class,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t vout2_mode_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	char mode[64];
 
@@ -358,8 +360,9 @@ static ssize_t vout2_mode_store(struct class *class,
 	return count;
 }
 
-static ssize_t vout2_fr_policy_show(struct class *class,
-				    struct class_attribute *attr, char *buf)
+static ssize_t vout2_fr_policy_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int policy;
 	int ret = 0;
@@ -370,9 +373,9 @@ static ssize_t vout2_fr_policy_show(struct class *class,
 	return ret;
 }
 
-static ssize_t vout2_fr_policy_store(struct class *class,
-				     struct class_attribute *attr,
-				     const char *buf, size_t count)
+static ssize_t vout2_fr_policy_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int policy;
 	int ret = 0;
@@ -392,8 +395,9 @@ static ssize_t vout2_fr_policy_store(struct class *class,
 	return count;
 }
 
-static ssize_t vout2_fr_hint_show(struct class *class,
-				  struct class_attribute *attr, char *buf)
+static ssize_t vout2_fr_hint_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int fr_hint;
 	int ret = 0;
@@ -404,9 +408,9 @@ static ssize_t vout2_fr_hint_show(struct class *class,
 	return ret;
 }
 
-static ssize_t vout2_fr_hint_store(struct class *class,
-				   struct class_attribute *attr,
-				   const char *buf, size_t count)
+static ssize_t vout2_fr_hint_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int fr_hint;
 	int ret = 0;
@@ -423,8 +427,9 @@ static ssize_t vout2_fr_hint_store(struct class *class,
 	return count;
 }
 
-static ssize_t vout2_fr_range_show(struct class *class,
-				   struct class_attribute *attr, char *buf)
+static ssize_t vout2_fr_range_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	const struct vinfo_s *info = NULL;
 
@@ -435,8 +440,9 @@ static ssize_t vout2_fr_range_show(struct class *class,
 	return sprintf(buf, "%d %d\n", info->vfreq_min, info->vfreq_max);
 }
 
-static ssize_t vout2_bist_show(struct class *class,
-			       struct class_attribute *attr, char *buf)
+static ssize_t vout2_bist_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret = 0;
 
@@ -445,9 +451,9 @@ static ssize_t vout2_bist_show(struct class *class,
 	return ret;
 }
 
-static ssize_t vout2_bist_store(struct class *class,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t vout2_bist_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int ret = 0;
 
@@ -466,8 +472,9 @@ static ssize_t vout2_bist_store(struct class *class,
 	return count;
 }
 
-static ssize_t vout2_bl_brightness_show(struct class *class,
-					struct class_attribute *attr, char *buf)
+static ssize_t vout2_bl_brightness_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned int brightness;
 	int ret = 0;
@@ -480,9 +487,9 @@ static ssize_t vout2_bl_brightness_show(struct class *class,
 	return ret;
 }
 
-static ssize_t vout2_bl_brightness_store(struct class *class,
-					struct class_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t vout2_bl_brightness_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int brightness;
 	int ret = 0;
@@ -502,8 +509,9 @@ static ssize_t vout2_bl_brightness_store(struct class *class,
 	return count;
 }
 
-static ssize_t vout2_vinfo_show(struct class *class,
-				struct class_attribute *attr, char *buf)
+static ssize_t vout2_vinfo_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	const struct vinfo_s *info = NULL;
 	ssize_t len = 0;
@@ -597,8 +605,9 @@ static ssize_t vout2_vinfo_show(struct class *class,
 	return len;
 }
 
-static ssize_t vout2_cap_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
+static ssize_t vout2_cap_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int ret;
 
@@ -626,7 +635,7 @@ static int vout2_attr_create(void)
 	int ret = 0;
 
 	/* create vout class */
-	vout2_class = class_create(THIS_MODULE, VOUT_CLASS_NAME);
+	vout2_class = kv_class_create(THIS_MODULE, VOUT_CLASS_NAME);
 	if (IS_ERR(vout2_class)) {
 		VOUTERR("vout2: create vout2 class fail\n");
 		return -1;

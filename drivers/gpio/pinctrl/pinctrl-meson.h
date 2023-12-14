@@ -12,6 +12,9 @@
 #include <linux/types.h>
 
 struct meson_pinctrl;
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+struct fwnode_handle;
+#endif
 
 /**
  * struct meson_pmx_group - a pinmux group
@@ -165,7 +168,11 @@ struct meson_pinctrl {
 	struct regmap *reg_gpio;
 	struct regmap *reg_ds;
 	struct gpio_chip chip;
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+	struct fwnode_handle *fwnode;
+#else
 	struct device_node *of_node;
+#endif
 #ifdef CONFIG_AMLOGIC_MODIFY
 	struct regmap *reg_vthx;
 	struct device_node *of_irq;

@@ -813,7 +813,8 @@ int bl_pwm_channel_register(struct device *dev, phandle pwm_phandle,
 			continue;
 
 		bl_pwm->pwm_data.meson_index = pwm_index;
-		bl_pwm->pwm_data.pwm = devm_of_pwm_get(dev, child, NULL);
+		//KV_TODO: modify
+		bl_pwm->pwm_data.pwm = devm_pwm_get(dev, NULL);
 		if (IS_ERR_OR_NULL(bl_pwm->pwm_data.pwm)) {
 			ret = PTR_ERR(bl_pwm->pwm_data.pwm);
 			BLERR("unable to request %s(%d): 0x%x\n", pwm_str, pwm_port, ret);

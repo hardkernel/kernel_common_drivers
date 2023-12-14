@@ -15,6 +15,7 @@
 #include <linux/amlogic/aml_tuner.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 #include <linux/amlogic/aml_dvb_extern.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
@@ -174,8 +175,9 @@ void aml_dvb_extern_attach(void)
 	}
 }
 
-static ssize_t tuner_debug_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
+static ssize_t tuner_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int n = 0, tuner_id = 0, fe_type = 0;
 	char *buf_orig = NULL, *ps = NULL, *token = NULL, *name = NULL;
@@ -454,8 +456,9 @@ EXIT:
 	return count;
 }
 
-static ssize_t tuner_debug_show(struct class *class,
-		struct class_attribute *attr, char *buff)
+static ssize_t tuner_debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buff)
 {
 	int n = 0;
 	char *name = NULL;
@@ -585,8 +588,9 @@ static ssize_t tuner_debug_show(struct class *class,
 	return n;
 }
 
-static ssize_t demod_debug_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
+static ssize_t demod_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int n = 0, fe_type = 0, ret = 0;
 	unsigned int delay = 0;
@@ -837,8 +841,9 @@ EXIT:
 	return count;
 }
 
-static ssize_t demod_debug_show(struct class *class,
-		struct class_attribute *attr, char *buff)
+static ssize_t demod_debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buff)
 {
 	int n = 0;
 	char *name = NULL;
@@ -949,8 +954,9 @@ static ssize_t demod_debug_show(struct class *class,
 	return n;
 }
 
-static ssize_t dvb_debug_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
+static ssize_t dvb_debug_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int n = 0;
 	unsigned long val = 0;
@@ -997,8 +1003,9 @@ EXIT:
 	return count;
 }
 
-static ssize_t dvb_debug_show(struct class *class,
-		struct class_attribute *attr, char *buff)
+static ssize_t dvb_debug_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buff)
 {
 	int n = 0;
 	const char *path = "/sys/class/aml_dvb_extern/dvb_debug";
@@ -1089,7 +1096,7 @@ static int tuner_debug_seq_show(struct seq_file *m, void *v)
 
 static int tuner_debug_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, tuner_debug_seq_show, PDE_DATA(inode));
+	return single_open(file, tuner_debug_seq_show, kv_pde_data(inode));
 }
 
 static const struct proc_ops tuner_debug_fops = {
@@ -1138,7 +1145,7 @@ static int demod_debug_seq_show(struct seq_file *m, void *v)
 
 static int demod_debug_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, demod_debug_seq_show, PDE_DATA(inode));
+	return single_open(file, demod_debug_seq_show, kv_pde_data(inode));
 }
 
 static const struct proc_ops demod_debug_fops = {
@@ -1323,7 +1330,7 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 	dvbdev->name = AML_DVB_EXTERN_DEVICE_NAME;
 	dvbdev->dev = &pdev->dev;
 	dvbdev->class.name = AML_DVB_EXTERN_DEVICE_NAME;
-	dvbdev->class.owner = THIS_MODULE;
+	kv_set_class_owner(&dvbdev->class);
 	dvbdev->class.class_groups = dvb_extern_class_groups;
 
 	dvbdev->debug_proc_dir = proc_mkdir(AML_DVB_EXTERN_DEVICE_NAME, NULL);
@@ -1368,8 +1375,8 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 	if (ret) {
 		dvbdev->dvb_power.pin = -1;
 	} else {
-		dvbdev->dvb_power.pin = of_get_named_gpio_flags(pdev->dev.of_node,
-				"dvb_power_gpio", 0, NULL);
+		dvbdev->dvb_power.pin = of_get_named_gpio(pdev->dev.of_node,
+				"dvb_power_gpio", 0);
 		//pr_err("get dvb_power_gpio: %d.\n", dvbdev->dvb_power.pin);
 	}
 

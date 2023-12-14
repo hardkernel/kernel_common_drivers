@@ -920,7 +920,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 
 		cfg->reset.pin = -1;
 	} else {
-		cfg->reset.pin = of_get_named_gpio_flags(node, buf, 0, NULL);
+		cfg->reset.pin = of_get_named_gpio(node, buf, 0);
 		//pr_err("Tuner: get %s: %d.\n", buf, cfg->reset.pin);
 	}
 
@@ -955,7 +955,7 @@ int aml_get_dts_tuner_config(struct device_node *node,
 
 		cfg->power.pin = -1;
 	} else {
-		cfg->power.pin = of_get_named_gpio_flags(node, buf, 0, NULL);
+		cfg->power.pin = of_get_named_gpio(node, buf, 0);
 		//pr_err("Tuner: get %s: %d.\n", buf, cfg->power.pin);
 	}
 

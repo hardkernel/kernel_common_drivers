@@ -89,13 +89,14 @@ function set_default_parameters_for_smarthome () {
 		export CROSS_COMPILE=${CROSS_COMPILE_TOOL}
 	fi
 
+	local kernel_version=${FULL_KERNEL_VERSION##*-}
 	if [[ $ARCH == arm64 ]]; then
-		OUTDIR=${ROOT_DIR}/out/kernel-5.15-64
+		OUTDIR=${ROOT_DIR}/out/kernel-${kernel_version}-64
 	elif [[ $ARCH == arm ]]; then
-		OUTDIR=${ROOT_DIR}/out/kernel-5.15-32
+		OUTDIR=${ROOT_DIR}/out/kernel-${kernel_version}-32
 		tool_args+=("LOADADDR=0x108000")
 	elif [[ $ARCH == riscv ]]; then
-		OUTDIR=${ROOT_DIR}/out/riscv-kernel-5.15-64
+		OUTDIR=${ROOT_DIR}/out/riscv-kernel-${kernel_version}-64
 	fi
 	TOOL_ARGS="${tool_args[@]}"
 

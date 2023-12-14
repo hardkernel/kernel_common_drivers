@@ -33,6 +33,7 @@
 #include <linux/sched/rt.h>
 #include <uapi/linux/sched/types.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #ifdef CONFIG_AMLOGIC_PIXEL_PROBE
 #include <linux/amlogic/pixel_probe.h>
@@ -4954,8 +4955,9 @@ static char *memp_str(int profile)
 /*
  * cat /sys/class/vdin/memp
  */
-static ssize_t memp_show(struct class *class,
-			 struct class_attribute *attr, char *buf)
+static ssize_t memp_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int len = 0;
 
@@ -5121,9 +5123,9 @@ static void memp_set(int type)
 	}
 }
 
-static ssize_t memp_store(struct class *class,
-			  struct class_attribute *attr,
-			  const char *buf, size_t count)
+static ssize_t memp_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	/* int type = simple_strtol(buf, NULL, 10); */
 	long type;

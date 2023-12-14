@@ -36,6 +36,7 @@
 #include <linux/profile.h>
 #include <linux/notifier.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_AMLOGIC_CMA
 #include <linux/amlogic/aml_cma.h>
 #endif
@@ -293,7 +294,7 @@ static struct shrinker lowmem_shrinker = {
 
 static int __init lowmem_init(void)
 {
-	register_shrinker(&lowmem_shrinker);
+	kv_register_shrinker(&lowmem_shrinker, "android-lowmem");
 	return 0;
 }
 device_initcall(lowmem_init);

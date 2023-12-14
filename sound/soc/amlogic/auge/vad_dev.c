@@ -14,6 +14,7 @@
 #include <linux/uaccess.h>
 #include <sound/asound.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/major.h>
 
 #include "vad.h"
@@ -34,8 +35,9 @@ void vad_set_trunk_data_readable(bool en)
 	readable = en;
 }
 
-static ssize_t readable_show(struct class *cla, struct class_attribute *attr,
-			      char *buf)
+static ssize_t readable_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return sprintf(buf, "%d\n", readable);
 }
@@ -48,9 +50,9 @@ static struct attribute *vad_class_attrs[] = {
 ATTRIBUTE_GROUPS(vad_class);
 
 static struct class vad_class = {
-	.name = DRV_NAME,
-	.owner = THIS_MODULE,
-	.class_groups = vad_class_groups,
+	.name		= DRV_NAME,
+	KV_CLASS_DEF_OWNER
+	.class_groups	= vad_class_groups,
 };
 
 static int vad_open(struct inode *inode, struct file *file)

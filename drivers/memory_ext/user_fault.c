@@ -37,7 +37,6 @@
 #include <linux/percpu.h>
 #include <linux/thread_info.h>
 #include <linux/prctl.h>
-#include <trace/hooks/fpsimd.h>
 #include <trace/hooks/mpam.h>
 #include <linux/mmap_lock.h>
 
@@ -226,7 +225,7 @@ static void show_pfn(unsigned long reg, char *s)
 	if (reg < (unsigned long)PAGE_OFFSET) {
 		pr_info("%s : %016lx  U\n", s, reg);
 	} else if (reg <= (unsigned long)high_memory) {
-		pr_info("%s : %016lx, PFN:%5lx L\n", s, reg, virt_to_pfn(reg));
+		pr_info("%s : %016lx, PFN:%5lx L\n", s, reg, virt_to_pfn((void *)reg));
 	} else {
 		page = vmalloc_to_page((const void *)reg);
 		if (page)
@@ -272,10 +271,10 @@ static void show_pfn(unsigned long reg, const char *s)
 		else
 			pr_info("%s : %016lx, PFN:***** V\n", s, reg);
 	} else if (reg <= (unsigned long)high_memory) {
-		pr_info("%s : %016lx, PFN:%5lx L\n", s, reg, virt_to_pfn(reg));
+		pr_info("%s : %016lx, PFN:%5lx L\n", s, reg, virt_to_pfn((void *)reg));
 	} else if (reg <= KERNEL_LINK_ADDR) {
 	} else if (reg <= kernel_map.virt_addr + kernel_map.size) {
-		pr_info("%s : %016lx, PFN:%5lx L\n", s, reg, virt_to_pfn(reg));
+		pr_info("%s : %016lx, PFN:%5lx L\n", s, reg, virt_to_pfn((void *)reg));
 	}
 }
 

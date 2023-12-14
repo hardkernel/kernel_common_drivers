@@ -2,6 +2,8 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vout/lcd/aml_lcd.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl_extern.h>
 #include <linux/amlogic/gki_module.h>
@@ -100,8 +102,7 @@ static int bl_extern_i2c_config_from_dts(struct device *dev,
 	return 0;
 }
 
-static int aml_bl_extern_i2c_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int aml_bl_extern_i2c_probe(struct i2c_client *client KV_I2C_PROBE_ID)
 {
 	if (i2c_dev_cnt >= BL_EXT_I2C_DEV_MAX) {
 		BLEXERR("i2c_dev_cnt reach max\n");
@@ -130,12 +131,12 @@ static int aml_bl_extern_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int aml_bl_extern_i2c_remove(struct i2c_client *client)
+static KV_I2C_REMOVE_TYPE aml_bl_extern_i2c_remove(struct i2c_client *client)
 {
 	int i;
 
 	if (i2c_dev_cnt == 0)
-		return 0;
+		KV_I2C_REMOVE_RET(0);
 
 	for (i = 0; i < i2c_dev_cnt; i++) {
 		kfree(i2c_device[i]);
@@ -143,7 +144,7 @@ static int aml_bl_extern_i2c_remove(struct i2c_client *client)
 	}
 	i2c_dev_cnt = 0;
 
-	return 0;
+	KV_I2C_REMOVE_RET(0);
 }
 
 static const struct i2c_device_id aml_bl_extern_i2c_id[] = {

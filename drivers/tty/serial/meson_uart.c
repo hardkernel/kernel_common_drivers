@@ -25,6 +25,8 @@
 #include <linux/tty_flip.h>
 #include <linux/pinctrl/consumer.h>
 
+#include <linux/amlogic/kernel_versions.h>
+
 /* Register offsets */
 #define AML_UART_WFIFO			0x00
 #define AML_UART_RFIFO			0x04
@@ -171,7 +173,7 @@ static void meson_uart_start_tx(struct uart_port *port)
 
 		ch = xmit->buf[xmit->tail];
 		writel_relaxed(ch, port->membase + AML_UART_WFIFO);
-		xmit->tail = (xmit->tail + 1) & (SERIAL_XMIT_SIZE - 1);
+		xmit->tail = (xmit->tail + 1) & (KV_UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 	}
 	spin_unlock_irqrestore(&mup->wr_lock, flags);
@@ -202,7 +204,7 @@ static void meson_transmit_chars(struct uart_port *port)
 			break;
 		ch = xmit->buf[xmit->tail];
 		writel_relaxed(ch, port->membase + AML_UART_WFIFO);
-		xmit->tail = (xmit->tail + 1) & (SERIAL_XMIT_SIZE - 1);
+		xmit->tail = (xmit->tail + 1) & (KV_UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 	}
 	spin_unlock(&mup->wr_lock);
@@ -385,7 +387,7 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 
 static void meson_uart_set_termios(struct uart_port *port,
 				   struct ktermios *termios,
-				   struct ktermios *old)
+				   KV_UART_SET_TERMIOS_OLD_CONST struct ktermios *old)
 {
 	unsigned int cflags, iflags, baud;
 	unsigned long flags;
@@ -559,15 +561,15 @@ static void meson_uart_enable_tx_engine(struct uart_port *port)
 	writel_relaxed(val, port->membase + AML_UART_CONTROL);
 }
 
-static void meson_console_putchar(struct uart_port *port, int ch)
+static void meson_console_putchar(struct uart_port *port, kv_uart_putchar_char_type ch)
 {
 	if (!port->membase)
 		return;
 
-	while (readl_relaxed(port->membase + AML_UART_STATUS) &
+	while (readl(port->membase + AML_UART_STATUS) &
 	       AML_UART_TX_FULL)
 		cpu_relax();
-	writel_relaxed(ch, port->membase + AML_UART_WFIFO);
+	writel(ch, port->membase + AML_UART_WFIFO);
 }
 
 static void meson_serial_port_write(struct uart_port *port, const char *s,
@@ -730,7 +732,7 @@ const struct dev_pm_ops meson_uart_pm = {
 
 static int meson_uart_probe(struct platform_device *pdev)
 {
-	struct resource *res_mem, *res_irq;
+	struct resource *res_mem;
 	struct uart_port *port;
 	struct meson_uart_port *mup;
 	struct clk *clk;
@@ -745,10 +747,6 @@ static int meson_uart_probe(struct platform_device *pdev)
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_mem)
-		return -ENODEV;
-
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res_irq)
 		return -ENODEV;
 
 	if (meson_ports[pdev->id]) {
@@ -801,7 +799,8 @@ static int meson_uart_probe(struct platform_device *pdev)
 
 	port->iotype = UPIO_MEM;
 	port->mapbase = res_mem->start;
-	port->irq = res_irq->start;
+	if ((port->irq = platform_get_irq(pdev, 0)) < 0)
+		return -ENODEV;
 	port->flags = UPF_BOOT_AUTOCONF | UPF_IOREMAP | UPF_LOW_LATENCY;
 	port->dev = &pdev->dev;
 	port->line = pdev->id;

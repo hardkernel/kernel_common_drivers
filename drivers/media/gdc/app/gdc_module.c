@@ -29,6 +29,7 @@
 #include <linux/ctype.h>
 #include <linux/timer.h>
 
+#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_AMLOGIC_FREERTOS
 #include <linux/amlogic/freertos.h>
 #endif
@@ -424,7 +425,7 @@ static int meson_gdc_dma_map(struct gdc_dma_cfg *cfg)
 	int ret = -1;
 	int fd = -1;
 	struct dma_buf *dbuf = NULL;
-	struct dma_buf_map map;
+	struct kv_drm_vmap_map map;
 	struct dma_buf_attachment *d_att = NULL;
 	struct sg_table *sg = NULL;
 	struct device *dev = NULL;

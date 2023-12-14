@@ -27,6 +27,7 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include "rdma.h"
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/amlogic/media/registers/register_map.h>
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
@@ -1158,16 +1159,16 @@ static int parse_para(const char *para, int para_num, int *result)
 	return count;
 }
 
-static ssize_t show_second_rdma_feature(struct class *class,
-					struct class_attribute *attr,
-					char *buf)
+static ssize_t show_second_rdma_feature(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	return snprintf(buf, 40, "%d\n", second_rdma_feature);
 }
 
-static ssize_t store_second_rdma_feature(struct class *class,
-					 struct class_attribute *attr,
-					 const char *buf, size_t count)
+static ssize_t store_second_rdma_feature(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -1179,9 +1180,9 @@ static ssize_t store_second_rdma_feature(struct class *class,
 	return count;
 }
 
-static ssize_t show_enable(struct class *class,
-			   struct class_attribute *attr,
-			   char *buf)
+static ssize_t show_enable(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int i;
 	int enable_flag = 0;
@@ -1194,9 +1195,9 @@ static ssize_t show_enable(struct class *class,
 			enable_flag);
 }
 
-static ssize_t store_enable(struct class *class,
-			    struct class_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t store_enable(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int i = 0;
 	int enable_flag = 0, ret;
@@ -1209,9 +1210,9 @@ static ssize_t store_enable(struct class *class,
 	return count;
 }
 
-static ssize_t show_irq_count(struct class *class,
-			      struct class_attribute *attr,
-			      char *buf)
+static ssize_t show_irq_count(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int i;
 	char str[8];
@@ -1225,9 +1226,9 @@ static ssize_t show_irq_count(struct class *class,
 	return snprintf(buf, PAGE_SIZE, "irq count: %s\n", buf_str);
 }
 
-static ssize_t store_irq_count(struct class *class,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t store_irq_count(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int i = 0;
 	int channel = 0;
@@ -1247,9 +1248,9 @@ static ssize_t store_irq_count(struct class *class,
 	return count;
 }
 
-static ssize_t show_debug_flag(struct class *class,
-			       struct class_attribute *attr,
-			       char *buf)
+static ssize_t show_debug_flag(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int i;
 	char str[8];
@@ -1263,9 +1264,9 @@ static ssize_t show_debug_flag(struct class *class,
 	return snprintf(buf, PAGE_SIZE, "debug_flag: %s\n", buf_str);
 }
 
-static ssize_t store_debug_flag(struct class *class,
-				struct class_attribute *attr,
-				const char *buf, size_t count)
+static ssize_t store_debug_flag(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int channel = 0;
 	int parsed[2];
@@ -1285,9 +1286,9 @@ static ssize_t store_debug_flag(struct class *class,
 	return count;
 }
 
-static ssize_t show_vsync_cfg_count(struct class *class,
-				    struct class_attribute *attr,
-				    char *buf)
+static ssize_t show_vsync_cfg_count(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int i;
 	char str[8];
@@ -1301,9 +1302,9 @@ static ssize_t show_vsync_cfg_count(struct class *class,
 	return snprintf(buf, PAGE_SIZE, "vsync_cfg_count: %s\n", buf_str);
 }
 
-static ssize_t store_vsync_cfg_count(struct class *class,
-				     struct class_attribute *attr,
-				     const char *buf, size_t count)
+static ssize_t store_vsync_cfg_count(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int i = 0;
 	int channel = 0;
@@ -1323,9 +1324,9 @@ static ssize_t store_vsync_cfg_count(struct class *class,
 	return count;
 }
 
-static ssize_t show_force_rdma_config(struct class *class,
-				      struct class_attribute *attr,
-				      char *buf)
+static ssize_t show_force_rdma_config(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int i;
 	char str[8];
@@ -1339,9 +1340,9 @@ static ssize_t show_force_rdma_config(struct class *class,
 	return snprintf(buf, PAGE_SIZE, "force_rdma_config: %s\n", buf_str);
 }
 
-static ssize_t store_force_rdma_config(struct class *class,
-				       struct class_attribute *attr,
-				       const char *buf, size_t count)
+static ssize_t store_force_rdma_config(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int i = 0;
 	int channel = 0;
@@ -1361,9 +1362,9 @@ static ssize_t store_force_rdma_config(struct class *class,
 	return count;
 }
 
-static ssize_t show_threshold(struct class *class,
-				      struct class_attribute *attr,
-				      char *buf)
+static ssize_t show_threshold(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	int len = 0, i;
 
@@ -1374,9 +1375,9 @@ static ssize_t show_threshold(struct class *class,
 	return len;
 }
 
-static ssize_t store_threshold(struct class *class,
-				      struct class_attribute *attr,
-				      const char *buf, size_t count)
+static ssize_t store_threshold(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int parsed[2];
 	int rdma_type = VSYNC_RDMA;
@@ -1417,7 +1418,7 @@ static int create_rdma_class(void)
 {
 	int i;
 
-	rdma_class = class_create(THIS_MODULE, "rdma");
+	rdma_class = kv_class_create(THIS_MODULE, "rdma");
 	if (IS_ERR_OR_NULL(rdma_class)) {
 		pr_err("create rdma_class failed\n");
 		return -1;

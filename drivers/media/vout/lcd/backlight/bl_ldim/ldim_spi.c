@@ -15,6 +15,8 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
+
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/aml_spi.h>
 #include "ldim_drv.h"
@@ -314,7 +316,7 @@ static int ldim_spi_dev_probe(struct spi_device *spi)
 	return ret;
 }
 
-static int ldim_spi_dev_remove(struct spi_device *spi)
+static KV_SPI_REMOVE_TYPE ldim_spi_dev_remove(struct spi_device *spi)
 {
 	struct ldim_dev_driver_s *dev_drv = dev_get_drvdata(&spi->dev);
 
@@ -325,7 +327,7 @@ static int ldim_spi_dev_remove(struct spi_device *spi)
 		dev_drv->spi_dev = NULL;
 	dev_set_drvdata(&spi->dev, NULL);
 
-	return 0;
+	KV_SPI_REMOVE_RET(0);
 }
 
 static struct spi_driver ldim_spi_dev_driver = {
@@ -348,7 +350,12 @@ int ldim_spi_driver_add(struct ldim_dev_driver_s *dev_drv)
 		return -1;
 	}
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+	ctlr = NULL;
+#else
 	ctlr = spi_busnum_to_master(dev_drv->spi_info->bus_num);
+#endif
 	if (!ctlr) {
 		LDIMERR("get busnum failed\n");
 		return -1;

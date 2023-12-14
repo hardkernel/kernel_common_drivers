@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/err.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #define FLASHLIGHT_MODULE_NAME   "flashlight"
 #define FLASHLIGHT_DRIVER_NAME "flashlight"
@@ -39,14 +40,6 @@ static struct device *devp;
 
 static enum aml_plat_flashlight_status_s flashlight_flag = FLASHLIGHT_OFF;
 
-static ssize_t flashlight_ctrl_store(struct class *cla,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count);
-static ssize_t flashlightflag_show(struct class *cla,
-				  struct class_attribute *attr, char *buf);
-static ssize_t flashlight_ctrl_flag_store(struct class *cla,
-				  struct class_attribute *attr,
-				  const char *buf, size_t count);
 static int flashlight_open(struct inode *inode, struct file *file);
 static int flashlight_release(struct inode *inode, struct file *file);
 static int flashlight_probe(struct platform_device *pdev);
@@ -63,27 +56,9 @@ static const struct file_operations flashlight_fops = {
 	.open = flashlight_open, .release = flashlight_release,
 };
 
-static CLASS_ATTR_WO(flashlight_ctrl);
-static CLASS_ATTR_WO(flashlight_ctrl_flag);
-static CLASS_ATTR_RO(flashlightflag);
-
-static struct attribute *flashlight_class_attrs[] = {
-	&class_attr_flashlight_ctrl.attr,
-	&class_attr_flashlight_ctrl_flag.attr,
-	&class_attr_flashlightflag.attr,
-	NULL,
-};
-ATTRIBUTE_GROUPS(flashlight_class);
-
-static struct class flashlight_class = {
-		.name = FLASHLIGHT_CLASS_NAME,
-		.owner = THIS_MODULE,
-		.class_groups = flashlight_class_groups
-	};
-
-static ssize_t flashlight_ctrl_store(struct class *cla,
-			       struct class_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t flashlight_ctrl_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct aml_plat_flashlight_data_s *pdata = NULL;
 	struct device *dev = NULL;
@@ -108,22 +83,43 @@ static ssize_t flashlight_ctrl_store(struct class *cla,
 	return count;
 }
 
-static ssize_t flashlightflag_show(struct class *cla,
-				  struct class_attribute *attr, char *buf)
-{
-	sprintf(buf, "%d", (int)flashlight_flag);
-	return strlen(buf);
-}
-
-static ssize_t flashlight_ctrl_flag_store(struct class *cla,
-				  struct class_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t flashlight_ctrl_flag_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	if (!strlen(buf))
 		pr_info("%s parameter is required!\n", __func__);
 	flashlight_flag = (enum aml_plat_flashlight_status_s)(buf[0] - '0');
 	return count;
 }
+
+static ssize_t flashlightflag_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
+{
+	sprintf(buf, "%d", (int)flashlight_flag);
+	return strlen(buf);
+}
+
+static CLASS_ATTR_WO(flashlight_ctrl);
+static CLASS_ATTR_WO(flashlight_ctrl_flag);
+static CLASS_ATTR_RO(flashlightflag);
+
+static struct attribute *flashlight_class_attrs[] = {
+	&class_attr_flashlight_ctrl.attr,
+	&class_attr_flashlight_ctrl_flag.attr,
+	&class_attr_flashlightflag.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(flashlight_class);
+
+static struct class flashlight_class = {
+	.name		= FLASHLIGHT_CLASS_NAME,
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
+	.owner		= THIS_MODULE,
+#endif
+	.class_groups	= flashlight_class_groups
+};
 
 static int flashlight_open(struct inode *inode, struct file *file)
 {

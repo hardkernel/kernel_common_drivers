@@ -26,6 +26,7 @@
 #include <linux/uaccess.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/aml_kt.h>
+#include <linux/amlogic/kernel_versions.h>
 
 #include "aml_seckey_log.h"
 
@@ -790,9 +791,9 @@ static int aml_mkl_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 
-	aml_mkl_class = class_create(THIS_MODULE, AML_MKL_DEVICE_NAME);
+	aml_mkl_class = kv_class_create(THIS_MODULE, AML_MKL_DEVICE_NAME);
 	if (IS_ERR(aml_mkl_class)) {
-		KL_LOGE("class_create failed\n");
+		KL_LOGE("kv_class_create failed\n");
 		ret = PTR_ERR(aml_mkl_class);
 		return ret;
 	}

@@ -45,6 +45,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/media/vout/lcd/ldim_fw.h>
+#include <linux/amlogic/kernel_versions.h>
 #include "../../lcd_common.h"
 #include "ldim_drv.h"
 #include "ldim_reg.h"
@@ -1125,7 +1126,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	devp->aml_ldim_clsp = class_create(THIS_MODULE, "aml_ldim");
+	devp->aml_ldim_clsp = kv_class_create(THIS_MODULE, "aml_ldim");
 	if (IS_ERR(devp->aml_ldim_clsp)) {
 		ret = PTR_ERR(devp->aml_ldim_clsp);
 		return ret;
@@ -1163,7 +1164,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 	spin_lock_init(&ldim_pwm_vs_isr_lock);
 
 	ldim_vsync_irq = platform_get_irq_byname(pdev, "vsync");
-	if (ldim_vsync_irq == -ENXIO) {
+	if (ldim_vsync_irq < 0) {
 		ret = -ENODEV;
 		LDIMERR("ldim_vsync_irq resource error\n");
 		goto err4;
@@ -1175,7 +1176,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 	}
 
 	ldim_pwm_vs_irq = platform_get_irq_byname(pdev, "ldim_pwm_vs");
-	if (ldim_pwm_vs_irq == -ENXIO) {
+	if (ldim_pwm_vs_irq < 0) {
 		ret = -ENODEV;
 		LDIMERR("ldim_pwm_vs_irq resource error\n");
 		goto err4;
@@ -1217,7 +1218,7 @@ int aml_ldim_remove(void)
 	kfree(ldim_driver.local_bl_matrix);
 	kfree(ldim_driver.cus_fw->param);
 
-	free_irq(bdrv->res_ldim_vsync_irq->start, (void *)"ldim_vsync");
+	free_irq(bdrv->ldim_vsync_irq, (void *)"ldim_vsync");
 
 	cdev_del(devp->aml_ldim_cdevp);
 	kfree(devp->aml_ldim_cdevp);

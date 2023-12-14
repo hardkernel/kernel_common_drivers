@@ -40,7 +40,9 @@
 #include <linux/debugfs.h>
 #include "mmc_key.h"
 #include "mmc_dtb.h"
+#if CONFIG_AMLOGIC_KERNEL_VERSION == 13515
 #include <trace/hooks/mmc.h>
+#endif
 #include <linux/moduleparam.h>
 #include <linux/amlogic/gki_module.h>
 

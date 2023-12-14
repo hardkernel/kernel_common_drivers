@@ -26,6 +26,7 @@
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/aml_spi.h>
+#include <linux/amlogic/kernel_versions.h>
 #include "ldim_drv.h"
 #include "ldim_dev_drv.h"
 #include "../../lcd_reg.h"
@@ -1687,7 +1688,9 @@ static int ldim_dev_get_config(struct ldim_dev_driver_s *dev_drv,
 	return ret;
 }
 
-static ssize_t ldim_dev_show(struct class *class, struct class_attribute *attr, char *buf)
+static ssize_t ldim_dev_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	int ret = 0;
@@ -1697,7 +1700,9 @@ static ssize_t ldim_dev_show(struct class *class, struct class_attribute *attr, 
 	return ret;
 }
 
-static ssize_t ldim_dev_pwm_ldim_show(struct class *class, struct class_attribute *attr, char *buf)
+static ssize_t ldim_dev_pwm_ldim_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct bl_pwm_config_s *bl_pwm;
 	ssize_t len = 0;
@@ -1817,8 +1822,9 @@ static void ldim_dev_pwm_debug(struct bl_pwm_config_s *bl_pwm, const char *buf, 
 	}
 }
 
-static ssize_t ldim_dev_pwm_ldim_store(struct class *class, struct class_attribute *attr,
-				       const char *buf, size_t count)
+static ssize_t ldim_dev_pwm_ldim_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct bl_pwm_config_s *bl_pwm;
 
@@ -1831,8 +1837,9 @@ static ssize_t ldim_dev_pwm_ldim_store(struct class *class, struct class_attribu
 	return count;
 }
 
-static ssize_t ldim_dev_pwm_analog_show(struct class *class, struct class_attribute *attr,
-					char *buf)
+static ssize_t ldim_dev_pwm_analog_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	struct bl_pwm_config_s *bl_pwm;
 	ssize_t len = 0;
@@ -1849,8 +1856,9 @@ static ssize_t ldim_dev_pwm_analog_show(struct class *class, struct class_attrib
 	return len;
 }
 
-static ssize_t ldim_dev_pwm_analog_store(struct class *class, struct class_attribute *attr,
-					 const char *buf, size_t count)
+static ssize_t ldim_dev_pwm_analog_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct bl_pwm_config_s *bl_pwm;
 
@@ -1871,7 +1879,9 @@ struct ldim_dev_dbg_reg_s {
 
 static struct ldim_dev_dbg_reg_s ldim_dev_dbg_reg;
 
-static ssize_t ldim_dev_reg_show(struct class *class, struct class_attribute *attr, char *buf)
+static ssize_t ldim_dev_reg_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf)
 {
 	unsigned char *data;
 	ssize_t len = 0;
@@ -1909,8 +1919,9 @@ static ssize_t ldim_dev_reg_show(struct class *class, struct class_attribute *at
 	return len;
 }
 
-static ssize_t ldim_dev_reg_store(struct class *class, struct class_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t ldim_dev_reg_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	unsigned int reg = 0, val = 0, id = 0;
 	unsigned char data, *rbuf;
@@ -2018,7 +2029,7 @@ static void ldim_dev_class_create(struct ldim_dev_driver_s *dev_drv)
 {
 	int i;
 
-	dev_drv->class = class_create(THIS_MODULE, "ldim_dev");
+	dev_drv->class = kv_class_create(THIS_MODULE, "ldim_dev");
 	if (IS_ERR_OR_NULL(dev_drv->class)) {
 		LDIMERR("create ldim_dev class fail\n");
 		return;

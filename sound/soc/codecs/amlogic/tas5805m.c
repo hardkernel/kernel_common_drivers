@@ -15,8 +15,9 @@
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/pcm_params.h>
-#include <linux/amlogic/aml_gpio_consumer.h>
 
+#include <linux/amlogic/kernel_versions.h>
+#include <linux/amlogic/aml_gpio_consumer.h>
 #include "tas5805m.h"
 #include "tas5805m_woofer.h"
 #include "tas5805m_tweeter.h"
@@ -1176,8 +1177,7 @@ static int tas5805m_parse_dt(struct tas5805m_priv *tas5805m)
 	return ret;
 }
 
-static int tas5805m_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static int tas5805m_i2c_probe(struct i2c_client *i2c KV_I2C_PROBE_ID)
 {
 	struct regmap *regmap;
 	struct regmap_config config = tas5805m_regmap;
@@ -1220,11 +1220,11 @@ static int tas5805m_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int tas5805m_i2c_remove(struct i2c_client *i2c)
+static KV_I2C_REMOVE_TYPE tas5805m_i2c_remove(struct i2c_client *i2c)
 {
 	devm_kfree(&i2c->dev, i2c_get_clientdata(i2c));
 
-	return 0;
+	KV_I2C_REMOVE_RET(0);
 }
 
 static const struct i2c_device_id tas5805m_i2c_id[] = {

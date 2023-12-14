@@ -745,6 +745,7 @@ unsigned long unpack_ip(struct page_trace *trace)
  * We can only safely access per-cpu stacks from current in a non-preemptible
  * context.
  */
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static bool aml_on_accessible_stack(const struct task_struct *tsk,
 				unsigned long sp, unsigned long size,
 				struct stack_info *info)
@@ -767,8 +768,49 @@ static bool aml_on_accessible_stack(const struct task_struct *tsk,
 
 	return false;
 }
+#endif
 
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+static int notrace unwind_next(struct unwind_state *state)
+{
+	struct task_struct *tsk = state->task;
+	unsigned long fp = state->fp;
+	int err;
+
+    /* Final frame; nothing to unwind */
+	if (fp == (unsigned long)task_pt_regs(tsk)->stackframe)
+		return -ENOENT;
+
+	err = unwind_next_frame_record(state);
+	if (err)
+		return err;
+
+	state->pc = ptrauth_strip_kernel_insn_pac(state->pc);
+
+#if defined CONFIG_FUNCTION_GRAPH_TRACER && IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
+	if (tsk->ret_stack &&
+		state->pc == (unsigned long)return_to_handler) {
+		unsigned long orig_pc;
+		/*
+		 * This is a case where function graph tracer has
+		 * modified a return address (LR) in a stack frame
+		 * to hook a function return.
+		 * So replace it to an original value.
+		 */
+		orig_pc = ftrace_graph_ret_addr(tsk, NULL, state->pc,
+						(void *)state->fp);
+		if (WARN_ON_ONCE(state->pc == orig_pc))
+			return -EINVAL;
+		state->pc = orig_pc;
+	}
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+// #ifdef CONFIG_KRETPROBES
+//     if (is_kretprobe_trampoline(state->pc))
+//         state->pc = kretprobe_find_ret_addr(tsk, (void *)state->fp, &state->kr_cur);
+// #endif
+	return 0;
+}
+#elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 /*
  * Unwind from one frame record (A) to the next frame record (B).
  *
@@ -907,10 +949,15 @@ unsigned long find_back_trace(void)
 #ifdef CONFIG_ARM64
 	frame.fp = (unsigned long)__builtin_frame_address(0);
 	frame.pc = _RET_IP_;
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	bitmap_zero(frame.stacks_done, __NR_STACK_TYPES);
 	frame.prev_fp = 0;
 	frame.prev_type = STACK_TYPE_UNKNOWN;
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+#endif
+
+#if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
+	frame.stack = stackinfo_get_unknown();
+#elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 	frame.task = current;
 #else
 #if defined(CONFIG_FUNCTION_GRAPH_TRACER) && IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)

@@ -43,7 +43,12 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+#include <linux/property.h>
+#else
 #include <linux/of_device.h>
+#endif
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -767,8 +772,12 @@ static int meson_gpiolib_register(struct meson_pinctrl *pc)
 	pc->chip.base = -1;
 	pc->chip.ngpio = pc->data->num_pins;
 	pc->chip.can_sleep = false;
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+	pc->chip.fwnode = pc->fwnode;
+#else
 	pc->chip.of_node = pc->of_node;
 	pc->chip.of_gpio_n_cells = 2;
+#endif
 
 	ret = gpiochip_add_data(&pc->chip, pc);
 /* KASAN BUG Fix It Later */
@@ -822,6 +831,32 @@ static struct regmap *meson_map_resource(struct meson_pinctrl *pc,
 	return devm_regmap_init_mmio(pc->dev, base, &meson_regmap_config);
 }
 
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc)
+{
+	struct device_node *gpio_np;
+	unsigned int chips;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	int num, idx;
+	struct meson_pmx_expand_reg *pmx_expand_reg;
+	u32 val;
+#endif
+#endif
+	chips = gpiochip_node_count(pc->dev);
+	if (!chips) {
+		dev_err(pc->dev, "no gpio node found\n");
+		return -EINVAL;
+	}
+	if (chips > 1) {
+		dev_err(pc->dev, "multiple gpio nodes\n");
+		return -EINVAL;
+	}
+
+	pc->fwnode = gpiochip_node_get_first(pc->dev);
+	gpio_np = to_of_node(pc->fwnode);
+#else
 static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 				  struct device_node *node)
 {
@@ -851,6 +886,7 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 	}
 
 	pc->of_node = gpio_np;
+#endif
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 	pc->of_irq = of_find_compatible_node(NULL,
@@ -889,7 +925,11 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 	}
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+	if (of_property_read_bool(gpio_np, "amlogic,vin-threshold-support"))
+#else
 	if (of_property_read_bool(node, "amlogic,vin-threshold-support"))
+#endif
 		pc->reg_vthx = pc->reg_gpio;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/*
@@ -990,7 +1030,11 @@ int meson_pinctrl_probe(struct platform_device *pdev)
 	pc->dev = dev;
 	pc->data = (struct meson_pinctrl_data *)of_device_get_match_data(dev);
 
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+	ret = meson_pinctrl_parse_dt(pc);
+#else
 	ret = meson_pinctrl_parse_dt(pc, dev->of_node);
+#endif
 	if (ret)
 		return ret;
 #ifdef CONFIG_AMLOGIC_MODIFY

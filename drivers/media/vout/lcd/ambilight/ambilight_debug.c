@@ -28,6 +28,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/sched/clock.h>
 #include <linux/amlogic/pm.h>
+#include <linux/amlogic/kernel_versions.h>
 #include "ambilight.h"
 #include "../lcd_reg.h"
 
@@ -443,7 +444,7 @@ int amblt_debug_file_add(struct amblt_drv_s *amblt_drv)
 {
 	int i, ret;
 
-	amblt_drv->clsp = class_create(THIS_MODULE, AMBLT_CLASS_NAME);
+	amblt_drv->clsp = kv_class_create(THIS_MODULE, AMBLT_CLASS_NAME);
 	if (IS_ERR(amblt_drv->clsp)) {
 		AMBLTERR("failed to create class\n");
 		return -1;

@@ -6,6 +6,7 @@
 #include <linux/types.h>
 #include <linux/i2c.h>
 #include <uapi/linux/dvb/aml_fe_ext.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/aml_atvdemod.h>
 #include <linux/amlogic/media/vout/vdac_dev.h>

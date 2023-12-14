@@ -24,6 +24,7 @@
 #include <linux/workqueue.h>
 #include <trace/hooks/module.h>
 #include <linux/rbtree.h>
+#include <linux/amlogic/kernel_versions.h>
 #define AML_PERSISTENT_RAM_SIG (0x4c4d41) /* AML */
 
 static int ramoops_ftrace_en;
@@ -202,7 +203,7 @@ struct pc_lockup_symbol {
 	unsigned long curr_mod_base;
 };
 
-#ifdef CONFIG_ANDROID_VENDOR_HOOKS
+#if IS_ENABLED(CONFIG_ANDROID_VENDOR_HOOKS) && CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static unsigned long convert_pc_val(unsigned long val)
 {
 	struct rb_node *node;
@@ -767,7 +768,7 @@ static int percpu_trace_open(struct inode *inode, struct file *file)
 		return err;
 
 	sf = file->private_data;
-	sf->private = PDE_DATA(inode);
+	sf->private = kv_pde_data(inode);
 
 	return 0;
 }
@@ -1200,6 +1201,7 @@ static void iotrace_work_func(struct work_struct *work)
 }
 
 #ifdef CONFIG_ANDROID_VENDOR_HOOKS
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static unsigned int BKDRHash(char *str)
 {
 	unsigned int seed = 131;
@@ -1243,6 +1245,7 @@ static void module_base_hook(void *data, const struct module *mod)
 			(unsigned long)mod->init_layout.size);
 }
 #endif
+#endif
 
 int __init aml_iotrace_init(void)
 {
@@ -1268,7 +1271,10 @@ int __init aml_iotrace_init(void)
 
 	if (ramoops_io_dump) {
 #ifdef CONFIG_ANDROID_VENDOR_HOOKS
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 		register_trace_android_vh_set_module_permit_after_init(module_base_hook, NULL);
+#endif
 #endif
 		parse_module_base();
 		INIT_DELAYED_WORK(&iotrace_work, iotrace_work_func);

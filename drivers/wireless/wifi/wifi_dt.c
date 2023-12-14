@@ -25,6 +25,7 @@
 #include <linux/amlogic/pm.h>
 #include <linux/uaccess.h>
 #include <linux/pci.h>
+#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/aml_sd.h>
 #include <linux/printk.h>
 #ifdef CONFIG_AMLOGIC_PWM_32K
@@ -32,6 +33,7 @@
 #include <linux/amlogic/pwm-meson.h>
 #endif
 #include <gpiolib-of.h>
+#include <linux/amlogic/kernel_versions.h>
 #define OWNER_NAME "sdio_wifi"
 
 static char aml_wifi_chip_type[10] = "NULL";
@@ -466,9 +468,9 @@ static long wifi_power_ioctl(struct file *filp,
 }
 
 static struct class *wifi_dt_class;
-static ssize_t power_show(struct class *cls,
-			  struct class_attribute *attr,
-			  char *_buf)
+static ssize_t power_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *_buf)
 {
 	if (!_buf)
 		return -EINVAL;
@@ -479,9 +481,9 @@ static ssize_t power_show(struct class *cls,
 		"2=power down\n");
 }
 
-static ssize_t power_store(struct class *cls,
-			   struct class_attribute *attr,
-			   const char __user *buf, size_t count)
+static ssize_t power_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	int ret = -EINVAL;
 	unsigned char cmd = 0;
@@ -532,8 +534,8 @@ static const struct file_operations wifi_mac_fops = {
 };
 
 static struct class wifi_power_class = {
-	.name = WIFI_POWER_CLASS_NAME,
-	.owner = THIS_MODULE,
+	.name		= WIFI_POWER_CLASS_NAME,
+	KV_CLASS_DEF_OWNER
 };
 
 static int wifi_setup_dt(void)
@@ -697,7 +699,8 @@ int pwm_double_channel_conf_dt(struct wifi_plat_info *plat)
 		struct pwm_double_data *pdata =
 			&plat->ddata.pwms[plat->ddata.num_pwm];
 
-		pdata->pwm = devm_of_pwm_get(plat->dev, child, NULL);
+		//KV_TODO: modify
+		pdata->pwm = devm_pwm_get(plat->dev, NULL);
 		if (IS_ERR(pdata->pwm)) {
 			ret = PTR_ERR(pdata->pwm);
 			dev_err(plat->dev, "unable to request PWM%d, ret = %d\n",
@@ -797,10 +800,10 @@ static int wifi_dev_probe(struct platform_device *pdev)
 			WIFI_INFO("no interrupt pin");
 			plat->interrupt_pin = 0;
 		} else {
-			plat->interrupt_pin = of_get_named_gpio_flags
+			plat->interrupt_pin = of_get_named_gpio
 							(pdev->dev.of_node,
 							"interrupt-gpios",
-							0, NULL);
+							0);
 			ret = of_property_read_string(pdev->dev.of_node,
 						      "irq_trigger_type",
 						      &value);
@@ -833,10 +836,10 @@ static int wifi_dev_probe(struct platform_device *pdev)
 			plat->power_on_pin_OD = 0;
 		} else {
 			wifi_power_gpio = 1;
-			plat->power_on_pin = of_get_named_gpio_flags
+			plat->power_on_pin = of_get_named_gpio
 							(pdev->dev.of_node,
 							"power_on-gpios",
-							0, NULL);
+							0);
 		}
 
 		ret = of_property_read_u32(pdev->dev.of_node,
@@ -856,10 +859,10 @@ static int wifi_dev_probe(struct platform_device *pdev)
 			plat->power_on_pin2 = 0;
 		} else {
 			wifi_power_gpio2 = 1;
-			plat->power_on_pin2 = of_get_named_gpio_flags
+			plat->power_on_pin2 = of_get_named_gpio
 							(pdev->dev.of_node,
 							"power_on_2-gpios",
-							0, NULL);
+							0);
 		}
 
 		ret = of_property_read_string(pdev->dev.of_node,
@@ -868,10 +871,10 @@ static int wifi_dev_probe(struct platform_device *pdev)
 			WIFI_DEBUG("no chip_en_pin");
 			plat->chip_en_pin = 0;
 		} else {
-			plat->chip_en_pin = of_get_named_gpio_flags
+			plat->chip_en_pin = of_get_named_gpio
 							(pdev->dev.of_node,
 							"chip_en-gpios",
-							0, NULL);
+							0);
 		}
 
 #ifdef CONFIG_AMLOGIC_PWM_32K
@@ -937,7 +940,7 @@ static int wifi_dev_probe(struct platform_device *pdev)
 
 	wifi_setup_dt();
 
-	wifi_dt_class = class_create(THIS_MODULE, "aml_wifi");
+	wifi_dt_class = kv_class_create(THIS_MODULE, "aml_wifi");
 	ret = class_create_file(wifi_dt_class, &class_attr_power);
 	/********wifi rand mac***********/
 	ret = alloc_chrdev_region(&wifi_mac_devno, 0, 1, WIFI_MAC_DEVICE_NAME);

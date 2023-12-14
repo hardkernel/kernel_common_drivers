@@ -9,6 +9,8 @@
 #include <linux/dma-buf.h>
 #include <uapi/linux/dma-buf.h>
 #include <uapi/linux/magic.h>
+#include <drm/drm_blend.h>
+#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
 #include <linux/amlogic/media/osd/osd_logo.h>
 #endif
@@ -237,7 +239,12 @@ int am_meson_dmabuf_export_sync_file_ioctl(struct drm_device *dev,
 		//	goto err_put_fd;
 		//}
 	} else if (arg->flags & DMA_BUF_SYNC_READ) {
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+		fence = NULL;
+#else
 		fence = dma_resv_get_excl_unlocked(dmabuf->resv);
+#endif
 	}
 	if (!fence)
 		fence = dma_fence_get_stub();
@@ -1848,14 +1855,14 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv,
 					 afbc_modifier,
 					 type, const_plane_name);
 	} else {
-		priv->drm->mode_config.allow_fb_modifiers = false;
+		kv_set_drm_allow_fb_modifiers(priv->drm, false);
 		drm_universal_plane_init(priv->drm, plane, 1 << crtc_mask,
 					 &am_osd_plane_funs,
 					 formats_group,
 					 num_formats,
 					 NULL,
 					 type, const_plane_name);
-		priv->drm->mode_config.allow_fb_modifiers = true;
+		kv_set_drm_allow_fb_modifiers(priv->drm, true);
 	}
 	drm_plane_create_blend_mode_property(plane,
 				BIT(DRM_MODE_BLEND_PIXEL_NONE) |
