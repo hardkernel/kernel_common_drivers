@@ -39,7 +39,7 @@ module_param(sched_interactive_task_util, int, 0644);
 static int sched_task_low_prio = 125;
 module_param(sched_task_low_prio, int, 0644);
 
-static int sched_task_high_prio = 110;
+static int sched_task_high_prio = 118;
 module_param(sched_task_high_prio, int, 0644);
 
 static int sched_rt_nice_enable;
