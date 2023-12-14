@@ -1212,24 +1212,6 @@ static void dummy_encl_clk_ctrl(struct dummy_venc_driver_s *venc_drv, int flag)
 	vconf = venc_drv->vdata->vconf;
 
 	if (flag) {
-		if (venc_drv->vdata->venc_type == VENC_TYPE_ENCP) {
-			/* clk source sel: fckl_div5 */
-			vout_clk_setb(vconf->vid_clk_div_reg, 0xf, VCLK_XD0, 8);
-			usleep_range(5, 6);
-			vout_clk_setb(vconf->vid_clk_ctrl_reg, 6, VCLK_CLK_IN_SEL, 3);
-			vout_clk_setb(vconf->vid_clk_ctrl_reg, 1, VCLK_EN0, 1);
-			usleep_range(5, 6);
-			vout_clk_setb(vconf->vid_clk_div_reg, 0, ENCP_CLK_SEL, 4);
-			vout_clk_setb(vconf->vid_clk_div_reg, 1, VCLK_XD_EN, 1);
-			usleep_range(5, 6);
-			vout_clk_setb(vconf->vid_clk_ctrl_reg, 1, VCLK_DIV1_EN, 1);
-			vout_clk_setb(vconf->vid_clk_ctrl_reg, 1, VCLK_SOFT_RST, 1);
-			usleep_range(10, 11);
-			vout_clk_setb(vconf->vid_clk_ctrl_reg, 0, VCLK_SOFT_RST, 1);
-			usleep_range(5, 6);
-			vout_clk_setb(vconf->vid_clk_ctrl2_reg, 1, ENCP_GATE_VCLK, 1);
-			return;
-		}
 		/* clk source sel: fckl_div5 */
 		vout_clk_setb(vconf->vid2_clk_div_reg, 0xf, VCLK2_XD, 8);
 		usleep_range(5, 6);
