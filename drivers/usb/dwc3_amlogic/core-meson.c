@@ -1844,6 +1844,32 @@ assert_reset:
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+static void dwc3_shutdown(struct platform_device *pdev)
+{
+	struct aml_dwc3	*dwc = platform_get_drvdata(pdev);
+
+	pm_runtime_get_sync(&pdev->dev);
+
+	dwc3_core_exit_mode(dwc);
+	aml_dwc3_debugfs_exit(dwc);
+
+	dwc3_core_exit(dwc);
+	aml_dwc3_ulpi_exit(dwc);
+
+	pm_runtime_allow(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
+
+	dwc3_free_event_buffers(dwc);
+	dwc3_free_scratch_buffers(dwc);
+
+	if (dwc->usb_psy)
+		power_supply_put(dwc->usb_psy);
+}
+#endif
+
 static int dwc3_remove(struct platform_device *pdev)
 {
 	struct aml_dwc3	*dwc = platform_get_drvdata(pdev);
@@ -2180,6 +2206,9 @@ MODULE_DEVICE_TABLE(acpi, dwc3_acpi_match);
 static struct platform_driver dwc3_driver = {
 	.probe		= dwc3_probe,
 	.remove		= dwc3_remove,
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	.shutdown	= dwc3_shutdown,
+#endif
 	.driver		= {
 		.name	= "dwc3-meson",
 		.of_match_table	= of_match_ptr(of_dwc3_match),
