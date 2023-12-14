@@ -8,6 +8,8 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/irq.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/pm_runtime.h>
@@ -17,7 +19,6 @@
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/of.h>
 #include <linux/acpi.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/usb/ch9.h>
@@ -27,6 +28,7 @@
 #include <linux/amlogic/usbtype.h>
 #include <linux/clk.h>
 #include <linux/phy/phy.h>
+#include <linux/android_kabi.h>
 #include "xhci.h"
 #include "xhci-plat.h"
 #include "crg_xhci.h"
@@ -157,53 +159,69 @@ static int crg_core_get_phy(struct crg *crg)
 	return 0;
 }
 
+static void crg_host_fill_xhci_irq_res(struct crg *crg,
+					int irq, char *name)
+{
+	struct platform_device *pdev = to_platform_device(crg->dev);
+	struct device_node *np = dev_of_node(&pdev->dev);
+
+	crg->xhci_resources[1].start = irq;
+	crg->xhci_resources[1].end = irq;
+	crg->xhci_resources[1].flags = IORESOURCE_IRQ | irq_get_trigger_type(irq);
+	if (!name && np)
+		crg->xhci_resources[1].name = of_node_full_name(pdev->dev.of_node);
+	else
+		crg->xhci_resources[1].name = name;
+}
+
+static int crg_host_get_irq(struct crg *crg)
+{
+	struct platform_device	*crg_pdev = to_platform_device(crg->dev);
+	int irq;
+
+	irq = platform_get_irq_byname_optional(crg_pdev, "host");
+	if (irq > 0) {
+		crg_host_fill_xhci_irq_res(crg, irq, "host");
+		goto out;
+	}
+
+	if (irq == -EPROBE_DEFER)
+		goto out;
+
+	irq = platform_get_irq_byname_optional(crg_pdev, "crg_usb3");
+	if (irq > 0) {
+		crg_host_fill_xhci_irq_res(crg, irq, "crg_usb3");
+		goto out;
+	}
+
+	if (irq == -EPROBE_DEFER)
+		goto out;
+
+	irq = platform_get_irq(crg_pdev, 0);
+	if (irq > 0) {
+		crg_host_fill_xhci_irq_res(crg, irq, NULL);
+		goto out;
+	}
+
+	if (!irq)
+		irq = -EINVAL;
+
+out:
+	return irq;
+}
+
 int crg_host_init(struct crg *crg)
 {
 	struct property_entry	props[4];
 	struct platform_device	*xhci;
 	int			ret, irq;
-	struct resource		*res;
-	struct platform_device	*crg_pdev = to_platform_device(crg->dev);
+	//struct resource		*res;
+	//struct platform_device	*crg_pdev = to_platform_device(crg->dev);
 	int			prop_idx = 0;
 
-	irq = platform_get_irq_byname(crg_pdev, "host");
-	if (irq == -EPROBE_DEFER)
+	irq = crg_host_get_irq(crg);
+	if (irq < 0)
 		return irq;
-
-	if (irq <= 0) {
-		irq = platform_get_irq_byname(crg_pdev, "crg_usb3");
-		if (irq == -EPROBE_DEFER)
-			return irq;
-
-		if (irq <= 0) {
-			irq = platform_get_irq(crg_pdev, 0);
-			if (irq <= 0) {
-				if (irq != -EPROBE_DEFER) {
-					dev_err(crg->dev,
-						"missing host IRQ\n");
-				}
-				if (!irq)
-					irq = -EINVAL;
-				return irq;
-			}
-			res = platform_get_resource(crg_pdev,
-							IORESOURCE_IRQ, 0);
-
-		} else {
-			res = platform_get_resource_byname(crg_pdev,
-							   IORESOURCE_IRQ,
-							   "crg_usb3");
-		}
-
-	} else {
-		res = platform_get_resource_byname(crg_pdev, IORESOURCE_IRQ,
-						   "host");
-	}
-
-	crg->xhci_resources[1].start = irq;
-	crg->xhci_resources[1].end = irq;
-	crg->xhci_resources[1].flags = res->flags;
-	crg->xhci_resources[1].name = res->name;
 
 	xhci = platform_device_alloc("xhci-hcd", PLATFORM_DEVID_AUTO);
 	if (!xhci) {
