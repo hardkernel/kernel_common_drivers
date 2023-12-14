@@ -19,6 +19,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/meson_ir.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
+#include <dt-bindings/mailbox/a4-mbox.h>
 #include <dt-bindings/rtc/amlogic,rtc.h>
 #include "meson-ir-map.dtsi"
 / {
@@ -368,7 +369,7 @@
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xfe010288 0x0 0x4>;
 		status = "disabled";
-		mboxes = <&mhu_fifo A4_REE2AO>;
+		mboxes = <&mbox_fifo A4_REE2AO_VRTC>;
 	};
 
 	rtc: rtc@0xfe08e600 {
@@ -377,7 +378,7 @@
 		time-storage-format-gray;
 		interrupts = <GIC_SPI 135 IRQ_TYPE_EDGE_RISING>;
 		status = "okay";
-		mboxes = <&mhu_fifo A4_REE2AO>;
+		mboxes = <&mbox_fifo A4_REE2AO_RTC>;
 		clocks = <&clkc CLKID_RTC_CLK>;
 		clock-names = "rtc_clk";
 		osc_freq = <OSC_32KHZ>;
@@ -433,36 +434,30 @@
 		pinctrl-0=<&jtag_a_pins>;
 	};
 
-	mhu_fifo: mhu@0 {
+	mbox_fifo: mbox_fifo@0xfe006000 {
 		status = "okay";
-		compatible = "amlogic, meson_mhu_fifo";
-		reg = <0x0 0xfe006000 0x0 0x800>,  /* mhu wr fifo */
-		      <0x0 0xfe006800 0x0 0x800>,  /* mhu rd fifo */
-		      <0x0 0xfe0070c0 0x0 0x40>,   /* mhu set reg */
-		      <0x0 0xfe007100 0x0 0x40>,   /* mhu clr reg */
-		      <0x0 0xfe007140 0x0 0x40>,   /* mhu sts reg */
-		      <0x0 0xfe007020 0x0 0x40>;   /* mhu irqctrl reg */
-		interrupts = <0 248 1>;   /* irq top */
+		compatible = "amlogic, a4-mbox-fifo";
+		reg = <0x0 0xfe006000 0x0 0x800>,  /* mbox wr fifo */
+		      <0x0 0xfe006800 0x0 0x800>,  /* mbox rd fifo */
+		      <0x0 0xfe0070c0 0x0 0x40>,   /* mbox set reg */
+		      <0x0 0xfe007100 0x0 0x40>,   /* mbox clr reg */
+		      <0x0 0xfe007140 0x0 0x40>,   /* mbox sts reg */
+		      <0x0 0xfe007020 0x0 0x40>;   /* mbox irqctrl reg */
+		interrupts = <GIC_SPI 248 IRQ_TYPE_EDGE_RISING>;   /* mbox irq top */
+		mbox-irqmax = <32>;
 		mbox-irqctlr = <0>;
-		mbox-nums = <4>;
-		mbox-names = "ao_dev",
-			     "ap_to_ao",
-			     "dsp_dev",
-			     "ap_to_dspa";
-		mboxes = <&mhu_fifo A5_AO2REE>,
-			 <&mhu_fifo A5_REE2AO>,
-			 <&mhu_fifo A5_DSP2REE>,
-			 <&mhu_fifo A5_REE2DSP>;
-		mbox-id = <0x2 0x3 0x0 0x1>;
+		mbox-nums = <A4_MBOX_NUMS>;
+		mboxids = <A4_MBOX_AO2REE>,
+			  <A4_MBOX_REE2AO>;
 		#mbox-cells = <1>;
 	};
 
-	mbox_user: mbox-user@0 {
+	mbox_devfs {
 		status = "okay";
-		compatible = "amlogic, meson-mbox-user";
+		compatible = "amlogic, mbox-devfs";
 		mbox-nums = <1>;
 		mbox-names = "ree2aocpu";
-		mboxes = <&mhu_fifo A4_REE2AO>;
+		mboxes = <&mbox_fifo A4_REE2AO_DEV>;
 		mbox-dests = <MAILBOX_AOCPU>;
 	};
 

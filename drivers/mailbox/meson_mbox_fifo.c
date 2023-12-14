@@ -32,6 +32,8 @@
 #include <dt-bindings/mailbox/t3x-mbox.h>
 #include <dt-bindings/mailbox/s5-mbox.h>
 #include <dt-bindings/mailbox/s1a-mbox.h>
+#include <dt-bindings/mailbox/a4-mbox.h>
+#include <dt-bindings/mailbox/a5-mbox.h>
 #include "meson_mbox_fifo.h"
 #include "meson_mbox_comm.h"
 
@@ -658,6 +660,40 @@ static struct mbox_domain_data s5_mbox_domains_data __initdata = {
 	.mbox_domains = s5_mbox_domains,
 	.domain_counts = ARRAY_SIZE(s5_mbox_domains),
 };
+
+struct mbox_domain a4_mbox_domains[] = {
+	[A4_AO2REE]    = MBOX_DOMAIN(A4_AO2REE, A4_MBOX_AO2REE, 0),
+	[A4_REE2AO0]   = MBOX_DOMAIN(A4_REE2AO0, A4_MBOX_REE2AO, 0),
+	[A4_REE2AO1]   = MBOX_DOMAIN(A4_REE2AO1, A4_MBOX_REE2AO, 0),
+	[A4_REE2AO2]   = MBOX_DOMAIN(A4_REE2AO2, A4_MBOX_REE2AO, 0),
+	[A4_REE2AO3]   = MBOX_DOMAIN(A4_REE2AO3, A4_MBOX_REE2AO, 0),
+	[A4_REE2AO4]   = MBOX_DOMAIN(A4_REE2AO4, A4_MBOX_REE2AO, 0),
+	[A4_REE2AO5]   = MBOX_DOMAIN(A4_REE2AO5, A4_MBOX_REE2AO, 0),
+};
+
+static struct mbox_domain_data a4_mbox_domains_data __initdata = {
+	.mbox_domains = a4_mbox_domains,
+	.domain_counts = ARRAY_SIZE(a4_mbox_domains),
+};
+
+struct mbox_domain a5_mbox_domains[] = {
+	[A5_DSPA2REE0] = MBOX_DOMAIN(A5_DSPA2REE0, A5_MBOX_DSPA2REE, 0),
+	[A5_REE2DSPA0] = MBOX_DOMAIN(A5_REE2DSPA0, A5_MBOX_REE2DSPA, 0),
+	[A5_REE2DSPA1] = MBOX_DOMAIN(A5_REE2DSPA1, A5_MBOX_REE2DSPA, 0),
+	[A5_REE2DSPA2] = MBOX_DOMAIN(A5_REE2DSPA2, A5_MBOX_REE2DSPA, 0),
+	[A5_AO2REE]    = MBOX_DOMAIN(A5_AO2REE, A5_MBOX_AO2REE, 0),
+	[A5_REE2AO0]   = MBOX_DOMAIN(A5_REE2AO0, A5_MBOX_REE2AO, 0),
+	[A5_REE2AO1]   = MBOX_DOMAIN(A5_REE2AO1, A5_MBOX_REE2AO, 0),
+	[A5_REE2AO2]   = MBOX_DOMAIN(A5_REE2AO2, A5_MBOX_REE2AO, 0),
+	[A5_REE2AO3]   = MBOX_DOMAIN(A5_REE2AO3, A5_MBOX_REE2AO, 0),
+	[A5_REE2AO4]   = MBOX_DOMAIN(A5_REE2AO4, A5_MBOX_REE2AO, 0),
+	[A5_REE2AO5]   = MBOX_DOMAIN(A5_REE2AO5, A5_MBOX_REE2AO, 0),
+};
+
+static struct mbox_domain_data a5_mbox_domains_data __initdata = {
+	.mbox_domains = a5_mbox_domains,
+	.domain_counts = ARRAY_SIZE(a5_mbox_domains),
+};
 #endif
 
 struct mbox_domain s1a_mbox_domains[] = {
@@ -704,6 +740,14 @@ static const struct of_device_id mbox_of_match[] = {
 	{
 		.compatible = "amlogic, s5-mbox-fifo",
 		.data = &s5_mbox_domains_data,
+	},
+	{
+		.compatible = "amlogic, a4-mbox-fifo",
+		.data = &a4_mbox_domains_data,
+	},
+	{
+		.compatible = "amlogic, a5-mbox-fifo",
+		.data = &a5_mbox_domains_data,
 	},
 #endif
 	{
