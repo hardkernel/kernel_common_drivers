@@ -77,6 +77,7 @@ struct tvin_state_machine_ops_s {
 	void (*hdmi_reset_pcs)(struct tvin_frontend_s *fe);
 	void (*hdmi_de_hactive)(bool en, struct tvin_frontend_s *fe);
 	bool (*hdmi_clr_pkts)(struct tvin_frontend_s *fe);
+	void (*frontend_clr_value)(struct tvin_frontend_s *fe);
 };
 
 struct tvin_frontend_s {
