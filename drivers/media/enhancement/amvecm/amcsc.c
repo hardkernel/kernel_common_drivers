@@ -3910,6 +3910,18 @@ void get_cur_vd_signal_type(enum vd_path_e vd_path)
 }
 #endif
 
+static int cur_vd_w;
+static int cur_vd_h;
+void get_cur_vd_size(struct vframe_s *vf)
+{
+	if (vf) {
+		cur_vd_h = (vf->type & VIDTYPE_COMPRESS) ?
+			vf->compHeight : vf->height;
+		cur_vd_w = (vf->type & VIDTYPE_COMPRESS) ?
+			vf->compWidth : vf->width;
+	};
+}
+
 int get_primaries_type(struct vframe_master_display_colour_s *p_mdc)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -8629,6 +8641,9 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		hdr_support_process(vinfo, vd_path, vpp_index);
 #endif
 
+	if (vf)
+		get_cur_vd_size(vf);
+
 	if (vf && vinfo)
 		signal_change_flag =
 			signal_type_changed(vf, vinfo, vd_path, vpp_index);
@@ -8725,10 +8740,10 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		else
 #endif
 			signal_change_flag |=
-			hdr_policy_process(vinfo, source_format, vd_path, vpp_index);
+			hdr_policy_process(vinfo, source_format, vd_path, vpp_index, vf);
 #else
 		signal_change_flag |=
-			hdr_policy_process(vinfo, source_format, vd_path, vpp_index);
+			hdr_policy_process(vinfo, source_format, vd_path, vpp_index, vf);
 #endif
 
 		if (signal_change_flag & SIG_OUTPUT_MODE_CHG) {
@@ -9282,9 +9297,9 @@ int amvecm_matrix_process(struct vframe_s *vf,
 
 			if (is_amdv_enable()) {
 				/* dolby enable */
-				dv_hdr_policy = get_amdv_hdr_policy();
+				dv_hdr_policy = get_amdv_hdr_policy(vf);
 				pr_csc(8,
-				       "vd%d: %d %d Fake SDR frame%s, dv on=%d, policy=%d, hdr policy=0x%x\n",
+				       "vd%d: %d %d Fake SDR frame%s, dv on=%d, policy=%d, hdr policy=0x%x, height %d, width %d\n",
 				       vd_path + 1,
 				       null_vf_cnt[vd_path],
 				       toggle_frame,
@@ -9292,7 +9307,9 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				       " " : ", video off",
 				       is_amdv_on(),
 				       get_amdv_policy(),
-				       dv_hdr_policy);
+				       dv_hdr_policy,
+				       cur_vd_h,
+				       cur_vd_w);
 				if (vd_path == VD2_PATH || // TODO, add vd3??
 				    (vd_path == VD1_PATH &&
 				     (get_source_type(VD1_PATH, vpp_index) == HDRTYPE_HDR10PLUS ||
@@ -9305,7 +9322,9 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				      (get_source_type(VD1_PATH, vpp_index) == HDRTYPE_HLG &&
 				       !(dv_hdr_policy & 2)) ||
 				      (get_source_type(VD1_PATH, vpp_index) == HDRTYPE_SDR &&
-				       !(dv_hdr_policy & 0x20))))) {
+				       !(dv_hdr_policy & 0x20)) ||
+				       ((cur_vd_w  > 4096 || cur_vd_h > 2160) &&
+				       !support_8k_amdv())))) {
 					/* and VD1 adaptive or VD2*/
 					/* or always hdr hdr+/hlg bypass */
 					/* faked vframe to switch matrix */
