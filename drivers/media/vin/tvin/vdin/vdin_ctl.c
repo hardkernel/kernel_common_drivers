@@ -1431,7 +1431,7 @@ void vdin_fix_nonstd_vsync(struct vdin_dev_s *devp)
  *		Bit 28:16 input window V start
  *		Bit 12:0  input window V start
  */
-void vdin_set_cutwin(struct vdin_dev_s *devp)
+void vdin_set_cutwin(struct vdin_dev_s *devp, unsigned int rdma_enable)
 {
 	unsigned int offset = devp->addr_offset;
 	unsigned int he = 0, ve = 0;
@@ -1454,31 +1454,62 @@ void vdin_set_cutwin(struct vdin_dev_s *devp)
 		devp->v_active -= (devp->prop.ve + devp->prop.vs);
 		he = devp->prop.hs + devp->h_active - 1;
 		ve = devp->prop.vs + devp->v_active - 1;
-
-		wr(offset, VDIN_WIN_H_START_END,
-		   (devp->prop.hs << INPUT_WIN_H_START_BIT) |
-		   (he << INPUT_WIN_H_END_BIT));
-		wr(offset, VDIN_WIN_V_START_END,
-		   (devp->prop.vs << INPUT_WIN_V_START_BIT) |
-		   (ve << INPUT_WIN_V_END_BIT));
-		wr_bits(offset, VDIN_COM_CTRL0, 1,
-			INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+		if (rdma_enable) {
+			rdma_write_reg(devp->rdma_handle, VDIN_WIN_H_START_END + devp->addr_offset,
+				(devp->prop.hs << INPUT_WIN_H_START_BIT) |
+				(he << INPUT_WIN_H_END_BIT));
+			rdma_write_reg(devp->rdma_handle, VDIN_WIN_V_START_END + devp->addr_offset,
+				(devp->prop.vs << INPUT_WIN_V_START_BIT) |
+				(ve << INPUT_WIN_V_END_BIT));
+			rdma_write_reg_bits(devp->rdma_handle, VDIN_COM_CTRL0 + devp->addr_offset,
+				1, INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
+		} else {
+#endif
+			wr(offset, VDIN_WIN_H_START_END,
+			   (devp->prop.hs << INPUT_WIN_H_START_BIT) |
+			   (he << INPUT_WIN_H_END_BIT));
+			wr(offset, VDIN_WIN_V_START_END,
+			   (devp->prop.vs << INPUT_WIN_V_START_BIT) |
+			   (ve << INPUT_WIN_V_END_BIT));
+			wr_bits(offset, VDIN_COM_CTRL0, 1,
+				INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+		}
+#endif
 		if (vdin_ctl_dbg)
 			pr_info("%s enable cutwin hs=%d, he=%d,  vs=%d, ve=%d\n",
 				__func__,
 			devp->prop.hs, devp->prop.he,
 			devp->prop.vs, devp->prop.ve);
 	} else {
-		wr(offset, VDIN_WIN_H_START_END, 0);
-		wr(offset, VDIN_WIN_V_START_END, 0);
-		wr_bits(offset, VDIN_COM_CTRL0, 0,
-			INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+		if (rdma_enable) {
+			rdma_write_reg(devp->rdma_handle,
+				VDIN_WIN_H_START_END + devp->addr_offset, 0);
+			rdma_write_reg(devp->rdma_handle,
+				VDIN_WIN_V_START_END + devp->addr_offset, 0);
+			rdma_write_reg_bits(devp->rdma_handle,
+				VDIN_COM_CTRL0 + devp->addr_offset, 0,
+				INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
+		} else {
+#endif
+			wr(offset, VDIN_WIN_H_START_END, 0);
+			wr(offset, VDIN_WIN_V_START_END, 0);
+			wr_bits(offset, VDIN_COM_CTRL0, 0,
+				INPUT_WIN_SEL_EN_BIT, INPUT_WIN_SEL_EN_WID);
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+		}
+#endif
 		if (vdin_ctl_dbg)
 			pr_info("%s disable cutwin!!! hs=%d, he=%d,  vs=%d, ve=%d\n",
-				__func__,
-			devp->prop.hs, devp->prop.he,
-			devp->prop.vs, devp->prop.ve);
+				__func__, devp->prop.hs, devp->prop.he,
+				devp->prop.vs, devp->prop.ve);
 	}
+	devp->prop.pre_vs = devp->prop.vs;
+	devp->prop.pre_ve = devp->prop.ve;
+	devp->prop.pre_hs = devp->prop.hs;
+	devp->prop.pre_he = devp->prop.he;
 	if (vdin_ctl_dbg)
 		pr_info("%s: h_active=%d, v_active=%d, hs:%u, he:%u, vs:%u, ve:%u\n",
 			__func__, devp->h_active, devp->v_active,
@@ -6441,16 +6472,19 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 	vdin_pr_vsif_data(devp, vf);
 
 	/* hdr drm data */
-	vf->drm_if.addr = &devp->prop.hdr_info.hdr_data.rawdata;
-	if (devp->prop.vdin_hdr_flag) {
-		vf->drm_if.size = sizeof(devp->prop.hdr_info.hdr_data.rawdata);
-		vdin_pr_hdr_rawdata(devp, vf);
-	} else {
+	memcpy(devp->hdr.rawdata, devp->prop.hdr_info.hdr_data.rawdata, sizeof(devp->hdr.rawdata));
+	vf->drm_if.addr = &devp->hdr.rawdata;
+	if (devp->prop.vdin_hdr_flag)
+		vf->drm_if.size = sizeof(devp->hdr.rawdata);
+	else
 		vf->drm_if.size = 0;
-	}
+	vdin_pr_hdr_rawdata(devp, vf);
 
-	vf->emp.addr = &devp->prop.emp_data.empbuf;
-	vf->emp.size = devp->prop.emp_data.size;
+	/* hdr emp data */
+	memcpy(devp->hdr.empbuf, devp->prop.emp_data.empbuf, sizeof(devp->hdr.empbuf));
+	devp->hdr.emp_size = devp->prop.emp_data.size;
+	vf->emp.addr = &devp->hdr.empbuf;
+	vf->emp.size = devp->hdr.emp_size;
 	vdin_pr_emp_data(devp, vf);
 }
 
