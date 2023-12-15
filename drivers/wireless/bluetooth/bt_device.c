@@ -68,9 +68,6 @@ static int distinguish_module(void)
 	vendor_id = sdio_get_vendor();
 	pr_info("vendor_id = 0x%x\n", vendor_id);
 
-	if (vendor_id == QCA_ID)
-		return 1;
-
 	return 0;
 }
 
@@ -399,7 +396,7 @@ static int bt_suspend(struct platform_device *pdev,
 
 	btwake_evt = 0;
 
-	pr_info("bt suspend\n");
+	pr_debug("bt suspend\n");
 	disable_irq(prdata->pdata->irqno_wakeup);
 
 	return 0;
@@ -409,7 +406,7 @@ static int bt_resume(struct platform_device *pdev)
 {
 	struct bt_dev_runtime_data *prdata = platform_get_drvdata(pdev);
 
-	pr_info("bt resume\n");
+	pr_debug("bt resume\n");
 	enable_irq(prdata->pdata->irqno_wakeup);
 	btwake_evt = 0;
 
@@ -422,6 +419,7 @@ static int bt_resume(struct platform_device *pdev)
 		cnt = 0;
 	}
 	if (!distinguish_module() && get_resume_method() == BT_WAKEUP) {
+		pr_debug("%s:simulate report key\r", __func__);
 		input_event(prdata->pdata->input_dev,
 			EV_KEY, KEY_POWER, 1);
 		input_sync(prdata->pdata->input_dev);
