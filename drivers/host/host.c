@@ -159,6 +159,22 @@ static unsigned long host_psci_smc(struct host_module *host)
 	return res.a0;
 }
 
+static unsigned long host_dsp_smc(struct host_module *host, unsigned int smc_subid)
+{
+	struct arm_smccc_res res = {0};
+
+	switch (smc_subid) {
+	case SMC_SUBID_DSP_PWRCTRL:
+		arm_smccc_smc(SMC_HIFI_DSP, smc_subid, host->hostid,
+			host->pwrctrl_access_en, 0, 0, 0, 0, &res);
+		break;
+	default:
+		return 0;
+	}
+
+	return res.a0;
+}
+
 static int host_clk_enable(struct host_module *host)
 {
 	int ret;
@@ -337,6 +353,11 @@ static int host_suspend(struct device *dev)
 		return 0;
 
 	if (pm_runtime_active(dev) && host->pm_support) {
+		if (host->pwrctrl_support) {
+			host->pwrctrl_access_en = 1;
+			host_dsp_smc(host, SMC_SUBID_DSP_PWRCTRL);
+		}
+
 		pr_debug("AP send suspend cmd to dsp...\n");
 		strncpy(message, "MBOX_CMD_HIFI4SUSPEND", sizeof(message));
 		aml_mbox_transfer_data(host->mbox_chan, MBOX_CMD_HIFI4SUSPEND,
@@ -362,6 +383,11 @@ static int host_resume(struct device *dev)
 		aml_mbox_transfer_data(host->mbox_chan, MBOX_CMD_HIFI4RESUME,
 				   message, sizeof(message),
 				   message, sizeof(message), MBOX_SYNC);
+
+		if (host->pwrctrl_support) {
+			host->pwrctrl_access_en = 0;
+			host_dsp_smc(host, SMC_SUBID_DSP_PWRCTRL);
+		}
 	}
 
 	return 0;
@@ -800,6 +826,9 @@ static int host_parse_devtree(struct platform_device *pdev, struct host_module *
 	}
 
 	host->pm_support = of_property_read_bool(dev->of_node, "pm-support");
+	if (host->pm_support)
+		host->pwrctrl_support = of_property_read_bool(dev->of_node, "pwrctrl-support");
+
 	/* mbox channel request */
 	mbox_chan = aml_mbox_request_channel_byname(&pdev->dev, "init_dsp");
 	if (!IS_ERR_OR_NULL(mbox_chan))

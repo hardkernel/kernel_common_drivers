@@ -876,6 +876,7 @@
 		clocks = <&clkc CLKID_DSPA_CLK>;
 		clock-names = "dspa_clk";
 		pm-support = <1>;
+		pwrctrl-support = <1>;
 		power-domains = <&pwrdm PDID_SC2_DSP>;
 		mboxes = <&mbox_fifo SC2_REE2DSPA_DSP>;
 		clkfreq-khz = <800000>;
