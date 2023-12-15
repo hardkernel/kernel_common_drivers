@@ -71,9 +71,6 @@ static int distinguish_module(void)
 	vendor_id = sdio_get_vendor();
 	pr_info("vendor_id = 0x%x\n", vendor_id);
 
-	if (vendor_id == QCA_ID)
-		return 1;
-
 	return 0;
 }
 
@@ -333,7 +330,7 @@ static int bt_suspend(struct platform_device *pdev,
 {
 	btwake_evt = 0;
 
-	pr_info("bt suspend\n");
+	pr_debug("bt suspend\n");
 
 	return 0;
 }
@@ -341,6 +338,8 @@ static int bt_suspend(struct platform_device *pdev,
 static int bt_resume(struct platform_device *pdev)
 {
 	unsigned int resume_reason = get_resume_method();
+
+	pr_debug("bt resume\n");
 
 	btwake_evt = 0;
 
