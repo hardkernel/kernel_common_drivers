@@ -168,7 +168,7 @@ void videoqueue_pcrscr_update(s32 inc, u32 base)
 	struct video_queue_dev *vq_temp_dev;
 
 	if (!vq_dev) {
-		vq_print(VIDEO_QUEUE_MAIN, P_OTHER, "vq_dev is not prepared.\n");
+		vq_print(VIDEO_QUEUE_MAIN, P_SYNC, "vq_dev is not prepared.\n");
 		return;
 	}
 	if (vq_dev->sync_start)
@@ -398,8 +398,10 @@ static int do_file_thread(struct video_queue_dev *dev)
 			dev->provider_name ? dev->provider_name : "NULL");
 	}
 
-	if (!kfifo_peek(&dev->file_q, &ready_file))
+	if (!kfifo_peek(&dev->file_q, &ready_file)) {
+		vq_print(dev->inst, P_ERROR, "peek err, file_q is empty\n");
 		return -1;
+	}
 	vf = vf_peek(dev->vf_receiver_name);
 	if (!vf && !dev->game_mode) {
 		/*if do ai_sr, 6ms for ai_sr, 3ms software scheduling*/
@@ -628,7 +630,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 	}
 
 	if (!kfifo_get(&dev->file_q, &ready_file)) {
-		pr_info("task: get failed\n");
+		vq_print(dev->inst, P_ERROR, "file_q is empty\n");
 		return -1;
 	}
 	private_data = v4lvideo_get_file_private_data(ready_file, true);
@@ -685,7 +687,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 			dev->tunnel_id, ready_file, -1, disp_time);
 	if (ret < 0) {
 		if (ret != -ENOTCONN)
-			pr_err("vt queue buffer error\n");
+			vq_print(dev->inst, P_ERROR, "vt queue buffer error\n");
 		else
 			vq_print(dev->inst, P_OTHER, "no consumer\n");
 		dev->total_put_count++;
@@ -700,13 +702,13 @@ static int do_file_thread(struct video_queue_dev *dev)
 		}
 		mutex_lock(&dev->mutex_file);
 		if (!kfifo_put(&dev->file_q, ready_file))
-			pr_err("queue error but file_q is full\n");
+			vq_print(dev->inst, P_ERROR, "queue error but file_q is full\n");
 		mutex_unlock(&dev->mutex_file);
 		return -1;
 	}
 
 	if (!kfifo_put(&dev->display_q, ready_file))
-		pr_err("queue error but display_q is full\n");
+		vq_print(dev->inst, P_ERROR, "queue error but display_q is full\n");
 	dev->queue_count++;
 
 	vq_print(dev->inst, P_OTHER, "q buf: omx_index=%d, queue_count=%d, file=%px\n",
@@ -834,15 +836,15 @@ static void do_fence_thread(struct video_queue_dev *dev)
 					dim_post_keep_cmd_release2(vf);
 			}
 		} else {
-			pr_err("private_data vf null\n");
+			vq_print(dev->inst, P_ERROR, "private_data vf null\n");
 		}
 		init_file_private_data(private_data);
 	} else {
-		pr_err("private_data null");
+		vq_print(dev->inst, P_ERROR, "private_data null\n");
 	}
 	mutex_lock(&dev->mutex_file);
 	if (!kfifo_put(&dev->file_q, free_file))
-		pr_err("queue error but file_q is full\n");
+		vq_print(dev->inst, P_ERROR, "queue error but file_q is full\n");
 	mutex_unlock(&dev->mutex_file);
 }
 
@@ -921,13 +923,13 @@ static int init_vt_config(struct video_queue_dev *dev)
 
 	dev->dev_session = vt_session_create(dev->vf_receiver_name);
 	if (IS_ERR_OR_NULL(dev->dev_session)) {
-		pr_err("%s create session fail\n", dev->vf_receiver_name);
+		vq_print(dev->inst, P_ERROR, "create session fail\n");
 		return ret;
 	}
 
 	ret = vt_producer_connect(dev->dev_session, dev->tunnel_id);
 	if (ret < 0)
-		pr_err("%s connect producer fail\n", dev->vf_receiver_name);
+		vq_print(dev->inst, P_ERROR, "connect producer fail\n");
 	return ret;
 }
 
@@ -937,7 +939,7 @@ static int destroy_vt_config(struct video_queue_dev *dev)
 
 	ret = vt_producer_disconnect(dev->dev_session, dev->tunnel_id);
 	if (ret < 0) {
-		pr_err("%s disconnect producer fail\n", dev->vf_receiver_name);
+		vq_print(dev->inst, P_ERROR, "disconnect producer fail\n");
 		return ret;
 	}
 
@@ -982,7 +984,7 @@ static int videoqueue_reg_provider(struct video_queue_dev *dev)
 
 	init_waitqueue_head(&dev->file_wq);
 	init_waitqueue_head(&dev->fence_wq);
-
+	dev->vq_wq_flag = 1;
 	if (dev->inst == VIDEO_QUEUE_MAIN) {
 		dev->tunnel_id = 0;
 		dev->game_mode = false;
@@ -1021,7 +1023,7 @@ static int videoqueue_reg_provider(struct video_queue_dev *dev)
 		dev->dev_file[i] = dmabuf->file;
 		dev->dmabuf[i] = dmabuf;
 		if (!kfifo_put(&dev->file_q, dev->dev_file[i]))
-			pr_info("%s file_q is full\n", dev->vf_receiver_name);
+			vq_print(dev->inst, P_ERROR, "file_q is full\n");
 	}
 
 	dev->thread_need_stop = false;
@@ -1047,7 +1049,11 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 	vq_print(dev->inst, P_ERROR, "unreg: in\n");
 
 	dev->thread_need_stop = true;
-
+	if (!dev->vq_wq_flag) {
+		vq_print(dev->inst, P_ERROR, "unreg: vq is not reg.\n");
+		return 0;
+	}
+	dev->vq_wq_flag  = 0;
 	wake_up_interruptible(&dev->fence_wq);
 	dev->wakeup = 1;
 	wake_up_interruptible(&dev->file_wq);
@@ -1125,7 +1131,10 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 
 	dev->sync_start = false;
 	dev->game_mode = false;
-
+	if (dev->inst == VIDEO_QUEUE_MAIN)
+		vq_dev = NULL;
+	else
+		vq_pip_dev = NULL;
 	return ret;
 }
 
@@ -1146,14 +1155,14 @@ static int video_receiver_event_fun(int type, void *data,
 	case VFRAME_EVENT_PROVIDER_UNREG:
 	case VFRAME_EVENT_PROVIDER_LIGHT_UNREG:
 		videoqueue_unreg_provider(dev);
-		pr_info("%s unreg end!!\n", dev->vf_receiver_name);
+		vq_print(dev->inst, P_ERROR, "unreg end!!\n");
 		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		dv_inst_unmap(dev->dv_inst);
 		#endif
 		break;
 	case VFRAME_EVENT_PROVIDER_REG:
 		videoqueue_reg_provider(dev);
-		pr_info("%s reg end!!\n", dev->vf_receiver_name);
+		vq_print(dev->inst, P_ERROR, "reg end!!\n");
 		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		dv_inst_map(&dev->dv_inst);
 		#endif
@@ -1849,7 +1858,7 @@ void videoqueue_release_map(int inst)
 				 videoqueue_devlist);
 		if (dev->inst == inst && dev->mapped) {
 			dev->mapped = false;
-			pr_info("%s %d OK\n", __func__, dev->inst);
+			vq_print(dev->inst, P_ERROR, "%s OK\n", __func__);
 			break;
 		}
 	}
@@ -1958,8 +1967,10 @@ static int video_queue_probe(struct platform_device *pdev)
 	struct device *devp;
 
 	ret = class_register(&videoqueue_class);
-	if (ret < 0)
+	if (ret < 0) {
+		pr_err("vq: class register err\n");
 		return ret;
+	}
 	ret = register_chrdev(VIDEOQUEUE_MAJOR,
 		"videoqueue", &videoqueue_fops);
 	if (ret < 0) {

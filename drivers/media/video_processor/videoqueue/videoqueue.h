@@ -89,10 +89,11 @@ struct video_queue_dev {
 	int resync_open;
 	int unknown_check;
 	bool sync_start;
-	int wakeup;
-	u64 pcr_time;
 	//used for 29.976 59.94 119.88fps
 	bool is_special_fps;
+	int wakeup;
+	u64 pcr_time;
+	int vq_wq_flag;
 	u32 vsync_no;
 	struct mutex mutex_file;/*for file_q*/
 };
