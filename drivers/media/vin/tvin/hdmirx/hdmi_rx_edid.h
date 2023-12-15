@@ -197,9 +197,10 @@ enum edid_list_e {
 };
 
 enum edid_ver_e {
-	EDID_V14,
-	EDID_V20,
-	EDID_AUTO
+	EDID_V14 = 0x0,
+	EDID_V20 = 0x1,
+	EDID_AUTO20 = 0x2,
+	EDID_AUTO14 = 0x4
 };
 
 enum edid_support_e {
@@ -843,6 +844,11 @@ extern unsigned int edid_reset_max;
 #ifdef CONFIG_AMLOGIC_HDMITX
 extern u32 tx_hdr_priority;
 #endif
+//edid auto start
+void rx_clr_edid_type(unsigned char port);
+void edid_type_init(void);
+void edid_type_update(u8 port);
+//edid auto end
 int rx_set_hdr_lumi(unsigned char *data, int len);
 void rx_edid_physical_addr(int a, int b, int c, int d);
 unsigned char rx_parse_arc_aud_type(const unsigned char *buff);

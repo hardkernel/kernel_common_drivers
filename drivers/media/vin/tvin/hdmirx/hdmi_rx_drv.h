@@ -170,9 +170,6 @@
 #define EDID_DETECT_PORT  7
 #endif
 
-/* If HDCP_VERSION is 2.x, edid switch to 2.0 automatically */
-#define CONFIG_AMLOGIC_HDMIRX_EDID_AUTO
-
 enum chip_id_e {
 	CHIP_ID_NONE,
 	CHIP_ID_GXTVBB,
@@ -559,13 +556,9 @@ struct rx_video_info {
 #define TMDS_DATA_BUFFER_SIZE	0x200000
 
 struct rx_edid_auto_mode {
-	enum hdcp_version_e hdcp_ver;
-	/* if edid ver is the same after switch
-	 * edid ver in UI, no need to update edid
-	 */
-	enum edid_ver_e edid_ver;
-	u8 hdmi5v_sts;
-	/* u8 hpd_sts; */
+	enum edid_ver_e edid_ver; //cur edid_ver
+	enum edid_ver_e cfg; //cfg from ui
+	bool need_update;
 };
 
 /**
@@ -895,8 +888,8 @@ struct rx_s {
 	/*struct pd_infoframe_s dbg_info;*/
 	struct phy_sts phy;
 	struct clk_msr clk;
-
 	enum edid_ver_e edid_ver;
+	u8 tx_type;
 	bool arc_5vsts;
 	u32 vsync_cnt;
 	bool vrr_en;
@@ -913,7 +906,7 @@ struct rx_s {
 	struct rx_aml_phy aml_phy;
 	struct rx_aml_phy aml_phy_21;
 	//struct spkts_rcvd_sts pkts_sts;
-	struct rx_edid_auto_mode edid_auto_mode;
+	struct rx_edid_auto_mode edid_type;
 	bool resume_flag;
 	bool spec_vendor_id;
 };
@@ -933,6 +926,36 @@ struct phy_port_data {
 
 struct work_data {
 	struct work_struct work_wq;
+	u8 port;
+};
+
+#define WHITE_LIST_SIZE 25
+enum spec_dev_e {
+	/* following devices need to switch to edid2.0 */
+	SPEC_DEV_PS5,
+	SPEC_DEV_XBOX,
+	SPEC_DEV_PS,
+	SPEC_DEV_XBOX_SERIES,
+	/* following devices need to get SPD earlier */
+	SPEC_DEV_PANASONIC,
+	SPEC_DEV_CNT
+};
+
+enum spec_dev_type_e {
+	DEV_UNKNOWN = 0x0,
+	DEV_HDMI20 = 0x1,
+	SPD_GET_EARLIER = 0x2,
+	DEV_HDMI14 = 0x4,
+	DEV_ABNORMAL_SCDC = 0x8
+};
+
+struct spec_dev_table_s {
+	enum spec_dev_type_e dev_type;
+	u8 spd_info[WHITE_LIST_SIZE];
+};
+
+struct edid_update_work_s {
+	struct work_struct work;
 	u8 port;
 };
 
@@ -963,6 +986,8 @@ extern struct work_struct     frl_train_dwork;
 extern struct workqueue_struct *frl_train_wq;
 extern struct work_struct     frl_train_1_dwork;
 extern struct workqueue_struct *frl_train_1_wq;
+extern struct edid_update_work_s edid_update_dwork;
+extern struct workqueue_struct *edid_update_wq;
 
 extern wait_queue_head_t tx_wait_queue;
 
@@ -1048,6 +1073,7 @@ extern int vpp_mute_cnt;
 extern int gcp_mute_cnt;
 extern int gcp_mute_flag[4];
 extern int def_trim_value;
+extern int edid_auto_sel;
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 extern struct notifier_block vrr_notify;
 #endif
@@ -1092,6 +1118,9 @@ extern u8 rx_audio_block[MAX_AUDIO_BLK_LEN];
 /* for other modules */
 void rx_is_hdcp22_support(void);
 int rx_hdcp22_send_uevent(int val);
+
+/* for cec set tx_type */
+void register_cec_rx_notify(cec_spd_callback callback);
 
 //#define RX_VER0 "ver.2021/06/21"
 //1. added colorspace detection

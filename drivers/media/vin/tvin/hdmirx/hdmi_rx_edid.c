@@ -977,20 +977,7 @@ enum edid_ver_e rx_parse_edid_ver(u8 *p_edid)
 
 enum edid_ver_e get_edid_selection(u8 port)
 {
-	u_char tmp_slt = edid_select >> (4 * port);
-	enum edid_ver_e edid_slt = EDID_V14;
-
-	if (tmp_slt & 0x2) {
-		if (rx[port].edid_auto_mode.hdcp_ver == HDCP_VER_22)
-			edid_slt = EDID_V20;
-		else
-			edid_slt = EDID_V14;
-	} else if (tmp_slt & 0x1) {
-		edid_slt = EDID_V20;
-	} else {
-		edid_slt = EDID_V14;
-	}
-	return edid_slt;
+	return rx[port].edid_type.edid_ver;
 }
 
 /* @func: seek dd+ atmos bit
@@ -1245,8 +1232,7 @@ bool need_update_edid(u8 port)
 	 * edid version is set to auto, still need to
 	 * update edid on port open
 	 */
-	if (rx_info.chip_id <= CHIP_ID_TL1 ||
-	    (edid_select >> (port * 4)) == 0x2)
+	if (rx_info.chip_id <= CHIP_ID_TL1)
 		ret = true;
 
 	return ret;
@@ -5017,5 +5003,95 @@ bool hdmi_rx_top_edid_update(void)
 	if (log_level & EDID_LOG)
 		rx_print_edid_support();
 	return true;
+}
+
+void rx_clr_edid_type(unsigned char port)
+{
+	if (port >= rx_info.port_num)
+		return;
+
+	rx[port].edid_type.need_update = false;
+	if (log_level & EDID_LOG)
+		rx_pr("edid_auto_sel:%d, port:%d, cfg:%d\n",
+			edid_auto_sel, port, rx[port].edid_type.cfg);
+	switch (rx[port].edid_type.cfg) {
+	case EDID_V20:
+		rx[port].edid_type.edid_ver = EDID_V20;
+		break;
+	case EDID_AUTO20:
+		if (rx[port].tx_type == DEV_HDMI14)
+			rx[port].edid_type.edid_ver = EDID_V14;
+		else
+			rx[port].edid_type.edid_ver = EDID_V20;
+		break;
+	case EDID_AUTO14:
+		if (rx[port].tx_type == DEV_HDMI20)
+			rx[port].edid_type.edid_ver = EDID_V20;
+		else
+			rx[port].edid_type.edid_ver = EDID_V14;
+		break;
+	case EDID_V14:
+	default:
+		rx[port].edid_type.edid_ver = EDID_V14;
+		break;
+	}
+}
+
+void edid_type_init(void)
+{
+	unsigned char i = 0;
+
+	for (i = 0; i < rx_info.port_num; i++)
+		rx_clr_edid_type(i);
+}
+
+void edid_type_update(u8 port)
+{
+	switch (rx[port].edid_type.cfg) {
+	case EDID_V14:
+	case EDID_V20:
+		break;
+	case EDID_AUTO14:
+		if ((edid_auto_sel & rx[port].edid_type.cfg) == 0)
+			break;
+		if (rx[port].tx_type == DEV_HDMI20 && rx[port].edid_type.edid_ver != EDID_V20) {
+			rx[port].edid_type.edid_ver = EDID_V20;
+			rx[port].edid_type.need_update = true;
+		}
+		break;
+	case EDID_AUTO20:
+		if ((edid_auto_sel & rx[port].edid_type.cfg) == 0)
+			break;
+		if (rx[port].tx_type == DEV_HDMI14 && rx[port].edid_type.edid_ver != EDID_V14) {
+			rx[port].edid_type.edid_ver = EDID_V14;
+			rx[port].edid_type.need_update = true;
+		} else if (rx[port].tx_type == DEV_ABNORMAL_SCDC) {
+			if (port == rx_info.main_port) {
+				if (rx[port].edid_type.edid_ver != EDID_V20) {
+					rx[port].edid_type.edid_ver = EDID_V20;
+					rx[port].edid_type.need_update = true;
+				}
+				rx[port].tx_type = DEV_HDMI20;
+			} else {
+				if (rx[port].edid_type.edid_ver != EDID_V14) {
+					rx[port].edid_type.edid_ver = EDID_V14;
+					rx[port].edid_type.need_update = true;
+				}
+			}
+		} else {
+			if (rx[port].edid_type.edid_ver != EDID_V20) {
+				rx[port].edid_type.edid_ver = EDID_V20;
+				rx[port].edid_type.need_update = true;
+			}
+		}
+		break;
+	default:
+		break;
+	}
+	if (rx[port].edid_type.need_update) {
+		edid_update_dwork.port = port;
+		schedule_work(&edid_update_dwork.work);
+		rx[port].edid_type.need_update = false;
+	}
 }
 

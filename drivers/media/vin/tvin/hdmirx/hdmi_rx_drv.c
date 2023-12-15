@@ -114,6 +114,9 @@ struct work_struct     frl_train_dwork;
 struct workqueue_struct *frl_train_wq;
 struct work_struct     frl_train_1_dwork;
 struct workqueue_struct *frl_train_1_wq;
+// edid updata
+struct edid_update_work_s edid_update_dwork;
+struct workqueue_struct *edid_update_wq;
 
 /* TX does work_hpd_plugin work until RX resumes */
 wait_queue_head_t tx_wait_queue;
@@ -184,6 +187,7 @@ int rx_5v_wake_up_en;
 int vpp_mute_cnt = 3;
 int gcp_mute_cnt = 25;
 int gcp_mute_flag[4];
+int edid_auto_sel;
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 static bool early_suspend_flag;
 #endif
@@ -2627,17 +2631,24 @@ static ssize_t edid_select_store(struct device *dev,
 	/* PCB port number for UI HDMI1/2/3/4 */
 	unsigned char pos[E_PORT_NUM] = {0};
 
-	/* edid selection for UI HDMI4/3/2/1, eg 0x0120
-	 * value 2: auto, 1: EDID2.0, 0: EDID1.4
-	 */
+	//edid selection for UI HDMI4/3/2/1, eg 0x0120
+	//4: auto default 20
+	//2: auto default 14
+	//1: EDID2.0
+	//0: EDID1.4
 	ret = kstrtouint(buf, 16, &tmp);
 	if (ret)
 		return -EINVAL;
 
 	if (!port_map) {
 		edid_select = tmp;
-		rx_pr("edid select for UI HDMI4~1: 0x%x, for portD~A: 0x%x\n",
-	      tmp, edid_select);
+		rx[0].edid_type.cfg = tmp & 0xF;
+		rx[1].edid_type.cfg = (tmp >> 4) & 0xF;
+		rx[2].edid_type.cfg = (tmp >> 8) & 0xF;
+		rx[3].edid_type.cfg = (tmp >> 12) & 0xF;
+		rx_pr("without port_map edid select for UI HDMI4~1: 0x%x, for portD~A: 0x%x\n",
+			tmp, edid_select);
+		edid_type_init();
 		return count;
 	}
 	for (i = 0; i < E_PORT_NUM; i++) {
@@ -2659,12 +2670,17 @@ static ssize_t edid_select_store(struct device *dev,
 		}
 	}
 	/* edid select for portD/C/B/A */
-	edid_select = ((tmp & 0xF) << (pos[0] * 4)) |
-		(((tmp >> 4) & 0xF) << (pos[1] * 4)) |
-		(((tmp >> 8) & 0xF) << (pos[2] * 4)) |
-		(((tmp >> 12) & 0xF) << (pos[3] * 4));
-	rx_pr("edid select for UI HDMI4~1: 0x%x, for portD~A: 0x%x\n",
-	      tmp, edid_select);
+	edid_select = 0;
+	rx[0].edid_type.cfg = tmp & 0xF;
+	edid_select |= rx[0].edid_type.cfg << (pos[0] * 4);
+	rx[1].edid_type.cfg = (tmp >> 4) & 0xF;
+	edid_select |= rx[1].edid_type.cfg << (pos[1] * 4);
+	rx[2].edid_type.cfg = (tmp >> 8) & 0xF;
+	edid_select |= rx[2].edid_type.cfg << (pos[2] * 4);
+	rx[3].edid_type.cfg = (tmp >> 12) & 0xF;
+	edid_select |= rx[3].edid_type.cfg << (pos[3] * 4);
+	rx_pr("edid select for UI HDMI4~1: 0x%x, for portD~A: 0x%x\n", tmp, edid_select);
+	edid_type_init();
 	return count;
 }
 
@@ -3376,6 +3392,18 @@ static struct early_suspend hdmirx_early_suspend_handler = {
 };
 #endif
 
+#ifdef CONFIG_EDID_AUTO_UPDATE
+static void cec_update_edid(int port_id, int dev_type)
+{
+	if (port_id < rx_info.port_num && dev_type != DEV_UNKNOWN &&
+		rx[port_id].tx_type == DEV_UNKNOWN) {
+		rx[port_id].tx_type = dev_type;
+		if (log_level & EDID_LOG)
+			rx_pr("cec set tx_type[%d] to %d\n", port_id, dev_type);
+	}
+}
+#endif
+
 static int hdmirx_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -3818,6 +3846,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&tx_wait_queue);
 
+	/* create for frl training */
+	edid_update_wq = create_workqueue(hdevp->frontend.name);
+	INIT_WORK(&edid_update_dwork.work, rx_edid_update_handler);
 	/*repeater_wq = create_singlethread_workqueue(hdevp->frontend.name);*/
 	/*INIT_DELAYED_WORK(&repeater_dwork, repeater_dwork_handle);*/
 	ret = of_property_read_u32(pdev->dev.of_node,
@@ -3905,6 +3936,13 @@ static int hdmirx_probe(struct platform_device *pdev)
 		phy_term_lel_t3x_21 = 0;
 		sprintf(boot_info[i++], "not find phy_term_lel_t3x_21, soundbar by default.");
 	}
+	ret = of_property_read_u32(pdev->dev.of_node,
+		"edid_auto_sel",
+		&edid_auto_sel);
+	if (ret) {
+		edid_auto_sel = 0;
+		sprintf(boot_info[i++], "not find edid_auto_sel, default disable.");
+	}
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0)
 		rx_pr("warning: no rev cmd mem\n");
@@ -3918,7 +3956,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 	//rx[rx_info.main_port].port = rx[rx_info.main_port].arc_port;
 	def_trim_value = aml_phy_get_def_trim_value();
 	aml_phy_get_trim_val();
-	edid_auto_mode_init();
 	hdmirx_hw_probe();
 	if (rx_info.chip_id >= CHIP_ID_TL1 && phy_tdr_en)
 		term_cal_en = (!is_ft_trim_done());
@@ -3946,6 +3983,10 @@ static int hdmirx_probe(struct platform_device *pdev)
 		vrr_notify.notifier_call = rx_vrr_notify_handler;
 		aml_vrr_atomic_notifier_register(&vrr_notify);
 	}
+#endif
+#ifdef CONFIG_EDID_AUTO_UPDATE
+	if (edid_auto_sel == EDID_AUTO20)
+		register_cec_rx_notify(cec_update_edid);
 #endif
 	input_dev = input_allocate_device();
 	if (!input_dev) {
@@ -4068,6 +4109,9 @@ static int hdmirx_remove(struct platform_device *pdev)
 	destroy_workqueue(aml_phy_wq_port2);
 	cancel_work_sync(&aml_phy_dwork_port3);
 	destroy_workqueue(aml_phy_wq_port3);
+
+	cancel_work_sync(&edid_update_dwork.work);
+	destroy_workqueue(edid_update_wq);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	unregister_early_suspend(&hdmirx_early_suspend_handler);
 #endif

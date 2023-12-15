@@ -86,6 +86,7 @@ int pd_fifo_start_cnt = 0x8;
 /* Controls equalizer reference voltage. */
 int hdcp22_on;
 int audio_debug = 1;
+int edid_auto_debug;
 int vpcore1_select = 1;
 int clk_msr_param = 200;
 int fpll_clk_sel;
@@ -5143,6 +5144,7 @@ void rx_get_video_info(u8 port)
 	rx_get_de_sts(port);
 	/* interlace */
 	rx_get_interlaced(port);
+	rx_get_dev_type(port);
 }
 
 void hdmirx_set_vp_mapping(enum colorspace_e cs, u8 port)

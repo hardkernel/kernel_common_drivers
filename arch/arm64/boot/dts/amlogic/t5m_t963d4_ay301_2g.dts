@@ -697,6 +697,8 @@
 		hdmirx_id = <0>;
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <1>;
+		/* eg:0x240--HDMI0:0-HDMI1:AUTO20-HDMI2-AUTO14 */
+		edid_auto_sel = <0>;
 		arc_port = <1>;
 		vrr_range_dynamic_update_en = <1>;
 		/* bit4: enable feature, bit3~0: port number */
