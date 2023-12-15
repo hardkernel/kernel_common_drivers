@@ -622,19 +622,6 @@ static void hdr_work_func(struct work_struct *work)
 	}
 }
 
-static bool _check_hdmi_mode(void)
-{
-	struct vinfo_s *vinfo = NULL;
-
-	vinfo = get_current_vinfo();
-	if (vinfo && vinfo->mode == VMODE_HDMI)
-		return 1;
-	vinfo = get_current_vinfo2();
-	if (vinfo && vinfo->mode == VMODE_HDMI)
-		return 1;
-	return 0;
-}
-
 static bool hdmitx21_hdr_en(void)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -670,8 +657,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	u8 *drm_db = &db[1]; /* db[0] is the checksum */
 	unsigned long flags = 0;
 
-	if (!_check_hdmi_mode())
-		return;
 	HDMITX_DEBUG_PACKET("%s[%d]\n", __func__, __LINE__);
 	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
 	/* if ready is 0, only can clear pkt */
@@ -929,8 +914,6 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 	unsigned long flags = 0;
 	struct hdmi_format_para *fmt_para = &hdev->tx_comm.fmt_para;
 
-	if (!_check_hdmi_mode())
-		return;
 	HDMITX_DEBUG_PACKET("%s[%d]\n", __func__, __LINE__);
 	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
 	if (hdev->bist_lock) {
@@ -1240,8 +1223,6 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 	u8 db[28] = {0x00};
 	u8 *ven_db = &db[1];
 
-	if (!_check_hdmi_mode())
-		return;
 	HDMITX_DEBUG_PACKET("%s[%d]\n", __func__, __LINE__);
 	if (hdev->bist_lock)
 		return;
@@ -1320,8 +1301,6 @@ static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data)
 	unsigned char db[28] = {0x00};
 	unsigned char *ven_db = &db[1];
 
-	if (!_check_hdmi_mode())
-		return;
 	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
 	if (!data) {
 		hdmi_vend_infoframe_rawset(NULL, NULL);
@@ -1346,8 +1325,6 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	int max_size;
 
-	if (!_check_hdmi_mode())
-		return;
 	memset(vs_emds, 0, sizeof(vs_emds));
 	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
 	if (!data) {
