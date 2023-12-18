@@ -1930,9 +1930,9 @@ static int cma_enabled_swap_ratio_setup(char *str)
 }
 __setup("cma_enabled_swap_ratio=", cma_enabled_swap_ratio_setup);
 
-static struct timer_list cma_enabled_timer;
+static struct delayed_work cma_enabled_work;
 
-static void cma_enabled_timer_fn(struct timer_list *timer)
+static void cma_enabled_work_fn(struct work_struct *work)
 {
 	struct sysinfo i;
 
@@ -1948,7 +1948,7 @@ static void cma_enabled_timer_fn(struct timer_list *timer)
 				cma_enabled_swap_ratio);
 		cma_enabled = 1;
 	} else {
-		mod_timer(timer, jiffies + HZ / 10);
+		schedule_delayed_work(&cma_enabled_work, HZ / 10);
 	}
 }
 
@@ -1963,8 +1963,8 @@ static void delay_enable_cma_init(void)
 {
 	register_trace_android_vh_calc_alloc_flags(delay_enable_cma_hook, NULL);
 
-	timer_setup(&cma_enabled_timer, cma_enabled_timer_fn, 0);
-	mod_timer(&cma_enabled_timer, jiffies + HZ);
+	INIT_DELAYED_WORK(&cma_enabled_work, cma_enabled_work_fn);
+	schedule_delayed_work(&cma_enabled_work, HZ);
 }
 #endif
 
