@@ -29,9 +29,8 @@
 #include <linux/clk.h>
 #include <linux/phy/phy.h>
 #include <linux/android_kabi.h>
-#include "xhci.h"
-#include "xhci-plat.h"
-#include "crg_xhci.h"
+#include "../xhci_amlogic/xhci-meson.h"
+#include "../xhci_amlogic/xhci-plat-meson.h"
 
 #define CRG_DEFAULT_AUTOSUSPEND_DELAY	5000 /* ms */
 #define CRG_XHCI_RESOURCES_NUM	2
@@ -58,7 +57,7 @@ struct crg {
 	struct clk		*general_clk;
 };
 
-static const struct xhci_plat_priv crg_xhci_plat_priv = {
+static const struct aml_xhci_plat_priv crg_xhci_plat_priv = {
 	.quirks = XHCI_NO_64BIT_SUPPORT | XHCI_RESET_ON_RESUME,
 };
 
@@ -223,7 +222,7 @@ int crg_host_init(struct crg *crg)
 	if (irq < 0)
 		return irq;
 
-	xhci = platform_device_alloc("xhci-hcd", PLATFORM_DEVID_AUTO);
+	xhci = platform_device_alloc("xhci-hcd-meson", PLATFORM_DEVID_AUTO);
 	if (!xhci) {
 		dev_err(crg->dev, "couldn't allocate xHCI device\n");
 		return -ENOMEM;
@@ -260,7 +259,6 @@ int crg_host_init(struct crg *crg)
 		}
 	}
 
-	crg_xhci_init();
 	ret = platform_device_add_data(xhci, &crg_xhci_plat_priv,
 								sizeof(crg_xhci_plat_priv));
 	if (ret)
