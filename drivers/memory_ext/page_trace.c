@@ -29,9 +29,6 @@
 #include <asm/stacktrace.h>
 #include <asm/sections.h>
 #include <trace/hooks/mm.h>
-#ifdef CONFIG_RANDOMIZE_BASE
-#include <asm/module.h>
-#endif
 
 #ifndef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
 #define DEBUG_PAGE_TRACE	0
@@ -51,6 +48,12 @@
 #define COMMON_CALLER_SIZE	64
 #endif
 
+#ifdef CONFIG_ARM64
+#define PAGE_TRACE_OFFSET	(_PAGE_END(CONFIG_ARM64_VA_BITS))
+#else
+#define PAGE_TRACE_OFFSET	0
+#endif
+
 static const char * const aml_migratetype_names[MIGRATE_TYPES] = {
 	"Unmovable",
 	"Movable",
@@ -66,13 +69,6 @@ static const char * const aml_migratetype_names[MIGRATE_TYPES] = {
 
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 unsigned long *free_pages_bitmap;
-unsigned long aml_text;
-#else
-unsigned long aml_text = (unsigned long)_text;
-#endif
-
-#ifdef CONFIG_RANDOMIZE_BASE
-unsigned long aml_module_alloc_base;
 #endif
 
 /*
@@ -87,14 +83,15 @@ static int page_trace_filter_slab;
 static struct proc_dir_entry *d_pagetrace;
 #ifndef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
 struct page_trace *trace_buffer;
-static unsigned long ptrace_size;
-static unsigned int trace_step = 1;
-static bool page_trace_disable __initdata;
+#if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
+EXPORT_SYMBOL(trace_buffer);
 #endif
-#if defined(CONFIG_TRACEPOINTS) && \
-	defined(CONFIG_ANDROID_VENDOR_HOOKS) && \
-	IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
-struct pagetrace_vendor_param trace_param;
+static unsigned long ptrace_size;
+unsigned int trace_step = 1;
+#if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
+EXPORT_SYMBOL(trace_step);
+#endif
+static bool page_trace_disable __initdata;
 #endif
 
 struct alloc_caller {
@@ -117,6 +114,7 @@ static struct alloc_caller common_caller[COMMON_CALLER_SIZE];
  */
 static struct fun_symbol common_func[] = {
 	{"__alloc_pages",		1, 0},
+	{"__folio_alloc",		1, 0},
 	{"kmem_cache_alloc",		1, 0},
 	{"__get_free_pages",		1, 0},
 	{"__kmalloc",			1, 0},
@@ -463,19 +461,6 @@ static void push_ip(struct page_trace *base, struct page_trace *ip)
 }
 #endif /* CONFIG_AMLOGIC_PAGE_TRACE_INLINE */
 
-static inline int is_module_addr(unsigned long ip)
-{
-#ifdef CONFIG_RANDOMIZE_BASE
-	u64 module_alloc_end = aml_module_alloc_base + MODULES_VSIZE;
-
-	if (ip >= aml_module_alloc_base && ip < module_alloc_end)
-#else
-	if (ip >= MODULES_VADDR && ip < MODULES_END)
-#endif
-		return 1;
-	return 0;
-}
-
 /*
  * set up information for common caller in memory allocate API
  */
@@ -726,19 +711,11 @@ static int is_common_caller(struct alloc_caller *caller, unsigned long pc)
 
 unsigned long unpack_ip(struct page_trace *trace)
 {
-	unsigned long text;
+	unsigned long text = PAGE_TRACE_OFFSET;
 
 	if (trace->order == IP_INVALID)
 		return 0;
 
-	if (trace->module_flag)
-#ifdef CONFIG_RANDOMIZE_BASE
-		text = aml_module_alloc_base;
-#else
-		text = MODULES_VADDR;
-#endif
-	else
-		text = aml_text;
 	return text + ((trace->ret_ip) << 2);
 }
 
@@ -945,15 +922,21 @@ static int notrace aml_unwind_frame(struct task_struct *tsk, struct stackframe *
 unsigned long find_back_trace(void)
 {
 #if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
-	struct unwind_state frame;
+	struct stack_info stacks[] = {
+		stackinfo_get_task(current),
+	};
+	struct unwind_state frame = {
+		.stacks = stacks,
+		.nr_stacks = ARRAY_SIZE(stacks),
+	};
 #else
 	struct stackframe frame;
 #endif
 	int ret, step = 0;
 
 #ifdef CONFIG_ARM64
-	frame.fp = (unsigned long)__builtin_frame_address(0);
-	frame.pc = _RET_IP_;
+	frame.fp = (unsigned long)__builtin_frame_address(1);
+	frame.pc = (unsigned long)__builtin_return_address(0);
 #if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	bitmap_zero(frame.stacks_done, __NR_STACK_TYPES);
 	frame.prev_fp = 0;
@@ -962,6 +945,7 @@ unsigned long find_back_trace(void)
 
 #if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
 	frame.stack = stackinfo_get_unknown();
+	frame.task = current;
 #elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 	frame.task = current;
 #else
@@ -1119,11 +1103,11 @@ static void __init set_init_page_trace(struct page *page, unsigned int order, gf
 {
 	unsigned long text;
 	unsigned long ip;
-	struct page_trace trace = {}, *base;
+	struct page_trace trace = {0}, *base;
 
 	if (page && trace_buffer) {
 		ip = (unsigned long)set_page_trace;
-		text = aml_text;
+		text = PAGE_TRACE_OFFSET;
 
 		trace.ret_ip = (ip - text) >> 2;
 		trace.migrate_type = aml_gfp_migratetype(flag);
@@ -1134,22 +1118,10 @@ static void __init set_init_page_trace(struct page *page, unsigned int order, gf
 }
 #endif
 
-unsigned int pack_ip(unsigned long ip, unsigned int order, gfp_t flag)
+unsigned long pack_ip(unsigned long ip, unsigned int order, gfp_t flag)
 {
-	unsigned long text;
+	unsigned long text = PAGE_TRACE_OFFSET;
 	struct page_trace trace = {};
-
-	text = aml_text;
-	if (ip >= aml_text) {
-		text = aml_text;
-	} else if (is_module_addr(ip)) {
-#ifdef CONFIG_RANDOMIZE_BASE
-		text = aml_module_alloc_base;
-#else
-		text = MODULES_VADDR;
-#endif
-		trace.module_flag = 1;
-	}
 
 	trace.ret_ip = (ip - text) >> 2;
 #ifdef CONFIG_AMLOGIC_CMA
@@ -1164,40 +1136,28 @@ unsigned int pack_ip(unsigned long ip, unsigned int order, gfp_t flag)
 #if DEBUG_PAGE_TRACE
 	pr_debug("%s, base:%p, page:%lx, _ip:%x, o:%d, f:%x, ip:%lx\n",
 		 __func__, base, page_to_pfn(page),
-		 (*((unsigned int *)&trace)), order,
+		 (*((unsigned long *)&trace)), order,
 		 flag, ip);
 #endif
-	return *((unsigned int *)&trace);
+	return *((unsigned long *)&trace);
 }
 
 void set_page_trace(struct page *page, unsigned int order, gfp_t flag, void *func)
 {
-	unsigned long ip;
+	unsigned long ip, val = 0;
 	struct page_trace *base;
-	unsigned int val = 0, i;
+	unsigned int i;
 
 	if (!page)
 		return;
 #ifndef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
 	if (!trace_buffer)
 		return;
-#ifdef CONFIG_RANDOMIZE_BASE
-		ip = aml_module_alloc_base;
-#else
-		ip = MODULES_VADDR;
-#endif
-#if defined(CONFIG_TRACEPOINTS) && \
-	defined(CONFIG_ANDROID_VENDOR_HOOKS) && \
-	IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
-	trace_param.trace_buf = trace_buffer;
-	trace_param.text = (unsigned long)_text;
-	trace_param.trace_step = trace_step;
-	trace_param.ip = ip;
-	trace_android_vh_cma_drain_all_pages_bypass(1024, (bool *)&trace_param);
-#endif
+
+	ip = PAGE_TRACE_OFFSET;
 #endif
 #if defined(CONFIG_MEMCG) && IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
-	trace_android_vh_mem_cgroup_alloc(root_mem_cgroup);
+//	trace_android_vh_mem_cgroup_alloc(root_mem_cgroup);
 #endif
 	if (!func)
 		ip = find_back_trace();
@@ -1205,7 +1165,7 @@ void set_page_trace(struct page *page, unsigned int order, gfp_t flag, void *fun
 		ip = (unsigned long)func;
 
 	if (!ip) {
-		pr_debug("can't find backtrace for page:%lx\n",
+		pr_err("can't find backtrace for page:%lx\n",
 			 page_to_pfn(page));
 		return;
 	}
@@ -1302,13 +1262,7 @@ static int __init page_trace_pre_work(unsigned long size)
 	struct page *page;
 	void *paddr;
 	void *pend;
-	unsigned long maddr;
-
-#ifdef CONFIG_RANDOMIZE_BASE
-	maddr = aml_module_alloc_base;
-#else
-	maddr = MODULES_VADDR;
-#endif
+	unsigned long maddr = PAGE_TRACE_OFFSET;
 
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
 	paddr = memblock_alloc_low(size, PAGE_SIZE);
@@ -1842,10 +1796,6 @@ static int __init page_trace_module_init(void)
 
 	aml_kallsyms_lookup_name = (unsigned long (*)(const char *name))kp_lookup_name.addr;
 
-#ifdef CONFIG_RANDOMIZE_BASE
-	aml_module_alloc_base = *(unsigned long *)aml_kallsyms_lookup_name("module_alloc_base");
-#endif
-	aml_text = aml_kallsyms_lookup_name("_text");
 	page_trace_mem_init();
 
 	dump_sum = vzalloc(size);
@@ -1855,10 +1805,6 @@ static int __init page_trace_module_init(void)
 		pr_err("register_kprobe failed, returned %d\n", ret);
 		return ret;
 	}
-#endif
-
-#if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE) && defined(CONFIG_RANDOMIZE_BASE)
-	aml_module_alloc_base = module_alloc_base;
 #endif
 
 #ifndef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
@@ -2014,7 +1960,7 @@ static void mark_free_pages(struct zone *zone)
 	pr_debug("free pages: %dkb\n", count * 4);
 }
 
-static int statistic_before_insmod_mem(void)
+static int __init statistic_before_insmod_mem(void)
 {
 	struct zone *zone;
 	struct page *page;

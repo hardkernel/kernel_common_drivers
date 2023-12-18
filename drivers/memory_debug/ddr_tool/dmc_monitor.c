@@ -119,30 +119,13 @@ struct page_trace *dmc_find_page_base(struct page *page)
 	return trace;
 }
 #else
-struct page_trace *dmc_trace_buffer;
-static unsigned long _kernel_text;
-static unsigned int dmc_trace_step;
+//struct page_trace *dmc_trace_buffer;
+//static unsigned int dmc_trace_step;
 
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
-static unsigned long module_alloc_base_dmc;
-static int once_flag = 1;
-
-void get_page_trace_buf_hook(void *data, unsigned int migratetype,
-		bool *bypass)
-{
-	struct pagetrace_vendor_param *param;
-
-	if (migratetype != 1024 || dmc_trace_buffer)
-		return;
-
-	param = (struct pagetrace_vendor_param *)bypass;
-	dmc_trace_buffer = param->trace_buf;
-	_kernel_text = param->text;
-	dmc_trace_step = param->trace_step;
-	module_alloc_base_dmc = param->ip;
-	pr_info("dmc_trace_buf: %px, maddr:%lx\n",
-		dmc_trace_buffer, module_alloc_base_dmc);
-}
+#ifdef CONFIG_ARM64
+#define PAGE_TRACE_OFFSET	(_PAGE_END(CONFIG_ARM64_VA_BITS))
+#else
+#define PAGE_TRACE_OFFSET	0
 #endif
 
 static struct pglist_data *next_online_pgdat_dmc(struct pglist_data *pgdat)
@@ -183,7 +166,7 @@ struct page_trace *dmc_find_page_base(struct page *page)
 	struct zone *zone;
 	struct page_trace *p;
 
-	if (!dmc_trace_buffer)
+	if (!trace_buffer)
 		return NULL;
 
 	pfn = page_to_pfn(page);
@@ -196,8 +179,8 @@ struct page_trace *dmc_find_page_base(struct page *page)
 			if (pfn <= zone_end_pfn(zone) &&
 				pfn >= zone->zone_start_pfn) {
 				offset = pfn - zone->zone_start_pfn;
-				p = dmc_trace_buffer;
-				return p + ((offset + zone_offset) * dmc_trace_step);
+				p = trace_buffer;
+				return p + ((offset + zone_offset) * trace_step);
 			}
 			/* next zone */
 			zone_offset += zone->spanned_pages;
@@ -209,19 +192,11 @@ struct page_trace *dmc_find_page_base(struct page *page)
 
 static unsigned long dmc_unpack_ip(struct page_trace *trace)
 {
-	unsigned long text;
+	unsigned long text = PAGE_TRACE_OFFSET;
 
 	if (trace->order == IP_INVALID)
 		return 0;
 
-	if (trace->module_flag)
-#ifdef CONFIG_RANDOMIZE_BASE
-		text = module_alloc_base_dmc;
-#else
-		text = MODULES_VADDR;
-#endif
-	else
-		text = (unsigned long)_kernel_text;
 	return text + ((trace->ret_ip) << 2);
 }
 
@@ -941,17 +916,6 @@ static ssize_t dump_show(KV_CLASS_CONST struct class *class,
 			KV_CLASS_ATTR_CONST struct class_attribute *attr,
 			char *buf)
 {
-#if (IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)		&& \
-	!IS_ENABLED(CONFIG_AMLOGIC_PAGE_TRACE_INLINE)	&& \
-	IS_ENABLED(CONFIG_TRACEPOINTS)			&& \
-	IS_ENABLED(CONFIG_ANDROID_VENDOR_HOOKS))
-	if (once_flag && dmc_trace_buffer) {
-		pr_info("%s, %d: got pagetrace buffer.\n", __func__, __LINE__);
-		unregister_trace_android_vh_cma_drain_all_pages_bypass(get_page_trace_buf_hook,
-				NULL);
-		once_flag = 0;
-	}
-#endif
 	return dump_dmc_reg(buf);
 }
 static CLASS_ATTR_RO(dump);
@@ -1338,13 +1302,6 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	struct vpu_sub_desc *vpu_desc = NULL;
 	struct resource *res;
 
-#if (IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)		&& \
-	!IS_ENABLED(CONFIG_AMLOGIC_PAGE_TRACE_INLINE)	&& \
-	IS_ENABLED(CONFIG_TRACEPOINTS)			&& \
-	IS_ENABLED(CONFIG_ANDROID_VENDOR_HOOKS))
-	if (!dmc_trace_buffer)
-		register_trace_android_vh_cma_drain_all_pages_bypass(get_page_trace_buf_hook, NULL);
-#endif
 	pr_debug("%s, %d\n", __func__, __LINE__);
 	dmc_mon = devm_kzalloc(&pdev->dev, sizeof(*dmc_mon), GFP_KERNEL);
 	if (!dmc_mon)

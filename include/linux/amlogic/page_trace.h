@@ -46,30 +46,24 @@ struct page;
 struct page_trace {
 	union {
 		struct {
-			unsigned int ret_ip       :24;
-			unsigned int migrate_type : 3;
-			unsigned int module_flag  : 1;
-			unsigned int order        : 4;
+			unsigned long ret_ip       :56;
+			unsigned long migrate_type : 3;
+			unsigned long module_flag  : 1;
+			unsigned long order        : 4;
 		};
-		unsigned int ip_data;
+		unsigned long ip_data;
 	};
 };
 
-#if defined(CONFIG_TRACEPOINTS) && \
-	defined(CONFIG_ANDROID_VENDOR_HOOKS) && \
-	IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
-struct pagetrace_vendor_param {
-	struct page_trace *trace_buf;
-	unsigned int trace_step;
-	unsigned long text;
-	unsigned long ip;
-};
+#if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
+extern struct page_trace *trace_buffer;
+extern unsigned int trace_step;
 #endif
 
 #if IS_ENABLED(CONFIG_AMLOGIC_PAGE_TRACE)
 u64 get_iow_time(u64 *cpu);
 unsigned long unpack_ip(struct page_trace *trace);
-unsigned int pack_ip(unsigned long ip, unsigned int order, gfp_t flag);
+unsigned long pack_ip(unsigned long ip, unsigned int order, gfp_t flag);
 void set_page_trace(struct page *page, unsigned int order,
 		    gfp_t gfp_flags, void *func);
 void replace_page_trace(struct page *new, struct page *old);
