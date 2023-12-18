@@ -1010,7 +1010,7 @@ static int meson_spicc_setup(struct spi_device *spi)
 	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
 	struct  spicc_controller_data *cdata;
 
-	if (!spi->controller_state && gpio_is_valid(desc_to_gpio(spi->cs_gpiod))) {
+	if (!spi->controller_state && !IS_ERR_OR_NULL(spi->cs_gpiod)) {
 		gpio_request(desc_to_gpio(spi->cs_gpiod), dev_name(&spi->dev));
 		gpio_direction_output(desc_to_gpio(spi->cs_gpiod), !(spi->mode & SPI_CS_HIGH));
 	}
@@ -1036,7 +1036,7 @@ static int meson_spicc_setup(struct spi_device *spi)
 
 static void meson_spicc_cleanup(struct spi_device *spi)
 {
-	if (gpio_is_valid(desc_to_gpio(spi->cs_gpiod)))
+	if (!IS_ERR_OR_NULL(spi->cs_gpiod))
 		gpio_free(desc_to_gpio(spi->cs_gpiod));
 	spi->controller_state = NULL;
 }
