@@ -1023,6 +1023,11 @@ static ssize_t name_of_ports_show(KV_CLASS_CONST struct class *class,
 	if (!aml_db->real_ports || !aml_db->port_desc)
 		return -EINVAL;
 
+	if (!dmc_dev_is_byte(aml_db))
+		s += sprintf(buf + s,
+			"\nMore than 32 ports is sub device, if you want to select sub device,\n"
+			"only can set (ports/8)*8 ~ (ports/8)*8 + 7 range ports\n");
+
 	for (i = 0; i < aml_db->real_ports; i++) {
 		s += sprintf(buf + s, "%2d, %s\n",
 			     aml_db->port_desc[i].port_id,
@@ -1273,6 +1278,13 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		aml_db->mali_port[0] = 1; /* port1: mali */
 		aml_db->mali_port[1] = -1;
 		break;
+	case DMC_TYPE_A5:
+		band->ops = &s4_ddr_bw_ops;
+		aml_db->channels = 8;
+		band->soc_feature |= PLL_IS_SEC;
+		aml_db->mali_port[0] = -1; /* port1: mali */
+		aml_db->mali_port[1] = -1;
+		break;
 #endif
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_C3
 	case DMC_TYPE_C3:
@@ -1325,6 +1337,14 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S1A
 	case DMC_TYPE_S1A:
 		band->ops = &s1a_ddr_bw_ops;
+		aml_db->channels = 8;
+		aml_db->mali_port[0] = -1;
+		aml_db->mali_port[1] = -1;
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_A4
+	case DMC_TYPE_A4:
+		band->ops = &a4_ddr_bw_ops;
 		aml_db->channels = 8;
 		aml_db->mali_port[0] = -1;
 		aml_db->mali_port[1] = -1;
@@ -1644,6 +1664,14 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 	{
 		.compatible = "amlogic,ddr-bandwidth-txhd2",
 		.data = (void *)DMC_TYPE_TXHD2,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-a4",
+		.data = (void *)DMC_TYPE_A4,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-a5",
+		.data = (void *)DMC_TYPE_A5,
 	},
 #endif
 	{

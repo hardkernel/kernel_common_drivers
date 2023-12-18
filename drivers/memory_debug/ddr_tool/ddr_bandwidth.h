@@ -242,6 +242,9 @@ extern struct ddr_bandwidth_ops txhd2_ddr_bw_ops;
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S1A
 extern struct ddr_bandwidth_ops s1a_ddr_bw_ops;
 #endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_A4
+extern struct ddr_bandwidth_ops a4_ddr_bw_ops;
+#endif
 
 unsigned int aml_get_ddr_usage(void);
 

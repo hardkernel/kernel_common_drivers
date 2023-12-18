@@ -816,6 +816,58 @@ static struct ddr_priority ddr_priority_txhd2[] __initdata = {
 		.w_offset = (0x7c << 2), .w_bit_s = 16, .w_width = 0x7,
 		.r_offset = (0x7c << 2), .r_bit_s = 16, .r_width = 0x7	}
 };
+
+static struct ddr_priority ddr_priority_a4[] __initdata = {
+	{ .port_id = 0, .reg_base = 0xfe036000,
+		.reg_mode = 0, .reg_config = 0x8000,
+		.w_offset = (0x80  << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0x80  << 2), .r_bit_s = 16, .r_width = 0xf	},
+
+	{ .port_id = 2, .reg_base = 0xfe036000,
+		.reg_mode = 0, .reg_config = 0x8000,
+		.w_offset = (0x88  << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0x88  << 2), .r_bit_s = 16, .r_width = 0xf	},
+
+	{ .port_id = 4, .reg_base = 0xfe036000,
+		.reg_mode = 0, .reg_config = 0x8000,
+		.w_offset = (0x90  << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0x90  << 2), .r_bit_s = 16, .r_width = 0xf	},
+
+	{ .port_id = 6, .reg_base = 0xfe036000,
+		.reg_mode = 0, .reg_config = 0x8000,
+		.w_offset = (0x98  << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0x98  << 2), .r_bit_s = 16, .r_width = 0xf	},
+
+	{ .port_id = 7, .reg_base = 0xfe036000,
+		.reg_mode = 0, .reg_config = 0x8000,
+		.w_offset = (0x9c  << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0x9c  << 2), .r_bit_s = 16, .r_width = 0xf	},
+
+	{ .port_id = 40, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0x0,
+		.w_offset = (0x69  << 2), .w_bit_s = 0, .w_width = 0x3,
+		.r_offset = (0x69  << 2), .r_bit_s = 2, .r_width = 0x3	},
+
+	{ .port_id = 41, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0x0,
+		.w_offset = (0x69  << 2), .w_bit_s = 12, .w_width = 0x1,
+		.r_offset = (0x69  << 2), .r_bit_s = 13, .r_width = 0x1	},
+
+	{ .port_id = 42, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0x0,
+		.w_offset = (0x69  << 2), .w_bit_s = 8, .w_width = 0x3,
+		.r_offset = (0x69  << 2), .r_bit_s = 10, .r_width = 0x3	},
+
+	{ .port_id = 43, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0x0,
+		.w_offset = (0x69  << 2), .w_bit_s = 14, .w_width = 0x3,
+		.r_offset = (0x69  << 2), .r_bit_s = 16, .r_width = 0x3	},
+
+	{ .port_id = 45, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0x0,
+		.w_offset = (0x69  << 2), .w_bit_s = 18, .w_width = 0x3,
+		.r_offset = (0x69  << 2), .r_bit_s = 20, .r_width = 0x3	},
+};
 #endif
 static struct ddr_priority ddr_priority_s1a[] __initdata = {
 	{ .port_id = 0, .reg_base = 0xfe036000,
@@ -895,6 +947,10 @@ int __init ddr_find_port_priority(int cpu_type, struct ddr_priority **desc)
 	case DMC_TYPE_TXHD2:
 		*desc = ddr_priority_txhd2;
 		desc_size = ARRAY_SIZE(ddr_priority_txhd2);
+		break;
+	case DMC_TYPE_A4:
+		*desc = ddr_priority_a4;
+		desc_size = ARRAY_SIZE(ddr_priority_a4);
 		break;
 #endif
 	case DMC_TYPE_S1A:

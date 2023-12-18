@@ -1253,6 +1253,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_S4
 	case DMC_TYPE_S4:
 	case DMC_TYPE_T5W:
+	case DMC_TYPE_A5:
 		mon->ops = &s4_dmc_mon_ops;
 		break;
 #endif
@@ -1289,6 +1290,13 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_S1A
 	case DMC_TYPE_S1A:
 		mon->ops = &s1a_dmc_mon_ops;
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_A4
+	case DMC_TYPE_A4:
+		mon->ops = &a4_dmc_mon_ops;
+		mon->configs |= DMC_DEVICE_8BIT;
+		mon->mon_number = 1;
 		break;
 #endif
 	default:
@@ -1563,6 +1571,14 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-txhd2",
 		.data = (void *)DMC_TYPE_TXHD2,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-a4",
+		.data = (void *)DMC_TYPE_A4,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-a5",
+		.data = (void *)DMC_TYPE_A5,
 	},
 #endif
 	{

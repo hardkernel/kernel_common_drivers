@@ -1095,6 +1095,66 @@ static struct ddr_port_desc ddr_port_desc_s1a[] __initdata = {
 	{ .port_id = 38, .port_name = "USB"           },
 	{ .port_id = 39, .port_name = "DMA"           }
 };
+
+static struct ddr_port_desc ddr_port_desc_a4_prot[] __initdata = {
+	{ .port_id = 2, .port_name = "ARM_A53"        },
+	{ .port_id = 19, .port_name = "VOUT"          },
+	{ .port_id = 40, .port_name = "AOCPU"         },
+	{ .port_id = 41, .port_name = "AUDIO_VAD"     },
+	{ .port_id = 71, .port_name = "JTAG"          },
+	{ .port_id = 72, .port_name = "SPICC0"        },
+	{ .port_id = 73, .port_name = "SPICC1"        },
+	{ .port_id = 74, .port_name = "ETH"           },
+	{ .port_id = 80, .port_name = "EMMC"          },
+	{ .port_id = 81, .port_name = "SDIO_A"        },
+	{ .port_id = 82, .port_name = "SECU_TOP"      },
+	{ .port_id = 83, .port_name = "USB_X2H"       },
+	{ .port_id = 84, .port_name = "USB2DRD"	      },
+	{ .port_id = 85, .port_name = "AUDIO"         }
+};
+
+static struct ddr_port_desc ddr_port_desc_a4_mon[] __initdata = {
+	{ .port_id = 0, .port_name = "ARM_A53"        },
+	{ .port_id = 2, .port_name = "VOUT"           },
+	{ .port_id = 4, .port_name = "DSP"            },
+	{ .port_id = 6, .port_name = "DEVICE1"        },
+	{ .port_id = 7, .port_name = "DEVICE0"        },
+	/* start of each device0 */
+	{ .port_id = 32, .port_name = "SPICC1"        },
+	{ .port_id = 33, .port_name = "ETH"           },
+	{ .port_id = 34, .port_name = "SPICC0"        },
+	/* start of each device1 */
+	{ .port_id = 40, .port_name = "SDIO_A"        },
+	{ .port_id = 41, .port_name = "SEC_TOP"       },
+	{ .port_id = 42, .port_name = "EMMC"          },
+	{ .port_id = 43, .port_name = "USB"           },
+	{ .port_id = 44, .port_name = "AUDIO"         },
+	{ .port_id = 45, .port_name = "USB_X2H"       },
+	/* start of each dsp */
+	{ .port_id = 48, .port_name = "AUDIO_VAD"     },
+	{ .port_id = 49, .port_name = "AOCPU"         }
+};
+
+static struct ddr_port_desc ddr_port_desc_a5[] __initdata = {
+	{ .port_id =  0, .port_name = "ARM_A53"      },
+	{ .port_id =  3, .port_name = "NNA"          },
+	{ .port_id =  4, .port_name = "DSP"          },
+	{ .port_id =  5, .port_name = "TEST"         },
+	{ .port_id =  6, .port_name = "DEVICE1"      },
+	{ .port_id =  7, .port_name = "DEVICE0"      },
+
+	/* start of each device0 */
+	{ .port_id = 32, .port_name = "SPICC1"       },
+	{ .port_id = 33, .port_name = "ETH"	     },
+	{ .port_id = 34, .port_name = "SPICC0"       },
+
+	/* start of each device1 */
+	{ .port_id = 40, .port_name = "SDIO_A"       },
+	{ .port_id = 41, .port_name = "SEC_TOP"      },
+	{ .port_id = 42, .port_name = "EMMC"         },
+	{ .port_id = 43, .port_name = "USB"          },
+	{ .port_id = 44, .port_name = "AUDIO"        }
+};
 static struct ddr_port_desc *chip_ddr_port;
 static unsigned int chip_ddr_port_num __initdata;
 
@@ -1263,6 +1323,21 @@ int __init ddr_find_port_desc_type(int cpu_type, struct ddr_port_desc **desc, in
 	case DMC_TYPE_TXHD2:
 		*desc = ddr_port_desc_txhd2;
 		desc_size = ARRAY_SIZE(ddr_port_desc_txhd2);
+		break;
+
+	case DMC_TYPE_A4:
+		if (type) {
+			*desc = ddr_port_desc_a4_mon;
+			desc_size = ARRAY_SIZE(ddr_port_desc_a4_mon);
+		} else {
+			*desc = ddr_port_desc_a4_prot;
+			desc_size = ARRAY_SIZE(ddr_port_desc_a4_prot);
+		}
+		break;
+
+	case DMC_TYPE_A5:
+		*desc = ddr_port_desc_a5;
+		desc_size = ARRAY_SIZE(ddr_port_desc_a5);
 		break;
 #endif
 	case DMC_TYPE_S1A:

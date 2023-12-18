@@ -130,6 +130,11 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 		subport = (status >> 4) & 0xf;
 		break;
 
+	case DMC_TYPE_A5:
+		port = (status >> 9) & 0x1f;
+		subport = (status >> 4) & 0xf;
+		break;
+
 	default:
 		port = (status >> 11) & 0x1f;
 		subport = (status >> 6) & 0xf;
