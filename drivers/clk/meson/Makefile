@@ -172,3 +172,10 @@ $(T5D_AO_MODULE_NAME)-y += t5d-aoclk.o
 PR_FMT_AO_T5D = $(subst amlogic-,,$(T5D_AO_MODULE_NAME))
 PR_FMT_DEFINE_AO_T5D="-Dpr_fmt(fmt)= \"[$(PR_FMT_AO_T5D)]: \" fmt"
 CFLAGS_t5d-aoclk.o += $(PR_FMT_DEFINE_AO_T5D)
+
+A5_MODULE_NAME = amlogic-clk-soc-a5
+obj-$(CONFIG_AMLOGIC_COMMON_CLK_A5) += $(A5_MODULE_NAME).o
+$(A5_MODULE_NAME)-y += a5.o
+PR_FMT_A5 = $(subst amlogic-,,$(A5_MODULE_NAME))
+PR_FMT_DEFINE_A5="-Dpr_fmt(fmt)= \"[$(PR_FMT_A5)]: \" fmt"
+CFLAGS_A5.o += $(PR_FMT_DEFINE_A5)

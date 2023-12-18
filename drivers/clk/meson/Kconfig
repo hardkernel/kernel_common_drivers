@@ -290,4 +290,17 @@ config AMLOGIC_COMMON_AO_CLK_T5D
 	help
 	  Support for the ao clock controller on Amlogic T5D
 	  devices, aka ao t5d. Say Y if you want peripherals to work.
+
+config AMLOGIC_COMMON_CLK_A5
+	tristate "Meson A5 clock controller"
+	depends on AMLOGIC_COMMON_CLK_MESON_REGMAP
+	depends on AMLOGIC_COMMON_CLK_MESON_DUALDIV
+	depends on AMLOGIC_COMMON_CLK_MESON_MPLL
+	depends on AMLOGIC_COMMON_CLK_MESON_PLL
+	depends on AMLOGIC_COMMON_CLK_MESON_CPU_DYNDIV
+	depends on AMLOGIC_COMMON_CLK_MESON_VID_PLL_DIV
+	depends on MFD_SYSCON
+	help
+	  Support for the clock controller on Amlogic
+	  devices, aka A5. Say Y if you want peripherals to work.
 endmenu
