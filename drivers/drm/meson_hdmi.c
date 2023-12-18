@@ -649,13 +649,11 @@ static int get_dv_info(void)
 
 static int hdcp_rx_ver(void)
 {
-	unsigned int hdcp_rx_type = am_hdmi_info.hdmitx_dev->get_rx_hdcp_cap();
-
 	/* Detect RX support HDCP14
 	 * Here, must assume RX support HDCP14, otherwise affect 1A-03
 	 */
 
-	if (hdcp_rx_type == 0x3)
+	if (am_hdmi_info.hdcp_rx_type == 0x3)
 		return 36;
 	else
 		return 14;
@@ -1100,7 +1098,7 @@ static int meson_hdmitx_get_hdcp_request(struct am_hdmi_tx *tx,
 	struct meson_hdmitx_dev *tx_dev = tx->hdmitx_dev;
 	int type;
 	unsigned int hdcp_tx_type = tx_dev->get_tx_hdcp_cap();
-	unsigned int hdcp_rx_type = tx_dev->get_rx_hdcp_cap();
+	unsigned int hdcp_rx_type = am_hdmi_info.hdcp_rx_type;
 
 	DRM_INFO("%s usr_type: %d, hdcp cap: %d,%d\n",
 			__func__, request_type_mask,
@@ -1233,6 +1231,7 @@ void meson_hdmitx_update(struct drm_connector_state *new_state,
 static void meson_hdmitx_hdcp_notify(void *data, int type, int result)
 {
 	struct drm_connector *connector = &am_hdmi_info.base.connector;
+	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
 	struct drm_modeset_lock *mode_lock =
 		&connector->dev->mode_config.connection_mutex;
 	bool locked_outer = drm_modeset_is_locked(mode_lock);
@@ -1240,14 +1239,18 @@ static void meson_hdmitx_hdcp_notify(void *data, int type, int result)
 	if (!locked_outer)
 		drm_modeset_lock(mode_lock, NULL);
 
-	if (!am_hdmi_info.hdmitx_on)
-		goto end;
-
 	if (type == HDCP_KEY_UPDATE && result == HDCP_AUTH_UNKNOWN) {
 		DRM_INFO("HDCP statue changed, need re-run hdcp\n");
+		if (hdmitx_get_hpd_state(tx_comm))
+			am_hdmi_info.hdcp_rx_type = am_hdmi_info.hdmitx_dev->get_rx_hdcp_cap();
+		if (!am_hdmi_info.hdmitx_on)
+			goto end;
 		meson_hdmitx_update_hdcp();
 		goto end;
 	}
+
+	if (!am_hdmi_info.hdmitx_on)
+		goto end;
 
 	if (type != am_hdmi_info.hdcp_mode) {
 		DRM_DEBUG("notify type is mismatch[%d]-[%d]\n",
@@ -1723,6 +1726,8 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 		vmode, EVENT_MODE_SET_FINISH);
 	meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "hdmitx");
 
+	am_hdmi_info.hdmitx_on = 1;
+
 	if (!am_hdmi_info.android_path) {
 		hdmitx_common_avmute_locked(tx_comm, CLR_AVMUTE, AVMUTE_PATH_DRM);
 		meson_hdmitx_update_hdcp();
@@ -1734,8 +1739,6 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 		DRM_INFO("%s, vrr set rate hint, %d\n", __func__,
 			 mode_vrefresh  * 100);
 	}
-
-	am_hdmi_info.hdmitx_on = 1;
 }
 
 void meson_hdmitx_encoder_atomic_disable(struct drm_encoder *encoder,
@@ -2099,6 +2102,12 @@ static void meson_hdmitx_hpd_cb(void *data)
 		am_hdmi_info.hdmitx_on = 0;
 		drm_modeset_unlock(mode_lock);
 	}
+
+	/*get hdcp ver property immediately after plugin in case hdcp14
+	 *authentication snow screen issue
+	 */
+	if (hdmitx_get_hpd_state(tx_comm))
+		am_hdmi_info.hdcp_rx_type = am_hdmi_info.hdmitx_dev->get_rx_hdcp_cap();
 
 #ifdef CONFIG_CEC_NOTIFIER
 	if (hdmitx_get_hpd_state(tx_comm)) {

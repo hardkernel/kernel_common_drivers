@@ -44,6 +44,7 @@ struct am_hdmi_tx {
 	int hdcp_mode;
 	/*hdcp auth result, HDCP_AUTH_UNKNOWN means havenot finished auth.*/
 	int hdcp_state;
+	int hdcp_rx_type;
 
 	int hdmitx_on;
 
