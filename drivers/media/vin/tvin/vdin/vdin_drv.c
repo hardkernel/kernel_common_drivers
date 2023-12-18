@@ -1789,8 +1789,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		/* check input content is protected */
 		if ((vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
 		    (vdin0_devp->flags & VDIN_FLAG_DEC_STARTED) &&
-		    !devp->set_canvas_manual &&
-		    (devp->work_mode == VDIN_WORK_MD_NORMAL)) {
+		    !devp->set_canvas_manual) {
 			if (vdin0_devp->prop.hdcp_sts && !devp->mem_protected) {
 				pr_err("hdmi hdcp en, non-secure buffer\n");
 				devp->matrix_pattern_mode = 4;
@@ -3744,7 +3743,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		/* check input content is protected */
 		protect_mode = vdin0_devp->prop.hdcp_sts ? 4 : 0;
 		if (protect_mode != devp->matrix_pattern_mode && !devp->mem_protected &&
-			!devp->set_canvas_manual && (devp->work_mode == VDIN_WORK_MD_NORMAL) &&
+			!devp->set_canvas_manual &&
 			(vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
 			(vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
 			devp->matrix_pattern_mode = protect_mode;
