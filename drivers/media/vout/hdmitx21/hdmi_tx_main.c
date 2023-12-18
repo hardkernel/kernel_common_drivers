@@ -3070,10 +3070,7 @@ static bool drm_hdmitx_get_vrr_cap(void)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	if (hdev->tx_comm.rxcap.neg_mvrr ||
-		hdev->tx_comm.rxcap.fva ||
-		hdev->tx_comm.rxcap.vrr_max ||
-		hdev->tx_comm.rxcap.vrr_min) {
+	if (hdev->tx_comm.rxcap.qms) {
 		HDMITX_INFO("%s support vrr\n", __func__);
 		return true;
 	}
