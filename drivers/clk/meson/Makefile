@@ -179,3 +179,10 @@ $(A5_MODULE_NAME)-y += a5.o
 PR_FMT_A5 = $(subst amlogic-,,$(A5_MODULE_NAME))
 PR_FMT_DEFINE_A5="-Dpr_fmt(fmt)= \"[$(PR_FMT_A5)]: \" fmt"
 CFLAGS_A5.o += $(PR_FMT_DEFINE_A5)
+
+A4_MODULE_NAME = amlogic-clk-soc-a4
+obj-$(CONFIG_AMLOGIC_COMMON_CLK_A4) += $(A4_MODULE_NAME).o
+$(A4_MODULE_NAME)-y += a4.o
+PR_FMT_A4 = $(subst amlogic-,,$(A4_MODULE_NAME))
+PR_FMT_DEFINE_A4="-Dpr_fmt(fmt)= \"[$(PR_FMT_A4)]: \" fmt"
+CFLAGS_A4.o += $(PR_FMT_DEFINE_A4)
