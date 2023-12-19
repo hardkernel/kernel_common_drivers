@@ -33,7 +33,6 @@
 #include <linux/amlogic/pwm-meson.h>
 #endif
 #include <gpiolib-of.h>
-#include <linux/amlogic/kernel_versions.h>
 #define OWNER_NAME "sdio_wifi"
 
 static char aml_wifi_chip_type[10] = "NULL";

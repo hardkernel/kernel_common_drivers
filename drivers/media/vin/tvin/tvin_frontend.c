@@ -26,7 +26,6 @@
 /* Amlogic headers */
 #include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vfm/vframe.h>
-#include <linux/amlogic/kernel_versions.h>
 
 /* Local headers */
 #include "tvin_frontend.h"

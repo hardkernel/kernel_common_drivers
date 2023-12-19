@@ -40,6 +40,16 @@ static struct device *devp;
 
 static enum aml_plat_flashlight_status_s flashlight_flag = FLASHLIGHT_OFF;
 
+static ssize_t flashlight_ctrl_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count);
+static ssize_t flashlightflag_show(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf);
+static ssize_t flashlight_ctrl_flag_store(KV_CLASS_CONST struct class *cla,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count);
+
 static int flashlight_open(struct inode *inode, struct file *file);
 static int flashlight_release(struct inode *inode, struct file *file);
 static int flashlight_probe(struct platform_device *pdev);
@@ -54,6 +64,24 @@ static struct platform_driver flashlight_driver = {
 
 static const struct file_operations flashlight_fops = {
 	.open = flashlight_open, .release = flashlight_release,
+};
+
+static CLASS_ATTR_WO(flashlight_ctrl);
+static CLASS_ATTR_WO(flashlight_ctrl_flag);
+static CLASS_ATTR_RO(flashlightflag);
+
+static struct attribute *flashlight_class_attrs[] = {
+	&class_attr_flashlight_ctrl.attr,
+	&class_attr_flashlight_ctrl_flag.attr,
+	&class_attr_flashlightflag.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(flashlight_class);
+
+static struct class flashlight_class = {
+	.name		= FLASHLIGHT_CLASS_NAME,
+	KV_CLASS_DEF_OWNER
+	.class_groups	= flashlight_class_groups
 };
 
 static ssize_t flashlight_ctrl_store(KV_CLASS_CONST struct class *cla,
@@ -100,26 +128,6 @@ static ssize_t flashlightflag_show(KV_CLASS_CONST struct class *cla,
 	sprintf(buf, "%d", (int)flashlight_flag);
 	return strlen(buf);
 }
-
-static CLASS_ATTR_WO(flashlight_ctrl);
-static CLASS_ATTR_WO(flashlight_ctrl_flag);
-static CLASS_ATTR_RO(flashlightflag);
-
-static struct attribute *flashlight_class_attrs[] = {
-	&class_attr_flashlight_ctrl.attr,
-	&class_attr_flashlight_ctrl_flag.attr,
-	&class_attr_flashlightflag.attr,
-	NULL,
-};
-ATTRIBUTE_GROUPS(flashlight_class);
-
-static struct class flashlight_class = {
-	.name		= FLASHLIGHT_CLASS_NAME,
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
-	.owner		= THIS_MODULE,
-#endif
-	.class_groups	= flashlight_class_groups
-};
 
 static int flashlight_open(struct inode *inode, struct file *file)
 {

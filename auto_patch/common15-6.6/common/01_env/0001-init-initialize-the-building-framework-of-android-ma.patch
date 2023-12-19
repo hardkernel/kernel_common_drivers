@@ -141,7 +141,7 @@ index efb66e25fa2d..b5e3f828547a 100644
 +	int "Amlogic Kernel Version"
 +	default 15606
 +	help
-+	  kernel from android14-6.6
++	  kernel from android15-6.6
 +	  so the default value is 15606
 +	  the driver uses it to adapt different kernel versions
 +

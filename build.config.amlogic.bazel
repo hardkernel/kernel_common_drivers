@@ -109,6 +109,6 @@ modules
 dtbs
 android_overlay_dt.dtbo
 "
-
+#KV_TODO: modify
 #KMI_SYMBOL_LIST=android/abi_gki_aarch64_amlogic
 #GKI_MODULES_LIST=android/gki_aarch64_modules

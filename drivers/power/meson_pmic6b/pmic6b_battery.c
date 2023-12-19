@@ -834,7 +834,7 @@ int pmic6b_bat_hw_init(struct pmic6b_bat *bat)
 				      bat->table_len * sizeof(*table),
 				      GFP_KERNEL);
 	if (!bat->cap_table) {
-		power_supply_put_battery_info(bat->battery, info);
+		kv_power_supply_put_battery_info(bat->battery, info);
 		return -ENOMEM;
 	}
 

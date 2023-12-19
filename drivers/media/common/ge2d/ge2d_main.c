@@ -86,6 +86,25 @@ static long ge2d_compat_ioctl(struct file *filp, unsigned int cmd,
 #endif
 static int ge2d_release(struct inode *inode, struct file *file);
 
+static ssize_t log_level_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf);
+static ssize_t log_level_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count);
+static ssize_t dump_reg_enable_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf);
+static ssize_t dump_reg_enable_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count);
+static ssize_t dump_reg_cnt_show(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			char *buf);
+static ssize_t dump_reg_cnt_store(KV_CLASS_CONST struct class *class,
+			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+			const char *buf, size_t count);
+
 static const struct file_operations ge2d_fops = {
 	.owner = THIS_MODULE,
 	.open = ge2d_open,
@@ -94,6 +113,27 @@ static const struct file_operations ge2d_fops = {
 	.compat_ioctl = ge2d_compat_ioctl,
 #endif
 	.release = ge2d_release,
+};
+
+static CLASS_ATTR_RO(work_queue_status);
+static CLASS_ATTR_RO(free_queue_status);
+static CLASS_ATTR_RW(log_level);
+static CLASS_ATTR_RW(dump_reg_enable);
+static CLASS_ATTR_RW(dump_reg_cnt);
+
+static struct attribute *ge2d_class_attrs[] = {
+	&class_attr_work_queue_status.attr,
+	&class_attr_free_queue_status.attr,
+	&class_attr_log_level.attr,
+	&class_attr_dump_reg_enable.attr,
+	&class_attr_dump_reg_cnt.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(ge2d_class);
+
+static struct class ge2d_class = {
+	.name = GE2D_CLASS_NAME,
+	.class_groups = ge2d_class_groups,
 };
 
 #ifdef CONFIG_AMLOGIC_FREERTOS
@@ -170,27 +210,6 @@ static ssize_t log_level_store(KV_CLASS_CONST struct class *class,
 
 	return count;
 }
-
-static CLASS_ATTR_RO(work_queue_status);
-static CLASS_ATTR_RO(free_queue_status);
-static CLASS_ATTR_RW(log_level);
-static CLASS_ATTR_RW(dump_reg_enable);
-static CLASS_ATTR_RW(dump_reg_cnt);
-
-static struct attribute *ge2d_class_attrs[] = {
-	&class_attr_work_queue_status.attr,
-	&class_attr_free_queue_status.attr,
-	&class_attr_log_level.attr,
-	&class_attr_dump_reg_enable.attr,
-	&class_attr_dump_reg_cnt.attr,
-	NULL
-};
-ATTRIBUTE_GROUPS(ge2d_class);
-
-static struct class ge2d_class = {
-	.name = GE2D_CLASS_NAME,
-	.class_groups = ge2d_class_groups,
-};
 
 static int ge2d_open(struct inode *inode, struct file *file)
 {

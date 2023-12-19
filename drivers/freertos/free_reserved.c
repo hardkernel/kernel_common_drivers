@@ -137,7 +137,7 @@ static ssize_t free_reserved_store(KV_CLASS_CONST struct class *class,
 		pr_err("Please enter y or Y or 1 to start freeing memory\n");
 		return count;
 	}
-	
+
 	if (free_memory == 1) {
 		pr_info("Memory has been freed\n");
 		return count;

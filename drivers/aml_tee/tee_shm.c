@@ -20,7 +20,7 @@ static void shm_put_kernel_pages(struct page **pages, size_t page_count)
 		put_page(pages[n]);
 }
 
-//KV_TODO: review
+//KV_TODO: modify
 static int shm_get_kernel_pages(unsigned long start, size_t page_count,
 				struct page **pages)
 {

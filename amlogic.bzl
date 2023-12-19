@@ -24,9 +24,9 @@ def define_amlogic():
         name = "amlogic",
         outs = _AMLOGIC_OUTS,
         dtbo_srcs = _AMLOGIC_DTBOS,
-        define_abi_targets = False,
-        kmi_symbol_list = None,
-        kmi_symbol_list_add_only = False,
+        define_abi_targets = False,#KV_TODO: modify
+        kmi_symbol_list = None,#KV_TODO: modify
+        kmi_symbol_list_add_only = False,#KV_TODO: modify
         build_config = "common_drivers/build.config.amlogic.bazel",
         module_outs = _AMLOGIC_MODULES,
         ext_modules = _EXT_MODULES,

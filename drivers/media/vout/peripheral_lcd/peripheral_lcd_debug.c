@@ -16,7 +16,6 @@
 #include <linux/of_address.h>
 #include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vout/peripheral_lcd.h>
-#include <linux/amlogic/kernel_versions.h>
 #include "peripheral_lcd_drv.h"
 
 static struct class *per_lcd_class;

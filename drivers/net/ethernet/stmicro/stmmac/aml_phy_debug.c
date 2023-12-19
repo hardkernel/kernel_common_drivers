@@ -25,7 +25,6 @@
 
 #include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/aml_phy_debug.h>
-#include <linux/amlogic/kernel_versions.h>
 //#include "aml_phy_debug.h"
 
 void __iomem *PREG_ETH_REG0;

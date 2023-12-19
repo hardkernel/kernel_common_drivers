@@ -36,7 +36,6 @@
 #include <linux/amlogic/media/utils/am_com.h>
 #include <linux/clk.h>
 #include <linux/errno.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #define CONFIG_ARCH_MESON8
 

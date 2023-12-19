@@ -204,6 +204,7 @@ static struct kprobe kp_lookup_name = {
 
 static char func_comp_alloc[NAME_MAX] = "compaction_alloc";
 static char func_alloc_pages[NAME_MAX] = "__alloc_pages";
+//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
 static char func_free_prep[NAME_MAX] = "free_unref_page_prepare";
 #else
@@ -249,6 +250,7 @@ static int free_prep_entry_handler(struct kretprobe_instance *ri, struct pt_regs
 
 	data = (struct kretp_data *)ri->data;
 	data->page = (struct page *)regs->regs[0];
+//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
 	data->order = (unsigned int)regs->regs[2];
 #else
@@ -745,6 +747,7 @@ unsigned long unpack_ip(struct page_trace *trace)
  * We can only safely access per-cpu stacks from current in a non-preemptible
  * context.
  */
+//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static bool aml_on_accessible_stack(const struct task_struct *tsk,
 				unsigned long sp, unsigned long size,
@@ -810,6 +813,8 @@ static int notrace unwind_next(struct unwind_state *state)
 // #endif
 	return 0;
 }
+
+//KV_TODO: modify
 #elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 /*
  * Unwind from one frame record (A) to the next frame record (B).
@@ -936,7 +941,7 @@ static int notrace aml_unwind_frame(struct task_struct *tsk, struct stackframe *
 }
 #endif
 #endif
-
+//KV_TODO: modify
 unsigned long find_back_trace(void)
 {
 #if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)

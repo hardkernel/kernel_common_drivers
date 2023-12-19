@@ -459,6 +459,7 @@ static void aml_pick_next_task(void *data, struct rq *rq, struct task_struct **p
 	}
 }
 
+//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static inline u64 max_vruntime(u64 max_vruntime, u64 vruntime)
 {

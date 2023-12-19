@@ -63,7 +63,6 @@
 #include <linux/component.h>
 #include <linux/amlogic/gki_module.h>
 #include <drm/amlogic/meson_drm_bind.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #ifdef CONFIG_AMLOGIC_VOUT_CC_BYPASS
 /* interrupt source */

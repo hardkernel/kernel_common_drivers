@@ -203,6 +203,7 @@ struct pc_lockup_symbol {
 	unsigned long curr_mod_base;
 };
 
+//KV_TODO: modify
 #if IS_ENABLED(CONFIG_ANDROID_VENDOR_HOOKS) && CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static unsigned long convert_pc_val(unsigned long val)
 {
@@ -1200,6 +1201,7 @@ static void iotrace_work_func(struct work_struct *work)
 	cancel_delayed_work(&iotrace_work);
 }
 
+//KV_TODO: modify
 #ifdef CONFIG_ANDROID_VENDOR_HOOKS
 #if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static unsigned int BKDRHash(char *str)

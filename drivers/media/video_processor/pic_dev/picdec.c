@@ -57,7 +57,6 @@
 #include <linux/of_fdt.h>
 #include <linux/dma-map-ops.h>
 #include <linux/cma.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #ifdef CONFIG_AMLOGIC_VOUT
 static int debug_flag;

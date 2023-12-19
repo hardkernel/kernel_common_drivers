@@ -495,7 +495,7 @@ static bool is_normal_memory(pgprot_t p)
 }
 
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
-//KV_TODO: review
+//KV_TODO: modify
 int optee_check_mem_type(unsigned long start, size_t num_pages)
 {
 	struct mm_struct *mm = current->mm;

@@ -12,6 +12,7 @@
 #include <linux/types.h>
 
 struct meson_pinctrl;
+//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 struct fwnode_handle;
 #endif
@@ -168,6 +169,7 @@ struct meson_pinctrl {
 	struct regmap *reg_gpio;
 	struct regmap *reg_ds;
 	struct gpio_chip chip;
+//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 	struct fwnode_handle *fwnode;
 #else

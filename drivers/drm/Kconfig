@@ -6,6 +6,9 @@ config AMLOGIC_DRM
 	depends on AMLOGIC_DRIVER && DRM && OF && (ARM || ARM64)
 	depends on DRM_KMS_HELPER
 	depends on VIDEOMODE_HELPERS
+	#KV_TODO: modify
+	#depends on DRM_KMS_CMA_HELPER
+	#depends on DRM_GEM_CMA_HELPER
 	select DRM_GEM_DMA_HELPER
 	select DRM_DISPLAY_HELPER
 	help
@@ -27,6 +30,7 @@ config AMLOGIC_DRM_HDMI
 	default n
 	depends on AMLOGIC_DRM
 	depends on AMLOGIC_HDMITX
+	#KV_TODO: modify
 	select DRM_DISPLAY_HDCP_HELPER
 	help
 		add drm hdmi support.

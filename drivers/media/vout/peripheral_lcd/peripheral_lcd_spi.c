@@ -184,6 +184,7 @@ int plcd_spi_driver_add(void)
 		return -1;
 	}
 
+//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 	ctlr = NULL;
 #else

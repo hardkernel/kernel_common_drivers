@@ -233,9 +233,7 @@ ATTRIBUTE_GROUPS(test_vmem_class);
 
 static struct class test_vmem_class = {
 	.name		= "test_vmem",
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
-	.owner		= THIS_MODULE,
-#endif
+	KV_CLASS_DEF_OWNER
 	.class_groups	= test_vmem_class_groups
 };
 

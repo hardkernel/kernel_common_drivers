@@ -707,6 +707,7 @@ static unsigned long aml_pfn_max_align_up(unsigned long pfn)
 				pageblock_nr_pages));
 }
 
+//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 static struct folio *get_migrate_page(struct folio *src, unsigned long private)
 {
@@ -1481,6 +1482,7 @@ void aml_cma_free(unsigned long pfn, unsigned int nr_pages, int update)
 	}
 }
 
+//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 static bool cma_vma_show(struct folio *folio, struct vm_area_struct *vma,
 			 unsigned long addr, void *arg)

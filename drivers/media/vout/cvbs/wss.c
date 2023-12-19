@@ -31,6 +31,7 @@
 #include "wss.h"
 #include "cvbs_out_reg.h"
 #include "cvbs_mode.h"
+#include <linux/amlogic/kernel_versions.h>
 
 static const char * const wss_480i_cmd[] = {"ar", "cgms", "psp",
 		"prerec", "CC", "mvsn", "off"};

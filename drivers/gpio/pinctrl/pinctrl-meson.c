@@ -772,6 +772,7 @@ static int meson_gpiolib_register(struct meson_pinctrl *pc)
 	pc->chip.base = -1;
 	pc->chip.ngpio = pc->data->num_pins;
 	pc->chip.can_sleep = false;
+//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 	pc->chip.fwnode = pc->fwnode;
 #else
@@ -831,6 +832,7 @@ static struct regmap *meson_map_resource(struct meson_pinctrl *pc,
 	return devm_regmap_init_mmio(pc->dev, base, &meson_regmap_config);
 }
 
+//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc)
 {
@@ -923,7 +925,7 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 		dev_dbg(pc->dev, "ds registers not found - skipping\n");
 		pc->reg_ds = NULL;
 	}
-
+//KV_TODO: modify
 #ifdef CONFIG_AMLOGIC_MODIFY
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 	if (of_property_read_bool(gpio_np, "amlogic,vin-threshold-support"))
@@ -1029,7 +1031,7 @@ int meson_pinctrl_probe(struct platform_device *pdev)
 
 	pc->dev = dev;
 	pc->data = (struct meson_pinctrl_data *)of_device_get_match_data(dev);
-
+//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 	ret = meson_pinctrl_parse_dt(pc);
 #else
