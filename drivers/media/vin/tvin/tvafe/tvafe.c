@@ -1303,7 +1303,8 @@ void tvafe_set_snow_cfg(bool cfg)
 EXPORT_SYMBOL(tvafe_set_snow_cfg);
 
 /**check frame skip,only for av input*/
-static bool tvafe_cvbs_check_frame_skip(struct tvin_frontend_s *fe)
+static bool tvafe_cvbs_check_frame_skip(struct tvin_frontend_s *fe,
+	 enum tvin_port_type_e port_type)
 {
 	struct tvafe_dev_s *devp = container_of(fe, struct tvafe_dev_s,
 		frontend);

@@ -103,7 +103,8 @@ static void stop_amvdec_csi(struct amcsi_dev_s *devp)
 	}
 }
 
-static bool amcsi_check_skip_frame(struct tvin_frontend_s *fe)
+static bool amcsi_check_skip_frame(struct tvin_frontend_s *fe,
+	enum tvin_port_type_e port_type)
 {
 	struct amcsi_dev_s *devp =
 		container_of(fe, struct amcsi_dev_s, frontend);

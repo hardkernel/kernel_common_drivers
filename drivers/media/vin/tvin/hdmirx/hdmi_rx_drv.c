@@ -790,10 +790,8 @@ enum tvin_sig_fmt_e hdmirx_get_fmt(struct tvin_frontend_s *fe, enum tvin_port_ty
 	return fmt;
 }
 
-bool hdmirx_hw_check_frame_skip(void)
+bool hdmirx_hw_check_frame_skip(u8 port)
 {
-	u8 port = rx_info.main_port;  //todo for pip
-
 	if (rx[port].state != FSM_SIG_READY || rx[port].skip > 0)
 		return true;
 
@@ -1516,78 +1514,44 @@ void hdmirx_get_hdr_info(struct tvin_sig_property_s *prop, u8 port)
 {
 	struct drm_infoframe_st *drm_pkt;
 
-	/*check drm packet is attach every VS*/
-	u32 drm_attach = rx_pkt_chk_attach_drm(port);
-
 	drm_pkt = (struct drm_infoframe_st *)&rx_pkt[port].drm_info;
-
-	if (drm_attach) {
-		rx[port].hdr_info.hdr_state = HDR_STATE_SET;
-		rx_pkt_clr_attach_drm(port);
-	}
-
-	/* hdr data processing */
-	switch (rx[port].hdr_info.hdr_state) {
-	case HDR_STATE_NULL:
-		/* filter for state, 10*10ms */
-		if (rx[port].hdr_info.hdr_check_cnt++ > 10) {
-			prop->hdr_info.hdr_state = HDR_STATE_NULL;
-			rx[port].hdr_info.hdr_check_cnt = 0;
-		}
-		break;
-	case HDR_STATE_GET:
-		rx[port].hdr_info.hdr_check_cnt = 0;
-		break;
-	case HDR_STATE_SET:
-		rx[port].hdr_info.hdr_check_cnt = 0;
-		if (prop->hdr_info.hdr_state != HDR_STATE_GET) {
-			if (rx_pkt_chk_busy_drm(port))
-				break;
-
-			prop->hdr_info.hdr_data.length = drm_pkt->length;
-			prop->hdr_info.hdr_data.eotf = drm_pkt->des_u.tp1.eotf;
-			prop->hdr_info.hdr_data.metadata_id =
-				drm_pkt->des_u.tp1.meta_des_id;
-			prop->hdr_info.hdr_data.primaries[0].x =
-				drm_pkt->des_u.tp1.dis_pri_x0;
-			prop->hdr_info.hdr_data.primaries[0].y =
-				drm_pkt->des_u.tp1.dis_pri_y0;
-			prop->hdr_info.hdr_data.primaries[1].x =
-				drm_pkt->des_u.tp1.dis_pri_x1;
-			prop->hdr_info.hdr_data.primaries[1].y =
-				drm_pkt->des_u.tp1.dis_pri_y1;
-			prop->hdr_info.hdr_data.primaries[2].x =
-				drm_pkt->des_u.tp1.dis_pri_x2;
-			prop->hdr_info.hdr_data.primaries[2].y =
-				drm_pkt->des_u.tp1.dis_pri_y2;
-			prop->hdr_info.hdr_data.white_points.x =
-				drm_pkt->des_u.tp1.white_points_x;
-			prop->hdr_info.hdr_data.white_points.y =
-				drm_pkt->des_u.tp1.white_points_y;
-			prop->hdr_info.hdr_data.master_lum.x =
-				drm_pkt->des_u.tp1.max_dislum;
-			prop->hdr_info.hdr_data.master_lum.y =
-				drm_pkt->des_u.tp1.min_dislum;
-			prop->hdr_info.hdr_data.mcll =
-				drm_pkt->des_u.tp1.max_light_lvl;
-			prop->hdr_info.hdr_data.mfall =
-				drm_pkt->des_u.tp1.max_fa_light_lvl;
-			prop->hdr_info.hdr_data.rawdata[0] = 0x87;
-			prop->hdr_info.hdr_data.rawdata[1] = 0x1;
-			prop->hdr_info.hdr_data.rawdata[2] = drm_pkt->length;
-			memcpy(&prop->hdr_info.hdr_data.rawdata[3],
-				   &drm_pkt->des_u.payload, 28);
-			/* vdin can read current hdr data */
-			prop->hdr_info.hdr_state = HDR_STATE_GET;
-		}
-		/* Rx can get new hdr data now, the hdr data
-		 * is already taken by vdin, no need to
-		 * wait until vdin process this hdr data
-		 */
-		rx[port].hdr_info.hdr_state = HDR_STATE_NULL;
-		break;
-	default:
-		break;
+	if (rx_pkt_chk_attach_drm(port)) {
+		prop->hdr_info.hdr_data.length = drm_pkt->length;
+		prop->hdr_info.hdr_data.eotf = drm_pkt->des_u.tp1.eotf;
+		prop->hdr_info.hdr_data.metadata_id =
+			drm_pkt->des_u.tp1.meta_des_id;
+		prop->hdr_info.hdr_data.primaries[0].x =
+			drm_pkt->des_u.tp1.dis_pri_x0;
+		prop->hdr_info.hdr_data.primaries[0].y =
+			drm_pkt->des_u.tp1.dis_pri_y0;
+		prop->hdr_info.hdr_data.primaries[1].x =
+			drm_pkt->des_u.tp1.dis_pri_x1;
+		prop->hdr_info.hdr_data.primaries[1].y =
+			drm_pkt->des_u.tp1.dis_pri_y1;
+		prop->hdr_info.hdr_data.primaries[2].x =
+			drm_pkt->des_u.tp1.dis_pri_x2;
+		prop->hdr_info.hdr_data.primaries[2].y =
+			drm_pkt->des_u.tp1.dis_pri_y2;
+		prop->hdr_info.hdr_data.white_points.x =
+			drm_pkt->des_u.tp1.white_points_x;
+		prop->hdr_info.hdr_data.white_points.y =
+			drm_pkt->des_u.tp1.white_points_y;
+		prop->hdr_info.hdr_data.master_lum.x =
+			drm_pkt->des_u.tp1.max_dislum;
+		prop->hdr_info.hdr_data.master_lum.y =
+			drm_pkt->des_u.tp1.min_dislum;
+		prop->hdr_info.hdr_data.mcll =
+			drm_pkt->des_u.tp1.max_light_lvl;
+		prop->hdr_info.hdr_data.mfall =
+			drm_pkt->des_u.tp1.max_fa_light_lvl;
+		prop->hdr_info.hdr_data.rawdata[0] = 0x87;
+		prop->hdr_info.hdr_data.rawdata[1] = 0x1;
+		prop->hdr_info.hdr_data.rawdata[2] = drm_pkt->length;
+		memcpy(&prop->hdr_info.hdr_data.rawdata[3],
+			   &drm_pkt->des_u.payload, 28);
+		prop->hdr_info.hdr_state = HDR_STATE_GET;
+	} else {
+		prop->hdr_info.hdr_state = HDR_STATE_NULL;
 	}
 }
 
@@ -1710,29 +1674,29 @@ void hdmirx_get_sig_prop2(struct tvin_frontend_s *fe,
  * return true if video frame skip is needed,
  * return false otherwise.
  */
-bool hdmirx_check_frame_skip(struct tvin_frontend_s *fe)
+bool hdmirx_check_frame_skip(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
-	return hdmirx_hw_check_frame_skip();
+	return hdmirx_hw_check_frame_skip(rx_get_port_from_type(port_type));
 }
 
-bool hdmirx_dv_config(bool en, struct tvin_frontend_s *fe)
+bool hdmirx_dv_config(bool en, struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
-	u8 port = rx_info.main_port;
+	u8 port = rx_get_port_from_type(port_type);
 
 	set_dv_ll_mode(en, port);
 	return true;
 }
 
-bool hdmirx_clr_vsync(struct tvin_frontend_s *fe)
+bool hdmirx_clr_vsync(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
-	u8 port = rx_info.main_port;
+	u8 port = rx_get_port_from_type(port_type);
 
 	return rx_clr_tmds_valid(port);
 }
 
-void hdmirx_pcs_reset(struct tvin_frontend_s *fe)
+void hdmirx_pcs_reset(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
-	u8 port = rx_info.main_port;
+	u8 port = rx_get_port_from_type(port_type);
 
 	if (vdin_reset_pcs_en == 1) {
 		rx[port].state = FSM_SIG_WAIT_STABLE;
@@ -1740,16 +1704,16 @@ void hdmirx_pcs_reset(struct tvin_frontend_s *fe)
 	}
 }
 
-void hdmirx_de_hactive(bool en, struct tvin_frontend_s *fe)
+void hdmirx_de_hactive(bool en, struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
-	u8 port = rx_info.main_port;
+	u8 port = rx_get_port_from_type(port_type);
 
 	hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(30), en, port);
 }
 
-bool hdmirx_clr_pkts(struct tvin_frontend_s *fe)
+bool hdmirx_clr_pkts(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
-	rx_pkt_initial(rx_info.main_port);
+	rx_pkt_initial(rx_get_port_from_type(port_type));
 	return 0;
 }
 

@@ -1356,10 +1356,10 @@ void vdin_set_decimation(struct vdin_dev_s *devp)
 		sm_ops = devp->frontend->sm_ops;
 	if (is_meson_txhd2_cpu() && sm_ops && sm_ops->hdmi_de_hactive) {
 		if (devp->h_active > 1920) {
-			sm_ops->hdmi_de_hactive(1, devp->frontend);
+			sm_ops->hdmi_de_hactive(1, devp->frontend, devp->port_type);
 			devp->h_active = devp->h_active / 2;
 		} else {
-			sm_ops->hdmi_de_hactive(0, devp->frontend);
+			sm_ops->hdmi_de_hactive(0, devp->frontend, devp->port_type);
 		}
 	}
 
@@ -3511,10 +3511,10 @@ void vdin_set_dv_tunnel(struct vdin_dev_s *devp)
 		wr_bits(offset, VDIN_COM_CTRL0, vdin_data_bus_2,
 			COMP2_OUT_SWT_BIT, COMP2_OUT_SWT_WID);
 		/*hdmi rx call back, 422 tunnel to 444*/
-		sm_ops->hdmi_dv_config(true, devp->frontend);
+		sm_ops->hdmi_dv_config(true, devp->frontend, devp->port_type);
 		pr_info("dv rx tunnel mode\n");
 	} else {
-		sm_ops->hdmi_dv_config(false, devp->frontend);
+		sm_ops->hdmi_dv_config(false, devp->frontend, devp->port_type);
 	}
 }
 
@@ -4411,7 +4411,7 @@ bool vdin_check_cycle(struct vdin_dev_s *devp)
 	    devp->parm.info.status == TVIN_SIG_STATUS_STABLE) {
 		devp->stats.cycle_err_cnt_con = 0;
 		if (sm_ops && sm_ops->hdmi_clr_vsync)
-			sm_ops->hdmi_clr_vsync(devp->frontend);
+			sm_ops->hdmi_clr_vsync(devp->frontend, devp->port_type);
 		else
 			pr_err("hdmi_clr_vsync is NULL\n ");
 	}

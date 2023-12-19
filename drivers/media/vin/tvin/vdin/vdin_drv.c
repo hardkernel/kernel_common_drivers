@@ -2934,7 +2934,7 @@ static bool vdin_isneed_pcs_reset(struct vdin_dev_s *devp)
 		devp->err_active++;
 		if (devp->err_active >= devp->report_size_abnormal_cnt) {
 			if (sm_ops && sm_ops->hdmi_reset_pcs)
-				sm_ops->hdmi_reset_pcs(devp->frontend);
+				sm_ops->hdmi_reset_pcs(devp->frontend, devp->port_type);
 			else
 				pr_err("hdmi_reset_pcs is NULL\n");
 			devp->err_active = 0;
@@ -3118,7 +3118,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		}
 	}
 	if (sm_ops && sm_ops->hdmi_clr_pkts)
-		sm_ops->hdmi_clr_pkts(devp->frontend);
+		sm_ops->hdmi_clr_pkts(devp->frontend, devp->port_type);
 
 	vdin_handle_secure_content(devp);
 	vdin_dynamic_switch_vrr(devp);
@@ -3424,7 +3424,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 
 	if (sm_ops->check_frame_skip &&
-	    sm_ops->check_frame_skip(devp->frontend)) {
+	    sm_ops->check_frame_skip(devp->frontend, devp->port_type)) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_SKIP_FRAME;
 		vdin_drop_frame_info(devp, "skip frame flag");
 		devp->vdin_drop_cnt++;
@@ -3866,7 +3866,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	if (devp->frontend && devp->frontend->sm_ops) {
 		sm_ops = devp->frontend->sm_ops;
 		if (sm_ops->check_frame_skip &&
-			sm_ops->check_frame_skip(devp->frontend)) {
+			sm_ops->check_frame_skip(devp->frontend, devp->port_type)) {
 			devp->vdin_irq_flag = VDIN_IRQ_FLG_SKIP_FRAME;
 			vdin_drop_frame_info(devp, "check frame skip");
 			goto irq_handled;

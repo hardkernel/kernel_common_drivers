@@ -540,13 +540,16 @@ void tvin_smr_init_counter(int index)
 	sm_dev[index].exit_prestable_cnt = 0;
 }
 
-u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
+u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp, enum tvin_sm_status_e state)
 {
 	unsigned int signal_type = devp->parm.info.signal_type;
 	enum tvin_sg_chg_flg signal_chg = TVIN_SIG_CHG_NONE;
 	struct tvin_state_machine_ops_s *sm_ops;
 	struct tvin_sig_property_s *prop;
 	unsigned int i;
+
+	if (state < TVIN_SM_STATUS_PRESTABLE)
+		return TVIN_SIG_CHG_NONE;
 
 	/* need always polling the signal property, if isr enable,
 	 * it be called in isr
@@ -632,7 +635,6 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 					(signal_type & (~0xFF00)));
 			}
 		}
-		devp->prop.hdr_info.hdr_state = HDR_STATE_SET;
 	} else if (prop->hdr_info.hdr_state == HDR_STATE_NULL) {
 		devp->prop.vdin_hdr_flag = false;
 		signal_type &= ~(1 << 29);
@@ -825,7 +827,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 	prop = &devp->prop;
 	pre_prop = &devp->pre_prop;
 
-	signal_chg = tvin_hdmirx_signal_type_check(devp);
+	signal_chg = tvin_hdmirx_signal_type_check(devp, sm_p->state);
 
 	switch (sm_p->state) {
 	case TVIN_SM_STATUS_NOSIG:

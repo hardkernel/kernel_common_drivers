@@ -69,15 +69,17 @@ struct tvin_state_machine_ops_s {
 			      struct tvin_frontend_s *fe);
 	void (*vga_get_param)(struct tvafe_vga_parm_s *vga_parm,
 			      struct tvin_frontend_s *fe);
-	bool (*check_frame_skip)(struct tvin_frontend_s *fe);
+	bool (*check_frame_skip)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
 	bool (*get_secam_phase)(struct tvin_frontend_s *fe);
-	bool (*hdmi_dv_config)(bool en, struct tvin_frontend_s *fe);
-	bool (*hdmi_clr_vsync)(struct tvin_frontend_s *fe);
+	bool (*hdmi_dv_config)(bool en, struct tvin_frontend_s *fe,
+		enum tvin_port_type_e port_type);
+	bool (*hdmi_clr_vsync)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
 	bool (*vdin_set_property)(struct tvin_frontend_s *fe);
-	void (*hdmi_reset_pcs)(struct tvin_frontend_s *fe);
-	void (*hdmi_de_hactive)(bool en, struct tvin_frontend_s *fe);
-	bool (*hdmi_clr_pkts)(struct tvin_frontend_s *fe);
 	void (*frontend_clr_value)(struct tvin_frontend_s *fe);
+	void (*hdmi_reset_pcs)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
+	void (*hdmi_de_hactive)(bool en, struct tvin_frontend_s *fe,
+		enum tvin_port_type_e port_type);
+	bool (*hdmi_clr_pkts)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
 };
 
 struct tvin_frontend_s {

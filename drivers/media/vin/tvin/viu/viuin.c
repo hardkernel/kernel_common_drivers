@@ -987,7 +987,7 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 	prop->decimation_ratio = 0;
 }
 
-static bool viu_check_frame_skip(struct tvin_frontend_s *fe)
+static bool viu_check_frame_skip(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
 {
 	struct viuin_s *devp = container_of(fe, struct viuin_s, frontend);
 

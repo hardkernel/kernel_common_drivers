@@ -858,7 +858,8 @@ static void am656_clktree_control(struct am656in_dev_s *devp, int flag)
 /*
  * return true when need skip frame otherwise return false
  */
-static bool am656_check_skip_frame(struct tvin_frontend_s *fe)
+static bool am656_check_skip_frame(struct tvin_frontend_s *fe,
+	enum tvin_port_type_e port_type)
 {
 	struct am656in_dev_s *devp;
 

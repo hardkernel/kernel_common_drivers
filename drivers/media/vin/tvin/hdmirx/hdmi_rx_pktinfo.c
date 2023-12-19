@@ -715,6 +715,7 @@ void rx_pkt_initial(u8 port)
 	rx[i].vtem_info.vrr_en = false;
 	rx[i].emp_dv_info.flag = false;
 	rx[i].emp_cuva_info.flag = false;
+	rx_pkt_clr_attach_drm(port);
 
 	while (j < VSI_TYPE_MAX)
 		memset(&rx_pkt[i].multi_vs_info[j++], 0, sizeof(struct pd_infoframe_s));
