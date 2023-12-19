@@ -969,20 +969,38 @@ void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 {
 	struct am_hdmitx_connector_state *hdmitx_state =
 		to_am_hdmitx_connector_state(state);
+	struct hdmitx_common *common = am_hdmi_info.hdmitx_dev->hdmitx_common;
 
 	drm_printf(p, "\tdrm hdmitx state:\n");
-	drm_printf(p, "\t\t VRR_CAP:[%u]\n", am_hdmi_info.hdmitx_dev->get_vrr_cap ?
-		am_hdmi_info.hdmitx_dev->get_vrr_cap() : 0);
 	drm_printf(p, "\t\t android_path:[%d]\n", am_hdmi_info.android_path);
+	drm_printf(p, "\t\t VRR_CAP:[%u]\n", am_hdmi_info.hdmitx_dev->get_vrr_cap ?
+		   am_hdmi_info.hdmitx_dev->get_vrr_cap() : 0);
+	drm_printf(p, "\t\t hdr_cap:[%d]\n", get_hdr_info());
+	drm_printf(p, "\t\t dv_cap:[%d]\n", get_dv_info());
+	drm_printf(p, "\t\t contenttype_cap:[%d]\n",
+		   hdmitx_common_get_contenttypes());
+
+	drm_printf(p, "\t\t avmute:[%d]\n", hdmitx_state->avmute);
+	drm_printf(p, "\t\t hdmi_hdr_status:[%d]\n",
+		   am_hdmi_info.hdmitx_dev->get_hdmi_hdr_status());
+	drm_printf(p, "\t\t hdr_policy[%d]\n", hdmitx_state->pref_hdr_policy);
+	drm_printf(p, "\t\t allm_mode:[%d]\n", hdmitx_state->allm_mode);
+
+	drm_printf(p, "\t\t hdcp_ver:[%d]\n", hdcp_rx_ver());
+	drm_printf(p, "\t\t hdcp_mode:[%d]\n", get_hdcp_mode());
 	drm_printf(p, "\t\t hdcp_state:[%d]\n", am_hdmi_info.hdcp_state);
-	drm_printf(p, "\t\t color attr:[%d,%d], hdr_policy[%d]\n",
-		hdmitx_state->color_attr_para.colorformat,
-		hdmitx_state->color_attr_para.bitdepth,
-		hdmitx_state->pref_hdr_policy);
-	drm_printf(p, "\t\tdrm hdmitx timing state:\n");
-	drm_printf(p, "\t\t\t vic:[%d], cs:[%d], cd:[%d], name:[%s]\n",
+
+	drm_printf(p, "\t\t drm raw property:\n");
+	drm_printf(p, "\t\t\t cs: [%d], cd: [%d], hdr_priority: [%d]\n",
+		   hdmitx_state->color_attr_para.colorformat,
+		   hdmitx_state->color_attr_para.bitdepth,
+		   hdmitx_state->hdr_priority);
+
+	drm_printf(p, "\t\t drm to hdmitx timing state:\n");
+	drm_printf(p, "\t\t\t vic:[%d], cs:[%d], cd:[%d], name:[%s]",
 		   hdmitx_state->hcs.para.vic, hdmitx_state->hcs.para.cs,
 		   hdmitx_state->hcs.para.cd, hdmitx_state->hcs.para.name);
+	drm_printf(p, "\t\t\t frac_rate_policy:[%d]\n", common->frac_rate_policy);
 }
 
 static bool meson_hdmitx_is_hdcp_running(void)
