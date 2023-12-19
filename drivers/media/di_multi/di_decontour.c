@@ -843,9 +843,12 @@ static void decontour_uninit(struct di_ch_s *pch)
 		pdct->plink = false;
 		pre_link = true;
 	} else {
-		if (pdct->decontour_addr)
+		if (pdct->decontour_addr) {
+			dbg_dctp("dctp:alloc success %lx, state=%d\n",
+				pdct->decontour_addr, dct->state);
 			codec_mm_free_for_dma("di-decontour",
 				pdct->decontour_addr);
+		}
 	}
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_MEM);
 	vfree(pdct);
@@ -856,7 +859,7 @@ static void decontour_uninit(struct di_ch_s *pch)
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_ACT);
 	if (!dct->src_cnt && pre_link)
 		dct_unreg_all();
-	PR_INF("ch[%d]decontour: uninit %px pre-link:%d\n", pch->ch_id, pdct, pre_link);
+	PR_INF("ch[%d]decontour: uninit %px pre-link:%d,%d\n", pch->ch_id, pdct, pre_link,dct->state);
 }
 
 void dct_pre_plink_unreg_mem(struct di_ch_s *pch)
@@ -2246,6 +2249,13 @@ static bool dct_m_check(void)
 		return true;
 	}
 
+	if (get_flag_trig_unreg(dct->curr_ch)) {
+		dct->state--;
+		PR_INF("%s:ch[%d]:stat[%d]\n",
+			       __func__, dct->curr_ch, dct->state);
+		return true;
+	}
+
 	if (dct_check_need_bypass(pch, vf)) {
 		dbg_dbg("m_check:bypass:0x%x\n",
 			get_datal()->hw_dct.sbypass_reason);
@@ -2271,7 +2281,8 @@ static bool dct_m_check(void)
 	/*state*/
 	dct->state++;
 	reflesh = true;
-
+	dbg_dctp("dctp:state %x\n",
+			 dct->state);
 	return reflesh;
 }
 
@@ -2314,6 +2325,25 @@ static bool dct_m_step(void)
 	}
 
 	return false;
+}
+
+bool dct_can_exit(unsigned int ch)
+{
+	struct di_hdct_s  *dct;
+	bool ret = true;
+
+	if (IS_IC_SUPPORT(DECONTOUR)) {
+		dct = &get_datal()->hw_dct;
+
+		if (dct && ch == dct->curr_ch &&
+			dct->state == EDI_DCT_DO_TABLE)
+			ret = false;
+		if (!ret)
+			PR_INF("%s:ch[%d]:stat[%d]\n",
+			       __func__, ch, dct->state);
+	}
+
+	return ret;
 }
 
 static void dct_main_process(void)
