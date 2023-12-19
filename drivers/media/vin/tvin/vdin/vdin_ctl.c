@@ -7314,10 +7314,13 @@ void vdin_dmc_ctrl(struct vdin_dev_s *devp, bool on_off)
 void vdin_sw_reset(struct vdin_dev_s *devp)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_meson_s5_cpu())
+	if (is_meson_s5_cpu()) {
 		vdin_sw_reset_s5(devp);
-	else if (is_meson_t3x_cpu())
+		return;
+	} else if (is_meson_t3x_cpu()) {
 		vdin_sw_reset_t3x(devp);
+		return;
+	}
 #endif
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T5))
 		return;

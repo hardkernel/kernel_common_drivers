@@ -3713,13 +3713,13 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		goto irq_handled;
 	}
 
-	if (!vdin_is_input_valid(devp)) {
+	if (!vdin_is_input_valid(devp) &&
+		(devp->vdin_function_sel & VDIN_NOT_DATA_INPUT_DROP)) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_FAKE_IRQ;
 		vdin_drop_frame_info(devp, "no data input");
 		if (vdin_dbg_en & 0x10)
 			devp->frame_drop_num = 6;
-		if (devp->vdin_function_sel & VDIN_NOT_DATA_INPUT_DROP)
-			goto irq_handled;
+		goto irq_handled;
 	}
 
 	/* protect mem will fail sometimes due to no res from tee module */

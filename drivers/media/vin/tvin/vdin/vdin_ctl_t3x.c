@@ -3796,7 +3796,7 @@ unsigned int vdin_get_div_t3x(struct vdin_dev_s *devp)
 	else
 		return 1;
 
-	if (vinfo && vinfo->cur_enc_ppc == 2)
+	if (vinfo && (vinfo->cur_enc_ppc == 2 || vinfo->cur_enc_ppc == 1))
 		div_val = 2;
 	else if (vinfo && vinfo->cur_enc_ppc == 4)
 		div_val = 4;
