@@ -935,10 +935,10 @@ again:
 			job->ret = 0;
 			list_add(&job->list, &work_list);
 			spin_unlock(&work_list_lock);
-			cma_debug(1, pfn_to_page(pfn), "contig migrate failed\n");
+			cma_debug(1, pfn_to_page(pfn), "contig migrate ebusy\n");
 			goto again;
 		} else {
-			pr_err("failed, ret:%d\n", ret);
+			pr_err("cma alloc contig failed, ret:%d\n", ret);
 		}
 next:
 		complete(&c_work->end);
@@ -1025,7 +1025,7 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 	}
 	spin_lock(&work_list_lock);
 	if (!list_empty(&work_list))
-		list_del_init(&work_list);
+		INIT_LIST_HEAD(&work_list);
 	for (i = 0; i < cnt; i++) {
 		INIT_LIST_HEAD(&job[i].list);
 		job[i].pfn   = start_pfn + i * delta;
