@@ -1325,6 +1325,16 @@ bool is_bandwidth_policy_hit(u8 layer_id)
 				(vinfo->width < 3840 && vinfo->height < 2160))
 				return true;
 		}
+		if (video_is_meson_t3x_cpu() && layer_id == 1) {
+			layer = get_vd_layer(layer_id);
+			if (is_layer_8k_to_4k_input(layer->layer_id)) {
+				vd_layer[layer_id].property_changed = true;
+				if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+					pr_info("vd%d hit larger than 8k to 4k input!\n",
+						layer_id);
+				return true;
+			}
+		}
 	}
 	return false;
 }
