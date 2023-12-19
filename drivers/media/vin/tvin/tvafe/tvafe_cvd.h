@@ -182,6 +182,7 @@ struct tvafe_cvd2_s {
 	unsigned int fmt_loop_cnt;
 	unsigned int smr_cnt;
 	unsigned int cvd_chroma_saturation;
+	unsigned int det_secam_cnt; //for secam detected error
 	unsigned char hw_data_cur;
 	enum tvin_port_e vd_port;
 	enum tvin_sig_fmt_e config_fmt;
@@ -220,6 +221,7 @@ void tvafe_cvd2_reset_pga(void);
 enum tvafe_cvbs_video_e tvafe_cvd2_get_lock_status(struct tvafe_cvd2_s *cvd2);
 int tvafe_cvd2_get_atv_format(void);
 int tvafe_cvd2_get_hv_lock(void);
+int tvafe_cvd2_get_force_format(void);
 void tvafe_cvd2_hold_rst(void);
 void tvafe_snow_config(unsigned int onoff);
 void tvafe_snow_config_clamp(unsigned int onoff);
