@@ -1,0 +1,988 @@
+From ec8affa5864a374bc0b2cea7b550ccbb5460c4ca Mon Sep 17 00:00:00 2001
+From: Jianxiong Pan <jianxiong.pan@amlogic.com>
+Date: Tue, 19 Dec 2023 15:33:46 +0800
+Subject: [PATCH] mm: porting CMA optimization from 5.15 [1/2]
+
+PD#SWPL-150034
+
+Problem:
+No cma optimization on 6.6
+
+Solution:
+1, kernel only allow zram/anon pages use cma, new solution all
+   all movable pages can use cma;
+2, add __GFP_NO_CMAto tell buddy system which cases can't use
+   cma;
+3, keep high reference/active file cache pages when cma allocating;
+4, hook real cma allocate/release interface to aml_cma.c, which can
+   use boost mode when allocate large amount of cma;
+5, count cma isolated pages to avoid deadloop congestion wait in kswapd
+   or compaction case;
+6, keep cma-unsuitable pages not compacte to cma area;
+
+Verify:
+local
+
+Change-Id: I9e526da0a66738d8645d5f5e6f1d5abca0f09ad0
+Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
+---
+ arch/arm/mm/dma-mapping.c |   4 ++
+ block/bdev.c              |   4 ++
+ drivers/usb/host/xhci.c   |   4 ++
+ include/linux/gfp_types.h |  14 ++++++
+ mm/cma.c                  |  65 +++++++++++++++++++++++++
+ mm/compaction.c           | 100 ++++++++++++++++++++++++++++++++++++++
+ mm/ksm.c                  |  11 +++++
+ mm/memory.c               |  18 +++++++
+ mm/migrate.c              |  43 ++++++++++++++++
+ mm/page_alloc.c           |  92 +++++++++++++++++++++++++++++++++++
+ mm/readahead.c            |   5 ++
+ mm/shmem.c                |  12 +++++
+ mm/swap_state.c           |   4 ++
+ mm/vmscan.c               |  17 +++++++
+ 14 files changed, 393 insertions(+)
+
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index 5409225b4abc..ee736b9082f1 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -572,6 +572,10 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
+ 	allowblock = gfpflags_allow_blocking(gfp);
+ 	cma = allowblock ? dev_get_cma_area(dev) : NULL;
+ 
++	#ifdef CONFIG_AMLOGIC_NO_CMA
++	if (!!(gfp & __GFP_NO_CMA))
++		cma = false;
++	#endif
+ 	if (cma)
+ 		buf->allocator = &cma_allocator;
+ 	else if (is_coherent)
+diff --git a/block/bdev.c b/block/bdev.c
+index f3b13aa1b7d4..c3beb4756e11 100644
+--- a/block/bdev.c
++++ b/block/bdev.c
+@@ -393,7 +393,11 @@ struct block_device *bdev_alloc(struct gendisk *disk, u8 partno)
+ 	inode->i_mode = S_IFBLK;
+ 	inode->i_rdev = 0;
+ 	inode->i_data.a_ops = &def_blk_aops;
++#ifdef CONFIG_AMLOGIC_NO_CMA
++	mapping_set_gfp_mask(&inode->i_data, GFP_USER | __GFP_NO_CMA);
++#else
+ 	mapping_set_gfp_mask(&inode->i_data, GFP_USER);
++#endif
+ 
+ 	bdev = I_BDEV(inode);
+ 	mutex_init(&bdev->bd_fsfreeze_mutex);
+diff --git a/drivers/usb/host/xhci.c b/drivers/usb/host/xhci.c
+index e1b1b64a0723..cd93521cc4cf 100644
+--- a/drivers/usb/host/xhci.c
++++ b/drivers/usb/host/xhci.c
+@@ -1909,7 +1909,11 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
+ 	 * process context, not interrupt context (or so documenation
+ 	 * for usb_set_interface() and usb_set_configuration() claim).
+ 	 */
++	#ifdef CONFIG_AMLOGIC_NO_CMA
++	if (xhci_endpoint_init(xhci, virt_dev, udev, ep, GFP_NOIO | __GFP_NO_CMA) < 0) {
++	#else
+ 	if (xhci_endpoint_init(xhci, virt_dev, udev, ep, GFP_NOIO) < 0) {
++	#endif
+ 		dev_dbg(&udev->dev, "%s - could not initialize ep %#x\n",
+ 				__func__, ep->desc.bEndpointAddress);
+ 		return -ENOMEM;
+diff --git a/include/linux/gfp_types.h b/include/linux/gfp_types.h
+index 6583a58670c5..c1911449dcae 100644
+--- a/include/linux/gfp_types.h
++++ b/include/linux/gfp_types.h
+@@ -53,8 +53,15 @@ typedef unsigned int __bitwise gfp_t;
+ #define ___GFP_SKIP_ZERO	0
+ #define ___GFP_SKIP_KASAN	0
+ #endif
++#ifdef CONFIG_AMLOGIC_NO_CMA
++#define ___GFP_NO_CMA           0x4000000u
++#endif
+ #ifdef CONFIG_LOCKDEP
++#ifdef CONFIG_AMLOGIC_NO_CMA
++#define ___GFP_NOLOCKDEP	0x8000000u
++#else
+ #define ___GFP_NOLOCKDEP	0x4000000u
++#endif
+ #else
+ #define ___GFP_NOLOCKDEP	0
+ #endif
+@@ -72,6 +79,9 @@ typedef unsigned int __bitwise gfp_t;
+ #define __GFP_DMA32	((__force gfp_t)___GFP_DMA32)
+ #define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
+ #define GFP_ZONEMASK	(__GFP_DMA|__GFP_HIGHMEM|__GFP_DMA32|__GFP_MOVABLE)
++#ifdef CONFIG_AMLOGIC_NO_CMA
++#define __GFP_NO_CMA    ((__force gfp_t)___GFP_NO_CMA)
++#endif
+ 
+ /**
+  * DOC: Page mobility and placement hints
+@@ -249,7 +259,11 @@ typedef unsigned int __bitwise gfp_t;
+ #define __GFP_NOLOCKDEP ((__force gfp_t)___GFP_NOLOCKDEP)
+ 
+ /* Room for N __GFP_FOO bits */
++#ifdef CONFIG_AMLOGIC_NO_CMA
++#define __GFP_BITS_SHIFT (27 + IS_ENABLED(CONFIG_LOCKDEP))
++#else
+ #define __GFP_BITS_SHIFT (26 + IS_ENABLED(CONFIG_LOCKDEP))
++#endif
+ #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+ 
+ /**
+diff --git a/mm/cma.c b/mm/cma.c
+index 5fb32c23591c..0093ac35899b 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -36,6 +36,16 @@
+ #include <linux/jiffies.h>
+ #include <trace/events/cma.h>
+ 
++#ifdef CONFIG_AMLOGIC_CMA
++#include <linux/amlogic/aml_cma.h>
++#include <linux/delay.h>
++#include <linux/sched/clock.h>
++#endif /* CONFIG_AMLOGIC_CMA */
++
++#ifdef CONFIG_AMLOGIC_SEC
++#include <linux/amlogic/secmon.h>
++#endif
++
+ #include "internal.h"
+ #include "cma.h"
+ 
+@@ -154,9 +164,23 @@ static int __init cma_init_reserved_areas(void)
+ 	for (i = 0; i < cma_area_count; i++)
+ 		cma_activate_area(&cma_areas[i]);
+ 
++#ifdef CONFIG_AMLOGIC_SEC
++	/*
++	 * A73 cache speculate prefetch may cause SError when boot.
++	 * because it may prefetch cache line in secure memory range
++	 * which have already reserved by bootloader. So we must
++	 * clear mmu of secmon range before A73 core boot up
++	 */
++	secmon_clear_cma_mmu();
++#endif
+ 	return 0;
+ }
++
++#ifdef CONFIG_AMLOGIC_CMA
++early_initcall(cma_init_reserved_areas);
++#else
+ core_initcall(cma_init_reserved_areas);
++#endif
+ 
+ void __init cma_reserve_pages_on_error(struct cma *cma)
+ {
+@@ -442,6 +466,13 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+ 	int ret = -ENOMEM;
+ 	int num_attempts = 0;
+ 	int max_retries = 5;
++#ifdef CONFIG_AMLOGIC_CMA
++	int dummy;
++	unsigned long tick = 0;
++	unsigned long long in_tick, timeout;
++
++	in_tick = sched_clock();
++#endif
+ 
+ 	if (!cma || !cma->count || !cma->bitmap)
+ 		goto out;
+@@ -449,6 +480,13 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+ 	pr_debug("%s(cma %p, name: %s, count %lu, align %d)\n", __func__,
+ 		(void *)cma, cma->name, count, align);
+ 
++#ifdef CONFIG_AMLOGIC_CMA
++	cma_debug(0, NULL, "(cma %p, count %lu, align %d)\n",
++		  (void *)cma, count, align);
++	in_tick = sched_clock();
++	timeout = 2ULL * 1000000 * (1 + ((count * PAGE_SIZE) >> 20));
++#endif
++
+ 	if (!count)
+ 		goto out;
+ 
+@@ -462,6 +500,10 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+ 	if (bitmap_count > bitmap_maxno)
+ 		goto out;
+ 
++#ifdef CONFIG_AMLOGIC_CMA
++	aml_cma_alloc_pre_hook(&dummy, count, &tick);
++#endif /* CONFIG_AMLOGIC_CMA */
++
+ 	for (;;) {
+ 		spin_lock_irq(&cma->lock);
+ 		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,
+@@ -501,8 +543,13 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+ 
+ 		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
+ 		mutex_lock(&cma_mutex);
++	#ifdef CONFIG_AMLOGIC_CMA
++		ret = aml_cma_alloc_range(pfn, pfn + count, MIGRATE_CMA,
++				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
++	#else
+ 		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
+ 				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
++	#endif
+ 		mutex_unlock(&cma_mutex);
+ 		if (ret == 0) {
+ 			page = pfn_to_page(pfn);
+@@ -518,8 +565,19 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+ 
+ 		trace_cma_alloc_busy_retry(cma->name, pfn, pfn_to_page(pfn),
+ 					   count, align);
++	#ifndef CONFIG_AMLOGIC_CMA
+ 		/* try again with a bit different memory target */
+ 		start = bitmap_no + mask + 1;
++	#else
++		/*
++		 * CMA allocation time out, for example:
++		 * 1. set isolation failed.
++		 * 2. refcout and mapcount mismatch.
++		 * may blocked on some pages, relax CPU and try later.
++		 */
++		if ((sched_clock() - in_tick) >= timeout)
++			usleep_range(1000, 2000);
++	#endif
+ 	}
+ 
+ 	trace_cma_alloc_finish(cma->name, pfn, page, count, align, ret);
+@@ -550,6 +608,9 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+ 		if (cma)
+ 			cma_sysfs_account_fail_pages(cma, count);
+ 	}
++#ifdef CONFIG_AMLOGIC_CMA
++	aml_cma_alloc_post_hook(&dummy, count, page, tick, ret);
++#endif
+ 
+ 	return page;
+ }
+@@ -598,7 +659,11 @@ bool cma_release(struct cma *cma, const struct page *pages,
+ 
+ 	VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
+ 
++#ifdef CONFIG_AMLOGIC_CMA
++	aml_cma_free(pfn, count, 1);
++#else
+ 	free_contig_range(pfn, count);
++#endif
+ 	cma_clear_bitmap(cma, pfn, count);
+ 	trace_cma_release(cma->name, pfn, pages, count);
+ 
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 1c9b1c7309e2..2295594a1f12 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -28,6 +28,9 @@
+ #ifdef CONFIG_AMLOGIC_PAGE_TRACE
+ #include <linux/amlogic/page_trace.h>
+ #endif
++#ifdef CONFIG_AMLOGIC_CMA
++#include <linux/amlogic/aml_cma.h>
++#endif
+ 
+ #ifdef CONFIG_COMPACTION
+ /*
+@@ -814,6 +817,9 @@ static bool too_many_isolated(struct compact_control *cc)
+ 		active >>= 3;
+ 	}
+ 
++#ifdef CONFIG_AMLOGIC_CMA_INFO
++	check_cma_isolated(&isolated, active, inactive);
++#endif
+ 	too_many = isolated > (inactive + active) / 2;
+ 	if (!too_many)
+ 		wake_throttle_isolated(pgdat);
+@@ -925,6 +931,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 				cc->contended = true;
+ 				ret = -EINTR;
+ 
++			#ifdef CONFIG_AMLOGIC_CMA_INFO
++				if (cc->alloc_contig)
++					cma_debug(1, page, "abort by sig, low_pfn:%lx, swap:%ld\n",
++						  low_pfn, SWAP_CLUSTER_MAX);
++			#endif
+ 				goto fatal_pending;
+ 			}
+ 
+@@ -946,6 +957,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 			if (!isolation_suitable(cc, page)) {
+ 				low_pfn = end_pfn;
+ 				folio = NULL;
++			#ifdef CONFIG_AMLOGIC_CMA_INFO
++				if (cc->alloc_contig)
++					cma_debug(1, page, "abort by skip, low_pfn:%lx\n",
++							low_pfn);
++			#endif
+ 				goto isolate_abort;
+ 			}
+ 			valid_page = page;
+@@ -969,6 +985,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 					ret = 0;
+ 				low_pfn += compound_nr(page) - 1;
+ 				nr_scanned += compound_nr(page) - 1;
++			#ifdef CONFIG_AMLOGIC_CMA_INFO
++				if (cc->alloc_contig)
++					cma_debug(1, page, "abort by huge, low_pfn:%lx\n",
++							low_pfn);
++			#endif
+ 				goto isolate_fail;
+ 			}
+ 
+@@ -1026,6 +1047,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 				low_pfn += (1UL << order) - 1;
+ 				nr_scanned += (1UL << order) - 1;
+ 			}
++		#ifdef CONFIG_AMLOGIC_CMA_INFO
++			if (cc->alloc_contig)
++				cma_debug(1, page, "abort by compound, low_pfn:%lx\n",
++						low_pfn);
++		#endif
+ 			goto isolate_fail;
+ 		}
+ 
+@@ -1051,6 +1077,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 					goto isolate_success;
+ 				}
+ 			}
++		#ifdef CONFIG_AMLOGIC_CMA_INFO
++			if (cc->alloc_contig && page_count(page))
++				cma_debug(1, page, "abort by LRU, low_pfn:%lx\n",
++						low_pfn);
++		#endif
+ 
+ 			goto isolate_fail;
+ 		}
+@@ -1069,16 +1100,36 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		 * so avoid taking lru_lock and isolating it unnecessarily in an
+ 		 * admittedly racy check.
+ 		 */
++	#ifdef CONFIG_AMLOGIC_CMA
++		mapping = folio_mapping(folio);
++		if (!mapping && (folio_ref_count(folio) - 1) > folio_mapcount(folio)) {
++			if (cc->alloc_contig)
++				cma_debug(1, page, "mc/rc miss match, low_pfn:%lx\n",
++						low_pfn);
++			goto isolate_fail_put;
++		}
++		check_page_to_cma(cc, mapping, folio);
++	#else
+ 		mapping = folio_mapping(folio);
+ 		if (!mapping && (folio_ref_count(folio) - 1) > folio_mapcount(folio))
+ 			goto isolate_fail_put;
++	#endif
+ 
+ 		/*
+ 		 * Only allow to migrate anonymous pages in GFP_NOFS context
+ 		 * because those do not depend on fs locks.
+ 		 */
++	#ifdef CONFIG_AMLOGIC_CMA_INFO
++		if (!(cc->gfp_mask & __GFP_FS) && mapping) {
++			if (cc->alloc_contig)
++				cma_debug(1, page, "no fs ctx, low_pfn:%lx\n",
++						low_pfn);
++			goto isolate_fail_put;
++		}
++	#else
+ 		if (!(cc->gfp_mask & __GFP_FS) && mapping)
+ 			goto isolate_fail_put;
++	#endif
+ 
+ 		/* Only take pages on LRU: a check now makes later tests safe */
+ 		if (!folio_test_lru(folio))
+@@ -1094,8 +1145,17 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		 * it will be able to migrate without blocking - clean pages
+ 		 * for the most part.  PageWriteback would require blocking.
+ 		 */
++	#ifdef CONFIG_AMLOGIC_CMA_INFO
++		if ((mode & ISOLATE_ASYNC_MIGRATE) && folio_test_writeback(folio)) {
++			if (cc->alloc_contig)
++				cma_debug(1, page, "isolate fail, low_pfn:%lx",
++						low_pfn);
++			goto isolate_fail_put;
++		}
++	#else
+ 		if ((mode & ISOLATE_ASYNC_MIGRATE) && folio_test_writeback(folio))
+ 			goto isolate_fail_put;
++	#endif
+ 
+ 		if ((mode & ISOLATE_ASYNC_MIGRATE) && folio_test_dirty(folio)) {
+ 			bool migrate_dirty;
+@@ -1121,8 +1181,17 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		}
+ 
+ 		/* Try isolate the folio */
++	#ifdef CONFIG_AMLOGIC_CMA_INFO
++		if (!folio_test_clear_lru(folio)) {
++			if (cc->alloc_contig)
++				cma_debug(1, page, "clear lru fail, low_pfn:%lx",
++						low_pfn);
++			goto isolate_fail_put;
++		}
++	#else
+ 		if (!folio_test_clear_lru(folio))
+ 			goto isolate_fail_put;
++	#endif
+ 
+ 		lruvec = folio_lruvec(folio);
+ 
+@@ -1143,11 +1212,22 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 			 */
+ 			if (!skip_updated && valid_page) {
+ 				skip_updated = true;
++			#ifdef CONFIG_AMLOGIC_CMA_INFO
+ 				if (test_and_set_skip(cc, valid_page) &&
+ 				    !cc->finish_pageblock) {
++					if (cc->alloc_contig)
++						cma_debug(1, page, "skip fail, low_pfn:%lx",
++								low_pfn);
+ 					low_pfn = end_pfn;
+ 					goto isolate_abort;
+ 				}
++			#else
++				if (test_and_set_skip(cc, valid_page) &&
++				    !cc->finish_pageblock) {
++					low_pfn = end_pfn;
++					goto isolate_abort;
++				}
++			#endif
+ 			}
+ 
+ 			/*
+@@ -1649,6 +1729,9 @@ static void isolate_freepages(struct compact_control *cc)
+ 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
+ 	struct list_head *freelist = &cc->freepages;
+ 	unsigned int stride;
++#ifdef CONFIG_AMLOGIC_CMA
++	int migrate_type;
++#endif /* CONFIG_AMLOGIC_CMA */
+ 
+ 	/* Try a small search of the free lists for a candidate */
+ 	fast_isolate_freepages(cc);
+@@ -1711,6 +1794,16 @@ static void isolate_freepages(struct compact_control *cc)
+ 		if (!isolation_suitable(cc, page))
+ 			continue;
+ 
++	#ifdef CONFIG_AMLOGIC_CMA
++		/* avoid compact to cma area */
++		migrate_type = get_pageblock_migratetype(page);
++		if (is_migrate_isolate(migrate_type))
++			continue;
++		if (is_migrate_cma(migrate_type) &&
++		    test_bit(FORBID_TO_CMA_BIT, &cc->total_migrate_scanned))
++			continue;
++	#endif /* CONFIG_AMLOGIC_CMA */
++
+ 		/* Found a block suitable for isolating free pages from. */
+ 		nr_isolated = isolate_freepages_block(cc, &isolate_start_pfn,
+ 					block_end_pfn, freelist, stride, false);
+@@ -1776,9 +1869,13 @@ static struct folio *compaction_alloc(struct folio *src, unsigned long data)
+ 			return NULL;
+ 	}
+ 
++#ifdef CONFIG_AMLOGIC_CMA
++	dst = get_compact_page(src, cc);
++#else
+ 	dst = list_entry(cc->freepages.next, struct folio, lru);
+ 	list_del(&dst->lru);
+ 	cc->nr_freepages--;
++#endif
+ #ifdef CONFIG_AMLOGIC_PAGE_TRACE
+ 	replace_page_trace(folio_page(dst, 0), folio_page(src, 0));
+ #endif
+@@ -2611,6 +2708,9 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
+ 			cc->zone->compact_cached_free_pfn = free_pfn;
+ 	}
+ 
++#ifdef CONFIG_AMLOGIC_CMA
++	__clear_bit(FORBID_TO_CMA_BIT, &cc->total_migrate_scanned);
++#endif
+ 	count_compact_events(COMPACTMIGRATE_SCANNED, cc->total_migrate_scanned);
+ 	count_compact_events(COMPACTFREE_SCANNED, cc->total_free_scanned);
+ 
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 981af9c72e7a..53c545cb4da9 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -2215,6 +2215,17 @@ static void cmp_and_merge_page(struct page *page, struct ksm_rmap_item *rmap_ite
+ 	}
+ 	tree_rmap_item =
+ 		unstable_tree_search_insert(rmap_item, page, &tree_page);
++#ifdef CONFIG_AMLOGIC_CMA
++	/*
++	 * Now page is inserted to unstable tree, but do not
++	 * let cma page to be kpage, it can be merged with other pages
++	 */
++	if (cma_page(page)) {
++		if (tree_rmap_item)
++			put_page(tree_page);
++		return;
++	}
++#endif /* CONFIG_AMLOGIC_CMA */
+ 	if (tree_rmap_item) {
+ 		bool split;
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index a76bed01cc73..fa1fdc91226b 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3071,12 +3071,24 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
+ 		goto oom;
+ 
+ 	if (is_zero_pfn(pte_pfn(vmf->orig_pte))) {
++	#ifdef CONFIG_AMLOGIC_NO_CMA
++		gfp_t tmp_flags = GFP_HIGHUSER_MOVABLE |
++				__GFP_ZERO | __GFP_NO_CMA;
++
++		new_folio = vma_alloc_folio(tmp_flags, 0, vma, vmf->address, false);
++	#else
+ 		new_folio = vma_alloc_zeroed_movable_folio(vma, vmf->address);
++	#endif
+ 		if (!new_folio)
+ 			goto oom;
+ 	} else {
++	#ifdef CONFIG_AMLOGIC_NO_CMA
++		new_folio = vma_alloc_folio(GFP_HIGHUSER_MOVABLE | __GFP_NO_CMA, 0, vma,
++				vmf->address, false);
++	#else
+ 		new_folio = vma_alloc_folio(GFP_HIGHUSER_MOVABLE, 0, vma,
+ 				vmf->address, false);
++	#endif
+ 		if (!new_folio)
+ 			goto oom;
+ 
+@@ -5050,6 +5062,12 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
+ 	p4d_t *p4d;
+ 	vm_fault_t ret;
+ 
++#ifdef CONFIG_AMLOGIC_NO_CMA
++	if (vma->vm_file && vma->vm_file->f_mapping &&
++			(vma->vm_flags & VM_EXEC))
++		vma->vm_file->f_mapping->gfp_mask |= __GFP_NO_CMA;
++#endif
++
+ 	pgd = pgd_offset(mm, address);
+ 	p4d = p4d_alloc(mm, pgd, address);
+ 	if (!p4d)
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 06086dc9da28..b3109bff25ad 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -50,6 +50,10 @@
+ #include <linux/random.h>
+ #include <linux/sched/sysctl.h>
+ #include <linux/memory-tiers.h>
++#ifdef CONFIG_AMLOGIC_CMA
++#include <linux/amlogic/aml_cma.h>
++#include <linux/delay.h>
++#endif
+ 
+ #include <asm/tlbflush.h>
+ 
+@@ -307,6 +311,10 @@ void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+ 	pte_t *ptep;
+ 	pte_t pte;
+ 	swp_entry_t entry;
++#ifdef CONFIG_AMLOGIC_CMA
++	struct page *page;
++	bool need_wait = 0;
++#endif
+ 
+ 	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 	if (!ptep)
+@@ -322,10 +330,26 @@ void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+ 	if (!is_migration_entry(entry))
+ 		goto out;
+ 
++#ifdef CONFIG_AMLOGIC_CMA
++	/* This page is under cma allocating, do not increase it ref */
++	page = pfn_swap_entry_to_page(entry);
++	if (in_cma_allocating(page)) {
++		pr_debug("%s, Page:%lx, flags:%lx, m:%d, c:%d, map:%p\n",
++			__func__, page_to_pfn(page), page->flags,
++			page_mapcount(page), page_count(page),
++			page->mapping);
++		need_wait = 1;
++		goto out;
++	}
++#endif
+ 	migration_entry_wait_on_locked(entry, ptl);
+ 	return;
+ out:
+ 	spin_unlock(ptl);
++#ifdef CONFIG_AMLOGIC_CMA
++	if (need_wait)
++		usleep_range(1000, 1100);
++#endif
+ }
+ 
+ #ifdef CONFIG_HUGETLB_PAGE
+@@ -408,6 +432,11 @@ int folio_migrate_mapping(struct address_space *mapping,
+ 
+ 	if (!mapping) {
+ 		/* Anonymous page without mapping */
++	#ifdef CONFIG_AMLOGIC_CMA_INFO
++		if (folio_ref_count(folio) != expected_count)
++			cma_debug(2, folio_page(folio, 0), " anon page cnt miss match, e:%d\n",
++					expected_count);
++	#endif
+ 		if (folio_ref_count(folio) != expected_count)
+ 			return -EAGAIN;
+ 
+@@ -426,6 +455,10 @@ int folio_migrate_mapping(struct address_space *mapping,
+ 	xas_lock_irq(&xas);
+ 	if (!folio_ref_freeze(folio, expected_count)) {
+ 		xas_unlock_irq(&xas);
++	#ifdef CONFIG_AMLOGIC_CMA_INFO
++		cma_debug(2, folio_page(folio, 0), " page free fail, e:%d, p:%d\n",
++				expected_count, folio_has_private(folio));
++	#endif
+ 		return -EAGAIN;
+ 	}
+ 
+@@ -1704,6 +1737,10 @@ static int migrate_pages_batch(struct list_head *from,
+ 				/* nr_failed isn't updated for not used */
+ 				stats->nr_thp_failed += thp_retry;
+ 				rc_saved = rc;
++			#ifdef CONFIG_AMLOGIC_CMA_INFO
++				if (list_empty(&unmap_folios))
++					cma_debug(2, folio_page(folio, 0), " NO MEM\n");
++			#endif
+ 				if (list_empty(&unmap_folios))
+ 					goto out;
+ 				else
+@@ -1731,6 +1768,9 @@ static int migrate_pages_batch(struct list_head *from,
+ 				nr_failed++;
+ 				stats->nr_thp_failed += is_thp;
+ 				stats->nr_failed_pages += nr_pages;
++			#ifdef CONFIG_AMLOGIC_CMA_INFO
++				cma_debug(2, folio_page(folio, 0), " migrate unmap failed:%d\n", rc);
++			#endif
+ 				break;
+ 			}
+ 		}
+@@ -1779,6 +1819,9 @@ static int migrate_pages_batch(struct list_head *from,
+ 				nr_failed++;
+ 				stats->nr_thp_failed += is_thp;
+ 				stats->nr_failed_pages += nr_pages;
++			#ifdef CONFIG_AMLOGIC_CMA_INFO
++				cma_debug(2, folio_page(folio, 0), " migrate move failed:%d\n", rc);
++			#endif
+ 				break;
+ 			}
+ 			dst = dst2;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ae30b86ec4a6..b773ecc54014 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -60,6 +60,9 @@
+ #ifdef CONFIG_AMLOGIC_PAGE_TRACE
+ #include <linux/amlogic/page_trace.h>
+ #endif
++#ifdef CONFIG_AMLOGIC_CMA
++#include <linux/amlogic/aml_cma.h>
++#endif
+ 
+ /* Free Page Internal flags: for internal, non-pcp variants of free_pages(). */
+ typedef int __bitwise fpi_t;
+@@ -2122,6 +2125,32 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
+ 	return page;
+ }
+ 
++#ifdef CONFIG_AMLOGIC_NO_CMA
++/*
++ * get page but not cma
++ */
++static struct page *rmqueue_no_cma(struct zone *zone, unsigned int order,
++				   int migratetype, unsigned int alloc_flags)
++{
++	struct page *page;
++	unsigned long flags;
++
++	spin_lock_irqsave(&zone->lock, flags);
++retry:
++	page = __rmqueue_smallest(zone, order, migratetype);
++	if (unlikely(!page)) {
++		if (!page && __rmqueue_fallback(zone, order, migratetype, alloc_flags))
++			goto retry;
++	}
++	WARN_ON(page && is_migrate_cma(get_pcppage_migratetype(page)));
++	if (page)
++		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << order));
++
++	spin_unlock_irqrestore(&zone->lock, flags);
++	return page;
++}
++#endif /* CONFIG_AMLOGIC_NO_CMA */
++
+ /*
+  * Obtain a specified number of elements from the buddy allocator, all under
+  * a single hold of the lock, for efficiency.  Add them to the supplied list.
+@@ -2679,14 +2708,27 @@ struct page *rmqueue_buddy(struct zone *preferred_zone, struct zone *zone,
+ }
+ 
+ /* Remove page from the per-cpu list, caller must protect the list */
++#ifdef CONFIG_AMLOGIC_NO_CMA
++static inline
++struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
++			int migratetype,
++			unsigned int alloc_flags,
++			struct per_cpu_pages *pcp,
++			struct list_head *list,
++			gfp_t gfp_flags)
++#else
+ static inline
+ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
+ 			int migratetype,
+ 			unsigned int alloc_flags,
+ 			struct per_cpu_pages *pcp,
+ 			struct list_head *list)
++#endif
+ {
+ 	struct page *page;
++#ifdef CONFIG_AMLOGIC_NO_CMA
++	bool cma = can_use_cma(gfp_flags);
++#endif
+ 
+ 	do {
+ 		if (list_empty(list)) {
+@@ -2712,6 +2754,29 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
+ 		}
+ 
+ 		page = list_first_entry(list, struct page, pcp_list);
++	#ifdef CONFIG_AMLOGIC_NO_CMA
++		/*
++		 * USING CMA FIRST POLICY situations:
++		 * 1. CMA pages may return to pcp and allocated next
++		 *    but gfp mask is not suitable for CMA;
++		 * 2. MOVABLE pages may return to pcp and allocated next
++		 *    but gfp mask is suitable for CMA
++		 *
++		 * For 1, we should replace a none-CMA page
++		 * For 2, we should replace with a cma page, abandon for 6.6
++		 * before page is deleted from PCP list.
++		 */
++		if (!cma && is_migrate_cma_page(page)) {
++			/* case 1 */
++			page = rmqueue_no_cma(zone, order, migratetype, alloc_flags);
++			if (page) {
++				check_new_pages(page, order);
++				return page;
++			} else {
++				return NULL;
++			}
++		}
++	#endif /* CONFIG_AMLOGIC_NO_CMA */
+ 		list_del(&page->pcp_list);
+ 		pcp->count -= 1 << order;
+ 	} while (check_new_pages(page, order));
+@@ -2720,9 +2785,16 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
+ }
+ 
+ /* Lock and remove page from the per-cpu list */
++#ifdef CONFIG_AMLOGIC_NO_CMA
++static struct page *rmqueue_pcplist(struct zone *preferred_zone,
++			struct zone *zone, unsigned int order,
++			int migratetype, unsigned int alloc_flags,
++			gfp_t gfp_flags)
++#else
+ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+ 			struct zone *zone, unsigned int order,
+ 			int migratetype, unsigned int alloc_flags)
++#endif
+ {
+ 	struct per_cpu_pages *pcp;
+ 	struct list_head *list;
+@@ -2744,7 +2816,11 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+ 	 */
+ 	pcp->free_factor >>= 1;
+ 	list = &pcp->lists[order_to_pindex(migratetype, order)];
++#ifdef CONFIG_AMLOGIC_NO_CMA
++	page = __rmqueue_pcplist(zone, order, migratetype, alloc_flags, pcp, list, gfp_flags);
++#else
+ 	page = __rmqueue_pcplist(zone, order, migratetype, alloc_flags, pcp, list);
++#endif
+ 	pcp_spin_unlock(pcp);
+ 	pcp_trylock_finish(UP_flags);
+ 	if (page) {
+@@ -2781,8 +2857,13 @@ struct page *rmqueue(struct zone *preferred_zone,
+ 	WARN_ON_ONCE((gfp_flags & __GFP_NOFAIL) && (order > 1));
+ 
+ 	if (likely(pcp_allowed_order(order))) {
++#ifdef CONFIG_AMLOGIC_NO_CMA
++		page = rmqueue_pcplist(preferred_zone, zone, order,
++				       migratetype, alloc_flags, gfp_flags);
++#else
+ 		page = rmqueue_pcplist(preferred_zone, zone, order,
+ 				       migratetype, alloc_flags);
++#endif
+ 		if (likely(page))
+ 			goto out;
+ 	}
+@@ -2878,6 +2959,9 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+ 			min -= min / 2;
+ 	}
+ 
++#ifdef CONFIG_AMLOGIC_CMA
++	check_water_mark(free_pages, min + z->lowmem_reserve[highest_zoneidx]);
++#endif
+ 	/*
+ 	 * Check watermarks for an order-0 allocation request. If these
+ 	 * are not met, then a high-order request also cannot go ahead
+@@ -4345,8 +4429,13 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
+ 			continue;
+ 		}
+ 
++#ifdef CONFIG_AMLOGIC_NO_CMA
++		page = __rmqueue_pcplist(zone, 0, ac.migratetype, alloc_flags,
++								pcp, pcp_list, alloc_gfp);
++#else
+ 		page = __rmqueue_pcplist(zone, 0, ac.migratetype, alloc_flags,
+ 								pcp, pcp_list);
++#endif
+ 		if (unlikely(!page)) {
+ 			/* Try and allocate at least one page */
+ 			if (!nr_account) {
+@@ -4405,6 +4494,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
+ 	gfp_t alloc_gfp; /* The gfp_t that was actually used for allocation */
+ 	struct alloc_context ac = { };
+ 
++#ifdef CONFIG_AMLOGIC_NO_CMA
++	update_gfp_flags(&gfp);
++#endif
+ 	/*
+ 	 * There are several places where we assume that the order value is sane
+ 	 * so bail out early if the request is out of bound.
+diff --git a/mm/readahead.c b/mm/readahead.c
+index e815c114de21..b0ea16436c76 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -222,6 +222,11 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
+ 	 */
+ 	unsigned int nofs = memalloc_nofs_save();
+ 
++#ifdef CONFIG_AMLOGIC_CMA
++	if (ractl && ractl->file &&
++	    (ractl->file->f_mode & FMODE_WRITE))
++		gfp_mask |= __GFP_WRITE;
++#endif /* CONFIG_AMLOGIC_CMA */
+ 	filemap_invalidate_lock_shared(mapping);
+ 	/*
+ 	 * Preallocate as many pages as we will need.
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 69595d341882..51346c90aa04 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1595,7 +1595,11 @@ static struct folio *shmem_swapin(swp_entry_t swap, gfp_t gfp,
+ 	};
+ 
+ 	shmem_pseudo_vma_init(&pvma, info, index);
++#ifdef CONFIG_AMLOGIC_NO_CMA
++	page = swap_cluster_readahead(swap, gfp | __GFP_NO_CMA, &vmf);
++#else
+ 	page = swap_cluster_readahead(swap, gfp, &vmf);
++#endif
+ 	shmem_pseudo_vma_destroy(&pvma);
+ 
+ 	if (!page)
+@@ -1641,7 +1645,11 @@ static struct folio *shmem_alloc_hugefolio(gfp_t gfp,
+ 		return NULL;
+ 
+ 	shmem_pseudo_vma_init(&pvma, info, hindex);
++#ifdef CONFIG_AMLOGIC_NO_CMA
++	folio = vma_alloc_folio(gfp | __GFP_NO_CMA, HPAGE_PMD_ORDER, &pvma, 0, true);
++#else
+ 	folio = vma_alloc_folio(gfp, HPAGE_PMD_ORDER, &pvma, 0, true);
++#endif
+ 	shmem_pseudo_vma_destroy(&pvma);
+ 	if (!folio)
+ 		count_vm_event(THP_FILE_FALLBACK);
+@@ -1655,7 +1663,11 @@ static struct folio *shmem_alloc_folio(gfp_t gfp,
+ 	struct folio *folio;
+ 
+ 	shmem_pseudo_vma_init(&pvma, info, index);
++#ifdef CONFIG_AMLOGIC_NO_CMA
++	folio = vma_alloc_folio(gfp | __GFP_NO_CMA, 0, &pvma, 0, false);
++#else
+ 	folio = vma_alloc_folio(gfp, 0, &pvma, 0, false);
++#endif
+ 	shmem_pseudo_vma_destroy(&pvma);
+ 
+ 	return folio;
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index b3b14bd0dd64..0a053ac43ca4 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -453,7 +453,11 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 		 * before marking swap_map SWAP_HAS_CACHE, when -EEXIST will
+ 		 * cause any racers to loop around until we add it to cache.
+ 		 */
++	#ifdef CONFIG_AMLOGIC_NO_CMA
++		folio = vma_alloc_folio(gfp_mask | __GFP_NO_CMA, 0, vma, addr, false);
++	#else
+ 		folio = vma_alloc_folio(gfp_mask, 0, vma, addr, false);
++	#endif
+ 		if (!folio)
+                         goto fail_put_swap;
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index b36a1e204ffd..a4fed63f61ac 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -65,6 +65,10 @@
+ #include <linux/balloon_compaction.h>
+ #include <linux/sched/sysctl.h>
+ 
++#ifdef CONFIG_AMLOGIC_CMA
++#include <linux/amlogic/aml_cma.h>
++#endif
++
+ #include "internal.h"
+ #include "swap.h"
+ 
+@@ -2209,13 +2213,20 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
+ 	struct folio *folio, *next;
+ 	LIST_HEAD(clean_folios);
+ 	unsigned int noreclaim_flag;
++#ifdef CONFIG_AMLOGIC_CMA
++	LIST_HEAD(high_active_folios);
++#endif
+ 
+ 	list_for_each_entry_safe(folio, next, folio_list, lru) {
+ 		if (!folio_test_hugetlb(folio) && folio_is_file_lru(folio) &&
+ 		    !folio_test_dirty(folio) && !__folio_test_movable(folio) &&
+ 		    !folio_test_unevictable(folio)) {
++		#ifdef CONFIG_AMLOGIC_CMA
++			cma_keep_high_active(folio, &high_active_folios, &clean_folios);
++		#else
+ 			folio_clear_active(folio);
+ 			list_move(&folio->lru, &clean_folios);
++		#endif
+ 		}
+ 	}
+ 
+@@ -2231,6 +2242,9 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
+ 	memalloc_noreclaim_restore(noreclaim_flag);
+ 
+ 	list_splice(&clean_folios, folio_list);
++#ifdef CONFIG_AMLOGIC_CMA
++	list_splice(&high_active_folios, folio_list);
++#endif
+ 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE,
+ 			    -(long)nr_reclaimed);
+ 	/*
+@@ -2481,6 +2495,9 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
+ 	if (!too_many)
+ 		wake_throttle_isolated(pgdat);
+ 
++#ifdef CONFIG_AMLOGIC_CMA
++	check_cma_isolated(&isolated, inactive, inactive);
++#endif
+ 	return too_many;
+ }
+ 
+-- 
+2.42.0
+
