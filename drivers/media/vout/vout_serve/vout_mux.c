@@ -43,28 +43,17 @@ static int vout_vdo_meas_init;
  */
 static void vout_meas_ctrl_init_dft(struct platform_device *pdev, struct vout_mux_data_s *vdata)
 {
-	struct clk *fclk_div5;
 	unsigned int clk_msr_val;
-	int ret;
 
 	if (!vdata)
 		return;
 
-	fclk_div5 = clk_get(&pdev->dev, "fclk_div5");
-	if (IS_ERR_OR_NULL(fclk_div5)) {
-		VOUTERR("%s: get fclk_div5 err!\n", __func__);
-		return;
-	}
 	vdata->msr_clk = clk_get(&pdev->dev, "vdin_meas_clk");
 	if (IS_ERR_OR_NULL(vdata->msr_clk)) {
 		VOUTERR("%s: get vdin_meas_clk err!\n", __func__);
 		vdata->msr_clk = NULL;
 		return;
 	}
-
-	ret = clk_set_parent(vdata->msr_clk, fclk_div5);
-	if (ret)
-		return;
 
 	clk_prepare_enable(vdata->msr_clk);
 	clk_msr_val = clk_get_rate(vdata->msr_clk);
