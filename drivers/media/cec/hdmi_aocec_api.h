@@ -8,6 +8,10 @@
 #include "hdmi_tx_cec_20.h"
 #include "hdmi_ao_cec.h"
 
+#ifndef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+typedef void (*cec_spd_callback)(int port_id, int handle_type);
+#endif
+
 extern int cec_msg_dbg_en;
 extern struct cec_msg_last *last_cec_msg;
 extern struct ao_cec_dev *cec_dev;
@@ -106,11 +110,16 @@ int cec_set_uevent(enum cec_event_type type, unsigned int val);
 int cec_set_dev_info(uint8_t dev_idx);
 int hdmirx_get_connect_info(void);
 int hdmirx_set_cec_cfg(u32 cfg);
-bool cec_message_op(unsigned char *msg, unsigned char len);
+void cec_message_op(unsigned char *msg, unsigned char len);
 void cec_debug_fs_init(void);
 unsigned int read_clock(unsigned int addr);
 unsigned int read_periphs(unsigned int addr);
 inline unsigned int get_pin_status(void);
+void cec_spd_info_init(void);
+void delete_current_spd_info(unsigned int phy_addr);
+void update_current_spd_5v(int port_id, bool is5V);
+void cec_add_spd_info(unsigned       int handle_type, unsigned int vendor_id, char *osd_name);
+void cec_dump_spd_info(void);
 
 #define CEC_ERR(format, args...)				\
 	do {	\

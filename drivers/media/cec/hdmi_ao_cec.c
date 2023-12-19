@@ -143,18 +143,9 @@ static int cecb_pick_msg(unsigned char *msg, unsigned char *out_len)
 	/* clr CEC lock bit */
 	hdmirx_cec_write(DWC_CEC_LOCK, 0);
 	CEC_PRINT("%s", msg_log_buf);
-
-	#ifdef CEC_FREEZE_WAKE_UP
-	if (is_pm_s2idle_mode())
-		*out_len = len;
-	else
-	#endif
-	{
-		if (cec_message_op(msg, len))
-			*out_len = len;
-		else
-			*out_len = 0;
-	}
+	//driver handle some msg for special case
+	cec_message_op(msg, len);
+	*out_len = len;
 	pin_status = 1;
 	return 0;
 }
@@ -967,6 +958,8 @@ static ssize_t port_seq_store(struct class *cla,
 
 	CEC_ERR("port_seq:%x\n", seq);
 	cec_dev->port_seq = seq;
+	//tv product need to handle special tx
+	cec_spd_info_init();
 	return count;
 }
 
@@ -1406,6 +1399,22 @@ static ssize_t dbg_store(struct class *cla, struct class_attribute *attr,
 			return count;
 		cec_dev->cec_log_en = addr;
 		CEC_ERR("cec_log_en: %d\n", cec_dev->cec_log_en);
+	}  else if (token && strncmp(token, "spd_init", 8) == 0) {
+		cec_spd_info_init();
+	}  else if (token && strncmp(token, "spd_add", 7) == 0) {
+		unsigned int handle_type;
+		unsigned int vendor_id;
+
+		token = strsep(&cur, "@");
+		if (!token || kstrtouint(token, 16, &handle_type) < 0)
+			return count;
+		token = strsep(&cur, "@");
+		if (!token || kstrtouint(token, 16, &vendor_id) < 0)
+			return count;
+		CEC_INFO("spd_add:%d 0x%x %s", handle_type, vendor_id, cur);
+		cec_add_spd_info(handle_type, vendor_id, cur);
+	}  else if (token && strncmp(token, "spd_dump", 8) == 0) {
+		cec_dump_spd_info();
 	} else {
 		if (token)
 			CEC_ERR("no cmd:%s, supported list:\n", token);
@@ -2432,6 +2441,7 @@ static void cec_hdmi_plug_handler(struct work_struct *work)
 		/* struct ao_cec_dev, work_hdmitx_plug); */
 	unsigned int tmp = 0;
 	unsigned int phy_addr = 0xffff;
+	unsigned char port_id = 0;
 #if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	tmp |= (get_hpd_state() << 4);
 #endif
@@ -2455,6 +2465,17 @@ static void cec_hdmi_plug_handler(struct work_struct *work)
 		}
 	} else {
 		cec_dev->phy_addr = 0;
+		char i;
+
+		for (i = 0; i < 4; i++) {
+			port_id = (cec_dev->port_seq >> i * 4) & 0xF;
+			if (!(tmp & (1 << i))) {
+				//plug out
+				delete_current_spd_info(port_id * 0x1000);
+			} else {
+				update_current_spd_5v(i, true);
+			}
+		}
 	}
 
 	cec_set_uevent(HDMI_PLUG_EVENT, tmp);

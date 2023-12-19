@@ -156,18 +156,9 @@ static int cecb_pick_msg(unsigned char *msg, unsigned char *out_len)
 	/* clr CEC lock bit */
 	hdmirx_cec_write(DWC_CEC_LOCK, 0);
 	CEC_INFO("%s", msg_log_buf);
-
-	#ifdef CEC_FREEZE_WAKE_UP
-	if (is_pm_s2idle_mode())
-		*out_len = len;
-	else
-	#endif
-	{
-		if (cec_message_op(msg, len))
-			*out_len = len;
-		else
-			*out_len = 0;
-	}
+	//driver handle some msg for special case
+	cec_message_op(msg, len);
+	*out_len = len;
 	pin_status = 1;
 	return 0;
 }

@@ -44,6 +44,15 @@
 #include <media/cec.h>
 #include "linux/rtc.h"
 #include <linux/timekeeping.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+#include "../vin/tvin/hdmirx/hdmi_rx_drv_ext.h"
+#endif
+
+static struct current_spd_device_info  current_spd_info[4];
+
+static struct spd_device_info  spd_tx_device_info;
+
+static cec_spd_callback cec_spd_notify;
 
 static int cec_line_cnt;
 
@@ -447,51 +456,239 @@ void cec_ap_set_dev_type(u32 type)
 	cec_dev->dev_type = type & 0xf;
 }
 
-/* max length = 14+1 */
-#define OSD_NAME_DEV	1
-const u8 dev_osd_name[1][16] = {
-	{1, 0x43, 0x68, 0x72, 0x6f, 0x6d, 0x65, 0x63, 0x61, 0x73, 0x74},
-};
-
-const u8 dev_vendor_id[1][3] = {
-	{0, 0, 0},
-};
-
-/* special notify for hdmirx */
-bool cec_message_op(unsigned char *msg, unsigned char len)
+void register_cec_rx_notify(cec_spd_callback callback)
 {
-	int i, j;
+	cec_spd_notify = callback;
+}
+EXPORT_SYMBOL(register_cec_rx_notify);
 
-	if (((msg[0] & 0xf0) >> 4) == cec_dev->cec_info.log_addr) {
-		CEC_ERR("bad initiator with self 0x%x",
-			cec_dev->cec_info.log_addr);
-		return false;
+void cec_add_spd_info(unsigned       int handle_type, unsigned int vendor_id, char *osd_name)
+{
+	struct spd_device_info *spd_dev;
+
+	spd_dev	= kzalloc(sizeof(*spd_dev), GFP_KERNEL);
+	if (!spd_dev) {
+		CEC_INFO("%s kzalloc fail", __func__);
+		return;
 	}
-	switch (msg[1]) {
-	case 0x47:
-		/* OSD name */
-		if (len > 16)
+	spd_dev->handle_type = handle_type;
+	spd_dev->vendor_id = vendor_id;
+	if (osd_name)
+		strncpy(spd_dev->osd_name, osd_name, 13);
+	list_add_tail(&spd_dev->spd_info_list, &spd_tx_device_info.spd_info_list);
+}
+
+void update_current_spd_5v(int port_id, bool is5V)
+{
+	int i;
+
+	for (i = 0; i < 4; i++) {
+		if (port_id == current_spd_info[i].port_id) {
+			current_spd_info[i].is5v = is5V;
 			break;
-		for (j = 0; j < OSD_NAME_DEV; j++) {
-			for (i = 2; i < len; i++) {
-				if (msg[i] != dev_osd_name[j][i - 1])
-					break;
-			}
-			if (i == len) {
-			#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
-				cec_set_dev_info(dev_osd_name[j][0]);
-			#endif
-				CEC_INFO("specific dev:%d", dev_osd_name[j][0]);
+		}
+	}
+}
+
+void delete_current_spd_info(unsigned int phy_addr)
+{
+	int i, port_id;
+
+	for (i = 0; i < 4; i++) {
+		if (phy_addr == current_spd_info[i].phy_addr) {
+			//delete this spd info
+			port_id = current_spd_info[i].port_id;
+			memset(&current_spd_info[i], 0, sizeof(struct current_spd_device_info));
+			current_spd_info[i].phy_addr = phy_addr;
+			current_spd_info[i].port_id = port_id;
+			break;
+		}
+	}
+}
+
+void cec_dump_spd_info(void)
+{
+	int i;
+	//dump current spd info
+	for (i = 0; i < 4; i++) {
+		if (current_spd_info[i].log_addr != 0) {
+			CEC_INFO("cur spd info 0x%x %s 0x%x %d", current_spd_info[i].phy_addr,
+				current_spd_info[i].osd_name, current_spd_info[i].vendor_id,
+				current_spd_info[i].port_id);
+		}
+	}
+	//dump store spd info
+	if (!list_empty(&spd_tx_device_info.spd_info_list)) {
+		struct spd_device_info *info;
+
+		list_for_each_entry(info, &spd_tx_device_info.spd_info_list, spd_info_list) {
+			CEC_INFO("store spd info %s 0x%x", info->osd_name, info->vendor_id);
+		}
+	}
+}
+
+void cec_spd_info_init(void)
+{
+	int i, j, index;
+	//update current port phy_addr/port id
+	memset(&current_spd_info[0], 0, sizeof(struct current_spd_device_info) * 4);
+	current_spd_info[0].phy_addr = 0x1000;
+	current_spd_info[1].phy_addr = 0x2000;
+	current_spd_info[2].phy_addr = 0x3000;
+	current_spd_info[3].phy_addr = 0x4000;
+	for (i = 0; i < 4; i++) {
+		index = (cec_dev->port_seq >> i * 4) & 0xF;
+		index *= 0x1000;
+		for (j = 0; j < 4; j++) {
+			if (current_spd_info[j].phy_addr == index) {
+				current_spd_info[j].port_id = i;
+				break;
 			}
 		}
-		break;
-	case 0x87:
-		/* verdor ID */
+	}
+	INIT_LIST_HEAD(&spd_tx_device_info.spd_info_list);
+	cec_add_spd_info(8, 0x080046, "STR-DH590");
+	cec_add_spd_info(4, 0x00a0de, "RX-V385");
+	cec_add_spd_info(4, 0x0005cd, "AVR-X1600H");
+}
+
+static bool cec_spd_logicaddr_isValid(unsigned char logicaddr)
+{
+	bool ret = false;
+
+	if (logicaddr == cec_dev->cec_info.log_addr)
+		return ret;
+
+	switch (logicaddr) {
+	case CEC_PLAYBACK_DEVICE_1_ADDR:
+	case CEC_PLAYBACK_DEVICE_2_ADDR:
+	case CEC_PLAYBACK_DEVICE_3_ADDR:
+	case CEC_AUDIO_SYSTEM_ADDR:
+		ret = true;
 		break;
 	default:
 		break;
 	}
-	return true;
+	return ret;
+}
+
+static int cec_spd_unknown_index(int *index)
+{
+	int i, j = 0;
+
+	for (i = 0; i < 4; i++) {
+		if (current_spd_info[i].is5v && current_spd_info[i].log_addr == 0) {
+			*index = i;
+			j++;
+		}
+	}
+	return j;
+}
+
+static void cec_spd_hdmirx_notify(int portid, int handletype)
+{
+	if (cec_spd_notify)
+		cec_spd_notify(portid, handletype);
+}
+
+/* special notify for hdmirx */
+void cec_message_op(unsigned char *msg, unsigned char len)
+{
+	int i;
+	char logaddr;
+	unsigned int vendor_id;
+	unsigned int a, b = 0;
+	struct spd_device_info *info;
+	//cec handle just for tv product
+	if (cec_dev->dev_type != CEC_TV_ADDR)
+		return;
+	//no spd list
+	if (list_empty(&spd_tx_device_info.spd_info_list))
+		return;
+	if (!cec_spd_logicaddr_isValid((msg[0] & 0xf0) >> 4))
+		return;
+	switch (msg[1]) {
+	case CEC_OC_REPORT_PHYSICAL_ADDRESS:
+		for (i = 0; i < 4; i++) {
+			unsigned int phy_addr = msg[2];
+
+			phy_addr = (phy_addr << 8) | msg[3];
+			if (phy_addr == current_spd_info[i].phy_addr) {
+				current_spd_info[i].log_addr = (msg[0] & 0xf0) >> 4;
+				break;
+			}
+		}
+		break;
+	case CEC_OC_SET_OSD_NAME:
+		/* OSD name */
+		if (len > 16)
+			break;
+		logaddr = (msg[0] & 0xf0) >> 4;
+		list_for_each_entry(info, &spd_tx_device_info.spd_info_list, spd_info_list) {
+			if (!strncmp(&msg[2], info->osd_name, (len - 2))) {
+				for (i = 0; i < 4; i++) {
+					if (logaddr == current_spd_info[i].log_addr) {
+						//update osd name
+						strncpy(current_spd_info[i].osd_name,
+						info->osd_name, (len - 2));
+						CEC_INFO("SPD:%s, log_addr:0x%x",
+							current_spd_info[i].osd_name, logaddr);
+						break;
+					}
+				}
+				if (i < 4) {
+					cec_spd_hdmirx_notify(current_spd_info[i].port_id,
+						info->handle_type);
+				} else {
+					if (cec_spd_unknown_index(&i) == 1) {
+						//just one unknown device
+						strncpy(current_spd_info[i].osd_name,
+						info->osd_name, (len - 2));
+						current_spd_info[i].log_addr = logaddr;
+						cec_spd_hdmirx_notify(current_spd_info[i].port_id,
+							info->handle_type);
+					}
+				}
+				break;
+			}
+		}
+		break;
+	case CEC_OC_DEVICE_VENDOR_ID:
+		/* verdor ID */
+		logaddr = (msg[0] & 0xf0) >> 4;
+		list_for_each_entry(info, &spd_tx_device_info.spd_info_list, spd_info_list) {
+			a = msg[2];
+			b = msg[3];
+			vendor_id = (a << 16) | (b << 8) | msg[4];
+			if (vendor_id == info->vendor_id) {
+				for (i = 0; i < 4; i++) {
+					if (logaddr == current_spd_info[i].log_addr) {
+						//update vendor id
+						current_spd_info[i].vendor_id = vendor_id;
+						CEC_INFO("SPD:vendor:0x%x, logicaddr:0x%x",
+						info->vendor_id, current_spd_info[i].log_addr);
+						break;
+					}
+				}
+				if (i < 4) {
+					cec_spd_hdmirx_notify(current_spd_info[i].port_id,
+						info->handle_type);
+				} else {
+					if (cec_spd_unknown_index(&i) == 1) {
+						//just one unknown device
+						current_spd_info[i].vendor_id = vendor_id;
+						current_spd_info[i].log_addr = logaddr;
+						cec_spd_hdmirx_notify(current_spd_info[i].port_id,
+							info->handle_type);
+					}
+				}
+				break;
+			}
+		}
+		break;
+	default:
+		break;
+	}
 }
 
 /* --------------------- FOR EE CEC(AOCECB) -------------------- */
