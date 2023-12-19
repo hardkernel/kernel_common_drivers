@@ -130,6 +130,7 @@ struct dummy_cma {
 	/* kobject requires dynamic object */
 	struct cma_kobject *cma_kobj;
 #endif
+	bool reserve_pages_on_error;
 };
 
 static inline unsigned long cma_bitmap_maxno(struct dummy_cma *cma)
@@ -193,8 +194,7 @@ static void cma_clear_bitmap(struct dummy_cma *cma, unsigned long pfn,
 	spin_unlock_irqrestore(&cma->lock, flags);
 }
 
-unsigned long aml_totalcma_pages;
-
+#if CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 #ifdef CONFIG_PAGE_PINNER
 static void __nocfi aml_page_pinner_failure_detect(struct page *page)
 {
@@ -213,11 +213,6 @@ static void aml_page_pinner_failure_detect(struct page *page)
 {
 }
 #endif /* CONFIG_PAGE_PINNER */
-
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-void (*aml_prep_huge_page)(struct page *page);
-#else /* CONFIG_TRANSPARENT_HUGEPAGE */
-static inline void aml_prep_huge_page(struct page *page) {}
 #endif
 
 unsigned int (*aml_reclaim_clean_pages_from_list)(struct zone *zone,
@@ -231,7 +226,16 @@ unsigned long (*aml_iso_free_range)(struct compact_control *cc,
 			unsigned long start_pfn, unsigned long end_pfn);
 void (*aml_drain_all_pages)(struct zone *zone);
 void (*aml_lru_add_drain_all)(void);
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+#if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
+int (*aml_start_isolate_page_range)(unsigned long start_pfn, unsigned long end_pfn,
+			     int migratetype, int flags, gfp_t gfp_flags);
+int (*aml_migrate_pages)(struct list_head *from, new_folio_t get_new_folio,
+		free_folio_t put_new_folio, unsigned long private,
+		enum migrate_mode mode, int reason, unsigned int *ret_succeeded);
+void (*aml_putback_movable_pages)(struct list_head *l);
+unsigned long (*aml_get_pfnblock_flags_mask)(const struct page *page,
+					unsigned long pfn, unsigned long mask);
+#elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 int (*aml_start_isolate_page_range)(unsigned long start_pfn, unsigned long end_pfn,
 			     unsigned int migratetype, int flags,
 			     unsigned long *failed_pfn);
@@ -239,13 +243,6 @@ int (*aml_start_isolate_page_range)(unsigned long start_pfn, unsigned long end_p
 int (*aml_start_isolate_page_range)(unsigned long start_pfn, unsigned long end_pfn,
 			     unsigned int migratetype, int flags);
 #endif
-
-unsigned long (*aml_kallsyms_lookup_name)(const char *name);
-
-/* For each probe you need to allocate a kprobe structure */
-static struct kprobe kp_lookup_name = {
-	.symbol_name	= "kallsyms_lookup_name",
-};
 #endif
 
 #ifdef CONFIG_PAGE_OWNER
@@ -334,8 +331,10 @@ bool can_use_cma(gfp_t gfp_flags)
 	if (unlikely(!cma_first_wm_low))
 		return false;
 
+#ifdef CONFIG_AMLOGIC_NO_CMA
 	if (cma_forbidden_mask(gfp_flags))
 		return false;
+#endif
 
 	if (cma_alloc_ref())
 		return false;
@@ -361,40 +360,40 @@ void update_gfp_flags(gfp_t *gfp)
 	 * __GFP_NO_CMA.
 	 */
 	if (can_use_cma(*gfp))
-		*gfp |=  __GFP_CMA;
+		*gfp |=  __GFP_MOVABLE;
 	else
-		*gfp &= ~__GFP_CMA;
+		*gfp &= ~__GFP_MOVABLE;
 }
 
 #define ACTIVE_MIGRATE		3
 #define INACTIVE_MIGRATE	(ACTIVE_MIGRATE * 4)
-static int filecache_need_migrate(struct page *page)
+static int filecache_need_migrate(struct folio *folio)
 {
-	if (PageActive(page) && page_mapcount(page) >= ACTIVE_MIGRATE)
+	if (folio_test_active(folio) && folio_mapcount(folio) >= ACTIVE_MIGRATE)
 		return 1;
 
-	if (!PageActive(page) && page_mapcount(page) >= INACTIVE_MIGRATE)
+	if (!folio_test_active(folio) && folio_mapcount(folio) >= INACTIVE_MIGRATE)
 		return 1;
 
-	if (PageUnevictable(page))
+	if (folio_test_unevictable(folio))
 		return 0;
 
 	return 0;
 }
 
-void cma_keep_high_active(struct page *page, struct list_head *high,
+void cma_keep_high_active(struct folio *folio, struct list_head *high,
 			  struct list_head *clean)
 {
-	if (filecache_need_migrate(page)) {
+	if (filecache_need_migrate(folio)) {
 		/*
 		 * leaving pages with high map count to migrate
 		 * instead of reclaimed. This can help to avoid
 		 * file cache jolt if reclaim large cma size
 		 */
-		list_move(&page->lru, high);
+		list_move(&folio->lru, high);
 	} else {
-		ClearPageActive(page);
-		list_move(&page->lru, clean);
+		folio_clear_active(folio);
+		list_move(&folio->lru, clean);
 	}
 }
 
@@ -404,7 +403,11 @@ bool cma_page(struct page *page)
 
 	if (!page)
 		return false;
+#if IS_MODULE(CONFIG_AMLOGIC_CMA)
+	migrate_type = aml_get_pfnblock_flags_mask(page, page_to_pfn(page), MIGRATETYPE_MASK);
+#else
 	migrate_type = get_pageblock_migratetype(page);
+#endif
 	if (is_migrate_cma(migrate_type) ||
 	    is_migrate_isolate(migrate_type)) {
 		return true;
@@ -429,7 +432,7 @@ static void update_cma_page_trace(struct page *page, unsigned long cnt)
 		pr_info("c a p:%lx, c:%ld, f:%ps\n",
 			page_to_pfn(page), cnt, (void *)fun);
 	for (i = 0; i < cnt; i++) {
-	#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
+	#if IS_BUILTIN(CONFIG_AMLOGIC_NO_CMA)
 		set_page_trace(page, 0, __GFP_NO_CMA, (void *)fun);
 	#else
 		set_page_trace(page, 0, 0, (void *)fun);
@@ -630,7 +633,7 @@ int cma_mmu_op(struct page *page, int count, bool set)
 
 void check_page_to_cma(struct compact_control *cc,
 		       struct address_space *mapping,
-		       struct page *page)
+		       struct folio *folio)
 {
 	/* no need check once it is true */
 	if (test_bit(FORBID_TO_CMA_BIT, &cc->total_migrate_scanned))
@@ -640,39 +643,43 @@ void check_page_to_cma(struct compact_control *cc,
 		mapping = NULL;
 
 #ifdef CONFIG_KSM
-	if ((((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) == PAGE_MAPPING_KSM) &&
-	    !PageSlab(page))
+	if (folio_test_ksm(folio) && !folio_test_slab(folio))
 		__set_bit(FORBID_TO_CMA_BIT, &cc->total_migrate_scanned);
 #endif
 
+#ifdef CONFIG_AMLOGIC_NO_CMA
 	if (mapping && cma_forbidden_mask(mapping_gfp_mask(mapping)))
 		__set_bit(FORBID_TO_CMA_BIT, &cc->total_migrate_scanned);
+#endif
 }
 
-static int can_migrate_to_cma(struct page *page)
+static int can_migrate_to_cma(struct folio *folio)
 {
 	struct address_space *mapping;
 
-	mapping = page_mapping(page);
+	mapping = folio_mapping(folio);
 	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
 		mapping = NULL;
 
-	if (PageKsm(page) && !PageSlab(page))
+	if (folio_test_ksm(folio) && !folio_test_slab(folio))
 		return 0;
 
+#ifdef CONFIG_AMLOGIC_NO_CMA
 	if (mapping && cma_forbidden_mask(mapping_gfp_mask(mapping)))
 		return 0;
+#endif
 
 	return 1;
 }
 
-struct page *get_compact_page(struct page *migratepage,
+struct folio *get_compact_page(struct folio *src,
 				struct compact_control *cc)
 {
 	int can_to_cma, find = 0;
 	struct page *page, *next;
+	struct folio *dst;
 
-	can_to_cma = can_migrate_to_cma(migratepage);
+	can_to_cma = can_migrate_to_cma(src);
 	if (!can_to_cma) {
 		list_for_each_entry_safe(page, next, &cc->freepages, lru) {
 			if (!cma_page(page)) {
@@ -684,12 +691,13 @@ struct page *get_compact_page(struct page *migratepage,
 		}
 		if (!find)
 			return NULL;
+		dst = page_folio(page);
 	} else {
-		page = list_entry(cc->freepages.next, struct page, lru);
-		list_del(&page->lru);
+		dst = list_entry(cc->freepages.next, struct folio, lru);
+		list_del(&dst->lru);
 		cc->nr_freepages--;
 	}
-	return page;
+	return dst;
 }
 #endif
 
@@ -805,8 +813,6 @@ static struct page *get_migrate_page(struct page *page, unsigned long private)
 	if (new_page && PageTransHuge(new_page))
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
 		prep_transhuge_page(new_page);
-#else
-		aml_prep_huge_page(new_page);
 #endif
 
 #if (IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE) && IS_MODULE(CONFIG_AMLOGIC_CMA)) || \
@@ -888,8 +894,13 @@ static int __nocfi aml_alloc_contig_migrate_range(struct compact_control *cc,
 	#endif
 		cc->nr_migratepages -= nr_reclaimed;
 
+	#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
 		ret = migrate_pages(&cc->migratepages, get_migrate_page,
 			NULL, (unsigned long)&mtc, cc->mode, MR_CONTIG_RANGE, NULL);
+	#else
+		ret = aml_migrate_pages(&cc->migratepages, get_migrate_page,
+			NULL, (unsigned long)&mtc, cc->mode, MR_CONTIG_RANGE, NULL);
+	#endif
 
 		/*
 		 * On -ENOMEM, migrate_pages() bails out right away. It is pointless
@@ -900,6 +911,15 @@ static int __nocfi aml_alloc_contig_migrate_range(struct compact_control *cc,
 	}
 
 	if (ret < 0) {
+#if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
+		if (!(cc->gfp_mask & __GFP_NOWARN) && ret == -EBUSY)
+			alloc_contig_dump_pages(&cc->migratepages);
+#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
+		putback_movable_pages(&cc->migratepages);
+#else
+		aml_putback_movable_pages(&cc->migratepages);
+#endif
+#else
 		if (ret == -EBUSY) {
 			struct page *page;
 
@@ -916,6 +936,7 @@ static int __nocfi aml_alloc_contig_migrate_range(struct compact_control *cc,
 			}
 		}
 		putback_movable_pages(&cc->migratepages);
+#endif
 		return ret;
 	}
 	return 0;
@@ -1188,6 +1209,25 @@ check_page_valid(unsigned long pfn, unsigned long nr_pages)
 	return NULL;
 }
 
+#ifdef CONFIG_MEMORY_ISOLATION
+static bool aml_is_migrate_isolate_page(struct page *page)
+{
+	int migrate_type = 0;
+
+#if IS_MODULE(CONFIG_AMLOGIC_CMA)
+	migrate_type = aml_get_pfnblock_flags_mask(page, page_to_pfn(page), MIGRATETYPE_MASK);
+#else
+	migrate_type = get_pageblock_migratetype(page);
+#endif
+	return migrate_type == MIGRATE_ISOLATE;
+}
+#else
+static bool aml_is_migrate_isolate_page(struct page *page)
+{
+	return false;
+}
+#endif
+
 int __nocfi aml_check_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 			     int isol_flags)
 {
@@ -1203,7 +1243,7 @@ int __nocfi aml_check_pages_isolated(unsigned long start_pfn, unsigned long end_
 	 */
 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
 		page = check_page_valid(pfn, pageblock_nr_pages);
-		if (page && !is_migrate_isolate_page(page))
+		if (page && !aml_is_migrate_isolate_page(page))
 			break;
 	}
 	page = check_page_valid(start_pfn, end_pfn - start_pfn);
@@ -1223,12 +1263,14 @@ out:
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
 	trace_test_pages_isolated(start_pfn, end_pfn, pfn);
 #endif
+#if CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 	if (pfn < end_pfn)
 	#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
 		page_pinner_failure_detect(pfn_to_page(pfn));
 	#else
 		aml_page_pinner_failure_detect(pfn_to_page(pfn));
 	#endif
+#endif
 
 	return ret;
 }
@@ -1256,7 +1298,7 @@ int __nocfi aml_cma_alloc_range(unsigned long start, unsigned long end,
 	int ret = 0, order;
 	int try_times = 0;
 	int boost_ok = 0;
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+#if CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 	unsigned long failed_pfn;
 #endif
 
@@ -1275,7 +1317,11 @@ int __nocfi aml_cma_alloc_range(unsigned long start, unsigned long end,
 	cma_debug(0, NULL, " range [%lx-%lx]\n", start, end);
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
 	mutex_lock(&cma_mutex);
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+#if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
+	ret = start_isolate_page_range(pfn_max_align_down(start),
+				       aml_pfn_max_align_up(end), migrate_type,
+				       0, gfp_mask);
+#elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 	ret = start_isolate_page_range(pfn_max_align_down(start),
 				       aml_pfn_max_align_up(end), migrate_type,
 				       0, &failed_pfn);
@@ -1284,7 +1330,11 @@ int __nocfi aml_cma_alloc_range(unsigned long start, unsigned long end,
 				       aml_pfn_max_align_up(end), migrate_type, 0);
 #endif
 #else
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+#if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
+	ret = aml_start_isolate_page_range(pfn_max_align_down(start),
+				       aml_pfn_max_align_up(end), migrate_type,
+				       0, gfp_mask);
+#elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 	ret = aml_start_isolate_page_range(pfn_max_align_down(start),
 				       aml_pfn_max_align_up(end), migrate_type,
 				       0, &failed_pfn);
@@ -1511,7 +1561,7 @@ void rmap_walk_vma(struct page *page)
 	if (!page_mapping(page))
 		return;
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
-	rmap_walk(page, &rwc);
+	rmap_walk(page_folio(page), &rwc);
 #else
 	aml_rmap_walk(page, &rwc);
 #endif
@@ -1548,8 +1598,8 @@ static int cma_debug_show(struct seq_file *m, void *arg)
 	seq_printf(m, "driver used:%lu isolated:%d total:%lu\n",
 		   get_cma_allocated(), 0, totalcma_pages);
 #else
-	seq_printf(m, "driver used:%lu isolated:%d total:%lu\n",
-		   get_cma_allocated(), 0, aml_totalcma_pages);
+	seq_printf(m, "driver used:%lu isolated:%d\n",
+		   get_cma_allocated(), 0);
 #endif
 	return 0;
 }
@@ -1920,10 +1970,10 @@ struct kprobe kp_compaction_alloc = {
 
 static void *get_symbol_addr(const char *symbol_name)
 {
-	struct kprobe kp;
+	struct kprobe kp = {
+		.symbol_name = symbol_name,
+	};
 	int ret;
-
-	kp.symbol_name = symbol_name;
 
 	ret = register_kprobe(&kp);
 	if (ret < 0) {
@@ -1940,17 +1990,6 @@ static int __nocfi common_symbol_init(void *data)
 {
 	int ret;
 
-	ret = register_kprobe(&kp_lookup_name);
-	if (ret < 0) {
-		pr_err("register_kprobe failed, returned %d\n", ret);
-		return ret;
-	}
-	pr_debug("kprobe lookup offset at %px\n", kp_lookup_name.addr);
-
-	aml_kallsyms_lookup_name = (unsigned long (*)(const char *name))kp_lookup_name.addr;
-
-	aml_totalcma_pages = *(unsigned long *)aml_kallsyms_lookup_name("totalcma_pages");
-	aml_prep_huge_page = (void (*)(struct page *page))get_symbol_addr("prep_transhuge_page");
 	aml_reclaim_clean_pages_from_list = (unsigned int (*)(struct zone *zone,
 		struct list_head *page_list))get_symbol_addr("reclaim_clean_pages_from_list");
 	aml_isolate_pages_range = (int (*)(struct compact_control *cc, unsigned long start_pfn,
@@ -1963,7 +2002,19 @@ static int __nocfi common_symbol_init(void *data)
 		unsigned long end_pfn))get_symbol_addr("isolate_freepages_range");
 	aml_drain_all_pages = (void (*)(struct zone *zone))get_symbol_addr("drain_all_pages");
 	aml_lru_add_drain_all = (void (*)(void))get_symbol_addr("lru_add_drain_all");
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+#if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
+	aml_start_isolate_page_range = (int (*)(unsigned long start_pfn, unsigned long end_pfn,
+			int migratetype, int flags,
+			gfp_t gfp_flags))get_symbol_addr("start_isolate_page_range");
+	aml_migrate_pages = (int (*)(struct list_head *from, new_folio_t get_new_folio,
+		free_folio_t put_new_folio, unsigned long private,
+		enum migrate_mode mode, int reason,
+		unsigned int *ret_succeeded))get_symbol_addr("migrate_pages");
+	aml_putback_movable_pages =
+		(void (*)(struct list_head *l))get_symbol_addr("putback_movable_pages");
+	aml_get_pfnblock_flags_mask = (unsigned long (*)(const struct page *page,
+		unsigned long pfn, unsigned long mask))get_symbol_addr("get_pfnblock_flags_mask");
+#elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 	aml_start_isolate_page_range = (int (*)(unsigned long start_pfn, unsigned long end_pfn,
 			unsigned int migratetype, int flags,
 			unsigned long *failed_pfn))get_symbol_addr("start_isolate_page_range");
@@ -1999,7 +2050,7 @@ static int __nocfi common_symbol_init(void *data)
 	return 0;
 }
 
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+#if CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 static int cma_enabled;
 module_param(cma_enabled, int, 0644);
 
@@ -2082,7 +2133,7 @@ static int __init aml_cma_module_init(void)
 
 	low_cma_init();
 
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+#if CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 	delay_enable_cma_init();
 #endif
 

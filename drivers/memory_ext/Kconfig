@@ -66,6 +66,26 @@ config AMLOGIC_CMA
 		Amlogic CMA optimization for cma alloc/free problems
 		Including policy change of CMA usage
 
+config AMLOGIC_NO_CMA
+	tristate "Amlogic CMA change, add no cma flag"
+	depends on CMA
+	depends on AMLOGIC_CMA
+	default n
+	help
+		Amlogic CMA optimization for cma alloc/free problems
+		Including policy change of CMA usage, add no cma flag
+		to avoid page not in cma pool.
+
+config AMLOGIC_CMA_INFO
+	tristate "Amlogic CMA change, add debug information"
+	depends on CMA
+	depends on AMLOGIC_CMA
+	default n
+	help
+		Amlogic CMA optimization for cma alloc/free problems
+		Including policy change of CMA usage, add more debug
+		information in cma alloc/free flow.
+
 config AMLOGIC_MEM_DEBUG
 	tristate "Amlogic debug mem"
 	default n
