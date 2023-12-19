@@ -17,8 +17,11 @@
 #include <linux/panic_notifier.h>
 #include <linux/of_device.h>
 #include <watchdog_core.h>
+#include <linux/interrupt.h>
 #include <linux/debugfs.h>
 #include <linux/amlogic/gki_module.h>
+
+#define DRIVER_NAME		"meson_gxbb_wdt"
 #endif
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
@@ -27,6 +30,7 @@
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 #define DEFAULT_TIMEOUT 60      /* seconds */
+#define DEFAULT_PRETIMEOUT 0
 #else
 #define DEFAULT_TIMEOUT	30	/* seconds */
 #endif
@@ -38,6 +42,9 @@
 
 #define GXBB_WDT_CTRL_CLKDIV_EN			BIT(25)
 #define GXBB_WDT_CTRL_CLK_EN			BIT(24)
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define GXBB_WDT_CTRL_IRQ_EN			BIT(23)
+#endif
 #define GXBB_WDT_CTRL_EE_RESET			BIT(21)
 #define GXBB_WDT_CTRL_EN			BIT(18)
 #define GXBB_WDT_CTRL_DIV_MASK			(BIT(18) - 1)
@@ -53,6 +60,7 @@ struct meson_gxbb_wdt {
 #ifdef CONFIG_AMLOGIC_MODIFY
 	unsigned int feed_watchdog_mode;
 	struct notifier_block notifier;
+	void __iomem *reg_offset;
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dentry *debugfs_dir;
 #endif
@@ -164,15 +172,65 @@ static unsigned int meson_gxbb_wdt_get_timeleft(struct watchdog_device *wdt_dev)
 		(reg >> GXBB_WDT_TCNT_CNT_SHIFT)) / 1000;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int meson_gxbb_wdt_set_pretimeout(struct watchdog_device *wdt_dev,
+					 unsigned int pretimeout)
+{
+	struct meson_gxbb_wdt *data = watchdog_get_drvdata(wdt_dev);
+	unsigned long tcnt = pretimeout * 1000;
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+	if (wdt_debug)
+		pr_info("%s() pretimeout=%u\n", __func__, pretimeout);
+#endif
+	if (tcnt > GXBB_WDT_TCNT_SETUP_MASK)
+		tcnt = GXBB_WDT_TCNT_SETUP_MASK;
+
+	wdt_dev->pretimeout = pretimeout;
+
+	writel(tcnt, data->reg_offset);
+
+	return 0;
+}
+
+static irqreturn_t meson_gxbb_wdt_interrupt(int irq, void *p)
+{
+	struct meson_gxbb_wdt *data = (struct meson_gxbb_wdt *)p;
+
+	/*
+	 * If it's not 0, dual mode window will be enabled, the offset value
+	 * is the window time before watchdog reset when interrupt comes.
+	 *
+	 * Two cases:
+	 *   1. offset is disabled, the interrupt is normal WDT reset interrupt
+	 *   2. offset is enabled, the interrupt is the window interrupt to analyse
+	 */
+	if (readl(data->reg_offset) & GXBB_WDT_TCNT_SETUP_MASK) {
+		pr_warn("Watchdog has not been fed for %d seconds, and the system will be reset by it in %d seconds\n",
+			data->wdt_dev.timeout - data->wdt_dev.pretimeout,
+			data->wdt_dev.pretimeout);
+	}
+
+	return IRQ_HANDLED;
+}
+#endif
+
 static const struct watchdog_ops meson_gxbb_wdt_ops = {
 	.start = meson_gxbb_wdt_start,
 	.stop = meson_gxbb_wdt_stop,
 	.ping = meson_gxbb_wdt_ping,
 	.set_timeout = meson_gxbb_wdt_set_timeout,
 	.get_timeleft = meson_gxbb_wdt_get_timeleft,
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.set_pretimeout = meson_gxbb_wdt_set_pretimeout,
+#endif
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static struct watchdog_info meson_gxbb_wdt_info = {
+#else
 static const struct watchdog_info meson_gxbb_wdt_info = {
+#endif
 	.identity = "Meson GXBB Watchdog",
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 };
@@ -189,8 +247,8 @@ static int __maybe_unused meson_gxbb_wdt_resume(struct device *dev)
 #else
 	if (watchdog_active(&data->wdt_dev))
 		meson_gxbb_wdt_start(&data->wdt_dev);
-
 #endif
+
 	return 0;
 }
 
@@ -205,8 +263,8 @@ static int __maybe_unused meson_gxbb_wdt_suspend(struct device *dev)
 #else
 	if (watchdog_active(&data->wdt_dev))
 		meson_gxbb_wdt_stop(&data->wdt_dev);
-
 #endif
+
 	return 0;
 }
 
@@ -234,6 +292,7 @@ static const struct of_device_id meson_gxbb_wdt_dt_ids[] = {
 #else
 	 { .compatible = "amlogic,meson-gxbb-wdt", .data = &gxbb_params},
 	 { .compatible = "amlogic,meson-sc2-wdt", .data = &sc2_params},
+	 { .compatible = "amlogic,meson-a4-wdt", .data = &sc2_params},
 #endif
 	 { /* sentinel */ }
 };
@@ -330,6 +389,7 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 	struct wdt_params *wdt_params;
 	int reset_by_soc;
 	struct watchdog_device *wdt_dev;
+	int irq;
 #endif
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -351,6 +411,35 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 				       data->clk);
 	if (ret)
 		return ret;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/*
+	 * There are two conditions that need to be met to enable a pre-timeout
+	 *   1. 'interrupts' properties exist in the watchdog node
+	 *      of the device tree
+	 *   2. 'offset' register exists in the watchdog node of the device tree
+	 *
+	 * NOTE: The A4 and all subsequent chips support this feature
+	 */
+	irq = platform_get_irq(pdev, 0);
+	if (irq > 0) {
+		ret = devm_request_irq(&pdev->dev, irq, meson_gxbb_wdt_interrupt,
+				       IRQF_SHARED, DRIVER_NAME, data);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "irq request failed (%d)\n", ret);
+			return ret;
+		}
+
+		data->reg_offset = devm_platform_ioremap_resource(pdev, 1);
+		if (IS_ERR(data->reg_offset))
+			return PTR_ERR(data->reg_offset);
+
+		data->wdt_dev.pretimeout = DEFAULT_PRETIMEOUT;
+		meson_gxbb_wdt_info.options |= WDIOF_PRETIMEOUT;
+
+		dev_info(&pdev->dev, "pretimeout is enabled\n");
+	}
+#endif
 
 	platform_set_drvdata(pdev, data);
 
@@ -386,6 +475,14 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 	wdt_dev = &data->wdt_dev;
+
+	if (meson_gxbb_wdt_info.options & WDIOF_PRETIMEOUT) {
+		/* Configuration pretimeout */
+		meson_gxbb_wdt_set_pretimeout(wdt_dev, wdt_dev->pretimeout);
+		/* Watchdog interrupt enable */
+		writel(readl(data->reg_base + GXBB_WDT_CTRL_REG) |
+		       GXBB_WDT_CTRL_IRQ_EN, data->reg_base + GXBB_WDT_CTRL_REG);
+	}
 
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "amlogic,feed_watchdog_mode",
