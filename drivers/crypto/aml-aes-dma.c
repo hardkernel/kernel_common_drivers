@@ -197,7 +197,7 @@ static int set_aes_kl_key_iv(struct aml_aes_dev *dd, u32 *key,
 	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
-	aml_write_crypto_reg(dd->status, 0xf);
+	aml_write_crypto_reg(dd->status, 0xff);
 	dma_unmap_single(dd->parent, dma_addr_key,
 			 DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
 
@@ -214,7 +214,7 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 
 	s32 len = keylen;
 	dma_addr_t dma_addr_key = 0;
-	u8 status = 0;
+	u32 status = 0;
 	int err = 0;
 
 	if (!key_iv) {
@@ -265,10 +265,10 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 		;
 	status = aml_read_crypto_reg(dd->status);
 	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dev, "hw crypto failed.\n");
+		dev_err(dev, "hw crypto failed, status: %u\n");
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->status, 0xf);
+	aml_write_crypto_reg(dd->status, 0xff);
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dd->dma_descript_tab,
 			     1, DMA_FLAG_AES_IN_USE);
@@ -486,7 +486,7 @@ static int aml_aes_crypt_dma(struct aml_aes_dev *dd, struct dma_dsc *dsc,
 	unsigned long flags;
 #else
 	int err = 0;
-	u8 status = 0;
+	u32 status = 0;
 #endif
 
 	if (dd->flags & AES_FLAGS_CBC)
@@ -1370,7 +1370,7 @@ static irqreturn_t aml_aes_irq(int irq, void *dev_id)
 {
 	struct aml_aes_dev *aes_dd = dev_id;
 	struct device *dev = aes_dd->dev;
-	u8 status = aml_read_crypto_reg(aes_dd->status);
+	u32 status = aml_read_crypto_reg(aes_dd->status);
 
 	if (status) {
 		if (status == 0x1)
@@ -1381,7 +1381,7 @@ static irqreturn_t aml_aes_irq(int irq, void *dev_id)
 		    (aes_dd->dma->dma_busy & DMA_FLAG_AES_IN_USE)) {
 			if (status & DMA_STATUS_KEY_ERROR)
 				aes_dd->flags |= AES_FLAGS_ERROR;
-			aml_write_crypto_reg(aes_dd->status, 0xf);
+			aml_write_crypto_reg(aes_dd->status, 0xff);
 			aes_dd->dma->dma_busy &= ~DMA_FLAG_AES_IN_USE;
 			tasklet_schedule(&aes_dd->done_task);
 			return IRQ_HANDLED;

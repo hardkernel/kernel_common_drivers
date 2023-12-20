@@ -32,6 +32,7 @@
 #include <linux/of_platform.h>
 #include "aml-crypto-dma.h"
 #include "aml-sha-dma.h"
+#include "aml-sha3-dma.h"
 #include "aml-aes-dma.h"
 #include "aml-tdes-dma.h"
 #include "aml-sm4-dma.h"
@@ -40,6 +41,7 @@
 #define ENABLE_AES	(1)
 #define ENABLE_TDES	(1)
 #define ENABLE_SM4	(1)
+#define ENABLE_SHA3	(1)
 #define ENABLE_CRYPTO_DEV (1)
 #define AML_DMA_QUEUE_LENGTH (50)
 static struct dentry *aml_dma_debug_dent;
@@ -131,18 +133,25 @@ static int aml_dma_queue_manage(void *data)
 			backlog->complete(backlog, -EINPROGRESS);
 
 		if (async_req) {
+			const char *driver_name =
+				crypto_tfm_alg_driver_name(async_req->tfm);
+
 			__set_current_state(TASK_RUNNING);
 			if (crypto_tfm_alg_type(async_req->tfm) ==
 			    CRYPTO_ALG_TYPE_AHASH) {
 				struct ahash_request *req =
 					ahash_request_cast(async_req);
-				ret = aml_sha_process(req);
-				aml_sha_finish_req(req, ret);
+				if (strstr(driver_name, "sha3") ||
+					   strstr(driver_name, "shake")) {
+					ret = aml_sha3_process(req);
+					aml_sha3_finish_req(req, ret);
+				} else {
+					ret = aml_sha_process(req);
+					aml_sha_finish_req(req, ret);
+				}
 			} else {
 				struct skcipher_request *req =
 				skcipher_request_cast(async_req);
-				const char *driver_name =
-				crypto_tfm_alg_driver_name(async_req->tfm);
 
 				if (strstr(driver_name, "aes"))
 					ret = aml_aes_process(req);
@@ -295,6 +304,11 @@ static int __init aml_dma_driver_init(void)
 	if (ret)
 		goto sm4_init_failed;
 #endif
+#if ENABLE_SHA3
+	ret = aml_sha3_driver_init();
+	if (ret)
+		goto sha3_init_failed;
+#endif
 	ret = platform_driver_register(&aml_dma_driver);
 	if (ret)
 		goto plat_init_failed;
@@ -302,6 +316,10 @@ static int __init aml_dma_driver_init(void)
 	return ret;
 
 plat_init_failed:
+#if ENABLE_SHA3
+sha3_init_failed:
+	aml_sha3_driver_exit();
+#endif
 #if ENABLE_SM4
 sm4_init_failed:
 	aml_sm4_driver_exit();
@@ -343,6 +361,9 @@ static void __exit aml_dma_driver_exit(void)
 #endif
 #if ENABLE_SM4
 	aml_sm4_driver_exit();
+#endif
+#if ENABLE_SHA3
+	aml_sha3_driver_exit();
 #endif
 }
 module_exit(aml_dma_driver_exit);

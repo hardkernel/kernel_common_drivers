@@ -52,7 +52,7 @@
 #define SHA_BUFFER_LEN	\
 	ALIGN_DOWN((HASH_MAX_STATESIZE - sizeof(struct aml_sha_reqctx)), 64)
 
-#define AML_DIGEST_BUFSZ (SHA256_DIGEST_SIZE + 16)
+#define AML_DIGEST_BUFSZ (SHA256_DIGEST_SIZE + 8)
 
 #define DEFAULT_AUTOSUSPEND_DELAY	1000
 
@@ -226,7 +226,7 @@ static int aml_sha_xmit_dma(struct aml_sha_dev *dd,
 #if DMA_IRQ_MODE
 	unsigned long flags;
 #else
-	u8 status = 0;
+	u32 status = 0;
 	int err = 0;
 #endif
 
@@ -575,7 +575,7 @@ static int aml_sha_finish_hmac(struct ahash_request *req)
 	u32 ds = 0;
 	u8 *key;
 	dma_addr_t dma_key = 0;
-	u8 status = 0;
+	u32 status = 0;
 	int err = 0;
 
 	digest = dmam_alloc_coherent(dd->parent, AML_DIGEST_BUFSZ,
@@ -644,15 +644,15 @@ static int aml_sha_finish_hmac(struct ahash_request *req)
 		;
 	status = aml_read_crypto_reg(dd->status);
 	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dd->dev, "hw crypto failed.\n");
+		dev_err(dd->dev, "hw crypto failed, status: %u\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->status, 0xf);
+	aml_write_crypto_reg(dd->status, 0xff);
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dsc, 2, dd->dma_descript_tab,
 								  1, DMA_FLAG_SHA_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dd->dev, "hw crypto failed.\n");
+		dev_err(dd->dev, "hw crypto failed, status: %u\n", status);
 		err = -EINVAL;
 	}
 	aml_dma_debug(dsc, 2, "end hmac", dd->thread, dd->status);
@@ -703,7 +703,7 @@ static void aml_sha_clean_key(struct ahash_request *req)
 			(uintptr_t)dma_descript_tab | 2);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
-	aml_write_crypto_reg(dd->status, 0xf);
+	aml_write_crypto_reg(dd->status, 0xff);
 
 	dmam_free_coherent(dd->parent, tctx->keylen, key, dma_key);
 	dmam_free_coherent(dd->parent, sizeof(struct dma_dsc),
@@ -781,7 +781,7 @@ static int aml_sha_state_restore(struct ahash_request *req)
 	dma_addr_t dma_ctx;
 	struct dma_dsc *dsc = dd->descriptor;
 	s32 len = AML_DIGEST_BUFSZ;
-	u8 status = 0;
+	u32 status = 0;
 	int err = 0;
 
 	if (!ctx->digcnt[0] && !ctx->digcnt[1] && !tctx->is_hmac)
@@ -810,15 +810,15 @@ static int aml_sha_state_restore(struct ahash_request *req)
 		;
 	status = aml_read_crypto_reg(dd->status);
 	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dd->dev, "hw crypto failed.\n");
+		dev_err(dd->dev, "hw crypto failed, status: %u\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->status, 0xf);
+	aml_write_crypto_reg(dd->status, 0xff);
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dd->dma_descript_tab,
 								  1, DMA_FLAG_SHA_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dd->dev, "hw crypto failed.\n");
+		dev_err(dd->dev, "hw crypto failed, status: %u\n", status);
 		err = -EINVAL;
 	}
 	aml_dma_debug(dsc, 1, "end restore", dd->thread, dd->status);
@@ -845,7 +845,7 @@ static int aml_hmac_install_key(struct aml_sha_dev *dd,
 	u8 *digest = 0;
 	u32 i;
 	u32 mode = MODE_SHA1;
-	u8 status = 0;
+	u32 status = 0;
 
 	switch (crypto_ahash_digestsize(tfm)) {
 	case SHA1_DIGEST_SIZE:
@@ -917,15 +917,15 @@ static int aml_hmac_install_key(struct aml_sha_dev *dd,
 		;
 	status = aml_read_crypto_reg(dd->status);
 	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dd->dev, "hw crypto failed.\n");
+		dev_err(dd->dev, "hw crypto failed.\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->status, 0xf);
+	aml_write_crypto_reg(dd->status, 0xff);
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dma_descript_tab,
 								  1, DMA_FLAG_SHA_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dd->dev, "hw crypto failed.\n");
+		dev_err(dd->dev, "hw crypto failed, status: %u\n", status);
 		err = -EINVAL;
 	}
 	aml_dma_debug(dsc, 1, "end hmac key", dd->thread, dd->status);
@@ -1511,7 +1511,7 @@ static void aml_sha_done_task(unsigned long data)
 	return;
 
 finish:
-	/* finish curent request */
+	/* finish current request */
 	aml_sha_finish_req(dd->req, err);
 
 	if (!(SHA_FLAGS_BUSY & dd->flags)) {
@@ -1523,7 +1523,7 @@ finish:
 static irqreturn_t aml_sha_irq(int irq, void *dev_id)
 {
 	struct aml_sha_dev *sha_dd = dev_id;
-	u8 status = aml_read_crypto_reg(sha_dd->status);
+	u32 status = aml_read_crypto_reg(sha_dd->status);
 
 	if (status) {
 		if (status == 0x1)
@@ -1533,7 +1533,7 @@ static irqreturn_t aml_sha_irq(int irq, void *dev_id)
 		if (sha_dd->flags & SHA_FLAGS_DMA_ACTIVE &&
 		    (sha_dd->dma->dma_busy & DMA_FLAG_SHA_IN_USE)) {
 			sha_dd->flags |= SHA_FLAGS_OUTPUT_READY;
-			aml_write_crypto_reg(sha_dd->status, 0xf);
+			aml_write_crypto_reg(sha_dd->status, 0xff);
 			sha_dd->dma->dma_busy &= ~DMA_FLAG_SHA_IN_USE;
 			tasklet_schedule(&sha_dd->done_task);
 			return IRQ_HANDLED;
@@ -1678,7 +1678,7 @@ static const struct of_device_id aml_sha_dt_match[] = {
 	{},
 };
 #else
-#define aml_aes_dt_match NULL
+#define aml_sha3_dt_match NULL
 #endif
 static struct platform_driver aml_sha_driver = {
 	.probe		= aml_sha_probe,

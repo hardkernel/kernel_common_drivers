@@ -175,7 +175,7 @@ static irqreturn_t aml_crypto_dev_irq(int irq, void *dev_id)
 {
 	struct aml_crypto_dev *dd = dev_id;
 	struct device *dev = dd->dev;
-	u8 status = aml_read_crypto_reg(dd->status);
+	u32 status = aml_read_crypto_reg(dd->status);
 
 	if (status) {
 		if (status == 0x1)
@@ -187,7 +187,7 @@ static irqreturn_t aml_crypto_dev_irq(int irq, void *dev_id)
 			} else {
 				dd->err = 0;
 			}
-			aml_write_crypto_reg(dd->status, 0xf);
+			aml_write_crypto_reg(dd->status, 0xff);
 			wake_up_process(dd->processing);
 			return IRQ_HANDLED;
 		} else {
@@ -819,7 +819,7 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
 	wait_owner_bit(&dsc[s + i]);
-	aml_write_crypto_reg(crypto_dd->status, 0xf);
+	aml_write_crypto_reg(crypto_dd->status, 0xff);
 #else
 	schedule();
 	err = crypto_dd->err;
@@ -1133,8 +1133,8 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
-	aml_write_crypto_reg(crypto_dd->status, 0xf);
 	wait_owner_bit(&dsc[0]);
+	aml_write_crypto_reg(crypto_dd->status, 0xff);
 #else
 	schedule();
 	err = crypto_dd->err;
@@ -1324,7 +1324,7 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 		while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 			;
 		wait_owner_bit(&dsc[s]);
-		aml_write_crypto_reg(crypto_dd->status, 0xf);
+		aml_write_crypto_reg(crypto_dd->status, 0xff);
 #else
 		schedule();
 		err = crypto_dd->err;
@@ -1374,7 +1374,7 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
 	wait_owner_bit(&dsc[0]);
-	aml_write_crypto_reg(crypto_dd->status, 0xf);
+	aml_write_crypto_reg(crypto_dd->status, 0xff);
 #else
 	schedule();
 	err = crypto_dd->err;
@@ -1587,7 +1587,7 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 		while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 			;
 		wait_owner_bit(&dsc[s]);
-		aml_write_crypto_reg(crypto_dd->status, 0xf);
+		aml_write_crypto_reg(crypto_dd->status, 0xff);
 #else
 		schedule();
 		err = crypto_dd->err;
@@ -1639,7 +1639,7 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
 	wait_owner_bit(&dsc[0]);
-	aml_write_crypto_reg(crypto_dd->status, 0xf);
+	aml_write_crypto_reg(crypto_dd->status, 0xff);
 #else
 	schedule();
 	err = crypto_dd->err;

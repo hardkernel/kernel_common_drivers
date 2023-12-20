@@ -193,7 +193,7 @@ static int set_tdes_kl_key_iv(struct aml_tdes_dev *dd,
 	aml_dma_debug(dsc, iv ? 2 : 1, __func__, dd->thread, dd->status);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
-	aml_write_crypto_reg(dd->status, 0xf);
+	aml_write_crypto_reg(dd->status, 0xff);
 	dma_unmap_single(dd->parent, dma_addr_key,
 			 DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
 
@@ -210,7 +210,7 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 	u32 *piv = key_iv + 8;
 	u32 len = keylen;
 	dma_addr_t dma_addr_key;
-	u8 status = 0;
+	u32 status = 0;
 	int err = 0;
 
 	if (!key_iv) {
@@ -252,10 +252,10 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 		;
 	status = aml_read_crypto_reg(dd->status);
 	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dev, "hw crypto failed.\n");
+		dev_err(dev, "hw crypto failed, status: %u\n");
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->status, 0xf);
+	aml_write_crypto_reg(dd->status, 0xff);
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dd->dma_descript_tab,
 			     1, DMA_FLAG_TDES_IN_USE);
@@ -473,7 +473,7 @@ static int aml_tdes_crypt_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
 	unsigned long flags;
 #else
 	int err = 0;
-	u8 status = 0;
+	u32 status = 0;
 #endif
 
 	if (dd->flags & TDES_FLAGS_CBC)
@@ -1320,7 +1320,7 @@ static irqreturn_t aml_tdes_irq(int irq, void *dev_id)
 {
 	struct aml_tdes_dev *tdes_dd = dev_id;
 	struct device *dev = tdes_dd->dev;
-	u8 status = aml_read_crypto_reg(tdes_dd->status);
+	u32 status = aml_read_crypto_reg(tdes_dd->status);
 
 	if (status) {
 		if (status == 0x1)
@@ -1331,7 +1331,7 @@ static irqreturn_t aml_tdes_irq(int irq, void *dev_id)
 		    (tdes_dd->flags & TDES_FLAGS_DMA)) {
 			if (status & DMA_STATUS_KEY_ERROR)
 				tdes_dd->flags |= TDES_FLAGS_ERROR;
-			aml_write_crypto_reg(tdes_dd->status, 0xf);
+			aml_write_crypto_reg(tdes_dd->status, 0xff);
 			tdes_dd->dma->dma_busy &= ~DMA_FLAG_TDES_IN_USE;
 			tasklet_schedule(&tdes_dd->done_task);
 			return IRQ_HANDLED;

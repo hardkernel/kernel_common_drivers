@@ -150,7 +150,7 @@ u8 aml_dma_do_hw_crypto(struct aml_dma_dev *dd,
 			while (dsc[dsc_len - 1].dsc_cfg.b.owner)
 				cpu_relax();
 		}
-		aml_write_crypto_reg(dd->status, 0xf);
+		aml_write_crypto_reg(dd->status, 0xff);
 		dd->dma_busy &= ~dma_flags;
 	}
 	spin_unlock_irqrestore(&dd->dma_lock, dd->irq_flags);
@@ -162,7 +162,7 @@ EXPORT_SYMBOL_GPL(aml_dma_do_hw_crypto);
 void aml_dma_finish_hw_crypto(struct aml_dma_dev *dd, u8 dma_flags)
 {
 	spin_lock_irqsave(&dd->dma_lock, dd->irq_flags);
-	aml_write_crypto_reg(dd->status, 0xf);
+	aml_write_crypto_reg(dd->status, 0xff);
 	dd->dma_busy &= ~dma_flags;
 	spin_unlock_irqrestore(&dd->dma_lock, dd->irq_flags);
 }

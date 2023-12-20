@@ -74,7 +74,7 @@ enum CRYPTO_ALGO_CAPABILITY {
 #define MODE_DMA     0x0
 #define MODE_KEY     0x1
 #define MODE_MEMSET  0x2
-/* 0x3 is skipped */
+#define MODE_SHA3    0x3
 /* 0x4 is skipped */
 #define MODE_SHA1    0x5
 #define MODE_SHA256  0x6
@@ -89,6 +89,7 @@ enum CRYPTO_ALGO_CAPABILITY {
 #define MODE_TDES_2K 0xe
 #define MODE_TDES_3K 0xf
 
+#define DMA_DSC_64_BIT_MODE (0)
 struct dma_dsc {
 	union {
 		u32 d32;
@@ -107,8 +108,13 @@ struct dma_dsc {
 			unsigned owner:1;
 		} b;
 	} dsc_cfg;
+#if DMA_DSC_64_BIT_MODE
+	u64 src_addr;
+	u64 tgt_addr;
+#else
 	u32 src_addr;
 	u32 tgt_addr;
+#endif
 } __packed;
 
 struct dma_sg_dsc {
@@ -122,7 +128,12 @@ struct dma_sg_dsc {
 			unsigned length:26;
 		} b;
 	} dsc_cfg;
+#if DMA_DSC_64_BIT_MODE
+	u64 addr;
+	u32 rsv;
+#else
 	u32 addr;
+#endif
 } __packed;
 
 #define DMA_FLAG_MAY_OCCUPY    BIT(0)
@@ -198,3 +209,6 @@ void aml_crypto_device_driver_exit(void);
 
 int __init aml_sm4_driver_init(void);
 void aml_sm4_driver_exit(void);
+
+int __init aml_sha3_driver_init(void);
+void aml_sha3_driver_exit(void);

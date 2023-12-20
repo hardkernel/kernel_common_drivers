@@ -18,3 +18,5 @@
 # amlogic-wireless.ko
   async_schedule_node
 
+# amlogic-crypto-dma.ko
+  sg_nents_for_len
