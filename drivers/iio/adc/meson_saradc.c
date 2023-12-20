@@ -157,7 +157,6 @@
 
 #define SAR_ADC_DEF_VREF					1800000	/* uV */
 
-struct mutex *mlock;
 static const char * const chan7_vol[] = {
 	"gnd",
 	"vdd/4",
@@ -340,7 +339,7 @@ static int meson_sar_adc_lock(struct iio_dev *indio_dev)
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 	int val, timeout = 10000;
 
-	mutex_lock(mlock);
+	mutex_lock(&priv->lock);
 
 	if (priv->param->has_bl30_integration) {
 again:
@@ -353,7 +352,7 @@ again:
 		} while (val & MESON_SAR_ADC_DELAY_BL30_BUSY && timeout--);
 
 		if (timeout < 0) {
-			mutex_unlock(mlock);
+			mutex_unlock(&priv->lock);
 			return -ETIMEDOUT;
 		}
 		/* prevent BL30 from using the SAR ADC while we are using it */
@@ -384,7 +383,7 @@ static void meson_sar_adc_unlock(struct iio_dev *indio_dev)
 		udelay(5);
 	}
 
-	mutex_unlock(mlock);
+	mutex_unlock(&priv->lock);
 }
 
 static void meson_sar_adc_clear_fifo(struct iio_dev *indio_dev)
@@ -1551,13 +1550,7 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, indio_dev);
 
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
-	mlock = &priv->lock;
-	mutex_init(mlock);
-#else
-	mlock = &indio_dev->mlock;
-#endif
+	mutex_init(&priv->lock);
 
 	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
 		pm_runtime_enable(&pdev->dev);
@@ -1622,9 +1615,7 @@ err:
 static int meson_sar_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-#if defined(CONFIG_IIO_KFIFO_BUF)
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
-#endif
 
 	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
 		pm_runtime_dont_use_autosuspend(&pdev->dev);
@@ -1641,6 +1632,8 @@ static int meson_sar_adc_remove(struct platform_device *pdev)
 #endif
 
 	meson_sar_adc_hw_disable(indio_dev);
+
+	mutex_destroy(&priv->lock);
 
 	return meson_sar_adc_uninit(indio_dev);
 }

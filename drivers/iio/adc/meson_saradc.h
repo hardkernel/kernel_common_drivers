@@ -110,11 +110,8 @@ struct meson_sar_adc_priv {
 	struct clk_gate				clk_gate;
 	struct clk				*adc_div_clk;
 	struct clk_divider			clk_div;
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 	/* lock to protect against multiple access to the device */
 	struct mutex				lock;
-#endif
 	int					calibbias;
 	int					calibscale;
 	u8					temperature_sensor_calibrated;
