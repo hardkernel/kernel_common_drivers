@@ -41,7 +41,7 @@ void should_wakeup_kswap(gfp_t gfp_mask, int order,
 	 *    kswap to avoid large amount memory request fail in very
 	 *    short time
 	 */
-	if (!(gfp_mask & __GFP_RECLAIM) && !(gfp_mask & __GFP_ATOMIC))
+	if (!(gfp_mask & __GFP_RECLAIM) && !(gfp_mask & GFP_ATOMIC))
 		return;
 
 	for_next_zone_zonelist_nodemask(zone, z, ac->highest_zoneidx,
@@ -72,12 +72,12 @@ void adjust_redzone_end(const void *ptr, size_t size, unsigned long *p_end)
 	}
 }
 
-void *aml_slub_alloc_large(size_t size, gfp_t flags, int order)
+void *aml_slub_alloc_large(int node, size_t size, gfp_t flags, int order)
 {
 	struct page *page, *p;
 
 	flags &= ~__GFP_COMP;
-	page = alloc_pages(flags, order);
+	page = alloc_pages_node(node, flags, order);
 	if (page) {
 		unsigned long used_pages = PAGE_ALIGN(size) / PAGE_SIZE;
 		unsigned long total_pages = 1 << order;
@@ -134,23 +134,28 @@ static void aml_slub_free_large(struct page *page, const void *obj)
 	}
 }
 
-int aml_free_nonslab_page(struct page *page, void *object)
+int aml_free_nonslab_page(struct folio *folio, void *object)
 {
 	unsigned int nr_pages;
-	unsigned int order = compound_order(page);
+	unsigned int order = folio_order(folio);
+	unsigned int page_num = folio_page(folio, 0)->index;
 
-	if (page->index)
-		nr_pages = page->index;
+	if (WARN_ON_ONCE(order == 0))
+		pr_warn_once("object pointer: 0x%p\n", object);
+
+	if (page_num)
+		nr_pages = page_num;
 	else
 		nr_pages = 1 << order;
-	VM_BUG_ON_PAGE(!PageCompound(page), page);
-#ifdef CONFIG_DEBUG_KMEMLEAK
+
 	kmemleak_free(object);
-#endif
 	kasan_kfree_large(object);
-	mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE_B, -(nr_pages * PAGE_SIZE));
-	if (unlikely(PageOwnerPriv1(page))) {
-		aml_slub_free_large(page, object);
+	kmsan_kfree_large(object);
+
+	mod_lruvec_page_state(folio_page(folio, 0), NR_SLAB_UNRECLAIMABLE_B,
+				-(nr_pages * PAGE_SIZE));
+	if (unlikely(PageOwnerPriv1(folio_page(folio, 0)))) {
+		aml_slub_free_large(folio_page(folio, 0), object);
 		return 1;
 	}
 

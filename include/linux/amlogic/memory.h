@@ -8,6 +8,6 @@
 void should_wakeup_kswap(gfp_t gfp_mask, int order,
 				       struct alloc_context *ac);
 void adjust_redzone_end(const void *ptr, size_t size, unsigned long *p_end);
-void *aml_slub_alloc_large(size_t size, gfp_t flags, int order);
-int aml_free_nonslab_page(struct page *page, void *object);
+void *aml_slub_alloc_large(int node, size_t size, gfp_t flags, int order);
+int aml_free_nonslab_page(struct folio *folio, void *object);
 #endif
