@@ -74,7 +74,7 @@
 
 	};
 
-	vddio3v3_reg: fixedregulator@5{
+	vddio3v3_reg: fixed@vddio3v3_reg{
 		vin-supply = <&vddao3v3_reg>;
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_3V3";
@@ -86,7 +86,7 @@
 		regulator-always-on;
 	};
 
-	vddio_1v8_reg: fixedregulator@6{
+	vddio_1v8_reg: fixed@vddio_1v8_reg{
 		vin-supply = <&vddio3v3_reg>;
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_1V8";
@@ -109,7 +109,7 @@
 		regulator-boot-on;
 	};
 
-	vddds1v8_reg: fixedregulator@7{
+	vddds1v8_reg: fixed@vddds1v8_reg{
 		vin-supply = <&vddao3v3_reg>;
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_DSOFF_1V8";
@@ -121,7 +121,7 @@
 		regulator-always-on;
 	};
 
-	avdd33_usb_reg: fixedregulator@9{
+	avdd33_usb_reg: fixed@avdd33_usb_reg{
 		vin-supply = <&vddio3v3_reg>;
 		compatible = "regulator-fixed";
 		regulator-name = "AVDD33_USB";
@@ -130,7 +130,7 @@
 		regulator-boot-on;
 	};
 
-	avdd18_usb_reg: fixedregulator@10{
+	avdd18_usb_reg: fixed@avdd18_usb_reg{
 		vin-supply = <&vddio_1v8_reg>;
 		compatible = "regulator-fixed";
 		regulator-name = "AVDD18_USB";

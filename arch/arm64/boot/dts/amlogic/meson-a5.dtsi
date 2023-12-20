@@ -216,7 +216,7 @@
 		regulator-always-on;
 	};
 
-	vcc5v_reg: fixedregulator@1{
+	vcc5v_reg: fixed@vcc5v_reg{
 		vin-supply = <&vbat>;
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_5V";
@@ -227,7 +227,7 @@
 		regulator-boot-on;
 	};
 
-	vddq_reg: fixedregulator@2 {
+	vddq_reg: fixed@vddq_reg {
 		compatible = "regulator-fixed";
 		vin-supply = <&vbat>;
 		regulator-name = "VDDQ";
@@ -239,7 +239,7 @@
 		regulator-always-on;
 	};
 
-	vddao3v3_reg: fixedregulator@3{
+	vddao3v3_reg: fixed@vddao3v3_reg{
 		vin-supply = <&vbat>;
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_3V3";
@@ -249,7 +249,7 @@
 		regulator-always-on;
 	};
 
-	vddao1v8_reg: fixedregulator@4{
+	vddao1v8_reg: fixed@vddao1v8_reg{
 		vin-supply = <&vddao3v3_reg>;
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_1V8";
@@ -480,7 +480,7 @@
 
 	vddcpu0: pwm_f-regulator {
 		compatible = "pwm-regulator";
-		// pwms = <&pwm_ef MESON_PWM_1 1500 0>;
+		pwms = <&pwm_ef MESON_PWM_1 1500 0>;
 		regulator-name = "vddcpu0";
 		regulator-min-microvolt = <689000>;
 		regulator-max-microvolt = <1049000>;
