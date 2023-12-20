@@ -1381,13 +1381,9 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop, u8 port)
 
 void hdmirx_get_spd_info(struct tvin_sig_property_s *prop, u8 port)//todo)
 {
-	if (!rx_pkt_chk_updated_spd(port)) {
-		memset(&prop->spd_data, 0, sizeof(struct tvin_spd_data_s));
-	} else {
-		rx_pkt_clr_updated_spd(port);
-		memcpy(&prop->spd_data, &rx_pkt[port].spd_info,
-			sizeof(struct tvin_spd_data_s));
-	}
+	memcpy(&prop->spd_data, &rx_pkt[port].spd_info,
+		sizeof(struct tvin_spd_data_s));
+
 }
 
 /*
