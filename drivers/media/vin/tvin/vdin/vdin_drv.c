@@ -3028,7 +3028,7 @@ static void vdin_handle_secure_content(struct vdin_dev_s *devp)
  */
 irqreturn_t vdin_isr(int irq, void *dev_id)
 {
-	ulong flags = 0;
+	ulong flags = 0, wr_list_flags = 0;
 	struct vdin_dev_s *devp = (struct vdin_dev_s *)dev_id;
 	enum tvin_sm_status_e state;
 	struct vf_entry *next_wr_vfe = NULL;
@@ -3451,7 +3451,9 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	vdin_set_one_buffer_mode(devp, next_wr_vfe);
 
 	if (devp->mem_type == VDIN_MEM_TYPE_SCT && next_wr_vfe) {
+		spin_lock_irqsave(&devp->vfp->wr_lock, wr_list_flags);
 		if (next_wr_vfe->sct_stat != VFRAME_SCT_STATE_FULL) {
+			spin_unlock_irqrestore(&devp->vfp->wr_lock, wr_list_flags);
 			devp->msct_top.sct_pause_dec = true;
 			devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_NEXT_FE;
 			vdin_drop_frame_info(devp, "sct no next wr vfe");
@@ -3460,6 +3462,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		} else if (devp->msct_top.sct_pause_dec) {
 			devp->msct_top.sct_pause_dec = false;
 		}
+		spin_unlock_irqrestore(&devp->vfp->wr_lock, wr_list_flags);
 	}
 
 	/* prepare for next input data */
