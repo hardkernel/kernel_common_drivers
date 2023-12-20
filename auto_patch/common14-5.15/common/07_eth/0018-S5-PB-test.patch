@@ -1,0 +1,26 @@
+From 9acb729e8b4f6e8f24c69ae1204f4fcbe11315d2 Mon Sep 17 00:00:00 2001
+From: Zhuo Wang <zhuo.wang@amlogic.com>
+Date: Mon, 4 Dec 2023 16:41:58 +0800
+Subject: [PATCH] S5 PB test
+
+Change-Id: I3710ccacde1373c0c457150e04827ec6529f451b
+Signed-off-by: Zhuo Wang <zhuo.wang@amlogic.com>
+---
+ drivers/net/ethernet/stmicro/stmmac/dwmac-meson8b.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/net/ethernet/stmicro/stmmac/dwmac-meson8b.c b/drivers/net/ethernet/stmicro/stmmac/dwmac-meson8b.c
+index 8fc25d849c20..791504ebb4a5 100644
+--- a/drivers/net/ethernet/stmicro/stmmac/dwmac-meson8b.c
++++ b/drivers/net/ethernet/stmicro/stmmac/dwmac-meson8b.c
+@@ -465,6 +465,7 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
+ 
+ 	/*internal_phy 1:inphy;2:exphy; 0 as default*/
+ 	if (internal_phy == 2) {
++		ndev->wol_enabled = false;
+ 		if (of_property_read_u32(np, "cali_val", &cali_val) != 0)
+ 			pr_err("set default cali_val as 0\n");
+ 		writel(cali_val, dwmac->regs + PRG_ETH1);
+-- 
+2.35.1
+
