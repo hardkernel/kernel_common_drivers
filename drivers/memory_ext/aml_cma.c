@@ -1398,12 +1398,10 @@ void aml_cma_free(unsigned long pfn, unsigned int nr_pages, int update)
 	int free_order, start_order = 0;
 	int batch;
 	unsigned int orig_nr_pages = nr_pages;
+#if (IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE) && IS_MODULE(CONFIG_AMLOGIC_CMA)) || \
+	(IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE) && IS_BUILTIN(CONFIG_AMLOGIC_CMA))
 	unsigned long orig_pfn = pfn;
-
-	if (update) {
-		if (cma_alloc_trace)
-			pr_info("sc f p:%lx, c:%d\n", orig_pfn, orig_nr_pages);
-	}
+#endif
 
 	while (nr_pages) {
 		page = pfn_to_page(pfn);
