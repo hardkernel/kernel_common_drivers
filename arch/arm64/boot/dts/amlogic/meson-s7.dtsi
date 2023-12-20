@@ -1563,8 +1563,8 @@
 		compatible = "amlogic, cpu-major-id-s7";
 		dev_name = "vcodec_dos_dev";
 		status = "okay";
-		reg = <0xfe320000 0x10000>,
-			<0xfe036000 0x2000>;
+		reg = <0x0 0xfe320000 0x0 0x10000>,
+			<0x0 0xfe036000 0x0 0x2000>;
 		reg-names = "dosbus",
 			"dmcbus";
 		clocks = <&clkc CLKID_SYS_DOS
