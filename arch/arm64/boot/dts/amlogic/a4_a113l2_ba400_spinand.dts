@@ -1653,7 +1653,3 @@
 	status = "disabled";
 };
 
-&jtag {
-	status = "disabled";
-};
-
