@@ -870,6 +870,7 @@ void cm_frame_size_s5(struct vframe_s *vf, int vpp_index)
 	int i;
 	int changed_flag;
 	int slice_max;
+	int overlap = 0;
 
 #if CONFIG_AMLOGIC_MEDIA_VIDEO
 	vd_size_info = get_vd_proc_amvecm_info();
@@ -939,8 +940,13 @@ void cm_frame_size_s5(struct vframe_s *vf, int vpp_index)
 
 			for (i = SLICE0; i < slice_num; i++) {
 #if CONFIG_AMLOGIC_MEDIA_VIDEO
-				width = vd_size_info->slice[i].hsize;
-				height = vd_size_info->slice[i].vsize;
+				if (slice_num == 2)
+					overlap = vd_size_info->slice[0].vd1_overlap;
+				else
+					overlap = 0;
+
+				width = vd_size_info->slice[0].vd1_slice_in_hsize - overlap;
+				height = vd_size_info->slice[0].vd1_slice_in_vsize;
 #else
 				width = 0xf00;
 				height = 0x870;

@@ -1234,7 +1234,8 @@ static void vpp_backup_histgram(struct vframe_s *vf)
 	set_lum_ave(ave);
 
 	if (pr_hist) {
-		for (i = 0; i < 8; i++) {
+		pr_info("vpp_histgram data:\n");
+		for (i = 0; i < 8; i++)
 			pr_info("%d, %d, %d, %d, %d, %d, %d, %d\n",
 				vpp_hist_param.vpp_histgram[i * 8 + 0],
 				vpp_hist_param.vpp_histgram[i * 8 + 1],
@@ -1244,8 +1245,13 @@ static void vpp_backup_histgram(struct vframe_s *vf)
 				vpp_hist_param.vpp_histgram[i * 8 + 5],
 				vpp_hist_param.vpp_histgram[i * 8 + 6],
 				vpp_hist_param.vpp_histgram[i * 8 + 7]);
-			pr_info("ave = %d\n", ave);
-		}
+		pr_info("ave = %d\n", ave);
+
+		pr_info("hue/sat_histgram data:\n");
+		for (i = 0; i < 32; i++)
+			pr_info("[i] %d, %d\n",
+				vpp_hist_param.hue_histgram[i],
+				vpp_hist_param.sat_histgram[i]);
 	}
 }
 
@@ -1386,6 +1392,7 @@ void vpp_get_vframe_hist_info(struct vframe_s *vf)
 	if (chip_type_id == chip_s5 ||
 		chip_type_id == chip_t3x) {
 		get_luma_hist(vf);
+		get_cm_hist(vf);
 		return;
 	}
 
@@ -2540,6 +2547,7 @@ void amvecm_video_latch(int vpp_index)
 	bs_ct_update(vpp_index);
 	pr_amvecm_bringup_dbg("[on_vs] bs_ct done.\n");
 	dnlp_en_update(vpp_index);
+	sharpness_gain_update(vpp_index);
 #endif
 }
 

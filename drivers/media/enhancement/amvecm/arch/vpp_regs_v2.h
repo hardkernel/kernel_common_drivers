@@ -770,6 +770,8 @@
 
 #define VPP_SRSHARP0_PK_NR_EN                     0x5027
 #define VPP_SRSHARP1_PK_NR_EN                     0x5227
+#define VPP_SRSHARP0_PK_FINALGAIN_HP_BP           0x5022
+#define VPP_SRSHARP1_PK_FINALGAIN_HP_BP           0x5222
 
 #define VPP_SR2_SHARP_PROC_1R                     0x5257
 #define VPP_SR2_SHARP_PROC_1R_S1                  0x7757

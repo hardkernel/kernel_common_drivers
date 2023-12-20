@@ -602,38 +602,50 @@ void cm_hist_get(struct vframe_s *vf,
 {
 	int i;
 	struct cm_port_s port;
+	unsigned int reg_addr_s0;
+	unsigned int reg_addr_s1;
+	unsigned int reg_data_s0;
+	unsigned int reg_data_s1;
+	unsigned int val_s0 = 0;
+	unsigned int val_s1 = 0;
+	int slice_case;
 
 	if (!vf || !hue_bin0 || !sat_bin0)
 		return;
 
-	if (hist_dma_case && chip_type_id > chip_t3x) {
-		if (ve_multi_slice_case_get()) {
-			am_dma_get_blend_cm2_hist_hue(vf->prop.hist.vpp_hue_gamma,
-				32);
-			am_dma_get_blend_cm2_hist_sat(vf->prop.hist.vpp_sat_gamma,
-				32);
-		} else {
-			am_dma_get_mif_data_cm2_hist_hue(0,
-				vf->prop.hist.vpp_hue_gamma, 32);
-			am_dma_get_mif_data_cm2_hist_sat(0,
-				vf->prop.hist.vpp_sat_gamma, 32);
-		}
-	} else {
-		port = get_cm_port();
+	slice_case = ve_multi_slice_case_get();
 
-		for (i = 0; i < 32; i++) {
-			WRITE_VPP_REG(port.cm_addr_port[0],
-				hue_bin0 + i);
-			vf->prop.hist.vpp_hue_gamma[i] =
-				READ_VPP_REG(port.cm_data_port[0]);
+	port = get_cm_port();
+	reg_addr_s0 = port.cm_addr_port[0];
+	reg_addr_s1 = port.cm_addr_port[1];
+	reg_data_s0 = port.cm_data_port[0];
+	reg_data_s1 = port.cm_data_port[1];
+
+	for (i = 0; i < 32; i++) {
+		WRITE_VPP_REG(reg_addr_s0, hue_bin0 + i);
+		val_s0 = READ_VPP_REG(reg_data_s0);
+
+		if (chip_type_id == chip_t3x && slice_case) {
+			WRITE_VPP_REG(reg_addr_s1, hue_bin0 + i);
+			val_s1 = READ_VPP_REG(reg_data_s1);
 		}
 
-		for (i = 0; i < 32; i++) {
-			WRITE_VPP_REG(port.cm_addr_port[0],
-				sat_bin0 + i);
-			vf->prop.hist.vpp_sat_gamma[i] =
-				READ_VPP_REG(port.cm_data_port[0]);
+		vf->prop.hist.vpp_hue_gamma[i] = val_s0 + val_s1;
+	}
+
+	val_s0 = 0;
+	val_s1 = 0;
+
+	for (i = 0; i < 32; i++) {
+		WRITE_VPP_REG(reg_addr_s0, sat_bin0 + i);
+		val_s0 = READ_VPP_REG(reg_data_s0);
+
+		if (chip_type_id == chip_t3x && slice_case) {
+			WRITE_VPP_REG(reg_addr_s1, sat_bin0 + i);
+			val_s1 = READ_VPP_REG(reg_data_s1);
 		}
+
+		vf->prop.hist.vpp_sat_gamma[i] = val_s0 + val_s1;
 	}
 }
 
@@ -643,31 +655,35 @@ void cm_hist_by_type_get(enum cm_hist_e hist_sel,
 {
 	int i;
 	struct cm_port_s port;
+	unsigned int reg_addr_s0;
+	unsigned int reg_addr_s1;
+	unsigned int reg_data_s0;
+	unsigned int reg_data_s1;
+	unsigned int val_s0 = 0;
+	unsigned int val_s1 = 0;
+	int slice_case;
 
 	if (!data || !length || !addr_bin0)
 		return;
 
-	if (hist_dma_case) {
-		if (ve_multi_slice_case_get()) {
-			if (hist_sel == CM_HUE_HIST)
-				am_dma_get_blend_cm2_hist_hue(data, length);
-			else
-				am_dma_get_blend_cm2_hist_sat(data, length);
-		} else {
-			if (hist_sel == CM_HUE_HIST)
-				am_dma_get_mif_data_cm2_hist_hue(0, data, length);
-			else
-				am_dma_get_mif_data_cm2_hist_sat(0, data, length);
-		}
-	} else {
-		port = get_cm_port();
+	slice_case = ve_multi_slice_case_get();
 
-		for (i = 0; i < length; i++) {
-			WRITE_VPP_REG(port.cm_addr_port[0],
-				addr_bin0 + i);
-			data[i] =
-				READ_VPP_REG(port.cm_data_port[0]);
+	port = get_cm_port();
+	reg_addr_s0 = port.cm_addr_port[0];
+	reg_addr_s1 = port.cm_addr_port[1];
+	reg_data_s0 = port.cm_data_port[0];
+	reg_data_s1 = port.cm_data_port[1];
+
+	for (i = 0; i < length; i++) {
+		WRITE_VPP_REG(reg_addr_s0, addr_bin0 + i);
+		val_s0 = READ_VPP_REG(reg_data_s0);
+
+		if (chip_type_id == chip_t3x && slice_case) {
+			WRITE_VPP_REG(reg_addr_s1, addr_bin0 + i);
+			val_s1 = READ_VPP_REG(reg_data_s1);
 		}
+
+		data[i] = val_s0 + val_s1;
 	}
 }
 
@@ -1572,6 +1588,44 @@ void ve_mtrx_setting(enum vpp_matrix_e mtx_sel,
 	/*pr_info("mtx_sel:%d, mtx_csc:0x%x\n", mtx_sel, mtx_csc);*/
 }
 
+void ve_sharpness_gain_set(int sr0_gain, int sr1_gain,
+	enum wr_md_e mode, int vpp_index)
+{
+	int i;
+	int slice_max;
+	int sr0_reg = VPP_SRSHARP0_PK_FINALGAIN_HP_BP;
+	int sr1_reg = VPP_SRSHARP1_PK_FINALGAIN_HP_BP;
+
+	slice_max = get_slice_max();
+
+	if (mode == WR_VCB) {
+		for (i = SLICE0; i < slice_max; i++) {
+			WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[i],
+				sr0_gain, 0, 16);
+			WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[i],
+				sr1_gain, 0, 16);
+
+			pr_amve_v2("%s: addr = %x, val = %d\n", __func__,
+				sr0_reg + sr_sharp_reg_ofst[i], sr0_gain);
+			pr_amve_v2("%s: addr = %x, val = %d\n", __func__,
+				sr1_reg + sr_sharp_reg_ofst[i], sr1_gain);
+		}
+	} else if (mode == WR_DMA) {
+		for (i = SLICE0; i < slice_max; i++) {
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(sr0_reg + sr_sharp_reg_ofst[i],
+				sr0_gain, 0, 16, vpp_index);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(sr1_reg + sr_sharp_reg_ofst[i],
+				sr1_gain, 0, 16, vpp_index);
+
+			pr_amve_v2("%s: vpp_index = %d\n", __func__, vpp_index);
+			pr_amve_v2("%s: addr = %x, val = %d\n", __func__,
+				sr0_reg + sr_sharp_reg_ofst[i], sr0_gain);
+			pr_amve_v2("%s: addr = %x, val = %d\n", __func__,
+				sr1_reg + sr_sharp_reg_ofst[i], sr1_gain);
+		}
+	}
+}
+
 void ve_sharpness_ctl(enum wr_md_e mode, int sr0_en,
 	int sr1_en, int vpp_index)
 {
@@ -1588,6 +1642,11 @@ void ve_sharpness_ctl(enum wr_md_e mode, int sr0_en,
 				sr0_en, 1, 1);
 			WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[i],
 				sr1_en, 1, 1);
+
+			pr_amve_v2("%s: addr = %x, val = %d\n", __func__,
+				sr0_reg + sr_sharp_reg_ofst[i], sr0_en);
+			pr_amve_v2("%s: addr = %x, val = %d\n", __func__,
+				sr1_reg + sr_sharp_reg_ofst[i], sr1_en);
 		}
 	} else if (mode == WR_DMA) {
 		for (i = SLICE0; i < slice_max; i++) {
@@ -1595,13 +1654,13 @@ void ve_sharpness_ctl(enum wr_md_e mode, int sr0_en,
 				sr0_en, 1, 1, vpp_index);
 			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(sr1_reg + sr_sharp_reg_ofst[i],
 				sr1_en, 1, 1, vpp_index);
+
+			pr_amve_v2("%s: addr = %x, val = %d\n", __func__,
+				sr0_reg + sr_sharp_reg_ofst[i], sr0_en);
+			pr_amve_v2("%s: addr = %x, val = %d\n", __func__,
+				sr1_reg + sr_sharp_reg_ofst[i], sr1_en);
 		}
 	}
-
-	pr_amve_v2("%s: addr = %x, val = %d\n", __func__,
-		sr0_reg + sr_sharp_reg_ofst[i], sr0_en);
-	pr_amve_v2("%s: addr = %x, val = %d\n", __func__,
-		sr1_reg + sr_sharp_reg_ofst[i], sr1_en);
 }
 
 void ve_dnlp_set(ulong *data)

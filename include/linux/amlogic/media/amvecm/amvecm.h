@@ -111,6 +111,7 @@ bool is_hdmi_ll_as_hdr10(void);
  *#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
  *#define VPP_VADJ1_EN                (1 << 0)
  */
+#define SHARPNESS_GAIN_UPDATE       BIT(20)
 #define FLAG_GAMMA_TABLE_EN_SUB     BIT(19)
 #define FLAG_GAMMA_TABLE_DIS_SUB    BIT(18)
 #define FLAG_GAMMA_TABLE_R_SUB      BIT(17)

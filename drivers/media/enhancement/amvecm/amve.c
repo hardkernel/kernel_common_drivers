@@ -236,6 +236,9 @@ static unsigned int sr_adapt_level;
 module_param(sr_adapt_level, uint, 0664);
 MODULE_PARM_DESC(sr_adapt_level, "\n sr_adapt_level\n");
 
+/*sharpness gain for ai pq*/
+int sr_gain[2];
+
 /* *********************************************************************** */
 /* *** VPP_FIQ-oriented functions **************************************** */
 /* *********************************************************************** */
@@ -3026,6 +3029,31 @@ void vpp_pst_hist_sta_read(unsigned int *hist)
 	WRITE_VPP_REG_BITS(VPP_PST_STA_CTRL, 0, 16, 16);
 	for (i = 0; i < 64; i++)
 		hist[i] = READ_VPP_REG(VPP_PST_STA_RO_HIST);
+}
+
+void set_sharpness_gain(int sr0_gain, int sr1_gain)
+{
+	sr_gain[0] = sr0_gain;
+	sr_gain[1] = sr1_gain;
+
+	vecm_latch_flag2 |= SHARPNESS_GAIN_UPDATE;
+}
+
+void sharpness_gain_update(int vpp_index)
+{
+	if (vecm_latch_flag2 & SHARPNESS_GAIN_UPDATE) {
+		if (chip_type_id != chip_t3x) {
+			VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_FINALGAIN_HP_BP,
+				sr_gain[0], 0, 16);
+			VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_FINALGAIN_HP_BP,
+				sr_gain[0], 0, 16);
+		} else {
+			ve_sharpness_gain_set(sr_gain[0], sr_gain[1],
+				WR_DMA, vpp_index);
+		}
+
+		vecm_latch_flag2 &= ~SHARPNESS_GAIN_UPDATE;
+	}
 }
 #endif
 

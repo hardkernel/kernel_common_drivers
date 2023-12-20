@@ -29,6 +29,7 @@
 #include "../dnlp_cal.h"
 #include "../cm2_adj.h"
 #include "../reg_helper.h"
+#include "../amve.h"
 
 unsigned int aipq_debug;
 module_param(aipq_debug, uint, 0664);
@@ -356,12 +357,8 @@ int peaking_scene_process(int offset, int enable)
 	adap_param->satur_param.offset = offset;
 
 	if (!enable || !(aipq_en & (1 << PEAKING_SCENE))) {
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_FINALGAIN_HP_BP,
-			base_val[0] << 8 | base_val[1],
-			0, 16);
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_FINALGAIN_HP_BP,
-			base_val[2] << 8 | base_val[3],
-			0, 16);
+		set_sharpness_gain(base_val[0] << 8 | base_val[1],
+			base_val[2] << 8 | base_val[3]);
 		first_frame = 1;
 		return 0;
 	}
@@ -424,12 +421,8 @@ int peaking_scene_process(int offset, int enable)
 		}
 	}
 
-	VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_FINALGAIN_HP_BP,
-				 reg_val[0] << 8 | reg_val[1],
-				 0, 16);
-	VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_FINALGAIN_HP_BP,
-				 reg_val[2] << 8 | reg_val[3],
-				 0, 16);
+	set_sharpness_gain(reg_val[0] << 8 | reg_val[1],
+		reg_val[2] << 8 | reg_val[3]);
 
 	return 0;
 }

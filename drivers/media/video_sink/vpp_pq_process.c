@@ -369,6 +369,17 @@ void aipq_scs_proc(struct vframe_s *vf,
 		(cur_blue_pct - pre_blue_pct) :
 		(pre_blue_pct - cur_blue_pct);
 
+	if (pq_debug[2] > 0x10) {
+		pr_info("cur_skin_hist = %lld, cur_green_hist = %lld\n",
+			cur_skin_hist, cur_green_hist);
+		pr_info("cur_blue_hist = %lld, cur_total_hist = %d\n",
+			cur_blue_hist, cur_total_hist);
+		pr_info("pre_skin/green/blue_pct = %d/%d/%d\n",
+			pre_skin_pct, pre_green_pct, pre_blue_pct);
+		pr_info("cur_skin/green/blue_pct = %d/%d/%d\n",
+			cur_skin_pct, cur_green_pct, cur_blue_pct);
+	}
+
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 	color_th = get_color_th();
 #endif
@@ -377,6 +388,8 @@ void aipq_scs_proc(struct vframe_s *vf,
 		memcpy(out, cfg[pre_top_one], sizeof(int) * SCENES_VALUE);
 		scene_prob[0] = top_one;
 		scene_prob[1] = top_one_prob;
+		if (pq_debug[2] > 0x10)
+			pr_info("pre_top_one == top_one\n");
 	} else if (((pre_top_one == top_two) && (top_two_prob > 1000)) ||
 			((pre_top_one == top_three) && (top_three_prob > 1000))) {
 		memcpy(out, cfg[pre_top_one], sizeof(int) * SCENES_VALUE);
@@ -388,12 +401,25 @@ void aipq_scs_proc(struct vframe_s *vf,
 			scene_prob[0] = top_three;
 			scene_prob[1] = top_three_prob;
 		}
+
+		if (pq_debug[2] > 0x10) {
+			pr_info("top_two = %d, top_two_prob = %d\n",
+				top_two, top_two_prob);
+			pr_info("top_three = %d, top_three_prob = %d\n",
+				top_two, top_two_prob);
+		}
 	} else if ((diff_skin_pct + diff_green_pct + diff_blue_pct < color_th) &&
 			    (pre_top_one >= 0)) {
 		memcpy(out, cfg[pre_top_one], sizeof(int) * SCENES_VALUE);
+		if (pq_debug[2] > 0x10)
+			pr_info("pre_top_one = %d, color_th = %d\n",
+				pre_top_one, color_th);
 	} else if ((top_one == 1) && (pre_top_one == 3) && (pre_blue_pct > 500) &&
 		(pre_blue_pct < cur_blue_pct)) {
 		memcpy(out, cfg[pre_top_one], sizeof(int) * SCENES_VALUE);
+		if (pq_debug[2] > 0x10)
+			pr_info("pre_blue_pct = %d, cur_blue_pct = %d\n",
+				pre_blue_pct, cur_blue_pct);
 	} else {
 		if (pq_debug[2] == 0x8) {
 			pr_info("pre_top_one = %d, top_one = %d, top_one_prob = %d, diff_skin_pct = %d, diff_green_pct = %d, diff_blue_pct = %d\n",

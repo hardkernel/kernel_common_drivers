@@ -78,6 +78,8 @@ int ve_vadj_misc_get(enum vadj_index_e vadj_idx,
 void ve_mtrx_setting(enum vpp_matrix_e mtx_sel,
 	int mtx_csc, int mtx_on, enum vpp_slice_e slice);
 
+void ve_sharpness_gain_set(int sr0_gain, int sr1_gain,
+	enum wr_md_e mode, int vpp_index);
 void ve_sharpness_ctl(enum wr_md_e mode, int sr0_en,
 	int sr1_en, int vpp_index);
 void ve_dnlp_set(ulong *data);
