@@ -545,15 +545,15 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 			aml_audiobus_update_bits(actrl, reg_out, 0x3f, clkctl);
 		}
 	}
-	pr_debug("master_mode(%d), bclk inv(%d), fclk inv(%d) out_skew(%d), in_skew(%d)\n",
-			master_mode, binv, finv, bclkout_skew, bclkin_skew);
+	pr_debug("master_mode(%d), bclk inv(%d), fclk inv(%d) out_skew(%d), in_skew(%d) id(%d) ext_amp_ws_inv(%d)\n",
+			master_mode, binv, finv, bclkout_skew, bclkin_skew, id, ext_amp_ws_inv);
 
 	/* TDM out */
 	if (playback_active) {
 		aml_clk_set_tdmout_by_id(actrl,
 			id, valb, valf,
 			p_config->sclk_ws_inv, master_mode, binv);
-		aml_tdmout_invert_lrclk(actrl, id, finv);
+		aml_tdmout_invert_lrclk(actrl, id, 0);
 		aml_tdmout_bclk_skew(actrl, id, bclkout_skew);
 	}
 
@@ -649,6 +649,7 @@ void aml_update_tdmin_rev_ws(struct aml_audio_controller *actrl,
 	 int idx, int is_rev, bool use_vadtop)
 {
 	unsigned int reg_in, off_set;
+
 	if (use_vadtop) {
 		reg_in = EE_AUDIO2_TDMIN_VAD_CTRL;
 		vad_top_update_bits(reg_in, 0x1 << 25, is_rev << 25);
