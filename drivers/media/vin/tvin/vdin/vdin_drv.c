@@ -1353,7 +1353,6 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	devp->dv.chg_cnt = 0;
 	devp->prop.hdr_info.hdr_check_cnt = 0;
 	devp->vrr_data.vrr_chg_cnt = 0;
-	devp->vrr_data.cur_spd_data5 = devp->prop.spd_data.data[5];
 	devp->last_wr_vfe = NULL;
 	irq_max_count = 0;
 	devp->vdin_drop_cnt = 0;
@@ -2736,7 +2735,7 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 				 1000));
 
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-			pr_info("vdin%d cnt:%d vf:%d sg_type:%#x type:%#x flag:%u dur:%u disp:%d\n",
+			pr_info("vdin%d cnt:%d vf:%d sg_type:%#x type:%#x flag:%#x dur:%u disp:%d\n",
 				devp->index, devp->irq_cnt,
 				devp->vfp->last_last_vfe->vf.index,
 				devp->vfp->last_last_vfe->vf.signal_type,
@@ -4777,6 +4776,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					  sizeof(struct vdin_vrr_freesync_param_s))) {
 			pr_info("vdin_vrr_status copy fail\n");
 			ret = -EFAULT;
+		} else {
+			devp->vrr_data.cur_vrr_status = vdin_vrr_status.cur_vrr_status;
 		}
 
 		if (vdin_dbg_en)
@@ -4788,7 +4789,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				devp->prop.vtem_data.vrr_en,
 				devp->prop.spd_data.data[0],
 				devp->prop.spd_data.data[5],
-				devp->vrr_data.cur_spd_data5);
+				devp->pre_prop.spd_data.data[5]);
 		break;
 	case TVIN_IOC_GET_COLOR_RANGE:
 		if (copy_to_user(argp, &color_range_force,
@@ -6094,8 +6095,10 @@ static int vdin_get_vinfo_notify_callback(struct notifier_block *block,
 		return 0;
 
 	devp->vinfo_std_duration = vinfo->sync_duration_num / vinfo->sync_duration_den;
+	devp->vrr_data.cur_vrr_status = get_cur_vrr_status(devp);
 	if (vdin_dbg_en)
-		pr_info("vdin%d,std_dur:%d\n", devp->index, devp->vinfo_std_duration);
+		pr_info("vdin%d,std_dur:%d,vrr:%d\n", devp->index, devp->vinfo_std_duration,
+			devp->vrr_data.cur_vrr_status);
 	if (devp_vdin1 && devp->dtdata->hw_ver == VDIN_HW_T3X)
 		devp_vdin1->vinfo_std_duration = devp->vinfo_std_duration;
 

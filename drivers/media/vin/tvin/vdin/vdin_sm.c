@@ -195,6 +195,8 @@ enum tvin_color_fmt_range_e
 void vdin_update_prop(struct vdin_dev_s *devp)
 {
 	/*devp->pre_prop.fps = devp->prop.fps;*/
+	devp->vrr_data.cur_vrr_status = get_cur_vrr_status(devp);
+	devp->vrr_data.pre_vrr_status = devp->vrr_data.cur_vrr_status;
 	devp->dv.dv_flag = devp->prop.dolby_vision;
 	devp->dv.low_latency = devp->prop.low_latency;
 	/*devp->pre_prop.latency.allm_mode = devp->prop.latency.allm_mode;*/
@@ -439,7 +441,6 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 						devp->prop.spd_data.data[5],
 						devp->pre_prop.spd_data.data[0],
 						devp->prop.spd_data.data[0]);
-				devp->pre_prop.spd_data.data[5] = devp->prop.spd_data.data[5];
 			}
 		} else {
 			devp->vrr_data.vrr_chg_cnt = 0;
@@ -754,16 +755,17 @@ void tvin_sig_chg_event_process(struct vdin_dev_s *devp, u32 chg)
 			devp->event_info.event_sts = TVIN_SIG_CHG_AFD;
 		} else if (chg & TVIN_SIG_CHG_VRR) {
 			devp->event_info.event_sts = TVIN_SIG_CHG_VRR;
-			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d)%d,vic:%d,fr:%d\n", __func__,
+			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d),vic:%d,fr:%d\n", __func__,
 				devp->vrr_data.vdin_vrr_en_flag,
 				devp->prop.vtem_data.vrr_en,
 				devp->pre_prop.spd_data.data[5],
 				devp->prop.spd_data.data[5],
-				devp->vrr_data.cur_spd_data5,
 				devp->prop.hw_vic,
 				devp->prop.vtem_data.base_framerate);
-			devp->vrr_data.cur_spd_data5    = devp->prop.spd_data.data[5];
-			devp->pre_prop.spd_data.data[5] = devp->prop.spd_data.data[5];
+			memcpy(&devp->pre_prop.spd_data, &devp->prop.spd_data,
+				sizeof(devp->prop.spd_data));
+			devp->vrr_data.cur_vrr_status = get_cur_vrr_status(devp);
+			devp->vrr_data.pre_vrr_status = devp->vrr_data.cur_vrr_status;
 			devp->pre_prop.vtem_data.vrr_en =
 				devp->prop.vtem_data.vrr_en;
 			devp->vrr_data.vdin_vrr_en_flag =
