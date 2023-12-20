@@ -361,8 +361,6 @@
 		interrupts = <GIC_SPI 131 IRQ_TYPE_EDGE_RISING>;
 		status = "okay";
 		mboxes = <&mbox_fifo A5_REE2AO_RTC>;
-		clocks = <&clkc CLKID_RTC_CLK>;
-		clock-names = "rtc_clk";
 		osc_freq = <OSC_32KHZ>;
 	};
 

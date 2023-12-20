@@ -5,6 +5,7 @@
 
 /*******************************************************************/
 #include <linux/types.h>
+#include <linux/mailbox_client.h>
 
 /* RTC_CTRL Bit[8]: 0 - select 32K oscillator, 1 - select 24M oscillator */
 #define RTC_OSC_SEL_BIT		(8)
@@ -25,6 +26,16 @@
 #define RTC_ALRM1_STATUS_BIT	(5)
 #define RTC_ALRM2_STATUS_BIT	(6)
 #define RTC_ALRM3_STATUS_BIT	(7)
+/* RTC_INT_STATUS Bit[3:0]: 0 - alarm irq triggered, 1 - alarm irq triggered */
+#define RTC_ALRM0_IRQ_STATUS_BIT    (0)
+#define RTC_ALRM1_IRQ_STATUS_BIT    (1)
+#define RTC_ALRM2_IRQ_STATUS_BIT    (2)
+#define RTC_ALRM3_IRQ_STATUS_BIT    (3)
+/* RTC_INT_CLR Bit[3:0]: software write “1” to clean alarm irq, hardware self clear to 0 */
+#define RTC_ALRM0_CLR_STATUS_BIT    (0)
+#define RTC_ALRM1_CLR_STAUTS_BIT    (1)
+#define RTC_ALRM2_CLR_STATUS_BIT    (2)
+#define RTC_ALRM3_CLR_STAUTS_BIT    (3)
 
 /* RTC register address offset */
 #define RTC_CTRL		(0)	 /* Control RTC -RW*/
@@ -42,13 +53,6 @@
 #define RTC_INT_STATUS		(12 << 2)/* RTC interrupt status -R*/
 #define RTC_REAL_TIME		(13 << 2)/* RTC counter value -R*/
 
-enum meson_rtc_cmd {
-	RTC_CMD_TIME		= 0,
-	RTC_CMD_ALARM		= 1,
-	RTC_CMD_SUSPEND		= 2,
-	RTC_CMD_SHUTDOWN	= 3,
-};
-
 enum meson_rtc_adj {
 	ADJUST_NONE		= 0,
 	ADJUST_DROP		= 1,
@@ -56,18 +60,12 @@ enum meson_rtc_adj {
 	ADJUST_MAX		= 3,
 };
 
-struct meson_rtc_message {
-	enum meson_rtc_cmd  cmd;
-	u32  data;
-};
-
 struct meson_rtc_data {
 	void __iomem *reg_base;
 	struct rtc_device *rtc_dev;
-	struct meson_rtc_message msg;
-	bool find_mboxes;
+	struct mbox_chan *mbox_chan;
 	bool alarm_enabled;
-	struct clk *clock;
 	int irq;
 	u32 freq;
+	bool time_storage_format;
 };
