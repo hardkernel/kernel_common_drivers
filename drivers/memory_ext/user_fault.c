@@ -452,6 +452,7 @@ static int aml_vma_is_stack_for_current(struct vm_area_struct *vma)
 	return (vma->vm_start <= KSTK_ESP(t) && vma->vm_end >= KSTK_ESP(t));
 }
 
+#ifdef CONFIG_ANON_VMA_NAME
 static struct anon_vma_name *aml_anon_vma_name(struct vm_area_struct *vma)
 {
 	mmap_assert_locked(vma->vm_mm);
@@ -461,6 +462,7 @@ static struct anon_vma_name *aml_anon_vma_name(struct vm_area_struct *vma)
 
 	return vma->anon_name;
 }
+#endif
 
 void show_vma(struct mm_struct *mm, unsigned long addr)
 {
@@ -553,8 +555,10 @@ void show_vma(struct mm_struct *mm, unsigned long addr)
 			goto done;
 		}
 
+	#ifdef CONFIG_ANON_VMA_NAME
 		if (aml_anon_vma_name(vma))
 			pr_info("[anon]");
+	#endif
 	}
 
 done:
@@ -565,6 +569,8 @@ done:
 
 #if IS_MODULE(CONFIG_AMLOGIC_USER_FAULT) && IS_ENABLED(CONFIG_KALLSYMS_ALL)
 struct mm_struct *aml_init_mm;
+
+pte_t * (*aml__pte_offset_map)(pmd_t *pmd, unsigned long addr, pmd_t *pmdvalp);
 
 unsigned long (*aml_syms_lookup)(const char *name);
 
@@ -612,7 +618,11 @@ static long __nocfi get_user_pfn(struct mm_struct *mm, unsigned long addr)
 		if (pmd_none(*pmd) || pmd_bad(*pmd))
 			break;
 
+#if IS_MODULE(CONFIG_AMLOGIC_USER_FAULT) && IS_ENABLED(CONFIG_KALLSYMS_ALL)
+		pte = aml__pte_offset_map(pmd, addr, NULL);
+#else
 		pte = pte_offset_map(pmd, addr);
+#endif
 		pfn = pte_pfn(*pte);
 		pte_unmap(pte);
 	} while (0);
@@ -846,6 +856,24 @@ void show_extra_reg_data(struct pt_regs *regs)
 }
 
 #if IS_MODULE(CONFIG_AMLOGIC_USER_FAULT) && IS_ENABLED(CONFIG_KALLSYMS_ALL)
+static void *get_symbol_addr(const char *symbol_name)
+{
+	struct kprobe kp = {
+		.symbol_name = symbol_name,
+	};
+	int ret;
+
+	ret = register_kprobe(&kp);
+	if (ret < 0) {
+		pr_err("register_kprobe:%s failed, returned %d\n", symbol_name, ret);
+		return NULL;
+	}
+	pr_debug("symbol_name:%s addr=%px\n", symbol_name, kp.addr);
+	unregister_kprobe(&kp);
+
+	return kp.addr;
+}
+
 static struct kprobe kp_show_regs = {
 	.symbol_name	= "__show_regs",
 };
@@ -911,6 +939,9 @@ static int __nocfi user_fault_register_kprobe(void *data)
 			kp_bad_el0_sync.symbol_name, ret);
 		return -1;
 	}
+
+	aml__pte_offset_map = (pte_t * (*)(pmd_t *pmd, unsigned long addr,
+				pmd_t *pmdvalp))get_symbol_addr("__pte_offset_map");
 
 	return 0;
 }
