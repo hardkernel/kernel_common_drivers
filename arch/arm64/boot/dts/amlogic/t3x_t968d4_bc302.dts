@@ -158,6 +158,7 @@
 		camera_cma_reserved:linux,camera_cma {
 			compatible = "shared-dma-pool";
 			reusable;
+			status = "disabled";
 			size = <0x0 0x0>;
 			//size = <0x0 0xB000000>;
 			alignment = <0x0 0x400000>;
