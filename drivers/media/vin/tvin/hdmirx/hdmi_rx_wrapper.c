@@ -5610,8 +5610,6 @@ void rx_port0_main_state_machine(void)
 			if (rx_hpd_keep_low(port))
 				break;
 			hdmirx_hw_config(port);
-		} else if (pre_port != port) {
-			hdmirx_hw_config(port);
 		}
 		rx[port].var.hpd_wait_cnt = 0;
 		rx[port].var.clk_unstable_cnt = 0;
@@ -6098,8 +6096,6 @@ void rx_port1_main_state_machine(void)
 		if (rx_get_cur_hpd_sts(port) == 0) {
 			if (rx_hpd_keep_low(port))
 				break;
-			hdmirx_hw_config(port);
-		} else if (pre_port != port) {
 			hdmirx_hw_config(port);
 		}
 		rx[port].var.hpd_wait_cnt = 0;
