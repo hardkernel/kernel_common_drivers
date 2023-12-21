@@ -119,17 +119,19 @@ struct aml_smmu_strtab_cfg {
 };
 
 /* An SMMUv3 instance */
+/* come from drivers/iommu/arm/arm-smmu-v3/arm-smmu-v3.h */
 struct aml_smmu_device {
 	struct device			*dev;
 	void __iomem			*base;
+	void __iomem			*page1;
 
 	u32				features;
 
 	u32				options;
 
-	struct aml_smmu_cmdq		cmdq;
-	struct aml_smmu_evtq		evtq;
-	struct aml_smmu_priq		priq;
+	struct arm_smmu_cmdq		cmdq;
+	struct arm_smmu_evtq		evtq;
+	struct arm_smmu_priq		priq;
 
 	int				gerr_irq;
 	int				combined_irq;
@@ -140,19 +142,21 @@ struct aml_smmu_device {
 
 #define ARM_SMMU_MAX_ASIDS		(1 << 16)
 	unsigned int			asid_bits;
-	DECLARE_BITMAP(asid_map, ARM_SMMU_MAX_ASIDS);
 
 #define ARM_SMMU_MAX_VMIDS		(1 << 16)
 	unsigned int			vmid_bits;
-	DECLARE_BITMAP(vmid_map, ARM_SMMU_MAX_VMIDS);
+	struct ida			vmid_map;
 
 	unsigned int			ssid_bits;
 	unsigned int			sid_bits;
 
-	struct aml_smmu_strtab_cfg	strtab_cfg;
+	struct arm_smmu_strtab_cfg	strtab_cfg;
 
 	/* IOMMU core code handle */
 	struct iommu_device		iommu;
+
+	struct rb_root			streams;
+	struct mutex			streams_mutex; /* native code */
 };
 
 struct aml_iommu_group {
@@ -292,7 +296,6 @@ enum dma_sync_target {
 
 void (*aml_dma_common_free_remap)(void *cpu_addr, size_t size);
 int (*aml_set_memory_encrypted)(unsigned long addr, int numpages);
-int (*aml_set_memory_decrypted)(unsigned long addr, int numpages);
 #ifdef CONFIG_DMA_DIRECT_REMAP
 void * (*aml_dma_common_contiguous_remap)(struct page *page, size_t size,
 			pgprot_t prot, const void *caller);
@@ -315,6 +318,8 @@ pgprot_t (*aml_dma_pgprot)(struct device *dev, pgprot_t prot, unsigned long attr
 #endif
 
 unsigned long aml_max_pfn;
+
+unsigned int aml_zone_dma_bits;
 
 unsigned long (*aml_kallsyms_lookup_name)(const char *name);
 
@@ -772,7 +777,7 @@ static int __nocfi aml_atomic_pool_expand(struct device *dev, struct gen_pool *p
 	 * Memory in the atomic DMA pools must be unencrypted, the pools do not
 	 * shrink so no re-encryption occurs in dma_direct_free().
 	 */
-	ret = aml_set_memory_decrypted((unsigned long)page_to_virt(page),
+	ret = set_memory_decrypted((unsigned long)page_to_virt(page),
 				   1 << order);
 	if (ret)
 		goto remove_mapping;
@@ -1145,7 +1150,7 @@ static int aml_dma_direct_supported(struct device *dev, u64 mask)
 	 * part of the check.
 	 */
 	if (IS_ENABLED(CONFIG_ZONE_DMA))
-		min_mask = min_t(u64, min_mask, DMA_BIT_MASK(zone_dma_bits));
+		min_mask = min_t(u64, min_mask, DMA_BIT_MASK(aml_zone_dma_bits));
 	return mask >= phys_to_dma_unencrypted(dev, min_mask);
 }
 
@@ -1208,24 +1213,6 @@ static int aml_smmu_device_dt_probe(struct platform_device *pdev,
 	return ret;
 }
 
-static int aml_smmu_set_bus_ops(struct iommu_ops *ops)
-{
-	if (platform_bus_type.iommu_ops != ops) {
-		/*
-		 *err = bus_set_iommu(&platform_bus_type, ops);
-		 */
-		if (!ops)
-			return 0;
-
-		if (platform_bus_type.iommu_ops)
-			return -EBUSY;
-
-		platform_bus_type.iommu_ops = ops;
-	}
-
-	return 0;
-}
-
 void set_dma_ops_hook(void *data, struct device *dev, u64 dma_base, u64 size)
 {
 	set_dma_ops(dev, &aml_pcie_dma_ops);
@@ -1254,12 +1241,22 @@ static u32 aml_tee_protect_mem_by_type(u32 type,
 	return res.a0;
 }
 
+static int aml_iommu_device_register(struct iommu_device *iommu,
+			  const struct iommu_ops *ops, struct device *hwdev)
+{
+	iommu->ops = ops;
+	if (hwdev)
+		iommu->fwnode = dev_fwnode(hwdev);
+
+	return 0;
+}
+
 static void *get_symbol_addr(const char *symbol_name)
 {
-	struct kprobe kp;
+	struct kprobe kp = {
+		.symbol_name = symbol_name,
+	};
 	int ret;
-
-	kp.symbol_name = symbol_name;
 
 	ret = register_kprobe(&kp);
 	if (ret < 0) {
@@ -1295,8 +1292,6 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 				size_t size))get_symbol_addr("dma_common_free_remap");
 	aml_set_memory_encrypted = (int (*)(unsigned long addr,
 				int numpages))get_symbol_addr("set_memory_encrypted");
-	aml_set_memory_decrypted = (int (*)(unsigned long addr,
-				int numpages))get_symbol_addr("set_memory_decrypted");
 #ifdef CONFIG_DMA_DIRECT_REMAP
 	aml_dma_common_contiguous_remap = (void * (*)(struct page *page, size_t size,
 		pgprot_t prot, const void *caller))get_symbol_addr("dma_common_contiguous_remap");
@@ -1330,6 +1325,7 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 
 	aml_max_pfn = *(unsigned long *)aml_kallsyms_lookup_name("max_pfn");
 
+	aml_zone_dma_bits = *(unsigned int *)aml_kallsyms_lookup_name("zone_dma_bits");
 	/* Record our private device structure */
 	platform_set_drvdata(pdev, smmu);
 
@@ -1338,9 +1334,15 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 	if (ret)
 		return ret;
 
-	ret = iommu_device_register(&smmu->iommu, &aml_smmu_ops, dev);
+	ret = aml_iommu_device_register(&smmu->iommu, &aml_smmu_ops, dev);
 	if (ret) {
 		dev_err(dev, "Failed to register iommu\n");
+		return ret;
+	}
+
+	ret = iommu_fwspec_init(dev, NULL, &aml_smmu_ops);
+	if (ret) {
+		dev_err(dev, "Failed to swspec init\n");
 		return ret;
 	}
 
@@ -1382,7 +1384,7 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 	if (!aml_global_group)
 		return -1;
 
-	return aml_smmu_set_bus_ops(&aml_smmu_ops);
+	return 0;
 }
 
 static int __nocfi aml_smmu_device_probe(struct platform_device *pdev)
@@ -1409,7 +1411,6 @@ static int aml_smmu_device_remove(struct platform_device *pdev)
 {
 	struct aml_smmu_device *smmu = platform_get_drvdata(pdev);
 
-	aml_smmu_set_bus_ops(NULL);
 	iommu_device_unregister(&smmu->iommu);
 	iommu_device_sysfs_remove(&smmu->iommu);
 
