@@ -55,7 +55,7 @@ struct page *aml_mlock_page_as_lock_mapping(struct vm_area_struct *vma,
 					page->flags,
 					mapping, mapping->flags);
 				lru_add_drain();  /* push cached pages to LRU */
-				mlock_vma_page(page);
+				mlock_vma_folio(page_folio(page), vma, false);
 				/* Set this flag to avoid shrink again */
 				/* SetPageCmaAllocating(page); */
 				aml_set_pin_locked_file(page);

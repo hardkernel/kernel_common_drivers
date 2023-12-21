@@ -140,8 +140,10 @@ int aml_free_nonslab_page(struct folio *folio, void *object)
 	unsigned int order = folio_order(folio);
 	unsigned int page_num = folio_page(folio, 0)->index;
 
-	if (WARN_ON_ONCE(order == 0))
-		pr_warn_once("object pointer: 0x%p\n", object);
+	/*
+	 *if (WARN_ON_ONCE(order == 0))
+	 *	pr_warn_once("object pointer: 0x%p\n", object);
+	 */
 
 	if (page_num)
 		nr_pages = page_num;
