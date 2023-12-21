@@ -1387,14 +1387,14 @@
 				<0x0 0xfe004000 0x0 0x4>;
 			interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
-			//clocks = <&clkc CLKID_SYS_SD_EMMC_C>,
-			//	<&clkc CLKID_SD_EMMC_C_SEL>,
-			//	 <&clkc CLKID_SD_EMMC_C>,
-			//	 <&xtal>,
-			//	 <&clkc CLKID_FCLK_DIV2>,
-			//	 <&clkc CLKID_FCLK_DIV2>;
-			//clock-names = "core", "mux0", "mux1",
-			//		"clkin0", "clkin1", "clkin2";
+			clocks = <&clkc CLKID_SYS_SD_EMMC_C>,
+				<&clkc CLKID_SD_EMMC_C_SEL>,
+				 <&clkc CLKID_SD_EMMC_C>,
+				 <&xtal>,
+				 <&clkc CLKID_FCLK_DIV2>,
+				 <&clkc CLKID_FCLK_DIV2>;
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1", "clkin2";
 			no-sdio;
 			no-sd;
 			card_type = <1>;
@@ -1434,13 +1434,13 @@
 				<0x0 0xfe00400c 0x0 0x4>;
 			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
-			//clocks = <&clkc CLKID_SYS_SD_EMMC_A>,
-			//	<&clkc CLKID_SD_EMMC_A_SEL>,
-			//	 <&clkc CLKID_SD_EMMC_A>,
-			//	 <&xtal>,
-			//	 <&clkc CLKID_FCLK_DIV2>;
-			//clock-names = "core", "mux0", "mux1",
-			//		"clkin0", "clkin1";
+			clocks = <&clkc CLKID_SYS_SD_EMMC_A>,
+				<&clkc CLKID_SD_EMMC_A_SEL>,
+				 <&clkc CLKID_SD_EMMC_A>,
+				 <&xtal>,
+				 <&clkc CLKID_FCLK_DIV2>;
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1";
 			card_type = <3>;
 			mmc_debug_flag;
 			cap-sdio-irq;
@@ -2454,14 +2454,14 @@
 
 	emmc_pins: emmc_pins {
 		mux-0 {
-			groups = "emmc_nand_d0",
-				 "emmc_nand_d1",
-				 "emmc_nand_d2",
-				 "emmc_nand_d3",
-				 "emmc_nand_d4",
-				 "emmc_nand_d5",
-				 "emmc_nand_d6",
-				 "emmc_nand_d7",
+			groups = "emmc_d0",
+				 "emmc_d1",
+				 "emmc_d2",
+				 "emmc_d3",
+				 "emmc_d4",
+				 "emmc_d5",
+				 "emmc_d6",
+				 "emmc_d7",
 				 "emmc_cmd";
 			function = "emmc";
 			bias-pull-up;
@@ -2478,7 +2478,7 @@
 
 	emmc_ds_pins: emmc_ds_pins {
 		mux {
-			groups = "emmc_nand_ds";
+			groups = "emmc_ds";
 			function = "emmc";
 			bias-pull-down;
 			drive-strength-microamp = <4000>;
