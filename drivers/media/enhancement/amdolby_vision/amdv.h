@@ -9,7 +9,7 @@
 /*#define V2_4_3*/
 
 /*  driver version */
-#define DRIVER_VER "202301020"
+#define DRIVER_VER "202301221"
 
 #include <linux/types.h>
 #include "amdv_pq_config.h"
@@ -108,6 +108,7 @@
 #define DEBUG_AUTOMATICALLY_PYRAMID 0x800
 #define DEBUG_FORCE_BYPASS_TOP2 0x1000
 #define HDMI_ONLY_UPDATE_HIST_FOR_NEW_FRAME 0x2000 /*case5351 5356*/
+#define FORCE_ONE_SLICE 0x4000 /*case5011b 5055a 5055b*/
 
 #define MAX_CFG_SIZE (1024 * 10)
 #define MAX_BIN_SIZE (1024 * 150)

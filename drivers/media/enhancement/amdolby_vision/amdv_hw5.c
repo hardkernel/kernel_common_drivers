@@ -1850,7 +1850,7 @@ int tv_top2_set(u64 *reg_data,
 		if (!enable_top1 || (test_dv & DEBUG_ENABLE_TOP2_INT))
 			VSYNC_WR_DV_REG_BITS(VPU_DOLBY_WRAP_IRQ, 1, 1, 1); //top2 dolby int, pulse
 		else
-			VSYNC_WR_DV_REG_BITS(VPU_DOLBY_WRAP_IRQ, 1, 0, 1); //top2 dolby int, disable
+			VSYNC_WR_DV_REG_BITS(VPU_DOLBY_WRAP_IRQ, 0, 1, 1); //top2 dolby int, disable
 
 		py_stride[0] = top1_stride_rdmif(1024, 10);
 		py_stride[1] = top1_stride_rdmif(512, 10);
@@ -2112,6 +2112,8 @@ void set_l1l4_hist(void)
 	u32 metadata0;
 	u32 metadata1;
 	u8 hist_test[256];
+	static bool hist_changed;
+	static u32 changed_count;
 
 	if (!tv_hw5_setting || !enable_top1)
 		return;
@@ -2125,12 +2127,28 @@ void set_l1l4_hist(void)
 			if ((dolby_vision_flags & FLAG_CERTIFICATION) &&
 				(test_dv & HDMI_ONLY_UPDATE_HIST_FOR_NEW_FRAME)) {
 				/*hdmi case, check hist and only update index for new frame*/
-				memcpy(&hist_test[0], dv5_md_hist.hist_vaddr[0], 256);
-				if (memcmp(&hist_test[0], &dv5_md_hist.hist[0], 256)) {
-					l1l4_wr_index = (l1l4_wr_index + 1) % HIST_BUF_COUNT;
-
+				memcpy(&hist_test[0], dv5_md_hist.hist_vaddr[0], 256);/*cur hist*/
+				if (memcmp(&hist_test[0], &dv5_md_hist.hist[0], 256) &&
+					top1_info.core_on_cnt > 4) {/*compare with last hist*/
+					hist_changed = true;
+					changed_count = 0;
+					memcpy(&dv5_md_hist.hist[0],
+						dv5_md_hist.hist_vaddr[0], 256);
 					if (debug_dolby & 1)
 						pr_info("hist change!\n");
+					return;
+				} else if (hist_changed) {
+					/*update after 4 times because checking vf_crc repeat 3*/
+					changed_count++;
+					if (debug_dolby & 1)
+						pr_info("changed_count %d\n", changed_count);
+					if (changed_count > 4) {
+						l1l4_wr_index = (l1l4_wr_index + 1) %
+							HIST_BUF_COUNT;
+						hist_changed = false;
+					} else {
+						return;
+					}
 				}
 			} else {
 				l1l4_wr_index = (l1l4_wr_index + 1) % HIST_BUF_COUNT;

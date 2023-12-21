@@ -2323,6 +2323,8 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 		content_fps = variable_fps[hdmi_frame_count];
 		if (debug_dolby & 1)
 			pr_dv_dbg("variable_fps %d\n", content_fps);
+	} else if ((dolby_vision_flags & FLAG_CERTIFICATION) && (test_dv & FORCE_ONE_SLICE)) {
+		content_fps = 60000;
 	}
 	if (debug_dolby & 0x200)
 		pr_dv_dbg("[count %d %d]dark_detail from cfg:%d,from api:%d\n",
@@ -2398,6 +2400,11 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 	if (run_control_path) {
 		/*step2: top2 frame N-1*/
 		tv_hw5_setting->analyzer = 0;
+		if ((dolby_vision_flags & FLAG_CERTIFICATION) &&
+			vf && vf->source_type == VFRAME_SOURCE_TYPE_HDMI &&
+			hdmi_frame_count == 0)
+			p_funcs_tv->tv_hw5_control_path(invalid_hw5_setting);
+
 		flag = p_funcs_tv->tv_hw5_control_path(tv_hw5_setting);
 
 		if (debug_dolby & 0x400) {

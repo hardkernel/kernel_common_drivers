@@ -11333,21 +11333,29 @@ void calculate_crc(void)
 						crc = READ_VPP_DV_REG(T3X_VENC_CRC);
 					snprintf(cur_crc, sizeof(cur_crc), "0x%08x", crc);
 					if (debug_dolby & 0x2000)
-						pr_info("CRC input 0x%x,output 0x%x\n",
+						pr_info("CRC input 0x%x,output 0x%x,write %x\n",
 							READ_VPP_DV_REG(DOLBY5_CORE2_CRC_IN_FRM),
-							READ_VPP_DV_REG(DOLBY5_CORE2_CRC_OUT_FRM));
+							READ_VPP_DV_REG(DOLBY5_CORE2_CRC_OUT_FRM),
+							crc);
 					//}
 					crc_count++;
 					crc_read_delay = 0;
 				}
-
+			} else {
+				if ((debug_dolby & 0x2000) && is_aml_hw5())
+					pr_info("CRC input 0x%x, output 0x%x, venc crc %x\n",
+							READ_VPP_DV_REG(DOLBY5_CORE2_CRC_IN_FRM),
+							READ_VPP_DV_REG(DOLBY5_CORE2_CRC_OUT_FRM),
+							venc_crc_enable ?
+							READ_VPP_DV_REG(T3X_VENC_CRC) : 0);
 			}
 		}
 	} else if ((dolby_vision_flags & FLAG_CERTIFICATION) && is_aml_hw5()) {
 		if (debug_dolby & 0x2000)
-			pr_info("CRC input 0x%x, output 0x%x\n",
+			pr_info("CRC input 0x%x, output 0x%x, venc crc %x\n",
 					READ_VPP_DV_REG(DOLBY5_CORE2_CRC_IN_FRM),
-					READ_VPP_DV_REG(DOLBY5_CORE2_CRC_OUT_FRM));
+					READ_VPP_DV_REG(DOLBY5_CORE2_CRC_OUT_FRM),
+					venc_crc_enable ? READ_VPP_DV_REG(T3X_VENC_CRC) : 0);
 	}
 }
 
