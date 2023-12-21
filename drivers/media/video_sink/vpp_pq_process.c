@@ -559,7 +559,8 @@ void aipq_scs_proc_s5(struct vframe_s *vf,
 		   int (*cfg)[SCENES_VALUE],
 		   int (*prob)[2],
 		   int *out,
-		   int *pq_debug)
+		   int *pq_debug,
+		   unsigned int vpp_new_frame)
 {
 	static int pre_top_one = -1;
 	int top_one, top_one_prob;
@@ -576,7 +577,8 @@ void aipq_scs_proc_s5(struct vframe_s *vf,
 	top_three = prob[2][0];
 	top_three_prob = prob[2][1];
 
-	sc_flag = sc_det(vf, pq_debug);
+	if (vpp_new_frame)
+		sc_flag = sc_det(vf, pq_debug);
 
 	if (pre_top_one == top_one) {
 		memcpy(out, cfg[pre_top_one], sizeof(int) * SCENES_VALUE);
@@ -637,7 +639,8 @@ void aipq_scs_proc_t5m(struct vframe_s *vf,
 
 void vf_pq_process_t5m(struct vframe_s *vf,
 		   struct ai_scenes_pq *vpp_scenes,
-		   int *pq_debug)
+		   int *pq_debug,
+		   unsigned int vpp_new_frame)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 	int pq_value;
@@ -699,7 +702,6 @@ void vf_pq_process_t5m(struct vframe_s *vf,
 		}
 		sc_flag = sc_det(vf, pq_debug);
 		set_aipq_sc_mode(sc_flag);
-		vpp_new_frame = 0;
 
 		if (vf->aipq_flag & AIPQ_FLAG_FIRST_VFRAME) {
 			hwc_sc_flg = 0;
@@ -868,7 +870,8 @@ void vf_pq_process_t5m(struct vframe_s *vf,
 
 void vf_pq_process(struct vframe_s *vf,
 		   struct ai_scenes_pq *vpp_scenes,
-		   int *pq_debug)
+		   int *pq_debug,
+		   unsigned int vpp_new_frame)
 {
 	int pq_value;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
@@ -887,7 +890,7 @@ void vf_pq_process(struct vframe_s *vf,
 	if (vf->aipq_flag & AIPQ_FLAG_VERSION_2)
 		aipq_set_policy = 3;
 	if (aipq_set_policy == 3) {
-		vf_pq_process_t5m(vf, vpp_scenes, pq_debug);
+		vf_pq_process_t5m(vf, vpp_scenes, pq_debug, vpp_new_frame);
 		return;
 	}
 #endif
@@ -952,7 +955,7 @@ void vf_pq_process(struct vframe_s *vf,
 	if (aipq_set_policy == 1)
 		aipq_scs_bld_proc(vpp_pq_data, prob, bld_ofst, pq_debug);
 	else if (aipq_set_policy == 2)
-		aipq_scs_proc_s5(vf, vpp_pq_data, prob, bld_ofst, pq_debug);
+		aipq_scs_proc_s5(vf, vpp_pq_data, prob, bld_ofst, pq_debug, vpp_new_frame);
 	else
 		aipq_scs_proc(vf, vpp_pq_data, prob, bld_ofst, pq_debug);
 #endif

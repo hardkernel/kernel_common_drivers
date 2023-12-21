@@ -78,6 +78,8 @@
 #include "video_reg.h"
 #include "video_func.h"
 
+static unsigned int vpp_new_frame;
+
 /* local var */
 static u32 blend_conflict_cnt;
 static u32 stop_update;
@@ -1894,7 +1896,7 @@ render_exit:
 		vdetect_get_frame_nn_info(vd_layer[0].dispbuf);
 #endif
 		vf_pq_process(vd_layer[0].dispbuf, vpp_scenes,
-			      pq_process_debug);
+			      pq_process_debug, vpp_new_frame);
 		if (ai_pq_debug > 0x10) {
 			ai_pq_debug--;
 			if (ai_pq_debug == 0x10)
@@ -3801,6 +3803,11 @@ static void do_vd1_swap_frame(u8 layer_id,
 		frame_par = vd_layer[0].next_frame_par;
 	else
 		frame_par = vd_layer[0].cur_frame_par;
+
+	if (new_frame)
+		vpp_new_frame = 1;
+	else
+		vpp_new_frame = 0;
 
 	refresh_on_vs(new_frame, vd_layer[0].dispbuf, vd_layer[0].vpp_index);
 

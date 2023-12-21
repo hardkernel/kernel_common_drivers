@@ -56,7 +56,8 @@ int dvel_swap_frame(struct vframe_s *vf);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 void vf_pq_process(struct vframe_s *vf,
 		   struct ai_scenes_pq *vpp_scenes,
-		   int *pq_debug);
+		   int *pq_debug,
+		   unsigned int vpp_new_frame);
 #endif
 #endif
 /*VIDEO_LOW_LATENCTY_HH*/

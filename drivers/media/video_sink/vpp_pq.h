@@ -82,7 +82,9 @@ enum aipq_state_mach {
 #define ACCEPT_CNT 6
 
 void vf_pq_process(struct vframe_s *vf,
-		   struct ai_scenes_pq *vpp_scenes, int *pq_debug);
+		   struct ai_scenes_pq *vpp_scenes,
+		   int *pq_debug,
+		   unsigned int vpp_new_frame);
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 u32 get_stb_cnt(void);
