@@ -62,12 +62,53 @@ struct slab_stack_master {
 	struct rb_root stack_root;
 };
 
+#ifdef CONFIG_AMLOGIC_SLAB_TRACE
 int slab_trace_init(void);
-int slab_trace_add_page(struct page *page, unsigned int order,
+int slab_trace_add_page(struct folio *folio, unsigned int order,
 			struct kmem_cache *s, gfp_t flags);
 int slab_trace_remove_page(struct page *page, unsigned int order, struct kmem_cache *s);
 int slab_trace_mark_object(void *object, unsigned long ip,
 			   struct kmem_cache *s);
 int slab_trace_remove_object(void *object, struct kmem_cache *s);
 int get_cache_max_order(struct kmem_cache *s);
+int save_obj_stack(unsigned long *stack, int depth);
+#else
+static inline int slab_trace_init(void)
+{
+	return 0;
+}
+
+static inline int slab_trace_add_page(struct folio *folio, unsigned int order,
+				      struct kmem_cache *s, gfp_t flags)
+{
+	return 0;
+}
+
+static inline int slab_trace_remove_page(struct page *page, unsigned int order,
+					 struct kmem_cache *s)
+{
+	return 0;
+}
+
+static inline int slab_trace_mark_object(void *object, unsigned long ip,
+					 struct kmem_cache *s)
+{
+	return 0;
+}
+
+static inline int slab_trace_remove_object(void *object, struct kmem_cache *s)
+{
+	return 0;
+}
+
+static inline int get_cache_max_order(struct kmem_cache *s)
+{
+	return 0;
+}
+
+static inline int save_obj_stack(unsigned long *stack, int depth)
+{
+	return 0;
+}
+#endif
 #endif /* __SLAB_TRACE_H__ */

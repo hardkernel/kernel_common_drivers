@@ -73,7 +73,6 @@ struct page_trace *find_page_base(struct page *page);
 unsigned long find_back_trace(void);
 unsigned long get_page_trace(struct page *page);
 void show_data(unsigned long addr, int nbytes, const char *name);
-int save_obj_stack(unsigned long *stack, int depth);
 #else
 static inline u64 get_iow_time(u64 *cpu)
 {
@@ -107,44 +106,6 @@ static inline unsigned long find_back_trace(void)
 }
 
 static inline unsigned long get_page_trace(struct page *page)
-{
-	return 0;
-}
-
-static inline int slab_trace_init(void)
-{
-	return 0;
-}
-
-static inline int slab_trace_add_page(struct page *page, unsigned int order,
-				      struct kmem_cache *s, gfp_t flags)
-{
-	return 0;
-}
-
-static inline int slab_trace_remove_page(struct page *page, unsigned int order,
-					 struct kmem_cache *s)
-{
-	return 0;
-}
-
-static inline int slab_trace_mark_object(void *object, unsigned long ip,
-					 struct kmem_cache *s)
-{
-	return 0;
-}
-
-static inline int slab_trace_remove_object(void *object, struct kmem_cache *s)
-{
-	return 0;
-}
-
-static inline int get_cache_max_order(struct kmem_cache *s)
-{
-	return 0;
-}
-
-static inline int save_obj_stack(unsigned long *stack, int depth)
 {
 	return 0;
 }

@@ -24,6 +24,7 @@
 #include <linux/mm.h>
 #include <linux/amlogic/slab_trace.h>
 #include <linux/jhash.h>
+#include "slab.h"
 #include <linux/slub_def.h>
 #include <asm/stacktrace.h>
 
@@ -70,23 +71,88 @@ static int __init early_slab_trace_param(char *buf)
 
 early_param("slab_trace", early_slab_trace_param);
 
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
+#ifdef CONFIG_ARM64
+static int notrace unwind_recover_return_address(struct unwind_state *state)
+{
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	if (state->task->ret_stack &&
+	    state->pc == (unsigned long)return_to_handler) {
+		unsigned long orig_pc;
+
+		orig_pc = ftrace_graph_ret_addr(state->task, NULL, state->pc,
+						(void *)state->fp);
+		if (WARN_ON_ONCE(state->pc == orig_pc))
+			return -EINVAL;
+		state->pc = orig_pc;
+	}
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
+#ifdef CONFIG_KRETPROBES
+	if (is_kretprobe_trampoline(state->pc)) {
+		state->pc = kretprobe_find_ret_addr(state->task,
+						    (void *)state->fp,
+						    &state->kr_cur);
+	}
+#endif /* CONFIG_KRETPROBES */
+
+	return 0;
+}
+
+static int notrace unwind_next(struct unwind_state *state)
+{
+	struct task_struct *tsk = state->task;
+	unsigned long fp = state->fp;
+	int err;
+
+	/* Final frame; nothing to unwind */
+	if (fp == (unsigned long)task_pt_regs(tsk)->stackframe)
+		return -ENOENT;
+
+	err = unwind_next_frame_record(state);
+	if (err)
+		return err;
+
+	state->pc = ptrauth_strip_kernel_insn_pac(state->pc);
+
+	return unwind_recover_return_address(state);
+}
+#endif
+#endif
+
 int save_obj_stack(unsigned long *stack, int depth)
 {
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
-
+#if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
+	struct stack_info stacks[] = {
+		stackinfo_get_task(current),
+	};
+	struct unwind_state frame = {
+		.stacks = stacks,
+		.nr_stacks = ARRAY_SIZE(stacks),
+	};
 #else
 	struct stackframe frame;
+#endif
 	int ret, step = 0;
 
 #ifdef CONFIG_ARM64
 	frame.fp = (unsigned long)__builtin_frame_address(0);
 	frame.pc = _RET_IP_;
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	frame.graph = 0;
-#endif
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	bitmap_zero(frame.stacks_done, __NR_STACK_TYPES);
 	frame.prev_fp = 0;
 	frame.prev_type = STACK_TYPE_UNKNOWN;
+#endif
+#if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
+	frame.stack = stackinfo_get_unknown();
+	frame.task = current;
+#elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
+	frame.task = current;
+#else
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	frame.graph = 0;
+#endif
+#endif
 #else
 	frame.fp = (unsigned long)__builtin_frame_address(0);
 	frame.sp = current_stack_pointer;
@@ -95,7 +161,11 @@ int save_obj_stack(unsigned long *stack, int depth)
 #endif
 	while (step < depth) {
 	#ifdef CONFIG_ARM64
+	#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+		ret = unwind_next(&frame);
+	#else
 		ret = unwind_frame(current, &frame);
+	#endif
 	#elif defined(CONFIG_ARM)
 		ret = unwind_frame(&frame);
 	#else	/* not supported */
@@ -107,7 +177,6 @@ int save_obj_stack(unsigned long *stack, int depth)
 			stack[step - 1] = frame.pc;
 		step++;
 	}
-#endif
 	return 0;
 }
 
@@ -266,7 +335,7 @@ static int is_trace_func(const char *name)
 	return ret;
 }
 
-int slab_trace_add_page(struct page *page, unsigned int order,
+int slab_trace_add_page(struct folio *folio, unsigned int order,
 			struct kmem_cache *s, gfp_t flag)
 {
 	struct rb_node **link, *parent = NULL;
@@ -277,7 +346,7 @@ int slab_trace_add_page(struct page *page, unsigned int order,
 	int obj_cnt;
 	int s_index;
 
-	if (!slab_trace_en || !page || !s || !is_trace_func(s->name))
+	if (!slab_trace_en || !folio || !s || !is_trace_func(s->name))
 		return -EINVAL;
 
 	s_index = get_kmem_cache_by_size(s->size);
@@ -296,7 +365,7 @@ int slab_trace_add_page(struct page *page, unsigned int order,
 	if (!buf)
 		goto nomem;
 
-	addr = (unsigned long)page_address(page);
+	addr = (unsigned long)folio_address(folio);
 	trace->s_addr = addr;
 	trace->e_addr = addr + PAGE_SIZE * (1 << order);
 	trace->object_count = obj_cnt;
@@ -325,7 +394,7 @@ int slab_trace_add_page(struct page *page, unsigned int order,
 
 nomem:
 	pr_err("%s, failed to trace obj %p for %s, trace:%p\n", __func__,
-	       page_address(page), s->name, trace);
+	       folio_address(folio), s->name, trace);
 	kfree(trace);
 	return -ENOMEM;
 }
