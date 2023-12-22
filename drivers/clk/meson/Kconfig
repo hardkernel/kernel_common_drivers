@@ -37,14 +37,19 @@ config AMLOGIC_COMMON_CLK_MESON_VID_PLL_DIV
 	tristate "meson vid pll div"
 	depends on AMLOGIC_COMMON_CLK_MESON_REGMAP
 
+config AMLOGIC_COMMON_CLK_MESON_CLKC_UTILS
+	tristate "meson clkc utils"
+
 config AMLOGIC_COMMON_CLK_MESON_AO_CLKC
 	tristate "meson ao clkc"
 	depends on AMLOGIC_COMMON_CLK_MESON_REGMAP
+	depends on AMLOGIC_COMMON_CLK_MESON_CLKC_UTILS
 	depends on RESET_CONTROLLER
 
 config AMLOGIC_COMMON_CLK_MESON_EE_CLKC
 	tristate "meson ee clkc"
 	depends on AMLOGIC_COMMON_CLK_MESON_REGMAP
+	depends on AMLOGIC_COMMON_CLK_MESON_CLKC_UTILS
 
 config AMLOGIC_COMMON_CLK_MESON_CPU_DYNDIV
 	tristate "meson cpu dyndiv"
@@ -179,6 +184,7 @@ config AMLOGIC_COMMON_CLK_G12A
 	select AMLOGIC_COMMON_CLK_MESON_EE_CLKC
 	select AMLOGIC_COMMON_CLK_MESON_CPU_DYNDIV
 	select AMLOGIC_COMMON_CLK_MESON_VID_PLL_DIV
+	select AMLOGIC_COMMON_CLK_MESON_CLKC_UTILS
 	select MFD_SYSCON
 	help
 	  Support for the clock controller on Amlogic S905D2, S905X2 and S905Y2
@@ -298,7 +304,7 @@ config AMLOGIC_COMMON_CLK_A5
 	depends on AMLOGIC_COMMON_CLK_MESON_MPLL
 	depends on AMLOGIC_COMMON_CLK_MESON_PLL
 	depends on AMLOGIC_COMMON_CLK_MESON_CPU_DYNDIV
-	depends on AMLOGIC_COMMON_CLK_MESON_VID_PLL_DIV
+	depends on AMLOGIC_COMMON_CLK_MESON_CLKC_UTILS
 	depends on MFD_SYSCON
 	help
 	  Support for the clock controller on Amlogic
@@ -310,7 +316,7 @@ config AMLOGIC_COMMON_CLK_A4
 	depends on AMLOGIC_COMMON_CLK_MESON_DUALDIV
 	depends on AMLOGIC_COMMON_CLK_MESON_PLL
 	depends on AMLOGIC_COMMON_CLK_MESON_CPU_DYNDIV
-	depends on AMLOGIC_COMMON_CLK_MESON_VID_PLL_DIV
+	depends on AMLOGIC_COMMON_CLK_MESON_CLKC_UTILS
 	depends on MFD_SYSCON
 	help
 	  Support for the clock controller on Amlogic

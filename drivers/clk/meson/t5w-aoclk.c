@@ -207,8 +207,7 @@ static struct clk_regmap t5w_cecb_32k_clkout = {
 };
 
 /* Array of all clocks provided by this provider */
-static struct clk_hw_onecell_data t5w_aoclkc_hw_onecell_data = {
-	.hws = {
+static struct clk_hw *t5w_aoclk_hw_clks[] = {
 		[CLKID_AO_CLK81] =	&t5w_aoclk81.hw,
 		[CLKID_SARADC_MUX] =	&t5w_saradc_mux.hw,
 		[CLKID_SARADC_DIV] =	&t5w_saradc_div.hw,
@@ -225,10 +224,7 @@ static struct clk_hw_onecell_data t5w_aoclkc_hw_onecell_data = {
 		[CLKID_CECB_32K_CLKIN]	= &t5w_cecb_32k_clkin.hw,
 		[CLKID_CECB_32K_DIV]	= &t5w_cecb_32k_div.hw,
 		[CLKID_CECB_32K_MUX_PRE] = &t5w_cecb_32k_sel_pre.hw,
-		[CLKID_CECB_32K_CLKOUT]	= &t5w_cecb_32k_clkout.hw,
-		[NR_AOCLKS]		= NULL,
-	},
-	.num = NR_AOCLKS,
+		[CLKID_CECB_32K_CLKOUT]	= &t5w_cecb_32k_clkout.hw
 };
 
 /* Convenience table to populate regmap in .probe */
@@ -255,7 +251,10 @@ static struct clk_regmap *const t5w_aoclkc_clk_regmaps[] __initconst = {
 const struct meson_eeclkc_data t5w_aoclkc_data = {
 	.regmap_clks = t5w_aoclkc_clk_regmaps,
 	.regmap_clk_num = ARRAY_SIZE(t5w_aoclkc_clk_regmaps),
-	.hw_onecell_data = &t5w_aoclkc_hw_onecell_data,
+	.hw_clks	= {
+		.hws	= t5w_aoclk_hw_clks,
+		.num	= ARRAY_SIZE(t5w_aoclk_hw_clks),
+	},
 };
 
 static const struct of_device_id clkc_match_table[] = {

@@ -18,6 +18,7 @@
 #include "clk-cpu-dyndiv.h"
 #include "vid-pll-div.h"
 #include "clk-dualdiv.h"
+#include "meson-clkc-utils.h"
 #include "a5.h"
 #include <dt-bindings/clock/amlogic,a5-clkc.h>
 
@@ -2736,188 +2737,188 @@ static MESON_A5_SYS_GATE(a5_i2c_m_d, CLKCTRL_SYS_CLK_EN0_REG1, 19);
 static MESON_A5_SYS_GATE(a5_i2c_s_a, CLKCTRL_SYS_CLK_EN0_REG1, 20);
 static MESON_A5_SYS_GATE(a5_rtc, CLKCTRL_SYS_CLK_EN0_REG1, 21);
 
-/* Array of all clocks provided by this provider */
-static struct clk_hw_onecell_data a5_hw_onecell_data = {
-	.hws = {
-		[CLKID_FIXED_PLL_DCO]			= &a5_fixed_pll_dco.hw,
-		[CLKID_FIXED_PLL]			= &a5_fixed_pll.hw,
-		[CLKID_SYS_PLL_DCO]			= &a5_sys_pll_dco.hw,
-		[CLKID_SYS_PLL]				= &a5_sys_pll.hw,
-		[CLKID_FCLK_DIV2_DIV]			= &a5_fclk_div2_div.hw,
-		[CLKID_FCLK_DIV2]			= &a5_fclk_div2.hw,
-		[CLKID_FCLK_DIV3_DIV]			= &a5_fclk_div3_div.hw,
-		[CLKID_FCLK_DIV3]			= &a5_fclk_div3.hw,
-		[CLKID_FCLK_DIV4_DIV]			= &a5_fclk_div4_div.hw,
-		[CLKID_FCLK_DIV4]			= &a5_fclk_div4.hw,
-		[CLKID_FCLK_DIV5_DIV]			= &a5_fclk_div5_div.hw,
-		[CLKID_FCLK_DIV5]			= &a5_fclk_div5.hw,
-		[CLKID_FCLK_DIV7_DIV]			= &a5_fclk_div7_div.hw,
-		[CLKID_FCLK_DIV7]			= &a5_fclk_div7.hw,
-		[CLKID_FCLK_DIV2P5_DIV]			= &a5_fclk_div2p5_div.hw,
-		[CLKID_FCLK_DIV2P5]			= &a5_fclk_div2p5.hw,
-		[CLKID_GP0_PLL_DCO]			= &a5_gp0_pll_dco.hw,
-		[CLKID_GP0_PLL]				= &a5_gp0_pll.hw,
-		[CLKID_GP1_PLL_DCO]			= &a5_gp1_pll_dco.hw,
-		[CLKID_GP1_PLL]				= &a5_gp1_pll.hw,
-		[CLKID_CPU_CLK_DYN]			= &a5_cpu_dyn_clk.hw,
-		[CLKID_CPU_CLK]				= &a5_cpu_clk.hw,
-		[CLKID_DSU_DYN_CLK]			= &a5_dsu_dyn_clk.hw,
-		[CLKID_DSU_PRE_CLK]			= &a5_dsu_pre_clk.hw,
-		[CLKID_DSU_CLK]				= &a5_dsu_clk.hw,
-		[CLKID_HIFI_PLL_DCO]			= &a5_hifi_pll_dco.hw,
-		[CLKID_HIFI_PLL]			= &a5_hifi_pll.hw,
-		[CLKID_MPLL_50M_DIV]			= &a5_mpll_50m_div.hw,
-		[CLKID_MPLL_50M]			= &a5_mpll_50m.hw,
-		[CLKID_MPLL_PREDIV]			= &a5_mpll_prediv.hw,
-		[CLKID_MPLL0_DIV]			= &a5_mpll0_div.hw,
-		[CLKID_MPLL0]				= &a5_mpll0.hw,
-		[CLKID_MPLL1_DIV]			= &a5_mpll1_div.hw,
-		[CLKID_MPLL1]				= &a5_mpll1.hw,
-		[CLKID_MPLL2_DIV]			= &a5_mpll2_div.hw,
-		[CLKID_MPLL2]				= &a5_mpll2.hw,
-		[CLKID_MPLL3_DIV]			= &a5_mpll3_div.hw,
-		[CLKID_MPLL3]				= &a5_mpll3.hw,
+static struct clk_hw *a5_hw_clks[] = {
+	[CLKID_FIXED_PLL_DCO]			= &a5_fixed_pll_dco.hw,
+	[CLKID_FIXED_PLL]			= &a5_fixed_pll.hw,
+	[CLKID_SYS_PLL_DCO]			= &a5_sys_pll_dco.hw,
+	[CLKID_SYS_PLL]				= &a5_sys_pll.hw,
+	[CLKID_FCLK_DIV2_DIV]			= &a5_fclk_div2_div.hw,
+	[CLKID_FCLK_DIV2]			= &a5_fclk_div2.hw,
+	[CLKID_FCLK_DIV3_DIV]			= &a5_fclk_div3_div.hw,
+	[CLKID_FCLK_DIV3]			= &a5_fclk_div3.hw,
+	[CLKID_FCLK_DIV4_DIV]			= &a5_fclk_div4_div.hw,
+	[CLKID_FCLK_DIV4]			= &a5_fclk_div4.hw,
+	[CLKID_FCLK_DIV5_DIV]			= &a5_fclk_div5_div.hw,
+	[CLKID_FCLK_DIV5]			= &a5_fclk_div5.hw,
+	[CLKID_FCLK_DIV7_DIV]			= &a5_fclk_div7_div.hw,
+	[CLKID_FCLK_DIV7]			= &a5_fclk_div7.hw,
+	[CLKID_FCLK_DIV2P5_DIV]			= &a5_fclk_div2p5_div.hw,
+	[CLKID_FCLK_DIV2P5]			= &a5_fclk_div2p5.hw,
+	[CLKID_GP0_PLL_DCO]			= &a5_gp0_pll_dco.hw,
+	[CLKID_GP0_PLL]				= &a5_gp0_pll.hw,
+	[CLKID_GP1_PLL_DCO]			= &a5_gp1_pll_dco.hw,
+	[CLKID_GP1_PLL]				= &a5_gp1_pll.hw,
+	[CLKID_CPU_CLK_DYN]			= &a5_cpu_dyn_clk.hw,
+	[CLKID_CPU_CLK]				= &a5_cpu_clk.hw,
+	[CLKID_DSU_DYN_CLK]			= &a5_dsu_dyn_clk.hw,
+	[CLKID_DSU_PRE_CLK]			= &a5_dsu_pre_clk.hw,
+	[CLKID_DSU_CLK]				= &a5_dsu_clk.hw,
+	[CLKID_HIFI_PLL_DCO]			= &a5_hifi_pll_dco.hw,
+	[CLKID_HIFI_PLL]			= &a5_hifi_pll.hw,
+	[CLKID_MPLL_50M_DIV]			= &a5_mpll_50m_div.hw,
+	[CLKID_MPLL_50M]			= &a5_mpll_50m.hw,
+	[CLKID_MPLL_PREDIV]			= &a5_mpll_prediv.hw,
+	[CLKID_MPLL0_DIV]			= &a5_mpll0_div.hw,
+	[CLKID_MPLL0]				= &a5_mpll0.hw,
+	[CLKID_MPLL1_DIV]			= &a5_mpll1_div.hw,
+	[CLKID_MPLL1]				= &a5_mpll1.hw,
+	[CLKID_MPLL2_DIV]			= &a5_mpll2_div.hw,
+	[CLKID_MPLL2]				= &a5_mpll2.hw,
+	[CLKID_MPLL3_DIV]			= &a5_mpll3_div.hw,
+	[CLKID_MPLL3]				= &a5_mpll3.hw,
 
-		[CLKID_RTC_32K_CLKIN]			= &a5_rtc_32k_clkin.hw,
-		[CLKID_RTC_32K_DIV]			= &a5_rtc_32k_div.hw,
-		[CLKID_RTC_32K_XATL]			= &a5_rtc_32k_xtal.hw,
-		[CLKID_RTC_32K_SEL]			= &a5_rtc_32k_sel.hw,
-		[CLKID_RTC_CLK]				= &a5_rtc_clk.hw,
-		[CLKID_SYS_CLK_1_SEL]			= &a5_sysclk_1_sel.hw,
-		[CLKID_SYS_CLK_1_DIV]			= &a5_sysclk_1_div.hw,
-		[CLKID_SYS_CLK_1]			= &a5_sysclk_1.hw,
-		[CLKID_SYS_CLK_0_SEL]			= &a5_sysclk_0_sel.hw,
-		[CLKID_SYS_CLK_0_DIV]			= &a5_sysclk_0_div.hw,
-		[CLKID_SYS_CLK_0]			= &a5_sysclk_0.hw,
-		[CLKID_SYS_CLK]				= &a5_sys_clk.hw,
-		[CLKID_DSPA_1_SEL]			= &a5_dspa_1_sel.hw,
-		[CLKID_DSPA_1_DIV]			= &a5_dspa_1_div.hw,
-		[CLKID_DSPA_1]				= &a5_dspa_1.hw,
-		[CLKID_DSPA_0_SEL]			= &a5_dspa_0_sel.hw,
-		[CLKID_DSPA_0_DIV]			= &a5_dspa_0_div.hw,
-		[CLKID_DSPA_0]				= &a5_dspa_0.hw,
-		[CLKID_DSPA]				= &a5_dspa.hw,
-		[CLKID_24M_CLK_GATE]			= &a5_24M_clk_gate.hw,
-		[CLKID_12M_CLK_DIV]			= &a5_12M_clk_div.hw,
-		[CLKID_12M_CLK_GATE]			= &a5_12M_clk_gate.hw,
-		[CLKID_25M_CLK_DIV]			= &a5_25m_clk_div.hw,
-		[CLKID_25M_CLK_GATE]			= &a5_25m_clk.hw,
-		[CLKID_ETH_RMII_SEL]			= &a5_eth_rmii_sel.hw,
-		[CLKID_ETH_RMII_DIV]			= &a5_eth_rmii_div.hw,
-		[CLKID_ETH_RMII]			= &a5_eth_rmii.hw,
-		[CLKID_ETH_DIV8]			= &a5_eth_div8.hw,
-		[CLKID_ETH_125M]			= &a5_eth_125m.hw,
-		[CLKID_TS_CLK_DIV]			= &a5_ts_clk_div.hw,
-		[CLKID_TS_CLK]				= &a5_ts_clk.hw,
-		[CLKID_SD_EMMC_C_CLK_SEL]		= &a5_sd_emmc_c_clk0_sel.hw,
-		[CLKID_SD_EMMC_C_CLK_DIV]		= &a5_sd_emmc_c_clk0_div.hw,
-		[CLKID_SD_EMMC_C_CLK]			= &a5_sd_emmc_c_clk0.hw,
-		[CLKID_SD_EMMC_A_CLK_SEL]		= &a5_sd_emmc_a_clk0_sel.hw,
-		[CLKID_SD_EMMC_A_CLK_DIV]		= &a5_sd_emmc_a_clk0_div.hw,
-		[CLKID_SD_EMMC_A_CLK]			= &a5_sd_emmc_a_clk0.hw,
-		[CLKID_SPICC0_SEL]			= &a5_spicc0_sel.hw,
-		[CLKID_SPICC0_DIV]			= &a5_spicc0_div.hw,
-		[CLKID_SPICC0]				= &a5_spicc0.hw,
-		[CLKID_SPICC1_SEL]			= &a5_spicc1_sel.hw,
-		[CLKID_SPICC1_DIV]			= &a5_spicc1_div.hw,
-		[CLKID_SPICC1]				= &a5_spicc1.hw,
-		[CLKID_PWM_A_SEL]			= &a5_pwm_a_sel.hw,
-		[CLKID_PWM_A_DIV]			= &a5_pwm_a_div.hw,
-		[CLKID_PWM_A]				= &a5_pwm_a.hw,
-		[CLKID_PWM_B_SEL]			= &a5_pwm_b_sel.hw,
-		[CLKID_PWM_B_DIV]			= &a5_pwm_b_div.hw,
-		[CLKID_PWM_B]				= &a5_pwm_b.hw,
-		[CLKID_PWM_C_SEL]			= &a5_pwm_c_sel.hw,
-		[CLKID_PWM_C_DIV]			= &a5_pwm_c_div.hw,
-		[CLKID_PWM_C]				= &a5_pwm_c.hw,
-		[CLKID_PWM_D_SEL]			= &a5_pwm_d_sel.hw,
-		[CLKID_PWM_D_DIV]			= &a5_pwm_d_div.hw,
-		[CLKID_PWM_D]				= &a5_pwm_d.hw,
-		[CLKID_PWM_E_SEL]			= &a5_pwm_e_sel.hw,
-		[CLKID_PWM_E_DIV]			= &a5_pwm_e_div.hw,
-		[CLKID_PWM_E]				= &a5_pwm_e.hw,
-		[CLKID_PWM_F_SEL]			= &a5_pwm_f_sel.hw,
-		[CLKID_PWM_F_DIV]			= &a5_pwm_f_div.hw,
-		[CLKID_PWM_F]				= &a5_pwm_f.hw,
-		[CLKID_PWM_G_SEL]			= &a5_pwm_g_sel.hw,
-		[CLKID_PWM_G_DIV]			= &a5_pwm_g_div.hw,
-		[CLKID_PWM_G]				= &a5_pwm_g.hw,
-		[CLKID_PWM_H_SEL]			= &a5_pwm_h_sel.hw,
-		[CLKID_PWM_H_DIV]			= &a5_pwm_h_div.hw,
-		[CLKID_PWM_H]				= &a5_pwm_h.hw,
-		[CLKID_SARADC_SEL]			= &a5_saradc_sel.hw,
-		[CLKID_SARADC_DIV]			= &a5_saradc_div.hw,
-		[CLKID_SARADC]				= &a5_saradc.hw,
-		[CLKID_GEN_SEL]				= &a5_gen_sel.hw,
-		[CLKID_GEN_DIV]				= &a5_gen_div.hw,
-		[CLKID_GEN]				= &a5_gen.hw,
-		[CLKID_CTS_NNA_AXI_CLK_SEL]		= &a5_cts_nna_axi_clk_sel.hw,
-		[CLKID_CTS_NNA_AXI_CLK_DIV]		= &a5_cts_nna_axi_clk_div.hw,
-		[CLKID_CTS_NNA_AXI_CLK]			= &a5_cts_nna_axi_clk.hw,
-		[CLKID_CTS_NNA_CORE_CLK_SEL]		= &a5_cts_nna_core_clk_sel.hw,
-		[CLKID_CTS_NNA_CORE_CLK_DIV]		= &a5_cts_nna_core_clk_div.hw,
-		[CLKID_CTS_NNA_CORE_CLK]		= &a5_cts_nna_core_clk.hw,
+	[CLKID_RTC_32K_CLKIN]			= &a5_rtc_32k_clkin.hw,
+	[CLKID_RTC_32K_DIV]			= &a5_rtc_32k_div.hw,
+	[CLKID_RTC_32K_XATL]			= &a5_rtc_32k_xtal.hw,
+	[CLKID_RTC_32K_SEL]			= &a5_rtc_32k_sel.hw,
+	[CLKID_RTC_CLK]				= &a5_rtc_clk.hw,
+	[CLKID_SYS_CLK_1_SEL]			= &a5_sysclk_1_sel.hw,
+	[CLKID_SYS_CLK_1_DIV]			= &a5_sysclk_1_div.hw,
+	[CLKID_SYS_CLK_1]			= &a5_sysclk_1.hw,
+	[CLKID_SYS_CLK_0_SEL]			= &a5_sysclk_0_sel.hw,
+	[CLKID_SYS_CLK_0_DIV]			= &a5_sysclk_0_div.hw,
+	[CLKID_SYS_CLK_0]			= &a5_sysclk_0.hw,
+	[CLKID_SYS_CLK]				= &a5_sys_clk.hw,
+	[CLKID_DSPA_1_SEL]			= &a5_dspa_1_sel.hw,
+	[CLKID_DSPA_1_DIV]			= &a5_dspa_1_div.hw,
+	[CLKID_DSPA_1]				= &a5_dspa_1.hw,
+	[CLKID_DSPA_0_SEL]			= &a5_dspa_0_sel.hw,
+	[CLKID_DSPA_0_DIV]			= &a5_dspa_0_div.hw,
+	[CLKID_DSPA_0]				= &a5_dspa_0.hw,
+	[CLKID_DSPA]				= &a5_dspa.hw,
+	[CLKID_24M_CLK_GATE]			= &a5_24M_clk_gate.hw,
+	[CLKID_12M_CLK_DIV]			= &a5_12M_clk_div.hw,
+	[CLKID_12M_CLK_GATE]			= &a5_12M_clk_gate.hw,
+	[CLKID_25M_CLK_DIV]			= &a5_25m_clk_div.hw,
+	[CLKID_25M_CLK_GATE]			= &a5_25m_clk.hw,
+	[CLKID_ETH_RMII_SEL]			= &a5_eth_rmii_sel.hw,
+	[CLKID_ETH_RMII_DIV]			= &a5_eth_rmii_div.hw,
+	[CLKID_ETH_RMII]			= &a5_eth_rmii.hw,
+	[CLKID_ETH_DIV8]			= &a5_eth_div8.hw,
+	[CLKID_ETH_125M]			= &a5_eth_125m.hw,
+	[CLKID_TS_CLK_DIV]			= &a5_ts_clk_div.hw,
+	[CLKID_TS_CLK]				= &a5_ts_clk.hw,
+	[CLKID_SD_EMMC_C_CLK_SEL]		= &a5_sd_emmc_c_clk0_sel.hw,
+	[CLKID_SD_EMMC_C_CLK_DIV]		= &a5_sd_emmc_c_clk0_div.hw,
+	[CLKID_SD_EMMC_C_CLK]			= &a5_sd_emmc_c_clk0.hw,
+	[CLKID_SD_EMMC_A_CLK_SEL]		= &a5_sd_emmc_a_clk0_sel.hw,
+	[CLKID_SD_EMMC_A_CLK_DIV]		= &a5_sd_emmc_a_clk0_div.hw,
+	[CLKID_SD_EMMC_A_CLK]			= &a5_sd_emmc_a_clk0.hw,
+	[CLKID_SPICC0_SEL]			= &a5_spicc0_sel.hw,
+	[CLKID_SPICC0_DIV]			= &a5_spicc0_div.hw,
+	[CLKID_SPICC0]				= &a5_spicc0.hw,
+	[CLKID_SPICC1_SEL]			= &a5_spicc1_sel.hw,
+	[CLKID_SPICC1_DIV]			= &a5_spicc1_div.hw,
+	[CLKID_SPICC1]				= &a5_spicc1.hw,
+	[CLKID_PWM_A_SEL]			= &a5_pwm_a_sel.hw,
+	[CLKID_PWM_A_DIV]			= &a5_pwm_a_div.hw,
+	[CLKID_PWM_A]				= &a5_pwm_a.hw,
+	[CLKID_PWM_B_SEL]			= &a5_pwm_b_sel.hw,
+	[CLKID_PWM_B_DIV]			= &a5_pwm_b_div.hw,
+	[CLKID_PWM_B]				= &a5_pwm_b.hw,
+	[CLKID_PWM_C_SEL]			= &a5_pwm_c_sel.hw,
+	[CLKID_PWM_C_DIV]			= &a5_pwm_c_div.hw,
+	[CLKID_PWM_C]				= &a5_pwm_c.hw,
+	[CLKID_PWM_D_SEL]			= &a5_pwm_d_sel.hw,
+	[CLKID_PWM_D_DIV]			= &a5_pwm_d_div.hw,
+	[CLKID_PWM_D]				= &a5_pwm_d.hw,
+	[CLKID_PWM_E_SEL]			= &a5_pwm_e_sel.hw,
+	[CLKID_PWM_E_DIV]			= &a5_pwm_e_div.hw,
+	[CLKID_PWM_E]				= &a5_pwm_e.hw,
+	[CLKID_PWM_F_SEL]			= &a5_pwm_f_sel.hw,
+	[CLKID_PWM_F_DIV]			= &a5_pwm_f_div.hw,
+	[CLKID_PWM_F]				= &a5_pwm_f.hw,
+	[CLKID_PWM_G_SEL]			= &a5_pwm_g_sel.hw,
+	[CLKID_PWM_G_DIV]			= &a5_pwm_g_div.hw,
+	[CLKID_PWM_G]				= &a5_pwm_g.hw,
+	[CLKID_PWM_H_SEL]			= &a5_pwm_h_sel.hw,
+	[CLKID_PWM_H_DIV]			= &a5_pwm_h_div.hw,
+	[CLKID_PWM_H]				= &a5_pwm_h.hw,
+	[CLKID_SARADC_SEL]			= &a5_saradc_sel.hw,
+	[CLKID_SARADC_DIV]			= &a5_saradc_div.hw,
+	[CLKID_SARADC]				= &a5_saradc.hw,
+	[CLKID_GEN_SEL]				= &a5_gen_sel.hw,
+	[CLKID_GEN_DIV]				= &a5_gen_div.hw,
+	[CLKID_GEN]				= &a5_gen.hw,
+	[CLKID_CTS_NNA_AXI_CLK_SEL]		= &a5_cts_nna_axi_clk_sel.hw,
+	[CLKID_CTS_NNA_AXI_CLK_DIV]		= &a5_cts_nna_axi_clk_div.hw,
+	[CLKID_CTS_NNA_AXI_CLK]			= &a5_cts_nna_axi_clk.hw,
+	[CLKID_CTS_NNA_CORE_CLK_SEL]		= &a5_cts_nna_core_clk_sel.hw,
+	[CLKID_CTS_NNA_CORE_CLK_DIV]		= &a5_cts_nna_core_clk_div.hw,
+	[CLKID_CTS_NNA_CORE_CLK]		= &a5_cts_nna_core_clk.hw,
 
-		[CLKID_SYS_CLK_CTRL]			= &a5_clk_ctrl.hw,
-		[CLKID_SYS_CLK_RESET_CTRL]		= &a5_reset_ctrl.hw,
-		[CLKID_SYS_CLK_ANALOG_CTRL]		= &a5_analog_ctrl.hw,
-		[CLKID_SYS_CLK_PWR_CTRL]		= &a5_pwr_ctrl.hw,
-		[CLKID_SYS_CLK_PAD_CTRL]		= &a5_pad_ctrl.hw,
-		[CLKID_SYS_CLK_SYS_CTRL]		= &a5_sys_ctrl.hw,
-		[CLKID_SYS_CLK_TS_PLL]			= &a5_ts_pll.hw,
-		[CLKID_SYS_CLK_DEV_ARB]			= &a5_dev_arb.hw,
-		[CLKID_SYS_CLK_MMC_PCLK]		= &a5_mmc_pclk.hw,
-		[CLKID_SYS_CLK_CAPU]			= &a5_capu.hw,
-		[CLKID_SYS_CLK_MAILBOX]			= &a5_mailbox.hw,
-		[CLKID_SYS_CLK_CPU]			= &a5_cpu.hw,
-		[CLKID_SYS_CLK_JTAG_CTRL]		= &a5_jtag_ctrl.hw,
-		[CLKID_SYS_CLK_IR_CTRL]			= &a5_ir_ctrl.hw,
-		[CLKID_SYS_CLK_IRQ_CTRL]		= &a5_irq_ctrl.hw,
-		[CLKID_SYS_CLK_MSR_CLK]			= &a5_msr_clk.hw,
-		[CLKID_SYS_CLK_ROM]			= &a5_rom.hw,
-		[CLKID_SYS_CLK_AOCPU]			= &a5_aocpu.hw,
-		[CLKID_SYS_CLK_CPU_APB]			= &a5_cpu_apb.hw,
-		[CLKID_SYS_CLK_RSA]			= &a5_rsa.hw,
-		[CLKID_SYS_CLK_SAR_ADC]			= &a5_sar_adc.hw,
-		[CLKID_SYS_CLK_STARTUP]			= &a5_startup.hw,
-		[CLKID_SYS_CLK_SECURE]			= &a5_secure.hw,
-		[CLKID_SYS_CLK_SPIFC]			= &a5_spifc.hw,
-		[CLKID_SYS_CLK_DSPA]			= &a5_sys_dspa.hw,
-		[CLKID_SYS_CLK_NNA]			= &a5_nna.hw,
-		[CLKID_SYS_CLK_ETH_MAC]			= &a5_eth_mac.hw,
-		[CLKID_SYS_CLK_GIC]			= &a5_gic.hw,
-		[CLKID_SYS_CLK_RAMA]			= &a5_rama.hw,
-		[CLKID_SYS_CLK_BIG_NIC]			= &a5_big_nic.hw,
-		[CLKID_SYS_CLK_RAMB]			= &a5_ramb.hw,
-		[CLKID_SYS_CLK_AUDIO_TOP]		= &a5_audio_top.hw,
-		[CLKID_SYS_CLK_AUDIO_VAD]		= &a5_audio_vad.hw,
-		[CLKID_SYS_CLK_USB]			= &a5_usb.hw,
-		[CLKID_SYS_CLK_SD_EMMCA]		= &a5_sd_emmca.hw,
-		[CLKID_SYS_CLK_SD_EMMCC]		= &a5_sd_emmcc.hw,
-		[CLKID_SYS_CLK_PWM_AB]			= &a5_pwm_ab.hw,
-		[CLKID_SYS_CLK_PWM_CD]			= &a5_pwm_cd.hw,
-		[CLKID_SYS_CLK_PWM_EF]			= &a5_pwm_ef.hw,
-		[CLKID_SYS_CLK_PWM_GH]			= &a5_pwm_gh.hw,
-		[CLKID_SYS_CLK_SPICC_0]			= &a5_spicc_0.hw,
-		[CLKID_SYS_CLK_SPICC_1]			= &a5_spicc_1.hw,
-		[CLKID_SYS_CLK_UART_A]			= &a5_uart_a.hw,
-		[CLKID_SYS_CLK_UART_B]			= &a5_uart_b.hw,
-		[CLKID_SYS_CLK_UART_C]			= &a5_uart_c.hw,
-		[CLKID_SYS_CLK_UART_D]			= &a5_uart_d.hw,
-		[CLKID_SYS_CLK_UART_E]			= &a5_uart_e.hw,
-		[CLKID_SYS_CLK_I2C_M_A]			= &a5_i2c_m_a.hw,
-		[CLKID_SYS_CLK_I2C_M_B]			= &a5_i2c_m_b.hw,
-		[CLKID_SYS_CLK_I2C_M_C]			= &a5_i2c_m_c.hw,
-		[CLKID_SYS_CLK_I2C_M_D]			= &a5_i2c_m_d.hw,
-		[CLKID_SYS_CLK_I2C_S_A]			= &a5_i2c_s_a.hw,
-		[CLKID_SYS_CLK_RTC]			= &a5_rtc.hw,
-		[NR_CLKS]				= NULL
-	},
-	.num = NR_CLKS,
+	[CLKID_SYS_CLK_CTRL]			= &a5_clk_ctrl.hw,
+	[CLKID_SYS_CLK_RESET_CTRL]		= &a5_reset_ctrl.hw,
+	[CLKID_SYS_CLK_ANALOG_CTRL]		= &a5_analog_ctrl.hw,
+	[CLKID_SYS_CLK_PWR_CTRL]		= &a5_pwr_ctrl.hw,
+	[CLKID_SYS_CLK_PAD_CTRL]		= &a5_pad_ctrl.hw,
+	[CLKID_SYS_CLK_SYS_CTRL]		= &a5_sys_ctrl.hw,
+	[CLKID_SYS_CLK_TS_PLL]			= &a5_ts_pll.hw,
+	[CLKID_SYS_CLK_DEV_ARB]			= &a5_dev_arb.hw,
+	[CLKID_SYS_CLK_MMC_PCLK]		= &a5_mmc_pclk.hw,
+	[CLKID_SYS_CLK_CAPU]			= &a5_capu.hw,
+	[CLKID_SYS_CLK_MAILBOX]			= &a5_mailbox.hw,
+	[CLKID_SYS_CLK_CPU]			= &a5_cpu.hw,
+	[CLKID_SYS_CLK_JTAG_CTRL]		= &a5_jtag_ctrl.hw,
+	[CLKID_SYS_CLK_IR_CTRL]			= &a5_ir_ctrl.hw,
+	[CLKID_SYS_CLK_IRQ_CTRL]		= &a5_irq_ctrl.hw,
+	[CLKID_SYS_CLK_MSR_CLK]			= &a5_msr_clk.hw,
+	[CLKID_SYS_CLK_ROM]			= &a5_rom.hw,
+	[CLKID_SYS_CLK_AOCPU]			= &a5_aocpu.hw,
+	[CLKID_SYS_CLK_CPU_APB]			= &a5_cpu_apb.hw,
+	[CLKID_SYS_CLK_RSA]			= &a5_rsa.hw,
+	[CLKID_SYS_CLK_SAR_ADC]			= &a5_sar_adc.hw,
+	[CLKID_SYS_CLK_STARTUP]			= &a5_startup.hw,
+	[CLKID_SYS_CLK_SECURE]			= &a5_secure.hw,
+	[CLKID_SYS_CLK_SPIFC]			= &a5_spifc.hw,
+	[CLKID_SYS_CLK_DSPA]			= &a5_sys_dspa.hw,
+	[CLKID_SYS_CLK_NNA]			= &a5_nna.hw,
+	[CLKID_SYS_CLK_ETH_MAC]			= &a5_eth_mac.hw,
+	[CLKID_SYS_CLK_GIC]			= &a5_gic.hw,
+	[CLKID_SYS_CLK_RAMA]			= &a5_rama.hw,
+	[CLKID_SYS_CLK_BIG_NIC]			= &a5_big_nic.hw,
+	[CLKID_SYS_CLK_RAMB]			= &a5_ramb.hw,
+	[CLKID_SYS_CLK_AUDIO_TOP]		= &a5_audio_top.hw,
+	[CLKID_SYS_CLK_AUDIO_VAD]		= &a5_audio_vad.hw,
+	[CLKID_SYS_CLK_USB]			= &a5_usb.hw,
+	[CLKID_SYS_CLK_SD_EMMCA]		= &a5_sd_emmca.hw,
+	[CLKID_SYS_CLK_SD_EMMCC]		= &a5_sd_emmcc.hw,
+	[CLKID_SYS_CLK_PWM_AB]			= &a5_pwm_ab.hw,
+	[CLKID_SYS_CLK_PWM_CD]			= &a5_pwm_cd.hw,
+	[CLKID_SYS_CLK_PWM_EF]			= &a5_pwm_ef.hw,
+	[CLKID_SYS_CLK_PWM_GH]			= &a5_pwm_gh.hw,
+	[CLKID_SYS_CLK_SPICC_0]			= &a5_spicc_0.hw,
+	[CLKID_SYS_CLK_SPICC_1]			= &a5_spicc_1.hw,
+	[CLKID_SYS_CLK_UART_A]			= &a5_uart_a.hw,
+	[CLKID_SYS_CLK_UART_B]			= &a5_uart_b.hw,
+	[CLKID_SYS_CLK_UART_C]			= &a5_uart_c.hw,
+	[CLKID_SYS_CLK_UART_D]			= &a5_uart_d.hw,
+	[CLKID_SYS_CLK_UART_E]			= &a5_uart_e.hw,
+	[CLKID_SYS_CLK_I2C_M_A]			= &a5_i2c_m_a.hw,
+	[CLKID_SYS_CLK_I2C_M_B]			= &a5_i2c_m_b.hw,
+	[CLKID_SYS_CLK_I2C_M_C]			= &a5_i2c_m_c.hw,
+	[CLKID_SYS_CLK_I2C_M_D]			= &a5_i2c_m_d.hw,
+	[CLKID_SYS_CLK_I2C_S_A]			= &a5_i2c_s_a.hw,
+	[CLKID_SYS_CLK_RTC]			= &a5_rtc.hw
+};
+
+static const struct meson_clk_hw_data a5_clks = {
+	.hws = a5_hw_clks,
+	.num = ARRAY_SIZE(a5_hw_clks),
 };
 
 /* Convenience table to populate regmap in .probe */
-static struct clk_regmap *const a5_clk_regmaps[] __initconst  = {
+static struct clk_regmap *const a5_clk_regmaps[] __initconst = {
 	&a5_rtc_32k_clkin,
 	&a5_rtc_32k_div,
 	&a5_rtc_32k_xtal,
@@ -3047,7 +3048,7 @@ static struct clk_regmap *const a5_clk_regmaps[] __initconst  = {
 	&a5_i2c_m_c,
 	&a5_i2c_m_d,
 	&a5_i2c_s_a,
-	&a5_rtc,
+	&a5_rtc
 };
 
 static struct clk_regmap *const a5_cpu_clk_regmaps[] __initconst = {
@@ -3104,11 +3105,16 @@ static int meson_a5_dvfs_setup(struct platform_device *pdev)
 static int __ref meson_a5_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct meson_clk_hw_data *data;
 	struct regmap *basic_map;
 	struct regmap *pll_map;
 	struct regmap *cpu_clk_map;
 	struct clk *clk;
 	int ret, i;
+
+	data = (struct meson_clk_hw_data *)of_device_get_match_data(dev);
+	if (!data)
+		return -ENODEV;
 
 	clk = devm_clk_get(dev, "xtal");
 	if (IS_ERR(clk)) {
@@ -3155,25 +3161,25 @@ static int __ref meson_a5_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(a5_pll_clk_regmaps); i++)
 		a5_pll_clk_regmaps[i]->map = pll_map;
 
-	for (i = 0; i < a5_hw_onecell_data.num; i++) {
+	for (i = 0; i < data->num; i++) {
 		/* array might be sparse */
-		if (!a5_hw_onecell_data.hws[i])
+		if (!data->hws[i])
 			continue;
 		/*
 		 * dev_err(dev, "register %d  %s\n", i,
 		 *		a5_hw_onecell_data.hws[i]->init->name);
 		 */
 
-		ret = devm_clk_hw_register(dev, a5_hw_onecell_data.hws[i]);
+		ret = devm_clk_hw_register(dev, data->hws[i]);
 		if (ret) {
 			dev_err(dev, "Clock registration failed\n");
 			return ret;
 		}
 
 #ifdef CONFIG_AMLOGIC_CLK_DEBUG
-		ret = devm_clk_hw_register_clkdev(dev, a5_hw_onecell_data.hws[i],
+		ret = devm_clk_hw_register_clkdev(dev, data->hws[i],
 						  NULL,
-						  clk_hw_get_name(a5_hw_onecell_data.hws[i]));
+						  clk_hw_get_name(data->hws[i]));
 		if (ret < 0) {
 			dev_err(dev, "Failed to clkdev register: %d\n", ret);
 			return ret;
@@ -3183,14 +3189,13 @@ static int __ref meson_a5_probe(struct platform_device *pdev)
 
 	meson_a5_dvfs_setup(pdev);
 
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
-					   (void *)&a5_hw_onecell_data);
+	return devm_of_clk_add_hw_provider(dev, meson_clk_hw_get, (void *)data);
 }
 
 static const struct of_device_id clkc_match_table[] = {
 	{
 		.compatible = "amlogic,a5-clkc",
-		.data = &a5_hw_onecell_data
+		.data = &a5_clks
 	},
 	{}
 };
@@ -3203,22 +3208,6 @@ static struct platform_driver a5_driver = {
 	},
 };
 
-#ifndef CONFIG_AMLOGIC_MODIFY
 builtin_platform_driver(a5_driver);
-#else
-#ifndef MODULE
-static int __init a5_clkc_init(void)
-{
-	return platform_driver_register(&a5_driver);
-}
-arch_initcall_sync(a5_clkc_init);
-#else
-int __init meson_a5_clkc_init(void)
-{
-	return platform_driver_register(&a5_driver);
-}
-module_init(meson_a5_clkc_init);
-#endif
-#endif
 
 MODULE_LICENSE("GPL v2");
