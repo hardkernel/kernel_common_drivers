@@ -385,7 +385,10 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 			goto err;
 		}
 		usrinfo->fw_name[31] = '\0';
-		strcpy(host->fname0, usrinfo->fw_name);
+		if (host->start_pos == PURE_DDR)
+			strcpy(host->fname0, usrinfo->fw_name);
+		else
+			strcpy(host->fname1, usrinfo->fw_name);
 		host_firmware_load(host);
 		host->firmware_load = 1;
 	break;

@@ -19,6 +19,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/meson_ir.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
+#include <dt-bindings/firmware/amlogic,firmware.h>
 #include <dt-bindings/mailbox/a5-mbox.h>
 #include <dt-bindings/rtc/amlogic,rtc.h>
 #include "meson-ir-map.dtsi"
@@ -449,33 +450,29 @@
 			     <MAILBOX_DSP>;
 	};
 
-	hifi4dsp: hifi4dsp {
-		compatible = "amlogic, hifi4dsp";
+	hifidsp0: hifidsp0 {
+		compatible = "amlogic, hifidsp0";
+		status = "okay";
+		startup-position = /bits/ 8 <PURE_SRAM>; /*host dsp start mode : DDR*/
 		memory-region = <&dsp_fw_reserved>;
-		reg = <0 0xfe340018 0 0x114>,   /*dspa base address*/
-			  <0 0xfe350018 0 0x114>,   /*dspb base address*/
-			  <0 0xfe010258 0 0x4>,     /*dspa status counter*/
-			  <0 0xfe01025c 0 0x4>,     /*dspb status counter*/
-			  <0 0x30000000 0 0x80000>; /*dsp shm region*/
-		dsp-monitor-period-ms = <1000>;
-		logbuff-polling-period-ms = <50>;
-		reg-names = "dspa_top_reg", "dspb_top_reg";
+		reg-names = "base-reg",
+			    "health-reg",
+			    "dspsupport-reg",
+			    "sram-region",
+			    "shm-region",
+			    "ddrfw-region";
+		reg = <0x0 0xfe340018 0x0 0x114>, /*host base reg address*/
+		      <0x0 0xfe010258 0x0 0x4>, /*host health reg address*/
+		      <0x0 0xfe440068 0x0 0x4>, /*dsp support region*/
+		      <0x0 0xf7030000 0x0 0x1D0000>, /*host sram region [boot_sram_addr size]*/
+		      <0x0 0x780000 0x0 0x80000>, /*host shm region [offset size]*/
+		      <0x0 0x0 0x0 0x800000>; /*host ddrfw region [offset size]*/
 		clocks = <&clkc CLKID_DSPA>;
 		clock-names = "dspa_clk";
-		dsp-start-mode = <1>; /*0:scpi start mode,1:smc start mode*/
-		dsp-cnt = <1>;
-		dspaoffset = <0xa0000>;
-		dspboffset = <0x8a0000>;
-		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
-		boot_sram_addr = <0xf7030000>;
-		boot_sram_size = <0x3A0000>;
-		suspend_resume_support = <1 0>;
+		mboxes = <&mbox_fifo A5_REE2DSPA_DSP>;
 		power-domains = <&pwrdm PDID_A5_DSPA>;
-		power-domain-names = "dspa";
-		dsp_clk_freqs = <800000000>;
-		dspsrambase = <0xf7030000>;
-		dspsramsize = <0x3A0000>;
-		status = "okay";
+		//logbuff-polling-ms = <50>;
+		clkfreq-khz = <800000>;
 	};
 
 	vddcpu0: pwm_f-regulator {
