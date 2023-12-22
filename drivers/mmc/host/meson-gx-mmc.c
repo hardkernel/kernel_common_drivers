@@ -1389,11 +1389,11 @@ static void meson_mmc_check_resampling(struct meson_host *host,
 		mmc_phase_set = &host->sd_mmc.hs4;
 		break;
 	case MMC_TIMING_MMC_HS:
-		val = readl(host->regs + host->data->adjust);
-		val |= CFG_ADJUST_ENABLE;
-		val &= ~CLK_ADJUST_DELAY;
-		val |= CALI_HS_50M_ADJUST << __ffs(CLK_ADJUST_DELAY);
-		writel(val, host->regs + host->data->adjust);
+		//val = readl(host->regs + host->data->adjust);
+		//val |= CFG_ADJUST_ENABLE;
+		//val &= ~CLK_ADJUST_DELAY;
+		//val |= CALI_HS_50M_ADJUST << __ffs(CLK_ADJUST_DELAY);
+		//writel(val, host->regs + host->data->adjust);
 		mmc_phase_set = &host->sd_mmc.init;
 		break;
 	case MMC_TIMING_MMC_DDR52:
