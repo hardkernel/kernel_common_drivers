@@ -454,11 +454,9 @@ void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 
 	if (state) {
 		if (devp->game_mode) {
-			if (devp->vrr_data.frame_lock_vrr_en != vrr_data.vrr_mode) {
-				aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_ON, &vrr_data);
-				pr_debug("%s: state =1 and Game, enable frame lock mode:%x\n",
-					__func__, vrr_data.vrr_mode);
-			}
+			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_ON, &vrr_data);
+			pr_debug("%s: state =1 and Game, enable frame lock mode:%x\n",
+				__func__, vrr_data.vrr_mode);
 			devp->vrr_data.frame_lock_vrr_en = vrr_data.vrr_mode;
 		} else {
 			if (devp->vrr_data.frame_lock_vrr_en) {
