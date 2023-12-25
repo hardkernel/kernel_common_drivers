@@ -4234,6 +4234,11 @@ void rpt_edid_audio_db_extraction(unsigned char *p_edid)
 	struct edid_audio_block_t adb_tx[10], adb_def[10], adb_dest[10];
 	u8 tag_len_tx, tag_len_def;
 	u8 i, j, tag_len_dest = 0;
+	//some device such as arc, it's edid include several same audio format
+	//can not judge which format is the best format when extract rx edid
+	//when found tx edid has duplicat audio format,just use rx audio format
+	int tx_duplicate_audio_format = 0;
+	int tx_audio_format = 0;
 
 	if (!p_edid)
 		return;
@@ -4267,7 +4272,15 @@ void rpt_edid_audio_db_extraction(unsigned char *p_edid)
 	for (i = 0; i < tag_len_def / 3; i++) {
 		for (j = 0; j < tag_len_tx / 3; j++) {
 			if (adb_tx[j].format_code == adb_def[i].format_code) {
+				if (tx_audio_format & (1 << adb_tx[j].format_code)) {
+					if (log_level & EDID_LOG)
+						rx_pr("skip same audio format %d",
+							adb_tx[j].format_code);
+					tx_duplicate_audio_format |= (1 << adb_tx[j].format_code);
+					break;
+				}
 				adb_dest[tag_len_dest / 3].format_code = adb_tx[j].format_code;
+				tx_audio_format |= (1 << adb_tx[j].format_code);
 				//max channel
 				if (adb_def[i].max_channel >
 						adb_tx[j].max_channel)
@@ -4314,8 +4327,20 @@ void rpt_edid_audio_db_extraction(unsigned char *p_edid)
 			}
 		}
 	}
+	//recover duplicate audio format to rx format
+	for (i = 0; i < tag_len_dest / 3; i++) {
+		if (tx_duplicate_audio_format & (1 << adb_dest[i].format_code)) {
+			for (j = 0; j < tag_len_def / 3; j++) {
+				if (adb_dest[i].format_code == adb_def[j].format_code) {
+					memcpy(&adb_dest[i], &adb_def[j],
+							sizeof(struct edid_audio_block_t));
+					break;
+				}
+			}
+		}
+	}
 	if (log_level & EDID_LOG)
-		rx_pr("adb_size = %d\n", tag_len_dest);
+		rx_pr("adb_size = %d %d %d\n", tag_len_dest, tag_len_def, tag_len_tx);
 	p_edid[adb_start] = (AUDIO_TAG << 5) + tag_len_dest;
 	memcpy(p_edid + adb_start + 1, adb_dest, tag_len_dest);
 	for (i = adb_start + tag_len_dest + 1; i < 255 - tag_len_def + tag_len_dest; i++)
