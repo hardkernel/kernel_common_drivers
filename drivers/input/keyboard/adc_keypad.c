@@ -19,9 +19,7 @@
 #include <linux/mailbox_controller.h>
 #include <linux/mailbox_client.h>
 #include <linux/amlogic/aml_mbox.h>
-#ifdef CONFIG_AMLOGIC_GX_SUSPEND
 #include <linux/amlogic/pm.h>
-#endif
 #include "adc_keypad.h"
 
 #define POLL_INTERVAL_DEFAULT 25
@@ -593,23 +591,21 @@ static int meson_adc_kp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_AMLOGIC_GX_SUSPEND
-static int meson_adc_kp_suspend(struct platform_device *pdev,
-				pm_message_t state)
+static int __maybe_unused meson_adc_kp_suspend(struct device *dev)
 {
 	return 0;
 }
 
-static int meson_adc_kp_resume(struct platform_device *pdev)
+static int __maybe_unused meson_adc_kp_resume(struct device *dev)
 {
 	struct adc_key *key;
-	struct meson_adc_kp *kp = platform_get_drvdata(pdev);
+	struct meson_adc_kp *kp = dev_get_drvdata(dev);
 	int val = 0;
 
 	if (get_resume_method() == POWER_KEY_WAKEUP) {
 		list_for_each_entry(key, &kp->adckey_head, list) {
 			if (key->code == KEY_POWER) {
-				dev_info(&pdev->dev, "adc keypad wakeup\n");
+				dev_info(dev, "adc keypad wakeup\n");
 
 				input_report_key(kp->input, KEY_POWER, 1);
 				input_sync(kp->input);
@@ -626,7 +622,10 @@ static int meson_adc_kp_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#endif
+
+static const struct dev_pm_ops meson_adc_kp_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(meson_adc_kp_suspend, meson_adc_kp_resume)
+};
 
 static void meson_adc_kp_shutdown(struct platform_device *pdev)
 {
@@ -643,13 +642,10 @@ static const struct of_device_id key_dt_match[] = {
 static struct platform_driver kp_driver = {
 	.probe      = meson_adc_kp_probe,
 	.remove     = meson_adc_kp_remove,
-#ifdef CONFIG_AMLOGIC_GX_SUSPEND
-	.suspend    = meson_adc_kp_suspend,
-	.resume     = meson_adc_kp_resume,
-#endif
 	.shutdown   = meson_adc_kp_shutdown,
 	.driver     = {
-		.name   = DRIVE_NAME,
+		.name = DRIVE_NAME,
+		.pm = &meson_adc_kp_pm_ops,
 		.of_match_table = key_dt_match,
 	},
 };
