@@ -99,6 +99,9 @@ extern int aml_demod_debug;
 #ifdef AML_DEMOD_SUPPORT_DVBT
 extern bool dvbt2_mplp_retune;
 #endif
+#ifdef AML_DEMOD_SUPPORT_DVBS
+extern unsigned char blind_scan_new;
+#endif
 
 #define DBG_INFO	BIT(0)
 #define DBG_REG		BIT(1)
@@ -179,6 +182,9 @@ extern bool dvbt2_mplp_retune;
 
 #define PR_ERR(fmt, args ...) pr_err("dtv_dmd:" fmt, ##args)
 #define PR_WAR(fmt, args...)  pr_warn("dtv_dmd:" fmt, ##args)
+
+#define POWOF2(number) (1 << (number))		/* was: s32 PowOf2(s32 number); */
+#define MAKEWORD(X, Y) (((X) << 8) + (Y))
 
 enum demod_reg_mode {
 	REG_MODE_DTMB,
@@ -566,6 +572,8 @@ void demod_enable_frontend_agc(struct aml_dtvdemod *demod,
 		enum fe_delivery_system delsys, bool enable);
 #if defined AML_DEMOD_SUPPORT_DVBS || defined AML_DEMOD_SUPPORT_DVBC
 void fe_l2a_set_symbol_rate(struct fe_l2a_internal_param *pparams, unsigned int symbol_rate);
+void fe_l2a_get_agc2accu(struct fe_l2a_internal_param *pparams, unsigned int *pintegrator);
+void float_division(long long dividend, unsigned int divisor, int *integer, unsigned int *decimal);
 #endif
 enum fe_bandwidth dtvdemod_convert_bandwidth(unsigned int input);
 int delsys_set(struct dvb_frontend *fe, unsigned int delsys);

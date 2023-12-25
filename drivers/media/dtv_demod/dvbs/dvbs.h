@@ -15,6 +15,10 @@
 #define BLIND_SEARCH_BW_MIN           (6)
 #define BLIND_SEARCH_EDGE_NUM         (10)
 
+#define BLIND_SEARCH_BW_DVBS      6000
+#define BLIND_SR_DIFF_DVBS        1000
+#define BLIND_CR_DIFF_DVBS        2000
+
 #define CNR_HIGH	0xcae
 #define CNR_LOW		0xcad
 #define AUTOSR_ON  0xdc
@@ -176,5 +180,9 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
 unsigned int dvbs_blind_check_AGC2_bandwidth_old(int *next_step_khz);
 void dvbs_set_iq_swap(unsigned int iq_swap);
 unsigned int dvbs_get_iq_swap(void);
+void dvbs_blind_check_signal(struct aml_dtvdemod *demod,
+		unsigned int freq_khz, unsigned int *freq_add,
+		unsigned int *freq_add1, unsigned int *state, unsigned int *asperity,
+		unsigned int *sr_est, unsigned int spectrum_invert);
 
 #endif

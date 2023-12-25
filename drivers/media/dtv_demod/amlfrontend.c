@@ -1476,7 +1476,11 @@ static void blind_scan_work(struct work_struct *work)
 #ifdef AML_DEMOD_SUPPORT_DVBS
 	case SYS_DVBS:
 	case SYS_DVBS2:
-		dvbs_blind_scan_new_work(work);
+		//the 3rd version of the dvbs blind scan algorithm solution
+		if (blind_scan_new == 0x2)
+			dvbs_blind_scan_new_work2(demod);
+		else
+			dvbs_blind_scan_new_work(work);
 		break;
 #endif
 #ifdef AML_DEMOD_SUPPORT_DVBC

@@ -181,6 +181,7 @@
 /*  V3.6.001 config agc select on T6D */
 /*  V3.6.002 fix j83b unlock for T6D */
 /*  V3.6.003 fix suspend/init flow */
+/*  V3.6.004 bring up dvbs 3rd blind scan algorithm */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -197,8 +198,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.6.003"
-#define DTVDEMOD_VER	"2024/09/25: fix suspend/init flow"
+#define AMLDTVDEMOD_VER "V3.6.004"
+#define DTVDEMOD_VER	"2024/09/18: bring up dvbs 3rd blind scan algorithm"
 #define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

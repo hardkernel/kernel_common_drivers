@@ -19,6 +19,8 @@
 /*#include "acf_filter_coefficient.h"*/
 #include <linux/mutex.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
+#include <linux/math64.h>
+
 #include "acf_filter_coefficient.h"
 
 MODULE_PARM_DESC(front_agc_target, "");
@@ -2158,8 +2160,9 @@ void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 		if (symb_rate_kbs < (SR_LOW_THRD / 1000) && !is_blind_scan &&
 			l2a_def_val_local[reg].addr == 0x9b0) {
 			dvbs_wr_byte(0x9b0, 0x6);
-		} else if (is_blind_scan && l2a_def_val_local[reg].addr == 0x922) {
-			dvbs_wr_byte(0x922, 0xcc);
+		} else if (l2a_def_val_local[reg].addr == 0x922) {
+			if (is_blind_scan && blind_scan_new != 0x2)
+				dvbs_wr_byte(0x922, 0xcc);
 		} else if (l2a_def_val_local[reg].addr == 0xe60) {
 			dvbs_wr_byte(0xe60, 0x75);
 		} else if (l2a_def_val_local[reg].addr == 0x302) {
@@ -2192,10 +2195,15 @@ void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 
 void dvbs2_reg_initial(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 {
-	unsigned int tmp = 0;
+	unsigned int tmp = 0, decimal = 0;
+	int tmp1 = 0, integer = 0;
 
-	/* BW/(1+ROLLOFF)=SYMBOLRATE */
-	tmp = symb_rate_kbs * ((ALIGN_24 + ADC_CLK_135M / 2) / ADC_CLK_135M);
+	if (is_blind_scan && blind_scan_new == 0x2)
+		//tmp = (unsigned long long)symb_rate_kbs * ALIGN_24 / ADC_CLK_135M;
+		tmp = div_u64((unsigned long long)symb_rate_kbs * ALIGN_24, ADC_CLK_135M);
+	else
+		/* BW/(1+ROLLOFF)=SYMBOLRATE */
+		tmp = symb_rate_kbs * ((ALIGN_24 + ADC_CLK_135M / 2) / ADC_CLK_135M);
 
 	dvbs_wr_byte(0x9fc, (tmp >> 16) & 0xff);
 	dvbs_wr_byte(0x9fd, (tmp >> 8) & 0xff);
@@ -2207,10 +2215,29 @@ void dvbs2_reg_initial(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 
 	demod_init_local(symb_rate_kbs, is_blind_scan);
 
+	if (is_blind_scan && blind_scan_new == 0x2) {
+		PR_DVBS("symbol rate %d KS/s-----tmp: %#x\n", symb_rate_kbs, tmp);
+		tmp = 0;
+		dvbs_wr_byte(0x9c3, (tmp >> 16) & 0xff);
+		dvbs_wr_byte(0x9c4, (tmp >> 8) & 0xff);
+		dvbs_wr_byte(0x9c5, tmp & 0xff);
+
+		tmp1 = (dvbs_rd_byte(0x9cf) << 16) + (dvbs_rd_byte(0x9d0) << 8)
+				+ dvbs_rd_byte(0x9d1);
+		if (tmp1 > (1 << 23) - 1)
+			tmp1 = tmp1 - (1 << 24);
+		float_division((long long)tmp1 * 135000, 16777216,
+				&integer, &decimal);
+		PR_DVBS("init carri offset = %d.%d\n", integer, decimal);
+	}
+
 	dvbs_wr_byte(0x110, 0x00);
 	dvbs_wr_byte(0x111, 0x00);
 	dvbs_wr_byte(0x130, 0x00);
 	dvbs_wr_byte(0x120, 0x04);
+
+	if (is_blind_scan && blind_scan_new == 0x2)
+		dvbs_wr_byte(0x924, 0x00);
 }
 
 #endif
@@ -4082,5 +4109,100 @@ void fe_l2a_set_symbol_rate(struct fe_l2a_internal_param *pparams, unsigned int 
 			(dvbs_rd_byte(0x9f2)));
 	tmp_f = tmp * 135 / 16777216;
 	//PR_DVBC("rd sr %d %d\n", __func__, tmp, tmp_f);
+}
+
+static int x_to_power_y(int number, unsigned int power)
+{
+	unsigned int i;
+	int result = 1;
+
+	for (i = 0; i < power; i++)
+		result *= number;
+
+	return result;
+}
+
+void fe_l2a_get_agc2accu(struct fe_l2a_internal_param *pparams, unsigned int *pintegrator)
+{
+	unsigned int agc2acc_mant, agc2acc_exp, fld_value[2] = {0};
+
+	unsigned int mantissa;
+	signed int exponent;
+	//unsigned long long Value;
+	//unsigned int Value;
+	unsigned int AGC2I1, AGC2I0;
+	unsigned short mant;
+	unsigned char exp;
+	signed int exp_abs_s32 = 0, exp_s32 = 0;
+
+	fld_value[0] = dvbs_rd_byte(0x9a0);
+	fld_value[1] = (dvbs_rd_byte(0x9a1) & 0xc0) >> 6;//9a1&c0
+	mantissa = fld_value[1] + (fld_value[0] << 2);
+	fld_value[0] = (dvbs_rd_byte(0x9a1) & 0x3f);
+	exponent = (signed int)(fld_value[0]);
+
+	*pintegrator = mantissa * (unsigned int)POWOF2(exponent + 5 - 9); /* 2^5=32 */
+
+	/* Georg's method */
+	fld_value[0] = dvbs_rd_byte(0x9a0);
+	fld_value[1] = (dvbs_rd_byte(0x9a1) & 0xc0) >> 6;//9a1&c0
+	agc2acc_mant = (MAKEWORD(fld_value[0], fld_value[1])) >> 6;
+	agc2acc_exp = dvbs_rd_byte(0x9a1) & 0x3f;
+	if (((int)(agc2acc_exp - 9)) >= 0)
+		*pintegrator = agc2acc_mant * (unsigned int)POWOF2(agc2acc_exp - 9);
+	//printf("Integrator is %d\n",*pIntegrator);
+
+	AGC2I1 = dvbs_rd_byte(0x9a0);
+	//printf("0x9a0 is %x\n",AGC2I1);
+	AGC2I0 = dvbs_rd_byte(0x9a1);
+	mant = (unsigned short)((AGC2I1 * 4) + ((AGC2I0 >> 6) & 0x3));
+	exp = (unsigned char)(AGC2I0 & 0x3f);
+	PR_DVBC("mant is %d\n", mant);
+	/*evaluate exp-9 */
+	exp_s32 = (signed int)(exp - 9);
+
+	/*evaluate exp -9 sign */
+	if (exp_s32 < 0) {
+		/* if exp_s32<0 divide the mantissa  by 2^abs(exp_s32)*/
+		exp_abs_s32 = x_to_power_y(2, (unsigned int)(-exp_s32));
+		*pintegrator = (unsigned int)((1000 * (mant)) / exp_abs_s32);
+		PR_DVBC("Integrator is %d\n", *pintegrator);
+	} else {
+		/*if exp_s32> 0 multiply the mantissa  by 2^(exp_s32)*/
+		exp_abs_s32 = x_to_power_y(2, (unsigned int)(exp_s32));
+		*pintegrator = (unsigned int)((1000 * mant) * exp_abs_s32);
+		PR_DVBC("Integrator is %d\n", *pintegrator);
+	}
+}
+
+void float_division(long long dividend, unsigned int divisor, int *integer, unsigned int *decimal)
+{
+	unsigned long long tmp = 0;
+	unsigned int remainder = 0;
+	bool is_negative = false;
+
+	//PR_DBGL("%s: %lld %d\n", __func__, dividend, divisor);
+	if (divisor == 0) {
+		pr_err("%s: divisor error!", __func__);
+		return;
+	}
+	if (dividend == 0) {
+		*integer = 0;
+		*decimal = 0;
+	} else {
+		if (dividend < 0)
+			is_negative = true;
+
+		tmp = abs(dividend);
+		//remainder = tmp % divisor;
+		if (is_negative)
+			*integer = (int)(0 - div_u64_rem(tmp, divisor, &remainder));
+		else
+			*integer = (int)div_u64_rem(tmp, divisor, &remainder);
+
+		//*decimal = (unsigned int)(remainder * 1000 / divisor);
+		*decimal = (unsigned int)div_u64((unsigned long long)remainder * 1000, divisor);
+	}
+	//PR_DBGL("%s: remainder %lld result=%d.%d\n", __func__, remainder, *integer, *decimal);
 }
 #endif

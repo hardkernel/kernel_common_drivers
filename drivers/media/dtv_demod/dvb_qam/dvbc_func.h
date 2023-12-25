@@ -25,9 +25,7 @@ enum qam_md_e {
 #define ST_DRIVER_ID   0
 #define ST_DRIVER_BASE (ST_DRIVER_ID << 16)
 #define MAXNAMESIZE 30
-#define POWOF2(number) (1 << (number))        /* was: s32 PowOf2(s32 number); */
 #define POWOF4(number) (1 << ((number) << 1)) /* was: s32 PowOf2(s32 number); */
-#define MAKEWORD(X, Y) (((X) << 8) + (Y))
 
 enum dvbc_sym_speed {
 	SYM_SPEED_NORMAL,
@@ -501,6 +499,4 @@ u32 dvbc_get_qam_mode(struct aml_dtvdemod *demod);
 void dvbc_cfg_sw_hw_sr_max(struct aml_dtvdemod *demod, unsigned int max_sr);
 int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode);
 int dvbc_blind_scan_process(struct aml_dtvdemod *demod);
-void fe_l2a_get_agc2accu(struct fe_l2a_internal_param *pparams,
-		unsigned int *pintegrator);
 #endif

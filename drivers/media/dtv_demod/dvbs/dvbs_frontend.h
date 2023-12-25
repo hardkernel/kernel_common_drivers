@@ -33,6 +33,7 @@ int dtvdemod_dvbs_tune(struct dvb_frontend *fe, bool re_tune,
 int dtvdemod_dvbs2_init(struct aml_dtvdemod *demod);
 int amdemod_stat_dvbs_islock(struct aml_dtvdemod *demod,
 		enum fe_delivery_system delsys);
+void dvbs_blind_scan_new_work2(struct aml_dtvdemod *demod);
 
 #endif
 
