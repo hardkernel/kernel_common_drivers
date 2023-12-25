@@ -16,7 +16,6 @@ struct atv_demod_priv;
 #define HHI_ATV_DMD_SYS_CLK_CNTL_T3X	0x1091
 
 extern unsigned int reg_23cf; /* IIR filter */
-extern int broad_std_except_pal_m;
 extern unsigned int aud_std;
 extern unsigned int aud_mode;
 extern bool audio_thd_en;

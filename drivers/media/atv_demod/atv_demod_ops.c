@@ -1118,6 +1118,26 @@ static int atvdemod_fe_get_property(struct v4l2_frontend *v4l2_fe,
 	return 0;
 }
 
+static int atvdemod_fe_get_frontend(struct v4l2_frontend *v4l2_fe,
+		struct v4l2_analog_parameters *p)
+{
+	struct atv_demod_priv *priv = v4l2_fe->fe.analog_demod_priv;
+	struct analog_parameters *param = &priv->atvdemod_param.param;
+
+	p->frequency = param->frequency;
+	p->audmode = param->audmode;
+	p->soundsys = v4l2_fe->params.soundsys;
+	p->std = param->std;
+
+	p->flag = v4l2_fe->params.flag;
+	p->afc_range = v4l2_fe->params.afc_range;
+	p->reserved = v4l2_fe->params.reserved;
+
+	pr_dbg("%s: frequency %d.\n", __func__, p->frequency);
+
+	return 0;
+}
+
 static int atvdemod_fe_tune(struct v4l2_frontend *v4l2_fe,
 		struct v4l2_tune_status *status)
 {
@@ -1398,7 +1418,7 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 					std_bk = 0;
 					audio = 0;
 				} else {
-					exit_status = 1;
+					exit_status = 2;
 					break;
 				}
 
@@ -1416,8 +1436,8 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 
 		/* when manual search, just search current freq */
 		if (p->flag == ANALOG_FLAG_MANUL_SCAN) {
-			exit_status = 2;
-			break;
+			//exit_status = 3;
+			//break;
 		}
 
 #ifdef DOUBLE_CHECK_44_25MHZ
@@ -1458,6 +1478,8 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 static struct v4l2_frontend_ops atvdemod_fe_ops = {
 	.set_property = atvdemod_fe_set_property,
 	.get_property = atvdemod_fe_get_property,
+	.set_frontend = NULL,
+	.get_frontend = atvdemod_fe_get_frontend,
 	.tune = atvdemod_fe_tune,
 	.detect = atvdemod_fe_detect,
 	.search = atvdemod_fe_search,
