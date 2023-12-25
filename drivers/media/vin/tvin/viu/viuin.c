@@ -435,6 +435,7 @@ static void viuin_set_wr_bak_ctrl_s5(enum tvin_port_e port)
 
 static void viuin_set_wr_bak_ctrl_t3x(enum tvin_port_e port)
 {
+	bool fixed_din_mode = true;/* vpp or venc may have 1 or 2slice input */
 	const struct vinfo_s *vinfo = NULL;
 
 	vinfo = get_current_vinfo();
@@ -444,28 +445,6 @@ static void viuin_set_wr_bak_ctrl_t3x(enum tvin_port_e port)
 		pr_info("ppc:%d,w:%d,h:%d,dur:%d\n", vinfo->cur_enc_ppc,
 			vinfo->width, vinfo->height, vinfo->std_duration);
 		wr_viu(VPU_VIU2VDIN_HDN_CTRL, vinfo->width);
-	}
-
-	if (vinfo && vinfo->width * vinfo->height * vinfo->std_duration >
-		VDIN_LITE_CORE_MAX_PIXEL_CLOCK) { //need skip
-		/* din_mode,2ppc */
-		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 1, 30, 2);
-		/* vskip:1 */
-		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 1, 24, 1);
-		/* dout_mode:2 */
-		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 2, 21, 2);
-		/* dn_ratio:1 */
-		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 1, 18, 2);
-	} else if (vinfo->cur_enc_ppc == 2) {
-		/* din_mode,2ppc */
-		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 1, 30, 2);
-		/* no dn_ratio and flt_mode */
-		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 3, 21, 2);/* dout_mode 4ppc */
-	} else { //1 slice(not support 4 slices)
-		/* vpp 1 slice:din_mode,1ppc */
-		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 0, 30, 2);
-		/* no dn_ratio and flt_mode */
-		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 3, 21, 2);/* dout_mode 4ppc */
 	}
 
 	switch (port) {
@@ -490,6 +469,7 @@ static void viuin_set_wr_bak_ctrl_t3x(enum tvin_port_e port)
 		wr_bits_viu(VIU_WR_BAK_CTRL, T3X_WRBACK_VPP_POST_OSD3, 0, 4);
 		break;
 	case TVIN_PORT_VIU1_WB0_VPP:
+		fixed_din_mode = false;
 		wr_bits_viu(VIU_WR_BAK_CTRL, T3X_WRBACK_VPP_POST_OUT, 0, 4);
 		break;
 	case TVIN_PORT_VIU1_WB0_POST_BLEND:
@@ -522,12 +502,35 @@ static void viuin_set_wr_bak_ctrl_t3x(enum tvin_port_e port)
 	case TVIN_PORT_VENC0:
 	case TVIN_PORT_VENC1:
 	case TVIN_PORT_VENC2:
+		fixed_din_mode = false;
 		break;
 	default:
 		pr_info("do not support prot = %#x\n", port);
 		wr_bits_viu(VIU_WR_BAK_CTRL, 9, 0, 4);
 		break;
 	}
+
+	if (vinfo && vinfo->width * vinfo->height * vinfo->std_duration >
+		VDIN_LITE_CORE_MAX_PIXEL_CLOCK) { //need skip
+		/* din_mode,2ppc */
+		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 1, 30, 2);
+		/* vskip:1 */
+		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 1, 24, 1);
+		/* dout_mode:2 */
+		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 2, 21, 2);
+		/* dn_ratio:1 */
+		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 1, 18, 2);
+	} else if (!fixed_din_mode) {
+		if (vinfo->cur_enc_ppc == 2)
+			wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 1, 30, 2);/* 2ppc */
+		else
+			wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 0, 30, 2);/* 1ppc */
+		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 3, 21, 2);/* 4ppc */
+	} else { //din_mode fixed 2 slice input
+		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 1, 30, 2);/* 2ppc */
+		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 3, 21, 2);/* 4ppc */
+	}
+
 }
 #endif
 
