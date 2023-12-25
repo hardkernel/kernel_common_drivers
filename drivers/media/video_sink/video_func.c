@@ -1382,11 +1382,7 @@ void pipx_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		crop[2] = vf->crop[2];
 		crop[3] = vf->crop[3];
 		_set_video_window(layer_info, axis);
-		if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
-			vf->source_type != VFRAME_SOURCE_TYPE_CVBS &&
-			vf->source_type != VFRAME_SOURCE_TYPE_TUNER &&
-			vf->source_type != VFRAME_SOURCE_TYPE_HWC)
-			_set_video_crop(layer_info, crop);
+		_set_video_crop(layer_info, crop);
 		if (vf->flag & VFRAME_FLAG_MIRROR_H)
 			mirror = H_MIRROR;
 		if (vf->flag & VFRAME_FLAG_MIRROR_V)
