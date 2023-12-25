@@ -9,7 +9,9 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/amlogic/tee_drv.h>
+#include <linux/uaccess.h>
 #include <linux/uio.h>
+#include <linux/highmem.h>
 #include "tee_private.h"
 
 static void shm_put_kernel_pages(struct page **pages, size_t page_count)
@@ -20,28 +22,20 @@ static void shm_put_kernel_pages(struct page **pages, size_t page_count)
 		put_page(pages[n]);
 }
 
-//KV_TODO: modify
 static int shm_get_kernel_pages(unsigned long start, size_t page_count,
 				struct page **pages)
 {
 	struct page *page;
 	size_t n;
 
-	if (is_vmalloc_addr((void *)start)) {
-		for (n = 0; n < page_count; n++) {
-			page = vmalloc_to_page((void *)(start + PAGE_SIZE * n));
-			if (!page)
-				return -ENOMEM;
+	if (WARN_ON_ONCE(is_vmalloc_addr((void *)start) ||
+			 is_kmap_addr((void *)start)))
+		return -EINVAL;
 
-			get_page(page);
-			pages[n] = page;
-		}
-	} else {
-		page = virt_to_page(start);
-		for (n = 0; n < page_count; n++) {
-			pages[n] = page + n;
-			get_page(pages[n]);
-		}
+	page = virt_to_page((void *)start);
+	for (n = 0; n < page_count; n++) {
+		pages[n] = page + n;
+		get_page(pages[n]);
 	}
 
 	return page_count;
@@ -315,6 +309,9 @@ struct tee_shm *tee_shm_register_user_buf(struct tee_context *ctx,
 	struct tee_shm *shm;
 	void *ret;
 	int id;
+
+	if (!access_ok((void __user *)addr, length))
+		return ERR_PTR(-EFAULT);
 
 	mutex_lock(&teedev->mutex);
 	id = idr_alloc(&teedev->idr, NULL, 1, 0, GFP_KERNEL);
