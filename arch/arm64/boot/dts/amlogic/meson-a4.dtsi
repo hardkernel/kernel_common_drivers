@@ -1342,6 +1342,8 @@
 			tx_delay = <0x8>;
 			hs4_core_phase = <0x3>;
 			src_clk_rate = <1152000000>;
+			no-sd;
+			no-sdio;
 			//nwr_cnt = <12>;
 			//enable-ctrl-power;
 		//	resets = <&reset RESET_SD_EMMC_C>;
@@ -1386,6 +1388,8 @@
 			sdr_core_phase = <3>;
 			use_intf3_tuning;
 			src_clk_rate = <1152000000>;
+			no-mmc;
+			no-sd;
 			//resets = <&reset RESET_SD_EMMC_A>;
 		};
 

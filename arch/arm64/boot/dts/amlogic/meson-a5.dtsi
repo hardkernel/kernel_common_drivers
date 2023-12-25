@@ -1195,7 +1195,7 @@
 				<0x0 0xfe004000 0x0 0x4>;
 			interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
-			power-domains = <&pwrdm PDID_A5_EMMC>;
+			//power-domains = <&pwrdm PDID_A5_EMMC>;
 			clocks = <&clkc CLKID_SYS_CLK_SD_EMMCC>,
 				<&clkc CLKID_SD_EMMC_C_CLK_SEL>,
 				 <&clkc CLKID_SD_EMMC_C_CLK>,
@@ -1208,7 +1208,9 @@
 			ignore_desc_busy;
 			mmc_debug_flag;
 			src_clk_rate = <1152000000>;
-			enable-ctrl-power;
+		//	enable-ctrl-power;
+			no-sd;
+			no-sdio;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
 
@@ -1247,6 +1249,8 @@
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1";
 			mmc_debug_flag;
+			no-sd;
+			no-mmc;
 			//use_intf3_tuning;
 			//resets = <&reset RESET_SD_EMMC_A>;
 		};
