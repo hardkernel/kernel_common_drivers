@@ -396,6 +396,7 @@ static int ss_trigger(int cmd, int samesource_sel, bool reenable)
 static void ss_mute(int samesource_sel, bool mute)
 {
 	struct samesrc_ops *ops = NULL;
+	int spdif_reg_mute = mute;
 
 	pr_debug("%s() %d, mute %d, id %d\n", __func__, __LINE__,
 		mute, samesource_sel - 3);
@@ -403,8 +404,9 @@ static void ss_mute(int samesource_sel, bool mute)
 	ops = get_samesrc_ops(samesource_sel);
 	if (ops && ops->private) {
 		struct aml_spdif *p_spdif = ops->private;
-
-		aml_spdifout_mute_without_actrl(samesource_sel - 3, !mute, p_spdif->mute);
+		if (p_spdif->spdif_soft_mute)
+			spdif_reg_mute =  p_spdif->mute;
+		aml_spdifout_mute_without_actrl(samesource_sel - 3, !mute, spdif_reg_mute);
 
 		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
 		    get_samesrc_ops(p_spdif->samesource_sel) &&
@@ -1499,6 +1501,7 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	struct aml_spdif *p_spdif = snd_soc_dai_get_drvdata(cpu_dai);
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	int spdif_reg_mute = 0;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -1520,7 +1523,9 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 
 			aml_frddr_enable(p_spdif->fddr, 1);
 			udelay(100);
-			aml_spdifout_mute_without_actrl(p_spdif->id, true, p_spdif->mute);
+			if (p_spdif->spdif_soft_mute)
+				spdif_reg_mute =  p_spdif->mute;
+			aml_spdifout_mute_without_actrl(p_spdif->id, true, spdif_reg_mute);
 			if (p_spdif->samesource_sel != SHAREBUFFER_NONE)
 				spdif_sharebuffer_mute(p_spdif, false);
 		} else {
