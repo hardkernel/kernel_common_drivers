@@ -2057,7 +2057,7 @@ static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode)
 #endif
 }
 
-void earc_resume(void)
+static void earc_clock_enable(void)
 {
 	struct earc *p_earc = s_earc;
 	int ret = 0;
@@ -2118,6 +2118,19 @@ void earc_resume(void)
 			}
 		}
 	}
+}
+
+static void earc_resume(void)
+{
+	struct earc *p_earc = s_earc;
+
+	if (!p_earc)
+		return;
+
+	earc_clock_enable();
+
+	if (!p_earc->chipinfo->tx_enable)
+		return;
 
 	/* earc device, and the state is arc, need recovery earc */
 	if (!IS_ERR(p_earc->tx_cmdc_map) &&
@@ -2845,7 +2858,7 @@ void earc_hdmitx_hpdst(bool st)
 		 st ? "plugin" : "plugout");
 
 	if (!p_earc->resumed)
-		earc_resume();
+		earc_clock_enable();
 
 	p_earc->earcrx_5v = st;
 	earcrx_init(st);
@@ -2911,6 +2924,8 @@ void earc_hdmirx_hpdst(int earc_port, bool st)
 	dev_info(p_earc->dev, "HDMIRX cable port:%d is %s\n",
 		 earc_port,
 		 st ? "plugin" : "plugout");
+	if (!p_earc->resumed)
+		earc_clock_enable();
 	p_earc->earctx_port = earc_port; /* get earc port id from hdmirx */
 	p_earc->earctx_5v = st;
 	earctx_init(earc_port, st);
@@ -3140,6 +3155,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 
 	/* default is mute, need HDMI ARC Switch */
 	p_earc->tx_mute = 1;
+	p_earc->resumed = true;
 
 	ret = snd_soc_register_component(&pdev->dev,
 				&earc_component,
