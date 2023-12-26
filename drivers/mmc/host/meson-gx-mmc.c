@@ -2204,21 +2204,27 @@ static int single_read_cmd_for_scan(struct mmc_host *mmc,
 static int emmc_test_bus(struct mmc_host *mmc)
 {
 	int err = 0;
-	u32 blksz = 512;
+	u32 blksz = 512, cali_blk_cnt;
 	struct meson_host *host = mmc_priv(mmc);
+	struct device *dev = mmc->parent;
 
 	err = aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
 				  host->blk_test, blksz, 40, MMC_PATTERN_NAME);
 	if (err)
 		return err;
+
+	if (device_property_read_u32(dev, "cali_blk_cnt", &cali_blk_cnt) <= 0)
+		cali_blk_cnt = CALI_BLK_CNT;
 	err = aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
-				  host->blk_test, blksz, 80, MMC_RANDOM_NAME);
+				  host->blk_test, blksz, cali_blk_cnt, MMC_RANDOM_NAME);
 	if (err)
 		return err;
+
 	err = aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
 				  host->blk_test, blksz, 40, MMC_MAGIC_NAME);
 	if (err)
 		return err;
+
 	return err;
 }
 
@@ -3783,7 +3789,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	struct meson_host *host;
 	struct mmc_host *mmc;
 	int ret;
-	u32 val;
+	u32 val, cali_blk_cnt;
 
 	mmc = mmc_alloc_host(sizeof(struct meson_host), &pdev->dev);
 	if (!mmc)
@@ -4073,8 +4079,10 @@ static int meson_mmc_probe(struct platform_device *pdev)
 				mmc, &erase_count_fops);
 	}
 #endif
+	if (device_property_read_u32(host->dev, "cali_blk_cnt", &cali_blk_cnt) <= 0)
+		cali_blk_cnt = CALI_BLK_CNT;
 	host->blk_test = devm_kzalloc(host->dev,
-				      512 * CALI_BLK_CNT, GFP_KERNEL);
+				      512 * cali_blk_cnt, GFP_KERNEL);
 
 	if (!host->blk_test) {
 		ret = -ENOMEM;

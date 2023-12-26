@@ -308,6 +308,7 @@
 			tx_delay = <16>;
 			resets = <&reset RESET_SD_EMMC_C>;
 			nwr_cnt = <0>;
+			cali_blk_cnt = <40>;
 			no-sd;
 			no-sdio;
 		};
