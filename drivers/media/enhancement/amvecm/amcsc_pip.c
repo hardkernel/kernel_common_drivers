@@ -156,16 +156,25 @@ static void hdr_proc(struct vframe_s *vf,
 	      enum vpp_index_e vpp_index)
 {
 	enum hdr_process_sel cur_hdr_process;
-	int limit_full =  (vf->signal_type >> 25) & 0x01;
+	int limit_full = 0;
 	int i, index;
 
+	if (vf)
+		limit_full = (vf->signal_type >> 25) & 0x01;
+
+	pr_csc(128, "%s: module_sel = %d, limit_full = %d\n",
+		__func__, module_sel, limit_full);
+
 	/* RGB / YUV vdin input handling  prepare extra op code or info */
-	if (vf->type & VIDTYPE_RGB_444 && !is_amdv_on())
+	if (vf && vf->type & VIDTYPE_RGB_444 && !is_amdv_on())
 		hdr_process_select |= RGB_VDIN;
 
 	if (limit_full && !is_amdv_on())
 		hdr_process_select |= FULL_VDIN;
 	/* RGB / YUV input handling */
+
+	pr_csc(128, "%s: hdr_process_select = 0x%08x\n",
+		__func__, hdr_process_select);
 
 	if (hdr_process_select & HDR10P_SDR)
 		cur_hdr_process =
@@ -3358,6 +3367,8 @@ void video_post_process(struct vframe_s *vf,
 			    vpp_index,
 			    vinfo->mode,
 			    __LINE__);
+			pr_csc(128, "%s: no lcd csc_type = %d\n",
+				__func__, csc_type);
 			if (vpp_index == VPP_TOP1)
 				mtx_setting(VPP1_POST2_MTX, MATRIX_NULL, MTX_OFF);
 			else if (vpp_index == VPP_TOP2)
@@ -3377,6 +3388,10 @@ void video_post_process(struct vframe_s *vf,
 					__func__,
 					vd_path + 1,
 					source_type[vd_path]);
+
+				pr_csc(128, "%s: sdr rgb444 csc_type = %d\n",
+					__func__, csc_type);
+
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ1_MISC,
 					0, 1, 1, vpp_index);
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ2_MISC,
@@ -3395,6 +3410,8 @@ void video_post_process(struct vframe_s *vf,
 					__func__,
 					vd_path + 1,
 					source_type[vd_path]);
+				pr_csc(128, "%s: others csc_type = %d\n",
+					__func__, csc_type);
 				/*VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);*/
 				/*VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);*/
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ1_MISC,
