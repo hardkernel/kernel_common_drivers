@@ -8,7 +8,7 @@
  */
 
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM dwc3-meson
+#define TRACE_SYSTEM dwc3_meson
 
 #if !defined(__DWC3_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
 #define __DWC3_TRACE_H

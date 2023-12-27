@@ -2418,7 +2418,7 @@ static void dwc3_resume_gadget(struct aml_dwc3 *dwc);
 
 static int dwc3_gadget_func_wakeup(struct usb_gadget *g, int intf_id)
 {
-	struct  dwc3		*dwc = gadget_to_dwc(g);
+	struct  aml_dwc3		*dwc = gadget_to_dwc(g);
 	unsigned long		flags;
 	int			ret;
 	int			link_state;
