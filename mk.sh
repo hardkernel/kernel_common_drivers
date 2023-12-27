@@ -307,5 +307,6 @@ check_undefined_symbol
 
 abi_symbol_list_detect
 
-generate_lzma_format_image
-
+if [[ ${ARCH} = "arm64" ]]; then
+	generate_lzma_format_image
+fi

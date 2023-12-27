@@ -1978,7 +1978,7 @@ export -f clear_files_compressed_with_lzma_in_last_build
 
 function generate_lzma_format_image () {
 	pushd ${DIST_DIR}
-	lzma -z -k -f -9 Image Image.lzma
+	lzma -z -k -f -9 Image
 	lzma -z -k -f -9 boot.img
 	popd
 }
