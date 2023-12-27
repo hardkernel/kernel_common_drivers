@@ -166,7 +166,7 @@
 		};
 		vm0_cma_reserved:linux,vm0_cma {
 			compatible = "shared-dma-pool";
-			status = "disabled";
+			status = "okay";
 			reusable;
 			size = <0x0 0x2000000>;
 			alignment = <0x0 0x400000>;
