@@ -11,6 +11,8 @@
 static const struct drm_format_info meson_formats[] = {
 	{ .format = DRM_FORMAT_ABGR10101010,	.depth = 40, .num_planes = 1,
 		.cpp = { 5, 0, 0 }, .hsub = 1, .vsub = 1, .has_alpha = true },
+	{ .format = DRM_FORMAT_YUVX1010102,	.depth = 32, .num_planes = 1,
+		.cpp = { 4, 0, 0 }, .hsub = 1, .vsub = 1, .is_yuv = true },
 };
 
 void am_meson_fb_destroy(struct drm_framebuffer *fb)

@@ -197,6 +197,7 @@ u32 video_supported_drm_formats[] = {
 	DRM_FORMAT_NV21,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_VUY888,
+	DRM_FORMAT_YUVX1010102,
 };
 
 static void osd_plane_mute(bool mute)
@@ -961,6 +962,44 @@ static int meson_plane_atomic_set_property(struct drm_plane *plane,
 	return ret;
 }
 
+static int meson_video_plane_atomic_get_property(struct drm_plane *plane,
+					   const struct drm_plane_state *state,
+					struct drm_property *property,
+					uint64_t *val)
+{
+	struct am_video_plane *video_plane = to_am_video_plane(plane);
+	struct am_meson_video_plane_state *plane_state;
+	int ret = 0;
+
+	plane_state = to_am_meson_video_plane_state(state);
+
+	if (property == video_plane->signal_fmt_property) {
+		*val = plane_state->signal_fmt;
+		return 0;
+	}
+
+	return ret;
+}
+
+static int meson_video_plane_atomic_set_property(struct drm_plane *plane,
+					   struct drm_plane_state *state,
+					 struct drm_property *property,
+					 uint64_t val)
+{
+	struct am_video_plane *video_plane = to_am_video_plane(plane);
+	struct am_meson_video_plane_state *plane_state;
+	int ret = 0;
+
+	plane_state = to_am_meson_video_plane_state(state);
+
+	if (property == video_plane->signal_fmt_property) {
+		plane_state->signal_fmt = val;
+		return 0;
+	}
+
+	return ret;
+}
+
 static struct drm_plane_state *
 meson_plane_duplicate_state(struct drm_plane *plane)
 {
@@ -1269,8 +1308,8 @@ static const struct drm_plane_funcs am_video_plane_funs = {
 	.reset			= meson_plane_reset,
 	.atomic_duplicate_state = meson_plane_duplicate_state,
 	.atomic_destroy_state	= meson_plane_destroy_state,
-	.atomic_set_property = meson_plane_atomic_set_property,
-	.atomic_get_property = meson_plane_atomic_get_property,
+	.atomic_set_property = meson_video_plane_atomic_set_property,
+	.atomic_get_property = meson_video_plane_atomic_get_property,
 	.format_mod_supported = am_meson_vpu_check_video_format_mod,
 	.atomic_print_state = meson_video_plane_atomic_print_state,
 };
@@ -1496,6 +1535,7 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 	struct am_video_plane *video_plane = to_am_video_plane(plane);
 	struct meson_drm *drv = video_plane->drv;
 	struct drm_plane_state *state;
+	struct am_meson_video_plane_state *plane_state;
 	int ret;
 
 	state = drm_atomic_get_new_plane_state(atomic_state, plane);
@@ -1516,6 +1556,8 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 	plane_info->plane_index = video_plane->plane_index;
 	plane_info->vfm_mode = video_plane->vfm_mode;
 	plane_info->zorder = state->zpos + plane_info->plane_index;
+	plane_state = to_am_meson_video_plane_state(state);
+	plane_info->signal_fmt = plane_state->signal_fmt;
 
 	mvps->plane_index[video_plane->plane_index] = video_plane->plane_index;
 	meson_video_plane_position_calc(plane_info, state,
@@ -1987,6 +2029,68 @@ static void meson_plane_add_rotation_reflect_property(struct drm_device *drm_dev
 	}
 }
 
+struct drm_property *
+meson_create_signal_fmt_prop(struct drm_device *dev,
+			       unsigned int supported_filters)
+{
+	struct drm_property *prop;
+	static const struct drm_prop_enum_list props[] = {
+	{ SIGNAL_FMT_SDR, "sdr" },
+	{ SIGNAL_FMT_HDR10, "hdr10" },
+	{ SIGNAL_FMT_HDR10PRIME, "hdr10prime" },
+	{ SIGNAL_FMT_CUVA_HDR, "cuva_hdr" },
+	};
+	unsigned int valid_mode_mask = BIT(SIGNAL_FMT_SDR) |
+				BIT(SIGNAL_FMT_HDR10) |
+				BIT(SIGNAL_FMT_HDR10PRIME) |
+				BIT(SIGNAL_FMT_CUVA_HDR);
+	int i;
+
+	if (WARN_ON((supported_filters & ~valid_mode_mask) ||
+		((supported_filters & BIT(VFRAME_SIGNAL_FMT_SDR)) == 0)))
+		return ERR_PTR(-EINVAL);
+
+	prop = drm_property_create(dev, DRM_MODE_PROP_ENUM,
+				   "signal_format",
+				   hweight32(supported_filters));
+	if (!prop)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < ARRAY_SIZE(props); i++) {
+		int ret;
+
+		if (!(BIT(props[i].type) & supported_filters))
+			continue;
+
+		ret = drm_property_add_enum(prop, props[i].type,
+					    props[i].name);
+
+		if (ret) {
+			drm_property_destroy(dev, prop);
+
+			return ERR_PTR(ret);
+		}
+	}
+
+	return prop;
+}
+
+int meson_video_plane_create_signal_fmt_property(struct am_video_plane *video_plane,
+					     unsigned int supported_filters)
+{
+	struct drm_property *prop =
+		meson_create_signal_fmt_prop(video_plane->base.dev, supported_filters);
+
+	if (IS_ERR(prop))
+		return PTR_ERR(prop);
+
+	drm_object_attach_property(&video_plane->base.base, prop,
+				   VFRAME_SIGNAL_FMT_SDR);
+	video_plane->signal_fmt_property = prop;
+
+	return 0;
+}
+
 static void meson_plane_get_primary_plane(struct meson_drm *priv,
 			enum drm_plane_type *type)
 {
@@ -2177,6 +2281,11 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 				 DRM_PLANE_TYPE_OVERLAY, const_plane_name);
 
 	drm_plane_create_zpos_property(plane, zpos, min_zpos, max_zpos);
+	meson_video_plane_create_signal_fmt_property(video_plane,
+				BIT(SIGNAL_FMT_SDR) |
+				BIT(SIGNAL_FMT_HDR10) |
+				BIT(SIGNAL_FMT_HDR10PRIME) |
+				BIT(SIGNAL_FMT_CUVA_HDR));
 	drm_plane_helper_add(plane, &am_video_helper_funcs);
 	DRM_INFO("video plane %d create done\n", i);
 	return video_plane;

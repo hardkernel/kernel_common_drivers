@@ -316,6 +316,7 @@ struct meson_vpu_video_layer_info {
 	bool is_uvm;
 	u32 status_changed;
 	int sec_en;
+	u32 signal_fmt;
 };
 
 struct meson_vpu_disable_work {
@@ -357,7 +358,7 @@ struct meson_vpu_video_state {
 	u32 alpha;
 	u32 global_alpha;
 	u32 dimm_color;
-	u32 phy_addr[2];
+	u64 phy_addr[2];
 	u32 pixel_format;
 	u32 zorder;
 	u32 byte_stride;
@@ -382,6 +383,7 @@ struct meson_vpu_video_state {
 	struct dma_buf *dmabuf;
 	bool is_uvm;
 	int sec_en;
+	u32 signal_fmt;
 };
 
 struct meson_vpu_afbc {

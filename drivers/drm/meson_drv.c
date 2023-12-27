@@ -102,7 +102,6 @@ static const struct drm_mode_config_funcs meson_mode_config_funcs = {
 	.fb_create           = drm_gem_fb_create,
 #endif
 	.get_format_info     = am_meson_get_format_info,
-
 };
 
 static const struct drm_mode_config_helper_funcs meson_mode_config_helpers = {

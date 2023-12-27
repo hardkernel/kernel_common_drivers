@@ -42,12 +42,16 @@ video_vfm_convert_to_vfminfo(struct meson_vpu_video_state *mvvs,
 	vf_info->buffer_w = mvvs->fb_w;
 	vf_info->buffer_h = mvvs->fb_h;
 	vf_info->zorder = mvvs->zorder;
+	vf_info->byte_stride = mvvs->byte_stride;
+	vf_info->signal_fmt = mvvs->signal_fmt;
 
 	MESON_DRM_BLOCK("dmabuf = %px, release_fence = %px\n",
 					vf_info->dmabuf, vf_info->release_fence);
 	MESON_DRM_BLOCK("vf-info crop:%u, %u, %u, %u, pic:%u, %u\n",
 				vf_info->crop_x, vf_info->crop_y, vf_info->crop_w, vf_info->crop_h,
 				vf_info->buffer_w, vf_info->buffer_h);
+	MESON_DRM_BLOCK("byte_stride:%d, signal_fmt:%d\n",
+				vf_info->byte_stride, vf_info->signal_fmt);
 }
 
 static u32 video_type_get(u32 pixel_format)
@@ -74,11 +78,66 @@ static u32 video_type_get(u32 pixel_format)
 		vframe_type = VIDTYPE_VIU_444 | VIDTYPE_VIU_FIELD |
 				VIDTYPE_VIU_SINGLE_PLANE;
 		break;
+	case DRM_FORMAT_YUVX1010102:
+		vframe_type = VIDTYPE_VIU_444 | VIDTYPE_VIU_FIELD |
+				VIDTYPE_VIU_SINGLE_PLANE;
+		break;
 	default:
 		DRM_INFO("no support pixel format:0x%x\n", pixel_format);
 		break;
 	}
 	return vframe_type;
+}
+
+static u32 video_bitdepth_get(u32 pixel_format)
+{
+	u32 bidepth_type = 0;
+
+	switch (pixel_format) {
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_VYUY:
+	case DRM_FORMAT_VUY888:
+		bidepth_type = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+		break;
+	case DRM_FORMAT_YUVX1010102:
+		bidepth_type = BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+		break;
+	default:
+		bidepth_type = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+		DRM_INFO("no support pixel format:0x%x\n", pixel_format);
+		break;
+	}
+	return bidepth_type;
+}
+
+static u32 video_signal_fmt_cov(u32 signal_fmt)
+{
+	u32 vframe_signal_fmt;
+
+	switch (signal_fmt) {
+	case SIGNAL_FMT_SDR:
+		vframe_signal_fmt = VFRAME_SIGNAL_FMT_SDR;
+		break;
+	case SIGNAL_FMT_HDR10:
+		vframe_signal_fmt = VFRAME_SIGNAL_FMT_HDR10;
+		break;
+	case SIGNAL_FMT_HDR10PRIME:
+		vframe_signal_fmt = VFRAME_SIGNAL_FMT_HDR10PRIME;
+		break;
+	case SIGNAL_FMT_CUVA_HDR:
+		vframe_signal_fmt = VFRAME_SIGNAL_FMT_HDR10PRIME;
+		break;
+	default:
+		vframe_signal_fmt = VFRAME_SIGNAL_FMT_SDR;
+		DRM_INFO("%s default format:0x%x\n", __func__, vframe_signal_fmt);
+		break;
+	}
+
+	return vframe_signal_fmt;
 }
 
 static int bind_video_fence_vframe(struct meson_vpu_video *video,
@@ -301,8 +360,11 @@ static int video_check_state(struct meson_vpu_block *vblk,
 	video->vfm_mode = plane_info->vfm_mode;
 	mvvs->dmabuf = plane_info->dmabuf;
 	mvvs->crtc_index = plane_info->crtc_index;
+	mvvs->signal_fmt = video_signal_fmt_cov(plane_info->signal_fmt);
+
 	MESON_DRM_BLOCK("video->dmabuf-%px plane_info->dmabuf-%px\n",
 		video->dmabuf, plane_info->dmabuf);
+
 	if (video->dmabuf != plane_info->dmabuf) {
 		mvvs->repeat_frame = 0;
 		video->dmabuf = plane_info->dmabuf;
@@ -477,11 +539,16 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			vf_info.release_fence = video->fence;
 			video_vfm_convert_to_vfminfo(mvvs, &vf_info);
 			vf_info.phy_addr[0] = mvvs->phy_addr[0];
-			if (!mvvs->phy_addr[1])
-				vf_info.phy_addr[1] = mvvs->phy_addr[0] + byte_stride * src_h;
-			else
-				vf_info.phy_addr[1] = mvvs->phy_addr[1];
-			vf_info.reserved[0] = video_type_get(pixel_format);
+			if (pixel_format == DRM_FORMAT_NV12 ||
+			    pixel_format == DRM_FORMAT_NV21) {
+				if (!mvvs->phy_addr[1])
+					vf_info.phy_addr[1] = phy_addr + byte_stride * src_h;
+				else
+					vf_info.phy_addr[1] = mvvs->phy_addr[1];
+			}
+
+			vf_info.type = video_type_get(pixel_format);
+			vf_info.bitdepth = video_bitdepth_get(pixel_format);
 			if (vf_info.dmabuf && vf_info.dmabuf->resv)
 				old_fence = dma_resv_get_excl_unlocked(vf_info.dmabuf->resv);
 			MESON_DRM_FENCE("dmabuf(%px), release_fence(%px-%d), old_fence=%px-%d\n",
@@ -516,7 +583,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 				vf->height = mvvs->src_h;
 				vf->source_type = VFRAME_SOURCE_TYPE_OTHERS;
 				vf->source_mode = VFRAME_SOURCE_MODE_OTHERS;
-				vf->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+				vf->bitdepth = video_bitdepth_get(pixel_format);
 				vf->type = video_type_get(pixel_format);
 				vf->axis[0] = mvvs->dst_x;
 				vf->axis[1] = mvvs->dst_y;

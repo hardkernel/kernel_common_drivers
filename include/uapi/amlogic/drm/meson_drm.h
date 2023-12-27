@@ -30,6 +30,9 @@
 /* 40 bpp RGB */
 #define DRM_FORMAT_ABGR10101010	fourcc_code('A', 'B', '4', '0')
 		/* [39:0] A:B:G:R 10:10:10:10 little endian */
+/*32 bpp RGB*/
+#define DRM_FORMAT_YUVX1010102	fourcc_code('Y', 'U', '3', '2')
+		/* [31:0] Y:U:V:X 10:10:10:2 little endian */
 
 /**
  * User-desired buffer creation information structure.

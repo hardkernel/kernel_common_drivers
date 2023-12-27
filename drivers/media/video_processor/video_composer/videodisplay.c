@@ -1430,33 +1430,6 @@ static int video_display_uninit(int layer_index)
 	return ret;
 }
 
-static unsigned long get_dma_phy_addr(struct dma_buf *dbuf,
-					struct composer_dev *dev)
-{
-	unsigned long phy_addr = 0;
-	struct sg_table *table = NULL;
-	struct page *page = NULL;
-	struct dma_buf_attachment *attach = NULL;
-
-	if (IS_ERR_OR_NULL(dbuf) || IS_ERR_OR_NULL(dev)) {
-		vc_print(dev->index, PRINT_ERROR,
-			 "%s: param is NULL.\n",
-			 __func__);
-		return 0;
-	}
-
-	attach = dma_buf_attach(dbuf, dev->port->pdev);
-	if (IS_ERR(attach))
-		return 0;
-
-	table = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
-	page = sg_page(table->sgl);
-	phy_addr = PFN_PHYS(page_to_pfn(page));
-	dma_buf_unmap_attachment(attach, table, DMA_BIDIRECTIONAL);
-	dma_buf_detach(dbuf, attach);
-	return phy_addr;
-}
-
 int video_display_setenable(int layer_index, int is_enable)
 {
 	int ret = 0;
@@ -1617,10 +1590,9 @@ int video_display_setframe(int layer_index,
 		vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
 		vf->plane_num = 1;
 		vf->canvas0Addr = -1;
-		vf->canvas0_config[0].phy_addr =
-			get_dma_phy_addr(frame_info->dmabuf, dev);
+		vf->canvas0_config[0].phy_addr = frame_info->phy_addr[0];
 		vf->canvas0_config[0].width =
-			frame_info->buffer_w;
+			frame_info->byte_stride;
 		vf->canvas0_config[0].height =
 			frame_info->buffer_h;
 		vc_print(dev->index, PRINT_PATTERN,
@@ -1630,12 +1602,12 @@ int video_display_setframe(int layer_index,
 		vf->canvas0_config[0].endian = 0;
 		vf->canvas1Addr = -1;
 
-		if ((frame_info->reserved[0] & VIDTYPE_VIU_NV12) ||
-			(frame_info->reserved[0] & VIDTYPE_VIU_NV21)) {
+		if ((frame_info->type & VIDTYPE_VIU_NV12) ||
+			(frame_info->type & VIDTYPE_VIU_NV21)) {
 			phy_addr2 = frame_info->phy_addr[1];
 			vf->plane_num = 2;
 			vf->canvas0_config[1].phy_addr = phy_addr2;
-			vf->canvas0_config[1].width = frame_info->buffer_w;
+			vf->canvas0_config[1].width = frame_info->byte_stride;
 			vf->canvas0_config[1].height = frame_info->buffer_h / 2;
 			vf->canvas0_config[1].block_mode =
 				CANVAS_BLKMODE_LINEAR;
@@ -1646,9 +1618,9 @@ int video_display_setframe(int layer_index,
 
 		vf->width = frame_info->buffer_w;
 		vf->height = frame_info->buffer_h;
-		vf->type = frame_info->reserved[0];
-		vf->bitdepth =
-			BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+		vf->src_fmt.fmt = (enum vframe_signal_fmt_e)frame_info->signal_fmt;
+		vf->type = frame_info->type;
+		vf->bitdepth = frame_info->bitdepth;
 	}
 
 	dev->last_file = (struct file *)frame_info->dmabuf;

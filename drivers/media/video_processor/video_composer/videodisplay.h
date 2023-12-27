@@ -42,6 +42,7 @@ struct video_display_frame_info_t {
 	struct dma_fence *input_fence;
 	struct dma_fence *release_fence;
 	u64 phy_addr[2];
+	u32 byte_stride;
 	u32 buffer_w;
 	u32 buffer_h;
 	u32 dst_x;
@@ -53,6 +54,9 @@ struct video_display_frame_info_t {
 	u32 crop_w;
 	u32 crop_h;
 	u32 zorder;
+	u32 signal_fmt;
+	u32 type;
+	u32 bitdepth;
 	u32 reserved[10];
 };
 
