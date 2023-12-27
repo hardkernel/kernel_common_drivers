@@ -1086,7 +1086,7 @@
 				status = "disabled";
 			};
 
-			pwm_gh: pwm@0x21000 {
+			pwm_gh: pwm@21000 {
 				compatible = "amlogic,meson-t5d-ee-pwm";
 				reg = <0x21000 0x20>;
 				#pwm-cells = <3>;
@@ -1197,7 +1197,7 @@
 			//resets = <&reset RESET_SD_EMMC_B>;
 		};
 
-		mtd_nand: nfc@0xFFE07800 {
+		mtd_nand: nfc@FFE07800 {
 			compatible = "amlogic,meson-nfc-single-ecc";
 			status = "disabled";
 			reg = <0xFFE07800 0x200>;
@@ -1344,7 +1344,7 @@
 			rdma_table_page_count = <16>;
 		};
 
-		audiobus: audiobus@0xff600000 {
+		audiobus: audiobus@ff600000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;

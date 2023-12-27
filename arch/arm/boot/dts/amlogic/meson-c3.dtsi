@@ -110,7 +110,7 @@
 		mem_size = <0x100000>;
 		status = "okay";
 	};
-	aml_reboot: reboot@0xfe01037c {
+	aml_reboot: reboot@fe01037c {
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
 		sys_poweroff = <0x84000008>;
@@ -391,7 +391,7 @@
 			#size-cells = <1>;
 			ranges = <0x0 0xfe000000 0x480000>;
 
-			reset: reset-controller@0x2000 {
+			reset: reset-controller@2000 {
 				compatible = "amlogic,meson-sc2-reset";
 				reg = <0x2000 0x98>;
 				#reset-cells = <1>;
@@ -430,7 +430,7 @@
 				#size-cells = <1>;
 				ranges;
 
-				gpio_analog: bank@043a0 {
+				gpio_analog: bank@43a0 {
 					reg = <0x404c 0x008>,
 					      <0x438c 0x030>;
 					reg-names = "mux", "gpio";
@@ -706,7 +706,7 @@
 				status = "disabled";
 			};
 
-			gpio_intc: interrupt-controller@0440 {
+			gpio_intc: interrupt-controller@440 {
 				compatible = "amlogic,meson-gpio-intc",
 					      "amlogic,meson-c3-gpio-intc";
 				reg = <0x4080 0x20>;
@@ -934,7 +934,7 @@
 			reg = <0xFE330000 0xb0>;
 			status = "okay";
 		};
-		audiobus: audiobus@0xFE330000 {
+		audiobus: audiobus@FE330000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -1642,7 +1642,7 @@
 		interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
-	adla: adla@0xfe04a000 {
+	adla: adla@fe04a000 {
 		compatible = "amlogic,adla";
 		dev_name = "adla";
 		status = "okay";
@@ -1727,7 +1727,7 @@
 		clock-names = "crg_general";
 	};
 
-	crg_udc_2: crgudc2@0xfe340000 {
+	crg_udc_2: crgudc2@fe340000 {
 		compatible = "amlogic, crg_udc";
 		status = "disable";
 		device_name = "crg_udc_2";
@@ -1788,13 +1788,13 @@
 		};
 	};
 
-	vrtc: rtc@0xfe010288 {
+	vrtc: rtc@fe010288 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0xfe010288 0x4>; //SYSCTRL_STATUS_REG2
 		status = "disabled";
 	};
 
-	rtc: rtc@0xfe09a000 {
+	rtc: rtc@fe09a000 {
 		compatible = "amlogic,meson-rtc";
 		reg = <0xfe09a000 0x38>;
 		interrupts = <GIC_SPI 131 IRQ_TYPE_EDGE_RISING>;
@@ -2006,7 +2006,7 @@
 		irqs_rsv = <32 177>;
 	};
 
-	aml_dma: aml_dma@0xfe440400 {
+	aml_dma: aml_dma@fe440400 {
 		compatible = "amlogic,aml_p1_dma";
 		reg = <0xfe440400 0x48>;
 		interrupts = <GIC_SPI 61 IRQ_TYPE_EDGE_RISING>;

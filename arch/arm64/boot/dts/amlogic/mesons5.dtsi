@@ -361,7 +361,7 @@
 		cpuinfo_cmd = <0x82000044>;
 	};
 
-	vrtc: rtc@0xfe010288 {
+	vrtc: rtc@fe010288 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xfe010288 0x0 0x4>;
 		status = "okay";
@@ -374,7 +374,7 @@
 		status = "okay";
 	};
 
-	adla: adla@0xfe371000 {
+	adla: adla@fe371000 {
 		compatible = "amlogic,adla";
 		dev_name = "adla";
 		status = "okay";
@@ -1219,7 +1219,7 @@
 			phy-id = <0>;
 		};
 
-		crg_udc_2: crgudc2@0xfdd00000 {
+		crg_udc_2: crgudc2@fdd00000 {
 			compatible = "amlogic, crg_udc";
 			status = "disable";
 			device_name = "crg_udc_2";
@@ -1269,7 +1269,7 @@
 			status = "okay";
 		};
 
-		audiobus: audiobus@0xFE330000 {
+		audiobus: audiobus@FE330000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			reg = <0x0 0xFE330000 0x0 0x3000>;
 			#address-cells = <2>;
@@ -2934,7 +2934,7 @@
 		//		<&pwrdm PDID_P1_DEWC>;
 	};
 
-	mbox_fifo: mbox_fifo@0xfe006000 {
+	mbox_fifo: mbox_fifo@fe006000 {
 		status = "okay";
 		compatible = "amlogic, s5-mbox-fifo";
 		reg = <0x0 0xfe006000 0x0 0x1000>,  /* mbox wr fifo */

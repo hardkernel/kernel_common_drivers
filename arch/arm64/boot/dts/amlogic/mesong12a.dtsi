@@ -329,7 +329,7 @@
 		/* 4: 333.3M    5: 400.0M    6: 500.0M    7: 666.7M */
 	};
 
-	eth_phy: mdio-multiplexer@0xff64c000 {
+	eth_phy: mdio-multiplexer@ff64c000 {
 		compatible = "amlogic,g12a-mdio-mux";
 		reg = <0x0 0xff64c000 0x0 0xa4>;
 
@@ -884,7 +884,7 @@
 					 &ion_fb_reserved>;
 		};/* end of ion_dev*/
 
-		audiobus: audiobus@0xff642000 {
+		audiobus: audiobus@ff642000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			reg = <0x0 0xff642000 0x0 0x2000>;
 			#address-cells = <2>;

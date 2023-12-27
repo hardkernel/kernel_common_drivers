@@ -318,7 +318,7 @@
 		nn_power_version = <5>;
 	};
 
-	vrtc: rtc@0xfe010288 {
+	vrtc: rtc@fe010288 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xfe010288 0x0 0x4>; //SYSCTRL_STATUS_REG2
 		status = "okay";
@@ -332,7 +332,7 @@
 		dis_nb_cpus_in_shutdown;
 	};
 
-	mbox_fifo: mbox_fifo@0xfe006000 {
+	mbox_fifo: mbox_fifo@fe006000 {
 		status = "okay";
 		compatible = "amlogic, t5m-mbox-fifo";
 		reg = <0x0 0xfe006000 0x0 0x800>,  /* mbox wr fifo */
@@ -982,7 +982,7 @@
 				status = "disabled";
 			};
 
-			dcon_led: dcon_led@0x74000 {
+			dcon_led: dcon_led@74000 {
 				compatible = "amlogic,led_unipolar_ctrl";
 				reg = <0x0 0x74000 0x0 0x88>;
 				interrupts = <GIC_SPI 30 IRQ_TYPE_EDGE_RISING>;
@@ -1201,7 +1201,7 @@
 			status = "okay";
 		};
 
-		audiobus: audiobus@0xFE330000 {
+		audiobus: audiobus@FE330000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -2239,7 +2239,7 @@
 		phy-id = <1>;
 	};
 
-	crg_udc_3: crgudc3@0xfe350000 {
+	crg_udc_3: crgudc3@fe350000 {
 		compatible = "amlogic, crg_udc";
 		status = "disable";
 		device_name = "crg_udc_3";

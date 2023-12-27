@@ -279,7 +279,7 @@
 			#size-cells = <1>;
 			ranges = <0x0 0xfe000000 0x1000000>;
 
-			reset: reset-controller@0x0 {
+			reset: reset-controller@0 {
 				compatible = "amlogic,meson-a1-reset";
 				reg = <0x0 0x8c>;
 				#reset-cells = <1>;
@@ -338,13 +338,13 @@
 				pinctrl-0 = <&c_uart_pins1>;
 			};
 
-			pinctrl_periphs: pinctrl@0400 {
+			pinctrl_periphs: pinctrl@400 {
 				compatible = "amlogic,meson-a1-periphs-pinctrl";
 				#address-cells = <1>;
 				#size-cells = <1>;
 				ranges;
 
-				gpio: bank@0400 {
+				gpio: bank@400 {
 					reg = <0x0400 0x003c>,
 					      <0x0480 0x0118>;
 					reg-names = "mux",
@@ -356,7 +356,7 @@
 
 			};
 
-			pinctrl_testn: testn@043c {
+			pinctrl_testn: testn@43c {
 				compatible = "amlogic,meson-a1-testn-pinctrl";
 				#address-cells = <1>;
 				#size-cells = <1>;
@@ -366,7 +366,7 @@
 				 *<&testn GPIO_TEST_N GPIO_ACTIVE_HIGH>
 				 */
 
-				testn: testn@0043c {
+				testn: testn@43c {
 					reg = <0x043c 0x4>,
 					      <0x05c0 0x18>;
 					reg-names = "mux",
@@ -378,7 +378,7 @@
 
 			};
 
-			gpio_intc: interrupt-controller@0440 {
+			gpio_intc: interrupt-controller@440 {
 				compatible = "amlogic,meson-gpio-intc",
 						"amlogic,meson-a1-gpio-intc";
 				reg = <0x0440 0x14>;
@@ -583,7 +583,7 @@
 			#size-cells = <1>;
 			status = "okay";
 		};
-		audiobus: audiobus@0xFE050000 {
+		audiobus: audiobus@FE050000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			status = "okay";
 
@@ -812,7 +812,7 @@
 		};
 	};//End unifykey
 
-	mbox_pl: mbox_pl@0xffffd600 {
+	mbox_pl: mbox_pl@ffffd600 {
 		status = "okay";
 		compatible = "amlogic, a1-mbox-pl";
 		reg = <0xffffd600 0x200>,    // dspa tx buf

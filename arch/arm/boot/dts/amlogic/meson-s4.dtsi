@@ -274,7 +274,7 @@
 		#clock-cells = <0>;
 	};
 
-	vrtc: rtc@0xfe010288 {
+	vrtc: rtc@fe010288 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0xfe010288 0x4>;
 		status = "okay";
@@ -310,7 +310,7 @@
 		pinctrl-1=<&jtag_b_pins>;
 	};
 
-	mbox_fifo: mbox_fifo@0xfe006000 {
+	mbox_fifo: mbox_fifo@fe006000 {
 		status = "okay";
 		compatible = "amlogic, s4-mbox-fifo";
 		reg = <0xfe006000 0x800>,  /* mbox wr fifo */
@@ -1181,7 +1181,7 @@
 			status = "okay";
 		};
 
-		audiobus: audiobus@0xFE330000 {
+		audiobus: audiobus@FE330000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			reg = <0xFE330000 0x3000>;
 			#address-cells = <1>;

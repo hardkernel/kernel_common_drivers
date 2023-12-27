@@ -114,7 +114,7 @@
 		method = "smc";
 	};
 
-	aml_reboot: reboot@0xfe005b08 {
+	aml_reboot: reboot@fe005b08 {
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
 		sys_poweroff = <0x84000008>;
@@ -381,7 +381,7 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xfe000000 0x0 0x1000000>;
 
-			reset: reset-controller@0x0 {
+			reset: reset-controller@0 {
 				compatible = "amlogic,meson-c2-reset";
 				reg = <0x0 0x0 0x0 0x8c>;
 				#reset-cells = <1>;
@@ -605,14 +605,14 @@
 				status = "disabled";
 			};
 
-			periphs_pinctrl: pinctrl@0400 {
+			periphs_pinctrl: pinctrl@400 {
 				compatible = "amlogic,meson-c2-periphs-pinctrl";
 				#address-cells = <2>;
 				#size-cells = <2>;
 				ranges;
 				amlogic,vin-threshold-support;
 
-				gpio: bank@0400 {
+				gpio: bank@400 {
 					reg = <0x0 0x0400 0x0 0x0040>,
 					      <0x0 0x0480 0x0 0x01d8>;
 					reg-names = "mux", "gpio";
@@ -622,7 +622,7 @@
 				};
 			};
 
-			gpio_intc: interrupt-controller@0440 {
+			gpio_intc: interrupt-controller@440 {
 				compatible = "amlogic,meson-gpio-intc",
 					      "amlogic,meson-c2-gpio-intc";
 				reg = <0x0 0x0440 0x0 0x14>;
@@ -854,7 +854,7 @@
 			#size-cells = <2>;
 			status = "okay";
 		};
-		audiobus: audiobus@0xFE050000 {
+		audiobus: audiobus@FE050000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			status = "okay";
 
@@ -1558,7 +1558,7 @@
 		};
 	};
 
-	vrtc: rtc@0xfe005a88 {
+	vrtc: rtc@fe005a88 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xfe005a88 0x0 0x4>; //SYSCTRL_STATUS_REG2
 		status = "okay";

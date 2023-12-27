@@ -334,14 +334,14 @@
 		nn_power_version = <5>;
 	};
 
-	vrtc: rtc@0xfe010288 {
+	vrtc: rtc@fe010288 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0xfe010288 0x4>; //SYSCTRL_STATUS_REG2
 		status = "okay";
 		mboxes = <&mbox_fifo T3_REE2AO_VRTC>;
 	};
 
-	mbox_fifo: mbox_fifo@0xfe006000 {
+	mbox_fifo: mbox_fifo@fe006000 {
 		status = "okay";
 		compatible = "amlogic, t3-mbox-fifo";
 		reg = <0xfe006000 0x1000>,	/* mbox wr fifo */
@@ -1380,7 +1380,7 @@
 			status = "okay";
 		};
 
-		audiobus: audiobus@0xFE330000 {
+		audiobus: audiobus@FE330000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			reg = <0xFE330000 0x3000>;
 			#address-cells = <1>;

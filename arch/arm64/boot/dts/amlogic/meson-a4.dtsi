@@ -365,14 +365,14 @@
 		#clock-cells = <0>;
 	};
 
-	vrtc: rtc@0xfe010288 {
+	vrtc: rtc@fe010288 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xfe010288 0x0 0x4>;
 		status = "disabled";
 		mboxes = <&mbox_fifo A4_REE2AO_VRTC>;
 	};
 
-	rtc: rtc@0xfe08e600 {
+	rtc: rtc@fe08e600 {
 		compatible = "amlogic,meson-rtc";
 		reg = <0x0 0xfe08e600 0x0 0x38>;
 		time-storage-format-gray;
@@ -432,7 +432,7 @@
 		pinctrl-0=<&jtag_a_pins>;
 	};
 
-	mbox_fifo: mbox_fifo@0xfe006000 {
+	mbox_fifo: mbox_fifo@fe006000 {
 		status = "okay";
 		compatible = "amlogic, a4-mbox-fifo";
 		reg = <0x0 0xfe006000 0x0 0x800>,  /* mbox wr fifo */
@@ -1174,7 +1174,7 @@
 			clock-names = "crg_general";
 		};
 
-		crg_udc_2: crgudc2@0xfe320000 {
+		crg_udc_2: crgudc2@fe320000 {
 			compatible = "amlogic, crg_udc";
 			status = "disable";
 			device_name = "crg_udc_2";
@@ -1216,7 +1216,7 @@
 			status = "okay";
 		};
 
-		audiobus: audiobus@0xFE330000 {
+		audiobus: audiobus@FE330000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			reg = <0x0 0xFE330000 0x0 0x3000>, <0x0 0xFE335000 0x0 0x2000>;
 			reg-names = "audio_bus", "audio_acc";
@@ -1873,7 +1873,7 @@
 
 	aml_mkl {
 		compatible = "amlogic,aml_mkl";
-		reg = <0xfe440200 0xf0>;
+		reg = <0x0 0xfe440200 0x0 0xf0>;
 		kl_type = <1>;
 		kl_vid_type = <0>;
 		kl_offset = <0x80 0x88 0x8c 0x90>;

@@ -328,7 +328,7 @@
 		cpuinfo_cmd = <0x82000044>;
 	};
 
-	vrtc: rtc@0xfe010288 {
+	vrtc: rtc@fe010288 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0xff8000a8 0x4>;
 		status = "okay";
@@ -574,7 +574,7 @@
 		status = "okay";
 	};
 
-	wdt: watchdog@0xffd0f0d0 {
+	wdt: watchdog@ffd0f0d0 {
 		compatible = "amlogic,meson-gxbb-wdt";
 		status = "okay";
 		/* 0:userspace, 1:kernel */
@@ -1420,7 +1420,7 @@
 		 */
 	};
 
-	mtd_nand: nfc@0xFFE07800 {
+	mtd_nand: nfc@FFE07800 {
 		compatible = "amlogic,meson-nfc-single-ecc";
 		status = "disabled";
 		reg = <0xFFE07800 0x200>;

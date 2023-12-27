@@ -83,7 +83,7 @@
 			reg = <0x40000000 0x4000000>;
 		};
 
-		ramoops@0x08400000 {
+		ramoops@8400000 {
 			compatible = "ramoops";
 			reg = <0x08400000 0x00100000>;
 			record-size = <0x20000>;

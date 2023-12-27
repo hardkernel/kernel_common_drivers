@@ -91,7 +91,7 @@
 			status = "disabled";
 		};
 
-		ramoops@0x08800000 {
+		ramoops@8800000 {
 			compatible = "ramoops";
 			reg = <0x08800000 0x00100000>;
 			record-size = <0x20000>;

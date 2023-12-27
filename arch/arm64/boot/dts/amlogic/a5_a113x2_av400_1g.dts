@@ -31,7 +31,7 @@
 		tsensor0 = &p_tsensor;
 	};
 
-	memory@00000000 {
+	memory@0 {
 		device_type = "memory";
 		linux,usable-memory = <0x0 0x0 0x0 0x40000000>;
 	};
@@ -41,7 +41,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		ramdump_bl33z@00000000 {
+		ramdump_bl33z@0 {
 			reg = <0x0 0x0 0x0 0x1800000>; /* 0 ~ 24M */
 			status = "disabled";
 		};
@@ -55,7 +55,7 @@
 		};
 
 		/* global autoconfigured region for contiguous allocations */
-		ramoops@0x07400000 {
+		ramoops@7400000 {
 			compatible = "ramoops";
 			reg = <0x0 0x07400000 0x0 0x00100000>;
 			record-size = <0x20000>;

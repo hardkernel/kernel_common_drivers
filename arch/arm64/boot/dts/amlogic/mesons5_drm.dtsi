@@ -23,7 +23,7 @@
 		};
 	};
 
-	drm_vpu: drm-vpu@0xff800000  {
+	drm_vpu: drm-vpu@ff800000  {
 		status = "disabled";
 		compatible = "amlogic, meson-s5-vpu";
 		memory-region = <&logo_reserved>;

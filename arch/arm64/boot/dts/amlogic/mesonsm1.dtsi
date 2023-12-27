@@ -252,7 +252,7 @@
 		storage_version = <0x8200006C>;
 	};
 
-	mbox_pl1: mbox_pl1@0xfffe7400 {
+	mbox_pl1: mbox_pl1@fffe7400 {
 		status = "okay";
 		compatible = "amlogic, sm1-mbox-pl";
 		reg = <0x0 0xfffe7600 0x0 0x200>,   // m4 rx buf
@@ -272,7 +272,7 @@
 		#mbox-cells = <1>;
 	};
 
-	mbox_pl0: mbox_pl0@0xfffe7000 {
+	mbox_pl0: mbox_pl0@fffe7000 {
 		status = "okay";
 		compatible = "amlogic, sm1-mbox-pl-old";
 		reg = <0x0 0xfffe7200 0x0 0x200>,   // aocpu tx buf
@@ -517,7 +517,7 @@
 		power-domains = <&pwrdm PWRC_SM1_USB_ID>;
 	};
 
-	wdt: watchdog@0xffd0f0d0 {
+	wdt: watchdog@ffd0f0d0 {
 		compatible = "amlogic,meson-gxbb-wdt";
 		status = "okay";
 		/* 0:userspace, 1:kernel */
@@ -543,7 +543,7 @@
 		pinctrl-1=<&jtag_apee_pins>;
 	};
 
-	saradc: saradc@0xff809000 {
+	saradc: saradc@ff809000 {
 		compatible = "amlogic,meson-g12a-saradc";
 		status = "disabled";
 		#io-channel-cells = <1>;
@@ -563,7 +563,7 @@
 		#reset-cells = <1>;
 	};
 
-	pwrdm: power-domains@0xff62fcc0 {
+	pwrdm: power-domains@ff62fcc0 {
 			compatible = "amlogic,sm1-power-domain";
 			reg = <0x0 0xff62fcc0 0x0 0x40>;
 			reg-names = "dos";
@@ -1051,7 +1051,7 @@
 					 &ion_fb_reserved>;
 		};/* end of ion_dev*/
 
-		audiobus: audiobus@0xFF660000 {
+		audiobus: audiobus@FF660000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			status = "okay";
 			reg = <0x0 0xFF660000 0x0 0x3000>;
@@ -1162,7 +1162,7 @@
 		};
 	}; /* end of soc*/
 
-	ir: ir@0xff808040 {
+	ir: ir@ff808040 {
 		compatible = "amlogic, meson-ir";
 		reg = <0x0 0xff808040 0x00 0x44>, /*Multi-format IR controller*/
 			<0x0 0xff808000 0x00 0x20>; /*Legacy IR controller*/

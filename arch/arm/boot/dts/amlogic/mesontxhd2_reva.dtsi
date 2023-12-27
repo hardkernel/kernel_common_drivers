@@ -578,7 +578,7 @@
 		irq_trigger_type = "IRQF_TRIGGER_LOW";
 	};
 
-	vrtc: rtc@0xff8000a8 {
+	vrtc: rtc@ff8000a8 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0xff8000a8 0x4>;
 		status = "okay";
@@ -1183,7 +1183,7 @@
 				amlogic,has-chip-id;
 			};
 
-			dcon_led: dcon_led@0x1000 {
+			dcon_led: dcon_led@1000 {
 				compatible = "amlogic,led_unipolar_ctrl";
 				reg = <0x1000 0x88>;
 				interrupts = <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>;
@@ -1466,7 +1466,7 @@
 			clock-names = "crg_general";
 		};
 
-		crg_udc_2: crgudc2@0xff690000 {
+		crg_udc_2: crgudc2@ff690000 {
 			compatible = "amlogic, crg_udc";
 			status = "disable";
 			device_name = "crg_udc_2";
