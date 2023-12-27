@@ -155,7 +155,7 @@ static int aml_dma_queue_manage(void *data)
 				else
 					ret = -EINVAL;
 			}
-			async_req->complete(async_req, ret);
+			crypto_request_complete(async_req, ret);
 			continue;
 		}
 		schedule();
