@@ -62,7 +62,8 @@
 //2023.11.16 rm gb check when dvi input
 //2023.11.29 set main_port_open when resume
 //2023.12.12 t3x no open port limit when reboot
-#define RX_VER0 "ver.2023/12/12"
+//2024.01.04 fix soundless issue for 2.0 ip
+#define RX_VER0 "ver.2024/01/04"
 
 /*print type*/
 #define COR1_LOG	0x10000

@@ -719,7 +719,7 @@ void rx_pkt_initial(u8 port)
 		memset(&rx_pkt[i].multi_vs_info[j++], 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt[i].avi_info, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt[i].spd_info, 0, sizeof(struct pd_infoframe_s));
-	memset(&rx_pkt[i].aud_pktinfo, 0, sizeof(struct pd_infoframe_s));
+	//memset(&rx_pkt[i].aud_pktinfo, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt[i].mpegs_info, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt[i].ntscvbi_info, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt[i].drm_info, 0, sizeof(struct pd_infoframe_s));

@@ -2488,17 +2488,6 @@ static int top_init(u8 port)
 	data32 |= (8192 << 0); /* [23: 0] ref_cycles */
 	hdmirx_wr_top(TOP_METER_HDMI_CNTL, data32, port);
 
-	data32  = 0;
-	data32 |= (0 << 31);// [31]	  free_clk_en
-	data32 |= (0 << 15);// [15]	  hbr_spdif_en
-	data32 |= (0 << 8);// [8]	  tmds_ch2_clk_inv
-	data32 |= (0 << 7);// [7]	  tmds_ch1_clk_inv
-	data32 |= (0 << 6);// [6]	  tmds_ch0_clk_inv
-	data32 |= (0 << 5);// [5]	  pll4x_cfg
-	data32 |= (0 << 4);// [4]	  force_pll4x
-	data32 |= (0 << 3);// [3]	  phy_clk_inv
-	hdmirx_wr_top(TOP_CLK_CNTL, data32, port);
-
 	return err;
 }
 
