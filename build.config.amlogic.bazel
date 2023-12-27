@@ -104,10 +104,10 @@ function post_defconfig_cmds() {
 export -f post_defconfig_cmds
 POST_DEFCONFIG_CMDS=post_defconfig_cmds
 
+#KV_TODO: modify
 MAKE_GOALS="
 modules
 dtbs
-android_overlay_dt.dtbo
 "
 #KV_TODO: modify
 #KMI_SYMBOL_LIST=android/abi_gki_aarch64_amlogic

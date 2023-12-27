@@ -6,8 +6,8 @@ load("//common:common_drivers/modules.bzl", "AMLOGIC_MODULES")
 load("//common:common_drivers/project/project.bzl", "EXT_MODULES_ANDROID", "GKI_CONFIG", "KCONFIG_EXT_SRCS")
 load("//common:common_drivers/project/dtb.bzl", "AMLOGIC_DTBS")
 
+#KV_TODO: modify
 _AMLOGIC_DTBOS = [
-    "android_overlay_dt.dtbo",
 ]
 
 _AMLOGIC_OUTS = [
