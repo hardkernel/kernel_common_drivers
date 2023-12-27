@@ -1103,7 +1103,7 @@ READ_BAD_BLOCK:
 	}
 
 	memset(buf, 0xff, (1 << nand->page_shift));
-	ret = meson_nfc_read_page_hwecc(nand, buf, 1, page);
+	ret = meson_nfc_read_page_hwecc(nand, buf, 1, real_page);
 	return ret;
 }
 
