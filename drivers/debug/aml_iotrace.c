@@ -24,7 +24,6 @@
 #include <linux/workqueue.h>
 #include <trace/hooks/module.h>
 #include <linux/rbtree.h>
-#include <linux/amlogic/kernel_versions.h>
 #define AML_PERSISTENT_RAM_SIG (0x4c4d41) /* AML */
 
 static int ramoops_ftrace_en;
@@ -71,6 +70,26 @@ static int ramoops_io_skip_setup(char *buf)
 	return 0;
 }
 __setup("ramoops_io_skip=", ramoops_io_skip_setup);
+
+/*
+ * module_debug = 0:disable insmod/rmmod
+ * module_debug = 1:enable insmod/rmmod
+ * module_debug > 1:enable rmmod
+ */
+static int module_debug = 2;
+static int module_debug_setup(char *buf)
+{
+	if (!buf)
+		return -EINVAL;
+
+	if (kstrtoint(buf, 0, &module_debug)) {
+		pr_err("module_debug error: %s\n", buf);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+__setup("module_debug=", module_debug_setup);
 
 int ramoops_io_en;
 EXPORT_SYMBOL(ramoops_io_en);
@@ -203,8 +222,7 @@ struct pc_lockup_symbol {
 	unsigned long curr_mod_base;
 };
 
-//KV_TODO: modify
-#if IS_ENABLED(CONFIG_ANDROID_VENDOR_HOOKS) && CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
+#if IS_ENABLED(CONFIG_ANDROID_VENDOR_HOOKS)
 static unsigned long convert_pc_val(unsigned long val)
 {
 	struct rb_node *node;
@@ -223,11 +241,6 @@ static unsigned long convert_pc_val(unsigned long val)
 	}
 
 	return val; // not module region
-}
-#else
-static inline unsigned long convert_pc_val(unsigned long val)
-{
-	return val;
 }
 #endif
 
@@ -769,7 +782,7 @@ static int percpu_trace_open(struct inode *inode, struct file *file)
 		return err;
 
 	sf = file->private_data;
-	sf->private = kv_pde_data(inode);
+	sf->private = pde_data(inode);
 
 	return 0;
 }
@@ -1201,9 +1214,6 @@ static void iotrace_work_func(struct work_struct *work)
 	cancel_delayed_work(&iotrace_work);
 }
 
-//KV_TODO: modify
-#ifdef CONFIG_ANDROID_VENDOR_HOOKS
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static unsigned int BKDRHash(char *str)
 {
 	unsigned int seed = 131;
@@ -1215,44 +1225,72 @@ static unsigned int BKDRHash(char *str)
 	return (hash & 0x7FFFFFFF);
 }
 
-static void module_base_hook(void *data, const struct module *mod)
+static int module_base_callback(struct notifier_block *nb,
+				unsigned long val, void *data)
 {
+	struct module *mod = data;
 	struct pc_lockup_symbol mod_data;
 	struct rb_node *node;
 
-	mod_data.mod_name_hash = BKDRHash((char *)mod->name);
-	mod_data.mod_size = (unsigned long)mod->core_layout.size;
-	mod_data.last_mod_base = (unsigned long)mod->core_layout.base;
-	mod_data.curr_mod_base = 0x0;
+	switch (mod->state) {
+	case MODULE_STATE_COMING:
+		if (module_debug == 1)
+			pr_info("install module:%s core_base:%lx, size=%lx, init_base:%lx, size=%lx\n",
+				mod->name, (unsigned long)mod->mem[MOD_TEXT].base,
+				(unsigned long)mod->mem[MOD_TEXT].size,
+				(unsigned long)mod->mem[MOD_INIT_TEXT].base,
+				(unsigned long)mod->mem[MOD_INIT_TEXT].size);
+		break;
+	case MODULE_STATE_LIVE:
+		if (!ramoops_io_en)
+			return 0;
 
-	aml_pstore_write(AML_PSTORE_TYPE_MISC, (void *)&mod_data, sizeof(struct pc_lockup_symbol));
+		mod_data.mod_name_hash = BKDRHash((char *)mod->name);
+		mod_data.mod_size = (unsigned long)mod->mem[MOD_TEXT].size;
+		mod_data.last_mod_base = (unsigned long)mod->mem[MOD_TEXT].base;
+		mod_data.curr_mod_base = 0x0;
 
-	/* update module curr core_layout base */
+		aml_pstore_write(AML_PSTORE_TYPE_MISC, (void *)&mod_data,
+				 sizeof(struct pc_lockup_symbol));
 
-	for (node = rb_last(&pc_lockup_symbol_root); node; node = rb_prev(node)) {
-		struct pc_lockup_symbol *this;
+		/* update module curr core_layout base */
 
-		this = container_of(node, struct pc_lockup_symbol, node);
+		for (node = rb_last(&pc_lockup_symbol_root); node; node = rb_prev(node)) {
+			struct pc_lockup_symbol *this;
 
-		if (mod_data.mod_name_hash == this->mod_name_hash) {
-			this->curr_mod_base = (unsigned long)mod->core_layout.base;
-			break;
+			this = container_of(node, struct pc_lockup_symbol, node);
+
+			if (mod_data.mod_name_hash == this->mod_name_hash) {
+				this->curr_mod_base = (unsigned long)mod->mem[MOD_TEXT].base;
+				break;
+			}
 		}
+		break;
+	case MODULE_STATE_GOING:
+		if (module_debug)
+			pr_info("remove module:%s core_base:%lx, size=%lx, init_base:%lx, size=%lx\n",
+				mod->name, (unsigned long)mod->mem[MOD_TEXT].base,
+				(unsigned long)mod->mem[MOD_TEXT].size,
+				(unsigned long)mod->mem[MOD_INIT_TEXT].base,
+				(unsigned long)mod->mem[MOD_INIT_TEXT].size);
+		break;
+	default:
+		break;
 	}
 
-	if (ramoops_io_dump)
-		pr_info("module:%s core_base:%lx, size=%lx, init_base:%lx, size=%lx\n",
-			mod->name, (unsigned long)mod->core_layout.base,
-			(unsigned long)mod->core_layout.size, (unsigned long)mod->init_layout.base,
-			(unsigned long)mod->init_layout.size);
+	return 0;
 }
-#endif
-#endif
+
+static struct notifier_block module_base_nb = {
+	.notifier_call = module_base_callback,
+};
 
 int __init aml_iotrace_init(void)
 {
 	int ret = 0;
 
+	if (ramoops_io_en || module_debug)
+		register_module_notifier(&module_base_nb);
 	ret = aml_ramoops_init();
 	if (ret) {
 		pr_err("Fail to init ramoops\n");
@@ -1272,12 +1310,6 @@ int __init aml_iotrace_init(void)
 	pr_info("Amlogic debug-iotrace driver version V3\n");
 
 	if (ramoops_io_dump) {
-#ifdef CONFIG_ANDROID_VENDOR_HOOKS
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
-		register_trace_android_vh_set_module_permit_after_init(module_base_hook, NULL);
-#endif
-#endif
 		parse_module_base();
 		INIT_DELAYED_WORK(&iotrace_work, iotrace_work_func);
 		queue_delayed_work(system_unbound_wq, &iotrace_work,
