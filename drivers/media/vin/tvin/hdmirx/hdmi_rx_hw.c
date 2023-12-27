@@ -2249,11 +2249,32 @@ void rx_set_suspend_edid_clk(bool en)
 	}
 }
 
+bool rx_is_need_edid_reset(u8 port)
+{
+	bool ret = false;
+	unsigned int sts;
+	unsigned int ddc_sts;
+	unsigned int ddc_offset;
+
+	sts = hdmirx_rd_top(TOP_EDID_GEN_STAT, port);
+	ddc_sts = (sts >> 20) & 0x1f;
+	ddc_offset = sts & 0xff;
+	if (ddc_offset != 0 && ddc_offset != 0xff)
+		ret = true;
+	return ret;
+}
+
 void rx_edid_module_reset(void)
 {
-	hdmirx_wr_top_common(TOP_SW_RESET, 0x2);
-	udelay(1);
-	hdmirx_wr_top_common(TOP_SW_RESET, 0);
+	if (rx_info.chip_id == CHIP_ID_T3X) {
+		hdmirx_wr_top_common(TOP_SW_RESET, 0x1000);
+		udelay(1);
+		hdmirx_wr_top_common(TOP_SW_RESET, 0);
+	} else {
+		hdmirx_wr_top_common(TOP_SW_RESET, 0x2);
+		udelay(1);
+		hdmirx_wr_top_common(TOP_SW_RESET, 0);
+	}
 }
 
 void rx_i2c_div_init(void)
@@ -5569,13 +5590,7 @@ void rx_clkmsr_handler(struct work_struct *work)
 					meson_clk_measure(9) :
 					meson_clk_measure_with_precision(9, clk_msr_param);
 				rx[E_PORT2].clk.p_clk = p_clk;
-				rx[E_PORT2].clk.tclk =
-				((hdmirx_rd_cor(H21RXSB_REQM2_M42H_IVCRX, port) &
-				0Xf) << 16) |
-				(hdmirx_rd_cor(H21RXSB_REQM1_M42H_IVCRX,
-				port) << 8) |
-				hdmirx_rd_cor(H21RXSB_REQM0_M42H_IVCRX,
-				port);
+				rx[E_PORT2].clk.tclk = meson_clk_measure(49);
 			}
 		}
 			//Port-D
@@ -5593,13 +5608,7 @@ void rx_clkmsr_handler(struct work_struct *work)
 					meson_clk_measure(11) :
 					meson_clk_measure_with_precision(11, clk_msr_param);
 				rx[E_PORT3].clk.p_clk = p_clk;
-				rx[E_PORT3].clk.tclk =
-				((hdmirx_rd_cor(H21RXSB_REQM2_M42H_IVCRX, port) &
-				0Xf) << 16) |
-				(hdmirx_rd_cor(H21RXSB_REQM1_M42H_IVCRX,
-				port) << 8) |
-				hdmirx_rd_cor(H21RXSB_REQM0_M42H_IVCRX,
-				port);
+				rx[E_PORT3].clk.tclk = meson_clk_measure(50);
 			}
 		}
 		break;

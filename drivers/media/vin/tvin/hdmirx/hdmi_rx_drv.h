@@ -154,7 +154,8 @@
 /* 2023.12.1 fix trim value err when resume */
 /* 2023.12.06 fix resume panic issue */
 /* 2024.01.11 fix EMP DDR write out of bounds */
-#define RX_VER2 "ver.2024/01/11"
+/* 2023.1.11 fix timing lost */
+#define RX_VER2 "ver.2024/1/11"
 
 #define PFIFO_SIZE 256
 #define HDCP14_KEY_SIZE 368
@@ -327,7 +328,7 @@ struct rx_var_param {
 	int sig_stable_err_cnt;
 	int sig_stable_err_max;
 	int err_cnt_sum_max;
-	int flt_ready_cnt;
+	int fpll_ready_cnt;
 	//bool clk_debug_en;
 	int hpd_wait_cnt;
 	int special_wait_max;

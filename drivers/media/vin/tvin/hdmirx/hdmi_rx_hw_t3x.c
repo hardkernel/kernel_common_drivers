@@ -58,9 +58,8 @@ int fpll_chk_lvl = 0x1;
 int valid_m_wait_max = 800;
 int vga_tuning_min = 0x21;
 int vga_tuning_max = 0x26;
-
+int cal_phy_time;
 enum frl_train_sts_e frl_train_sts = E_FRL_TRAIN_START;
-static int frate_flg;
 
 /* for T3X 2.0 */
 static const u32 phy_misc_t3x_20[][2] = {
@@ -2127,6 +2126,11 @@ bool rx_get_clkready_sts(u8 port)
 	return hdmirx_rd_bits_cor(H21RXSB_STATUS_M42H_IVCRX, _BIT(1), port);
 }
 
+bool rx_get_valid_m_sts(u8 port)
+{
+	return hdmirx_rd_bits_cor(H21RXSB_STATUS_M42H_IVCRX, _BIT(0), port);
+}
+
 bool is_fpll_err(u8 port)
 {
 	bool ret = true;
@@ -3457,14 +3461,8 @@ bool aml_get_tmds_valid_t3x_21(u8 port)
 	u32 ret;
 
 	/* frl_debug todo */
-	if (rx[port].var.frl_rate && rx[port].state != FSM_SIG_READY)
+	if (rx[port].var.frl_rate)
 		return true;
-	if (rx[port].var.frl_rate) {
-		if ((abs(rx[port].clk.t_clk_pre - rx[port].clk.tclk) > 10 * MHz))
-			return false;
-		else
-			return true;
-	}
 	/* digital tmds valid depends on PLL lock from analog phy. */
 	/* it is not necessary and T7 has not it */
 	/* tmds_valid = hdmirx_rd_dwc(DWC_HDMI_PLL_LCK_STS) & 0x01; */
@@ -4763,6 +4761,7 @@ void hal_flt_update_set(u8 port)
 void hdmi_tx_rx_frl_training_main(u8 port)
 {
 	rx[port].var.frl_rate = hdmirx_rd_cor(SCDCS_CONFIG1_SCDC_IVCRX, port) & 0xf;
+	aml_phy_init_t3x(port);
 	hdmirx_wr_cor(SCDCS_UPD_FLAGS_SCDC_IVCRX, 0x0, port);//sink clear(=0) FRL_START
 	hdmirx_wr_cor(SCDCS_STATUS_FLAGS1_SCDC_IVCRX, 0x65, port); //
 	hdmirx_wr_cor(SCDCS_STATUS_FLAGS2_SCDC_IVCRX, 0x87, port); //
@@ -5587,116 +5586,6 @@ void dump_aud21_param(u8 port)
 	rx_pr("ana 4x = 0x%x\n", hdmirx_rd_top_common_1(TOP_ACR_CNTL2_T3X));
 }
 
-//for debug only
-int vm = 0xf;
-void valid_m_monitor(u8 port)
-{
-	int val_m = 0;
-
-	val_m = hdmirx_rd_cor(0x1525, port) & 0x1;
-	if (val_m != vm) {
-		vm = val_m;
-		if (log_level & FRL_LOG)
-			rx_pr("port-%d valid_m change to %d\n", port, val_m);
-	}
-}
-
-static int frate_flg = 0xf;
-void frate_monitor(void)
-{
-	u8 port = E_PORT2;
-	static int lock;
-	static int pre_lock;
-
-	rx[port].var.frl_rate = hdmirx_rd_cor(SCDCS_CONFIG1_SCDC_IVCRX, port) & 0xf;
-	lock = hdmirx_rd_cor(SCDCS_STATUS_FLAGS0_SCDC_IVCRX, port);
-	if (lock != pre_lock) {
-		rx_pr("lock = 0x%x\n", lock);
-		pre_lock = lock;
-	}
-	if (rx[port].var.frl_rate != frate_flg) {
-		frate_flg = rx[port].var.frl_rate;
-		if (rx[port].var.frl_rate) {
-			if (fpll_chk_lvl & 0xf) {
-				cor_init(port);
-			} else if (((fpll_chk_lvl >> 4) & 0xf) == 0x1) {
-				hdmirx_hw_config(port);
-			} else if (((fpll_chk_lvl >> 4) & 0xf) == 0x2) {
-				if (rx[port].var.frl_rate) {
-					//frl_debug todo
-					hdmirx_wr_cor(DPLL_CFG6_DPLL_IVCRX, 0x0, port);
-					hdmirx_wr_cor(H21RXSB_D2TH_M42H_IVCRX, 0x20, port);
-					hdmirx_wr_bits_cor(H21RXSB_GP1_REGISTER_M42H_IVCRX,
-						_BIT(3), 1, port);
-					//clk ready threshold
-					hdmirx_wr_cor(H21RXSB_DIFF1T_M42H_IVCRX, 0x20, port);
-				} else {
-					hdmirx_wr_cor(DPLL_CFG6_DPLL_IVCRX, 0x10, port);
-					hdmirx_wr_cor(RX_H21_CTRL_PWD_IVCRX, 0x0, port);
-				}
-			}
-			if (rx[port].state > FSM_FRL_FLT_READY)
-				rx[port].state = FSM_FRL_FLT_READY;
-		} else {
-			if (rx[port].state > FSM_FRL_FLT_READY)
-				rx[port].state = FSM_WAIT_CLK_STABLE;
-		}
-		if (log_level & FRL_LOG)
-			rx_pr("port-%d frate change to %d\n", port, rx[port].var.frl_rate);
-	}
-	//rx_monitor_error_counter(port);
-	if (rx[port].var.frl_rate)
-		valid_m_monitor(port);
-}
-
-static int frate_flg1 = 0xf;
-void frate_monitor1(void)
-{
-	u8 port = E_PORT3;
-	static int lock;
-	static int pre_lock;
-
-	rx[port].var.frl_rate = hdmirx_rd_cor(SCDCS_CONFIG1_SCDC_IVCRX, port) & 0xf;
-	lock = hdmirx_rd_cor(SCDCS_STATUS_FLAGS0_SCDC_IVCRX, port);
-	if (lock != pre_lock) {
-		rx_pr("lock = 0x%x\n", lock);
-		pre_lock = lock;
-	}
-	if (rx[port].var.frl_rate != frate_flg1) {
-		frate_flg1 = rx[port].var.frl_rate;
-		if (rx[port].var.frl_rate) {
-			if (fpll_chk_lvl & 0xf) {
-				cor_init(port);
-			} else if (((fpll_chk_lvl >> 4) & 0xf) == 0x1) {
-				hdmirx_hw_config(port);
-			} else if (((fpll_chk_lvl >> 4) & 0xf) == 0x2) {
-				if (rx[port].var.frl_rate) {
-					//frl_debug todo
-					hdmirx_wr_cor(DPLL_CFG6_DPLL_IVCRX, 0x0, port);
-					hdmirx_wr_cor(H21RXSB_D2TH_M42H_IVCRX, 0x20, port);
-					hdmirx_wr_bits_cor(H21RXSB_GP1_REGISTER_M42H_IVCRX,
-						_BIT(3), 1, port);
-					//clk ready threshold
-					hdmirx_wr_cor(H21RXSB_DIFF1T_M42H_IVCRX, 0x20, port);
-				} else {
-					hdmirx_wr_cor(DPLL_CFG6_DPLL_IVCRX, 0x10, port);
-					hdmirx_wr_cor(RX_H21_CTRL_PWD_IVCRX, 0x0, port);
-				}
-			}
-			if (rx[port].state > FSM_FRL_FLT_READY)
-				rx[port].state = FSM_FRL_FLT_READY;
-		} else {
-			if (rx[port].state > FSM_FRL_FLT_READY)
-				rx[port].state = FSM_WAIT_CLK_STABLE;
-		}
-		if (log_level & FRL_LOG)
-			rx_pr("port-%d frate change to %d\n", port, rx[port].var.frl_rate);
-	}
-	//rx_monitor_error_counter(port);
-	if (rx[port].var.frl_rate)
-		valid_m_monitor(port);
-}
-
 void clk_init_cor_t3x(void)
 {
 	u32 data32;
@@ -6003,3 +5892,4 @@ bool is_fsm_ready_t3x(void)
 	return rx_info.chip_id == CHIP_ID_T3X &&
 		hdmi_cec_en != 0xff && is_valid_edid_data(edid_cur);
 }
+

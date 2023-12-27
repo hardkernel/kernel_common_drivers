@@ -896,6 +896,13 @@ bool rx_edid_cal_phy_addr(u_int up_addr,
 	return flag;
 }
 
+void rx_edid_reset(u8 port)
+{
+	if (!rx_is_need_edid_reset(port))
+		return;
+	rx_edid_module_reset();
+}
+
 bool is_ddc_idle(unsigned char port_id)
 {
 	unsigned int sts;

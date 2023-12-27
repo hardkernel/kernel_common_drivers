@@ -133,7 +133,7 @@ extern u32 vpp_mute_enable;
 extern u32 dbg_cs;
 extern int color_bar_debug_en;
 extern int port_debug_en;
-extern int flt_ready_max;
+extern int fpll_ready_max;
 extern int frl_debug_en;
 extern int fsm_debug;
 extern int rs_err_chk;
@@ -169,6 +169,9 @@ void rx_dwc_reset(u8 port);
 void set_video_mute(u32 owner, bool on);
 u8 get_frame_interval_cnt(u8 cnt, u8 port);
 void rx_edid_update_handler(struct work_struct *dwork);
+void frate_monitor(void);
+void frate_monitor1(void);
+
 void __weak set_video_mute(u32 owner, bool on)
 {
 }

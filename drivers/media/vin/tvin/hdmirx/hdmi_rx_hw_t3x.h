@@ -163,6 +163,7 @@ extern int phy_term_lel_t3x_21;
 extern int tuning_cnt;
 extern int vga_tuning_min;
 extern int vga_tuning_max;
+extern int cal_phy_time;
 
 /*--------------------------function declare------------------*/
 /* T3X */
@@ -202,8 +203,6 @@ void dump_aud21_param(u8 port);
 void rx_21_fpll_cfg(int f_rate, u8 port);
 bool is_fpll_err(u8 port);
 void audio_setting_for_aud21(int frl_rate, u8 port);
-void frate_monitor(void);
-void frate_monitor1(void);
 void clk_init_cor_t3x(void);
 void rx_dig_clk_en_t3x(bool en);
 void rx_lts_2_flt_ready(u8 port);
@@ -228,6 +227,8 @@ void clr_frl_fifo_status(u8 port);
 void rx_rcc_err_frl_config(u8 port);
 void rx_read_ecc_err(u8 port);
 bool is_fsm_ready_t3x(void);
+bool rx_get_clkready_sts(u8 port);
+bool rx_get_valid_m_sts(u8 port);
 
 //void reset_pcs(void);
 

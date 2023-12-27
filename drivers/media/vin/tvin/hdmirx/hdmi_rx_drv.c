@@ -982,20 +982,20 @@ int hdmirx_set_cec_cfg(u32 cfg)
 	switch (cfg) {
 	case 1:
 		hdmi_cec_en = 1;
-		if (rx_info.boot_flag)
+		if (rx_info.chip_id != CHIP_ID_T3X && rx_info.boot_flag)
 			rx_force_hpd_rxsense_cfg(1);
 		break;
 	case 2:
 		hdmi_cec_en = 1;
 		tv_auto_power_on = 1;
-		if (is_valid_edid_data(edid_cur))
+		if (rx_info.chip_id != CHIP_ID_T3X && is_valid_edid_data(edid_cur))
 			rx_force_hpd_rxsense_cfg(1);
 		break;
 	case 0:
 	default:
 		hdmi_cec_en = 0;
 		/* fix source can't get edid if cec off */
-		if (rx_info.boot_flag) {
+		if (rx_info.chip_id != CHIP_ID_T3X && rx_info.boot_flag) {
 			if (hpd_low_cec_off == 0)
 				rx_force_hpd_rxsense_cfg(1);
 		}
@@ -1831,11 +1831,12 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 				rx_set_cur_hpd(0, 4, rx_info.main_port);
 				rx[rx_info.main_port].var.edid_update_flag = 1;
 			}
-			port_hpd_rst_flag |= (1 << rx_info.main_port);
+			if (rx_info.chip_id != CHIP_ID_T3X && hdmi_cec_en == 1)
+				port_hpd_rst_flag |= (1 << rx_info.main_port);
 		}
 		for (port_idx = E_PORT0; port_idx < rx_info.port_num; port_idx++)
 			fsm_restart(port_idx);
-		if (hdmi_cec_en && rx_info.boot_flag)
+		if (hdmi_cec_en == 1 && rx_info.boot_flag)
 			rx_force_hpd_rxsense_cfg(1);
 		rx_pr("*update edid*\n");
 		break;
