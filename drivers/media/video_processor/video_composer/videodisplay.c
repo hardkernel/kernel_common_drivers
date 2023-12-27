@@ -25,6 +25,9 @@
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/video_processor/video_pp_common.h>
 #include "videodisplay.h"
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+#include <linux/amlogic/media/frc/frc_common.h>
+#endif
 
 static struct timeval vsync_time[MAX_VD_LAYERS];
 static DEFINE_MUTEX(video_display_mutex);
@@ -122,6 +125,19 @@ static bool vd_vf_is_tvin(struct vframe_s *vf)
 		vf->source_type == VFRAME_SOURCE_TYPE_TUNER)
 		return true;
 	return false;
+}
+
+static bool frc_n2m_worked(void)
+{
+	bool ret = false;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+		/* frc_get_n2m_setting 1 : n2m is 1:1; 2 :n2m is 1:2 */
+		/* frc_is_on() 1: means frc really worked */
+		if ((frc_get_n2m_setting() == 2) && frc_is_on())
+			ret = true;
+#endif
+	return ret;
 }
 
 static void vf_pop_display_q(struct composer_dev *dev, struct vframe_s *vf)
@@ -643,6 +659,8 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	int ret;
 	int max_delay_count = 2;
 	int input_fps, output_fps, output_pts_inc_scale = 0, output_pts_inc_scale_base = 0;
+	int aisr_delay_vsync;
+	int total_delay_vsync;
 
 	time1 = dev->start_time;
 	time2 = vsync_time[dev->index];
@@ -650,13 +668,19 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	if (kfifo_peek(&dev->ready_q, &vf)) {
 		if (get_lowlatency_mode())
 			return vf;
-		if (vf->vc_private && vd_set_frame_delay[dev->index] > 0) {
+
+		if (dev->index == 0 && frc_n2m_worked())
+			aisr_delay_vsync = 1;
+		else
+			aisr_delay_vsync = 0;
+		total_delay_vsync = aisr_delay_vsync + vd_set_frame_delay[dev->index];
+		if (vf->vc_private && total_delay_vsync > 0) {
 			vsync_index = vf->vc_private->vsync_index;
 			vc_print(dev->index, PRINT_OTHER,
 				"peek: vsync_index =%d, delay_count=%d, vsync_count=%d\n",
-				vsync_index, vd_set_frame_delay[dev->index],
+				vsync_index, total_delay_vsync,
 				vsync_count[dev->index]);
-			if (vsync_index + vd_set_frame_delay[dev->index] - 1
+			if (vsync_index + total_delay_vsync
 				>= vsync_count[dev->index] &&
 				vsync_index < vsync_count[dev->index])
 				return NULL;
