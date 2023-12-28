@@ -229,5 +229,7 @@ void vpp_pst_hist_sta_read(unsigned int *hist);
 void eye_proc(int mtx_ep[][4], int mtx_on, int vpp_index);
 void set_vpp_enh_clk(struct vframe_s *vf, struct vframe_s *rpt_vf, int vpp_index);
 void lut3d_update(unsigned int p3dlut_in[][3], int vpp_index);
+
+extern int dnlp_en_dsw;
 #endif
 

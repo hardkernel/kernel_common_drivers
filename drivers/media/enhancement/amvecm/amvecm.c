@@ -2718,8 +2718,24 @@ int amvecm_on_vs(struct vframe_s *vf,
 		pr_amvecm_bringup_dbg("[on_vs] size_patch done.\n");
 
 		if (toggle_vf && vd_path == VD1_PATH) {
-			lc_process(toggle_vf, sps_h_en, sps_v_en,
-				sps_w_in, sps_h_in, vpp_index);
+			if (chip_type_id != chip_t3x) {
+				lc_process(toggle_vf, sps_h_en, sps_v_en,
+					sps_w_in, sps_h_in, vpp_index);
+			} else {
+				if ((toggle_vf->flag & VFRAME_FLAG_COMPOSER_DONE) &&
+					toggle_vf->composer_info &&
+					toggle_vf->composer_info->count > 1) {
+					/*for multi-path to vd1*/
+					lc_process(NULL, sps_h_en, sps_v_en,
+						sps_w_in, sps_h_in, vpp_index);
+					pr_amvecm_bringup_dbg("[on_vs] lc multi-path to vd1.\n");
+					dnlp_en_dsw = 0;
+				} else {
+					lc_process(toggle_vf, sps_h_en, sps_v_en,
+						sps_w_in, sps_h_in, vpp_index);
+					dnlp_en_dsw = 1;
+				}
+			}
 			pr_amvecm_bringup_dbg("[on_vs] lc_proc done.\n");
 			/*1080i pulldown combing workaround*/
 			amvecm_dejaggy_patch(toggle_vf);
@@ -2734,12 +2750,27 @@ int amvecm_on_vs(struct vframe_s *vf,
 			}
 		}
 		/*refresh vframe*/
-		if (!toggle_vf && vf) {
-			if (vd_path == VD1_PATH) {
+		if (!toggle_vf && vf && vd_path == VD1_PATH) {
+			if (chip_type_id != chip_t3x) {
 				lc_process(vf, sps_h_en, sps_v_en,
 					sps_w_in, sps_h_in, vpp_index);
-				vf_state = cabc_add_hist_proc(vf);
+			} else {
+				if ((vf->flag & VFRAME_FLAG_COMPOSER_DONE) &&
+					vf->composer_info &&
+					vf->composer_info->count > 1) {
+					/*for multi-path to vd1*/
+					lc_process(NULL, sps_h_en, sps_v_en,
+						sps_w_in, sps_h_in, vpp_index);
+					pr_amvecm_bringup_dbg("[on_vs] lc multi-path to vd1.\n");
+					dnlp_en_dsw = 0;
+				} else {
+					lc_process(vf, sps_h_en, sps_v_en,
+						sps_w_in, sps_h_in, vpp_index);
+					dnlp_en_dsw = 1;
+				}
 			}
+
+			vf_state = cabc_add_hist_proc(vf);
 		}
 		pr_amvecm_bringup_dbg("[on_vs] refresh vframe done.\n");
 
