@@ -73,7 +73,7 @@ enum {
 
 struct meson_i2c_data {
 	bool tee;
-	u32 tee_reg;
+	u32 tee_id;
 };
 
 /**
@@ -127,8 +127,8 @@ static void meson_i2c_writel(struct meson_i2c *i2c, u32 data, int reg)
 	struct arm_smccc_res res;
 
 	if (i2c->data->tee)
-		arm_smccc_smc(SECURE_PWM_I2C, SECID_I2C, 0,
-			i2c->data->tee_reg + reg, data, 0, 0, 0, &res);
+		arm_smccc_smc(SECURE_PWM_I2C, SECID_I2C, i2c->data->tee_id,
+			reg, data, 0, 0, 0, &res);
 	else
 		writel(data, i2c->regs + reg);
 }
@@ -597,8 +597,15 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	}
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	i2c->regs = devm_ioremap_resource(&pdev->dev, mem);
-	if (i2c->data->tee)
-		i2c->data->tee_reg = mem->start;
+	if (i2c->data->tee) {
+		/* get i2c tee_id property */
+		ret = of_property_read_u32(pdev->dev.of_node, "tee_id",
+				   &i2c->data->tee_id);
+		if (ret) {
+			dev_err(&pdev->dev, "not config tee_id\n");
+			return ret;
+		}
+	}
 	if (IS_ERR(i2c->regs))
 		return PTR_ERR(i2c->regs);
 

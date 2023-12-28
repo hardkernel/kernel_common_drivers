@@ -979,9 +979,9 @@
 				status = "disabled";
 			};
 
-			pwm_c: pwm@5a000 {
+			pwm_c: pwm@58400 {
 				compatible = "amlogic,meson-even-pwm";
-				reg = <0x5a000 0x24>,
+				reg = <0x58400 0x24>,
 					  <0x184 0x4>;
 				#pwm-cells = <3>;
 				clocks = <&clkc CLKID_PWM_C_SEL>;
@@ -989,9 +989,9 @@
 				status = "disabled";
 			};
 
-			pwm_d: pwm@5a200 {
+			pwm_d: pwm@58600 {
 				compatible = "amlogic,meson-odd-pwm";
-				reg = <0x5a000 0x24>,
+				reg = <0x58600 0x24>,
 					  <0x184 0x4>;
 				#pwm-cells = <3>;
 				clocks = <&clkc CLKID_PWM_D_SEL>;
@@ -999,9 +999,9 @@
 				status = "disabled";
 			};
 
-			pwm_e: pwm@5c000 {
+			pwm_e: pwm@58800 {
 				compatible = "amlogic,meson-even-pwm";
-				reg = <0x5c000 0x24>,
+				reg = <0x58800 0x24>,
 					  <0x188 0x4>;
 				#pwm-cells = <3>;
 				clocks = <&clkc CLKID_PWM_E_SEL>;
@@ -1009,9 +1009,9 @@
 				status = "disabled";
 			};
 
-			pwm_f: pwm@5c200 {
+			pwm_f: pwm@58a00 {
 				compatible = "amlogic,meson-odd-pwm";
-				reg = <0x5c000 0x24>,
+				reg = <0x58a00 0x24>,
 					  <0x188 0x4>;
 				#pwm-cells = <3>;
 				clocks = <&clkc CLKID_PWM_F_SEL>;
@@ -1019,9 +1019,9 @@
 				status = "disabled";
 			};
 
-			pwm_g: pwm@5e000 {
+			pwm_g: pwm@58c00 {
 				compatible = "amlogic,meson-even-pwm";
-				reg = <0x5e000 0x24>,
+				reg = <0x58c00 0x24>,
 					  <0x18c 0x4>;
 				#pwm-cells = <3>;
 				clocks = <&clkc CLKID_PWM_G_SEL>;
@@ -1029,9 +1029,9 @@
 				status = "disabled";
 			};
 
-			pwm_h: pwm@5e200 {
+			pwm_h: pwm@58e00 {
 				compatible = "amlogic,meson-odd-pwm";
-				reg = <0x5e000 0x24>,
+				reg = <0x58e00 0x24>,
 					  <0x18c 0x4>;
 				#pwm-cells = <3>;
 				clocks = <&clkc CLKID_PWM_H_SEL>;
@@ -1039,9 +1039,9 @@
 				status = "disabled";
 			};
 
-			pwm_i: pwm@60000 {
+			pwm_i: pwm@59000 {
 				compatible = "amlogic,meson-even-pwm";
-				reg = <0x60000 0x24>,
+				reg = <0x59000 0x24>,
 					  <0x190 0x4>;
 				#pwm-cells = <3>;
 				clocks = <&clkc CLKID_PWM_I_SEL>;
@@ -1049,14 +1049,14 @@
 				status = "disabled";
 			};
 
-			pwm_j: pwm@62000 {
-				compatible = "amlogic,meson-odd-pwm";
-				reg = <0x60000 0x24>,
-					  <0x190 0x4>;
+			pwm_j: pwm@59200 {
+				compatible = "amlogic,meson-pwm-tee";
+				reg = <0x59200 0x24>;
 				#pwm-cells = <3>;
-				clocks = <&clkc CLKID_PWM_J_SEL>;
+				clocks = <&clkc CLKID_PWM_J>;
 				clock-names = "clkin0";
-				status = "disabled";
+				tee_id = <9>;
+				status = "okay";
 			};
 
 			i2c0: i2c@66000 {

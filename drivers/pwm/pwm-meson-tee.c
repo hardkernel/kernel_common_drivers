@@ -71,7 +71,7 @@ struct meson_pwm_tee {
 	struct pwm_chip chip;
 	struct meson_pwm_tee_channel channels[MESON_NUM_PWMS];
 	void __iomem *base;
-	u32 tee_base;
+	u32 tee_id;
 	/*
 	 * Protects register (write) access to the PWM_MISC_REG register
 	 * that is shared between the two PWMs.
@@ -113,8 +113,8 @@ static int pwm_constant_enable_tee(struct meson_pwm_tee *meson, struct pwm_devic
 {
 	struct arm_smccc_res res;
 
-	arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, SECID_PWM_CONSTANT_EN,
-		      meson->tee_base, 0, 0, 0, 0, &res);
+	arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
+				 SECID_PWM_CONSTANT_EN, 0, 0, 0, 0, &res);
 
 	return 0;
 }
@@ -123,8 +123,8 @@ static int pwm_constant_disable_tee(struct meson_pwm_tee *meson, struct pwm_devi
 {
 	struct arm_smccc_res res;
 
-	arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, SECID_PWM_CONSTANT_DIS,
-		      meson->tee_base, 0, 0, 0, 0, &res);
+	arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
+				 SECID_PWM_CONSTANT_DIS, 0, 0, 0, 0, &res);
 
 	return 0;
 }
@@ -206,16 +206,16 @@ static void meson_pwm_tee_enable(struct meson_pwm_tee *meson, struct pwm_device 
 		dev_err(meson->chip.dev, "setting clock rate failed\n");
 	value = FIELD_PREP(PWM_HIGH_MASK, channel->hi) |
 		FIELD_PREP(PWM_LOW_MASK, channel->lo);
-	arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, SECID_PWM_ENABLE,
-		      meson->tee_base, value, 0, 0, 0, &res);
+	arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
+				 SECID_PWM_ENABLE, value, 0, 0, 0, &res);
 }
 
 static void meson_pwm_tee_disable(struct meson_pwm_tee *meson, struct pwm_device *pwm)
 {
 	struct arm_smccc_res res;
 
-	arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, SECID_PWM_DISABLE,
-		    meson->tee_base, 0, 0, 0, 0, &res);
+	arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
+				 SECID_PWM_DISABLE, 0, 0, 0, 0, &res);
 }
 
 static int meson_pwm_tee_apply(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -373,7 +373,13 @@ static int meson_pwm_tee_probe(struct platform_device *pdev)
 	meson->base = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(meson->base))
 		return PTR_ERR(meson->base);
-	meson->tee_base = regs->start;
+	/* get pwm tee_id property */
+	err = of_property_read_u32(pdev->dev.of_node, "tee_id",
+			   &meson->tee_id);
+	if (err) {
+		dev_err(&pdev->dev, "not config tee_id\n");
+		return err;
+	}
 	// meson->base = devm_platform_ioremap_resource(pdev, 0);
 
 	spin_lock_init(&meson->lock);
