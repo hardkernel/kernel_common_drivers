@@ -89,10 +89,6 @@ CONFIG_AMLOGIC_SND_SOC_AD82584F=m
 # aml drm builtin
 CONFIG_AMLOGIC_DRM=y
 
-# Disabled unuse aml leds
-# CONFIG_AMLOGIC_LEDS_TLC59116 is not set
-# CONFIG_AMLOGIC_LEDS_AW9523B is not set
-
 # Disabled Amlogic Platform Capture Driver
 # CONFIG_AMLOGIC_VIDEO_CAPTURE is not set
 
@@ -158,12 +154,6 @@ CONFIG_INPUT_FF_MEMLESS=y
 CONFIG_NEW_LEDS=y
 CONFIG_LEDS_CLASS=y
 CONFIG_LEDS_TRIGGERS=y
-
-# Disabled usb audio
-# CONFIG_SND_USB_AUDIO is not set
-# CONFIG_SND_USB_AUDIO_USE_MEDIA_CONTROLLER is not set
-# CONFIG_USB_U_AUDIO is not set
-# CONFIG_USB_F_AUDIO_SRC is not set
 
 # Disabled Multifunction device drivers
 # CONFIG_MFD_CORE is not set
@@ -308,7 +298,6 @@ CONFIG_CRC8=y
 # CONFIG_CMA_DEBUGFS is not set
 # CONFIG_DEBUG_KINFO is not set
 # CONFIG_ANDROID_DEBUG_SYMBOLS is not set
-# CONFIG_DEBUG_INFO is not set
 # CONFIG_DEBUG_BUGVERBOSE is not set
 # CONFIG_DEBUG_INFO_DWARF4 is not set
 # CONFIG_DEBUG_INFO_BTF is not set
