@@ -68,40 +68,57 @@ static int cpucore_set_cur_state(struct thermal_cooling_device *cdev,
 				 unsigned long state)
 {
 	struct cpucore_cooling_device *cpucore_dev = cdev->devdata;
-	int i, cpu;
+	enum hotplug_mode op_mode;
+	int i, j, cpu, offline_cpus = 0, op_cpus;
 
 	if (WARN_ON(state > cpucore_dev->cpunum))
 		return -EINVAL;
 
-	switch (cpucore_dev->mode) {
-	case CPU_PLUG:
-		for (i = 0; i < cpucore_dev->cluster_num; i++) {
-			if (!cpumask_weight(cpucore_dev->offline[i]))
-				continue;
-			cpu = cpumask_last(cpucore_dev->offline[i]);
-			pr_debug("[%s]online cpu%d\n", cdev->type, cpu);
-			add_cpu(cpu);
-			cpumask_clear_cpu(cpu, cpucore_dev->offline[i]);
-			cpumask_set_cpu(cpu, cpucore_dev->online[i]);
+	for (i = 0; i < cpucore_dev->cluster_num; i++)
+		offline_cpus += cpumask_weight(cpucore_dev->offline[i]);
+
+	pr_debug("[%s] total offline cpus:%d\n", cdev->type, offline_cpus);
+	if (state == offline_cpus) //Control state has been reached
+		return 0;
+	else if (state < offline_cpus) { // Need plug core
+		op_mode = CPU_PLUG;
+		op_cpus = offline_cpus - state;
+	} else {
+		op_mode = CPU_UNPLUG;
+		op_cpus = state - offline_cpus;
+	}
+
+	for (j = 0; j < op_cpus; j++) {
+		switch (op_mode) {
+		case CPU_PLUG:
+			for (i = 0; i < cpucore_dev->cluster_num; i++) {
+				if (!cpumask_weight(cpucore_dev->offline[i]))
+					continue;
+				cpu = cpumask_last(cpucore_dev->offline[i]);
+				pr_debug("[%s]online cpu%d\n", cdev->type, cpu);
+				add_cpu(cpu);
+				cpumask_clear_cpu(cpu, cpucore_dev->offline[i]);
+				cpumask_set_cpu(cpu, cpucore_dev->online[i]);
+				break;
+			}
+			break;
+		case CPU_UNPLUG:
+			for (i = 0; i < cpucore_dev->cluster_num; i++) {
+				if (!cpumask_weight(cpucore_dev->online[i]))
+					continue;
+				cpu = cpumask_any_and(cpucore_dev->online[i], cpu_online_mask);
+				if (cpu == nr_cpu_ids)
+					continue;
+				pr_debug("[%s]offline cpu%d\n", cdev->type, cpu);
+				remove_cpu(cpu);
+				cpumask_set_cpu(cpu, cpucore_dev->offline[i]);
+				cpumask_clear_cpu(cpu, cpucore_dev->online[i]);
+				break;
+			}
+			break;
+		default:
 			break;
 		}
-		break;
-	case CPU_UNPLUG:
-		for (i = 0; i < cpucore_dev->cluster_num; i++) {
-			if (!cpumask_weight(cpucore_dev->online[i]))
-				continue;
-			cpu = cpumask_any_and(cpucore_dev->online[i], cpu_online_mask);
-			if (cpu == nr_cpu_ids)
-				continue;
-			pr_debug("[%s]offline cpu%d\n", cdev->type, cpu);
-			remove_cpu(cpu);
-			cpumask_set_cpu(cpu, cpucore_dev->offline[i]);
-			cpumask_clear_cpu(cpu, cpucore_dev->online[i]);
-			break;
-		}
-		break;
-	default:
-		break;
 	}
 
 	return 0;
@@ -126,22 +143,23 @@ static int calculate_hotstep(struct thermal_instance *instance)
 
 	cpucore_dev = cdev->devdata;
 
-	kv_thermal_zone_get_trip(tz, instance->trip, &trip);
+	kv___thermal_zone_get_trip(tz, instance->trip, &trip);
 	trip_temp = trip.temperature;
 	hyst = trip.hysteresis;
 
 	if (tz->temperature >= (trip_temp + (cpucore_dev->hotstep + 1) * hyst)) {
 		cpucore_dev->hotstep++;
-		cpucore_dev->mode = CPU_UNPLUG;
 		pr_debug("[%s]temp:%d increase,trip:%d,hotstep:%d\n", cdev->type, tz->temperature,
 			trip_temp, cpucore_dev->hotstep);
 	}
 	if (tz->temperature < (trip_temp + cpucore_dev->hotstep * hyst) && cpucore_dev->hotstep) {
 		cpucore_dev->hotstep--;
-		cpucore_dev->mode = CPU_PLUG;
 		pr_debug("[%s]temp:%d decrease,trip:%d,hotstep:%d\n", cdev->type, tz->temperature,
 			trip_temp, cpucore_dev->hotstep);
 	}
+
+	if (cpucore_dev->hotstep > instance->upper)
+		cpucore_dev->hotstep = instance->upper;
 
 	return cpucore_dev->hotstep;
 }
@@ -200,7 +218,6 @@ static int setup_cooling_params(struct cpucore_cooling_device *cdev,
 	cdev->cpunum = 0;
 	cdev->hotstep = 0;
 	cdev->setstep = 0;
-	cdev->mode = CPU_MODE_MAX;
 	cdev->cluster_num = of_property_count_u32_elems(child, "cluster_core_num");
 	if (cdev->cluster_num < 1)
 		return -EINVAL;

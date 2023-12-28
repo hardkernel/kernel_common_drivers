@@ -30,7 +30,6 @@ struct cpucore_cooling_device {
 	int *cluster_core_num;
 	cpumask_var_t *online;
 	cpumask_var_t *offline;
-	int mode; /*plug or unplug*/
 	struct thermal_cooling_device *cool_dev;
 	int hotstep;
 	int setstep;

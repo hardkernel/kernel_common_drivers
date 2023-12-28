@@ -757,7 +757,6 @@ static void meson_thermal_hot_callback(struct thermal_zone_device *tz)
 	if (tz->temperature < 0)
 		return;
 
-	mutex_lock(&tz->lock);
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		cdev = instance->cdev;
 		switch (meson_get_cooldev_type(cdev)) {
@@ -787,7 +786,6 @@ static void meson_thermal_hot_callback(struct thermal_zone_device *tz)
 			}
 		}
 	}
-	mutex_unlock(&tz->lock);
 }
 
 static void meson_handle_thermal_trip(struct thermal_zone_device *tz, int trip, int temp)
