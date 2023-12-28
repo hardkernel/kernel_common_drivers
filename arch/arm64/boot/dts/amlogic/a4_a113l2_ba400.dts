@@ -1589,6 +1589,12 @@
 	status = "disabled";
 };
 
+&irblaster {
+	status = "disabled";
+	pinctrl-0 = <&irblaster_pins>;
+	pinctrl-names = "default";
+};
+
 &meson_amvideom {
 	status = "disabled";
 };

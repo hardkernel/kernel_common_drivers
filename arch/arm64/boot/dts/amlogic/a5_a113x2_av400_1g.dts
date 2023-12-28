@@ -1224,6 +1224,12 @@
 	status = "okay";
 };
 
+&irblaster {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&irblaster_pins>;
+};
+
 &ethmac {
 	pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
 	pinctrl-names = "default";
