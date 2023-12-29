@@ -17,7 +17,7 @@ function handle_input_parameters_for_smarthome () {
 			MENUCONFIG=1
 			shift
 			;;
-		--dtb)
+		--dtbs)
 			DTB=1
 			shift
 			;;
@@ -159,6 +159,8 @@ function only_build_dtb_for_smarthome () {
 		make ARCH=${ARCH} -C ${ROOT_DIR}/${KERNEL_DIR} O=${OUT_DIR} ${TOOL_ARGS} ${DEFCONFIG}
 		make ARCH=${ARCH} -C ${ROOT_DIR}/${KERNEL_DIR} O=${OUT_DIR} ${TOOL_ARGS} dtbs || exit
 		set +x
+		cp ${OUT_DIR}/${COMMON_DRIVERS_DIR}/arch/${ARCH}/boot/dts/amlogic/*.dtb ${DIST_DIR}
+		echo "finish building dtbs!"
 		exit
 	fi
 }
