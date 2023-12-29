@@ -117,6 +117,11 @@ struct mm_struct *aml_init_mm;
 struct device *codec_dev;
 
 #ifdef CONFIG_ARM64
+pte_t * (*aml__pte_offset_map)(pmd_t *pmd, unsigned long addr, pmd_t *pmdvalp);
+
+unsigned long (*aml_get_pfnblock_flags_mask)(const struct page *page,
+		unsigned long pfn, unsigned long mask);
+
 static void aml_set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
 {
@@ -145,7 +150,9 @@ static void aml_set_pte_at(struct mm_struct *mm, unsigned long addr,
 			aml_mte_sync_tags(old_pte, pte);
 	}
 
-	__check_racy_pte_update(mm, ptep, pte);
+	/*
+	 * __check_racy_pte_update(mm, ptep, pte);
+	 */
 
 	set_pte(ptep, pte);
 }
@@ -156,7 +163,7 @@ static bool is_cma_page(struct page *page)
 
 	if (!page)
 		return false;
-	migrate_type = get_pageblock_migratetype(page);
+	migrate_type = aml_get_pfnblock_flags_mask(page, page_to_pfn(page), MIGRATETYPE_MASK);
 	if (is_migrate_cma(migrate_type) ||
 	    is_migrate_isolate(migrate_type)) {
 		return true;
@@ -212,7 +219,7 @@ int cma_mmu_op(struct page *page, int count, bool set)
 		if (pmd_none(*pmd))
 			break;
 
-		pte = pte_offset_map(pmd, addr);
+		pte = aml__pte_offset_map(pmd, addr, NULL);
 		if (set)
 			aml_set_pte_at(mm, addr, pte, mk_pte(page, PAGE_KERNEL));
 		else
@@ -4005,6 +4012,24 @@ unsigned long (*aml_syms_lookup)(const char *name);
 static struct kprobe kp_lookup_name = {
 	.symbol_name	= "kallsyms_lookup_name",
 };
+
+static void *get_symbol_addr(const char *symbol_name)
+{
+	struct kprobe kp = {
+	.symbol_name = symbol_name,
+	};
+	int ret;
+
+	ret = register_kprobe(&kp);
+	if (ret < 0) {
+		pr_err("register_kprobe:%s failed, returned %d\n", symbol_name, ret);
+		return NULL;
+	}
+	pr_debug("symbol_name:%s addr=%px\n", symbol_name, kp.addr);
+	unregister_kprobe(&kp);
+
+	return kp.addr;
+}
 #endif
 
 int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
@@ -4027,6 +4052,10 @@ int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
 	aml_init_mm = (struct mm_struct *)aml_syms_lookup("init_mm");
 	aml_mte_sync_tags = (void (*)(pte_t old_pte, pte_t pte))aml_syms_lookup("mte_sync_tags");
 	pr_debug("aml_init_mm: %px, aml_mte_sync_tags: %px\n", aml_init_mm, aml_mte_sync_tags);
+	aml__pte_offset_map = (pte_t * (*)(pmd_t *pmd, unsigned long addr,
+				pmd_t *pmdvalp))get_symbol_addr("__pte_offset_map");
+	aml_get_pfnblock_flags_mask = (unsigned long (*)(const struct page *page,
+		unsigned long pfn, unsigned long mask))get_symbol_addr("get_pfnblock_flags_mask");
 #endif
 
 	cma = dev_get_cma_area(codec_dev);

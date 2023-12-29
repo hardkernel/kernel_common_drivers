@@ -1156,9 +1156,6 @@ void set_page_trace(struct page *page, unsigned int order, gfp_t flag, void *fun
 
 	ip = PAGE_TRACE_OFFSET;
 #endif
-#if defined(CONFIG_MEMCG) && IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
-//	trace_android_vh_mem_cgroup_alloc(root_mem_cgroup);
-#endif
 	if (!func)
 		ip = find_back_trace();
 	else

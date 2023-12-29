@@ -179,12 +179,13 @@ aml_vma_iter_first(struct rb_root_cached *root,
 #ifdef CONFIG_MEMCG
 struct mem_cgroup *aml_root_mem_cgroup;
 
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
-void get_root_memcg_hook(void *data, struct mem_cgroup *memcg)
-{
-	if (!aml_root_mem_cgroup)
-		aml_root_mem_cgroup = memcg;
-}
+#if IS_ENABLED(CONFIG_KALLSYMS_ALL)
+unsigned long (*aml_syms_lookup)(const char *name);
+
+/* For each probe you need to allocate a kprobe structure */
+static struct kprobe kp_lookup_name = {
+	.symbol_name	= "kallsyms_lookup_name",
+};
 #endif
 
 static struct mem_cgroup *aml_mem_cgroup_iter(struct mem_cgroup *root,
@@ -573,6 +574,10 @@ static const struct proc_ops filecache_ops = {
 
 int __init filecache_module_init(void)
 {
+#if defined(CONFIG_MEMCG) && defined(CONFIG_KALLSYMS_ALL)
+	int ret;
+#endif
+
 	d_filecache = proc_create("filecache", 0444,
 				  NULL, &filecache_ops);
 	if (IS_ERR_OR_NULL(d_filecache)) {
@@ -580,8 +585,18 @@ int __init filecache_module_init(void)
 		return -1;
 	}
 
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS) && defined(CONFIG_MEMCG)
-	register_trace_android_vh_mem_cgroup_alloc(get_root_memcg_hook, NULL);
+#if defined(CONFIG_MEMCG) && defined(CONFIG_KALLSYMS_ALL)
+	ret = register_kprobe(&kp_lookup_name);
+	if (ret < 0) {
+		pr_err("register_kprobe failed, returned %d\n", ret);
+		return -1;
+	}
+	pr_debug("kprobe lookup offset at %px\n", kp_lookup_name.addr);
+
+	aml_syms_lookup = (unsigned long (*)(const char *name))kp_lookup_name.addr;
+
+	aml_root_mem_cgroup = (struct mem_cgroup *)aml_syms_lookup("root_mem_cgroup");
+	pr_debug("aml_root_mem_cgroup: %px\n", aml_root_mem_cgroup);
 #endif
 	return 0;
 }
@@ -590,8 +605,8 @@ void __exit filecache_module_exit(void)
 {
 	if (d_filecache)
 		proc_remove(d_filecache);
-#if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS) && defined(CONFIG_MEMCG)
-	unregister_trace_android_vh_mem_cgroup_alloc(get_root_memcg_hook, NULL);
+#if defined(CONFIG_MEMCG) && defined(CONFIG_KALLSYMS_ALL)
+	unregister_kprobe(&kp_lookup_name);
 #endif
 }
 
