@@ -720,6 +720,7 @@ static struct clk_regmap a5_dsu_dyn_clk = {
 	.data = &(struct meson_clk_cpu_dyn_data){
 		.table = a5_dsu_dyn_table,
 		.table_cnt = ARRAY_SIZE(a5_dsu_dyn_table),
+		.smc_id = SECURE_CPU_CLK,
 		.secid_dyn_rd = SECID_DSU_PRE_CLK_RD,
 		.secid_dyn = SECID_DSU_PRE_CLK_DYN,
 	},
