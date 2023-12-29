@@ -1,4 +1,4 @@
-From 0b6a0eff8eb58eaab370ad941918342fa9ebe7bb Mon Sep 17 00:00:00 2001
+From bbb78743a692e92e6230473cfa767988ac759bc7 Mon Sep 17 00:00:00 2001
 From: Tao Zeng <tao.zeng@amlogic.com>
 Date: Fri, 20 Oct 2023 18:50:01 +0800
 Subject: [PATCH] trace: add white list for trace event [1/1]
@@ -17,16 +17,16 @@ t5m
 Change-Id: I290020fc93e6114650313328ec8757720bfc8b1d
 Signed-off-by: Tao Zeng <tao.zeng@amlogic.com>
 ---
- fs/tracefs/inode.c          | 65 +++++++++++++++++++++++++++++++++++++
- kernel/trace/trace.c        |  2 ++
- kernel/trace/trace_events.c |  8 +++++
- 3 files changed, 75 insertions(+)
+ fs/tracefs/inode.c          | 81 +++++++++++++++++++++++++++++++++++++
+ kernel/trace/trace.c        |  2 +
+ kernel/trace/trace_events.c |  8 ++++
+ 3 files changed, 91 insertions(+)
 
 diff --git a/fs/tracefs/inode.c b/fs/tracefs/inode.c
-index 8c11efca87fe..d5e19aa5a5ed 100644
+index 8c11efca87fe..6a4b449201a0 100644
 --- a/fs/tracefs/inode.c
 +++ b/fs/tracefs/inode.c
-@@ -536,6 +536,67 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
+@@ -536,6 +536,77 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
  	return end_creating(dentry);
  }
  
@@ -58,6 +58,16 @@ index 8c11efca87fe..d5e19aa5a5ed 100644
 +	"vmscan",
 +	"timer",
 +	"workqueue",
++	"oom",
++	"ipi",
++	"preemptirq",
++	"clk",
++	"mmc",
++	"cpu_frequency",
++	"devfreq",
++	"per_cpu",
++	"thermal",
++	"filemap",
 +};
 +
 +static int is_allowed_trace(const char *name)
@@ -94,22 +104,28 @@ index 8c11efca87fe..d5e19aa5a5ed 100644
  /**
   * tracefs_create_dir - create a directory in the tracefs filesystem
   * @name: a pointer to a string containing the name of the directory to
-@@ -555,6 +616,10 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
+@@ -555,6 +626,16 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
   */
  struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
  {
 +#ifdef CONFIG_AMLOGIC_MEMORY_OPT
-+	if (allow_trace_enable && !is_allowed_trace(name))
-+		return NULL;
++	if (allow_trace_enable && !is_allowed_trace(name)) {
++		if (parent) {
++			if (!strcmp(parent->d_iname, "events"))
++				return NULL;
++			if (!is_allowed_trace(parent->d_iname))
++				return NULL;
++		}
++	}
 +#endif
  	return __create_dir(name, parent, &simple_dir_inode_operations);
  }
  
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index c29f3b6b452e..844f87f53ad1 100644
+index 8668832685c3..efb5e099e753 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
-@@ -8664,8 +8664,10 @@ static struct dentry *tracing_dentry_percpu(struct trace_array *tr, int cpu)
+@@ -8688,8 +8688,10 @@ static struct dentry *tracing_dentry_percpu(struct trace_array *tr, int cpu)
  
  	tr->percpu_dir = tracefs_create_dir("per_cpu", d_tracer);
  
@@ -121,10 +137,10 @@ index c29f3b6b452e..844f87f53ad1 100644
  	return tr->percpu_dir;
  }
 diff --git a/kernel/trace/trace_events.c b/kernel/trace/trace_events.c
-index 67169a50f92a..b7baf29d3f08 100644
+index c88f5fe87d6f..86218fc060e9 100644
 --- a/kernel/trace/trace_events.c
 +++ b/kernel/trace/trace_events.c
-@@ -2320,7 +2320,9 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
+@@ -2314,7 +2314,9 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
  
  	dir->entry = tracefs_create_dir(name, parent);
  	if (!dir->entry) {
@@ -134,7 +150,7 @@ index 67169a50f92a..b7baf29d3f08 100644
  		__put_system(system);
  		goto out_free;
  	}
-@@ -2420,7 +2422,9 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
+@@ -2414,7 +2416,9 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
  	name = trace_event_name(call);
  	file->dir = tracefs_create_dir(name, d_events);
  	if (!file->dir) {
@@ -144,7 +160,7 @@ index 67169a50f92a..b7baf29d3f08 100644
  		return -1;
  	}
  
-@@ -3019,9 +3023,11 @@ __trace_add_event_dirs(struct trace_array *tr)
+@@ -3013,9 +3017,11 @@ __trace_add_event_dirs(struct trace_array *tr)
  
  	list_for_each_entry(call, &ftrace_events, list) {
  		ret = __trace_add_new_event(call, tr);
@@ -156,7 +172,7 @@ index 67169a50f92a..b7baf29d3f08 100644
  	}
  }
  
-@@ -3485,9 +3491,11 @@ static void __trace_early_add_event_dirs(struct trace_array *tr)
+@@ -3479,9 +3485,11 @@ static void __trace_early_add_event_dirs(struct trace_array *tr)
  
  	list_for_each_entry(file, &tr->events, list) {
  		ret = event_create_dir(tr->event_dir, file);
