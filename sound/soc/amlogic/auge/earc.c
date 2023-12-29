@@ -1435,7 +1435,8 @@ static void earc_dai_shutdown(struct snd_pcm_substream *substream,
 	struct earc *p_earc = snd_soc_dai_get_drvdata(cpu_dai);
 	char *clk_name = (char *)__clk_get_name(p_earc->clk_tx_dmac_srcpll);
 
-	if ((aml_return_chip_id() == CLK_NOTIFY_CHIP_ID) &&
+	if (((aml_return_chip_id() == CLK_NOTIFY_CHIP_ID) ||
+		(aml_return_chip_id() == CLK_NOTIFY_CHIP_ID_T3X)) &&
 		(p_earc->standard_tx_freq % 11025 == 0)) {
 		if (!strcmp(__clk_get_name(clk_get_parent(p_earc->clk_tx_dmac)),
 				__clk_get_name(p_earc->clk_tx_dmac_srcpll))) {

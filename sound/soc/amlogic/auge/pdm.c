@@ -865,7 +865,8 @@ static int aml_pdm_dai_set_sysclk(struct snd_soc_dai *cpu_dai,
 
 	clk_name = (char *)__clk_get_name(p_pdm->dclk_srcpll);
 	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
-		if (aml_return_chip_id() != CLK_NOTIFY_CHIP_ID) {
+		if ((aml_return_chip_id() != CLK_NOTIFY_CHIP_ID)  &&
+			(aml_return_chip_id() != CLK_NOTIFY_CHIP_ID_T3X)) {
 			pr_err("%s:set hifi pll\n", __func__);
 			if (p_pdm->syssrc_clk_rate)
 				clk_set_rate(p_pdm->dclk_srcpll, p_pdm->syssrc_clk_rate);
@@ -1282,7 +1283,8 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	if ((!IS_ERR(p_pdm->dclk_srcpll)) && (aml_return_chip_id() == CLK_NOTIFY_CHIP_ID)) {
+	if ((!IS_ERR(p_pdm->dclk_srcpll)) && ((aml_return_chip_id() == CLK_NOTIFY_CHIP_ID) ||
+		(aml_return_chip_id() == CLK_NOTIFY_CHIP_ID_T3X))) {
 		p_pdm->clk_nb.notifier_call = aml_pdm_clock_notifier;
 		p_pdm->earc_use_48k = true;
 		ret = clk_notifier_register(p_pdm->dclk_srcpll, &p_pdm->clk_nb);
@@ -1482,7 +1484,8 @@ static void pdm_platform_shutdown(struct platform_device *pdev)
 			p_pdm->force_lowpower);
 	}
 
-	if ((!IS_ERR(p_pdm->dclk_srcpll)) && (aml_return_chip_id() == CLK_NOTIFY_CHIP_ID)) {
+	if ((!IS_ERR(p_pdm->dclk_srcpll)) && ((aml_return_chip_id() == CLK_NOTIFY_CHIP_ID) ||
+		(aml_return_chip_id() == CLK_NOTIFY_CHIP_ID_T3X))) {
 		ret = clk_notifier_unregister(p_pdm->dclk_srcpll, &p_pdm->clk_nb);
 		if (ret)
 			return;

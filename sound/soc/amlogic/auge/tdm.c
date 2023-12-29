@@ -491,7 +491,8 @@ static int aml_set_tdm_mclk_2(struct aml_tdm *p_tdm,
 	}
 
 	if (p_tdm->setting.standard_sysclk % 8000 == 0) {
-		if (aml_return_chip_id() != CLK_NOTIFY_CHIP_ID) {
+		if ((aml_return_chip_id() != CLK_NOTIFY_CHIP_ID)  &&
+			(aml_return_chip_id() != CLK_NOTIFY_CHIP_ID_T3X)) {
 			ratio = MPLL_HBR_FIXED_FREQ / p_tdm->setting.standard_sysclk;
 			clk_set_rate(p_tdm->clk, freq * ratio);
 			ret = clk_set_parent(p_tdm->mclk, p_tdm->clk);
@@ -514,7 +515,8 @@ static int aml_set_tdm_mclk_2(struct aml_tdm *p_tdm,
 			}
 		}
 	} else if (p_tdm->setting.standard_sysclk % 11025 == 0) {
-		if (aml_return_chip_id() != CLK_NOTIFY_CHIP_ID) {
+		if ((aml_return_chip_id() != CLK_NOTIFY_CHIP_ID)  &&
+			(aml_return_chip_id() != CLK_NOTIFY_CHIP_ID_T3X)) {
 			ratio = MPLL_CD_FIXED_FREQ / p_tdm->setting.standard_sysclk;
 			clk_set_rate(p_tdm->clk_src_cd, freq * ratio);
 			ret = clk_set_parent(p_tdm->mclk, p_tdm->clk_src_cd);
@@ -1234,7 +1236,8 @@ static void tdm_sharebuffer_prepare(struct snd_pcm_substream *substream,
 			AUD_CODEC_TYPE_STEREO_PCM,
 			1,
 			p_tdm->chipinfo->separate_tohdmitx_en);
-		if (aml_return_chip_id() != CLK_NOTIFY_CHIP_ID) {
+		if ((aml_return_chip_id() != CLK_NOTIFY_CHIP_ID)  &&
+			(aml_return_chip_id() != CLK_NOTIFY_CHIP_ID_T3X)) {
 			struct clk *clk = p_tdm->clk;
 
 			if ((p_tdm->setting.standard_sysclk % 11025 == 0) &&
@@ -2728,7 +2731,8 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	if (IS_ERR(p_tdm->clk_src_cd))
 		dev_err(&pdev->dev, "Can't get clk_src_cd\n");
 
-	if ((!IS_ERR(p_tdm->clk)) && (aml_return_chip_id() == CLK_NOTIFY_CHIP_ID)) {
+	if ((!IS_ERR(p_tdm->clk)) && ((aml_return_chip_id() == CLK_NOTIFY_CHIP_ID) ||
+		(aml_return_chip_id() == CLK_NOTIFY_CHIP_ID_T3X))) {
 		if (p_tdm->id == 0 || p_tdm->id == 1) {
 			p_tdm->clk_nb.notifier_call = aml_tdm_clock_notifier;
 			ret = clk_notifier_register(p_tdm->clk, &p_tdm->clk_nb);
@@ -3014,7 +3018,8 @@ static void aml_tdm_platform_shutdown(struct platform_device *pdev)
 	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc3v3))
 		regulator_disable(p_tdm->regulator_vcc3v3);
 
-	if ((!IS_ERR(p_tdm->clk)) && (aml_return_chip_id() == CLK_NOTIFY_CHIP_ID)) {
+	if ((!IS_ERR(p_tdm->clk)) && ((aml_return_chip_id() == CLK_NOTIFY_CHIP_ID) ||
+		(aml_return_chip_id() == CLK_NOTIFY_CHIP_ID_T3X))) {
 		ret = clk_notifier_unregister(p_tdm->clk, &p_tdm->clk_nb);
 		if (ret)
 			return;

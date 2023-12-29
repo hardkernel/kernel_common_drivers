@@ -624,7 +624,8 @@ static void aml_spdif_platform_shutdown(struct platform_device *pdev)
 		regulator_disable(p_spdif->regulator_vcc5v);
 	if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc3v3))
 		regulator_disable(p_spdif->regulator_vcc3v3);
-	if ((!IS_ERR(p_spdif->sysclk)) && (aml_return_chip_id() == CLK_NOTIFY_CHIP_ID)) {
+	if ((!IS_ERR(p_spdif->sysclk)) && ((aml_return_chip_id() == CLK_NOTIFY_CHIP_ID) ||
+		(aml_return_chip_id() == CLK_NOTIFY_CHIP_ID_T3X))) {
 		if (p_spdif->id == 0) {
 			ret = clk_notifier_unregister(p_spdif->sysclk, &p_spdif->clk_nb);
 			if (ret)
@@ -1743,7 +1744,8 @@ static void aml_set_spdifclk_2(struct aml_spdif *p_spdif, int freq, bool tune)
 	}
 
 	if (p_spdif->standard_sysclk % 8000 == 0) {
-		if (aml_return_chip_id() != CLK_NOTIFY_CHIP_ID) {
+		if ((aml_return_chip_id() != CLK_NOTIFY_CHIP_ID)  &&
+			(aml_return_chip_id() != CLK_NOTIFY_CHIP_ID_T3X)) {
 			ratio = MPLL_HBR_FIXED_FREQ / p_spdif->standard_sysclk;
 			clk_set_rate(p_spdif->sysclk, freq * ratio);
 			spdif_set_audio_clk(p_spdif->id,
@@ -1765,7 +1767,8 @@ static void aml_set_spdifclk_2(struct aml_spdif *p_spdif, int freq, bool tune)
 			}
 		}
 	} else if (p_spdif->standard_sysclk % 11025 == 0) {
-		if (aml_return_chip_id() != CLK_NOTIFY_CHIP_ID) {
+		if ((aml_return_chip_id() != CLK_NOTIFY_CHIP_ID) &&
+			(aml_return_chip_id() != CLK_NOTIFY_CHIP_ID_T3X)) {
 			ratio = MPLL_CD_FIXED_FREQ / p_spdif->standard_sysclk;
 			clk_set_rate(p_spdif->clk_src_cd, freq * ratio);
 			spdif_set_audio_clk(p_spdif->id,
@@ -2104,7 +2107,8 @@ static int aml_spdif_parse_of(struct platform_device *pdev)
 			return PTR_ERR(p_spdif->clk_spdifout);
 		}
 	}
-	if ((!IS_ERR(p_spdif->sysclk)) && (aml_return_chip_id() == CLK_NOTIFY_CHIP_ID)) {
+	if ((!IS_ERR(p_spdif->sysclk)) && ((aml_return_chip_id() == CLK_NOTIFY_CHIP_ID) ||
+		(aml_return_chip_id() == CLK_NOTIFY_CHIP_ID_T3X))) {
 		if (p_spdif->id == 0) {
 			p_spdif->clk_nb.notifier_call = aml_spdif_clock_notifier;
 			ret = clk_notifier_register(p_spdif->sysclk, &p_spdif->clk_nb);
