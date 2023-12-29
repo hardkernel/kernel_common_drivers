@@ -594,9 +594,10 @@ static int update_table_item(u32 vpp_index, u32 addr, u32 val, u8 irq_mode)
 	int reject1 = 0, reject2 = 0, ret = 0;
 	ulong paddr;
 	static int pace_logging[VPP_NUM];
+	int handle = osd_rdma_handle[vpp_index];
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	if (item_count[vpp_index] > 500 || rdma_reset_trigger_flag) {
+	if (item_count[vpp_index] > 500 || rdma_reset_trigger_flag[handle]) {
 //#else
 //	if (item_count[vpp_index] > 500) {
 #endif
@@ -1863,6 +1864,8 @@ void enable_vsync_rdma(u32 vpp_index)
 
 void osd_rdma_interrupt_done_clear(u32 vpp_index)
 {
+	int handle = osd_rdma_handle[vpp_index];
+
 	vsync_irq_count[vpp_index]++;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
@@ -1874,7 +1877,7 @@ void osd_rdma_interrupt_done_clear(u32 vpp_index)
 	osd_rdma_done[vpp_index] = false;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	if (rdma_reset_trigger_flag) {
+	if (rdma_reset_trigger_flag[handle]) {
 		u32 rdma_status;
 
 		rdma_status =
@@ -1883,7 +1886,7 @@ void osd_rdma_interrupt_done_clear(u32 vpp_index)
 			rdma_status);
 		osd_rdma_enable(vpp_index, 0);
 		osd_rdma_enable(vpp_index, 2);
-		rdma_reset_trigger_flag = 0;
+		rdma_reset_trigger_flag[handle] = 0;
 	}
 #endif
 }

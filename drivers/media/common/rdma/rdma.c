@@ -57,7 +57,6 @@ static bool first_config[RDMA_NUM];
 static bool rdma_done[RDMA_NUM];
 static u32 cur_vsync_handle_id;
 static int ex_vsync_rdma_enable;
-static u32 rdma_reset;
 static int g_set_threshold[RDMA_NUM];
 static int g_set_threshold2[RDMA_NUM];
 static int g_cur_threshold[RDMA_NUM];
@@ -149,12 +148,6 @@ static void set_rdma_trigger_line(void)
 	aml_write_vcbus(VPP_INT_LINE_NUM, trigger_line);
 }
 
-void set_force_rdma_config(void)
-{
-	rdma_reset = 1;
-}
-EXPORT_SYMBOL(set_force_rdma_config);
-
 /*
  * Description: Determine whether to execute RDMA configuration.
  * Return:
@@ -245,7 +238,7 @@ int _vsync_rdma_config(int rdma_type)
 	int enable_ = cur_enable[rdma_type] & 0xf;
 	unsigned long flags;
 	struct timeval t;
-	int to_config;
+	int to_config, handle;
 
 	if (vsync_rdma_handle[rdma_type] <= 0)
 		return -1;
@@ -282,14 +275,15 @@ int _vsync_rdma_config(int rdma_type)
 	if (force_rdma_config[rdma_type])
 		rdma_done[rdma_type] = true;
 
+	handle = vsync_rdma_handle[rdma_type];
 	if (enable_ == 1) {
 		if (rdma_done[rdma_type])
-			iret = rdma_watchdog_setting(0);
+			iret = rdma_watchdog_setting(0, handle);
 		else
-			iret = rdma_watchdog_setting(1);
+			iret = rdma_watchdog_setting(1, handle);
 	} else {
 		/* not vsync mode */
-		iret = rdma_watchdog_setting(0);
+		iret = rdma_watchdog_setting(0, handle);
 		force_rdma_config[rdma_type] = 1;
 	}
 	rdma_done[rdma_type] = false;
@@ -297,7 +291,8 @@ int _vsync_rdma_config(int rdma_type)
 		force_rdma_config[rdma_type] = 1;
 
 	iret = 0;
-	if (to_config || force_rdma_config[rdma_type] || rdma_reset) {
+	if (to_config || force_rdma_config[rdma_type] ||
+	    rdma_reset_trigger_flag[handle]) {
 		if (enable_ == 1) {
 			if (has_multi_vpp) {
 				if (rdma_type == VSYNC_RDMA) {
@@ -379,8 +374,8 @@ int _vsync_rdma_config(int rdma_type)
 		} else {
 			force_rdma_config[rdma_type] = 0;
 			iret = 0;
-			if (rdma_reset) {
-				rdma_reset = 0;
+			if (rdma_reset_trigger_flag[handle]) {
+				rdma_reset_trigger_flag[handle] = 0;
 				iret = 1;
 			}
 		}
@@ -1363,17 +1358,17 @@ static ssize_t store_force_rdma_config(struct class *class,
 				       struct class_attribute *attr,
 				       const char *buf, size_t count)
 {
-	int i = 0;
-	int channel = 0;
+	int rdma_type = VSYNC_RDMA;
 	int parsed[2];
 
 	if (likely(parse_para(buf, 2, parsed) == 2)) {
-		channel = parsed[0];
-		if (channel < RDMA_NUM) {
-			force_rdma_config[channel] = parsed[1];
-			pr_info("force_rdma_config[%d]: %d\n", i, force_rdma_config[i]);
+		rdma_type = parsed[0];
+		if (rdma_type < RDMA_NUM) {
+			force_rdma_config[rdma_type] = parsed[1];
+			pr_info("force_rdma_config[%d]: %d\n",
+				rdma_type, force_rdma_config[rdma_type]);
 		} else {
-			pr_info("error please input: rdma_channel, force_rdma_config\n");
+			pr_info("error please input: rdma_type, force_rdma_config\n");
 		}
 	} else {
 		pr_info("error please input: rdma_channel, force_rdma_config\n");

@@ -52,9 +52,10 @@
 #define rdma_io_write(addr, val) writel((val), addr)
 
 /* #define SKIP_OSD_CHANNEL */
+#define RDMA_NUM        16
 int has_multi_vpp;
 int rdma_mgr_irq_request;
-int rdma_reset_trigger_flag;
+int rdma_reset_trigger_flag[RDMA_NUM];
 
 struct reset_control *rdma_rst;
 static int debug_flag;
@@ -63,10 +64,9 @@ static int ctrl_ahb_rd_burst_size = 3;
 static int ctrl_ahb_wr_burst_size = 3;
 static int rdma_watchdog = 20;
 static int reset_count;
-static int rdma_watchdog_count;
+static int rdma_watchdog_count[RDMA_NUM];
 static int rdma_force_reset = -1;
 
-#define RDMA_NUM        16
 #define RDMA_TABLE_SIZE (8 * (PAGE_SIZE))
 #define MAX_TRACE_NUM  16
 #define RDMA_MGR_CLASS_NAME  "rdma_mgr"
@@ -1189,31 +1189,41 @@ int rdma_buffer_unlock(int handle)
 }
 EXPORT_SYMBOL(rdma_buffer_unlock);
 
-int rdma_watchdog_setting(int flag)
+int rdma_watchdog_setting(int flag, int handle)
 {
 	int ret = 0;
 
+	if (handle < 0 || handle >= RDMA_NUM) {
+		pr_info("%s, flag:%d handle:%d out of range[0, %d)\n",
+			__func__, flag, handle, RDMA_NUM);
+		return 0;
+	}
+
 	if (flag == 0)
-		rdma_watchdog_count = 0;
+		rdma_watchdog_count[handle] = 0;
 	else
-		rdma_watchdog_count++;
+		rdma_watchdog_count[handle]++;
 
 	if (debug_flag & 8) {
 		rdma_force_reset = 1;
 		debug_flag = 0;
 	}
+	if (debug_flag & 0x40)
+		pr_info("%s, flag:%d handle:%d rdma_watchdog_count:%d\n",
+			__func__, flag, handle, rdma_watchdog_count[handle]);
+
 	if ((rdma_watchdog > 0 &&
-	     rdma_watchdog_count > rdma_watchdog) ||
+	     rdma_watchdog_count[handle] > rdma_watchdog) ||
 	     rdma_force_reset > 0) {
-		pr_info("%s rdma reset: %d, force flag:%d\n",
+		pr_info("%s rdma reset: %d, force flag:%d handle:%d\n",
 			__func__,
-			rdma_watchdog_count,
-			rdma_force_reset);
-		rdma_watchdog_count = 0;
+			rdma_watchdog_count[handle],
+			rdma_force_reset,
+			handle);
+		rdma_watchdog_count[handle] = 0;
 		rdma_force_reset = 0;
 		rdma_reset(1);
-		rdma_reset_trigger_flag = 1;
-		set_force_rdma_config();
+		rdma_reset_trigger_flag[handle] = 1;
 		ret = 1;
 	}
 	return ret;
@@ -1336,7 +1346,7 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 		int i;
 
 			pr_info("%s(%d, %x, %x ,%d) buf overflow, ins->rdma_item_count=%d\n",
-				__func__, rdma_watchdog_count,
+				__func__, rdma_watchdog_count[handle],
 				handle, adr, val,
 				ins->rdma_item_count);
 		for (i = 0; i < ins->rdma_item_count; i++)

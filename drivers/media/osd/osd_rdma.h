@@ -10,7 +10,7 @@
 #include "osd_io.h"
 #include "osd_reg.h"
 
-extern int rdma_reset_trigger_flag;
+extern int rdma_reset_trigger_flag[];
 extern int rdma_mgr_irq_request;
 extern u32 osd_rdma_flag_reg[];
 extern u32 rdma_detect_reg;
