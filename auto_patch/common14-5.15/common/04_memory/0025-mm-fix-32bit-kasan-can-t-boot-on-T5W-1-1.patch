@@ -33,7 +33,7 @@ index ae5f69292a11..f271626c9888 100644
  	mov	r1, #0
  	bl	__memset			@ clear .bss
  
-+#if defined (CONFIG_KASAN) && defined (CONFIG_AMLOGIC_VMAP)
++#if defined (CONFIG_KASAN)
 +	/* After bss cleard, kasan_early_shadow_page are 0 in cache
 +	 * But on A55 it's physical memory keeps random data, this
 +	 * physical page will be mapped to shadow memory very soon(few
