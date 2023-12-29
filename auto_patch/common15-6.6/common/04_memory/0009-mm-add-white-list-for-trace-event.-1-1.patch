@@ -1,4 +1,4 @@
-From c1edd70dd71c42c420658e18fea75a4ab3bf161b Mon Sep 17 00:00:00 2001
+From 87dcec55adfdcbef31776dd720edd1db621abc5d Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Thu, 21 Dec 2023 15:09:46 +0800
 Subject: [PATCH] mm: add white list for trace event. [1/1]
@@ -17,16 +17,16 @@ local.
 Change-Id: I7f19805516e2d6f8c7e6ab4b3540336ff27e382a
 Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
 ---
- fs/tracefs/inode.c          | 65 +++++++++++++++++++++++++++++++++++++
- kernel/trace/trace.c        |  2 ++
- kernel/trace/trace_events.c |  8 +++++
- 3 files changed, 75 insertions(+)
+ fs/tracefs/inode.c          | 81 +++++++++++++++++++++++++++++++++++++
+ kernel/trace/trace.c        |  2 +
+ kernel/trace/trace_events.c |  8 ++++
+ 3 files changed, 91 insertions(+)
 
 diff --git a/fs/tracefs/inode.c b/fs/tracefs/inode.c
-index 891653ba9cf3..cf09f370dc69 100644
+index 891653ba9cf3..9c59ecac5f3e 100644
 --- a/fs/tracefs/inode.c
 +++ b/fs/tracefs/inode.c
-@@ -654,6 +654,67 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
+@@ -654,6 +654,77 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
  	return tracefs_end_creating(dentry);
  }
  
@@ -58,6 +58,16 @@ index 891653ba9cf3..cf09f370dc69 100644
 +	"vmscan",
 +	"timer",
 +	"workqueue",
++	"oom",
++	"ipi",
++	"preemptirq",
++	"clk",
++	"mmc",
++	"cpu_frequency",
++	"devfreq",
++	"per_cpu",
++	"thermal",
++	"filemap",
 +};
 +
 +static int is_allowed_trace(const char *name)
@@ -94,13 +104,19 @@ index 891653ba9cf3..cf09f370dc69 100644
  /**
   * tracefs_create_dir - create a directory in the tracefs filesystem
   * @name: a pointer to a string containing the name of the directory to
-@@ -676,6 +737,10 @@ struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
+@@ -676,6 +747,16 @@ struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
  	if (security_locked_down(LOCKDOWN_TRACEFS))
  		return NULL;
  
 +#ifdef CONFIG_AMLOGIC_MEMORY_OPT
-+	if (allow_trace_enable && !is_allowed_trace(name))
-+		return NULL;
++	if (allow_trace_enable && !is_allowed_trace(name)) {
++		if (parent) {
++			if (!strcmp(parent->d_iname, "events"))
++				return NULL;
++			if (!is_allowed_trace(parent->d_iname))
++				return NULL;
++		}
++	}
 +#endif
  	return __create_dir(name, parent, &simple_dir_inode_operations);
  }
