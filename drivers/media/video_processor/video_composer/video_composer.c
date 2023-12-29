@@ -1217,105 +1217,135 @@ struct vframe_s *videocomposer_vf_peek(void *op_arg)
 			return vf;
 		}
 
-		if ((vf->vc_private->flag & VC_FLAG_AI_SR) == 0)
-			return vf;
+		if (vf->vc_private->flag & VC_FLAG_AI_SR) {
+			nn_status = vf->vc_private->srout_data->nn_status;
+			nn_mode = vf->vc_private->srout_data->nn_mode;
 
-		nn_status = vf->vc_private->srout_data->nn_status;
-		nn_mode = vf->vc_private->srout_data->nn_mode;
-
-		vc_print(dev->index, PRINT_NN,
-			"peek:nn_status=%d, nn_index=%d, nn_mode=%d, PHY=%llx, nn out:%d*%d, hf:%d*%d,hf_align:%d*%d\n",
-			vf->vc_private->srout_data->nn_status,
-			vf->vc_private->srout_data->nn_index,
-			vf->vc_private->srout_data->nn_mode,
-			vf->vc_private->srout_data->nn_out_phy_addr,
-			vf->vc_private->srout_data->nn_out_width,
-			vf->vc_private->srout_data->nn_out_height,
-			vf->vc_private->srout_data->hf_width,
-			vf->vc_private->srout_data->hf_height,
-			vf->vc_private->srout_data->hf_align_w,
-			vf->vc_private->srout_data->hf_align_h);
-		if (nn_status != NN_DONE) {
-			if (nn_status == NN_INVALID) {
-				vf->vc_private->flag &= ~VC_FLAG_AI_SR;
-				vc_print(dev->index, PRINT_NN | PRINT_OTHER,
-					"nn status is invalid, need bypass");
-				return vf;
-			} else if (nn_status == NN_WAIT_DOING) {
-				vc_print(dev->index, PRINT_FENCE | PRINT_NN,
-					"peek: nn wait doing, nn_index =%d, omx_index=%d, nn_status=%d,srout_data=%px\n",
-					vf->vc_private->srout_data->nn_index,
-					vf->omx_index,
-					vf->vc_private->srout_data->nn_status,
-					vf->vc_private->srout_data);
-				return NULL;
-			} else if (nn_status == NN_DISPLAYED) {
-				vc_print(dev->index, PRINT_ERROR,
-					"peek: nn_status err, nn_index =%d, omx_index=%d, nn_status=%d\n",
-					vf->vc_private->srout_data->nn_index,
-					vf->omx_index,
-					vf->vc_private->srout_data->nn_status);
-				return vf;
-			}
-
-			if (!(vf->type_original & VIDTYPE_INTERLACE)) {
-				if (!(dev->nn_mode_flag & 0x1) && nn_mode == 1) {
-					dev->nn_mode_flag |= 0x1;
-					bypass_nn = true;
-				} else if (!(dev->nn_mode_flag & 0x2) && nn_mode == 2) {
-					dev->nn_mode_flag |= 0x2;
-					bypass_nn = true;
-				} else if (!(dev->nn_mode_flag & 0x4) && nn_mode == 3) {
-					dev->nn_mode_flag |= 0x4;
-					bypass_nn = true;
-				}
-			} else {
-				if (!(dev->nn_mode_flag & 0x100) && nn_mode == 1) {
-					dev->nn_mode_flag |= 0x100;
-					bypass_nn = true;
-				} else if (!(dev->nn_mode_flag & 0x200) && nn_mode == 2) {
-					dev->nn_mode_flag |= 0x200;
-					bypass_nn = true;
-				} else if (!(dev->nn_mode_flag & 0x400) && nn_mode == 3) {
-					dev->nn_mode_flag |= 0x400;
-					bypass_nn = true;
-				}
-			}
-
-			if (bypass_nn) {
-				vf->vc_private->flag &= ~VC_FLAG_AI_SR;
-				vc_print(dev->index, PRINT_NN,
-					"nn mode change, bypass first frame\n");
-				return vf;
-			}
-
-			do_gettimeofday(&now_time);
-			nn_start_time = vf->vc_private->srout_data->start_time;
-			nn_used_time = (u64)1000000 *
-				(now_time.tv_sec - nn_start_time.tv_sec)
-				+ now_time.tv_usec - nn_start_time.tv_usec;
-
-			if (nn_used_time < (nn_need_time - nn_margin_time))
-				canbe_peek = false;
-			vc_print(dev->index, PRINT_FENCE | PRINT_NN,
-				"peek: nn not done, nn_index = %d, omx_index = %d, nn_status = %d, nn_used_time = %lld, canbe_peek = %d.\n",
-				vf->vc_private->srout_data->nn_index,
-				vf->omx_index,
+			vc_print(dev->index, PRINT_NN,
+				"peek:nn_status=%d, nn_index=%d, nn_mode=%d, PHY=%llx, nn out:%d*%d, hf:%d*%d,hf_align:%d*%d\n",
 				vf->vc_private->srout_data->nn_status,
-				nn_used_time,
-				canbe_peek);
-			if (!canbe_peek) {
+				vf->vc_private->srout_data->nn_index,
+				vf->vc_private->srout_data->nn_mode,
+				vf->vc_private->srout_data->nn_out_phy_addr,
+				vf->vc_private->srout_data->nn_out_width,
+				vf->vc_private->srout_data->nn_out_height,
+				vf->vc_private->srout_data->hf_width,
+				vf->vc_private->srout_data->hf_height,
+				vf->vc_private->srout_data->hf_align_w,
+				vf->vc_private->srout_data->hf_align_h);
+			if (nn_status != NN_DONE) {
+				if (nn_status == NN_INVALID) {
+					vf->vc_private->flag &= ~VC_FLAG_AI_SR;
+					vc_print(dev->index, PRINT_NN | PRINT_OTHER,
+						"nn status is invalid, need bypass");
+					return vf;
+				} else if (nn_status == NN_WAIT_DOING) {
+					vc_print(dev->index, PRINT_FENCE | PRINT_NN,
+						"peek: nn wait doing, nn_index =%d, omx_index=%d, nn_status=%d,srout_data=%px\n",
+						vf->vc_private->srout_data->nn_index,
+						vf->omx_index,
+						vf->vc_private->srout_data->nn_status,
+						vf->vc_private->srout_data);
+					return NULL;
+				} else if (nn_status == NN_DISPLAYED) {
+					vc_print(dev->index, PRINT_ERROR,
+						"peek: nn_status err, nn_index =%d, omx_index=%d, nn_status=%d\n",
+						vf->vc_private->srout_data->nn_index,
+						vf->omx_index,
+						vf->vc_private->srout_data->nn_status);
+					return vf;
+				}
+
+				if (!(vf->type_original & VIDTYPE_INTERLACE)) {
+					if (!(dev->nn_mode_flag & 0x1) && nn_mode == 1) {
+						dev->nn_mode_flag |= 0x1;
+						bypass_nn = true;
+					} else if (!(dev->nn_mode_flag & 0x2) && nn_mode == 2) {
+						dev->nn_mode_flag |= 0x2;
+						bypass_nn = true;
+					} else if (!(dev->nn_mode_flag & 0x4) && nn_mode == 3) {
+						dev->nn_mode_flag |= 0x4;
+						bypass_nn = true;
+					}
+				} else {
+					if (!(dev->nn_mode_flag & 0x100) && nn_mode == 1) {
+						dev->nn_mode_flag |= 0x100;
+						bypass_nn = true;
+					} else if (!(dev->nn_mode_flag & 0x200) && nn_mode == 2) {
+						dev->nn_mode_flag |= 0x200;
+						bypass_nn = true;
+					} else if (!(dev->nn_mode_flag & 0x400) && nn_mode == 3) {
+						dev->nn_mode_flag |= 0x400;
+						bypass_nn = true;
+					}
+				}
+
+				if (bypass_nn) {
+					vf->vc_private->flag &= ~VC_FLAG_AI_SR;
+					vc_print(dev->index, PRINT_NN,
+						"nn mode change, bypass first frame\n");
+					return vf;
+				}
+
+				do_gettimeofday(&now_time);
+				nn_start_time = vf->vc_private->srout_data->start_time;
+				nn_used_time = (u64)1000000 *
+					(now_time.tv_sec - nn_start_time.tv_sec)
+					+ now_time.tv_usec - nn_start_time.tv_usec;
+
+				if (nn_used_time < (nn_need_time - nn_margin_time))
+					canbe_peek = false;
 				vc_print(dev->index, PRINT_FENCE | PRINT_NN,
-				"peek:fail: nn not done, nn_index =%d, omx_index=%d, nn_status=%d, nn_used_time=%lld canbe_peek=%d\n",
+					"peek: nn not done, nn_index = %d, omx_index = %d, nn_status = %d, nn_used_time = %lld, canbe_peek = %d.\n",
 					vf->vc_private->srout_data->nn_index,
 					vf->omx_index,
 					vf->vc_private->srout_data->nn_status,
 					nn_used_time,
 					canbe_peek);
-				return NULL;
+				if (!canbe_peek) {
+					vc_print(dev->index, PRINT_FENCE | PRINT_NN,
+					"peek:fail: nn not done, nn_index =%d, omx_index=%d, nn_status=%d, nn_used_time=%lld canbe_peek=%d\n",
+						vf->vc_private->srout_data->nn_index,
+						vf->omx_index,
+						vf->vc_private->srout_data->nn_status,
+						nn_used_time,
+						canbe_peek);
+					return NULL;
+				}
 			}
 		}
-
+		if (vf->vc_private->flag & VC_FLAG_AI_COLOR) {
+			vc_print(dev->index, PRINT_NN,
+				"peek: aicolor is enable\n");
+			nn_status = vf->vc_private->aicolor_info->nn_status;
+			vc_print(dev->index, PRINT_NN, "peek: aicolor_status=%d", nn_status);
+			if (nn_status != NN_DONE) {
+				if (nn_status == NN_INVALID) {
+					vf->vc_private->flag &= ~VC_FLAG_AI_COLOR;
+					vc_print(dev->index, PRINT_NN | PRINT_OTHER,
+						"aicolor status is invalid, need bypass");
+					return vf;
+				} else if (nn_status == NN_WAIT_DOING) {
+					vc_print(dev->index, PRINT_FENCE | PRINT_NN,
+						"peek: aicolor wait doing, omx_index=%d, aicolor_status=%d\n",
+						vf->omx_index,
+						vf->vc_private->aicolor_info->nn_status);
+					return NULL;
+				} else if (nn_status == NN_START_DOING) {
+					vc_print(dev->index, PRINT_FENCE | PRINT_NN,
+						"peek: aicolor start doing, omx_index=%d, aicolor_status=%d\n",
+						vf->omx_index,
+						vf->vc_private->aicolor_info->nn_status);
+					return NULL;
+				} else if (nn_status == NN_DISPLAYED) {
+					vc_print(dev->index, PRINT_ERROR,
+						"peek: aicolor_status err, omx_index=%d, aicolor_status=%d\n",
+						vf->omx_index,
+						vf->vc_private->aicolor_info->nn_status);
+					return vf;
+				}
+			}
+		}
 		return vf;
 	} else {
 		return NULL;
@@ -1357,7 +1387,10 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 		if (vf->vc_private->srout_data->nn_status == NN_DONE)
 			vf->vc_private->srout_data->nn_status = NN_DISPLAYED;
 	}
-
+	if (vf->vc_private && vf->vc_private->aicolor_info) {
+		if (vf->vc_private->aicolor_info->nn_status == NN_DONE)
+			vf->vc_private->aicolor_info->nn_status = NN_DISPLAYED;
+	}
 	vc_print(dev->index, PRINT_FENCE,
 		 "put: repeat_count =%d, omx_index=%d, index_disp=%x\n",
 		 repeat_count, omx_index, index_disp);
@@ -3082,28 +3115,6 @@ static void video_wait_sr_fence(struct composer_dev *dev,
 	}
 }
 
-static void video_wait_aicolor_ready(struct composer_dev *dev,
-				struct vf_aicolor_t *aicolor_info)
-{
-	int wait_count = 0;
-
-	while (1) {
-		if (aicolor_info->nn_status != NN_DONE &&
-			(aicolor_info->nn_status == NN_WAIT_DOING ||
-			aicolor_info->nn_status == NN_START_DOING)) {
-			usleep_range(2000, 2100);
-			wait_count++;
-			vc_print(dev->index, PRINT_PATTERN | PRINT_AIFACE,
-				"aicolor wait count %d, nn_status=%d\n",
-				wait_count, aicolor_info->nn_status);
-		} else {
-			break;
-		}
-	}
-	vc_print(dev->index, PRINT_PATTERN | PRINT_AIFACE,
-		 "aicolor wait %dms nn_status=%d\n", 2 * wait_count, aicolor_info->nn_status);
-}
-
 static bool check_vf_has_afbc(struct composer_dev *dev, struct file *file_vf)
 {
 	struct vframe_s *vf = NULL;
@@ -3644,10 +3655,11 @@ static void video_composer_task(struct composer_dev *dev)
 				}
 				aicolor_info = vc_get_aicolor_info(dev, file_vf);
 				if (aicolor_info) {
-					video_wait_aicolor_ready(dev, aicolor_info);
-					if (aicolor_info->nn_status == NN_DONE) {
+					nn_status = aicolor_info->nn_status;
+					if (nn_status == NN_WAIT_DOING ||
+						nn_status == NN_START_DOING ||
+						nn_status == NN_DONE) {
 						vf->vc_private->aicolor_info = aicolor_info;
-						aicolor_info->nn_status = NN_DISPLAYED;
 						vc_private->flag |= VC_FLAG_AI_COLOR;
 					}
 				}
