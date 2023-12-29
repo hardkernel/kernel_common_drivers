@@ -642,7 +642,7 @@ static int amlogic_pcie_rd_own_conf(struct pci_bus *bus, u32 devfn,
 static void __iomem *amlogic_pcie_own_conf_map_bus(struct pci_bus *bus,
 						   unsigned int devfn, int where)
 {
-	struct pcie_port *pp = bus->sysdata;
+	struct dw_pcie_rp *pp = bus->sysdata;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	u32 val;
 
@@ -712,7 +712,7 @@ err_linkup:
 	return -ETIMEDOUT;
 }
 
-static int amlogic_pcie_host_init(struct pcie_port *pp)
+static int amlogic_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct amlogic_pcie *aml_pcie = to_amlogic_pcie(pci);
@@ -817,7 +817,7 @@ static void amlogic_pcie_ltssm_disable(struct amlogic_pcie *aml_pcie)
 static int amlogic_pcie_suspend_noirq(struct device *dev)
 {
 	struct amlogic_pcie *aml_pcie = dev_get_drvdata(dev);
-	struct pcie_port *pp = &aml_pcie->pci.pp;
+	struct dw_pcie_rp *pp = &aml_pcie->pci.pp;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	u32 ctrl, num_ctrls;
 
@@ -840,7 +840,7 @@ static int amlogic_pcie_resume_noirq(struct device *dev)
 {
 	int ret;
 	struct amlogic_pcie *aml_pcie = dev_get_drvdata(dev);
-	struct pcie_port *pp = &aml_pcie->pci.pp;
+	struct dw_pcie_rp *pp = &aml_pcie->pci.pp;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	u32 ctrl, num_ctrls;
 
@@ -885,7 +885,7 @@ static const struct dev_pm_ops aml_pcie_pm_ops = {
 static int amlogic_pcie_remove(struct platform_device *pdev)
 {
 	struct amlogic_pcie *aml_pcie = platform_get_drvdata(pdev);
-	struct pcie_port *pp = &aml_pcie->pci.pp;
+	struct dw_pcie_rp *pp = &aml_pcie->pci.pp;
 
 	dw_pcie_host_deinit(pp);
 	amlogic_pcie_disable_clocks(aml_pcie);

@@ -85,7 +85,7 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/drivers/net/ethernet/stmicro/stmmac/stmmac-platform.ko",
     "common_drivers/drivers/net/mdio/amlogic-mdio-g12a.ko",
     "common_drivers/drivers/net/phy/amlogic-inphy.ko",
-    #"common_drivers/drivers/pci/controller/amlogic_pcie_v2_host.ko",
+    "common_drivers/drivers/pci/controller/amlogic_pcie_v2_host.ko",
     "common_drivers/drivers/pci/controller/amlogic-pcie-v3_host.ko",
     "common_drivers/drivers/pm/amlogic-pm.ko",
     "common_drivers/drivers/power/amlogic-power.ko",
