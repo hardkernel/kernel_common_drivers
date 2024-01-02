@@ -280,14 +280,20 @@ static struct sg_table *dmabuf_manage_map_dma_buf(struct dma_buf_attachment *att
 {
 	struct kdmabuf_attachment *attach = attachment->priv;
 	struct dmabuf_manage_block *block = attachment->dmabuf->priv;
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	struct mutex *lock = &attachment->dmabuf->lock;
+#endif
 	struct sg_table *sgt;
 
 	pr_enter();
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	mutex_lock(lock);
+#endif
 	sgt = &attach->sgt;
 	if (attach->dma_dir == dma_dir) {
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 		mutex_unlock(lock);
+#endif
 		return sgt;
 	}
 	sgt->sgl->dma_address = block->paddr;
@@ -299,7 +305,9 @@ static struct sg_table *dmabuf_manage_map_dma_buf(struct dma_buf_attachment *att
 	pr_dbg("nents %d, %x, %d, %d\n", sgt->nents, block->paddr,
 			sg_dma_len(sgt->sgl), block->size);
 	attach->dma_dir = dma_dir;
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	mutex_unlock(lock);
+#endif
 	return sgt;
 }
 
