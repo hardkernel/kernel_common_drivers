@@ -3087,6 +3087,27 @@ static int vdx_misc_early_proc(u8 layer_id,
 
 static void vdx_misc_late_proc(u8 layer_id)
 {
+	if (layer_id == 0) {
+		/* prevsync + postvsync case */
+		if (cur_dev->pre_vsync_enable) {
+			u32 pts_inc_scale_base = 0;
+
+			if (frc_n2m_worked())
+				pts_inc_scale_base = vsync_pts_inc_scale_base / 2;
+			else
+				pts_inc_scale_base = vsync_pts_inc_scale_base;
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
+			videoqueue_pcrscr_update(vsync_pts_inc_scale,
+				pts_inc_scale_base);
+#endif
+		} else {
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
+			videoqueue_pcrscr_update(vsync_pts_inc_scale,
+				vsync_pts_inc_scale_base);
+#endif
+		}
+	}
+
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	if (cur_dev->vsync_2to1_enable &&
 		layer_id == 0 &&
