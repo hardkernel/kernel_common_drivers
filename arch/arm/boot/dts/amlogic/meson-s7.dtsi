@@ -5,6 +5,7 @@
 
 #include <dt-bindings/clock/axg-audio-clkc.h>
 #include <dt-bindings/clock/s7-clkc.h>
+#include <dt-bindings/clock/s7-scmi-clk.h>
 #include <dt-bindings/clock/g12a-aoclkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -137,6 +138,34 @@
 					entry-latency-us = <0x3fffffff>;
 					exit-latency-us = <0x40000000>;
 					min-residency-us = <0xffffffff>;
+			};
+		};
+	};
+
+	shmem@050f8e00 {
+		compatible = "mmio-sram";
+		reg = <0x0 0x050f8e00 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x0 0x050f8e00 0x100>;
+
+		scmi_shmem: shmem@0 {
+			compatible = "arm,scmi-shmem";
+			reg = <0x0 0x100>;
+		};
+	};
+
+	firmware {
+		scmi: scmi {
+			compatible = "arm,scmi-smc";
+			arm,smc-id = <0x820000C1>;
+			shmem = <&scmi_shmem>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			scmi_clk: protocol@14 {
+				reg = <0x14>;
+				#clock-cells = <1>;
 			};
 		};
 	};
@@ -884,8 +913,10 @@
 				reg = <0x0 0x49c>,
 				      <0x8000 0x384>;
 				reg-names = "basic", "pll";
-				clocks = <&xtal>;
-				clock-names = "xtal";
+				clocks = <&xtal>,
+					 <&scmi_clk CLKID_GP1PLL>,
+					 <&scmi_clk CLKID_PLL_TOP>;
+				clock-names = "xtal", "gp1pll", "pll_top_in";
 				status = "okay";
 			};
 
@@ -2973,7 +3004,7 @@
 	 * MALI_0 and MALI_1 muxed to a single clock by a glitch
 	 * free mux to safely change frequency while running.
 	 */
-	assigned-clocks = <&clkc CLKID_GP1_PLL>,
+	assigned-clocks = <&scmi_clk CLKID_GP1PLL>,
 			<&clkc CLKID_MALI_0_SEL>,
 			<&clkc CLKID_MALI_0>,
 			<&clkc CLKID_MALI>; /* Glitch free mux */
