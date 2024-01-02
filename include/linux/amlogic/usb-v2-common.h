@@ -32,7 +32,7 @@ struct amlogic_usb_v2 {
 	void __iomem	*usb2_phy_cfg;
 	void __iomem	*xhci_port_a_addr;
 	u32 pll_setting[8];
-	u32 analog_process_nm;
+	u32 pll_ver;
 	u32 pll_dis_thred_enhance;
 	int phy_cfg_state[4];
 	int phy_trim_initvalue[8];
@@ -75,6 +75,8 @@ struct amlogic_usb_v2 {
 	int	(*usb2_get_mode)(void);
 	void (*phy_trim_tuning)(struct usb_phy *x,
 		int port, int default_val);
+	void (*set_usb_pll)(struct amlogic_usb_v2 *phy,
+				void __iomem *reg);
 };
 
 static inline void

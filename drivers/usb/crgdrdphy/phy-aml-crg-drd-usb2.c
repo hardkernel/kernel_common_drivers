@@ -23,8 +23,12 @@
 
 struct amlogic_usb_v2	*g_crg_drd_phy2[2];
 char name_crg[32];
-#define TUNING_CRG_DRD_DISCONNECT_THRESHOLD 0x3f
-#define TUNING_CRG_DRD_DISCONNECT_THRESHOLD_22NM 0x7f
+
+#define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT_5_0 0x3f
+#define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0 0x7f
+/* TODO: if this field is changed again, use this marco instand. */
+#define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_MASK(a, b)\
+		(((u32)-1 >> (31 - (b))) & ~((1U << (a)) - 1))
 
 static void usb_set_calibration_trim
 	(void __iomem *reg, struct amlogic_usb_v2 *phy)
@@ -118,7 +122,7 @@ static void set_usb_phy_trim_tuning
 	aml_phy->phy_trim_state[port] = default_val;
 }
 
-static void set_usb_pll(struct amlogic_usb_v2 *phy, void __iomem	*reg)
+static void set_usb_pll_v0(struct amlogic_usb_v2 *phy, void __iomem	*reg)
 {
 	u32 val;
 
@@ -130,7 +134,7 @@ static void set_usb_pll(struct amlogic_usb_v2 *phy, void __iomem	*reg)
 	writel((0x10000000 | (phy->pll_setting[0])), reg + 0x40);
 
 	/**write 0x0c must write 0x78000 to 0x34**/
-	writel(TUNING_CRG_DRD_DISCONNECT_THRESHOLD, reg + 0xC);
+	writel(PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT_5_0, reg + 0xC);
 	/* PHY Tune */
 	if (g_crg_drd_phy2[phy->phy_id]) {
 		if (g_crg_drd_phy2[phy->phy_id]->phy_version) {
@@ -167,7 +171,7 @@ static void set_usb_pll(struct amlogic_usb_v2 *phy, void __iomem	*reg)
 	}
 }
 
-static void set_usb_pll_22nm(struct amlogic_usb_v2 *phy, void __iomem	*reg)
+static void set_usb_pll_v1(struct amlogic_usb_v2 *phy, void __iomem	*reg)
 {
 #define USBPLL_RESET_BIT 18
 #define USBPLL_LK_RESET_BIT 28
@@ -190,11 +194,53 @@ __retry:
 	// wait for 200us
 	usleep_range(199, 200);
 
-	writel(TUNING_CRG_DRD_DISCONNECT_THRESHOLD_22NM, reg + 0xC);
+	writel(PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0, reg + 0xC);
 	usleep_range(199, 200);
 
 	//check lock bit
 	if (readl(reg + 0x40) >> 31)
+		return;
+
+	retry--;
+	if (!retry)
+		return;
+
+	goto __retry;
+}
+
+static void set_usb_pll_v2(struct amlogic_usb_v2 *phy, void __iomem	*reg)
+{
+#define USBPLL_LK_RST_BIT	28
+#define USBPLL_EN_BIT		11
+#define USB2_MPLL_EN_CTRL_BIT 1
+#define USBPLL_RST_BIT		0
+
+	u32 retry = 5;
+	u32 pll_val0 = phy->pll_setting[0],
+		pll_val1 = phy->pll_setting[1];
+
+__retry:
+	writel(pll_val0 | (1 << USBPLL_LK_RST_BIT) |
+		(1 << USB2_MPLL_EN_CTRL_BIT) | (1 << USBPLL_RST_BIT),
+		(reg + 0x40));
+	usleep_range(99, 100);
+	writel(pll_val1, (reg + 0x44));
+	usleep_range(99, 100);
+	writel(pll_val0 | (1 << USBPLL_LK_RST_BIT) |
+		(1 << USB2_MPLL_EN_CTRL_BIT) | (1 << USBPLL_RST_BIT) | (1 << USBPLL_EN_BIT),
+		(reg + 0x40));
+	usleep_range(99, 100);
+	writel(pll_val0 | (1 << USBPLL_LK_RST_BIT) |
+		(1 << USB2_MPLL_EN_CTRL_BIT) | (1 << USBPLL_EN_BIT), (reg + 0x40));
+	usleep_range(99, 100);
+	writel(pll_val0 | (1 << USB2_MPLL_EN_CTRL_BIT) | (1 << USBPLL_EN_BIT),
+		(reg + 0x40));
+	usleep_range(99, 100);
+	writel(PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0, reg + 0xC);
+	// wait for 200us
+	usleep_range(199, 200);
+	//check lock bit
+	if (readl((reg + 0x40)) >> 31)
 		return;
 
 	retry--;
@@ -302,17 +348,7 @@ static int amlogic_crg_drd_usb2_init(struct usb_phy *x)
 
 	/* step 7: pll setting */
 	for (i = 0; i < phy->portnum; i++) {
-		switch (phy->analog_process_nm) {
-		case 22:
-			set_usb_pll_22nm(phy, phy->phy_cfg[i]);
-			break;
-		case 12:
-			set_usb_pll(phy, phy->phy_cfg[i]);
-			break;
-		default:
-			dev_err(phy->dev, "Failed setting usbpll due to analog_process_nm mismatch.");
-			break;
-		}
+		phy->set_usb_pll(phy, phy->phy_cfg[i]);
 		set_trim_initvalue(phy, phy->phy_cfg[i], i);
 	}
 
@@ -403,17 +439,7 @@ int amlogic_crg_device_usb2_init(u32 phy_id)
 
 	/* step 7: pll setting */
 	for (i = 0; i < phy->portnum; i++) {
-		switch (phy->analog_process_nm) {
-		case 22:
-			set_usb_pll_22nm(phy, phy->phy_cfg[i]);
-			break;
-		case 12:
-			set_usb_pll(phy, phy->phy_cfg[i]);
-			break;
-		default:
-			dev_err(phy->dev, "Failed setting usbpll due to analog_process_nm mismatch.");
-			break;
-		}
+		phy->set_usb_pll(phy, phy->phy_cfg[i]);
 		set_trim_initvalue(phy, phy->phy_cfg[i], i);
 	}
 
@@ -512,7 +538,7 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 	int retval;
 	u32 pll_setting[8] = {0};
 	u32 pll_disconnect_enhance;
-	u32 analog_process_nm;
+	u32 pll_ver;
 	u32 phy_reset_level_bit[USB_PHY_MAX_NUMBER] = {-1};
 	u32 usb_reset_bit = 2;
 	u32 otg_phy_index = 1;
@@ -656,42 +682,31 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 
 	retval = of_property_read_u32(dev->of_node,
 		"pll-setting-3", &pll_setting[2]);
-	if (retval < 0)
-		return -EINVAL;
 
 	retval = of_property_read_u32(dev->of_node,
 		"pll-setting-4", &pll_setting[3]);
-	if (retval < 0)
-		return -EINVAL;
 
 	retval = of_property_read_u32(dev->of_node,
 		"pll-setting-5", &pll_setting[4]);
-	if (retval < 0)
-		return -EINVAL;
 
 	retval = of_property_read_u32(dev->of_node,
 		"pll-setting-6", &pll_setting[5]);
-	if (retval < 0)
-		return -EINVAL;
 
 	retval = of_property_read_u32(dev->of_node,
 			"pll-setting-7", &pll_setting[6]);
-	if (retval < 0)
-		return -EINVAL;
 
 	retval = of_property_read_u32(dev->of_node,
 			"pll-setting-8", &pll_setting[7]);
-	if (retval < 0)
-		return -EINVAL;
+
 	retval = of_property_read_u32(dev->of_node,
 		"dis-thred-enhance", &pll_disconnect_enhance);
 	if (retval < 0)
 		pll_disconnect_enhance = 0;
 
 	retval = of_property_read_u32(dev->of_node,
-		"analog_process_nm", &analog_process_nm);
+		"pll-version", &pll_ver);
 	if (retval < 0)
-		analog_process_nm = 12;
+		pll_ver = 0;
 
 	dev_info(&pdev->dev, "USB2 phy probe:phy_mem:0x%lx, iomap phy_base:0x%lx\n",
 			(unsigned long)phy_mem->start, (unsigned long)phy_base);
@@ -716,7 +731,7 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 	phy->pll_setting[6] = pll_setting[6];
 	phy->pll_setting[7] = pll_setting[7];
 	phy->pll_dis_thred_enhance = pll_disconnect_enhance;
-	phy->analog_process_nm = analog_process_nm;
+	phy->pll_ver = pll_ver;
 	phy->suspend_flag = 0;
 	phy->phy_version = phy_version;
 	phy->otg_phy_index = otg_phy_index;
@@ -744,6 +759,21 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 			return retval;
 		}
 		phy->phy.flags = AML_USB2_PHY_ENABLE;
+	}
+
+	switch (phy->pll_ver) {
+	case 0:
+		phy->set_usb_pll = set_usb_pll_v0;
+		break;
+	case 1:
+		phy->set_usb_pll = set_usb_pll_v1;
+		break;
+	case 2:
+		phy->set_usb_pll = set_usb_pll_v2;
+		break;
+	default:
+		dev_err(phy->dev, "No matching pll-version.");
+		return -EINVAL;
 	}
 
 	usb_add_phy_dev(&phy->phy);
