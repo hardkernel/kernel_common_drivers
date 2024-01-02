@@ -25,6 +25,7 @@
 #include <linux/amlogic/file_cache.h>
 #include <linux/tick.h>
 #include <trace/hooks/mm.h>
+#include <linux/amlogic/pin_file.h>
 
 static int file_cache_filter = 64; /* not print size < file_cache_filter, kb */
 
@@ -176,7 +177,7 @@ aml_vma_iter_first(struct rb_root_cached *root,
 	return aml_vma_subtree_search(node, start, last);
 }
 
-#ifdef CONFIG_MEMCG
+#if IS_MODULE(CONFIG_AMLOGIC_MEMORY_DEBUG)
 struct mem_cgroup *aml_root_mem_cgroup;
 
 #if IS_ENABLED(CONFIG_KALLSYMS_ALL)
@@ -188,10 +189,11 @@ static struct kprobe kp_lookup_name = {
 };
 #endif
 
-static struct mem_cgroup *aml_mem_cgroup_iter(struct mem_cgroup *root,
+static struct mem_cgroup __nocfi * aml_mem_cgroup_iter(struct mem_cgroup *root,
 				   struct mem_cgroup *prev,
 				   struct mem_cgroup_reclaim_cookie *reclaim)
 {
+	struct mem_cgroup_reclaim_iter *iter;
 	struct cgroup_subsys_state *css = NULL;
 	struct mem_cgroup *memcg = NULL;
 	struct mem_cgroup *pos = NULL;
@@ -202,10 +204,40 @@ static struct mem_cgroup *aml_mem_cgroup_iter(struct mem_cgroup *root,
 	if (!root)
 		root = aml_root_mem_cgroup;
 
-	if (prev && !reclaim)
-		pos = prev;
-
 	rcu_read_lock();
+
+	if (reclaim) {
+		struct mem_cgroup_per_node *mz;
+
+		mz = root->nodeinfo[reclaim->pgdat->node_id];
+		iter = &mz->iter;
+
+		/*
+		 * On start, join the current reclaim iteration cycle.
+		 * Exit when a concurrent walker completes it.
+		 */
+		if (!prev)
+			reclaim->generation = iter->generation;
+		else if (reclaim->generation != iter->generation)
+			goto out_unlock;
+
+		while (1) {
+			pos = READ_ONCE(iter->position);
+			if (!pos || css_tryget(&pos->css))
+				break;
+			/*
+			 * css reference reached zero, so iter->position will
+			 * be cleared by ->css_released. However, we should not
+			 * rely on this happening soon, because ->css_released
+			 * is called from a work queue, and by busy-waiting we
+			 * might block it. So we clear iter->position right
+			 * away.
+			 */
+			(void)cmpxchg(&iter->position, pos, NULL);
+		}
+	} else if (prev) {
+		pos = prev;
+	}
 
 	if (pos)
 		css = &pos->css;
@@ -229,17 +261,28 @@ static struct mem_cgroup *aml_mem_cgroup_iter(struct mem_cgroup *root,
 		 * is provided by the caller, so we know it's alive
 		 * and kicking, and don't take an extra reference.
 		 */
-		memcg = mem_cgroup_from_css(css);
-
-		if (css == &root->css)
+		if (css == &root->css || css_tryget(css)) {
+			memcg = mem_cgroup_from_css(css);
 			break;
-
-		if (css_tryget(css))
-			break;
-
-		memcg = NULL;
+		}
 	}
 
+	if (reclaim) {
+		/*
+		 * The position could have already been updated by a competing
+		 * thread, so check that the value hasn't changed since we read
+		 * it to avoid reclaiming from the same cgroup twice.
+		 */
+		(void)cmpxchg(&iter->position, pos, memcg);
+
+		if (pos)
+			css_put(&pos->css);
+
+		if (!memcg)
+			iter->generation++;
+	}
+
+out_unlock:
 	rcu_read_unlock();
 	if (prev && prev != root)
 		css_put(&prev->css);
@@ -247,7 +290,7 @@ static struct mem_cgroup *aml_mem_cgroup_iter(struct mem_cgroup *root,
 	return memcg;
 }
 
-static inline struct lruvec *aml_mem_cgroup_lruvec(struct mem_cgroup *memcg,
+static inline struct lruvec __nocfi * aml_mem_cgroup_lruvec(struct mem_cgroup *memcg,
 					       struct pglist_data *pgdat)
 {
 	struct mem_cgroup_per_node *mz;
@@ -304,8 +347,7 @@ static void statistic_filecache_info(struct filecache_stat *fs,
 
 	for_each_lru(lru) {
 		/* only count for filecache */
-		if (!is_file_lru(lru) &&
-				lru != LRU_UNEVICTABLE)
+		if (!is_file_lru(lru))
 			continue;
 
 		if (lru == LRU_ACTIVE_FILE)
@@ -352,35 +394,34 @@ out:	/* update final statistics */
 	fs->nomap[2] += an;
 }
 
-static void update_file_cache(struct filecache_stat *fs,
+static void __nocfi update_file_cache(struct filecache_stat *fs,
 		struct file_cache_trace *fct)
 {
 	struct lruvec *lruvec;
-	pg_data_t *pgdat, *tmp;
-	struct mem_cgroup *root = NULL, *memcg;
+	pg_data_t *pgdat;
+	struct mem_cgroup *memcg;
 
 	/* for_each_online_pgdat(pgdat) { */
 	for (pgdat = aml_first_online_pgdat(); pgdat; pgdat = aml_next_online_pgdat(pgdat)) {
-#ifdef CONFIG_MEMCG
+#if IS_MODULE(CONFIG_AMLOGIC_MEMORY_DEBUG)
 		if (!aml_root_mem_cgroup)
 			return;
-		memcg = aml_mem_cgroup_iter(root, NULL, NULL);
+		memcg = aml_mem_cgroup_iter(NULL, NULL, NULL);
 #else
-		memcg = mem_cgroup_iter(root, NULL, NULL);
+		memcg = mem_cgroup_iter(NULL, NULL, NULL);
 #endif
 		do {
-#ifdef CONFIG_MEMCG
+#if IS_MODULE(CONFIG_AMLOGIC_MEMORY_DEBUG)
 			lruvec = aml_mem_cgroup_lruvec(memcg, pgdat);
 #else
 			lruvec = mem_cgroup_lruvec(memcg, pgdat);
 #endif
-			tmp = lruvec_pgdat(lruvec);
-
 			statistic_filecache_info(fs, fct, lruvec);
-#ifdef CONFIG_MEMCG
-		} while ((memcg =  aml_mem_cgroup_iter(root, memcg, NULL)));
+			cond_resched();
+#if IS_MODULE(CONFIG_AMLOGIC_MEMORY_DEBUG)
+		} while ((memcg =  aml_mem_cgroup_iter(NULL, memcg, NULL)));
 #else
-		} while ((memcg =  mem_cgroup_iter(root, memcg, NULL)));
+		} while ((memcg =  mem_cgroup_iter(NULL, memcg, NULL)));
 #endif
 	}
 }
@@ -418,7 +459,7 @@ static char *parse_fct_name(struct file_cache_trace *fct, char *buf)
 		else
 			return NULL;
 	}
-	if (mapping->flags & (1 << 6))
+	if (mapping->flags & (1 << AS_LOCK_MAPPING))
 		strncat(buf, " [pin]", 255);
 
 	return buf;
@@ -574,8 +615,9 @@ static const struct proc_ops filecache_ops = {
 
 int __init filecache_module_init(void)
 {
-#if defined(CONFIG_MEMCG) && defined(CONFIG_KALLSYMS_ALL)
+#if IS_MODULE(CONFIG_AMLOGIC_MEMORY_DEBUG) && IS_ENABLED(CONFIG_KALLSYMS_ALL)
 	int ret;
+	unsigned long root_addr;
 #endif
 
 	d_filecache = proc_create("filecache", 0444,
@@ -585,7 +627,7 @@ int __init filecache_module_init(void)
 		return -1;
 	}
 
-#if defined(CONFIG_MEMCG) && defined(CONFIG_KALLSYMS_ALL)
+#if IS_MODULE(CONFIG_AMLOGIC_MEMORY_DEBUG) && IS_ENABLED(CONFIG_KALLSYMS_ALL)
 	ret = register_kprobe(&kp_lookup_name);
 	if (ret < 0) {
 		pr_err("register_kprobe failed, returned %d\n", ret);
@@ -595,8 +637,9 @@ int __init filecache_module_init(void)
 
 	aml_syms_lookup = (unsigned long (*)(const char *name))kp_lookup_name.addr;
 
-	aml_root_mem_cgroup = (struct mem_cgroup *)aml_syms_lookup("root_mem_cgroup");
-	pr_debug("aml_root_mem_cgroup: %px\n", aml_root_mem_cgroup);
+	root_addr = *(unsigned long *)aml_syms_lookup("root_mem_cgroup");
+	aml_root_mem_cgroup = (struct mem_cgroup *)root_addr;
+	pr_info("aml_root_mem_cgroup: %px\n", aml_root_mem_cgroup);
 #endif
 	return 0;
 }
@@ -605,7 +648,7 @@ void __exit filecache_module_exit(void)
 {
 	if (d_filecache)
 		proc_remove(d_filecache);
-#if defined(CONFIG_MEMCG) && defined(CONFIG_KALLSYMS_ALL)
+#if IS_MODULE(CONFIG_AMLOGIC_MEMORY_DEBUG) && IS_ENABLED(CONFIG_KALLSYMS_ALL)
 	unregister_kprobe(&kp_lookup_name);
 #endif
 }
