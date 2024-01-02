@@ -793,7 +793,8 @@ void dolby5_mmu_config(u8 *baddr, int num)
 	}
 }
 
-#define OVLAP_HSIZE 96
+#define INPUT_OVLAP_HSIZE 96
+#define OUTPUT_OVLAP_HSIZE 32
 static void dolby5_dpth_ctrl(int hsize, int vsize, struct vd_proc_info_t *vd_proc_info)
 {
 	enum top2_source core2_src = FROM_VD1;/*0:from vdin  1:from vd1 2:from di*/
@@ -819,38 +820,40 @@ static void dolby5_dpth_ctrl(int hsize, int vsize, struct vd_proc_info_t *vd_pro
 	u32 vd1_slice0_vsize = 2160;/*2160*/
 	u32 vd1_slice1_hsize = 1920 + 96;/*1920 + 96*/
 	u32 vd1_slice1_vsize = 2160;/*2160*/
-	u32 slice0_extra_size = 7;/*output overlap*/
-	u32 slice1_extra_size = 9;
+	u32 slice0_extra_size = 32;/*output extra*/
+	u32 slice1_extra_size = 32;
 	u32 max_output_extra;
-	u32 input_extra = OVLAP_HSIZE;
+	u32 input_extra = INPUT_OVLAP_HSIZE;
 	u32 slice_en;
 	u32 slice_num = 1;
+	u32 vd1_slice0_hsize_amdv = 1920 + 96;/*amdv input, mif size*/
+	u32 vd1_slice1_hsize_amdv = 1920 + 96;
 
 	if (vd_proc_info) {
 		slice_num = vd_proc_info->slice_num;
 		if (slice_num == 2) {
+			vd1_slice0_hsize_amdv = vd_proc_info->slice[0].hsize_amdv;
+			vd1_slice1_hsize_amdv = vd_proc_info->slice[1].hsize_amdv;
 			vd1_slice0_hsize = vd_proc_info->slice[0].hsize;
 			vd1_slice0_vsize = vd_proc_info->slice[0].vsize;
 			vd1_slice1_hsize = vd_proc_info->slice[1].hsize;
 			vd1_slice1_vsize = vd_proc_info->slice[1].vsize;
-			slice0_extra_size = vd_proc_info->overlap_size;/*amdv output overlap*/
-			slice1_extra_size =	vd_proc_info->overlap_size;
 		}
 	} else {
 		pr_dv_dbg("please check vd_proc_info\n");
 	}
+	if ((debug_dolby & 0x80000) && vd_proc_info)
+		pr_info("num %d,disp size %dx%d,slice hsize %d %d,out size %dx%d %dx%d,overlap %d %d\n",
+			slice_num, vd1_hsize, vd1_vsize,
+			vd1_slice0_hsize_amdv,
+			vd1_slice1_hsize_amdv,
+			vd1_slice0_hsize, vd1_slice0_vsize,
+			vd1_slice1_hsize, vd1_slice1_vsize,
+			vd_proc_info->overlap_size_amdvin,
+			vd_proc_info->overlap_size);
 
 	slice_en = slice_num == 2 ? 0x3 : 0x1;
 	ovlp_en = slice_num == 2 ? 0x1 : 0x0;
-
-	if ((debug_dolby & 0x80000) && vd_proc_info)
-		pr_info("slice %d,size %d %d %d %d %d %d %d %d %d %d\n",
-				slice_num, vd1_hsize, vd1_vsize,
-				vd1_slice0_hsize, vd1_slice0_vsize,
-				vd1_slice1_hsize, vd1_slice1_vsize,
-				vd_proc_info->overlap_size_amdvin,
-				vd_proc_info->overlap_size,
-				slice0_extra_size, slice1_extra_size);
 
 	VSYNC_WR_DV_REG_BITS(VPU_DOLBY_WRAP_CTRL, core2_src & 0x3, 0, 2);//reg_dv_out_sel
 	VSYNC_WR_DV_REG_BITS(VPU_DOLBY_WRAP_CTRL, core2_src & 0x3, 2, 2);//reg_dv_in_sel
@@ -906,57 +909,81 @@ static void dolby5_dpth_ctrl(int hsize, int vsize, struct vd_proc_info_t *vd_pro
 	}
 
 	if (slice_num == 2 && vd_proc_info) {
-		if (vd1_slice0_hsize > vd1_hsize / 2) {
-			input_extra = vd1_slice0_hsize - vd1_hsize / 2;
-			if (input_extra != OVLAP_HSIZE ||
-				vd_proc_info->overlap_size_amdvin != OVLAP_HSIZE)
-				pr_info("amdv input extra overlap %d != %d\n",
-						input_extra, OVLAP_HSIZE);
-
+		/*vd1_slice0_hsize_amdv must be same as vd1_slice1_hsize_amdv*/
+		if (vd1_slice0_hsize_amdv  != vd1_slice1_hsize_amdv)
+			pr_dv_dbg("amdv input slice0 hsize %d != slice1 %d\n",
+					vd1_slice0_hsize_amdv, vd1_slice1_hsize_amdv);
+		if (vd1_slice0_vsize != vd1_slice1_vsize)
+			pr_dv_dbg("amdv input slice0 vsize %d != slice1 %d\n",
+					vd1_slice0_vsize, vd1_slice1_vsize);
+		if (vd1_slice0_hsize_amdv > vd1_hsize / 2) {
+			input_extra = vd1_slice0_hsize_amdv - vd1_hsize / 2;
+			if (input_extra != INPUT_OVLAP_HSIZE ||
+				vd_proc_info->overlap_size_amdvin != INPUT_OVLAP_HSIZE)
+				pr_dv_error("amdv input extra overlap %d, %d != %d\n",
+						input_extra, vd_proc_info->overlap_size_amdvin,
+						INPUT_OVLAP_HSIZE);
+		} else {
+			pr_dv_error("amdv input slice hsize %d < disp size %d\n",
+					vd1_slice0_hsize_amdv, vd1_hsize / 2);
 		}
+		if (vd1_slice0_hsize > vd1_hsize / 2) {
+			slice0_extra_size = vd1_slice0_hsize - vd1_hsize / 2;/*amdv output overlap*/
+		} else {
+			pr_dv_error("amdv output slice0 hsize %d < disp size %d\n",
+					vd1_slice0_hsize, vd1_hsize / 2);
+		}
+		if (vd1_slice1_hsize > vd1_hsize / 2) {
+			slice1_extra_size = vd1_slice1_hsize - vd1_hsize / 2;/*amdv output overlap*/
+		} else {
+			pr_dv_error("amdv output slice0 hsize %d < disp size %d\n",
+					vd1_slice1_hsize, vd1_hsize / 2);
+		}
+
 		max_output_extra = slice1_extra_size > slice0_extra_size ?
 							slice1_extra_size : slice0_extra_size;
 		ovlp_ahsize = (max_output_extra + 15) / 16 * 16;/*align to 16*/
-
-		ovlp_ihsize = vd1_hsize / 2;
-		ovlp_ivsize = vd1_vsize;
+		if (ovlp_ahsize > 96)
+			pr_dv_error("amdv output overlap %d too large\n", ovlp_ahsize);
+		//ovlp_ahsize = 96;//fixed 96, make it big enough
 
 		win0.ovlp_win_en = 1;
-		win0.ovlp_win_hsize = vd1_slice0_hsize;
+		win0.ovlp_win_hsize = vd1_slice0_hsize_amdv;
 		win0.ovlp_win_vsize = vd1_slice0_vsize;
 		win0.ovlp_win_hbgn = 0;
-		win0.ovlp_win_hend = ovlp_ihsize - 1;
+		win0.ovlp_win_hend = vd1_hsize / 2 - 1;
 		win0.ovlp_win_vbgn = 0;
-		win0.ovlp_win_vend = ovlp_ivsize - 1;
+		win0.ovlp_win_vend = vd1_slice0_vsize - 1;
 
 		win1.ovlp_win_en = 1;
-		win1.ovlp_win_hsize = vd1_slice1_hsize;
+		win1.ovlp_win_hsize = vd1_slice1_hsize_amdv;
 		win1.ovlp_win_vsize = vd1_slice1_vsize;
-		win1.ovlp_win_hbgn = input_extra;
-		win1.ovlp_win_hend = ovlp_ihsize - 1 + win1.ovlp_win_hbgn;
+		win1.ovlp_win_hbgn = vd_proc_info->overlap_size_amdvin;
+		win1.ovlp_win_hend = vd1_slice1_hsize_amdv - 1;
 		win1.ovlp_win_vbgn = 0;
-		win1.ovlp_win_vend = ovlp_ivsize - 1;
+		win1.ovlp_win_vend = vd1_slice1_vsize - 1;
 
 		win2.ovlp_win_en = 1;
-		win2.ovlp_win_hsize = ovlp_ihsize + ovlp_ahsize;
+		win2.ovlp_win_hsize = vd1_hsize / 2 + ovlp_ahsize;
 		win2.ovlp_win_vsize = vd1_slice0_vsize;
 		win2.ovlp_win_hbgn = 0;
-		win2.ovlp_win_hend = ovlp_ihsize - 1 + slice0_extra_size;
+		win2.ovlp_win_hend = vd1_slice0_hsize - 1;
 		win2.ovlp_win_vbgn = 0;
-		win2.ovlp_win_vend = ovlp_ivsize - 1;
+		win2.ovlp_win_vend = vd1_slice0_vsize - 1;
 
 		win3.ovlp_win_en = 1;
-		win3.ovlp_win_hsize = ovlp_ihsize + ovlp_ahsize;
+		win3.ovlp_win_hsize = vd1_hsize / 2 + ovlp_ahsize;
 		win3.ovlp_win_vsize = vd1_slice1_vsize;
 		win3.ovlp_win_hbgn = ovlp_ahsize - slice1_extra_size;
-		win3.ovlp_win_hend = ovlp_ihsize + ovlp_ahsize - 1;
+		win3.ovlp_win_hend = win3.ovlp_win_hsize - 1;
 		win3.ovlp_win_vbgn = 0;
-		win3.ovlp_win_vend = ovlp_ivsize - 1;
+		win3.ovlp_win_vend = vd1_slice1_vsize - 1;
 
 		if (debug_dolby & 0x80000) {
-			pr_info("scaler_in_hsize %d %d, output_extra %d, ovlp_ahsize %d\n",
+			pr_info("scaler_in_hsize %d %d,slice output extra %d,%d=>%d,ovlp_ahsize %d\n",
 					vd_proc_info->slice[0].scaler_in_hsize,
 					vd_proc_info->slice[1].scaler_in_hsize,
+					slice0_extra_size, slice1_extra_size,
 					max_output_extra, ovlp_ahsize);
 			pr_info("win0: %d %d %2d %d %2d %d\n",
 					win0.ovlp_win_hsize, win0.ovlp_win_vsize,
@@ -1558,8 +1585,8 @@ int tv_top2_set(u64 *reg_data,
 
 	u32 py_stride[7] = {128, 128, 128, 128, 128, 128, 128};
 
-	u32 vd1_slice0_hsize = hsize;/*1920 + 96, todo*/
-	u32 vd1_slice0_vsize = vsize;/*2160*/
+	u32 vd1_slice0_hsize_amdv = hsize;/*1920 + 96, todo*/
+	u32 vd1_slice0_vsize_amdv = vsize;/*2160*/
 	u32 slice_num = 1;/*1 or 2, todo, need update from vpp*/
 	bool tmp_reset = false;
 	static int tmp_cnt;
@@ -1748,8 +1775,8 @@ int tv_top2_set(u64 *reg_data,
 	if (vd_proc_info) {
 		slice_num = vd_proc_info->slice_num;
 		if (slice_num == 2) {
-			vd1_slice0_hsize = vd_proc_info->slice[0].hsize;
-			vd1_slice0_vsize = vd_proc_info->slice[0].vsize;
+			vd1_slice0_hsize_amdv = vd_proc_info->slice[0].hsize_amdv;
+			vd1_slice0_vsize_amdv = vd_proc_info->slice[0].vsize;
 		}
 	}
 	if ((test_dv & DEBUG_5065_RGB_BUG) &&
@@ -1868,7 +1895,7 @@ int tv_top2_set(u64 *reg_data,
 		//		pr_dv_dbg("missed top1\n");
 		//}
 
-		dolby5_top2_ini(vd1_slice0_hsize, vd1_slice0_vsize,
+		dolby5_top2_ini(vd1_slice0_hsize_amdv, vd1_slice0_vsize_amdv,
 				py_baddr, py_stride);
 
 		//VSYNC_WR_DV_REG_BITS(DOLBY_TOP2_RDMA_CTRL, 1, 28, 1);//shadow_en

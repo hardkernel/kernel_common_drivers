@@ -2149,6 +2149,7 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 			     toggle_mode, vf, src_format);
 		amdv_target_mode = current_mode;
 		dolby_vision_mode = current_mode;
+		amdv_wait_on = true;
 	} else {
 		/*not clear target mode when:*/
 		/*no mode change && no vf && target is not bypass */

@@ -384,6 +384,7 @@ static inline int amvideo_notifier_call_chain(unsigned long val, void *v)
 #define POST_SLICE_NUM 4
 #define VD_SLICE_NUM   4
 struct slice_info {
+	u32 hsize_amdv; /* slice hsize input for amdv */
 	u32 hsize;     /*slice hsize*/
 	u32 vsize;     /*slice vsize*/
 	u32 scaler_in_hsize;

@@ -209,6 +209,7 @@ struct vd_proc_mosaic_s {
 struct vd_proc_slice_info_s {
 	/* vd1 Real input size to each slice */
 	/* with overlap */
+	u32 vd1_slice_din_hsize_amdv[SLICE_NUM];
 	u32 vd1_slice_din_hsize[SLICE_NUM];
 	u32 vd1_slice_din_vsize[SLICE_NUM];
 	u32 vd1_slice_x_st[SLICE_NUM];

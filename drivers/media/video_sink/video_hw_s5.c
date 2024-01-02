@@ -1365,8 +1365,10 @@ ssize_t video_vd_proc_state_dump(char *buf)
 	vd_proc_vd2_info = &vd_proc->vd_proc_vd2_info;
 	vd_proc_preblend_info = &vd_proc->vd_proc_preblend_info;
 
-	len += sprintf(buf + len, "slice_num:[%d]\n",
-		vd_proc_vd1_info->slice_num);
+	len += sprintf(buf + len, "slice_num:[%d], overlap_hsize %d %d\n",
+		vd_proc_vd1_info->slice_num,
+		vd_proc_vd1_info->vd1_overlap_hsize_amdvin,
+		vd_proc_vd1_info->vd1_overlap_hsize);
 	len += sprintf(buf + len, "vd1_work_mode:[%s]\n",
 		work_mode_info[vd_proc_vd1_info->vd1_work_mode]);
 	len += sprintf(buf + len, "vd1_slices_dout_dpsel:[%s]\n",
@@ -4347,20 +4349,29 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 
 			vd_proc_slice_info->vd1_slice_din_hsize[slice] =
 				o_valid_pix_din_hsize[slice] +
-				vd_proc_vd1_info->vd1_overlap_hsize_amdvin;
+				vd_proc_vd1_info->vd1_overlap_hsize;
+			/* for t3x 2slice dv input must same */
+			if (video_is_meson_t3x_cpu() &&
+				cur_dev->amdv_tvcore && is_amdv_on())
+				vd_proc_slice_info->vd1_slice_din_hsize_amdv[slice] =
+					vd_proc_vd1_info->vd1_src_din_hsize[0] / 2 +
+					vd_proc_vd1_info->vd1_overlap_hsize_amdvin;
+			else
+				vd_proc_slice_info->vd1_slice_din_hsize_amdv[slice] =
+					vd_proc_slice_info->vd1_slice_din_hsize[slice];
 
 			if (slice == 0) {
 				vd_proc_slice_info->vd1_slice_x_st[slice] =
 					vd_proc_vd1_info->crop_left;
 				vd_proc_slice_info->vd1_slice_x_end[slice] =
 					vd_proc_slice_info->vd1_slice_x_st[0] +
-					vd_proc_slice_info->vd1_slice_din_hsize[0] - 1;
+					vd_proc_slice_info->vd1_slice_din_hsize_amdv[0] - 1;
 			} else {
 #ifdef NEW_PRE_SCALER
 				vd_proc_slice_info->vd1_slice_x_st[slice] =
 					vd_proc_slice_info->vd1_slice_x_st[0] +
 					pps_prehsc_dout_hsize -
-					vd_proc_slice_info->vd1_slice_din_hsize[1];
+					vd_proc_slice_info->vd1_slice_din_hsize_amdv[1];
 				vd_proc_slice_info->vd1_slice_x_end[slice] =
 					vd_proc_slice_info->vd1_slice_x_st[0] +
 					pps_prehsc_dout_hsize - 1;
@@ -4368,7 +4379,7 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 				vd_proc_slice_info->vd1_slice_x_st[slice] =
 					vd_proc_slice_info->vd1_slice_x_st[0] +
 					vd_proc_vd1_info->vd1_src_din_hsize[0] -
-					vd_proc_slice_info->vd1_slice_din_hsize[1];
+					vd_proc_slice_info->vd1_slice_din_hsize_amdv[1];
 				vd_proc_slice_info->vd1_slice_x_end[slice] =
 					vd_proc_slice_info->vd1_slice_x_st[0] +
 					vd_proc_vd1_info->vd1_src_din_hsize[0] - 1;
@@ -4483,8 +4494,9 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 				__func__, slice,
 				vd_proc_vd1_info->vd1_src_din_hsize[slice],
 				vd_proc_vd1_info->vd1_proc_unit_dout_hsize[slice]);
-			pr_info("%s:vd1_slice_din_hsize=%d, slice_x_st=%d, slice_x_end=%d\n",
+			pr_info("%s:vd1_slice_din_hsize=%d(amdv input), %d, slice_x_st=%d, slice_x_end=%d\n",
 				__func__,
+				vd_proc_slice_info->vd1_slice_din_hsize_amdv[slice],
 				vd_proc_slice_info->vd1_slice_din_hsize[slice],
 				vd_proc_slice_info->vd1_slice_x_st[slice],
 				vd_proc_slice_info->vd1_slice_x_end[slice]);
@@ -4858,10 +4870,12 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 	vd_proc_vd1_info = &vd_proc->vd_proc_vd1_info;
 	vd_proc_slice_info = &vd_proc->vd_proc_slice_info;
 	vd_proc_unit = &vd_proc->vd_proc_unit[slice];
+	/* for t3x amdv*/
 	slice_din_hsize = vd_proc_slice_info->vd1_slice_din_hsize[slice];
-	din_hsize = slice_din_hsize -
-		vd_proc_vd1_info->vd1_overlap_hsize_amdvin +
-		vd_proc_vd1_info->vd1_overlap_hsize;
+	din_hsize = slice_din_hsize;
+	//din_hsize = slice_din_hsize -
+	//	vd_proc_vd1_info->vd1_overlap_hsize_amdvin +
+	//	vd_proc_vd1_info->vd1_overlap_hsize;
 	din_vsize = vd_proc_slice_info->vd1_slice_din_vsize[slice];
 
 	dout_vsize = vd_proc_vd1_info->vd1_proc_unit_dout_vsize[slice];
@@ -5803,6 +5817,8 @@ static void update_vd_proc_amdv_info(struct vd_proc_s *vd_proc)
 	vd_proc_amdv.overlap_size = vd_proc->vd_proc_vd1_info.vd1_overlap_hsize;
 	for (i = 0; i < vd_proc->vd_proc_vd1_info.slice_num; i++) {
 		/* slice input */
+		vd_proc_amdv.slice[i].hsize_amdv =
+			vd_proc->vd_proc_slice_info.vd1_slice_din_hsize_amdv[i];
 		vd_proc_amdv.slice[i].hsize =
 			vd_proc->vd_proc_slice_info.vd1_slice_din_hsize[i];
 		vd_proc_amdv.slice[i].vsize =
@@ -11723,6 +11739,10 @@ void set_video_slice_policy(struct video_layer_s *layer,
 	const struct vinfo_s *vinfo = get_current_vinfo();
 	static bool last_vd1s1_vd2_prebld_en;
 	static bool slice_stable;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	static bool last_amdv_status;
+	static bool amdv_status;
+#endif
 
 	if (cur_dev->display_module != S5_DISPLAY_MODULE)
 		return;
@@ -11854,6 +11874,17 @@ void set_video_slice_policy(struct video_layer_s *layer,
 		layer->pi_enable = vd2_pi_enable;
 	if (g_vd1s1_vd2_prebld_en != 0xff)
 		layer->vd1s1_vd2_prebld_en = g_vd1s1_vd2_prebld_en;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	amdv_status = is_amdv_on();
+	if (last_amdv_status != amdv_status && slice_num == 2) {
+		vd_layer[0].property_changed = true;/*update overlap*/
+		if (debug_flag)
+			pr_info("%s amdv_status change %d=>%d\n",
+				__func__, last_amdv_status, amdv_status);
+	}
+	last_amdv_status = amdv_status;
+#endif
 }
 
 /* for dw */
