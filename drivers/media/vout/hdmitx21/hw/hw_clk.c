@@ -920,7 +920,6 @@ static void set_hdmitx_s5_htx_pll(struct hdmitx_dev *hdev)
 
 	set21_s5_htxpll_clk_out(htx_vco, div);
 }
-#endif
 
 void set_hdmitx_s7_htx_pll(struct hdmitx_dev *hdev)
 {
@@ -997,6 +996,7 @@ void set_hdmitx_s7_htx_pll(struct hdmitx_dev *hdev)
 
 	set21_s7_htxpll_clk_out(htx_vco, div);
 }
+#endif
 
 static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 			struct hw_enc_clk_val_group *test_clk)
@@ -1008,7 +1008,9 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 	enum hdmi_vic vic = para->timing.vic;
 	enum hdmi_colorspace cs = para->cs;
 	enum hdmi_color_depth cd = para->cd;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	u8 clk_div_val = VID_PLL_DIV_5;
+#endif
 
 	struct hw_enc_clk_val_group tmp_clk = {0};
 
@@ -1059,7 +1061,6 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 1, 19, 1);
 		return;
 	}
-#endif
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) { //s7 todo
 		set_hdmitx_s7_htx_pll(hdev);
 		if (cs != HDMI_COLORSPACE_YUV422) {
@@ -1099,6 +1100,7 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 1, 19, 1);
 		return;
 	}
+#endif
 	/* YUV 422 always use 24B mode */
 	if (cs == HDMI_COLORSPACE_YUV422)
 		cd = COLORDEPTH_24B;
