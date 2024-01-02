@@ -1,40 +1,41 @@
-From 2cc4d1389d3091ceee53ea2519eba59b23643044 Mon Sep 17 00:00:00 2001
+From 71ffa2fd7ea5cfaa8aa577753efbdf1a323dc1e6 Mon Sep 17 00:00:00 2001
 From: Dezhen Wang <dezhen.wang@amlogic.com>
-Date: Fri, 29 Dec 2023 10:42:03 +0000
-Subject: [PATCH] bring up: add vendor hook for kernel6.6 [1/1]
+Date: Tue, 2 Jan 2024 09:48:22 +0000
+Subject: [PATCH] bring up: adjust vendor hook android_rvh_place_entity for
+ kernel6.6 [1/1]
 
 PD#SWPL-151469
 
 Problem:
-loss vendor hook
+autopatch 0001-bring-up-add-vendor-hook-for-kernel6.6-1-1.patch	build
+error
 
 Solution:
-add vendor hook
+adjust the autopatch name
 
 Verify:
-SC2/AH212
+local
 
-Change-Id: I8b4f50d05814d67d8d60949aad59d15013bb3f3a
+Change-Id: I8cee2d29d269a4583c31a6296ca7fd35c46e12e4
 Signed-off-by: Dezhen Wang <dezhen.wang@amlogic.com>
 ---
- include/trace/hooks/sched.h | 5 +++++
+ include/trace/hooks/sched.h | 4 ++++
  kernel/sched/fair.c         | 1 +
  kernel/sched/vendor_hooks.c | 1 +
- 3 files changed, 7 insertions(+)
+ 3 files changed, 6 insertions(+)
 
 diff --git a/include/trace/hooks/sched.h b/include/trace/hooks/sched.h
-index 20255a477947..e847bf56f295 100644
+index b3b4bfeb7527..d873cbe88150 100644
 --- a/include/trace/hooks/sched.h
 +++ b/include/trace/hooks/sched.h
-@@ -255,6 +255,11 @@ DECLARE_HOOK(android_vh_set_wake_flags,
- 	TP_PROTO(int *wake_flags, unsigned int *mode),
- 	TP_ARGS(wake_flags, mode));
+@@ -263,6 +263,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_tick_entry,
+ 	TP_PROTO(struct rq *rq),
+ 	TP_ARGS(rq), 1);
  
 +struct sched_entity;
 +DECLARE_RESTRICTED_HOOK(android_rvh_place_entity,
-+    TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial, u64 *vruntime),
-+    TP_ARGS(cfs_rq, se, initial, vruntime), 1);
-+
++	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial, u64 *vruntime),
++	TP_ARGS(cfs_rq, se, initial, vruntime), 1);
  /* macro versions of hooks are no longer required */
  
  #endif /* _TRACE_HOOK_SCHED_H */
@@ -51,13 +52,13 @@ index 0e144aa8188a..614d30e452ae 100644
  
  static void check_enqueue_throttle(struct cfs_rq *cfs_rq);
 diff --git a/kernel/sched/vendor_hooks.c b/kernel/sched/vendor_hooks.c
-index 0838a1b58ac4..53d0ea40c22d 100644
+index 4073938f68c7..2a63f09fbfd3 100644
 --- a/kernel/sched/vendor_hooks.c
 +++ b/kernel/sched/vendor_hooks.c
-@@ -67,3 +67,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_update_topology_flags_workfn);
- EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_update_thermal_stats);
+@@ -69,3 +69,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_update_thermal_stats);
  EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_do_wake_up_sync);
  EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_wake_flags);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_tick_entry);
 +EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_place_entity);
 -- 
 2.43.0
