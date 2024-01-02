@@ -814,7 +814,371 @@ static struct ddr_priority ddr_priority_txhd2[] __initdata = {
 	{ .port_id = 23, .reg_base = 0xff638000,
 		.reg_mode = 0, .reg_config = 0,
 		.w_offset = (0x7c << 2), .w_bit_s = 16, .w_width = 0x7,
-		.r_offset = (0x7c << 2), .r_bit_s = 16, .r_width = 0x7	}
+		.r_offset = (0x7c << 2), .r_bit_s = 16, .r_width = 0x7	},
+};
+
+static struct ddr_priority ddr_priority_t3x[] __initdata = {
+	{ .port_id = 2, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x131 << 2), .w_bit_s = 20, .w_width = 0xf0f,
+		.r_offset = (0x131 << 2), .r_bit_s = 16, .r_width = 0xf0f},
+
+	{ .port_id = 4, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x131 << 2), .w_bit_s = 12, .w_width = 0xf,
+		.r_offset = (0x131 << 2), .r_bit_s =  8, .r_width = 0xf	},
+
+	{ .port_id = 8, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x15b << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0x15b << 2), .r_bit_s = 20, .r_width = 0xf	},
+
+	{ .port_id = 9, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x15b << 2), .w_bit_s = 0, .w_width = 0xf,
+		.r_offset = (0x15b << 2), .r_bit_s = 4, .r_width = 0xf	},
+
+	{ .port_id = 16, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 19, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 21, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x139 << 2), .w_bit_s = 24, .w_width = 0xf,
+		.r_offset = (0x139 << 2), .r_bit_s = 24, .r_width = 0xf	},
+
+	{ .port_id = 22, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x139 << 2), .w_bit_s = 28, .w_width = 0xf,
+		.r_offset = (0x139 << 2), .r_bit_s = 28, .r_width = 0xf	},
+
+	{ .port_id = 23, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x138 << 2), .w_bit_s = 4, .w_width = 0xf,
+		.r_offset = (0x138 << 2), .r_bit_s = 4, .r_width = 0xf	},
+
+	{ .port_id = 32, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x138 << 2), .w_bit_s = 20, .w_width = 0x7,
+		.r_offset = (0x138 << 2), .r_bit_s = 20, .r_width = 0x7	},
+
+	{ .port_id = 33, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 35, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x138 << 2), .w_bit_s = 28, .w_width = 0xf,
+		.r_offset = (0x138 << 2), .r_bit_s = 28, .r_width = 0xf	},
+
+	{ .port_id = 36, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x139 << 2), .w_bit_s = 0, .w_width = 0xf,
+		.r_offset = (0x139 << 2), .r_bit_s = 0, .r_width = 0xf	},
+
+	{ .port_id = 37, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x139 << 2), .w_bit_s = 4, .w_width = 0xf,
+		.r_offset = (0x139 << 2), .r_bit_s = 4, .r_width = 0xf	},
+
+	{ .port_id = 38, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x139 << 2), .w_bit_s = 8, .w_width = 0xf,
+		.r_offset = (0x139 << 2), .r_bit_s = 8, .r_width = 0xf	},
+
+	{ .port_id = 54, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x139 << 2), .w_bit_s = 12, .w_width = 0xf,
+		.r_offset = (0x139 << 2), .r_bit_s = 12, .r_width = 0xf	},
+
+	{ .port_id = 56, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 57, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x138 << 2), .w_bit_s = 0, .w_width = 0xf,
+		.r_offset = (0x138 << 2), .r_bit_s = 0, .r_width = 0xf	},
+
+	{ .port_id = 58, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x138 << 2), .w_bit_s = 8, .w_width = 0xf,
+		.r_offset = (0x138 << 2), .r_bit_s = 8, .r_width = 0xf	},
+
+	{ .port_id = 59, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x138 << 2), .w_bit_s = 12, .w_width = 0xf,
+		.r_offset = (0x138 << 2), .r_bit_s = 12, .r_width = 0xf	},
+
+	{ .port_id = 60, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x139 << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0x139 << 2), .r_bit_s = 16, .r_width = 0xf	},
+
+	{ .port_id = 61, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 62, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x138 << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0x138 << 2), .r_bit_s = 16, .r_width = 0xf	},
+
+	{ .port_id = 63, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x139 << 2), .w_bit_s = 20, .w_width = 0xf,
+		.r_offset = (0x139 << 2), .r_bit_s = 20, .r_width = 0xf	},
+
+	{ .port_id = 64, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 66, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 68, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 70, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 72, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x158 << 2), .w_bit_s = 9, .w_width = 0x7,
+		.r_offset = (0x158 << 2), .r_bit_s = 6, .r_width = 0x7	},
+
+	{ .port_id = 80, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x158 << 2), .w_bit_s = 15, .w_width = 0x7,
+		.r_offset = (0x158 << 2), .r_bit_s = 12, .r_width = 0x7	},
+
+	{ .port_id = 81, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x158 << 2), .w_bit_s = 21, .w_width = 0x7,
+		.r_offset = (0x158 << 2), .r_bit_s = 18, .r_width = 0x7	},
+
+	{ .port_id = 88, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x158 << 2), .w_bit_s = 27, .w_width = 0x7,
+		.r_offset = (0x158 << 2), .r_bit_s = 24, .r_width = 0x7	},
+
+	{ .port_id = 96, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x158 << 2), .w_bit_s = 3, .w_width = 0x7,
+		.r_offset = (0x158 << 2), .r_bit_s = 0, .r_width = 0x7	},
+
+	{ .port_id = 104, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x0133 << 2), .w_bit_s = 0, .w_width = 0xf,
+		.r_offset = (0x0133 << 2), .r_bit_s = 4, .r_width = 0xf	},
+
+	{ .port_id = 106, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x0133 << 2), .w_bit_s = 24, .w_width = 0xf,
+		.r_offset = (0x0133 << 2), .r_bit_s = 28, .r_width = 0xf},
+
+	{ .port_id = 116, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x0133 << 2), .w_bit_s = 8, .w_width = 0xf,
+		.r_offset = (0x0133 << 2), .r_bit_s = 12, .r_width = 0xf},
+
+	{ .port_id = 117, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 119, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 121, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 123, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+};
+
+static struct ddr_priority ddr_priority_t3[] __initdata = {
+	{ .port_id = 2, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x139 << 2), .w_bit_s = 24, .w_width = 0xf,
+		.r_offset = (0x139 << 2), .r_bit_s = 28, .r_width = 0xf	},
+
+	{ .port_id = 4, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x14c << 2), .w_bit_s = 21, .w_width = 0x5,
+		.r_offset = (0x14c << 2), .r_bit_s = 20, .r_width = 0x5	},
+
+	{ .port_id = 16, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x135 << 2), .w_bit_s = 0, .w_width = 0xf,
+		.r_offset = (0x135 << 2), .r_bit_s = 4, .r_width = 0xf	},
+
+	{ .port_id = 17, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x136 << 2), .w_bit_s = 0, .w_width = 0xf,
+		.r_offset = (0x136 << 2), .r_bit_s = 4, .r_width = 0xf	},
+
+	{ .port_id = 18, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x136 << 2), .w_bit_s = 8, .w_width = 0xf,
+		.r_offset = (0x136 << 2), .r_bit_s = 12, .r_width = 0xf	},
+
+	{ .port_id = 19, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x135 << 2), .w_bit_s = 24, .w_width = 0xf,
+		.r_offset = (0x135 << 2), .r_bit_s = 28, .r_width = 0xf	},
+
+	{ .port_id = 20, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x136 << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0x136 << 2), .r_bit_s = 20, .r_width = 0xf	},
+
+	{ .port_id = 27, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x135 << 2), .w_bit_s = 8, .w_width = 0x3,
+		.r_offset = (0x135 << 2), .r_bit_s = 12, .r_width = 0x3	},
+
+	{ .port_id = 28, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x135 << 2), .w_bit_s = 8, .w_width = 0x3,
+		.r_offset = (0x135 << 2), .r_bit_s = 12, .r_width = 0x3	},
+
+	{ .port_id = 34, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x135 << 2), .w_bit_s = 16, .w_width = 0x3,
+		.r_offset = (0x135 << 2), .r_bit_s = 20, .r_width = 0x3	},
+
+	{ .port_id = 34, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x135 << 2), .w_bit_s = 16, .w_width = 0x3,
+		.r_offset = (0x135 << 2), .r_bit_s = 20, .r_width = 0x3	},
+
+	{ .port_id = 35, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x135 << 2), .w_bit_s = 16, .w_width = 0x3,
+		.r_offset = (0x135 << 2), .r_bit_s = 20, .r_width = 0x3	},
+
+	{ .port_id = 36, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x135 << 2), .w_bit_s = 16, .w_width = 0x3,
+		.r_offset = (0x135 << 2), .r_bit_s = 20, .r_width = 0x3	},
+
+	{ .port_id = 37, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x135 << 2), .w_bit_s = 16, .w_width = 0x3,
+		.r_offset = (0x135 << 2), .r_bit_s = 20, .r_width = 0x3	},
+
+	{ .port_id = 38, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x135 << 2), .w_bit_s = 16, .w_width = 0x3,
+		.r_offset = (0x135 << 2), .r_bit_s = 20, .r_width = 0x3	},
+
+	{ .port_id = 39, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x135 << 2), .w_bit_s = 16, .w_width = 0x3,
+		.r_offset = (0x135 << 2), .r_bit_s = 20, .r_width = 0x3	},
+
+	{ .port_id = 48, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x137 << 2), .w_bit_s = 0, .w_width = 0xf,
+		.r_offset = (0x137 << 2), .r_bit_s = 4, .r_width = 0xf	},
+
+	{ .port_id = 51, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x138 << 2), .w_bit_s = 0, .w_width = 0x7,
+		.r_offset = (0x138 << 2), .r_bit_s = 4, .r_width = 0x7	},
+
+	{ .port_id = 52, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x137 << 2), .w_bit_s = 24, .w_width = 0x3,
+		.r_offset = (0x137 << 2), .r_bit_s = 28, .r_width = 0x3	},
+
+	{ .port_id = 53, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x137 << 2), .w_bit_s = 16, .w_width = 0x3,
+		.r_offset = (0x137 << 2), .r_bit_s = 20, .r_width = 0x3	},
+
+	{ .port_id = 54, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x137 << 2), .w_bit_s = 8, .w_width = 0x3,
+		.r_offset = (0x137 << 2), .r_bit_s = 12, .r_width = 0x3	},
+
+	{ .port_id = 63, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x139 << 2), .w_bit_s = 0, .w_width = 0x3,
+		.r_offset = (0x139 << 2), .r_bit_s = 4, .r_width = 0x3	},
+
+	{ .port_id = 68, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x136 << 2), .w_bit_s = 24, .w_width = 0xf,
+		.r_offset = (0x136 << 2), .r_bit_s = 28, .r_width = 0xf	},
+
+	{ .port_id = 70, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x138 << 2), .w_bit_s = 24, .w_width = 0xf,
+		.r_offset = (0x138 << 2), .r_bit_s = 28, .r_width = 0xf	},
+
+	{ .port_id = 72, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x139 << 2), .w_bit_s = 8, .w_width = 0x3,
+		.r_offset = (0x139 << 2), .r_bit_s = 12, .r_width = 0x3	},
+
+	{ .port_id = 73, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = (0x139 << 2), .w_bit_s = 8, .w_width = 0x3,
+		.r_offset = (0x139 << 2), .r_bit_s = 12, .r_width = 0x3	},
+
+	{ .port_id = 80, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 81, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 82, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 83, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 84, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
+
+	{ .port_id = 85, .reg_base = 0,
+		.reg_mode = 0, .reg_config = 0,
+		.w_offset = 0, .w_bit_s = 0, .w_width = 0,
+		.r_offset = 0, .r_bit_s = 0, .r_width = 0	},
 };
 #endif
 static struct ddr_priority ddr_priority_s1a[] __initdata = {
@@ -895,6 +1259,14 @@ int __init ddr_find_port_priority(int cpu_type, struct ddr_priority **desc)
 	case DMC_TYPE_TXHD2:
 		*desc = ddr_priority_txhd2;
 		desc_size = ARRAY_SIZE(ddr_priority_txhd2);
+		break;
+	case DMC_TYPE_T3X:
+		*desc = ddr_priority_t3x;
+		desc_size = ARRAY_SIZE(ddr_priority_t3x);
+		break;
+	case DMC_TYPE_T3:
+		*desc = ddr_priority_t3;
+		desc_size = ARRAY_SIZE(ddr_priority_t3);
 		break;
 #endif
 	case DMC_TYPE_S1A:
