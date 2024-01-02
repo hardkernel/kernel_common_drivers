@@ -4006,10 +4006,13 @@ static int vdin_open(struct inode *inode, struct file *file)
 	if (devp->index >= VDIN_MAX_DEVS)
 		return -ENXIO;
 
+	mutex_lock(&devp->fe_lock);
+	devp->fs_open_cnt++;
 	if (devp->flags & VDIN_FLAG_FS_OPENED) {
 		if (vdin_dbg_en)
 			pr_info("%s, device %s opened already\n",
 				__func__, dev_name(devp->dev));
+		mutex_unlock(&devp->fe_lock);
 		return 0;
 	}
 
@@ -4104,6 +4107,7 @@ static int vdin_open(struct inode *inode, struct file *file)
 	/* WRITE_VCBUS_REG(VPP_PREBLEND_VD1_V_START_END, 0x00000fff); */
 	if (vdin_dbg_en)
 		pr_info("open device %s ok\n", dev_name(devp->dev));
+	mutex_unlock(&devp->fe_lock);
 	return ret;
 }
 
@@ -4127,10 +4131,20 @@ static int vdin_release(struct inode *inode, struct file *file)
 		return 0;
 	}
 
+	mutex_lock(&devp->fe_lock);
 	if (!(devp->flags & VDIN_FLAG_FS_OPENED)) {
 		if (vdin_dbg_en)
 			pr_info("%s, device %s not opened\n",
 				__func__, dev_name(devp->dev));
+		mutex_unlock(&devp->fe_lock);
+		return 0;
+	}
+
+	devp->fs_open_cnt--;
+	if (devp->fs_open_cnt) {
+		pr_info("%s, device %s fs release(%d)\n",
+				__func__, dev_name(devp->dev), devp->fs_open_cnt);
+		mutex_unlock(&devp->fe_lock);
 		return 0;
 	}
 
@@ -4195,6 +4209,7 @@ static int vdin_release(struct inode *inode, struct file *file)
 	pr_info("vdin%d close device %s ok flags=0x%x\n", devp->index,
 		dev_name(devp->dev),
 		devp->flags);
+	mutex_unlock(&devp->fe_lock);
 	return 0;
 }
 

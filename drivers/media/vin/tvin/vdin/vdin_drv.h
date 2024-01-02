@@ -1147,6 +1147,7 @@ struct vdin_dev_s {
 	unsigned int vdin_drop_cnt;
 	unsigned int vdin_isr_drop;
 	unsigned int vdin_isr_drop_num;
+	unsigned int fs_open_cnt;
 };
 
 extern unsigned int max_ignore_frame_cnt;
