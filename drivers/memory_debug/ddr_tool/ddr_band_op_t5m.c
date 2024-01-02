@@ -152,7 +152,8 @@ static unsigned long t5m_get_dmc_freq_quick(struct ddr_bandwidth *db)
 
 static void t5m_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 {
-	unsigned int i, val;
+	unsigned int i;
+	unsigned long val;
 	void *io;
 
 	for (i = 0; i < db->dmc_number; i++) {
@@ -173,7 +174,7 @@ static void t5m_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 			break;
 		}
 
-		val = db->mode << 31;
+		val = db->mode ?  BIT(31) | DMC_QOS_IRQ : DMC_QOS_IRQ;
 		val |= (readl(io + DMC_MON_CTRL0) & ~BIT(31));
 		writel(val, io + DMC_MON_CTRL0);
 	}
