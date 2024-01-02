@@ -23,6 +23,7 @@
 #include <linux/ptrace.h>
 
 #include "codec_mm_track_kps.h"
+#include "codec_mm_track_priv.h"
 
 #ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
 #define GET_PARMS(r, i)	regs_get_kernel_argument(r, i)
@@ -51,16 +52,11 @@ static int kp_fd_install_pre(struct kprobe *p, struct pt_regs *regs)
 	u32 fd = GET_PARMS(regs, 1);
 	struct file *file = (struct file *)GET_PARMS(regs, 2);
 
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
-	kctx->func(kctx->priv, p->symbol_name, 0, DBUF_TRACE_FUNC_0, file, &fd, NULL);
-#else
-	if (!is_dma_buf_file(file))
+	if (!is_dma_buf_file_need(file))
 		goto out;
 
 	kctx->func(kctx->priv, p->symbol_name, 0, DBUF_TRACE_FUNC_0, file, &fd, NULL);
 out:
-#endif
 	return 0;
 }
 
@@ -79,11 +75,8 @@ static int kp_do_dup2_pre(struct kprobe *p, struct pt_regs *regs)
 	struct file *tofree;
 	struct fdtable *fdt;
 
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
-	if (!is_dma_buf_file(file))
+	if (!is_dma_buf_file_need(file))
 		goto out;
-#endif
 
 	fdt = files_fdtable(files);
 	tofree = fdt->fd[fd];
@@ -107,16 +100,11 @@ static int kp_dbuf_file_release_pre(struct kprobe *p, struct pt_regs *regs)
 	//struct inode *inode = (struct inode *)GET_PARMS(regs, 0);
 	struct file *file = (struct file *)GET_PARMS(regs, 1);
 
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
-	kctx->func(kctx->priv, p->symbol_name, 0, DBUF_TRACE_FUNC_2, file, NULL, NULL);
-#else
-	if (!is_dma_buf_file(file))
+	if (!is_dma_buf_file_need(file))
 		goto out;
 
 	kctx->func(kctx->priv, p->symbol_name, 0, DBUF_TRACE_FUNC_2, file, NULL, NULL);
 out:
-#endif
 	return 0;
 }
 
@@ -132,16 +120,11 @@ static int kp_put_unused_fd_pre(struct kprobe *p, struct pt_regs *regs)
 	u32 fd = GET_PARMS(regs, 0);
 	struct file *file = fget(fd);
 
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
-	kctx->func(kctx->priv, p->symbol_name, 0, DBUF_TRACE_FUNC_3, file, &fd, NULL);
-#else
-	if (!file || !is_dma_buf_file(file))
+	if (!file || !is_dma_buf_file_need(file))
 		goto out;
 
 	kctx->func(kctx->priv, p->symbol_name, 0, DBUF_TRACE_FUNC_3, file, &fd, NULL);
 out:
-#endif
 	if (file)
 		fput(file);
 

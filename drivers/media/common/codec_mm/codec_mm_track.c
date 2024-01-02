@@ -79,12 +79,15 @@ struct codec_mm_track_s {
 	struct codec_state_node cs;
 };
 
+struct dma_buf_record_node {
+	struct list_head list;
+	struct dma_buf *buf;
+};
+
 static bool is_need_track(const struct dma_buf *d);
 
 static int trace_pool_init(struct trace_pool *pool);
 
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static void trace_elems_walk(struct codec_mm_track_s *trk);
 
 static bool trace_elem_lookup(struct codec_mm_track_s *trk,
@@ -92,7 +95,9 @@ static bool trace_elem_lookup(struct codec_mm_track_s *trk,
 			     struct file *file,
 			     u32 fd,
 			     struct trace_elem *out);
-#endif
+
+static void build_dma_buf_list(struct seq_file *m,
+				struct dma_buf_record_node *dma_buf_list);
 
 static bool is_fd_alive(u32 fd)
 {
@@ -107,8 +112,6 @@ static bool is_kprobes_enable(struct codec_mm_track_s *trk)
 	return !!trk->kps_h;
 }
 
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static char *ts_to_string(u64 ts, char *buf)
 {
 	ulong rem_nsec;
@@ -122,7 +125,6 @@ static char *ts_to_string(u64 ts, char *buf)
 
 	return buf;
 }
-#endif
 
 static inline void kp_info_show(const char *fname, struct file *file, u32 fd)
 {
@@ -277,8 +279,6 @@ static inline u64 get_time_us(void)
 	return div64_u64(local_clock(), 1000);
 }
 
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static ulong get_dbuf_addr(struct dma_buf *dbuf)
 {
 	struct dma_heap *heap = NULL;
@@ -411,7 +411,6 @@ static void find_ref_process(const struct dma_buf *dbuf, struct seq_file *m)
 
 	read_unlock(&tasklist_lock);
 }
-#endif
 
 static bool is_need_track(const struct dma_buf *d)
 {
@@ -438,8 +437,6 @@ static bool is_need_track(const struct dma_buf *d)
 	return false;
 }
 
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static int walk_dbuf_callback(const struct dma_buf *dbuf, void *private)
 {
 	struct file *f = dbuf->file;
@@ -459,7 +456,6 @@ static int walk_dbuf_callback(const struct dma_buf *dbuf, void *private)
 
 	return 0;
 }
-#endif
 
 void codec_mm_dbuf_dump_config(u32 type)
 {
@@ -478,26 +474,55 @@ void codec_mm_dbuf_dump_config(u32 type)
 		pr_info("Disable dmabuf tracking.\n");
 }
 
-int codec_mm_dbuf_walk(struct seq_file *m)
+int is_dma_buf_file_need(struct file *file)
 {
-	int ret;
+	if (!file->private_data)
+		return false;
 
-	cs_printf(m, "Dbuf walk type:%x.\n", dbuf_track_type_flag);
+	if (is_need_track(file->private_data))
+		return true;
 
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
-	ret = get_each_dmabuf(walk_dbuf_callback, m);
-#else
-	ret = 0;
-#endif
+	return false;
+}
 
-	cs_printf(m, "|__ walk end\n");
+int aml_get_each_dmabuf(int (*callback)(const struct dma_buf *dmabuf,
+		    void *private), struct dma_buf_record_node *dma_buf_list, void *private)
+{
+	int ret = 0;
+	struct dma_buf_record_node *entry;
 
+	list_for_each_entry(entry, &dma_buf_list->list, list) {
+		if (!entry->buf)
+			continue;
+		ret = callback(entry->buf, private);
+		if (ret)
+			break;
+	}
 	return ret;
 }
 
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
+int codec_mm_dbuf_walk(struct seq_file *m)
+{
+	int ret;
+	struct dma_buf_record_node *entry, *entry_tmp;
+	struct dma_buf_record_node dma_buf_list;
+
+	INIT_LIST_HEAD(&dma_buf_list.list);
+	build_dma_buf_list(m, &dma_buf_list);
+
+	cs_printf(m, "Dbuf walk type:%x.\n", dbuf_track_type_flag);
+
+	ret = aml_get_each_dmabuf(walk_dbuf_callback, &dma_buf_list, m);
+
+	cs_printf(m, "|__ walk end\n");
+
+	list_for_each_entry_safe(entry, entry_tmp, &dma_buf_list.list, list) {
+		list_del(&entry->list);
+		kfree(entry);
+	}
+	return ret;
+}
+
 static void trace_elems_walk(struct codec_mm_track_s *trk)
 {
 	struct trace_elem *elem = NULL;
@@ -518,7 +543,6 @@ static void trace_elems_walk(struct codec_mm_track_s *trk)
 
 	spin_unlock_irqrestore(&trk->trk_slock, flags);
 }
-#endif
 
 static void trace_elem_fill(struct trace_elem *elem,
 			   struct file *file,
@@ -583,8 +607,6 @@ out:
 	spin_unlock_irqrestore(&trk->trk_slock, flags);
 }
 
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static bool find_match_task(struct codec_mm_track_s *trk,
 			 struct file *file,
 			 u32 fd,
@@ -638,7 +660,6 @@ out:
 
 	return found;
 }
-#endif
 
 static void __trace_sampling_del(struct codec_mm_track_s *trk,
 				       struct trace_elem *elem)
@@ -892,6 +913,71 @@ void codec_mm_sampling_close(void)
 	trace_pool_release(&trk->pool);
 
 	trk->kps_h = NULL;
+}
+
+static int find_dma_buf_in_tsk(struct task_struct *tsk,
+			   struct seq_file *m,
+			   struct dma_buf_record_node *dma_buf_list)
+{
+	struct codec_mm_track_s *trk = get_track_ctx();
+	struct dma_buf *dmabuf;
+	struct dma_buf_record_node *entry;
+	struct file *f;
+	u32 fd = 0;
+
+	if (!tsk || !trk)
+		return -ENOENT;
+
+	rcu_read_lock();
+
+	for (;; fd++) {
+		f = find_next_fd_rcu(tsk, &fd);
+		if (!f)
+			break;
+
+		if (!f->private_data || !virt_addr_valid(f->private_data))
+			continue;
+
+		dmabuf = f->private_data;
+		if (is_need_track(dmabuf)) {
+			bool found = false;
+
+			list_for_each_entry(entry, &dma_buf_list->list, list) {
+				if (dmabuf == entry->buf) {
+					found = true;
+					break;
+				}
+			}
+
+			if (!found) {
+				struct dma_buf_record_node *buf_node =
+					kzalloc(sizeof(struct dma_buf_record_node), GFP_KERNEL);
+
+				buf_node->buf = dmabuf;
+				list_add(&buf_node->list, &dma_buf_list->list);
+			}
+		}
+	}
+
+	rcu_read_unlock();
+
+	return 0;
+}
+
+static void build_dma_buf_list(struct seq_file *m,
+				struct dma_buf_record_node *dma_buf_list)
+{
+	struct task_struct *tsk = NULL;
+
+	read_lock(&tasklist_lock);
+
+	for_each_process(tsk) {
+		if (tsk->flags & PF_KTHREAD)
+			continue;
+		find_dma_buf_in_tsk(tsk, m, dma_buf_list);
+	}
+
+	read_unlock(&tasklist_lock);
 }
 
 int dmabuf_track_cs_show(struct seq_file *m, struct codec_state_node *cs)
