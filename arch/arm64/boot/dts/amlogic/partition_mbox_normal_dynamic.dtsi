@@ -74,6 +74,17 @@
 			size = <0x0 0x300000>;
 			mask = <0x101>;
 		};
+		param:param{
+			pname = "param";
+			size = <0x0 0x1000000>;
+			mask = <2>;
+		};
+		boot:boot
+		{
+			pname = "boot";
+			size = <0x0 0x1700000>;
+			mask = <0x101>;
+		};
 		oem:oem{
 			pname = "oem";
 			size = <0x0 0x1000000>;
@@ -88,29 +99,18 @@
 		metadata:metadata{
 			pname = "metadata";
 			size = <0x0 0x1000000>;
-			mask = <1>;
+			mask = <0x101>;
 		};
 		vbmeta:vbmeta{
 			pname = "vbmeta";
 			size = <0x0 0x200000>;
-			mask = <1>;
-		};
-		param:param{
-			pname = "param";
-			size = <0x0 0x1000000>;
-			mask = <2>;
-		};
-		boot:boot
-		{
-			pname = "boot";
-			size = <0x0 0x1700000>;
 			mask = <0x101>;
 		};
 		super:super
 		{
 			pname = "super";
-			size = <0x0 0x64000000>;
-			mask = <1>;
+			size = <0x0 0x6AE00000>;
+			mask = <0x101>;
 		};
 		cache:cache
 		{
