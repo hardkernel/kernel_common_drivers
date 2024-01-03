@@ -173,7 +173,7 @@
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
 			linux,cma-default;
-			alloc-ranges = <0x0 0x30000000>;
+			alloc-ranges = <0x0 0x0 0x0 0x30000000>;
 		};
 	};
 	codec_mm {

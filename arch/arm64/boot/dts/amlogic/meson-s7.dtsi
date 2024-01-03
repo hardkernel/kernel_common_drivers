@@ -896,7 +896,7 @@
 
 			watchdog@2100 {
 				compatible = "amlogic,meson-sc2-wdt";
-				status = "disabled";
+				status = "okay";
 				/* 0:userspace, 1:kernel */
 				amlogic,feed_watchdog_mode = <1>;
 				reg = <0x0 0x2100 0x0 0x10>;
@@ -1614,8 +1614,8 @@
 	ddr_bandwidth {
 		compatible = "amlogic,ddr-bandwidth-s7";
 		status = "okay";
-		reg = <0xfe036000 0x400
-			0xfe036000 0x100>;
+		reg = <0 0xfe036000 0 0x400
+			0 0xfe036000 0 0x100>;
 		interrupts = <0 78 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ddr_bandwidth";
 	};
