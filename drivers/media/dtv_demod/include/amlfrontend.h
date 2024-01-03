@@ -155,6 +155,7 @@
 /*  V3.5.028 fix not lock signal in dvbt2 DTG161 case */
 /*  V3.5.029 fix atsc-c signal strength issue */
 /*  V3.5.030 fix dvbt overflow when 6M 1/4 and other param */
+/*  V3.5.031 calibrate dvbc signal strength read from R842 */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -171,8 +172,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.030"
-#define DTVDEMOD_VER	"2023/12/19: fix dvbt overflow when 6M 1/4 and other param"
+#define AMLDTVDEMOD_VER "V3.5.031"
+#define DTVDEMOD_VER	"2024/01/03: calibrate dvbc signal strength read from R842"
 #define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
