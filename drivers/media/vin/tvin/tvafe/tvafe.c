@@ -812,7 +812,7 @@ static void tvafe_get_aspect_ratio_value(struct tvafe_dev_s *devp)
 			if (tvafe->aspect_ratio != maybe_ratio)
 				pr_info("wss aspect_ratio:%d->%d,%d\n",
 					tvafe->aspect_ratio, maybe_ratio, aspect_ratio);
-				tvafe->aspect_ratio = maybe_ratio;
+			tvafe->aspect_ratio = maybe_ratio;
 		}
 		for (i = 1; i < TVIN_ASPECT_MAX; i++)
 			count[i] = 0;
