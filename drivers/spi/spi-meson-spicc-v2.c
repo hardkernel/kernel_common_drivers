@@ -728,7 +728,7 @@ static int meson_spicc_setup(struct spi_device *spi)
 		spicc->cfg_bus.b.ss_leading_gap = 5;
 		spicc->config_ss_trailing_gap = 1;
 		spicc->cfg_bus.b.tx_tuning = 0;
-		spicc->cfg_bus.b.rx_tuning = 7; /* 7 SCLK */
+		spicc->cfg_bus.b.rx_tuning = 0; /* 0 SCLK */
 		spicc->cfg_bus.b.dummy_ctl = 0;
 	}
 
@@ -1563,7 +1563,9 @@ struct platform_driver meson_spicc_v2_driver = {
 	},
 };
 
-//module_platform_driver(meson_spicc_v2_driver);
+#ifndef MODULE
+module_platform_driver(meson_spicc_driver);
+#endif
 
 MODULE_DESCRIPTION("Meson SPI Communication Controller(v2) driver");
 MODULE_AUTHOR("Sunny.luo <sunny.luo@amlogic.com>");
