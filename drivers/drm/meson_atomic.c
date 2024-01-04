@@ -455,6 +455,11 @@ int meson_atomic_commit(struct drm_device *dev,
 	struct meson_drm *priv = dev->dev_private;
 	bool is_parallel = check_parallel_commit(state, &dest_crtc);
 
+	DRM_DEBUG("wait for no shutdown start!\n");
+	wait_event_interruptible(priv->wq_shut_ctrl,
+			!READ_ONCE(priv->shutdown_on));
+	DRM_DEBUG("wait for no shutdown end!\n");
+
 	if (is_parallel && dest_crtc)
 		crtc_index = dest_crtc->index;
 	else

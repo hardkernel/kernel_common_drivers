@@ -310,6 +310,8 @@ static int am_meson_drm_bind(struct device *dev)
 	priv->osd_occupied_index = -1;
 
 	dev_set_drvdata(dev, priv);
+	init_waitqueue_head(&priv->wq_shut_ctrl);
+	priv->shutdown_on = false;
 
 #ifdef CONFIG_AMLOGIC_DRM_USE_ION
 	ret = am_meson_gem_create(priv);
@@ -725,11 +727,54 @@ static const struct dev_pm_ops am_meson_drm_pm_ops = {
 
 static void am_meson_drv_shutdown(struct platform_device *pdev)
 {
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_device *dev;
+	struct drm_crtc *crtc;
+	struct am_meson_crtc *amcrtc;
+	struct meson_drm_thread *drm_thread;
 	struct meson_drm *priv;
+	int ret;
+	int i;
 
+	DRM_INFO("%s: in\n", __func__);
 	priv = dev_get_drvdata(&pdev->dev);
-	if (priv)
-		drm_atomic_helper_shutdown(priv->drm);
+	if (!priv) {
+		DRM_ERROR("%s: priv is NULL!\n", __func__);
+		return;
+	}
+
+	dev = priv->drm;
+
+	/* prevent drm_wait_vblank_ioctl on waiting event*/
+	drm_atomic_helper_shutdown(dev);
+
+	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
+
+	/* suspend atomic ioctl thread */
+	drm_for_each_crtc(crtc, dev) {
+		amcrtc = to_am_meson_crtc(crtc);
+		disable_irq(amcrtc->irq);
+	}
+
+	priv->shutdown_on = true;
+
+	/* prevent drm_wait_vblank_ioctl in its entry to avoid late lock */
+	dev->num_crtcs = 0;
+
+	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
+
+	/* flush kworker of commit thread and stop the thread */
+	DRM_INFO("%s: try to flush worker\n", __func__);
+	for (i = 0; i < priv->num_crtcs; i++) {
+		drm_thread = &priv->commit_thread[i];
+		if (drm_thread->thread) {
+			kthread_flush_worker(&drm_thread->worker);
+			kthread_stop(drm_thread->thread);
+			drm_thread->thread = NULL;
+		}
+	}
+
+	DRM_INFO("%s: done\n", __func__);
 }
 
 static struct platform_driver am_meson_drm_platform_driver = {

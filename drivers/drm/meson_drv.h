@@ -122,6 +122,8 @@ struct meson_drm {
 	struct meson_drm_bound_data bound_data;
 
 	bool irq_enabled;
+	wait_queue_head_t wq_shut_ctrl;
+	bool shutdown_on;
 	bool compat_mode;
 	bool logo_show_done;
 	bool recovery_mode;
