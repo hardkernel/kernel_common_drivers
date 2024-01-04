@@ -52,6 +52,9 @@ EXPORT_SYMBOL_GPL(phy_mode);
 #define  PHY_CNTL1_ST_MODE	GENMASK(2, 0)
 #define  PHY_CNTL1_ST_PHYADD	GENMASK(7, 3)
 #define   EPHY_DFLT_ADD		8
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#define  PHY_CNTL1_AUTOMDIX_EN	BIT(8)
+#endif
 #define  PHY_CNTL1_MII_MODE	GENMASK(15, 14)
 #define   EPHY_MODE_RMII	0x1
 #define  PHY_CNTL1_CLK_EN	BIT(16)
@@ -165,7 +168,7 @@ static int g12a_ephy_pll_init(struct clk_hw *hw)
 		writel(0x00000000, pll->base + ETH_PLL_CTL3);
 		writel(0x00000000, pll->base + ETH_PLL_CTL4);
 		writel(0x20200000, pll->base + ETH_PLL_CTL5);
-		writel(0x0000c002, pll->base + ETH_PLL_CTL6);
+		writel(0x0000cf02, pll->base + ETH_PLL_CTL6);
 		writel(0x00000023, pll->base + ETH_PLL_CTL7);
 	}
 	/*22nm*/
@@ -203,6 +206,7 @@ static const struct clk_ops g12a_ephy_pll_ops = {
 
 static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 {
+	u32 value;
 	int ret;
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	void __iomem *tx_amp_src = NULL;
@@ -262,14 +266,14 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 					tx_R = (efuse_get_tmp & 0xf00000) >> 20;
 					rx_R = (efuse_get_tmp & 0x0f0000) >> 16;
 					writel(((tx_R << 28) | (rx_R << 20))
-						| (0x0b02c001),
+						| (0x0b02cf01),
 						priv->regs + ETH_PLL_CTL6);
 				} else {
 					pr_debug("no efuse setting use default\n");
-					writel(0x8a82c001, priv->regs + ETH_PLL_CTL6);
+					writel(0x8a82cf01, priv->regs + ETH_PLL_CTL6);
 				}
 				writel(0x20220000, priv->regs + ETH_PLL_CTL5);
-				/*writel(0x8a82c001, priv->regs + ETH_PLL_CTL6);*/
+				/*writel(0x8a82cf01, priv->regs + ETH_PLL_CTL6);*/
 				writel(0x00000023, priv->regs + ETH_PLL_CTL7);
 			}
 
@@ -286,7 +290,7 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 					pr_debug("no efuse setting use default\n");
 					writel(0xaa820000, priv->regs + ETH_PLL_CTL3);
 				}
-				writel(0xc001, priv->regs + ETH_PLL_CTL6);
+				writel(0xcf01, priv->regs + ETH_PLL_CTL6);
 				writel(0x20220000, priv->regs + ETH_PLL_CTL5);
 				writel(0x00000023, priv->regs + ETH_PLL_CTL7);
 			}
@@ -309,35 +313,28 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 
 	/* Initialize ephy control */
 	writel(EPHY_G12A_ID, priv->regs + ETH_PHY_CNTL0);
-	writel(FIELD_PREP(PHY_CNTL1_ST_MODE, st_mode) |
-	       FIELD_PREP(PHY_CNTL1_ST_PHYADD, EPHY_DFLT_ADD) |
-	       FIELD_PREP(PHY_CNTL1_MII_MODE, EPHY_MODE_RMII) |
-	       PHY_CNTL1_CLK_EN |
-	       PHY_CNTL1_CLKFREQ |
-	       PHY_CNTL1_PHY_ENB,
-	       priv->regs + ETH_PHY_CNTL1);
-
-	writel(FIELD_PREP(PHY_CNTL1_ST_MODE, st_mode) |
-	       FIELD_PREP(PHY_CNTL1_ST_PHYADD, EPHY_DFLT_ADD) |
-	       FIELD_PREP(PHY_CNTL1_MII_MODE, EPHY_MODE_RMII) |
-	       PHY_CNTL1_CLK_EN |
-	       PHY_CNTL1_CLKFREQ,
-	       priv->regs + ETH_PHY_CNTL1);
-
-	writel(FIELD_PREP(PHY_CNTL1_ST_MODE, st_mode) |
-	       FIELD_PREP(PHY_CNTL1_ST_PHYADD, EPHY_DFLT_ADD) |
-	       FIELD_PREP(PHY_CNTL1_MII_MODE, EPHY_MODE_RMII) |
-	       PHY_CNTL1_CLK_EN |
-	       PHY_CNTL1_CLKFREQ |
-	       PHY_CNTL1_PHY_ENB,
-	       priv->regs + ETH_PHY_CNTL1);
-
-	mdelay(10);
-
+	/* Make sure we get a 0 -> 1 transition on the enable bit */
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	value = FIELD_PREP(PHY_CNTL1_ST_MODE, st_mode) |
+#else
+	value = FIELD_PREP(PHY_CNTL1_ST_MODE, 3) |
+#endif
+		FIELD_PREP(PHY_CNTL1_ST_PHYADD, EPHY_DFLT_ADD) |
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+		PHY_CNTL1_AUTOMDIX_EN |
+#endif
+		FIELD_PREP(PHY_CNTL1_MII_MODE, EPHY_MODE_RMII) |
+		PHY_CNTL1_CLK_EN |
+		PHY_CNTL1_CLKFREQ;
+	writel(value, priv->regs + ETH_PHY_CNTL1);
 	writel(PHY_CNTL2_USE_INTERNAL |
 	       PHY_CNTL2_SMI_SRC_MAC |
 	       PHY_CNTL2_RX_CLK_EPHY,
 	       priv->regs + ETH_PHY_CNTL2);
+	value |= PHY_CNTL1_PHY_ENB;
+	writel(value, priv->regs + ETH_PHY_CNTL1);
+	/* The phy needs a bit of time to power up */
+	mdelay(10);
 
 	return 0;
 }
