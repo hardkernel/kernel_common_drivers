@@ -1483,6 +1483,10 @@
 	status = "disabled";
 };
 
+&acodec {
+	dat0_ch_sel = <0>;
+};
+
 &crg_udc_2 {
 	status = "okay";
 };
