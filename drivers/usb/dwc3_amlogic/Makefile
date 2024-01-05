@@ -6,6 +6,7 @@ CFLAGS_trace.o				:= -I$(src)
 
 $(MODULE_NAME)-$(CONFIG_USB_DWC3)					+= dwc3_amlogic/core-meson.o
 
+ifneq ($(CONFIG_USB_DWC3),)
 ifneq ($(CONFIG_TRACING),)
 	$(MODULE_NAME)-y				+= dwc3_amlogic/trace-meson.o
 endif
@@ -28,6 +29,7 @@ endif
 
 ifneq ($(CONFIG_DEBUG_FS),)
 	$(MODULE_NAME)-y				+= dwc3_amlogic/debugfs-meson.o
+endif
 endif
 
 ##
