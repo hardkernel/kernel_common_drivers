@@ -310,5 +310,6 @@ void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 	struct notifier_block *block,
 	unsigned long cmd, void *para);
 void get_hdmi_efuse(struct hdmitx_common *tx_comm);
+enum hdmi_color_depth get_hdmi_colordepth(const struct vinfo_s *vinfo);
 
 #endif

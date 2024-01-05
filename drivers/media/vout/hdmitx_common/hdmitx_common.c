@@ -965,3 +965,13 @@ void get_hdmi_efuse(struct hdmitx_common *tx_comm)
 		}
 	}
 }
+
+enum hdmi_color_depth get_hdmi_colordepth(const struct vinfo_s *vinfo)
+{
+	enum hdmi_color_depth cd = COLORDEPTH_24B;
+
+	if (vinfo->cd)
+		cd = vinfo->cd;
+
+	return cd;
+}
