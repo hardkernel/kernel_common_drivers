@@ -4794,7 +4794,7 @@ void set_di_memcpy_rot(struct mem_cpy_s *cfg)
 		/* post_frm_sel   =top_post_ctrl[3];//0:viu  1:internal */
 		(1		<< 30));
 
-	if ((DIM_IS_IC_EF(T7) || DIM_IS_IC(S4)) &&
+	if ((DIM_IS_IC_EF(T7) || DIM_IS_IC(S4) || DIM_IS_IC(S7D)) &&
 	    (!IS_ERR_OR_NULL(in_afbcd))) {
 		/*coverity[var_deref_op] in_afbcd has been judged*/
 		if (in_afbcd->index == EAFBC_DEC_IF0) {
@@ -4956,7 +4956,7 @@ void set_di_memcpy(struct mem_cpy_s *cfg)
 		(0		<< 20)	|
 		/* post_frm_sel   =top_post_ctrl[3];//0:viu  1:internal*/
 		(1		<< 30));
-	if ((DIM_IS_IC_EF(T7) || DIM_IS_IC(S4)) &&
+	if ((DIM_IS_IC_EF(T7) || DIM_IS_IC(S4) || DIM_IS_IC(S7D)) &&
 	    (!IS_ERR_OR_NULL(in_afbcd))) {
 		/*
 		 * IIS_ERR_OR_NULL() is a function to determine

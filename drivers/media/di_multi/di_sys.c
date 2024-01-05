@@ -3809,6 +3809,12 @@ static const struct di_meson_data  data_t3x = {
 		   IC_SUPPORT_HDR	|
 		   IC_SUPPORT_DW
 };
+
+static const struct di_meson_data  data_s7d = {
+	.name = "dim_s7d",
+	.ic_id	= DI_IC_ID_S7D,
+};
+
 #endif
 
 /* #ifdef CONFIG_USE_OF */
@@ -3846,6 +3852,8 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 		.data = &data_s5,
 	}, {	.compatible = "amlogic, dim-t3x",
 		.data = &data_t3x,
+	}, {	.compatible = "amlogic, dim-s7d",
+		.data = &data_s7d,
 #endif
 	}, {}
 };
@@ -4053,7 +4061,7 @@ static int dim_probe(struct platform_device *pdev)
 	//set ic version need before PQ init
 	dil_set_diff_ver_flag(1);
 	dil_set_cpuver_flag(get_datal()->mdata->ic_id);
-	if (DIM_IS_IC(SC2) || DIM_IS_IC(S4) || DIM_IS_IC_EF(T7))
+	if (DIM_IS_IC(SC2) || DIM_IS_IC(S4) || DIM_IS_IC_EF(T7) || DIM_IS_IC_EF(S7D))
 		di_devp->is_crc_ic = true;
 	dip_init_pq_ops();
 

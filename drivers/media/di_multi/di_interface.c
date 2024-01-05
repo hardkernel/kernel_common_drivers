@@ -440,7 +440,7 @@ int new_create_instance(struct di_init_parm parm)
 	}
 	//check ic:
 	if (itf->u.dinst.parm.work_mode == WORK_MODE_S4_DCOPY) {
-		if (!DIM_IS_IC(S4) && !DIM_IS_IC(T3)) {
+		if (!DIM_IS_IC(S4) && !DIM_IS_IC(T3) && !DIM_IS_IC(S7D)) {
 			PR_ERR("%s:copy only support for s4\n", __func__);
 			return DI_ERR_UNSUPPORT;
 		}

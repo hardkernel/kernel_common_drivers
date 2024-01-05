@@ -402,7 +402,8 @@ void di_cfg_top_dts(void)
 	    (DIM_IS_IC_BF(TM2)	||
 	     DIM_IS_IC(T5D)	||
 	     DIM_IS_IC(T5DB)	||
-	     DIM_IS_IC(S4))) {
+	     DIM_IS_IC(S4)	||
+	     DIM_IS_IC(S7D))) {
 		cfgs(4K, 0);
 		PR_WARN("not support 4k\n");
 	}
@@ -410,7 +411,7 @@ void di_cfg_top_dts(void)
 		cfgs(LINEAR, 1);
 		dbg_reg("from t7 linear mode\n");
 	}
-	if (DIM_IS_IC(S4) &&
+	if ((DIM_IS_IC(S4) || DIM_IS_IC(S7D)) &&
 	    (cfgg(POUT_FMT) == 3	||
 	     cfgg(POUT_FMT) == 0x0b)) {
 		cfgs(POUT_FMT, 0);
