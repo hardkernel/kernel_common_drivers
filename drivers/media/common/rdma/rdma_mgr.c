@@ -81,6 +81,7 @@ static int g_vsync_rdma_item_count_max;
 static int enable[RDMA_NUM];
 int rdma_configured[RDMA_NUM];
 ulong rdma_config_us[RDMA_NUM];
+int enc_num_configed[RDMA_NUM] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 MODULE_PARM_DESC(g_vsync_rdma_item_count, "\n g_vsync_rdma_item_count\n");
 module_param(g_vsync_rdma_item_count, uint, 0664);
@@ -659,6 +660,16 @@ static void rdma_reset(unsigned char external_reset)
 	reset_count++;
 }
 
+unsigned int rdma_hw_done_bit(void)
+{
+	u32 rdma_status, done_bit;
+
+	rdma_status = READ_VCBUS_REG(irq_status.reg);
+	done_bit = rdma_status >> irq_status.start;
+
+	return done_bit;
+}
+
 static int rdma_isr_count;
 irqreturn_t rdma_mgr_isr(int irq, void *dev_id)
 {
@@ -725,6 +736,16 @@ QUERY:
 	return IRQ_HANDLED;
 }
 
+void rdma_stop(int handle)
+{
+	struct rdma_device_info *info = &rdma_info;
+	struct rdma_instance_s *ins = &info->rdma_ins[handle];
+
+	WRITE_VCBUS_REG_BITS(ins->rdma_regadr->trigger_mask_reg,
+			     0, ins->rdma_regadr->trigger_mask_reg_bitpos,
+			     rdma_meson_dev.trigger_mask_len);
+}
+
 /*
  *	trigger_type:
  *		0, stop,
@@ -748,7 +769,7 @@ int rdma_config(int handle, u32 trigger_type)
 	bool rdma_read = false;
 	int buffer_lock = 0;
 	int trigger_type_backup = trigger_type, rdma_type;
-	bool rdma_configured = 0;
+	bool configured = 0;
 
 	if (handle <= 0 || handle >= rdma_meson_dev.channel_num) {
 		pr_info
@@ -830,6 +851,13 @@ int rdma_config(int handle, u32 trigger_type)
 		ins->rdma_empty_config_count++;
 		ret = 0;
 	} else {
+		if (use_rdma_done_detect &&
+		    handle == get_rdma_handle(PRE_VSYNC_RDMA)) {
+			rdma_done_detect_cnt++;
+			rdma_write_reg(handle, rdma_done_detect_reg,
+				       rdma_done_detect_cnt);
+		}
+
 		memcpy(ins->rdma_table_addr, ins->reg_buf,
 		       ins->rdma_item_count *
 		       (rdma_read ? 1 : 2) * sizeof(u32));
@@ -1008,14 +1036,18 @@ int rdma_config(int handle, u32 trigger_type)
 
 	rdma_type = get_rdma_type(handle);
 	if (rdma_type >= 0) {
-		rdma_configured = ret ? 1 : 0;
-		if (rdma_configured) {
+		configured = ret ? 1 : 0;
+		if (configured) {
 			struct timeval t;
 
 			do_gettimeofday(&t);
 			rdma_config_us[rdma_type] =
 				t.tv_sec * 1000000 + t.tv_usec;
+			enc_num_configed[rdma_type] = get_cur_enc_num();
+		} else {
+			enc_num_configed[rdma_type] = 0xff;
 		}
+		rdma_configured[rdma_type] = configured;
 	}
 	/* don't reset rdma_item_count for read function */
 	if (handle != get_rdma_handle(VSYNC_RDMA_READ) &&

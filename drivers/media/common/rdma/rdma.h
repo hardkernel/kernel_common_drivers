@@ -20,6 +20,16 @@ extern ulong rdma_done_us[];
 extern ulong rdma_vsync_us[];
 extern ulong rdma_config_us[];
 extern int rdma_reset_trigger_flag[];
+extern int rdma_configured[];
+extern unsigned int use_rdma_done_detect;
+extern unsigned int rdma_done_detect_cnt;
+extern unsigned int rdma_done_detect_reg;
+extern int enc_num_configed[];
+
+ulong get_enc_time_start(u8 index);
+u32 get_enc_num_start(u8 index);
+u32 get_cur_enc_num(void);
+void rdma_stop(int handle);
 
 void vpp1_vsync_rdma_register(void);
 void vpp2_vsync_rdma_register(void);
@@ -62,6 +72,7 @@ bool get_lowlatency_mode(void);
 int is_in_ldim_vsync_isr(void);
 #endif
 void set_rdma_channel_enable(u8 rdma_en);
+unsigned int rdma_hw_done_bit(void);
 
 //extern int vsync_rdma_handle[5];
 u32 VCBUS_RD_MPEG_REG(u32 adr);

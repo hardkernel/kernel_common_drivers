@@ -2565,7 +2565,7 @@ RESTART:
 
 	if (no_compress) {
 		if ((vpp_flags & VPP_FLAG_MORE_LOG) &&
-		    input->afbc_support)
+		    input->afbc_support && cur_super_debug)
 			pr_info
 			("layer%d: Try DW buffer for compress frame.\n",
 			input->layer_id);
