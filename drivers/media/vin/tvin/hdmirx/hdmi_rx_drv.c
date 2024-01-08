@@ -1807,6 +1807,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 	//unsigned int size = sizeof(struct pd_infoframe_s);
 	struct pd_infoframe_s pkt_info;
 	struct spd_infoframe_st *spd_pkt;
+	struct avi_infoframe_st *avi_pkt;
 	unsigned int pin_status;
 	void *src_buff;
 	u8 sad_data[30];
@@ -2093,6 +2094,20 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 		hpd_state.signal = rx_get_hpd_sts(hpd_state.port);
 		if (copy_to_user(argp, &hpd_state, sizeof(struct hdmirx_hpd_info))) {
 			pr_err("get_hpd_sts err\n");
+			ret = -EFAULT;
+			mutex_unlock(&devp->rx_lock);
+			break;
+		}
+		mutex_unlock(&devp->rx_lock);
+		break;
+	case HDMI_IOC_GET_AVI_INFO:
+		avi_pkt = (struct avi_infoframe_st *)&rx_pkt[rx_info.main_port].avi_info;
+		rx_pkt_get_avi_ex(avi_pkt, rx_info.main_port);
+		if (!argp)
+			return -EINVAL;
+		mutex_lock(&devp->rx_lock);
+		if (copy_to_user(argp, avi_pkt, sizeof(struct avi_infoframe_st))) {
+			pr_err("avi infoframe err\n");
 			ret = -EFAULT;
 			mutex_unlock(&devp->rx_lock);
 			break;

@@ -344,7 +344,7 @@ static void rx_pktdump_avi(void *pdata)
 		rx_pr("colorimetry C: 0x%x\n", pktdata->cont.v1.colorimetry);
 		rx_pr("colorimetry SC: 0x%x\n", pktdata->cont.v1.pic_scaling);
 	} else {
-		/*ver 2/3*/
+		/*ver 2/3/4 */
 		rx_pr("scaninfo S: 0x%x\n", pktdata->cont.v4.scaninfo);
 		rx_pr("barinfo B: 0x%x\n", pktdata->cont.v4.barinfo);
 		rx_pr("activeinfo A: 0x%x\n", pktdata->cont.v4.activeinfo);
@@ -373,6 +373,7 @@ static void rx_pktdump_avi(void *pdata)
 	      pktdata->pix_num_left_bar);
 	rx_pr("pix_num_right_bar: 0x%x\n",
 	      pktdata->pix_num_right_bar);
+	rx_pr("additional_colorimetry: 0x%x\n", pktdata->additional_colorimetry);
 	rx_pr(">------------------>end\n");
 }
 
@@ -578,7 +579,7 @@ void rx_pkt_dump(enum pkt_type_e typeid, u8 port)
 		rx_pktdump_raw(&prx->avi_info);
 		rx_pktdump_avi(&prx->avi_info);
 		rx_pr("-------->ex register set >>\n");
-		rx_pkt_get_avi_ex(&pktdata);
+		rx_pkt_get_avi_ex(&pktdata, port);
 		rx_pktdump_avi(&pktdata);
 		break;
 	case PKT_TYPE_INFOFRAME_SPD:
@@ -824,67 +825,53 @@ void rx_pkt_get_acr_ex(void *pktinfo)
 }
 
 /*please ignore checksum byte*/
-void rx_pkt_get_avi_ex(void *pktinfo)
+void rx_pkt_get_avi_ex(void *pktinfo, u8 port)
 {
 	struct avi_infoframe_st *pkt = pktinfo;
+	u8 data;
 
-	if (!pktinfo) {
+	if (!pktinfo || rx_info.chip_id < CHIP_ID_T7) {
 		rx_pr("pkinfo null\n");
 		return;
 	}
 
-	/*memset(pkt, 0, sizeof(struct avi_infoframe_st));*/
-
 	pkt->pkttype = PKT_TYPE_INFOFRAME_AVI;
-	pkt->version =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, MSK(8, 0));
-	pkt->length =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, MSK(5, 8));
-
-	pkt->checksum =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, MSK(8, 16));
+	pkt->version = hdmirx_rd_cor(AVIRX_VERS_DP2_IVCRX, port);
+	pkt->length = hdmirx_rd_cor(AVIRX_LENGTH_DP2_IVCRX, port);
+	pkt->checksum = hdmirx_rd_cor(AVIRX_CHSUM_DP2_IVCRX, port);
 	/* AVI parameters */
-	pkt->cont.v4.vic =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, VID_IDENT_CODE);
-	pkt->cont.v4.pix_repeat =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, PIX_REP_FACTOR);
-	pkt->cont.v4.colorindicator =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, VIDEO_FORMAT);
-	pkt->cont.v4.it_content =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, IT_CONTENT);
-	pkt->cont.v4.pic_scaling =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, RGB_QUANT_RANGE);
-	pkt->cont.v4.content_type =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, MSK(2, 28));
-	pkt->cont.v4.qt_range =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, YUV_QUANT_RANGE);
-	pkt->cont.v4.activeinfo =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, ACT_INFO_PRESENT);
-	pkt->cont.v4.barinfo =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, BAR_INFO_VALID);
-	pkt->cont.v4.scaninfo =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, SCAN_INFO);
-	pkt->cont.v4.colorimetry =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, COLORIMETRY);
-	pkt->cont.v4.pic_ration =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, PIC_ASPECT_RATIO);
-	pkt->cont.v4.fmt_ration =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, ACT_ASPECT_RATIO);
-	pkt->cont.v4.it_content =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, IT_CONTENT);
-	pkt->cont.v4.ext_color =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, EXT_COLORIMETRY);
-	pkt->cont.v4.pic_scaling =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, NON_UNIF_SCALE);
+	data = hdmirx_rd_cor(AVIRX_DBYTE1_DP2_IVCRX, port);
+	pkt->cont.v4.scaninfo = data & 0x3;
+	pkt->cont.v4.barinfo = (data >> 2) & 0x3;
+	pkt->cont.v4.activeinfo = (data >> 4) & 0x1;
+	pkt->cont.v4.colorindicator = (data >> 5) & 0x7;
 
-	pkt->line_num_end_topbar =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_TBB, LIN_END_TOP_BAR);
-	pkt->line_num_start_btmbar =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_TBB, LIN_ST_BOT_BAR);
-	pkt->pix_num_left_bar =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_LRB, PIX_END_LEF_BAR);
-	pkt->pix_num_right_bar =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_LRB, PIX_ST_RIG_BAR);
+	data = hdmirx_rd_cor(AVIRX_DBYTE2_DP2_IVCRX, port);
+	pkt->cont.v4.fmt_ration = data & 0xf;
+	pkt->cont.v4.pic_ration = (data >> 4) & 0x3;
+	pkt->cont.v4.colorimetry = (data >> 6) & 0x3;
+
+	data = hdmirx_rd_cor(AVIRX_DBYTE3_DP2_IVCRX, port);
+	pkt->cont.v4.pic_scaling = data & 0x3;
+	pkt->cont.v4.qt_range = (data >> 2) & 0x3;
+	pkt->cont.v4.ext_color = (data >> 4) & 0x7;
+	pkt->cont.v4.it_content = (data >> 7) & 0x1;
+	pkt->cont.v4.vic = hdmirx_rd_cor(AVIRX_DBYTE4_DP2_IVCRX, port);
+
+	data = hdmirx_rd_cor(AVIRX_DBYTE5_DP2_IVCRX, port);
+	pkt->cont.v4.pix_repeat = data & 0xf;
+	pkt->cont.v4.content_type = (data >> 4) & 0x3;
+	pkt->cont.v4.ycc_range = (data >> 6) & 0x3;
+
+	pkt->line_num_end_topbar = hdmirx_rd_cor(AVIRX_DBYTE6_DP2_IVCRX, port) |
+		(u16)hdmirx_rd_cor(AVIRX_DBYTE7_DP2_IVCRX, port) << 8;
+	pkt->line_num_start_btmbar = hdmirx_rd_cor(AVIRX_DBYTE8_DP2_IVCRX, port) |
+		(u16)hdmirx_rd_cor(AVIRX_DBYTE9_DP2_IVCRX, port) << 8;
+	pkt->pix_num_left_bar = hdmirx_rd_cor(AVIRX_DBYTE10_DP2_IVCRX, port) |
+		(u16)hdmirx_rd_cor(AVIRX_DBYTE11_DP2_IVCRX, port) << 8;
+	pkt->pix_num_right_bar = hdmirx_rd_cor(AVIRX_DBYTE12_DP2_IVCRX, port) |
+		(u16)hdmirx_rd_cor(AVIRX_DBYTE13_DP2_IVCRX, port) << 8;
+	pkt->additional_colorimetry = hdmirx_rd_cor(AVIRX_DBYTE14_DP2_IVCRX, port);
 }
 
 void rx_pkt_get_spd_ex(void *pktinfo, u8 port)
@@ -1732,7 +1719,7 @@ void rx_pkt_check_content(u8 port)
 			       sizeof(struct pd_infoframe_s));
 		}
 
-		rx_pkt_get_avi_ex(&pktdata);
+		rx_pkt_get_avi_ex(&pktdata, port);
 		if (memcmp((char *)&pre_pkt->ex_avi,
 			   (char *)&pktdata,
 			   sizeof(struct pd_infoframe_s)) != 0) {
@@ -2160,7 +2147,7 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src, u8 port)
 		rxpktsts[port].pkt_cnt_aif_ex++;
 	} else if (pkt_int_src == PKT_BUFF_SET_AVI) {
 		rxpktsts[port].pkt_op_flag |= PKT_OP_AVI;
-		rx_pkt_get_avi_ex(&prx->avi_info);
+		rx_pkt_get_avi_ex(&prx->avi_info, port);
 		rxpktsts[port].pkt_op_flag &= ~PKT_OP_AVI;
 		rxpktsts[port].pkt_cnt_avi_ex++;
 	} else if (pkt_int_src == PKT_BUFF_SET_ACR) {
