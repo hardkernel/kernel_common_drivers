@@ -569,8 +569,7 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 		devp->game_mode = 0;
 	}
 
-	/* dv is auto game not support manual set game */
-	if (vdin_dv_not_manual_game(devp))
+	if (vdin_dv_not_game_mode(devp))
 		devp->game_mode = 0;
 
 	if (vdin_force_game_mode)
@@ -678,8 +677,7 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 					VDIN_GAME_MODE_1);
 	}
 
-	/* dv is auto game not support manual set game */
-	if (vdin_dv_not_manual_game(devp))
+	if (vdin_dv_not_game_mode(devp))
 		devp->game_mode = 0;
 
 	if (vdin_force_game_mode)
@@ -2883,7 +2881,7 @@ static void vdin_set_vfe_info(struct vdin_dev_s *devp, struct vf_entry *vfe)
 	else
 		vfe->vf.flag &= ~VFRAME_FLAG_GAME_MODE;
 
-	if (devp->prop.latency.allm_mode)
+	if (devp->prop.latency.allm_mode && !vdin_dv_is_sink_led(devp))
 		vfe->vf.flag |= VFRAME_FLAG_ALLM_MODE;
 	else
 		vfe->vf.flag &= ~VFRAME_FLAG_ALLM_MODE;
@@ -5883,7 +5881,7 @@ static const struct match_data_s vdin_dt_txhd2 = {
 
 static const struct match_data_s vdin_dt_s7 = {
 	.name = "vdin-s7",
-	.hw_ver = VDIN_HW_TXHD2,
+	.hw_ver = VDIN_HW_S7,
 	.vdin0_en = 0,                  .vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/  .ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x1000,
