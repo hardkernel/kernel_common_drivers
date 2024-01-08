@@ -42,6 +42,14 @@ static struct aml_vrr_drv_s *vrr_drv_active_sel(void)
 	return vdrv;
 }
 
+struct aml_vrr_drv_s *aml_vrr_drv_active_sel(void)
+{
+	struct aml_vrr_drv_s *vdrv = NULL;
+
+	vdrv = vrr_drv_active_sel();
+	return vdrv;
+}
+
 static void vrr_drv_state_active_update(int index)
 {
 	struct aml_vrr_drv_s *vdrv = NULL;

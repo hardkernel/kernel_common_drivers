@@ -27,6 +27,7 @@
 #include <linux/amlogic/media/vrr/vrr.h>
 #include "vrr_drv.h"
 #include "vrr_reg.h"
+#include "../enhancement/amvecm/reg_helper.h"
 
 #include <linux/amlogic/gki_module.h>
 
@@ -48,6 +49,11 @@ static struct mutex vrr_mutex;
 static irqreturn_t vrr_vsync_isr_handler(int irq, void *data);
 
 unsigned int vrr_debug_print;
+
+u32 crop_line;
+u32 pre_line;
+unsigned int vrr_line_dly;
+u8 vrr_vpp_index;
 
 #define VRR_MNT_MAX      5
 static unsigned int vrr_mnt_table[VRR_MNT_MAX] = {
@@ -353,13 +359,45 @@ static void vrr_line_delay_update(struct aml_vrr_drv_s *vdrv)
 		return;
 	}
 
-	temp = vrr_reg_getb(reg + offset, 8, 16);
-	if (temp == vdrv->line_dly)
+	if (vdrv->data->chip_type == VRR_CHIP_T3X)
+		temp = vrr_reg_getb(VENC_VRR_CTRL_T3X + offset, 16, 32);
+	else
+		temp = vrr_reg_getb(reg + offset, 8, 16);
+
+	vrr_line_dly = vdrv->line_dly + crop_line;
+
+	if (temp == vrr_line_dly)
 		return;
 
-	vrr_reg_setb(reg, vdrv->line_dly, 8, 16);
+	if (crop_line > pre_line) {
+		if (vdrv->data->chip_type == VRR_CHIP_T3X)
+			vrr_reg_setb(VENC_VRR_CTRL_T3X, vrr_line_dly, 16, 32);
+		else
+			vrr_reg_setb(reg, vrr_line_dly, 8, 16);
+	} else if (crop_line < pre_line) {
+		if (vdrv->data->chip_type == VRR_CHIP_T3X)
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VENC_VRR_CTRL_T3X,
+				vrr_line_dly, 16, 32, vrr_vpp_index);
+		else
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(reg,
+				vrr_line_dly, 8, 16, vrr_vpp_index);
+	}
+
 	VRRPR("[%d]: %s: %d->%d\n",
-	      vdrv->index, __func__, temp, vdrv->line_dly);
+	      vdrv->index, __func__, temp, vrr_line_dly);
+	pre_line = crop_line;
+}
+
+void vrr_crop_update_delay_line(u32 line, u8 vpp_index)
+{
+	struct aml_vrr_drv_s *vdrv = NULL;
+
+	vdrv = aml_vrr_drv_active_sel();
+	crop_line = line;
+	vrr_vpp_index = vpp_index;
+
+	if (crop_line != pre_line)
+		vrr_line_delay_update(vdrv);
 }
 
 static void vrr_drv_disable(struct aml_vrr_drv_s *vdrv)

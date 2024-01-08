@@ -56,6 +56,10 @@
 #include "vpp_regs_s5.h"
 #include "video_common.h"
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VRR
+#include <linux/amlogic/media/vrr/vrr.h>
+#endif
+
 #define MAX_NONLINEAR_FACTOR    0x40
 #define MAX_NONLINEAR_T_FACTOR    100
 
@@ -1560,12 +1564,17 @@ static int vpp_set_filters_internal
 	u32 force_skip_cnt = 0, slice_num = 0;
 	bool vd1s1_vd2_prebld_en = false;
 	u32 w_out, h_out;
+	u8 id = 0;
+	u8 vpp_index = 0;
 
 	if (!input)
 		return vppfilter_fail;
 
 	if (vpp_flags & VPP_FLAG_MORE_LOG)
 		cur_super_debug = super_debug;
+
+	id = input->layer_id;
+	vpp_index = vd_layer[id].vpp_index;
 
 	/* min = 0.95 x 1024 * height / width */
 	min_aspect_ratio_out =
@@ -2086,6 +2095,10 @@ RESTART:
 		next_frame_par->crop_top = crop_top;
 		next_frame_par->crop_bottom = crop_bottom;
 	}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VRR
+	vrr_crop_update_delay_line(crop_top, vpp_index);
+#endif
 
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
 		next_frame_par->VPP_vd_start_lines_ &= ~1;
