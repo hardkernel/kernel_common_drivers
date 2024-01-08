@@ -2640,11 +2640,15 @@ static const struct freq_ref_s freq_ref[] = {
 	/* interlace */
 	{1,	0,	0,	720,	240,	HDMI_480i60},
 	{1,	0,	0,	1440,	240,	HDMI_480i60},
-	{1, 0,	0,	720,	288,	HDMI_576i50},
+	{1,	0,	0,	720,	288,	HDMI_576i50},
 	{1,	0,	0,	1440,	288,	HDMI_576i50},
 	{1,	0,	0,	1920,	540,	HDMI_1080i50},
 	{1,	0,	0,	1920,	1103,	HDMI_1080i_ALTERNATIVE},
 	{1,	0,	0,	1920,	2228,	HDMI_1080i_FRAMEPACKING},
+	{1,	0,	0,	360,	240,    HDMI_360x480i},
+	{1,	0,	0,	360,	288,	HDMI_360x576i},
+	{0,	0,	0,	360,	480,	HDMI_360x480p},
+	{0,	0,	0,	360,	576,	HDMI_360x576p},
 	{0,	0,	0,	1440,	240,	HDMI_1440x240p60},
 	{0, 0,	0,	720,	240,	HDMI_720X240},
 	{0,	0,	0,	2880,	240,	HDMI_2880x240p60},
@@ -3106,6 +3110,18 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(u8 port)
 		break;
 	case HDMI_720X240:
 		return TVIN_SIG_FMT_HDMI_720X240;
+	case HDMI_360x480i:
+		fmt = TVIN_SIG_FMT_HDMI_360X480I;
+		break;
+	case HDMI_360x576i:
+		fmt = TVIN_SIG_FMT_HDMI_360X576I;
+		break;
+	case HDMI_360x480p:
+		fmt = TVIN_SIG_FMT_HDMI_360X480P;
+		break;
+	case HDMI_360x576p:
+		fmt = TVIN_SIG_FMT_HDMI_360X576P;
+		break;
 	default:
 		break;
 	}

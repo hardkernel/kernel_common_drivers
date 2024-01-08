@@ -5372,14 +5372,16 @@ void hdmirx_config_video(u8 port)
 		data8 |= ((pixel_rpt_cnt & 0x3) << 0);
 		hdmirx_wr_cor(RX_VP_INPUT_FORMAT_HI, data8, port);
 	}
-
-	if (rx_info.chip_id >= CHIP_ID_T7) {
+	if (rx_info.chip_id >= CHIP_ID_T3) {
 		if (rx[port].pre.sw_vic >= HDMI_VESA_OFFSET ||
 			rx[port].pre.sw_vic == HDMI_640x480p60 ||
 			rx[port].pre.sw_dvi)
+			/* for T7, bit7 must be written as 1 in order to de-repeat */
 			hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(7), 1, port);
 		else//use auto de-repeat
 			hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(7), 0, port);
+	}
+	if (rx_info.chip_id >= CHIP_ID_T7) {
 		if (rx_info.chip_id == CHIP_ID_T3X && port == rx_info.main_port)
 			top_vid_fmt = hdmirx_rd_bits_top_common_1(TOP_VID_STAT, TOP_VID_FMT);
 		else
