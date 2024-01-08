@@ -64,8 +64,7 @@ int dtvdemod_dvbs_read_signal_strength(struct dvb_frontend *fe, s16 *strength)
 	unsigned int i = 0, if_agc_value = 0;
 	u16 rf_strength = 0;
 
-	if (tuner_find_by_name(fe, "av2018") ||
-		tuner_find_by_name(fe, "rda5815m")) {
+	if (tuner_find_by_name(fe, "av2018")) {
 		agc_level = dvbs_rd_byte(DVBS_AGC_LEVEL_ADDR);
 		if (agc_level > 183) {
 			*strength = 0;
@@ -99,6 +98,8 @@ int dtvdemod_dvbs_read_signal_strength(struct dvb_frontend *fe, s16 *strength)
 			fe->ops.tuner_ops.get_rf_strength(fe, &rf_strength);
 		PR_DBGL("if_agc_code %d\n", if_agc_value);
 
+		*strength = (s16)tuner_get_ch_power(fe);
+	} else if (tuner_find_by_name(fe, "rda5815m")) {
 		*strength = (s16)tuner_get_ch_power(fe);
 	} else {
 		*strength = (s16)tuner_get_ch_power(fe);
