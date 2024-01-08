@@ -369,6 +369,8 @@ MODULE_PARM_DESC(ct_en, "\n color tune\n");
 unsigned int ai_color_enable;
 module_param(ai_color_enable, uint, 0664);
 MODULE_PARM_DESC(ai_color_enable, "\n ai_color_enable\n");
+
+unsigned int pre_aiclr_en = 1;
 #endif
 
 unsigned int hdr_output_mode;
@@ -2666,9 +2668,16 @@ int amvecm_on_vs(struct vframe_s *vf,
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if ((is_meson_s5_cpu() || is_meson_t3x_cpu()) &&
-		!ai_color_enable &&
-		(vd_path == VD1_PATH))
-		disable_ai_color(vpp_index);
+		(vd_path == VD1_PATH)) {
+		if (!ai_color_enable) {
+			if (pre_aiclr_en == 1) {
+				disable_ai_color(vpp_index);
+				pre_aiclr_en = 0;
+			}
+		} else {
+			pre_aiclr_en = 1;
+		}
+	}
 #endif
 
 #ifdef T7_BRINGUP_MULTI_VPP
