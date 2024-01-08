@@ -13,7 +13,7 @@ Solution:
 Rootcause is bss cleared but real data keeps in cache, not flushed
 into DDR, and physical kasan shadow page soon be mapped to shadow
 memory while in shadow virtual address we see random data, which
-caused kasan check failed in vmap fixup funciton and crashed. So
+caused kasan check failed in vmap fixup function and crashed. So
 just add a dcache flush function call after bss cleared.
 
 Verify:
