@@ -139,6 +139,9 @@ struct meson_drm {
 	u8 remove_get_vblank_timestamp;
 
 	u32 pxp_mode;
+
+	u32 creat_rdma_table;
+	ktime_t start;
 };
 
 /*component bind functions*/

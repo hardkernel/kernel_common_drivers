@@ -15,6 +15,12 @@
 
 #define LINE_THRESHOLD 90
 #define WAIT_CNT_MAX 100
+
+/*****drm reg access by rdma*****/
+/*one item need two u32 = 8byte,total 512+1536 item is enough for vpu*/
+#define RDMA_TABLE_ITEM_TOTAL      2048
+#define MESON_VPU_RDMA_TABLE_SIZE (RDMA_TABLE_ITEM_TOTAL * 8)
+
 /*osd internal channel*/
 enum din_channel_e {
 	DIN0 = 0,
@@ -45,8 +51,12 @@ void meson_drm_canvas_config(u32 index, unsigned long addr, u32 width,
 int meson_drm_canvas_pool_alloc_table(const char *owner, u32 *table, int size,
 				      enum canvas_map_type_e type);
 void set_video_enabled(u32 value, u32 index);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 void meson_vpu_reg_handle_register(void *arg);
 int meson_vpu_reg_vsync_config(u32 vpp_index);
+#endif
+
 void meson_vpu_power_config(enum vpu_mod_e mode, bool en);
 void osd_vpu_power_on(void);
 #endif

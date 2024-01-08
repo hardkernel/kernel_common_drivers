@@ -456,6 +456,7 @@ static const struct meson_vpu_data vpu_s5_data = {
 	.slice2ppc_ops = &slice2ppc_ops,
 	.osd_formats = &osd_formats,
 	.video_formats = &video_formats,
+	.cached_regs = s5_reg_table_cached,
 	.enc_method = 1,
 	.slice_mode = 1,
 	.max_osdblend_width = 3840,
@@ -479,6 +480,7 @@ static const struct meson_vpu_data vpu_t3x_data = {
 	.slice2ppc_ops = &slice2ppc_ops,
 	.osd_formats = &osd_formats_t3x,
 	.video_formats = &video_formats,
+	.cached_regs = s5_reg_table_cached,
 	.enc_method = 1,
 	.slice_mode = 1,
 	.max_osdblend_width = 3840,
@@ -517,6 +519,7 @@ static const struct meson_vpu_data vpu_s7_data = {
 	.video_ops = &video_ops,
 	.osd_formats = &osd_formats_s1a,
 	.video_formats = &video_formats,
+	.cached_regs = s7_reg_table_cached,
 };
 
 static const struct meson_vpu_data vpu_s7d_data = {

@@ -13,12 +13,17 @@
 
 #include "vpu-hw/meson_osd_afbc.h"
 #include "meson_vpu_pipeline.h"
+#include "meson_crtc.h"
 #include "meson_drv.h"
 #include "meson_vpu.h"
 
 static int flush_time = 3;
 module_param(flush_time, int, 0664);
 MODULE_PARM_DESC(flush_time, "flush time");
+
+static int rdma_table_flush_time = 1;
+module_param(rdma_table_flush_time, int, 0664);
+MODULE_PARM_DESC(rdma_table_flush_time, "rdma_table_flush_time");
 
 static int osd_slice_mode;
 module_param(osd_slice_mode, int, 0664);
@@ -668,11 +673,13 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	struct meson_vpu_pipeline_state *new_mvps;
 	struct meson_vpu_sub_pipeline_state *new_mvsps;
 	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
+	struct am_meson_crtc *amcrtc;
 	unsigned long affected_blocks = 0;
 
 	crtc_index = sub_pipeline->index;
 	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
 	new_mvsps = &new_mvps->sub_states[crtc_index];
+	amcrtc = pipeline->priv->crtcs[crtc_index];
 
 	affected_blocks = new_mvsps->enable_blocks;
 	for_each_set_bit(id, &affected_blocks, 32) {
@@ -702,6 +709,11 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 #endif
 
 	vpu_pipeline_append_finish_reg(crtc_index, sub_pipeline->reg_ops);
+
+	if (rdma_tbl[crtc_index].flag)
+		meson_drm_write_allregs2rdma(crtc_index);
+
+	rdma_tbl[crtc_index].flag = amcrtc->rdma_table_enable;
 
 	return 0;
 }
@@ -758,6 +770,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	struct meson_vpu_pipeline_state *old_mvps, *new_mvps;
 	struct meson_vpu_sub_pipeline_state *old_mvsps, *new_mvsps;
 	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
+	struct am_meson_crtc *amcrtc;
 	unsigned long affected_blocks = 0;
 
 	crtc_index = sub_pipeline->index;
@@ -765,6 +778,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
 	old_mvsps = &old_mvps->sub_states[crtc_index];
 	new_mvsps = &new_mvps->sub_states[crtc_index];
+	amcrtc = pipeline->priv->crtcs[crtc_index];
 	new_mvps->global_afbc = 0;
 
 	DRM_DEBUG("old_enable_blocks: 0x%llx - %p, new_enable_blocks: 0x%llx - %p.\n",
@@ -809,6 +823,11 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 #endif
 
 	vpu_pipeline_append_finish_reg(crtc_index, sub_pipeline->reg_ops);
+
+	if (rdma_tbl[crtc_index].flag)
+		meson_drm_write_allregs2rdma(crtc_index);
+
+	rdma_tbl[crtc_index].flag = amcrtc->rdma_table_enable;
 
 	return 0;
 }
@@ -1023,16 +1042,21 @@ void vpu_pipeline_prepare_update(struct meson_vpu_pipeline *pipeline,
 	int vdisplay, int vrefresh, int crtc_index)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	int vsync_active_begin, wait_cnt, cur_line, cur_col, line_threshold;
+	int vsync_active_begin, wait_cnt, cur_line, cur_col, line_threshold, time;
 
 	/*for rdma, we need
 	 * 1. finish rdma table write before VACTIVE(last_VFP~VBP).
 	 * 2. wait rdma hw flush finish (flush time depends on aps clock.)
 	 * | VSYNC| VBackP | VACTIVE | VFrontP |...
 	 */
+	if (rdma_tbl[crtc_index].flag)
+		time = rdma_table_flush_time;
+	else
+		time = flush_time;
+
 	vsync_active_begin = vpu_pipeline_get_active_begin_line(pipeline, crtc_index);
 	vpu_pipeline_read_scanout_pos(pipeline, &cur_line, &cur_col, crtc_index);
-	line_threshold = vdisplay * flush_time * vrefresh / 1000;
+	line_threshold = vdisplay * time * vrefresh / 1000;
 	wait_cnt = 0;
 	while (cur_line >= vdisplay + vsync_active_begin - line_threshold ||
 			cur_line <= vsync_active_begin) {

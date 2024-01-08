@@ -116,6 +116,7 @@ struct am_meson_crtc {
 	int dump_counts;
 	int dump_index;
 	char osddump_path[64];
+	bool rdma_table_enable;
 
 	/*present fence*/
 	struct am_meson_crtc_present_fence present_fence;

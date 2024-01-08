@@ -74,6 +74,10 @@ int rdma_write_reg(int handle, u32 adr, u32 val);
 
 int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len);
 
+int rdma_update_reg_buf(int handle, u32 *rdma_item, u32 count);
+
+u32 rdma_read_reg_write_table(int handle, u32 adr, bool *is_found);
+
 int rdma_clear(int handle);
 
 s32 rdma_add_read_reg(int handle, u32 adr);

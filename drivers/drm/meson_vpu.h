@@ -38,6 +38,7 @@ struct meson_vpu_data {
 	struct meson_vpu_block_ops *gfcd_ops;
 	struct meson_plane_supported_formats *osd_formats;
 	struct meson_plane_supported_formats *video_formats;
+	u32 *cached_regs;
 	int enc_method;
 	int slice_mode;
 	int has_gfcd;

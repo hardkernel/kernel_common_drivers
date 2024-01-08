@@ -1227,6 +1227,72 @@ static ssize_t hdmitx_attr_show(struct file *filp, struct kobject *kobj,
 	return pos;
 }
 
+static ssize_t crtc_rdma_table_switch_show(struct file *filp,
+			 struct kobject *kobj, struct bin_attribute *attr, char *buf,
+			 loff_t off, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	struct drm_crtc *crtc;
+	int crtc_index = *(int *)attr->private;
+	int pos = 0;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	crtc = drm_crtc_from_index(minor->dev, crtc_index);
+	if (!crtc)
+		return -EINVAL;
+
+	if (off > 0)
+		return 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 1 > rdma_table_switch enable crtc-%d drm rdma table\n", crtc_index);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 0 > rdma_table_switch disable crtc-%d drm rdma table\n", crtc_index);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"crtc-%d drm rdma table status is %d\n", crtc_index,
+		rdma_tbl[crtc_index].flag);
+
+	return pos;
+}
+
+static ssize_t crtc_rdma_table_switch_store(struct file *filp,
+			 struct kobject *kobj, struct bin_attribute *attr, char *buf,
+			 loff_t off, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	struct drm_crtc *crtc;
+	struct am_meson_crtc *amcrtc;
+	int crtc_index = *(int *)attr->private;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	crtc = drm_crtc_from_index(minor->dev, crtc_index);
+	if (!crtc)
+		return -EINVAL;
+
+	amcrtc = to_am_meson_crtc(crtc);
+
+	if (buf[0] != '0' && buf[0] != '1')
+		return -EINVAL;
+
+	if (buf[0] == '1') {
+		amcrtc->rdma_table_enable = true;
+		DRM_INFO("crtc-%d enable drm rdma table\n", crtc_index);
+	} else if (buf[0] == '0') {
+		amcrtc->rdma_table_enable = false;
+		DRM_INFO("crtc-%d disable drm rdma table\n", crtc_index);
+	} else {
+		return -EINVAL;
+	}
+
+	return count;
+}
+
 static struct bin_attribute osd0_attr[] = {
 	{
 		.attr.name = "osd_reverse",
@@ -1556,13 +1622,20 @@ static struct bin_attribute crtc0_attr[] = {
 		.read = hdmitx_attr_show,
 		.write = hdmitx_attr_store,
 	},
-
+	{
+		.attr.name = "rdma_table_switch",
+		.attr.mode = 0664,
+		.private = &crtc_index[0],
+		.read = crtc_rdma_table_switch_show,
+		.write = crtc_rdma_table_switch_store,
+	},
 };
 
 static struct bin_attribute *crtc0_bin_attrs[] = {
 	&crtc0_attr[0],
 	&crtc0_attr[1],
 	&crtc0_attr[2],
+	&crtc0_attr[3],
 	NULL,
 };
 
@@ -1588,13 +1661,20 @@ static struct bin_attribute crtc1_attr[] = {
 		.read = hdmitx_attr_show,
 		.write = hdmitx_attr_store,
 	},
-
+	{
+		.attr.name = "rdma_table_switch",
+		.attr.mode = 0664,
+		.private = &crtc_index[1],
+		.read = crtc_rdma_table_switch_show,
+		.write = crtc_rdma_table_switch_store,
+	},
 };
 
 static struct bin_attribute *crtc1_bin_attrs[] = {
 	&crtc1_attr[0],
 	&crtc1_attr[1],
 	&crtc1_attr[2],
+	&crtc1_attr[3],
 	NULL,
 };
 
@@ -1620,12 +1700,20 @@ static struct bin_attribute crtc2_attr[] = {
 		.read = hdmitx_attr_show,
 		.write = hdmitx_attr_store,
 	},
+	{
+		.attr.name = "rdma_table_switch",
+		.attr.mode = 0664,
+		.private = &crtc_index[2],
+		.read = crtc_rdma_table_switch_show,
+		.write = crtc_rdma_table_switch_store,
+	},
 };
 
 static struct bin_attribute *crtc2_bin_attrs[] = {
 	&crtc2_attr[0],
 	&crtc2_attr[1],
 	&crtc2_attr[2],
+	&crtc2_attr[3],
 	NULL,
 };
 

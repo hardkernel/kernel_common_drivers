@@ -14,6 +14,7 @@
 #include "meson_drv.h"
 #include "meson_vpu_util.h"
 #include "meson_plane.h"
+#include "meson_drm_rdma.h"
 
 #define MESON_OSD1 0
 #define MESON_OSD2 1
@@ -882,6 +883,10 @@ extern struct meson_plane_supported_formats osd_formats_s1a;
 extern struct meson_plane_supported_formats osd_formats_s7d;
 extern struct meson_plane_supported_formats video_formats;
 
+extern u32 s5_reg_table_cached[VPU_CACHED_REG_TABLE_SIZE];
+extern u32 s7_reg_table_cached[VPU_CACHED_REG_TABLE_SIZE];
+
+extern struct meson_drm_rdma_table rdma_tbl[MESON_MAX_CRTC];
 extern u32 overwrite_reg[256];
 extern u32 overwrite_val[256];
 extern int overwrite_enable;

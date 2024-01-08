@@ -17,6 +17,11 @@
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
 #include <enhancement/amvecm/amcsc.h>
+#include "meson_drm_rdma.h"
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DRM
+#include <trace/events/meson_atrace.h>
+#endif
 
 #define EOTF_RESERVED 23
 
@@ -930,6 +935,10 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 			#endif
 		}
 	}
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+	ATRACE_BEGIN("crtc_flush");
+#endif
 	vpu_pipeline_prepare_update(amcrtc->pipeline,
 		crtc->mode.vdisplay, drm_mode_vrefresh(&crtc->mode), crtc_index);
 	if (!meson_crtc_state->uboot_mode_init) {
@@ -938,6 +947,9 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 		vpu_pipeline_finish_update(pipeline, crtc_index);
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 	}
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+	ATRACE_END();
+#endif
 
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	if (crtc->state->event) {
@@ -1248,6 +1260,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 
 	amcrtc->get_scanout_position = meson_crtc_get_scanout_position;
 	amcrtc->force_crc_chk = 8;
+	amcrtc->rdma_table_enable = rdma_tbl[idx].flag;
 	atomic_set(&amcrtc->commit_num, 0);
 	mutex_init(&amcrtc->commit_mutex);
 	spin_lock_init(&amcrtc->present_fence.lock);
