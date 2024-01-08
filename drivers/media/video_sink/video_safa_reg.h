@@ -433,4 +433,27 @@
 #define VPP_SR_EN 0x5204
 //Bit 31: 1        reserved
 //Bit 0         reg_sr_en       // unsigned ,    RW, default = 0
+#define VPP_VSR_DEBUG_MODE                         0x500a
+//Bit 31: 8        reserved
+//Bit  7: 0        reg_vsr_debug_mode        // unsigned ,    RW, default = 0
+#define VPP_PI_DEBUG_DEMO_WND_EN                   0x508a
+//Bit 31: 8        reserved
+//Bit  7: 5        reserved
+//Bit  4           reg_pi_debug_demo_en      // unsigned ,    RW, default = 0
+//Bit  3: 1        reserved
+//Bit  0           reg_pi_debug_demo_inverse // unsigned ,    RW, default = 0
+#define VPP_PI_DEBUG_DEMO_WND_COEF_1               0x508b
+//Bit 31:28        reserved
+//Bit 27:16        reg_debug_demo_wnd_3      // unsigned ,    RW,
+					//default = 1620  control debug window row size
+//Bit 15:12        reserved
+//Bit 11: 0        reg_debug_demo_wnd_2      // unsigned ,    RW,
+					//default = 2880  control debug window col size
+#define VPP_PI_DEBUG_DEMO_WND_COEF_0               0x508c
+//Bit 31:28        reserved
+//Bit 27:16        reg_debug_demo_wnd_1      // unsigned ,    RW,
+					//default = 540  control debug window row size
+//Bit 15:12        reserved
+//Bit 11: 0        reg_debug_demo_wnd_0      // unsigned ,    RW,
+					//default = 960  control debug window col size
 #endif

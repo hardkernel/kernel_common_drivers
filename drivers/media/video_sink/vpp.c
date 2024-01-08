@@ -55,6 +55,7 @@
 #include "video_hw_s5.h"
 #include "vpp_regs_s5.h"
 #include "video_common.h"
+#include "video_safa_reg.h"
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 #include <linux/amlogic/media/vrr/vrr.h>
@@ -3472,36 +3473,45 @@ void aisr_reshape_output(u32 enable)
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		return aisr_reshape_output_s5(enable);
 #endif
-	if (!cur_dev->aisr_support ||
-		!cur_dev->aisr_enable)
+	if ((!cur_dev->aisr_support ||
+		!cur_dev->aisr_enable) &&
+		!cur_dev->vd1_vsr_safa_support)
 		return;
 
 	sr = &sr_info;
 	sr_reg_offt2 = sr->sr_reg_offt2;
 	if (enable) {
-		WRITE_VCBUS_REG_BITS
-			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
-			0x5, 9, 4);
-		WRITE_VCBUS_REG_BITS
-			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
-			0xa, 12, 4);
-		WRITE_VCBUS_REG_BITS
-			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
-			0x2, 28, 2);
-		WRITE_VCBUS_REG_BITS
-			(SRSHARP1_SHARP_SR2_CTRL + sr_reg_offt2,
-			0x0, 1, 1);
-	} else {
-		WRITE_VCBUS_REG_BITS
-			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
-			0x0, 9, 4);
-		WRITE_VCBUS_REG_BITS
-			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
-			0x4, 12, 4);
-		WRITE_VCBUS_REG_BITS
-			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
-			0x0, 28, 2);
+		if (cur_dev->vd1_vsr_safa_support) {
+			WRITE_VCBUS_REG(VPP_VSR_DEBUG_MODE, 0x20);
+		} else {
+			WRITE_VCBUS_REG_BITS
+				(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
+				0x5, 9, 4);
+			WRITE_VCBUS_REG_BITS
+				(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
+				0xa, 12, 4);
+			WRITE_VCBUS_REG_BITS
+				(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
+				0x2, 28, 2);
+			WRITE_VCBUS_REG_BITS
+				(SRSHARP1_SHARP_SR2_CTRL + sr_reg_offt2,
+				0x0, 1, 1);
 		}
+	} else {
+		if (cur_dev->vd1_vsr_safa_support) {
+			WRITE_VCBUS_REG(VPP_VSR_DEBUG_MODE, 0);
+		} else {
+			WRITE_VCBUS_REG_BITS
+				(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
+				0x0, 9, 4);
+			WRITE_VCBUS_REG_BITS
+				(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
+				0x4, 12, 4);
+			WRITE_VCBUS_REG_BITS
+				(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
+				0x0, 28, 2);
+		}
+	}
 }
 
 /*
