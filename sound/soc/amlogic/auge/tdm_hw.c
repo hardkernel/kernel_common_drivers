@@ -553,7 +553,7 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 		aml_clk_set_tdmout_by_id(actrl,
 			id, valb, valf,
 			p_config->sclk_ws_inv, master_mode, binv);
-		aml_tdmout_invert_lrclk(actrl, id, 0);
+		aml_tdmout_invert_lrclk(actrl, id, finv);
 		aml_tdmout_bclk_skew(actrl, id, bclkout_skew);
 	}
 
