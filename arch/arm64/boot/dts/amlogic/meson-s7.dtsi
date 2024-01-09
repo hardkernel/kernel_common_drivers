@@ -1953,15 +1953,15 @@
 
 	p_tsensor: p_tsensor@fe020000 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe020000 0x0 0x50>;
 		tsensor_id = <1>;
 		cal_type = <0x11>;
-		cal_coeff = <324 424 3159 9411>;
+		cal_coeff = <296 396 2757 8526>;
 		rtemp = <110000>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
-		//clocks = <&clkc CLKID_TS_CLK_GATE>;
-		//clock-names = "ts_comp";
+		clocks = <&clkc CLKID_TS>;
+		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
 	};
 
