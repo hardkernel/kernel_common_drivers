@@ -49,11 +49,11 @@
 static struct dv_atsc p_atsc_md;
 
 u32 hw5_reg_from_file;
-module_param(hw5_reg_from_file, uint, 0664);
+__module_param(hw5_reg_from_file, uint, 0664);
 MODULE_PARM_DESC(hw5_reg_from_file, "\n hw5_reg_from_file\n");
 
 u32 force_update_top2 = true;
-module_param(force_update_top2, uint, 0664);
+__module_param(force_update_top2, uint, 0664);
 MODULE_PARM_DESC(force_update_top2, "\n force_update_top2\n");
 
 struct dv5_top1_vd_info top1_vd_info;

@@ -42,7 +42,7 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 static bool blind_scan_new = true;
-module_param(blind_scan_new, bool, 0644);
+__module_param(blind_scan_new, bool, 0644);
 MODULE_PARM_DESC(blind_scan_new, "blind_scan_new");
 
 int dtvdemod_dvbs_read_ber(struct dvb_frontend *fe, u32 *ber)

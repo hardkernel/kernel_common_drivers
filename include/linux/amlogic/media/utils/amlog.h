@@ -19,10 +19,10 @@
 
 #define MODULE_AMLOG(def_level, def_mask, desc_level, desc_mask) \
 u32 LOG_LEVEL_VAR = def_level; \
-module_param(LOG_LEVEL_VAR, uint, 0664); \
+__module_param(LOG_LEVEL_VAR, uint, 0664); \
 MODULE_PARM_DESC(LOG_LEVEL_VAR, desc_level); \
 u32 LOG_MASK_VAR = def_mask; \
-module_param(LOG_MASK_VAR, uint, 0664); \
+__module_param(LOG_MASK_VAR, uint, 0664); \
 MODULE_PARM_DESC(LOG_MASK_VAR, desc_mask)
 
 #ifndef LOG_LEVEL_VAR

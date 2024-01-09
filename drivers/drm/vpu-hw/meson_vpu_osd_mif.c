@@ -31,7 +31,7 @@ static int osd_hold_line = VIU1_DEFAULT_HOLD_LINE;
 u32 original_swap_t3x;
 u32 original_osd1_fifo_ctrl_stat_t3x;
 #endif
-module_param(osd_hold_line, int, 0664);
+__module_param(osd_hold_line, int, 0664);
 MODULE_PARM_DESC(osd_hold_line, "osd_hold_line");
 
 static struct osd_mif_reg_s osd_mif_reg[HW_OSD_MIF_NUM] = {

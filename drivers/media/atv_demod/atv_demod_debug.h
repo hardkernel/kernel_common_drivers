@@ -124,7 +124,7 @@ struct dentry_value {
 
 #define DEBUGFS_CREATE_NODE(name, mode, parent, type)\
 	extern type name;\
-	module_param(name, type, mode);\
+	__module_param(name, type, mode);\
 	MODULE_PARM_DESC(name, "\n" #name "\n");
 
 #define DEBUGFS_CREATE_FILE(name, mode, parent, fops, type)\

@@ -11,32 +11,32 @@
 #include <linux/mutex.h>
 
 MODULE_PARM_DESC(debug_atsc, "\n\t\t Enable frontend atsc debug information");
-static int debug_atsc = 1;
-module_param(debug_atsc, int, 0644);
+//static int debug_atsc = 1;
+__module_param(debug_atsc, int, 0644);
 
 MODULE_PARM_DESC(atsc_thread_enable, "\n\t\t Enable frontend debug information");
 static int atsc_thread_enable = 1;
-module_param(atsc_thread_enable, int, 0644);
+__module_param(atsc_thread_enable, int, 0644);
 
 MODULE_PARM_DESC(ar_enable, "\n\t\t Enable ar");
 static int ar_enable;
-module_param(ar_enable, int, 0644);
+__module_param(ar_enable, int, 0644);
 
 MODULE_PARM_DESC(cci_enable, "\n\t\t Enable ar");
 static int cci_enable = 1;
-module_param(cci_enable, int, 0644);
+__module_param(cci_enable, int, 0644);
 
 MODULE_PARM_DESC(cfo_count, "\n\t\t cfo_count");
 static int cfo_count;
-module_param(cfo_count, int, 0644);
+__module_param(cfo_count, int, 0644);
 
 MODULE_PARM_DESC(field_test_version, "\n\t\t field_test_version");
 static int field_test_version;
-module_param(field_test_version, int, 0644);
+__module_param(field_test_version, int, 0644);
 
 MODULE_PARM_DESC(cfo_times, "\n\t\t cfo_times");
 static int cfo_times = 30;
-module_param(cfo_times, int, 0644);
+__module_param(cfo_times, int, 0644);
 
 static int dagc_switch;
 static int ar_flag;

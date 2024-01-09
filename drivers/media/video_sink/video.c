@@ -583,10 +583,10 @@ int vpp_in_size_threshold_4k = 9;
 bool vsync_count_start;
 u32 new_frame_cnt;
 MODULE_PARM_DESC(new_frame_cnt, "\n new_frame_cnt\n");
-module_param(new_frame_cnt, uint, 0664);
+__module_param(new_frame_cnt, uint, 0664);
 
 MODULE_PARM_DESC(vsync_count_start, "\n vsync_count_start\n");
-module_param(vsync_count_start, bool, 0664);
+__module_param(vsync_count_start, bool, 0664);
 
 u32 new_frame_count;
 u32 vd1_vd2_mux_dts;
@@ -692,33 +692,33 @@ int toggle_3d_fa_frame = 1;
 /*the A/B register switch in every sync at pause mode. */
 
 MODULE_PARM_DESC(pause_one_3d_fl_frame, "\n pause_one_3d_fl_frame\n");
-module_param(pause_one_3d_fl_frame, int, 0664);
+__module_param(pause_one_3d_fl_frame, int, 0664);
 
 /*debug info control for skip & repeate vframe case*/
 static unsigned int video_dbg_vf;
 MODULE_PARM_DESC(video_dbg_vf, "\n video_dbg_vf\n");
-module_param(video_dbg_vf, uint, 0664);
+__module_param(video_dbg_vf, uint, 0664);
 
-static int vd_cnt = MAX_VD_LAYER;
+//static int vd_cnt = MAX_VD_LAYER;
 unsigned int video_get_vf_cnt[MAX_VD_LAYER];
-module_param_array(video_get_vf_cnt, uint, &vd_cnt, 0664);
+__module_param_array(video_get_vf_cnt, uint, &vd_cnt, 0664);
 MODULE_PARM_DESC(video_get_vf_cnt, "\n video_get_vf_cnt\n");
 
 unsigned int video_drop_vf_cnt[MAX_VD_LAYER];
-module_param_array(video_drop_vf_cnt, uint, &vd_cnt, 0664);
+__module_param_array(video_drop_vf_cnt, uint, &vd_cnt, 0664);
 MODULE_PARM_DESC(video_drop_vf_cnt, "\n video_drop_vf_cnt\n");
 
 static unsigned int disable_dv_drop;
 MODULE_PARM_DESC(disable_dv_drop, "\n disable_dv_drop\n");
-module_param(disable_dv_drop, uint, 0664);
+__module_param(disable_dv_drop, uint, 0664);
 
 static u32 vdin_frame_skip_cnt;
 MODULE_PARM_DESC(vdin_frame_skip_cnt, "\n vdin_frame_skip_cnt\n");
-module_param(vdin_frame_skip_cnt, uint, 0664);
+__module_param(vdin_frame_skip_cnt, uint, 0664);
 
 static u32 vdin_err_crc_cnt;
 MODULE_PARM_DESC(vdin_err_crc_cnt, "\n vdin_err_crc_cnt\n");
-module_param(vdin_err_crc_cnt, uint, 0664);
+__module_param(vdin_err_crc_cnt, uint, 0664);
 #define ERR_CRC_COUNT 6
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -5352,7 +5352,7 @@ static irqreturn_t vsync_pre_vsync_isr(int irq, void *dev_id)
 
 static int printk_frame_done;
 MODULE_PARM_DESC(printk_frame_done, "\n printk_frame_done\n");
-module_param(printk_frame_done, int, 0664);
+__module_param(printk_frame_done, int, 0664);
 
 static irqreturn_t mosaic_frame_done_isr(int irq, void *dev_id)
 {
@@ -15252,133 +15252,133 @@ void __exit video_exit(void)
 }
 
 MODULE_PARM_DESC(debug_flag, "\n debug_flag\n");
-module_param(debug_flag, int, 0664);
+__module_param(debug_flag, int, 0664);
 
 #ifdef TV_3D_FUNCTION_OPEN
 MODULE_PARM_DESC(force_3d_scaler, "\n force_3d_scaler\n");
-module_param(force_3d_scaler, uint, 0664);
+__module_param(force_3d_scaler, uint, 0664);
 
 MODULE_PARM_DESC(video_3d_format, "\n video_3d_format\n");
-module_param(video_3d_format, uint, 0664);
+__module_param(video_3d_format, uint, 0664);
 #endif
 
-module_param_named(video_vsync_enter_line_max,
+__module_param_named(video_vsync_enter_line_max,
 	vsync_enter_line_max, int, 0664);
-module_param_named(video_vsync_exit_line_max,
+__module_param_named(video_vsync_exit_line_max,
 	vsync_exit_line_max, int, 0664);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 MODULE_PARM_DESC(vsync_rdma_line_max, "\n vsync_rdma_line_max\n");
-module_param(vsync_rdma_line_max, int, 0664);
+__module_param(vsync_rdma_line_max, int, 0664);
 #endif
 
-module_param(underflow, uint, 0664);
+__module_param(underflow, uint, 0664);
 MODULE_PARM_DESC(underflow, "\n Underflow count\n");
 
-module_param(next_peek_underflow, uint, 0664);
+__module_param(next_peek_underflow, uint, 0664);
 MODULE_PARM_DESC(skip, "\n Underflow count\n");
 
-module_param(step_enable, int, 0664);
+__module_param(step_enable, int, 0664);
 MODULE_PARM_DESC(step_enable, "\n step_enable\n");
 
-module_param(step_flag, int, 0664);
+__module_param(step_flag, int, 0664);
 MODULE_PARM_DESC(step_flag, "\n step_flag\n");
 
 /*arch_initcall(video_early_init);*/
 
 MODULE_PARM_DESC(smooth_sync_enable, "\n smooth_sync_enable\n");
-module_param(smooth_sync_enable, uint, 0664);
+__module_param(smooth_sync_enable, uint, 0664);
 
 MODULE_PARM_DESC(hdmi_in_onvideo, "\n hdmi_in_onvideo\n");
-module_param(hdmi_in_onvideo, uint, 0664);
+__module_param(hdmi_in_onvideo, uint, 0664);
 
 MODULE_PARM_DESC(vsync_count, "\n vsync_count\n");
-module_param(vsync_count, uint, 0664);
+__module_param(vsync_count, uint, 0664);
 
 MODULE_PARM_DESC(new_frame_count, "\n new_frame_count\n");
-module_param(new_frame_count, uint, 0664);
+__module_param(new_frame_count, uint, 0664);
 
 MODULE_PARM_DESC(first_frame_toggled, "\n first_frame_toggled\n");
-module_param(first_frame_toggled, uint, 0664);
+__module_param(first_frame_toggled, uint, 0664);
 
 MODULE_PARM_DESC(omx_pts, "\n omx_pts\n");
-module_param(omx_pts, uint, 0664);
+__module_param(omx_pts, uint, 0664);
 
 MODULE_PARM_DESC(omx_run, "\n omx_run\n");
-module_param(omx_run, bool, 0664);
+__module_param(omx_run, bool, 0664);
 
 MODULE_PARM_DESC(omx_pts_set_index, "\n omx_pts_set_index\n");
-module_param(omx_pts_set_index, uint, 0664);
+__module_param(omx_pts_set_index, uint, 0664);
 
 MODULE_PARM_DESC(omx_version, "\n omx_version\n");
-module_param(omx_version, uint, 0664);
+__module_param(omx_version, uint, 0664);
 
 MODULE_PARM_DESC(omx_info, "\n omx_info\n");
-module_param(omx_info, uint, 0664);
+__module_param(omx_info, uint, 0664);
 
 MODULE_PARM_DESC(omx_need_drop_frame_num, "\n omx_need_drop_frame_num\n");
-module_param(omx_need_drop_frame_num, int, 0664);
+__module_param(omx_need_drop_frame_num, int, 0664);
 
 MODULE_PARM_DESC(omx_drop_done, "\n omx_drop_done\n");
-module_param(omx_drop_done, bool, 0664);
+__module_param(omx_drop_done, bool, 0664);
 
 MODULE_PARM_DESC(omx_pts_interval_upper, "\n omx_pts_interval\n");
-module_param(omx_pts_interval_upper, int, 0664);
+__module_param(omx_pts_interval_upper, int, 0664);
 
 MODULE_PARM_DESC(omx_pts_interval_lower, "\n omx_pts_interval\n");
-module_param(omx_pts_interval_lower, int, 0664);
+__module_param(omx_pts_interval_lower, int, 0664);
 
 MODULE_PARM_DESC(drop_frame_count, "\n drop_frame_count\n");
-module_param(drop_frame_count, int, 0664);
+__module_param(drop_frame_count, int, 0664);
 
 MODULE_PARM_DESC(receive_frame_count, "\n receive_frame_count\n");
-module_param(receive_frame_count, int, 0664);
+__module_param(receive_frame_count, int, 0664);
 
 MODULE_PARM_DESC(display_frame_count, "\n display_frame_count\n");
-module_param(display_frame_count, int, 0664);
+__module_param(display_frame_count, int, 0664);
 
-module_param(frame_detect_time, uint, 0664);
+__module_param(frame_detect_time, uint, 0664);
 MODULE_PARM_DESC(frame_detect_time, "\n frame_detect_time\n");
 
-module_param(frame_detect_flag, uint, 0664);
+__module_param(frame_detect_flag, uint, 0664);
 MODULE_PARM_DESC(frame_detect_flag, "\n frame_detect_flag\n");
 
-module_param(frame_detect_fps, uint, 0664);
+__module_param(frame_detect_fps, uint, 0664);
 MODULE_PARM_DESC(frame_detect_fps, "\n frame_detect_fps\n");
 
-module_param(frame_detect_receive_count, uint, 0664);
+__module_param(frame_detect_receive_count, uint, 0664);
 MODULE_PARM_DESC(frame_detect_receive_count, "\n frame_detect_receive_count\n");
 
-module_param(frame_detect_drop_count, uint, 0664);
+__module_param(frame_detect_drop_count, uint, 0664);
 MODULE_PARM_DESC(frame_detect_drop_count, "\n frame_detect_drop_count\n");
 
 MODULE_PARM_DESC(bypass_pps, "\n pps_bypass\n");
-module_param(bypass_pps, bool, 0664);
+__module_param(bypass_pps, bool, 0664);
 
 MODULE_PARM_DESC(process_3d_type, "\n process_3d_type\n");
-module_param(process_3d_type, uint, 0664);
+__module_param(process_3d_type, uint, 0664);
 
 MODULE_PARM_DESC(g_framepacking_support, "\n g_framepacking_support\n");
-module_param(g_framepacking_support, uint, 0664);
+__module_param(g_framepacking_support, uint, 0664);
 
 MODULE_PARM_DESC(framepacking_width, "\n framepacking_width\n");
-module_param(framepacking_width, uint, 0664);
+__module_param(framepacking_width, uint, 0664);
 
 MODULE_PARM_DESC(framepacking_height, "\n framepacking_height\n");
-module_param(framepacking_height, uint, 0664);
+__module_param(framepacking_height, uint, 0664);
 
 MODULE_PARM_DESC(framepacking_blank, "\n framepacking_blank\n");
-module_param(framepacking_blank, uint, 0664);
+__module_param(framepacking_blank, uint, 0664);
 
-module_param(reverse, bool, 0644);
+__module_param(reverse, bool, 0644);
 MODULE_PARM_DESC(reverse, "reverse /disable reverse");
 
 MODULE_PARM_DESC(toggle_count, "\n toggle count\n");
-module_param(toggle_count, uint, 0664);
+__module_param(toggle_count, uint, 0664);
 
-module_param(osd_vpp1_bld_ctrl, uint, 0444);
+__module_param(osd_vpp1_bld_ctrl, uint, 0444);
 MODULE_PARM_DESC(osd_vpp1_bld_ctrl, "osd_vpp1_bld_ctrl");
-module_param(osd_vpp2_bld_ctrl, uint, 0444);
+__module_param(osd_vpp2_bld_ctrl, uint, 0444);
 MODULE_PARM_DESC(osd_vpp2_bld_ctrl, "osd_vpp2_bld_ctrl");
 
 //MODULE_DESCRIPTION("AMLOGIC video output driver");

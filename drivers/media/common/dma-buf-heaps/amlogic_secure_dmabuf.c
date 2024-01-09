@@ -23,7 +23,7 @@
 static struct dma_heap *secure_heap;
 
 static int dma_buf_debug = 1;
-module_param(dma_buf_debug, int, 0644);
+__module_param(dma_buf_debug, int, 0644);
 
 #define dprintk(level, fmt, arg...) \
 	do { \

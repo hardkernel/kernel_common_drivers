@@ -99,26 +99,26 @@ struct filter_info_s {
 
 #define PPS_COEF_NUM       (66 + 2)
 #define PPS_COEF_8TAP_NUM  (132 + 2)
-static unsigned int pps_coef = PPS_COEF_NUM;
-static unsigned int pps_coef_8tap = PPS_COEF_8TAP_NUM;
+//static unsigned int pps_coef = PPS_COEF_NUM;
+//static unsigned int pps_coef_8tap = PPS_COEF_8TAP_NUM;
 static uint test_pps_h_coef[PPS_COEF_NUM] = {2, 33};
 static uint test_pps_h_coef_8tap[PPS_COEF_8TAP_NUM] = {8, 33};
 static uint test_pps_v_coef[PPS_COEF_NUM] = {2, 33};
-static uint test_pps_v_coef_8tap[PPS_COEF_8TAP_NUM] = {8, 33};
+//static uint test_pps_v_coef_8tap[PPS_COEF_8TAP_NUM] = {8, 33};
 static uint force_pps_hcoef_update;
 static uint force_pps_vcoef_update;
 uint load_pps_coef;
 MODULE_PARM_DESC(force_pps_hcoef_update, "\n force_pps_hcoef_update\n");
-module_param(force_pps_hcoef_update, uint, 0664);
+__module_param(force_pps_hcoef_update, uint, 0664);
 MODULE_PARM_DESC(force_pps_vcoef_update, "\n force_pps_vcoef_update\n");
-module_param(force_pps_vcoef_update, uint, 0664);
-module_param_array(test_pps_h_coef, uint, &pps_coef, 0664);
+__module_param(force_pps_vcoef_update, uint, 0664);
+__module_param_array(test_pps_h_coef, uint, &pps_coef, 0664);
 MODULE_PARM_DESC(test_pps_h_coef, "\n test_pps_h_coef\n");
-module_param_array(test_pps_v_coef, uint, &pps_coef, 0664);
+__module_param_array(test_pps_v_coef, uint, &pps_coef, 0664);
 MODULE_PARM_DESC(test_pps_v_coef, "\n test_pps_v_coef\n");
-module_param_array(test_pps_h_coef_8tap, uint, &pps_coef_8tap, 0664);
+__module_param_array(test_pps_h_coef_8tap, uint, &pps_coef_8tap, 0664);
 MODULE_PARM_DESC(test_pps_h_coef_8tap, "\n test_pps_h_coef_8tap\n");
-module_param_array(test_pps_v_coef_8tap, uint, &pps_coef_8tap, 0664);
+__module_param_array(test_pps_v_coef_8tap, uint, &pps_coef_8tap, 0664);
 MODULE_PARM_DESC(test_pps_v_coef_8tap, "\n test_pps_v_coef_8tap\n");
 
 #define MAX_VD_LAYER 3
@@ -484,19 +484,19 @@ static const u32 *hscaler_8tap_filter_table[] = {
 
 static unsigned int sharpness1_sr2_ctrl_32d7 = 0x00181008;
 MODULE_PARM_DESC(sharpness1_sr2_ctrl_32d7, "sharpness1_sr2_ctrl_32d7");
-module_param(sharpness1_sr2_ctrl_32d7, uint, 0664);
+__module_param(sharpness1_sr2_ctrl_32d7, uint, 0664);
 /*0x3280 default val: 1920x1080*/
 static unsigned int sharpness1_sr2_ctrl_3280 = 0xffffffff;
 MODULE_PARM_DESC(sharpness1_sr2_ctrl_3280, "sharpness1_sr2_ctrl_3280");
-module_param(sharpness1_sr2_ctrl_3280, uint, 0664);
+__module_param(sharpness1_sr2_ctrl_3280, uint, 0664);
 
 static unsigned int vpp_filter_fix;
 MODULE_PARM_DESC(vpp_filter_fix, "vpp_filter_fix");
-module_param(vpp_filter_fix, uint, 0664);
+__module_param(vpp_filter_fix, uint, 0664);
 
 #define MAX_COEFF_LEVEL 5
 #define MAX_COEFF_LEVEL_SC2 7
-static uint num_coeff_level = MAX_COEFF_LEVEL;
+//static uint num_coeff_level = MAX_COEFF_LEVEL;
 static uint vert_coeff_settings[MAX_COEFF_LEVEL] = {
 	/* in:out */
 	COEF_BICUBIC,
@@ -613,119 +613,119 @@ static uint coeff_sc2(uint *settings, uint ratio)
 }
 
 /* vertical and horizontal coeff settings */
-module_param_array(vert_coeff_settings, uint, &num_coeff_level, 0664);
+__module_param_array(vert_coeff_settings, uint, &num_coeff_level, 0664);
 MODULE_PARM_DESC(vert_coeff_settings, "\n vert_coeff_settings\n");
 
-module_param_array(horz_coeff_settings, uint, &num_coeff_level, 0664);
+__module_param_array(horz_coeff_settings, uint, &num_coeff_level, 0664);
 MODULE_PARM_DESC(horz_coeff_settings, "\n horz_coeff_settings\n");
 
 static bool vert_chroma_filter_en = true;
-module_param(vert_chroma_filter_en, bool, 0664);
+__module_param(vert_chroma_filter_en, bool, 0664);
 MODULE_PARM_DESC(vert_chroma_filter_en, "enable vertical chromafilter\n");
 
 static bool vert_chroma_filter_force_en;
-module_param(vert_chroma_filter_force_en, bool, 0664);
+__module_param(vert_chroma_filter_force_en, bool, 0664);
 MODULE_PARM_DESC(vert_chroma_filter_force_en,
 		 "force enable vertical chromafilter\n");
 
 static uint vert_chroma_filter_limit = 480;
-module_param(vert_chroma_filter_limit, uint, 0664);
+__module_param(vert_chroma_filter_limit, uint, 0664);
 MODULE_PARM_DESC(vert_chroma_filter_limit, "vertical chromafilter limit\n");
 
-static uint num_chroma_filter = TOTAL_FILTERS;
-module_param_array(chroma_filter_table, uint, &num_chroma_filter, 0664);
+//static uint num_chroma_filter = TOTAL_FILTERS;
+__module_param_array(chroma_filter_table, uint, &num_chroma_filter, 0664);
 MODULE_PARM_DESC(chroma_filter_table, "\n chroma_filter_table\n");
 
 static uint cur_vert_chroma_filter;
 MODULE_PARM_DESC(cur_vert_chroma_filter, "cur_vert_chroma_filter");
-module_param(cur_vert_chroma_filter, int, 0444);
+__module_param(cur_vert_chroma_filter, int, 0444);
 
 static uint cur_vert_filter;
 MODULE_PARM_DESC(cur_vert_filter, "cur_vert_filter");
-module_param(cur_vert_filter, int, 0444);
+__module_param(cur_vert_filter, int, 0444);
 
 static uint cur_horz_filter;
 MODULE_PARM_DESC(cur_horz_filter, "cur_horz_filter");
-module_param(cur_horz_filter, int, 0444);
+__module_param(cur_horz_filter, int, 0444);
 
 static uint cur_skip_line;
 MODULE_PARM_DESC(cur_skip_line, "cur_skip_line");
-module_param(cur_skip_line, int, 0444);
+__module_param(cur_skip_line, int, 0444);
 
-static unsigned int super_scaler_v_ratio = 133;
+//static unsigned int super_scaler_v_ratio = 133;
 MODULE_PARM_DESC(super_scaler_v_ratio, "super_scaler_v_ratio");
-module_param(super_scaler_v_ratio, uint, 0664);
+__module_param(super_scaler_v_ratio, uint, 0664);
 
 static u32 skip_policy = 0x81;
-module_param(skip_policy, uint, 0664);
+__module_param(skip_policy, uint, 0664);
 MODULE_PARM_DESC(skip_policy, "\n skip_policy\n");
 
 static unsigned int scaler_filter_cnt_limit = 10;
 MODULE_PARM_DESC(scaler_filter_cnt_limit, "scaler_filter_cnt_limit");
-module_param(scaler_filter_cnt_limit, uint, 0664);
+__module_param(scaler_filter_cnt_limit, uint, 0664);
 
 #ifdef TV_3D_FUNCTION_OPEN
 static int force_filter_mode = 1;
 MODULE_PARM_DESC(force_filter_mode, "force_filter_mode");
-module_param(force_filter_mode, int, 0664);
+__module_param(force_filter_mode, int, 0664);
 #endif
 /*temp disable sr for power test*/
 bool super_scaler = true;
 struct sr_info_s sr_info;
 static unsigned int super_debug;
-module_param(super_debug, uint, 0664);
+__module_param(super_debug, uint, 0664);
 MODULE_PARM_DESC(super_debug, "super_debug");
 
 static unsigned int scaler_path_sel = SCALER_PATH_MAX;
-module_param(scaler_path_sel, uint, 0664);
+__module_param(scaler_path_sel, uint, 0664);
 MODULE_PARM_DESC(scaler_path_sel, "scaler_path_sel");
 
 static bool bypass_spscl0;
-module_param(bypass_spscl0, bool, 0664);
+__module_param(bypass_spscl0, bool, 0664);
 MODULE_PARM_DESC(bypass_spscl0, "bypass_spscl0");
 
 static bool bypass_spscl1;
-module_param(bypass_spscl1, bool, 0664);
+__module_param(bypass_spscl1, bool, 0664);
 MODULE_PARM_DESC(bypass_spscl1, "bypass_spscl1");
 
 static unsigned int vert_scaler_filter = 0xff;
-module_param(vert_scaler_filter, uint, 0664);
+__module_param(vert_scaler_filter, uint, 0664);
 MODULE_PARM_DESC(vert_scaler_filter, "vert_scaler_filter");
 
 static unsigned int vert_chroma_scaler_filter = 0xff;
-module_param(vert_chroma_scaler_filter, uint, 0664);
+__module_param(vert_chroma_scaler_filter, uint, 0664);
 MODULE_PARM_DESC(vert_chroma_scaler_filter, "vert_chroma_scaler_filter");
 
 static unsigned int horz_scaler_filter = 0xff;
-module_param(horz_scaler_filter, uint, 0664);
+__module_param(horz_scaler_filter, uint, 0664);
 MODULE_PARM_DESC(horz_scaler_filter, "horz_scaler_filter");
 
 static unsigned int horz_scaler_filter_8tap = 0xff;
-module_param(horz_scaler_filter_8tap, uint, 0664);
+__module_param(horz_scaler_filter_8tap, uint, 0664);
 MODULE_PARM_DESC(horz_scaler_filter_8tap, "horz_scaler_filter_8tap");
 /*need check this value,*/
 static unsigned int bypass_ratio = 205;
-module_param(bypass_ratio, uint, 0664);
+__module_param(bypass_ratio, uint, 0664);
 MODULE_PARM_DESC(bypass_ratio, "bypass_ratio");
 
 static unsigned int sr0_sr1_refresh = 1;
-module_param(sr0_sr1_refresh, uint, 0664);
+__module_param(sr0_sr1_refresh, uint, 0664);
 MODULE_PARM_DESC(sr0_sr1_refresh, "sr0_sr1_refresh");
 
 static bool pre_scaler_en = true;
-module_param(pre_scaler_en, bool, 0664);
+__module_param(pre_scaler_en, bool, 0664);
 MODULE_PARM_DESC(pre_scaler_en, "pre_scaler_en");
 
 static unsigned int force_vskip_cnt;
 MODULE_PARM_DESC(force_vskip_cnt, "force_vskip_cnt");
-module_param(force_vskip_cnt, uint, 0664);
+__module_param(force_vskip_cnt, uint, 0664);
 
 /* bit0: disable adaptive ar; bit1: disable adaptive crop alignment for pre-link */
 #define DISABLE_ADAPTIVE_AR 1
 #define DISABLE_ADAPTIVE_ALIGN 2
 static unsigned int disable_adapted;
 MODULE_PARM_DESC(disable_adapted, "disable_adapted");
-module_param(disable_adapted, uint, 0664);
+__module_param(disable_adapted, uint, 0664);
 
 static u32 cur_nnhf_input_w;
 static u32 cur_nnhf_input_h;
@@ -890,47 +890,47 @@ static void calculate_non_linear_ratio_V
 #define MIN_RATIO_1000	1250
 static unsigned int min_skip_ratio = MIN_RATIO_1000;
 MODULE_PARM_DESC(min_skip_ratio, "min_skip_ratio");
-module_param(min_skip_ratio, uint, 0664);
+__module_param(min_skip_ratio, uint, 0664);
 static unsigned int max_proc_height = 2160;
 MODULE_PARM_DESC(max_proc_height, "max_proc_height");
-module_param(max_proc_height, uint, 0664);
+__module_param(max_proc_height, uint, 0664);
 static unsigned int cur_proc_height;
 MODULE_PARM_DESC(cur_proc_height, "cur_proc_height");
-module_param(cur_proc_height, uint, 0444);
+__module_param(cur_proc_height, uint, 0444);
 static unsigned int cur_skip_ratio;
 MODULE_PARM_DESC(cur_skip_ratio, "cur_skip_ratio");
-module_param(cur_skip_ratio, uint, 0444);
+__module_param(cur_skip_ratio, uint, 0444);
 static unsigned int cur_vf_type;
 MODULE_PARM_DESC(cur_vf_type, "cur_vf_type");
-module_param(cur_vf_type, uint, 0444);
+__module_param(cur_vf_type, uint, 0444);
 static unsigned int cur_freq_ratio;
 MODULE_PARM_DESC(cur_freq_ratio, "cur_freq_ratio");
-module_param(cur_freq_ratio, uint, 0444);
+__module_param(cur_freq_ratio, uint, 0444);
 
 static unsigned int custom_ar;
 MODULE_PARM_DESC(custom_ar, "custom_ar");
-module_param(custom_ar, uint, 0664);
+__module_param(custom_ar, uint, 0664);
 
 static unsigned int force_use_ext_ar;
 MODULE_PARM_DESC(force_use_ext_ar, "force_use_ext_ar");
-module_param(force_use_ext_ar, uint, 0664);
+__module_param(force_use_ext_ar, uint, 0664);
 
 static unsigned int force_no_compress;
 MODULE_PARM_DESC(force_no_compress, "force_no_compress");
-module_param(force_no_compress, uint, 0664);
+__module_param(force_no_compress, uint, 0664);
 
 static unsigned int hscaler_input_h_threshold = 60;
 MODULE_PARM_DESC(hscaler_input_h_threshold, "hscaler_input_height_threshold");
-module_param(hscaler_input_h_threshold, uint, 0664);
+__module_param(hscaler_input_h_threshold, uint, 0664);
 
 static int force_reshape_vskip_cnt;
 MODULE_PARM_DESC(force_reshape_vskip_cnt, "\n force_reshape_vskip_cnt\n");
-module_param(force_reshape_vskip_cnt, uint, 0664);
+__module_param(force_reshape_vskip_cnt, uint, 0664);
 static unsigned int screen_ar_threshold = 3;
 
 static unsigned int aisr_debug_flag;
 MODULE_PARM_DESC(aisr_debug_flag, "aisr_debug_flag");
-module_param(aisr_debug_flag, uint, 0664);
+__module_param(aisr_debug_flag, uint, 0664);
 
 /*
  *test on txlx:

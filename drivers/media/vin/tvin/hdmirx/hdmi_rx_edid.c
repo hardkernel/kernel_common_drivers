@@ -59,7 +59,7 @@ u8 port_hpd_rst_flag;
 int port_map;
 
 MODULE_PARM_DESC(port_map, "\n port_map\n");
-module_param(port_map, int, 0664);
+__module_param(port_map, int, 0664);
 
 /*
  * 1:reset hpd after atmos edid update

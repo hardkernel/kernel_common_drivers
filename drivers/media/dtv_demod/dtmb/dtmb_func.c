@@ -9,19 +9,19 @@
 
 MODULE_PARM_DESC(demod_enable_performance, "\n\t\t demod_enable_performance information");
 static int demod_enable_performance = 1;
-module_param(demod_enable_performance, int, 0644);
+__module_param(demod_enable_performance, int, 0644);
 
 MODULE_PARM_DESC(demod_sync_count, "\n\t\t timeout debug information");
 static int demod_sync_count = 60;
-module_param(demod_sync_count, int, 0644);
+__module_param(demod_sync_count, int, 0644);
 
 MODULE_PARM_DESC(demod_sync_delay_time, "\n\t\t timeout debug information");
 static int demod_sync_delay_time = 8;
-module_param(demod_sync_delay_time, int, 0644);
+__module_param(demod_sync_delay_time, int, 0644);
 
 MODULE_PARM_DESC(demod_timeout, "\n\t\t timeout debug information");
 static int demod_timeout = 120;
-module_param(demod_timeout, int, 0644);
+__module_param(demod_timeout, int, 0644);
 
 void dtmb_set_fe_config_modify(unsigned int modify)
 {

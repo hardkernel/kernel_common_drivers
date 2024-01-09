@@ -44,15 +44,15 @@ unsigned int vks_output_height = 1080;
 /*case2:theta_angle=30, alph0_angle=15, alph1_angle=20*/
 /*case3:theta_angle=-45, alph0_angle=30, alph1_angle=20*/
 signed int vks_theta_angle = 45;
-module_param(vks_theta_angle, int, 0664);
+__module_param(vks_theta_angle, int, 0664);
 MODULE_PARM_DESC(vks_theta_angle, "\n vks_theta_angle\n");
 
 signed int vks_alph0_angle = 30;
-module_param(vks_alph0_angle, int, 0664);
+__module_param(vks_alph0_angle, int, 0664);
 MODULE_PARM_DESC(vks_alph0_angle, "\n vks_alph0_angle\n");
 
 signed int vks_alph1_angle = 20;
-module_param(vks_alph1_angle, int, 0664);
+__module_param(vks_alph1_angle, int, 0664);
 MODULE_PARM_DESC(vks_alph1_angle, "\n vks_alph1_angle\n");
 
 unsigned int vks_delta_bot;

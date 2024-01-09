@@ -29,16 +29,16 @@
 struct dma_buf *dmabuf_last;
 
 static int uvm_aipq_debug;
-module_param(uvm_aipq_debug, int, 0644);
+__module_param(uvm_aipq_debug, int, 0644);
 
 static int uvm_open_aipq;
-module_param(uvm_open_aipq, int, 0644);
+__module_param(uvm_open_aipq, int, 0644);
 
 static int uvm_aipq_dump;
-module_param(uvm_aipq_dump, int, 0644);
+__module_param(uvm_aipq_dump, int, 0644);
 
 static int uvm_aipq_skip_height = 1088;
-module_param(uvm_aipq_skip_height, int, 0644);
+__module_param(uvm_aipq_skip_height, int, 0644);
 
 static int last_open_value;
 

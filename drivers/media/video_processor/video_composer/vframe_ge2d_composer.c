@@ -43,7 +43,7 @@ static int dump_black_count;
 
 static unsigned int ge2d_com_debug;
 MODULE_PARM_DESC(ge2d_com_debug, "\n ge2d_com_debug\n");
-module_param(ge2d_com_debug, uint, 0664);
+__module_param(ge2d_com_debug, uint, 0664);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_GE2D
 void stretchblt_noalpha(struct ge2d_context_s *wq,

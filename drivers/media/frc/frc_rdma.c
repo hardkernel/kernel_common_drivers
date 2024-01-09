@@ -50,7 +50,7 @@ static struct frc_rdma_irq_reg_s irq_status;
 static int rdma_cnt;
 
 int frc_rdma_enable;
-module_param(frc_rdma_enable, int, 0664);
+__module_param(frc_rdma_enable, int, 0664);
 MODULE_PARM_DESC(frc_rdma_enable, "frc rdma enable ctrl");
 
 struct frc_rdma_info frc_rdma_s;

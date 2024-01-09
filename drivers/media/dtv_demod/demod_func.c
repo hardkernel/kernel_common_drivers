@@ -23,17 +23,17 @@
 
 MODULE_PARM_DESC(front_agc_target, "\n\t\t front_agc_target");
 static unsigned int front_agc_target;
-module_param(front_agc_target, int, 0644);
+__module_param(front_agc_target, int, 0644);
 
 unsigned int diseqc_out_invert = 1;
 MODULE_PARM_DESC(diseqc_out_invert, "\n\t\t diseqc out polarity invert");
-module_param(diseqc_out_invert, int, 0644);
+__module_param(diseqc_out_invert, int, 0644);
 
 #if defined AML_DEMOD_SUPPORT_DVBS || defined AML_DEMOD_SUPPORT_DVBC
 
 static unsigned char dvbs_agc_target = 0x50;
 MODULE_PARM_DESC(dvbs_agc_target, "\n\t\t dvbs agc target");
-module_param(dvbs_agc_target, byte, 0644);
+__module_param(dvbs_agc_target, byte, 0644);
 
 static struct stchip_register_t l2a_def_val_local[] = {
 	{0x200,    0x8c},/* REG_RL2A_DVBSX_FSK_FSKTFC2 */

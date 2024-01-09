@@ -11,15 +11,15 @@
 #include "meson_osd_afbc.h"
 
 static int osdscaler_force_update;
-module_param(osdscaler_force_update, int, 0664);
+__module_param(osdscaler_force_update, int, 0664);
 MODULE_PARM_DESC(osdscaler_force_update, "osdscaler_force_update");
 
 static int osdscaler_v_filter_mode = -1;
-module_param(osdscaler_v_filter_mode, int, 0664);
+__module_param(osdscaler_v_filter_mode, int, 0664);
 MODULE_PARM_DESC(osdscaler_v_filter_mode, "osdscaler_v_filter_mode");
 
 static int osdscaler_h_filter_mode = -1;
-module_param(osdscaler_h_filter_mode, int, 0664);
+__module_param(osdscaler_h_filter_mode, int, 0664);
 MODULE_PARM_DESC(osdscaler_h_filter_mode, "osdscaler_h_filter_mode");
 
 static struct osd_scaler_reg_s osd_scaler_reg[HW_OSD_SCALER_NUM] = {

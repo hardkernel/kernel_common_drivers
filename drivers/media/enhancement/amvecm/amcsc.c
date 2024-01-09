@@ -69,12 +69,12 @@ static int rgb_type_proc[VD_PATH_MAX];
 static int cur_primesl_type[VD_PATH_MAX];
 #define FORCE_RGB_PROCESS 1
 
-module_param(debug_csc, uint, 0664);
+__module_param(debug_csc, uint, 0664);
 MODULE_PARM_DESC(debug_csc, "\n debug_csc\n");
 
 /*used for TV color gamut to panel*/
 uint gamut_conv_enable;
-module_param(gamut_conv_enable, uint, 0664);
+__module_param(gamut_conv_enable, uint, 0664);
 MODULE_PARM_DESC(gamut_conv_enable, "\n gamut_conv_enable\n");
 
 static uint pre_gamut_conv_en;
@@ -465,7 +465,7 @@ static struct hdr_info receiver_hdr_info;
 static u32 hdr_ex;
 
 static bool print_lut_mtx;
-module_param(print_lut_mtx, bool, 0664);
+__module_param(print_lut_mtx, bool, 0664);
 MODULE_PARM_DESC(print_lut_mtx, "\n print_lut_mtx\n");
 
 /* bit 0: enable csc */
@@ -473,13 +473,13 @@ MODULE_PARM_DESC(print_lut_mtx, "\n print_lut_mtx\n");
 /* bit 2: enable video csc */
 /* bit 4: csc delay one frame */
 static uint csc_en = 0x7;
-module_param(csc_en, uint, 0664);
+__module_param(csc_en, uint, 0664);
 MODULE_PARM_DESC(csc_en, "\n csc_en\n");
 
 /* white balance adjust */
 static bool cur_eye_protect_mode;
 
-static int num_wb_val = 10;
+//static int num_wb_val = 10;
 static int wb_val[10] = {
 	0, /* wb enable */
 	0, /* -1024~1023, r_pre_offset */
@@ -492,7 +492,7 @@ static int wb_val[10] = {
 	0, /* -1024~1023, g_post_offset */
 	0  /* -1024~1023, b_post_offset */
 };
-module_param_array(wb_val, int, &num_wb_val, 0664);
+__module_param_array(wb_val, int, &num_wb_val, 0664);
 MODULE_PARM_DESC(wb_val, "\n white balance setting\n");
 
 static enum vframe_source_type_e pre_src_type[VD_PATH_MAX] = {
@@ -501,17 +501,17 @@ static enum vframe_source_type_e pre_src_type[VD_PATH_MAX] = {
 	VFRAME_SOURCE_TYPE_COMP
 };
 
-static unsigned int vpp_top_max = VPP_TOP_MAX_S;
+//static unsigned int vpp_top_max = VPP_TOP_MAX_S;
 #endif
-static unsigned int vd_path_max = VD_PATH_MAX;
+//static unsigned int vd_path_max = VD_PATH_MAX;
 
 uint cur_csc_type[VD_PATH_MAX] = {0xffff, 0xffff, 0xffff};
-module_param_array(cur_csc_type, uint, &vd_path_max, 0444);
+__module_param_array(cur_csc_type, uint, &vd_path_max, 0444);
 MODULE_PARM_DESC(cur_csc_type, "\n current color space convert type\n");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static uint hdmi_csc_type = 0xffff;
-module_param(hdmi_csc_type, uint, 0444);
+__module_param(hdmi_csc_type, uint, 0444);
 MODULE_PARM_DESC(hdmi_csc_type, "\n current color space convert type\n");
 #endif
 
@@ -522,7 +522,7 @@ static uint hdr_policy;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static uint cur_hdr_policy = 0xff;
 #endif
-module_param(hdr_policy, uint, 0664);
+__module_param(hdr_policy, uint, 0664);
 MODULE_PARM_DESC(hdr_policy, "\n current hdr_policy\n");
 
 /* 0: source: use src meta */
@@ -532,7 +532,7 @@ static uint primary_policy;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static uint cur_primary_policy;
 #endif
-module_param(primary_policy, uint, 0664);
+__module_param(primary_policy, uint, 0664);
 MODULE_PARM_DESC(primary_policy, "\n current primary_policy\n");
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 int boot_hdr_policy(char *str)
@@ -603,7 +603,7 @@ __setup("hdr_debug=", boot_hdr_debug);
 /*	BT_BYPASS = 7			*/
 /* BT2020 = 2: 2020 + gamma not support in hdmi now */
 static uint force_output; /* 0: no force */
-module_param(force_output, uint, 0664);
+__module_param(force_output, uint, 0664);
 MODULE_PARM_DESC(force_output, "\n current force_output\n");
 
 int boot_hdr_force_mode(char *str)
@@ -685,53 +685,53 @@ EXPORT_SYMBOL(set_force_output);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static uint hdr_mode = 2; /* 0: hdr->hdr, 1:hdr->sdr, 2:auto */
-module_param(hdr_mode, uint, 0664);
+__module_param(hdr_mode, uint, 0664);
 MODULE_PARM_DESC(hdr_mode, "\n set hdr_mode\n");
 
 /* 0:hdr->hdr, 1:hdr->sdr, 2:hdr->hlg, 3:hdr->cuva */
 /* 4:hdr->cuva_hlg*/
 uint hdr_process_mode[VD_PATH_MAX];
 uint cur_hdr_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF, PROC_OFF};
-module_param_array(hdr_process_mode, uint, &vd_path_max, 0444);
+__module_param_array(hdr_process_mode, uint, &vd_path_max, 0444);
 MODULE_PARM_DESC(hdr_process_mode, "\n current hdr_process_mode\n");
 
 /* 0:bypass, 1:hdr10p->hdr, 2:hdr10p->sdr, 3:hdr10p->hlg */
 /* 4:hdr10p->cuva, 5:hdr10p->cuva_hlg*/
 uint hdr10_plus_process_mode[VD_PATH_MAX];
 uint cur_hdr10_plus_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF, PROC_OFF};
-module_param_array(hdr10_plus_process_mode, uint, &vd_path_max, 0444);
+__module_param_array(hdr10_plus_process_mode, uint, &vd_path_max, 0444);
 MODULE_PARM_DESC(hdr10_plus_process_mode, "\n current hdr10_plus_process_mode\n");
 
 /* 0:hlg->hlg, 1:hlg->sdr 2:hlg->hdr, 3:hlg->cuva*/
 /* 4:hdr->cuva_hlg*/
 uint hlg_process_mode[VD_PATH_MAX];
 uint cur_hlg_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF, PROC_OFF};
-module_param_array(hlg_process_mode, uint, &vd_path_max, 0444);
+__module_param_array(hlg_process_mode, uint, &vd_path_max, 0444);
 MODULE_PARM_DESC(hlg_process_mode, "\n current hlg_process_mode\n");
 
 /* 0:bypass, 1:cuva->sdr, 2:cuva->hdr, 3:cuva->hlg */
 /* 4:cuva->hdr10p, 5:cuva->cuva_hlg*/
 uint cuva_hdr_process_mode[VD_PATH_MAX];
 uint cur_cuva_hdr_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF, PROC_OFF};
-module_param_array(cuva_hdr_process_mode, uint, &vd_path_max, 0444);
+__module_param_array(cuva_hdr_process_mode, uint, &vd_path_max, 0444);
 MODULE_PARM_DESC(cuva_hdr_process_mode, "\n current cuva_hdr_process_mode\n");
 
 /* 0:bypass, 1:cuva_hlg->sdr, 2:cuva_hlg->hdr, 3:cuva_hlg->hlg */
 /* 4:cuva_hlg->hdr, 5:cuva_hlg->cuva*/
 uint cuva_hlg_process_mode[VD_PATH_MAX];
 uint cur_cuva_hlg_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF, PROC_OFF};
-module_param_array(cuva_hlg_process_mode, uint, &vd_path_max, 0444);
+__module_param_array(cuva_hlg_process_mode, uint, &vd_path_max, 0444);
 MODULE_PARM_DESC(cuva_hlg_process_mode, "\n current cuva_hlg_process_mode\n");
 
 /* 0: tx don't support hdr10+, 1: tx support hdr10+*/
 uint tx_hdr10_plus_support;
 
 static uint force_pure_hlg[VD_PATH_MAX];
-module_param_array(force_pure_hlg, uint, &vd_path_max, 0664);
+__module_param_array(force_pure_hlg, uint, &vd_path_max, 0664);
 MODULE_PARM_DESC(force_pure_hlg, "\n current force_pure_hlg\n");
 
 uint sdr_mode; /* 0: sdr->sdr, 1:sdr->hdr, 2:auto */
-module_param(sdr_mode, uint, 0664);
+__module_param(sdr_mode, uint, 0664);
 MODULE_PARM_DESC(sdr_mode, "\n set sdr_mode\n");
 
 static uint cur_sdr_mode;
@@ -739,37 +739,37 @@ static uint cur_sdr_mode;
 /* 0: sdr->sdr, 1:sdr->hdr, 2:sdr->hlg, 3:sdr->cuva, 4:sdr->cuva_hlg*/
 uint sdr_process_mode[VD_PATH_MAX];
 uint cur_sdr_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF, PROC_OFF};
-module_param_array(sdr_process_mode, uint, &vd_path_max, 0444);
+__module_param_array(sdr_process_mode, uint, &vd_path_max, 0444);
 MODULE_PARM_DESC(sdr_process_mode, "\n current hdr_process_mode\n");
 
 static int sdr_saturation_offset = 20; /* 0: sdr->sdr, 1:sdr->hdr */
-module_param(sdr_saturation_offset, int, 0664);
+__module_param(sdr_saturation_offset, int, 0664);
 MODULE_PARM_DESC(sdr_saturation_offset, "\n add saturation\n");
 
 static uint force_csc_type = 0xff;
-module_param(force_csc_type, uint, 0664);
+__module_param(force_csc_type, uint, 0664);
 MODULE_PARM_DESC(force_csc_type, "\n force colour space convert type\n");
 
 static uint cur_hdr_support[VPP_TOP_MAX_S];
-module_param_array(cur_hdr_support, uint, &vpp_top_max, 0444);
+__module_param_array(cur_hdr_support, uint, &vpp_top_max, 0444);
 MODULE_PARM_DESC(cur_hdr_support, "\n current cur_hdr_support\n");
 
 
 static uint cur_colorimetry_support[VPP_TOP_MAX_S];
-module_param_array(cur_colorimetry_support, uint, &vpp_top_max, 0444);
+__module_param_array(cur_colorimetry_support, uint, &vpp_top_max, 0444);
 MODULE_PARM_DESC(cur_colorimetry_support, "\n current cur_colorimetry_support\n");
 
 static uint cur_hlg_support[VPP_TOP_MAX_S];
-module_param_array(cur_hlg_support, uint, &vpp_top_max, 0444);
+__module_param_array(cur_hlg_support, uint, &vpp_top_max, 0444);
 MODULE_PARM_DESC(cur_hlg_support, "\n current cur_hlg_support\n");
 
 
 static uint cur_color_fmt[VPP_TOP_MAX_S];
-module_param_array(cur_color_fmt, uint, &vpp_top_max, 0664);
+__module_param_array(cur_color_fmt, uint, &vpp_top_max, 0664);
 MODULE_PARM_DESC(cur_color_fmt, "\n current cur_color_fmt\n");
 
 static uint range_control;
-module_param(range_control, uint, 0664);
+__module_param(range_control, uint, 0664);
 MODULE_PARM_DESC(range_control, "\n range_control 0:limit 1:full\n");
 
 /* bit 0: use source primary,*/
@@ -778,13 +778,13 @@ MODULE_PARM_DESC(range_control, "\n range_control 0:limit 1:full\n");
 /* bit 3: adjust saturation according to source lumin */
 /* bit 4: convert HLG to HDR if sink not supprot HLG but HDR */
 uint hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3) | (1 << 4);
-module_param(hdr_flag, uint, 0664);
+__module_param(hdr_flag, uint, 0664);
 MODULE_PARM_DESC(hdr_flag, "\n set hdr_flag\n");
 #endif
 
 /* 0: off, 1: normal, 2: bypass */
 static int video_process_status[VD_PATH_MAX] = {2, 2, 2};
-module_param_array(video_process_status, uint, &vd_path_max, 0664);
+__module_param_array(video_process_status, uint, &vd_path_max, 0664);
 MODULE_PARM_DESC(video_process_status, "\n video_process_status\n");
 
 void set_hdr_module_status(enum vd_path_e vd_path, int status)
@@ -812,7 +812,7 @@ EXPORT_SYMBOL(set_hdr_module_status);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #define PROC_FLAG_FORCE_PROCESS 1
 static uint video_process_flags[VD_PATH_MAX];
-module_param_array(video_process_flags, uint, &vd_path_max, 0664);
+__module_param_array(video_process_flags, uint, &vd_path_max, 0664);
 MODULE_PARM_DESC(video_process_flags, "\n video_process_flags\n");
 
 static uint rdma_flag =
@@ -821,26 +821,27 @@ static uint rdma_flag =
 	(1 << VPP_MATRIX_VD2) |
 	(1 << VPP_MATRIX_POST) |
 	(1 << VPP_MATRIX_XVYCC);
-module_param(rdma_flag, uint, 0664);
+__module_param(rdma_flag, uint, 0664);
 MODULE_PARM_DESC(rdma_flag, "\n set rdma_flag\n");
 
 #define MAX_KNEE_SETTING	35
 /* recommended setting for 100 nits panel: */
 /* 0,16,96,224,320,544,720,864,1000,1016,1023 */
 /* knee factor = 256 */
-static int num_knee_setting = MAX_KNEE_SETTING;
-static int knee_setting[MAX_KNEE_SETTING] = {
+//static int num_knee_setting = MAX_KNEE_SETTING;
+//static int knee_setting[MAX_KNEE_SETTING] = {
 	/* 0, 16, 96, 224, 320, 544, 720, 864, 1000, 1016, 1023 */
-	0, 16, 36, 59, 71, 96,
+/*	0, 16, 36, 59, 71, 96,
 	120, 145, 170, 204, 230, 258,
 	288, 320, 355, 390, 428, 470,
 	512, 554, 598, 650, 720, 758,
 	790, 832, 864, 894, 920, 945,
 	968, 980, 1000, 1016, 1023
 };
+*/
 
-static int num_knee_linear_setting = MAX_KNEE_SETTING;
-static int knee_linear_setting[MAX_KNEE_SETTING] = {
+//static int num_knee_linear_setting = MAX_KNEE_SETTING;
+/*static int knee_linear_setting[MAX_KNEE_SETTING] = {
 	0x000,
 	0x010,
 	0x02f,
@@ -877,9 +878,10 @@ static int knee_linear_setting[MAX_KNEE_SETTING] = {
 	0x3f0,
 	0x3ff
 };
+*/
 
 static bool lut_289_en = 1;
-module_param(lut_289_en, bool, 0664);
+__module_param(lut_289_en, bool, 0664);
 MODULE_PARM_DESC(lut_289_en, "\n if enable 289 lut\n");
 
 /*for gxtvbb(968), only 289 point lut for hdr curve set */
@@ -927,20 +929,20 @@ unsigned int lut_289_mapping[LUT_289_SIZE] = {
 static int knee_factor; /* 0 ~ 256, 128 = 0.5 */
 static int knee_interpolation_mode = 1; /* 0: linear, 1: cubic */
 
-module_param_array(knee_setting, int, &num_knee_setting, 0664);
+__module_param_array(knee_setting, int, &num_knee_setting, 0664);
 MODULE_PARM_DESC(knee_setting, "\n knee_setting, 256=1.0\n");
 
-module_param_array(knee_linear_setting, int, &num_knee_linear_setting, 0444);
+__module_param_array(knee_linear_setting, int, &num_knee_linear_setting, 0444);
 MODULE_PARM_DESC(knee_linear_setting, "\n reference linear knee_setting\n");
 
-module_param(knee_factor, int, 0664);
+__module_param(knee_factor, int, 0664);
 MODULE_PARM_DESC(knee_factor, "\n knee_factor, 255=1.0\n");
 
-module_param(knee_interpolation_mode, int, 0664);
+__module_param(knee_interpolation_mode, int, 0664);
 MODULE_PARM_DESC(knee_interpolation_mode, "\n 0: linear, 1: cubic\n");
 
 #define NUM_MATRIX_PARAM 16
-static uint num_customer_matrix_param = NUM_MATRIX_PARAM;
+//static uint num_customer_matrix_param = NUM_MATRIX_PARAM;
 static uint customer_matrix_param[NUM_MATRIX_PARAM] = {
 	0, 0, 0,
 	0x0d49, 0x1b4d, 0x1f6b,
@@ -977,7 +979,7 @@ static u32 bt2020_white_point[2] = {
 
 /* 0: off, 1: on */
 static int customer_master_display_en;
-static uint num_customer_master_display_param = 12;
+//static uint num_customer_master_display_param = 12;
 static uint customer_master_display_param[12] = {
 	0.17 * INORM + 0.5, 0.797 * INORM + 0.5,      /* G */
 	0.131 * INORM + 0.5, 0.046 * INORM + 0.5,     /* B */
@@ -990,33 +992,33 @@ static uint customer_master_display_param[12] = {
 };
 
 static int customer_panel_lumin = 380;
-module_param(customer_panel_lumin, int, 0664);
+__module_param(customer_panel_lumin, int, 0664);
 MODULE_PARM_DESC(customer_panel_lumin, "\n customer_panel_lumin\n");
 
 int customer_hdr_clipping;
-module_param(customer_hdr_clipping, int, 0664);
+__module_param(customer_hdr_clipping, int, 0664);
 MODULE_PARM_DESC(customer_hdr_clipping, "\n customer_hdr_clipping\n");
 
-module_param(customer_matrix_en, bool, 0664);
+__module_param(customer_matrix_en, bool, 0664);
 MODULE_PARM_DESC(customer_matrix_en, "\n if enable customer matrix\n");
 
-module_param_array(customer_matrix_param, uint,
+__module_param_array(customer_matrix_param, uint,
 		   &num_customer_matrix_param, 0664);
 MODULE_PARM_DESC(customer_matrix_param,
 		 "\n matrix from source primary to panel primary\n");
 
-module_param(customer_master_display_en, int, 0664);
+__module_param(customer_master_display_en, int, 0664);
 MODULE_PARM_DESC(customer_master_display_en,
 		 "\n if enable customer primaries and white point\n");
 
-module_param_array(customer_master_display_param, uint,
+__module_param_array(customer_master_display_param, uint,
 		   &num_customer_master_display_param, 0664);
 MODULE_PARM_DESC(customer_master_display_param,
 		 "\n matrix from source primary and white point\n");
 
 /* 0: off, 1: on */
 static int customer_hdmi_display_en;
-static uint num_customer_hdmi_display_param = 14;
+//static uint num_customer_hdmi_display_param = 14;
 static uint customer_hdmi_display_param[14] = {
 	9, /* color primary = bt2020 */
 	16, /* characteristic = st2084 */
@@ -1030,27 +1032,27 @@ static uint customer_hdmi_display_param[14] = {
 	/* content lumin and frame average */
 };
 
-module_param(customer_hdmi_display_en, int, 0664);
+__module_param(customer_hdmi_display_en, int, 0664);
 MODULE_PARM_DESC(customer_hdmi_display_en,
 		 "\n if enable customer primaries and white point\n");
 
-module_param_array(customer_hdmi_display_param, uint,
+__module_param_array(customer_hdmi_display_param, uint,
 		   &num_customer_hdmi_display_param, 0664);
 MODULE_PARM_DESC(customer_hdmi_display_param,
 		 "\n matrix from source primary and white point\n");
 
 /* sat offset when > 1200 and <= 1200 */
-static uint num_extra_sat_lut = 2;
+//static uint num_extra_sat_lut = 2;
 static uint extra_sat_lut[] = {16, 32};
-module_param_array(extra_sat_lut, uint,
+__module_param_array(extra_sat_lut, uint,
 		   &num_extra_sat_lut, 0664);
 MODULE_PARM_DESC(extra_sat_lut,
 		 "\n lookup table for saturation match source luminance.\n");
 
 /* norm to 128 as 1, LUT can be changed */
-static uint num_extra_con_lut = 5;
+//static uint num_extra_con_lut = 5;
 static uint extra_con_lut[] = {144, 136, 132, 130, 128};
-module_param_array(extra_con_lut, uint,
+__module_param_array(extra_con_lut, uint,
 		   &num_extra_con_lut, 0664);
 MODULE_PARM_DESC(extra_con_lut,
 		 "\n lookup table for contrast match source luminance.\n");
@@ -1240,7 +1242,7 @@ static void load_knee_lut(int on)
 static unsigned int int_lut_sel[] = {0};
 #endif
 
-static unsigned int num_invlut_neg_mapping = EOTF_INV_LUT_NEG2048_SIZE;
+//static unsigned int num_invlut_neg_mapping = EOTF_INV_LUT_NEG2048_SIZE;
 static int invlut_y_neg[EOTF_INV_LUT_NEG2048_SIZE] = {
 	-2048, -1920, -1792, -1664,
 	-1536, -1408, -1280, -1152,
@@ -1248,7 +1250,7 @@ static int invlut_y_neg[EOTF_INV_LUT_NEG2048_SIZE] = {
 	-512, -384, -256, -128
 };
 
-static unsigned int num_invlut_mapping = EOTF_INV_LUT_SIZE;
+//static unsigned int num_invlut_mapping = EOTF_INV_LUT_SIZE;
 static unsigned int invlut_y[EOTF_INV_LUT_SIZE] = {
 	0, 32, 64, 96, 128, 160, 192, 224,
 	256, 288, 320, 352, 384, 416, 448, 480,
@@ -1256,7 +1258,7 @@ static unsigned int invlut_y[EOTF_INV_LUT_SIZE] = {
 	768, 800, 832, 864, 896, 928, 960, 992
 };
 
-static unsigned int num_invlut_1024_mapping = EOTF_INV_LUT_1024_SIZE;
+//static unsigned int num_invlut_1024_mapping = EOTF_INV_LUT_1024_SIZE;
 static unsigned int invlut_y_1024[EOTF_INV_LUT_1024_SIZE] = {
 	1024, 1088, 1152, 1216,
 	1280, 1344, 1408, 1472,
@@ -1265,7 +1267,7 @@ static unsigned int invlut_y_1024[EOTF_INV_LUT_1024_SIZE] = {
 	2047
 };
 
-static unsigned int num_invlut_hlg_mapping = EOTF_INV_LUT_SIZE;
+//static unsigned int num_invlut_hlg_mapping = EOTF_INV_LUT_SIZE;
 static unsigned int invlut_hlg_y[EOTF_INV_LUT_SIZE] = {
 	    0, 14, 28, 48, 69, 91, 114, 138,
 	  163, 188, 215, 241, 269, 297, 325, 354,
@@ -1274,7 +1276,7 @@ static unsigned int invlut_hlg_y[EOTF_INV_LUT_SIZE] = {
 };
 
 #define EOTF_LUT_SIZE 33
-static unsigned int num_osd_eotf_r_mapping = EOTF_LUT_SIZE;
+//static unsigned int num_osd_eotf_r_mapping = EOTF_LUT_SIZE;
 static unsigned int osd_eotf_r_mapping[EOTF_LUT_SIZE] = {
 	0x0000,	0x0200,	0x0400, 0x0600,
 	0x0800, 0x0a00, 0x0c00, 0x0e00,
@@ -1287,7 +1289,7 @@ static unsigned int osd_eotf_r_mapping[EOTF_LUT_SIZE] = {
 	0x4000
 };
 
-static unsigned int num_osd_eotf_g_mapping = EOTF_LUT_SIZE;
+//static unsigned int num_osd_eotf_g_mapping = EOTF_LUT_SIZE;
 static unsigned int osd_eotf_g_mapping[EOTF_LUT_SIZE] = {
 	0x0000,	0x0200,	0x0400, 0x0600,
 	0x0800, 0x0a00, 0x0c00, 0x0e00,
@@ -1300,7 +1302,7 @@ static unsigned int osd_eotf_g_mapping[EOTF_LUT_SIZE] = {
 	0x4000
 };
 
-static unsigned int num_osd_eotf_b_mapping = EOTF_LUT_SIZE;
+//static unsigned int num_osd_eotf_b_mapping = EOTF_LUT_SIZE;
 static unsigned int osd_eotf_b_mapping[EOTF_LUT_SIZE] = {
 	0x0000,	0x0200,	0x0400, 0x0600,
 	0x0800, 0x0a00, 0x0c00, 0x0e00,
@@ -1313,7 +1315,7 @@ static unsigned int osd_eotf_b_mapping[EOTF_LUT_SIZE] = {
 	0x4000
 };
 
-static unsigned int num_video_eotf_r_mapping = EOTF_LUT_SIZE;
+//static unsigned int num_video_eotf_r_mapping = EOTF_LUT_SIZE;
 static unsigned int video_eotf_r_mapping[EOTF_LUT_SIZE] = {
 	0x0000,	0x0200,	0x0400, 0x0600,
 	0x0800, 0x0a00, 0x0c00, 0x0e00,
@@ -1326,7 +1328,7 @@ static unsigned int video_eotf_r_mapping[EOTF_LUT_SIZE] = {
 	0x4000
 };
 
-static unsigned int num_video_eotf_g_mapping = EOTF_LUT_SIZE;
+//static unsigned int num_video_eotf_g_mapping = EOTF_LUT_SIZE;
 static unsigned int video_eotf_g_mapping[EOTF_LUT_SIZE] = {
 	0x0000,	0x0200,	0x0400, 0x0600,
 	0x0800, 0x0a00, 0x0c00, 0x0e00,
@@ -1339,7 +1341,7 @@ static unsigned int video_eotf_g_mapping[EOTF_LUT_SIZE] = {
 	0x4000
 };
 
-static unsigned int num_video_eotf_b_mapping = EOTF_LUT_SIZE;
+//static unsigned int num_video_eotf_b_mapping = EOTF_LUT_SIZE;
 static unsigned int video_eotf_b_mapping[EOTF_LUT_SIZE] = {
 	0x0000,	0x0200,	0x0400, 0x0600,
 	0x0800, 0x0a00, 0x0c00, 0x0e00,
@@ -1355,7 +1357,7 @@ static unsigned int video_eotf_b_mapping[EOTF_LUT_SIZE] = {
 #define EOTF_COEFF_NORM(a) ((int)((((a) * 4096.0) + 1) / 2))
 #define EOTF_COEFF_SIZE 10
 #define EOTF_COEFF_RIGHTSHIFT 1
-static unsigned int num_osd_eotf_coeff = EOTF_COEFF_SIZE;
+//static unsigned int num_osd_eotf_coeff = EOTF_COEFF_SIZE;
 static int osd_eotf_coeff[EOTF_COEFF_SIZE] = {
 	EOTF_COEFF_NORM(1.0), EOTF_COEFF_NORM(0.0), EOTF_COEFF_NORM(0.0),
 	EOTF_COEFF_NORM(0.0), EOTF_COEFF_NORM(1.0), EOTF_COEFF_NORM(0.0),
@@ -1363,7 +1365,7 @@ static int osd_eotf_coeff[EOTF_COEFF_SIZE] = {
 	EOTF_COEFF_RIGHTSHIFT /* right shift */
 };
 
-static unsigned int num_video_eotf_coeff = EOTF_COEFF_SIZE;
+//static unsigned int num_video_eotf_coeff = EOTF_COEFF_SIZE;
 static int video_eotf_coeff[EOTF_COEFF_SIZE] = {
 	EOTF_COEFF_NORM(1.0), EOTF_COEFF_NORM(0.0), EOTF_COEFF_NORM(0.0),
 	EOTF_COEFF_NORM(0.0), EOTF_COEFF_NORM(1.0), EOTF_COEFF_NORM(0.0),
@@ -1376,7 +1378,7 @@ static unsigned int reload_lut;
 
 /******************** osd oetf **************/
 
-static unsigned int num_osd_oetf_r_mapping = OSD_OETF_LUT_SIZE;
+//static unsigned int num_osd_oetf_r_mapping = OSD_OETF_LUT_SIZE;
 static unsigned int osd_oetf_r_mapping[OSD_OETF_LUT_SIZE] = {
 		0, 4, 8, 12,
 		16, 20, 24, 28,
@@ -1391,7 +1393,7 @@ static unsigned int osd_oetf_r_mapping[OSD_OETF_LUT_SIZE] = {
 		1023
 };
 
-static unsigned int num_osd_oetf_g_mapping = OSD_OETF_LUT_SIZE;
+//static unsigned int num_osd_oetf_g_mapping = OSD_OETF_LUT_SIZE;
 static unsigned int osd_oetf_g_mapping[OSD_OETF_LUT_SIZE] = {
 		0, 4, 8, 12,
 		16, 20, 24, 28,
@@ -1406,7 +1408,7 @@ static unsigned int osd_oetf_g_mapping[OSD_OETF_LUT_SIZE] = {
 		1023
 };
 
-static unsigned int num_osd_oetf_b_mapping = OSD_OETF_LUT_SIZE;
+//static unsigned int num_osd_oetf_b_mapping = OSD_OETF_LUT_SIZE;
 static unsigned int osd_oetf_b_mapping[OSD_OETF_LUT_SIZE] = {
 		0, 4, 8, 12,
 		16, 20, 24, 28,
@@ -1424,7 +1426,7 @@ static unsigned int osd_oetf_b_mapping[OSD_OETF_LUT_SIZE] = {
 /************ video oetf ***************/
 
 #define VIDEO_OETF_LUT_SIZE 289
-static unsigned int num_video_oetf_r_mapping = VIDEO_OETF_LUT_SIZE;
+//static unsigned int num_video_oetf_r_mapping = VIDEO_OETF_LUT_SIZE;
 static unsigned int video_oetf_r_mapping[VIDEO_OETF_LUT_SIZE] = {
 	   0,    0,    0,    0,    0,    0,    0,    0,
 	   0,    0,    0,    0,    0,    0,    0,    0,
@@ -1464,7 +1466,7 @@ static unsigned int video_oetf_r_mapping[VIDEO_OETF_LUT_SIZE] = {
 	1023
 };
 
-static unsigned int num_video_oetf_g_mapping = VIDEO_OETF_LUT_SIZE;
+//static unsigned int num_video_oetf_g_mapping = VIDEO_OETF_LUT_SIZE;
 static unsigned int video_oetf_g_mapping[VIDEO_OETF_LUT_SIZE] = {
 	   0,    0,    0,    0,    0,    0,    0,    0,
 	   0,    0,    0,    0,    0,    0,    0,    0,
@@ -1504,7 +1506,7 @@ static unsigned int video_oetf_g_mapping[VIDEO_OETF_LUT_SIZE] = {
 	1023
 };
 
-static unsigned int num_video_oetf_b_mapping = VIDEO_OETF_LUT_SIZE;
+//static unsigned int num_video_oetf_b_mapping = VIDEO_OETF_LUT_SIZE;
 static unsigned int video_oetf_b_mapping[VIDEO_OETF_LUT_SIZE] = {
 	   0,    0,    0,    0,    0,    0,    0,    0,
 	   0,    0,    0,    0,    0,    0,    0,    0,
@@ -1548,7 +1550,7 @@ static unsigned int video_oetf_b_mapping[VIDEO_OETF_LUT_SIZE] = {
 #define MATRIX_5x3_COEF_SIZE 24
 /******* osd1 matrix0 *******/
 /* default rgb to yuv_limit */
-static unsigned int num_osd_matrix_coeff = MATRIX_5x3_COEF_SIZE;
+//static unsigned int num_osd_matrix_coeff = MATRIX_5x3_COEF_SIZE;
 static int osd_matrix_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0, /* pre offset */
 	COEFF_NORM(0.2126),	COEFF_NORM(0.7152),	COEFF_NORM(0.0722),
@@ -1560,7 +1562,7 @@ static int osd_matrix_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0 /* mode, right_shift, clip_en */
 };
 
-static unsigned int num_vd1_matrix_coeff = MATRIX_5x3_COEF_SIZE;
+//static unsigned int num_vd1_matrix_coeff = MATRIX_5x3_COEF_SIZE;
 static int vd1_matrix_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0, /* pre offset */
 	COEFF_NORM(1.0),	COEFF_NORM(0.0),	COEFF_NORM(0.0),
@@ -1572,7 +1574,7 @@ static int vd1_matrix_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0 /* mode, right_shift, clip_en */
 };
 
-static unsigned int num_vd2_matrix_coeff = MATRIX_5x3_COEF_SIZE;
+//static unsigned int num_vd2_matrix_coeff = MATRIX_5x3_COEF_SIZE;
 static int vd2_matrix_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0, /* pre offset */
 	COEFF_NORM(1.0),	COEFF_NORM(0.0),	COEFF_NORM(0.0),
@@ -1584,7 +1586,7 @@ static int vd2_matrix_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0 /* mode, right_shift, clip_en */
 };
 
-static unsigned int num_post_matrix_coeff = MATRIX_5x3_COEF_SIZE;
+//static unsigned int num_post_matrix_coeff = MATRIX_5x3_COEF_SIZE;
 static int post_matrix_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0, /* pre offset */
 	COEFF_NORM(1.0),	COEFF_NORM(0.0),	COEFF_NORM(0.0),
@@ -1596,7 +1598,7 @@ static int post_matrix_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0 /* mode, right_shift, clip_en */
 };
 
-static unsigned int num_xvycc_matrix_coeff = MATRIX_5x3_COEF_SIZE;
+//static unsigned int num_xvycc_matrix_coeff = MATRIX_5x3_COEF_SIZE;
 static int xvycc_matrix_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0, /* pre offset */
 	COEFF_NORM(1.0),	COEFF_NORM(0.0),	COEFF_NORM(0.0),
@@ -1609,113 +1611,113 @@ static int xvycc_matrix_coeff[MATRIX_5x3_COEF_SIZE] = {
 };
 
 /****************** osd eotf ********************/
-module_param_array(osd_eotf_coeff, int,
+__module_param_array(osd_eotf_coeff, int,
 		   &num_osd_eotf_coeff, 0664);
 MODULE_PARM_DESC(osd_eotf_coeff, "\n matrix for osd eotf\n");
 
-module_param_array(osd_eotf_r_mapping, uint,
+__module_param_array(osd_eotf_r_mapping, uint,
 		   &num_osd_eotf_r_mapping, 0664);
 MODULE_PARM_DESC(osd_eotf_r_mapping, "\n lut for osd r eotf\n");
 
-module_param_array(osd_eotf_g_mapping, uint,
+__module_param_array(osd_eotf_g_mapping, uint,
 		   &num_osd_eotf_g_mapping, 0664);
 MODULE_PARM_DESC(osd_eotf_g_mapping, "\n lut for osd g eotf\n");
 
-module_param_array(osd_eotf_b_mapping, uint,
+__module_param_array(osd_eotf_b_mapping, uint,
 		   &num_osd_eotf_b_mapping, 0664);
 MODULE_PARM_DESC(osd_eotf_b_mapping, "\n lut for osd b eotf\n");
 
-module_param_array(osd_matrix_coeff, int,
+__module_param_array(osd_matrix_coeff, int,
 		   &num_osd_matrix_coeff, 0664);
 MODULE_PARM_DESC(osd_matrix_coeff, "\n coef for osd matrix\n");
 
 /****************** video eotf ********************/
-module_param_array(invlut_y_neg, int,
+__module_param_array(invlut_y_neg, int,
 		   &num_invlut_neg_mapping, 0664);
 MODULE_PARM_DESC(invlut_y_neg, "\n lut for inv y -2048..0 eotf\n");
 
-module_param_array(invlut_y, uint,
+__module_param_array(invlut_y, uint,
 		   &num_invlut_mapping, 0664);
 MODULE_PARM_DESC(invlut_y, "\n lut for inv y 0..1024 eotf\n");
 
-module_param_array(invlut_y_1024, uint,
+__module_param_array(invlut_y_1024, uint,
 		   &num_invlut_1024_mapping, 0664);
 MODULE_PARM_DESC(invlut_y_1024, "\n lut for inv y 1024..2048 eotf\n");
 
-module_param_array(invlut_hlg_y, int,
+__module_param_array(invlut_hlg_y, int,
 		   &num_invlut_hlg_mapping, 0664);
 MODULE_PARM_DESC(invlut_hlg_y, "\n lut for hlg 0..1024 eotf\n");
 
-module_param_array(video_eotf_coeff, int,
+__module_param_array(video_eotf_coeff, int,
 		   &num_video_eotf_coeff, 0664);
 MODULE_PARM_DESC(video_eotf_coeff, "\n matrix for video eotf\n");
 
-module_param_array(video_eotf_r_mapping, uint,
+__module_param_array(video_eotf_r_mapping, uint,
 		   &num_video_eotf_r_mapping, 0664);
 MODULE_PARM_DESC(video_eotf_r_mapping, "\n lut for video r eotf\n");
 
-module_param_array(video_eotf_g_mapping, uint,
+__module_param_array(video_eotf_g_mapping, uint,
 		   &num_video_eotf_g_mapping, 0664);
 MODULE_PARM_DESC(video_eotf_g_mapping, "\n lut for video g eotf\n");
 
-module_param_array(video_eotf_b_mapping, uint,
+__module_param_array(video_eotf_b_mapping, uint,
 		   &num_video_eotf_b_mapping, 0664);
 MODULE_PARM_DESC(video_eotf_b_mapping, "\n lut for video b eotf\n");
 
 /****************** osd oetf ********************/
-module_param_array(osd_oetf_r_mapping, uint,
+__module_param_array(osd_oetf_r_mapping, uint,
 		   &num_osd_oetf_r_mapping, 0664);
 MODULE_PARM_DESC(osd_oetf_r_mapping, "\n lut for osd r oetf\n");
 
-module_param_array(osd_oetf_g_mapping, uint,
+__module_param_array(osd_oetf_g_mapping, uint,
 		   &num_osd_oetf_g_mapping, 0664);
 MODULE_PARM_DESC(osd_oetf_g_mapping, "\n lut for osd g oetf\n");
 
-module_param_array(osd_oetf_b_mapping, uint,
+__module_param_array(osd_oetf_b_mapping, uint,
 		   &num_osd_oetf_b_mapping, 0664);
 MODULE_PARM_DESC(osd_oetf_b_mapping, "\n lut for osd b oetf\n");
 
 /****************** video oetf ********************/
-module_param_array(video_oetf_r_mapping, uint,
+__module_param_array(video_oetf_r_mapping, uint,
 		   &num_video_oetf_r_mapping, 0664);
 MODULE_PARM_DESC(video_oetf_r_mapping, "\n lut for video r oetf\n");
 
-module_param_array(video_oetf_g_mapping, uint,
+__module_param_array(video_oetf_g_mapping, uint,
 		   &num_video_oetf_g_mapping, 0664);
 MODULE_PARM_DESC(video_oetf_g_mapping, "\n lut for video g oetf\n");
 
-module_param_array(video_oetf_b_mapping, uint,
+__module_param_array(video_oetf_b_mapping, uint,
 		   &num_video_oetf_b_mapping, 0664);
 MODULE_PARM_DESC(video_oetf_b_mapping, "\n lut for video b oetf\n");
 
 /****************** vpp matrix ********************/
 
-module_param_array(vd1_matrix_coeff, int,
+__module_param_array(vd1_matrix_coeff, int,
 		   &num_vd1_matrix_coeff, 0664);
 MODULE_PARM_DESC(vd1_matrix_coeff, "\n vd1 matrix\n");
 
-module_param_array(vd2_matrix_coeff, int,
+__module_param_array(vd2_matrix_coeff, int,
 		   &num_vd2_matrix_coeff, 0664);
 MODULE_PARM_DESC(vd2_matrix_coeff, "\n vd2 matrix\n");
 
-module_param_array(post_matrix_coeff, int,
+__module_param_array(post_matrix_coeff, int,
 		   &num_post_matrix_coeff, 0664);
 MODULE_PARM_DESC(post_matrix_coeff, "\n post matrix\n");
 
-module_param_array(xvycc_matrix_coeff, int,
+__module_param_array(xvycc_matrix_coeff, int,
 		   &num_xvycc_matrix_coeff, 0664);
 MODULE_PARM_DESC(xvycc_matrix_coeff, "\n xvycc matrix\n");
 
 static unsigned int mtx_en_mux;
-module_param(mtx_en_mux, uint, 0664);
+__module_param(mtx_en_mux, uint, 0664);
 MODULE_PARM_DESC(mtx_en_mux, "\n mtx enable mux\n");
 
 /****************** matrix/lut reload********************/
 
-module_param(reload_mtx, uint, 0664);
+__module_param(reload_mtx, uint, 0664);
 MODULE_PARM_DESC(reload_mtx, "\n reload matrix coeff\n");
 
-module_param(reload_lut, uint, 0664);
+__module_param(reload_lut, uint, 0664);
 MODULE_PARM_DESC(reload_lut, "\n reload lut settings\n");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -1941,7 +1943,7 @@ static unsigned int oetf_41_linear_mapping[OSD_OETF_LUT_SIZE] = {
 
 /* following array generated from model, do not edit */
 static int video_lut_switch;
-module_param(video_lut_switch, int, 0664);
+__module_param(video_lut_switch, int, 0664);
 MODULE_PARM_DESC(video_lut_switch, "\n video_lut_switch\n");
 
 /* gamma=2.200000 lumin=500 boost=0.075000 */
@@ -2142,7 +2144,7 @@ static unsigned int oetf_sdr_2084_mapping[VIDEO_OETF_LUT_SIZE] = {
 
 /* end of array generated from model */
 
-module_param(display_scale_factor, uint, 0664);
+__module_param(display_scale_factor, uint, 0664);
 MODULE_PARM_DESC(display_scale_factor, "\n display scale factor\n");
 
 /*HLG eotf and oetf curve*/
@@ -3811,7 +3813,7 @@ static uint cur_signal_type[VD_PATH_MAX] = {
 	0xffffffff,
 	0xffffffff
 };
-module_param_array(cur_signal_type, uint, &vd_path_max, 0664);
+__module_param_array(cur_signal_type, uint, &vd_path_max, 0664);
 MODULE_PARM_DESC(cur_signal_type, "\n cur_signal_type\n");
 
 static struct vframe_master_display_colour_s
@@ -3842,7 +3844,7 @@ unsigned int pre_vd1_mtx_sel[VD_PATH_MAX] = {
 	VPP_MATRIX_NULL,
 	VPP_MATRIX_NULL,
 };
-module_param_array(pre_vd1_mtx_sel, uint, &vd_path_max, 0664);
+__module_param_array(pre_vd1_mtx_sel, uint, &vd_path_max, 0664);
 MODULE_PARM_DESC(pre_vd1_mtx_sel, "\n pre_vd1_mtx_sel\n");
 unsigned int vd1_mtx_sel = VPP_MATRIX_NULL;
 static int src_timing_outputmode_changed(struct vframe_s *vf,
@@ -7627,7 +7629,7 @@ static bool hdr10_plus_pkt_on;
 static uint hdr10_plus_pkt_delay = 1;
 static struct hdr10plus_para cur_hdr10plus_params;
 static struct master_display_info_s cur_send_info;
-module_param(hdr10_plus_pkt_delay, uint, 0664);
+__module_param(hdr10_plus_pkt_delay, uint, 0664);
 
 uint get_hdr10_plus_pkt_delay(void)
 {
@@ -7642,7 +7644,7 @@ static struct cuva_hdr_vs_emds_para hdmitx_edms_params[VD_PATH_MAX];
 static struct cuva_hdr_vsif_para cur_cuva_params;
 static struct cuva_hdr_vs_emds_para cur_edms_params;
 static uint cuva_pkt_delay = 1; // should set 1, 0 is ok
-module_param(cuva_pkt_delay, uint, 0664);
+__module_param(cuva_pkt_delay, uint, 0664);
 
 uint get_cuva_pkt_delay(void)
 {
@@ -8939,7 +8941,7 @@ static bool dovi_on;
 
 static unsigned int fg_vf_sw_dbg;
 unsigned int null_vf_max = 2;
-module_param(null_vf_max, uint, 0664);
+__module_param(null_vf_max, uint, 0664);
 MODULE_PARM_DESC(null_vf_max, "\n null_vf_max\n");
 
 int amvecm_matrix_process(struct vframe_s *vf,

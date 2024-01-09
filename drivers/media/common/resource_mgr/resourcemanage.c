@@ -218,8 +218,8 @@ static struct cdev *resman_cdev;
 static struct class *resman_class;
 static char *resman_configs;
 
-module_param(resman_debug, int, 0644);
-module_param(preempt_timeout_ms, int, 0644);
+__module_param(resman_debug, int, 0644);
+__module_param(preempt_timeout_ms, int, 0644);
 
 #define dprintk(level, fmt, arg...)					\
 	do {								\

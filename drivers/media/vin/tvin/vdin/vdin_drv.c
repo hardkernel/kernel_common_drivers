@@ -135,41 +135,41 @@ static bool de_fmt_flag;
 u32 vdin_cfg_444_to_422_wmif_en;
 
 #ifdef DEBUG_SUPPORT
-module_param(canvas_config_mode, int, 0664);
+__module_param(canvas_config_mode, int, 0664);
 MODULE_PARM_DESC(canvas_config_mode, "canvas configure mode");
 
-module_param(work_mode_simple, bool, 0664);
+__module_param(work_mode_simple, bool, 0664);
 MODULE_PARM_DESC(work_mode_simple, "enable/disable simple work mode");
 
-module_param(viu_hw_irq, bool, 0664);
+__module_param(viu_hw_irq, bool, 0664);
 MODULE_PARM_DESC(viu_hw_irq, "viu_hw_irq");
 
-module_param(dv_work_dolby, uint, 0664);
+__module_param(dv_work_dolby, uint, 0664);
 MODULE_PARM_DESC(dv_work_dolby, "dv_work_dolby");
 
-module_param(game_mode_switch_frames, int, 0664);
+__module_param(game_mode_switch_frames, int, 0664);
 MODULE_PARM_DESC(game_mode_switch_frames, "game mode switch <n> frames");
 #endif
 
-module_param(game_mode_phlock_switch_frames, int, 0664);
+__module_param(game_mode_phlock_switch_frames, int, 0664);
 MODULE_PARM_DESC(game_mode_phlock_switch_frames,
 		 "game mode switch <n> frames for phase_lock");
 
-/* module_param(vrr_input_switch_frames, int, 0664);
+/* __module_param(vrr_input_switch_frames, int, 0664);
  *MODULE_PARM_DESC(vrr_input_switch_frames,
  *		 "vrr input M_CONST switch <n> frames");
  */
 
 int vdin_dbg_en;
-module_param(vdin_dbg_en, int, 0664);
+__module_param(vdin_dbg_en, int, 0664);
 MODULE_PARM_DESC(vdin_dbg_en, "enable/disable vdin debug information");
 
 int vdin_delay_num;
-module_param(vdin_delay_num, int, 0664);
+__module_param(vdin_delay_num, int, 0664);
 MODULE_PARM_DESC(vdin_delay_num, "vdin_delay_num vdin debug information");
 
 static bool vdin_time_en;
-module_param(vdin_time_en, bool, 0664);
+__module_param(vdin_time_en, bool, 0664);
 MODULE_PARM_DESC(vdin_time_en, "enable/disable vdin debug information");
 /*
  * the check flag in vdin_isr
@@ -177,19 +177,19 @@ MODULE_PARM_DESC(vdin_time_en, "enable/disable vdin debug information");
  * bit2:bypass vsync check,bit3:bypass vga check
  */
 static unsigned int vdin_isr_flag;
-module_param(vdin_isr_flag, uint, 0664);
+__module_param(vdin_isr_flag, uint, 0664);
 MODULE_PARM_DESC(vdin_isr_flag, "flag which affect the skip field");
 
 unsigned int vdin_drop_cnt;
-module_param(vdin_drop_cnt, uint, 0664);
+__module_param(vdin_drop_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_drop_cnt, "vdin_drop_cnt");
 
 enum vdin_vf_put_md vdin_frame_work_mode = VDIN_VF_PUT;
-module_param(vdin_frame_work_mode, uint, 0664);
+__module_param(vdin_frame_work_mode, uint, 0664);
 MODULE_PARM_DESC(vdin_frame_work_mode, "vdin_frame_work_mode");
 
 unsigned int vdin_vrr_switch_cnt = 3;
-module_param(vdin_vrr_switch_cnt, uint, 0664);
+__module_param(vdin_vrr_switch_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_vrr_switch_cnt, "vdin vrr switch cnt");
 
 static unsigned int panel_reverse;
@@ -3655,7 +3655,7 @@ irq_handled:
  * so vdin_v4l2_isr use to the sample v4l2 application such as camera,viu
  */
 /*static unsigned short skip_ratio = 1;*/
-/*module_param(skip_ratio, ushort, 0664);*/
+/*__module_param(skip_ratio, ushort, 0664);*/
 /*MODULE_PARM_DESC(skip_ratio,*/
 /*		 "\n vdin skip frame ratio 1/ratio will reserved.\n");*/
 

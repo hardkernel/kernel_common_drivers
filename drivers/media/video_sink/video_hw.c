@@ -852,9 +852,9 @@ EXPORT_SYMBOL(get_dv_vpu_mem_power_status);
 /*********************************************************/
 static struct vframe_pic_mode_s gpic_info[MAX_VD_LAYERS];
 u32 reference_zorder = 128;
-static int param_vpp_num = VPP_MAX;
+//static int param_vpp_num = VPP_MAX;
 u32 vpp_hold_line[VPP_MAX] = {8, 8, 8};
-static u32 cur_vpp_num = MAX_VPP_NUM;
+//static u32 cur_vpp_num = MAX_VPP_NUM;
 static unsigned int cur_vf_flag[MAX_VPP_NUM];
 static u32 vpp_ofifo_size = 0x1000;
 static u32 conv_lbuf_len[MAX_VD_LAYER] = {0x100, 0x100, 0x100};
@@ -886,7 +886,7 @@ static u32 postblend_color;
 
 u32 g_mosaic_mode;
 MODULE_PARM_DESC(g_mosaic_mode, "\n g_mosaic_mode\n");
-module_param(g_mosaic_mode, uint, 0664);
+__module_param(g_mosaic_mode, uint, 0664);
 u32 pic_axis[4][4];
 /*********************************************************
  * Utils APIs
@@ -13948,20 +13948,20 @@ int video_late_uninit(void)
 }
 
 MODULE_PARM_DESC(vpp_hold_line, "\n vpp_hold_line\n");
-module_param_array(vpp_hold_line, uint, &param_vpp_num, 0664);
+__module_param_array(vpp_hold_line, uint, &param_vpp_num, 0664);
 
 MODULE_PARM_DESC(bypass_cm, "\n bypass_cm\n");
-module_param(bypass_cm, bool, 0664);
+__module_param(bypass_cm, bool, 0664);
 
 MODULE_PARM_DESC(reference_zorder, "\n reference_zorder\n");
-module_param(reference_zorder, uint, 0664);
+__module_param(reference_zorder, uint, 0664);
 
 MODULE_PARM_DESC(cur_vf_flag, "cur_vf_flag");
-module_param_array(cur_vf_flag, uint, &cur_vpp_num, 0444);
+__module_param_array(cur_vf_flag, uint, &cur_vpp_num, 0444);
 
 MODULE_PARM_DESC(debug_flag_3d, "\n debug_flag_3d\n");
-module_param(debug_flag_3d, uint, 0664);
+__module_param(debug_flag_3d, uint, 0664);
 
 MODULE_PARM_DESC(vd1_matrix, "\n vd1_matrix\n");
-module_param(vd1_matrix, uint, 0664);
+__module_param(vd1_matrix, uint, 0664);
 

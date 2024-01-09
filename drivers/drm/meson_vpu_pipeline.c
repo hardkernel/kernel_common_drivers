@@ -17,11 +17,11 @@
 #include "meson_vpu.h"
 
 static int flush_time = 3;
-module_param(flush_time, int, 0664);
+__module_param(flush_time, int, 0664);
 MODULE_PARM_DESC(flush_time, "flush time");
 
 static int osd_slice_mode;
-module_param(osd_slice_mode, int, 0664);
+__module_param(osd_slice_mode, int, 0664);
 MODULE_PARM_DESC(osd_slice_mode, "osd_slice_mode");
 
 #define MAX_LINKS 5

@@ -23,28 +23,28 @@
 
 static int dvb_ca_en50221_debug;
 
-module_param_named(cammcu_debug, dvb_ca_en50221_debug, int, 0644);
+__module_param_named(cammcu_debug, dvb_ca_en50221_debug, int, 0644);
 MODULE_PARM_DESC(cammcu_debug, "enable verbose debug messages");
 
 static int dvb_ca_en50221_usleep = 800;
 
-module_param_named(cammcu_usleep, dvb_ca_en50221_usleep, int, 0644);
+__module_param_named(cammcu_usleep, dvb_ca_en50221_usleep, int, 0644);
 MODULE_PARM_DESC(cammcu_usleep, "enable sleep");
 
 static int dvb_ca_ciplus_enable;
-module_param_named(ciplus_enable, dvb_ca_ciplus_enable, int, 0644);
+__module_param_named(ciplus_enable, dvb_ca_ciplus_enable, int, 0644);
 MODULE_PARM_DESC(ciplus_enable, "get ci plus enable");
 
 static unsigned int dvb_ca_ci_profire;
-module_param_named(ci_profire, dvb_ca_ci_profire, int, 0644);
+__module_param_named(ci_profire, dvb_ca_ci_profire, int, 0644);
 MODULE_PARM_DESC(ci_profire, "get ci plus profire");
 
 static unsigned int ca_slotstate_validate_t = 1;
-module_param_named(ca_slotstate_validate, ca_slotstate_validate_t, int, 0644);
+__module_param_named(ca_slotstate_validate, ca_slotstate_validate_t, int, 0644);
 MODULE_PARM_DESC(ca_slotstate_validate, "slotstate validate on off");
 
 static unsigned int read_tuple_time_t = 500;
-module_param_named(read_tuple_time, read_tuple_time_t, int, 0644);
+__module_param_named(read_tuple_time, read_tuple_time_t, int, 0644);
 MODULE_PARM_DESC(read_tuple_time, "read tuple time");
 
 #define dprintk(fmt, args...) \

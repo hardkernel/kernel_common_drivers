@@ -44,11 +44,11 @@ static int hdcp_verbose = L_1;
 /* only used for limit print when failure */
 static enum hdcp_fail_types_t fail_reason = HDCP_FAIL_NONE;
 
-module_param(hdcp_verbose, int, 0644);
+__module_param(hdcp_verbose, int, 0644);
 MODULE_PARM_DESC(hdcp_verbose, "for hdcp debug");
 
 MODULE_PARM_DESC(hdmi21_authenticated, "\n hdmi21_authenticated\n");
-module_param(hdmi21_authenticated, int, 0444);
+__module_param(hdmi21_authenticated, int, 0444);
 
 /* notify delay in ms, for debug */
 static int notify_delay_ms = 1;

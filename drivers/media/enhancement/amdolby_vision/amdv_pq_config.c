@@ -95,7 +95,7 @@ static int use_inter_pq;
 #define MAX_LINE_SIZE 1536
 
 static unsigned int force_hdr_tonemapping;
-module_param(force_hdr_tonemapping, uint, 0664);
+__module_param(force_hdr_tonemapping, uint, 0664);
 MODULE_PARM_DESC(force_hdr_tonemapping, "\n force_hdr_tonemapping\n");
 
 u16 L2PQ_100_500[] = {
@@ -3214,6 +3214,6 @@ void read_top1_pic_to_buf(char *reg_txt, void *buf, int num, bool flag_64bit)
 	pr_info("read file, count: %d\n", reg_count);
 }
 
-module_param(panel_max_lumin, uint, 0664);
+__module_param(panel_max_lumin, uint, 0664);
 MODULE_PARM_DESC(panel_max_lumin, "\n panel_max_lumin\n");
 

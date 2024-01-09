@@ -48,15 +48,15 @@ ulong ve_dnlp_reg_def[16] = {
 };
 
 static bool hist_sel = 1; /*1->vpp , 0->vdin*/
-module_param(hist_sel, bool, 0664);
+__module_param(hist_sel, bool, 0664);
 MODULE_PARM_DESC(hist_sel, "hist_sel");
 
 static unsigned int dnlp_dbg_print; /*1->vpp , 0->vdin*/
-module_param(dnlp_dbg_print, uint, 0664);
+__module_param(dnlp_dbg_print, uint, 0664);
 MODULE_PARM_DESC(dnlp_dbg_print, "dnlp_dbg_print");
 
 bool dnlp_insmod_ok; /*0:fail, 1:ok*/
-module_param(dnlp_insmod_ok, bool, 0664);
+__module_param(dnlp_insmod_ok, bool, 0664);
 MODULE_PARM_DESC(dnlp_insmod_ok, "dnlp_insmod_ok");
 
 struct dnlp_alg_s *dnlp_alg_function;

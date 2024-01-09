@@ -21,7 +21,7 @@
 #include "am_hdr10_plus.h"
 
 uint cuva_sw_dbg;
-module_param(cuva_sw_dbg, uint, 0664);
+__module_param(cuva_sw_dbg, uint, 0664);
 MODULE_PARM_DESC(cuva_sw_dbg, "\n cuva_sw_dbg\n");
 
 unsigned int num_max_output_lum = 2;
@@ -35,7 +35,7 @@ unsigned int num_max_output_lum = 2;
 unsigned int max_output_lum[] = {
 	0, 0
 };
-module_param_array(max_output_lum, uint, &num_max_output_lum, 0664);
+__module_param_array(max_output_lum, uint, &num_max_output_lum, 0664);
 MODULE_PARM_DESC(max_output_lum, "\n set max output luminance");
 
 static s64 lut_ogain[149];

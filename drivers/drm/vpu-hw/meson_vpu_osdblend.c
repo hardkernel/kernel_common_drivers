@@ -14,7 +14,7 @@
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 
 static int align_proc = 4;
-module_param(align_proc, int, 0664);
+__module_param(align_proc, int, 0664);
 MODULE_PARM_DESC(align_proc, "align_proc");
 
 #define BLEND_DOUT_DEF_HSIZE 3840

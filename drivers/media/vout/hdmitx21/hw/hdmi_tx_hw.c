@@ -957,7 +957,7 @@ static void vpu_hdmi_set_matrix_ycbcr2rgb(void)
 }
 
 static int dfm_type = 2;
-module_param(dfm_type, int, 0644);
+__module_param(dfm_type, int, 0644);
 MODULE_PARM_DESC(dfm_type, "for dfm debug");
 
 static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)

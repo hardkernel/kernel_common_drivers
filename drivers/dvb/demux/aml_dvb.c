@@ -49,7 +49,7 @@
 
 MODULE_PARM_DESC(debug_dvb, "\n\t\t Enable demux debug information");
 static int debug_dvb;
-module_param(debug_dvb, int, 0644);
+__module_param(debug_dvb, int, 0644);
 
 #define CARD_NAME "amlogic-dvb"
 #define DVB_VERSION "V2.02"

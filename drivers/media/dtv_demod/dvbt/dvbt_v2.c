@@ -16,11 +16,11 @@
 
 MODULE_PARM_DESC(dvbt2_agc_target1, "\n\t\t dvbt2_agc_target1");
 static unsigned char dvbt2_agc_target1 = 0x60;
-module_param(dvbt2_agc_target1, byte, 0644);
+__module_param(dvbt2_agc_target1, byte, 0644);
 
 MODULE_PARM_DESC(dvbt2_agc_target2, "\n\t\t dvbt2_agc_target2");
 static unsigned char dvbt2_agc_target2 = 0x11;
-module_param(dvbt2_agc_target2, byte, 0644);
+__module_param(dvbt2_agc_target2, byte, 0644);
 
 /* copy from dvbt_isdbt_set_ch*/
 int dvbt_dvbt_set_ch(struct aml_dtvdemod *demod,

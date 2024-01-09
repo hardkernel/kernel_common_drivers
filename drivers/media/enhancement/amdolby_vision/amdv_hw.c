@@ -6381,30 +6381,30 @@ int register_osd_func(int (*get_osd_enable_status)(enum OSD_INDEX index))
 	return 0;
 }
 EXPORT_SYMBOL(register_osd_func);
-module_param(core1_bypass, uint, 0664);
+__module_param(core1_bypass, uint, 0664);
 MODULE_PARM_DESC(core1_bypass, "\n core1_bypass\n");
 
-module_param(vtotal_add, uint, 0664);
+__module_param(vtotal_add, uint, 0664);
 MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
 
-module_param(vpotch, uint, 0444);
+__module_param(vpotch, uint, 0444);
 MODULE_PARM_DESC(vpotch, "\n vpotch\n");
 
-module_param(g_vtiming, uint, 0664);
+__module_param(g_vtiming, uint, 0664);
 MODULE_PARM_DESC(g_vtiming, "\n g_vtiming\n");
 
-module_param(dma_start_line, uint, 0664);
+__module_param(dma_start_line, uint, 0664);
 MODULE_PARM_DESC(dma_start_line, "\n dma_start_line\n");
 
-module_param(dv_ll_output_mode, uint, 0664);
+__module_param(dv_ll_output_mode, uint, 0664);
 MODULE_PARM_DESC(dv_ll_output_mode, "\n dv_ll_output_mode\n");
 
-module_param(force_update_reg, uint, 0664);
+__module_param(force_update_reg, uint, 0664);
 MODULE_PARM_DESC(force_update_reg, "\n force_update_reg\n");
 
-module_param(bypass_core1a_composer, uint, 0664);
+__module_param(bypass_core1a_composer, uint, 0664);
 MODULE_PARM_DESC(bypass_core1a_composer, "\n bypass_core1a_composer\n");
 
-module_param(bypass_core1b_composer, uint, 0664);
+__module_param(bypass_core1b_composer, uint, 0664);
 MODULE_PARM_DESC(bypass_core1b_composer, "\n bypass_core1b_composer\n");
 

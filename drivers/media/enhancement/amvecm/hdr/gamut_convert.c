@@ -29,7 +29,7 @@
 #include "gamut_convert.h"
 
 unsigned int gmt_print;
-module_param(gmt_print, uint, 0664);
+__module_param(gmt_print, uint, 0664);
 MODULE_PARM_DESC(gmt_print, "print gamut");
 
 /* gamma=2.200000 lumin=500 boost=0.075000 */
@@ -373,11 +373,11 @@ static u32 std_bt709_white_point[2] = {
 };
 
 uint force_primary;
-module_param(force_primary, uint, 0664);
+__module_param(force_primary, uint, 0664);
 MODULE_PARM_DESC(force_primary, "\n force_primary\n");
 
 uint force_matrix;
-module_param(force_matrix, uint, 0664);
+__module_param(force_matrix, uint, 0664);
 MODULE_PARM_DESC(force_matrix, "\n force_matrix\n");
 
 u32 force_matrix_primary[3][3] = {
@@ -393,7 +393,7 @@ u32 force_src_primary[8] = {
 	0.131 * NORM + 0.5, 0.046 * NORM + 0.5,	/* B */
 	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
 };
-module_param_array(force_src_primary, uint, &num_force_primary, 0664);
+__module_param_array(force_src_primary, uint, &num_force_primary, 0664);
 MODULE_PARM_DESC(force_src_primary, "\n force_src_primary\n");
 
 u32 force_dst_primary[8] = {
@@ -402,7 +402,7 @@ u32 force_dst_primary[8] = {
 	0.15 * NORM + 0.5, 0.06 * NORM + 0.5,	/* B */
 	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
 };
-module_param_array(force_dst_primary, uint, &num_force_primary, 0664);
+__module_param_array(force_dst_primary, uint, &num_force_primary, 0664);
 MODULE_PARM_DESC(force_dst_primary, "\n force_src_primary\n");
 int gamut_convert_process(struct vinfo_s *vinfo,
 			  enum hdr_type_e *source_type,

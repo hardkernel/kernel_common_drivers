@@ -106,11 +106,11 @@ MODULE_LICENSE("GPL v2");
 static unsigned int video_nr = -1;  /* videoX start number, -1 is autodetect. */
 
 static unsigned int debug;
-/* module_param(debug, uint, 0644); */
+/* __module_param(debug, uint, 0644); */
 /* MODULE_PARM_DESC(debug, "activates debug info"); */
 
 static unsigned int vid_limit = 16;
-/* module_param(vid_limit, uint, 0644); */
+/* __module_param(vid_limit, uint, 0644); */
 /* MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes"); */
 
 //static int vidio_set_fmt_ticks;

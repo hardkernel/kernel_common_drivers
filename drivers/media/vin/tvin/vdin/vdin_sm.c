@@ -63,7 +63,7 @@ static int sm_print_prestable;
 
 /*bit0:general debug bit;bit1:hdmirx color change*/
 static unsigned int sm_debug_enable = VDIN_SM_LOG_L_1;
-module_param(sm_debug_enable, uint, 0664);
+__module_param(sm_debug_enable, uint, 0664);
 MODULE_PARM_DESC(sm_debug_enable,
 		 "enable/disable state machine debug message");
 
@@ -102,69 +102,69 @@ static int nosig2_unstable_cnt = EXIT_NOSIG_MAX_CNT;
 bool manual_flag;
 
 u32 vdin_re_config = (RE_CONFIG_DV_EN | RE_CONFIG_HDR_EN);
-module_param(vdin_re_config, int, 0664);
+__module_param(vdin_re_config, int, 0664);
 MODULE_PARM_DESC(vdin_re_config, "vdin_re_config");
 
 u32 vdin_re_cfg_drop_cnt = 8;
-module_param(vdin_re_cfg_drop_cnt, int, 0664);
+__module_param(vdin_re_cfg_drop_cnt, int, 0664);
 MODULE_PARM_DESC(vdin_re_cfg_drop_cnt, "vdin_re_cfg_drop_cnt");
 
 //#ifdef DEBUG_SUPPORT
-module_param(back_nosig_max_cnt, int, 0664);
+__module_param(back_nosig_max_cnt, int, 0664);
 MODULE_PARM_DESC(back_nosig_max_cnt,
 		 "unstable enter no signal state max count");
 
-module_param(atv_unstable_in_cnt, int, 0664);
+__module_param(atv_unstable_in_cnt, int, 0664);
 MODULE_PARM_DESC(atv_unstable_in_cnt, "atv_unstable_in_cnt");
 
-module_param(atv_unstable_out_cnt, int, 0664);
+__module_param(atv_unstable_out_cnt, int, 0664);
 MODULE_PARM_DESC(atv_unstable_out_cnt, "atv_unstable_out_cnt");
 
-module_param(hdmi_unstable_out_cnt, int, 0664);
+__module_param(hdmi_unstable_out_cnt, int, 0664);
 MODULE_PARM_DESC(hdmi_unstable_out_cnt, "hdmi_unstable_out_cnt");
 
-module_param(hdmi_stable_out_cnt, int, 0664);
+__module_param(hdmi_stable_out_cnt, int, 0664);
 MODULE_PARM_DESC(hdmi_stable_out_cnt, "hdmi_stable_out_cnt");
 
-module_param(atv_stable_out_cnt, int, 0664);
+__module_param(atv_stable_out_cnt, int, 0664);
 MODULE_PARM_DESC(atv_stable_out_cnt, "atv_stable_out_cnt");
 
-module_param(atv_stable_fmt_check_cnt, int, 0664);
+__module_param(atv_stable_fmt_check_cnt, int, 0664);
 MODULE_PARM_DESC(atv_stable_fmt_check_cnt, "atv_stable_fmt_check_cnt");
 
-module_param(atv_prestable_out_cnt, int, 0664);
+__module_param(atv_prestable_out_cnt, int, 0664);
 MODULE_PARM_DESC(atv_prestable_out_cnt, "atv_prestable_out_cnt");
 
-module_param(other_stable_out_cnt, int, 0664);
+__module_param(other_stable_out_cnt, int, 0664);
 MODULE_PARM_DESC(other_stable_out_cnt, "other_stable_out_cnt");
 
-module_param(other_unstable_out_cnt, int, 0664);
+__module_param(other_unstable_out_cnt, int, 0664);
 MODULE_PARM_DESC(other_unstable_out_cnt, "other_unstable_out_cnt");
 
-module_param(other_unstable_in_cnt, int, 0664);
+__module_param(other_unstable_in_cnt, int, 0664);
 MODULE_PARM_DESC(other_unstable_in_cnt, "other_unstable_in_cnt");
 
-module_param(nosig_in_cnt, int, 0664);
+__module_param(nosig_in_cnt, int, 0664);
 MODULE_PARM_DESC(nosig_in_cnt, "nosig_in_cnt");
 //#endif
 
-module_param(nosig2_unstable_cnt, int, 0664);
+__module_param(nosig2_unstable_cnt, int, 0664);
 MODULE_PARM_DESC(nosig2_unstable_cnt, "nosig2_unstable_cnt");
 
 static int signal_status = TVIN_SIG_STATUS_NULL;
-module_param(signal_status, int, 0664);
+__module_param(signal_status, int, 0664);
 MODULE_PARM_DESC(signal_status, "signal_status");
 
 static unsigned int vdin_dv_chg_cnt = 1;
-module_param(vdin_dv_chg_cnt, uint, 0664);
+__module_param(vdin_dv_chg_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_dv_chg_cnt, "vdin_dv_chg_cnt");
 
 static unsigned int vdin_hdr_chg_cnt = 1;
-module_param(vdin_hdr_chg_cnt, uint, 0664);
+__module_param(vdin_hdr_chg_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_hdr_chg_cnt, "vdin_hdr_chg_cnt");
 
 static unsigned int vdin_vrr_chg_cnt = 1;
-module_param(vdin_vrr_chg_cnt, uint, 0664);
+__module_param(vdin_vrr_chg_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_vrr_chg_cnt, "vdin_vrr_chg_cnt");
 
 enum tvin_color_fmt_range_e

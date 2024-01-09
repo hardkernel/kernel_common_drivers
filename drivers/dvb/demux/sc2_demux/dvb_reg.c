@@ -24,7 +24,7 @@
 
 MODULE_PARM_DESC(debug_rw, "\n\t\t Enable rw information");
 static int debug_rw;
-module_param(debug_rw, int, 0644);
+__module_param(debug_rw, int, 0644);
 
 static void *p_hw_base;
 static void *p_sys_base;

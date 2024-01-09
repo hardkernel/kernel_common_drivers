@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 
+subdir-ccflags-y += "-D__module_param(name, type, perm)="
+subdir-ccflags-y += "-D__module_param_named(name, value, type, perm)="
+subdir-ccflags-y += "-D__module_param_array(name, type, nump, perm)="
+subdir-ccflags-y += "-D__module_param_cb(name, ops, arg, perm)="
+subdir-ccflags-y += "-D__module_param_array_named(name, array, type, nump, perm)="
+
 obj-y					+= tty/
 obj-$(CONFIG_AMLOGIC_GKI_TOOL)		+= gki_tool/
 obj-y					+= debug/

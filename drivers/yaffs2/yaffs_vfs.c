@@ -191,11 +191,11 @@ unsigned int yaffs_bg_enable = 1;
 unsigned int yaffs_auto_select = 1;
 /* Module Parameters */
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 5, 0))
-module_param(yaffs_trace_mask, uint, 0644);
-module_param(yaffs_wr_attempts, uint, 0644);
-module_param(yaffs_auto_checkpoint, uint, 0644);
-module_param(yaffs_gc_control, uint, 0644);
-module_param(yaffs_bg_enable, uint, 0644);
+__module_param(yaffs_trace_mask, uint, 0644);
+__module_param(yaffs_wr_attempts, uint, 0644);
+__module_param(yaffs_auto_checkpoint, uint, 0644);
+__module_param(yaffs_gc_control, uint, 0644);
+__module_param(yaffs_bg_enable, uint, 0644);
 #else
 MODULE_PARM(yaffs_trace_mask, "i");
 MODULE_PARM(yaffs_wr_attempts, "i");

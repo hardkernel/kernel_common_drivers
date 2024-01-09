@@ -8,19 +8,19 @@
 
 static unsigned char dvbs_iq_swap;
 MODULE_PARM_DESC(dvbs_iq_swap, "\n\t\t dvbs IQ swap");
-module_param(dvbs_iq_swap, byte, 0644);
+__module_param(dvbs_iq_swap, byte, 0644);
 
 static unsigned int blind_search_agc2bandwidth = BLIND_SEARCH_AGC2BANDWIDTH_60;
 MODULE_PARM_DESC(blind_search_agc2bandwidth, "\n\t\tblind_search_agc2bandwidth");
-module_param(blind_search_agc2bandwidth, int, 0644);
+__module_param(blind_search_agc2bandwidth, int, 0644);
 
 static unsigned int blind_search_bw_min = BLIND_SEARCH_BW_MIN;
 MODULE_PARM_DESC(blind_search_bw_min, "\n\t\tblind_search_bw_min");
-module_param(blind_search_bw_min, int, 0644);
+__module_param(blind_search_bw_min, int, 0644);
 
 static unsigned int blind_search_pow_th = BLIND_SEARCH_POW_TH2;
 MODULE_PARM_DESC(blind_search_pow_th, "\n\t\tblind_search_pow_th");
-module_param(blind_search_pow_th, int, 0644);
+__module_param(blind_search_pow_th, int, 0644);
 
 static struct fe_lla_lookup_t fe_l2a_s1_cn_lookup = {
 	161, //size

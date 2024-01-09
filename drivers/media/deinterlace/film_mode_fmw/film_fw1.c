@@ -112,11 +112,11 @@ UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar)
  */
 
 unsigned int pr_pd;
-module_param(pr_pd, uint, 0644);
+__module_param(pr_pd, uint, 0644);
 MODULE_PARM_DESC(pr_pd, "/n printk /n");
 
 bool prt_flg;
-module_param(prt_flg, bool, 0644);
+__module_param(prt_flg, bool, 0644);
 MODULE_PARM_DESC(prt_flg, "/n prt_flg /n");
 
 char debug_str[512];
@@ -124,156 +124,156 @@ char debug_str[512];
 /* if flmxx level > flmxx_first_num */
 /* flmxx first: even when 2-2 3-2 detected */
 /* unsigned int flmxx_first_num = 50; */
-/* module_param(flmxx_first_num, uint, 0644); */
+/* __module_param(flmxx_first_num, uint, 0644); */
 /* MODULE_PARM_DESC(flmxx_first_num, */
 /* "/n flmxx first: even when 2-2 3-2 detected /n"); */
 
 /* if flmxx level > flmxx_maybe_num */
 /* mabye flmxx: when 2-2 3-2 not detected */
 unsigned int flmxx_maybe_num = 15;
-module_param(flmxx_maybe_num, uint, 0644);
+__module_param(flmxx_maybe_num, uint, 0644);
 MODULE_PARM_DESC(flmxx_maybe_num,
 "/n mabye flmxx: when 2-2 3-2 not detected /n");
 
 int flm32_mim_frms = 6;
-module_param(flm32_mim_frms, int, 0644);
+__module_param(flm32_mim_frms, int, 0644);
 MODULE_PARM_DESC(flm32_mim_frms, "flm32_mim_frms");
 
 int flm22_dif01a_flag = 1;
-module_param(flm22_dif01a_flag, int, 0644);
+__module_param(flm22_dif01a_flag, int, 0644);
 MODULE_PARM_DESC(flm22_dif01a_flag, "flm22_dif01a_flag");
 
 int flm22_mim_frms = 60;
-module_param(flm22_mim_frms, int, 0644);
+__module_param(flm22_mim_frms, int, 0644);
 MODULE_PARM_DESC(flm22_mim_frms, "flm22_mim_frms");
 
 int flm22_mim_smfrms = 40;
-module_param(flm22_mim_smfrms, int, 0644);
+__module_param(flm22_mim_smfrms, int, 0644);
 MODULE_PARM_DESC(flm22_mim_smfrms, "flm22_mim_smfrms");
 
 int flm32_f2fdif_min0 = 11;
-module_param(flm32_f2fdif_min0, int, 0644);
+__module_param(flm32_f2fdif_min0, int, 0644);
 MODULE_PARM_DESC(flm32_f2fdif_min0, "flm32_f2fdif_min0");
 
 int flm32_f2fdif_min1 = 11;
-module_param(flm32_f2fdif_min1, int, 0644);
+__module_param(flm32_f2fdif_min1, int, 0644);
 MODULE_PARM_DESC(flm32_f2fdif_min1, "flm32_f2fdif_min1");
 
 int flm32_chk1_rtn = 25;
-module_param(flm32_chk1_rtn, int, 0644);
+__module_param(flm32_chk1_rtn, int, 0644);
 MODULE_PARM_DESC(flm32_chk1_rtn, "flm32_chk1_rtn");
 
 int flm32_ck13_rtn = 8;
-module_param(flm32_ck13_rtn, int, 0644);
+__module_param(flm32_ck13_rtn, int, 0644);
 MODULE_PARM_DESC(flm32_ck13_rtn, "flm32_ck13_rtn");
 
 int flm32_chk2_rtn = 16;
-module_param(flm32_chk2_rtn, int, 0644);
+__module_param(flm32_chk2_rtn, int, 0644);
 MODULE_PARM_DESC(flm32_chk2_rtn, "flm32_chk2_rtn");
 
 int flm32_chk3_rtn = 16;
-module_param(flm32_chk3_rtn, int, 0644);
+__module_param(flm32_chk3_rtn, int, 0644);
 MODULE_PARM_DESC(flm32_chk3_rtn, "flm32_chk3_rtn");
 
 int flm32_dif02_ratio = 8;
-module_param(flm32_dif02_ratio, int, 0644);
+__module_param(flm32_dif02_ratio, int, 0644);
 MODULE_PARM_DESC(flm32_dif02_ratio, "flm32_dif02_ratio");
 
 int flm22_chk20_sml = 6;
-module_param(flm22_chk20_sml, int, 0644);
+__module_param(flm22_chk20_sml, int, 0644);
 MODULE_PARM_DESC(flm22_chk20_sml, "flm22_chk20_sml");
 
 int flm22_chk21_sml = 6;
-module_param(flm22_chk21_sml, int, 0644);
+__module_param(flm22_chk21_sml, int, 0644);
 MODULE_PARM_DESC(flm22_chk21_sml, "flm22_chk21_sml");
 
 int flm22_chk21_sm2 = 10;
-module_param(flm22_chk21_sm2, int, 0644);
+__module_param(flm22_chk21_sm2, int, 0644);
 MODULE_PARM_DESC(flm22_chk21_sm2, "flm22_chk21_sm2");
 
 int flm22_lavg_sft = 4;
-module_param(flm22_lavg_sft, int, 0644);
+__module_param(flm22_lavg_sft, int, 0644);
 MODULE_PARM_DESC(flm22_lavg_sft, "flm22_lavg_sft");
 
 int flm22_lavg_lg = 24;
-module_param(flm22_lavg_lg, int, 0644);
+__module_param(flm22_lavg_lg, int, 0644);
 MODULE_PARM_DESC(flm22_lavg_lg, "flm22_lavg_lg");
 
 /* dif02 < (size >> sft) => static */
 int flm22_stl_sft = 7; /*10*/
-module_param(flm22_stl_sft, int, 0644);
+__module_param(flm22_stl_sft, int, 0644);
 MODULE_PARM_DESC(flm22_stl_sft, "flm22_stl_sft");
 
 int flm22_chk5_avg = 50;
-module_param(flm22_chk5_avg, int, 0644);
+__module_param(flm22_chk5_avg, int, 0644);
 MODULE_PARM_DESC(flm22_chk5_avg, "flm22_chk5_avg");
 
 int flm22_chk6_max = 20;
-module_param(flm22_chk6_max, int, 0644);
+__module_param(flm22_chk6_max, int, 0644);
 MODULE_PARM_DESC(flm22_chk6_max, "flm22_chk6_max");
 
 int flm22_anti_chk1 = 61;
-module_param(flm22_anti_chk1, int, 0644);
+__module_param(flm22_anti_chk1, int, 0644);
 MODULE_PARM_DESC(flm22_anti_chk1, "flm22_anti_chk1");
 
 int flm22_anti_chk3 = 140;
-module_param(flm22_anti_chk3, int, 0644);
+__module_param(flm22_anti_chk3, int, 0644);
 MODULE_PARM_DESC(flm22_anti_chk3, "flm22_anti_chk3");
 
 int flm22_anti_chk4 = 128;
-module_param(flm22_anti_chk4, int, 0644);
+__module_param(flm22_anti_chk4, int, 0644);
 MODULE_PARM_DESC(flm22_anti_chk4, "flm22_anti_chk4");
 
 int flm22_anti_ck140 = 32;
-module_param(flm22_anti_ck140, int, 0644);
+__module_param(flm22_anti_ck140, int, 0644);
 MODULE_PARM_DESC(flm22_anti_ck140, "flm22_anti_ck140");
 
 int flm22_anti_ck141 = 80;
-module_param(flm22_anti_ck141, int, 0644);
+__module_param(flm22_anti_ck141, int, 0644);
 MODULE_PARM_DESC(flm22_anti_ck141, "flm22_anti_ck141");
 
 int flm22_frmdif_max = 50;
-module_param(flm22_frmdif_max, int, 0644);
+__module_param(flm22_frmdif_max, int, 0644);
 MODULE_PARM_DESC(flm22_frmdif_max, "flm22_frmdif_max");
 
 int flm22_flddif_max = 100;
-module_param(flm22_flddif_max, int, 0644);
+__module_param(flm22_flddif_max, int, 0644);
 MODULE_PARM_DESC(flm22_flddif_max, "flm22_flddif_max");
 
 int flm22_minus_cntmax = 2;
-module_param(flm22_minus_cntmax, int, 0644);
+__module_param(flm22_minus_cntmax, int, 0644);
 MODULE_PARM_DESC(flm22_minus_cntmax, "flm22_minus_cntmax");
 
 static int flagdif01chk = 1;
-module_param(flagdif01chk,  int, 0644);
+__module_param(flagdif01chk,  int, 0644);
 MODULE_PARM_DESC(flagdif01chk, "flagdif01chk");
 
 static int dif01_ratio = 10;
-module_param(dif01_ratio,  int, 0644);
+__module_param(dif01_ratio,  int, 0644);
 MODULE_PARM_DESC(dif01_ratio, "dif01_ratio");
 
 static int nflagch4_ratio = 1;
-module_param(nflagch4_ratio,  int, 0644);
+__module_param(nflagch4_ratio,  int, 0644);
 MODULE_PARM_DESC(nflagch4_ratio, "nflagch4_ratio");
 
 static int nflagch5_ratio = 2;
-module_param(nflagch5_ratio,  int, 0644);
+__module_param(nflagch5_ratio,  int, 0644);
 MODULE_PARM_DESC(nflagch5_ratio, "nflagch5_ratio");
 
 static int nflagch4_th;
-module_param(nflagch4_th,  int, 0644);
+__module_param(nflagch4_th,  int, 0644);
 MODULE_PARM_DESC(nflagch4_th, "nflagch4_th");
 
 static int nflagch5_th = 1;
-module_param(nflagch5_th,  int, 0644);
+__module_param(nflagch5_th,  int, 0644);
 MODULE_PARM_DESC(nflagch5_th, "nflagch5_th");
 
 static int dif02_flag = 1;
-module_param(dif02_flag,  int, 0644);
+__module_param(dif02_flag,  int, 0644);
 MODULE_PARM_DESC(dif02_flag, "dif02_flag");
 
 static int dif02_ratio = 20;
-module_param(dif02_ratio,  int, 0644);
+__module_param(dif02_ratio,  int, 0644);
 MODULE_PARM_DESC(dif02_ratio, "dif02_ratio");
 
 static int pd22224_th = 24;

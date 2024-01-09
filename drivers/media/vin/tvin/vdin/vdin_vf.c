@@ -41,21 +41,21 @@ static bool vf_log_enable = true;
 static bool vf_log_fe = true;
 static bool vf_log_be = true;
 
-module_param(vf_log_enable, bool, 0664);
+__module_param(vf_log_enable, bool, 0664);
 MODULE_PARM_DESC(vf_log_enable, "enable/disable vframe manager log");
 
-module_param(vf_log_fe, bool, 0664);
+__module_param(vf_log_fe, bool, 0664);
 MODULE_PARM_DESC(vf_log_fe, "enable/disable vframe manager log frontend");
 
-module_param(vf_log_be, bool, 0664);
+__module_param(vf_log_be, bool, 0664);
 MODULE_PARM_DESC(vf_log_be, "enable/disable vframe manager log backend");
 
 unsigned int vf_list_dbg;
-module_param(vf_list_dbg, uint, 0664);
+__module_param(vf_list_dbg, uint, 0664);
 MODULE_PARM_DESC(vf_list_dbg, "vf list dbg");
 
 unsigned int vf_move_print_cnt;
-module_param(vf_move_print_cnt, uint, 0664);
+__module_param(vf_move_print_cnt, uint, 0664);
 MODULE_PARM_DESC(vf_move_print_cnt, "vf move print cnt");
 
 #ifdef VF_LOG_EN

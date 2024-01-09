@@ -23,7 +23,7 @@
 
 static bool print_task_name_bool;
 /* notice: this param only used by build module */
-module_param(print_task_name_bool, bool, 0664);
+__module_param(print_task_name_bool, bool, 0664);
 MODULE_PARM_DESC(print_task_name_bool, "\n statistical log printing\n");
 
 void printk_caller_id(void *data, u32 *caller_id)

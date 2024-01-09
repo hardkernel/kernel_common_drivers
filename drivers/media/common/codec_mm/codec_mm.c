@@ -4267,22 +4267,22 @@ static int __init secure_vdec_res_setup(struct reserved_mem *rmem)
 RESERVEDMEM_OF_DECLARE(secure_vdec_reserved, "amlogic, secure-vdec-reserved",
 			secure_vdec_res_setup);
 
-module_param(debug_mode, uint, 0664);
+__module_param(debug_mode, uint, 0664);
 MODULE_PARM_DESC(debug_mode, "\n debug module\n");
-module_param(debug_sc_mode, uint, 0664);
+__module_param(debug_sc_mode, uint, 0664);
 MODULE_PARM_DESC(debug_sc_mode, "\n debug scatter module\n");
-module_param(debug_keep_mode, uint, 0664);
+__module_param(debug_keep_mode, uint, 0664);
 MODULE_PARM_DESC(debug_keep_mode, "\n debug keep module\n");
-module_param(tvp_mode, uint, 0664);
+__module_param(tvp_mode, uint, 0664);
 MODULE_PARM_DESC(tvp_mode, "\n tvp module\n");
-module_param(tvp_dynamic_increase_disable, uint, 0664);
+__module_param(tvp_dynamic_increase_disable, uint, 0664);
 MODULE_PARM_DESC(tvp_dynamic_increase_disable, "\n disable tvp_dynamic_increase\n");
-module_param(tvp_dynamic_alloc_force_small_segment, uint, 0664);
+__module_param(tvp_dynamic_alloc_force_small_segment, uint, 0664);
 MODULE_PARM_DESC(tvp_dynamic_alloc_force_small_segment,
 	"\n enable tvp_dynamic_alloc_force_small_segment\n");
-module_param(tvp_dynamic_alloc_force_small_segment_size, uint, 0664);
+__module_param(tvp_dynamic_alloc_force_small_segment_size, uint, 0664);
 MODULE_PARM_DESC(tvp_dynamic_alloc_force_small_segment_size,
 	"\n setting tvp_dynamic_alloc_force_small_segment_size\n");
-module_param(tvp_pool_early_release_switch, uint, 0664);
+__module_param(tvp_pool_early_release_switch, uint, 0664);
 MODULE_PARM_DESC(tvp_pool_early_release_switch,
 	"\n forbiden tvp pool release when tvp not disable\n");

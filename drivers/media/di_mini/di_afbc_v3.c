@@ -193,13 +193,13 @@ static u32 afbc_cfg;// =  BITS_EAFBC_CFG_4K;
  *	0x07:	afbcd x 2 + afbce x 1
  *	0x101:
  ************************************/
-module_param_named(afbc_cfg, afbc_cfg, uint, 0664);
+__module_param_named(afbc_cfg, afbc_cfg, uint, 0664);
 
 #ifdef DBG_AFBC
 static u32 afbc_cfg_vf;
-module_param_named(afbc_cfg_vf, afbc_cfg_vf, uint, 0664);
+__module_param_named(afbc_cfg_vf, afbc_cfg_vf, uint, 0664);
 static u32 afbc_cfg_bt;
-module_param_named(afbc_cfg_bt, afbc_cfg_bt, uint, 0664);
+__module_param_named(afbc_cfg_bt, afbc_cfg_bt, uint, 0664);
 #endif
 static struct afbcd_ctr_s *di_get_afd_ctr(void);
 

@@ -61,7 +61,7 @@ static u32 global_afbc_mask;
 static u32 afbc_err_cnt;
 static u32 afbc_err_irq_clear;
 static u32 afbc_order_conf;
-module_param(afbc_order_conf, uint, 0664);
+__module_param(afbc_order_conf, uint, 0664);
 MODULE_PARM_DESC(afbc_order_conf, "afbc order conf");
 
 static struct afbc_osd_reg_s afbc_osd_regs[MESON_MAX_OSDS] = {

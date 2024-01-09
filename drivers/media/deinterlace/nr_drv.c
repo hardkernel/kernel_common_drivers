@@ -36,30 +36,30 @@
 static DNR_PRM_t dnr_param;
 static struct NR_PARM_s nr_param;
 static bool dnr_pr;
-module_param(dnr_pr, bool, 0644);
+__module_param(dnr_pr, bool, 0644);
 MODULE_PARM_DESC(dnr_pr, "/n print dnr debug information /n");
 
 static bool dnr_dm_en;
-module_param(dnr_dm_en, bool, 0644);
+__module_param(dnr_dm_en, bool, 0644);
 MODULE_PARM_DESC(dnr_dm_en, "/n dnr dm enable debug /n");
 
 static bool dnr_en = true;
-module_param_named(dnr_en, dnr_en, bool, 0644);
+__module_param_named(dnr_en, dnr_en, bool, 0644);
 
 static unsigned int nr2_en = 0x1;
-module_param_named(nr2_en, nr2_en, uint, 0644);
+__module_param_named(nr2_en, nr2_en, uint, 0644);
 
 static bool dynamic_dm_chk = true;
-module_param_named(dynamic_dm_chk, dynamic_dm_chk, bool, 0644);
+__module_param_named(dynamic_dm_chk, dynamic_dm_chk, bool, 0644);
 
 static unsigned int autonr_en = 0x1;
-module_param_named(autonr_en, autonr_en, uint, 0644);
+__module_param_named(autonr_en, autonr_en, uint, 0644);
 
 static bool nr4ne_en;
-module_param_named(nr4ne_en, nr4ne_en, bool, 0644);
+__module_param_named(nr4ne_en, nr4ne_en, bool, 0644);
 
 static bool nr_ctrl_reg;
-module_param_named(nr_ctrl_reg, nr_ctrl_reg, bool, 0644);
+__module_param_named(nr_ctrl_reg, nr_ctrl_reg, bool, 0644);
 
 bool nr_demo_flag;
 
@@ -528,13 +528,13 @@ static void nr2_config_op(unsigned short width, unsigned short height,
 }
 
 static bool cue_en = true;
-module_param_named(cue_en, cue_en, bool, 0664);
+__module_param_named(cue_en, cue_en, bool, 0664);
 /********************************************
  * debug cue_en
  ********************************************/
 static bool cue_en_last;
 static bool cue_en_force_disable;
-module_param_named(cue_en_force_disable, cue_en_force_disable, bool, 0664);
+__module_param_named(cue_en_force_disable, cue_en_force_disable, bool, 0664);
 
 /*
  * workaround for nframe count
@@ -1358,13 +1358,13 @@ static void dnr_process_op(struct DNR_PARM_s *pdnrprm,
 }
 
 static bool invert_cue_phase;
-module_param_named(invert_cue_phase, invert_cue_phase, bool, 0644);
+__module_param_named(invert_cue_phase, invert_cue_phase, bool, 0644);
 
 static unsigned int cue_pr_cnt;
-module_param_named(cue_pr_cnt, cue_pr_cnt, uint, 0644);
+__module_param_named(cue_pr_cnt, cue_pr_cnt, uint, 0644);
 
 static bool cue_glb_mot_check_en = true;
-module_param_named(cue_glb_mot_check_en, cue_glb_mot_check_en, bool, 0644);
+__module_param_named(cue_glb_mot_check_en, cue_glb_mot_check_en, bool, 0644);
 
 /* confirm with vlsi-liuyanling, cue_process_irq is no use */
 /* when CUE disable					*/
@@ -1462,7 +1462,7 @@ void cue_int_op(struct vframe_s *vf, const struct reg_acc *op)
 }
 
 static bool glb_fieldck_en = true;
-module_param_named(glb_fieldck_en, glb_fieldck_en, bool, 0644);
+__module_param_named(glb_fieldck_en, glb_fieldck_en, bool, 0644);
 
 /* confirm with vlsi-liuyanling, cue_process_irq is no use */
 /* when CUE disable					*/

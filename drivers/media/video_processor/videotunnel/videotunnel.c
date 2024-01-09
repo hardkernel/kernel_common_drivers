@@ -64,7 +64,7 @@ enum {
 };
 
 static u32 vt_debug_mask = VT_DEBUG_USER;
-module_param_named(debug_mask, vt_debug_mask, uint, 0644);
+__module_param_named(debug_mask, vt_debug_mask, uint, 0644);
 
 #define vt_debug(mask, x...) \
 	do { \

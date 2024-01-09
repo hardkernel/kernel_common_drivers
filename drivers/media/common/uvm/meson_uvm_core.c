@@ -29,7 +29,7 @@
 #include "linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h"
 
 static int uvm_debug_level = UVM_ERROR;
-module_param(uvm_debug_level, int, 0644);
+__module_param(uvm_debug_level, int, 0644);
 
 #define UVM_PRINTK(level, fmt, arg...) \
 	do {	\

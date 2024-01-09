@@ -40,7 +40,7 @@ enum eq_sts_e eq_sts[4] = {E_EQ_START, E_EQ_START, E_EQ_START, E_EQ_START};
 int long_cable_best_setting = 6;
 int delay_ms_cnt = 5; /* 5 */
 MODULE_PARM_DESC(delay_ms_cnt, "\n delay_ms_cnt\n");
-module_param(delay_ms_cnt, int, 0664);
+__module_param(delay_ms_cnt, int, 0664);
 
 int eq_max_setting = 7;
 int eq_dbg_ch0;

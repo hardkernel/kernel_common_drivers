@@ -84,10 +84,10 @@ int rdma_configured[RDMA_NUM];
 ulong rdma_config_us[RDMA_NUM];
 
 MODULE_PARM_DESC(g_vsync_rdma_item_count, "\n g_vsync_rdma_item_count\n");
-module_param(g_vsync_rdma_item_count, uint, 0664);
+__module_param(g_vsync_rdma_item_count, uint, 0664);
 
 MODULE_PARM_DESC(g_vsync_rdma_item_count_max, "\n g_vsync_rdma_item_count_max\n");
-module_param(g_vsync_rdma_item_count_max, uint, 0664);
+__module_param(g_vsync_rdma_item_count_max, uint, 0664);
 
 struct rdma_irq_reg_s {
 	u32 reg;

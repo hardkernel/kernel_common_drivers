@@ -881,6 +881,6 @@ int __init codec_io_init(void)
 	return ret;
 }
 
-module_param(regs_cmd_debug, uint, 0664);
+__module_param(regs_cmd_debug, uint, 0664);
 MODULE_PARM_DESC(regs_cmd_debug, "\n register commands sequence debug.\n");
 

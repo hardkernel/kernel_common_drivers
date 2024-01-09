@@ -984,7 +984,7 @@ static void __exit aml_tee_modexit(void)
 {
 	class_destroy(tee_sys_class);
 }
-module_param(disable_flag, uint, 0664);
+__module_param(disable_flag, uint, 0664);
 MODULE_PARM_DESC(disable_flag, "\n tee firmload disable_flag flag\n");
 
 module_exit(aml_tee_modexit);

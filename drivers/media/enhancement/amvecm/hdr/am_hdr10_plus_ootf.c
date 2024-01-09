@@ -36,11 +36,11 @@
 #include "../s5_set_hdr2_v0.h"
 
 unsigned int hdr10_plus_printk;
-module_param(hdr10_plus_printk, uint, 0664);
+__module_param(hdr10_plus_printk, uint, 0664);
 MODULE_PARM_DESC(hdr10_plus_printk, "hdr10_plus_printk");
 
 unsigned int force_ref_peak;
-module_param(force_ref_peak, uint, 0664);
+__module_param(force_ref_peak, uint, 0664);
 MODULE_PARM_DESC(force_ref_peak, "force_ref_peak");
 
 #define pr_hdr(fmt, args...)\

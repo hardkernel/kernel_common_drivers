@@ -79,45 +79,45 @@ static unsigned int combing_glb_mot_thr_LH[4] = {1440, 2880, 4760, 9520};
 
 /* >> 4 */
 static unsigned int combing_glbmot_radprat[4] = {32, 48, 64, 80};
-static unsigned int num_glbmot_radprat = 4;
-module_param_array(combing_glbmot_radprat, uint, &num_glbmot_radprat, 0664);
+//static unsigned int num_glbmot_radprat = 4;
+__module_param_array(combing_glbmot_radprat, uint, &num_glbmot_radprat, 0664);
 
 /* level:    0<-1  1<-2   2<-3   3<-4
  * from high motion to low motion level
  */
 static unsigned int combing_glb_mot_thr_HL[4] = {720, 1440, 2880, 5760};
 
-static unsigned int num_glb_mot_thr_LH = 4;
-module_param_array(combing_glb_mot_thr_LH, uint, &num_glb_mot_thr_LH, 0664);
-static unsigned int num_glb_mot_thr_HL = 4;
-module_param_array(combing_glb_mot_thr_HL, uint, &num_glb_mot_thr_HL, 0664);
+//static unsigned int num_glb_mot_thr_LH = 4;
+__module_param_array(combing_glb_mot_thr_LH, uint, &num_glb_mot_thr_LH, 0664);
+//static unsigned int num_glb_mot_thr_HL = 4;
+__module_param_array(combing_glb_mot_thr_HL, uint, &num_glb_mot_thr_HL, 0664);
 
 static int last_lev = -1;
 static int force_lev = 0xff;
-module_param_named(combing_force_lev, force_lev, int, 0664);
-static int dejaggy_flag = -1;
-module_param_named(combing_dejaggy_flag, dejaggy_flag, int, 0664);
+__module_param_named(combing_force_lev, force_lev, int, 0664);
+//static int dejaggy_flag = -1;
+__module_param_named(combing_dejaggy_flag, dejaggy_flag, int, 0664);
 int dejaggy_enable = 1;
-module_param_named(combing_dejaggy_enable, dejaggy_enable, int, 0664);
-static uint num_dejaggy_setting = 5;
+__module_param_named(combing_dejaggy_enable, dejaggy_enable, int, 0664);
+//static uint num_dejaggy_setting = 5;
 /* 0:off 1:1-14-1 2:1-6-1 3:3-10-3 4:100% */
 /* current setting dejaggy always on when interlace source */
-static int combing_dejaggy_setting[6] = {1, 1, 1, 2, 3, 3};
-module_param_array(combing_dejaggy_setting, uint,
+//static int combing_dejaggy_setting[6] = {1, 1, 1, 2, 3, 3};
+__module_param_array(combing_dejaggy_setting, uint,
 	&num_dejaggy_setting, 0664);
 static struct combing_param_s cmb_param;
 /*from T3 /t5db adaptive_combing_new from vlsi yanling*/
 #ifdef DI_NEW_PQ_V1
 static int combing_debug_print;
-module_param_named(combing_debug_print, combing_debug_print, int, 0664);
+__module_param_named(combing_debug_print, combing_debug_print, int, 0664);
 static int roku_th_test = 10000;
-module_param_named(roku_th_test, roku_th_test, int, 0664);
+__module_param_named(roku_th_test, roku_th_test, int, 0664);
 static int th = 200;
-module_param_named(th, th, int, 0664);
+__module_param_named(th, th, int, 0664);
 static int th_cont = 10;
-module_param_named(th_cont, th_cont, int, 0664);
+__module_param_named(th_cont, th_cont, int, 0664);
 static int change_th = 26;
-module_param_named(change_th, change_th, int, 0664);
+__module_param_named(change_th, change_th, int, 0664);
 #endif
 /*end*/
 
@@ -434,26 +434,26 @@ static unsigned int combing_resolution_setting[MAX_NUM_DI_REG] = {
 	0x00000131
 };
 
-static unsigned int num_combing_setting_registers = MAX_NUM_DI_REG;
-module_param_array(combing_setting_registers, uint,
+//static unsigned int num_combing_setting_registers = MAX_NUM_DI_REG;
+__module_param_array(combing_setting_registers, uint,
 	&num_combing_setting_registers, 0664);
-static unsigned int num_combing_setting_masks = MAX_NUM_DI_REG;
-module_param_array(combing_setting_masks, uint,
+//static unsigned int num_combing_setting_masks = MAX_NUM_DI_REG;
+__module_param_array(combing_setting_masks, uint,
 	&num_combing_setting_masks, 0664);
-static unsigned int num_combing_pure_still_setting = MAX_NUM_DI_REG;
-module_param_array(combing_pure_still_setting, uint,
+//static unsigned int num_combing_pure_still_setting = MAX_NUM_DI_REG;
+__module_param_array(combing_pure_still_setting, uint,
 	&num_combing_pure_still_setting, 0664);
-static unsigned int num_combing_bias_static_setting = MAX_NUM_DI_REG;
-module_param_array(combing_bias_static_setting, uint,
+//static unsigned int num_combing_bias_static_setting = MAX_NUM_DI_REG;
+__module_param_array(combing_bias_static_setting, uint,
 	&num_combing_bias_static_setting, 0664);
-static unsigned int num_combing_normal_setting = MAX_NUM_DI_REG;
-module_param_array(combing_normal_setting, uint, &num_combing_normal_setting,
+//static unsigned int num_combing_normal_setting = MAX_NUM_DI_REG;
+__module_param_array(combing_normal_setting, uint, &num_combing_normal_setting,
 	0664);
-static unsigned int num_combing_bias_motion_setting = MAX_NUM_DI_REG;
-module_param_array(combing_bias_motion_setting, uint,
+//static unsigned int num_combing_bias_motion_setting = MAX_NUM_DI_REG;
+__module_param_array(combing_bias_motion_setting, uint,
 	&num_combing_bias_motion_setting, 0664);
-static unsigned int num_combing_very_motion_setting = MAX_NUM_DI_REG;
-module_param_array(combing_very_motion_setting, uint,
+//static unsigned int num_combing_very_motion_setting = MAX_NUM_DI_REG;
+__module_param_array(combing_very_motion_setting, uint,
 	&num_combing_very_motion_setting, 0664);
 /* 0: pure still; 1: bias static; 2: normal; 3: bias motion, 4: very motion */
 
@@ -567,11 +567,11 @@ unsigned int adp_set_mtn_ctrl3(unsigned int diff, unsigned int dlvel)
 }
 
 int cmb_num_rat_ctl4 = 64; /* 0~255 */
-module_param(cmb_num_rat_ctl4, int, 0644);
+__module_param(cmb_num_rat_ctl4, int, 0644);
 MODULE_PARM_DESC(cmb_num_rat_ctl4, "cmb_num_rat_ctl4");
 
 int cmb_rat_ctl4_minthd = 64;
-module_param(cmb_rat_ctl4_minthd, int, 0644);
+__module_param(cmb_rat_ctl4_minthd, int, 0644);
 MODULE_PARM_DESC(cmb_rat_ctl4_minthd, "cmb_rat_ctl4_minthd");
 
 unsigned int adp_set_mtn_ctrl4(unsigned int diff, unsigned int dlvel,
@@ -691,11 +691,11 @@ unsigned int adp_set_mtn_ctrl7(unsigned int diff, unsigned int dlvel)
 	return rst;
 }
 static unsigned int small_local_mtn = 70;
-module_param(small_local_mtn, uint, 0644);
+__module_param(small_local_mtn, uint, 0644);
 MODULE_PARM_DESC(small_local_mtn, "small_local_mtn");
 
 static unsigned int small_local_mtn1 = 30;
-module_param(small_local_mtn1, uint, 0644);
+__module_param(small_local_mtn1, uint, 0644);
 MODULE_PARM_DESC(small_local_mtn1, "small_local_mtn1");
 
 unsigned int adp_set_mtn_ctrl10(unsigned int diff, unsigned int dlvel,
@@ -837,7 +837,7 @@ static void set_combing_regs(int lvl, int bit_mode)
 }
 
 static int di_debug_readreg;
-module_param(di_debug_readreg, int, 0644);
+__module_param(di_debug_readreg, int, 0644);
 MODULE_PARM_DESC(di_debug_readreg, "di_debug_readreg");
 
 /*from VLSI yanling.liu, the patch fix TL1 1080I in some dark */
@@ -1159,7 +1159,7 @@ void adaptive_combing_new(unsigned int field_diff,
 #endif
 
 #ifdef DEBUG_SUPPORT
-module_param_named(cmb_adpset_cnt, cmb_adpset_cnt, int, 0644);
+__module_param_named(cmb_adpset_cnt, cmb_adpset_cnt, int, 0644);
 #endif
 static const struct mtn_op_s di_ops_mtn = {
 	.mtn_int_combing_glbmot		= mtn_int_combing_glbmot,

@@ -43,7 +43,7 @@
 //dvb-t
 MODULE_PARM_DESC(dvbt_reset_per_times, "\n\t\t dvbt reset cycle cnt");
 static unsigned int dvbt_reset_per_times = 40;
-module_param(dvbt_reset_per_times, int, 0644);
+__module_param(dvbt_reset_per_times, int, 0644);
 
 int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {

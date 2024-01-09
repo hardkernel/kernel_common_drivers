@@ -84,14 +84,14 @@
 
 MODULE_PARM_DESC(dvbc_new_driver, "\n\t\t use dvbc new driver to work");
 static unsigned char dvbc_new_driver;
-module_param(dvbc_new_driver, byte, 0644);
+__module_param(dvbc_new_driver, byte, 0644);
 
 int aml_demod_debug = DBG_INFO;
-module_param(aml_demod_debug, int, 0644);
+__module_param(aml_demod_debug, int, 0644);
 MODULE_PARM_DESC(aml_demod_debug, "set debug level (info=bit1, reg=bit2, atsc=bit4,");
 
 static unsigned int cma_mem_size;
-module_param(cma_mem_size, uint, 0644);
+__module_param(cma_mem_size, uint, 0644);
 MODULE_PARM_DESC(cma_mem_size, "\n\t\t cma_mem_size");
 
 /*-----------------------------------*/
@@ -103,8 +103,8 @@ static DEFINE_MUTEX(amldtvdemod_device_mutex);
 static int cci_thread;
 #endif
 
-static int dvb_tuner_delay = 100;
-module_param(dvb_tuner_delay, int, 0644);
+//static int dvb_tuner_delay = 100;
+__module_param(dvb_tuner_delay, int, 0644);
 MODULE_PARM_DESC(dvb_atsc_count, "dvb_tuner_delay");
 
 #define END_SYS_DELIVERY	19

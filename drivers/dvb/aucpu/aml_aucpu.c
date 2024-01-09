@@ -1445,9 +1445,9 @@ static s32 __init aucpu_mem_setup(struct reserved_mem *rmem)
 	return 0;
 }
 
-module_param(print_level, uint, 0664);
+__module_param(print_level, uint, 0664);
 MODULE_PARM_DESC(print_level, "\n print_level\n");
-module_param(dbg_level, uint, 0664);
+__module_param(dbg_level, uint, 0664);
 MODULE_PARM_DESC(dbg_level, "\n dbg_level\n");
 
 RESERVEDMEM_OF_DECLARE(aml_aucpu, "aml, Aucpu-mem", aucpu_mem_setup);

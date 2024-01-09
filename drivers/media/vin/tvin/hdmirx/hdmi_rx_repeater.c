@@ -34,31 +34,31 @@
 static unsigned char receive_edid[MAX_RECEIVE_EDID];
 int receive_edid_len = MAX_RECEIVE_EDID;
 MODULE_PARM_DESC(receive_edid, "\n receive_edid\n");
-module_param_array(receive_edid, byte, &receive_edid_len, 0664);
+__module_param_array(receive_edid, byte, &receive_edid_len, 0664);
 int tx_hpd_event;
 int edid_len;
 MODULE_PARM_DESC(edid_len, "\n edid_len\n");
-module_param(edid_len, int, 0664);
+__module_param(edid_len, int, 0664);
 bool new_edid;
 /*original bksv from device*/
 //unsigned char receive_hdcp[MAX_KSV_LIST_SIZE];
 //int hdcp_array_len = MAX_KSV_LIST_SIZE;
 //MODULE_PARM_DESC(receive_hdcp, "\n receive_hdcp\n");
-//module_param_array(receive_hdcp, byte, &hdcp_array_len, 0664);
+//__module_param_array(receive_hdcp, byte, &hdcp_array_len, 0664);
 int hdcp_len;
 int hdcp_repeat_depth;
 bool new_hdcp;
 bool start_auth_14;
 MODULE_PARM_DESC(start_auth_14, "\n start_auth_14\n");
-module_param(start_auth_14, bool, 0664);
+__module_param(start_auth_14, bool, 0664);
 
 bool repeat_plug;
 MODULE_PARM_DESC(repeat_plug, "\n repeat_plug\n");
-module_param(repeat_plug, bool, 0664);
+__module_param(repeat_plug, bool, 0664);
 
 int up_phy_addr;/*d c b a 4bit*/
 MODULE_PARM_DESC(up_phy_addr, "\n up_phy_addr\n");
-module_param(up_phy_addr, int, 0664);
+__module_param(up_phy_addr, int, 0664);
 int hdcp22_firm_switch_timeout;
 
 u8 ksvlist[10] = {

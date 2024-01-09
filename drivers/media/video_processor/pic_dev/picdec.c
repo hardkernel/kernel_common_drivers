@@ -785,8 +785,8 @@ static int test_b = 0xff;
  *   main task functions.
  *************************************************
  */
-static unsigned int print_ifmt;
-module_param(print_ifmt, uint, 0644);
+//static unsigned int print_ifmt;
+__module_param(print_ifmt, uint, 0644);
 MODULE_PARM_DESC(print_ifmt, "print input format\n");
 
 /* fill the RGB user buffer to physical buffer */

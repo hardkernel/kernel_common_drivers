@@ -48,12 +48,12 @@
 /*2018-07-18 -----------*/
 
 static unsigned int dim_afbc_skip_en;
-module_param_named(dim_afbc_skip_en, dim_afbc_skip_en, uint, 0664);
+__module_param_named(dim_afbc_skip_en, dim_afbc_skip_en, uint, 0664);
 
 #ifdef DBG_BUFFER_FLOW
 static unsigned int afbc_skip_pps_w, afbc_skip_pps_h;
-module_param_named(afbc_skip_pps_w, afbc_skip_pps_w, uint, 0664);
-module_param_named(afbc_skip_pps_h, afbc_skip_pps_h, uint, 0664);
+__module_param_named(afbc_skip_pps_w, afbc_skip_pps_w, uint, 0664);
+__module_param_named(afbc_skip_pps_h, afbc_skip_pps_h, uint, 0664);
 #endif
 bool dip_cfg_afbc_skip(void)
 {
@@ -472,7 +472,7 @@ static int s4dw_buf_init(struct di_ch_s *pch)
 
 #ifdef DBG_BUFFER_FLOW
 static unsigned int s4dw_buf_h;
-module_param_named(s4dw_buf_h, s4dw_buf_h, uint, 0664);
+__module_param_named(s4dw_buf_h, s4dw_buf_h, uint, 0664);
 #endif /* DBG_BUFFER_FLOW */
 
 const struct di_mm_cfg_s c_mm_cfg_s4_cp = {

@@ -4164,7 +4164,7 @@ void __exit meson_mmc_exit(void)
 	platform_driver_unregister(&meson_mmc_driver);
 }
 
-//module_param(caps2_quirks, charp, 0444);
+//__module_param(caps2_quirks, charp, 0444);
 //MODULE_PARM_DESC(caps2_quirks, "Force certain caps2.");
 
 //MODULE_DESCRIPTION("Amlogic S905*/GX*/AXG SD/eMMC driver");

@@ -51,23 +51,23 @@ static unsigned int demod_ddr_size;
 
 MODULE_PARM_DESC(testbus_addr, "\n\t\t testbus_addr");
 static unsigned int testbus_addr = 0x1000;
-module_param(testbus_addr, int, 0644);
+__module_param(testbus_addr, int, 0644);
 
 MODULE_PARM_DESC(testbus_width, "\n\t\t testbus_width");
 static unsigned int testbus_width = 9;
-module_param(testbus_width, int, 0644);
+__module_param(testbus_width, int, 0644);
 
 MODULE_PARM_DESC(testbus_vld, "\n\t\t testbus_vld");
 static unsigned int testbus_vld = 0x100000;
-module_param(testbus_vld, int, 0644);
+__module_param(testbus_vld, int, 0644);
 
 MODULE_PARM_DESC(testbus_read_only, "\n\t\t testbus_read_only");
 static unsigned int testbus_read_only;
-module_param(testbus_read_only, int, 0644);
+__module_param(testbus_read_only, int, 0644);
 
 MODULE_PARM_DESC(testbus_test_mode, "\n\t\t testbus_test_mode");
 static unsigned char testbus_test_mode;
-module_param(testbus_test_mode, byte, 0644);
+__module_param(testbus_test_mode, byte, 0644);
 
 static void get_chip_name(struct amldtvdemod_device_s *devp, char *str)
 {

@@ -23,7 +23,7 @@
 
 int crtc_force_hint;
 MODULE_PARM_DESC(crtc_force_hint, "\n force modesetting hint\n");
-module_param(crtc_force_hint, int, 0644);
+__module_param(crtc_force_hint, int, 0644);
 
 int gamma_ctl = 1;
 

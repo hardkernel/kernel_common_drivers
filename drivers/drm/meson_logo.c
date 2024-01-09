@@ -67,7 +67,7 @@ static bool is_cma;
 
 #ifdef MODULE
 MODULE_PARM_DESC(outputmode, "outputmode");
-module_param_named(outputmode, logo.outputmode_t, charp, 0600);
+__module_param_named(outputmode, logo.outputmode_t, charp, 0600);
 
 #else
 #ifndef CONFIG_AMLOGIC_MEDIA_FB

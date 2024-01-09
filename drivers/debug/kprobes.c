@@ -15,7 +15,7 @@
 static DEFINE_PER_CPU(unsigned long, kprobe_busy_flags);
 
 static int kprobe_busy_disable_irq;
-module_param(kprobe_busy_disable_irq, int, 0644);
+__module_param(kprobe_busy_disable_irq, int, 0644);
 
 static int __nocfi __kprobes kprobe_busy_begin_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {

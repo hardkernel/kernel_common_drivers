@@ -76,7 +76,7 @@ enum{
 };
 
 static int	lr_gain = 0x20;
-module_param(lr_gain, int, 0664);
+__module_param(lr_gain, int, 0664);
 MODULE_PARM_DESC(lr_gain, "PGA Level Volume");
 
 /* 0dB min, 1dB steps */

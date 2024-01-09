@@ -13,7 +13,7 @@
 #include "meson_uvm_buffer_info.h"
 
 static int mubi_debug_level;
-module_param(mubi_debug_level, int, 0644);
+__module_param(mubi_debug_level, int, 0644);
 #define MUBI_PRINTK(level, fmt, arg...) \
 	do { \
 		if (mubi_debug_level >= (level)) \

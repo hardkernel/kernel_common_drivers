@@ -25,7 +25,7 @@
 #include "vdin_screen.h"
 
 static unsigned int debug_sleep_time = 50;
-module_param(debug_sleep_time, uint, 0664);
+__module_param(debug_sleep_time, uint, 0664);
 MODULE_PARM_DESC(debug_sleep_time, "debug_sleep_time debug");
 
 /* get support pixel format lists */

@@ -41,10 +41,10 @@
 
 MODULE_PARM_DESC(auto_search_std, "\n\t\t atsc-c std&hrc search");
 static unsigned int auto_search_std;
-module_param(auto_search_std, int, 0644);
+__module_param(auto_search_std, int, 0644);
 
 static int dvb_j83b_count = 5;
-module_param(dvb_j83b_count, int, 0644);
+__module_param(dvb_j83b_count, int, 0644);
 MODULE_PARM_DESC(dvb_atsc_count, "dvb_j83b_count");
 /*come from j83b_speedup_func*/
 

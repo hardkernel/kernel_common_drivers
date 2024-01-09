@@ -1578,7 +1578,7 @@ static unsigned int vdin_is_support_10bit_for_dw_t3x(struct vdin_dev_s *devp)
 }
 
 /*static unsigned int vdin_wr_mode = 0xff;*/
-/*module_param(vdin_wr_mode, uint, 0644);*/
+/*__module_param(vdin_wr_mode, uint, 0644);*/
 /*MODULE_PARM_DESC(vdin_wr_mode, "vdin_wr_mode");*/
 
 /* set write ctrl regs:

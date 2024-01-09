@@ -11,7 +11,7 @@
 
 unsigned int vpp_pq_dbg;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-module_param(vpp_pq_dbg, uint, 0664);
+__module_param(vpp_pq_dbg, uint, 0664);
 MODULE_PARM_DESC(vpp_pq_dbg, "vpp_pq_dbg\n");
 #endif
 

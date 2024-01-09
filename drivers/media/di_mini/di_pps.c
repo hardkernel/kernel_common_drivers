@@ -27,12 +27,12 @@
 
 #include <linux/seq_file.h>
 
-#undef module_param
-#define module_param(x...)
-#undef module_param_named
-#define module_param_named(x...)
-#undef module_param_array
-#define module_param_array(x...)
+#undef __module_param
+#define __module_param(x...)
+#undef __module_param_named
+#define __module_param_named(x...)
+#undef __module_param_array
+#define __module_param_array(x...)
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #ifdef MARK_HIS
@@ -228,19 +228,19 @@ static int chroma_filter_table[] = {
 };
 
 static unsigned int vert_scaler_filter = 0xff;
-module_param(vert_scaler_filter, uint, 0664);
+__module_param(vert_scaler_filter, uint, 0664);
 MODULE_PARM_DESC(vert_scaler_filter, "vert_scaler_filter");
 
 static unsigned int vert_chroma_scaler_filter = 0xff;
-module_param(vert_chroma_scaler_filter, uint, 0664);
+__module_param(vert_chroma_scaler_filter, uint, 0664);
 MODULE_PARM_DESC(vert_chroma_scaler_filter, "vert_chroma_scaler_filter");
 
 static unsigned int horz_scaler_filter = 0xff;
-module_param(horz_scaler_filter, uint, 0664);
+__module_param(horz_scaler_filter, uint, 0664);
 MODULE_PARM_DESC(horz_scaler_filter, "horz_scaler_filter");
 
 bool pre_scaler_en = true;
-module_param(pre_scaler_en, bool, 0664);
+__module_param(pre_scaler_en, bool, 0664);
 MODULE_PARM_DESC(pre_scaler_en, "pre_scaler_en");
 #endif
 /*bicubic*/

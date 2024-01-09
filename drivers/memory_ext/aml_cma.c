@@ -1915,10 +1915,10 @@ struct kprobe kp_cma_release = {
 };
 
 static int compaction_alloc_debug;
-module_param(compaction_alloc_debug, int, 0644);
+__module_param(compaction_alloc_debug, int, 0644);
 
 static unsigned long low_cma_pfn = -1UL; //max
-module_param(low_cma_pfn, ulong, 0644);
+__module_param(low_cma_pfn, ulong, 0644);
 
 struct cma;
 static int low_cma_func(struct cma *cma, void *data)
@@ -2052,7 +2052,7 @@ static int __nocfi common_symbol_init(void *data)
 
 #if CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 static int cma_enabled;
-module_param(cma_enabled, int, 0644);
+__module_param(cma_enabled, int, 0644);
 
 static int cma_enabled_setup(char *str)
 {
@@ -2066,7 +2066,7 @@ static int cma_enabled_setup(char *str)
 __setup("cma_enabled=", cma_enabled_setup);
 
 static int cma_enabled_swap_ratio = 70;
-module_param(cma_enabled_swap_ratio, int, 0644);
+__module_param(cma_enabled_swap_ratio, int, 0644);
 
 static int cma_enabled_swap_ratio_setup(char *str)
 {

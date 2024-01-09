@@ -26,7 +26,7 @@ static struct in_elem ts_input_table[MAX_INPUT_NUM];
 
 MODULE_PARM_DESC(debug_input, "\n\t\t Enable demux input information");
 static int debug_input;
-module_param(debug_input, int, 0644);
+__module_param(debug_input, int, 0644);
 
 /**
  * ts_input_init

@@ -278,35 +278,35 @@ struct pq_ctrl_s pq_cfg_init[PQ_CFG_MAX] = {
 /*void __iomem *amvecm_hiu_reg_base;*//* = *ioremap(0xc883c000, 0x2000); */
 
 static int debug_amvecm;
-module_param(debug_amvecm, int, 0664);
+__module_param(debug_amvecm, int, 0664);
 MODULE_PARM_DESC(debug_amvecm, "\n debug_amvecm\n");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static int debug_amvecm_bringup;
-module_param(debug_amvecm_bringup, int, 0664);
+__module_param(debug_amvecm_bringup, int, 0664);
 MODULE_PARM_DESC(debug_amvecm_bringup, "\n debug_amvecm_bringup\n");
 #endif
 
 unsigned int vecm_latch_flag;
-module_param(vecm_latch_flag, uint, 0664);
+__module_param(vecm_latch_flag, uint, 0664);
 MODULE_PARM_DESC(vecm_latch_flag, "\n vecm_latch_flag\n");
 
 unsigned int vecm_latch_flag2;
-module_param(vecm_latch_flag2, uint, 0664);
+__module_param(vecm_latch_flag2, uint, 0664);
 MODULE_PARM_DESC(vecm_latch_flag2, "\n vecm_latch_flag2\n");
 
 unsigned int pq_load_en = 1; /*load pq table enable/disable*/
-module_param(pq_load_en, uint, 0664);
+__module_param(pq_load_en, uint, 0664);
 MODULE_PARM_DESC(pq_load_en, "\n pq_load_en\n");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 bool gamma_en;  /* wb_gamma_en enable/disable */
-module_param(gamma_en, bool, 0664);
+__module_param(gamma_en, bool, 0664);
 MODULE_PARM_DESC(gamma_en, "\n gamma_en\n");
 #endif
 
 bool wb_en;  /* wb_en enable/disable */
-module_param(wb_en, bool, 0664);
+__module_param(wb_en, bool, 0664);
 MODULE_PARM_DESC(wb_en, "\n wb_en\n");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -317,67 +317,67 @@ unsigned int lut3d_data_source = 2;/* read fron bin */
 #endif
 
 unsigned int probe_ok;/* probe ok or not */
-module_param(probe_ok, uint, 0664);
+__module_param(probe_ok, uint, 0664);
 MODULE_PARM_DESC(probe_ok, "\n probe_ok\n");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static unsigned int sr1_index;/* for sr1 read */
-module_param(sr1_index, uint, 0664);
+__module_param(sr1_index, uint, 0664);
 MODULE_PARM_DESC(sr1_index, "\n sr1_index\n");
 
 static int mtx_sel_dbg;/* for mtx debug */
-module_param(mtx_sel_dbg, uint, 0664);
+__module_param(mtx_sel_dbg, uint, 0664);
 MODULE_PARM_DESC(mtx_sel_dbg, "\n mtx_sel_dbg\n");
 #endif
 
 unsigned int pq_user_latch_flag;
-module_param(pq_user_latch_flag, uint, 0664);
+__module_param(pq_user_latch_flag, uint, 0664);
 MODULE_PARM_DESC(pq_user_latch_flag, "\n pq_user_latch_flag\n");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 unsigned int fmeter_debug = 255;/* for fmeter debug */
-module_param(fmeter_debug, uint, 0664);
+__module_param(fmeter_debug, uint, 0664);
 MODULE_PARM_DESC(fmeter_debug, "\n fmeter_debug\n");
 
 unsigned int fmeter_count = 2;/* for fmeter count */
-module_param(fmeter_count, uint, 0664);
+__module_param(fmeter_count, uint, 0664);
 MODULE_PARM_DESC(fmeter_count, "\n fmeter_count\n");
 #endif
 
 /*0: 709/601	1: bt2020*/
 int tx_op_color_primary;
-module_param(tx_op_color_primary, int, 0664);
+__module_param(tx_op_color_primary, int, 0664);
 MODULE_PARM_DESC(tx_op_color_primary,
 		 "tx output color_primary");
 
 unsigned int debug_game_mode_1;
-module_param(debug_game_mode_1, uint, 0664);
+__module_param(debug_game_mode_1, uint, 0664);
 MODULE_PARM_DESC(debug_game_mode_1, "\n debug_game_mode_1\n");
 int freerun_en = GAME_MODE;/* 0:game mode;1:freerun mode */
-module_param(freerun_en, int, 0664);
+__module_param(freerun_en, int, 0664);
 MODULE_PARM_DESC(freerun_en, "\n enable or disable freerun\n");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 /*blue stretch function with 3dlut*/
 int bs_3dlut_en = 1;
-module_param(bs_3dlut_en, int, 0664);
+__module_param(bs_3dlut_en, int, 0664);
 MODULE_PARM_DESC(bs_3dlut_en, "\n bs_3dlut_en\n");
 
 unsigned int ct_en;
-module_param(ct_en, uint, 0664);
+__module_param(ct_en, uint, 0664);
 MODULE_PARM_DESC(ct_en, "\n color tune\n");
 
 unsigned int ai_color_enable;
-module_param(ai_color_enable, uint, 0664);
+__module_param(ai_color_enable, uint, 0664);
 MODULE_PARM_DESC(ai_color_enable, "\n ai_color_enable\n");
 #endif
 
 unsigned int hdr_output_mode;
-module_param(hdr_output_mode, uint, 0664);
+__module_param(hdr_output_mode, uint, 0664);
 MODULE_PARM_DESC(hdr_output_mode, "\n hdr_output_mode\n");
 
 unsigned int data_path;  /* 0:main;1:sub */
-module_param(data_path, int, 0664);
+__module_param(data_path, int, 0664);
 MODULE_PARM_DESC(data_path, "\n data_path\n");
 
 unsigned int pq_user_value;

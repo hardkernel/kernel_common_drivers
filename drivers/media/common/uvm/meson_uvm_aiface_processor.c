@@ -29,16 +29,16 @@ static struct ge2d_context_s *context;
 static struct mutex ge2d_canvas_mutex;
 
 static int uvm_aiface_debug;
-module_param(uvm_aiface_debug, int, 0644);
+__module_param(uvm_aiface_debug, int, 0644);
 
 static int uvm_open_aiface;
-module_param(uvm_open_aiface, int, 0644);
+__module_param(uvm_open_aiface, int, 0644);
 
 static int uvm_aiface_dump;
-module_param(uvm_aiface_dump, int, 0644);
+__module_param(uvm_aiface_dump, int, 0644);
 
 static int uvm_aiface_skip_height = 1088;
-module_param(uvm_aiface_skip_height, int, 0644);
+__module_param(uvm_aiface_skip_height, int, 0644);
 
 #define PRINT_ERROR     0X0
 #define PRINT_OTHER     0X0001

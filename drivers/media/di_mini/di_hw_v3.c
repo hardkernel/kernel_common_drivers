@@ -40,7 +40,7 @@
 
 /* ary */
 static u32 sc2_dbg;
-module_param_named(sc2_dbg, sc2_dbg, uint, 0664);
+__module_param_named(sc2_dbg, sc2_dbg, uint, 0664);
 
 /********************
  * BIT0: enable pre irq
@@ -48,10 +48,10 @@ module_param_named(sc2_dbg, sc2_dbg, uint, 0664);
  ********************/
 
 static u32 sc2_dbg_cnt_pre;
-module_param_named(sc2_dbg_cnt_pre, sc2_dbg_cnt_pre, uint, 0664);
+__module_param_named(sc2_dbg_cnt_pre, sc2_dbg_cnt_pre, uint, 0664);
 
 static u32 sc2_dbg_cnt_pst;
-module_param_named(sc2_dbg_cnt_pst, sc2_dbg_cnt_pst, uint, 0664);
+__module_param_named(sc2_dbg_cnt_pst, sc2_dbg_cnt_pst, uint, 0664);
 
 void sc2_dbg_set(unsigned int val)
 {
@@ -93,7 +93,7 @@ bool sc2_dbg_is_en_pst_irq(void)
 
 /*dbg setting: */
 static u32 sc2_reg_mask;
-module_param_named(sc2_reg_mask, sc2_reg_mask, uint, 0664);
+__module_param_named(sc2_reg_mask, sc2_reg_mask, uint, 0664);
 /* */
 
 bool is_mask(unsigned int cmd)
@@ -2451,7 +2451,7 @@ bool dim_aisr_test(struct DI_SIM_MIF_S *mif, bool sel)
 }
 
 static unsigned int dim_hf_dbg;
-module_param_named(dim_hf_dbg, dim_hf_dbg, uint, 0644);
+__module_param_named(dim_hf_dbg, dim_hf_dbg, uint, 0644);
 
 /* from t3 */
 /* ucode: aisr_pre_cfg */

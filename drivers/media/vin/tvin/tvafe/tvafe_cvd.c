@@ -135,7 +135,7 @@ static unsigned int acd_h = 0x890359;
 static unsigned int acd_h_back = 0x890359;
 
 unsigned int acd_ntscm_h_back = 0x00880358;
-module_param(acd_ntscm_h_back, uint, 0644);
+__module_param(acd_ntscm_h_back, uint, 0644);
 MODULE_PARM_DESC(acd_ntscm_h_back, "acd_ntscm_h_back");
 
 static unsigned int dec_stop_not_adj = 1;
@@ -195,7 +195,7 @@ static unsigned int noise3;
 unsigned long vbi_mem_start;
 
 static int acd_2d_adjust = 0x94;
-module_param(acd_2d_adjust, int, 0644);
+__module_param(acd_2d_adjust, int, 0644);
 MODULE_PARM_DESC(acd_2d_adjust, "enable/disable acd_2d_adjust");
 
 void cvd_set_shift_cnt(enum tvafe_cvd2_shift_cnt_e src, unsigned int val)

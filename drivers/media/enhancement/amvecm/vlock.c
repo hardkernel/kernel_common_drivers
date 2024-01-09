@@ -77,11 +77,11 @@ static unsigned int vlock_intput_type;
 static signed int vlock_line_limit = 2;
 
 static signed int vlock_enc_maxtune_line_num = 12;
-module_param(vlock_enc_maxtune_line_num, uint, 0664);
+__module_param(vlock_enc_maxtune_line_num, uint, 0664);
 MODULE_PARM_DESC(vlock_enc_maxtune_line_num, "\n vlock_enc_maxtune_line_num\n");
 
 static signed int vlock_enc_maxtune_pixel_num = 10;
-module_param(vlock_enc_maxtune_pixel_num, uint, 0664);
+__module_param(vlock_enc_maxtune_pixel_num, uint, 0664);
 MODULE_PARM_DESC(vlock_enc_maxtune_pixel_num, "\n vlock_enc_maxtune_pixel_num\n");
 
 static unsigned int vlock_enc_adj_limit;
@@ -143,39 +143,39 @@ static struct stvlock_sig_sts *vlock_tab[VLOCK_ENC_MAX];
 	} while (0)
 
 /*static unsigned int hhi_pll_reg_vlock_ctl;*/
-module_param(vlock_log_size, uint, 0664);
+__module_param(vlock_log_size, uint, 0664);
 MODULE_PARM_DESC(vlock_log_size, "\n vlock_log_size\n");
-module_param(vlock_log_cnt, uint, 0664);
+__module_param(vlock_log_cnt, uint, 0664);
 MODULE_PARM_DESC(vlock_log_cnt, "\n vlock_log_cnt\n");
-module_param(vlock_log_delta_frac, uint, 0664);
+__module_param(vlock_log_delta_frac, uint, 0664);
 MODULE_PARM_DESC(vlock_log_delta_frac, "\n vlock_log_delta_frac\n");
-module_param(vlock_log_delta_m, uint, 0664);
+__module_param(vlock_log_delta_m, uint, 0664);
 MODULE_PARM_DESC(vlock_log_delta_m, "\n vlock_log_delta_m\n");
-module_param(vlock_log_delta_en, uint, 0664);
+__module_param(vlock_log_delta_en, uint, 0664);
 MODULE_PARM_DESC(vlock_log_delta_en, "\n vlock_log_delta_en\n");
 
-module_param(vlock_log_delta_ivcnt, uint, 0664);
+__module_param(vlock_log_delta_ivcnt, uint, 0664);
 MODULE_PARM_DESC(vlock_log_delta_ivcnt, "\n vlock_log_delta_ivcnt\n");
 
-module_param(vlock_log_delta_ovcnt, uint, 0664);
+__module_param(vlock_log_delta_ovcnt, uint, 0664);
 MODULE_PARM_DESC(vlock_log_delta_ovcnt, "\n vlock_log_delta_ovcnt\n");
 
-module_param(vlock_log_delta_vcnt, uint, 0664);
+__module_param(vlock_log_delta_vcnt, uint, 0664);
 MODULE_PARM_DESC(vlock_log_delta_vcnt, "\n vlock_log_delta_vcnt\n");
 
 //static unsigned int vlock_frac;
-//module_param(vlock_frac, uint, 0664);
+//__module_param(vlock_frac, uint, 0664);
 //MODULE_PARM_DESC(vlock_frac, "\n vlock_frac\n");
 //static unsigned int vlock_frac_delta;
-//module_param(vlock_frac_delta, uint, 0664);
+//__module_param(vlock_frac_delta, uint, 0664);
 //MODULE_PARM_DESC(vlock_frac_delta, "\n vlock_frac_delta\n");
 
 static unsigned int vlock_latch_en_cnt = 20;
-module_param(vlock_latch_en_cnt, uint, 0664);
+__module_param(vlock_latch_en_cnt, uint, 0664);
 MODULE_PARM_DESC(vlock_latch_en_cnt, "\n vlock_latch_en_cnt\n");
 
 u32 vlock_tune_sync_on = 1;
-module_param(vlock_tune_sync_on, uint, 0664);
+__module_param(vlock_tune_sync_on, uint, 0664);
 MODULE_PARM_DESC(vlock_tune_sync_on, "\n vlock_tune_sync_on\n");
 
 static unsigned int vlock_log_en;

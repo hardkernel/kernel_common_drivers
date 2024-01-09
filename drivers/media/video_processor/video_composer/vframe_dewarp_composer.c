@@ -24,10 +24,10 @@
 
 static unsigned int dewarp_com_dump;
 MODULE_PARM_DESC(dewarp_com_dump, "\n dewarp_com_dump\n");
-module_param(dewarp_com_dump, uint, 0664);
+__module_param(dewarp_com_dump, uint, 0664);
 static unsigned int dewarp_print;
 MODULE_PARM_DESC(dewarp_print, "\n dewarp_print\n");
-module_param(dewarp_print, uint, 0664);
+__module_param(dewarp_print, uint, 0664);
 
 static unsigned int dewarp_com_dump_last;
 int get_dewarp_format(int vc_index, struct vframe_s *vf)
