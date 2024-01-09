@@ -5,7 +5,6 @@
 
 #ifndef VIDEO_LOW_LATENCTY_HH
 #define VIDEO_LOW_LATENCTY_HH
-#include <linux/amlogic/kernel_versions.h>
 #include "vpp_pq.h"
 #include <linux/amlogic/media/video_sink/video_signal_notify.h>
 #include <linux/amlogic/media/video_sink/vpp.h>
@@ -44,11 +43,11 @@ extern bool over_field;
 extern bool dvel_status;
 #endif
 
-ssize_t lowlatency_states_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t lowlatency_states_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count);
-ssize_t lowlatency_states_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t lowlatency_states_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf);
 bool tvin_vf_is_keeped(struct vframe_s *vf);
 void _set_video_mirror(struct disp_info_s *layer, int mirror);

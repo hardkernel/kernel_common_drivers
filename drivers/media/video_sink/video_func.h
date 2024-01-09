@@ -6,7 +6,6 @@
 #ifndef VIDEO_FUNC_HEADER_HH
 #define VIDEO_FUNC_HEADER_HH
 
-#include <linux/amlogic/kernel_versions.h>
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #include "vpp_pq.h"
 #include <linux/amlogic/media/amvecm/amvecm.h>
@@ -169,8 +168,8 @@ inline bool is_tunnel_mode(const char *receiver_name);
 void post_vsync_process(void);
 void pre_vsync_process(void);
 
-ssize_t blend_conflict_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t blend_conflict_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf);
 void put_buffer_proc(void);
 #endif

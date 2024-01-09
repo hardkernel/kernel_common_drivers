@@ -29,7 +29,6 @@
 #include "vrr_reg.h"
 
 #include <linux/amlogic/gki_module.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #define VRR_CDEV_NAME  "aml_vrr"
 struct vrr_cdev_s {
@@ -1174,7 +1173,7 @@ static int vrr_global_init_once(void)
 		goto vrr_global_init_once_err;
 	}
 
-	vrr_cdev->class = kv_class_create(THIS_MODULE, "aml_vrr");
+	vrr_cdev->class = class_create("aml_vrr");
 	if (IS_ERR_OR_NULL(vrr_cdev->class)) {
 		ret = 2;
 		goto vrr_global_init_once_err_1;

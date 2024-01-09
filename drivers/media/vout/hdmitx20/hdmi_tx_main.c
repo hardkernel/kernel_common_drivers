@@ -67,7 +67,6 @@
 #include <hdmitx_sysfs_common.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_platform_linux.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #define DEVICE_NAME "amhdmitx"
 #define HDMI_TX_COUNT 32
@@ -3786,7 +3785,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdev->cdev.owner = THIS_MODULE;
 	r = cdev_add(&hdev->cdev, hdev->hdmitx_id, HDMI_TX_COUNT);
 
-	hdmitx_class = kv_class_create(THIS_MODULE, DEVICE_NAME);
+	hdmitx_class = class_create(DEVICE_NAME);
 	if (IS_ERR(hdmitx_class)) {
 		unregister_chrdev_region(hdev->hdmitx_id, HDMI_TX_COUNT);
 		return -1;

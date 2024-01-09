@@ -55,7 +55,6 @@
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/old_cpu_version.h>
-#include <linux/amlogic/kernel_versions.h>
 #include "common/vm.h"
 
 #define GC2145_CAMERA_MODULE_NAME "gc2145"
@@ -3267,7 +3266,7 @@ static const struct attribute_group gc2145_group = {
 };
 #endif
 
-static int gc2145_probe(struct i2c_client *client KV_I2C_PROBE_ID)
+static int gc2145_probe(struct i2c_client *client)
 {
 	int err;
 	struct gc2145_device *t;
@@ -3341,7 +3340,7 @@ static int gc2145_probe(struct i2c_client *client KV_I2C_PROBE_ID)
 		return err;
 	}
 
-	gc2145_class = kv_class_create(THIS_MODULE, "gc2145");
+	gc2145_class = class_create("gc2145");
 	if (IS_ERR(gc2145_class)) {
 		pr_err("Create class gc2145 fail.\n");
 		return -ENOMEM;
@@ -3362,7 +3361,7 @@ static int gc2145_probe(struct i2c_client *client KV_I2C_PROBE_ID)
 	return 0;
 }
 
-static KV_I2C_REMOVE_TYPE gc2145_remove(struct i2c_client *client)
+static void gc2145_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct gc2145_device *t = to_dev(sd);
@@ -3374,8 +3373,6 @@ static KV_I2C_REMOVE_TYPE gc2145_remove(struct i2c_client *client)
 #endif
 	aml_cam_info_unreg(&t->cam_info);
 	kfree(t);
-
-	KV_I2C_REMOVE_RET(0);
 }
 
 static const struct i2c_device_id gc2145_id[] = {

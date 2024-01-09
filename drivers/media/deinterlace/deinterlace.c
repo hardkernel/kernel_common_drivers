@@ -62,7 +62,6 @@
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
 #endif
 #include <linux/amlogic/media/video_sink/video.h>
-#include <linux/amlogic/kernel_versions.h>
 #include "register.h"
 #include "register_nr4.h"
 #include "deinterlace.h"
@@ -8680,7 +8679,7 @@ static int di_probe(struct platform_device *pdev)
 		goto fail_alloc_cdev_region;
 	}
 	di_pr_info("%s: major %d\n", __func__, MAJOR(di_devno));
-	di_clsp = kv_class_create(THIS_MODULE, CLASS_NAME);
+	di_clsp = class_create(CLASS_NAME);
 	if (IS_ERR(di_clsp)) {
 		ret = PTR_ERR(di_clsp);
 		pr_err("%s: failed to create class\n", __func__);
@@ -9126,7 +9125,7 @@ int __init di_module_init(void)
 		goto fail_alloc_cdev_region;
 	}
 	di_pr_info("%s: major %d\n", __func__, MAJOR(di_devno));
-	di_clsp = kv_class_create(THIS_MODULE, CLASS_NAME);
+	di_clsp = class_create(CLASS_NAME);
 	if (IS_ERR(di_clsp)) {
 		ret = PTR_ERR(di_clsp);
 		pr_err("%s: failed to create class\n", __func__);

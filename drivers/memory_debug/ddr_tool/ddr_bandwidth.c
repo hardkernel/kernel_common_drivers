@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include <linux/sched/clock.h>
 #include <linux/timer.h>
-#include <linux/amlogic/kernel_versions.h>
 #include "ddr_bandwidth.h"
 #include "dmc.h"
 
@@ -374,8 +373,8 @@ static int format_port(char *buf, u64 port_mask)
 	return size;
 }
 
-static ssize_t port_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t port_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int s = 0, i;
@@ -419,8 +418,8 @@ static int dmc_port_set_byte(struct ddr_bandwidth *db, int port, int ch)
 	return 0;
 }
 
-static ssize_t port_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t port_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int ch = 0, port = 0, paras;
@@ -469,16 +468,16 @@ static ssize_t port_store(KV_CLASS_CONST struct class *class,
 }
 static CLASS_ATTR_RW(port);
 
-static ssize_t busy_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t busy_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", aml_db->busy);
 }
 static CLASS_ATTR_RO(busy);
 
-static ssize_t threshold_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t threshold_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n",
@@ -486,8 +485,8 @@ static ssize_t threshold_show(KV_CLASS_CONST struct class *class,
 			/ (aml_db->clock_count / 10000));
 }
 
-static ssize_t threshold_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t threshold_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long val = 0;
@@ -505,8 +504,8 @@ static ssize_t threshold_store(KV_CLASS_CONST struct class *class,
 }
 static CLASS_ATTR_RW(threshold);
 
-static ssize_t mode_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t mode_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (aml_db->mode == MODE_DISABLE)
@@ -518,8 +517,8 @@ static ssize_t mode_show(KV_CLASS_CONST struct class *class,
 	return sprintf(buf, "\n");
 }
 
-static ssize_t mode_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t mode_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long val = 0;
@@ -566,15 +565,15 @@ static ssize_t mode_store(KV_CLASS_CONST struct class *class,
 }
 static CLASS_ATTR_RW(mode);
 
-static ssize_t irq_clock_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t irq_clock_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", aml_db->clock_count);
 }
 
-static ssize_t irq_clock_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t irq_clock_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long val = 0;
@@ -592,8 +591,8 @@ static ssize_t irq_clock_store(KV_CLASS_CONST struct class *class,
 }
 static CLASS_ATTR_RW(irq_clock);
 
-static ssize_t usage_stat_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t usage_stat_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int d = -1;
@@ -675,8 +674,8 @@ static ssize_t usage_stat_show_single(char *buf, ssize_t offset)
 	return s;
 }
 
-static ssize_t usage_stat_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t usage_stat_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	size_t s = 0;
@@ -778,8 +777,8 @@ static ssize_t bandwidth_show_single(char *buf, ssize_t offset)
 	return s;
 }
 
-static ssize_t bandwidth_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t bandwidth_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	size_t s = 0;
@@ -816,8 +815,8 @@ static ssize_t bandwidth_show(KV_CLASS_CONST struct class *class,
 static CLASS_ATTR_RO(bandwidth);
 
 #if PXP_DEBUG
-static ssize_t freq_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t freq_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned int freq = 0;
@@ -828,8 +827,8 @@ static ssize_t freq_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t freq_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t freq_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int i = 0;
@@ -856,8 +855,8 @@ static ssize_t freq_show(KV_CLASS_CONST struct class *class,
 }
 static CLASS_ATTR_RW(freq);
 #else
-static ssize_t freq_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t freq_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int i = 0;
@@ -930,8 +929,8 @@ void dmc_set_urgent(unsigned int port, unsigned int type)
 }
 EXPORT_SYMBOL(dmc_set_urgent);
 
-static ssize_t priority_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t priority_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!aml_db->ddr_priority_desc) {
@@ -942,8 +941,8 @@ static ssize_t priority_show(KV_CLASS_CONST struct class *class,
 	return priority_display(buf);
 }
 
-static ssize_t priority_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t priority_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned int port = 0, priority;
@@ -989,8 +988,8 @@ static ssize_t priority_store(KV_CLASS_CONST struct class *class,
 static CLASS_ATTR_RW(priority);
 
 #if DDR_BANDWIDTH_DEBUG
-static ssize_t dump_reg_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_reg_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int s = 0;
@@ -1003,8 +1002,8 @@ static ssize_t dump_reg_show(KV_CLASS_CONST struct class *class,
 static CLASS_ATTR_RO(dump_reg);
 #endif
 
-static ssize_t cpu_type_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t cpu_type_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int cpu_type;
@@ -1014,8 +1013,8 @@ static ssize_t cpu_type_show(KV_CLASS_CONST struct class *class,
 }
 static CLASS_ATTR_RO(cpu_type);
 
-static ssize_t name_of_ports_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t name_of_ports_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int i, s = 0;
@@ -1038,8 +1037,8 @@ static ssize_t name_of_ports_show(KV_CLASS_CONST struct class *class,
 }
 static CLASS_ATTR_RO(name_of_ports);
 
-static ssize_t increase_tool_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t increase_tool_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned long width_MB = 0;
@@ -1109,8 +1108,8 @@ static ssize_t increase_tool_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t increase_tool_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t increase_tool_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "current set:%d MB/s, timer cycle:%lld ns\n",
@@ -1120,8 +1119,8 @@ static ssize_t increase_tool_show(KV_CLASS_CONST struct class *class,
 static CLASS_ATTR_RW(increase_tool);
 
 static unsigned long tmp_smc_reg;
-static ssize_t smc_rw_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t smc_rw_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned long addr, value;
@@ -1141,8 +1140,8 @@ static ssize_t smc_rw_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t smc_rw_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t smc_rw_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "[%lx]:%lx\n", tmp_smc_reg, dmc_rw(tmp_smc_reg, 0, 0));

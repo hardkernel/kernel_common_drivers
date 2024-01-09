@@ -9,7 +9,6 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/mtd/mtd.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/aml_rsv.h>
 #include <linux/module.h>
 
@@ -212,7 +211,7 @@ int meson_rsv_register_cdev(struct meson_rsv_info_t *info, char *name)
 		goto exit_err1;
 	}
 
-	user->cls = kv_class_create(THIS_MODULE, name);
+	user->cls = class_create(name);
 	if (IS_ERR(user->cls)) {
 		pr_info("%s: create class failed\n", __func__);
 		goto exit_err2;

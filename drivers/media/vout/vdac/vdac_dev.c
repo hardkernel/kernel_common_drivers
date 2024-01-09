@@ -41,7 +41,6 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/media/vout/vclk_serve.h>
-#include <linux/amlogic/kernel_versions.h>
 #include "vdac_dev.h"
 
 #define AMVDAC_NAME               "amvdac"
@@ -763,8 +762,8 @@ static void vdac_dev_enable(void)
 }
 
 /* ********************************************************* */
-static ssize_t vdac_info_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vdac_info_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t len = 0;
@@ -808,8 +807,8 @@ static const char *vdac_debug_usage_str = {
 "    echo print <val_dec> > /sys/class/amvdac/debug ; vdac_debug_print config\n"
 };
 
-static ssize_t vdac_debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vdac_debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%s\n", vdac_debug_usage_str);
@@ -834,8 +833,8 @@ static void vdac_parse_param(char *buf_orig, char **parm)
 	}
 }
 
-static ssize_t vdac_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vdac_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buff, size_t count)
 {
 	char *buf_orig;
@@ -986,7 +985,7 @@ static int aml_vdac_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto fail_alloc_region;
 
-	devp->clsp = kv_class_create(THIS_MODULE, AMVDAC_CLASS_NAME);
+	devp->clsp = class_create(AMVDAC_CLASS_NAME);
 	if (IS_ERR(devp->clsp)) {
 		ret = PTR_ERR(devp->clsp);
 		goto fail_create_class;

@@ -13,7 +13,6 @@
 #include <linux/amlogic/major.h>
 #include <linux/platform_device.h>
 #include <uapi/linux/sched/types.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
@@ -2165,8 +2164,8 @@ static const struct file_operations vdetect_fops = {
 	.poll = NULL,
 };
 
-static ssize_t vdetect_debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vdetect_debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%-18s=%d\n%-18s=%d\n%-18s=%d\n%-18s=%d\n",
@@ -2180,8 +2179,8 @@ static ssize_t vdetect_debug_show(KV_CLASS_CONST struct class *class,
 			pre_put_count);
 }
 
-static ssize_t vdetect_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vdetect_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;
@@ -2199,15 +2198,15 @@ static ssize_t vdetect_debug_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vdetect_dump_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vdetect_dump_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "vdetect debug: %d\n", detect_dump);
 }
 
-static ssize_t vdetect_dump_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vdetect_dump_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;
@@ -2225,15 +2224,15 @@ static ssize_t vdetect_dump_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vdetect_use_thread_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vdetect_use_thread_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "vdetect use thread: %d\n", detect_thread);
 }
 
-static ssize_t vdetect_use_thread_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vdetect_use_thread_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;
@@ -2251,15 +2250,15 @@ static ssize_t vdetect_use_thread_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t tv_add_vdetect_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t tv_add_vdetect_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", tv_add_vdetect);
 }
 
-static ssize_t tv_add_vdetect_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t tv_add_vdetect_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;
@@ -2277,15 +2276,15 @@ static ssize_t tv_add_vdetect_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t aipq_enable_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t aipq_enable_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", aipq_enable);
 }
 
-static ssize_t aipq_enable_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t aipq_enable_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;

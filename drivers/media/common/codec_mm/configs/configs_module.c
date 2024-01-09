@@ -24,7 +24,6 @@
 #define MODULE_NAME "media-configs-dev"
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-#include <linux/amlogic/kernel_versions.h>
 
 static struct class *config_dev_class;
 static unsigned int config_major;
@@ -39,8 +38,8 @@ struct mediaconfig_node {
 
 };
 
-static ssize_t all_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t all_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t s;
@@ -52,8 +51,8 @@ static ssize_t all_show(KV_CLASS_CONST struct class *class,
 	return -EPERM;
 }
 
-static ssize_t media_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t media_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t s;
@@ -65,8 +64,8 @@ static ssize_t media_show(KV_CLASS_CONST struct class *class,
 	return -EPERM;
 }
 
-static ssize_t video_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t video_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t s;
@@ -78,8 +77,8 @@ static ssize_t video_show(KV_CLASS_CONST struct class *class,
 	return -EPERM;
 }
 
-static ssize_t decoder_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t decoder_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t s;
@@ -91,8 +90,8 @@ static ssize_t decoder_show(KV_CLASS_CONST struct class *class,
 	return -EPERM;
 }
 
-static ssize_t vdec_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vdec_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t s;
@@ -104,8 +103,8 @@ static ssize_t vdec_show(KV_CLASS_CONST struct class *class,
 	return -EPERM;
 }
 
-static ssize_t tsync_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t tsync_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t s;
@@ -117,8 +116,8 @@ static ssize_t tsync_show(KV_CLASS_CONST struct class *class,
 	return -EPERM;
 }
 
-static ssize_t amports_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t amports_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t s;
@@ -130,8 +129,8 @@ static ssize_t amports_show(KV_CLASS_CONST struct class *class,
 	return -EPERM;
 }
 
-static ssize_t parser_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t parser_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t s;
@@ -143,8 +142,8 @@ static ssize_t parser_show(KV_CLASS_CONST struct class *class,
 	return -EPERM;
 }
 
-static ssize_t config_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t config_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t s;
@@ -156,8 +155,8 @@ static ssize_t config_show(KV_CLASS_CONST struct class *class,
 	return -EPERM;
 }
 
-static ssize_t config_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t config_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t size)
 {
 	ssize_t ret;
@@ -168,23 +167,23 @@ static ssize_t config_store(KV_CLASS_CONST struct class *class,
 	return ret;
 }
 
-static ssize_t debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return config_dump(buf, PAGE_SIZE);
 }
 
-static ssize_t debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t size)
 {
 	configs_config_setstr(buf);
 	return size;
 }
 
-static ssize_t audio_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t audio_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t s;
@@ -196,8 +195,8 @@ static ssize_t audio_show(KV_CLASS_CONST struct class *class,
 	return -EPERM;
 }
 
-static ssize_t vfm_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vfm_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t s;
@@ -469,7 +468,7 @@ int __init configs_init_devices(void)
 	}
 	config_major = r;
 
-	config_dev_class = kv_class_create(THIS_MODULE, MODULE_NAME);
+	config_dev_class = class_create(MODULE_NAME);
 	num = sizeof(mediaconfig_nodes) / sizeof(struct mediaconfig_node);
 	for (i = 0; i < num; i++) {
 		struct mediaconfig_node *mnode = &mediaconfig_nodes[i];

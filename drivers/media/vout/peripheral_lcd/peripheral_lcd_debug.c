@@ -14,14 +14,13 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vout/peripheral_lcd.h>
 #include "peripheral_lcd_drv.h"
 
 static struct class *per_lcd_class;
 
-static ssize_t plcd_info_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t plcd_info_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t n = 0;
@@ -79,8 +78,8 @@ static ssize_t plcd_info_show(KV_CLASS_CONST struct class *class,
 	return n;
 }
 
-static ssize_t plcd_init_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t plcd_init_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int flag = 0, ret;
@@ -103,8 +102,8 @@ static ssize_t plcd_init_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t plcd_test_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t plcd_test_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	if (!plcd_drv) {
@@ -122,8 +121,8 @@ static ssize_t plcd_test_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t plcd_print_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t plcd_print_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int flag = 0, ret;
@@ -134,15 +133,15 @@ static ssize_t plcd_print_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t plcd_print_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t plcd_print_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "per_lcd_debug_flag = %d\n", per_lcd_debug_flag);
 }
 
-static ssize_t plcd_display_addr_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t plcd_display_addr_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned long long addr = 0;
@@ -180,7 +179,7 @@ int plcd_class_create(void)
 {
 	int i;
 
-	per_lcd_class = kv_class_create(THIS_MODULE, "peripheral_lcd");
+	per_lcd_class = class_create("peripheral_lcd");
 	if (IS_ERR_OR_NULL(per_lcd_class)) {
 		LCDERR("create debug class failed\n");
 		return -1;

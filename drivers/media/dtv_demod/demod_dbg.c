@@ -7,7 +7,6 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/dma-mapping.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 #if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
 #include <linux/amlogic/dmc_dev_access.h>
@@ -1252,8 +1251,8 @@ static void dump_regs(struct aml_dtvdemod *demod)
 	}
 }
 
-static ssize_t attr_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t attr_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[47] = {NULL};
@@ -1640,8 +1639,8 @@ fail_exec_cmd:
 	return count;
 }
 
-static ssize_t attr_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t attr_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	/* struct amldtvdemod_device_s *devp = dev_get_drvdata(dev); */
@@ -1676,8 +1675,8 @@ static ssize_t attr_show(KV_CLASS_CONST struct class *class,
 }
 
 #ifdef AML_DEMOD_SUPPORT_DTMB
-static ssize_t dtmb_para_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dtmb_para_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int snr = 0, lock_status = 0, bch = 0, agc_if_gain[3] = { 0 };
@@ -1720,8 +1719,8 @@ static ssize_t dtmb_para_show(KV_CLASS_CONST struct class *class,
 	return 0;
 }
 
-static ssize_t dtmb_para_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dtmb_para_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	if (buf[0] == '0')
@@ -1740,8 +1739,8 @@ static ssize_t dtmb_para_store(KV_CLASS_CONST struct class *class,
 #endif
 
 #if defined AML_DEMOD_SUPPORT_ATSC || defined AML_DEMOD_SUPPORT_J83B
-static ssize_t atsc_para_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t atsc_para_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 #ifdef AML_DEMOD_SUPPORT_ATSC
@@ -1810,8 +1809,8 @@ static ssize_t atsc_para_show(KV_CLASS_CONST struct class *class,
 	return 0;
 }
 
-static ssize_t atsc_para_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t atsc_para_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	if (buf[0] == '0')
@@ -1834,8 +1833,8 @@ static ssize_t atsc_para_store(KV_CLASS_CONST struct class *class,
 #endif
 
 #ifdef AML_DEMOD_SUPPORT_DVBS
-static ssize_t diseq_cmd_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t diseq_cmd_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *bu, size_t count)
 {
 	int tmpbuf[20] = {};
@@ -1886,8 +1885,8 @@ static ssize_t diseq_cmd_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t diseq_cmd_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t diseq_cmd_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "diseq_cmd debug interface\n");

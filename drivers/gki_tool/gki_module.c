@@ -21,7 +21,7 @@
 #include <linux/amlogic/gki_module.h>
 #include <linux/kconfig.h>
 #include <linux/security.h>
-
+#include "../../../../kernel/module/internal.h"
 #include "gki_tool.h"
 
 #if defined(CONFIG_CMDLINE_FORCE)

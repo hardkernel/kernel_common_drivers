@@ -34,7 +34,6 @@
 #include <linux/uaccess.h>
 #include <linux/leds.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include "leds-aw9523b.h"
 #include <linux/amlogic/pm.h>
 /******************************************************
@@ -881,7 +880,7 @@ free_pdata:
 	return ret;
 }
 
-static int aw9523_i2c_probe(struct i2c_client *i2c KV_I2C_PROBE_ID)
+static int aw9523_i2c_probe(struct i2c_client *i2c)
 {
 	struct device_node *np = i2c->dev.of_node;
 	int ret;
@@ -946,7 +945,7 @@ err_id:
 	return ret;
 }
 
-static KV_I2C_REMOVE_TYPE aw9523_i2c_remove(struct i2c_client *i2c)
+static void aw9523_i2c_remove(struct i2c_client *i2c)
 {
 	struct meson_aw9523 *aw9523 = i2c_get_clientdata(i2c);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
@@ -958,8 +957,6 @@ static KV_I2C_REMOVE_TYPE aw9523_i2c_remove(struct i2c_client *i2c)
 	aw9523_reset(aw9523);
 	cancel_work_sync(&aw9523->leds_work);
 	destroy_workqueue(aw9523->leds_wq);
-
-	KV_I2C_REMOVE_RET(0);
 }
 
 static const struct i2c_device_id aw9523_i2c_id[] = {

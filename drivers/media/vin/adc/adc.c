@@ -41,7 +41,6 @@
 #include <linux/pm_wakeirq.h>
 #include <linux/pm.h>
 #include <linux/poll.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/pm.h>
 #include <linux/amlogic/cpu_version.h>
@@ -1703,7 +1702,7 @@ static ssize_t adc_show(struct device *dev,
 	return 0;
 }
 
-static char *adc_class_devnode(KV_CLASS_DEV_CONST struct device *dev, umode_t *mode)
+static char *adc_class_devnode(const struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0666;

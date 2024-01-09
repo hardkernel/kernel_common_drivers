@@ -58,7 +58,6 @@
 #include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/mod_devicetable.h>
 #include <linux/ktime.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #include "c_stb_regs_define.h"
 #include "smc_reg.h"
@@ -470,8 +469,8 @@ static int smc_hw_deactive(struct smc_dev *smc);
 static int smc_hw_get_status(struct smc_dev *smc, int *sret);
 static void smc_clk_enable(int enable);
 
-static ssize_t gpio_pull_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t gpio_pull_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (ENA_GPIO_PULL > 0)
@@ -567,8 +566,8 @@ static int sc2_smc_addr(struct platform_device *pdev)
 #define SMC_READ_REG(a)          READ_CBUS_REG(SMARTCARD_##a)
 #define SMC_WRITE_REG(a, b)      WRITE_CBUS_REG(SMARTCARD_##a, b)
 
-static ssize_t gpio_pull_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t gpio_pull_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int dbg;
@@ -580,8 +579,8 @@ static ssize_t gpio_pull_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t ctrl_5v3v_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t ctrl_5v3v_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct smc_dev *smc = NULL;
@@ -595,8 +594,8 @@ static ssize_t ctrl_5v3v_show(KV_CLASS_CONST struct class *class,
 	return sprintf(buf, "5v3v_pin level = %d\n", enable_5v3v);
 }
 
-static ssize_t ctrl_5v3v_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t ctrl_5v3v_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned int enable_5v3v = 0;
@@ -620,8 +619,8 @@ static ssize_t ctrl_5v3v_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t debug_reset_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_reset_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned int enable_5v3v = 0;
@@ -639,8 +638,8 @@ static ssize_t debug_reset_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t enable_reset_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t enable_reset_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned int enable_reset = 0;
@@ -659,8 +658,8 @@ static ssize_t enable_reset_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t enable_cmd_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t enable_cmd_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned int enable_cmd = 0;
@@ -681,8 +680,8 @@ static ssize_t enable_cmd_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t enable_clk_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t enable_clk_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned int enable_clk = 0;
@@ -701,15 +700,15 @@ static ssize_t enable_clk_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t freq_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t freq_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%dKHz\n", smc_dev[0].param.freq);
 }
 
-static ssize_t freq_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t freq_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int freq = 0;
@@ -724,15 +723,15 @@ static ssize_t freq_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t div_smc_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t div_smc_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "div -> %d\n", DIV_SMC);
 }
 
-static ssize_t div_smc_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t div_smc_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int div = 0;
@@ -748,8 +747,8 @@ static ssize_t div_smc_store(KV_CLASS_CONST struct class *class,
 }
 
 #ifdef MEM_DEBUG
-static ssize_t debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	pr_inf("Usage:\n");
@@ -759,8 +758,8 @@ static ssize_t debug_show(KV_CLASS_CONST struct class *class,
 	return 0;
 }
 
-static ssize_t debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int smc_debug_level = 0;
@@ -836,8 +835,8 @@ static int c7_pins_mode;
 static int c4_pins_mode = -1;
 static int c8_pins_mode = -1;
 
-static ssize_t pins_mode_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t pins_mode_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int r, total = 0;
@@ -951,8 +950,8 @@ static int save_pin_mode(const char *buf)
 	return 0;
 }
 
-static ssize_t pins_mode_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t pins_mode_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	char name[32];

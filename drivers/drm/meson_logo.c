@@ -34,6 +34,8 @@
 #include <drm/drm_rect.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_blend.h>
+#include <drm/drm_gem_dma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 
 #ifdef CONFIG_AMLOGIC_DRM_USE_ION
 #include "meson_gem.h"

@@ -21,8 +21,8 @@
 #include <linux/dma-map-ops.h>
 #include <linux/cma.h>
 #include <linux/kasan.h>
+#include <linux/iosys-map.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include "system_log.h"
 #include "gdc_dmabuf.h"
 
@@ -204,7 +204,7 @@ static int aml_dma_mmap(void *buf_priv, struct vm_area_struct *vma)
 		pr_err("Remapping memory, error: %d\n", ret);
 		return ret;
 	}
-	kv_vm_flags_set(vma, VM_DONTEXPAND);
+	vm_flags_set(vma, VM_DONTEXPAND);
 
 	gdc_log(LOG_DEBUG, "mapped dma addr 0x%08lx at 0x%08lx, size %d\n",
 		(unsigned long)buf->dma_addr, vma->vm_start,
@@ -349,12 +349,12 @@ static void aml_dmabuf_ops_release(struct dma_buf *dbuf)
 		aml_dma_put(buf);
 }
 
-static int aml_dmabuf_ops_vmap(struct dma_buf *dbuf, struct kv_drm_vmap_map *map)
+static int aml_dmabuf_ops_vmap(struct dma_buf *dbuf, struct iosys_map *map)
 {
 	struct aml_dma_buf_priv *buf_priv = dbuf->priv;
 	struct aml_dma_buf *buf = buf_priv->aml_buf;
 
-	kv_map_set_vaddr(map, buf->vaddr);
+	iosys_map_set_vaddr(map, buf->vaddr);
 	return 0;
 }
 

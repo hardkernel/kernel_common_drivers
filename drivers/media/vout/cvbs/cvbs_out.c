@@ -41,7 +41,6 @@
 #include <linux/clk.h>
 
 /* Amlogic Headers */
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -191,21 +190,21 @@ static enum cvbs_mode_e local_cvbs_mode;
 static DEFINE_MUTEX(setmode_mutex);
 
 static int cvbs_vdac_power_level;
-static ssize_t aml_CVBS_attr_vdac_power_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t aml_CVBS_attr_vdac_power_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf);
-static ssize_t aml_CVBS_attr_vdac_power_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t aml_CVBS_attr_vdac_power_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count);
 struct class_attribute class_CVBS_attr_vdac_power_level =
 	__ATTR(vdac_power_level, 0644, aml_CVBS_attr_vdac_power_show,
 	       aml_CVBS_attr_vdac_power_store);
 
-static ssize_t aml_CVBS_attr_debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t aml_CVBS_attr_debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf);
-static ssize_t aml_CVBS_attr_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t aml_CVBS_attr_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count);
 static int meson_cvbs_bind(struct device *dev,
 			      struct device *master, void *data);
@@ -911,8 +910,8 @@ static void cvbs_bist_test(unsigned int bist, void *data)
 	}
 }
 
-static ssize_t aml_CVBS_attr_vdac_power_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t aml_CVBS_attr_vdac_power_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 40, "%s\n", "vdac_power_level");
@@ -927,8 +926,8 @@ static void vdac_power_level_store(const char *para)
 	cvbs_vdac_power_level = level;
 }
 
-static ssize_t aml_CVBS_attr_vdac_power_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t aml_CVBS_attr_vdac_power_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	vdac_power_level_store(buf);
@@ -1115,8 +1114,8 @@ enum {
 	} \
 }
 
-static ssize_t aml_CVBS_attr_debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t aml_CVBS_attr_debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 40, "%s\n", "debug");
@@ -1432,8 +1431,8 @@ DEBUG_END:
 	kfree(p);
 }
 
-static ssize_t aml_CVBS_attr_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t aml_CVBS_attr_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	cvbs_debug_store(buf);
@@ -1455,7 +1454,7 @@ static int create_cvbs_attr(struct cvbs_drv_s *cdrv)
 	int i;
 	int ret = 0;
 
-	cdrv->base_class = kv_class_create(THIS_MODULE, CVBS_CLASS_NAME);
+	cdrv->base_class = class_create(CVBS_CLASS_NAME);
 	if (IS_ERR(cdrv->base_class)) {
 		ret = PTR_ERR(cdrv->base_class);
 		goto fail_create_class;

@@ -27,7 +27,6 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include "tlv320adc3101.h"
 
 #define DRV_NAME "tlv320adc3101"
@@ -736,7 +735,7 @@ static const struct snd_soc_component_driver soc_codec_dev_adc3101 = {
 	.num_dapm_routes  = ARRAY_SIZE(adc3101_dapm_routes),
 };
 
-static int adc3101_i2c_probe(struct i2c_client *i2c KV_I2C_PROBE_ID)
+static int adc3101_i2c_probe(struct i2c_client *i2c)
 {
 	struct adc3101_priv *adc3101 = NULL;
 	int ret = 0;

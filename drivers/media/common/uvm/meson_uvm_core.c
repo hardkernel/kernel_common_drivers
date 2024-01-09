@@ -21,8 +21,8 @@
 #include <linux/dma-direction.h>
 #include <uapi/linux/dma-heap.h>
 #include <linux/pagemap.h>
+#include <linux/iosys-map.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/meson_uvm_core.h>
 #include "meson_uvm_nn_processor.h"
 #include <linux/amlogic/media/meson_uvm_allocator.h>
@@ -195,7 +195,7 @@ static void meson_uvm_detach(struct dma_buf *dmabuf,
 	/* TODO */
 }
 
-static int meson_uvm_vmap(struct dma_buf *dmabuf, struct kv_drm_vmap_map *map)
+static int meson_uvm_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
 	struct uvm_handle *handle;
 	struct sg_table *sgt;
@@ -233,12 +233,12 @@ static int meson_uvm_vmap(struct dma_buf *dmabuf, struct kv_drm_vmap_map *map)
 	handle->ua->vaddr = vaddr;
 	UVM_PRINTK(UVM_INFO, "%s called.\n", __func__);
 
-	kv_map_set_vaddr(map, vaddr);
+	iosys_map_set_vaddr(map, vaddr);
 
 	return 0;
 }
 
-static void meson_uvm_vunmap(struct dma_buf *dmabuf, struct kv_drm_vmap_map *map)
+static void meson_uvm_vunmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
 	struct uvm_handle *handle = dmabuf->priv;
 

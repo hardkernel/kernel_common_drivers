@@ -15,7 +15,6 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include "tas57xx.h"
 #include "tas5707.h"
@@ -805,7 +804,7 @@ static int tas5707_parse_dt(struct tas5707_priv *tas5707,
 	return ret;
 }
 
-static int tas5707_i2c_probe(struct i2c_client *i2c KV_I2C_PROBE_ID)
+static int tas5707_i2c_probe(struct i2c_client *i2c)
 {
 	struct tas5707_priv *tas5707;
 	struct tas57xx_platform_data *pdata;
@@ -857,11 +856,9 @@ static int tas5707_i2c_probe(struct i2c_client *i2c KV_I2C_PROBE_ID)
 	return ret;
 }
 
-static KV_I2C_REMOVE_TYPE tas5707_i2c_remove(struct i2c_client *client)
+static void tas5707_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_component(&client->dev);
-
-	KV_I2C_REMOVE_RET(0);
 }
 
 static const struct i2c_device_id tas5707_i2c_id[] = {

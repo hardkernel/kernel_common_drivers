@@ -22,7 +22,6 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 /* media module used media/registers/cpu_version.h since kernel 5.4 */
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
@@ -3771,8 +3770,8 @@ void vlock_parse_param(char *buf_orig, char **parm)
 	}
 }
 
-ssize_t vlock_debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t vlock_debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t len = 0;
@@ -3820,8 +3819,8 @@ ssize_t vlock_debug_show(KV_CLASS_CONST struct class *class,
 	return len;
 }
 
-ssize_t vlock_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t vlock_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};

@@ -49,7 +49,6 @@
 #include <linux/kthread.h>
 #include <linux/wait.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include "csk05_reg.h"
 /****************************************************************
  *
@@ -547,7 +546,7 @@ static void csk05_init_reg_config(struct csk05_ts_data *csk05_ts)
  * csk05 i2c driver
  *
  ***************************************************************/
-static int csk05_i2c_probe(struct i2c_client *client KV_I2C_PROBE_ID)
+static int csk05_i2c_probe(struct i2c_client *client)
 {
 	struct csk05_ts_data *csk05_ts;
 	int ret = 0;
@@ -670,7 +669,7 @@ exit_check_functionality_failed:
 	return ret;
 }
 
-static KV_I2C_REMOVE_TYPE csk05_i2c_remove(struct i2c_client *client)
+static void csk05_i2c_remove(struct i2c_client *client)
 {
 	struct csk05_ts_data *csk05_ts = i2c_get_clientdata(client);
 
@@ -687,8 +686,6 @@ static KV_I2C_REMOVE_TYPE csk05_i2c_remove(struct i2c_client *client)
 	csk05_gpio_deinit(csk05_ts);
 	kfree(csk05_ts);
 	i2c_set_clientdata(client, NULL);
-
-	KV_I2C_REMOVE_RET(0);
 }
 
 static const struct i2c_device_id csk05_i2c_id[] = {

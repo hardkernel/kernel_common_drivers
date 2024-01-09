@@ -16,7 +16,6 @@
 #include <asm/div64.h>
 #include <linux/regmap.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/pmic/meson_pmic6b.h>
 
 #define SAR_IRQ_TIMEOUT		5000
@@ -816,7 +815,7 @@ int pmic6b_bat_hw_init(struct pmic6b_bat *bat)
 	struct power_supply_battery_info *info;
 	struct power_supply_battery_ocv_table *table;
 
-	ret = kv_power_supply_get_battery_info(bat->battery, &info);
+	ret = power_supply_get_battery_info(bat->battery, &info);
 	if (ret) {
 		dev_err(bat->dev, "failed to get battery information\n");
 		return ret;
@@ -834,7 +833,7 @@ int pmic6b_bat_hw_init(struct pmic6b_bat *bat)
 				      bat->table_len * sizeof(*table),
 				      GFP_KERNEL);
 	if (!bat->cap_table) {
-		kv_power_supply_put_battery_info(bat->battery, info);
+		power_supply_put_battery_info(bat->battery, info);
 		return -ENOMEM;
 	}
 
@@ -842,7 +841,7 @@ int pmic6b_bat_hw_init(struct pmic6b_bat *bat)
 						     bat->table_len,
 						     bat->min_volt);
 
-	kv_power_supply_put_battery_info(bat->battery, info);
+	power_supply_put_battery_info(bat->battery, info);
 
 	return ret;
 }

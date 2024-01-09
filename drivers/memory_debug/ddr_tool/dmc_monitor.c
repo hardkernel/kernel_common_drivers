@@ -24,7 +24,6 @@
 #include <linux/kallsyms.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/page_trace.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/arm-smccc.h>
@@ -803,8 +802,8 @@ void dmc_monitor_disable(void)
 }
 EXPORT_SYMBOL(dmc_monitor_disable);
 
-static ssize_t range_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t range_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!dmc_mon->ops) {
@@ -816,8 +815,8 @@ static ssize_t range_show(KV_CLASS_CONST struct class *class,
 		       dmc_mon->addr_start, dmc_mon->addr_end);
 }
 
-static ssize_t range_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t range_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int ret;
@@ -838,8 +837,8 @@ static ssize_t range_store(KV_CLASS_CONST struct class *class,
 }
 static CLASS_ATTR_RW(range);
 
-static ssize_t device_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t device_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int i;
@@ -888,8 +887,8 @@ static ssize_t device_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t device_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t device_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int i, s = 0;
@@ -912,16 +911,16 @@ static ssize_t device_show(KV_CLASS_CONST struct class *class,
 }
 static CLASS_ATTR_RW(device);
 
-static ssize_t dump_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return dump_dmc_reg(buf);
 }
 static CLASS_ATTR_RO(dump);
 
-static ssize_t debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int val;
@@ -996,8 +995,8 @@ static ssize_t debug_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int s = 0;
@@ -1025,8 +1024,8 @@ static ssize_t debug_show(KV_CLASS_CONST struct class *class,
 static CLASS_ATTR_RW(debug);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
-static ssize_t dev_access_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dev_access_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int ret;
@@ -1043,8 +1042,8 @@ static ssize_t dev_access_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t dev_access_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dev_access_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return show_dmc_notifier_list(buf);
@@ -1052,8 +1051,8 @@ static ssize_t dev_access_show(KV_CLASS_CONST struct class *class,
 static CLASS_ATTR_RW(dev_access);
 #endif
 
-static ssize_t cmdline_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t cmdline_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int count = 0;
@@ -1072,8 +1071,8 @@ static ssize_t cmdline_show(KV_CLASS_CONST struct class *class,
 }
 static CLASS_ATTR_RO(cmdline);
 
-static ssize_t dev_blacklist_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dev_blacklist_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	if (!strncmp(buf, "none", 4))
@@ -1084,8 +1083,8 @@ static ssize_t dev_blacklist_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t dev_blacklist_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dev_blacklist_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	unsigned int count = 0;
@@ -1099,8 +1098,8 @@ static ssize_t dev_blacklist_show(KV_CLASS_CONST struct class *class,
 }
 static CLASS_ATTR_RW(dev_blacklist);
 
-static ssize_t reg_analysis_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t reg_analysis_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	char info[1024];

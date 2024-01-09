@@ -36,7 +36,6 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/key_manage.h>
 #include <linux/amlogic/aml_sd.h>
 #include "mmc_common.h"

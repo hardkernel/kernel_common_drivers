@@ -28,7 +28,6 @@
 #include <sound/tlv.h>
 #include <sound/asoundef.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include "ddr_mngr.h"
 #include "audio_utils.h"
 #include "frhdmirx_hw.h"
@@ -680,7 +679,7 @@ static int extn_dai_set_sysclk(struct snd_soc_dai *cpu_dai,
 }
 
 static struct snd_soc_dai_ops extn_dai_ops = {
-	KV_SND_DAI_OPS_DEF_PROBE(extn_dai_probe)
+	.probe = extn_dai_probe,
 	.prepare = extn_dai_prepare,
 	.trigger = extn_dai_trigger,
 	.hw_params = extn_dai_hw_params,
@@ -691,7 +690,6 @@ static struct snd_soc_dai_driver extn_dai[] = {
 	{
 		.name = "EXTN",
 		.id = 0,
-		KV_SND_DAI_DRIVER_DEF_PROBE(extn_dai_probe)
 		.playback = {
 		      .channels_min = 1,
 		      .channels_max = 32,

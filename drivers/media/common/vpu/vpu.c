@@ -21,7 +21,6 @@
 #include <linux/amlogic/pm.h>
 #endif
 #include <linux/amlogic/media/vpu/vpu.h>
-#include <linux/amlogic/kernel_versions.h>
 #include "vpu_reg.h"
 #include "vpu.h"
 #include "vpu_ctrl.h"
@@ -1022,15 +1021,15 @@ static const char *vpu_usage_str = {
 "	echo <0|1> > /sys/class/vpu/print ; set debug print flag\n"
 };
 
-static ssize_t vpu_debug_help(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vpu_debug_help(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%s\n", vpu_usage_str);
 }
 
-static ssize_t vpu_clk_debug(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vpu_clk_debug(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned int ret = 0;
@@ -1102,8 +1101,8 @@ static ssize_t vpu_clk_debug(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vpu_mem_debug(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vpu_mem_debug(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned long flags = 0;
@@ -1178,8 +1177,8 @@ static ssize_t vpu_mem_debug(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vpu_clk_gate_debug(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vpu_clk_gate_debug(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned long flags = 0;
@@ -1234,8 +1233,8 @@ static ssize_t vpu_clk_gate_debug(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vpu_dev_debug(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vpu_dev_debug(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int i;
@@ -1308,8 +1307,8 @@ static void vcbus_test(void)
 	}
 }
 
-static ssize_t vpu_test_debug(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vpu_test_debug(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	vcbus_test();
@@ -1317,16 +1316,16 @@ static ssize_t vpu_test_debug(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vpu_debug_print_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vpu_debug_print_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "vpu debug print: %d\n",
 		vpu_debug_print_flag);
 }
 
-static ssize_t vpu_debug_print_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vpu_debug_print_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned int ret;
@@ -1337,8 +1336,8 @@ static ssize_t vpu_debug_print_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vpu_debug_info(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vpu_debug_info(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	unsigned int _reg[VPU_MEM_PD_REG_CNT];
@@ -1415,8 +1414,8 @@ static ssize_t vpu_debug_info(KV_CLASS_CONST struct class *class,
 
 static unsigned int vpu_reg_dbg_flag = 0xff;
 static unsigned int vpu_reg_dbg_addr, vpu_reg_dbg_val, vpu_reg_dbg_mask, vpu_reg_dbg_cnt;
-static ssize_t vpu_debug_reg_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vpu_debug_reg_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	unsigned int temp, i;
@@ -1457,8 +1456,8 @@ static ssize_t vpu_debug_reg_show(KV_CLASS_CONST struct class *class,
 	return sprintf(buf, "for_tool: none\n");
 }
 
-static ssize_t vpu_debug_reg_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vpu_debug_reg_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int ret = 0;
@@ -1553,7 +1552,7 @@ static int creat_vpu_debug_class(void)
 {
 	int i;
 
-	vpu_debug_class = kv_class_create(THIS_MODULE, "vpu");
+	vpu_debug_class = class_create("vpu");
 	if (IS_ERR_OR_NULL(vpu_debug_class)) {
 		VPUERR("create vpu_debug_class failed\n");
 		return -1;

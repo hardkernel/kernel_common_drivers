@@ -31,7 +31,6 @@
 #include <linux/vmalloc.h>
 #include <linux/io.h> /* for virt_to_phys */
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
-#include <linux/amlogic/kernel_versions.h>
 
 /* Local include */
 #include "tvafe_regs.h"
@@ -2335,7 +2334,7 @@ static int vbi_probe(struct platform_device *pdev)
 		goto fail_alloc_cdev_region;
 	}
 
-	vbi_clsp = kv_class_create(THIS_MODULE, VBI_NAME);
+	vbi_clsp = class_create(VBI_NAME);
 	if (IS_ERR(vbi_clsp)) {
 		tvafe_pr_err(": can't get vbi_clsp\n");
 		goto fail_class_create;

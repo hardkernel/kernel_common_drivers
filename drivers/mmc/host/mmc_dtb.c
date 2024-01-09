@@ -37,7 +37,6 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/aml_sd.h>
 #include "mmc_common.h"
 
@@ -424,7 +423,7 @@ void amlmmc_dtb_init(struct mmc_card *card, int *retp)
 		goto exit_err1;
 	}
 
-	amlmmc_dtb_class = kv_class_create(THIS_MODULE, DTB_NAME);
+	amlmmc_dtb_class = class_create(DTB_NAME);
 	if (IS_ERR(amlmmc_dtb_class)) {
 		pr_err("dtb dev add failed");
 		*retp = -1;

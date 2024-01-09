@@ -20,7 +20,6 @@
 #include <linux/kthread.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
@@ -34,6 +33,7 @@
 #include <drm/amlogic/meson_connector_dev.h>
 #include <vout/vout_serve/vout_func.h>
 #include <enhancement/amvecm/amcsc.h>
+#include <drm/display/drm_hdcp_helper.h>
 
 #include "meson_hdmi.h"
 #include "meson_vpu.h"

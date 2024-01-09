@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/err.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #define FLASHLIGHT_MODULE_NAME   "flashlight"
 #define FLASHLIGHT_DRIVER_NAME "flashlight"
@@ -40,14 +39,14 @@ static struct device *devp;
 
 static enum aml_plat_flashlight_status_s flashlight_flag = FLASHLIGHT_OFF;
 
-static ssize_t flashlight_ctrl_store(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t flashlight_ctrl_store(const struct class *cla,
+			const struct class_attribute *attr,
 			const char *buf, size_t count);
-static ssize_t flashlightflag_show(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t flashlightflag_show(const struct class *cla,
+			const struct class_attribute *attr,
 			char *buf);
-static ssize_t flashlight_ctrl_flag_store(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t flashlight_ctrl_flag_store(const struct class *cla,
+			const struct class_attribute *attr,
 			const char *buf, size_t count);
 
 static int flashlight_open(struct inode *inode, struct file *file);
@@ -80,12 +79,11 @@ ATTRIBUTE_GROUPS(flashlight_class);
 
 static struct class flashlight_class = {
 	.name		= FLASHLIGHT_CLASS_NAME,
-	KV_CLASS_DEF_OWNER
 	.class_groups	= flashlight_class_groups
 };
 
-static ssize_t flashlight_ctrl_store(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t flashlight_ctrl_store(const struct class *cla,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct aml_plat_flashlight_data_s *pdata = NULL;
@@ -111,8 +109,8 @@ static ssize_t flashlight_ctrl_store(KV_CLASS_CONST struct class *cla,
 	return count;
 }
 
-static ssize_t flashlight_ctrl_flag_store(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t flashlight_ctrl_flag_store(const struct class *cla,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	if (!strlen(buf))
@@ -121,8 +119,8 @@ static ssize_t flashlight_ctrl_flag_store(KV_CLASS_CONST struct class *cla,
 	return count;
 }
 
-static ssize_t flashlightflag_show(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t flashlightflag_show(const struct class *cla,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	sprintf(buf, "%d", (int)flashlight_flag);

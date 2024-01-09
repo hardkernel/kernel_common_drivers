@@ -10,7 +10,6 @@
 #include <linux/types.h>
 #include <uapi/drm/drm.h>
 
-#include <linux/amlogic/kernel_versions.h>
 
 struct drm_device;
 struct drm_file;

@@ -84,7 +84,6 @@
 #include "vdin_v4l2_if.h"
 #include "vdin_mem_scatter.h"
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/gki_module.h>
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -5245,7 +5244,7 @@ static int vdin_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_pgoff = off >> PAGE_SHIFT;
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	kv_vm_flags_set(vma, (VM_IO | VM_DONTEXPAND | VM_DONTDUMP));
+	vm_flags_set(vma, (VM_IO | VM_DONTEXPAND | VM_DONTDUMP));
 
 	size = vma->vm_end - vma->vm_start;
 	pfn  = off >> PAGE_SHIFT;
@@ -6765,7 +6764,7 @@ int __init vdin_drv_init(void)
 	}
 	pr_info("%s: major %d ver:%s\n", __func__, MAJOR(vdin_devno), VDIN_VER);
 
-	vdin_class = kv_class_create(THIS_MODULE, VDIN_CLS_NAME);
+	vdin_class = class_create(VDIN_CLS_NAME);
 	if (IS_ERR_OR_NULL(vdin_class)) {
 		ret = PTR_ERR(vdin_class);
 		pr_err("%s: failed to create class or ret=NULL\n", __func__);

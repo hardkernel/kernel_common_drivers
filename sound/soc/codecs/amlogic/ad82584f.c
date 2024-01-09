@@ -18,7 +18,6 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 
 #include "ad82584f.h"
@@ -950,7 +949,7 @@ static int ad82584f_parse_dt(struct ad82584f_priv *ad82584f,
 	return ret;
 }
 
-static int ad82584f_i2c_probe(struct i2c_client *i2c KV_I2C_PROBE_ID)
+static int ad82584f_i2c_probe(struct i2c_client *i2c)
 {
 	struct ad82584f_priv *ad82584f;
 	struct ad82584f_platform_data *pdata;

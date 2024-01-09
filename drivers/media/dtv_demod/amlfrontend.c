@@ -80,7 +80,6 @@
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/amlogic/aml_dtvdemod.h>
-#include <linux/amlogic/kernel_versions.h>
 
 MODULE_PARM_DESC(dvbc_new_driver, "\n\t\t use dvbc new driver to work");
 static unsigned char dvbc_new_driver;
@@ -1517,7 +1516,7 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, devp);
 
 	/*class attr */
-	devp->clsp = kv_class_create(THIS_MODULE, DEMOD_DEVICE_NAME);
+	devp->clsp = class_create(DEMOD_DEVICE_NAME);
 	if (!devp->clsp)
 		goto fail_create_class;
 
@@ -1940,10 +1939,7 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 	case SYS_DAB:
 	case SYS_TURBO:
 	case SYS_UNDEFINED:
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 	case SYS_DVBC2:
-#endif
 		return 0;
 	}
 

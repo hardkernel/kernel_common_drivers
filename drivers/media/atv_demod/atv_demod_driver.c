@@ -24,7 +24,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <dvb_frontend.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #include "atv_demod_debug.h"
 #include "atv_demod_driver.h"
@@ -77,8 +76,8 @@ struct aml_atvdemod_device *amlatvdemod_devp;
 unsigned int audio_gain_shift;
 unsigned int audio_gain_lpr;
 
-static ssize_t atvdemod_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t atvdemod_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int n = 0;
@@ -452,8 +451,8 @@ EXIT:
 	return count;
 }
 
-static ssize_t atvdemod_debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t atvdemod_debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buff)
 {
 	struct aml_atvdemod_device *dev =
@@ -653,7 +652,6 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 	dev->name = ATVDEMOD_DEVICE_NAME;
 	dev->dev = &pdev->dev;
 	dev->cls.name = ATVDEMOD_DEVICE_NAME;
-	kv_set_class_owner(&dev->cls);
 	dev->cls.class_groups = atvdemod_class_groups;
 
 	ret = class_register(&dev->cls);

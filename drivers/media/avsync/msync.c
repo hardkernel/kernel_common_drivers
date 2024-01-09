@@ -23,7 +23,6 @@
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
 #include <linux/pid.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/major.h>
 #include <uapi/amlogic/msync.h>
@@ -2139,8 +2138,8 @@ static const struct file_operations session_fops = {
 	.poll = session_poll,
 };
 
-static ssize_t session_stat_show(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t session_stat_show(const struct class *cla,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct sync_session *session;
@@ -2175,8 +2174,8 @@ static ssize_t session_stat_show(KV_CLASS_CONST struct class *cla,
 		session->event_pending);
 }
 
-static ssize_t pcr_stat_show(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t pcr_stat_show(const struct class *cla,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct sync_session *session;
@@ -2199,8 +2198,8 @@ static ssize_t pcr_stat_show(KV_CLASS_CONST struct class *cla,
 		session->pcr_disc_clock);
 }
 
-static ssize_t disc_thres_min_show(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t disc_thres_min_show(const struct class *cla,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct sync_session *session;
@@ -2209,8 +2208,8 @@ static ssize_t disc_thres_min_show(KV_CLASS_CONST struct class *cla,
 	return sprintf(buf, "%d", session->disc_thres_min);
 }
 
-static ssize_t disc_thres_min_store(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t disc_thres_min_store(const struct class *cla,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct sync_session *session;
@@ -2223,8 +2222,8 @@ static ssize_t disc_thres_min_store(KV_CLASS_CONST struct class *cla,
 	return count;
 }
 
-static ssize_t disc_thres_max_show(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t disc_thres_max_show(const struct class *cla,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct sync_session *session;
@@ -2233,8 +2232,8 @@ static ssize_t disc_thres_max_show(KV_CLASS_CONST struct class *cla,
 	return sprintf(buf, "%d", session->disc_thres_max);
 }
 
-static ssize_t disc_thres_max_store(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t disc_thres_max_store(const struct class *cla,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct sync_session *session;
@@ -2247,8 +2246,8 @@ static ssize_t disc_thres_max_store(KV_CLASS_CONST struct class *cla,
 	return count;
 }
 
-static ssize_t free_run_show(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t free_run_show(const struct class *cla,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct sync_session *session;
@@ -2257,8 +2256,8 @@ static ssize_t free_run_show(KV_CLASS_CONST struct class *cla,
 	return sprintf(buf, "%u", session->debug_freerun);
 }
 
-static ssize_t free_run_store(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t free_run_store(const struct class *cla,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct sync_session *session;
@@ -2274,8 +2273,8 @@ static ssize_t free_run_store(KV_CLASS_CONST struct class *cla,
 	return count;
 }
 
-static ssize_t debug_vsync_show(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_vsync_show(const struct class *cla,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct sync_session *session;
@@ -2284,8 +2283,8 @@ static ssize_t debug_vsync_show(KV_CLASS_CONST struct class *cla,
 	return sprintf(buf, "%u", session->debug_vsync);
 }
 
-static ssize_t debug_vsync_store(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_vsync_store(const struct class *cla,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct sync_session *session;
@@ -2552,15 +2551,15 @@ static const struct file_operations msync_fops = {
 #endif
 };
 
-static ssize_t log_level_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t log_level_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", log_level);
 }
 
-static ssize_t log_level_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t log_level_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int r;
@@ -2572,8 +2571,8 @@ static ssize_t log_level_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vout_mode_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vout_mode_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "den %d num %d inc %d\n",
@@ -2582,8 +2581,8 @@ static ssize_t vout_mode_show(KV_CLASS_CONST struct class *class,
 			sync.vsync_pts_inc);
 }
 
-static ssize_t list_session_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t list_session_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct sync_session *session = NULL;
@@ -2607,16 +2606,16 @@ static ssize_t list_session_show(KV_CLASS_CONST struct class *class,
 	return snprintf(buf, sizeof(tmp), "%s", tmp);
 }
 
-static ssize_t start_buf_thres_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t start_buf_thres_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d in 90K unit\n",
 			sync.start_buf_thres);
 }
 
-static ssize_t start_buf_thres_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t start_buf_thres_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int r, thres;

@@ -5,7 +5,6 @@
 #ifndef __FRC_DBG_H__
 #define __FRC_DBG_H__
 
-#include <linux/amlogic/kernel_versions.h>
 
 extern const char * const frc_state_ary[];
 extern u32 g_input_hsize;
@@ -13,47 +12,47 @@ extern u32 g_input_vsize;
 extern int frc_dbg_en;
 extern int frc_dbg_ctrl;
 
-ssize_t frc_reg_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frc_reg_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf);
-ssize_t frc_reg_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frc_reg_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count);
-ssize_t frc_tool_debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frc_tool_debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf);
-ssize_t frc_tool_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frc_tool_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count);
-ssize_t frc_debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frc_debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf);
-ssize_t frc_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frc_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count);
-ssize_t frc_buf_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frc_buf_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf);
-ssize_t frc_buf_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frc_buf_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count);
-ssize_t frc_rdma_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frc_rdma_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf);
-ssize_t frc_rdma_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frc_rdma_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count);
-ssize_t frc_param_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frc_param_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf);
-ssize_t frc_param_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frc_param_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count);
-ssize_t frc_other_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frc_other_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf);
-ssize_t frc_other_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frc_other_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count);
 void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff);
 void frc_debug_if(struct frc_dev_s *frc_devp, const char *buf, size_t count);

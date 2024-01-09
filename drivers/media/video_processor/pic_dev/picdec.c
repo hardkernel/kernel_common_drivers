@@ -11,7 +11,6 @@
 #include <uapi/linux/time.h>
 #include <linux/time.h>
 #include <linux/of_reserved_mem.h>
-#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_AMLOGIC_VOUT
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -1728,7 +1727,7 @@ static int picdec_mmap(struct file *file,
 		return -ENOMEM;
 
 	/*vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);*/
-	kv_vm_flags_set(vma, (VM_DONTEXPAND | VM_DONTDUMP | VM_IO));
+	vm_flags_set(vma, (VM_DONTEXPAND | VM_DONTDUMP | VM_IO));
 
 	if (remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
 			    vma->vm_end - vma->vm_start,
@@ -1912,8 +1911,8 @@ static int parse_para(const char *para, int para_num, int *result)
 	return count;
 }
 
-static ssize_t frame_render_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t frame_render_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -1923,8 +1922,8 @@ static ssize_t frame_render_show(KV_CLASS_CONST struct class *class,
 }
 
 static int first_running = 1;
-static ssize_t frame_render_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t frame_render_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	/*
@@ -1956,16 +1955,16 @@ static ssize_t frame_render_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t frame_post_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t frame_post_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80, "post command is %d\n",
 			picdec_device.frame_post);
 }
 
-static ssize_t frame_post_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t frame_post_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned long r;
@@ -1978,24 +1977,24 @@ static ssize_t frame_post_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t dec_status_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dec_status_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80, "PIC decoder status is %d\n",
 			(picdec_device.open_count > 0) ? 1 : 0);
 }
 
-static ssize_t test_color_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t test_color_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80, "post command is %d\n",
 			picdec_device.frame_post);
 }
 
-static ssize_t test_color_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t test_color_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	/*
@@ -2015,15 +2014,15 @@ static ssize_t test_color_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t debug_flag_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_flag_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 40, "%d\n", debug_flag);
 }
 
-static ssize_t debug_flag_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_flag_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int res = 0;
@@ -2036,15 +2035,15 @@ static ssize_t debug_flag_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t dump_file_flag_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_file_flag_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 40, "%d\n", dump_file_flag);
 }
 
-static ssize_t dump_file_flag_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_file_flag_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int res = 0;
@@ -2057,15 +2056,15 @@ static ssize_t dump_file_flag_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t p2p_mode_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t p2p_mode_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 40, "%d\n", p2p_mode);
 }
 
-static ssize_t p2p_mode_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t p2p_mode_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int res = 0;
@@ -2078,15 +2077,15 @@ static ssize_t p2p_mode_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t cpu_draw_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t cpu_draw_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 40, "%d\n", cpu_draw);
 }
 
-static ssize_t cpu_draw_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t cpu_draw_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int res = 0;
@@ -2099,15 +2098,15 @@ static ssize_t cpu_draw_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t output_format_mode_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t output_format_mode_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 40, "%d\n", output_format_mode);
 }
 
-static ssize_t output_format_mode_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t output_format_mode_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int res = 0;
@@ -2120,15 +2119,15 @@ static ssize_t output_format_mode_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t txlx_output_format_mode_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t txlx_output_format_mode_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 40, "%d\n", txlx_output_format_mode);
 }
 
-static ssize_t txlx_output_format_mode_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t txlx_output_format_mode_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int res = 0;
@@ -2142,15 +2141,15 @@ static ssize_t txlx_output_format_mode_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t cma_layout_flag_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t cma_layout_flag_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 40, "%d\n", cma_layout_flag);
 }
 
-static ssize_t cma_layout_flag_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t cma_layout_flag_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int res = 0;

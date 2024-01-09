@@ -18,7 +18,6 @@
 #include <linux/io.h>
 #include "efuse_burn.h"
 #include <linux/compat.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #define EFUSE_BURN_DEVICE_NAME   "efuse_burn"
 #define EFUSE_BURN_CLASS_NAME    "efuse_burn"
@@ -163,8 +162,8 @@ static const struct file_operations efuse_burn_fops = {
 #endif
 };
 
-static ssize_t version_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t version_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t n = 0;
@@ -173,8 +172,8 @@ static ssize_t version_show(KV_CLASS_CONST struct class *class,
 	return n;
 }
 
-static ssize_t version_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t version_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	pr_notice("%s:%d,buf=0x%lx,count=%zu\n",
@@ -225,7 +224,6 @@ static int efuse_burn_probe(struct platform_device *pdev)
 	}
 
 	efuse_burn_dev->cls.name = EFUSE_BURN_CLASS_NAME;
-	kv_set_class_owner(&efuse_burn_dev->cls);
 	efuse_burn_dev->cls.class_groups = efuse_burn_class_groups;
 	ret = class_register(&efuse_burn_dev->cls);
 	if (ret)

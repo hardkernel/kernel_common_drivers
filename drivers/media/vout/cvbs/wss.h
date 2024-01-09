@@ -19,7 +19,6 @@
 #ifndef __WSS_H__
 #define __WSS_H__
 
-#include <linux/amlogic/kernel_versions.h>
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 /* for 576i, according to <ETSI EN 300294 V1.4.1> */
 
@@ -188,11 +187,11 @@ struct wss_info_t {
 	char			*description;
 };
 
-ssize_t aml_CVBS_attr_wss_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t aml_CVBS_attr_wss_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf);
-ssize_t  aml_CVBS_attr_wss_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t  aml_CVBS_attr_wss_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count);
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 

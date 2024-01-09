@@ -41,7 +41,6 @@
 
 #include <asm-generic/bug.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include "videotunnel_priv.h"
 #include "videotunnel.h"
 
@@ -2197,8 +2196,8 @@ static ssize_t instance_show_locked(struct vt_instance *instance, char *buf)
 	return pos;
 }
 
-static ssize_t instance_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t instance_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct vt_dev *dev = vdev;
@@ -2224,8 +2223,8 @@ static ssize_t instance_show(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t state_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t state_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t pos = 0;

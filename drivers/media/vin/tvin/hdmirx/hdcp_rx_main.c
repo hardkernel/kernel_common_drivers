@@ -16,7 +16,6 @@
 #include <linux/proc_fs.h>
 #include <linux/debugfs.h>
 #include <linux/version.h>
-#include <linux/amlogic/kernel_versions.h>
 #include "hdcp_rx_main.h"
 #include "hdmi_rx_repeater.h"
 #include "hdmi_rx_drv.h"
@@ -285,8 +284,8 @@ static int alloc_dma_areas(struct esm_device *esm,
 					  &esm->blob);
 
 	if (randomize_mem) {
-		kv_get_random_bytes(esm->code, esm->code_size);
-		kv_get_random_bytes(esm->data, esm->data_size);
+		get_random_bytes(esm->code, esm->code_size);
+		get_random_bytes(esm->data, esm->data_size);
 	}
 	if (!is_esmmem_created) {
 		if (esm->data_base && esm->code_base) {

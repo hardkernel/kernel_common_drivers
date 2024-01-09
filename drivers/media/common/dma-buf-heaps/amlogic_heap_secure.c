@@ -15,8 +15,8 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <drm/display/drm_hdcp_helper.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/tee.h>
 
 struct meson_secure_heap {
@@ -169,12 +169,12 @@ static int meson_secure_heap_mmap(struct dma_buf *dmabuf,
 	return 0;
 }
 
-static int meson_secure_heap_vmap(struct dma_buf *dmabuf, struct kv_drm_vmap_map *map)
+static int meson_secure_heap_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
 	return 0;
 }
 
-static void meson_secure_heap_vunmap(struct dma_buf *dmabuf, struct kv_drm_vmap_map *map)
+static void meson_secure_heap_vunmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {}
 
 static void meson_secure_heap_dma_buf_release(struct dma_buf *dmabuf)

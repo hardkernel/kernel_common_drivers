@@ -21,7 +21,6 @@
 #include <linux/notifier.h>
 #include <linux/device.h>
 #include <linux/of.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
@@ -354,11 +353,11 @@ void vlock_set_en(bool en);
 void vlock_set_phase(struct stvlock_sig_sts *vlock, u32 percent);
 void vlock_set_phase_en(struct stvlock_sig_sts *vlock, u32 en);
 int lcd_set_ss(unsigned int level, unsigned int freq, unsigned int mode);
-ssize_t vlock_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t vlock_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count);
-ssize_t vlock_debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t vlock_debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf);
 //void vlock_clk_config(struct device *dev);
 int frc_is_on(void);

@@ -10,7 +10,6 @@
 #include <uapi/linux/dma-buf.h>
 #include <uapi/linux/magic.h>
 #include <drm/drm_blend.h>
-#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
 #include <linux/amlogic/media/osd/osd_logo.h>
 #endif
@@ -1855,14 +1854,14 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv,
 					 afbc_modifier,
 					 type, const_plane_name);
 	} else {
-		kv_set_drm_allow_fb_modifiers(priv->drm, false);
+		priv->drm->mode_config.fb_modifiers_not_supported = !false;
 		drm_universal_plane_init(priv->drm, plane, 1 << crtc_mask,
 					 &am_osd_plane_funs,
 					 formats_group,
 					 num_formats,
 					 NULL,
 					 type, const_plane_name);
-		kv_set_drm_allow_fb_modifiers(priv->drm, true);
+		priv->drm->mode_config.fb_modifiers_not_supported = !true;
 	}
 	drm_plane_create_blend_mode_property(plane,
 				BIT(DRM_MODE_BLEND_PIXEL_NONE) |

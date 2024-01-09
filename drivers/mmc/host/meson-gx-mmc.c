@@ -47,7 +47,6 @@
 #include <linux/moduleparam.h>
 #include <linux/amlogic/gki_module.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include "meson-cqhci.h"
 
 struct mmc_gpio {
@@ -3285,7 +3284,7 @@ static void sdio_reset_comm(struct mmc_card *card)
 	if (WARN_ON(i == SDIO_MAX_FUNCS))
 		return;
 	sdio_claim_host(card->sdio_func[i]);
-	err = kv_mmc_sw_reset(card);
+	err = mmc_sw_reset(card);
 	sdio_release_host(card->sdio_func[i]);
 	if (err)
 		pr_info("%s Failed, error = %d\n", __func__, err);

@@ -17,14 +17,13 @@
  *
  */
 
-#include <linux/amlogic/kernel_versions.h>
 #define VM_CLASS_NAME				"vm"
 
 void interleave_uv(unsigned char *pU, unsigned char *pV,
 			  unsigned char *pUV, unsigned int size_u_or_v);
 
-static ssize_t show_vm_info(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t show_vm_info(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 //	resource_size_t bstart;
@@ -37,15 +36,15 @@ static ssize_t show_vm_info(KV_CLASS_CONST struct class *class,
 }
 
 static char attr_dat0[3] = "-1";
-static ssize_t read_attr0(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t read_attr0(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 3, "%s", attr_dat0);
 }
 
-static ssize_t write_attr0(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t write_attr0(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	/* struct display_device *dsp = dev_get_drvdata(dev); */
@@ -74,15 +73,15 @@ static ssize_t write_attr0(KV_CLASS_CONST struct class *class,
 }
 
 static char attr_dat1[3] = "-1";
-static ssize_t read_attr1(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t read_attr1(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 3, "%s", attr_dat1);
 }
 
-static ssize_t write_attr1(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t write_attr1(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	/* struct display_device *dsp = dev_get_drvdata(dev); */
@@ -112,15 +111,15 @@ static ssize_t write_attr1(KV_CLASS_CONST struct class *class,
 
 int disable_gt2005;
 
-static ssize_t read_attr2(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t read_attr2(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return disable_gt2005;
 }
 
-static ssize_t write_attr2(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t write_attr2(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	/* struct display_device *dsp = dev_get_drvdata(dev); */
@@ -134,8 +133,8 @@ static ssize_t write_attr2(KV_CLASS_CONST struct class *class,
 
 int camera_mirror_flag;  /* 0: disable, 1: l&r mirror,2 t-b mirror */
 
-static ssize_t mirror_read(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t mirror_read(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (camera_mirror_flag == 1)
@@ -152,8 +151,8 @@ static ssize_t mirror_read(KV_CLASS_CONST struct class *class,
 		camera_mirror_flag);
 }
 
-static ssize_t mirror_write(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t mirror_write(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t size;

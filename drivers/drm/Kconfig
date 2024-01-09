@@ -30,7 +30,6 @@ config AMLOGIC_DRM_HDMI
 	default n
 	depends on AMLOGIC_DRM
 	depends on AMLOGIC_HDMITX
-	#KV_TODO: modify
 	select DRM_DISPLAY_HDCP_HELPER
 	help
 		add drm hdmi support.

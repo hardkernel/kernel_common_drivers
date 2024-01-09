@@ -49,7 +49,6 @@
 #define SHA_OP_UPDATE	1
 #define SHA_OP_FINAL	2
 
-//KV_TODO: modify
 #define SHA_BUFFER_LEN	\
 	ALIGN_DOWN((512 - sizeof(struct aml_sha_reqctx)), 64)
 

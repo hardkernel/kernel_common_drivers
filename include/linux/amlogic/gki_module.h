@@ -6,8 +6,6 @@
 #ifndef __GKI_MODULE_AMLOGIC_H
 #define __GKI_MODULE_AMLOGIC_H
 
-#include <linux/amlogic/kernel_versions.h>
-
 #define GKI_MODULE_SETUP_MAGIC1 0x014589cd
 #define GKI_MODULE_SETUP_MAGIC2 0x2367abef
 
@@ -46,6 +44,15 @@ extern int cpv_count;
 
 #define early_param(str, fn)						\
 		__setup_gki_module(str, fn, 1)
+void __module_init_hook(struct module *m);
+
+#define module_init_hook(initfn)      \
+	int __init init_module(void) \
+	{       \
+		__module_init_hook(THIS_MODULE); \
+		return initfn();     \
+	}	\
+	___ADDRESSABLE(init_module, __initdata);
 
 #undef early_initcall
 #undef core_initcall

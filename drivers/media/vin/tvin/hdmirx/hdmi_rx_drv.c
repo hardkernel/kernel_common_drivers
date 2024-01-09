@@ -52,7 +52,6 @@
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
 #endif
-#include <linux/amlogic/kernel_versions.h>
 
 /* Local include */
 #include "hdmi_rx_repeater.h"
@@ -4318,7 +4317,7 @@ int __init hdmirx_init(void)
 		goto fail_alloc_cdev_region;
 	}
 
-	hdmirx_clsp = kv_class_create(THIS_MODULE, TVHDMI_NAME);
+	hdmirx_clsp = class_create(TVHDMI_NAME);
 	if (IS_ERR(hdmirx_clsp)) {
 		rx_pr("hdmirx: can't get hdmirx_clsp\n");
 		ret = PTR_ERR(hdmirx_clsp);

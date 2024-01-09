@@ -33,7 +33,6 @@
 #include <linux/amlogic/freertos.h>
 #include <linux/mm.h>
 #include <linux/sched/clock.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #define AML_RTOS_NAME "freertos"
 
@@ -589,8 +588,8 @@ static void aml_rtos_logbuf_deinit(void)
 }
 
 #if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS_ANDROID_CTRL)
-static ssize_t android_status_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t android_status_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long val = 0;
@@ -606,8 +605,8 @@ static ssize_t android_status_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t android_status_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t android_status_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int cnt = 0;
@@ -620,8 +619,8 @@ static CLASS_ATTR_RW(android_status);
 #endif
 
 #if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS_IPI_SEND)
-static ssize_t ipi_send_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t ipi_send_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long cpu = 0;
@@ -639,8 +638,8 @@ static ssize_t ipi_send_store(KV_CLASS_CONST struct class *class,
 static CLASS_ATTR_WO(ipi_send);
 #endif
 
-static ssize_t time_limit_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t time_limit_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned long val = 0;
@@ -654,8 +653,8 @@ static ssize_t time_limit_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t time_limit_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t time_limit_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int cnt = 0;

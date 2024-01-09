@@ -11,7 +11,6 @@
 #include <linux/of.h>
 #include <linux/kernel.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include "card_utils.h"
 
 int aml_card_parse_daifmt(struct device *dev,
@@ -152,7 +151,7 @@ int aml_card_parse_dai(struct device_node *node,
 
 	/* Get dai->name */
 	if (dai_name) {
-		ret = kv_snd_soc_of_get_dai_name(node, dai_name, 0);
+		ret = snd_soc_of_get_dai_name(node, dai_name, 0);
 		if (ret < 0) {
 			pr_err("%s, node=%p failed to get dai name:%s\n",
 			       __func__, node,

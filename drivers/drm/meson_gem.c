@@ -10,12 +10,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/dma-buf.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/ion.h>
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <dev_ion.h>
 #include "meson_gem.h"
+#include <drm/drm_gem_dma_helper.h>
+#include <linux/iosys-map.h>
 
 #include "linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h"
 #include <linux/dma-heap.h>
@@ -506,7 +507,7 @@ static struct sg_table *meson_gem_prime_get_sg_table(struct drm_gem_object *obj)
 	return NULL;
 }
 
-static int meson_gem_prime_vmap(struct drm_gem_object *obj, struct kv_drm_vmap_map *map)
+static int meson_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
 	struct am_meson_gem_object *meson_gem_obj = to_am_meson_gem_obj(obj);
 
@@ -519,7 +520,7 @@ static int meson_gem_prime_vmap(struct drm_gem_object *obj, struct kv_drm_vmap_m
 	return 0;
 }
 
-static void meson_gem_prime_vunmap(struct drm_gem_object *obj, struct kv_drm_vmap_map *map)
+static void meson_gem_prime_vunmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
 	struct am_meson_gem_object *meson_gem_obj = to_am_meson_gem_obj(obj);
 
@@ -546,7 +547,7 @@ int am_meson_gem_object_mmap(struct am_meson_gem_object *obj,
 	 * vm_pgoff (used as a fake buffer offset by DRM) to 0 as we want to map
 	 * the whole buffer.
 	 */
-	kv_vm_flags_clear(vma, VM_PFNMAP);
+	vm_flags_clear(vma, VM_PFNMAP);
 	vma->vm_pgoff = 0;
 
 	if (obj->base.import_attach) {
@@ -585,7 +586,7 @@ static int am_meson_gem_object_mmap_dma(struct am_meson_gem_object *meson_gem_ob
 	 * vm_pgoff (used as a fake buffer offset by DRM) to 0 as we want to map
 	 * the whole buffer.
 	 */
-	kv_vm_flags_clear(vma, VM_PFNMAP);
+	vm_flags_clear(vma, VM_PFNMAP);
 	vma->vm_pgoff = 0;
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
@@ -630,7 +631,7 @@ static const struct drm_gem_object_funcs meson_gem_object_funcs = {
 	.vmap = meson_gem_prime_vmap,
 	.vunmap = meson_gem_prime_vunmap,
 	.mmap = meson_gem_prime_mmap,
-	.vm_ops = &kv_vm_operations_ops,
+	.vm_ops = &drm_gem_dma_vm_ops,
 };
 
 struct am_meson_gem_object *am_meson_gem_object_create(struct drm_device *dev,

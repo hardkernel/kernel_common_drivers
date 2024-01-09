@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/delay.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/camera/aml_cam_info.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
@@ -1617,8 +1616,8 @@ static int do_write_work(char argn, char **argv)
 
 static struct class *cam_clsp;
 
-static ssize_t show_help(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t show_help(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t size = 0;
@@ -1630,8 +1629,8 @@ static ssize_t show_help(KV_CLASS_CONST struct class *class,
 	return size;
 }
 
-static ssize_t store_i2c_debug(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t store_i2c_debug(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int argn;
@@ -1673,8 +1672,8 @@ end:
 
 static LIST_HEAD(info_head);
 
-static ssize_t cam_info_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t cam_info_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct list_head *p;
@@ -1774,7 +1773,7 @@ static int aml_cams_probe(struct platform_device *pdev)
 	pr_info("camera probe cost time = %ldms\n", time_use);
 
 	pr_info("aml probe finish\n");
-	cam_clsp = kv_class_create(THIS_MODULE, "aml_camera");
+	cam_clsp = class_create("aml_camera");
 	for (i = 0; aml_cam_attrs[i].attr.name; i++) {
 		if (class_create_file(cam_clsp, &aml_cam_attrs[i]) < 0)
 			return -1;

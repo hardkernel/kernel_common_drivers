@@ -31,8 +31,6 @@
 #include <trace/events/sched.h>
 #include <trace/events/meson_atrace.h>
 
-#include <linux/amlogic/kernel_versions.h>
-
 #if defined(CONFIG_ANDROID_VENDOR_HOOKS) && defined(CONFIG_FAIR_GROUP_SCHED)
 static int sched_big_weight = 10; // * NICE_0_LOAD
 __module_param(sched_big_weight, int, 0644);
@@ -459,7 +457,6 @@ static void aml_pick_next_task(void *data, struct rq *rq, struct task_struct **p
 	}
 }
 
-//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static inline u64 max_vruntime(u64 max_vruntime, u64 vruntime)
 {
@@ -574,7 +571,7 @@ static void __maybe_unused sched_show_task_hook(void *data, struct task_struct *
 }
 
 static void sched_switch_hook(void *data, bool mode, struct task_struct *prev,
-			      struct task_struct *next KV_SCHED_SWITCH_HOOK_PREV_STAT)
+			      struct task_struct *next, unsigned int prev_stat)
 {
 	unsigned long long now;
 

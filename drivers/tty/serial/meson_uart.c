@@ -25,7 +25,6 @@
 #include <linux/tty_flip.h>
 #include <linux/pinctrl/consumer.h>
 
-#include <linux/amlogic/kernel_versions.h>
 
 /* Register offsets */
 #define AML_UART_WFIFO			0x00
@@ -173,7 +172,7 @@ static void meson_uart_start_tx(struct uart_port *port)
 
 		ch = xmit->buf[xmit->tail];
 		writel_relaxed(ch, port->membase + AML_UART_WFIFO);
-		xmit->tail = (xmit->tail + 1) & (KV_UART_XMIT_SIZE - 1);
+		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 	}
 	spin_unlock_irqrestore(&mup->wr_lock, flags);
@@ -204,7 +203,7 @@ static void meson_transmit_chars(struct uart_port *port)
 			break;
 		ch = xmit->buf[xmit->tail];
 		writel_relaxed(ch, port->membase + AML_UART_WFIFO);
-		xmit->tail = (xmit->tail + 1) & (KV_UART_XMIT_SIZE - 1);
+		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 	}
 	spin_unlock(&mup->wr_lock);
@@ -387,7 +386,7 @@ static void meson_uart_change_speed(struct uart_port *port, unsigned long baud)
 
 static void meson_uart_set_termios(struct uart_port *port,
 				   struct ktermios *termios,
-				   KV_UART_SET_TERMIOS_OLD_CONST struct ktermios *old)
+				   const struct ktermios *old)
 {
 	unsigned int cflags, iflags, baud;
 	unsigned long flags;
@@ -561,7 +560,7 @@ static void meson_uart_enable_tx_engine(struct uart_port *port)
 	writel_relaxed(val, port->membase + AML_UART_CONTROL);
 }
 
-static void meson_console_putchar(struct uart_port *port, kv_uart_putchar_char_type ch)
+static void meson_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	if (!port->membase)
 		return;

@@ -14,7 +14,6 @@
 #include <linux/of.h>
 #include <linux/sched/clock.h>
 #include <linux/amlogic/media/vout/lcd/lcd_extern.h>
-#include <linux/amlogic/kernel_versions.h>
 #include "lcd_extern.h"
 #include "i2c_oled.h"
 
@@ -807,7 +806,7 @@ static int ext_oled_cdev_add(struct lcd_extern_driver_s *edrv)
 		return -1;
 	}
 
-	ext_oled->clsp = kv_class_create(THIS_MODULE, LCD_EXTERN_NAME);
+	ext_oled->clsp = class_create(LCD_EXTERN_NAME);
 	if (IS_ERR(ext_oled->clsp)) {
 		EXTERR("%s: failed to create class\n", __func__);
 		goto ext_cdev_add_err;

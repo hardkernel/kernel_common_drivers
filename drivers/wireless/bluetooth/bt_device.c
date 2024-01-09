@@ -33,7 +33,6 @@
 #include <linux/amlogic/pm.h>
 #include <linux/irq.h>
 #include <linux/amlogic/gki_module.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/input.h>
 
 #if defined(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND) && defined(CONFIG_AMLOGIC_GX_SUSPEND)
@@ -74,8 +73,8 @@ static int distinguish_module(void)
 	return 0;
 }
 
-static ssize_t value_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t value_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	char local_addr[6];
@@ -86,10 +85,10 @@ static ssize_t value_show(KV_CLASS_CONST struct class *class,
 	if (strlen(bt_addr) == 0) {
 		local_addr[0] = 0x22;
 		local_addr[1] = 0x22;
-		local_addr[2] = kv_aml_random_u32();
-		local_addr[3] = kv_aml_random_u32();
-		local_addr[4] = kv_aml_random_u32();
-		local_addr[5] = kv_aml_random_u32();
+		local_addr[2] = get_random_u32();
+		local_addr[3] = get_random_u32();
+		local_addr[4] = get_random_u32();
+		local_addr[5] = get_random_u32();
 		sprintf(bt_addr, "%02x:%02x:%02x:%02x:%02x:%02x",
 		local_addr[0], local_addr[1], local_addr[2],
 		local_addr[3], local_addr[4], local_addr[5]);
@@ -98,8 +97,8 @@ static ssize_t value_show(KV_CLASS_CONST struct class *class,
 	return sprintf(buf, "%s\n", bt_addr);
 }
 
-static ssize_t value_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t value_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int ret = -EINVAL;
@@ -538,7 +537,7 @@ static int bt_probe(struct platform_device *pdev)
 #else
 	pdata = (struct bt_dev_data *)(pdev->dev.platform_data);
 #endif
-	bt_addr_class = kv_class_create(THIS_MODULE, "bt_addr");
+	bt_addr_class = class_create("bt_addr");
 	ret = class_create_file(bt_addr_class, &class_attr_value);
 
 	bt_device_init(pdata);

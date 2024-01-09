@@ -23,7 +23,6 @@
 #include <linux/reset.h>
 #include <linux/of_mdio.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/aml_phy_debug.h>
 //#include "aml_phy_debug.h"
 
@@ -453,8 +452,8 @@ static const char *g_phyreg_help = {
 	"    echo w reg val > phyreg;    //write ethernet phy reg\n"
 };
 
-static ssize_t phyreg_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t phyreg_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%s\n", g_phyreg_help);
@@ -565,8 +564,8 @@ static void am_net_debug_mode(void)
 //	enable_wol_check = 0;
 }
 
-static ssize_t phyreg_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t phyreg_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int argc;
@@ -661,15 +660,15 @@ static const char *g_macreg_help = {
 	"    echo w reg val > macreg;    //read ethernet mac reg\n"
 };
 
-static ssize_t macreg_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t macreg_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%s\n", g_macreg_help);
 }
 
-static ssize_t macreg_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t macreg_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int argc;
@@ -713,8 +712,8 @@ end:
 	return 0;
 }
 
-static ssize_t linkspeed_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t linkspeed_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int ret;
@@ -743,8 +742,8 @@ static ssize_t linkspeed_show(KV_CLASS_CONST struct class *class,
 #ifdef CONFIG_PM_SLEEP
 unsigned int wol_switch_from_user;
 EXPORT_SYMBOL_GPL(wol_switch_from_user);
-static ssize_t wol_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t wol_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!c_phy_dev)
@@ -753,8 +752,8 @@ static ssize_t wol_show(KV_CLASS_CONST struct class *class,
 	return sprintf(buf, "0x%x\n", wol_switch_from_user);
 }
 
-static ssize_t wol_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t wol_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned int tmp, r;
@@ -891,8 +890,8 @@ static int am_net_cali(int argc, char **argv, int gate)
 	return 0;
 }
 
-static ssize_t cali_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t cali_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int argc;
@@ -973,7 +972,7 @@ int gmac_create_sysfs(struct phy_device *phydev, void __iomem *ioaddr)
 //			return r;
 //		}
 //	}
-	phy_sys_class = kv_class_create(THIS_MODULE, DRIVER_NAME);
+	phy_sys_class = class_create(DRIVER_NAME);
 	ret = class_create_file(phy_sys_class, &class_attr_phyreg);
 	ret = class_create_file(phy_sys_class, &class_attr_macreg);
 	ret = class_create_file(phy_sys_class, &class_attr_linkspeed);

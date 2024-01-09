@@ -41,7 +41,6 @@
 #include <linux/amlogic/major.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/utils/amstream.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #define V4L_DI_DEVICE_NAME   "di_v4l"
 
@@ -650,15 +649,15 @@ static const struct file_operations di_v4l_fops = {
 	.poll = NULL,
 };
 
-static ssize_t print_flag_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t print_flag_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", print_flag);
 }
 
-static ssize_t print_flag_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t print_flag_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;
@@ -673,15 +672,15 @@ static ssize_t print_flag_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t dump_out_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_out_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", dump_out);
 }
 
-static ssize_t dump_out_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_out_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;

@@ -43,7 +43,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_AMLOGIC_MODIFY
 #include <linux/amlogic/pwm-meson.h>
 
@@ -545,7 +544,7 @@ static void meson_v2_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm
 }
 #endif
 
-static KV_PWM_GET_STATE_TYPE meson_pwm_get_state(struct pwm_chip *chip,
+static int meson_pwm_get_state(struct pwm_chip *chip,
 						 struct pwm_device *pwm,
 						 struct pwm_state *state)
 {
@@ -647,7 +646,7 @@ static KV_PWM_GET_STATE_TYPE meson_pwm_get_state(struct pwm_chip *chip,
 #endif
 
 state_return:
-	KV_PWM_GET_STATE_RET(0);
+	return 0;
 }
 
 static const struct pwm_ops meson_pwm_ops = {

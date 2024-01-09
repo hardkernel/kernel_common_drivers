@@ -34,7 +34,6 @@
 #if IS_BUILTIN(CONFIG_AMLOGIC_MEDIA_MODULE)
 #include <linux/amlogic/aml_cma.h>
 #endif
-#include <linux/amlogic/kernel_versions.h>
 
 static int dmabuf_manage_debug = 1;
 __module_param(dmabuf_manage_debug, int, 0644);
@@ -1885,8 +1884,8 @@ const struct file_operations fops = {
 #endif
 };
 
-static ssize_t dmabuf_manage_dump_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dmabuf_manage_dump_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct list_head *pos = NULL;
@@ -1906,8 +1905,8 @@ static ssize_t dmabuf_manage_dump_show(KV_CLASS_CONST struct class *class,
 	return 0;
 }
 
-static ssize_t dmabuf_manage_config_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dmabuf_manage_config_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t ret;
@@ -1917,8 +1916,8 @@ static ssize_t dmabuf_manage_config_show(KV_CLASS_CONST struct class *class,
 	return ret;
 }
 
-static ssize_t dmabuf_manage_config_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dmabuf_manage_config_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t size)
 {
 	int ret;

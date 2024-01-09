@@ -13,7 +13,6 @@
 #include <linux/poll.h>
 #include <linux/workqueue.h>
 #include <linux/amlogic/debug_file.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #define FILE_CLOSE_FROM_KERNEL		0x00
 #define FILE_OPEN_FROM_KERNEL		0x01
@@ -120,7 +119,7 @@ static ssize_t file_read(struct file *file, char __user *buf,
 {
 	int ret;
 	unsigned int copied;
-	struct debug_file *filp = kv_pde_data(file_inode(file));
+	struct debug_file *filp = pde_data(file_inode(file));
 
 	ret = kfifo_to_user(&filp->kfifo_buf, buf, count, &copied);
 	if (ret)
@@ -134,7 +133,7 @@ static ssize_t file_write(struct file *file, const char __user *buf,
 {
 	int ret;
 	unsigned int copied;
-	struct debug_file *filp = kv_pde_data(file_inode(file));
+	struct debug_file *filp = pde_data(file_inode(file));
 
 	ret = kfifo_from_user(&filp->kfifo_buf, buf, count, &copied);
 
@@ -146,7 +145,7 @@ static ssize_t file_write(struct file *file, const char __user *buf,
 
 static int file_close(struct inode *inode, struct file *file)
 {
-	struct debug_file *filp = kv_pde_data(inode);
+	struct debug_file *filp = pde_data(inode);
 
 	file_info_to_fifo(&files_info, &filp->param, sizeof(struct debug_file_param));
 
@@ -164,7 +163,7 @@ static int file_close(struct inode *inode, struct file *file)
 static __poll_t file_poll(struct file *file, poll_table *wait)
 {
 	__poll_t mask = 0;
-	struct debug_file *filp = kv_pde_data(file_inode(file));
+	struct debug_file *filp = pde_data(file_inode(file));
 
 	poll_wait(file, &filp->wq, wait);
 	if (!kfifo_is_empty(&filp->kfifo_buf))

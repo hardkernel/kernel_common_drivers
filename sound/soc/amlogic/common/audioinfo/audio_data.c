@@ -21,7 +21,6 @@
 #ifdef CONFIG_MESON_TRUSTZONE
 #include <mach/meson-secure.h>
 #endif
-#include <linux/amlogic/kernel_versions.h>
 
 #include "audio_data.h"
 #include "efuse.h"
@@ -203,7 +202,7 @@ static int audio_data_probe(struct platform_device *pdev)
 				AUDIO_DATA_DEVICE_NODE_NAME, major_audio_data);
 		return major_audio_data;
 	}
-	class_audio_data = kv_class_create(THIS_MODULE, AUDIO_DATA_DEVICE_NODE_NAME);
+	class_audio_data = class_create(AUDIO_DATA_DEVICE_NODE_NAME);
 	ptr_err = class_audio_data;
 	if (IS_ERR(ptr_err))
 		goto err0;

@@ -12,7 +12,6 @@
 #include <linux/io.h>
 #include <linux/printk.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/v4l_util/videobuf-res.h>
 
 struct videobuf_res_memory {
@@ -263,7 +262,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	}
 
 	vma->vm_ops          = &videobuf_vm_ops;
-	kv_vm_flags_set(vma, (VM_DONTEXPAND | VM_IO | VM_DONTEXPAND | VM_DONTDUMP));
+	vm_flags_set(vma, (VM_DONTEXPAND | VM_IO | VM_DONTEXPAND | VM_DONTDUMP));
 	vma->vm_private_data = map;
 	/*
 	 *dprintk(1, "mmap %p: q=%p %08lx-%08lx (%lx)",

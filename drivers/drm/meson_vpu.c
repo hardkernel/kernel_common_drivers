@@ -19,7 +19,8 @@
 #include <linux/sync_file.h>
 
 /* Amlogic Headers */
-#include <linux/amlogic/kernel_versions.h>
+#include <drm/drm_gem_dma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 #include <linux/amlogic/media/amvecm/amvecm.h>

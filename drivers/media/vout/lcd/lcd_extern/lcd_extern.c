@@ -22,7 +22,6 @@
 #include "lcd_extern.h"
 
 #include <linux/amlogic/gki_module.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #define EXT_CDEV_NAME "lcd_ext"
 struct ext_cdev_s {
@@ -2266,7 +2265,7 @@ static int ext_global_init_once(void)
 		goto ext_global_init_once_err;
 	}
 
-	ext_cdev->class = kv_class_create(THIS_MODULE, "lcd_ext");
+	ext_cdev->class = class_create("lcd_ext");
 	if (IS_ERR_OR_NULL(ext_cdev->class)) {
 		ret = 2;
 		goto ext_global_init_once_err_1;

@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/amlogic/iomap.h>
-#include <linux/amlogic/kernel_versions.h>
 #include "aml_seckey_log.h"
 #include "aml_kt_dev.h"
 
@@ -400,9 +399,9 @@ int __init aml_key_driver_init(void)
 {
 	int ret = 0;
 
-	aml_key_class = kv_class_create(THIS_MODULE, AML_KEY_DEVICE_NAME);
+	aml_key_class = class_create(AML_KEY_DEVICE_NAME);
 	if (IS_ERR(aml_key_class)) {
-		LOGE("kv_class_create failed\n");
+		LOGE("class_create failed\n");
 		ret = PTR_ERR(aml_key_class);
 		return ret;
 	}

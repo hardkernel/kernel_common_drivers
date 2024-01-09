@@ -12,7 +12,6 @@
 #include <linux/regmap.h>
 #include <linux/module.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/clk_measure.h>
 
 #define MSR_DURATION		GENMASK(15, 0)
@@ -3605,7 +3604,7 @@ static int clk_msr_summary_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(clk_msr_summary);
 
-static char *clk_msr_class_devnode(KV_CLASS_DEV_CONST struct device *dev, umode_t *mode)
+static char *clk_msr_class_devnode(const struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0444;

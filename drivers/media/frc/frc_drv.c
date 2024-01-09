@@ -66,7 +66,6 @@
 #include <linux/cma.h>
 #include <linux/genalloc.h>
 #include <linux/dma-mapping.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #include "frc_drv.h"
 #include "frc_proc.h"
@@ -1215,7 +1214,7 @@ static int frc_probe(struct platform_device *pdev)
 		PR_ERR("%s: alloc region fail\n", __func__);
 		goto fail_alloc_region;
 	}
-	frc_devp->clsp = kv_class_create(THIS_MODULE, FRC_CLASS_NAME);
+	frc_devp->clsp = class_create(FRC_CLASS_NAME);
 	if (IS_ERR(frc_devp->clsp)) {
 		ret = PTR_ERR(frc_devp->clsp);
 		PR_ERR("%s: create class fail\n", __func__);

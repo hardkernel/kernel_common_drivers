@@ -22,7 +22,6 @@
 #ifdef CONFIG_AMLOGIC_GX_SUSPEND
 #include <linux/amlogic/pm.h>
 #endif
-#include <linux/amlogic/kernel_versions.h>
 #include "adc_keypad.h"
 
 #define POLL_INTERVAL_DEFAULT 25
@@ -305,8 +304,8 @@ static void meson_adc_kp_list_free(struct meson_adc_kp *kp)
 	mutex_unlock(&kp->kp_lock);
 }
 
-static ssize_t table_show(KV_CLASS_CONST struct class *cls,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t table_show(const struct class *cls,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct meson_adc_kp *kp = container_of(cls,
@@ -332,8 +331,8 @@ static ssize_t table_show(KV_CLASS_CONST struct class *cls,
 	return len;
 }
 
-static ssize_t table_store(KV_CLASS_CONST struct class *cls,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t table_store(const struct class *cls,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct meson_adc_kp *kp = container_of(cls,
@@ -545,7 +544,6 @@ static int meson_adc_kp_probe(struct platform_device *pdev)
 
 	/*init class*/
 	kp->kp_class.name = DRIVE_NAME;
-	kv_set_class_owner(&kp->kp_class);
 	kp->kp_class.class_groups = meson_adckey_groups;
 	ret = class_register(&kp->kp_class);
 	if (ret) {

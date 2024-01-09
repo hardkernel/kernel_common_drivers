@@ -45,7 +45,6 @@
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/media/vout/lcd/ldim_fw.h>
-#include <linux/amlogic/kernel_versions.h>
 #include "../../lcd_common.h"
 #include "ldim_drv.h"
 #include "ldim_reg.h"
@@ -1126,7 +1125,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	devp->aml_ldim_clsp = kv_class_create(THIS_MODULE, "aml_ldim");
+	devp->aml_ldim_clsp = class_create("aml_ldim");
 	if (IS_ERR(devp->aml_ldim_clsp)) {
 		ret = PTR_ERR(devp->aml_ldim_clsp);
 		return ret;

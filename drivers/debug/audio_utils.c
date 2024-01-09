@@ -15,8 +15,6 @@
 #include <linux/slab.h>
 #include <linux/file.h>
 
-#include <linux/amlogic/kernel_versions.h>
-
 #define DEVICE_NAME		"audio_utils"
 #define TEST_IOC_MAGIC		'T'
 #define TEST_IOC_SET_LIB_SIZE	_IOW(TEST_IOC_MAGIC, 0x00, uint32_t)
@@ -262,7 +260,6 @@ static const struct file_operations audio_utils_fops = {
 
 static struct class audio_utils_class = {
 	.name		= DEVICE_NAME,
-	KV_CLASS_DEF_OWNER
 };
 
 static int major;		/* major number we get from the kernel */

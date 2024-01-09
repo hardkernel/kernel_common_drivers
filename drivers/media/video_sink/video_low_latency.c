@@ -1804,8 +1804,8 @@ int proc_lowlatency_frame(u8 instance_id)
 }
 EXPORT_SYMBOL(proc_lowlatency_frame);
 
-ssize_t lowlatency_states_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t lowlatency_states_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t len = 0;
@@ -1864,8 +1864,8 @@ ssize_t lowlatency_states_show(KV_CLASS_CONST struct class *class,
 	return len;
 }
 
-ssize_t lowlatency_states_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t lowlatency_states_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int ret;

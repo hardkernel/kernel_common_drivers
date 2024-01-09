@@ -23,8 +23,9 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_gem_dma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include "meson_drv.h"
 #include "meson_crtc.h"
 #include "meson_plane.h"

@@ -24,7 +24,6 @@
 #include <linux/spinlock.h>
 #include <linux/device.h>
 /* Amlogic headers */
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 
 /* Local headers */
@@ -181,8 +180,8 @@ struct tvin_state_machine_ops_s *tvin_get_sm_ops(enum tvin_port_e port,
 }
 EXPORT_SYMBOL(tvin_get_sm_ops);
 
-static ssize_t frontend_names_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t frontend_names_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	size_t len = 0;
@@ -200,7 +199,7 @@ int __init tvin_common_init(void)
 {
 	int ret = 0;
 
-	tvcom_clsp = kv_class_create(THIS_MODULE, CLASS_NAME);
+	tvcom_clsp = class_create(CLASS_NAME);
 	if (!tvcom_clsp) {
 		pr_err("[tvin_com..]%s: create tvin common class error.\n",
 		       __func__);

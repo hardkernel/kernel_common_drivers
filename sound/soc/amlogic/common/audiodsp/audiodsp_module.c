@@ -21,7 +21,6 @@
 #include <linux/slab.h>
 #include <linux/reset.h>
 #include <linux/uaccess.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/utils/amstream.h>
 #include "audiodsp_module.h"
 #include <linux/dma-mapping.h>
@@ -79,8 +78,8 @@ struct audiodsp_pm_state_t {
 /* static struct audiodsp_pm_state_t pm_state; */
 
 #endif
-static ssize_t codec_fmt_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t codec_fmt_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	size_t ret = 0;
@@ -99,8 +98,8 @@ static const struct file_operations audiodsp_fops = {
 	.unlocked_ioctl = NULL,
 };
 
-static ssize_t codec_fatal_err_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t codec_fatal_err_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct audiodsp_priv *priv = audiodsp_privdata();
@@ -108,8 +107,8 @@ static ssize_t codec_fatal_err_show(KV_CLASS_CONST struct class *class,
 	return sprintf(buf, "%d\n", priv->decode_fatal_err);
 }
 
-static ssize_t codec_fatal_err_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t codec_fatal_err_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct audiodsp_priv *priv = audiodsp_privdata();
@@ -125,8 +124,8 @@ static ssize_t codec_fatal_err_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t digital_raw_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t digital_raw_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	char *pbuf = buf;
@@ -135,8 +134,8 @@ static ssize_t digital_raw_show(KV_CLASS_CONST struct class *class,
 	return pbuf - buf;
 }
 
-static ssize_t digital_raw_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr, const char *buf,
+static ssize_t digital_raw_store(const struct class *class,
+			const struct class_attribute *attr, const char *buf,
 			size_t count)
 {
 	pr_info("buf=%s\n", buf);
@@ -158,8 +157,8 @@ static unsigned char *codec_str[SUPPORT_TYPE_NUM] = {
 	"HIGH_SR_Stereo_PCM"
 };
 
-static ssize_t digital_codec_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t digital_codec_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	char *pbuf = buf;
@@ -168,8 +167,8 @@ static ssize_t digital_codec_show(KV_CLASS_CONST struct class *class,
 	return pbuf - buf;
 }
 
-static ssize_t digital_codec_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t digital_codec_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned int digital_codec = 0;
@@ -195,8 +194,8 @@ static ssize_t digital_codec_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t print_flag_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t print_flag_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	static const char * const dec_format[] = {
@@ -211,8 +210,8 @@ static ssize_t print_flag_show(KV_CLASS_CONST struct class *class,
 	return pbuf - buf;
 }
 
-static ssize_t print_flag_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t print_flag_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned int dec_opt = 0x1;
@@ -228,8 +227,8 @@ static ssize_t print_flag_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t dec_option_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dec_option_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	static const char * const dec_format[] = {
@@ -246,8 +245,8 @@ static ssize_t dec_option_show(KV_CLASS_CONST struct class *class,
 	return pbuf - buf;
 }
 
-static ssize_t dec_option_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dec_option_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned int dec_opt = 0x3;
@@ -273,8 +272,8 @@ static ssize_t dec_option_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t ac3_drc_control_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t ac3_drc_control_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	static const char * const drcmode[] = {
@@ -290,8 +289,8 @@ static ssize_t ac3_drc_control_show(KV_CLASS_CONST struct class *class,
 	return pbuf - buf;
 }
 
-static ssize_t ac3_drc_control_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t ac3_drc_control_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	char tmpbuf[128];
@@ -333,8 +332,8 @@ static ssize_t ac3_drc_control_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t dts_dec_control_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dts_dec_control_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	/* char *dmxmode[] = {"Lo/Ro","Lt/Rt"}; */
@@ -345,8 +344,8 @@ static ssize_t dts_dec_control_show(KV_CLASS_CONST struct class *class,
 	return pbuf - buf;
 }
 
-static ssize_t dts_dec_control_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dts_dec_control_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	char tmpbuf[128];
@@ -390,8 +389,8 @@ static ssize_t dts_dec_control_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t dsp_debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dsp_debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	char *pbuf = buf;
@@ -402,8 +401,8 @@ static ssize_t dsp_debug_show(KV_CLASS_CONST struct class *class,
 	return pbuf - buf;
 }
 
-static ssize_t dsp_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dsp_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	if (buf[0] == '0')
@@ -456,7 +455,6 @@ ATTRIBUTE_GROUPS(audiodsp_class);
 
 static struct class audiodsp_class = {
 	.name		= DSP_DRIVER_NAME,
-	KV_CLASS_DEF_OWNER
 	.class_groups	= audiodsp_class_groups,
 //	.class_attrs	= audiodsp_attrs,
 };

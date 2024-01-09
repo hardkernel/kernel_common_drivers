@@ -9,7 +9,6 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/ddr_cooling.h>
 #include <linux/amlogic/meson_cooldev.h>
 #include "thermal_core.h"
@@ -121,7 +120,7 @@ static unsigned long cdev_calc_next_state_by_temp(struct thermal_instance *insta
 	ddr_device = cdev->devdata;
 	max = ddr_device->ddr_status - 1;
 
-	kv_thermal_zone_get_trip(tz, instance->trip, &trip);
+	thermal_zone_get_trip(tz, instance->trip, &trip);
 	trip_temp = trip.temperature;
 	hyst = trip.hysteresis;
 

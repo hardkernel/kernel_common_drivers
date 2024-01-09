@@ -18,7 +18,6 @@
 #include <linux/io.h>
 #include <linux/compat.h>
 #include <linux/amlogic/secmon.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #define EFUSE_DEVICE_NAME   "efuse"
 #define EFUSE_CLASS_NAME    "efuse"
@@ -43,8 +42,8 @@ void __iomem *sharemem_output_base;
 unsigned int efuse_obj_cmd_status;
 
 #define  DEFINE_EFUSEKEY_SHOW_ATTR(keyname)	\
-	static ssize_t  keyname##_show(KV_CLASS_CONST  struct class *class, \
-				KV_CLASS_ATTR_CONST struct class_attribute *attr,	\
+	static ssize_t  keyname##_show(const  struct class *class, \
+				const struct class_attribute *attr,	\
 				char *buf)	\
 	{	\
 		ssize_t ret;	\
@@ -59,8 +58,8 @@ DEFINE_EFUSEKEY_SHOW_ATTR(usid)
 
 #ifndef EFUSE_READ_ONLY
 #define  DEFINE_EFUSEKEY_STORE_ATTR(keyname)	\
-	static ssize_t  keyname##_store(KV_CLASS_CONST struct class *class, \
-				KV_CLASS_ATTR_CONST struct class_attribute *attr,	\
+	static ssize_t  keyname##_store(const struct class *class, \
+				const struct class_attribute *attr,	\
 				const char *buf, size_t count)	\
 	{	\
 		ssize_t ret;	\
@@ -515,8 +514,8 @@ exit:
 	return ret;
 }
 
-static ssize_t userdata_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t userdata_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	char *op = NULL;
@@ -567,8 +566,8 @@ exit:
 }
 
 #ifndef EFUSE_READ_ONLY
-static ssize_t userdata_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t userdata_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t ret;
@@ -618,8 +617,8 @@ exit:
 }
 #endif
 
-static ssize_t amlogic_set_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t amlogic_set_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t ret;
@@ -660,8 +659,8 @@ exit:
 	return ret;
 }
 
-static ssize_t secureboot_check_show(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t secureboot_check_show(const struct class *cla,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t n = 0;
@@ -684,8 +683,8 @@ static ssize_t secureboot_check_show(KV_CLASS_CONST struct class *cla,
 	return n;
 }
 
-static ssize_t checkburn_show(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t checkburn_show(const struct class *cla,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t n = 0;
@@ -710,8 +709,8 @@ static ssize_t checkburn_show(KV_CLASS_CONST struct class *cla,
 	return n;
 }
 
-static ssize_t checkburn_store(KV_CLASS_CONST struct class *cla,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t checkburn_store(const struct class *cla,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t n = 0;
@@ -732,8 +731,8 @@ static ssize_t checkburn_store(KV_CLASS_CONST struct class *cla,
 	return count;
 }
 
-static ssize_t checklist_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t checklist_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int i;
@@ -1051,8 +1050,8 @@ static int char2hex(char *hex, void *bin, size_t binlen)
 	return k;
 }
 
-static ssize_t efuse_obj_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t efuse_obj_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int rc = -EINVAL;
@@ -1161,8 +1160,8 @@ static ssize_t efuse_obj_store(KV_CLASS_CONST struct class *class,
 	return rc;
 }
 
-static ssize_t efuse_obj_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t efuse_obj_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t len = 0;
@@ -1316,7 +1315,6 @@ static int efuse_probe(struct platform_device *pdev)
 	efuse_dev->reg_base = reg_base;
 	efuse_dev->secureboot_mask = secureboot_mask;
 	efuse_dev->cls.name = EFUSE_CLASS_NAME;
-	kv_set_class_owner(&efuse_dev->cls);
 	efuse_dev->cls.class_groups = efuse_class_groups;
 	ret = class_register(&efuse_dev->cls);
 	if (ret)

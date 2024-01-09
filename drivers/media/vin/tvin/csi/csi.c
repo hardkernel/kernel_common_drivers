@@ -19,7 +19,6 @@
 #include <linux/major.h>
 
 #include <linux/amlogic/media/mipi/am_mipi_csi2.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #include "../tvin_global.h"
 #include "../vdin/vdin_regs.h"
@@ -510,7 +509,7 @@ int __init amvdec_csi_init_module(void)
 
 	pr_info("%s:major %d\n", __func__, MAJOR(amcsi_devno));
 
-	amcsi_clsp = kv_class_create(THIS_MODULE, CLS_NAME);
+	amcsi_clsp = class_create(CLS_NAME);
 	if (IS_ERR(amcsi_clsp)) {
 		ret = PTR_ERR(amcsi_clsp);
 		pr_err("%s:failed to create class\n", __func__);

@@ -39,7 +39,6 @@
 #include <linux/kthread.h>
 #include <linux/highmem.h>
 #include <linux/freezer.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/v4l_util/videobuf-res.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -3182,7 +3181,7 @@ static const struct v4l2_subdev_ops gc2145_ops = {
 	.core = &gc2145_core_ops,
 };
 
-static int gc2145_probe(struct i2c_client *client KV_I2C_PROBE_ID)
+static int gc2145_probe(struct i2c_client *client)
 {
 	struct aml_cam_info_s *plat_dat;
 	int err;
@@ -3257,7 +3256,7 @@ static int gc2145_probe(struct i2c_client *client KV_I2C_PROBE_ID)
 	return 0;
 }
 
-static KV_I2C_REMOVE_TYPE gc2145_remove(struct i2c_client *client)
+static void gc2145_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct gc2145_device *t = to_dev(sd);
@@ -3269,8 +3268,6 @@ static KV_I2C_REMOVE_TYPE gc2145_remove(struct i2c_client *client)
 #endif
 	aml_cam_info_unreg(&t->cam_info);
 	kfree(t);
-
-	KV_I2C_REMOVE_RET(0);
 }
 
 static const struct i2c_device_id gc2145_id[] = {

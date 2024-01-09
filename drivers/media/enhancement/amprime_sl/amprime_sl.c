@@ -37,7 +37,6 @@
 
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/amprime_sl/prime_sl.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #include "amprime_sl.h"
 
@@ -1183,8 +1182,8 @@ static void dbg_metadata(struct sl_hdr_metadata *pmetadata)
 		pmetadata->sdr_display_min_luminance);
 }
 
-static ssize_t amprime_sl_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t amprime_sl_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	if (!buf)
@@ -1306,7 +1305,7 @@ static int amprime_sl_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto fail_alloc_region;
 
-	devp->clsp = kv_class_create(THIS_MODULE, AMPRIME_SL_CLASS_NAME);
+	devp->clsp = class_create(AMPRIME_SL_CLASS_NAME);
 	if (IS_ERR(devp->clsp)) {
 		ret = PTR_ERR(devp->clsp);
 		goto fail_create_class;

@@ -25,7 +25,6 @@
 #include <sound/soc-dai.h>
 #include <sound/control.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
 #endif
@@ -759,7 +758,7 @@ static int aml_card_init_jack(struct snd_soc_card *card,
 		state = gpiod_set_pull(gpio_to_desc(det), GPIOD_PULL_DIS);
 		if (state)
 			pr_err("set gpiod pull failed, ret %d\n", state);
-		kv_snd_soc_card_jack_new(card, pin_name, mask,
+		snd_soc_card_jack_new(card, pin_name, mask,
 					 &sjack->jack,
 					 &sjack->pin, 1);
 	} else {

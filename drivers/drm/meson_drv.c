@@ -27,7 +27,6 @@
 #include <drm/drm_rect.h>
 #include <drm/drm_fb_helper.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include "meson_fbdev.h"
 #ifdef CONFIG_AMLOGIC_DRM_USE_ION
 #include "meson_gem.h"
@@ -45,6 +44,8 @@
 #include <linux/amlogic/media/osd/osd_logo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/cpu_version.h>
+#include <drm/drm_gem_dma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include "meson_hdmi.h"
 
 #define DRIVER_NAME "meson"
@@ -285,7 +286,7 @@ static int am_meson_drm_bind(struct device *dev)
 	drm->mode_config.max_height = max_height;
 	drm->mode_config.funcs = &meson_mode_config_funcs;
 	drm->mode_config.helper_private	= &meson_mode_config_helpers;
-	kv_set_drm_allow_fb_modifiers(drm, true);
+	drm->mode_config.fb_modifiers_not_supported = !true;
 
 	if (recovery_mode)
 		priv->recovery_mode = true;

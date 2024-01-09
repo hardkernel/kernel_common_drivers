@@ -11,7 +11,6 @@
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/meson_cooldev.h>
 #include "cpucore_cooling.h"
 #include "thermal_core.h"
@@ -143,7 +142,7 @@ static int calculate_hotstep(struct thermal_instance *instance)
 
 	cpucore_dev = cdev->devdata;
 
-	kv___thermal_zone_get_trip(tz, instance->trip, &trip);
+	__thermal_zone_get_trip(tz, instance->trip, &trip);
 	trip_temp = trip.temperature;
 	hyst = trip.hysteresis;
 

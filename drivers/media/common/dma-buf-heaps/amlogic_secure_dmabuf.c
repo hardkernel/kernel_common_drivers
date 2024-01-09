@@ -14,8 +14,8 @@
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/iosys-map.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/codec_mm/dmabuf_manage.h>
 #include <linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h>
@@ -315,13 +315,13 @@ out:
 	return ret;
 }
 
-static int secure_heap_vmap(struct dma_buf *dmabuf, struct kv_drm_vmap_map *map)
+static int secure_heap_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
 	pr_enter();
 	return 0;
 }
 
-static void secure_heap_vunmap(struct dma_buf *dmabuf, struct kv_drm_vmap_map *map)
+static void secure_heap_vunmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
 	pr_enter();
 }

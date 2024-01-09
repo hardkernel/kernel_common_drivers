@@ -26,7 +26,6 @@
 #include <linux/delay.h>
 #include <linux/sched/clock.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/codec_mm/codec_mm_scatter.h>
 #include <linux/amlogic/media/codec_mm/codec_mm_state.h>
@@ -3203,8 +3202,8 @@ static int __init amstream_test_init(void)
 	return 0;
 }
 
-static ssize_t codec_mm_dump_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t codec_mm_dump_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	size_t ret = 0;
@@ -3213,8 +3212,8 @@ static ssize_t codec_mm_dump_show(KV_CLASS_CONST struct class *class,
 	return ret;
 }
 
-static ssize_t codec_mm_scatter_dump_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t codec_mm_scatter_dump_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	size_t ret;
@@ -3223,8 +3222,8 @@ static ssize_t codec_mm_scatter_dump_show(KV_CLASS_CONST struct class *class,
 	return ret;
 }
 
-static ssize_t codec_mm_keeper_dump_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t codec_mm_keeper_dump_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	size_t ret;
@@ -3233,8 +3232,8 @@ static ssize_t codec_mm_keeper_dump_show(KV_CLASS_CONST struct class *class,
 	return ret;
 }
 
-static ssize_t tvp_enable_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t tvp_enable_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t size = 0;
@@ -3256,8 +3255,8 @@ static ssize_t tvp_enable_show(KV_CLASS_CONST struct class *class,
 	return size;
 }
 
-static ssize_t tvp_enable_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t tvp_enable_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t size)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
@@ -3306,8 +3305,8 @@ static ssize_t tvp_enable_store(KV_CLASS_CONST struct class *class,
 	return size;
 }
 
-static ssize_t fastplay_enable_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t fastplay_enable_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t size = 0;
@@ -3320,8 +3319,8 @@ static ssize_t fastplay_enable_show(KV_CLASS_CONST struct class *class,
 	return size;
 }
 
-static ssize_t fastplay_enable_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t fastplay_enable_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t size)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
@@ -3351,8 +3350,8 @@ static ssize_t fastplay_enable_store(KV_CLASS_CONST struct class *class,
 	return size;
 }
 
-static ssize_t config_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t config_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t ret;
@@ -3362,8 +3361,8 @@ static ssize_t config_show(KV_CLASS_CONST struct class *class,
 	return ret;
 }
 
-static ssize_t config_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t config_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t size)
 {
 	int ret;
@@ -3374,8 +3373,8 @@ static ssize_t config_store(KV_CLASS_CONST struct class *class,
 	return size;
 }
 
-static ssize_t tvp_region_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t tvp_region_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	size_t ret;
@@ -3395,8 +3394,8 @@ static ssize_t tvp_region_show(KV_CLASS_CONST struct class *class,
 	return off;
 }
 
-static ssize_t debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t size = 0;
@@ -3474,8 +3473,8 @@ static int codec_mm_mem_dump(unsigned long addr, int isphy, int len)
 	return 0;
 }
 
-static ssize_t debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t size)
 {
 	unsigned int val;
@@ -3544,8 +3543,8 @@ static ssize_t debug_store(KV_CLASS_CONST struct class *class,
 
 }
 
-static ssize_t debug_sc_mode_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_sc_mode_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t size = 0;
@@ -3555,8 +3554,8 @@ static ssize_t debug_sc_mode_show(KV_CLASS_CONST struct class *class,
 	return size;
 }
 
-static ssize_t debug_sc_mode_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_sc_mode_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t size)
 {
 	unsigned int val;
@@ -3572,8 +3571,8 @@ static ssize_t debug_sc_mode_store(KV_CLASS_CONST struct class *class,
 	return size;
 }
 
-static ssize_t debug_keep_mode_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_keep_mode_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t size = 0;
@@ -3583,8 +3582,8 @@ static ssize_t debug_keep_mode_show(KV_CLASS_CONST struct class *class,
 	return size;
 }
 
-static ssize_t debug_keep_mode_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_keep_mode_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t size)
 {
 	unsigned int val;
@@ -3701,8 +3700,8 @@ int codec_mm_get_scatter_watermark(void)
 	return mgt->codec_mm_scatter_watermark;
 }
 
-static ssize_t dbuf_trace_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dbuf_trace_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
@@ -3714,8 +3713,8 @@ static ssize_t dbuf_trace_show(KV_CLASS_CONST struct class *class,
 	return pbuf - buf;
 }
 
-static ssize_t dbuf_trace_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dbuf_trace_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t size)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
@@ -3736,8 +3735,8 @@ static ssize_t dbuf_trace_store(KV_CLASS_CONST struct class *class,
 	return size;
 }
 
-static ssize_t dbuf_dump_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dbuf_dump_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	codec_mm_dbuf_walk(NULL);
@@ -3745,8 +3744,8 @@ static ssize_t dbuf_dump_show(KV_CLASS_CONST struct class *class,
 	return 0;
 }
 
-static ssize_t dbuf_dump_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dbuf_dump_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t size)
 {
 	u32 val = UINT_MAX;

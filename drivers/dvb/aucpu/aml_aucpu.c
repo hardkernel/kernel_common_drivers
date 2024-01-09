@@ -32,7 +32,6 @@
 #include <linux/sysfs.h>
 
 #include <linux/amlogic/secmon.h>
-#include <linux/amlogic/kernel_versions.h>
 #include "aml_aucpu.h"
 
 #define AUCPU_PLATFORM_DEVICE_NAME "aml_aucpu"
@@ -1125,8 +1124,8 @@ static const struct file_operations aucpu_fops = {
 #endif
 };
 
-static ssize_t aucpu_status_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t aucpu_status_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	char *pbuf = buf;

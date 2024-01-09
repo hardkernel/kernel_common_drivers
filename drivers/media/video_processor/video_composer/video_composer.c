@@ -24,7 +24,6 @@
 #include <linux/uaccess.h>
 #include <linux/file.h>
 #include <uapi/linux/sched/types.h>
-#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
@@ -4552,8 +4551,8 @@ static int parse_para(const char *para, int para_num, int *result)
 	return count;
 }
 
-static ssize_t debug_crop_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_crop_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4561,8 +4560,8 @@ static ssize_t debug_crop_pip_show(KV_CLASS_CONST struct class *class,
 			debug_crop_pip);
 }
 
-static ssize_t debug_crop_pip_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_crop_pip_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4577,8 +4576,8 @@ static ssize_t debug_crop_pip_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t debug_axis_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_axis_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4586,8 +4585,8 @@ static ssize_t debug_axis_pip_show(KV_CLASS_CONST struct class *class,
 			debug_axis_pip);
 }
 
-static ssize_t debug_axis_pip_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t debug_axis_pip_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4602,8 +4601,8 @@ static ssize_t debug_axis_pip_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t dump_vframe_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_vframe_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4611,8 +4610,8 @@ static ssize_t dump_vframe_show(KV_CLASS_CONST struct class *class,
 			dump_vframe);
 }
 
-static ssize_t dump_vframe_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_vframe_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4627,8 +4626,8 @@ static ssize_t dump_vframe_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t force_composer_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t force_composer_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4636,8 +4635,8 @@ static ssize_t force_composer_show(KV_CLASS_CONST struct class *class,
 			force_composer);
 }
 
-static ssize_t force_composer_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t force_composer_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4652,8 +4651,8 @@ static ssize_t force_composer_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t force_composer_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t force_composer_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4661,8 +4660,8 @@ static ssize_t force_composer_pip_show(KV_CLASS_CONST struct class *class,
 			force_composer_pip);
 }
 
-static ssize_t force_composer_pip_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t force_composer_pip_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4677,8 +4676,8 @@ static ssize_t force_composer_pip_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t transform_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t transform_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4686,8 +4685,8 @@ static ssize_t transform_show(KV_CLASS_CONST struct class *class,
 			transform);
 }
 
-static ssize_t transform_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t transform_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4702,8 +4701,8 @@ static ssize_t transform_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vidc_debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vidc_debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4711,8 +4710,8 @@ static ssize_t vidc_debug_show(KV_CLASS_CONST struct class *class,
 			vidc_debug);
 }
 
-static ssize_t vidc_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vidc_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4727,8 +4726,8 @@ static ssize_t vidc_debug_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vidc_pattern_debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vidc_pattern_debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4736,8 +4735,8 @@ static ssize_t vidc_pattern_debug_show(KV_CLASS_CONST struct class *class,
 			vidc_pattern_debug);
 }
 
-static ssize_t vidc_pattern_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vidc_pattern_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4752,8 +4751,8 @@ static ssize_t vidc_pattern_debug_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t print_flag_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t print_flag_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4761,8 +4760,8 @@ static ssize_t print_flag_show(KV_CLASS_CONST struct class *class,
 			print_flag);
 }
 
-static ssize_t print_flag_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t print_flag_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4777,8 +4776,8 @@ static ssize_t print_flag_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t full_axis_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t full_axis_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4786,8 +4785,8 @@ static ssize_t full_axis_show(KV_CLASS_CONST struct class *class,
 			full_axis);
 }
 
-static ssize_t full_axis_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t full_axis_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4802,8 +4801,8 @@ static ssize_t full_axis_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t print_close_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t print_close_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4811,8 +4810,8 @@ static ssize_t print_close_show(KV_CLASS_CONST struct class *class,
 			print_close);
 }
 
-static ssize_t print_close_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t print_close_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4827,8 +4826,8 @@ static ssize_t print_close_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t receive_wait_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t receive_wait_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4836,8 +4835,8 @@ static ssize_t receive_wait_show(KV_CLASS_CONST struct class *class,
 			receive_wait);
 }
 
-static ssize_t receive_wait_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t receive_wait_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4852,8 +4851,8 @@ static ssize_t receive_wait_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t margin_time_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t margin_time_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4861,8 +4860,8 @@ static ssize_t margin_time_show(KV_CLASS_CONST struct class *class,
 			margin_time);
 }
 
-static ssize_t margin_time_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t margin_time_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4877,8 +4876,8 @@ static ssize_t margin_time_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t max_width_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t max_width_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4886,8 +4885,8 @@ static ssize_t max_width_show(KV_CLASS_CONST struct class *class,
 			max_width);
 }
 
-static ssize_t max_width_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t max_width_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4902,8 +4901,8 @@ static ssize_t max_width_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t max_height_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t max_height_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4911,8 +4910,8 @@ static ssize_t max_height_show(KV_CLASS_CONST struct class *class,
 			max_height);
 }
 
-static ssize_t max_height_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t max_height_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4927,8 +4926,8 @@ static ssize_t max_height_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t rotate_width_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t rotate_width_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4936,8 +4935,8 @@ static ssize_t rotate_width_show(KV_CLASS_CONST struct class *class,
 			rotate_width);
 }
 
-static ssize_t rotate_width_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t rotate_width_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4952,8 +4951,8 @@ static ssize_t rotate_width_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t rotate_height_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t rotate_height_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4961,8 +4960,8 @@ static ssize_t rotate_height_show(KV_CLASS_CONST struct class *class,
 			rotate_height);
 }
 
-static ssize_t rotate_height_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t rotate_height_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -4977,8 +4976,8 @@ static ssize_t rotate_height_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t dewarp_rotate_width_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dewarp_rotate_width_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -4986,8 +4985,8 @@ static ssize_t dewarp_rotate_width_show(KV_CLASS_CONST struct class *class,
 			dewarp_rotate_width);
 }
 
-static ssize_t dewarp_rotate_width_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dewarp_rotate_width_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -5002,8 +5001,8 @@ static ssize_t dewarp_rotate_width_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t dewarp_rotate_height_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dewarp_rotate_height_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -5011,8 +5010,8 @@ static ssize_t dewarp_rotate_height_show(KV_CLASS_CONST struct class *class,
 			dewarp_rotate_height);
 }
 
-static ssize_t dewarp_rotate_height_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dewarp_rotate_height_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -5027,8 +5026,8 @@ static ssize_t dewarp_rotate_height_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t close_black_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t close_black_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -5036,8 +5035,8 @@ static ssize_t close_black_show(KV_CLASS_CONST struct class *class,
 			close_black);
 }
 
-static ssize_t close_black_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t close_black_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -5052,15 +5051,15 @@ static ssize_t close_black_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t composer_use_444_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t composer_use_444_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", composer_use_444);
 }
 
-static ssize_t composer_use_444_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t composer_use_444_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;
@@ -5075,15 +5074,15 @@ static ssize_t composer_use_444_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t reset_drop_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t reset_drop_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "reset_drop: %d\n", reset_drop);
 }
 
-static ssize_t reset_drop_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t reset_drop_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;
@@ -5096,8 +5095,8 @@ static ssize_t reset_drop_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t drop_cnt_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t drop_cnt_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf,
@@ -5110,8 +5109,8 @@ static ssize_t drop_cnt_show(KV_CLASS_CONST struct class *class,
 		drop_cnt + vpp_drop_count);
 }
 
-static ssize_t drop_cnt_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t drop_cnt_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf,
@@ -5122,57 +5121,57 @@ static ssize_t drop_cnt_pip_show(KV_CLASS_CONST struct class *class,
 		drop_cnt_pip);
 }
 
-static ssize_t receive_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t receive_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", receive_count);
 }
 
-static ssize_t receive_count_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t receive_count_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", receive_count_pip);
 }
 
-static ssize_t receive_new_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t receive_new_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", receive_new_count);
 }
 
-static ssize_t receive_new_count_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t receive_new_count_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", receive_new_count_pip);
 }
 
-static ssize_t total_get_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t total_get_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", total_get_count);
 }
 
-static ssize_t total_put_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t total_put_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", total_put_count);
 }
 
-static ssize_t nn_need_time_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t nn_need_time_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "nn_need_time: %lld\n", nn_need_time);
 }
 
-static ssize_t nn_need_time_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t nn_need_time_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;
@@ -5185,15 +5184,15 @@ static ssize_t nn_need_time_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t nn_margin_time_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t nn_margin_time_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "nn_margin_time: %lld\n", nn_margin_time);
 }
 
-static ssize_t nn_margin_time_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t nn_margin_time_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;
@@ -5206,15 +5205,15 @@ static ssize_t nn_margin_time_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t nn_bypass_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t nn_bypass_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "nn_bypass: %d\n", nn_bypass);
 }
 
-static ssize_t nn_bypass_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t nn_bypass_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;
@@ -5227,22 +5226,22 @@ static ssize_t nn_bypass_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t tv_fence_creat_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t tv_fence_creat_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "tv_fence_creat_count: %d\n", tv_fence_creat_count);
 }
 
-static ssize_t vd_pulldown_level_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vd_pulldown_level_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "vd_pulldown_level: %d\n", vd_pulldown_level);
 }
 
-static ssize_t vd_pulldown_level_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vd_pulldown_level_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;
@@ -5255,15 +5254,15 @@ static ssize_t vd_pulldown_level_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vd_max_hold_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vd_max_hold_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "vd_max_hold_count: %d\n", vd_max_hold_count);
 }
 
-static ssize_t vd_max_hold_count_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vd_max_hold_count_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;
@@ -5276,8 +5275,8 @@ static ssize_t vd_max_hold_count_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vd_set_frame_delay_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vd_set_frame_delay_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80, "vd_set_frame_delay: %d,%d,%d\n",
@@ -5285,8 +5284,8 @@ static ssize_t vd_set_frame_delay_show(KV_CLASS_CONST struct class *class,
 		vd_set_frame_delay[2]);
 }
 
-static ssize_t vd_set_frame_delay_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vd_set_frame_delay_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	if (likely(parse_para(buf, MAX_VIDEO_COMPOSER_INSTANCE_NUM,
@@ -5296,15 +5295,15 @@ static ssize_t vd_set_frame_delay_store(KV_CLASS_CONST struct class *class,
 	return -EINVAL;
 }
 
-static ssize_t vd_dump_vframe_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vd_dump_vframe_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "vd_dump_vframe: %d\n", vd_dump_vframe);
 }
 
-static ssize_t vd_dump_vframe_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vd_dump_vframe_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	ssize_t r;
@@ -5321,8 +5320,8 @@ static ssize_t vd_dump_vframe_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t actual_delay_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t actual_delay_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int val = (actual_delay_count[0] | (actual_delay_count[1] << 4)
@@ -5330,16 +5329,16 @@ static ssize_t actual_delay_count_show(KV_CLASS_CONST struct class *class,
 	return sprintf(buf, "%d\n", val);
 }
 
-static ssize_t vicp_output_dev_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vicp_output_dev_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
 		"1 mif, 2 fbc, 3 mif+fbc. current choice is %d.\n", vicp_output_dev);
 }
 
-static ssize_t vicp_output_dev_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vicp_output_dev_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -5354,16 +5353,16 @@ static ssize_t vicp_output_dev_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vicp_shrink_mode_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vicp_shrink_mode_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
 		"0 2x, 1 4x, 2 8x. current choice is %d.\n", vicp_shrink_mode);
 }
 
-static ssize_t vicp_shrink_mode_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vicp_shrink_mode_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -5378,15 +5377,15 @@ static ssize_t vicp_shrink_mode_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vicp_max_width_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vicp_max_width_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80, "current vicp_max_width is %d.\n", vicp_max_width);
 }
 
-static ssize_t vicp_max_width_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vicp_max_width_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -5401,15 +5400,15 @@ static ssize_t vicp_max_width_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vicp_max_height_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vicp_max_height_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80, "current vicp_max_height is %d.\n", vicp_max_height);
 }
 
-static ssize_t vicp_max_height_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vicp_max_height_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -5424,16 +5423,16 @@ static ssize_t vicp_max_height_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t composer_dev_choice_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t composer_dev_choice_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
 		"1 ge2d, 2 dewarp, 3 vicp. current choice is %d.\n", composer_dev_choice);
 }
 
-static ssize_t composer_dev_choice_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t composer_dev_choice_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -5448,16 +5447,16 @@ static ssize_t composer_dev_choice_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t force_comp_w_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t force_comp_w_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
 		"force_comp_w %d.\n", force_comp_w);
 }
 
-static ssize_t force_comp_w_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t force_comp_w_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -5472,16 +5471,16 @@ static ssize_t force_comp_w_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t force_comp_h_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t force_comp_h_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
 		"force_comp_h %d.\n", force_comp_h);
 }
 
-static ssize_t force_comp_h_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t force_comp_h_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -5496,8 +5495,8 @@ static ssize_t force_comp_h_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vd_test_fps_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vd_test_fps_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int i;
@@ -5515,8 +5514,8 @@ static ssize_t vd_test_fps_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vd_test_fps_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vd_test_fps_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int i = 0;
@@ -5535,15 +5534,15 @@ static ssize_t vd_test_fps_show(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t dewarp_load_flag_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dewarp_load_flag_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80, "current dewarp_load_flag is %d.\n", dewarp_load_flag);
 }
 
-static ssize_t dewarp_load_flag_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dewarp_load_flag_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -5559,15 +5558,15 @@ static ssize_t dewarp_load_flag_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t lossy_compress_rate_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t lossy_compress_rate_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80, "current lossy_compress_rate is %d.\n", lossy_compress_rate);
 }
 
-static ssize_t lossy_compress_rate_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t lossy_compress_rate_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;

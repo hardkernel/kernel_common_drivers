@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/amlogic/iomap.h>
-#include <linux/amlogic/kernel_versions.h>
 #include "aml_seckey_log.h"
 #include "aml_kt_dev.h"
 
@@ -1239,9 +1238,9 @@ static int aml_kt_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 
-	aml_kt_class = kv_class_create(THIS_MODULE, AML_KT_DEVICE_NAME);
+	aml_kt_class = class_create(AML_KT_DEVICE_NAME);
 	if (IS_ERR(aml_kt_class)) {
-		KT_LOGE("kv_class_create failed\n");
+		KT_LOGE("class_create failed\n");
 		ret = PTR_ERR(aml_kt_class);
 		return ret;
 	}

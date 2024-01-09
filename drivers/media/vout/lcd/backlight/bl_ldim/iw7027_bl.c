@@ -20,7 +20,6 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #include "../../lcd_common.h"
@@ -813,8 +812,8 @@ static int iw7027_config_update(struct aml_ldim_driver_s *ldim_drv)
 	return ret;
 }
 
-static ssize_t iw7027_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t iw7027_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
@@ -880,8 +879,8 @@ static ssize_t iw7027_show(KV_CLASS_CONST struct class *class,
 	return len;
 }
 
-static ssize_t iw7027_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t iw7027_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();

@@ -24,7 +24,6 @@
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/sched/clock.h>
-#include <linux/amlogic/kernel_versions.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 #include <linux/amlogic/media/frame_sync/timestamp.h>
 #include <linux/amlogic/media/frame_sync/tsync.h>
@@ -527,8 +526,8 @@ static void videosync_unregister(struct videosync_s *dev_s)
 #endif
 }
 
-static ssize_t dump_queue_state_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_queue_state_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int ret = 0;
@@ -566,8 +565,8 @@ static ssize_t dump_queue_state_show(KV_CLASS_CONST struct class *class,
 	return ret;
 }
 
-static ssize_t dump_pts_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_pts_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int ret = 0;
@@ -596,8 +595,8 @@ static ssize_t dump_pts_show(KV_CLASS_CONST struct class *class,
 	return ret;
 }
 
-static ssize_t dump_get_put_framecount_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_get_put_framecount_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int ret = 0;
@@ -626,8 +625,8 @@ static ssize_t dump_get_put_framecount_show(KV_CLASS_CONST struct class *class,
 	return ret;
 }
 
-static ssize_t dump_rect_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_rect_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int ret = 0;
@@ -660,8 +659,8 @@ static ssize_t dump_rect_show(KV_CLASS_CONST struct class *class,
 	return ret;
 }
 
-static ssize_t audio_mode_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t audio_mode_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -669,8 +668,8 @@ static ssize_t audio_mode_show(KV_CLASS_CONST struct class *class,
 			async_mode);
 }
 
-static ssize_t audio_mode_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t audio_mode_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -685,8 +684,8 @@ static ssize_t audio_mode_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t not_rendor_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t not_rendor_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -694,8 +693,8 @@ static ssize_t not_rendor_show(KV_CLASS_CONST struct class *class,
 			no_render);
 }
 
-static ssize_t not_rendor_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t not_rendor_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -710,8 +709,8 @@ static ssize_t not_rendor_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t current_omx_index_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t current_omx_index_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -719,8 +718,8 @@ static ssize_t current_omx_index_show(KV_CLASS_CONST struct class *class,
 			cur_omx_index);
 }
 
-static ssize_t current_omx_index_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t current_omx_index_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -735,8 +734,8 @@ static ssize_t current_omx_index_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vpts_align_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vpts_align_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -744,8 +743,8 @@ static ssize_t vpts_align_show(KV_CLASS_CONST struct class *class,
 			vsync_pts_align);
 }
 
-static ssize_t vpts_align_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vpts_align_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -760,8 +759,8 @@ static ssize_t vpts_align_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t first_frame_nosync_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t first_frame_nosync_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -769,8 +768,8 @@ static ssize_t first_frame_nosync_show(KV_CLASS_CONST struct class *class,
 			show_first_frame_nosync);
 }
 
-static ssize_t first_frame_nosync_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t first_frame_nosync_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -785,8 +784,8 @@ static ssize_t first_frame_nosync_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t delata_time_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t delata_time_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -794,8 +793,8 @@ static ssize_t delata_time_show(KV_CLASS_CONST struct class *class,
 			max_delata_time);
 }
 
-static ssize_t delata_time_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t delata_time_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -810,8 +809,8 @@ static ssize_t delata_time_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t no_sync_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t no_sync_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -819,8 +818,8 @@ static ssize_t no_sync_show(KV_CLASS_CONST struct class *class,
 			show_nosync);
 }
 
-static ssize_t no_sync_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t no_sync_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -835,8 +834,8 @@ static ssize_t no_sync_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t is_smooth_sync_enable_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t is_smooth_sync_enable_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -844,8 +843,8 @@ static ssize_t is_smooth_sync_enable_show(KV_CLASS_CONST struct class *class,
 			smooth_sync_enable);
 }
 
-static ssize_t is_smooth_sync_enable_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t is_smooth_sync_enable_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -860,8 +859,8 @@ static ssize_t is_smooth_sync_enable_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vp_debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vp_debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -869,8 +868,8 @@ static ssize_t vp_debug_show(KV_CLASS_CONST struct class *class,
 			vp_debug_flag);
 }
 
-static ssize_t vp_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vp_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -885,8 +884,8 @@ static ssize_t vp_debug_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t gcd_duration_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t gcd_duration_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -894,8 +893,8 @@ static ssize_t gcd_duration_show(KV_CLASS_CONST struct class *class,
 			duration_gcd);
 }
 
-static ssize_t gcd_duration_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t gcd_duration_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -910,8 +909,8 @@ static ssize_t gcd_duration_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t pts_enforce_pull_down_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t pts_enforce_pull_down_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -919,8 +918,8 @@ static ssize_t pts_enforce_pull_down_show(KV_CLASS_CONST struct class *class,
 			pts_enforce_pulldown);
 }
 
-static ssize_t pts_enforce_pull_down_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t pts_enforce_pull_down_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;

@@ -25,7 +25,6 @@
 #include <linux/amlogic/pm.h>
 #include <linux/uaccess.h>
 #include <linux/pci.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/aml_sd.h>
 #include <linux/printk.h>
 #ifdef CONFIG_AMLOGIC_PWM_32K
@@ -467,8 +466,8 @@ static long wifi_power_ioctl(struct file *filp,
 }
 
 static struct class *wifi_dt_class;
-static ssize_t power_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t power_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *_buf)
 {
 	if (!_buf)
@@ -480,8 +479,8 @@ static ssize_t power_show(KV_CLASS_CONST struct class *class,
 		"2=power down\n");
 }
 
-static ssize_t power_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t power_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int ret = -EINVAL;
@@ -534,7 +533,6 @@ static const struct file_operations wifi_mac_fops = {
 
 static struct class wifi_power_class = {
 	.name		= WIFI_POWER_CLASS_NAME,
-	KV_CLASS_DEF_OWNER
 };
 
 static int wifi_setup_dt(void)
@@ -939,7 +937,7 @@ static int wifi_dev_probe(struct platform_device *pdev)
 
 	wifi_setup_dt();
 
-	wifi_dt_class = kv_class_create(THIS_MODULE, "aml_wifi");
+	wifi_dt_class = class_create("aml_wifi");
 	ret = class_create_file(wifi_dt_class, &class_attr_power);
 	/********wifi rand mac***********/
 	ret = alloc_chrdev_region(&wifi_mac_devno, 0, 1, WIFI_MAC_DEVICE_NAME);

@@ -20,7 +20,6 @@
 #include <linux/arm-smccc.h>
 #include "dolby_fw.h"
 #include <linux/amlogic/secmon.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #define DOLBY_FW_DEVICE_NAME   "dolby_fw"
 #define DOLBY_FW_DRIVER_NAME   "dolby_fw"
@@ -486,7 +485,7 @@ static int dolby_fw_probe(struct platform_device *pdev)
 	}
 	major_id = ret;
 
-	class_dolby_fw = kv_class_create(THIS_MODULE, DOLBY_FW_DEVICE_NAME);
+	class_dolby_fw = class_create(DOLBY_FW_DEVICE_NAME);
 	if (IS_ERR(class_dolby_fw)) {
 		ret = PTR_ERR(class_dolby_fw);
 		goto err1;

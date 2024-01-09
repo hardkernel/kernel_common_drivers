@@ -46,7 +46,6 @@
 #include "lcd_common.h"
 
 #include <linux/amlogic/gki_module.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #define LCD_CDEV_NAME  "lcd"
 
@@ -1538,7 +1537,7 @@ static int lcd_global_init_once(struct platform_device *pdev)
 		goto lcd_cdev_init_once_err;
 	}
 
-	lcd_cdev->class = kv_class_create(THIS_MODULE, "aml_lcd");
+	lcd_cdev->class = class_create("aml_lcd");
 	if (IS_ERR_OR_NULL(lcd_cdev->class)) {
 		ret = 2;
 		goto lcd_cdev_init_once_err_1;

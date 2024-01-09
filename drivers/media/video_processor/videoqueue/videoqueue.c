@@ -20,7 +20,6 @@
 #include <linux/compat.h>
 #include <linux/delay.h>
 #include <uapi/linux/sched/types.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
@@ -1188,8 +1187,8 @@ static const struct vframe_receiver_op_s video_vf_receiver = {
 	.event_cb = video_receiver_event_fun
 };
 
-static ssize_t print_close_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t print_close_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -1197,8 +1196,8 @@ static ssize_t print_close_show(KV_CLASS_CONST struct class *class,
 			print_close);
 }
 
-static ssize_t print_close_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t print_close_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -1213,8 +1212,8 @@ static ssize_t print_close_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t print_flag_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t print_flag_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -1222,8 +1221,8 @@ static ssize_t print_flag_show(KV_CLASS_CONST struct class *class,
 			print_flag);
 }
 
-static ssize_t print_flag_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t print_flag_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -1238,8 +1237,8 @@ static ssize_t print_flag_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t buf_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t buf_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_dev)
@@ -1250,8 +1249,8 @@ static ssize_t buf_count_show(KV_CLASS_CONST struct class *class,
 			vq_dev->di_get_count, vq_dev->di_put_count);
 }
 
-static ssize_t dump_index_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_index_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_dev)
@@ -1260,8 +1259,8 @@ static ssize_t dump_index_show(KV_CLASS_CONST struct class *class,
 			vq_dev->dump_index);
 }
 
-static ssize_t dump_index_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_index_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -1280,8 +1279,8 @@ static ssize_t dump_index_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t delay_vsync_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t delay_vsync_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_dev)
@@ -1291,8 +1290,8 @@ static ssize_t delay_vsync_show(KV_CLASS_CONST struct class *class,
 			vq_dev->delay_vsync_count);
 }
 
-static ssize_t delay_vsync_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t delay_vsync_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -1311,8 +1310,8 @@ static ssize_t delay_vsync_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vframe_get_delay_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vframe_get_delay_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_dev)
@@ -1322,8 +1321,8 @@ static ssize_t vframe_get_delay_show(KV_CLASS_CONST struct class *class,
 			vq_dev->vframe_get_delay);
 }
 
-static ssize_t force_delay_ms_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t force_delay_ms_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -1331,8 +1330,8 @@ static ssize_t force_delay_ms_show(KV_CLASS_CONST struct class *class,
 			force_delay_ms);
 }
 
-static ssize_t force_delay_ms_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t force_delay_ms_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -1351,8 +1350,8 @@ static ssize_t force_delay_ms_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t game_mode_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t game_mode_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_dev)
@@ -1361,8 +1360,8 @@ static ssize_t game_mode_show(KV_CLASS_CONST struct class *class,
 			vq_dev->game_mode);
 }
 
-static ssize_t game_mode_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t game_mode_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	bool tmp;
@@ -1381,8 +1380,8 @@ static ssize_t game_mode_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t force_game_mode_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t force_game_mode_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_dev)
@@ -1392,8 +1391,8 @@ static ssize_t force_game_mode_show(KV_CLASS_CONST struct class *class,
 			vq_dev->force_game_mode);
 }
 
-static ssize_t force_game_mode_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t force_game_mode_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -1412,8 +1411,8 @@ static ssize_t force_game_mode_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t fence_dq_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t fence_dq_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_dev)
@@ -1423,8 +1422,8 @@ static ssize_t fence_dq_count_show(KV_CLASS_CONST struct class *class,
 			vq_dev->fence_dq_count);
 }
 
-static ssize_t fence_put_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t fence_put_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_dev)
@@ -1434,8 +1433,8 @@ static ssize_t fence_put_count_show(KV_CLASS_CONST struct class *class,
 			vq_dev->fence_put_count);
 }
 
-static ssize_t fence_null_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t fence_null_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_dev)
@@ -1445,8 +1444,8 @@ static ssize_t fence_null_count_show(KV_CLASS_CONST struct class *class,
 			vq_dev->fence_null_count);
 }
 
-static ssize_t resync_open_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t resync_open_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_dev)
@@ -1456,8 +1455,8 @@ static ssize_t resync_open_show(KV_CLASS_CONST struct class *class,
 			vq_dev->resync_open);
 }
 
-static ssize_t resync_open_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t resync_open_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -1476,8 +1475,8 @@ static ssize_t resync_open_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t unknown_check_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t unknown_check_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_dev)
@@ -1487,8 +1486,8 @@ static ssize_t unknown_check_show(KV_CLASS_CONST struct class *class,
 			vq_dev->unknown_check);
 }
 
-static ssize_t unknown_check_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t unknown_check_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -1507,8 +1506,8 @@ static ssize_t unknown_check_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t buf_count_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t buf_count_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_pip_dev)
@@ -1519,8 +1518,8 @@ static ssize_t buf_count_pip_show(KV_CLASS_CONST struct class *class,
 			vq_pip_dev->di_get_count, vq_pip_dev->di_put_count);
 }
 
-static ssize_t dump_index_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_index_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_pip_dev)
@@ -1529,8 +1528,8 @@ static ssize_t dump_index_pip_show(KV_CLASS_CONST struct class *class,
 			vq_pip_dev->dump_index);
 }
 
-static ssize_t dump_index_pip_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t dump_index_pip_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -1549,8 +1548,8 @@ static ssize_t dump_index_pip_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t vframe_get_delay_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t vframe_get_delay_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_pip_dev)
@@ -1560,8 +1559,8 @@ static ssize_t vframe_get_delay_pip_show(KV_CLASS_CONST struct class *class,
 			vq_pip_dev->vframe_get_delay);
 }
 
-static ssize_t game_mode_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t game_mode_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_pip_dev)
@@ -1571,8 +1570,8 @@ static ssize_t game_mode_pip_show(KV_CLASS_CONST struct class *class,
 			vq_pip_dev->game_mode);
 }
 
-static ssize_t game_mode_pip_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t game_mode_pip_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	bool tmp;
@@ -1591,8 +1590,8 @@ static ssize_t game_mode_pip_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t force_game_mode_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t force_game_mode_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_pip_dev)
@@ -1602,8 +1601,8 @@ static ssize_t force_game_mode_pip_show(KV_CLASS_CONST struct class *class,
 			vq_pip_dev->force_game_mode);
 }
 
-static ssize_t force_game_mode_pip_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t force_game_mode_pip_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -1622,8 +1621,8 @@ static ssize_t force_game_mode_pip_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t fence_dq_count_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t fence_dq_count_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_pip_dev)
@@ -1633,8 +1632,8 @@ static ssize_t fence_dq_count_pip_show(KV_CLASS_CONST struct class *class,
 			vq_pip_dev->fence_dq_count);
 }
 
-static ssize_t fence_put_count_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t fence_put_count_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_pip_dev)
@@ -1644,8 +1643,8 @@ static ssize_t fence_put_count_pip_show(KV_CLASS_CONST struct class *class,
 			vq_pip_dev->fence_put_count);
 }
 
-static ssize_t fence_null_count_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t fence_null_count_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_pip_dev)
@@ -1655,8 +1654,8 @@ static ssize_t fence_null_count_pip_show(KV_CLASS_CONST struct class *class,
 			vq_pip_dev->fence_null_count);
 }
 
-static ssize_t resync_open_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t resync_open_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_pip_dev)
@@ -1666,8 +1665,8 @@ static ssize_t resync_open_pip_show(KV_CLASS_CONST struct class *class,
 			vq_pip_dev->resync_open);
 }
 
-static ssize_t resync_open_pip_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t resync_open_pip_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -1686,8 +1685,8 @@ static ssize_t resync_open_pip_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t unknown_check_pip_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t unknown_check_pip_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	if (!vq_pip_dev)
@@ -1697,8 +1696,8 @@ static ssize_t unknown_check_pip_show(KV_CLASS_CONST struct class *class,
 			vq_pip_dev->unknown_check);
 }
 
-static ssize_t unknown_check_pip_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t unknown_check_pip_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;

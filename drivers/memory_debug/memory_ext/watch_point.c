@@ -40,7 +40,6 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/watch_point.h>
 #include <linux/sched/debug.h>
 #include <asm/hw_breakpoint.h>
@@ -524,15 +523,15 @@ void aml_watch_point_remove(unsigned long addr)
 }
 EXPORT_SYMBOL(aml_watch_point_remove);
 
-static ssize_t watch_addr_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t watch_addr_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return dump_watch_point_reg(buf);
 }
 
-static ssize_t watch_addr_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t watch_addr_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	unsigned long addr;
@@ -550,8 +549,8 @@ static ssize_t watch_addr_store(KV_CLASS_CONST struct class *class,
 }
 static CLASS_ATTR_RW(watch_addr);
 
-static ssize_t num_watch_points_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t num_watch_points_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", awp->num_watch_points);
@@ -579,8 +578,8 @@ static void aml_watch_point_clear(int idx)
 		unregister_wide_hw_breakpoint(event);
 }
 
-static ssize_t clear_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t clear_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int i;
@@ -609,15 +608,15 @@ static CLASS_ATTR_WO(clear);
 
 unsigned long test;
 EXPORT_SYMBOL(test);
-static ssize_t test_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t test_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "addr=%lx, value=%lx\n", (unsigned long)&test, test);
 }
 
-static ssize_t test_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t test_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	int ret;
@@ -641,7 +640,6 @@ ATTRIBUTE_GROUPS(watch_point_class);
 
 static struct class watch_point_class = {
 	.name		= "watch_point",
-	KV_CLASS_DEF_OWNER
 	.class_groups	= watch_point_class_groups,
 };
 

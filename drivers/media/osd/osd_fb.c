@@ -42,7 +42,6 @@
 //#include <linux/dma-contiguous.h>
 #include <linux/clk.h>
 /* media module used media/registers/cpu_version.h since kernel 5.4 */
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
 /* Amlogic Headers */
 #include <linux/amlogic/media/osd/osd_logo.h>
@@ -1916,7 +1915,7 @@ static ssize_t osd_read(struct fb_info *info, char __user *buf,
 			break;
 		}
 
-		kv_fb_memcpy_fromfb(dst, src, c);
+		fb_memcpy_fromio(dst, src, c);
 		dst += c;
 		src += c;
 
@@ -2062,7 +2061,7 @@ static ssize_t osd_write(struct fb_info *info,
 			break;
 		}
 
-		kv_fb_memcpy_tofb(dst, src, c);
+		fb_memcpy_toio(dst, src, c);
 		dst += c;
 		*ppos += c;
 		buf += c;

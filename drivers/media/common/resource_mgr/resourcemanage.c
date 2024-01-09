@@ -26,7 +26,6 @@
 #include <linux/jiffies.h>
 #include <linux/compat.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #include "resourcemanage.h"
 #define RESMAM_ENABLE_JSON  (1)
@@ -1938,8 +1937,8 @@ static long resman_ioctl_release_all(struct resman_session *sess,
 	size += snprintf(buf + size, PAGE_SIZE - size, format, args); \
 }
 
-static ssize_t usage_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t usage_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct list_head *pos1, *tmp1;
@@ -2002,8 +2001,8 @@ static ssize_t usage_show(KV_CLASS_CONST struct class *class,
 	return size;
 }
 
-static ssize_t config_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t config_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t size = 0;
@@ -2012,8 +2011,8 @@ static ssize_t config_show(KV_CLASS_CONST struct class *class,
 	return size;
 }
 
-static ssize_t config_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t config_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t size)
 {
 	all_resource_uninit();
@@ -2025,8 +2024,8 @@ static ssize_t config_store(KV_CLASS_CONST struct class *class,
 	return size;
 }
 
-static ssize_t ver_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t ver_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t size = 0;
@@ -2035,8 +2034,8 @@ static ssize_t ver_show(KV_CLASS_CONST struct class *class,
 	return RESMAN_VERSION;
 }
 
-static ssize_t res_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t res_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t size = 0;
@@ -2065,8 +2064,8 @@ static ssize_t res_show(KV_CLASS_CONST struct class *class,
 	return size;
 }
 
-static ssize_t res_report_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t res_report_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct resman_session *sess = NULL;
@@ -2266,7 +2265,7 @@ int __init resman_init(void)
 		return result;
 	}
 
-	resman_class = kv_class_create(THIS_MODULE, DEVICE_CLASS_NAME);
+	resman_class = class_create(DEVICE_CLASS_NAME);
 
 	if (IS_ERR(resman_class)) {
 		result = PTR_ERR(resman_class);

@@ -31,7 +31,6 @@
 #include <linux/vmalloc.h>
 #include <linux/acpi.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include "usbci.h"
 #include "usb_ci.h"
 
@@ -801,8 +800,8 @@ static struct usb_class_driver aml_usbcam_media_class = {
 	.minor_base = USBCAM_MEDIA_MINOR_BASE,
 };
 
-static ssize_t usb_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t usb_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	int ret;
@@ -830,7 +829,6 @@ static int aml_usbcam_register_class(void)
 		return -ENOMEM;
 
 	snprintf((char *)clp.name, CLASS_NAME_LEN, "amlusbcam-%d", 0);
-	kv_set_class_owner(&clp);
 	clp.class_groups = aml_usbcam_groups;
 	ret = class_register(&clp);
 	if (ret)

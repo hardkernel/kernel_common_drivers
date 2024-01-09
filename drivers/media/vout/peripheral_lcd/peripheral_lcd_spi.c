@@ -16,7 +16,6 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vout/peripheral_lcd.h>
 #include "peripheral_lcd_drv.h"
 
@@ -151,7 +150,7 @@ static int plcd_spi_dev_probe(struct spi_device *spi)
 	return ret;
 }
 
-static KV_SPI_REMOVE_TYPE plcd_spi_dev_remove(struct spi_device *spi)
+static void plcd_spi_dev_remove(struct spi_device *spi)
 {
 	// struct per_lcd_driver_s *plcd_drv = peripheral_lcd_get_driver();
 
@@ -160,8 +159,6 @@ static KV_SPI_REMOVE_TYPE plcd_spi_dev_remove(struct spi_device *spi)
 
 	plcd_drv->pcfg->spi_cfg.spi_dev = NULL;
 	dev_set_drvdata(&spi->dev, NULL);
-	
-	KV_SPI_REMOVE_RET(0);
 }
 
 static struct spi_driver plcd_spi_dev_driver = {

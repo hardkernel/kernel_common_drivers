@@ -35,7 +35,6 @@
 #include <linux/regmap.h>
 #include <linux/of_gpio.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include "ad82128.h"
 
 // Define how often to check (and clear) the fault status register (in ms)
@@ -700,7 +699,6 @@ static const struct snd_soc_component_driver soc_component_dev_ad82128 = {
 	.use_pmdown_time = 1,
 	.endianness = 1,
 	//KV_TODO: modify .legacy_dai_naming
-	KV_SND_SOC_DRIVER_DEF_NON_LEGACY_NAMEING(1)
 };
 
 /* PCM rates supported by the AD82128 driver */
@@ -787,15 +785,14 @@ static const struct i2c_device_id ad82128_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ad82128_id);
 
-static int ad82128_probe(struct i2c_client *client KV_I2C_PROBE_ID)
+static int ad82128_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ad82128_data *data;
 	const struct regmap_config *regmap_config;
 	int ret;
 	int i;
-	KV_I2C_PROBE_DEF_ID(client, ad82128_id);
-
+	const struct i2c_device_id *id = i2c_match_id(ad82128_id, client);
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;

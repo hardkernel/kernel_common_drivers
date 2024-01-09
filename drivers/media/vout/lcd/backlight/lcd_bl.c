@@ -39,7 +39,6 @@
 #include "../lcd_common.h"
 
 #include <linux/amlogic/gki_module.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #define BL_CDEV_NAME  "aml_bl"
 struct bl_cdev_s {
@@ -3762,7 +3761,7 @@ static int bl_global_init_once(void)
 		goto bl_global_init_once_err;
 	}
 
-	bl_cdev->class = kv_class_create(THIS_MODULE, "aml_bl");
+	bl_cdev->class = class_create("aml_bl");
 	if (IS_ERR_OR_NULL(bl_cdev->class)) {
 		ret = 2;
 		goto bl_global_init_once_err_1;

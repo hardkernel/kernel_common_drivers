@@ -9,7 +9,6 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media_cooling.h>
 #include <linux/amlogic/meson_cooldev.h>
 #include "thermal_core.h"
@@ -74,7 +73,7 @@ static unsigned long calculate_hotstep(struct thermal_instance *instance)
 
 	media_dev = cdev->devdata;
 
-	kv_thermal_zone_get_trip(tz, instance->trip, &trip);
+	thermal_zone_get_trip(tz, instance->trip, &trip);
 	trip_temp = trip.temperature;
 	hyst = trip.hysteresis;
 

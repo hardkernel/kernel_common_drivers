@@ -8,7 +8,6 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
@@ -113,8 +112,8 @@ static int ob3350_power_off(void)
 	return 0;
 }
 
-static ssize_t ob3350_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t ob3350_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();

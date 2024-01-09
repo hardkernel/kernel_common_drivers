@@ -10,7 +10,6 @@
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
-#include <linux/amlogic/kernel_versions.h>
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -766,8 +765,8 @@ unsigned int vrr_check_frame_rate_min_hz(void)
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-ssize_t frame_lock_debug_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frame_lock_debug_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
@@ -818,8 +817,8 @@ ssize_t frame_lock_debug_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-ssize_t frame_lock_debug_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+ssize_t frame_lock_debug_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	ssize_t len = 0;

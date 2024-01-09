@@ -30,7 +30,6 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/gpio/consumer.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/pmic/meson_pmic6b.h>
 
 #define	PMIC6B_IRQ_MASK0_OFFSET		0
@@ -355,7 +354,7 @@ int meson_pmic6b_device_init(struct meson_pmic6b *meson_pmic, unsigned int irq)
 	return ret;
 }
 
-static int meson_pmic6b_probe(struct i2c_client *i2c KV_I2C_PROBE_ID)
+static int meson_pmic6b_probe(struct i2c_client *i2c)
 {
 	struct meson_pmic6b *meson_pmic;
 	struct gpio_desc *pmic_irq;

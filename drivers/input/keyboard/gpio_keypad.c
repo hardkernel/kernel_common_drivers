@@ -18,7 +18,6 @@
 #include <linux/irq.h>
 #include <linux/amlogic/power_domain.h>
 #include <linux/amlogic/gpiolib.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #define DEFAULT_SCAN_PERION	20
 #define	DEFAULT_POLL_MODE	0
@@ -119,8 +118,8 @@ static void polling_timer_handler(struct timer_list *t)
 	}
 }
 
-static ssize_t table_show(KV_CLASS_CONST struct class *cls,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t table_show(const struct class *cls,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	struct gpio_keypad *keypad = container_of(cls,
@@ -227,7 +226,6 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 	}
 
 	keypad->kp_class.name = "gpio_keypad";
-	kv_set_class_owner(&keypad->kp_class);
 	keypad->kp_class.class_groups = meson_gpiokey_groups;
 	ret = class_register(&keypad->kp_class);
 	if (ret) {

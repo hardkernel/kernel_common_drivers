@@ -81,7 +81,6 @@
 #include <drm/drm_irq.h>
 #include <drm/drm_device.h>
 
-#include <linux/amlogic/kernel_versions.h>
 
 struct module;
 

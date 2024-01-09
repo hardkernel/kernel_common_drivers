@@ -23,7 +23,6 @@
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/of_irq.h>
-#include <linux/amlogic/kernel_versions.h>
 
 /* #include <mach/am_regs.h> */
 /* #include <mach/mod_gate.h> */
@@ -1217,7 +1216,7 @@ static int amvdec_656in_probe(struct platform_device *pdev)
 	}
 	BT656PR("%s: major %d\n", __func__, MAJOR(am656in_devno));
 
-	am656in_clsp = kv_class_create(THIS_MODULE, BT656_CLS_NAME);
+	am656in_clsp = class_create(BT656_CLS_NAME);
 	if (IS_ERR(am656in_clsp)) {
 		ret = PTR_ERR(am656in_clsp);
 		BT656ERR("%s: failed to create class\n", __func__);

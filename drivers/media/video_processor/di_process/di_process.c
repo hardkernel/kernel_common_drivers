@@ -31,7 +31,6 @@
 #include <linux/amlogic/aml_sync_api.h>
 #include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
 #include <linux/compat.h>
-#include <linux/amlogic/kernel_versions.h>
 
 #include "di_process.h"
 #include "di_proc_file.h"
@@ -1453,8 +1452,8 @@ static const struct file_operations di_process_fops = {
 	.poll = NULL,
 };
 
-static ssize_t print_flag_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t print_flag_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return snprintf(buf, 80,
@@ -1462,8 +1461,8 @@ static ssize_t print_flag_show(KV_CLASS_CONST struct class *class,
 			print_flag);
 }
 
-static ssize_t print_flag_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t print_flag_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -1478,71 +1477,71 @@ static ssize_t print_flag_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t total_get_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t total_get_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", total_get_count);
 }
 
-static ssize_t total_put_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t total_put_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", total_put_count);
 }
 
-static ssize_t total_src_get_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t total_src_get_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", total_src_get_count);
 }
 
-static ssize_t total_src_put_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t total_src_put_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", total_src_put_count);
 }
 
-static ssize_t total_fill_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t total_fill_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", total_fill_count);
 }
 
-static ssize_t total_fill_done_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t total_fill_done_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", total_fill_done_count);
 }
 
-static ssize_t total_empty_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t total_empty_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", total_empty_count);
 }
 
-static ssize_t total_empty_done_count_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t total_empty_done_count_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", total_empty_done_count);
 }
 
-static ssize_t buf_mgr_print_flag_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t buf_mgr_print_flag_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", dp_buf_mgr_print_flag);
 }
 
-static ssize_t buf_mgr_print_flag_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t buf_mgr_print_flag_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -1557,15 +1556,15 @@ static ssize_t buf_mgr_print_flag_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t di_proc_enable_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t di_proc_enable_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", di_proc_enable);
 }
 
-static ssize_t di_proc_enable_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t di_proc_enable_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;
@@ -1580,15 +1579,15 @@ static ssize_t di_proc_enable_store(KV_CLASS_CONST struct class *class,
 	return count;
 }
 
-static ssize_t q_dropped_show(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t q_dropped_show(const struct class *class,
+			const struct class_attribute *attr,
 			char *buf)
 {
 	return sprintf(buf, "%d\n", q_dropped);
 }
 
-static ssize_t q_dropped_store(KV_CLASS_CONST struct class *class,
-			KV_CLASS_ATTR_CONST struct class_attribute *attr,
+static ssize_t q_dropped_store(const struct class *class,
+			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	long tmp;

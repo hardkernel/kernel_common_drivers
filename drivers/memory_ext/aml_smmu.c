@@ -11,7 +11,6 @@
 
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
-//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 #include <linux/dma-iommu.h>
 #endif
@@ -235,7 +234,6 @@ static void aml_smmu_release_device(struct device *dev)
 	return;
 }
 
-//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
 static struct iommu_ops aml_smmu_ops = {
 	.owner		= THIS_MODULE,

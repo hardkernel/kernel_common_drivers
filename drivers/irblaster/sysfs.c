@@ -8,7 +8,6 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/kdev_t.h>
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/irblaster.h>
 #include <linux/amlogic/irblaster_consumer.h>
 int irblaster_debug;
@@ -165,7 +164,6 @@ ATTRIBUTE_GROUPS(irblaster_chip);
 
 static struct class irblaster_class = {
 	.name		= "irblaster",
-	KV_CLASS_DEF_OWNER
 	.dev_groups	= irblaster_chip_groups,
 };
 

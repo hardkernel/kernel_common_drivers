@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 
-#include <linux/amlogic/kernel_versions.h>
 #include <linux/amlogic/media/vout/lcd/aml_lcd.h>
 #include <linux/amlogic/media/vout/lcd/lcd_extern.h>
 #include "lcd_extern.h"
@@ -114,7 +113,7 @@ static int lcd_extern_i2c_config_from_dts(struct device *dev,
 	return 0;
 }
 
-static int lcd_extern_i2c_dev_probe(struct i2c_client *client KV_I2C_PROBE_ID)
+static int lcd_extern_i2c_dev_probe(struct i2c_client *client)
 {
 	if (i2c_dev_cnt >= LCD_EXT_I2C_DEV_MAX) {
 		EXTERR("i2c_dev_cnt reach max\n");
@@ -143,20 +142,18 @@ static int lcd_extern_i2c_dev_probe(struct i2c_client *client KV_I2C_PROBE_ID)
 	return 0;
 }
 
-static KV_I2C_REMOVE_TYPE lcd_extern_i2c_dev_remove(struct i2c_client *client)
+static void lcd_extern_i2c_dev_remove(struct i2c_client *client)
 {
 	int i;
 
 	if (i2c_dev_cnt == 0)
-		KV_I2C_REMOVE_RET(0);
+		return;
 
 	for (i = 0; i < i2c_dev_cnt; i++) {
 		kfree(i2c_device[i]);
 		i2c_device[i] = NULL;
 	}
 	i2c_dev_cnt = 0;
-
-	KV_I2C_REMOVE_RET(0);
 }
 
 static const struct i2c_device_id lcd_extern_i2c_dev_id[] = {
