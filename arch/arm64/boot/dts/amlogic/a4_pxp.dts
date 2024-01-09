@@ -79,7 +79,7 @@
 			/*reusable;*/
 			no-map;
 			alignment = <0x0 0x400000>;
-			reg = <0x0 0x05000000 0x0 0x3400000>;
+			reg = <0x0 0x05000000 0x0 0xC00000>;
 		};
 
 		logo_reserved:linux,meson-fb {
