@@ -1176,6 +1176,7 @@
 					0xfe35c000 0x60>; /* phy_cfg_base(s) */
 			pll-setting-1 = <0x244a0030>;
 			pll-setting-2 = <0x03200022>;
+			pll-setting-5 = <0x7>;
 			//dis-thred-enhance = <0x2>;
 			pll-version = <2>;
 			phy0-reset-level-bit = <8>;
@@ -1195,6 +1196,7 @@
 					0xfe34c000 0x60>; /* phy_cfg_base(s) */
 			pll-setting-1 = <0x244a0030>;
 			pll-setting-2 = <0x03200022>;
+			pll-setting-5 = <0x7>;
 			//dis-thred-enhance = <0x2>;
 			pll-version = <2>;
 			phy0-reset-level-bit = <9>;
@@ -1211,7 +1213,7 @@
 			status = "disable";
 			reg = <0xfe358080 0x0>; /* phy3 base */
 			phy1-reg = <0xfe358080>; /* phy3 cfg base */
-			phy-reg-size = <0x18>;
+			phy1-reg-size = <0x18>;
 			reset-reg = <0xfe002000>;
 			reset-reg-size = <0x100>;
 			phy-id = <0>;
@@ -1222,7 +1224,7 @@
 			status = "disable";
 			reg = <0xfe348080 0x0>; /* phy3 base */
 			phy1-reg = <0xfe348080>; /* phy3 cfg base */
-			phy-reg-size = <0x18>;
+			phy1-reg-size = <0x18>;
 			reset-reg = <0xfe002000>;
 			reset-reg-size = <0x100>;
 			phy-id = <1>;

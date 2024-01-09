@@ -129,13 +129,11 @@ static void amlogic_crg_otg_work(struct work_struct *work)
 	mutex_lock(phy->otg_mutex);
 	reg2.d32 = readl((void __iomem *)(reg_addr + 8));
 	if (reg2.b.iddig_curr == 0) {
-		/* to do*/
 		crg_gadget_exit();
 		amlogic_m31_set_vbus_power(phy, 1);
 		set_mode(reg_addr, HOST_MODE, phy3_addr);
 		crg_init();
 	} else {
-		/* to do*/
 		crg_exit();
 		set_mode(reg_addr, DEVICE_MODE, phy3_addr);
 		amlogic_m31_set_vbus_power(phy, 0);
@@ -151,6 +149,31 @@ static void amlogic_crg_otg_work(struct work_struct *work)
 	mutex_unlock(phy->otg_mutex);
 }
 
+static void amlogic_crg_otg_set_m_work(struct work_struct *work)
+{
+	struct amlogic_crg_otg *phy =
+		container_of(work, struct amlogic_crg_otg, set_mode_work.work);
+	union u2p_r2_v2 reg2;
+	unsigned long reg_addr = ((unsigned long)phy->usb2_phy_cfg);
+	unsigned long phy3_addr = ((unsigned long)phy->phy3_cfg);
+
+	mutex_lock(phy->otg_mutex);
+	phy->mode_work_flag = 0;
+	reg2.d32 = readl((void __iomem *)(reg_addr + 8));
+	if (reg2.b.iddig_curr == 0) {
+		amlogic_m31_set_vbus_power(phy, 1);
+		set_mode(reg_addr, HOST_MODE, phy3_addr);
+		crg_init();
+	} else {
+		set_mode(reg_addr, DEVICE_MODE, phy3_addr);
+		amlogic_m31_set_vbus_power(phy, 0);
+		crg_gadget_init();
+	}
+	reg2.b.usb_iddig_irq = 0;
+	writel(reg2.d32, (void __iomem *)(reg_addr + 8));
+	mutex_unlock(phy->otg_mutex);
+}
+
 static irqreturn_t amlogic_crgotg_detect_irq(int irq, void *dev)
 {
 	struct amlogic_crg_otg *phy = (struct amlogic_crg_otg *)dev;
@@ -160,7 +183,7 @@ static irqreturn_t amlogic_crgotg_detect_irq(int irq, void *dev)
 	reg2.b.usb_iddig_irq = 0;
 	writel(reg2.d32, (void __iomem *)((unsigned long)phy->usb2_phy_cfg + 8));
 
-	schedule_delayed_work(&phy->work, msecs_to_jiffies(10));
+	schedule_delayed_work(&phy->work, msecs_to_jiffies(100));
 
 	return IRQ_HANDLED;
 }
@@ -188,8 +211,6 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	int gpio_vbus_power_pin = -1;
 	struct gpio_desc *usb_gd = NULL;
 	u32 val;
-	union usb_r5_v2 reg5;
-	unsigned long reg_addr;
 
 	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
 	if (gpio_name) {
@@ -334,21 +355,13 @@ NO_M31:
 			crg_init();
 		}
 	} else {
-		reg_addr = ((unsigned long)phy->phy3_cfg);
-		reg5.d32 = readl((void __iomem *)(reg_addr + 0x14));
-		if (reg5.b.iddig_curr == 0) {
-			amlogic_m31_set_vbus_power(phy, 1);
-			set_mode(reg_addr, HOST_MODE,
-				(unsigned long)phy->phy3_cfg);
-			crg_init();
-		} else {
-			set_mode(reg_addr, DEVICE_MODE,
-				(unsigned long)phy->phy3_cfg);
-			amlogic_m31_set_vbus_power(phy, 0);
-			crg_gadget_init();
-		}
-		reg5.b.usb_iddig_irq = 0;
-		writel(reg5.d32, (void __iomem *)(reg_addr + 0x14));
+		/* The usb2_phy_cfg iddig bit is default 0 and may not change to 1 instantly
+		 * with otg connecter plugged at boot time. Defer the mode init here to avoid
+		 * excess host mode init.
+		 */
+		phy->mode_work_flag = 1;
+		INIT_DELAYED_WORK(&phy->set_mode_work, amlogic_crg_otg_set_m_work);
+		schedule_delayed_work(&phy->set_mode_work, msecs_to_jiffies(500));
 	}
 
 	return 0;

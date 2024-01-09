@@ -1413,7 +1413,7 @@
 			pll-setting-7 = <0xe0004>;
 			pll-setting-8 = <0xe000c>;
 			dis-thred-enhance = <0x2>;/**t7-0x38:bit[26-27]**/
-			analog_process_nm = <22>;
+			pll-version = <1>;
 			version = <3>;
 			phy0-reset-level-bit = <16>;
 			usb-reset-bit = <2>;
@@ -1493,7 +1493,7 @@
 			pll-setting-7 = <0xe0004>;
 			pll-setting-8 = <0xe000c>;
 			dis-thred-enhance = <0x2>;/**t7-0x38:bit[26-27]**/
-			analog_process_nm = <22>;
+			pll-version = <1>;
 			version = <3>;
 			phy0-reset-level-bit = <17>;
 			phy1-reset-level-bit = <18>;
