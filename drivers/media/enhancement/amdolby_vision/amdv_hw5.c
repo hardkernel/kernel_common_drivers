@@ -947,6 +947,9 @@ static void dolby5_dpth_ctrl(int hsize, int vsize, struct vd_proc_info_t *vd_pro
 			pr_dv_error("amdv output overlap %d too large\n", ovlp_ahsize);
 		//ovlp_ahsize = 96;//fixed 96, make it big enough
 
+		ovlp_ihsize = vd1_hsize / 2;
+		ovlp_ivsize = vd1_vsize;
+
 		win0.ovlp_win_en = 1;
 		win0.ovlp_win_hsize = vd1_slice0_hsize_amdv;
 		win0.ovlp_win_vsize = vd1_slice0_vsize;
