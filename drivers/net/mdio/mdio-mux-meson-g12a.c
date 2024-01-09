@@ -182,6 +182,16 @@ static int g12a_ephy_pll_init(struct clk_hw *hw)
 		writel(0x508200a0, pll->base + ETH_PLL_CTL0);
 		writel(0x00000110, pll->base + ETH_PLL_CTL2);
 	}
+	/*s7*/
+	if (phy_pll_mode == 2) {
+		writel(0x00510630, pll->base + ETH_PLL_CTL0);
+		writel(0x222210a0, pll->base + ETH_PLL_CTL1);
+		writel(0x00518630, pll->base + ETH_PLL_CTL0);
+		usleep_range(100, 200);
+		writel(0x222200a0, pll->base + ETH_PLL_CTL1);
+		usleep_range(100, 200);
+		writel(0x00118630, pll->base + ETH_PLL_CTL0);
+	}
 #else
 
 	writel(0x29c0040a, pll->base + ETH_PLL_CTL0);
