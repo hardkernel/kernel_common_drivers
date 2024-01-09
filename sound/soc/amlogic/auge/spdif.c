@@ -1757,10 +1757,10 @@ static void aml_set_spdifclk_2(struct aml_spdif *p_spdif, int freq, bool tune)
 		}
 	} else if (p_spdif->standard_sysclk % 11025 == 0) {
 		if (aml_return_chip_id() != CLK_NOTIFY_CHIP_ID) {
-			ratio = MPLL_HBR_FIXED_FREQ / p_spdif->standard_sysclk;
-			clk_set_rate(p_spdif->sysclk, freq * ratio);
+			ratio = MPLL_CD_FIXED_FREQ / p_spdif->standard_sysclk;
+			clk_set_rate(p_spdif->clk_src_cd, freq * ratio);
 			spdif_set_audio_clk(p_spdif->id,
-				p_spdif->sysclk,
+				p_spdif->clk_src_cd,
 				freq, 0, tune);
 		} else {
 			if (p_spdif->earc_use_48k) {
