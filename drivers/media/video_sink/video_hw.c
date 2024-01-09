@@ -6583,7 +6583,7 @@ static inline void unmute_vpp(void)
 		vpp_clip_setting(vpp_index, &setting);
 }
 
-static void check_video_mute(void)
+void check_video_mute(void)
 {
 	check_video_mute_state();
 	if (video_mute_on) {
