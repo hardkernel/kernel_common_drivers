@@ -74,9 +74,13 @@ static unsigned long __pll_params_to_rate(unsigned long parent_rate,
 					  struct meson_clk_pll_data *pll)
 #endif
 {
-	u64 rate = (u64)parent_rate * m;
+	u64 rate;
 	u64 frac_rate;
 
+	if (pll->flags & CLK_MESON_PLL_FIXED_EN0P5)
+		parent_rate = parent_rate >> 1;
+
+	rate = (u64)parent_rate * m;
 	if (frac && pll->frac.width > 2) {
 		frac_rate = (u64)parent_rate * frac;
 		if (frac & (1 << (pll->frac.width - 1))) {
@@ -166,6 +170,9 @@ static unsigned int __pll_params_with_frac(unsigned long rate,
 	unsigned int frac_max;
 	u64 val;
 
+	if (pll->flags & CLK_MESON_PLL_FIXED_EN0P5)
+		parent_rate = parent_rate >> 1;
+
 	if (pll->flags & CLK_MESON_PLL_POWER_OF_TWO) {
 		val = (u64)rate << n;
 		if (rate < ((parent_rate >> n) * m >> od))
@@ -176,6 +183,7 @@ static unsigned int __pll_params_with_frac(unsigned long rate,
 		if (rate < (div_u64((u64)parent_rate * m, n) >> od))
 			return 0;
 	}
+
 	if (pll->flags & CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION)
 		frac_max = FIXED_FRAC_WEIGHT_PRECISION;
 	else
@@ -201,10 +209,14 @@ static unsigned int __pll_params_with_frac(unsigned long rate,
 	unsigned int frac_max;
 	u64 val = (u64)rate * n;
 
+	if (pll->flags & CLK_MESON_PLL_FIXED_EN0P5)
+		parent_rate = parent_rate >> 1;
+
 	if (pll->flags & CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION)
 		frac_max = FIXED_FRAC_WEIGHT_PRECISION;
 	else
 		frac_max = (1 << (pll->frac.width - 2));
+
 	/* Bail out if we are already over the requested rate */
 	if (rate < parent_rate * m / n)
 		return 0;

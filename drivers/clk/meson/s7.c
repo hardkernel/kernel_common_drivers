@@ -636,32 +636,32 @@ MESON_CLK_GATE_RO(fclk_clk50m, ANACTRL_FIXPLL_CTRL1, 31, 0, &fclk_clk50m_div.hw,
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table gp0_pll_table[] = {
-	PLL_PARAMS(70, 1, 1), /* DCO = 1680M OD = 2 PLL = 840M */
-	PLL_PARAMS(132, 1, 2), /* DCO = 3168M OD = 4 PLL = 792M */
-	PLL_PARAMS(128, 1, 2), /* DCO = 3072M OD = 4 PLL = 768M */
-	PLL_PARAMS(124, 1, 2), /* DCO = 2976M OD = 4 PLL = 744M */
-	PLL_PARAMS(96, 1, 1), /* DCO = 2304M OD = 2 PLL = 1152M */
+	PLL_PARAMS(140, 1, 1), /* DCO = 1680M OD = 2 PLL = 840M */
+	PLL_PARAMS(264, 1, 2), /* DCO = 3168M OD = 4 PLL = 792M */
+	PLL_PARAMS(256, 1, 2), /* DCO = 3072M OD = 4 PLL = 768M */
+	PLL_PARAMS(248, 1, 2), /* DCO = 2976M OD = 4 PLL = 744M */
+	PLL_PARAMS(192, 1, 1), /* DCO = 2304M OD = 2 PLL = 1152M */
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table gp0_pll_table[] = {
-	PLL_PARAMS(70, 1), /* DCO = 1680M */
-	PLL_PARAMS(132, 1), /* DCO = 3168M */
-	PLL_PARAMS(128, 1), /* DCO = 3072M */
-	PLL_PARAMS(124, 1), /* DCO = 2976M */
-	PLL_PARAMS(96, 1), /* DCO = 2304M */
+	PLL_PARAMS(140, 1), /* DCO = 1680M */
+	PLL_PARAMS(264, 1), /* DCO = 3168M */
+	PLL_PARAMS(256, 1), /* DCO = 3072M */
+	PLL_PARAMS(248, 1), /* DCO = 2976M */
+	PLL_PARAMS(192, 1), /* DCO = 2304M */
 	{ /* sentinel */  }
 };
 #endif
 
 static const struct reg_sequence gp0_init_regs[] = {
-	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x22530a85 },
-	{ .reg = ANACTRL_GP0PLL_CTRL1,	.def = 0x01900303 },
-	{ .reg = ANACTRL_GP0PLL_CTRL2,	.def = 0x00013333 },
+	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x22530ac0 },
+	{ .reg = ANACTRL_GP0PLL_CTRL1,	.def = 0x09900322 },
+	{ .reg = ANACTRL_GP0PLL_CTRL2,	.def = 0x0 },
 	{ .reg = ANACTRL_GP0PLL_CTRL3,	.def = 0x00000006 },
-	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x32530a85, .delay_us = 20 },
-	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x12530a85, .delay_us = 20 },
-	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x12520a85 },
+	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x32530ac0, .delay_us = 20 },
+	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x12530ac0, .delay_us = 20 },
+	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x12520ac0 },
 };
 
 MESON_CLK_PLL_RW(gp0_pll, ANACTRL_GP0PLL_CTRL0, 28, 1,  /* en */
@@ -671,7 +671,7 @@ MESON_CLK_PLL_RW(gp0_pll, ANACTRL_GP0PLL_CTRL0, 28, 1,  /* en */
 		 ANACTRL_GP0PLL_CTRL0, 31, 1,  /* lock */
 		 ANACTRL_GP0PLL_CTRL0, 29, 1,  /* rst */
 		 gp0_init_regs, NULL, gp0_pll_table,
-		 CLK_MESON_PLL_IGNORE_INIT,
+		 CLK_MESON_PLL_IGNORE_INIT | CLK_MESON_PLL_FIXED_EN0P5,
 		 &pll_dco_parent, 0,
 		 ANACTRL_GP0PLL_CTRL0, 9, 2    /* od */
 #ifdef CONFIG_ARM
@@ -717,33 +717,27 @@ static const struct clk_parent_data hifi_pll_dco_parent_data = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table hifi_pll_table[] = {
-	PLL_PARAMS(75, 1, 0), /* DCO = 1800M OD = 0 PLL = 1800M */
-	PLL_PARAMS(75, 1, 2), /* DCO = 1800M OD = 4 PLL = 450M */
-	PLL_PARAMS(81, 1, 2), /* DCO = 1944M OD = 4 PLL = 486M */
+	PLL_PARAMS(150, 1, 0), /* DCO = 1800M OD = 0 PLL = 1800M */
+	PLL_PARAMS(150, 1, 2), /* DCO = 1800M OD = 4 PLL = 450M */
+	PLL_PARAMS(163, 1, 2), /* DCO = 1944M OD = 4 PLL = 486M */
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table hifi_pll_table[] = {
-	PLL_PARAMS(75, 1), /* DCO = 1800M */
-	PLL_PARAMS(75, 1), /* DCO = 1800M */
-	PLL_PARAMS(81, 1), /* DCO = 1944M */
+	PLL_PARAMS(150, 1), /* DCO = 1800M */
+	PLL_PARAMS(163, 1), /* DCO = 1944M */
 	{ /* sentinel */  }
 };
 #endif
 
 static const struct reg_sequence hifi_init_regs[] = {
-	{ .reg = ANACTRL_HIFI0PLL_CTRL0, .def = 0x22530a85 },
-	{ .reg = ANACTRL_HIFI0PLL_CTRL1, .def = 0x01900303 },
-	{ .reg = ANACTRL_HIFI0PLL_CTRL2, .def = 0x0000ea60 },
+	{ .reg = ANACTRL_HIFI0PLL_CTRL0, .def = 0x22530b09 },
+	{ .reg = ANACTRL_HIFI0PLL_CTRL1, .def = 0x09900322 },
+	{ .reg = ANACTRL_HIFI0PLL_CTRL2, .def = 0x00004e20 },
 	{ .reg = ANACTRL_HIFI0PLL_CTRL3, .def = 0x00000006 },
-	{ .reg = ANACTRL_HIFI0PLL_CTRL0, .def = 0x32530a85, .delay_us = 20 },
-	{ .reg = ANACTRL_HIFI0PLL_CTRL0, .def = 0x12530a85, .delay_us = 20 },
-	{ .reg = ANACTRL_HIFI0PLL_CTRL0, .def = 0x12520a85 }
-};
-
-static const struct pll_mult_range hifi_pll_m = {
-	.min = 67,
-	.max = 133,
+	{ .reg = ANACTRL_HIFI0PLL_CTRL0, .def = 0x32530b09, .delay_us = 20 },
+	{ .reg = ANACTRL_HIFI0PLL_CTRL0, .def = 0x12530b09, .delay_us = 20 },
+	{ .reg = ANACTRL_HIFI0PLL_CTRL0, .def = 0x12520b09 }
 };
 
 MESON_CLK_PLL_RW(hifi_pll, ANACTRL_HIFI0PLL_CTRL0, 28, 1,  /* en */
@@ -752,8 +746,9 @@ MESON_CLK_PLL_RW(hifi_pll, ANACTRL_HIFI0PLL_CTRL0, 28, 1,  /* en */
 		 ANACTRL_HIFI0PLL_CTRL0, 11, 5,  /* n */
 		 ANACTRL_HIFI0PLL_CTRL0, 31, 1,  /* lock */
 		 ANACTRL_HIFI0PLL_CTRL0, 29, 1,  /* rst */
-		 hifi_init_regs, &hifi_pll_m, hifi_pll_table,
-		 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION,
+		 hifi_init_regs, NULL, hifi_pll_table,
+		 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
+		 CLK_MESON_PLL_FIXED_EN0P5,
 		 &hifi_pll_dco_parent_data, 0,
 		 ANACTRL_HIFI0PLL_CTRL0, 9, 2   /* od */
 #ifdef CONFIG_ARM
@@ -763,13 +758,13 @@ MESON_CLK_PLL_RW(hifi_pll, ANACTRL_HIFI0PLL_CTRL0, 28, 1,  /* en */
 #endif
 
 static const struct reg_sequence hifi1_init_regs[] = {
-	{ .reg = ANACTRL_HIFI1PLL_CTRL0, .def = 0x22530a85 },
-	{ .reg = ANACTRL_HIFI1PLL_CTRL1, .def = 0x01900303 },
-	{ .reg = ANACTRL_HIFI1PLL_CTRL2, .def = 0x0000ea60 },
+	{ .reg = ANACTRL_HIFI1PLL_CTRL0, .def = 0x22530b09 },
+	{ .reg = ANACTRL_HIFI1PLL_CTRL1, .def = 0x09900322 },
+	{ .reg = ANACTRL_HIFI1PLL_CTRL2, .def = 0x00004e20 },
 	{ .reg = ANACTRL_HIFI1PLL_CTRL3, .def = 0x00000006 },
-	{ .reg = ANACTRL_HIFI1PLL_CTRL0, .def = 0x32530a85, .delay_us = 20 },
-	{ .reg = ANACTRL_HIFI1PLL_CTRL0, .def = 0x12530a85, .delay_us = 20 },
-	{ .reg = ANACTRL_HIFI1PLL_CTRL0, .def = 0x12520a85 }
+	{ .reg = ANACTRL_HIFI1PLL_CTRL0, .def = 0x32530b09, .delay_us = 20 },
+	{ .reg = ANACTRL_HIFI1PLL_CTRL0, .def = 0x12530b09, .delay_us = 20 },
+	{ .reg = ANACTRL_HIFI1PLL_CTRL0, .def = 0x12520b09 }
 };
 
 MESON_CLK_PLL_RW(hifi1_pll, ANACTRL_HIFI1PLL_CTRL0, 28, 1,  /* en */
@@ -778,8 +773,9 @@ MESON_CLK_PLL_RW(hifi1_pll, ANACTRL_HIFI1PLL_CTRL0, 28, 1,  /* en */
 		 ANACTRL_HIFI1PLL_CTRL0, 11, 5,  /* n */
 		 ANACTRL_HIFI1PLL_CTRL0, 31, 1,  /* lock */
 		 ANACTRL_HIFI1PLL_CTRL0, 29, 1,  /* rst */
-		 hifi1_init_regs, &hifi_pll_m, hifi_pll_table,
-		 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION,
+		 hifi1_init_regs, NULL, hifi_pll_table,
+		 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
+		 CLK_MESON_PLL_FIXED_EN0P5,
 		 &hifi_pll_dco_parent_data, 0,
 		 ANACTRL_HIFI1PLL_CTRL0, 9, 2   /* od */
 #ifdef CONFIG_ARM
@@ -2451,37 +2447,6 @@ static struct clk_regmap *const s7_pll_clk_regmaps[] = {
 	&hifi1_pll
 };
 
-static struct regmap_config clkc_regmap_config = {
-	.reg_bits       = 32,
-	.val_bits       = 32,
-	.reg_stride     = 4,
-};
-
-static struct regmap *s7_regmap_resource(struct device *dev, char *name)
-{
-	struct resource res;
-	void __iomem *base;
-	int i;
-	struct device_node *node = dev->of_node;
-
-	i = of_property_match_string(node, "reg-names", name);
-	if (of_address_to_resource(node, i, &res))
-		return ERR_PTR(-ENOENT);
-
-	base = devm_ioremap_resource(dev, &res);
-	if (IS_ERR(base))
-		return ERR_CAST(base);
-
-	clkc_regmap_config.max_register = resource_size(&res) - 4;
-	clkc_regmap_config.name = devm_kasprintf(dev, GFP_KERNEL,
-						 "%s-%s", node->name,
-						 name);
-	if (!clkc_regmap_config.name)
-		return ERR_PTR(-ENOMEM);
-
-	return devm_regmap_init_mmio(dev, base, &clkc_regmap_config);
-}
-
 static int meson_s7_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -2511,13 +2476,13 @@ static int meson_s7_probe(struct platform_device *pdev)
 		}
 #endif
 
-	basic_map = s7_regmap_resource(dev, "basic");
+	basic_map = meson_clk_regmap_resource(pdev, dev, 0);
 	if (IS_ERR(basic_map)) {
 		dev_err(dev, "basic clk registers not found\n");
 		return PTR_ERR(basic_map);
 	}
 
-	pll_map = s7_regmap_resource(dev, "pll");
+	pll_map = meson_clk_regmap_resource(pdev, dev, 1);
 	if (IS_ERR(pll_map)) {
 		dev_err(dev, "pll clk registers not found\n");
 		return PTR_ERR(pll_map);
@@ -2575,22 +2540,6 @@ static struct platform_driver s7_driver = {
 	},
 };
 
-#ifndef CONFIG_AMLOGIC_MODIFY
 builtin_platform_driver(s7_driver);
-#else
-#ifndef MODULE
-static int __init s7_clkc_init(void)
-{
-	return platform_driver_register(&s7_driver);
-}
-arch_initcall_sync(s7_clkc_init);
-#else
-int __init meson_s7_clkc_init(void)
-{
-	return platform_driver_register(&s7_driver);
-}
-module_init(meson_s7_clkc_init);
-#endif
-#endif
 
 MODULE_LICENSE("GPL v2");

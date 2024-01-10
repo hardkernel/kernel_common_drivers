@@ -51,6 +51,7 @@ struct pll_params_table {
 #define CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION	BIT(2)
 #define CLK_MESON_PLL_POWER_OF_TWO			BIT(3)
 #define CLK_MESON_PLL_FIXED_N				BIT(4)
+#define CLK_MESON_PLL_FIXED_EN0P5			BIT(5)
 
 struct meson_clk_pll_data {
 	struct parm en;
