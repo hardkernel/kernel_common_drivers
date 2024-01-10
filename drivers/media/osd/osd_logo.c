@@ -11,6 +11,7 @@
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/osd/osd_logo.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 #ifdef CONFIG_AMLOGIC_VOUT
 #include <linux/amlogic/media/vout/vout_notify.h>
 #endif
@@ -298,6 +299,9 @@ __setup("fb_height=", get_logo_height);
 
 int logo_work_init(void)
 {
+	/* temply return for a4 for uboot not ready */
+	if (is_meson_a4_cpu())
+		return 1;
 	if (logo_info.loaded == 0)
 		return -1;
 	osd_set_logo_index(logo_info.index);

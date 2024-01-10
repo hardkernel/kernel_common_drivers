@@ -356,22 +356,22 @@ static void osd_debug_dump_register_all(void)
 		if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE ||
 			osd_dev_hw.display_type == C3_DISPLAY) {
 			reg = osd_reg->osd_blk1_cfg_w4;
-			osd_log_info("reg[0x%x]: 0x%08x\n",
+			osd_log_info("reg[0x%x]: 0x%08x(osd_blk1_cfg_w4)\n",
 				     reg, osd_reg_read(reg));
 			reg = osd_reg->osd_blk2_cfg_w4;
-			osd_log_info("reg[0x%x]: 0x%08x\n",
+			osd_log_info("reg[0x%x]: 0x%08x(osd_blk2_cfg_w4)\n",
 				     reg, osd_reg_read(reg));
 			reg = osd_reg->osd_prot_ctrl;
-			osd_log_info("reg[0x%x]: 0x%08x\n",
+			osd_log_info("reg[0x%x]: 0x%08x(osd_prot_ctrl)\n",
 				     reg, osd_reg_read(reg));
 			reg = osd_reg->osd_mali_unpack_ctrl;
-			osd_log_info("reg[0x%x]: 0x%08x\n",
+			osd_log_info("reg[0x%x]: 0x%08x(osd_mali_unpack_ctrl)\n",
 				     reg, osd_reg_read(reg));
 			reg = osd_reg->osd_dimm_ctrl;
-			osd_log_info("reg[0x%x]: 0x%08x\n",
+			osd_log_info("reg[0x%x]: 0x%08x(osd_dimm_ctrl)\n",
 				     reg, osd_reg_read(reg));
 			reg = osd_reg->osd_matrix_en_ctrl;
-			osd_log_info("reg[0x%x]: 0x%08x\n",
+			osd_log_info("reg[0x%x]: 0x%08x(osd_matrix_en_ctrl)\n",
 				     reg, osd_reg_read(reg));
 			reg = osd_reg->osd_vsc_phase_step;
 			osd_log_info("reg[0x%x]: 0x%08x\n",
@@ -534,29 +534,29 @@ static void osd_debug_dump_register_all(void)
 		osd_log_info("reg[0x%x]: 0x%08x\n",
 			     reg, osd_reg_read(reg));
 	} else if (osd_dev_hw.display_type == C3_DISPLAY) {
-		reg = VPU_VOUT_IRQ_CTRL;
-		osd_log_info("reg[0x%x]: 0x%08x\n",
+		reg = hw_osd_vout_blend_reg.vpu_vout_irq_ctrl;
+		osd_log_info("reg[0x%x]: 0x%08x(VPU_VOUT_IRQ_CTRL)\n",
 				     reg, osd_reg_read(reg));
-		reg = VPU_VOUT_BLEND_CTRL;
-		osd_log_info("reg[0x%x]: 0x%08x\n",
+		reg = hw_osd_vout_blend_reg.vpu_vout_blend_ctrl;
+		osd_log_info("reg[0x%x]: 0x%08x(VPU_VOUT_BLEND_CTRL)\n",
 				     reg, osd_reg_read(reg));
-		reg = VPU_VOUT_BLEND_DUMDATA;
-		osd_log_info("reg[0x%x]: 0x%08x\n",
+		reg = hw_osd_vout_blend_reg.vpu_vout_blend_dumdata;
+		osd_log_info("reg[0x%x]: 0x%08x(VPU_VOUT_BLEND_DUMDATA)\n",
 					 reg, osd_reg_read(reg));
-		reg = VPU_VOUT_BLEND_SIZE;
-		osd_log_info("reg[0x%x]: 0x%08x\n",
+		reg = hw_osd_vout_blend_reg.vpu_vout_blend_size;
+		osd_log_info("reg[0x%x]: 0x%08x(VPU_VOUT_BLEND_SIZE)\n",
 					 reg, osd_reg_read(reg));
-		reg = VPU_VOUT_BLD_SRC0_HPOS;
-		osd_log_info("reg[0x%x]: 0x%08x\n",
+		reg = hw_osd_vout_blend_reg.vpu_vout_bld_src0_hpos;
+		osd_log_info("reg[0x%x]: 0x%08x(VPU_VOUT_BLD_SRC0_HPOS)\n",
 					 reg, osd_reg_read(reg));
-		reg = VPU_VOUT_BLD_SRC0_VPOS;
-		osd_log_info("reg[0x%x]: 0x%08x\n",
+		reg = hw_osd_vout_blend_reg.vpu_vout_bld_src0_vpos;
+		osd_log_info("reg[0x%x]: 0x%08x(VPU_VOUT_BLD_SRC0_VPOS)\n",
 					 reg, osd_reg_read(reg));
-		reg = VPU_VOUT_BLD_SRC1_HPOS;
-		osd_log_info("reg[0x%x]: 0x%08x\n",
+		reg = hw_osd_vout_blend_reg.vpu_vout_bld_src1_hpos;
+		osd_log_info("reg[0x%x]: 0x%08x(VPU_VOUT_BLD_SRC1_HPOS)\n",
 					 reg, osd_reg_read(reg));
-		reg = VPU_VOUT_BLD_SRC1_VPOS;
-		osd_log_info("reg[0x%x]: 0x%08x\n",
+		reg = hw_osd_vout_blend_reg.vpu_vout_bld_src1_vpos;
+		osd_log_info("reg[0x%x]: 0x%08x(VPU_VOUT_BLD_SRC1_VPOS)\n",
 					 reg, osd_reg_read(reg));
 	} else if (osd_dev_hw.display_type == S5_DISPLAY ||
 		   osd_hw.osd_meson_dev.has_vpp1) {

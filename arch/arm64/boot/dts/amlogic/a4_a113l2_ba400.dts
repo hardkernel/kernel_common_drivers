@@ -1596,7 +1596,7 @@
 };
 
 &fb {
-	status = "disabled";
+	status = "okay";
 };
 
 &irblaster {

@@ -1657,7 +1657,7 @@
 };
 
 &fb {
-	status = "disabled";
+	status = "okay";
 };
 
 &meson_amvideom {

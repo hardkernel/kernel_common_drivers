@@ -2256,6 +2256,9 @@ int osd_notify_callback(struct notifier_block *block,
 					osd_dev_hw.display_type != C3_DISPLAY)
 					osd_reg_write(VPP_POSTBLEND_H_SIZE,
 						      vinfo->width);
+				else if (osd_dev_hw.display_type == C3_DISPLAY)
+					osd_reg_write(hw_osd_vout_blend_reg.vpu_vout_blend_size,
+						vinfo->field_height | (vinfo->width << 16));
 				else
 					osd_reg_write(VPU_VOUT_BLEND_SIZE,
 						vinfo->field_height | (vinfo->width << 16));
@@ -5179,6 +5182,26 @@ static struct osd_device_data_s osd_c3 = {
 	.has_vpp2 = 0,
 };
 
+static struct osd_device_data_s osd_a4 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_A4,
+	.osd_ver = OSD_SIMPLE,
+	.afbc_type = NO_AFBC,
+	.osd_count = 1,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 0,
+	.has_dolby_vision = 0,
+	.osd_fifo_len = 32, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 1,
+	.mif_linear = 1,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
+};
+
 static struct osd_device_data_s osd_t5m = {
 	.cpu_id = __MESON_CPU_MAJOR_ID_T5M,
 	.osd_ver = OSD_HIGH_ONE,
@@ -5385,6 +5408,10 @@ static const struct of_device_id meson_fb_dt_match[] = {
 		.data = &osd_c3,
 	},
 	{
+		.compatible = "amlogic, fb-a4",
+		.data = &osd_a4,
+	},
+	{
 		.compatible = "amlogic, fb-t5m",
 		.data = &osd_t5m,
 	},
@@ -5521,7 +5548,8 @@ static int __init osd_probe(struct platform_device *pdev)
 	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T5W)
 		memcpy(&osd_dev_hw, &t5w_dev_property,
 		       sizeof(struct osd_device_hw_s));
-	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_C3)
+	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_C3 ||
+		osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_A4)
 		memcpy(&osd_dev_hw, &c3_dev_property,
 		       sizeof(struct osd_device_hw_s));
 	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T5M)

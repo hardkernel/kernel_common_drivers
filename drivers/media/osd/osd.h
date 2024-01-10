@@ -323,6 +323,7 @@ enum cpuid_type_e {
 	__MESON_CPU_MAJOR_ID_T5W,
 	__MESON_CPU_MAJOR_ID_S5,
 	__MESON_CPU_MAJOR_ID_C3,
+	__MESON_CPU_MAJOR_ID_A4,
 	__MESON_CPU_MAJOR_ID_T5M,
 	__MESON_CPU_MAJOR_ID_T3X,
 	__MESON_CPU_MAJOR_ID_TXHD2,
@@ -738,6 +739,34 @@ struct hw_osd_slice2ppc_reg_s {
 	u32 osd_sys_2slice_hwin_cut; /* OSD_SYS_2SLICE_HWIN_CUT */
 };
 
+struct hw_osd_vout_blend_reg_s {
+	u32 vpu_vout_irq_ctrl;
+	u32 vpu_vout_blend_ctrl;
+	u32 vpu_vout_blend_dumdata;
+	u32 vpu_vout_blend_size;
+	u32 vpu_vout_bld_src0_hpos;
+	u32 vpu_vout_bld_src0_vpos;
+	u32 vpu_vout_bld_src1_hpos;
+	u32 vpu_vout_bld_src1_vpos;
+};
+
+struct hw_osd_vout_csc_reg_s {
+	u32 vout_osd1_csc_coef00_01;
+	u32 vout_osd1_csc_coef02_10;
+	u32 vout_osd1_csc_coef11_12;
+	u32 vout_osd1_csc_coef20_21;
+	u32 vout_osd1_csc_coef22;
+	u32 vout_osd1_csc_coef30_31;
+	u32 vout_osd1_csc_coef32_40;
+	u32 vout_osd1_csc_coef41_42;
+	u32 vout_osd1_csc_clip;
+	u32 vout_osd1_csc_offset0_1;
+	u32 vout_osd1_csc_offset2;
+	u32 vout_osd1_csc_pre_offset0_1;
+	u32 vout_osd1_csc_pre_offset2;
+	u32 vout_osd1_csc_en_ctrl;
+};
+
 enum hwin_cut_e {
 	HWIN_IN_0,
 	HWIN_IN_1,
@@ -890,6 +919,7 @@ struct hw_osd_blending_s {
 
 extern struct hw_osd_reg_s hw_osd_reg_array[HW_OSD_COUNT];
 extern struct hw_osd_blend_reg_s hw_osd_reg_blend;
+extern struct hw_osd_vout_blend_reg_s hw_osd_vout_blend_reg;
 typedef void (*update_func_t)(u32);
 struct hw_list_s {
 	struct list_head list;
