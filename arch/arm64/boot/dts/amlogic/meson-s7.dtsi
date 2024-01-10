@@ -1109,9 +1109,7 @@
 				clock-names = "clk_uart";
 				xtal_tick_en = <2>;
 				fifosize = < 64 >;
-				//pinctrl-names = "default";
-				/*pinctrl-0 = <&ao_uart_pins>;*/
-				support-sysrq = <0>;  /* 0 not support*/
+				support-sysrq = <1>;  /* 0 not support*/
 			};
 
 			eth_phy: mdio-multiplexer@360000 {
@@ -1275,49 +1273,6 @@
 			status = "disabled";
 		};
 
-		pcie: pcie@f5000000 {
-			compatible = "amlogic, amlogic-pcie-v2", "snps,dw-pcie";
-			reg = <0x0 0xf5000000 0x0 0x400000
-				0x0 0xfe02c000 0x0 0x2000
-				0x0 0xf5400000 0x0 0x200000
-				0x0 0xfe02a000 0x0 0x2000
-				0x0 0xfe002044 0x0 0x10>;
-			reg-names = "elbi", "cfg", "config", "phy", "reset";
-			interrupts = <GIC_SPI 141 IRQ_TYPE_EDGE_RISING>;
-			#interrupt-cells = <1>;
-			bus-range = <0x0 0xff>;
-			#address-cells = <3>;
-			#size-cells = <2>;
-			interrupt-map-mask = <0 0 0 0>;
-			interrupt-map = <0 0 0 0 &gic GIC_SPI 143 IRQ_TYPE_EDGE_RISING>;
-			device_type = "pci";
-			ranges = <0x81000000 0 0 0 0xf5600000 0x0 0x100000
-				/* downstream I/O */
-				0x82000000 0 0xf5700000 0x0 0xf5700000 0 0x1900000>;
-				/* non-prefetchable memory */
-			num-lanes = <1>;
-			pcie-num = <1>;
-
-			//clocks = <&clkc CLKID_PCIE_PLL
-			//	&clkc CLKID_PCIE
-			//	&clkc CLKID_PCIE_PHY>;
-			//clock-names = "pcie_refpll",
-			//		"pcie",
-			//		"pcie_phy";
-			/*reset-gpio-type 0:Shared pad(no reset)1:OD pad2:Normal pad*/
-			gpio-type = <2>;
-			pcie-apb-rst-bit = <14>;
-			pcie-phy-rst-bit = <13>;
-			pcie-ctrl-a-rst-bit = <12>;
-			pwr-ctl = <0>;
-//			power-domains = <&pwrdm PDID_SC2_PCIE>;
-			pcie-ctrl-sleep-shift = <15>;
-			pcie-hhi-mem-pd-shift = <26>;
-			pcie-hhi-mem-pd-mask = <0xf>;
-			pcie-ctrl-iso-shift = <15>;
-			status = "disabled";
-		};
-
 		sd_emmc_c: mmc@fe08c000 {
 			compatible = "amlogic,meson-axg-mmc";
 			reg = <0x0 0xfe08c000 0x0 0x800>,
@@ -1429,11 +1384,10 @@
 			reg = <0x0 0xfe078000 0x0 0x18>;
 			interrupts = <0 168 1>;
 			status = "disabled";
-			//clocks = <&xtal
-			//			&clkc CLKID_UART_A>;
-			//clock-names = "clk_uart",
-			//	"clk_gate";
-			xtal_tick_en = <3>;
+			clocks = <&xtal
+				&clkc CLKID_SYS_UART_A>;
+			clock-names = "clk_uart", "clk_gate";
+			xtal_tick_en = <2>;
 			fifosize = < 64 >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&a_uart_pins>;
@@ -1444,10 +1398,9 @@
 			reg = <0x0 0xfe07c000 0x0 0x18>;
 			interrupts = <0 170 1>;
 			status = "disabled";
-			//clocks = <&xtal
-			//			&clkc CLKID_UART_C>;
-			//clock-names = "clk_uart",
-			//	"clk_gate";
+			clocks = <&xtal
+				&clkc CLKID_SYS_UART_C>;
+			clock-names = "clk_uart", "clk_gate";
 			fifosize = < 64 >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&c_uart_pins>;
@@ -1458,10 +1411,9 @@
 			status = "disabled";
 			reg = <0x0 0xfe07e000 0x0 0x18>;
 			interrupts = <0 171 1>;
-			//clocks = <&xtal
-			//		&clkc CLKID_UART_D>;
-			//clock-names = "clk_uart",
-			//		"clk_gate";
+			clocks = <&xtal
+				&clkc CLKID_SYS_UART_D>;
+			clock-names = "clk_uart", "clk_gate";
 			fifosize = < 64 >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&d_uart_pins1>;
@@ -1472,10 +1424,9 @@
 			status = "disabled";
 			reg = <0x0 0xfe080000 0x0 0x18>;
 			interrupts = <0 172 1>;
-			//clocks = <&xtal
-			//		&clkc CLKID_UART_E>;
-			//clock-names = "clk_uart",
-			//			"clk_gate";
+			clocks = <&xtal
+				&clkc CLKID_SYS_UART_E>;
+			clock-names = "clk_uart", "clk_gate";
 			fifosize = < 64 >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&e_uart_pins1>;
@@ -2347,6 +2298,8 @@
 			groups = "uart_c_tx",
 				"uart_c_rx";
 			function = "uart_c";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 
@@ -2355,6 +2308,8 @@
 			groups = "uart_d_tx_h",
 				"uart_d_rx_h";
 			function = "uart_d";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 
@@ -2363,6 +2318,8 @@
 			groups = "uart_d_tx_z",
 				"uart_d_rx_z";
 			function = "uart_d";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 
@@ -2371,6 +2328,8 @@
 			groups = "uart_e_tx_h",
 				"uart_e_rx_h";
 			function = "uart_e";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 
@@ -2379,6 +2338,8 @@
 			groups = "uart_e_tx_z11",
 				"uart_e_rx_z12";
 			function = "uart_e";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 
@@ -2387,6 +2348,8 @@
 			groups = "uart_e_tx_z8",
 				"uart_e_rx_z9";
 			function = "uart_e";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 

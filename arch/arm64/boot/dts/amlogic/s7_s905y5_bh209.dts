@@ -956,11 +956,6 @@
 	status = "okay";
 };
 
-&pcie {
-	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
-	status = "disable";
-};
-
 /* SDIO */
 &sd_emmc_a {
 	status = "disabled";
