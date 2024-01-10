@@ -11,30 +11,31 @@
 #include<linux/printk.h>
 
 #ifndef INFO_PREFIX
-#define INFO_PREFIX "codec_mm"
+#define INFO_PREFIX	"[codec_mm]"
 #endif
 
-/*#define codec_print(KERN_LEVEL, args...) \*/
-		/*printk(KERN_LEVEL INFO_PREFIX ":" args)*/
+#define CODEC_DBG_ERR_INFO			(0)
+#define CODEC_DBG_DISABLE_RESV		(0x1)
+#define CODEC_DBG_DISABLE_CMA		(0x2)
+#define CODEC_DBG_DISABLE_SYS		(0x4)
+#define CODEC_DBG_DISABLE_HALF_MEM	(0x8)
+#define CODEC_DBG_DISABLE_MODE		(0xf)
+#define CODEC_DBG_DUMP_INFO_WHEN_FAIL	(0x10)
+#define CODEC_DBG_TRACE_ALLOC_FREE	(0x20)
+#define CODEC_DBG_DUMP_INFO		(0x40)
+#define CODEC_DBG_MEM_WATERMARK		(0x80)
+#define CODEC_DBG_DBUF_REF_TRACE	(0x100)
 
-#define codec_info(args...) pr_info(args)
-#define codec_err(args...)  pr_err(args)
-#define codec_warning(args...)  pr_warn(args)
+extern u32 debug_mode;
+#define codec_dbg_level(args) ((args) & debug_mode)
 
-/*
- *#ifdef pr_info
- *#undef pr_info
- *#undef pr_err
- *#undef pr_warn
- *#undef pr_warning
- *
- *#define pr_info(args...) codec_info(args)
- *#define pr_err(args...) codec_err(args)
- *#define pr_warn(args...) codec_warning(args)
- *#define pr_warning pr_warn
- *
- *#endif
- */
+#define codec_pr_dbg(flags, fmt, args...)	\
+do {					\
+	if (codec_dbg_level(flags))	\
+		pr_info(INFO_PREFIX fmt, ##args);	\
+	else if (!flags)		\
+		pr_crit(INFO_PREFIX fmt, ##args);	\
+} while (0)
 
 void dma_clear_buffer(struct page *page, size_t size);
 

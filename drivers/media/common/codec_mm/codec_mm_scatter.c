@@ -1065,17 +1065,11 @@ static int codec_mm_page_alloc_from_slot(struct codec_mm_scatter_mgt *smgt,
 				/*
 				 *ERR_LOG("can't alloc slot from system\n");
 				 */
-				if (codec_mm_get_sc_debug_mode() &
-				    0x01) {
-					pr_info(INSTR1,  alloc_pages);
-				}
+				pr_dbg(INSTR1,  alloc_pages);
 				slot = codec_mm_slot_alloc(smgt, alloc_pages *
 							   PAGE_SIZE, 0);
 				if (!slot) {
-					if (codec_mm_get_sc_debug_mode() &
-						0x01) {
-						pr_info("slot alloc 4M fail!\n");
-					}
+					pr_dbg("slot alloc 4M fail!\n");
 					break;
 				}
 			}
