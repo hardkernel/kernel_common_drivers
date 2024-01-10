@@ -830,6 +830,13 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			hlg_process_mode[vd_path] = PROC_BYPASS;
 			target_format[vd_path] = BT2020_HLG;
 		} else if (vd_path == VD1_PATH &&
+			source_format[vd_path] == HDRTYPE_HLG &&
+			is_amdv_enable() &&
+			(sink_hdr_support_ori_cap(vinfo) & HLG_SUPPORT)) {
+			/* vd1 bypass hlg */
+			hlg_process_mode[vd_path] = PROC_BYPASS;
+			target_format[vd_path] = BT2020_HLG;
+		} else if (vd_path == VD1_PATH &&
 			(!is_video_layer_on(VD2_PATH) || is_vpp1(VD2_PATH)) &&
 			source_format[vd_path] == HDRTYPE_HDR10PLUS &&
 			hdr10_plus_support) {

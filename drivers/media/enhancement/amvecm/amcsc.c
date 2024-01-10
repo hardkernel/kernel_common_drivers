@@ -61,6 +61,7 @@
 #include <linux/amlogic/gki_module.h>
 #include "color/ai_color.h"
 #include "hdr/am_cuva_hdr_tm.h"
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 
 uint debug_csc;
 static int cur_mvc_type[VD_PATH_MAX];
@@ -82,6 +83,7 @@ static uint pre_gamut_conv_en;
 signed int vd1_contrast_offset;
 
 signed int saturation_offset;
+bool limit_8bit_hdr10 = true;
 
 /*hdr------------------------------------*/
 
@@ -4104,7 +4106,83 @@ uint32_t sink_dv_support(const struct vinfo_s *vinfo)
 EXPORT_SYMBOL(sink_dv_support);
 #endif
 
+/*always hdr, add 8bit hdr10 limitation*/
 uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
+{
+	u32 hdr_cap = 0;
+	u32 dv_cap = 0;
+	u32 new_hdr_cap = 0;
+
+	if (!limit_8bit_hdr10)
+		return sink_hdr_support_ori_cap(vinfo);
+
+	/* when policy == follow sink(0) or force output (2) */
+	/* use force_output */
+	if (get_force_output() != 0 &&
+	    get_hdr_policy() != 1) {
+		switch (get_force_output()) {
+		case BT709:
+		case BT_BYPASS:
+			break;
+		case BT2020:
+			hdr_cap |= BT2020_SUPPORT;
+			break;
+		case BT2020_PQ:
+			hdr_cap |= HDR_SUPPORT;
+			break;
+		case BT2020_PQ_DYNAMIC:
+			hdr_cap |= HDRP_SUPPORT;
+			break;
+		case BT2020_HLG:
+			hdr_cap |= HLG_SUPPORT;
+			break;
+		case BT2100_IPT:
+			hdr_cap |= DV_SUPPORT;
+		default:
+			break;
+		}
+	} else if (vinfo) {
+		if (vinfo->hdr_info.hdr_support & HDR_SUPPORT)
+			hdr_cap |= HDR_SUPPORT;
+		if (vinfo->hdr_info.hdr_support & HLG_SUPPORT)
+			hdr_cap |= HLG_SUPPORT;
+		if (vinfo->hdr_info.hdr10plus_info.ieeeoui == HDR_PLUS_IEEE_OUI &&
+		    vinfo->hdr_info.hdr10plus_info.application_version == 1)
+			hdr_cap |= HDRP_SUPPORT;
+		if (vinfo->hdr_info.cuva_info.ieeeoui ==
+			CUVA_IEEEOUI)
+			hdr_cap |= CUVA_SUPPORT;
+		if (vinfo->hdr_info.colorimetry_support & 0xe0)
+			hdr_cap |= BT2020_SUPPORT;
+
+		dv_cap = sink_dv_support(vinfo);
+		if (dv_cap)
+			hdr_cap |= (dv_cap << DV_SUPPORT_SHF) & DV_SUPPORT;
+	}
+
+	/*always hdr, add 8bit hdr10 limitation*/
+	/*adatpive hdr, no 8bit limitation, hdmi will trans 444-8=>422-12*/
+	if (get_hdr_policy() == 0 && get_hdmi_colordepth(vinfo) == COLORDEPTH_24B)
+		new_hdr_cap = hdr_cap & (~HDR_SUPPORT) & (~HLG_SUPPORT) & (~HDRP_SUPPORT);
+	else
+		new_hdr_cap = hdr_cap;
+
+	if (vinfo)
+		pr_csc(256, "%s:support %d %d %d,mode=%d,hdr_cap 0x%x,0x%x\n",
+			__func__,
+			vinfo->hdr_info.hdr_support,
+			vinfo->hdr_info.hdr10plus_info.ieeeoui,
+			vinfo->hdr_info.hdr10plus_info.application_version,
+			vinfo->mode,
+			hdr_cap, new_hdr_cap);
+
+	return new_hdr_cap;
+}
+EXPORT_SYMBOL(sink_hdr_support);
+
+/*original hdr_cap from HDMI, it depends on hdmi limit 8bit hdr10 or not*/
+/*on trunk, hdmi limit 8bit hdr10; on some projects, hdmi not limit 8bit hdr10*/
+uint32_t sink_hdr_support_ori_cap(const struct vinfo_s *vinfo)
 {
 	u32 hdr_cap = 0;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -4169,7 +4247,7 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 #endif
 	return hdr_cap;
 }
-EXPORT_SYMBOL(sink_hdr_support);
+EXPORT_SYMBOL(sink_hdr_support_ori_cap);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 int signal_type_changed(struct vframe_s *vf,
