@@ -1309,11 +1309,13 @@
 	vout_mux: vout_mux {
 		compatible = "amlogic, vout_mux";
 		status = "okay";
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
+		clock-names = "fclk_div5", "vdin_meas_clk";
 	};
 
 	dummy_venc: dummy_venc {
-		compatible = "amlogic, dummy_venc_s4";
-		status = "disabled";
+		compatible = "amlogic, dummy_venc_s1a";
+		status = "okay";
 
 		ports {
 			port {
