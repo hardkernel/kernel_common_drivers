@@ -81,6 +81,11 @@ static unsigned long __pll_params_to_rate(unsigned long parent_rate,
 		parent_rate = parent_rate >> 1;
 
 	rate = (u64)parent_rate * m;
+
+	if (pll->flags & CLK_MESON_PLL_FIXED_EN0P5)
+		parent_rate = parent_rate >> 1;
+
+	rate = (u64)parent_rate * m;
 	if (frac && pll->frac.width > 2) {
 		frac_rate = (u64)parent_rate * frac;
 		if (frac & (1 << (pll->frac.width - 1))) {
@@ -131,9 +136,6 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 		0;
 
 	rate = __pll_params_to_rate(parent_rate, m, n, frac, pll, od);
-	if ((pll->flags & CLK_MESON_PLL_FIXED_EN0P5) ||
-	    (MESON_PARM_APPLICABLE(&pll->en0p5) && meson_parm_read(clk->map, &pll->en0p5)))
-		rate = rate >> 1;
 
 	return rate;
 }
@@ -154,9 +156,6 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 		0;
 
 	rate = __pll_params_to_rate(parent_rate, m, n, frac, pll);
-	if ((pll->flags & CLK_MESON_PLL_FIXED_EN0P5) ||
-	    (MESON_PARM_APPLICABLE(&pll->en0p5) && meson_parm_read(clk->map, &pll->en0p5)))
-		rate = rate >> 1;
 
 	return rate;
 }
