@@ -340,9 +340,9 @@
 		mbox-dests = <MAILBOX_AOCPU>;
 	};
 
-	vddcpu0: pwm_a-regulator {
+	vddcpu0: pwm_j-regulator {
 		compatible = "pwm-regulator";
-		pwms = <&pwm_a MESON_PWM_0 1500 0>;
+		pwms = <&pwm_j MESON_PWM_0 1500 0>;
 		regulator-name = "vddcpu0";
 		regulator-min-microvolt = <689000>;
 		regulator-max-microvolt = <1049000>;
