@@ -70,7 +70,8 @@
 /* 2023/09/11 --- V3.02 --- Fix afc(+/-2MHz). */
 /* 2023/10/09 --- V3.03 --- Delete debug logs in probe. */
 /* 2023/12/01 --- V3.04 --- Fix prop setting. */
-#define AMLATVDEMOD_VER "V3.04"
+/* 2024/01/10 --- V3.05 --- Fix cvbs line output jitter. */
+#define AMLATVDEMOD_VER "V3.05"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
