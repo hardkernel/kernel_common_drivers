@@ -37,7 +37,7 @@ static int self_trig_continue_count;
 static void task_wakeup(struct di_task *tsk);
 
 unsigned int di_dbg_task_flg;	/*debug only*/
-module_param_named(di_dbg_task_flg, di_dbg_task_flg, uint, 0664);
+__module_param_named(di_dbg_task_flg, di_dbg_task_flg, uint, 0664);
 
 bool task_send_cmd(unsigned int cmd)
 {

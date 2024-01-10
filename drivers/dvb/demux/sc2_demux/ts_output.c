@@ -215,39 +215,39 @@ static int timer_es_wake_up;
 
 MODULE_PARM_DESC(debug_ts_output, "\n\t\t Enable demux debug information");
 static int debug_ts_output;
-module_param(debug_ts_output, int, 0644);
+__module_param(debug_ts_output, int, 0644);
 
 MODULE_PARM_DESC(drop_dup, "\n\t\t drop duplicate packet");
 static int drop_dup;
-module_param(drop_dup, int, 0644);
+__module_param(drop_dup, int, 0644);
 
 MODULE_PARM_DESC(es_count_one_time, "\n\t\t handle es count one time");
 static int es_count_one_time = 10;
-module_param(es_count_one_time, int, 0644);
+__module_param(es_count_one_time, int, 0644);
 
 MODULE_PARM_DESC(debug_section, "\n\t\t debug section");
 static int debug_section;
-module_param(debug_section, int, 0644);
+__module_param(debug_section, int, 0644);
 
 MODULE_PARM_DESC(audio_es_len_limit, "\n\t\t debug section");
 static int audio_es_len_limit = (40 * 1024);
-module_param(audio_es_len_limit, int, 0644);
+__module_param(audio_es_len_limit, int, 0644);
 
 MODULE_PARM_DESC(video_es_splice, "\n\t\t video es splice");
 static int video_es_splice;
-module_param(video_es_splice, int, 0644);
+__module_param(video_es_splice, int, 0644);
 
 MODULE_PARM_DESC(audio_es_splice, "\n\t\t audio es splice");
 static int audio_es_splice;
-module_param(audio_es_splice, int, 0644);
+__module_param(audio_es_splice, int, 0644);
 
 MODULE_PARM_DESC(ts_output_max_pid_num_per_sid, "\n\t\t max pid num per sid in si_table");
 static int ts_output_max_pid_num_per_sid = 32;
-module_param(ts_output_max_pid_num_per_sid, int, 0644);
+__module_param(ts_output_max_pid_num_per_sid, int, 0644);
 
 MODULE_PARM_DESC(debug_es_len, "\n\t\t print es 5 bytes");
 static int debug_es_len;
-module_param(debug_es_len, int, 0644);
+__module_param(debug_es_len, int, 0644);
 
 #define VIDEOES_DUMP_FILE   "/data/video_dump"
 #define AUDIOES_DUMP_FILE   "/data/audio_dump"

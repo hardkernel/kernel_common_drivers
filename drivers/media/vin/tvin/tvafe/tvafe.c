@@ -74,7 +74,7 @@ static struct tvafe_clkgate_type tvafe_clkgate;
 static struct tvafe_dev_s *tvafe_dev_local;
 
 static bool enable_db_reg = true;
-module_param(enable_db_reg, bool, 0644);
+__module_param(enable_db_reg, bool, 0644);
 MODULE_PARM_DESC(enable_db_reg, "enable/disable tvafe load reg");
 
 int top_init_en;

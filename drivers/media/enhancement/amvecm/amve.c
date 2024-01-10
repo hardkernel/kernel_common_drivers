@@ -67,23 +67,23 @@
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #define GAMMA_RETRY        1000
 unsigned int gamma_loadprotect_en;
-module_param(gamma_loadprotect_en, int, 0664);
+__module_param(gamma_loadprotect_en, int, 0664);
 MODULE_PARM_DESC(gamma_loadprotect_en, "gamma_loadprotect_en");
 
 unsigned int gamma_update_flag_r;
-module_param(gamma_update_flag_r, int, 0664);
+__module_param(gamma_update_flag_r, int, 0664);
 MODULE_PARM_DESC(gamma_update_flag_r, "gamma_update_flag_r");
 
 unsigned int gamma_update_flag_g;
-module_param(gamma_update_flag_g, int, 0664);
+__module_param(gamma_update_flag_g, int, 0664);
 MODULE_PARM_DESC(gamma_update_flag_g, "gamma_update_flag_g");
 
 unsigned int gamma_update_flag_b;
-module_param(gamma_update_flag_b, int, 0664);
+__module_param(gamma_update_flag_b, int, 0664);
 MODULE_PARM_DESC(gamma_update_flag_b, "gamma_update_flag_b");
 
 unsigned int gamma_disable_flag;
-module_param(gamma_disable_flag, int, 0664);
+__module_param(gamma_disable_flag, int, 0664);
 MODULE_PARM_DESC(gamma_disable_flag, "gamma_disable_flag");
 #endif
 
@@ -99,23 +99,23 @@ unsigned long flags;
 #define NEW_DNLP_IN_VPP 1
 
 unsigned int dnlp_sel = NEW_DNLP_IN_SHARPNESS;
-module_param(dnlp_sel, int, 0664);
+__module_param(dnlp_sel, int, 0664);
 MODULE_PARM_DESC(dnlp_sel, "dnlp_sel");
 /* #endif */
 #endif
 
 static int amve_debug;
-module_param(amve_debug, int, 0664);
+__module_param(amve_debug, int, 0664);
 MODULE_PARM_DESC(amve_debug, "amve_debug");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static int amve_bringup_debug;
-module_param(amve_bringup_debug, int, 0664);
+__module_param(amve_bringup_debug, int, 0664);
 MODULE_PARM_DESC(amve_bringup_debug, "amve_bringup_debug");
 
 /*for fmeter en*/
 int fmeter_en = 1;
-module_param(fmeter_en, int, 0664);
+__module_param(fmeter_en, int, 0664);
 MODULE_PARM_DESC(fmeter_en, "fmeter_en");
 
 struct ve_hist_s video_ve_hist;
@@ -171,17 +171,17 @@ struct tcon_rgb_ogo_s video_rgb_ogo_sub = {
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 int dnlp_en;/* 0:disable;1:enable */
-module_param(dnlp_en, int, 0664);
+__module_param(dnlp_en, int, 0664);
 MODULE_PARM_DESC(dnlp_en, "\n enable or disable dnlp\n");
 static int dnlp_status = 1;/* 0:done;1:todo */
 
 int dnlp_en_2_pre = 1;
 int dnlp_en_2 = 1;/* 0:disable;1:enable */
-module_param(dnlp_en_2, int, 0664);
+__module_param(dnlp_en_2, int, 0664);
 MODULE_PARM_DESC(dnlp_en_2, "\n enable or disable dnlp\n");
 
 int dnlp_en_dsw = 1;/* 0:disable;1:enable */
-module_param(dnlp_en_dsw, int, 0664);
+__module_param(dnlp_en_dsw, int, 0664);
 MODULE_PARM_DESC(dnlp_en_dsw, "\n enable or disable dnlp_dsw\n");
 
 int lut3d_en;/* lut3d_en enable/disable */
@@ -189,17 +189,17 @@ int lut3d_order;/* 0 RGB 1 GBR */
 int lut3d_debug;
 #endif
 
-static int frame_lock_freq;
-module_param(frame_lock_freq, int, 0664);
+//static int frame_lock_freq;
+__module_param(frame_lock_freq, int, 0664);
 MODULE_PARM_DESC(frame_lock_freq, "frame_lock_50");
 
 static int video_rgb_ogo_mode_sw;
-module_param(video_rgb_ogo_mode_sw, int, 0664);
+__module_param(video_rgb_ogo_mode_sw, int, 0664);
 MODULE_PARM_DESC(video_rgb_ogo_mode_sw,
 		 "enable/disable video_rgb_ogo_mode_sw");
 
 int video_rgb_ogo_xvy_mtx;
-module_param(video_rgb_ogo_xvy_mtx, int, 0664);
+__module_param(video_rgb_ogo_xvy_mtx, int, 0664);
 MODULE_PARM_DESC(video_rgb_ogo_xvy_mtx,
 		 "enable/disable video_rgb_ogo_xvy_mtx");
 
@@ -228,12 +228,12 @@ unsigned int sync_3d_sync_to_vbo;
 #endif
 
 unsigned int contrast_adj_sel;/*0:vdj1, 1:vd1 mtx rgb contrast*/
-module_param(contrast_adj_sel, uint, 0664);
+__module_param(contrast_adj_sel, uint, 0664);
 MODULE_PARM_DESC(contrast_adj_sel, "\n contrast_adj_sel\n");
 
 /*gxlx adaptive sr level*/
 static unsigned int sr_adapt_level;
-module_param(sr_adapt_level, uint, 0664);
+__module_param(sr_adapt_level, uint, 0664);
 MODULE_PARM_DESC(sr_adapt_level, "\n sr_adapt_level\n");
 
 /* *********************************************************************** */
@@ -2274,15 +2274,15 @@ void amve_sharpness_init(void)
 #endif
 
 static int overscan_timing = TIMING_MAX;
-module_param(overscan_timing, uint, 0664);
+__module_param(overscan_timing, uint, 0664);
 MODULE_PARM_DESC(overscan_timing, "\n overscan_control\n");
 
 static int overscan_screen_mode = 0xff;
-module_param(overscan_screen_mode, uint, 0664);
+__module_param(overscan_screen_mode, uint, 0664);
 MODULE_PARM_DESC(overscan_screen_mode, "\n overscan_screen_mode\n");
 
 static int overscan_disable;
-module_param(overscan_disable, uint, 0664);
+__module_param(overscan_disable, uint, 0664);
 MODULE_PARM_DESC(overscan_disable, "\n overscan_disable\n");
 
 void amvecm_fresh_overscan(struct vframe_s *vf)

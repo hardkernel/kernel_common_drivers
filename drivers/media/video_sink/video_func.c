@@ -87,7 +87,7 @@ static u32 stop_force_dmc;
 /* 3d related */
 static unsigned int last_process_3d_type;
 static bool dmc_adjust = true;
-module_param_named(dmc_adjust, dmc_adjust, bool, 0644);
+__module_param_named(dmc_adjust, dmc_adjust, bool, 0644);
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static u32 dmc_config_state;
 static u32 last_toggle_count;
@@ -6166,11 +6166,11 @@ void set_post_blend_dummy_data(u32 vpp_index,
 EXPORT_SYMBOL(set_post_blend_dummy_data);
 
 MODULE_PARM_DESC(stop_update, "\n stop_update\n");
-module_param(stop_update, uint, 0664);
+__module_param(stop_update, uint, 0664);
 
 MODULE_PARM_DESC(pre_vsync_count, "\n pre_vsync_count\n");
-module_param(pre_vsync_count, uint, 0664);
+__module_param(pre_vsync_count, uint, 0664);
 
 MODULE_PARM_DESC(stop_force_dmc, "\n stop_force_dmc\n");
-module_param(stop_force_dmc, uint, 0664);
+__module_param(stop_force_dmc, uint, 0664);
 

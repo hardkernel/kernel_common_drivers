@@ -92,58 +92,58 @@ static u8 record_input_sid[MAX_INPUT_NUM];
 
 MODULE_PARM_DESC(debug_dmx, "\n\t\t Enable demux debug information");
 static int debug_dmx;
-module_param(debug_dmx, int, 0644);
+__module_param(debug_dmx, int, 0644);
 
 MODULE_PARM_DESC(video_buf_size, "\n\t\t set video buf size");
 static int video_buf_size = TS_OUTPUT_CHAN_PES_BUF_SIZE;
-module_param(video_buf_size, int, 0644);
+__module_param(video_buf_size, int, 0644);
 
 MODULE_PARM_DESC(audio_buf_size, "\n\t\t set audio buf size");
 static int audio_buf_size = TS_OUTPUT_CHAN_PES_BUF_SIZE;
-module_param(audio_buf_size, int, 0644);
+__module_param(audio_buf_size, int, 0644);
 
 MODULE_PARM_DESC(pes_buf_size, "\n\t\t set pes buf size");
 static int pes_buf_size = TS_OUTPUT_CHAN_PES_BUF_SIZE;
-module_param(pes_buf_size, int, 0644);
+__module_param(pes_buf_size, int, 0644);
 
 MODULE_PARM_DESC(sec_buf_size, "\n\t\t set sec buf size");
 static int sec_buf_size = TS_OUTPUT_CHAN_SEC_BUF_SIZE;
-module_param(sec_buf_size, int, 0644);
+__module_param(sec_buf_size, int, 0644);
 
 MODULE_PARM_DESC(dvr_buf_size, "\n\t\t set sec buf size");
 static int dvr_buf_size = TS_OUTPUT_CHAN_DVR_BUF_SIZE;
-module_param(dvr_buf_size, int, 0644);
+__module_param(dvr_buf_size, int, 0644);
 
 MODULE_PARM_DESC(temi_buff_size, "\n\t\t set temi buf size");
 static int temi_buff_size = TS_OUTPUT_CHAN_TEMI_BUF_SIZE;
-module_param(temi_buff_size, int, 0644);
+__module_param(temi_buff_size, int, 0644);
 
 MODULE_PARM_DESC(flow_control, "\n\t\t flow control percentage");
 static int flow_control = 80;
-module_param(flow_control, int, 0644);
+__module_param(flow_control, int, 0644);
 
 MODULE_PARM_DESC(local_sec_level,
 	"\n\t\t set sec level when dmx source input_local_sec");
 static int local_sec_level = 2;
-module_param(local_sec_level, int, 0644);
+__module_param(local_sec_level, int, 0644);
 
 MODULE_PARM_DESC(enable_w_mutex,
 	"\n\t\t set ddr write mutex with key setting");
 static int enable_w_mutex;
-module_param(enable_w_mutex, int, 0644);
+__module_param(enable_w_mutex, int, 0644);
 
 MODULE_PARM_DESC(pack_len,
 		 "\n\t\t Set pack length default 188 bytes");
 unsigned int pack_len = 188;
-module_param(pack_len, int, 0644);
+__module_param(pack_len, int, 0644);
 
 MODULE_PARM_DESC(check_ts_alignm, "\n\t\t check input ts alignm");
 static int check_ts_alignm = 1;
-module_param(check_ts_alignm, int, 0644);
+__module_param(check_ts_alignm, int, 0644);
 
 MODULE_PARM_DESC(find_error_pack, "\n\t\t find error package default 2 package");
 static int find_error_pack = 2;
-module_param(find_error_pack, int, 0644);
+__module_param(find_error_pack, int, 0644);
 
 static int out_ts_elem_cb(struct out_elem *pout,
 			  char *buf, int count, void *udata,

@@ -28,7 +28,7 @@ static bool randomize_mem;
 static int is_esmmem_created;
 
 /*
- * module_param(randomize_mem, bool, 0664);
+ * __module_param(randomize_mem, bool, 0664);
  * MODULE_PARM_DESC(noverify, "Wipe mem allocations on startup (for debug)");
  */
 

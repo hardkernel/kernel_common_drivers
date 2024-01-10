@@ -497,7 +497,7 @@ static inline void vm_vf_put_from_provider(struct vframe_s *vf,
  */
 
 static unsigned int print_ifmt;
-/* module_param(print_ifmt, unsigned int, 0644); */
+/* __module_param(print_ifmt, unsigned int, 0644); */
 /* MODULE_PARM_DESC(print_ifmt, "print input format\n"); */
 
 static int get_input_format(struct vframe_s *vf)

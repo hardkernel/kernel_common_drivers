@@ -31,11 +31,11 @@
 #include "../reg_helper.h"
 
 unsigned int aipq_debug;
-module_param(aipq_debug, uint, 0664);
+__module_param(aipq_debug, uint, 0664);
 MODULE_PARM_DESC(aipq_debug, "\n aipq_debug\n");
 
 unsigned int aipq_smooth_dbg;
-module_param(aipq_smooth_dbg, uint, 0664);
+__module_param(aipq_smooth_dbg, uint, 0664);
 MODULE_PARM_DESC(aipq_smooth_dbg, "\n aipq_smooth_dbg\n");
 
 unsigned int aipq_en =
@@ -46,15 +46,15 @@ unsigned int aipq_en =
 	(1 << SATURATION_SCENE) |
 	(1 << DYNAMIC_CONTRAST_SCENE) |
 	(1 << NOISE_SCENE);
-module_param(aipq_en, uint, 0664);
+__module_param(aipq_en, uint, 0664);
 MODULE_PARM_DESC(aipq_en, "\n aipq_en\n");
 
 int aipq_bld_rs = 1;
-module_param(aipq_bld_rs, uint, 0664);
+__module_param(aipq_bld_rs, uint, 0664);
 MODULE_PARM_DESC(aipq_bld_rs, "\n aipq_bld_rs\n");
 
 int slower_coef = 1024;
-module_param(slower_coef, uint, 0664);
+__module_param(slower_coef, uint, 0664);
 MODULE_PARM_DESC(slower_coef, "\n slower_coef\n");
 
 #define pr_aipq_dbg(fmt, args...)\

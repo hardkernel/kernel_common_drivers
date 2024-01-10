@@ -49,7 +49,7 @@
 static int verbose;
 
 static bool randomize_mem;
-module_param(randomize_mem, bool, 0644);
+__module_param(randomize_mem, bool, 0644);
 MODULE_PARM_DESC(noverify, "Wipe memory allocations on startup (for debug)");
 static long hld_ioctl(struct file *f, unsigned int cmd, unsigned long arg);
 
@@ -484,5 +484,5 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Synopsys, Inc.");
 MODULE_DESCRIPTION("ESM Linux Host Library Driver");
 
-module_param(verbose, int, 0644);
+__module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "Enable (1) or disable (0) the debug traces.");

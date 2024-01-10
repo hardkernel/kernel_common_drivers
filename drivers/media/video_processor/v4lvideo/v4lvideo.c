@@ -57,7 +57,7 @@
 //#define DUR2PTS(x) ((x) - ((x) >> 4))
 
 static unsigned short convert_mask = 65472;//0xFFC0
-module_param(convert_mask, ushort, 0664);
+__module_param(convert_mask, ushort, 0664);
 MODULE_PARM_DESC(convert_mask, "convert_mask");
 
 static atomic_t global_set_cnt = ATOMIC_INIT(0);

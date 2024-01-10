@@ -23,7 +23,7 @@ struct videobuf_res_memory {
 };
 
 static int debug;
-module_param(debug, int, 0644);
+__module_param(debug, int, 0644);
 
 #define pr_dbg(fmt, args...) pr_info("videobuf-res: " fmt, ## args)
 

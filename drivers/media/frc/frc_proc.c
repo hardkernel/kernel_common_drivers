@@ -52,19 +52,19 @@
 #include "frc_rdma.h"
 
 int frc_enable_cnt = 1;
-module_param(frc_enable_cnt, int, 0664);
+__module_param(frc_enable_cnt, int, 0664);
 MODULE_PARM_DESC(frc_enable_cnt, "frc enable counter");
 
 int frc_disable_cnt = 1;
-module_param(frc_disable_cnt, int, 0664);
+__module_param(frc_disable_cnt, int, 0664);
 MODULE_PARM_DESC(frc_disable_cnt, "frc disable counter");
 
 int frc_re_cfg_cnt = 3;/*need bigger than frc_disable_cnt 3, 15*/
-module_param(frc_re_cfg_cnt, int, 0664);
+__module_param(frc_re_cfg_cnt, int, 0664);
 MODULE_PARM_DESC(frc_re_cfg_cnt, "frc reconfig counter");
 
 int sec_flag;
-module_param(sec_flag, int, 0664);
+__module_param(sec_flag, int, 0664);
 MODULE_PARM_DESC(sec_flag, "frc debug flag");
 
 u32 secure_tee_handle;

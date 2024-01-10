@@ -30,31 +30,31 @@
 #include "set_hdr2_v0.h"
 
 int multi_picture_case;
-module_param(multi_picture_case, int, 0644);
+__module_param(multi_picture_case, int, 0644);
 MODULE_PARM_DESC(multi_picture_case, "multi_picture_case for t3x");
 
 int multi_slice_case;
-module_param(multi_slice_case, int, 0644);
+__module_param(multi_slice_case, int, 0644);
 MODULE_PARM_DESC(multi_slice_case, "multi_slice_case for t3x");
 
 int dnlp_slice_num_changed;
-module_param(dnlp_slice_num_changed, int, 0644);
+__module_param(dnlp_slice_num_changed, int, 0644);
 MODULE_PARM_DESC(dnlp_slice_num_changed, "dnlp_slice_num_changed for t3x");
 
 int lc_slice_num_changed;
-module_param(lc_slice_num_changed, int, 0644);
+__module_param(lc_slice_num_changed, int, 0644);
 MODULE_PARM_DESC(lc_slice_num_changed, "lc_slice_num_changed for t3x");
 
 int hist_dma_case = 1;
-module_param(hist_dma_case, int, 0644);
+__module_param(hist_dma_case, int, 0644);
 MODULE_PARM_DESC(hist_dma_case, "hist_dma_case for t3x");
 
 int dump_lc_curve;
-module_param(dump_lc_curve, int, 0644);
+__module_param(dump_lc_curve, int, 0644);
 MODULE_PARM_DESC(dump_lc_curve, "dump_lc_curve for t3x");
 
 static int vev2_dbg;
-module_param(vev2_dbg, int, 0644);
+__module_param(vev2_dbg, int, 0644);
 MODULE_PARM_DESC(vev2_dbg, "ve dbg after s5");
 
 #define pr_amve_v2(fmt, args...)\
@@ -88,11 +88,11 @@ unsigned int lc_reg_ofst[4] = {
 int lc_h_count_ini_phs;
 
 unsigned int lc_overlap_s0 = 32;
-module_param(lc_overlap_s0, int, 0644);
+__module_param(lc_overlap_s0, int, 0644);
 MODULE_PARM_DESC(lc_overlap_s0, "lc_overlap_s0");
 
 unsigned int lc_overlap = 32;
-module_param(lc_overlap, int, 0644);
+__module_param(lc_overlap, int, 0644);
 MODULE_PARM_DESC(lc_overlap, "lc_overlap");
 
 static struct vd_proc_amvecm_info_t *vd_info;

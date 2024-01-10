@@ -36,11 +36,11 @@
 static struct mua_device *mdev;
 
 static int enable_screencap;
-module_param_named(enable_screencap, enable_screencap, int, 0664);
+__module_param_named(enable_screencap, enable_screencap, int, 0664);
 static int mua_debug_level = MUA_ERROR;
-module_param(mua_debug_level, int, 0644);
+__module_param(mua_debug_level, int, 0644);
 static int realloc_size;
-module_param(realloc_size, int, 0644);
+__module_param(realloc_size, int, 0644);
 
 #define MUA_PRINTK(level, fmt, arg...) \
 	do {	\

@@ -421,7 +421,7 @@ static void set_lut_dma_phy_addr(u32 dma_dir, u32 channel)
 
 static int bit_format;
 MODULE_PARM_DESC(bit_format, "\n bit_format\n");
-module_param(bit_format, uint, 0664);
+__module_param(bit_format, uint, 0664);
 static int lut_dma_enable(u32 dma_dir, u32 channel)
 {
 	int mode = 0, channel_sel = 0;

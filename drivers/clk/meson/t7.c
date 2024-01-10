@@ -8164,7 +8164,7 @@ static int meson_t7_dvfs_setup(struct platform_device *pdev)
 
 static int ignore_pll_init;
 
-module_param(ignore_pll_init, int, 0664);
+__module_param(ignore_pll_init, int, 0664);
 MODULE_PARM_DESC(ignore_pll_init, "ignore_pll_init");
 
 static int meson_t7_probe(struct platform_device *pdev)

@@ -37,7 +37,7 @@
 #include <linux/amlogic/kernel_versions.h>
 
 static int dmabuf_manage_debug = 1;
-module_param(dmabuf_manage_debug, int, 0644);
+__module_param(dmabuf_manage_debug, int, 0644);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
 static u32 secure_heap_version = SECURE_HEAP_USER_TA_VERSION;

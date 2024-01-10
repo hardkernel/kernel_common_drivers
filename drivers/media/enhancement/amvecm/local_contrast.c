@@ -44,7 +44,7 @@
 #define LC_BLK_V_NUM 8
 
 int amlc_debug;
-module_param(amlc_debug, int, 0664);
+__module_param(amlc_debug, int, 0664);
 MODULE_PARM_DESC(amlc_debug, "\n amlc_debug\n");
 
 #define pr_amlc_dbg(fmt, args...)\
@@ -56,23 +56,23 @@ MODULE_PARM_DESC(amlc_debug, "\n amlc_debug\n");
 int lc_en = 1;
 int lc_bitdepth = 10;
 int lc_curve_isr_defined;
-module_param(lc_curve_isr_defined, int, 0664);
+__module_param(lc_curve_isr_defined, int, 0664);
 MODULE_PARM_DESC(lc_curve_isr_defined, "\n lc_curve_isr_defined\n");
 
 int use_lc_curve_isr = 1;
-module_param(use_lc_curve_isr, int, 0664);
+__module_param(use_lc_curve_isr, int, 0664);
 MODULE_PARM_DESC(use_lc_curve_isr, "\n use_lc_curve_isr\n");
 
 int lc_rdma_mode;
-module_param(lc_rdma_mode, int, 0664);
+__module_param(lc_rdma_mode, int, 0664);
 MODULE_PARM_DESC(lc_rdma_mode, "\n lc_rdma_mode\n");
 
 int lc_skip_iir;
-module_param(lc_skip_iir, int, 0664);
+__module_param(lc_skip_iir, int, 0664);
 MODULE_PARM_DESC(lc_skip_iir, "\n lc_skip_iir\n");
 
 int lc_demo_mode;
-module_param(lc_demo_mode, int, 0664);
+__module_param(lc_demo_mode, int, 0664);
 MODULE_PARM_DESC(lc_demo_mode, "\n lc_demo_mode\n");
 
 int lc_en_chflg = 0xff;
@@ -114,7 +114,7 @@ static bool lc_malloc_ok;
 
 /*print one or more frame data*/
 unsigned int lc_hist_prcnt;
-module_param(lc_hist_prcnt, int, 0664);
+__module_param(lc_hist_prcnt, int, 0664);
 MODULE_PARM_DESC(lc_hist_prcnt, "\n lc_hist_prcnt\n");
 
 unsigned int lc_node_prcnt;

@@ -91,12 +91,12 @@ static int ts_clone_init_flag;
 
 MODULE_PARM_DESC(debug_ts_clone, "\n\t\t Enable ts clone debug information");
 static int debug_ts_clone;
-module_param(debug_ts_clone, int, 0644);
+__module_param(debug_ts_clone, int, 0644);
 
 MODULE_PARM_DESC(clone_buf_size, "\n\t\t Configure ts clone buffer size");
 //about 2.5MB
 static int clone_buf_size = 14000 * 188;
-module_param(clone_buf_size, int, 0644);
+__module_param(clone_buf_size, int, 0644);
 
 static int _ts_clone_open_output(struct demod_ts_clone_parent *node)
 {

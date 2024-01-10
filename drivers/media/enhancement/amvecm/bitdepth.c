@@ -35,90 +35,90 @@
 
 /*u2s_mode:0:true 12bit;1:false 12bit*/
 static unsigned int u2s_mode;
-module_param(u2s_mode, uint, 0664);
+__module_param(u2s_mode, uint, 0664);
 MODULE_PARM_DESC(u2s_mode, "\n u2s_mode\n");
 
 /*u2s_mode:0:bypass;1:enable*/
 static unsigned int dolby_core1_en;
-module_param(dolby_core1_en, uint, 0664);
+__module_param(dolby_core1_en, uint, 0664);
 MODULE_PARM_DESC(dolby_core1_en, "\n dolby_core1_en\n");
 
 static unsigned int dolby_core2_en;
-module_param(dolby_core2_en, uint, 0664);
+__module_param(dolby_core2_en, uint, 0664);
 MODULE_PARM_DESC(dolby_core2_en, "\n dolby_core2_en\n");
 
 static unsigned int vd2_en;
-module_param(vd2_en, uint, 0664);
+__module_param(vd2_en, uint, 0664);
 MODULE_PARM_DESC(vd2_en, "\n vd2_en\n");
 
 static unsigned int osd2_en;
-module_param(osd2_en, uint, 0664);
+__module_param(osd2_en, uint, 0664);
 MODULE_PARM_DESC(osd2_en, "\n osd2_en\n");
 
 static unsigned int dolby_core1_ext_mode;
-module_param(dolby_core1_ext_mode, uint, 0664);
+__module_param(dolby_core1_ext_mode, uint, 0664);
 MODULE_PARM_DESC(dolby_core1_ext_mode, "\n dolby_core1_ext_mode\n");
 
 static unsigned int dolby_core2_ext_mode;
-module_param(dolby_core2_ext_mode, uint, 0664);
+__module_param(dolby_core2_ext_mode, uint, 0664);
 MODULE_PARM_DESC(dolby_core2_ext_mode, "\n dolby_core2_ext_mode\n");
 
 static unsigned int vd2_ext_mode;
-module_param(vd2_ext_mode, uint, 0664);
+__module_param(vd2_ext_mode, uint, 0664);
 MODULE_PARM_DESC(vd2_ext_mode, "\n vd2_ext_mode\n");
 
 static unsigned int osd2_ext_mode;
-module_param(osd2_ext_mode, uint, 0664);
+__module_param(osd2_ext_mode, uint, 0664);
 MODULE_PARM_DESC(osd2_ext_mode, "\n osd2_ext_mode\n");
 
 /**/
 static unsigned int vpp_dpath_sel0;
-module_param(vpp_dpath_sel0, uint, 0664);
+__module_param(vpp_dpath_sel0, uint, 0664);
 MODULE_PARM_DESC(vpp_dpath_sel0, "\n vpp_dpath_sel0\n");
 
 static unsigned int vpp_dpath_sel1;
-module_param(vpp_dpath_sel1, uint, 0664);
+__module_param(vpp_dpath_sel1, uint, 0664);
 MODULE_PARM_DESC(vpp_dpath_sel1, "\n vpp_dpath_sel1\n");
 
 static unsigned int vpp_dpath_sel2;
-module_param(vpp_dpath_sel2, uint, 0664);
+__module_param(vpp_dpath_sel2, uint, 0664);
 MODULE_PARM_DESC(vpp_dpath_sel2, "\n vpp_dpath_sel2\n");
 
 static unsigned int vpp_dolby3_en;
-module_param(vpp_dolby3_en, uint, 0664);
+__module_param(vpp_dolby3_en, uint, 0664);
 MODULE_PARM_DESC(vpp_dolby3_en, "\n vpp_dolby3_en\n");
 
 static unsigned int core1_input_data_conv_mode;
-module_param(core1_input_data_conv_mode, uint, 0664);
+__module_param(core1_input_data_conv_mode, uint, 0664);
 MODULE_PARM_DESC(core1_input_data_conv_mode, "\n core1_input_data_conv_mode\n");
 
 static unsigned int core1_output_data_conv_mode;
-module_param(core1_output_data_conv_mode, uint, 0664);
+__module_param(core1_output_data_conv_mode, uint, 0664);
 MODULE_PARM_DESC(core1_output_data_conv_mode, "\n core1_output_data_conv_mode\n");
 
 static unsigned int vd1_input_clip_mode;
-module_param(vd1_input_clip_mode, uint, 0664);
+__module_param(vd1_input_clip_mode, uint, 0664);
 MODULE_PARM_DESC(vd1_input_clip_mode, "\n vd1_input_clip_mode\n");
 
 static unsigned int vd2_input_clip_mode;
-module_param(vd2_input_clip_mode, uint, 0664);
+__module_param(vd2_input_clip_mode, uint, 0664);
 MODULE_PARM_DESC(vd2_input_clip_mode, "\n vd2_input_clip_mode\n");
 
 static unsigned int vpp_output_clip_mode;
-module_param(vpp_output_clip_mode, uint, 0664);
+__module_param(vpp_output_clip_mode, uint, 0664);
 MODULE_PARM_DESC(vpp_output_clip_mode, "\n vpp_output_clip_mode\n");
 
 static unsigned int vpp_dith_en;
-module_param(vpp_dith_en, uint, 0664);
+__module_param(vpp_dith_en, uint, 0664);
 MODULE_PARM_DESC(vpp_dith_en, "\n vpp_dith_en\n");
 
 /*U12toU10:1:cut low 2bit;0:cut high 2bit*/
 static unsigned int vpp_dith_mode;
-module_param(vpp_dith_mode, uint, 0664);
+__module_param(vpp_dith_mode, uint, 0664);
 MODULE_PARM_DESC(vpp_dith_mode, "\n vpp_dith_mode\n");
 
 static unsigned int dolby3_path_sel;
-module_param(dolby3_path_sel, uint, 0664);
+__module_param(dolby3_path_sel, uint, 0664);
 MODULE_PARM_DESC(dolby3_path_sel, "\n dolby3_path_sel\n");
 
 /*u2s: scaler:>>n;offset:-n*/

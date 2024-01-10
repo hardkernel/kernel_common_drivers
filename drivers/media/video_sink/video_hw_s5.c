@@ -121,31 +121,31 @@ static struct vpp_post_s g_vpp_post;
 
 static u32 g_slice_num = 0xff;
 MODULE_PARM_DESC(g_slice_num, "\n g_slice_num\n");
-module_param(g_slice_num, uint, 0664);
+__module_param(g_slice_num, uint, 0664);
 
 u32 pi_enable = 0xff;
 MODULE_PARM_DESC(pi_enable, "\n pi_enable\n");
-module_param(pi_enable, uint, 0664);
+__module_param(pi_enable, uint, 0664);
 
 u32 vd2_pi_enable = 0xff;
 MODULE_PARM_DESC(vd2_pi_enable, "\n vd2_pi_enable\n");
-module_param(vd2_pi_enable, uint, 0664);
+__module_param(vd2_pi_enable, uint, 0664);
 
 u32 g_vd1s1_vd2_prebld_en = 0xff;
 MODULE_PARM_DESC(g_vd1s1_vd2_prebld_en, "\n g_vd1s1_vd2_prebld_en\n");
-module_param(g_vd1s1_vd2_prebld_en, uint, 0664);
+__module_param(g_vd1s1_vd2_prebld_en, uint, 0664);
 
 u32 g_h_padding;
 MODULE_PARM_DESC(g_h_padding, "\n g_h_padding\n");
-module_param(g_h_padding, uint, 0664);
+__module_param(g_h_padding, uint, 0664);
 
 u32 g_v_padding = 16;
 MODULE_PARM_DESC(g_v_padding, "\n g_v_padding\n");
-module_param(g_v_padding, uint, 0664);
+__module_param(g_v_padding, uint, 0664);
 
 u32 debug_flag_s5;
 MODULE_PARM_DESC(debug_flag_s5, "\n debug_flag_s5\n");
-module_param(debug_flag_s5, uint, 0664);
+__module_param(debug_flag_s5, uint, 0664);
 
 static void vd1_scaler_setting_s5(struct video_layer_s *layer,
 	struct scaler_setting_s *setting,

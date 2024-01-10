@@ -46,28 +46,28 @@ static struct chan_id chan_id_table_r[R_MAX_MEM_CHAN_NUM];
 
 MODULE_PARM_DESC(debug_mem_desc, "\n\t\t Enable debug mem desc information");
 static int debug_mem_desc;
-module_param(debug_mem_desc, int, 0644);
+__module_param(debug_mem_desc, int, 0644);
 
 MODULE_PARM_DESC(loop_desc, "\n\t\t Enable loop mem desc information");
 static int loop_desc = 0x1;
-module_param(loop_desc, int, 0644);
+__module_param(loop_desc, int, 0644);
 
 #define DEFAULT_RCH_SYNC_NUM	8
 static int rch_sync_num_last = -1;
 
 MODULE_PARM_DESC(rch_sync_num, "\n\t\t Enable loop mem desc information");
 static int rch_sync_num = DEFAULT_RCH_SYNC_NUM;
-module_param(rch_sync_num, int, 0644);
+__module_param(rch_sync_num, int, 0644);
 
 #define BEN_LEVEL_SIZE			(512 * 1024)
 
 MODULE_PARM_DESC(dmc_keep_alive, "\n\t\t Enable keep dmc alive");
 static int dmc_keep_alive;
-module_param(dmc_keep_alive, int, 0644);
+__module_param(dmc_keep_alive, int, 0644);
 
 MODULE_PARM_DESC(write_timeout_ms, "\n\t\t write timeout default 1s");
 static int write_timeout_ms = 1000;
-module_param(write_timeout_ms, int, 0644);
+__module_param(write_timeout_ms, int, 0644);
 
 struct mem_cache {
 	unsigned long start_virt;

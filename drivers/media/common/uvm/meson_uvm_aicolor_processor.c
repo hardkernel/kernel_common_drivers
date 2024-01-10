@@ -29,16 +29,16 @@
 static struct dma_buf *dmabuf_last;
 
 static int uvm_aicolor_debug;
-module_param(uvm_aicolor_debug, int, 0644);
+__module_param(uvm_aicolor_debug, int, 0644);
 
 static int uvm_open_aicolor;
-module_param(uvm_open_aicolor, int, 0644);
+__module_param(uvm_open_aicolor, int, 0644);
 
 static int uvm_aicolor_dump;
-module_param(uvm_aicolor_dump, int, 0644);
+__module_param(uvm_aicolor_dump, int, 0644);
 
 static int uvm_aicolor_skip_height = 1088;
-module_param(uvm_aicolor_skip_height, int, 0644);
+__module_param(uvm_aicolor_skip_height, int, 0644);
 
 #define PRINT_ERROR     0X0
 #define PRINT_OTHER     0X0001

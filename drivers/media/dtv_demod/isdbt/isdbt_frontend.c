@@ -46,19 +46,19 @@
 //isdb-t
 MODULE_PARM_DESC(isdbt_check_signal_time, "\n\t\t isdbt check signal time");
 static unsigned int isdbt_check_signal_time = ISDBT_TIME_CHECK_SIGNAL;
-module_param(isdbt_check_signal_time, int, 0644);
+__module_param(isdbt_check_signal_time, int, 0644);
 
 MODULE_PARM_DESC(isdbt_reset_in_unlock_times, "\n\t\t isdbt check signal time");
 static unsigned int isdbt_reset_in_unlock_times = ISDBT_RESET_IN_UNLOCK_TIMES;
-module_param(isdbt_reset_in_unlock_times, int, 0644);
+__module_param(isdbt_reset_in_unlock_times, int, 0644);
 
 MODULE_PARM_DESC(isdbt_lock_continuous_cnt, "\n\t\t isdbt lock signal continuous counting");
 static unsigned int isdbt_lock_continuous_cnt = 1;
-module_param(isdbt_lock_continuous_cnt, int, 0644);
+__module_param(isdbt_lock_continuous_cnt, int, 0644);
 
 MODULE_PARM_DESC(isdbt_lost_continuous_cnt, "\n\t\t isdbt lost signal continuous counting");
 static unsigned int isdbt_lost_continuous_cnt = 10;
-module_param(isdbt_lost_continuous_cnt, int, 0644);
+__module_param(isdbt_lost_continuous_cnt, int, 0644);
 
 int dvbt_isdbt_set_ch(struct aml_dtvdemod *demod,
 		struct aml_demod_dvbt *demod_dvbt)

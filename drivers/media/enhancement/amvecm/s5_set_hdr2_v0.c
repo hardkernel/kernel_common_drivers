@@ -28,15 +28,15 @@
 #include "color/ai_color.h"
 
 static uint cpu_write_lut = 1;
-module_param(cpu_write_lut, uint, 0664);
+__module_param(cpu_write_lut, uint, 0664);
 MODULE_PARM_DESC(cpu_write_lut, "\n cpu_write_lut\n");
 
 static uint dma_sel = 3;
-module_param(dma_sel, uint, 0664);
+__module_param(dma_sel, uint, 0664);
 MODULE_PARM_DESC(dma_sel, "\n dma_sel\n");
 
 static uint dma_sel1 = 3;
-module_param(dma_sel1, uint, 0664);
+__module_param(dma_sel1, uint, 0664);
 MODULE_PARM_DESC(dma_sel1, "\n dma_sel1\n");
 
 static struct vd_proc_amvecm_info_t *vd_proc_info;

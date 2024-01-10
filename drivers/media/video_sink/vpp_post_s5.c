@@ -86,7 +86,7 @@
 #endif
 
 static int g_post_overlap_size = 32;
-module_param(g_post_overlap_size, uint, 0664);
+__module_param(g_post_overlap_size, uint, 0664);
 MODULE_PARM_DESC(g_post_overlap_size, "\n g_post_overlap_size\n");
 
 static struct vpp_post_input_s g_vpp_input;
@@ -101,11 +101,11 @@ static struct vpp_post_in_padding_s g_vpp_in_padding;
 
 static u32 g_post_slice_num = 0xff;
 MODULE_PARM_DESC(g_post_slice_num, "\n g_post_slice_num\n");
-module_param(g_post_slice_num, uint, 0664);
+__module_param(g_post_slice_num, uint, 0664);
 
 u32 g_vpp1_bypass_slice1;
 MODULE_PARM_DESC(g_vpp1_bypass_slice1, "\n g_vpp1_bypass_slice1\n");
-module_param(g_vpp1_bypass_slice1, uint, 0664);
+__module_param(g_vpp1_bypass_slice1, uint, 0664);
 
 void (*get_vpp_din3_scope)(struct vpp_postblend_scope_s *scope);
 

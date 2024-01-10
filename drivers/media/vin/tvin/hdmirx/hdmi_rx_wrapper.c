@@ -99,25 +99,25 @@ int port_debug_en;
 int flt_ready_max = 3;
 int frl_debug_en;
 //static int auds_rcv_sts;
-//module_param(auds_rcv_sts, int, 0664);
+//__module_param(auds_rcv_sts, int, 0664);
 //MODULE_PARM_DESC(auds_rcv_sts, "auds_rcv_sts");
 
 /* to inform ESM whether the cable is connected or not */
 bool hpd_to_esm;
 MODULE_PARM_DESC(hpd_to_esm, "\n hpd_to_esm\n");
-module_param(hpd_to_esm, bool, 0664);
+__module_param(hpd_to_esm, bool, 0664);
 
 int hdcp22_kill_esm;
 MODULE_PARM_DESC(hdcp22_kill_esm, "\n hdcp22_kill_esm\n");
-module_param(hdcp22_kill_esm, int, 0664);
+__module_param(hdcp22_kill_esm, int, 0664);
 
 bool hdcp_mode_sel;
 MODULE_PARM_DESC(hdcp_mode_sel, "\n hdcp_mode_sel\n");
-module_param(hdcp_mode_sel, bool, 0664);
+__module_param(hdcp_mode_sel, bool, 0664);
 
 bool esm_auth_fail_en;
 MODULE_PARM_DESC(esm_auth_fail_en, "\n esm_auth_fail_en\n");
-module_param(esm_auth_fail_en, bool, 0664);
+__module_param(esm_auth_fail_en, bool, 0664);
 
 /* to inform hdcp_rx22 whether there's any device connected */
 u32 pwr_sts_to_esm;
@@ -127,36 +127,36 @@ bool esm_error_flag;
 /*the esm reset flag for hdcp_rx22*/
 bool esm_reset_flag;
 MODULE_PARM_DESC(esm_reset_flag, "\n esm_reset_flag\n");
-module_param(esm_reset_flag, bool, 0664);
+__module_param(esm_reset_flag, bool, 0664);
 
 /* to inform ESM whether the cable is connected or not */
 bool video_stable_to_esm;
 MODULE_PARM_DESC(video_stable_to_esm, "\n video_stable_to_esm\n");
-module_param(video_stable_to_esm, bool, 0664);
+__module_param(video_stable_to_esm, bool, 0664);
 
 bool enable_hdcp22_esm_log;
 MODULE_PARM_DESC(enable_hdcp22_esm_log, "\n enable_hdcp22_esm_log\n");
-module_param(enable_hdcp22_esm_log, bool, 0664);
+__module_param(enable_hdcp22_esm_log, bool, 0664);
 
 int hdcp22_auth_sts = 0xff;
 MODULE_PARM_DESC(hdcp22_auth_sts, "\n hdcp22_auth_sts\n");
-module_param(hdcp22_auth_sts, int, 0664);
+__module_param(hdcp22_auth_sts, int, 0664);
 
 bool hdcp22_esm_reset2;
 MODULE_PARM_DESC(hdcp22_esm_reset2, "\n hdcp22_esm_reset2\n");
-module_param(hdcp22_esm_reset2, bool, 0664);
+__module_param(hdcp22_esm_reset2, bool, 0664);
 
 bool hdcp22_stop_auth;
-module_param(hdcp22_stop_auth, bool, 0664);
+__module_param(hdcp22_stop_auth, bool, 0664);
 MODULE_PARM_DESC(hdcp22_stop_auth, "hdcp22_stop_auth");
 
 int hdcp14_on;
 MODULE_PARM_DESC(hdcp14_on, "\n hdcp14_on\n");
-module_param(hdcp14_on, int, 0664);
+__module_param(hdcp14_on, int, 0664);
 
 /*esm recovery mode for changing resolution & hdmi2.0*/
 int esm_recovery_mode = ESM_REC_MODE_TMDS;
-module_param(esm_recovery_mode, int, 0664);
+__module_param(esm_recovery_mode, int, 0664);
 MODULE_PARM_DESC(esm_recovery_mode, "esm_recovery_mode");
 
 /* No need to judge  frame rate while checking timing stable,as there are

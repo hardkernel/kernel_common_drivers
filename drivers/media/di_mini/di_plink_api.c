@@ -97,9 +97,9 @@ static void dpvpph_pre_frame_reset_g12(bool pvpp_link,
 static void dpvpp_patch_first_buffer(struct dimn_itf_s *itf);
 static unsigned int dpvpp_create_instance_id(unsigned int ch);
 static unsigned int dpvpp_dbg_force_dech;
-module_param_named(dpvpp_dbg_force_dech, dpvpp_dbg_force_dech, uint, 0664);
+__module_param_named(dpvpp_dbg_force_dech, dpvpp_dbg_force_dech, uint, 0664);
 static unsigned int dpvpp_dbg_force_decv;
-module_param_named(dpvpp_dbg_force_decv, dpvpp_dbg_force_decv, uint, 0664);
+__module_param_named(dpvpp_dbg_force_decv, dpvpp_dbg_force_decv, uint, 0664);
 
 /* refor to enum EPVPP_BUF_CFG_T */
 const char *const name_buf_cfg[] = {
@@ -165,7 +165,7 @@ bool timer_cnt(unsigned long *ptimer, unsigned int hs_nub)
  * bit [29]: force pre-vpp link on;
  **********************************************/
 static unsigned int tst_pre_vpp;
-module_param_named(tst_pre_vpp, tst_pre_vpp, uint, 0664);
+__module_param_named(tst_pre_vpp, tst_pre_vpp, uint, 0664);
 
 #define dbg_plink(level, fmt, args ...)		\
 	do {						\

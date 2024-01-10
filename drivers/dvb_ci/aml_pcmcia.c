@@ -15,15 +15,15 @@
 
 static int aml_pcmcia_debug = 1;
 
-module_param_named(pcmcia_debug, aml_pcmcia_debug, int, 0644);
+__module_param_named(pcmcia_debug, aml_pcmcia_debug, int, 0644);
 MODULE_PARM_DESC(pcmcia_debug, "enable verbose debug messages");
 
 static int reset_time_h_t = 2000;
-module_param_named(reset_time_h, reset_time_h_t, int, 0644);
+__module_param_named(reset_time_h, reset_time_h_t, int, 0644);
 MODULE_PARM_DESC(reset_time_h, "reset time h");
 
 static int reset_time_l_t = 2000;
-module_param_named(reset_time_l, reset_time_l_t, int, 0644);
+__module_param_named(reset_time_l, reset_time_l_t, int, 0644);
 MODULE_PARM_DESC(reset_time_l, "reset time l");
 
 #define pr_dbg(fmt, args...)\

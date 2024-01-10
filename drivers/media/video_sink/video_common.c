@@ -1434,8 +1434,8 @@ bool get_lowlatency_mode(void)
 #endif
 
 MODULE_PARM_DESC(debug_common_flag, "\n debug_common_flag\n");
-module_param(debug_common_flag, uint, 0664);
+__module_param(debug_common_flag, uint, 0664);
 
 MODULE_PARM_DESC(aisr_size_threshold, "\n aisr_size_threshold\n");
-module_param(aisr_size_threshold, uint, 0664);
+__module_param(aisr_size_threshold, uint, 0664);
 

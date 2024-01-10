@@ -1662,22 +1662,22 @@ static unsigned int osd_h_filter_mode = 1;
 #define BYTE_32_ALIGNED(x)	(((x) + 31) & ~31)
 #define BYTE_16_ALIGNED(x)	(((x) + 15) & ~15)
 #define BYTE_8_ALIGNED(x)	(((x) + 7) & ~7)
-module_param(osd_h_filter_mode, uint, 0664);
+__module_param(osd_h_filter_mode, uint, 0664);
 MODULE_PARM_DESC(osd_h_filter_mode, "osd_h_filter_mode");
 
 static unsigned int osd_v_filter_mode = 1;
-module_param(osd_v_filter_mode, uint, 0664);
+__module_param(osd_v_filter_mode, uint, 0664);
 MODULE_PARM_DESC(osd_v_filter_mode, "osd_v_filter_mode");
 
 static unsigned int osd_auto_adjust_filter = 1;
-module_param(osd_auto_adjust_filter, uint, 0664);
+__module_param(osd_auto_adjust_filter, uint, 0664);
 MODULE_PARM_DESC(osd_auto_adjust_filter, "osd_auto_adjust_filter");
 
 static int osd_logo_index = 1;
-module_param(osd_logo_index, int, 0664);
+__module_param(osd_logo_index, int, 0664);
 MODULE_PARM_DESC(osd_logo_index, "osd_logo_index");
 
-module_param(osd_afbc_dec_enable, int, 0664);
+__module_param(osd_afbc_dec_enable, int, 0664);
 MODULE_PARM_DESC(osd_afbc_dec_enable, "osd_afbc_dec_enable");
 
 static u32 osd_vpp_misc;
@@ -1694,20 +1694,20 @@ static u32 osd_mali_afbcd_top_ctrl_mask = 0x00ffbfff;
 static u32 osd_mali_afbcd1_top_ctrl;
 static u32 osd_mali_afbcd1_top_ctrl_mask = 0x00f7ffff;
 
-module_param(osd_vpp_misc, uint, 0444);
+__module_param(osd_vpp_misc, uint, 0444);
 MODULE_PARM_DESC(osd_vpp_misc, "osd_vpp_misc");
 
 static unsigned int rdarb_reqen_slv = 0xffff7f;
-module_param(rdarb_reqen_slv, uint, 0664);
+__module_param(rdarb_reqen_slv, uint, 0664);
 MODULE_PARM_DESC(rdarb_reqen_slv, "rdarb_reqen_slv");
 
 static unsigned int supsend_delay;
-module_param(supsend_delay, uint, 0664);
+__module_param(supsend_delay, uint, 0664);
 MODULE_PARM_DESC(supsend_delay, "supsend_delay");
 
 int enable_vd_zorder = 1;
 MODULE_PARM_DESC(enable_vd_zorder, "\n enable_vd_zorder\n");
-module_param(enable_vd_zorder, uint, 0664);
+__module_param(enable_vd_zorder, uint, 0664);
 static int vsync_enter_line_max;
 static int vsync_exit_line_max;
 static int line_threshold = 5;
@@ -1715,18 +1715,18 @@ static int line_threshold_2 = 90;
 static int vsync_threshold = 10;
 static int vsync_adjust_hit;
 static int cur_begin_line[VIU_COUNT];
-module_param_named(osd_vsync_enter_line_max, vsync_enter_line_max, uint, 0664);
+__module_param_named(osd_vsync_enter_line_max, vsync_enter_line_max, uint, 0664);
 
-module_param_named(osd_vsync_exit_line_max, vsync_exit_line_max, uint, 0664);
+__module_param_named(osd_vsync_exit_line_max, vsync_exit_line_max, uint, 0664);
 
 MODULE_PARM_DESC(line_threshold, "\n line_threshold\n");
-module_param(line_threshold, uint, 0664);
+__module_param(line_threshold, uint, 0664);
 MODULE_PARM_DESC(line_threshold_2, "\n line_threshold_2\n");
-module_param(line_threshold_2, uint, 0664);
+__module_param(line_threshold_2, uint, 0664);
 MODULE_PARM_DESC(vsync_threshold, "\n vsync_threshold\n");
-module_param(vsync_threshold, uint, 0664);
+__module_param(vsync_threshold, uint, 0664);
 MODULE_PARM_DESC(vsync_adjust_hit, "\n vsync_adjust_hit\n");
-module_param(vsync_adjust_hit, uint, 0664);
+__module_param(vsync_adjust_hit, uint, 0664);
 
 static unsigned int osd_filter_coefs_bicubic_sharp[] = {
 	0x01fa008c, 0x01fa0100, 0xff7f0200, 0xfe7f0300,

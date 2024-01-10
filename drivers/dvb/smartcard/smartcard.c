@@ -226,20 +226,20 @@ static const struct of_device_id smc_dt_match[] = {
 
 MODULE_PARM_DESC(atr_hold_off, "\n\t\t atr_holdoff");
 static int atr_hold_off = 1;
-module_param(atr_hold_off, int, 0644);
+__module_param(atr_hold_off, int, 0644);
 
 MODULE_PARM_DESC(cwt_det_enable, "\n\t\t cwt_det_en");
 static int cwt_det_enable;
-module_param(cwt_det_enable, int, 0644);
+__module_param(cwt_det_enable, int, 0644);
 MODULE_PARM_DESC(btw_det_enable, "\n\t\t btw_det_en");
 static int btw_det_enable;
-module_param(btw_det_enable, int, 0644);
+__module_param(btw_det_enable, int, 0644);
 MODULE_PARM_DESC(etu_msr_enable, "\n\t\t etu_msr_en");
 static int etu_msr_enable;
-module_param(etu_msr_enable, int, 0644);
+__module_param(etu_msr_enable, int, 0644);
 MODULE_PARM_DESC(clock_source_, "\n\t\t clock_source");
 static int clock_source_;
-module_param(clock_source_, int, 0644);
+__module_param(clock_source_, int, 0644);
 
 #define NO_HOT_RESET
 /*#define DISABLE_RECV_INT*/

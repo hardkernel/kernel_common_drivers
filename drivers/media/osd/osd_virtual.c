@@ -118,11 +118,11 @@ static struct fb_fix_screeninfo fb_def_fix = {
 
 #ifdef SPI_DEBUG
 static int spi_write_min;
-module_param(spi_write_min, int, 0664);
+__module_param(spi_write_min, int, 0664);
 MODULE_PARM_DESC(spi_write_min, "spi_write_min");
 
 static int spi_write_max;
-module_param(spi_write_max, int, 0664);
+__module_param(spi_write_max, int, 0664);
 MODULE_PARM_DESC(spi_write_max, "spi_write_max");
 #endif
 

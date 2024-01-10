@@ -18,7 +18,7 @@
 #define BLIND_SEARCH_OFT_BW_DVBC			1
 
 static unsigned char blind_spectrum_invert = 1;
-module_param(blind_spectrum_invert, byte, 0644);
+__module_param(blind_spectrum_invert, byte, 0644);
 MODULE_PARM_DESC(blind_spectrum_invert, "\n\t\t blind_spectrum_invert");
 
 struct timer_list mytimer;

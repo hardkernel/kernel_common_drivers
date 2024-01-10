@@ -59,7 +59,7 @@
 #define VDIN_WR_BURST_MODE 2
 
 static bool cm_enable = 1;
-module_param(cm_enable, bool, 0644);
+__module_param(cm_enable, bool, 0644);
 MODULE_PARM_DESC(cm_enable, "cm_enable");
 
 static bool rgb_info_enable;
@@ -74,85 +74,85 @@ static bool invert_top_bot;
 unsigned int vdin0_afbce_debug_force;
 
 #ifdef DEBUG_SUPPORT
-module_param(rgb_info_enable, bool, 0644);
+__module_param(rgb_info_enable, bool, 0644);
 MODULE_PARM_DESC(rgb_info_enable, "rgb_info_enable");
 
-module_param(rgb_info_x, uint, 0644);
+__module_param(rgb_info_x, uint, 0644);
 MODULE_PARM_DESC(rgb_info_x, "rgb_info_x");
 
-module_param(rgb_info_y, uint, 0644);
+__module_param(rgb_info_y, uint, 0644);
 MODULE_PARM_DESC(rgb_info_y, "rgb_info_y");
 
-module_param(rgb_info_r, uint, 0644);
+__module_param(rgb_info_r, uint, 0644);
 MODULE_PARM_DESC(rgb_info_r, "rgb_info_r");
 
-module_param(rgb_info_g, uint, 0644);
+__module_param(rgb_info_g, uint, 0644);
 MODULE_PARM_DESC(rgb_info_g, "rgb_info_g");
 
-module_param(rgb_info_b, uint, 0644);
+__module_param(rgb_info_b, uint, 0644);
 MODULE_PARM_DESC(rgb_info_b, "rgb_info_b");
 
-module_param(vdin_det_idle_wait, int, 0664);
+__module_param(vdin_det_idle_wait, int, 0664);
 MODULE_PARM_DESC(vdin_det_idle_wait, "vdin_det_idle_wait");
 
-module_param(delay_line_num, uint, 0644);
+__module_param(delay_line_num, uint, 0644);
 MODULE_PARM_DESC(delay_line_num, "delay_line_num");
 
-module_param(invert_top_bot, bool, 0644);
+__module_param(invert_top_bot, bool, 0644);
 MODULE_PARM_DESC(invert_top_bot, "invert field type top or bottom");
 #endif
 
 bool enable_reset;
-module_param(enable_reset, bool, 0664);
+__module_param(enable_reset, bool, 0664);
 MODULE_PARM_DESC(enable_reset, "enable_reset");
 int vsync_reset_mask;
-module_param(vsync_reset_mask, int, 0664);
+__module_param(vsync_reset_mask, int, 0664);
 MODULE_PARM_DESC(vsync_reset_mask, "vsync_reset_mask");
 
 unsigned int dv_dbg_log;
-module_param(dv_dbg_log, uint, 0664);
+__module_param(dv_dbg_log, uint, 0664);
 MODULE_PARM_DESC(dv_dbg_log, "enable/disable dv_dbg_log");
 
 unsigned int dv_dbg_log_du = 60;
-module_param(dv_dbg_log_du, uint, 0664);
+__module_param(dv_dbg_log_du, uint, 0664);
 MODULE_PARM_DESC(dv_dbg_log_du, "dv_dbg_log_duration");
 
 unsigned int dv_dbg_mask = (DV_BUF_START_RESET);
-module_param(dv_dbg_mask, uint, 0664);
+__module_param(dv_dbg_mask, uint, 0664);
 MODULE_PARM_DESC(dv_dbg_mask, "enable/disable dv_dbg_mask");
 
 int vdin_ctl_dbg;
-module_param(vdin_ctl_dbg, int, 0664);
+__module_param(vdin_ctl_dbg, int, 0664);
 MODULE_PARM_DESC(vdin_ctl_dbg, "vdin_ctl_dbg");
 
 /*bit0/1:game mode enable for vdin0/1*/
 unsigned int vdin_force_game_mode;
 unsigned int game_mode;
-module_param(game_mode, uint, 0664);
+__module_param(game_mode, uint, 0664);
 MODULE_PARM_DESC(game_mode, "game_mode");
 
 unsigned int vdin_pc_mode;
-module_param(vdin_pc_mode, uint, 0664);
+__module_param(vdin_pc_mode, uint, 0664);
 MODULE_PARM_DESC(vdin_pc_mode, "vdin_pc_mode");
 
 unsigned int vdin_isr_monitor;
-module_param(vdin_isr_monitor, uint, 0664);
+__module_param(vdin_isr_monitor, uint, 0664);
 MODULE_PARM_DESC(vdin_isr_monitor, "vdin_isr_monitor");
 
 unsigned int vdin_get_prop_in_vs_en = 1;
-module_param(vdin_get_prop_in_vs_en, uint, 0664);
+__module_param(vdin_get_prop_in_vs_en, uint, 0664);
 MODULE_PARM_DESC(vdin_get_prop_in_vs_en, "vdin_get_prop_in_vs_en");
 
 unsigned int vdin_get_prop_in_sm_en = 1;
-module_param(vdin_get_prop_in_sm_en, uint, 0664);
+__module_param(vdin_get_prop_in_sm_en, uint, 0664);
 MODULE_PARM_DESC(vdin_get_prop_in_sm_en, "vdin_get_prop_in_sm_en");
 
 unsigned int vdin_get_prop_in_fe_en;
-module_param(vdin_get_prop_in_fe_en, uint, 0664);
+__module_param(vdin_get_prop_in_fe_en, uint, 0664);
 MODULE_PARM_DESC(vdin_get_prop_in_fe_en, "vdin_get_prop_in_fe_en");
 
 unsigned int vdin_prop_monitor;
-module_param(vdin_prop_monitor, uint, 0664);
+__module_param(vdin_prop_monitor, uint, 0664);
 MODULE_PARM_DESC(vdin_prop_monitor, "vdin_prop_monitor");
 
 static unsigned int vpu_reg_27af = 0x3;
@@ -2239,7 +2239,7 @@ static unsigned int vdin_is_support_10bit_for_dw(struct vdin_dev_s *devp)
 }
 
 /*static unsigned int vdin_wr_mode = 0xff;*/
-/*module_param(vdin_wr_mode, uint, 0644);*/
+/*__module_param(vdin_wr_mode, uint, 0644);*/
 /*MODULE_PARM_DESC(vdin_wr_mode, "vdin_wr_mode");*/
 
 /* set write ctrl regs:

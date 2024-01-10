@@ -46,25 +46,25 @@
 //atsc-c
 
 MODULE_PARM_DESC(std_lock_timeout, "\n\t\t atsc-c std lock timeout");
-static unsigned int std_lock_timeout = 1000;
-module_param(std_lock_timeout, int, 0644);
+//static unsigned int std_lock_timeout = 1000;
+__module_param(std_lock_timeout, int, 0644);
 
 //atsc-t
 MODULE_PARM_DESC(atsc_agc_target, "\n\t\t atsc agc target");
 static unsigned char atsc_agc_target;
-module_param(atsc_agc_target, byte, 0644);
+__module_param(atsc_agc_target, byte, 0644);
 
 MODULE_PARM_DESC(atsc_t_lock_continuous_cnt, "\n\t\t atsc-t lock signal continuous counting");
 static unsigned int atsc_t_lock_continuous_cnt = 1;
-module_param(atsc_t_lock_continuous_cnt, int, 0644);
+__module_param(atsc_t_lock_continuous_cnt, int, 0644);
 
 MODULE_PARM_DESC(atsc_check_signal_time, "\n\t\t atsc check signal time");
 static unsigned int atsc_check_signal_time = ATSC_TIME_CHECK_SIGNAL;
-module_param(atsc_check_signal_time, int, 0644);
+__module_param(atsc_check_signal_time, int, 0644);
 
 MODULE_PARM_DESC(atsc_t_lost_continuous_cnt, "\n\t\t atsc-t lost signal continuous counting");
 static unsigned int atsc_t_lost_continuous_cnt = 15;
-module_param(atsc_t_lost_continuous_cnt, int, 0644);
+__module_param(atsc_t_lost_continuous_cnt, int, 0644);
 
 void gxtv_demod_atsc_release(struct dvb_frontend *fe)
 {

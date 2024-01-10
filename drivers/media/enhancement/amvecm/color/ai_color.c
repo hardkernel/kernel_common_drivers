@@ -19,7 +19,7 @@
 #include "../amcsc.h"
 
 unsigned int ai_clr_dbg;
-module_param(ai_clr_dbg, uint, 0664);
+__module_param(ai_clr_dbg, uint, 0664);
 MODULE_PARM_DESC(ai_clr_dbg, "\n ai color dbg\n");
 
 int aice_offset[4] = {

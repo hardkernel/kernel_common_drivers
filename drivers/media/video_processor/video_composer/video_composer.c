@@ -64,7 +64,7 @@
 
 static u32 use_low_latency;
 MODULE_PARM_DESC(use_low_latency, "\n use_low_latency\n");
-module_param(use_low_latency, uint, 0664);
+__module_param(use_low_latency, uint, 0664);
 
 static u32 video_composer_instance_num;
 static unsigned int force_composer;

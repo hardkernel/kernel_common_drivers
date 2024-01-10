@@ -2692,7 +2692,7 @@ void __exit tsync_module_exit(void)
 }
 
 MODULE_PARM_DESC(is_tunnel_mode, "\n is_tunnel_mode\n");
-module_param(is_tunnel_mode, uint, 0664);
+__module_param(is_tunnel_mode, uint, 0664);
 //MODULE_DESCRIPTION("AMLOGIC time sync management driver");
 //MODULE_LICENSE("GPL");
 //MODULE_AUTHOR("Tim Yao <timyao@amlogic.com>");

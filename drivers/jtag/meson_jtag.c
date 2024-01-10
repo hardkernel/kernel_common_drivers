@@ -209,7 +209,7 @@ static const struct kernel_param_ops setup_jtag_ops = {
 	.get = param_get_charp,
 };
 
-module_param_cb(jtag, &setup_jtag_ops, &jtag_mode, 0644);
+__module_param_cb(jtag, &setup_jtag_ops, &jtag_mode, 0644);
 MODULE_PARM_DESC(jtag, "jtag mode");
 
 #ifdef CONFIG_MACH_MESON8B

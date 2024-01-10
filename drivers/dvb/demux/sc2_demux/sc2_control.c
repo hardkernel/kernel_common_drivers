@@ -38,7 +38,7 @@ enum es_on_off {
 MODULE_PARM_DESC(debug_register,
 		 "\n\t\t Enable sc2 register debug information");
 static int debug_register;
-module_param(debug_register, int, 0644);
+__module_param(debug_register, int, 0644);
 
 unsigned int tsout_get_ready(void)
 {

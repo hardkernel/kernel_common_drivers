@@ -36,13 +36,13 @@ static int aml_ci_bus_set_delay;
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 static u32 fetch_done;
 
-module_param_named(ci_bus_debug, aml_ci_bus_debug, int, 0644);
+__module_param_named(ci_bus_debug, aml_ci_bus_debug, int, 0644);
 MODULE_PARM_DESC(ci_bus_debug, "enable verbose debug messages");
 
-module_param_named(ci_bus_set_delay, aml_ci_bus_set_delay, int, 0644);
+__module_param_named(ci_bus_set_delay, aml_ci_bus_set_delay, int, 0644);
 MODULE_PARM_DESC(ci_bus_set_delay, "enable ci bus delay set");
 
-module_param_named(ci_bus_time, aml_ci_bus_time, int, 0644);
+__module_param_named(ci_bus_time, aml_ci_bus_time, int, 0644);
 MODULE_PARM_DESC(ci_bus_time, "set ci bus time");
 
 #define pr_dbg(args...)\

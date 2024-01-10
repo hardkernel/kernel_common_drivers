@@ -100,7 +100,7 @@ static char new_vmode_vpp[2][32];
 
 static unsigned int debug_flag1;
 MODULE_PARM_DESC(debug_flag1, "\n debug_flag1\n");
-module_param(debug_flag1, uint, 0664);
+__module_param(debug_flag1, uint, 0664);
 
 bool is_vpp0(u8 layer_id)
 {

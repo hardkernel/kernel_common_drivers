@@ -56,7 +56,7 @@
 			<< MAX_ADDR_SHIFT)
 
 int sct_print_ctl;
-module_param(sct_print_ctl, int, 0664);
+__module_param(sct_print_ctl, int, 0664);
 MODULE_PARM_DESC(sct_print_ctl, "sct_print_ctl");
 
 static u64 cur_to_usecs(void)/*2019*/

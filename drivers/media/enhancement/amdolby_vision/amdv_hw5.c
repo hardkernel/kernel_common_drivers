@@ -76,7 +76,7 @@ static bool force_bypass_precision_once;
 static bool miss_top1_and_bypass_pr_once;
 
 u32 test_dv;
-module_param(test_dv, uint, 0664);
+__module_param(test_dv, uint, 0664);
 MODULE_PARM_DESC(test_dv, "\n test_dv\n");
 
 /*1:case0 480x270 420-8bit read from array*/
@@ -84,7 +84,7 @@ MODULE_PARM_DESC(test_dv, "\n test_dv\n");
 /*3:case5344 1080p 444-10  read from file*/
 /*4:case5363 1080x1080 444-10  read from file*/
 u32 fix_data;
-module_param(fix_data, uint, 0664);
+__module_param(fix_data, uint, 0664);
 MODULE_PARM_DESC(fix_data, "\n fix_data\n");
 
 /*bit0: little endian=0 bit1: little endian=1*/
@@ -92,7 +92,7 @@ MODULE_PARM_DESC(fix_data, "\n fix_data\n");
 /*bit4-7: cntl_color_map*/
 /*bit8-19: rdmif_stride*/
 uint debug_rdmif;
-module_param(debug_rdmif, uint, 0664);
+__module_param(debug_rdmif, uint, 0664);
 MODULE_PARM_DESC(debug_rdmif, "\n debug_rdmif\n");
 
 u32 dump_pyramid;

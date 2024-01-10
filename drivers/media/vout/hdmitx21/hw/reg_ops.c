@@ -356,4 +356,4 @@ void hdmitx21_fifo_read(u16 offset, u8 *buf, u16 cnt)
 EXPORT_SYMBOL(hdmitx21_fifo_read);
 
 MODULE_PARM_DESC(hdmi_dbg, "\n hdmi_dbg\n");
-module_param(hdmi_dbg, int, 0644);
+__module_param(hdmi_dbg, int, 0644);

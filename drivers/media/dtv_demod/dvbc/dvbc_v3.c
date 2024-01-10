@@ -13,11 +13,11 @@
 
 MODULE_PARM_DESC(dvbc_agc_target, "\n\t\t dvbc_agc_target");
 static unsigned char dvbc_agc_target = 0xc;
-module_param(dvbc_agc_target, byte, 0644);
+__module_param(dvbc_agc_target, byte, 0644);
 
 MODULE_PARM_DESC(j83b_agc_target, "\n\t\t j83b_agc_target");
 static unsigned char j83b_agc_target = 0xe;
-module_param(j83b_agc_target, byte, 0644);
+__module_param(j83b_agc_target, byte, 0644);
 
 static unsigned char dvbc_qam_reg[15] = { 0 };
 static unsigned int dvbc_qam_value[15] = { 0 };

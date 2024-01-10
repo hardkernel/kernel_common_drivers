@@ -45,7 +45,7 @@
 
 MODULE_PARM_DESC(debug_frontend, "\n\t\t Enable debug frontend information");
 static int debug_frontend;
-module_param(debug_frontend, int, 0644);
+__module_param(debug_frontend, int, 0644);
 
 static u8 enable_tsinb_clk;
 

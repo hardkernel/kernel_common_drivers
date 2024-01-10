@@ -94,23 +94,23 @@ int int_viu1_dolby = -ENXIO;
 u32 dolby_vision_request_mode = 0xff;
 
 unsigned int dolby_vision_mode = AMDV_OUTPUT_MODE_BYPASS;
-module_param(dolby_vision_mode, uint, 0664);
+__module_param(dolby_vision_mode, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_mode, "\n dolby_vision_mode\n");
 
 u32 amdv_target_mode = AMDV_OUTPUT_MODE_BYPASS;
-module_param(amdv_target_mode, uint, 0444);
+__module_param(amdv_target_mode, uint, 0444);
 MODULE_PARM_DESC(amdv_target_mode, "\n amdv_target_mode\n");
 
 static unsigned int dolby_vision_profile = 0xff;
-module_param(dolby_vision_profile, uint, 0664);
+__module_param(dolby_vision_profile, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_profile, "\n dolby_vision_profile\n");
 
-static unsigned int dolby_vision_level = 0xff;
-module_param(dolby_vision_level, uint, 0664);
+//static unsigned int dolby_vision_level = 0xff;
+__module_param(dolby_vision_level, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_level, "\n dolby_vision_level\n");
 
 static unsigned int primary_debug;
-module_param(primary_debug, uint, 0664);
+__module_param(primary_debug, uint, 0664);
 MODULE_PARM_DESC(primary_debug, "\n primary_debug\n");
 /* STB: if sink support DV, always output DV*/
 /*		else always output SDR/HDR */
@@ -130,7 +130,7 @@ MODULE_PARM_DESC(primary_debug, "\n primary_debug\n");
 /* #define AMDV_FORCE_OUTPUT_MODE	2 */
 
 u32 dolby_vision_policy;
-module_param(dolby_vision_policy, uint, 0664);
+__module_param(dolby_vision_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_policy, "\n dolby_vision_policy\n");
 static unsigned int last_dolby_vision_policy;
 
@@ -154,7 +154,7 @@ static unsigned int last_dolby_vision_policy;
 #define SDR_BY_DV_F_SRC 0x40
 
 static unsigned int dolby_vision_hdr10_policy;
-module_param(dolby_vision_hdr10_policy, uint, 0664);
+__module_param(dolby_vision_hdr10_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_hdr10_policy, "\n dolby_vision_hdr10_policy\n");
 static unsigned int last_dolby_vision_hdr10_policy;
 
@@ -162,43 +162,43 @@ static bool enable_amvs12_for_tv;
 
 /* enable hdmi dv std to stb core */
 static uint hdmi_to_stb_policy = 1;
-module_param(hdmi_to_stb_policy, uint, 0664);
+__module_param(hdmi_to_stb_policy, uint, 0664);
 MODULE_PARM_DESC(hdmi_to_stb_policy, "\n hdmi_to_stb_policy\n");
 
 static bool hdmi_source_led_as_hdr10 = true;
 
 static bool dolby_vision_enable;
-module_param(dolby_vision_enable, bool, 0664);
+__module_param(dolby_vision_enable, bool, 0664);
 MODULE_PARM_DESC(dolby_vision_enable, "\n dolby_vision_enable\n");
 
 static bool amdv_efuse_bypass;
-module_param(amdv_efuse_bypass, bool, 0664);
+__module_param(amdv_efuse_bypass, bool, 0664);
 MODULE_PARM_DESC(amdv_efuse_bypass, "\n amdv_efuse_bypass\n");
 static bool efuse_mode;
 
 uint amdv_mask = 7;
-module_param(amdv_mask, uint, 0664);
+__module_param(amdv_mask, uint, 0664);
 MODULE_PARM_DESC(amdv_mask, "\n amdv_mask\n");
 
 u32 dolby_vision_status;
-module_param(dolby_vision_status, uint, 0664);
+__module_param(dolby_vision_status, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_status, "\n dolby_vision_status\n");
 
 /* delay before first frame toggle when core off->on */
 static uint amdv_wait_delay = 2;
-module_param(amdv_wait_delay, uint, 0664);
+__module_param(amdv_wait_delay, uint, 0664);
 MODULE_PARM_DESC(amdv_wait_delay, "\n amdv_wait_delay\n");
 
 /* reset 1st fake frame (bit 0)*/
 /*   and other fake frames (bit 1)*/
 /*   and other toggle frames (bit 2) */
 u32 amdv_reset = (1 << 1) | (1 << 0);
-module_param(amdv_reset, uint, 0664);
+__module_param(amdv_reset, uint, 0664);
 MODULE_PARM_DESC(amdv_reset, "\n amdv_reset\n");
 
 /* force run mode */
 uint amdv_run_mode = 0xff; /* not force */
-module_param(amdv_run_mode, uint, 0664);
+__module_param(amdv_run_mode, uint, 0664);
 MODULE_PARM_DESC(amdv_run_mode, "\n amdv_run_mode\n");
 
 /* number of fake frame (run mode = 1) */
@@ -207,21 +207,21 @@ MODULE_PARM_DESC(amdv_run_mode, "\n amdv_run_mode\n");
 #define RUN_MODE_DELAY_G12 1
 
 uint amdv_run_mode_delay = RUN_MODE_DELAY;
-module_param(amdv_run_mode_delay, uint, 0664);
+__module_param(amdv_run_mode_delay, uint, 0664);
 MODULE_PARM_DESC(amdv_run_mode_delay, "\n amdv_run_mode_delay\n");
 
 /* reset control -- end << 8 | start */
 static uint amdv_reset_delay =
 	(RUN_MODE_DELAY << 8) | RUN_MODE_DELAY;
-module_param(amdv_reset_delay, uint, 0664);
+__module_param(amdv_reset_delay, uint, 0664);
 MODULE_PARM_DESC(amdv_reset_delay, "\n amdv_reset_delay\n");
 
 u32 amdv_tuning_mode;
-module_param(amdv_tuning_mode, uint, 0664);
+__module_param(amdv_tuning_mode, uint, 0664);
 MODULE_PARM_DESC(amdv_tuning_mode, "\n amdv_tuning_mode\n");
 
 u32 dolby_vision_ll_policy = DOLBY_VISION_LL_DISABLE;
-module_param(dolby_vision_ll_policy, uint, 0664);
+__module_param(dolby_vision_ll_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_ll_policy, "\n dolby_vision_ll_policy\n");
 
 u32 last_dolby_vision_ll_policy = DOLBY_VISION_LL_DISABLE;
@@ -230,7 +230,7 @@ u32 last_dolby_vision_ll_policy = DOLBY_VISION_LL_DISABLE;
 #define DOLBY_VISION_STD_RGB_TUNNEL	0
 #define DOLBY_VISION_STD_YUV422		1
 static u32 dolby_vision_std_policy = DOLBY_VISION_STD_RGB_TUNNEL;
-module_param(dolby_vision_std_policy, uint, 0664);
+__module_param(dolby_vision_std_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_std_policy, "\n dolby_vision_ll_policy\n");
 /*static u32 last_dolby_vision_std_policy = DOLBY_VISION_STD_RGB_TUNNEL;*/
 static bool force_support_emp;
@@ -241,11 +241,11 @@ static enum signal_format_enum graphic_fmt = FORMAT_SDR;
 static enum signal_format_enum g_dst_format;
 
 unsigned int force_mel;
-module_param(force_mel, uint, 0664);
+__module_param(force_mel, uint, 0664);
 MODULE_PARM_DESC(force_mel, "\n force_mel\n");
 
 u32 force_best_pq;
-module_param(force_best_pq, uint, 0664);
+__module_param(force_best_pq, uint, 0664);
 MODULE_PARM_DESC(force_best_pq, "\n force_best_pq\n");
 
 /*bit0: 0-> efuse, 1->no efuse; */
@@ -263,7 +263,7 @@ char cur_crc[32] = "invalid";
 #define FLAG_FRAME_DELAY_SHIFT	16
 
 unsigned int dolby_vision_flags = FLAG_BYPASS_VPP | FLAG_FORCE_CVM;
-module_param(dolby_vision_flags, uint, 0664);
+__module_param(dolby_vision_flags, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_flags, "\n dolby_vision_flags\n");
 
 #define DV_NAME_LEN_MAX 32
@@ -365,14 +365,14 @@ static unsigned int amdv_default_max[3][3] = {
 static unsigned int amdv_graphic_min = 50; /* 0.0001 */
 static unsigned int amdv_graphic_max; /* 100 */
 static unsigned int old_amdv_graphic_max;
-module_param(amdv_graphic_min, uint, 0664);
+__module_param(amdv_graphic_min, uint, 0664);
 MODULE_PARM_DESC(amdv_graphic_min, "\n amdv_graphic_min\n");
-module_param(amdv_graphic_max, uint, 0664);
+__module_param(amdv_graphic_max, uint, 0664);
 MODULE_PARM_DESC(amdv_graphic_max, "\n amdv_graphic_max\n");
 
 static unsigned int dv_HDR10_graphics_max = 300;
 static unsigned int dv_graphic_blend_test;
-module_param(dv_graphic_blend_test, uint, 0664);
+__module_param(dv_graphic_blend_test, uint, 0664);
 MODULE_PARM_DESC(dv_graphic_blend_test, "\n dv_graphic_blend_test\n");
 
 static unsigned int dv_target_graphics_max[3][3] = {
@@ -413,7 +413,7 @@ static unsigned int enable_tunnel;
 static u32 vpp_data_422T0444_backup;
 /* 0: auto priority 1: graphic priority 2: video priority */
 unsigned int dolby_vision_graphics_priority;
-module_param(dolby_vision_graphics_priority, uint, 0664);
+__module_param(dolby_vision_graphics_priority, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_graphics_priority, "\n dolby_vision_graphics_priority\n");
 
 /*1: graphic; 2: video*/
@@ -447,19 +447,19 @@ int cfg_size;
 int bin_size;
 
 static unsigned int atsc_sei = 1;
-module_param(atsc_sei, uint, 0664);
+__module_param(atsc_sei, uint, 0664);
 MODULE_PARM_DESC(atsc_sei, "\n atsc_sei\n");
 
 static struct dv_atsc p_atsc_md;
 bool need_update_cfg;
 u32 sdr_ref_mode;
-module_param(sdr_ref_mode, uint, 0664);
+__module_param(sdr_ref_mode, uint, 0664);
 MODULE_PARM_DESC(sdr_ref_mode, "\n sdr_ref_mode\n");
 
 bool ambient_update;
 struct ambient_cfg_s ambient_config_new;
 u32 ambient_test_mode;
-module_param(ambient_test_mode, uint, 0664);
+__module_param(ambient_test_mode, uint, 0664);
 MODULE_PARM_DESC(ambient_test_mode, "\n ambient_test_mode\n");
 
 struct ambient_cfg_s ambient_darkdetail = {16, 0, 0, 0, 0, 0, 1};
@@ -471,11 +471,11 @@ int enable_vf_check;
 static u32 last_vf_valid_crc;
 bool venc_crc_enable;
 unsigned int debug_dolby;
-module_param(debug_dolby, uint, 0664);
+__module_param(debug_dolby, uint, 0664);
 MODULE_PARM_DESC(debug_dolby, "\n debug_dolby\n");
 
 static unsigned int debug_dolby_frame = 0xffff;
-module_param(debug_dolby_frame, uint, 0664);
+__module_param(debug_dolby_frame, uint, 0664);
 MODULE_PARM_DESC(debug_dolby_frame, "\n debug_dolby_frame\n");
 
 u32 debug_ko;
@@ -490,11 +490,11 @@ u32 debug_ko;
 	(debug_dolby & 0x80))
 
 u32 dv_cert_graphic_width = 1920;
-module_param(dv_cert_graphic_width, uint, 0664);
+__module_param(dv_cert_graphic_width, uint, 0664);
 MODULE_PARM_DESC(dv_cert_graphic_width, "\n dv_cert_graphic_width\n");
 
 u32 dv_cert_graphic_height = 1080;
-module_param(dv_cert_graphic_height, uint, 0664);
+__module_param(dv_cert_graphic_height, uint, 0664);
 MODULE_PARM_DESC(dv_cert_graphic_height, "\n dv_cert_graphic_height\n");
 
 bool dolby_vision_on;
@@ -511,7 +511,7 @@ struct dv_core1_inst_s dv_core1[NUM_IPCORE1];
 
 bool amdv_el_disable = true;
 bool amdv_wait_on;
-module_param(amdv_wait_on, bool, 0664);
+__module_param(amdv_wait_on, bool, 0664);
 MODULE_PARM_DESC(amdv_wait_on, "\n amdv_wait_on\n");
 
 static int amdv_uboot_on;
@@ -574,11 +574,11 @@ int use_target_lum_from_cfg = true;
 
 u32 bl_delay_cnt;
 static int set_backlight_delay_vsync = 1;
-module_param(set_backlight_delay_vsync, int, 0664);
+__module_param(set_backlight_delay_vsync, int, 0664);
 MODULE_PARM_DESC(set_backlight_delay_vsync,    "\n set_backlight_delay_vsync\n");
 
 u32 enable_update_gdbs_delay;/*update delay according fps*/
-module_param(enable_update_gdbs_delay, int, 0664);
+__module_param(enable_update_gdbs_delay, int, 0664);
 MODULE_PARM_DESC(enable_update_gdbs_delay,    "\n enable_update_gdbs_delay\n");
 
 u32 final_backlight_delay_vsync = 1;
@@ -627,12 +627,12 @@ static u32 inst_debug[2];
 static u32 inst_res_debug[4];/*force set inst0 w/h inst1 w/h*/
 
 static int force_two_valid;
-module_param(force_two_valid, int, 0664);
+__module_param(force_two_valid, int, 0664);
 MODULE_PARM_DESC(force_two_valid,    "\n force_two_valid\n");
 
 /*1:force enable;2:force disable*/
 int force_top1_enable;
-module_param(force_top1_enable, int, 0664);
+__module_param(force_top1_enable, int, 0664);
 MODULE_PARM_DESC(force_top1_enable,    "\n force_top1_enable\n");
 
 static int sdr_transition_delay;

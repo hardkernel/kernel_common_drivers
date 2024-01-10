@@ -52,7 +52,7 @@ static struct early_suspend bt_early_suspend;
 char bt_addr[18] = "";
 char *btmac;
 //core_param(btmac, btmac, charp, 0644);
-module_param(btmac, charp, 0644);
+__module_param(btmac, charp, 0644);
 static struct class *bt_addr_class;
 static int btwake_evt;
 static int btirq_flag;
@@ -711,10 +711,10 @@ void __exit bt_exit(void)
 	platform_driver_unregister(&bt_driver);
 }
 
-module_param(btpower_evt, int, 0664);
+__module_param(btpower_evt, int, 0664);
 MODULE_PARM_DESC(btpower_evt, "btpower_evt");
 
-module_param(btwake_evt, int, 0664);
+__module_param(btwake_evt, int, 0664);
 MODULE_PARM_DESC(btwake_evt, "btwake_evt");
 
 /**************** bt mac *****************/

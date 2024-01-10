@@ -12,7 +12,7 @@
 #include "reg_helper.h"
 
 static int am_dma_ctrl_dbg;
-module_param(am_dma_ctrl_dbg, int, 0644);
+__module_param(am_dma_ctrl_dbg, int, 0644);
 MODULE_PARM_DESC(am_dma_ctrl_dbg, "am_dma_ctrl_dbg after t3x");
 
 #define pr_am_dma(fmt, args...)\

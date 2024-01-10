@@ -241,56 +241,56 @@ static const struct of_device_id smc_dt_match[] = {
 
 MODULE_PARM_DESC(smc0_irq, "\n\t\t Irq number of smartcard0");
 static int smc0_irq = -1;
-module_param(smc0_irq, int, 0644);
+__module_param(smc0_irq, int, 0644);
 
 MODULE_PARM_DESC(smc0_reset, "\n\t\t Reset GPIO pin of smartcard0");
-static int smc0_reset = -1;
-module_param(smc0_reset, int, 0644);
+//static int smc0_reset = -1;
+__module_param(smc0_reset, int, 0644);
 
 MODULE_PARM_DESC(atr_delay, "\n\t\t atr delay");
-static int atr_delay;
-module_param(atr_delay, int, 0644);
+//static int atr_delay;
+__module_param(atr_delay, int, 0644);
 
 MODULE_PARM_DESC(atr_holdoff, "\n\t\t atr_holdoff");
 static int atr_holdoff = 1;
-module_param(atr_holdoff, int, 0644);
+__module_param(atr_holdoff, int, 0644);
 
 MODULE_PARM_DESC(cwt_det_en, "\n\t\t cwt_det_en");
 static int cwt_det_en;
-module_param(cwt_det_en, int, 0644);
+__module_param(cwt_det_en, int, 0644);
 MODULE_PARM_DESC(btw_det_en, "\n\t\t btw_det_en");
 static int btw_det_en;
-module_param(btw_det_en, int, 0644);
+__module_param(btw_det_en, int, 0644);
 MODULE_PARM_DESC(etu_msr_en, "\n\t\t etu_msr_en");
 static int etu_msr_en;
-module_param(etu_msr_en, int, 0644);
+__module_param(etu_msr_en, int, 0644);
 MODULE_PARM_DESC(clock_source, "\n\t\t clock_source");
 static int clock_source;
-module_param(clock_source, int, 0644);
+__module_param(clock_source, int, 0644);
 
 MODULE_PARM_DESC(atr_timeout, "\n\t\t atr_timeout");
 static int atr_timeout = 200000;
-module_param(atr_timeout, int, 0644);
+__module_param(atr_timeout, int, 0644);
 
 MODULE_PARM_DESC(atr1_timeout, "\n\t\t atr1_timeout");
 static int atr1_timeout = 1000000;
-module_param(atr1_timeout, int, 0644);
+__module_param(atr1_timeout, int, 0644);
 
 MODULE_PARM_DESC(atr_reset, "\n\t\t atr_reset");
 static int atr_reset = 1;
-module_param(atr_reset, int, 0644);
+__module_param(atr_reset, int, 0644);
 
 MODULE_PARM_DESC(bwt_time, "\n\t\t bwt_time");
 static int bwt_time = BWT_BASE_DEFAULT;
-module_param(bwt_time, int, 0644);
+__module_param(bwt_time, int, 0644);
 
 MODULE_PARM_DESC(atr_clk_mux, "\n\t\t atr_clk_mux");
 static int atr_clk_mux = ATR_CLK_MUX_DEFAULT;
-module_param(atr_clk_mux, int, 0644);
+__module_param(atr_clk_mux, int, 0644);
 
 MODULE_PARM_DESC(atr_final_tcnt, "\n\t\t atr_final_tcnt");
 static int atr_final_tcnt = ATR_FINAL_TCNT_DEFAULT;
-module_param(atr_final_tcnt, int, 0644);
+__module_param(atr_final_tcnt, int, 0644);
 
 #define NO_HOT_RESET
 /*#define DISABLE_RECV_INT*/

@@ -112,11 +112,11 @@ static u32 tsync_pcr_discontinue_threshold = (TIME_UNIT90K * 1.5);
 static u32 tsync_pcr_ref_latency = (TIME_UNIT90K * 0.3);
 
 /* use for pcr valid mode */
-static u32 tsync_pcr_max_cache_time = TIME_UNIT90K * 2.4;
-static u32 tsync_pcr_up_cache_time = TIME_UNIT90K * 2.2;
+//static u32 tsync_pcr_max_cache_time = TIME_UNIT90K * 2.4;
+//static u32 tsync_pcr_up_cache_time = TIME_UNIT90K * 2.2;
 /* modify it by dolby av sync */
-static u32 tsync_pcr_down_cache_time = TIME_UNIT90K * 0.8;   /* 0.6 */
-static u32 tsync_pcr_min_cache_time = TIME_UNIT90K * 0.4;    /* 0.2 */
+//static u32 tsync_pcr_down_cache_time = TIME_UNIT90K * 0.8;   /* 0.6 */
+//static u32 tsync_pcr_min_cache_time = TIME_UNIT90K * 0.4;    /* 0.2 */
 
 static u32 tsync_pcr_max_delay_time = TIME_UNIT90K * 3;
 static u32 tsync_pcr_up_delay_time = TIME_UNIT90K * 2;
@@ -227,16 +227,16 @@ static int normal_count;
 
 static DEFINE_SPINLOCK(tsync_pcr_lock);
 
-module_param(tsync_pcr_max_cache_time, uint, 0664);
+__module_param(tsync_pcr_max_cache_time, uint, 0664);
 MODULE_PARM_DESC(tsync_pcr_max_cache_time, "\n tsync pcr max cache time\n");
 
-module_param(tsync_pcr_up_cache_time, uint, 0664);
+__module_param(tsync_pcr_up_cache_time, uint, 0664);
 MODULE_PARM_DESC(tsync_pcr_up_cache_time, "\n tsync pcr up cache time\n");
 
-module_param(tsync_pcr_down_cache_time, uint, 0664);
+__module_param(tsync_pcr_down_cache_time, uint, 0664);
 MODULE_PARM_DESC(tsync_pcr_down_cache_time, "\n tsync pcr down cache time\n");
 
-module_param(tsync_pcr_min_cache_time, uint, 0664);
+__module_param(tsync_pcr_min_cache_time, uint, 0664);
 MODULE_PARM_DESC(tsync_pcr_min_cache_time, "\n tsync pcr min cache time\n");
 
 extern pfun_tsdemux_pcraudio_valid tsdemux_pcraudio_valid_cb;

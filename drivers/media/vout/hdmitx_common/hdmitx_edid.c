@@ -1781,9 +1781,9 @@ static unsigned char tv_vsvdb[PRESET_VSVDB_COUNT][32] = {
 	}
 };
 
-module_param(force_vsvdb, uint, 0664);
+__module_param(force_vsvdb, uint, 0664);
 MODULE_PARM_DESC(force_vsvdb, "\n force_vsvdb\n");
-module_param_array(vsvdb_data, byte, &vsvdb_size, 0664);
+__module_param_array(vsvdb_data, byte, &vsvdb_size, 0664);
 MODULE_PARM_DESC(vsvdb_data, "\n vsvdb data\n");
 
 /* force_hdr */
@@ -1813,9 +1813,9 @@ static unsigned char tv_drm[PRESET_DRM_COUNT][32] = {
 	}
 };
 
-module_param(force_hdr, uint, 0664);
+__module_param(force_hdr, uint, 0664);
 MODULE_PARM_DESC(force_hdr, "\n force_drm\n");
-module_param_array(drm_data, byte, &drm_size, 0664);
+__module_param_array(drm_data, byte, &drm_size, 0664);
 MODULE_PARM_DESC(drm_data, "\n drm data\n");
 
 static void hdmitx_edid_parse_ifdb(struct rx_cap *prxcap, u8 *blockbuf)

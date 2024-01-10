@@ -59,13 +59,13 @@ static const char *const aed_req_module_texts[] = {
 	"SPDIFOUT_B",
 };
 
-module_param_array(aml_EQ_param, uint, &aml_EQ_param_length, 0664);
+__module_param_array(aml_EQ_param, uint, &aml_EQ_param_length, 0664);
 MODULE_PARM_DESC(aml_EQ_param, "An array of aml EQ param");
 
-module_param_array(aml_drc_table, uint, &aml_DRC_param_length, 0664);
+__module_param_array(aml_drc_table, uint, &aml_DRC_param_length, 0664);
 MODULE_PARM_DESC(aml_drc_table, "An array of aml DRC table param");
 
-module_param_array(aml_drc_tko_table, uint, &aml_DRC_param_length, 0664);
+__module_param_array(aml_drc_tko_table, uint, &aml_DRC_param_length, 0664);
 MODULE_PARM_DESC(aml_drc_tko_table, "An array of aml DRC tko table param");
 
 static int mixer_eqdrc_read(struct snd_kcontrol *kcontrol,

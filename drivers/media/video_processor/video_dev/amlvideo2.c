@@ -122,46 +122,46 @@ static unsigned int debug;
 #define DEF_FRAMERATE 30
 static unsigned int mirror_value;
 static int amlvideo2_total_get_count;
-module_param(amlvideo2_total_get_count, uint, 0664);
+__module_param(amlvideo2_total_get_count, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_total_get_count, "amlvideo2_total_get_count");
 
 static int amlvideo2_total_put_count;
-module_param(amlvideo2_total_put_count, uint, 0664);
+__module_param(amlvideo2_total_put_count, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_total_put_count, "amlvideo2_total_put_count");
 
 static unsigned int vid_limit = 50;
-module_param_named(video2_vid_limit, vid_limit, uint, 0644);
+__module_param_named(video2_vid_limit, vid_limit, uint, 0644);
 
 static unsigned int amlvideo2_dbg_en;
-module_param(amlvideo2_dbg_en, uint, 0664);
+__module_param(amlvideo2_dbg_en, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_dbg_en, "enable/disable amlvideo2 debug information");
 
 static unsigned int amlvideo2_scaledown1 = 2;
-module_param(amlvideo2_scaledown1, uint, 0664);
+__module_param(amlvideo2_scaledown1, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_scaledown1, "amlvideo2_scaledown1");
 static unsigned int amlvideo2_scaledown2 = 2;
-module_param(amlvideo2_scaledown2, uint, 0664);
+__module_param(amlvideo2_scaledown2, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_scaledown2, "amlvideo2_scaledown2");
 
 static int amlvideo2_angle;
-module_param(amlvideo2_angle, uint, 0664);
+__module_param(amlvideo2_angle, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_angle, "amlvideo2_angle");
 
 static int amlvideo2_dump;
-module_param(amlvideo2_dump, uint, 0664);
+__module_param(amlvideo2_dump, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_dump, "amlvideo2_dump");
 
 static int amlvideo2_dest_w;
-module_param(amlvideo2_dest_w, uint, 0664);
+__module_param(amlvideo2_dest_w, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_dest_w, "amlvideo2_dest_w");
 
 static int amlvideo2_dest_h;
-module_param(amlvideo2_dest_h, uint, 0664);
+__module_param(amlvideo2_dest_h, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_dest_h, "amlvideo2_dest_w");
 
 static int dump_num_increase;
 static int amlvideo2_continue_dump;
-module_param(amlvideo2_continue_dump, uint, 0664);
+__module_param(amlvideo2_continue_dump, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_continue_dump, "amlvideo2_continue_dump");
 
 static struct v4l2_fract amlvideo2_frmintervals_active = {

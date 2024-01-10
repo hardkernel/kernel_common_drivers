@@ -54,34 +54,34 @@ const u16 mali_afbc2_reg_t7_backup[MALI_AFBC2_REG_T7_BACKUP_COUNT] = {
 	0x3c77, 0x3c78, 0x3c79, 0x3c7a, 0x3c7b, 0x3c7c
 };
 
-static u32 osd_backup_count = OSD_VALUE_COUNT;
-static u32 afbc_backup_count = OSD_AFBC_VALUE_COUNT;
-static u32 mali_afbc_backup_count = MALI_AFBC_REG_BACKUP_COUNT;
-static u32 mali_afbc_t7_backup_count = MALI_AFBC_REG_T7_BACKUP_COUNT;
-static u32 mali_afbc1_t7_backup_count = MALI_AFBC1_REG_T7_BACKUP_COUNT;
-static u32 mali_afbc2_t7_backup_count = MALI_AFBC2_REG_T7_BACKUP_COUNT;
+//static u32 osd_backup_count = OSD_VALUE_COUNT;
+//static u32 afbc_backup_count = OSD_AFBC_VALUE_COUNT;
+//static u32 mali_afbc_backup_count = MALI_AFBC_REG_BACKUP_COUNT;
+//static u32 mali_afbc_t7_backup_count = MALI_AFBC_REG_T7_BACKUP_COUNT;
+//static u32 mali_afbc1_t7_backup_count = MALI_AFBC1_REG_T7_BACKUP_COUNT;
+//static u32 mali_afbc2_t7_backup_count = MALI_AFBC2_REG_T7_BACKUP_COUNT;
 u32 osd_backup[OSD_VALUE_COUNT];
 u32 osd_afbc_backup[OSD_AFBC_VALUE_COUNT];
 u32 mali_afbc_backup[MALI_AFBC_VALUE_COUNT];
 u32 mali_afbc_t7_backup[MALI_AFBC_VALUE_T7_COUNT];
 u32 mali_afbc1_t7_backup[MALI_AFBC1_VALUE_T7_COUNT];
 u32 mali_afbc2_t7_backup[MALI_AFBC2_VALUE_T7_COUNT];
-module_param_array(osd_backup, uint, &osd_backup_count, 0444);
+__module_param_array(osd_backup, uint, &osd_backup_count, 0444);
 MODULE_PARM_DESC(osd_backup, "\n osd register backup\n");
-module_param_array(osd_afbc_backup, uint, &afbc_backup_count, 0444);
+__module_param_array(osd_afbc_backup, uint, &afbc_backup_count, 0444);
 MODULE_PARM_DESC(osd_afbc_backup, "\n osd afbc register backup\n");
-module_param_array(mali_afbc_backup, uint, &mali_afbc_backup_count, 0444);
+__module_param_array(mali_afbc_backup, uint, &mali_afbc_backup_count, 0444);
 MODULE_PARM_DESC(mali_afbc_backup, "\n mali afbc register backup\n");
-module_param_array(mali_afbc_t7_backup, uint, &mali_afbc_t7_backup_count, 0444);
+__module_param_array(mali_afbc_t7_backup, uint, &mali_afbc_t7_backup_count, 0444);
 MODULE_PARM_DESC(mali_afbc_t7_backup, "\n mali afbc register t7 backup\n");
-module_param_array(mali_afbc1_t7_backup, uint, &mali_afbc1_t7_backup_count, 0444);
+__module_param_array(mali_afbc1_t7_backup, uint, &mali_afbc1_t7_backup_count, 0444);
 MODULE_PARM_DESC(mali_afbc1_t7_backup, "\n mali afbc1 register t7 backup\n");
-module_param_array(mali_afbc2_t7_backup, uint, &mali_afbc2_t7_backup_count, 0444);
+__module_param_array(mali_afbc2_t7_backup, uint, &mali_afbc2_t7_backup_count, 0444);
 MODULE_PARM_DESC(mali_afbc2_t7_backup, "\n mali afbc2 register t7 backup\n");
 
 /* 0: not backup */
 static u32 backup_enable;
-module_param(backup_enable, uint, 0644);
+__module_param(backup_enable, uint, 0644);
 void update_backup_reg(u32 addr, u32 value)
 {
 	u32 base = OSD1_AFBCD_ENABLE;

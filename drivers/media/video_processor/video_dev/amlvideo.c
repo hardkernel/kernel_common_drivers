@@ -78,7 +78,7 @@ static inline u32 dur2pts(u32 duration)
 /* static u32 vpts_remainder; */
 static unsigned int video_nr_base = 10;
 static unsigned int video_nr_base_second = 23;
-/* module_param(video_nr_base, uint, 0644); */
+/* __module_param(video_nr_base, uint, 0644); */
 /* MODULE_PARM_DESC(video_nr_base, "videoX start number, 10 is defaut"); */
 
 #ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
@@ -88,11 +88,11 @@ static unsigned int n_devs = 1;
 #endif
 
 static unsigned int debug;
-/* module_param(debug, uint, 0644); */
+/* __module_param(debug, uint, 0644); */
 /* MODULE_PARM_DESC(debug, "activates debug info"); */
 
 static unsigned int vid_limit = 16;
-module_param(vid_limit, uint, 0644);
+__module_param(vid_limit, uint, 0644);
 MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
 
 static int video_receiver_event_fun(int type, void *data, void*);

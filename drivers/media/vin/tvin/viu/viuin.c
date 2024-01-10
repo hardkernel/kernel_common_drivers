@@ -82,35 +82,35 @@
 #define VPP_MISC									0x1d26
 
 static unsigned int vsync_enter_line_curr;
-module_param(vsync_enter_line_curr, uint, 0664);
+__module_param(vsync_enter_line_curr, uint, 0664);
 MODULE_PARM_DESC(vsync_enter_line_curr,
 		 "\n encoder process line num when enter isr.\n");
 
 static unsigned int vsync_enter_line_max;
-module_param(vsync_enter_line_max, uint, 0664);
+__module_param(vsync_enter_line_max, uint, 0664);
 MODULE_PARM_DESC(vsync_enter_line_max,
 		 "\n max encoder process line num when enter isr.\n");
 
 static unsigned int vsync_enter_line_max_threshold = 10000;
-module_param(vsync_enter_line_max_threshold, uint, 0664);
+__module_param(vsync_enter_line_max_threshold, uint, 0664);
 MODULE_PARM_DESC(vsync_enter_line_max_threshold,
 		 "\n max encoder process line num over threshold drop the frame.\n");
 
 static unsigned int vsync_enter_line_min_threshold = 10000;
-module_param(vsync_enter_line_min_threshold, uint, 0664);
+__module_param(vsync_enter_line_min_threshold, uint, 0664);
 MODULE_PARM_DESC(vsync_enter_line_min_threshold,
 		 "\n max encoder process line num less threshold drop the frame.\n");
 static unsigned int vsync_enter_line_threshold_overflow_count;
-module_param(vsync_enter_line_threshold_overflow_count, uint, 0664);
+__module_param(vsync_enter_line_threshold_overflow_count, uint, 0664);
 MODULE_PARM_DESC(vsync_enter_line_threshold_overflow_count,
 		 "\ncnt overflow encoder process line no over threshold drop the frame\n");
 
 static unsigned short v_cut_offset;
-module_param(v_cut_offset, ushort, 0664);
+__module_param(v_cut_offset, ushort, 0664);
 MODULE_PARM_DESC(v_cut_offset, "the cut window vertical offset for viuin");
 
 static unsigned short open_cnt;
-module_param(open_cnt, ushort, 0664);
+__module_param(open_cnt, ushort, 0664);
 MODULE_PARM_DESC(open_cnt, "open_cnt for vdin0/1");
 
 struct viuin_s {

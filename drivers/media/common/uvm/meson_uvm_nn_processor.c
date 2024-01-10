@@ -24,13 +24,13 @@
 #include "meson_uvm_nn_processor.h"
 
 static int uvm_nn_debug;
-module_param(uvm_nn_debug, int, 0644);
+__module_param(uvm_nn_debug, int, 0644);
 
 static int uvm_open_nn;
-module_param(uvm_open_nn, int, 0644);
+__module_param(uvm_open_nn, int, 0644);
 
 static int uvm_aisr_dump;
-module_param(uvm_aisr_dump, int, 0644);
+__module_param(uvm_aisr_dump, int, 0644);
 
 #define PRINT_ERROR		0X0
 #define PRINT_OTHER		0X0001

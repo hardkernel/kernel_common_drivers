@@ -76,14 +76,14 @@ struct keytable_key {
 	__u32 is_enc;
 };
 
-static int debug = 1;
+//static int debug = 1;
 static struct list_head sessions_head;
 static DEFINE_MUTEX(sessions_lock);
 static dev_t dsm_devno;
 static struct cdev *dsm_cdev;
 static struct class *dsm_class;
 
-module_param(debug, int, 0644);
+__module_param(debug, int, 0644);
 
 static struct dsm_session *dsm_find_session_by_token(__u32 token)
 {

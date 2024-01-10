@@ -35,8 +35,8 @@ static unsigned int health_polling_ms = 1000;
 static int logbuff_polling_ms = 50;
 struct ring_buffer *ring_buffer;
 
-module_param(health_polling_ms, uint, 0644);
-module_param(logbuff_polling_ms, uint, 0644);
+__module_param(health_polling_ms, uint, 0644);
+__module_param(logbuff_polling_ms, uint, 0644);
 
 static bool host_health_hang_check(struct host_module *host)
 {

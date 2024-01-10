@@ -57,7 +57,7 @@ uint pattern_mask = PATTERN_MASK(PATTERN_75COLORBAR) |
 					PATTERN_MASK(PATTERN_GREEN_CORN) |
 					PATTERN_MASK(PATTERN_MULTICAST);
 
-static uint pattern_param = PATTERN_PARAM_COUNT;
+//static uint pattern_param = PATTERN_PARAM_COUNT;
 
 static uint pattern0_param_info[PATTERN_PARAM_COUNT] = {
 	5, 100, 830, 30, 110, 0x70000, 0xd0000, 0x158000,
@@ -95,15 +95,15 @@ static uint pattern3_param_info[PATTERN_PARAM_COUNT] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 
-module_param_array(pattern0_param_info, uint,
+__module_param_array(pattern0_param_info, uint,
 		   &pattern_param, 0664);
 MODULE_PARM_DESC(pattern0_param_info, "\n pattern0_param_info\n");
 
-module_param_array(pattern1_param_info, uint,
+__module_param_array(pattern1_param_info, uint,
 		   &pattern_param, 0664);
 MODULE_PARM_DESC(pattern1_param_info, "\n pattern1_param_info\n");
 
-module_param_array(pattern2_param_info, uint,
+__module_param_array(pattern2_param_info, uint,
 		   &pattern_param, 0664);
 MODULE_PARM_DESC(pattern2_param_info, "\n pattern2_param_info\n");
 

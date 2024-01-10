@@ -4580,7 +4580,7 @@ static void hdcp_ksv_sha1_calc(struct hdmitx_dev *hdev)
 
 static int max_exceed = 200;
 MODULE_PARM_DESC(max_exceed, "\nmax_exceed\n");
-module_param(max_exceed, int, 0664);
+__module_param(max_exceed, int, 0664);
 
 static void hdcptx_events_handle(struct timer_list *t)
 {

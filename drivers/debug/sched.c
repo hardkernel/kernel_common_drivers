@@ -35,68 +35,68 @@
 
 #if defined(CONFIG_ANDROID_VENDOR_HOOKS) && defined(CONFIG_FAIR_GROUP_SCHED)
 static int sched_big_weight = 10; // * NICE_0_LOAD
-module_param(sched_big_weight, int, 0644);
+__module_param(sched_big_weight, int, 0644);
 
 static int sched_interactive_task_util = 150;
-module_param(sched_interactive_task_util, int, 0644);
+__module_param(sched_interactive_task_util, int, 0644);
 
 static int sched_task_low_prio = 125;
-module_param(sched_task_low_prio, int, 0644);
+__module_param(sched_task_low_prio, int, 0644);
 
 static int sched_task_high_prio = 110;
-module_param(sched_task_high_prio, int, 0644);
+__module_param(sched_task_high_prio, int, 0644);
 
 static int sched_rt_nice_enable;
-module_param(sched_rt_nice_enable, int, 0644);
+__module_param(sched_rt_nice_enable, int, 0644);
 
 static int sched_rt_nice_debug;
-module_param(sched_rt_nice_debug, int, 0644);
+__module_param(sched_rt_nice_debug, int, 0644);
 
 static int sched_rt_nice_prio = 110;
-module_param(sched_rt_nice_prio, int, 0644);
+__module_param(sched_rt_nice_prio, int, 0644);
 
 static unsigned long sched_rt_nice_gran = 4000000; //4ms
-module_param(sched_rt_nice_gran, ulong, 0644);
+__module_param(sched_rt_nice_gran, ulong, 0644);
 
 static int sched_check_preempt_wakeup_enable = 1;
-module_param(sched_check_preempt_wakeup_enable, int, 0644);
+__module_param(sched_check_preempt_wakeup_enable, int, 0644);
 
 static int sched_check_preempt_wakeup_debug;
-module_param(sched_check_preempt_wakeup_debug, int, 0644);
+__module_param(sched_check_preempt_wakeup_debug, int, 0644);
 
 /* default 3ms, same with wakeup_granularity_ns(4*core smp) */
 static unsigned long sched_check_preempt_wakeup_gran = 3000000;
-module_param(sched_check_preempt_wakeup_gran, ulong, 0644);
+__module_param(sched_check_preempt_wakeup_gran, ulong, 0644);
 
 static int sched_pick_next_task_enable = 1;
-module_param(sched_pick_next_task_enable, int, 0644);
+__module_param(sched_pick_next_task_enable, int, 0644);
 
 static int sched_pick_next_task_debug;
-module_param(sched_pick_next_task_debug, int, 0644);
+__module_param(sched_pick_next_task_debug, int, 0644);
 
 static int sched_pick_next_task_wait_socre = 10; //1ms+
-module_param(sched_pick_next_task_wait_socre, int, 0644);
+__module_param(sched_pick_next_task_wait_socre, int, 0644);
 
-static int sched_pick_next_task_util_score = 80; //load.util_avg <= 200
-module_param(sched_pick_next_task_util_score, int, 0644);
+//static int sched_pick_next_task_util_score = 80; //load.util_avg <= 200
+__module_param(sched_pick_next_task_util_score, int, 0644);
 
 static int sched_pick_next_task_ignore_wait_prio = 120;
-module_param(sched_pick_next_task_ignore_wait_prio, int, 0644);
+__module_param(sched_pick_next_task_ignore_wait_prio, int, 0644);
 
 static int sched_place_entity_enable = 1;
-module_param(sched_place_entity_enable, int, 0644);
+__module_param(sched_place_entity_enable, int, 0644);
 
-static int sched_place_entity_debug;
-module_param(sched_place_entity_debug, int, 0644);
+//static int sched_place_entity_debug;
+__module_param(sched_place_entity_debug, int, 0644);
 
-static int sched_place_entity_factor = 3;
-module_param(sched_place_entity_factor, int, 0644);
+//static int sched_place_entity_factor = 3;
+__module_param(sched_place_entity_factor, int, 0644);
 
 static int sched_check_preempt_tick_enable = 1;
-module_param(sched_check_preempt_tick_enable, int, 0644);
+__module_param(sched_check_preempt_tick_enable, int, 0644);
 
 static int sched_check_preempt_tick_debug;
-module_param(sched_check_preempt_tick_debug, int, 0644);
+__module_param(sched_check_preempt_tick_debug, int, 0644);
 
 #ifdef CONFIG_SMP
 static inline bool should_honor_rt_sync(struct rq *rq, struct task_struct *p,

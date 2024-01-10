@@ -2065,7 +2065,7 @@ bool mem_cfg(struct di_ch_s *pch)
 
 #ifdef AFBC_DBG
 static unsigned int sleep_cnt;
-module_param(sleep_cnt, uint, 0664);
+__module_param(sleep_cnt, uint, 0664);
 MODULE_PARM_DESC(sleep_cnt, "debug sleep_cnt");
 #endif
 

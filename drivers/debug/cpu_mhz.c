@@ -131,7 +131,7 @@ static const struct kernel_param_ops cpu_mhz_period_ms_ops = {
 	.get	= cpu_mhz_period_ms_get,
 };
 
-module_param_cb(cpu_mhz_period_ms, &cpu_mhz_period_ms_ops, &cpu_mhz_period_ms, 0644);
+__module_param_cb(cpu_mhz_period_ms, &cpu_mhz_period_ms_ops, &cpu_mhz_period_ms, 0644);
 
 static int cpu_mhz_get(char *buffer, const struct kernel_param *kp)
 {
@@ -145,7 +145,7 @@ static const struct kernel_param_ops cpu_mhz_ops = {
 	.get	= cpu_mhz_get,
 };
 
-module_param_cb(cpu_mhz, &cpu_mhz_ops, NULL, 0644);
+__module_param_cb(cpu_mhz, &cpu_mhz_ops, NULL, 0644);
 
 int cpu_mhz_init(void)
 {

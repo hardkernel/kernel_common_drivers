@@ -74,31 +74,31 @@ static struct amprime_sl_dev_s amprime_sl_dev;
 static struct prime_t prime_sl_setting;
 
 static u32 prime_sl_enable = ENABLE;
-module_param(prime_sl_enable, uint, 0664);
+__module_param(prime_sl_enable, uint, 0664);
 MODULE_PARM_DESC(prime_sl_enable, "\n prime_sl_enable\n");
 
 static u32 prime_sl_running;
-module_param(prime_sl_running, uint, 0444);
+__module_param(prime_sl_running, uint, 0444);
 MODULE_PARM_DESC(prime_sl_running, "\n prime_sl_running\n");
 
 static u32 prime_sl_probe;
-module_param(prime_sl_probe, uint, 0664);
+__module_param(prime_sl_probe, uint, 0664);
 MODULE_PARM_DESC(prime_sl_probe, "\n prime_sl_probe\n");
 
 static u32 prime_sl_display_brightness = 150;
-module_param(prime_sl_display_brightness, uint, 0664);
+__module_param(prime_sl_display_brightness, uint, 0664);
 MODULE_PARM_DESC(prime_sl_display_brightness, "\n prime_sl_display_brightness\n");
 
 static u32 prime_sl_output_mode = PRIME_SL_DISPLAY_OETF_PQ;
-module_param(prime_sl_output_mode, uint, 0664);
+__module_param(prime_sl_output_mode, uint, 0664);
 MODULE_PARM_DESC(prime_sl_output_mode, "\n prime_sl_output_mode\n");
 
 static u32 prime_sl_debug;
-module_param(prime_sl_debug, uint, 0664);
+__module_param(prime_sl_debug, uint, 0664);
 MODULE_PARM_DESC(prime_sl_debug, "\n prime_sl_debug\n");
 
 static u32 prime_sl_mode;
-module_param(prime_sl_mode, uint, 0664);
+__module_param(prime_sl_mode, uint, 0664);
 MODULE_PARM_DESC(prime_sl_mode, "\n prime_sl_mode\n");
 
 static const int shadow_gain[201] = {

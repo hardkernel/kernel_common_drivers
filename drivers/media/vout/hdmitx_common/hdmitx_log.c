@@ -28,7 +28,7 @@ MODULE_PARM_DESC(hdmitx_debug, "Enable debug output, where each bit enables a de
 "\t\tBit 10 (0x400)  will enable EVENT messages (hdmitx event)\n"
 "\t\tBit 11 (0x800)  will enable HPD messages (hdmitx HPD)");
 
-module_param_named(hdmitx_debug, __hdmitx_debug, int, 0600);
+__module_param_named(hdmitx_debug, __hdmitx_debug, int, 0600);
 
 static bool hdmitx_debug_enabled(enum hdmitx_debug_category category)
 {

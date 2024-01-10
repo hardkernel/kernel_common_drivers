@@ -12,7 +12,7 @@
 
 MODULE_PARM_DESC(atsc_j83b_agc_target, "\n\t\t atsc_j83b_agc_target");
 static unsigned char atsc_j83b_agc_target = 0xe;
-module_param(atsc_j83b_agc_target, byte, 0644);
+__module_param(atsc_j83b_agc_target, byte, 0644);
 
 static unsigned char j83b_qam_reg[15] = { 0 };
 static unsigned int j83b_qam_value[15] = { 0 };

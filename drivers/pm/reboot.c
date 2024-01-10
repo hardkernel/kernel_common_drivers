@@ -59,7 +59,7 @@ static struct reboot_reason_str reboot_reason_name[MESON_MAX_REBOOT] = {
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
 static unsigned int scramble_reg;
 void __iomem *scramble_vaddr;
-module_param(scramble_reg, uint, 0644);
+__module_param(scramble_reg, uint, 0644);
 
 static int scramble_reg_setup(char *buf)
 {

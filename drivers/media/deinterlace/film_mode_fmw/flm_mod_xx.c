@@ -22,7 +22,7 @@
 
 /* dif02 < (size >> sft) => static */
 int flm2224_stl_sft = 7; /*10*/
-module_param(flm2224_stl_sft, int, 0644);
+__module_param(flm2224_stl_sft, int, 0644);
 MODULE_PARM_DESC(flm2224_stl_sft, "flm2224_stl_sft");
 
 int aMax02[15]; /* maximum 4 */

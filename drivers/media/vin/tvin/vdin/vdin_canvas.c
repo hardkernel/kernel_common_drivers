@@ -49,20 +49,20 @@ static unsigned int max_buf_height = VDIN_CANVAS_MAX_HEIGHT;
 /* one frame max metadata size:32x280 bits = 1120bytes(0x460) */
 unsigned int dolby_size_byte = K_DV_META_BUFF_SIZE;
 
-module_param(max_buf_num, uint, 0664);
+__module_param(max_buf_num, uint, 0664);
 MODULE_PARM_DESC(max_buf_num, "vdin max buf num.\n");
 
-module_param(min_buf_num, uint, 0664);
+__module_param(min_buf_num, uint, 0664);
 MODULE_PARM_DESC(min_buf_num, "vdin min buf num.\n");
 
 #ifdef DEBUG_SUPPORT
-module_param(max_buf_width, uint, 0664);
+__module_param(max_buf_width, uint, 0664);
 MODULE_PARM_DESC(max_buf_width, "vdin max buf width.\n");
 
-module_param(max_buf_height, uint, 0664);
+__module_param(max_buf_height, uint, 0664);
 MODULE_PARM_DESC(max_buf_height, "vdin max buf height.\n");
 
-module_param(dolby_size_byte, uint, 0664);
+__module_param(dolby_size_byte, uint, 0664);
 MODULE_PARM_DESC(dolby_size_byte, "dolby_size_byte.\n");
 #endif
 

@@ -35,7 +35,7 @@
 #define VRRLOCK_SUP_MODE	(VRRLOCK_SUPPORT_HDMI | VRRLOCK_SUPPORT_CVBS)
 
 int frame_lock_debug;
-module_param(frame_lock_debug, int, 0664);
+__module_param(frame_lock_debug, int, 0664);
 MODULE_PARM_DESC(frame_lock_debug, "frame lock debug flg");
 
 int sum1, sum2;

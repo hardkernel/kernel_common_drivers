@@ -41,19 +41,19 @@
 
 MODULE_PARM_DESC(dvbc_lock_continuous_cnt, "\n\t\t dvbc lock signal continuous counting");
 static unsigned int dvbc_lock_continuous_cnt = 1;
-module_param(dvbc_lock_continuous_cnt, int, 0644);
+__module_param(dvbc_lock_continuous_cnt, int, 0644);
 
 MODULE_PARM_DESC(dvbc_lost_continuous_cnt, "\n\t\t dvbc lost signal continuous counting");
 static unsigned int dvbc_lost_continuous_cnt = 10;
-module_param(dvbc_lost_continuous_cnt, int, 0644);
+__module_param(dvbc_lost_continuous_cnt, int, 0644);
 
 MODULE_PARM_DESC(dvbc_qam_try_cnt, "\n\t\t dvbc qam try counting");
 static unsigned int dvbc_qam_try_cnt = 1;
-module_param(dvbc_qam_try_cnt, int, 0644);
+__module_param(dvbc_qam_try_cnt, int, 0644);
 
 MODULE_PARM_DESC(dvbc_check_agc_time, "\n\t\t dvbc check agc time");
 static unsigned int dvbc_check_agc_time = 150;
-module_param(dvbc_check_agc_time, int, 0644);
+__module_param(dvbc_check_agc_time, int, 0644);
 
 void dvbc_get_qam_name(enum qam_md_e qam_mode, char *str)
 {

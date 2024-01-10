@@ -78,7 +78,7 @@ static struct dsc_pid_table dsc_tse_pid_table[MAX_DSC_PID_TABLE_NUM];
 
 MODULE_PARM_DESC(debug_dsc, "\n\t\t Enable dsc information");
 static int debug_dsc;
-module_param(debug_dsc, int, 0644);
+__module_param(debug_dsc, int, 0644);
 
 static int s_init_flag;
 static unsigned int global_ch_id;

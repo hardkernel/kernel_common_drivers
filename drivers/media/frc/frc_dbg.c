@@ -42,7 +42,7 @@
 #include "frc_rdma.h"
 
 int frc_dbg_ctrl;
-module_param(frc_dbg_ctrl, int, 0664);
+__module_param(frc_dbg_ctrl, int, 0664);
 MODULE_PARM_DESC(frc_dbg_ctrl, "frc_dbg_ctrl");
 
 static void frc_debug_parse_param(char *buf_orig, char **parm)

@@ -1023,7 +1023,7 @@ u8 WIFI_MAC[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 char wifi_mac[32] = {0};
 char *wifimac;
 #ifdef MODULE
-module_param(wifimac, charp, 0644);
+__module_param(wifimac, charp, 0644);
 #else
 core_param(wifimac, wifimac, charp, 0644);
 #endif
@@ -1076,7 +1076,7 @@ static const struct kernel_param_ops mac_addr_ops = {
 	.get = param_get_charp,
 };
 
-module_param_cb(mac_addr, &mac_addr_ops, &mac_addr, 0644);
+__module_param_cb(mac_addr, &mac_addr_ops, &mac_addr, 0644);
 MODULE_PARM_DESC(mac_addr, "mac addr");
 #else
 __setup("mac_wifi=", mac_addr_set);
