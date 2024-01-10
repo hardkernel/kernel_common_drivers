@@ -49,6 +49,8 @@
 #define PWRCTRL_MEM_PD6_T5           0x00d
 #define PWRCTRL_MEM_PD7_T5           0x00e
 
+#define PWRCTRL_MEM_PD6_A4            0x0016
+
 #define HHI_VPU_CLK_CNTL             0x6f
 #define HHI_VAPBCLK_CNTL             0x7d
 #define HHI_VPU_CLK_CTRL             0x6f
@@ -57,6 +59,7 @@
 #define CLKCTRL_VAPBCLK_CTRL         0x003f
 
 #define CLKCTRL_VOUTENC_CLK_CTRL     0x0046
+#define CLKCTRL_VOUTENC_CLK_CTRL_A4  0x0081
 
 /* cbus */
 #define RESET0_LEVEL                 0x0420
@@ -87,6 +90,10 @@
 
 #define ENCP_DVI_HSO_BEGIN           0x1c30
 #define S5_VPU_VPU_PWM_V0            0x2730
+
+#define VPU_VOUT_BLEND_DUMDATA_A4    0x0041
+#define VPP_VD1_MATRIX_OFFSET0_1_A4  0x0189
+#define VPU_VOUT_DTH_DATA_A4         0x0403
 
 int vpu_ioremap(struct platform_device *pdev, int *reg_map_table);
 

@@ -1584,7 +1584,7 @@
 };
 
 &vpu {
-	status = "disabled";
+	status = "okay";
 };
 
 &vout {
@@ -1592,7 +1592,7 @@
 };
 
 &canvas {
-	status = "disabled";
+	status = "okay";
 };
 
 &fb {
