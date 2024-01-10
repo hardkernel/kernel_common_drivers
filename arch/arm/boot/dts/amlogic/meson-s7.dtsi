@@ -1577,11 +1577,9 @@
 			"mailbox_2",
 			"parser_b";
 		power-domains = <&pwrdm PDID_S7_DOS_VDEC>,
-			<&pwrdm PDID_S7_DOS_HEVC>,
-			<&pwrdm PDID_S7_DOS_HCODEC>;
+			<&pwrdm PDID_S7_DOS_HEVC>;
 		power-domain-names = "pwrc-vdec",
-			"pwrc-hevc",
-			"pwrc-hcodec";
+			"pwrc-hevc";
 	};
 
 	vcodec_dec {

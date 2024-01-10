@@ -683,8 +683,6 @@ static struct sec_pm_domain_data txhd2_pm_domain_data __initdata = {
 };
 
 static struct sec_pm_private_domain s7_pm_domains[] __initdata = {
-	[PDID_S7_DOS_HCODEC] = POWER_DOMAIN(hcode, PDID_S7_DOS_HCODEC, DOMAIN_INIT_ON,
-					GENPD_FLAG_ALWAYS_ON),
 	[PDID_S7_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_S7_DOS_HEVC, DOMAIN_INIT_ON,
 				       GENPD_FLAG_ALWAYS_ON),
 	[PDID_S7_DOS_VDEC] = POWER_DOMAIN(vdec, PDID_S7_DOS_VDEC, DOMAIN_INIT_ON,
