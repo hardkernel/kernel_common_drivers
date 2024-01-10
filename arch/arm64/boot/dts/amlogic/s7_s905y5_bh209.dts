@@ -8,6 +8,7 @@
 #include "meson-s7.dtsi"
 #include "mesons7_drm.dtsi"
 #include "mesons7_audio.dtsi"
+#include "firmware_ab.dtsi"
 / {
 	amlogic-dt-id = "s7_s905y5_bh209";
 	compatible = "s7_s905y5_bh209";
