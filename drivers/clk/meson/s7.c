@@ -1655,8 +1655,10 @@ MESON_CLK_GATE_SYS_CLK(sys_audio, CLKCTRL_SYS_CLK_EN0_REG1, 0);
 MESON_CLK_GATE_SYS_CLK(sys_eth, CLKCTRL_SYS_CLK_EN0_REG1, 3);
 MESON_CLK_GATE_SYS_CLK(sys_uart_a, CLKCTRL_SYS_CLK_EN0_REG1, 5);
 MESON_CLK_GATE_SYS_CLK(sys_uart_b, CLKCTRL_SYS_CLK_EN0_REG1, 6);
+MESON_CLK_GATE_SYS_CLK(sys_uart_c, CLKCTRL_SYS_CLK_EN0_REG1, 7);
+MESON_CLK_GATE_SYS_CLK(sys_uart_d, CLKCTRL_SYS_CLK_EN0_REG1, 8);
+MESON_CLK_GATE_SYS_CLK(sys_uart_e, CLKCTRL_SYS_CLK_EN0_REG1, 9);
 MESON_CLK_GATE_SYS_CLK(sys_ts_pll, CLKCTRL_SYS_CLK_EN0_REG1, 16);
-MESON_CLK_GATE_SYS_CLK(sys_g2d, CLKCTRL_SYS_CLK_EN0_REG1, 20);
 MESON_CLK_GATE_SYS_CLK(sys_spicc0, CLKCTRL_SYS_CLK_EN0_REG1, 21);
 MESON_CLK_GATE_SYS_CLK(sys_usb, CLKCTRL_SYS_CLK_EN0_REG1, 26);
 MESON_CLK_GATE_SYS_CLK(sys_i2c_m_a, CLKCTRL_SYS_CLK_EN0_REG1, 30);
@@ -2118,8 +2120,10 @@ static struct clk_hw_onecell_data s7_hw_onecell_data = {
 		[CLKID_SYS_ETH]			= &sys_eth.hw,
 		[CLKID_SYS_UART_A]		= &sys_uart_a.hw,
 		[CLKID_SYS_UART_B]		= &sys_uart_b.hw,
+		[CLKID_SYS_UART_C]		= &sys_uart_c.hw,
+		[CLKID_SYS_UART_D]		= &sys_uart_d.hw,
+		[CLKID_SYS_UART_E]		= &sys_uart_e.hw,
 		[CLKID_SYS_TS_PLL]		= &sys_ts_pll.hw,
-		[CLKID_SYS_G2D]			= &sys_g2d.hw,
 		[CLKID_SYS_SPICC0]		= &sys_spicc0.hw,
 		[CLKID_SYS_USB]			= &sys_usb.hw,
 		[CLKID_SYS_I2C_M_A]		= &sys_i2c_m_a.hw,
@@ -2382,8 +2386,10 @@ static struct clk_regmap *const s7_clk_regmaps[] = {
 	&sys_eth,
 	&sys_uart_a,
 	&sys_uart_b,
+	&sys_uart_c,
+	&sys_uart_d,
+	&sys_uart_e,
 	&sys_ts_pll,
-	&sys_g2d,
 	&sys_spicc0,
 	&sys_usb,
 	&sys_i2c_m_a,
