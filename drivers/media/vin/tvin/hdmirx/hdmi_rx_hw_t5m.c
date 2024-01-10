@@ -46,7 +46,10 @@ static const u32 phy_misc_t5m[][2] = {
 	{	 /* 37~75M */
 		0xffe000c0, 0x11c73003,
 	},
-	{	 /* 75~150M */
+	{	 /* 75~115M */
+		0xffe00080, 0x11c73002,
+	},
+	{	 /* 1155~150M */
 		0xffe00080, 0x11c73002,
 	},
 	{	 /* 150~340M */
@@ -69,7 +72,10 @@ static const u32 phy_dcha_t5m[][2] = {
 	{	 /* 35~75M */
 		0x00f77666, 0x40100c59,
 	},
-	{	 /* 75~150M */
+	{	 /* 75~115M */
+		0x00f77666, 0x40100459,
+	},
+	{	 /* 115~150M */
 		0x00f77666, 0x40100459,
 	},
 	{	 /* 150~340M */
@@ -93,7 +99,10 @@ static const u32 phy_dchd_t5m[][2] = {
 	{	 /* 35~75M */
 		0x04000095, 0x30880060,
 	},
-	{	 /* 75~150M */
+	{	 /* 75~115M */
+		0x04000095, 0x30880065,
+	},
+	{	 /* 115~150M */
 		0x04000095, 0x30880069,
 	},
 	{	 /* 140~340M */
@@ -1152,7 +1161,7 @@ void aml_eq_cfg_t5m(void)
 	hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHD_CDR, T5M_CDR_RSTB, 1);
 	hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHD_CDR, T5M_CDR_EN, 1);
 	usleep_range(200, 210);
-	if (idx >= PHY_BW_2)
+	if (idx >= PHY_BW_3)
 		hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHD_EQ, T5M_EN_BYP_EQ, 0);
 	hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHD_EQ, T5M_EQ_EN, 1);
 	hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHD_EQ, T5M_EQ_RSTB, 1);

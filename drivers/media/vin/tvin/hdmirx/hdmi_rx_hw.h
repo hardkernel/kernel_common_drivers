@@ -3140,10 +3140,11 @@ enum measure_clk_src_e {
 enum phy_frq_band {
 	PHY_BW_0 = 0,	/*45Mhz*/
 	PHY_BW_1,		/*77Mhz*/
-	PHY_BW_2,		/*155Mhz*/
-	PHY_BW_3,		/*340Mhz*/
-	PHY_BW_4,		/*525Mhz*/
-	PHY_BW_5,		/*600Mhz*/
+	PHY_BW_2,		/*115Mhz*/
+	PHY_BW_3,		/*155Mhz*/
+	PHY_BW_4,		/*340Mhz*/
+	PHY_BW_5,		/*525Mhz*/
+	PHY_BW_6,		/*600Mhz*/
 	PHY_BW_NULL = 0xf,
 };
 

@@ -6054,16 +6054,18 @@ u32 aml_cable_clk_band(u32 cable_clk, u32 clk_rate)
 			bw = PHY_BW_0;
 		else if (cab_clk < (75 * MHz))
 			bw = PHY_BW_1;
+		else if (cab_clk < (115 * MHz))
+			bw = PHY_BW_2;
 		else if (cab_clk < (150 * MHz))
-			bw = PHY_BW_2;
-		else if (cab_clk < (300 * MHz))
 			bw = PHY_BW_3;
-		else if (cab_clk < (525 * MHz))
+		else if (cab_clk < (300 * MHz))
 			bw = PHY_BW_4;
-		else if (cab_clk < (600 * MHz))
+		else if (cab_clk < (525 * MHz))
 			bw = PHY_BW_5;
+		else if (cab_clk < (600 * MHz))
+			bw = PHY_BW_6;
 		else
-			bw = PHY_BW_2;
+			bw = PHY_BW_3;
 	} else {
 		if (cab_clk < (45 * MHz))
 			bw = PHY_BW_0;

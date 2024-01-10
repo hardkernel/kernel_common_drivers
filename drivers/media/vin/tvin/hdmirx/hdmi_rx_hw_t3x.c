@@ -70,7 +70,10 @@ static const u32 phy_misc_t3x_20[][2] = {
 	{	 /* 37~75M */
 		0xffe000c0, 0x11c73003,
 	},
-	{	 /* 75~150M */
+	{	 /* 75~115M */
+		0xffe00080, 0x11c73002,
+	},
+	{	 /* 115~150M */
 		0xffe00080, 0x11c73002,
 	},
 	{	 /* 150~340M */
@@ -93,7 +96,10 @@ static const u32 phy_dcha_t3x_20[][2] = {
 	{	 /* 35~75M */
 		0x00f77666, 0x40100c59,
 	},
-	{	 /* 75~150M */
+	{	 /* 75~115M */
+		0x00f77666, 0x40100459,
+	},
+	{	 /* 115~150M */
 		0x00f77666, 0x40100459,
 	},
 	{	 /* 150~340M */
@@ -117,7 +123,10 @@ static const u32 phy_dchd_t3x_20[][2] = {
 	{	 /* 35~75M */
 		0x04000095, 0x30880060,
 	},
-	{	 /* 75~150M */
+	{	 /* 75~115M */
+		0x04000095, 0x30880065,
+	},
+	{	 /* 115~150M */
 		0x04000095, 0x30880069,
 	},
 	{	 /* 140~340M */
@@ -1173,7 +1182,7 @@ void aml_eq_cfg_t3x_20(u8 port)
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_CDR, T3X_20_CDR_RSTB, 1, port);
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_CDR, T3X_20_CDR_EN, 1, port);
 	usleep_range(200, 210);
-	if (idx >= PHY_BW_2)
+	if (idx >= PHY_BW_3)
 		hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_EQ, T3X_20_EN_BYP_EQ, 0, port);
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_EQ, T3X_20_EQ_EN, 1, port);
 	hdmirx_wr_bits_amlphy_t3x(T3X_HDMIRX20PHY_DCHD_EQ, T3X_20_EQ_RSTB, 1, port);
