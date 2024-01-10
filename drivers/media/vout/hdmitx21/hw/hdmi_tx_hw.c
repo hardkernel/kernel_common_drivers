@@ -1071,9 +1071,6 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 		(0 << 6) |
 		(((para->cd == COLORDEPTH_24B) ? 1 : 0) << 10) |
 		(0 << 12);
-	if (para->cd == COLORDEPTH_24B &&
-		((hdmitx_hw_get_dv_st(&hdev->tx_hw.base) & HDMI_DV_TYPE) == HDMI_DV_TYPE))
-		data32 |= (1 << 4);
 	hd21_write_reg(VPU_HDMI_DITH_CNTL, data32);
 	hdmitx21_dither_config(hdev);
 	if (hdev->tx_hw.chip_data->chip_type >= MESON_CPU_ID_S5)
@@ -2989,7 +2986,7 @@ void hdmitx21_dither_config(struct hdmitx_dev *hdev)
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
 
 	if (para->cd == COLORDEPTH_24B &&
-		((hdmitx_hw_get_dv_st(&hdev->tx_hw.base) & HDMI_DV_TYPE) == HDMI_DV_TYPE))
+		((hdmitx_hw_get_dv_st(&hdev->tx_hw.base) & HDMI_DV_TYPE) == HDMI_NONE))
 		hd21_set_reg_bits(VPU_HDMI_DITH_CNTL, 1, 4, 1);
 	else
 		hd21_set_reg_bits(VPU_HDMI_DITH_CNTL, 0, 4, 1);
