@@ -436,6 +436,7 @@ static void set_wol_notify_bl30(struct meson8b_dwmac *dwmac, u32 enable_bl30)
 }
 #endif
 unsigned int internal_phy;
+unsigned int mdns_switch_from_user;
 static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac *dwmac)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -457,6 +458,8 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 #ifdef CONFIG_PM_SLEEP
 	if (of_property_read_u32(np, "mac_wol", &wol_switch_from_user) == 0)
 		pr_info("feature mac_wol\n");
+	if (of_property_read_u32(np, "mdns_wkup", &mdns_switch_from_user) == 0)
+		pr_debug("feature mdns_wkup\n");
 #endif
 
 	/*internal_phy 1:inphy;2:exphy; 0 as default*/
@@ -712,7 +715,10 @@ static int meson8b_suspend(struct device *dev)
 		set_wol_notify_bl30(dwmac, true);
 		/*our phy not support wol by now*/
 		phydev->irq_suspended = 0;
-		priv->wolopts = WAKE_MAGIC;
+		if (mdns_switch_from_user)
+			priv->wolopts = (0x1 << 5) | (0x1 << 8);
+		else
+			priv->wolopts = WAKE_MAGIC;
 		ret = stmmac_suspend(dev);
 		without_reset = 1;
 	} else {
@@ -742,7 +748,7 @@ static int meson8b_resume(struct device *dev)
 	if ((wol_switch_from_user) && (without_reset)) {
 		ret = stmmac_resume(dev);
 
-		if (get_resume_method() == ETH_PHY_WAKEUP) {
+		if (get_resume_method() == ETH_PHY_WAKEUP && !mdns_switch_from_user) {
 			pr_info("evan---wol rx--KEY_POWER\n");
 			input_event(dwmac->input_dev,
 				EV_KEY, KEY_POWER, 1);

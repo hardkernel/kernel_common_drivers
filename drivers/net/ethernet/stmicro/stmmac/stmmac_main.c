@@ -299,7 +299,7 @@ static void stmmac_amlogic_task(struct work_struct *work)
 		writel(regval, priv->ioaddr + MAC_CTRL_REG);
 		if (priv->linkup_after_resume < 2) {
 			// revert the effect of phy_speed_down() again
-			phylink_speed_up(priv->phylink);
+			//phylink_speed_up(priv->phylink);
 		}
 	}
 	priv->amlogic_task_action = 0;
@@ -7460,13 +7460,13 @@ int stmmac_suspend(struct device *dev)
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 #ifdef CONFIG_PM_SLEEP
-		int ret;
+//		int ret;
 
-		if (wol_switch_from_user && priv->phylink->phydev->link) {
-			ret = phylink_speed_down(priv->phylink, true);
-			if (ret)
-				dev_err(priv->device, "phylink_speed_down(): auto-negotiation is incomplete\n");
-		}
+//		if (wol_switch_from_user && priv->phylink->phydev->link) {
+//			ret = phylink_speed_down(priv->phylink, true);
+//			if (ret)
+//				dev_err(priv->device, "phylink_speed_down()\n");
+//		}
 #endif
 #endif
 		phylink_suspend(priv->phylink, true);
@@ -7601,7 +7601,7 @@ int stmmac_resume(struct device *dev)
 	rtnl_lock();
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 		phylink_resume(priv->phylink);
-		phylink_speed_up(priv->phylink);
+//		phylink_speed_up(priv->phylink);
 	} else {
 		phylink_resume(priv->phylink);
 		if (device_may_wakeup(priv->device))
