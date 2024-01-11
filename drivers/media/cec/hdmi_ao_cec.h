@@ -51,6 +51,7 @@ enum cec_chip_ver {
 	CEC_CHIP_T3X, /* base on T3, only have cec_b */
 	CEC_CHIP_TXHD2, /* base on T5M, only have cec_b */
 	CEC_CHIP_S1A,
+	CEC_CHIP_S7,
 };
 
 enum cecaver {
