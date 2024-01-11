@@ -930,8 +930,8 @@ MESON_CLK_DUALDIV_RW(cecb_dual_div, CLKCTRL_CECB_CTRL0, 0,  12,
 		     &cecb_dual_clkin.hw, 0);
 
 static const struct clk_parent_data cecb_dual_sel_parent_data[] = {
-	{ .hw = &cecb_dual_clkin.hw },
-	{ .hw = &cecb_dual_div.hw }
+	{ .hw = &cecb_dual_div.hw },
+	{ .hw = &cecb_dual_clkin.hw }
 };
 
 MESON_CLK_MUX_RW(cecb_dual_sel, CLKCTRL_CECB_CTRL1, 0x1, 24, NULL, 0,
