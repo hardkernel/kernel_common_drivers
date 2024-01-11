@@ -2057,14 +2057,15 @@
 
 	aml_bt: aml_bt {
 		compatible = "amlogic, aml-bt";
-		status = "disabled";
+		status = "okay";
+		bt_en-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	};
 
 	aml_wifi: aml_wifi {
 		compatible = "amlogic, aml-wifi";
 		status = "disabled";
 		irq_trigger_type = "IRQF_TRIGGER_LOW";
-		wifi_static_buf = <2>;
+		wifi_static_buf = <0>;
 		//pinctrl-0 = <&pwm_e_pins>;
 		//pinctrl-names = "default";
 		pwm_config = <&wifi_pwm_conf>;
@@ -2072,12 +2073,12 @@
 
 	wifi_pwm_conf:wifi_pwm_conf{
 		pwm_channel1_conf {
-			// pwms = <&pwm_ef 0 30541 0>;
+			pwms = <&pwm_e 0 30541 0>;
 			duty-cycle = <15270>;
 			times = <7>;
 		};
 		pwm_channel2_conf {
-			// pwms = <&pwm_ef 2 30500 0>;
+			pwms = <&pwm_e 2 30500 0>;
 			duty-cycle = <15250>;
 			times = <10>;
 		};
