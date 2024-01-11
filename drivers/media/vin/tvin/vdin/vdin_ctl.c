@@ -2916,7 +2916,7 @@ void vdin_set_crc_pulse(struct vdin_dev_s *devp)
 
 	if ((!cpu_after_eq(MESON_CPU_MAJOR_ID_SM1) ||
 	    cpu_after_eq(MESON_CPU_MAJOR_ID_T5W)) &&
-	    !is_meson_txhd2_cpu())
+	    !is_meson_txhd2_cpu() && !is_meson_s7_cpu())
 		return;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
@@ -3993,8 +3993,8 @@ void vdin_hw_disable(struct vdin_dev_s *devp)
 
 /* vdin1 hist function can be used on the boot
  * Currently used for txhd2
- * 1、configure the hist function register ---vdin1_hw_hist_on_off
- * 2、there is a writeback path in the viuin_select_loopback_path
+ * 1 configure the hist function register ---vdin1_hw_hist_on_off
+ * 2 there is a writeback path in the viuin_select_loopback_path
  */
 void vdin1_hw_hist_on_off(struct vdin_dev_s *devp, bool on_off)
 {
