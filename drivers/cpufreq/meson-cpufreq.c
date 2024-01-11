@@ -1362,8 +1362,13 @@ static struct platform_driver meson_cpufreq_platdrv = {
 	.probe		= meson_cpufreq_probe,
 	.remove		= meson_cpufreq_remove,
 };
-module_platform_driver(meson_cpufreq_platdrv);
 
-MODULE_AUTHOR("Amlogic cpufreq driver owner");
-MODULE_DESCRIPTION("Generic ARM big LITTLE cpufreq driver via DTS");
-MODULE_LICENSE("GPL v2");
+int __init aml_cpufreq_v1_init(void)
+{
+	return platform_driver_register(&meson_cpufreq_platdrv);
+}
+
+void __exit aml_cpufreq_v1_exit(void)
+{
+	platform_driver_unregister(&meson_cpufreq_platdrv);
+}
