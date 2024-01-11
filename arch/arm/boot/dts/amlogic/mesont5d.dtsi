@@ -1226,13 +1226,6 @@
 					clocks = <&xtal>;
 					clock-names = "xtal";
 				};
-
-				sec_AO: ao-secure@140 {
-					compatible = "amlogic,meson-gx-ao-secure", "syscon";
-					reg = <0x140 0x140>;
-					amlogic,has-chip-id;
-				};
-
 			};
 
 			uart_AO: serial@3000 {

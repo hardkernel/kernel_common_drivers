@@ -636,11 +636,6 @@
 				reg = <0x2000 0x98>;
 				#reset-cells = <1>;
 			};
-
-			cpu_version {
-				compatible = "amlogic,meson-gx-ao-secure", "syscon";
-				reg=<0x10220 0x4>;
-			};
 		};
 
 		crg_phy_20: crgphy20@fe318000 {

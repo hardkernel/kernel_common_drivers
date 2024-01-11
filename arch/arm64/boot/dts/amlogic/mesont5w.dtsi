@@ -731,13 +731,6 @@
 				#size-cells = <2>;
 				ranges = <0x0 0x0 0x0 0x0 0x0 0x300>;
 
-				sec_AO: ao-secure@140 {
-					compatible = "amlogic,meson-gx-ao-secure",
-						     "syscon";
-					reg = <0x0 0x140 0x0 0x140>;
-					amlogic,has-chip-id;
-				};
-
 				clkc_AO: clock-controller@2 {
 					compatible = "amlogic,t5w-aoclkc";
 					#clock-cells = <1>;

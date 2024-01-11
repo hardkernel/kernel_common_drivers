@@ -1101,11 +1101,6 @@
 				reg = <0x2000 0x98>;
 				#reset-cells = <1>;
 			};
-
-			cpu_version {
-				compatible = "amlogic,meson-gx-ao-secure", "syscon";
-				reg=<0x10220 0x4>;
-			};
 		};
 
 		usb2_phy_v2: usb2phy@fe03a000 {

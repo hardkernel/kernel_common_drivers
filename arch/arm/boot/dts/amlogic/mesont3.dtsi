@@ -1199,11 +1199,6 @@
 					};
 				};
 			};
-
-			cpu_version {
-				compatible = "amlogic,meson-gx-ao-secure", "syscon";
-				reg=<0x10220 0x140>;
-			};
 		};
 
 		ethmac: ethernet@fdc00000 {
