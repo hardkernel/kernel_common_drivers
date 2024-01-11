@@ -285,12 +285,6 @@
 				#reset-cells = <1>;
 			};
 
-			cpu_version {
-				compatible = "amlogic,meson-gx-ao-secure", "syscon";
-				reg=<0x5a20 0x140>;
-				amlogic,has-chip-id;
-			};
-
 			meson_clk_msr@3400 {
 				compatible = "amlogic,a1-clk-measure";
 				reg = <0x3400 0x10>;

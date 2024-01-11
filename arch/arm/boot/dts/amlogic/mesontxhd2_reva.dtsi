@@ -1177,12 +1177,6 @@
 			#size-cells = <1>;
 			ranges = <0x0 0xff800000 0xa000>;
 
-			cpu_version {
-				compatible = "amlogic,meson-gx-ao-secure", "syscon";
-				reg=<0x140 0x4>;
-				amlogic,has-chip-id;
-			};
-
 			dcon_led: dcon_led@0x1000 {
 				compatible = "amlogic,led_unipolar_ctrl";
 				reg = <0x1000 0x88>;

@@ -79,7 +79,6 @@ struct codecio_device_data_s {
 	enum meson_cpuid_type_e cpu_id;
 };
 
-int meson_cpu_version_init(void);
 int get_cpu_type_from_media(void);
 
 unsigned char get_meson_cpu_version(int level);

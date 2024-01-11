@@ -1133,12 +1133,6 @@
 				};
 			};
 
-			cpu_version {
-				compatible = "amlogic,meson-gx-ao-secure", "syscon";
-				status = "disable";
-				reg=<0x0 0x10220 0x0 0x140>;
-			};
-
 			gbl_timer_core: global-timer@8e000 {
 				compatible = "amlogic,meson-glb-timer-core";
 				reg = <0x0 0x8e000 0x0 0x28>;

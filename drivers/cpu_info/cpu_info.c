@@ -27,10 +27,48 @@
 #endif
 #include <linux/upstream_version.h>
 
+static int init_done;
 static unsigned char cpuinfo_chip_id[CHIPID_LEN];
+static int cpu_id_from_media;
+
+int get_cpu_type_from_media(void)
+{
+	return cpu_id_from_media;
+}
+EXPORT_SYMBOL(get_cpu_type_from_media);
+
+void set_cpu_type_from_media(int cpu_id)
+{
+	if (cpu_id <= 0) {
+		pr_err("wrong cpu id from media driver 0x%x.\n", cpu_id);
+		return;
+	}
+	cpu_id_from_media = cpu_id;
+}
+EXPORT_SYMBOL(set_cpu_type_from_media);
+
+unsigned char get_meson_cpu_version(int level)
+{
+	if (!init_done) {
+		pr_err("too early call %s\n", __func__);
+		dump_stack();
+		return -1;
+	}
+
+	if (level >= 0 && level <= MESON_CPU_VERSION_LVL_MAX)
+		return cpuinfo_chip_id[level];
+	return 0;
+}
+EXPORT_SYMBOL(get_meson_cpu_version);
 
 void cpuinfo_get_chipid(unsigned char *cid, unsigned int size)
 {
+	if (!init_done) {
+		pr_err("too early call %s\n", __func__);
+		dump_stack();
+		return;
+	}
+
 	memcpy(&cid[0], cpuinfo_chip_id, size);
 }
 EXPORT_SYMBOL(cpuinfo_get_chipid);
@@ -114,6 +152,7 @@ static int cpuinfo_probe(struct platform_device *pdev)
 	meson_sm_mutex_unlock();
 
 	if (ret == 0) {
+		init_done = 1;
 		pr_info("serial = ");
 		for (i = 0; i < CHIPID_LEN; i++)
 			pr_cont("%02x", cpuinfo_chip_id[i]);
@@ -150,8 +189,6 @@ static int __init meson_cpuinfo_init(void)
 	pr_notice("build info: %s, common_drivers: %s\n", BUILD_TIME, COMMON_DRIVER_RELEASE);
 	pr_notice("kernel upgrade info: <%d> <%s> <%s-%s>\n",
 		  AML_KERNEL_VERSION, MERGE_DATE, UPSTREAM_VERSION, AML_PATCH_VERSION);
-
-	meson_cpu_version_init();
 
 	return  platform_driver_register(&cpuinfo_platform_driver);
 }
