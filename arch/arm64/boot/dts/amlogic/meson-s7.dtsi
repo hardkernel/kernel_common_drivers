@@ -2170,7 +2170,7 @@
 		kt_cap = <0x260f 0x6bf 0 64 0 32>;
 		s17_cfg_offset = <0x2408>;
 		kt_reserved = <0>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	chosen {
