@@ -579,7 +579,7 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		/*avout mute gpio*/
-		avout_mute-gpios = <&gpio GPIOH_4 GPIO_ACTIVE_HIGH>;
+		avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 		av_mute_sleep_time = <700>;
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
@@ -626,7 +626,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-i2s";
+			suffix-name = "alsaPORT-i2s2hdmi";
 			cpu {
 				sound-dai = <&tdmb>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -643,7 +643,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				sound-dai = <&amlogic_codec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
@@ -670,7 +670,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&amlogic_codec>;
 			};
 		};
 
@@ -1248,7 +1248,3 @@
 	fbdev_sizes = <1280 720 1280 1440 32>;
 };
 
-&amlogic_codec {
-	tocodec_inout = <1>;
-	tdmout_index = <1>;
-};

@@ -3,7 +3,6 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#include "meson-s7.dtsi"
 #include <dt-bindings/clock/amlogic,txhd2-audio-clk.h>
 / {
 	soc {
@@ -113,37 +112,15 @@
 		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
 		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
-
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
 				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
-		/*
-		 * 0: tdmout_a;
-		 * 1: tdmout_b;
-		 * 2: tdmout_c;
-		 * 3: spdifout;
-		 * 4: spdifout_b;
-		 */
-		samesource_sel = <3>;
-
-		/*enable default mclk(12.288M), before extern codec start*/
-		start_clk_enable = <1>;
-
-		/*tdm clk tuning enable*/
-		clk_tuning_enable = <1>;
-
-		/* enable control gain */
-		ctrl_gain = <1>;
 		suspend-clk-off = <1>;
 		i2s2hdmi = <1>;
-		status = "okay";
 		src-clk-freq = <491520000>;
-		/* !!!For --TV platform-- ONLY */
-		Channel_Mask {
-			/*i2s has 4 pins, 8channel, mux output*/
-			Spdif_samesource_Channel_Mask = "i2s_0/1";
-		};
+		status = "okay";
+
 	};
 
 	tdmc:tdm@2 {
@@ -158,10 +135,27 @@
 				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
-		suspend-clk-off = <1>;
 
+		/*
+		 * 0: tdmout_a;
+		 * 1: tdmout_b;
+		 * 2: tdmout_c;
+		 * 3: spdifout;
+		 * 4: spdifout_b;
+		 */
+		samesource_sel = <3>;
+
+		/*enable default mclk(12.288M), before extern codec start*/
+		start_clk_enable = <1>;
+		src-clk-freq = <491520000>;
+		suspend-clk-off = <1>;
 		ctrl_gain = <1>;
 		status = "okay";
+		/* !!!For --TV platform-- ONLY */
+		Channel_Mask {
+			/*i2s has 4 pins, 8channel, mux output*/
+			Spdif_samesource_Channel_Mask = "i2s_0/1";
+		};
 	};
 
 	pdma:pdm {
