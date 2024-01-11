@@ -153,9 +153,10 @@
 /* 2023.11.03 disable DDR access when suspend */
 /* 2023.12.1 fix trim value err when resume */
 /* 2023.12.06 fix resume panic issue */
-#define RX_VER2 "ver.2023/12/06"
+/* 2024.01.11 fix EMP DDR write out of bounds */
+#define RX_VER2 "ver.2024/01/11"
 
-#define PFIFO_SIZE 160
+#define PFIFO_SIZE 256
 #define HDCP14_KEY_SIZE 368
 
 /* sizeof(emp_buf) / sizeof(sizeof(struct pd_infoframe_s) + 1) = 1024/32 */
