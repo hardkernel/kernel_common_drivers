@@ -785,9 +785,11 @@ static int vm_driver_probe(struct platform_device *pdev)
 		pr_err("of_reserved_mem_device_init failed !\n");
 		return ret;
 	}
-
+#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE) || \
+	defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
+	defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
 	pdev->dev.dma_coherent = true;
-
+#endif
 	pr_debug("probe success.\n");
 
 	return 0;
