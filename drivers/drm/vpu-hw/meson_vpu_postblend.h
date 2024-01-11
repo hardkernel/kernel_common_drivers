@@ -108,18 +108,6 @@
 #define VPP_RO_CRCSUM           0x1db2
 #define VPP_CRC_CHK             0x1db3
 
-/* s7 pxp bring hdr register about workaround */
-#define OSD1_HDR2_MATRIXI_COEF00_01         0x38a2
-#define OSD1_HDR2_MATRIXI_COEF02_10         0x38a3
-#define OSD1_HDR2_MATRIXI_COEF11_12         0x38a4
-#define OSD1_HDR2_MATRIXI_COEF20_21         0x38a5
-#define OSD1_HDR2_MATRIXI_COEF22            0x38a6
-#define OSD1_HDR2_MATRIXI_OFFSET0_1         0x38aa
-#define OSD1_HDR2_MATRIXI_OFFSET2           0x38ab
-#define OSD1_HDR2_MATRIXI_PRE_OFFSET0_1     0x38ac
-#define OSD1_HDR2_MATRIXI_PRE_OFFSET2       0x38ad
-#define OSD1_HDR2_MATRIXI_EN_CTRL           0x38db
-
 #define VPP_POST_BLEND_REF_ZORDER                  128
 
 /* txhd2 loopback register */
