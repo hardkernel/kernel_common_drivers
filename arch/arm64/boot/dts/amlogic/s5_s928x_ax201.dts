@@ -595,8 +595,10 @@
 			suffix-name = "alsaPORT-pcm";
 			tdmacpu: cpu {
 				sound-dai = <&tdma>;
-				dai-tdm-slot-tx-mask = <1>;
-				dai-tdm-slot-rx-mask = <1>;
+				dai-tdm-slot-tx-mask =
+							<1>;
+				dai-tdm-slot-rx-mask =
+							<1>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <16>;
 				system-clock-frequency = <512000>;
@@ -621,7 +623,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-i2s";
+			suffix-name = "alsaPORT-i2s2hdmi";
 			cpu {
 				sound-dai = <&tdmb>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -638,7 +640,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				sound-dai = <&amlogic_codec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
@@ -655,7 +657,7 @@
 			//bitclock-master = <&tdmccodec>;
 			//frame-master = <&tdmccodec>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-i2s2hdmi";
+			suffix-name = "alsaPORT-i2s";
 			cpu {
 				sound-dai = <&tdmc>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -665,7 +667,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&amlogic_codec>;
 			};
 		};
 
@@ -1131,7 +1133,6 @@
 				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
-		src-clk-freq = <491520000>;
 
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdm_a_pins
@@ -1155,7 +1156,22 @@
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = </*&tdmb_mclk &tdmout_b &tdmin_b*/>;
+		i2s2hdmi = <1>;
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
+		status = "okay";
+	};
 
+	tdmc: tdm@2 {
+		compatible = "amlogic, tm2-revb-snd-tdmc";
+		#sound-dai-cells = <0>;
+		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
+		dai-tdm-clk-sel = <2>;
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+				&clkc CLKID_HIFI_PLL
+				&clkc CLKID_HIFI1_PLL>;
+		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -1172,25 +1188,6 @@
 		clk_tuning_enable = <1>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
-
-		status = "okay";
-	};
-
-	tdmc: tdm@2 {
-		compatible = "amlogic, tm2-revb-snd-tdmc";
-		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
-		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
-		dai-tdm-clk-sel = <2>;
-		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
-				&clkc CLKID_HIFI_PLL
-				&clkc CLKID_HIFI1_PLL>;
-		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
-		i2s2hdmi = <1>;
-
-		/* suspend disable clk */
-		suspend-clk-off = <1>;
-
 		status = "okay";
 	};
 
@@ -1222,7 +1219,7 @@
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
 			&clkc CLKID_FCLK_DIV3
-			&clkc CLKID_HIFI_PLL
+			&clkc CLKID_HIFI1_PLL
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1>;
 		clock-names = "gate",
@@ -1230,7 +1227,7 @@
 			"dclk_srcpll",
 			"pdm_dclk",
 			"pdm_sysclk";
-		src-clk-freq = <491520000>;
+
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
 		filter_mode = <1>;
@@ -1308,7 +1305,7 @@
 		 * 3:spdifout
 		 * 4:spdifout_b
 		 */
-		eqdrc_module = <1>;
+		eqdrc_module = <2>;
 		/* max 0xf, each bit for one lane, usually one lane */
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
@@ -1423,12 +1420,10 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <2>;
-		datain_chmask = <0x3>;
+		datain_chnum = <4>;
+		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
-		datain-lane-mask-in = <1 0 0 0>;
-
-		src-clk-freq = <491520000>;
+		datain-lane-mask-in = <1 0 1 0>;
 
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
@@ -1444,7 +1439,7 @@
 		 * 7: PAD_TDMINB_D*, oe, refer to core pinmux
 		 */
 		/* if tdmin_lb >= 3, use external loopback */
-		datalb_src = <1>;
+		datalb_src = <2>;
 		datalb_chnum = <2>;
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
@@ -1501,7 +1496,7 @@
 		 * 7: PAD_TDMINB_D*, oe, refer to core pinmux
 		 */
 		/* if tdmin_lb >= 3, use external loopback */
-		datalb_src = <1>;
+		datalb_src = <2>;
 		datalb_chnum = <2>;
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
