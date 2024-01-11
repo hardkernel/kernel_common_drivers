@@ -85,7 +85,12 @@ function set_default_parameters_for_smarthome () {
 			fi
 		done
 		export PATH
-	elif [[ -n $CROSS_COMPILE_TOOL ]]; then
+	elif [[ -z $CROSS_COMPILE_TOOL ]]; then
+		if [[ $ARCH == arm64 ]]; then
+			CROSS_COMPILE_TOOL=${ROOT_DIR}/prebuilts/gcc/host/linux-x86/aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-
+		else
+			CROSS_COMPILE_TOOL=${ROOT_DIR}/prebuilts/gcc/host/linux-x86/arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-
+		fi
 		export CROSS_COMPILE=${CROSS_COMPILE_TOOL}
 	fi
 

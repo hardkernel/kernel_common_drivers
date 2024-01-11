@@ -81,7 +81,7 @@ enum hdr_hist_sel {
 #define OO_NOR			(OO_BITS - OO_GAIN_SHIFT)
 
 enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
-			      u32 hdr_process_select,
+			      enum hdr_process_sel hdr_process_select,
 			      struct vinfo_s *vinfo,
 			      struct matrix_s *gmt_mtx,
 			      enum vpp_index_e vpp_index);
@@ -122,7 +122,7 @@ int hdr10p_ebzcurve_update(enum hdr_module_sel module_sel,
 			   struct hdr10pgen_param_s *hdr10pgen_param,
 			   enum vpp_index_e vpp_index);
 enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
-				 u32 hdr_process_select,
+				 enum hdr_process_sel hdr_process_select,
 				 struct vinfo_s *vinfo,
 				 struct matrix_s *gmt_mtx,
 				 enum vpp_index_e vpp_index);

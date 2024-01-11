@@ -1021,7 +1021,7 @@ static int char2hex(char *hex, void *bin, size_t binlen)
 {
 	int i, c, n1, n2, hexlen, k;
 
-	hexlen = strnlen(hex, 64);
+	hexlen = strnlen(hex, 48);
 	k = 0;
 	n1 = -1;
 	n2 = -1;
@@ -1098,7 +1098,7 @@ static ssize_t efuse_obj_store(const struct class *class,
 		if (argc == 3) {
 			name = argv[1];
 			data = argv[2];
-			dlen = strnlen(data, 64);
+			dlen = strnlen(data, 48);
 			dlen = char2hex(data, databuf, dlen);
 			if (dlen < 0) {
 				pr_err("parse data hex2bin error\n");

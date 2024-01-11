@@ -320,7 +320,7 @@ enum vlock_pll_sel {
 #define ENCL_FRC_CTRL_T3X                    0x14D9
 
 /* 0:enc;1:pll;2:manual pll */
-extern unsigned int vlock_mode;
+extern enum VLOCK_MD vlock_mode;
 extern unsigned int vlock_en;
 extern unsigned int vecm_latch_flag;
 /*extern void __iomem *amvecm_hiu_reg_base;*/
