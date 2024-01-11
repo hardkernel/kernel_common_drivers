@@ -58,7 +58,7 @@
 #define VIDEO_QUEUE_PIP 1
 
 static unsigned int n_devs = 1;
-
+static unsigned long vq_unreg_flag;
 static int print_close;
 static int print_flag;
 static int force_delay_ms;
@@ -68,7 +68,6 @@ static u64 time_cur;
 static u64 vsync_pts_inc;
 static u64 vpp_vsync_us;
 static u64 pcr_margin;
-
 static struct video_queue_dev *vq_dev;
 static struct video_queue_dev *vq_pip_dev;
 
@@ -167,13 +166,19 @@ void videoqueue_pcrscr_update(s32 inc, u32 base)
 	int index = 0;
 	struct video_queue_dev *vq_temp_dev;
 
-	if (!vq_dev) {
-		vq_print(VIDEO_QUEUE_MAIN, P_SYNC, "vq_dev is not prepared.\n");
-		return;
+	if (test_bit(0, &vq_unreg_flag)) {
+		vq_dev = NULL;
+		clear_bit(0, &vq_unreg_flag);
 	}
+	if (test_bit(1, &vq_unreg_flag)) {
+		vq_pip_dev = NULL;
+		clear_bit(1, &vq_unreg_flag);
+	}
+
+	if (!vq_dev)
+		return;
 	if (vq_dev->sync_start)
 		is_vlock_locked = vlock_get_vlock_flag();
-
 	vsync_pts_inc = 90000 * 16 * (u64)inc;
 	vsync_pts_inc = div64_u64(vsync_pts_inc, base);
 	vq_print(VIDEO_QUEUE_MAIN, P_SYNC, "vlock: %d, special_fps: %d, vsync_pts_inc: %ld.\n",
@@ -1132,9 +1137,9 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 	dev->sync_start = false;
 	dev->game_mode = false;
 	if (dev->inst == VIDEO_QUEUE_MAIN)
-		vq_dev = NULL;
+		set_bit(0, &vq_unreg_flag);
 	else
-		vq_pip_dev = NULL;
+		set_bit(1, &vq_unreg_flag);
 	return ret;
 }
 
