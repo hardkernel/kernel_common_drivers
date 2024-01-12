@@ -11586,7 +11586,7 @@ void vd_set_alpha_s5(struct video_layer_s *layer,
 	u32 alph_gen_byps = 0;
 	u8 vpp_index, layer_id = 0;
 	struct vd_pip_alpha_reg_s *vd_pip_alpha_reg = NULL;
-	u32 win_en = alpha_win->win_en;
+	u32 win_en = layer->alpha_win_en;
 
 	layer_id = layer->layer_id;
 	if (layer_id >= MAX_VD_CHAN_S5)

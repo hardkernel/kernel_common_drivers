@@ -7670,7 +7670,7 @@ static void vd_set_alpha(struct video_layer_s *layer,
 	u8 vpp_index;
 	struct hw_vpp_blend_reg_s *vpp_blend_reg =
 		&layer->vpp_blend_reg;
-	u32 win_en = alpha_win->win_en;
+	u32 win_en = layer->alpha_win_en;
 
 	vpp_index = layer->vpp_index;
 	if (!win_en)
