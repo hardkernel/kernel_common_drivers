@@ -16,7 +16,7 @@
 #define MAX_BYTES_IN_BOOTINFO	(512)
 
 #ifdef __PXP_DEBUG__
-#define NFC_Print(...)	pr_info(...)
+#define NFC_Print(fmt, ...)	pr_info(fmt, ##__VA_ARGS__)
 
 #define DUMP_BUFFER(buffer, size, loop, actual)		\
 {							\

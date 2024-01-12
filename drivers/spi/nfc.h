@@ -224,6 +224,7 @@ enum NFC_STORAGE_TYPE {
 
 #define NFC_IDX		0
 #define EMMC_IDX	1
+#define POC_IDX		2
 
 #define CLK_DIV_SHIFT 0
 #define CLK_DIV_WIDTH 6
@@ -260,6 +261,6 @@ void nfc_get_user_byte(u8 *oob_buf, u64 *info_buf, int ecc_steps);
 void nfc_set_user_byte(u8 *oob_buf, u64 *info_buf, int ecc_steps);
 void nfc_set_data_bus_width(int bus_width);
 
-extern struct regmap *nfc_regmap[2];
+extern struct regmap *nfc_regmap[3];
 
 #endif

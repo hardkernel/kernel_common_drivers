@@ -9,7 +9,7 @@
 #include "page_info.h"
 #include <linux/amlogic/aml_spi_mem.h>
 
-struct regmap *nfc_regmap[2];
+struct regmap *nfc_regmap[3];
 
 struct nfc_clk_provider clk_provider[MAX_CLK_PROVIDER] = {
 	{OSC_CLK_24MHZ, CLK_6MHZ,	1, 4, 0, 1},
@@ -55,14 +55,11 @@ unsigned int nfc_recalculate_n2m_command(u32 size, int no_cal)
 int nfc_wait_command_fifo_done(u32 timeout, int repeat_rb)
 {
 	u32 cmd_size = 0;
-	int ret;
+	int ret = 0;
 
-	/* wait cmd fifo is empty */
-	ret = regmap_read_poll_timeout(nfc_regmap[NFC_IDX], NAND_CMD, cmd_size,
-					 !NFC_CMD_GET_SIZE(cmd_size),
-					 50, 0x100000 * 1000);
-	if (ret)
-		pr_info("wait for empty CMD FIFO time out\n");
+	regmap_read(nfc_regmap[NFC_IDX], NAND_CMD, &cmd_size);
+	while (NFC_CMD_GET_SIZE(cmd_size))
+		regmap_read(nfc_regmap[NFC_IDX], NAND_CMD, &cmd_size);
 
 	return ret;
 }
@@ -322,7 +319,7 @@ int nfc_wait_data_and_ecc_engine_done(struct device *dev, dma_addr_t iaddr,
 
 	info = info_buf + nsteps - 1;
 	while (count <= 10000) {
-		usleep_range(10, 15);
+		//usleep_range(10, 15);
 		/* info is updated by nfc dma engine*/
 		smp_rmb();
 		dma_sync_single_for_cpu(dev, iaddr, info_len, DMA_FROM_DEVICE);

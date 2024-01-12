@@ -29,5 +29,9 @@ extern struct platform_driver sspicc_driver;
 int __init vmem_init(void);
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_SPI_NFC)
+extern struct platform_driver spi_nfc_driver;
+#endif
+
 #endif /* end of ifdef MODULE */
 #endif /* end of _SPI_MODULE_H__ */

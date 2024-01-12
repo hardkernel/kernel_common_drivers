@@ -199,7 +199,7 @@ static void page_info_init_from_mtd(struct mtd_info *mtd, u8 cmd, u32 fip_size, 
 		page_info->dev_cfg0.bus_width |= 2;
 	else if (cmd == 0x3b)
 		page_info->dev_cfg0.bus_width |= 1;
-	NFC_Print("bus_width", page_info->dev_cfg0.bus_width);
+	NFC_Print("bus_width : %u", page_info->dev_cfg0.bus_width);
 	if (page_info_ver == PAGE_INFO_V1) {
 		/* for compatible,  a1/c1/c2 ... need to know fip's start and size */
 		page_info->reserved[0] = 1024 / 64 + 48;
@@ -216,7 +216,6 @@ static void page_info_init_from_mtd(struct mtd_info *mtd, u8 cmd, u32 fip_size, 
 		goto _cal_sum;
 
 	ecc_steps = mtd->writesize >> 9;
-	page_info->host_cfg.n2m_cmd = (DEFAULT_ECC_MODE & (~0x3F)) | ecc_steps;
 	page_info->host_cfg.frequency_index = 0xFF;
 	page_info->dev_cfg1.ca_lanes = 0;
 	page_info->dev_cfg1.cs_deselect_time = 0xFF;
