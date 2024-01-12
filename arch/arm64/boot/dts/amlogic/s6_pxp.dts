@@ -66,6 +66,12 @@
 			misc-size = <0x1000>;
 		};
 
+		mte_reserved:linux,mte {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x0 0x0c000000 0x0 0x4000000>;
+		};
+
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			/*reusable;*/
