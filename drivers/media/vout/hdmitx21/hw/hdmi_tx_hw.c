@@ -430,6 +430,8 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 24, 1);
 	}
 
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)
+		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 3, 16, 2);//enable hdcp gate
 	HDMITX_INFO("%s%d\n", __func__, __LINE__);
 	if (!reset && hdmitx21_uboot_already_display()) {
 		HDMITX_INFO("uboot already displayed\n");
