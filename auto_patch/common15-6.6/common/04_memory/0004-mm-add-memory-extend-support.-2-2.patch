@@ -1,4 +1,4 @@
-From 914a8561e0d8a64b15e7fa4aab883f81cf33ff43 Mon Sep 17 00:00:00 2001
+From 2d58f39b6e4ef524a19da1ea1e85a63d28f22c50 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Wed, 20 Dec 2023 14:27:52 +0800
 Subject: [PATCH] mm: add memory extend support. [2/2]
@@ -44,10 +44,10 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  mm/kasan/common.c              |  7 ++++
  mm/page_alloc.c                | 72 ++++++++++++++++++++++++++++++++++
  mm/show_mem.c                  | 12 ++++++
- mm/slab_common.c               | 65 +++++++++++++++++++++++++++++-
+ mm/slab_common.c               | 65 ++++++++++++++++++++++++++++++
  mm/slub.c                      |  7 ++++
  mm/vmscan.c                    | 17 ++++++++
- 20 files changed, 275 insertions(+), 3 deletions(-)
+ 20 files changed, 276 insertions(+), 2 deletions(-)
 
 diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
 index ceb368d33bf4..bc236bc302b5 100644
@@ -156,10 +156,10 @@ index 25ac74d30bff..e84aa128c490 100644
  {
  	if (!str)
 diff --git a/fs/inode.c b/fs/inode.c
-index 84bc3c76e5cc..108f925649df 100644
+index ae1a6410b53d..e934e1d05924 100644
 --- a/fs/inode.c
 +++ b/fs/inode.c
-@@ -2274,7 +2274,11 @@ static void __wait_on_freeing_inode(struct inode *inode)
+@@ -2276,7 +2276,11 @@ static void __wait_on_freeing_inode(struct inode *inode)
  	spin_lock(&inode_hash_lock);
  }
  
@@ -220,7 +220,7 @@ index af3014ccc82e..f5bce42c8d0d 100644
  
  #endif /* _ANDROID_VENDOR_H */
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 9e587ea4462f..5afe5af6f1c4 100644
+index b8b863d1952a..605569894f1d 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
 @@ -111,7 +111,18 @@ extern int page_group_by_mobility_disabled;
@@ -418,7 +418,7 @@ index 256930da578a..69fa54752585 100644
  		     KASAN_PAGE_REDZONE, false);
  
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b773ecc54014..f10ea6d36182 100644
+index eede7c57fffc..673cacbaf57e 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -63,6 +63,9 @@
@@ -516,7 +516,7 @@ index b773ecc54014..f10ea6d36182 100644
  	/* First allocation attempt */
  	page = get_page_from_freelist(alloc_gfp, order, alloc_flags, &ac);
  	if (likely(page))
-@@ -6654,6 +6691,41 @@ bool put_page_back_buddy(struct page *page)
+@@ -6662,6 +6699,41 @@ bool put_page_back_buddy(struct page *page)
  }
  #endif
  
@@ -596,7 +596,7 @@ index 4b888b18bdde..abb4896037f8 100644
  
  	for_each_online_node(nid) {
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 9bbffe82d65a..119462a8b889 100644
+index c4600e2e757a..bd6eeb404329 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
 @@ -31,6 +31,10 @@
@@ -609,8 +609,8 @@ index 9bbffe82d65a..119462a8b889 100644
 +
  #define CREATE_TRACE_POINTS
  #include <trace/events/kmem.h>
- 
-@@ -57,7 +61,11 @@ static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
+ #undef CREATE_TRACE_POINTS
+@@ -59,7 +63,11 @@ static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
  /*
   * Merge control. If this is set then no merging of slab caches will occur.
   */
@@ -622,7 +622,7 @@ index 9bbffe82d65a..119462a8b889 100644
  
  static int __init setup_slab_nomerge(char *str)
  {
-@@ -1066,7 +1074,13 @@ void kfree(const void *object)
+@@ -1068,7 +1076,13 @@ void kfree(const void *object)
  
  	folio = virt_to_folio(object);
  	if (unlikely(!folio_test_slab(folio))) {
@@ -636,7 +636,7 @@ index 9bbffe82d65a..119462a8b889 100644
  		return;
  	}
  
-@@ -1091,6 +1105,9 @@ EXPORT_SYMBOL(kfree);
+@@ -1093,6 +1107,9 @@ EXPORT_SYMBOL(kfree);
  size_t __ksize(const void *object)
  {
  	struct folio *folio;
@@ -646,7 +646,7 @@ index 9bbffe82d65a..119462a8b889 100644
  
  	if (unlikely(object == ZERO_SIZE_PTR))
  		return 0;
-@@ -1098,10 +1115,21 @@ size_t __ksize(const void *object)
+@@ -1100,10 +1117,21 @@ size_t __ksize(const void *object)
  	folio = virt_to_folio(object);
  
  	if (unlikely(!folio_test_slab(folio))) {
@@ -668,17 +668,18 @@ index 9bbffe82d65a..119462a8b889 100644
  		return folio_size(folio);
  	}
  
-@@ -1164,11 +1192,21 @@ static void *__kmalloc_large_node(size_t size, gfp_t flags, int node)
+@@ -1166,11 +1194,23 @@ static void *__kmalloc_large_node(size_t size, gfp_t flags, int node)
  		flags = kmalloc_fix_flags(flags);
  
  	flags |= __GFP_COMP;
--	page = alloc_pages_node(node, flags, order);
 +#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 +	if (size < (PAGE_SIZE * (1 << order)))
 +		page = aml_slub_alloc_large(node, size, flags, order);
 +	else
-+#endif
 +		page = alloc_pages_node(node, flags, order);
++#else
+ 	page = alloc_pages_node(node, flags, order);
++#endif
  	if (page) {
  		ptr = page_address(page);
 +	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
@@ -690,8 +691,8 @@ index 9bbffe82d65a..119462a8b889 100644
 +	#endif
  	}
  
- 	ptr = kasan_kmalloc_large(ptr, size, flags);
-@@ -1259,12 +1297,21 @@ static void print_slabinfo_header(struct seq_file *m)
+ 	trace_android_vh_kmalloc_large_alloced(page, order, flags);
+@@ -1263,12 +1303,21 @@ static void print_slabinfo_header(struct seq_file *m)
  #else
  	seq_puts(m, "slabinfo - version: 2.1\n");
  #endif
@@ -713,7 +714,7 @@ index 9bbffe82d65a..119462a8b889 100644
  #endif
  	seq_putc(m, '\n');
  }
-@@ -1288,18 +1335,34 @@ static void slab_stop(struct seq_file *m, void *p)
+@@ -1292,18 +1341,34 @@ static void slab_stop(struct seq_file *m, void *p)
  static void cache_show(struct kmem_cache *s, struct seq_file *m)
  {
  	struct slabinfo sinfo;
@@ -749,10 +750,10 @@ index 9bbffe82d65a..119462a8b889 100644
  	seq_putc(m, '\n');
  }
 diff --git a/mm/slub.c b/mm/slub.c
-index f7940048138c..9b403b3f0833 100644
+index 00a1c43df15b..dca61b5ed02c 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -47,6 +47,9 @@
+@@ -48,6 +48,9 @@
  
  #include "internal.h"
  
@@ -762,7 +763,7 @@ index f7940048138c..9b403b3f0833 100644
  /*
   * Lock order:
   *   1. slab_mutex (Global Mutex)
-@@ -4136,6 +4139,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
+@@ -4139,6 +4142,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
  
  static inline int calculate_order(unsigned int size)
  {
@@ -772,7 +773,7 @@ index f7940048138c..9b403b3f0833 100644
  	unsigned int order;
  	unsigned int min_objects;
  	unsigned int max_objects;
-@@ -4197,6 +4203,7 @@ static inline int calculate_order(unsigned int size)
+@@ -4200,6 +4206,7 @@ static inline int calculate_order(unsigned int size)
  	if (order <= MAX_ORDER)
  		return order;
  	return -ENOSYS;
@@ -781,7 +782,7 @@ index f7940048138c..9b403b3f0833 100644
  
  static void
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a4fed63f61ac..4446b978edb6 100644
+index 537d2e607d10..598611d232af 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -1706,6 +1706,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)

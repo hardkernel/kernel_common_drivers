@@ -22,7 +22,6 @@
 #include <linux/amlogic/aml_iotrace.h>
 #include <linux/amlogic/gki_module.h>
 #include <linux/workqueue.h>
-#include <trace/hooks/module.h>
 #include <linux/rbtree.h>
 #define AML_PERSISTENT_RAM_SIG (0x4c4d41) /* AML */
 

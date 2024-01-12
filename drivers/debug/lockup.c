@@ -957,6 +957,8 @@ static void __maybe_unused ftrace_format_check_hook(void *data, bool *ftrace_che
 
 #define S_SMP " SMP"
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static void do_undefinstr_hook(void *data, struct pt_regs *regs)
 {
 	static int die_counter;
@@ -982,6 +984,7 @@ static void do_undefinstr_hook(void *data, struct pt_regs *regs)
 	else
 		panic("%s: Fatal exception", str);
 }
+#endif
 #endif
 #endif
 
@@ -1079,7 +1082,10 @@ int debug_lockup_init(void)
 	register_trace_android_vh_ftrace_format_check(ftrace_format_check_hook, NULL);
 
 #ifdef CONFIG_ARM64
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	register_trace_android_rvh_do_undefinstr(do_undefinstr_hook, NULL);
+#endif
 #endif
 #endif
 	initialized = 1;

@@ -1,4 +1,4 @@
-From ec8affa5864a374bc0b2cea7b550ccbb5460c4ca Mon Sep 17 00:00:00 2001
+From 7748d12825fc7be59f2f95e8a7663f733f5f2bcb Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Tue, 19 Dec 2023 15:33:46 +0800
 Subject: [PATCH] mm: porting CMA optimization from 5.15 [1/2]
@@ -30,7 +30,7 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  block/bdev.c              |   4 ++
  drivers/usb/host/xhci.c   |   4 ++
  include/linux/gfp_types.h |  14 ++++++
- mm/cma.c                  |  65 +++++++++++++++++++++++++
+ mm/cma.c                  |  64 ++++++++++++++++++++++++
  mm/compaction.c           | 100 ++++++++++++++++++++++++++++++++++++++
  mm/ksm.c                  |  11 +++++
  mm/memory.c               |  18 +++++++
@@ -40,7 +40,7 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  mm/shmem.c                |  12 +++++
  mm/swap_state.c           |   4 ++
  mm/vmscan.c               |  17 +++++++
- 14 files changed, 393 insertions(+)
+ 14 files changed, 392 insertions(+)
 
 diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
 index 5409225b4abc..ee736b9082f1 100644
@@ -58,7 +58,7 @@ index 5409225b4abc..ee736b9082f1 100644
  		buf->allocator = &cma_allocator;
  	else if (is_coherent)
 diff --git a/block/bdev.c b/block/bdev.c
-index f3b13aa1b7d4..c3beb4756e11 100644
+index 04dba25b0019..c13767c79e0d 100644
 --- a/block/bdev.c
 +++ b/block/bdev.c
 @@ -393,7 +393,11 @@ struct block_device *bdev_alloc(struct gendisk *disk, u8 partno)
@@ -74,10 +74,10 @@ index f3b13aa1b7d4..c3beb4756e11 100644
  	bdev = I_BDEV(inode);
  	mutex_init(&bdev->bd_fsfreeze_mutex);
 diff --git a/drivers/usb/host/xhci.c b/drivers/usb/host/xhci.c
-index e1b1b64a0723..cd93521cc4cf 100644
+index 132b76fa7ca6..96a648b80d1a 100644
 --- a/drivers/usb/host/xhci.c
 +++ b/drivers/usb/host/xhci.c
-@@ -1909,7 +1909,11 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
+@@ -1917,7 +1917,11 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
  	 * process context, not interrupt context (or so documenation
  	 * for usb_set_interface() and usb_set_configuration() claim).
  	 */
@@ -132,7 +132,7 @@ index 6583a58670c5..c1911449dcae 100644
  
  /**
 diff --git a/mm/cma.c b/mm/cma.c
-index 5fb32c23591c..0093ac35899b 100644
+index 8e7880987231..e3100b86ccac 100644
 --- a/mm/cma.c
 +++ b/mm/cma.c
 @@ -36,6 +36,16 @@
@@ -176,7 +176,7 @@ index 5fb32c23591c..0093ac35899b 100644
  
  void __init cma_reserve_pages_on_error(struct cma *cma)
  {
-@@ -442,6 +466,13 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+@@ -443,6 +467,13 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
  	int ret = -ENOMEM;
  	int num_attempts = 0;
  	int max_retries = 5;
@@ -188,9 +188,9 @@ index 5fb32c23591c..0093ac35899b 100644
 +	in_tick = sched_clock();
 +#endif
  
- 	if (!cma || !cma->count || !cma->bitmap)
- 		goto out;
-@@ -449,6 +480,13 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+ 	if (WARN_ON_ONCE((gfp_mask & GFP_KERNEL) == 0 ||
+ 		(gfp_mask & ~(GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY)) != 0))
+@@ -454,6 +485,13 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
  	pr_debug("%s(cma %p, name: %s, count %lu, align %d)\n", __func__,
  		(void *)cma, cma->name, count, align);
  
@@ -204,7 +204,7 @@ index 5fb32c23591c..0093ac35899b 100644
  	if (!count)
  		goto out;
  
-@@ -462,6 +500,10 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+@@ -467,6 +505,10 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
  	if (bitmap_count > bitmap_maxno)
  		goto out;
  
@@ -215,21 +215,19 @@ index 5fb32c23591c..0093ac35899b 100644
  	for (;;) {
  		spin_lock_irq(&cma->lock);
  		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,
-@@ -501,8 +543,13 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+@@ -507,7 +549,11 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
  
  		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
  		mutex_lock(&cma_mutex);
 +	#ifdef CONFIG_AMLOGIC_CMA
-+		ret = aml_cma_alloc_range(pfn, pfn + count, MIGRATE_CMA,
-+				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
++		ret = aml_cma_alloc_range(pfn, pfn + count, MIGRATE_CMA, gfp_mask);
 +	#else
- 		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
- 				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
+ 		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA, gfp_mask);
 +	#endif
  		mutex_unlock(&cma_mutex);
  		if (ret == 0) {
  			page = pfn_to_page(pfn);
-@@ -518,8 +565,19 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+@@ -523,8 +569,19 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
  
  		trace_cma_alloc_busy_retry(cma->name, pfn, pfn_to_page(pfn),
  					   count, align);
@@ -249,7 +247,7 @@ index 5fb32c23591c..0093ac35899b 100644
  	}
  
  	trace_cma_alloc_finish(cma->name, pfn, page, count, align, ret);
-@@ -550,6 +608,9 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
+@@ -555,6 +612,9 @@ struct page *__cma_alloc(struct cma *cma, unsigned long count,
  		if (cma)
  			cma_sysfs_account_fail_pages(cma, count);
  	}
@@ -259,7 +257,7 @@ index 5fb32c23591c..0093ac35899b 100644
  
  	return page;
  }
-@@ -598,7 +659,11 @@ bool cma_release(struct cma *cma, const struct page *pages,
+@@ -621,7 +681,11 @@ bool cma_release(struct cma *cma, const struct page *pages,
  
  	VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
  
@@ -525,7 +523,7 @@ index 981af9c72e7a..53c545cb4da9 100644
  		bool split;
  
 diff --git a/mm/memory.c b/mm/memory.c
-index a76bed01cc73..fa1fdc91226b 100644
+index f741d6ab9a9d..047390dd3982 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
 @@ -3071,12 +3071,24 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
@@ -567,7 +565,7 @@ index a76bed01cc73..fa1fdc91226b 100644
  	p4d = p4d_alloc(mm, pgd, address);
  	if (!p4d)
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 06086dc9da28..b3109bff25ad 100644
+index 03bc2063ac87..6d128f832d17 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
 @@ -50,6 +50,10 @@
@@ -619,7 +617,7 @@ index 06086dc9da28..b3109bff25ad 100644
  }
  
  #ifdef CONFIG_HUGETLB_PAGE
-@@ -408,6 +432,11 @@ int folio_migrate_mapping(struct address_space *mapping,
+@@ -409,6 +433,11 @@ int folio_migrate_mapping(struct address_space *mapping,
  
  	if (!mapping) {
  		/* Anonymous page without mapping */
@@ -631,7 +629,7 @@ index 06086dc9da28..b3109bff25ad 100644
  		if (folio_ref_count(folio) != expected_count)
  			return -EAGAIN;
  
-@@ -426,6 +455,10 @@ int folio_migrate_mapping(struct address_space *mapping,
+@@ -427,6 +456,10 @@ int folio_migrate_mapping(struct address_space *mapping,
  	xas_lock_irq(&xas);
  	if (!folio_ref_freeze(folio, expected_count)) {
  		xas_unlock_irq(&xas);
@@ -642,7 +640,7 @@ index 06086dc9da28..b3109bff25ad 100644
  		return -EAGAIN;
  	}
  
-@@ -1704,6 +1737,10 @@ static int migrate_pages_batch(struct list_head *from,
+@@ -1711,6 +1744,10 @@ static int migrate_pages_batch(struct list_head *from,
  				/* nr_failed isn't updated for not used */
  				stats->nr_thp_failed += thp_retry;
  				rc_saved = rc;
@@ -653,7 +651,7 @@ index 06086dc9da28..b3109bff25ad 100644
  				if (list_empty(&unmap_folios))
  					goto out;
  				else
-@@ -1731,6 +1768,9 @@ static int migrate_pages_batch(struct list_head *from,
+@@ -1738,6 +1775,9 @@ static int migrate_pages_batch(struct list_head *from,
  				nr_failed++;
  				stats->nr_thp_failed += is_thp;
  				stats->nr_failed_pages += nr_pages;
@@ -663,7 +661,7 @@ index 06086dc9da28..b3109bff25ad 100644
  				break;
  			}
  		}
-@@ -1779,6 +1819,9 @@ static int migrate_pages_batch(struct list_head *from,
+@@ -1786,6 +1826,9 @@ static int migrate_pages_batch(struct list_head *from,
  				nr_failed++;
  				stats->nr_thp_failed += is_thp;
  				stats->nr_failed_pages += nr_pages;
@@ -674,7 +672,7 @@ index 06086dc9da28..b3109bff25ad 100644
  			}
  			dst = dst2;
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ae30b86ec4a6..b773ecc54014 100644
+index 4cc7233b04f8..eede7c57fffc 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -60,6 +60,9 @@
@@ -856,7 +854,7 @@ index ae30b86ec4a6..b773ecc54014 100644
  	 * There are several places where we assume that the order value is sane
  	 * so bail out early if the request is out of bound.
 diff --git a/mm/readahead.c b/mm/readahead.c
-index e815c114de21..b0ea16436c76 100644
+index 6925e6959fd3..925b20e2dc0c 100644
 --- a/mm/readahead.c
 +++ b/mm/readahead.c
 @@ -222,6 +222,11 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
@@ -872,10 +870,10 @@ index e815c114de21..b0ea16436c76 100644
  	/*
  	 * Preallocate as many pages as we will need.
 diff --git a/mm/shmem.c b/mm/shmem.c
-index 69595d341882..51346c90aa04 100644
+index e826be732b9b..9d2d1d2e2c06 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -1595,7 +1595,11 @@ static struct folio *shmem_swapin(swp_entry_t swap, gfp_t gfp,
+@@ -1612,7 +1612,11 @@ static struct folio *shmem_swapin(swp_entry_t swap, gfp_t gfp,
  	};
  
  	shmem_pseudo_vma_init(&pvma, info, index);
@@ -887,7 +885,7 @@ index 69595d341882..51346c90aa04 100644
  	shmem_pseudo_vma_destroy(&pvma);
  
  	if (!page)
-@@ -1641,7 +1645,11 @@ static struct folio *shmem_alloc_hugefolio(gfp_t gfp,
+@@ -1658,7 +1662,11 @@ static struct folio *shmem_alloc_hugefolio(gfp_t gfp,
  		return NULL;
  
  	shmem_pseudo_vma_init(&pvma, info, hindex);
@@ -899,7 +897,7 @@ index 69595d341882..51346c90aa04 100644
  	shmem_pseudo_vma_destroy(&pvma);
  	if (!folio)
  		count_vm_event(THP_FILE_FALLBACK);
-@@ -1655,7 +1663,11 @@ static struct folio *shmem_alloc_folio(gfp_t gfp,
+@@ -1672,7 +1680,11 @@ static struct folio *shmem_alloc_folio(gfp_t gfp,
  	struct folio *folio;
  
  	shmem_pseudo_vma_init(&pvma, info, index);
@@ -928,7 +926,7 @@ index b3b14bd0dd64..0a053ac43ca4 100644
                          goto fail_put_swap;
  
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index b36a1e204ffd..a4fed63f61ac 100644
+index ba84632300d5..537d2e607d10 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -65,6 +65,10 @@

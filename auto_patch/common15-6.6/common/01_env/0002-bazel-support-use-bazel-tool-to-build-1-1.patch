@@ -1,4 +1,4 @@
-From b27c81a8a586f824020d91eea2d1b73eab48465e Mon Sep 17 00:00:00 2001
+From fc19998239e325a5cd06b9185085c7135153f02a Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Fri, 17 Mar 2023 17:35:31 +0800
 Subject: [PATCH 2/3] bazel: support use bazel tool to build [1/1]
@@ -22,18 +22,18 @@ Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
  2 files changed, 9 insertions(+)
 
 diff --git a/BUILD.bazel b/BUILD.bazel
-index f05c9ed817b8..4b1c82122200 100644
+index 5f9d7adbd5ef..7746f01b4f58 100644
 --- a/BUILD.bazel
 +++ b/BUILD.bazel
-@@ -951,3 +951,6 @@ zip_archive(
-     srcs = [":kselftest_tests_arm64"],
-     out = "tests.zip",
+@@ -2197,3 +2197,6 @@ copy_to_dist_dir(
+     dist_dir = "out/tests_arm64/dist",
+     flat = True,
  )
 +
 +load("//common:common_drivers/amlogic.bzl", "define_amlogic")
 +define_amlogic()
 diff --git a/modules.bzl b/modules.bzl
-index 84ba6081298a..0909995225a5 100644
+index a96d00705bc7..d9c202691210 100644
 --- a/modules.bzl
 +++ b/modules.bzl
 @@ -6,6 +6,8 @@ This module contains a full list of kernel modules
@@ -45,7 +45,7 @@ index 84ba6081298a..0909995225a5 100644
  _COMMON_GKI_MODULES_LIST = [
      # keep sorted
      "drivers/android/memhealth.ko",
-@@ -129,4 +131,8 @@ def get_gki_modules_list(arch = None):
+@@ -130,4 +132,8 @@ def get_gki_modules_list(arch = None):
              arch,
          ))
  
@@ -55,5 +55,5 @@ index 84ba6081298a..0909995225a5 100644
 +
      return gki_modules_list
 -- 
-2.41.0
+2.42.0
 

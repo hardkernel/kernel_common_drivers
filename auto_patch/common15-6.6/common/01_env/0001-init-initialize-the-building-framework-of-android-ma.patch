@@ -1,4 +1,4 @@
-From 7b5fdfe894e903aaa71bcda5a522d4686399b52c Mon Sep 17 00:00:00 2001
+From c82d5e52563b9bbfefe0551d43e58c0dbf9a62f9 Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Thu, 2 Feb 2023 15:49:10 +0800
 Subject: [PATCH] init: initialize the building framework of android-mainline
@@ -18,13 +18,25 @@ sc2
 Change-Id: Icfbc29709af1545b802ed7794808a2ab560ed08a
 Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
 ---
+ .gitignore               |   3 +
  Kbuild                   |   3 +
  Makefile                 |  22 ++++++
  drivers/Kconfig          |  61 +++++++++++++++
  scripts/checkpatch.pl    | 158 +++++++++++++++++++--------------------
  scripts/kconfig/Makefile |   9 ++-
- 5 files changed, 173 insertions(+), 80 deletions(-)
+ 6 files changed, 176 insertions(+), 80 deletions(-)
 
+diff --git a/.gitignore b/.gitignore
+index 0bbae167bf93..58177e21bd82 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -170,3 +170,6 @@ sphinx_*/
+ 
+ # Rust analyzer configuration
+ /rust-project.json
++
++# amlogic drivers
++/common_drivers/
 diff --git a/Kbuild b/Kbuild
 index 464b34a08f51..bd26c93f68ef 100644
 --- a/Kbuild
@@ -37,7 +49,7 @@ index 464b34a08f51..bd26c93f68ef 100644
 +obj-$(CONFIG_AMLOGIC_IN_KERNEL_MODULES)			+= $(COMMON_DRIVERS_DIR)/sound/
 +obj-$(CONFIG_AMLOGIC_IN_KERNEL_MODULES)			+= $(COMMON_DRIVERS_DIR)/samples/
 diff --git a/Makefile b/Makefile
-index cf20d9cd504a..3e26d40bb026 100644
+index 7404c8549acd..beb8fece314f 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -440,6 +440,14 @@ ifneq ($(SRCARCH),$(SUBARCH))
@@ -84,7 +96,7 @@ index cf20d9cd504a..3e26d40bb026 100644
  ifeq ($(KBUILD_EXTMOD),)
  
 diff --git a/drivers/Kconfig b/drivers/Kconfig
-index efb66e25fa2d..b5e3f828547a 100644
+index efb66e25fa2d..cb21f498edc8 100644
 --- a/drivers/Kconfig
 +++ b/drivers/Kconfig
 @@ -243,4 +243,65 @@ source "drivers/hte/Kconfig"
@@ -455,5 +467,5 @@ index 4eee155121a8..063f9efe9b04 100644
  configfiles = $(wildcard $(srctree)/kernel/configs/$(1) $(srctree)/arch/$(SRCARCH)/configs/$(1))
  all-config-fragments = $(call configfiles,*.config)
 -- 
-2.41.0
+2.42.0
 

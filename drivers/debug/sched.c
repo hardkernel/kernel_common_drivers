@@ -38,8 +38,11 @@ __module_param(sched_big_weight, int, 0644);
 static int sched_interactive_task_util = 150;
 __module_param(sched_interactive_task_util, int, 0644);
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static int sched_task_low_prio = 125;
 __module_param(sched_task_low_prio, int, 0644);
+#endif
 
 static int sched_task_high_prio = 110;
 __module_param(sched_task_high_prio, int, 0644);
@@ -56,6 +59,8 @@ __module_param(sched_rt_nice_prio, int, 0644);
 static unsigned long sched_rt_nice_gran = 4000000; //4ms
 __module_param(sched_rt_nice_gran, ulong, 0644);
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static int sched_check_preempt_wakeup_enable = 1;
 __module_param(sched_check_preempt_wakeup_enable, int, 0644);
 
@@ -65,6 +70,7 @@ __module_param(sched_check_preempt_wakeup_debug, int, 0644);
 /* default 3ms, same with wakeup_granularity_ns(4*core smp) */
 static unsigned long sched_check_preempt_wakeup_gran = 3000000;
 __module_param(sched_check_preempt_wakeup_gran, ulong, 0644);
+#endif
 
 static int sched_pick_next_task_enable = 1;
 __module_param(sched_pick_next_task_enable, int, 0644);
@@ -90,11 +96,14 @@ __module_param(sched_place_entity_debug, int, 0644);
 //static int sched_place_entity_factor = 3;
 __module_param(sched_place_entity_factor, int, 0644);
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static int sched_check_preempt_tick_enable = 1;
 __module_param(sched_check_preempt_tick_enable, int, 0644);
 
 static int sched_check_preempt_tick_debug;
 __module_param(sched_check_preempt_tick_debug, int, 0644);
+#endif
 
 #ifdef CONFIG_SMP
 static inline bool should_honor_rt_sync(struct rq *rq, struct task_struct *p,
@@ -221,6 +230,8 @@ out_unlock:
 	rcu_read_unlock();
 }
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static void aml_check_preempt_wakeup(void *data, struct rq *rq, struct task_struct *p, bool *preempt, bool *nopreempt,
 				     int wake_flags, struct sched_entity *se, struct sched_entity *pse,
 				     int next_buddy_marked, unsigned int granularity)
@@ -281,6 +292,7 @@ static void aml_check_preempt_wakeup(void *data, struct rq *rq, struct task_stru
 		return;
 	}
 }
+#endif
 
 void set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se);
 
@@ -496,6 +508,8 @@ static void aml_place_entity(void *data, struct cfs_rq *cfs_rq, struct sched_ent
 }
 #endif
 
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 static void aml_check_preempt_tick(void *data, struct task_struct *p, unsigned long *ideal_runtime,
 				   bool *skip_preempt, unsigned long delta_exec, struct cfs_rq *cfs_rq,
 				   struct sched_entity *curr, unsigned int granularity)
@@ -553,6 +567,7 @@ static void aml_check_preempt_tick(void *data, struct task_struct *p, unsigned l
 	}
 }
 #endif
+#endif
 
 #ifdef CONFIG_ANDROID_VENDOR_HOOKS
 static void __maybe_unused sched_show_task_hook(void *data, struct task_struct *p)
@@ -598,13 +613,16 @@ int aml_sched_init(void)
 {
 #if defined(CONFIG_ANDROID_VENDOR_HOOKS) && defined(CONFIG_FAIR_GROUP_SCHED)
 	register_trace_android_rvh_select_task_rq_rt(aml_select_rt_nice, NULL);
+//KV_TODO: modify
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	register_trace_android_rvh_check_preempt_wakeup(aml_check_preempt_wakeup, NULL);
+#endif
 	register_trace_android_rvh_replace_next_task_fair(aml_pick_next_task, NULL);
 //KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	register_trace_android_rvh_place_entity(aml_place_entity, NULL);
-#endif
 	register_trace_android_rvh_check_preempt_tick(aml_check_preempt_tick, NULL);
+#endif
 #endif
 
 #ifdef CONFIG_ANDROID_VENDOR_HOOKS
