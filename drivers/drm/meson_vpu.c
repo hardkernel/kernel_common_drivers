@@ -358,7 +358,7 @@ static const struct meson_vpu_data vpu_s7_data = {
 	.dv_ops = &db_ops,
 	.postblend_ops = &s7_postblend_ops,
 	.video_ops = &video_ops,
-	.osd_formats = &osd_formats,
+	.osd_formats = &osd_formats_s1a,
 	.video_formats = &video_formats,
 };
 

@@ -671,6 +671,19 @@ const struct meson_drm_format_info *meson_drm_format_info_t3x(u32 format,
 	WARN_ON(!info);
 	return info;
 }
+
+const struct meson_drm_format_info *meson_drm_format_info_s7(u32 format,
+							  bool afbc_en)
+{
+	const struct meson_drm_format_info *info;
+
+	if (afbc_en)
+		info = __meson_drm_afbc_format_info(format);
+	else
+		info = __meson_drm_format_info_s1a(format);
+	WARN_ON(!info);
+	return info;
+}
 #endif
 
 const struct meson_drm_format_info *meson_drm_format_info_s1a(u32 format,
@@ -711,6 +724,14 @@ static u8 meson_drm_format_hw_blkmode_t3x(u32 format, bool afbc_en)
 	info = meson_drm_format_info_t3x(format, afbc_en);
 	return info ? info->hw_blkmode : 0;
 }
+
+static u8 meson_drm_format_hw_blkmode_s7(u32 format, bool afbc_en)
+{
+	const struct meson_drm_format_info *info;
+
+	info = meson_drm_format_info_s7(format, afbc_en);
+	return info ? info->hw_blkmode : 0;
+}
 #endif
 
 static u8 meson_drm_format_hw_blkmode_s1a(u32 format, bool afbc_en)
@@ -746,6 +767,14 @@ static u8 meson_drm_format_hw_colormat_t3x(u32 format, bool afbc_en)
 	info = meson_drm_format_info_t3x(format, afbc_en);
 	return info ? info->hw_colormat : 0;
 }
+
+static u8 meson_drm_format_hw_colormat_s7(u32 format, bool afbc_en)
+{
+	const struct meson_drm_format_info *info;
+
+	info = meson_drm_format_info_s7(format, afbc_en);
+	return info ? info->hw_colormat : 0;
+}
 #endif
 
 static u8 meson_drm_format_hw_colormat_s1a(u32 format, bool afbc_en)
@@ -779,6 +808,14 @@ static u8 meson_drm_format_alpha_replace_t3x(u32 format, bool afbc_en)
 	const struct meson_drm_format_info *info;
 
 	info = meson_drm_format_info_t3x(format, afbc_en);
+	return info ? info->alpha_replace : 0;
+}
+
+static u8 meson_drm_format_alpha_replace_s7(u32 format, bool afbc_en)
+{
+	const struct meson_drm_format_info *info;
+
+	info = meson_drm_format_info_s7(format, afbc_en);
 	return info ? info->alpha_replace : 0;
 }
 #endif
@@ -997,6 +1034,11 @@ static void osd_color_config(struct meson_vpu_block *vblk,
 			reg_ops->rdma_write_reg(reg->viu_osd_normal_swap, 0x1230);
 			reg_ops->rdma_write_reg_bits(reg->viu_osd_fifo_ctrl_stat, 1, 30, 1);
 		}
+	} else if (is_meson_s7_cpu()) {
+		blk_mode = meson_drm_format_hw_blkmode_s7(pixel_format, afbc_en);
+		color = meson_drm_format_hw_colormat_s7(pixel_format, afbc_en);
+		alpha_replace = (pixel_blend == DRM_MODE_BLEND_PIXEL_NONE) ||
+		meson_drm_format_alpha_replace_s7(pixel_format, afbc_en);
 #endif
 	} else if (is_meson_s1a_cpu()) {
 		blk_mode = meson_drm_format_hw_blkmode_s1a(pixel_format, afbc_en);

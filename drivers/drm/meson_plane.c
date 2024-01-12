@@ -1832,12 +1832,12 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv,
 	else
 		osd_plane->osd_occupied = false;
 
-	formats_group = priv->vpu_data->osd_formats->formats;
-	num_formats = priv->vpu_data->osd_formats->format_num;
-
-	if (!formats_group) {
+	if (!priv->vpu_data->osd_formats) {
 		formats_group = supported_drm_formats;
 		num_formats = ARRAY_SIZE(supported_drm_formats);
+	} else {
+		formats_group = priv->vpu_data->osd_formats->formats;
+		num_formats = priv->vpu_data->osd_formats->format_num;
 	}
 
 	if (conf->osd_afbc_mask & BIT(i)) {
@@ -1924,12 +1924,12 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 	const_plane_name = plane_name;
 	spin_lock_init(&video_plane->lock);
 
-	formats_group = priv->vpu_data->video_formats->formats;
-	num_formats = priv->vpu_data->video_formats->format_num;
-
-	if (!formats_group) {
+	if (!priv->vpu_data->video_formats) {
 		formats_group = video_supported_drm_formats;
 		num_formats = ARRAY_SIZE(video_supported_drm_formats);
+	} else {
+		formats_group = priv->vpu_data->video_formats->formats;
+		num_formats = priv->vpu_data->video_formats->format_num;
 	}
 
 	drm_universal_plane_init(priv->drm, plane, 1 << crtc_mask,
