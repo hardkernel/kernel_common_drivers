@@ -6,7 +6,7 @@
 #include "meson_saradc.h"
 
 #define MESON_SAR_ADC_REG3					0x0c
-	#define MESON_SAR_ADC_REG3_CTRL_CHAN7_MUX_SEL_MASK	GENMASK(25, 23)
+	#define MESON_SAR_ADC_REG3_CTRL_TEST_MUX_SEL_MASK	GENMASK(25, 23)
 	#define MESON_SAR_ADC_REG3_CTRL_CONT_RING_COUNTER_EN	BIT(27)
 
 #define MESON_SAR_ADC_FIFO_RD					0x18
@@ -182,17 +182,17 @@ static int meson_m8_sar_adc_extra_init(struct iio_dev *indio_dev)
 	return 0;
 }
 
-void meson_m8_sar_adc_set_ch7_mux(struct iio_dev *indio_dev,
-				  enum meson_sar_adc_chan7_mux_sel sel)
+void meson_m8_sar_adc_set_test_input(struct iio_dev *indio_dev,
+				     enum meson_sar_adc_test_input_sel sel)
 {
 	unsigned int regval;
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 
-	regval = FIELD_PREP(MESON_SAR_ADC_REG3_CTRL_CHAN7_MUX_SEL_MASK, sel);
+	regval = FIELD_PREP(MESON_SAR_ADC_REG3_CTRL_TEST_MUX_SEL_MASK, sel);
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG3,
-			   MESON_SAR_ADC_REG3_CTRL_CHAN7_MUX_SEL_MASK, regval);
+			   MESON_SAR_ADC_REG3_CTRL_TEST_MUX_SEL_MASK, regval);
 
-	priv->chan7_mux_sel = sel;
+	priv->test_input_sel = sel;
 
 	usleep_range(10, 20);
 }
@@ -295,7 +295,7 @@ static void meson_m8_sar_adc_select_temp(struct iio_dev *indio_dev,
 
 static const struct meson_sar_adc_diff_ops meson_m8_diff_ops = {
 	.extra_init = meson_m8_sar_adc_extra_init,
-	.set_ch7_mux = meson_m8_sar_adc_set_ch7_mux,
+	.set_test_input = meson_m8_sar_adc_set_test_input,
 	.read_fifo = meson_m8_sar_adc_read_fifo,
 	.enable_chnl = meson_m8_sar_adc_enable_chnl,
 	.read_chnl = meson_m8_sar_adc_read_chnl,

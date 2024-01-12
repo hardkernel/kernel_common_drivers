@@ -157,15 +157,15 @@
 
 #define SAR_ADC_DEF_VREF					1800000	/* uV */
 
-static const char * const chan7_vol[] = {
+static const char * const test_vol[] = {
 	"gnd",
 	"vdd/4",
 	"vdd/2",
 	"vdd*3/4",
 	"vdd",
-	"ch7_input",
-	"ch7_input",
-	"ch7_input",
+	"chan_input",
+	"chan_input",
+	"chan_input",
 };
 
 enum meson_sar_adc_filter_mode {
@@ -974,7 +974,7 @@ static int meson_sar_adc_calib(struct iio_dev *indio_dev)
 	nominal0 = (1 << priv->param->resolution) / 4;
 	nominal1 = (1 << priv->param->resolution) * 3 / 4;
 
-	priv->param->dops->set_ch7_mux(indio_dev, CHAN7_MUX_VDD_DIV4);
+	priv->param->dops->set_test_input(indio_dev, TEST_MUX_VDD_DIV4);
 	usleep_range(10, 20);
 	ret = meson_sar_adc_get_sample(indio_dev,
 				       &indio_dev->channels[7],
@@ -983,7 +983,7 @@ static int meson_sar_adc_calib(struct iio_dev *indio_dev)
 	if (ret < 0)
 		goto out;
 
-	priv->param->dops->set_ch7_mux(indio_dev, CHAN7_MUX_VDD_MUL3_DIV4);
+	priv->param->dops->set_test_input(indio_dev, TEST_MUX_VDD_MUL3_DIV4);
 	usleep_range(10, 20);
 	ret = meson_sar_adc_get_sample(indio_dev,
 				       &indio_dev->channels[7],
@@ -1003,7 +1003,7 @@ static int meson_sar_adc_calib(struct iio_dev *indio_dev)
 					     MILLION);
 	ret = 0;
 out:
-	priv->param->dops->set_ch7_mux(indio_dev, CHAN7_MUX_CH7_INPUT);
+	priv->param->dops->set_test_input(indio_dev, TEST_MUX_CHANN_INPUT);
 
 	return ret;
 }
@@ -1213,8 +1213,8 @@ static const struct iio_buffer_setup_ops meson_buffer_setup_ops = {
 };
 #endif
 
-static ssize_t chan7_mux_show(struct device *dev, struct device_attribute *attr,
-			      char *buf)
+static ssize_t test_input_show(struct device *dev, struct device_attribute *attr,
+			       char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
@@ -1222,16 +1222,16 @@ static ssize_t chan7_mux_show(struct device *dev, struct device_attribute *attr,
 	int i;
 
 	len = sprintf(buf, "current: [%d]%s\n\n",
-		      priv->chan7_mux_sel, chan7_vol[priv->chan7_mux_sel]);
-	for (i = 0; i < ARRAY_SIZE(chan7_vol); i++)
-		len += sprintf(buf + len, "%d: %s\n", i, chan7_vol[i]);
+		      priv->test_input_sel, test_vol[priv->test_input_sel]);
+	for (i = 0; i < ARRAY_SIZE(test_vol); i++)
+		len += sprintf(buf + len, "%d: %s\n", i, test_vol[i]);
 
 	return len;
 }
 
-static ssize_t chan7_mux_store(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t test_input_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
@@ -1239,7 +1239,7 @@ static ssize_t chan7_mux_store(struct device *dev,
 
 	if (kstrtoint(buf, 0, &val) != 0)
 		return -EINVAL;
-	if (val >= ARRAY_SIZE(chan7_vol))
+	if (val >= ARRAY_SIZE(test_vol))
 		return -EINVAL;
 
 	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
@@ -1247,7 +1247,7 @@ static ssize_t chan7_mux_store(struct device *dev,
 			return -EINVAL;
 	}
 
-	priv->param->dops->set_ch7_mux(indio_dev, val);
+	priv->param->dops->set_test_input(indio_dev, val);
 
 	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
 		pm_runtime_mark_last_busy(indio_dev->dev.parent);
@@ -1257,11 +1257,11 @@ static ssize_t chan7_mux_store(struct device *dev,
 	return count;
 }
 
-static IIO_DEVICE_ATTR(chan7_mux, 0644,
-		       chan7_mux_show, chan7_mux_store, -1);
+static IIO_DEVICE_ATTR(test_input, 0644,
+		       test_input_show, test_input_store, -1);
 
 static struct attribute *meson_sar_adc_attrs[] = {
-	&iio_dev_attr_chan7_mux.dev_attr.attr,
+	&iio_dev_attr_test_input.dev_attr.attr,
 	NULL, /*need to terminate the list of attributes by NULL*/
 };
 
@@ -1435,7 +1435,7 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 
 	priv->param = match_param;
 
-	if (!match_param->dops->extra_init || !match_param->dops->set_ch7_mux ||
+	if (!match_param->dops->extra_init || !match_param->dops->set_test_input ||
 	    !match_param->dops->read_fifo || !match_param->dops->enable_chnl ||
 	    !match_param->dops->read_chnl) {
 		dev_err(&pdev->dev, "necessary operations not supported\n");
@@ -1712,7 +1712,7 @@ static int __maybe_unused meson_sar_adc_runtime_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	priv->param->dops->set_ch7_mux(indio_dev, priv->chan7_mux_sel);
+	priv->param->dops->set_test_input(indio_dev, priv->test_input_sel);
 
 	return 0;
 }

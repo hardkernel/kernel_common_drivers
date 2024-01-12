@@ -5,8 +5,8 @@
 
 #include "meson_saradc.h"
 
-void meson_m8_sar_adc_set_ch7_mux(struct iio_dev *indio_dev,
-				  enum meson_sar_adc_chan7_mux_sel sel);
+void meson_m8_sar_adc_set_test_input(struct iio_dev *indio_dev,
+				     enum meson_sar_adc_test_input_sel sel);
 int meson_m8_sar_adc_read_fifo(struct iio_dev *indio_dev,
 			       const struct iio_chan_spec *chan,
 			       bool chk_channel);

@@ -152,7 +152,7 @@ without_pd:
 
 static const struct meson_sar_adc_diff_ops meson_s7_diff_ops = {
 	.extra_init = meson_s7_sar_adc_extra_init,
-	.set_ch7_mux = meson_m8_sar_adc_set_ch7_mux,
+	.set_test_input = meson_m8_sar_adc_set_test_input,
 	.read_fifo = meson_m8_sar_adc_read_fifo,
 	.enable_chnl = meson_m8_sar_adc_enable_chnl,
 	.read_chnl = meson_m8_sar_adc_read_chnl,

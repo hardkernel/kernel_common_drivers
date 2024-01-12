@@ -141,8 +141,8 @@ static int meson_c2_sar_adc_extra_init(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static void meson_c2_sar_adc_set_ch7_mux(struct iio_dev *indio_dev,
-					 enum meson_sar_adc_chan7_mux_sel sel)
+static void meson_c2_sar_adc_set_test_input(struct iio_dev *indio_dev,
+					    enum meson_sar_adc_test_input_sel sel)
 {
 	unsigned int regval;
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
@@ -151,7 +151,7 @@ static void meson_c2_sar_adc_set_ch7_mux(struct iio_dev *indio_dev,
 	regmap_update_bits(priv->regmap, MESON_C2_SAR_ADC_CHX_CTRL1(7),
 			   MESON_C2_SAR_ADC_CHX_CTRL1_IN_CTRL_MASK, regval);
 
-	priv->chan7_mux_sel = sel;
+	priv->test_input_sel = sel;
 
 	usleep_range(10, 20);
 }
@@ -309,7 +309,7 @@ static int meson_c2_sar_adc_tuning_clock(struct iio_dev *indio_dev,
 
 static const struct meson_sar_adc_diff_ops meson_c2_diff_ops = {
 	.extra_init = meson_c2_sar_adc_extra_init,
-	.set_ch7_mux = meson_c2_sar_adc_set_ch7_mux,
+	.set_test_input = meson_c2_sar_adc_set_test_input,
 	.read_fifo  = meson_c2_sar_adc_read_fifo,
 	.enable_chnl = meson_c2_sar_adc_enable_chnl,
 	.read_chnl = meson_c2_sar_adc_read_chnl,
