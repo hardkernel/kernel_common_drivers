@@ -917,6 +917,12 @@
 		cma_mode = <1>;
 	};
 
+	di_process {
+		compatible = "amlogic, di_process";
+		dev_name = "di_process";
+		status = "okay";
+	};
+
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";

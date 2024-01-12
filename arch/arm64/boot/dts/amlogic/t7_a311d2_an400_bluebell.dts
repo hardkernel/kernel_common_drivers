@@ -928,6 +928,12 @@
 		key_tolerance = <40 40 40 40>;
 	};
 
+	di_process {
+		compatible = "amlogic, di_process";
+		dev_name = "di_process";
+		status = "okay";
+	};
+
 	gpio_keypad{
 		compatible = "amlogic, gpio_keypad";
 		status = "okay";
