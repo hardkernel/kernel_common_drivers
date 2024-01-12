@@ -10906,7 +10906,7 @@ static void do_vpu_delay_work(struct work_struct *work)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (vpu_delay_work_flag & VPU_DELAYWORK_APO_FLAG_DOLBY) {
 			vpu_delay_work_flag &= ~VPU_DELAYWORK_APO_FLAG_DOLBY;
-			set_amdv_apo_enable(true);
+			set_amdv_apo_enable(false);
 			amdv_send_uevent(AMDV_CONT_EVENT, &apo_value);
 		}
 #endif
