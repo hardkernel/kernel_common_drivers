@@ -53,6 +53,12 @@ struct meson_sar_adc_diff_ops {
 			    enum meson_sar_adc_sampling_mode mode);
 };
 
+struct meson_sar_adc_calib {
+	enum meson_sar_adc_test_input_sel test_upper;
+	enum meson_sar_adc_test_input_sel test_lower;
+	int test_channel;
+};
+
 /* struct meson_sar_adc_param - describe the differences of different platform
  *
  * @has_bl30_integration: g12a and later SoCs don not use saradc to sample
@@ -96,7 +102,7 @@ struct meson_sar_adc_param {
 	u8					vrefp_select;
 	u8					vcm_select;
 	u8					adc_eoc;
-	u8					calib_enable;
+	const struct meson_sar_adc_calib	*calib;
 };
 
 struct meson_sar_adc_priv {
@@ -123,6 +129,7 @@ struct meson_sar_adc_priv {
 	u32					continuous_sample_count;
 	struct completion			done;
 	u32					*continuous_sample_buffer;
+	u8					calib_ready;
 };
 
 extern const struct meson_sar_adc_param meson_sar_adc_meson8_param __initconst;

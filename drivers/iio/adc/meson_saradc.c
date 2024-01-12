@@ -260,7 +260,7 @@ static int meson_sar_adc_read_raw_sample(struct iio_dev *indio_dev,
 
 	fifo_val = priv->param->dops->read_fifo(indio_dev, chan, true);
 
-	if (priv->param->calib_enable)
+	if (priv->param->calib && priv->calib_ready)
 		/* to fix the sample value by software */
 		*val = meson_sar_adc_calib_val(indio_dev, fifo_val);
 	else
@@ -410,7 +410,7 @@ meson_sar_adc_read_raw_sample_from_chnl(struct iio_dev *indio_dev,
 
 	fifo_val = priv->param->dops->read_chnl(indio_dev, chan);
 
-	if (priv->param->calib_enable)
+	if (priv->param->calib && priv->calib_ready)
 		/* to fix the sample value by software */
 		*val = meson_sar_adc_calib_val(indio_dev, fifo_val);
 	else
@@ -551,14 +551,14 @@ static int meson_sar_adc_iio_info_read_raw(struct iio_dev *indio_dev,
 		}
 
 	case IIO_CHAN_INFO_CALIBBIAS:
-		if (!priv->param->calib_enable)
+		if (!priv->param->calib)
 			return -EINVAL;
 
 		*val = priv->calibbias;
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_CALIBSCALE:
-		if (!priv->param->calib_enable)
+		if (!priv->param->calib)
 			return -EINVAL;
 
 		*val = priv->calibscale / MILLION;
@@ -969,24 +969,30 @@ static int meson_sar_adc_calib(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 	int ret, nominal0, nominal1, value0, value1;
+	int chan;
+	enum meson_sar_adc_test_input_sel lower;
+	enum meson_sar_adc_test_input_sel upper;
 
-	/* use points 25% and 75% for calibration */
-	nominal0 = (1 << priv->param->resolution) / 4;
-	nominal1 = (1 << priv->param->resolution) * 3 / 4;
+	chan = priv->param->calib->test_channel;
+	upper = priv->param->calib->test_upper;
+	lower = priv->param->calib->test_lower;
 
-	priv->param->dops->set_test_input(indio_dev, TEST_MUX_VDD_DIV4);
+	nominal0 = (1 << priv->param->resolution) * lower / 4;
+	nominal1 = (1 << priv->param->resolution) * upper / 4;
+
+	priv->param->dops->set_test_input(indio_dev, lower);
 	usleep_range(10, 20);
 	ret = meson_sar_adc_get_sample(indio_dev,
-				       &indio_dev->channels[7],
+				       &indio_dev->channels[chan],
 				       MEDIAN_AVERAGING_FILTER,
 				       EIGHT_SAMPLES, &value0);
 	if (ret < 0)
 		goto out;
 
-	priv->param->dops->set_test_input(indio_dev, TEST_MUX_VDD_MUL3_DIV4);
+	priv->param->dops->set_test_input(indio_dev, upper);
 	usleep_range(10, 20);
 	ret = meson_sar_adc_get_sample(indio_dev,
-				       &indio_dev->channels[7],
+				       &indio_dev->channels[chan],
 				       MEDIAN_AVERAGING_FILTER,
 				       EIGHT_SAMPLES, &value1);
 	if (ret < 0)
@@ -1578,7 +1584,7 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 			goto err;
 	}
 
-	if (priv->param->calib_enable) {
+	if (priv->param->calib) {
 		for (i = 0; i < indio_dev->num_channels; i++) {
 			chan = (struct iio_chan_spec *)indio_dev->channels + i;
 			if (chan->channel < 0)
@@ -1589,9 +1595,12 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 				BIT(IIO_CHAN_INFO_CALIBSCALE);
 		}
 
+		priv->calib_ready = 0;
 		ret = meson_sar_adc_calib(indio_dev);
 		if (ret)
 			dev_warn(&pdev->dev, "calibration failed\n");
+		else
+			priv->calib_ready = 1;
 	}
 
 	ret = iio_device_register(indio_dev);
