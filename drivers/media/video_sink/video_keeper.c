@@ -1128,6 +1128,12 @@ unsigned int vf_keep_current_locked(u8 layer_id,
 		return 0;
 	}
 
+	if (cur_buf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+		cur_buf->source_type == VFRAME_SOURCE_TYPE_CVBS) {
+		pr_info("hdmi/cvbs keep exit\n");
+		return 0;
+	}
+
 	if (IS_DI_PROCESSED(cur_buf->type)) {
 		ret = 2;
 		if (cur_buf->vf_ext &&
