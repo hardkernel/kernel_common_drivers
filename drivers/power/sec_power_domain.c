@@ -25,6 +25,7 @@
 #include <dt-bindings/power/txhd2-pd.h>
 #include <dt-bindings/power/s1a-pd.h>
 #include <dt-bindings/power/s7d-pd.h>
+#include <dt-bindings/power/s6-pd.h>
 #include <linux/kallsyms.h>
 
 struct sec_pm_private_domain {
@@ -756,6 +757,53 @@ static struct sec_pm_domain_data s7d_pm_domain_data __initdata = {
 	.domains = s7d_pm_domains,
 	.domains_count = ARRAY_SIZE(s7d_pm_domains),
 };
+
+static struct sec_pm_private_domain s6_pm_domains[] __initdata = {
+	[PDID_S6_DSPA] = POWER_DOMAIN(dsp, PDID_S6_DSPA,
+				DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_S6_DOS_HEVC, DOMAIN_INIT_ON,
+				       GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_DOS_VDEC] = POWER_DOMAIN(vdec, PDID_S6_DOS_VDEC,
+				DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_VPU_HDMI] = POWER_DOMAIN(hdmi, PDID_S6_VPU_HDMI, DOMAIN_INIT_ON,
+				       GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_U2DRD] = POWER_DOMAIN(u2drd, PDID_S6_U2DRD,
+				DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_U3DRD] = POWER_DOMAIN(u3drd, PDID_S6_U3DRD, DOMAIN_INIT_ON,
+				       GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_SD_EMMC_C] = POWER_DOMAIN(emmc_c, PDID_S6_SD_EMMC_C,
+				DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_GE2D] = POWER_DOMAIN(ge2d, PDID_S6_GE2D, DOMAIN_INIT_ON,
+				       GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_AMFC] = POWER_DOMAIN(amfc, PDID_S6_AMFC,
+				DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_VC9000E] = POWER_DOMAIN(vc9000, PDID_S6_VC9000E, DOMAIN_INIT_ON,
+				       GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_DEWARP] = POWER_DOMAIN(dewarp, PDID_S6_DEWARP,
+				DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_VICP] = POWER_DOMAIN(vicp, PDID_S6_VICP, DOMAIN_INIT_ON,
+				       GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_SD_EMMC_A] = POWER_DOMAIN(emmc_a, PDID_S6_SD_EMMC_A,
+				DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_SD_EMMC_B] = POWER_DOMAIN(emmc_b, PDID_S6_SD_EMMC_B, DOMAIN_INIT_ON,
+				       GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_ETH] = POWER_DOMAIN(eth, PDID_S6_ETH,
+				DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_PCIE] = POWER_DOMAIN(pcie, PDID_S6_PCIE, DOMAIN_INIT_ON,
+				       GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_NNA_4T] = POWER_DOMAIN(nna, PDID_S6_NNA_4T,
+				DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_AUDIO] = POWER_DOMAIN(audio, PDID_S6_AUDIO, DOMAIN_INIT_ON,
+				       GENPD_FLAG_ALWAYS_ON),
+	[PDID_S6_AUCPU] = POWER_DOMAIN(aucpu, PDID_S6_AUCPU,
+				DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+};
+
+static struct sec_pm_domain_data s6_pm_domain_data __initdata = {
+	.domains = s6_pm_domains,
+	.domains_count = ARRAY_SIZE(s6_pm_domains),
+};
+
 #endif
 
 static struct sec_pm_private_domain s1a_pm_domains[] __initdata = {
@@ -983,6 +1031,10 @@ static const struct of_device_id pd_match_table[] = {
 	{
 		.compatible = "amlogic,s7d-power-domain",
 		.data = &s7d_pm_domain_data,
+	},
+	{
+		.compatible = "amlogic,s6-power-domain",
+		.data = &s6_pm_domain_data,
 	},
 #endif
 	{
