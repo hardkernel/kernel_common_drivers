@@ -324,6 +324,12 @@ static const struct regmap_config meson_sar_adc_regmap_config_meson8 = {
 	.reg_stride = 4,
 	.max_register = MESON_SAR_ADC_DELTA_10,
 };
+
+static const struct meson_sar_adc_calib meson_sar_adc_calib_gxbb = {
+	.test_upper = TEST_MUX_VDD_MUL3_DIV4,
+	.test_lower = TEST_MUX_VDD_DIV4,
+	.test_channel = 7,
+};
 #endif
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -335,7 +341,7 @@ const struct meson_sar_adc_param meson_sar_adc_meson8_param __initconst = {
 	.temperature_trimming_bits = 4,
 	.temperature_multiplier = 18 * 10000,
 	.temperature_divider = 1024 * 10 * 85,
-	.calib_enable = true,
+	.calib = &meson_sar_adc_calib_gxbb,
 	.dops = &meson_m8_diff_ops,
 	.channels = meson_m8_sar_adc_and_temp_iio_channels,
 	.num_channels = ARRAY_SIZE(meson_m8_sar_adc_and_temp_iio_channels),
@@ -348,7 +354,7 @@ const struct meson_sar_adc_param meson_sar_adc_meson8b_param __initconst = {
 	.bandgap_en_mask = BIT(10),
 	.regmap_config = &meson_sar_adc_regmap_config_meson8,
 	.resolution = 10,
-	.calib_enable = true,
+	.calib = &meson_sar_adc_calib_gxbb,
 	.dops = &meson_m8_diff_ops,
 	.channels = meson_m8_sar_adc_iio_channels,
 	.num_channels = ARRAY_SIZE(meson_m8_sar_adc_iio_channels),
@@ -363,7 +369,7 @@ const struct meson_sar_adc_param meson_sar_adc_gxbb_param __initconst = {
 	.resolution = 10,
 	.vrefp_select = 1,
 	.vcm_select = 1,
-	.calib_enable = true,
+	.calib = &meson_sar_adc_calib_gxbb,
 	.dops = &meson_m8_diff_ops,
 	.channels = meson_m8_sar_adc_iio_channels,
 	.num_channels = ARRAY_SIZE(meson_m8_sar_adc_iio_channels),
@@ -379,7 +385,7 @@ const struct meson_sar_adc_param meson_sar_adc_gxl_param __initconst = {
 	.disable_ring_counter = 1,
 	.vrefp_select = 1,
 	.vcm_select = 1,
-	.calib_enable = true,
+	.calib = &meson_sar_adc_calib_gxbb,
 	.dops = &meson_m8_diff_ops,
 	.channels = meson_m8_sar_adc_iio_channels,
 	.num_channels = ARRAY_SIZE(meson_m8_sar_adc_iio_channels),
