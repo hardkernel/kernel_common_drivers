@@ -61,7 +61,8 @@ static irqreturn_t meson_s7_sar_adc_pd_irq(int irq, void *data)
 	}
 
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
-			   MESON_SAR_ADC_REG11_PD_IRQ_CLR, 1);
+			   MESON_SAR_ADC_REG11_PD_IRQ_CLR,
+			   MESON_SAR_ADC_REG11_PD_IRQ_CLR);
 
 	return IRQ_HANDLED;
 }
@@ -75,17 +76,17 @@ static int meson_s7_sar_adc_extra_init(struct iio_dev *indio_dev)
 	struct device_node *pd_node;
 	struct device *pdev = indio_dev->dev.parent;
 
-	/* disable internal ring counter */
+	/* Disable internal ring counter */
 	meson_m8_sar_adc_disable_ring(priv);
 
-	/* pd node */
+	/* PD node */
 	pd_node = of_find_node_by_name(pdev->of_node, "pd");
 	if (!pd_node) {
 		dev_info(pdev, "power outage detection config property not found\n");
 		goto without_pd;
 	}
 
-	/* ctrl property */
+	/* Ctrl property */
 	ret = of_property_read_u32(pd_node, "ctrl", &pd_ctrl);
 	if (ret) {
 		dev_err(pdev, "failed with error %d, need to check ctrl property\n", ret);
@@ -97,7 +98,7 @@ static int meson_s7_sar_adc_extra_init(struct iio_dev *indio_dev)
 	}
 	dev_dbg(pdev, "pd_ctrl: %u\n", pd_ctrl);
 
-	/* trim property */
+	/* Trim property */
 	ret = of_property_read_u32(pd_node, "trim", &pd_trim);
 	if (ret) {
 		dev_err(pdev, "failed with error %d, need to check trim property\n", ret);
@@ -109,7 +110,7 @@ static int meson_s7_sar_adc_extra_init(struct iio_dev *indio_dev)
 	}
 	dev_dbg(pdev, "pd_trim: %u\n", pd_trim);
 
-	/* status property */
+	/* Status property */
 	pd_state = of_property_read_bool(pd_node, "enabled");
 	dev_dbg(pdev, "pd_state: %s\n", pd_state ? "enabled" : "disabled");
 
@@ -123,13 +124,14 @@ static int meson_s7_sar_adc_extra_init(struct iio_dev *indio_dev)
 			   MESON_SAR_ADC_REG11_PD_DETECT_TRIM_MASK,
 			   regval);
 
-	regval = FIELD_PREP(MESON_SAR_ADC_REG11_PD_DETECT_EN, pd_state);
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
-			   MESON_SAR_ADC_REG11_PD_DETECT_EN, regval);
+			   MESON_SAR_ADC_REG11_PD_DETECT_EN,
+			   pd_state ? MESON_SAR_ADC_REG11_PD_DETECT_EN : 0);
 
-	/* clear PD IRQ */
+	/* Clear PD IRQ */
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
-			   MESON_SAR_ADC_REG11_PD_IRQ_CLR, 1);
+			   MESON_SAR_ADC_REG11_PD_IRQ_CLR,
+			   MESON_SAR_ADC_REG11_PD_IRQ_CLR);
 
 	pd_irq = irq_of_parse_and_map(pdev->of_node, 1);
 	if (!pd_irq)
@@ -140,9 +142,10 @@ static int meson_s7_sar_adc_extra_init(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
-	/* enalbe PD IRQ */
+	/* Enalbe PD IRQ */
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
-			   MESON_SAR_ADC_REG11_PD_IRQ_EN, 1);
+			   MESON_SAR_ADC_REG11_PD_IRQ_EN,
+			   MESON_SAR_ADC_REG11_PD_IRQ_EN);
 
 	dev_dbg(pdev, "init done, pd_irq: %d\n", pd_irq);
 
@@ -158,13 +161,20 @@ static const struct meson_sar_adc_diff_ops meson_s7_diff_ops = {
 	.read_chnl = meson_m8_sar_adc_read_chnl,
 };
 
+static const struct meson_sar_adc_calib meson_sar_adc_calib_s7 = {
+	.test_upper = TEST_MUX_VDD,
+	.test_lower = TEST_MUX_VSS,
+	.test_channel = 4,
+};
+
 const struct meson_sar_adc_param meson_sar_adc_s7_param __initconst = {
 	.has_bl30_integration = false,
 	.clock_rate = 1200000,
 	.regmap_config = &meson_sar_adc_regmap_config_g12a,
-	.resolution = 12,
-	.disable_ring_counter = 1,
+	.resolution = 10,
+	.disable_ring_counter = 0,
 	.dops = &meson_s7_diff_ops,
 	.channels = meson_s7_sar_adc_iio_channels,
 	.num_channels = ARRAY_SIZE(meson_s7_sar_adc_iio_channels),
+	.calib = &meson_sar_adc_calib_s7,
 };
