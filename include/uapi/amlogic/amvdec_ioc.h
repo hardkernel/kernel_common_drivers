@@ -63,6 +63,7 @@ enum vformat_e {
 	VFORMAT_AVS2,
 	VFORMAT_AV1,
 	VFORMAT_AVS3,
+	VFORMAT_H266,
 	VFORMAT_MAX
 };
 
@@ -263,7 +264,7 @@ struct vframe_qos_s {
 	int max_mv;
 	int min_mv;
 	int avg_mv;
-	int decode_buffer;//For padding currently
+	int decode_buffer; //For padding currently
 } /*vframe_qos */;
 
 struct av_info_t {
