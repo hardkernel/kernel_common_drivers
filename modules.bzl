@@ -60,6 +60,7 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/drivers/gpio/amlogic-pinctrl-soc-g12a.ko",
     "common_drivers/drivers/gpio/amlogic-pinctrl-soc-s4.ko",
     "common_drivers/drivers/gpio/amlogic-pinctrl-soc-s5.ko",
+    "common_drivers/drivers/gpio/amlogic-pinctrl-soc-s6.ko",
     "common_drivers/drivers/gpio/amlogic-pinctrl-soc-sc2.ko",
     "common_drivers/drivers/gpio/amlogic-pinctrl-soc-t3.ko",
     "common_drivers/drivers/gpio/amlogic-pinctrl-soc-t3x.ko",

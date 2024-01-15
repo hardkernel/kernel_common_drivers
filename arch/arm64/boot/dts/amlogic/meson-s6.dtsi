@@ -888,7 +888,7 @@
 			};
 
 			periphs_pinctrl: pinctrl@4000 {
-				compatible = "amlogic,meson-s7d-periphs-pinctrl";
+				compatible = "amlogic,meson-s6-periphs-pinctrl";
 				#address-cells = <2>;
 				#size-cells = <2>;
 				ranges;
@@ -899,12 +899,12 @@
 					reg-names = "mux", "gpio";
 					gpio-controller;
 					#gpio-cells = <2>;
-					gpio-ranges = <&periphs_pinctrl 0 0 84>;
+					gpio-ranges = <&periphs_pinctrl 0 0 101>;
 				};
 			};
 
 			gpio_intc: interrupt-controller@4080 {
-				compatible = "amlogic,meson-s7-gpio-intc",
+				compatible = "amlogic,meson-s6-gpio-intc",
 					     "amlogic,meson-gpio-intc";
 				reg = <0x0 0x4080 0x0 0x20>;
 				interrupt-controller;
