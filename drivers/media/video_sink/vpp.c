@@ -1676,7 +1676,7 @@ static int vpp_set_filters_internal
 	if (is_bandwidth_policy_hit(input->layer_id))
 		next_frame_par->vscale_skip_count++;
 #endif
-	if (super_debug)
+	if (cur_super_debug)
 		pr_info("layer_id=%d, next_frame_par->vscale_skip_count=%d\n",
 			input->layer_id,
 			next_frame_par->vscale_skip_count);
@@ -1711,6 +1711,53 @@ RESTART_ALL:
 	if (src_crop_adjust) {
 		w_in = width_in - src_crop_right;
 		h_in = height_in - src_crop_bottom;
+		crop_left = 0;
+		crop_right = 0;
+		crop_top = 0;
+		crop_bottom = 0;
+		if (cur_super_debug)
+			pr_info("%s:org src(%d, %d), adj src(%d, %d), vf crop: %d, %d\n",
+				__func__, width_in, height_in,
+				w_in, h_in,
+				src_crop_right, src_crop_bottom);
+	} else {
+		if (cur_super_debug)
+			pr_info("%s:w_in/h_in(%d, %d), crop: %d, %d, %d, %d\n",
+				__func__,
+				w_in, h_in,
+				crop_left, crop_right,
+				crop_top, crop_bottom);
+	}
+
+	if (is_amdv_on()) {
+		int w_temp;
+
+		w_temp = w_in - crop_left - crop_right;
+		if (cur_super_debug)
+			pr_info("%s:w_in/w_temp(%d, %d), crop: %d, %d, %d, %d\n",
+				__func__,
+				w_in, w_temp,
+				crop_left, crop_right,
+				crop_top, crop_bottom);
+		if (slice_num == 2) {
+			/* w_in must 4 aligned*/
+			if (w_temp > 0 && w_temp % 4) {
+				if (cur_super_debug)
+					pr_info("%s:amdv slice(%d) need w_in 4 aligned: w_temp=%d, crop:%d, %d, adjust crop left:%d\n",
+						__func__, slice_num,
+						w_temp, crop_left, crop_right, crop_left + 2);
+				crop_left += 2;
+			}
+		} else if (slice_num == 1) {
+			/* w_in must 2 aligned*/
+			if (w_temp > 0 && w_temp % 2) {
+				if (cur_super_debug)
+					pr_info("%s:amdv slice(%d) need w_in 2 aligned: w_temp=%d, crop:%d, %d, adjust crop left:%d\n",
+						__func__, slice_num,
+						w_temp, crop_left, crop_right, crop_left + 1);
+				crop_left += 1;
+			}
+		}
 	}
 
 	/* fix both h/w crop odd issue */
@@ -1746,15 +1793,15 @@ RESTART_ALL:
 		next_frame_par->vscale_skip_count++;
 
 RESTART:
-	if (super_debug)
-		pr_info("%s(line:%d): vscale_skip_count=%d\n",
-			__func__, __LINE__, next_frame_par->vscale_skip_count);
-
 	if (next_frame_par->hscale_skip_count && !hskip_adjust) {
 		w_in  = DATA_ALIGNED_DOWN_4(w_in);
 		crop_left = DATA_ALIGNED_4(crop_left);
 		hskip_adjust = true;
 	}
+
+	if (cur_super_debug)
+		pr_info("%s(line:%d): vscale_skip_count=%d\n",
+			__func__, __LINE__, next_frame_par->vscale_skip_count);
 
 	aspect_factor = (vpp_flags & VPP_FLAG_AR_MASK) >> VPP_FLAG_AR_BITS;
 	/* don't use input->wide_mode */
