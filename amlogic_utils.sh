@@ -1093,7 +1093,7 @@ function set_env_for_adjust_config_action () {
 
 	# support the ndk tools
 	if [[ -n "${NDK_TRIPLE}" ]]; then
-		NDK_DIR=${ROOT_DIR}/prebuilts/ndk-r23
+		NDK_DIR=`echo ${ROOT_DIR}/prebuilts/ndk*`
 		if [[ ! -d "${NDK_DIR}" ]]; then
 			# Kleaf/Bazel will checkout the ndk to a different directory than build.sh.
 			NDK_DIR=${ROOT_DIR}/external/prebuilt_ndk
