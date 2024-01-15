@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_address.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -24,8 +25,6 @@
 
 #include <linux/amlogic/media/sound/auge_utils.h>
 
-#include "../../../soc/amlogic/auge/iomap.h"
-#include "../../../soc/amlogic/auge/regs.h"
 #include "aml_codec_a1_acodec.h"
 
 struct a1_acodec_chipinfo {
@@ -43,7 +42,7 @@ struct a1_acodec_chipinfo {
 struct a1_acodec_priv {
 	struct snd_soc_component *component;
 	struct snd_pcm_hw_params *params;
-	struct regmap *regmap;
+	struct regmap *to_acodec_regmap;
 	struct work_struct work;
 	struct a1_acodec_chipinfo *chipinfo;
 	int tdmout_index;
@@ -354,25 +353,21 @@ static void a1_acodec_release_fast_mode_work_func(struct work_struct *p_work)
 
 static int a1_acodec_dai_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 {
-	struct a1_acodec_priv *aml_acodec =
-		snd_soc_component_get_drvdata(dai->component);
+	struct snd_soc_component *component = dai->component;
 	u32 reg_val;
 	int ret;
 
 	pr_debug("%s, mute:%d\n", __func__, mute);
+	snd_soc_component_write(component, ACODEC_0, 0xF000);
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		ret = regmap_read
-			(aml_acodec->regmap,
-			 ACODEC_2, &reg_val);
+		reg_val = snd_soc_component_read(component, ACODEC_2);
 		if (mute)
 			reg_val |= (0x1 << DAC_SOFT_MUTE);
 		else
 			reg_val &= ~(0x1 << DAC_SOFT_MUTE);
 
-		ret = regmap_write
-			(aml_acodec->regmap,
-			 ACODEC_2, reg_val);
+		ret = snd_soc_component_write(component, ACODEC_2, reg_val);
 	}
 
 	return 0;
@@ -522,14 +517,14 @@ static int a1_acodec_set_toacodec(struct a1_acodec_priv *aml_acodec)
 	/* this reg can't be read on a1/c1, so can't use audiobus_update_bits */
 	if (aml_acodec->chipinfo->separate_toacodec_en) {
 		val |= 0x1 << 29;
-		audiobus_write(EE_AUDIO_TOACODEC_CTRL0, val);
+		regmap_write(aml_acodec->to_acodec_regmap, 0, val);
 
 		val |= 0x1 << 30;
-		audiobus_write(EE_AUDIO_TOACODEC_CTRL0, val);
+		regmap_write(aml_acodec->to_acodec_regmap, 0, val);
 	}
 
 	val |= 0x1 << 31;
-	audiobus_write(EE_AUDIO_TOACODEC_CTRL0, val);
+	regmap_write(aml_acodec->to_acodec_regmap, 0, val);
 
 	pr_info("%s, is_bclk_cap_inv %s\n", __func__,
 		aml_acodec->chipinfo->is_bclk_cap_inv ? "true" : "false");
@@ -543,18 +538,47 @@ static int a1_acodec_set_toacodec(struct a1_acodec_priv *aml_acodec)
 	return 0;
 }
 
+static struct regmap *regmap_resource(struct device *dev, char *name)
+{
+	struct resource res;
+	void __iomem *base;
+	struct device_node *node = dev->of_node;
+	static struct regmap_config aud_regmap_config = {
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.cache_type = REGCACHE_RBTREE,
+	};
+	int i;
+
+	i = of_property_match_string(node, "reg-names", name);
+	if (of_address_to_resource(node, i, &res))
+		return ERR_PTR(-ENOENT);
+
+	base = devm_ioremap_resource(dev, &res);
+	if (IS_ERR(base))
+		return ERR_CAST(base);
+
+	pr_info("%s, %s, start:%#x, size:%#x\n",
+		__func__, name, (u32)res.start, (u32)resource_size(&res));
+
+	aud_regmap_config.max_register = resource_size(&res) - 4;
+	aud_regmap_config.name =
+		devm_kasprintf(dev, GFP_KERNEL, "%s-%s", node->name, name);
+	if (!aud_regmap_config.name)
+		return ERR_PTR(-ENOMEM);
+
+	return devm_regmap_init_mmio(dev, base, &aud_regmap_config);
+}
+
 static int aml_a1_acodec_probe(struct platform_device *pdev)
 {
 	struct a1_acodec_priv *aml_acodec;
 	struct a1_acodec_chipinfo *p_chipinfo;
-	struct resource *res_mem;
-	struct device_node *np;
-	void __iomem *regs;
+	struct regmap *regmap;
 	int ret = 0;
 
 	dev_info(&pdev->dev, "%s\n", __func__);
-
-	np = pdev->dev.of_node;
 
 	aml_acodec = devm_kzalloc
 		(&pdev->dev,
@@ -570,19 +594,17 @@ static int aml_a1_acodec_probe(struct platform_device *pdev)
 		dev_warn_once(&pdev->dev, "check whether to update a1_acodec_chipinfo\n");
 
 	aml_acodec->chipinfo = p_chipinfo;
+	aml_acodec->to_acodec_regmap = regmap_resource(&pdev->dev, "to_acodec");
+	if (IS_ERR(aml_acodec->to_acodec_regmap)) {
+		dev_err(&pdev->dev, "miss to_acodec regmap\n");
+		return PTR_ERR(aml_acodec->to_acodec_regmap);
+	}
 
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res_mem)
-		return -ENODEV;
-
-	regs = devm_ioremap_resource(&pdev->dev, res_mem);
-	if (IS_ERR(regs))
-		return PTR_ERR(regs);
-
-	aml_acodec->regmap = devm_regmap_init_mmio
-		(&pdev->dev, regs, &a1_acodec_regmap_config);
-	if (IS_ERR(aml_acodec->regmap))
-		return PTR_ERR(aml_acodec->regmap);
+	regmap = regmap_resource(&pdev->dev, "acodec");
+	if (IS_ERR(regmap)) {
+		dev_err(&pdev->dev, "miss acodec regmap\n");
+		return PTR_ERR(regmap);
+	}
 
 	of_property_read_u32
 		(pdev->dev.of_node,

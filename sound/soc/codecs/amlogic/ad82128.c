@@ -698,7 +698,6 @@ static const struct snd_soc_component_driver soc_component_dev_ad82128 = {
 	.idle_bias_on = 1,
 	.use_pmdown_time = 1,
 	.endianness = 1,
-	//KV_TODO: modify .legacy_dai_naming
 };
 
 /* PCM rates supported by the AD82128 driver */
@@ -787,12 +786,13 @@ MODULE_DEVICE_TABLE(i2c, ad82128_id);
 
 static int ad82128_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_match_id(ad82128_id, client);
 	struct device *dev = &client->dev;
 	struct ad82128_data *data;
 	const struct regmap_config *regmap_config;
 	int ret;
 	int i;
-	const struct i2c_device_id *id = i2c_match_id(ad82128_id, client);
+
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;

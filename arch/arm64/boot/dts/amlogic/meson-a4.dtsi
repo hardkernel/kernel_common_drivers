@@ -1193,7 +1193,8 @@
 		acodec:acodec{
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, t3_acodec";
-			reg = <0x0 0xFE01A000 0x0 0x2000>;
+			reg = <0x0 0xFE01A000 0x0 0x2000>, <0x0 0xFE330740 0x0 0x4>;
+			reg-names = "acodec", "to_acodec";
 			tdmout_index = <1>;
 			tdmin_index = <1>;
 			dat0_ch_sel = <0>;
@@ -1208,6 +1209,7 @@
 			#clock-cells = <1>;
 			reg = <0x0 0xFE330000 0x0 0xb0>, <0x0 0xFE334C00 0x0 0x20>;
 			reg-names = "audio_bus", "audio_vad_top";
+			power-domains = <&pwrdm PDID_A4_AUDIO>;
 			status = "okay";
 		};
 

@@ -25,7 +25,6 @@
 #include "effects_hw.h"
 #include "effects_hw_v2.h"
 #include "effects_v2.h"
-#include "pwrdet_hw.h"
 #include "vad.h"
 #include "extn.h"
 #include "frhdmirx_hw.h"
@@ -91,11 +90,6 @@ struct frddr_enum_table frddr_src_table[FRDDR_MAX] = {
 static struct toddr_attach attach_resample[RESAMPLE_MAX_NUM];
 
 static void aml_check_resample(struct toddr *to, bool enable);
-
-/* power detect */
-static struct toddr_attach attach_pwrdet;
-static void aml_check_pwrdet(bool enable);
-static bool aml_check_pwrdet_module(int src);
 
 /* VAD */
 static struct toddr_attach attach_vad;
@@ -377,9 +371,7 @@ void aml_toddr_enable(struct toddr *to, bool enable)
 
 	if (to->chipinfo && to->chipinfo->wakeup) {
 		if (to->chipinfo->wakeup == 1) {
-			/* check power detect */
-			if (aml_check_pwrdet_module(to->src))
-				aml_check_pwrdet(enable);
+			pr_warn("power detection not support");
 		} else if (to->chipinfo->wakeup == 2)
 			/* check VAD */
 			aml_check_vad(to, enable);
@@ -1050,79 +1042,6 @@ static void aml_check_resample(struct toddr *to, bool enable)
 					aml_toddr_select_src(to, RESAMPLEC);
 			}
 			aml_resample_enable(to, p_attach_resample);
-		}
-	}
-}
-
-static void aml_set_pwrdet(struct toddr *to,
-	bool enable)
-{
-	if (enable) {
-		struct aml_audio_controller *actrl = to->actrl;
-		unsigned int reg_base = to->reg_base;
-		unsigned int reg, val;
-		unsigned int toddr_type, msb, lsb;
-
-		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
-		val = aml_audiobus_read(actrl, reg);
-		toddr_type = (val >> 13) & 0x7;
-		msb = (val >> 8) & 0x1f;
-		lsb = (val >> 3) & 0x1f;
-
-		aml_pwrdet_format_set(toddr_type, msb, lsb);
-	}
-	pwrdet_src_select(enable, to->src);
-}
-
-void aml_pwrdet_enable(bool enable, int pwrdet_module)
-{
-	attach_pwrdet.enable = enable;
-	attach_pwrdet.attach_module = pwrdet_module;
-	if (enable) {
-		if (attach_pwrdet.status == DISABLED || attach_pwrdet.status == READY) {
-			struct toddr *to = fetch_toddr_by_src(pwrdet_module);
-
-			if (!to) {
-				attach_pwrdet.status = READY;
-			} else {
-				attach_pwrdet.status = RUNNING;
-				aml_set_pwrdet(to, enable);
-				pr_info("Capture with power detect\n");
-			}
-		}
-	} else {
-		if (attach_pwrdet.status == RUNNING) {
-			struct toddr *to = fetch_toddr_by_src(pwrdet_module);
-
-			if (to)
-				aml_set_pwrdet(to, enable);
-		}
-		attach_pwrdet.status = DISABLED;
-	}
-}
-
-static bool aml_check_pwrdet_module(int src)
-{
-	bool is_module_pwrdet = false;
-
-	if (attach_pwrdet.enable && src == attach_pwrdet.attach_module)
-		is_module_pwrdet = true;
-
-	return is_module_pwrdet;
-}
-
-static void aml_check_pwrdet(bool enable)
-{
-	/* power detect in enable */
-	if (attach_pwrdet.enable) {
-		if (enable) {
-			/* check whether ready ? */
-			if (attach_pwrdet.status == READY)
-				aml_pwrdet_enable(true,
-					attach_pwrdet.attach_module);
-		} else {
-			if (attach_pwrdet.status == RUNNING)
-				attach_pwrdet.status = READY;
 		}
 	}
 }

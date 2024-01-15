@@ -61,9 +61,9 @@ static int __init sound_soc_init(void)
 	call_sub_init(tdm_init);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	call_sub_init(loopback_init);
+	call_sub_init(aud_sram_init);
 	call_sub_init(vad_drv_init);
 	call_sub_init(vad_dev_init);
-	call_sub_init(aud_sram_init);
 #endif
 	call_sub_init(aml_card_init);
 
@@ -82,9 +82,9 @@ static __exit void sound_soc_exit(void)
 
 	call_sub_exit(aml_card_exit);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	call_sub_exit(aud_sram_exit);
 	call_sub_exit(vad_dev_exit);
 	call_sub_exit(vad_drv_exit);
+	call_sub_exit(aud_sram_exit);
 	call_sub_exit(loopback_exit);
 #endif
 	call_sub_exit(tdm_exit);

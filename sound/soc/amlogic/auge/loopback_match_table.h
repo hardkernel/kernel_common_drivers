@@ -188,6 +188,15 @@ static struct loopback_chipinfo tm2_revb_loopbackb_chipinfo = {
 };
 #endif
 
+static struct loopback_chipinfo a4_loopbacka_chipinfo = {
+	.id = LOOPBACKA,
+	.ch_ctrl = true,
+	.chnum_en = false,
+	.srcs = &lb_srcs_v3[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v2[0],
+	.multi_bits_lbsrcs = true,
+};
+
 static struct loopback_chipinfo t5_loopbacka_chipinfo = {
 	.id = LOOPBACKA,
 	.ch_ctrl = true,
@@ -306,6 +315,10 @@ static const struct of_device_id loopback_device_id[] = {
 	{
 		.compatible = "amlogic, p1-loopbackb",
 		.data = &p1_loopbackb_chipinfo,
+	},
+	{
+		.compatible = "amlogic, a4-loopbacka",
+		.data = &a4_loopbacka_chipinfo,
 	},
 	{
 		.compatible = "amlogic, a5-loopbacka",

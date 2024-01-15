@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_address.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -23,12 +24,9 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
-
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/sound/auge_utils.h>
 
-#include "../../../soc/amlogic/auge/iomap.h"
-#include "../../../soc/amlogic/auge/regs.h"
 #include "aml_codec_tl1_acodec.h"
 
 struct tl1_acodec_chipinfo {
@@ -46,7 +44,7 @@ struct tl1_acodec_chipinfo {
 struct tl1_acodec_priv {
 	struct snd_soc_component *component;
 	struct snd_pcm_hw_params *params;
-	struct regmap *regmap;
+	struct regmap *to_acodec_regmap;
 	struct work_struct work;
 	struct tl1_acodec_chipinfo *chipinfo;
 	struct clk *acodec_clk;
@@ -291,10 +289,11 @@ static int aml_DAC_source_sel_get_enum
 	u32 val = 0;
 
 	if (aml_acodec->lane_offset == 4) {
-		val = (audiobus_read(EE_AUDIO_TOACODEC_CTRL0) >> 16) & (0xf);
+		regmap_read(aml_acodec->to_acodec_regmap, 0, &val);
+		val = (val >> 16) & 0xf;
 		val -= (aml_acodec->tdmout_index << 2);
 	} else {
-		val = (audiobus_read(EE_AUDIO_TOACODEC_CTRL0) >> 16) & (0x1f);
+		regmap_read(aml_acodec->to_acodec_regmap, 0, &val);
 		val -= (aml_acodec->tdmout_index << 3);
 	}
 
@@ -321,10 +320,10 @@ static int aml_DAC_source_sel_set_enum
 
 	if (aml_acodec->lane_offset == 4) {
 		val += (aml_acodec->tdmout_index << 2);
-		audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0, (0xf << 16), (val << 16));
+		regmap_update_bits(aml_acodec->to_acodec_regmap, 0, 0xf << 16, val << 16);
 	} else {
 		val += (aml_acodec->tdmout_index << 3);
-		audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0, (0x1f << 16), (val << 16));
+		regmap_update_bits(aml_acodec->to_acodec_regmap, 0, 0x1f << 16, val << 16);
 	}
 
 	return 0;
@@ -951,6 +950,7 @@ static int tl1_acodec_set_toacodec(struct tl1_acodec_priv *aml_acodec)
 {
 	int dat0_sel, dat1_sel, lrclk_sel, bclk_sel, mclk_sel;
 	unsigned int update_bits_msk = 0x0, update_bits = 0x0;
+	int val;
 
 	update_bits_msk = 0xFF7777;
 	if (aml_acodec->chipinfo->is_bclk_cap_inv)
@@ -980,18 +980,19 @@ static int tl1_acodec_set_toacodec(struct tl1_acodec_priv *aml_acodec)
 
 	update_bits |= dat0_sel | dat1_sel | lrclk_sel | bclk_sel | mclk_sel;
 
-	audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0, update_bits_msk, update_bits);
-
+	regmap_update_bits(aml_acodec->to_acodec_regmap, 0, update_bits_msk, update_bits);
 	/* if toacodec_en is separated, need do:
 	 * step1: enable/disable mclk
 	 * step2: enable/disable bclk
 	 * step3: enable/disable dat
 	 */
 	if (aml_acodec->chipinfo->separate_toacodec_en) {
-		audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0, 0x20000000, 0x1 << 29);
-		audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0, 0x40000000, 0x1 << 30);
+		regmap_update_bits(aml_acodec->to_acodec_regmap, 0, 0x20000000, 0x1 << 29);
+		regmap_update_bits(aml_acodec->to_acodec_regmap, 0, 0x40000000, 0x1 << 30);
 	}
-	audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0, 0x80000000, 0x1 << 31);
+
+	regmap_update_bits(aml_acodec->to_acodec_regmap, 0, 0x80000000, 0x1 << 31);
+	regmap_read(aml_acodec->to_acodec_regmap, 0, &val);
 
 	pr_info("%s, is_bclk_cap_inv %s\n", __func__,
 		aml_acodec->chipinfo->is_bclk_cap_inv ? "true" : "false");
@@ -1000,23 +1001,52 @@ static int tl1_acodec_set_toacodec(struct tl1_acodec_priv *aml_acodec)
 	pr_info("%s, is_lrclk_inv %s\n", __func__,
 		aml_acodec->chipinfo->is_lrclk_inv ? "true" : "false");
 	pr_info("%s read EE_AUDIO_TOACODEC_CTRL0=0x%08x\n", __func__,
-		audiobus_read(EE_AUDIO_TOACODEC_CTRL0));
+		val);
 
 	return 0;
+}
+
+static struct regmap *regmap_resource(struct device *dev, char *name)
+{
+	struct resource res;
+	void __iomem *base;
+	struct device_node *node = dev->of_node;
+	static struct regmap_config aud_regmap_config = {
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.cache_type = REGCACHE_RBTREE,
+	};
+	int i;
+
+	i = of_property_match_string(node, "reg-names", name);
+	if (of_address_to_resource(node, i, &res))
+		return ERR_PTR(-ENOENT);
+
+	base = devm_ioremap_resource(dev, &res);
+	if (IS_ERR(base))
+		return ERR_CAST(base);
+
+	pr_info("%s, %s, start:%#x, size:%#x\n",
+		__func__, name, (u32)res.start, (u32)resource_size(&res));
+
+	aud_regmap_config.max_register = resource_size(&res) - 4;
+	aud_regmap_config.name =
+		devm_kasprintf(dev, GFP_KERNEL, "%s-%s", node->name, name);
+	if (!aud_regmap_config.name)
+		return ERR_PTR(-ENOMEM);
+
+	return devm_regmap_init_mmio(dev, base, &aud_regmap_config);
 }
 
 static int aml_tl1_acodec_probe(struct platform_device *pdev)
 {
 	struct tl1_acodec_priv *aml_acodec;
 	struct tl1_acodec_chipinfo *p_chipinfo;
-	struct resource *res_mem;
-	struct device_node *np;
-	void __iomem *regs;
+	struct regmap *regmap;
 	int ret = 0;
 
 	dev_info(&pdev->dev, "%s\n", __func__);
-
-	np = pdev->dev.of_node;
 
 	aml_acodec = devm_kzalloc
 			(&pdev->dev,
@@ -1032,18 +1062,18 @@ static int aml_tl1_acodec_probe(struct platform_device *pdev)
 
 	aml_acodec->chipinfo = p_chipinfo;
 
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res_mem)
-		return -ENODEV;
+	/* Don't change the regmaps order, it will affect the components regmap */
+	aml_acodec->to_acodec_regmap = regmap_resource(&pdev->dev, "to_acodec");
+	if (IS_ERR(aml_acodec->to_acodec_regmap)) {
+		dev_err(&pdev->dev, "miss to_acodec regmap\n");
+		return PTR_ERR(aml_acodec->to_acodec_regmap);
+	}
 
-	regs = devm_ioremap_resource(&pdev->dev, res_mem);
-	if (IS_ERR(regs))
-		return PTR_ERR(regs);
-
-	aml_acodec->regmap = devm_regmap_init_mmio
-			(&pdev->dev, regs, &tl1_acodec_regmap_config);
-	if (IS_ERR(aml_acodec->regmap))
-		return PTR_ERR(aml_acodec->regmap);
+	regmap = regmap_resource(&pdev->dev, "acodec");
+	if (IS_ERR(regmap)) {
+		dev_err(&pdev->dev, "miss acodec regmap\n");
+		return PTR_ERR(regmap);
+	}
 
 	aml_acodec->acodec_clk = devm_clk_get(&pdev->dev, "acodec_clk");
 	if (!IS_ERR(aml_acodec->acodec_clk))

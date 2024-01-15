@@ -598,6 +598,61 @@ struct tdm_chipinfo p1_tdmd_chipinfo = {
 	.use_arb = true,
 };
 
+struct tdm_chipinfo a4_tdma_chipinfo = {
+	.id          = TDM_A,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = false,
+	.adc_fn      = true,
+	.lane_cnt    = LANE_MAX1,
+	.out_reset_reg_offset = 0xa,
+	.out_reset_reg_shift = 12,
+	.async_fifo  = true,
+	.tdmin_srcs = &tdmin_srcs_v3[0],
+	.slot_num_en = true,
+	.chnum_en = false,
+	.gain_ver = GAIN_VER3,
+	.use_arb = false,
+	.regulator = true,
+};
+
+struct tdm_chipinfo a4_tdmb_chipinfo = {
+	.id          = TDM_B,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = false,
+	.adc_fn      = true,
+	.lane_cnt    = LANE_MAX3,
+	.out_reset_reg_offset = 0xa,
+	.out_reset_reg_shift = 12,
+	.async_fifo  = true,
+	.tdmin_srcs = &tdmin_srcs_v3[0],
+	.slot_num_en = true,
+	.chnum_en = false,
+	.gain_ver = GAIN_VER3,
+	.use_arb = false,
+	.regulator = true,
+};
+
+struct tdm_chipinfo a4_tdmc_chipinfo = {
+	.id          = TDM_C,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = false,
+	.adc_fn      = true,
+	.lane_cnt    = LANE_MAX3,
+	.out_reset_reg_offset = 0xa,
+	.out_reset_reg_shift = 12,
+	.async_fifo  = true,
+	.tdmin_srcs = &tdmin_srcs_v3[0],
+	.slot_num_en = true,
+	.chnum_en = false,
+	.gain_ver = GAIN_VER3,
+	.use_arb = false,
+	.use_vadtop = true,
+	.regulator = true,
+};
+
 struct tdm_chipinfo a5_tdma_chipinfo = {
 	.id          = TDM_A,
 	.sclk_ws_inv = true,
@@ -930,6 +985,18 @@ static const struct of_device_id aml_tdm_device_id[] = {
 	{
 		.compatible = "amlogic, p1-snd-tdmd",
 		.data       = &p1_tdmd_chipinfo,
+	},
+	{
+		.compatible = "amlogic, a4-snd-tdma",
+		.data       = &a4_tdma_chipinfo,
+	},
+	{
+		.compatible = "amlogic, a4-snd-tdmb",
+		.data       = &a4_tdmb_chipinfo,
+	},
+	{
+		.compatible = "amlogic, a4-snd-tdmc",
+		.data       = &a4_tdmc_chipinfo,
 	},
 	{
 		.compatible = "amlogic, a5-snd-tdma",

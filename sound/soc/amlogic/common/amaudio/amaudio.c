@@ -295,7 +295,6 @@ ATTRIBUTE_GROUPS(amaudio_class);
 static struct class amaudio_class = {
 	.name		= AMAUDIO_CLASS_NAME,
 	.class_groups	= amaudio_class_groups,
-	//.class_attrs	= amaudio_attrs,
 };
 
 static int amaudio_probe(struct platform_device *pdev)

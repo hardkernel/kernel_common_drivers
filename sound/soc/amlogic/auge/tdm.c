@@ -2068,7 +2068,8 @@ static int aml_dai_set_tdm_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 
-	return aml_tdm_set_fmt(p_tdm, fmt, snd_soc_dai_stream_active(cpu_dai, 1));
+	return aml_tdm_set_fmt(p_tdm, fmt,
+		snd_soc_dai_stream_active(cpu_dai, SNDRV_PCM_STREAM_CAPTURE));
 }
 
 static int aml_dai_set_bclk_ratio(struct snd_soc_dai *cpu_dai,
@@ -2252,7 +2253,7 @@ static int aml_set_default_tdm_clk(struct aml_tdm *p_tdm)
 	int fmt = SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_I2S
 	| SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CONT;
 
-	aml_tdm_set_fmt(p_tdm, fmt, 1);
+	aml_tdm_set_fmt(p_tdm, fmt, true);
 	/*set default i2s clk for codec sequence*/
 
 	/*set default i2s clk for codec sequence*/

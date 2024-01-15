@@ -15,6 +15,7 @@
 #include <linux/mutex.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -38,6 +39,7 @@ struct t9015_acodec_chipinfo {
 struct aml_T9015_audio_priv {
 	struct snd_soc_component *component;
 	struct snd_pcm_hw_params *params;
+	struct regmap *to_acodec_regmap;
 
 	/* tocodec ctrl supports in and out data */
 	bool tocodec_inout;
@@ -378,6 +380,63 @@ static int aml_T9015_codec_mute_stream(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static void toacodec_ctrl(struct aml_T9015_audio_priv *priv)
+{
+	int id = priv->tdmout_index;
+
+	// TODO: check skew for g12a
+	regmap_write(priv->to_acodec_regmap, 0,
+		       1 << 31 |
+		       ((id << 2)) << 12 | /* data 0*/
+		       id << 8 | /* lrclk */
+		       1 << 7 |         /* Bclk_cap_inv*/
+		       id << 4 | /* bclk */
+		       id /* mclk */
+	);
+}
+
+static void toacodec_ctrl_ext(struct aml_T9015_audio_priv *priv)
+{
+	int tdmout_id = priv->tdmout_index;
+	int ch0_sel = priv->ch0_sel;
+	int ch1_sel = priv->ch1_sel;
+	bool separate = priv->chipinfo->separate_toacodec_en;
+	int data_sel_shift = priv->chipinfo->data_sel_shift;
+
+	regmap_write(priv->to_acodec_regmap, 0,
+		tdmout_id << 12          /* lrclk */
+		| 1 << 9                   /* Bclk_cap_inv*/
+		| tdmout_id << 4           /* bclk */
+		| tdmout_id << 0           /* mclk */
+		);
+
+	if (data_sel_shift == DATA_SEL_SHIFT_VERSION0)
+		regmap_update_bits(priv->to_acodec_regmap, 0,
+			0xf << 20 | 0xf << 16,
+			((tdmout_id << 2) + ch1_sel) << 20 | ((tdmout_id << 2) + ch0_sel) << 16);
+	else
+		regmap_update_bits(priv->to_acodec_regmap, 0,
+			0x1f << 22 | 0x1f << 16,
+			((tdmout_id << 3) + ch1_sel) << 22 | ((tdmout_id << 3) + ch0_sel) << 16);
+
+	/* if toacodec_en is separated, need do:
+	 * step1: enable/disable mclk
+	 * step2: enable/disable bclk
+	 * step3: enable/disable dat
+	 */
+	if (separate) {
+		regmap_update_bits(priv->to_acodec_regmap, 0,
+				     0x1 << 29,
+				     0x1 << 29);
+		regmap_update_bits(priv->to_acodec_regmap, 0,
+				     0x1 << 30,
+				     0x1 << 30);
+	}
+
+	regmap_update_bits(priv->to_acodec_regmap, 0,
+			0x1 << 31, 0x1 << 31);
+}
+
 static int aml_T9015_audio_probe(struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_context *dapm =
@@ -398,13 +457,9 @@ static int aml_T9015_audio_probe(struct snd_soc_component *component)
 	aml_T9015_audio_reg_init(component);
 
 	if (T9015_audio->tocodec_inout)
-		auge_toacodec_ctrl_ext(T9015_audio->tdmout_index,
-				       T9015_audio->ch0_sel,
-				       T9015_audio->ch1_sel,
-				       T9015_audio->chipinfo->separate_toacodec_en,
-				       T9015_audio->chipinfo->data_sel_shift);
+		toacodec_ctrl_ext(T9015_audio);
 	else
-		auge_toacodec_ctrl(T9015_audio->tdmout_index);
+		toacodec_ctrl(T9015_audio);
 
 	component->dapm.bias_level = SND_SOC_BIAS_STANDBY;
 	T9015_audio->component = component;
@@ -438,13 +493,9 @@ static int aml_T9015_audio_resume(struct snd_soc_component *component)
 	aml_T9015_audio_reg_init(component);
 
 	if (T9015_audio->tocodec_inout)
-		auge_toacodec_ctrl_ext(T9015_audio->tdmout_index,
-				       T9015_audio->ch0_sel,
-				       T9015_audio->ch1_sel,
-				       T9015_audio->chipinfo->separate_toacodec_en,
-				       T9015_audio->chipinfo->data_sel_shift);
+		toacodec_ctrl_ext(T9015_audio);
 	else
-		auge_toacodec_ctrl(T9015_audio->tdmout_index);
+		toacodec_ctrl(T9015_audio);
 
 	component->dapm.bias_level = SND_SOC_BIAS_STANDBY;
 	aml_T9015_audio_set_bias_level(component, SND_SOC_BIAS_STANDBY);
@@ -510,14 +561,45 @@ static const struct regmap_config t9015_codec_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+static struct regmap *regmap_resource(struct device *dev, char *name)
+{
+	struct resource res;
+	void __iomem *base;
+	struct device_node *node = dev->of_node;
+	static struct regmap_config aud_regmap_config = {
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.cache_type = REGCACHE_RBTREE,
+	};
+	int i;
+
+	i = of_property_match_string(node, "reg-names", name);
+	if (of_address_to_resource(node, i, &res))
+		return ERR_PTR(-ENOENT);
+
+	base = devm_ioremap_resource(dev, &res);
+	if (IS_ERR(base))
+		return ERR_CAST(base);
+
+	pr_info("%s, %s, start:%#x, size:%#x\n",
+		__func__, name, (u32)res.start, (u32)resource_size(&res));
+
+	aud_regmap_config.max_register = resource_size(&res) - 4;
+	aud_regmap_config.name =
+		devm_kasprintf(dev, GFP_KERNEL, "%s-%s", node->name, name);
+	if (!aud_regmap_config.name)
+		return ERR_PTR(-ENOMEM);
+
+	return devm_regmap_init_mmio(dev, base, &aud_regmap_config);
+}
+
 static int aml_T9015_audio_codec_probe(struct platform_device *pdev)
 {
-	struct resource *res_mem;
-	void __iomem *regs;
-	struct regmap *regmap;
 	struct aml_T9015_audio_priv *T9015_audio;
 	int ret = 0;
 	struct t9015_acodec_chipinfo *p_chipinfo;
+	struct regmap *regmap;
 
 	dev_info(&pdev->dev, "%s\n", __func__);
 
@@ -539,17 +621,17 @@ static int aml_T9015_audio_codec_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, T9015_audio);
 
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res_mem)
-		return -ENODEV;
+	T9015_audio->to_acodec_regmap = regmap_resource(&pdev->dev, "to_acodec");
+	if (IS_ERR(T9015_audio->to_acodec_regmap)) {
+		dev_err(&pdev->dev, "miss to_acodec regmap\n");
+		return PTR_ERR(T9015_audio->to_acodec_regmap);
+	}
 
-	regs = devm_ioremap_resource(&pdev->dev, res_mem);
-	if (IS_ERR(regs))
-		return PTR_ERR(regs);
-
-	regmap = devm_regmap_init_mmio(&pdev->dev, regs,
-				       &t9015_codec_regmap_config);
-
+	regmap = regmap_resource(&pdev->dev, "acodec");
+	if (IS_ERR(regmap)) {
+		dev_err(&pdev->dev, "miss acodec regmap\n");
+		return PTR_ERR(regmap);
+	}
 
 	T9015_audio->tocodec_inout = of_property_read_bool(pdev->dev.of_node,
 							   "tocodec_inout");
@@ -568,9 +650,6 @@ static int aml_T9015_audio_codec_probe(struct platform_device *pdev)
 
 	pr_info("T9015 acodec tdmout index:%d\n",
 		T9015_audio->tdmout_index);
-
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &soc_codec_dev_aml_T9015_audio,

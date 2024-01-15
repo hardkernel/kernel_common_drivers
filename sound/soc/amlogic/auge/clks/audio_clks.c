@@ -62,6 +62,10 @@ static const struct of_device_id audio_clocks_of_match[] = {
 		.data		= &p1_audio_clks_init,
 	},
 	{
+		.compatible = "amlogic, a4-audio-clocks",
+		.data       = &a4_audio_clks_init,
+	},
+	{
 		.compatible = "amlogic, a5-audio-clocks",
 		.data       = &a5_audio_clks_init,
 	},
