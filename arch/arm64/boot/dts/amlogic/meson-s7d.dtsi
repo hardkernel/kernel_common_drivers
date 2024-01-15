@@ -1591,9 +1591,9 @@
 			"mailbox_1",
 			"mailbox_2",
 			"parser_b";
-		power-domains = <&pwrdm PDID_S7_DOS_VDEC>,
-			<&pwrdm PDID_S7_DOS_HEVC>,
-			<&pwrdm PDID_S7_DOS_HCODEC>;
+		power-domains = <&pwrdm PDID_S7D_DOS_VDEC>,
+			<&pwrdm PDID_S7D_DOS_HEVC>,
+			<&pwrdm PDID_S7D_DOS_HCODEC>;
 		power-domain-names = "pwrc-vdec",
 			"pwrc-hevc",
 			"pwrc-hcodec";
@@ -1787,14 +1787,14 @@
 		interrupts = <0 93 1>;
 		interrupt-names = "mailbox_2";
 		reset-names = "hcodec_rst";
-		power-domains = <&pwrdm PDID_S7_DOS_HCODEC>;
+		power-domains = <&pwrdm PDID_S7D_DOS_HCODEC>;
 	};
 	jpegenc{
 		compatible = "amlogic, jpegenc";
 		dev_name = "jpegenc";
 		status = "okay";
 		clocks = <&clkc CLKID_HCODEC>;
-		power-domains = <&pwrdm PDID_S7_DOS_HCODEC>;
+		power-domains = <&pwrdm PDID_S7D_DOS_HCODEC>;
 		clock-names = "clk_jpeg_enc";
 		interrupts = <0 93 1>;
 		interrupt-names = "mailbox_2";
@@ -2142,7 +2142,7 @@
 		clock-names = "clk_vapb_0",
 			"clk_ge2d_gate";
 		reg = <0x0 0xff040000 0x0 0x100>;
-		power-domains = <&pwrdm PDID_S7_GE2D>;
+		power-domains = <&pwrdm PDID_S7D_GE2D>;
 	};
 
 	aml_bt: aml_bt {
