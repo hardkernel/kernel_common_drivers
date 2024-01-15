@@ -406,6 +406,9 @@ extern unsigned long en_fake_rcv_id;
 
 void set_hdcp2_topo(u32 topo_type);
 bool get_hdcp2_topo(void);
+void hdcptx_ctrl_gate(int hdcp_mode, bool en);
+void hdmitx21_ctrl_hdcp_gate(int hdcp_mode, bool en);
+u32 hdmitx21_get_gate_status(void);
 
 /* VRR parts */
 irqreturn_t hdmitx_vrr_vsync_handler(struct hdmitx_dev *hdev);
@@ -430,6 +433,7 @@ int likely_frac_rate_mode(const char *m);
 u32 hdmitx21_get_hdcp_mode(void);
 extern unsigned long avmute_ms;
 extern unsigned long vid_mute_ms;
+void hdmitx21_clks_gate_ctrl(bool en);
 
 /* FRL */
 struct frl_work {

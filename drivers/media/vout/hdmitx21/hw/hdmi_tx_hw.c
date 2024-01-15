@@ -431,8 +431,6 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 24, 1);
 	}
 
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)
-		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 3, 16, 2);//enable hdcp gate
 	HDMITX_INFO("%s%d\n", __func__, __LINE__);
 	if (!reset && hdmitx21_uboot_already_display()) {
 		HDMITX_INFO("uboot already displayed\n");
@@ -1063,7 +1061,7 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 	// Based on the corresponding settings in set_tv_enc.c, calculate
 	// the register values to meet the timing requirements defined in CEA-861-D
 	// --------------------------------------------------------
-	HDMITX_INFO("configure hdmitx video format timing\n");
+	HDMITX_DEBUG("configure hdmitx video format timing\n");
 
 	// [ 1: 0] hdmi_vid_fmt. 0=444; 1=convert to 422; 2=convert to 420.
 	// [ 3: 2] chroma_dnsmp_h. 0=use pixel 0; 1=use pixel 1; 2=use average.
@@ -1293,7 +1291,7 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 				hdmitx_dfm_cfg(2, 0);
 		}
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (hdev->tx_comm.rxcap.max_frl_rate)
+		if (hdev->tx_comm.rxcap.max_frl_rate && hdev->frl_rate)
 			frl_tx_training_handler(hdev);
 #endif
 	}
@@ -2622,6 +2620,9 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmitx21_set_reg_bits(HDMITX_TOP_SW_RESET, 0, 9, 1);
 		usleep_range(1000, 2000);
 		break;
+	case MISC_HDMI_CLKS_CTRL:
+		hdmitx21_clks_gate_ctrl(!!argv);
+		break;
 	case MISC_HPD_IRQ_TOP_HALF:
 		hdmitx_hpd_irq_top_half_process(hdev, !!argv);
 		break;
@@ -2757,7 +2758,7 @@ static void hdmi_phy_suspend(void)
 	 * otherwise it may poll fail lead to crash.
 	 */
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)
-		hd21_write_reg(phy_cntl3, 0xb);
+		;//for s7 suspend power test, not operate phy_ctrl3 reg
 	else
 		hd21_write_reg(phy_cntl3, 0x3);
 	hd21_write_reg(phy_cntl5, 0x800);
@@ -2820,7 +2821,6 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	dp_color_depth = (output_color_format == HDMI_COLORSPACE_YUV422) ?
 				COLORDEPTH_24B : color_depth;
 
-	HDMITX_INFO("configure hdmitx21\n");
 	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, 0);
 	/*tmds_clk_div40 & scrambler_en already calculate in building format_para*/
 	hdmitx_set_div40(para->tmds_clk_div40);
@@ -3277,15 +3277,9 @@ static void pkt_send_position_change(u32 enable_mask, u8 mov_val)
 //for test
 void hdmitx21_write_dhdr_sram(void)
 {
-	u32 data32;
 	u8 data8;
 	int i, h;
 
-	//force reset
-	data32 = hdmitx21_rd_reg(HDMITX_TOP_SW_RESET);
-	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, data32 & 0xfffffffe);
-	//open sel
-	hdmitx21_wr_reg(HDMITX_TOP_SEC_SCRATCH, data32 | 0x00000001);
 	hdmitx21_wr_reg(D_HDR_INSERT_PAYLOAD_1_IVCTX, 0xff); //payload [15:8] ==> pb5 length msb
 	hdmitx21_wr_reg(D_HDR_INSERT_PAYLOAD_0_IVCTX, 0xff); //payload [7:0] ==> pb6 length lsb
 	hdmitx21_wr_reg(D_HDR_GEN_CTL_IVCTX, 1); //mux src path
@@ -3305,15 +3299,9 @@ void hdmitx21_write_dhdr_sram(void)
 void hdmitx21_read_dhdr_sram(void)
 {
 	u8 rd_data8;
-	u32 data32;
 	int i, h;
 
 	HDMITX_DEBUG("read start\n");
-	//force reset
-	data32 = hdmitx21_rd_reg(HDMITX_TOP_SW_RESET);
-	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, data32 & 0xfffffffe);
-	//open sel
-	hdmitx21_wr_reg(HDMITX_TOP_SEC_SCRATCH, data32 | 0x00000001);
 
 	hdmitx21_set_reg_bits(D_HDR_GEN_CTL_IVCTX, 1, 3, 1); //reset
 	hdmitx21_wr_reg(D_HDR_GEN_CTL_IVCTX, 1); //mux src path
@@ -3328,12 +3316,6 @@ void hdmitx21_read_dhdr_sram(void)
 		}
 	}
 	hdmitx21_wr_reg(D_HDR_MEM_READ_EN_IVCTX, 0);  //close x_fifo debug path
-	//release rst
-	data32 = hdmitx21_rd_reg(HDMITX_TOP_SW_RESET);
-	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, data32 | 0x00000001);
-	//close sel
-	data32 = hdmitx21_rd_reg(HDMITX_TOP_SEC_SCRATCH);
-	hdmitx21_wr_reg(HDMITX_TOP_SEC_SCRATCH, data32 & 0xfffffffe);
 	HDMITX_DEBUG("read end\n");
 }
 

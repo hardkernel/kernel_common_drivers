@@ -116,6 +116,7 @@ static void dumpcor(struct seq_file *s, u32 start, u32 end)
 static int dump_hdmireg_show(struct seq_file *s, void *p)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	u32 gate_status;
 
 	seq_puts(s, "\n--------HDMITX registers--------\n");
 	// 0xfe300000 ~ 0xfe300000 + (0x041 << 2)
@@ -144,9 +145,14 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	dumpcor(s, CP2TX_CTRL_0_IVCTX, CP2TX_IPT_CTR_39TO32_IVCTX);
 	// 0x000008a0 - 0x000008d0
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) {
-		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 1, 16, 2);//enable hdcp2x gate
-		dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
-		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 0, 16, 1);//disable hdcp2x gate
+		gate_status = hdmitx21_get_gate_status();
+		if (gate_status & BIT_HDMITX_TOP_CLK_GATE_HDCP2X) {
+			dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
+		} else {
+			hdmitx21_ctrl_hdcp_gate(2, true);
+			dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
+			hdmitx21_ctrl_hdcp_gate(2, false);
+		}
 	} else {
 		dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
 	}

@@ -421,3 +421,27 @@ void hdcptx1_query_aksv(struct hdcp_ksv_t *p_val)
 {
 	hdmitx21_seq_rd_reg(AKSV_1_IVCTX, p_val->b, KSV_SIZE);
 }
+
+void hdcptx_ctrl_gate(int hdcp_mode, bool en)
+{
+	if (hdcp_mode == 1) {
+		hdmitx21_set_bit(HDMITX_TOP_CLK_GATE, BIT_HDMITX_TOP_CLK_GATE_HDCP1X, en);
+		HDMITX_DEBUG("hdcp1x gate %d\n", en);
+	} else if (hdcp_mode == 2) {
+		hdmitx21_set_bit(HDMITX_TOP_CLK_GATE, BIT_HDMITX_TOP_CLK_GATE_HDCP2X, en);
+		HDMITX_DEBUG("hdcp2x gate %d\n", en);
+	} else if (hdcp_mode == 0) {
+		hdmitx21_set_bit(HDMITX_TOP_CLK_GATE, BIT_HDMITX_TOP_CLK_GATE_HDCP1X, en);
+		hdmitx21_set_bit(HDMITX_TOP_CLK_GATE, BIT_HDMITX_TOP_CLK_GATE_HDCP2X, en);
+		HDMITX_DEBUG("hdcp gate %d\n", en);
+	}
+}
+
+u32 hdmitx21_get_gate_status(void)
+{
+	int status = 0;
+
+	status = hdmitx21_rd_reg(HDMITX_TOP_CLK_GATE);
+	return status;
+}
+

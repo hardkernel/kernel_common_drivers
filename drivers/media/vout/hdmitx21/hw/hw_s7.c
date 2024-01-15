@@ -233,3 +233,49 @@ void set21_hpll_sspll_s7(enum hdmi_vic vic)
 	}
 }
 
+/* CLKCTRL_HTX_CLK_CTRL0 bit8 gate for cts_hdmitx_prif_clk
+ * it's necessary for register access of controller
+ * CLKCTRL_HTX_CLK_CTRL0 bit24 gate for cts_hdmitx_200m_clk
+ * it's necessary for i2c clk
+ * CLKCTRL_HDMI_CLK_CTRL bit8 gate for cts_hdmitx_sys_clk
+ * it's necessary for register access of hdmitx top
+ */
+static int gate_bit_mask = 0x01c7f;
+module_param(gate_bit_mask, int, 0644);
+MODULE_PARM_DESC(gate_bit_mask, "for hdcp debug");
+
+void hdmitx_s7_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en)
+{
+	HDMITX_INFO("hdmitx_s7_clock_gate %d\n", en);
+	if (gate_bit_mask & BIT(1))
+		hd21_set_reg_bits(CLKCTRL_VID_PLL_CLK0_DIV, en, 19, 1);
+	if (gate_bit_mask & BIT(2))
+		hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, en, 4, 1);
+	if (gate_bit_mask & BIT(3))
+		hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, en, 20, 1);
+	if (gate_bit_mask & BIT(4))
+		hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, en, 12, 1);
+	if (gate_bit_mask & BIT(5))
+		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, en, 3, 1);
+	if (gate_bit_mask & BIT(6))
+		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, en, 8, 1);
+	if (gate_bit_mask & BIT(7))
+		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL0, en, 24, 1);
+	if (gate_bit_mask & BIT(8))
+		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL0, en, 8, 1);
+	if (gate_bit_mask & BIT(9))
+		hd21_set_reg_bits(CLKCTRL_HDMI_CLK_CTRL, en, 8, 1);
+
+	if (gate_bit_mask & BIT(10)) {/* this will enable during the mode setting */
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x0);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x0);
+	}
+	if (gate_bit_mask & BIT(11)) {// power off need
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x304efc1b);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0xc1b);
+	}
+	usleep_range(1, 10);
+	if (gate_bit_mask & BIT(12)) /* this will enable during the pll setting */
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x0);
+}
+

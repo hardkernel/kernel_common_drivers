@@ -2518,6 +2518,7 @@ static ssize_t hdcp_mode_store(struct device *dev,
 			HDMITX_ERROR("warning, efuse disable hdcptx14\n");
 			return count;
 		}
+		hdmitx21_ctrl_hdcp_gate(1, true);
 		hdev->tx_comm.hdcp_mode = 0x1;
 		hdcp_mode_set(1);
 	}
@@ -2526,12 +2527,14 @@ static ssize_t hdcp_mode_store(struct device *dev,
 			HDMITX_ERROR("warning, efuse disable hdcptx22\n");
 			return count;
 		}
+		hdmitx21_ctrl_hdcp_gate(2, true);
 		hdev->tx_comm.hdcp_mode = 0x2;
 		hdcp_mode_set(2);
 	}
 	if (buf[0] == '0') {
 		hdev->tx_comm.hdcp_mode = 0x00;
 		hdcp_mode_set(0);
+		hdmitx21_ctrl_hdcp_gate(0, false);
 	}
 
 	return count;
@@ -4246,6 +4249,14 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void hdmitx_clk_ctrl(struct hdmitx_dev *hdev, bool en)
+{
+	if (!hdev)
+		return;
+
+	hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_HDMI_CLKS_CTRL, en);
+}
+
 static void amhdmitx_shutdown(struct platform_device *pdev)
 {
 	struct hdmitx_dev *hdev = dev_get_drvdata(&pdev->dev);
@@ -4254,6 +4265,7 @@ static void amhdmitx_shutdown(struct platform_device *pdev)
 		hdmitx21_disable_hdcp(hdev);
 		return;
 	}
+	hdmitx_clk_ctrl(hdev, 0);
 }
 
 #ifdef CONFIG_PM
@@ -4262,6 +4274,7 @@ static int amhdmitx_suspend(struct platform_device *pdev,
 {
 	struct hdmitx_dev *hdev = dev_get_drvdata(&pdev->dev);
 
+	hdmitx_clk_ctrl(hdev, 0);
 	/* if HPD is high before suspend, and there were hpd
 	 * plugout -> in event happened in deep suspend stage,
 	 * now resume and stay in early resume stage, still
@@ -4282,6 +4295,7 @@ static int amhdmitx_resume(struct platform_device *pdev)
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
 
 	HDMITX_INFO("amhdmitx: resume\n");
+	hdmitx_clk_ctrl(hdev, 1);
 	mutex_lock(&tx_comm->hdmimode_mutex);
 	/* need to update EDID in case TV changed during suspend */
 	tx_comm->hpd_state = !!(hdmitx_hw_cntl_misc(tx_hw_base, MISC_HPD_GPI_ST, 0));
@@ -4412,7 +4426,7 @@ static unsigned int drm_hdmitx_get_tx_hdcp_cap(void)
 	if (get_hdcp1_lstore())
 		lstore |= HDCP_MODE14;
 
-	HDMITX_INFO("%s tx hdcp [%d]\n", __func__, lstore);
+	HDMITX_DEBUG("%s tx hdcp [%d]\n", __func__, lstore);
 	return lstore;
 }
 
@@ -4438,7 +4452,7 @@ unsigned int drm_hdmitx_get_rx_hdcp_cap(void)
 		rxhdcp = HDCP_MODE14;
 	}
 
-	HDMITX_INFO("%s rx hdcp [%d]\n", __func__, rxhdcp);
+	HDMITX_DEBUG("%s rx hdcp [%d]\n", __func__, rxhdcp);
 	return rxhdcp;
 }
 

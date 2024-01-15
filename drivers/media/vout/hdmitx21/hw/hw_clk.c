@@ -190,6 +190,23 @@ static void set_hpll_clk_out(u32 clk)
 	HDMITX_INFO("config HPLL done\n");
 }
 
+void hdmitx21_clks_gate_ctrl(bool en)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	switch (hdev->tx_hw.chip_data->chip_type) {
+	case MESON_CPU_ID_S7:
+		hdmitx_s7_clock_gate_ctrl(hdev, en);
+		break;
+	case MESON_CPU_ID_S5:
+	//	hdmitx_s5_clock_gate_ctrl(hdev, en);
+		break;
+	case MESON_CPU_ID_T7:
+	default:
+		break;
+	}
+}
+
 /* HERE MUST BE BIT OPERATION!!! */
 static void set_hpll_sspll(enum hdmi_vic vic)
 {

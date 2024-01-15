@@ -167,34 +167,40 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev) //s7 todo
 
 	if (hdev->lstore == 0) {
 		if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
-			//s7 todo
 			// enable hdcp gate
+			hdmitx21_ctrl_hdcp_gate(2, true);
 			hdev->tx_comm.hdcp_mode = 2;
 			rx_hdcp2_ver = 1;
 			hdcp_mode_set(2);
 		} else {
 			rx_hdcp2_ver = 0;
 			if (get_hdcp1_lstore()) {
+				hdmitx21_ctrl_hdcp_gate(1, true);
 				hdev->tx_comm.hdcp_mode = 1;
 				hdcp_mode_set(1);
 			} else {
+				hdmitx21_ctrl_hdcp_gate(0, false);
 				hdev->tx_comm.hdcp_mode = 0;
 			}
 		}
 	} else if (hdev->lstore & 0x2) {
 		if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
+			hdmitx21_ctrl_hdcp_gate(2, true);
 			hdev->tx_comm.hdcp_mode = 2;
 			rx_hdcp2_ver = 1;
 			hdcp_mode_set(2);
 		} else {
+			hdmitx21_ctrl_hdcp_gate(0, false);
 			rx_hdcp2_ver = 0;
 			hdev->tx_comm.hdcp_mode = 0;
 		}
 	} else if (hdev->lstore & 0x1) {
 		if (get_hdcp1_lstore()) {
+			hdmitx21_ctrl_hdcp_gate(1, true);
 			hdev->tx_comm.hdcp_mode = 1;
 			hdcp_mode_set(1);
 		} else {
+			hdmitx21_ctrl_hdcp_gate(0, false);
 			hdev->tx_comm.hdcp_mode = 0;
 		}
 	} else {
@@ -219,6 +225,7 @@ void hdmitx21_disable_hdcp(struct hdmitx_dev *hdev)
 		hdev->tx_comm.hdcp_mode = 0;
 		hdcp_mode_set(0);
 		mdelay(10);
+		hdmitx21_ctrl_hdcp_gate(0, false);
 	}
 	mutex_unlock(&hdcp_mutex);
 }
@@ -1090,7 +1097,7 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 	hdcp1xcoppst = hdcptx1_copp_status_get(); // 0x629
 	prime_ri = hdcptx1_get_prime_ri(); // 0x222 0x223
 	pr_hdcp_info(L_2, "%s[%d] hdcp1xauthintst 0x%x hdcp1xcoppst 0x%x Ri 0x%x\n",
-		__func__, __LINE__, hdcp1xauthintst, hdcp1xcoppst, prime_ri);
+			__func__, __LINE__, hdcp1xauthintst, hdcp1xcoppst, prime_ri);
 	if ((hdcp1xauthintst & BIT_TPI_INTR_ST0_BKSV_ERR) ||
 		(hdcp1xauthintst & BIT_TPI_INTR_ST0_BKSV_BCAPS_ERR))
 		hdcptx_update_failures(p_hdcp, HDCP_FAIL_BKSV_RXID);
@@ -1867,6 +1874,19 @@ static int  hdmitx21_hdcp_stat_monitor(void *data)
 		msleep_interruptible(100);
 	}
 	return 0;
+}
+
+void hdmitx21_ctrl_hdcp_gate(int hdcp_mode, bool en)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	switch (hdev->tx_hw.chip_data->chip_type) {
+	case MESON_CPU_ID_S7:
+		hdcptx_ctrl_gate(hdcp_mode, en);
+		break;
+	default:
+		break;
+	}
 }
 
 int hdmitx21_hdcp_init(void)
