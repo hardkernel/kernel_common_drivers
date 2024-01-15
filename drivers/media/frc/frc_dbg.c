@@ -41,8 +41,6 @@
 #include "frc_rdma.h"
 
 int frc_dbg_ctrl;
-__module_param(frc_dbg_ctrl, int, 0664);
-MODULE_PARM_DESC(frc_dbg_ctrl, "frc_dbg_ctrl");
 
 static void frc_debug_parse_param(char *buf_orig, char **parm)
 {
@@ -918,6 +916,22 @@ void frc_debug_param_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			frc_chg_loss_slice_num(val1);
+	} else if (!strcmp(parm[0], "enable_cnt")) {
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_enable_cnt = (int)val1;
+		pr_frc(0, "frc_enable_cnt=%d\n", frc_enable_cnt);
+	} else if (!strcmp(parm[0], "disable_cnt")) {
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_disable_cnt = (int)val1;
+		pr_frc(0, "frc_disable_cnt=%d\n", frc_disable_cnt);
+	} else if (!strcmp(parm[0], "re_cfg_cnt")) {
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_re_cfg_cnt = (int)val1;
+		pr_frc(0, "frc_re_cfg_cnt=%d\n", frc_re_cfg_cnt);
+	} else if (!strcmp(parm[0], "dbg_ctrl")) {
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_dbg_ctrl = (int)val1;
+		pr_frc(0, "frc_dbg_ctrl=%d\n", frc_dbg_ctrl);
 	}
 exit:
 	kfree(buf_orig);

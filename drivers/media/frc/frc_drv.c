@@ -101,9 +101,7 @@ const struct frm_dly_dat_s chip_frc_frame_dly[3][4] = {
 static struct frc_dev_s frc_dev;
 
 int frc_dbg_en;
-EXPORT_SYMBOL(frc_dbg_en);
-__module_param(frc_dbg_en, int, 0664);
-MODULE_PARM_DESC(frc_dbg_en, "frc debug level");
+
 struct platform_device *runtime_frc_dev;
 
 struct frc_dev_s *get_frc_devp(void)

@@ -11,6 +11,9 @@ extern u32 g_input_hsize;
 extern u32 g_input_vsize;
 extern int frc_dbg_en;
 extern int frc_dbg_ctrl;
+extern int frc_enable_cnt;
+extern int frc_disable_cnt;
+extern int frc_re_cfg_cnt;
 
 ssize_t frc_reg_show(const struct class *class,
 			const struct class_attribute *attr,

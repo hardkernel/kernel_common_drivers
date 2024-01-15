@@ -53,6 +53,7 @@
 
 #define FRAME_RATE_CNT      16
 #define FRC_DBG_DUMP_TABLE_NUM       18
+#define FRC_PARAM_NUM       8
 
 extern void __iomem *frc_clk_base;
 extern void __iomem *vpu_base;

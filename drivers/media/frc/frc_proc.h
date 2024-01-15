@@ -28,6 +28,10 @@ enum vf_sts {
 	VFRAME_HAVE = 1,
 };
 
+extern int frc_enable_cnt;
+extern int frc_disable_cnt;
+extern int frc_re_cfg_cnt;
+
 irqreturn_t frc_input_isr(int irq, void *dev_id);
 irqreturn_t frc_output_isr(int irq, void *dev_id);
 irqreturn_t frc_axi_crash_isr(int irq, void *dev_id);
@@ -69,7 +73,6 @@ void frc_char_flash_check(void);
 void frc_chk_vd_sts_chg(struct frc_dev_s *frc_devp,
 				struct vframe_s *vf);
 u16 frc_check_film_mode(struct frc_dev_s *frc_devp);
-void frc_check_secure_mode(struct vframe_s *vf, struct frc_dev_s *devp);
 void frc_input_size_align_check(struct frc_dev_s *devp);
 int get_chip_type(void);
 void frc_set_seamless_proc(u32 seamless);

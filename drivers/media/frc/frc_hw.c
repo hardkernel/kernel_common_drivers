@@ -45,10 +45,6 @@ void __iomem *vpu_base;
 
 struct stvlock_frc_param gst_frc_param;
 
-int FRC_PARAM_NUM = 8;
-__module_param(FRC_PARAM_NUM, int, 0664);
-MODULE_PARM_DESC(FRC_PARAM_NUM, "FRC_PARAM_NUM");
-
 const struct vf_rate_table vf_rate_table[FRAME_RATE_CNT] = {
 	{800,   FRC_VD_FPS_120},
 	{801,   FRC_VD_FPS_120},

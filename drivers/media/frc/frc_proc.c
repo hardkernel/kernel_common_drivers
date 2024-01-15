@@ -52,20 +52,8 @@
 #include "frc_rdma.h"
 
 int frc_enable_cnt = 1;
-__module_param(frc_enable_cnt, int, 0664);
-MODULE_PARM_DESC(frc_enable_cnt, "frc enable counter");
-
 int frc_disable_cnt = 1;
-__module_param(frc_disable_cnt, int, 0664);
-MODULE_PARM_DESC(frc_disable_cnt, "frc disable counter");
-
 int frc_re_cfg_cnt = 3;/*need bigger than frc_disable_cnt 3, 15*/
-__module_param(frc_re_cfg_cnt, int, 0664);
-MODULE_PARM_DESC(frc_re_cfg_cnt, "frc reconfig counter");
-
-int sec_flag;
-__module_param(sec_flag, int, 0664);
-MODULE_PARM_DESC(sec_flag, "frc debug flag");
 
 u32 secure_tee_handle;
 
@@ -2175,44 +2163,6 @@ u16 frc_check_film_mode(struct frc_dev_s *frc_devp)
 	//else
 	//	frc_top->film_mode  = EN_DRV_VIDEO;
 	return (u16)(frc_top->film_mode);
-}
-
-void frc_check_secure_mode(struct vframe_s *vf, struct frc_dev_s *devp)
-{
-	u32 temp;
-	enum chip_id chip;
-	static int secure_mode;
-
-	chip = get_chip_type();
-
-	if (chip == ID_T3) {
-		if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) ==
-			VFRAME_FLAG_VIDEO_SECURE)
-			devp->in_sts.secure_mode = true;
-		else
-			devp->in_sts.secure_mode = false;
-	} else if (chip == ID_T5M || chip == ID_T3X) {
-		if (!sec_flag) {
-			temp = READ_FRC_REG(FRC_RO_FRM_SEC_STAT);
-			temp = (temp >> 16) & 0xf; // 1: input frame is security
-			if (temp)
-				devp->in_sts.secure_mode = true;
-			else
-				devp->in_sts.secure_mode = false;
-		} else {
-			if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) ==
-				VFRAME_FLAG_VIDEO_SECURE)
-				devp->in_sts.secure_mode = true;
-			else
-				devp->in_sts.secure_mode = false;
-		}
-	}
-
-	if (secure_mode != devp->in_sts.secure_mode) {
-		pr_frc(0, "frc secure sts:%d, sec_flag:%d, chip:%d\n",
-			devp->in_sts.secure_mode, sec_flag, chip);
-		secure_mode = devp->in_sts.secure_mode;
-	}
 }
 
 void frc_input_size_align_check(struct frc_dev_s *devp)
