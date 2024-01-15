@@ -1143,7 +1143,7 @@
 			};
 
 			reset: reset-controller@2000 {
-				/*compatible = "amlogic,meson-sc2-reset";*/
+				compatible = "amlogic,meson-sc2-reset";
 				reg = <0x0 0x2000 0x0 0x98>;
 				#reset-cells = <1>;
 			};
@@ -1222,7 +1222,7 @@
 			ch1_sel = <1>;
 
 			reset-names = "acodec";
-			resets = <&reset RESET_ACODEC>;
+			//resets = <&reset RESET_ACODEC>;
 
 			status = "disabled";
 		};
