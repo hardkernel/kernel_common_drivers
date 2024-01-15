@@ -53,7 +53,7 @@ u32 scatter_align_pages_size = 128;
 int scatter_swap_threshold_size = 20;
 
 int scatter_debug_mode = 1;
-__module_param(scatter_debug_mode, int, 0644);
+module_param(scatter_debug_mode, int, 0644);
 
 #define dprintk(level, fmt, arg...) \
 	do { \

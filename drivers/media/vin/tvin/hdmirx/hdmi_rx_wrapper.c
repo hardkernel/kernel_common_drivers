@@ -109,7 +109,7 @@ __module_param(hpd_to_esm, bool, 0664);
 
 int hdcp22_kill_esm;
 MODULE_PARM_DESC(hdcp22_kill_esm, "\n hdcp22_kill_esm\n");
-__module_param(hdcp22_kill_esm, int, 0664);
+module_param(hdcp22_kill_esm, int, 0664);
 
 bool hdcp_mode_sel;
 MODULE_PARM_DESC(hdcp_mode_sel, "\n hdcp_mode_sel\n");
@@ -152,7 +152,7 @@ MODULE_PARM_DESC(hdcp22_stop_auth, "hdcp22_stop_auth");
 
 int hdcp14_on;
 MODULE_PARM_DESC(hdcp14_on, "\n hdcp14_on\n");
-__module_param(hdcp14_on, int, 0664);
+module_param(hdcp14_on, int, 0664);
 
 /*esm recovery mode for changing resolution & hdmi2.0*/
 int esm_recovery_mode = ESM_REC_MODE_TMDS;

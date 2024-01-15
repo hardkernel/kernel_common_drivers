@@ -90,12 +90,12 @@ int vpcore1_select = 1;
 int clk_msr_param = 200;
 int fpll_clk_sel;
 MODULE_PARM_DESC(hdcp22_on, "\n hdcp22_on\n");
-__module_param(hdcp22_on, int, 0664);
+module_param(hdcp22_on, int, 0664);
 
 /* 0: previous hdcp_rx22 ,1: new hdcp_rx22 */
 int rx22_ver;
 MODULE_PARM_DESC(rx22_ver, "\n rx22_ver\n");
-__module_param(rx22_ver, int, 0664);
+module_param(rx22_ver, int, 0664);
 
 MODULE_PARM_DESC(force_clk_rate, "\n force_clk_rate\n");
 __module_param(force_clk_rate, int, 0664);

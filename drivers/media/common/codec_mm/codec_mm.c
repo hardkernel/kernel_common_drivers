@@ -4266,11 +4266,11 @@ static int __init secure_vdec_res_setup(struct reserved_mem *rmem)
 RESERVEDMEM_OF_DECLARE(secure_vdec_reserved, "amlogic, secure-vdec-reserved",
 			secure_vdec_res_setup);
 
-__module_param(debug_mode, uint, 0664);
+module_param(debug_mode, uint, 0664);
 MODULE_PARM_DESC(debug_mode, "\n debug module\n");
 __module_param(debug_sc_mode, uint, 0664);
 MODULE_PARM_DESC(debug_sc_mode, "\n debug scatter module\n");
-__module_param(debug_keep_mode, uint, 0664);
+module_param(debug_keep_mode, uint, 0664);
 MODULE_PARM_DESC(debug_keep_mode, "\n debug keep module\n");
 __module_param(tvp_mode, uint, 0664);
 MODULE_PARM_DESC(tvp_mode, "\n tvp module\n");
