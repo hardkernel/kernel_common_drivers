@@ -336,6 +336,11 @@ static void vrr_line_delay_update(struct aml_vrr_drv_s *vdrv)
 	unsigned int reg, temp, offset = 0;
 	char str[50];
 
+	if (!vdrv) {
+		VRRPR("%s no vrr drv!", __func__);
+		return;
+	}
+
 	if (!vdrv->vrr_dev) {
 		VRRERR("[%d]: %s: no vrr_dev\n", vdrv->index, __func__);
 		return;
@@ -393,6 +398,17 @@ void vrr_crop_update_delay_line(u32 line, u8 vpp_index)
 	struct aml_vrr_drv_s *vdrv = NULL;
 
 	vdrv = aml_vrr_drv_active_sel();
+
+	if (!vdrv) {
+		VRRPR("%s no vrr drv!", __func__);
+		return;
+	}
+
+	if (!vdrv->enable) {
+		VRRPR("%s vrr not enable!", __func__);
+		return;
+	}
+
 	crop_line = line;
 	vrr_vpp_index = vpp_index;
 
