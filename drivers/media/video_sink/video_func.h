@@ -171,5 +171,6 @@ void pre_vsync_process(void);
 ssize_t blend_conflict_show(struct class *cla,
 		struct class_attribute *attr, char *buf);
 void put_buffer_proc(void);
+void update_vppx_property(u8 layer_id);
 #endif
 /*VIDEO_FUNC_HEADER_HH*/

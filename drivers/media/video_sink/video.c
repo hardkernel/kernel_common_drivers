@@ -10063,7 +10063,20 @@ static ssize_t videopip_screen_mode_store(struct class *cla,
 	if (mode < VIDEO_WIDEOPTION_MAX &&
 	    mode != layer->wide_mode) {
 		layer->wide_mode = mode;
-		vd_layer[1].property_changed = true;
+		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+			pr_info("video_screen_mode sysfs:%d->%ld %s\n",
+				layer->wide_mode, mode, current->comm);
+		if (layer->layer_id == 1) {
+			if (vd_layer[1].vpp_index == VPP0)
+				vd_layer[1].property_changed = true;
+			else
+				update_vppx_property(layer->layer_id);
+		} else if (layer->layer_id == 2) {
+			if (vd_layer[2].vpp_index == VPP0)
+				vd_layer[2].property_changed = true;
+			else
+				update_vppx_property(layer->layer_id);
+		}
 	}
 	return count;
 }
@@ -10104,7 +10117,20 @@ static ssize_t videopip2_screen_mode_store(struct class *cla,
 	if (mode < VIDEO_WIDEOPTION_MAX &&
 	    mode != layer->wide_mode) {
 		layer->wide_mode = mode;
-		vd_layer[2].property_changed = true;
+		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+			pr_info("video_screen_mode sysfs:%d->%ld %s\n",
+				layer->wide_mode, mode, current->comm);
+		if (layer->layer_id == 1) {
+			if (vd_layer[1].vpp_index == VPP0)
+				vd_layer[1].property_changed = true;
+			else
+				update_vppx_property(layer->layer_id);
+		} else if (layer->layer_id == 2) {
+			if (vd_layer[2].vpp_index == VPP0)
+				vd_layer[2].property_changed = true;
+			else
+				update_vppx_property(layer->layer_id);
+		}
 	}
 	return count;
 }

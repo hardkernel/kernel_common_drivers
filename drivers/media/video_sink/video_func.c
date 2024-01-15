@@ -1019,7 +1019,7 @@ bool black_threshold_check_s5(u8 id)
 	return ret;
 }
 
-static void update_vppx_property(u8 layer_id)
+void update_vppx_property(u8 layer_id)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* vpp1 case */
