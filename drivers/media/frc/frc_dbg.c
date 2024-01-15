@@ -41,8 +41,6 @@
 #include "frc_rdma.h"
 
 int frc_dbg_ctrl;
-module_param(frc_dbg_ctrl, int, 0664);
-MODULE_PARM_DESC(frc_dbg_ctrl, "frc_dbg_ctrl");
 
 static void frc_debug_parse_param(char *buf_orig, char **parm)
 {
@@ -377,6 +375,10 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			frc_dbg_en = (int)val1;
 		pr_frc(0, "frc_dbg_en=%d\n", frc_dbg_en);
+	} else if (!strcmp(parm[0], "dbg_ctrl")) {
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_dbg_ctrl = (int)val1;
+		pr_frc(0, "frc_dbg_ctrl=%d\n", frc_dbg_ctrl);
 	} else if (!strcmp(parm[0], "dbg_mode")) {
 		if (!parm[1])
 			goto exit;
@@ -983,6 +985,18 @@ void frc_debug_param_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			devp->control_0 = val1;
+	} else if (!strcmp(parm[0], "enable_cnt")) {
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_enable_cnt = (int)val1;
+		pr_frc(0, "frc_enable_cnt=%d\n", frc_enable_cnt);
+	} else if (!strcmp(parm[0], "disable_cnt")) {
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_disable_cnt = (int)val1;
+		pr_frc(0, "frc_disable_cnt=%d\n", frc_disable_cnt);
+	} else if (!strcmp(parm[0], "re_cfg_cnt")) {
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_re_cfg_cnt = (int)val1;
+		pr_frc(0, "frc_re_cfg_cnt=%d\n", frc_re_cfg_cnt);
 	}
 exit:
 	kfree(buf_orig);

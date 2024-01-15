@@ -63,6 +63,7 @@
 
 #define FRAME_RATE_CNT      17
 #define FRC_DBG_DUMP_TABLE_NUM       18
+#define FRC_PARAM_NUM       8
 
 enum frc_arb_ugt {
 	ARB_UGT_R0 = 0,
