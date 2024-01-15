@@ -1133,18 +1133,18 @@ static const struct dev_pm_ops meson_spifc_pm_ops = {
 			   NULL)
 };
 
-static const struct of_device_id meson_spifc_dt_match[] = {
+static const struct of_device_id meson_spifc_v2_dt_match[] = {
 	{ .compatible = "amlogic,meson-spifc-v2", },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, meson_spifc_dt_match);
+MODULE_DEVICE_TABLE(of, meson_spifc_v2_dt_match);
 
 struct platform_driver meson_spifc_v2_driver = {
 	.probe	= meson_spifc_probe,
 	.remove	= meson_spifc_remove,
 	.driver	= {
 		.name		= "meson-spifc-v2",
-		.of_match_table	= of_match_ptr(meson_spifc_dt_match),
+		.of_match_table	= of_match_ptr(meson_spifc_v2_dt_match),
 		.pm		= &meson_spifc_pm_ops,
 	},
 };

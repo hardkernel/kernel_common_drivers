@@ -876,12 +876,6 @@
 				pinctrl-0 = <&spifc_pins>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				spi-nor@0 {
-					compatible = "jedec,spi-nor";
-					status = "disabled";
-					reg = <0>;
-					spi-max-frequency = <16000000>;
-				};
 			};
 
 			pwm_ab: pwm@58000 {
