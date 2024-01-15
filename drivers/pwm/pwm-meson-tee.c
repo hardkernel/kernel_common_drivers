@@ -26,7 +26,6 @@
  * Author: Neil Armstrong <narmstrong@baylibre.com>
  * Copyright (C) 2014 Amlogic, Inc.
  */
-#define DEBUG
 #include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/clk.h>
