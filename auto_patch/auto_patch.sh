@@ -1,22 +1,29 @@
 #!/bin/bash
 
+enter_path=$(pwd)
+auto_patch_path=$(dirname $(readlink -f "$0"))
+common_driver_path=$(dirname $(dirname $0))
+COMMON_DRIVERS_DIR=${common_driver_path##*/}
+common_kernel_path=$(readlink -f $(dirname $common_driver_path))
+KERNEL_DIR=${common_kernel_path##*/}
+common_path=$(dirname $common_kernel_path)
+cd ${common_path}
 if [[ $# < 1 ]]; then
-	FULL_KERNEL_VERSION="common13-5.15"
+	version_message=$(grep -rn BRANCH= ${common_kernel_path}/build.config.constants)
+	version_message="common${version_message##*android}"
+	FULL_KERNEL_VERSION=${version_message}
 else
 	FULL_KERNEL_VERSION=$1
 fi
-KERNEL_DIR=${KERNEL_DIR:-common}
-COMMON_DRIVERS_DIR=${COMMON_DRIVERS_DIR:-common_drivers}
-T=$(pwd)
-ROOT_DIR=${ROOT_DIR:-${T}}
-PATCHES_PATH=${ROOT_DIR}/$(dirname $0)/${FULL_KERNEL_VERSION}
+PATCHES_PATH=${auto_patch_path}/${FULL_KERNEL_VERSION}
 
 if [[ ! -d ${PATCHES_PATH} ]]; then
 	echo "None patch to am, ${PATCHES_PATH}/${FULL_KERNEL_VERSION}/patches does not exist!!!"
+	cd ${enter_path}
 	exit
 fi
 
-# echo KERNEL_DIR=$KERNEL_DIR COMMON_DRIVERS_DIR=$COMMON_DRIVERS_DIR ROOT_DIR=$ROOT_DIR PATCHES_PATH=$PATCHES_PATH
+# echo KERNEL_DIR=$KERNEL_DIR COMMON_DRIVERS_DIR=$COMMON_DRIVERS_DIR enter_path=$enter_path PATCHES_PATH=$PATCHES_PATH
 
 function am_patch()
 {
@@ -24,38 +31,38 @@ function am_patch()
 	local dir=$2
 	local change_id=`grep 'Change-Id' $patch | head -n1 | awk '{print $2}'`
 
-	# echo $patch $dir
-	if [ -d "$dir" ]; then
-		cd $dir;
-		git log -n 400 | grep $change_id 1>/dev/null 2>&1;
+	# echo ${patch} ${dir}
+	if [ -d "${dir}" ]; then
+		cd ${dir};
+		git log -n 400 | grep ${change_id} 1>/dev/null 2>&1;
 		if [ $? -ne 0 ]; then
 			# echo "###patch ${patch##*/}###      "
-			git am -q $patch 1>/dev/null 2>&1;
+			git am -q ${patch} 1>/dev/null 2>&1;
 			if [ $? != 0 ]; then
 				git am --abort
-				cd $ROOT_DIR
+				cd ${enter_path}
 				echo "Patch Error : Failed to patch [$patch], Need check it. exit!!!"
 				exit -1
 			fi
 			echo -n .
 		fi
-		cd $ROOT_DIR
+		cd ${common_path}
 	fi
 }
 
 function auto_patch()
 {
 	local patch_dir=$1
-	#echo patch_dir=$patch_dir
+	# echo patch_dir=$patch_dir
 
 	for file in `find ${patch_dir} -name "*.patch" | sort`; do
 		local file_name=${file%.*};           #echo file_name $file_name
 		local resFile=`basename $file_name`;  #echo resFile $resFile
 		local dir_name1=${resFile//#/\/};     #echo dir_name $dir_name
 		local dir_name=${dir_name1%/*};       #echo dir_name $dir_name
-		local dir=$T/$dir_name;               #echo $dir
+		local dir=${common_path}/$dir_name;   #echo $dir
 
-		am_patch $file $dir
+		am_patch ${file} ${dir}
 	done
 }
 
@@ -88,7 +95,7 @@ function traverse_patch_dir()
 	done
 
 	echo
-	echo "Patch Finish: ${ROOT_DIR}"
+	echo "Patch Finish: ${common_path}"
 }
 
 function handle_lunch_patch()
@@ -104,13 +111,13 @@ function handle_lunch_patch()
 		local resFile=`basename $file_name`
 		local dir_name1=${resFile//#/\/}
 		local dir_name=${dir_name1%/*}
-		local dir=$T/$dir_name
+		local dir=${common_path}/$dir_name
 
-		am_patch $file $dir
+		am_patch ${file} ${dir}
 	done < ${PATCHES_PATH}/lunch_patches.txt
 
 	echo
-	echo "Patch Finish: ${ROOT_DIR}"
+	echo "Patch Finish: ${common_path}"
 }
 
 if [[ "${PATCH_PARM}" == "lunch" ]]; then
@@ -118,3 +125,4 @@ if [[ "${PATCH_PARM}" == "lunch" ]]; then
 else
 	traverse_patch_dir
 fi
+cd ${enter_path}
