@@ -1564,7 +1564,7 @@
 	dmx_aucpu: aucpu {
 		compatible = "amlogic, aucpu";
 		dev_name = "aml_aucpu";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 77 1>;
 		interrupt-names = "aucpu_irq";
 		reg = <0x0 0xfe09e080 0x0 0x100>;
