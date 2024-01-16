@@ -2636,7 +2636,7 @@ void frc_internal_initial(struct frc_dev_s *frc_devp)
 	WRITE_FRC_REG_BY_CPU(FRC_INP_HOLD_CTRL, regdata_inpholdctl_0002);
 	frc_set_urgent_cfg(0, 0);
 	frc_set_urgent_cfg(1, 3);
-	frc_set_urgent_cfg(2, 0);
+	frc_set_urgent_cfg(2, 3);
 	// sys_fw_param_frc_init(frc_top->hsize, frc_top->vsize, frc_top->is_me1mc4);
 	// init_bb_xyxy(frc_top->hsize, frc_top->vsize, frc_top->is_me1mc4);
 

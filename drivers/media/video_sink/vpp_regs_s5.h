@@ -3837,7 +3837,14 @@
 #define ENCL_VIDEO_VAVON_LN_RNG                       0x14ca
 
 #define S5_VPU_RDARB_UGT_L2C1                         0x27c2
+#define S5_VPU_WRARB_UGT_L2C1                         0x27c3
 #define S5_VPP_RDARB_MODE                             0x4120
 #define S5_VPU_RDARB_MODE_L2C1                        0x279d
+#define S5_VPU_WRARB_MODE_L2C1                        0x27a2
 #define VIU_VD3_MISC                                  0x1a12
+
+#define VPU_AXI_QOS_WR0                               0x2732
+#define VPU_AXI_CACHE                                 0x2733
+#define VPU_AXI_QOS_WR1                               0x2739
+
 #endif

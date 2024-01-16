@@ -12519,6 +12519,14 @@ int video_hw_init_s5(void)
 	WRITE_VCBUS_REG(S5_VPU_RDARB_MODE_L2C1, 0x924000);
 	/* set vpu read super urgent default */
 	WRITE_VCBUS_REG(S5_VPU_RDARB_UGT_L2C1, 0xffff);
+	if (video_is_meson_t3x_cpu()) {
+		/* set vpu write super urgent default */
+		WRITE_VCBUS_REG(S5_VPU_WRARB_UGT_L2C1, 0x297d6);
+		/* set vpu write arb mode default */
+		WRITE_VCBUS_REG(S5_VPU_WRARB_MODE_L2C1, 0x660000);
+		/* set axi write0 qos default */
+		WRITE_VCBUS_REG(VPU_AXI_QOS_WR0, 0xfb73fedc);
+	}
 	save_vd_pps_reg();
 #ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
 	int i;
