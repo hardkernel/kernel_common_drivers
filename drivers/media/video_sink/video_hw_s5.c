@@ -12171,6 +12171,7 @@ u32 get_cur_enc_num_s5(void)
 		switch (venc_type) {
 		case 0:
 			reg = venc_regs[venc_mux].vpu_enci_stat;
+			bit_offest = 28;
 			break;
 		case 1:
 			reg = venc_regs[venc_mux].vpu_encp_stat;
