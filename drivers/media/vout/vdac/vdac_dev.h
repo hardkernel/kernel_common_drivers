@@ -45,7 +45,7 @@
 /* 20220419:adjust cvbsout clk delay */
 /* 20230426:add vdac control node */
 /* 20230325:t3x bringup */
-#define VDAC_VER "20230325:t3x bringup"
+#define VDAC_VER "20240116:s7 bringup"
 
 enum vdac_cpu_type {
 	VDAC_CPU_G12AB = 0,
@@ -63,6 +63,7 @@ enum vdac_cpu_type {
 	VDAC_CPU_T3X,
 	VDAC_CPU_TXHD2,
 	VDAC_CPU_S1A,
+	VDAC_CPU_S7,
 	VDAC_CPU_MAX,
 };
 

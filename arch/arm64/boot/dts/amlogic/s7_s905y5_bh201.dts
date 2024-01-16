@@ -195,8 +195,8 @@
 		tv_mode = <0>;/*1:enable ;0:disable*/
 	};
 	cvbsout {
-		compatible = "amlogic, cvbsout-s4";
-		status = "disabled";
+		compatible = "amlogic, cvbsout-s7";
+		status = "okay";
 
 		/* clk path */
 		/* 0:vid_pll vid2_clk */
