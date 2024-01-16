@@ -2708,6 +2708,7 @@ bool rx_clr_tmds_valid(u8 port)
 		}
 		hdmirx_output_en(false);
 		hdmirx_top_irq_en(0, 0, port);
+		rx_aud_pll_ctl(0, port);
 		if (log_level & VIDEO_LOG)
 			rx_pr("%s!\n", __func__);
 	}
@@ -4636,11 +4637,11 @@ void rx_aud_pll_ctl(bool en, u8 port)
 			} else {
 				/* disable pll, into reset mode */
 				hdmirx_audio_disabled(port);
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x0);
-				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+				wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x0);
+				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2_T5W);
 				/* [    8] clk_en for cts_hdmirx_aud_pll_clk */
 				tmp &= ~(1 << 8);
-				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+				wr_reg_clk_ctl(RX_CLK_CTRL2_T5W, tmp);
 			}
 		} else if (rx_info.chip_id == CHIP_ID_TXHD2) {
 			if (en) {
