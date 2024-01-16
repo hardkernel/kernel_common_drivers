@@ -134,13 +134,14 @@ int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf, vo
 
 size_t mua_calc_real_dmabuf_size(struct mua_buffer *buffer)
 {
-	size_t size = 0;
+	if (!buffer)
+		return 0;
+
 	int align = buffer->align;
 	int byte_stride = buffer->byte_stride;
 	int height = ALIGN(buffer->height, align);
+	size_t size = byte_stride * height * 3 / 2;
 
-	if (buffer)
-		size = byte_stride * height * 3 / 2;
 	if (realloc_size > 0)
 		size = realloc_size;
 	MUA_PRINTK(MUA_INFO, "%s. align=%d byte_stride=%d height=%d size:%zu\n",
@@ -608,6 +609,7 @@ static int mua_get_meta_data(int fd, ulong arg)
 	}
 
 	meta.fd = fd;
+	meta.type = vfp->type;
 	meta.size = vfp->meta_data_size;
 	if (!vfp->meta_data_buf) {
 		MUA_PRINTK(MUA_ERROR, "vfp->meta_data_buf is NULL.\n");
