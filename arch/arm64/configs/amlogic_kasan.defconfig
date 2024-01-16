@@ -1,0 +1,4 @@
+# arm64 need set lto=none
+
+CONFIG_KASAN_GENERIC=y
+CONFIG_KASAN_MODULE_TEST=m

@@ -75,8 +75,7 @@ function pre_defconfig_cmds() {
 
 
 	if [[ -n ${KASAN} ]]; then
-		echo "CONFIG_KASAN_GENERIC=y" > ${temp_file}
-		# echo "CONFIG_KASAN_MODULE_TEST=m" >> ${temp_file}
+		cat ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/amlogic_kasan.defconfig > ${temp_file}
 		KCONFIG_CONFIG=${KCONFIG_DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r \
 				 ${KCONFIG_DEFCONFIG} \
 				${temp_file}

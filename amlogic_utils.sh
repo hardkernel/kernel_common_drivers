@@ -87,6 +87,15 @@ function pre_defconfig_cmds() {
 	if [[ ${UPGRADE_PROJECT} == r || ${UPGRADE_PROJECT} == R ]] && [[ "${CONFIG_BOOTIMAGE}" == "user" ]]; then
 		KCONFIG_CONFIG=${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${AMLOGIC_R_USER_DIFFCONFIG}
 	fi
+
+	if [[ -n ${KASAN} ]]; then
+		local temp_file=`mktemp /tmp/config.XXXXXXXXXXXX`
+		cat ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/${ARCH}/configs/amlogic_kasan.defconfig > ${temp_file}
+		KCONFIG_CONFIG=${ROOT_DIR}/${KCONFIG_DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r \
+				${ROOT_DIR}/${KCONFIG_DEFCONFIG} \
+				${temp_file}
+		rm ${temp_file}
+	fi
 }
 export -f pre_defconfig_cmds
 
