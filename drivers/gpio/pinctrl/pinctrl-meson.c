@@ -382,6 +382,11 @@ static int meson_pinconf_set_drive_strength(struct meson_pinctrl *pc,
 		ds_val = MESON_PINCONF_DRV_4000UA;
 	}
 
+	if (BIT(ds_val) & pc->data->ds_mask) {
+		dev_err(pc->dev, "unsupported drive strength: ds%u\n", ds_val);
+		return -EOPNOTSUPP;
+	}
+
 	ret = regmap_update_bits(pc->reg_ds, reg, 0x3 << bit, ds_val << bit);
 	if (ret)
 		return ret;

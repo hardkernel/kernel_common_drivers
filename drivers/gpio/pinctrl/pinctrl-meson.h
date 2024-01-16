@@ -152,6 +152,7 @@ struct meson_pinctrl_data {
 	unsigned int pmx_expand_num;
 #endif
 #endif
+	unsigned int ds_mask;
 };
 
 struct meson_pinctrl {

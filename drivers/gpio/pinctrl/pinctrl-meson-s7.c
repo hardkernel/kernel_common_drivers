@@ -1078,6 +1078,7 @@ static struct meson_pinctrl_data meson_s7_periphs_pinctrl_data __refdata = {
 	.pmx_ops	= &meson_axg_pmx_ops,
 	.pmx_data	= &meson_s7_periphs_pmx_banks_data,
 	.parse_dt	= &meson_a1_parse_dt_extra,
+	.ds_mask	= BIT(0),	/* S7 does not exist DS0 */
 };
 
 static const struct of_device_id meson_s7_pinctrl_dt_match[] = {
