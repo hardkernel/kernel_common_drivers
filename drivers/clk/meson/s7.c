@@ -1191,12 +1191,12 @@ static const struct clk_parent_data mali_pre_parent_data[] = {
 MESON_CLK_COMPOSITE_RW(mali_0, CLKCTRL_MALI_CLK_CTRL, 0x7, 9,
 		       mali_pre_parent_table, 0, mali_pre_parent_data, 0,
 		       CLKCTRL_MALI_CLK_CTRL, 0, 7, NULL, 0, CLK_SET_RATE_PARENT,
-		       CLKCTRL_MALI_CLK_CTRL, 8, 0, CLK_SET_RATE_PARENT);
+		       CLKCTRL_MALI_CLK_CTRL, 8, 0, CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT);
 
 MESON_CLK_COMPOSITE_RW(mali_1, CLKCTRL_MALI_CLK_CTRL, 0x7, 25,
 		       mali_pre_parent_table, 0, mali_pre_parent_data, 0,
 		       CLKCTRL_MALI_CLK_CTRL, 16, 7, NULL, 0, CLK_SET_RATE_PARENT,
-		       CLKCTRL_MALI_CLK_CTRL, 24, 0, CLK_SET_RATE_PARENT);
+		       CLKCTRL_MALI_CLK_CTRL, 24, 0, CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT);
 
 static const struct clk_parent_data mali_parent_data[] = {
 	{ .hw = &mali_0.hw },
