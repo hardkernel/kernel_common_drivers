@@ -734,6 +734,7 @@ int last_mode_3d;
 
 static void update_process_hdmi_avsync_flag(bool flag);
 static void hdmi_in_delay_maxmin_reset(void);
+static int is_interlaced(struct vinfo_s *vinfo);
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 static unsigned int det_stb_cnt = 30;
@@ -4493,6 +4494,26 @@ void vdin_start_notify_vpp(struct tvin_to_vpp_info_s *tvin_info)
 }
 EXPORT_SYMBOL(vdin_start_notify_vpp);
 #endif
+
+void get_vdx_real_axis(u32 index, int *buf)
+{
+	struct vpp_frame_par_s *_cur_frame_par = cur_frame_par[index];
+	struct vinfo_s *vinfo = get_current_vinfo();
+
+	if (!_cur_frame_par)
+		return;
+	*(buf + 0) = _cur_frame_par->VPP_hsc_startp;
+	*(buf + 1) = _cur_frame_par->VPP_vsc_startp;
+	*(buf + 2) = _cur_frame_par->VPP_hsc_endp - 1;
+	if (is_interlaced(vinfo))
+		*(buf + 3) = (_cur_frame_par->VPP_vsc_endp << 1) + 1;
+	else
+		*(buf + 3) = _cur_frame_par->VPP_vsc_endp;
+	if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+		pr_info("index=%d, axis= %d %d %d %d\n", index, *(buf + 0),
+			*(buf + 1), *(buf + 2), *(buf + 3));
+}
+EXPORT_SYMBOL(get_vdx_real_axis);
 
 void get_vdx_axis(u32 index, int *buf)
 {
