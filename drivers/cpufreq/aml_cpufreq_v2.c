@@ -462,7 +462,7 @@ static void aml_setup_policy_rest(struct cluster_data *data)
 	if (of_property_read_u32(np, "clock-latency", &policy->cpuinfo.transition_latency))
 		policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 	if (of_property_read_u32(np, "suspend-freq", &policy->suspend_freq))
-		policy->suspend_freq = data->opp_table[data->opp_cnt - 1].rate / 1000;
+		policy->suspend_freq = data->opp_table[data->opp_cnt - 1].rate;
 
 	policy->cur = clk_get_rate(data->cpuclk) / 1000;
 	cpumask_copy(policy->cpus, data->cpus);
