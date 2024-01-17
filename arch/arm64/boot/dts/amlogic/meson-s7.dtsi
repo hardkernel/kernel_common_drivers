@@ -1368,12 +1368,13 @@
 	};
 
 	meson_cooldev: meson-cooldev@0 {
-			status = "disabled";
+			status = "okay";
 			compatible = "amlogic, meson-cooldev";
 			cooling_devices {
-				cpucore_cool_cluster0 {
-					cluster_id = <0>;
-					node_name = "cpucore_cool0";
+				cpucore_cool {
+					cluster_core_num = <3>;
+					cluster_cores = <1 2 3>;
+					node_name = "cpucore";
 					device_type = "cpucore";
 				};
 				gpufreq_cool {
@@ -1382,7 +1383,7 @@
 					device_type = "gpufreq";
 				};
 			};
-			cpucore_cool0:cpucore_cool0 {
+			cpucore:cpucore {
 				#cooling-cells = <2>; /* min followed by max */
 			};
 		};/*meson cooling devices end*/
