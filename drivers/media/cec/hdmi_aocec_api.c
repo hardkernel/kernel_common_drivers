@@ -599,8 +599,8 @@ void cec_message_op(unsigned char *msg, unsigned char len)
 	unsigned int vendor_id;
 	unsigned int a, b = 0;
 	struct spd_device_info *info;
-	//cec handle just for tv product
-	if (cec_dev->dev_type != CEC_TV_ADDR)
+	//cec handle just for tv product & need port mapping
+	if (cec_dev->dev_type != CEC_TV_ADDR || cec_dev->port_seq == 0)
 		return;
 	//no spd list
 	if (list_empty(&spd_tx_device_info.spd_info_list))
