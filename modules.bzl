@@ -34,6 +34,7 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/drivers/clk/meson/amlogic-clk-soc-g12a.ko",
     "common_drivers/drivers/clk/meson/amlogic-clk-soc-s4.ko",
     "common_drivers/drivers/clk/meson/amlogic-clk-soc-s5.ko",
+    "common_drivers/drivers/clk/meson/amlogic-clk-soc-s6.ko",
     "common_drivers/drivers/clk/meson/amlogic-clk-soc-sc2.ko",
     "common_drivers/drivers/clk/meson/amlogic-clk-soc-t3.ko",
     "common_drivers/drivers/clk/meson/amlogic-clk-soc-t3x.ko",

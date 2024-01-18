@@ -201,3 +201,10 @@ PR_FMT_S7D = $(subst amlogic-,,$(S7D_MODULE_NAME))
 PR_FMT_DEFINE_S7D="-Dpr_fmt(fmt)= \"[$(PR_FMT_S7D)]: \" fmt"
 CFLAGS_s7d.o += $(PR_FMT_DEFINE_S7D)
 
+S6_MODULE_NAME = amlogic-clk-soc-s6
+obj-$(CONFIG_AMLOGIC_COMMON_CLK_S6) += $(S6_MODULE_NAME).o
+$(S6_MODULE_NAME)-y += s6.o
+PR_FMT_S6 = $(subst amlogic-,,$(S6_MODULE_NAME))
+PR_FMT_DEFINE_S6="-Dpr_fmt(fmt)= \"[$(PR_FMT_S6)]: \" fmt"
+CFLAGS_S6.o += $(PR_FMT_DEFINE_S6)
+
