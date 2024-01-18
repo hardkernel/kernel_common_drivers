@@ -1843,7 +1843,6 @@ static struct clk_regmap a5_sd_emmc_c_clk0_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = a5_sd_emmc_clk0_parent_data,
 		.num_parents = ARRAY_SIZE(a5_sd_emmc_clk0_parent_data),
-		.flags = CLK_GET_RATE_NOCACHE
 	},
 };
 
@@ -1860,7 +1859,6 @@ static struct clk_regmap a5_sd_emmc_c_clk0_div = {
 			&a5_sd_emmc_c_clk0_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
 	},
 };
 
@@ -1876,7 +1874,6 @@ static struct clk_regmap a5_sd_emmc_c_clk0 = {
 			&a5_sd_emmc_c_clk0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -1910,7 +1907,6 @@ static struct clk_regmap a5_sd_emmc_a_clk0_div = {
 			&a5_sd_emmc_a_clk0_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1926,7 +1922,6 @@ static struct clk_regmap a5_sd_emmc_a_clk0 = {
 			&a5_sd_emmc_a_clk0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 

@@ -673,45 +673,30 @@ int pwm_single_channel_conf(struct wifi_plat_info *plat)
 
 int pwm_double_channel_conf_dt(struct wifi_plat_info *plat)
 {
-	phandle pwm_phandle;
 	int ret;
-	struct device_node *wifinode = plat->dev->of_node;
-	struct device_node *pnode = NULL;
-	struct device_node *child;
-
-	ret = of_property_read_u32(wifinode, "pwm_config", &pwm_phandle);
-	if (ret) {
-		pr_err("not match wifi_pwm_config node\n");
-		return -1;
-	}
-
-	pnode = of_find_node_by_phandle(pwm_phandle);
-	if (!pnode) {
-		pr_err("can't find wifi_pwm_config node\n");
-		return -1;
-	}
+	struct fwnode_handle *fwnode;
 
 	/*request for pwm device */
-	for_each_child_of_node(pnode, child) {
+	device_for_each_child_node(plat->dev, fwnode) {
 		struct pwm_double_data *pdata =
 			&plat->ddata.pwms[plat->ddata.num_pwm];
 
 		//KV_TODO: modify
-		pdata->pwm = devm_pwm_get(plat->dev, NULL);
+		pdata->pwm = devm_fwnode_pwm_get(plat->dev, fwnode, NULL);
 		if (IS_ERR(pdata->pwm)) {
 			ret = PTR_ERR(pdata->pwm);
 			dev_err(plat->dev, "unable to request PWM%d, ret = %d\n",
 				plat->ddata.num_pwm, ret);
 			return ret;
 		}
-		ret = of_property_read_u32(child, "duty-cycle",
+		ret = fwnode_property_read_u32(fwnode, "duty-cycle",
 					   &pdata->duty_cycle);
 		if (ret) {
 			pr_err("not %d duty_cycle parameters\n",
 			       plat->ddata.num_pwm);
 			return ret;
 		}
-		ret = of_property_read_u32(child, "times",
+		ret = fwnode_property_read_u32(fwnode, "times",
 					   &pdata->pwm_times);
 		if (ret) {
 			pr_err("not %d pwm_times parameters\n",

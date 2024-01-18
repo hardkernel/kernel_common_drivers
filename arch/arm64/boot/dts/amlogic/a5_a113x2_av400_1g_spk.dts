@@ -1250,6 +1250,10 @@
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
 };
 
+&pwm_gh {
+	status = "okay";
+};
+
 &uart_A {
 	status = "okay";
 	uart-has-rtscts;
