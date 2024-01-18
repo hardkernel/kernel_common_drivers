@@ -771,12 +771,13 @@ static const struct proc_ops slabtrace_proc_ops = {
 
 static int __init slab_trace_module_init(void)
 {
-	if (slab_trace_en)
+	if (slab_trace_en) {
 		d_slabtrace = proc_create("slabtrace", 0444,
-					  NULL, &slabtrace_proc_ops);
-	if (IS_ERR_OR_NULL(d_slabtrace)) {
-		pr_err("%s, create slabtrace failed\n", __func__);
-		return -1;
+				NULL, &slabtrace_proc_ops);
+		if (IS_ERR_OR_NULL(d_slabtrace)) {
+			pr_err("%s, create slabtrace failed\n", __func__);
+			return -1;
+		}
 	}
 
 	return 0;

@@ -194,13 +194,6 @@ config AMLOGIC_PCIE_DMA_OPS
 		custom a dma_ops to limit the memory for PCIE device
 		operations to a fixed area
 
-config AMLOGIC_FAKE_SMMU
-	tristate "Amlogic fake smmu"
-	depends on IOMMU_SUPPORT
-	default n
-	help
-		Register a fake smmu device to replace ops for 64bit
-
 config AMLOGIC_ARM_KASAN
 	bool "support arm kasan"
 	depends on KASAN

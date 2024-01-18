@@ -76,4 +76,13 @@ static inline void ramdump_uninit(void)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_FAKE_SMMU)
+int __init aml_smmu_init(void);
+#else
+static inline int aml_smmu_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif /* _MEMORY_MAIN_H__ */

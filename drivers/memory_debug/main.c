@@ -94,6 +94,7 @@ static int __init memory_main_init(void)
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 	free_iotrace_reserved_memory();
 #endif
+	call_sub_init(aml_smmu_init);
 	pr_debug("### %s() end\n", __func__);
 
 	return 0;

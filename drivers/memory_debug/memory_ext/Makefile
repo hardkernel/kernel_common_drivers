@@ -2,3 +2,4 @@
 
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_FILE_CACHE)	+= memory_ext/file_cache.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_WATCHPOINT)	+= memory_ext/watch_point.o
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_FAKE_SMMU)	+= memory_ext/aml_smmu.o

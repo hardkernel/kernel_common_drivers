@@ -231,7 +231,6 @@ static struct iommu_domain *aml_smmu_domain_alloc(unsigned int type)
 
 static void aml_smmu_release_device(struct device *dev)
 {
-	return;
 }
 
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
@@ -1437,11 +1436,11 @@ static struct platform_driver aml_smmu_driver = {
 	.shutdown = aml_smmu_device_shutdown,
 };
 
-//module_platform_driver(aml_smmu_driver);
-static int __init aml_smmu_init(void)
+/* module_platform_driver(aml_smmu_driver); */
+int __init aml_smmu_init(void)
 {
 	return platform_driver_register(&aml_smmu_driver);
 }
-core_initcall(aml_smmu_init);
+/* core_initcall(aml_smmu_init); */
 
 MODULE_LICENSE("GPL v2");
