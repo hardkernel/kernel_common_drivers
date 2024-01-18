@@ -5,6 +5,7 @@
 
 #include <dt-bindings/clock/axg-audio-clkc.h>
 #include <dt-bindings/clock/s6-clkc.h>
+#include <dt-bindings/clock/s6-secure-clk.h>
 #include <dt-bindings/clock/g12a-aoclkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -845,7 +846,7 @@
 		//clocks = <&xtal>,
 		//	 <&clkc CLKID_SYS_SAR_ADC>,
 		//	 <&clkc CLKID_SAR_ADC>,
-		//	 <&clkc CLKID_SAR_ADC_SEL>;
+		//	 <&clkc CLKID_SAR_ADC_MUX>;
 		//clock-names = "clkin", "core", "adc_clk", "adc_sel";
 		interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>,
 			     <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
@@ -854,6 +855,34 @@
 		pd {
 			ctrl = <2>;	/* 2bit: 0 ~ 3 */
 			trim = <16>;	/* 6bit: 0 ~ 63 */
+		};
+	};
+
+	shmem@050f8e00 {
+		compatible = "mmio-sram";
+		reg = <0x0 0x050f8e00 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x0 0x050f8e00 0x100>;
+
+		scmi_shmem: shmem@0 {
+			compatible = "arm,scmi-shmem";
+			reg = <0x0 0x100>;
+		};
+	};
+
+	firmware {
+		scmi: scmi {
+			compatible = "arm,scmi-smc";
+			arm,smc-id = <0x820000C1>;
+			shmem = <&scmi_shmem>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			scmi_clk: protocol@14 {
+				reg = <0x14>;
+				#clock-cells = <1>;
+			};
 		};
 	};
 
@@ -871,18 +900,30 @@
 			ranges = <0x0 0x0 0x0 0xfe000000 0x0 0x480000>;
 
 			clkc: clock-controller {
-				compatible = "amlogic,s7d-clkc";
+				compatible = "amlogic,s6-clkc";
 				#clock-cells = <1>;
 				reg = <0x0 0x0 0x0 0x49c>,
 				      <0x0 0x8000 0x0 0x384>;
 				reg-names = "basic", "pll";
-				clocks = <&xtal>;
-				clock-names = "xtal";
+				clocks = <&xtal>,
+					 <&scmi_clk CLKID_OTHERPLL_IN>,
+					 <&scmi_clk CLKID_HIFI0PLL_IN>,
+					 <&scmi_clk CLKID_ETH_HIFI1PLL_IN>,
+					 <&scmi_clk CLKID_FIXEDPLL_IN>,
+					 <&scmi_clk CLKID_GP1PLL>,
+					 <&scmi_clk CLKID_GP2PLL>;
+				clock-names = "xtal",
+					      "otherpll_in",
+					      "hifi0pll_in",
+					      "eth_hifi1pll_in",
+					      "fixedpll_in",
+					      "gp1pll",
+					      "gp2pll";
 				status = "okay";
 			};
 
 			meson_clk_msr@48000 {
-				compatible = "amlogic,meson-s7d-clk-measure";
+				compatible = "amlogic,meson-s6-clk-measure";
 				reg = <0x0 0x48000 0x0 0x1c>;
 			};
 
@@ -956,7 +997,7 @@
 				reg = <0x0 0x58000 0x0 0x24>,
 					  <0x0 0x180 0x0 0x4>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_A_SEL>;
+				//clocks = <&clkc CLKID_PWM_A_MUX>;
 				//clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -966,7 +1007,7 @@
 				reg = <0x0 0x58200 0x0 0x24>,
 					  <0x0 0x180 0x0 0x4>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_B_SEL>;
+				//clocks = <&clkc CLKID_PWM_B_MUX>;
 				//clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -976,7 +1017,7 @@
 				reg = <0x0 0x5a000 0x0 0x24>,
 					  <0x0 0x184 0x0 0x4>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_C_SEL>;
+				//clocks = <&clkc CLKID_PWM_C_MUX>;
 				//clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -986,7 +1027,7 @@
 				reg = <0x0 0x5a000 0x0 0x24>,
 					  <0x0 0x184 0x0 0x4>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_D_SEL>;
+				//clocks = <&clkc CLKID_PWM_D_MUX>;
 				//clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -996,7 +1037,7 @@
 				reg = <0x0 0x5c000 0x0 0x24>,
 					  <0x0 0x188 0x0 0x4>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_E_SEL>;
+				//clocks = <&clkc CLKID_PWM_E_MUX>;
 				//clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -1006,7 +1047,7 @@
 				reg = <0x0 0x5c000 0x0 0x24>,
 					  <0x0 0x188 0x0 0x4>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_F_SEL>;
+				//clocks = <&clkc CLKID_PWM_F_MUX>;
 				//clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -1016,7 +1057,7 @@
 				reg = <0x0 0x5e000 0x0 0x24>,
 					  <0x0 0x18c 0x0 0x4>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_G_SEL>;
+				//clocks = <&clkc CLKID_PWM_G_MUX>;
 				//clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -1026,7 +1067,7 @@
 				reg = <0x0 0x5e000 0x0 0x24>,
 					  <0x0 0x18c 0x0 0x4>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_H_SEL>;
+				//clocks = <&clkc CLKID_PWM_H_MUX>;
 				//clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -1036,7 +1077,7 @@
 				reg = <0x0 0x60000 0x0 0x24>,
 					  <0x0 0x190 0x0 0x4>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_I_SEL>;
+				//clocks = <&clkc CLKID_PWM_I_MUX>;
 				//clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -1046,7 +1087,7 @@
 				reg = <0x0 0x60000 0x0 0x24>,
 					  <0x0 0x190 0x0 0x4>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_J_SEL>;
+				//clocks = <&clkc CLKID_PWM_J_MUX>;
 				//clock-names = "clkin0";
 				status = "disabled";
 			};
@@ -1388,7 +1429,7 @@
 			interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SYS_SD_EMMC_C>,
-				<&clkc CLKID_SD_EMMC_C_SEL>,
+				<&clkc CLKID_SD_EMMC_C_MUX>,
 				 <&clkc CLKID_SD_EMMC_C>,
 				 <&xtal>,
 				 <&clkc CLKID_FCLK_DIV2>,
@@ -1414,7 +1455,7 @@
 			interrupts = <GIC_SPI 177 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SYS_SD_EMMC_B>,
-				<&clkc CLKID_SD_EMMC_B_SEL>,
+				<&clkc CLKID_SD_EMMC_B_MUX>,
 				 <&clkc CLKID_SD_EMMC_B>,
 				 <&xtal>,
 				 <&clkc CLKID_FCLK_DIV2>;
@@ -1435,7 +1476,7 @@
 			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SYS_SD_EMMC_A>,
-				<&clkc CLKID_SD_EMMC_A_SEL>,
+				<&clkc CLKID_SD_EMMC_A_MUX>,
 				 <&clkc CLKID_SD_EMMC_A>,
 				 <&xtal>,
 				 <&clkc CLKID_FCLK_DIV2>;
@@ -2992,7 +3033,7 @@
 	 * free mux to safely change frequency while running.
 	 */
 	//assigned-clocks = <&clkc CLKID_GP1_PLL>,
-	//		<&clkc CLKID_MALI_0_SEL>,
+	//		<&clkc CLKID_MALI_0_MUX>,
 	//		<&clkc CLKID_MALI_0>,
 	//		<&clkc CLKID_MALI>; /* Glitch free mux */
 	//assigned-clock-parents = <0>, /* Do Nothing */
