@@ -39,7 +39,6 @@ struct phylink {
 	/* private: */
 	struct net_device *netdev;
 	const struct phylink_mac_ops *mac_ops;
-	const struct phylink_pcs_ops *pcs_ops;
 	struct phylink_config *config;
 	struct phylink_pcs *pcs;
 	struct device *dev;
@@ -64,15 +63,19 @@ struct phylink {
 	struct timer_list link_poll;
 	void (*get_fixed_state)(struct net_device *dev,
 				struct phylink_link_state *s);
-	/*add for git commit check*/
+
 	struct mutex state_mutex;
 	struct phylink_link_state phy_state;
 	struct work_struct resolve;
+	unsigned int pcs_neg_mode;
+	unsigned int pcs_state;
 
 	bool mac_link_dropped;
+	bool using_mac_select_pcs;
 
 	struct sfp_bus *sfp_bus;
 	bool sfp_may_have_phy;
+	DECLARE_PHY_INTERFACE_MASK(sfp_interfaces);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(sfp_support);
 	u8 sfp_port;
 };

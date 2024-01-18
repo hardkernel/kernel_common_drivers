@@ -694,10 +694,15 @@ static int meson8b_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
-	struct meson8b_dwmac *dwmac = priv->plat->bsp_priv;
-	struct phy_device *phydev = ndev->phydev;
+	struct meson8b_dwmac *dwmac;
+	struct phy_device *phydev;
 	int ret;
 
+	if (!ndev || !netif_running(ndev))
+		return 0;
+
+	dwmac = priv->plat->bsp_priv;
+	phydev = ndev->phydev;
 	/*open wol, shutdown phy when not link*/
 	if ((wol_switch_from_user) && phydev->link) {
 		set_wol_notify_bl31(true);
@@ -725,12 +730,16 @@ static int meson8b_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
-	struct meson8b_dwmac *dwmac = priv->plat->bsp_priv;
-	struct phy_device *phydev = ndev->phydev;
+	struct meson8b_dwmac *dwmac;
+	struct phy_device *phydev;
 	int ret;
 
-	priv->wolopts = 0;
+	if (!ndev || !netif_running(ndev))
+		return 0;
 
+	dwmac = priv->plat->bsp_priv;
+	phydev = ndev->phydev;
+	priv->wolopts = 0;
 	if ((wol_switch_from_user) && (without_reset)) {
 		ret = stmmac_resume(dev);
 
