@@ -55,6 +55,8 @@
 #endif
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #include <linux/amlogic/media/amvecm/color_tune.h>
+#include "arch/vpp_hdr_regs.h"
+#include "arch/vpp_a4_regs.h"
 #endif
 #include "arch/vpp_regs.h"
 #include "arch/ve_regs.h"
@@ -73,15 +75,14 @@
 #include "keystone_correction.h"
 #include "pattern_detection.h"
 #include "dnlp_cal.h"
-#include "hdr/am_hdr10_plus.h"
 #include "local_contrast.h"
-#include "arch/vpp_hdr_regs.h"
 #include "set_hdr2_v0.h"
 #include "s5_set_hdr2_v0.h"
 #include "ai_pq/ai_pq.h"
 #include "reg_default_setting.h"
 #include "util/enc_dec.h"
 #include "cabc_aadc/cabc_aadc_fw.h"
+#include "hdr/am_hdr10_plus.h"
 #include "hdr/am_hdr10_tmo_fw.h"
 #include "hdr/am_cuva_hdr_tm.h"
 #include "hdr/gamut_convert.h"
@@ -661,7 +662,10 @@ static int amvecm_set_contrast2(int val)
 	val += 0x80;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (chip_type_id == chip_s5 ||
+	if (chip_type_id == chip_a4) {
+		WRITE_VPP_REG_BITS(VOUT_VADJ_Y,
+			val, 0, 8);
+	} else if (chip_type_id == chip_s5 ||
 		chip_type_id == chip_t3x) {
 		ve_contrast_set(val, VE_VADJ2, WR_VCB);
 	} else
@@ -682,7 +686,11 @@ static int amvecm_set_contrast2(int val)
 static int amvecm_set_brightness2(int val)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (chip_type_id == chip_s5 ||
+	if (chip_type_id == chip_a4) {
+		WRITE_VPP_REG_BITS(VOUT_VADJ_Y,
+			val, 8, 11);
+		return 0;
+	} else if (chip_type_id == chip_s5 ||
 		chip_type_id == chip_t3x) {
 		ve_brigtness_set(val, VE_VADJ2, WR_VCB);
 		return 0;
@@ -872,7 +880,11 @@ static ssize_t video_adj2_brightness_show(const struct class *class,
 	s32 val = 0;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (chip_type_id == chip_s5 ||
+	if (chip_type_id == chip_a4) {
+		val = (READ_VPP_REG(VOUT_VADJ_Y) >> 8) & 0x7ff;
+		val = (val << 21) >> 21;
+		return sprintf(buf, "%d\n", val);
+	} else if (chip_type_id == chip_s5 ||
 		chip_type_id == chip_t3x) {
 		val = ve_brightness_contrast_get(VE_VADJ2);
 		val = (val >> 8) & 0x7ff;
@@ -919,7 +931,10 @@ static ssize_t video_adj2_contrast_show(const struct class *class,
 			char *buf)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (chip_type_id == chip_s5 ||
+	if (chip_type_id == chip_a4) {
+		return sprintf(buf, "%d\n",
+			(int)(READ_VPP_REG(VOUT_VADJ_Y) & 0xff) - 0x80);
+	} else if (chip_type_id == chip_s5 ||
 		chip_type_id == chip_t3x) {
 		return sprintf(buf, "%d\n",
 			(int)(ve_brightness_contrast_get(VE_VADJ2) & 0xff) - 0x80);
@@ -1293,6 +1308,9 @@ static void vpp_dump_histgram(void)
 
 void vpp_get_hist_en(void)
 {
+	if (chip_type_id == chip_a4)
+		return;
+
 	if (chip_type_id == chip_s5 ||
 		chip_type_id == chip_t3x) {
 		vpp_luma_hist_init();
@@ -2795,7 +2813,9 @@ static int amvecm_set_saturation_hue_post(int val1,
 		saturation_post, hue_post, mab);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (chip_type_id == chip_s5 ||
+	if (chip_type_id == chip_a4)
+		WRITE_VPP_REG(VOUT_VADJ_MA_MB, mab);
+	else if (chip_type_id == chip_s5 ||
 		chip_type_id == chip_t3x)
 		ve_color_mab_set(mab, VE_VADJ2, WR_VCB);
 	else
@@ -2814,7 +2834,9 @@ static int amvecm_set_saturation_hue_post(int val1,
 	mab = ((mc & 0x3ff) << 16) | (md & 0x3ff);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (chip_type_id == chip_s5 ||
+	if (chip_type_id == chip_a4) {
+		WRITE_VPP_REG(VOUT_VADJ_MC_MD, mab);
+	} else if (chip_type_id == chip_s5 ||
 		chip_type_id == chip_t3x) {
 		ve_color_mcd_set(mab, VE_VADJ2, WR_VCB);
 	} else
@@ -9487,6 +9509,10 @@ void vlock_clk_config(struct amvecm_dev_s *devp, struct device *dev)
 	if (!vlock_en)
 		return;
 
+	if (chip_type_id == chip_s5 ||
+		chip_cls_id == AD_CHIP)
+		return;
+
 	vlock_reg_config(dev);
 	/*need set clock tree */
 	devp->vlock_clk = devm_clk_get(dev, "cts_vid_lock_clk");
@@ -11763,6 +11789,12 @@ void init_pq_setting(void)
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_SC2)
 		init_pq_control(PQ_BOX);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (chip_type_id == chip_a4) {
+		vpp_pq_ctrl_config(pq_cfg, WR_VCB);
+		pq_reg_wr_rdma = 1;
+		return;
+	}
+
 	/*ai pq interface*/
 	ai_detect_scene_init();
 	adaptive_param_init();
@@ -11981,15 +12013,17 @@ struct gamma_data_s *get_gm_data(void)
 void amvecm_gamma_init(bool en)
 {
 	unsigned int i, j, k;
-	unsigned short data[256];
+	unsigned short data[257];
 	unsigned short temp;
 	struct gamma_data_s *p_gm;
 
 	if (chip_cls_id == STB_CHIP)
 		return;
 
-	for (i = 0; i < 256; i++) {
+	for (i = 0; i < 257; i++) {
 		data[i] = i << 2;
+		if (data[i] >= (1 << 10))
+			data[i] = (1 << 10) - 1;
 		video_gamma_table_r.data[i] = data[i];
 		video_gamma_table_g.data[i] = data[i];
 		video_gamma_table_b.data[i] = data[i];
@@ -12001,12 +12035,18 @@ void amvecm_gamma_init(bool en)
 
 	if (chip_type_id == chip_t5m ||
 		chip_type_id == chip_t3x ||
-		chip_type_id == chip_txhd2) {
+		chip_type_id == chip_txhd2 ||
+		chip_type_id == chip_a4) {
 		p_gm = get_gm_data();
 		p_gm->max_idx = 257;
 		p_gm->auto_inc = 1 << L_H_AUTO_INC_2;
-		p_gm->addr_port = LCD_GAMMA_ADDR_PORT0;
-		p_gm->data_port = LCD_GAMMA_DATA_PORT0;
+		if (chip_type_id == chip_a4) {
+			p_gm->addr_port = LCD_GAMMA_ADDR_PORT0_A4;
+			p_gm->data_port = LCD_GAMMA_DATA_PORT0_A4;
+		} else {
+			p_gm->addr_port = LCD_GAMMA_ADDR_PORT0;
+			p_gm->data_port = LCD_GAMMA_DATA_PORT0;
+		}
 		for (i = 0; i < p_gm->max_idx; i++) {
 			temp = i << 2;
 			if (temp >= (1 << 10))
@@ -12063,6 +12103,16 @@ static void amvecm_wb_init(bool en)
 
 	if (chip_type_id == chip_s5)
 		return;
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (chip_type_id == chip_a4) {
+		WRITE_VPP_REG(VOUT_GAINOFF_CTRL0,
+					(en << 31) | (1024 << 16) | 1024);
+		WRITE_VPP_REG(VOUT_GAINOFF_CTRL1,
+					(1024 << 16));
+		return;
+	}
+#endif
 
 	if (video_rgb_ogo_xvy_mtx) {
 		if (chip_type_id != chip_t3x) {
@@ -12134,7 +12184,8 @@ static void amvecm_wb_init(bool en)
 void amvecm_3dlut_init(bool en)
 {
 	if (chip_type_id == chip_s5 ||
-		chip_type_id == chip_t3x)
+		chip_type_id == chip_t3x ||
+		chip_type_id == chip_a4)
 		return;
 
 	if (ct_en) {
@@ -12504,6 +12555,17 @@ static const struct vecm_match_data_s vecm_dt_txhd2 = {
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 	.vrr_support_flag = 0,
 };
+
+static const struct vecm_match_data_s vecm_dt_a4 = {
+	.chip_id = chip_a4,
+	.chip_cls = AD_CHIP,
+	.vlk_chip = vlock_chip_null,
+	.vlk_support = false,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_tm2verb,
+	.vlk_phlock_en = false,
+	.vlk_pll_sel = vlock_pll_sel_tcon,
+};
 #endif
 
 static const struct vecm_match_data_s vecm_dt_s1a = {
@@ -12578,6 +12640,10 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm-txhd2",
 		.data = &vecm_dt_txhd2,
+	},
+	{
+		.compatible = "amlogic, vecm-a4",
+		.data = &vecm_dt_a4,
 	},
 #endif
 	{
@@ -13197,16 +13263,18 @@ static void amvecm_shutdown(struct platform_device *pdev)
 {
 	struct amvecm_dev_s *devp = &amvecm_dev;
 
+	if (chip_type_id != chip_a4) {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	hdr_exit();
-	ve_disable_dnlp();
+		hdr_exit();
+		ve_disable_dnlp();
 	amcm_disable(WR_VCB);
 #endif
-	WRITE_VPP_REG(VPP_VADJ_CTRL, 0x0);
-	amvecm_wb_enable(0);
-	/*dnlp cm vadj1 wb gate*/
-	WRITE_VPP_REG(VPP_GCLK_CTRL0, 0x11000400);
-	WRITE_VPP_REG(VPP_GCLK_CTRL1, 0x14);
+		WRITE_VPP_REG(VPP_VADJ_CTRL, 0x0);
+		amvecm_wb_enable(0);
+		/*dnlp cm vadj1 wb gate*/
+		WRITE_VPP_REG(VPP_GCLK_CTRL0, 0x11000400);
+		WRITE_VPP_REG(VPP_GCLK_CTRL1, 0x14);
+	}
 	pr_info("amvecm: shutdown module\n");
 
 	device_destroy(devp->clsp, devp->devno);
@@ -13217,9 +13285,11 @@ static void amvecm_shutdown(struct platform_device *pdev)
 #ifdef CONFIG_AML_LCD
 	aml_lcd_notifier_unregister(&aml_lcd_gamma_nb);
 #endif
-	lc_free();
-	vpp_lut3d_table_release();
-	lut_release();
+	if (chip_type_id != chip_a4) {
+		lc_free();
+		vpp_lut3d_table_release();
+		lut_release();
+	}
 #endif
 }
 

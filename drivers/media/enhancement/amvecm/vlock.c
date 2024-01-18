@@ -2185,7 +2185,8 @@ void vlock_status_init(void)
 	u32 offset_enc;
 	struct vinfo_s *vinfo;
 
-	if (chip_type_id == chip_s5)
+	if (chip_type_id == chip_s5 ||
+		chip_cls_id == AD_CHIP)
 		return;
 
 	/*config vlock mode*/

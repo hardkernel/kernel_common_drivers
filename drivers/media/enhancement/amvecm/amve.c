@@ -41,6 +41,7 @@
 #include "amve.h"
 #include <linux/io.h>
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#include "arch/vpp_a4_regs.h"
 #include "amve_gamma_table.h"
 #include "dnlp_cal.h"
 #include "local_contrast.h"
@@ -450,7 +451,7 @@ int vpp_get_vout_viu_mux(void)
 void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write)
 {
 	unsigned int offset = 0x0;
-	unsigned int reg_ctrl = LCD_GAMMA_CNTL_PORT0;
+	unsigned int reg_ctrl = L_GAMMA_CNTL_PORT;
 
 	if (viu_sel == 0) /*venc0*/
 		offset = 0;
@@ -460,13 +461,19 @@ void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write)
 		offset = 0x200;
 
 	if (cpu_after_eq_t7()) {
-		if (chip_type_id == chip_t3x) {
+		if (chip_type_id == chip_a4) {
+			reg_ctrl = LCD_GAMMA_CNTL_PORT0_A4;
+		} else if (chip_type_id == chip_t3x) {
 			reg_ctrl = 0x14e9;
 		} else if (chip_type_id == chip_txhd2) {
 			reg_ctrl = L_GAMMA_CNTL_PORT;
 			rdma_write = 1;
+		} else {
+			reg_ctrl = LCD_GAMMA_CNTL_PORT0;
 		}
+	}
 
+	if (cpu_after_eq_t7()) {
 		pr_amve_bringup_dbg("%s: reg_ctrl = %d, rdma_write/offset = %d/%d\n",
 			__func__, reg_ctrl, rdma_write, offset);
 
@@ -477,8 +484,6 @@ void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write)
 			WRITE_VPP_REG_BITS(reg_ctrl + offset,
 				1, L_GAMMA_EN, 1);
 	} else {
-		reg_ctrl = L_GAMMA_CNTL_PORT;
-
 		if (rdma_write == 1) /*viu1 vsync rdma*/
 			VSYNC_WRITE_VPP_REG_BITS(reg_ctrl,
 				1, GAMMA_EN, 1);
@@ -493,7 +498,7 @@ void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write)
 void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write)
 {
 	unsigned int offset = 0x0;
-	unsigned int reg_ctrl = LCD_GAMMA_CNTL_PORT0;
+	unsigned int reg_ctrl = L_GAMMA_CNTL_PORT;
 
 	if (viu_sel == 0) /*venc0*/
 		offset = 0;
@@ -503,13 +508,19 @@ void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write)
 		offset = 0x200;
 
 	if (cpu_after_eq_t7()) {
-		if (chip_type_id == chip_t3x) {
+		if (chip_type_id == chip_a4) {
+			reg_ctrl = LCD_GAMMA_CNTL_PORT0_A4;
+		} else if (chip_type_id == chip_t3x) {
 			reg_ctrl = 0x14e9;
 		} else if (chip_type_id == chip_txhd2) {
 			reg_ctrl = L_GAMMA_CNTL_PORT;
 			rdma_write = 1;
+		} else {
+			reg_ctrl = LCD_GAMMA_CNTL_PORT0;
 		}
+	}
 
+	if (cpu_after_eq_t7()) {
 		pr_amve_bringup_dbg("%s: reg_ctrl = %d, rdma_write/offset = %d/%d\n",
 			__func__, reg_ctrl, rdma_write, offset);
 
@@ -520,8 +531,6 @@ void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write)
 			WRITE_VPP_REG_BITS(reg_ctrl + offset,
 				0, L_GAMMA_EN, 1);
 	} else {
-		reg_ctrl = L_GAMMA_CNTL_PORT;
-
 		if (rdma_write == 1) /*viu1 vsync rdma*/
 			VSYNC_WRITE_VPP_REG_BITS(reg_ctrl,
 				0, GAMMA_EN, 1);
@@ -547,9 +556,7 @@ void lcd_gamma_api(unsigned int index,
 	unsigned int offset = 0;
 	int auto_inc = 0;
 	int max_idx = 0;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct gamma_data_s *p_gm;
-#endif
 	unsigned int reg_addr = LCD_GAMMA_ADDR_PORT0;
 	unsigned int reg_data = LCD_GAMMA_DATA_PORT0;
 
@@ -564,21 +571,24 @@ void lcd_gamma_api(unsigned int index,
 	else if (index == 2)
 		offset = 0x200;
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (chip_type_id == chip_t5m ||
+	if (chip_type_id == chip_a4) {
+		auto_inc = 0x1 << L_H_AUTO_INC_2;
+		max_idx = 257;
+	} else if (chip_type_id == chip_t5m ||
 		chip_type_id == chip_t3x ||
 		chip_type_id == chip_txhd2) {
 		p_gm = get_gm_data();
 		auto_inc = p_gm->auto_inc;
 		max_idx = p_gm->max_idx;
-	} else
-#endif
-	{
-		auto_inc = 1 << L_H_AUTO_INC;
+	} else {
+		auto_inc = 0x1 << L_H_AUTO_INC;
 		max_idx = 256;
 	}
 
-	if (chip_type_id == chip_t3x) {
+	if (chip_type_id == chip_a4) {
+		reg_addr = LCD_GAMMA_ADDR_PORT0_A4;
+		reg_data = LCD_GAMMA_DATA_PORT0_A4;
+	} else if (chip_type_id == chip_t3x) {
 		reg_addr = 0x14eb;
 		reg_data = 0x14ea;
 	} else if (chip_type_id == chip_txhd2) {
@@ -675,24 +685,20 @@ void vpp_get_lcd_gamma_table(u32 rgb_mask)
 {
 	int i;
 	int cnt = 0;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct gamma_data_s *p_gm;
-#endif
 
 	if (cpu_after_eq_t7()) {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if (chip_type_id == chip_t5m ||
 			chip_type_id == chip_t3x ||
-			chip_type_id == chip_txhd2) {
+			chip_type_id == chip_txhd2 ||
+			chip_type_id == chip_a4) {
 			p_gm = get_gm_data();
 			lcd_gamma_api(gamma_index,
 				p_gm->dbg_gm_tbl.gamma_r,
 				p_gm->dbg_gm_tbl.gamma_g,
 				p_gm->dbg_gm_tbl.gamma_b,
 				WR_VCB, RD_MOD);
-		} else
-#endif
-		{
+		} else {
 			lcd_gamma_api(gamma_index,
 				gamma_data_r,
 				gamma_data_g,
@@ -764,16 +770,14 @@ void amve_write_gamma_table(u16 *data, u32 rgb_mask)
 	int i;
 	int cnt = 0;
 	unsigned long flags = 0;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct gamma_data_s *p_gm;
 	int max_idx;
-#endif
 
 	if (cpu_after_eq_t7()) {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if (chip_type_id == chip_t5m ||
 			chip_type_id == chip_t3x ||
-			chip_type_id == chip_txhd2) {
+			chip_type_id == chip_txhd2 ||
+			chip_type_id == chip_a4) {
 			p_gm = get_gm_data();
 			max_idx = p_gm->max_idx;
 			lcd_gamma_api(gamma_index, p_gm->dbg_gm_tbl.gamma_r,
@@ -788,9 +792,7 @@ void amve_write_gamma_table(u16 *data, u32 rgb_mask)
 			lcd_gamma_api(gamma_index, p_gm->dbg_gm_tbl.gamma_r,
 				p_gm->dbg_gm_tbl.gamma_g, p_gm->dbg_gm_tbl.gamma_b,
 				WR_VCB, WR_MOD);
-		} else
-#endif
-		{
+		} else {
 			lcd_gamma_api(gamma_index, gamma_data_r,
 				gamma_data_g, gamma_data_b, WR_VCB, RD_MOD);
 			if (rgb_mask == H_SEL_R)
@@ -902,6 +904,11 @@ void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
 {
 	int m[24];
 	int i;
+	unsigned int gainoff_ctl0;
+	unsigned int gainoff_ctl1;
+	unsigned int gainoff_ctl2;
+	unsigned int gainoff_ctl3;
+	unsigned int gainoff_ctl4;
 
 	/* write to registers */
 	if (video_rgb_ogo_xvy_mtx) {
@@ -1065,20 +1072,37 @@ void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
 #endif
 		{
 		/*txl and before txl, and tl1 10bit path offset is 11bit*/
-			WRITE_VPP_REG(VPP_GAINOFF_CTRL0,
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			if (chip_type_id == chip_a4) {
+				gainoff_ctl0 = VOUT_GAINOFF_CTRL0;
+				gainoff_ctl1 = VOUT_GAINOFF_CTRL1;
+				gainoff_ctl2 = VOUT_GAINOFF_CTRL2;
+				gainoff_ctl3 = VOUT_GAINOFF_CTRL3;
+				gainoff_ctl4 = VOUT_GAINOFF_CTRL4;
+			} else {
+#endif
+				gainoff_ctl0 = VPP_GAINOFF_CTRL0;
+				gainoff_ctl1 = VPP_GAINOFF_CTRL1;
+				gainoff_ctl2 = VPP_GAINOFF_CTRL2;
+				gainoff_ctl3 = VPP_GAINOFF_CTRL3;
+				gainoff_ctl4 = VPP_GAINOFF_CTRL4;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			}
+#endif
+			WRITE_VPP_REG(gainoff_ctl0,
 				      ((p->en << 31) & 0x80000000) |
 				      ((p->r_gain << 16) & 0x07ff0000) |
 				      ((p->g_gain <<  0) & 0x000007ff));
-			WRITE_VPP_REG(VPP_GAINOFF_CTRL1,
+			WRITE_VPP_REG(gainoff_ctl1,
 				      ((p->b_gain << 16) & 0x07ff0000) |
 				      ((p->r_post_offset <<  0) & 0x000007ff));
-			WRITE_VPP_REG(VPP_GAINOFF_CTRL2,
+			WRITE_VPP_REG(gainoff_ctl2,
 				      ((p->g_post_offset << 16) & 0x07ff0000) |
 				      ((p->b_post_offset <<  0) & 0x000007ff));
-			WRITE_VPP_REG(VPP_GAINOFF_CTRL3,
+			WRITE_VPP_REG(gainoff_ctl3,
 				      ((p->r_pre_offset  << 16) & 0x07ff0000) |
 				      ((p->g_pre_offset  <<  0) & 0x000007ff));
-			WRITE_VPP_REG(VPP_GAINOFF_CTRL4,
+			WRITE_VPP_REG(gainoff_ctl4,
 				      ((p->b_pre_offset  <<  0) & 0x000007ff));
 		}
 	}
@@ -1301,7 +1325,7 @@ void ve_dnlp_latch_process(void)
 		ve_set_dnlp_2();
 		ve_enable_dnlp();
 		pr_amve_dbg("\n[amve..] set vpp_enable_dnlp OK!!!\n");
-	} else if (dnlp_en == 0) {
+	} else if (dnlp_en == 0 && !dnlp_status) {
 		dnlp_status = 1;
 		ve_disable_dnlp();
 		pr_amve_dbg("\n[amve..] set vpp_disable_dnlp OK!!!\n");
@@ -1402,7 +1426,8 @@ void ve_lcd_gamma_process(void)
 			vecm_latch_flag &= ~FLAG_GAMMA_TABLE_B;
 			if (chip_type_id == chip_t5m ||
 				chip_type_id == chip_t3x ||
-				chip_type_id == chip_txhd2) {
+				chip_type_id == chip_txhd2 ||
+				chip_type_id == chip_a4) {
 				p_gm = get_gm_data();
 				memcpy(p_gm->gm_tbl.gamma_r,
 					video_gamma_table_r.data,
@@ -3021,6 +3046,12 @@ void amvecm_wb_enable(int enable)
 {
 	if (enable) {
 		wb_en = 1;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (chip_type_id == chip_a4) {
+			WRITE_VPP_REG_BITS(VOUT_GAINOFF_CTRL0, 1, 31, 1);
+			return;
+		}
+#endif
 		if (video_rgb_ogo_xvy_mtx) {
 			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 1, 6, 1);
 		} else {
@@ -3033,6 +3064,12 @@ void amvecm_wb_enable(int enable)
 		}
 	} else {
 		wb_en = 0;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (chip_type_id == chip_a4) {
+			WRITE_VPP_REG_BITS(VOUT_GAINOFF_CTRL0, 0, 31, 1);
+			return;
+		}
+#endif
 		if (video_rgb_ogo_xvy_mtx) {
 			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 6, 1);
 		} else {
@@ -3144,6 +3181,18 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md)
 	switch (md) {
 	case WR_VCB:
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (chip_type_id == chip_a4) {
+			WRITE_VPP_REG_BITS(VOUT_VADJ_Y,
+					pq_cfg.vadj2_en, 0, 1);
+			amvecm_wb_enable(pq_cfg.wb_en);
+			gamma_en = pq_cfg.gamma_en;
+			if (gamma_en)
+				vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;
+			else
+				vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;
+			return 0;
+		}
+
 		if (pq_cfg.dnlp_en) {
 			ve_enable_dnlp();
 			dnlp_en = 1;
@@ -3252,6 +3301,18 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md)
 		break;
 	case WR_DMA:
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (chip_type_id == chip_a4) {
+			VSYNC_WRITE_VPP_REG_BITS(VOUT_VADJ_Y,
+					pq_cfg.vadj2_en, 0, 1);
+			amvecm_wb_enable(pq_cfg.wb_en);
+			gamma_en = pq_cfg.gamma_en;
+			if (gamma_en)
+				vpp_enable_lcd_gamma_table(0, 1);
+			else
+				vpp_disable_lcd_gamma_table(0, 1);
+			return 0;
+		}
+
 		if (pq_cfg.dnlp_en) {
 			ve_enable_dnlp();
 			dnlp_en = 1;
