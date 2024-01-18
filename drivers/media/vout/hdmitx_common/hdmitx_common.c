@@ -95,6 +95,10 @@ int hdmitx_common_validate_vic(struct hdmitx_common *tx_comm, u32 vic)
 	if (!timing)
 		return -EINVAL;
 
+	/*check if vic supported by rx*/
+	if (!hdmitx_edid_validate_mode(&tx_comm->rxcap, vic))
+		return -EINVAL;
+
 	/*soc level filter*/
 	/*filter 1080p max size.*/
 	if (tx_comm->res_1080p) {
@@ -180,6 +184,60 @@ int hdmitx_common_build_format_para(struct hdmitx_common *tx_comm,
 	return ret;
 }
 EXPORT_SYMBOL(hdmitx_common_build_format_para);
+
+int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
+				       struct hdmitx_common_state *new_state,
+				       char *mode, char *attr, bool do_validate)
+{
+	int ret = 0;
+	struct hdmi_format_para *new_para;
+	struct hdmi_format_para tst_para;
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+
+	new_para = &new_state->para;
+
+	mutex_lock(&tx_comm->hdmimode_mutex);
+
+	if (!mode || !attr) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	vic = hdmitx_common_parse_vic_in_edid(tx_comm, mode);
+	if (vic == HDMI_0_UNKNOWN) {
+		HDMITX_ERROR("%s: get vic from (%s) fail\n", __func__, mode);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = hdmitx_common_validate_vic(tx_comm, vic);
+	if (ret != 0) {
+		HDMITX_ERROR("validate vic [%s,%s]-%d return error %d\n", mode, attr, vic, ret);
+		goto out;
+	}
+
+	hdmitx_parse_color_attr(attr, &tst_para.cs, &tst_para.cd, &tst_para.cr);
+	ret = hdmitx_common_build_format_para(tx_comm,
+		new_para, vic, tx_comm->frac_rate_policy,
+		tst_para.cs, tst_para.cd, tst_para.cr);
+	if (ret != 0) {
+		hdmitx_format_para_reset(new_para);
+		HDMITX_ERROR("build formatpara [%s,%s] return error %d\n", mode, attr, ret);
+		goto out;
+	}
+
+	if (do_validate) {
+		ret = hdmitx_common_validate_format_para(tx_comm, new_para);
+		if (ret)
+			HDMITX_ERROR("validate formatpara [%s,%s] return error %d\n",
+				     mode, attr, ret);
+	}
+
+out:
+	mutex_unlock(&tx_comm->hdmimode_mutex);
+	return ret;
+}
+EXPORT_SYMBOL(hdmitx_common_validate_mode_locked);
 
 int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 		struct hdmi_format_para *para)

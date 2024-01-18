@@ -229,6 +229,9 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm);
 int hdmitx_common_do_mode_setting(struct hdmitx_common *tx_comm,
 				  struct hdmitx_common_state *new,
 				  struct hdmitx_common_state *old);
+int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
+				       struct hdmitx_common_state *new_state,
+				       char *mode, char *attr, bool do_validate);
 int hdmitx_common_disable_mode(struct hdmitx_common *tx_comm,
 			       struct hdmitx_common_state *new_state);
 int set_disp_mode(struct hdmitx_common *tx_comm, const char *mode);
