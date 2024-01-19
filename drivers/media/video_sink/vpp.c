@@ -2745,23 +2745,23 @@ RESTART:
 	} else {
 		filter->vpp_pre_vsc_en = 0;
 	}
-	if ((filter->vpp_hf_start_phase_step >= 0x2000000 &&
-	    filter->vpp_hsc_start_phase_step == filter->vpp_hf_start_phase_step &&
-	    pre_scaler_en) ||
-	    pre_scaler[input->layer_id].force_pre_scaler) {
-		filter->vpp_pre_hsc_en = 1;
-		if (input->vsr_safa_support) {
-			if (filter->vpp_hf_start_phase_step >= 0x8000000 &&
-				filter->vpp_hsc_start_phase_step >= 0x8000000)
-				pre_scaler[input->layer_id].pre_hscaler_rate = 4;
-			else if (filter->vpp_hf_start_phase_step >= 0x4000000 &&
-				filter->vpp_hsc_start_phase_step >= 0x4000000)
-				pre_scaler[input->layer_id].pre_hscaler_rate = 2;
-			else
-				pre_scaler[input->layer_id].pre_hscaler_rate = 1;
+	if (cur_dev->vd1_vsr_safa_support &&
+		((filter->vpp_hf_start_phase_step >= 0x2000000 &&
+		pre_scaler_en) ||
+		pre_scaler[input->layer_id].force_pre_scaler)) {
+		if (filter->vpp_hf_start_phase_step >= 0x8000000 &&
+			filter->vpp_hsc_start_phase_step >= 0x8000000) {
+			pre_scaler[input->layer_id].pre_hscaler_rate = 3;
+			filter->vpp_pre_hsc_ratio = 3;
+		} else if (filter->vpp_hf_start_phase_step >= 0x4000000 &&
+			filter->vpp_hsc_start_phase_step >= 0x4000000) {
+			pre_scaler[input->layer_id].pre_hscaler_rate = 2;
+			filter->vpp_pre_hsc_ratio = 2;
 		} else {
 			pre_scaler[input->layer_id].pre_hscaler_rate = 1;
+			filter->vpp_pre_hsc_ratio = 1;
 		}
+		filter->vpp_pre_hsc_en = 1;
 		filter->vpp_hf_start_phase_step >>=
 			pre_scaler[input->layer_id].pre_hscaler_rate;
 		filter->vpp_hsc_start_phase_step >>=
