@@ -212,14 +212,21 @@ struct module_debug_node {
 	debug_callback callback;
 };
 
+struct error_info_node {
+	struct list_head list;
+	char *info;
+};
+
 static int resman_debug = 1;
 static int preempt_timeout_ms = 2500;
 static struct list_head sessions_head;
 static struct list_head resources_head;
 static struct list_head debug_head;
+static struct list_head error_info_head;
 static DEFINE_MUTEX(sessions_lock);
 static DEFINE_MUTEX(resource_lock);
 static DEFINE_MUTEX(debug_lock);
+static DEFINE_MUTEX(error_info_lock);
 static dev_t resman_devno;
 static int sess_id = 1;
 static struct cdev *resman_cdev;
@@ -1685,6 +1692,7 @@ static void all_resource_init(void)
 	INIT_LIST_HEAD(&sessions_head);
 	INIT_LIST_HEAD(&resources_head);
 	INIT_LIST_HEAD(&debug_head);
+	INIT_LIST_HEAD(&error_info_head);
 #ifdef RESMAM_ENABLE_JSON
 	resman_config_from_json(default_configs);
 	kfree(default_configs);
@@ -2235,6 +2243,48 @@ static long resman_get_sys_debug_level(struct resman_session *sess, unsigned lon
 	return len;
 }
 
+static long resman_set_sys_debug_level(struct resman_session *sess, unsigned long para)
+{
+	long r = 0;
+	ssize_t size = 0;
+	struct debug_level __user *argp = (void __user *)para;
+	struct debug_level debuglevel;
+
+	if (copy_from_user((void *)&debuglevel, argp, sizeof(debuglevel)))
+		return -EINVAL;
+
+	if (debuglevel.len == 0 || debuglevel.len > PAGE_SIZE || debuglevel.debug_info[0] == '\0')
+		return -EINVAL;
+
+	dprintk(3, "[%s] info =%s\n", __func__, debuglevel.debug_info);
+	size = res_sys_debug_store(NULL, NULL, debuglevel.debug_info, debuglevel.len);
+	if (size <= 0)
+		return -EINVAL;
+	return r;
+}
+
+static long resman_get_error_info(struct resman_session *sess, unsigned long para)
+{
+	int len = 0;
+	struct error_info_node *node = NULL;
+	struct list_head *pos = NULL;
+	struct list_head *tmp = NULL;
+
+	list_for_each_safe(pos, tmp, &error_info_head) {
+		node = list_entry(pos, struct error_info_node, list);
+		len = strlen(node->info);
+		if (len > PAGE_SIZE)
+			len = PAGE_SIZE;
+		if (copy_to_user((void __user *)para, node->info, len)) {
+			len = 0;
+			dprintk(0, "error copy to use space");
+		}
+		list_del(&node->list);
+		break;
+	}
+	return len;
+}
+
 long resman_ioctl(struct file *filp, unsigned int cmd, unsigned long para)
 {
 	long retval = 0;
@@ -2273,7 +2323,13 @@ long resman_ioctl(struct file *filp, unsigned int cmd, unsigned long para)
 	case RESMAN_IOC_GET_SYS_DEBUG_LEVEL:
 		retval = resman_get_sys_debug_level(sess, para);
 		break;
-	default:
+	case RESMAN_IOC_SET_SYS_DEBUG_LEVEL:
+		retval = resman_set_sys_debug_level(sess, para);
+		break;
+	case RESMAN_IOC_GET_ERROR_INFO:
+		retval = resman_get_error_info(sess, para);
+		break;
+    default:
 		retval = -EINVAL;
 		break;
 	}
@@ -2429,6 +2485,51 @@ int resman_remove_debug_callback(const char *module)
 	return 0;
 }
 EXPORT_SYMBOL(resman_remove_debug_callback);
+
+int resman_notify_error_info(const char *info)
+{
+	int res = 0;
+	struct error_info_node *node = NULL;
+	struct list_head *pos = NULL, *tmp = NULL;
+	struct resman_session *sess = NULL;
+
+	if (!info)
+		return -EINVAL;
+	dprintk(1, "notify error info = %s\n", info);
+	mutex_lock(&error_info_lock);
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node) {
+		dprintk(0, "failed allocate error info node for %s\n", info);
+		res = -ENOMEM;
+		goto error1;
+	}
+	node->info = kzalloc(strlen(info) + 1, GFP_KERNEL);
+	if (!node) {
+		dprintk(0, "failed allocate info for %s\n", info);
+		res = -ENOMEM;
+		goto error;
+	}
+	memcpy(node->info, info, strlen(info));
+	list_add_tail(&node->list, &error_info_head);
+	mutex_unlock(&error_info_lock);
+
+	mutex_lock(&sessions_lock);
+	list_for_each_safe(pos, tmp, &sessions_head) {
+		sess = list_entry(pos, struct resman_session, list);
+		if (sess) {
+			resman_send_event(sess, RESMAN_EVENT_ERRORINFO);
+			wake_up_interruptible(&sess->wq_event);
+		}
+	}
+	mutex_unlock(&sessions_lock);
+	return 0;
+error:
+	kfree(node);
+error1:
+	mutex_unlock(&error_info_lock);
+	return res;
+}
+EXPORT_SYMBOL(resman_notify_error_info);
 
 int __init resman_init(void)
 {
