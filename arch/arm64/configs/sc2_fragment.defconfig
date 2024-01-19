@@ -349,7 +349,6 @@ CONFIG_LOG_BUF_SHIFT=16
 
 # Disabled unuse fs
 # CONFIG_F2FS_FS is not set
-# CONFIG_EROFS_FS is not set
 # CONFIG_NTFS3_FS is not set
 # CONFIG_VIRTIO_FS is not set
 
