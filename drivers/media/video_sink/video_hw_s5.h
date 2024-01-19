@@ -214,6 +214,8 @@ struct vd_proc_slice_info_s {
 	u32 vd1_slice_din_vsize[SLICE_NUM];
 	u32 vd1_slice_x_st[SLICE_NUM];
 	u32 vd1_slice_x_end[SLICE_NUM];
+	u32 vd1_slice_x_st_amdv_out[SLICE_NUM];
+	u32 vd1_slice_x_end_amdv_out[SLICE_NUM];
 };
 
 struct vd_proc_preblend_info_s {

@@ -4381,6 +4381,11 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 				vd_proc_slice_info->vd1_slice_x_end[slice] =
 					vd_proc_slice_info->vd1_slice_x_st[0] +
 					vd_proc_slice_info->vd1_slice_din_hsize_amdv[0] - 1;
+				vd_proc_slice_info->vd1_slice_x_st_amdv_out[slice] =
+					vd_proc_vd1_info->crop_left;
+				vd_proc_slice_info->vd1_slice_x_end_amdv_out[slice] =
+					vd_proc_slice_info->vd1_slice_x_st[0] +
+					vd_proc_slice_info->vd1_slice_din_hsize[0] - 1;
 			} else {
 #ifdef NEW_PRE_SCALER
 				vd_proc_slice_info->vd1_slice_x_st[slice] =
@@ -4390,6 +4395,12 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 				vd_proc_slice_info->vd1_slice_x_end[slice] =
 					vd_proc_slice_info->vd1_slice_x_st[0] +
 					pps_prehsc_dout_hsize - 1;
+				vd_proc_slice_info->vd1_slice_x_st_amdv_out[slice] =
+					vd_proc_slice_info->vd1_slice_x_st[0] +
+					pps_prehsc_dout_hsize -
+					vd_proc_slice_info->vd1_slice_din_hsize[1];
+				vd_proc_slice_info->vd1_slice_x_end_amdv_out[slice] =
+					vd_proc_slice_info->vd1_slice_x_end[slice]
 #else
 				vd_proc_slice_info->vd1_slice_x_st[slice] =
 					vd_proc_slice_info->vd1_slice_x_st[0] +
@@ -4398,6 +4409,12 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 				vd_proc_slice_info->vd1_slice_x_end[slice] =
 					vd_proc_slice_info->vd1_slice_x_st[0] +
 					vd_proc_vd1_info->vd1_src_din_hsize[0] - 1;
+				vd_proc_slice_info->vd1_slice_x_st_amdv_out[slice] =
+					vd_proc_slice_info->vd1_slice_x_st[0] +
+					vd_proc_vd1_info->vd1_src_din_hsize[0] -
+					vd_proc_slice_info->vd1_slice_din_hsize[1];
+				vd_proc_slice_info->vd1_slice_x_end_amdv_out[slice] =
+					vd_proc_slice_info->vd1_slice_x_end[slice];
 #endif
 			}
 #ifdef NEW_PRE_SCALER
@@ -4408,7 +4425,7 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 				vd_proc_vd1_info->vd1_src_din_vsize[0];
 #endif
 			vd_proc_pps->slice_x_st =
-				vd_proc_slice_info->vd1_slice_x_st[slice];
+				vd_proc_slice_info->vd1_slice_x_st_amdv_out[slice];
 			vd_proc_pps->pps_slice = slice;
 		}
 		if (!mosaic_mode) {
@@ -4509,12 +4526,14 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 				__func__, slice,
 				vd_proc_vd1_info->vd1_src_din_hsize[slice],
 				vd_proc_vd1_info->vd1_proc_unit_dout_hsize[slice]);
-			pr_info("%s:vd1_slice_din_hsize=%d(amdv input), %d, slice_x_st=%d, slice_x_end=%d\n",
+			pr_info("%s:vd1_slice_din_hsize=%d(amdv input), %d, slice_x_st=%d, %d(amdv output), slice_x_end=%d, %d(amdv output)\n",
 				__func__,
 				vd_proc_slice_info->vd1_slice_din_hsize_amdv[slice],
 				vd_proc_slice_info->vd1_slice_din_hsize[slice],
 				vd_proc_slice_info->vd1_slice_x_st[slice],
-				vd_proc_slice_info->vd1_slice_x_end[slice]);
+				vd_proc_slice_info->vd1_slice_x_st_amdv_out[slice],
+				vd_proc_slice_info->vd1_slice_x_end[slice],
+				vd_proc_slice_info->vd1_slice_x_end_amdv_out[slice]);
 		}
 	}
 }

@@ -969,13 +969,14 @@ static int vpp_process_speed_check
 	u32 cur_ratio, bpp = 1;
 	int min_ratio_1000 = 0;
 	int freq_ratio = 1;
-	u32 sync_duration_den = 1;
+	u32 sync_duration_den = 1, sync_duration_num = 60;
 	u32 vtotal, htotal = 0, clk_in_pps = 0, clk_vpu = 0, clk_temp;
 	u32 input_time_us = 0, display_time_us = 0, dummy_time_us = 0;
 	u32 width_out = 0;
 	u32 vpu_clk = 0, max_height = 2160;
 	u32 slice_num, max_proc_height_temp = 0;
 	u32 pi_enable, clk_calc = 0, overlap_size = 0;
+	u32 frc_enable = 0;
 
 	if (!vf)
 		return SPEED_CHECK_DONE;
@@ -990,8 +991,14 @@ static int vpp_process_speed_check
 	if (next_frame_par->vscale_skip_count < force_vskip_cnt)
 		return SPEED_CHECK_VSKIP;
 
-	if (vinfo->sync_duration_den >  0)
-		sync_duration_den = vinfo->sync_duration_den;
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+	frc_enable = frc_n2m_worked();
+#endif
+	if (frc_enable)
+		sync_duration_num = vinfo->sync_duration_num / 2;
+	else
+		sync_duration_num = vinfo->sync_duration_num;
+	sync_duration_den = vinfo->sync_duration_den;
 
 	if (IS_DI_POST(vf->type)) {
 		if (is_meson_txlx_cpu())
@@ -1087,7 +1094,7 @@ static int vpp_process_speed_check
 		}
 		clk_temp = clk_vpu / 1000000;
 		display_time_us = 1000000 * sync_duration_den /
-			vinfo->sync_duration_num;
+			sync_duration_num;
 		display_time_us_per_line10 = (display_time_us * 10) / vtotal;
 		if (IS_DI_PRELINK(vf->di_flag)) {
 			u32 orig_w;
@@ -1128,8 +1135,8 @@ static int vpp_process_speed_check
 			return SPEED_CHECK_VSKIP;
 	}
 
-	if ((vinfo->sync_duration_num / sync_duration_den) > 60)
-		freq_ratio = vinfo->sync_duration_num /
+	if ((sync_duration_num / sync_duration_den) > 60)
+		freq_ratio = sync_duration_num /
 			sync_duration_den / 60;
 
 	if (freq_ratio < 1)
@@ -1210,7 +1217,7 @@ static int vpp_process_speed_check
 				clk_calc = div_u64((u64)cur_vpp_speed_factor *
 					    (u64)width_in *
 					    (u64)height_in *
-					    (u64)vinfo->sync_duration_num *
+					    (u64)sync_duration_num *
 					    (u64)vtotal,
 					    height_out *
 					    sync_duration_den *
@@ -1222,7 +1229,7 @@ static int vpp_process_speed_check
 						clk_calc,
 						clk_in_pps,
 						vtotal,
-						vinfo->sync_duration_num,
+						sync_duration_num,
 						sync_duration_den,
 						cur_vpp_speed_factor,
 						cur_bypass_ratio);
@@ -1238,7 +1245,7 @@ static int vpp_process_speed_check
 				clk_calc = div_u64((u64)VPP_SPEED_FACTOR *
 					    (u64)width_in *
 					    (u64)height_in *
-					    (u64)vinfo->sync_duration_num *
+					    (u64)sync_duration_num *
 					    (u64)vtotal,
 					    height_out *
 					    sync_duration_den * 256);
@@ -1260,7 +1267,7 @@ static int vpp_process_speed_check
 					  (next_frame_par->nocomp)) &&
 					(height_in > 2048) &&
 					(height_out < max_proc_height_temp) &&
-					(vinfo->sync_duration_num >
+					(sync_duration_num >
 					(30 * sync_duration_den)) &&
 					(get_cpu_type() !=
 					MESON_CPU_MAJOR_ID_GXTVBB) &&
@@ -1275,7 +1282,7 @@ static int vpp_process_speed_check
 		} else if (next_frame_par->hscale_skip_count == 0) {
 			/*TODO vpu */
 			if (div_u64(VPP_SPEED_FACTOR * width_in *
-				vinfo->sync_duration_num * height_screen,
+				sync_duration_num * height_screen,
 				sync_duration_den * 256)
 				> vpu_clk_get())
 				return SPEED_CHECK_HSKIP;
