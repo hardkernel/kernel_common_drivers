@@ -2115,6 +2115,16 @@ static struct lcd_data_s lcd_data_txhd2 = {
 	.offset_venc_data = {0x0},
 };
 
+static struct lcd_data_s lcd_data_a4 = {
+	.chip_type = LCD_CHIP_A4,
+	.chip_name = "a4",
+	.reg_map_table = &lcd_reg_a4[0],
+	.drv_max = 1,
+	.offset_venc = {0x300},
+	.offset_venc_if = {0},
+	.offset_venc_data = {0},
+};
+
 static const struct of_device_id lcd_dt_match_table[] = {
 	{
 		.compatible = "amlogic, lcd-axg",
@@ -2175,6 +2185,10 @@ static const struct of_device_id lcd_dt_match_table[] = {
 	{
 		.compatible = "amlogic, lcd-txhd2",
 		.data = &lcd_data_txhd2,
+	},
+	{
+		.compatible = "amlogic, lcd-a4",
+		.data = &lcd_data_a4,
 	},
 	{}
 };

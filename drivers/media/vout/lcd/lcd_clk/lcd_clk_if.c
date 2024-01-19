@@ -689,6 +689,9 @@ static int lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_c
 	case LCD_CHIP_TXHD2:
 		lcd_clk_config_chip_init_txhd2(pdrv, cconf);
 		break;
+	case LCD_CHIP_A4:
+		lcd_clk_config_chip_init_a4(pdrv, cconf);
+		break;
 	default:
 		LCDPR("[%d]: %s: invalid chip type\n", pdrv->index, __func__);
 		return -1;

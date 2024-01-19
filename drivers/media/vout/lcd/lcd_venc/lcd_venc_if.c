@@ -235,6 +235,7 @@ int lcd_venc_probe(struct aml_lcd_drv_s *pdrv)
 		ret = lcd_venc_op_init_t7(pdrv, &lcd_venc_op);
 		break;
 	case LCD_CHIP_C3:
+	case LCD_CHIP_A4:
 		ret = lcd_venc_op_init_c3(pdrv, &lcd_venc_op);
 		break;
 	case LCD_CHIP_T3X:

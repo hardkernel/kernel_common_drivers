@@ -3910,6 +3910,12 @@ static struct bl_data_s bl_data_txhd2 = {
 	.pwm_vs_flag = 1,
 };
 
+static struct bl_data_s bl_data_a4 = {
+	.chip_type = LCD_CHIP_A4,
+	.chip_name = "a4",
+	.pwm_vs_flag = 1,
+};
+
 static const struct of_device_id bl_dt_match_table[] = {
 	{
 		.compatible = "amlogic, backlight-axg",
@@ -3976,6 +3982,10 @@ static const struct of_device_id bl_dt_match_table[] = {
 	{
 		.compatible = "amlogic, backlight-txhd2",
 		.data = &bl_data_txhd2,
+	},
+	{
+		.compatible = "amlogic, backlight-a4",
+		.data = &bl_data_a4,
 	},
 	{}
 };

@@ -317,6 +317,7 @@
 #define ANACTRL_MIPIDSI_STS                        0x00a3
 
 #define CLKCTRL_VOUTENC_CLK_CTRL                   0x0046
+#define CLKCTRL_VOUTENC_CLK_CTRL_A4                0x0081
 
 #define COMBO_DPHY_CNTL0                           0x0000
 #define COMBO_DPHY_CNTL1                           0x0001
@@ -1263,9 +1264,11 @@
 #define P2P_CH_SWAP1                               0x4201
 
 /* ********************************
- * C3 vout
+ * C3/A4 vout (A4 offset: 0x300)
  * ********************************
  */
+#define VPU_VOUT_BLEND_CTRL                        0x0010
+#define VPU_VOUT_BLEND_DUMDATA                     0x0011
 #define VPU_VOUT_CORE_CTRL                         0x0100
 #define VPU_VOUT_INT_CTRL                          0x0101
 #define VPU_VOUT_DETH_CTRL                         0x0102
@@ -1298,8 +1301,10 @@
 #define VPU_VOUT_BT_BLK_DATA                       0x0134
 #define VPU_VOUT_BT_DAT_CLPY                       0x0135
 #define VPU_VOUT_BT_DAT_CLPC                       0x0136
-#define VPU_VOUT_RO_INT                            0x0140
-
+#define VPU_VOUT_BIST_CFG_YUV                      0x0150
+#define VPU_VOUT_CLRBAR_CFG                        0x0151
+#define VPU_VOUT_BIST_SEL                          0x0152
+#define VPU_VOUT_BIST_HIGH                         0x0153
 /* ********************************
  * Video post-processing:  VPP_VCBUS_BASE = 0x1d
  * Bit 31  vd1_bgosd_exchange_en for preblend
@@ -1787,6 +1792,7 @@ extern int lcd_reg_t7[];
 extern int lcd_reg_c3[];
 extern int lcd_reg_t3x[];
 extern int lcd_reg_txhd2[];
+extern int lcd_reg_a4[];
 
 int lcd_ioremap(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev);
 unsigned int lcd_vcbus_read(unsigned int reg);
