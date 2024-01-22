@@ -1190,6 +1190,7 @@
 
 &amhdmitx {
 	status = "okay";
+	vrr_type = <2>; /* 1: GAME-VRR, 2: QMS-VRR */
 };
 
 &drm_amcvbsout {

@@ -223,6 +223,10 @@ void set21_hpll_sspll_s7(enum hdmi_vic vic)
 	case HDMI_19_1280x720p50_16x9:
 	case HDMI_5_1920x1080i60_16x9:
 	case HDMI_20_1920x1080i50_16x9:
+		/* enable ssc, need update electric to 0x0100 */
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL1, 4, 25, 4);
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, 2, 3, 4);//set ssc 1000 ppm
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, 1, 2, 1);//enable ssc
 		break;
 	default:
 		break;

@@ -35,7 +35,7 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 			db[4] = vic & 0xf;
 			db[3] = 0x20;
 			hdmitx_hw_cntl_config(tx_hw, CONF_AVI_VIC, 0);
-			hdmitx_hw_set_packet(tx_hw, HDMI_PACKET_VEND, db, hb);
+			hdmitx_hw_set_packet(tx_hw, HDMI_PACKET_VEND, vsif_db, hb);
 		} else {
 			HDMITX_INFO("skip vsif for non-4k mode.\n");
 			return -EINVAL;
@@ -54,7 +54,7 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 			/*reset vic which may be reset by VT_HDMI14_4K.*/
 			if (hdmitx_edid_get_hdmi14_4k_vic(tx_comm->fmt_para.vic) > 0)
 				hdmitx_hw_cntl_config(tx_hw, CONF_AVI_VIC, tx_comm->fmt_para.vic);
-			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR2, db, hb);
+			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR2, vsif_db, hb);
 		} else {
 			db[4] &= ~(1 << 1); /* clear bit1, ALLM_MODE */
 			/* 1.When the Source stops transmitting the HF-VSIF,
