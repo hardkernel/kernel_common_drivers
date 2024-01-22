@@ -769,7 +769,7 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		pinctrl-names = "default";
-		gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio GPIOC_7 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		startup-delay-us = <70000>;
 		enable-active-high;
 		regulator-boot-on;
