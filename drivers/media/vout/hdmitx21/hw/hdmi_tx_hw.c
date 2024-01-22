@@ -1331,7 +1331,8 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 	switch (hdev->tx_hw.chip_data->chip_type) {
 	case MESON_CPU_ID_S1A:
 		//bit[1,0] = 3 enable ycbcr2rgb
-		data32 = (((para->cs == HDMI_COLORSPACE_RGB) ? 3 : 0) << 0) |
+		data32 = (para->cs == HDMI_COLORSPACE_RGB) ?
+			  3 : ((para->cs == HDMI_COLORSPACE_YUV422) ? 1 : 0) |
 			  (2 << 2) |
 			  (0 << 4) |
 			  (0 << 5) |
