@@ -716,13 +716,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	} else {
 		HDMITX_INFO("%s: disable drm pkt\n", __func__);
 	}
-	if (hdr_status_pos != 1 && hdr_status_pos != 3)
-		HDMITX_INFO("%s: tf=%d, cf=%d, colormetry=%d\n",
-			__func__,
-			hdev->hdr_transfer_feature,
-			hdev->hdr_color_feature,
-			hdev->colormetry);
-	hdr_status_pos = 1;
 	/* if VSIF/DV or VSIF/HDR10P packet is enabled, disable it */
 	if (hdmitx21_dv_en()) {
 		hdmi_avi_infoframe_config(CONF_AVI_CS, hdev->tx_comm.fmt_para.cs);
@@ -967,9 +960,6 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 		HDMITX_INFO("%s: type=%d, tunnel_mode=%d, signal_sdr=%d\n",
 			__func__, type, tunnel_mode, signal_sdr);
 	}
-	if (hdr_status_pos != 2)
-		HDMITX_INFO("%s: type = %d\n", __func__, type);
-	hdr_status_pos = 2;
 
 	/* if DRM/HDR packet is enabled, disable it */
 	hdr_type = hdmitx_hw_get_hdr_st(&hdev->tx_hw.base);
@@ -1275,7 +1265,6 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 	if (hdev->hdr10plus_feature != 1)
 		HDMITX_INFO("%s: flag = %d\n", __func__, flag);
 	hdev->hdr10plus_feature = 1;
-	hdr_status_pos = 3;
 	ven_db[0] = 0x8b;
 	ven_db[1] = 0x84;
 	ven_db[2] = 0x90;
@@ -1747,52 +1736,6 @@ static ssize_t hdmi_hdr_status_show(struct device *dev,
 	enum hdmi_tf_type type = HDMI_NONE;
 	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
 
-	/* pos = 4 */
-	if (hdr_status_pos == 4) {
-		pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-GAMMA_CUVA");
-		return pos;
-	}
-
-	/* pos = 3 */
-	if (hdr_status_pos == 3 || hdev->hdr10plus_feature) {
-		pos += snprintf(buf + pos, PAGE_SIZE, "HDR10Plus-VSIF");
-		return pos;
-	}
-
-	/* pos = 2 */
-	if (hdr_status_pos == 2) {
-		if (hdev->hdmi_current_eotf_type == EOTF_T_DOLBYVISION) {
-			pos += snprintf(buf + pos, PAGE_SIZE,
-				"DolbyVision-Std");
-			return pos;
-		}
-		if (hdev->hdmi_current_eotf_type == EOTF_T_LL_MODE) {
-			pos += snprintf(buf + pos, PAGE_SIZE,
-				"DolbyVision-Lowlatency");
-			return pos;
-		}
-	}
-
-	/* pos = 1 */
-	if (hdr_status_pos == 1) {
-		if (hdev->hdr_transfer_feature == T_SMPTE_ST_2084) {
-			if (hdev->hdr_color_feature == C_BT2020) {
-				pos += snprintf(buf + pos, PAGE_SIZE,
-					"HDR10-GAMMA_ST2084");
-				return pos;
-			}
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-others");
-			return pos;
-		}
-		if (hdev->hdr_color_feature == C_BT2020 &&
-		    (hdev->hdr_transfer_feature == T_BT2020_10 ||
-		     hdev->hdr_transfer_feature == T_HLG)) {
-			pos += snprintf(buf + pos, PAGE_SIZE,
-				"HDR10-GAMMA_HLG");
-			return pos;
-		}
-	}
-
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR10P, 0);
 	if (type) {
 		if (type == HDMI_HDR10P_DV_VSIF) {
@@ -1831,33 +1774,29 @@ static ssize_t hdmi_hdr_status_show(struct device *dev,
 
 static int hdmi_hdr_status_to_drm(void)
 {
+	enum hdmi_tf_type type = HDMI_NONE;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	/* pos = 3 */
-	if (hdr_status_pos == 3 || hdev->hdr10plus_feature)
-		return HDR10PLUS_VSIF;
-
-	/* pos = 2 */
-	if (hdr_status_pos == 2) {
-		if (hdev->hdmi_current_eotf_type == EOTF_T_DOLBYVISION)
+	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR10P, 0);
+	if (type) {
+		if (type == HDMI_HDR10P_DV_VSIF)
+			return HDR10PLUS_VSIF;
+	}
+	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_DV, 0);
+	if (type) {
+		if (type == HDMI_DV_VSIF_STD)
 			return dolbyvision_std;
-
-		if (hdev->hdmi_current_eotf_type == EOTF_T_LL_MODE)
+		else if (type == HDMI_DV_VSIF_LL)
 			return dolbyvision_lowlatency;
 	}
-
-	/* pos = 1 */
-	if (hdr_status_pos == 1) {
-		if (hdev->hdr_transfer_feature == T_SMPTE_ST_2084) {
-			if (hdev->hdr_color_feature == C_BT2020)
-				return HDR10_GAMMA_ST2084;
-			else
-				return HDR10_others;
-		}
-		if (hdev->hdr_color_feature == C_BT2020 &&
-		    (hdev->hdr_transfer_feature == T_BT2020_10 ||
-		     hdev->hdr_transfer_feature == T_HLG))
+	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR, 0);
+	if (type) {
+		if (type == HDMI_HDR_SMPTE_2084)
+			return HDR10_GAMMA_ST2084;
+		else if (type == HDMI_HDR_HLG)
 			return HDR10_GAMMA_HLG;
+		else if (type == HDMI_HDR_HDR)
+			return HDR10_others;
 	}
 
 	/* default is SDR */
