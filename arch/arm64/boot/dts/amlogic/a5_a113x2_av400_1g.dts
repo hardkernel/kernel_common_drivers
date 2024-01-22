@@ -1248,6 +1248,12 @@
 			};
 		};
 	};
+	spi-nor@1 {
+		compatible = "jedec,spi-nor";
+		status = "disabled";
+		reg = <1>;
+		spi-max-frequency = <24000000>;
+	};
 };
 
 &aml_wifi{
