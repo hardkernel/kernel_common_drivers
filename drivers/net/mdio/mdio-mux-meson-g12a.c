@@ -25,6 +25,7 @@ unsigned int phy_mode;
 EXPORT_SYMBOL_GPL(phy_mode);
 #endif
 
+#define ETH_PHY_DBG_CFG0	0x08
 #define ETH_PLL_STS		0x40
 #define ETH_PLL_CTL0		0x44
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
@@ -301,6 +302,24 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 					writel(0xaa820000, priv->regs + ETH_PLL_CTL3);
 				}
 				writel(0xcf01, priv->regs + ETH_PLL_CTL6);
+				writel(0x20220000, priv->regs + ETH_PLL_CTL5);
+				writel(0x00000023, priv->regs + ETH_PLL_CTL7);
+			}
+
+			/*s7*/
+			if (phy_mode == 4) {
+				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
+				if (efuse_get_tmp >> 0x18) { /*bit24 is valid*/
+					tx_R = (efuse_get_tmp & 0xf00000) >> 20;
+					rx_R = (efuse_get_tmp & 0x0f0000) >> 16;
+					writel(((tx_R << 28) | (rx_R << 20))
+						| (0x0a000000),
+						priv->regs + ETH_PLL_CTL3);
+				} else {
+					pr_debug("no efuse setting use default\n");
+					writel(0xaa800000, priv->regs + ETH_PLL_CTL3);
+				}
+				writel(0x4001, priv->regs + ETH_PLL_CTL6);
 				writel(0x20220000, priv->regs + ETH_PLL_CTL5);
 				writel(0x00000023, priv->regs + ETH_PLL_CTL7);
 			}

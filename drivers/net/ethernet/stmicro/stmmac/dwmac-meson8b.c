@@ -679,6 +679,17 @@ static void dwmac_resume(struct meson8b_dwmac *dwmac)
 			writel(0x34047, phy_analog_config_addr + 0x84);
 			writel(0x74047, phy_analog_config_addr + 0x84);
 		}
+	} else if (phy_pll_mode == 2) {/*s7 new*/
+		writel(0x00510630, phy_analog_config_addr + 0x44);
+		writel(0x222210a0, phy_analog_config_addr + 0x48);
+		writel(0x00518630, phy_analog_config_addr + 0x44);
+		usleep_range(100, 200);
+		writel(0x222200a0, phy_analog_config_addr + 0x48);
+		usleep_range(100, 200);
+		writel(0x00118630, phy_analog_config_addr + 0x44);
+
+		usleep_range(800, 1000);
+		writel(0x12804008, phy_analog_config_addr + 0x8);
 	} else {
 		writel(0x19c0040a, phy_analog_config_addr + 0x44);
 	}
@@ -751,7 +762,8 @@ static int meson8b_resume(struct device *dev)
 				dwmac->data->resume(dwmac);
 		}
 		/*our phy not support wol by now*/
-		phydev->irq_suspended = 0;
+		if (phydev)
+			phydev->irq_suspended = 0;
 		ret = stmmac_resume(dev);
 		/*this flow only for txhd2, not for common anymore*/
 		if (phy_mode == 2)

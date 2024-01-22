@@ -361,6 +361,17 @@ static int custom_internal_config(struct phy_device *phydev)
 				phy_tst_read(phydev, 0x16),
 				phy_tst_read(phydev, 0x15));
 	}
+	/*s7*/
+	if (voltage_phy == 4) {
+		phy_tst_write(phydev, 0x16, 0x8402);
+		phy_tst_write(phydev, 0x15, 0x4408);
+		pr_debug("setup voltage phy reg16 %x reg15 %x\n",
+				phy_tst_read(phydev, 0x16),
+				phy_tst_read(phydev, 0x15));
+		phy_tst_write(phydev, 0x1b, 0x40a0);
+		usleep_range(800, 1000);
+		phy_tst_write(phydev, 0x1b, 0x00a0);
+	}
 	return 0;
 }
 
