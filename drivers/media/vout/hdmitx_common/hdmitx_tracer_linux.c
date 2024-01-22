@@ -13,6 +13,7 @@
 
 struct hdmitx_tracer {
 	int previous_event;
+	int hdr10plus_event;
 	struct kfifo log_fifo;
 	struct hdmitx_event_mgr *eventmgr;
 	/*to trigger userspace read fifo logs.*/
@@ -121,6 +122,7 @@ struct hdmitx_tracer *hdmitx_tracer_create(struct hdmitx_event_mgr *event_mgr)
 	} else {
 		instance->eventmgr = event_mgr;
 		instance->previous_event = -1;
+		instance->hdr10plus_event = -1;
 		ret = kfifo_alloc(&instance->log_fifo, HDMI_TRACE_SIZE, GFP_KERNEL);
 		if (ret)
 			HDMITX_ERROR("alloc hdmi_log_kfifo fail [%d]\n", ret);
@@ -140,6 +142,16 @@ int hdmitx_tracer_destroy(struct hdmitx_tracer *tracer)
 	return 0;
 }
 
+/* When hdr10plus mode ends, clear hdr10plus_event flag */
+int hdmitx_tracer_clean_hdr10plus_event(struct hdmitx_tracer *tracer,
+	enum hdmitx_event_log_bits event)
+{
+	if (event == HDMITX_HDR_MODE_HDR10PLUS)
+		tracer->hdr10plus_event = -1;
+
+	return 0;
+}
+
 int hdmitx_tracer_write_event(struct hdmitx_tracer *tracer,
 	enum hdmitx_event_log_bits event)
 {
@@ -151,6 +163,11 @@ int hdmitx_tracer_write_event(struct hdmitx_tracer *tracer,
 	if (event == tracer->previous_event)
 		return 0;
 	tracer->previous_event = event;
+
+	/* Play HDR10+ videos, HDMITX_HDR_MODE_HDR10PLUS only writes once */
+	if (tracer->hdr10plus_event == HDMITX_HDR_MODE_HDR10PLUS)
+		return 0;
+
 	if (event & HDMITX_HDMI_ERROR_MASK)
 		HDMITX_INFO("Record HDMI error: %s\n", hdmitx_event_to_str(event));
 
@@ -158,6 +175,8 @@ int hdmitx_tracer_write_event(struct hdmitx_tracer *tracer,
 	ret = kfifo_in(&tracer->log_fifo, log_str, strlen(log_str));
 	if (!ret)
 		HDMITX_ERROR("%s fifo error %d\n", __func__, ret);
+	else
+		tracer->hdr10plus_event = tracer->previous_event;
 
 	/*after write trace, trigger uevent to save trace log.*/
 	schedule_work(&tracer->uevent_work);

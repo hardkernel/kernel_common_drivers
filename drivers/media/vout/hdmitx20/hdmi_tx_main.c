@@ -1282,8 +1282,11 @@ static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 			CLR_AVI_BT2020);
 		hdev->hdr10plus_feature = 0;
 		hdr_status_pos = 4;
+		/* When hdr10plus mode ends, clear hdr10plus_event flag */
+		hdmitx_tracer_clean_hdr10plus_event(hdev->tx_comm.tx_tracer,
+				HDMITX_HDR_MODE_HDR10PLUS);
 		hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
-			HDMITX_HDR_MODE_SDR);
+				HDMITX_HDR_MODE_SDR);
 		return;
 	}
 
@@ -1293,6 +1296,9 @@ static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 		hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_AVI_BT2020,
 			CLR_AVI_BT2020);
 		hdev->hdr10plus_feature = 0;
+		/* When hdr10plus mode ends, clear hdr10plus_event flag */
+		hdmitx_tracer_clean_hdr10plus_event(hdev->tx_comm.tx_tracer,
+					HDMITX_HDR_MODE_HDR10PLUS);
 		return;
 	}
 
