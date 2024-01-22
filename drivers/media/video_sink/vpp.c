@@ -2064,7 +2064,8 @@ RESTART:
 			r1 = max(ratio_x, ratio_y);
 			r2 = (r1 << 8) / aspect_factor;
 
-			if ((r1 < (1 << 18)) || (r2 < (1 << 18))) {
+			if (!next_frame_par->nocomp &&
+				((r1 < (1 << 18)) || (r2 < (1 << 18)))) {
 				if (r1 < r2) {
 					ratio_x = 1 << 18;
 					ratio_y =
