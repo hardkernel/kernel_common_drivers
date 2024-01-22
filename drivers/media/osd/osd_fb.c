@@ -5305,7 +5305,6 @@ static struct osd_device_data_s osd_txhd2 = {
 	.has_vpp1 = 0,
 	.has_vpp2 = 0,
 };
-#endif
 
 static struct osd_device_data_s osd_s7 = {
 	.cpu_id = __MESON_CPU_MAJOR_ID_S7,
@@ -5323,6 +5322,7 @@ static struct osd_device_data_s osd_s7 = {
 	.osd0_sc_independ = 0,
 	.mif_linear = 1,
 };
+#endif
 
 static const struct of_device_id meson_fb_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_C3_REMOVE

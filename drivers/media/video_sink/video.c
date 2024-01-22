@@ -14460,7 +14460,6 @@ static struct amvideo_device_data_s amvideo_s1a = {
 	.max_vd_layers = 2,
 	.is_tv_panel = 0,
 };
-#endif
 
 static struct amvideo_device_data_s amvideo_s7 = {
 	.cpu_type = MESON_CPU_MAJOR_ID_S7_,
@@ -14512,6 +14511,7 @@ static struct amvideo_device_data_s amvideo_s7 = {
 	.max_vd_layers = 2,
 	.is_tv_panel = 0,
 };
+#endif
 
 static struct video_device_hw_s legcy_dev_property = {
 	.vd2_independ_blend_ctrl = 0,
