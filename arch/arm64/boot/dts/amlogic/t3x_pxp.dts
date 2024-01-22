@@ -1208,17 +1208,6 @@
 		status = "disabled";
 	};
 
-	extn:extn {
-		compatible = "amlogic, t7-snd-extn";
-		#sound-dai-cells = <0>;
-
-		interrupts =
-				<GIC_SPI 42 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "irq_frhdmirx";
-
-		status = "disabled";
-	};
-
 	aed:effect {
 		compatible = "amlogic, snd-effect-v3";
 		#sound-dai-cells = <0>;
