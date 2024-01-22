@@ -337,12 +337,14 @@ static void vrr_line_delay_update(struct aml_vrr_drv_s *vdrv)
 	char str[50];
 
 	if (!vdrv) {
-		VRRPR("%s no vrr drv!", __func__);
+		if (vrr_debug_print & VRR_DBG_PR_NORMAL)
+			VRRPR("%s no vrr drv!", __func__);
 		return;
 	}
 
 	if (!vdrv->vrr_dev) {
-		VRRERR("[%d]: %s: no vrr_dev\n", vdrv->index, __func__);
+		if (vrr_debug_print & VRR_DBG_PR_NORMAL)
+			VRRERR("[%d]: %s: no vrr_dev\n", vdrv->index, __func__);
 		return;
 	}
 
@@ -388,8 +390,10 @@ static void vrr_line_delay_update(struct aml_vrr_drv_s *vdrv)
 				vrr_line_dly, 8, 16, vrr_vpp_index);
 	}
 
-	VRRPR("[%d]: %s: %d->%d\n",
-	      vdrv->index, __func__, temp, vrr_line_dly);
+	if (vrr_debug_print & VRR_DBG_PR_NORMAL)
+		VRRPR("[%d]: %s: %d->%d\n",
+			vdrv->index, __func__, temp, vrr_line_dly);
+
 	pre_line = crop_line;
 }
 
@@ -400,12 +404,14 @@ void vrr_crop_update_delay_line(u32 line, u8 vpp_index)
 	vdrv = aml_vrr_drv_active_sel();
 
 	if (!vdrv) {
-		VRRPR("%s no vrr drv!", __func__);
+		if (vrr_debug_print & VRR_DBG_PR_NORMAL)
+			VRRPR("%s no vrr drv!", __func__);
 		return;
 	}
 
 	if (!vdrv->enable) {
-		VRRPR("%s vrr not enable!", __func__);
+		if (vrr_debug_print & VRR_DBG_PR_NORMAL)
+			VRRPR("%s vrr not enable!", __func__);
 		return;
 	}
 
