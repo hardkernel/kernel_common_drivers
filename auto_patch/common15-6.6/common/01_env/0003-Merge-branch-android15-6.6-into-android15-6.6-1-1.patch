@@ -1,7 +1,7 @@
-From e1dadf8b7e9b6b5aea0f14a16ceb0061aeb8b20a Mon Sep 17 00:00:00 2001
+From d94d646a69f7ba576bbcdb74f2c0ad3c6332829b Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Tue, 7 Feb 2023 17:19:36 +0800
-Subject: [PATCH 3/3] Merge branch 'android15-6.6' into android15-6.6 [1/1]
+Subject: [PATCH] Merge branch 'android15-6.6' into android15-6.6 [1/1]
 
 PD#SWPL-87897
 
@@ -9,10 +9,10 @@ Problem:
 record merge upstream information
 
 Solution:
-AML_KERNEL_VERSION      2
-UPSTREAM_VERSION        "6db0d07e4b32"
-AML_PATCH_VERSION       "6db0d07e4b32"
-MERGE_DATE              "2024-01-12"
+AML_KERNEL_VERSION      3
+UPSTREAM_VERSION        "83f97c05f8fd"
+AML_PATCH_VERSION       "83f97c05f8fd"
+MERGE_DATE              "2024-01-22"
 
 Verify:
 sc2
@@ -26,7 +26,7 @@ Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
 
 diff --git a/include/linux/upstream_version.h b/include/linux/upstream_version.h
 new file mode 100644
-index 000000000000..2235167c9284
+index 000000000000..ac3dbf26fb5d
 --- /dev/null
 +++ b/include/linux/upstream_version.h
 @@ -0,0 +1,14 @@
@@ -38,10 +38,10 @@ index 000000000000..2235167c9284
 +#ifndef _LINUX_UPSTREAM_VERSION_H
 +#define _LINUX_UPSTREAM_VERSION_H
 +
-+#define AML_KERNEL_VERSION	2
-+#define UPSTREAM_VERSION	"6db0d07e4b32"
-+#define AML_PATCH_VERSION	"6db0d07e4b32"
-+#define MERGE_DATE		"2024-01-12"
++#define AML_KERNEL_VERSION	3
++#define UPSTREAM_VERSION	"83f97c05f8fd"
++#define AML_PATCH_VERSION	"83f97c05f8fd"
++#define MERGE_DATE		"2024-01-22"
 +
 +#endif
 -- 

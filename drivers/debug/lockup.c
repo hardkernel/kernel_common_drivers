@@ -34,6 +34,7 @@
 #include <trace/hooks/cpuidle.h>
 #include <trace/hooks/sched.h>
 #include <trace/hooks/gic_v3.h>
+#include <linux/trace_seq.h>
 #include <trace/hooks/ftrace_dump.h>
 #include <linux/time.h>
 #include <linux/delay.h>
