@@ -133,6 +133,8 @@ struct meson_tsensor_data {
 	int irq;
 	enum soc_type soc;
 	struct work_struct irq_work;
+	struct delayed_work ready_check_work;
+	bool ready;  /*indicate tsensor driver can work now*/
 	struct mutex lock;/*mutex lock for set tsensor reg*/
 	struct clk *clk;
 	u32	trim_info;
@@ -534,7 +536,7 @@ static int meson_get_temp(struct thermal_zone_device *p, int *temp)
 {
 	struct meson_tsensor_data *data = p->devdata;
 
-	if (!data->tsensor_read)
+	if (!data->tsensor_read || !data->ready)
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
@@ -556,6 +558,14 @@ static void meson_tsensor_work(struct work_struct *work)
 	data->tsensor_clear_irqs(data);
 	mutex_unlock(&data->lock);
 	enable_irq(data->irq);
+}
+
+static void tsensor_ready_work(struct work_struct *work)
+{
+	struct meson_tsensor_data *data = container_of(work,
+			struct meson_tsensor_data, ready_check_work.work);
+
+	data->ready = true;
 }
 
 static irqreturn_t meson_tsensor_irq(int irq, void *id)
@@ -935,6 +945,9 @@ static int meson_tsensor_probe(struct platform_device *pdev)
 
 	INIT_WORK(&data->irq_work, meson_tsensor_work);
 
+	data->ready = false;
+	INIT_DELAYED_WORK(&data->ready_check_work, tsensor_ready_work);
+
 	data->tzd = devm_thermal_of_zone_register(&pdev->dev,
 				data->id, data, &meson_sensor_ops);
 	if (IS_ERR(data->tzd)) {
@@ -972,8 +985,9 @@ static int meson_tsensor_probe(struct platform_device *pdev)
 
 	/*if no pm pd only need enable control*/
 	meson_tsensor_control(pdev, true);
+
 	/*wait tsensor work*/
-	msleep(R1P1_TS_WAIT);
+	schedule_delayed_work(&data->ready_check_work, msecs_to_jiffies(R1P1_TS_WAIT));
 
 	sprintf(name, "tsensor%d", data->id);
 	debugfs_dir = debugfs_create_dir(name, NULL);
@@ -998,6 +1012,7 @@ static int meson_tsensor_remove(struct platform_device *pdev)
 	struct meson_tsensor_data *data = platform_get_drvdata(pdev);
 	struct thermal_zone_device *tzd = data->tzd;
 
+	cancel_delayed_work(&data->ready_check_work);
 	devm_thermal_of_zone_unregister(&pdev->dev, tzd);
 	meson_tsensor_control(pdev, false);
 	clk_unprepare(data->clk);
@@ -1007,6 +1022,8 @@ static int meson_tsensor_remove(struct platform_device *pdev)
 
 static int __maybe_unused meson_tsensor_hw_resume(struct device *dev)
 {
+	struct meson_tsensor_data *data =
+		platform_get_drvdata(to_platform_device(dev));
 	/*if power domain power down, need hw/trips init when resume*/
 	meson_tsensor_hw_initialize(to_platform_device(dev));
 	meson_tsensor_trips_initialize(to_platform_device(dev));
@@ -1014,7 +1031,7 @@ static int __maybe_unused meson_tsensor_hw_resume(struct device *dev)
 	/*if no pm pd only need enable control*/
 	meson_tsensor_control(to_platform_device(dev), true);
 	/*wait tsensor work*/
-	msleep(R1P1_TS_WAIT);
+	schedule_delayed_work(&data->ready_check_work, msecs_to_jiffies(R1P1_TS_WAIT));
 
 	return 0;
 }
@@ -1029,6 +1046,7 @@ static int meson_tsensor_suspend(struct device *dev)
 		dev_warn(dev, "reset sensor...\n");
 		reset_control_assert(data->rst);
 	}
+	data->ready = false;
 
 	return 0;
 }
