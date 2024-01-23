@@ -914,11 +914,42 @@ static int notrace aml_unwind_frame(struct task_struct *tsk, struct stackframe *
 }
 #endif
 #endif
+
+/*
+ * Per-cpu stacks are only accessible when unwinding the current task in a
+ * non-preemptible context.
+ */
+#define AML_STACKINFO_CPU(name)					\
+	({							\
+		!preemptible()					\
+			? stackinfo_get_##name()		\
+			: stackinfo_get_unknown();		\
+	})
+
+/*
+ * SDEI stacks are only accessible when unwinding the current task in an NMI
+ * context.
+ */
+#define AML_STACKINFO_SDEI(name)					\
+	({							\
+		in_nmi()					\
+			? stackinfo_get_sdei_##name()		\
+			: stackinfo_get_unknown();		\
+	})
+
 unsigned long find_back_trace(void)
 {
 #if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
 	struct stack_info stacks[] = {
 		stackinfo_get_task(current),
+		AML_STACKINFO_CPU(irq),
+#if defined(CONFIG_VMAP_STACK)
+		AML_STACKINFO_CPU(overflow),
+#endif
+#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_ARM_SDE_INTERFACE)
+		AML_STACKINFO_SDEI(normal),
+		AML_STACKINFO_SDEI(critical),
+#endif
 	};
 	struct unwind_state frame = {
 		.stacks = stacks,
