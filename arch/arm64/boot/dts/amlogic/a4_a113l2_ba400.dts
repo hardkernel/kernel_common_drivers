@@ -347,8 +347,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				//prefix-names = "5707_A", "5707_B";
-				sound-dai = </*&tas5707_36 &tas5707_3a*/ &acodec>;
+				prefix-names = "5707_A", "5707_B";
+				sound-dai = <&tas5707_36 &tas5707_3a &acodec>;
 			};
 		};
 
