@@ -346,7 +346,7 @@
 		cluster0-cpu-supply = <&vddcpu0>;
 
 		cluster0 {
-			clocks = <&scmi_clk CLKID_CPUCLK>, <&scmi_clk CLKID_DSUCLK>;
+			clocks = <&scmi_clk CLKID_SCMI_CPU_CLK>, <&scmi_clk CLKID_SCMI_DSU_CLK>;
 			clock-names = "cpuclk", "dsuclk";
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;

@@ -392,9 +392,9 @@
 				      <0x8000 0x384>;
 				reg-names = "basic", "pll";
 				clocks = <&xtal>,
-					 <&scmi_clk CLKID_GP1PLL>,
-					 <&scmi_clk CLKID_PLL_TOP>;
-				clock-names = "xtal", "gp1pll", "pll_top_in";
+					 <&scmi_clk CLKID_SCMI_GP1_PLL>,
+					 <&scmi_clk CLKID_SCMI_PLL_TOP>;
+				clock-names = "xtal", "gp1_pll", "pll_top_in";
 				status = "okay";
 			};
 
@@ -2431,7 +2431,7 @@
 	 * MALI_0 and MALI_1 muxed to a single clock by a glitch
 	 * free mux to safely change frequency while running.
 	 */
-	assigned-clocks = <&scmi_clk CLKID_GP1PLL>,
+	assigned-clocks = <&scmi_clk CLKID_SCMI_GP1_PLL>,
 			<&clkc CLKID_MALI_0_SEL>,
 			<&clkc CLKID_MALI_0>,
 			<&clkc CLKID_MALI>; /* Glitch free mux */

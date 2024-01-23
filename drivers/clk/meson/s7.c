@@ -941,7 +941,7 @@ MESON_CLK_DIV_RW(clk_12_24m, CLKCTRL_CLK12_24_CTRL, 10, 1, NULL, 0,
 /*vclk*/
 static u32 vclk_parent_table[] = { 1, 2, 4, 5, 6, 7 };
 static const struct clk_parent_data vclk_parent_data[] = {
-	{ .fw_name = "gp1pll", },
+	{ .fw_name = "gp1_pll", },
 	{ .hw = &hifi_pll.hw },
 	{ .hw = &fclk_div3.hw },
 	{ .hw = &fclk_div4.hw },
@@ -1174,7 +1174,7 @@ MESON_CLK_GATE_RW(ts, CLKCTRL_TS_CLK_CTRL, 8, 0,
 static u32 mali_pre_parent_table[] = { 0, 1, 3, 4, 5, 6, 7 };
 static const struct clk_parent_data mali_pre_parent_data[] = {
 	{ .fw_name = "xtal", },
-	{ .fw_name = "gp1pll", },
+	{ .fw_name = "gp1_pll", },
 	{ .hw = &fclk_div2p5.hw },
 	{ .hw = &fclk_div3.hw },
 	{ .hw = &fclk_div4.hw },
@@ -1208,7 +1208,7 @@ static const struct clk_parent_data vdec_pre_parent_data[] = {
 	{ .hw = &fclk_div5.hw },
 	{ .hw = &fclk_div7.hw },
 	{ .hw = &hifi_pll.hw },
-	{ .fw_name = "gp1pll", },
+	{ .fw_name = "gp1_pll", },
 	{ .fw_name = "xtal", }
 };
 
@@ -1267,7 +1267,7 @@ static const struct clk_parent_data vpu_pre_parent_data[] = {
 	{ .hw = &fclk_div7.hw },
 	{ .hw = &fclk_div2.hw },
 	{ .hw = &hifi_pll.hw },
-	{ .fw_name = "gp1pll", }
+	{ .fw_name = "gp1_pll", }
 };
 
 MESON_CLK_COMPOSITE_RW(vpu_0, CLKCTRL_VPU_CLK_CTRL, 0x7, 9,
@@ -1323,7 +1323,7 @@ static const struct clk_parent_data vpu_clkc_pre_parent_data[] = {
 	{ .hw = &fclk_div7.hw },
 	{ .hw = &fclk_div2.hw },
 	{ .hw = &hifi_pll.hw },
-	{ .fw_name = "gp1pll", }
+	{ .fw_name = "gp1_pll", }
 };
 
 MESON_CLK_COMPOSITE_RW(vpu_clkc_0, CLKCTRL_VPU_CLKC_CTRL, 0x7, 9,
@@ -1412,7 +1412,7 @@ static const struct clk_parent_data sd_emmc_clk_parent_data[] = {
 	{ .hw = &fclk_div3.hw },
 	{ .hw = &hifi_pll.hw },
 	{ .hw = &fclk_div2p5.hw },
-	{ .fw_name = "gp1pll", },
+	{ .fw_name = "gp1_pll", },
 	{ .hw = &gp0_pll.hw }
 };
 
@@ -1460,7 +1460,7 @@ static const struct clk_parent_data spicc_parent_data[] = {
 	{ .hw = &fclk_div2.hw },
 	{ .hw = &fclk_div5.hw },
 	{ .hw = &fclk_div7.hw },
-	{ .fw_name = "gp1pll", }
+	{ .fw_name = "gp1_pll", }
 };
 
 MESON_CLK_COMPOSITE_RW(spicc, CLKCTRL_SPICC_CLK_CTRL, 0x7, 7,
