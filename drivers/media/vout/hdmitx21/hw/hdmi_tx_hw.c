@@ -1240,9 +1240,10 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 			data32 |= ((para->cs == HDMI_COLORSPACE_YUV420 ? 2 : 1) << 28);
 		break;
 	case MESON_CPU_ID_T7:
-	default:
-		data32 |= (0 << 0);
-		data32 |= (0 << 1);
+		if (hdev->tx_comm.enc_idx == 0)
+			data32 |= (1 << 0);
+		else
+			data32 |= (1 << 1);
 		data32 |= (para->timing.h_pol << 2);
 		data32 |= (para->timing.v_pol << 3);
 		data32 |= (0 << 4);
@@ -1253,6 +1254,8 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 		data32 |= (((para->cs == HDMI_COLORSPACE_YUV420) ? 1 : 0) << 20);
 		data32 |= (0 << 24);
 		data32 |= (0 << 28);
+		break;
+	default:
 		break;
 	}
 	hd21_write_reg(VPU_HDMI_SETTING, data32);
