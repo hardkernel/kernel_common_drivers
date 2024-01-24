@@ -636,19 +636,13 @@ MESON_CLK_GATE_RO(fclk_clk50m, ANACTRL_FIXPLL_CTRL1, 31, 0, &fclk_clk50m_div.hw,
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table gp0_pll_table[] = {
-	PLL_PARAMS(140, 1, 1), /* DCO = 1680M OD = 2 PLL = 840M */
-	PLL_PARAMS(264, 1, 2), /* DCO = 3168M OD = 4 PLL = 792M */
-	PLL_PARAMS(256, 1, 2), /* DCO = 3072M OD = 4 PLL = 768M */
-	PLL_PARAMS(248, 1, 2), /* DCO = 2976M OD = 4 PLL = 744M */
+	PLL_PARAMS(256, 1, 1), /* DCO = 3072M OD = 4 PLL = 1536M */
 	PLL_PARAMS(192, 1, 1), /* DCO = 2304M OD = 2 PLL = 1152M */
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table gp0_pll_table[] = {
-	PLL_PARAMS(140, 1), /* DCO = 1680M */
-	PLL_PARAMS(264, 1), /* DCO = 3168M */
 	PLL_PARAMS(256, 1), /* DCO = 3072M */
-	PLL_PARAMS(248, 1), /* DCO = 2976M */
 	PLL_PARAMS(192, 1), /* DCO = 2304M */
 	{ /* sentinel */  }
 };
