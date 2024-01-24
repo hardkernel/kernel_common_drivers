@@ -82,12 +82,12 @@
 		};
 	};
 
-	shmem@050f8e00 {
+	shmem@050f7e00 {
 		compatible = "mmio-sram";
-		reg = <0x050f8e00 0x100>;
+		reg = <0x050f7e00 0x100>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0x0 0x050f8e00 0x100>;
+		ranges = <0x0 0x050f7e00 0x100>;
 
 		scmi_shmem: shmem@0 {
 			compatible = "arm,scmi-shmem";
