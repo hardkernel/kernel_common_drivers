@@ -96,7 +96,7 @@ static unsigned int aipq_set_policy;
 #endif
 
 static unsigned int color_th = 100;
-
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 /*scene_prob[0]: scene, scene_prob[1]: prob*/
 int scene_prob[2] = {0, 0};
 struct ai_pq_hist_data aipq_hist_data = {
@@ -980,4 +980,11 @@ void vf_pq_process(struct vframe_s *vf,
 	}
 #endif
 }
-
+#else
+void vf_pq_process(struct vframe_s *vf,
+		   struct ai_scenes_pq *vpp_scenes,
+		   int *pq_debug,
+		   int new_vf_flag)
+{
+}
+#endif

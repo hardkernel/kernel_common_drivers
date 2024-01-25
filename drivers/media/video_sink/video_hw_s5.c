@@ -5945,12 +5945,12 @@ void vd_s5_hw_set(struct video_layer_s *layer,
 		vd_set_dcu_s5(layer->layer_id, layer,
 				frame_par, dispbuf);
 		_vd_mif_setting_s5(layer, &layer->mif_setting);
-		#ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
+#ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
 		_vd_fgrain_config_s5(layer,
 			      frame_par,
 			      dispbuf);
 		_vd_fgrain_setting_s5(layer, dispbuf);
-		#endif
+#endif
 	}
 	/* update info for dv */
 	update_vd_proc_amdv_info(vd_proc);

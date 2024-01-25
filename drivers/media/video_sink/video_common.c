@@ -265,6 +265,8 @@ void vframe_canvas_set(struct canvas_config_s *config,
 bool is_layer_aisr_supported(struct video_layer_s *layer)
 {
 	/* only vd1 has aisr for t3 */
+	if (!cur_dev->aisr_support)
+		return false;
 	if (!layer || layer->layer_id != 0)
 		return false;
 	else
@@ -510,6 +512,8 @@ static void dump_pps_reg(void)
 	u32 reg_addr, reg_val = 0;
 
 	for (i = 0; i < cur_dev->max_vd_layers; i++) {
+		if (!glayer_info[i].pps_support)
+			continue;
 		pr_info("vd%d pps regs:\n", i);
 		reg_addr = vd_layer[i].pps_reg.vd_vsc_region12_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
@@ -640,33 +644,33 @@ static void dump_vout_blend_reg(void)
 	if (cur_dev->display_module != C3_DISPLAY_MODULE)
 		return;
 	pr_info("vout blend reg:\n");
-	reg_addr = VPU_VOUT_BLEND_CTRL;
+	reg_addr = cur_dev->vout_blend_reg.vpu_vout_blend_ctrl;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_BLEND_CTRL[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
-	reg_addr = VPU_VOUT_BLEND_DUMDATA;
+	reg_addr = cur_dev->vout_blend_reg.vpu_vout_blend_dumdata;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_BLEND_DUMDATA[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
-	reg_addr = VPU_VOUT_BLEND_SIZE;
+	reg_addr = cur_dev->vout_blend_reg.vpu_vout_blend_size;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_BLEND_SIZE[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
 
-	reg_addr = VPU_VOUT_BLD_SRC0_HPOS;
+	reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src0_hpos;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_BLD_SRC0_HPOS[0x%x](vd1) = 0x%X\n",
 		   reg_addr, reg_val);
-	reg_addr = VPU_VOUT_BLD_SRC0_VPOS;
+	reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src0_vpos;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_BLD_SRC0_VPOS[0x%x](vd1) = 0x%X\n",
 		   reg_addr, reg_val);
 
-	reg_addr = VPU_VOUT_BLD_SRC1_HPOS;
+	reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src1_hpos;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_BLD_SRC1_HPOS[0x%x](osd) = 0x%X\n",
 		   reg_addr, reg_val);
-	reg_addr = VPU_VOUT_BLD_SRC1_VPOS;
+	reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src1_vpos;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_BLD_SRC1_VPOS[0x%x](osd) = 0x%X\n",
 		   reg_addr, reg_val);
@@ -696,6 +700,7 @@ static void dump_vout_blend_reg(void)
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_VLK_CTRL[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
+
 }
 
 static void dump_fgrain_reg(void)
@@ -1271,6 +1276,7 @@ ssize_t reg_dump_store(const struct class *cla,
 			dump_vpp_post_reg();
 		} else if (cur_dev->display_module == C3_DISPLAY_MODULE) {
 			dump_mif_reg();
+			dump_pps_reg();
 			dump_vout_blend_reg();
 		} else {
 			dump_mif_reg();
@@ -1304,10 +1310,26 @@ ssize_t reg_dump_store(const struct class *cla,
 	}
 
 	if (res) {
-		dump_mif_reg();
-		dump_afbc_reg();
-		dump_pps_reg();
-		dump_vpp_blend_reg();
+		if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+			dump_s5_vd_proc_regs();
+			dump_vpp_post_reg();
+		} else if (cur_dev->display_module == C3_DISPLAY_MODULE) {
+			dump_mif_reg();
+			dump_pps_reg();
+			dump_vout_blend_reg();
+		} else {
+			dump_mif_reg();
+			dump_afbc_reg();
+			dump_pps_reg();
+			dump_vpp_blend_reg();
+			dump_vppx_blend_reg();
+			dump_vpp_path_size_reg();
+			dump_vpp_misc_reg();
+			dump_zorder_reg();
+			dump_fgrain_reg();
+			if (cur_dev->aisr_support)
+				dump_aisr_reg();
+		}
 	}
 	return count;
 }

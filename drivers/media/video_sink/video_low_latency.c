@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
-
+#include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>

@@ -2467,7 +2467,8 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 			    VDIF_DEMUX_MODE_RGB_444;
 	}
 
-	if (cur_dev->display_module != C3_DISPLAY_MODULE) {
+	/* if (cur_dev->display_module != C3_DISPLAY_MODULE) */
+	if (glayer_info[0].pps_support) {
 		if (frame_par->hscale_skip_count) {
 			if ((type & VIDTYPE_VIU_444) || (type & VIDTYPE_RGB_444))
 				r |= VDIF_LUMA_HZ_AVG;
@@ -3305,7 +3306,7 @@ void vd_mif_setting(struct video_layer_s *layer,
 			(setting->r_ve_chrm << VDIF_PIC_END_BIT));
 	}
 	if (setting->skip_afbc ||
-		cur_dev->display_module == C3_DISPLAY_MODULE)
+		!glayer_info[layer_id].afbc_support)
 		goto SKIP_VD1_AFBC;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TL1)
@@ -3529,7 +3530,6 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 
 		if (setting->last_line_fix)
 			sc_misc_val |= VPP_PPS_LAST_LINE_FIX;
-
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_pps_reg->vd_sc_misc,
 			sc_misc_val);
@@ -4148,20 +4148,27 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 			(vd_pps_reg->vd_vsc_start_phase_step,
 			vpp_filter->vpp_vsc_start_phase_step);
 	}
+	if (cur_dev->display_module == C3_DISPLAY_MODULE) {
+		/* a4 vd1 pps input scaler */
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(A4_VPU_VOUT_VDSC_SIZE,
+			frame_par->VPP_line_in_length_ << 16 |
+			frame_par->VPP_pic_in_height_);
+	} else {
+		/*vpp input size setting*/
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_IN_H_V_SIZE + misc_off,
+			((frame_par->video_input_w & 0x1fff) << 16)
+			| (frame_par->video_input_h & 0x1fff));
 
-	/*vpp input size setting*/
-	cur_dev->rdma_func[vpp_index].rdma_wr
-		(VPP_IN_H_V_SIZE + misc_off,
-		((frame_par->video_input_w & 0x1fff) << 16)
-		| (frame_par->video_input_h & 0x1fff));
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_PIC_IN_HEIGHT + misc_off,
+			frame_par->VPP_pic_in_height_);
 
-	cur_dev->rdma_func[vpp_index].rdma_wr
-		(VPP_PIC_IN_HEIGHT + misc_off,
-		frame_par->VPP_pic_in_height_);
-
-	cur_dev->rdma_func[vpp_index].rdma_wr
-		(VPP_LINE_IN_LENGTH + misc_off,
-		frame_par->VPP_line_in_length_);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_LINE_IN_LENGTH + misc_off,
+			frame_par->VPP_line_in_length_);
+	}
 	if (cur_dev->display_module == T7_DISPLAY_MODULE)
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(VD1_HDR_IN_SIZE + misc_off,
@@ -4252,7 +4259,6 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 
 		if (setting->last_line_fix)
 			sc_misc_val |= VPP_PPS_LAST_LINE_FIX;
-
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_pps_reg->vd_sc_misc,
 			sc_misc_val);
@@ -4733,7 +4739,7 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(layer->vd_mif_reg.vd_if0_gen_reg, 0);
 	} else {
-		if (cur_dev->display_module != C3_DISPLAY_MODULE)
+		if (glayer_info[layer->layer_id].afbc_support)
 			cur_dev->rdma_func[vpp_index].rdma_wr
 				(layer->vd_afbc_reg.afbc_enable, 0);
 		cur_dev->rdma_func[vpp_index].rdma_wr
@@ -4753,11 +4759,22 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 				(AMDV_PATH_CTRL + misc_off,
 				3, 0, 2);
 	}
+	if (cur_dev->display_module != C3_DISPLAY_MODULE) {
+		/*vpp input size setting*/
+		if (layer->cur_frame_par) {
+			layer->cur_frame_par->VPP_pic_in_height_ = 0;
+			layer->cur_frame_par->VPP_line_in_length_ = 0;
+		}
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_PIC_IN_HEIGHT + misc_off, 0);
 
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_LINE_IN_LENGTH + misc_off, 0);
+	}
 	/*auto disable sr when video off*/
 	if (!is_meson_txl_cpu() &&
 	    !is_meson_txlx_cpu() &&
-	    !video_is_meson_c3_cpu()) {
+	    cur_dev->display_module != C3_DISPLAY_MODULE) {
 		cur_dev->rdma_func[vpp_index].rdma_wr(VPP_SRSHARP0_CTRL, 0);
 		cur_dev->rdma_func[vpp_index].rdma_wr(VPP_SRSHARP1_CTRL, 0);
 	}
@@ -5994,16 +6011,27 @@ s32 config_vd_blend(struct video_layer_s *layer,
 		(cur_frame_par->vscale_skip_count + 1);
 
 	if (cur_dev->display_module == C3_DISPLAY_MODULE) {
-		setting->postblend_h_start =
-			cur_frame_par->VPP_hd_start_lines_;
-		setting->postblend_h_end =
-			cur_frame_par->VPP_hd_start_lines_ +
-			cur_frame_par->video_input_w - 1;
-		setting->postblend_v_start =
-			cur_frame_par->VPP_vd_start_lines_;
-		setting->postblend_v_end =
-			cur_frame_par->VPP_vd_start_lines_ +
-			cur_frame_par->video_input_h - 1;
+		if (!glayer_info[layer->layer_id].pps_support) {
+			setting->postblend_h_start =
+				cur_frame_par->VPP_hd_start_lines_;
+			setting->postblend_h_end =
+				cur_frame_par->VPP_hd_start_lines_ +
+				cur_frame_par->video_input_w - 1;
+			setting->postblend_v_start =
+				cur_frame_par->VPP_vd_start_lines_;
+			setting->postblend_v_end =
+				cur_frame_par->VPP_vd_start_lines_ +
+				cur_frame_par->video_input_h - 1;
+		} else {
+			setting->postblend_h_start =
+				cur_frame_par->VPP_hsc_startp;
+			setting->postblend_h_end =
+				cur_frame_par->VPP_hsc_endp;
+			setting->postblend_v_start =
+				cur_frame_par->VPP_vsc_startp;
+			setting->postblend_v_end =
+				cur_frame_par->VPP_vsc_endp;
+		}
 		return 0;
 	}
 
@@ -6151,14 +6179,14 @@ void vd_blend_setting(struct video_layer_s *layer, struct blend_setting_s *setti
 		/* forground setting */
 		/* misc_off = 0x10; */
 		cur_dev->rdma_func[vpp_index].rdma_wr
-		(VPU_VOUT_BLD_SRC0_HPOS + misc_off,
+		(cur_dev->vout_blend_reg.vpu_vout_bld_src0_hpos,
 		((setting->postblend_h_start & vd_size_mask)
 		<< 0) |
 		((setting->postblend_h_end & vd_size_mask)
 		<< 16));
 
 		cur_dev->rdma_func[vpp_index].rdma_wr
-		(VPU_VOUT_BLD_SRC0_VPOS + misc_off,
+		(cur_dev->vout_blend_reg.vpu_vout_bld_src0_vpos,
 		((setting->postblend_v_start & vd_size_mask)
 		<< 0) |
 		((setting->postblend_v_end & vd_size_mask)
@@ -6790,11 +6818,11 @@ static inline void postblend_test_pattern_output(u32 on, u32 color)
 			pr_info("Y=%x, U=%x, V=%x\n", Y, U, V);
 			color = (Y << 20) | (U << 10) | V << 2; /* YUV */
 		}
-
 		if (cur_dev->display_module == C3_DISPLAY_MODULE) {
-			blend_din_en_save = READ_VCBUS_REG(VPU_VOUT_BLEND_CTRL);
-			WRITE_VCBUS_REG(VPU_VOUT_BLEND_DUMDATA, color);
-			WRITE_VCBUS_REG(VPU_VOUT_BLEND_CTRL, 0x7);
+			blend_din_en_save =
+				READ_VCBUS_REG(cur_dev->vout_blend_reg.vpu_vout_blend_ctrl);
+			WRITE_VCBUS_REG(cur_dev->vout_blend_reg.vpu_vout_blend_dumdata, color);
+			WRITE_VCBUS_REG(cur_dev->vout_blend_reg.vpu_vout_blend_ctrl, 0x7);
 		} else {
 			setting.clip_done = false;
 			setting.clip_max = color;
@@ -6803,8 +6831,8 @@ static inline void postblend_test_pattern_output(u32 on, u32 color)
 		}
 	} else {
 		if (cur_dev->display_module == C3_DISPLAY_MODULE) {
-			WRITE_VCBUS_REG(VPU_VOUT_BLEND_DUMDATA, 0x0);
-			WRITE_VCBUS_REG(VPU_VOUT_BLEND_CTRL,
+			WRITE_VCBUS_REG(cur_dev->vout_blend_reg.vpu_vout_blend_dumdata, 0x0);
+			WRITE_VCBUS_REG(cur_dev->vout_blend_reg.vpu_vout_blend_ctrl,
 				blend_din_en_save);
 		} else {
 			setting.clip_done = false;
@@ -8385,26 +8413,10 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 
 static void vd1_matrix_yuv2rgb(int yuv2rgb)
 {
-	int i;
 	int mat_conv_en = 0;
-	int pre_offset[3], post_offset[3];
-	int mat_coef[15];
-	int rgb2yuvpre[3] = {0, 0, 0};
-	int rgb2yuvpos[3] = {64, 512, 512};
-	int yuv2rgbpre[3] = {-64, -512, -512};
-	int yuv2rgbpos[3] = {0, 0, 0};
-	u32 vpp_index = 0;
 	static int matrix_save;
-
-	/* matrix coef BT709 */
-	int rgb2ycbcr[15] = {264, 516, 100, -152, -296, 448,
-		448, -376, -72, 0, 0, 0, 0, 0, 0};
-	int ycbcr2rgb[15] = {1197, 0, 1726, 1197, -193, -669,
-		1197, 2202, 0, 0, 0, 0, 0, 0, 0};
-
-	memset(pre_offset, 0, sizeof(pre_offset));
-	memset(post_offset, 0, sizeof(post_offset));
-	memset(mat_coef, 0, sizeof(mat_coef));
+	u32 vpp_index = 0;
+	int marix_coef[9] = {0};
 	if (matrix_save == yuv2rgb)
 		return;
 	switch (yuv2rgb) {
@@ -8413,62 +8425,103 @@ static void vd1_matrix_yuv2rgb(int yuv2rgb)
 		break;
 	case YUV2RGB:
 		mat_conv_en = 1;
-		for (i = 0; i < 3; i++) {
-			pre_offset[i] = yuv2rgbpre[i];
-			post_offset[i] = yuv2rgbpos[i];
-		}
-		for (i = 0; i < 15; i++)
-			mat_coef[i] = ycbcr2rgb[i];
+		marix_coef[0] = 0x04ad0000;
+		marix_coef[1] = 0x06be04ad;
+		marix_coef[2] = 0x1f3f1d63;
+		marix_coef[3] = 0x04ad089a;
+		marix_coef[4] = 0x00000000;
+		marix_coef[5] = 0x0;
+		marix_coef[6] = 0x0;
+		marix_coef[7] = 0x1fc00e00;
+		marix_coef[8] = 0x00001e00;
 		break;
 	case RGB2YUV:
 		mat_conv_en = 1;
-		for (i = 0; i < 3; i++) {
-			pre_offset[i] = rgb2yuvpre[i];
-			post_offset[i] = rgb2yuvpos[i];
-		}
-		for (i = 0; i < 15; i++)
-			mat_coef[i] = rgb2ycbcr[i];
+		marix_coef[0] = 0x01080204;
+		marix_coef[1] = 0x00641f68;
+		marix_coef[2] = 0x1ed801c0;
+		marix_coef[3] = 0x01c01e88;
+		marix_coef[4] = 0x00001fb8;
+		marix_coef[5] = 0x00400200;
+		marix_coef[6] = 0x00000200;
+		marix_coef[7] = 0x0;
+		marix_coef[8] = 0x0;
+		break;
+	case RGB2YUV709:
+		mat_conv_en = 1;
+		marix_coef[0] = 0x00bb0275;
+		marix_coef[1] = 0x003f1f99;
+		marix_coef[2] = 0x1ea601c2;
+		marix_coef[3] = 0x01c21e67;
+		marix_coef[4] = 0x00001fd7;
+		marix_coef[5] = 0x00400200;
+		marix_coef[6] = 0x00000200;
+		marix_coef[7] = 0x0;
+		marix_coef[8] = 0x0;
+		break;
+	case YUV7092RGB:
+		mat_conv_en = 1;
+		marix_coef[0] = 0x04ac0000;
+		marix_coef[1] = 0x073104ac;
+		marix_coef[2] = 0x1f251ddd;
+		marix_coef[3] = 0x04ac0879;
+		marix_coef[4] = 0x0;
+		marix_coef[5] = 0x0;
+		marix_coef[6] = 0x0;
+		marix_coef[7] = 0x7c00600;
+		marix_coef[8] = 0x00000600;
 		break;
 	}
-	matrix_save = yuv2rgb;
 	if (yuv2rgb != MATRIX_BYPASS) {
 		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VOUT_VD1_CSC_COEF00_01,
-			(mat_coef[0] << 16) |
-			(mat_coef[1] & 0x1FFF));
+			(vd_layer[0].vd_csc_reg.vout_vd1_csc_coef00_01,
+			marix_coef[0]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VOUT_VD1_CSC_COEF02_10,
-			(mat_coef[2] << 16) |
-			(mat_coef[1 * 3 + 0] & 0x1FFF));
+			(vd_layer[0].vd_csc_reg.vout_vd1_csc_coef02_10,
+			marix_coef[1]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VOUT_VD1_CSC_COEF11_12,
-			(mat_coef[1 * 3 + 1] << 16) |
-			(mat_coef[1 * 3 + 2] & 0x1FFF));
+			(vd_layer[0].vd_csc_reg.vout_vd1_csc_coef11_12,
+			marix_coef[2]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VOUT_VD1_CSC_COEF20_21,
-			(mat_coef[2 * 3 + 0] << 16) |
-			(mat_coef[2 * 3 + 1] & 0x1FFF));
+			(vd_layer[0].vd_csc_reg.vout_vd1_csc_coef20_21,
+			marix_coef[3]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VOUT_VD1_CSC_COEF22,
-			mat_coef[2 * 3 + 2]);
+			(vd_layer[0].vd_csc_reg.vout_vd1_csc_coef22,
+			marix_coef[4]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VOUT_VD1_CSC_OFFSET0_1,
-			(post_offset[0] << 16) |
-			(post_offset[1] & 0xFFF));
+			(vd_layer[0].vd_csc_reg.vout_vd1_csc_offset0_1,
+			marix_coef[5]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VOUT_VD1_CSC_OFFSET2,
-			post_offset[2]);
+			(vd_layer[0].vd_csc_reg.vout_vd1_csc_offset2,
+			marix_coef[6]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VOUT_VD1_CSC_PRE_OFFSET0_1,
-			(pre_offset[0] << 16) |
-			(pre_offset[1] & 0xFFF));
-		cur_dev->rdma_func[vpp_index].rdma_wr(VOUT_VD1_CSC_PRE_OFFSET2,
-			pre_offset[2]);
+			(vd_layer[0].vd_csc_reg.vout_vd1_csc_pre_offset0_1,
+			marix_coef[7]);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_layer[0].vd_csc_reg.vout_vd1_csc_pre_offset2,
+			marix_coef[8]);
 	}
 	/* vd1_mat_en */
 	cur_dev->rdma_func[vpp_index].rdma_wr_bits
-		(VOUT_VD1_CSC_EN_CTRL,
+		(vd_layer[0].vd_csc_reg.vout_vd1_csc_en_ctrl,
 		mat_conv_en, 0, 1);
+	matrix_save = yuv2rgb;
+}
+
+void vd_csc_setting(struct video_layer_s *layer,
+		    struct vframe_s *vf)
+{
+	if (cur_dev->display_module == C3_DISPLAY_MODULE) {
+		if (!video_is_meson_c3_cpu()) {
+			bool is_rgb = false;
+
+			if (vf && (vf->type & VIDTYPE_RGB_444 ||
+				vf->type & VIDTYPE_VIU_444))
+				is_rgb = true;
+			if (is_rgb)
+				vd1_matrix_yuv2rgb(RGB2YUV709);
+		}
+	}
 }
 
 void vpp_blend_update_c3(const struct vinfo_s *vinfo)
@@ -8484,14 +8537,14 @@ void vpp_blend_update_c3(const struct vinfo_s *vinfo)
 
 		if (vinfo) {
 			u32 read_value = cur_dev->rdma_func[vpp_index].rdma_rd
-				(VPU_VOUT_BLEND_SIZE);
+				(cur_dev->vout_blend_reg.vpu_vout_blend_size);
 			if ((vinfo->field_height | (vinfo->width << 16))
 				!= read_value) {
 				cur_dev->rdma_func[vpp_index].rdma_wr_bits
-					(VPU_VOUT_BLEND_SIZE,
+					(cur_dev->vout_blend_reg.vpu_vout_blend_size,
 					 vinfo->field_height, 0, 13);
 				cur_dev->rdma_func[vpp_index].rdma_wr_bits
-					(VPU_VOUT_BLEND_SIZE,
+					(cur_dev->vout_blend_reg.vpu_vout_blend_size,
 					vinfo->width, 16, 13);
 			}
 		}
@@ -8542,10 +8595,10 @@ void vpp_blend_update_c3(const struct vinfo_s *vinfo)
 		vd1_enabled = vd_layer[0].enabled;
 		if (vd1_enabled)
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(VPU_VOUT_BLEND_CTRL, 1, 0, 1);
+			(cur_dev->vout_blend_reg.vpu_vout_blend_ctrl, 1, 0, 1);
 		else
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(VPU_VOUT_BLEND_CTRL, 0, 0, 1);
+			(cur_dev->vout_blend_reg.vpu_vout_blend_ctrl, 0, 0, 1);
 		if (video1_off_req || !vd1_enabled)
 			disable_vd1_blend(&vd_layer[0]);
 	}
@@ -12379,7 +12432,6 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 
 		if (setting->last_line_fix)
 			sc_misc_val |= VPP_PPS_LAST_LINE_FIX;
-
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(aisr_pps_reg->vd_sc_misc,
 			sc_misc_val);
@@ -12943,6 +12995,96 @@ void aisr_demo_axis_set(struct video_layer_s *layer)
 
 }
 
+void set_probe_ctrl_a4(u8 probe_id)
+{
+	u32 hsize = 0, vsize = 0;
+	u32 val = 0;
+
+	if (cur_dev->display_module == C3_DISPLAY_MODULE &&
+		cpu_after_eq(MESON_CPU_MAJOR_ID_A4)) {
+		WRITE_VCBUS_REG(VPU_VOUT_PROB_CTRL, 0x10 | probe_id);
+		switch (probe_id) {
+		case 0:
+			/* vd1 */
+			val = READ_VCBUS_REG(A4_VOUT_VD1_LUMA_X0);
+			hsize = ((val >> 16) & 0x3ff) - (val & 0x3ff) + 1;
+			val = READ_VCBUS_REG(A4_VOUT_VD1_LUMA_Y0);
+			vsize = ((val >> 16) & 0x3ff) - (val & 0x3ff) + 1;
+			val = hsize << 16 | vsize;
+			break;
+		case 1:
+			/* vd1sc */
+			val = READ_VCBUS_REG(A4_VPU_VOUT_BLD_SRC0_HPOS);
+			hsize = ((val >> 16) & 0x3ff) - (val & 0x3ff) + 1;
+			val = READ_VCBUS_REG(A4_VPU_VOUT_BLD_SRC0_VPOS);
+			vsize = ((val >> 16) & 0x3ff) - (val & 0x3ff) + 1;
+			val = hsize << 16 | vsize;
+			break;
+		case 2:
+			/* osd1 */
+			val = READ_VCBUS_REG(A4_VOUT_OSD1_BLK0_CFG_W1);
+			hsize = ((val >> 16) & 0x3ff) - (val & 0x3ff) + 1;
+			val = READ_VCBUS_REG(A4_VOUT_OSD1_BLK0_CFG_W2);
+			vsize = ((val >> 16) & 0x3ff) - (val & 0x3ff) + 1;
+			val = hsize << 16 | vsize;
+			break;
+		case 3:
+			/* osd1sc */
+			if (READ_VCBUS_REG(VPP_OSD_SC_CTRL0) & 0xc) {
+				/* osd1 scaler enable */
+				val = READ_VCBUS_REG(A4_VOUT_OSD1_SCO_H_START_END);
+				hsize = (val & 0x3ff) - ((val >> 16) & 0x3ff) + 1;
+				val = READ_VCBUS_REG(A4_VOUT_OSD1_SCO_V_START_END);
+				vsize = (val & 0x3ff) - ((val >> 16) & 0x3ff) + 1;
+				val = hsize << 16 | vsize;
+			} else {
+				val = READ_VCBUS_REG(A4_VOUT_OSD1_BLK0_CFG_W3);
+				hsize = ((val >> 16) & 0x3ff) - (val & 0x3ff) + 1;
+				val = READ_VCBUS_REG(A4_VOUT_OSD1_BLK0_CFG_W4);
+				vsize = ((val >> 16) & 0x3ff) - (val & 0x3ff) + 1;
+				val = hsize << 16 | vsize;
+			}
+			break;
+		case 4:
+		case 5:
+			/* blend out, gainoff */
+			val = READ_VCBUS_REG(A4_VPU_VOUT_BLEND_SIZE);
+			break;
+		default:
+			break;
+		}
+		WRITE_VCBUS_REG(VPU_VOUT_PROB_SIZE, val);
+	}
+}
+
+u32 get_probe_pos_a4(u8 probe_id)
+{
+	u32 val = 0;
+
+	if (cur_dev->display_module == C3_DISPLAY_MODULE &&
+		cpu_after_eq(MESON_CPU_MAJOR_ID_A4))
+		val = READ_VCBUS_REG(VPU_VOUT_PROB_POS);
+	return val;
+}
+
+void set_probe_pos_a4(u32 val_x, u32 val_y)
+{
+	if (cur_dev->display_module == C3_DISPLAY_MODULE &&
+		cpu_after_eq(MESON_CPU_MAJOR_ID_A4))
+		WRITE_VCBUS_REG(VPU_VOUT_PROB_POS,
+			(val_x << 16) | val_y);
+}
+
+u32 get_probe_data_a4(void)
+{
+	u32 val = 0;
+
+	if (cur_dev->display_module == C3_DISPLAY_MODULE &&
+		cpu_after_eq(MESON_CPU_MAJOR_ID_A4))
+		val = READ_VCBUS_REG(VPU_VOUT_RO_PROB);
+	return val;
+}
+
 /*********************************************************
  * Init APIs
  *********************************************************/
@@ -12961,7 +13103,8 @@ static noinline int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1,
 
 void vpp_probe_en_set(u32 enable)
 {
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
+		cur_dev->display_module != C3_DISPLAY_MODULE) {
 		if (enable)
 			__invoke_psci_fn_smc(0x82000080, 1, 0, 0);
 		else
@@ -13250,12 +13393,26 @@ int set_vpu_super_urgent_t3(u32 module_id, u32 low_level, u32 high_level)
 static void video_hw_init_c3(void)
 {
 	vd1_matrix = YUV2RGB;
-	WRITE_VCBUS_REG
-		(vd_layer[0].vd_mif_reg.vd_if0_luma_fifo_size,
-		0x60);
+	if (video_is_meson_a4_cpu()) {
+		/* set blend dummy alpha and data for osd alpha */
+		WRITE_VCBUS_REG_BITS
+			(cur_dev->vout_blend_reg.vpu_vout_blend_ctrl,
+			0x100, 16, 9);
+		WRITE_VCBUS_REG
+			(cur_dev->vout_blend_reg.vpu_vout_blend_dumdata,
+			0x4080200);
+		WRITE_VCBUS_REG
+			(vd_layer[0].vd_mif_reg.vd_if0_luma_fifo_size,
+			0xc0);
+	} else if (video_is_meson_c3_cpu()) {
+		WRITE_VCBUS_REG
+			(vd_layer[0].vd_mif_reg.vd_if0_luma_fifo_size,
+			0x60);
+	}
 #ifdef CONFIG_AMLOGIC_VPU
 	vd1_vpu_dev = vpu_dev_register(VPU_VIU_VD1, "VD1");
 #endif
+
 }
 
 static void vd_set_go_field_default(void)
@@ -13426,8 +13583,10 @@ int video_hw_init(void)
 	vpu_dev_mem_power_on(arb_vpu_dev);
 #endif
 	/*disable sr default when power up*/
-	WRITE_VCBUS_REG(VPP_SRSHARP0_CTRL, 0);
-	WRITE_VCBUS_REG(VPP_SRSHARP1_CTRL, 0);
+	if (cur_dev->display_module != C3_DISPLAY_MODULE) {
+		WRITE_VCBUS_REG(VPP_SRSHARP0_CTRL, 0);
+		WRITE_VCBUS_REG(VPP_SRSHARP1_CTRL, 0);
+	}
 	/* disable aisr_sr1_nn func */
 	if (cur_dev->aisr_support)
 		aisr_sr1_nn_enable(0);
@@ -13437,6 +13596,7 @@ int video_hw_init(void)
 	} else {
 		cur_hold_line = 4;
 	}
+
 	if (cur_hold_line > 0x1f)
 		vpp_hold_line[0] = 0x1f;
 	else
@@ -13824,16 +13984,47 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 			       &pps_reg_t7_array[3],
 			       sizeof(struct hw_pps_reg_s));
 	} else if (cur_dev->display_module == C3_DISPLAY_MODULE) {
-		for (i = 0; i < cur_dev->max_vd_layers; i++) {
-			/*coverity[overrun-buffer-arg] copy size is same size*/
-			memcpy(&vd_layer[i].vd_mif_reg,
-				   &vd_mif_reg_c3_array[i],
-				   sizeof(struct hw_vd_reg_s));
-			/*coverity[overrun-buffer-arg] copy size is same size*/
-			memcpy(&vd_layer[i].vd_mif_linear_reg,
-				  &vd_mif_linear_reg_c3_array[i],
-				  sizeof(struct hw_vd_linear_reg_s));
+		if (video_is_meson_c3_cpu()) {
+			for (i = 0; i < cur_dev->max_vd_layers; i++) {
+				/*coverity[overrun-buffer-arg] copy size is same size*/
+				memcpy(&vd_layer[i].vd_mif_reg,
+					   &vd_mif_reg_c3_array[i],
+					   sizeof(struct hw_vd_reg_s));
+				/*coverity[overrun-buffer-arg] copy size is same size*/
+				memcpy(&vd_layer[i].vd_mif_linear_reg,
+					  &vd_mif_linear_reg_c3_array[i],
+					  sizeof(struct hw_vd_linear_reg_s));
+				/*coverity[overrun-buffer-arg] copy size is same size*/
+				memcpy(&vd_layer[i].vd_csc_reg,
+					  &vd_csc_c3_reg[i],
+					  sizeof(struct hw_vd_csc_reg_s));
 			}
+			memcpy(&cur_dev->vout_blend_reg,
+				  &vout_blend_c3_reg,
+				  sizeof(struct hw_vout_blend_reg_s));
+		} else if (video_is_meson_a4_cpu()) {
+			for (i = 0; i < cur_dev->max_vd_layers; i++) {
+				/*coverity[overrun-buffer-arg] copy size is same size*/
+				memcpy(&vd_layer[i].vd_mif_reg,
+					   &vd_mif_reg_a4_array[i],
+					   sizeof(struct hw_vd_reg_s));
+				/*coverity[overrun-buffer-arg] copy size is same size*/
+				memcpy(&vd_layer[i].vd_mif_linear_reg,
+					  &vd_mif_linear_reg_a4_array[i],
+					  sizeof(struct hw_vd_linear_reg_s));
+				/*coverity[overrun-buffer-arg] copy size is same size*/
+				memcpy(&vd_layer[i].pps_reg,
+					  &pps_reg_a4_array[i],
+					  sizeof(struct hw_pps_reg_s));
+				/*coverity[overrun-buffer-arg] copy size is same size*/
+				memcpy(&vd_layer[i].vd_csc_reg,
+					  &vd_csc_a4_reg[i],
+					  sizeof(struct hw_vd_csc_reg_s));
+			}
+			memcpy(&cur_dev->vout_blend_reg,
+				  &vout_blend_a4_reg,
+				  sizeof(struct hw_vout_blend_reg_s));
+		}
 	} else if (video_is_meson_sc2_cpu() ||
 			video_is_meson_s4_cpu() ||
 			video_is_meson_s1a_cpu()) {
