@@ -59,3 +59,8 @@
   sprint_symbol_no_offset
   task_sched_runtime
   bpf_trace_run9
+
+# amlogic_debug.ko
+  __tracepoint_android_rvh_select_task_rq_fair
+  __traceiter_android_rvh_select_task_rq_fair
+
