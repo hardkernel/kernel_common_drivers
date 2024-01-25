@@ -112,6 +112,15 @@
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
+		mali_protected: mali_protected@c0000000 {
+			compatible = "mali-reserved";
+			no-map;
+			/* 16M with high version than valhall-r41p0,
+			 * 64M with low version than valhall-r41p0
+			 */
+			size = <0x0 0x0>;
+			alignment = <0x0 0x400000>;
+		};
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
 			compatible = "shared-dma-pool";
