@@ -2735,7 +2735,14 @@ static void hdmi_phy_suspend(void)
 	/* keep PHY_CNTL3 bit[1:0] as 0b11,
 	 * otherwise may cause HDCP22 boot failed
 	 */
-	hd21_write_reg(phy_cntl3, 0x3);
+	/* for s7 need keep PHY_CNTL3 bit[3:0] as 1011(B)
+	 * keep tmds_clk, because hdcp14 certification requires tmds_clk,
+	 * otherwise it may poll fail lead to crash.
+	 */
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)
+		hd21_write_reg(phy_cntl3, 0xb);
+	else
+		hd21_write_reg(phy_cntl3, 0x3);
 	hd21_write_reg(phy_cntl5, 0x800);
 }
 
