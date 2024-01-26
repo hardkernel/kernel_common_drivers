@@ -817,6 +817,7 @@ static int aml_card_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *sdai;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct snd_soc_dai_link *dai_link = aml_priv_to_link(priv, rtd->num);
 	struct aml_dai_props *dai_props = aml_priv_to_props(priv, rtd->num);
 	unsigned int mclk = 0, mclk_fs = 0;
 	int i = 0, ret = 0;
@@ -835,9 +836,10 @@ static int aml_card_hw_params(struct snd_pcm_substream *substream,
 			}
 		}
 
-		ret = snd_soc_dai_set_sysclk(cpu_dai, 0, mclk, SND_SOC_CLOCK_OUT);
+		ret = snd_soc_dai_set_fmt(cpu_dai,
+				snd_soc_daifmt_clock_provider_flipped(dai_link->dai_fmt));
 		if (ret && ret != -ENOTSUPP) {
-			pr_err("%s(), cpu dai set sysclk fail, ret = %d", __func__, ret);
+			pr_err("cpu_dai soc dai set fmt failed\n");
 			return ret;
 		}
 	}
@@ -864,6 +866,8 @@ static int aml_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 
 	for_each_rtd_codec_dais(rtd, i, sdai) {
 		ret = aml_card_init_dai(sdai, &dai_props->codec_dai, idle_clk);
+		if (ret < 0)
+			return ret;
 	}
 	ret = aml_card_init_dai(cpu_dai, &dai_props->cpu_dai, idle_clk);
 	if (ret < 0)

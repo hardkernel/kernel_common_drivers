@@ -2068,7 +2068,7 @@ static int aml_dai_set_tdm_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 
-	return aml_tdm_set_fmt(p_tdm, fmt,
+	return aml_tdm_set_fmt(p_tdm, snd_soc_daifmt_clock_provider_flipped(fmt),
 		snd_soc_dai_stream_active(cpu_dai, SNDRV_PCM_STREAM_CAPTURE));
 }
 
