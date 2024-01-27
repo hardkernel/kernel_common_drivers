@@ -202,6 +202,9 @@ void hdmitx21_clks_gate_ctrl(bool en)
 	case MESON_CPU_ID_S7D:
 		hdmitx_s7d_clock_gate_ctrl(hdev, en);
 		break;
+	case MESON_CPU_ID_S6:
+		hdmitx_s6_clock_gate_ctrl(hdev, en);
+		break;
 	case MESON_CPU_ID_S5:
 		hdmitx_s5_clock_gate_ctrl(hdev, en);
 		break;
@@ -235,6 +238,8 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 		break;
 	case MESON_CPU_ID_S7:
 		set21_hpll_sspll_s7(vic);
+	case MESON_CPU_ID_S6:
+		set21_hpll_sspll_s6(vic);
 		break;
 #endif
 	case MESON_CPU_ID_S1A:
@@ -398,6 +403,7 @@ static void clocks_set_vid_clk_div_for_hdmi(int div_sel)
 	case MESON_CPU_ID_S1A:
 	case MESON_CPU_ID_S7:
 	case MESON_CPU_ID_S7D:
+	case MESON_CPU_ID_S6:
 		reg_vid_pll = CLKCTRL_VID_PLL_CLK0_DIV;
 		break;
 	case MESON_CPU_ID_T7:
@@ -1052,6 +1058,75 @@ void set_hdmitx_s7d_htx_pll(struct hdmitx_dev *hdev)
 }
 #endif
 
+void set_hdmitx_s6_htx_pll(struct hdmitx_dev *hdev)
+{
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+	enum hdmi_colorspace cs = HDMI_COLORSPACE_YUV444;
+	enum hdmi_color_depth cd = COLORDEPTH_24B;
+	u32 base_pixel_clk = 25200;
+	u32 htx_vco = 5940000;
+	u32 div = 1;
+	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
+
+	if (!hdev || !para)
+		return;
+
+	vic = para->timing.vic;
+	cs = para->cs;
+	cd = para->cd;
+	if (vic == HDMI_0_UNKNOWN) {
+		pr_info("%s[%d] not valid vic %d\n", __func__, __LINE__, vic);
+		return;
+	}
+
+	base_pixel_clk = para->timing.pixel_freq;
+	if (base_pixel_clk < 25175 || base_pixel_clk > 5940000) {
+		pr_info("%s[%d] not valid pixel clock %d\n", __func__, __LINE__, base_pixel_clk);
+		return;
+	}
+
+	pr_info("%s[%d] base_pixel_clk %d  cs %d  cd %d  frac_rate %d\n",
+		__func__, __LINE__, base_pixel_clk, cs, cd, frac_rate);
+	/* for legacy TMDS modes */
+	if (cs != HDMI_COLORSPACE_YUV422) {
+		switch (cd) {
+		case COLORDEPTH_48B:
+			base_pixel_clk = base_pixel_clk * 2;
+			break;
+		case COLORDEPTH_36B:
+			base_pixel_clk = base_pixel_clk * 3 / 2;
+			break;
+		case COLORDEPTH_30B:
+			base_pixel_clk = base_pixel_clk * 5 / 4;
+			break;
+		case COLORDEPTH_24B:
+		default:
+			base_pixel_clk = base_pixel_clk * 1;
+			break;
+		}
+	}
+	base_pixel_clk = base_pixel_clk * 10; /* for tmds modes, here should multi 10 */
+	if (cs == HDMI_COLORSPACE_YUV420)
+		base_pixel_clk /= 2;
+	pr_info("%s[%d] calculate pixel_clk to %d\n", __func__, __LINE__, base_pixel_clk);
+	if (base_pixel_clk > MAX_HTXPLL_VCO) {
+		pr_err("%s[%d] base_pixel_clk %d over MAX_HTXPLL_VCO %d\n",
+			__func__, __LINE__, base_pixel_clk, MAX_HTXPLL_VCO);
+	}
+
+	div = 1;
+	/* the base pixel_clk range should be 250M ~ 5940M? */
+	htx_vco = base_pixel_clk;
+	do {
+		if (htx_vco >= MIN_HTXPLL_VCO && htx_vco < MAX_HTXPLL_VCO)
+			break;
+		div *= 2;
+		htx_vco *= 2;
+	} while (div <= 32);
+
+	set21_s6_htxpll_clk_out(htx_vco, div);
+}
+
 static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 			struct hw_enc_clk_val_group *test_clk)
 {
@@ -1143,6 +1218,22 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 			set_hpll_sspll(vic);
 		if (hdev->tx_hw.s7_clk_config)
 			return;
+
+		if (cs != HDMI_COLORSPACE_YUV422) {
+			if (cd == COLORDEPTH_36B)
+				clk_div_val = VID_PLL_DIV_7p5;
+			else if (cd == COLORDEPTH_30B)
+				clk_div_val = VID_PLL_DIV_6p25;
+			else
+				clk_div_val = VID_PLL_DIV_5;
+		}
+		clocks_set_vid_clk_div_for_hdmi(clk_div_val);
+		return;
+	}
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6) { //S6 TODO
+		set_hdmitx_s6_htx_pll(hdev);
+		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->sspll)
+			set_hpll_sspll(vic);
 		if (cs != HDMI_COLORSPACE_YUV422) {
 			if (cd == COLORDEPTH_36B)
 				clk_div_val = VID_PLL_DIV_7p5;
@@ -1612,6 +1703,10 @@ void hdmitx21_set_clk(struct hdmitx_dev *hdev)
 		break;
 	case MESON_CPU_ID_S7D:
 		disable_hdmitx_s7d_plls(hdev);
+		set_hdmitx_htx_pll(hdev, &test_clks);
+		break;
+	case MESON_CPU_ID_S6:
+		disable_hdmitx_s6_plls(hdev);
 		set_hdmitx_htx_pll(hdev, &test_clks);
 		break;
 #endif
