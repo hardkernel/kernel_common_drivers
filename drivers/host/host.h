@@ -27,6 +27,10 @@
 #define SMC_SUBID_SHIFT			0x8
 #define PACK_SMC_SUBID_ID(subid, id) (((subid) << SMC_SUBID_SHIFT) | (id))
 
+/*hifi dsp ffv to wake arm*/
+#define MBX_CMD_VAD_AWE_WAKEUP		0x62
+#define DSP_VAD_WAKUP_ARM		0x5555AAAA
+
 struct host_module;
 struct dsp_info_t;
 struct host_data;
@@ -119,14 +123,18 @@ struct host_mfh {
  * @usrinfo:          dsp dsp_info_t struct
  * @pwrctrl_support:  If support dsp pwrctrl access
  * @pwrctrl_access_en:Dsp pwrctrl access enable
+ * @pm_support_ffv:   If support dsp far field voice
+ * @input_device:     input_device for ffv to wakeup screen
  */
 
 struct host_dsp {
 	struct mbox_buf mbox_buf;
 	struct dsp_shm_info_t shminfo;
 	struct dsp_info_t *usrinfo;
-	bool pwrctrl_support;
-	bool pwrctrl_access_en;
+	u8 pwrctrl_support;
+	u8 pwrctrl_access_en;
+	u8 pm_support_ffv;
+	struct input_dev *input_device;
 };
 
 /** struct host_module, the struct of host module
@@ -153,8 +161,9 @@ struct host_dsp {
  * @clk:                        Host clock
  * @clk_rate:                   Host clock rate
  * @pm_support:                 If support power management
- * @mbox_chan:                  Mbox channel, reserve for mbox development
- * @init_mbox_chan              Mbox channel, reserve for mbox development
+ * @mbox_chan_to_dev:           Mbox channel from host to dev
+ * @mbox_chan_from_dev:         Mbox channel from dev to host
+ * @init_mbox_chan              Mbox channel for dev init
  * @misc:                       Misc device
  * @hostid:                     Host id
  * @fname0:                     Host firmware name0
@@ -197,8 +206,9 @@ struct host_module {
 	bool addr_remap;
 	struct clk *clk;
 	u32 clk_rate;
-	bool pm_support;
-	struct mbox_chan *mbox_chan;
+	u8 pm_support;
+	struct mbox_chan *mbox_chan_to_dev;
+	struct mbox_chan *mbox_chan_from_dev;
 	struct mbox_chan *init_mbox_chan;
 	struct miscdevice *misc;
 	int hostid;
