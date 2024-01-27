@@ -1671,7 +1671,7 @@
 	};
 
 	amhdmitx: amhdmitx{
-		compatible = "amlogic, amhdmitx-s7";
+		compatible = "amlogic, amhdmitx-s6";
 		dev_name = "amhdmitx";
 		status = "disabled";
 		//power-domains = <&pwrdm PDID_T7_VI_CLK2>;
@@ -2921,7 +2921,7 @@
 	hdmitx_ddc: hdmitx_ddc {
 		mux {
 			groups = "hdmitx_sda",
-				"hdmitx_sck";
+				"hdmitx_scl";
 			function = "hdmitx";
 			bias-disable;
 			drive-strength = <3>;

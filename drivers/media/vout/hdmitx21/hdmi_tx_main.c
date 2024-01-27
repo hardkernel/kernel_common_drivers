@@ -139,6 +139,11 @@ static struct amhdmitx_data_s amhdmitx_data_s7d = {
 	.chip_name = "s7d",
 };
 
+static struct amhdmitx_data_s amhdmitx_data_s6 = {
+	.chip_type = MESON_CPU_ID_S6,
+	.chip_name = "s6",
+};
+
 static const struct of_device_id meson_amhdmitx_of_match[] = {
 	{
 		.compatible	 = "amlogic, amhdmitx-t7",
@@ -159,6 +164,10 @@ static const struct of_device_id meson_amhdmitx_of_match[] = {
 	{
 		.compatible	 = "amlogic, amhdmitx-s7d",
 		.data = &amhdmitx_data_s7d,
+	},
+	{
+		.compatible	 = "amlogic, amhdmitx-s6",
+		.data = &amhdmitx_data_s6,
 	},
 	{},
 };
@@ -4672,7 +4681,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	struct hdmitx_event_mgr *tx_event_mgr;
 	bool hpd_state;
 
-	pr_debug("amhdmitx_probe_start\n");
+	pr_info("amhdmitx_probe_start\n");
 
 	hdev = devm_kzalloc(device, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
