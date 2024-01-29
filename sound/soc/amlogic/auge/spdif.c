@@ -1324,19 +1324,16 @@ static void aml_dai_spdif_shutdown(struct snd_pcm_substream *substream,
 	char *clk_name = (char *)__clk_get_name(p_spdif->sysclk);
 	struct snd_soc_card *card = cpu_dai->component->card;
 
-	if (!clk_name)
-		return;
-	if (p_spdif->standard_sysclk % 11025 == 0) {
-		if (!strcmp(__clk_get_name(clk_get_parent(p_spdif->clk_spdifout)),
-				__clk_get_name(p_spdif->sysclk))) {
-			if (!strcmp(clk_name, "hifi_pll")) {
-				clk_set_rate(p_spdif->sysclk, MPLL_HBR_FIXED_FREQ);
-			}
-		}
-	}
-
 	/* disable clock and gate */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (!clk_name)
+			return;
+		if (p_spdif->standard_sysclk % 11025 == 0 &&
+		    !strcmp(__clk_get_name(clk_get_parent(p_spdif->clk_spdifout)),
+					__clk_get_name(p_spdif->sysclk)) &&
+		    !strcmp(clk_name, "hifi_pll"))
+			clk_set_rate(p_spdif->sysclk, MPLL_HBR_FIXED_FREQ);
+
 		if (get_hdmitx_audio_src(card) == p_spdif->id)
 			notify_hdmitx_to_prepare();
 
