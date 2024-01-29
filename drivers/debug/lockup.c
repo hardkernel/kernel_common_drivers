@@ -66,22 +66,22 @@
 #define INVALID_IRQ	     -1
 
 static unsigned long long isr_long_thr = LONG_ISR;
-__module_param(isr_long_thr, ullong, 0644);
+module_param(isr_long_thr, ullong, 0644);
 
 static unsigned long isr_ratio_thr = 50;
-__module_param(isr_ratio_thr, ulong, 0644);
+module_param(isr_ratio_thr, ulong, 0644);
 
 static unsigned long long idle_thr = LONG_IDLE;
-__module_param(idle_thr, ullong, 0644);
+module_param(idle_thr, ullong, 0644);
 
 static int isr_check_en = 1;
-__module_param(isr_check_en, int, 0644);
+module_param(isr_check_en, int, 0644);
 
 static int idle_check_en = 1;
-__module_param(idle_check_en, int, 0644);
+module_param(idle_check_en, int, 0644);
 
 static int smc_check_en = 1;
-__module_param(smc_check_en, int, 0644);
+module_param(smc_check_en, int, 0644);
 
 #if (defined CONFIG_ARM64) || (defined CONFIG_AMLOGIC_ARMV8_AARCH32)
 #define FIQ_DEBUG_SMC_CMD	0x820000f1

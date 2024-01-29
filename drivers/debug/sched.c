@@ -39,54 +39,50 @@
 
 #if defined(CONFIG_ANDROID_VENDOR_HOOKS) && defined(CONFIG_FAIR_GROUP_SCHED)
 static int sched_big_weight = 10; // * NICE_0_LOAD
-__module_param(sched_big_weight, int, 0644);
+module_param(sched_big_weight, int, 0644);
 
 static int sched_interactive_task_util = 150;
-__module_param(sched_interactive_task_util, int, 0644);
+module_param(sched_interactive_task_util, int, 0644);
 
 static int sched_task_low_prio = 125;
-__module_param(sched_task_low_prio, int, 0644);
+module_param(sched_task_low_prio, int, 0644);
 
 static int sched_task_high_prio = 118;
-__module_param(sched_task_high_prio, int, 0644);
+module_param(sched_task_high_prio, int, 0644);
 
 static int sched_rt_nice_enable;
-__module_param(sched_rt_nice_enable, int, 0644);
+module_param(sched_rt_nice_enable, int, 0644);
 
 static int sched_rt_nice_debug;
-__module_param(sched_rt_nice_debug, int, 0644);
+module_param(sched_rt_nice_debug, int, 0644);
 
 static int sched_rt_nice_prio = 110;
-__module_param(sched_rt_nice_prio, int, 0644);
+module_param(sched_rt_nice_prio, int, 0644);
 
 static unsigned long sched_rt_nice_gran = 4000000; //4ms
-__module_param(sched_rt_nice_gran, ulong, 0644);
+module_param(sched_rt_nice_gran, ulong, 0644);
 
 static int sched_check_preempt_wakeup_enable = 1;
-__module_param(sched_check_preempt_wakeup_enable, int, 0644);
+module_param(sched_check_preempt_wakeup_enable, int, 0644);
 
 static int sched_check_preempt_wakeup_debug;
-__module_param(sched_check_preempt_wakeup_debug, int, 0644);
+module_param(sched_check_preempt_wakeup_debug, int, 0644);
 
 /* default 3ms, same with wakeup_granularity_ns(4*core smp) */
 static unsigned long sched_check_preempt_wakeup_gran = 3000000;
-__module_param(sched_check_preempt_wakeup_gran, ulong, 0644);
+module_param(sched_check_preempt_wakeup_gran, ulong, 0644);
 
 static int sched_pick_next_task_enable = 1;
-__module_param(sched_pick_next_task_enable, int, 0644);
+module_param(sched_pick_next_task_enable, int, 0644);
 
 static int sched_pick_next_task_debug;
-__module_param(sched_pick_next_task_debug, int, 0644);
+module_param(sched_pick_next_task_debug, int, 0644);
 
 static int sched_pick_next_task_wait_socre = 10; //1ms+
-__module_param(sched_pick_next_task_wait_socre, int, 0644);
-
-//static int sched_pick_next_task_util_score = 80; //load.util_avg <= 200
-__module_param(sched_pick_next_task_util_score, int, 0644);
+module_param(sched_pick_next_task_wait_socre, int, 0644);
 
 static int sched_pick_next_task_ignore_wait_prio = 120;
-__module_param(sched_pick_next_task_ignore_wait_prio, int, 0644);
-
+module_param(sched_pick_next_task_ignore_wait_prio, int, 0644);
 
 #ifdef CONFIG_SMP
 static inline bool should_honor_rt_sync(struct rq *rq, struct task_struct *p,

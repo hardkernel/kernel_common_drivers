@@ -30,10 +30,8 @@
 #include "lockup.h"
 
 static unsigned int load_hrtimer_sleepus;
-__module_param(load_hrtimer_sleepus, int, 0644);
 
 static unsigned int load_hrtimer_delayms;
-__module_param(load_hrtimer_delayms, int, 0644);
 static int load_hrtimer_print;
 static struct hrtimer load_hrtimer;
 

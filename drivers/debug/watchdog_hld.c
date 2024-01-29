@@ -25,13 +25,13 @@ static DEFINE_PER_CPU(bool, watchdog_nmi_touch);
 static cpumask_t __read_mostly watchdog_cpus;
 
 static ulong __read_mostly sample_period;
-__module_param(sample_period, ulong, 0644);
+module_param(sample_period, ulong, 0644);
 
 static int hardlockup_thresh = 10; /* seconds */
-__module_param(hardlockup_thresh, int, 0644);
+module_param(hardlockup_thresh, int, 0644);
 
 static int hardlockup_panic = 1;
-__module_param(hardlockup_panic, int, 0644);
+module_param(hardlockup_panic, int, 0644);
 
 static DEFINE_PER_CPU(unsigned long, hrtimer_interrupts);
 static DEFINE_PER_CPU(unsigned long, hrtimer_interrupts_saved);

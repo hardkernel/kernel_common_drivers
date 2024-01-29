@@ -103,7 +103,7 @@ static const struct kernel_param_ops isolcpus_speedup_boot_ops = {
 	.set = isolcpus_speedup_boot_set,
 	.get = param_get_int,
 };
-__module_param_cb(isolcpus_speedup_boot, &isolcpus_speedup_boot_ops, &isolcpus_speedup_boot, 0644);
+module_param_cb(isolcpus_speedup_boot, &isolcpus_speedup_boot_ops, &isolcpus_speedup_boot, 0644);
 
 static int isolcpus_speedup_boot_setup(char *str)
 {
