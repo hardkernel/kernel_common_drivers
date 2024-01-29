@@ -1654,7 +1654,8 @@ int meson_encoder_vrr_change(struct drm_encoder *encoder,
 		new_mode->hdisplay == old_mode->hdisplay &&
 		new_mode->vdisplay == old_mode->vdisplay &&
 		!meson_crtc_state->attr_changed &&
-		!meson_crtc_state->brr_update) {
+		!meson_crtc_state->brr_update &&
+		!(new_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
 		DRM_INFO("[%s], vrr, skip encoder %s\n", __func__,
 			 status == 1 ? "enable" : "disable");
 		return 1;
@@ -1770,14 +1771,16 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	if (strstr(modename, "dummy") || !hdmitx_get_hpd_state(common))
 		return 0;
 
-	if (am_hdmi_info.android_path && crtc_state->vrr_enabled) {
+	if (am_hdmi_info.android_path && crtc_state->vrr_enabled &&
+		!(adj_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
 		meson_hdmitx_cal_brr(&am_hdmi_info, meson_crtc_state, adj_mode);
 		modename = meson_crtc_state->brr_mode;
 	}
 
 	if (!am_hdmi_info.android_path ||
 		(crtc_state->vrr_enabled && !meson_crtc_state->attr_changed &&
-		!meson_crtc_state->brr_update))
+		!meson_crtc_state->brr_update &&
+		!(adj_mode->flags & DRM_MODE_FLAG_INTERLACE)))
 		do_valid = false;
 
 

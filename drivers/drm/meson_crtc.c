@@ -687,7 +687,8 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 			adjusted_mode->hdisplay == old_mode->hdisplay &&
 			adjusted_mode->vdisplay == old_mode->vdisplay &&
 			!meson_crtc_state->attr_changed &&
-			!meson_crtc_state->brr_update) {
+			!meson_crtc_state->brr_update &&
+			!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
 			drm_crtc_vblank_on(crtc);
 			return;
 		}
@@ -732,7 +733,8 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 		adjusted_mode->hdisplay == old_mode->hdisplay &&
 		adjusted_mode->vdisplay == old_mode->vdisplay &&
 		!meson_crtc_state->attr_changed &&
-		!meson_crtc_state->brr_update) {
+		!meson_crtc_state->brr_update &&
+		!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
 		DRM_INFO("%s, vrr enable, skip crtc disable\n", __func__);
 		return;
 	}
