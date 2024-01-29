@@ -497,7 +497,8 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	//abc,racing,girl,hqv
 #ifdef DI_NEW_PQ_V1
 	if ((IS_IC_EF(dil_get_cpuver_flag(), T3) &&
-		 !IS_IC(dil_get_cpuver_flag(), S5))) {
+		 !IS_IC(dil_get_cpuver_flag(), S5) &&
+		 !IS_IC(dil_get_cpuver_flag(), S7D))) {
 		if (pPar->flm22_pd12chk_mode == 0)
 			pd22_diff12_chk = ((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) < (max_dif02 + pPar->flm22_diff02_add_th) && (abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) > (max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) * pPar->flm22_diff01_ratio / 16)) &&
 				abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < pPar->flm22_diff01_th * 3 && (max(pd22_cnt_pre, pd22_cnt_cur) > max(0, pd22_cnt_th - pPar->flm22_mcdi_dcnt_th) || max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) <  (max_dif02 - pPar->flm22_diff02_add_th)) && abs(pre_fld_motnum - glb_field_mot_num) < min(pre_fld_motnum, glb_field_mot_num) * pPar->flm22_glb_ratio / 8) ||

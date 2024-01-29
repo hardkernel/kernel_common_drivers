@@ -4327,7 +4327,7 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 				if (ppre->combing_fix_en) {
 					#ifdef DI_NEW_PQ_V1
 					if (((DIM_IS_IC_EF(T3) &&
-						 !DIM_IS_IC(S5))) &&
+						 !DIM_IS_IC(S5) && !DIM_IS_IC(S7D))) &&
 					    ppre->di_inp_buf->vframe->width == 1920 &&
 					    ppre->di_inp_buf->vframe->height == 1080) {
 						get_ops_mtn()->adaptive_combing_new
