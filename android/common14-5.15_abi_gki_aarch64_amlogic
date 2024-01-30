@@ -15,3 +15,6 @@
   log_read_mmio
   log_write_mmio
 
+# amlogic-wireless.ko
+  async_schedule_node
+
