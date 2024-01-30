@@ -208,7 +208,7 @@
 
 	cpu_info {
 		compatible = "amlogic, cpuinfo";
-		status = "disabled";
+		status = "okay";
 		cpuinfo_cmd = <0x82000044>;
 	};
 
@@ -1164,11 +1164,6 @@
 				compatible = "amlogic,meson-sc2-reset";
 				reg = <0x0 0x2000 0x0 0x98>;
 				#reset-cells = <1>;
-			};
-
-			cpu_version {
-				compatible = "amlogic,meson-gx-ao-secure", "syscon";
-				reg=<0x0 0x10220 0x0 0x4>;
 			};
 		};
 
