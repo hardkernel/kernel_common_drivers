@@ -678,9 +678,9 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask, int viu_sel)
 	spin_unlock_irqrestore(&vpp_lcd_gamma_lock, flags);
 }
 
-u16 gamma_data_r[256] = {0};
-u16 gamma_data_g[256] = {0};
-u16 gamma_data_b[256] = {0};
+u16 gamma_data_r[257] = {0};
+u16 gamma_data_g[257] = {0};
+u16 gamma_data_b[257] = {0};
 void vpp_get_lcd_gamma_table(u32 rgb_mask)
 {
 	int i;

@@ -4943,7 +4943,7 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 		matrix_pre_offset2 = VPP_VD1_MATRIX_PRE_OFFSET2;
 		matrix_en_ctrl = VPP_VD1_MATRIX_EN_CTRL;
 
-		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VD1_MATRIX_EN_CTRL, mtx_on, 0, 1, vpp_sel);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_en_ctrl, mtx_on, 0, 1, vpp_sel);
 	} else if (mtx_sel == POST2_MTX) {
 		if (chip_type_id == chip_a4) {
 			matrix_coef00_01 = VOUT_MATRIX_COEF00_01;
@@ -4976,7 +4976,7 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 			matrix_pre_offset2 = VPP_POST2_MATRIX_PRE_OFFSET2;
 			matrix_en_ctrl = VPP_POST2_MATRIX_EN_CTRL;
 		}
-		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_POST2_MATRIX_EN_CTRL, mtx_on, 0, 1, vpp_sel);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_en_ctrl, mtx_on, 0, 1, vpp_sel);
 	} else if (mtx_sel == POST_MTX) {
 		matrix_coef00_01 = VPP_POST_MATRIX_COEF00_01;
 		matrix_coef02_10 = VPP_POST_MATRIX_COEF02_10;
@@ -4993,7 +4993,7 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 		matrix_pre_offset2 = VPP_POST_MATRIX_PRE_OFFSET2;
 		matrix_en_ctrl = VPP_POST_MATRIX_EN_CTRL;
 
-		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_POST_MATRIX_EN_CTRL, mtx_on, 0, 1, vpp_sel);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_en_ctrl, mtx_on, 0, 1, vpp_sel);
 	} else if (mtx_sel == VPP1_POST2_MTX) {
 		matrix_coef00_01 = VPP1_POST2_MATRIX_COEF00_01;
 		matrix_coef02_10 = VPP1_POST2_MATRIX_COEF02_10;
@@ -5010,7 +5010,7 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 		matrix_pre_offset2 = VPP1_POST2_MATRIX_PRE_OFFSET2;
 		matrix_en_ctrl = VPP1_POST2_MATRIX_EN_CTRL;
 
-		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP1_POST2_MATRIX_EN_CTRL, mtx_on, 0, 1, vpp_sel);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_en_ctrl, mtx_on, 0, 1, vpp_sel);
 	} else if (mtx_sel == VPP2_POST2_MTX) {
 		matrix_coef00_01 = VPP2_POST2_MATRIX_COEF00_01;
 		matrix_coef02_10 = VPP2_POST2_MATRIX_COEF02_10;
@@ -5027,7 +5027,7 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 		matrix_pre_offset2 = VPP2_POST2_MATRIX_PRE_OFFSET2;
 		matrix_en_ctrl = VPP2_POST2_MATRIX_EN_CTRL;
 
-		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP2_POST2_MATRIX_EN_CTRL, mtx_on, 0, 1, vpp_sel);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_en_ctrl, mtx_on, 0, 1, vpp_sel);
 	}
 
 	if (!mtx_on)
