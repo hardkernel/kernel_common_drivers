@@ -2533,12 +2533,15 @@ static int hdmitx_tmds_rxsense(void)
 	switch (hdev->tx_hw.chip_data->chip_type) {
 	case MESON_CPU_ID_T7:
 	case MESON_CPU_ID_S1A:
-	case MESON_CPU_ID_S7:
 		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL0, 1, 16, 1);
 		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 1, 23, 1);
 		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 0, 24, 1);
 		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 3, 20, 3);
 		ret = hd21_read_reg(ANACTRL_HDMIPHY_CTRL2) & 0x1;
+		return ret;
+	case MESON_CPU_ID_S7:
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 1, 19, 1);
+		ret = !!((hd21_read_reg(ANACTRL_HDMIPHY_CTRL2) & 0xf) == 0xf);
 		return ret;
 	case MESON_CPU_ID_S5:
 		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL0, 1, 19, 1);
