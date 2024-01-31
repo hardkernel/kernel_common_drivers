@@ -1352,7 +1352,8 @@
 		reg = <0xfe020000 0x50>;
 		tsensor_id = <1>;
 		cal_type = <0x11>;
-		cal_coeff = <296 396 2757 8526>;
+		cal_coeff = <296 396 2907 8739>;
+		cal_coeff2 = <296 396 2757 8526>;
 		rtemp = <110000>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS>;
