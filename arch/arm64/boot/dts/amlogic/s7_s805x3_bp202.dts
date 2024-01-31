@@ -1196,6 +1196,7 @@
 
 &amhdmitx {
 	status = "okay";
+	res_1080p = <1>;
 	vrr_type = <2>; /* 1: GAME-VRR, 2: QMS-VRR */
 };
 
