@@ -24,4 +24,6 @@
 #define CLKID_SCMI_DSU_CLK            10
 #define CLKID_SCMI_GP1_PLL            11
 
+#define CLKID_SCMI_ACLKM              12
+
 #endif /* __S7_SCMI_CLKC_H */

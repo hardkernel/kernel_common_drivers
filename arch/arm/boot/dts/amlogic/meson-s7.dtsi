@@ -393,8 +393,10 @@
 				reg-names = "basic", "pll";
 				clocks = <&xtal>,
 					 <&scmi_clk CLKID_SCMI_GP1_PLL>,
-					 <&scmi_clk CLKID_SCMI_PLL_TOP>;
-				clock-names = "xtal", "gp1_pll", "pll_top_in";
+					 <&scmi_clk CLKID_SCMI_PLL_TOP>,
+					 <&scmi_clk CLKID_SCMI_ACLKM>;
+				clock-names = "xtal", "gp1_pll", "pll_top_in",
+					      "aclkm";
 				status = "okay";
 			};
 
