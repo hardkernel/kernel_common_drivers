@@ -2564,12 +2564,12 @@
 
 	sdcard_pins: sdcard_pins {
 		mux {
-			groups = "sdcard_d0_c0",
-				 "sdcard_d1_c1",
-				 "sdcard_d2_c2",
-				 "sdcard_d3_c3",
-				 "sdcard_clk_c4",
-				 "sdcard_cmd_c5";
+			groups = "sdcard_d0",
+				 "sdcard_d1",
+				 "sdcard_d2",
+				 "sdcard_d3",
+				 "sdcard_clk",
+				 "sdcard_cmd";
 			function = "sdcard";
 			bias-pull-up;
 			drive-strength-microamp = <4000>;
@@ -2626,9 +2626,9 @@
 
 	sd_1bit_pins: sd_1bit_pins {
 		mux {
-			groups = "sdcard_d0_c0",
-				 "sdcard_clk_c4",
-				 "sdcard_cmd_c5";
+			groups = "sdcard_d0",
+				 "sdcard_clk",
+				 "sdcard_cmd";
 			function = "sdcard";
 			bias-pull-up;
 			drive-strength-microamp = <4000>;
