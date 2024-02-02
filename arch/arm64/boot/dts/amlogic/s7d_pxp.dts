@@ -84,7 +84,7 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x8000000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
@@ -97,13 +97,13 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1080p STB androidT size 56M */
-			size = <0x0 0x1000000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x0>;
+			size = <0x0 0x3800000>;
 			alignment = <0x0 0x400000>;
 		};
 		mali_protected: mali_protected@c0000000 {
