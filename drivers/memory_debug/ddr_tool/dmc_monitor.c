@@ -47,7 +47,7 @@
 #include "dmc_trace.h"
 
 // #define DEBUG
-#define DMC_VERSION		"1.0"
+#define DMC_VERSION		"1.1"
 
 #define IRQ_CHECK		0
 #define IRQ_CLEAR		1
@@ -868,6 +868,11 @@ void dmc_irq_sleep(void *data)
 
 	/* get system and thread runtime from before irq to current */
 	sys_clock = sched_clock();
+
+	/* old soc may creat a secure irq when irq set but irq thread not be init */
+	if (!mon_comm->irq_thread_task)
+		return;
+
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515 && !IS_ENABLED(CONFIG_AMLOGIC_BREAK_GKI)
 	/* this can be delete when 14-5.15 task_sched_runtime symbol commit */
 	task_time = mon_comm->irq_thread_task->se.sum_exec_runtime;
