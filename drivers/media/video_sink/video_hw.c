@@ -14104,7 +14104,8 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 			glayer_info[i].pps_support =
 				p_amvideo->pps_support[i];
 		}
-		if (video_is_meson_s7d_cpu() && i == 0)
+		if ((video_is_meson_s7d_cpu() ||
+			video_is_meson_s6_cpu()) && i == 0)
 			glayer_info[i].vsr_safa_support =
 				p_amvideo->dev_property.vd1_vsr_safa_support;
 		if (p_amvideo->dv_support)
@@ -14217,7 +14218,8 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 			video_is_meson_s4_cpu() ||
 			video_is_meson_s1a_cpu() ||
 			video_is_meson_s7_cpu() ||
-			video_is_meson_s7d_cpu()) {
+			video_is_meson_s7d_cpu()||
+			video_is_meson_s6_cpu()) {
 		for (i = 0; i < cur_dev->max_vd_layers; i++) {
 			memcpy(&vd_layer[i].vd_afbc_reg,
 			       &vd_afbc_reg_sc2_array[i],
@@ -14226,7 +14228,8 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 			       &vd_mif_reg_sc2_array[i],
 			       sizeof(struct hw_vd_reg_s));
 			if (video_is_meson_s7_cpu() ||
-				video_is_meson_s7d_cpu())
+				video_is_meson_s7d_cpu()||
+				video_is_meson_s6_cpu())
 				memcpy(&vd_layer[i].vd_mif_linear_reg,
 				      &vd_mif_linear_reg_t7_array[i],
 				      sizeof(struct hw_vd_linear_reg_s));
@@ -14236,7 +14239,8 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 			if (video_is_meson_s4_cpu() ||
 			video_is_meson_s1a_cpu() ||
 			video_is_meson_s7_cpu() ||
-			video_is_meson_s7d_cpu())
+			video_is_meson_s7d_cpu()||
+				video_is_meson_s6_cpu())
 				memcpy(&vd_layer[i].pps_reg,
 				       &pps_reg_array_t5d[i],
 				       sizeof(struct hw_pps_reg_s));
@@ -14247,6 +14251,10 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 			if (i == 0 && video_is_meson_s7d_cpu())
 				memcpy(&vd_layer[i].vsr_safa_reg,
 					&vsr_safa_reg,
+					sizeof(struct hw_vsr_safa_reg_s));
+			if (i == 0 && video_is_meson_s6_cpu())
+				memcpy(&vd_layer[i].vsr_safa_reg,
+					&s6_vsr_safa_reg,
 					sizeof(struct hw_vsr_safa_reg_s));
 			memcpy(&vd_layer[i].vpp_blend_reg,
 			       &vpp_blend_reg_array[i],
