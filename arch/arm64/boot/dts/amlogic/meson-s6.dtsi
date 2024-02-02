@@ -5,7 +5,7 @@
 
 #include <dt-bindings/clock/axg-audio-clkc.h>
 #include <dt-bindings/clock/s6-clkc.h>
-#include <dt-bindings/clock/s6-secure-clk.h>
+#include <dt-bindings/clock/s6-scmi-clk.h>
 #include <dt-bindings/clock/g12a-aoclkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -938,23 +938,27 @@
 			clkc: clock-controller {
 				compatible = "amlogic,s6-clkc";
 				#clock-cells = <1>;
-				reg = <0x0 0x0 0x0 0x49c>,
-				      <0x0 0x8000 0x0 0x384>;
+				reg = <0x0 0x0 0x0 0x4a0>,
+				      <0x0 0x8000 0x0 0x38c>;
 				reg-names = "basic", "pll";
 				clocks = <&xtal>,
-					 <&scmi_clk CLKID_OTHERPLL_IN>,
-					 <&scmi_clk CLKID_HIFI0PLL_IN>,
-					 <&scmi_clk CLKID_ETH_HIFI1PLL_IN>,
-					 <&scmi_clk CLKID_FIXEDPLL_IN>,
-					 <&scmi_clk CLKID_GP1PLL>,
-					 <&scmi_clk CLKID_GP2PLL>;
+					 <&scmi_clk CLKID_SCMI_GP0_PLL_SRC>,
+					 <&scmi_clk CLKID_SCMI_HIFI0_PLL_SRC>,
+					 <&scmi_clk CLKID_SCMI_ETH_HIFI1_PLL_SRC>,
+					 <&scmi_clk CLKID_SCMI_SYS_CLK>,
+					 <&scmi_clk CLKID_SCMI_AXI_CLK>,
+					 <&scmi_clk CLKID_SCMI_FIXED_PLL>,
+					 <&scmi_clk CLKID_SCMI_GP1_PLL>,
+					 <&scmi_clk CLKID_SCMI_GP2_PLL>;
 				clock-names = "xtal",
-					      "otherpll_in",
-					      "hifi0pll_in",
-					      "eth_hifi1pll_in",
-					      "fixedpll_in",
-					      "gp1pll",
-					      "gp2pll";
+					      "gp0_pll_src",
+					      "hifi0_pll_src",
+					      "hifi1_pll_src",
+					      "sys_clk",
+					      "axi_clk",
+					      "fixed_pll",
+					      "gp1_pll",
+					      "gp2_pll";
 				status = "okay";
 			};
 
