@@ -214,13 +214,13 @@ static unsigned int aml_cpufreq_get_rate(unsigned int cpu)
 
 static void free_clock(struct clk *clock)
 {
-	if (!IS_ERR(clock))
+	if (!IS_ERR_OR_NULL(clock))
 		clk_put(clock);
 }
 
 static void free_regulator(struct regulator *reg)
 {
-	if (!IS_ERR(reg))
+	if (!IS_ERR_OR_NULL(reg))
 		devm_regulator_put(reg);
 }
 
@@ -478,7 +478,7 @@ static int aml_cpufreq_init(struct cpufreq_policy *policy)
 
 	aml_create_proc_files(data);
 	aml_setup_policy_rest(data);
-	pr_info("cpufreq policy%d init succeed.\n", cpumask_first(data->cpus));
+	pr_info("cpufreq v2 policy%d init succeed.\n", cpumask_first(data->cpus));
 
 	return 0;
 }
