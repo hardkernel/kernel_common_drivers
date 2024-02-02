@@ -131,7 +131,7 @@ void dump_vd_vsr_safa_reg(void)
 	u32 reg_addr, reg_val = 0;
 	struct hw_vsr_safa_reg_s *vsr_reg;
 
-	vsr_reg = &vsr_safa_reg;
+	vsr_reg = &vd_layer[0].vsr_safa_reg;
 
 	pr_info("vsr top regs:\n");
 	reg_addr = vsr_reg->vpp_vsr_top_c42c44_mode;
@@ -720,7 +720,7 @@ static void set_vsr_pi(struct vsr_setting_s *vsr)
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 	struct hw_vsr_safa_reg_s *vsr_reg;
 
-	vsr_reg = &vsr_safa_reg;
+	vsr_reg = &vd_layer[0].vsr_safa_reg;
 	if (vsr_pi->pi_en) {
 		u32 pi_en = 0;
 		/* first disable pi_en, at last enable pi_en */
@@ -811,7 +811,7 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 	struct hw_vsr_safa_reg_s *vsr_reg;
 	u32 filt_num_c = 0;
 
-	vsr_reg = &vsr_safa_reg;
+	vsr_reg = &vd_layer[0].vsr_safa_reg;
 	adp_tap_alp_mode = 1;
 	beta_mode        = 1;
 	sr_delta_alp_mode = 1;
@@ -958,7 +958,7 @@ static void set_vsr_input_format(struct vsr_setting_s *vsr)
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 	struct hw_vsr_safa_reg_s *vsr_reg;
 
-	vsr_reg = &vsr_safa_reg;
+	vsr_reg = &vd_layer[0].vsr_safa_reg;
 	/* config vsr top */
 	if (vsr->vsr_top.vsr_en) {
 		u32 reg_inp_422 = 0, reg_use_inp_fmt = 1, reg_sync_ctrl = 0;

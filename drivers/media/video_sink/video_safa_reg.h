@@ -825,4 +825,9 @@
 //Bit 15:13  reserved
 //Bit 12:0   p2i_pic_height   // unsigned  , default = 438  ve_pic_height
 
+#define S6_SAFA_PPS_CNTL_SCALE_COEF_IDX_LUMA          0x5190
+#define S6_SAFA_PPS_CNTL_SCALE_COEF_LUMA              0x5191
+#define S6_SAFA_PPS_CNTL_SCALE_COEF_IDX_CHRO          0x5192
+#define S6_SAFA_PPS_CNTL_SCALE_COEF_CHRO              0x5193
+#define S6_SAFA_PPS_HW_CTRL                           0x5194
 #endif

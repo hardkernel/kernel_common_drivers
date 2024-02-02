@@ -10738,7 +10738,7 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 				vsr->vsr_top.vsize_in,
 				vsr->vsr_top.hsize_out,
 				vsr->vsr_top.vsize_out);
-			len += sprintf(buf + len, "safa preh/v_en %d,%d, ratio:%d, %d\n",
+			len += sprintf(buf + len, "safa preh/v_en %d,%d, h/v ratio:%d, %d\n",
 				vsr->vsr_safa.preh_en,
 				vsr->vsr_safa.prev_en,
 				vsr->vsr_safa.preh_ratio,
@@ -14956,6 +14956,57 @@ static struct amvideo_device_data_s amvideo_s7d = {
 	.is_tv_panel = 0,
 };
 
+static struct amvideo_device_data_s amvideo_s6 = {
+	.cpu_type = MESON_CPU_MAJOR_ID_S6_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 1,
+	.layer_support[2] = 0,
+	.afbc_support[0] = 1,
+	.afbc_support[1] = 1,
+	.afbc_support[2] = 0,
+	.pps_support[0] = 1,
+	.pps_support[1] = 1,
+	.pps_support[2] = 0,
+	.alpha_support[0] = 1,
+	.alpha_support[1] = 1,
+	.alpha_support[2] = 0,
+	.dv_support = 0,
+	.sr0_support = 0,
+	.sr1_support = 0,
+	.core_v_disable_width_max[0] = 4096,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 2048,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = VSR_BEFORE_VE,
+	.fgrain_support[0] = 1,
+	.fgrain_support[1] = 0,
+	.fgrain_support[2] = 0,
+	.has_hscaler_8tap[0] = 1,
+	.has_hscaler_8tap[1] = 1,
+	.has_hscaler_8tap[2] = 0,
+	.has_pre_hscaler_ntap[0] = 1,
+	.has_pre_hscaler_ntap[1] = 1,
+	.has_pre_hscaler_ntap[2] = 0,
+	.has_pre_vscaler_ntap[0] = 1,
+	.has_pre_vscaler_ntap[1] = 1,
+	.has_pre_vscaler_ntap[2] = 0,
+	.src_width_max[0] = 4096,
+	.src_width_max[1] = 2048,
+	.src_width_max[2] = 2048,
+	.src_height_max[0] = 2160,
+	.src_height_max[1] = 1080,
+	.src_height_max[2] = 1080,
+	.ofifo_size = 0x1000,
+	.afbc_conv_lbuf_len[0] = 0x100,
+	.afbc_conv_lbuf_len[1] = 0x100,
+	.mif_linear = 1,
+	.display_module = 0,
+	.max_vd_layers = 2,
+	.is_tv_panel = 0,
+};
+
 #endif
 
 static struct video_device_hw_s legcy_dev_property = {
@@ -15120,6 +15171,10 @@ static const struct of_device_id amlogic_amvideom_dt_match[] = {
 		.compatible = "amlogic, amvideom-s7d",
 		.data = &amvideo_s7d,
 	},
+	{
+		.compatible = "amlogic, amvideom-s6",
+		.data = &amvideo_s6,
+	},
 #endif
 	{}
 };
@@ -15263,6 +15318,15 @@ bool video_is_meson_s7d_cpu(void)
 {
 	if (amvideo_meson_dev.cpu_type ==
 		MESON_CPU_MAJOR_ID_S7D_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_meson_s6_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_S6_)
 		return true;
 	else
 		return false;
@@ -15493,7 +15557,8 @@ static int amvideom_probe(struct platform_device *pdev)
 		       sizeof(struct video_device_hw_s));
 		aisr_en = 1;
 		cur_dev->power_ctrl = true;
-	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S7D_) {
+	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S7D_ ||
+		amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S6_) {
 		memcpy(&amvideo_meson_dev.dev_property, &s7d_dev_property,
 		       sizeof(struct video_device_hw_s));
 		aisr_en = 1;

@@ -293,4 +293,5 @@ extern struct hw_vd_linear_reg_s vd_mif_linear_reg_c3_array[MAX_VD_LAYER_C3];
 
 extern struct hw_aisr_reshape_reg_s aisr_reshape_reg;
 extern struct hw_vsr_safa_reg_s vsr_safa_reg;
+extern struct hw_vsr_safa_reg_s s6_vsr_safa_reg;
 #endif

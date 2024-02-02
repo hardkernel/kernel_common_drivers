@@ -720,6 +720,7 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_S1A_,
 	MESON_CPU_MAJOR_ID_S7_,
 	MESON_CPU_MAJOR_ID_S7D_,
+	MESON_CPU_MAJOR_ID_S6_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
@@ -1091,6 +1092,7 @@ bool video_is_meson_txhd2_cpu(void);
 bool video_is_meson_s1a_cpu(void);
 bool video_is_meson_s7_cpu(void);
 bool video_is_meson_s7d_cpu(void);
+bool video_is_meson_s6_cpu(void);
 void alpha_win_set(struct video_layer_s *layer);
 void fgrain_config(struct video_layer_s *layer,
 		   struct vpp_frame_par_s *frame_par,
