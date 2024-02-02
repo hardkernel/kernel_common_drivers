@@ -64,3 +64,9 @@
   __tracepoint_android_rvh_select_task_rq_fair
   __traceiter_android_rvh_select_task_rq_fair
 
+# amlogic-debug-iotrace.ko
+  log_post_read_mmio
+  log_post_write_mmio
+  log_read_mmio
+  log_write_mmio
+
