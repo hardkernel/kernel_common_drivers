@@ -1758,9 +1758,13 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		 *  case, we still config spdif module
 		 *  TODO FIXME, consider 8 ch i2s, 2 ch spdif case even hdmitx 8 ch.
 		 */
-		if (p_tdm->samesource_sel != SHAREBUFFER_NONE &&
-			get_i2s2hdmitx_audio_format(rtd->card) == AUD_CODEC_TYPE_STEREO_PCM)
-			tdm_sharebuffer_prepare(substream, p_tdm);
+		if (p_tdm->samesource_sel != SHAREBUFFER_NONE) {
+			enum aud_codec_types type = spdif_get_codec
+					(p_tdm->samesource_sel - SHAREBUFFER_SPDIFA);
+
+			if (type == AUD_CODEC_TYPE_STEREO_PCM)
+				tdm_sharebuffer_prepare(substream, p_tdm);
+		}
 
 		/* i2s source to hdmix */
 		if (get_hdmitx_audio_src(rtd->card) == (p_tdm->id + HDMITX_SRC_TDM_A)) {

@@ -445,10 +445,13 @@ int spdifout_get_lane_mask_version(int id)
 	return ret;
 }
 
-unsigned int spdif_get_codec(void)
+unsigned int spdif_get_codec(int id)
 {
-	if (spdif_priv[0])
-		return spdif_priv[0]->codec_type;
+	if (id < 0 || id > 1)
+		id = 0;
+
+	if (spdif_priv[id])
+		return spdif_priv[id]->codec_type;
 	return 0;
 }
 
