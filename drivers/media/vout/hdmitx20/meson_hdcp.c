@@ -610,7 +610,8 @@ unsigned int meson_hdcp_get_rx_cap(void)
 	 * read hdcp version of sink during hdcp1.4 authentication.
 	 * if hdcp1.4 authentication currently, force return hdcp1.4
 	 */
-
+	if (hdev->tx_comm.hdcp_mode == 1)
+		return 0x1;
 	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
 	if (hdmitx_hw_cntl_ddc(&hdev->tx_hw.base,
 		DDC_HDCP_22_LSTORE, 0) == 0)

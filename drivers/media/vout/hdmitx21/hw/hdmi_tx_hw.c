@@ -33,6 +33,7 @@
 #include "enc_clk_config.h"
 #include "../hdmi_tx_ext.h"
 #include <linux/amlogic/clk_measure.h>
+#include "../hdmi_tx.h"
 
 #define to_hdmitx21_dev(x)     container_of(x, struct hdmitx_dev, tx_hw.base)
 
@@ -2252,6 +2253,8 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hdev->tx_hw.s7_clk_config = 0;
 			pr_info("s7_clk_config = %d\n",  hdev->tx_hw.s7_clk_config);
 		}
+	} else if (strncmp(tmpbuf, "drm_hdcp_ver", 12) == 0) {
+		HDMITX_INFO("test drm_hdcp_ver: %d\n", drm_hdmitx_get_rx_hdcp_cap());
 	}
 }
 

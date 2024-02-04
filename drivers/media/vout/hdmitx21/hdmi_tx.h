@@ -504,6 +504,7 @@ enum frl_rate_enum hdmitx_select_frl_rate(bool dsc_en, enum hdmi_vic vic,
 		enum hdmi_colorspace cs, enum hdmi_color_depth cd);
 void frl_tx_training_handler(struct hdmitx_dev *hdev);
 void frl_tx_stop(void);
+unsigned int drm_hdmitx_get_rx_hdcp_cap(void);
 
 #endif /* __HDMI_TX_H__ */
 

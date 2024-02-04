@@ -48,6 +48,7 @@
 #include "../hdmi_tx_module.h"
 #include <linux/amlogic/clk_measure.h>
 #include "../../hdmitx_common/hdmitx_compliance.h"
+#include "../meson_drm_hdmitx.h"
 
 #define HDMITX_VIC_MASK			0xff
 
@@ -3490,6 +3491,8 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hdmitx_hw_cntl_ddc(&hdev->tx_hw.base,
 				DDC_SCDC_DIV40_SCRAMB, value);
 		}
+	} else if (strncmp(tmpbuf, "drm_hdcp_ver", 12) == 0) {
+		HDMITX_INFO("test drm_hdcp_ver: %d\n", meson_hdcp_get_rx_cap());
 	}
 }
 
