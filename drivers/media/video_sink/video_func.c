@@ -4876,9 +4876,7 @@ void post_vsync_process(void)
 #endif
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	__this_cpu_write(vsync_iotrace_cut, 1);
-	if (ramoops_ftrace_en && ramoops_trace_mask & 0x2)
-		aml_pstore_write(AML_PSTORE_TYPE_SCHED, "vsync in", 0, irqs_disabled(), 0);
+	iotrace_misc_record_write(RECORD_TYPE_VSYNC_IN, 0, 0, 0);
 #endif
 
 	set_cur_line_info(0);
@@ -5265,9 +5263,7 @@ LATE_PROC:
 
 #endif
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	__this_cpu_write(vsync_iotrace_cut, 0);
-	if (ramoops_ftrace_en  && ramoops_trace_mask & 0x2)
-		aml_pstore_write(AML_PSTORE_TYPE_SCHED, "vsync out", 0, irqs_disabled(), 0);
+	iotrace_misc_record_write(RECORD_TYPE_VSYNC_OUT, 0, 0, 0);
 #endif
 }
 

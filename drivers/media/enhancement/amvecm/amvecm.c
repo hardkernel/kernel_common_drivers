@@ -2624,18 +2624,14 @@ static irqreturn_t amvecm_viu2_vsync_isr(int irq, void *dev_id)
 static irqreturn_t amvecm_lc_curve_isr(int irq, void *dev_id)
 {
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	__this_cpu_write(amvecm_iotrace_cut, 1);
-	if (ramoops_ftrace_en && ramoops_trace_mask & 0x2)
-		aml_pstore_write(AML_PSTORE_TYPE_SCHED, "amvecm in", 0, irqs_disabled(), 0);
+	iotrace_misc_record_write(RECORD_TYPE_AMVECM_IN, 0, 0, 0);
 #endif
 
 	if (use_lc_curve_isr)
 		lc_read_region(8, 12, 0);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	__this_cpu_write(amvecm_iotrace_cut, 0);
-	if (ramoops_ftrace_en && ramoops_trace_mask & 0x2)
-		aml_pstore_write(AML_PSTORE_TYPE_SCHED, "amvecm out", 0, irqs_disabled(), 0);
+	iotrace_misc_record_write(RECORD_TYPE_AMVECM_OUT, 0, 0, 0);
 #endif
 
 	return IRQ_HANDLED;
