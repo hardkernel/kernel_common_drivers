@@ -178,17 +178,18 @@ static void __maybe_unused isr_in_hook(void *data, int irq, struct irqaction *ac
 	int cpu;
 	unsigned long long now;
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	char buf[BUF_SIZE];
+	struct iotrace_record rec = {
+		.type = RECORD_TYPE_ISR_IN,
+		.irq  = irq,
+	};
 #endif
 
 	if (irq >= IRQ_CNT || !isr_check_en)
 		return;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	if ((ramoops_ftrace_en) && (ramoops_trace_mask & 0x4)) {
-		snprintf(buf, BUF_SIZE, "isr-in irq:%d", irq);
-		aml_pstore_write(AML_PSTORE_TYPE_IRQ, buf, 0, irqs_disabled(), 0);
-	}
+	if ((ramoops_ftrace_en) && (ramoops_trace_mask & TRACE_MASK_IRQ))
+		aml_pstore_write(AML_PSTORE_TYPE_IRQ, &rec, irqs_disabled(), 0);
 #endif
 
 	cpu = smp_processor_id();
@@ -215,7 +216,10 @@ static void __maybe_unused isr_out_hook(void *data, int irq, struct irqaction *a
 	int cpu;
 	unsigned long long now, delta, this_period_time;
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	char buf[BUF_SIZE];
+	struct iotrace_record rec = {
+		.type = RECORD_TYPE_ISR_OUT,
+		.irq  = irq,
+	};
 #endif
 
 	if (irq >= IRQ_CNT || !isr_check_en)
@@ -231,10 +235,8 @@ static void __maybe_unused isr_out_hook(void *data, int irq, struct irqaction *a
 		return;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	if ((ramoops_ftrace_en) && (ramoops_trace_mask & 0x4)) {
-		snprintf(buf, BUF_SIZE, "isr-out irq:%d", irq);
-		aml_pstore_write(AML_PSTORE_TYPE_IRQ, buf, 0, irqs_disabled(), 0);
-	}
+	if ((ramoops_ftrace_en) && (ramoops_trace_mask & TRACE_MASK_IRQ))
+		aml_pstore_write(AML_PSTORE_TYPE_IRQ, &rec, irqs_disabled(), 0);
 #endif
 
 	now = sched_clock();
@@ -345,12 +347,17 @@ static void smc_in_hook(unsigned long smcid, unsigned long val, bool noret)
 	int cpu;
 	struct lockup_info *info;
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	char buf[BUF_SIZE];
+	struct iotrace_record rec = {
+		.type   = RECORD_TYPE_SMC_IN,
+		.smcid  = smcid,
+		.val    = val,
+	};
 
-	if ((ramoops_ftrace_en) && (ramoops_trace_mask & 0x8)) {
-		snprintf(buf, BUF_SIZE, "smc-in smcid:%lx, arg:%lx, noret:%d", smcid, val, noret);
-		aml_pstore_write(AML_PSTORE_TYPE_SMC, buf, 0, irqs_disabled(), 0);
-	}
+	if (noret)
+		rec.type = RECORD_TYPE_SMC_NORET_IN;
+
+	if ((ramoops_ftrace_en) && (ramoops_trace_mask & TRACE_MASK_SMC))
+		aml_pstore_write(AML_PSTORE_TYPE_SMC, &rec, irqs_disabled(), 0);
 #endif
 
 	if (noret)
@@ -374,12 +381,14 @@ static void smc_out_hook(unsigned long smcid, unsigned long val)
 	int cpu;
 	struct lockup_info *info;
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
-	char buf[BUF_SIZE];
+	struct iotrace_record rec = {
+		.type   = RECORD_TYPE_SMC_OUT,
+		.smcid  = smcid,
+		.val    = val,
+	};
 
-	if ((ramoops_ftrace_en) && (ramoops_trace_mask & 0x8)) {
-		snprintf(buf, BUF_SIZE, "smc-out smcid:%lx, retval:%lx", smcid, val);
-		aml_pstore_write(AML_PSTORE_TYPE_SMC, buf, 0, irqs_disabled(), 0);
-	}
+	if ((ramoops_ftrace_en) && (ramoops_trace_mask & TRACE_MASK_SMC))
+		aml_pstore_write(AML_PSTORE_TYPE_SMC, &rec, irqs_disabled(), 0);
 #endif
 
 	if (!initialized || !smc_check_en)
