@@ -268,7 +268,7 @@ static bool meson_hdmitx_test_color_attr(struct hdmitx_common *common,
 			memset(&comm_state, 0, sizeof(comm_state));
 			build_hdmitx_attr_str(attr_str,
 				attr_list->colorformat, attr_list->bitdepth);
-			if (hdmitx_common_validate_mode_locked(common, &comm_state, outputmode,
+			if (!hdmitx_common_validate_mode_locked(common, &comm_state, outputmode,
 					attr_str, true)) {
 				DRM_INFO("%s success [%d]+[%d]\n", __func__,
 					attr_list->colorformat,
@@ -306,7 +306,7 @@ static int meson_hdmitx_decide_color_attr
 		memset(&comm_state, 0, sizeof(comm_state));
 		build_hdmitx_attr_str(attr_str,
 			attr_list->colorformat, attr_list->bitdepth);
-		if (hdmitx_common_validate_mode_locked(common, &comm_state, outputmode,
+		if (!hdmitx_common_validate_mode_locked(common, &comm_state, outputmode,
 				attr_str, true)) {
 			attr->colorformat = attr_list->colorformat;
 			attr->bitdepth = attr_list->bitdepth;
