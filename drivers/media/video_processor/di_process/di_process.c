@@ -1078,7 +1078,9 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	omx_index = vf->omx_index;
 
 	/*1080p->1080i; 4k->1080i*/
-	if (!(dev->last_vf.type & VIDTYPE_INTERLACE) && (vf->type & VIDTYPE_INTERLACE)) {
+	if ((!(dev->last_vf.type & VIDTYPE_INTERLACE) && (vf->type & VIDTYPE_INTERLACE)) ||
+		(dev->last_vf.width <= 1920 && vf->width > 1920) ||
+		(dev->last_vf.width > 1920 && vf->width <= 1920)) {
 		dp_print(dev->index, PRINT_OTHER, "fmt change\n");
 		if (dev->first_out) {
 			dev->first_out = false;
