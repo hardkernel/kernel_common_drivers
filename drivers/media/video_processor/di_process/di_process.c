@@ -845,6 +845,7 @@ static int di_process_init(struct di_process_dev *dev)
 	dev->di_parm.ops.empty_input_done = dp_empty_input_done;
 	dev->di_parm.ops.fill_output_done = dp_fill_output_done;
 	dev->di_parm.caller_data = (void *)dev;
+	dev->di_parm.buffer_keep = 0;
 	dev->di_index = di_create_instance(dev->di_parm);
 	if (dev->di_index < 0) {
 		dp_print(dev->index, PRINT_ERROR,
