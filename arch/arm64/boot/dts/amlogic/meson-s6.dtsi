@@ -311,8 +311,8 @@
 	};
 
 	mbox_fifo: mbox_fifo@0xfe006000 {
-		status = "disabled";
-		compatible = "amlogic, s7d-mbox-fifo";
+		status = "okay";
+		compatible = "amlogic, s6-mbox-fifo";
 		reg = <0x0 0xfe006000 0x0 0x800>,  /* mbox wr fifo */
 		      <0x0 0xfe006800 0x0 0x800>,  /* mbox rd fifo */
 		      <0x0 0xfe0070c0 0x0 0x40>,   /* mbox set reg */
@@ -321,19 +321,27 @@
 		      <0x0 0xfe007020 0x0 0x40>;   /* mbox irqctrl reg */
 		interrupts = <GIC_SPI 248 IRQ_TYPE_EDGE_RISING>;   /* mbox top irq */
 		mbox-irqctlr = <0>;
-		mbox-nums = <S7D_MBOX_NUMS>;
-		mboxids = <S7D_MBOX_AO2REE>,
-			  <S7D_MBOX_REE2AO>;
+		mbox-nums = <S6_MBOX_NUMS>;
+		mboxids = <S6_MBOX_DSPA2REE>,
+			  <S6_MBOX_REE2DSPA>,
+			  <S6_MBOX_AO2REE>,
+			  <S6_MBOX_REE2AO>;
 		#mbox-cells = <1>;
 	};
 
 	mbox_devfs {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, mbox-devfs";
-		mbox-nums = <1>;
-		mbox-names = "ree2aocpu";
-		mboxes = <&mbox_fifo S7D_REE2AO_DEV>;
-		mbox-dests = <MAILBOX_AOCPU>;
+		mbox-nums = <3>;
+		mbox-names = "ree2aocpu",
+			     "dsp_dev",
+			     "dspa2ree";
+		mboxes = <&mbox_fifo S6_REE2AO_DEV>,
+			 <&mbox_fifo S6_REE2DSPA_DEV>,
+			 <&mbox_fifo S6_DSPA2REE_DEV>;
+		mbox-dests = <MAILBOX_AOCPU>,
+			     <MAILBOX_DSP>,
+			     <MAILBOX_DSP>;
 	};
 
 	vddcpu0: pwm_j-regulator {
