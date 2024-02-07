@@ -47,12 +47,17 @@ struct dmc_mon_ops {
 	void (*disable)(struct dmc_monitor *mon);
 	size_t (*dump_reg)(char *buf);
 	int (*reg_control)(char *input, char control, char *output);
-	void (*vio_to_port)(unsigned long status, int *port, int *subport, unsigned long *vio_bit);
+	void (*vio_to_port)(void *data, unsigned long *vio_bit);
 };
 
 struct dmc_filter {
 	unsigned int num;
 	unsigned char name[DMC_FILTER_MAX][KSYM_SYMBOL_LEN];
+};
+
+union port_type {
+	char *name;
+	char id[4];
 };
 
 struct dmc_mon_comm {
@@ -62,6 +67,8 @@ struct dmc_mon_comm {
 	/* irq handle save info*/
 	int irq;
 	char rw;
+	union port_type port;
+	union port_type sub;
 	unsigned long addr;
 	unsigned long status;
 	struct page_trace trace;
@@ -125,9 +132,9 @@ unsigned long dmc_prot_rw(void  __iomem *base, long off, unsigned long value, in
 
 char *to_ports(int id);
 char *to_sub_ports_name(int mid, int sid, char rw);
-int dmc_violation_ignore(char *title, int port, int subport, void *data, unsigned long vio_bit);
-void show_violation_mem_printk(char *title, int port, int sub_port, void *data);
-void show_violation_mem_trace_event(char *title, int port, int sub_port, void *data);
+int dmc_violation_ignore(char *title, void *data, unsigned long vio_bit);
+void show_violation_mem_printk(char *title, void *data);
+void show_violation_mem_trace_event(char *title, void *data);
 void dmc_irq_sleep(void *data);
 void dmc_output_violation(struct dmc_monitor *mon, void *data);
 

@@ -155,17 +155,27 @@ static int get_c2_port(unsigned int awuser)
 	return awuser - 4;
 }
 
-static void c2_dmc_vio_to_port(unsigned long status, int *port,
-				int *subport, unsigned long *vio_bit)
+static void c2_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 {
+	int port = 0, subport = 0;
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+
 	if (dmc_mon->chip == DMC_TYPE_C2) {
 		*vio_bit = BIT(31) | BIT(30);
-		*port = get_c2_port((status >> 16) & 0x3ff);
+		port = get_c2_port((mon_comm->status >> 16) & 0x3ff);
 	} else {
 		*vio_bit = BIT(20) | BIT(19);
-		*port = (status >> 11) & 0x1f;
+		port = (mon_comm->status >> 11) & 0x1f;
 	}
-	*subport = (status >> 6) & 0xf;
+	subport = (mon_comm->status >> 6) & 0xf;
+
+	mon_comm->port.name = to_ports(port);
+	if (!mon_comm->port.name)
+		sprintf(mon_comm->port.id, "%d", port);
+
+	mon_comm->sub.name = to_sub_ports_name(port, subport, mon_comm->rw);
+	if (!mon_comm->sub.name)
+		sprintf(mon_comm->sub.id, "%d", subport);
 }
 
 static int c2_dmc_mon_set(struct dmc_monitor *mon)
