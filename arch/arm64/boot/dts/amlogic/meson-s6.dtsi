@@ -2129,6 +2129,20 @@
 		power-domains = <&pwrdm PDID_S6_GE2D>;
 	};
 
+	amlgdc {
+		#address-cells=<2>;
+		#size-cells=<2>;
+		status = "okay";
+		compatible = "amlogic, aml-gdc-v3";
+		reg = <0 0xfe092000 0 0x000015c>;
+		interrupts = <GIC_SPI 147 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "amlgdc";
+		clocks = <&clkc CLKID_DEWARPA>;
+		clock-names = "clk_gate";
+		clk-rate = <800000000>;
+		power-domains = <&pwrdm PDID_S6_DEWARP>;
+	};
+
 	aml_bt: aml_bt {
 		compatible = "amlogic, aml-bt";
 		status = "disabled";
