@@ -139,12 +139,22 @@ static int s1a_dmc_mon_irq(struct dmc_monitor *mon, void *data, char clear)
 	return 0;
 }
 
-static void s1a_dmc_vio_to_port(unsigned long status, int *port,
-				int *subport, unsigned long *vio_bit)
+static void s1a_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 {
+	int port = 0, subport = 0;
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+
 	*vio_bit = DMC_VIO_PROT1 | DMC_VIO_PROT0;
-	*port = (status >> 9) & 0x1f;
-	*subport = status & 0x7;
+	port = (mon_comm->status >> 9) & 0x1f;
+	subport = mon_comm->status & 0x7;
+
+	mon_comm->port.name = to_ports(port);
+	if (!mon_comm->port.name)
+		sprintf(mon_comm->port.id, "%d", port);
+
+	mon_comm->sub.name = to_sub_ports_name(port, subport, mon_comm->rw);
+	if (!mon_comm->sub.name)
+		sprintf(mon_comm->sub.id, "%d", subport);
 }
 
 static int s1a_dmc_mon_set(struct dmc_monitor *mon)

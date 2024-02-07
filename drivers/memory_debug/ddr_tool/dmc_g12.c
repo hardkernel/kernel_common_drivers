@@ -114,31 +114,40 @@ static int g12_dmc_mon_irq(struct dmc_monitor *mon, void *data, char clear)
 	return 0;
 }
 
-static void g12_dmc_vio_to_port(unsigned long status, int *port,
-				int *subport, unsigned long *vio_bit)
+static void g12_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 {
+	int port = 0, subport = 0;
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+
 	switch (dmc_mon->chip) {
 	case DMC_TYPE_G12A:
 		*vio_bit = BIT(22) | BIT(21);
-		*port = (status >> 10) & 0x1f;
-		*subport = (status >> 6) & 0xf;
+		port = (mon_comm->status >> 10) & 0x1f;
+		subport = (mon_comm->status >> 6) & 0xf;
 		break;
 	case DMC_TYPE_G12B:
 		*vio_bit = BIT(25) | BIT(24);
-		*port = (status >> 13) & 0x1f;
-		*subport = (status >> 6) & 0xf;
+		port = (mon_comm->status >> 13) & 0x1f;
+		subport = (mon_comm->status >> 6) & 0xf;
 		break;
 	case DMC_TYPE_SM1:
 	case DMC_TYPE_TL1:
 	case DMC_TYPE_TM2:
 		*vio_bit = BIT(23) | BIT(22);
-		*port = (status >> 11) & 0x1f;
-		*subport = (status >> 6) & 0xf;
+		port = (mon_comm->status >> 11) & 0x1f;
+		subport = (mon_comm->status >> 6) & 0xf;
 		break;
 	default:
 		break;
 	}
 
+	mon_comm->port.name = to_ports(port);
+	if (!mon_comm->port.name)
+		sprintf(mon_comm->port.id, "%d", port);
+
+	mon_comm->sub.name = to_sub_ports_name(port, subport, mon_comm->rw);
+	if (!mon_comm->sub.name)
+		sprintf(mon_comm->sub.id, "%d", subport);
 }
 
 static int g12_dmc_mon_set(struct dmc_monitor *mon)

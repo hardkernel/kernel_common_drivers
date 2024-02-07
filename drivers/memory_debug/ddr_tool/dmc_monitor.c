@@ -47,7 +47,7 @@
 #include "dmc_trace.h"
 
 // #define DEBUG
-#define DMC_VERSION		"1.1"
+#define DMC_VERSION		"1.2"
 
 #define IRQ_CHECK		0
 #define IRQ_CLEAR		1
@@ -366,22 +366,17 @@ unsigned long read_violation_mem(unsigned long addr, char rw)
 	return val;
 }
 
-void show_violation_mem_printk(char *title, int port, int sub_port, void *data)
+void show_violation_mem_printk(char *title, void *data)
 {
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
-	char *sub_name = to_sub_ports_name(port, sub_port, mon_comm->rw);
-	char sub[10];
 
 	static DEFINE_RATELIMIT_STATE(dmc_rs, HZ, DMC_RATELIMIT_BURST);
 
-	if (!sub_name) {
-		snprintf(sub, 10, "%2d", sub_port);
-		sub_name = sub;
-	}
-
 	dmc_pr_crit(DMC_TAG " addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx bd:%d sb:%d lru:%d a:%ps t:%lld rw:%c%s\n",
 		mon_comm->addr, read_violation_mem(mon_comm->addr, mon_comm->rw),
-		mon_comm->status, to_ports(port), sub_name,
+		mon_comm->status,
+		virt_addr_valid(mon_comm->port.name) ? mon_comm->port.name : mon_comm->port.id,
+		virt_addr_valid(mon_comm->sub.name) ? mon_comm->sub.name : mon_comm->sub.id,
 		mon_comm->page_flags,
 		mon_comm->page_flags & PAGE_FLAGS_CHECK_AT_FREE ? 1 : 0,
 		test_bit(PG_slab, &mon_comm->page_flags),
@@ -390,19 +385,14 @@ void show_violation_mem_printk(char *title, int port, int sub_port, void *data)
 		mon_comm->time, mon_comm->rw, title, &dmc_rs);
 }
 
-void show_violation_mem_trace_event(char *title, int port, int sub_port, void *data)
+void show_violation_mem_trace_event(char *title, void *data)
 {
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
-	char *sub_name = to_sub_ports_name(port, sub_port, mon_comm->rw);
-	char sub[10];
-
-	if (!sub_name) {
-		snprintf(sub, 10, "%2d", sub_port);
-		sub_name = sub;
-	}
+	char *port = virt_addr_valid(mon_comm->port.name) ? mon_comm->port.name : mon_comm->port.id;
+	char *sub = virt_addr_valid(mon_comm->sub.name) ? mon_comm->sub.name : mon_comm->sub.id;
 
 	trace_dmc_violation(title, mon_comm->addr,
-				mon_comm->status, port, sub_name,
+				mon_comm->status, port, sub,
 				mon_comm->rw,
 				dmc_unpack_ip(&mon_comm->trace),
 				mon_comm->page_flags,
@@ -528,13 +518,12 @@ static unsigned int get_other_dev_mask(void)
 
 static void output_violation(struct dmc_monitor *mon, void *data, char *title)
 {
-	int port = 0, subport = 0;
 	unsigned long vio_bit = 0;
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
 	/* get port subport and vio_bit */
 	if (dmc_mon->ops && dmc_mon->ops->vio_to_port)
-		dmc_mon->ops->vio_to_port(mon_comm->status, &port, &subport, &vio_bit);
+		dmc_mon->ops->vio_to_port(data, &vio_bit);
 
 	if (!(mon_comm->status & vio_bit))
 		goto irq_finish;
@@ -543,17 +532,17 @@ static void output_violation(struct dmc_monitor *mon, void *data, char *title)
 		goto irq_finish;
 
 	/* ignore violation */
-	if (dmc_violation_ignore(title, port, subport, data, vio_bit))
+	if (dmc_violation_ignore(title, data, vio_bit))
 		goto irq_finish;
 
 	/* violation print */
 #if IS_ENABLED(CONFIG_EVENT_TRACING)
 	if (mon->debug & DMC_DEBUG_TRACE) {
-		show_violation_mem_trace_event(title, port, subport, data);
+		show_violation_mem_trace_event(title, data);
 		goto irq_finish;
 	}
 #endif
-	show_violation_mem_printk(title, port, subport, data);
+	show_violation_mem_printk(title, data);
 
 	/* sleep if the irq too much */
 irq_finish:
@@ -597,7 +586,7 @@ void dmc_output_violation(struct dmc_monitor *mon, void *data)
 	}
 }
 
-int dmc_violation_ignore(char *title, int port, int subport, void *data, unsigned long vio_bit)
+int dmc_violation_ignore(char *title, void *data, unsigned long vio_bit)
 {
 	int i, is_ignore = 0;
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
@@ -639,11 +628,17 @@ int dmc_violation_ignore(char *title, int port, int subport, void *data, unsigne
 
 	/* ignore black dev or symbol filter */
 	for (i = 0; i < dmc_mon->filter.num; i++) {
-		if (strstr(to_ports(port), dmc_mon->filter.name[i]) ||
-			strstr(to_sub_ports_name(port, subport, mon_comm->rw),
-				dmc_mon->filter.name[i])) {
-			is_ignore = 1;
-			goto dmc_ignore;
+		if (virt_addr_valid(mon_comm->port.name)) {
+			if (strstr(mon_comm->port.name, dmc_mon->filter.name[i])) {
+				is_ignore = 1;
+				goto dmc_ignore;
+			}
+		}
+		if (virt_addr_valid(mon_comm->sub.name)) {
+			if (strstr(mon_comm->sub.name, dmc_mon->filter.name[i])) {
+				is_ignore = 1;
+				goto dmc_ignore;
+			}
 		}
 	#ifdef CONFIG_KALLSYMS
 		if (strstr(sym, dmc_mon->filter.name[i]) == sym) {

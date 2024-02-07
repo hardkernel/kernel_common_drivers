@@ -137,23 +137,33 @@ static int s4_dmc_mon_irq(struct dmc_monitor *mon, void *data, char clear)
 	return 0;
 }
 
-static void s4_dmc_vio_to_port(unsigned long status, int *port,
-				int *subport, unsigned long *vio_bit)
+static void s4_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 {
+	int port = 0, subport = 0;
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+
 	switch (dmc_mon->chip) {
 	case DMC_TYPE_S4:
 		*vio_bit = BIT(20) | BIT(19);
-		*port = (status >> 11) & 0x1f;
-		*subport = (status >> 6) & 0xf;
+		port = (mon_comm->status >> 11) & 0x1f;
+		subport = (mon_comm->status >> 6) & 0xf;
 		break;
 	case DMC_TYPE_T5W:
 		*vio_bit = BIT(21) | BIT(20);
-		*port = (status >> 9) & 0x1f;
-		*subport = (status >> 4) & 0xf;
+		port = (mon_comm->status >> 9) & 0x1f;
+		subport = (mon_comm->status >> 4) & 0xf;
 		break;
 	default:
 		break;
 	}
+
+	mon_comm->port.name = to_ports(port);
+	if (!mon_comm->port.name)
+		sprintf(mon_comm->port.id, "%d", port);
+
+	mon_comm->sub.name = to_sub_ports_name(port, subport, mon_comm->rw);
+	if (!mon_comm->sub.name)
+		sprintf(mon_comm->sub.id, "%d", subport);
 }
 
 static int s4_dmc_mon_set(struct dmc_monitor *mon)
