@@ -363,6 +363,9 @@ static int mbox_fifo_parse_dt(struct platform_device *pdev, struct aml_chan_priv
 	u32 irq_nums = 0;
 	u32 mbox_nums = 0;
 	u32 mboxid = 0;
+	u32 spt_ao_alive_det = 0;
+	u32 ao_sts_mboxid = 0;
+	u32 ree2ao_mboxid = 0;
 	int idx = 0;
 	int err = 0;
 
@@ -422,6 +425,20 @@ static int mbox_fifo_parse_dt(struct platform_device *pdev, struct aml_chan_priv
 	aml_chan = devm_kzalloc(dev, sizeof(*aml_chan) * mbox_nums, GFP_KERNEL);
 	if (IS_ERR(aml_chan))
 		return PTR_ERR(aml_chan);
+
+	err = of_property_read_u32(dev->of_node,
+			"aocpu_sts_mboxid", &ao_sts_mboxid);
+	if (err) {
+		dev_err(dev, "Do not support aocpu alive detection %d\n", err);
+	} else {
+		err = of_property_read_u32(dev->of_node,
+				"ree2aocpu_mboxid", &ree2ao_mboxid);
+		if (err)
+			dev_err(dev, "failed to get ree2aocpu mbox id, %d\n", err);
+		else
+			spt_ao_alive_det = 1;
+	}
+
 	for (idx = 0; idx < mbox_nums; idx++) {
 		err = of_property_read_u32_index(dev->of_node, "mboxids",
 						 idx, &mboxid);
@@ -436,6 +453,9 @@ static int mbox_fifo_parse_dt(struct platform_device *pdev, struct aml_chan_priv
 		aml_chan[idx].mbox_fsts_addr = mbox_fsts_base + CTL_OFFSET(mboxid);
 		aml_chan[idx].mbox_irqsts_addr = mbox_irq_base + IRQ_STS_OFFSET(irqctlr);
 		aml_chan[idx].mbox_irqclr_addr = mbox_irq_base + IRQ_CLR_OFFSET(irqclr);
+		if (spt_ao_alive_det && mboxid == ree2ao_mboxid)
+			aml_chan[idx].aocpu_tick_cnt_addr = mbox_rd_base +
+				PAYLOAD_OFFSET(ao_sts_mboxid);
 		mutex_init(&aml_chan[idx].mutex);
 		aml_chan[idx].tx_complete = NULL;
 	}
