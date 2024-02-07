@@ -2228,7 +2228,8 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 			(vd_mif_reg->vd_if0_gen_reg, 0);
 		return;
 	} else if (type & VIDTYPE_COMPRESS) {
-		if (cur_dev->display_module == T7_DISPLAY_MODULE) {
+		if (cur_dev->display_module == T7_DISPLAY_MODULE ||
+			is_meson_s6_cpu()) {
 			if (conv_lbuf_len[layer->layer_id] == VIDEO_USE_4K_RAM)
 				r = 3;
 			else
@@ -2365,7 +2366,8 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		type |= VIDTYPE_VIU_NV21;
 	}
 
-	if (cur_dev->display_module == T7_DISPLAY_MODULE)
+	if (cur_dev->display_module == T7_DISPLAY_MODULE ||
+		is_meson_s6_cpu())
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_afbc_reg->afbc_top_ctrl,
 			0, 13, 2);
@@ -2790,7 +2792,8 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 		type &= ~VIDTYPE_COMPRESS;
 
 	if (type & VIDTYPE_COMPRESS) {
-		if (cur_dev->display_module == T7_DISPLAY_MODULE) {
+		if (cur_dev->display_module == T7_DISPLAY_MODULE ||
+			is_meson_s6_cpu()) {
 			if (conv_lbuf_len[layer->layer_id] == VIDEO_USE_4K_RAM)
 				r = 3;
 			else
@@ -2934,7 +2937,8 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 		type |= VIDTYPE_VIU_NV21;
 	}
 
-	if (cur_dev->display_module == T7_DISPLAY_MODULE)
+	if (cur_dev->display_module == T7_DISPLAY_MODULE ||
+		is_meson_s6_cpu())
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_afbc_reg->afbc_top_ctrl,
 			0, 13, 2);
@@ -14483,7 +14487,12 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 			video_is_meson_s7d_cpu()||
 			video_is_meson_s6_cpu()) {
 		for (i = 0; i < cur_dev->max_vd_layers; i++) {
-			memcpy(&vd_layer[i].vd_afbc_reg,
+			if (video_is_meson_s6_cpu())
+				memcpy(&vd_layer[i].vd_afbc_reg,
+			       &vd_afbc_reg_t7_array[i],
+			       sizeof(struct hw_afbc_reg_s));
+			else
+				memcpy(&vd_layer[i].vd_afbc_reg,
 			       &vd_afbc_reg_sc2_array[i],
 			       sizeof(struct hw_afbc_reg_s));
 			memcpy(&vd_layer[i].vd_mif_reg,
@@ -14502,7 +14511,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 			video_is_meson_s1a_cpu() ||
 			video_is_meson_s7_cpu() ||
 			video_is_meson_s7d_cpu()||
-				video_is_meson_s6_cpu())
+			video_is_meson_s6_cpu())
 				memcpy(&vd_layer[i].pps_reg,
 				       &pps_reg_array_t5d[i],
 				       sizeof(struct hw_pps_reg_s));
