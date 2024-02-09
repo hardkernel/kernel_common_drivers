@@ -1702,7 +1702,7 @@ static int osd_open(struct fb_info *info, int arg)
 		return 0;
 
 	fb_index = fbdev->fb_index;
-	if (osd_meson_dev.has_viu2 &&
+	if ((osd_meson_dev.has_viu2 || osd_meson_dev.has_new_viu2) &&
 	    fb_index == osd_meson_dev.viu2_index && !clkc_set) {
 		int vpu_clkc_rate;
 
@@ -2092,7 +2092,7 @@ static int osd_release(struct fb_info *info, int arg)
 		/* independent VIU2 and display device count < 2,
 		 * release clkc
 		 */
-		if (osd_meson_dev.has_viu2 &&
+		if ((osd_meson_dev.has_viu2 || osd_meson_dev.has_new_viu2) &&
 		    fbdev->fb_index == osd_meson_dev.viu2_index &&
 		    osd_hw.display_dev_cnt < 2)
 			clk_disable_unprepare(osd_meson_dev.vpu_clkc);
@@ -4470,6 +4470,14 @@ static struct device_attribute osd_attrs_viu2[] = {
 	       show_game_mode, store_game_mode),
 	__ATTR(force_dim, 0644,
 	       show_force_dimm, store_force_dimm),
+	__ATTR(window_axis, 0664,
+	       show_window_axis, store_window_axis),
+	__ATTR(free_scale_axis, 0664,
+	       show_free_scale_axis, store_free_scale_axis),
+	__ATTR(free_scale, 0664,
+	       show_free_scale, store_free_scale),
+	__ATTR(freescale_mode, 0664,
+	       show_freescale_mode, store_freescale_mode),
 };
 
 #ifdef CONFIG_PM
@@ -5342,7 +5350,7 @@ static struct osd_device_data_s osd_s6 = {
 	.cpu_id = __MESON_CPU_MAJOR_ID_S6,
 	.osd_ver = OSD_HIGH_ONE,
 	.afbc_type = MALI_AFBC,
-	.osd_count = 2,
+	.osd_count = 3,
 	.has_deband = 1,
 	.has_lut = 1,
 	.has_rdma = 1,
@@ -5353,6 +5361,7 @@ static struct osd_device_data_s osd_s6 = {
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
 	.mif_linear = 1,
+	.has_new_viu2 = 1,
 };
 
 #endif
@@ -5532,7 +5541,7 @@ static void config_osd_table(u32 display_device_cnt)
 			osd_hw.viu_osd_table[VIU1] |= i << (i * 4);
 		}
 
-		if (osd_meson_dev.has_viu2) {
+		if (osd_meson_dev.has_viu2 || osd_meson_dev.has_new_viu2) {
 			osd_hw.viu_osd_table[VIU2] &= ~0xf;
 			osd_hw.viu_osd_table[VIU2] |= osd_meson_dev.viu2_index;
 		}
@@ -5642,7 +5651,7 @@ static int __init osd_probe(struct platform_device *pdev)
 		display_device_cnt = of_read_ulong(prop, 1);
 
 	osd_meson_dev.viu1_osd_count = osd_meson_dev.osd_count;
-	if (osd_meson_dev.has_viu2) {
+	if (osd_meson_dev.has_viu2 || osd_meson_dev.has_new_viu2) {
 		/* set viu1 osd count */
 		osd_meson_dev.viu1_osd_count--;
 		osd_meson_dev.viu2_index = osd_meson_dev.viu1_osd_count;
@@ -5660,7 +5669,7 @@ static int __init osd_probe(struct platform_device *pdev)
 	} else {
 		osd_log_dbg(MODULE_BASE, "viu vsync irq: %d\n", int_viu_vsync);
 	}
-	if (osd_meson_dev.has_viu2 || osd_meson_dev.has_vpp1) {
+	if (osd_meson_dev.has_viu2 || osd_meson_dev.has_vpp1 || osd_meson_dev.has_new_viu2) {
 		int_viu2_vsync = platform_get_irq_byname(pdev, "viu2-vsync");
 		if (int_viu2_vsync  == -ENXIO) {
 			osd_log_err("cannot get viu2 irq resource\n");
@@ -5686,7 +5695,7 @@ static int __init osd_probe(struct platform_device *pdev)
 			goto failed1;
 		}
 	}
-	if (osd_meson_dev.has_viu2 &&
+	if ((osd_meson_dev.has_viu2 || osd_meson_dev.has_new_viu2) &&
 		osd_dev_hw.display_type == NORMAL_DISPLAY) {
 		osd_meson_dev.vpu_clkc = devm_clk_get(&pdev->dev, "vpu_clkc");
 		if (IS_ERR(osd_meson_dev.vpu_clkc)) {
@@ -5912,7 +5921,7 @@ static int __init osd_probe(struct platform_device *pdev)
 			for (i = 0; i < ARRAY_SIZE(osd_attrs); i++)
 				ret = device_create_file(fbi->dev,
 							 &osd_attrs[i]);
-		} else if ((osd_meson_dev.has_viu2) &&
+		} else if ((osd_meson_dev.has_viu2 || osd_meson_dev.has_new_viu2) &&
 			(index == osd_meson_dev.viu2_index)) {
 			for (i = 0; i < ARRAY_SIZE(osd_attrs_viu2); i++)
 				ret = device_create_file(fbi->dev,
@@ -5941,7 +5950,7 @@ static int __init osd_probe(struct platform_device *pdev)
 	vout_register_client(&osd_notifier_nb);
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	if (osd_meson_dev.has_viu2)
+	if (osd_meson_dev.has_viu2 || osd_meson_dev.has_new_viu2)
 		vout2_register_client(&osd_notifier_nb2);
 #endif
 	INIT_DELAYED_WORK(&osd_dwork, mem_free_work);
@@ -5975,7 +5984,7 @@ static int osd_remove(struct platform_device *pdev)
 	vout_unregister_client(&osd_notifier_nb);
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	if (osd_meson_dev.has_viu2)
+	if (osd_meson_dev.has_viu2 || osd_meson_dev.has_new_viu2)
 		vout2_unregister_client(&osd_notifier_nb2);
 #endif
 	for (i = 0; i < osd_meson_dev.osd_count; i++) {
@@ -5991,7 +6000,7 @@ static int osd_remove(struct platform_device *pdev)
 				for (j = 0; j < ARRAY_SIZE(osd_attrs); j++)
 					device_remove_file(fbi->dev,
 							   &osd_attrs[j]);
-			} else if ((osd_meson_dev.has_viu2) &&
+			} else if ((osd_meson_dev.has_viu2 || osd_meson_dev.has_new_viu2) &&
 				(i == osd_meson_dev.viu2_index)) {
 				for (j = 0; j < ARRAY_SIZE(osd_attrs_viu2); j++)
 					device_remove_file(fbi->dev,

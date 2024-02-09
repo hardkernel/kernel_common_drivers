@@ -614,6 +614,7 @@ struct osd_device_data_s {
 	u32 has_vpp2;
 	u32 has_pi;
 	u32 has_slice2ppc;
+	u32 has_new_viu2;
 	struct clk *vpu_clkc;
 };
 

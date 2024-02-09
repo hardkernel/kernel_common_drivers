@@ -1485,6 +1485,198 @@ struct hw_osd_reg_s hw_osd_reg_array_c3[HW_OSD_COUNT] = {
 	},
 };
 
+struct hw_osd_reg_s hw_osd_reg_array_s6[HW_OSD_COUNT] = {
+	{
+		VIU_OSD1_CTRL_STAT,
+		VIU_OSD1_CTRL_STAT2,
+		VIU_OSD1_COLOR_ADDR,
+		VIU_OSD1_COLOR,
+		VIU_OSD1_TCOLOR_AG0,
+		VIU_OSD1_TCOLOR_AG1,
+		VIU_OSD1_TCOLOR_AG2,
+		VIU_OSD1_TCOLOR_AG3,
+		VIU_OSD1_BLK0_CFG_W0,
+		VIU_OSD1_BLK0_CFG_W1,
+		VIU_OSD1_BLK0_CFG_W2,
+		VIU_OSD1_BLK0_CFG_W3,
+		VIU_OSD1_BLK0_CFG_W4,
+		VIU_OSD1_BLK1_CFG_W4,
+		VIU_OSD1_BLK2_CFG_W4,
+		VIU_OSD1_FIFO_CTRL_STAT,
+		VIU_OSD1_TEST_RDDATA,
+		VIU_OSD1_PROT_CTRL,
+		VIU_OSD1_MALI_UNPACK_CTRL,
+		VIU_OSD1_DIMM_CTRL,
+		VPP_WRAP_OSD1_MATRIX_EN_CTRL,
+
+		VPP_OSD_SCALE_COEF_IDX,
+		VPP_OSD_SCALE_COEF,
+		VPP_OSD_VSC_PHASE_STEP,
+		VPP_OSD_VSC_INI_PHASE,
+		VPP_OSD_VSC_CTRL0,
+		VPP_OSD_HSC_PHASE_STEP,
+		VPP_OSD_HSC_INI_PHASE,
+		VPP_OSD_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
+		VPP_OSD_SC_DUMMY_DATA,
+		VPP_OSD_SC_CTRL0,
+		VPP_OSD_SCI_WH_M1,
+		VPP_OSD_SCO_H_START_END,
+		VPP_OSD_SCO_V_START_END,
+		OSD_DB_FLT_CTRL,
+		VPU_MAFBC_HEADER_BUF_ADDR_LOW_S0,
+		VPU_MAFBC_HEADER_BUF_ADDR_HIGH_S0,
+		VPU_MAFBC_FORMAT_SPECIFIER_S0,
+		VPU_MAFBC_BUFFER_WIDTH_S0,
+		VPU_MAFBC_BUFFER_HEIGHT_S0,
+		VPU_MAFBC_BOUNDING_BOX_X_START_S0,
+		VPU_MAFBC_BOUNDING_BOX_X_END_S0,
+		VPU_MAFBC_BOUNDING_BOX_Y_START_S0,
+		VPU_MAFBC_BOUNDING_BOX_Y_END_S0,
+		VPU_MAFBC_OUTPUT_BUF_ADDR_LOW_S0,
+		VPU_MAFBC_OUTPUT_BUF_ADDR_HIGH_S0,
+		VPU_MAFBC_OUTPUT_BUF_STRIDE_S0,
+		VPU_MAFBC_PREFETCH_CFG_S0,
+
+		MALI_AFBCD_TOP_CTRL,
+		VPU_MAFBC_IRQ_MASK,
+		VPU_MAFBC_SURFACE_CFG,
+		VPU_MAFBC_COMMAND,
+		VPU_MAFBC_IRQ_RAW_STATUS,
+		VPU_MAFBC_IRQ_CLEAR,
+
+		OSD_REG_UNSUPPORT,
+		OSD_REG_UNSUPPORT,
+		OSD_REG_UNSUPPORT,
+	},
+	{
+		VIU_OSD2_CTRL_STAT,
+		VIU_OSD2_CTRL_STAT2,
+		VIU_OSD2_COLOR_ADDR,
+		VIU_OSD2_COLOR,
+		VIU_OSD2_TCOLOR_AG0,
+		VIU_OSD2_TCOLOR_AG1,
+		VIU_OSD2_TCOLOR_AG2,
+		VIU_OSD2_TCOLOR_AG3,
+		VIU_OSD2_BLK0_CFG_W0,
+		VIU_OSD2_BLK0_CFG_W1,
+		VIU_OSD2_BLK0_CFG_W2,
+		VIU_OSD2_BLK0_CFG_W3,
+		VIU_OSD2_BLK0_CFG_W4,
+		VIU_OSD2_BLK1_CFG_W4,
+		VIU_OSD2_BLK2_CFG_W4,
+		VIU_OSD2_FIFO_CTRL_STAT,
+		VIU_OSD2_TEST_RDDATA,
+		VIU_OSD2_PROT_CTRL,
+		VIU_OSD2_MALI_UNPACK_CTRL,
+		VIU_OSD2_DIMM_CTRL,
+		VPP_WRAP_OSD2_MATRIX_EN_CTRL,
+
+		OSD2_SCALE_COEF_IDX,
+		OSD2_SCALE_COEF,
+		OSD2_VSC_PHASE_STEP,
+		OSD2_VSC_INI_PHASE,
+		OSD2_VSC_CTRL0,
+		OSD2_HSC_PHASE_STEP,
+		OSD2_HSC_INI_PHASE,
+		OSD2_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
+		OSD2_SC_DUMMY_DATA,
+		OSD2_SC_CTRL0,
+		OSD2_SCI_WH_M1,
+		OSD2_SCO_H_START_END,
+		OSD2_SCO_V_START_END,
+		OSD2_DB_FLT_CTRL,
+		VPU_MAFBC_HEADER_BUF_ADDR_LOW_S1,
+		VPU_MAFBC_HEADER_BUF_ADDR_HIGH_S1,
+		VPU_MAFBC_FORMAT_SPECIFIER_S1,
+		VPU_MAFBC_BUFFER_WIDTH_S1,
+		VPU_MAFBC_BUFFER_HEIGHT_S1,
+		VPU_MAFBC_BOUNDING_BOX_X_START_S1,
+		VPU_MAFBC_BOUNDING_BOX_X_END_S1,
+		VPU_MAFBC_BOUNDING_BOX_Y_START_S1,
+		VPU_MAFBC_BOUNDING_BOX_Y_END_S1,
+		VPU_MAFBC_OUTPUT_BUF_ADDR_LOW_S1,
+		VPU_MAFBC_OUTPUT_BUF_ADDR_HIGH_S1,
+		VPU_MAFBC_OUTPUT_BUF_STRIDE_S1,
+		VPU_MAFBC_PREFETCH_CFG_S1,
+
+		MALI_AFBCD_TOP_CTRL,
+		VPU_MAFBC_IRQ_MASK,
+		VPU_MAFBC_SURFACE_CFG,
+		VPU_MAFBC_COMMAND,
+		VPU_MAFBC_IRQ_RAW_STATUS,
+		VPU_MAFBC_IRQ_CLEAR,
+
+		OSD_REG_UNSUPPORT,
+		OSD_REG_UNSUPPORT,
+		OSD_REG_UNSUPPORT,
+	},
+	{
+		VIU2_OSD1_CTRL_STAT,
+		VIU2_OSD1_CTRL_STAT2,
+		VIU2_OSD1_COLOR_ADDR,
+		VIU2_OSD1_COLOR,
+		VIU2_OSD1_TCOLOR_AG0,
+		VIU2_OSD1_TCOLOR_AG1,
+		VIU2_OSD1_TCOLOR_AG2,
+		VIU2_OSD1_TCOLOR_AG3,
+		VIU2_OSD1_BLK0_CFG_W0,
+		VIU2_OSD1_BLK0_CFG_W1,
+		VIU2_OSD1_BLK0_CFG_W2,
+		VIU2_OSD1_BLK0_CFG_W3,
+		VIU2_OSD1_BLK0_CFG_W4,
+		VIU2_OSD1_BLK1_CFG_W4,
+		VIU2_OSD1_BLK2_CFG_W4,
+		VIU2_OSD1_FIFO_CTRL_STAT,
+		VIU2_OSD1_TEST_RDDATA,
+		VIU2_OSD1_PROT_CTRL,
+		VIU2_OSD1_MALI_UNPACK_CTRL,
+		VIU2_OSD1_DIMM_CTRL,
+		VIU2_OSD1_MATRIX_EN_CTRL,
+
+		VIU2_OSD_SCALE_COEF_IDX,
+		VIU2_OSD_SCALE_COEF,
+		VIU2_OSD_VSC_PHASE_STEP,
+		VIU2_OSD_VSC_INI_PHASE,
+		VIU2_OSD_VSC_CTRL0,
+		VIU2_OSD_HSC_PHASE_STEP,
+		VIU2_OSD_HSC_INI_PHASE,
+		VIU2_OSD_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
+		VIU2_OSD_SC_DUMMY_DATA,
+		VIU2_OSD_SC_CTRL0,
+		VIU2_OSD_SCI_WH_M1,
+		VIU2_OSD_SCO_H_START_END,
+		VIU2_OSD_SCO_V_START_END,
+		VIU2_OSD_DB_FLT_CTRL,
+		VPU_MAFBC2_HEADER_BUF_ADDR_LOW_S2,
+		VPU_MAFBC2_HEADER_BUF_ADDR_HIGH_S2,
+		VPU_MAFBC2_FORMAT_SPECIFIER_S2,
+		VPU_MAFBC2_BUFFER_WIDTH_S2,
+		VPU_MAFBC2_BUFFER_HEIGHT_S2,
+		VPU_MAFBC2_BOUNDING_BOX_X_START_S2,
+		VPU_MAFBC2_BOUNDING_BOX_X_END_S2,
+		VPU_MAFBC2_BOUNDING_BOX_Y_START_S2,
+		VPU_MAFBC2_BOUNDING_BOX_Y_END_S2,
+		VPU_MAFBC2_OUTPUT_BUF_ADDR_LOW_S2,
+		VPU_MAFBC2_OUTPUT_BUF_ADDR_HIGH_S2,
+		VPU_MAFBC2_OUTPUT_BUF_STRIDE_S2,
+		VPU_MAFBC2_PREFETCH_CFG_S2,
+
+		OSD_REG_UNSUPPORT,
+		VPU_MAFBC2_IRQ_MASK,
+		VPU_MAFBC2_SURFACE_CFG,
+		VPU_MAFBC2_COMMAND,
+		VPU_MAFBC2_IRQ_RAW_STATUS,
+		VPU_MAFBC2_IRQ_CLEAR,
+
+		OSD_REG_UNSUPPORT,
+		OSD_REG_UNSUPPORT,
+		OSD_REG_UNSUPPORT,
+	}
+};
+
 #define VIU2_OSD_REG_NUM    13
 static u32 viu2_osd_table[VIU2_OSD_REG_NUM];
 static struct viu2_osd_reg_item viu2_osd_reg_table[VIU2_OSD_REG_NUM] = {
@@ -4604,7 +4796,8 @@ static void osd_wait_vsync_hw_viux(u32 output_index)
 		/* for the independent viu2 HW module,
 		 * use the latch, waiting for vsync (not rdma interrupt).
 		 */
-		if (osd_hw.osd_meson_dev.has_viu2 && output_index == VIU2) {
+		if ((osd_hw.osd_meson_dev.has_viu2 ||
+			osd_hw.osd_meson_dev.has_new_viu2) && output_index == VIU2) {
 			ktime_t stime;
 
 			stime = ktime_get();
@@ -5313,9 +5506,9 @@ static void osd_set_free_scale_enable_mode1(u32 index, u32 enable)
 void osd_set_free_scale_enable_hw(u32 index, u32 enable)
 {
 	if (osd_hw.free_scale_mode[index] &&
-	    (osd_hw.osd_meson_dev.has_viu2 ?
+	    ((osd_hw.osd_meson_dev.has_viu2 ?
 	     (index != osd_hw.osd_meson_dev.viu2_index ?
-	     1 : 0) : 1)) {
+	     1 : 0) : 1) || osd_hw.osd_meson_dev.has_new_viu2)) {
 		osd_set_free_scale_enable_mode1(index, enable);
 		if (osd_hw.osd_meson_dev.osd_ver == OSD_NORMAL ||
 			osd_dev_hw.display_type == C3_DISPLAY) {
@@ -8564,6 +8757,9 @@ static void osd_update_enable(u32 index)
 			    osd_hw.osd_afbcd[index].phy_addr != 0) ||
 			    !(osd_reg_read(osd_reg->vpu_mafbc_surface_cfg) &
 			    (1 << index))) {
+				if (osd_hw.osd_meson_dev.has_new_viu2)
+					osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+					(VPP2_MISC, 1, 0, 1);
 				/* enable mali afbc */
 				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 					(osd_reg->vpu_mafbc_irq_mask, 0xf);
@@ -13351,6 +13547,7 @@ static void osd_setting_viux(u32 output_index)
 
 	if (osd_dev_hw.display_type == T7_DISPLAY ||
 	    osd_dev_hw.display_type == S5_DISPLAY ||
+	    is_meson_s6_cpu() ||
 	    is_keystone_enable_for_txhd2()) {
 		u32 width, height;
 		struct osd_rdma_fun_s *rdma_func = &osd_hw.osd_rdma_func[output_index];
@@ -13499,7 +13696,9 @@ static void osd_setting_viux(u32 output_index)
 		}
 
 		if (osd_hw.osd_meson_dev.cpu_id !=
-				__MESON_CPU_MAJOR_ID_TXHD2) {
+				__MESON_CPU_MAJOR_ID_TXHD2 &&
+			osd_hw.osd_meson_dev.cpu_id !=
+				__MESON_CPU_MAJOR_ID_S6) {
 			/* to vpp_topx */
 			if (osd_dev_hw.display_type == T7_DISPLAY) {
 				vppx_blend_reg = &vpp_topx_blend_reg_array[output_index];
@@ -13587,7 +13786,6 @@ static void osd_setting_viux(u32 output_index)
 
 		if (osd_hw.hw_rdma_en)
 			osd_mali_afbc_start(output_index);
-
 	} else {
 		count++;
 		if (!osd_hw.osd_afbcd[index].enable)
@@ -13770,10 +13968,17 @@ void osd_mali_afbc_start(u32 output_index)
 					afbc0_start = 1;
 			}
 		}
-		if (!osd_dev_hw.multi_afbc_core && afbc_enable)
-			VSYNCOSD_WR_MPEG_REG(VPU_MAFBC_COMMAND,
+		if (!osd_dev_hw.multi_afbc_core && afbc_enable) {
+			u32 vpu_mafbc_command = 0;
+
+			if (output_index == VIU1)
+				vpu_mafbc_command = VPU_MAFBC_COMMAND;
+			else if (output_index == VIU2)
+				vpu_mafbc_command = VPU_MAFBC2_COMMAND;
+			VSYNCOSD_WR_MPEG_REG(vpu_mafbc_command,
 					     (osd_hw.afbc_use_latch ?
 					      2 : 1));
+		}
 	}
 }
 
@@ -14962,7 +15167,8 @@ static void osd_hw_init(u32 logo_loaded)
 
 	if (osd_hw.hw_rdma_en) {
 		osd_rdma_enable(VPU_VPP0, 2);
-		if (osd_hw.osd_meson_dev.has_vpp1 &&
+		if ((osd_hw.osd_meson_dev.has_vpp1 ||
+			osd_hw.osd_meson_dev.has_new_viu2) &&
 		   osd_hw.display_dev_cnt == 2)
 			osd_rdma_enable(VPU_VPP1, 2);
 		if (osd_hw.osd_meson_dev.has_vpp2 &&
@@ -15001,7 +15207,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 
 	memcpy(&osd_hw.osd_meson_dev, osd_meson,
 	       sizeof(struct osd_device_data_s));
-	if (osd_hw.osd_meson_dev.has_vpp1)
+	if (osd_hw.osd_meson_dev.has_vpp1 ||
+		osd_hw.osd_meson_dev.has_new_viu2)
 		osd_hw.vpp_num++;
 	if (osd_hw.osd_meson_dev.has_vpp2)
 		osd_hw.vpp_num++;
@@ -15021,7 +15228,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		       sizeof(struct hw_osd_slice2ppc_reg_s));
 
 	if (osd_meson->osd_count == 3 &&
-	    osd_meson->has_viu2) {
+	    osd_meson->has_viu2 &&
+	    !osd_meson->has_new_viu2) {
 		/* VIU1 2 OSD + 1 VIU2 1 OSD*/
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
 		memcpy(&hw_osd_reg_array[0], &hw_osd_reg_array_tl1[0],
@@ -15054,6 +15262,11 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 	} else if (osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_T3X) {
 		/* 3 OSD, multi_afbc_core */
 		memcpy(&hw_osd_reg_array[0], &hw_osd_reg_array_t3x[0],
+		       sizeof(struct hw_osd_reg_s) *
+		       osd_hw.osd_meson_dev.osd_count);
+	} else if (osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_S6) {
+		/* VIU1 2 OSD + 1 VIU2 1 OSD*/
+		memcpy(&hw_osd_reg_array[0], &hw_osd_reg_array_s6[0],
 		       sizeof(struct hw_osd_reg_s) *
 		       osd_hw.osd_meson_dev.osd_count);
 	} else {
@@ -15233,7 +15446,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		sync_render_layers_fence;
 	osd_hw.osd_fence[VIU1][ENABLE].toggle_buffer_handler =
 		osd_toggle_buffer_layers;
-	if (osd_hw.osd_meson_dev.has_viu2 || osd_hw.osd_meson_dev.has_vpp1) {
+	if (osd_hw.osd_meson_dev.has_viu2 || osd_hw.osd_meson_dev.has_vpp1 ||
+		osd_hw.osd_meson_dev.has_new_viu2) {
 		osd_hw.osd_fence[VIU2][DISABLE].sync_fence_handler =
 			sync_render_single_fence;
 		osd_hw.osd_fence[VIU2][DISABLE].toggle_buffer_handler =
@@ -15282,7 +15496,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		if (err_num)
 			osd_log_err("can't request irq for vsync,err_num=%d\n",
 				    -err_num);
-		if (osd_hw.osd_meson_dev.has_viu2 || osd_hw.osd_meson_dev.has_vpp1) {
+		if (osd_hw.osd_meson_dev.has_viu2 || osd_hw.osd_meson_dev.has_vpp1 ||
+			osd_hw.osd_meson_dev.has_new_viu2) {
 			err_num = request_irq(int_viu2_vsync, &vsync_viu2_isr,
 					      IRQF_SHARED,
 					      "osd-vsync-viu2", osd_setup_hw);
@@ -15301,7 +15516,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 #endif
 #ifdef FIQ_VSYNC
 		request_fiq(INT_VIU_VSYNC, &osd_fiq_isr);
-		if (osd_hw.osd_meson_dev.has_viu2)
+		if (osd_hw.osd_meson_dev.has_viu2 ||
+			osd_hw.osd_meson_dev.has_new_viu2)
 			request_fiq(INT_VIU_VSYNC, &osd_viu2_fiq_isr);
 #endif
 	}
@@ -15728,7 +15944,8 @@ void  osd_suspend_hw(void)
 				osd_hw.enable_save[i] = ENABLE;
 				osd_hw.enable[i] = DISABLE;
 				/* if display2 mode is set to null or invalid */
-				if (osd_hw.osd_meson_dev.has_viu2 &&
+				if ((osd_hw.osd_meson_dev.has_viu2 ||
+					osd_hw.osd_meson_dev.has_new_viu2) &&
 				    i == osd_hw.osd_meson_dev.viu2_index) {
 					struct vinfo_s *vinfo = NULL;
 
@@ -15784,7 +16001,8 @@ void  osd_suspend_hw(void)
 		}
 		if (osd_hw.hw_rdma_en) {
 			osd_rdma_enable(VPU_VPP0, 0);
-			if (osd_hw.osd_meson_dev.has_vpp1 &&
+			if ((osd_hw.osd_meson_dev.has_vpp1 ||
+				osd_hw.osd_meson_dev.has_new_viu2) &&
 			   osd_hw.display_dev_cnt == 2)
 				osd_rdma_enable(VPU_VPP1, 0);
 			if (osd_hw.osd_meson_dev.has_vpp2 &&
@@ -15833,7 +16051,8 @@ void osd_resume_hw(void)
 		spin_lock_irqsave(&osd_lock, lock_flags);
 		if (osd_hw.hw_rdma_en) {
 			osd_rdma_enable(VPU_VPP0, 2);
-			if (osd_hw.osd_meson_dev.has_vpp1 &&
+			if ((osd_hw.osd_meson_dev.has_vpp1 ||
+				osd_hw.osd_meson_dev.has_new_viu2) &&
 			   osd_hw.display_dev_cnt == 2)
 				osd_rdma_enable(VPU_VPP1, 2);
 			if (osd_hw.osd_meson_dev.has_vpp2 &&
@@ -15846,7 +16065,8 @@ void osd_resume_hw(void)
 			if (osd_hw.enable_save[i]) {
 				osd_hw.enable[i] = ENABLE;
 				/* if display2 mode is set to null or invalid */
-				if (osd_hw.osd_meson_dev.has_viu2 &&
+				if ((osd_hw.osd_meson_dev.has_viu2 ||
+					osd_hw.osd_meson_dev.has_new_viu2) &&
 				    i == osd_hw.osd_meson_dev.viu2_index) {
 					struct vinfo_s *vinfo = NULL;
 
@@ -15904,7 +16124,8 @@ void osd_shutdown_hw(void)
 #endif
 	if (osd_hw.hw_rdma_en) {
 		osd_rdma_enable(VPU_VPP0, 0);
-		if (osd_hw.osd_meson_dev.has_vpp1 &&
+		if ((osd_hw.osd_meson_dev.has_vpp1 ||
+			osd_hw.osd_meson_dev.has_new_viu2) &&
 		   osd_hw.display_dev_cnt == 2)
 			osd_rdma_enable(VPU_VPP1, 0);
 		if (osd_hw.osd_meson_dev.has_vpp2 &&
@@ -15942,8 +16163,9 @@ void  osd_freeze_hw(void)
 #endif
 	if (osd_hw.hw_rdma_en) {
 		osd_rdma_enable(VPU_VPP0, 0);
-		if (osd_hw.osd_meson_dev.has_vpp1 &&
-		   osd_hw.display_dev_cnt == 2)
+		if ((osd_hw.osd_meson_dev.has_vpp1 ||
+			osd_hw.osd_meson_dev.has_new_viu2) &&
+			osd_hw.display_dev_cnt == 2)
 			osd_rdma_enable(VPU_VPP1, 0);
 		if (osd_hw.osd_meson_dev.has_vpp2 &&
 		   osd_hw.display_dev_cnt == 3)
@@ -15963,7 +16185,8 @@ void osd_thaw_hw(void)
 	pr_debug("osd_thawed\n");
 	if (osd_hw.hw_rdma_en) {
 		osd_rdma_enable(VPU_VPP0, 2);
-		if (osd_hw.osd_meson_dev.has_vpp1 &&
+		if ((osd_hw.osd_meson_dev.has_vpp1 ||
+			osd_hw.osd_meson_dev.has_new_viu2) &&
 		   osd_hw.display_dev_cnt == 2)
 			osd_rdma_enable(VPU_VPP1, 2);
 		if (osd_hw.osd_meson_dev.has_vpp2 &&
