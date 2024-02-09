@@ -2251,6 +2251,23 @@
 /* for t3x */
 #define ENCL_VIDEO_VAVON_LN_RNG             0x14ca
 
+/* for s6 */
+#define VIU2_OSD_VSC_PHASE_STEP             0x1ee0
+#define VIU2_OSD_VSC_INI_PHASE              0x1ee1
+#define VIU2_OSD_VSC_CTRL0                  0x1ee2
+#define VIU2_OSD_HSC_PHASE_STEP             0x1ee3
+#define VIU2_OSD_HSC_INI_PHASE              0x1ee4
+#define VIU2_OSD_HSC_CTRL0                  0x1ee5
+#define VIU2_OSD_HSC_INI_PAT_CTRL           0x1ee6
+#define VIU2_OSD_SC_DUMMY_DATA              0x1ee7
+#define VIU2_OSD_SC_CTRL0                   0x1ee8
+#define VIU2_OSD_SCI_WH_M1                  0x1ee9
+#define VIU2_OSD_SCO_H_START_END            0x1eea
+#define VIU2_OSD_SCO_V_START_END            0x1eeb
+#define VIU2_OSD_DB_FLT_CTRL                0x1eec
+#define VIU2_OSD_SCALE_COEF_IDX             0x1ef8
+#define VIU2_OSD_SCALE_COEF                 0x1ef9
+
 #define OSD_REG_UNSUPPORT                   0xffff
 
 #endif
