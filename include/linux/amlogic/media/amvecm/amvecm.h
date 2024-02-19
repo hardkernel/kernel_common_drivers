@@ -99,6 +99,7 @@
  *#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
  *#define VPP_VADJ1_EN                (1 << 0)
  */
+#define FLAG_RESUME_RECOVERY        BIT(21)
 #define SHARPNESS_GAIN_UPDATE       BIT(20)
 #define FLAG_GAMMA_TABLE_EN_SUB     BIT(19)
 #define FLAG_GAMMA_TABLE_DIS_SUB    BIT(18)
@@ -627,6 +628,8 @@ bool support_multi_core1(void);
 bool is_hdmi_ll_as_hdr10(void);
 int get_amdv_src_format(enum vd_path_e vd_path);
 #endif
+
+void resume_recovery_process(int vpp_index);
 
 #endif /* AMVECM_H */
 
