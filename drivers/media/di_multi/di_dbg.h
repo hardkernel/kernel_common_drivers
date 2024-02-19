@@ -26,6 +26,37 @@
 #define CRC_COUNT_NUB		(20)
 #define CRC_NUB		(3)
 
+extern unsigned int dim_cfg;
+extern int dim_trig_fg;
+extern int invert_top_bot;
+extern int frame_count;
+extern unsigned int dbg_dct;
+extern unsigned int tst_pre_vpp;
+extern u32 afbc_cfg;
+extern unsigned int dim_afbc_skip_en;
+extern unsigned int afbc_skip_pps_w, afbc_skip_pps_h;
+extern unsigned int s4dw_buf_h;
+
+extern int dim_post_num;
+extern int dim_slt_mode;
+extern unsigned int dimmcen_mode;
+extern unsigned int dimmcpre_en;
+extern unsigned int dimpulldown_enable;
+extern unsigned int di_dbg;
+extern unsigned int dim_pre_tm_thd;
+extern unsigned int combing_fix_en;
+extern int cur_lev;
+extern unsigned int di_force_bit_mode;
+extern unsigned int force_prog;
+extern unsigned int dnr_pr;
+extern unsigned int dnr_dm_en;
+extern unsigned int dnr_en;
+extern unsigned int nr2_en;
+extern unsigned int dynamic_dm_chk;
+extern unsigned int autonr_en;
+extern unsigned int nr4ne_en;
+extern unsigned int nr_ctrl_reg;
+
 void didbg_fs_init(void);
 void didbg_fs_exit(void);
 
@@ -95,4 +126,6 @@ void dbg_slt_crc_count(struct di_ch_s *pch, unsigned int postcrc,
 
 int seq_file_dvfm(struct seq_file *seq, void *v, struct dvfm_s *pvfm);
 void print_dvfm(struct dvfm_s *pvfm, char *name);
+void di_attr_create(struct class *di_class);
+
 #endif	/*__DI_DBG_H__*/

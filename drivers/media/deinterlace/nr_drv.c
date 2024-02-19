@@ -35,30 +35,30 @@
 
 static DNR_PRM_t dnr_param;
 static struct NR_PARM_s nr_param;
-static bool dnr_pr;
+unsigned int dnr_pr;
 __module_param(dnr_pr, bool, 0644);
 MODULE_PARM_DESC(dnr_pr, "/n print dnr debug information /n");
 
-static bool dnr_dm_en;
+unsigned int dnr_dm_en;
 __module_param(dnr_dm_en, bool, 0644);
 MODULE_PARM_DESC(dnr_dm_en, "/n dnr dm enable debug /n");
 
-static bool dnr_en = true;
+unsigned int dnr_en = 1;
 __module_param_named(dnr_en, dnr_en, bool, 0644);
 
-static unsigned int nr2_en = 0x1;
+unsigned int nr2_en = 0x1;
 __module_param_named(nr2_en, nr2_en, uint, 0644);
 
-static bool dynamic_dm_chk = true;
+unsigned int dynamic_dm_chk = 1;
 __module_param_named(dynamic_dm_chk, dynamic_dm_chk, bool, 0644);
 
-static unsigned int autonr_en = 0x1;
+unsigned int autonr_en = 0x1;
 __module_param_named(autonr_en, autonr_en, uint, 0644);
 
-static bool nr4ne_en;
+unsigned int nr4ne_en;
 __module_param_named(nr4ne_en, nr4ne_en, bool, 0644);
 
-static bool nr_ctrl_reg;
+unsigned int nr_ctrl_reg;
 __module_param_named(nr_ctrl_reg, nr_ctrl_reg, bool, 0644);
 
 bool nr_demo_flag;

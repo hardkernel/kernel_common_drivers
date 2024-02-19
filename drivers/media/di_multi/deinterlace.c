@@ -103,7 +103,7 @@
 
 /* move above */
 /* debug only for fg */
-static bool dim_trig_fg;
+int dim_trig_fg;
 __module_param_named(dim_trig_fg, dim_trig_fg, bool, 0664);
 static int dim_trig_delay = 1;
 __module_param_named(dim_trig_delay, dim_trig_delay, int, 0664);
@@ -185,7 +185,7 @@ static const char version_s[] = "2023-01-04a";
  */
 static int bypass_pre;
 
-static int invert_top_bot;
+int invert_top_bot;
 
 /* add avoid vframe put/get error */
 static int di_blocking;
@@ -258,7 +258,7 @@ static int input2pre_miss_policy;
 	(((dimp_get(edi_mp_prog_proc_config) & 0x30) == 0x20) &&	\
 	 (((vframe)->type & VIDTYPE_VIU_422) == 0))
 
-static int frame_count;
+int frame_count;
 static int disp_frame_count;
 int di_get_disp_cnt(void)
 {

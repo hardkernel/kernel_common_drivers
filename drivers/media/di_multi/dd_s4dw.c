@@ -47,11 +47,11 @@
 #include <linux/debugfs.h>
 /*2018-07-18 -----------*/
 
-static unsigned int dim_afbc_skip_en;
+unsigned int dim_afbc_skip_en;
 __module_param_named(dim_afbc_skip_en, dim_afbc_skip_en, uint, 0664);
 
 #ifdef DBG_BUFFER_FLOW
-static unsigned int afbc_skip_pps_w, afbc_skip_pps_h;
+unsigned int afbc_skip_pps_w, afbc_skip_pps_h;
 __module_param_named(afbc_skip_pps_w, afbc_skip_pps_w, uint, 0664);
 __module_param_named(afbc_skip_pps_h, afbc_skip_pps_h, uint, 0664);
 #endif
@@ -471,7 +471,7 @@ static int s4dw_buf_init(struct di_ch_s *pch)
 }
 
 #ifdef DBG_BUFFER_FLOW
-static unsigned int s4dw_buf_h;
+unsigned int s4dw_buf_h;
 __module_param_named(s4dw_buf_h, s4dw_buf_h, uint, 0664);
 #endif /* DBG_BUFFER_FLOW */
 

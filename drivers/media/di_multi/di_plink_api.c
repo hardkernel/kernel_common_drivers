@@ -267,7 +267,7 @@ bool timer_cnt(unsigned long *ptimer, unsigned int hs_nub)
  * bit [28]: bypass in display
  * bit [30]: force disable pre_hold;
  **********************************************/
-static unsigned int tst_pre_vpp;
+unsigned int tst_pre_vpp;
 __module_param_named(tst_pre_vpp, tst_pre_vpp, uint, 0664);
 
 #define dbg_plink(level, fmt, args ...)		\

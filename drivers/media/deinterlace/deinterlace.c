@@ -125,7 +125,7 @@ static struct mutex di_event_mutex;
 static atomic_t di_flag_unreg;	//ary 2019-05-27
 static atomic_t di_trig_free_mem;
 
-static unsigned int di_force_bit_mode = 10;
+unsigned int di_force_bit_mode = 10;
 __module_param(di_force_bit_mode, uint, 0664);
 MODULE_PARM_DESC(di_force_bit_mode, "force DI bit mode to 8 or 10 bit");
 
@@ -3283,8 +3283,10 @@ config_di_wr_mif(struct DI_SIM_MIF_s *di_nrwr_mif,
 		di_mtnwr_mif->canvas_num = di_buf->mtn_canvas_idx;
 	}
 }
-static bool force_prog = true;
+
+unsigned int force_prog = 1;
 __module_param_named(force_prog, force_prog, bool, 0664);
+
 static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 {
 	if (di_buf == NULL)
@@ -3672,10 +3674,10 @@ static void top_bot_config(struct di_buf_s *di_buf)
 
 static bool pulldown_enable = true;
 
-static bool combing_fix_en = true;
+unsigned int combing_fix_en = 1;
 __module_param_named(combing_fix_en, combing_fix_en, bool, 0664);
 
-static int cur_lev = 2;
+int cur_lev = 2;
 __module_param_named(combing_cur_lev, cur_lev, int, 0444);
 
 static void pre_de_done_buf_config(void)

@@ -36,6 +36,8 @@
 #include "di_post.h"
 #include "di_dbg.h"
 #include "di_sys.h"
+#include "../deinterlace/deinterlace.h"
+#include "../deinterlace/nr_drv.h"
 
 /********************************
  *trace:
@@ -3237,6 +3239,215 @@ void didbg_fs_exit(void)
 	debugfs_remove_recursive(*root_ent);
 
 	pr_info("%s:finish\n", __func__);
+}
+
+struct di_class_debug_s {
+	const char *name;
+	u32 *parm_value;
+	u32 parm_cnt;
+	u32 read_only;
+};
+
+static struct di_class_debug_s di_debugfs_class_files[] = {
+	{"dim_trig_fg", &dim_trig_fg, 1, 0},
+	{"invert_top_bot", &invert_top_bot, 1, 0},
+	{"frame_count", &frame_count, 1, 0},
+	{"dbg_dct", &dbg_dct, 1, 0},
+	{"afbc_cfg", &afbc_cfg, 1, 0},
+	{"tst_pre_vpp", &tst_pre_vpp, 1, 0},
+	{"dim_cfg", &dim_cfg, 1, 0},
+	{"dim_afbc_skip_en", &dim_afbc_skip_en, 1, 0},
+	{"dim_post_num", &dim_post_num, 1, 0},
+	{"dim_slt_mode", &dim_slt_mode, 1, 0},
+	{"dimmcen_mode", &dimmcen_mode, 1, 0},
+	{"dimmcpre_en", &dimmcpre_en, 1, 0},
+	{"dimpulldown_enable", &dimpulldown_enable, 1, 0},
+	{"di_dbg", &di_dbg, 1, 0},
+	{"dim_pre_tm_thd", &dim_pre_tm_thd, 1, 0},
+	{"combing_fix_en", &combing_fix_en, 1, 0},
+	{"cur_lev", &cur_lev, 1, 0},
+	{"di_force_bit_mode", &di_force_bit_mode, 1, 0},
+	{"force_prog", &force_prog, 1, 0},
+
+	{"dnr_pr", &dnr_pr, 1, 0},
+	{"dnr_dm_en", &dnr_dm_en, 1, 0},
+	{"dnr_en", &dnr_en, 1, 0},
+	{"nr2_en", &nr2_en, 1, 0},
+	{"dynamic_dm_chk", &dynamic_dm_chk, 1, 0},
+	{"autonr_en", &autonr_en, 1, 0},
+	{"nr4ne_en", &nr4ne_en, 1, 0},
+	{"nr_ctrl_reg", &nr_ctrl_reg, 1, 0}
+};
+
+static struct di_class_debug_s *search_class_param(char *name)
+{
+	struct di_class_debug_s *find_param = NULL;
+	int i;
+
+	if (!name) {
+		pr_info("%s, NULL param\n", __func__);
+		return NULL;
+	}
+	for (i = 0; i < ARRAY_SIZE(di_debugfs_class_files); i++) {
+		if (!strncmp(name, di_debugfs_class_files[i].name, 32))
+			find_param = &di_debugfs_class_files[i];
+	}
+
+	return find_param;
+}
+
+static ssize_t dim_class_debug_show(const struct class *device,
+				const struct class_attribute *attr,
+				char *buf)
+{
+	int i, j;
+	ssize_t len = 0;
+	char *sysfs_node = "/sys/class/deinterlace/dim_class_debug";
+	char *buff = NULL;
+
+	buff = kmalloc(256, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
+
+	pr_info("usage:\n");
+	pr_info("--- if reading module parameters ---\n");
+	for (i = 0; i < ARRAY_SIZE(di_debugfs_class_files); i++) {
+		pr_info("echo %s > %s\n",
+			di_debugfs_class_files[i].name, sysfs_node);
+	}
+
+	pr_info("--- if writing module parameters ---\n");
+	for (i = 0; i < ARRAY_SIZE(di_debugfs_class_files); i++) {
+		if (di_debugfs_class_files[i].read_only)
+			continue;
+		len = sprintf(buff, "echo %s ",
+			       di_debugfs_class_files[i].name);
+		for (j = 0; j < di_debugfs_class_files[i].parm_cnt; j++)
+			len += sprintf(buff + len, "x ");
+		sprintf(buff + len, "> %s", sysfs_node);
+		pr_info("%s\n", buff);
+	}
+
+	kfree(buff);
+	return 0;
+}
+
+static int parse_param_ex(char *buf_orig, char **parm, int max_cnt)
+{
+	char *ps, *token;
+	unsigned int n = 0;
+	char delim1[3] = " ";
+	char delim2[2] = "\n";
+
+	ps = buf_orig;
+	strcat(delim1, delim2);
+	while (1) {
+		token = strsep(&ps, delim1);
+		if (!token)
+			break;
+		if (*token == '\0')
+			continue;
+		if (n >= max_cnt) {
+			pr_info("%s, out of range\n", __func__);
+			return n;
+		}
+		parm[n++] = token;
+	}
+
+	return n;
+}
+
+static ssize_t dim_class_debug_store(const struct class *class,
+			     const struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	char *buf_orig, *parm[32];
+	unsigned int i, parm_cnt, *parm_value, parse_cnt;
+	struct di_class_debug_s *find_param = NULL;
+	int write = 0; /* 0: read  1: write*/
+	int len = 0;
+	char *buff = NULL;
+	ssize_t ret = count;
+
+	if (!buf)
+		return count;
+
+	buff = kmalloc(256, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
+
+	memset(parm, 0, sizeof(parm));
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig) {
+		ret = -ENOMEM;
+		goto free2;
+	}
+	parse_cnt = parse_param_ex(buf_orig, (char **)&parm, 32);
+	if (!parse_cnt) {
+		pr_info("need to input parameter(s)\n");
+		goto free1;
+	}
+	if (parse_cnt > 1)
+		write = 1;
+
+	find_param = search_class_param(parm[0]);
+	if (!find_param) {
+		pr_info("cannot find %s\n", parm[0]);
+		goto free1;
+	}
+
+	parm_cnt = find_param->parm_cnt;
+	parm_value = find_param->parm_value;
+	len = sprintf(buff, "%s ", parm[0]);
+	for (i = 0; i < parm_cnt; i++)
+		len += sprintf(buff + len, "%d ", parm_value[i]);
+	if (write) {
+		if (find_param->read_only) {
+			pr_info("%s is read only\n", parm[0]);
+			goto free1;
+		}
+		if ((parse_cnt - 1) < parm_cnt) {
+			pr_info("need to input %s and %d value(s)\n",
+				find_param->name, parm_cnt);
+			goto free1;
+		}
+		len += sprintf(buff + len, "-> ");
+		for (i = 1; i <= find_param->parm_cnt; i++) {
+			if (kstrtou32(parm[i], 0, &parm_value[i - 1]) < 0) {
+				ret = -EINVAL;
+				goto free1;
+			}
+			len += sprintf(buff + len, "%d ", parm_value[i - 1]);
+		}
+	}
+	pr_info("%s\n", buff);
+
+free1:
+	kfree(buf_orig);
+free2:
+	kfree(buff);
+
+	return ret;
+}
+
+static struct class_attribute di[] = {
+	__ATTR(dim_class_debug,
+	       0644,
+	       dim_class_debug_show,
+	       dim_class_debug_store),
+};
+
+void di_attr_create(struct class *di_class)
+{
+	int j;
+
+	for (j = 0; j < ARRAY_SIZE(di); j++) {
+		if (class_create_file(di_class,
+				      &di[j])) {
+			pr_err("create di attribute %s fail\n",
+			       di[j].attr.name);
+		}
+	}
 }
 
 /*-----------------------*/

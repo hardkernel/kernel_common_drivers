@@ -186,7 +186,7 @@ static const struct reg_acc di_normal_regset = {
  * bit[1]: p -> need proce p use 2 i buf
  * bit[2]: mode
  ************************************/
-static u32 afbc_cfg;// =  BITS_EAFBC_CFG_4K;
+u32 afbc_cfg;// =  BITS_EAFBC_CFG_4K;
 /************************************
  * base function:
  *	0x3:	afbcd x  1

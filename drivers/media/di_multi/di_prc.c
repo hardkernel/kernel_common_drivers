@@ -65,9 +65,9 @@ MODULE_PARM_DESC(di_dbg, "debug print");
  *	[0] bypass_all_p
  ***********************************************/
 #ifdef TEST_DISABLE_BYPASS_P
-static unsigned int dim_cfg;
+unsigned int dim_cfg;
 #else
-static unsigned int dim_cfg = 1;
+unsigned int dim_cfg = 1;
 #endif
 __module_param_named(dim_cfg, dim_cfg, uint, 0664);
 
@@ -1165,13 +1165,13 @@ bool dim_dbg_post_crash_check(unsigned int bit_mask)
 /************************************************
  * asked by pq tune
  ************************************************/
-static bool dimpulldown_enable = true;
+unsigned int dimpulldown_enable = 1;
 __module_param_named(dimpulldown_enable, dimpulldown_enable, bool, 0664);
 
-static bool dimmcpre_en = true;
+unsigned int dimmcpre_en = 1;
 __module_param_named(dimmcpre_en, dimmcpre_en, bool, 0664);
 
-static unsigned int dimmcen_mode = 1;
+unsigned int dimmcen_mode = 1;
 __module_param_named(dimmcen_mode, dimmcen_mode, uint, 0664);
 /************************************************/
 
@@ -5546,7 +5546,7 @@ unsigned int dim_int_tab(struct device *dev,
 	return crc;
 }
 
-static bool dim_slt_mode;
+int dim_slt_mode;
 __module_param_named(dim_slt_mode, dim_slt_mode, bool, 0664);
 
 bool dim_is_slt_mode(void)
@@ -5554,7 +5554,7 @@ bool dim_is_slt_mode(void)
 	return dim_slt_mode;
 }
 
-static int dim_post_num;
+int dim_post_num;
 __module_param_named(dim_post_num, dim_post_num, int, 0664);
 
 unsigned int dim_get_post_num(void)
