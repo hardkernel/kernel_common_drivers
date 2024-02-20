@@ -1593,9 +1593,9 @@
 	};
 
 	vcodec_dos_dev: vcodec_dos_dev {
-		compatible = "amlogic, cpu-major-id-s7d";
+		compatible = "amlogic, cpu-major-id-s6";
 		dev_name = "vcodec_dos_dev";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe320000 0x0 0x10000>,
 			<0x0 0xfe036000 0x0 0x2000>;
 		reg-names = "dosbus",
@@ -1615,7 +1615,7 @@
 	vdec {
 		compatible = "amlogic, vdec-pm-pd";
 		dev_name = "vdec.0";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 3 1
 			0 23 1
 			0 32 1
@@ -1630,18 +1630,16 @@
 			"mailbox_1",
 			"mailbox_2",
 			"parser_b";
-		//power-domains = <&pwrdm PDID_S7_DOS_VDEC>,
-		//	<&pwrdm PDID_S7_DOS_HEVC>,
-		//	<&pwrdm PDID_S7_DOS_HCODEC>;
-		//power-domain-names = "pwrc-vdec",
-		//	"pwrc-hevc",
-		//	"pwrc-hcodec";
+		power-domains = <&pwrdm PDID_S6_DOS_VDEC>,
+			<&pwrdm PDID_S6_DOS_HEVC>;
+		power-domain-names = "pwrc-vdec",
+			"pwrc-hevc";
 	};
 
 	vcodec_dec {
 		compatible = "amlogic, vcodec-dec";
 		dev_name = "aml-vcodec-dec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	ddr_bandwidth {
