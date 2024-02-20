@@ -25,6 +25,8 @@
 #include "meson_vpu_util.h"
 #include <linux/amlogic/media/registers/register.h>
 
+u32 frame_seq[MESON_MAX_OSDS];
+
 static int osd_hold_line = VIU1_DEFAULT_HOLD_LINE;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 u32 original_swap_t3x;
@@ -1005,6 +1007,7 @@ void osd_ctrl_init(struct meson_vpu_block *vblk, struct rdma_reg_ops *reg_ops,
 			    (0 << 2) | /*osd_mem_mode 0:canvas_addr*/
 			    (0 << 1) | /*premult_en*/
 			    (0 << 0)/*OSD_BLK_ENABLE*/);
+	reg_ops->rdma_write_reg(reg->viu_osd_tcolor_ag3, 0);
 
 	vblk->init_done = 1;
 }
@@ -1403,7 +1406,8 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 
 	flush_reg = osd_check_config(mvos, old_mvos);
 	MESON_DRM_BLOCK("flush_reg-%d index-%d\n", flush_reg, vblk->index);
-	if (!flush_reg) {
+	if (!flush_reg &&
+		meson_drm_read_reg(reg->viu_osd_tcolor_ag3) == frame_seq[vblk->index]) {
 		/*after v7 chips, always linear addr*/
 		if (osd->mif_acc_mode == LINEAR_MIF)
 			osd_mem_mode(vblk, reg_ops, reg, 1);
@@ -1487,6 +1491,9 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	osd_set_two_ports(mvos->read_ports);
 	if (mvos->palette_arry)
 		osd_set_palette(reg, mvos->palette_arry);
+
+	frame_seq[vblk->index]++;
+	reg_ops->rdma_write_reg(reg->viu_osd_tcolor_ag3, frame_seq[vblk->index]);
 
 	MESON_DRM_BLOCK("plane_index=%d,HW-OSD=%d\n",
 		  mvos->plane_index, vblk->index);

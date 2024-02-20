@@ -71,6 +71,7 @@ static void meson_video_parse_config(struct drm_device *dev, struct meson_of_con
 	if (ret)
 		DRM_DEBUG("%s parse vfm mode fail!\n", __func__);
 
+	DRM_INFO("%s:vfm_mode = %d\n", __func__, mode_flag);
 	conf->vfm_mode = mode_flag;
 }
 

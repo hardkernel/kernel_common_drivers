@@ -101,6 +101,10 @@ struct meson_drm {
 	struct am_osd_plane *osd_planes[MESON_MAX_OSD];
 	struct am_video_plane *video_planes[MESON_MAX_VIDEO];
 
+	/* During a vsync of pan display, an async commit already ran */
+	bool pan_async_commit_ran;
+	u32 disable_video_plane;
+
 	struct meson_of_conf of_conf;
 
 	/*CONFIG_AMLOGIC_DRM_EMULATE_FBDEV*/
