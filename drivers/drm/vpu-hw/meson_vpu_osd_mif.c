@@ -1495,6 +1495,9 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	frame_seq[vblk->index]++;
 	reg_ops->rdma_write_reg(reg->viu_osd_tcolor_ag3, frame_seq[vblk->index]);
 
+	frame_seq[vblk->index]++;
+	reg_ops->rdma_write_reg(reg->viu_osd_tcolor_ag3, frame_seq[vblk->index]);
+
 	MESON_DRM_BLOCK("plane_index=%d,HW-OSD=%d\n",
 		  mvos->plane_index, vblk->index);
 	MESON_DRM_BLOCK("scope h/v start/end:[%d/%d/%d/%d]\n",
