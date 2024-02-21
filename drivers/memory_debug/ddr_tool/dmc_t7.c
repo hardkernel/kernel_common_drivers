@@ -341,7 +341,7 @@ static int t7_dmc_reg_control(char *input, char control, char *output)
 	case 'c':
 	case 'd':
 		for (j = 0; j < dmc_mon->mon_number; j++) {
-			base = dmc_mon->mon_comm[i].io_base;
+			base = dmc_mon->mon_comm[j].io_base;
 
 			switch (control) {
 			case 'c':	/* clear sec statue reg */
