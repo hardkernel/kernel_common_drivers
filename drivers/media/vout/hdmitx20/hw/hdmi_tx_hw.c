@@ -3250,14 +3250,14 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		return;
 	} else if (strncmp(tmpbuf, "edid_check", 10) == 0) {
 		if (strncmp(tmpbuf + 10, "=0", 2) == 0)
-			hdev->tx_comm.edid_check = 0;
+			hdev->tx_comm.rxcap.edid_check = 0;
 		else if (strncmp(tmpbuf + 10, "=1", 2) == 0)
-			hdev->tx_comm.edid_check = 1;
+			hdev->tx_comm.rxcap.edid_check = 1;
 		else if (strncmp(tmpbuf + 10, "=2", 2) == 0)
-			hdev->tx_comm.edid_check = 2;
+			hdev->tx_comm.rxcap.edid_check = 2;
 		else if (strncmp(tmpbuf + 10, "=3", 2) == 0)
-			hdev->tx_comm.edid_check = 3;
-		HDMITX_INFO("edid_check = %d\n", hdev->tx_comm.edid_check);
+			hdev->tx_comm.rxcap.edid_check = 3;
+		HDMITX_INFO("edid_check = %d\n", hdev->tx_comm.rxcap.edid_check);
 		return;
 	} else if (strncmp(tmpbuf, "bist", 4) == 0) {
 		if (strncmp(tmpbuf + 4, "off", 3) == 0) {

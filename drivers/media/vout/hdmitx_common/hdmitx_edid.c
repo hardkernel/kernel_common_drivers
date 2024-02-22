@@ -83,7 +83,6 @@
 #define GET_BITS_FILED(val, start, len) \
 	(((val) >> (start)) & ((1 << (len)) - 1))
 
-static struct hdmitx_common *global_tx_base;
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
 static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data);
 static void hdmitx_edid_set_default_aud(struct rx_cap *prxcap);
@@ -110,14 +109,14 @@ static void phy_addr_clear(struct vsdb_phyaddr *vsdb_phy_addr)
 	vsdb_phy_addr->valid = 0;
 }
 
-static bool hdmitx_edid_header_invalid(const u8 *buf)
+static bool hdmitx_edid_header_invalid(u8 edid_check, const u8 *buf)
 {
 	int i = 0;
 
 	if (!buf)
 		return true;
 
-	if (global_tx_base->edid_check & 0x01)
+	if (edid_check & 0x01)
 		return false;
 
 	if (buf[0] != 0 || buf[7] != 0)
@@ -180,7 +179,7 @@ bool hdmitx_edid_is_all_zeros(u8 *rawedid)
 }
 
 /* check the checksum for each sub block */
-static bool _check_edid_blk_chksum(unsigned char *block)
+static bool _check_edid_blk_chksum(u8 edid_check, unsigned char *block)
 {
 	unsigned int chksum = 0;
 	unsigned int i = 0;
@@ -188,7 +187,7 @@ static bool _check_edid_blk_chksum(unsigned char *block)
 	if (!block)
 		return false;
 
-	if (global_tx_base->edid_check & 0x02)
+	if (edid_check & 0x02)
 		return true;
 
 	for (chksum = 0, i = 0; i < 0x80; i++)
@@ -200,14 +199,14 @@ static bool _check_edid_blk_chksum(unsigned char *block)
 }
 
 /* check the first edid block */
-static bool _check_base_structure(unsigned char *buf)
+static bool _check_base_structure(u8 edid_check, unsigned char *buf)
 {
 	unsigned int i = 0;
 
 	if (!buf)
 		return false;
 
-	if (!(global_tx_base->edid_check & 0x01)) {
+	if (!(edid_check & 0x01)) {
 		/* check block 0 first 8 bytes */
 		if (buf[0] != 0 || buf[7] != 0)
 			return false;
@@ -218,7 +217,7 @@ static bool _check_base_structure(unsigned char *buf)
 		}
 	}
 
-	if (_check_edid_blk_chksum(buf) == false)
+	if (_check_edid_blk_chksum(edid_check, buf) == false)
 		return false;
 
 	return true;
@@ -229,7 +228,7 @@ static bool _check_base_structure(unsigned char *buf)
  * base structure: header, checksum
  * extension: the first non-zero byte, checksum
  */
-bool hdmitx_edid_check_data_valid(unsigned char *buf)
+bool hdmitx_edid_check_data_valid(u8 edid_check, unsigned char *buf)
 {
 	int i;
 	int blk_cnt = 1;
@@ -240,23 +239,23 @@ bool hdmitx_edid_check_data_valid(unsigned char *buf)
 	blk_cnt = hdmitx_edid_get_block_count(buf);
 
 	/* check block 0 */
-	if (_check_base_structure(&buf[0]) == 0)
+	if (_check_base_structure(edid_check, &buf[0]) == 0)
 		return false;
 
 	if (blk_cnt == 1)
 		return true;
 	/* check block 1 extension tag */
-	if (!(global_tx_base->edid_check & 0x01)) {
+	if (!(edid_check & 0x01)) {
 		if (!(buf[0x80] == 0x2 || buf[0x80] == 0xf0))
 			return false;
 	}
 	/* check extension block 1 and more */
 	for (i = 1; i < blk_cnt; i++) {
-		if (!(global_tx_base->edid_check & 0x01)) {
+		if (!(edid_check & 0x01)) {
 			if (buf[i * 0x80] == 0)
 				return false;
 		}
-		if (_check_edid_blk_chksum(&buf[i * 0x80]) == false)
+		if (_check_edid_blk_chksum(edid_check, &buf[i * 0x80]) == false)
 			return false;
 	}
 
@@ -2830,18 +2829,20 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 	int i;
 	int idx[4];
 	struct dv_info *dv;
+	u8 edid_check = 0;
 
 	if (!edid_buf || !prxcap)
 		return -1;
 
+	edid_check = prxcap->edid_check;
 	cta_block_count = hdmitx_edid_get_cta_block_count(edid_buf);
 	block_count = hdmitx_edid_get_block_count(edid_buf);
 	dv = &prxcap->dv_info;
-	prxcap->edid_parsing = hdmitx_edid_check_data_valid(edid_buf);
+	prxcap->edid_parsing = hdmitx_edid_check_data_valid(edid_check, edid_buf);
 
-	prxcap->head_err = hdmitx_edid_header_invalid(&edid_buf[0]);
+	prxcap->head_err = hdmitx_edid_header_invalid(edid_check, &edid_buf[0]);
 	for (i = 0; i < block_count; i++) {
-		if (_check_edid_blk_chksum(edid_buf + i * 128) == 0) {
+		if (_check_edid_blk_chksum(edid_check, edid_buf + i * 128) == 0) {
 			prxcap->chksum_err = 1;
 			break;
 		}
@@ -2849,16 +2850,16 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 
 	pr_debug(EDID "EDID Parser:\n");
 
-	if (hdmitx_edid_check_data_valid(edid_buf) == false) {
+	if (hdmitx_edid_check_data_valid(edid_check, edid_buf) == false) {
 		edid_set_fallback_mode(prxcap);
 		HDMITX_INFO("set fallback mode\n");
 		return 0;
 	}
-	if (_check_base_structure(edid_buf))
+	if (_check_base_structure(edid_check, edid_buf))
 		_edid_parse_base_structure(prxcap, edid_buf);
 
 	for (i = 1; i <= cta_block_count; i++) {
-		if (edid_buf[i * 0x80] == 0x02 || global_tx_base->edid_check & 0x01)
+		if (edid_buf[i * 0x80] == 0x02 || edid_check & 0x01)
 			hdmitx_edid_cta_block_parse(prxcap, &edid_buf[i * 0x80]);
 	}
 
@@ -2936,7 +2937,7 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 
 	/* strictly DVI device judgement */
 	/* valid EDID & no audio tag & no IEEEOUI */
-	if (hdmitx_edid_check_data_valid(&edid_buf[0]) &&
+	if (hdmitx_edid_check_data_valid(edid_check, &edid_buf[0]) &&
 		!hdmitx_edid_search_IEEEOUI(&edid_buf[128])) {
 		prxcap->ieeeoui = 0x0;
 		pr_debug(EDID "sink is DVI device\n");
@@ -3009,11 +3010,13 @@ void hdmitx_edid_buffer_clear(u8 *edid_buf, int size)
 void hdmitx_edid_rxcap_clear(struct rx_cap *prxcap)
 {
 	char tmp[2] = {0};
-
+	u8 ret = 0;
 	if (!prxcap)
 		return;
 
+	ret = prxcap->edid_check;
 	memset(prxcap, 0, sizeof(struct rx_cap));
+	prxcap->edid_check = ret;
 
 	/* Note: in most cases, we think that rx is tv and the default
 	 * IEEEOUI is HDMI Identifier
@@ -3303,20 +3306,5 @@ int hdmitx_edid_print_sink_cap(const struct rx_cap *prxcap,
 			"checkvalue: %s\n", prxcap->hdmichecksum);
 
 	return pos;
-}
-
-int hdmitx_edid_init(struct hdmitx_common *tx_base)
-{
-	if (global_tx_base)
-		HDMITX_ERROR("global_tx_base [%p] already init\n", global_tx_base);
-
-	global_tx_base = tx_base;
-	return 0;
-}
-
-int hdmitx_edid_uninit(void)
-{
-	global_tx_base = 0;
-	return 0;
 }
 

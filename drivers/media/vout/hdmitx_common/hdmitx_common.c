@@ -47,7 +47,7 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 	tx_comm->config_csc_en = boot_param->config_csc;
 	tx_comm->res_1080p = 0;
 	tx_comm->max_refreshrate = 60;
-	tx_comm->edid_check = boot_param->edid_check;
+	tx_comm->rxcap.edid_check = boot_param->edid_check;
 
 	tx_comm->tx_hw = hw_comm;
 	hw_comm->hdcp_repeater_en = 0;
@@ -813,7 +813,7 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 		hdmitx_hw_cntl_ddc(tx_hw_base, DDC_EDID_READ_DATA, 0);
 	}
 	/* If EDID is not correct at first time, then retry */
-	if (hdmitx_edid_check_data_valid(tx_comm->EDID_buf) == false) {
+	if (hdmitx_edid_check_data_valid(tx_comm->rxcap.edid_check, tx_comm->EDID_buf) == false) {
 		struct timespec64 kts;
 		struct rtc_time tm;
 

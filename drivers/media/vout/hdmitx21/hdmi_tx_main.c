@@ -4061,7 +4061,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		HDMITX_PLATFORM_TRACER, tx_tracer);
 	hdmitx_audio_register_ctrl_callback(tx_tracer, hdmitx21_ext_set_audio_output,
 		hdmitx21_ext_get_audio_status);
-	hdmitx_edid_init(tx_comm);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	hdmitx_early_suspend_handler.param = hdev;
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -4178,7 +4177,6 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	tee_comm_dev_unreg(hdev);
 	/*unbind from drm.*/
 	hdmitx_unhook_drm(&pdev->dev);
-	hdmitx_edid_uninit();
 
 	cancel_work_sync(&hdev->work_hdr);
 	/* cancel_work_sync(&hdev->work_hdr_unmute); */

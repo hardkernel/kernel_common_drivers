@@ -212,6 +212,12 @@ struct rx_cap {
 	u8 hdmichecksum[11]; /* string with 0xAABBCCDD */
 	u8 head_err;
 	u8 chksum_err;
+	/* edid_check = 0 is default check
+	 * Bit 0     (0x01)  don't check block header
+	 * Bit 1     (0x02)  don't check edid checksum
+	 * Bit 0+1   (0x03)  don't check both block header and checksum
+	 */
+	u8 edid_check;
 };
 
 /* VSIF: Vendor Specific InfoFrame
@@ -269,7 +275,7 @@ int hdmitx_edid_print_sink_cap(const struct rx_cap *prxcap, char *buffer, int bu
 
 /*edid is good return 0, otherwise return < 0.*/
 bool hdmitx_edid_is_all_zeros(unsigned char *rawedid);
-bool hdmitx_edid_check_data_valid(unsigned char *buf);
+bool hdmitx_edid_check_data_valid(u8 edid_check, unsigned char *buf);
 ssize_t _show_aud_cap(struct rx_cap *prxcap, char *buf);
 int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf);
 unsigned int hdmitx_edid_valid_block_num(unsigned char *edid_buf);

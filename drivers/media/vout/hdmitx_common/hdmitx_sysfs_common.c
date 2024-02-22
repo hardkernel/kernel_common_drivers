@@ -130,7 +130,8 @@ static ssize_t edid_parsing_show(struct device *dev,
 {
 	int pos = 0;
 
-	if (hdmitx_edid_check_data_valid(global_tx_common->EDID_buf))
+	if (hdmitx_edid_check_data_valid(global_tx_common->rxcap.edid_check,
+		global_tx_common->EDID_buf))
 		pos += snprintf(buf + pos, PAGE_SIZE, "ok\n");
 	else
 		pos += snprintf(buf + pos, PAGE_SIZE, "ng\n");
