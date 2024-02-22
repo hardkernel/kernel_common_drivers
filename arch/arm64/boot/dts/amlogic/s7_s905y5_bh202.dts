@@ -888,7 +888,7 @@
 };
 
 &vddcpu0 {
-	status = "disabled";
+	status = "okay";
 };
 
 &pinctrl_audio {
