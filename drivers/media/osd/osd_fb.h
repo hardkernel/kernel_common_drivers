@@ -49,6 +49,13 @@ struct fb_dmabuf_export {
 	__u32 flags;
 };
 
+struct osd_module_debug_s {
+	char parm_name[32];
+	u32 *parm_value;
+	u32 parm_cnt;
+	u32 read_only; /* permission 0:read+write 1:read only */
+};
+
 #define OSD_INVALID_INFO 0xffffffff
 #define OSD_FIRST_GROUP_START 1
 #define OSD_SECOND_GROUP_START 4
@@ -69,4 +76,8 @@ extern unsigned int osd_game_mode[];
 extern unsigned int osd_pi_debug, osd_pi_enable;
 extern unsigned int osd_slice2ppc_debug, osd_slice2ppc_enable;
 extern struct mutex preblend_lock;
+
+extern struct osd_module_debug_s debug_osd_backup[7];
+extern struct osd_module_debug_s debug_osd_rdma[14];
+extern struct osd_module_debug_s debug_osd_hw[15];
 #endif

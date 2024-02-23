@@ -38,6 +38,7 @@
 #include "osd_hw.h"
 #include "osd_backup.h"
 #include "osd_log.h"
+#include "osd_fb.h"
 #include <linux/amlogic/media/registers/register_map.h>
 
 #define RDMA_TABLE_INTERNAL_COUNT 512
@@ -60,7 +61,7 @@ static bool osd_rdma_init_flag;
 #define OSD_RDMA_UPDATE_RETRY_COUNT 10
 static unsigned int debug_rdma_status[VPP_NUM];
 static unsigned int rdma_irq_count[VPP_NUM];
-//static unsigned int rdma_lost_count[VPP_NUM];
+static unsigned int rdma_lost_count[VPP_NUM];
 static unsigned int dump_reg_trigger;
 static unsigned int rdma_recovery_count[VPP_NUM];
 #ifdef OSD_RDMA_ISR
@@ -81,18 +82,10 @@ static struct rdma_table_item *rdma_temp_tbl[VPP_NUM];
 static int support_64bit_addr = 1;
 static struct rdma_warn_array recovery_table[WARN_TABLE];
 static struct rdma_warn_array recovery_not_hit_table[WARN_TABLE];
-//static uint num_reject = 2;
 static int rdma_reject_cnt[2];
 static int rdma_done_line[VPP_NUM];
-__module_param_array(rdma_reject_cnt, uint, &num_reject, 0664);
-MODULE_PARM_DESC(rdma_reject_cnt, "\n rdma_reject_cnt\n");
-
 static int g_osd_rdma_item_count;
 static int g_osd_rdma_item_count_max;
-MODULE_PARM_DESC(g_osd_rdma_item_count, "\n g_osd_rdma_item_count\n");
-__module_param(g_osd_rdma_item_count, uint, 0664);
-MODULE_PARM_DESC(g_osd_rdma_item_count_max, "\n g_osd_rdma_item_count_max\n");
-__module_param(g_osd_rdma_item_count_max, uint, 0664);
 
 void *memcpy(void *dest, const void *src, size_t len);
 
@@ -1132,12 +1125,26 @@ int VSYNCOSD_IRQ_WR_MPEG_REG_VPP2(u32 addr, u32 val)
 
 /* number lines before vsync for reset */
 static unsigned int reset_line;
-__module_param(reset_line, uint, 0664);
-MODULE_PARM_DESC(reset_line, "reset_line");
-
 static unsigned int disable_osd_rdma_reset;
-__module_param(disable_osd_rdma_reset, uint, 0664);
-MODULE_PARM_DESC(disable_osd_rdma_reset, "disable_osd_rdma_reset");
+
+/* module parameter for debugging */
+struct osd_module_debug_s debug_osd_rdma[14] = {
+	{"rdma_reject_cnt", rdma_reject_cnt, 2, 0},
+	{"g_osd_rdma_item_count", &g_osd_rdma_item_count, 1, 0},
+	{"g_osd_rdma_item_count_max", &g_osd_rdma_item_count_max, 1, 0},
+	{"reset_line", &reset_line, 1, 0},
+	{"disable_osd_rdma_reset", &disable_osd_rdma_reset, 1, 0},
+	{"item_count", item_count, VPP_NUM, 0},
+	// {"table_paddr", table_paddr, VPP_NUM, 0},
+	{"debug_rdma_status", debug_rdma_status, VPP_NUM, 0},
+	{"rdma_irq_count", rdma_irq_count, VPP_NUM, 0},
+	{"rdma_lost_count", rdma_lost_count, VPP_NUM, 0},
+	{"rdma_recovery_count", rdma_recovery_count, VPP_NUM, 0},
+	{"vsync_irq_count", vsync_irq_count, VPP_NUM, 0},
+	{"rdma_debug", &rdma_debug, 1, 0},
+	{"dump_reg_trigger", &dump_reg_trigger, 1, 0},
+	{"rdma_hdr_delay", &rdma_hdr_delay, 1, 0}
+};
 
 int get_rdma_irq_done_line(u32 vpp_index)
 {
@@ -2368,26 +2375,3 @@ int osd_rdma_uninit(void)
 	return 0;
 }
 EXPORT_SYMBOL(osd_rdma_uninit);
-
-//static int param_vpp_num = VPP_NUM;
-__module_param_array(item_count, uint, &param_vpp_num, 0664);
-MODULE_PARM_DESC(item_count, "\n item_count\n");
-__module_param_array(table_paddr, ulong, &param_vpp_num, 0664);
-MODULE_PARM_DESC(table_paddr, "\n table_paddr\n");
-__module_param_array(debug_rdma_status, uint, &param_vpp_num, 0664);
-MODULE_PARM_DESC(debug_rdma_status, "\n debug_rdma_status\n");
-__module_param_array(rdma_irq_count, uint, &param_vpp_num, 0664);
-MODULE_PARM_DESC(rdma_irq_count, "\n rdma_irq_count\n");
-__module_param_array(rdma_lost_count, uint, &param_vpp_num, 0664);
-MODULE_PARM_DESC(rdma_lost_count, "\n rdma_lost_count\n");
-__module_param_array(rdma_recovery_count, uint, &param_vpp_num, 0664);
-MODULE_PARM_DESC(rdma_recovery_count, "\n rdma_recovery_count\n");
-__module_param_array(vsync_irq_count, uint, &param_vpp_num, 0664);
-MODULE_PARM_DESC(vsync_irq_count, "\n vsync_irq_count\n");
-
-MODULE_PARM_DESC(rdma_debug, "\n rdma_debug\n");
-__module_param(rdma_debug, uint, 0664);
-MODULE_PARM_DESC(dump_reg_trigger, "\n dump_reg_trigger\n");
-__module_param(dump_reg_trigger, uint, 0664);
-MODULE_PARM_DESC(rdma_hdr_delay, "\n rdma_hdr_delay\n");
-__module_param(rdma_hdr_delay, uint, 0664);

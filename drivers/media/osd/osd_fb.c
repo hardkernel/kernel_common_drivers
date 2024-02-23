@@ -4150,6 +4150,192 @@ static ssize_t show_file_info(struct device *device,
 			osd_hw.file_info_debug[3].fput_count);
 }
 
+static struct osd_module_debug_s *search_module_param(char *name)
+{
+	struct osd_module_debug_s *find_param = NULL;
+	int i;
+
+	if (!name) {
+		pr_info("%s, NULL param\n", __func__);
+		return NULL;
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_osd_backup); i++) {
+		if (!strncmp(name, debug_osd_backup[i].parm_name, 32))
+			find_param = &debug_osd_backup[i];
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_osd_rdma); i++) {
+		if (!strncmp(name, debug_osd_rdma[i].parm_name, 32))
+			find_param = &debug_osd_rdma[i];
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_osd_hw); i++) {
+		if (!strncmp(name, debug_osd_hw[i].parm_name, 32))
+			find_param = &debug_osd_hw[i];
+	}
+
+	return find_param;
+}
+
+static ssize_t show_module_debug(struct device *device,
+				struct device_attribute *attr,
+				char *buf)
+{
+	int i, j;
+	ssize_t len = 0;
+	char *sysfs_node = "/sys/class/graphics/fb0/module_debug";
+	char *buff = NULL;
+
+	buff = kmalloc(256, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
+
+	pr_info("usage:\n");
+	pr_info("--- if reading module parameters ---\n");
+	for (i = 0; i < ARRAY_SIZE(debug_osd_backup); i++) {
+		pr_info("echo %s > %s\n",
+			debug_osd_backup[i].parm_name, sysfs_node);
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_osd_rdma); i++) {
+		pr_info("echo %s > %s\n",
+			       debug_osd_rdma[i].parm_name, sysfs_node);
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_osd_hw); i++) {
+		pr_info("echo %s > %s\n",
+			       (debug_osd_hw)[i].parm_name, sysfs_node);
+	}
+	pr_info("--- if writing module parameters ---\n");
+	for (i = 0; i < ARRAY_SIZE(debug_osd_backup); i++) {
+		if (debug_osd_backup[i].read_only)
+			continue;
+		len = sprintf(buff, "echo %s ",
+			       debug_osd_backup[i].parm_name);
+		for (j = 0; j < debug_osd_backup[i].parm_cnt; j++)
+			len += sprintf(buff + len, "x ");
+		sprintf(buff + len, "> %s", sysfs_node);
+		pr_info("%s\n", buff);
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_osd_rdma); i++) {
+		if (debug_osd_rdma[i].read_only)
+			continue;
+		len = sprintf(buff, "echo %s ",
+			       (debug_osd_rdma)[i].parm_name);
+		for (j = 0; j < (debug_osd_rdma)[i].parm_cnt; j++)
+			len += sprintf(buff + len, "x ");
+		sprintf(buff + len, "> %s", sysfs_node);
+		pr_info("%s\n", buff);
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_osd_hw); i++) {
+		if (debug_osd_hw[i].read_only)
+			continue;
+		len = sprintf(buff, "echo %s ",
+			       debug_osd_hw[i].parm_name);
+		for (j = 0; j < debug_osd_hw[i].parm_cnt; j++)
+			len += sprintf(buff + len, "x ");
+		sprintf(buff + len, "> %s", sysfs_node);
+		pr_info("%s\n", buff);
+	}
+	kfree(buff);
+
+	return 0;
+}
+
+static int parse_param_ex(char *buf_orig, char **parm, int max_cnt)
+{
+	char *ps, *token;
+	unsigned int n = 0;
+	char delim1[3] = " ";
+	char delim2[2] = "\n";
+
+	ps = buf_orig;
+	strcat(delim1, delim2);
+	while (1) {
+		token = strsep(&ps, delim1);
+		if (!token)
+			break;
+		if (*token == '\0')
+			continue;
+		if (n >= max_cnt) {
+			pr_info("%s, out of range\n", __func__);
+			return n;
+		}
+		parm[n++] = token;
+	}
+
+	return n;
+}
+
+static ssize_t store_module_debug(struct device *device,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	char *buf_orig, *parm[32];
+	unsigned int i, parm_cnt, *parm_value, parse_cnt;
+	struct osd_module_debug_s *find_param = NULL;
+	int write = 0; /* 0: read  1: write*/
+	int len = 0;
+	char *buff = NULL;
+	ssize_t ret = count;
+
+	if (!buf)
+		return count;
+
+	buff = kmalloc(256, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
+
+	memset(parm, 0, sizeof(parm));
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig) {
+		ret = -ENOMEM;
+		goto free2;
+	}
+	parse_cnt = parse_param_ex(buf_orig, (char **)&parm, 32);
+	if (!parse_cnt) {
+		pr_info("need to input parameter(s)\n");
+		goto free1;
+	}
+	if (parse_cnt > 1)
+		write = 1;
+
+	find_param = search_module_param(parm[0]);
+	if (!find_param) {
+		pr_info("cannot find %s\n", parm[0]);
+		goto free1;
+	}
+
+	parm_cnt = find_param->parm_cnt;
+	parm_value = find_param->parm_value;
+	len = sprintf(buff, "%s ", parm[0]);
+	for (i = 0; i < parm_cnt; i++)
+		len += sprintf(buff + len, "%d ", parm_value[i]);
+	if (write) {
+		if (find_param->read_only) {
+			pr_info("%s is read only\n", parm[0]);
+			goto free1;
+		}
+		if ((parse_cnt - 1) < parm_cnt) {
+			pr_info("need to input %s and %d value(s)\n",
+				find_param->parm_name, parm_cnt);
+			goto free1;
+		}
+		len += sprintf(buff + len, "-> ");
+		for (i = 1; i <= find_param->parm_cnt; i++) {
+			if (kstrtou32(parm[i], 0, &parm_value[i - 1]) < 0) {
+				ret = -EINVAL;
+				goto free1;
+			}
+			len += sprintf(buff + len, "%d ", parm_value[i - 1]);
+		}
+	}
+	pr_info("%s\n", buff);
+
+free1:
+	kfree(buf_orig);
+free2:
+	kfree(buff);
+
+	return ret;
+}
+
 static inline  int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -4412,6 +4598,8 @@ static struct device_attribute osd_attrs[] = {
 	       show_slice2ppc_test, store_slice2ppc_test),
 	__ATTR(rdma_enable, 0644,
 	       show_rdma_enable, store_rdma_enable),
+	__ATTR(module_debug, 0644,
+	       show_module_debug, store_module_debug),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {
