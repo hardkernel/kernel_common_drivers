@@ -516,7 +516,16 @@ char *to_sub_ports_name(int mid, int sid, char rw)
 
 		for (i = 0; i < dmc_mon->port_num; i++) {
 			if (dmc_mon->port[i].port_id == s_port) {
-				name =  dmc_mon->port[i].port_name;
+				name = dmc_mon->port[i].port_name;
+				break;
+			}
+		}
+	} else if (strstr(to_ports(mid), "VGE")) {
+		s_port = sid + PORT_MAJOR * 3;
+
+		for (i = 0; i < dmc_mon->port_num; i++) {
+			if (dmc_mon->port[i].port_id == s_port) {
+				name = dmc_mon->port[i].port_name;
 				break;
 			}
 		}
@@ -1525,6 +1534,11 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 		mon->mon_number = 2;
 		break;
 #endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_S6
+	case DMC_TYPE_S6:
+		mon->ops = &s6_dmc_mon_ops;
+		break;
+#endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_TXHD2
 	case DMC_TYPE_TXHD2:
 		mon->ops = &txhd2_dmc_mon_ops;
@@ -1803,6 +1817,10 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-s5",
 		.data = (void *)DMC_TYPE_S5,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-s6",
+		.data = (void *)DMC_TYPE_S6,
 	},
 	{
 		.compatible = "amlogic,dmc_monitor-t3x",
