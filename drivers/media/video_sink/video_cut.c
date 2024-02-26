@@ -662,8 +662,6 @@ static int process_frame(void)
 		return -1;
 	}
 
-	if (debug_flag & DEBUG_FLAG_LATENCY)
-		pr_info("process frame start\n");
 	if (cur_vinfo->field_height != cur_vinfo->height)
 		vinfo_height = cur_vinfo->field_height;
 	else
@@ -673,6 +671,9 @@ static int process_frame(void)
 	min_line = (vinfo_height * line_threshold) / 100 + start_line;
 	max_line = (vinfo_height * (100 - line_threshold)) / 100 + start_line;
 	enc_line1 = get_cur_enc_line();
+	if (debug_flag & DEBUG_FLAG_LATENCY)
+		pr_info("process frame start, line:%d\n", enc_line1);
+
 	if (enc_line1 >= max_line || overrun_flag) {
 		lowlatency_proc_drop++;
 		return -2;
@@ -733,7 +734,7 @@ static int process_frame(void)
 	atomic_set(&video_inirq_flag, 0);
 	atomic_dec(&video_proc_lock);
 	if (debug_flag & DEBUG_FLAG_LATENCY)
-		pr_info("process frame end\n");
+		pr_info("process frame end, line:%d\n", enc_line2 + enc_line1);
 
 	return 0;
 }
@@ -10354,6 +10355,9 @@ struct video_module_debug_s debug_video[43] = {
 	{"lowlatency_enable", &lowlatency_enable, 1, 1},
 	{"debug_flag1", &debug_flag1, 1, 0},
 };
+
+MODULE_PARM_DESC(line_threshold, "\n line_threshold\n");
+module_param(line_threshold, int, 0664);
 
 //MODULE_DESCRIPTION("AMLOGIC video output driver");
 //MODULE_LICENSE("GPL");
