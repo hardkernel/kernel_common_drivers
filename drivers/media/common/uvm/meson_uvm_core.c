@@ -47,6 +47,11 @@ static void uvm_handle_destroy(struct kref *kref)
 	struct uvm_handle *handle;
 
 	handle = container_of(kref, struct uvm_handle, ref);
+	if (!handle) {
+		UVM_PRINTK(UVM_ERROR, "%p called\n", __func__);
+		return;
+	}
+	handle->flags &= ~BIT(UVM_DETACH_FLAG);
 	if (handle->ua) {
 		if (handle->ua->sgt[0]) {
 			sg_free_table(handle->ua->sgt[0]);
@@ -190,7 +195,7 @@ static void meson_uvm_release(struct dma_buf *dmabuf)
 		ua->free(ua->obj);
 
 	list_for_each_entry_safe(uhmod, uhtmp, &handle->mod_attached, list) {
-		UVM_PRINTK(UVM_INFO, "%s uhmod:%p uhmod_ref:%u n_attached_mod:%zu\n",
+		UVM_PRINTK(UVM_INFO, "%s uhmod:%px uhmod_ref:%u n_attached_mod:%zu\n",
 			__func__, uhmod, kref_read(&uhmod->ref), handle->n_mod_attached);
 		kref_put(&uhmod->ref, uvm_hook_mod_release);
 		handle->n_mod_attached--;
@@ -367,6 +372,7 @@ static struct uvm_handle *uvm_handle_alloc(size_t len, size_t align,
 	handle->size = len;
 	handle->align = align;
 	handle->flags = flags;
+	handle->flags &= ~BIT(UVM_DETACH_FLAG);
 	INIT_LIST_HEAD(&handle->mod_attached);
 
 	ua = kzalloc(sizeof(*ua), GFP_KERNEL);
@@ -569,7 +575,7 @@ static int do_fbc_decoder(struct dma_buf *dmabuf,
 	memset(&info, 0, sizeof(info));
 
 	dmabuf->size = mua_calc_real_dmabuf_size(buffer);
-	UVM_PRINTK(UVM_INFO, "buffer(0x%p)->size:%zu realloc dmabuf->size=%zu\n",
+	UVM_PRINTK(UVM_INFO, "buffer(0x%px)->size:%zu realloc dmabuf->size=%zu\n",
 			buffer, buffer->size, dmabuf->size);
 	heap = dma_heap_find(CODECMM_HEAP_NAME);
 	if (!heap) {
@@ -585,7 +591,7 @@ static int do_fbc_decoder(struct dma_buf *dmabuf,
 			UVM_PRINTK(UVM_ERROR, "%s: dma_heap_buffer_alloc fail.\n", __func__);
 			return -ENOMEM;
 		}
-		UVM_PRINTK(UVM_INFO, "%s: idmabuf(%p) alloc success.\n", __func__, idmabuf);
+		UVM_PRINTK(UVM_INFO, "%s: idmabuf(%px) alloc success.\n", __func__, idmabuf);
 
 		ibuffer = idmabuf->priv;
 		if (ibuffer) {
@@ -612,7 +618,7 @@ static int do_fbc_decoder(struct dma_buf *dmabuf,
 				return -ENOMEM;
 			}
 
-			UVM_PRINTK(UVM_INFO, "%s: src_sgt(%p). nents = %u, length=%u\n",
+			UVM_PRINTK(UVM_INFO, "%s: src_sgt(%px). nents = %u, length=%u\n",
 				__func__, src_sgt, src_sgt->nents, src_sgt->sgl->length);
 			page = sg_page(src_sgt->sgl);
 			buffer->paddr = PFN_PHYS(page_to_pfn(page));
@@ -647,7 +653,7 @@ static int do_fbc_decoder(struct dma_buf *dmabuf,
 			return -ENOMEM;
 		}
 
-		UVM_PRINTK(UVM_INFO, "%s(%d): src_sgt(%p). nents = %u, length=%u\n",
+		UVM_PRINTK(UVM_INFO, "%s(%d): src_sgt(%px). nents = %u, length=%u\n",
 			__func__, __LINE__, src_sgt, src_sgt->nents, src_sgt->sgl->length);
 		page = sg_page(src_sgt->sgl);
 		buffer->paddr = PFN_PHYS(page_to_pfn(page));
@@ -691,7 +697,7 @@ static int do_fbc_decoder(struct dma_buf *dmabuf,
 		return -ENOMEM;
 	}
 	vfree(page_array);
-	UVM_PRINTK(UVM_INFO, "buffer vaddr: %p.\n", vaddr);
+	UVM_PRINTK(UVM_INFO, "buffer vaddr: %px.\n", vaddr);
 
 	//start to filldata
 	meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
@@ -808,14 +814,15 @@ int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 	uhmod->acquire_fence = info->acquire_fence;
 
 	mutex_lock(&handle->lock);
-	UVM_PRINTK(UVM_DBG, "attach: type:%d uhmod:%p uhmod->free:%px dmabuf =%p\n",
+	UVM_PRINTK(UVM_DBG, "attach: type:%d uhmod:%px uhmod->free:%px dmabuf =%px\n",
 				info->type, uhmod, uhmod->free, dmabuf);
 	list_add_tail(&uhmod->list, &handle->mod_attached);
-	handle->flags &= ~BIT(UVM_DETACH_FLAG);
+	if (uhmod->type == VF_PROCESS_DI)
+		handle->flags &= ~BIT(UVM_DETACH_FLAG);
 	handle->n_mod_attached++;
 	handle->mod_attached_mask |= 1 << (uhmod->type);
-	UVM_PRINTK(UVM_DBG, "attach: dmabuf =%p uhmod->arg=%p n_attached_mod:%zu\n",
-				dmabuf, uhmod->arg, handle->n_mod_attached);
+	UVM_PRINTK(UVM_DBG, "attach: dmabuf =%px type:%d n_attached_mod:%zu flags:%lu\n",
+				dmabuf, uhmod->type, handle->n_mod_attached, handle->flags);
 	mutex_unlock(&handle->lock);
 
 	return 0;
@@ -841,7 +848,7 @@ int meson_uvm_get_usage(struct dma_buf *dmabuf, size_t *usage)
 	*usage = handle->usage;
 	mutex_unlock(&handle->lock);
 
-	UVM_PRINTK(UVM_DBG, "%s :%zu dmabuf:%p\n",
+	UVM_PRINTK(UVM_DBG, "%s :%zu dmabuf:%px\n",
 				__func__, *usage, dmabuf);
 	return 0;
 }
@@ -854,7 +861,7 @@ int meson_uvm_getinfo(struct dma_buf *dmabuf,
 	struct uvm_hook_mod *uhmod = NULL;
 	int ret = 0;
 
-	UVM_PRINTK(UVM_DBG, "%s: dmabuf=%p, mode_type=%d\n",
+	UVM_PRINTK(UVM_DBG, "%s: dmabuf=%px, mode_type=%d\n",
 				__func__, dmabuf, mode_type);
 	if (IS_ERR_OR_NULL(dmabuf)) {
 		UVM_PRINTK(UVM_ERROR, "invalid dmabuf. %s %d\n", __func__, __LINE__);
@@ -917,7 +924,7 @@ int meson_uvm_set_usage(struct dma_buf *dmabuf, size_t usage)
 	mutex_lock(&handle->lock);
 	handle->usage = usage;
 	mutex_unlock(&handle->lock);
-	UVM_PRINTK(UVM_DBG, "%s :%zu dmabuf:%p\n",
+	UVM_PRINTK(UVM_DBG, "%s :%zu dmabuf:%px\n",
 				__func__, handle->usage, dmabuf);
 	return 0;
 }
@@ -954,7 +961,7 @@ int meson_uvm_setinfo(struct dma_buf *dmabuf,
 		return 0;
 	}
 
-	UVM_PRINTK(UVM_DBG, "%s %px, %d.\n", __func__, uhmod, mode_type);
+	UVM_PRINTK(UVM_DBG, "%s dmabuf:%px %px, %d.\n", __func__, dmabuf, uhmod, mode_type);
 
 	return -EINVAL;
 }
@@ -1008,14 +1015,14 @@ struct uvm_hook_mod *uvm_get_hook_mod(struct dma_buf *dmabuf,
 	uhmod = uvm_find_hook_mod(handle, type);
 	if (uhmod) {
 		kref_get(&uhmod->ref);
-		UVM_PRINTK(UVM_DBG, "%s uhmod:%p, ref:%u type:%d. %s called\n",
+		UVM_PRINTK(UVM_DBG, "%s uhmod:%px, ref:%u type:%d. %s called\n",
 			__func__, uhmod, kref_read(&uhmod->ref), type, current->comm);
 	} else {
 		UVM_PRINTK(UVM_DBG, "%s uhmod is NULL! can not find the match uhmod\n", __func__);
 	}
 	mutex_unlock(&handle->lock);
 
-	UVM_PRINTK(UVM_DBG, "%s return uhmod:%p dmabuf:%p\n", __func__, uhmod, dmabuf);
+	UVM_PRINTK(UVM_DBG, "%s return uhmod:%px dmabuf:%px\n", __func__, uhmod, dmabuf);
 	return uhmod;
 }
 EXPORT_SYMBOL(uvm_get_hook_mod);
@@ -1031,7 +1038,7 @@ static void uvm_hook_mod_release(struct kref *kref)
 
 	list_del(&uhmod->list);
 
-	UVM_PRINTK(UVM_DBG, "call uhmod->free:%p start\n", uhmod->free);
+	UVM_PRINTK(UVM_DBG, "call uhmod->free:%px start\n", uhmod->free);
 	uhmod->free(uhmod->arg);
 	UVM_PRINTK(UVM_DBG, "call uhmod->free end and free uhomd\n");
 	kfree(uhmod);
@@ -1042,6 +1049,7 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
 	struct uvm_handle *handle;
 	struct uvm_hook_mod *uhmod = NULL;
 	int ret = 0;
+	unsigned int ref = 0;
 
 	UVM_PRINTK(MUA_INFO, "%s, mod_type:%d %s called.\n", __func__, type, current->comm);
 
@@ -1053,7 +1061,8 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
 	handle = dmabuf->priv;
 
 	mutex_lock(&handle->lock);
-	UVM_PRINTK(MUA_INFO, "%s, handle->flags:%lu\n", __func__, handle->flags);
+	UVM_PRINTK(MUA_INFO, "%s, dmabuf:%px handle->flags:%lu\n",
+		__func__, dmabuf, handle->flags);
 	if (!(type & BIT(PROCESS_HWC)) ||
 		((type & BIT(PROCESS_HWC)) && (handle->flags & MUA_DETACH))) {
 		if (type & BIT(PROCESS_HWC))
@@ -1062,10 +1071,14 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
 		uhmod = uvm_find_hook_mod(handle, type);
 
 		if (uhmod) {
-			UVM_PRINTK(UVM_DBG, "%s before kref_put uhmod:%p, dmabuf:%p ref:%u\n",
+			UVM_PRINTK(UVM_DBG, "%s before kref_put uhmod:%px, dmabuf:%px ref:%u\n",
 				__func__, uhmod, dmabuf, kref_read(&uhmod->ref));
 			ret = kref_put(&uhmod->ref, uvm_hook_mod_release);
-			handle->flags &= ~BIT(UVM_DETACH_FLAG);
+			ref = kref_read(&uhmod->ref);
+			if (uhmod->type == VF_PROCESS_DI && ref == 0)
+				handle->flags &= ~BIT(UVM_DETACH_FLAG);
+			UVM_PRINTK(UVM_DBG, "%s, after kref_put dmabuf:%px ref:%u flags:%lu\n",
+					__func__, dmabuf, ref, handle->flags);
 		} else {
 			UVM_PRINTK(UVM_DBG, "%s, uhmod is NULL! can not find the match uhmod\n",
 				__func__);

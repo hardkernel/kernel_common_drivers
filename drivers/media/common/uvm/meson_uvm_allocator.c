@@ -304,7 +304,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	else
 		new_size = mua_calc_real_dmabuf_size(buffer);
 	new_size = PAGE_ALIGN(new_size);
-	MUA_PRINTK(MUA_INFO, "buffer(0x%p)->size:%zu realloc new_size=%zu, pre_size = %zu\n",
+	MUA_PRINTK(MUA_INFO, "buffer(0x%px)->size:%zu realloc new_size=%zu, pre_size = %zu\n",
 			buffer, buffer->size, new_size, pre_size);
 	if (new_size < pre_size)
 		new_size = pre_size;
@@ -349,7 +349,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 				return -ENOMEM;
 			}
 
-			MUA_PRINTK(MUA_INFO, "%s: src_sgt(%p). nents = %u, length=%u\n",
+			MUA_PRINTK(MUA_INFO, "%s: src_sgt(%px). nents = %u, length=%u\n",
 				__func__, src_sgt, src_sgt->nents, src_sgt->sgl->length);
 			page = sg_page(src_sgt->sgl);
 			buffer->paddr = PFN_PHYS(page_to_pfn(page));
@@ -381,7 +381,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 			return -ENOMEM;
 		}
 
-		MUA_PRINTK(MUA_INFO, "%s(%d): src_sgt(%p). nents = %u, length=%u\n",
+		MUA_PRINTK(MUA_INFO, "%s(%d): src_sgt(%px). nents = %u, length=%u\n",
 			__func__, __LINE__, src_sgt, src_sgt->nents, src_sgt->sgl->length);
 		page = sg_page(src_sgt->sgl);
 		buffer->paddr = PFN_PHYS(page_to_pfn(page));
@@ -425,7 +425,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		return -ENOMEM;
 	}
 	vfree(page_array);
-	MUA_PRINTK(MUA_INFO, "buffer vaddr: %p.\n", vaddr);
+	MUA_PRINTK(MUA_INFO, "buffer vaddr: %px.\n", vaddr);
 
 	//start to filldata
 	if (skip_fill_buf) {
@@ -468,7 +468,7 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 	buffer = container_of(obj, struct mua_buffer, base);
 	memset(&info, 0, sizeof(info));
 
-	MUA_PRINTK(MUA_INFO, "%p, %d.\n", __func__, __LINE__);
+	MUA_PRINTK(MUA_INFO, "%s, %d.\n", __func__, __LINE__);
 
 	if (!enable_screencap && current->tgid == mua_dev->pid &&
 	    buffer->commit_display) {
@@ -557,7 +557,7 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 		return -ENOMEM;
 	}
 	vfree(page_array);
-	MUA_PRINTK(MUA_INFO, "buffer vaddr: %p.\n", vaddr);
+	MUA_PRINTK(MUA_INFO, "buffer vaddr: %px.\n", vaddr);
 
 	//start to filldata
 	meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
@@ -619,7 +619,7 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 			kfree(buffer);
 			return -ENOMEM;
 		}
-		MUA_PRINTK(MUA_INFO, "%s: idmabuf(%p) alloc success. heap name is %s, flags = %u\n",
+		MUA_PRINTK(MUA_INFO, "%s: idmabuf(%px) alloc success. heap name is %s, flags=%u\n",
 			__func__, idmabuf, name, data->flags);
 
 		ibuffer = idmabuf->priv;
@@ -799,7 +799,7 @@ static int mua_attach(int fd, int type, char *buf)
 	}
 
 	dmabuf = dma_buf_get(fd);
-	MUA_PRINTK(MUA_INFO, "core_attach: type:%d dmabuf:%p.\n",
+	MUA_PRINTK(MUA_INFO, "core_attach: type:%d dmabuf:%px.\n",
 		type, dmabuf);
 
 	if (IS_ERR_OR_NULL(dmabuf)) {
@@ -839,7 +839,7 @@ static int mua_detach(int fd, int type)
 		return -EINVAL;
 	}
 
-	MUA_PRINTK(MUA_INFO, "[%s]: dmabuf %p.\n",  __func__, dmabuf);
+	MUA_PRINTK(MUA_INFO, "[%s]: dmabuf %px.\n",  __func__, dmabuf);
 
 	for (index = VF_SRC_DECODER; index < PROCESS_INVALID; index++) {
 		if (type & BIT(index)) {
