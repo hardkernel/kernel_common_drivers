@@ -10887,10 +10887,14 @@ u32 get_cur_enc_line(void)
 	unsigned int reg = VPU_VENCI_STAT;
 	unsigned int reg_val = 0;
 	u32 offset = 0;
-	u32 venc_type = get_venc_type();
+	u32 is_interlace = 0, is_encp = 0, start_line = 0, total_line = 0;
+	struct vinfo_s *vinfo = NULL;
+	u32 venc_type = 0;
 
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		return get_cur_enc_line_s5();
+
+	venc_type = get_venc_type();
 	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 		u32 venc_mux = 3;
 
@@ -10912,6 +10916,7 @@ u32 get_cur_enc_line(void)
 			reg = VPU_VENCI_STAT;
 			break;
 		case 1:
+			is_encp = 1;
 			reg = VPU_VENCP_STAT;
 			break;
 		case 2:
@@ -10927,6 +10932,7 @@ u32 get_cur_enc_line(void)
 			reg = ENCI_INFO_READ;
 			break;
 		case 2:
+			is_encp = 1;
 			reg = ENCP_INFO_READ;
 			break;
 		case 3:
@@ -10938,6 +10944,22 @@ u32 get_cur_enc_line(void)
 	reg_val = READ_VCBUS_REG(reg + offset);
 
 	enc_line = (reg_val >> 16) & 0x1fff;
+	/* progressive device + interlace mode
+	 * 1080i is encp, top half and bottom half lines
+	 * other cvbs is enci
+	 */
+	vinfo = get_current_vinfo();
+	if (vinfo) {
+		if (vinfo->field_height != vinfo->height)
+			is_interlace = 1;
+
+		if (is_interlace && is_encp) {
+			start_line = get_active_start_line();
+			total_line = vinfo->field_height + start_line;
+			if (enc_line > total_line)
+				enc_line -= total_line;
+		}
+	}
 
 	return enc_line;
 }
