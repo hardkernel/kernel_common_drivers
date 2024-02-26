@@ -1345,6 +1345,15 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		band->mali_port[1] = -1;
 		break;
 #endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S6
+	case DMC_TYPE_S6:
+		band->ops          = &s6_ddr_bw_ops;
+		band->channels     = 24;
+		band->dmc_number   = 1;
+		band->mali_port[0] = 12;
+		band->mali_port[1] = -1;
+		break;
+#endif
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_TXHD2
 	case DMC_TYPE_TXHD2:
 		band->ops = &txhd2_ddr_bw_ops;
@@ -1677,6 +1686,10 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 	{
 		.compatible = "amlogic,ddr-bandwidth-s5",
 		.data = (void *)DMC_TYPE_S5,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-s6",
+		.data = (void *)DMC_TYPE_S6,
 	},
 	{
 		.compatible = "amlogic,ddr-bandwidth-t3x",

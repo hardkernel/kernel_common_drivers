@@ -16,7 +16,7 @@
 #define DEFAULT_XTAL_FREQ		24000000UL
 
 #define DMC_QOS_IRQ			BIT(30)
-#define MAX_CHANNEL			8
+#define MAX_CHANNEL			24
 #define MAX_DMC_NUM			4
 
 /* for soc_feature */
@@ -237,6 +237,9 @@ extern struct ddr_bandwidth_ops t5m_ddr_bw_ops;
 #endif
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S5
 extern struct ddr_bandwidth_ops s5_ddr_bw_ops;
+#endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S6
+extern struct ddr_bandwidth_ops s6_ddr_bw_ops;
 #endif
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_TXHD2
 extern struct ddr_bandwidth_ops txhd2_ddr_bw_ops;

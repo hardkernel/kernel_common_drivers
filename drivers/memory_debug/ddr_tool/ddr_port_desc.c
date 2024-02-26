@@ -998,6 +998,42 @@ static struct ddr_port_desc ddr_port_desc_s5[] __initdata = {
 	{ .port_id = 108, .port_name = "VC9000E"       }
 };
 
+static struct ddr_port_desc ddr_port_desc_s6[] __initdata = {
+	/* TOP */
+	{ .port_id =   0, .port_name = "ARM"		},
+	{ .port_id =   1, .port_name = "VPU0"		},
+	{ .port_id =   2, .port_name = "VPU1"		},
+	{ .port_id =   3, .port_name = "VPU2"		},
+	{ .port_id =   6, .port_name = "HEVC_B"		},
+	{ .port_id =   7, .port_name = "HEVC_F"		},
+	{ .port_id =   8, .port_name = "VDEC"		},
+	{ .port_id =  11, .port_name = "DEMUX"		},
+	{ .port_id =  12, .port_name = "MALI"		},
+	{ .port_id =  13, .port_name = "VGE"		},
+	{ .port_id =  14, .port_name = "DEVICE"		},
+	{ .port_id =  15, .port_name = "DSP"		},
+	{ .port_id =  16, .port_name = "AMFC"		},
+	{ .port_id =  17, .port_name = "PCIE"		},
+	{ .port_id =  18, .port_name = "NNA"		},
+	{ .port_id =  19, .port_name = "VC9000E"	},
+
+	/* SUB DEVICE */
+	{ .port_id =  40, .port_name = "SDIO_B"		},
+	{ .port_id =  41, .port_name = "EMMC"		},
+	{ .port_id =  44, .port_name = "SDIO_A"		},
+	{ .port_id =  48, .port_name = "AUCPU"		},
+	{ .port_id =  49, .port_name = "USB2DRD"	},
+	{ .port_id =  51, .port_name = "USB3DRD"	},
+	{ .port_id =  56, .port_name = "SPICCX2"	},
+	{ .port_id =  57, .port_name = "ETH"		},
+	{ .port_id =  80, .port_name = "AUDIO"		},
+
+	/* SUB VGE */
+	{ .port_id =  96, .port_name = "VICP"		},
+	{ .port_id =  97, .port_name = "GE2D"		},
+	{ .port_id =  98, .port_name = "DEWRAP"		}
+};
+
 static struct ddr_port_desc ddr_port_desc_t3x[] __initdata = {
 	/* TOP*/
 	{ .port_id =  2, .port_name = "ARM_A76/A55"   },
@@ -1305,6 +1341,11 @@ int __init ddr_find_port_desc_type(int cpu_type, struct ddr_port_desc **desc, in
 	case DMC_TYPE_S5:
 		*desc = ddr_port_desc_s5;
 		desc_size = ARRAY_SIZE(ddr_port_desc_s5);
+		break;
+
+	case DMC_TYPE_S6:
+		*desc = ddr_port_desc_s6;
+		desc_size = ARRAY_SIZE(ddr_port_desc_s6);
 		break;
 
 	case DMC_TYPE_T3X:
