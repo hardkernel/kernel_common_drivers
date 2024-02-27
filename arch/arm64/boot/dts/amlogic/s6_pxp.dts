@@ -81,6 +81,12 @@
 			reg = <0x0 0x1fc00000 0x0 0x400000>;
 		};
 
+		dsp_fw_reserved:linux,dsp_fw {
+			compatible = "amlogic, dsp";
+			size = <0x0 0x800000>;
+			reg = <0x0 0x30000000 0x0 0x800000>;
+		};
+
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
