@@ -196,6 +196,16 @@
 		tv_mode = <0>;/*1:enable ;0:disable*/
 	};
 
+	gpio_leds {
+		compatible = "gpio-leds";
+		status = "okay";
+		pwr_led {
+			label = "pwr_led";
+			gpios = <&gpio GPIOD_10 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+	};
+
 	dvb-extern {
 		compatible = "amlogic, dvb-extern";
 		dev_name = "dvb-extern";
