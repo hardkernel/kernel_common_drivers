@@ -227,6 +227,57 @@ static const struct attribute_group vpu_attr_group = {
 	.attrs	= vpu_attrs,
 };
 
+static ssize_t osd_pixel_blend_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	struct meson_drm *priv;
+	struct am_osd_plane *amp;
+	int pos = 0;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+	if (off > 0)
+		return 0;
+
+	priv = minor->dev->dev_private;
+	amp = priv->osd_planes[*(int *)attr->private];
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"cat pixel_blend to show blend mask\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo <value> > pixel_blend to set blend mask\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"pixel blend mask: 0x%x\n", amp->pixel_blend_debug);
+
+	return pos;
+}
+
+static ssize_t osd_pixel_blend_store(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	int idx = *(int *)attr->private;
+	struct meson_drm *priv;
+	struct am_osd_plane *amp;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+	priv = minor->dev->dev_private;
+	amp = priv->osd_planes[idx];
+
+	if (kstrtou16(buf, 16, &amp->pixel_blend_debug) < 0)
+		return -EINVAL;
+
+	DRM_INFO("Set pixel blend mask to %s\n", buf);
+
+	return count;
+}
+
 static ssize_t osd_reverse_show(struct file *filp, struct kobject *kobj,
 			 struct bin_attribute *attr, char *buf, loff_t off,
 			 size_t count)
@@ -1033,6 +1084,13 @@ static struct bin_attribute osd0_attr[] = {
 		.read = osd_blank_show,
 		.write = osd_blank_store,
 	},
+	{
+		.attr.name = "pixel_blend",
+		.attr.mode = 0664,
+		.private = &osd_index[0],
+		.read = osd_pixel_blend_show,
+		.write = osd_pixel_blend_store,
+	},
 };
 
 static struct bin_attribute *osd0_bin_attrs[] = {
@@ -1041,6 +1099,7 @@ static struct bin_attribute *osd0_bin_attrs[] = {
 	&osd0_attr[2],
 	&osd0_attr[3],
 	&osd0_attr[4],
+	&osd0_attr[5],
 	NULL,
 };
 
@@ -1081,6 +1140,13 @@ static struct bin_attribute osd1_attr[] = {
 		.read = osd_blank_show,
 		.write = osd_blank_store,
 	},
+	{
+		.attr.name = "pixel_blend",
+		.attr.mode = 0664,
+		.private = &osd_index[1],
+		.read = osd_pixel_blend_show,
+		.write = osd_pixel_blend_store,
+	},
 };
 
 static struct bin_attribute *osd1_bin_attrs[] = {
@@ -1089,6 +1155,7 @@ static struct bin_attribute *osd1_bin_attrs[] = {
 	&osd1_attr[2],
 	&osd1_attr[3],
 	&osd1_attr[4],
+	&osd1_attr[5],
 	NULL,
 };
 
@@ -1129,6 +1196,13 @@ static struct bin_attribute osd2_attr[] = {
 		.read = osd_blank_show,
 		.write = osd_blank_store,
 	},
+	{
+		.attr.name = "pixel_blend",
+		.attr.mode = 0664,
+		.private = &osd_index[2],
+		.read = osd_pixel_blend_show,
+		.write = osd_pixel_blend_store,
+	},
 
 };
 
@@ -1138,6 +1212,7 @@ static struct bin_attribute *osd2_bin_attrs[] = {
 	&osd2_attr[2],
 	&osd2_attr[3],
 	&osd2_attr[4],
+	&osd2_attr[5],
 	NULL,
 };
 
@@ -1178,6 +1253,13 @@ static struct bin_attribute osd3_attr[] = {
 		.read = osd_blank_show,
 		.write = osd_blank_store,
 	},
+	{
+		.attr.name = "pixel_blend",
+		.attr.mode = 0664,
+		.private = &osd_index[3],
+		.read = osd_pixel_blend_show,
+		.write = osd_pixel_blend_store,
+	},
 
 };
 
@@ -1187,6 +1269,7 @@ static struct bin_attribute *osd3_bin_attrs[] = {
 	&osd3_attr[2],
 	&osd3_attr[3],
 	&osd3_attr[4],
+	&osd3_attr[5],
 	NULL,
 };
 
