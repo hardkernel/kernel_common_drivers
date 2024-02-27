@@ -519,13 +519,20 @@ function adjust_sequence_modules_loading() {
 		rm -r temp_dir
 	fi
 
-	black_modules=()
 	mkdir service_module
 	echo  MODULES_SERVICE_LOAD_LIST=${MODULES_SERVICE_LOAD_LIST[@]}
-	BLACK_AND_SERVICE_LIST=(${MODULES_LOAD_BLACK_LIST[@]} ${MODULES_SERVICE_LOAD_LIST[@]})
-	echo ${BLACK_AND_SERVICE_LIST[@]}
-	for module in ${BLACK_AND_SERVICE_LIST[@]}; do
-		modules=`ls ${module}*`
+	mkdir extra_closed_source_modules
+	echo  EXTRA_CLOSED_SOURCE_MODULE_LIST=${EXTRA_CLOSED_SOURCE_MODULE_LIST[@]}
+
+	BLACK_LIST=(${MODULES_LOAD_BLACK_LIST[@]} ${MODULES_SERVICE_LOAD_LIST[@]} ${EXTRA_CLOSED_SOURCE_MODULE_LIST[@]})
+	echo BLACK_LIST=${BLACK_LIST[@]}
+	black_modules=()
+	for module in ${BLACK_LIST[@]}; do
+		if [[ `ls ${module}* 2>/dev/null` ]]; then
+			modules=`ls ${module}*`
+		else
+			continue
+		fi
 		black_modules=(${black_modules[@]} ${modules[@]})
 	done
 	if [[ ${#black_modules[@]} == 0 ]]; then
@@ -586,11 +593,16 @@ function adjust_sequence_modules_loading() {
 		fi
 		if [[ -n ${ANDROID_PROJECT} ]]; then
 			for service_module_temp in ${MODULES_SERVICE_LOAD_LIST[@]}; do
-				if [[ ${module} = ${service_module_temp} ]]; then
+				if [[ ${module} =~ ${service_module_temp} ]]; then
 					mv ${module} service_module
 				fi
 			done
 		fi
+		for extra_closed_source_module in ${EXTRA_CLOSED_SOURCE_MODULE_LIST[@]}; do
+			if [[ ${module} =~ ${extra_closed_source_module} ]]; then
+				mv ${module} extra_closed_source_modules
+			fi
+		done
 		rm -f ${module}
 	done
 	rm -f modules.dep.temp1
@@ -746,6 +758,11 @@ function modules_install() {
 		MODULES_SEQUENCE_LIST=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/scripts/amlogic/modules_sequence_list
 	fi
 	source ${MODULES_SEQUENCE_LIST}
+
+	if [[ ! -f ${EXTRA_MODULES_LIST} ]]; then
+		EXTRA_MODULES_LIST=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/scripts/amlogic/ext_modules_list
+	fi
+	source ${EXTRA_MODULES_LIST}
 
 	export OUT_AMLOGIC_DIR=${OUT_AMLOGIC_DIR:-$(readlink -m ${COMMON_OUT_DIR}/amlogic)}
 	echo $OUT_AMLOGIC_DIR
