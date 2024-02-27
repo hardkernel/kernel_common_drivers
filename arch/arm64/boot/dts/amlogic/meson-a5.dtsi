@@ -22,6 +22,7 @@
 #include <dt-bindings/firmware/amlogic,firmware.h>
 #include <dt-bindings/mailbox/a5-mbox.h>
 #include <dt-bindings/rtc/amlogic,rtc.h>
+#include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
 #include "meson-ir-map.dtsi"
 / {
 	cpus:cpus {
@@ -448,6 +449,14 @@
 		mbox-dests = <MAILBOX_AOCPU>,
 			     <MAILBOX_DSP>,
 			     <MAILBOX_DSP>;
+	};
+
+	aml_hwlock: aml_hwlock@0 {
+		status = "disable";
+		compatible = "amlogic, meson-hwspinlock";
+		mboxes = <&mbox_fifo A5_REE2AO_SPINLOCK>;
+		bakery-cpus = <6>;
+		#hwlock-cells = <1>;
 	};
 
 	hifidsp0: hifidsp0 {

@@ -17,6 +17,7 @@
 #define A4_REE2AO4       (A4_AO2REE + 5)
 #define A4_REE2AO5       (A4_AO2REE + 6)
 #define A4_REE2AO6       (A4_AO2REE + 7)
+#define A4_REE2AO7       (A4_AO2REE + 8)
 
 // MBOX CHANNEL ID
 #define A4_MBOX_AO2REE    2
@@ -31,5 +32,6 @@
 #define A4_REE2AO_AOCEC  A4_REE2AO4
 #define A4_REE2AO_ETH    A4_REE2AO5
 #define A4_REE2AO_LED    A4_REE2AO6
+#define A4_REE2AO_SPINLOCK  A4_REE2AO7
 
 #endif /* __A4_MBOX_H__ */

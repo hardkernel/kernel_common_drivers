@@ -669,6 +669,8 @@ struct mbox_domain a4_mbox_domains[] = {
 	[A4_REE2AO3]   = MBOX_DOMAIN(A4_REE2AO3, A4_MBOX_REE2AO, 0),
 	[A4_REE2AO4]   = MBOX_DOMAIN(A4_REE2AO4, A4_MBOX_REE2AO, 0),
 	[A4_REE2AO5]   = MBOX_DOMAIN(A4_REE2AO5, A4_MBOX_REE2AO, 0),
+	[A4_REE2AO6]   = MBOX_DOMAIN(A4_REE2AO6, A4_MBOX_REE2AO, 0),
+	[A4_REE2AO7]   = MBOX_DOMAIN(A4_REE2AO7, A4_MBOX_REE2AO, 0),
 };
 
 static struct mbox_domain_data a4_mbox_domains_data __initdata = {
@@ -688,6 +690,8 @@ struct mbox_domain a5_mbox_domains[] = {
 	[A5_REE2AO3]   = MBOX_DOMAIN(A5_REE2AO3, A5_MBOX_REE2AO, 0),
 	[A5_REE2AO4]   = MBOX_DOMAIN(A5_REE2AO4, A5_MBOX_REE2AO, 0),
 	[A5_REE2AO5]   = MBOX_DOMAIN(A5_REE2AO5, A5_MBOX_REE2AO, 0),
+	[A5_REE2AO6]   = MBOX_DOMAIN(A5_REE2AO6, A5_MBOX_REE2AO, 0),
+	[A5_REE2AO7]   = MBOX_DOMAIN(A5_REE2AO7, A5_MBOX_REE2AO, 0),
 };
 
 static struct mbox_domain_data a5_mbox_domains_data __initdata = {

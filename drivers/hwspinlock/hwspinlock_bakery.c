@@ -10,12 +10,14 @@
 #include <linux/of.h>
 #include <linux/hwspinlock.h>
 #include <linux/pm_runtime.h>
+#include <linux/amlogic/aml_mbox.h>
+#include <linux/mailbox_client.h>
 #include "hwspinlock_internal.h"
 #include "hwspinlock_bakery.h"
 
 #define DRIVER_NAME		"aml_bak_hwspinlock"
 #define HWSPINLOCK_DEFAULT_VALUE	0xa5a5a5a5
-#define HWSPINLOCK_MAX_CPUS	5
+#define HWSPINLOCK_MAX_CPUS	6
 #define HWSPINLOCK_NUMS		5
 /*****************************************************************************
  * Internal helper macros used by the amlspinlock implementation.
@@ -193,8 +195,10 @@ static int aml_hwspinlock_trylock(struct hwspinlock *hwlock)
 			 * to have it dropped to 0; or drop and probably content
 			 * again for the same lock to have an even higher value)
 			 */
+
 			do {
-				;
+				/* Refresh the role of the data buffer*/
+				mb();
 			} while (their_ticket ==
 				bakery_ticket_number(bakery->lock_data[they]));
 		}
@@ -221,36 +225,6 @@ static void aml_hwspinlock_unlock(struct hwspinlock *hwlock)
 	mb();
 }
 
-void test_hwspin_lock(struct hwspinlock *hwlock)
-{
-	u32 i = 200;
-	void *hwlock_addr = hwlock->priv;
-	int hwlock_id = hwlock_to_id(hwlock);
-	u32 addr_off = sizeof(struct bakery_lock) * (HWSPINLOCK_NUMS - hwlock_id);
-	int val = 0x1234 + hwlock_id;
-
-	addr_off += sizeof(u32) * hwlock_id;
-	pr_debug("armv8 bakery test get %px %px %x\n",
-		hwlock_addr, ((char *)hwlock_addr + addr_off),
-		readl((char *)hwlock_addr + addr_off));
-	/*Enter critical section*/
-	do {
-		writel(val, (char *)hwlock_addr + addr_off);
-		if (readl((char *)hwlock_addr + addr_off) != val) {
-			pr_err("armv8 Error: bakery_lock test fail idx %d. %x\n",
-				hwlock_id, readl((char *)hwlock_addr + addr_off));
-			return;
-		}
-		if (readl((char *)hwlock_addr + addr_off) != val) {
-			pr_err("armv8 Error: bakery_lock test fail idx %d. %x\n",
-				hwlock_id, readl((char *)hwlock_addr + addr_off));
-			return;
-		}
-	} while (i--);
-
-	pr_debug("armv8 bakery_lock_release done.\n");
-}
-
 static const struct hwspinlock_ops aml_hwspinlock_ops = {
 	.trylock = aml_hwspinlock_trylock,
 	.unlock = aml_hwspinlock_unlock,
@@ -264,17 +238,45 @@ static int aml_hwspinlock_probe(struct platform_device *pdev)
 	struct hwspinlock *hwlock;
 	struct bakery_lock *bakery_lock;
 	void __iomem *addr;
+	struct mbox_chan *mbox_chan;
 	u32 bakery_cpus;
-	int err, i;
+	u32 spinlock_init_addr;
+	u32 recv_size;
+	u32 p_recv;
+	int err, i, ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "failed to get bakery memory resource\n");
-		return -ENXIO;
+	if (of_find_property(pdev->dev.of_node, "mboxes", NULL)) {
+		recv_size = sizeof(recv_size);
+		mbox_chan = aml_mbox_request_channel_byidx(&pdev->dev, 0);
+		if (IS_ERR_OR_NULL(mbox_chan)) {
+			spinlock_init_addr = 0;
+		} else {
+			ret = aml_mbox_transfer_data(mbox_chan, MBOX_CMD_GET_SPINLOCK,
+				       NULL, 0, &p_recv, recv_size,
+				       MBOX_SYNC);
+			if (ret < 0) {
+				p_recv = 0;
+				dev_err(&pdev->dev, "Fail to send mbox message\n");
+			}
+			spinlock_init_addr = p_recv;
+		}
+		if (!spinlock_init_addr) {
+			dev_err(dev, "failed to get address from mbox\n");
+			return -ENXIO;
+		}
+		addr = devm_ioremap(dev, spinlock_init_addr, 0x80);
+		if (IS_ERR_OR_NULL(addr))
+			return PTR_ERR(addr);
+	} else {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res) {
+			dev_err(dev, "failed to get bakery memory resource\n");
+			return -ENXIO;
+		}
+		addr = devm_ioremap(dev, res->start, res->end - res->start);
+		if (IS_ERR_OR_NULL(addr))
+			return PTR_ERR(addr);
 	}
-	addr = devm_ioremap(dev, res->start, res->end - res->start);
-	if (IS_ERR_OR_NULL(addr))
-		return PTR_ERR(addr);
 
 	err = of_property_read_u32(dev->of_node,
 				   "bakery-cpus", &bakery_cpus);
