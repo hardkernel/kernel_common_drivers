@@ -578,8 +578,17 @@ int dvbt2_set_frontend(struct dvb_frontend *fe)
 	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
 			c->bandwidth_hz, c->modulation, c->inversion);
+
+	if (!demod_is_t5d_cpu(devp) && !dvbt2_mplp_retune && demod->freq == c->frequency / 1000) {
+		PR_INFO("same freq and mplp_retune %d not retune\n",
+				dvbt2_mplp_retune);
+
+		demod->time_start = jiffies_to_msecs(jiffies);
+
+		return 0;
+	}
+
 	demod->bw = dtvdemod_convert_bandwidth(c->bandwidth_hz);
-	demod->freq = c->frequency / 1000;
 	demod->last_lock = 0;
 	demod->last_status = 0;
 	demod->p1_peak = 0;
@@ -631,12 +640,14 @@ int dvbt2_set_frontend(struct dvb_frontend *fe)
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, top_saved);
 	}
 #endif
-
 	tuner_set_params(fe);
 
 	/* wait tuner stable */
 	msleep(30);
+
 	dvbt2_set_ch(demod, fe);
+
+	demod->freq = c->frequency / 1000;
 	demod->time_start = jiffies_to_msecs(jiffies);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
