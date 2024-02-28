@@ -97,14 +97,15 @@
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p STB androidT size 56M */
-			size = <0x5800000>;
+			/* 720p STB androidU size 40M */
+			size = <0x2800000>;
 			alignment = <0x400000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x3800000>;
+			/* 720p STB androidU size 24M */
+			size = <0x1800000>;
 			alignment = <0x400000>;
 		};
 		/*di CMA pool */
