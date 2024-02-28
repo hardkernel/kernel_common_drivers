@@ -85,10 +85,7 @@
 #include <linux/amlogic/media/di/di_interface.h>
 #endif
 
-static int g_post_overlap_size = 32;
-__module_param(g_post_overlap_size, uint, 0664);
-MODULE_PARM_DESC(g_post_overlap_size, "\n g_post_overlap_size\n");
-
+u32 g_post_overlap_size = 32;
 static struct vpp_post_input_s g_vpp_input;
 static struct vpp_post_input_s g_vpp_input_pre;
 static struct vpp_post_input_s g_vpp1_input;
@@ -99,14 +96,8 @@ static struct vpp_post_in_padding_s g_vpp_in_padding;
 #define SIZE_ALIG8(frm_hsize)    ((((frm_hsize) + 7) >> 3) << 3)
 #define SIZE_ALIG4(frm_hsize)    ((((frm_hsize) + 3) >> 2) << 2)
 
-static u32 g_post_slice_num = 0xff;
-MODULE_PARM_DESC(g_post_slice_num, "\n g_post_slice_num\n");
-__module_param(g_post_slice_num, uint, 0664);
-
+u32 g_post_slice_num = 0xff;
 u32 g_vpp1_bypass_slice1;
-MODULE_PARM_DESC(g_vpp1_bypass_slice1, "\n g_vpp1_bypass_slice1\n");
-__module_param(g_vpp1_bypass_slice1, uint, 0664);
-
 void (*get_vpp_din3_scope)(struct vpp_postblend_scope_s *scope);
 
 static u32 get_reg_slice_vpost(int reg_addr, int slice_idx)

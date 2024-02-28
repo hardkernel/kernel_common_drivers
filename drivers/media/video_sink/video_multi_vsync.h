@@ -10,5 +10,6 @@ irqreturn_t vsync_isr_viu2(int irq, void *dev_id);
 irqreturn_t vsync_isr_viu3(int irq, void *dev_id);
 void viu2_hook(void);
 void viu3_hook(void);
+extern unsigned int debug_flag1;
 #endif
 /*VIDEO_MULTI_VSYNC_HEADER_HH*/

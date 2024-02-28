@@ -88,8 +88,7 @@ static u32 stop_force_dmc;
 
 /* 3d related */
 static unsigned int last_process_3d_type;
-static bool dmc_adjust = true;
-__module_param_named(dmc_adjust, dmc_adjust, bool, 0644);
+static unsigned int dmc_adjust = 1;
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static u32 dmc_config_state;
 static u32 last_toggle_count;
@@ -130,7 +129,7 @@ bool rdma_enable_pre;
 
 bool get_video_reverse(void)
 {
-	return reverse;
+	return reverse == 1 ? true : false;
 }
 EXPORT_SYMBOL(get_video_reverse);
 
@@ -4051,7 +4050,7 @@ static int misc_early_proc(void)
 	for (i = 0; i < cur_dev->max_vd_layers; i++) {
 		glayer_info[i].need_no_compress =
 			(next_afbc_request & (i + 1)) ? true : false;
-		vd_layer[i].bypass_pps = bypass_pps;
+		vd_layer[i].bypass_pps = bypass_pps == 1 ? true : false;
 		vd_layer[i].global_debug = debug_flag;
 		vd_layer[i].vout_type = vout_type;
 	}
@@ -5132,7 +5131,7 @@ LATE_PROC:
 	for (i = 0; i < MAX_VD_LAYER; i++)
 		cur_vd_path_id[i] = vd_path_id[i];
 	if (new_frame_cnt == 1 && !vsync_count_start) {
-		vsync_count_start = true;
+		vsync_count_start = 1;
 		pr_info("%s, vsync_count_started\n", __func__);
 	}
 
@@ -6179,12 +6178,10 @@ void set_post_blend_dummy_data(u32 vpp_index,
 }
 EXPORT_SYMBOL(set_post_blend_dummy_data);
 
-MODULE_PARM_DESC(stop_update, "\n stop_update\n");
-__module_param(stop_update, uint, 0664);
-
-MODULE_PARM_DESC(pre_vsync_count, "\n pre_vsync_count\n");
-__module_param(pre_vsync_count, uint, 0664);
-
-MODULE_PARM_DESC(stop_force_dmc, "\n stop_force_dmc\n");
-__module_param(stop_force_dmc, uint, 0664);
+struct video_module_debug_s debug_video_func[4] = {
+	{"dmc_adjust", &dmc_adjust, 1, 0},
+	{"stop_update", &stop_update, 1, 0},
+	{"pre_vsync_count", &pre_vsync_count, 1, 0},
+	{"stop_force_dmc", &stop_force_dmc, 1, 0},
+};
 

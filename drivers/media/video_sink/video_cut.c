@@ -172,7 +172,7 @@ static DEFINE_SPINLOCK(hdmi_avsync_lock);
 
 static unsigned long hist_buffer_addr;
 static u32 hist_print_count;
-static int receive_frame_count;
+static u32 receive_frame_count;
 static int debugflags;
 static int output_fps;
 static u32 layer_cap;
@@ -180,7 +180,7 @@ static u32 layer_cap;
 #define DEBUG_FLAG_FFPLAY	BIT(0)
 #define DEBUG_FLAG_CALC_PTS_INC	BIT(1)
 
-static int drop_frame_count;
+static u32 drop_frame_count;
 /* pts related */
 #define DURATION_GCD 750
 #define M_PTS_SMOOTH_MAX 45000
@@ -332,10 +332,10 @@ static wait_queue_head_t amvideo_trick_wait;
 static u32 smooth_sync_enable;
 static u32 hdmi_in_onvideo;
 
-static int step_enable;
+static u32 step_enable;
 static int step_flag;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-static int vsync_rdma_line_max;
+static unsigned int vsync_rdma_line_max;
 #endif
 static u32 vpts_remainder;
 static int enable_video_discontinue_report = 1;
@@ -418,11 +418,11 @@ int get_count_pip[MAX_VD_LAYER];
 int get_di_count;
 int put_di_count;
 int di_release_count;
-int display_frame_count;
+u32 display_frame_count;
 u32 vpp_hold_setting_cnt;
 bool to_notify_trick_wait;
-int vsync_enter_line_max;
-int vsync_exit_line_max;
+unsigned int vsync_enter_line_max;
+unsigned int vsync_exit_line_max;
 u32 performance_debug;
 bool over_field;
 u32 over_field_case1_cnt;
@@ -471,10 +471,10 @@ bool need_disable_vd[MAX_VD_LAYER];
 struct video_recv_s *gvideo_recv[MAX_VD_LAYER] = {NULL, NULL};
 struct video_recv_s *gvideo_recv_vpp[2] = {NULL, NULL};
 /*seek values on.video_define.h*/
-int debug_flag;
+u32 debug_flag;
 
 /* for vd1 vsync 2to1 */
-bool vsync_count_start;
+u32 vsync_count_start;
 u32 new_frame_cnt;
 u32 new_frame_count;
 u32 vd1_vd2_mux_dts;
@@ -489,7 +489,7 @@ u32 osd_vpp2_bld_ctrl;
 u32 osd_vpp2_bld_ctrl_mask;
 u32 osd_vpp_bld_ctrl_update_mask;
 u32 osd_preblend_en;
-bool bypass_pps = true;
+u32 bypass_pps = 1;
 /* vpp_crc */
 u32 vpp_crc_en;
 int vpp_crc_result;
@@ -512,7 +512,7 @@ u32 video_info_change_status;
 u32 force_switch_vf_mode;
 /* video_inuse */
 u32 video_inuse;
-bool reverse;
+u32 reverse;
 u32  video_mirror;
 bool vd1_vd2_mux;
 bool video_suspend;
@@ -573,35 +573,15 @@ unsigned int process_3d_type;
 int toggle_3d_fa_frame = 1;
 /*the pause_one_3d_fl_frame is for close*/
 /*the A/B register switch in every sync at pause mode. */
-
-MODULE_PARM_DESC(pause_one_3d_fl_frame, "\n pause_one_3d_fl_frame\n");
-__module_param(pause_one_3d_fl_frame, int, 0664);
-
 /*debug info control for skip & repeate vframe case*/
 static unsigned int video_dbg_vf;
-MODULE_PARM_DESC(video_dbg_vf, "\n video_dbg_vf\n");
-__module_param(video_dbg_vf, uint, 0664);
 
 static int vd_cnt = MAX_VD_LAYER;
 unsigned int video_get_vf_cnt[MAX_VD_LAYER];
-__module_param_array(video_get_vf_cnt, uint, &vd_cnt, 0664);
-MODULE_PARM_DESC(video_get_vf_cnt, "\n video_get_vf_cnt\n");
-
 unsigned int video_drop_vf_cnt[MAX_VD_LAYER];
-__module_param_array(video_drop_vf_cnt, uint, &vd_cnt, 0664);
-MODULE_PARM_DESC(video_drop_vf_cnt, "\n video_drop_vf_cnt\n");
-
 static unsigned int disable_dv_drop;
-MODULE_PARM_DESC(disable_dv_drop, "\n disable_dv_drop\n");
-__module_param(disable_dv_drop, uint, 0664);
-
 static u32 vdin_frame_skip_cnt;
-MODULE_PARM_DESC(vdin_frame_skip_cnt, "\n vdin_frame_skip_cnt\n");
-__module_param(vdin_frame_skip_cnt, uint, 0664);
-
 static u32 vdin_err_crc_cnt;
-MODULE_PARM_DESC(vdin_err_crc_cnt, "\n vdin_err_crc_cnt\n");
-__module_param(vdin_err_crc_cnt, uint, 0664);
 #define ERR_CRC_COUNT 6
 
 static unsigned int video_3d_format;
@@ -612,13 +592,8 @@ int last_mode_3d;
 static void update_process_hdmi_avsync_flag(bool flag);
 static void hdmi_in_delay_maxmin_reset(void);
 
-static u32 lowlatency_enable = 1;
-MODULE_PARM_DESC(lowlatency_enable, "\n lowlatency_enable\n");
-
+u32 lowlatency_enable = 1;
 static u32 thread_vsync_in;
-MODULE_PARM_DESC(thread_vsync_in, "\n thread_vsync_in\n");
-__module_param(thread_vsync_in, uint, 0664);
-
 static int line_n_in;
 static struct task_struct *video_thread;
 static wait_queue_head_t frame_process_wq;
@@ -5681,6 +5656,210 @@ static ssize_t video_disable_store(const struct class *class,
 	return count;
 }
 
+static struct video_module_debug_s *search_module_param(char *name)
+{
+	struct video_module_debug_s *find_param = NULL;
+	int i;
+
+	if (!name) {
+		pr_info("%s, NULL param\n", __func__);
+		return NULL;
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_video); i++) {
+		if (!strncmp(name, debug_video[i].parm_name, 32))
+			find_param = &debug_video[i];
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_video_hw); i++) {
+		if (!strncmp(name, debug_video_hw[i].parm_name, 32))
+			find_param = &debug_video_hw[i];
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_video_func); i++) {
+		if (!strncmp(name, debug_video_func[i].parm_name, 32))
+			find_param = &debug_video_func[i];
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_vpp); i++) {
+		if (!strncmp(name, debug_vpp[i].parm_name, 32))
+			find_param = &debug_vpp[i];
+	}
+
+	return find_param;
+}
+
+static ssize_t video_debug_show(const struct class *class,
+			const struct class_attribute *attr,
+			char *buf)
+{
+	int i, j;
+	ssize_t len = 0;
+	char *sysfs_node = "/sys/class/video/module_debug";
+	char *buff = NULL;
+
+	buff = kmalloc(256, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
+
+	pr_info("usage:\n");
+	pr_info("--- if reading module parameters ---\n");
+	for (i = 0; i < ARRAY_SIZE(debug_video); i++) {
+		pr_info("echo %s > %s\n",
+			debug_video[i].parm_name, sysfs_node);
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_video_hw); i++) {
+		pr_info("echo %s > %s\n",
+			       debug_video_hw[i].parm_name, sysfs_node);
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_video_func); i++) {
+		pr_info("echo %s > %s\n",
+			       debug_video_func[i].parm_name, sysfs_node);
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_vpp); i++) {
+		pr_info("echo %s > %s\n",
+			       debug_vpp[i].parm_name, sysfs_node);
+	}
+	pr_info("--- if writing module parameters ---\n");
+	for (i = 0; i < ARRAY_SIZE(debug_video); i++) {
+		if (debug_video[i].read_only)
+			continue;
+		len = sprintf(buff, "echo %s ",
+			       debug_video[i].parm_name);
+		for (j = 0; j < debug_video[i].parm_cnt; j++)
+			len += sprintf(buff + len, "x ");
+		sprintf(buff + len, "> %s", sysfs_node);
+		pr_info("%s\n", buff);
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_video_hw); i++) {
+		if (debug_video_hw[i].read_only)
+			continue;
+		len = sprintf(buff, "echo %s ",
+			       debug_video_hw[i].parm_name);
+		for (j = 0; j < debug_video_hw[i].parm_cnt; j++)
+			len += sprintf(buff + len, "x ");
+		sprintf(buff + len, "> %s", sysfs_node);
+		pr_info("%s\n", buff);
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_video_func); i++) {
+		if (debug_video_func[i].read_only)
+			continue;
+		len = sprintf(buff, "echo %s ",
+			       debug_video_func[i].parm_name);
+		for (j = 0; j < debug_video_func[i].parm_cnt; j++)
+			len += sprintf(buff + len, "x ");
+		sprintf(buff + len, "> %s", sysfs_node);
+		pr_info("%s\n", buff);
+	}
+	for (i = 0; i < ARRAY_SIZE(debug_vpp); i++) {
+		if (debug_vpp[i].read_only)
+			continue;
+		len = sprintf(buff, "echo %s ",
+			       debug_vpp[i].parm_name);
+		for (j = 0; j < debug_vpp[i].parm_cnt; j++)
+			len += sprintf(buff + len, "x ");
+		sprintf(buff + len, "> %s", sysfs_node);
+		pr_info("%s\n", buff);
+	}
+	kfree(buff);
+
+	return 0;
+}
+
+static int parse_param_ex(char *buf_orig, char **parm, int max_cnt)
+{
+	char *ps, *token;
+	unsigned int n = 0;
+	char delim1[3] = " ";
+	char delim2[2] = "\n";
+
+	ps = buf_orig;
+	strcat(delim1, delim2);
+	while (1) {
+		token = strsep(&ps, delim1);
+		if (!token)
+			break;
+		if (*token == '\0')
+			continue;
+		if (n >= max_cnt) {
+			pr_info("%s, out of range\n", __func__);
+			return n;
+		}
+		parm[n++] = token;
+	}
+
+	return n;
+}
+
+static ssize_t video_debug_store(const struct class *class,
+			const struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	char *buf_orig, *parm[32];
+		unsigned int i, parm_cnt, *parm_value, parse_cnt;
+	struct video_module_debug_s *find_param = NULL;
+	int write = 0; /* 0: read  1: write*/
+	int len = 0;
+	char *buff = NULL;
+	ssize_t ret = count;
+
+	if (!buf)
+		return count;
+
+	buff = kmalloc(256, GFP_KERNEL);
+	if (!buff)
+		return -ENOMEM;
+
+	memset(parm, 0, sizeof(parm));
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig) {
+		ret = -ENOMEM;
+		goto free2;
+	}
+	parse_cnt = parse_param_ex(buf_orig, (char **)&parm, 32);
+	if (!parse_cnt) {
+		pr_info("need to input parameter(s)\n");
+		goto free1;
+	}
+	if (parse_cnt > 1)
+		write = 1;
+
+	find_param = search_module_param(parm[0]);
+	if (!find_param) {
+		pr_info("cannot find %s\n", parm[0]);
+		goto free1;
+	}
+
+	parm_cnt = find_param->parm_cnt;
+	parm_value = find_param->parm_value;
+	len = sprintf(buff, "%s ", parm[0]);
+	for (i = 0; i < parm_cnt; i++)
+		len += sprintf(buff + len, "%d ", parm_value[i]);
+	if (write) {
+		if (find_param->read_only) {
+			pr_info("%s is read only\n", parm[0]);
+			goto free1;
+		}
+		if ((parse_cnt - 1) < parm_cnt) {
+			pr_info("need to input %s and %d value(s)\n",
+				find_param->parm_name, parm_cnt);
+			goto free1;
+		}
+		len += sprintf(buff + len, "-> ");
+		for (i = 1; i <= find_param->parm_cnt; i++) {
+			if (kstrtou32(parm[i], 0, &parm_value[i - 1]) < 0) {
+				ret = -EINVAL;
+				goto free1;
+			}
+			len += sprintf(buff + len, "%d ", parm_value[i - 1]);
+		}
+	}
+	pr_info("%s\n", buff);
+
+free1:
+		kfree(buf_orig);
+free2:
+		kfree(buff);
+
+		return ret;
+}
+
 static ssize_t video_global_output_show(const struct class *class,
 			const struct class_attribute *attr,
 			char *buf)
@@ -7647,8 +7826,8 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 	if (layer_info) {
 		len += sprintf(buf + len, "mirror: %d\n",
 			layer_info->mirror);
-		len += sprintf(buf + len, "reverse: %s\n",
-			layer_info->reverse ? "true" : "false");
+		len += sprintf(buf + len, "reverse: %d\n",
+			layer_info->reverse);
 		if (layer_info->afd_enable) {
 			len += sprintf(buf + len, "afd: enable\n");
 			len += sprintf(buf + len, "afd_pos: %d %d %d %d\n",
@@ -8723,6 +8902,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       video_global_output_show,
 	       video_global_output_store),
+	__ATTR(module_debug,
+	       0664,
+	       video_debug_show,
+	       video_debug_store),
 	__ATTR(zoom,
 	       0664,
 	       video_zoom_show,
@@ -9159,16 +9342,16 @@ static int vpp_axis_reverse(char *str)
 	 *    mirror -- 0:No flip  1:X flip 2:Y flip
 	 */
 	if (strstr(ptr, "1")) {
-		reverse = true;
+		reverse = 1;
 		video_mirror = 0;
 	} else if (strstr(ptr, "2")) {
-		reverse = false;
+		reverse = 0;
 		video_mirror = 1;
 	} else if (strstr(ptr, "3")) {
-		reverse = false;
+		reverse = 0;
 		video_mirror = 2;
 	} else {
-		reverse = false;
+		reverse = 0;
 		video_mirror = 0;
 	}
 
@@ -9418,7 +9601,7 @@ static struct mconfig video_configs[] = {
 	MC_PU32("smooth_sync_enable", &smooth_sync_enable),
 	MC_PU32("hdmi_in_onvideo", &hdmi_in_onvideo),
 	MC_PU32("new_frame_count", &new_frame_count),
-	MC_PBOOL("bypass_pps", &bypass_pps),
+	MC_PU32("bypass_pps", &bypass_pps),
 	MC_PU32("process_3d_type", &process_3d_type),
 	MC_PU32("framepacking_support", &framepacking_support),
 	MC_PU32("framepacking_width", &framepacking_width),
@@ -9429,7 +9612,7 @@ static struct mconfig video_configs[] = {
 	MC_PU32("toggle_count", &toggle_count),
 	MC_PBOOL("show_first_frame_nosync", &show_first_frame_nosync),
 #ifdef TV_REVERSE
-	MC_PBOOL("reverse", &reverse),
+	MC_PU32("reverse", &reverse),
 #endif
 };
 
@@ -10126,108 +10309,51 @@ void __exit video_exit(void)
 	amvideo_unregister_client(&amvideo_notifier);
 }
 
-MODULE_PARM_DESC(debug_flag, "\n debug_flag\n");
-__module_param(debug_flag, int, 0664);
-
-#ifdef TV_3D_FUNCTION_OPEN
-MODULE_PARM_DESC(force_3d_scaler, "\n force_3d_scaler\n");
-__module_param(force_3d_scaler, uint, 0664);
-
-MODULE_PARM_DESC(video_3d_format, "\n video_3d_format\n");
-__module_param(video_3d_format, uint, 0664);
-#endif
-
-__module_param_named(video_vsync_enter_line_max,
-	vsync_enter_line_max, int, 0664);
-__module_param_named(video_vsync_exit_line_max,
-	vsync_exit_line_max, int, 0664);
-
-#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-MODULE_PARM_DESC(vsync_rdma_line_max, "\n vsync_rdma_line_max\n");
-__module_param(vsync_rdma_line_max, int, 0664);
-#endif
-
-__module_param(underflow, uint, 0664);
-MODULE_PARM_DESC(underflow, "\n Underflow count\n");
-
-__module_param(next_peek_underflow, uint, 0664);
-MODULE_PARM_DESC(skip, "\n Underflow count\n");
-
-__module_param(step_enable, int, 0664);
-MODULE_PARM_DESC(step_enable, "\n step_enable\n");
-
-__module_param(step_flag, int, 0664);
-MODULE_PARM_DESC(step_flag, "\n step_flag\n");
-
-/*arch_initcall(video_early_init);*/
-
-MODULE_PARM_DESC(smooth_sync_enable, "\n smooth_sync_enable\n");
-__module_param(smooth_sync_enable, uint, 0664);
-
-MODULE_PARM_DESC(hdmi_in_onvideo, "\n hdmi_in_onvideo\n");
-__module_param(hdmi_in_onvideo, uint, 0664);
-
-MODULE_PARM_DESC(vsync_count, "\n vsync_count\n");
-__module_param(vsync_count, uint, 0664);
-
-MODULE_PARM_DESC(new_frame_count, "\n new_frame_count\n");
-__module_param(new_frame_count, uint, 0664);
-
-MODULE_PARM_DESC(first_frame_toggled, "\n first_frame_toggled\n");
-__module_param(first_frame_toggled, uint, 0664);
-
-MODULE_PARM_DESC(drop_frame_count, "\n drop_frame_count\n");
-__module_param(drop_frame_count, int, 0664);
-
-MODULE_PARM_DESC(receive_frame_count, "\n receive_frame_count\n");
-__module_param(receive_frame_count, int, 0664);
-
-MODULE_PARM_DESC(display_frame_count, "\n display_frame_count\n");
-__module_param(display_frame_count, int, 0664);
-
-__module_param(frame_detect_time, uint, 0664);
-MODULE_PARM_DESC(frame_detect_time, "\n frame_detect_time\n");
-
-__module_param(frame_detect_flag, uint, 0664);
-MODULE_PARM_DESC(frame_detect_flag, "\n frame_detect_flag\n");
-
-__module_param(frame_detect_fps, uint, 0664);
-MODULE_PARM_DESC(frame_detect_fps, "\n frame_detect_fps\n");
-
-__module_param(frame_detect_receive_count, uint, 0664);
-MODULE_PARM_DESC(frame_detect_receive_count, "\n frame_detect_receive_count\n");
-
-__module_param(frame_detect_drop_count, uint, 0664);
-MODULE_PARM_DESC(frame_detect_drop_count, "\n frame_detect_drop_count\n");
-
-MODULE_PARM_DESC(bypass_pps, "\n pps_bypass\n");
-__module_param(bypass_pps, bool, 0664);
-
-MODULE_PARM_DESC(process_3d_type, "\n process_3d_type\n");
-__module_param(process_3d_type, uint, 0664);
-
-MODULE_PARM_DESC(g_framepacking_support, "\n g_framepacking_support\n");
-__module_param(g_framepacking_support, uint, 0664);
-
-MODULE_PARM_DESC(framepacking_width, "\n framepacking_width\n");
-__module_param(framepacking_width, uint, 0664);
-
-MODULE_PARM_DESC(framepacking_height, "\n framepacking_height\n");
-__module_param(framepacking_height, uint, 0664);
-
-MODULE_PARM_DESC(framepacking_blank, "\n framepacking_blank\n");
-__module_param(framepacking_blank, uint, 0664);
-
-__module_param(reverse, bool, 0644);
-MODULE_PARM_DESC(reverse, "reverse /disable reverse");
-
-MODULE_PARM_DESC(toggle_count, "\n toggle count\n");
-__module_param(toggle_count, uint, 0664);
-
-__module_param(osd_vpp1_bld_ctrl, uint, 0444);
-MODULE_PARM_DESC(osd_vpp1_bld_ctrl, "osd_vpp1_bld_ctrl");
-__module_param(osd_vpp2_bld_ctrl, uint, 0444);
-MODULE_PARM_DESC(osd_vpp2_bld_ctrl, "osd_vpp2_bld_ctrl");
+struct video_module_debug_s debug_video[43] = {
+	{"pause_one_3d_fl_frame", &pause_one_3d_fl_frame, 1, 0},
+	{"video_dbg_vf", &video_dbg_vf, 1, 0},
+	{"video_get_vf_cnt", video_get_vf_cnt, MAX_VD_LAYER, 0},
+	{"video_drop_vf_cnt", video_drop_vf_cnt, MAX_VD_LAYER, 0},
+	{"disable_dv_drop", &disable_dv_drop, 1, 0},
+	{"vdin_frame_skip_cnt", &vdin_frame_skip_cnt, 1, 0},
+	{"vdin_err_crc_cnt", &vdin_err_crc_cnt, 1, 0},
+	{"debug_flag", &debug_flag, 1, 0},
+	{"force_3d_scaler", &force_3d_scaler, 1, 0},
+	{"video_3d_format", &video_3d_format, 1, 0},
+	{"vsync_enter_line_max", &vsync_enter_line_max, 1, 0},
+	{"vsync_exit_line_max", &vsync_exit_line_max, 1, 0},
+	{"vsync_rdma_line_max", &vsync_rdma_line_max, 1, 0},
+	{"underflow", &underflow, 1, 0},
+	{"next_peek_underflow", &next_peek_underflow, 1, 0},
+	{"step_enable", &step_enable, 1, 0},
+	{"step_flag", &step_flag, 1, 0},
+	{"smooth_sync_enable", &smooth_sync_enable, 1, 0},
+	{"hdmi_in_onvideo", &hdmi_in_onvideo, 1, 0},
+	{"vsync_count", &vsync_count, 1, 0},
+	{"new_frame_count", &new_frame_count, 1, 0},
+	{"first_frame_toggled", &first_frame_toggled, 1, 0},
+	{"drop_frame_count", &drop_frame_count, 1, 0},
+	{"receive_frame_count", &receive_frame_count, 1, 0},
+	{"display_frame_count", &display_frame_count, 1, 0},
+	{"frame_detect_time", &frame_detect_time, 1, 0},
+	{"frame_detect_flag", &frame_detect_flag, 1, 0},
+	{"frame_detect_fps", &frame_detect_fps, 1, 0},
+	{"frame_detect_receive_count", &frame_detect_receive_count, 1, 0},
+	{"frame_detect_drop_count", &frame_detect_drop_count, 1, 0},
+	{"bypass_pps", &bypass_pps, 1, 0},
+	{"process_3d_type", &process_3d_type, 1, 0},
+	{"g_framepacking_support", &g_framepacking_support, 1, 0},
+	{"framepacking_width", &framepacking_width, 1, 0},
+	{"framepacking_height", &framepacking_height, 1, 0},
+	{"framepacking_blank", &framepacking_blank, 1, 0},
+	{"reverse", &reverse, 1, 0},
+	{"toggle_count", &toggle_count, 1, 0},
+	{"osd_vpp1_bld_ctrl", &osd_vpp1_bld_ctrl, 1, 1},
+	{"osd_vpp2_bld_ctrl", &osd_vpp2_bld_ctrl, 1, 1},
+	{"thread_vsync_in", &thread_vsync_in, 1, 1},
+	{"lowlatency_enable", &lowlatency_enable, 1, 1},
+	{"debug_flag1", &debug_flag1, 1, 0},
+};
 
 //MODULE_DESCRIPTION("AMLOGIC video output driver");
 //MODULE_LICENSE("GPL");

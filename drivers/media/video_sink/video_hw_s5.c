@@ -120,33 +120,12 @@ static struct vpp_post_s g_vpp_post;
 #define BYAPSS_DETUNNEL   BIT(2)
 
 static u32 g_slice_num = 0xff;
-MODULE_PARM_DESC(g_slice_num, "\n g_slice_num\n");
-__module_param(g_slice_num, uint, 0664);
-
 u32 pi_enable = 0xff;
-MODULE_PARM_DESC(pi_enable, "\n pi_enable\n");
-__module_param(pi_enable, uint, 0664);
-
 u32 vd2_pi_enable = 0xff;
-MODULE_PARM_DESC(vd2_pi_enable, "\n vd2_pi_enable\n");
-__module_param(vd2_pi_enable, uint, 0664);
-
 u32 g_vd1s1_vd2_prebld_en = 0xff;
-MODULE_PARM_DESC(g_vd1s1_vd2_prebld_en, "\n g_vd1s1_vd2_prebld_en\n");
-__module_param(g_vd1s1_vd2_prebld_en, uint, 0664);
-
 u32 g_h_padding;
-MODULE_PARM_DESC(g_h_padding, "\n g_h_padding\n");
-__module_param(g_h_padding, uint, 0664);
-
 u32 g_v_padding = 16;
-MODULE_PARM_DESC(g_v_padding, "\n g_v_padding\n");
-__module_param(g_v_padding, uint, 0664);
-
 u32 debug_flag_s5;
-MODULE_PARM_DESC(debug_flag_s5, "\n debug_flag_s5\n");
-__module_param(debug_flag_s5, uint, 0664);
-
 static void vd1_scaler_setting_s5(struct video_layer_s *layer,
 	struct scaler_setting_s *setting,
 	u32 slice);
@@ -12776,4 +12755,14 @@ int video_early_init_s5(struct amvideo_device_data_s *p_amvideo)
 	g_vpp1_bypass_slice1 = 1;
 	return r;
 }
+
+struct video_module_debug_s debug_video_hw_s5[7] = {
+	{"g_slice_num", &g_slice_num, 1, 0},
+	{"pi_enable", &pi_enable, 1, 0},
+	{"vd2_pi_enable", &vd2_pi_enable, 1, 0},
+	{"g_vd1s1_vd2_prebld_en", &g_vd1s1_vd2_prebld_en, 1, 0},
+	{"g_h_padding", &g_h_padding, 1, 0},
+	{"g_v_padding", &g_v_padding, 1, 0},
+	{"debug_flag_s5", &debug_flag_s5, 1, 0},
+};
 

@@ -102,6 +102,9 @@ static int lowlatency_vsync(u8 instance_id)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	struct vframe_s *vf = NULL;
 #endif
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+		struct vpp_frame_par_s *frame_par = NULL;
+#endif
 	struct vframe_s *path0_new_frame = NULL;
 	struct vframe_s *path1_new_frame = NULL;
 	struct vframe_s *path2_new_frame = NULL;
@@ -174,7 +177,7 @@ static int lowlatency_vsync(u8 instance_id)
 	for (i = 0; i < cur_dev->max_vd_layers; i++) {
 		glayer_info[0].need_no_compress =
 			(next_afbc_request & (i + 1)) ? true : false;
-		vd_layer[i].bypass_pps = bypass_pps;
+		vd_layer[i].bypass_pps = bypass_pps == 1 ? true : false;
 		vd_layer[i].global_debug = debug_flag;
 		vd_layer[i].vout_type = vout_type;
 	}
@@ -888,8 +891,6 @@ static int lowlatency_vsync(u8 instance_id)
 		vd_layer[0].keep_frame_id = 0xff;
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
-	struct vpp_frame_par_s *frame_par = NULL;
-
 	if (vd_layer[0].next_frame_par)
 		frame_par = vd_layer[0].next_frame_par;
 	else

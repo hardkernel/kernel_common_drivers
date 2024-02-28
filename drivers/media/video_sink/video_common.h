@@ -20,7 +20,9 @@
 #define VIDEO_COMMON_HH
 #include "video_priv.h"
 
-extern int debug_common_flag;
+extern unsigned int debug_common_flag;
+extern unsigned int aisr_size_threshold;
+
 #define DEBUG_FLAG_COMMON_FRC      BIT(0)
 #define DEBUG_FLAG_COMMON_AISR     BIT(1)
 #define DEBUG_FLAG_COMMON_FG       BIT(2)

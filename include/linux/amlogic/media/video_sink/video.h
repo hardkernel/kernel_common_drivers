@@ -344,6 +344,23 @@ enum mediasync_parameter_e {
 #define AML_DOLBY_MUTE_SET     3
 #define DRM_MUTE_SET           4
 
+struct video_module_debug_s {
+	char parm_name[32];
+	u32 *parm_value;
+	u32 parm_cnt;
+	u32 read_only;/* permission 0:read+write 1:read only */
+};
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+extern struct video_module_debug_s debug_video[51];
+#else
+extern struct video_module_debug_s debug_video[43];
+#endif
+extern struct video_module_debug_s debug_video_hw[9];
+extern struct video_module_debug_s debug_video_func[4];
+extern struct video_module_debug_s debug_vpp[48];
+extern struct video_module_debug_s debug_video_hw_s5[7];
+
 struct mediasync_parameter {
 	u32 vsync_period;
 	s64 vsync_timestamp;

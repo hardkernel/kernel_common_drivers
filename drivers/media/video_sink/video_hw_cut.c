@@ -83,7 +83,7 @@ struct video_dev_s video_dev;
 struct video_dev_s *cur_dev = &video_dev;
 bool legacy_vpp = true;
 
-static bool bypass_cm;
+static u32 bypass_cm;
 bool hscaler_8tap_enable[MAX_VD_LAYER];
 struct pre_scaler_info pre_scaler[MAX_VD_LAYER];
 static bool video_mute_array[MAX_VIDEO_MUTE_OWNER];
@@ -593,8 +593,6 @@ static u32 vdx_color[MAX_VD_LAYER];
 static u32 postblend_color;
 
 u32 g_mosaic_mode;
-MODULE_PARM_DESC(g_mosaic_mode, "\n g_mosaic_mode\n");
-__module_param(g_mosaic_mode, uint, 0664);
 u32 pic_axis[4][4];
 /*********************************************************
  * Utils APIs
@@ -6607,7 +6605,7 @@ static bool is_vframe_changed
 			sizeof(struct vframe_pic_mode_s)))
 		return true;
 
-	if (glayer_info[layer_id].reverse != reverse ||
+	if (glayer_info[layer_id].reverse != (reverse == 1 ? true : false) ||
 	    glayer_info[layer_id].proc_3d_type != process_3d_type)
 		return true;
 	if (cur_vf && new_vf &&
@@ -9154,21 +9152,15 @@ int video_late_uninit(void)
 	return 0;
 }
 
-MODULE_PARM_DESC(vpp_hold_line, "\n vpp_hold_line\n");
-__module_param_array(vpp_hold_line, uint, &param_vpp_num, 0664);
-
-MODULE_PARM_DESC(bypass_cm, "\n bypass_cm\n");
-__module_param(bypass_cm, bool, 0664);
-
-MODULE_PARM_DESC(reference_zorder, "\n reference_zorder\n");
-__module_param(reference_zorder, uint, 0664);
-
-MODULE_PARM_DESC(cur_vf_flag, "cur_vf_flag");
-__module_param_array(cur_vf_flag, uint, &cur_vpp_num, 0444);
-
-MODULE_PARM_DESC(debug_flag_3d, "\n debug_flag_3d\n");
-__module_param(debug_flag_3d, uint, 0664);
-
-MODULE_PARM_DESC(vd1_matrix, "\n vd1_matrix\n");
-__module_param(vd1_matrix, uint, 0664);
+struct video_module_debug_s debug_video_hw[9] = {
+	{"g_mosaic_mode", &g_mosaic_mode, 1, 0},
+	{"vpp_hold_line", vpp_hold_line, VPP_MAX, 0},
+	{"bypass_cm", &bypass_cm, 1, 0},
+	{"reference_zorder", &reference_zorder, 1, 0},
+	{"cur_vf_flag", cur_vf_flag, MAX_VPP_NUM, 1},
+	{"debug_flag_3d", &debug_flag_3d, 1, 0},
+	{"vd1_matrix", &vd1_matrix, 1, 0},
+	{"debug_common_flag", &debug_common_flag, 1, 0},
+	{"aisr_size_threshold", &aisr_size_threshold, 1, 0},
+};
 

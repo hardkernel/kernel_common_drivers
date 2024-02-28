@@ -90,8 +90,8 @@
 #include <linux/amlogic/media/frc/frc_common.h>
 #endif
 
-int debug_common_flag;
-static int aisr_size_threshold = 50;
+unsigned int debug_common_flag;
+unsigned int aisr_size_threshold = 50;
 u32 is_crop_left_odd(struct vpp_frame_par_s *frame_par)
 {
 	int crop_left_odd;
@@ -1453,10 +1453,4 @@ bool get_lowlatency_mode(void)
 	return 0;
 }
 #endif
-
-MODULE_PARM_DESC(debug_common_flag, "\n debug_common_flag\n");
-__module_param(debug_common_flag, uint, 0664);
-
-MODULE_PARM_DESC(aisr_size_threshold, "\n aisr_size_threshold\n");
-__module_param(aisr_size_threshold, uint, 0664);
 

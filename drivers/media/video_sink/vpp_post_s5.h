@@ -245,6 +245,10 @@ struct vpp_post_reg_s {
 	struct vpp1_post_blend_reg_s vpp1_post_blend_reg;
 };
 
+extern u32 g_post_slice_num;
+extern u32 g_vpp1_bypass_slice1;
+extern u32 g_post_overlap_size;
+
 int get_vpp_slice_num(const struct vinfo_s *info);
 int vpp_post_param_set(struct vpp_post_input_s *vpp_input,
 	struct vpp0_post_s *vpp_post);

@@ -98,10 +98,7 @@ static bool rdma_enable_vppx_pre[2];
 static char old_vmode_vpp[2][32];
 static char new_vmode_vpp[2][32];
 
-static unsigned int debug_flag1;
-MODULE_PARM_DESC(debug_flag1, "\n debug_flag1\n");
-__module_param(debug_flag1, uint, 0664);
-
+unsigned int debug_flag1;
 bool is_vpp0(u8 layer_id)
 {
 	if (vd_layer[layer_id].vpp_index == VPP0)
@@ -215,6 +212,9 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 	s32 vout_type;
 	struct vframe_s *path0_new_frame = NULL;
 	struct vframe_s *new_frame = NULL;
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+	struct vpp_frame_par_s *frame_par = NULL;
+#endif
 	u32 cur_blackout = 0;
 	static s32 cur_vd_path_id = VFM_PATH_INVALID;
 	int axis[4];
@@ -249,7 +249,7 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 	hold_line = calc_hold_line();
 
 	glayer_info[layer_id].need_no_compress = false;
-	vd_layer_vpp[vpp_id].bypass_pps = bypass_pps;
+	vd_layer_vpp[vpp_id].bypass_pps = bypass_pps == 1 ? true : false;
 	vd_layer_vpp[vpp_id].global_debug = debug_flag;
 	vd_layer_vpp[vpp_id].vout_type = vout_type;
 
@@ -406,8 +406,6 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 	vd_layer_vpp[vpp_id].keep_frame_id = 0xff;
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
-	struct vpp_frame_par_s *frame_par = NULL;
-
 	if (vd_layer_vpp[vpp_id].next_frame_par)
 		frame_par = vd_layer_vpp[vpp_id].next_frame_par;
 	else

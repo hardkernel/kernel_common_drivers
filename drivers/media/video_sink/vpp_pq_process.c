@@ -9,10 +9,8 @@
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
 
-unsigned int vpp_pq_dbg;
+u32 vpp_pq_dbg;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-__module_param(vpp_pq_dbg, uint, 0664);
-MODULE_PARM_DESC(vpp_pq_dbg, "vpp_pq_dbg\n");
 #endif
 
 /*BLUE_SCENE             default 0*/
@@ -640,10 +638,10 @@ void vf_pq_process_t5m(struct vframe_s *vf,
 		   int *pq_debug)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-	int pq_value;
+	int pq_value = 0;
 	int value;
 	int i = 0;
-	int prob[3][2];
+	static int prob[3][2];
 	int bld_ofst[SCENES_VALUE];
 	static int en_flag;
 	int src_w, src_h;
@@ -789,7 +787,7 @@ void vf_pq_process_t5m(struct vframe_s *vf,
 				for (i = 0; i < 5; i++) {
 					aipq_nn_value[i].maxclass = vf->nn_value[i].maxclass;
 					aipq_nn_value[i].maxprob = vf->nn_value[i].maxprob;
-					if (vpp_pq_dbg > 0x10)
+					if (vpp_pq_dbg > 0x10 && i < 3)
 						pr_info("class top%d= %d: prob = %d\n",
 							i + 1, prob[i][0], prob[i][1]);
 				}

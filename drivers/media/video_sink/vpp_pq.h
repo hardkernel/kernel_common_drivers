@@ -96,6 +96,7 @@ u32 get_color_th(void);
 extern int vpp_pq_data[AI_SCENES_MAX][SCENES_VALUE];
 extern int scene_prob[2];
 extern struct ai_pq_hist_data aipq_hist_data;
+extern u32 vpp_pq_dbg;
 void update_aipq_data(void);
 #endif
 #endif

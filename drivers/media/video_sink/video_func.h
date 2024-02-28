@@ -49,7 +49,7 @@ extern u32 vsync_pts_inc_scale;
 extern u32 vsync_pts_inc_scale_base;
 
 /* other avsync, frame drop etc */
-extern int display_frame_count;
+extern u32 display_frame_count;
 extern bool over_field;
 extern int over_sync_count;
 extern u32 toggle_count;
@@ -69,8 +69,8 @@ extern s32 black_threshold_width;
 extern s32 black_threshold_height;
 extern struct vframe_s hist_test_vf;
 extern bool hist_test_flag;
-extern int vsync_enter_line_max;
-extern int vsync_exit_line_max;
+extern u32 vsync_enter_line_max;
+extern u32 vsync_exit_line_max;
 extern u32 video_notify_flag;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 extern struct ai_scenes_pq vpp_scenes[AI_SCENES_MAX];
@@ -129,7 +129,7 @@ extern u32 dvel_size;
 extern atomic_t cur_over_field_state;
 extern u32 config_vsync_num;
 extern ulong config_timeinfo;
-extern bool vsync_count_start;
+extern u32 vsync_count_start;
 extern u32 new_frame_cnt;
 extern u32 new_frame_count;
 extern atomic_t vt_disable_video_done;
