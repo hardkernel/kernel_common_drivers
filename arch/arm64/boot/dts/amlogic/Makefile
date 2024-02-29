@@ -84,3 +84,4 @@ dtb-y += s7_s905y5_bh201.dtb
 dtb-y += s7_s905y5_bh202.dtb
 dtb-y += s7_s905y5_bh209.dtb
 dtb-y += s7_s805x3_bp202.dtb
+dtb-y += s7_s805x3_bp202_1.5g.dtb
