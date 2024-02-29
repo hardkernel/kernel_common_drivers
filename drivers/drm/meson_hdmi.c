@@ -355,6 +355,9 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	conf = &priv->of_conf;
 
 	edid = (struct edid *)hdmitx_get_raw_edid(tx_comm);
+
+	am_hdmitx->sequence_id = hdmitx_get_hpd_hw_sequence_id(tx_comm);
+
 	drm_connector_update_edid_property(connector, edid);
 
 	/* get vrr capability */
@@ -926,6 +929,7 @@ struct drm_connector_state *meson_hdmitx_atomic_duplicate_state
 	new_state->hdr_priority = cur_state->hdr_priority;
 	new_state->pref_hdr_policy = cur_state->pref_hdr_policy;
 	new_state->allm_mode = cur_state->allm_mode;
+	cur_state->hcs.state_sequence_id = am_hdmi_info.sequence_id;
 	memcpy(&new_state->hcs, &cur_state->hcs, sizeof(struct hdmitx_common_state));
 
 	return &new_state->base;

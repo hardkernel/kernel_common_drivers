@@ -298,6 +298,8 @@ struct hdmitx_hw_common {
 	/* phy state */
 	unsigned char tmds_phy_op;
 
+	/* save the lastest plug_in time from interrupt*/
+	u64 hw_sequence_id;
 };
 
 int hdmitx_hw_cntl_config(struct hdmitx_hw_common *tx_hw,

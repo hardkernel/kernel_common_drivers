@@ -47,6 +47,9 @@ struct am_hdmi_tx {
 
 	int hdmitx_on;
 
+	/* save sequence_id for drm connecter get raw edid */
+	u64 sequence_id;
+
 	/*TODO: android compatible, remove later*/
 	bool android_path;
 	bool recovery_mode;
