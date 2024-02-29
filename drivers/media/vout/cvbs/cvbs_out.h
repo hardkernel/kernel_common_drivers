@@ -87,6 +87,11 @@ struct performance_config_s {
 	struct reg_s *reg_table;
 };
 
+struct dts_perf_config {
+	char *config_name;
+	struct performance_config_s *perfconf;
+};
+
 /* cvbs driver flag */
 #define CVBS_FLAG_EN_ENCI   BIT(0)
 #define CVBS_FLAG_EN_VDAC   BIT(1)
@@ -98,9 +103,18 @@ struct cvbs_drv_s {
 	struct class  *base_class;
 	struct device *dev;
 	struct meson_cvbsout_data *cvbs_data;
+	/* for PAL CTCC performance config */
 	struct performance_config_s perf_conf_pal;
-	struct performance_config_s perf_conf_ntsc;
+	/* for PAL SVA performance config */
 	struct performance_config_s perf_conf_pal_sva;
+	/* for NTSC domestic performance config */
+	struct performance_config_s perf_conf_ntsc;
+	/* for NTSC TTC performance config */
+	struct performance_config_s perf_conf_ntsc_ttc;
+	/* for PAL, 1: use sva performance config, 0: use ctcc */
+	bool sva_std;
+	/* for NTSC, 1: use TTC performance config, 0: use domestic */
+	bool ntsc_ttc;
 	struct delayed_work vdac_dwork;
 	unsigned int flag;
 
