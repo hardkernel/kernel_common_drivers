@@ -278,11 +278,17 @@ static void cvbs_performance_enhancement(enum cvbs_mode_e mode)
 
 	switch (mode) {
 	case MODE_576CVBS:
-		perfconf = &cvbs_drv->perf_conf_pal;
+		if (cvbs_drv->sva_std)
+			perfconf = &cvbs_drv->perf_conf_pal_sva;
+		else
+			perfconf = &cvbs_drv->perf_conf_pal;
 		break;
 	case MODE_480CVBS:
 	case MODE_NTSC_M:
-		perfconf = &cvbs_drv->perf_conf_ntsc;
+		if (cvbs_drv->ntsc_ttc)
+			perfconf = &cvbs_drv->perf_conf_ntsc_ttc;
+		else
+			perfconf = &cvbs_drv->perf_conf_ntsc;
 		break;
 	default:
 		break;
@@ -1021,43 +1027,35 @@ static void cvbs_performance_config_dump(void)
 {
 	struct performance_config_s *perfconf = NULL;
 	const struct reg_s *s = NULL;
-	int i = 0;
+	int i = 0, j = 0;
 
-	perfconf = &cvbs_drv->perf_conf_pal;
-	if (!perfconf->reg_table) {
-		pr_info("no performance_pal table!\n");
-	} else {
-		pr_info("------------------------\n");
-		pr_info("performance_pal config:\n");
-		s = perfconf->reg_table;
-		while (i < perfconf->reg_cnt) {
-			if (s->reg > 0x1000)
-				pr_info("0x%04x = 0x%x\n", s->reg, s->val);
-			else
-				pr_info("0x%02x = 0x%x\n", s->reg, s->val);
-			s++;
-			i++;
-		}
-		pr_info("------------------------\n");
-	}
+	/* below names are not used in dts node */
+	struct dts_perf_config perf_config[] = {
+		{"performance_pal_sva", &cvbs_drv->perf_conf_pal_sva},
+		{"performance_pal_ctcc", &cvbs_drv->perf_conf_pal},
+		{"performance_ntsc_domestic", &cvbs_drv->perf_conf_ntsc},
+		{"performance_ntsc_ttc", &cvbs_drv->perf_conf_ntsc_ttc},
+	};
 
-	i = 0;
-	perfconf = &cvbs_drv->perf_conf_ntsc;
-	if (!perfconf->reg_table) {
-		pr_info("no performance_ntsc table!\n");
-	} else {
-		pr_info("------------------------\n");
-		pr_info("performance_ntsc config:\n");
-		s = perfconf->reg_table;
-		while (i < perfconf->reg_cnt) {
-			if (s->reg > 0x1000)
-				pr_info("0x%04x = 0x%x\n", s->reg, s->val);
-			else
-				pr_info("0x%02x = 0x%x\n", s->reg, s->val);
-			s++;
-			i++;
+	for (j = 0; j < ARRAY_SIZE(perf_config); j++) {
+		perfconf = perf_config[j].perfconf;
+		if (!perfconf->reg_table) {
+			pr_info("no %s table!\n", perf_config[j].config_name);
+		} else {
+			pr_info("------------------------\n");
+			pr_info("%s config:\n", perf_config[j].config_name);
+			s = perfconf->reg_table;
+			i = 0;
+			while (i < perfconf->reg_cnt) {
+				if (s->reg > 0x1000)
+					pr_info("0x%04x = 0x%x\n", s->reg, s->val);
+				else
+					pr_info("0x%02x = 0x%x\n", s->reg, s->val);
+				s++;
+				i++;
+			}
+			pr_info("------------------------\n");
 		}
-		pr_info("------------------------\n");
 	}
 }
 
@@ -1096,6 +1094,7 @@ enum {
 	CMD_DISPLAY_ON_OFF,
 
 	CMD_SVA_VALUE,
+	CMD_TTC_VALUE,
 
 	CMD_MAX
 } debug_cmd_t;
@@ -1146,6 +1145,8 @@ static void cvbs_debug_store(const char *buf)
 				  unsigned int, unsigned int) = NULL;
 	void (*func_setb)(unsigned int, unsigned int,
 			  unsigned int, unsigned int) = NULL;
+	struct performance_config_s *perfconf = NULL;
+	struct reg_s *s = NULL;
 
 	p = kstrdup(buf, GFP_KERNEL);
 	for (argc = 0; argc < 6; argc++) {
@@ -1185,6 +1186,9 @@ static void cvbs_debug_store(const char *buf)
 	} else if (!strncmp(argv[0], "cvbs_sva", strlen("cvbs_sva"))) {
 		pr_info("config ccitt033 SVA standard test value\n");
 		cmd = CMD_SVA_VALUE;
+	}  else if (!strncmp(argv[0], "cvbs_ttc", strlen("cvbs_ttc"))) {
+		pr_info("config NTSC TTC standard test value\n");
+		cmd = CMD_TTC_VALUE;
 	} else if (!strncmp(argv[0], "cvbs_display", strlen("cvbs_display"))) {
 		cmd = CMD_DISPLAY_ON_OFF;
 	} else if (!strncmp(argv[0], "help", strlen("help"))) {
@@ -1382,11 +1386,7 @@ static void cvbs_debug_store(const char *buf)
 			cvbs_vdac_output(0);
 
 		break;
-	case CMD_SVA_VALUE: {
-		struct performance_config_s *perfconf = NULL;
-		const struct reg_s *s = NULL;
-		int i = 0;
-
+	case CMD_SVA_VALUE:
 		perfconf = &cvbs_drv->perf_conf_pal_sva;
 		if (!perfconf)
 			return;
@@ -1407,8 +1407,28 @@ static void cvbs_debug_store(const char *buf)
 		}
 		cvbs_log_info("%s\n", __func__);
 		break;
-	}
-	case CMD_DISPLAY_ON_OFF: {
+	case CMD_TTC_VALUE:
+		perfconf = &cvbs_drv->perf_conf_ntsc_ttc;
+		if (!perfconf)
+			return;
+
+		if (!perfconf->reg_table) {
+			cvbs_log_info("no performance table\n");
+			return;
+		}
+
+		i = 0;
+		s = perfconf->reg_table;
+		while (i < perfconf->reg_cnt) {
+			cvbs_out_reg_write(s->reg, s->val);
+			cvbs_log_info("%s: vcbus reg 0x%04x = 0x%08x\n",
+				      __func__, s->reg, s->val);
+			s++;
+			i++;
+		}
+		cvbs_log_info("%s\n", __func__);
+		break;
+	case CMD_DISPLAY_ON_OFF:
 		if (argc != 2) {
 			pr_info("[%s] param not match\n", __func__);
 			goto DEBUG_END;
@@ -1425,7 +1445,6 @@ static void cvbs_debug_store(const char *buf)
 			cvbs_module_disable(cvbs_drv->vinfo->mode, NULL);
 
 		break;
-		}
 	case CMD_HELP:
 		pr_info("command format:\n"
 		"\tr c/h/v address_hex\n"
@@ -1512,18 +1531,22 @@ fail_create_class:
 }
 
 /* **************************************************** */
-static char *cvbsout_performance_str[] = {
-	"performance", /* SVA standard value */
-	"performance_pal", /* CTCC standard value */
-	"performance_ntsc",
-};
 
 static void cvbsout_get_config(struct device *dev)
 {
 	int ret = 0;
-	unsigned int val, cnt, i, j;
+	unsigned int val, cnt, i, j, perf_idx;
 	struct reg_s *s = NULL;
 	const char *str;
+	struct performance_config_s *perf_conf_ptr = NULL;
+
+	/* note below names are used in dts node, and should not be changed */
+	struct dts_perf_config perf_config[] = {
+		{"performance", &cvbs_drv->perf_conf_pal_sva}, /* SVA standard value */
+		{"performance_pal", &cvbs_drv->perf_conf_pal}, /* CTCC standard value */
+		{"performance_ntsc", &cvbs_drv->perf_conf_ntsc}, /* ntsc domestic */
+		{"performance_ntsc_ttc", &cvbs_drv->perf_conf_ntsc_ttc}, /* ntsc ttc */
+	};
 
 	/*clk path*/
 	/*bit[0]: 0=vid_pll, 1=gp0_pll*/
@@ -1538,141 +1561,65 @@ static void cvbsout_get_config(struct device *dev)
 		}
 	}
 
-	/* performance: PAL SVA */
-	cvbs_drv->perf_conf_pal_sva.reg_cnt = 0;
-	cvbs_drv->perf_conf_pal_sva.reg_table = NULL;
-	str = cvbsout_performance_str[0];
-	cnt = 0;
-	while (cnt < CVBS_PERFORMANCE_CNT_MAX) {
-		j = 2 * cnt;
-		ret = of_property_read_u32_index(dev->of_node, str, j, &val);
-		if (ret) {
-			cnt = 0;
-			break;
-		}
-		if (val == MREG_END_MARKER) /* ending */
-			break;
-		cnt++;
-	}
-	if (cnt >= CVBS_PERFORMANCE_CNT_MAX)
+	ret = of_property_read_u32(dev->of_node, "sva_std", &val);
+	if (!ret)
+		cvbs_drv->sva_std = !!val;
+	else
+		cvbs_drv->sva_std = 0;
+	cvbs_log_info("sva_std:0x%x\n", cvbs_drv->sva_std);
+
+	ret = of_property_read_u32(dev->of_node, "ntsc_ttc", &val);
+	if (!ret)
+		cvbs_drv->ntsc_ttc = !!val;
+	else
+		cvbs_drv->ntsc_ttc = 0;
+	cvbs_log_info("ntsc_ttc:0x%x\n", cvbs_drv->ntsc_ttc);
+
+	for (perf_idx = 0; perf_idx < ARRAY_SIZE(perf_config); perf_idx++) {
+		perf_conf_ptr = perf_config[perf_idx].perfconf;
+		perf_conf_ptr->reg_cnt = 0;
+		perf_conf_ptr->reg_table = NULL;
+		str = perf_config[perf_idx].config_name;
 		cnt = 0;
-	if (cnt > 0) {
-		cvbs_log_dbg("find performance_pal config\n");
-		cvbs_drv->perf_conf_pal_sva.reg_table =
-			kcalloc(cnt, sizeof(struct reg_s), GFP_KERNEL);
-		if (!cvbs_drv->perf_conf_pal_sva.reg_table) {
-			cvbs_log_err("error: failed to alloc %s table\n", str);
+		while (cnt < CVBS_PERFORMANCE_CNT_MAX) {
+			j = 2 * cnt;
+			ret = of_property_read_u32_index(dev->of_node, str, j, &val);
+			if (ret) {
+				cnt = 0;
+				break;
+			}
+			if (val == MREG_END_MARKER) /* ending */
+				break;
+			cnt++;
+		}
+		if (cnt >= CVBS_PERFORMANCE_CNT_MAX)
 			cnt = 0;
-		}
-		cvbs_drv->perf_conf_pal_sva.reg_cnt = cnt;
+		if (cnt > 0) {
+			cvbs_log_dbg("find %s config\n", str);
+			perf_conf_ptr->reg_table =
+				kcalloc(cnt, sizeof(struct reg_s), GFP_KERNEL);
+			if (!perf_conf_ptr->reg_table) {
+				cvbs_log_err("error: failed to alloc %s table\n", str);
+				cnt = 0;
+			}
+			perf_conf_ptr->reg_cnt = cnt;
 
-		i = 0;
-		s = cvbs_drv->perf_conf_pal_sva.reg_table;
-		while (i < cvbs_drv->perf_conf_pal_sva.reg_cnt) {
-			j = 2 * i;
-			ret = of_property_read_u32_index(dev->of_node,
-				str, j, &val);
-			s->reg = val;
-			j = 2 * i + 1;
-			ret = of_property_read_u32_index(dev->of_node,
-				str, j, &val);
-			s->val = val;
-			/*pr_info("%p: 0x%04x = 0x%x\n", s, s->reg, s->val);*/
+			i = 0;
+			s = perf_conf_ptr->reg_table;
+			while (i < perf_conf_ptr->reg_cnt) {
+				j = 2 * i;
+				ret = of_property_read_u32_index(dev->of_node,
+					str, j, &val);
+				s->reg = val;
+				j = 2 * i + 1;
+				ret = of_property_read_u32_index(dev->of_node,
+					str, j, &val);
+				s->val = val;
+				/*pr_info("%p: 0x%04x = 0x%x\n", s, s->reg, s->val);*/
 
-			s++;
-			i++;
-		}
-	}
-
-	/* performance: PAL CTCC */
-	cvbs_drv->perf_conf_pal.reg_cnt = 0;
-	cvbs_drv->perf_conf_pal.reg_table = NULL;
-	str = cvbsout_performance_str[1];
-	cnt = 0;
-	while (cnt < CVBS_PERFORMANCE_CNT_MAX) {
-		j = 2 * cnt;
-		ret = of_property_read_u32_index(dev->of_node, str, j, &val);
-		if (ret) {
-			cnt = 0;
-			break;
-		}
-		if (val == MREG_END_MARKER) /* ending */
-			break;
-		cnt++;
-	}
-	if (cnt >= CVBS_PERFORMANCE_CNT_MAX)
-		cnt = 0;
-	if (cnt > 0) {
-		cvbs_log_dbg("find performance_pal config\n");
-		cvbs_drv->perf_conf_pal.reg_table =
-			kcalloc(cnt, sizeof(struct reg_s), GFP_KERNEL);
-		if (!cvbs_drv->perf_conf_pal.reg_table) {
-			cvbs_log_err("error: failed to alloc %s table\n", str);
-			cnt = 0;
-		}
-		cvbs_drv->perf_conf_pal.reg_cnt = cnt;
-
-		i = 0;
-		s = cvbs_drv->perf_conf_pal.reg_table;
-		while (i < cvbs_drv->perf_conf_pal.reg_cnt) {
-			j = 2 * i;
-			ret = of_property_read_u32_index(dev->of_node,
-				str, j, &val);
-			s->reg = val;
-			j = 2 * i + 1;
-			ret = of_property_read_u32_index(dev->of_node,
-				str, j, &val);
-			s->val = val;
-			/*pr_info("%p: 0x%04x = 0x%x\n", s, s->reg, s->val);*/
-
-			s++;
-			i++;
-		}
-	}
-
-	/* performance: NTSC */
-	cvbs_drv->perf_conf_ntsc.reg_cnt = 0;
-	cvbs_drv->perf_conf_ntsc.reg_table = NULL;
-	cnt = 0;
-	str = cvbsout_performance_str[2];
-	while (cnt < CVBS_PERFORMANCE_CNT_MAX) {
-		j = 2 * cnt;
-		ret = of_property_read_u32_index(dev->of_node, str, j, &val);
-		if (ret) {
-			cnt = 0;
-			break;
-		}
-		if (val == MREG_END_MARKER) /* ending */
-			break;
-		cnt++;
-	}
-	if (cnt >= CVBS_PERFORMANCE_CNT_MAX)
-		cnt = 0;
-	if (cnt > 0) {
-		cvbs_log_dbg("find performance_ntsc config\n");
-		cvbs_drv->perf_conf_ntsc.reg_table =
-			kcalloc(cnt, sizeof(struct reg_s), GFP_KERNEL);
-		if (!cvbs_drv->perf_conf_ntsc.reg_table) {
-			cvbs_log_err("error: failed to alloc %s table\n", str);
-			cnt = 0;
-		}
-		cvbs_drv->perf_conf_ntsc.reg_cnt = cnt;
-
-		i = 0;
-		s = cvbs_drv->perf_conf_ntsc.reg_table;
-		while (i < cvbs_drv->perf_conf_ntsc.reg_cnt) {
-			j = 2 * i;
-			ret = of_property_read_u32_index(dev->of_node,
-							 str, j, &val);
-			s->reg = val;
-			j = 2 * i + 1;
-			ret = of_property_read_u32_index(dev->of_node,
-							 str, j, &val);
-			s->val = val;
-			/*pr_info("%p: 0x%04x = 0x%x\n", s, s->reg, s->val);*/
-
-			s++;
-			i++;
+				s++;
+				i++;
+			}
 		}
 	}
 }
