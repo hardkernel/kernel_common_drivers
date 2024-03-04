@@ -320,7 +320,7 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 					writel(0xaa800000, priv->regs + ETH_PLL_CTL3);
 				}
 				writel(0x4001, priv->regs + ETH_PLL_CTL6);
-				writel(0x20220000, priv->regs + ETH_PLL_CTL5);
+				writel(0x20000000, priv->regs + ETH_PLL_CTL5);
 				writel(0x00000023, priv->regs + ETH_PLL_CTL7);
 			}
 		}
