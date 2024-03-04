@@ -819,7 +819,7 @@
 			card_type = <1>;
 			ignore_desc_busy;
 			mmc_debug_flag;
-			src_clk_rate = <1152000000>;
+			src_clk_rate = <1536000000>;
 			tx_delay = <17>;
 		//	nwr_cnt = <0>;
 		//	resets = <&reset RESET_SD_EMMC_C>;
@@ -857,7 +857,7 @@
 				<&clkc CLKID_SD_EMMC_A_SEL>,
 				 <&clkc CLKID_SD_EMMC_A>,
 				 <&xtal>,
-				 <&clkc CLKID_FCLK_DIV2>;
+				 <&clkc CLKID_GP0_PLL>;
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1";
 			card_type = <3>;
@@ -865,6 +865,7 @@
 			cap-sdio-irq;
 			keep-power-in-suspend;
 			use_intf3_tuning;
+			src_clk_rate = <1536000000>;
 			no-mmc;
 			no-sd;
 			//resets = <&reset RESET_SD_EMMC_A>;
@@ -1922,14 +1923,14 @@
 				 "emmc_cmd";
 			function = "emmc";
 			bias-pull-up;
-			drive-strength-microamp = <4000>;
+			drive-strength-microamp = <3000>;
 		};
 
 		mux-1 {
 			groups = "emmc_clk";
 			function = "emmc";
 			bias-pull-up;
-			drive-strength-microamp = <4000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -1938,7 +1939,7 @@
 			groups = "emmc_nand_ds";
 			function = "emmc";
 			bias-pull-down;
-			drive-strength-microamp = <4000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -1947,7 +1948,7 @@
 			groups = "GPIOB_8";
 			function = "gpio_periphs";
 			bias-pull-down;
-			drive-strength-microamp = <4000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -1996,7 +1997,7 @@
 				 "sdcard_cmd_c";
 			function = "sdcard";
 			bias-pull-up;
-			drive-strength-microamp = <4000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2055,7 +2056,7 @@
 				 "sdcard_cmd_c";
 			function = "sdcard";
 			bias-pull-up;
-			drive-strength-microamp = <4000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2064,7 +2065,7 @@
 			groups = "GPIOC_4";
 			function = "gpio_periphs";
 			bias-pull-down;
-			drive-strength-microamp = <4000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2088,7 +2089,7 @@
 				 "sdio_cmd";
 			function = "sdio";
 			bias-pull-up;
-			drive-strength-microamp = <4000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2097,7 +2098,7 @@
 			groups = "GPIOX_4";
 			function = "gpio_periphs";
 			bias-pull-down;
-			drive-strength-microamp = <4000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
