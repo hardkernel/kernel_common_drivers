@@ -42,6 +42,28 @@ struct st_debug_param {
 	unsigned int avmute_frame;
 };
 
+/* 0: VESA DSC 1.2a is not supported
+ * 1: up to 1 slice and up to (340 MHz/K SliceAdjust) pixel clock per slice
+ * 2: up to 2 slices and up to (340 MHz/K SliceAdjust) pixel clock per slice
+ * 3: up to 4 slices and up to (340 MHz/K SliceAdjust) pixel clock per slice
+ * 4: up to 8 slices and up to (340 MHz/K SliceAdjust) pixel clock per slice
+ * 5: up to 8 slices and up to (400 MHz/K SliceAdjust) pixel clock per slice
+ * 6: up to 12 slices and up to (400 MHz/K SliceAdjust) pixel clock per slice
+ * 7: up to 16 slices and up to (400 MHz/K SliceAdjust) pixel clock per slice
+ * 8-15: Reserved
+ */
+
+static const u8 dsc_max_slices_num[] = {
+	0,
+	1,
+	2,
+	4,
+	8,
+	8,
+	12,
+	16
+};
+
 struct hdmitx_common {
 	struct hdmitx_hw_common *tx_hw;
 	struct hdmitx_ctrl_ops *ctrl_ops;
@@ -189,6 +211,15 @@ int hdmitx_common_build_format_para(struct hdmitx_common *tx_comm,
 /* For bootup init: init hdmi_format_para from hw configs.*/
 int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 		struct hdmi_format_para *para);
+
+/*edid valid api*/
+int hdmitx_edid_validate_format_para(struct tx_cap *txcap,
+		struct rx_cap *prxcap, struct hdmi_format_para *para);
+bool hdmitx_edid_check_y420_support(struct rx_cap *prxcap,
+	enum hdmi_vic vic);
+
+bool hdmitx_edid_validate_mode(struct rx_cap *rxcap, u32 vic);
+bool hdmitx_edid_only_support_sd(struct rx_cap *prxcap);
 
 /* Attach platform related functions to hdmitx_common;
  * Currently hdmitx_tracer, hdmitx_uevent_mgr is platform related;
