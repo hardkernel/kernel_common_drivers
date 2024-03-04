@@ -1368,6 +1368,7 @@
 		#sound-dai-cells = <0>;
 		reg = <0x1d>;
 		status = "okay";
+		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 	};
 };
 

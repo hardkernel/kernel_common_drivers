@@ -46,6 +46,7 @@ enum ad82128_type {
 	AD82128,
 };
 
+static int reset_pin_setting;
 static const char * const ad82128_supply_names[] = {
 	"dvdd", /* Digital power supply. Connect to 3.3-V supply. */
 	"pvdd", /* Class-D amp and analog power supply (connected). */
@@ -327,7 +328,7 @@ static void ad82128_fault_check_work(struct work_struct *work)
 	 * the full sequence no matter the first return value to minimizes
 	 * chances for the device to end up in shutdown mode.
 	 */
-	if (ad82128->reset_pin > 0) {
+	if (gpio_is_valid(ad82128->reset_pin)) {
 		ret = gpio_request(ad82128->reset_pin, NULL); // request amp PD pin control GPIO
 		if (ret < 0)
 			dev_err(dev, "failed to request gpio: %d\n", ret);
@@ -335,6 +336,7 @@ static void ad82128_fault_check_work(struct work_struct *work)
 		gpio_direction_output(ad82128->reset_pin, 0); // pull low amp PD pin
 		msleep(20);
 		gpio_direction_output(ad82128->reset_pin, 1); // pull high amp PD pin
+		gpio_free(ad82128->reset_pin);
 	}
 out:
 	/* Schedule the next fault check at the specified interval */
@@ -523,10 +525,15 @@ static int ad82128_suspend(struct snd_soc_component *component)
 		ad82128->supplies);
 	if (ret < 0)
 		dev_err(component->dev, "failed to disable supplies: %d\n", ret);
-
-	if (ad82128->reset_pin >= 0) {
+	if (gpio_is_valid(ad82128->reset_pin) && reset_pin_setting) {
+		// request amp PD pin control GPIO
+		ret = gpio_request(ad82128->reset_pin, NULL);
+		if (ret < 0)
+			dev_err(component->dev, "failed to request gpio: %d\n", ret);
 		gpio_direction_output(ad82128->reset_pin, 0);
+		reset_pin_setting = 0;
 		msleep(20);
+		gpio_free(ad82128->reset_pin);
 	}
 	pr_info("ad82128_suspend\n");
 
@@ -545,13 +552,19 @@ static int ad82128_resume(struct snd_soc_component *component)
 		return ret;
 	}
 
-	if (ad82128->reset_pin >= 0) {
-		gpio_direction_output(ad82128->reset_pin, 0);
-		msleep(20);
+	if (gpio_is_valid(ad82128->reset_pin) && !reset_pin_setting) {
+		// request amp PD pin control GPIO
+		ret = gpio_request(ad82128->reset_pin, NULL);
+		if (ret < 0)
+			dev_err(component->dev, "failed to request gpio: %d\n", ret);
+		reset_pin_setting = 1;
 		gpio_direction_output(ad82128->reset_pin, 1);
 		/* need delay before regcache for spec request */
 		msleep(20);
+		gpio_free(ad82128->reset_pin);
 	}
+	regcache_cache_only(ad82128->regmap, false);
+
 	// software reset amp
 	snd_soc_component_update_bits(component, AD82128_STATE_CTRL5_REG,
 		AD82128_SW_RESET, 0);
@@ -559,8 +572,6 @@ static int ad82128_resume(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component, AD82128_STATE_CTRL5_REG,
 		AD82128_SW_RESET, AD82128_SW_RESET);
 	msleep(20);
-
-	regcache_cache_only(ad82128->regmap, false);
 
 	ret = regcache_sync(ad82128->regmap);
 	if (ret < 0) {
@@ -698,6 +709,7 @@ static const struct snd_soc_component_driver soc_component_dev_ad82128 = {
 	.idle_bias_on = 1,
 	.use_pmdown_time = 1,
 	.endianness = 1,
+	.legacy_dai_naming = 0,
 };
 
 /* PCM rates supported by the AD82128 driver */
@@ -766,7 +778,7 @@ static int ad82128_parse_dt(struct ad82128_data *ad82128,
 	int reset_pin = -1;
 
 	reset_pin = of_get_named_gpio(np, "reset_pin", 0);
-	if (reset_pin < 0) {
+	if (!gpio_is_valid(reset_pin)) {
 		ret = -1;
 		reset_pin = -1;
 	} else {
@@ -800,7 +812,7 @@ static int ad82128_probe(struct i2c_client *client)
 	data->ad82128_client = client;
 	data->devtype = id->driver_data;
 	ret = ad82128_parse_dt(data, client->dev.of_node);
-	if (data->reset_pin > 0) {
+	if (gpio_is_valid(data->reset_pin) && !reset_pin_setting) {
 		// request amp PD pin control GPIO
 		ret = gpio_request(data->reset_pin, NULL);
 		if (ret < 0)
@@ -808,6 +820,8 @@ static int ad82128_probe(struct i2c_client *client)
 		// pull high amp PD pin
 		gpio_direction_output(data->reset_pin, 1);
 		msleep(150);
+		reset_pin_setting = 1;
+		gpio_free(data->reset_pin);
 	}
 
 	switch (id->driver_data) {
@@ -851,12 +865,21 @@ static int ad82128_probe(struct i2c_client *client)
 static void ad82128_i2c_shutdown(struct i2c_client *client)
 {
 	struct ad82128_data *data = i2c_get_clientdata(client);
+	int ret;
 
 	if (!data)
 		return;
 
-	if (data->reset_pin)
-		gpio_direction_output(data->reset_pin, GPIOF_OUT_INIT_LOW);
+	if (gpio_is_valid(data->reset_pin) && reset_pin_setting) {
+		// request amp PD pin control GPIO
+		ret = gpio_request(data->reset_pin, NULL);
+		if (ret < 0)
+			pr_err("failed to request gpio: %d\n", ret);
+		gpio_direction_output(data->reset_pin, 0);
+		reset_pin_setting = 0;
+		msleep(20);
+		gpio_free(data->reset_pin);
+	}
 }
 
 #if IS_ENABLED(CONFIG_OF)
