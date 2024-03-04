@@ -496,8 +496,7 @@ static int aml_spdif_platform_suspend(struct platform_device *pdev, pm_message_t
 
 	if (p_spdif->chipinfo->regulator || (p_spdif->suspend_clk_off && !is_pm_s2idle_mode())) {
 		/* warning:parent clk already close */
-		if (__clk_is_enabled(clk_get_parent(p_spdif->clk_spdifout)) ||
-			__clk_is_enabled(p_spdif->clk_spdifout)) {
+		if (__clk_is_enabled(clk_get_parent(p_spdif->clk_spdifout))) {
 			if (!IS_ERR(p_spdif->clk_spdifout)) {
 				while (__clk_is_enabled(p_spdif->clk_spdifout))
 					clk_disable_unprepare(p_spdif->clk_spdifout);
