@@ -12924,7 +12924,7 @@ int pkt_adv_chip(void)
 	int ret;
 
 	if (chip_type_id == chip_t7 ||
-		chip_type_id == chip_s5)
+		(chip_type_id >= chip_s5 && chip_cls_id == STB_CHIP))
 		ret = 1;
 	else
 		ret = 0;
