@@ -40,6 +40,7 @@
 #include <linux/debugfs.h>
 #include "mmc_key.h"
 #include "mmc_dtb.h"
+#include <linux/proc_fs.h>
 //KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION == 13515
 #include <trace/hooks/mmc.h>
@@ -3740,6 +3741,69 @@ static int erase_count_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(erase_count);
 
+static int card_proc_show(struct seq_file *m, void *v)
+{
+	seq_puts(m, "null node\n");
+
+	return 0;
+}
+
+static int card_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, card_proc_show, NULL);
+}
+
+static const struct proc_ops card_proc_fops = {
+	.proc_open = card_proc_open,
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
+	.proc_release = single_release,
+};
+
+static ssize_t get_bootloader_offset(const struct class *class,
+		const struct class_attribute *attr, char *buf)
+{
+	int offset = 0;
+
+	offset = 512;
+	return sprintf(buf, "%d", offset);
+}
+
+static struct class_attribute bootloader_offset =
+__ATTR(bl_off_bytes, 0444, get_bootloader_offset, NULL);
+
+int add_emmc_attr(void)
+{
+	int ret = 0;
+	struct class *aml_store_class = NULL;
+
+	if (!proc_create("inand", 0444, NULL, &card_proc_fops)) {
+		pr_info("[%s] create /proc/inand fail.\n", __func__);
+		ret = -1;
+		goto out;
+	}
+
+	aml_store_class = class_create("aml_store");
+	if (IS_ERR(aml_store_class)) {
+		pr_info("[%s] create aml_store_class class fail.\n", __func__);
+		ret = -1;
+		goto out;
+	}
+
+	ret = class_create_file(aml_store_class, &bootloader_offset);
+	if (ret) {
+		pr_info("[%s] can't create aml_store_class file .\n", __func__);
+		goto out_class;
+	}
+
+	return ret;
+
+out_class:
+	class_destroy(aml_store_class);
+out:
+	return ret;
+}
+
 void add_dtbkey(struct work_struct *work)
 {
 	int ret;
@@ -3755,6 +3819,7 @@ void add_dtbkey(struct work_struct *work)
 		amlmmc_dtb_init(mmc->card, &ret);
 		if (ret)
 			pr_err("%s:%d,amlmmc_dtb_init fail\n", __func__, __LINE__);
+		add_emmc_attr();
 	} else {
 		schedule_delayed_work(&host->dtbkey, 50);
 	}
@@ -4055,8 +4120,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
 				mmc, &erase_count_fops);
 	}
 #endif
-	host->blk_test = devm_kzalloc(host->dev,
-				      512 * CALI_BLK_CNT, GFP_KERNEL);
+
+	host->blk_test = devm_kzalloc(host->dev, 512 * CALI_BLK_CNT, GFP_KERNEL);
 
 	if (!host->blk_test) {
 		ret = -ENOMEM;
