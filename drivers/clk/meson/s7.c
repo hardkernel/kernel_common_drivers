@@ -1533,7 +1533,7 @@ MESON_CLK_COMPOSITE_RW(pwm_h, CLKCTRL_PWM_CLK_GH_CTRL, 0x3, 25,
 		       CLKCTRL_PWM_CLK_GH_CTRL, 16, 8, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_PWM_CLK_GH_CTRL, 24,
-		       0, CLK_SET_RATE_PARENT);
+		       0, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
 MESON_CLK_COMPOSITE_RW(pwm_i, CLKCTRL_PWM_CLK_IJ_CTRL, 0x3, 9,
 		       pwm_parent_table, 0, pwm_parent_data, 0,
@@ -1547,7 +1547,7 @@ MESON_CLK_COMPOSITE_RW(pwm_j, CLKCTRL_PWM_CLK_IJ_CTRL, 0x3, 25,
 		       CLKCTRL_PWM_CLK_IJ_CTRL, 16, 8, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_PWM_CLK_IJ_CTRL, 24,
-		       0, CLK_SET_RATE_PARENT);
+		       0, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
 /*cts_sar_adc_clk*/
 static const struct clk_parent_data sar_adc_parent_data[] = {
