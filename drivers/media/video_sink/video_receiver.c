@@ -158,12 +158,6 @@ static inline void common_vf_put(struct video_recv_s *ins,
 	}
 }
 
-static void init_receiver_buffer_q(struct video_recv_s *ins)
-{
-	INIT_KFIFO(ins->put_q);
-	kfifo_reset(&ins->put_q);
-}
-
 /* TODO: need add keep frame function */
 static void common_vf_unreg_provider(struct video_recv_s *ins)
 {
@@ -207,7 +201,6 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	ins->buf_to_put_num = 0;
 	for (i = 0; i < DISPBUF_TO_PUT_MAX; i++)
 		ins->buf_to_put[i] = NULL;
-	init_receiver_buffer_q(ins);
 	ins->rdma_buf = NULL;
 	ins->original_vf = NULL;
 	ins->switch_vf = false;
@@ -403,7 +396,6 @@ static void common_vf_light_unreg_provider(struct video_recv_s *ins)
 	ins->buf_to_put_num = 0;
 	for (i = 0; i < DISPBUF_TO_PUT_MAX; i++)
 		ins->buf_to_put[i] = NULL;
-	init_receiver_buffer_q(ins);
 	ins->rdma_buf = NULL;
 
 	if (ins->cur_buf) {
@@ -518,20 +510,6 @@ static bool is_vsync_vppx_rdma_enable(u8 vpp_index)
 	return enable;
 }
 
-void put_receiver_buffer_q(struct video_recv_s *ins)
-{
-	struct vframe_s *vf = NULL;
-
-	while (kfifo_len(&ins->put_q) > 0) {
-		if (kfifo_get(&ins->put_q, &vf)) {
-			if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
-				pr_info("%s, put vf=0x%p\n",
-					__func__, vf);
-			common_vf_put(ins, vf);
-		}
-	}
-}
-
 static void common_toggle_frame(struct video_recv_s *ins,
 				struct vframe_s *vf)
 {
@@ -557,10 +535,10 @@ static void common_toggle_frame(struct video_recv_s *ins,
 					    ins->original_vf;
 					ins->buf_to_put_num++;
 				} else {
-					kfifo_put(&ins->put_q, ins->original_vf);
+					common_vf_put(ins, ins->original_vf);
 				}
 			} else {
-				kfifo_put(&ins->put_q, ins->original_vf);
+				common_vf_put(ins, ins->original_vf);
 			}
 		} else {
 			for (i = 0; i < ins->buf_to_put_num; i++) {
@@ -600,7 +578,6 @@ static s32 recv_common_early_process(struct video_recv_s *ins, u32 op)
 
 	/* not over vsync */
 	if (!op) {
-		put_receiver_buffer_q(ins);
 		for (i = 0; i < ins->buf_to_put_num; i++) {
 			if (ins->buf_to_put[i]) {
 				ins->buf_to_put[i]->rendered = true;
@@ -769,7 +746,7 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 		} else {
 			vf = common_vf_get(ins);
 			if (vf)
-				kfifo_put(&ins->put_q, vf);
+				common_vf_put(ins, vf);
 		}
 		drop_count++;
 		vf = common_vf_peek(ins);
