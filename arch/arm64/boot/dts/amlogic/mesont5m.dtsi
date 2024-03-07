@@ -1272,16 +1272,19 @@
 				<&clkc CLKID_VAPB>,
 				<&clkc CLKID_VPU_0>,
 				<&clkc CLKID_VPU_1>,
-				<&clkc CLKID_VPU>;
+				<&clkc CLKID_VPU>,
+				<&clkc CLKID_GP0_PLL>;
 			clock-names =   "vapb_clk0",
 					"vapb_clk1",
 					"vapb_clk",
 					"vpu_clk0",
 					"vpu_clk1",
-					"vpu_clk";
+					"vpu_clk",
+					"gp_pll";
 			clk_level = <8>;
 			/* 0: 24.0M  1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
 			/* 5: 333.3M    6: 400.0M    7: 500.0M    8: 666.7M */
+			/* 9: 800M      10: 744M      11:768M */
 		};
 
 		/*if you want to use vdin just modify status to "ok"*/

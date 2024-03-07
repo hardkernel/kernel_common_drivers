@@ -358,10 +358,16 @@ void vpu_clktree_init_dft(struct device *dev)
 	else
 		clk_prepare_enable(vpu_conf.vpu_intr);
 
+	/* t5m gp0 clk set in emmc
+	 * vpu only prepare gp0 clk to avoid emmc disable gp0
+	 * no need to set gp0 clk
+	 */
 	if (vpu_conf.data->gp_pll_valid) {
 		vpu_conf.gp_pll = devm_clk_get(dev, "gp_pll");
 		if (IS_ERR_OR_NULL(vpu_conf.gp_pll))
 			VPUERR("%s: gp_pll\n", __func__);
+		else
+			clk_prepare_enable(vpu_conf.gp_pll);
 	}
 
 	/* init & enable vpu_clk */

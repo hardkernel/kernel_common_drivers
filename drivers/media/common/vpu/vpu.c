@@ -2422,8 +2422,8 @@ static struct vpu_data_s vpu_data_t5m = {
 	.chip_type = VPU_CHIP_T5M,
 	.chip_name = "t5m",
 
-	.clk_level_dft = CLK_LEVEL_DFT_G12A,
-	.clk_level_max = CLK_LEVEL_MAX_G12A,
+	.clk_level_dft = CLK_LEVEL_DFT_T5M,
+	.clk_level_max = CLK_LEVEL_MAX_T5M,
 	.fclk_div_table = fclk_div_table_g12a,
 	.clk_table = vpu_clk_table,
 
@@ -2433,7 +2433,7 @@ static struct vpu_data_s vpu_data_t5m = {
 	.vpu_clk_reg = CLKCTRL_VPU_CLK_CTRL,
 	.vapb_clk_reg = CLKCTRL_VAPBCLK_CTRL,
 
-	.gp_pll_valid = 0,
+	.gp_pll_valid = 1,
 	.mem_pd_reg[0] = PWRCTRL_MEM_PD5_SC2,
 	.mem_pd_reg[1] = PWRCTRL_MEM_PD6_SC2,
 	.mem_pd_reg[2] = PWRCTRL_MEM_PD7_SC2,
@@ -2984,6 +2984,10 @@ static void vpu_shutdown(struct platform_device *pdev)
 
 	if (!IS_ERR_OR_NULL(vpu_conf.vpu_intr))
 		clk_disable_unprepare(vpu_conf.vpu_intr);
+
+	if (!IS_ERR_OR_NULL(vpu_conf.gp_pll) &&
+		__clk_is_enabled(vpu_conf.gp_pll))
+		clk_disable_unprepare(vpu_conf.gp_pll);
 }
 
 #ifdef CONFIG_PM
@@ -3080,6 +3084,10 @@ static int vpu_freeze(struct device *dev)
 
 	if (!IS_ERR_OR_NULL(vpu_conf.vpu_intr))
 		clk_disable_unprepare(vpu_conf.vpu_intr);
+
+	if (!IS_ERR_OR_NULL(vpu_conf.gp_pll) &&
+		__clk_is_enabled(vpu_conf.gp_pll))
+		clk_disable_unprepare(vpu_conf.gp_pll);
 
 	return 0;
 }

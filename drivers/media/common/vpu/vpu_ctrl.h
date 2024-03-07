@@ -35,6 +35,11 @@
 #define CLK_LEVEL_DFT_T3X    9
 #define CLK_LEVEL_MAX_T3X    12
 
+/* T5M */
+/* connect to gp0 clk=768M, default=768M */
+#define CLK_LEVEL_DFT_T5M    8
+#define CLK_LEVEL_MAX_T5M    12
+
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
 /* vpu clk setting */
 static struct fclk_div_s fclk_div_table_g12a[] = {
