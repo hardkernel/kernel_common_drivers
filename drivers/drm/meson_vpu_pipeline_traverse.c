@@ -112,7 +112,7 @@ static void pipeline_dfs(int osd_index, struct meson_vpu_pipeline_state *mvps,
 			MESON_DRM_TRAVERSE("######path%d######\n", mvt->num_path);
 			for (i = 0; i < mvs->top; i++) {
 				mvt->path[j][i] = mvs->stack[i];
-				DRM_DEBUG("%s->\n", mvs->stack[i]->name);
+				MESON_DRM_TRAVERSE("%s->\n", mvs->stack[i]->name);
 			}
 			j++;
 			mvt->num_path++;
@@ -367,6 +367,7 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 				mvps->plane_info[osd_index].dst_y +
 				mvps->plane_info[osd_index].dst_h;
 		}
+		scaler_param_1->global = 1;
 
 		DRM_DEBUG("Scaler [%d-%d] of osd [%d]  = [%d/%d,%d/%d], scope[%d,%d-%d,%d]\n",
 			m, mvps->scaler_cnt[i], osd_index,
