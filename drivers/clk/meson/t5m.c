@@ -2914,18 +2914,22 @@ static struct clk_regmap t5m_hevcb = {
 	},
 };
 
+static u32 t5m_vpu_table[] = { 0, 1, 2, 3, 4};
+
 static const struct clk_hw *t5m_vpu_parent_hws[] = {
 	&t5m_fclk_div3.hw,
 	&t5m_fclk_div4.hw,
 	&t5m_fclk_div5.hw,
-	&t5m_fclk_div7.hw
+	&t5m_fclk_div7.hw,
+	&t5m_gp0_pll.hw
 };
 
 static struct clk_regmap t5m_vpu_0_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = CLKCTRL_VPU_CLK_CTRL,
-		.mask = 0x3,
+		.mask = 0x7,
 		.shift = 9,
+		.table = t5m_vpu_table
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vpu_0_sel",
@@ -2967,8 +2971,9 @@ static struct clk_regmap t5m_vpu_0 = {
 static struct clk_regmap t5m_vpu_1_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = CLKCTRL_VPU_CLK_CTRL,
-		.mask = 0x3,
+		.mask = 0x7,
 		.shift = 25,
+		.table = t5m_vpu_table
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vpu_1_sel",
