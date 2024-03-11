@@ -820,7 +820,7 @@ static void meson_handle_thermal_trip(struct thermal_zone_device *tz, int trip, 
 			cdev = instance->cdev;
 			tz->temperature = temp;
 			if (cdev->ops && cdev->ops->set_cur_state &&
-				instance->trip == THERMAL_TRIP_HOT) {
+				instance->trip->type == THERMAL_TRIP_HOT) {
 				cdev->ops->get_requested_power(cdev, &state_set);
 				if (state_set != last_state_set) {
 					cdev->ops->set_cur_state(cdev, (unsigned long)state_set);

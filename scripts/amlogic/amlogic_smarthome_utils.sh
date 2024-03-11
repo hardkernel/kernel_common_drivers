@@ -52,6 +52,9 @@ export -f handle_input_parameters_for_smarthome
 
 function set_default_parameters_for_smarthome () {
 	version_message=$(grep -rn BRANCH= ${KERNEL_DIR}/build.config.constants)
+	if [[ -z ${version_message} ]]; then
+		version_message=$(grep -rn BRANCH= ${KERNEL_DIR}/build.config.common)
+	fi
 	version_message="common${version_message##*android}"
 	if [[ -n ${FULL_KERNEL_VERSION} ]]; then
 		if [[ "${FULL_KERNEL_VERSION}" != "${version_message}" ]]; then
