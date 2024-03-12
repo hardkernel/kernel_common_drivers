@@ -27,6 +27,7 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include "gamut_convert.h"
+#include "../amcsc.h"
 
 unsigned int gmt_print;
 module_param(gmt_print, uint, 0664);
@@ -427,7 +428,9 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 				src_prmy[i][j] = std_bt709_prmy[(i + 2) % 3][j];
 				src_prmy[3][j] = std_bt709_white_point[j];
 			}
-	} else if ((source_type[vd_path] == HDRTYPE_HDR10) ||
+		pr_gmt("src_primary: SDR_BT709 case\n");
+	} else if (((source_type[vd_path] == HDRTYPE_HDR10) ||
+		(source_type[vd_path] == HDRTYPE_HDR10_709)) ||
 		(source_type[vd_path] == HDRTYPE_HLG) ||
 		(source_type[vd_path] == HDRTYPE_PRIMESL) ||
 		(source_type[vd_path] == HDRTYPE_HDR10PLUS)) {
@@ -441,14 +444,27 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 						std_p3_white_point
 						[j];
 				}
+			pr_gmt("src_primary: HDR_P3 case\n");
 		} else {
-			for (i = 0; i < 3; i++)
-				for (j = 0; j < 2; j++) {
-					src_prmy[i][j] =
-						std_bt2020_prmy[(i + 2) % 3][j];
-					src_prmy[3][j] =
-						std_bt2020_white_point[j];
-				}
+			if (source_type[vd_path] == HDRTYPE_HDR10_709) {
+				for (i = 0; i < 3; i++)
+					for (j = 0; j < 2; j++) {
+						src_prmy[i][j] =
+							std_bt709_prmy[(i + 2) % 3][j];
+						src_prmy[3][j] =
+							std_bt709_white_point[j];
+					}
+				pr_gmt("src_primary: HDR10_BT709 case\n");
+			} else {
+				for (i = 0; i < 3; i++)
+					for (j = 0; j < 2; j++)
+						src_prmy[i][j] = std_bt2020_prmy[(i + 2) % 3][j];
+
+				for (j = 0; j < 2; j++)
+					src_prmy[3][j] = std_bt2020_white_point[j];
+
+				pr_gmt("src_primary: HDR10_BT2020 case\n");
+			}
 		}
 	} else if (source_type[vd_path] == HDRTYPE_SDR2020) {
 		for (i = 0; i < 3; i++)

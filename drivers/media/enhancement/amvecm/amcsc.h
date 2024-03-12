@@ -92,6 +92,7 @@ enum mtx_en_e {
 enum output_format_e {
 	UNKNOWN_FMT = 0,
 	BT709,
+	BT709_HDR,
 	BT2020,
 	BT2020_PQ,
 	BT2020_PQ_DYNAMIC,
@@ -212,6 +213,10 @@ int get_video_mute(void);
 
 void get_cur_vd_signal_type(enum vd_path_e vd_path);
 enum color_primary_e get_color_primary(void);
+
+unsigned int get_cur_vd_ext_signal_type(enum vd_path_e vd_path);
+enum vpp_matrix_ext_csc_e get_ext_csc_type(void);
+
 /*hdr*/
 /*#define DBG_BUF_SIZE (1024)*/
 
