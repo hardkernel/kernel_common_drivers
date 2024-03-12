@@ -174,6 +174,9 @@ void hdmitx21_phy_bandgap_en_s7(void)
 
 void set21_phy_by_mode_s7(u32 mode)
 {
+	struct arm_smccc_res res;
+	u8 rterm = 0; /* this will get from ufuse */
+
 	switch (mode) {
 	case HDMI_PHYPARA_6G: /* 5.94/4.5/3.7Gbps */
 	case HDMI_PHYPARA_4p5G:
@@ -195,6 +198,18 @@ void set21_phy_by_mode_s7(u32 mode)
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x004ef001);
 		break;
 	}
+
+	/* write Rterm */
+	arm_smccc_smc(HDCPTX_IOOPR, HDMITX_GET_RTERM, 0, 0, 0, 0, 0, 0, &res);
+	rterm = (unsigned int)((res.a0) & 0xffffffff);
+	/* default value when efuse invalid, 0xff indicate efuse invalid */
+	if (rterm != 0xff) {
+		HDMITX_INFO("%s[%d] rterm = %d\n", __func__, __LINE__, rterm);
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL0, rterm, 28, 4);
+	} else {
+		HDMITX_INFO("efuse invalid, use default value\n");
+	}
+
 	/* The bit with resetn is configured later than other bits. */
 	usleep_range(100, 110);
 	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 3, 10, 2);
