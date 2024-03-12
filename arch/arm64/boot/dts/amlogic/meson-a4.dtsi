@@ -1752,7 +1752,7 @@
 		compatible = "amlogic, aml-wifi";
 		status = "disabled";
 		irq_trigger_type = "IRQF_TRIGGER_LOW";
-		dhd_static_buf = <1>; /* if use bcm wifi, config dhd_static_buf */
+		wifi_static_buf = <0>;
 		//pinctrl-0 = <&pwm_e_pins>;
 		//pinctrl-names = "default";
 		pinctrl-0 = <&pwm_g_ao_pins>;
@@ -1761,12 +1761,12 @@
 			//pwms = <&pwm_ef 0 30541 0>;
 			pwms = <&pwm_gh 0 30541 0>;
 			duty-cycle = <15270>;
-			times = <7>;
+			times = <40>;
 		};
 		pwm_channel2_conf {
 			//pwms = <&pwm_ef 2 30500 0>;
-			pwms = <&pwm_gh 2 30500 0>;
-			duty-cycle = <15250>;
+			pwms = <&pwm_gh 2 30600 0>;
+			duty-cycle = <15300>;
 			times = <10>;
 		};
 	};
