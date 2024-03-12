@@ -227,6 +227,7 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	unsigned int rx_R = 0;
 	unsigned int tx_R = 0;
 	unsigned int efuse_get_tmp = 0;
+	unsigned int led_setting = 0;
 
 	if (of_property_read_u32(np, "tx_amp_src", &tx_amp_addr) != 0)
 		pr_info("no amp setting\n");
@@ -330,6 +331,10 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 		pr_info("use default st_mode\n");
 		st_mode = 7;
 	}
+	if (of_property_read_u32(np, "led_setting", &led_setting) == 0) {
+		led_setting = led_setting << 24;
+		pr_info("led setting 0x%x\n", led_setting);
+	}
 #endif
 	/* Enable the phy clock */
 	if (!priv->pll_is_enabled) {
@@ -361,6 +366,7 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	       PHY_CNTL2_RX_CLK_EPHY,
 	       priv->regs + ETH_PHY_CNTL2);
 	value |= PHY_CNTL1_PHY_ENB;
+	value |= led_setting;
 	writel(value, priv->regs + ETH_PHY_CNTL1);
 	/* The phy needs a bit of time to power up */
 	mdelay(10);

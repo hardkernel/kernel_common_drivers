@@ -652,6 +652,7 @@
 				phy_pll_mode = <2>;
 				phy_mode = <4>;
 				tx_amp_src = <0xFE010330>;
+				led_setting = <0x42>;
 
 				ext_mdio: mdio@0 {
 					reg = <0>;
@@ -2415,6 +2416,14 @@
 		mux {/* GPIOH_5 */
 			groups = "spdif_in";
 			function = "spdif_in";
+		};
+	};
+
+	eth_led_pins: eth {
+		mux {
+			groups = "eth_link_led",
+				 "eth_act_led";
+			function = "eth";
 		};
 	};
 };
