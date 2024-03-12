@@ -640,11 +640,28 @@ static int hdmitx21_calc_formatpara(struct hdmitx_hw_common *tx_hw,
 static void hdmitx_set_packet(int type,
 	unsigned char *DB, unsigned char *HB)
 {
-	if (type == HDMI_INFOFRAME_TYPE_VENDOR2)
-		hdmi_vend_infoframe2_rawset(HB, DB);
-	else if (type == HDMI_INFOFRAME_TYPE_VENDOR)
-		hdmi_vend_infoframe_rawset(HB, DB);
-	/* add other type here if needed */
+	unsigned char vsif_db[28] = {0};
+
+	switch (type) {
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+	case HDMI_INFOFRAME_TYPE_VENDOR2:
+		if (!HB || !DB) {
+			if (type == HDMI_INFOFRAME_TYPE_VENDOR2)
+				hdmi_vend_infoframe2_rawset(NULL, NULL);
+			else
+				hdmi_vend_infoframe_rawset(NULL, NULL);
+			return;
+		}
+		/* vsif_db[0] is checksum, requires software calculation */
+		memcpy(&vsif_db[1], DB, 27);
+		if (type == HDMI_INFOFRAME_TYPE_VENDOR2)
+			hdmi_vend_infoframe2_rawset(HB, vsif_db);
+		else
+			hdmi_vend_infoframe_rawset(HB, vsif_db);
+		break;
+	default:
+		break;
+	}
 }
 
 /* note: if need to check if global_tx_hw not NULL before use it
