@@ -736,6 +736,119 @@
 		key_tolerance = <40 40 40>;
 	};
 
+	vin_12v_reg: fixed@vin_12v_reg {
+		compatible = "regulator-fixed";
+		regulator-name = "12V";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddao_5v_reg: fixed@vddao_5v_reg {
+		vin-supply = <&vin_12v_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDAO_5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vcc5v_reg: fixed@vcc5v_reg {
+		vin-supply = <&vddao_5v_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VCC5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		pinctrl-names = "default";
+		gpio = <&gpio GPIOC_7 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		startup-delay-us = <7000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddq_reg: fixed@vddq_reg {
+		compatible = "regulator-fixed";
+		vin-supply = <&vin_12v_reg>;
+		regulator-name = "VDDQ1.2V";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddao_3v3p_reg: fixed@vddao_3v3p_reg {
+		vin-supply = <&vin_12v_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDAO_3V3_P";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddao_3v3_reg: fixed@vddao_3v3_reg {
+		vin-supply = <&vddao_3v3p_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDAO_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdd3v3_soc_reg: fixed@vdd3v3_soc_reg {
+		vin-supply = <&vddao_3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDD3V3_SOC";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdd1v8_dcdc_reg: fixed@vdd1v8_dcdc_reg {
+		compatible = "regulator-fixed";
+		vin-supply = <&vin_12v_reg>;
+		regulator-name = "VDD_1V8_DCDC";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddio_x_reg: fixed@vddio_x_reg {
+		compatible = "regulator-fixed";
+		vin-supply = <&vdd1v8_dcdc_reg>;
+		regulator-name = "VDDIO_X";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdd_ao1v8_ldo_reg: fixed@vdd_ao1v8_ldo_reg {
+		compatible = "regulator-fixed";
+		vin-supply = <&vddao_3v3p_reg>;
+		regulator-name = "VDD_AO18_LDO";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	ddr4_2v5_reg: fixed@ddr4_2v5 {
+		vin-supply = <&vddao_3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "DDR4_2.5V";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	gpio_keypad{
 		compatible = "amlogic, gpio_keypad";
 		status = "disabled";
@@ -847,7 +960,7 @@
 };
 
 &vddcpu0 {
-	status = "disabled";
+	status = "okay";
 };
 
 &CPU0 {

@@ -735,6 +735,35 @@
 		key_tolerance = <40 40 40>;
 	};
 
+	vin_5v_reg: fixedregulator@vin_5v_reg {
+		compatible = "regulator-fixed";
+		regulator-name = "5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddq_reg: fixedregulator@vddq_reg {
+		compatible = "regulator-fixed";
+		vin-supply = <&vin_5v_reg>;
+		regulator-name = "VDDQ";
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddao1v8_reg: fixedregulator@vddao1v8_reg {
+		compatible = "regulator-fixed";
+		vin-supply = <&vin_5v_reg>;
+		regulator-name = "VDDAO_1V8_DCDC";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	gpio_keypad{
 		compatible = "amlogic, gpio_keypad";
 		status = "disabled";
@@ -846,7 +875,7 @@
 };
 
 &vddcpu0 {
-	status = "disabled";
+	status = "okay";
 };
 
 &CPU0 {
