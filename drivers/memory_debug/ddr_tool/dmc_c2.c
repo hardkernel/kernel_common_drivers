@@ -44,15 +44,13 @@
 #define DMC_PROT_VIO_3		((0x0099  << 2))
 
 #define DMC_PROT_IRQ_CTRL	((0x009a  << 2))
-#define DMC_IRQ_STS		((0x009b  << 2))
+#define DMC_IRQ_STS		((0x0030  << 2))
 
-#define DMC_IRQ_STS_C2		((0x0090  << 2))
-
-#define DMC_SEC_STATUS		((0x009a  << 2))
-#define DMC_VIO_ADDR0		((0x009b  << 2))
-#define DMC_VIO_ADDR1		((0x009c  << 2))
-#define DMC_VIO_ADDR2		((0x009d  << 2))
-#define DMC_VIO_ADDR3		((0x009e  << 2))
+#define DMC_SEC_STATUS		((0x00fa  << 2))
+#define DMC_VIO_ADDR0		((0x00fb  << 2))
+#define DMC_VIO_ADDR1		((0x00fc  << 2))
+#define DMC_VIO_ADDR2		((0x00fd  << 2))
+#define DMC_VIO_ADDR3		((0x00fe  << 2))
 
 static size_t c2_dmc_dump_reg(char *buf)
 {
@@ -74,7 +72,7 @@ static size_t c2_dmc_dump_reg(char *buf)
 	}
 	val = dmc_prot_rw(io, DMC_PROT_IRQ_CTRL, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_PROT_IRQ_CTRL:%lx\n", val);
-	val = dmc_prot_rw(io, DMC_IRQ_STS_C2, 0, DMC_READ);
+	val = dmc_prot_rw(io, DMC_IRQ_STS, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_IRQ_STS:%lx\n", val);
 
 	return sz;
@@ -88,10 +86,7 @@ static int check_violation(struct dmc_monitor *mon, void *data)
 	struct page_trace *trace;
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
-	if (mon->chip == DMC_TYPE_C2)
-		irqreg = dmc_prot_rw(mon_comm->io_mem, 0 - DMC_IRQ_STS_C2, 0, DMC_READ);
-	else
-		irqreg = dmc_prot_rw(mon_comm->io_mem, DMC_IRQ_STS, 0, DMC_READ);
+	irqreg = dmc_prot_rw(mon_comm->io_mem, DMC_IRQ_STS, 0, DMC_READ);
 
 	if (irqreg & DMC_WRITE_VIOLATION) {
 		mon_comm->time = sched_clock();
@@ -160,13 +155,8 @@ static void c2_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 	int port = 0, subport = 0;
 	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
-	if (dmc_mon->chip == DMC_TYPE_C2) {
-		*vio_bit = BIT(31) | BIT(30);
-		port = get_c2_port((mon_comm->status >> 16) & 0x3ff);
-	} else {
-		*vio_bit = BIT(20) | BIT(19);
-		port = (mon_comm->status >> 11) & 0x1f;
-	}
+	*vio_bit = BIT(31) | BIT(30);
+	port = get_c2_port((mon_comm->status >> 16) & 0x3ff);
 	subport = (mon_comm->status >> 6) & 0xf;
 
 	mon_comm->port.name = to_ports(port);
@@ -271,11 +261,11 @@ static int c2_dmc_reg_control(char *input, char control, char *output)
 		count = c2_reg_analysis(input, output);
 		break;
 	case 'c':	/* clear sec statue reg */
-		dmc_prot_rw(NULL, 0x1000 + DMC_SEC_STATUS, 0x3, DMC_WRITE);
+		dmc_prot_rw(NULL, DMC_SEC_STATUS, 0x3, DMC_WRITE);
 		break;
 	case 'd':	/* dump sec vio reg */
 		count += sprintf(output + count, "DMC SEC INFO:\n");
-		val = dmc_prot_rw(NULL, 0x1000 + DMC_SEC_STATUS, 0, DMC_READ);
+		val = dmc_prot_rw(NULL, DMC_SEC_STATUS, 0, DMC_READ);
 		count += sprintf(output + count, "DMC_SEC_STATUS:%lx\n", val);
 		for (i = 0; i < 4; i++) {
 			val = dmc_prot_rw(NULL, 0x1000 + DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
