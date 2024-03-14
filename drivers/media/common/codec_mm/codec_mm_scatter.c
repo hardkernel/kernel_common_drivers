@@ -141,9 +141,6 @@ module_param(scatter_debug_mode, int, 0644);
 					((c) << 8) | (d))
 #define SMGT_IDENTIFY_TAG MK_TAG('Z', 'S', 'C', 'Z')
 
-/* config_alloc_flags bitmask */
-#define SC_ALLOC_SYS_DMA32  BIT(0)
-
 struct codec_mm_scatter_s {
 	u32 keep_size_PAGE;
 	u32 reserved_block_mm_M;
@@ -2664,6 +2661,25 @@ void codec_mm_scatter_watermark_update(struct codec_mm_scatter_mgt *smgt)
 		 */
 	}
 }
+
+int codec_mm_scatter_alloc_flags_config(int is_tvp, int sc_alloc_flags)
+{
+	struct codec_mm_scatter_mgt *smgt =
+		codec_mm_get_scatter_mgt(is_tvp ? 1 : 0);
+
+	g_scatter.config_alloc_flags = sc_alloc_flags;
+
+	codec_mm_scatter_update_config(smgt);
+
+	return 0;
+}
+EXPORT_SYMBOL(codec_mm_scatter_alloc_flags_config);
+
+int codec_mm_scatter_alloc_flag_get(void)
+{
+	return g_scatter.config_alloc_flags;
+}
+EXPORT_SYMBOL(codec_mm_scatter_alloc_flag_get);
 
 int codec_mm_scatter_size(int is_tvp)
 {
