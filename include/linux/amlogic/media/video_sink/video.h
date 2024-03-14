@@ -203,6 +203,7 @@ enum {
 #define VPP_LINE_BUFFER_EN_BIT          21
 #define VPP_SC_PREHORZ_EN_BIT           20
 #define VPP_SC_PREVERT_EN_BIT           19
+#define VPP_SC_4RGN_HNOLINEAR_EN        13
 #define VPP_HF_SEP_COEF_4SRNET_EN   BIT(25)
 #define VPP_PPS_LAST_LINE_FIX       BIT(24)
 #define VPP_LINE_BUFFER_EN          BIT(21)

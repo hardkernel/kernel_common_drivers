@@ -83,6 +83,7 @@ struct vd_proc_pps_s {
 	u32 dout_hsize;
 	u32 dout_vsize;
 	u32 slice_x_st;
+	u32 slice_x_end;
 	u32 pps_slice;
 	u32 prehsc_en;
 	u32 prevsc_en;
@@ -363,6 +364,22 @@ struct mosaic_frame_s {
 	struct vframe_s *vf;
 	struct disp_info_s virtual_layer_info;
 	struct video_layer_s virtual_layer;
+};
+
+struct slice_nonlinear_s {
+	u32 start_phase_step;
+	u32 hsc_init_phase;
+	u32 hsc_init_phase_exp;
+	u32 hsc_ini_rcv_num;
+	u32 hsc_ini_p0_num;
+	u32 region_slope1;
+	u32 region_slope3;
+	u32 r2_startp;
+	u32 r3_startp;
+	u32 r4_startp;
+	u32 s0_hwin_end;
+	u32 s1_hwin_start;
+	u32 s1_hwin_end;
 };
 
 extern u32 debug_flag_s5;
