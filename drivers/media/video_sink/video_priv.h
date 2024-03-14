@@ -859,6 +859,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo);
 int video_late_uninit(void);
 
 int video_hw_init_s5(void);
+int _video_hw_init_s5(void);
 int video_early_init_s5(struct amvideo_device_data_s *p_amvideo);
 void vd_scaler_setting_s5(struct video_layer_s *layer,
 		       struct scaler_setting_s *setting);
@@ -890,6 +891,7 @@ struct mosaic_frame_s *get_mosaic_vframe_info(u32 slice);
 void get_mosaic_axis(void);
 void set_mosaic_axis(u32 pic_index, u32 x_start, u32 y_start,
 	u32 x_end, u32 y_end);
+void video_resume_hw_recovery(void);
 
 /* from video.c */
 extern u32 osd_vpp_misc;

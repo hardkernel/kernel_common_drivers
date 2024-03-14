@@ -12431,7 +12431,7 @@ static void save_vd_pps_reg(void)
 	}
 }
 
-int video_hw_init_s5(void)
+int _video_hw_init_s5(void)
 {
 	struct vd_proc_misc_reg_s *vd_proc_misc_reg = NULL;
 	struct vpp_post_blend_reg_s *vpp_post_blend_reg = NULL;
@@ -12446,12 +12446,6 @@ int video_hw_init_s5(void)
 	vd_proc_blend_reg = &vd_proc_reg.vd_proc_blend_reg;
 	vd2_pre_blend_reg = &vd_proc_reg.vd2_pre_blend_reg;
 	vd_proc_sr_reg = &vd_proc_reg.vd_proc_sr_reg;
-#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-	void *video_secure_op[VPP_TOP_MAX] = {VSYNC_WR_MPEG_REG_BITS,
-					       VSYNC_WR_MPEG_REG_BITS_VPP1,
-					       VSYNC_WR_MPEG_REG_BITS_VPP2,
-					       PRE_VSYNC_WR_MPEG_REG_BITS};
-#endif
 
 	WRITE_VCBUS_REG_BITS
 		(vpp_post_misc_reg->vpp_ofifo_size,
@@ -12546,6 +12540,20 @@ int video_hw_init_s5(void)
 		WRITE_VCBUS_REG(VPU_AXI_QOS_WR0, 0xfb73fedc);
 	}
 	save_vd_pps_reg();
+	return 0;
+}
+
+int video_hw_init_s5(void)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+		void *video_secure_op[VPP_TOP_MAX] = {VSYNC_WR_MPEG_REG_BITS,
+							   VSYNC_WR_MPEG_REG_BITS_VPP1,
+							   VSYNC_WR_MPEG_REG_BITS_VPP2,
+							   PRE_VSYNC_WR_MPEG_REG_BITS};
+#endif
+
+	_video_hw_init_s5();
+
 #ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
 	int i;
 

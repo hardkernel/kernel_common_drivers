@@ -13350,25 +13350,14 @@ void vd1_set_go_field(void)
 	}
 }
 
-int video_hw_init(void)
+static int _video_hw_init(void)
 {
-	u32 cur_hold_line, ofifo_size;
-#ifdef CONFIG_AMLOGIC_VPU
-	struct vpu_dev_s *arb_vpu_dev;
-#endif
-	int i;
-#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-	void *video_secure_op[VPP_TOP_MAX] = {VSYNC_WR_MPEG_REG_BITS,
-					       VSYNC_WR_MPEG_REG_BITS_VPP1,
-					       VSYNC_WR_MPEG_REG_BITS_VPP2,
-					       PRE_VSYNC_WR_MPEG_REG_BITS};
-#endif
+	u32 ofifo_size;
 
 	if (cur_dev->display_module == C3_DISPLAY_MODULE) {
 		video_hw_init_c3();
 		return 0;
 	}
-
 	if (!legacy_vpp) {
 		if (vpp_ofifo_size == 0xff)
 			ofifo_size = 0x1000;
@@ -13405,7 +13394,7 @@ int video_hw_init(void)
 		WRITE_VCBUS_REG_BITS(VIU_MISC_CTRL1, 0xff, 16, 8);
 		WRITE_VCBUS_REG(VPP_AMDV_CTRL, 0x22000);
 		/*
-		 *default setting is black for dummy data1& dump data0,
+		 *default setting is black for dummy data1& dummy data0,
 		 *for dummy data1 the y/cb/cr data width is 10bit on gxm,
 		 *for dummy data the y/cb/cr data width is 8bit but
 		 *vpp_dummy_data will be left shift 2bit auto on gxm!!!
@@ -13443,6 +13432,102 @@ int video_hw_init(void)
 		di_used_vd1_afbc(false);
 	}
 
+	/*disable sr default when power up*/
+	if (cur_dev->display_module != C3_DISPLAY_MODULE) {
+		WRITE_VCBUS_REG(VPP_SRSHARP0_CTRL, 0);
+		WRITE_VCBUS_REG(VPP_SRSHARP1_CTRL, 0);
+	}
+	/* disable aisr_sr1_nn func */
+	if (cur_dev->aisr_support)
+		aisr_sr1_nn_enable(0);
+
+	/* Temp force set dmc */
+	if (!legacy_vpp) {
+		if (cur_dev->display_module == OLD_DISPLAY_MODULE ||
+			video_is_meson_t5w_cpu())
+			WRITE_DMCREG
+				(DMC_AM0_CHAN_CTRL,
+				0x8ff403cf);
+		if (video_is_meson_t5m_cpu())
+			WRITE_VCBUS_REG(VPU_RDARB_UGT_L2C1, 0xffff);
+		/* for vd1 & vd2 dummy alpha*/
+		WRITE_VCBUS_REG
+			(VPP_POST_BLEND_DUMMY_ALPHA,
+			0x7fffffff);
+		WRITE_VCBUS_REG_BITS
+			(VPP_MISC1, 0x100, 0, 9);
+	}
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+		/* disable latch for sr core0/1 scaler */
+		WRITE_VCBUS_REG_BITS
+			(sr_info.sr0_sharp_sync_ctrl,
+			1, 0, 1);
+		WRITE_VCBUS_REG_BITS
+			(sr_info.sr0_sharp_sync_ctrl,
+			1, 8, 1);
+		WRITE_VCBUS_REG_BITS
+			(sr_info.sr1_sharp_sync_ctrl,
+			1, 8, 1);
+		if (cur_dev->aisr_support)
+			WRITE_VCBUS_REG_BITS
+			(sr_info.sr1_sharp_sync_ctrl,
+			1, 17, 1);
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
+		WRITE_VCBUS_REG_BITS
+			(sr_info.sr0_sharp_sync_ctrl,
+			1, 0, 1);
+		WRITE_VCBUS_REG_BITS
+			(sr_info.sr0_sharp_sync_ctrl,
+			1, 8, 1);
+	}
+	/* force bypass dolby for TL1/T5, no dolby function */
+	if (!glayer_info[0].dv_support && !is_meson_s4d_cpu())
+		WRITE_VCBUS_REG_BITS(AMDV_PATH_CTRL, 0xf, 0, 6);
+
+	if (video_is_meson_t7_cpu()) {
+		/* vpu port map for t7 */
+		/* vpp_arb0: osd1, vd1, osd3, dolby0, vd3 */
+		/* vpp_arb1: osd2, vd2, osd4, mali-afbc */
+		/* arb rd0:  vpp_arb0, rdma read, ldim, vdin_afbce, vpu dma */
+		/* arb rd2:  vpp_arb1, */
+		/* VPU[0x3978]=0x0aa00000 */
+		/* VPU[0x279d]=0x00900000 */
+		/*
+		 *setting move to vpu arb driver init
+		 *WRITE_VCBUS_REG(VPU_RDARB_UGT_L2C1, 0xffff);
+		 */
+	} else if (video_is_meson_t5m_cpu()) {
+		/* vpu port map for t5m */
+		/* vpp_arb0: vd1, vd2, dolby0 */
+		/* vpp_arb1: osd1, osd2, osd3, mali-afbc */
+		/* arb rd0: vpp_arb0, rdma read, vpu sub, dcntr, tcon p2 */
+		/* arb rd2: vpp_arb1, tcon p1 */
+		/* VPU[0x3978]=0x0b300000 */
+		/* VPU[0x279d]=0x00920000 */
+		/* vpp_arb0, vpp_arb1 super urgent */
+		WRITE_VCBUS_REG(VPU_RDARB_UGT_L2C1, 0xffff);
+	}
+	vd_set_go_field_default();
+	return 0;
+}
+
+int video_hw_init(void)
+{
+	u32 cur_hold_line;
+#ifdef CONFIG_AMLOGIC_VPU
+	struct vpu_dev_s *arb_vpu_dev;
+#endif
+	int i;
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	void *video_secure_op[VPP_TOP_MAX] = {VSYNC_WR_MPEG_REG_BITS,
+					       VSYNC_WR_MPEG_REG_BITS_VPP1,
+					       VSYNC_WR_MPEG_REG_BITS_VPP2,
+					       PRE_VSYNC_WR_MPEG_REG_BITS};
+#endif
+
+	_video_hw_init();
+
 	/* temp: enable VPU arb mem */
 #ifdef CONFIG_AMLOGIC_VPU
 	vd1_vpu_dev = vpu_dev_register(VPU_VIU_VD1, "VD1");
@@ -13476,12 +13561,7 @@ int video_hw_init(void)
 	arb_vpu_dev = vpu_dev_register(VPU_VPU_ARB, "ARB");
 	vpu_dev_mem_power_on(arb_vpu_dev);
 #endif
-	/*disable sr default when power up*/
-	WRITE_VCBUS_REG(VPP_SRSHARP0_CTRL, 0);
-	WRITE_VCBUS_REG(VPP_SRSHARP1_CTRL, 0);
-	/* disable aisr_sr1_nn func */
-	if (cur_dev->aisr_support)
-		aisr_sr1_nn_enable(0);
+
 	if (cur_dev->display_module != C3_DISPLAY_MODULE) {
 		cur_hold_line = READ_VCBUS_REG(VPP_HOLD_LINES + cur_dev->vpp_off);
 		cur_hold_line = cur_hold_line & 0xff;
@@ -13493,80 +13573,14 @@ int video_hw_init(void)
 	else
 		vpp_hold_line[0] = cur_hold_line;
 
-	/* Temp force set dmc */
-	if (!legacy_vpp) {
-		if (cur_dev->display_module == OLD_DISPLAY_MODULE ||
-			video_is_meson_t5w_cpu())
-			WRITE_DMCREG
-				(DMC_AM0_CHAN_CTRL,
-				0x8ff403cf);
-		if (video_is_meson_t5m_cpu())
-			WRITE_VCBUS_REG(VPU_RDARB_UGT_L2C1, 0xffff);
-		/* for vd1 & vd2 dummy alpha*/
-		WRITE_VCBUS_REG
-			(VPP_POST_BLEND_DUMMY_ALPHA,
-			0x7fffffff);
-		WRITE_VCBUS_REG_BITS
-			(VPP_MISC1, 0x100, 0, 9);
-	}
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-		/* disable latch for sr core0/1 scaler */
-		WRITE_VCBUS_REG_BITS
-			(sr_info.sr0_sharp_sync_ctrl,
-			1, 0, 1);
-		WRITE_VCBUS_REG_BITS
-			(sr_info.sr0_sharp_sync_ctrl,
-			1, 8, 1);
-		WRITE_VCBUS_REG_BITS
-			(sr_info.sr1_sharp_sync_ctrl,
-			1, 8, 1);
-		if (cur_dev->aisr_support)
-			WRITE_VCBUS_REG_BITS
-			(sr_info.sr1_sharp_sync_ctrl,
-			1, 17, 1);
-	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
-		WRITE_VCBUS_REG_BITS
-			(sr_info.sr0_sharp_sync_ctrl,
-			1, 0, 1);
-		WRITE_VCBUS_REG_BITS
-			(sr_info.sr0_sharp_sync_ctrl,
-			1, 8, 1);
-	}
-	/* force bypass dolby for TL1/T5, no dolby function */
-	if (!glayer_info[0].dv_support && !is_meson_s4d_cpu())
-		WRITE_VCBUS_REG_BITS(AMDV_PATH_CTRL, 0xf, 0, 6);
 	for (i = 0; i < MAX_VD_LAYER; i++) {
 		if (glayer_info[i].fgrain_support)
 			fgrain_init(i, FGRAIN_TBL_SIZE);
 	}
 
-	if (video_is_meson_t7_cpu()) {
-		/* vpu port map for t7 */
-		/* vpp_arb0: osd1, vd1, osd3, dolby0, vd3 */
-		/* vpp_arb1: osd2, vd2, osd4, mali-afbc */
-		/* arb rd0:  vpp_arb0, rdma read, ldim, vdin_afbce, vpu dma */
-		/* arb rd2:  vpp_arb1, */
-		/* VPU[0x3978]=0x0aa00000 */
-		/* VPU[0x279d]=0x00900000 */
-		/*
-		 *setting move to vpu arb driver init
-		 *WRITE_VCBUS_REG(VPU_RDARB_UGT_L2C1, 0xffff);
-		 */
-	} else if (video_is_meson_t5m_cpu()) {
-		/* vpu port map for t5m */
-		/* vpp_arb0: vd1, vd2, dolby0 */
-		/* vpp_arb1: osd1, osd2, osd3, mali-afbc */
-		/* arb rd0: vpp_arb0, rdma read, vpu sub, dcntr, tcon p2 */
-		/* arb rd2: vpp_arb1, tcon p1 */
-		/* VPU[0x3978]=0x0b300000 */
-		/* VPU[0x279d]=0x00920000 */
-		/* vpp_arb0, vpp_arb1 super urgent */
-		WRITE_VCBUS_REG(VPU_RDARB_UGT_L2C1, 0xffff);
-	}
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	secure_register(VIDEO_MODULE, 0, video_secure_op, vpp_secure_cb);
 #endif
-	vd_set_go_field_default();
 	return 0;
 }
 
@@ -13996,6 +14010,20 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	if (cur_dev->pre_vsync_enable)
 		vd_layer[0].vpp_index = PRE_VSYNC;
 	return r;
+}
+
+void video_resume_hw_recovery(void)
+{
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		_video_hw_init_s5();
+	else
+		_video_hw_init();
+	vpp_probe_en_set(1);
+	vd_layer[0].property_changed = true;
+	vd_layer[1].property_changed = true;
+	vd_layer[2].property_changed = true;
+	vd_layer_vpp[0].property_changed = true;
+	vd_layer_vpp[1].property_changed = true;
 }
 
 int video_late_uninit(void)
