@@ -55,6 +55,10 @@ struct para_e {
 #define MMC_HOST_V8         8
 #define MMC_HOST_VERSION(h)        ((h)->data->version)
 
+#define MMC_SRAM_DESC_BUF_OFF(h)   ((h)->data->sram_off)
+
+#define MMC_SRAM_DATA_BUF_OFF(h)   ((h)->data->data_off)
+#define MMC_SRAM_DATA_BUF_LEN(h)   ((h)->data->data_size)
 struct meson_mmc_data {
 	unsigned int tx_delay_mask;
 	unsigned int rx_delay_mask;
@@ -62,6 +66,9 @@ struct meson_mmc_data {
 	unsigned int adjust;
 	u8 latching_mode;
 	u8 version;
+	unsigned int sram_off;
+	unsigned int data_off;
+	unsigned int data_size;
 };
 
 enum aml_host_bus_fsm { /* Host bus fsm status */
@@ -356,8 +363,12 @@ void aml_host_bus_fsm_show(struct mmc_host *mmc, int status);
 #define SD_EMMC_LAST_REG SD_EMMC_TXD
 
 #define SD_EMMC_SRAM_DESC_BUF_OFF 0x200
-#define SD_EMMC_SRAM_DATA_BUF_LEN 1024
 #define SD_EMMC_SRAM_DATA_BUF_OFF 0x400
+#define SD_EMMC_SRAM_DATA_BUF_LEN 1024
+#define SD_EMMC_SRAM_DESC_BUF_OFF_V8 0x400
+#define SD_EMMC_SRAM_DATA_BUF_OFF_V8 0x800
+#define SD_EMMC_SRAM_DATA_BUF_LEN_V8 2048
+
 #define SD_EMMC_MAX_SEGS 256
 #define SD_EMMC_MAX_REQ_SIZE (128 * 1024)
 #define SD_EMMC_MAX_SEG_SIZE (64 * 1024)

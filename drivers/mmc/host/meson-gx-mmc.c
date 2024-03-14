@@ -4068,7 +4068,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		/* Limit segments to 1 due to low available sram memory */
 		mmc->max_segs = 1;
 		/* Limit to the available sram memory */
-		mmc->max_blk_count = SD_EMMC_SRAM_DATA_BUF_LEN /
+		mmc->max_blk_count = MMC_SRAM_DATA_BUF_LEN(host) /
 				     mmc->max_blk_size;
 	} else {
 		mmc->max_blk_count = CMD_CFG_LENGTH_MASK;
@@ -4093,12 +4093,14 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		 * In the case of the G12A SDIO controller, use these
 		 * instead of the DDR memory
 		 */
-		host->bounce_buf_size = SD_EMMC_SRAM_DATA_BUF_LEN;
-		host->bounce_buf = host->regs + SD_EMMC_SRAM_DATA_BUF_OFF;
-		host->bounce_dma_addr = host->res[0]->start + SD_EMMC_SRAM_DATA_BUF_OFF;
+		host->bounce_buf_size = MMC_SRAM_DATA_BUF_LEN(host);
+		host->bounce_buf = host->regs + MMC_SRAM_DATA_BUF_OFF(host);
+		host->bounce_dma_addr = host->res[0]->start +
+			MMC_SRAM_DATA_BUF_OFF(host);
 
-		host->descs = host->regs + SD_EMMC_SRAM_DESC_BUF_OFF;
-		host->descs_dma_addr = host->res[0]->start + SD_EMMC_SRAM_DESC_BUF_OFF;
+		host->descs = host->regs + MMC_SRAM_DESC_BUF_OFF(host);
+		host->descs_dma_addr = host->res[0]->start +
+			MMC_SRAM_DESC_BUF_OFF(host);
 
 	} else {
 		/* data bounce buffer */
@@ -4273,6 +4275,9 @@ static const struct meson_mmc_data meson_axg_data = {
 	.rx_delay_mask	= CLK_V3_RX_DELAY_MASK,
 	.always_on	= CLK_V3_ALWAYS_ON,
 	.adjust		= SD_EMMC_V3_ADJUST,
+	.sram_off	= SD_EMMC_SRAM_DESC_BUF_OFF,
+	.data_off	= SD_EMMC_SRAM_DATA_BUF_OFF,
+	.data_size	= SD_EMMC_SRAM_DATA_BUF_LEN,
 };
 
 static struct meson_mmc_data meson_v8_data = {
@@ -4281,6 +4286,9 @@ static struct meson_mmc_data meson_v8_data = {
 	.always_on	= CLK_V3_ALWAYS_ON,
 	.adjust		= SD_EMMC_V3_ADJUST,
 	.version	= MMC_HOST_V8,
+	.sram_off	= SD_EMMC_SRAM_DESC_BUF_OFF_V8,
+	.data_off	= SD_EMMC_SRAM_DATA_BUF_OFF_V8,
+	.data_size	= SD_EMMC_SRAM_DATA_BUF_LEN_V8,
 };
 
 static const struct of_device_id meson_mmc_of_match[] = {

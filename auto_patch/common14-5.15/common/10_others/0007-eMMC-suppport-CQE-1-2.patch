@@ -4,12 +4,16 @@ Date: Thu, 23 Feb 2023 15:58:10 +0800
 Subject: [PATCH] eMMC: support CQE [2/2]
 
 PD#SWPL-119703
+PD#SWPL-160981
 
 Problem:
-support CQE
+1.support CQE-v1
+2.support CQE-v2
+The CQE v1 does not support placing tasks in memory
+and does not support data encryption.
 
 Solution:
-support CQE
+support CQE-v1 and v2
 
 Verify:
 T5m
@@ -33,7 +37,7 @@ index 7f25cca..f933946 100644
  #define DCMD_SLOT 31
  #define NUM_SLOTS 32
 
-@@ -169,6 +173,10 @@
+@@ -169,6 +173,10 @@ static void cqhci_dumpregs(struct cqhci_host *cq_host)
  static int cqhci_host_alloc_tdl(struct cqhci_host *cq_host)
  {
  	int i = 0;
@@ -44,7 +48,7 @@ index 7f25cca..f933946 100644
 
  	/* task descriptor can be 64/128 bit irrespective of arch */
  	if (cq_host->caps & CQHCI_TASK_DESC_SZ_128) {
-@@ -212,21 +220,30 @@
+@@ -212,21 +220,33 @@ static int cqhci_host_alloc_tdl(struct cqhci_host *cq_host)
  	 * setup each link-desc memory offset per slot-number to
  	 * the descriptor table.
  	 */
@@ -56,9 +60,12 @@ index 7f25cca..f933946 100644
  	if (!cq_host->desc_base)
  		return -ENOMEM;
 +#else
-+	cq_host->desc_base = host->regs + SD_EMMC_SRAM_DESC_BUF_OFF;
-+	cq_host->desc_dma_base = host->res[0]->start +
-+		SD_EMMC_SRAM_DESC_BUF_OFF;
++	cq_host->desc_base = host->regs + MMC_SRAM_DESC_BUF_OFF(host);
++	if (MMC_HOST_VERSION(host) == MMC_HOST_V8)
++		cq_host->desc_dma_base = 0;
++	else
++		cq_host->desc_dma_base = host->res[0]->start +
++			MMC_SRAM_DESC_BUF_OFF(host);
 +
 +#endif
 
@@ -75,7 +82,7 @@ index 7f25cca..f933946 100644
  		cq_host->desc_base = NULL;
  		cq_host->desc_dma_base = 0;
  		return -ENOMEM;
-@@ -408,10 +425,11 @@
+@@ -408,10 +428,11 @@ static void cqhci_disable(struct mmc_host *mmc)
  	dmam_free_coherent(mmc_dev(mmc), cq_host->data_size,
  			   cq_host->trans_desc_base,
  			   cq_host->trans_desc_dma_base);
@@ -88,7 +95,7 @@ index 7f25cca..f933946 100644
 
  	cq_host->trans_desc_base = NULL;
  	cq_host->desc_base = NULL;
-@@ -536,7 +554,9 @@
+@@ -536,7 +557,9 @@ static void cqhci_prep_dcmd_desc(struct mmc_host *mmc,
  	u64 data = 0;
  	u8 resp_type;
  	u8 *desc;
@@ -98,7 +105,7 @@ index 7f25cca..f933946 100644
  	struct cqhci_host *cq_host = mmc->cqe_private;
  	u8 timing;
 
-@@ -568,8 +588,20 @@
+@@ -568,8 +591,20 @@ static void cqhci_prep_dcmd_desc(struct mmc_host *mmc,
  	desc = (u8 *)task_desc;
  	pr_debug("%s: cqhci: dcmd: cmd: %d timing: %d resp: %d\n",
  		 mmc_hostname(mmc), mrq->cmd->opcode, timing, resp_type);
