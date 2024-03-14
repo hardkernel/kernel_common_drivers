@@ -2727,12 +2727,14 @@ RESTART:
 
 		next_frame_par->VPP_hsc_endp = end;
 	}
+
 	next_frame_par->vpp_filter.vpp_hsc_nonlinear_4region_en = false;
+	next_frame_par->vpp_filter.nonlinear_factor = nonlinear_factor;
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR &&
 	    end > start) {
 		calculate_non_linear_ratio_V
 			(nonlinear_factor,
-			ratio_x, end - start,
+			ratio_x, end - start + 1,
 			next_frame_par);
 		next_frame_par->VPP_hsc_linear_startp =
 		next_frame_par->VPP_hsc_linear_endp = (start + end) / 2;

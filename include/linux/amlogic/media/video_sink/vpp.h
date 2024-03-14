@@ -105,6 +105,7 @@ struct f2v_vphase_s {
 };
 
 struct vppfilter_mode_s {
+	u32 nonlinear_factor;
 	u32 vpp_hf_start_phase_step;
 	u32 vpp_hf_start_phase_slope;
 	u32 vpp_hf_end_phase_slope;
