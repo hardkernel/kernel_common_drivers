@@ -7533,6 +7533,8 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 	struct vpp_frame_par_s *_cur_frame_par = NULL;
 	struct video_layer_s *_vd_layer = NULL;
 	struct disp_info_s *layer_info = NULL;
+	int afbc = 0, dw = 0;
+	struct vframe_s *dispbuf = NULL;
 
 	if (index >= MAX_VD_LAYER)
 		return 0;
@@ -7542,6 +7544,14 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 
 	if (!_cur_frame_par)
 		return len;
+
+	dispbuf = get_dispbuf(index);
+	if (dispbuf) {
+		afbc = dispbuf->type & VIDTYPE_COMPRESS ? 1 : 0;
+		dw = afbc && _cur_frame_par->nocomp;
+		len += sprintf(buf + len, "afbc:%d double_write:%d, mif:%d.\n",
+			       afbc, dw, !afbc);
+	}
 	vpp_filter = &_cur_frame_par->vpp_filter;
 	len += sprintf(buf + len,
 		       "zoom_start_x_lines:%u.zoom_end_x_lines:%u.\n",
