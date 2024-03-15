@@ -2729,6 +2729,21 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	} else if (strncmp(tmpbuf, "fmt_para", 8) == 0) {
 		hdmitx_format_para_print(para, NULL);
 		HDMITX_INFO("external frl_rate: %d, dsc_en: %d\n", hdev->frl_rate, hdev->dsc_en);
+	} else if (strncmp(tmpbuf, "hdcp_mode", 9) == 0) {
+		ret = kstrtoul(tmpbuf + 9, 16, &value);
+		if (ret == 0 && value <= 2)
+			hdev->drm_hdcp.test_hdcp_mode = value - 0;
+		HDMITX_INFO("test drm_hdcp_mode: %d\n", hdev->drm_hdcp.test_hdcp_mode);
+	} else if (strncmp(tmpbuf, "drm_hdcp_op", 11) == 0) {
+		ret = kstrtoul(tmpbuf + 11, 16, &value);
+		if (ret != 0)
+			return;
+		if (value == 0 && hdev->drm_hdcp.test_hdcp_disable)
+			hdev->drm_hdcp.test_hdcp_disable();
+		else if (value == 1 && hdev->drm_hdcp.test_hdcp_enable)
+			hdev->drm_hdcp.test_hdcp_enable(hdev->drm_hdcp.test_hdcp_mode);
+		else if (value == 2 && hdev->drm_hdcp.test_hdcp_disconnect)
+			hdev->drm_hdcp.test_hdcp_disconnect();
 	}
 }
 

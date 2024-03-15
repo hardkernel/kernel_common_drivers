@@ -1888,6 +1888,36 @@ static int hdmitx21_get_hdcp_auth_rlt(struct hdmitx_dev *hdev)
 		return 0;
 }
 
+#define HDCP_AUTH_TIMEOUT (40) /* 40*200ms = 8s */
+
+static void hdmitx21_hdcp_result_cb(struct hdmitx_dev *hdev, int auth)
+{
+	int hdcp_auth_result = HDCP_AUTH_UNKNOWN;
+	void *cb_data = hdev->drm_hdcp.drm_hdcp_cb.data;
+
+	if (hdev->tx_comm.hdcp_mode &&
+		hdev->drm_hdcp.hdcp_auth_result == HDCP_AUTH_UNKNOWN) {
+		if (auth == 1) {
+			hdcp_auth_result = HDCP_AUTH_OK;
+		} else if (auth == 0) {
+			hdev->drm_hdcp.hdcp_fail_cnt++;
+
+			if (hdev->drm_hdcp.hdcp_fail_cnt > HDCP_AUTH_TIMEOUT)
+				hdcp_auth_result = HDCP_AUTH_FAIL;
+		}
+
+		HDMITX_DEBUG_HDCP("HDCP cb %d vs %d\n", hdev->drm_hdcp.hdcp_auth_result, auth);
+
+		if (hdcp_auth_result != hdev->drm_hdcp.hdcp_auth_result) {
+			hdev->drm_hdcp.hdcp_auth_result = hdcp_auth_result;
+			if (hdev->drm_hdcp.drm_hdcp_cb.hdcp_notify)
+				hdev->drm_hdcp.drm_hdcp_cb.hdcp_notify(cb_data,
+					hdev->tx_comm.hdcp_mode,
+					hdev->drm_hdcp.hdcp_auth_result);
+		}
+	}
+}
+
 static int  hdmitx21_hdcp_stat_monitor(void *data)
 {
 	static int auth_stat;
@@ -1952,11 +1982,11 @@ static int  hdmitx21_hdcp_stat_monitor(void *data)
 			auth_stat = hdmi21_authenticated;
 			pr_hdcp_info(L_0, "mode %d, auth: %d\n", hdev->tx_comm.hdcp_mode,
 				auth_stat);
-			if (hdev->drm_hdcp_cb.hdcp_notify)
-				hdev->drm_hdcp_cb.hdcp_notify(hdev->drm_hdcp_cb.data,
-					hdev->tx_comm.hdcp_mode, auth_stat);
+			/* for drm notify */
+			if (hdev->tx_comm.hdcp_ctl_lvl > 0)
+				hdmitx21_hdcp_result_cb(hdev, auth_stat);
 		}
-		msleep_interruptible(100);
+		msleep_interruptible(200);
 	}
 	return 0;
 }
