@@ -30,6 +30,8 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/ctype.h>
+#include <asm/div64.h>
+
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
@@ -67,6 +69,11 @@
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
 #include "videolog.h"
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_VIDEO
+#include <trace/events/meson_atrace.h>
+#endif
 
 #include <linux/amlogic/media/video_sink/vpp.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
@@ -9658,6 +9665,13 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 	int slice = 0, temp_slice = 0;
 	u8 frame_id = 0;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+	ATRACE_COUNTER("vpp_omx_index", vf->omx_index);
+	ATRACE_COUNTER("vpp_omx_index", 0);
+	ATRACE_COUNTER("vpp_timestamp",
+		       (unsigned long)div_u64(vf->timestamp, 1000000000));
+	ATRACE_COUNTER("vpp_timestamp", 0);
+#endif
 	if (layer->layer_id == 0 && layer->slice_num > 1) {
 		if (layer->mosaic_mode)
 			vd_switch_frm_idx(layer->vpp_index, frame_id);
