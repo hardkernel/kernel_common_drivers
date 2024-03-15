@@ -1274,13 +1274,13 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
 /* Asynchronous Serror*/
-static void arm64_serror_panic(void *data, struct pt_regs *regs, unsigned int esr)
+static void arm64_serror_panic(void *data, struct pt_regs *regs, unsigned long esr)
 {
 	serror_dump_dmc_reg();
 }
 
 /* Synchronous Serror*/
-static void do_sea(void *data, unsigned long addr, unsigned int esr, struct pt_regs *regs)
+static void do_sea(void *data, unsigned long addr, unsigned long esr, struct pt_regs *regs)
 {
 	serror_dump_dmc_reg();
 }

@@ -1,4 +1,4 @@
-From 7748d12825fc7be59f2f95e8a7663f733f5f2bcb Mon Sep 17 00:00:00 2001
+From 02a57dd01ee33b29dc423b9b5ce0cda480f50f4a Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Tue, 19 Dec 2023 15:33:46 +0800
 Subject: [PATCH] mm: porting CMA optimization from 5.15 [1/2]
@@ -58,10 +58,10 @@ index 5409225b4abc..ee736b9082f1 100644
  		buf->allocator = &cma_allocator;
  	else if (is_coherent)
 diff --git a/block/bdev.c b/block/bdev.c
-index 04dba25b0019..c13767c79e0d 100644
+index f83de42a0d23..60523222ba8f 100644
 --- a/block/bdev.c
 +++ b/block/bdev.c
-@@ -393,7 +393,11 @@ struct block_device *bdev_alloc(struct gendisk *disk, u8 partno)
+@@ -398,7 +398,11 @@ struct block_device *bdev_alloc(struct gendisk *disk, u8 partno)
  	inode->i_mode = S_IFBLK;
  	inode->i_rdev = 0;
  	inode->i_data.a_ops = &def_blk_aops;
@@ -74,10 +74,10 @@ index 04dba25b0019..c13767c79e0d 100644
  	bdev = I_BDEV(inode);
  	mutex_init(&bdev->bd_fsfreeze_mutex);
 diff --git a/drivers/usb/host/xhci.c b/drivers/usb/host/xhci.c
-index 132b76fa7ca6..96a648b80d1a 100644
+index 89d142a39e17..b0af48d2bf30 100644
 --- a/drivers/usb/host/xhci.c
 +++ b/drivers/usb/host/xhci.c
-@@ -1917,7 +1917,11 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
+@@ -1948,7 +1948,11 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
  	 * process context, not interrupt context (or so documenation
  	 * for usb_set_interface() and usb_set_configuration() claim).
  	 */
@@ -270,7 +270,7 @@ index 8e7880987231..e3100b86ccac 100644
  	trace_cma_release(cma->name, pfn, pages, count);
  
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 1c9b1c7309e2..2295594a1f12 100644
+index b4b5fa9702d4..33cb6c993820 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
 @@ -28,6 +28,9 @@
@@ -283,7 +283,7 @@ index 1c9b1c7309e2..2295594a1f12 100644
  
  #ifdef CONFIG_COMPACTION
  /*
-@@ -814,6 +817,9 @@ static bool too_many_isolated(struct compact_control *cc)
+@@ -839,6 +842,9 @@ static bool too_many_isolated(struct compact_control *cc)
  		active >>= 3;
  	}
  
@@ -293,7 +293,7 @@ index 1c9b1c7309e2..2295594a1f12 100644
  	too_many = isolated > (inactive + active) / 2;
  	if (!too_many)
  		wake_throttle_isolated(pgdat);
-@@ -925,6 +931,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+@@ -950,6 +956,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
  				cc->contended = true;
  				ret = -EINTR;
  
@@ -305,7 +305,7 @@ index 1c9b1c7309e2..2295594a1f12 100644
  				goto fatal_pending;
  			}
  
-@@ -946,6 +957,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+@@ -971,6 +982,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
  			if (!isolation_suitable(cc, page)) {
  				low_pfn = end_pfn;
  				folio = NULL;
@@ -317,7 +317,7 @@ index 1c9b1c7309e2..2295594a1f12 100644
  				goto isolate_abort;
  			}
  			valid_page = page;
-@@ -969,6 +985,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+@@ -994,6 +1010,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
  					ret = 0;
  				low_pfn += compound_nr(page) - 1;
  				nr_scanned += compound_nr(page) - 1;
@@ -329,7 +329,7 @@ index 1c9b1c7309e2..2295594a1f12 100644
  				goto isolate_fail;
  			}
  
-@@ -1026,6 +1047,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+@@ -1051,6 +1072,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
  				low_pfn += (1UL << order) - 1;
  				nr_scanned += (1UL << order) - 1;
  			}
@@ -341,7 +341,7 @@ index 1c9b1c7309e2..2295594a1f12 100644
  			goto isolate_fail;
  		}
  
-@@ -1051,6 +1077,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+@@ -1076,6 +1102,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
  					goto isolate_success;
  				}
  			}
@@ -353,7 +353,7 @@ index 1c9b1c7309e2..2295594a1f12 100644
  
  			goto isolate_fail;
  		}
-@@ -1069,16 +1100,36 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+@@ -1094,16 +1125,36 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
  		 * so avoid taking lru_lock and isolating it unnecessarily in an
  		 * admittedly racy check.
  		 */
@@ -390,7 +390,7 @@ index 1c9b1c7309e2..2295594a1f12 100644
  
  		/* Only take pages on LRU: a check now makes later tests safe */
  		if (!folio_test_lru(folio))
-@@ -1094,8 +1145,17 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+@@ -1119,8 +1170,17 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
  		 * it will be able to migrate without blocking - clean pages
  		 * for the most part.  PageWriteback would require blocking.
  		 */
@@ -408,7 +408,7 @@ index 1c9b1c7309e2..2295594a1f12 100644
  
  		if ((mode & ISOLATE_ASYNC_MIGRATE) && folio_test_dirty(folio)) {
  			bool migrate_dirty;
-@@ -1121,8 +1181,17 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+@@ -1146,8 +1206,17 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
  		}
  
  		/* Try isolate the folio */
@@ -426,7 +426,7 @@ index 1c9b1c7309e2..2295594a1f12 100644
  
  		lruvec = folio_lruvec(folio);
  
-@@ -1143,11 +1212,22 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+@@ -1168,11 +1237,22 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
  			 */
  			if (!skip_updated && valid_page) {
  				skip_updated = true;
@@ -449,7 +449,7 @@ index 1c9b1c7309e2..2295594a1f12 100644
  			}
  
  			/*
-@@ -1649,6 +1729,9 @@ static void isolate_freepages(struct compact_control *cc)
+@@ -1674,6 +1754,9 @@ static void isolate_freepages(struct compact_control *cc)
  	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
  	struct list_head *freelist = &cc->freepages;
  	unsigned int stride;
@@ -459,7 +459,7 @@ index 1c9b1c7309e2..2295594a1f12 100644
  
  	/* Try a small search of the free lists for a candidate */
  	fast_isolate_freepages(cc);
-@@ -1711,6 +1794,16 @@ static void isolate_freepages(struct compact_control *cc)
+@@ -1736,6 +1819,16 @@ static void isolate_freepages(struct compact_control *cc)
  		if (!isolation_suitable(cc, page))
  			continue;
  
@@ -476,7 +476,7 @@ index 1c9b1c7309e2..2295594a1f12 100644
  		/* Found a block suitable for isolating free pages from. */
  		nr_isolated = isolate_freepages_block(cc, &isolate_start_pfn,
  					block_end_pfn, freelist, stride, false);
-@@ -1776,9 +1869,13 @@ static struct folio *compaction_alloc(struct folio *src, unsigned long data)
+@@ -1801,9 +1894,13 @@ static struct folio *compaction_alloc(struct folio *src, unsigned long data)
  			return NULL;
  	}
  
@@ -490,7 +490,7 @@ index 1c9b1c7309e2..2295594a1f12 100644
  #ifdef CONFIG_AMLOGIC_PAGE_TRACE
  	replace_page_trace(folio_page(dst, 0), folio_page(src, 0));
  #endif
-@@ -2611,6 +2708,9 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
+@@ -2636,6 +2733,9 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
  			cc->zone->compact_cached_free_pfn = free_pfn;
  	}
  
@@ -565,7 +565,7 @@ index f741d6ab9a9d..047390dd3982 100644
  	p4d = p4d_alloc(mm, pgd, address);
  	if (!p4d)
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 03bc2063ac87..6d128f832d17 100644
+index 81f10a7ec7ae..ff6de240897f 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
 @@ -50,6 +50,10 @@
@@ -579,7 +579,7 @@ index 03bc2063ac87..6d128f832d17 100644
  
  #include <asm/tlbflush.h>
  
-@@ -307,6 +311,10 @@ void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+@@ -308,6 +312,10 @@ void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
  	pte_t *ptep;
  	pte_t pte;
  	swp_entry_t entry;
@@ -590,7 +590,7 @@ index 03bc2063ac87..6d128f832d17 100644
  
  	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
  	if (!ptep)
-@@ -322,10 +330,26 @@ void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
+@@ -323,10 +331,26 @@ void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
  	if (!is_migration_entry(entry))
  		goto out;
  
@@ -617,7 +617,7 @@ index 03bc2063ac87..6d128f832d17 100644
  }
  
  #ifdef CONFIG_HUGETLB_PAGE
-@@ -409,6 +433,11 @@ int folio_migrate_mapping(struct address_space *mapping,
+@@ -410,6 +434,11 @@ int folio_migrate_mapping(struct address_space *mapping,
  
  	if (!mapping) {
  		/* Anonymous page without mapping */
@@ -629,7 +629,7 @@ index 03bc2063ac87..6d128f832d17 100644
  		if (folio_ref_count(folio) != expected_count)
  			return -EAGAIN;
  
-@@ -427,6 +456,10 @@ int folio_migrate_mapping(struct address_space *mapping,
+@@ -428,6 +457,10 @@ int folio_migrate_mapping(struct address_space *mapping,
  	xas_lock_irq(&xas);
  	if (!folio_ref_freeze(folio, expected_count)) {
  		xas_unlock_irq(&xas);
@@ -640,7 +640,7 @@ index 03bc2063ac87..6d128f832d17 100644
  		return -EAGAIN;
  	}
  
-@@ -1711,6 +1744,10 @@ static int migrate_pages_batch(struct list_head *from,
+@@ -1715,6 +1748,10 @@ static int migrate_pages_batch(struct list_head *from,
  				/* nr_failed isn't updated for not used */
  				stats->nr_thp_failed += thp_retry;
  				rc_saved = rc;
@@ -651,7 +651,7 @@ index 03bc2063ac87..6d128f832d17 100644
  				if (list_empty(&unmap_folios))
  					goto out;
  				else
-@@ -1738,6 +1775,9 @@ static int migrate_pages_batch(struct list_head *from,
+@@ -1742,6 +1779,9 @@ static int migrate_pages_batch(struct list_head *from,
  				nr_failed++;
  				stats->nr_thp_failed += is_thp;
  				stats->nr_failed_pages += nr_pages;
@@ -661,7 +661,7 @@ index 03bc2063ac87..6d128f832d17 100644
  				break;
  			}
  		}
-@@ -1786,6 +1826,9 @@ static int migrate_pages_batch(struct list_head *from,
+@@ -1790,6 +1830,9 @@ static int migrate_pages_batch(struct list_head *from,
  				nr_failed++;
  				stats->nr_thp_failed += is_thp;
  				stats->nr_failed_pages += nr_pages;
@@ -672,7 +672,7 @@ index 03bc2063ac87..6d128f832d17 100644
  			}
  			dst = dst2;
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4cc7233b04f8..eede7c57fffc 100644
+index c16e4fc4f78c..a248fb7d2a47 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -60,6 +60,9 @@
@@ -685,7 +685,7 @@ index 4cc7233b04f8..eede7c57fffc 100644
  
  /* Free Page Internal flags: for internal, non-pcp variants of free_pages(). */
  typedef int __bitwise fpi_t;
-@@ -2122,6 +2125,32 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
+@@ -2144,6 +2147,32 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
  	return page;
  }
  
@@ -718,7 +718,7 @@ index 4cc7233b04f8..eede7c57fffc 100644
  /*
   * Obtain a specified number of elements from the buddy allocator, all under
   * a single hold of the lock, for efficiency.  Add them to the supplied list.
-@@ -2679,14 +2708,27 @@ struct page *rmqueue_buddy(struct zone *preferred_zone, struct zone *zone,
+@@ -2701,14 +2730,27 @@ struct page *rmqueue_buddy(struct zone *preferred_zone, struct zone *zone,
  }
  
  /* Remove page from the per-cpu list, caller must protect the list */
@@ -746,7 +746,7 @@ index 4cc7233b04f8..eede7c57fffc 100644
  
  	do {
  		if (list_empty(list)) {
-@@ -2712,6 +2754,29 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
+@@ -2734,6 +2776,29 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
  		}
  
  		page = list_first_entry(list, struct page, pcp_list);
@@ -776,7 +776,7 @@ index 4cc7233b04f8..eede7c57fffc 100644
  		list_del(&page->pcp_list);
  		pcp->count -= 1 << order;
  	} while (check_new_pages(page, order));
-@@ -2720,9 +2785,16 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
+@@ -2742,9 +2807,16 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
  }
  
  /* Lock and remove page from the per-cpu list */
@@ -793,7 +793,7 @@ index 4cc7233b04f8..eede7c57fffc 100644
  {
  	struct per_cpu_pages *pcp;
  	struct list_head *list;
-@@ -2744,7 +2816,11 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+@@ -2766,7 +2838,11 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
  	 */
  	pcp->free_factor >>= 1;
  	list = &pcp->lists[order_to_pindex(migratetype, order)];
@@ -805,7 +805,7 @@ index 4cc7233b04f8..eede7c57fffc 100644
  	pcp_spin_unlock(pcp);
  	pcp_trylock_finish(UP_flags);
  	if (page) {
-@@ -2781,8 +2857,13 @@ struct page *rmqueue(struct zone *preferred_zone,
+@@ -2803,8 +2879,13 @@ struct page *rmqueue(struct zone *preferred_zone,
  	WARN_ON_ONCE((gfp_flags & __GFP_NOFAIL) && (order > 1));
  
  	if (likely(pcp_allowed_order(order))) {
@@ -819,7 +819,7 @@ index 4cc7233b04f8..eede7c57fffc 100644
  		if (likely(page))
  			goto out;
  	}
-@@ -2878,6 +2959,9 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+@@ -2900,6 +2981,9 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
  			min -= min / 2;
  	}
  
@@ -829,7 +829,7 @@ index 4cc7233b04f8..eede7c57fffc 100644
  	/*
  	 * Check watermarks for an order-0 allocation request. If these
  	 * are not met, then a high-order request also cannot go ahead
-@@ -4345,8 +4429,13 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
+@@ -4367,8 +4451,13 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
  			continue;
  		}
  
@@ -843,7 +843,7 @@ index 4cc7233b04f8..eede7c57fffc 100644
  		if (unlikely(!page)) {
  			/* Try and allocate at least one page */
  			if (!nr_account) {
-@@ -4405,6 +4494,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
+@@ -4427,6 +4516,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
  	gfp_t alloc_gfp; /* The gfp_t that was actually used for allocation */
  	struct alloc_context ac = { };
  
@@ -870,10 +870,10 @@ index 6925e6959fd3..925b20e2dc0c 100644
  	/*
  	 * Preallocate as many pages as we will need.
 diff --git a/mm/shmem.c b/mm/shmem.c
-index e826be732b9b..9d2d1d2e2c06 100644
+index ecc9e8b3e82a..549aed86b96b 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -1612,7 +1612,11 @@ static struct folio *shmem_swapin(swp_entry_t swap, gfp_t gfp,
+@@ -1617,7 +1617,11 @@ static struct folio *shmem_swapin(swp_entry_t swap, gfp_t gfp,
  	};
  
  	shmem_pseudo_vma_init(&pvma, info, index);
@@ -885,7 +885,7 @@ index e826be732b9b..9d2d1d2e2c06 100644
  	shmem_pseudo_vma_destroy(&pvma);
  
  	if (!page)
-@@ -1658,7 +1662,11 @@ static struct folio *shmem_alloc_hugefolio(gfp_t gfp,
+@@ -1663,7 +1667,11 @@ static struct folio *shmem_alloc_hugefolio(gfp_t gfp,
  		return NULL;
  
  	shmem_pseudo_vma_init(&pvma, info, hindex);
@@ -897,18 +897,18 @@ index e826be732b9b..9d2d1d2e2c06 100644
  	shmem_pseudo_vma_destroy(&pvma);
  	if (!folio)
  		count_vm_event(THP_FILE_FALLBACK);
-@@ -1672,7 +1680,11 @@ static struct folio *shmem_alloc_folio(gfp_t gfp,
- 	struct folio *folio;
- 
- 	shmem_pseudo_vma_init(&pvma, info, index);
+@@ -1680,7 +1688,11 @@ static struct folio *shmem_alloc_folio(gfp_t gfp,
+ 	trace_android_rvh_shmem_get_folio(info, &folio);
+ 	if (folio)
+ 		goto done;
 +#ifdef CONFIG_AMLOGIC_NO_CMA
 +	folio = vma_alloc_folio(gfp | __GFP_NO_CMA, 0, &pvma, 0, false);
 +#else
  	folio = vma_alloc_folio(gfp, 0, &pvma, 0, false);
 +#endif
+ done:
  	shmem_pseudo_vma_destroy(&pvma);
  
- 	return folio;
 diff --git a/mm/swap_state.c b/mm/swap_state.c
 index b3b14bd0dd64..0a053ac43ca4 100644
 --- a/mm/swap_state.c
@@ -926,7 +926,7 @@ index b3b14bd0dd64..0a053ac43ca4 100644
                          goto fail_put_swap;
  
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index ba84632300d5..537d2e607d10 100644
+index b30a99628d74..376283ef1521 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -65,6 +65,10 @@
@@ -940,7 +940,7 @@ index ba84632300d5..537d2e607d10 100644
  #include "internal.h"
  #include "swap.h"
  
-@@ -2209,13 +2213,20 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
+@@ -2214,13 +2218,20 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
  	struct folio *folio, *next;
  	LIST_HEAD(clean_folios);
  	unsigned int noreclaim_flag;
@@ -961,7 +961,7 @@ index ba84632300d5..537d2e607d10 100644
  		}
  	}
  
-@@ -2231,6 +2242,9 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
+@@ -2236,6 +2247,9 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
  	memalloc_noreclaim_restore(noreclaim_flag);
  
  	list_splice(&clean_folios, folio_list);
@@ -971,7 +971,7 @@ index ba84632300d5..537d2e607d10 100644
  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE,
  			    -(long)nr_reclaimed);
  	/*
-@@ -2481,6 +2495,9 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
+@@ -2486,6 +2500,9 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
  	if (!too_many)
  		wake_throttle_isolated(pgdat);
  

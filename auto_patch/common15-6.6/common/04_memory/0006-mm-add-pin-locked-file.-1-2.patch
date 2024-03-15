@@ -1,4 +1,4 @@
-From e9e36d3b24622e0e6c72bb3f9fd504d13cae18c7 Mon Sep 17 00:00:00 2001
+From 9c42d31b1d4bb5d025f4281e6eaa3e991437351b Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Thu, 21 Dec 2023 12:27:11 +0800
 Subject: [PATCH] mm: add pin locked file. [1/2]
@@ -19,13 +19,13 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
 ---
  mm/memory.c  | 70 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  mm/migrate.c |  7 ++++++
- mm/mlock.c   | 10 ++++++++
+ mm/mlock.c   | 11 +++++++++
  mm/rmap.c    | 21 ++++++++++++++++
  mm/vmscan.c  | 11 +++++++++
- 5 files changed, 119 insertions(+)
+ 5 files changed, 120 insertions(+)
 
 diff --git a/mm/memory.c b/mm/memory.c
-index fa1fdc91226b..19731ad871e3 100644
+index 047390dd3982..f60203ae3ff9 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
 @@ -86,6 +86,12 @@
@@ -128,7 +128,7 @@ index fa1fdc91226b..19731ad871e3 100644
  
  /**
 diff --git a/mm/migrate.c b/mm/migrate.c
-index b3109bff25ad..6bd64eb9992f 100644
+index ff6de240897f..93ac058b169b 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
 @@ -54,6 +54,9 @@
@@ -141,7 +141,7 @@ index b3109bff25ad..6bd64eb9992f 100644
  
  #include <asm/tlbflush.h>
  
-@@ -1494,6 +1497,10 @@ static int unmap_and_move_huge_page(new_folio_t get_new_folio,
+@@ -1505,6 +1508,10 @@ static int unmap_and_move_huge_page(new_folio_t get_new_folio,
  		put_new_folio(dst, private);
  	else
  		folio_putback_active_hugetlb(dst);
@@ -153,20 +153,21 @@ index b3109bff25ad..6bd64eb9992f 100644
  	return rc;
  }
 diff --git a/mm/mlock.c b/mm/mlock.c
-index 06bdfab83b58..fc25fb9413d4 100644
+index 216b4707a7d8..3d88a53296d6 100644
 --- a/mm/mlock.c
 +++ b/mm/mlock.c
-@@ -25,6 +25,9 @@
- #include <linux/memcontrol.h>
- #include <linux/mm_inline.h>
- #include <linux/secretmem.h>
-+#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
-+#include <linux/amlogic/pin_file.h>
-+#endif
+@@ -29,6 +29,10 @@
  
  #include "internal.h"
  
-@@ -511,6 +514,9 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
++#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
++#include <linux/amlogic/pin_file.h>
++#endif
++
+ struct mlock_fbatch {
+ 	local_lock_t lock;
+ 	struct folio_batch fbatch;
+@@ -512,6 +516,9 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
  		tmp = vma->vm_end;
  		if (tmp > end)
  			tmp = end;
@@ -176,7 +177,7 @@ index 06bdfab83b58..fc25fb9413d4 100644
  		error = mlock_fixup(&vmi, vma, &prev, nstart, tmp, newflags);
  		if (error)
  			return error;
-@@ -563,6 +569,7 @@ static unsigned long count_mm_mlocked_page_nr(struct mm_struct *mm,
+@@ -564,6 +571,7 @@ static unsigned long count_mm_mlocked_page_nr(struct mm_struct *mm,
  /*
   * convert get_user_pages() return value to posix mlock() error
   */
@@ -184,7 +185,7 @@ index 06bdfab83b58..fc25fb9413d4 100644
  static int __mlock_posix_error_return(long retval)
  {
  	if (retval == -EFAULT)
-@@ -571,6 +578,7 @@ static int __mlock_posix_error_return(long retval)
+@@ -572,6 +580,7 @@ static int __mlock_posix_error_return(long retval)
  		retval = -EAGAIN;
  	return retval;
  }
@@ -192,7 +193,7 @@ index 06bdfab83b58..fc25fb9413d4 100644
  
  static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t flags)
  {
-@@ -613,9 +621,11 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
+@@ -614,9 +623,11 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
  	if (error)
  		return error;
  
@@ -261,7 +262,7 @@ index 9f795b93cf40..c900bedd65d9 100644
  			ret = false;
  			break;
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 4446b978edb6..289c1f4a0634 100644
+index 83a12dfcf0c2..8ed035d600c0 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -68,6 +68,9 @@
@@ -274,7 +275,7 @@ index 4446b978edb6..289c1f4a0634 100644
  
  #include "internal.h"
  #include "swap.h"
-@@ -1967,6 +1970,14 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1972,6 +1975,14 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		if (folio_mapped(folio)) {
  			enum ttu_flags flags = TTU_BATCH_FLUSH;
  			bool was_swapbacked = folio_test_swapbacked(folio);
