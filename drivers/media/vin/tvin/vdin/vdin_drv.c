@@ -1212,9 +1212,9 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		vdin_vpu_clk_gate_on_off(devp, 1);
 		/*switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_ON);*/
 #endif
-	vdin_sw_reset(devp);
 	/*enable clk*/
 	vdin_clk_on_off(devp, true);
+	vdin_sw_reset(devp);
 	vdin_set_default_regmap(devp);
 
 	if (devp->dts_config.urgent_en && devp->hw_core == VDIN_HW_CORE_NORMAL)
@@ -1719,7 +1719,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 void vdin_self_stop_dec(struct vdin_dev_s *devp)
 {
 	if (!(devp->flags & VDIN_FLAG_DEC_STARTED)) {
-		pr_err("%s(%d) decode haven't started flags=0x%x\n",
+		pr_info("%s(%d) decoder in state stopped flags=0x%x\n",
 			__func__, devp->index, devp->flags);
 		return;
 	}
@@ -6680,7 +6680,7 @@ static int vdin_drv_suspend(struct platform_device *pdev, pm_message_t state)
 #endif
 	//cpumask_copy(&vdin_irq_mask, mask);
 	//}
-
+	vdin_self_stop_dec(devp);
 	devp->flags |= VDIN_FLAG_SUSPEND;
 	/*no need setting any regs*/
 	/*vdin_enable_module(devp, false);*/
@@ -6707,9 +6707,7 @@ static int vdin_drv_suspend(struct platform_device *pdev, pm_message_t state)
 		wr_bits(devp->addr_offset, VDIN_COM_CTRL0, 0,
 			VDIN_SEL_BIT, VDIN_SEL_WID);
 	}
-	/* Restarting vdin1 clock will crash */
-	if (!devp->index || devp->dtdata->hw_ver < VDIN_HW_T7)
-		vdin_clk_on_off(devp, false);
+	vdin_clk_on_off(devp, false);
 	/* vdin msr clock gate disable */
 	if (!devp->index && devp->msr_clk &&
 		devp->vdin_clk_flag) {
@@ -6744,9 +6742,6 @@ static int vdin_drv_resume(struct platform_device *pdev)
 	 *? VPU_VIU_VDIN0 : VPU_VIU_VDIN1,
 	 *VPU_CLK_GATE_ON);
 	 */
-	/* Restarting vdin1 clock will crash */
-	if (!devp->index || devp->dtdata->hw_ver < VDIN_HW_T7)
-		vdin_clk_on_off(devp, true);
 
 	if (devp->index && devp->set_canvas_manual == 1 &&
 	    is_meson_t5d_cpu()) {
@@ -6755,6 +6750,7 @@ static int vdin_drv_resume(struct platform_device *pdev)
 		wr_bits(devp->addr_offset, VDIN_COM_CTRL0, 1,
 			VDIN_COMMON_INPUT_EN_BIT, VDIN_COMMON_INPUT_EN_WID);
 	}
+	vdin_clk_on_off(devp, true);
 
 	//if (devp->irq) {
 	//	if (!irq_can_set_affinity(devp->irq))

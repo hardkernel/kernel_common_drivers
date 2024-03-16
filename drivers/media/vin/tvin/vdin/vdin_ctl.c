@@ -3731,7 +3731,7 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 	/* [ 5: 4]     clkgate.bbar             = 0/(auto, off, on, on) */
 	/* [ 3: 2]     clkgate.bbar             = 0/(auto, off, on, on) */
 	/* [    0]     clkgate.bbar             = 0/(auto, off!!!!!!!!) */
-	wr(offset, VDIN_COM_GCLK_CTRL, 0x00000000);
+	//wr(offset, VDIN_COM_GCLK_CTRL, 0x00000000);
 
 	/* [12: 0]  decimation.output_width_m1  = 0 */
 	wr(offset, VDIN_INTF_WIDTHM1, 0x00000000);
@@ -3982,13 +3982,13 @@ void vdin_hw_disable(struct vdin_dev_s *devp)
 	/*switch_vpu_clk_gate_vmod(offset == 0 ? VPU_VIU_VDIN0:VPU_VIU_VDIN1,
 	 *VPU_CLK_GATE_OFF);
 	 */
-	vdin_clk_on_off(devp, false);
 	/* wr(offset, VDIN_COM_GCLK_CTRL, 0x5554); */
 
 	/*if (devp->dtdata->de_tunnel_tunnel) */{
 		vdin_dv_desc_to_4448bit(devp, 0);
 		vdin_dv_de_tunnel_to_44410bit(devp, 0);
 	}
+	vdin_clk_on_off(devp, false);
 }
 
 /* vdin1 hist function can be used on the boot
@@ -4015,7 +4015,7 @@ void vdin1_hw_hist_on_off(struct vdin_dev_s *devp, bool on_off)
 		devp->v_active = vinfo->height;
 		devp->prop.scaling4w = 1280;
 		devp->prop.scaling4h = 720;
-		wr(offset, VDIN_COM_GCLK_CTRL, 0); //open vdin1 clk 0x131b
+		vdin_clk_on_off(devp, true);
 
 		/* Getting luma values requires reading yuv images more accurately
 		 * Converting rgb to yuv requires csc(matrix) and hv_scaling to be turned on
@@ -4059,8 +4059,8 @@ void vdin1_hw_hist_on_off(struct vdin_dev_s *devp, bool on_off)
 			HIST_VEND_BIT, HIST_VEND_WID);
 		usleep_range(40000, 50000);
 	} else {
-		wr_bits(offset, VDIN_COM_GCLK_CTRL, 1, 12, 2); //close vdin1 hist clk 0x131b
-			}
+		vdin_clk_on_off(devp, false);
+	}
 }
 
 void vdin_hw_close(struct vdin_dev_s *devp)
@@ -4113,14 +4113,14 @@ void vdin_hw_close(struct vdin_dev_s *devp)
 	/*switch_vpu_clk_gate_vmod(offset == 0 ? VPU_VIU_VDIN0:VPU_VIU_VDIN1,
 	 *VPU_CLK_GATE_OFF);
 	 */
-	if (!devp->index || devp->dtdata->hw_ver < VDIN_HW_T7)
-		vdin_clk_on_off(devp, false);
 	/* wr(offset, VDIN_COM_GCLK_CTRL, 0x5554); */
 
 	/*if (devp->dtdata->de_tunnel_tunnel) */{
 		vdin_dv_desc_to_4448bit(devp, 0);
 		vdin_dv_de_tunnel_to_44410bit(devp, 0);
 	}
+	//if (!devp->index || devp->dtdata->hw_ver < VDIN_HW_T7)
+		vdin_clk_on_off(devp, false);
 }
 
 bool vdin_check_vdi6_afifo_overflow(unsigned int offset)
