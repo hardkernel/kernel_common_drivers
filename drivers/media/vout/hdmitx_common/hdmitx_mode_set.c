@@ -242,6 +242,13 @@ static int hdmitx_common_post_enable_mode(struct hdmitx_common *tx_comm,
 	edidinfo_attach_to_vinfo(tx_comm);
 	update_vinfo_from_formatpara(tx_comm);
 
+	/*
+	 * need set audio mode again when set video mode, so send the event
+	 * to audio hal to reset alsa and set audio mode
+	 */
+	hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
+		HDMITX_VMODE_AUDIO_EVENT, true, true);
+
 	return 0;
 }
 

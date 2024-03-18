@@ -790,7 +790,6 @@ void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 	struct aud_para *aud_param = (struct aud_para *)para;
 	enum hdmi_audio_fs n_rate = aud_samp_rate_map(aud_param->rate);
 	enum hdmi_audio_sampsize n_size = aud_size_map(aud_param->size);
-	int audio_param_update_flag = 0;
 
 	if (aud_param->prepare) {
 		hdmitx_hw_cntl_misc(tx_hw_base, MISC_AUDIO_ACR_CTRL, 0);
@@ -802,46 +801,24 @@ void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 	HDMITX_INFO("%s[%d] type:%lu rate:%d size:%d chs:%d i2s_ch_mask:%d aud_src_if:%d\n",
 		__func__, __LINE__, cmd, n_rate, n_size, aud_param->chs,
 		aud_param->i2s_ch_mask, aud_param->aud_src_if);
-	/* check audio parameters changing, if true, update hdmitx audio hw */
-	if (hdmitx_set_i2s_mask(tx_aud_param, aud_param->chs, aud_param->i2s_ch_mask))
-		audio_param_update_flag = 1;
-	if (tx_aud_param->rate != n_rate) {
-		tx_aud_param->rate = n_rate;
-		audio_param_update_flag = 1;
-	}
+	/* no need check audio parameters changing, update hdmitx audio hw */
+	hdmitx_set_i2s_mask(tx_aud_param, aud_param->chs, aud_param->i2s_ch_mask);
 
-	if (tx_aud_param->type != cmd) {
-		tx_aud_param->type = cmd;
-		audio_param_update_flag = 1;
-		HDMITX_INFO("aout notify format %s\n",
-			aud_type_string[tx_aud_param->type & 0xff]);
-	}
+	tx_aud_param->rate = n_rate;
+	tx_aud_param->type = cmd;
+	tx_aud_param->size = n_size;
+	tx_aud_param->chs = aud_param->chs - 1;
+	tx_aud_param->aud_src_if = aud_param->aud_src_if;
+	HDMITX_INFO("aout notify format %s\n",
+		aud_type_string[cmd & 0xff]);
 
-	if (tx_aud_param->size != n_size) {
-		tx_aud_param->size = n_size;
-		audio_param_update_flag = 1;
-	}
-
-	if (tx_aud_param->chs != (aud_param->chs - 1)) {
-		tx_aud_param->chs = aud_param->chs - 1;
-		audio_param_update_flag = 1;
-	}
-	if (tx_aud_param->aud_src_if != aud_param->aud_src_if) {
-		tx_aud_param->aud_src_if = aud_param->aud_src_if;
-		audio_param_update_flag = 1;
-	}
 	memcpy(tx_aud_param->status, aud_param->status, sizeof(aud_param->status));
 
-	if (audio_param_update_flag) {
-		/* plug-in & update audio param */
-		if (tx_comm->hpd_state == 1) {
-			tx_aud_param->aud_notify_update = 1;
-			tx_hw_base->setaudmode(tx_hw_base, tx_aud_param);
-			hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_AUDIO_MODE_SETTING);
-			tx_aud_param->aud_notify_update = 0;
-			HDMITX_INFO("set audio param\n");
-		}
-	}
+	tx_aud_param->aud_notify_update = 1;
+	tx_hw_base->setaudmode(tx_hw_base, tx_aud_param);
+	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_AUDIO_MODE_SETTING);
+	tx_aud_param->aud_notify_update = 0;
+	HDMITX_INFO("set audio param\n");
 }
 
 struct hdmitx_tracer *tx_tracer;

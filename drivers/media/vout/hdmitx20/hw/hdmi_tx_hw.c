@@ -2838,6 +2838,12 @@ static void set_aud_samp_pkt(struct aud_para *audio_param)
 	}
 }
 
+/*
+ * audio_mute_op for audio mute/unmute hdmi
+ * flag:
+ * 0x00		audio mute
+ * 0x01		audio unmute
+ */
 static void audio_mute_op(bool flag)
 {
 	u8 aud_output_i2s_ch;
