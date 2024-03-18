@@ -23,6 +23,10 @@
 
 static DEFINE_SPINLOCK(meson_clk_lock);
 
+#ifdef CONFIG_ARM
+static const struct clk_ops meson_pll_clk_no_ops = {};
+#endif
+
 static struct clk_regmap sc2_fixed_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
@@ -61,10 +65,21 @@ static struct clk_regmap sc2_fixed_pll_dco = {
 		.ops = &meson_clk_pll_ro_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
-		.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE,
 	},
 };
 
+#ifdef CONFIG_ARM
+static struct clk_regmap sc2_fixed_pll = {
+	.hw.init = &(struct clk_init_data){
+		.name = "fixed_pll",
+		.ops = &meson_pll_clk_no_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&sc2_fixed_pll_dco.hw
+		},
+		.num_parents = 1,
+	},
+};
+#else
 static struct clk_regmap sc2_fixed_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = ANACTRL_FIXPLL_CTRL0,
@@ -79,16 +94,8 @@ static struct clk_regmap sc2_fixed_pll = {
 			&sc2_fixed_pll_dco.hw
 		},
 		.num_parents = 1,
-		/*
-		 * This clock won't ever change at runtime so
-		 * CLK_SET_RATE_PARENT is not required
-		 */
-		.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE,
 	},
 };
-
-#ifdef CONFIG_ARM
-static const struct clk_ops meson_pll_clk_no_ops = {};
 #endif
 
 /*
@@ -184,7 +191,6 @@ static struct clk_regmap sc2_sys_pll_dco = {
 		.ops = &meson_secure_pll_v2_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
-		/* This clock feeds the CPU, avoid disabling it */
 		.flags = CLK_IS_CRITICAL,
 	},
 };
@@ -220,7 +226,7 @@ static struct clk_regmap sc2_sys_pll = {
 		 * prevent the system hang up which will be called
 		 * by clk_disable_unused
 		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 #else
@@ -268,7 +274,6 @@ static struct clk_regmap sc2_fclk_div2 = {
 			&sc2_fclk_div2_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -295,16 +300,6 @@ static struct clk_regmap sc2_fclk_div3 = {
 			&sc2_fclk_div3_div.hw
 		},
 		.num_parents = 1,
-		/*
-		 * This clock is used by the resident firmware and is required
-		 * by the platform to operate correctly.
-		 * Until the following condition are met, we need this clock to
-		 * be marked as critical:
-		 * a) Mark the clock used by a firmware resource, if possible
-		 * b) CCF has a clock hand-off mechanism to make the sure the
-		 *    clock stays on until the proper driver comes along
-		 */
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -331,7 +326,6 @@ static struct clk_regmap sc2_fclk_div4 = {
 			&sc2_fclk_div4_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -358,7 +352,6 @@ static struct clk_regmap sc2_fclk_div5 = {
 			&sc2_fclk_div5_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -385,7 +378,6 @@ static struct clk_regmap sc2_fclk_div7 = {
 			&sc2_fclk_div7_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -414,7 +406,6 @@ static struct clk_regmap sc2_fclk_div2p5 = {
 			&sc2_fclk_div2p5_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -599,7 +590,7 @@ static struct clk_regmap sc2_gp1_pll_dco = {
 		},
 		.num_parents = 1,
 		/* This clock feeds the DSU, avoid disabling it */
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IS_CRITICAL,
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -612,7 +603,7 @@ static struct clk_regmap sc2_gp1_pll = {
 			&sc2_gp1_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -634,7 +625,7 @@ static struct clk_regmap sc2_gp1_pll = {
 			&sc2_gp1_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 #endif
@@ -897,6 +888,19 @@ static struct clk_regmap sc2_hifi_pll_dco = {
 	},
 };
 
+#ifdef CONFIG_ARM
+static struct clk_regmap sc2_hifi_pll = {
+	.hw.init = &(struct clk_init_data){
+		.name = "hifi_pll",
+		.ops = &meson_pll_clk_no_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&sc2_hifi_pll_dco.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+#else
 static struct clk_regmap sc2_hifi_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = ANACTRL_HIFIPLL_CTRL0,
@@ -912,9 +916,10 @@ static struct clk_regmap sc2_hifi_pll = {
 			&sc2_hifi_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
+#endif
 
 /*
  * The Meson sc2 PCIE PLL is fined tuned to deliver a very precise
@@ -1023,7 +1028,7 @@ static struct clk_regmap sc2_pcie_pll_od = {
 			&sc2_pcie_pll_dco_div2.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1065,7 +1070,7 @@ static struct clk_regmap sc2_pcie_hcsl = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &sc2_pcie_bgp.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1608,8 +1613,7 @@ static struct clk_regmap sc2_sysclk_b = {
 		.ops = &clk_regmap_gate_ro_ops,
 		.parent_names = (const char *[]){ "sysclk_b_div" },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED
-			 | CLK_IS_CRITICAL,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1653,8 +1657,7 @@ static struct clk_regmap sc2_sysclk_a = {
 		.ops = &clk_regmap_gate_ro_ops,
 		.parent_names = (const char *[]){ "sysclk_a_div" },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED
-			 | CLK_IS_CRITICAL,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1672,7 +1675,6 @@ static struct clk_regmap sc2_sys_clk = {
 		.ops = &clk_regmap_mux_ro_ops,
 		.parent_names = sys_clk_parent_names,
 		.num_parents = ARRAY_SIZE(sys_clk_parent_names),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -1895,7 +1897,6 @@ static struct clk_regmap sc2_sc_clk_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_sc_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_sc_parent_data),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -1912,7 +1913,7 @@ static struct clk_regmap sc2_sc_clk_div = {
 			&sc2_sc_clk_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1928,7 +1929,7 @@ static struct clk_regmap sc2_sc_clk_gate = {
 			&sc2_sc_clk_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2588,7 +2589,7 @@ static struct clk_regmap sc2_cts_enci_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = sc2_cts_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_cts_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -2604,7 +2605,7 @@ static struct clk_regmap sc2_cts_encp_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = sc2_cts_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_cts_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -2620,7 +2621,7 @@ static struct clk_regmap sc2_cts_vdac_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = sc2_cts_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_cts_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -2651,7 +2652,7 @@ static struct clk_regmap sc2_hdmi_tx_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = sc2_cts_hdmi_tx_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_cts_hdmi_tx_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_NO_REPARENT
 	},
 };
 
@@ -2739,8 +2740,7 @@ static struct clk_regmap sc2_hdmi_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_hdmi_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_hdmi_parent_data),
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_GET_RATE_NOCACHE |
-			 CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_NO_REPARENT |  CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -2755,8 +2755,7 @@ static struct clk_regmap sc2_hdmi_div = {
 		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) { &sc2_hdmi_sel.hw },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
-			 CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT |  CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -2770,8 +2769,7 @@ static struct clk_regmap sc2_hdmi = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &sc2_hdmi_div.hw },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT |
-			 CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -2844,7 +2842,6 @@ static struct clk_regmap sc2_mali_0_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_mali_0_1_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_mali_0_1_parent_data),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -2893,7 +2890,6 @@ static struct clk_regmap sc2_mali_1_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_mali_0_1_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_mali_0_1_parent_data),
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2973,7 +2969,6 @@ static struct clk_regmap sc2_vdec_p0_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_dec_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_dec_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -2990,7 +2985,7 @@ static struct clk_regmap sc2_vdec_p0_div = {
 			&sc2_vdec_p0_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3006,7 +3001,7 @@ static struct clk_regmap sc2_vdec_p0 = {
 			&sc2_vdec_p0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3021,7 +3016,6 @@ static struct clk_regmap sc2_vdec_p1_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_dec_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_dec_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -3038,7 +3032,7 @@ static struct clk_regmap sc2_vdec_p1_div = {
 			&sc2_vdec_p1_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags =  CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3054,7 +3048,7 @@ static struct clk_regmap sc2_vdec_p1 = {
 			&sc2_vdec_p1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3074,7 +3068,7 @@ static struct clk_regmap sc2_vdec_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_vdec_mux_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_vdec_mux_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3090,7 +3084,6 @@ static struct clk_regmap sc2_hcodec_p0_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_dec_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_dec_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -3107,7 +3100,7 @@ static struct clk_regmap sc2_hcodec_p0_div = {
 			&sc2_hcodec_p0_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3123,7 +3116,7 @@ static struct clk_regmap sc2_hcodec_p0 = {
 			&sc2_hcodec_p0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3138,7 +3131,6 @@ static struct clk_regmap sc2_hcodec_p1_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_dec_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_dec_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -3155,7 +3147,7 @@ static struct clk_regmap sc2_hcodec_p1_div = {
 			&sc2_hcodec_p1_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3171,7 +3163,7 @@ static struct clk_regmap sc2_hcodec_p1 = {
 			&sc2_hcodec_p1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags =  CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3191,7 +3183,7 @@ static struct clk_regmap sc2_hcodec_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_hcodec_mux_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_hcodec_mux_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3219,7 +3211,6 @@ static struct clk_regmap sc2_hevcb_p0_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = sc2_vdec_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_vdec_parent_hws),
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3268,7 +3259,6 @@ static struct clk_regmap sc2_hevcb_p1_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_dec_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_dec_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -3285,7 +3275,7 @@ static struct clk_regmap sc2_hevcb_p1_div = {
 			&sc2_hevcb_p1_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3301,7 +3291,7 @@ static struct clk_regmap sc2_hevcb_p1 = {
 			&sc2_hevcb_p1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3321,7 +3311,7 @@ static struct clk_regmap sc2_hevcb_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_hevcb_mux_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_hevcb_mux_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3337,7 +3327,6 @@ static struct clk_regmap sc2_hevcf_p0_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_dec_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_dec_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -3354,7 +3343,7 @@ static struct clk_regmap sc2_hevcf_p0_div = {
 			&sc2_hevcf_p0_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3370,7 +3359,7 @@ static struct clk_regmap sc2_hevcf_p0 = {
 			&sc2_hevcf_p0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3385,7 +3374,6 @@ static struct clk_regmap sc2_hevcf_p1_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_dec_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_dec_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -3402,7 +3390,7 @@ static struct clk_regmap sc2_hevcf_p1_div = {
 			&sc2_hevcf_p1_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3418,7 +3406,7 @@ static struct clk_regmap sc2_hevcf_p1 = {
 			&sc2_hevcf_p1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3438,7 +3426,7 @@ static struct clk_regmap sc2_hevcf_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_hevcf_mux_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_hevcf_mux_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3734,7 +3722,6 @@ static struct clk_regmap sc2_vpu_clkb_tmp_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = vpu_clkb_tmp_parent_hws,
 		.num_parents = ARRAY_SIZE(vpu_clkb_tmp_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -3751,7 +3738,7 @@ static struct clk_regmap sc2_vpu_clkb_tmp_div = {
 			&sc2_vpu_clkb_tmp_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3767,7 +3754,7 @@ static struct clk_regmap sc2_vpu_clkb_tmp = {
 			&sc2_vpu_clkb_tmp_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3784,7 +3771,7 @@ static struct clk_regmap sc2_vpu_clkb_div = {
 			&sc2_vpu_clkb_tmp.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags =  CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3800,7 +3787,7 @@ static struct clk_regmap sc2_vpu_clkb = {
 			&sc2_vpu_clkb_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3820,7 +3807,6 @@ static struct clk_regmap sc2_vpu_clkc_p0_mux  = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_names = vpu_clkc_parent_names,
 		.num_parents = ARRAY_SIZE(vpu_clkc_parent_names),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -3837,7 +3823,7 @@ static struct clk_regmap sc2_vpu_clkc_p0_div = {
 			&sc2_vpu_clkc_p0_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3853,7 +3839,7 @@ static struct clk_regmap sc2_vpu_clkc_p0 = {
 			&sc2_vpu_clkc_p0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3868,7 +3854,6 @@ static struct clk_regmap sc2_vpu_clkc_p1_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_names = vpu_clkc_parent_names,
 		.num_parents = ARRAY_SIZE(vpu_clkc_parent_names),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -3885,7 +3870,7 @@ static struct clk_regmap sc2_vpu_clkc_p1_div = {
 			&sc2_vpu_clkc_p1_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3901,7 +3886,7 @@ static struct clk_regmap sc2_vpu_clkc_p1 = {
 			&sc2_vpu_clkc_p1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3921,7 +3906,7 @@ static struct clk_regmap sc2_vpu_clkc_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_vpu_mux_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_vpu_mux_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3995,7 +3980,6 @@ static struct clk_regmap sc2_vapb_1_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = sc2_vapb_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_vapb_parent_hws),
-		.flags = CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -4046,7 +4030,7 @@ static struct clk_regmap sc2_vapb = {
 			&sc2_vapb_1.hw,
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4089,7 +4073,6 @@ static struct clk_regmap sc2_vdin_meas_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_vdin_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_vdin_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -4106,7 +4089,7 @@ static struct clk_regmap sc2_vdin_meas_div = {
 			&sc2_vdin_meas_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4122,7 +4105,7 @@ static struct clk_regmap sc2_vdin_meas_gate = {
 			&sc2_vdin_meas_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4149,7 +4132,6 @@ static struct clk_regmap sc2_sd_emmc_c_clk0_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_sd_emmc_clk0_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_sd_emmc_clk0_parent_data),
-		.flags = CLK_GET_RATE_NOCACHE
 	},
 };
 
@@ -4166,7 +4148,6 @@ static struct clk_regmap sc2_sd_emmc_c_clk0_div = {
 			&sc2_sd_emmc_c_clk0_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE
 	},
 };
 
@@ -4182,7 +4163,6 @@ static struct clk_regmap sc2_sd_emmc_c_clk0 = {
 			&sc2_sd_emmc_c_clk0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE
 	},
 };
 
@@ -4198,8 +4178,6 @@ static struct clk_regmap sc2_sd_emmc_a_clk0_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_sd_emmc_clk0_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_sd_emmc_clk0_parent_data),
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
-			//CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4216,8 +4194,6 @@ static struct clk_regmap sc2_sd_emmc_a_clk0_div = {
 			&sc2_sd_emmc_a_clk0_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
-			//CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4233,8 +4209,6 @@ static struct clk_regmap sc2_sd_emmc_a_clk0 = {
 			&sc2_sd_emmc_a_clk0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
-			//CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4249,8 +4223,6 @@ static struct clk_regmap sc2_sd_emmc_b_clk0_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_sd_emmc_clk0_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_sd_emmc_clk0_parent_data),
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
-			//CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4267,8 +4239,6 @@ static struct clk_regmap sc2_sd_emmc_b_clk0_div = {
 			&sc2_sd_emmc_b_clk0_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
-			//CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4284,8 +4254,6 @@ static struct clk_regmap sc2_sd_emmc_b_clk0 = {
 			&sc2_sd_emmc_b_clk0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
-			//CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4314,7 +4282,6 @@ static struct clk_regmap sc2_spicc0_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_spicc_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_spicc_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -4331,7 +4298,7 @@ static struct clk_regmap sc2_spicc0_div = {
 			&sc2_spicc0_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4347,7 +4314,7 @@ static struct clk_regmap sc2_spicc0_gate = {
 			&sc2_spicc0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4362,7 +4329,6 @@ static struct clk_regmap sc2_spicc1_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_spicc_parent_hws,
 		.num_parents = ARRAY_SIZE(sc2_spicc_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -4379,7 +4345,7 @@ static struct clk_regmap sc2_spicc1_div = {
 			&sc2_spicc1_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4395,7 +4361,7 @@ static struct clk_regmap sc2_spicc1_gate = {
 			&sc2_spicc1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4420,7 +4386,6 @@ static struct clk_regmap sc2_pwm_a_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4437,7 +4402,7 @@ static struct clk_regmap sc2_pwm_a_div = {
 			&sc2_pwm_a_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT
 	},
 };
 
@@ -4468,7 +4433,6 @@ static struct clk_regmap sc2_pwm_b_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4485,7 +4449,7 @@ static struct clk_regmap sc2_pwm_b_div = {
 			&sc2_pwm_b_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4516,7 +4480,6 @@ static struct clk_regmap sc2_pwm_c_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4533,7 +4496,7 @@ static struct clk_regmap sc2_pwm_c_div = {
 			&sc2_pwm_c_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4564,7 +4527,6 @@ static struct clk_regmap sc2_pwm_d_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4581,7 +4543,7 @@ static struct clk_regmap sc2_pwm_d_div = {
 			&sc2_pwm_d_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4612,7 +4574,6 @@ static struct clk_regmap sc2_pwm_e_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4629,7 +4590,7 @@ static struct clk_regmap sc2_pwm_e_div = {
 			&sc2_pwm_e_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4660,7 +4621,6 @@ static struct clk_regmap sc2_pwm_f_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4677,7 +4637,7 @@ static struct clk_regmap sc2_pwm_f_div = {
 			&sc2_pwm_f_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4708,7 +4668,6 @@ static struct clk_regmap sc2_pwm_g_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4725,7 +4684,7 @@ static struct clk_regmap sc2_pwm_g_div = {
 			&sc2_pwm_g_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4756,7 +4715,6 @@ static struct clk_regmap sc2_pwm_h_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4773,7 +4731,7 @@ static struct clk_regmap sc2_pwm_h_div = {
 			&sc2_pwm_h_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4804,7 +4762,6 @@ static struct clk_regmap sc2_pwm_i_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4821,7 +4778,7 @@ static struct clk_regmap sc2_pwm_i_div = {
 			&sc2_pwm_i_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4852,7 +4809,6 @@ static struct clk_regmap sc2_pwm_j_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = sc2_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(sc2_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4869,7 +4825,7 @@ static struct clk_regmap sc2_pwm_j_div = {
 			&sc2_pwm_j_mux.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
