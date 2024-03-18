@@ -959,6 +959,14 @@ static struct vicp_device_data_s vicp_t3x = {
 	.ddr16_support = true,
 };
 
+static struct vicp_device_data_s vicp_s6 = {
+	.rate = 800000000,
+	.cpu_type = MESON_CPU_MAJOR_ID_S6,
+	.film_grain_support = true,
+	.cr_lossy_support = true,
+	.ddr16_support = true,
+};
+
 static const struct of_device_id vicp_dt_match[] = {
 	{
 		.compatible = "amlogic, vicp",
@@ -967,6 +975,10 @@ static const struct of_device_id vicp_dt_match[] = {
 	{
 		.compatible = "amlogic, vicp-t3x",
 		.data = &vicp_t3x,
+	},
+	{
+		.compatible = "amlogic, vicp-s6",
+		.data = &vicp_s6,
 	},
 	{},
 };

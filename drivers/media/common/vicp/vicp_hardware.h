@@ -364,6 +364,26 @@ struct vicp_fgrain_ctrl_reg_s {
 	u32 fgrain_glb_en; //default = 0 global-based fgrain enable
 };
 
+struct vicp_fgrain_alone_mode_ctrl_reg_s {
+	u32 debug_demo_inverse;     //unsigned ,RW, default = 0
+	u32 debug_demo_en;          //unsigned ,RW, default = 0
+	u32 final_gain_1;           //unsigned ,RW, default = 16,chroma fg final gian,
+	u32 final_gain_0;           //unsigned ,RW, default = 16,luma fg final gian,
+	u32 lut_up_mode;            //unsigned ,RW, default = 1
+	u32 alone_mode;             //unsigned ,RW, default = 0
+};
+
+struct vicp_fgrain_post_ctrl_reg_s {
+	u32 hsize;              //unsigned ,RW, default = 4096, frm hsize
+	u32 post_gclk_ctrl;     //unsigned ,RW, default = 0  bit[11:10]:reg_gclk [9:8]:fg_post wclk
+	u32 sync_ctrl;          //unsigned ,RW, default = 0, bit0: control reg_post_en
+	u32 use_inp_mode;       //unsigned ,RW, default = 1, 1: use input mode set	0: use regs
+	u32 mode_422to444;      //unsigned ,RW, default = 0,
+	u32  mode_444to422;     //unsigned ,RW, default = 0,
+	u32 inp_422;            //unsigned ,RW, default = 0, 1: input yuv422
+	u32 post_en;            //unsigned ,RW, default = 0, 1: fgrain_post enable
+};
+
 struct vicp_afbce_loss_ctrl_reg_s {
 	u32 fix_cr_en;             //Bit 31    default = 1  enable of fix CR
 	u32 rc_en;                 //Bit 30    default = 0  enable of rc
@@ -495,6 +515,10 @@ void set_fgrain_window_h(u32 begain, u32 end);
 void set_fgrain_window_v(u32 begain, u32 end);
 void set_fgrain_slice_window_h(u32 begain, u32 end);
 void set_fgrain_lut_data(u32 val);
+void set_fgrain_path_control(u32 is_enable);
+void set_fgrain_post_control(struct vicp_fgrain_post_ctrl_reg_s post_ctrl_reg);
+void set_fgrain_alone_mode_control(struct vicp_fgrain_alone_mode_ctrl_reg_s alone_ctrl_reg);
+void set_fgrain_ppconv_size(u32 size_h, u32 size_v);
 int read_vicp_reg(u32 reg);
 void write_vicp_reg(u32 reg, u32 val);
 void write_vicp_reg_bits(u32 reg, const u32 value, const u32 start, const u32 len);
