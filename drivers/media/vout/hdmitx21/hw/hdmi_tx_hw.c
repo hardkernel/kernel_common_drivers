@@ -3001,6 +3001,9 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		break;
 	case CONF_EMP_PHY_ADDR:
 		break;
+	case CONF_HW_INIT:
+		hdmi_hwp_init(hdev, 1);
+		break;
 	default:
 		break;
 	}

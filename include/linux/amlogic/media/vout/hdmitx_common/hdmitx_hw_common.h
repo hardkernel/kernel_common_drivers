@@ -156,6 +156,7 @@
 #define CONF_GET_AUDIO_MUTE_ST  (CMD_CONF_OFFSET + 0x1000 + 0x02)
 
 #define CONF_ASPECT_RATIO       (CMD_CONF_OFFSET + 0x101a)
+#define CONF_HW_INIT			(CMD_CONF_OFFSET + 0x101b)
 
 enum avi_component_conf {
 	CONF_AVI_BT2020 = (CMD_CONF_OFFSET + 0X2000 + 0x00),
