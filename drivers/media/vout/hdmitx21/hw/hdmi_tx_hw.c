@@ -1923,7 +1923,12 @@ static void set_aud_acr_pkt(struct aud_para *audio_param)
 	hdmitx21_wr_reg(N_SVAL3_IVCTX, (aud_n_para >> 16) & 0xff); //N_SVAL3
 }
 
-/* flag: 0 means mute */
+/*
+ * audio_mute_op for audio mute/unmute hdmi
+ * flag:
+ * 0x00		audio mute
+ * 0x01		audio unmute
+ */
 static void audio_mute_op(bool flag)
 {
 	mutex_lock(&aud_mutex);
