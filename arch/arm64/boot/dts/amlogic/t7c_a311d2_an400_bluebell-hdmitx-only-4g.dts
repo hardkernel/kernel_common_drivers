@@ -1830,6 +1830,11 @@
 	hdmi_repeater = <1>;
 };
 
+&aocec {
+	status = "okay";
+	port_num = <1>;
+};
+
 /*if you want to use vdin just modify status to "ok"*/
 &vdin0 {
 	/*memory-region = <&vdin0_cma_reserved>;*/
