@@ -305,18 +305,6 @@ struct vid_cmpr_f2v_vphase_s {
 	unsigned short phase;
 };
 
-struct vid_cmpr_fgrain_s {
-	bool enable;
-	u32 is_afbc;
-	u32 start_x;
-	u32 end_x;
-	u32 start_y;
-	u32 end_y;
-	u32 color_fmt;
-	u32 color_depth;
-	u64 fgs_table_adr;
-};
-
 /* **************************************************************************/
 /* ************************* function definitions ***************************/
 /* **************************************************************************/

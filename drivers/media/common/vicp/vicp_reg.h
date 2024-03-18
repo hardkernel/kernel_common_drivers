@@ -93,6 +93,8 @@
 #define VID_CMPR_FIELD_FLAG                        0x0109
 #define VID_CMPR_GCLK_CTRL                         0x010a
 #define VID_CMPR_FGRAIN_LUT_DATA                   0x010d
+#define VID_CMPR_FGRAIN_PATH_CTRL                  0x010e
+#define VID_CMPR_FGRAIN_POST_CTRL                  0x03a0
 #define VID_CMPR_IN_SIZE                           0x0110
 #define VID_CMPR_OUT_SIZE                          0x0111
 #define VID_CMPR_DUMMY_DATA                        0x0114
@@ -114,6 +116,9 @@
 #define VID_CMPR_RD_ASYNC_CTRL                     0x0135
 #define VID_CMPR_WR_ASYNC_CTRL                     0x0136
 #define VID_CMPR_SECURE_DAT                        0x0137
+#define VID_CMPR_RAXI_CRASH_ADDRESS                0x013a
+#define VID_CMPR_WAXI_CRASH_ADDRESS                0x013b
+#define VID_CMPR_AXI_CRASH_ID                      0x013c
 #define VID_CMPR_RAXI_PROT_CTRL                    0x0140
 #define VID_CMPR_WAXI_PROT_CTRL                    0x0141
 #define VID_CMPR_RAXI_PROT_STAT                    0x0145
@@ -122,8 +127,16 @@
 #define VID_CMPR_CRC0_OUT                          0x0152
 #define VID_CMPR_CRC1_0_OUT                        0x0153
 #define VID_CMPR_CRC1_1_OUT                        0x0154
+#define VID_CMPR_SEC_MODE_STATUS                   0x0160
+#define VID_CMPR_ENH_RESET                         0x0171
+#define VID_CMPR_ENH_START                         0x0172
+#define VID_CMPR_SEC_MODE_CTRL                     0x0180
+#define VID_CMPR_SEC_OPT_CTRL                      0x0181
 #define VID_CMPR_AXIRD_ARBX4_BADDR                 0x01b0
 #define VID_CMPR_AXIWR_ARBX4_BADDR                 0x01c0
+
+#define S6_VID_CMPR_RESET                          0x0101
+#define S6_VID_CMPR_SW_RESETS                      0x010b
 
 //==========================================================================
 // READ MIF
@@ -174,6 +187,7 @@
 // AFBC_DEC
 //==========================================================================
 #define VID_CMPR_AFBCDM_VDTOP_CTRL0                0x0238
+#define VID_CMPR_AFBCDM_VDTOP_CTRL1                0x0239
 #define VID_CMPR_AFBCDM_ENABLE                     0x0240
 #define VID_CMPR_AFBCDM_MODE                       0x0241
 #define VID_CMPR_AFBCDM_SIZE_IN                    0x0242
@@ -218,6 +232,11 @@
 #define VID_CMPR_AFBCDM_FGRAIN_PARAM_ADDR          0x0278
 #define VID_CMPR_AFBCDM_FGRAIN_PARAM_DATA          0x0279
 #define VID_CMPR_AFBCDM_FGRAIN_SLICE_WIN_H         0x027a
+
+#define VID_CMPR_AFBCDM_FGRAIN_ALONE_MODE_CTRL          0x027c
+#define VID_CMPR_AFBCDM_FGRAIN_DEBUG_DEMO_WND_COEF_0    0x027d
+#define VID_CMPR_AFBCDM_FGRAIN_DEBUG_DEMO_WND_COEF_1    0x027e
+
 //==========================================================================
 // AFBC_ENC
 //==========================================================================
@@ -311,6 +330,51 @@
 #define T3X_VID_CMPR_AFBCE_MMU_RMIF_SCOPE_Y        0x02cf
 #define T3X_VID_CMPR_AFBCE_MMU_RMIF_RO_STAT        0x02d0
 
+#define S6_VID_CMPR_AFBCE_ENABLE                   0x02b4
+#define S6_VID_CMPR_AFBCE_MODE                     0x02b5
+#define S6_VID_CMPR_AFBCE_SIZE_IN                  0x02b6
+#define S6_VID_CMPR_AFBCE_BLK_SIZE_IN              0x02b7
+#define S6_VID_CMPR_AFBCE_HEAD_BADDR               0x02b8
+#define S6_VID_CMPR_AFBCE_MIF_SIZE                 0x02b9
+#define S6_VID_CMPR_AFBCE_PIXEL_IN_HOR_SCOPE       0x02ba
+#define S6_VID_CMPR_AFBCE_PIXEL_IN_VER_SCOPE       0x02bb
+#define S6_VID_CMPR_AFBCE_CONV_CTRL                0x02bc
+#define S6_VID_CMPR_AFBCE_MIF_HOR_SCOPE            0x02bd
+#define S6_VID_CMPR_AFBCE_MIF_VER_SCOPE            0x02be
+#define S6_VID_CMPR_AFBCE_STAT1                    0x02bf
+#define S6_VID_CMPR_AFBCE_STAT2                    0x02c0
+#define S6_VID_CMPR_AFBCE_FORMAT                   0x0290
+#define S6_VID_CMPR_AFBCE_MODE_EN                  0x0291
+#define S6_VID_CMPR_AFBCE_DWSCALAR                 0x0292
+#define S6_VID_CMPR_AFBCE_DEFCOLOR_1               0x0293
+#define S6_VID_CMPR_AFBCE_DEFCOLOR_2               0x0294
+#define S6_VID_CMPR_AFBCE_QUANT_ENABLE             0x0295
+#define S6_VID_CMPR_AFBCE_IQUANT_LUT_1             0x0296
+#define S6_VID_CMPR_AFBCE_IQUANT_LUT_2             0x0297
+#define S6_VID_CMPR_AFBCE_IQUANT_LUT_3             0x0298
+#define S6_VID_CMPR_AFBCE_IQUANT_LUT_4             0x0299
+#define S6_VID_CMPR_AFBCE_RQUANT_LUT_1             0x029a
+#define S6_VID_CMPR_AFBCE_RQUANT_LUT_2             0x029b
+#define S6_VID_CMPR_AFBCE_RQUANT_LUT_3             0x029c
+#define S6_VID_CMPR_AFBCE_RQUANT_LUT_4             0x029d
+#define S6_VID_CMPR_AFBCE_YUV_FORMAT_CONV_MODE     0x029e
+#define S6_VID_CMPR_AFBCE_DUMMY_DATA               0x02c1
+#define S6_VID_CMPR_AFBCE_CLR_FLAG                 0x02c2
+#define S6_VID_CMPR_AFBCE_STA_FLAGT                0x02c3
+#define S6_VID_CMPR_AFBCE_MMU_NUM                  0x02c4
+#define S6_VID_CMPR_AFBCE_PIP_CTRL                 0x02c5
+#define S6_VID_CMPR_AFBCE_ROT_CTRL                 0x02c6
+#define S6_VID_CMPR_AFBCE_DIMM_CTRL                0x02c7
+#define S6_VID_CMPR_AFBCE_BND_DEC_MISC             0x02c8
+#define S6_VID_CMPR_AFBCE_RD_ARB_MISC              0x02c9
+#define S6_VID_CMPR_AFBCE_MMU_RMIF_CTRL1           0x02ca
+#define S6_VID_CMPR_AFBCE_MMU_RMIF_CTRL2           0x02cb
+#define S6_VID_CMPR_AFBCE_MMU_RMIF_CTRL3           0x02cc
+#define S6_VID_CMPR_AFBCE_MMU_RMIF_CTRL4           0x02cd
+#define S6_VID_CMPR_AFBCE_MMU_RMIF_SCOPE_X         0x02ce
+#define S6_VID_CMPR_AFBCE_MMU_RMIF_SCOPE_Y         0x02cf
+#define S6_VID_CMPR_AFBCE_MMU_RMIF_RO_STAT         0x02d0
+
 #define T3X_VID_CMPR_AFBCE_LOSS_CTRL               0x029f
 #define T3X_VID_CMPR_AFBCE_LOSS_BURST_NUM          0x02a0
 #define T3X_VID_CMPR_AFBCE_LOSS_RC                 0x02a1
@@ -397,12 +461,12 @@
 #define VID_CMPR_HDR2_EOTF_LUT_DATA_PORT           0x031f
 #define VID_CMPR_HDR2_OETF_LUT_ADDR_PORT           0x0320
 #define VID_CMPR_HDR2_OETF_LUT_DATA_PORT           0x0321
-#define VID_CMPR_HDR2_OGAIN_LUT_ADDR_PORT          0x0326
-#define VID_CMPR_HDR2_OGAIN_LUT_DATA_PORT          0x0327
 #define VID_CMPR_HDR2_CGAIN_LUT_ADDR_PORT          0x0322
 #define VID_CMPR_HDR2_CGAIN_LUT_DATA_PORT          0x0323
 #define VID_CMPR_HDR2_CGAIN_COEF0                  0x0324
 #define VID_CMPR_HDR2_CGAIN_COEF1                  0x0325
+#define VID_CMPR_HDR2_OGAIN_LUT_ADDR_PORT          0x0326
+#define VID_CMPR_HDR2_OGAIN_LUT_DATA_PORT          0x0327
 #define VID_CMPR_HDR2_ADPS_CTRL                    0x0328
 #define VID_CMPR_HDR2_ADPS_ALPHA0                  0x0329
 #define VID_CMPR_HDR2_ADPS_ALPHA1                  0x032a
@@ -427,6 +491,8 @@
 #define VID_CMPR_HDR2_HIST_CTRL                    0x033d
 #define VID_CMPR_HDR2_HIST_H_START_END             0x033e
 #define VID_CMPR_HDR2_HIST_V_START_END             0x033f
+#define VID_CMPR_HDR2_OGAIN_LUT1_ADDR_PORT         0x0340
+#define VID_CMPR_HDR2_OGAIN_LUT1_DATA_PORT         0x0341
 
 //==========================================================================
 // SCALER
@@ -468,7 +534,8 @@ extern void __iomem *vicp_reg_map;
 /* *********************************************************************** */
 enum vicp_support_chip_e {
 	VICP_SUPPORT_CHIP_S5,
-	VICP_SUPPORT_CHIP_t3X,
+	VICP_SUPPORT_CHIP_T3X,
+	VICP_SUPPORT_CHIP_S6,
 	VICP_SUPPORT_CHIP_MAX,
 };
 
