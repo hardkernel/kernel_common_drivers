@@ -623,7 +623,7 @@ index 000000000000..b2c9a1df0f17
 +	if( $msg !~ /Merge\s/ && $msg =~ /5\.15/ )
 +	{
 +		$err_cnt += 1;
-+		$err_msg .= "	$err_cnt: this branch is 5.15, all changes here are for 5.15. No「5.15」in commit message please\n";
++		$err_msg .= "	$err_cnt: this branch is 5.15, all changes here are for 5.15. No [5.15] in commit message please\n";
 +	}
 +
 +	if( $str[$i] !~ /^([\w-]+:\s){1,2}.+(\s)\[[\d]+\/[\d]+\]$/ )
