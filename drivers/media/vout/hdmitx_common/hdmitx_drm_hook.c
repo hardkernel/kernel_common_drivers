@@ -108,6 +108,7 @@ int hdmitx_common_get_vic_list(int **vics)
 	int count = 0;
 	int *viclist = 0;
 	int *edid_vics = 0;
+	enum hdmi_vic prefer_vic = HDMI_0_UNKNOWN;
 
 	viclist = kcalloc(len, sizeof(int),  GFP_KERNEL);
 	edid_vics = vmalloc(len * sizeof(int));
@@ -125,15 +126,12 @@ int hdmitx_common_get_vic_list(int **vics)
 		if (vic == HDMI_0_UNKNOWN)
 			continue;
 
-		if (vic == HDMI_2_720x480p60_4x3 ||
-			vic == HDMI_6_720x480i60_4x3 ||
-			vic == HDMI_17_720x576p50_4x3 ||
-			vic == HDMI_21_720x576i50_4x3) {
-			if (hdmitx_edid_validate_mode(prxcap, vic + 1) == true) {
-				//HDMITX_INFO("%s: check vic exist, handle [%d] later.\n",
-				//	__func__, vic + 1);
-				continue;
-			}
+		prefer_vic = hdmitx_get_prefer_vic(global_tx_base, vic);
+		/* if mode_best_vic is support by RX, try 16x9 first */
+		if (prefer_vic != vic) {
+			HDMITX_DEBUG("%s: check prefer vic:%d exist, ignore [%d] later.\n",
+				__func__, prefer_vic, vic);
+			continue;
 		}
 
 		/* step2, check if VIC is supported by SOC hdmitx */

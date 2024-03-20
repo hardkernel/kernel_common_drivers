@@ -355,5 +355,6 @@ void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 void get_hdmi_efuse(struct hdmitx_common *tx_comm);
 enum hdmi_color_depth get_hdmi_colordepth(const struct vinfo_s *vinfo);
 bool is_cur_hdmi_mode(void);
+enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic);
 
 #endif

@@ -845,6 +845,7 @@ static ssize_t disp_cap_show(struct device *dev,
 	int i, pos = 0;
 	int vic_len = prxcap->VIC_count + VESA_MAX_TIMING;
 	int *edid_vics = vmalloc(vic_len * sizeof(int));
+	enum hdmi_vic prefer_vic = HDMI_0_UNKNOWN;
 
 	memset(edid_vics, 0, vic_len * sizeof(int));
 
@@ -860,21 +861,15 @@ static ssize_t disp_cap_show(struct device *dev,
 		if (vic == HDMI_0_UNKNOWN)
 			continue;
 
-		if (vic == HDMI_2_720x480p60_4x3 ||
-			vic == HDMI_6_720x480i60_4x3 ||
-			vic == HDMI_17_720x576p50_4x3 ||
-			vic == HDMI_21_720x576i50_4x3) {
-			if (hdmitx_edid_validate_mode(prxcap, vic + 1) == true) {
-				/*HDMITX_INFO("%s: check vic exist, handle [%d] later.\n",
-				 *	__func__, vic + 1);
-				 */
-				continue;
-			}
-			/* if only 4x3_AR is supported in edid, use the sname of 16x9_AR  */
-			timing = hdmitx_mode_vic_to_hdmi_timing(vic + 1);
-		} else {
-			timing = hdmitx_mode_vic_to_hdmi_timing(vic);
+		prefer_vic = hdmitx_get_prefer_vic(global_tx_common, vic);
+		/* if mode_best_vic is support by RX, try 16x9 first */
+		if (prefer_vic != vic) {
+			HDMITX_DEBUG("%s: check prefer vic:%d exist, ignore [%d].\n",
+					__func__, prefer_vic, vic);
+			continue;
 		}
+
+		timing = hdmitx_mode_vic_to_hdmi_timing(vic);
 		if (!timing) {
 			// HDMITX_ERROR("%s: unsupport vic [%d]\n", __func__, vic);
 			continue;

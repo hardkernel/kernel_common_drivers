@@ -176,6 +176,12 @@ static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
 	/*TODO: keep for hw module to read formatpara, remove later.*/
 	memcpy(&tx_comm->fmt_para, para, sizeof(struct hdmi_format_para));
 
+	/*check if vic supported by rx*/
+	if (!hdmitx_edid_validate_mode(&tx_comm->rxcap, tx_comm->fmt_para.vic)) {
+		HDMITX_ERROR("edid invalid vic-%d return error\n", tx_comm->fmt_para.vic);
+		return -EINVAL;
+	}
+
 	if (hdmitx_common_validate_vic(tx_comm, tx_comm->fmt_para.vic)) {
 		HDMITX_ERROR("validate vic-%d return error\n", tx_comm->fmt_para.vic);
 		return -EINVAL;

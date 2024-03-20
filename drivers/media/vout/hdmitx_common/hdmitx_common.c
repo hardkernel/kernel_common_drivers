@@ -102,10 +102,6 @@ int hdmitx_common_validate_vic(struct hdmitx_common *tx_comm, u32 vic)
 	if (!timing)
 		return -EINVAL;
 
-	/*check if vic supported by rx*/
-	if (!hdmitx_edid_validate_mode(&tx_comm->rxcap, vic))
-		return -EINVAL;
-
 	/*soc level filter*/
 	/*filter 1080p max size.*/
 	if (tx_comm->res_1080p) {
@@ -556,12 +552,12 @@ int hdmitx_get_hdrinfo(struct hdmitx_common *tx_comm, struct hdr_info *hdrinfo)
 	return 0;
 }
 
-static enum hdmi_vic get_alternate_ar_vic(enum hdmi_vic vic)
+enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic)
 {
 	int i = 0;
-	struct {
-		u32 mode_16x9_vic;
-		u32 mode_4x3_vic;
+	const struct {
+		u32 mode_prefer_vic;
+		u32 mode_alternate_vic;
 	} vic_pairs[] = {
 		{HDMI_7_720x480i60_16x9, HDMI_6_720x480i60_4x3},
 		{HDMI_3_720x480p60_16x9, HDMI_2_720x480p60_4x3},
@@ -570,13 +566,19 @@ static enum hdmi_vic get_alternate_ar_vic(enum hdmi_vic vic)
 	};
 
 	for (i = 0; i < ARRAY_SIZE(vic_pairs); i++) {
-		if (vic_pairs[i].mode_16x9_vic == vic)
-			return vic_pairs[i].mode_4x3_vic;
-		if (vic_pairs[i].mode_4x3_vic == vic)
-			return vic_pairs[i].mode_16x9_vic;
+		if (vic_pairs[i].mode_alternate_vic == vic || vic_pairs[i].mode_prefer_vic == vic) {
+			/* check if mode_best_vic supported by RX */
+			if (hdmitx_edid_validate_mode(&tx_comm->rxcap,
+						vic_pairs[i].mode_prefer_vic))
+				return vic_pairs[i].mode_prefer_vic;
+			if (hdmitx_edid_validate_mode(&tx_comm->rxcap,
+						vic_pairs[i].mode_alternate_vic))
+				return vic_pairs[i].mode_alternate_vic;
+			return HDMI_0_UNKNOWN;
+		}
 	}
 
-	return HDMI_0_UNKNOWN;
+	return vic;
 }
 
 /* check VIC supported or not with basic cs/cd
@@ -633,48 +635,29 @@ EXPORT_SYMBOL(hdmitx_common_check_valid_para_of_vic);
 int hdmitx_common_parse_vic_in_edid(struct hdmitx_common *tx_comm, const char *mode)
 {
 	const struct hdmi_timing *timing;
-	enum hdmi_vic vic = HDMI_0_UNKNOWN;
-	enum hdmi_vic alternate_vic = HDMI_0_UNKNOWN;
+	enum hdmi_vic prefer_vic = HDMI_0_UNKNOWN;
 
 	/*parse by name to find default mode*/
 	timing = hdmitx_mode_match_timing_name(mode);
 	if (!timing || timing->vic == HDMI_0_UNKNOWN)
 		return HDMI_0_UNKNOWN;
 
-	vic = timing->vic;
-	/* for compatibility: 480p/576p
-	 * 480p/576p use same short name in hdmitx_timing table, so when match name, will return
-	 * 4x3 mode fist. But user prefer 16x9 first, so try 16x9 first;
-	 */
-	alternate_vic = get_alternate_ar_vic(vic);
-	if (alternate_vic != HDMI_0_UNKNOWN) {
-		//HDMITX_INFO("get alternate vic %d->%d\n", vic, alternate_vic);
-		vic = alternate_vic;
-	}
+	prefer_vic = hdmitx_get_prefer_vic(tx_comm, timing->vic);
 
-	/*check if vic supported by rx*/
-	if (hdmitx_edid_validate_mode(&tx_comm->rxcap, vic) == true)
-		return vic;
-
-	/* for compatibility: 480p/576p, will get 0 if there is no alternate vic;*/
-	alternate_vic = get_alternate_ar_vic(vic);
-	if (alternate_vic != vic) {
-		//HDMITX_INFO("get alternate vic %d->%d\n", vic, alternate_vic);
-		vic = alternate_vic;
-	}
-
-	if (vic != HDMI_0_UNKNOWN && hdmitx_edid_validate_mode(&tx_comm->rxcap, vic) == false)
-		vic = HDMI_0_UNKNOWN;
+	/*check if vic supported by rx, except:480i 480p 576i 576p*/
+	if (prefer_vic != HDMI_0_UNKNOWN &&
+		hdmitx_edid_validate_mode(&tx_comm->rxcap, prefer_vic) == false)
+		prefer_vic = HDMI_0_UNKNOWN;
 
 	/* Dont call hdmitx_common_check_valid_para_of_vic anymore.
 	 * This function used to parse user passed mode name which should already
 	 * checked by hdmitx_common_check_valid_para_of_vic().
 	 */
 
-	if (vic == HDMI_0_UNKNOWN)
-		HDMITX_ERROR("%s: parse mode %s vic %d\n", __func__, mode, vic);
+	if (prefer_vic == HDMI_0_UNKNOWN)
+		HDMITX_ERROR("%s: parse mode %s vic %d\n", __func__, mode, prefer_vic);
 
-	return vic;
+	return prefer_vic;
 }
 EXPORT_SYMBOL(hdmitx_common_parse_vic_in_edid);
 
