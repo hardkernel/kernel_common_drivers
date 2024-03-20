@@ -58,6 +58,8 @@
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vpu/vpu.h>
+#include <linux/amlogic/media/di/di.h>
+
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
 #endif
@@ -11787,6 +11789,32 @@ bool dim_pre_link_state(void)
 }
 
 __module_param_named(invert_top_bot, invert_top_bot, int, 0664);
+
+bool dim_get_vfm_info(struct afbcd_info *vfm_info)
+{
+	struct di_dev_s *de_devp = get_dim_de_devp();
+
+	if (IS_ERR_OR_NULL(de_devp))
+		return false;
+
+	if (cfgg(EN_PRE_LINK) && IS_IC_SUPPORT(PRE_VPP_LINK)) {
+		if (DIM_IS_IC_EF(SC2)) {
+			vfm_info->head_addr = DIM_RDMA_RD(AFBCDM_INP_HEAD_BADDR);
+			vfm_info->body_addr = DIM_RDMA_RD(AFBCDM_INP_BODY_BADDR);
+			vfm_info->hsize_out = DIM_RDMA_RD_BITS(AFBCDM_INP_SIZE_OUT, 16, 13);
+			vfm_info->vsize_out = DIM_RDMA_RD_BITS(AFBCDM_INP_SIZE_OUT, 0, 13);
+		} else {
+			vfm_info->head_addr = DIM_RDMA_RD(DI_INP_AFBC_HEAD_BADDR);
+			vfm_info->body_addr = DIM_RDMA_RD(DI_INP_AFBC_BODY_BADDR);
+			vfm_info->hsize_out = DIM_RDMA_RD_BITS(DI_INP_AFBC_SIZE_OUT, 16, 13);
+			vfm_info->vsize_out = DIM_RDMA_RD_BITS(DI_INP_AFBC_SIZE_OUT, 0, 13);
+		}
+	} else {
+		PR_ERR("%s:not prelink.\n", __func__);
+		return false;
+	}
+	return true;
+}
 
 #ifdef DET3D
 
