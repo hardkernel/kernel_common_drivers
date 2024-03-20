@@ -513,6 +513,12 @@ static int meson_sar_adc_iio_info_read_raw(struct iio_dev *indio_dev,
 						ONE_SAMPLE, val);
 
 	case IIO_CHAN_INFO_PROCESSED:
+		if (chan->type != IIO_VOLTAGE) {
+			dev_err(indio_dev->dev.parent,
+				"only supports voltage type channels\n");
+			return -EINVAL;
+		}
+
 		ret = meson_sar_adc_get_sample(indio_dev, chan,
 					       MEDIAN_AVERAGING_FILTER,
 					       EIGHT_SAMPLES,
@@ -520,9 +526,13 @@ static int meson_sar_adc_iio_info_read_raw(struct iio_dev *indio_dev,
 		if (ret < 0)
 			return ret;
 
-		/* return the 10-bit sampling value */
-		if (priv->param->resolution == 12)
-			*val = *val >> 2;
+		ret = regulator_get_voltage(priv->vref);
+		if (ret < 0)
+			ret = SAR_ADC_DEF_VREF;
+
+		/* returns the voltage value in millivolts */
+		*val *= ret / 1000;
+		*val = (int)((unsigned int)*val >> priv->param->resolution);
 
 		return IIO_VAL_INT;
 
