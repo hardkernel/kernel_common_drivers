@@ -139,8 +139,8 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* ion_codec_mm max can alloc size 80M*/
-			size = <0xD000000>;
+			/* Two-channel 1080i HEVC secure playback requires at least 168MB */
+			size = <0xA800000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x30000000 0x10000000>;
 			linux,contiguous-region;
