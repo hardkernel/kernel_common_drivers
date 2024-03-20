@@ -179,15 +179,18 @@
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p TV androidT size 88M */
-			size = <0x5800000>;
+			/* maximum size of fbdev and wayland-drm backend
+			 * fbdev: 2 * (number of /dev/fbx device) buffers
+			 * wayland-drm: 4 buffers for wayland compositor
+			 */
+			size = <0x3400000>;
 			alignment = <0x400000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1080p TV androidT size 36M */
-			size = <0x2400000>;
+			size = <0x0>;
 			alignment = <0x400000>;
 		};
 
@@ -201,7 +204,7 @@
 			 * size = 1920 * 1080 * 3 * 4
 			 * (RGBA: 4 bytes/pixel) + 4M(10% * afbc)
 			 */
-			size = <0x3000000>;
+			size = <0x0>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x00000000 0x30000000>;
 		};

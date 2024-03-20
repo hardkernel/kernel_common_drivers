@@ -118,6 +118,10 @@
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
+			/* maximum size of fbdev and wayland-drm backend
+			 * fbdev: 2 * (number of /dev/fbx device) buffers
+			 * wayland-drm: 4 buffers for wayland compositor
+			 */
 			size = <0x2400000>;
 			alignment = <0x400000>;
 		};
