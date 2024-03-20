@@ -222,7 +222,7 @@
 		memory-region = <&pcie_dma_ops_mm>;
 	};
 
-	main_12v: fixregulator@1 {
+	main_12v: fixed@main_12v {
 		compatible = "regulator-fixed";
 		regulator-name = "12V";
 		regulator-min-microvolt = <12000000>;
@@ -230,17 +230,22 @@
 		regulator-always-on;
 	};
 
-	vcc_5v_reg: fixedregulator@2 {
+	vcc_5v_reg: fixed@vcc_5v_reg {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_5V";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		vin-supply = <&main_12v>;
+		pinctrl-names = "default";
+		//GPIOH_8(OD) can up/down by setting GPIO_OPEN_DRAIN
+		gpio = <&gpio GPIOH_8 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
+		startup-delay-us = <7000>;
+		enable-active-low;
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
-	vddao3v3_reg: fixedregulator@3{
+	vddao3v3_reg: fixed@vddao3v3_reg {
 		vin-supply = <&main_12v>;
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_3V3";
@@ -250,7 +255,7 @@
 		regulator-always-on;
 	};
 
-	vddao1v8_reg: fixedregulator@4{
+	vddao1v8_reg: fixed@vddao1v8_reg{
 		vin-supply = <&vddao3v3_reg>;
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_1V8";

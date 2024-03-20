@@ -7,7 +7,7 @@
 
 #include "meson-sc2.dtsi"
 #include "mesonsc2_drm.dtsi"
-#include "partition_normal_linux.dtsi"
+#include "partition_debian_linux.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
@@ -83,7 +83,7 @@
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x3400000>;
+			size = <0x0 0x12c00000>;
 			alignment = <0x0 0x400000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
@@ -239,7 +239,7 @@
 	};
 	cvbsout {
 		compatible = "amlogic, cvbsout-sc2";
-		status = "okay";
+		status = "disabled";
 
 		/* clk path */
 		/* 0:vid_pll vid2_clk */
@@ -421,6 +421,7 @@
 		key_code = <114 115 116>;
 		key_val = <1109 1601 35>; // Unit: millivolt
 		key_tolerance = <70 70 70>; // Unit: millivolt
+		mboxes = <&mbox_fifo SC2_REE2AO_KEYPAD>;
 	};
 
 	unifykey{
@@ -585,36 +586,6 @@
 		spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
 
 		aml-audio-card,dai-link@0 {
-			format = "dsp_a";
-			mclk-fs = <512>;
-			//continuous-clock;
-			//bitclock-inversion;
-			//frame-inversion;
-			/* master mode */
-			bitclock-master = <&tdma>;
-			frame-master = <&tdma>;
-			/* slave mode */
-			/*
-			 * bitclock-master = <&tdmacodec>;
-			 * frame-master = <&tdmacodec>;
-			 */
-			suffix-name = "alsaPORT-pcm";
-			tdmacpu: cpu {
-				sound-dai = <&tdma>;
-				dai-tdm-slot-tx-mask =
-							<1>;
-				dai-tdm-slot-rx-mask =
-							<1>;
-				dai-tdm-slot-num = <2>;
-				dai-tdm-slot-width = <16>;
-				system-clock-frequency = <256000>;
-			};
-			tdmacodec: codec {
-				sound-dai = <&dummy_codec>;
-			};
-		};
-
-		aml-audio-card,dai-link@1 {
 			format = "i2s";// "dsp_a";
 			mclk-fs = <256>;
 			//continuous-clock;
@@ -648,6 +619,37 @@
 			tdmbcodec: codec {
 				sound-dai = <&amlogic_codec /*&ad82584f_62*/>;
 			};
+		};
+
+		aml-audio-card,dai-link@1 {
+			format = "dsp_a";
+			mclk-fs = <512>;
+			//continuous-clock;
+			//bitclock-inversion;
+			//frame-inversion;
+			/* master mode */
+			bitclock-master = <&tdma>;
+			frame-master = <&tdma>;
+			/* slave mode */
+			/*
+			 * bitclock-master = <&tdmacodec>;
+			 * frame-master = <&tdmacodec>;
+			 */
+			suffix-name = "alsaPORT-pcm";
+			tdmacpu: cpu {
+				sound-dai = <&tdma>;
+				dai-tdm-slot-tx-mask =
+							<1>;
+				dai-tdm-slot-rx-mask =
+							<1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <16>;
+				system-clock-frequency = <256000>;
+			};
+			tdmacodec: codec {
+				sound-dai = <&dummy_codec>;
+			};
+
 		};
 
 		aml-audio-card,dai-link@2 {
@@ -872,7 +874,7 @@
 			&tdm_d3_pins
 			&tdm_d4_pins
 			&tdm_clk_pins>;
-		suspend-clk-off = <1>;
+
 		status = "okay";
 	};
 
@@ -907,7 +909,7 @@
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
-		suspend-clk-off = <1>;
+
 		status = "okay";
 	};
 
@@ -922,7 +924,6 @@
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
 		src-clk-freq = <491520000>;
 		i2s2hdmi = <1>;
-		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -949,7 +950,7 @@
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
-		suspend-clk-off = <1>;
+
 		status = "okay";
 	};
 	spdifb: spdif@1 {
@@ -962,7 +963,6 @@
 		clock-names = "sysclk", "clk_src_cd",
 				"gate_spdifout", "clk_spdifout";
 		src-clk-freq = <491520000>;
-		suspend-clk-off = <1>;
 		status = "okay";
 	};
 	apdm: pdm {
@@ -1176,7 +1176,6 @@
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0x3>;
-		suspend-clk-off = <1>;
 		status = "okay";
 	};
 }; /* end of audiobus */
@@ -1569,7 +1568,7 @@
 };
 
 &drm_amcvbsout {
-	status = "okay";
+	status = "disabled";
 };
 
 &drm_lcd {
@@ -1624,6 +1623,7 @@
 	status = "okay";
 	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
+	power_down_disable = <1>;
 };
 
 &pwm_ef {
