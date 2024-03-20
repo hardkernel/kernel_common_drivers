@@ -780,6 +780,7 @@ void dim_set_di_flag(void);
 void dim_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev);
 unsigned int dim_get_vpu_clk_ext(void);
 bool dim_pre_link_state(void);
+bool dim_get_vfm_info(struct afbcd_info *vfm_info);
 void dim_log_buffer_state(unsigned char *tag, unsigned int channel);
 
 unsigned char dim_pre_de_buf_config(unsigned int channel);
