@@ -875,7 +875,8 @@
 		      <0x0 0x0 0x0 0x800000>; /*host ddrfw region [offset size]*/
 		clocks = <&clkc CLKID_DSPA_CLK>;
 		clock-names = "dspa_clk";
-		pm-support = <1>;
+		pm-support = <0>;
+		pwrctrl-support = <0>;
 		power-domains = <&pwrdm PDID_SC2_DSP>;
 		mboxes = <&mbox_fifo SC2_REE2DSPA_DSP>;
 		clkfreq-khz = <800000>;

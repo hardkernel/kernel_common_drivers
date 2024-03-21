@@ -83,6 +83,8 @@ struct host_shm_info_t {
  * @clk:              Host clock
  * @clk_rate:         Host clock rate
  * @pm_support:       If support power management
+ * @pwrctrl_support:  If support dsp pwrctrl access
+ * @pwrctrl_access_en:Dsp pwrctrl access enable
  * @mbox_chan:        Mbox channel, reserve for mbox development
  * @misc:             Misc device
  * @hostid:           Host id
@@ -123,6 +125,8 @@ struct host_module {
 	struct clk *clk;
 	u32 clk_rate;
 	bool pm_support;
+	bool pwrctrl_support;
+	bool pwrctrl_access_en;
 	struct mbox_chan *mbox_chan;
 	struct mbox_chan *init_mbox_chan;
 	struct miscdevice *misc;
