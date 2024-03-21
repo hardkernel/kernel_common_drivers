@@ -2474,6 +2474,7 @@ int dv_inst_map(int *inst)
 		dv_inst[*inst].in_md_size = 0;
 		dv_inst[*inst].in_comp = NULL;
 		dv_inst[*inst].in_comp_size = 0;
+		dv_inst[*inst].err_parse_cnt = 0;
 		return 0;
 	}
 	mutex_unlock(&dv_inst_lock);
@@ -5586,6 +5587,10 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 	if (!aux_buf || aux_size == 0 || !fmt || !md_buf || !comp_buf ||
 	    !total_comp_size || !total_md_size || !ret_flags)
 		return 1;
+	if (dv_inst[dv_id].err_parse_cnt > 10) {
+		pr_err("parser error count %d\n", dv_inst[dv_id].err_parse_cnt);
+		return 1;
+	}
 
 	p = aux_buf;
 	while (p < aux_buf + aux_size - 8) {
@@ -5737,6 +5742,7 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 				("[inst%d]meta(%d), pts(%lld) -> metadata parser process fail\n",
 				dv_id + 1, rpu_size, vf->pts_us64);
 				ret = 3;
+				dv_inst[dv_id].err_parse_cnt += 1;
 			} else {
 				if (*total_comp_size + comp_size
 					< COMP_BUF_SIZE)
@@ -9270,7 +9276,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 						dv_inst[dv_id].comp_buf[cur_md_id][i + 6],
 						dv_inst[dv_id].comp_buf[cur_md_id][i + 7]);
 				}
-			} else {  /*no parse or parse failed*/
+			} else if (ret == 0) {  /*no parse*/
 				if (get_vframe_src_fmt(vf) ==
 				    VFRAME_SIGNAL_FMT_HDR10PRIME)
 					src_format = FORMAT_PRIMESL;
@@ -9283,6 +9289,8 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 						 &src_format,
 						 &ret_flags, drop_flag,
 						 dv_id);
+			} else {/* parse failed*/
+				src_format = FORMAT_SDR;
 			}
 			if (force_mel)
 				ret_flags = 1;
@@ -10168,7 +10176,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 			pri_mode = V_PRIORITY;
 	} else {
 		/*auto mode: check video/graphics priority on the fly */
-		if (get_video_enabled(0))
+		if (get_video_enabled(0)/* && is_graphics_output_off()*/)
 			pri_mode = V_PRIORITY;
 		else
 			pri_mode = G_PRIORITY;
