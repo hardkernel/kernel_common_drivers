@@ -78,7 +78,7 @@ struct aml_sha_reqctx {
 	u32 fast_nents;
 
 	u8  *digest;
-	u8  buffer[0] __aligned(sizeof(u32));
+	u8  buffer[] __aligned(sizeof(u32));
 };
 
 struct aml_sha_ctx {
