@@ -10,19 +10,48 @@
 #include <linux/miscdevice.h>
 #include <linux/amlogic/scpi_protocol.h>
 
-#define SMC_HIFI_DSP 0x820000b1
-#define SMC_REMAP_CMD 0x82000096
-#define SMC_BOOT_CMD  0x82000090
-#define SMC_SUBID_DSP_PWRCTRL 0x13
+/*m4 cmd and subid*/
+#define SMC_M4_CMD			0x8200004E
+/*soc: g12a/sm1*/
+#define SMC_SUBID_MFH_V1_BOOT		0x20
+/*soc: p1*/
+#define SMC_SUBID_MFH_V2_BOOT		0x21
+#define SMC_SUBID_MFH_V2_RESET		0x22
+#define SMC_M4_BANK			0xFCB87430
+/*hifi dsp cmd and subid*/
+#define SMC_HIFI_DSP_CMD		0x82000090
+#define SMC_SUBID_HIFI_DSP_BOOT		0x10
+#define SMC_SUBID_HIFI_DSP_REMAP	0x11
+#define SMC_SUBID_HIFI_DSP_PWRCTRL	0x12
+#define SMC_SUBID_HIFI_DSP_PWR_SET	0x13
+#define SMC_SUBID_SHIFT			0x8
+#define PACK_SMC_SUBID_ID(subid, id) (((subid) << SMC_SUBID_SHIFT) | (id))
 
 struct host_module;
-struct host_info_t;
+struct dsp_info_t;
 struct host_data;
+struct host_mfh;
+struct host_dsp;
 
 struct host_data {
 	struct miscdevice *misc;
 	char name[20];
 	u8 hostid;
+} __packed;
+
+struct dsp_info_t {
+	char id;		/*dsp_id 0,1,2...*/
+	char fw_id;
+	char fw_name[32];	/*name of firmware which used for dsp*/
+	char fw1_name[32];	/*name of firmware which used for dsp ddr*/
+	char fw2_name[32];	/*name of firmware which used for dsp sram*/
+	unsigned int phy_addr;  /*phy address of firmware will be loaded on*/
+	unsigned int size;	/*size of reserved hifi memory*/
+} __packed;
+
+struct dsp_shm_info_t {
+	unsigned int addr;
+	unsigned int size;
 } __packed;
 
 struct mbox_buf {
@@ -31,20 +60,21 @@ struct mbox_buf {
 	u32 cfg0;
 } __packed;
 
-struct host_info_t {
-	char id;			/*dsp_id 0,1,2...*/
-	char fw_id;
-	char fw_name[32];	/*name of firmware which used for dsp*/
-	char fw1_name[32];	/*name of firmware which used for dsp ddr*/
-	char fw2_name[32];	/*name of firmware which used for dsp sram*/
-	unsigned int phy_addr;/*phy address of firmware will be loaded on*/
-	unsigned int size;		/*size of reserved hifi memory*/
+struct mfh_info {
+	int cpuid;
+	char name[30];
+};
+
+struct mfh_msg_buf {
+	int size;
+	char buf[96];
 } __packed;
 
-struct host_shm_info_t {
-	unsigned int addr;
-	unsigned int size;
-} __packed;
+struct mfh_msg {
+	struct list_head list;
+	struct mfh_msg_buf msg_buf;
+	struct completion complete;
+};
 
 #define HOSTFW_NAME_LEN                  32
 #define REG_DSP_CFG0			(0x0)
@@ -52,61 +82,103 @@ struct host_shm_info_t {
 #define REG_DSP_CFG2			(0x8)
 #define REG_DSP_RESET_VEC		(0x004 << 2)
 #define DSP_OTP				(0x03000000)
+#define M4_OTP				(0x10000000)
 
 #define HOST_IOC_MAGIC  'H'
 
-#define HOST_LOAD	_IOWR(HOST_IOC_MAGIC, 1, struct host_info_t)
-#define HOST_START	_IOWR(HOST_IOC_MAGIC, 3, struct host_info_t)
-#define HOST_STOP	_IOWR(HOST_IOC_MAGIC, 4, struct host_info_t)
-#define HOST_2LOAD	_IOWR(HOST_IOC_MAGIC, 7, struct host_info_t)
-#define HOST_GET_INFO	_IOWR((HOST_IOC_MAGIC), (18), \
-					struct host_info_t)
-#define HOST_SHM_CLEAN \
-		_IOWR(HOST_IOC_MAGIC, 64, struct host_shm_info_t)
-#define HOST_SHM_INV _IOWR(HOST_IOC_MAGIC, 65, struct host_shm_info_t)
+#define MFH_FIRMWARE_LOAD	_IOWR(HOST_IOC_MAGIC, 1, struct mfh_info)
+#define MFH_CMD_SEND		_IOWR(HOST_IOC_MAGIC, 2, struct mfh_msg_buf)
+#define MFH_CMD_LISTEN		_IOWR(HOST_IOC_MAGIC, 3, struct mfh_msg_buf)
+#define HOST_LOAD		_IOWR(HOST_IOC_MAGIC, 1, struct dsp_info_t)
+#define HOST_START		_IOWR(HOST_IOC_MAGIC, 3, struct dsp_info_t)
+#define HOST_STOP		_IOWR(HOST_IOC_MAGIC, 4, struct dsp_info_t)
+#define HOST_2LOAD		_IOWR(HOST_IOC_MAGIC, 7, struct dsp_info_t)
+#define HOST_GET_INFO		_IOWR((HOST_IOC_MAGIC), (18), \
+							struct dsp_info_t)
+#define HOST_SHM_CLEAN		_IOWR(HOST_IOC_MAGIC, 64, \
+							struct dsp_shm_info_t)
+#define HOST_SHM_INV		_IOWR(HOST_IOC_MAGIC, 65, \
+							struct dsp_shm_info_t)
 
-/** struct host_module, the struct of host module
- * @base_reg:         Base register of host
- * @health_reg:       Health monitor register
- * @sram_addr:        Sram virtual address
- * @phys_sram_addr:   Sram physical address
- * @phys_sram_size:   Sram physical address size
- * @ddr_addr:         Ddr virtual address
- * @shm_addr:         Share memory address
- * @phys_ddr_addr:    Ddr physical address
- * @phys_ddr_size:    Ddr physical address size
- * @phys_shm_addr:    Share memory physical address
- * @phys_shm_size:    Share memory physical address size
- * @phys_remap_addr:  Ddr physical remap address
- * @phys_remap_size:  Ddr physical remap size
- * @start_pos:        Boot from sram, ddr or both
- * @logbuff_polling_period_ms:    Host logbuff polling period
- * @is_health_monitor:If support Host health monitor
- * @is_sram_remap:    Instruct long call support
- * @clk:              Host clock
- * @clk_rate:         Host clock rate
- * @pm_support:       If support power management
+/** struct host_mfh, the struct of host mfh
+ * @mfh_info:          m4 mfh_info struct
+ * @mfh_buf:           m4 mfh_buf struct
+ * @mfh_msg:           m4 mfh_msg struct
+ */
+
+struct host_mfh {
+	struct mfh_info mfh_info;
+	struct mfh_msg_buf mfh_buf;
+	struct mfh_msg *mfh_msg;
+};
+
+/** struct host_dsp, the struct of host dsp
+ * @mbox_buf：        dsp mbox_buf struct
+ * @shminfo：         dsp dsp_shm_info_t struct
+ * @usrinfo:          dsp dsp_info_t struct
  * @pwrctrl_support:  If support dsp pwrctrl access
  * @pwrctrl_access_en:Dsp pwrctrl access enable
- * @mbox_chan:        Mbox channel, reserve for mbox development
- * @misc:             Misc device
- * @hostid:           Host id
- * @fname0:           Host firmware name0
- * @fname1:           Host firmware name1
- * @suspended:        Host suspend flag
- * @pre_cnt:          Host health monitor last value
- * @cur_cnt:          Host health monitor current value
- * @started:          Host suspend flag
- * @init_mbox_chan:   Aocpu mbox chan
- * @hang:             Host hang flag
- * @firmware_load:    Host firmware is load
- * @nb:               Host die notifier
  */
+
+struct host_dsp {
+	struct mbox_buf mbox_buf;
+	struct dsp_shm_info_t shminfo;
+	struct dsp_info_t *usrinfo;
+	bool pwrctrl_support;
+	bool pwrctrl_access_en;
+};
+
+/** struct host_module, the struct of host module
+ * @dev:	                struct device for this Host driver
+ * @base_reg:                   Base register of host
+ * @health_reg:                 Health monitor register
+ * @dsp_spt_reg:                Whether the boards support dsp
+ * @m4_spt_reg:                 Whether the boards support m4
+ * @sram_addr:                  Sram virtual address
+ * @phys_sram_addr:             Sram physical address
+ * @phys_sram_size:             Sram physical address size
+ * @ddr_addr:                   Ddr virtual address
+ * @shm_addr:                   Share memory address
+ * @phys_ddr_addr:              Ddr physical address
+ * @phys_ddr_size:              Ddr physical address size
+ * @phys_shm_addr:              Share memory physical address
+ * @phys_shm_size:              Share memory physical address size
+ * @phys_remap_addr:            Ddr physical remap address
+ * @phys_remap_size:            Ddr physical remap size
+ * @start_pos:                  Boot from sram, ddr or both
+ * @logbuff_polling_period_ms:  Host logbuff polling period
+ * @health_polling_ms:          Host health polling period
+ * @addr_remap:                 Addr remap flag
+ * @clk:                        Host clock
+ * @clk_rate:                   Host clock rate
+ * @pm_support:                 If support power management
+ * @mbox_chan:                  Mbox channel, reserve for mbox development
+ * @init_mbox_chan              Mbox channel, reserve for mbox development
+ * @misc:                       Misc device
+ * @hostid:                     Host id
+ * @fname0:                     Host firmware name0
+ * @fname1:                     Host firmware name1
+ * @suspended:                  Host suspend flag
+ * @pre_cnt:                    Host health monitor last value
+ * @cur_cnt:                    Host health monitor current value
+ * @host_monitor_work:          Host monitor work
+ * @host_logbuff_work:          Host logbuff work
+ * @host_wq:                    Host work queue
+ * @hang:                       Host hang flag
+ * @mbox_buf:                   Aocpu mbox buffer
+ * @firmware_load:              Host firmware is load
+ * @host_data:                  Struct host_data
+ * @host_mfh:                   Struct host_mfh
+ * @host_dsp:                   Struct host_dsp
+ * @nb:                         Host die notifier
+ */
+
 struct host_module {
 	struct device *dev;
 	void __iomem *base_reg;
 	void __iomem *health_reg;
-	void __iomem *dspsup_reg;
+	void __iomem *dsp_spt_reg;
+	void __iomem *m4_spt_reg;
 	void __iomem *sram_addr;
 	phys_addr_t  phys_sram_addr;
 	phys_addr_t  phys_sram_size;
@@ -121,29 +193,27 @@ struct host_module {
 	u8 start_pos;
 	u32 logbuff_polling_ms;
 	u32 health_polling_ms;
-	bool health_monitor;
 	bool addr_remap;
 	struct clk *clk;
 	u32 clk_rate;
 	bool pm_support;
-	bool pwrctrl_support;
-	bool pwrctrl_access_en;
 	struct mbox_chan *mbox_chan;
 	struct mbox_chan *init_mbox_chan;
 	struct miscdevice *misc;
 	int hostid;
 	char fname0[HOSTFW_NAME_LEN];
 	char fname1[HOSTFW_NAME_LEN];
-	struct mbox_buf mbox_buf;
 	u32 pre_cnt, cur_cnt;
 	struct delayed_work host_monitor_work;
 	struct delayed_work host_logbuff_work;
 	struct workqueue_struct *host_wq;
 	struct workqueue_struct *host_logbuff_wq;
 	u32 hang;
+
 	u32 firmware_load;
 	struct host_data *host_data;
+	struct host_mfh *host_mfh;
+	struct host_dsp *host_dsp;
 	struct notifier_block nb;
 };
-
 #endif /*_HOST_MODULE_H*/

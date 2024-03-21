@@ -21,6 +21,7 @@
 #include <dt-bindings/reset/amlogic,meson-dos-reset.h>
 #include <dt-bindings/power/amlogic-sm1-power.h>
 #include <dt-bindings/mailbox/sm1-mbox.h>
+#include <dt-bindings/firmware/amlogic,firmware.h>
 #include "meson-ir-map.dtsi"
 
 / {
@@ -736,10 +737,15 @@
 		};
 
 	bl40: bl40 {
-		compatible = "amlogic, bl40-bootup";
-		mbox-names = "mbox_m3", "mbox_mf";
-		mboxes = <&mbox_pl0 SM1_REE2AO_MF>,
-			 <&mbox_pl1 SM1_REE2MF_MF>;
+		compatible = "amlogic, bl40";
+		memory-region = <&bl40_fw_reserved>;
+		reg-names = "m4-support-reg",
+			    "ddrfw-region";
+		reg = <0x0 0xff63003c 0x0 0x20>, /*m4 support region*/
+		      <0x0 0x0 0x0 0x80000>; /*host ddrfw region [offset size]*/
+		startup-position = /bits/ 8 <PURE_DDR>; /*m4 load from the ddr address*/
+		mbox-names = "mbox_m3";
+		mboxes = <&mbox_pl0 SM1_REE2AO_MF>;
 		status = "okay";
 	};
 

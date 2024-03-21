@@ -33,7 +33,7 @@
 #define		SUSPEND_CLK_FREQ	24000000
 
 /*free reserved memory*/
-unsigned long host_free_reserved_area(void *start, void *end, int poison, const char *s)
+static unsigned long host_free_reserved_area(void *start, void *end, int poison, const char *s)
 {
 	void *pos;
 	unsigned long pages = 0;
@@ -69,7 +69,6 @@ unsigned long host_free_reserved_area(void *start, void *end, int poison, const 
 
 	return pages;
 }
-EXPORT_SYMBOL(host_free_reserved_area);
 
 static int host_dump_memory(const void *buf, unsigned int bytes, int col)
 {
@@ -118,12 +117,17 @@ static unsigned int host_mbox_transfer(struct host_module *host)
 	};
 
 	cfg0 = 0x1 |  1 << 1 | 1 << 2;
-	host->mbox_buf.id = host->hostid;
-	host->mbox_buf.addr = addr;
-	host->mbox_buf.cfg0 = cfg0;
+	host->host_dsp->mbox_buf.id = host->hostid;
+	host->host_dsp->mbox_buf.addr = addr;
+	host->host_dsp->mbox_buf.cfg0 = cfg0;
 
-	ret = aml_mbox_transfer_data(host->init_mbox_chan, MBOX_CMD_INIT_DSP,
-			&host->mbox_buf, sizeof(host->mbox_buf), NULL, 0, MBOX_SYNC);
+	ret = aml_mbox_transfer_data(host->init_mbox_chan,
+				     MBOX_CMD_INIT_DSP,
+				     &host->host_dsp->mbox_buf,
+				     sizeof(host->host_dsp->mbox_buf),
+				     NULL,
+				     0,
+				     MBOX_SYNC);
 	if (ret < 0) {
 		dev_err(host->dev, "mbox transfer data  error %d\n", ret);
 		return ret;
@@ -132,11 +136,13 @@ static unsigned int host_mbox_transfer(struct host_module *host)
 	return ret;
 }
 
-static unsigned long host_psci_smc(struct host_module *host)
+/*smc for bl40/m4/dsp*/
+static unsigned long host_psci_smc(struct host_module *host, unsigned int smc_subid)
 {
 	struct arm_smccc_res res = {0};
-	u32 cfg0;
 	u32 addr;
+	u32 id;
+	u32 arg[5] = {0};
 
 	switch (host->start_pos) {
 	case PURE_DDR:
@@ -147,37 +153,69 @@ static unsigned long host_psci_smc(struct host_module *host)
 		break;
 	case DDR_SRAM:
 		addr = host->phys_remap_addr;
-		arm_smccc_smc(SMC_REMAP_CMD, host->hostid, addr,
-			host->phys_sram_addr, 2, 0, 0, 0, &res);
 		break;
 	default:
+		pr_err("%s host start position error!\n", __func__);
 		return 0;
 	};
-	cfg0 = 0x1 |  1 << 1 | 1 << 2;
-	arm_smccc_smc(SMC_BOOT_CMD, host->hostid, addr, cfg0,
-		      0, 0, 0, 0, &res);
-	return res.a0;
-}
 
-static unsigned long host_dsp_smc(struct host_module *host, unsigned int smc_subid)
-{
-	struct arm_smccc_res res = {0};
-
+	id = PACK_SMC_SUBID_ID(smc_subid, host->hostid);
 	switch (smc_subid) {
-	case SMC_SUBID_DSP_PWRCTRL:
-		arm_smccc_smc(SMC_HIFI_DSP, smc_subid, host->hostid,
-			host->pwrctrl_access_en, 0, 0, 0, 0, &res);
+	case SMC_SUBID_HIFI_DSP_BOOT:
+		arg[0] = SMC_HIFI_DSP_CMD;
+		arg[1] = id;
+		arg[2] = addr;
+		arg[3] = 0x1 |  1 << 1 | 1 << 2;
+		arg[4] = 0;
+		break;
+	case SMC_SUBID_HIFI_DSP_REMAP:
+		arg[0] = SMC_HIFI_DSP_CMD;
+		arg[1] = id;
+		arg[2] = addr;
+		arg[3] = host->phys_sram_addr;
+		arg[4] = 2;
+		break;
+	case SMC_SUBID_HIFI_DSP_PWRCTRL:
+		arg[0] = SMC_HIFI_DSP_CMD;
+		arg[1] = id;
+		arg[2] = host->host_dsp->pwrctrl_access_en;
+		arg[3] = 0;
+		arg[4] = 0;
+		break;
+	case SMC_SUBID_MFH_V1_BOOT:
+		arg[0] = SMC_M4_CMD;
+		arg[1] = id;
+		arg[2] = addr;
+		arg[3] = host->phys_ddr_size;
+		arg[4] = 0;
+		break;
+	case SMC_SUBID_MFH_V2_BOOT:
+		arg[0] = SMC_M4_CMD;
+		arg[1] = id;
+		arg[2] = addr;
+		arg[3] = SMC_M4_BANK;
+		arg[4] = 0;
+		break;
+	case SMC_SUBID_MFH_V2_RESET:
+		arg[0] = SMC_M4_CMD;
+		arg[1] = id;
+		arg[2] = 0;
+		arg[3] = 0;
+		arg[4] = 0;
 		break;
 	default:
+		pr_err("%s Invalid smc subid!\n", __func__);
 		return 0;
 	}
+
+	arm_smccc_smc(arg[0], arg[1], arg[2], arg[3], arg[4], 0, 0, 0, &res);
 
 	return res.a0;
 }
 
 static int host_clk_enable(struct host_module *host)
 {
-	int ret;
+	int ret = 0;
 	struct device *dev = host->dev;
 
 	ret = clk_set_rate(host->clk, (unsigned long)host->clk_rate * 1000);
@@ -185,7 +223,6 @@ static int host_clk_enable(struct host_module *host)
 		dev_err(dev, "Can not set clock rate\n");
 		return ret;
 	}
-
 	ret = clk_prepare_enable(host->clk);
 	if (ret < 0) {
 		dev_err(dev, "Can not enable clock\n");
@@ -195,13 +232,42 @@ static int host_clk_enable(struct host_module *host)
 	return 0;
 }
 
+static void host_boot_prepare(struct host_module *host)
+{
+	if (!strstr(host->misc->name, "bl40"))
+		host_clk_enable(host);
+	if (strstr(host->misc->name, "bl40")) {
+		aml_mbox_transfer_data(host->mbox_chan,
+				       MBOX_CMD_BL4_WAIT_UNLOCK,
+				       NULL,
+				       0,
+				       NULL,
+				       0,
+				       MBOX_SYNC);
+	}
+	if (strstr(host->misc->name, "mfh"))
+		host_psci_smc(host, SMC_SUBID_MFH_V2_RESET);
+}
+
 static void host_bootup(struct host_module *host)
 {
-	host_clk_enable(host);
-	if (!IS_ERR_OR_NULL(host->init_mbox_chan))
+	unsigned int smc_subid;
+
+	if (!IS_ERR_OR_NULL(host->init_mbox_chan) && !IS_ERR_OR_NULL(host->host_dsp)) {
 		host_mbox_transfer(host);
-	else
-		host_psci_smc(host);
+	} else {
+		if (strstr(host->misc->name, "bl40"))
+			smc_subid = SMC_SUBID_MFH_V1_BOOT;
+		else if (strstr(host->misc->name, "mfh"))
+			smc_subid = SMC_SUBID_MFH_V2_BOOT;
+		else
+			smc_subid = SMC_SUBID_HIFI_DSP_BOOT;
+
+		if (smc_subid == SMC_SUBID_HIFI_DSP_BOOT && host->start_pos == DDR_SRAM)
+			host_psci_smc(host, SMC_SUBID_HIFI_DSP_REMAP);
+
+		host_psci_smc(host, smc_subid);
+	}
 }
 
 static int host_fw_copy_to_memory(const struct firmware *fw,
@@ -213,7 +279,6 @@ static int host_fw_copy_to_memory(const struct firmware *fw,
 	pr_debug("%s fw_src:0x%p, pdata_dst=0x%p, size=%zu bytes\n",
 			__func__, fw->data, fw_dst, fw->size);
 	memcpy_toio(fw_dst, fw->data, fw->size);
-
 	/*cache clean*/
 	if (!strstr(name, "sram"))
 		dma_sync_single_for_device(host->dev,
@@ -234,12 +299,15 @@ static int firmware_load(struct host_module *host, void *fw_dst, const char *nam
 
 	if (IS_ERR_OR_NULL(host))
 		return -EINVAL;
+
 	err = request_firmware(&fw, name, host->dev);
 	if (err < 0) {
 		pr_err("can't load the %s,err=%d\n", name, err);
 		return err;
 	}
 
+	if (strstr(host->host_data->name, "m4"))
+		host->phys_ddr_size = fw->size;
 	host_fw_copy_to_memory(fw, host, fw_dst, name);
 	release_firmware(fw);
 	return 0;
@@ -311,10 +379,18 @@ static int __maybe_unused host_runtime_suspend(struct device *dev)
 
 	if (IS_ERR_OR_NULL(host))
 		return -EINVAL;
+
+	if (strstr(host->misc->name, "mfh"))
+		host_psci_smc(host, SMC_SUBID_MFH_V2_RESET);
+
 	if (!host->hang) {
-		aml_mbox_transfer_data(host->mbox_chan, MBOX_CMD_HIFI4STOP,
-				       message, sizeof(message),
-				       NULL, 0, MBOX_SYNC);
+		aml_mbox_transfer_data(host->mbox_chan,
+				       MBOX_CMD_HIFI4STOP,
+				       message,
+				       sizeof(message),
+				       NULL,
+				       0,
+				       MBOX_SYNC);
 		msleep(50);
 	}
 	clk_disable_unprepare(host->clk);
@@ -337,6 +413,7 @@ static int __maybe_unused host_runtime_resume(struct device *dev)
 		}
 	}
 
+	host_boot_prepare(host);
 	host_bootup(host);
 	host_health_monitor_start(host);
 	host_logbuff_start(host);
@@ -352,18 +429,22 @@ static int host_suspend(struct device *dev)
 	if (pm_runtime_suspended(dev))
 		return 0;
 
-	if (pm_runtime_active(dev) && host->pm_support) {
-		if (host->pwrctrl_support) {
-			host->pwrctrl_access_en = 1;
-			host_dsp_smc(host, SMC_SUBID_DSP_PWRCTRL);
+	if (pm_runtime_active(dev) && host->pm_support && strstr(host->host_data->name, "dsp")) {
+		if (host->host_dsp->pwrctrl_support) {
+			host->host_dsp->pwrctrl_access_en = 1;
+			host_psci_smc(host, SMC_SUBID_HIFI_DSP_PWRCTRL);
 		}
 
 		pr_debug("AP send suspend cmd to dsp...\n");
 		strncpy(message, "MBOX_CMD_HIFI4SUSPEND", sizeof(message));
-		aml_mbox_transfer_data(host->mbox_chan, MBOX_CMD_HIFI4SUSPEND,
-				   message, sizeof(message),
-				   message, sizeof(message), MBOX_SYNC);
-			/*clk = 24 M*/
+		aml_mbox_transfer_data(host->mbox_chan,
+				       MBOX_CMD_HIFI4SUSPEND,
+				       message,
+				       sizeof(message),
+				       message,
+				       sizeof(message),
+				       MBOX_SYNC);
+		/*clk = 24 M*/
 		clk_set_rate(host->clk, SUSPEND_CLK_FREQ);
 	}
 
@@ -375,18 +456,22 @@ static int host_resume(struct device *dev)
 	struct host_module *host = dev_get_drvdata(dev);
 	char message[30];
 
-	if (pm_runtime_active(dev) && host->pm_support) {
+	if (pm_runtime_active(dev) && host->pm_support && strstr(host->host_data->name, "dsp")) {
 		pr_debug("AP send resume cmd to dsp...\n");
 		/*clk=400 M*/
 		clk_set_rate(host->clk, (unsigned long)host->clk_rate * 1000);
 		strncpy(message, "MBOX_CMD_HIFI4RESUME", sizeof(message));
-		aml_mbox_transfer_data(host->mbox_chan, MBOX_CMD_HIFI4RESUME,
-				   message, sizeof(message),
-				   message, sizeof(message), MBOX_SYNC);
+		aml_mbox_transfer_data(host->mbox_chan,
+				       MBOX_CMD_HIFI4RESUME,
+				       message,
+				       sizeof(message),
+				       message,
+				       sizeof(message),
+				       MBOX_SYNC);
 
-		if (host->pwrctrl_support) {
-			host->pwrctrl_access_en = 0;
-			host_dsp_smc(host, SMC_SUBID_DSP_PWRCTRL);
+		if (host->host_dsp->pwrctrl_support) {
+			host->host_dsp->pwrctrl_access_en = 0;
+			host_psci_smc(host, SMC_SUBID_HIFI_DSP_PWRCTRL);
 		}
 	}
 
@@ -415,8 +500,6 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 {
 	struct host_module *host;
 	struct device *dev;
-	struct host_info_t *usrinfo;
-	struct host_shm_info_t shminfo;
 	void __user *argp;
 	int ret = 0;
 
@@ -426,52 +509,54 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		goto err;
 	}
 	argp = (void __user *)arg;
-	usrinfo = kmalloc(sizeof(*usrinfo), GFP_KERNEL);
-	if (!usrinfo) {
-		ret = -1;
-		goto err;
-	}
-
 	host = fp->private_data;
 	dev = host->dev;
+
+	if (strstr(host->host_data->name, "dsp")) {
+		host->host_dsp->usrinfo = kmalloc(sizeof(*host->host_dsp->usrinfo), GFP_KERNEL);
+		if (!host->host_dsp->usrinfo) {
+			ret = -1;
+			goto err;
+		}
+	}
 
 	switch (cmd) {
 	case HOST_LOAD:
 		pr_debug("%s HOST_LOAD\n", __func__);
-		ret = copy_from_user(usrinfo, argp,
-				     sizeof(struct host_info_t));
+		ret = copy_from_user(host->host_dsp->usrinfo, argp,
+				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(usrinfo);
+			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_LOAD is error", __func__);
 			goto err;
 		}
-		usrinfo->fw_name[31] = '\0';
-		strcpy(host->fname0, usrinfo->fw_name);
+		host->host_dsp->usrinfo->fw_name[31] = '\0';
+		strcpy(host->fname0, host->host_dsp->usrinfo->fw_name);
 		host_firmware_load(host);
 		host->firmware_load = 1;
 	break;
 	case HOST_2LOAD:
 		pr_debug("%s HOST_2LOAD\n", __func__);
-		ret = copy_from_user(usrinfo, argp,
-				     sizeof(struct host_info_t));
+		ret = copy_from_user(host->host_dsp->usrinfo, argp,
+				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(usrinfo);
+			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_2LOAD is error", __func__);
 			goto err;
 		}
-		usrinfo->fw1_name[31] = '\0';
-		usrinfo->fw2_name[31] = '\0';
-		strcpy(host->fname0, usrinfo->fw1_name);
-		strcpy(host->fname1, usrinfo->fw2_name);
+		host->host_dsp->usrinfo->fw1_name[31] = '\0';
+		host->host_dsp->usrinfo->fw2_name[31] = '\0';
+		strcpy(host->fname0, host->host_dsp->usrinfo->fw1_name);
+		strcpy(host->fname1, host->host_dsp->usrinfo->fw2_name);
 		host_firmware_load(host);
 		host->firmware_load = 1;
 	break;
 	case HOST_START:
 		pr_debug("%s HOST_START\n", __func__);
-		ret = copy_from_user(usrinfo, argp,
-				     sizeof(struct host_info_t));
+		ret = copy_from_user(host->host_dsp->usrinfo, argp,
+				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(usrinfo);
+			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_START is error", __func__);
 			goto err;
 		}
@@ -479,10 +564,10 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 	break;
 	case HOST_STOP:
 		pr_debug("%s HOST_STOP\n", __func__);
-		ret = copy_from_user(usrinfo, argp,
-				     sizeof(struct host_info_t));
+		ret = copy_from_user(host->host_dsp->usrinfo, argp,
+				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(usrinfo);
+			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_STOP is error", __func__);
 			goto err;
 		}
@@ -490,70 +575,84 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 	break;
 	case HOST_GET_INFO:
 		pr_debug("%s HOST_GET_INFO\n", __func__);
-		ret = copy_from_user(usrinfo, argp,
-				     sizeof(struct host_info_t));
+		ret = copy_from_user(host->host_dsp->usrinfo, argp,
+				     sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(usrinfo);
+			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_GET_INFO copy_from_user is error", __func__);
 			goto err;
 		}
-		strncpy(usrinfo->fw_name, host->host_data->name, sizeof(usrinfo->fw_name));
-		usrinfo->phy_addr = host->phys_ddr_addr;
-		usrinfo->size = host->phys_ddr_size;
-		ret = copy_to_user(argp, usrinfo,
-				   sizeof(struct host_info_t));
+		strncpy(host->host_dsp->usrinfo->fw_name, host->host_data->name,
+						sizeof(host->host_dsp->usrinfo->fw_name));
+		host->host_dsp->usrinfo->phy_addr = host->phys_ddr_addr;
+		host->host_dsp->usrinfo->size = host->phys_ddr_size;
+		ret = copy_to_user(argp, host->host_dsp->usrinfo,
+				   sizeof(struct dsp_info_t));
 		if (ret) {
-			kfree(usrinfo);
+			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HOST_GET_INFO copy_to_user is error", __func__);
 			goto err;
 		}
 		pr_debug("%s HOST_GET_INFO %s\n", __func__,
-			 usrinfo->fw_name);
+			 host->host_dsp->usrinfo->fw_name);
 	break;
 	case HOST_SHM_CLEAN:
-		ret = copy_from_user(&shminfo, argp, sizeof(shminfo));
+		ret = copy_from_user(&host->host_dsp->shminfo, argp,
+						sizeof(host->host_dsp->shminfo));
 		pr_debug("%s clean cache, addr:%u, size:%u\n",
-			 __func__, shminfo.addr, shminfo.size);
-		if (ret || shminfo.addr > ((host->phys_ddr_addr +
+			 __func__, host->host_dsp->shminfo.addr, host->host_dsp->shminfo.size);
+		if (ret || host->host_dsp->shminfo.addr > ((host->phys_ddr_addr +
 					host->phys_ddr_size) - host->phys_shm_size) ||
-					shminfo.addr < host->phys_ddr_addr ||
-					shminfo.size > ((host->phys_ddr_addr +
+					host->host_dsp->shminfo.addr < host->phys_ddr_addr ||
+					host->host_dsp->shminfo.size > ((host->phys_ddr_addr +
 					host->phys_ddr_size) - host->phys_shm_size -
-							shminfo.addr)) {
-			kfree(usrinfo);
+							host->host_dsp->shminfo.addr)) {
+			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HIFI4DSP_SHM_CLEAN is error", __func__);
 			goto err;
 		}
 		dma_sync_single_for_device(host->dev,
-					   shminfo.addr,
-					   shminfo.size,
+					   host->host_dsp->shminfo.addr,
+					   host->host_dsp->shminfo.size,
 					   DMA_TO_DEVICE);
 	break;
 	case HOST_SHM_INV:
-		ret = copy_from_user(&shminfo, argp, sizeof(shminfo));
+		ret = copy_from_user(&host->host_dsp->shminfo, argp,
+						sizeof(host->host_dsp->shminfo));
 		pr_debug("%s invalidate cache, addr:%u, size:%u\n",
-			 __func__, shminfo.addr, shminfo.size);
-		if (ret || shminfo.addr > ((host->phys_ddr_addr +
+			 __func__, host->host_dsp->shminfo.addr, host->host_dsp->shminfo.size);
+		if (ret || host->host_dsp->shminfo.addr > ((host->phys_ddr_addr +
 					host->phys_ddr_size) - host->phys_shm_size) ||
-					shminfo.addr < host->phys_ddr_addr ||
-					shminfo.size > ((host->phys_ddr_addr +
+					host->host_dsp->shminfo.addr < host->phys_ddr_addr ||
+					host->host_dsp->shminfo.size > ((host->phys_ddr_addr +
 					host->phys_ddr_size) - host->phys_shm_size -
-							shminfo.addr)) {
-			kfree(usrinfo);
+							host->host_dsp->shminfo.addr)) {
+			kfree(host->host_dsp->usrinfo);
 			pr_err("%s error: HIFI4DSP_SHM_INV is error", __func__);
 			goto err;
 		}
 		dma_sync_single_for_device(host->dev,
-					   shminfo.addr,
-					   shminfo.size,
+					   host->host_dsp->shminfo.addr,
+					   host->host_dsp->shminfo.size,
 					   DMA_FROM_DEVICE);
+	break;
+	case MFH_FIRMWARE_LOAD:
+		ret = copy_from_user((void *)&host->host_mfh->mfh_info,
+				     argp, sizeof(host->host_mfh->mfh_info));
+		if (ret < 0)
+			return ret;
+		host->host_mfh->mfh_info.name[29] = '\0';
+		strcpy(host->fname0, host->host_mfh->mfh_info.name);
+		host_runtime_resume(dev);
 	break;
 	default:
 		pr_err("%s ioctl CMD error\n", __func__);
 	break;
 	}
-
-	kfree(usrinfo);
+	if (strstr(host->host_data->name, "dsp")) {
+		kfree(host->host_dsp->usrinfo);
+		host->host_dsp->usrinfo = NULL;
+	}
 err:
 	return ret;
 }
@@ -649,6 +748,11 @@ static struct miscdevice host_miscdev[] = {
 	},
 	{
 		.minor  = MISC_DYNAMIC_MINOR,
+		.name   = "bl40",
+		.fops   = &host_miscdev_fops,
+	},
+	{
+		.minor  = MISC_DYNAMIC_MINOR,
 		.name   = "mfh0",
 		.fops   = &host_miscdev_fops,
 	},
@@ -676,9 +780,14 @@ static struct host_data host_data_table[] = {
 		.misc = &host_miscdev[2],
 	},
 	{
+		.name = "m4a",
+		.hostid = 0,
+		.misc = &host_miscdev[3],
+	},
+	{
 		.name = "m4b",
 		.hostid = 1,
-		.misc = &host_miscdev[3],
+		.misc = &host_miscdev[4],
 	}
 };
 
@@ -690,6 +799,18 @@ static const struct of_device_id host_device_id[] = {
 	{
 		.compatible = "amlogic, hifidsp1",
 		.data = &host_data_table[1],
+	},
+	{
+		.compatible = "amlogic, bl40",
+		.data = &host_data_table[2],
+	},
+	{
+		.compatible = "amlogic, mfh0",
+		.data = &host_data_table[3],
+	},
+	{
+		.compatible = "amlogic, mfh1",
+		.data = &host_data_table[4],
 	},
 	{},
 };
@@ -755,16 +876,28 @@ static int host_parse_devtree(struct platform_device *pdev, struct host_module *
 	struct mbox_chan *mbox_chan;
 	int ret;
 
-	host->dspsup_reg = devm_platform_ioremap_resource_byname(pdev, "dspsupport-reg");
-	if (!IS_ERR_OR_NULL(host->dspsup_reg) && (readl(host->dspsup_reg) & DSP_OTP)) {
+	host->dsp_spt_reg = devm_platform_ioremap_resource_byname(pdev, "dspsupport-reg");
+	if (IS_ERR_OR_NULL(host->dsp_spt_reg))
+		pr_debug("default dsp is not disabled!\n");
+	if (!IS_ERR_OR_NULL(host->dsp_spt_reg) && (readl(host->dsp_spt_reg) & DSP_OTP)) {
 		dev_err(&pdev->dev, "this device not support dsp\n");
 		return -EINVAL;
 	}
 
-	host->base_reg = devm_platform_ioremap_resource_byname(pdev, "base-reg");
-	if (IS_ERR_OR_NULL(host->base_reg)) {
-		dev_err(dev, "Reg base register is error\n");
+	host->m4_spt_reg = devm_platform_ioremap_resource_byname(pdev, "m4-support-reg");
+	if (IS_ERR_OR_NULL(host->m4_spt_reg))
+		pr_debug("default m4 is not disabled!\n");
+	if ((!IS_ERR_OR_NULL(host->m4_spt_reg) && (readl(host->m4_spt_reg) & M4_OTP))) {
+		dev_err(&pdev->dev, "this device not support m4\n");
 		return -EINVAL;
+	}
+
+	if (!strstr(host->misc->name, "bl40")) {
+		host->base_reg = devm_platform_ioremap_resource_byname(pdev, "base-reg");
+		if (IS_ERR_OR_NULL(host->base_reg)) {
+			dev_err(dev, "Reg base register is error\n");
+			return -EINVAL;
+		}
 	}
 
 	host->health_reg = devm_platform_ioremap_resource_byname(pdev, "health-reg");
@@ -805,7 +938,7 @@ static int host_parse_devtree(struct platform_device *pdev, struct host_module *
 							host->phys_sram_size);
 	}
 
-	if (!of_property_read_string_index(dev->of_node, "clock-names", 0, &clk_name)) {
+	if (!of_property_read_string(dev->of_node, "clock-names", &clk_name)) {
 		host->clk = devm_clk_get(dev, clk_name);
 		if (IS_ERR_OR_NULL(host->clk)) {
 			dev_err(dev, "can't get clk\n");
@@ -822,7 +955,8 @@ static int host_parse_devtree(struct platform_device *pdev, struct host_module *
 
 	host->pm_support = of_property_read_bool(dev->of_node, "pm-support");
 	if (host->pm_support)
-		host->pwrctrl_support = of_property_read_bool(dev->of_node, "pwrctrl-support");
+		host->host_dsp->pwrctrl_support = of_property_read_bool(dev->of_node,
+								"pwrctrl-support");
 
 	/* mbox channel request */
 	mbox_chan = aml_mbox_request_channel_byname(&pdev->dev, "init_dsp");
@@ -830,12 +964,13 @@ static int host_parse_devtree(struct platform_device *pdev, struct host_module *
 		host->init_mbox_chan = mbox_chan;
 	host->mbox_chan = aml_mbox_request_channel_byidx(&pdev->dev, 0);
 	if (IS_ERR_OR_NULL(host->mbox_chan))
-		dev_err(dev, "Not find mailbox channel\n");
+		dev_err(dev, "Not find DSP mailbox channel\n");
 
 	of_property_read_u32(dev->of_node, "logbuff-polling-ms",
 			&host->logbuff_polling_ms);
 	of_property_read_u32(dev->of_node, "health-polling-ms",
 			&host->health_polling_ms);
+
 	ret = of_property_read_u8(dev->of_node, "startup-position", &host->start_pos);
 	if (ret) {
 		dev_err(dev, "Not find startup-position\n");
@@ -853,6 +988,8 @@ static int host_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct host_module *host;
+	struct host_dsp *host_dsp = NULL;
+	struct host_mfh *host_mfh = NULL;
 	struct host_data *host_data;
 	int ret;
 
@@ -865,7 +1002,18 @@ static int host_platform_probe(struct platform_device *pdev)
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 	if (IS_ERR_OR_NULL(host))
 		return -ENOMEM;
-
+	if (strstr(host_data->name, "m4")) {
+		host_mfh = devm_kzalloc(dev, sizeof(*host_mfh), GFP_KERNEL);
+		if (IS_ERR_OR_NULL(host))
+			return -ENOMEM;
+		host->host_mfh = host_mfh;
+	}
+	if (strstr(host_data->name, "dsp")) {
+		host_dsp = devm_kzalloc(dev, sizeof(*host_dsp), GFP_KERNEL);
+		if (IS_ERR_OR_NULL(host))
+			return -ENOMEM;
+		host->host_dsp = host_dsp;
+	}
 	host->dev = dev;
 	host->hostid = host_data->hostid;
 	host->misc = host_data->misc;
@@ -874,8 +1022,8 @@ static int host_platform_probe(struct platform_device *pdev)
 	ret = host_parse_devtree(pdev, host);
 	if (ret)
 		return ret;
-	host_parse_firmware_name(host, host_data);
 
+	host_parse_firmware_name(host, host_data);
 	ret = misc_register(host_data->misc);
 	if (ret) {
 		dev_err(dev, "Misc register fail\n");

@@ -29,6 +29,7 @@
 #include "mesong12a-bifrost.dtsi"
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/mailbox/g12a-mbox.h>
+#include <dt-bindings/firmware/amlogic,firmware.h>
 #include "meson-ir-map.dtsi"
 
 / {
@@ -229,7 +230,7 @@
 	};
 
 	mbox_pl1: mbox_pl1@0xfffe7400 {
-		status = "okay";
+		status = "disabled";
 		compatible = "amlogic, g12a-mbox-pl";
 		reg = <0x0 0xfffe7600 0x0 0x200>,   // m4 rx buf
 		      <0x0 0xff63c41c 0x0 0x4>,     // m4 rx set addr
@@ -601,9 +602,15 @@
 	};
 
 	bl40: bl40 {
-		compatible = "amlogic, bl40-bootup";
-		mboxes = <&mbox_pl0 G12A_REE2AO_MF>,
-			 <&mbox_pl1 G12A_REE2MF_MF>;
+		compatible = "amlogic, bl40";
+		memory-region = <&bl40_fw_reserved>;
+		reg-names = "m4-support-reg",
+			    "ddrfw-region";
+		reg = <0x0 0xff63003c 0x0 0x20>, /*m4 support region*/
+		      <0x0 0x0 0x0 0x80000>; /*host ddrfw region [offset size]*/
+		startup-position = /bits/ 8 <PURE_DDR>; /*m4 load from the ddr address*/
+		mbox-names = "mbox_m3";
+		mboxes = <&mbox_pl0 G12A_REE2AO_MF>;
 		status = "okay";
 	};
 
