@@ -1286,6 +1286,7 @@ int SC2_bufferid_read_header_again(struct chan_id *pchan, char **pread)
 	return 0;
 }
 
+/*0:no pts; -1: has pts, not newest; 16: newest pts*/
 int SC2_bufferid_read_newest_pts(struct chan_id *pchan, char **pread)
 {
 	unsigned int w_offset = 0;
@@ -1323,6 +1324,8 @@ int SC2_bufferid_read_newest_pts(struct chan_id *pchan, char **pread)
 		*pread = (char *)pchan->mem + pts_mem_offset;
 		pchan->pts_newest_r_offset = w_offset;
 		return buf_len;
+	} else if (w_offset != pchan->r_offset) {
+		return -1;
 	}
 	return 0;
 }

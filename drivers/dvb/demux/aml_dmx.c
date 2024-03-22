@@ -521,7 +521,7 @@ static struct sw_demux_sec_feed *_dmx_section_feed_alloc(struct aml_dmx *demux)
 	d_node = kmalloc(sizeof(*d_node), GFP_KERNEL);
 	if (!d_node)
 		return NULL;
-	memset(d_node, 0, sizeof(struct dump_node));
+	memset(d_node, 0, sizeof(*d_node));
 	d_node->state = DMX_STATE_ALLOCATED;
 
 	list_add_tail(&d_node->node, &demux->section_feed_list);
@@ -535,7 +535,7 @@ static struct sw_demux_ts_feed *_dmx_ts_feed_alloc(struct aml_dmx *demux)
 	d_node = kmalloc(sizeof(*d_node), GFP_KERNEL);
 	if (!d_node)
 		return NULL;
-	memset(d_node, 0, sizeof(struct dump_node));
+	memset(d_node, 0, sizeof(*d_node));
 	d_node->state = DMX_STATE_ALLOCATED;
 
 	list_add_tail(&d_node->node, &demux->ts_feed_list);
