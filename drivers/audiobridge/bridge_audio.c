@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2023 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/init.h>
@@ -38,13 +38,12 @@
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include "bridge_common.h"
-#include "bridge_ringbuffer.h"
+#include "ringbuffer.h"
 #include "bridge_pcm_hal.h"
 
 #define DRIVER_NAME   "audio-bridge"
 #define PREFIX	"aml-audio-line,"
 
-#define RING_BUFFER_SIZE    (1024 * 10)
 static struct list_head bridge_devs = LIST_HEAD_INIT(bridge_devs);
 
 static ssize_t bridge_enable_show(struct kobject *kobj,
@@ -108,8 +107,8 @@ static ssize_t bridge_ringbuf_show(struct kobject *kobj,
 		container_of(attr, struct audio_pcm_bridge_t, ringbuf_attr);
 	if (!bridge)
 		return sprintf(buf, "%s err\n", attr->attr.name);
-	return sprintf(buf, "size:%d, use:%d free:%d\n", bridge_ring_buffer_len(bridge->rb),
-		bridge_ring_buffer_used_len(bridge->rb), bridge_ring_buffer_free_len(bridge->rb));
+	return sprintf(buf, "size:%d, use:%d free:%d\n", ring_buffer_len(bridge->rb),
+		ring_buffer_used_len(bridge->rb), ring_buffer_free_len(bridge->rb));
 }
 
 static ssize_t bridge_isolated_show(struct kobject *kobj,
@@ -146,6 +145,47 @@ static ssize_t bridge_isolated_store(struct kobject *kobj,
 	return len;
 }
 
+static int aml_bridge_pcm_format2bytes(enum PCM_FORMAT format)
+{
+	int format_bytes = 0;
+
+	switch (format) {
+	case PCM_FORMAT_S8:
+		format_bytes = 1;
+		break;
+	case PCM_FORMAT_S16_LE:
+	case PCM_FORMAT_S16_BE:
+		format_bytes = 2;
+		break;
+	case PCM_FORMAT_S24_3LE:
+	case PCM_FORMAT_S24_3BE:
+		format_bytes = 3;
+		break;
+	case PCM_FORMAT_S24_LE:
+	case PCM_FORMAT_S24_BE:
+	case PCM_FORMAT_S32_LE:
+	case PCM_FORMAT_S32_BE:
+		format_bytes = 4;
+		break;
+	default:
+		format_bytes = 2;
+	}
+
+	return format_bytes;
+}
+
+static int aml_bridge_calculate_ring_buffer_size(struct audio_pcm_function_t *pcm_function)
+{
+	int format_bytes = 0;
+
+	if (!pcm_function)
+		return -1;
+
+	format_bytes = aml_bridge_pcm_format2bytes(pcm_function->format);
+
+	return pcm_function->channels * format_bytes * PERIOD_SIZE_MAX;
+}
+
 static struct audio_pcm_function_t *aml_bridge_parse_of(struct device *dev,
 		struct device_node *node, char *name)
 {
@@ -177,6 +217,7 @@ static struct audio_pcm_function_t *aml_bridge_parse_of(struct device *dev,
 	if (enable && audio_p->create_virtual_sound_card)
 		audio_p->create_virtual_sound_card(audio_p);
 	audio_p->enable_create_card = enable;
+	audio_p->ring_buffer_size = aml_bridge_calculate_ring_buffer_size(audio_p);
 
 	if (!audio_p->set_hw)
 		goto err_parse1;
@@ -184,9 +225,9 @@ static struct audio_pcm_function_t *aml_bridge_parse_of(struct device *dev,
 	if (ret < 0)
 		goto err_parse1;
 
-	pr_info("%s [core:%d card:%d] channels:%d rate:%d format:%d create-vir-card:%d\n",
+	pr_info("%s [core:%d card:%d] channels:%d rate:%d format:%d create virtual card:%d rb size:%d\n",
 				name, core, card, audio_p->channels,
-				audio_p->rate, audio_p->format, enable);
+				audio_p->rate, audio_p->format, enable, audio_p->ring_buffer_size);
 	return audio_p;
 err_parse1:
 	if (enable && audio_p->destroy_virtual_sound_card)
@@ -311,27 +352,29 @@ static int aml_bridge_init(struct device *dev, struct device_node *node, int idx
 		goto err_init0;
 	}
 	bridge->id = idx;
-	bridge->rb = bridge_ring_buffer_init(RING_BUFFER_SIZE);
-	if (!bridge->rb) {
-		ret = -ENOMEM;
-		goto err_init1;
-	}
 
 	bridge->audio_cap = aml_bridge_parse_of(dev, node, "src");
 	if (!bridge->audio_cap) {
 		ret = -ENOMEM;
-		goto err_init2;
+		goto err_init1;
 	}
 
 	bridge->audio_play = aml_bridge_parse_of(dev, node, "dst");
 	if (!bridge->audio_play) {
 		ret = -ENOMEM;
-		goto err_init3;
+		goto err_init2;
 	}
 	if (!bridge->audio_cap->start || !bridge->audio_play->start) {
 		ret = -EINVAL;
-		goto err_init4;
+		goto err_init3;
 	}
+
+	bridge->rb = ring_buffer_init(bridge->audio_cap->ring_buffer_size);
+	if (!bridge->rb) {
+		ret = -ENOMEM;
+		goto err_init3;
+	}
+
 	bridge->audio_cap->rb = bridge->rb;
 	bridge->audio_play->rb = bridge->rb;
 
@@ -383,11 +426,11 @@ err_init6:
 err_init5:
 	aml_bridge_destroy_attribute(bridge);
 err_init4:
-	audio_pcm_free(bridge->audio_play);
+	ring_buffer_release(bridge->rb);
 err_init3:
-	audio_pcm_free(bridge->audio_cap);
+	audio_pcm_free(bridge->audio_play);
 err_init2:
-	bridge_ring_buffer_release(bridge->rb);
+	audio_pcm_free(bridge->audio_cap);
 err_init1:
 	vfree(bridge);
 err_init0:
@@ -422,7 +465,7 @@ static int aml_bridge_free(void)
 			cur->audio_play = NULL;
 		}
 		if (cur->rb) {
-			bridge_ring_buffer_release(cur->rb);
+			ring_buffer_release(cur->rb);
 			cur->rb = NULL;
 		}
 		vfree(cur);

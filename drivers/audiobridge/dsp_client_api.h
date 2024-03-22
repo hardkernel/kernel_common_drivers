@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2023 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef _DSP_CLIENT_API_H
@@ -11,6 +11,8 @@
 #define MBX_CODEC                  0x1
 #define MBX_TINYALSA               0x2
 #define MBX_PIPELINE               0x3
+
+/* 0x20 ~ 0x3F reserved for Customer */
 
 /*sys cmd*/
 #define CMD_SHM_ALLOC              0x3
@@ -39,7 +41,7 @@
 /*Message composition with module(6bits), function(10bits)*/
 #define __MBX_COMPOSE_MSG(mod, func)           (((mod) << 10) | ((func) & 0x3FF))
 
-/*Mssage Composition*/
+/*Mssage composition*/
 #define MBX_CMD_SHM_ALLOC        __MBX_COMPOSE_MSG(MBX_SYSTEM, CMD_SHM_ALLOC)
 #define MBX_CMD_SHM_FREE        __MBX_COMPOSE_MSG(MBX_SYSTEM, CMD_SHM_FREE)
 
@@ -317,6 +319,7 @@ struct buf_info {
 	u32 size;
 };
 
+u32 pcm_client_format_to_bytes(enum DSP_PCM_FORMAT format);
 u32 pcm_client_frame_to_bytes(void *hdl, u32 frame);
 void *pcm_client_open(u32 card, u32 device, u32 flags,
 		struct rpc_pcm_config *config, struct device *dev, u32 dspid);

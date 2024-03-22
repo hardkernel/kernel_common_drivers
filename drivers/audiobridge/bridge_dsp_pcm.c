@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2023 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/init.h>
@@ -35,7 +35,7 @@
 #include <linux/clk.h>
 #include <asm/cacheflush.h>
 #include <linux/amlogic/scpi_protocol.h>
-#include "../hifi4dsp/hifi4dsp_priv.h"
+//#include "../hifi4dsp/hifi4dsp_priv.h"
 #include "bridge_common.h"
 
 #include <linux/kthread.h>
@@ -43,21 +43,21 @@
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <sound/pcm.h>
+#include <uapi/linux/sched/types.h>
+#include <linux/completion.h>
 
-#include "bridge_ringbuffer.h"
+#include "ringbuffer.h"
 #include "dsp_client_api.h"
 #include "bridge_pcm_hal.h"
 #include "bridge_dsp_card.h"
 
-#define COERID SCPI_DSPA
+#define COREID SCPI_DSPA
 
-#define DSP_PARAM_CARD           0
-#define PCM_PARAM_PERIOD_SIZE    1024
+#define LOOPBACK_CHANNELS        (2)
+#define DSP_PARAM_CARD           2
 
 #define GAIN_MAX 0
 #define GAIN_MIN -40
-
-// extern struct hifi4dsp_priv *hifi4dsp_p[HIFI4DSP_MAX_CNT];
 
 struct dsp_pcm_param {
 	u8  card;
@@ -72,8 +72,10 @@ struct dsp_pcm_t {
 	void *pcm_handle;
 	struct device *dev;
 	struct task_struct *thread_handle;
+	struct task_struct *aux_thread_handle;
 	struct dsp_pcm_param pcm_param;
 	struct mutex lock;	/* lock to protect dsp bridge data*/
+	struct completion complete;
 	struct aml_aprocess *aprocess;
 	u8 speaker_process_flag;
 	u8 run_flag;
@@ -137,8 +139,8 @@ static ssize_t bridge_capture_volume_ctr_show(struct kobject *kobj,
 {
 	struct dsp_pcm_t *dsp_pcm;
 
-	if (!hifi4dsp_p[COERID] ||
-		!hifi4dsp_p[COERID]->dsp || !hifi4dsp_p[COERID]->dsp->dspstarted)
+	if (!hifi4dsp_p[COREID] ||
+		!hifi4dsp_p[COREID]->dsp || !hifi4dsp_p[COREID]->dsp->dspstarted)
 		return 0;
 
 	if (!cap_pcm || !cap_pcm->private_data) {
@@ -154,7 +156,7 @@ static ssize_t bridge_capture_volume_ctr_show(struct kobject *kobj,
 	mutex_lock(&dsp_pcm->lock);
 	if (dsp_pcm->run_flag && dsp_pcm->pcm_handle)
 		pcm_process_client_get_volume_gain(dsp_pcm->pcm_handle, &dsp_pcm->db_gain,
-				PCM_CAPTURE, cap_pcm->dev, COERID);
+				PCM_CAPTURE, cap_pcm->dev, COREID);
 	mutex_unlock(&dsp_pcm->lock);
 	return sprintf(buf,
 		"Volume: %d\nMuteState: %d\n(Volume-Down:%ld, Volume-Up:%ld, Volume-Mute:%ld)\n",
@@ -171,8 +173,8 @@ static ssize_t bridge_capture_volume_ctr_store(struct kobject *kobj,
 
 	if (ret < 0)
 		pr_err("%s err!", __func__);
-	if (!hifi4dsp_p[COERID] ||
-		!hifi4dsp_p[COERID]->dsp || !hifi4dsp_p[COERID]->dsp->dspstarted)
+	if (!hifi4dsp_p[COREID] ||
+		!hifi4dsp_p[COREID]->dsp || !hifi4dsp_p[COREID]->dsp->dspstarted)
 		return len;
 
 	if (!cap_pcm || !cap_pcm->private_data) {
@@ -218,7 +220,7 @@ static ssize_t bridge_capture_volume_ctr_store(struct kobject *kobj,
 	mutex_lock(&dsp_pcm->lock);
 	if (dsp_pcm->run_flag && dsp_pcm->pcm_handle)
 		pcm_process_client_set_volume_gain(dsp_pcm->pcm_handle, dsp_pcm->db_gain,
-				PCM_CAPTURE, cap_pcm->dev, COERID);
+				PCM_CAPTURE, cap_pcm->dev, COREID);
 
 	mutex_unlock(&dsp_pcm->lock);
 	return len;
@@ -231,8 +233,8 @@ static ssize_t bridge_playback_process_ctr_show(struct kobject *kobj,
 {
 	struct dsp_pcm_t *dsp_pcm;
 
-	if (!hifi4dsp_p[COERID] ||
-		!hifi4dsp_p[COERID]->dsp || !hifi4dsp_p[COERID]->dsp->dspstarted)
+	if (!hifi4dsp_p[COREID] ||
+		!hifi4dsp_p[COREID]->dsp || !hifi4dsp_p[COREID]->dsp->dspstarted)
 		return 0;
 
 	if (!play_pcm || !play_pcm->private_data) {
@@ -258,8 +260,8 @@ static ssize_t bridge_playback_process_ctr_store(struct kobject *kobj,
 
 	if (ret < 0)
 		pr_err("%s err!", __func__);
-	if (!hifi4dsp_p[COERID] ||
-		!hifi4dsp_p[COERID]->dsp || !hifi4dsp_p[COERID]->dsp->dspstarted)
+	if (!hifi4dsp_p[COREID] ||
+		!hifi4dsp_p[COREID]->dsp || !hifi4dsp_p[COREID]->dsp->dspstarted)
 		return len;
 
 	if (!play_pcm || !play_pcm->private_data) {
@@ -278,6 +280,62 @@ static ssize_t bridge_playback_process_ctr_store(struct kobject *kobj,
 static struct kobj_attribute attr_bridge_playback_process_ctr =
 		__ATTR_RW(bridge_playback_process_ctr);
 
+static int thread_capture_complete(void *data)
+{
+	struct audio_pcm_function_t *info = data;
+	struct dsp_pcm_t *dsp_pcm = (struct dsp_pcm_t *)info->private_data;
+	struct rpc_pcm_config pconfig;
+	u32 read_size = 0, expected_sleep_us = 0, real_sleep_us = 0;
+	u32 wait_timeout = 0;
+	char *buf = NULL;
+
+	pconfig.channels = dsp_pcm->pcm_param.channels;
+	pconfig.rate = dsp_pcm->pcm_param.rate;
+	pconfig.format = dsp_pcm->pcm_param.format;
+	pconfig.period_size = DSP_PERIOD_SIZE;
+
+	expected_sleep_us = 1000 * 1000 * pconfig.period_size *
+		DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE / pconfig.rate;
+	wait_timeout = expected_sleep_us * 5;
+
+	/*
+	 * Ensure that the ringbuffer consumption
+	 * speed is greater than the production speed
+	 **/
+	if (pconfig.period_size < 1024)
+		real_sleep_us = expected_sleep_us - 300;
+	else
+		real_sleep_us = expected_sleep_us * 63 / 64;
+
+	read_size = pconfig.period_size * (pconfig.channels - LOOPBACK_CHANNELS) *
+			pcm_client_format_to_bytes(pconfig.format) *
+			DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE;
+
+	buf = vmalloc(read_size);
+	if (!buf) {
+		vfree(buf);
+		pr_err("vmalloc failed\n");
+		return -1;
+	}
+	memset(buf, 0, read_size);
+
+	while (dsp_pcm->run_flag && !kthread_should_stop()) {
+		if (!wait_for_completion_timeout(&dsp_pcm->complete,
+								usecs_to_jiffies(wait_timeout)))
+			continue;
+
+		if (!no_thread_safe_ring_buffer_get(info->rb, buf, read_size)) {
+			usleep_range(expected_sleep_us / 2, expected_sleep_us);
+		} else {
+			aml_aprocess_complete(dsp_pcm->aprocess, buf, read_size);
+			usleep_range(real_sleep_us - 200, real_sleep_us);
+		}
+	}
+	vfree(buf);
+
+	return 0;
+}
+
 static int thread_capture(void *data)
 {
 	struct audio_pcm_function_t *info = (struct audio_pcm_function_t *)data;
@@ -286,13 +344,14 @@ static int thread_capture(void *data)
 	unsigned int size;
 	struct rpc_pcm_config pconfig;
 	struct buf_info buf;
+	u32 read_size = 0, sleep_us = 0;
 
 	if (!info || !info->private_data)
 		return -EINVAL;
 	dsp_pcm = (struct dsp_pcm_t *)info->private_data;
 
-	while (!hifi4dsp_p[COERID] || !hifi4dsp_p[COERID]->dsp ||
-			!hifi4dsp_p[COERID]->dsp->dspstarted) {
+	while (!hifi4dsp_p[COREID] || !hifi4dsp_p[COREID]->dsp ||
+			!hifi4dsp_p[COREID]->dsp->dspstarted) {
 		if (!dsp_pcm->run_flag || kthread_should_stop())
 			return -EINVAL;
 		msleep(100);
@@ -302,36 +361,47 @@ static int thread_capture(void *data)
 	pconfig.channels = dsp_pcm->pcm_param.channels;
 	pconfig.rate = dsp_pcm->pcm_param.rate;
 	pconfig.format = dsp_pcm->pcm_param.format;
-	pconfig.period_size = dsp_pcm->pcm_param.period_size;
+	pconfig.period_size = DSP_PERIOD_SIZE;
+	pconfig.period_count = PERIOD_COUNT;
+	sleep_us = 1000 * 1000 * pconfig.period_size *
+		DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE / pconfig.rate / 3;
 
+	read_size = pconfig.period_size * (pconfig.channels - LOOPBACK_CHANNELS) *
+			pcm_client_format_to_bytes(pconfig.format) *
+			DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE;
 	dsp_pcm->pcm_handle = audio_device_open(dsp_pcm->pcm_param.card,
 					dsp_pcm->pcm_param.device,
-					PCM_IN, &pconfig, info->dev, COERID);
+					PCM_IN, &pconfig, info->dev, COREID);
 	if (!dsp_pcm->pcm_handle) {
-		pr_err("can't open lbpcm device!\n");
+		pr_err("can't open libpcm device!\n");
 		return -ENXIO;
 	}
 
 	pcm_process_client_set_volume_gain(dsp_pcm->pcm_handle, dsp_pcm->db_gain,
-					PCM_CAPTURE, info->dev, COERID);
+					PCM_CAPTURE, info->dev, COREID);
 	while (dsp_pcm->run_flag && !kthread_should_stop()) {
+		buf.size = read_size;
 		size = pcm_process_client_dqbuf(dsp_pcm->pcm_handle, &buf, &buf,
-				PROCESSBUF, info->dev, COERID);
+				PROCESSBUF, info->dev, COREID);
 		if (buf.size) {
 			dma_sync_single_for_device
-					(hifi4dsp_p[COERID]->dsp->dev,
+					(hifi4dsp_p[COREID]->dsp->dev,
 					 (phys_addr_t)buf.phyaddr,
 					 buf.size,
 					 DMA_FROM_DEVICE);
-			aml_aprocess_complete(dsp_pcm->aprocess, buf.viraddr, buf.size);
+			if (dsp_pcm->aprocess->status) {
+				no_thread_safe_ring_buffer_put(info->rb, buf.viraddr, buf.size);
+				complete(&dsp_pcm->complete);
+				//aml_aprocess_complete(dsp_pcm->aprocess, buf.viraddr, buf.size);
+			}
+
 			if (!bridge->isolated_enable)
-				bridge_ring_buffer_put(info->rb, buf.viraddr, buf.size);
+				no_thread_safe_ring_buffer_put(info->rb, buf.viraddr, buf.size);
 		} else {
-			usleep_range(0, 5000);
+			usleep_range(sleep_us, sleep_us * 2);
 		}
 	}
-
-	pcm_process_client_close(dsp_pcm->pcm_handle, info->dev, COERID);
+	pcm_process_client_close(dsp_pcm->pcm_handle, info->dev, COREID);
 	dsp_pcm->run_flag = 0;
 	return 0;
 }
@@ -341,68 +411,74 @@ static int thread_playback(void *data)
 	struct audio_pcm_function_t *info = (struct audio_pcm_function_t *)data;
 	struct audio_pcm_bridge_t *bridge = info->audio_bridge;
 	struct dsp_pcm_t *dsp_pcm;
-	u32 size_one_shot;
-	phys_addr_t shmm_phy = 0;
-	void *shmm_vir = NULL;
 	struct rpc_pcm_config pconfig;
+	struct buf_info buf;
+	u32 send_size = 0, sleep_us = 0;
 
 	if (!info || !info->private_data)
 		return -EINVAL;
 	dsp_pcm = (struct dsp_pcm_t *)info->private_data;
 
-	while (!hifi4dsp_p[COERID] || !hifi4dsp_p[COERID]->dsp ||
-			!hifi4dsp_p[COERID]->dsp->dspstarted) {
+	while (!hifi4dsp_p[COREID] || !hifi4dsp_p[COREID]->dsp ||
+			!hifi4dsp_p[COREID]->dsp->dspstarted) {
 		if (!dsp_pcm->run_flag || kthread_should_stop())
 			return -EINVAL;
 		msleep(100);
 	}
 	msleep(100);
+	memset(&buf, 0, sizeof(buf));
 	pconfig.channels = dsp_pcm->pcm_param.channels;
 	pconfig.rate = dsp_pcm->pcm_param.rate;
 	pconfig.format = dsp_pcm->pcm_param.format;
-	pconfig.period_size = dsp_pcm->pcm_param.period_size;
+	pconfig.period_size = DSP_PERIOD_SIZE;
+	pconfig.period_count = PERIOD_COUNT;
+	send_size = pconfig.period_size * pconfig.channels *
+		pcm_client_format_to_bytes(pconfig.format) * DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE;
+	buf.size = send_size;
+	sleep_us = 1000 * 1000 * pconfig.period_size *
+		DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE / pconfig.rate / 3;
 
 	pr_info("open playback device!\n");
 	dsp_pcm->pcm_handle = audio_device_open(dsp_pcm->pcm_param.card,
 					dsp_pcm->pcm_param.device,
-					PCM_OUT, &pconfig, info->dev, COERID);
+					PCM_OUT, &pconfig, info->dev, COREID);
 	if (!dsp_pcm->pcm_handle) {
 		pr_err("can't open playback device!\n");
 		return -ENXIO;
 	}
 
-	pr_info("malloc share mm!\n");
-	size_one_shot = pcm_client_frame_to_bytes(dsp_pcm->pcm_handle, pconfig.period_size);
-	shmm_vir = aml_dsp_mem_allocate(&shmm_phy, size_one_shot, info->dev, COERID);
-	if (!shmm_vir || !shmm_phy) {
-		pcm_client_close(dsp_pcm->pcm_handle, info->dev, COERID);
-		pr_err("can't malloc share memory---size:%d!\n", size_one_shot);
-		return -ENOMEM;
-	}
-	bridge_ring_buffer_go_empty(info->rb);
+	pr_info("get share mm!\n");
+	/* first call qbuf for get ready buffer address */
+	pcm_process_client_qbuf(dsp_pcm->pcm_handle, &buf,
+						RAWBUF, info->dev, COREID);
+
+	ring_buffer_go_empty(info->rb);
 	pcm_process_client_set_volume_gain(dsp_pcm->pcm_handle, dsp_pcm->db_gain,
-					PCM_PLAYBACK, dsp_pcm->dev, COERID);
+					PCM_PLAYBACK, dsp_pcm->dev, COREID);
 	while (dsp_pcm->run_flag && !kthread_should_stop()) {
 		if (bridge->isolated_enable) {
-			if (!aml_aprocess_complete(dsp_pcm->aprocess, shmm_vir, size_one_shot))
-				memset(shmm_vir, 0, size_one_shot);
+			if (!dsp_pcm->aprocess->status) {
+				usleep_range(sleep_us, sleep_us * 2);
+				continue;
+			}
+			if (!aml_aprocess_complete(dsp_pcm->aprocess, buf.viraddr, buf.size)) {
+				usleep_range(sleep_us, sleep_us * 2);
+				continue;
+			}
 		} else {
-			if (!bridge_ring_buffer_get(info->rb, shmm_vir, size_one_shot))
-				memset(shmm_vir, 0, size_one_shot);
+			if (!no_thread_safe_ring_buffer_get(info->rb, buf.viraddr, buf.size))
+				memset(buf.viraddr, 0, buf.size);
 		}
 		dma_sync_single_for_device
-					(hifi4dsp_p[COERID]->dsp->dev,
-					 (phys_addr_t)shmm_phy,
-					 size_one_shot,
+					(hifi4dsp_p[COREID]->dsp->dev,
+					 (phys_addr_t)buf.phyaddr,
+					 buf.size,
 					 DMA_TO_DEVICE);
-		pcm_process_client_writei_to_speaker(dsp_pcm->pcm_handle, shmm_phy,
-				pconfig.period_size, !dsp_pcm->speaker_process_flag,
-				info->dev, COERID);
+		buf.size = send_size;
+		pcm_process_client_qbuf(dsp_pcm->pcm_handle, &buf,
+						RAWBUF, info->dev, COREID);
 	}
-	pcm_client_close(dsp_pcm->pcm_handle, info->dev, COERID);
-	aml_dsp_mem_free(shmm_phy, info->dev, COERID);
-	shmm_phy = 0;
-	shmm_vir = NULL;
+	pcm_process_client_close(dsp_pcm->pcm_handle, info->dev, COREID);
 	dsp_pcm->run_flag = 0;
 	return 0;
 }
@@ -411,6 +487,7 @@ static int dsp_pcm_start(struct audio_pcm_function_t *audio_pcm)
 {
 	int rc = 0;
 	struct dsp_pcm_t *dsp_pcm;
+	struct sched_param param = { .sched_priority = 99 };
 
 	if (!audio_pcm || !audio_pcm->private_data) {
 		pr_err("the bridge info is NULL!\n");
@@ -431,10 +508,18 @@ static int dsp_pcm_start(struct audio_pcm_function_t *audio_pcm)
 	}
 
 	dsp_pcm->run_flag = 1;
-	if (audio_pcm->modeid == PCM_CAPTURE)
+	if (audio_pcm->modeid == PCM_CAPTURE) {
 		dsp_pcm->thread_handle = kthread_run(thread_capture, audio_pcm, "dsp_cap");
-	else
+		dsp_pcm->aux_thread_handle = kthread_run(thread_capture_complete,
+							audio_pcm, "dsp_cap_complete");
+		sched_setscheduler(dsp_pcm->thread_handle, SCHED_FIFO, &param);
+		sched_setscheduler(dsp_pcm->aux_thread_handle, SCHED_FIFO, &param);
+	} else {
 		dsp_pcm->thread_handle = kthread_run(thread_playback, audio_pcm, "dsp_play");
+		dsp_pcm->aux_thread_handle = NULL;
+		sched_setscheduler(dsp_pcm->thread_handle, SCHED_FIFO, &param);
+	}
+
 	if (IS_ERR(dsp_pcm->thread_handle)) {
 		dsp_pcm->thread_handle = NULL;
 		dsp_pcm->run_flag = 0;
@@ -461,6 +546,10 @@ static int dsp_pcm_stop(struct audio_pcm_function_t *audio_pcm)
 
 	mutex_lock(&dsp_pcm->lock);
 	dsp_pcm->run_flag = 0;
+	if (dsp_pcm->aux_thread_handle) {
+		kthread_stop(dsp_pcm->aux_thread_handle);
+		dsp_pcm->aux_thread_handle = NULL;
+	}
 	if (dsp_pcm->thread_handle) {
 		kthread_stop(dsp_pcm->thread_handle);
 		dsp_pcm->thread_handle = NULL;
@@ -498,12 +587,13 @@ static int dsp_pcm_set_hw(struct audio_pcm_function_t *audio_pcm, u8 channels, u
 		alsa_format = SNDRV_PCM_FMTBIT_S16;
 		break;
 	}
+
 	if (audio_pcm->modeid == PCM_CAPTURE)
-		aml_aprocess_set_hw(dsp_pcm->aprocess, (channels - 2),
-				alsa_format, 16000, PCM_PARAM_PERIOD_SIZE);
+		aml_aprocess_set_hw(dsp_pcm->aprocess, (channels - LOOPBACK_CHANNELS),
+			alsa_format, rate, DSP_PERIOD_SIZE * DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE);
 	else
 		aml_aprocess_set_hw(dsp_pcm->aprocess, channels,
-				alsa_format, rate, PCM_PARAM_PERIOD_SIZE);
+			alsa_format, rate, DSP_PERIOD_SIZE * DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE);
 	return 0;
 }
 
@@ -585,14 +675,14 @@ static void dsp_pcm_control(struct audio_pcm_function_t *audio_pcm, int cmd, int
 				dsp_pcm->db_gain = -48;
 		}
 
-		if (!hifi4dsp_p[COERID] ||
-			!hifi4dsp_p[COERID]->dsp || !hifi4dsp_p[COERID]->dsp->dspstarted)
+		if (!hifi4dsp_p[COREID] ||
+			!hifi4dsp_p[COREID]->dsp || !hifi4dsp_p[COREID]->dsp->dspstarted)
 			return;
 
 		mutex_lock(&dsp_pcm->lock);
 		if (dsp_pcm->run_flag && dsp_pcm->pcm_handle)
 			pcm_process_client_set_volume_gain(dsp_pcm->pcm_handle, dsp_pcm->db_gain,
-					audio_pcm->modeid, dsp_pcm->dev, COERID);
+					audio_pcm->modeid, dsp_pcm->dev, COREID);
 
 		mutex_unlock(&dsp_pcm->lock);
 	}
@@ -615,8 +705,7 @@ int dsp_pcm_init(struct audio_pcm_function_t *audio_pcm,
 		return -EINVAL;
 	}
 	dsp_pcm->dev = audio_pcm->dev;
-	dsp_pcm->pcm_param.card = DSP_PARAM_CARD;
-	dsp_pcm->pcm_param.period_size = PCM_PARAM_PERIOD_SIZE;
+	dsp_pcm->pcm_param.card = pcm_card;
 	dsp_pcm->volume = VOLUME_MAX;
 	dsp_pcm->mute = 0;
 	dsp_pcm->db_gain = dsp_pcm->volume * (GAIN_MAX - GAIN_MIN) /
@@ -636,6 +725,7 @@ int dsp_pcm_init(struct audio_pcm_function_t *audio_pcm,
 	else
 		play_pcm = audio_pcm;
 	mutex_init(&dsp_pcm->lock);
+	init_completion(&dsp_pcm->complete);
 	return 0;
 }
 

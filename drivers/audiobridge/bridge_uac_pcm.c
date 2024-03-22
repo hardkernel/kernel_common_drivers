@@ -42,7 +42,7 @@
 #endif
 
 #include "bridge_common.h"
-#include "bridge_ringbuffer.h"
+#include "ringbuffer.h"
 #include "bridge_pcm_hal.h"
 
 struct uac_pcm_t {
@@ -199,7 +199,7 @@ int uac_pcm_start_playback(void)
 		return 0;
 	uac_pcm->uac_status = 1;
 
-	return bridge_ring_buffer_go_empty(audio_pcm->rb);
+	return ring_buffer_go_empty(audio_pcm->rb);
 }
 
 int uac_pcm_stop_playback(void)
@@ -214,7 +214,7 @@ int uac_pcm_stop_playback(void)
 		return 0;
 	uac_pcm->uac_status = 0;
 
-	return bridge_ring_buffer_go_empty(audio_pcm->rb);
+	return ring_buffer_go_empty(audio_pcm->rb);
 }
 
 int uac_pcm_write_data(char *buf, unsigned int size)
@@ -232,7 +232,7 @@ int uac_pcm_write_data(char *buf, unsigned int size)
 	if (bridge->isolated_enable)
 		return 0;
 	else
-		return bridge_ring_buffer_put(audio_pcm->rb, buf, size);
+		return no_thread_safe_ring_buffer_put(audio_pcm->rb, buf, size);
 }
 
 int uac_pcm_read_data(char *buf, unsigned int size)
@@ -250,7 +250,7 @@ int uac_pcm_read_data(char *buf, unsigned int size)
 	if (bridge->isolated_enable)
 		return 0;
 	else
-		return bridge_ring_buffer_get(audio_pcm->rb, buf, size);
+		return no_thread_safe_ring_buffer_get(audio_pcm->rb, buf, size);
 }
 
 int uac_pcm_ctl_capture(int cmd, int value)
@@ -362,9 +362,12 @@ static int uac_pcm_set_hw(struct audio_pcm_function_t *audio_pcm,
 static int uac_pcm_get_status(struct audio_pcm_function_t *audio_pcm)
 {
 	struct uac_pcm_t *uac_pcm;
+	struct audio_pcm_bridge_t *bridge;
 
-	if (!audio_pcm || !audio_pcm->private_data)
+	bridge = audio_pcm->audio_bridge;
+	if (!audio_pcm || !audio_pcm->private_data || bridge->isolated_enable)
 		return 0;
+
 	uac_pcm = audio_pcm->private_data;
 
 	return uac_pcm->run_flag;
