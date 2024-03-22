@@ -60,6 +60,8 @@
 
 /* from mm/ path */
 #include <internal.h>
+#include <linux/sched.h>
+#include <linux/gfp.h>
 
 #if IS_ENABLED(CONFIG_AMLOGIC_PAGE_TRACE)
 #include <linux/amlogic/page_trace.h>
@@ -1556,7 +1558,7 @@ void rmap_walk_vma(struct page *page)
 	pr_info("%s, show map for page:%lx,f:%lx, m:%px, p:%d\n",
 		__func__, page_to_pfn(page), page->flags,
 		page->mapping, page_count(page));
-	if (!page_mapping(page))
+	if (!folio_mapping(page_folio(page)))
 		return;
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
 	rmap_walk(page_folio(page), &rwc);

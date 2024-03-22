@@ -29,6 +29,7 @@
 #include <asm/stacktrace.h>
 #include <asm/sections.h>
 #include <trace/hooks/mm.h>
+#include <linux/scs.h>
 
 #ifndef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
 #define DEBUG_PAGE_TRACE	0
@@ -752,46 +753,16 @@ static bool aml_on_accessible_stack(const struct task_struct *tsk,
 #endif
 
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
-static int notrace unwind_next(struct unwind_state *state)
+#ifdef CONFIG_SHADOW_CALL_STACK
+#define SCS_MASK (~(SCS_SIZE - 1))
+
+static unsigned long get_lr_val(unsigned long lr, unsigned long offset)
 {
-	struct task_struct *tsk = state->task;
-	unsigned long fp = state->fp;
-	int err;
+	unsigned long lr_mask = lr & SCS_MASK;
 
-    /* Final frame; nothing to unwind */
-	if (fp == (unsigned long)task_pt_regs(tsk)->stackframe)
-		return -ENOENT;
-
-	err = unwind_next_frame_record(state);
-	if (err)
-		return err;
-
-	state->pc = ptrauth_strip_kernel_insn_pac(state->pc);
-
-#if defined CONFIG_FUNCTION_GRAPH_TRACER && IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
-	if (tsk->ret_stack &&
-		state->pc == (unsigned long)return_to_handler) {
-		unsigned long orig_pc;
-		/*
-		 * This is a case where function graph tracer has
-		 * modified a return address (LR) in a stack frame
-		 * to hook a function return.
-		 * So replace it to an original value.
-		 */
-		orig_pc = ftrace_graph_ret_addr(tsk, NULL, state->pc,
-						(void *)state->fp);
-		if (WARN_ON_ONCE(state->pc == orig_pc))
-			return -EINVAL;
-		state->pc = orig_pc;
-	}
-#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
-// #ifdef CONFIG_KRETPROBES
-//     if (is_kretprobe_trampoline(state->pc))
-//         state->pc = kretprobe_find_ret_addr(tsk, (void *)state->fp, &state->kr_cur);
-// #endif
-	return 0;
+	return ((lr - offset) & SCS_MASK) == lr_mask ? *(u64 *)(lr - offset) : 0x0;
 }
-
+#endif
 #elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 /*
  * Unwind from one frame record (A) to the next frame record (B).
@@ -919,41 +890,11 @@ static int notrace aml_unwind_frame(struct task_struct *tsk, struct stackframe *
 #endif
 #endif
 
-/*
- * Per-cpu stacks are only accessible when unwinding the current task in a
- * non-preemptible context.
- */
-#define AML_STACKINFO_CPU(name)					\
-	({							\
-		!preemptible()					\
-			? stackinfo_get_##name()		\
-			: stackinfo_get_unknown();		\
-	})
-
-/*
- * SDEI stacks are only accessible when unwinding the current task in an NMI
- * context.
- */
-#define AML_STACKINFO_SDEI(name)					\
-	({							\
-		in_nmi()					\
-			? stackinfo_get_sdei_##name()		\
-			: stackinfo_get_unknown();		\
-	})
-
 unsigned long find_back_trace(void)
 {
 #if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
 	struct stack_info stacks[] = {
 		stackinfo_get_task(current),
-		AML_STACKINFO_CPU(irq),
-#if defined(CONFIG_VMAP_STACK)
-		AML_STACKINFO_CPU(overflow),
-#endif
-#if defined(CONFIG_VMAP_STACK) && defined(CONFIG_ARM_SDE_INTERFACE)
-		AML_STACKINFO_SDEI(normal),
-		AML_STACKINFO_SDEI(critical),
-#endif
 	};
 	struct unwind_state frame = {
 		.stacks = stacks,
@@ -965,6 +906,12 @@ unsigned long find_back_trace(void)
 	int ret, step = 0;
 
 #ifdef CONFIG_ARM64
+#if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
+#ifdef CONFIG_SHADOW_CALL_STACK
+	unsigned long lr;
+	unsigned int offset = 5;
+#endif
+#endif
 	frame.fp = (unsigned long)__builtin_frame_address(1);
 	frame.pc = (unsigned long)__builtin_return_address(0);
 #if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
@@ -974,6 +921,11 @@ unsigned long find_back_trace(void)
 #endif
 
 #if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
+#ifdef CONFIG_SHADOW_CALL_STACK
+	/* get lr from scs */
+	asm volatile("mov %0, x18\n"
+		: "=&r" (lr));
+#endif
 	frame.stack = stackinfo_get_unknown();
 	frame.task = current;
 #elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
@@ -991,7 +943,15 @@ unsigned long find_back_trace(void)
 #endif
 	while (1) {
 	#ifdef CONFIG_ARM64
-	#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+	#if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
+	#ifdef CONFIG_SHADOW_CALL_STACK
+		frame.pc = get_lr_val(lr, offset * sizeof(unsigned long));
+		offset++;
+		ret = 0;
+	#else
+		ret = -1;
+	#endif
+	#elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 		ret = unwind_next(&frame);
 	#else
 		ret = aml_unwind_frame(current, &frame);
