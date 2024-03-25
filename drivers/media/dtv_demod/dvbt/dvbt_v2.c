@@ -14,11 +14,11 @@
 #include <linux/mutex.h>
 #include "dvbt_func.h"
 
-MODULE_PARM_DESC(dvbt2_agc_target1, "\n\t\t dvbt2_agc_target1");
+MODULE_PARM_DESC(dvbt2_agc_target1, "");
 static unsigned char dvbt2_agc_target1 = 0x60;
 module_param(dvbt2_agc_target1, byte, 0644);
 
-MODULE_PARM_DESC(dvbt2_agc_target2, "\n\t\t dvbt2_agc_target2");
+MODULE_PARM_DESC(dvbt2_agc_target2, "");
 static unsigned char dvbt2_agc_target2 = 0x11;
 module_param(dvbt2_agc_target2, byte, 0644);
 
@@ -528,7 +528,7 @@ static void download_fw_to_sram(struct amldtvdemod_device_s *devp)
 			PR_ERR("write fw err %d\n", i);
 		} else {
 			devp->fw_wr_done = 1;
-			PR_INFO("download fw to sram done.\n");
+			PR_INFO("download fw to sram done\n");
 			break;
 		}
 	}
@@ -698,7 +698,7 @@ void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe)
 		bandwidth = CHAN_BW_8M;
 		break;
 	}
-	PR_DVBT("%s, bandwidth : %d\n", __func__, bandwidth);
+	PR_DVBT("%s, bandwidth: %d\n", __func__, bandwidth);
 
 	dvbt_t2_wrb(0x0004, 0x00);
 	dvbt_t2_wrb(0x0005, 0x00);
@@ -894,7 +894,7 @@ void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe)
 	dvbt_t2_wrb(0x2830, 0x20);
 	dvbt_t2_wrb(R368TER_DVBT_CTRL, 0x00);
 	dvbt_t2_wrb(R368TER_DVBT_CTRL, 0x20);
-	PR_DVBT("DVB-T init ok.\n");
+	PR_DVBT("DVB-T init ok\n");
 }
 
 void dvbt_rst_demod(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
@@ -1122,7 +1122,7 @@ void dtvdemod_get_plp_dbg(void)
 void dtvdemod_set_plpid(char id)
 {
 	dvbt_t2_wrb(0x806, id);
-	PR_INFO("%s : %d\n", __func__, id);
+	PR_INFO("%s: %d\n", __func__, id);
 }
 
 static int m_calcul_carrier_offset(int crl_in, enum channel_bw_e bw)
@@ -1587,4 +1587,3 @@ void dvbt2_info(struct seq_file *seq)
 		PR_DVBT("pwr_meter 0x%x\n\n", (dvbt_t2_rdb(0x82f) << 8) + dvbt_t2_rdb(0x82e));
 	}
 }
-
