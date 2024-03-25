@@ -29,6 +29,14 @@
 #include <trace/hooks/dtask.h>
 #include <trace/events/meson_atrace.h>
 
+#if defined(CONFIG_ANDROID_VENDOR_HOOKS) && CONFIG_AMLOGIC_KERNEL_VERSION == 14515
+static int rt_util_ramp_down = 25;
+module_param(rt_util_ramp_down, int, 0644);
+
+static int cpufreq_ramp_down = 1200000;
+module_param(cpufreq_ramp_down, int, 0644);
+#endif
+
 #if defined(CONFIG_ANDROID_VENDOR_HOOKS) && defined(CONFIG_FAIR_GROUP_SCHED)
 static int sched_big_weight = 10; // * NICE_0_LOAD
 module_param(sched_big_weight, int, 0644);
@@ -595,6 +603,32 @@ static void tick_entry_hook(void *data, struct rq *rq)
 {
 	current->android_kabi_reserved5 = sched_clock(); //last tick time
 }
+
+#if CONFIG_AMLOGIC_KERNEL_VERSION == 14515
+static void sugov_update_next_freq_hook(void *data, struct sugov_policy *sg_policy,
+					unsigned int freq, bool *should_update)
+{
+	int cpu, cpu_freq;
+	int rt_util_sum = 0, cpu_num = 0;
+	struct cpumask mask;
+	struct cpufreq_policy *policy = cpufreq_cpu_get(smp_processor_id());
+
+	if (policy) {
+		cpumask_copy(&mask, policy->related_cpus);
+		cpu_freq = policy->cur;
+		cpufreq_cpu_put(policy);
+
+		if (freq < cpu_freq && cpu_freq <= cpufreq_ramp_down) {
+			for_each_cpu(cpu, &mask) {
+				rt_util_sum += cpu_rq(cpu)->avg_rt.util_avg;
+				cpu_num++;
+			}
+			if (rt_util_sum > rt_util_ramp_down * cpu_num)
+				*should_update = false;
+		}
+	}
+}
+#endif
 #endif
 
 void rebuild_sched_flag(void)
@@ -628,6 +662,9 @@ int aml_sched_init(void)
 	register_trace_android_rvh_enqueue_task(enqueue_task_hook, NULL);
 	register_trace_android_rvh_tick_entry(tick_entry_hook, NULL);
 	register_trace_android_vh_sched_show_task(sched_show_task_hook, NULL);
+#if CONFIG_AMLOGIC_KERNEL_VERSION == 14515
+	register_trace_android_rvh_set_sugov_update(sugov_update_next_freq_hook, NULL);
+#endif
 #endif
 	rebuild_sched_flag();
 
