@@ -70,7 +70,7 @@ int aml_dwc3_host_init(struct aml_dwc3 *dwc)
 	if (irq < 0)
 		return irq;
 
-	xhci = platform_device_alloc("xhci-hcd", PLATFORM_DEVID_AUTO);
+	xhci = platform_device_alloc("xhci-hcd-meson", PLATFORM_DEVID_AUTO);
 	if (!xhci) {
 		dev_err(dwc->dev, "couldn't allocate xHCI device\n");
 		return -ENOMEM;
