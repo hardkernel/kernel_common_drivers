@@ -110,7 +110,6 @@ static int am_meson_gem_alloc_ion_buff(struct am_meson_gem_object *
 			__func__, dmabuf, meson_gem_obj->base.size);
 #endif
 #ifdef CONFIG_AMLOGIC_ION_DEV
-
 		if (!meson_gem_obj->is_dma) {
 			id = meson_ion_fb_heap_id_get();
 			if (id) {
@@ -130,9 +129,9 @@ static int am_meson_gem_alloc_ion_buff(struct am_meson_gem_object *
 					return -ENOMEM;
 				}
 			}
+			DRM_DEBUG("%s: dmabuf(%p) ion_alloc success. size = %zu\n",
+				__func__, dmabuf, meson_gem_obj->base.size);
 		}
-		DRM_DEBUG("%s: dmabuf(%p) ion_alloc success. size = %zu\n",
-			__func__, dmabuf, meson_gem_obj->base.size);
 #endif
 	} else if (flags & MESON_USE_VIDEO_PLANE) {
 		meson_gem_obj->is_uvm = true;
@@ -214,6 +213,13 @@ static int am_meson_gem_alloc_ion_buff(struct am_meson_gem_object *
 					   sg_table->nents,
 					   DMA_TO_DEVICE);
 		meson_gem_obj->addr = PFN_PHYS(page_to_pfn(page));
+		DRM_DEBUG("%s: dma_heap sg_table:nents=%d,dma_addr=0x%x,length=%d,offset=%d\n",
+			  __func__, sg_table->nents,
+			  (u32)sg_table->sgl->dma_address,
+			  sg_table->sgl->length,
+			  sg_table->sgl->offset);
+		DRM_DEBUG("%s: dma_heap allocate size (%d) addr=0x%x.\n", __func__,
+			  (u32)meson_gem_obj->base.size, (u32)meson_gem_obj->addr);
 	}
 #endif
 #ifdef CONFIG_AMLOGIC_ION_DEV
@@ -232,12 +238,12 @@ static int am_meson_gem_alloc_ion_buff(struct am_meson_gem_object *
 					 (phys_addr_t *)&meson_gem_obj->addr,
 					 (size_t *)&len);
 		meson_gem_obj->bscatter = bscatter;
-		DRM_DEBUG("sg_table:nents=%d,dma_addr=0x%x,length=%d,offset=%d\n",
-			  buffer->sg_table->nents,
+		DRM_DEBUG("%s: ion sg_table:nents=%d,dma_addr=0x%x,length=%d,offset=%d\n",
+			  __func__, buffer->sg_table->nents,
 			  (u32)buffer->sg_table->sgl->dma_address,
 			  buffer->sg_table->sgl->length,
 			  buffer->sg_table->sgl->offset);
-		DRM_DEBUG("allocate size (%d) addr=0x%x.\n",
+		DRM_DEBUG("%s: ion allocate size (%d) addr=0x%x.\n", __func__,
 			  (u32)meson_gem_obj->base.size, (u32)meson_gem_obj->addr);
 	}
 #endif
@@ -266,6 +272,7 @@ static void am_meson_gem_free_ion_buf(struct drm_device *dev,
 		dma_buf_detach(meson_gem_obj->dmabuf, meson_gem_obj->attachment);
 		dma_buf_put(meson_gem_obj->dmabuf);
 		meson_gem_obj->dmabuf = NULL;
+		DRM_DEBUG("%s meson_gem_obj free dmabuf success\n", __func__);
 	}
 #endif
 	if (!meson_gem_obj->ionbuffer && !meson_gem_obj->is_dma)
@@ -341,10 +348,8 @@ static struct sg_table *am_meson_gem_create_sg_table(struct drm_gem_object *obj)
 	struct am_meson_gem_object *meson_gem_obj;
 	struct sg_table *dst_table = NULL;
 	struct scatterlist *dst_sg = NULL;
-#ifdef CONFIG_AMLOGIC_ION
 	struct sg_table *src_table = NULL;
 	struct scatterlist *src_sg = NULL;
-#endif
 	struct page *gem_page = NULL;
 	int ret;
 
@@ -353,14 +358,14 @@ static struct sg_table *am_meson_gem_create_sg_table(struct drm_gem_object *obj)
 	if ((meson_gem_obj->flags & MESON_USE_VIDEO_PLANE) &&
 	    (meson_gem_obj->flags & MESON_USE_PROTECTED)) {
 		gem_page = phys_to_page(meson_gem_obj->addr);
-		dst_table = vmalloc(sizeof(*dst_table));
+		dst_table = kmalloc(sizeof(*dst_table), GFP_KERNEL);
 		if (!dst_table) {
 			ret = -ENOMEM;
 			return ERR_PTR(ret);
 		}
 		ret = sg_alloc_table(dst_table, 1, GFP_KERNEL);
 		if (ret) {
-			vfree(dst_table);
+			kfree(dst_table);
 			return ERR_PTR(ret);
 		}
 		dst_sg = dst_table->sgl;
@@ -373,7 +378,7 @@ static struct sg_table *am_meson_gem_create_sg_table(struct drm_gem_object *obj)
 #if (defined CONFIG_AMLOGIC_HEAP_CMA) || (defined CONFIG_AMLOGIC_HEAP_CODEC_MM)
 		if (meson_gem_obj->is_dma) {
 			src_table = meson_gem_obj->sg;
-			dst_table = vmalloc(sizeof(*dst_table));
+			dst_table = kmalloc(sizeof(*dst_table), GFP_KERNEL);
 			if (!dst_table) {
 				ret = -ENOMEM;
 				return ERR_PTR(ret);
@@ -381,7 +386,7 @@ static struct sg_table *am_meson_gem_create_sg_table(struct drm_gem_object *obj)
 
 			ret = sg_alloc_table(dst_table, 1, GFP_KERNEL);
 			if (ret) {
-				vfree(dst_table);
+				kfree(dst_table);
 				return ERR_PTR(ret);
 			}
 
@@ -398,7 +403,7 @@ static struct sg_table *am_meson_gem_create_sg_table(struct drm_gem_object *obj)
 #ifdef CONFIG_AMLOGIC_ION
 		if (meson_gem_obj->ionbuffer) {
 			src_table = meson_gem_obj->ionbuffer->sg_table;
-			dst_table = vmalloc(sizeof(*dst_table));
+			dst_table = kmalloc(sizeof(*dst_table), GFP_KERNEL);
 			if (!dst_table) {
 				ret = -ENOMEM;
 				return ERR_PTR(ret);
@@ -406,7 +411,7 @@ static struct sg_table *am_meson_gem_create_sg_table(struct drm_gem_object *obj)
 
 			ret = sg_alloc_table(dst_table, 1, GFP_KERNEL);
 			if (ret) {
-				vfree(dst_table);
+				kfree(dst_table);
 				return ERR_PTR(ret);
 			}
 
@@ -481,25 +486,19 @@ static struct dma_buf *meson_gem_prime_export(struct drm_gem_object *obj,
 static struct sg_table *meson_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
 	struct am_meson_gem_object *meson_gem_obj;
-#ifdef CONFIG_AMLOGIC_ION
 	struct sg_table *dst_table = NULL;
 	struct scatterlist *dst_sg = NULL;
 	struct sg_table *src_table = NULL;
 	struct scatterlist *src_sg = NULL;
 	int ret, i;
-#endif
 
 	meson_gem_obj = to_am_meson_gem_obj(obj);
 	DRM_DEBUG("%s %p.\n", __func__, meson_gem_obj);
 
 #if (defined CONFIG_AMLOGIC_HEAP_CMA) || (defined CONFIG_AMLOGIC_HEAP_CODEC_MM)
-	if (!meson_gem_obj->base.import_attach && meson_gem_obj->is_dma)
-		return meson_gem_obj->sg;
-#endif
-#ifdef CONFIG_AMLOGIC_ION
-	if (!meson_gem_obj->base.import_attach && meson_gem_obj->ionbuffer) {
-		src_table = meson_gem_obj->ionbuffer->sg_table;
-		dst_table = vmalloc(sizeof(*dst_table));
+	if (!meson_gem_obj->base.import_attach && meson_gem_obj->is_dma) {
+		src_table = meson_gem_obj->sg;
+		dst_table = kmalloc(sizeof(*dst_table), GFP_KERNEL);
 		if (!dst_table) {
 			ret = -ENOMEM;
 			return ERR_PTR(ret);
@@ -507,7 +506,34 @@ static struct sg_table *meson_gem_prime_get_sg_table(struct drm_gem_object *obj)
 
 		ret = sg_alloc_table(dst_table, src_table->nents, GFP_KERNEL);
 		if (ret) {
-			vfree(dst_table);
+			kfree(dst_table);
+			return ERR_PTR(ret);
+		}
+
+		dst_sg = dst_table->sgl;
+		src_sg = src_table->sgl;
+		for (i = 0; i < src_table->nents; i++) {
+			sg_set_page(dst_sg, sg_page(src_sg), src_sg->length, 0);
+			sg_dma_address(dst_sg) = sg_phys(src_sg);
+			sg_dma_len(dst_sg) = sg_dma_len(src_sg);
+			dst_sg = sg_next(dst_sg);
+			src_sg = sg_next(src_sg);
+		}
+		return dst_table;
+	}
+#endif
+#ifdef CONFIG_AMLOGIC_ION
+	if (!meson_gem_obj->base.import_attach && meson_gem_obj->ionbuffer) {
+		src_table = meson_gem_obj->ionbuffer->sg_table;
+		dst_table = kmalloc(sizeof(*dst_table), GFP_KERNEL);
+		if (!dst_table) {
+			ret = -ENOMEM;
+			return ERR_PTR(ret);
+		}
+
+		ret = sg_alloc_table(dst_table, src_table->nents, GFP_KERNEL);
+		if (ret) {
+			kfree(dst_table);
 			return ERR_PTR(ret);
 		}
 
@@ -542,16 +568,7 @@ static int meson_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *
 
 static void meson_gem_prime_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
-	struct am_meson_gem_object *meson_gem_obj = to_am_meson_gem_obj(obj);
-
-	DRM_DEBUG("%s %p.\n", __func__, meson_gem_obj);
-#if (defined CONFIG_AMLOGIC_HEAP_CMA) || (defined CONFIG_AMLOGIC_HEAP_CODEC_MM)
-	if (meson_gem_obj->is_dma) {
-		dma_buf_unmap_attachment(meson_gem_obj->attachment,
-			meson_gem_obj->sg, DMA_BIDIRECTIONAL);
-		dma_buf_detach(meson_gem_obj->dmabuf, meson_gem_obj->attachment);
-	}
-#endif
+	DRM_DEBUG("%s nothing to do.\n", __func__);
 }
 
 #ifdef CONFIG_AMLOGIC_ION
