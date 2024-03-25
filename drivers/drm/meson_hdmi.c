@@ -478,6 +478,10 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 			count++;
 		}
 	}
+
+	connector->display_info.monitor_range.max_vfreq = am_hdmi_info.max_vfreq;
+	connector->display_info.monitor_range.min_vfreq = am_hdmi_info.min_vfreq;
+
 	return count;
 }
 
@@ -1477,6 +1481,8 @@ static void meson_hdmitx_cal_brr(struct am_hdmi_tx *hdmitx,
 			if (group->vrr_max >= brr) {
 				brr = group->vrr_max;
 				vic = group->brr_vic;
+				am_hdmi_info.min_vfreq = group->vrr_min;
+				am_hdmi_info.max_vfreq = group->vrr_max;
 			}
 		}
 	}
