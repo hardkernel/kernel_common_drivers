@@ -43,8 +43,7 @@ static int lcd_type_supported(struct lcd_config_s *pconf)
 		ret = 0;
 		break;
 	default:
-		LCDERR("invalid lcd type: %s(%d)\n",
-		       lcd_type_type_to_str(lcd_type), lcd_type);
+		LCDERR("invalid lcd type: %s(%d)\n", lcd_type_type_to_str(lcd_type), lcd_type);
 		break;
 	}
 	return ret;
