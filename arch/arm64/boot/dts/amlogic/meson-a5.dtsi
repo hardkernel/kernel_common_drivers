@@ -480,6 +480,7 @@
 		clock-names = "dspa_clk";
 		mboxes = <&mbox_fifo A5_REE2DSPA_DSP>;
 		power-domains = <&pwrdm PDID_A5_DSPA>;
+		pm-support = <1>;
 		//logbuff-polling-ms = <50>;
 		clkfreq-khz = <800000>;
 	};
