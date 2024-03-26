@@ -793,6 +793,7 @@ static int meson_plane_atomic_get_property(struct drm_plane *plane,
 {
 	struct am_osd_plane *osd_plane = to_am_osd_plane(plane);
 	struct am_meson_plane_state *plane_state;
+	struct meson_drm *drv = osd_plane->drv;
 	int ret = 0;
 
 	plane_state = to_am_meson_plane_state(state);
@@ -808,6 +809,13 @@ static int meson_plane_atomic_get_property(struct drm_plane *plane,
 		ret = 0;
 	} else if (property == osd_plane->rotation_reflect_property) {
 		*val = osd_plane->osd_reverse;
+		ret = 0;
+	} else if (property == osd_plane->unsupport_nonafbc) {
+		if (!drv) {
+			DRM_INFO("%s meson_drm is NULL!\n", __func__);
+			return -EINVAL;
+		}
+		*val = drv->pipeline->osd_axi_sel;
 		ret = 0;
 	}
 
@@ -1706,6 +1714,20 @@ static void meson_plane_add_palette_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_plane_add_unsupport_nonafbc_property(struct drm_device *drm_dev,
+						  struct am_osd_plane *osd_plane)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "unsupport_nonafbc");
+	if (prop) {
+		osd_plane->unsupport_nonafbc = prop;
+		drm_object_attach_property(&osd_plane->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to add unsupport_nonafbc property\n");
+	}
+}
+
 static const u32 meson_plane_fb_size_list[] = {
 	1080 << 16 | 1920,
 	2160 << 16 | 3840,
@@ -1894,6 +1916,7 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv,
 		i, osd_plane->osd_occupied, crtc_mask, type, osd_reverse);
 	meson_plane_create_security_en_property(priv->drm, osd_plane);
 	meson_plane_add_palette_property(priv->drm, osd_plane);
+	meson_plane_add_unsupport_nonafbc_property(priv->drm, osd_plane);
 	return osd_plane;
 }
 

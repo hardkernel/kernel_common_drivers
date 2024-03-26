@@ -119,6 +119,13 @@ void meson_of_init(struct device *vpu_dev, struct drm_device *dev,
 		DRM_ERROR("osd_ver parser failed, need fix it!!\n");
 
 	ret = of_property_read_u32(vpu_dev->of_node,
+					"osd_axi_sel", &pipeline->osd_axi_sel);
+	if (ret) {
+		DRM_ERROR("osd_axi_sel parser failed and set default 0\n");
+		pipeline->osd_axi_sel = 0;
+	}
+
+	ret = of_property_read_u32(vpu_dev->of_node,
 				"osd_occupied_index", &osd_occupied_index);
 	if (!ret)
 		priv->osd_occupied_index = osd_occupied_index;

@@ -536,6 +536,7 @@ struct meson_vpu_pipeline {
 	u32 num_dbs;
 	u32 num_postblend;
 	u8 osd_version;
+	u32 osd_axi_sel;
 
 	struct meson_drm *priv;
 	struct meson_vpu_block **mvbs;
