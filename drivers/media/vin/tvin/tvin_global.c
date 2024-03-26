@@ -27,6 +27,8 @@ const char *tvin_color_fmt_str(enum tvin_color_fmt_e color_fmt)
 		return "COLOR_FMT_RGB444";
 	case TVIN_YUV422:
 		return "COLOR_FMT_YUV422";
+	case TVIN_YUV420:
+		return "COLOR_FMT_YUV420";
 	case TVIN_YUV444:
 		return "COLOR_FMT_YUV444";
 	case TVIN_YUYV422:

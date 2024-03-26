@@ -262,7 +262,7 @@ bool vdin_dv_is_need_tunnel(struct vdin_dev_s *devp)
 	    (is_amdv_stb_mode() && !is_hdmi_ll_as_hdr10())) &&
 	    (devp->prop.color_format == TVIN_YUV422 ||
 	     devp->prop.color_format == TVIN_YUV420) &&
-	     !devp->debug.bypass_tunnel)
+	     !devp->bypass_tunnel)
 		return true;
 	else
 		return false;
@@ -292,12 +292,18 @@ bool vdin_dv_is_not_std_source_led(struct vdin_dev_s *devp)
 {
 	if (devp->dv.dv_flag &&
 	    (devp->dv.low_latency || devp->prop.vtem_data.vrr_en)) {
-		if (devp->prop.color_format == TVIN_YUV422 &&
-		    devp->fmt_info_p->h_active >= 1280 &&
-		    devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_PROGRESSIVE)
+		if (((devp->prop.color_format == TVIN_YUV422 &&
+			devp->fmt_info_p->h_active >= 1280) ||
+		     (devp->prop.color_format == TVIN_YUV420 &&
+			devp->fmt_info_p->h_active >= 720)) &&
+		      devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_PROGRESSIVE) {
+			/* dv 420 12bit: recognize as dv but drop 2-lsb */
+			if (devp->prop.color_format == TVIN_YUV420)
+				devp->bypass_tunnel = true;
 			return false;
-		else
+		} else {
 			return true;
+		}
 	} else {
 		return false;
 	}

@@ -610,7 +610,6 @@ struct vdin_debug_s {
 	bool bypass_update_prop;
 	bool bypass_pc_mode;//bypass pc mode set
 	bool bypass_game_mode;//bypass game mode set
-	bool bypass_tunnel;
 	bool pause_mif_dec;
 	bool pause_afbce_dec;
 	bool bypass_filter_vsync;
@@ -1063,6 +1062,7 @@ struct vdin_dev_s {
 	bool h_skip_en;
 	bool v_skip_en;
 	bool dv_is_not_std;
+	bool bypass_tunnel;
 	unsigned int ignore_frames;
 	/*use frame rate to cal duration*/
 	unsigned int use_frame_rate;
