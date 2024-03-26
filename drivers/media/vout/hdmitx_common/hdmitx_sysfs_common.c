@@ -731,8 +731,13 @@ static ssize_t phy_store(struct device *dev,
 		while (global_tx_hw->tmds_phy_op) {
 			usleep_range(mute_us, mute_us + 10);
 			cnt++;
-			if (cnt > 3)
+			if (cnt > 3) {
+				HDMITX_ERROR("not have vsync intr, manually turn off phy\n");
+				hdmitx_hw_cntl_misc(global_tx_hw,
+					MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
+				global_tx_hw->tmds_phy_op = TMDS_PHY_NONE;
 				break;
+			}
 		}
 		if (hdmitx_find_vendor_phy_delay(global_tx_common->EDID_buf)) {
 			usleep_range(delay_frame * mute_us, delay_frame * mute_us + 10);
