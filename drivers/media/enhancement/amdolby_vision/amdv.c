@@ -15781,6 +15781,8 @@ static const char dv_mode_str[6][12] = {
 	"BYPASS"
 };
 
+u32 amdv_ll_policy_enable;
+
 unsigned int amdv_check_enable(void)
 {
 	int uboot_dv_mode = 0;
@@ -15843,60 +15845,35 @@ unsigned int amdv_check_enable(void)
 	if (is_aml_g12() || is_aml_sc2() || is_aml_tm2_stbmode() ||
 		is_aml_t7_stbmode() || is_aml_s4d() || is_aml_s5()) {
 		if (amdv_on_in_uboot) {
-			if (is_aml_s5()) {
-				if (amdv_uboot_on == 2) {
-					if ((READ_VPP_DV_REG
-						(AMDV_CORE3_DIAG_CTRL) & 0xff) == 0x3) {
-						/*LL RGB444 mode*/
-						uboot_dv_mode = dv_mode_table[2];
-						uboot_dv_source_led_rgb = 1;
-					} else {
-						/*LL YUV422 mode*/
-						uboot_dv_mode = dv_mode_table[2];
-						uboot_dv_source_led_yuv = 1;
-					}
-				} else if (amdv_uboot_on == 3) {
-					/*HDR mode*/
-					uboot_dv_mode = dv_mode_table[3];
-					uboot_dv_source_led_yuv = 1;
-				} else if (amdv_uboot_on == 4) {
-					/*SDR mode*/
-					uboot_dv_mode = dv_mode_table[5];
-					uboot_dv_source_led_yuv = 1;
-				} else {
-					/*STANDARD RGB444 mode*/
-					uboot_dv_mode = dv_mode_table[2];
-					uboot_dv_sink_led = 1;
-				}
-			} else {
-				if ((READ_VPP_DV_REG(AMDV_CORE3_DIAG_CTRL)
-					& 0xff) == 0x20) {
-					/*LL YUV422 mode*/
-					uboot_dv_mode = dv_mode_table[2];
-					uboot_dv_source_led_yuv = 1;
-				} else if ((READ_VPP_DV_REG
-					(AMDV_CORE3_DIAG_CTRL)
-					& 0xff) == 0x3) {
+			if (amdv_uboot_on == 2) {
+				if ((READ_VPP_DV_REG
+					(AMDV_CORE3_DIAG_CTRL) & 0xff) == 0x3) {
 					/*LL RGB444 mode*/
 					uboot_dv_mode = dv_mode_table[2];
 					uboot_dv_source_led_rgb = 1;
 				} else {
-					if (READ_VPP_DV_REG
-						(AMDV_CORE3_REG_START + 1)
-						== 2) {
-						/*HDR10 mode*/
-						uboot_dv_mode = dv_mode_table[3];
-					} else if (READ_VPP_DV_REG
-						(AMDV_CORE3_REG_START + 1)
-						== 4) {
-						/*SDR mode*/
-						uboot_dv_mode = dv_mode_table[5];
-					} else {
-						/*STANDARD RGB444 mode*/
-						uboot_dv_mode = dv_mode_table[2];
-						uboot_dv_sink_led = 1;
-					}
+					/*LL YUV422 mode*/
+					uboot_dv_mode = dv_mode_table[2];
+					uboot_dv_source_led_yuv = 1;
 				}
+			} else if (amdv_uboot_on == 3) {
+				/*HDR mode*/
+				uboot_dv_mode = dv_mode_table[3];
+				if (amdv_ll_policy_enable == 1)
+					uboot_dv_sink_led = 1;
+				else if (amdv_ll_policy_enable == 2)
+					uboot_dv_source_led_yuv = 1;
+			} else if (amdv_uboot_on == 4) {
+				/*SDR mode*/
+				uboot_dv_mode = dv_mode_table[5];
+				if (amdv_ll_policy_enable == 1)
+					uboot_dv_sink_led = 1;
+				else if (amdv_ll_policy_enable == 2)
+					uboot_dv_source_led_yuv = 1;
+			} else {
+				/*STANDARD RGB444 mode*/
+				uboot_dv_mode = dv_mode_table[2];
+				uboot_dv_sink_led = 1;
 			}
 			if (recovery_mode) {/*recovery mode*/
 				pr_info("recovery_mode\n");
@@ -15953,6 +15930,9 @@ unsigned int amdv_check_enable(void)
 						force_mode = uboot_dv_mode;
 						dolby_vision_status =
 							HDR_PROCESS;
+						dolby_vision_ll_policy = uboot_dv_sink_led ?
+							DOLBY_VISION_LL_DISABLE :
+							DOLBY_VISION_LL_YUV422;
 						pr_info("dovi enable in uboot and mode is HDR10\n");
 						last_dst_format = FORMAT_HDR10;
 					} else if (uboot_dv_mode ==
@@ -15963,6 +15943,9 @@ unsigned int amdv_check_enable(void)
 						force_mode = uboot_dv_mode;
 						dolby_vision_status =
 							SDR_PROCESS;
+						dolby_vision_ll_policy = uboot_dv_sink_led ?
+							DOLBY_VISION_LL_DISABLE :
+							DOLBY_VISION_LL_YUV422;
 						pr_info("dovi enable in uboot and mode is SDR\n");
 						last_dst_format = FORMAT_SDR;
 					} else {
@@ -17358,6 +17341,22 @@ static int get_amdv_uboot_policy(char *str)
 	return 0;
 }
 __setup("hdr_policy=", get_amdv_uboot_policy);
+
+static int get_amdv_uboot_ll_policy(char *str)
+{
+	if (strncmp("1", str, 1) == 0) {
+		amdv_ll_policy_enable = 1;
+		pr_debug("boot dolby_vision_ll_policy: 1\n");
+	} else if (strncmp("0", str, 1) == 0) {
+		amdv_ll_policy_enable = 0;
+		pr_debug("boot dolby_vision_ll_policy: 0\n");
+	} else if (strncmp("2", str, 1) == 0) {
+		amdv_ll_policy_enable = 2;
+		pr_debug("boot dolby_vision_ll_policy: 2\n");
+	}
+	return 0;
+}
+__setup("dolby_status=", get_amdv_uboot_ll_policy);
 
 static int recovery_mode_check(char *str)
 {
