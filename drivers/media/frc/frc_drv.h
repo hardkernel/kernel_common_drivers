@@ -122,10 +122,10 @@
 // frc_20240417 frc add debug setting for T5M user
 // frc_20240405 fix pps adapt abnormal
 // frc_20240428 frc add lost task info when working
-// frc_2024-0510 memc func run in irq
+// frc_20240510 memc func run in irq
 // frc_20240522 modify t5m dlg flow
 
-#define FRC_FW_VER			"2024-0522 adjusting the mcdw parameter in litter win"
+#define FRC_FW_VER			"2024-0522 adjust mcdw param for window size"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
@@ -172,7 +172,7 @@ extern int frc_dbg_en;
 
 #define FRC_TOTAL_BUF_NUM		16
 #define FRC_BUF_NUM_T3		FRC_TOTAL_BUF_NUM
-#define FRC_BUF_NUM_T5M		FRC_TOTAL_BUF_NUM //  / 2
+#define FRC_BUF_NUM_T5M		(FRC_TOTAL_BUF_NUM / 2)
 #define FRC_BUF_NUM_T3X		FRC_TOTAL_BUF_NUM
 
 #define FRC_MEMV_BUF_NUM		6
