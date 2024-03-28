@@ -26,6 +26,7 @@ char name_crg[32];
 
 #define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT_5_0 0x3f
 #define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0 0x7f
+#define BIT_U(x) (1U << (x))
 
 static void usb_set_calibration_trim
 	(void __iomem *reg, struct amlogic_usb_v2 *phy)
@@ -168,6 +169,7 @@ static void set_usb_pll_v0(struct amlogic_usb_v2 *phy, void __iomem	*reg)
 	}
 }
 
+/* txhd2, s1a */
 static void set_usb_pll_v1(struct amlogic_usb_v2 *phy, void __iomem	*reg)
 {
 #define USBPLL_RESET_BIT 18
@@ -205,12 +207,16 @@ __retry:
 	goto __retry;
 }
 
+/* s7 */
 static void set_usb_pll_v2(struct amlogic_usb_v2 *phy, void __iomem	*reg)
 {
 #define USBPLL_LK_RST_BIT	28
 #define USBPLL_EN_BIT		11
 #define USB2_MPLL_EN_CTRL_BIT 1
 #define USBPLL_RST_BIT		0
+/* usb2_squelch_trim: usb2_reg_cfg[28]##reg32_03[2:0] (MSB->LSB) default 0b0111
+ * usb2_disc_trim: usb2_reg_cfg[27]##reg32_03[6:4] (MSB->LSB) default 0b1000
+ */
 #define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0_v2 0x7
 
 	u32 retry = 5;
@@ -246,6 +252,69 @@ __retry:
 		return;
 
 	goto __retry;
+}
+
+/* s7d */
+static void set_usb_pll_v3(struct amlogic_usb_v2 *phy, void __iomem *phy_reg_base)
+{
+#define USB2_MPPLL_EN_CTRL_BIT	27
+#define USBPLL_BIAS_EN_BIT	26
+#define USB2_PLL_RSTN_BIT	25
+#define USB2_PLL_LOCK_EN_BIT	24
+#define USB2_PLL_DONE		31
+/* usb2_squelch_trim: reg32_03[3:0] (MSB->LSB) default 0b0111
+ * usb2_disc_trim: usb2_reg_cfg[27]##reg32_03[6:4] (MSB->LSB) default 0b1000
+ */
+#define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0_v3 0x7f
+	u32 retry = 5;
+	int plldone_i;
+	u32 pll_val;
+	/* default value
+	 * USB2_MPPLL_EN_CTRL	0
+	 * USBPLL_BIAS_EN	0
+	 * USB2_PLL_RSTN	0
+	 * USB2_PLL_LOCK_EN	0
+	 */
+	u32 def_val = 0x549540;
+	void __iomem *pll_cfg = phy_reg_base + 0x40;
+
+	pll_val = readl(phy_reg_base);
+	/*Enable PLL Control*/
+	pll_val |= BIT_U(USB2_MPPLL_EN_CTRL_BIT);
+	writel(pll_val, pll_cfg);
+	usleep_range(10, 20);
+
+	while (retry--) {
+		/* Reset Register value */
+		pll_val = def_val | BIT_U(USB2_MPPLL_EN_CTRL_BIT);
+		writel(pll_val, pll_cfg);
+		usleep_range(10, 20);
+		/* assert usb_pll_bias_en */
+		pll_val |= BIT_U(USBPLL_BIAS_EN_BIT);
+		writel(pll_val, pll_cfg);
+		/* delay 20μs */
+		usleep_range(20, 30);
+		/* assert usb_pll_rstn */
+		pll_val |= BIT_U(USB2_PLL_RSTN_BIT);
+		writel(pll_val, pll_cfg);
+		/* delay 20μs */
+		usleep_range(20, 30);
+		/* assert usb_pll_lock_en */
+		pll_val |= BIT_U(USB2_PLL_LOCK_EN_BIT);
+		writel(pll_val, pll_cfg);
+		/* check lock bit */
+		for (plldone_i = 5; plldone_i > 0; plldone_i--) {
+			usleep_range(20, 30);
+			if (readl(pll_cfg) & BIT_U(USB2_PLL_DONE))
+				goto okay;
+		}
+		dev_dbg(phy->dev, "usb2 pll not locked, retry. val: 0x%08x\n", readl(pll_cfg));
+	}
+	dev_err(phy->dev, "%s set pll failed, exit, val:0x%08x.\n", __func__, readl(pll_cfg));
+	return;
+okay:
+	dev_info(phy->dev, "usb2 pll init done, val: 0x%08x\n", readl(pll_cfg));
+	writel(PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0_v3, phy_reg_base + 0xC);
 }
 
 static void amlogic_crg_drd_usb2_set_usb_vbus_power
@@ -768,6 +837,9 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 		break;
 	case 2:
 		phy->set_usb_pll = set_usb_pll_v2;
+		break;
+	case 3:
+		phy->set_usb_pll = set_usb_pll_v3;
 		break;
 	default:
 		dev_err(phy->dev, "No matching pll-version.");
