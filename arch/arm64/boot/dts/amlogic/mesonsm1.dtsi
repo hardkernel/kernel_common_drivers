@@ -1729,14 +1729,13 @@
 		//clocks = <&clkc CLKID_VPU_CLKC_MUX>;
 		//clock-names = "vpu_clkc";
 	};
+
 	irblaster: meson-irblaster {
 		compatible = "amlogic, meson_irblaster";
 		reg = <0x0 0xff80014c 0x0 0x10>,
 			<0x0 0xff800040 0x0 0x4>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&irblaster_pins>;
 		interrupts = <0 198 1>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	sd_emmc_c: emmc@ffe07000 {
@@ -2236,6 +2235,27 @@
 			"jtag_a_clk",
 			"jtag_a_tms";
 			function = "jtag_a";
+		};
+	};
+
+	remote_pins:remote_pin {
+		mux {
+			groups = "remote_ao_input";
+			function = "remote_ao_input";
+		};
+	};
+
+	irblaster_pins:irblaster_pin {
+		mux {
+			groups = "remote_ao_out";
+			function = "remote_ao_out";
+		};
+	};
+
+	pwm_a_pins2: pwm_a_pins2 {
+		mux {
+			groups = "pwm_a_e";
+			function = "pwm_a_e";
 		};
 	};
 };
@@ -2882,26 +2902,3 @@
 				   <0>; /* Do Nothing */
 
 };
-
-&pinctrl_aobus {
-	remote_pins:remote_pin {
-		mux {
-			groups = "remote_ao_input";
-			function = "remote_ao_input";
-		};
-	};
-
-	irblaster_pins:irblaster_pin {
-		mux {
-			groups = "remote_ao_out";
-			function = "remote_ao_out";
-		};
-	};
-
-	pwm_a_pins2: pwm_a_pins2 {
-		mux {
-			groups = "pwm_a_e";
-			function = "pwm_a_e";
-		};
-	};
-}; /* end of pinctrl_aobus */
