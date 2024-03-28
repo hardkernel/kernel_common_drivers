@@ -133,8 +133,10 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x19000000>;
+			/*
+			 * DTV PIP is the largest scenario, requiring 316MB.
+			 */
+			size = <0x0 0x13C00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
