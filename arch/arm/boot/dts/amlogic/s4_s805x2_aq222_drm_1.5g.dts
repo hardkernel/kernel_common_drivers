@@ -140,8 +140,10 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* ion_codec_mm max can alloc size 80M*/
-			size = <0xDC00000>;
+			/*
+			 * DTV FCC is the largest scenario, requiring 328MB.
+			 */
+			size = <0x14800000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x30000000 0x50000000>;
 			linux,contiguous-region;
