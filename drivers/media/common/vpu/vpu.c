@@ -1861,6 +1861,7 @@ static struct vpu_data_s vpu_data_tm2 = {
 	.mem_pd_reg[3] = HHI_VPU_MEM_PD_REG3,
 	.mem_pd_reg[4] = HHI_VPU_MEM_PD_REG4,
 	.mem_pd_reg_flag = 0,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = NULL,
 
@@ -1904,6 +1905,7 @@ static struct vpu_data_s vpu_data_tm2b = {
 	.mem_pd_reg[3] = HHI_VPU_MEM_PD_REG3,
 	.mem_pd_reg[4] = HHI_VPU_MEM_PD_REG4,
 	.mem_pd_reg_flag = 0,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = NULL,
 
@@ -1947,6 +1949,7 @@ static struct vpu_data_s vpu_data_sc2 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -1990,6 +1993,7 @@ static struct vpu_data_s vpu_data_t5 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD6_T5,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD7_T5,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2033,6 +2037,7 @@ static struct vpu_data_s vpu_data_t5d = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD6_T5,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD7_T5,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2076,6 +2081,7 @@ static struct vpu_data_s vpu_data_t5w = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD6_T5,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD7_T5,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2119,6 +2125,7 @@ static struct vpu_data_s vpu_data_t7 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table_t7,
 
@@ -2162,6 +2169,7 @@ static struct vpu_data_s vpu_data_s4 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2205,6 +2213,7 @@ static struct vpu_data_s vpu_data_t3 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table_t3,
 
@@ -2250,6 +2259,7 @@ static struct vpu_data_s vpu_data_s4d = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2294,6 +2304,7 @@ static struct vpu_data_s vpu_data_s1a = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2339,6 +2350,7 @@ static struct vpu_data_s vpu_data_c3 = {
 	.mem_pd_reg[3] = VPU_REG_END,
 	.mem_pd_reg[4] = VPU_REG_END,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2383,6 +2395,7 @@ static struct vpu_data_s vpu_data_s5 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table_t7,
 
@@ -2427,6 +2440,7 @@ static struct vpu_data_s vpu_data_t5m = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2470,6 +2484,7 @@ static struct vpu_data_s vpu_data_g12a = {
 	.mem_pd_reg[3] = VPU_REG_END,
 	.mem_pd_reg[4] = VPU_REG_END,
 	.mem_pd_reg_flag = 0,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2513,6 +2528,7 @@ static struct vpu_data_s vpu_data_g12b = {
 	.mem_pd_reg[3] = VPU_REG_END,
 	.mem_pd_reg[4] = VPU_REG_END,
 	.mem_pd_reg_flag = 0,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2556,6 +2572,7 @@ static struct vpu_data_s vpu_data_t3x = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table_t3x,
 
@@ -2599,6 +2616,7 @@ static struct vpu_data_s vpu_data_sm1 = {
 	.mem_pd_reg[3] = HHI_VPU_MEM_PD_REG3_SM1,
 	.mem_pd_reg[4] = HHI_VPU_MEM_PD_REG4_SM1,
 	.mem_pd_reg_flag = 0,
+	.vpu_read_type = READ0_2,
 
 	.pwrctrl_id_table = NULL,
 
@@ -2642,6 +2660,7 @@ static struct vpu_data_s vpu_data_txhd2 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD6_T5,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD7_T5,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = ONLY_READ0,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2685,6 +2704,7 @@ static struct vpu_data_s vpu_data_s7 = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = ONLY_READ0,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
