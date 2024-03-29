@@ -696,6 +696,8 @@ static void earctx_update_attend_event(struct earc *p_earc,
 
 	if (state) {
 		if (is_earc) {
+			if (p_earc->tx_arc_status == ATNDTYP_EARC)
+				return;
 			p_earc->earctx_connected_device_type = ATNDTYP_EARC;
 			dev_info(p_earc->dev, "send EARCTX_ARC_STATE=ATNDTYP_EARC\n");
 			spin_lock_irqsave(&p_earc->tx_lock, flags);
@@ -757,8 +759,6 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 	}
 
 	if (status0 & INT_EARCTX_CMDC_EARC) {
-		earctx_update_attend_event(p_earc,
-					   true, true);
 		p_earc->tx_reset_hpd = false;
 		dev_info(p_earc->dev, "EARCTX_CMDC_EARC\n");
 	}
@@ -788,6 +788,9 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 			earctx_cmdc_get_cds(p_earc->tx_cmdc_map,
 				p_earc->tx_cds_data);
 		}
+		/* bit 5 is rx_cap_chng */
+		if (p_earc->tx_heartbeat_state & (0x1 << 5))
+			earctx_update_attend_event(p_earc, true, true);
 		p_earc->tx_heartbeat_state = state;
 		mutex_unlock(&earc_mutex);
 	}
