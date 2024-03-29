@@ -309,8 +309,8 @@ static void meson_panel_cal_brr(struct meson_panel *am_lcd,
 			  drm_mode_vrefresh(adj_mode));
 		if (group->width == adj_mode->hdisplay &&
 		    group->height == adj_mode->vdisplay &&
-		    group->vrr_min <= drm_mode_vrefresh(adj_mode) &&
-		    group->vrr_max >= drm_mode_vrefresh(adj_mode)) {
+		    group->vrr_min / VRR_DIV <= drm_mode_vrefresh(adj_mode) &&
+		    group->vrr_max / VRR_DIV >= drm_mode_vrefresh(adj_mode)) {
 			break;
 		}
 	}
@@ -319,6 +319,7 @@ static void meson_panel_cal_brr(struct meson_panel *am_lcd,
 	if (i != am_lcd->num_vrr_group) {
 		strncpy(crtc_state->brr_mode, group->modename, DRM_DISPLAY_MODE_LEN);
 		crtc_state->brr_mode[DRM_DISPLAY_MODE_LEN - 1] = '\0';
+		/*group->brr only used by lcd, not div 100*/
 		crtc_state->brr = group->brr;
 		crtc_state->valid_brr = 1;
 	} else {

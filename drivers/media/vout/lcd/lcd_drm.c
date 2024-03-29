@@ -296,8 +296,8 @@ static int get_lcd_modes_vrr_range(struct meson_panel_dev *panel, void *range, i
 		group = &((struct drm_vrr_mode_group *)range)[cnt];
 		group->width = timing->h_active;
 		group->height = timing->v_active;
-		group->vrr_min = timing->frame_rate_min;
-		group->vrr_max = timing->frame_rate_max;
+		group->vrr_min = timing->frame_rate_min * VRR_DIV;
+		group->vrr_max = timing->frame_rate_max * VRR_DIV;
 		group->brr = timing->frame_rate;
 		sprintf(group->modename, "%s%dhz", temp_list->info->name, temp_list->info->base_fr);
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)

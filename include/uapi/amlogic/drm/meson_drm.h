@@ -27,6 +27,8 @@
 #define FBIOGET_DISPLAY_MODE             0x4580
 
 #define MAX_VRR_MODE_GROUP 12
+#define VRR_DIV 100
+
 /* 40 bpp RGB */
 #define DRM_FORMAT_ABGR10101010	fourcc_code('A', 'B', '4', '0')
 		/* [39:0] A:B:G:R 10:10:10:10 little endian */
