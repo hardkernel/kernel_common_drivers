@@ -286,6 +286,8 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 	struct atv_demod_parameters *p = &priv->atvdemod_param;
 	struct analog_parameters ptuner = { 0 };
 
+	mutex_lock(&atv_demod_list_mutex);
+
 	priv->standby = true;
 
 	/* tuner config, no need cvbs format, just audio mode. */
@@ -338,12 +340,16 @@ static void atv_demod_set_params(struct dvb_frontend *fe,
 
 		pr_dbg("%s:frequency %d\n", __func__, p->param.frequency);
 	}
+
+	mutex_unlock(&atv_demod_list_mutex);
 }
 
 static int atv_demod_has_signal(struct dvb_frontend *fe, u16 *signal)
 {
 	int vpll_lock = 0;
 	int line_lock = 0;
+
+	//mutex_lock(&atv_demod_list_mutex);
 
 	retrieve_vpll_carrier_lock(&vpll_lock);
 
@@ -360,12 +366,16 @@ static int atv_demod_has_signal(struct dvb_frontend *fe, u16 *signal)
 				__func__, vpll_lock, line_lock);
 	}
 
+	//mutex_unlock(&atv_demod_list_mutex);
+
 	return 0;
 }
 
 static void atv_demod_standby(struct dvb_frontend *fe)
 {
 	struct atv_demod_priv *priv = fe->analog_demod_priv;
+
+	mutex_lock(&atv_demod_list_mutex);
 
 	if (priv->state != ATVDEMOD_STATE_IDEL) {
 		atv_demod_leave_mode(fe);
@@ -374,15 +384,24 @@ static void atv_demod_standby(struct dvb_frontend *fe)
 	}
 
 	pr_info("%s:OK\n", __func__);
+
+	mutex_unlock(&atv_demod_list_mutex);
 }
 
 static void atv_demod_tuner_status(struct dvb_frontend *fe)
 {
+	// mutex_lock(&atv_demod_list_mutex);
+
+	// mutex_unlock(&atv_demod_list_mutex);
 }
 
 static int atv_demod_get_afc(struct dvb_frontend *fe, s32 *afc)
 {
+	mutex_lock(&atv_demod_list_mutex);
+
 	*afc = retrieve_vpll_carrier_afc();
+
+	mutex_unlock(&atv_demod_list_mutex);
 
 	return 0;
 }
@@ -515,6 +534,7 @@ int tuner_rssi = -80;
 bool support_secam_l;
 
 bool slow_mode;
+unsigned int pre_std;
 
 
 static v4l2_std_id atvdemod_fmt_2_v4l2_std(int fmt)
@@ -1357,6 +1377,11 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 				v4l2_std_to_str(p->audmode));
 	}
 
+	if (pre_std) {
+		pr_info("pre_std 0x%x\n", pre_std);
+		p->std = pre_std;
+	}
+
 	priv_cfg = AML_ATVDEMOD_SCAN_MODE;
 	fe->ops.analog_ops.set_config(fe, &priv_cfg);
 
@@ -1555,3 +1580,26 @@ int atv_demod_get_adc_status(void)
 {
 	return adc_get_status(ADC_ATV_DEMOD);
 }
+
+/*
+ * state:
+ * 0 - unlocked.
+ * 1 - locked.
+ */
+void aml_fe_get_atvdemod_state(int *state)
+{
+	struct dvb_frontend *fe = NULL;
+	struct atv_demod_priv *priv = NULL;
+
+	*state = 0;
+
+	if (amlatvdemod_devp) {
+		fe = &amlatvdemod_devp->v4l2_fe.fe;
+		priv = amlatvdemod_devp->v4l2_fe.fe.analog_demod_priv;
+		if (priv && priv->state == ATVDEMOD_STATE_WORK) {
+			if (priv->monitor.lock_cnt)
+				*state = 1;
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(aml_fe_get_atvdemod_state);

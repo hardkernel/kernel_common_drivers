@@ -76,7 +76,8 @@
 /* 2024/06/25 --- V3.11 --- Revert "Fix pal bg gde filter and peaking", cause vbi abnormality. */
 /* 2024/08/09 --- V4.00 --- t6d bringup */
 /* 2024/08/23 --- V4.01 --- Fix adec leave timing. */
-#define AMLATVDEMOD_VER "V4.01"
+/* 2024/11/13 --- V4.02 --- add ops callbacks mutex and state callbacks for tvafe. */
+#define AMLATVDEMOD_VER "V4.02"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
