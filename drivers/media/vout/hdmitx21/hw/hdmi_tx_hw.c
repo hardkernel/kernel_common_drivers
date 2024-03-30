@@ -819,7 +819,8 @@ static void set_hdmi_tx_pixel_div(u32 div)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, 1, 5, 1);
 	//for s7
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) {
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) {
 		if (hdev->tx_comm.fmt_para.cs == HDMI_COLORSPACE_YUV420) {
 			hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 1, 1, 1);
 			hd21_set_reg_bits(CLKCTRL_HDMI_CLK_CTRL, 1, 16, 1);
@@ -874,8 +875,7 @@ static void set_hdmitx_fe_clk(void)
 	hd21_set_reg_bits(vid_clk_cntl2, 1, 9, 1);
 	/* divider same as encp */
 	tmp = (hd21_read_reg(vid_clk_div) >> 24) & 0xf;
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S1A ||
-		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D)//s7d todo
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S1A)
 		hd21_set_reg_bits(hdmi_clk_cntl, 0, 20, 4);
 	else
 		hd21_set_reg_bits(hdmi_clk_cntl, tmp, 20, 4);
@@ -1282,8 +1282,10 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 	hdmitx_phy_pre_init(hdev);
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_T7 ||
 		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S1A ||
-		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D)
 		_hdmitx21_set_clk();
+
 	/* [92]cts_htx_tmds clk config */
 	hdmitx_set_clkdiv(hdev);
 	hdmitx_mux_vid_pll_clk(hdev);
@@ -1550,6 +1552,7 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 	switch (hdev->tx_hw.chip_data->chip_type) {
 	case MESON_CPU_ID_S1A:
 	case MESON_CPU_ID_S7:
+	case MESON_CPU_ID_S7D:
 		if (para->timing.pi_mode == 0 &&
 			(para->timing.v_active == 480 || para->timing.v_active == 576))
 			data32 |= 1;

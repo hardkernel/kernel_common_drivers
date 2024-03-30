@@ -389,6 +389,7 @@ static void clocks_set_vid_clk_div_for_hdmi(int div_sel)
 	switch (hdev->tx_hw.chip_data->chip_type) {
 	case MESON_CPU_ID_S1A:
 	case MESON_CPU_ID_S7:
+	case MESON_CPU_ID_S7D:
 		reg_vid_pll = CLKCTRL_VID_PLL_CLK0_DIV;
 		break;
 	case MESON_CPU_ID_T7:
@@ -496,6 +497,7 @@ static void clocks_set_vid_clk_div_for_hdmi(int div_sel)
 
 	/* Enable the final output clock */
 	hd21_set_reg_bits(reg_vid_pll, 1, 19, 1);
+
 }
 
 static void set_vid_clk_div(struct hdmitx_dev *hdev, u32 div)
@@ -1019,10 +1021,6 @@ void set_hdmitx_s7d_htx_pll(struct hdmitx_dev *hdev)
 			break;
 		}
 	}
-	if (check_clock_shift(vic, frac_rate) == 1)
-		base_pixel_clk = base_pixel_clk - base_pixel_clk / 1001;
-	if (check_clock_shift(vic, frac_rate) == 2)
-		base_pixel_clk = base_pixel_clk + base_pixel_clk / 1000;
 	base_pixel_clk = base_pixel_clk * 10; /* for tmds modes, here should multi 10 */
 	if (cs == HDMI_COLORSPACE_YUV420)
 		base_pixel_clk /= 2;
@@ -1041,9 +1039,6 @@ void set_hdmitx_s7d_htx_pll(struct hdmitx_dev *hdev)
 		div *= 2;
 		htx_vco *= 2;
 	} while (div <= 32);
-
-	/* the hdmi phy works under DUAL mode, and the div should be multiply 2 */
-	div *= 2;
 
 	set21_s7d_htxpll_clk_out(htx_vco, div);
 }
@@ -1134,6 +1129,8 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 	}
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) { //s7d todo
 		set_hdmitx_s7d_htx_pll(hdev);
+		if (hdev->tx_hw.s7_clk_config)
+			return;
 		if (cs != HDMI_COLORSPACE_YUV422) {
 			if (cd == COLORDEPTH_36B)
 				clk_div_val = VID_PLL_DIV_7p5;

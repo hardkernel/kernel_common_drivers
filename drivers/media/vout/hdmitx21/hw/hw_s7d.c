@@ -48,7 +48,7 @@ static void set_s7d_htxpll_clk_other(const u32 clk, const bool frl_en)
 	u32 remainder;
 
 	if (clk < 3000000 || clk >= 6000000) {
-		HDMITX_ERROR("%s[%d] clock should be 4~6G\n", __func__, __LINE__);
+		pr_err("%s[%d] clock should be 4~6G\n", __func__, __LINE__);
 		return;
 	}
 
@@ -57,26 +57,31 @@ static void set_s7d_htxpll_clk_other(const u32 clk, const bool frl_en)
 	/* remainder range: 0 ~ 23999, 0x5dbf, 15bits */
 	remainder *= 1 << 17;
 	remainder /= 24000;
-
-	hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x00801000 | (quotient << 0));
-	hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x106011c8);
-	hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x86101000);
-	hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x00000000 | remainder);
-	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 1, 28, 1);
+	hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x50016000 | (quotient << 0));
+	hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x9040137d);
+	hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x04000000);
+	hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x01160000 | remainder);
+	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0, 30, 1);
 	usleep_range(10, 20);
-	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, 1, 29, 1);
+	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 1, 18, 1);
 	usleep_range(10, 20);
-	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 1, 29, 1);
+	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 1, 30, 1);
+	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0, 18, 1);
 	usleep_range(80, 90);
-	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL1, 1, 2, 1);
+	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 1, 29, 1);
 	usleep_range(80, 90);
 	WAIT_FOR_PLL_LOCKED(ANACTRL_HDMIPLL_CTRL0);
 }
 
-void set21_s7d_htxpll_clk_out(const u32 clk, const u32 div)
+void set21_s7d_htxpll_clk_out(const u32 clk, u32 div)
 {
-	u32 div1;
-	u32 div2;
+	u32 pll_od0 = 0;
+	u32 pll_od00 = 0;
+	u32 pll_od01 = 0;
+	u32 pll_od2 = 0;
+	u32 pll_od20 = 0;
+	u32 pll_od21 = 0;
+	u32 pll_od1 = 0;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	enum hdmi_colorspace cs = HDMI_COLORSPACE_YUV444;
 	enum hdmi_color_depth cd = COLORDEPTH_24B;
@@ -88,34 +93,75 @@ void set21_s7d_htxpll_clk_out(const u32 clk, const u32 div)
 	cs = para->cs;
 	cd = para->cd;
 
-	HDMITX_DEBUG("%s[%d] htxpll vco %d div %d\n", __func__, __LINE__, clk, div);
+	HDMITX_INFO("%s[%d] htxpll vco %d div %d\n", __func__, __LINE__, clk, div);
 
 	if (clk <= 3000000 || clk > 6000000) {
-		HDMITX_ERROR("%s[%d] %d out of htxpll range(3~6G]\n", __func__, __LINE__, clk);
+		pr_err("%s[%d] %d out of htxpll range(3~6G]\n", __func__, __LINE__, clk);
 		return;
 	}
-
 	set_s7d_htxpll_clk_other(clk, hdev->frl_rate ? 1 : 0);
 
-	/* setting htxpll div */
-	if (div > 8) {
-		div1 = 8;
-		div2 = div / 8;
-	} else {
-		div1 = div;
-		div2 = 1;
+	//pll_od00
+	if ((div % 8) == 0) {
+		pll_od00 = 3; //div8
+		div = div / 8;
+	} else if ((div % 4) == 0) {
+		pll_od00 = 2; //div4
+		div = div / 4;
+	} else if ((div % 2) == 0) {
+		pll_od00 = 1; //div2
+		div = div / 2;
 	}
-	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, od_map[div1], 19, 2);
-	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, od_map[div2], 21, 2);
-	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, 0, 15, 2);
-	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, 0, 17, 2);
-	if (cs == HDMI_COLORSPACE_YUV420) {
-		if (cd == COLORDEPTH_24B)
-			hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, 1, 19, 2);
-		else
-			hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, 0, 19, 2);
-		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL2, 1, 17, 2);
+
+	//pll_od01
+	if ((div % 8) == 0) {
+		pll_od01 = 3;
+		div = div / 8;
+	} else if ((div % 4) == 0) {
+		pll_od01 = 2;
+		div = div / 4;
+	} else if ((div % 2) == 0) {
+		pll_od01 = 1;
+		div = div / 2;
 	}
+
+	//pll_od0
+	pll_od0 = (pll_od01 << 3) | pll_od00;
+
+	//pll_od20 for clk to phy
+	if ((div % 4) == 0) {
+		pll_od20 = 2;
+		div = div / 4;
+	} else if ((div % 2) == 0) {
+		pll_od20 = 1;
+		div = div / 2;
+	}
+
+	//pll_od21 for clk_out2
+	if (cs == HDMI_COLORSPACE_YUV420)
+		pll_od21 = pll_od20;
+	else
+		pll_od21 = pll_od20 + 1;
+
+	pll_od2 = (pll_od20 << 3) | pll_od21;
+
+	//pll_od1
+	if (cd == COLORDEPTH_24B)
+		pll_od1 = 0;//pll_div3 = 5;
+	else if (cd == COLORDEPTH_30B)
+		pll_od1 = 1;//pll_div3 = 6.25;
+	else if (cd == COLORDEPTH_36B)
+		pll_od1 = 2;//pll_div3 = 7.5;
+
+	//tx_spll_hdmi_clk_select
+	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, 1, 19, 1);
+	HDMITX_INFO("pll_od0 = %d, pll_od2 = %d, pll_od1 = %d\n",
+		pll_od0, pll_od2, pll_od1);
+	//tx_spll_lock_by_pass_alo
+	if (hdev->tx_hw.s7_clk_config)
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, pll_od1, 22, 2);
+	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, pll_od2, 24, 6);
+	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, pll_od0, 20, 6);
 }
 
 void hdmitx_s7d_phy_pre_init(struct hdmitx_dev *hdev)
@@ -132,23 +178,32 @@ void set21_phy_by_mode_s7d(u32 mode)
 	case HDMI_PHYPARA_6G: /* 5.94/4.5/3.7Gbps */
 	case HDMI_PHYPARA_4p5G:
 	case HDMI_PHYPARA_3p7G:
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x0000080b);
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x37eb65c4);
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x2ab0ff3b);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0xa003a0ea);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x555);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x004ef001);
 		break;
 	case HDMI_PHYPARA_3G: /* 2.97Gbps */
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x00000003);
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x33eb42a2);
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x2ab0ff3b);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0xa00380a4);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x555);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x004ef001);
 		break;
 	case HDMI_PHYPARA_270M: /* 1.485Gbps, and below */
 	case HDMI_PHYPARA_DEF:
 	default:
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x00000003);
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x33eb4252);
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x2ab0ff3b);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0xa2238080);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x555);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x004ef001);
 		break;
 	}
+	/* The bit with resetn is configured later than other bits. */
+	usleep_range(100, 110);
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 3, 10, 2);
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 3, 3, 2);
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 1, 1, 1);
+	/* finally config bit[29:28] */
+	usleep_range(1000, 1010);
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 3, 28, 2);
+
 }
 
 void hdmitx21_sys_reset_s7d(void)

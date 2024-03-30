@@ -391,7 +391,8 @@ void intr_status_init_clear(void)
 	u32 gate_status = hdmitx21_get_gate_status();
 
 	for (i = 0; i < sizeof(union intr_u) / sizeof(struct intr_t); i++, pint++) {
-		if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) {
+		if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+			hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) {
 			if (!(gate_status & BIT_HDMITX_TOP_CLK_GATE_HDCP1X)) {
 				if (pint->intr_st_reg == TPI_INTR_ST0_IVCTX)
 					continue;

@@ -37,7 +37,8 @@ static int dump_regs_show(struct seq_file *s, void *p)
 
 	seq_puts(s, "\n--------misc registers--------\n");
 
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) {
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) {
 		// ((0x0000 << 2) + 0xfe008000) ~ ((0x00e0 << 2) + 0xfe008000)
 		dump32(s, ANACTRL_SYS0PLL_CTRL0, ANACTRL_CHIP_TEST_STS);
 		// ((0x0001 << 2) + 0xfe000000) ~ ((0x0126 << 2) + 0xfe000000)
@@ -144,7 +145,8 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	// 0x00000800 - 0x00000879
 	dumpcor(s, CP2TX_CTRL_0_IVCTX, CP2TX_IPT_CTR_39TO32_IVCTX);
 	// 0x000008a0 - 0x000008d0
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) {
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) {
 		gate_status = hdmitx21_get_gate_status();
 		if (gate_status & BIT_HDMITX_TOP_CLK_GATE_HDCP2X) {
 			dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
@@ -178,7 +180,8 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	// 0x00000f00 - 0x00000f27
 	dumpcor(s, D_HDR_GEN_CTL_IVCTX, D_HDR_FIFO_MEM_CTL_IVCTX);
 	// 0x00000f80 - 0x00000fa9
-	if (!(hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7))
+	if (!(hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D))
 		dumpcor(s, DSC_PKT_GEN_CTL_IVCTX, DSC_PKT_SPARE_9_IVCTX);
 	dump_infoframe_packets(s);
 	return 0;
