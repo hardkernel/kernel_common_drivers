@@ -16,6 +16,9 @@
 #define S7D_REE2AO3       (S7D_AO2REE + 4)
 #define S7D_REE2AO4       (S7D_AO2REE + 5)
 #define S7D_REE2AO5       (S7D_AO2REE + 6)
+#define S7D_REE2AO6       (S7D_AO2REE + 7)
+#define S7D_REE2AO7       (S7D_AO2REE + 8)
+#define S7D_REE2AO8       (S7D_AO2REE + 9)
 
 // DEVICE TREE ID
 #define S7D_REE2AO_DEV    S7D_REE2AO0
