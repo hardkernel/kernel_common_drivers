@@ -70,9 +70,8 @@
 			compatible = "shared-dma-pool";
 			/*reusable;*/
 			no-map;
-			size = <0x0 0x400000>;
-			alignment = <0x0 0x400000>;
-			reg = <0x0 0x05000000 0x0 0x3400000>;
+			alignment = <0x0 0x100000>;
+			reg = <0x0 0x05000000 0x0 0x2400000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -156,6 +155,12 @@
 			//no-map;
 		};
 
+		secure_vdec_reserved:linux,secure_vdec_reserved {
+			compatible = "amlogic, secure-vdec-reserved";
+			no-map;
+			size = <0x0 0x1000000>;
+			alignment = <0x0 0x100000>;
+		};
 		/*  vdin0 CMA pool */
 		//vdin0_cma_reserved:linux,vdin0_cma {
 		//	compatible = "shared-dma-pool";
