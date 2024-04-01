@@ -41,10 +41,6 @@
 #include "mmc_key.h"
 #include "mmc_dtb.h"
 #include <linux/proc_fs.h>
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION == 13515
-#include <trace/hooks/mmc.h>
-#endif
 #include <linux/moduleparam.h>
 #include <linux/amlogic/gki_module.h>
 
@@ -67,23 +63,6 @@ struct wifi_clk_table wifi_clk[WIFI_CLOCK_TABLE_MAX] = {
 
 struct mmc_host *sdio_host;
 static char *caps2_quirks = "none";
-
-//#if CONFIG_AMLOGIC_KERNEL_VERSION == 13515
-//void mmc_sd_update_cmdline_timing(void *data, struct mmc_card *card, int *err)
-//{
-//	/* nothing */
-//	*err = 0;
-//}
-//
-//void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err)
-//{
-//	/* nothing */
-//	*err = 0;
-//}
-//
-//#define SD_CMD_TIMING mmc_sd_update_cmdline_timing
-//#define SD_DATA_TIMING mmc_sd_update_dataline_timing
-//#endif
 
 static inline u32 aml_mv_dly1_nommc(u32 x)
 {
@@ -4080,23 +4059,6 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		INIT_DELAYED_WORK(&host->dtbkey, add_dtbkey);
 		schedule_delayed_work(&host->dtbkey, 50);
 	}
-
-#if CONFIG_AMLOGIC_KERNEL_VERSION == 13515
-#ifdef CONFIG_ANDROID_VENDOR_HOOKS
-	if (aml_card_type_non_sdio(host)) {
-		ret =
-		register_trace_android_vh_mmc_sd_update_cmdline_timing(SD_CMD_TIMING,
-			NULL);
-		if (ret)
-			pr_err("register update_cmdline_timing failed, err:%d\n", ret);
-		ret =
-		register_trace_android_vh_mmc_sd_update_dataline_timing(SD_DATA_TIMING,
-			NULL);
-		if (ret)
-			pr_err("register update_dataline timing failed, err:%d\n", ret);
-	}
-#endif
-#endif
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 	if (mmc->debugfs_root && aml_card_type_mmc(host)) {
