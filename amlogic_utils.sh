@@ -221,6 +221,10 @@ function prepare_module_build() {
 	echo EXT_MODULES=${EXT_MODULES}
 
 	rm ${temp_file}
+
+	if [[ -d ${MODULES_STAGING_DIR} ]]; then
+		rm -rf ${MODULES_STAGING_DIR}
+	fi
 }
 export -f prepare_module_build
 
@@ -1915,9 +1919,11 @@ export -f setting_up_for_build
 
 function build_kernel_for_32bit () {
 	set -x
+	pre_defconfig_cmds
 	if [ "${SKIP_DEFCONFIG}" != "1" ] ; then
   		(cd ${KERNEL_DIR} && make ARCH=arm ${TOOL_ARGS} O=${OUT_DIR} "${MAKE_ARGS[@]}" ${DEFCONFIG})
 	fi
+	post_defconfig_cmds
 
 	echo "========================================================"
 	echo " Building kernel"
@@ -1949,8 +1955,6 @@ function build_android_32bit () {
 
 	source ${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/build.config.amlogic32
 
-	pre_defconfig_cmds
-
 	CC_CLANG=1
 
 	set_default_parameters_for_32bit
@@ -1964,8 +1968,6 @@ function build_android_32bit () {
 	mkdir -p ${DIST_DIR} ${MODULES_STAGING_DIR}
 
 	build_kernel_for_32bit
-
-	post_defconfig_cmds
 
 	eval ${POST_KERNEL_BUILD_CMDS}
 
