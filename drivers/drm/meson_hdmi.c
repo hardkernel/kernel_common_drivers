@@ -38,6 +38,7 @@
 #include "meson_hdmi.h"
 #include "meson_vpu.h"
 #include "meson_crtc.h"
+#include "../media/vout/hdmitx_common/hdmitx_check_valid.h"
 
 #define HDMITX_ATTR_LEN_MAX	16
 #define HDMITX_MAX_BPC	12

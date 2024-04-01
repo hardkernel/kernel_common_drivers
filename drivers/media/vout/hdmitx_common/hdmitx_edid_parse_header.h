@@ -30,5 +30,6 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_edid.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include "hdmitx_log.h"
+#include "hdmitx_check_valid.h"
 
 #endif
