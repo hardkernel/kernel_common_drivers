@@ -15,4 +15,5 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX_COMMON) += \
 							vout/hdmitx_common/hdmitx_tracer_linux.o \
 							vout/hdmitx_common/hdmitx_event_mgr_linux.o \
 							vout/hdmitx_common/hdmitx_log.o \
-							vout/hdmitx_common/hdmitx_compliance.o
+							vout/hdmitx_common/hdmitx_compliance.o \
+							vout/hdmitx_common/hdmitx_check_valid.o

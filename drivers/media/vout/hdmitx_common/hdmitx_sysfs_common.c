@@ -12,6 +12,7 @@
 #include "hdmitx_sysfs_common.h"
 #include "hdmitx_log.h"
 #include "hdmitx_compliance.h"
+#include "hdmitx_check_valid.h"
 
 /*!!Only one instance supported.*/
 static struct hdmitx_common *global_tx_common;
@@ -853,6 +854,7 @@ static ssize_t disp_cap_show(struct device *dev,
 	int *edid_vics = vmalloc(vic_len * sizeof(int));
 	enum hdmi_vic prefer_vic = HDMI_0_UNKNOWN;
 
+	mutex_lock(&global_tx_common->valid_mutex);
 	memset(edid_vics, 0, vic_len * sizeof(int));
 
 	/* step1: only select VIC which is supported in EDID */
@@ -905,6 +907,7 @@ static ssize_t disp_cap_show(struct device *dev,
 	}
 
 	vfree(edid_vics);
+	mutex_unlock(&global_tx_common->valid_mutex);
 	return pos;
 }
 
@@ -1074,6 +1077,7 @@ static ssize_t valid_mode_store(struct device *dev,
 	struct hdmi_format_para tst_para;
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 
+	mutex_lock(&global_tx_common->valid_mutex);
 	memset(modename, 0, sizeof(modename));
 	memset(attrstr, 0, sizeof(attrstr));
 	memset(cvalid_mode, 0, sizeof(cvalid_mode));
@@ -1125,6 +1129,7 @@ static ssize_t valid_mode_store(struct device *dev,
 		ret = -1;
 	}
 
+	mutex_unlock(&global_tx_common->valid_mutex);
 	return ret;
 }
 

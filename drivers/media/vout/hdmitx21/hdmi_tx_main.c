@@ -67,6 +67,7 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_audio.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_edid.h>
 #include "../hdmitx_common/hdmitx_compliance.h"
+#include "../hdmitx_common/hdmitx_check_valid.h"
 
 #ifdef CONFIG_AMLOGIC_DSC
 #include <linux/amlogic/media/vout/dsc.h>

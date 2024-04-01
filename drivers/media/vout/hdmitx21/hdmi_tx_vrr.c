@@ -22,6 +22,7 @@
 #include "hdmi_tx_module.h"
 #include "hdmi_tx.h"
 #include "hw/enc_clk_config.h"
+#include "../hdmitx_common/hdmitx_check_valid.h"
 
 /* BRR 720p60hz */
 static const struct mvrr_const_val const_hdmi720p60_6000 = {

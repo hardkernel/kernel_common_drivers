@@ -8,6 +8,7 @@
 #include <linux/component.h>
 #include "hdmitx_drm_hook.h"
 #include "hdmitx_log.h"
+#include "hdmitx_check_valid.h"
 
 /*!!Only one instance supported.*/
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
@@ -110,6 +111,7 @@ int hdmitx_common_get_vic_list(int **vics)
 	int *edid_vics = 0;
 	enum hdmi_vic prefer_vic = HDMI_0_UNKNOWN;
 
+	mutex_lock(&global_tx_base->valid_mutex);
 	viclist = kcalloc(len, sizeof(int),  GFP_KERNEL);
 	edid_vics = vmalloc(len * sizeof(int));
 	memset(edid_vics, 0, len * sizeof(int));
@@ -158,6 +160,7 @@ int hdmitx_common_get_vic_list(int **vics)
 	else
 		*vics = viclist;
 
+	mutex_unlock(&global_tx_base->valid_mutex);
 	return count;
 }
 EXPORT_SYMBOL(hdmitx_common_get_vic_list);
@@ -179,15 +182,18 @@ bool hdmitx_common_chk_mode_attr_sup(char *mode, char *attr)
 	if (!mode || !attr)
 		return false;
 
+	mutex_lock(&global_tx_base->valid_mutex);
 	vic = hdmitx_common_parse_vic_in_edid(global_tx_base, mode);
 	if (vic == HDMI_0_UNKNOWN) {
 		HDMITX_ERROR("%s: get vic from (%s) fail\n", __func__, mode);
+		mutex_unlock(&global_tx_base->valid_mutex);
 		return false;
 	}
 
 	ret = hdmitx_common_validate_vic(global_tx_base, vic);
 	if (ret != 0) {
 		HDMITX_ERROR("validate vic [%s,%s]-%d return error %d\n", mode, attr, vic, ret);
+		mutex_unlock(&global_tx_base->valid_mutex);
 		return false;
 	}
 
@@ -198,6 +204,7 @@ bool hdmitx_common_chk_mode_attr_sup(char *mode, char *attr)
 	if (ret != 0) {
 		hdmitx_format_para_reset(&tst_para);
 		HDMITX_ERROR("build formatpara [%s,%s] return error %d\n", mode, attr, ret);
+		mutex_unlock(&global_tx_base->valid_mutex);
 		return false;
 	}
 
@@ -211,9 +218,11 @@ bool hdmitx_common_chk_mode_attr_sup(char *mode, char *attr)
 	ret = hdmitx_common_validate_format_para(global_tx_base, &tst_para);
 	if (ret != 0) {
 		HDMITX_ERROR("validate formatpara [%s,%s] return error %d\n", mode, attr, ret);
+		mutex_unlock(&global_tx_base->valid_mutex);
 		return false;
 	}
 
+	mutex_unlock(&global_tx_base->valid_mutex);
 	return true;
 }
 EXPORT_SYMBOL(hdmitx_common_chk_mode_attr_sup);

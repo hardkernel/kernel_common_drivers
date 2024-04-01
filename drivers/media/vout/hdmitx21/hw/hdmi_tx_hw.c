@@ -593,6 +593,9 @@ bool hdmitx21_uboot_audio_en(void)
 
 static bool soc_resolution_limited(const struct hdmi_timing *timing, u32 res_v)
 {
+	if (!timing)
+		return 0;
+
 	if (timing->v_active > res_v)
 		return 0;
 	return 1;
