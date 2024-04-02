@@ -87,7 +87,6 @@
 #define COEF_BSPLINE_8TAP             5
 #define COEF_BILINEAR_8TAP            6
 
-#define VPP_SPEED_FACTOR 0x110ULL
 #define SUPER_SCALER_V_FACTOR  100
 #define PPS_FRAC_BITS 24
 #define PPS_INT_BITS 4
@@ -113,7 +112,10 @@ static uint test_pps_v_coef[PPS_COEF_NUM] = {2, 33};
 static uint test_pps_v_coef_8tap[PPS_COEF_8TAP_NUM] = {8, 33};
 static uint force_pps_hcoef_update;
 static uint force_pps_vcoef_update;
+static uint vpp_speed_factor = 0x110;
 uint load_pps_coef;
+MODULE_PARM_DESC(vpp_speed_factor, "\n vpp_speed_factor\n");
+module_param(vpp_speed_factor, uint, 0664);
 MODULE_PARM_DESC(force_pps_hcoef_update, "\n force_pps_hcoef_update\n");
 module_param(force_pps_hcoef_update, uint, 0664);
 MODULE_PARM_DESC(force_pps_vcoef_update, "\n force_pps_vcoef_update\n");
@@ -953,6 +955,16 @@ static bool is_video_output_4k120hz(int freq_ratio,
 		return false;
 }
 
+static bool is_4k2k144hz_out(const struct vinfo_s *vinfo)
+{
+	if ((vinfo->width >= 3840 && vinfo->height >= 1080 &&
+		(vinfo->sync_duration_num == 144 && vinfo->sync_duration_den == 1)) &&
+		(vinfo->width < 7680 && vinfo->height < 2160))
+		return true;
+	else
+		return false;
+}
+
 /*
  *test on txlx:
  *Time_out = (V_out/V_screen_total)/FPS_out;
@@ -1174,6 +1186,8 @@ static int vpp_process_speed_check
 		    ((vf->type & VIDTYPE_VIU_444) ||
 		     (vf->type & VIDTYPE_RGB_444)))
 			bpp = 2;
+		if (is_meson_t5m_cpu() && is_4k2k144hz_out(vinfo))
+			vpp_speed_factor = 0x104;
 		if (height_in * bpp > height_out) {
 			/*
 			 *don't need do skip for under 5% scaler down
@@ -1236,7 +1250,7 @@ static int vpp_process_speed_check
 					cur_vpp_speed_factor = 0x100; //adjust factor for prelink
 					cur_bypass_ratio = bypass_ratio;
 				} else {
-					cur_vpp_speed_factor = VPP_SPEED_FACTOR;
+					cur_vpp_speed_factor = vpp_speed_factor;
 					cur_bypass_ratio = bypass_ratio;
 				}
 				clk_calc = div_u64((u64)cur_vpp_speed_factor *
@@ -1267,7 +1281,7 @@ static int vpp_process_speed_check
 				if (cur_dev->display_module != S5_DISPLAY_MODULE)
 					max_proc_height_temp = 2048;
 				/*TODO vpu */
-				clk_calc = div_u64((u64)VPP_SPEED_FACTOR *
+				clk_calc = div_u64((u64)vpp_speed_factor *
 					    (u64)width_in *
 					    (u64)height_in *
 					    (u64)sync_duration_num *
@@ -1306,7 +1320,7 @@ static int vpp_process_speed_check
 			}
 		} else if (next_frame_par->hscale_skip_count == 0) {
 			/*TODO vpu */
-			clk_calc = div_u64(VPP_SPEED_FACTOR * width_in *
+			clk_calc = div_u64((u64)vpp_speed_factor * width_in *
 				sync_duration_num * height_screen,
 				sync_duration_den * 256);
 			if (super_debug)
