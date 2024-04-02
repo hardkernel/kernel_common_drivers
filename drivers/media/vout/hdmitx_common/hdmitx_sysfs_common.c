@@ -5,10 +5,13 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/uaccess.h>
+#include <linux/delay.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include "hdmitx_sysfs_common.h"
 #include "hdmitx_log.h"
+#include "hdmitx_compliance.h"
 
 /*!!Only one instance supported.*/
 static struct hdmitx_common *global_tx_common;
@@ -17,6 +20,26 @@ static struct hdmitx_hw_common *global_tx_hw;
 const char *hdmitx_mode_get_timing_name(enum hdmi_vic vic);
 
 /************************common sysfs*************************/
+static ssize_t hdmi_efuse_state_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDMI_60HZ = %d\n\r",
+		global_tx_common->efuse_dis_hdmi_4k60);
+	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_OUTPUT_4K = %d\n\r",
+		global_tx_common->efuse_dis_output_4k);
+	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDCP_TX_22 = %d\n\r",
+		global_tx_common->efuse_dis_hdcp_tx22);
+	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDMI_TX_3D = %d\n\r",
+		global_tx_common->efuse_dis_hdmi_tx3d);
+	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDMI = %d\n\r",
+		global_tx_common->efuse_dis_hdcp_tx14);
+	return pos;
+}
+
+static DEVICE_ATTR_RO(hdmi_efuse_state);
+
 static ssize_t attr_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
@@ -30,6 +53,30 @@ static ssize_t attr_show(struct device *dev,
 }
 
 static DEVICE_ATTR_RO(attr);
+
+/* for pxp test */
+static ssize_t test_attr_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	char fmt_attr[16] = {0};
+
+	memcpy(fmt_attr, global_tx_common->tst_fmt_attr, sizeof(fmt_attr));
+	pos = snprintf(buf, PAGE_SIZE, "%s\n\r", fmt_attr);
+
+	return pos;
+}
+
+static ssize_t test_attr_store(struct device *dev,
+		   struct device_attribute *attr,
+		   const char *buf, size_t count)
+{
+	strncpy(global_tx_common->tst_fmt_attr, buf, sizeof(global_tx_common->tst_fmt_attr));
+	global_tx_common->tst_fmt_attr[15] = '\0';
+
+	return count;
+}
+static DEVICE_ATTR_RW(test_attr);
 
 static ssize_t hpd_state_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
@@ -83,7 +130,8 @@ static ssize_t edid_parsing_show(struct device *dev,
 {
 	int pos = 0;
 
-	if (hdmitx_edid_check_data_valid(global_tx_common->EDID_buf))
+	if (hdmitx_edid_check_data_valid(global_tx_common->rxcap.edid_check,
+		global_tx_common->EDID_buf))
 		pos += snprintf(buf + pos, PAGE_SIZE, "ok\n");
 	else
 		pos += snprintf(buf + pos, PAGE_SIZE, "ng\n");
@@ -100,15 +148,121 @@ static ssize_t edid_show(struct device *dev,
 	return hdmitx_edid_print_sink_cap(&global_tx_common->rxcap, buf, PAGE_SIZE);
 }
 
+static int load_edid_string_data(char *string)
+{
+	size_t str_len;
+	int i;
+	bool valid_len;
+	unsigned char *buf = NULL;
+	bool ret;
+	size_t edid_len;
+	unsigned char tmp[3];
+
+	if (!string)
+		return 0;
+
+	str_len = strlen(string);
+	valid_len = 0;
+	for (i = 1; i <= EDID_MAX_BLOCK; i++) {
+		if (str_len == (256 * i + 1)) {
+			valid_len = 1;
+			break;
+		}
+	}
+	if (valid_len == 0)
+		return 0;
+
+	edid_len = (str_len - 1) / 2;
+	buf = kmalloc(edid_len, GFP_KERNEL);
+	if (!buf)
+		return 0;
+	memset(buf, 0, edid_len);
+	/* convert the edid string to hex data */
+	for (i = 0; i < edid_len; i++) {
+		tmp[0] = string[i * 2];
+		tmp[1] = string[i * 2 + 1];
+		tmp[2] = '\0';
+		ret = kstrtou8(tmp, 16, &buf[i]);
+		if (ret)
+			HDMITX_INFO("%s[%d] covert error %c%c ret = %d\n", __func__, __LINE__,
+				string[i * 2], string[i * 2 + 1], ret);
+	}
+
+	hdmitx_edid_buffer_clear(global_tx_common->EDID_buf, sizeof(global_tx_common->EDID_buf));
+	memcpy(global_tx_common->EDID_buf, buf, edid_len);
+
+	kfree(buf);
+	HDMITX_INFO("%s: %zu bytes loaded from edid string\n", __func__, str_len);
+	return 1;
+}
+
+int hdmitx_load_edid_file(u32 type, char *path)
+{
+	if (type == 1)
+		return load_edid_string_data(path);
+	return 0;
+}
+
+int hdmitx_save_edid_file(unsigned char *rawedid, char *path)
+{
+#ifdef CONFIG_AMLOGIC_ENABLE_MEDIA_FILE
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	char line[128] = {0};
+	u32 i = 0, j = 0, k = 0, size = 0, block_cnt = 0;
+	u32 index = 0, tmp = 0;
+
+	filp = filp_open(path, O_RDWR | O_CREAT, 0666);
+	if (IS_ERR(filp)) {
+		HDMITX_INFO("[%s] failed to open/create file: |%s|\n",
+			__func__, path);
+		goto PROCESS_END;
+	}
+
+	block_cnt = rawedid[0x7e] + 1;
+	if (rawedid[0x7e] && rawedid[128 + 4] == EXTENSION_EEODB_EXT_TAG &&
+		rawedid[128 + 5] == EXTENSION_EEODB_EXT_CODE)
+		block_cnt = rawedid[128 + 6] + 1;
+
+	/* dump as txt file*/
+	for (i = 0; i < block_cnt; i++) {
+		for (j = 0; j < 8; j++) {
+			for (k = 0; k < 16; k++) {
+				index = i * 128 + j * 16 + k;
+				tmp = rawedid[index];
+				snprintf((char *)&line[k * 6], 7,
+					 "0x%02x, ",
+					 tmp);
+			}
+			line[16 * 6 - 1] = '\n';
+			line[16 * 6] = 0x0;
+			pos = (i * 8 + j) * 16 * 6;
+		}
+	}
+
+	HDMITX_INFO("[%s] write %d bytes to file %s\n", __func__, size, path);
+
+	vfs_fsync(filp, 0);
+	filp_close(filp, NULL);
+
+PROCESS_END:
+#else
+	HDMITX_ERROR("Not support write file.\n");
+#endif
+	return 0;
+}
+
 static ssize_t edid_store(struct device *dev,
 			  struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
 	u32 argn = 0;
-	char *p = NULL, *para = NULL, *argv[8] = {NULL};
+	char *p = NULL, *para = NULL, *temp_p = NULL, *argv[8] = {NULL};
 	u32 path_length = 0;
+	int ret = 0;
 
 	p = kstrdup(buf, GFP_KERNEL);
+	temp_p = p;
 	if (!p)
 		return count;
 
@@ -150,18 +304,32 @@ static ssize_t edid_store(struct device *dev,
 			goto PROCESS_END;
 		}
 
+		/* get the EDID from current RX device */
+		if (strncmp(argv[1], "0000000000000000", 16) == 0) {
+			HDMITX_INFO("%s[%d] get current RX edid\n", __func__, __LINE__);
+			global_tx_common->forced_edid = 0;
+			hdmitx_common_get_edid(global_tx_common);
+			goto PROCESS_END;
+		}
+
 		/* clean '\n' from file path*/
 		path_length = strlen(argv[1]);
-		if (argv[1][path_length - 1] == '\n')
-			argv[1][path_length - 1] = 0x0;
-		hdmitx_load_edid_file(argv[1]);
+		ret = hdmitx_load_edid_file(1, argv[1]); /* edid data as string for debug */
+		if (ret == 1) {
+			global_tx_common->forced_edid = 1;
+			hdmitx_edid_rxcap_clear(&global_tx_common->rxcap);
+			hdmitx_edid_parse(&global_tx_common->rxcap, global_tx_common->EDID_buf);
+			hdmitx_common_edid_tracer_post_proc(global_tx_common,
+					&global_tx_common->rxcap);
+			hdmitx_edid_print(global_tx_common->EDID_buf);
+			HDMITX_INFO("%s[%d] using the fixed edid\n", __func__, __LINE__);
+		}
 	}
 
 PROCESS_END:
-	kfree(p);
+	kfree(temp_p);
 	return count;
 }
-
 static DEVICE_ATTR_RW(edid);
 
 static ssize_t contenttype_cap_show(struct device *dev,
@@ -513,7 +681,7 @@ static ssize_t frac_rate_policy_store(struct device *dev,
 
 	if (isdigit(buf[0])) {
 		val = buf[0] - '0';
-		HDMITX_INFO("set frac_rate_policy as %d\n", val);
+		HDMITX_DEBUG("set frac_rate_policy as %d\n", val);
 		if (val == 0 || val == 1)
 			global_tx_common->frac_rate_policy = val;
 		else
@@ -545,18 +713,43 @@ static ssize_t phy_store(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	int cmd = TMDS_PHY_ENABLE;
+	global_tx_hw->tmds_phy_op = TMDS_PHY_NONE;
+	unsigned int mute_us;
+	int cnt = 0;
+	/* special WHALEY WTV55K1J TV, need to wait for > 3 frames
+	 * after phy disable and before set new mode
+	 */
+	int delay_frame = 5;
 
 	HDMITX_INFO("%s %s\n", __func__, buf);
-
-	if (strncmp(buf, "0", 1) == 0)
-		cmd = TMDS_PHY_DISABLE;
-	else if (strncmp(buf, "1", 1) == 0)
-		cmd = TMDS_PHY_ENABLE;
-	else
+	mute_us = hdmitx_get_frame_duration();
+	if (strncmp(buf, "0", 1) == 0) {
+		global_tx_hw->tmds_phy_op = TMDS_PHY_DISABLE;
+		/* It is necessary to finish disable phy during the vsync interrupt
+		 * before performing other actions. If the vsync interrupt does not come,
+		 * there is a 3-frame timeout mechanism.
+		 */
+		while (global_tx_hw->tmds_phy_op) {
+			usleep_range(mute_us, mute_us + 10);
+			cnt++;
+			if (cnt > 3) {
+				HDMITX_ERROR("not have vsync intr, manually turn off phy\n");
+				hdmitx_hw_cntl_misc(global_tx_hw,
+					MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
+				global_tx_hw->tmds_phy_op = TMDS_PHY_NONE;
+				break;
+			}
+		}
+		if (hdmitx_find_vendor_phy_delay(global_tx_common->EDID_buf)) {
+			usleep_range(delay_frame * mute_us, delay_frame * mute_us + 10);
+			HDMITX_DEBUG("delay %d frame after phy disable\n", delay_frame);
+		}
+	} else if (strncmp(buf, "1", 1) == 0) {
+		global_tx_hw->tmds_phy_op = TMDS_PHY_ENABLE;
+		hdmitx_hw_cntl_misc(global_tx_hw, MISC_TMDS_PHY_OP, TMDS_PHY_ENABLE);
+	} else {
 		HDMITX_INFO("set phy wrong: %s\n", buf);
-
-	hdmitx_hw_cntl_misc(global_tx_hw, MISC_TMDS_PHY_OP, cmd);
+	}
 	return count;
 }
 
@@ -610,20 +803,30 @@ static ssize_t contenttype_mode_store(struct device *dev,
 		global_tx_common->allm_mode = 0;
 		hdmitx_common_setup_vsif_packet(global_tx_common, VT_ALLM, 0, NULL);
 	}
-	hdmitx_common_setup_vsif_packet(global_tx_common, VT_HDMI14_4K, 1, NULL);
+	/* recover hdmi1.4 vsif */
+	if (hdmitx_edid_get_hdmi14_4k_vic(global_tx_common->fmt_para.vic) &&
+		!hdmitx_dv_en(global_tx_common->tx_hw) &&
+		!hdmitx_hdr10p_en(global_tx_common->tx_hw))
+		hdmitx_common_setup_vsif_packet(global_tx_common, VT_HDMI14_4K, 1, NULL);
 
-	if (com_str(buf, "0") || com_str(buf, "off"))
+	if (com_str(buf, "0") || com_str(buf, "off")) {
 		ct_mode = SET_CT_OFF;
-	else if (com_str(buf, "1") || com_str(buf, "game"))
+		global_tx_common->it_content = 0;
+	} else if (com_str(buf, "1") || com_str(buf, "game")) {
 		ct_mode = SET_CT_GAME;
-	else if (com_str(buf, "2") || com_str(buf, "graphics"))
+		global_tx_common->it_content = 1;
+	} else if (com_str(buf, "2") || com_str(buf, "graphics")) {
 		ct_mode = SET_CT_GRAPHICS;
-	else if (com_str(buf, "3") || com_str(buf, "photo"))
+		global_tx_common->it_content = 1;
+	} else if (com_str(buf, "3") || com_str(buf, "photo")) {
 		ct_mode = SET_CT_PHOTO;
-	else if (com_str(buf, "4") || com_str(buf, "cinema"))
+		global_tx_common->it_content = 1;
+	} else if (com_str(buf, "4") || com_str(buf, "cinema")) {
 		ct_mode = SET_CT_CINEMA;
-
-	hdmitx_hw_cntl_config(global_tx_hw, CONF_CT_MODE, ct_mode);
+		global_tx_common->it_content = 1;
+	}
+	hdmitx_hw_cntl_config(global_tx_hw, CONF_CT_MODE,
+		global_tx_common->it_content << 4 | ct_mode);
 	global_tx_common->ct_mode = ct_mode;
 
 	return count;
@@ -631,6 +834,12 @@ static ssize_t contenttype_mode_store(struct device *dev,
 
 static DEVICE_ATTR_RW(contenttype_mode);
 
+/* sync with hdmitx_common_get_vic_list() */
+/* step1, only select VIC which is supported in EDID
+ * step2, check if VIC is supported by SOC hdmitx
+ * step3, build format with basic mode/attr and check
+ * if it's supported by EDID/hdmitx_cap
+ */
 static ssize_t disp_cap_show(struct device *dev,
 			     struct device_attribute *attr,
 			     char *buf)
@@ -642,9 +851,11 @@ static ssize_t disp_cap_show(struct device *dev,
 	int i, pos = 0;
 	int vic_len = prxcap->VIC_count + VESA_MAX_TIMING;
 	int *edid_vics = vmalloc(vic_len * sizeof(int));
+	enum hdmi_vic prefer_vic = HDMI_0_UNKNOWN;
 
 	memset(edid_vics, 0, vic_len * sizeof(int));
 
+	/* step1: only select VIC which is supported in EDID */
 	/*copy edid vic list*/
 	if (prxcap->VIC_count > 0)
 		memcpy(edid_vics, prxcap->VIC, sizeof(int) * prxcap->VIC_count);
@@ -656,16 +867,12 @@ static ssize_t disp_cap_show(struct device *dev,
 		if (vic == HDMI_0_UNKNOWN)
 			continue;
 
-		if (vic == HDMI_2_720x480p60_4x3 ||
-			vic == HDMI_6_720x480i60_4x3 ||
-			vic == HDMI_17_720x576p50_4x3 ||
-			vic == HDMI_21_720x576i50_4x3) {
-			if (hdmitx_edid_validate_mode(prxcap, vic + 1) == true) {
-				/*HDMITX_INFO("%s: check vic exist, handle [%d] later.\n",
-				 *	__func__, vic + 1);
-				 */
-				continue;
-			}
+		prefer_vic = hdmitx_get_prefer_vic(global_tx_common, vic);
+		/* if mode_best_vic is support by RX, try 16x9 first */
+		if (prefer_vic != vic) {
+			HDMITX_DEBUG("%s: check prefer vic:%d exist, ignore [%d].\n",
+					__func__, prefer_vic, vic);
+			continue;
 		}
 
 		timing = hdmitx_mode_vic_to_hdmi_timing(vic);
@@ -674,8 +881,17 @@ static ssize_t disp_cap_show(struct device *dev,
 			continue;
 		}
 
+		/* step2, check if VIC is supported by SOC hdmitx */
 		if (hdmitx_common_validate_vic(global_tx_common, vic) != 0) {
 			// HDMITX_ERROR("%s: vic[%d] over range.\n", __func__, vic);
+			continue;
+		}
+
+		/* step3, build format with basic mode/attr and check
+		 * if it's supported by EDID/hdmitx_cap
+		 */
+		if (hdmitx_common_check_valid_para_of_vic(global_tx_common, vic) != 0) {
+			//HDMITX_ERROR("%s: vic[%d] check fmt attr failed.\n", __func__, vic);
 			continue;
 		}
 
@@ -841,6 +1057,12 @@ static bool pre_process_str(const char *name, char *mode, char *attr)
 	return true;
 }
 
+/* validation step:
+ * step1, check if mode related VIC is supported in EDID
+ * step2, check if VIC is supported by SOC hdmitx
+ * step3, build format with mode/attr and check if it's
+ * supported by EDID/hdmitx_cap
+ */
 static ssize_t valid_mode_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
@@ -864,12 +1086,12 @@ static ssize_t valid_mode_store(struct device *dev,
 	if (valid_mode) {
 		vic = hdmitx_common_parse_vic_in_edid(global_tx_common, modename);
 		if (vic == HDMI_0_UNKNOWN) {
-			//HDMITX_ERROR("parse vic fail %s\n", modename);
+			HDMITX_DEBUG("parse vic fail or vic not in EDID %s\n", modename);
 			valid_mode = false;
 		} else {
 			ret = hdmitx_common_validate_vic(global_tx_common, vic);
 			if (ret != 0) {
-				//HDMITX_ERROR("validate vic %d failed ret %d\n", vic, ret);
+				HDMITX_DEBUG("vic %d not supported by hdmitx,ret: %d\n", vic, ret);
 				valid_mode = false;
 			}
 		}
@@ -877,12 +1099,12 @@ static ssize_t valid_mode_store(struct device *dev,
 
 	if (valid_mode) {
 		hdmitx_parse_color_attr(attrstr, &tst_para.cs, &tst_para.cd, &tst_para.cr);
-		//HDMITX_ERROR("parse cs %d cd %d\n", tst_para.cs, tst_para.cd);
+		HDMITX_DEBUG("parse cs %d cd %d\n", tst_para.cs, tst_para.cd);
 		ret = hdmitx_common_build_format_para(global_tx_common,
 			&tst_para, vic, global_tx_common->frac_rate_policy,
 			tst_para.cs, tst_para.cd, tst_para.cr);
 		if (ret != 0) {
-			//HDMITX_ERROR("build format para failed %d\n", ret);
+			HDMITX_DEBUG("build format para failed %d\n", ret);
 			hdmitx_format_para_reset(&tst_para);
 			valid_mode = false;
 		}
@@ -891,7 +1113,7 @@ static ssize_t valid_mode_store(struct device *dev,
 	if (valid_mode) {
 		ret = hdmitx_common_validate_format_para(global_tx_common, &tst_para);
 		if (ret != 0) {
-			//HDMITX_ERROR("validate format para failed %d\n", ret);
+			HDMITX_DEBUG("validate format para failed %d\n", ret);
 			valid_mode = false;
 		}
 	}
@@ -1105,7 +1327,7 @@ static ssize_t allm_mode_store(struct device *dev,
 		mode = 0;
 	else if (com_str(buf, "1"))
 		mode = 1;
-	else if (com_str(buf, "1"))
+	else if (com_str(buf, "-1"))
 		mode = -1;
 
 	hdmitx_common_set_allm_mode(global_tx_common, mode);
@@ -1173,6 +1395,38 @@ static ssize_t avmute_store(struct device *dev,
 
 static DEVICE_ATTR_RW(avmute);
 
+static ssize_t config_csc_en_show(struct device *dev,
+					struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n\r",
+		global_tx_common->config_csc_en);
+
+	return pos;
+}
+
+static ssize_t config_csc_en_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf,
+					size_t count)
+{
+	int csc_en = 0;
+
+	HDMITX_INFO("store config_csc_en as %s\n", buf);
+
+	if (com_str(buf, "0"))
+		csc_en = 0;
+	else if (com_str(buf, "1"))
+		csc_en = 1;
+
+	hdmitx_hw_cntl_config(global_tx_hw, CONFIG_CSC_EN, csc_en);
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(config_csc_en);
+
 /*********************************************************/
 int hdmitx_sysfs_common_create(struct device *dev,
 		struct hdmitx_common *tx_comm,
@@ -1183,7 +1437,9 @@ int hdmitx_sysfs_common_create(struct device *dev,
 	global_tx_common = tx_comm;
 	global_tx_hw = tx_hw;
 
+	ret = device_create_file(dev, &dev_attr_hdmi_efuse_state);
 	ret = device_create_file(dev, &dev_attr_attr);
+	ret = device_create_file(dev, &dev_attr_test_attr);
 	ret = device_create_file(dev, &dev_attr_hpd_state);
 	ret = device_create_file(dev, &dev_attr_frac_rate_policy);
 
@@ -1220,13 +1476,16 @@ int hdmitx_sysfs_common_create(struct device *dev,
 
 	ret = device_create_file(dev, &dev_attr_debug);
 	ret = device_create_file(dev, &dev_attr_fake_plug);
+	ret = device_create_file(dev, &dev_attr_config_csc_en);
 
 	return ret;
 }
 
 int hdmitx_sysfs_common_destroy(struct device *dev)
 {
+	device_remove_file(dev, &dev_attr_hdmi_efuse_state);
 	device_remove_file(dev, &dev_attr_attr);
+	device_remove_file(dev, &dev_attr_test_attr);
 	device_remove_file(dev, &dev_attr_hpd_state);
 	device_remove_file(dev, &dev_attr_frac_rate_policy);
 
@@ -1263,6 +1522,7 @@ int hdmitx_sysfs_common_destroy(struct device *dev)
 
 	device_remove_file(dev, &dev_attr_debug);
 	device_remove_file(dev, &dev_attr_fake_plug);
+	device_remove_file(dev, &dev_attr_config_csc_en);
 
 	global_tx_common = 0;
 	global_tx_hw = 0;

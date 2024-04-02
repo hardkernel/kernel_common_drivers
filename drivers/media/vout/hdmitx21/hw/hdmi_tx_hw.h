@@ -14,6 +14,8 @@ enum amhdmitx_chip_e {
 	MESON_CPU_ID_T7 = 0,
 	MESON_CPU_ID_S1A,
 	MESON_CPU_ID_S5,
+	MESON_CPU_ID_S7,
+	MESON_CPU_ID_S7D,
 	MESON_CPU_ID_MAX,
 };
 
@@ -28,6 +30,12 @@ struct hdmitx21_hw {
 	unsigned int dongle_mode:1;
 	u32 enc_idx;
 	struct hdmitx_infoframe *infoframes;
+	/* for s7 & s7d, default 0
+	 * 1: new clk config, encp/pixel clk is directly configured by the pll simulation part.
+	 * through [ 49]hdmi_vx1_pix_clk to encp/pixel clk
+	 * CLKCTRL_VID_CLK0_CTRL clk source should select vid_pix_clk.
+	 */
+	u8 s7_clk_config;
 };
 
 ssize_t _show21_clkmsr(char *buf);

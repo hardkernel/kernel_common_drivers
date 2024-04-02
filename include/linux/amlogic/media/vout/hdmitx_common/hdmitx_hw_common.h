@@ -61,6 +61,7 @@
 	#define HPLL_SET            0x3
 
 #define MISC_TMDS_PHY_OP        (CMD_MISC_OFFSET + 0x04)
+	#define TMDS_PHY_NONE       0x0
 	#define TMDS_PHY_ENABLE     0x1
 	#define TMDS_PHY_DISABLE    0x2
 
@@ -94,11 +95,12 @@
 #define MISC_AUDIO_RESET        (CMD_MISC_OFFSET + 0x16)
 #define MISC_DIS_HPLL           (CMD_MISC_OFFSET + 0x17)
 #define MISC_AUDIO_ACR_CTRL     (CMD_MISC_OFFSET + 0x18)
-#define MISC_IS_FRL_MODE        (CMD_MISC_OFFSET + 0x19)
+#define MISC_GET_FRL_MODE       (CMD_MISC_OFFSET + 0x19)
 #define MISC_AUDIO_PREPARE	(CMD_MISC_OFFSET + 0x1a)
 #define MISC_ESMCLK_CTRL        (CMD_MISC_OFFSET + 0x1b)
-#define MISC_CLK_DIV_RST        (CMD_MISC_OFFSET + 0X20)
+#define MISC_CLK_DIV_RST        (CMD_MISC_OFFSET + 0x20)
 #define MISC_HPD_IRQ_TOP_HALF   (CMD_MISC_OFFSET + 0x21)
+#define MISC_HDMI_CLKS_CTRL		(CMD_MISC_OFFSET + 0X22)
 
 /***********************************************************************
  *                          Get State //getstate
@@ -117,6 +119,7 @@
 #define STAT_TX_HDR10P			(CMD_STAT_OFFSET + 0x23) /*hdmitx_get_cur_hdr10p_st*/
 #define STAT_TX_PHY				(CMD_STAT_OFFSET + 0x30)
 #define STAT_TX_OUTPUT			(CMD_STAT_OFFSET + 0x31) /*if hdmitx have output*/
+#define STAT_TX_DSC_EN (CMD_STAT_OFFSET + 0x32) /* if hdmitx have enable dsc */
 
 /***********************************************************************
  *             CONFIG CONTROL //cntlconfig
@@ -139,6 +142,10 @@
 	#define CSC_Y422_12BIT      0x2
 	#define CSC_RGB_8BIT        0x3
 	#define CSC_UPDATE_AVI_CS   0x10
+/* set CSC_ENABLE when DV_STD && Adaptive HDR */
+#define CONFIG_CSC_EN           (CMD_CONF_OFFSET + 0x1000 + 0x06)
+	#define CSC_ENABLE          1
+	#define CSC_DISABLE         0
 
 /* Audio part */
 #define CONF_CLR_AVI_PACKET     (CMD_CONF_OFFSET + 0x04)
@@ -153,6 +160,7 @@
 #define CONF_GET_AUDIO_MUTE_ST  (CMD_CONF_OFFSET + 0x1000 + 0x02)
 
 #define CONF_ASPECT_RATIO       (CMD_CONF_OFFSET + 0x101a)
+#define CONF_HW_INIT			(CMD_CONF_OFFSET + 0x101b)
 
 enum avi_component_conf {
 	CONF_AVI_BT2020 = (CMD_CONF_OFFSET + 0X2000 + 0x00),
@@ -236,7 +244,13 @@ enum hdmi_ll_mode {
  **********************************************************************/
 struct tx_cap {
 	/* configure in dts file */
-	u8 tx_max_frl_rate;
+	enum frl_rate_enum  tx_max_frl_rate;
+	/* default 600Mhz, if res_1080p, then 225Mhz */
+	u32 tx_max_tmds_clk;
+	/* soc support DSC or not */
+	bool dsc_capable;
+	/* DSC enable policy, refer to dsc_policy sysfs node */
+	u8 dsc_policy;
 };
 
 struct hdmitx_hw_common {
@@ -283,8 +297,13 @@ struct hdmitx_hw_common {
 
 	/* hdcp repeater enable, such as on T7 platform */
 	u32 hdcp_repeater_en:1;
+	/* soc/hdmitx driver capability */
+	struct tx_cap hdmi_tx_cap;
+	/* phy state */
+	unsigned char tmds_phy_op;
 
-	struct tx_cap txcap;
+	/* save the lastest plug_in time from interrupt*/
+	u64 hw_sequence_id;
 };
 
 int hdmitx_hw_cntl_config(struct hdmitx_hw_common *tx_hw,
@@ -311,6 +330,21 @@ int hdmitx_hw_set_phy(struct hdmitx_hw_common *tx_hw,
 enum hdmi_tf_type hdmitx_hw_get_hdr_st(struct hdmitx_hw_common *tx_hw);
 enum hdmi_tf_type hdmitx_hw_get_dv_st(struct hdmitx_hw_common *tx_hw);
 enum hdmi_tf_type hdmitx_hw_get_hdr10p_st(struct hdmitx_hw_common *tx_hw);
+
+enum pkt_op {
+	AVI_PKT,
+	GAMUT_PKT,
+	AUDIO_PKT,
+	SPD_PKT,
+	MPEG_PKT,
+	VSIF_PKT,
+	GEN_PKT,
+	GEN2_PKT,
+	GEN3_PKT,
+	GEN4_PKT,
+	GEN5_PKT,
+	VTEM_PKT,
+};
 
 /*utils functions shared for hdmitx hw module.*/
 

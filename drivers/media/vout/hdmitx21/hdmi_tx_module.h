@@ -22,6 +22,9 @@
 #include <linux/amlogic/media/vout/hdmi_tx_repeater.h>
 #include "hw/hdmi_tx_hw.h"
 #include "../hdmitx_common/hdmitx_log.h"
+#ifdef CONFIG_AMLOGIC_DSC
+#include <linux/amlogic/media/vout/dsc.h>
+#endif
 
 #define DEVICE_NAME "amhdmitx21"
 
@@ -69,6 +72,10 @@ struct ced_cnt {
 	bool ch2_valid;
 	u16 ch2_cnt:15;
 	u8 chksum;
+	bool ch3_valid;
+	u16 ch3_cnt:15;
+	bool rs_c_valid;
+	u16 rs_c_cnt:15;
 };
 
 struct scdc_locked_st {
@@ -76,6 +83,7 @@ struct scdc_locked_st {
 	u8 ch0_locked:1;
 	u8 ch1_locked:1;
 	u8 ch2_locked:1;
+	u8 ch3_locked:1;
 };
 
 struct aspect_ratio_list {
@@ -92,6 +100,18 @@ struct hdmitx_clk_tree_s {
 	struct clk *venci_top_gate;
 	struct clk *venci_0_gate;
 	struct clk *venci_1_gate;
+};
+
+struct drm_hdmitx_hdcp {
+	int hdcp_auth_result;
+	int hdcp_fail_cnt;
+	/* hdcp result callback */
+	struct connector_hdcp_cb drm_hdcp_cb;
+	/* drm hdcp debug function. */
+	int test_hdcp_mode;
+	void (*test_hdcp_disable)(void);
+	void (*test_hdcp_enable)(int hdcp_mode);
+	void (*test_hdcp_disconnect)(void);
 };
 
 struct hdmitx_dev {
@@ -114,9 +134,11 @@ struct hdmitx_dev {
 	struct delayed_work work_hpd_plugout;
 	struct delayed_work work_internal_intr;
 	struct work_struct work_hdr;
+	struct work_struct work_hdr_unmute;
 	struct delayed_work work_start_hdcp;
 	struct vrr_device_s hdmitx_vrr_dev;
 	void *am_hdcp;
+	bool dw_hdcp22_cap;
 	int hdmi_init;
 	int hpdmode;
 	bool pre_tmds_clk_div40;
@@ -138,6 +160,10 @@ struct hdmitx_dev {
 	u8 manual_frl_rate; /* for manual setting */
 	u8 frl_rate; /* for mode setting */
 	u8 dsc_en;
+#ifdef CONFIG_AMLOGIC_DSC
+	/* pps data and clk info from dsc module */
+	struct dsc_offer_tx_data dsc_data;
+#endif
 	/* 0: RGB444  1: Y444  2: Y422  3: Y420 */
 	/* 4: 24bit  5: 30bit  6: 36bit  7: 48bit */
 	/* if equals to 1, means current video & audio output are blank */
@@ -146,7 +172,6 @@ struct hdmitx_dev {
 	struct scdc_locked_st chlocked_st;
 	enum hdmi_ll_mode ll_user_set_mode; /* ll setting: 0/AUTOMATIC, 1/Always OFF, 2/ALWAYS ON */
 	bool ll_enabled_in_auto_mode; /* ll_mode enabled in auto or not */
-	bool it_content;
 	u32 sspll;
 	/* configure for I2S: 8ch in, 2ch out */
 	/* 0: default setting  1:ch0/1  2:ch2/3  3:ch4/5  4:ch6/7 */
@@ -154,8 +179,6 @@ struct hdmitx_dev {
 	enum hdmi_hdr_color hdr_color_feature;
 	/* 0: sdr 1:standard HDR 2:non standard 3:HLG*/
 	u32 colormetry;
-	u32 hdmi_last_hdr_mode;
-	u32 hdmi_current_hdr_mode;
 	u32 dv_src_feature;
 	u32 sdr_hdr_feature;
 	u32 hdr10plus_feature;
@@ -172,7 +195,7 @@ struct hdmitx_dev {
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
 
 	/*DRM related*/
-	struct connector_hdcp_cb drm_hdcp_cb;
+	struct drm_hdmitx_hdcp drm_hdcp;
 
 	struct miscdevice hdcp_comm_device;
 	u8 def_stream_type;
@@ -191,9 +214,6 @@ struct hdmitx_dev *get_hdmitx21_device(void);
  **********************************************************************/
 void hdmitx21_dither_config(struct hdmitx_dev *hdev);
 
-/* set vic to AVI.VIC */
-void hdmitx21_set_avi_vic(enum hdmi_vic vic);
-
 int hdmitx21_set_display(struct hdmitx_dev *hdev,
 		       enum hdmi_vic videocode);
 
@@ -208,7 +228,7 @@ int hdmitx21_set_audio(struct hdmitx_dev *hdev,
 int get21_hpd_state(void);
 void hdmitx21_hdcp_status(int hdmi_authenticated);
 struct hdmi_format_para *hdmitx21_get_vesa_paras(struct vesa_standard_timing *t);
-
+extern struct aud_para hdmi21aud_config_data;
 /***********************************************************************
  *    hdmitx hardware level interface
  ***********************************************************************/

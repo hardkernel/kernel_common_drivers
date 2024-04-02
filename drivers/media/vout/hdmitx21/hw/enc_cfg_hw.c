@@ -31,11 +31,15 @@
  * and send data to ENCP_DVI/DE_H/V* via a fifo (pixel delay)
  * The input timing of HDMITx is from ENCP_DVI/DE_H/V*
  */
+/* note, venc setting will be override on dsc encoder side
+ * so this function is optional when dsc_en = 1
+ */
 static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 {
 	const struct hdmi_timing *tp = NULL;
 	struct hdmi_timing timing = {0};
-	u32 hsync_st = 4; // hsync start pixel count
+	/* adjust to align upsample and video enable */
+	u32 hsync_st = 5; // hsync start pixel count
 	u32 vsync_st = 1; // vsync start line count
 	// Latency in pixel clock from ENCP_VFIFO2VD request to data ready to HDMI
 	const u32 vfifo2vd_to_hdmi_latency = 2;
@@ -45,6 +49,9 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 	u32 de_v_end = 0;
 	bool y420_mode = 0;
 	int hpara_div = 1;
+
+	if (!hdev)
+		return;
 
 	if (hdev->tx_comm.fmt_para.cs == HDMI_COLORSPACE_YUV420)
 		y420_mode = 1;
@@ -63,19 +70,21 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 		hpara_div = 4;
 	if (hdev->frl_rate && y420_mode == 0)
 		hpara_div = 2;
+	/* force 4 slices input to dsc encoder when dsc enabled */
+	if (hdev->dsc_en)
+		hpara_div = 4;
 	timing.h_total /= hpara_div;
 	timing.h_blank /= hpara_div;
 	timing.h_front /= hpara_div;
-	if (hdev->frl_rate)
-		timing.h_front |= 3; /* For ENCP, there needs OR 3 */
 	timing.h_sync /= hpara_div;
 	timing.h_back /= hpara_div;
 	timing.h_active /= hpara_div;
 
-	if (hdev->dsc_en) {
-		hsync_st = tp->h_front - 1;
-		vsync_st = tp->v_front - 1;
-	}
+	/* it will flash screen under 8k50/60hz if with this sync_st */
+	/* if (hdev->dsc_en) { */
+	/* hsync_st = tp->h_front - 1; */
+	/* vsync_st = tp->v_front - 1; */
+	/* } */
 
 	de_h_end = tp->h_total - (tp->h_front - hsync_st);
 	de_h_begin = de_h_end - tp->h_active;
@@ -397,6 +406,9 @@ void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 	// VENC2A 0x23
 	reg_offset = enc_index == 0 ? 0 : enc_index == 1 ? 0x600 : 0x800;
 
+	if (!hdev)
+		return;
+
 	switch (vic) {
 	case HDMI_5_1920x1080i60_16x9:
 	case HDMI_46_1920x1080i120_16x9:
@@ -408,8 +420,17 @@ void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 		config_tv_enc_calc(hdev, vic);
 		break;
 	}
-
-	if (hdev->frl_rate && hdev->tx_comm.fmt_para.cs != HDMI_COLORSPACE_YUV420)
+	if (hdev->bist_lock)
+		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+	/* for dsc mode enable, vpp post 4 slice->4ppc to hdmi, no up_sample
+	 * for frl mode enable & non_y420 mode, vpp post 4 slice into VENC
+	 * with vpp horizontal size divide 4(7680 / 4), VENC get sample from
+	 * vpp every two clk(upsample = 1) with 4ppc, and then split to 2ppc
+	 * to hdmi module
+	 */
+	if (hdev->dsc_en)
+		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 0, 3);
+	else if (hdev->frl_rate && hdev->tx_comm.fmt_para.cs != HDMI_COLORSPACE_YUV420)
 		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 1, 0, 3);
 	else
 		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 0, 3);
@@ -734,8 +755,10 @@ void set_tv_enci_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 void hdmitx21_venc_en(bool en, bool pi_mode)
 {
 	if (en == 0) {
-		hd21_write_reg(ENCP_VIDEO_EN, en);
-		hd21_write_reg(ENCI_VIDEO_EN, en);
+		if (pi_mode == 1)
+			hd21_write_reg(ENCP_VIDEO_EN, en);
+		else
+			hd21_write_reg(ENCI_VIDEO_EN, en);
 		return;
 	}
 	if (pi_mode == 1) {
@@ -746,3 +769,148 @@ void hdmitx21_venc_en(bool en, bool pi_mode)
 		hd21_write_reg(ENCI_VIDEO_EN, 1);
 	}
 }
+
+//--------------------------
+// Pbist config
+//--------------------------
+void hdmitx21_pbist_config(struct hdmitx_dev *hdev, enum hdmi_vic vic, int reg_pbist_en)
+{
+	const struct hdmi_timing *tp = NULL;
+	struct hdmi_timing timing = {0};
+	u32 data32;
+	u8 data8;
+	u32 blank_pixels;
+	u32 active_pixels;
+	u32 hsync_pixels;
+	u32 front_porch;
+	u32 blank_lines;
+	u32 active_lines;
+	u32 vsync_lines;
+	u32 eof_lines;
+
+	tp = hdmitx_mode_vic_to_hdmi_timing(vic);
+	if (!tp) {
+		pr_err("not find hdmitx vic %d timing\n", vic);
+		return;
+	}
+	pr_debug("find hdmitx vic %d timing\n", vic);
+	if (reg_pbist_en && (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+			hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D))
+		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 1, 0, 1);//enable pbist
+	else
+		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 0, 0, 1);//disable pbist
+
+	timing = *tp;
+	tp = &timing;
+
+	blank_pixels = tp->h_blank;
+	active_pixels = tp->h_active;
+	hsync_pixels = tp->h_sync;
+	front_porch = tp->h_front;
+	blank_lines =  tp->v_blank;
+	active_lines = tp->v_active;
+	vsync_lines = tp->v_sync;
+	eof_lines = tp->v_front;
+
+	data8  = 0;
+	data8 |= (0              << 5);
+	data8 |= (0              << 4);
+	data8 |= (reg_pbist_en   << 3);
+	data8 |= (0              << 1);
+	data8 |= (0              << 0);
+	hdmitx21_wr_reg(SYS_CTRL3_IVCTX, data8);
+
+	data8  = 0;
+	data8 |= (0       << 2); //[2] reg_out_sel 0:
+	data8 |= (0       << 1);
+	data8 |= (0       << 0);
+	hdmitx21_wr_reg(BIST_CTRL2_IVCTX, data8);
+
+	data8  = 0;//[1:0] 0:8bit; 1:10bit;2:12bit;
+	hdmitx21_wr_reg(REG_PXL_BIST_BIT_MODE_IVCTX, data8);
+
+	data8  = 0;
+	//[7:4] reg_stpg_sel : 0:red; 1: green; 2: blue; 3: black; 4: white;
+	// 5: ramps; 6: chess; 7: color bar; 8:simp92
+	data8 |= (0       << 3); //[3]   reg_bist_video_mode
+	data8 |= (7       << 4);
+	data8 |= (0       << 0); //[2:0] ri_stpg_ramp_n
+	hdmitx21_wr_reg(BIST_VIDEO_MODE_IVCTX, data8);
+
+	//htotal
+	data32 = blank_pixels + active_pixels;
+	hdmitx21_wr_reg(PBIST_H_TOTAL_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_H_TOTAL_HIGH_IVCTX, (data32 >> 8));
+
+	//hwidth(hactive)
+	data32 = active_pixels;
+	hdmitx21_wr_reg(PBIST_H_WIDTH_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_H_WIDTH_HIGH_IVCTX, (data32 >> 8));
+
+	//hsync width
+	data32 = hsync_pixels;
+	hdmitx21_wr_reg(PBIST_HSYNC_WIDTH_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_HSYNC_WIDTH_HIGH_IVCTX, (data32 >> 8));
+
+	//h backporch
+	data32 = blank_pixels - hsync_pixels - front_porch;
+	hdmitx21_wr_reg(PBIST_HSYNC_BACK_PORCH_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_HSYNC_BACK_PORCH_HIGH_IVCTX, (data32 >> 8));
+
+	//h frontporch
+	data32 = front_porch;
+	hdmitx21_wr_reg(PBIST_HSYNC_FRONT_PORCH_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_HSYNC_FRONT_PORCH_HIGH_IVCTX, (data32 >> 8));
+
+	//v total
+	data32 = blank_lines + active_lines;
+	hdmitx21_wr_reg(PBIST_V_TOTAL_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_V_TOTAL_HIGH_IVCTX, (data32 >> 8));
+
+	//v height(vactive)
+	data32 = active_lines;
+	hdmitx21_wr_reg(PBIST_V_HEIGHT_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_V_HEIGHT_HIGH_IVCTX, (data32 >> 8));
+
+	//vsync width
+	data32 = vsync_lines;
+	hdmitx21_wr_reg(PBIST_VSYNC_WIDTH_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_VSYNC_WIDTH_HIGH_IVCTX, (data32 >> 8));
+
+	//v backporch
+	data32 = blank_lines - vsync_lines - eof_lines;
+	hdmitx21_wr_reg(PBIST_VSYNC_BACK_PORCH_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_VSYNC_BACK_PORCH_HIGH_IVCTX, (data32 >> 8));
+
+	//v frontporch
+	data32 = eof_lines;
+	hdmitx21_wr_reg(PBIST_VSYNC_FRONT_PORCH_LOW_IVCTX, (data32 & 0xff));
+	hdmitx21_wr_reg(PBIST_VSYNC_FRONT_PORCH_HIGH_IVCTX, (data32 >> 8));
+
+	//BIST TIMING
+	data8  = 0;
+	data8 |= (5                 << 4); //[7:4] reg_time_mode  5: programmable resolution
+	data8 |= (0                 << 2); //[3:2] reg_refresh
+	hdmitx21_wr_reg(BIST_TIMING_CTRL_IVCTX, data8);
+
+	//TEST SEL
+	data8  = 0;
+	data8 |= (0                 << 5); //[6:5] reg_bist_test_select
+	//[4:0] reg_bist_pattern_select, bit[0] must set 1 for TX!!!
+	data8 |= (5                 << 0);
+	hdmitx21_wr_reg(BIST_TEST_SEL_IVCTX, data8);
+
+	//BIST CTRL
+	data8  = 0;
+	data8 |= (0                 << 6); //[6] reg_ycc420_en
+	data8 |= (0			      << 5); //[5] ri_splt_evn_odd_frm
+	data8 |= (reg_pbist_en      << 4); //[4] reg_bist_start_wp
+	data8 |= (1                 << 3); //[3] reg_bist_cont_prog_duration
+	data8 |= (reg_pbist_en      << 2); //[2] reg_stpg_en
+	data8 |= (0                 << 1); //[1] reg_bist_reset
+	data8 |= (reg_pbist_en      << 0); //[0] reg_bist_enable
+
+	hdmitx21_wr_reg(BIST_CTRL_IVCTX, data8);
+
+} //pbist end
+

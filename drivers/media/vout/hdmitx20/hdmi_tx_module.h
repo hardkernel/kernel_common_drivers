@@ -136,8 +136,6 @@ struct hdmitx_dev {
 	enum hdmi_hdr_color hdr_color_feature;
 	/* 0: sdr 1:standard HDR 2:non standard 3:HLG*/
 	unsigned int colormetry;
-	unsigned int hdmi_last_hdr_mode;
-	unsigned int hdmi_current_hdr_mode;
 	unsigned int dv_src_feature;
 	unsigned int sdr_hdr_feature;
 	unsigned int hdr10plus_feature;
@@ -203,7 +201,4 @@ void hdmitx_hdcp_do_work(struct hdmitx_dev *hdev);
 void hdmitx_meson_init(struct hdmitx_dev *hdmitx_device);
 unsigned int get_hdcp22_base(void);
 void hdmitx20_video_mute_op(unsigned int flag);
-bool hdmitx_find_vendor_6g(struct hdmitx_dev *hdev);
-bool hdmitx_find_vendor_ratio(struct hdmitx_dev *hdev);
-bool hdmitx_find_vendor_null_pkt(struct hdmitx_dev *hdev);
 #endif

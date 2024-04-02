@@ -350,6 +350,23 @@ void aml_spdifout_get_aed_info(int spdifout_id,	int *bitwidth, int *frddrtype)
 		*frddrtype = (val >> 4) & 0x7;
 }
 
+void enable_spdif_to_hdmitx_dat(bool enable)
+{
+	int val = !!enable;
+
+	audiobus_update_bits(EE_AUDIO_TOHDMITX_CTRL0,
+			     1 << 31 | 1 << 3 | 1 << 2,
+			     val << 31 | 1 << 3);
+}
+
+void enable_spdif_to_hdmitx_clk(bool enable)
+{
+	int val = !!enable;
+
+	audiobus_update_bits(EE_AUDIO_TOHDMITX_CTRL0,
+			0x1 << 30, val << 30);
+}
+
 void enable_spdifout_to_hdmitx(int separated)
 {
 	/* if tohdmitx_en is separated, need do:
@@ -635,8 +652,10 @@ void spdifout_play_with_zerodata(unsigned int spdif_id, bool reenable, int separ
 		spdif_set_validity(0, spdif_id);
 
 		/* notify hdmitx audio */
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 		if (get_spdif_to_hdmitx_id() == spdif_id)
 			aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &aud_param);
+#endif
 		/* init frddr to output zero data. */
 		frddr_init_without_mngr(frddr_index, src0_sel);
 

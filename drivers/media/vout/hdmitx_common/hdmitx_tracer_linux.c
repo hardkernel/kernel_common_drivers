@@ -12,7 +12,8 @@
 #define HDMI_TRACE_SIZE (BIT(12)) /* 4k */
 
 struct hdmitx_tracer {
-	int previous_error_event;
+	int previous_event;
+	int hdr10plus_event;
 	struct kfifo log_fifo;
 	struct hdmitx_event_mgr *eventmgr;
 	/*to trigger userspace read fifo logs.*/
@@ -30,6 +31,24 @@ const char *hdmitx_event_to_str(enum hdmitx_event_log_bits event)
 		return "hdmitx_edid_hdmi_device\n";
 	case HDMITX_EDID_DVI_DEVICE:
 		return "hdmitx_edid_dvi_device\n";
+	case HDMITX_EDID_HDR_SUPPORT:
+		return "hdmitx_edid_hdr_device\n";
+	case HDMITX_EDID_DV_SUPPORT:
+		return "hdmitx_edid_dv_device\n";
+	case HDMITX_HDR_MODE_SDR:
+		return "hdmitx_hdr_mode_sdr\n";
+	case HDMITX_HDR_MODE_SMPTE2084:
+		return "hdmitx_hdr_mode_smpte2084\n";
+	case HDMITX_HDR_MODE_HLG:
+		return "hdmitx_hdr_mode_hlg\n";
+	case HDMITX_HDR_MODE_HDR10PLUS:
+		return "hdmitx_hdr_mode_hdr10plus\n";
+	case HDMITX_HDR_MODE_CUVA:
+		return "hdmitx_hdr_mode_cuva\n";
+	case HDMITX_HDR_MODE_DV_STD:
+		return "hdmitx_hdr_mode_dv_std\n";
+	case HDMITX_HDR_MODE_DV_LL:
+		return "hdmitx_hdr_mode_dv_ll\n";
 	case HDMITX_KMS_DISABLE_OUTPUT:
 		return "output_disable\n";
 	case HDMITX_KMS_ENABLE_OUTPUT:
@@ -72,6 +91,12 @@ const char *hdmitx_event_to_str(enum hdmitx_event_log_bits event)
 		return "KMS_ERROR\n";
 	case HDMITX_KMS_SKIP:
 		return "KMS_SKIP\n";
+	case HDMITX_AUDIO_MODE_SETTING:
+		return "hdmitx_audio_mode_setting\n";
+	case HDMITX_AUDIO_MUTE:
+		return "hdmitx_audio_mute\n";
+	case HDMITX_AUDIO_UNMUTE:
+		return "hdmitx_audio_unmute\n";
 	default:
 		return "Unknown event\n";
 	}
@@ -96,7 +121,8 @@ struct hdmitx_tracer *hdmitx_tracer_create(struct hdmitx_event_mgr *event_mgr)
 		HDMITX_ERROR("%s FAIL\n", __func__);
 	} else {
 		instance->eventmgr = event_mgr;
-		instance->previous_error_event = 0;
+		instance->previous_event = -1;
+		instance->hdr10plus_event = -1;
 		ret = kfifo_alloc(&instance->log_fifo, HDMI_TRACE_SIZE, GFP_KERNEL);
 		if (ret)
 			HDMITX_ERROR("alloc hdmi_log_kfifo fail [%d]\n", ret);
@@ -116,31 +142,41 @@ int hdmitx_tracer_destroy(struct hdmitx_tracer *tracer)
 	return 0;
 }
 
+/* When hdr10plus mode ends, clear hdr10plus_event flag */
+int hdmitx_tracer_clean_hdr10plus_event(struct hdmitx_tracer *tracer,
+	enum hdmitx_event_log_bits event)
+{
+	if (event == HDMITX_HDR_MODE_HDR10PLUS)
+		tracer->hdr10plus_event = -1;
+
+	return 0;
+}
+
 int hdmitx_tracer_write_event(struct hdmitx_tracer *tracer,
 	enum hdmitx_event_log_bits event)
 {
 	const char *log_str;
 	int ret = 0;
 
-	/*reset error event when hpd*/
-	if (event == HDMITX_HPD_PLUGOUT || event == HDMITX_HPD_PLUGIN)
-		tracer->previous_error_event = 0;
+	// Found, skip duplicate logging.
+	// For example, UEvent spamming of HDCP support (b/220687552).
+	if (event == tracer->previous_event)
+		return 0;
+	tracer->previous_event = event;
 
-	if (event & HDMITX_HDMI_ERROR_MASK) {
-		if (event & tracer->previous_error_event) {
-			// Found, skip duplicate logging.
-			// For example, UEvent spamming of HDCP support (b/220687552).
-			if (event == tracer->previous_error_event)
-				return 0;
-			tracer->previous_error_event = event;
-		}
+	/* Play HDR10+ videos, HDMITX_HDR_MODE_HDR10PLUS only writes once */
+	if (tracer->hdr10plus_event == HDMITX_HDR_MODE_HDR10PLUS)
+		return 0;
+
+	if (event & HDMITX_HDMI_ERROR_MASK)
 		HDMITX_INFO("Record HDMI error: %s\n", hdmitx_event_to_str(event));
-	}
 
 	log_str = hdmitx_event_to_str(event);
 	ret = kfifo_in(&tracer->log_fifo, log_str, strlen(log_str));
 	if (!ret)
 		HDMITX_ERROR("%s fifo error %d\n", __func__, ret);
+	else
+		tracer->hdr10plus_event = tracer->previous_event;
 
 	/*after write trace, trigger uevent to save trace log.*/
 	schedule_work(&tracer->uevent_work);

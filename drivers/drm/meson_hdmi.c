@@ -269,7 +269,7 @@ static bool meson_hdmitx_test_color_attr(struct hdmitx_common *common,
 			build_hdmitx_attr_str(attr_str,
 				attr_list->colorformat, attr_list->bitdepth);
 			if (!hdmitx_common_validate_mode_locked(common, &comm_state, outputmode,
-					attr_str, true)) {
+					attr_str, false, true)) {
 				DRM_INFO("%s success [%d]+[%d]\n", __func__,
 					attr_list->colorformat,
 					attr_list->bitdepth);
@@ -307,7 +307,7 @@ static int meson_hdmitx_decide_color_attr
 		build_hdmitx_attr_str(attr_str,
 			attr_list->colorformat, attr_list->bitdepth);
 		if (!hdmitx_common_validate_mode_locked(common, &comm_state, outputmode,
-				attr_str, true)) {
+				attr_str, false, true)) {
 			attr->colorformat = attr_list->colorformat;
 			attr->bitdepth = attr_list->bitdepth;
 			DRM_INFO("%s get fmt attr [%d]+[%d]\n",
@@ -355,6 +355,9 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	conf = &priv->of_conf;
 
 	edid = (struct edid *)hdmitx_get_raw_edid(tx_comm);
+
+	am_hdmitx->sequence_id = hdmitx_get_hpd_hw_sequence_id(tx_comm);
+
 	drm_connector_update_edid_property(connector, edid);
 
 	/* get vrr capability */
@@ -930,6 +933,7 @@ struct drm_connector_state *meson_hdmitx_atomic_duplicate_state
 	new_state->hdr_priority = cur_state->hdr_priority;
 	new_state->pref_hdr_policy = cur_state->pref_hdr_policy;
 	new_state->allm_mode = cur_state->allm_mode;
+	cur_state->hcs.state_sequence_id = am_hdmi_info.sequence_id;
 	memcpy(&new_state->hcs, &cur_state->hcs, sizeof(struct hdmitx_common_state));
 
 	return &new_state->base;
@@ -1807,7 +1811,8 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	build_hdmitx_attr_str(attr_str, attr->colorformat, attr->bitdepth);
 
 	ret = hdmitx_common_validate_mode_locked(common, &hdmitx_state->hcs,
-						 modename, attr_str, do_valid);
+						 modename, attr_str, meson_crtc_state->valid_brr,
+						 do_valid);
 	if (ret) {
 		DRM_ERROR("validate_mode fail for [%s-%s]\n", modename, attr_str);
 		return -EINVAL;
@@ -2190,7 +2195,11 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 		return ret;
 	}
 
-	drm_connector_attach_encoder(connector, encoder);
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret) {
+		dev_err(priv->dev, "Failed to attach encoder\n");
+		return ret;
+	}
 
 	/*hpd irq moved to amhdmitx, register call back */
 	hpd_cb.callback = meson_hdmitx_hpd_cb;

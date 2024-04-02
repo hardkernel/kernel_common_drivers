@@ -14,6 +14,9 @@
 #include <linux/seq_file.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_version.h>
 #include "common.h"
+#include <linux/fs.h>
+#include <linux/proc_fs.h>
+#include <linux/types.h>
 
 #ifdef DEVICE_NAME
 #undef DEVICE_NAME
@@ -33,24 +36,40 @@ static void dump32(struct seq_file *s, u32 start, u32 end)
 
 static int dump_regs_show(struct seq_file *s, void *p)
 {
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
 	seq_puts(s, "\n--------misc registers--------\n");
 
-	// ((0x0000 << 2) + 0xfe008000) ~ ((0x00f3 << 2) + 0xfe008000)
-	dump32(s, ANACTRL_SYS0PLL_CTRL0, ANACTRL_DIF_PHY_STS);
-	// ((0x0001 << 2) + 0xfe000000) ~ ((0x0128 << 2) + 0xfe000000)
-	dump32(s, CLKCTRL_OSCIN_CTRL, CLKCTRL_FPLL_STS);
-	// ((0x0000 << 2) + 0xfe00c000) ~ ((0x027f << 2) + 0xfe00c000)
-	dump32(s, PWRCTRL_PWR_ACK0, PWRCTRL_A73TOP_FSM_JUMP);
-	// ((0x1b00 << 2) + 0xff000000) ~ ((0x1bea << 2) + 0xff000000)
-	dump32(s, ENCI_VIDEO_MODE, ENCP_VRR_CTRL1);
-	// ((0x1c00 << 2) + 0xff000000) ~((0x1cfc << 2) + 0xff000000)
-	dump32(s, ENCI_DVI_HSO_BEGIN, VPU_VENCL_DITH_LUT_12);
-	// ((0x2158 << 2) + 0xff000000) ~ ((0x2250 << 2) + 0xff000000)
-	dump32(s, ENCP1_VFIFO2VD_CTL, ENCP1_VFIFO2VD_CTL2);
-	// ((0x2358 << 2) + 0xff000000) ~ ((0x2450 << 2) + 0xff000000)
-	dump32(s, ENCP2_VFIFO2VD_CTL, ENCP2_VFIFO2VD_CTL2);
-	// ((0x2451 << 2) + 0xff000000) ~ ((0x24fc << 2) + 0xff000000)
-	dump32(s, VENC2_DVI_SETTING_MORE, VPU2_VENCL_DITH_LUT_12);
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) {
+		// ((0x0000 << 2) + 0xfe008000) ~ ((0x00e0 << 2) + 0xfe008000)
+		dump32(s, ANACTRL_SYS0PLL_CTRL0, ANACTRL_CHIP_TEST_STS);
+		// ((0x0001 << 2) + 0xfe000000) ~ ((0x0126 << 2) + 0xfe000000)
+		dump32(s, CLKCTRL_OSCIN_CTRL, CLKCTRL_EFUSE_LOCK);
+		// ((0x0000 << 2) + 0xfe00c000) ~ ((0x012f << 2) + 0xfe00c000)
+		dump32(s, PWRCTRL_PWR_ACK0, PWRCTRL_CPUTOP_FSM_JUMP);
+		// ((0x1b00 << 2) + 0xff000000) ~ ((0x1bea << 2) + 0xff000000)
+		dump32(s, ENCI_VIDEO_MODE, ENCP_VRR_CTRL1);
+		// ((0x1c00 << 2) + 0xff000000) ~((0x1cd7 << 2) + 0xff000000)
+		dump32(s, ENCI_DVI_HSO_BEGIN, ENCL_INBUF_FIX_PIX_NUM);
+	} else {
+		// ((0x0000 << 2) + 0xfe008000) ~ ((0x00f3 << 2) + 0xfe008000)
+		dump32(s, ANACTRL_SYS0PLL_CTRL0, ANACTRL_DIF_PHY_STS);
+		// ((0x0001 << 2) + 0xfe000000) ~ ((0x0128 << 2) + 0xfe000000)
+		dump32(s, CLKCTRL_OSCIN_CTRL, CLKCTRL_FPLL_STS);
+		// ((0x0000 << 2) + 0xfe00c000) ~ ((0x027f << 2) + 0xfe00c000)
+		dump32(s, PWRCTRL_PWR_ACK0, PWRCTRL_A73TOP_FSM_JUMP);
+		// ((0x1b00 << 2) + 0xff000000) ~ ((0x1bea << 2) + 0xff000000)
+		dump32(s, ENCI_VIDEO_MODE, ENCP_VRR_CTRL1);
+		// ((0x1c00 << 2) + 0xff000000) ~((0x1cfc << 2) + 0xff000000)
+		dump32(s, ENCI_DVI_HSO_BEGIN, VPU_VENCL_DITH_LUT_12);
+		// ((0x2158 << 2) + 0xff000000) ~ ((0x2250 << 2) + 0xff000000)
+		dump32(s, ENCP1_VFIFO2VD_CTL, ENCP1_VFIFO2VD_CTL2);
+		// ((0x2358 << 2) + 0xff000000) ~ ((0x2450 << 2) + 0xff000000)
+		dump32(s, ENCP2_VFIFO2VD_CTL, ENCP2_VFIFO2VD_CTL2);
+		// ((0x2451 << 2) + 0xff000000) ~ ((0x24fc << 2) + 0xff000000)
+		dump32(s, VENC2_DVI_SETTING_MORE, VPU2_VENCL_DITH_LUT_12);
+	}
 	// ((0x2701 << 2) + 0xff000000) ~ ((0x24fc << 2) + 0xff000000)
 	dump32(s, VPU_CRC_CTRL, VPUCTRL_REG_ADDR(0x27fd));
 
@@ -74,6 +93,12 @@ static const struct file_operations dump_busreg_fops = {
 	.read		= seq_read,
 	.write		= dump_regs_write,
 	.release	= single_release,
+};
+
+static const struct proc_ops dump_busreg_pops = {
+	.proc_open		= dump_regs_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
 };
 
 static void dumptop(struct seq_file *s, u32 start, u32 end)
@@ -101,6 +126,7 @@ static void dumpcor(struct seq_file *s, u32 start, u32 end)
 static int dump_hdmireg_show(struct seq_file *s, void *p)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	u32 gate_status;
 
 	seq_puts(s, "\n--------HDMITX registers--------\n");
 	// 0xfe300000 ~ 0xfe300000 + (0x041 << 2)
@@ -115,7 +141,7 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	dumpcor(s, DEBUG_MODE_EN_IVCTX, DROP_GEN_TYPE_5_IVCTX);
 	// 0x00000300 - 0x0000031a
 	dumpcor(s, TX_ZONE_CTL0_IVCTX, FIFO_10TO20_CTRL_IVCTX);
-	if (hdev->tx_hw.chip_data->chip_type >= MESON_CPU_ID_S5) {
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S5) {
 		// 0x00000330 - 0x00000334
 		dumpcor(s, MHLHDMITXTOP_INTR_IVCTX, EMSC_ADCTC_LD_SEL_IVCTX);
 	}
@@ -128,10 +154,23 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	// 0x00000800 - 0x00000879
 	dumpcor(s, CP2TX_CTRL_0_IVCTX, CP2TX_IPT_CTR_39TO32_IVCTX);
 	// 0x000008a0 - 0x000008d0
-	dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) {
+		gate_status = hdmitx21_get_gate_status();
+		if (gate_status & BIT_HDMITX_TOP_CLK_GATE_HDCP2X) {
+			dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
+		} else {
+			hdmitx21_ctrl_hdcp_gate(2, true);
+			dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
+			hdmitx21_ctrl_hdcp_gate(2, false);
+		}
+	} else {
+		dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
+	}
 	// 0x00000900 - 0x00000933
 	dumpcor(s, SCRCTL_IVCTX, FRL_LTP_OVR_VAL1_IVCTX);
-	if (hdev->tx_hw.chip_data->chip_type >= MESON_CPU_ID_S5) {
+
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S5) {
 		// 0x00000934 - 0x0000097a
 		dumpcor(s, RSVD1_HDMI2_IVCTX, H21TXSB_SPARE_9_IVCTX);
 		// 0x00000980 - 0x00000985
@@ -148,10 +187,12 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 		VP_CMS_CSC0_MULTI_CSC_OUT_RCR_OFFSET_IVCTX);
 	//0x00000d80 - 0x00000ddc
 	dumpcor(s, VP_CMS_CSC1_FEATURES_IVCTX, VP_CMS_CSC1_PIXCAP_OUT_CR_IVCTX);
-	// 0x00000f00 - 0x00000f26
-	dumpcor(s, D_HDR_GEN_CTL_IVCTX, D_HDR_SPARE_9_IVCTX);
+	// 0x00000f00 - 0x00000f27
+	dumpcor(s, D_HDR_GEN_CTL_IVCTX, D_HDR_FIFO_MEM_CTL_IVCTX);
 	// 0x00000f80 - 0x00000fa9
-	dumpcor(s, DSC_PKT_GEN_CTL_IVCTX, DSC_PKT_SPARE_9_IVCTX);
+	if (!(hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D))
+		dumpcor(s, DSC_PKT_GEN_CTL_IVCTX, DSC_PKT_SPARE_9_IVCTX);
 	dump_infoframe_packets(s);
 	return 0;
 }
@@ -165,6 +206,12 @@ static const struct file_operations dump_hdmireg_fops = {
 	.open		= dump_hdmireg_open,
 	.read		= seq_read,
 	.release	= single_release,
+};
+
+static const struct proc_ops dump_hdmireg_pops = {
+	.proc_open		= dump_hdmireg_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
 };
 
 #define CONNECT2REG(reg) ({ \
@@ -194,9 +241,12 @@ static int dump_hdmivpfdet_show(struct seq_file *s, void *p)
 
 	seq_puts(s, "\n--------vp fdet info--------\n");
 
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D)
+		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 1, 1, 1);//enable fdet gate
 	hdmitx21_wr_reg(VP_FDET_CLEAR_IVCTX, 0);
 	hdmitx21_wr_reg(VP_FDET_STATUS_IVCTX, 0);
-	mdelay(hdev->pxp_mode ? 10 : 50); /* at least 1 frame? */
+	mdelay(50); /* at least 1 frame? */
 
 	reg = VP_FDET_FRAME_RATE_IVCTX;
 	val = CONNECT3REG(reg);
@@ -444,6 +494,10 @@ static int dump_hdmivpfdet_show(struct seq_file *s, void *p)
 		PR_DETAIL(22, "frame_and_pixel_cnt_done");
 		seq_puts(s, "\n");
 	}
+
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D)
+		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 0, 1, 1);//disable fdet gate
 	return 0;
 }
 
@@ -456,6 +510,12 @@ static const struct file_operations dump_hdmivpfdet_fops = {
 	.open		= dump_hdmivpfdet_open,
 	.read		= seq_read,
 	.release	= single_release,
+};
+
+static const struct proc_ops dump_hdmivpfdet_pops = {
+	.proc_open		= dump_hdmivpfdet_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
 };
 
 static void hdmitx_parsing_avipkt(struct seq_file *s)
@@ -521,6 +581,12 @@ static const struct file_operations dump_hdmipkt_fops = {
 	.release	= single_release,
 };
 
+static const struct proc_ops dump_hdmipkt_pops = {
+	.proc_open		= dump_hdmipkt_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
+};
+
 static int dump_hdmiver_show(struct seq_file *s, void *p)
 {
 	const char *hdmi_ver;
@@ -541,6 +607,12 @@ static const struct file_operations dump_hdmiver_fops = {
 	.open		= dump_hdmiver_open,
 	.read		= seq_read,
 	.release	= single_release,
+};
+
+static const struct proc_ops dump_hdmiver_pops = {
+	.proc_open		= dump_hdmiver_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
 };
 
 static inline unsigned int get_msr_cts(void)
@@ -602,6 +674,12 @@ static const struct file_operations dump_audcts_fops = {
 	.release	= single_release,
 };
 
+static const struct proc_ops dump_audcts_pops = {
+	.proc_open		= dump_audcts_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
+};
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static int dump_hdmivrr_show(struct seq_file *s, void *p)
 {
@@ -618,6 +696,13 @@ static const struct file_operations dump_hdmivrr_fops = {
 	.read		= seq_read,
 	.release	= single_release,
 };
+
+static const struct proc_ops dump_hdmivrr_pops = {
+	.proc_open		= dump_hdmivrr_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
+};
+
 #endif
 
 static void dump_clkctrl_regs(struct seq_file *s, const u32 *val)
@@ -754,6 +839,12 @@ static const struct file_operations dump_cts_enc_clk_fops = {
 	.release	= single_release,
 };
 
+static const struct proc_ops dump_cts_enc_clk_pops = {
+	.proc_open		= dump_cts_enc_clk_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
+};
+
 static int dump_frl_status_show(struct seq_file *s, void *p)
 {
 	enum scdc_addr scdc_reg;
@@ -767,12 +858,12 @@ static int dump_frl_status_show(struct seq_file *s, void *p)
 		[FRL_8G4L] = "FRL_8G4L",
 		[FRL_10G4L] = "FRL_10G4L",
 		[FRL_12G4L] = "FRL_12G4L",
-		[FRL_INVALID] = "FRL_INVALID",
+		[FRL_RATE_MAX] = "FRL_RATE_MAX",
 	};
 
 	seq_puts(s, "\n--------frl status--------\n");
-	seq_printf(s, "FRL rate: %s\n", hdev->frl_rate < FRL_INVALID ?
-		rate_string[hdev->frl_rate] : rate_string[FRL_INVALID]);
+	seq_printf(s, "FRL rate: %s\n", hdev->frl_rate < FRL_RATE_MAX ?
+		rate_string[hdev->frl_rate] : rate_string[FRL_RATE_MAX]);
 	val = hdmitx21_rd_reg(INTR5_SW_TPI_IVCTX);
 	seq_printf(s, "INTR5_SW_TPI[0x%x] 0x%x\n", INTR5_SW_TPI_IVCTX, val);
 	hdmitx21_wr_reg(INTR5_SW_TPI_IVCTX, val);
@@ -787,8 +878,27 @@ static int dump_frl_status_show(struct seq_file *s, void *p)
 	scdc21_rd_sink(SCDC_UPDATE_0, &val);
 	scdc21_wr_sink(SCDC_UPDATE_0, val);
 	for (scdc_reg = SCDC_SINK_VER; scdc_reg < 0x100; scdc_reg++) {
-		scdc21_rd_sink(scdc_reg, &val);
-		seq_printf(s, "SCDC[0x%02x] 0x%02x\n", scdc_reg, val);
+		if (scdc_reg >= SCDC_CH0_ERRCNT_0 && scdc_reg <= SCDC_RS_CORRECTION_CNT_1) {
+			u8 len = 7;
+			u8 val[9] = {0};
+			u8 i;
+
+			if (hdev->frl_rate >= FRL_6G4L)
+				len = 9;
+
+			scdc21_sequential_rd_sink(SCDC_CH0_ERRCNT_0, val, len);
+			for (i = 0; i < len; i++)
+				seq_printf(s, "SCDC[0x%02x] 0x%02x\n", scdc_reg + i, val[i]);
+
+			scdc21_sequential_rd_sink(SCDC_RS_CORRECTION_CNT_0, val, 2);
+			scdc_reg = SCDC_RS_CORRECTION_CNT_0;
+			for (i = 0; i < 2; i++)
+				seq_printf(s, "SCDC[0x%02x] 0x%02x\n", scdc_reg + i, val[i]);
+			scdc_reg = SCDC_RS_CORRECTION_CNT_1;
+		} else {
+			scdc21_rd_sink(scdc_reg, &val);
+			seq_printf(s, "SCDC[0x%02x] 0x%02x\n", scdc_reg, val);
+		}
 	}
 
 	return 0;
@@ -809,33 +919,40 @@ struct hdmitx_dbg_files_s {
 	const char *name;
 	const umode_t mode;
 	const struct file_operations *fops;
+	const struct proc_ops *pops;
+};
+
+static const struct proc_ops dump_frl_status_pops = {
+	.proc_open		= dump_frl_status_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
 };
 
 static struct hdmitx_dbg_files_s hdmitx_dbg_files[] = {
-	{"bus_reg", S_IFREG | 0444, &dump_busreg_fops},
-	{"hdmi_reg", S_IFREG | 0444, &dump_hdmireg_fops},
-	{"hdmi_vpfdet", S_IFREG | 0444, &dump_hdmivpfdet_fops},
-	{"hdmi_pkt", S_IFREG | 0444, &dump_hdmipkt_fops},
-	{"hdmi_ver", S_IFREG | 0444, &dump_hdmiver_fops},
-	{"aud_cts", S_IFREG | 0444, &dump_audcts_fops},
+	{"bus_reg", S_IFREG | 0444, &dump_busreg_fops, &dump_busreg_pops},
+	{"hdmi_reg", S_IFREG | 0444, &dump_hdmireg_fops, &dump_hdmireg_pops},
+	{"hdmi_vpfdet", S_IFREG | 0444, &dump_hdmivpfdet_fops, &dump_hdmivpfdet_pops},
+	{"hdmi_pkt", S_IFREG | 0444, &dump_hdmipkt_fops, &dump_hdmipkt_pops},
+	{"hdmi_ver", S_IFREG | 0444, &dump_hdmiver_fops, &dump_hdmiver_pops},
+	{"aud_cts", S_IFREG | 0444, &dump_audcts_fops, &dump_audcts_pops},
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	{"hdmi_vrr", S_IFREG | 0444, &dump_hdmivrr_fops},
+	{"hdmi_vrr", S_IFREG | 0444, &dump_hdmivrr_fops, &dump_hdmivrr_pops},
 #endif
-	{"cts_enc_clk", S_IFREG | 0444, &dump_cts_enc_clk_fops},
-	{"frl_status", S_IFREG | 0444, &dump_frl_status_fops},
+	{"cts_enc_clk", S_IFREG | 0444, &dump_cts_enc_clk_fops, &dump_cts_enc_clk_pops},
+	{"frl_status", S_IFREG | 0444, &dump_frl_status_fops, &dump_frl_status_pops},
 };
 
-static struct dentry *hdmitx_dbgfs;
+static struct dentry *hdmitx_file_dbgfs;
 void hdmitx21_debugfs_init(void)
 {
 	struct dentry *entry;
 	int i;
 
-	if (hdmitx_dbgfs)
+	if (hdmitx_file_dbgfs)
 		return;
 
-	hdmitx_dbgfs = debugfs_create_dir(DEVICE_NAME, NULL);
-	if (!hdmitx_dbgfs) {
+	hdmitx_file_dbgfs = debugfs_create_dir(DEVICE_NAME, NULL);
+	if (!hdmitx_file_dbgfs) {
 		HDMITX_ERROR("can't create %s debugfs dir\n", DEVICE_NAME);
 		return;
 	}
@@ -843,8 +960,29 @@ void hdmitx21_debugfs_init(void)
 	for (i = 0; i < ARRAY_SIZE(hdmitx_dbg_files); i++) {
 		entry = debugfs_create_file(hdmitx_dbg_files[i].name,
 			hdmitx_dbg_files[i].mode,
-			hdmitx_dbgfs, NULL,
+			hdmitx_file_dbgfs, NULL,
 			hdmitx_dbg_files[i].fops);
+		if (!entry)
+			HDMITX_ERROR("debugfs create file %s failed\n",
+				hdmitx_dbg_files[i].name);
+	}
+}
+
+static struct proc_dir_entry *hdmitx_proc_dbgfs;
+void profs_hdmitx21_debugfs_init(void)
+{
+	struct proc_dir_entry *entry;
+	int i;
+
+	hdmitx_proc_dbgfs = proc_mkdir("amhdmitx", NULL);
+	if (!hdmitx_proc_dbgfs)
+		HDMITX_ERROR("Error creating proc entry");
+
+	for (i = 0; i < ARRAY_SIZE(hdmitx_dbg_files); i++) {
+		entry = proc_create(hdmitx_dbg_files[i].name,
+			hdmitx_dbg_files[i].mode,
+			hdmitx_proc_dbgfs,
+			hdmitx_dbg_files[i].pops);
 		if (!entry)
 			HDMITX_ERROR("debugfs create file %s failed\n",
 				hdmitx_dbg_files[i].name);

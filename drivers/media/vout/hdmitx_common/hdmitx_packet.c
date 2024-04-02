@@ -12,7 +12,8 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 	u8 hb[3] = {0x81, 0x1, 0};
 	u8 len = 0; /* hb[2] = len */
 	u8 vsif_db[28] = {0}; /* to be fulfilled */
-	u8 *db = &vsif_db[1]; /* to be fulfilled */
+	/* transmission usage, excluding checksum */
+	u8 *db = &vsif_db[1];
 	u32 ieeeoui = 0;
 	u32 vic = 0;
 	struct hdmitx_hw_common *tx_hw = tx_comm->tx_hw;
@@ -35,7 +36,7 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 			db[4] = vic & 0xf;
 			db[3] = 0x20;
 			hdmitx_hw_cntl_config(tx_hw, CONF_AVI_VIC, 0);
-			hdmitx_hw_set_packet(tx_hw, HDMI_PACKET_VEND, db, hb);
+			hdmitx_hw_set_packet(tx_hw, HDMI_INFOFRAME_TYPE_VENDOR, db, hb);
 		} else {
 			HDMITX_INFO("skip vsif for non-4k mode.\n");
 			return -EINVAL;
@@ -59,14 +60,14 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 			db[4] &= ~(1 << 1); /* clear bit1, ALLM_MODE */
 			/* 1.When the Source stops transmitting the HF-VSIF,
 			 * the Sink shall interpret this as an indication
-			 * that transmission offeatures described in this
+			 * that transmission of features described in this
 			 * Infoframe has stopped
 			 * 2.When a Source is utilizing the HF-VSIF for ALLM
 			 * signaling only and indicates the Sink should
-			 * revert fromow-latency Mode to its previous mode,
+			 * revert from low-latency Mode to its previous mode,
 			 * the Source should send ALLM Mode = 0 to quickly
 			 * and reliably request the change. If a Source
-			 * indicates ALLM Mode = 0 in this manner , the
+			 * indicates ALLM Mode = 0 in this manner, the
 			 * Source should transmit an HF-VSIF with ALLM Mode = 0
 			 * for at least 4 frames but for not more than 1 second.
 			 */

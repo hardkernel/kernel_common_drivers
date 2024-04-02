@@ -76,6 +76,25 @@
 #define HDMITX_TOP_DONT_TOUCH0        (TOP_SEC_OFFSET_MASK + (0x0FE << 2)) // 0x3F8
 #define HDMITX_TOP_DONT_TOUCH1        (TOP_SEC_OFFSET_MASK + (0x0FF << 2)) // 0x3FC
 
+//for s7&s7d
+/* bit[0] : reg_pbist_gate_en
+ * bit[1] : reg_fdet_gate_en
+ * bit[2] : reg_p2t_p0_gate_en
+ * bit[3] : reg_p2t_p1_gate_en
+ * bit[12] : reg_src_free_ck
+ * bit[13] : reg_aud_fifo_free_ck: reserve
+ * bit[14] : reg_regtx_free_ck
+ * bit[15] : reg_hdr_free_ck
+ * bit[16] : reg_hdcp2x_gate_en
+ * bit[17] : reg_hdcp1x_gate_en
+ * note : bit[3] default 1, other 0. bit[12:15] not need sw control
+ */
+#define HDMITX_TOP_CLK_GATE				(TOP_OFFSET_MASK + (0x030 << 2)) // 0x0C0
+	#define BIT_HDMITX_TOP_CLK_GATE_HDCP1X BIT(17)
+	#define BIT_HDMITX_TOP_CLK_GATE_HDCP2X BIT(16)
+	#define BIT_HDMITX_TOP_CLK_GATE_FDET BIT(1)
+	#define BIT_HDMITX_TOP_CLK_GATE_PBIST BIT(0)
+
 //==================== AON_DDC_REG ====================
 
 #define INTR3_IVCTX 0x0000
@@ -144,6 +163,12 @@
 #define INTR1_MASK_IVCTX 0x0017
 
 #define AON_CYP_CTL_IVCTX 0x0018
+
+#define DDC_SCL_DUTY_MODE_ADDR 0x001D
+
+#define DDC_ST_STOP_DELAY_1 0x001E
+
+#define DDC_ST_STOP_DELAY_0 0x001F
 
 //==================== REGTX_AON_SOC ====================
 
@@ -1131,7 +1156,20 @@
 
 #define TPI_VID_MUTE2_IVCTX 0x064F
 
-#define RSVD4_HW_TPI_IVCTX 0x0660
+#define PKT_AUTO_0_IVCTX 0x0660
+#define PKT_AUTO_1_IVCTX 0x0661
+#define PKT_LOC_AVI_IVCTX 0x0662
+#define PKT_LOC_GAMUT_IVCTX 0x0663
+#define PKT_LOC_AUD_IVCTX 0x0664
+#define PKT_LOC_SPD_IVCTX 0x0665
+#define PKT_LOC_MPEG_IVCTX 0x0666
+#define PKT_LOC_VSIF_IVCTX 0x0667
+#define PKT_LOC_GEN_IVCTX 0x0668
+#define PKT_LOC_GEN2_IVCTX 0x0669
+#define PKT_LOC_GEN3_IVCTX 0x0670
+#define PKT_LOC_GEN4_IVCTX 0x0671
+#define PKT_LOC_GEN5_IVCTX 0x0672
+#define PKT_LOC_VTEM_IVCTX 0x0673
 
 #define TPI_HW_DBG1_IVCTX 0x0679
 
@@ -2575,6 +2613,12 @@
 #define D_HDR_SPARE_9_IVCTX 0x0F26
 
 #define D_HDR_FIFO_MEM_CTL_IVCTX 0x0F27
+
+#define D_HDR_MEM_READ_EN_IVCTX 0x0F30
+
+#define D_HDR_MEM_X_FIFO_IVCTX 0x0F31
+
+#define D_HDR_MEM_XDATA_IVCTX 0x0F32
 
 //==================== DSC_PKT_REG ====================
 
