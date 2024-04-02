@@ -105,6 +105,7 @@ static unsigned long host_psci_smc(struct host_module *host)
 	struct arm_smccc_res res = {0};
 	u32 cfg0;
 	u32 addr;
+	u32 id;
 
 	switch (host->start_pos) {
 	case PURE_DDR:
@@ -115,15 +116,17 @@ static unsigned long host_psci_smc(struct host_module *host)
 		break;
 	case DDR_SRAM:
 		addr = host->phys_remap_addr;
-		arm_smccc_smc(SMC_REMAP_CMD, host->hostid, addr,
-			host->phys_sram_addr, 2, 0, 0, 0, &res);
+		id = PACK_SMC_SUBID_ID(SMC_SUBID_HIFI_DSP_REMAP, host->hostid);
+		arm_smccc_smc(SMC_HIFI_DSP_CMD, id, addr, host->phys_sram_addr,
+				2, 0, 0, 0, &res);
 		break;
 	default:
 		return 0;
 	};
 	cfg0 = 0x1 |  1 << 1 | 1 << 2;
-	arm_smccc_smc(SMC_BOOT_CMD, host->hostid, addr, cfg0,
-		      0, 0, 0, 0, &res);
+	id = PACK_SMC_SUBID_ID(SMC_SUBID_HIFI_DSP_BOOT, host->hostid);
+	arm_smccc_smc(SMC_HIFI_DSP_CMD, id, addr,
+				cfg0, 0, 0, 0, 0, &res);
 	return res.a0;
 }
 

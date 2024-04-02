@@ -10,8 +10,13 @@
 #include <linux/miscdevice.h>
 #include <linux/amlogic/scpi_protocol.h>
 
-#define SMC_REMAP_CMD 0x82000096
-#define SMC_BOOT_CMD  0x82000090
+/*hifi dsp cmd and subid*/
+#define SMC_HIFI_DSP_CMD		0x82000090
+#define SMC_SUBID_HIFI_DSP_BOOT		0x10
+#define SMC_SUBID_HIFI_DSP_REMAP	0x11
+#define SMC_SUBID_HIFI_DSP_PWRCTRL	0x12
+#define SMC_SUBID_SHIFT			0x8
+#define PACK_SMC_SUBID_ID(subid, id) (((subid) << SMC_SUBID_SHIFT) | (id))
 
 struct host_module;
 struct host_info_t;
