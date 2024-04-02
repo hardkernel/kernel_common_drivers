@@ -321,7 +321,7 @@
 	};
 
 	amlvecm {
-		compatible = "amlogic, vecm-s7";
+		compatible = "amlogic, vecm-s7d";
 		dev_name = "aml_vecm";
 		status = "okay";
 		gamma_en = <0>;/*1:enable ;0:disable*/

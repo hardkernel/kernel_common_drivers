@@ -66,6 +66,13 @@ enum pw_state_e {
 	PW_MAX,
 };
 
+enum vsr_pq_cfg_e {
+	DEFAULT_PARAM = 0,
+	RES_480P,
+	RES_720P,
+	RES_1080P
+};
+
 extern unsigned int gamma_loadprotect_en;
 extern struct ve_hist_s video_ve_hist;
 void ve_hist_gamma_reset(void);
@@ -229,6 +236,12 @@ void vpp_pst_hist_sta_read(unsigned int *hist);
 void eye_proc(int mtx_ep[][4], int mtx_on, int vpp_index);
 void set_vpp_enh_clk(struct vframe_s *vf, struct vframe_s *rpt_vf, int vpp_index);
 void lut3d_update(unsigned int p3dlut_in[][3], int vpp_index);
+void s7d_sharpness_init(void);
+void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg, enum wr_md_e mode, int vpp_index);
+void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg, enum wr_md_e mode, int vpp_index);
+void pi_pq_config(enum vsr_pq_cfg_e vsr_cfg, enum wr_md_e mode, int vpp_index);
+void amve_sharpness_sub_ctrl(unsigned int sel, unsigned int enable);
+void amve_vsr_config_update(struct vframe_s *vf, int vpp_index);
 
 extern int dnlp_en_dsw;
 void set_sharpness_gain(int sr0_gain, int sr1_gain);

@@ -38,6 +38,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include "arch/vpp_regs.h"
 #include "arch/ve_regs.h"
+#include "arch/vpp_s7d_sr_regs.h"
 #include "amve.h"
 #include <linux/io.h>
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -291,6 +292,9 @@ void ve_dnlp_load_reg(void)
 					dnlp_reg = SRSHARP0_DNLP2_00;
 				else
 					dnlp_reg = SRSHARP1_DNLP2_00;
+
+				if (chip_type_id == chip_s7d)
+					dnlp_reg = VPP_DNLP_YGRID_0;
 
 				for (i = 0; i < 32; i++)
 					WRITE_VPP_REG(dnlp_reg + i,
@@ -1123,11 +1127,11 @@ void ve_enable_dnlp(void)
 	ve_en = 1;
 
 	if (chip_type_id != chip_t3x) {
-/* #ifdef NEW_DNLP_IN_SHARPNESS */
-/* if(dnlp_sel == NEW_DNLP_IN_SHARPNESS){ */
 		if (dnlp_sel == NEW_DNLP_IN_SHARPNESS) {
 			if (is_meson_gxlx_cpu() || is_meson_txlx_cpu()) {
 				reg_ctrl = SRSHARP1_DNLP_EN;
+			} else if (chip_type_id == chip_s7d) {
+				reg_ctrl = VPP_DNLP_EN_MODE;
 			} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 				if ((!vinfo_lcd_support() && chip_type_id != chip_s5) ||
 					is_meson_t7_cpu() ||
@@ -1138,16 +1142,17 @@ void ve_enable_dnlp(void)
 			} else {
 				reg_ctrl = SRSHARP0_DNLP_EN;
 			}
-			WRITE_VPP_REG_BITS(reg_ctrl, 1, 0, 1);
+
+			if (chip_type_id != chip_s7d)
+				WRITE_VPP_REG_BITS(reg_ctrl, 1, 0, 1);
+			else
+				WRITE_VPP_REG_BITS(reg_ctrl, 1, 4, 1);
 		} else {
-			/* #endif */
 			WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
 				1, DNLP_EN_BIT, DNLP_EN_WID);
 		}
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	} else {
 		ve_dnlp_ctl(1);
-#endif
 	}
 }
 
@@ -1161,6 +1166,8 @@ void ve_disable_dnlp(void)
 		if (dnlp_sel == NEW_DNLP_IN_SHARPNESS) {
 			if (is_meson_gxlx_cpu() || is_meson_txlx_cpu()) {
 				reg_ctrl = SRSHARP1_DNLP_EN;
+			} else if (chip_type_id == chip_s7d) {
+				reg_ctrl = VPP_DNLP_EN_MODE;
 			} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 				if ((!vinfo_lcd_support() && chip_type_id != chip_s5) ||
 					is_meson_t7_cpu() ||
@@ -1171,15 +1178,17 @@ void ve_disable_dnlp(void)
 			} else {
 				reg_ctrl = SRSHARP0_DNLP_EN;
 			}
-			WRITE_VPP_REG_BITS(reg_ctrl, 0, 0, 1);
+
+			if (chip_type_id != chip_s7d)
+				WRITE_VPP_REG_BITS(reg_ctrl, 0, 0, 1);
+			else
+				WRITE_VPP_REG_BITS(reg_ctrl, 0, 4, 1);
 		} else {
 			WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
 				0, DNLP_EN_BIT, DNLP_EN_WID);
 		}
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	} else {
 		ve_dnlp_ctl(0);
-#endif
 	}
 }
 
@@ -3744,6 +3753,1480 @@ void set_vpp_enh_clk(struct vframe_s *vf, struct vframe_s *rpt_vf, int vpp_index
 	/* coverity[dead_error_begin:SUPPRESS] */
 	default:
 		pre_state = PW_MAX;
+		break;
+	}
+}
+
+void s7d_sharpness_init(void)
+{
+	WRITE_VPP_REG(VPP_SR_DIR_MIMAXERR2_LUT_0_0, 0x30100800);
+	WRITE_VPP_REG(VPP_SR_DIR_MIMAXERR2_LUT_0_1, 0x3c3c3838);
+	WRITE_VPP_REG(VPP_SR_DIR_MIMAXERR2_LUT_1_0, 0x30100000);
+	WRITE_VPP_REG(VPP_SR_DIR_MIMAXERR2_LUT_1_1, 0x3c3c3c38);
+	WRITE_VPP_REG(VPP_SR_DIR_MIMAXERR2_LUT_2_0, 0x10000000);
+	WRITE_VPP_REG(VPP_SR_DIR_MIMAXERR2_LUT_2_1, 0x38383830);
+	WRITE_VPP_REG(VPP_SR_DIR_MIMAXERR2_LUT_3_0, 0x08000000);
+	WRITE_VPP_REG(VPP_SR_DIR_MIMAXERR2_LUT_3_1, 0x38383018);
+	WRITE_VPP_REG(VPP_SR_DIR_MIMAXERR2_LUT_4_0, 0x00000000);
+	WRITE_VPP_REG(VPP_SR_DIR_MIMAXERR2_LUT_4_1, 0x30302010);
+	WRITE_VPP_REG(VPP_SR_DIR_MIMAXERR2_LUT_5_0, 0x00000000);
+	WRITE_VPP_REG(VPP_SR_DIR_MIMAXERR2_LUT_5_1, 0x20100400);
+	WRITE_VPP_REG(VPP_SR_DIR_MIMAXERR2_LUT_6_0, 0x00000000);
+	WRITE_VPP_REG(VPP_SR_DIR_MIMAXERR2_LUT_6_1, 0x10080000);
+	WRITE_VPP_REG(VPP_HCTI_BP_3TAP_COEF, 0x0000c07f);
+}
+
+static enum vsr_pq_cfg_e pre_vsr_cfg;
+
+void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
+	enum wr_md_e mode, int vpp_index)
+{
+	unsigned int data32 = 0;
+
+	switch (vsr_cfg) {
+	case RES_480P:
+		/*peaking*/
+		if (mode == WR_VCB) {
+			WRITE_VPP_REG_BITS(VPP_DERING_EDGE_CONF_GAIN, 8, 4, 4);
+			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 96, 16, 8);
+
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 8, 0, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 12, 8, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 16, 16, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 24, 24, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 24, 0, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 20, 8, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 16, 16, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 12, 24, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_F, 8, 0, 6);
+
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 16, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 32, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 72, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 80, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 64, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 60, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 60, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 60, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_F, 60, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_HTI_EN_MODE, 1, 20, 1);
+			WRITE_VPP_REG_BITS(VPP_HTI_OS_UP_DN_GAIN, 8, 8, 4);
+
+			WRITE_VPP_REG_BITS(VPP_VTI_OS_UP_DN_GAIN, 8, 8, 4);
+
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 16, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 24, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 32, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 56, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 64, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 80, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 80, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 80, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_F, 80, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 8, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 16, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 24, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 80, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 96, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 80, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_F, 16, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 8, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 12, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 16, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 28, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 32, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 40, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 56, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_F, 64, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 8, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 16, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 24, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 80, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 96, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 80, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_F, 16, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_SR_DIR_PK_LA_ERR_DIS_RATE, 32, 16, 6);
+
+			WRITE_VPP_REG_BITS(VPP_NR_DIR_LPF_GAIN, 10, 0, 6);
+		} else if (mode == WR_DMA) {
+			data32 = READ_VPP_REG_S5(VPP_DERING_EDGE_CONF_GAIN);
+			data32 = (data32 & 0xfffffff0) | (0x8 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_DERING_EDGE_CONF_GAIN,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PK_FINAL_GAIN);
+			data32 = (data32 & 0xff000000) |
+				(0x60 << 16) | (0x40 << 8) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_FINAL_GAIN,
+				data32, vpp_index);
+
+			data32 = (0x18 << 24) | (0x10 << 16) | (0xc << 8) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_0,
+				data32, vpp_index);
+			data32 = (0xc << 24) | (0x10 << 16) | (0x14 << 8) | 0x18;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PK_OS_ADP_LUT_F);
+			data32 = (data32 & 0xffffffc0) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x50 << 24) | (0x48 << 16) | (0x20 << 8) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x3c << 24) | (0x3c << 16) | (0x3c << 8) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PK_CIR_GAIN_LUT_F);
+			data32 = (data32 & 0xffffffc0) | 0x3c;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_F,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_HTI_EN_MODE);
+			data32 = (data32 & 0xffefffff) | (0x1 << 20);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_HTI_OS_UP_DN_GAIN);
+			data32 = (data32 & 0xfffff0ff) | (0x8 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_OS_UP_DN_GAIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_VTI_OS_UP_DN_GAIN);
+			data32 = (data32 & 0xfffff0ff) | (0x8 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VTI_OS_UP_DN_GAIN,
+				data32, vpp_index);
+
+			data32 = (0x38 << 24) | (0x20 << 16) | (0x18 << 8) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_BST_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x50 << 24) | (0x50 << 16) | (0x50 << 8) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_BST_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_HLTI_BST_GAIN_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x50;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_BST_GAIN_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x40 << 24) | (0x18 << 16) | (0x10 << 8) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_OS_ADP_LUT_0,
+				data32, vpp_index);
+			data32 = (0x40 << 24) | (0x50 << 16) | (0x60 << 8) | 0x50;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_OS_ADP_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_HLTI_OS_ADP_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_OS_ADP_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x1c << 24) | (0x10 << 16) | (0xc << 8) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_BST_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x40 << 24) | (0x38 << 16) | (0x28 << 8) | 0x20;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_BST_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_VLTI_BST_GAIN_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_BST_GAIN_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x40 << 24) | (0x18 << 16) | (0x10 << 8) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_OS_ADP_LUT_0,
+				data32, vpp_index);
+			data32 = (0x40 << 24) | (0x50 << 16) | (0x60 << 8) | 0x50;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_OS_ADP_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_VLTI_OS_ADP_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_OS_ADP_LUT_F,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_SR_DIR_PK_LA_ERR_DIS_RATE);
+			data32 = (data32 & 0xffc0ffff) | (0x20 << 16);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_SR_DIR_PK_LA_ERR_DIS_RATE,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_NR_DIR_LPF_GAIN);
+			data32 = (data32 & 0xffffffc0) | 0xa;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_NR_DIR_LPF_GAIN,
+				data32, vpp_index);
+		}
+		break;
+	case RES_720P:
+		/*peaking*/
+		if (mode == WR_VCB) {
+			WRITE_VPP_REG_BITS(VPP_DERING_EDGE_CONF_GAIN, 3, 4, 4);
+			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 96, 16, 8);
+
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 8, 0, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 16, 8, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 24, 16, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 32, 24, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 24, 0, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 20, 8, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 16, 16, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 12, 24, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_F, 8, 0, 6);
+
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 16, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 56, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 88, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 96, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 64, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 56, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 56, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 56, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_F, 56, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_HTI_EN_MODE, 0, 20, 1);
+			WRITE_VPP_REG_BITS(VPP_HTI_OS_UP_DN_GAIN, 15, 8, 4);
+			WRITE_VPP_REG_BITS(VPP_VTI_OS_UP_DN_GAIN, 15, 8, 4);
+
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 16, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 24, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 32, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 56, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 64, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 64, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 64, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 48, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_F, 32, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 8, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 16, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 24, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 48, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 64, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 96, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 80, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_F, 32, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 8, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 12, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 16, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 28, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 32, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 40, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 56, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_F, 64, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 8, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 16, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 24, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 80, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 96, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 80, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_F, 16, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_SR_DIR_PK_LA_ERR_DIS_RATE, 28, 16, 6);
+			WRITE_VPP_REG_BITS(VPP_NR_DIR_LPF_GAIN, 10, 0, 6);
+		} else if (mode == WR_DMA) {
+			data32 = READ_VPP_REG_S5(VPP_DERING_EDGE_CONF_GAIN);
+			data32 = (data32 & 0xfffffff0) | (0x3 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_DERING_EDGE_CONF_GAIN,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PK_FINAL_GAIN);
+			data32 = (data32 & 0xff000000) |
+				(0x60 << 16) | (0x40 << 8) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_FINAL_GAIN,
+				data32, vpp_index);
+
+			data32 = (0x20 << 24) | (0x18 << 16) | (0x10 << 8) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_0,
+				data32, vpp_index);
+			data32 = (0xc << 24) | (0x10 << 16) | (0x14 << 8) | 0x18;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PK_OS_ADP_LUT_F);
+			data32 = (data32 & 0xffffffc0) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x60 << 24) | (0x58 << 16) | (0x38 << 8) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x38 << 24) | (0x38 << 16) | (0x38 << 8) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PK_CIR_GAIN_LUT_F);
+			data32 = (data32 & 0xffffffc0) | 0x38;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_F,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_HTI_EN_MODE);
+			data32 = (data32 & 0xffefffff) | (0x0 << 20);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_HTI_OS_UP_DN_GAIN);
+			data32 = (data32 & 0xfffff0ff) | (0xf << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_OS_UP_DN_GAIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_VTI_OS_UP_DN_GAIN);
+			data32 = (data32 & 0xfffff0ff) | (0xf << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VTI_OS_UP_DN_GAIN,
+				data32, vpp_index);
+
+			data32 = (0x38 << 24) | (0x20 << 16) | (0x18 << 8) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_BST_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x38 << 24) | (0x40 << 16) | (0x40 << 8) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_BST_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_HLTI_BST_GAIN_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x20;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_BST_GAIN_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x30 << 24) | (0x18 << 16) | (0x10 << 8) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_OS_ADP_LUT_0,
+				data32, vpp_index);
+			data32 = (0x40 << 24) | (0x50 << 16) | (0x60 << 8) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_OS_ADP_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_HLTI_OS_ADP_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x20;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_OS_ADP_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x1c << 24) | (0x10 << 16) | (0xc << 8) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_BST_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x40 << 24) | (0x38 << 16) | (0x28 << 8) | 0x20;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_BST_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_VLTI_BST_GAIN_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_BST_GAIN_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x40 << 24) | (0x18 << 16) | (0x10 << 8) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_OS_ADP_LUT_0,
+				data32, vpp_index);
+			data32 = (0x40 << 24) | (0x50 << 16) | (0x60 << 8) | 0x50;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_OS_ADP_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_VLTI_OS_ADP_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_OS_ADP_LUT_F,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_SR_DIR_PK_LA_ERR_DIS_RATE);
+			data32 = (data32 & 0xffc0ffff) | (0x1c << 16);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_SR_DIR_PK_LA_ERR_DIS_RATE,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_NR_DIR_LPF_GAIN);
+			data32 = (data32 & 0xffffffc0) | 0xa;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_NR_DIR_LPF_GAIN,
+				data32, vpp_index);
+		}
+		break;
+	case RES_1080P:
+		/*peaking*/
+		if (mode == WR_VCB) {
+			WRITE_VPP_REG_BITS(VPP_DERING_EDGE_CONF_GAIN, 3, 4, 4);
+			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 96, 16, 8);
+
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 8, 0, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 16, 8, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 28, 16, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 32, 24, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 24, 0, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 20, 8, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 16, 16, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 12, 24, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_F, 8, 0, 6);
+
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 16, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 56, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 106, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 124, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 92, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 74, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 48, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 48, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_F, 48, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_HTI_EN_MODE, 1, 20, 1);
+			WRITE_VPP_REG_BITS(VPP_HTI_OS_UP_DN_GAIN, 12, 8, 4);
+			WRITE_VPP_REG_BITS(VPP_VTI_OS_UP_DN_GAIN, 15, 8, 4);
+
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 16, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 24, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 32, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 56, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 64, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 80, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 64, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 46, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_F, 46, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 4, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 10, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 38, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 62, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 108, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 124, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 108, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 92, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_F, 92, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 8, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 12, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 16, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 28, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 32, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 40, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 32, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 16, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_F, 2, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 24, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 32, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 46, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 96, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 118, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 80, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_F, 16, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_SR_DIR_PK_LA_ERR_DIS_RATE, 20, 16, 6);
+			WRITE_VPP_REG_BITS(VPP_NR_DIR_LPF_GAIN, 16, 0, 6);
+		} else if (mode == WR_DMA) {
+			data32 = READ_VPP_REG_S5(VPP_DERING_EDGE_CONF_GAIN);
+			data32 = (data32 & 0xfffffff0) | (0x3 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_DERING_EDGE_CONF_GAIN,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PK_FINAL_GAIN);
+			data32 = (data32 & 0xff000000) |
+				(0x60 << 16) | (0x40 << 8) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_FINAL_GAIN,
+				data32, vpp_index);
+
+			data32 = (0x20 << 24) | (0x1c << 16) | (0x10 << 8) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_0,
+				data32, vpp_index);
+			data32 = (0xc << 24) | (0x10 << 16) | (0x14 << 8) | 0x18;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PK_OS_ADP_LUT_F);
+			data32 = (data32 & 0xffffffc0) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x7c << 24) | (0x6a << 16) | (0x38 << 8) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x30 << 24) | (0x30 << 16) | (0x4a << 8) | 0x5c;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PK_CIR_GAIN_LUT_F);
+			data32 = (data32 & 0xffffffc0) | 0x30;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_F,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_HTI_EN_MODE);
+			data32 = (data32 & 0xffefffff) | (0x1 << 20);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_HTI_OS_UP_DN_GAIN);
+			data32 = (data32 & 0xfffff0ff) | (0xc << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_OS_UP_DN_GAIN,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_VTI_OS_UP_DN_GAIN);
+			data32 = (data32 & 0xfffff0ff) | (0xf << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VTI_OS_UP_DN_GAIN,
+				data32, vpp_index);
+
+			data32 = (0x38 << 24) | (0x20 << 16) | (0x18 << 8) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_BST_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x2e << 24) | (0x40 << 16) | (0x50 << 8) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_BST_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_HLTI_BST_GAIN_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x2e;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_BST_GAIN_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x3e << 24) | (0x26 << 16) | (0xa << 8) | 0x4;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_OS_ADP_LUT_0,
+				data32, vpp_index);
+			data32 = (0x5c << 24) | (0x6c << 16) | (0x7c << 8) | 0x6c;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_OS_ADP_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_HLTI_OS_ADP_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x5c;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_OS_ADP_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x1c << 24) | (0x10 << 16) | (0xc << 8) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_BST_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x10 << 24) | (0x20 << 16) | (0x28 << 8) | 0x20;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_BST_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_VLTI_BST_GAIN_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x2;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_BST_GAIN_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x40 << 24) | (0x2e << 16) | (0x20 << 8) | 0x18;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_OS_ADP_LUT_0,
+				data32, vpp_index);
+			data32 = (0x40 << 24) | (0x50 << 16) | (0x76 << 8) | 0x60;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_OS_ADP_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_VLTI_OS_ADP_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_OS_ADP_LUT_F,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_SR_DIR_PK_LA_ERR_DIS_RATE);
+			data32 = (data32 & 0xffc0ffff) | (0x14 << 16);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_SR_DIR_PK_LA_ERR_DIS_RATE,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_NR_DIR_LPF_GAIN);
+			data32 = (data32 & 0xffffffc0) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_NR_DIR_LPF_GAIN,
+				data32, vpp_index);
+		}
+		break;
+	case DEFAULT_PARAM:
+	default:
+		if (mode == WR_VCB) {
+			WRITE_VPP_REG_BITS(VPP_DERING_EDGE_CONF_GAIN, 4, 4, 4);
+			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 16, 8);
+
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 8, 0, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 12, 8, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 16, 16, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 20, 24, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 24, 0, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 20, 8, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 16, 16, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 12, 24, 6);
+			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_F, 8, 0, 6);
+
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 16, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 32, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 64, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 56, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 32, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 16, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 8, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_F, 4, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_HTI_EN_MODE, 1, 20, 1);
+			WRITE_VPP_REG_BITS(VPP_HTI_OS_UP_DN_GAIN, 8, 8, 4);
+			WRITE_VPP_REG_BITS(VPP_VTI_OS_UP_DN_GAIN, 8, 8, 4);
+
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 16, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 24, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 32, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_0, 56, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 64, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 80, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 64, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_1, 32, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_BST_GAIN_LUT_F, 4, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 8, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 16, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 24, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_0, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 80, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 96, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 80, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_1, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_HLTI_OS_ADP_LUT_F, 16, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 8, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 12, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 16, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_0, 28, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 32, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 40, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 32, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_1, 16, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_BST_GAIN_LUT_F, 2, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 8, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 16, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 24, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_0, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 80, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 96, 8, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 80, 16, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_1, 64, 24, 8);
+			WRITE_VPP_REG_BITS(VPP_VLTI_OS_ADP_LUT_F, 16, 0, 8);
+
+			WRITE_VPP_REG_BITS(VPP_SR_DIR_PK_LA_ERR_DIS_RATE, 32, 16, 6);
+			WRITE_VPP_REG_BITS(VPP_NR_DIR_LPF_GAIN, 16, 0, 6);
+		} else if (mode == WR_DMA) {
+			data32 = READ_VPP_REG_S5(VPP_DERING_EDGE_CONF_GAIN);
+			data32 = (data32 & 0xfffffff0) | (0x4 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_DERING_EDGE_CONF_GAIN,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PK_FINAL_GAIN);
+			data32 = (data32 & 0xff000000) |
+				(0x40 << 16) | (0x40 << 8) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_FINAL_GAIN,
+				data32, vpp_index);
+
+			data32 = (0x14 << 24) | (0x10 << 16) | (0xc << 8) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_0,
+				data32, vpp_index);
+			data32 = (0xc << 24) | (0x10 << 16) | (0x14 << 8) | 0x18;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PK_OS_ADP_LUT_F);
+			data32 = (data32 & 0xffffffc0) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x40 << 24) | (0x40 << 16) | (0x20 << 8) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x8 << 24) | (0x10 << 16) | (0x20 << 8) | 0x38;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PK_CIR_GAIN_LUT_F);
+			data32 = (data32 & 0xffffffc0) | 0x4;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_F,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_HTI_EN_MODE);
+			data32 = (data32 & 0xffefffff) | (0x1 << 20);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_HTI_OS_UP_DN_GAIN);
+			data32 = (data32 & 0xfffff0ff) | (0x8 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_OS_UP_DN_GAIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_VTI_OS_UP_DN_GAIN);
+			data32 = (data32 & 0xfffff0ff) | (0x8 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VTI_OS_UP_DN_GAIN,
+				data32, vpp_index);
+
+			data32 = (0x38 << 24) | (0x20 << 16) | (0x18 << 8) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_BST_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x20 << 24) | (0x40 << 16) | (0x50 << 8) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_BST_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_HLTI_BST_GAIN_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x4;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_BST_GAIN_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x40 << 24) | (0x18 << 16) | (0x10 << 8) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_OS_ADP_LUT_0,
+				data32, vpp_index);
+			data32 = (0x40 << 24) | (0x50 << 16) | (0x60 << 8) | 0x50;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_OS_ADP_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_HLTI_OS_ADP_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HLTI_OS_ADP_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x1c << 24) | (0x10 << 16) | (0xc << 8) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_BST_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x10 << 24) | (0x20 << 16) | (0x28 << 8) | 0x20;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_BST_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_VLTI_BST_GAIN_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x2;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_BST_GAIN_LUT_F,
+				data32, vpp_index);
+
+			data32 = (0x40 << 24) | (0x18 << 16) | (0x10 << 8) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_OS_ADP_LUT_0,
+				data32, vpp_index);
+			data32 = (0x40 << 24) | (0x50 << 16) | (0x60 << 8) | 0x50;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_OS_ADP_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_VLTI_OS_ADP_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_VLTI_OS_ADP_LUT_F,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_SR_DIR_PK_LA_ERR_DIS_RATE);
+			data32 = (data32 & 0xffc0ffff) | (0x20 << 16);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_SR_DIR_PK_LA_ERR_DIS_RATE,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_NR_DIR_LPF_GAIN);
+			data32 = (data32 & 0xffffffc0) | 0x10;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_NR_DIR_LPF_GAIN,
+				data32, vpp_index);
+		}
+		break;
+	}
+}
+
+void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
+	enum wr_md_e mode, int vpp_index)
+{
+	unsigned int data32 = 0;
+
+	switch (vsr_cfg) {
+	case RES_480P:
+		if (mode == WR_VCB) {
+			WRITE_VPP_REG_BITS(SAFA_PPS_SR_422_EN, 1, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_SC_MISC, 0, 8, 1);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 24, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 20, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 1, 8, 1);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 0, 0, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 0, 4, 1);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 0, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 11, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 17, 0, 6);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 20, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 15, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 28, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 0, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 8, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN, 1, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 4, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 4, 4);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 32, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 64, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 72, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 64, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 56, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 4, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 0, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F, 0, 0, 8);
+		} else if (mode == WR_DMA) {
+			data32 = READ_VPP_REG_S5(SAFA_PPS_SR_422_EN);
+			data32 = (data32 & 0xffffffef) | (0x1 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SR_422_EN,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_SC_MISC);
+			data32 = (data32 & 0xfffffeff) | (0x0 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SC_MISC,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE);
+			data32 = (data32 & 0xfeeffeff) |
+				(0x0 << 24) | (0x0 << 20) | (0x1 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN);
+			data32 = (data32 & 0xffffffee) |
+				(0x0 << 4) | 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN);
+			data32 = (data32 & 0xffffffcc) |
+				(0x1 << 4) | 0x1;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H);
+			data32 = (data32 & 0xffc0c0c0) |
+				(0xf << 16) | (0x14 << 8) | 0xb;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V);
+			data32 = (data32 & 0xffc0c0c0) |
+				(0xa << 16) | (0x1c << 8) | 0x11;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN);
+			data32 = (data32 & 0xffffffc0) |
+				(0x0 << 4) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN);
+			data32 = (data32 & 0xffffffef) | (0x1 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN);
+			data32 = (data32 & 0xffffff00) |
+				(0x0 << 4) | 0x4;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN,
+				data32, vpp_index);
+			data32 = (0x48 << 24) | (0x40 << 16) | (0x20 << 8) | 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x0 << 24) | (0x4 << 16) | (0x38 << 8) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F,
+				data32, vpp_index);
+		}
+		break;
+	case RES_720P:
+		if (mode == WR_VCB) {
+			WRITE_VPP_REG_BITS(SAFA_PPS_SR_422_EN, 1, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_SC_MISC, 0, 8, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 1, 24, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 20, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 1, 8, 1);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 1, 0, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 0, 4, 1);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 0, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 11, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 17, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 10, 16, 6);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 0, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 8, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN, 0, 4, 1);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 2, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 4, 4);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 32, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 64, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 72, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 64, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 56, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 4, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 0, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F, 0, 0, 8);
+		} else if (mode == WR_DMA) {
+			data32 = READ_VPP_REG_S5(SAFA_PPS_SR_422_EN);
+			data32 = (data32 & 0xffffffef) | (0x1 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SR_422_EN,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_SC_MISC);
+			data32 = (data32 & 0xfffffeff) | (0x0 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SC_MISC,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE);
+			data32 = (data32 & 0xfeeffeff) |
+				(0x1 << 24) | (0x0 << 20) | (0x1 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN);
+			data32 = (data32 & 0xffffffee) |
+				(0x0 << 4) | 0x1;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN);
+			data32 = (data32 & 0xffffffcc) |
+				(0x1 << 4) | 0x1;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H);
+			data32 = (data32 & 0xffc0c0c0) |
+				(0xa << 16) | (0xf << 8) | 0xb;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V);
+			data32 = (data32 & 0xffc0c0c0) |
+				(0xa << 16) | (0xf << 8) | 0x11;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN);
+			data32 = (data32 & 0xffffffc0) |
+				(0x0 << 4) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN);
+			data32 = (data32 & 0xffffffef) | (0x0 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN);
+			data32 = (data32 & 0xffffff00) |
+				(0x0 << 4) | 0x2;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN,
+				data32, vpp_index);
+			data32 = (0x48 << 24) | (0x40 << 16) | (0x20 << 8) | 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x0 << 24) | (0x4 << 16) | (0x38 << 8) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F,
+				data32, vpp_index);
+		}
+		break;
+	case RES_1080P:
+		if (mode == WR_VCB) {
+			WRITE_VPP_REG_BITS(SAFA_PPS_SR_422_EN, 1, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_SC_MISC, 0, 8, 1);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 1, 24, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 20, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 8, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 1, 0, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 0, 4, 1);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 2, 0, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 17, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 17, 0, 6);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 10, 16, 6);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 10, 16, 6);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 1, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 8, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN, 1, 4, 1);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 4, 4);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 32, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 64, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 72, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 64, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 56, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 4, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 0, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F, 0, 0, 8);
+		} else if (mode == WR_DMA) {
+			data32 = READ_VPP_REG_S5(SAFA_PPS_SR_422_EN);
+			data32 = (data32 & 0xffffffef) | (0x1 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SR_422_EN,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_SC_MISC);
+			data32 = (data32 & 0xfffffeff) | (0x0 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SC_MISC,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE);
+			data32 = (data32 & 0xfeeffeff) |
+				(0x1 << 24) | (0x0 << 20) | (0x0 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN);
+			data32 = (data32 & 0xffffffee) |
+				(0x0 << 4) | 0x1;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN);
+			data32 = (data32 & 0xffffffcc) |
+				(0x1 << 4) | 0x2;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H);
+			data32 = (data32 & 0xffc0c0c0) |
+				(0xa << 16) | (0xf << 8) | 0x11;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V);
+			data32 = (data32 & 0xffc0c0c0) |
+				(0xa << 16) | (0xf << 8) | 0x11;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN);
+			data32 = (data32 & 0xffffffc0) |
+				(0x1 << 4) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN);
+			data32 = (data32 & 0xffffffef) | (0x1 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN);
+			data32 = (data32 & 0xffffff00) |
+				(0x0 << 4) | 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN,
+				data32, vpp_index);
+			data32 = (0x48 << 24) | (0x40 << 16) | (0x20 << 8) | 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x0 << 24) | (0x4 << 16) | (0x38 << 8) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F,
+				data32, vpp_index);
+		}
+		break;
+	case DEFAULT_PARAM:
+	default:
+		if (mode == WR_VCB) {
+			WRITE_VPP_REG_BITS(SAFA_PPS_SR_422_EN, 0, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_SC_MISC, 0, 8, 1);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 1, 24, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 20, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 8, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 0, 0, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 1, 4, 1);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 2, 0, 2);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 17, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 17, 0, 6);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 10, 16, 6);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 1, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 8, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN, 0, 4, 1);
+
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 4, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 32, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 64, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 64, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 72, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 64, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 16, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 8, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F, 0, 0, 8);
+		} else if (mode == WR_DMA) {
+			data32 = READ_VPP_REG_S5(SAFA_PPS_SR_422_EN);
+			data32 = (data32 & 0xffffffef) | (0x0 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SR_422_EN,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_SC_MISC);
+			data32 = (data32 & 0xfffffeff) | (0x0 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SC_MISC,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE);
+			data32 = (data32 & 0xfeeffeff) |
+				(0x1 << 24) | (0x0 << 20) | (0x0 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN);
+			data32 = (data32 & 0xffffffee) |
+				(0x1 << 4) | 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN);
+			data32 = (data32 & 0xffffffcc) |
+				(0x1 << 4) | 0x2;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H);
+			data32 = (data32 & 0xffc0c0c0) |
+				(0xa << 16) | (0xf << 8) | 0x11;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V);
+			data32 = (data32 & 0xffc0c0c0) |
+				(0xa << 16) | (0xf << 8) | 0x11;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN);
+			data32 = (data32 & 0xffffffc0) |
+				(0x1 << 4) | 0x8;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN);
+			data32 = (data32 & 0xffffffef) | (0x0 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN);
+			data32 = (data32 & 0xffffff00) |
+				(0x0 << 4) | 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN,
+				data32, vpp_index);
+			data32 = (0x40 << 24) | (0x40 << 16) | (0x20 << 8) | 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0,
+				data32, vpp_index);
+			data32 = (0x8 << 24) | (0x10 << 16) | (0x40 << 8) | 0x48;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F);
+			data32 = (data32 & 0xffffff00) | 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F,
+				data32, vpp_index);
+		}
+		break;
+	}
+}
+
+void pi_pq_config(enum vsr_pq_cfg_e vsr_cfg,
+	enum wr_md_e mode, int vpp_index)
+{
+	unsigned int data32 = 0;
+
+	switch (vsr_cfg) {
+	case RES_480P:
+		if (mode == WR_VCB) {
+			WRITE_VPP_REG_BITS(VPP_PI_EN_MODE, 1, 4, 1);
+			WRITE_VPP_REG_BITS(VPP_PI_DICT_NUM, 64, 0, 7);
+			WRITE_VPP_REG_BITS(VPP_PI_HPF_NORM_CORING, 2, 8, 2);
+			WRITE_VPP_REG_BITS(VPP_PI_HPF_NORM_CORING, 0, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PI_EN_MODE, 2, 0, 2);
+			WRITE_VPP_REG_BITS(VPP_PI_WIN_OFST, 8, 8, 4);
+			WRITE_VPP_REG_BITS(VPP_PI_WIN_OFST, 2, 4, 4);
+			WRITE_VPP_REG_BITS(VPP_PI_WIN_OFST, 3, 0, 4);
+			WRITE_VPP_REG_BITS(VPP_PI_HF_COEF_F, 255, 0, 9);
+			WRITE_VPP_REG_BITS(VPP_PI_HF_COEF, 0x1e0, 0, 9);
+			WRITE_VPP_REG_BITS(VPP_PI_HF_COEF, 0x1e0, 12, 9);
+			WRITE_VPP_REG_BITS(VPP_PI_GLB_GAIN, 48, 0, 6);
+
+			WRITE_VPP_REG_BITS(VPP_SR_DIR_HF_GAIN_ADJ, 50, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_SR_DIR_HF_GAIN_ADJ, 5, 8, 4);
+		} else if (mode == WR_DMA) {
+			data32 = READ_VPP_REG_S5(VPP_PI_EN_MODE);
+			data32 = (data32 & 0xffffffef) | (0x1 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_DICT_NUM);
+			data32 = (data32 & 0xffffff00) | 0x40;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_DICT_NUM,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_HPF_NORM_CORING);
+			data32 = (data32 & 0xfffffc00) | (0x2 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_HPF_NORM_CORING,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_EN_MODE);
+			data32 = (data32 & 0xfffffffc) | 0x2;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_WIN_OFST);
+			data32 = (data32 & 0xfffff000) |
+				(0x8 << 8) | (0x2 << 4) | 0x3;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_WIN_OFST,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_HF_COEF_F);
+			data32 = (data32 & 0xfffffe00) | 0xff;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_HF_COEF_F,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_HF_COEF);
+			data32 = (data32 & 0xffe00e00) |
+				(0x1e0 << 12) | 0x1e0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_HF_COEF,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_GLB_GAIN);
+			data32 = (data32 & 0xffffffc0) | 0x30;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_GLB_GAIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_SR_DIR_HF_GAIN_ADJ);
+			data32 = (data32 & 0xfffff000) |
+				(0x5 << 8) | 0x32;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_SR_DIR_HF_GAIN_ADJ,
+				data32, vpp_index);
+		}
+		break;
+	case RES_720P:
+		if (mode == WR_VCB) {
+			WRITE_VPP_REG_BITS(VPP_PI_EN_MODE, 1, 4, 1);
+			WRITE_VPP_REG_BITS(VPP_PI_DICT_NUM, 48, 0, 7);
+			WRITE_VPP_REG_BITS(VPP_PI_HPF_NORM_CORING, 2, 8, 2);
+			WRITE_VPP_REG_BITS(VPP_PI_HPF_NORM_CORING, 0, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PI_EN_MODE, 1, 0, 2);
+			WRITE_VPP_REG_BITS(VPP_PI_WIN_OFST, 6, 8, 4);
+			WRITE_VPP_REG_BITS(VPP_PI_WIN_OFST, 2, 4, 4);
+			WRITE_VPP_REG_BITS(VPP_PI_WIN_OFST, 3, 0, 4);
+			WRITE_VPP_REG_BITS(VPP_PI_HF_COEF_F, 204, 0, 9);
+			WRITE_VPP_REG_BITS(VPP_PI_HF_COEF, 0x1e0, 0, 9);
+			WRITE_VPP_REG_BITS(VPP_PI_HF_COEF, 0x1ed, 12, 9);
+			WRITE_VPP_REG_BITS(VPP_PI_GLB_GAIN, 48, 0, 6);
+
+			WRITE_VPP_REG_BITS(VPP_SR_DIR_HF_GAIN_ADJ, 80, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_SR_DIR_HF_GAIN_ADJ, 5, 8, 4);
+		} else if (mode == WR_DMA) {
+			data32 = READ_VPP_REG_S5(VPP_PI_EN_MODE);
+			data32 = (data32 & 0xffffffef) | (0x1 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_DICT_NUM);
+			data32 = (data32 & 0xffffff00) | 0x30;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_DICT_NUM,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_HPF_NORM_CORING);
+			data32 = (data32 & 0xfffffc00) | (0x2 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_HPF_NORM_CORING,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_EN_MODE);
+			data32 = (data32 & 0xfffffffc) | 0x1;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_WIN_OFST);
+			data32 = (data32 & 0xfffff000) |
+				(0x6 << 8) | (0x2 << 4) | 0x3;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_WIN_OFST,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_HF_COEF_F);
+			data32 = (data32 & 0xfffffe00) | 0xcc;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_HF_COEF_F,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_HF_COEF);
+			data32 = (data32 & 0xffe00e00) |
+				(0x1ed << 12) | 0x1e0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_HF_COEF,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_GLB_GAIN);
+			data32 = (data32 & 0xffffffc0) | 0x30;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_GLB_GAIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_SR_DIR_HF_GAIN_ADJ);
+			data32 = (data32 & 0xfffff000) |
+				(0x5 << 8) | 0x50;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_SR_DIR_HF_GAIN_ADJ,
+				data32, vpp_index);
+		}
+		break;
+	case RES_1080P:
+		if (mode == WR_VCB) {
+			WRITE_VPP_REG_BITS(VPP_PI_EN_MODE, 1, 4, 1);
+			WRITE_VPP_REG_BITS(VPP_PI_DICT_NUM, 32, 0, 7);
+			WRITE_VPP_REG_BITS(VPP_PI_HPF_NORM_CORING, 2, 8, 2);
+			WRITE_VPP_REG_BITS(VPP_PI_HPF_NORM_CORING, 0, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PI_EN_MODE, 0, 0, 2);
+			WRITE_VPP_REG_BITS(VPP_PI_WIN_OFST, 4, 8, 4);
+			WRITE_VPP_REG_BITS(VPP_PI_WIN_OFST, 1, 4, 4);
+			WRITE_VPP_REG_BITS(VPP_PI_WIN_OFST, 3, 0, 4);
+			WRITE_VPP_REG_BITS(VPP_PI_HF_COEF_F, 96, 0, 9);
+			WRITE_VPP_REG_BITS(VPP_PI_HF_COEF, 0x1eb, 0, 9);
+			WRITE_VPP_REG_BITS(VPP_PI_HF_COEF, 0x1fd, 12, 9);
+			WRITE_VPP_REG_BITS(VPP_PI_GLB_GAIN, 32, 0, 6);
+
+			WRITE_VPP_REG_BITS(VPP_SR_DIR_HF_GAIN_ADJ, 80, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_SR_DIR_HF_GAIN_ADJ, 5, 8, 4);
+		} else if (mode == WR_DMA) {
+			data32 = READ_VPP_REG_S5(VPP_PI_EN_MODE);
+			data32 = (data32 & 0xffffffef) | (0x1 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_DICT_NUM);
+			data32 = (data32 & 0xffffff00) | 0x20;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_DICT_NUM,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_HPF_NORM_CORING);
+			data32 = (data32 & 0xfffffc00) | (0x2 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_HPF_NORM_CORING,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_EN_MODE);
+			data32 = (data32 & 0xfffffffc) | 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_WIN_OFST);
+			data32 = (data32 & 0xfffff000) |
+				(0x4 << 8) | (0x1 << 4) | 0x3;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_WIN_OFST,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_HF_COEF_F);
+			data32 = (data32 & 0xfffffe00) | 0x60;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_HF_COEF_F,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_HF_COEF);
+			data32 = (data32 & 0xffe00e00) |
+				(0x1fd << 12) | 0x1eb;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_HF_COEF,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_GLB_GAIN);
+			data32 = (data32 & 0xffffffc0) | 0x20;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_GLB_GAIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_SR_DIR_HF_GAIN_ADJ);
+			data32 = (data32 & 0xfffff000) |
+				(0x5 << 8) | 0x50;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_SR_DIR_HF_GAIN_ADJ,
+				data32, vpp_index);
+		}
+		break;
+	case DEFAULT_PARAM:
+	default:
+		if (mode == WR_VCB) {
+			WRITE_VPP_REG_BITS(VPP_PI_EN_MODE, 0, 4, 1);
+			WRITE_VPP_REG_BITS(VPP_PI_DICT_NUM, 32, 0, 7);
+			WRITE_VPP_REG_BITS(VPP_PI_HPF_NORM_CORING, 2, 8, 2);
+			WRITE_VPP_REG_BITS(VPP_PI_HPF_NORM_CORING, 0, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_PI_EN_MODE, 0, 0, 2);
+			WRITE_VPP_REG_BITS(VPP_PI_WIN_OFST, 4, 8, 4);
+			WRITE_VPP_REG_BITS(VPP_PI_WIN_OFST, 1, 4, 4);
+			WRITE_VPP_REG_BITS(VPP_PI_WIN_OFST, 3, 0, 4);
+			WRITE_VPP_REG_BITS(VPP_PI_HF_COEF_F, 96, 0, 9);
+			WRITE_VPP_REG_BITS(VPP_PI_HF_COEF, 0x1eb, 0, 9);
+			WRITE_VPP_REG_BITS(VPP_PI_HF_COEF, 0x1fd, 12, 9);
+			WRITE_VPP_REG_BITS(VPP_PI_GLB_GAIN, 63, 0, 6);
+
+			WRITE_VPP_REG_BITS(VPP_SR_DIR_HF_GAIN_ADJ, 80, 0, 8);
+			WRITE_VPP_REG_BITS(VPP_SR_DIR_HF_GAIN_ADJ, 5, 8, 4);
+		} else if (mode == WR_DMA) {
+			data32 = READ_VPP_REG_S5(VPP_PI_EN_MODE);
+			data32 = (data32 & 0xffffffef) | (0x0 << 4);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_DICT_NUM);
+			data32 = (data32 & 0xffffff00) | 0x20;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_DICT_NUM,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_HPF_NORM_CORING);
+			data32 = (data32 & 0xfffffc00) | (0x2 << 8);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_HPF_NORM_CORING,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_EN_MODE);
+			data32 = (data32 & 0xfffffffc) | 0x0;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_EN_MODE,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_WIN_OFST);
+			data32 = (data32 & 0xfffff000) |
+				(0x4 << 8) | (0x1 << 4) | 0x3;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_WIN_OFST,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_HF_COEF_F);
+			data32 = (data32 & 0xfffffe00) | 0x60;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_HF_COEF_F,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_HF_COEF);
+			data32 = (data32 & 0xffe00e00) |
+				(0x1fd << 12) | 0x1eb;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_HF_COEF,
+				data32, vpp_index);
+			data32 = READ_VPP_REG_S5(VPP_PI_GLB_GAIN);
+			data32 = (data32 & 0xffffffc0) | 0x3f;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PI_GLB_GAIN,
+				data32, vpp_index);
+
+			data32 = READ_VPP_REG_S5(VPP_SR_DIR_HF_GAIN_ADJ);
+			data32 = (data32 & 0xfffff000) |
+				(0x5 << 8) | 0x50;
+			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_SR_DIR_HF_GAIN_ADJ,
+				data32, vpp_index);
+		}
+		break;
+	}
+}
+
+void amve_vsr_config_update(struct vframe_s *vf, int vpp_index)
+{
+	enum vsr_pq_cfg_e cur_vsr_cfg = DEFAULT_PARAM;
+	unsigned int height_out = 2160;
+	unsigned int width_out = 3840;
+	unsigned int width_in = 1920;
+	struct vinfo_s *vinfo = get_current_vinfo();
+
+	if (vinfo) {
+		height_out = vinfo->height;
+		width_out = vinfo->width;
+	}
+
+	if (vf)
+		width_in = (vf->type & VIDTYPE_COMPRESS) ?
+			vf->compWidth : vf->width;
+
+	if (chip_type_id == chip_s7d &&
+		(height_out >= 2160 &&
+		width_out >= 3840)) {
+		if (width_in <= 1024)
+			cur_vsr_cfg = RES_480P;
+		else if (width_in < 1920)
+			cur_vsr_cfg = RES_720P;
+		else
+			cur_vsr_cfg = RES_1080P;
+
+		if (cur_vsr_cfg != pre_vsr_cfg) {
+			pr_amve_dbg("\n[%s] set OK %d-->%d, w_in=%d\n",
+				__func__, pre_vsr_cfg, cur_vsr_cfg, width_in);
+			vsr_pq_config(cur_vsr_cfg, WR_DMA, vpp_index);
+			safa_pq_config(cur_vsr_cfg, WR_DMA, vpp_index);
+			pi_pq_config(cur_vsr_cfg, WR_DMA, vpp_index);
+			pre_vsr_cfg = cur_vsr_cfg;
+		}
+	}
+}
+
+void amve_sharpness_sub_ctrl(unsigned int sel, unsigned int enable)
+{
+	if (enable)
+		enable = 1;
+
+	/*0:sr all; 1:peaking; 2:lti/cti; 3:dering;*/
+	switch (sel) {
+	case 0:
+		WRITE_VPP_REG_BITS(VPP_SR_EN,
+			enable, 0, 1);
+		break;
+	case 1:
+		WRITE_VPP_REG_BITS(VPP_PK_EN,
+			enable, 0, 1);
+		break;
+	case 2:
+		WRITE_VPP_REG_BITS(VPP_HTI_EN_MODE,
+			enable, 12, 1);
+		WRITE_VPP_REG_BITS(VPP_HTI_EN_MODE,
+			enable, 4, 1);
+		WRITE_VPP_REG_BITS(VPP_VTI_EN,
+			enable, 8, 1);
+		WRITE_VPP_REG_BITS(VPP_VTI_EN,
+			enable, 4, 1);
+		break;
+	case 3:
+		WRITE_VPP_REG_BITS(VPP_DERING_EN,
+			enable, 0, 1);
+		break;
+	default:
 		break;
 	}
 }

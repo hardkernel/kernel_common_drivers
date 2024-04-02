@@ -59,6 +59,7 @@
 #include "arch/vpp_regs.h"
 #include "arch/ve_regs.h"
 #include "arch/cm_regs.h"
+#include "arch/vpp_s7d_sr_regs.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 #include "../../vin/tvin/tvin_global.h"
 #endif
@@ -298,7 +299,7 @@ unsigned int vecm_latch_flag2;
 module_param(vecm_latch_flag2, uint, 0664);
 MODULE_PARM_DESC(vecm_latch_flag2, "\n vecm_latch_flag2\n");
 
-unsigned int pq_load_en = 1; /*load pq table enable/disable*/
+unsigned int pq_load_en; /*load pq table enable/disable*/
 module_param(pq_load_en, uint, 0664);
 MODULE_PARM_DESC(pq_load_en, "\n pq_load_en\n");
 
@@ -466,6 +467,8 @@ static int sr1_gain_lmt[11] = {
 static int nn_coring[11] = {
 	10, 8, 6, 4, 3, 2, 1, 1, 1, 1, 1
 };
+
+static int vsr_update_flag = 1;
 #endif
 
 #define AIPQ_SCENE_MAX 25
@@ -1358,7 +1361,7 @@ void get_cm_hist(struct vframe_s *vf)
 	int data_port;
 
 	/*s5 not support color hist*/
-	if (chip_type_id == chip_s5)
+	if (chip_type_id == chip_s5 || chip_type_id == chip_s7d)
 		return;
 
 	if (enable_pattern_detect == 1) {
@@ -2853,6 +2856,9 @@ int amvecm_on_vs(struct vframe_s *vf,
 	/*wq for cacb and aad*/
 	cabc_aad_on_vs(vf_state);
 	pr_amvecm_bringup_dbg("[on_vs] cabc_aad done.\n");
+
+	if (chip_type_id == chip_s7d && vsr_update_flag)
+		amve_vsr_config_update(vf, vpp_index);
 #endif
 	return result;
 }
@@ -9683,7 +9689,7 @@ static void cm_init_config(int bitdepth)
 	int slice_max;
 #endif
 
-	if (chip_type_id == chip_s7)
+	if (chip_type_id == chip_s7 || chip_type_id == chip_s7d)
 		return;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
@@ -9780,17 +9786,26 @@ static void dnlp_init_config(void)
 
 static void sr_init_config(void)
 {
-	am_set_regmap(&sr0_default, 0);
-
-	if (chip_type_id != chip_txhd2)
-		am_set_regmap(&sr1_default, 0);
-
+	switch (chip_type_id) {
+	case chip_txhd2:
+		am_set_regmap(&sr0_default, 0);
+	break;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (chip_type_id == chip_t3x) {
+	case chip_t3x:
+		am_set_regmap(&sr0_default, 0);
+		am_set_regmap(&sr1_default, 0);
 		am_set_regmap(&s1_sr0_default, 0);
 		am_set_regmap(&s1_sr1_default, 0);
-	}
+	break;
 #endif
+	case chip_s7d:
+		s7d_sharpness_init();
+	break;
+	default:
+		am_set_regmap(&sr0_default, 0);
+		am_set_regmap(&sr1_default, 0);
+	break;
+	}
 }
 
 void vlock_clk_config(struct amvecm_dev_s *devp, struct device *dev)
@@ -10103,16 +10118,28 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		}
 	} else if (!strncmp(parm[0], "sr", 2)) {
 		if (!strncmp(parm[1], "peaking_en", 10)) {
-			amvecm_sharpness_enable(0);
+			if (chip_type_id == chip_s7d)
+				amve_sharpness_sub_ctrl(1, 1);
+			else
+				amvecm_sharpness_enable(0);
 			pr_info("enable peaking\n");
 		} else if (!strncmp(parm[1], "peaking_dis", 11)) {
-			amvecm_sharpness_enable(1);
+			if (chip_type_id == chip_s7d)
+				amve_sharpness_sub_ctrl(1, 0);
+			else
+				amvecm_sharpness_enable(1);
 			pr_info("disable peaking\n");
 		} else if (!strncmp(parm[1], "lcti_en", 7)) {
-			amvecm_sharpness_enable(2);
+			if (chip_type_id == chip_s7d)
+				amve_sharpness_sub_ctrl(2, 1);
+			else
+				amvecm_sharpness_enable(2);
 			pr_info("enable lti cti\n");
 		} else if (!strncmp(parm[1], "lcti_dis", 8)) {
-			amvecm_sharpness_enable(3);
+			if (chip_type_id == chip_s7d)
+				amve_sharpness_sub_ctrl(2, 0);
+			else
+				amvecm_sharpness_enable(3);
 			pr_info("disable lti cti\n");
 		} else if (!strncmp(parm[1], "theta_en", 8)) {
 			amvecm_sharpness_enable(4);
@@ -10133,10 +10160,16 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			amvecm_sharpness_enable(9);
 			pr_info("SR3 disable dejaggy\n");
 		} else if (!strncmp(parm[1], "dering_en", 9)) {
-			amvecm_sharpness_enable(10);
+			if (chip_type_id == chip_s7d)
+				amve_sharpness_sub_ctrl(3, 1);
+			else
+				amvecm_sharpness_enable(10);
 			pr_info("SR3 enable dering\n");
 		} else if (!strncmp(parm[1], "dering_dis", 10)) {
-			amvecm_sharpness_enable(11);
+			if (chip_type_id == chip_s7d)
+				amve_sharpness_sub_ctrl(3, 0);
+			else
+				amvecm_sharpness_enable(11);
 			pr_info("SR3 disable dering\n");
 		} else if (!strncmp(parm[1], "drlpf_en", 8)) {
 			amvecm_sharpness_enable(12);
@@ -10145,22 +10178,30 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			amvecm_sharpness_enable(13);
 			pr_info("SR3 disable drlpf\n");
 		} else if (!strncmp(parm[1], "enable", 6)) {
-			amvecm_sharpness_enable(0);
-			amvecm_sharpness_enable(2);
-			amvecm_sharpness_enable(4);
-			amvecm_sharpness_enable(6);
-			amvecm_sharpness_enable(8);
-			amvecm_sharpness_enable(10);
-			amvecm_sharpness_enable(12);
+			if (chip_type_id == chip_s7d) {
+				amve_sharpness_sub_ctrl(0, 1);
+			} else {
+				amvecm_sharpness_enable(0);
+				amvecm_sharpness_enable(2);
+				amvecm_sharpness_enable(4);
+				amvecm_sharpness_enable(6);
+				amvecm_sharpness_enable(8);
+				amvecm_sharpness_enable(10);
+				amvecm_sharpness_enable(12);
+			}
 			pr_info("SR enable\n");
 		} else if (!strncmp(parm[1], "disable", 7)) {
-			amvecm_sharpness_enable(1);
-			amvecm_sharpness_enable(3);
-			amvecm_sharpness_enable(5);
-			amvecm_sharpness_enable(7);
-			amvecm_sharpness_enable(9);
-			amvecm_sharpness_enable(11);
-			amvecm_sharpness_enable(13);
+			if (chip_type_id == chip_s7d) {
+				amve_sharpness_sub_ctrl(0, 0);
+			} else {
+				amvecm_sharpness_enable(1);
+				amvecm_sharpness_enable(3);
+				amvecm_sharpness_enable(5);
+				amvecm_sharpness_enable(7);
+				amvecm_sharpness_enable(9);
+				amvecm_sharpness_enable(11);
+				amvecm_sharpness_enable(13);
+			}
 			pr_info("SR disable\n");
 		}
 	} else if (!strcmp(parm[0], "cm")) {
@@ -10950,6 +10991,49 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		} else {
 			pr_info("unsupport cmd\n");
 		}
+	} else if (!strcmp(parm[0], "vsr_pq")) {
+		/*s7d sharpness, safa debug*/
+		if (!strcmp(parm[1], "480p")) {
+			vsr_pq_config(RES_480P, WR_VCB, 0);
+			pr_info("set vsr_pq 480p\n");
+		} else if (!strcmp(parm[1], "720p")) {
+			vsr_pq_config(RES_720P, WR_VCB, 0);
+			pr_info("set vsr_pq 720p\n");
+		} else if (!strcmp(parm[1], "1080p")) {
+			vsr_pq_config(RES_1080P, WR_VCB, 0);
+			pr_info("set vsr_pq 1080p\n");
+		} else if (!strcmp(parm[1], "default")) {
+			vsr_pq_config(DEFAULT_PARAM, WR_VCB, 0);
+			pr_info("set vsr_pq default\n");
+		}
+	} else if (!strcmp(parm[0], "safa_pq")) {
+		if (!strcmp(parm[1], "480p")) {
+			safa_pq_config(RES_480P, WR_VCB, 0);
+			pr_info("set safa_pq 480p\n");
+		} else if (!strcmp(parm[1], "720p")) {
+			safa_pq_config(RES_720P, WR_VCB, 0);
+			pr_info("set safa_pq 720p\n");
+		} else if (!strcmp(parm[1], "1080p")) {
+			safa_pq_config(RES_1080P, WR_VCB, 0);
+			pr_info("set safa_pq 1080p\n");
+		} else if (!strcmp(parm[1], "default")) {
+			safa_pq_config(DEFAULT_PARAM, WR_VCB, 0);
+			pr_info("set safa_pq default\n");
+		}
+	} else if (!strcmp(parm[0], "pi_pq")) {
+		if (!strcmp(parm[1], "480p")) {
+			pi_pq_config(RES_480P, WR_VCB, 0);
+			pr_info("set pi_pq 480p\n");
+		} else if (!strcmp(parm[1], "720p")) {
+			pi_pq_config(RES_720P, WR_VCB, 0);
+			pr_info("set pi_pq 720p\n");
+		} else if (!strcmp(parm[1], "1080p")) {
+			pi_pq_config(RES_1080P, WR_VCB, 0);
+			pr_info("set pi_pq 1080p\n");
+		} else if (!strcmp(parm[1], "default")) {
+			pi_pq_config(DEFAULT_PARAM, WR_VCB, 0);
+			pr_info("set pi_pq default\n");
+		}
 	} else if (!strcmp(parm[0], "vpp_mtrx_test")) {
 		if (chip_type_id != chip_t3x)
 			goto free_buf;
@@ -10994,6 +11078,16 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		ve_mtrx_setting(mtx_sel, mtx_csc, mtx_on, slice);
 		pr_info("ve_mtrx: %d %d %d %d\n",
 			mtx_sel, mtx_csc, mtx_on, slice);
+	} else if (!strcmp(parm[0], "s_vsr_update_flag")) {
+		if (!parm[1]) {
+			pr_info("misss param1\n");
+			goto free_buf;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		vsr_update_flag = val;
+	} else if (!strcmp(parm[0], "g_vsr_update_flag")) {
+		pr_info("vsr_update_flag: %d\n", vsr_update_flag);
 #endif
 	} else {
 		pr_info("unsupport cmd\n");
@@ -12109,7 +12203,8 @@ void init_pq_setting(void)
 		 get_cpu_type() == MESON_CPU_MAJOR_ID_SC2 ||
 		 is_meson_s4_cpu() ||
 		 is_meson_s4d_cpu() ||
-		 is_meson_s7_cpu()) {
+		 is_meson_s7_cpu() ||
+		 chip_type_id == chip_s7d) {
 		if (is_meson_s4_cpu())
 			bitdepth = 10;
 		else
@@ -12462,7 +12557,9 @@ void amvecm_3dlut_init(bool en)
 {
 	if (chip_type_id == chip_s5 ||
 		chip_type_id == chip_s7 ||
-		chip_type_id == chip_t3x)
+		chip_type_id == chip_t3x ||
+		chip_type_id == chip_a4 ||
+		chip_type_id == chip_s7d)
 		return;
 
 	if (ct_en) {
@@ -12856,6 +12953,17 @@ static const struct vecm_match_data_s vecm_dt_s1a = {
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 };
 
+static const struct vecm_match_data_s vecm_dt_s7d = {
+	.chip_id = chip_s7d,
+	.chip_cls = STB_CHIP,
+	.vlk_chip = vlock_chip_t5,
+	.vlk_support = false,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_tm2verb,
+	.vlk_phlock_en = false,
+	.vlk_pll_sel = vlock_pll_sel_tcon,
+};
+
 static const struct of_device_id aml_vecm_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
 	{
@@ -12926,6 +13034,10 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm-s1a",
 		.data = &vecm_dt_s1a,
+	},
+	{
+		.compatible = "amlogic, vecm-s7d",
+		.data = &vecm_dt_s7d,
 	},
 	{},
 };
@@ -13599,7 +13711,7 @@ int __init aml_vecm_init(void)
 {
 	/*unsigned int hiu_reg_base;*/
 
-	pr_info("%s:module init_20231206-0\n", __func__);
+	pr_info("%s:module init_20240402-0\n", __func__);
 
 	if (platform_driver_register(&aml_vecm_driver)) {
 		pr_err("failed to register bl driver module\n");
