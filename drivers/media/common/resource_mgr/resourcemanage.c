@@ -934,9 +934,7 @@ static bool resman_codec_mm_enough(struct resman_resource *resource,
 		enough = false;
 		dprintk(2, "free size 0x%x\n", codec_mm_get_tvp_free_size() +
 			+ codec_mm_get_free_size());
-	} else if (resource->value + score > resource->d.codec_mm.total)
-		enough = false;
-
+	}
 	return enough;
 }
 
