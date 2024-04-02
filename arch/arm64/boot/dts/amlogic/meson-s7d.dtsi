@@ -1159,9 +1159,7 @@
 				clock-names = "clk_uart";
 				xtal_tick_en = <2>;
 				fifosize = < 64 >;
-				//pinctrl-names = "default";
-				/*pinctrl-0 = <&ao_uart_pins>;*/
-				support-sysrq = <0>;  /* 0 not support*/
+				support-sysrq = <1>;  /* 0 not support*/
 			};
 
 			eth_phy: mdio-multiplexer@28000 {
@@ -1566,11 +1564,10 @@
 			reg = <0x0 0xfe078000 0x0 0x18>;
 			interrupts = <0 168 1>;
 			status = "disabled";
-			//clocks = <&xtal
-			//			&clkc CLKID_UART_A>;
-			//clock-names = "clk_uart",
-			//	"clk_gate";
-			xtal_tick_en = <3>;
+			clocks = <&xtal
+					&clkc CLKID_SYS_UART_A>;
+			clock-names = "clk_uart",
+					"clk_gate";
 			fifosize = < 64 >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&a_uart_pins>;
@@ -1581,10 +1578,10 @@
 			reg = <0x0 0xfe07c000 0x0 0x18>;
 			interrupts = <0 170 1>;
 			status = "disabled";
-			//clocks = <&xtal
-			//			&clkc CLKID_UART_C>;
-			//clock-names = "clk_uart",
-			//	"clk_gate";
+			clocks = <&xtal
+					&clkc CLKID_SYS_UART_C>;
+			clock-names = "clk_uart",
+					"clk_gate";
 			fifosize = < 64 >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&c_uart_pins>;
@@ -1595,10 +1592,10 @@
 			status = "disabled";
 			reg = <0x0 0xfe07e000 0x0 0x18>;
 			interrupts = <0 171 1>;
-			//clocks = <&xtal
-			//		&clkc CLKID_UART_D>;
-			//clock-names = "clk_uart",
-			//		"clk_gate";
+			clocks = <&xtal
+					&clkc CLKID_SYS_UART_D>;
+			clock-names = "clk_uart",
+					"clk_gate";
 			fifosize = < 64 >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&d_uart_pins1>;
@@ -1609,10 +1606,10 @@
 			status = "disabled";
 			reg = <0x0 0xfe080000 0x0 0x18>;
 			interrupts = <0 172 1>;
-			//clocks = <&xtal
-			//		&clkc CLKID_UART_E>;
-			//clock-names = "clk_uart",
-			//			"clk_gate";
+			clocks = <&xtal
+					&clkc CLKID_SYS_UART_E>;
+			clock-names = "clk_uart",
+					"clk_gate";
 			fifosize = < 64 >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&e_uart_pins1>;
@@ -2538,6 +2535,8 @@
 				"uart_a_cts",
 				"uart_a_rts";
 			function = "uart_a";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 
@@ -2546,30 +2545,38 @@
 			groups = "uart_c_tx",
 				"uart_c_rx";
 			function = "uart_c";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 
 	d_uart_pins1:d_uart1 {
 		mux {
-			groups = "uart_d_tx_h",
-				"uart_d_rx_h";
+			groups = "uart_d_tx_h4",
+				"uart_d_rx_h5";
 			function = "uart_d";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 
 	d_uart_pins2:d_uart2 {
 		mux {
-			groups = "uart_d_tx_z",
-				"uart_d_rx_z";
+			groups = "uart_d_tx_z0",
+				"uart_d_rx_z1";
 			function = "uart_d";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 
 	e_uart_pins1:e_uart1 {
 		mux {
-			groups = "uart_e_tx_h",
-				"uart_e_rx_h";
+			groups = "uart_e_tx_h10",
+				"uart_e_rx_h11";
 			function = "uart_e";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 
@@ -2578,6 +2585,8 @@
 			groups = "uart_e_tx_z11",
 				"uart_e_rx_z12";
 			function = "uart_e";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 
@@ -2586,6 +2595,8 @@
 			groups = "uart_e_tx_z8",
 				"uart_e_rx_z9";
 			function = "uart_e";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 
