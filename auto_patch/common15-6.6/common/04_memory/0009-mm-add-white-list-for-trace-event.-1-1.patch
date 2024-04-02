@@ -1,4 +1,4 @@
-From 87dcec55adfdcbef31776dd720edd1db621abc5d Mon Sep 17 00:00:00 2001
+From 21e03093fb35e4b051ce4618dfcb7913650023f9 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Thu, 21 Dec 2023 15:09:46 +0800
 Subject: [PATCH] mm: add white list for trace event. [1/1]
@@ -23,10 +23,10 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  3 files changed, 91 insertions(+)
 
 diff --git a/fs/tracefs/inode.c b/fs/tracefs/inode.c
-index 891653ba9cf3..9c59ecac5f3e 100644
+index 99caf1c3d0c4..2b8c78b08bac 100644
 --- a/fs/tracefs/inode.c
 +++ b/fs/tracefs/inode.c
-@@ -654,6 +654,77 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
+@@ -619,6 +619,77 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
  	return tracefs_end_creating(dentry);
  }
  
@@ -104,7 +104,7 @@ index 891653ba9cf3..9c59ecac5f3e 100644
  /**
   * tracefs_create_dir - create a directory in the tracefs filesystem
   * @name: a pointer to a string containing the name of the directory to
-@@ -676,6 +747,16 @@ struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
+@@ -641,6 +712,16 @@ struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
  	if (security_locked_down(LOCKDOWN_TRACEFS))
  		return NULL;
  
@@ -118,14 +118,14 @@ index 891653ba9cf3..9c59ecac5f3e 100644
 +		}
 +	}
 +#endif
- 	return __create_dir(name, parent, &simple_dir_inode_operations);
+ 	return __create_dir(name, parent, &tracefs_dir_inode_operations);
  }
  
 diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
-index dea96169711a..64ef273dbc69 100644
+index c50a39fbeebe..7bbf8eeb4e92 100644
 --- a/kernel/trace/trace.c
 +++ b/kernel/trace/trace.c
-@@ -8886,8 +8886,10 @@ static struct dentry *tracing_dentry_percpu(struct trace_array *tr, int cpu)
+@@ -8882,8 +8882,10 @@ static struct dentry *tracing_dentry_percpu(struct trace_array *tr, int cpu)
  
  	tr->percpu_dir = tracefs_create_dir("per_cpu", d_tracer);
  
@@ -137,30 +137,30 @@ index dea96169711a..64ef273dbc69 100644
  	return tr->percpu_dir;
  }
 diff --git a/kernel/trace/trace_events.c b/kernel/trace/trace_events.c
-index f49d6ddb6342..6be5ea82a4b8 100644
+index 941a394d3911..87a26f3c108c 100644
 --- a/kernel/trace/trace_events.c
 +++ b/kernel/trace/trace_events.c
-@@ -2321,7 +2321,9 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
+@@ -2375,7 +2375,9 @@ event_subsystem_dir(struct trace_array *tr, const char *name,
  
- 	ef = eventfs_add_subsystem_dir(name, parent);
- 	if (IS_ERR(ef)) {
+ 	ei = eventfs_create_dir(name, parent, system_entries, nr_entries, dir);
+ 	if (IS_ERR(ei)) {
 +	#ifndef CONFIG_AMLOGIC_MEMORY_OPT
  		pr_warn("Failed to create system directory %s\n", name);
 +	#endif
  		__put_system(system);
  		goto out_free;
  	}
-@@ -2425,7 +2427,9 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
+@@ -2584,7 +2586,9 @@ event_create_dir(struct eventfs_inode *parent, struct trace_event_file *file)
  	name = trace_event_name(call);
- 	ef = eventfs_add_dir(name, ef_subsystem);
- 	if (IS_ERR(ef)) {
+ 	ei = eventfs_create_dir(name, e_events, event_entries, nr_entries, file);
+ 	if (IS_ERR(ei)) {
 +	#ifndef CONFIG_AMLOGIC_MEMORY_OPT
  		pr_warn("Could not create tracefs '%s' directory\n", name);
 +	#endif
  		return -1;
  	}
  
-@@ -3092,9 +3096,11 @@ __trace_add_event_dirs(struct trace_array *tr)
+@@ -3212,9 +3216,11 @@ __trace_add_event_dirs(struct trace_array *tr)
  
  	list_for_each_entry(call, &ftrace_events, list) {
  		ret = __trace_add_new_event(call, tr);
@@ -172,7 +172,7 @@ index f49d6ddb6342..6be5ea82a4b8 100644
  	}
  }
  
-@@ -3558,9 +3564,11 @@ static void __trace_early_add_event_dirs(struct trace_array *tr)
+@@ -3678,9 +3684,11 @@ static void __trace_early_add_event_dirs(struct trace_array *tr)
  
  	list_for_each_entry(file, &tr->events, list) {
  		ret = event_create_dir(tr->event_dir, file);

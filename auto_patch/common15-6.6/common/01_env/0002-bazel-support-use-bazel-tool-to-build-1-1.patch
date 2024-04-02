@@ -1,4 +1,4 @@
-From a2b9bcddb600d0526283b36b6e3c1241bfafb941 Mon Sep 17 00:00:00 2001
+From e78cc754fcb7e6413f57479b2703c3bacf2b377e Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Fri, 17 Mar 2023 17:35:31 +0800
 Subject: [PATCH] bazel: support use bazel tool to build [1/1]
@@ -23,12 +23,12 @@ Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
  3 files changed, 10 insertions(+)
 
 diff --git a/BUILD.bazel b/BUILD.bazel
-index a40f68260463..3daa2d8f7703 100644
+index 17884047157e..cde3a50f6dbc 100644
 --- a/BUILD.bazel
 +++ b/BUILD.bazel
-@@ -2402,3 +2402,6 @@ copy_to_dist_dir(
-     dist_dir = "out/tests_arm64/dist",
-     flat = True,
+@@ -2413,3 +2413,6 @@ pkg_files(
+     renames = {file: file for file in _TEST_MAPPINGS},
+     visibility = ["//kernel/tests/test_mappings:__pkg__"],
  )
 +
 +load("//common:common_drivers/amlogic.bzl", "define_amlogic")
