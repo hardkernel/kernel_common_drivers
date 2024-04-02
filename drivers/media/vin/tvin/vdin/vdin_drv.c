@@ -5886,9 +5886,19 @@ static const struct match_data_s vdin_dt_s7 = {
 	.hw_ver = VDIN_HW_TXHD2,
 	.vdin0_en = 0,                  .vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/  .ipt444_to_422_12bit = 0, /*0,1*/
-	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
+	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x1000,
 	.vdin0_max_w_h = 0,	.vdin1_set_hdr = true,
 };
+
+static const struct match_data_s vdin_dt_s7d = {
+	.name = "vdin-s7d",
+	.hw_ver = VDIN_HW_S7D,
+	.vdin0_en = 0,                  .vdin1_en = 1,
+	.de_tunnel_tunnel = 0, /*0,1*/  .ipt444_to_422_12bit = 0, /*0,1*/
+	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x1000,
+	.vdin0_max_w_h = 0,	.vdin1_set_hdr = true,
+};
+
 #endif
 
 static const struct of_device_id vdin_dt_match[] = {
@@ -5976,6 +5986,10 @@ static const struct of_device_id vdin_dt_match[] = {
 	{
 		.compatible = "amlogic, vdin-s7",
 		.data = &vdin_dt_s7,
+	},
+	{
+		.compatible = "amlogic, vdin-s7d",
+		.data = &vdin_dt_s7d,
 	},
 #endif
 	/* DO NOT remove to avoid scan error of KASAN */

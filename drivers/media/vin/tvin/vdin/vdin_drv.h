@@ -203,6 +203,7 @@ enum vdin_hw_ver_e {
 	VDIN_HW_T3X,
 	VDIN_HW_TXHD2,
 	VDIN_HW_S7,
+	VDIN_HW_S7D,
 };
 
 /* 20230607: game mode optimize and add debug */

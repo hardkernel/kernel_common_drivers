@@ -2916,7 +2916,8 @@ void vdin_set_crc_pulse(struct vdin_dev_s *devp)
 
 	if ((!cpu_after_eq(MESON_CPU_MAJOR_ID_SM1) ||
 	    cpu_after_eq(MESON_CPU_MAJOR_ID_T5W)) &&
-	    !is_meson_txhd2_cpu() && !is_meson_s7_cpu())
+	    !is_meson_txhd2_cpu() && !is_meson_s7_cpu() &&
+		!is_meson_s7d_cpu())
 		return;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
