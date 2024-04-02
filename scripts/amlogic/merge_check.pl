@@ -141,7 +141,7 @@ sub dts_check
 		{
 			$err_cnt += 1;
 			$err_msg .= "	$err_cnt: Please confirm should you modify other boards for $board in @dts_path too? \n";
-			$err_msg .= "	  Now you have modified dts is ";
+			$err_msg .= "	          Now you have modified dts is ";
 			while($diff_count > 0)
 			{
 				$err_msg .= "$diff_arry->[$diff_count-1] ";
