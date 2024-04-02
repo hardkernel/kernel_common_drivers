@@ -14,8 +14,8 @@
 #define MAX_VOLTAGE	                   0x7fffffff
 
 struct opp_node {
-	int rate; //unit khz
-	int volt; //unit uv
+	unsigned long rate; //unit khz
+	unsigned long volt; //unit uv
 };
 
 /*this is dsu vote related structure read from dts*/
