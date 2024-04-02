@@ -77,6 +77,7 @@ struct g12a_mdio_mux {
 	struct clk *pll;
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	struct device *dev;
+	struct clk *ethrmii;
 #endif
 };
 
@@ -157,7 +158,6 @@ static int g12a_ephy_pll_is_enabled(struct clk_hw *hw)
 static int g12a_ephy_pll_init(struct clk_hw *hw)
 {
 	struct g12a_ephy_pll *pll = g12a_ephy_pll_to_dev(hw);
-
 	/* Apply PLL HW settings */
 	/*12nm*/
 
@@ -192,6 +192,19 @@ static int g12a_ephy_pll_init(struct clk_hw *hw)
 		writel(0x222200a0, pll->base + ETH_PLL_CTL1);
 		usleep_range(100, 200);
 		writel(0x00118630, pll->base + ETH_PLL_CTL0);
+	}
+	/*s7d*/
+	if (phy_pll_mode == 3) {
+		writel(readl(pll->base + ETH_PLL_CTL3) & 0xfffffffe, pll->base + ETH_PLL_CTL3);
+		writel(0x00c091a2, pll->base + ETH_PLL_CTL0);
+		writel(0x01111140, pll->base + ETH_PLL_CTL1);
+		writel(readl(pll->base + ETH_PLL_CTL3)|0x1, pll->base + ETH_PLL_CTL3);
+		usleep_range(100, 200);
+		writel(readl(pll->base + ETH_PLL_CTL3)|0x3, pll->base + ETH_PLL_CTL3);
+		usleep_range(100, 200);
+		writel(0x00e091a2, pll->base + ETH_PLL_CTL0);
+		usleep_range(100, 200);
+		writel(0x00007423, pll->base + ETH_PLL_CTL7);
 	}
 #else
 
@@ -228,7 +241,6 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	unsigned int tx_R = 0;
 	unsigned int efuse_get_tmp = 0;
 	unsigned int led_setting = 0;
-
 	if (of_property_read_u32(np, "tx_amp_src", &tx_amp_addr) != 0)
 		pr_info("no amp setting\n");
 
@@ -324,6 +336,23 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 				writel(0x20000000, priv->regs + ETH_PLL_CTL5);
 				writel(0x00000023, priv->regs + ETH_PLL_CTL7);
 			}
+			/*s7d*/
+			if (phy_mode == 5) {
+				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
+				if (efuse_get_tmp >> 0x18) { /*bit24 is valid*/
+					tx_R = (efuse_get_tmp & 0xf00000) >> 20;
+					rx_R = (efuse_get_tmp & 0x0f0000) >> 16;
+					writel(((tx_R << 28) | (rx_R << 20))
+						| (0x0a000000),
+						priv->regs + ETH_PLL_CTL3);
+				} else {
+					pr_debug("no efuse setting use default\n");
+					writel(0x88800003, priv->regs + ETH_PLL_CTL3);
+				}
+				writel(0x4001, priv->regs + ETH_PLL_CTL6);
+				writel(0x84001580, priv->regs + ETH_PLL_CTL5);
+//				writel(0x00007423, priv->regs + ETH_PLL_CTL7);
+			}
 		}
 	}
 
@@ -367,10 +396,11 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	       priv->regs + ETH_PHY_CNTL2);
 	value |= PHY_CNTL1_PHY_ENB;
 	value |= led_setting;
+	if (phy_mode == 5)
+		value |= 0x200000;
 	writel(value, priv->regs + ETH_PHY_CNTL1);
 	/* The phy needs a bit of time to power up */
 	mdelay(10);
-
 	return 0;
 }
 
@@ -527,6 +557,21 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	priv->ethrmii = devm_clk_get(dev, "ethrmii");
+	if (IS_ERR(priv->ethrmii)) {
+		ret = PTR_ERR(priv->ethrmii);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "wzh failed to get ethrmii clock\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(priv->ethrmii);
+	if (ret) {
+		dev_err(dev, "failed to enable ethrmii clock");
+		return ret;
+	}
+
+#endif
 	/* Make sure the device registers are clocked */
 	ret = clk_prepare_enable(priv->pclk);
 	if (ret) {
