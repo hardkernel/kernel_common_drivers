@@ -1110,6 +1110,7 @@ static struct ddr_port_desc ddr_port_desc_s7d[] __initdata = {
 	{ .port_id =  6, .port_name = "VPU1 WRITE"    },
 	{ .port_id =  7, .port_name = "HEVC"          },
 	{ .port_id =  8, .port_name = "VDEC"          },
+	{ .port_id =  9, .port_name = "HCODEC"        },
 	{ .port_id = 10, .port_name = "DEVICE"        },
 	{ .port_id = 11, .port_name = "DEMUX"         },
 	{ .port_id = 12, .port_name = "MALI"          },

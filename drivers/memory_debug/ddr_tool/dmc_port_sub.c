@@ -625,6 +625,53 @@ static struct vpu_sub_desc vpu_sub_desc_s5[] __initdata = {
 	{ .sub_id = 0xF, .vpu_r0_2 = "VPU_SUBRD", .vpu_r1 = "NULL",
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		}
 };
+
+static struct vpu_sub_desc vpu_sub_desc_s7d[] __initdata = {
+	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
+			.vpu_w0 = "NR_WR", .vpu_w1 = "NR_WR"		},
+
+	{ .sub_id = 0x1, .vpu_r0_2 = "OSD2", .vpu_r1 = "DI_MEM",
+			.vpu_w0 = "DI_WR", .vpu_w1 = "DI_WR"		},
+
+	{ .sub_id = 0x2, .vpu_r0_2 = "VD1", .vpu_r1 = "DI_INP",
+			.vpu_w0 = "DI_SUBAXI", .vpu_w1 = "DI_SUBAXI"	},
+
+	{ .sub_id = 0x3, .vpu_r0_2 = "VD2", .vpu_r1 = "DI_CHAN2",
+			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
+
+	{ .sub_id = 0x4, .vpu_r0_2 = "VPU_DMA", .vpu_r1 = "DI_SUBAXI",
+			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
+
+	{ .sub_id = 0x5, .vpu_r0_2 = "RDMA", .vpu_r1 = "DI_IF2",
+			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
+
+	{ .sub_id = 0x6, .vpu_r0_2 = "NULL", .vpu_r1 = "DI_IF0",
+			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
+
+	{ .sub_id = 0x7, .vpu_r0_2 = "MALI_AFBCD_RD", .vpu_r1 = "NULL",
+			.vpu_w0 = "VDIN1_WR", .vpu_w1 = "NULL"		},
+
+	{ .sub_id = 0x8, .vpu_r0_2 = "DI_IF1", .vpu_r1 = "NULL",
+			.vpu_w0 = "RDMA", .vpu_w1 = "NULL"		},
+
+	{ .sub_id = 0x9, .vpu_r0_2 = "DI_MEM", .vpu_r1 = "NULL",
+			.vpu_w0 = "VPU_DMA", .vpu_w1 = "NULL"		},
+
+	{ .sub_id = 0xA, .vpu_r0_2 = "DI_INP", .vpu_r1 = "NULL",
+			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
+
+	{ .sub_id = 0xB, .vpu_r0_2 = "DI_CHAN2", .vpu_r1 = "NULL",
+			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
+
+	{ .sub_id = 0xC, .vpu_r0_2 = "DI_SUBAXI", .vpu_r1 = "NULL",
+			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
+
+	{ .sub_id = 0xD, .vpu_r0_2 = "DI_IF2", .vpu_r1 = "NULL",
+			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
+
+	{ .sub_id = 0xE, .vpu_r0_2 = "DI_IF0", .vpu_r1 = "NULL",
+			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		},
+};
 #endif
 
 static struct vpu_sub_desc *vpu_port_sub;
@@ -697,6 +744,10 @@ int __init dmc_find_port_sub(int cpu_type, struct vpu_sub_desc **desc)
 	case DMC_TYPE_S5:
 		*desc = vpu_sub_desc_s5;
 		desc_size = ARRAY_SIZE(vpu_sub_desc_s5);
+		break;
+	case DMC_TYPE_S7D:
+		*desc = vpu_sub_desc_s7d;
+		desc_size = ARRAY_SIZE(vpu_sub_desc_s7d);
 		break;
 #endif
 	default:
