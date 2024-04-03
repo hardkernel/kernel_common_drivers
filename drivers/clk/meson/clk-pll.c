@@ -225,10 +225,6 @@ static unsigned int __pll_params_with_frac(unsigned long rate,
 	else
 		frac_max = (1 << (pll->frac.width - 2));
 
-	/* Bail out if we are already over the requested rate */
-	if (rate < parent_rate * m / n)
-		return 0;
-
 	if (pll->flags & CLK_MESON_PLL_ROUND_CLOSEST)
 		val = DIV_ROUND_CLOSEST_ULL(val * frac_max, parent_rate);
 	else
@@ -635,10 +631,14 @@ static int meson_clk_pll_enable(struct clk_hw *hw)
 		return 0;
 
 	/* Make sure the pll is in reset */
-	meson_parm_write(clk->map, &pll->rst, 1);
+	if (pll->flags & CLK_MESON_PLL_RSTN)
+		meson_parm_write(clk->map, &pll->rst, 0);
+	else
+		meson_parm_write(clk->map, &pll->rst, 1);
 
 	/* Enable the pll */
 	meson_parm_write(clk->map, &pll->en, 1);
+
 	/*
 	 * Make the PLL more stable, if not,
 	 * It will probably lock failed (GP0 PLL)
@@ -648,7 +648,10 @@ static int meson_clk_pll_enable(struct clk_hw *hw)
 #endif
 
 	/* Take the pll out reset */
-	meson_parm_write(clk->map, &pll->rst, 0);
+	if (pll->flags & CLK_MESON_PLL_RSTN)
+		meson_parm_write(clk->map, &pll->rst, 1);
+	else
+		meson_parm_write(clk->map, &pll->rst, 0);
 
 	if (meson_clk_pll_wait_lock(hw))
 		return -EIO;
@@ -665,7 +668,10 @@ static void meson_clk_pll_disable(struct clk_hw *hw)
 		return;
 
 	/* Put the pll is in reset */
-	meson_parm_write(clk->map, &pll->rst, 1);
+	if (pll->flags & CLK_MESON_PLL_RSTN)
+		meson_parm_write(clk->map, &pll->rst, 0);
+	else
+		meson_parm_write(clk->map, &pll->rst, 1);
 
 	/* Disable the pll */
 	meson_parm_write(clk->map, &pll->en, 0);
@@ -1038,13 +1044,465 @@ const struct clk_ops meson_clk_pll_v3_ops = {
 	.disable	= meson_clk_pll_disable
 };
 EXPORT_SYMBOL_GPL(meson_clk_pll_v3_ops);
-#endif
+
+static unsigned long meson_clk_pll_params_to_rate(struct meson_clk_pll_data *pll,
+						  unsigned long prate,
+						  u32 m, u32 n, u32 frac, u32 od)
+{
+	u64 vco_rate, frac_rate;
+	u32 frac_precision;
+
+	if (pll->flags & CLK_MESON_PLL_POWER_OF_TWO)
+		n = (u32)BIT(n);
+
+	if (unlikely(!n))
+		return 0;
+
+	if (pll->flags & CLK_MESON_PLL_FIXED_EN0P5)
+		prate = prate >> 1;
+
+	prate = DIV_ROUND_UP_ULL(prate, n);
+	vco_rate = (u64)prate * m;
+
+	if (frac) {
+		if (pll->flags & CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION)
+			frac_precision = FIXED_FRAC_WEIGHT_PRECISION;
+		else
+			frac_precision = (u32)BIT(pll->frac.width);
+
+		frac_rate = (u64)prate * frac;
+		vco_rate += DIV_ROUND_UP_ULL(frac_rate, frac_precision);
+	}
+
+	return vco_rate >> od;
+}
+
+static unsigned long meson_clk_pll_v4_recalc_rate(struct clk_hw *hw, unsigned long prate)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+	unsigned int m, n, frac, od;
+
+	n = meson_parm_read(clk->map, &pll->n);
+	m = meson_parm_read(clk->map, &pll->m);
+	od = meson_parm_read(clk->map, &pll->od);
+
+	if (MESON_PARM_APPLICABLE(&pll->frac))
+		frac = meson_parm_read(clk->map, &pll->frac);
+	else
+		frac = 0;
+
+	return meson_clk_pll_params_to_rate(pll, prate, m, n, frac, od);
+}
+
+static unsigned int meson_clk_pll_v4_get_range_m(unsigned long long rate,
+					      unsigned long parent_rate,
+					      unsigned int n,
+					      struct meson_clk_pll_data *pll)
+{
+	u64 val;
+
+	if (pll->flags & CLK_MESON_PLL_POWER_OF_TWO)
+		val = rate << n;
+	else
+		val = rate * n;
+	if (__pll_round_closest_mult(pll))
+		return DIV_ROUND_CLOSEST_ULL(val, parent_rate);
+
+	return div_u64(val,  parent_rate);
+}
+
+static int meson_clk_pll_get_range_value(struct meson_clk_pll_data *pll,
+					 unsigned long rate,
+					 unsigned long prate,
+					 unsigned int *m,
+					 unsigned int *n,
+					 unsigned int *od)
+{
+	u64 vco_rate;
+	u32 idx;
+	unsigned int t_m;
+	unsigned long now, best = 0;
+	unsigned long t_prate = prate;
+	u32 od_max = BIT(pll->od.width) - 1;
+
+	/* limit od max value for hw limit */
+	if (unlikely(!!pll->od_max))
+		od_max = pll->od_max;
+
+	if (pll->flags & CLK_MESON_PLL_FIXED_N) {
+		*n = pll->fixed_n;
+	} else {
+		if (pll->flags & CLK_MESON_PLL_POWER_OF_TWO)
+			*n = 0;
+		else
+			*n = 1;
+	}
+
+	for (idx = 0; idx <= od_max; idx++) {
+		vco_rate = (u64)rate << idx;
+		if (pll->flags & CLK_MESON_PLL_FIXED_EN0P5)
+			t_prate = prate >> 1;
+		t_m = meson_clk_pll_v4_get_range_m(vco_rate, t_prate, *n, pll);
+		if (t_m > pll->range->max)
+			break;
+		if (t_m < pll->range->min)
+			continue;
+
+		now = meson_clk_pll_params_to_rate(pll, prate, t_m, *n, 0, idx);
+		if (meson_clk_pll_is_better(rate, best, now, pll)) {
+			best = now;
+			*m = t_m;
+			*od = idx;
+			if (now == rate)
+				break;
+		}
+	}
+
+	return 0;
+}
+
+static int meson_clk_pll_get_table_value(struct meson_clk_pll_data *pll,
+					 unsigned long rate,
+					 unsigned long prate,
+					 unsigned int *m,
+					 unsigned int *n,
+					 unsigned int *od)
+{
+	u32 idx;
+	unsigned int t_m, t_n, t_od;
+	unsigned long now, best = 0;
+
+	for (idx = 0; pll->table[idx].m; idx++) {
+		t_m = pll->table[idx].m;
+		t_n = pll->table[idx].n;
+		t_od = pll->table[idx].od;
+
+		now = meson_clk_pll_params_to_rate(pll, prate, t_m, t_n, 0, t_od);
+		if (meson_clk_pll_is_better(rate, best, now, pll)) {
+			best = now;
+			*m = t_m;
+			*n = t_n;
+			*od = t_od;
+			if (now == rate)
+				break;
+		}
+	}
+
+	return 0;
+}
+
+static int meson_clk_pll_get_params_table(struct meson_clk_pll_data *pll,
+					  unsigned long rate,
+					  unsigned long prate,
+					  unsigned int *m,
+					  unsigned int *n,
+					  unsigned int *od)
+{
+	if (pll->range)
+		return meson_clk_pll_get_range_value(pll, rate, prate, m, n, od);
+	else if (pll->table)
+		return meson_clk_pll_get_table_value(pll, rate, prate, m, n, od);
+
+	return -EINVAL;
+}
+
+static unsigned int meson_clk_pll_get_param_frac(struct meson_clk_pll_data *pll,
+						 unsigned long rate,
+						 unsigned long prate,
+						 unsigned int m,
+						 unsigned int n,
+						 unsigned int od)
+{
+	unsigned int frac_max;
+	u64 vco_rate = (u64)rate << od;
+	u64 frac;
+
+	if (pll->flags & CLK_MESON_PLL_FIXED_EN0P5)
+		prate = prate >> 1;
+
+	if (pll->flags & CLK_MESON_PLL_POWER_OF_TWO) {
+		frac = vco_rate << n;
+		if (vco_rate < (((u64)prate >> n) * m))
+			return 0;
+	} else {
+		frac = vco_rate * n;
+		/* Bail out if we are already over the requested rate */
+		if (vco_rate < (div_u64((u64)prate * m, n)))
+			return 0;
+	}
+	if (pll->flags & CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION)
+		frac_max = FIXED_FRAC_WEIGHT_PRECISION;
+	else
+		frac_max = 1 << pll->frac.width;
+
+	if (pll->flags & CLK_MESON_PLL_ROUND_CLOSEST)
+		frac = DIV_ROUND_CLOSEST_ULL(frac * frac_max, prate);
+	else
+		frac = div_u64(frac * frac_max, prate);
+
+	frac -= (u64)m * frac_max;
+	return min_t(unsigned int, frac, frac_max);
+}
+
+static int meson_clk_pll_v4_get_params(struct meson_clk_pll_data *pll,
+					unsigned long rate,
+					unsigned long prate,
+					unsigned int *best_m,
+					unsigned int *best_n,
+					unsigned int *best_od,
+					unsigned int *best_frac)
+{
+	int ret;
+
+	ret = meson_clk_pll_get_params_table(pll, rate, prate, best_m, best_n, best_od);
+	if (ret)
+		return ret;
+
+	if (MESON_PARM_APPLICABLE(&pll->frac))
+		*best_frac = meson_clk_pll_get_param_frac(pll, rate, prate,
+							  *best_m, *best_n, *best_od);
+
+	return 0;
+}
+
+static int meson_clk_pll_v4_determine_rate(struct clk_hw *hw,
+					   struct clk_rate_request *req)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+	struct pll_rate_range *pll_range = &pll->pll_range;
+	unsigned long rate = req->rate;
+
+	if (pll->flags & CLK_MESON_PLL_READ_ONLY) {
+		req->rate = clk_hw_get_rate(hw);
+		return 0;
+	}
+
+	rate = clamp(rate, pll_range->min_rate, pll_range->max_rate);
+	rate = clamp(rate, req->min_rate, req->max_rate);
+	req->rate = rate;
+
+	return 0;
+}
+
+static bool meson_clk_pll_od_or_frac_correct(struct clk_regmap *clk,
+					struct meson_clk_pll_data *pll,
+					unsigned int m, unsigned int n)
+{
+	return meson_parm_read(clk->map, &pll->m) == m &&
+	       meson_parm_read(clk->map, &pll->n) == n &&
+	       meson_parm_read(clk->map, &pll->en);
+}
+
+static int meson_clk_pll_v4_init(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+	struct pll_rate_range *rate_range = &pll->pll_range;
+
+	if (rate_range->max_rate == 0)
+		rate_range->max_rate = ULONG_MAX;
+
+	//if (!pll->range && !pll->table)
+	//	return -EINVAL;
+	/*
+	 * Do not init pll
+	 * 1. it will gate pll which is needed in RTOS
+	 * 2. it will gate sys pll who is feeding CPU
+	 */
+	if (pll->flags & CLK_MESON_PLL_IGNORE_INIT) {
+		pr_warn("ignore %s clock init\n", clk_hw_get_name(hw));
+		return 0;
+	}
+
+	if (pll->init_count) {
+		if (pll->flags & CLK_MESON_PLL_RSTN) {
+			meson_parm_write(clk->map, &pll->rst, 0);
+			regmap_multi_reg_write(clk->map, pll->init_regs,
+				       pll->init_count);
+			meson_parm_write(clk->map, &pll->rst, 1);
+		} else {
+			meson_parm_write(clk->map, &pll->rst, 1);
+			regmap_multi_reg_write(clk->map, pll->init_regs,
+				       pll->init_count);
+			meson_parm_write(clk->map, &pll->rst, 0);
+		}
+	}
+
+	return 0;
+}
+
+static int meson_clk_pll_v4_enable(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+
+	/* do nothing if the PLL is already enabled */
+	if (clk_hw_is_enabled(hw))
+		return 0;
+
+	/* Make sure the pll is in reset */
+	if (pll->flags & CLK_MESON_PLL_RSTN)
+		meson_parm_write(clk->map, &pll->rst, 0);
+	else
+		meson_parm_write(clk->map, &pll->rst, 1);
+
+	/* Enable the pll */
+	meson_parm_write(clk->map, &pll->en, 1);
+
+	/* Make sure the pll is in lock reset */
+	if (MESON_PARM_APPLICABLE(&pll->l_rst)) {
+		if (pll->flags & CLK_MESON_PLL_RSTN)
+			meson_parm_write(clk->map, &pll->l_rst, 0);
+		else
+			meson_parm_write(clk->map, &pll->l_rst, 1);
+	}
+
+	/* Make sure the pll force lock is clear */
+	if (MESON_PARM_APPLICABLE(&pll->fl))
+		meson_parm_write(clk->map, &pll->fl, 0);
+
+	/*
+	 * Make the PLL more stable, if not,
+	 * It will probably lock failed (GP0 PLL)
+	 */
+	udelay(50);
+
+	/* Take the pll out reset */
+	if (pll->flags & CLK_MESON_PLL_RSTN)
+		meson_parm_write(clk->map, &pll->rst, 1);
+	else
+		meson_parm_write(clk->map, &pll->rst, 0);
+
+	/* Take the pll out lock reset */
+	if (MESON_PARM_APPLICABLE(&pll->l_rst)) {
+		udelay(20);
+		if (pll->flags & CLK_MESON_PLL_RSTN)
+			meson_parm_write(clk->map, &pll->l_rst, 1);
+		else
+			meson_parm_write(clk->map, &pll->l_rst, 0);
+	}
+
+	if (meson_clk_pll_wait_lock(hw))
+		return -EIO;
+
+	/* Make sure the pll force lock is set */
+	if (MESON_PARM_APPLICABLE(&pll->fl))
+		meson_parm_write(clk->map, &pll->fl, 1);
+
+	return 0;
+}
+
+static void meson_clk_pll_v4_disable(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+
+	if (bypass_clk_disable)
+		return;
+
+	/* Put the pll is in reset */
+	if (pll->flags & CLK_MESON_PLL_RSTN)
+		meson_parm_write(clk->map, &pll->rst, 0);
+	else
+		meson_parm_write(clk->map, &pll->rst, 1);
+
+	/* Disable the pll */
+	meson_parm_write(clk->map, &pll->en, 0);
+}
+
+static int meson_clk_pll_v4_set_rate(struct clk_hw *hw, unsigned long rate,
+				     unsigned long prate)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+	unsigned int m, n, od, frac;
+	unsigned int enabled;
+	unsigned long old_rate, vco_rate;
+	int ret = 0;
+
+	if (prate == 0 || rate == 0)
+		return -EINVAL;
+
+	old_rate = clk_hw_get_rate(hw);
+
+	/* calculate M, N, OD*/
+	ret = meson_clk_pll_v4_get_params(pll, rate, prate, &m, &n, &od, &frac);
+	if (ret)
+		return ret;
+
+	/* only frac correct, only write frac register only */
+	if (meson_clk_pll_od_or_frac_correct(clk, pll, m, n)) {
+		if (unlikely(!!frac) && frac != meson_parm_read(clk->map, &pll->frac))
+			/* Clear frac bits and Update frac value */
+			meson_parm_write(clk->map, &pll->frac, frac);
+		if (unlikely(!!od) && od != meson_parm_read(clk->map, &pll->od))
+			/* Clear od bits and Update od value */
+			meson_parm_write(clk->map, &pll->od, od);
+
+		return 0;
+	}
+
+	enabled = meson_parm_read(clk->map, &pll->en);
+	if (enabled)
+		meson_clk_pll_v4_disable(hw);
+
+	if (MESON_PARM_APPLICABLE(&pll->th)) {
+		vco_rate = meson_clk_pll_params_to_rate(pll, prate, m, n, frac, 0);
+		if (vco_rate >= MESON_PLL_THRESHOLD_RATE)
+			meson_parm_write(clk->map, &pll->th, 1);
+		else
+			meson_parm_write(clk->map, &pll->th, 0);
+	}
+
+	meson_parm_write(clk->map, &pll->n, n);
+	meson_parm_write(clk->map, &pll->m, m);
+	meson_parm_write(clk->map, &pll->od, od);
+	if (MESON_PARM_APPLICABLE(&pll->frac))
+		meson_parm_write(clk->map, &pll->frac, frac);
+
+	/* If the pll is stopped, bail out now */
+	if (!enabled)
+		return 0;
+
+	ret = meson_clk_pll_v4_enable(hw);
+	if (ret) {
+		pr_warn("%s: pll did not lock, trying to restore old rate %lu\n",
+			__func__, old_rate);
+		/*
+		 * FIXME: Do we really need/want this HACK ?
+		 * It looks unsafe. what happens if the clock gets into a
+		 * broken state and we can't lock back on the old_rate ? Looks
+		 * like an infinite recursion is possible
+		 */
+		meson_clk_pll_v4_set_rate(hw, old_rate, prate);
+	}
+
+	return ret;
+}
+
+const struct clk_ops meson_clk_pll_v4_ops = {
+	/* walk the init regs each time when set a new rate,
+	 * init callback is not useful for v3 ops
+	 */
+	.init		= meson_clk_pll_v4_init,
+	.recalc_rate	= meson_clk_pll_v4_recalc_rate,
+	.determine_rate	= meson_clk_pll_v4_determine_rate,
+	.set_rate	= meson_clk_pll_v4_set_rate,
+	.is_enabled	= meson_clk_pll_is_enabled,
+	.enable		= meson_clk_pll_v4_enable,
+	.disable	= meson_clk_pll_v4_disable
+};
+EXPORT_SYMBOL_GPL(meson_clk_pll_v4_ops);
 
 const struct clk_ops meson_clk_pll_ro_ops = {
-	.recalc_rate	= meson_clk_pll_recalc_rate,
+	.init		= meson_clk_pll_v4_init,
+	.recalc_rate	= meson_clk_pll_v4_recalc_rate,
 	.is_enabled	= meson_clk_pll_is_enabled,
 };
 EXPORT_SYMBOL_GPL(meson_clk_pll_ro_ops);
+#endif
 
 MODULE_DESCRIPTION("Amlogic PLL driver");
 MODULE_AUTHOR("Carlo Caione <carlo@endlessm.com>");
