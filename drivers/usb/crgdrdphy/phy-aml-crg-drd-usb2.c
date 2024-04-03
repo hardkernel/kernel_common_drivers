@@ -262,10 +262,11 @@ static void set_usb_pll_v3(struct amlogic_usb_v2 *phy, void __iomem *phy_reg_bas
 #define USB2_PLL_RSTN_BIT	25
 #define USB2_PLL_LOCK_EN_BIT	24
 #define USB2_PLL_DONE		31
+#define USB2_REG_CFG_DIS	27
 /* usb2_squelch_trim: reg32_03[3:0] (MSB->LSB) default 0b0111
- * usb2_disc_trim: usb2_reg_cfg[27]##reg32_03[6:4] (MSB->LSB) default 0b1000
+ * usb2_disc_trim: reg32_03[6:4] (MSB->LSB) default 0b000
  */
-#define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0_v3 0x7f
+#define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0_v3 0x39
 	u32 retry = 5;
 	int plldone_i;
 	u32 pll_val;
@@ -314,7 +315,10 @@ static void set_usb_pll_v3(struct amlogic_usb_v2 *phy, void __iomem *phy_reg_bas
 	return;
 okay:
 	dev_info(phy->dev, "usb2 pll init done, val: 0x%08x\n", readl(pll_cfg));
+	/* The default value 0b000 of usb2_disc_trim leads to hs handake err. */
 	writel(PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0_v3, phy_reg_base + 0xC);
+	/* The USB2_REG_CFG_DIS is not used but default set. Clear it.*/
+	writel(readl(phy_reg_base + 0x38) & ~BIT_U(USB2_REG_CFG_DIS), phy_reg_base + 0x38);
 }
 
 static void amlogic_crg_drd_usb2_set_usb_vbus_power
