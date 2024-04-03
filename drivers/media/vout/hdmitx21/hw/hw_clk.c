@@ -195,10 +195,10 @@ void hdmitx21_clks_gate_ctrl(bool en)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	switch (hdev->tx_hw.chip_data->chip_type) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case MESON_CPU_ID_S7:
 		hdmitx_s7_clock_gate_ctrl(hdev, en);
 		break;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case MESON_CPU_ID_S5:
 		hdmitx_s5_clock_gate_ctrl(hdev, en);
 		break;
@@ -222,10 +222,10 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 	case MESON_CPU_ID_S5:
 		set21_hpll_sspll_s5(vic);
 		break;
-#endif
 	case MESON_CPU_ID_S7:
 		set21_hpll_sspll_s7(vic);
 		break;
+#endif
 	case MESON_CPU_ID_S1A:
 	default:
 		HDMITX_INFO("%s%dNot match chip ID\n", __func__, __LINE__);
@@ -1503,10 +1503,12 @@ void hdmitx21_set_clk(struct hdmitx_dev *hdev)
 		/* set the clock and test the pixel clock */
 		set_hdmitx_htx_pll(hdev, &test_clks);
 		break;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case MESON_CPU_ID_S7:
 		disable_hdmitx_s7_plls(hdev);
 		set_hdmitx_htx_pll(hdev, &test_clks);
 		break;
+#endif
 	case MESON_CPU_ID_S5:
 	default:
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT

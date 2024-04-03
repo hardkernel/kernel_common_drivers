@@ -327,10 +327,10 @@ void hdmitx21_sys_reset(void)
 	case MESON_CPU_ID_S5:
 		hdmitx21_sys_reset_s5();
 		break;
-#endif
 	case MESON_CPU_ID_S7:
 		hdmitx21_sys_reset_s7();
 		break;
+#endif
 	default:
 		break;
 	}
@@ -728,10 +728,10 @@ static void set_phy_by_mode(u32 mode)
 		HDMITX_INFO("%s[%d] tmds_clk %d\n", __func__, __LINE__, tmds_clk);
 		hdmitx_set_s5_phypara(hdev->frl_rate, tmds_clk);
 		break;
-#endif
 	case MESON_CPU_ID_S7:
 		set21_phy_by_mode_s7(mode);
 		break;
+#endif
 	default:
 		HDMITX_INFO("%s: Not match chip ID\n", __func__);
 		break;

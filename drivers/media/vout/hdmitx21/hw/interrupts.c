@@ -217,9 +217,11 @@ static void hdmitx_phy_bandgap_en(struct hdmitx_dev *hdev)
 	case MESON_CPU_ID_S1A:
 		hdmitx21_phy_bandgap_en_t7();
 		break;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case MESON_CPU_ID_S7:
 		hdmitx21_phy_bandgap_en_s7();
 		break;
+#endif
 	default:
 		break;
 	}
