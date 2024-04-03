@@ -33,4 +33,7 @@
 #define S7D_MBOX_REE2AO    3
 #define S7D_MBOX_NUMS      2
 
+// AOCPU STATUS MBOX CHANNEL ID
+#define S7D_MBOX_AO2TEE    4
+
 #endif /* __S7D_MBOX_H__ */

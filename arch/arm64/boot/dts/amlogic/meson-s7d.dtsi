@@ -260,6 +260,8 @@
 		mbox-nums = <S7D_MBOX_NUMS>;
 		mboxids = <S7D_MBOX_AO2REE>,
 			  <S7D_MBOX_REE2AO>;
+		aocpu_sts_mboxid = <S7D_MBOX_AO2TEE>;
+		ree2aocpu_mboxid = <S7D_MBOX_REE2AO>;
 		#mbox-cells = <1>;
 	};
 
