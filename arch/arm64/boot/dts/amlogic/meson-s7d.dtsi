@@ -2043,7 +2043,7 @@
 
 	meson_videotunnel{
 		compatible = "amlogic, meson_videotunnel";
-		status = "disabled";
+		status = "okay";
 	};
 
 	fb: fb {
