@@ -1910,6 +1910,21 @@ struct meson_cvbsout_data meson_s7_cvbsout_data = {
 };
 #endif
 
+struct meson_cvbsout_data meson_s7d_cvbsout_data = {
+	.cpu_id = CVBS_CPU_TYPE_S7D,
+	.name = "meson-s7d-cvbsout",
+
+	.vdac_vref_adj = 0x10,
+	.vdac_gsw = 0x5c,
+
+	.reg_vid_pll_clk_div = CLKCTRL_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = CLKCTRL_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = CLKCTRL_VID_CLK_CTRL,
+	.reg_vid2_clk_div = CLKCTRL_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = CLKCTRL_VIID_CLK_CTRL,
+	.reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK_CTRL2,
+};
+
 static const struct of_device_id meson_cvbsout_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -1958,6 +1973,9 @@ static const struct of_device_id meson_cvbsout_dt_match[] = {
 	}, {
 		.compatible = "amlogic, cvbsout-s7",
 		.data		= &meson_s7_cvbsout_data,
+	}, {
+		.compatible = "amlogic, cvbsout-s7d",
+		.data = &meson_s7d_cvbsout_data,
 	},
 #endif
 	{}

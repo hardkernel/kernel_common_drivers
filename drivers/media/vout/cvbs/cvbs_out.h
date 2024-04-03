@@ -62,6 +62,7 @@ enum cvbs_cpu_type {
 	CVBS_CPU_TYPE_T5W    = 11,
 	CVBS_CPU_TYPE_S1A    = 12,
 	CVBS_CPU_TYPE_S7     = 13,
+	CVBS_CPU_TYPE_S7D    = 14,
 };
 
 struct meson_cvbsout_data {

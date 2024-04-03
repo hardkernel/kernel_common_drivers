@@ -282,6 +282,110 @@ void cvbs_s7_htxpll_clk_out(const u32 clk, u32 div)
 }
 #endif
 
+/* htx pll VCO output: (3G, 6G), for tmds */
+static void cvbs_s7d_htxpll_clk_vco(const u32 clk)
+{
+	u32 quotient;
+	u32 remainder;
+
+	if (clk < 3000000 || clk > 6000000) {
+		pr_err("%s[%d] clock should be 4~6G\n", __func__, __LINE__);
+		return;
+	}
+
+	quotient = clk / 12000;
+	remainder = clk - quotient * 12000;
+	/* remainder range: 0 ~ 23999, 0x5dbf, 15bits */
+	remainder *= 1 << 17;
+	remainder /= 12000;
+	cvbs_out_ana_write(ANACTRL_HDMIPLL_CTRL0, 0x00017000 | (quotient << 0));
+	cvbs_out_ana_write(ANACTRL_HDMIPLL_CTRL1, 0x9040137d);
+	cvbs_out_ana_write(ANACTRL_HDMIPLL_CTRL2, 0x04000000);
+	/* bit[23:22] od1, bit[29:24] od2 */
+	cvbs_out_ana_write(ANACTRL_HDMIPLL_CTRL3, 0x00160000 | remainder);
+	/* tx_spll_bias_en */
+	cvbs_out_ana_setb(ANACTRL_HDMIPLL_CTRL0, 1, 28, 1);
+	usleep_range(10, 20);
+	/* tx_spll_free_run_en 1 */
+	cvbs_out_ana_setb(ANACTRL_HDMIPLL_CTRL0, 1, 18, 1);
+	usleep_range(10, 20);
+	/* tx_spll_rstn release reset */
+	cvbs_out_ana_setb(ANACTRL_HDMIPLL_CTRL0, 1, 30, 1);
+	/* tx_spll_free_run_en 0 */
+	cvbs_out_ana_setb(ANACTRL_HDMIPLL_CTRL0, 0, 18, 1);
+	usleep_range(80, 90);
+	/* tx_spll_rstn_lock release reset */
+	cvbs_out_ana_setb(ANACTRL_HDMIPLL_CTRL0, 1, 29, 1);
+	usleep_range(80, 90);
+	pll_wait_lock(ANACTRL_HDMIPLL_CTRL0, 31);
+
+	pr_info("%s[%d] ANACTRL_HDMIPLL_CTRL0: 0x%x, CTRL3: 0x%x\n",
+		__func__, __LINE__,
+		cvbs_out_ana_read(ANACTRL_HDMIPLL_CTRL0),
+		cvbs_out_ana_read(ANACTRL_HDMIPLL_CTRL3));
+}
+
+static void cvbs_s7d_htxpll_clk_out(const u32 clk, u32 div)
+{
+	u32 pll_od0 = 0;
+	u32 pll_od00 = 0;
+	u32 pll_od01 = 0;
+	u32 pll_od21 = 0;
+
+	pr_info("%s[%d] htxpll vco %d div %d\n", __func__, __LINE__, clk, div);
+
+	if (clk < 3000000 || clk > 6000000) {
+		pr_err("%s[%d] %d out of htxpll range(3~6G]\n", __func__, __LINE__, clk);
+		return;
+	}
+	cvbs_s7d_htxpll_clk_vco(clk);
+
+	//pll_od00
+	if ((div % 8) == 0) {
+		pll_od00 = 3; //div8
+		div = div / 8;
+	} else if ((div % 4) == 0) {
+		pll_od00 = 2; //div4
+		div = div / 4;
+	} else if ((div % 2) == 0) {
+		pll_od00 = 1; //div2
+		div = div / 2;
+	}
+
+	//pll_od01
+	if ((div % 8) == 0) {
+		pll_od01 = 3;
+		div = div / 8;
+	} else if ((div % 4) == 0) {
+		pll_od01 = 2;
+		div = div / 4;
+	} else if ((div % 2) == 0) {
+		pll_od01 = 1;
+		div = div / 2;
+	}
+
+	//pll_od0
+	pll_od0 = (pll_od01 << 3) | pll_od00;
+
+	/* od21 for divider for hdmi_clk_out2 bit[1:0] */
+	if ((div % 8) == 0) {
+		pll_od21 = 3;
+		div = div / 8;
+	} else if ((div % 4) == 0) {
+		pll_od21 = 2;
+		div = div / 4;
+	} else if ((div % 2) == 0) {
+		pll_od21 = 1;
+		div = div / 2;
+	}
+
+	//tx_spll_hdmi_clk_select
+	cvbs_out_ana_setb(ANACTRL_HDMIPLL_CTRL3, 1, 19, 1);
+	pr_info("pll_od0 = %d, pll_od21 = %d\n", pll_od0, pll_od21);
+	cvbs_out_ana_setb(ANACTRL_HDMIPLL_CTRL3, pll_od21, 24, 2);
+	cvbs_out_ana_setb(ANACTRL_HDMIPLL_CTRL0, pll_od0, 20, 6);
+}
+
 void set_vmode_clk(void)
 {
 	struct meson_cvbsout_data *cvbs_data;
@@ -450,6 +554,9 @@ void set_vmode_clk(void)
 	} else if (cvbs_cpu_type() == CVBS_CPU_TYPE_S7) {
 		/* hdmi_clk_out2: 1485Mhz */
 		cvbs_s7_htxpll_clk_out(5940000, 4);
+	} else if (cvbs_cpu_type() == CVBS_CPU_TYPE_S7D) {
+		/* hdmi_clk_out2: 1485Mhz */
+		cvbs_s7d_htxpll_clk_out(5940000, 4);
 #endif
 	} else {
 		pr_info("config eqafter gxl hdmi pll\n");
