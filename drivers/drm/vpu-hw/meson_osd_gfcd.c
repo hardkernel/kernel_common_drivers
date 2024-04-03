@@ -114,11 +114,13 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 
 			reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, 1, 4, 1);
 			reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, 0, 16, 2);
-			reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, alpha_replace, 28, 1);
-			if (alpha_replace)
-				reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, 0xff, 20, 8);
-			else
-				reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, 0, 20, 8);
+
+			if (alpha_replace) {
+				reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, 1, 30, 1);
+				reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, 0x3ff, 20, 10);
+			} else {
+				reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, 0, 30, 1);
+			}
 
 			if (is_afrc) {
 				/*0:config from reg 1:config from header*/
@@ -134,7 +136,8 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 				/*4'd0: RGBA8888 4'd1: RGBA1010102 4'd2: RGB888 4'd3: RGBA10101010*/
 				reg_ops->rdma_write_reg_bits(reg->gfcd_afbc_ctrl,
 						blk_mode, 0, 4);
-				reg_ops->rdma_write_reg_bits(reg->gfcd_afbc_ctrl, 0, 4, 1);
+				/*yuv_trans android should be enable*/
+				reg_ops->rdma_write_reg_bits(reg->gfcd_afbc_ctrl, 1, 4, 1);
 			}
 
 			reg_ops->rdma_write_reg_bits(reg->gfcd_frm_size, plane_info->fb_h, 0, 13);

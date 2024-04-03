@@ -68,7 +68,7 @@
 		primary_plane_index = <0>; /* primary plane index for crtcs */
 		crtc_masks = <1 1 1>; /*for encoder: 0:hdmi 1:lcd 2:cvbs*/
 		gamma_ctl = <0>; /*0:skip gamma init 1:gamma init*/
-		pxp_mode = <1>;
+		pxp_mode = <0>;
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {

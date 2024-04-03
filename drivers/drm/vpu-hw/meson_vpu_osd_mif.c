@@ -649,7 +649,7 @@ const struct meson_drm_format_info *__meson_drm_gfcd_format_info(u32 format)
 		{ .format = DRM_FORMAT_RGB888,
 			.gfcd_hw_blkmode_afbc = GFCD_AFBC_BLOCK_MODE_RGB888,
 			.gfcd_hw_blkmode_afrc = BLOCK_MODE_RESERVED,
-			.alpha_replace = 0 },
+			.alpha_replace = 1 },
 		{ .format = DRM_FORMAT_RGBA10101010,
 			.gfcd_hw_blkmode_afbc = GFCD_AFBC_BLOCK_MODE_RGBA10101010,
 			.gfcd_hw_blkmode_afrc = GFCD_AFRC_BLOCK_MODE_RGBA10101010,

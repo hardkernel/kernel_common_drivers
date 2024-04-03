@@ -1304,7 +1304,7 @@
 
 &drm_vpu {
 	status = "okay";
-	logo_addr = "0x1fc00000";
+	logo_addr = "0x1f800000";
 
 };
 
