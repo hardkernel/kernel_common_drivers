@@ -61,7 +61,7 @@
 #endif
 #include <linux/amlogic/media/video_sink/video.h>
 #include "../common/vfm/vfm.h"
-
+#include "video_safa_reg.h"
 struct pi_reg_s {
 	u32 pi_dic_num;
 	u32 pi_out_scl_mode;
@@ -74,6 +74,26 @@ static struct pi_reg_s pi_reg[3] = {
 	{32, 0, 4, 3, 1},
 	{48, 1, 6, 3, 2},
 	{64, 2, 8, 3, 2}
+};
+
+int edge_avgstd_lut2d[5][7] = {
+	{0,   0,   0,	0,	 0,   0,   0},	//0
+	{63,  48,  32,	8,	 0,   0,   0},	//16
+	{63,  63,  48,	16,  8,   0,   0},	//32
+	{63,  63,  63,	48,  32,  16,  0},	//48
+	{63,  63,  63,	56,  48,  32,  0}	//63
+};
+
+int adp_maxsad_gamma_lut2d[9][9] = {
+	{ 0,   0,	4,	26,  48,  56,  48,	48,  48},	 //0  gamma
+	{ 0,   4,	8,	28,  48,  56,  48,	48,  48},	 //8
+	{ 0,   8,  24,	36,  48,  56,  48,	48,  56},	 //16
+	{ 0,  24,  32,	40,  48,  56,  48,	56,  56},	 //24
+	{32,  40,  40,	44,  48,  48,  56,	56,  56},	 //32
+	{40,  48,  48,	48,  48,  48,  56,	56,  56},	 //40
+	{48,  48,  48,	52,  56,  56,  56,	56,  56},	 //48
+	{56,  56,  56,	56,  56,  56,  56,	56,  63},	 //56
+	{63,  63,  63,	63,  63,  63,  63,	63,  63}	 //64
 };
 
 void dump_vd_vsr_safa_reg(void)
@@ -857,3 +877,107 @@ void set_vsr_scaler(struct vsr_setting_s *vsr)
 		set_safa_pps(vsr);
 	}
 }
+
+#ifdef lut_data_load
+static void load_9x9_lut(u32 reg, int *lut_coef)
+{
+	int i;
+	u32 lut_data[3];
+
+	for (i = 0; i < 9; i++) {
+		lut_data[2] = (u32)(lut_coef[i * 9 + 5] & 0xff) << 0 |
+			(u32)(lut_coef[i * 9 + 6] & 0xff) << 8 |
+			(u32)(lut_coef[i * 9 + 7] & 0xff) << 16 |
+			(u32)(lut_coef[i * 9 + 8] & 0xff) << 24;
+
+		lut_data[1] = (u32)(lut_coef[i * 9 + 1] & 0xff) << 0 |
+			(u32)(lut_coef[i * 9 + 2] & 0xff) << 8 |
+			(u32)(lut_coef[i * 9 + 3] & 0xff) << 16 |
+			(u32)(lut_coef[i * 9 + 4] & 0xff) << 24;
+
+		lut_data[0] = (u32)((lut_coef[i * 9] & 0xff) << 0);
+
+		WRITE_VCBUS_REG(reg + i * 3, lut_data[2]);
+		WRITE_VCBUS_REG(reg + i * 3 + 1, lut_data[1]);
+		WRITE_VCBUS_REG(reg + i * 3 + 2, lut_data[0]);
+		pr_info("reg[0x%x]=0x%x\n", reg + i * 3, lut_data[2]);
+		pr_info("reg[0x%x]=0x%x\n", reg + i * 3 + 1, lut_data[1]);
+		pr_info("reg[0x%x]=0x%x\n", reg + i * 3 + 2, lut_data[0]);
+	}
+}
+
+static void load_5x7_lut(u32 reg, int *lut_coef)
+{
+	int i;
+	u32 lut_data[2];
+
+	for (i = 0; i < 5; i++) {
+		lut_data[1] = (u32)(lut_coef[i * 7 + 3] & 0xff) << 0 |
+			(u32)(lut_coef[i * 7 + 4] & 0xff) << 8 |
+			(u32)(lut_coef[i * 7 + 5] & 0xff) << 16 |
+			(u32)(lut_coef[i * 7 + 6] & 0xff) << 24;
+
+		lut_data[0] = (u32)(lut_coef[i * 7] & 0xff) << 0 |
+			(u32)(lut_coef[i * 7 + 1] & 0xff) << 8 |
+			(u32)(lut_coef[i * 7 + 2] & 0xff) << 16;
+
+		WRITE_VCBUS_REG(reg + i * 2, lut_data[1]);
+		WRITE_VCBUS_REG(reg + i * 2 + 1, lut_data[0]);
+		pr_info("reg[0x%x]=0x%x\n", reg + i * 2, lut_data[1]);
+		pr_info("reg[0x%x]=0x%x\n", reg + i * 2 + 1, lut_data[0]);
+	}
+}
+#endif
+
+void s7d_vsr_default_init(void)
+{
+#ifdef lut_data_load
+	load_5x7_lut(SAFA_PPS_EDGE_AVGSTD_LUT2D_0_0,
+		&edge_avgstd_lut2d[0][0]);
+	load_9x9_lut(VPP_PI_MAXSAD_GAMMA_LUT2D_0_0_0,
+		&adp_maxsad_gamma_lut2d[0][0]);
+#endif
+	WRITE_VCBUS_REG(SAFA_PPS_EDGE_AVGSTD_LUT2D_F_1_0, 0x20303f);
+	WRITE_VCBUS_REG(SAFA_PPS_EDGE_AVGSTD_LUT2D_F_2_0, 0x303f3f);
+	WRITE_VCBUS_REG(SAFA_PPS_EDGE_AVGSTD_LUT2D_F_3_0, 0x3f3f3f);
+	WRITE_VCBUS_REG(SAFA_PPS_EDGE_AVGSTD_LUT2D_F_4_0, 0x3f3f3f);
+
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_0_0_0, 0x30303038);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_1_0_0, 0x301a0400);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_2_0_0, 0x00000000);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_0_1_0, 0x30303038);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_1_1_0, 0x301c0804);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_2_1_0, 0x00000000);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_0_2_0, 0x38303038);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_1_2_0, 0x30241808);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_2_2_0, 0x00000000);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_0_3_0, 0x38383038);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_1_3_0, 0x30282018);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_2_3_0, 0x00000000);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_0_4_0, 0x38383830);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_1_4_0, 0x302c2828);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_2_4_0, 0x00000020);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_0_5_0, 0x38383830);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_1_5_0, 0x30303030);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_2_5_0, 0x00000028);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_0_6_0, 0x38383838);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_1_6_0, 0x38343030);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_2_6_0, 0x00000030);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_0_7_0, 0x3f383838);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_1_7_0, 0x38383838);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_2_7_0, 0x00000038);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_0_8_0, 0x3f3f3f3f);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_1_8_0, 0x3f3f3f3f);
+	WRITE_VCBUS_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_2_8_0, 0x0000003f);
+
+	WRITE_VCBUS_REG(VPP_PI_HF_SCL_COEF_0, 0x7c7e7f80);
+	WRITE_VCBUS_REG(VPP_PI_HF_SCL_COEF_1, 0x76787a7b);
+	WRITE_VCBUS_REG(VPP_PI_HF_SCL_COEF_2, 0x6e707274);
+	WRITE_VCBUS_REG(VPP_PI_HF_SCL_COEF_3, 0x65686a6c);
+	WRITE_VCBUS_REG(VPP_PI_HF_SCL_COEF_4, 0x5b5e6163);
+	WRITE_VCBUS_REG(VPP_PI_HF_SCL_COEF_5, 0x51545659);
+	WRITE_VCBUS_REG(VPP_PI_HF_SCL_COEF_6, 0x46494b4e);
+	WRITE_VCBUS_REG(VPP_PI_HF_SCL_COEF_7, 0x41424344);
+	WRITE_VCBUS_REG(VPP_PI_HF_SCL_COEF_F, 0x00000040);
+}
+

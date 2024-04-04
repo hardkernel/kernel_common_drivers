@@ -13689,6 +13689,32 @@ int video_hw_init(void)
 			fgrain_init(i, FGRAIN_TBL_SIZE);
 	}
 
+	if (video_is_meson_t7_cpu()) {
+		/* vpu port map for t7 */
+		/* vpp_arb0: osd1, vd1, osd3, dolby0, vd3 */
+		/* vpp_arb1: osd2, vd2, osd4, mali-afbc */
+		/* arb rd0:  vpp_arb0, rdma read, ldim, vdin_afbce, vpu dma */
+		/* arb rd2:  vpp_arb1, */
+		/* VPU[0x3978]=0x0aa00000 */
+		/* VPU[0x279d]=0x00900000 */
+		/*
+		 *setting move to vpu arb driver init
+		 *WRITE_VCBUS_REG(VPU_RDARB_UGT_L2C1, 0xffff);
+		 */
+	} else if (video_is_meson_t5m_cpu()) {
+		/* vpu port map for t5m */
+		/* vpp_arb0: vd1, vd2, dolby0 */
+		/* vpp_arb1: osd1, osd2, osd3, mali-afbc */
+		/* arb rd0: vpp_arb0, rdma read, vpu sub, dcntr, tcon p2 */
+		/* arb rd2: vpp_arb1, tcon p1 */
+		/* VPU[0x3978]=0x0b300000 */
+		/* VPU[0x279d]=0x00920000 */
+		/* vpp_arb0, vpp_arb1 super urgent */
+		WRITE_VCBUS_REG(VPU_RDARB_UGT_L2C1, 0xffff);
+	} else if (video_is_meson_s7d_cpu()) {
+		/* todo: s7d vpu arb */
+		s7d_vsr_default_init();
+	}
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	secure_register(VIDEO_MODULE, 0, video_secure_op, vpp_secure_cb);
 #endif

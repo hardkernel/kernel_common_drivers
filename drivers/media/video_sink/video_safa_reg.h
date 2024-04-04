@@ -456,4 +456,359 @@
 //Bit 15:12        reserved
 //Bit 11: 0        reg_debug_demo_wnd_0      // unsigned ,    RW,
 					//default = 960  control debug window col size
+#define SAFA_PPS_DEBUG_DEMO_EN                     0x510e
+//Bit 31: 9        reserved
+//Bit  8           reg_debug_demo_dir_interp_en // unsigned ,    RW,
+					//default = 0  the demo dir lpf enable
+//Bit  7: 5        reserved
+//Bit  4           reg_debug_demo_adp_tap_en // unsigned ,    RW, default = 0
+//Bit  3: 1        reserved
+//Bit  0           reg_debug_demo_inverse    // unsigned ,    RW, default = 0
+#define SAFA_PPS_DEBUG_DEMO_WND_COEF_1             0x5114
+//Bit 31:28        reserved
+//Bit 27:16        reg_debug_demo_wnd_3      // unsigned ,    RW,
+					//default = 1620  control debug window row size
+//Bit 15:12        reserved
+//Bit 11: 0        reg_debug_demo_wnd_2      // unsigned ,    RW,
+					//default = 2880  control debug window col size
+#define SAFA_PPS_DEBUG_DEMO_WND_COEF_0             0x5115
+//Bit 31:28        reserved
+//Bit 27:16        reg_debug_demo_wnd_1      // unsigned ,    RW,
+					//default = 540  control debug window row size
+//Bit 15:12        reserved
+//Bit 11: 0        reg_debug_demo_wnd_0      // unsigned ,    RW,
+					//default = 960  control debug window col size
+#define VPP_SR_DEBUG_DEMO_WND_EN                   0x52ed
+//Bit 31: 8        reserved
+//Bit  7: 5        reserved
+//Bit  4           reg_sr_debug_demo_en      // unsigned ,    RW, default = 0
+//Bit  3: 1        reserved
+//Bit  0           reg_sr_debug_demo_inverse // unsigned ,    RW, default = 0
+#define VPP_SR_DEBUG_DEMO_WND_COEF_1               0x52ee
+//Bit 31:28        reserved
+//Bit 27:16        reg_debug_demo_wnd_3      // unsigned ,    RW,
+					//default = 1620  control debug window row size
+//Bit 15:12        reserved
+//Bit 11: 0        reg_debug_demo_wnd_2      // unsigned ,    RW,
+					//default = 2880  control debug window col size
+#define VPP_SR_DEBUG_DEMO_WND_COEF_0               0x52ef
+//Bit 31:28        reserved
+//Bit 27:16        reg_debug_demo_wnd_1      // unsigned ,    RW,
+					//default = 540  control debug window row size
+//Bit 15:12        reserved
+//Bit 11: 0        reg_debug_demo_wnd_0      // unsigned ,    RW,
+					//default = 960  control debug window col size
+#define SAFA_PPS_EDGE_AVGSTD_LUT2D_0_0             0x5142
+//Bit 31:30        reserved
+//Bit 29:24        reg_edge_avgstd_lut2d_0_6 // unsigned ,    RW, default = 0
+//Bit 23:22        reserved
+//Bit 21:16        reg_edge_avgstd_lut2d_0_5 // unsigned ,    RW, default = 0
+//Bit 15:14        reserved
+//Bit 13: 8        reg_edge_avgstd_lut2d_0_4 // unsigned ,    RW, default = 0
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_edge_avgstd_lut2d_0_3 // unsigned ,    RW, default = 0
+#define SAFA_PPS_EDGE_AVGSTD_LUT2D_F_0_0           0x5143
+//Bit 31:22        reserved
+//Bit 21:16        reg_edge_avgstd_lut2d_0_2 // unsigned ,    RW, default = 0
+//Bit 15:14        reserved
+//Bit 13: 8        reg_edge_avgstd_lut2d_0_1 // unsigned ,    RW, default = 0
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_edge_avgstd_lut2d_0_0 // unsigned ,    RW, default = 0
+#define SAFA_PPS_EDGE_AVGSTD_LUT2D_1_0             0x5144
+//Bit 31:30        reserved
+//Bit 29:24        reg_edge_avgstd_lut2d_1_6 // unsigned ,    RW, default = 0
+//Bit 23:22        reserved
+//Bit 21:16        reg_edge_avgstd_lut2d_1_5 // unsigned ,    RW, default = 0
+//Bit 15:14        reserved
+//Bit 13: 8        reg_edge_avgstd_lut2d_1_4 // unsigned ,    RW, default = 0
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_edge_avgstd_lut2d_1_3 // unsigned ,    RW, default = 8
+#define SAFA_PPS_EDGE_AVGSTD_LUT2D_F_1_0           0x5145
+//Bit 31:22        reserved
+//Bit 21:16        reg_edge_avgstd_lut2d_1_2 // unsigned ,    RW, default = 0
+//Bit 15:14        reserved
+//Bit 13: 8        reg_edge_avgstd_lut2d_1_1 // unsigned ,    RW, default = 0
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_edge_avgstd_lut2d_1_0 // unsigned ,    RW, default = 0
+#define SAFA_PPS_EDGE_AVGSTD_LUT2D_2_0             0x5146
+//Bit 31:30        reserved
+//Bit 29:24        reg_edge_avgstd_lut2d_2_6 // unsigned ,    RW, default = 0
+//Bit 23:22        reserved
+//Bit 21:16        reg_edge_avgstd_lut2d_2_5 // unsigned ,    RW, default = 0
+//Bit 15:14        reserved
+//Bit 13: 8        reg_edge_avgstd_lut2d_2_4 // unsigned ,    RW, default = 8
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_edge_avgstd_lut2d_2_3 // unsigned ,    RW, default = 16
+#define SAFA_PPS_EDGE_AVGSTD_LUT2D_F_2_0           0x5147
+//Bit 21:16        reg_edge_avgstd_lut2d_2_2 // unsigned ,    RW, default = 0
+//Bit 15:14        reserved
+//Bit 13: 8        reg_edge_avgstd_lut2d_2_1 // unsigned ,    RW, default = 0
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_edge_avgstd_lut2d_2_0 // unsigned ,    RW, default = 8
+#define SAFA_PPS_EDGE_AVGSTD_LUT2D_3_0             0x5148
+//Bit 31:30        reserved
+//Bit 29:24        reg_edge_avgstd_lut2d_3_6 // unsigned ,    RW, default = 0
+//Bit 23:22        reserved
+//Bit 21:16        reg_edge_avgstd_lut2d_3_5 // unsigned ,    RW, default = 16
+//Bit 15:14        reserved
+//Bit 13: 8        reg_edge_avgstd_lut2d_3_4 // unsigned ,    RW, default = 32
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_edge_avgstd_lut2d_3_3 // unsigned ,    RW, default = 48
+#define SAFA_PPS_EDGE_AVGSTD_LUT2D_F_3_0           0x5149
+//Bit 31:22        reserved
+//Bit 21:16        reg_edge_avgstd_lut2d_3_2 // unsigned ,    RW, default = 0
+//Bit 15:14        reserved
+//Bit 13: 8        reg_edge_avgstd_lut2d_3_1 // unsigned ,    RW, default = 16
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_edge_avgstd_lut2d_3_0 // unsigned ,    RW, default = 32
+#define SAFA_PPS_EDGE_AVGSTD_LUT2D_4_0             0x514a
+//Bit 31:30        reserved
+//Bit 29:24        reg_edge_avgstd_lut2d_4_6 // unsigned ,    RW, default = 0
+//Bit 23:22        reserved
+//Bit 21:16        reg_edge_avgstd_lut2d_4_5 // unsigned ,    RW, default = 32
+//Bit 15:14        reserved
+//Bit 13: 8        reg_edge_avgstd_lut2d_4_4 // unsigned ,    RW, default = 48
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_edge_avgstd_lut2d_4_3 // unsigned ,    RW, default = 56
+#define SAFA_PPS_EDGE_AVGSTD_LUT2D_F_4_0           0x514b
+//Bit 31:22        reserved
+//Bit 21:16        reg_edge_avgstd_lut2d_4_2 // unsigned ,    RW, default = 0
+//Bit 15:14        reserved
+//Bit 13: 8        reg_edge_avgstd_lut2d_4_1 // unsigned ,    RW, default = 32
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_edge_avgstd_lut2d_4_0 // unsigned ,    RW, default = 48
+
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_0_0_0            0x5061
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_0_8 // unsigned ,    RW, default = 48
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_0_7 // unsigned ,    RW, default = 48
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_0_6 // unsigned ,    RW, default = 48
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_0_5 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_1_0_0            0x5062
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_0_4 // unsigned ,    RW, default = 48
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_0_3 // unsigned ,    RW, default = 48
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_0_2 // unsigned ,    RW, default = 48
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_0_1 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_2_0_0            0x5063
+//Bit 31: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_0_0 // unsigned ,    RW, default = 48
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_0_1_0            0x5064
+//Bit 29:24        reg_maxsad_gamma_lut2d_1_8 // unsigned ,    RW, default = 48
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_1_7 // unsigned ,    RW, default = 48
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_1_6 // unsigned ,    RW, default = 48
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_1_5 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_1_1_0            0x5065
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_1_4 // unsigned ,    RW, default = 48
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_1_3 // unsigned ,    RW, default = 48
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_1_2 // unsigned ,    RW, default = 48
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_1_1 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_2_1_0            0x5066
+//Bit 31: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_1_0 // unsigned ,    RW, default = 48
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_0_2_0            0x5067
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_2_8 // unsigned ,    RW, default = 56
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_2_7 // unsigned ,    RW, default = 48
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_2_6 // unsigned ,    RW, default = 48
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_2_5 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_1_2_0            0x5068
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_2_4 // unsigned ,    RW, default = 56
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_2_3 // unsigned ,    RW, default = 48
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_2_2 // unsigned ,    RW, default = 48
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_2_1 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_2_2_0            0x5069
+//Bit 31: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_2_0 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_0_3_0            0x506a
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_3_8 // unsigned ,    RW, default = 56
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_3_7 // unsigned ,    RW, default = 56
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_3_6 // unsigned ,    RW, default = 48
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_3_5 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_1_3_0            0x506b
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_3_4 // unsigned ,    RW, default = 56
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_3_3 // unsigned ,    RW, default = 56
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_3_2 // unsigned ,    RW, default = 48
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_3_1 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_2_3_0            0x506c
+//Bit 31: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_3_0 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_0_4_0            0x506d
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_4_8 // unsigned ,    RW, default = 56
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_4_7 // unsigned ,    RW, default = 56
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_4_6 // unsigned ,    RW, default = 56
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_4_5 // unsigned ,    RW, default = 48
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_1_4_0            0x506e
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_4_4 // unsigned ,    RW, default = 56
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_4_3 // unsigned ,    RW, default = 56
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_4_2 // unsigned ,    RW, default = 56
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_4_1 // unsigned ,    RW, default = 48
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_2_4_0            0x506f
+//Bit 31: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_4_0 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_0_5_0            0x5070
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_5_8 // unsigned ,    RW, default = 56
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_5_7 // unsigned ,    RW, default = 56
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_5_6 // unsigned ,    RW, default = 56
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_5_5 // unsigned ,    RW, default = 48
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_1_5_0            0x5071
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_5_4 // unsigned ,    RW, default = 56
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_5_3 // unsigned ,    RW, default = 56
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_5_2 // unsigned ,    RW, default = 56
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_5_1 // unsigned ,    RW, default = 48
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_2_5_0            0x5072
+//Bit 31: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_5_0 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_0_6_0            0x5073
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_6_8 // unsigned ,    RW, default = 56
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_6_7 // unsigned ,    RW, default = 56
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_6_6 // unsigned ,    RW, default = 56
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_6_5 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_1_6_0            0x5074
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_6_4 // unsigned ,    RW, default = 56
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_6_3 // unsigned ,    RW, default = 56
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_6_2 // unsigned ,    RW, default = 56
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_6_1 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_2_6_0            0x5075
+//Bit 31: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_6_0 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_0_7_0            0x5076
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_7_8 // unsigned ,    RW, default = 63
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_7_7 // unsigned ,    RW, default = 56
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_7_6 // unsigned ,    RW, default = 56
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_7_5 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_1_7_0            0x5077
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_7_4 // unsigned ,    RW, default = 63
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_7_3 // unsigned ,    RW, default = 56
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_7_2 // unsigned ,    RW, default = 56
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_7_1 // unsigned ,    RW, default = 56
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_2_7_0            0x5078
+//Bit 31: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_7_0 // unsigned ,    RW, default = 63
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_0_8_0            0x5079
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_8_8 // unsigned ,    RW, default = 63
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_8_7 // unsigned ,    RW, default = 63
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_8_6 // unsigned ,    RW, default = 63
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_8_5 // unsigned ,    RW, default = 63
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_1_8_0            0x507a
+//Bit 31:30        reserved
+//Bit 29:24        reg_maxsad_gamma_lut2d_8_4 // unsigned ,    RW, default = 63
+//Bit 23:22        reserved
+//Bit 21:16        reg_maxsad_gamma_lut2d_8_3 // unsigned ,    RW, default = 63
+//Bit 15:14        reserved
+//Bit 13: 8        reg_maxsad_gamma_lut2d_8_2 // unsigned ,    RW, default = 63
+//Bit  7: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_8_1 // unsigned ,    RW, default = 63
+#define VPP_PI_MAXSAD_GAMMA_LUT2D_2_8_0            0x507b
+//Bit 31: 6        reserved
+//Bit  5: 0        reg_maxsad_gamma_lut2d_8_0 // unsigned ,    RW, default = 63
+
+#define VPP_PI_HF_SCL_COEF_0                       0x504e
+//Bit 31:24        reg_pi_pps_coef_tap2_3_0  // unsigned ,    RW, default = 128
+//Bit 23:16        reg_pi_pps_coef_tap2_2_0  // unsigned ,    RW, default = 128
+//Bit 15: 8        reg_pi_pps_coef_tap2_1_0  // unsigned ,    RW, default = 128
+//Bit  7: 0        reg_pi_pps_coef_tap2_0_0  // unsigned ,    RW, default = 128
+#define VPP_PI_HF_SCL_COEF_1                       0x504f
+//Bit 31:24        reg_pi_pps_coef_tap2_7_0  // unsigned ,    RW, default = 0
+//Bit 23:16        reg_pi_pps_coef_tap2_6_0  // unsigned ,    RW, default = 0
+//Bit 15: 8        reg_pi_pps_coef_tap2_5_0  // unsigned ,    RW, default = 0
+//Bit  7: 0        reg_pi_pps_coef_tap2_4_0  // unsigned ,    RW, default = 0
+#define VPP_PI_HF_SCL_COEF_2                       0x5050
+//Bit 31:24        reg_pi_pps_coef_tap2_11_0 // unsigned ,    RW, default = 127
+//Bit 23:16        reg_pi_pps_coef_tap2_10_0 // unsigned ,    RW, default = 127
+//Bit 15: 8        reg_pi_pps_coef_tap2_9_0  // unsigned ,    RW, default = 127
+//Bit  7: 0        reg_pi_pps_coef_tap2_8_0  // unsigned ,    RW, default = 127
+#define VPP_PI_HF_SCL_COEF_3                       0x5051
+//Bit 31:24        reg_pi_pps_coef_tap2_15_0 // unsigned ,    RW, default = 1
+//Bit 23:16        reg_pi_pps_coef_tap2_14_0 // unsigned ,    RW, default = 1
+//Bit 15: 8        reg_pi_pps_coef_tap2_13_0 // unsigned ,    RW, default = 1
+//Bit  7: 0        reg_pi_pps_coef_tap2_12_0 // unsigned ,    RW, default = 1
+#define VPP_PI_HF_SCL_COEF_4                       0x5052
+//Bit 31:24        reg_pi_pps_coef_tap2_19_0 // unsigned ,    RW, default = 126
+//Bit 23:16        reg_pi_pps_coef_tap2_18_0 // unsigned ,    RW, default = 126
+//Bit 15: 8        reg_pi_pps_coef_tap2_17_0 // unsigned ,    RW, default = 126
+//Bit  7: 0        reg_pi_pps_coef_tap2_16_0 // unsigned ,    RW, default = 126
+#define VPP_PI_HF_SCL_COEF_5                       0x5053
+//Bit 31:24        reg_pi_pps_coef_tap2_23_0 // unsigned ,    RW, default = 2
+//Bit 23:16        reg_pi_pps_coef_tap2_22_0 // unsigned ,    RW, default = 2
+//Bit 15: 8        reg_pi_pps_coef_tap2_21_0 // unsigned ,    RW, default = 2
+//Bit  7: 0        reg_pi_pps_coef_tap2_20_0 // unsigned ,    RW, default = 2
+#define VPP_PI_HF_SCL_COEF_6                       0x5054
+//Bit 31:24        reg_pi_pps_coef_tap2_27_0 // unsigned ,    RW, default = 124
+//Bit 23:16        reg_pi_pps_coef_tap2_26_0 // unsigned ,    RW, default = 124
+//Bit 15: 8        reg_pi_pps_coef_tap2_25_0 // unsigned ,    RW, default = 124
+//Bit  7: 0        reg_pi_pps_coef_tap2_24_0 // unsigned ,    RW, default = 124
+#define VPP_PI_HF_SCL_COEF_7                       0x5055
+//Bit 31:24        reg_pi_pps_coef_tap2_31_0 // unsigned ,    RW, default = 4
+//Bit 23:16        reg_pi_pps_coef_tap2_30_0 // unsigned ,    RW, default = 4
+//Bit 15: 8        reg_pi_pps_coef_tap2_29_0 // unsigned ,    RW, default = 4
+//Bit  7: 0        reg_pi_pps_coef_tap2_28_0 // unsigned ,    RW, default = 4
+#define VPP_PI_HF_SCL_COEF_F                       0x5056
+//Bit 31: 8        reserved
+//Bit  7: 0        reg_pi_pps_coef_tap2_32_0 // unsigned ,    RW, default = 99
+
 #endif
