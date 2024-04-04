@@ -2253,8 +2253,20 @@
 
 	gpu_opp_table: gpu_opp_table {
 		compatible = "operating-points-v2";
+		opp-285 {
+			opp-hz = /bits/ 64 <285714281>;
+			opp-microvolt = <1150>;
+		};
 		opp-400 {
 			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1150>;
+		};
+		opp-500 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <1150>;
+		};
+		opp-800 {
+			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <1150>;
 		};
 	};
@@ -3015,7 +3027,7 @@
 
 &gpu{
 	status = "okay";
-	operating-points-v2 = <&gpu_opp_table>;
+	operating-points-v2 = <&gpu_opp_table>; /* s7d use devfreq policy*/
 	reg =   <0x0 0xFD000000 0x0 0x800000>, /*mali APB bus base address*/
 		<0x0 0xFE002000 0x0 0x01000>, /*reset register*/
 		<0x0 0xFE000000 0x0 0x01000>; /*aobus TODO update*/
@@ -3057,5 +3069,5 @@
 			       <400000000>,
 			       <0>; /* Do Nothing */
 
-	tbl = <&dvfs400_cfg>;//bringup s7d use fix clock 400M
+	//tbl = <&dvfs400_cfg>;//bringup s7d use fix clock 400M
 };
