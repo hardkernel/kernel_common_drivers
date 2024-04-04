@@ -2157,6 +2157,7 @@
 
 	state_led: state_led {
 		compatible = "amlogic,state-led-aocpu";
+		mboxes = <&mbox_fifo S7D_REE2AO_LED>;
 		status = "disabled";
 	};
 
