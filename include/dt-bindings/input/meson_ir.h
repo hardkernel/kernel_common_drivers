@@ -55,4 +55,7 @@
 #define REMOTE_TYPE_NEC_MISTUBISHI  ((REMOTE_TYPE_LEGACY_NEC << 8) |	     \
 				    REMOTE_TYPE_MITSUBISHI)
 
+/* only for 2 multi-format ir controller */
+#define REMOTE_TYPE_NEC_NEC  ((REMOTE_TYPE_NEC << 8) | REMOTE_TYPE_NEC)
+
 #endif

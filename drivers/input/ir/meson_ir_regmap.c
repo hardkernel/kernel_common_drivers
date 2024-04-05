@@ -232,12 +232,12 @@ static int meson_ir_nec_get_scancode(struct meson_ir_chip *chip)
 	int decode_status = 0;
 	int status = 0;
 
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_STATUS,
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_STATUS,
 		    &decode_status);
 	if (decode_status & 0x01)
 		status |= IR_STATUS_REPEAT;
 	chip->decode_status = status; /*set decode status*/
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_FRAME, &code);
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_FRAME, &code);
 	meson_ir_dbg(chip->r_dev, "framecode=0x%x\n", code);
 	chip->r_dev->cur_hardcode = code;
 	code = (code >> 16) & 0xff;
@@ -266,7 +266,7 @@ static int meson_ir_xmp_get_scancode(struct meson_ir_chip *chip)
 {
 	int  code = 0;
 
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_FRAME, &code);
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_FRAME, &code);
 	meson_ir_dbg(chip->r_dev, "framecode=0x%x\n", code);
 	if (!xmp_decode_second) {
 		chip->r_dev->cur_hardcode = 0;
@@ -338,7 +338,7 @@ static int meson_ir_duokan_get_scancode(struct meson_ir_chip *chip)
 {
 	int  code = 0;
 
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_FRAME, &code);
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_FRAME, &code);
 	if (meson_ir_duokan_parity_check(code) < 0) {
 		meson_ir_set_hardcode(chip, 0);
 		return 0;
@@ -353,7 +353,7 @@ static int meson_ir_duokan_get_decode_status(struct meson_ir_chip *chip)
 	int decode_status = 0;
 	int status = 0;
 
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_STATUS,
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_STATUS,
 		    &decode_status);
 	decode_status &= 0xf;
 	if (decode_status & 0x01)
@@ -411,13 +411,13 @@ static int meson_ir_rc5_get_scancode(struct meson_ir_chip *chip)
 	int status = 0;
 	int decode_status = 0;
 
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_STATUS,
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_STATUS,
 		    &decode_status);
 	decode_status &= 0xf;
 	if (decode_status & 0x01)
 		status |= IR_STATUS_REPEAT;
 	chip->decode_status = status;
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_FRAME, &code);
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_FRAME, &code);
 	meson_ir_dbg(chip->r_dev, "framecode=0x%x\n", code);
 	chip->r_dev->cur_hardcode = code;
 	code = code & 0x3f;
@@ -447,20 +447,20 @@ static int meson_ir_rc6_get_scancode(struct meson_ir_chip *chip)
 	int status = 0;
 	int decode_status = 0;
 
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_STATUS,
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_STATUS,
 		    &decode_status);
 	decode_status &= 0xf;
 	if (decode_status & 0x01)
 		status |= IR_STATUS_REPEAT;
 	chip->decode_status = status;
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_FRAME, &code);
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_FRAME, &code);
 	meson_ir_dbg(chip->r_dev, "framecode=0x%x\n", code);
 	/**
 	 *if the frame length larger than 32Bit, we must read the REG_FRAME1.
 	 *Otherwise it will affect the update of the 'frame1' and repeat frame
 	 *detect
 	 */
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_FRAME1, &code1);
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_FRAME1, &code1);
 	chip->r_dev->cur_hardcode = code;
 	code = code & 0xff;
 	return code;
@@ -487,12 +487,12 @@ static int meson_ir_toshiba_get_scancode(struct meson_ir_chip *chip)
 	int decode_status = 0;
 	int status = 0;
 
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_STATUS,
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_STATUS,
 		    &decode_status);
 	if (decode_status & 0x01)
 		status |= IR_STATUS_REPEAT;
 	chip->decode_status = status; /*set decode status*/
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_FRAME, &code);
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_FRAME, &code);
 	meson_ir_dbg(chip->r_dev, "framecode=0x%x\n", code);
 	chip->r_dev->cur_hardcode = code;
 	code = (code >> 16) & 0xff;
@@ -520,14 +520,14 @@ static int meson_ir_rca_get_scancode(struct meson_ir_chip *chip)
 	int decode_status = 0;
 	int status = 0;
 
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_STATUS,
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_STATUS,
 		    &decode_status);
 	decode_status &= 0xf;
 	if (decode_status & 0x01)
 		status |= IR_STATUS_REPEAT;
 
 	chip->decode_status = status;
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_FRAME, &code);
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_FRAME, &code);
 	meson_ir_dbg(chip->r_dev, "framecode=0x%x\n", code);
 	chip->r_dev->cur_hardcode = code;
 	code = (code >> 12) & 0xff;
@@ -560,13 +560,13 @@ static int meson_ir_sharp_get_scancode(struct meson_ir_chip *chip)
 	int i = 0;
 	#define NUM_BIT 15
 
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_STATUS,
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_STATUS,
 		    &decode_status);
 
 	decode_status &= 0xf;
 	if (decode_status & 0x01)
 		status |= IR_STATUS_REPEAT;
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_FRAME, &code);
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_FRAME, &code);
 	meson_ir_dbg(chip->r_dev, "rx-data=0x%x, rx_count=%d\n",
 		     code, chip->rx_count);
 
@@ -631,7 +631,7 @@ static int ir_rcmm_get_scancode(struct meson_ir_chip *chip)
 	int decode_status = 0;
 
 	/*get status*/
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_STATUS,
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_STATUS,
 		    &decode_status);
 	decode_status &= 0xf;
 	if (decode_status & 0x01)
@@ -639,7 +639,7 @@ static int ir_rcmm_get_scancode(struct meson_ir_chip *chip)
 	chip->decode_status = status;
 
 	/*get frame*/
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_FRAME, &code);
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_FRAME, &code);
 	meson_ir_dbg(chip->r_dev, "framecode=0x%x\n", code);
 	chip->r_dev->cur_hardcode = code;
 	code = code & 0xff;
@@ -667,13 +667,14 @@ static int meson_ir_mitsubishi_get_scancode(struct meson_ir_chip *chip)
 	int decode_status = 0;
 	int status = 0;
 
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_STATUS, &decode_status);
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_STATUS,
+		    &decode_status);
 	decode_status &= 0xf;
 	if (decode_status & 0x01)
 		status |= IR_STATUS_REPEAT;
 
 	chip->decode_status = status;
-	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_FRAME, &code);
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_FRAME, &code);
 	meson_ir_dbg(chip->r_dev, "framecode=0x%x\n", code);
 	chip->r_dev->cur_hardcode = code;
 	code = (code >> 8) & 0xff;

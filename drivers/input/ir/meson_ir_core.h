@@ -18,7 +18,7 @@
 #define LEGACY_IR_TYPE_MASK(type) ((type >> 8) & 0xff) /*8bit*/
 /*bit[7] identify whether software decode or not*/
 #define MULTI_IR_SOFTWARE_DECODE(type) ((MULTI_IR_TYPE_MASK(type) >> 7) == 0x1)
-#define ENABLE_LEGACY_IR(type) (LEGACY_IR_TYPE_MASK(type) == 0xff)
+#define ENABLE_LEGACY_IR(type) LEGACY_IR_TYPE_MASK(type)
 /*default led blink frequency*/
 #define DEFAULT_LED_BLINK_FRQ	100
 #define MAX_LEARNED_PULSE	256

@@ -283,14 +283,12 @@ static bool meson_ir_is_next_repeat(struct meson_ir_dev *dev)
 {
 	unsigned int val = 0;
 	unsigned char fbusy = 0;
-	unsigned char cnt;
 
 	struct meson_ir_chip *chip = (struct meson_ir_chip *)dev->platform_data;
 
-	for (cnt = 0; cnt < (ENABLE_LEGACY_IR(chip->protocol) ? 2 : 1); cnt++) {
-		regmap_read(chip->ir_contr[cnt].base, REG_STATUS, &val);
-		fbusy |= IR_CONTROLLER_BUSY(val);
-	}
+	regmap_read(chip->ir_contr[chip->ir_work].base, REG_STATUS, &val);
+	fbusy |= IR_CONTROLLER_BUSY(val);
+
 	meson_ir_dbg(chip->r_dev, "ir controller busy flag = %d\n", fbusy);
 	if (!dev->wait_next_repeat && fbusy)
 		return true;
@@ -618,13 +616,14 @@ static int meson_ir_get_devtree_pdata(struct platform_device *pdev)
 			return PTR_ERR(reg_base);
 		}
 		chip->ir_contr[i].base = reg_base;
+
+		chip->irqno[i] = platform_get_irq(pdev, i);
 	}
 
-	chip->irqno = platform_get_irq(pdev, 0);
-	if (chip->irqno < 0) {
+	if (chip->irqno[0] < 0) {
 		dev_err(chip->dev, "get IORESOURCE_IRQ error, %d\n",
-			chip->irqno);
-		return chip->irqno;
+			chip->irqno[0]);
+		return chip->irqno[0];
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node,
@@ -662,6 +661,7 @@ static int meson_ir_get_devtree_pdata(struct platform_device *pdev)
 static int meson_ir_hardware_init(struct platform_device *pdev)
 {
 	int ret;
+	unsigned char cnt;
 
 	struct meson_ir_chip *chip = platform_get_drvdata(pdev);
 
@@ -675,15 +675,20 @@ static int meson_ir_hardware_init(struct platform_device *pdev)
 		return ret;
 
 	chip->set_register_config(chip, chip->protocol);
-	ret = devm_request_irq(&pdev->dev, chip->irqno, meson_ir_interrupt,
-			       IRQF_SHARED, "meson_ir", (void *)chip);
-	if (ret < 0) {
-		dev_err(chip->dev, "request_irq error %d\n", ret);
-		return -ENODEV;
-	}
-
 	chip->irq_cpumask = 1;
-	irq_set_affinity_hint(chip->irqno, cpumask_of(chip->irq_cpumask));
+
+	for (cnt = 0; cnt < (ENABLE_LEGACY_IR(chip->protocol) ? 2 : 1); cnt++) {
+		ret = devm_request_irq(&pdev->dev, chip->irqno[cnt],
+				       meson_ir_interrupt,
+				       IRQF_SHARED, "meson_ir", (void *)chip);
+		if (ret < 0) {
+			dev_err(chip->dev, "request_irq error %d\n", ret);
+			return -ENODEV;
+		}
+
+		irq_set_affinity_hint(chip->irqno[cnt],
+				      cpumask_of(chip->irq_cpumask));
+	}
 
 	tasklet.data = (unsigned long)chip;
 	tasklet_enable(&tasklet);
@@ -779,7 +784,9 @@ static int meson_ir_probe(struct platform_device *pdev)
 	dev->rc_type = chip->protocol;
 
 	device_init_wakeup(&pdev->dev, true);
-	dev_pm_set_wake_irq(&pdev->dev, chip->irqno);
+	dev_pm_set_wake_irq(&pdev->dev, chip->irqno[0]);
+	if (ENABLE_LEGACY_IR(chip->protocol))
+		dev_pm_set_wake_irq(&pdev->dev, chip->irqno[1]);
 
 	led_trigger_register_simple("ir_led", &dev->led_feedback);
 
@@ -813,7 +820,9 @@ static void meson_ir_remove(struct platform_device *pdev)
 	meson_ir_cdev_free(chip);
 	input_unregister_device(chip->r_dev->input_device);
 	meson_ir_map_tab_list_free(chip);
-	irq_set_affinity_hint(chip->irqno, NULL);
+	irq_set_affinity_hint(chip->irqno[0], NULL);
+	if (ENABLE_LEGACY_IR(chip->protocol))
+		irq_set_affinity_hint(chip->irqno[1], NULL);
 }
 
 static int meson_ir_resume(struct device *dev)
@@ -855,8 +864,13 @@ static int meson_ir_resume(struct device *dev)
 	}
 #endif
 
-	irq_set_affinity_hint(chip->irqno, cpumask_of(chip->irq_cpumask));
-	enable_irq(chip->irqno);
+	irq_set_affinity_hint(chip->irqno[0], cpumask_of(chip->irq_cpumask));
+	enable_irq(chip->irqno[0]);
+
+	if (ENABLE_LEGACY_IR(chip->protocol)) {
+		irq_set_affinity_hint(chip->irqno[1], cpumask_of(chip->irq_cpumask));
+		enable_irq(chip->irqno[1]);
+	}
 	return 0;
 }
 
@@ -864,7 +878,9 @@ static int meson_ir_suspend(struct device *dev)
 {
 	struct meson_ir_chip *chip = dev_get_drvdata(dev);
 
-	disable_irq(chip->irqno);
+	disable_irq(chip->irqno[0]);
+	if (ENABLE_LEGACY_IR(chip->protocol))
+		disable_irq(chip->irqno[1]);
 	return 0;
 }
 
