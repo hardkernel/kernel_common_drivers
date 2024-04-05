@@ -28,6 +28,7 @@
 
 #define MAX_VRR_MODE_GROUP 12
 #define VRR_DIV 100
+>>>>>>> 88e57f527 (drm: solution for gfcd odd size display abnormal [1/1])
 
 /* 40 bpp RGB */
 #define DRM_FORMAT_ABGR10101010	fourcc_code('A', 'B', '4', '0')
