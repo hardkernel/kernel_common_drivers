@@ -7992,32 +7992,6 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 	if (bypass_cm)
 		mode |= COMPOSE_MODE_BYPASS_CM;
 
-	/* check the vpp post size first */
-	if (!legacy_vpp && vinfo) {
-		u32 read_value = cur_dev->rdma_func[vpp_index].rdma_rd
-			(VPP_POSTBLEND_H_SIZE + vpp_off);
-		if (((vinfo->field_height << 16) | vinfo->width)
-			!= read_value)
-			cur_dev->rdma_func[vpp_index].rdma_wr
-				(VPP_POSTBLEND_H_SIZE + vpp_off,
-				((vinfo->field_height << 16) | vinfo->width));
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_OUT_H_V_SIZE + vpp_off,
-			vinfo->width << 16 |
-			vinfo->field_height);
-	} else if (vinfo) {
-		if (cur_dev->rdma_func[vpp_index].rdma_rd
-			(VPP_POSTBLEND_H_SIZE + vpp_off)
-			!= vinfo->width)
-			cur_dev->rdma_func[vpp_index].rdma_wr
-				(VPP_POSTBLEND_H_SIZE + vpp_off,
-				vinfo->width);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_OUT_H_V_SIZE + vpp_off,
-			vinfo->width << 16 |
-			vinfo->field_height);
-	}
-
 	vpp_misc_save = READ_VCBUS_REG(VPP_MISC + vpp_off);
 
 	vpp_misc_set = vpp_misc_save;
@@ -8292,6 +8266,34 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 	}
 
 	force_flush |= vpp_zorder_check();
+
+	if (force_flush) {
+		/* check the vpp post size first */
+		if (!legacy_vpp && vinfo) {
+			u32 read_value = cur_dev->rdma_func[vpp_index].rdma_rd
+				(VPP_POSTBLEND_H_SIZE + vpp_off);
+			if (((vinfo->field_height << 16) | vinfo->width)
+				!= read_value)
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(VPP_POSTBLEND_H_SIZE + vpp_off,
+					((vinfo->field_height << 16) | vinfo->width));
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(VPP_OUT_H_V_SIZE + vpp_off,
+				vinfo->width << 16 |
+				vinfo->field_height);
+		} else if (vinfo) {
+			if (cur_dev->rdma_func[vpp_index].rdma_rd
+				(VPP_POSTBLEND_H_SIZE + vpp_off)
+				!= vinfo->width)
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(VPP_POSTBLEND_H_SIZE + vpp_off,
+					vinfo->width);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(VPP_OUT_H_V_SIZE + vpp_off,
+				vinfo->width << 16 |
+				vinfo->field_height);
+		}
+	}
 
 	if (!legacy_vpp) {
 		u32 set_value = 0;

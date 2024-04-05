@@ -673,6 +673,7 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 	struct hw_vsr_safa_reg_s *vsr_reg;
+	u32 filt_num_c = 0;
 
 	vsr_reg = &vsr_safa_reg;
 	adp_tap_alp_mode = 1;
@@ -738,9 +739,13 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 		//reg config
 		rdma_wr_bits(vsr_reg->safa_pps_sr_422_en,
 			input_422_en, 0, 1);
+		if (input_422_en)
+			filt_num_c = 2;
+		else
+			filt_num_c = 4;
 		rdma_wr(vsr_reg->safa_pps_pre_scale,
-			(2 << 16) |
-			(4 << 12) |
+			(4 << 16) |
+			(filt_num_c << 12) |
 			(4 << 8) |
 			(preh_ratio << 4) |
 			(prev_ratio << 0));
@@ -981,3 +986,45 @@ void s7d_vsr_default_init(void)
 	WRITE_VCBUS_REG(VPP_PI_HF_SCL_COEF_F, 0x00000040);
 }
 
+void vsr_debug_mode_update(u32 debug_mode, struct vsr_setting_s *vsr)
+{
+	u32 hsize_in = 0, vsize_in = 0;
+	u32 out_size = 0, out_scope_x = 0, out_scope_y = 0;
+	u32 vpp_index = 0;
+
+	if (debug_mode >= 1 && debug_mode <= 8) {
+		hsize_in = vsr->vsr_top.hsize_in;
+		vsize_in = vsr->vsr_top.vsize_in;
+		vpp_index = vsr->vpp_index;
+
+		if (hsize_in > 1024) {
+			out_size = (hsize_in / 2) << 16 | vsize_in;
+			out_scope_x = hsize_in / 2 - 1;
+			out_scope_y = vsize_in;
+		} else {
+			out_size = hsize_in << 16 | vsize_in;
+			out_scope_x = hsize_in - 1;
+			out_scope_y = vsize_in;
+		}
+		if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA) {
+			pr_info("%s, hsize_in=%d, vsize_in=%d, out_size=0x%x, out_scope_x=0x%x, out_scope_y=0x%x\n",
+				__func__,
+				hsize_in, vsize_in, out_size,
+				out_scope_x,
+				out_scope_y);
+			pr_info("before setting, 0x%x, 0x%x, 0x%x, 0x%x\n",
+				READ_VCBUS_REG(VPP_VE_H_V_SIZE),
+				READ_VCBUS_REG(VPP_OUT_H_V_SIZE),
+				READ_VCBUS_REG(VPP_POSTBLEND_VD1_H_START_END),
+				READ_VCBUS_REG(VPP_POSTBLEND_VD1_V_START_END));
+		}
+		//cur_dev->rdma_func[vpp_index].rdma_wr(VPP_VSR_DEBUG_MODE,
+		//	debug_mode);
+		cur_dev->rdma_func[vpp_index].rdma_wr(VPP_VE_H_V_SIZE, out_size);
+		cur_dev->rdma_func[vpp_index].rdma_wr(VPP_OUT_H_V_SIZE, out_size);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_POSTBLEND_VD1_H_START_END, out_scope_x);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_POSTBLEND_VD1_V_START_END, out_scope_y);
+	}
+}
