@@ -2492,7 +2492,6 @@ static void vframe_composer(struct composer_dev *dev)
 	struct composer_info_t *composer_info;
 	bool is_dec_vf = false, is_v4l_vf = false;
 	bool is_tvp = false;
-	bool need_dw = false;
 	bool is_fixtunnel = false;
 	struct composer_vf_para vframe_para;
 	struct vicp_data_config_s data_config;
@@ -2666,15 +2665,13 @@ static void vframe_composer(struct composer_dev *dev)
 		}
 		is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
 		is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
-		if (vframe_info_cur->transform != 0 || count != 1)
-			need_dw = true;
 
 		if (vframe_info_cur->source_type == SOURCE_DTV_FIX_TUNNEL)
 			is_fixtunnel = true;
 
 		if (is_dec_vf || is_v4l_vf) {
 			vc_print(dev->index, PRINT_OTHER, "%s dma buffer is vf\n", __func__);
-			src_vf = get_vf_from_file(dev, file_vf, need_dw);
+			src_vf = get_vf_from_file(dev, file_vf, true);
 			if (!src_vf) {
 				vc_print(dev->index, PRINT_ERROR, "get vf NULL\n");
 				continue;

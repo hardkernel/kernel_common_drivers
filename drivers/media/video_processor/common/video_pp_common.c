@@ -91,6 +91,9 @@ int get_source_type(struct vframe_s *vf)
 		    (!(vf->type & VIDTYPE_COMPRESS)) &&
 		    (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL))
 			ret = VDIN_10BIT_NORMAL;
+		else if ((vf->type & VIDTYPE_COMPRESS) &&
+			(vf->bitdepth_dw & BITDEPTH_Y10))
+			ret = VDIN_10BIT_NORMAL;
 		else
 			ret = VDIN_8BIT_NORMAL;
 	} else {
@@ -118,9 +121,15 @@ int get_source_type(struct vframe_s *vf)
 int get_ge2d_input_format(struct vframe_s *vf)
 {
 	int format = GE2D_FORMAT_M24_YUV420;
+	int vdin_bitdepth;
 	enum videocom_source_type soure_type;
 
 	soure_type = get_source_type(vf);
+	if (vf->type & VIDTYPE_COMPRESS && soure_type == VDIN_10BIT_NORMAL)
+		vdin_bitdepth = vf->bitdepth_dw;
+	else
+		vdin_bitdepth = vf->bitdepth;
+
 	switch (soure_type) {
 	case DECODER_8BIT_NORMAL:
 		if (vf->type & VIDTYPE_VIU_422)
@@ -204,10 +213,12 @@ int get_ge2d_input_format(struct vframe_s *vf)
 		break;
 	case VDIN_10BIT_NORMAL:
 		if (vf->type & VIDTYPE_VIU_422) {
-			if (vf->bitdepth & FULL_PACK_422_MODE)
+			if (vdin_bitdepth & FULL_PACK_422_MODE)
 				format = GE2D_FORMAT_S16_10BIT_YUV422;
 			else
 				format = GE2D_FORMAT_S16_12BIT_YUV422;
+		} else if (vf->type & VIDTYPE_VIU_444 || vf->type & VIDTYPE_RGB_444) {
+			format = GE2D_FORMAT_S24_10BIT_YUV444;
 		}
 		break;
 	default:
