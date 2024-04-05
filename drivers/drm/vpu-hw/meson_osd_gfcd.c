@@ -37,6 +37,24 @@ static struct gfcd_reg_s gfcd_reg[2] = {
 	},
 };
 
+static int gfcd_format_is_rgbx(u32 pixel_format)
+{
+	int is_rgbx = 0;
+
+	switch (pixel_format) {
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_RGBX8888:
+	case DRM_FORMAT_BGRX8888:
+		is_rgbx = 1;
+		break;
+	default:
+		break;
+	}
+
+	return is_rgbx;
+}
+
 static int gfcd_check_state(struct meson_vpu_block *vblk,
 				 struct meson_vpu_block_state *state,
 				 struct meson_vpu_pipeline_state *mvps)
@@ -57,7 +75,7 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 	struct gfcd_reg_s *reg;
 	const struct meson_drm_format_info *info;
 	u64 header_addr;
-	bool reverse_x, reverse_y, is_afrc, gfcd_en = 0;
+	bool reverse_x, reverse_y, is_afrc, alpha_div_en = 0, gfcd_en = 0;
 	u8 tile_mode, blk_mode = 0, alpha_replace = 0;
 	int i;
 
@@ -89,11 +107,18 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 			}
 
 			tile_mode = !!(plane_info->afbc_inter_format & TILED_HEADER_EN);
+			if (plane_info->pixel_blend == DRM_MODE_BLEND_PREMULTI &&
+				!gfcd_format_is_rgbx(plane_info->pixel_format))
+				alpha_div_en = 1;
 
 			// MIF
 			/*reverse config*/
 			reg_ops->rdma_write_reg_bits(reg->gfcd_mif_mode_sel, reverse_x, 5, 1);
 			reg_ops->rdma_write_reg_bits(reg->gfcd_mif_mode_sel, reverse_y, 4, 1);
+
+			/*div alpha*/
+			reg_ops->rdma_write_reg_bits(VPP_OSD_HDR_DIV_ALPHA, alpha_div_en,
+				i * 5, 1);
 
 			/* set header addr */
 			reg_ops->rdma_write_reg(reg->gfcd_mif_head_baddr, header_addr >> 4);
@@ -106,8 +131,8 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 			reg_ops->rdma_write_reg(reg->gfcd_frm_bgn,
 						plane_info->src_y << 16 | plane_info->src_x);
 			reg_ops->rdma_write_reg(reg->gfcd_frm_end,
-						(plane_info->src_y + plane_info->src_h - 1) << 16 |
-					(plane_info->src_x + plane_info->src_w - 1));
+				(plane_info->src_y + plane_info->src_h - 1) << 16 |
+				(plane_info->src_x + plane_info->src_w - 1));
 
 			/*0:afbc 1:afrc*/
 			reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, is_afrc, 0, 1);
@@ -153,6 +178,7 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 				is_afrc, plane_info->afrc_cu_bits, blk_mode, tile_mode);
 		} else {
 			reg_ops->rdma_write_reg_bits(reg->gfcd_top_ctrl, 0, 4, 1);
+			reg_ops->rdma_write_reg_bits(VPP_OSD_HDR_DIV_ALPHA, 0, i * 5, 1);
 		}
 		MESON_DRM_BLOCK("osd%d, enable=%d, gfcd_en=%d.\n", plane_info->plane_index,
 			plane_info->enable, gfcd_en);
@@ -185,61 +211,61 @@ static void gfcd_dump_register(struct drm_printer *p,
 
 	for (i = 0; i < gfcd->num_surface; i++) {
 		reg = &gfcd->reg[i];
-		snprintf(buff, 8, "osd%d", i + 1);
+		snprintf(buff, 8, "OSD%d", i + 1);
 		reg_addr = reg->gfcd_mif_mode_sel;
 		value = meson_drm_read_reg(reg_addr);
-		drm_printf(p, "%s_%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
-				  "gfcd_mif_mode_sel", reg_addr, value);
+		drm_printf(p, "%s_%-27s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+				  "GFCD_MIF_MODE_SEL", reg_addr, value);
 
 		reg_addr = reg->gfcd_mif_head_baddr;
 		value = meson_drm_read_reg(reg_addr);
-		drm_printf(p, "%s_%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
-				  "gfcd_mif_head_baddr", reg_addr, value);
+		drm_printf(p, "%s_%-27s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+				  "GFCD_MIF_HEAD_BADDR", reg_addr, value);
 
 		reg_addr = reg->gfcd_mif_body_baddr;
 		value = meson_drm_read_reg(reg_addr);
-		drm_printf(p, "%s_%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
-				  "gfcd_mif_body_baddr", reg_addr, value);
+		drm_printf(p, "%s_%-27s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+				  "GFCD_MIF_BODY_BADDR", reg_addr, value);
 
 		reg_addr = reg->gfcd_frm_bgn;
 		value = meson_drm_read_reg(reg_addr);
-		drm_printf(p, "%s_%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
-				  "gfcd_frm_bgn", reg_addr, value);
+		drm_printf(p, "%s_%-27s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+				  "GFCD_FRM_BGN", reg_addr, value);
 
 		reg_addr = reg->gfcd_frm_end;
 		value = meson_drm_read_reg(reg_addr);
-		drm_printf(p, "%s_%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
-				  "gfcd_frm_end", reg_addr, value);
+		drm_printf(p, "%s_%-27s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+				  "GFCD_FRM_END", reg_addr, value);
 
 		reg_addr = reg->gfcd_top_ctrl;
 		value = meson_drm_read_reg(reg_addr);
-		drm_printf(p, "%s_%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
-				  "gfcd_top_ctrl", reg_addr, value);
+		drm_printf(p, "%s_%-27s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+				  "GFCD_TOP_CTRL", reg_addr, value);
 
 		reg_addr = reg->gfcd_afrc_ctrl;
 		value = meson_drm_read_reg(reg_addr);
-		drm_printf(p, "%s_%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
-				  "gfcd_afrc_ctrl", reg_addr, value);
+		drm_printf(p, "%s_%-27s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+				  "GFCD_AFRC_CTRL", reg_addr, value);
 
 		reg_addr = reg->gfcd_afbc_ctrl;
 		value = meson_drm_read_reg(reg_addr);
-		drm_printf(p, "%s_%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
-				  "gfcd_afbc_ctrl", reg_addr, value);
+		drm_printf(p, "%s_%-27s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+				  "GFCD_AFBC_CTRL", reg_addr, value);
 
 		reg_addr = reg->gfcd_frm_size;
 		value = meson_drm_read_reg(reg_addr);
-		drm_printf(p, "%s_%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
-				  "gfcd_frm_size", reg_addr, value);
+		drm_printf(p, "%s_%-27s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+				  "GFCD_FRM_SIZE", reg_addr, value);
 
 		reg_addr = reg->gfcd_mif_head_ctrl0;
 		value = meson_drm_read_reg(reg_addr);
-		drm_printf(p, "%s_%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
-				  "gfcd_mif_head_ctrl0", reg_addr, value);
+		drm_printf(p, "%s_%-27s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+				  "GFCD_MIF_HEAD_CTRL0", reg_addr, value);
 
 		reg_addr = reg->gfcd_mif_body_ctrl;
 		value = meson_drm_read_reg(reg_addr);
-		drm_printf(p, "%s_%-35s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
-				  "gfcd_mif_body_ctrl", reg_addr, value);
+		drm_printf(p, "%s_%-27s\t\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+				  "GFCD_MIF_BODY_CTRL", reg_addr, value);
 	}
 
 	reg_addr = OSD_PATH_MISC_CTRL;

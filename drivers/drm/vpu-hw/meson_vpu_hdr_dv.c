@@ -54,11 +54,32 @@ static void s7d_hdr_set_state(struct meson_vpu_block *vblk,
 
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
 
-	hsize = mvps->plane_info[vblk->index].src_w;
+	hsize = mvps->plane_info[vblk->index].src_w +
+		mvps->plane_info[vblk->index].src_w_offset4hdr;
 	vsize = mvps->plane_info[vblk->index].src_h;
 
 	reg_ops->rdma_write_reg(reg->vpp_osd_in_size, hsize | (vsize << 16));
 	MESON_DRM_BLOCK("%s set_state called.\n", hdr->base.name);
+}
+
+static void hdr_dump_register(struct drm_printer *p, struct meson_vpu_block *vblk)
+{
+	int hdr_index;
+	u32 value, reg_addr;
+	char buff[16];
+	struct meson_vpu_hdr *hdr;
+	struct hdr_reg_s *reg;
+
+	hdr_index = vblk->index;
+	hdr = to_hdr_block(vblk);
+	reg = hdr->reg;
+
+	snprintf(buff, 16, "VPP_OSD%d", hdr_index + 1);
+
+	reg_addr = reg->vpp_osd_in_size;
+	value = meson_drm_read_reg(reg_addr);
+	drm_printf(p, "%s_%-35s\taddr: 0x%04X\tvalue: 0x%08X\n", buff,
+		"_IN_SIZE", reg_addr, value);
 }
 
 static void hdr_enable(struct meson_vpu_block *vblk,
@@ -95,6 +116,7 @@ struct meson_vpu_block_ops hdr_ops = {
 struct meson_vpu_block_ops s7d_hdr_ops = {
 	.check_state = hdr_check_state,
 	.update_state = s7d_hdr_set_state,
+	.dump_register = hdr_dump_register,
 	.enable = hdr_enable,
 	.disable = hdr_disable,
 	.init = hdr_init,

@@ -1837,7 +1837,6 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 		!(adj_mode->flags & DRM_MODE_FLAG_INTERLACE)) || priv->pxp_mode)
 		do_valid = false;
 
-
 	DRM_DEBUG("%s[%d]: enter\n", __func__, __LINE__);
 
 	if (meson_crtc_state->uboot_mode_init == 1) {

@@ -1455,7 +1455,7 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 
 	osd_ctrl_init(vblk, reg_ops, reg);
 
-	if (osd->has_gfcd) {
+	if (priv->vpu_data && priv->vpu_data->has_gfcd) {
 		process_unit = mvos->process_unit;
 		if (process_unit == GFCD_AFBC || process_unit == GFCD_AFRC) {
 			MESON_DRM_BLOCK("set gfcd %d.\n", process_unit);
@@ -1938,7 +1938,6 @@ static void s7d_osd_hw_init(struct meson_vpu_block *vblk)
 	//osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = LINEAR_MIF;
 	osd->mali_src_en_switch = 1;
-	osd->has_gfcd = true;
 
     /* osd secure function init */
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY

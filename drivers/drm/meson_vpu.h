@@ -40,6 +40,7 @@ struct meson_vpu_data {
 	struct meson_plane_supported_formats *video_formats;
 	int enc_method;
 	int slice_mode;
+	int has_gfcd;
 	unsigned int max_osdblend_width, max_osdblend_height;
 	const enum meson_policy_id *policy;
 };

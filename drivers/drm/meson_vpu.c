@@ -223,7 +223,7 @@ static void meson_init_policy_mask(struct meson_drm *private)
 	if (private->vpu_data->policy) {
 		policy = private->vpu_data->policy;
 		for (; *policy != MAX_POLICY_ID; policy++)
-			private->of_conf.drm_policy_mask = BIT(*policy);
+			private->of_conf.drm_policy_mask |= BIT(*policy);
 	}
 }
 
@@ -251,6 +251,7 @@ static int am_meson_vpu_bind(struct device *dev,
 	meson_vpu_block_state_init(private, private->pipeline);
 
 	meson_of_init(dev, drm_dev, private);
+	meson_init_policy_mask(private);
 
 	ret = am_meson_plane_create(private);
 	if (ret) {
@@ -283,7 +284,6 @@ static int am_meson_vpu_bind(struct device *dev,
 
 	vpu_pipeline_pre_init(pipeline, dev);
 	vpu_pipeline_init(pipeline);
-	meson_init_policy_mask(private);
 
 	/* HW config for different VPUs */
 	if (vpu_data && vpu_data->crtc_func.init_default_reg)
@@ -536,6 +536,7 @@ static const struct meson_vpu_data vpu_s7d_data = {
 	.osd_formats = &osd_formats_s7d,
 	.video_formats = &video_formats,
 	.policy = s7d_policy,
+	.has_gfcd = 1,
 };
 #endif
 
