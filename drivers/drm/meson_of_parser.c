@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 
 #include "meson_drv.h"
 #include "meson_vpu_pipeline.h"
@@ -100,12 +101,30 @@ static void meson_osd_parse_config(struct drm_device *dev, struct meson_of_conf 
 static void meson_parse_gfcd_config(struct drm_device *dev,
 		struct meson_of_conf *conf)
 {
-	u32 temp = 0;
+	u8 enable;
 	int ret;
 
-	ret = of_property_read_u32(dev->dev->of_node,
-				   "gfcd_afbc_enable", &temp);
-	conf->drm_policy_mask |= ((!!temp) << GFCD_ODD_SIZE);
+	ret = of_property_read_u8(dev->dev->of_node, "gfcd_afbc_enable", &enable);
+	if (ret)
+		DRM_DEBUG("undefined gfcd_afbc_enable!\n");
+	else
+		conf->gfcd_afbc_enable = enable;
+
+	/*
+	 *S7D revA&B use the same config file, so we need to distinguish
+	 *according to chip ID.
+	 */
+	if (is_meson_s7d_cpu()) {
+		if (is_meson_rev_a()) {
+			conf->gfcd_mask = 1;
+			conf->drm_policy_mask = 3;
+		} else if (is_meson_rev_b()) {
+			conf->gfcd_mask = 2;
+			conf->drm_policy_mask = 0;
+		}
+	}
+	DRM_DEBUG("gfcd_mask:%d drm_policy_mask:%lld\n",
+		conf->gfcd_mask, conf->drm_policy_mask);
 }
 
 static void am_meson_vpu_get_plane_crtc_mask(struct meson_drm *priv,

@@ -617,6 +617,11 @@ static void osdblend_set_state(struct meson_vpu_block *vblk,
 		reg_ops->rdma_write_reg_bits(VIU_OSD_BLEND_CTRL, 4, 29, 3);
 	}
 
+	mvobs->input_width[OSD_SUB_BLEND0] += pipeline_state->osdblend_input_width_offset;
+	mvobs->input_width[OSD_SUB_BLEND1] += pipeline_state->osdblend_input_width_offset;
+	for (i = 0; i < MAX_DIN_NUM; i++)
+		mvobs->din_channel_scope[i].h_end += pipeline_state->osd_scope_width_offset[i];
+
 	#ifdef OSDBLEND_CHECK_METHOD_COMBINATION
 	osdblend_layer_set(vblk, state->sub->reg_ops,
 			   reg, osdblend, pipeline_state);

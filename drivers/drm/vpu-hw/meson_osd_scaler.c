@@ -751,9 +751,13 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 	u32 vsc_double_line_mode;
 	u32 *coef_h, *coef_v;
 	u64 phase_step_v, phase_step_h;
+	u32 real_width_in, real_width_out;
 	bool scaler_enable;
 
-	if (width_in == width_out && height_in == height_out &&
+	real_width_in = width_in + scaler_state->input_width_offset;
+	real_width_out = width_out + scaler_state->output_width_offset;
+
+	if (real_width_in == real_width_out && height_in == height_out &&
 	    version > OSD_V2 && version < OSD_V7)
 		scaler_enable = false;
 	else
@@ -813,7 +817,6 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 	do_div(phase_step_h, width_out);
 	phase_step_h <<= (OSD_ZOOM_TOTAL_BITS - OSD_ZOOM_WIDTH_BITS);
 	/*check coef*/
-
 	if (vsc_double_line_mode == 1) {
 		coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
 		coef_v = osd_scaler_filter_table[COEFS_2POINT_BILINEAR];
@@ -847,10 +850,10 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 
 	/*input size config*/
 	osd_sc_in_h_set(vblk, reg_ops, reg, height_in);
-	osd_sc_in_w_set(vblk, reg_ops, reg, width_in);
+	osd_sc_in_w_set(vblk, reg_ops, reg, real_width_in);
 
 	/*output size config*/
-	osd_sc_out_horz_set(vblk, reg_ops, reg, 0, width_out - 1);
+	osd_sc_out_horz_set(vblk, reg_ops, reg, 0, real_width_out - 1);
 	osd_sc_out_vert_set(vblk, reg_ops, reg, 0, height_out - 1);
 
 	/*phase step config*/
@@ -933,6 +936,12 @@ static void scaler_size_check(struct meson_vpu_block *vblk,
 			pipeline_state->scaler_param[vblk->index].output_height;
 		scaler_state->state_changed |= SCALER_OUTPUT_HEIGHT_CHANGED;
 	}
+
+	scaler_state->input_width_offset =
+			pipeline_state->scaler_param[vblk->index].input_width_offset;
+	scaler_state->output_width_offset =
+			pipeline_state->scaler_param[vblk->index].output_width_offset;
+	scaler_state->global = pipeline_state->scaler_param[vblk->index].global;
 }
 
 void scan_mode_check(struct meson_vpu_pipeline *pipeline,

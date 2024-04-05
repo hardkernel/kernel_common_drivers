@@ -422,6 +422,7 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	struct meson_drm *priv = meson_crtc->priv;
 	struct meson_vpu_pipeline_state *mvps;
 	struct drm_private_state *obj_state;
+	int i;
 
 	obj_state = priv->pipeline->obj.state;
 	if (!obj_state) {
@@ -455,6 +456,22 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tnum_plane_video=%u\n", mvps->num_plane_video);
 	drm_printf(p, "\t\tglobal_afbc=%u\n", mvps->global_afbc);
 	drm_printf(p, "\t\tdrm_policy_mask=%llu\n", priv->of_conf.drm_policy_mask);
+
+	if (priv->vpu_data && priv->vpu_data->has_gfcd) {
+		drm_printf(p, "\t\tgfcd_afbc_enable=%u\n",
+			priv->of_conf.gfcd_afbc_enable);
+		drm_printf(p, "\t\tgfcd_mask=%u\n",
+			priv->of_conf.gfcd_mask);
+		drm_printf(p, "\t\tosdblend_input_width_offset=%u\n",
+			mvps->osdblend_input_width_offset);
+		for (i = 0; i < MAX_DIN_NUM; i++)
+			drm_printf(p, "\t\tosd_scope_width_offset[%u]=%u\n",
+				i, mvps->osd_scope_width_offset[i]);
+		for (i = 0; i < MESON_MAX_SCALERS; i++)
+			drm_printf(p, "\t\tscaler_width_offset[%u]=in:%u out:%u\n", i,
+				mvps->scaler_param[i].input_width_offset,
+				mvps->scaler_param[i].output_width_offset);
+	}
 }
 
 static const char * const pipe_crc_sources[] = {"vpp1", "NULL"};

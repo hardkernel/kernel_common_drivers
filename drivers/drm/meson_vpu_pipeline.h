@@ -80,8 +80,8 @@
 extern u32 frame_seq[MESON_MAX_OSDS];
 
 enum meson_policy_id {
-	GFCD_ODD_SIZE,
-	GFCD_GLOBAL_ALPHA,
+	GFCD_ODD_SIZE = 0,
+	GFCD_GLOBAL_ALPHA = 1,
 	HDR_BEFORE_BLEND,
 };
 
@@ -206,6 +206,9 @@ struct meson_vpu_osd_layer_info {
 	int dst_y;
 	u32 fb_w;
 	u32 fb_h;
+	u32 hdisplay;
+	u32 vdisplay;
+	u32 src_w_offset4hdr;
 	u32 zorder;
 	u32 byte_stride;
 	u32 pixel_format;
@@ -243,7 +246,6 @@ struct meson_vpu_osd {
 	int mif_acc_mode;
 	int viu2_hold_line;
 	u32 mali_src_en_switch;
-	bool has_gfcd;
 	const struct meson_drm_format_info **infos;
 	int format_swap;
 
@@ -429,12 +431,15 @@ struct meson_vpu_scaler_state {
 	u32 input_height;
 	u32 output_width;
 	u32 output_height;
+	u32 input_width_offset;
+	u32 output_width_offset;
 	u32 ratio_x;
 	u32 ratio_y;
 	u32 scan_mode_out;
 	u32 state_changed;
 	u32 free_scale_enable;
 	u32 scaler_filter_mode;
+	u32 global;
 };
 
 struct meson_vpu_scaler_param {
@@ -442,6 +447,8 @@ struct meson_vpu_scaler_param {
 	u32 input_height;
 	u32 output_width;
 	u32 output_height;
+	u32 input_width_offset;
+	u32 output_width_offset;
 
 	//u32 ratio_x;
 	//u32 ratio_y;
@@ -663,6 +670,9 @@ struct meson_vpu_pipeline_state {
 	struct meson_vpu_scaler_param scaler_param[MESON_MAX_SCALERS];
 	/*pre_osd_scope is before DIN*/
 	struct osd_scope_s osd_scope_pre[MAX_DIN_NUM];
+	/*used for gfcd odd input width*/
+	u32 osd_scope_width_offset[MAX_DIN_NUM];
+	u32 osdblend_input_width_offset;
 	int vpp_scope_x;
 	int vpp_scope_y;
 

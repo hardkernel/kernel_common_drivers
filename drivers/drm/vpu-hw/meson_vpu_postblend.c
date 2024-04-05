@@ -307,7 +307,8 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 
 	scope.h_start = mvps->vpp_scope_x;
 	scope.v_start = mvps->vpp_scope_y;
-	scope.h_end = scope.h_start + mvps->scaler_param[0].output_width - 1;
+	scope.h_end = scope.h_start + mvps->scaler_param[0].output_width +
+			mvps->scaler_param[0].output_width_offset - 1;
 	scope.v_end = scope.v_start + mvps->scaler_param[0].output_height - 1;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY

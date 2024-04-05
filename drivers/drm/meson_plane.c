@@ -28,17 +28,9 @@
 #include "meson_gem.h"
 #include "meson_logo.h"
 
-static int force_gfcd_mode;
+static int force_gfcd_mode = 1;
 module_param(force_gfcd_mode, int, 0664);
 MODULE_PARM_DESC(force_gfcd_mode, "force_gfcd_mode");
-
-static int force_dst_w;
-module_param(force_dst_w, int, 0664);
-MODULE_PARM_DESC(force_dst_w, "force_dst_w");
-
-static int force_dst_h;
-module_param(force_dst_h, int, 0664);
-MODULE_PARM_DESC(force_dst_h, "force_dst_h");
 
 static int osd_enable[MESON_MAX_OSDS];
 
@@ -368,6 +360,7 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 	plane_info->src_y = state->src_y >> 16;
 	plane_info->src_w = (state->src_w >> 16) & 0xffff;
 	plane_info->src_h = (state->src_h >> 16) & 0xffff;
+
 	DRM_DEBUG("original source: src_x=%d, src_y=%d, src_w=%d, src_h=%d\n",
 		plane_info->src_x, plane_info->src_y, plane_info->src_w, plane_info->src_h);
 
@@ -375,11 +368,6 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 	plane_info->dst_y = state->crtc_y;
 	plane_info->dst_w = state->crtc_w;
 	plane_info->dst_h = state->crtc_h;
-
-	if (force_dst_w)
-		plane_info->dst_w = force_dst_w;
-	if (force_dst_h)
-		plane_info->dst_h = force_dst_h;
 	plane_info->rotation = state->rotation;
 	DRM_DEBUG("original destination: dst_x=%d, dst_y=%d, dst_w=%d, dst_h=%d\n",
 		plane_info->dst_x, plane_info->dst_y, plane_info->dst_w, plane_info->dst_h);
@@ -459,6 +447,9 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 	if (plane_info->rotation & DRM_MODE_REFLECT_Y)
 		plane_info->dst_y = mode->vdisplay - plane_info->dst_h -
 			plane_info->dst_y;
+
+	plane_info->hdisplay = mode->hdisplay;
+	plane_info->vdisplay = mode->vdisplay;
 	DRM_DEBUG("fini source: src_x=%d, src_y=%d, src_w=%d, src_h=%d\n",
 		plane_info->src_x, plane_info->src_y,
 		plane_info->src_w, plane_info->src_h);
@@ -744,7 +735,9 @@ static int meson_plane_get_fb_info(struct drm_plane *plane,
 
 			plane_info->process_unit = GFCD_AFRC;
 		} else {
-			if (force_gfcd_mode) {
+			if (drv->vpu_data && drv->vpu_data->has_gfcd && force_gfcd_mode &&
+					(drv->of_conf.gfcd_afbc_enable ||
+					plane_info->pixel_format == DRM_FORMAT_ABGR10101010)) {
 				plane_info->process_unit = GFCD_AFBC;
 			} else {
 				plane_info->afbc_en = 1;
@@ -1196,10 +1189,11 @@ static void meson_osd_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tsrc_y=%u\n", plane_info->src_y);
 	drm_printf(p, "\t\tsrc_w=%u\n", plane_info->src_w);
 	drm_printf(p, "\t\tsrc_h=%u\n", plane_info->src_h);
-	drm_printf(p, "\t\tdst_w=%u\n", plane_info->dst_w);
-	drm_printf(p, "\t\tdst_h=%u\n", plane_info->dst_h);
 	drm_printf(p, "\t\tdst_x=%d\n", plane_info->dst_x);
 	drm_printf(p, "\t\tdst_y=%d\n", plane_info->dst_y);
+	drm_printf(p, "\t\tdst_w=%u\n", plane_info->dst_w);
+	drm_printf(p, "\t\tdst_h=%u\n", plane_info->dst_h);
+	drm_printf(p, "\t\tsrc_w_offset4hdr=%d\n", plane_info->src_w_offset4hdr);
 	drm_printf(p, "\t\tfb_w=%u\n", plane_info->fb_w);
 	drm_printf(p, "\t\tfb_h=%u\n", plane_info->fb_h);
 	drm_printf(p, "\t\tzorder=%u\n", plane_info->zorder);

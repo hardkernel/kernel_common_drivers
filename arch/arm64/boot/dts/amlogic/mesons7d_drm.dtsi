@@ -69,6 +69,7 @@
 		crtc_masks = <1 1 1>; /*for encoder: 0:hdmi 1:lcd 2:cvbs*/
 		gamma_ctl = <0>; /*0:skip gamma init 1:gamma init*/
 		pxp_mode = <0>;
+		gfcd_afbc_enable = /bits/ 8  <0>;
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {

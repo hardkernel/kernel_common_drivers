@@ -76,6 +76,9 @@ struct meson_of_conf {
 	 */
 	u64 drm_policy_mask;
 
+	u8 gfcd_afbc_enable;
+	u8 gfcd_mask;
+
 	char *pref_mode;
 
 	/* force osd slice_mode: 1*/

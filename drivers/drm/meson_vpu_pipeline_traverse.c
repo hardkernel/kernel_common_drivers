@@ -11,6 +11,8 @@
 #include "meson_crtc.h"
 #include "meson_plane.h"
 
+#define GFCD_SRC_W_OFFSET     1
+
 static void stack_init(struct meson_vpu_stack *mvs)
 {
 	mvs->top = 0;
@@ -754,20 +756,81 @@ int vpu_video_pipeline_check_block(struct meson_vpu_pipeline_state *mvps,
 	return ret;
 }
 
+void vpu_pipeline_gfcd_odd_size_calculate(int index, u32 sc_idx,
+			       struct meson_vpu_pipeline_state *mvps, bool *flag,
+			       struct meson_vpu_block **mvb)
+{
+	struct meson_vpu_osd_layer_info *plane_info;
+	struct meson_vpu_block *block;
+	struct meson_vpu_scaler_param *scaler_param;
+	struct meson_drm *private = mvps->pipeline->priv;
+	int i;
+
+	plane_info = &mvps->plane_info[index];
+	if (!((private->of_conf.gfcd_mask & BIT(GFCD_ODD_SIZE)) &&
+		plane_info->enable && plane_info->src_w % 2 &&
+		(plane_info->process_unit == GFCD_AFBC ||
+		plane_info->process_unit == GFCD_AFRC)))
+		return;
+
+	MESON_DRM_TRAVERSE("osd%d sc_idx:%d flag=%d\n", index, sc_idx, *flag);
+	plane_info->src_w_offset4hdr = GFCD_SRC_W_OFFSET;
+
+	if (sc_idx != -1) {
+		scaler_param = &mvps->scaler_param[sc_idx];
+		if (scaler_param->input_width != scaler_param->output_width ||
+			scaler_param->input_height != scaler_param->output_height) {
+			scaler_param->input_width_offset = GFCD_SRC_W_OFFSET;
+			return;
+		}
+	}
+
+	for (i = 0; i < MESON_MAX_BLOCKS; i++) {
+		block = mvb[i];
+		if (!block)
+			break;
+
+		if (block->type == MESON_BLK_OSDBLEND) {
+			mvps->osd_scope_width_offset[index] = GFCD_SRC_W_OFFSET;
+			if (*flag)
+				return;
+
+			mvps->osdblend_input_width_offset = GFCD_SRC_W_OFFSET;
+		}
+
+		if (block->type == MESON_BLK_SCALER) {
+			if (mvps->scaler_param[block->index].global) {
+				mvps->scaler_param[block->index].input_width_offset =
+					GFCD_SRC_W_OFFSET;
+				if (mvps->scaler_param[block->index].output_width + 1 <
+					plane_info->hdisplay)
+					mvps->scaler_param[block->index].output_width_offset =
+					GFCD_SRC_W_OFFSET;
+			}
+		}
+	}
+
+	*flag = true;
+}
+
 void vpu_pipeline_enable_block(int *combination, int num_planes,
 			       struct meson_vpu_pipeline_state *mvps)
 {
-	int i, j, osd_index, crtc_index;
+	int i, j, osd_index, crtc_index, local_sc_idx, has_blend;
 	struct meson_vpu_traverse *mvt;
 	struct meson_vpu_block **mvb;
 	struct meson_vpu_block *block;
 	struct meson_vpu_block_state *mvbs;
 	struct meson_vpu_sub_pipeline_state *sub_state;
 	struct meson_vpu_pipeline *mvp = mvps->pipeline;
+	bool osdblend_set = false;
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (!mvps->plane_info[i].enable)
 			continue;
+
+		local_sc_idx = -1;
+		has_blend = -1;
 		osd_index = mvps->plane_index[i];
 		crtc_index = mvps->plane_info[i].crtc_index;
 		if (crtc_index == -EINVAL) {
@@ -788,7 +851,16 @@ void vpu_pipeline_enable_block(int *combination, int num_planes,
 			mvbs = meson_vpu_block_get_state(block, mvps->obj.state);
 			mvbs->sub = &mvp->subs[crtc_index];
 			sub_state->enable_blocks |= BIT(block->id);
+
+			if (block->type == MESON_BLK_OSDBLEND)
+				has_blend = j;
+
+			if (block->type == MESON_BLK_SCALER && has_blend == -1)
+				local_sc_idx = block->index;
 		}
+
+		vpu_pipeline_gfcd_odd_size_calculate(osd_index, local_sc_idx,
+			mvps, &osdblend_set, mvb);
 	}
 	/*TODO*/
 	//for (i = 0; i < MESON_MAX_VIDEO; i++)
