@@ -44,6 +44,9 @@
 #include "video_reg.h"
 #include "video_common.h"
 
+#ifdef CONFIG_AMLOGIC_VPU
+#include <linux/amlogic/media/vpu/vpu.h>
+#endif
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
@@ -62,6 +65,23 @@
 #include <linux/amlogic/media/video_sink/video.h>
 #include "../common/vfm/vfm.h"
 #include "video_safa_reg.h"
+
+static unsigned int skip_safa_speed_up;
+module_param(skip_safa_speed_up, uint, 0664);
+MODULE_PARM_DESC(skip_safa_speed_up, "skip_safa_speed_up");
+
+static unsigned int g_postsc_en = 0xff;
+module_param(g_postsc_en, uint, 0664);
+MODULE_PARM_DESC(g_postsc_en, "g_postsc_en");
+
+static unsigned int g_preh_en = 0xff;
+module_param(g_preh_en, uint, 0664);
+MODULE_PARM_DESC(g_preh_en, "g_preh_en");
+
+static unsigned int g_preh_rate  = 0xff;
+module_param(g_preh_rate, uint, 0664);
+MODULE_PARM_DESC(g_preh_rate, "g_preh_rate");
+
 struct pi_reg_s {
 	u32 pi_dic_num;
 	u32 pi_out_scl_mode;
@@ -459,6 +479,82 @@ static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 	}
 }
 
+static u32 safa_speed_up_handle(struct vsr_setting_s *vsr)
+{
+	struct vsr_safa_setting_s *vsr_safa = &vsr->vsr_safa;
+
+	u32 hsize_in = vsr->vsr_top.hsize_in;
+	u32 vsize_in = vsr->vsr_top.vsize_in;
+	u32 hsize_out = vsr->vsr_top.hsize_out;
+	u32 vsize_out = vsr->vsr_top.vsize_out;
+	u32 pre_hsize = 0;
+	const struct vinfo_s *vinfo = get_current_vinfo();
+	bool performance_skip = true, performance_hit = false;
+	u32 display_active_hsize = 3840, display_active_vsize = 2160;
+	u32 display_total_hsize = 4400;
+	u32 axi_rps_ratio = 1, mux_in_vsize = 0;
+	u32 input_time = 0, display_time = 0;
+	u32 clk_in_pps = vpu_clk_get();
+
+	if ((vinfo->width == 3840 && vinfo->height == 2160) &&
+		!skip_safa_speed_up)
+		performance_skip = false;
+
+	if (performance_skip)
+		return 0;
+	display_active_hsize = vinfo->width;
+	display_active_vsize = vinfo->height;
+	display_total_hsize = vinfo->htotal;
+
+	if (vsize_out > vsize_in)
+		mux_in_vsize = vsize_out;
+	else
+		mux_in_vsize = vsize_in;
+
+	input_time = ((hsize_in + (display_active_hsize - hsize_out)) *
+		mux_in_vsize * 100);
+	clk_in_pps /= 1000000;
+	if (!clk_in_pps)
+		return 0;
+	if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
+		pr_info("input_time=%d, clk_in_pps=%d, display_active_hsize=%d, display_total_hsize=%d\n",
+			input_time, clk_in_pps, display_active_hsize,
+			display_total_hsize);
+
+	input_time = (input_time / clk_in_pps) * 10 * axi_rps_ratio;
+	display_time = (display_total_hsize * vsize_out  * 100 / 594 * 10);
+
+	if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
+		pr_info("%s: input_time=%d, display_time=%d\n",
+				__func__,
+				input_time, display_time);
+
+	if (input_time >= display_time) {
+		pr_info("ng, input_time=%d, display_time=%d\n",
+			input_time, display_time);
+		performance_hit = true;
+	}
+
+	if (performance_hit) {
+		if (vsr_safa->preh_en &&
+			!vsr_safa->postsc_en) {
+			vsr_safa->postsc_en = 1;
+			if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
+				pr_info("%s: preh_en only, force postsc_en\n", __func__);
+		}
+		if (!vsr_safa->preh_en) {
+			vsr_safa->preh_en = 1;
+			pre_hsize = (hsize_in + 1) >> 1;
+			vsr_safa->preh_ratio = 1;
+			if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
+				pr_info("%s:preh_en + postcaler case, hsize_in=%d, hsize_out=%d, pre_hsize=%d\n",
+					__func__,
+					hsize_in, hsize_out, pre_hsize);
+		}
+	}
+	return pre_hsize;
+}
+
 static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 {
 	struct vsr_pi_setting_s *vsr_pi = &vsr->vsr_pi;
@@ -471,7 +567,7 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 	u32 out_pi_xsize, out_pi_ysize;
 	u32 pre_hsize, pre_vsize;
 	u32 pi_scl_rate;
-	u32 ratio = 2;
+	u32 ratio = 2, ret;
 
 	if (vsr_pi->pi_en) {
 		ratio = MIN((vsr_pi->hsize_out / vsr_pi->hsize_in),
@@ -514,6 +610,23 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 		hsize_in : (vsr_safa->preh_ratio == 1) ? ((hsize_in + 1) >> 1) :
 		vsr_safa->preh_ratio == 2 ? ((hsize_in + 3) >> 2) :
 		((hsize_in + 7) >> 3) : hsize_in;
+
+	ret = safa_speed_up_handle(vsr);
+	if (ret)
+		pre_hsize = ret;
+
+	if (g_postsc_en != 0xff)
+		vsr_safa->postsc_en = g_postsc_en;
+	if (g_preh_rate != 0xff)
+		vsr_safa->preh_ratio = g_preh_rate;
+	if (g_preh_en != 0xff) {
+		vsr_safa->preh_en = g_preh_en;
+		pre_hsize = vsr_safa->preh_en ? vsr_safa->preh_ratio == 0 ?
+			hsize_in : (vsr_safa->preh_ratio == 1) ? ((hsize_in + 1) >> 1) :
+			vsr_safa->preh_ratio == 2 ? ((hsize_in + 3) >> 2) :
+			((hsize_in + 7) >> 3) : hsize_in;
+	}
+
 	pre_vsize  = vsr_safa->prev_en ? (vsr_safa->prev_ratio == 0) ?
 		vsize_in : (vsr_safa->prev_ratio == 1) ? ((vsize_in + 1) >> 1) :
 		(vsr_safa->prev_ratio == 2) ? ((vsize_in + 3) >> 2) :
