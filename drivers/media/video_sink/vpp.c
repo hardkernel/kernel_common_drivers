@@ -2756,7 +2756,7 @@ RESTART:
 		filter->vpp_pre_vsc_en = 0;
 	}
 	if (cur_dev->vd1_vsr_safa_support &&
-		((filter->vpp_hf_start_phase_step >= 0x2000000 &&
+		((filter->vpp_hsc_start_phase_step >= 0x2000000 &&
 		pre_scaler_en) ||
 		pre_scaler[input->layer_id].force_pre_scaler)) {
 		if (filter->vpp_hf_start_phase_step >= 0x8000000 &&
@@ -2771,6 +2771,15 @@ RESTART:
 			pre_scaler[input->layer_id].pre_hscaler_rate = 1;
 			filter->vpp_pre_hsc_ratio = 1;
 		}
+		filter->vpp_pre_hsc_en = 1;
+		filter->vpp_hf_start_phase_step >>=
+			pre_scaler[input->layer_id].pre_hscaler_rate;
+		filter->vpp_hsc_start_phase_step >>=
+			pre_scaler[input->layer_id].pre_hscaler_rate;
+	} else if ((filter->vpp_hf_start_phase_step >= 0x2000000 &&
+	    filter->vpp_hsc_start_phase_step == filter->vpp_hf_start_phase_step &&
+	    pre_scaler_en) ||
+	    pre_scaler[input->layer_id].force_pre_scaler) {
 		filter->vpp_pre_hsc_en = 1;
 		filter->vpp_hf_start_phase_step >>=
 			pre_scaler[input->layer_id].pre_hscaler_rate;

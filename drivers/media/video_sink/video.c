@@ -12096,6 +12096,43 @@ static ssize_t color_th_store(struct class *cla,
 	return count;
 }
 
+static ssize_t aisr_demo_type_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 40, "SAFA:%d PI:%d SHARPNESS:%d\n",
+		aisr_demo_types[SAFA], aisr_demo_types[PI], aisr_demo_types[SHARPNESS]);
+}
+
+static ssize_t aisr_demo_type_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int parsed[3];
+	int res[3] = {1, 1, 1};
+
+	if (!cur_dev->aisr_demo_en || !cur_dev->vd1_vsr_safa_support) {
+		pr_err("aisr demo en: %d cur_dev->vd1_vsr_safa_support = %d\n",
+			cur_dev->aisr_demo_en, cur_dev->vd1_vsr_safa_support);
+		return -EINVAL;
+	}
+	if (likely(parse_para(buf, 3, parsed) == 3)) {
+		res[0] = parsed[0];
+		res[1] = parsed[1];
+		res[2] = parsed[2];
+	} else {
+		pr_err("para error!\n");
+	}
+	if (aisr_demo_types[SAFA] != res[0] ||
+		aisr_demo_types[PI] != res[1] ||
+		aisr_demo_types[SHARPNESS] != res[2]) {
+		aisr_demo_types[SAFA] = res[0];
+		aisr_demo_types[PI] = res[1];
+		aisr_demo_types[SHARPNESS] = res[2];
+		vd_layer[0].property_changed = true;
+	}
+	return count;
+}
+
 static ssize_t aisr_demo_en_show(struct class *cla,
 			     struct class_attribute *attr, char *buf)
 {
@@ -12116,6 +12153,10 @@ static ssize_t aisr_demo_en_store(struct class *cla,
 	}
 	if (res != cur_dev->aisr_demo_en) {
 		cur_dev->aisr_demo_en = res;
+		if (cur_dev->aisr_demo_en)
+			amve_safa_demo_ctrl(1);
+		else
+			amve_safa_demo_ctrl(0);
 		vd_layer[0].property_changed = true;
 	}
 	return count;
@@ -13286,6 +13327,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       aisr_demo_en_show,
 	       aisr_demo_en_store),
+	__ATTR(aisr_demo_type,
+	       0664,
+	       aisr_demo_type_show,
+	       aisr_demo_type_store),
 	__ATTR(aisr_demo_axis,
 	       0664,
 	       aisr_demo_axis_show,

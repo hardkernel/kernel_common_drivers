@@ -247,6 +247,12 @@ enum matrix_type_e {
 	RGB2YUV
 };
 
+enum aisr_demo_type_e {
+	SAFA,
+	PI,
+	SHARPNESS
+};
+
 typedef u32 (*rdma_rd_op)(u32 reg);
 typedef int (*rdma_wr_op)(u32 reg, u32 val);
 typedef int (*rdma_wr_bits_op)(u32 reg, u32 val, u32 start, u32 len);
@@ -1013,6 +1019,7 @@ extern u32 force_switch_vf_mode;
 extern u32 video_info_change_status;
 extern u32 reference_zorder;
 extern u32 pi_enable;
+extern int aisr_demo_types[3];
 
 bool black_threshold_check(u8 id);
 bool black_threshold_check_s5(u8 id);

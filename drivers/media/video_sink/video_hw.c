@@ -110,6 +110,7 @@ bool legacy_vpp = true;
 static bool bypass_cm;
 bool hscaler_8tap_enable[MAX_VD_LAYER];
 struct pre_scaler_info pre_scaler[MAX_VD_LAYER];
+int aisr_demo_types[3] = {1, 1, 1};
 
 static DEFINE_SPINLOCK(video_onoff_lock);
 static DEFINE_SPINLOCK(video2_onoff_lock);
@@ -12971,6 +12972,7 @@ void aisr_demo_axis_set(struct video_layer_s *layer)
 	static bool en_flag;
 	static u32 original_reg_value1;
 	static u32 original_reg_value2;
+	static u32 original_reg_value3;
 	static u32 last_aisr_demo_xstart;
 	static u32 new_aisr_demo_xstart;
 	static u32 last_aisr_demo_xend;
@@ -13046,7 +13048,9 @@ void aisr_demo_axis_set(struct video_layer_s *layer)
 				original_reg_value1 = READ_VCBUS_REG(DEMO_MODE_WINDO_CTRL0);
 				original_reg_value2 = READ_VCBUS_REG(DEMO_MODE_WINDO_CTRL1);
 			} else {
-				original_reg_value1 = READ_VCBUS_REG(VPP_PI_DEBUG_DEMO_WND_EN);
+				original_reg_value1 = READ_VCBUS_REG(SAFA_PPS_DEBUG_DEMO_EN);
+				original_reg_value2 = READ_VCBUS_REG(VPP_PI_DEBUG_DEMO_WND_EN);
+				original_reg_value3 = READ_VCBUS_REG(VPP_SR_DEBUG_DEMO_WND_EN);
 			}
 			en_flag = true;
 		}
@@ -13070,14 +13074,32 @@ void aisr_demo_axis_set(struct video_layer_s *layer)
 				(DEMO_MODE_WINDO_CTRL1,
 				new_aisr_demo_yend, 0, 12);
 		} else {
-			cur_dev->rdma_func[vpp_index].rdma_wr_bits
-				(VPP_PI_DEBUG_DEMO_WND_EN,
-				cur_dev->aisr_demo_en, 4, 1);
 			/*
-			 *VPP_PI_DEBUG_DEMO_WND_EN bit0
+			 *safa setting
+			 *SAFA_PPS_DEBUG_DEMO_EN bit0
 			 *0: pi will valid out of setting window
 			 *1: pi will valid in seting window
 			 */
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(SAFA_PPS_DEBUG_DEMO_EN,
+				aisr_demo_types[SAFA] ? 1 : 0, 8, 1);
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(SAFA_PPS_DEBUG_DEMO_EN,
+				0, 0, 1);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(SAFA_PPS_DEBUG_DEMO_WND_COEF_1,
+				(new_aisr_demo_yend << 16) |
+				(new_aisr_demo_xend));
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(SAFA_PPS_DEBUG_DEMO_WND_COEF_0,
+				(new_aisr_demo_ystart << 16) |
+				(new_aisr_demo_xstart));
+			/*
+			 *pi setting
+			 */
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(VPP_PI_DEBUG_DEMO_WND_EN,
+				aisr_demo_types[PI] ? 1 : 0, 4, 1);
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(VPP_PI_DEBUG_DEMO_WND_EN,
 				0, 0, 1);
@@ -13087,6 +13109,23 @@ void aisr_demo_axis_set(struct video_layer_s *layer)
 				(new_aisr_demo_xend));
 			cur_dev->rdma_func[vpp_index].rdma_wr
 				(VPP_PI_DEBUG_DEMO_WND_COEF_0,
+				(new_aisr_demo_ystart << 16) |
+				(new_aisr_demo_xstart));
+			/*
+			 *sharpness setting
+			 */
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(VPP_SR_DEBUG_DEMO_WND_EN,
+				aisr_demo_types[SHARPNESS] ? 1 : 0, 4, 1);
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(VPP_SR_DEBUG_DEMO_WND_EN,
+				0, 0, 1);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(VPP_SR_DEBUG_DEMO_WND_COEF_1,
+				(new_aisr_demo_yend << 16) |
+				(new_aisr_demo_xend));
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(VPP_SR_DEBUG_DEMO_WND_COEF_0,
 				(new_aisr_demo_ystart << 16) |
 				(new_aisr_demo_xstart));
 		}
@@ -13104,7 +13143,11 @@ void aisr_demo_axis_set(struct video_layer_s *layer)
 					(DEMO_MODE_WINDO_CTRL1, original_reg_value2);
 			} else {
 				cur_dev->rdma_func[vpp_index].rdma_wr
-					(VPP_PI_DEBUG_DEMO_WND_EN, original_reg_value1);
+					(SAFA_PPS_DEBUG_DEMO_WND_COEF_1, original_reg_value1);
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(VPP_PI_DEBUG_DEMO_WND_EN, original_reg_value2);
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(VPP_SR_DEBUG_DEMO_WND_EN, original_reg_value3);
 			}
 			en_flag = false;
 		}
