@@ -208,6 +208,10 @@ struct am_vdj_mode_s vdj_mode_s;
 struct pq_ctrl_s pq_cfg;
 struct pq_ctrl_s dv_cfg_bypass;
 
+/*demo final gain */
+uint demo_pk_sr_final_pgains = 0xa0;
+uint demo_pk_sr_final_ngains = 0xa0;
+
 struct pq_ctrl_s pq_cfg_init[PQ_CFG_MAX] = {
 	/*for tv enable pq module*/
 	{
@@ -11095,6 +11099,26 @@ static ssize_t amvecm_debug_store(struct class *cla,
 	} else if (!strcmp(parm[0], "g_vsr_update_flag")) {
 		pr_info("vsr_update_flag: %d\n", vsr_update_flag);
 #endif
+	} else if (!strcmp(parm[0], "s_peak_final_ngain")) {
+		if (!parm[1]) {
+			pr_info("misss param1\n");
+			goto free_buf;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		demo_pk_sr_final_ngains = val;
+	} else if (!strcmp(parm[0], "g_peak_final_ngain")) {
+		pr_info("demo_pk_final_ngain: %d\n", demo_pk_sr_final_ngains);
+	} else if (!strcmp(parm[0], "s_peak_final_pgain")) {
+		if (!parm[1]) {
+			pr_info("misss param1\n");
+			goto free_buf;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		demo_pk_sr_final_pgains = val;
+	} else if (!strcmp(parm[0], "g_peak_final_pgain")) {
+		pr_info("vsr_update_flag: %d\n", demo_pk_sr_final_pgains);
 	} else {
 		pr_info("unsupport cmd\n");
 	}
