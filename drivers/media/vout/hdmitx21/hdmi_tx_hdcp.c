@@ -1997,6 +1997,7 @@ void hdmitx21_ctrl_hdcp_gate(int hdcp_mode, bool en)
 
 	switch (hdev->tx_hw.chip_data->chip_type) {
 	case MESON_CPU_ID_S7:
+	case MESON_CPU_ID_S7D:
 		hdcptx_ctrl_gate(hdcp_mode, en);
 		break;
 	default:

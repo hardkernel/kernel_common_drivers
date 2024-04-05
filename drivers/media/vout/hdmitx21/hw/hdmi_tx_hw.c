@@ -602,9 +602,12 @@ static int hdmitx_validate_mode(struct hdmitx_hw_common *tx_hw, u32 vic)
 	case MESON_CPU_ID_S1A:
 		ret = soc_resolution_limited(timing, 1080) && soc_freshrate_limited(timing, 60);
 		break;
+	case MESON_CPU_ID_S7D:
+		ret = (soc_resolution_limited(timing, 2160) && soc_freshrate_limited(timing, 60)) ||
+		       (soc_resolution_limited(timing, 1080) && soc_freshrate_limited(timing, 120));
+		break;
 	case MESON_CPU_ID_S7:
 	case MESON_CPU_ID_T7:
-	case MESON_CPU_ID_S7D:
 	default:
 		ret = soc_resolution_limited(timing, 2160) && soc_freshrate_limited(timing, 60);
 		break;
@@ -3568,7 +3571,8 @@ static void hdmi_phy_suspend(void)
 	 * keep tmds_clk, because hdcp14 certification requires tmds_clk,
 	 * otherwise it may poll fail lead to crash.
 	 */
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D)
 		;//for s7 suspend power test, not operate phy_ctrl3 reg
 	else
 		hd21_write_reg(phy_cntl3, 0x3);

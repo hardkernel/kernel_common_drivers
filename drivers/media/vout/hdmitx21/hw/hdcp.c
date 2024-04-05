@@ -446,7 +446,6 @@ u32 hdmitx21_get_gate_status(void)
 {
 	int status = 0;
 
-	hdmitx21_wr_reg(HDMITX_TOP_CLK_GATE, 0xffffffff);
 	status = hdmitx21_rd_reg(HDMITX_TOP_CLK_GATE);
 	return status;
 }

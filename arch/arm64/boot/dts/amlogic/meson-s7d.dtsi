@@ -1152,10 +1152,14 @@
 		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
 		pinctrl-0=<&hdmitx_hpd>;
 		pinctrl-1=<&hdmitx_ddc>;
+		hdmitx-gpios-hpd = <&gpio GPIOH_2 0>;
+		hdmitx-gpios-scl = <&gpio GPIOH_1 0>;
+		hdmitx-gpios-sda = <&gpio GPIOH_0 0>;
 		interrupts = <0 204 4
 			0 197 1>;
 		interrupt-names = "hdmitx_hpd", "vrr_vsync";
 		enc_idx = <0>;
+		max_refreshrate = <120>; /* the max freshrate of S7D is upto 120hz */
 		reg =	<0x0 0xff000000 0x0 0x40000>,
 			<0x0 0xfe310000 0x0 0x10000>,
 			<0x0 0xfe300000 0x0 0x10000>,

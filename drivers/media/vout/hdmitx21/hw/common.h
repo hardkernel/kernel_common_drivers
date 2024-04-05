@@ -184,6 +184,7 @@ void set21_hpll_sspll_s7(enum hdmi_vic vic);
 void set21_hpll_sspll_s7d(enum hdmi_vic vic);
 
 void hdmitx_s7_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en);
+void hdmitx_s7d_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en);
 
 void dump_hdmitx_reg(void);
 void dump_infoframe_packets(struct seq_file *s);

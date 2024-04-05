@@ -199,6 +199,9 @@ void hdmitx21_clks_gate_ctrl(bool en)
 	case MESON_CPU_ID_S7:
 		hdmitx_s7_clock_gate_ctrl(hdev, en);
 		break;
+	case MESON_CPU_ID_S7D:
+		hdmitx_s7d_clock_gate_ctrl(hdev, en);
+		break;
 	case MESON_CPU_ID_S5:
 		hdmitx_s5_clock_gate_ctrl(hdev, en);
 		break;
@@ -1129,6 +1132,8 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 	}
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) { //s7d todo
 		set_hdmitx_s7d_htx_pll(hdev);
+		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->sspll)
+			set_hpll_sspll(vic);
 		if (hdev->tx_hw.s7_clk_config)
 			return;
 		if (cs != HDMI_COLORSPACE_YUV422) {
