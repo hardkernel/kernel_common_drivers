@@ -111,7 +111,7 @@ struct meson_ir_chip {
 	int custom_num;
 	int decode_status;
 	int sys_custom_code;
-	int irqno;/*irq number*/
+	int irqno[2];/*irq number*/
 	int irq_cpumask;
 	int protocol;
 	unsigned int vendor;

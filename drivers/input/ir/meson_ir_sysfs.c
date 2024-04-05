@@ -295,7 +295,9 @@ static ssize_t ir_learning_store(struct device *dev,
 	if (r_dev->ir_learning_on == !!val)
 		return count;
 
-	disable_irq(chip->irqno);
+	disable_irq(chip->irqno[0]);
+	if (ENABLE_LEGACY_IR(chip->protocol))
+		disable_irq(chip->irqno[1]);
 	mutex_lock(&chip->file_lock);
 	r_dev->ir_learning_on = !!val;
 	if (!!val) {
@@ -304,7 +306,9 @@ static ssize_t ir_learning_store(struct device *dev,
 		chip->protocol = REMOTE_TYPE_RAW_NEC;
 		if (meson_ir_pulses_malloc(chip) < 0) {
 			mutex_unlock(&chip->file_lock);
-			enable_irq(chip->irqno);
+			enable_irq(chip->irqno[0]);
+			if (ENABLE_LEGACY_IR(chip->protocol))
+				enable_irq(chip->irqno[1]);
 			return -ENOMEM;
 		}
 	} else {
@@ -313,7 +317,9 @@ static ssize_t ir_learning_store(struct device *dev,
 		meson_ir_pulses_free(chip);
 	}
 	mutex_unlock(&chip->file_lock);
-	enable_irq(chip->irqno);
+	enable_irq(chip->irqno[0]);
+	if (ENABLE_LEGACY_IR(chip->protocol))
+		enable_irq(chip->irqno[1]);
 	return count;
 }
 
@@ -328,7 +334,9 @@ static ssize_t learned_pulse_show(struct device *dev,
 	if (!r_dev->pulses)
 		return len;
 
-	disable_irq(chip->irqno);
+	disable_irq(chip->irqno[0]);
+	if (ENABLE_LEGACY_IR(chip->protocol))
+		disable_irq(chip->irqno[1]);
 	mutex_lock(&chip->file_lock);
 
 	for (i = 0; i < r_dev->pulses->len; i++)
@@ -336,7 +344,9 @@ static ssize_t learned_pulse_show(struct device *dev,
 			       r_dev->pulses->pulse[i] & GENMASK(30, 0));
 
 	mutex_unlock(&chip->file_lock);
-	enable_irq(chip->irqno);
+	enable_irq(chip->irqno[0]);
+	if (ENABLE_LEGACY_IR(chip->protocol))
+		enable_irq(chip->irqno[1]);
 	len += sprintf(buf + len, "\n");
 
 	return len;

@@ -23,7 +23,9 @@ static int meson_ir_open(struct inode *inode, struct file *file)
 
 	chip = container_of(inode->i_cdev, struct meson_ir_chip, chrdev);
 	file->private_data = chip;
-	disable_irq(chip->irqno);
+	disable_irq(chip->irqno[0]);
+	if (ENABLE_LEGACY_IR(chip->protocol))
+		disable_irq(chip->irqno[1]);
 	return 0;
 }
 
@@ -132,7 +134,9 @@ static int meson_ir_release(struct inode *inode, struct file *file)
 {
 	struct meson_ir_chip *chip = (struct meson_ir_chip *)file->private_data;
 
-	enable_irq(chip->irqno);
+	enable_irq(chip->irqno[0]);
+	if (ENABLE_LEGACY_IR(chip->protocol))
+		enable_irq(chip->irqno[1]);
 	file->private_data = NULL;
 	return 0;
 }
