@@ -146,7 +146,7 @@ static int aml_dvfs_algorithm_default(struct cluster_data *data,
 	oppold.rate = clk_get_rate(data->cpuclk) / 1000;
 	oppold.volt = data->cpureg ? regulator_get_voltage(data->cpureg) : 0;
 	oppnew = &data->opp_table[index];
-	pr_debug("[cluster%d]scaling from[%d %d] to [%d %d]\n", data->clusterid, oppold.rate,
+	pr_debug("[cluster%d]scaling from[%lu %lu] to [%lu %lu]\n", data->clusterid, oppold.rate,
 		oppold.volt, oppnew->rate, oppnew->volt);
 
 	get_suggested_dsuopp_by_cpuopp(data, &dsuopp, oppnew);
@@ -154,7 +154,7 @@ static int aml_dvfs_algorithm_default(struct cluster_data *data,
 	if (oppnew->rate > oppold.rate) {
 		if (data->cpureg && regulator_set_voltage(data->cpureg, oppnew->volt,
 			MAX_VOLTAGE)) {
-			pr_err("scale voltage up to %duv failed. ret=%d\n", oppnew->volt, ret);
+			pr_err("scale voltage up to %luuv failed. ret=%d\n", oppnew->volt, ret);
 			goto out;
 		}
 		aml_dsu_freq_volt_set(data, &dsuopp, SCALING_UP);
@@ -395,7 +395,7 @@ static int opptable_show(struct seq_file *m, void *v)
 
 	seq_puts(m, "opp table:\n");
 	for (i = 0; i < data->opp_cnt; i++)
-		seq_printf(m, "%d %d\n", data->opp_table[i].rate, data->opp_table[i].volt);
+		seq_printf(m, "%lu %lu\n", data->opp_table[i].rate, data->opp_table[i].volt);
 	seq_puts(m, "dsu_opp table:\n");
 	for (i = 0; i < data->dsu_opp_cnt; i++)
 		seq_printf(m, "%d %d %d\n", data->dsu_opp_table[i].cpurate,

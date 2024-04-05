@@ -679,18 +679,18 @@ MESON_CLK_DUALDIV_RW(cecb_dual_div, CLKCTRL_CECB_CTRL0, 0,  12,
 		     &cecb_dual_clkin.hw, 0);
 
 static const struct clk_parent_data cecb_dual_sel_parent_data[] = {
-	{ .hw = &cecb_dual_clkin.hw },
-	{ .hw = &cecb_dual_div.hw }
+	{ .hw = &cecb_dual_div.hw },
+	{ .hw = &cecb_dual_clkin.hw }
 };
 
 MESON_CLK_MUX_RW(cecb_dual_sel, CLKCTRL_CECB_CTRL1, 0x1, 24, NULL, 0,
 		 cecb_dual_sel_parent_data, CLK_SET_RATE_PARENT);
 
-MESON_CLK_GATE_RW(cec_dual_clkout, CLKCTRL_CECB_CTRL0, 30, 0,
+MESON_CLK_GATE_RW(cecb_dual_clkout, CLKCTRL_CECB_CTRL0, 30, 0,
 		  &cecb_dual_sel.hw, CLK_SET_RATE_PARENT);
 
 static const struct clk_parent_data cecb_clk_parent_data[] = {
-	{ .hw = &cec_dual_clkout.hw },
+	{ .hw = &cecb_dual_clkout.hw },
 	{ .hw = &rtc_clk.hw }
 };
 
@@ -789,7 +789,7 @@ MESON_CLK_MUX_RW(vclk2_sel, CLKCTRL_VIID_CLK_CTRL, 0x7, 16,
 MESON_CLK_GATE_RW(vclk2_input, CLKCTRL_VIID_CLK_DIV, 16, 0,
 		  &vclk2_sel.hw, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
 
-MESON_CLK_DIV_RW(vclk2_div, CLKCTRL_VIID_CLK_CTRL, 0, 8, NULL, 0,
+MESON_CLK_DIV_RW(vclk2_div, CLKCTRL_VIID_CLK_DIV, 0, 8, NULL, 0,
 		 &vclk2_input.hw, CLK_SET_RATE_PARENT);
 
 MESON_CLK_GATE_RW(vclk2, CLKCTRL_VIID_CLK_CTRL, 19, 0,
@@ -974,7 +974,7 @@ static const struct clk_parent_data mali_parent_data[] = {
 };
 
 MESON_CLK_MUX_RW(mali, CLKCTRL_MALI_CLK_CTRL, 1, 31, NULL, 0,
-		 mali_parent_data, CLK_SET_RATE_PARENT);
+		 mali_parent_data, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE);
 
 MESON_CLK_COMPOSITE_RW(mali_stack_0, CLKCTRL_MALI_STACK_CLK_CTRL, 0x7, 9,
 		       mali_pre_parent_table, 0, mali_pre_parent_data, 0,
@@ -992,7 +992,7 @@ static const struct clk_parent_data mali_stack_parent_data[] = {
 };
 
 MESON_CLK_MUX_RW(mali_stack, CLKCTRL_MALI_STACK_CLK_CTRL, 1, 31, NULL, 0,
-		 mali_stack_parent_data, CLK_SET_RATE_PARENT);
+		 mali_stack_parent_data, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE);
 
 /* cts_vdec_clk */
 static const struct clk_parent_data vdec_pre_parent_data[] = {
@@ -1026,7 +1026,7 @@ static const struct clk_parent_data vdec_parent_data[] = {
 };
 
 MESON_CLK_MUX_RW(vdec, CLKCTRL_VDEC3_CLK_CTRL, 0x1, 15, NULL, 0,
-		 vdec_parent_data, CLK_SET_RATE_PARENT);
+		 vdec_parent_data, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE);
 
 /* cts_hevcf_clk */
 MESON_CLK_COMPOSITE_RW(hevcf_0, CLKCTRL_VDEC2_CLK_CTRL, 0x7, 9,
@@ -1049,18 +1049,29 @@ static const struct clk_parent_data hevcf_parent_data[] = {
 };
 
 MESON_CLK_MUX_RW(hevcf, CLKCTRL_VDEC4_CLK_CTRL, 0x1, 15, NULL, 0,
-		 hevcf_parent_data, CLK_SET_RATE_PARENT);
+		 hevcf_parent_data, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE);
 
 /* cts_hcodec_clk */
+static const struct clk_parent_data hcodec_pre_parent_data[] = {
+	{ .hw = &fclk_div2p5.hw },
+	{ .hw = &fclk_div3.hw },
+	{ .hw = &fclk_div4.hw },
+	{ .hw = &fclk_div5.hw },
+	{ .hw = &fclk_div7.hw },
+	{ .hw = &hifi_pll.hw },
+	{ .hw = &gp0_pll.hw },
+	{ .fw_name = "xtal" }
+};
+
 MESON_CLK_COMPOSITE_RW(hcodec_0, CLKCTRL_VDEC_CLK_CTRL, 0x7, 25,
-		       NULL, 0, vdec_pre_parent_data, 0,
+		       NULL, 0, hcodec_pre_parent_data, 0,
 		       CLKCTRL_VDEC_CLK_CTRL, 16, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_VDEC_CLK_CTRL, 24,
 		       0, CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE);
 
 MESON_CLK_COMPOSITE_RW(hcodec_1, CLKCTRL_VDEC3_CLK_CTRL, 0x7, 25,
-		       NULL, 0, vdec_pre_parent_data, 0,
+		       NULL, 0, hcodec_pre_parent_data, 0,
 		       CLKCTRL_VDEC3_CLK_CTRL, 16, 7, NULL,
 		       0, CLK_SET_RATE_PARENT,
 		       CLKCTRL_VDEC3_CLK_CTRL, 24,
@@ -1072,7 +1083,7 @@ static const struct clk_parent_data hcodec_parent_data[] = {
 };
 
 MESON_CLK_MUX_RW(hcodec, CLKCTRL_VDEC3_CLK_CTRL, 0x1, 31, NULL, 0,
-		 hcodec_parent_data, CLK_SET_RATE_PARENT);
+		 hcodec_parent_data, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE);
 
 /* cts_vpu_clk */
 static u32 vpu_pre_parent_table[] = { 0, 1, 2, 3, 4, 6, 7 };
@@ -1116,7 +1127,7 @@ static const struct clk_parent_data vpu_parent_data[] = {
  * quality is affected.
  */
 MESON_CLK_MUX_RW(vpu, CLKCTRL_VPU_CLK_CTRL, 0x1, 31, NULL, 0,
-		 vpu_parent_data, CLK_SET_RATE_NO_REPARENT);
+		 vpu_parent_data, CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE);
 
 /*cts_vpu_clkb*/
 static const struct clk_parent_data vpu_clkb_tmp_parent_data[] = {
@@ -1172,7 +1183,7 @@ static const struct clk_parent_data vpu_clkc_parent_data[] = {
 };
 
 MESON_CLK_MUX_RW(vpu_clkc, CLKCTRL_VPU_CLKC_CTRL, 0x1, 31, NULL, 0,
-		 vpu_clkc_parent_data, CLK_SET_RATE_PARENT);
+		 vpu_clkc_parent_data, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE);
 
 /*cts_vapb_clk*/
 static u32 vapb_pre_parent_table[] = { 0, 1, 2, 3, 4, 6, 7 };
@@ -1207,7 +1218,7 @@ static const struct clk_parent_data vapb_parent_data[] = {
 };
 
 MESON_CLK_MUX_RW(vapb, CLKCTRL_VAPBCLK_CTRL, 0x1, 31, NULL, 0,
-		 vapb_parent_data, CLK_SET_RATE_PARENT);
+		 vapb_parent_data, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE);
 
 MESON_CLK_GATE_RW(ge2d, CLKCTRL_VAPBCLK_CTRL, 30, 0,
 		  &vapb.hw, CLK_SET_RATE_PARENT);
@@ -1538,7 +1549,7 @@ static struct clk_hw_onecell_data s7d_hw_onecell_data = {
 		[CLKID_CECB_DUAL_CLKIN]		= &cecb_dual_clkin.hw,
 		[CLKID_CECB_DUAL_DIV]		= &cecb_dual_div.hw,
 		[CLKID_CECB_DUAL_SEL]		= &cecb_dual_sel.hw,
-		[CLKID_CECB_DUAL_CLKOUT]	= &cec_dual_clkout.hw,
+		[CLKID_CECB_DUAL_CLKOUT]	= &cecb_dual_clkout.hw,
 		[CLKID_CECB_CLK]		= &cecb_clk.hw,
 
 		[CLKID_SC_SEL]			= &sc_sel.hw,
@@ -1821,7 +1832,7 @@ static struct clk_regmap *const s7d_clk_regmaps[] = {
 	&cecb_dual_clkin,
 	&cecb_dual_div,
 	&cecb_dual_sel,
-	&cec_dual_clkout,
+	&cecb_dual_clkout,
 	&cecb_clk,
 
 	&sc_sel,
