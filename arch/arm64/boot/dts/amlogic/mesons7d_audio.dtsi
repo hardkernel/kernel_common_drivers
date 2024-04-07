@@ -16,8 +16,8 @@
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, s4_codec_T9015";
 			reg = <0x0 0xFE01A000 0x0 0x2000>;
-			tocodec_inout = <1>;
-			tdmout_index = <1>;
+			tocodec_inout = <2>;
+			tdmout_index = <2>;
 			ch0_sel = <0>;
 			ch1_sel = <1>;
 			reset-names = "acodec";
@@ -225,7 +225,8 @@
 				<GIC_SPI 35 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "irq_spdifin";
 		pinctrl-names = "spdif_pins", "spdif_pins_mute";
-		pinctrl-0 = <&spdif_out_a_h4_pins>;
+		pinctrl-0 = <&spdif_out_a_h4_pins
+					&spdifin>;
 		pinctrl-1 = <&spdif_out_a_h4_mute_pins>;
 		/*
 		 * 0: tdmout_a;
@@ -284,7 +285,7 @@
 		 * 3:spdifout
 		 * 4:spdifout_b
 		 */
-		eqdrc_module = <1>;
+		eqdrc_module = <2>;
 		/* max 0xf, each bit for one lane, usually one lane */
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
@@ -447,6 +448,12 @@
 	spdif_out_a_h4_pins: spdifout_a_h4 {
 		mux { /* GPIOH_4 */
 			groups = "spdif_out_h4";
+			function = "spdif";
+		};
+	};
+	spdifin: spdifin {
+		mux {/* GPIOH_9 */
+			groups = "spdif_in_h9";
 			function = "spdif";
 		};
 	};
