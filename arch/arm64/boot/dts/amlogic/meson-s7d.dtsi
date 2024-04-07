@@ -966,12 +966,9 @@
 			clock-names = "stmmaceth", "clkin0", "clkin1";
 			rx-fifo-depth = <4096>;
 			tx-fifo-depth = <2048>;
-//			mboxes = <&mbox_fifo S7_REE2AO_ETH>;
-	//		snps,force_thresh_dma_mode;
+			mboxes = <&mbox_fifo S7D_REE2AO_ETH>;
 			status = "disabled";
-			internal_phy = <2>;
 			analog_version = <1>;
-	//		mc_val = <0x180c>;
 			mdio0: mdio {
 				#address-cells = <1>;
 				#size-cells = <0>;
