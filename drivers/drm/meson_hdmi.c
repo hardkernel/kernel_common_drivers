@@ -269,7 +269,7 @@ static bool meson_hdmitx_test_color_attr(struct hdmitx_common *common,
 			build_hdmitx_attr_str(attr_str,
 				attr_list->colorformat, attr_list->bitdepth);
 			if (!hdmitx_common_validate_mode_locked(common, &comm_state, outputmode,
-					attr_str, true)) {
+					attr_str, false, true)) {
 				DRM_INFO("%s success [%d]+[%d]\n", __func__,
 					attr_list->colorformat,
 					attr_list->bitdepth);
@@ -307,7 +307,7 @@ static int meson_hdmitx_decide_color_attr
 		build_hdmitx_attr_str(attr_str,
 			attr_list->colorformat, attr_list->bitdepth);
 		if (!hdmitx_common_validate_mode_locked(common, &comm_state, outputmode,
-				attr_str, true)) {
+				attr_str, false, true)) {
 			attr->colorformat = attr_list->colorformat;
 			attr->bitdepth = attr_list->bitdepth;
 			DRM_INFO("%s get fmt attr [%d]+[%d]\n",
@@ -1810,7 +1810,8 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	build_hdmitx_attr_str(attr_str, attr->colorformat, attr->bitdepth);
 
 	ret = hdmitx_common_validate_mode_locked(common, &hdmitx_state->hcs,
-						 modename, attr_str, do_valid);
+						 modename, attr_str, meson_crtc_state->valid_brr,
+						 do_valid);
 	if (ret) {
 		DRM_ERROR("validate_mode fail for [%s-%s]\n", modename, attr_str);
 		return -EINVAL;

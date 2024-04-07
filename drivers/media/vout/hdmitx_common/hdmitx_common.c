@@ -192,7 +192,7 @@ EXPORT_SYMBOL(hdmitx_common_build_format_para);
  */
 int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 				       struct hdmitx_common_state *new_state,
-				       char *mode, char *attr, bool do_validate)
+				       char *mode, char *attr, bool brr_valid, bool do_validate)
 {
 	int ret = 0;
 	struct hdmi_format_para *new_para;
@@ -229,7 +229,7 @@ int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 
 	hdmitx_parse_color_attr(attr, &tst_para.cs, &tst_para.cd, &tst_para.cr);
 	ret = hdmitx_common_build_format_para(tx_comm,
-		new_para, vic, tx_comm->frac_rate_policy,
+		new_para, vic, brr_valid ? 0 : tx_comm->frac_rate_policy,
 		tst_para.cs, tst_para.cd, tst_para.cr);
 	if (ret != 0) {
 		hdmitx_format_para_reset(new_para);
