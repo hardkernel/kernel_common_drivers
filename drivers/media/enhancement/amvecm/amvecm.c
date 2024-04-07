@@ -522,7 +522,7 @@ bool is_hdr_stb_mode(void)
 		is_meson_g12b_cpu() || is_meson_sm1_cpu() ||
 		is_meson_sc2_cpu() || is_meson_s4d_cpu() ||
 		is_meson_s5_cpu() || is_meson_s4_cpu() ||
-		is_meson_s7_cpu())
+		is_meson_s7_cpu() || is_meson_s7d_cpu())
 		return true;
 	else
 		return false;
