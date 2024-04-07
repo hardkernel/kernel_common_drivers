@@ -12500,7 +12500,7 @@ int _video_hw_init_s5(void)
 		1, 17, 1);
 	/* disable aisr_sr1_nn func */
 	if (cur_dev->aisr_support)
-		aisr_sr1_nn_enable_s5(0);
+		aisr_sr1_nn_enable_sync_s5(0);
 	/* VD_PROC_BYPASS_CTRL default setting */
 	/* should not bypass ve, it means connect preblend and ve */
 	/* default bypass preblend */
