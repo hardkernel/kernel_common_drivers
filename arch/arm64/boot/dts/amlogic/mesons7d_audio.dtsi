@@ -289,7 +289,7 @@
 		/* max 0xf, each bit for one lane, usually one lane */
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
-		channel_mask = <0xff>;
+		channel_mask = <0x3>;
 		suspend-clk-off = <1>;
 		status = "okay";
 	};
@@ -330,8 +330,46 @@
 		src-clk-freq = <491520000>;
 		/*this resample is only used for loopback_A.*/
 		suspend-clk-off = <1>;
+		capture_sample_rate = <16000>;
 		status = "okay";
 	};
+
+	vad:vad {
+		compatible = "amlogic, snd-vad";
+		#sound-dai-cells = <0>;
+
+		clocks = <&clkaudio CLKID_AUDIO_GATE_TOVAD
+			&clkc CLKID_FCLK_DIV5
+			&clkaudio CLKID_AUDIO_VAD>;
+		clock-names = "gate", "pll", "clk";
+
+		interrupts = <GIC_SPI 39 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 44 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "irq_wakeup", "irq_frame_sync";
+
+		/*
+		 * Data src sel:
+		 * 0: tdmin_a;
+		 * 1: tdmin_b;
+		 * 2: tdmin_c;
+		 * 3: spdifin;
+		 * 4: pdmin;
+		 * 5: loopback_b;
+		 * 6: tdmin_lb;
+		 * 7: loopback_a;
+		 */
+		src = <4>;
+
+		/*
+		 * deal with hot word in user space or kernel space
+		 * 0: in user space
+		 * 1: in kernel space
+		 */
+		level = <1>;
+
+		status = "okay";
+	};
+
 	loopbacka:loopback@0 {
 		compatible = "amlogic, t5-loopbacka";
 		#sound-dai-cells = <0>;
@@ -362,7 +400,7 @@
 		datain_chnum = <2>;
 		datain_chmask = <0x3>;
 		/* config which data pin for loopback */
-		datain-lane-mask-in = <1 1 0 0>;
+		datain-lane-mask-in = <1 0 0 0>;
 
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
@@ -377,12 +415,12 @@
 		 * 7: PAD_TDMINB_D*, oe, refer to core pinmux
 		 */
 		/* if tdmin_lb >= 3, use external loopback */
-		datalb_src = <1>;
+		datalb_src = <2>;
 		datalb_chnum = <2>;
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
-
+		src-clk-freq = <491520000>;
 		/* define loopack with pdm mic. */
 		mic-src = <&pdma>;
 		status = "okay";
@@ -422,7 +460,7 @@
 		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 0 1 0>;
-
+		src-clk-freq = <491520000>;
 		/* tdmin_lb src
 		 * 0: tdmoutA
 		 * 1: tdmoutB
@@ -434,7 +472,7 @@
 		 * 7: PAD_TDMINB_D*, oe, refer to core pinmux
 		 */
 		/* if tdmin_lb >= 3, use external loopback */
-		datalb_src = <1>;
+		datalb_src = <2>;
 		datalb_chnum = <2>;
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
