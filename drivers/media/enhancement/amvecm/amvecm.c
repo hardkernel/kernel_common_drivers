@@ -6965,8 +6965,9 @@ static ssize_t amvecm_set_post_matrix_show(struct class *cla,
 	pr_info("48: osd1 output\n");
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
 		!is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
-		chip_type_id != chip_txhd2 && chip_type_id != chip_s1a && 
-		chip_type_id != chip_s7) {
+		chip_type_id != chip_txhd2 && chip_type_id != chip_s1a &&
+		chip_type_id != chip_s7 &&
+		chip_type_id != chip_s7d) {
 		val = READ_VPP_REG(VPP_PROBE_CTRL);
 		pr_info("current setting: %d\n", val & 0x3f);
 	} else {
@@ -6989,7 +6990,8 @@ static ssize_t amvecm_set_post_matrix_store(struct class *cla,
 		!is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
 		chip_type_id != chip_txhd2 &&
 		chip_type_id != chip_s1a &&
-	       	chip_type_id != chip_s7) {
+		chip_type_id != chip_s7 &&
+		chip_type_id != chip_s7d) {
 		reg_val = READ_VPP_REG(VPP_PROBE_CTRL);
 		reg_val = reg_val & 0xffffffc0;
 		/*reg_val |= 0x10000;*/
@@ -7029,8 +7031,9 @@ static ssize_t amvecm_post_matrix_pos_show(struct class *cla,
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
 	    !is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
 	    chip_type_id != chip_txhd2 &&
-	    chip_type_id != chip_s1a && 
-	    chip_type_id != chip_s7)
+	    chip_type_id != chip_s1a &&
+	    chip_type_id != chip_s7 &&
+	    chip_type_id != chip_s7d)
 		val = READ_VPP_REG(VPP_PROBE_POS);
 	else
 		val = READ_VPP_REG(VPP_MATRIX_PROBE_POS);
@@ -7067,8 +7070,9 @@ static ssize_t amvecm_post_matrix_pos_store(struct class *cla,
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
 		!is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
 		chip_type_id != chip_txhd2 &&
-		chip_type_id != chip_s1a && 
-		chip_type_id != chip_s7)
+		chip_type_id != chip_s1a &&
+		chip_type_id != chip_s7 &&
+		chip_type_id != chip_s7d)
 		reg_val = READ_VPP_REG(VPP_PROBE_POS);
 	else
 		reg_val = READ_VPP_REG(VPP_MATRIX_PROBE_POS);
@@ -7078,8 +7082,9 @@ static ssize_t amvecm_post_matrix_pos_store(struct class *cla,
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
 		!is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
 		chip_type_id != chip_txhd2 &&
-		chip_type_id != chip_s1a && 
-		chip_type_id != chip_s7)
+		chip_type_id != chip_s1a &&
+		chip_type_id != chip_s7 &&
+		chip_type_id != chip_s7d)
 		WRITE_VPP_REG(VPP_PROBE_POS, reg_val);
 	else
 		WRITE_VPP_REG(VPP_MATRIX_PROBE_POS, reg_val);
@@ -7099,8 +7104,9 @@ static ssize_t amvecm_post_matrix_data_show(struct class *cla,
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
 		!is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
 		chip_type_id != chip_txhd2 &&
-		chip_type_id != chip_s1a && 
-		chip_type_id != chip_s7) {
+		chip_type_id != chip_s1a &&
+		chip_type_id != chip_s7 &&
+		chip_type_id != chip_s7d) {
 		probe_color = VPP_PROBE_COLOR;
 		probe_color1 = VPP_PROBE_COLOR1;
 	} else {
