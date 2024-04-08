@@ -245,7 +245,7 @@ int hdmitx21_set_uevent(enum hdmitx_event type, int val)
  */
 static int hdr_status_pos;
 
-static inline void hdmitx_notify_hpd_to_rx(int hpd, void *p)
+static inline void hdmitx_notify_hpd(int hpd, void *p)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
@@ -4245,7 +4245,7 @@ static int get_dt_vend_init_data(struct device_node *np,
 	return 0;
 }
 
-/* for notify to cec */
+/* for notify to cec/rx */
 int hdmitx21_event_notifier_regist(struct notifier_block *nb)
 {
 	int ret = 0;
@@ -4259,16 +4259,17 @@ int hdmitx21_event_notifier_regist(struct notifier_block *nb)
 
 	/* update status when register */
 	if (!ret && nb->notifier_call) {
-		if (hdev->tx_comm.hdmi_repeater == 1)
-			hdmitx_notify_hpd_to_rx(hdev->tx_comm.hpd_state,
-				  hdev->tx_comm.rxcap.edid_parsing ?
-				  hdev->tx_comm.EDID_buf : NULL);
-		if (hdev->tx_comm.rxcap.physical_addr != 0xffff) {
-			if (hdev->tx_comm.hdmi_repeater == 1)
-				hdmitx_event_mgr_notify(hdev->tx_comm.event_mgr,
-						HDMITX_PHY_ADDR_VALID,
-						&hdev->tx_comm.rxcap.physical_addr);
-		}
+		/* if (hdev->tx_comm.hdmi_repeater == 1) */
+		hdmitx_notify_hpd(hdev->tx_comm.hpd_state,
+			hdev->tx_comm.rxcap.edid_parsing ?
+			hdev->tx_comm.EDID_buf : NULL);
+		/* actually notify phy_addr is not used by CEC/hdmirx */
+		/* if (hdev->tx_comm.rxcap.physical_addr != 0xffff) { */
+		/* if (hdev->tx_comm.hdmi_repeater == 1) */
+		/* hdmitx_event_mgr_notify(hdev->tx_comm.event_mgr, */
+		/* HDMITX_PHY_ADDR_VALID, */
+		/* &hdev->tx_comm.rxcap.physical_addr); */
+		/* } */
 	}
 
 	return ret;

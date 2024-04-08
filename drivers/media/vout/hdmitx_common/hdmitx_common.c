@@ -615,17 +615,16 @@ int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_ue
 			HDMITX_AUDIO_EVENT, tx_comm->hpd_state);
 	}
 
-	/*
-	 * notify to other driver module:cec/rx
-	 * note should not be used under TV product
+	/* always notify to other driver module: CEC/RX
+	 * CEC/RX side will decide to update HPD/EDID or
+	 * not by product type
 	 */
-	if (tx_comm->hdmi_repeater == 1) {
-		if (tx_comm->hpd_state)
-			hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_PLUG,
-				tx_comm->rxcap.edid_parsing ? tx_comm->EDID_buf : NULL);
-		else
-			hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_UNPLUG, NULL);
-	}
+	/* if (tx_comm->hdmi_repeater == 1) { */
+	if (tx_comm->hpd_state)
+		hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_PLUG,
+			tx_comm->rxcap.edid_parsing ? tx_comm->EDID_buf : NULL);
+	else
+		hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_UNPLUG, NULL);
 	return 0;
 }
 
@@ -830,14 +829,14 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 	 * rx/cec currently do not use the phy addr of below
 	 * two interfaces, just keep for safety
 	 */
-	if (tx_comm->hdmi_repeater == 1) {
-		hdmitx_event_mgr_notify(tx_comm->event_mgr,
-			HDMITX_PHY_ADDR_VALID, &tx_comm->rxcap.physical_addr);
-		rx_edid_physical_addr(tx_comm->rxcap.vsdb_phy_addr.a,
-			tx_comm->rxcap.vsdb_phy_addr.b,
-			tx_comm->rxcap.vsdb_phy_addr.c,
-			tx_comm->rxcap.vsdb_phy_addr.d);
-	}
+	/* if (tx_comm->hdmi_repeater == 1) { */
+	/* hdmitx_event_mgr_notify(tx_comm->event_mgr, */
+	/* HDMITX_PHY_ADDR_VALID, &tx_comm->rxcap.physical_addr); */
+	/* rx_edid_physical_addr(tx_comm->rxcap.vsdb_phy_addr.a, */
+	/* tx_comm->rxcap.vsdb_phy_addr.b, */
+	/* tx_comm->rxcap.vsdb_phy_addr.c, */
+	/* tx_comm->rxcap.vsdb_phy_addr.d); */
+	/* } */
 	hdmitx_edid_print(tx_comm->EDID_buf);
 
 	return 0;
@@ -871,8 +870,8 @@ void hdmitx_common_edid_clear(struct hdmitx_common *tx_comm)
 	/* clear edid */
 	hdmitx_edid_buffer_clear(tx_comm->EDID_buf, sizeof(tx_comm->EDID_buf));
 	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
-	if (tx_comm->hdmi_repeater == 1)
-		rx_edid_physical_addr(0, 0, 0, 0);
+	/* if (tx_comm->hdmi_repeater == 1) */
+	/* rx_edid_physical_addr(0, 0, 0, 0); */
 }
 
 void hdmitx_hdr_state_init(struct hdmitx_common *tx_comm)
