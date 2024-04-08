@@ -100,6 +100,7 @@ static long bl40_miscdev_ioctl(struct file *fp, unsigned int cmd,
 		struct bl40_info bl40_info = {0};
 		unsigned long phy_addr;
 		void *virt_addr = NULL;
+		u32 id;
 		struct arm_smccc_res res = {0};
 		size_t size;
 
@@ -128,8 +129,9 @@ static long bl40_miscdev_ioctl(struct file *fp, unsigned int cmd,
 		/* unlock bl40 */
 		aml_mbox_transfer_data(m3_chan, MBOX_CMD_BL4_WAIT_UNLOCK,
 				       NULL, 0, NULL, 0, MBOX_SYNC);
-		arm_smccc_smc(AMLOGIC_BL40_BOOTUP, phy_addr,
-			      size, 0, 0, 0, 0, 0, &res);
+		id = PACK_SMC_SUBID_ID(SMC_SUBID_MFH_V1_BOOT, 0);
+		arm_smccc_smc(AMLOGIC_BL40_BOOTUP, id, phy_addr,
+			      size, 0, 0, 0, 0, &res);
 		pr_info("free memory\n");
 		devm_kfree(device, virt_addr);
 		ret = res.a0;
