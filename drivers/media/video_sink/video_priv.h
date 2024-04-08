@@ -294,6 +294,7 @@ struct video_dev_s {
 	u8 has_vpp1;
 	u8 has_vpp2;
 	u8 vd1_vsr_safa_support;
+	u8 frm2fld_support;
 };
 
 struct video_layer_s;
@@ -709,6 +710,7 @@ struct video_device_hw_s {
 	u8 amdv_tvcore;
 	u8 vpp_in_padding_support;
 	u8 vd1_vsr_safa_support;
+	u8 frm2fld_support;
 };
 
 struct amvideo_device_data_s {

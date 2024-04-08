@@ -1572,6 +1572,7 @@ static int vpp_set_filters_internal
 	u32 force_skip_cnt = 0, slice_num = 0;
 	bool vd1s1_vd2_prebld_en = false;
 	u32 w_out, h_out;
+	u32 screen_h;
 	u8 id = 0;
 	u8 vpp_index = 0;
 
@@ -1645,7 +1646,7 @@ static int vpp_set_filters_internal
 	next_frame_par->nocomp = false;
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
 		next_frame_par->vscale_skip_count++;
-	if (vpp_flags & VPP_FLAG_INTERLACE_OUT)
+	if ((vpp_flags & VPP_FLAG_INTERLACE_OUT) && !cur_dev->frm2fld_support)
 		height_shift++;
 
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
@@ -2238,12 +2239,17 @@ RESTART:
 		next_frame_par->VPP_vsc_startp = 0;
 		next_frame_par->VPP_vsc_endp = 0;
 	} else {
-		next_frame_par->VPP_vsc_startp =
-			(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
-			(start >> 1) : start;
-		next_frame_par->VPP_vsc_endp =
-			(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
-			(end >> 1) : end;
+		if (!cur_dev->frm2fld_support) {
+			next_frame_par->VPP_vsc_startp =
+				(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
+				(start >> 1) : start;
+			next_frame_par->VPP_vsc_endp =
+				(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
+				(end >> 1) : end;
+		} else {
+			next_frame_par->VPP_vsc_startp = start;
+			next_frame_par->VPP_vsc_endp = end;
+		}
 	}
 
 	if (for_amdv_certification()) {
@@ -2451,6 +2457,11 @@ RESTART:
 	if ((next_frame_par->vscale_skip_count < MAX_VSKIP_COUNT ||
 	     !next_frame_par->hscale_skip_count) &&
 	    (!(vpp_flags & VPP_FLAG_VSCALE_DISABLE))) {
+		if (cur_dev->frm2fld_support)
+			screen_h = vinfo->height;
+		else
+			screen_h = vinfo->height >>
+			(vpp_flags & VPP_FLAG_INTERLACE_OUT) ? 1 : 0;
 		int skip = vpp_process_speed_check
 			(input->layer_id,
 			(next_frame_par->VPP_hd_end_lines_ -
@@ -2461,8 +2472,7 @@ RESTART:
 			(next_frame_par->vscale_skip_count + 1),
 			(next_frame_par->VPP_vsc_endp -
 			next_frame_par->VPP_vsc_startp + 1),
-			vinfo->height >>
-			((vpp_flags & VPP_FLAG_INTERLACE_OUT) ? 1 : 0),
+			screen_h,
 			speed_check_width,
 			speed_check_height,
 			next_frame_par,
@@ -2830,7 +2840,7 @@ RESTART:
 
 	/* overwrite filter setting for interlace output*/
 	/* TODO: not reasonable when 4K input to 480i output */
-	if (vpp_flags & VPP_FLAG_INTERLACE_OUT) {
+	if ((vpp_flags & VPP_FLAG_INTERLACE_OUT) && !cur_dev->frm2fld_support) {
 		filter->vpp_vert_coeff = filter_table[COEF_BILINEAR];
 		filter->vpp_vert_filter = COEF_BILINEAR;
 	}
@@ -4443,22 +4453,6 @@ static void set_vsr_postion(struct disp_info_s *input,
 		ve_in_size);
 }
 
-static void set_vd1_frm2fld_en(struct disp_info_s *input, u32 vpp_flags)
-{
-	u32 vpp_index = vd_layer[input->layer_id].vpp_index;
-	u32 frm2fld_en = 0;
-
-	if (vpp_flags & VPP_FLAG_INTERLACE_OUT)
-		frm2fld_en = 1;
-
-	/* bit4 reg_frm2fld_en, bit5: reg_bgn_bot_top */
-	cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
-		frm2fld_en, 4, 1);
-	if (frm2fld_en)
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
-			0, 5, 1);
-}
-
 void adjust_vpp_filter_parm(struct vpp_frame_par_s *frame_par,
 	u32 supsc1_hori_ratio,
 	u32 supsc1_vert_ratio,
@@ -4789,11 +4783,7 @@ static int vpp_set_filters_no_scaler_internal
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
 		next_frame_par->vscale_skip_count++;
 	/* safa have no p to i transfer */
-	if (input->vsr_safa_support) {
-		set_vd1_frm2fld_en(input, vpp_flags);
-		vpp_flags &= ~VPP_FLAG_INTERLACE_OUT;
-	}
-	if (vpp_flags & VPP_FLAG_INTERLACE_OUT)
+	if ((vpp_flags & VPP_FLAG_INTERLACE_OUT) && !cur_dev->frm2fld_support)
 		height_shift++;
 
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
@@ -4981,12 +4971,17 @@ RESTART:
 		next_frame_par->VPP_vsc_startp = 0;
 		next_frame_par->VPP_vsc_endp = 0;
 	} else {
-		next_frame_par->VPP_vsc_startp =
-			(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
-			(start >> 1) : start;
-		next_frame_par->VPP_vsc_endp =
-			(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
-			(end >> 1) : end;
+		if (!cur_dev->frm2fld_support) {
+			next_frame_par->VPP_vsc_startp =
+				(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
+				(start >> 1) : start;
+			next_frame_par->VPP_vsc_endp =
+				(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
+				(end >> 1) : end;
+		} else {
+			next_frame_par->VPP_vsc_startp = start;
+			next_frame_par->VPP_vsc_endp = end;
+		}
 	}
 
 	/* set filter co-efficient */

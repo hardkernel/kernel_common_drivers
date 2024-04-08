@@ -14789,6 +14789,7 @@ static struct video_device_hw_s s7d_dev_property = {
 	.sr_in_size = 0,
 	.sr01_num = 0,
 	.vd1_vsr_safa_support = 1,
+	.frm2fld_support = 1,
 };
 
 #endif

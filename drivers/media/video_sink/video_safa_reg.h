@@ -810,5 +810,10 @@
 #define VPP_PI_HF_SCL_COEF_F                       0x5056
 //Bit 31: 8        reserved
 //Bit  7: 0        reg_pi_pps_coef_tap2_32_0 // unsigned ,    RW, default = 99
+#define VPP_P2I_H_V_SIZE                           0x1da7
+//Bit 31:29  reserved
+//Bit 28:16  p2i_line_length  // unsigned  , default = 780  ve_line_length
+//Bit 15:13  reserved
+//Bit 12:0   p2i_pic_height   // unsigned  , default = 438  ve_pic_height
 
 #endif

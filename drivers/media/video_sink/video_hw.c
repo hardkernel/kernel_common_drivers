@@ -6970,6 +6970,19 @@ static int vpp_zorder_check(void)
 	return force_flush;
 }
 
+static bool vout_change_check(void)
+{
+	bool ret;
+	static u32 field_height_save;
+	struct vinfo_s *vinfo = get_current_vinfo();
+
+	if (field_height_save != vinfo->field_height)
+		ret = true;
+	else
+		ret = false;
+	field_height_save = vinfo->field_height;
+	return ret;
+}
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
 static int vpp_zorder_check_t7(void)
 {
@@ -8266,21 +8279,34 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 	}
 
 	force_flush |= vpp_zorder_check();
+	force_flush |= vout_change_check();
 
 	if (force_flush) {
 		/* check the vpp post size first */
 		if (!legacy_vpp && vinfo) {
 			u32 read_value = cur_dev->rdma_func[vpp_index].rdma_rd
 				(VPP_POSTBLEND_H_SIZE + vpp_off);
-			if (((vinfo->field_height << 16) | vinfo->width)
-				!= read_value)
+			if (cur_dev->frm2fld_support) {
+				if (((vinfo->height << 16) | vinfo->width)
+					!= read_value)
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(VPP_POSTBLEND_H_SIZE + vpp_off,
+						((vinfo->height << 16) | vinfo->width));
 				cur_dev->rdma_func[vpp_index].rdma_wr
-					(VPP_POSTBLEND_H_SIZE + vpp_off,
-					((vinfo->field_height << 16) | vinfo->width));
-			cur_dev->rdma_func[vpp_index].rdma_wr
-				(VPP_OUT_H_V_SIZE + vpp_off,
-				vinfo->width << 16 |
-				vinfo->field_height);
+					(VPP_OUT_H_V_SIZE + vpp_off,
+					vinfo->width << 16 |
+					vinfo->height);
+			} else {
+				if (((vinfo->field_height << 16) | vinfo->width)
+					!= read_value)
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(VPP_POSTBLEND_H_SIZE + vpp_off,
+						((vinfo->field_height << 16) | vinfo->width));
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(VPP_OUT_H_V_SIZE + vpp_off,
+					vinfo->width << 16 |
+					vinfo->field_height);
+			}
 		} else if (vinfo) {
 			if (cur_dev->rdma_func[vpp_index].rdma_rd
 				(VPP_POSTBLEND_H_SIZE + vpp_off)
@@ -8294,7 +8320,6 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 				vinfo->field_height);
 		}
 	}
-
 	if (!legacy_vpp) {
 		u32 set_value = 0;
 		u32 set_value1 = 0;
@@ -8443,6 +8468,13 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 				cur_dev->rdma_func[vpp_index].rdma_wr
 					(VPP_MISC + vpp_off,
 					set_value);
+				if (cur_dev->frm2fld_support &&
+					vinfo->field_height != vinfo->height) {
+					cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
+						1, 4, 1);
+					cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
+						0, 5, 1);
+				}
 			} else {
 				/*for txhd2 keystone,VPP_MISC bit27 set in uboot by vout*/
 				set_value1 = set_value & 0x7ffffff;
@@ -14006,6 +14038,8 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	cur_dev->prevsync_support = p_amvideo->dev_property.prevsync_support;
 	cur_dev->vd1_vsr_safa_support =
 		p_amvideo->dev_property.vd1_vsr_safa_support;
+	cur_dev->frm2fld_support =
+		p_amvideo->dev_property.frm2fld_support;
 	if (cur_dev->aisr_support)
 		cur_dev->pps_auto_calc = 1;
 	if (cur_dev->display_module == T7_DISPLAY_MODULE) {

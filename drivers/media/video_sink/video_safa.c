@@ -872,10 +872,29 @@ static void set_vsr_input_size(struct vsr_setting_s *vsr)
 	}
 }
 
+static void set_vd1_frm2fld_en(struct vsr_setting_s *vsr)
+{
+	u8 vpp_index = vsr->vpp_index;
+	struct vinfo_s *vinfo = get_current_vinfo();
+	u32 frm2fld_en = 0;
+
+	if (vinfo->field_height != vinfo->height && cur_dev->frm2fld_support)
+		frm2fld_en = 1;
+	if (frm2fld_en) {
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
+			0, 5, 1);
+		cur_dev->rdma_func[vpp_index].rdma_wr(VPP_P2I_H_V_SIZE,
+			vinfo->width << 16 | vinfo->height);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits(SAFA_PPS_HW_CTRL,
+			1, 26, 1);
+	}
+}
+
 void set_vsr_scaler(struct vsr_setting_s *vsr)
 {
 	set_vsr_input_size(vsr);
 	set_vsr_input_format(vsr);
+	set_vd1_frm2fld_en(vsr);
 	if (vsr->vsr_top.vsr_en) {
 		set_cfg_pi_safa(vsr);
 		set_vsr_pi(vsr);
