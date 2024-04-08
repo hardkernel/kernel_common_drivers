@@ -17,3 +17,7 @@
 #define PDID_S7D_ETH			11
 #define PDID_S7D_AUCPU			12
 #define PDID_S7D_AUDIO			13
+#define PDID_S7D_SRAMA			14
+#define PDID_S7D_DMC0			15
+#define PDID_S7D_DMC1			16
+#define PDID_S7D_DDR			17
