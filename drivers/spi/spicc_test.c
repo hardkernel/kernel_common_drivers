@@ -284,6 +284,8 @@ int testdev_setup(struct test_device *testdev, int argc, char *argv[])
 		cdata->rx_tuning = v;
 	if (!spicc_getopt(argc, argv, "dummy", &v, NULL, 10))
 		cdata->dummy_ctl = v;
+	if (!spicc_getopt(argc, argv, "dma_trig_delay", &v, NULL, 10))
+		cdata->dma_trig_delay = v;
 
 	ret = spi_setup(spi);
 	dev_info(&spi->controller->dev,
@@ -493,13 +495,17 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 
 	else if (cdata->dirspi_dma_trig &&
 		!spicc_getopt(argc, argv, "trig", &v, NULL, 0)) {
+		if (!v || v > DMA_TRIG_PWM_VS) {
+			dev_warn(dev, "unsupport trig mode!\n");
+			return 0;
+		}
 		xfer = testdev_get_current_xfer(testdev);
 		ret = cdata->dirspi_dma_trig(spi,
 					xfer->tx_dma,
 					xfer->rx_dma,
 					xfer->len,
-					v ? DMA_TRIG_LINE_N : DMA_TRIG_VSYNC);
-		dev_info(dev, "set trig mode %s\n", v ? "line_n" : "vsync");
+					v);
+		dev_info(dev, "set trig mode %d\n", v);
 	}
 
 	else if (cdata->dirspi_dma_trig_start &&
@@ -512,6 +518,12 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 		!spicc_getopt(argc, argv, "trig_stop", NULL, NULL, 0)) {
 		ret = cdata->dirspi_dma_trig_stop(spi);
 		dev_info(dev, "trig stop!\n");
+	}
+
+	else if (cdata->dirspi_dma_trig_release &&
+		!spicc_getopt(argc, argv, "trig_release", NULL, NULL, 0)) {
+		ret = cdata->dirspi_dma_trig_release(spi);
+		dev_info(dev, "trig released!\n");
 	}
 
 	if (ret == -EIO)

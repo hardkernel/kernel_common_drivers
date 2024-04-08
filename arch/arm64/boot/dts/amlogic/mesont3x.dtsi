@@ -1527,7 +1527,8 @@
 
 			spicc0: spi@fe050000 {
 				compatible = "amlogic,meson-a4-spicc-v2";
-				reg = <0x0 0x50000 0x0 0x38>;
+				reg = <0x0 0x50000 0x0 0x38>,
+				      <0x0 0x1059C 0x0 1>;
 				interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_CLK_SPICC0>,
 					 <&clkc CLKID_SPICC0>;
@@ -1543,7 +1544,8 @@
 
 			spicc1: spi@fe050100 {
 				compatible = "amlogic,meson-a4-spicc-v2";
-				reg = <0x0 0x50100 0x0 0x38>;
+				reg = <0x0 0x50100 0x0 0x38>,
+				      <0x0 0x105a0 0x0 1>;
 				interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_CLK_SPICC1>,
 					 <&clkc CLKID_SPICC1>;

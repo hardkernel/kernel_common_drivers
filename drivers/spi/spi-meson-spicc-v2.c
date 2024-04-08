@@ -33,6 +33,8 @@
 /* Register Map */
 #define SPICC_REG_CFG_READY		0x00
 #define SPICC_REG_CFG_SPI		0x04
+#define HW_POS				BIT(6)
+#define HW_NEG				BIT(7)
 #define SPICC_REG_CFG_START		0x08
 #define SPICC_REG_CFG_BUS		0x0C
 #define SPICC_REG_PIO_TX_DATA_L		0x10
@@ -192,6 +194,14 @@ struct spicc_device {
 	dma_addr_t			dirspi_tx_dma;
 	dma_addr_t			dirspi_rx_dma;
 	int				dirspi_len;
+	void __iomem			*trig_reg;
+	struct spicc_descriptor		*dirspi_desc;
+	dma_addr_t			dirspi_desc_paddr;
+	int				dirspi_desc_len;
+	int				dirspi_status;
+#define DIRSPI_STA_IDLE		0
+#define DIRSPI_STA_READY	1
+#define DIRSPI_STA_RUNNING	2
 #endif
 };
 
@@ -227,6 +237,14 @@ static int dirspi_sync(struct spi_device *spi,
 			u8 *tx_buf,
 			u8 *rx_buf,
 			int len);
+static int dirspi_dma_trig(struct spi_device *spi,
+			   dma_addr_t tx_dma,
+			   dma_addr_t rx_dma,
+			   int len,
+			   u8 src);
+static int dirspi_dma_trig_start(struct spi_device *spi);
+static int dirspi_dma_trig_stop(struct spi_device *spi);
+static int dirspi_dma_trig_release(struct spi_device *spi);
 #endif
 
 static inline int spicc_sem_down_read(struct spicc_device *spicc)
@@ -389,12 +407,12 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 		desc->cfg_bus.b.dc_mode = ccxfer->dc_mode - 1;
 	}
 
-	if (xfer->tx_buf) {
+	if (xfer->tx_buf || xfer->tx_dma) {
 		desc->cfg_bus.b.lane = nbits_to_lane[xfer->tx_nbits];
 		desc->cfg_start.b.op_mode = (ccxfer && ccxfer->dc_mode) ?
 			SPICC_OP_MODE_WRITE_CMD : SPICC_OP_MODE_WRITE;
 	}
-	if (xfer->rx_buf) {
+	if (xfer->rx_buf || xfer->rx_dma) {
 		desc->cfg_bus.b.lane = nbits_to_lane[xfer->rx_nbits];
 		desc->cfg_start.b.op_mode = (ccxfer && ccxfer->dc_mode) ?
 			SPICC_OP_MODE_READ_STS : SPICC_OP_MODE_READ;
@@ -417,11 +435,11 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 	}
 
 	if (is_dma_mapped) {
-		if (xfer->tx_buf) {
+		if (xfer->tx_dma) {
 			desc->tx_paddr = xfer->tx_dma;
 			desc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_MEM;
 		}
-		if (xfer->rx_buf) {
+		if (xfer->rx_dma) {
 			desc->rx_paddr = xfer->rx_dma;
 			desc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_MEM;
 		}
@@ -495,6 +513,24 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 	return 0;
 }
 
+static void spicc_configure_last_desc(struct spicc_device *spicc,
+				struct spicc_descriptor *desc)
+{
+	/* configure the additional descriptor null */
+	if (spicc->config_ss_trailing_gap) {
+		desc++;
+		desc->cfg_start.d32 = spicc->cfg_start.d32;
+		desc->cfg_bus.d32 = spicc->cfg_bus.d32;
+		desc->cfg_start.b.op_mode = SPICC_OP_MODE_WRITE;
+		desc->cfg_start.b.block_size = 1;
+		desc->cfg_start.b.block_num = spicc->config_ss_trailing_gap;
+		desc->cfg_bus.b.null_ctl = 1;
+	}
+
+	desc->cfg_bus.b.keep_ss = 0;
+	desc->cfg_start.b.eoc = 1;
+}
+
 static struct spicc_descriptor *spicc_create_desc_table
 			(struct spicc_device *spicc,
 			struct spi_message *msg,
@@ -535,20 +571,8 @@ static struct spicc_descriptor *spicc_create_desc_table
 		desc++;
 	}
 
-	/* configure the additional descriptor null */
-	if (spicc->config_ss_trailing_gap) {
-		desc->cfg_start.d32 = spicc->cfg_start.d32;
-		desc->cfg_bus.d32 = spicc->cfg_bus.d32;
-		desc->cfg_start.b.op_mode = SPICC_OP_MODE_WRITE;
-		desc->cfg_start.b.block_size = 1;
-		desc->cfg_start.b.block_num = spicc->config_ss_trailing_gap;
-		desc->cfg_bus.b.null_ctl = 1;
-	} else {
-		desc--;
-	}
-
-	desc->cfg_bus.b.keep_ss = 0;
-	desc->cfg_start.b.eoc = 1;
+	desc--;
+	spicc_configure_last_desc(spicc, desc);
 
 	return desc_bk;
 }
@@ -736,6 +760,10 @@ static int meson_spicc_setup(struct spi_device *spi)
 		cdata->dirspi_stop = dirspi_stop;
 		cdata->dirspi_async = dirspi_async;
 		cdata->dirspi_sync = dirspi_sync;
+		cdata->dirspi_dma_trig = dirspi_dma_trig;
+		cdata->dirspi_dma_trig_start = dirspi_dma_trig_start;
+		cdata->dirspi_dma_trig_stop = dirspi_dma_trig_stop;
+		cdata->dirspi_dma_trig_release = dirspi_dma_trig_release;
 		if (cdata->use_dirspi)
 			spicc_set_speed(spicc, spi->max_speed_hz);
 	}
@@ -899,6 +927,187 @@ static int dirspi_sync(struct spi_device *spi,
 {
 	return dirspi_async(spi, tx_buf, rx_buf, len, NULL, NULL);
 }
+
+/* SYSCTRL_SPI_TRIG */
+#define TRIG_REG_IN_SEL_MASK		GENMASK(4, 0)
+#define IN_SEL_VSYNC		13
+#define IN_SEL_LINE_N		16
+#define IN_SEL_PWM_VS		10
+#define TRIG_REG_OUT_SEL_MASK		GENMASK(6, 5)
+#define TRIG_REG_DELAY_CNT_MASK		GENMASK(30, 7)
+#define TRIG_DELAY_MIN			2
+#define TRIG_DELAY_MAX			0xFFFFF
+#define TRIG_REG_MUX_EN			BIT(31)
+
+/*
+ * @tx_dma: DMA address of tx buf
+ * @rx_dma: DMA address of rx buf
+ * @src: trigger source, DMA_TRIG_VSYNC or DMA_TRIG_LINE_N
+ */
+static int dirspi_dma_trig(struct spi_device *spi,
+			   dma_addr_t tx_dma,
+			   dma_addr_t rx_dma,
+			   int len,
+			   u8 src)
+{
+	struct spicc_device *spicc;
+	struct  spicc_controller_data *cdata;
+	struct spicc_descriptor *desc;
+	int desc_num = 1;
+	struct spi_transfer xfer;
+	u32 in_sel, delay = TRIG_DELAY_MIN;
+	int ret;
+
+	cdata = (struct spicc_controller_data *)spi->controller_data;
+	spicc = spi_controller_get_devdata(spi->controller);
+	if (spicc->dirspi_status != DIRSPI_STA_IDLE) {
+		spicc_err("failed to configure trig in state %d\n",
+			  spicc->dirspi_status);
+		return -EBUSY;
+	}
+
+	if (!spicc_sem_down_read(spicc)) {
+		spicc_err("controller busy\n");
+		return -EBUSY;
+	}
+
+	ret = meson_spicc_config(spicc, spi);
+	if (ret) {
+		spicc_sem_up_write(spicc);
+		return ret;
+	}
+
+	/* additional descriptor to achieve a ss trailing gap */
+	if (spicc->config_ss_trailing_gap)
+		desc_num++;
+	spicc->dirspi_desc_len = sizeof(*desc) * desc_num;
+	desc = dma_alloc_coherent(spicc->controller->dev.parent,
+				  spicc->dirspi_desc_len,
+				  &spicc->dirspi_desc_paddr,
+				  GFP_KERNEL | GFP_DMA);
+	spicc->dirspi_desc = desc;
+	if (!desc) {
+		spicc_sem_up_write(spicc);
+		spicc_err("alloc desc failed\n");
+		return -ENOMEM;
+	}
+
+	memset(&xfer, 0, sizeof(xfer));
+	xfer.tx_dma = tx_dma;
+	xfer.rx_dma = rx_dma;
+	xfer.len = len;
+	xfer.bits_per_word = spi->bits_per_word;
+	spicc_config_desc_one_transfer(spicc, desc, &xfer, true, false);
+	spicc_configure_last_desc(spicc, desc);
+
+	spicc_writel(spicc, 0, SPICC_REG_IRQ_ENABLE);
+	spicc_writel(spicc, spicc->cfg_spi.d32 | HW_POS, SPICC_REG_CFG_SPI);
+	spicc_writel(spicc, 0, SPICC_REG_CFG_BUS);
+	spicc_writel(spicc, 0, SPICC_REG_CFG_START);
+	spicc_writel(spicc, (u64)spicc->dirspi_desc_paddr & 0xffffffff,
+		     SPICC_REG_DESC_LIST_L);
+	spicc_writel(spicc, ((u64)spicc->dirspi_desc_paddr >> 32),
+		     SPICC_REG_DESC_LIST_H);
+
+	if (!IS_ERR_OR_NULL(spicc->trig_reg)) {
+		if (src == DMA_TRIG_VSYNC)
+			in_sel = IN_SEL_VSYNC;
+		else if (src == DMA_TRIG_LINE_N)
+			in_sel = IN_SEL_LINE_N;
+		else
+			in_sel = IN_SEL_PWM_VS;
+
+		if (cdata) {
+			if (cdata->dma_trig_delay > TRIG_DELAY_MAX)
+				delay = TRIG_DELAY_MAX;
+			else if (cdata->dma_trig_delay > TRIG_DELAY_MIN)
+				delay = cdata->dma_trig_delay;
+		}
+
+		writel(FIELD_PREP(TRIG_REG_IN_SEL_MASK, in_sel)
+		       | FIELD_PREP(TRIG_REG_DELAY_CNT_MASK, delay),
+		       spicc->trig_reg);
+	}
+
+	spicc_sem_up_write(spicc);
+	spicc->dirspi_status = DIRSPI_STA_READY;
+
+	return 0;
+}
+
+static int dirspi_dma_trig_start(struct spi_device *spi)
+{
+	struct spicc_device *spicc;
+
+	spicc = spi_controller_get_devdata(spi->controller);
+	if (spicc->dirspi_status != DIRSPI_STA_READY) {
+		spicc_err("failed to start trig in state %d\n",
+			  spicc->dirspi_status);
+		return -EIO;
+	}
+
+	spicc_sem_down_read(spicc);
+	if (!IS_ERR_OR_NULL(spicc->trig_reg))
+		writel(readl(spicc->trig_reg) | TRIG_REG_MUX_EN,
+		       spicc->trig_reg);
+
+	spicc->dirspi_status = DIRSPI_STA_RUNNING;
+
+	return 0;
+}
+
+static int dirspi_dma_trig_stop(struct spi_device *spi)
+{
+	struct spicc_device *spicc;
+	unsigned long timeout;
+	u32 sts;
+
+	spicc = spi_controller_get_devdata(spi->controller);
+	if (spicc->dirspi_status != DIRSPI_STA_RUNNING) {
+		spicc_err("failed to stop trig in state %d\n",
+			  spicc->dirspi_status);
+		return -EIO;
+	}
+
+	if (!IS_ERR_OR_NULL(spicc->trig_reg))
+		writel(readl(spicc->trig_reg) & ~TRIG_REG_MUX_EN,
+		       spicc->trig_reg);
+
+	timeout = msecs_to_jiffies(100) + jiffies;
+	while (time_before(jiffies, timeout)) {
+		sts = spicc_readl(spicc, SPICC_REG_IRQ_STS);
+		if (sts | (SPICC_DESC_CHAIN_DONE | SPICC_DESC_DONE)) {
+			spicc_writel(spicc, sts, SPICC_REG_IRQ_STS);
+			break;
+		}
+	}
+
+	spicc_sem_up_write(spicc);
+	spicc->dirspi_status = DIRSPI_STA_READY;
+
+	return 0;
+}
+
+static int dirspi_dma_trig_release(struct spi_device *spi)
+{
+	struct spicc_device *spicc;
+
+	spicc = spi_controller_get_devdata(spi->controller);
+	if (spicc->dirspi_status == DIRSPI_STA_IDLE)
+		return 0;
+
+	if (spicc->dirspi_status == DIRSPI_STA_RUNNING)
+		dirspi_dma_trig_stop(spi);
+
+	dma_free_coherent(spicc->controller->dev.parent,
+			spicc->dirspi_desc_len,
+			(void *)spicc->dirspi_desc,
+			spicc->dirspi_desc_paddr);
+
+	spicc->dirspi_status = DIRSPI_STA_IDLE;
+
+	return 0;
+}
 #endif	/* end of MESON_SPICC_HW_IF */
 
 #ifdef CONFIG_SPICC_TEST
@@ -981,6 +1190,10 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(spicc->base);
 		goto out_controller;
 	}
+
+	spicc->trig_reg = devm_platform_ioremap_resource(pdev, 1);
+	if (IS_ERR_OR_NULL(spicc->trig_reg))
+		dev_warn(&pdev->dev, "no trig resource\n");
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {

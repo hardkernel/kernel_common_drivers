@@ -10,6 +10,7 @@ enum {
 	DMA_TRIG_NORMAL = 0,
 	DMA_TRIG_VSYNC,
 	DMA_TRIG_LINE_N,
+	DMA_TRIG_PWM_VS,
 };
 
 struct spicc_controller_data {
@@ -21,6 +22,7 @@ struct spicc_controller_data {
 	unsigned	tx_tuning:4;
 	unsigned	rx_tuning:4;
 	unsigned	dummy_ctl:1;
+	unsigned int	dma_trig_delay;
 	void (*dirspi_start)(struct spi_device *spi);
 	void (*dirspi_stop)(struct spi_device *spi);
 	int (*dirspi_async)(struct spi_device *spi,
@@ -44,6 +46,7 @@ struct spicc_controller_data {
 			       u8 src);
 	int (*dirspi_dma_trig_start)(struct spi_device *spi);
 	int (*dirspi_dma_trig_stop)(struct spi_device *spi);
+	int (*dirspi_dma_trig_release)(struct spi_device *spi);
 };
 
 struct spicc_transfer {
