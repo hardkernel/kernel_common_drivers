@@ -40,6 +40,7 @@
 #include "video_hw.h"
 #include "video_hw_s5.h"
 #include "vpp_post_s5.h"
+#include "video_uevent.h"
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #include <linux/amlogic/media/amvecm/amvecm.h>
@@ -112,6 +113,7 @@ static DEFINE_MUTEX(video_mute_mutex);
 #define VPU_DELAYWORK_MEM_POWER_OFF_DOLBY2		BIT(12)
 #define VPU_DELAYWORK_MEM_POWER_OFF_DOLBY_CORE3		BIT(13)
 #define VPU_DELAYWORK_MEM_POWER_OFF_PRIME_DOLBY		BIT(14)
+#define VPU_PRIMARY_FMT_CHANGED		BIT(16)
 
 #define VPU_MEM_POWEROFF_DELAY	100
 #define DV_MEM_POWEROFF_DELAY	2
@@ -7971,6 +7973,14 @@ static void do_vpu_delay_work(struct work_struct *work)
 	unsigned long flags;
 	unsigned int r;
 
+	enum vframe_signal_fmt_e fmt = VFRAME_SIGNAL_FMT_INVALID;
+
+	if (vpu_delay_work_flag & VPU_PRIMARY_FMT_CHANGED) {
+		vpu_delay_work_flag &= ~VPU_PRIMARY_FMT_CHANGED;
+		fmt = (enum vframe_signal_fmt_e)atomic_read(&cur_primary_src_fmt);
+		video_send_uevent(VIDEO_FMT_EVENT, fmt);
+	}
+
 	if (vpu_delay_work_flag & VPU_VIDEO_LAYER1_CHANGED)
 		vpu_delay_work_flag &= ~VPU_VIDEO_LAYER1_CHANGED;
 
@@ -8547,6 +8557,11 @@ void fgrain_update_table(struct video_layer_s *layer,
 			 struct vframe_s *vf)
 
 {
+}
+
+void update_primary_fmt_event(void)
+{
+	vpu_delay_work_flag |= VPU_PRIMARY_FMT_CHANGED;
 }
 
 /*********************************************************
