@@ -158,6 +158,7 @@
 /*  V3.5.031 calibrate dvbc signal strength read from R842 */
 /*  V3.5.032 rebuild dtmb driver */
 /*  V3.5.033 remove more print logs */
+/*  V3.5.034 fix incorrect cfo calculation results and add t2 info */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -174,8 +175,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.033"
-#define DTVDEMOD_VER	"2024/03/28: remove more print logs"
+#define AMLDTVDEMOD_VER "V3.5.034"
+#define DTVDEMOD_VER	"2024/04/10: fix incorrect cfo calculation results and add t2 info"
 #define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
