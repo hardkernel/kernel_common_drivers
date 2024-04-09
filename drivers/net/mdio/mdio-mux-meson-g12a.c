@@ -195,7 +195,7 @@ static int g12a_ephy_pll_init(struct clk_hw *hw)
 	}
 	/*s7d*/
 	if (phy_pll_mode == 3) {
-		writel(readl(pll->base + ETH_PLL_CTL3) & 0xfffffffe, pll->base + ETH_PLL_CTL3);
+		writel(readl(pll->base + ETH_PLL_CTL3) & 0xfffffffc, pll->base + ETH_PLL_CTL3);
 		writel(0x00c091a2, pll->base + ETH_PLL_CTL0);
 		writel(0x01111140, pll->base + ETH_PLL_CTL1);
 		writel(readl(pll->base + ETH_PLL_CTL3) | 0x2, pll->base + ETH_PLL_CTL3);
@@ -343,11 +343,13 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 					tx_R = (efuse_get_tmp & 0xf00000) >> 20;
 					rx_R = (efuse_get_tmp & 0x0f0000) >> 16;
 					writel(((tx_R << 28) | (rx_R << 20))
-						| (0x0a000000),
+						| (0x05000000),
 						priv->regs + ETH_PLL_CTL3);
 				} else {
 					pr_debug("no efuse setting use default\n");
-					writel(0x88800003, priv->regs + ETH_PLL_CTL3);
+					writel((readl(priv->regs + ETH_PLL_CTL3) & 0x3) |
+						(0x8580 << 16),
+						priv->regs + ETH_PLL_CTL3);
 				}
 				writel(0x4001, priv->regs + ETH_PLL_CTL6);
 				writel(0x84001580, priv->regs + ETH_PLL_CTL5);
