@@ -1525,6 +1525,11 @@
 				&ion_fb_reserved>;
 	};
 
+	gpu_protected_memory_allocator: protected-memory-allocator {
+		compatible = "arm,protected-memory-allocator";
+		memory-region = <&mali_protected>;
+	};
+
 	meson_uvm {
 		compatible = "amlogic, meson_uvm";
 		status = "okay";
@@ -2537,11 +2542,6 @@
 		};
 	};
 
-	gpu_protected_memory_allocator: protected-memory-allocator {
-		compatible = "arm,protected-memory-allocator";
-		memory-region = <&mali_protected>;
-	};
-
 	eth_pins: eth {
 		mux {
 			groups = "eth_mdio",
@@ -2585,7 +2585,8 @@
 		     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
 	interrupt-names = "GPU", "MMU", "JOB";
 
-	protected-memory-allocator = <&gpu_protected_memory_allocator>;
+	/* Protected memory allocator default not available*/
+	//protected-memory-allocator = <&gpu_protected_memory_allocator>;
 
 	num_of_pp = <1>;
 	system-coherency = <31>;
