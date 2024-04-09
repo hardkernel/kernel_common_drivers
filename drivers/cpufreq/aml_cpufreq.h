@@ -14,14 +14,14 @@
 #define MAX_VOLTAGE	                   0x7fffffff
 
 struct opp_node {
-	int rate; //unit khz
+	unsigned long rate; //unit khz
 	int volt; //unit uv
 };
 
 /*this is dsu vote related structure read from dts*/
 struct cpudsu_threshold_node {
-	int cpurate; //unit khz
-	int dsurate; //unit khz
+	unsigned long cpurate; //unit khz
+	unsigned long dsurate; //unit khz
 	int dsuvolt; //init uv
 };
 
