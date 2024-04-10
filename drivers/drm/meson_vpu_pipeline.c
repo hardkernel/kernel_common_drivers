@@ -763,7 +763,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	int i;
 #endif
 
-	int crtc_index;
+	int crtc_index, j;
 	unsigned long id;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs, *old_mvbs;
@@ -788,6 +788,21 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	arm_fbc_check_error();
 
 	affected_blocks = old_mvsps->enable_blocks | new_mvsps->enable_blocks;
+
+	if (affected_blocks == 0) {
+		for (j = 0; j < MESON_MAX_BLOCKS; j++) {
+			DRM_DEBUG("Disabling blocks because of initial disabled status!\n");
+			mvb = vpu_blocks[j];
+			if (!mvb || mvb->type != MESON_BLK_VPPBLEND || mvb->index != crtc_index)
+				continue;
+
+			old_mvbs = meson_vpu_block_get_old_state(mvb, old_state);
+			old_mvbs->sub = &pipeline->subs[crtc_index];
+			if (mvb->ops && mvb->ops->disable)
+				mvb->ops->disable(mvb, old_mvbs);
+		}
+	}
+
 	for_each_set_bit(id, &affected_blocks, 32) {
 		mvb = vpu_blocks[id];
 		if (mvb->type == MESON_BLK_VIDEO)
