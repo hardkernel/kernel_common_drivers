@@ -496,16 +496,6 @@ static int bt_probe(struct platform_device *pdev)
 
 	bt_device_init(pdata);
 
-	if (pdata->power_down_disable == 1) {
-#ifdef CONFIG_AMLOGIC_MODIFY
-		async_schedule(do_bt_device_on_async, (void *)pdata);
-#else
-		pdata->power_down_disable = 0;
-		bt_device_on(pdata, 100, 0);
-		pdata->power_down_disable = 1;
-#endif
-	}
-
 	/* default to bluetooth off */
 	/* rfkill_switch_all(RFKILL_TYPE_BLUETOOTH, 1); */
 	/* bt_device_off(pdata); */
@@ -523,8 +513,10 @@ static int bt_probe(struct platform_device *pdev)
 	pr_debug("rfkill init default power on\n");
 	rfkill_init_sw_state(bt_rfk, false);
 #else
-	rfkill_init_sw_state(bt_rfk, true);
+	pr_debug("%s:default power off\n", __func__);
+	rfkill_init_sw_state(bt_rfk, true);  // default power off
 #endif
+
 	ret = rfkill_register(bt_rfk);
 	if (ret) {
 		pr_err("rfkill_register fail\n");
@@ -538,6 +530,17 @@ static int bt_probe(struct platform_device *pdev)
 	prdata->bt_rfk = bt_rfk;
 	prdata->pdata = pdata;
 	platform_set_drvdata(pdev, prdata);
+
+	if (pdata->power_down_disable == 1) {
+#ifdef CONFIG_AMLOGIC_MODIFY
+		async_schedule(do_bt_device_on_async, (void *)pdata);
+#else
+		pdata->power_down_disable = 0;
+		bt_device_on(pdata, 100, 0);
+		pdata->power_down_disable = 1;
+#endif
+	}
+
 #if defined(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND) && defined(CONFIG_AMLOGIC_GX_SUSPEND)
 	bt_early_suspend.level =
 		EARLY_SUSPEND_LEVEL_DISABLE_FB;
