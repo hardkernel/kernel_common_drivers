@@ -12052,6 +12052,22 @@ int vinfo_lcd_support(void)
 		return 0;
 }
 
+/*for s5 dsc enable, vpp convert yuv2rgb when hdmi rgb out. ret: 0 yuv, 1 rgb*/
+
+int vinfo_hdmi_out_fmt(void)
+{
+	struct vinfo_s *vinfo = get_current_vinfo();
+
+	if (chip_type_id != chip_s5)
+		return 0;
+
+	if ((vinfo->mode & VMODE_MODE_BIT_MASK) == VMODE_HDMI &&
+		vinfo->vpp_post_out_color_fmt)
+		return 1;
+	else
+		return 0;
+}
+
 /* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
 void init_pq_setting(void)
 {

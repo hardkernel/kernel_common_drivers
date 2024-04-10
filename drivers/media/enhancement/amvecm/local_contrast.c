@@ -36,7 +36,7 @@
 /*curve_node_total*/
 #define LC_CURV_SIZE 585
 /*history message delay*/
-#define N 4
+#define N_DELAY 4
 /*hist bin num*/
 #define HIST_BIN 16
 #define LC_BLK_H_NUM 12
@@ -1426,17 +1426,17 @@ int global_scene_change(int *curve_nodes_cur,
 	int *osd_flag_cnt_below)
 {
 	int scene_change_flag;
-	static int scene_dif[N];
-	static int frm_dif[N];
+	static int scene_dif[N_DELAY];
+	static int frm_dif[N_DELAY];
 	/*store frame valid block for frm diff calc*/
-	static int valid_blk_num[N];
+	static int valid_blk_num[N_DELAY];
 	int frm_dif_osd, vnum_osd;
 	int addr_curv1;
 	int apl_cur, apl_pre;
 	int i, j;
 
 	/*history message delay*/
-	for (i = 0; i < N - 1; i++) {
+	for (i = 0; i < N_DELAY - 1; i++) {
 		scene_dif[i] = scene_dif[i + 1];
 		frm_dif[i] = frm_dif[i + 1];
 		valid_blk_num[i] = valid_blk_num[i + 1];
@@ -1449,9 +1449,9 @@ int global_scene_change(int *curve_nodes_cur,
 		/* 2.2.1 use block APL to calculate frame dif:
 		 * omap[5]: (yminV), minBV, pkBV, maxBV, (ymaxV),ypkBV
 		 */
-		frm_dif[N - 1] = 0;/*update current result*/
-		scene_dif[N - 1] = 0;
-		valid_blk_num[N - 1] = 0;
+		frm_dif[N_DELAY - 1] = 0;/*update current result*/
+		scene_dif[N_DELAY - 1] = 0;
+		valid_blk_num[N_DELAY - 1] = 0;
 		frm_dif_osd = 0;
 		vnum_osd = 0;
 		for (i = 0; i < blk_vnum; i++) {
@@ -1461,7 +1461,7 @@ int global_scene_change(int *curve_nodes_cur,
 					CURV_NODES + 2];/*apl value*/
 				apl_pre = curve_nodes_pre[addr_curv1 *
 					CURV_NODES + 2];
-				frm_dif[N - 1] +=
+				frm_dif[N_DELAY - 1] +=
 					abs(apl_cur - apl_pre);/*frame motion*/
 
 				/*when have osd,
@@ -1487,39 +1487,39 @@ int global_scene_change(int *curve_nodes_cur,
 			}
 		}
 		/*remove osd to calc frame motion */
-		frm_dif[N - 1] = frm_dif[N - 1] - frm_dif_osd;
-		valid_blk_num[N - 1] = (blk_vnum - vnum_osd) * blk_hnum;
+		frm_dif[N_DELAY - 1] = frm_dif[N_DELAY - 1] - frm_dif_osd;
+		valid_blk_num[N_DELAY - 1] = (blk_vnum - vnum_osd) * blk_hnum;
 		/*debug*/
 		if (amlc_debug == 0x4) {
 			pr_info("#vnum_osd = %d;\n", vnum_osd);
 			pr_info("#valid_blk_num[%d] =  %d\n",
-				N - 1, valid_blk_num[N - 1]);
+				N_DELAY - 1, valid_blk_num[N_DELAY - 1]);
 			pr_info("#valid_blk_num[%d] =  %d\n",
-				N - 2, valid_blk_num[N - 2]);
+				N_DELAY - 2, valid_blk_num[N_DELAY - 2]);
 		}
 
 		/*2.2.2motion dif.if motion dif too large,
 		 *	we think scene changed
 		 */
-		scene_dif[N - 1] =
-			abs((frm_dif[N - 1] / (valid_blk_num[N - 1] + 1)) -
-			(frm_dif[N - 2] / (valid_blk_num[N - 2] + 1)));
+		scene_dif[N_DELAY - 1] =
+			abs((frm_dif[N_DELAY - 1] / (valid_blk_num[N_DELAY - 1] + 1)) -
+			(frm_dif[N_DELAY - 2] / (valid_blk_num[N_DELAY - 2] + 1)));
 
-		if (scene_dif[N - 1] > scene_change_th)
+		if (scene_dif[N_DELAY - 1] > scene_change_th)
 			scene_change_flag = 1;
 		else
 			scene_change_flag = 0;
 
 		/*debug*/
-		if (scene_dif[N - 1] > scene_change_th && amlc_iir_debug_en) {
-			for (i = 0; i < N; i++)
+		if (scene_dif[N_DELAY - 1] > scene_change_th && amlc_iir_debug_en) {
+			for (i = 0; i < N_DELAY; i++)
 				pr_info("valid_blk_num[%d] = %d,\n",
 					i, valid_blk_num[i]);
-			for (i = 0; i < N; i++)
+			for (i = 0; i < N_DELAY; i++)
 				pr_info("frm_dif[%d] = %d,\n",
 					i, frm_dif[i]);
 			pr_info("\n\n");
-			for (i = 0; i < N; i++)
+			for (i = 0; i < N_DELAY; i++)
 				pr_info("scene_dif[%d] = %d,\n",
 					i, scene_dif[i]);
 			pr_info("scene_change_flag =%d\n\n",

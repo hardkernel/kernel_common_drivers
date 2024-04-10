@@ -7,6 +7,8 @@
 #ifndef AMVE_V2_H
 #define AMVE_V2_H
 
+#include "set_hdr2_v0.h"
+
 extern int multi_picture_case;
 extern int multi_slice_case;
 extern int hist_dma_case;
@@ -128,6 +130,11 @@ void post_lut3d_section_write(int index, int section_len,
 	unsigned int *lut3d_data_in);
 void post_lut3d_section_read(int index, int section_len,
 	unsigned int *lut3d_data_out);
+void mtx_setting_v2(enum vpp_matrix_e mtx_sel,
+	enum wr_md_e mode,
+	enum mtx_csc_e mtx_csc,
+	int mtx_on,
+	enum vpp_slice_e slice, int vpp_index);
 
 #endif
 #endif
