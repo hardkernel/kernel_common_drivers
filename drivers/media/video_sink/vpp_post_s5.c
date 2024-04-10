@@ -368,9 +368,11 @@ void dump_vpp_post_reg(void)
 {
 	dump_vpp_blend_reg();
 	dump_vpp_post_misc_reg();
-	dump_vpp_in_padcut_reg();
-	/* vpp1 post reg */
-	dump_vpp1_blend_reg();
+	if (cur_dev->vpp_in_padding_support)
+		dump_vpp_in_padcut_reg();
+	if (cur_dev->has_vpp1)
+		/* vpp1 post reg */
+		dump_vpp1_blend_reg();
 }
 
 static void wr_slice_vpost(u8 vpp_index, int reg_addr, int val, int slice_idx)
@@ -675,14 +677,24 @@ static void vpp_vd1_hwin_set(u32 vpp_index,
 	u32 vd1_win_in_hsize = 0, vd1_slice_num = 0;
 
 	if (vpp_post->vd1_hwin.vd1_hwin_en) {
-		vd1_slice_num = vpp_post->vd1_hwin.slice_num;
-		vd1_win_in_hsize = (vpp_post->vd1_hwin.vd1_hwin_in_hsize +
-			vd1_slice_num - 1) / vd1_slice_num;
-		/* update v size for t3x */
-		rdma_wr(vpp_reg->vpp_post_vd1_win_cut_ctrl,
-			 vpp_post->vd1_hwin.vd1_hwin_en << 31  |
-			 vpp_post->vd1_hwin.vd1_win_vsize << 16 |
-			 vd1_win_in_hsize);
+		if (video_is_meson_s5_cpu()) {
+			vd1_win_in_hsize =
+				(vpp_post->vd1_hwin.vd1_hwin_in_hsize +
+				SLICE_NUM - 1) / SLICE_NUM;
+			rdma_wr(vpp_reg->vpp_post_vd1_win_cut_ctrl,
+				 vpp_post->vd1_hwin.vd1_hwin_en << 31  |
+				 vd1_win_in_hsize);
+		} else {
+			/* for t3x vd1 padding is used for postblend cut eco */
+			vd1_slice_num = vpp_post->vd1_hwin.slice_num;
+			vd1_win_in_hsize = (vpp_post->vd1_hwin.vd1_hwin_in_hsize +
+				vd1_slice_num - 1) / vd1_slice_num;
+			/* update v size for t3x */
+			rdma_wr(vpp_reg->vpp_post_vd1_win_cut_ctrl,
+				 vpp_post->vd1_hwin.vd1_hwin_en << 31  |
+				 vpp_post->vd1_hwin.vd1_win_vsize << 16 |
+				 vd1_win_in_hsize);
+		}
 		if (debug_flag_s5 & DEBUG_VPP_POST)
 			pr_info("%s: vpp_post_vd1_win_cut_ctrl:vd1_win_in_hsize=%d, vd1_win_vsize=%d\n",
 				__func__, vd1_win_in_hsize,
@@ -905,8 +917,9 @@ static int vpp_post_hwincut_param_set(struct vpp_post_input_s *vpp_input,
 		vpp_post->vd1_hwin.slice_num = vpp_input->vd1_proc_slice;
 		vpp_input->din_hsize[0] = vpp_post->vd1_hwin.vd1_hwin_out_hsize;
 		if (debug_flag_s5 & DEBUG_VPP_POST)
-			pr_info("%s:vd1 cut for padding:vd1_hwin_in_hsize:%d, out_hsize:%d\n",
+			pr_info("%s:vd1_slice_num=%d, vd1 cut for padding:vd1_hwin_in_hsize:%d, out_hsize:%d\n",
 				__func__,
+				vpp_post->vd1_hwin.slice_num,
 				vpp_post->vd1_hwin.vd1_hwin_in_hsize,
 				vpp_post->vd1_hwin.vd1_hwin_out_hsize);
 	} else {
@@ -1513,7 +1526,7 @@ int update_vpp_input_info(const struct vinfo_s *info, u8 vpp_index)
 		}
 	} else if (vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_2S4P) {
 		if (video_is_meson_s5_cpu())
-			vpp_input.din_hsize[0] = SIZE_ALIG32(vd_proc_vd1_info->vd1_dout_hsize[0]);
+			vpp_input.din_hsize[0] = SIZE_ALIG16(vd_proc_vd1_info->vd1_dout_hsize[0]);
 		else
 			vpp_input.din_hsize[0] = vd_proc_vd1_info->vd1_dout_hsize[0];
 		vpp_input.din_vsize[0] = vd_proc_vd1_info->vd1_dout_vsize[0];

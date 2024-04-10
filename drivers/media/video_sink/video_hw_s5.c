@@ -2214,6 +2214,8 @@ static void vd_slices_padding_set(u32 vpp_index,
 	}
 	if (vd1_work_mode == VD1_SLICES01_MODE ||
 		vd1_work_mode == VD1_2_2SLICES_MODE) {
+		u32 temp_hsize = 0;
+
 		/* 2slices to 4ppc or 4s4p mosaic mode */
 		for (slice = 0; slice < 2; slice++) {
 			vd1_slice_pad_reg = &vd_proc_reg.vd1_slice_pad_size0_reg[slice];
@@ -2221,8 +2223,11 @@ static void vd_slices_padding_set(u32 vpp_index,
 				vd_proc_vd1_info->vd1_proc_unit_dout_hsize[slice];
 			vd1_proc_unit_dout_vsize =
 				vd_proc_vd1_info->vd1_proc_unit_dout_vsize[slice];
-			if (vd1_proc_unit_dout_hsize <
-				SIZE_ALIG32(vd_proc_vd1_info->vd1_dout_hsize[0]) / 2) {
+			if (video_is_meson_s5_cpu())
+				temp_hsize  = SIZE_ALIG16(vd_proc_vd1_info->vd1_dout_hsize[0]);
+			else
+				temp_hsize  = SIZE_ALIG32(vd_proc_vd1_info->vd1_dout_hsize[0]);
+			if (vd1_proc_unit_dout_hsize < temp_hsize / 2) {
 				slice_pad_ena[slice] = 1;
 				slice_pad_h_bgn[slice] = 0;
 				slice_pad_h_end[slice] =
@@ -2231,6 +2236,10 @@ static void vd_slices_padding_set(u32 vpp_index,
 				slice_pad_v_end[slice] =
 					vd1_proc_unit_dout_vsize - 1;
 			}
+			pr_info("%s(slice=%d), vd1_dout_hsize[0]=%d, temp_hsize=%d, vd1_proc_unit_dout_hsize=%d\n",
+				__func__, slice,
+				vd_proc_vd1_info->vd1_dout_hsize[0], temp_hsize,
+				vd1_proc_unit_dout_hsize);
 			rdma_wr(vd1_slice_pad_reg->vd1_slice_pad_h_size,
 				slice_pad_h_bgn[slice] << 16 |
 				slice_pad_h_end[slice]);
@@ -2681,8 +2690,12 @@ static void vd_proc_set(struct video_layer_s *layer,
 		if (vd1_slices_dout_dpsel == VD1_SLICES_DOUT_2S4P) {
 			/* vd1 dout 2s2p path */
 			rdma_wr_bits(VPP_VD_SYS_CTRL, 2, 0, 2);
-			rdma_wr(SLICE2PPC_H_V_SIZE, vd1_dout_vsize << 16 |
-				SIZE_ALIG32(vd1_dout_hsize) / 2);
+			if (video_is_meson_s5_cpu())
+				rdma_wr(SLICE2PPC_H_V_SIZE, vd1_dout_vsize << 16 |
+					SIZE_ALIG16(vd1_dout_hsize) / 2);
+			else
+				rdma_wr(SLICE2PPC_H_V_SIZE, vd1_dout_vsize << 16 |
+					SIZE_ALIG32(vd1_dout_hsize) / 2);
 		}
 		break;
 	case VD1_4SLICES_MODE:

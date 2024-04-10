@@ -14292,7 +14292,7 @@ static struct amvideo_device_data_s amvideo_s5 = {
 	.mif_linear = 1,
 	.display_module = S5_DISPLAY_MODULE,
 	.max_vd_layers = 2,
-	.has_vpp1 = 1,
+	.has_vpp1 = 0,
 	.has_vpp2 = 0,
 	.is_tv_panel = 0,
 };
