@@ -8,7 +8,7 @@
 
 #include <linux/list.h>
 #include <linux/dvb/ca.h>
-
+#include <uapi/amlogic/aml_ca_ext.h>
 #include "dvbdev.h"
 
 #define DVB_CA_EN50221_POLL_CAM_PRESENT	1

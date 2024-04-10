@@ -190,4 +190,6 @@ int aml_ci_bus_init(struct platform_device *pdev, struct aml_ci *ci_dev);
 int aml_ci_bus_exit(struct aml_ci *ci);
 int aml_ci_bus_mod_init(void);
 void aml_ci_bus_mod_exit(void);
+void aml_ci_slot_set_start(int arg);
+int aml_ci_slot_get_start(void);
 #endif				/* __AML_CI_BUS_H_ */

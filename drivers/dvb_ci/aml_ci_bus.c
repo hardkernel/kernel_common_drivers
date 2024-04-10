@@ -1718,6 +1718,17 @@ static ssize_t pwr_store(struct class *class,
 	return size;
 }
 
+void aml_ci_slot_set_start(int arg)
+{
+	ci_bus.pc.start_work = arg;
+	aml_pcmcia_detect_cam(&ci_bus.pc);
+}
+
+int aml_ci_slot_get_start(void)
+{
+	return ci_bus.pc.start_work;
+}
+
 static CLASS_ATTR_RW(pwr);
 static ssize_t start_show(struct class *class,
 	struct class_attribute *attr, char *buf)

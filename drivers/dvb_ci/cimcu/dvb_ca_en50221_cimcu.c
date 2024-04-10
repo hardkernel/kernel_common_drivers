@@ -16,6 +16,7 @@
 #include <linux/compat.h>
 
 #include "dvb_ringbuffer.h"
+#include "aml_ci_bus.h"
 
 #include "dvb_ca_en50221_cimcu.h"
 
@@ -1444,6 +1445,7 @@ static int dvb_ca_en50221_io_do_ioctl(struct file *file,
 	int err = 0;
 	int slot;
 	u8 info = 0x80;
+	int start;
 
 	if (mutex_lock_interruptible(&ca->ioctl_mutex)) {
 		dprintk("ci lock interrupt error\r\n");
@@ -1524,7 +1526,16 @@ static int dvb_ca_en50221_io_do_ioctl(struct file *file,
 		}
 		break;
 	}
-
+	case CA_SET_START: {
+		start = (long)parg;
+		aml_ci_slot_set_start(start);
+		break;
+	}
+	case CA_GET_START: {
+		u8 *status = parg;
+		*status = aml_ci_slot_get_start();
+		break;
+	}
 	default:
 		err = -EINVAL;
 		break;
