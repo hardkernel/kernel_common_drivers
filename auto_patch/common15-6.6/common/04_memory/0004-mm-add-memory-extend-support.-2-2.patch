@@ -1,4 +1,4 @@
-From 2d58f39b6e4ef524a19da1ea1e85a63d28f22c50 Mon Sep 17 00:00:00 2001
+From d5439a9be250c4b06d600dae35641d4a08fd4302 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Wed, 20 Dec 2023 14:27:52 +0800
 Subject: [PATCH] mm: add memory extend support. [2/2]
@@ -46,8 +46,9 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  mm/show_mem.c                  | 12 ++++++
  mm/slab_common.c               | 65 ++++++++++++++++++++++++++++++
  mm/slub.c                      |  7 ++++
+ mm/usercopy.c                  |  4 ++
  mm/vmscan.c                    | 17 ++++++++
- 20 files changed, 276 insertions(+), 2 deletions(-)
+ 21 files changed, 280 insertions(+), 2 deletions(-)
 
 diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
 index ceb368d33bf4..bc236bc302b5 100644
@@ -66,7 +67,7 @@ index ceb368d33bf4..bc236bc302b5 100644
  
  #ifndef __ASSEMBLY__
 diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
-index bf502ba8da95..efe2a6faaa0e 100644
+index 5c5b7b1cca2d..2038c4771115 100644
 --- a/drivers/of/fdt.c
 +++ b/drivers/of/fdt.c
 @@ -6,7 +6,9 @@
@@ -97,7 +98,7 @@ index bf502ba8da95..efe2a6faaa0e 100644
  			pr_err("Reserved memory: failed to reserve memory for node '%s': base %pa, size %lu MiB\n",
  			       uname, &base, (unsigned long)(size / SZ_1M));
 diff --git a/drivers/of/of_reserved_mem.c b/drivers/of/of_reserved_mem.c
-index 7ec94cfcbddb..b725fa830866 100644
+index 1d2d65882647..a8abc1b34c00 100644
 --- a/drivers/of/of_reserved_mem.c
 +++ b/drivers/of/of_reserved_mem.c
 @@ -9,7 +9,9 @@
@@ -140,10 +141,10 @@ index 7ec94cfcbddb..b725fa830866 100644
  		}
  	}
 diff --git a/fs/dcache.c b/fs/dcache.c
-index 25ac74d30bff..e84aa128c490 100644
+index 9ae808fba517..46edf0e7f89c 100644
 --- a/fs/dcache.c
 +++ b/fs/dcache.c
-@@ -3264,7 +3264,11 @@ void d_tmpfile(struct file *file, struct inode *inode)
+@@ -3265,7 +3265,11 @@ void d_tmpfile(struct file *file, struct inode *inode)
  }
  EXPORT_SYMBOL(d_tmpfile);
  
@@ -220,10 +221,10 @@ index af3014ccc82e..f5bce42c8d0d 100644
  
  #endif /* _ANDROID_VENDOR_H */
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index b8b863d1952a..605569894f1d 100644
+index 21b5c2b3ca92..a5524a96e357 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -111,7 +111,18 @@ extern int page_group_by_mobility_disabled;
+@@ -112,7 +112,18 @@ extern int page_group_by_mobility_disabled;
  struct free_area {
  	struct list_head	free_list[MIGRATE_TYPES];
  	unsigned long		nr_free;
@@ -418,7 +419,7 @@ index 256930da578a..69fa54752585 100644
  		     KASAN_PAGE_REDZONE, false);
  
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index eede7c57fffc..673cacbaf57e 100644
+index a248fb7d2a47..2c7462b74a75 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -63,6 +63,9 @@
@@ -431,7 +432,7 @@ index eede7c57fffc..673cacbaf57e 100644
  
  /* Free Page Internal flags: for internal, non-pcp variants of free_pages(). */
  typedef int __bitwise fpi_t;
-@@ -673,6 +676,10 @@ static inline void add_to_free_list(struct page *page, struct zone *zone,
+@@ -691,6 +694,10 @@ static inline void add_to_free_list(struct page *page, struct zone *zone,
  
  	list_add(&page->buddy_list, &area->free_list[migratetype]);
  	area->nr_free++;
@@ -442,7 +443,7 @@ index eede7c57fffc..673cacbaf57e 100644
  }
  
  /* Used for pages not on another list */
-@@ -683,6 +690,10 @@ static inline void add_to_free_list_tail(struct page *page, struct zone *zone,
+@@ -701,6 +708,10 @@ static inline void add_to_free_list_tail(struct page *page, struct zone *zone,
  
  	list_add_tail(&page->buddy_list, &area->free_list[migratetype]);
  	area->nr_free++;
@@ -453,7 +454,7 @@ index eede7c57fffc..673cacbaf57e 100644
  }
  
  /*
-@@ -696,6 +707,10 @@ static inline void move_to_free_list(struct page *page, struct zone *zone,
+@@ -714,6 +725,10 @@ static inline void move_to_free_list(struct page *page, struct zone *zone,
  	struct free_area *area = &zone->free_area[order];
  
  	list_move_tail(&page->buddy_list, &area->free_list[migratetype]);
@@ -464,7 +465,7 @@ index eede7c57fffc..673cacbaf57e 100644
  }
  
  static inline void del_page_from_free_list(struct page *page, struct zone *zone,
-@@ -709,6 +724,9 @@ static inline void del_page_from_free_list(struct page *page, struct zone *zone,
+@@ -727,6 +742,9 @@ static inline void del_page_from_free_list(struct page *page, struct zone *zone,
  	__ClearPageBuddy(page);
  	set_page_private(page, 0);
  	zone->free_area[order].nr_free--;
@@ -474,7 +475,7 @@ index eede7c57fffc..673cacbaf57e 100644
  }
  
  static inline struct page *get_page_from_free_area(struct free_area *area,
-@@ -836,7 +854,15 @@ static inline void __free_one_page(struct page *page,
+@@ -854,7 +872,15 @@ static inline void __free_one_page(struct page *page,
  	else if (is_shuffle_order(order))
  		to_tail = shuffle_pick_tail();
  	else
@@ -490,7 +491,7 @@ index eede7c57fffc..673cacbaf57e 100644
  
  	if (to_tail)
  		add_to_free_list_tail(page, zone, order, migratetype);
-@@ -2410,7 +2436,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
+@@ -2432,7 +2458,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
  
  	__count_vm_events(PGFREE, 1 << order);
  	pindex = order_to_pindex(migratetype, order);
@@ -506,7 +507,7 @@ index eede7c57fffc..673cacbaf57e 100644
  	pcp->count += 1 << order;
  
  	/*
-@@ -4524,6 +4558,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
+@@ -4546,6 +4580,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
  	 */
  	alloc_flags |= alloc_flags_nofragment(ac.preferred_zoneref->zone, gfp);
  
@@ -516,7 +517,7 @@ index eede7c57fffc..673cacbaf57e 100644
  	/* First allocation attempt */
  	page = get_page_from_freelist(alloc_gfp, order, alloc_flags, &ac);
  	if (likely(page))
-@@ -6662,6 +6699,41 @@ bool put_page_back_buddy(struct page *page)
+@@ -6684,6 +6721,41 @@ bool put_page_back_buddy(struct page *page)
  }
  #endif
  
@@ -750,7 +751,7 @@ index c4600e2e757a..bd6eeb404329 100644
  	seq_putc(m, '\n');
  }
 diff --git a/mm/slub.c b/mm/slub.c
-index 00a1c43df15b..dca61b5ed02c 100644
+index 14781fff1068..642c6b1122b4 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
 @@ -48,6 +48,9 @@
@@ -763,7 +764,7 @@ index 00a1c43df15b..dca61b5ed02c 100644
  /*
   * Lock order:
   *   1. slab_mutex (Global Mutex)
-@@ -4139,6 +4142,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
+@@ -4158,6 +4161,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
  
  static inline int calculate_order(unsigned int size)
  {
@@ -773,7 +774,7 @@ index 00a1c43df15b..dca61b5ed02c 100644
  	unsigned int order;
  	unsigned int min_objects;
  	unsigned int max_objects;
-@@ -4200,6 +4206,7 @@ static inline int calculate_order(unsigned int size)
+@@ -4219,6 +4225,7 @@ static inline int calculate_order(unsigned int size)
  	if (order <= MAX_ORDER)
  		return order;
  	return -ENOSYS;
@@ -781,11 +782,26 @@ index 00a1c43df15b..dca61b5ed02c 100644
  }
  
  static void
+diff --git a/mm/usercopy.c b/mm/usercopy.c
+index 83c164aba6e0..98f84510f34c 100644
+--- a/mm/usercopy.c
++++ b/mm/usercopy.c
+@@ -195,6 +195,10 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
+ 		/* Check slab allocator for flags and size. */
+ 		__check_heap_object(ptr, n, folio_slab(folio), to_user);
+ 	} else if (folio_test_large(folio)) {
++#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++		if (PageOwnerPriv1(virt_to_page(ptr)))
++			return;
++#endif
+ 		offset = ptr - folio_address(folio);
+ 		if (n > folio_size(folio) - offset)
+ 			usercopy_abort("page alloc", NULL, to_user, offset, n);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 537d2e607d10..598611d232af 100644
+index 376283ef1521..83a12dfcf0c2 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1706,6 +1706,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
+@@ -1711,6 +1711,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
  	return !data_race(folio_swap_flags(folio) & SWP_FS_OPS);
  }
  
@@ -803,7 +819,7 @@ index 537d2e607d10..598611d232af 100644
  /*
   * shrink_folio_list() returns the number of reclaimed pages
   */
-@@ -1751,7 +1762,11 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1756,7 +1767,11 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		if (unlikely(!folio_evictable(folio)))
  			goto activate_locked;
  
@@ -815,7 +831,7 @@ index 537d2e607d10..598611d232af 100644
  			goto keep_locked;
  
  		/* folio_update_gen() tried to promote this page? */
-@@ -2486,8 +2501,10 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
+@@ -2491,8 +2506,10 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
  	 * won't get blocked by normal direct-reclaimers, forming a circular
  	 * deadlock.
  	 */
