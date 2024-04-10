@@ -2,8 +2,19 @@
 
 menu "Analog to digital converters"
 
+config AMLOGIC_ADC
+	tristate "Amlogic ADC devices support"
+	default n
+	help
+	  ADC devices support
+	  select y for built-in
+	  select m for ko
+	  select n for disable
+
+if AMLOGIC_ADC
+
 config AMLOGIC_MESON_SARADC
-	tristate "Amlogic Meson SAR ADC driver"
+	bool "Amlogic Meson SAR ADC driver"
 	depends on OF && COMMON_CLK
 	depends on REGMAP_MMIO
 	help
@@ -12,5 +23,17 @@ config AMLOGIC_MESON_SARADC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called meson_saradc.
+
+config AMLOGIC_SARADC
+	bool "Amlogic SAR ADC driver"
+	depends on OF && COMMON_CLK
+	depends on REGMAP_MMIO
+	help
+	  Say yes here to build support for the SAR ADC found in Amlogic SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called amlogic_saradc.
+
+endif # AMLOGIC_ADC
 
 endmenu
