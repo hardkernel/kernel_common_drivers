@@ -2,7 +2,6 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-
 #include <linux/module.h>
 #include <linux/thermal.h>
 #include <linux/err.h>
@@ -35,15 +34,9 @@ static int ddr_get_max_state(struct thermal_cooling_device *cdev,
 			     unsigned long *state)
 {
 	struct ddr_cooling_device *ddr_device = cdev->devdata;
-	int datacnt = ddr_device->ddr_status, regcnt = ddr_device->ddr_reg_cnt, i, j;
+	int datacnt = ddr_device->ddr_status;
 
 	*state = datacnt - 1;
-	pr_info("ddr reg data:\n");
-	for (i = 0; i < regcnt; i++) {
-		for (j = 0; j < datacnt; j++)
-			pr_cont("0x%x ", ddr_device->ddr_data[i][j]);
-		pr_cont("\n");
-	}
 
 	return 0;
 }
