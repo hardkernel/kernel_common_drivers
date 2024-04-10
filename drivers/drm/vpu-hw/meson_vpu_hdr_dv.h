@@ -9,6 +9,12 @@
 #define VPP_OSD1_IN_SIZE                           0x1df1
 #define VPP_OSD2_IN_SIZE                           0x1df3
 
+#define T7_HDR2_IN_SIZE                           0x1a5c
+enum hdr_index {
+	HDR1_INDEX,
+	HDR2_INDEX
+};
+
 struct hdr_reg_s {
 	u32 vpp_osd_in_size;
 };

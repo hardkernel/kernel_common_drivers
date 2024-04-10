@@ -791,6 +791,7 @@ extern struct meson_vpu_block_ops g12b_osd_ops;
 extern struct meson_vpu_block_ops g12b_postblend_ops;
 extern struct meson_vpu_block_ops t7_osd_ops;
 extern struct meson_vpu_block_ops t7_afbc_ops;
+extern struct meson_vpu_block_ops t7_hdr_ops;
 extern struct meson_vpu_block_ops t3_afbc_ops;
 extern struct meson_vpu_block_ops t7_postblend_ops;
 extern struct meson_vpu_block_ops t3_postblend_ops;
