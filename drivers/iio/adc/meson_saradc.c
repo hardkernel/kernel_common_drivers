@@ -1748,7 +1748,15 @@ static struct platform_driver meson_sar_adc_driver = {
 	},
 };
 
-module_platform_driver(meson_sar_adc_driver);
+int __init meson_sar_adc_driver_init(void)
+{
+	return platform_driver_register(&meson_sar_adc_driver);
+}
+
+void __exit meson_sar_adc_driver_exit(void)
+{
+	platform_driver_unregister(&meson_sar_adc_driver);
+}
 
 MODULE_AUTHOR("Martin Blumenstingl <martin.blumenstingl@googlemail.com>");
 MODULE_DESCRIPTION("Amlogic Meson SAR ADC driver");

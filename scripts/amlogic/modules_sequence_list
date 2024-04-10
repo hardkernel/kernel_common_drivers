@@ -30,13 +30,13 @@ RAMDISK_MODULES_LOAD_LIST=(
 	videobuf-core.ko
 	dvb-core.ko
 	amlogic-pm.ko
+	amlogic-adc.ko
 	amlogic-input.ko
 	amlogic-regulator.ko
 	amlogic-watchdog.ko
 	aml-dvb.ko
 	aml_media.ko
 	amlogic-camera.ko
-	amlogic-adc.ko
 	amlogic-rtc-virtual.ko
 	amlogic-thermal.ko
 	amlogic-usb.ko
