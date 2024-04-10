@@ -481,7 +481,7 @@ struct meson_vpu_osdblend_state {
 
 struct meson_vpu_hdr {
 	struct meson_vpu_block base;
-
+	struct hdr_reg_s *reg;
 };
 
 struct meson_vpu_hdr_state {
@@ -785,6 +785,7 @@ extern struct meson_vpu_block_ops s7_afbc_ops;
 extern struct meson_vpu_block_ops s7_postblend_ops;
 
 extern struct meson_vpu_block_ops gfcd_ops;
+extern struct meson_vpu_block_ops s7d_hdr_ops;
 extern struct meson_vpu_block_ops s7d_osd_ops;
 extern struct meson_vpu_block_ops s7d_afbc_ops;
 

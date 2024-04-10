@@ -9,6 +9,7 @@
 #include "meson_osd_scaler.h"
 #include "meson_vpu_osd_mif.h"
 #include "meson_vpu_osdblend.h"
+#include "meson_vpu_hdr_dv.h"
 
 /* vpp2 */
 #define VPP2_MISC 0x1e26
