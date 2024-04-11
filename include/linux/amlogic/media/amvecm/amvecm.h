@@ -608,6 +608,8 @@ struct gamma_data_s *get_gm_data(void);
 void bs_ct_latch(void);
 int pkt_adv_chip(void);
 extern unsigned int ai_color_enable;
+
+int register_osd_status_cb(int (*get_osd_enable_status)(u32 index));
 extern uint demo_pk_sr_final_pgains;
 extern uint demo_pk_sr_final_ngains;
 void amve_safa_demo_ctrl(unsigned int enable);

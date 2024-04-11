@@ -35,3 +35,4 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amv
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/amve_v2.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/hdr/am_cuva_hdr_tm.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/am_dma_ctrl.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/hdr/am_hdr_sbtm.o

@@ -41,6 +41,7 @@
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 #include <linux/amlogic/media/amvecm/ve.h>
+#include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
@@ -15311,6 +15312,9 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	register_osd_func(get_osd_status);
+#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+		register_osd_status_cb(get_osd_status);
 #endif
 	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_TXHD2)
 		enable_vd_zorder = 0;

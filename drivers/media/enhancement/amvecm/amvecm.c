@@ -90,6 +90,7 @@
 #include "amve_v2.h"
 #include "color/ai_color.h"
 #include "am_lut3d.h"
+#include "hdr/am_hdr_sbtm.h"
 #endif
 #include "vlock.h"
 #include "reg_helper.h"
@@ -1301,7 +1302,8 @@ static void vpp_dump_histgram(void)
 
 	pr_info("\t dump_hdr_hist begin\n");
 	for (i = 0; i < 128; i++) {
-		if (chip_type_id == chip_t3x)
+		if (chip_type_id == chip_t3x ||
+			chip_type_id == chip_s5)
 			tmp = s5_hdr_hist[NUM_HDR_HIST - 1][i];
 		else
 			tmp = hdr_hist[NUM_HDR_HIST - 1][i];
@@ -7451,7 +7453,6 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 				goto free_buf;
 			hdr_reg_dump(val);
 		}
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	} else if (!strcmp(parm[0], "s5_reg_dump")) {
 		if (!parm[1]) {
 			s5_hdr_reg_dump(0);
@@ -7460,7 +7461,9 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 				goto free_buf;
 			s5_hdr_reg_dump(val);
 		}
-#endif
+	} else if (!strcmp(parm[0], "sbtm")) {
+		sbtm_hdr10_tmo_dbg(parm);
+		sbtm_sbtmdb_reg_dbg(parm);
 	}
 
 	hdr10_tmo_dbg(parm);
@@ -9645,6 +9648,8 @@ static void pr_cm_hist(enum cm_hist_e hist_sel)
 	data_port = VPP_CHROMA_DATA_PORT;
 
 	hist = kmalloc(32 * sizeof(unsigned int), GFP_KERNEL);
+	if (!hist)
+		return;
 	memset(hist, 0, 32 * sizeof(unsigned int));
 
 	switch (hist_sel) {

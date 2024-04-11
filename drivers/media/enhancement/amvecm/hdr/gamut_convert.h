@@ -32,5 +32,9 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 			  struct matrix_s *mtx,
 			  int mtx_depth,
 			  enum dest_hdr_type_e dest_type);
+int gamut_convert(s64 *s_prmy,
+			  s64 *d_prmy,
+			  struct matrix_s *mtx,
+			  int mtx_depth);
 #endif
 #endif
