@@ -4548,7 +4548,6 @@ static int crg_udc_probe(struct platform_device *pdev)
 	spin_lock_init(&crg_udc->udc_lock);
 	platform_set_drvdata(pdev, crg_udc);
 
-	dev_set_name(&crg_udc->gadget.dev, "gadget");
 	crg_udc->gadget.ops = &crg_gadget_ops;
 	crg_udc->gadget.ep0 = &crg_udc->udc_ep[0].usb_ep;
 	crg_udc->gadget.dev.parent = &pdev->dev;
@@ -4750,7 +4749,6 @@ static int crg_udc_remove(struct platform_device *pdev)
 
 	for (i = 0; i < CRE_REQ_NUM; i++)
 		atomic_set(&g_udc_req_ptr[i].used, 0);
-	memset(&crg_udc_dev, 0, sizeof(struct crg_gadget_dev));
 
 	CRG_DEBUG("%s %d gadget remove\n", __func__, __LINE__);
 
