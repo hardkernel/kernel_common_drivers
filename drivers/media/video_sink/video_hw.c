@@ -5976,9 +5976,6 @@ s32 config_vd_pps_internal(struct video_layer_s *layer,
 		/* safa scaler config */
 		/* vsr top disable must bypass pps */
 		setting->vsr.vsr_top.vsr_en = vsr_top_en ? true : setting->sc_top_enable;
-		if (vsr_top_en && setting->sc_top_enable)
-			pr_info("%s scaler enable(sc_top_enable:%d),vsr_top_en can't disable\n",
-				__func__, setting->sc_top_enable);
 		setting->vsr.vsr_safa.preh_en = vpp_filter->vpp_pre_hsc_en;
 		setting->vsr.vsr_safa.prev_en = vpp_filter->vpp_pre_vsc_en;
 		setting->vsr.vsr_safa.postsc_en = postsc_en;
@@ -6970,11 +6967,10 @@ static int vpp_zorder_check(void)
 	return force_flush;
 }
 
-static bool vout_change_check(void)
+static bool vout_change_check(const struct vinfo_s *vinfo)
 {
 	bool ret;
 	static u32 field_height_save;
-	struct vinfo_s *vinfo = get_current_vinfo();
 
 	if (field_height_save != vinfo->field_height)
 		ret = true;
@@ -7966,6 +7962,8 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 	bool force_flush = false;
 	int i;
 
+	if (!vinfo)
+		return;
 	if (cur_dev->display_module != C3_DISPLAY_MODULE) {
 		if (vd1_vd2_mux) {
 			vd_clip_setting(VPP0, 1, &vd_layer[0].clip_setting);
@@ -8279,7 +8277,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 	}
 
 	force_flush |= vpp_zorder_check();
-	force_flush |= vout_change_check();
+	force_flush |= vout_change_check(vinfo);
 
 	if (force_flush) {
 		/* check the vpp post size first */
