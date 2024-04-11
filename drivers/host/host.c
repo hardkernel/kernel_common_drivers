@@ -116,6 +116,7 @@ static unsigned long host_psci_smc(struct host_module *host)
 		break;
 	case DDR_SRAM:
 		addr = host->phys_remap_addr;
+		//dspid | subid
 		id = PACK_SMC_SUBID_ID(SMC_SUBID_HIFI_DSP_REMAP, host->hostid);
 		arm_smccc_smc(SMC_HIFI_DSP_CMD, id, addr, host->phys_sram_addr,
 				2, 0, 0, 0, &res);
@@ -133,11 +134,13 @@ static unsigned long host_psci_smc(struct host_module *host)
 static unsigned long host_dsp_smc(struct host_module *host, unsigned int smc_subid)
 {
 	struct arm_smccc_res res = {0};
+	u32 id;
 
 	switch (smc_subid) {
-	case SMC_SUBID_DSP_PWRCTRL:
-		arm_smccc_smc(SMC_HIFI_DSP, smc_subid, host->hostid,
-			host->pwrctrl_access_en, 0, 0, 0, 0, &res);
+	case SMC_SUBID_HIFI_DSP_PWRCTRL:
+		id = PACK_SMC_SUBID_ID(smc_subid, host->hostid);
+		arm_smccc_smc(SMC_HIFI_DSP_CMD, id, host->pwrctrl_access_en,
+							0, 0, 0, 0, 0, &res);
 		break;
 	default:
 		return 0;
@@ -323,7 +326,7 @@ static int host_suspend(struct device *dev)
 	if (pm_runtime_active(dev) && host->pm_support) {
 		if (host->pwrctrl_support) {
 			host->pwrctrl_access_en = 1;
-			host_dsp_smc(host, SMC_SUBID_DSP_PWRCTRL);
+			host_dsp_smc(host, SMC_SUBID_HIFI_DSP_PWRCTRL);
 		}
 
 		pr_debug("AP send suspend cmd to dsp...\n");
@@ -354,7 +357,7 @@ static int host_resume(struct device *dev)
 
 		if (host->pwrctrl_support) {
 			host->pwrctrl_access_en = 0;
-			host_dsp_smc(host, SMC_SUBID_DSP_PWRCTRL);
+			host_dsp_smc(host, SMC_SUBID_HIFI_DSP_PWRCTRL);
 		}
 	}
 
