@@ -325,6 +325,14 @@ static struct kprobe kp_lookup_name = {
 	.symbol_name	= "kallsyms_lookup_name",
 };
 
+static struct kprobe kp_iommu_ops_fwnode = {
+	.symbol_name	= "iommu_ops_from_fwnode",
+};
+
+static struct kprobe kp_iommu_probe_device = {
+	.symbol_name	= "iommu_probe_device",
+};
+
 /*
  * We need to save away the original address corresponding to a mapped entry
  * for the sync operations.
@@ -1238,12 +1246,16 @@ static u32 aml_tee_protect_mem_by_type(u32 type,
 	return res.a0;
 }
 
+static struct fwnode_handle *smmu_fwnode;
+
 static int aml_iommu_device_register(struct iommu_device *iommu,
 			  const struct iommu_ops *ops, struct device *hwdev)
 {
 	iommu->ops = ops;
-	if (hwdev)
+	if (hwdev) {
 		iommu->fwnode = dev_fwnode(hwdev);
+		smmu_fwnode = iommu->fwnode;
+	}
 
 	return 0;
 }
@@ -1264,6 +1276,44 @@ static void *get_symbol_addr(const char *symbol_name)
 	unregister_kprobe(&kp);
 
 	return kp.addr;
+}
+
+const struct iommu_ops *aml_iommu_ops_from_fwnode(struct fwnode_handle *fwnode)
+{
+	return &aml_smmu_ops;
+}
+
+static int __nocfi __kprobes iommu_ops_fwnode_handler_post(struct kprobe *p, struct pt_regs *regs)
+{
+	struct fwnode_handle *fwnode = (struct fwnode_handle *)regs->regs[0];
+
+	if (fwnode && fwnode == smmu_fwnode) {
+		instruction_pointer_set(regs, (unsigned long)aml_iommu_ops_from_fwnode);
+
+		//no need continue do single-step
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+const struct iommu_ops *aml_iommu_probe_device(struct fwnode_handle *fwnode)
+{
+	return 0;
+}
+
+static int __nocfi __kprobes iommu_probe_device_handler_post(struct kprobe *p, struct pt_regs *regs)
+{
+	struct device *dev = (struct device *)regs->regs[0];
+
+	if (dev->iommu_group == (struct iommu_group *)aml_global_group) {
+		instruction_pointer_set(regs, (unsigned long)aml_iommu_probe_device);
+
+		//no need continue do single-step
+		return 1;
+	} else {
+		return 0;
+	}
 }
 
 static int __nocfi aml_smmu_symbol_init(void *data)
@@ -1311,6 +1361,20 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 	aml_dma_pgprot = (pgprot_t (*)(struct device *dev, pgprot_t prot,
 				unsigned long attrs))get_symbol_addr("dma_pgprot");
 #endif
+
+	kp_iommu_ops_fwnode.pre_handler = iommu_ops_fwnode_handler_post;
+	ret = register_kprobe(&kp_iommu_ops_fwnode);
+	if (ret < 0) {
+		pr_err("register_kprobe fwnode failed, returned %d\n", ret);
+		return ret;
+	}
+	kp_iommu_probe_device.pre_handler = iommu_probe_device_handler_post;
+	ret = register_kprobe(&kp_iommu_probe_device);
+	if (ret < 0) {
+		pr_err("register_kprobe device failed, returned %d\n", ret);
+		return ret;
+	}
+
 	ret = register_kprobe(&kp_lookup_name);
 	if (ret < 0) {
 		pr_err("register_kprobe failed, returned %d\n", ret);
@@ -1334,12 +1398,6 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 	ret = aml_iommu_device_register(&smmu->iommu, &aml_smmu_ops, dev);
 	if (ret) {
 		dev_err(dev, "Failed to register iommu\n");
-		return ret;
-	}
-
-	ret = iommu_fwspec_init(dev, NULL, &aml_smmu_ops);
-	if (ret) {
-		dev_err(dev, "Failed to swspec init\n");
 		return ret;
 	}
 
