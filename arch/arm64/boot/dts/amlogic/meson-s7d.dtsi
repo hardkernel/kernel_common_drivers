@@ -1553,9 +1553,11 @@
 	irblaster: meson-irblaster@fe08410c {
 		compatible = "amlogic, meson_irblaster";
 		status = "disabled";
-		reg = <0x0 0xfe08410c 0x0 0x10>;
+		reg = <0x0 0xfe08414C 0x0 0x10>;
 		#irblaster-cells = <2>;
-		interrupts = <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 149 IRQ_TYPE_EDGE_RISING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&irblaster_pins>;
 	};
 
 	/*if you want to use vdin just modify status to "ok"*/
@@ -2475,6 +2477,13 @@
 		};
 	};
 
+	irblaster_pins: irblaster_pins {
+		mux {
+			groups = "ir_remote_out";
+			function = "ir_remote";
+		};
+	};
+
 	spicc0_pins_x: spicc0_pins_x {
 		mux {
 			groups = "spi_a_mosi_x",
@@ -2518,13 +2527,6 @@
 				 "spif_cs";
 			function = "spif";
 			drive-strength-microamp = <3000>;
-		};
-	};
-
-	irblaster_pins:irblaster_pin {
-		mux {
-			groups = "remote_out";
-			function = "remote_out";
 		};
 	};
 
