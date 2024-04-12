@@ -266,7 +266,7 @@ static void set_usb_pll_v3(struct amlogic_usb_v2 *phy, void __iomem *phy_reg_bas
 /* usb2_squelch_trim: reg32_03[3:0] (MSB->LSB) default 0b0111
  * usb2_disc_trim: reg32_03[6:4] (MSB->LSB) default 0b000
  */
-#define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0_v3 0x39
+#define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0_v3 0x3e
 	u32 retry = 5;
 	int plldone_i;
 	u32 pll_val;
