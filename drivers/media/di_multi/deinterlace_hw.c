@@ -262,12 +262,19 @@ void dimh_init_field_mode(unsigned short height)
 	DIM_DI_WR(DIPD_COMB_CTRL2, 0x41041008);
 	DIM_DI_WR(DIPD_COMB_CTRL3, 0x00008053);
 	DIM_DI_WR(DIPD_COMB_CTRL4, 0x20070002);
-	if (height > 288)
+	if (height > 288) {
 		DIM_DI_WR(DIPD_COMB_CTRL5, 0x04041020);
-	else if (DIM_IS_IC_EF(SC2))
+	} else if (DIM_IS_IC_EF(SC2)) {
 		DIM_DI_WR(DIPD_COMB_CTRL5, 0x05050807);
-	else
-		DIM_DI_WR(DIPD_COMB_CTRL5, 0x04040805);
+	} else {
+		/*8bbit mode pulldown Subtitle drawing*/
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL1
+		if (cfgg(422_8bit))
+			DIM_DI_WR(DIPD_COMB_CTRL5, 0x04040806);
+		else
+#endif
+			DIM_DI_WR(DIPD_COMB_CTRL5, 0x04040805);
+	}
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
 		DIM_DI_WR(DIPD_COMB_CTRL6, 0x00107064);
 	DIM_DI_WR_REG_BITS(DI_MC_32LVL0, 16, 0, 8);
