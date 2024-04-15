@@ -301,7 +301,6 @@ static struct meson_vdac_data meson_s7_vdac_data = {
 	.bypass_cfg_cntl0 = 0x00419A82, //vlsi suggestion value
 	.cvbsout_cfg_cntl0 = 0x00419A82, //vlsi suggestion value
 };
-#endif
 
 static struct meson_vdac_data meson_s7d_vdac_data = {
 	.cpu_id = VDAC_CPU_S7D,
@@ -315,6 +314,7 @@ static struct meson_vdac_data meson_s7d_vdac_data = {
 	.bypass_cfg_cntl0 = 0x00010A82, //vlsi suggestion value
 	.cvbsout_cfg_cntl0 = 0x00010A82, //vlsi suggestion value
 };
+#endif
 
 const struct of_device_id meson_vdac_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT

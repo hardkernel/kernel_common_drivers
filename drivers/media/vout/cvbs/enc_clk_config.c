@@ -280,7 +280,6 @@ void cvbs_s7_htxpll_clk_out(const u32 clk, u32 div)
 	cvbs_out_ana_setb(ANACTRL_HDMIPLL_CTRL2, pll_od21, 15, 2);
 	cvbs_out_ana_setb(ANACTRL_HDMIPLL_CTRL2, pll_od1, 19, 4);
 }
-#endif
 
 /* htx pll VCO output: (3G, 6G), for tmds */
 static void cvbs_s7d_htxpll_clk_vco(const u32 clk)
@@ -385,6 +384,7 @@ static void cvbs_s7d_htxpll_clk_out(const u32 clk, u32 div)
 	cvbs_out_ana_setb(ANACTRL_HDMIPLL_CTRL3, pll_od21, 24, 2);
 	cvbs_out_ana_setb(ANACTRL_HDMIPLL_CTRL0, pll_od0, 20, 6);
 }
+#endif
 
 void set_vmode_clk(void)
 {
