@@ -20,7 +20,6 @@
 #include <linux/amlogic/secmon.h>
 #include <linux/amlogic/ddr_cooling.h>
 #include <linux/amlogic/meson_cooldev.h>
-#include <linux/amlogic/media_cooling.h>
 #include <linux/debugfs.h>
 #include "thermal_core.h"
 #include "thermal_hwmon.h"
@@ -759,7 +758,6 @@ static void meson_thermal_hot_callback(struct thermal_zone_device *tz)
 	struct thermal_cooling_device *cdev;
 	struct ddr_cooling_device *ddr_cdev;
 	struct cpucore_cooling_device *cpucore_cdev;
-	struct media_cooling_device *media_cdev;
 	u32 state_set, *last_state;
 	unsigned long state_get;
 
@@ -776,10 +774,6 @@ static void meson_thermal_hot_callback(struct thermal_zone_device *tz)
 		case COOL_DEV_TYPE_DDR:
 			ddr_cdev = cdev->devdata;
 			last_state = &ddr_cdev->last_state;
-			break;
-		case COOL_DEV_TYPE_MEDIA:
-			media_cdev = cdev->devdata;
-			last_state = &media_cdev->setstep;
 			break;
 		default:
 			continue;

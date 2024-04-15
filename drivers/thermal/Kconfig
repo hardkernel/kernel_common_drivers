@@ -66,13 +66,4 @@ config AMLOGIC_DDR_THERMAL
 		and not the ACPI interface.
 
 		If you want this support, you should say Y here.
-
-config AMLOGIC_MEDIA_THERMAL
-	tristate "generic media cooling support"
-	depends on AMLOGIC_COOLDEV
-	default n
-	help
-		This implements change the media power state.
-		this driver gives apis which indicates thermal info to media driver to
-		control media power.
 endmenu

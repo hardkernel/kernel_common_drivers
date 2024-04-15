@@ -17,7 +17,6 @@
 #include <linux/amlogic/gpu_cooling.h>
 #include <linux/amlogic/ddr_cooling.h>
 #include <linux/amlogic/meson_cooldev.h>
-#include <linux/amlogic/media_cooling.h>
 #include <linux/cpu.h>
 
 enum cluster_type {
@@ -26,7 +25,7 @@ enum cluster_type {
 	NUM_CLUSTERS
 };
 
-char *cooldev_name[COOL_DEV_TYPE_MAX] = {"cpucore", "gpufreq", "gpucore", "ddr", "media"};
+char *cooldev_name[COOL_DEV_TYPE_MAX] = {"cpucore", "gpufreq", "gpucore", "ddr"};
 
 struct meson_cooldev {
 	int cool_dev_num;
@@ -164,11 +163,6 @@ static int register_cool_dev(struct platform_device *pdev,
 		cool->np = node;
 		save_gpucore_thermal_para(cool->np);
 		return 0;
-
-	case COOL_DEV_TYPE_MEDIA:
-		if (setup_media_para(node_name))
-			return -EINVAL;
-		break;
 
 	default:
 		pr_err("thermal: unknown type:%s\n", cool->device_type);
