@@ -548,6 +548,22 @@ static void bksv_get_ds_list(struct hdcp_t *p_hdcp)
 	p_hdcp->p_ksv_next += KSV_SIZE;
 }
 
+/* verify ksv, 20 ones and 20 zeroes */
+bool hdcp1x_ksv_valid(u8 *dat)
+{
+	int i, j, one_num = 0;
+
+	if (!dat)
+		return false;
+	for (i = 0; i < 5; i++) {
+		for (j = 0; j < 8; j++) {
+			if ((dat[i] >> j) & 0x1)
+				one_num++;
+		}
+	}
+	return one_num == 20;
+}
+
 static void assemble_ds_ksv_lists(struct hdcp_t *p_hdcp)
 {
 	if (p_hdcp->hdcp_type == HDCP_VER_HDCP1X) {

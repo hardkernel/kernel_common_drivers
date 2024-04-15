@@ -171,6 +171,31 @@ static const struct _hdmi_clkmsr hdmiclkmsr_s5[] = {
 	{219, "o_tohdmitx_spdif_clk"},
 };
 
+static const struct _hdmi_clkmsr hdmiclkmsr_s7[] = {
+	{19, "hifi0_pll_clk"},
+	{21, "hifi1_pll_clk"},
+	{49, "hdmi_vx1_pix_clk"},
+	{50, "vid_pll_div_clk_out"},
+	{51, "cts_enci_clk"},
+	{52, "cts_encp_clk"},
+	{53, "cts_encl_clk"},
+	{59, "cts_hdmi_tx_pixel_clk"},
+	{61, "cts_vpu_clk"},
+	{62, "cts_vpu_clkb"},
+	{63, "cts_vpu_clkb_tmp"},
+	{64, "cts_vpu_clkc"},
+	{76, "hdmitx_tmds_clk"},
+	{77, "cts_hdmitx_sys_clk"},
+	{78, "cts_hdmitx_fe_clk"},
+	{80, "cts_hdmitx_prif_clk"},
+	{81, "cts_hdmitx_200m_clk"},
+	{82, "cts_hdmitx_aud_clk"},
+	{84, "audio_tohdmitx_mclk"},
+	{85, "audio_tohdmitx_bclk"},
+	{86, "audio_tohdmitx_lrclk"},
+	{87, "audio__tohdmitx_spdif_clk"},
+};
+
 /* only for hpd level */
 int hdmitx21_hpd_hw_op(enum hpd_op cmd)
 {
@@ -697,6 +722,7 @@ void hdmitx21_meson_init(struct hdmitx_dev *hdev)
 	global_tx_hw->base.setdispmode = hdmitx_set_dispmode;
 	hdmi_hwp_init(hdev, 0);
 	hdmitx21_debugfs_init();
+	profs_hdmitx21_debugfs_init();
 	hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_AVMUTE_OP, CLR_AVMUTE);
 }
 
@@ -2100,6 +2126,7 @@ static void audio_mute_op(bool flag)
 	mutex_unlock(&aud_mutex);
 }
 
+struct aud_para hdmi21aud_config_data;
 static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw,
 			      struct aud_para *audio_param)
 {
@@ -2117,7 +2144,8 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw,
 	aud_output_i2s_ch = audio_param->aud_output_i2s_ch;
 	HDMITX_INFO("set audio\n");
 	mutex_lock(&aud_mutex);
-
+	memcpy(&hdmi21aud_config_data,
+			   audio_param, sizeof(struct aud_para));
 	hdmitx21_set_reg_bits(AIP_RST_IVCTX, 1, 0, 1);
 	if (audio_param->type == CT_MAT || audio_param->type == CT_DTS_HD_MA) {
 		hbr_audio = true;
@@ -2411,6 +2439,11 @@ ssize_t _show21_clkmsr(char *buf)
 	case MESON_CPU_ID_S5:
 		hdmiclkmsr = hdmiclkmsr_s5;
 		len = ARRAY_SIZE(hdmiclkmsr_s5);
+		break;
+	case MESON_CPU_ID_S7:
+	case MESON_CPU_ID_S7D:
+		hdmiclkmsr = hdmiclkmsr_s7;
+		len = ARRAY_SIZE(hdmiclkmsr_s7);
 		break;
 	default:
 		break;
@@ -2967,6 +3000,7 @@ static int hdmitx_cntl_ddc(struct hdmitx_hw_common *hw_comm, u32 cmd,
 			   unsigned long argv)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	u8 *tmp_char = NULL;
 
 	if ((cmd & CMD_DDC_OFFSET) != CMD_DDC_OFFSET) {
 		HDMITX_ERROR(HW "ddc: invalid cmd 0x%x\n", cmd);
@@ -3012,6 +3046,10 @@ static int hdmitx_cntl_ddc(struct hdmitx_hw_common *hw_comm, u32 cmd,
 		break;
 	case DDC_HDCP_SET_TOPO_INFO:
 		set_hdcp2_topo(!!argv);
+		break;
+	case DDC_HDCP_GET_BKSV:
+		tmp_char = (u8 *)argv;
+		hdcptx1_ds_bksv_read(tmp_char, 5);
 		break;
 	default:
 		break;
@@ -4021,76 +4059,76 @@ void hdmitx_dhdr_send(u8 *body, int max_size)
 static void pkt_send_position_change(u32 enable_mask, u8 mov_val)
 {
 	if (enable_mask & 0x1) {
-		pr_debug("enable to change AVI packet send position begin\n");
+		HDMITX_DEBUG("enable to change AVI packet send position begin\n");
 		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xfe);
 		hdmitx21_wr_reg(PKT_LOC_AVI_IVCTX, mov_val);
-		pr_debug("enable to change AVI packet send position end\n");
+		HDMITX_DEBUG("enable to change AVI packet send position end\n");
 	}
 	if (enable_mask & 0x2) {
-		pr_debug("enable to change GAMUT packet send position begin\n");
+		HDMITX_DEBUG("enable to change GAMUT packet send position begin\n");
 		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xfd);
 		hdmitx21_wr_reg(PKT_LOC_GAMUT_IVCTX, mov_val);
-		pr_debug("enable to change GAMUT packet send position end\n");
+		HDMITX_DEBUG("enable to change GAMUT packet send position end\n");
 	}
 	if (enable_mask & 0x4) {
-		pr_debug("enable to change AUD packet send position begin\n");
+		HDMITX_DEBUG("enable to change AUD packet send position begin\n");
 		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xfb);
 		hdmitx21_wr_reg(PKT_LOC_AUD_IVCTX, mov_val);
-		pr_debug("enable to change AUD packet send position end\n");
+		HDMITX_DEBUG("enable to change AUD packet send position end\n");
 	}
 	if (enable_mask & 0x8) {
-		pr_debug("enable to change SPD packet send position begin\n");
+		HDMITX_DEBUG("enable to change SPD packet send position begin\n");
 		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xf7);
 		hdmitx21_wr_reg(PKT_LOC_SPD_IVCTX, mov_val);
-		pr_debug("enable to change SPD packet send position end\n");
+		HDMITX_DEBUG("enable to change SPD packet send position end\n");
 	}
 	if (enable_mask & 0x10) {
-		pr_debug("enable to change MPEG packet send position begin\n");
+		HDMITX_DEBUG("enable to change MPEG packet send position begin\n");
 		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xef);
 		hdmitx21_wr_reg(PKT_LOC_MPEG_IVCTX, mov_val);
-		pr_debug("enable to change MPEG packet send position end\n");
+		HDMITX_DEBUG("enable to change MPEG packet send position end\n");
 	}
 	if (enable_mask & 0x20) {
-		pr_debug("enable to change VSIF packet send position begin\n");
+		HDMITX_DEBUG("enable to change VSIF packet send position begin\n");
 		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xdf);
 		hdmitx21_wr_reg(PKT_LOC_VSIF_IVCTX, mov_val);
-		pr_debug("enable to change VSIF packet send position end\n");
+		HDMITX_DEBUG("enable to change VSIF packet send position end\n");
 	}
 	if (enable_mask & 0x40) {
-		pr_debug("enable to change GEN packet send position begin\n");
+		HDMITX_DEBUG("enable to change GEN packet send position begin\n");
 		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xbf);
 		hdmitx21_wr_reg(PKT_LOC_GEN_IVCTX, mov_val);
-		pr_debug("enable to change GEN packet send position end\n");
+		HDMITX_DEBUG("enable to change GEN packet send position end\n");
 	}
 	if (enable_mask & 0x80) {
-		pr_debug("enable to change GEN2 packet send position begin\n");
+		HDMITX_DEBUG("enable to change GEN2 packet send position begin\n");
 		hdmitx21_wr_reg(PKT_AUTO_0_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0x7f);
 		hdmitx21_wr_reg(PKT_LOC_GEN2_IVCTX, mov_val);
-		pr_debug("enable to change GEN2 packet send position end\n");
+		HDMITX_DEBUG("enable to change GEN2 packet send position end\n");
 	}
 	if (enable_mask & 0x100) {
-		pr_debug("enable to change GEN3 packet send position begin\n");
+		HDMITX_DEBUG("enable to change GEN3 packet send position begin\n");
 		hdmitx21_wr_reg(PKT_AUTO_1_IVCTX, hdmitx21_rd_reg(PKT_AUTO_0_IVCTX) & 0xe);
 		hdmitx21_wr_reg(PKT_LOC_GEN3_IVCTX, mov_val);
-		pr_debug("enable to change GEN3 packet send position end\n");
+		HDMITX_DEBUG("enable to change GEN3 packet send position end\n");
 	}
 	if (enable_mask & 0x200) {
-		pr_debug("enable to change GEN4 packet send position begin\n");
+		HDMITX_DEBUG("enable to change GEN4 packet send position begin\n");
 		hdmitx21_wr_reg(PKT_AUTO_1_IVCTX, hdmitx21_rd_reg(PKT_AUTO_1_IVCTX) & 0xd);
 		hdmitx21_wr_reg(PKT_LOC_GEN4_IVCTX, mov_val);
-		pr_debug("enable to change GEN4 packet send position end\n");
+		HDMITX_DEBUG("enable to change GEN4 packet send position end\n");
 	}
 	if (enable_mask & 0x400) {
-		pr_debug("enable to change GEN5 packet send position begin\n");
+		HDMITX_DEBUG("enable to change GEN5 packet send position begin\n");
 		hdmitx21_wr_reg(PKT_AUTO_1_IVCTX, hdmitx21_rd_reg(PKT_AUTO_1_IVCTX) & 0xb);
 		hdmitx21_wr_reg(PKT_LOC_GEN5_IVCTX, mov_val);
-		pr_debug("enable to change GEN5 packet send position end\n");
+		HDMITX_DEBUG("enable to change GEN5 packet send position end\n");
 	}
 	if (enable_mask & 0x800) {
-		pr_debug("enable to change VTEM packet send position begin\n");
+		HDMITX_DEBUG("enable to change VTEM packet send position begin\n");
 		hdmitx21_wr_reg(PKT_AUTO_1_IVCTX, hdmitx21_rd_reg(PKT_AUTO_1_IVCTX) & 0x7);
 		hdmitx21_wr_reg(PKT_LOC_VTEM_IVCTX, mov_val);
-		pr_debug("enable to change VTEM packet send position end\n");
+		HDMITX_DEBUG("enable to change VTEM packet send position end\n");
 	}
 }
 
@@ -4138,3 +4176,442 @@ void hdmitx21_read_dhdr_sram(void)
 	hdmitx21_wr_reg(D_HDR_MEM_READ_EN_IVCTX, 0);  //close x_fifo debug path
 	HDMITX_DEBUG("read end\n");
 }
+
+int hdmitx21_pkt_dump(struct hdmitx_dev *hdmitx_device, char *buf, int len)
+{
+	unsigned int reg_val;
+	unsigned int reg_addr;
+	unsigned char *conf;
+	int ret, i;
+	u8 body[32] = {0};
+	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	union hdmi_infoframe *infoframe = NULL;
+	struct hdmi_avi_infoframe *avi = NULL;
+	struct hdmi_drm_infoframe *drm = NULL;
+	//struct hdmi_vendor_infoframe *vendor = NULL;
+	struct hdmi_audio_infoframe *audio = NULL;
+
+	//GCP PKT
+	pos += snprintf(buf + pos, len - pos, "hdmitx gcp reg config\n");
+	reg_addr = GCP_CUR_STAT_IVCTX;
+	reg_val = hdmitx21_rd_reg(reg_addr);
+	pos += snprintf(buf + pos, len - pos, "GCP.clear_avmute: %d\n", (reg_val & 0x2) >> 1);
+	pos += snprintf(buf + pos, len - pos, "GCP.set_avmute: %d\n", reg_val & 0x1);
+	switch ((reg_val & 0x1C) >> 2) {
+	case 4:
+		conf = "24bit";
+		break;
+	case 5:
+		conf = "30bit";
+		break;
+	case 6:
+		conf = "36bit";
+		break;
+	case 7:
+		conf = "48bit";
+		break;
+	default:
+		conf = "reserved";
+	}
+	pos += snprintf(buf + pos, len - pos, "GCP.color_depth: %s\n", conf);
+	pos += snprintf(buf + pos, len - pos, "GCP.dc_phase_st: %d\n", (reg_val & 0x60) >> 5);
+	pos += snprintf(buf + pos, len - pos, "\n");
+	//AVI PKT
+	infoframe = &hdev->infoframes.avi;
+	avi = &infoframe->avi;
+	ret = hdmi_avi_infoframe_get(body);
+	if (ret == -1) {
+		pos += snprintf(buf + pos, len - pos, "AVI body get error\n");
+	} else if (ret == 0) {
+		pos += snprintf(buf + pos, len - pos, "AVI PKT not enable\n");
+	} else {
+		ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
+		if (ret < 0) {
+			pos += snprintf(buf + pos, len - pos,
+				"hdmitx21: parsing avi failed %d\n", ret);
+		} else {
+			pos += snprintf(buf + pos, len - pos, "AVI.type: 0x%x\n", avi->type);
+			pos += snprintf(buf + pos, len - pos, "AVI.version: %d\n", avi->version);
+			pos += snprintf(buf + pos, len - pos, "AVI.length: %d\n", avi->length);
+
+			switch (avi->colorspace) {
+			case 0:
+				conf = "RGB";
+				break;
+			case 1:
+				conf = "422";
+				break;
+			case 2:
+				conf = "444";
+				break;
+			case 3:
+				conf = "420";
+				break;
+			default:
+				conf = "reserved";
+			}
+			pos += snprintf(buf + pos, PAGE_SIZE, "AVI.colorspace: %s\n", conf);
+			switch (avi->scan_mode) {
+			case 0:
+				conf = "none";
+				break;
+			case 1:
+				conf = "overscan";
+				break;
+			case 2:
+				conf = "underscan";
+				break;
+			default:
+				conf = "reserved";
+			}
+			pos += snprintf(buf + pos, PAGE_SIZE, "AVI.scan: %s\n", conf);
+			switch (avi->colorimetry) {
+			case 0:
+				conf = "none";
+				break;
+			case 1:
+				conf = "BT.601";
+				break;
+			case 2:
+				conf = "BT.709";
+				break;
+			default:
+				conf = "Extended";
+			}
+			pos += snprintf(buf + pos, PAGE_SIZE, "AVI.colorimetry: %s\n", conf);
+			if (avi->colorimetry == HDMI_COLORIMETRY_EXTENDED) {
+				switch (avi->extended_colorimetry) {
+				case 0:
+					conf = "xvYCC601";
+					break;
+				case 1:
+					conf = "xvYCC709";
+					break;
+				case 2:
+					conf = "sYCC601";
+					break;
+				case 3:
+					conf = "Adobe_YCC601";
+					break;
+				case 4:
+					conf = "Adobe_RGB";
+					break;
+				case 5:
+				case 6:
+					conf = "BT.2020";
+					break;
+				default:
+					conf = "xvYCC601";
+				}
+				pos += snprintf(buf + pos, PAGE_SIZE,
+				"AVI.extended_colorimetry: %s\n", conf);
+			}
+			switch (avi->picture_aspect) {
+			case 0:
+				conf = "none";
+				break;
+			case 1:
+				conf = "4:3";
+				break;
+			case 2:
+				conf = "16:9";
+				break;
+			case 3:
+				conf = "64:27";
+				break;
+			case 4:
+				conf = "256:135";
+				break;
+			default:
+				conf = "reserved";
+			}
+			pos += snprintf(buf + pos, PAGE_SIZE, "AVI.picture_aspect: %s\n", conf);
+			switch (avi->active_aspect) {
+			case 8:
+				conf = "Same as picture_aspect";
+				break;
+			case 9:
+				conf = "4:3";
+				break;
+			case 10:
+				conf = "16:9";
+				break;
+			case 11:
+				conf = "14:9";
+				break;
+			default:
+				conf = "Same as picture_aspect";
+			}
+			pos += snprintf(buf + pos, PAGE_SIZE, "AVI.active_aspect: %s\n", conf);
+			switch (avi->quantization_range) {
+			case 0:
+				conf = "default";
+				break;
+			case 1:
+				conf = "limited";
+				break;
+			case 2:
+				conf = "full";
+				break;
+			default:
+				conf = "reserved";
+			}
+			pos += snprintf(buf + pos, PAGE_SIZE, "AVI.quantization_range: %s\n", conf);
+			if (avi->itc)
+				conf = "enable";
+			else
+				conf = "disable";
+			pos += snprintf(buf + pos, PAGE_SIZE, "AVI.itc: %s\n", conf);
+			switch (avi->nups) {
+			case 0:
+				conf = "unknown";
+				break;
+			case 1:
+				conf = "horiz";
+				break;
+			case 2:
+				conf = "vert";
+				break;
+			case 3:
+				conf = "horiz and vert";
+			}
+			pos += snprintf(buf + pos, PAGE_SIZE, "AVI.nups: %s\n", conf);
+			pos += snprintf(buf + pos,
+				PAGE_SIZE, "AVI.video_code: %d\n", avi->video_code);
+			switch (avi->ycc_quantization_range) {
+			case 0:
+			default:
+				conf = "limited";
+				break;
+			case 1:
+				conf = "full";
+			}
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"AVI.ycc_quantization_range: %s\n", conf);
+			switch (avi->content_type) {
+			case 0:
+				conf = "graphics";
+				break;
+			case 1:
+				conf = "photo";
+				break;
+			case 2:
+				conf = "cinema";
+				break;
+			case 3:
+				conf = "game";
+			}
+			pos += snprintf(buf + pos, PAGE_SIZE, "AVI.content_type: %s\n", conf);
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"AVI.pixel_repetition: %d\n", avi->pixel_repeat);
+			pos += snprintf(buf + pos, PAGE_SIZE, "AVI.top_bar: %d\n", avi->top_bar);
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"AVI.bottom_bar: %d\n", avi->bottom_bar);
+			pos += snprintf(buf + pos, PAGE_SIZE, "AVI.left_bar: %d\n", avi->left_bar);
+			pos += snprintf(buf + pos, PAGE_SIZE, "AVI.right: %d\n", avi->right_bar);
+			pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+		}
+	}
+	pos += snprintf(buf + pos, len - pos, "\n");
+	//ACR PKT
+	pos += snprintf(buf + pos, len - pos, "ACR.N1=0x%x\n", hdmitx21_rd_reg(N_SVAL1_IVCTX));
+	pos += snprintf(buf + pos, len - pos, "ACR.N2=0x%x\n", hdmitx21_rd_reg(N_SVAL2_IVCTX));
+	pos += snprintf(buf + pos, len - pos, "ACR.N3=0x%x\n", hdmitx21_rd_reg(N_SVAL3_IVCTX));
+	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+
+	//DRM PKT
+	infoframe = &hdev->infoframes.drm;
+	drm = &infoframe->drm;
+	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_DRM, body);
+	if (ret == -1) {
+		pos += snprintf(buf + pos, len - pos, "DRM body get error\n");
+	} else if (ret == 0) {
+		pos += snprintf(buf + pos, len - pos, "DRM PKT not enable\n");
+	} else {
+		ret = hdmi_infoframe_unpack(infoframe, body, sizeof(body));
+		if (ret < 0) {
+			pos += snprintf(buf + pos, len - pos, "parsing DRM failed %d\n", ret);
+		} else {
+			pos += snprintf(buf + pos, len - pos, "DRM.type: 0x%x\n", drm->type);
+			pos += snprintf(buf + pos, len - pos, "DRM.version: %d\n", drm->version);
+			pos += snprintf(buf + pos, len - pos, "DRM.length: %d\n", drm->length);
+
+			switch (drm->eotf) {
+			case 0:
+				conf = "sdr";
+				break;
+			case 1:
+				conf = "hdr";
+				break;
+			case 2:
+				conf = "ST 2084";
+				break;
+			case 3:
+				conf = "HLG";
+				break;
+			default:
+				conf = "sdr";
+			}
+			pos += snprintf(buf + pos, len - pos, "DRM.eotf: %s\n", conf);
+
+			switch (drm->metadata_type) {
+			case 0:
+				conf = "static metadata";
+				break;
+			default:
+				conf = "reserved";
+			}
+			pos += snprintf(buf + pos, len - pos, "DRM.metadata_id: %s\n", conf);
+			pos += snprintf(buf + pos, len - pos, "display_primaries:\n");
+			for (i = 0; i < 3; i++) {
+				pos += snprintf(buf + pos, len - pos, "x:%d, y:%d\n",
+					drm->display_primaries[i].x, drm->display_primaries[i].y);
+			}
+			pos += snprintf(buf + pos, len - pos, "white_point: x:%d, y:%d\n",
+				drm->white_point.x, drm->white_point.y);
+			pos += snprintf(buf + pos, len - pos,
+				"DRM.max_lum : %d\n", drm->max_display_mastering_luminance);
+			pos += snprintf(buf + pos, len - pos,
+				"DRM.min_lum : %d\n", drm->min_display_mastering_luminance);
+			pos += snprintf(buf + pos, len - pos, "DRM.max_cll : %d\n", drm->max_cll);
+			pos += snprintf(buf + pos, len - pos, "DRM.max_fall : %d\n", drm->max_fall);
+		}
+	}
+	pos += snprintf(buf + pos, len - pos, "\n");
+
+	//todo
+	//vendor
+	//vendor2
+
+	//AUDIO PKT
+	infoframe = &hdev->infoframes.aud;
+	audio = &infoframe->audio;
+	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_AUDIO, body);
+	if (ret == -1) {
+		pos += snprintf(buf + pos, len - pos, "AUDIO body get error\n");
+	} else if (ret == 0) {
+		pos += snprintf(buf + pos, len - pos, "AUDIO PKT not enable\n");
+	} else {
+		ret = hdmi_infoframe_unpack(infoframe, body, sizeof(body));
+		if (ret < 0) {
+			HDMITX_ERROR("parsing AUDIO failed %d\n", ret);
+		} else {
+			pos += snprintf(buf + pos, len - pos, "AUDI.type: 0x%x\n", audio->type);
+			pos += snprintf(buf + pos, len - pos, "AUDI.version: %d\n", audio->version);
+			pos += snprintf(buf + pos, len - pos, "AUDI.length: %d\n", audio->length);
+			switch (audio->coding_type) {
+			case 0:
+				conf = "refer to stream header";
+				break;
+			case 1:
+				conf = "L-PCM";
+				break;
+			case 2:
+				conf = "AC-3";
+				break;
+			case 3:
+				conf = "MPEG1";
+				break;
+			case 4:
+				conf = "MP3";
+				break;
+			case 5:
+				conf = "MPEG2";
+				break;
+			case 6:
+				conf = "AAC";
+				break;
+			case 7:
+				conf = "DTS";
+				break;
+			case 8:
+				conf = "ATRAC";
+				break;
+			case 9:
+				conf = "One Bit Audio";
+				break;
+			case 10:
+				conf = "Dobly Digital+";
+				break;
+			case 11:
+				conf = "DTS_HD";
+				break;
+			case 12:
+				conf = "MAT";
+				break;
+			case 13:
+				conf = "DST";
+				break;
+			case 14:
+				conf = "WMA";
+				break;
+			default:
+				conf = "MAX";
+			}
+			pos += snprintf(buf + pos, len - pos, "AUDI.coding_type: %s\n", conf);
+			pos += snprintf(buf + pos, len - pos,
+				"AUDI.channel_count: %d\n", audio->channels + 1);
+			switch (audio->sample_frequency) {
+			case FS_REFER_TO_STREAM:
+				conf = "refer to stream header";
+				break;
+			case FS_32K:
+				conf = "32kHz";
+				break;
+			case FS_44K1:
+				conf = "44.1kHz";
+				break;
+			case FS_48K:
+				conf = "48kHz";
+				break;
+			case FS_88K2:
+				conf = "88.2kHz";
+				break;
+			case FS_96K:
+				conf = "96kHz";
+				break;
+			case FS_176K4:
+				conf = "176.4kHz";
+				break;
+			case FS_192K:
+				conf = "192kHz";
+			}
+			pos += snprintf(buf + pos, len - pos, "AUDI.sample_frequency: %s\n", conf);
+			switch (audio->sample_size) {
+			case SS_16BITS:
+				conf = "16bit";
+				break;
+			case SS_20BITS:
+				conf = "20bit";
+				break;
+			case SS_24BITS:
+				conf = "24bit";
+				break;
+			case SS_REFER_TO_STREAM:
+			default:
+				conf = "refer to stream header";
+				break;
+			}
+			pos += snprintf(buf + pos, len - pos, "AUDI.sample_size: %s\n", conf);
+			pos += snprintf(buf + pos, len - pos,
+				"AUDI.channel_allocation: %d\n", audio->channel_allocation);
+			pos += snprintf(buf + pos, len - pos,
+				"AUDI.level_shift_value: %d\n", audio->level_shift_value);
+			pos += snprintf(buf + pos, len - pos,
+				"AUDI.down_mix_enable: %d\n", audio->downmix_inhibit);
+		}
+	}
+	reg_val = hdmitx21_rd_reg(AUD_MODE_IVCTX);  //AUD_MODE
+	if (reg_val & BIT(0))
+		pos += snprintf(buf + pos, len - pos, "AUDI.mode: spdif\n");
+	if (reg_val & BIT(0))
+		pos += snprintf(buf + pos, len - pos, "AUDI.mode: hbra\n");
+	if (reg_val & BIT(0))
+		pos += snprintf(buf + pos, len - pos, "AUDI.mode: dsd\n");
+	if (reg_val & 0xf0)
+		pos += snprintf(buf + pos, len - pos, "AUDI.mode: i2s\n");
+	//AUDIO SAMPLE
+	return pos;
+}
+

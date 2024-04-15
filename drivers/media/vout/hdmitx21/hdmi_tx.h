@@ -397,6 +397,7 @@ bool hdcptx2_ds_rptr_capability(void);
 bool hdcptx1_ds_rptr_capability(void);
 void hdcptx1_ds_bksv_read(u8 *p_bksv, u8 ksv_bytes);
 u8 hdcptx1_ksv_v_get(void);
+bool hdcp1x_ksv_valid(u8 *dat);
 void hdcptx1_protection_enable(bool en);
 void hdcptx1_intermed_ri_check_enable(bool en);
 void hdcptx2_ds_rcv_id_read(u8 *p_rcv_id);

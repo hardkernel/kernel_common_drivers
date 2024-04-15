@@ -228,7 +228,7 @@ int hdmitx21_set_audio(struct hdmitx_dev *hdev,
 int get21_hpd_state(void);
 void hdmitx21_hdcp_status(int hdmi_authenticated);
 struct hdmi_format_para *hdmitx21_get_vesa_paras(struct vesa_standard_timing *t);
-
+extern struct aud_para hdmi21aud_config_data;
 /***********************************************************************
  *    hdmitx hardware level interface
  ***********************************************************************/

@@ -611,6 +611,12 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 
 	HDMITX_DEBUG_PACKET("%s[%d]\n", __func__, __LINE__);
+	if (data)
+		memcpy(&drm_config_data, data,
+		       sizeof(struct master_display_info_s));
+	else
+		memset(&drm_config_data, 0,
+		       sizeof(struct master_display_info_s));
 	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
 
 	/* if currently output 8bit, when csc_en is 1 and
@@ -628,12 +634,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		}
 	}
 
-	if (data)
-		memcpy(&drm_config_data, data,
-		       sizeof(struct master_display_info_s));
-	else
-		memset(&drm_config_data, 0,
-		       sizeof(struct master_display_info_s));
 	if (hsty_drm_config_loc > 7)
 		hsty_drm_config_loc = 0;
 	memcpy(&hsty_drm_config_data[hsty_drm_config_loc++],
@@ -928,17 +928,17 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 	unsigned long flags = 0;
 
 	HDMITX_DEBUG_PACKET("%s[%d]\n", __func__, __LINE__);
-	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
-	if (hdev->bist_lock) {
-		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
-		return;
-	}
 	if (!data)
 		memcpy(&vsif_debug_info.data, &para,
 		       sizeof(struct dv_vsif_para));
 	else
 		memcpy(&vsif_debug_info.data, data,
 		       sizeof(struct dv_vsif_para));
+	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
+	if (hdev->bist_lock) {
+		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
+		return;
+	}
 	vsif_debug_info.type = type;
 	vsif_debug_info.tunnel_mode = tunnel_mode;
 	vsif_debug_info.signal_sdr = signal_sdr;
@@ -1253,6 +1253,12 @@ static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 
 	HDMITX_DEBUG_PACKET("%s[%d]\n", __func__, __LINE__);
+	if (data)
+		memcpy(&hdr10p_config_data, data,
+		       sizeof(struct hdr10plus_para));
+	else
+		memset(&hdr10p_config_data, 0,
+		       sizeof(struct hdr10plus_para));
 	if (hdev->bist_lock)
 		return;
 
@@ -1270,12 +1276,6 @@ static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 		}
 	}
 
-	if (data)
-		memcpy(&hdr10p_config_data, data,
-		       sizeof(struct hdr10plus_para));
-	else
-		memset(&hdr10p_config_data, 0,
-		       sizeof(struct hdr10plus_para));
 	if (hsty_hdr10p_config_loc > 7)
 		hsty_hdr10p_config_loc = 0;
 	memcpy(&hsty_hdr10p_config_data[hsty_hdr10p_config_loc++],

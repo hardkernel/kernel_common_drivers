@@ -14,6 +14,9 @@
 #include <linux/seq_file.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_version.h>
 #include "common.h"
+#include <linux/fs.h>
+#include <linux/proc_fs.h>
+#include <linux/types.h>
 
 #ifdef DEVICE_NAME
 #undef DEVICE_NAME
@@ -90,6 +93,12 @@ static const struct file_operations dump_busreg_fops = {
 	.read		= seq_read,
 	.write		= dump_regs_write,
 	.release	= single_release,
+};
+
+static const struct proc_ops dump_busreg_pops = {
+	.proc_open		= dump_regs_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
 };
 
 static void dumptop(struct seq_file *s, u32 start, u32 end)
@@ -196,6 +205,12 @@ static const struct file_operations dump_hdmireg_fops = {
 	.open		= dump_hdmireg_open,
 	.read		= seq_read,
 	.release	= single_release,
+};
+
+static const struct proc_ops dump_hdmireg_pops = {
+	.proc_open		= dump_hdmireg_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
 };
 
 #define CONNECT2REG(reg) ({ \
@@ -496,6 +511,12 @@ static const struct file_operations dump_hdmivpfdet_fops = {
 	.release	= single_release,
 };
 
+static const struct proc_ops dump_hdmivpfdet_pops = {
+	.proc_open		= dump_hdmivpfdet_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
+};
+
 static void hdmitx_parsing_avipkt(struct seq_file *s)
 {
 }
@@ -559,6 +580,12 @@ static const struct file_operations dump_hdmipkt_fops = {
 	.release	= single_release,
 };
 
+static const struct proc_ops dump_hdmipkt_pops = {
+	.proc_open		= dump_hdmipkt_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
+};
+
 static int dump_hdmiver_show(struct seq_file *s, void *p)
 {
 	const char *hdmi_ver;
@@ -579,6 +606,12 @@ static const struct file_operations dump_hdmiver_fops = {
 	.open		= dump_hdmiver_open,
 	.read		= seq_read,
 	.release	= single_release,
+};
+
+static const struct proc_ops dump_hdmiver_pops = {
+	.proc_open		= dump_hdmiver_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
 };
 
 static inline unsigned int get_msr_cts(void)
@@ -640,6 +673,12 @@ static const struct file_operations dump_audcts_fops = {
 	.release	= single_release,
 };
 
+static const struct proc_ops dump_audcts_pops = {
+	.proc_open		= dump_audcts_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
+};
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static int dump_hdmivrr_show(struct seq_file *s, void *p)
 {
@@ -656,6 +695,13 @@ static const struct file_operations dump_hdmivrr_fops = {
 	.read		= seq_read,
 	.release	= single_release,
 };
+
+static const struct proc_ops dump_hdmivrr_pops = {
+	.proc_open		= dump_hdmivrr_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
+};
+
 #endif
 
 static void dump_clkctrl_regs(struct seq_file *s, const u32 *val)
@@ -792,6 +838,12 @@ static const struct file_operations dump_cts_enc_clk_fops = {
 	.release	= single_release,
 };
 
+static const struct proc_ops dump_cts_enc_clk_pops = {
+	.proc_open		= dump_cts_enc_clk_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
+};
+
 static int dump_frl_status_show(struct seq_file *s, void *p)
 {
 	enum scdc_addr scdc_reg;
@@ -866,33 +918,40 @@ struct hdmitx_dbg_files_s {
 	const char *name;
 	const umode_t mode;
 	const struct file_operations *fops;
+	const struct proc_ops *pops;
+};
+
+static const struct proc_ops dump_frl_status_pops = {
+	.proc_open		= dump_frl_status_open,
+	.proc_read		= seq_read,
+	.proc_release	= single_release,
 };
 
 static struct hdmitx_dbg_files_s hdmitx_dbg_files[] = {
-	{"bus_reg", S_IFREG | 0444, &dump_busreg_fops},
-	{"hdmi_reg", S_IFREG | 0444, &dump_hdmireg_fops},
-	{"hdmi_vpfdet", S_IFREG | 0444, &dump_hdmivpfdet_fops},
-	{"hdmi_pkt", S_IFREG | 0444, &dump_hdmipkt_fops},
-	{"hdmi_ver", S_IFREG | 0444, &dump_hdmiver_fops},
-	{"aud_cts", S_IFREG | 0444, &dump_audcts_fops},
+	{"bus_reg", S_IFREG | 0444, &dump_busreg_fops, &dump_busreg_pops},
+	{"hdmi_reg", S_IFREG | 0444, &dump_hdmireg_fops, &dump_hdmireg_pops},
+	{"hdmi_vpfdet", S_IFREG | 0444, &dump_hdmivpfdet_fops, &dump_hdmivpfdet_pops},
+	{"hdmi_pkt", S_IFREG | 0444, &dump_hdmipkt_fops, &dump_hdmipkt_pops},
+	{"hdmi_ver", S_IFREG | 0444, &dump_hdmiver_fops, &dump_hdmiver_pops},
+	{"aud_cts", S_IFREG | 0444, &dump_audcts_fops, &dump_audcts_pops},
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	{"hdmi_vrr", S_IFREG | 0444, &dump_hdmivrr_fops},
+	{"hdmi_vrr", S_IFREG | 0444, &dump_hdmivrr_fops, &dump_hdmivrr_pops},
 #endif
-	{"cts_enc_clk", S_IFREG | 0444, &dump_cts_enc_clk_fops},
-	{"frl_status", S_IFREG | 0444, &dump_frl_status_fops},
+	{"cts_enc_clk", S_IFREG | 0444, &dump_cts_enc_clk_fops, &dump_cts_enc_clk_pops},
+	{"frl_status", S_IFREG | 0444, &dump_frl_status_fops, &dump_frl_status_pops},
 };
 
-static struct dentry *hdmitx_dbgfs;
+static struct dentry *hdmitx_file_dbgfs;
 void hdmitx21_debugfs_init(void)
 {
 	struct dentry *entry;
 	int i;
 
-	if (hdmitx_dbgfs)
+	if (hdmitx_file_dbgfs)
 		return;
 
-	hdmitx_dbgfs = debugfs_create_dir(DEVICE_NAME, NULL);
-	if (!hdmitx_dbgfs) {
+	hdmitx_file_dbgfs = debugfs_create_dir(DEVICE_NAME, NULL);
+	if (!hdmitx_file_dbgfs) {
 		HDMITX_ERROR("can't create %s debugfs dir\n", DEVICE_NAME);
 		return;
 	}
@@ -900,7 +959,7 @@ void hdmitx21_debugfs_init(void)
 	for (i = 0; i < ARRAY_SIZE(hdmitx_dbg_files); i++) {
 		entry = debugfs_create_file(hdmitx_dbg_files[i].name,
 			hdmitx_dbg_files[i].mode,
-			hdmitx_dbgfs, NULL,
+			hdmitx_file_dbgfs, NULL,
 			hdmitx_dbg_files[i].fops);
 		if (!entry)
 			HDMITX_ERROR("debugfs create file %s failed\n",
@@ -908,3 +967,23 @@ void hdmitx21_debugfs_init(void)
 	}
 }
 
+static struct proc_dir_entry *hdmitx_proc_dbgfs;
+void profs_hdmitx21_debugfs_init(void)
+{
+	struct proc_dir_entry *entry;
+	int i;
+
+	hdmitx_proc_dbgfs = proc_mkdir("amhdmitx", NULL);
+	if (!hdmitx_proc_dbgfs)
+		HDMITX_ERROR("Error creating proc entry");
+
+	for (i = 0; i < ARRAY_SIZE(hdmitx_dbg_files); i++) {
+		entry = proc_create(hdmitx_dbg_files[i].name,
+			hdmitx_dbg_files[i].mode,
+			hdmitx_proc_dbgfs,
+			hdmitx_dbg_files[i].pops);
+		if (!entry)
+			HDMITX_ERROR("debugfs create file %s failed\n",
+				hdmitx_dbg_files[i].name);
+	}
+}

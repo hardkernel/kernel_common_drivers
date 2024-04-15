@@ -207,6 +207,8 @@ enum hpd_op {
 
 int hdmitx21_hpd_hw_op(enum hpd_op cmd);
 void hdmitx_hpd_irq_top_half_process(struct hdmitx_dev *hdev, bool hpd);
+void profs_hdmitx21_debugfs_init(void);
+int hdmitx21_pkt_dump(struct hdmitx_dev *hdev, char *buf, int len);
 
 #endif
 
