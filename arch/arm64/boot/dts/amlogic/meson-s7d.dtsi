@@ -171,11 +171,11 @@
 	};
 
 	ram-dump {
-			compatible = "amlogic, ram_dump";
-			status = "disabled";
+		compatible = "amlogic, ram_dump";
+		status = "okay";
 		reg = <0x0 0xFE0102D8 0x0 4>;
-			reg-names = "SYSCTRL_STICKY_REG6";
-			store_device = "data";
+		reg-names = "SYSCTRL_STICKY_REG6";
+		store_device = "data";
 	};
 
 	secmon:secmon {
