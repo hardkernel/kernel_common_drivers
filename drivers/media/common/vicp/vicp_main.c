@@ -78,6 +78,7 @@ struct output_axis_s axis;
 u32 rdma_en;
 u32 debug_rdma_en;
 u32 debug_reg_en;
+u32 suspend_flag;
 
 struct mutex vicp_mutex; /*used to avoid user space call at the same time*/
 struct vicp_hdr_data_s *vicp_hdr;
@@ -1264,6 +1265,7 @@ static int vicp_resume(struct platform_device *pdev)
 static int vicp_pm_suspend(struct device *dev)
 {
 	vicp_clock_config(0);
+	suspend_flag = 1;
 
 	return 0;
 }

@@ -2442,6 +2442,12 @@ int vicp_process_task(struct vid_cmpr_top_s *vid_cmpr_top)
 			last_output_end_h = vid_cmpr_top->out_win_end_h;
 		}
 
+		if (suspend_flag) {
+			vicp_print(VICP_INFO, "%s: load after suspend..\n", __func__);
+			is_need_update_all = true;
+			suspend_flag = 0;
+		}
+
 		if (debug_reg_en) {
 			vicp_print(VICP_INFO, "%s: reg debug enable.\n", __func__);
 			is_need_update_all = false;
