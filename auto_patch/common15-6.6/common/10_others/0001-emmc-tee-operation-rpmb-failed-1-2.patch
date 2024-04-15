@@ -1,0 +1,41 @@
+From e638366889844da6ec3b7f8800adf85fa10866b1 Mon Sep 17 00:00:00 2001
+From: "Ruixuan.li" <ruixuan.li@amlogic.com>
+Date: Tue, 9 Apr 2024 20:25:05 +0800
+Subject: [PATCH] emmc: tee operation rpmb failed [1/2]
+
+PD#SWPL-156093
+
+Problem:
+kernel 6 add a flag variation in struct mmc_blk_ioc_data
+but set value to flag before use it, so it can be any value
+
+Solution:
+memset mmc_blk_ioc_data flag to 0
+
+Verify:
+a4
+
+Change-Id: Ibe2881d169ab406959fab7a28e6c15fc7cec7275
+Signed-off-by: Ruixuan.li <ruixuan.li@amlogic.com>
+---
+ drivers/mmc/core/block.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/drivers/mmc/core/block.c b/drivers/mmc/core/block.c
+index e8286abd6177..0c891be9ae95 100644
+--- a/drivers/mmc/core/block.c
++++ b/drivers/mmc/core/block.c
+@@ -420,6 +420,10 @@ static struct mmc_blk_ioc_data *mmc_blk_ioctl_copy_from_user(
+ 		goto out;
+ 	}
+
++#ifdef CONFIG_AMLOGIC_MMC_RPMB
++	memset(idata, 0, sizeof(*idata));
++#endif //CONFIG_AMLOGIC_MMC_MESON_GX
++
+ 	if (copy_from_user(&idata->ic, user, sizeof(idata->ic))) {
+ 		err = -EFAULT;
+ 		goto idata_err;
+--
+2.42.0
+
