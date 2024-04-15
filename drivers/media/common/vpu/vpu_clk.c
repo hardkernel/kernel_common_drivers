@@ -130,7 +130,6 @@ unsigned int vpu_clk_get(void)
 
 		div = vpu_clk_getb(vpu_conf.data->vpu_clk_reg, 0, 7) + 1;
 		clk_freq = clk_source / div;
-
 		return clk_freq;
 	}
 
@@ -309,7 +308,7 @@ int set_vpu_clk(unsigned int vclk)
 		return ret;
 	}
 #endif
-	if (clk_level >= 11) {
+	if (clk_level >= 12) {
 		ret = 7;
 		VPUERR("clk_level %d is invalid\n", clk_level);
 		return ret;

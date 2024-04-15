@@ -1587,7 +1587,7 @@
 };
 
 &vpu {
-	clk_level = <7>;
+	clk_level = <8>;
 };
 
 /*if you want to use vdin just modify status to "ok"*/

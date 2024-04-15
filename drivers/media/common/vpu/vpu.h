@@ -30,11 +30,15 @@ enum vpu_chip_e {
 	VPU_CHIP_T3X,
 	VPU_CHIP_TXHD2,
 	VPU_CHIP_S1A,
+	VPU_CHIP_TM2,
+	VPU_CHIP_TM2B,
+	VPU_CHIP_S7,
+	VPU_CHIP_S7D,
 	VPU_CHIP_MAX,
 };
 
 #define CLK_FPLL_FREQ           2000 /* MHz */
-#define VPU_CLK_TOLERANCE       1000000 /* Hz */
+#define VPU_CLK_TOLERANCE       100000 /* Hz */
 
 #define VPU_HDMI_ISO_CNT_MAX    5
 #define VPU_RESET_CNT_MAX       10
@@ -71,6 +75,11 @@ enum vpu_mux_e {
 	VID2_PLL_CLK,
 	GPLL_CLK,
 	FCLK_DIV_MAX,
+};
+
+enum vpu_read_type_e {
+	READ0_2 = 0,
+	ONLY_READ0,
 };
 
 struct fclk_div_s {
@@ -115,6 +124,7 @@ struct vpu_data_s {
 	unsigned char gp_pll_valid;
 	unsigned int mem_pd_reg[VPU_MEM_PD_REG_CNT];
 	unsigned int mem_pd_reg_flag;
+	unsigned int vpu_read_type;
 
 	unsigned int *pwrctrl_id_table;
 
