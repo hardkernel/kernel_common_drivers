@@ -58,6 +58,10 @@
 #include <linux/amlogic/media/vpu/vpu.h>
 #include "videolog.h"
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#include "../enhancement/amdolby_vision/amdv_uevent.h"
+#endif
 #include <linux/amlogic/media/video_sink/vpp.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 #include "../common/rdma/rdma.h"
@@ -81,6 +85,10 @@ MODULE_PARM_DESC(g_preh_en, "g_preh_en");
 static unsigned int g_preh_rate  = 0xff;
 module_param(g_preh_rate, uint, 0664);
 MODULE_PARM_DESC(g_preh_rate, "g_preh_rate");
+
+static unsigned int g_axi_rps_ratio  = 0xff;
+module_param(g_axi_rps_ratio, uint, 0664);
+MODULE_PARM_DESC(g_axi_rps_ratio, "g_axi_rps_ratio");
 
 struct pi_reg_s {
 	u32 pi_dic_num;
@@ -492,7 +500,7 @@ static u32 safa_speed_up_handle(struct vsr_setting_s *vsr)
 	bool performance_skip = true, performance_hit = false;
 	u32 display_active_hsize = 3840, display_active_vsize = 2160;
 	u32 display_total_hsize = 4400;
-	u32 axi_rps_ratio = 1, mux_in_vsize = 0;
+	u32 axi_rps_ratio = 100, mux_in_vsize = 0;
 	u32 input_time = 0, display_time = 0;
 	u32 clk_in_pps = vpu_clk_get();
 
@@ -506,6 +514,17 @@ static u32 safa_speed_up_handle(struct vsr_setting_s *vsr)
 	display_active_vsize = vinfo->height;
 	display_total_hsize = vinfo->htotal;
 
+	if (vsr->vsr_top.vskip_cnt) {
+		vsize_in = (vsize_in << vsr->vsr_top.vskip_cnt) * 9 / 10;
+		if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
+			pr_info("%s vsize in adjust :vskip_cnt=%d, vsize_in=%d\n",
+				__func__,
+				vsr->vsr_top.vskip_cnt,
+				vsize_in);
+	}
+
+	if (is_amdv_enable())
+		axi_rps_ratio = 106;
 	if (vsize_out > vsize_in)
 		mux_in_vsize = vsize_out;
 	else
@@ -520,8 +539,10 @@ static u32 safa_speed_up_handle(struct vsr_setting_s *vsr)
 		pr_info("input_time=%d, clk_in_pps=%d, display_active_hsize=%d, display_total_hsize=%d\n",
 			input_time, clk_in_pps, display_active_hsize,
 			display_total_hsize);
+	if (g_axi_rps_ratio != 0xff)
+		axi_rps_ratio = g_axi_rps_ratio;
 
-	input_time = (input_time / clk_in_pps) * 10 * axi_rps_ratio;
+	input_time = (input_time / clk_in_pps) * axi_rps_ratio / 10;
 	display_time = (display_total_hsize * vsize_out  * 100 / 594 * 10);
 
 	if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)

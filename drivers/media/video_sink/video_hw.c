@@ -5969,6 +5969,7 @@ s32 config_vd_pps_internal(struct video_layer_s *layer,
 		setting->vsr.vsr_top.vsize_in = src_h;
 		setting->vsr.vsr_top.hsize_out = dst_w;
 		setting->vsr.vsr_top.vsize_out = dst_h;
+		setting->vsr.vsr_top.vskip_cnt = cur_frame_par->vscale_skip_count;
 		/* todo for pc mode 444 other 422 */
 		if (layer->dispbuf)
 			setting->vsr.vsr_top.input_422_en =
