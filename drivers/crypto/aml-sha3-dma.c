@@ -57,7 +57,6 @@
 #define DEFAULT_AUTOSUSPEND_DELAY	1000
 
 #define ENABLE_SHAKE128 (0)
-#define USING_RESTORE (0)
 
 struct aml_sha3_dev;
 
@@ -77,6 +76,7 @@ struct aml_sha3_reqctx {
 	u32 fast_nents;
 
 	u8  *state;
+	u8  state_v[SHA3_CONTEXT_LEN];
 };
 
 struct aml_sha3_ctx {
@@ -141,6 +141,8 @@ int aml_sha3_init(struct ahash_request *req)
 	ctx->dd = dd;
 
 	ctx->flags = 0;
+	ctx->state = NULL;
+	ctx->hash_ctx_addr = 0;
 
 	dbgp(1, "sha3 init: tfm: %px, ctx: %px, digest size: %d\n",
 	     tfm, ctx, crypto_ahash_digestsize(tfm));
@@ -166,7 +168,8 @@ int aml_sha3_init(struct ahash_request *req)
 		return -EINVAL;
 	}
 
-	ctx->state = kmalloc(SHA3_CONTEXT_LEN, GFP_ATOMIC | GFP_DMA);
+	ctx->state = dma_alloc_coherent(dd->dev, SHA3_CONTEXT_LEN,
+				&ctx->hash_ctx_addr, GFP_ATOMIC | GFP_DMA);
 	if (!ctx->state)
 		return -ENOMEM;
 
@@ -199,13 +202,8 @@ static int aml_sha3_xmit_dma(struct aml_sha3_dev *dd,
 
 	mode = MODE_SHA3;
 
-	ctx->hash_ctx_addr = dma_map_single(dd->parent, ctx->state,
-					SHA3_CONTEXT_LEN, DMA_FROM_DEVICE);
-	if (dma_mapping_error(dd->parent, ctx->hash_ctx_addr)) {
-		dev_err(dd->dev, "ctx %d bytes error\n",
-			SHA3_CONTEXT_LEN);
-		return -EINVAL;
-	}
+	if (!ctx->hash_ctx_addr)
+		return -ENOMEM;
 
 	if (ctx->flags & SHA_FLAGS_SHA3_224) {
 		op_mode = OP_MODE_SHA3_224;
@@ -384,13 +382,8 @@ static int aml_sha3_update_dma_stop(struct aml_sha3_dev *dd)
 			ctx->sg = sg_next(ctx->sg);
 	}
 
-	if (ctx->hash_ctx_addr) {
-		dma_unmap_single(dd->dev, ctx->hash_ctx_addr,
-				 SHA3_CONTEXT_LEN, DMA_FROM_DEVICE);
-		ctx->hash_ctx_addr = 0;
-		dbgp(1, "%s: ctx: %px, %x %x\n",
-				__func__, ctx, ctx->state[0], ctx->state[1]);
-	}
+	memcpy(ctx->state_v, ctx->state, SHA3_CONTEXT_LEN);
+
 	return 0;
 }
 
@@ -444,11 +437,14 @@ static void aml_sha3_copy_ready_hash(struct ahash_request *req)
 static int aml_sha3_finish(struct ahash_request *req)
 {
 	struct aml_sha3_reqctx *ctx = ahash_request_ctx(req);
+	struct aml_sha3_dev *dd = ctx->dd;
 	int err = 0;
 
 	aml_sha3_copy_ready_hash(req);
 
-	kfree(ctx->state);
+	dma_free_coherent(dd->dev, SHA3_CONTEXT_LEN,
+			ctx->state, ctx->hash_ctx_addr);
+	ctx->hash_ctx_addr = 0;
 	ctx->state = 0;
 	dbgp(1, "finish digcnt: ctx: %px, 0x%llx 0x%llx, %x %x\n",
 	     ctx, ctx->digcnt[1], ctx->digcnt[0],
@@ -505,32 +501,22 @@ static int aml_sha3_hw_init(struct aml_sha3_dev *dd)
 	return 0;
 }
 
-#if USING_RESTORE
 static int aml_sha3_state_restore(struct ahash_request *req)
 {
 	struct aml_sha3_reqctx *ctx = ahash_request_ctx(req);
 	struct aml_sha3_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
 	struct aml_sha3_dev *dd = tctx->dd;
-	dma_addr_t dma_ctx;
 	struct dma_dsc *dsc = dd->descriptor;
-	s32 len = SHA3_CONTEXT_LEN;
+	s32 len = SHA3_HW_CONTEXT_SIZE;
 	u32 status = 0;
 	int err = 0;
 
-	dbgp(1, "%s %d", __func__, __LINE__);
 	if (!ctx->digcnt[0] && !ctx->digcnt[1])
 		return err;
 
-	dbgp(1, "%s %d %x", __func__, __LINE__, (uintptr_t)ctx->state);
-	dma_ctx = dma_map_single(dd->parent, ctx->state,
-				 SHA3_CONTEXT_LEN, DMA_TO_DEVICE);
-	if (dma_mapping_error(dd->parent, dma_ctx)) {
-		dev_err(dd->dev, "mapping dma_ctx failed\n");
-		return -ENOMEM;
-	}
+	memcpy(ctx->state, ctx->state_v, SHA3_CONTEXT_LEN);
 
-	dbgp(1, "%s %d", __func__, __LINE__);
-	dsc[0].src_addr = (uintptr_t)dma_ctx;
+	dsc[0].src_addr = (uintptr_t)ctx->hash_ctx_addr;
 	dsc[0].tgt_addr = 0;
 	dsc[0].dsc_cfg.d32 = 0;
 	dsc[0].dsc_cfg.b.length = len;
@@ -559,12 +545,8 @@ static int aml_sha3_state_restore(struct ahash_request *req)
 	}
 	aml_dma_debug(dsc, 1, "end restore", dd->thread, dd->status);
 #endif
-
-	dma_unmap_single(dd->parent, dma_ctx,
-			 SHA3_CONTEXT_LEN, DMA_TO_DEVICE);
 	return err;
 }
-#endif
 
 static int aml_sha3_handle_queue(struct aml_sha3_dev *dd,
 				struct ahash_request *req)
@@ -620,11 +602,9 @@ static int aml_sha3_handle_queue(struct aml_sha3_dev *dd,
 
 	dbgp(1, "handling new req, ctx: %px, op: %lu, nbytes: %d\n",
 	     ctx, ctx->op, req->nbytes);
-#if USING_RESTORE
 	err = aml_sha3_state_restore(req);
 	if (err)
 		goto err1;
-#endif
 	dbgp(1, "%s %d", __func__, __LINE__);
 
 	if (ctx->op == SHA_OP_UPDATE) {
@@ -654,9 +634,7 @@ static int aml_sha3_handle_queue(struct aml_sha3_dev *dd,
 #endif
 	}
 
-#if USING_RESTORE
 err1:
-#endif
 #if DMA_IRQ_MODE
 	if (err != -EINPROGRESS)
 		/* done_task will not finish it, so do it here */
@@ -803,7 +781,6 @@ int aml_sha3_import(struct ahash_request *req, const void *in)
 	struct aml_sha3_reqctx *rctx = ahash_request_ctx(req);
 
 	memcpy(rctx, in, sizeof(*rctx));
-	memcpy(rctx->state, in + SHA3_CONTEXT_LEN, SHA3_CONTEXT_LEN);
 	return 0;
 }
 
@@ -812,9 +789,8 @@ int aml_sha3_export(struct ahash_request *req, void *out)
 	struct aml_sha3_reqctx *rctx = ahash_request_ctx(req);
 
 	memcpy(out, rctx, sizeof(*rctx));
-	memcpy(out + sizeof(*rctx), rctx->state, SHA3_CONTEXT_LEN);
-	dbgp(1, "export size: %zd %d %lx %lx\n",
-	     sizeof(*rctx), SHA3_CONTEXT_LEN, (uintptr_t)out, (uintptr_t)(out + SHA3_CONTEXT_LEN));
+	dbgp(1, "export size: %zd %d %lx\n",
+	     sizeof(*rctx), SHA3_CONTEXT_LEN, (uintptr_t)out);
 	return 0;
 }
 
@@ -859,6 +835,8 @@ int aml_shake_init(struct ahash_request *req)
 	ctx->dd = dd;
 
 	ctx->flags = 0;
+	ctx->state = NULL;
+	ctx->hash_ctx_addr = 0;
 
 	dbgp(1, "shake init: tfm: %px, ctx: %px, digest size: %d\n",
 	     tfm, ctx, crypto_ahash_digestsize(tfm));
@@ -876,7 +854,8 @@ int aml_shake_init(struct ahash_request *req)
 		return -EINVAL;
 	}
 
-	ctx->state = kmalloc(SHA3_CONTEXT_LEN, GFP_ATOMIC | GFP_DMA);
+	ctx->state = dma_alloc_coherent(dd->dev, SHA3_CONTEXT_LEN,
+				&ctx->hash_ctx_addr, GFP_ATOMIC | GFP_DMA);
 	if (!ctx->state)
 		return -ENOMEM;
 
@@ -909,14 +888,6 @@ static int aml_shake_squeeze_dma(struct ahash_request *req)
 	     ctx, ctx->digcnt[1], ctx->digcnt[0]);
 
 	mode = MODE_SHA3;
-
-	ctx->hash_ctx_addr = dma_map_single(dd->parent, ctx->state,
-					SHA3_CONTEXT_LEN, DMA_FROM_DEVICE);
-	if (dma_mapping_error(dd->parent, ctx->hash_ctx_addr)) {
-		dev_err(dd->dev, "ctx %d bytes error\n",
-			SHA3_CONTEXT_LEN);
-		return -EINVAL;
-	}
 
 	if (ctx->flags & SHA_FLAGS_SHAKE_128) {
 		op_mode = OP_MODE_SHAKE_128_SQUEEZE;
@@ -972,6 +943,7 @@ static int aml_shake_squeeze_dma(struct ahash_request *req)
 static int aml_shake_finish(struct ahash_request *req)
 {
 	struct aml_sha3_reqctx *ctx = ahash_request_ctx(req);
+	struct aml_sha3_dev *dd = ctx->dd;
 	int err = 0;
 
 	err = aml_shake_squeeze_dma(req);
@@ -983,7 +955,9 @@ static int aml_shake_finish(struct ahash_request *req)
 
 	aml_sha3_copy_ready_hash(req);
 
-	kfree(ctx->state);
+	dma_free_coherent(dd->dev, SHA3_CONTEXT_LEN,
+			ctx->state, ctx->hash_ctx_addr);
+	ctx->hash_ctx_addr = 0;
 	ctx->state = 0;
 	dbgp(1, "finish digcnt: ctx: %px, 0x%llx 0x%llx, %x %x\n",
 	     ctx, ctx->digcnt[1], ctx->digcnt[0],
@@ -1074,7 +1048,7 @@ static struct ahash_alg sha3_algs[] = {
 		.halg = {
 			.digestsize	= SHA3_224_DIGEST_SIZE,
 			.statesize =
-				sizeof(struct aml_sha3_reqctx) + SHA3_CONTEXT_LEN,
+				sizeof(struct aml_sha3_reqctx),
 			.base	= {
 				.cra_name	  = "sha3-224",
 				.cra_driver_name  = "aml-sha3-224",
@@ -1100,7 +1074,7 @@ static struct ahash_alg sha3_algs[] = {
 		.halg = {
 			.digestsize	= SHA3_256_DIGEST_SIZE,
 			.statesize =
-				sizeof(struct aml_sha3_reqctx) + SHA3_CONTEXT_LEN,
+				sizeof(struct aml_sha3_reqctx),
 			.base	= {
 				.cra_name	  = "sha3-256",
 				.cra_driver_name  = "aml-sha3-256",
@@ -1126,7 +1100,7 @@ static struct ahash_alg sha3_algs[] = {
 		.halg = {
 			.digestsize	= SHA3_384_DIGEST_SIZE,
 			.statesize =
-				sizeof(struct aml_sha3_reqctx) + SHA3_CONTEXT_LEN,
+				sizeof(struct aml_sha3_reqctx),
 			.base	= {
 				.cra_name	  = "sha3-384",
 				.cra_driver_name  = "aml-sha3-384",
@@ -1152,7 +1126,7 @@ static struct ahash_alg sha3_algs[] = {
 		.halg = {
 			.digestsize	= SHA3_512_DIGEST_SIZE,
 			.statesize =
-				sizeof(struct aml_sha3_reqctx) + SHA3_CONTEXT_LEN,
+				sizeof(struct aml_sha3_reqctx),
 			.base	= {
 				.cra_name	  = "sha3-512",
 				.cra_driver_name  = "aml-sha3-512",
@@ -1180,7 +1154,7 @@ static struct ahash_alg sha3_algs[] = {
 		.halg = {
 			.digestsize	= SHAKE_128_DIGEST_SIZE,
 			.statesize =
-				sizeof(struct aml_sha3_reqctx) + SHA3_CONTEXT_LEN,
+				sizeof(struct aml_sha3_reqctx),
 			.base	= {
 				.cra_name	  = "shake-128",
 				.cra_driver_name  = "aml-shake-128",
@@ -1207,7 +1181,7 @@ static struct ahash_alg sha3_algs[] = {
 		.halg = {
 			.digestsize	= SHAKE_256_DIGEST_SIZE,
 			.statesize =
-				sizeof(struct aml_sha3_reqctx) + SHA3_CONTEXT_LEN,
+				sizeof(struct aml_sha3_reqctx),
 			.base	= {
 				.cra_name	  = "shake-256",
 				.cra_driver_name  = "aml-shake-256",
@@ -1320,14 +1294,12 @@ static int aml_sha3_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int err = -EPERM;
 
-	dev_err(dev, "%s %d.\n", __func__, __LINE__);
 	sha_dd = devm_kzalloc(dev, sizeof(struct aml_sha3_dev), GFP_KERNEL);
 	if (!sha_dd) {
 		err = -ENOMEM;
 		goto sha_dd_err;
 	}
 
-	dev_err(dev, "%s %d.\n", __func__, __LINE__);
 	sha_dd->dev = dev;
 	sha_dd->parent = dev->parent;
 	sha_dd->dma = dev_get_drvdata(dev->parent);
@@ -1339,7 +1311,6 @@ static int aml_sha3_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&sha_dd->list);
 
-	dev_err(dev, "%s %d.\n", __func__, __LINE__);
 #if DMA_IRQ_MODE
 	tasklet_init(&sha_dd->done_task, aml_sha3_done_task,
 		     (unsigned long)sha_dd);
@@ -1353,7 +1324,6 @@ static int aml_sha3_probe(struct platform_device *pdev)
 		goto res_err;
 	}
 #endif
-	dev_err(dev, "%s %d.\n", __func__, __LINE__);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, DEFAULT_AUTOSUSPEND_DELAY);
 	pm_runtime_irq_safe(dev);
@@ -1366,14 +1336,12 @@ static int aml_sha3_probe(struct platform_device *pdev)
 		goto err_pm;
 	}
 
-	dev_err(dev, "%s %d.\n", __func__, __LINE__);
 	aml_sha3_hw_init(sha_dd);
 
 	spin_lock(&aml_sha3.lock);
 	list_add_tail(&sha_dd->list, &aml_sha3.dev_list);
 	spin_unlock(&aml_sha3.lock);
 
-	dev_err(dev, "%s %d.\n", __func__, __LINE__);
 	err = aml_sha3_register_algs(sha_dd);
 	if (err) {
 		dev_err(dev, "%s %d, err = %d\n", __func__, __LINE__, err);
@@ -1382,18 +1350,14 @@ static int aml_sha3_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "Aml SHA3-224/256/384/512 SHAKE-128/256 dma\n");
 
-	dev_err(dev, "%s %d.\n", __func__, __LINE__);
 	pm_runtime_put_sync_autosuspend(dev);
-	dev_err(dev, "%s %d.\n", __func__, __LINE__);
 	return 0;
 
 err_algs:
-	dev_err(dev, "%s %d.\n", __func__, __LINE__);
 	spin_lock(&aml_sha3.lock);
 	list_del(&sha_dd->list);
 	spin_unlock(&aml_sha3.lock);
 err_pm:
-	dev_err(dev, "%s %d.\n", __func__, __LINE__);
 	pm_runtime_disable(dev);
 #if DMA_IRQ_MODE
 res_err:
@@ -1401,7 +1365,6 @@ res_err:
 	tasklet_kill(&sha_dd->done_task);
 #endif
 sha_dd_err:
-	dev_err(dev, "%s %d.\n", __func__, __LINE__);
 	dev_err(dev, "initialization failed :<.\n");
 
 	return err;

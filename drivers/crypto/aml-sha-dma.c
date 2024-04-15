@@ -51,9 +51,6 @@
 
 #define SHA_BUFFER_LEN	\
 	ALIGN_DOWN((HASH_MAX_STATESIZE - sizeof(struct aml_sha_reqctx)), 64)
-
-#define AML_DIGEST_BUFSZ (SHA256_DIGEST_SIZE + 8)
-
 #define DEFAULT_AUTOSUSPEND_DELAY	1000
 
 struct aml_sha_dev;
@@ -77,7 +74,7 @@ struct aml_sha_reqctx {
 	size_t block_size;
 	u32 fast_nents;
 
-	u8  *digest;
+	u8  *hw_ctx;
 	u8  buffer[0] __aligned(sizeof(u32));
 };
 
@@ -109,6 +106,7 @@ struct aml_sha_dev {
 	struct ahash_request	*req;
 	void	*descriptor;
 	dma_addr_t	dma_descript_tab;
+	u32		hw_ctx_sz;
 };
 
 struct aml_sha_drv {
@@ -198,8 +196,8 @@ int aml_sha_init(struct ahash_request *req)
 		return -EINVAL;
 	}
 
-	ctx->digest = kzalloc(AML_DIGEST_BUFSZ, GFP_ATOMIC | GFP_DMA);
-	if (!ctx->digest)
+	ctx->hw_ctx = kzalloc(dd->hw_ctx_sz, GFP_ATOMIC | GFP_DMA);
+	if (!ctx->hw_ctx)
 		return -ENOMEM;
 
 	if (tctx->is_hmac)
@@ -240,11 +238,11 @@ static int aml_sha_xmit_dma(struct aml_sha_dev *dd,
 	else if (ctx->flags & SHA_FLAGS_SHA256)
 		mode = MODE_SHA256;
 
-	ctx->hash_addr = dma_map_single(dd->parent, ctx->digest,
-					AML_DIGEST_BUFSZ, DMA_FROM_DEVICE);
+	ctx->hash_addr = dma_map_single(dd->parent, ctx->hw_ctx,
+					dd->hw_ctx_sz, DMA_FROM_DEVICE);
 	if (dma_mapping_error(dd->parent, ctx->hash_addr)) {
 		dev_err(dd->dev, "hash %d bytes error\n",
-			AML_DIGEST_BUFSZ);
+			dd->hw_ctx_sz);
 		return -EINVAL;
 	}
 
@@ -519,7 +517,7 @@ static int aml_sha_update_dma_stop(struct aml_sha_dev *dd)
 
 	if (ctx->hash_addr)
 		dma_unmap_single(dd->dev, ctx->hash_addr,
-				 AML_DIGEST_BUFSZ, DMA_FROM_DEVICE);
+				 dd->hw_ctx_sz, DMA_FROM_DEVICE);
 	return 0;
 }
 
@@ -556,11 +554,11 @@ static void aml_sha_copy_ready_hash(struct ahash_request *req)
 		return;
 
 	if (ctx->flags & SHA_FLAGS_SHA1)
-		memcpy(req->result, ctx->digest, SHA1_DIGEST_SIZE);
+		memcpy(req->result, ctx->hw_ctx, SHA1_DIGEST_SIZE);
 	else if (ctx->flags & SHA_FLAGS_SHA224)
-		memcpy(req->result, ctx->digest, SHA224_DIGEST_SIZE);
+		memcpy(req->result, ctx->hw_ctx, SHA224_DIGEST_SIZE);
 	else if (ctx->flags & SHA_FLAGS_SHA256)
-		memcpy(req->result, ctx->digest, SHA256_DIGEST_SIZE);
+		memcpy(req->result, ctx->hw_ctx, SHA256_DIGEST_SIZE);
 }
 
 static int aml_sha_finish_hmac(struct ahash_request *req)
@@ -569,8 +567,8 @@ static int aml_sha_finish_hmac(struct ahash_request *req)
 	struct aml_sha_reqctx *ctx = ahash_request_ctx(req);
 	struct aml_sha_dev *dd = ctx->dd;
 	struct dma_dsc *dsc = dd->descriptor;
-	dma_addr_t hmac_digest = 0;
-	u8 *digest = 0;
+	dma_addr_t hmac_hw_ctx = 0;
+	u8 *hw_ctx = 0;
 	u32 mode;
 	u32 ds = 0;
 	u8 *key;
@@ -578,12 +576,12 @@ static int aml_sha_finish_hmac(struct ahash_request *req)
 	u32 status = 0;
 	int err = 0;
 
-	digest = dmam_alloc_coherent(dd->parent, AML_DIGEST_BUFSZ,
-				     &hmac_digest, GFP_ATOMIC | GFP_DMA);
-	if (!digest)
+	hw_ctx = dmam_alloc_coherent(dd->parent, dd->hw_ctx_sz,
+				     &hmac_hw_ctx, GFP_ATOMIC | GFP_DMA);
+	if (!hw_ctx)
 		return -ENOMEM;
 
-	memcpy(digest, ctx->digest, AML_DIGEST_BUFSZ);
+	memcpy(hw_ctx, ctx->hw_ctx, dd->hw_ctx_sz);
 
 	key = kzalloc(tctx->keylen, GFP_ATOMIC | GFP_DMA);
 	if (!key)
@@ -594,8 +592,8 @@ static int aml_sha_finish_hmac(struct ahash_request *req)
 				 tctx->keylen, DMA_TO_DEVICE);
 	if (dma_mapping_error(dd->parent, dma_key)) {
 		dev_err(dd->dev, "mapping key addr failed: %d\n", tctx->keylen);
-		dmam_free_coherent(dd->parent, AML_DIGEST_BUFSZ,
-				   digest, hmac_digest);
+		dmam_free_coherent(dd->parent, dd->hw_ctx_sz,
+				   hw_ctx, hmac_hw_ctx);
 		return -EINVAL;
 	}
 
@@ -625,8 +623,8 @@ static int aml_sha_finish_hmac(struct ahash_request *req)
 	dsc[0].dsc_cfg.b.owner = 1;
 
 	/* 2nd stage hash */
-	dsc[1].src_addr = (uintptr_t)hmac_digest;
-	dsc[1].tgt_addr = (uintptr_t)hmac_digest;
+	dsc[1].src_addr = (uintptr_t)hmac_hw_ctx;
+	dsc[1].tgt_addr = (uintptr_t)hmac_hw_ctx;
 	dsc[1].dsc_cfg.d32 = 0;
 	dsc[1].dsc_cfg.b.length = ds;
 	dsc[1].dsc_cfg.b.mode = mode;
@@ -659,8 +657,8 @@ static int aml_sha_finish_hmac(struct ahash_request *req)
 #endif
 	dma_unmap_single(dd->parent, dma_key,
 			 tctx->keylen, DMA_TO_DEVICE);
-	memcpy(ctx->digest, digest, AML_DIGEST_BUFSZ);
-	dmam_free_coherent(dd->parent, AML_DIGEST_BUFSZ, digest, hmac_digest);
+	memcpy(ctx->hw_ctx, hw_ctx, dd->hw_ctx_sz);
+	dmam_free_coherent(dd->parent, dd->hw_ctx_sz, hw_ctx, hmac_hw_ctx);
 
 	return err;
 }
@@ -722,7 +720,7 @@ static int aml_sha_finish(struct ahash_request *req)
 	}
 	aml_sha_copy_ready_hash(req);
 
-	kfree(ctx->digest);
+	kfree(ctx->hw_ctx);
 	dbgp(1, "finish digcnt: ctx: %p, 0x%llx 0x%llx, bufcnt: %zd, %x %x\n",
 	     ctx, ctx->digcnt[1], ctx->digcnt[0], ctx->bufcnt,
 	     req->result[0], req->result[1]);
@@ -780,15 +778,15 @@ static int aml_sha_state_restore(struct ahash_request *req)
 	struct aml_sha_dev *dd = tctx->dd;
 	dma_addr_t dma_ctx;
 	struct dma_dsc *dsc = dd->descriptor;
-	s32 len = AML_DIGEST_BUFSZ;
+	s32 len = dd->hw_ctx_sz;
 	u32 status = 0;
 	int err = 0;
 
 	if (!ctx->digcnt[0] && !ctx->digcnt[1] && !tctx->is_hmac)
 		return err;
 
-	dma_ctx = dma_map_single(dd->parent, ctx->digest,
-				 AML_DIGEST_BUFSZ, DMA_TO_DEVICE);
+	dma_ctx = dma_map_single(dd->parent, ctx->hw_ctx,
+				 dd->hw_ctx_sz, DMA_TO_DEVICE);
 	if (dma_mapping_error(dd->parent, dma_ctx)) {
 		dev_err(dd->dev, "mapping dma_ctx failed\n");
 		return -ENOMEM;
@@ -825,7 +823,7 @@ static int aml_sha_state_restore(struct ahash_request *req)
 #endif
 
 	dma_unmap_single(dd->parent, dma_ctx,
-			 AML_DIGEST_BUFSZ, DMA_TO_DEVICE);
+			 dd->hw_ctx_sz, DMA_TO_DEVICE);
 	return err;
 }
 
@@ -842,7 +840,7 @@ static int aml_hmac_install_key(struct aml_sha_dev *dd,
 	dma_addr_t dma_descript_tab = 0;
 	dma_addr_t partial = 0;
 	u8 *key = 0;
-	u8 *digest = 0;
+	u8 *hw_ctx = 0;
 	u32 i;
 	u32 mode = MODE_SHA1;
 	u32 status = 0;
@@ -887,9 +885,9 @@ static int aml_hmac_install_key(struct aml_sha_dev *dd,
 	for (i = 0; i < bs; i++)
 		*(u8 *)(key + i) ^= 0x36;
 
-	digest = dmam_alloc_coherent(dd->parent, AML_DIGEST_BUFSZ,
+	hw_ctx = dmam_alloc_coherent(dd->parent, dd->hw_ctx_sz,
 				     &partial, GFP_ATOMIC | GFP_DMA);
-	if (!digest) {
+	if (!hw_ctx) {
 		dmam_free_coherent(dd->parent, bs, key, dma_key);
 		dmam_free_coherent(dd->parent, sizeof(struct dma_dsc),
 				   dsc, dma_descript_tab);
@@ -930,11 +928,11 @@ static int aml_hmac_install_key(struct aml_sha_dev *dd,
 	}
 	aml_dma_debug(dsc, 1, "end hmac key", dd->thread, dd->status);
 #endif
-	memcpy(ctx->digest, digest, AML_DIGEST_BUFSZ);
+	memcpy(ctx->hw_ctx, hw_ctx, dd->hw_ctx_sz);
 	dmam_free_coherent(dd->parent, bs, key, dma_key);
 	dmam_free_coherent(dd->parent, sizeof(struct dma_dsc),
 			   dsc, dma_descript_tab);
-	dmam_free_coherent(dd->parent, AML_DIGEST_BUFSZ, digest, partial);
+	dmam_free_coherent(dd->parent, dd->hw_ctx_sz, hw_ctx, partial);
 
 	return err;
 }
@@ -1576,6 +1574,10 @@ static int aml_sha_probe(struct platform_device *pdev)
 	struct aml_sha_dev *sha_dd;
 	struct device *dev = &pdev->dev;
 	int err = -EPERM;
+	/* default is 48 for most chips.
+	 * For S7D, it is 40 and specified in dts
+	 */
+	u32 hw_ctx_sz = SHA256_DIGEST_SIZE + 16;
 
 	sha_dd = devm_kzalloc(dev, sizeof(struct aml_sha_dev), GFP_KERNEL);
 	if (!sha_dd) {
@@ -1583,13 +1585,15 @@ static int aml_sha_probe(struct platform_device *pdev)
 		goto sha_dd_err;
 	}
 
+	of_property_read_u32(pdev->dev.of_node, "hw_ctx_sz", &hw_ctx_sz);
+
 	sha_dd->dev = dev;
 	sha_dd->parent = dev->parent;
 	sha_dd->dma = dev_get_drvdata(dev->parent);
 	sha_dd->thread = sha_dd->dma->thread;
 	sha_dd->status = sha_dd->dma->status;
 	sha_dd->irq = sha_dd->dma->irq;
-
+	sha_dd->hw_ctx_sz = hw_ctx_sz;
 	platform_set_drvdata(pdev, sha_dd);
 
 	INIT_LIST_HEAD(&sha_dd->list);
