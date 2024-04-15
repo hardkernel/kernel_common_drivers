@@ -62,6 +62,7 @@
 #include <linux/component.h>
 #include <linux/amlogic/gki_module.h>
 #include <drm/amlogic/meson_drm_bind.h>
+#include <linux/amlogic/media/vout/cvbs.h>
 
 #ifdef CONFIG_AMLOGIC_VOUT_CC_BYPASS
 /* interrupt source */
@@ -466,6 +467,7 @@ static int cvbs_out_setmode(void)
 	cvbs_out_reg_write(ENCI_VIDEO_EN, 0);
 	set_vmode_clk();
 	ret = cvbs_out_set_venc(local_cvbs_mode);
+	cvbs_bist_test(cvbs_drv->video_mute ? 8 : 0, NULL);
 	if (ret) {
 		mutex_lock(&setmode_mutex);
 		return -1;
@@ -910,6 +912,14 @@ static void cvbs_bist_test(unsigned int bist, void *data)
 	}
 }
 
+void cvbs_video_mute(bool mute)
+{
+	mutex_lock(&setmode_mutex);
+	cvbs_bist_test(mute ? 8 : 0, NULL);
+	cvbs_drv->video_mute = mute;
+	mutex_unlock(&setmode_mutex);
+}
+
 static ssize_t aml_CVBS_attr_vdac_power_show(struct class *class,
 					     struct class_attribute *attr,
 					     char *buf)
@@ -1314,6 +1324,10 @@ static void cvbs_debug_store(const char *buf)
 			pr_info("cvbs: invalid bist\n");
 			goto DEBUG_END;
 		}
+		if (bist == 0)
+			cvbs_drv->video_mute = false;
+		else
+			cvbs_drv->video_mute = true;
 		cvbs_bist_test(bist, NULL);
 
 		break;
@@ -2109,7 +2123,7 @@ static int cvbsout_probe(struct platform_device *pdev)
 	cvbs_drv->cvbs_data = (struct meson_cvbsout_data *)match->data;
 	cvbs_log_dbg("%s, cpu_id:%d,name:%s\n", __func__,
 		cvbs_drv->cvbs_data->cpu_id, cvbs_drv->cvbs_data->name);
-
+	cvbs_drv->video_mute = false;
 	if (cvbs_drv->cvbs_data->cpu_id <= CVBS_CPU_TYPE_S1A &&
 	    cvbs_drv->cvbs_data->cpu_id >= CVBS_CPU_TYPE_S4)
 		cvbsout_clktree_probe(&pdev->dev);
