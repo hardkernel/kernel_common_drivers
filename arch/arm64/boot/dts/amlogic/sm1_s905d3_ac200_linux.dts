@@ -238,7 +238,7 @@
 
 	bt-dev{
 		compatible = "amlogic, aml-bt";
-		dev_name = "bt-dev";
+		//dev_name = "bt-dev";
 		status = "okay";
 		reset-gpios = <&gpio GPIOX_17 GPIO_ACTIVE_HIGH>;
 		hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
@@ -251,13 +251,8 @@
 		interrupt-gpios = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
 		irq_trigger_type = "IRQF_TRIGGER_LOW";
 		power_on-gpios = <&gpio GPIOX_6 GPIO_ACTIVE_HIGH>;
-		wifi_static_buf = <1>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pwm_e_pins>;
-		pwm_config = <&wifi_pwm_conf>;
-	};
+		wifi_static_buf = <2>;
 
-	wifi_pwm_conf:wifi_pwm_conf{
 		pwm_channel1_conf {
 			pwms = <&pwm_ef MESON_PWM_0 30541 0>;
 			duty-cycle = <15270>;
