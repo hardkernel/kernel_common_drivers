@@ -40,9 +40,6 @@
 #include <linux/debugfs.h>
 #include "mmc_key.h"
 #include "mmc_dtb.h"
-#if CONFIG_AMLOGIC_KERNEL_VERSION == 13515
-#include <trace/hooks/mmc.h>
-#endif
 #include <linux/moduleparam.h>
 #include <linux/amlogic/gki_module.h>
 
@@ -62,25 +59,6 @@ static struct wifi_clk_table wifi_clk[WIFI_CLOCK_TABLE_MAX] = {
 	{"8822CS", 0, 0xc822, 167000000},
 	{"qca6174", 0, 0x50a, 167000000}
 };
-
-//extern struct mmc_host *sdio_host;
-
-#if CONFIG_AMLOGIC_KERNEL_VERSION == 13515
-void mmc_sd_update_cmdline_timing(void *data, struct mmc_card *card, int *err)
-{
-	/* nothing */
-	*err = 0;
-}
-
-void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err)
-{
-	/* nothing */
-	*err = 0;
-}
-
-//#define SD_CMD_TIMING mmc_sd_update_cmdline_timing
-//#define SD_DATA_TIMING mmc_sd_update_dataline_timing
-#endif
 
 static inline u32 aml_mv_dly1_nommc(u32 x)
 {
@@ -2753,22 +2731,6 @@ static int g12a_mmc_probe(struct platform_device *pdev)
 			schedule_delayed_work(&host->dtbkey, 50);
 		}
 
-#if CONFIG_AMLOGIC_KERNEL_VERSION == 13515
-#ifdef CONFIG_ANDROID_VENDOR_HOOKS
-		if (aml_card_type_non_sdio(pdata)) {
-			ret =
-			register_trace_android_vh_mmc_sd_update_cmdline_timing(SD_CMD_TIMING,
-				NULL);
-			if (ret)
-				pr_err("register update_cmdline_timing failed, err:%d\n", ret);
-			ret =
-			register_trace_android_vh_mmc_sd_update_dataline_timing(SD_DATA_TIMING,
-				NULL);
-			if (ret)
-				pr_err("register update_dataline timing failed, err:%d\n", ret);
-		}
-#endif
-#endif
 		dev_notice(host->dev, "host probe success!, %s\n", mmc_hostname(mmc));
 	}
 	return 0;
