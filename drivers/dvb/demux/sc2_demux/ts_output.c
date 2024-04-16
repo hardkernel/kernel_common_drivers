@@ -466,6 +466,20 @@ static int out_ts_cb_list(struct out_elem *pout, char *buf, int size,
 	return w_size;
 }
 
+static void print_section_ts(char *pstart, int len)
+{
+	int count = len / 188;
+	int i = 0;
+	int j = 0;
+
+	for (i = 0; i < count; i++) {
+		dprint("%d ts packet:\n", i + 1);
+		for (j = 0; j < 30; j++)
+			dprint("0x%0x ", *(pstart + i * 188 + j));
+		dprint("\n");
+	}
+}
+
 static int section_process(struct out_elem *pout)
 {
 	int ret = 0;
@@ -485,8 +499,10 @@ static int section_process(struct out_elem *pout)
 		if (pout->cb_sec_list) {
 			w_size = out_sec_cb_list(pout, pread, ret);
 			ATRACE_COUNTER(pout->name, w_size);
-			pr_sec_dbg("%s send:%d, w:%d wwwwww\n", __func__,
-			       ret, w_size);
+			pr_sec_dbg("%s sid:%d pid:%d send:%d, w:%d wwwwww\n", __func__,
+					pout->sid, pout->es_pes->pid, ret, w_size);
+			if (w_size >= 188 && debug_section)
+				print_section_ts(pread, ret);
 			remain_len = ret - w_size;
 			if (dump_other_cb)
 				dump_other_cb(pout->sid, pout->es_pes->pid,
