@@ -565,14 +565,11 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 		ret = PTR_ERR(priv->ethrmii);
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "wzh failed to get ethrmii clock\n");
-		return ret;
+	} else {
+		ret = clk_prepare_enable(priv->ethrmii);
+		if (ret)
+			dev_err(dev, "failed to enable ethrmii clock");
 	}
-	ret = clk_prepare_enable(priv->ethrmii);
-	if (ret) {
-		dev_err(dev, "failed to enable ethrmii clock");
-		return ret;
-	}
-
 #endif
 	/* Make sure the device registers are clocked */
 	ret = clk_prepare_enable(priv->pclk);
