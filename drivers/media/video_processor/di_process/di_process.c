@@ -1274,12 +1274,18 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		wake_up_interruptible(&dev->wq);
 
 		if (vf->type & VIDTYPE_INTERLACE) {
-			dp_print(dev->index, PRINT_OTHER, "q dummy seconf vf to DI\n");
+			dp_print(dev->index, PRINT_OTHER, "q dummy second vf to DI\n");
 
 			i = get_received_frame_free_index(dev);
 
-			memcpy(&dev->dummy_vf1, &dev->dummy_vf, sizeof(struct vframe_s));
+			memcpy(&dev->dummy_vf1, vf, sizeof(struct vframe_s));
 			dev->dummy_vf1.type &= ~VIDTYPE_TYPEMASK;
+			dev->dummy_vf1.hdr10p_data_size = 0;
+			dev->dummy_vf1.hdr10p_data_buf = NULL;
+			dev->dummy_vf1.meta_data_size = 0;
+			dev->dummy_vf1.meta_data_buf = NULL;
+			dev->dummy_vf1.vf_ud_param.magic_code = 0;
+			dev->dummy_vf1.src_fmt.sei_magic_code = 0;
 			dev->dummy_vf1.height >>= 1;
 			dev->dummy_vf1.compHeight >>= 1;
 			dev->received_frame[i].file_vf = NULL;
