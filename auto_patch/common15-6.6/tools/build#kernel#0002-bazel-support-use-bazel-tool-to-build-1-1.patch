@@ -1,0 +1,38 @@
+From 07760fc896e4c4e46d7114f6eed0ccb91f6998d3 Mon Sep 17 00:00:00 2001
+From: Wanwei Jiang <wanwei.jiang@amlogic.com>
+Date: Thu, 30 Mar 2023 23:14:01 +0800
+Subject: [PATCH] bazel: support use bazel tool to build [1/1]
+
+PD#SWPL-112151
+
+Problem:
+support use bazel tool to build
+
+Solution:
+some drivers will relocate the directory, resulting in Module.symvers not being in its original directory
+
+Verify:
+ohm
+
+Change-Id: I4f2f88663d2d887b9c8bb5d535ceb3cb1fa5d879
+Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
+---
+ kleaf/impl/kernel_module.bzl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kleaf/impl/kernel_module.bzl b/kleaf/impl/kernel_module.bzl
+index 70a0220..c6e5622 100644
+--- a/kleaf/impl/kernel_module.bzl
++++ b/kleaf/impl/kernel_module.bzl
+@@ -481,7 +481,7 @@ def _kernel_module_impl(ctx):
+              # Grab *.cmd
+                {grab_cmd_cmd}
+              # Move Module.symvers
+-               rsync -aL ${{OUT_DIR}}/${{ext_mod_rel}}/Module.symvers {module_symvers}
++		rsync -aL $(find ${{OUT_DIR}}/${{ext_mod_rel}} -name Module.symvers) {module_symvers}
+              # Grab and then drop modules.order
+                {grab_modules_order_cmd}
+                {drop_modules_order_cmd}
+-- 
+2.42.0
+

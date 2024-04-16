@@ -5,3 +5,6 @@
 #aml_drm.ko
   dma_resv_get_singleton
   drm_get_format_info
+
+# mali_kbase.ko
+  __warn_flushing_systemwide_wq

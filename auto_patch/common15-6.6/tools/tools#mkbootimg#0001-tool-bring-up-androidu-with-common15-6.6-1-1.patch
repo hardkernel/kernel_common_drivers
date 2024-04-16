@@ -1,0 +1,42 @@
+From 9ca82408a18d6f42b6e1d672c61533b4a5d2859e Mon Sep 17 00:00:00 2001
+From: "qinglin.li" <qinglin.li@amlogic.com>
+Date: Tue, 7 May 2024 17:30:49 +0800
+Subject: [PATCH] tool: bring up androidu with common15-6.6 [1/1]
+
+PD#SWPL-160422
+
+Problem:
+rename Android.bp to Android_bp
+
+Solution:
+rename Android.bp to Android_bp
+
+Verify:
+local
+
+Change-Id: I58eb2e422e8c7ef444cb7a4d932781c42983009b
+Signed-off-by: qinglin.li <qinglin.li@amlogic.com>
+---
+ Android.bp => Android_bp        | 0
+ gki/{Android.bp => Android_bp}  | 0
+ rust/{Android.bp => Android_bp} | 0
+ 3 files changed, 0 insertions(+), 0 deletions(-)
+ rename Android.bp => Android_bp (100%)
+ rename gki/{Android.bp => Android_bp} (100%)
+ rename rust/{Android.bp => Android_bp} (100%)
+
+diff --git a/Android.bp b/Android_bp
+similarity index 100%
+rename from Android.bp
+rename to Android_bp
+diff --git a/gki/Android.bp b/gki/Android_bp
+similarity index 100%
+rename from gki/Android.bp
+rename to gki/Android_bp
+diff --git a/rust/Android.bp b/rust/Android_bp
+similarity index 100%
+rename from rust/Android.bp
+rename to rust/Android_bp
+-- 
+2.42.0
+

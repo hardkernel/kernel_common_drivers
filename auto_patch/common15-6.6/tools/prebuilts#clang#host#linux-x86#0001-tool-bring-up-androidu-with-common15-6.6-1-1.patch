@@ -1,0 +1,36 @@
+From 3f2d8cc448f3608b2cbdb10ef640d5413c1fac10 Mon Sep 17 00:00:00 2001
+From: "qinglin.li" <qinglin.li@amlogic.com>
+Date: Tue, 7 May 2024 17:15:48 +0800
+Subject: [PATCH] tool: bring up androidu with common15-6.6 [1/1]
+
+PD#SWPL-160422
+
+Problem:
+rename Android.bp to Android_bp
+
+Solution:
+rename Android.bp to Android_bp
+
+Verify:
+local
+
+Change-Id: I009826974d1215b1d822a6b7e7ead3235d6e5c65
+Signed-off-by: qinglin.li <qinglin.li@amlogic.com>
+---
+ Android.bp => Android_bp         | 0
+ soong/{Android.bp => Android_bp} | 0
+ 2 files changed, 0 insertions(+), 0 deletions(-)
+ rename Android.bp => Android_bp (100%)
+ rename soong/{Android.bp => Android_bp} (100%)
+
+diff --git a/Android.bp b/Android_bp
+similarity index 100%
+rename from Android.bp
+rename to Android_bp
+diff --git a/soong/Android.bp b/soong/Android_bp
+similarity index 100%
+rename from soong/Android.bp
+rename to soong/Android_bp
+-- 
+2.42.0
+
