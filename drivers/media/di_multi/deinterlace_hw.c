@@ -1205,6 +1205,12 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 					    (0 << 25)		| /* contrd en */
 					    ((mem_bypass ? 1 : 0) << 28)   |
 					    pre_field_num << 29);
+			if (DIM_IS_IC(S7D)) {
+				DIM_RDMA_WR_BITS(DI_WRARB_UGT_L1C1, 0x3, 4, 2);
+				DIM_RDMA_WR_BITS(DI_SUB_WRARB_UGT, 0x1, 1, 1);
+				DIM_RDMA_WR_BITS(DI_SUB_WRARB_UGT, 0x1, 3, 1);
+				dbg_reg("205d:0x%x 37ca:0x%x\n", RD(0x205d), RD(0x37ca));
+			}
 		}
 	} else {
 		if (madi_en) {
