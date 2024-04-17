@@ -160,6 +160,7 @@
 /*  V3.5.033 remove more print logs */
 /*  V3.5.034 fix incorrect cfo calculation results and add t2 info */
 /*  V3.5.035 fix crash caused by accessing T2 registers on T5D */
+/*  V3.5.036 fix T5D switch to dvbt2 unlock(sync from 5.4/4.9) */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -176,8 +177,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.035"
-#define DTVDEMOD_VER	"2024/04/12: fix crash caused by accessing T2 registers on T5D"
+#define AMLDTVDEMOD_VER "V3.5.036"
+#define DTVDEMOD_VER	"2024/04/17: fix T5D switch to dvbt2 unlock(sync from 5.4/4.9)"
 #define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

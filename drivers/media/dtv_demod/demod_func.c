@@ -1715,8 +1715,7 @@ void demod_set_mode_ts(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 		dvbt_mode = 0x110011;
 
 		/* fix T and T2 channel switch unlock. */
-		if (demod_is_t5d_cpu(devp) || is_meson_t3_cpu() ||
-		is_meson_t5w_cpu() || is_meson_t5m_cpu() || is_meson_t3x_cpu())
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
 			cfg0.b.adc_regout = 0;
 
 		break;
