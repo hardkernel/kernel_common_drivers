@@ -15,6 +15,7 @@ enum lcd_extern_type_e {
 	LCD_EXTERN_I2C = 0,
 	LCD_EXTERN_SPI,
 	LCD_EXTERN_MIPI,
+	LCD_EXTERN_SIMPLE,
 	LCD_EXTERN_MAX,
 };
 
@@ -69,6 +70,11 @@ struct lcd_extern_config_s {
 	unsigned char *table_init_off;
 };
 
+struct lcd_extern_check_block_s {
+	unsigned char offset;
+	unsigned char len;
+};
+
 struct lcd_extern_dev_s {
 	int dev_index;
 	unsigned int state;
@@ -76,24 +82,19 @@ struct lcd_extern_dev_s {
 	struct lcd_extern_config_s config;
 	struct lcd_extern_multi_list_s *multi_list_header;
 	struct lcd_extern_i2c_dev_s *i2c_dev[4];
-	unsigned char check_state[4];
-	unsigned char check_flag;
-	unsigned char check_offset;
-	unsigned char check_len;
+	unsigned char check_state;
+	unsigned char check_step;
+	unsigned char check_execute;
+	unsigned char check_block_cnt;
+	struct lcd_extern_check_block_s *check_block;
 
-	int (*reg_read)(struct lcd_extern_driver_s *edrv,
-			struct lcd_extern_dev_s *edev,
-			unsigned char reg_byte_len,
-			unsigned short reg, unsigned char *buf);
-	int (*reg_write)(struct lcd_extern_driver_s *edrv,
-			struct lcd_extern_dev_s *edev,
+	int (*reg_read)(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev,
+			unsigned char reg_byte_len, unsigned short reg, unsigned char *buf);
+	int (*reg_write)(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev,
 			unsigned char *buf, unsigned int len);
-	int (*init)(struct lcd_extern_driver_s *edrv,
-		    struct lcd_extern_dev_s *edev);
-	int (*power_on)(struct lcd_extern_driver_s *edrv,
-			struct lcd_extern_dev_s *edev);
-	int (*power_off)(struct lcd_extern_driver_s *edrv,
-			 struct lcd_extern_dev_s *edev);
+	int (*init)(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev);
+	int (*power_on)(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev);
+	int (*power_off)(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev);
 };
 
 struct lcd_ext_gpio_s {
