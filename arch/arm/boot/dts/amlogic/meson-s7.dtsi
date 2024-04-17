@@ -868,7 +868,7 @@
 			cap-sdio-irq;
 			keep-power-in-suspend;
 			use_intf3_tuning;
-			src_clk_rate = <1536000000>;
+			src_clk_rate = <1152000000>;
 			no-mmc;
 			no-sd;
 			//resets = <&reset RESET_SD_EMMC_A>;

@@ -867,7 +867,7 @@
 			card_type = <3>;
 			mmc_debug_flag;
 			cap-sdio-irq;
-			src_clk_rate = <1536000000>;
+			src_clk_rate = <1152000000>;
 			keep-power-in-suspend;
 			use_intf3_tuning;
 			no-mmc;
