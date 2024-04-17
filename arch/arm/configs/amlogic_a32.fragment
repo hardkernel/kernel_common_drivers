@@ -102,6 +102,9 @@ CONFIG_AMLOGIC_COMMON_CLK_T5D=m
 # amlogic-aoclk-soc-t5d.ko
 CONFIG_AMLOGIC_COMMON_AO_CLK_T5D=m
 
+# amlogic-clk-soc-t6d.ko
+CONFIG_AMLOGIC_COMMON_CLK_T6D=m
+
 # amlogic-clk-soc-s7d.ko
 CONFIG_AMLOGIC_COMMON_CLK_S7D=m
 

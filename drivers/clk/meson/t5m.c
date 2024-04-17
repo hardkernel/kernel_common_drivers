@@ -1411,7 +1411,7 @@ static const struct clk_parent_data t5m_sc_parent_data[] = {
 	{ .hw = &t5m_fclk_div3.hw },
 	{ .hw = &t5m_fclk_div5.hw },
 	{ .fw_name = "xtal", },
-	{ .hw = &t5m_fclk_div5.hw },
+	{ .hw = &t5m_fclk_div2.hw },
 };
 
 static struct clk_regmap t5m_sc_clk_sel = {

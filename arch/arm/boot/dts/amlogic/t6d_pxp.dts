@@ -948,7 +948,7 @@
 				GIC_SPI 128 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "irq_frc_in", "irq_frc_out", "irq_axi_crash", "irq_frc_rdma";
 		memory-region = <&frc_cma_reserved>;
-		clocks = <&clkc CLKID_FRC>, <&clkc CLKID_ME>;
+		//clocks = <&clkc CLKID_FRC>, <&clkc CLKID_ME>;
 		clock-names = "clk_frc", "clk_me";
 		power-domains = <&pwrdm PDID_T5M_FRC_TOP>;
 		power-domain-names = "frc-top";
