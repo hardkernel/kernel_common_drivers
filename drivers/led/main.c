@@ -16,6 +16,7 @@ static int __init led_main_init(void)
 	call_sub_init(led_state_init);
 	call_sub_init(led_unipolar_ctrl_init);
 	call_sub_init(fd650_init);
+	call_sub_init(aml_pca9557_init);
 	pr_debug("### %s() end\n", __func__);
 	return 0;
 }
@@ -27,8 +28,8 @@ static void __exit led_main_exit(void)
 	led_tlc59116_init();
 	led_unipolar_ctrl_exit();
 	fd650_exit();
+	aml_pca9557_exit();
 }
-
 module_init(led_main_init);
 module_exit(led_main_exit);
 

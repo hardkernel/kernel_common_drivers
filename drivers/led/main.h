@@ -76,4 +76,18 @@ static inline void fd650_exit(void)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_LEDS_PCA9557)
+int aml_pca9557_init(void);
+void aml_pca9557_exit(void);
+#else
+static inline int aml_pca9557_init(void)
+{
+	return 0;
+}
+
+static inline void aml_pca9557_exit(void)
+{
+}
+#endif
+
 #endif /*__LED_MAIN_H_*/
