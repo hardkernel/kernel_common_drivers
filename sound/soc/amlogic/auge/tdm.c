@@ -2937,7 +2937,7 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 	if (p_tdm->chipinfo->regulator || (p_tdm->suspend_clk_off && !is_pm_s2idle_mode())) {
 
 		audiobus_write(EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
-		audiobus_update_bits(EE_AUDIO_CLK_GATE_EN1, 0x7, 0x7);
+		audiobus_write(EE_AUDIO_CLK_GATE_EN1, 0xffffffff);
 
 		if (!IS_ERR(p_tdm->mclk) && !IS_ERR(p_tdm->clk)) {
 			ret = clk_set_parent(p_tdm->mclk, NULL);
@@ -2990,11 +2990,11 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 		struct pinctrl_state *state = NULL;
 		state = pinctrl_lookup_state(p_tdm->pin_ctl, "tdm_pins");
 		if (!IS_ERR_OR_NULL(state)) {
-			pinctrl_select_state(p_tdm->pin_ctl, state);
-			pr_info("%s tdm pins enable!\n", __func__);
+			ret = pinctrl_select_state(p_tdm->pin_ctl, state);
+			pr_info("%s tdm pins enable id:%d ret:%d\n", __func__,
+				p_tdm->id, ret);
 		}
 	}
-
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 	return 0;
 }
@@ -3010,8 +3010,8 @@ static void aml_tdm_platform_shutdown(struct platform_device *pdev)
 
 		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
 		if (!IS_ERR_OR_NULL(ps)) {
-			pinctrl_select_state(p_tdm->pin_ctl, ps);
-			pr_info("%s tdm pins disable!\n", __func__);
+			ret = pinctrl_select_state(p_tdm->pin_ctl, ps);
+			pr_info("%s tdm pins disable! ret:%d\n", __func__, ret);
 		}
 	}
 
@@ -3039,10 +3039,80 @@ static void aml_tdm_platform_shutdown(struct platform_device *pdev)
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 }
 
+#ifdef CONFIG_HIBERNATION
+static int aml_tdm_platform_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
+
+	p_tdm->pin_ctl = devm_pinctrl_get_select(dev, "tdm_pins");
+	if (IS_ERR(p_tdm->pin_ctl))
+		pr_err("aml_tdm_get_pins error!\n");
+	audiobus_write(EE_AUDIO_FRDDR_A_CTRL0, 0);
+	aml_tdm_platform_resume(pdev);
+
+	return 0;
+}
+
+static int aml_tdm_platform_freeze(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
+	int ret = 0;
+
+	if (p_tdm->chipinfo->regulator || (p_tdm->suspend_clk_off && !is_pm_s2idle_mode())) {
+		if (!IS_ERR(p_tdm->mclk2pad)) {
+			while (__clk_is_enabled(p_tdm->mclk2pad))
+				clk_disable_unprepare(p_tdm->mclk2pad);
+		}
+
+		if (!IS_ERR(p_tdm->mclk)) {
+			while (__clk_is_enabled(p_tdm->mclk))
+				clk_disable_unprepare(p_tdm->mclk);
+		}
+
+		if (!IS_ERR(p_tdm->mclk) && !IS_ERR(p_tdm->clk_src_cd)) {
+			ret = clk_set_parent(p_tdm->mclk, p_tdm->clk_src_cd);
+			if (ret)
+				dev_warn(&pdev->dev, "can't set tdm clk_src_cd clock\n");
+		}
+
+		if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
+			regulator_disable(p_tdm->regulator_vcc5v);
+		if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc3v3))
+			regulator_disable(p_tdm->regulator_vcc3v3);
+	}
+
+	/*mute default clk */
+	if (!IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
+		struct pinctrl_state *ps = NULL;
+
+		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
+		if (!IS_ERR_OR_NULL(ps)) {
+			ret = pinctrl_select_state(p_tdm->pin_ctl, ps);
+			pr_info("%s tdm pins disable! ret:%d\n", __func__, ret);
+		}
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops meson_tdm_pm_ops = {
+	/* use the same as suspend, because the restore
+	 * will enable the clk and default setting
+	 */
+	.restore = aml_tdm_platform_restore,
+	.freeze = aml_tdm_platform_freeze,
+};
+#endif
+
 struct platform_driver aml_tdm_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = aml_tdm_device_id,
+#ifdef CONFIG_HIBERNATION
+		.pm = &meson_tdm_pm_ops,
+#endif
 	},
 	.probe	 = aml_tdm_platform_probe,
 	.suspend = aml_tdm_platform_suspend,

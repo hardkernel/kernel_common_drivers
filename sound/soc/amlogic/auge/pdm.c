@@ -1507,6 +1507,16 @@ static int pdm_platform_suspend(struct platform_device *pdev, pm_message_t state
 		regulator_disable(p_pdm->regulator_vcc5v);
 	if (!IS_ERR_OR_NULL(p_pdm->regulator_vcc3v3))
 		regulator_disable(p_pdm->regulator_vcc3v3);
+	/*mute default clk */
+	if (!IS_ERR_OR_NULL(p_pdm->pdm_pins)) {
+		struct pinctrl_state *ps = NULL;
+
+		ps = pinctrl_lookup_state(p_pdm->pdm_pins, "pdm_a_gpio");
+		if (!IS_ERR_OR_NULL(ps)) {
+			pinctrl_select_state(p_pdm->pdm_pins, ps);
+			pr_info("%s tdm pins disable!\n", __func__);
+		}
+	}
 
 	return 0;
 }
@@ -1537,6 +1547,16 @@ static int pdm_platform_resume(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "regulator pdm3v3 enable failed:   %d\n", ret);
 
+	if (!IS_ERR_OR_NULL(p_pdm->pdm_pins)) {
+		struct pinctrl_state *state = NULL;
+
+		state = pinctrl_lookup_state(p_pdm->pdm_pins, "pdm_pins");
+		if (!IS_ERR_OR_NULL(state)) {
+			pinctrl_select_state(p_pdm->pdm_pins, state);
+			pr_info("%s tdm pins enable!\n", __func__);
+		}
+	}
+
 	return 0;
 }
 
@@ -1547,6 +1567,18 @@ static void pdm_platform_shutdown(struct platform_device *pdev)
 	int ret = 0;
 
 	pr_info("pdm shutdown entry\n");
+
+	/*mute default clk */
+	if (!IS_ERR_OR_NULL(p_pdm->pdm_pins)) {
+		struct pinctrl_state *ps = NULL;
+
+		ps = pinctrl_lookup_state(p_pdm->pdm_pins, "pdm_a_gpio");
+		if (!IS_ERR_OR_NULL(ps)) {
+			pinctrl_select_state(p_pdm->pdm_pins, ps);
+			pr_info("%s tdm pins disable!\n", __func__);
+		}
+	}
+
 	/* whether in freeze */
 	if (/* is_pm_freeze_mode() && */vad_pdm_is_running()) {
 		if (!p_pdm->islowpower) {
@@ -1566,11 +1598,169 @@ static void pdm_platform_shutdown(struct platform_device *pdev)
 	}
 }
 
+#ifdef CONFIG_HIBERNATION
+static int pdm_platform_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct aml_pdm *p_pdm = dev_get_drvdata(&pdev->dev);
+	struct pdm_info info;
+	unsigned int sysclk_srcpll_freq, dclk_srcpll_freq;
+	char *clk_name = NULL;
+	int ret = 0;
+	unsigned int osr = 64, lpf_filter_mode = 4, hpf_filter_mode = 6, dclk_idx = 1;
+
+	audiobus_write(EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
+	audiobus_write(EE_AUDIO_CLK_GATE_EN1, 0xffffffff);
+
+	if (!IS_ERR_OR_NULL(p_pdm->pdm_pins)) {
+		struct pinctrl_state *state = NULL;
+
+		state = pinctrl_lookup_state(p_pdm->pdm_pins, "pdm_pins");
+		if (!IS_ERR_OR_NULL(state)) {
+			pinctrl_select_state(p_pdm->pdm_pins, state);
+			pr_info("%s tdm pins enable!\n", __func__);
+		}
+	}
+	info.bitdepth   = 16;
+	info.channels   = 2;
+	info.lane_masks = p_pdm->lane_mask_in;
+	info.dclk_idx   = dclk_idx;
+	info.sample_count = pdm_get_sample_count(p_pdm->islowpower, dclk_idx);
+
+	/* lowpower, force dclk to 768k */
+	if (p_pdm->islowpower)
+		dclk_idx = 2;
+
+	sysclk_srcpll_freq = clk_get_rate(p_pdm->sysclk_srcpll);
+	dclk_srcpll_freq = clk_get_rate(p_pdm->dclk_srcpll);
+
+	clk_name = (char *)__clk_get_name(p_pdm->dclk_srcpll);
+	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
+		if ((aml_return_chip_id() != CLK_NOTIFY_CHIP_ID)  &&
+			(aml_return_chip_id() != CLK_NOTIFY_CHIP_ID_T3X)) {
+			pr_err("%s:set hifi pll\n", __func__);
+			if (p_pdm->syssrc_clk_rate)
+				clk_set_rate(p_pdm->dclk_srcpll, p_pdm->syssrc_clk_rate);
+			else
+				clk_set_rate(p_pdm->dclk_srcpll, 1806336 * 1000);
+			ret = clk_set_parent(p_pdm->clk_pdm_dclk, p_pdm->dclk_srcpll);
+			if (ret)
+				dev_warn(p_pdm->dev, "can't set pdm dclk_srcpll\n");
+			ret = clk_set_parent(p_pdm->clk_pdm_sysclk, p_pdm->sysclk_srcpll);
+			if (ret)
+				dev_warn(p_pdm->dev, "can't set pdm clk_pdm_sysclk\n");
+		} else {
+			if (p_pdm->earc_use_48k) {
+				ret = clk_set_parent(p_pdm->clk_pdm_dclk, p_pdm->dclk_srcpll);
+				if (ret)
+					dev_warn(p_pdm->dev, "can't set pdm parent clock\n");
+				/* T5M use clock notify, if parent changed to hifi1, no need set */
+				if (p_pdm->syssrc_clk_rate)
+					clk_set_rate(p_pdm->dclk_srcpll,
+									p_pdm->syssrc_clk_rate);
+				else
+					clk_set_rate(p_pdm->dclk_srcpll, 1806336 * 1000);
+			} else {
+				ret = clk_set_parent(p_pdm->clk_pdm_dclk, p_pdm->clk_src_cd);
+				if (ret)
+					dev_warn(p_pdm->dev, "can't set pdm cd clock\n");
+			}
+		}
+	} else {
+		if (dclk_srcpll_freq == 0)
+			clk_set_rate(p_pdm->dclk_srcpll, 24576000 * 20);
+		ret = clk_set_parent(p_pdm->clk_pdm_dclk, p_pdm->dclk_srcpll);
+		if (ret)
+			dev_warn(p_pdm->dev, "can't set pdm dclk_srcpll\n");
+	}
+
+	clk_set_rate(p_pdm->clk_pdm_dclk, pdm_dclkidx2rate(dclk_idx));
+	clk_set_rate(p_pdm->clk_pdm_sysclk, 133333351);
+
+	/* enable clock gate */
+	ret = clk_prepare_enable(p_pdm->clk_gate);
+	if (ret)
+		pr_err("Can't enable pcm clk_gate clock: %d\n", ret);
+
+	/* enable clock */
+	ret = clk_prepare_enable(p_pdm->sysclk_srcpll);
+	if (ret)
+		pr_err("Can't enable pcm sysclk_srcpll clock: %d\n", ret);
+
+	ret = clk_prepare_enable(p_pdm->clk_pdm_dclk);
+	if (ret) {
+		pr_err("Can't enable pcm clk_pdm_dclk clock: %d\n", ret);
+		return -EINVAL;
+	}
+
+	ret = clk_prepare_enable(p_pdm->clk_pdm_sysclk);
+	if (ret) {
+		pr_err("Can't enable pcm clk_pdm_sysclk clock: %d\n", ret);
+		return -EINVAL;
+	}
+
+	aml_pdm_ctrl(&info, 0);
+	aml_pdm_filter_ctrl(p_pdm->pdm_gain_index, osr, lpf_filter_mode, hpf_filter_mode, 0);
+
+	return 0;
+}
+
+static int pdm_platform_freeze(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct aml_pdm *p_pdm = dev_get_drvdata(&pdev->dev);
+	int ret = 0;
+
+	if (!is_pm_s2idle_mode()) {
+		if (!IS_ERR(p_pdm->clk_pdm_dclk) && !IS_ERR(p_pdm->dclk_srcpll)) {
+			while (__clk_is_enabled(p_pdm->clk_pdm_dclk))
+				clk_disable_unprepare(p_pdm->clk_pdm_dclk);
+		}
+		if (!IS_ERR(p_pdm->clk_pdm_sysclk) && !IS_ERR(p_pdm->sysclk_srcpll)) {
+			while (__clk_is_enabled(p_pdm->clk_pdm_sysclk))
+				clk_disable_unprepare(p_pdm->clk_pdm_sysclk);
+		}
+	}
+
+	if (!IS_ERR(p_pdm->clk_pdm_dclk) && !IS_ERR(p_pdm->clk_src_cd)) {
+		ret = clk_set_parent(p_pdm->clk_pdm_dclk, p_pdm->clk_src_cd);
+		if (ret)
+			dev_warn(&pdev->dev, "can't set aml_pdm clk_src_cd clock\n");
+		ret = clk_set_parent(p_pdm->clk_pdm_sysclk, p_pdm->clk_src_cd);
+		if (ret)
+			dev_warn(&pdev->dev, "can't set aml_pdm clk_pdm_sysclk clock\n");
+	}
+
+	if (!IS_ERR_OR_NULL(p_pdm->pdm_pins)) {
+		struct pinctrl_state *ps = NULL;
+
+		ps = pinctrl_lookup_state(p_pdm->pdm_pins, "pdm_a_gpio");
+		if (!IS_ERR_OR_NULL(ps)) {
+			pinctrl_select_state(p_pdm->pdm_pins, ps);
+			pr_info("%s tdm pins disable!\n", __func__);
+		}
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops meson_pdm_pm_ops = {
+	/* use the same as suspend, because the restore
+	 * will enable the clk and default setting
+	 */
+	.restore = pdm_platform_restore,
+	.freeze = pdm_platform_freeze,
+};
+#endif
+
 struct platform_driver aml_pdm_driver = {
 	.driver  = {
 		.name           = DRV_NAME,
 		.owner          = THIS_MODULE,
 		.of_match_table = of_match_ptr(aml_pdm_device_id),
+#ifdef CONFIG_HIBERNATION
+		.pm = &meson_pdm_pm_ops,
+#endif
 	},
 	.probe   = aml_pdm_platform_probe,
 	.remove  = aml_pdm_platform_remove,

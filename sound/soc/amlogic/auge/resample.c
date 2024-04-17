@@ -1192,11 +1192,49 @@ int resample_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_HIBERNATION
+static int resample_platform_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	resample_platform_resume(pdev);
+	return 0;
+}
+
+static int resample_platform_freeze(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct audioresample *p_resample = dev_get_drvdata(&pdev->dev);
+
+	if (p_resample->suspend_clk_off && !is_pm_s2idle_mode()) {
+		/* warning:parent clk already close */
+		if (__clk_is_enabled(p_resample->sclk)) {
+			if (!IS_ERR(p_resample->clk)) {
+				while (__clk_is_enabled(p_resample->clk))
+					clk_disable_unprepare(p_resample->clk);
+			}
+		}
+	}
+	return 0;
+}
+
+static const struct dev_pm_ops meson_resample_pm_ops = {
+	/* use the same as suspend, because the restore
+	 * will enable the clk and default setting
+	 */
+	.restore = resample_platform_restore,
+	.freeze = resample_platform_freeze,
+};
+#endif
+
 static struct platform_driver resample_platform_driver = {
 	.driver = {
 		.name  = DRV_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(resample_device_id),
+#ifdef CONFIG_HIBERNATION
+		.pm = &meson_resample_pm_ops,
+#endif
 	},
 	.probe  = resample_platform_probe,
 	.remove = resample_platform_remove,

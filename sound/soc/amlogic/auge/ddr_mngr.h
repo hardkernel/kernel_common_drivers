@@ -343,7 +343,7 @@ void aml_frddr_select_dst_ss(struct frddr *fr,
 	enum frddr_dest dst, int sel, bool enable);
 
 int aml_check_sharebuffer_valid(struct frddr *fr, int ss_sel);
-
+void aml_fddr_force_finish(struct frddr *fr);
 void aml_frddr_set_fifos(struct frddr *fr,
 		unsigned int depth, unsigned int threshold);
 unsigned int aml_frddr_get_fifo_id(struct frddr *fr);

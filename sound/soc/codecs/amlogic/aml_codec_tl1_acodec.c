@@ -23,6 +23,9 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
+#include <linux/regulator/consumer.h>
+#include <linux/clk-provider.h>
+#include <linux/clk.h>
 
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/sound/auge_utils.h>
@@ -1103,11 +1106,11 @@ static int aml_tl1_acodec_probe(struct platform_device *pdev)
 			"adc_pga_gain",
 			&aml_acodec->adc_pga_gain);
 
-	pr_info("aml_tl1_acodec tdmout_index %d tdmin_index %d dat0_ch_sel %d dat1_ch_sel %d\n",
+	pr_debug("aml_tl1_acodec tdmout_index %d tdmin_index %d dat0_ch_sel %d dat1_ch_sel %d\n",
 		aml_acodec->tdmout_index, aml_acodec->tdmin_index,
 		aml_acodec->dat0_ch_sel, aml_acodec->dat1_ch_sel);
 
-	pr_info("aml_tl1_acodec diff_output %d diff_input %d dac_extra_gain %d dac_output_invert %d lane_offset %d\n",
+	pr_debug("aml_tl1_acodec diff_output %d diff_input %d dac_extra_gain %d dac_output_invert %d lane_offset %d\n",
 		aml_acodec->diff_output, aml_acodec->diff_input, aml_acodec->dac_extra_gain,
 		aml_acodec->dac_output_invert, aml_acodec->lane_offset);
 
@@ -1141,14 +1144,13 @@ static int aml_tl1_acodec_remove(struct platform_device *pdev)
 
 static void aml_tl1_acodec_shutdown(struct platform_device *pdev)
 {
-	struct tl1_acodec_priv *aml_acodec;
-	struct snd_soc_component *component;
+	struct tl1_acodec_priv *aml_acodec = platform_get_drvdata(pdev);
+	struct snd_soc_component *component = aml_acodec->component;
 
-	aml_acodec = platform_get_drvdata(pdev);
-	component = aml_acodec->component;
-
-	if (!IS_ERR(aml_acodec->acodec_clk))
-		clk_disable_unprepare(aml_acodec->acodec_clk);
+	if (!IS_ERR(aml_acodec->acodec_clk)) {
+		if (__clk_is_enabled(aml_acodec->acodec_clk))
+			clk_disable_unprepare(aml_acodec->acodec_clk);
+	}
 
 	if (component)
 		tl1_acodec_dai_set_bias_level(component, SND_SOC_BIAS_OFF);
@@ -1174,11 +1176,44 @@ static const struct of_device_id aml_tl1_acodec_dt_match[] = {
 	{},
 };
 
+#ifdef CONFIG_HIBERNATION
+static int aml_acodec_platform_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct tl1_acodec_priv *aml_acodec = platform_get_drvdata(pdev);
+
+	if (!IS_ERR(aml_acodec->acodec_clk))
+		clk_prepare_enable(aml_acodec->acodec_clk);
+	else
+		dev_err(&pdev->dev, "Can't retrieve acodec clock\n");
+	schedule_work(&aml_acodec->work);
+
+	return 0;
+}
+
+static int aml_acodec_platform_freeze(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct tl1_acodec_priv *aml_acodec = platform_get_drvdata(pdev);
+
+	cancel_work_sync(&aml_acodec->work);
+	return 0;
+}
+
+static const struct dev_pm_ops meson_acodec_pm_ops = {
+	.restore = aml_acodec_platform_restore,
+	.freeze = aml_acodec_platform_freeze,
+};
+#endif
+
 static struct platform_driver aml_tl1_acodec_platform_driver = {
 	.driver = {
-		   .name = "tl1_acodec",
-		   .owner = THIS_MODULE,
-		   .of_match_table = aml_tl1_acodec_dt_match,
+			.name = "tl1_acodec",
+			.owner = THIS_MODULE,
+			.of_match_table = aml_tl1_acodec_dt_match,
+#ifdef CONFIG_HIBERNATION
+			.pm = &meson_acodec_pm_ops,
+#endif
 		   },
 	.probe = aml_tl1_acodec_probe,
 	.remove = aml_tl1_acodec_remove,

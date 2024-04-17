@@ -15,6 +15,10 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
+#include <linux/pm.h>
+#include <linux/regulator/consumer.h>
+#include <linux/clk-provider.h>
+#include <linux/clk.h>
 
 #include "tas57xx.h"
 #include "tas5707.h"
@@ -142,6 +146,8 @@ static u8 tas5707_drc1_table[TAS5707_DRC_LENGTH] = {
 /* component private data */
 struct tas5707_priv {
 	struct regmap *regmap;
+	struct device *dev;
+	struct i2c_client *client;
 	struct snd_soc_component *component;
 	struct tas57xx_platform_data *pdata;
 
@@ -668,6 +674,8 @@ static int tas5707_init(struct snd_soc_component *component)
 
 static int tas5707_probe(struct snd_soc_component *component)
 {
+	struct tas5707_priv *tas5707 = snd_soc_component_get_drvdata(component);
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	tas5707->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
 	tas5707->early_suspend.suspend = tas5707_early_suspend;
@@ -675,6 +683,7 @@ static int tas5707_probe(struct snd_soc_component *component)
 	tas5707->early_suspend.param = component;
 	register_early_suspend(&tas5707->early_suspend);
 #endif
+	tas5707->component = component;
 
 	tas5707_init(component);
 
@@ -809,6 +818,7 @@ static int tas5707_i2c_probe(struct i2c_client *i2c,
 {
 	struct tas5707_priv *tas5707;
 	struct tas57xx_platform_data *pdata;
+	struct device *dev = &i2c->dev;
 	int ret;
 	const char *codec_name;
 
@@ -848,6 +858,8 @@ static int tas5707_i2c_probe(struct i2c_client *i2c,
 		dev_set_name(&i2c->dev, "%s", codec_name);
 
 	i2c_set_clientdata(i2c, tas5707);
+	tas5707->client = i2c;
+	tas5707->dev = dev;
 
 	ret = snd_soc_register_component(&i2c->dev, &soc_codec_dev_tas5707,
 				     &tas5707_dai, 1);
@@ -860,9 +872,38 @@ static int tas5707_i2c_probe(struct i2c_client *i2c,
 static int tas5707_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_component(&client->dev);
+	pr_err("%s line:%d\n", __func__,  __LINE__);
 
 	return 0;
 }
+
+#ifdef CONFIG_HIBERNATION
+static int aml_tas5707_platform_restore(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct tas5707_priv *tas5707 = i2c_get_clientdata(client);
+
+	tas5707_resume(tas5707->component);
+	return 0;
+}
+
+static int aml_tas5707_platform_freeze(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct tas5707_priv *tas5707 = i2c_get_clientdata(client);
+
+	tas5707_suspend(tas5707->component);
+	return 0;
+}
+
+static const struct dev_pm_ops meson_tas5707_pm_ops = {
+	/* use the same as suspend, because the restore
+	 * will enable the clk and default setting
+	 */
+	.restore = aml_tas5707_platform_restore,
+	.freeze = aml_tas5707_platform_freeze,
+};
+#endif
 
 static const struct i2c_device_id tas5707_i2c_id[] = {
 	{ "tas5707", 0 },
@@ -880,6 +921,9 @@ static struct i2c_driver tas5707_i2c_driver = {
 		.name = DEV_NAME,
 		.of_match_table = tas5707_of_id,
 		.owner = THIS_MODULE,
+#ifdef CONFIG_HIBERNATION
+		.pm = &meson_tas5707_pm_ops,
+#endif
 	},
 	.probe = tas5707_i2c_probe,
 	.remove = tas5707_i2c_remove,

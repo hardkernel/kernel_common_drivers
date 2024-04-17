@@ -1491,6 +1491,18 @@ int aml_check_and_release_sharebuffer(struct frddr *fr, enum frddr_dest ss_sel)
 	return ret;
 }
 
+void aml_fddr_force_finish(struct frddr *fr)
+{
+	struct aml_audio_controller *actrl = fr->actrl;
+	unsigned int reg_base = fr->reg_base;
+	unsigned int reg;
+
+	reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL1, reg_base);
+	aml_audiobus_update_bits(actrl, reg, 1 << 12, 0 << 12);
+	aml_audiobus_update_bits(actrl, reg, 1 << 12, 1 << 12);
+	aml_audiobus_update_bits(actrl, reg, 1 << 12, 0 << 12);
+}
+
 int aml_frddr_set_buf(struct frddr *fr, unsigned int start,
 			unsigned int end)
 {
@@ -1500,6 +1512,8 @@ int aml_frddr_set_buf(struct frddr *fr, unsigned int start,
 
 	reg = calc_frddr_address(EE_AUDIO_FRDDR_A_START_ADDR, reg_base);
 	aml_audiobus_write(actrl, reg, start);
+	aml_fddr_force_finish(fr);
+
 	reg = calc_frddr_address(EE_AUDIO_FRDDR_A_FINISH_ADDR, reg_base);
 	aml_audiobus_write(actrl, reg, end);
 

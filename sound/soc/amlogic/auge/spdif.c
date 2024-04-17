@@ -515,8 +515,7 @@ static int aml_spdif_platform_suspend(struct platform_device *pdev, pm_message_t
 	}
 
 	if (!IS_ERR_OR_NULL(p_spdif->pin_ctl)) {
-		pstate = pinctrl_lookup_state
-		(p_spdif->pin_ctl, "spdif_pins_mute");
+		pstate = pinctrl_lookup_state(p_spdif->pin_ctl, "spdif_pins_mute");
 		if (!IS_ERR_OR_NULL(pstate))
 			pinctrl_select_state(p_spdif->pin_ctl, pstate);
 	}
@@ -2196,10 +2195,73 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_HIBERNATION
+static int aml_spdif_platform_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	aml_spdif_platform_resume(pdev);
+	return 0;
+}
+
+static int aml_spdif_platform_freeze(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct aml_spdif *p_spdif = dev_get_drvdata(&pdev->dev);
+	struct pinctrl_state *pstate = NULL;
+	int stream = SNDRV_PCM_STREAM_PLAYBACK;
+
+	int ret = 0;
+
+	aml_spdif_enable(p_spdif->actrl, stream, p_spdif->id, false);
+
+	if (p_spdif->suspend_clk_off) {
+		/* warning:parent clk already close */
+		if (__clk_is_enabled(clk_get_parent(p_spdif->clk_spdifout))) {
+			if (!IS_ERR(p_spdif->clk_spdifout)) {
+				while (__clk_is_enabled(p_spdif->clk_spdifout))
+					clk_disable_unprepare(p_spdif->clk_spdifout);
+			}
+		}
+		if (!IS_ERR(p_spdif->clk_spdifin)) {
+			while (__clk_is_enabled(p_spdif->clk_spdifin))
+				clk_disable_unprepare(p_spdif->clk_spdifin);
+		}
+		if (!IS_ERR(p_spdif->clk_spdifout) && !IS_ERR(p_spdif->clk_src_cd)) {
+			ret = clk_set_parent(p_spdif->clk_spdifout, p_spdif->clk_src_cd);
+			if (ret)
+				dev_warn(&pdev->dev, "Can't set spdif clk_spdifout parent\n");
+		}
+
+		if (!IS_ERR(p_spdif->clk_spdifin) && !IS_ERR(p_spdif->clk_src_cd)) {
+			ret = clk_set_parent(p_spdif->clk_spdifin, p_spdif->clk_src_cd);
+			if (ret)
+				dev_warn(&pdev->dev, "Can't set spdif clk_spdifout parent\n");
+		}
+	}
+
+	if (!IS_ERR_OR_NULL(p_spdif->pin_ctl)) {
+		pstate = pinctrl_lookup_state(p_spdif->pin_ctl, "spdif_pins_mute");
+		if (!IS_ERR_OR_NULL(pstate))
+			pinctrl_select_state(p_spdif->pin_ctl, pstate);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops meson_spdif_pm_ops = {
+	.restore = aml_spdif_platform_restore,
+	.freeze = aml_spdif_platform_freeze,
+};
+#endif
+
 struct platform_driver aml_spdif_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = aml_spdif_device_id,
+#ifdef CONFIG_HIBERNATION
+		.pm = &meson_spdif_pm_ops,
+#endif
 	},
 	.probe = aml_spdif_platform_probe,
 	.suspend = aml_spdif_platform_suspend,

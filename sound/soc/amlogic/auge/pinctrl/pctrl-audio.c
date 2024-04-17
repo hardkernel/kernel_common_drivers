@@ -582,7 +582,7 @@ static int audio_pinctrl_probe(struct platform_device *pdev)
 		dev_err(dev, "%s() line %d err\n", __func__, __LINE__);
 		return PTR_ERR(ap_dev);
 	}
-	dev_dbg(dev, "%s() line %d \n", __func__, __LINE__);
+	dev_dbg(dev, "%s() line %d\n", __func__, __LINE__);
 
 	return 0;
 }

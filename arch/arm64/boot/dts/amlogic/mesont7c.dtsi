@@ -1808,6 +1808,8 @@
 			lane_offset = <8>;
 			reset-names = "acodec";
 			resets = <&reset RESET_ACODEC>;
+			clocks = <&clkc CLKID_ACODEC>;
+			clock-names = "acodec_clk";
 
 			status = "okay";
 		};
