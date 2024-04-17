@@ -765,10 +765,10 @@
 		status = "disabled";
 		aml-audio-card,name = "AML-AUGESOUND";
 
-		avout_mute-gpios = <&gpio GPIOH_27 GPIO_ACTIVE_HIGH>;
+		// avout_mute-gpios = <&gpio GPIOH_27 GPIO_ACTIVE_HIGH>;
 
 		/* headphone insert det */
-		aml-audio-card,hp-det-gpio = <&analog_gpio CDAC_IOUT GPIO_ACTIVE_LOW>;
+		// aml-audio-card,hp-det-gpio = <&analog_gpio CDAC_IOUT GPIO_ACTIVE_LOW>;
 
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
