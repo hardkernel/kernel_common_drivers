@@ -501,12 +501,13 @@ void pdm_set_bypass_data(bool bypass, int id)
 	aml_pdm_update_bits(id, PDM_CTRL, 0x1 << 28, bypass << 28);
 }
 
-void pdm_init_truncate_data(int freq, int id)
+void pdm_init_truncate_data(int freq, int id, int mute_ms)
 {
 	int mask_val;
 
-	/* assume mask 1.05ms */
-	mask_val = ((freq / 1000) * 1050 * 8) / 1000 - 1;
+	if (mute_ms > 10000 || mute_ms < 0)
+		mute_ms = 10;
+	mask_val = (freq * mute_ms) / 1000 - 1;
 	aml_pdm_write(id, PDM_MASK_NUM, mask_val);
 }
 

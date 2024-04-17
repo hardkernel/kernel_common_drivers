@@ -34,7 +34,7 @@ void pdm_set_mute_value(int val, int id);
 int pdm_get_mute_channel(int id);
 void pdm_set_mute_channel(int mute_chmask, int id);
 void pdm_set_bypass_data(bool bypass, int id);
-void pdm_init_truncate_data(int freq, int id);
+void pdm_init_truncate_data(int freq, int id, int mute_ms);
 void pdm_train_en(bool en, int id);
 void pdm_train_clr(int id);
 int pdm_train_sts(int id);

@@ -793,8 +793,8 @@ static int aml_pdm_dai_prepare(struct snd_pcm_substream *substream,
 	aml_pdm_ctrl(&info, pdm_id);
 	aml_pdm_filter_ctrl(p_pdm->pdm_gain_index, osr, lpf_filter_mode, hpf_filter_mode, pdm_id);
 
-	if (p_pdm->chipinfo && p_pdm->chipinfo->truncate_data)
-		pdm_init_truncate_data(runtime->rate, pdm_id);
+	if (p_pdm->pdm_mute_time)
+		pdm_init_truncate_data(runtime->rate, pdm_id, p_pdm->pdm_mute_time);
 
 	return 0;
 }
@@ -1311,6 +1311,13 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 		p_pdm->dclk_idx = 0;
 	pr_debug("%s pdm dclk id  from dts:%d\n",
 		__func__, p_pdm->dclk_idx);
+
+	ret = of_property_read_u32(node, "pdm_mute_time",
+			&p_pdm->pdm_mute_time);
+	if (ret < 0)
+		p_pdm->pdm_mute_time = 0;
+	pr_debug("%s pdm_mute_time  from dts:%d\n",
+		__func__, p_pdm->pdm_mute_time);
 
 	if (p_pdm->chipinfo->regulator) {
 		p_pdm->regulator_vcc3v3 = devm_regulator_get(dev, "pdm3v3");
