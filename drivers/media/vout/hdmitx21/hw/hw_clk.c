@@ -205,8 +205,13 @@ void hdmitx21_clks_gate_ctrl(bool en)
 	case MESON_CPU_ID_S5:
 		hdmitx_s5_clock_gate_ctrl(hdev, en);
 		break;
-#endif
 	case MESON_CPU_ID_T7:
+		hdmitx_t7_clock_gate_ctrl(en);
+		break;
+#endif
+	case MESON_CPU_ID_S1A:
+		hdmitx_s1a_clock_gate_ctrl(en);
+		break;
 	default:
 		break;
 	}

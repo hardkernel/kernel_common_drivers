@@ -267,7 +267,10 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	hdmitx_fire_drm_hpd_cb_unlocked(&hdev->tx_comm);
 }
 
-/* Set avmute_set signal to HDMIRX */
+/* Note: HPLL is disabled when suspend/shutdown, and should
+ * not be called when reboot/early suspend, otherwise
+ * there will be no vsync for drm.
+ */
 static int hdmitx_reboot_notifier(struct notifier_block *nb,
 				  unsigned long action, void *data)
 {
@@ -277,9 +280,6 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 
 	hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdev->tx_comm.ready = 0;
-
-	hdmitx_hw_cntl(&hdev->tx_hw.base, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
-		HDMITX_EARLY_SUSPEND);
 
 	return NOTIFY_OK;
 }
@@ -3637,8 +3637,9 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 			HDMI_TX_PWR_CTRL_NUM, GFP_KERNEL);
 			if (!hdev->config_data.pwr_ctl)
 				HDMITX_INFO(SYS "can not get pwr_ctl mem\n");
-			memset(hdev->config_data.pwr_ctl, 0,
-			       sizeof(struct hdmi_pwr_ctl));
+			else
+				memset(hdev->config_data.pwr_ctl, 0,
+					sizeof(struct hdmi_pwr_ctl));
 			if (ret)
 				pr_debug(SYS "not find pwr_ctl\n");
 		}

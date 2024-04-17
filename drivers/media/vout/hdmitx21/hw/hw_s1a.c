@@ -509,3 +509,12 @@ void set21_phy_by_mode_s1a(u32 mode)
 		break;
 	}
 }
+
+void hdmitx_s1a_clock_gate_ctrl(bool en)
+{
+	if (!en) {
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0, 29, 1);
+		usleep_range(49, 51);
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0, 28, 1);
+	}
+}

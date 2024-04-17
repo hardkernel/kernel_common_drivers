@@ -2340,15 +2340,9 @@ static int hdmitx_cntl(struct hdmitx_hw_common *tx_hw,
 		return 0;
 	} else if (cmd == HDMITX_EARLY_SUSPEND_RESUME_CNTL) {
 		if (argv == HDMITX_EARLY_SUSPEND) {
-			u32 pll_cntl = ANACTRL_HDMIPLL_CTRL0;
-
-			hd21_set_reg_bits(pll_cntl, 1, 29, 1);
-			usleep_range(49, 51);
-			hd21_set_reg_bits(pll_cntl, 0, 28, 1);
-
+			/* phy disable, not disable HPLL/VSYNC */
 			hdmi_phy_suspend();
-		}
-		if (argv == HDMITX_LATE_RESUME) {
+		} else if (argv == HDMITX_LATE_RESUME) {
 			/* No need below, will be set at set_disp_mode_auto() */
 			/* hd21_set_reg_bits(HHI_HDMI_PLL_CNTL, 1, 30, 1); */
 			hw_reset_dbg();

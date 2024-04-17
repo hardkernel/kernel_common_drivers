@@ -3041,10 +3041,10 @@ static int hdmitx_cntl(struct hdmitx_hw_common *tx_hw,
 	if (cmd == HDMITX_AVMUTE_CNTL) {
 		return 0;
 	} else if (cmd == HDMITX_EARLY_SUSPEND_RESUME_CNTL) {
-		if (argv == HDMITX_EARLY_SUSPEND)
+		if (argv == HDMITX_EARLY_SUSPEND) {
+			/* phy disable, not disable HPLL/VSYNC */
 			hdmi_phy_suspend();
-
-		if (argv == HDMITX_LATE_RESUME) {
+		} else if (argv == HDMITX_LATE_RESUME) {
 			/* No need below, will be set at set_disp_mode_auto() */
 			/* hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 1, 30, 1); */
 			hw_reset_dbg();

@@ -449,4 +449,14 @@ void set21_hpll_sspll_t7(enum hdmi_vic vic)
 		break;
 	}
 }
+
+void hdmitx_t7_clock_gate_ctrl(bool en)
+{
+	if (!en) {
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 1, 29, 1);
+		usleep_range(49, 51);
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0, 28, 1);
+	}
+}
+
 #endif

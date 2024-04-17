@@ -330,9 +330,6 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdmitx_common_output_disable(&hdev->tx_comm,
 		true, true, true, false);
 	hdmitx21_reset_hdcp_param(&hdev->tx_comm);
-	/* TOCONFIRM: note it will disable hpll for T7/S1A */
-	hdmitx_hw_cntl(&hdev->tx_hw.base, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
-		HDMITX_EARLY_SUSPEND);
 
 	/* step3: SW: post uevent to system */
 	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_SUSPEND);
@@ -362,7 +359,10 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	hdmitx_fire_drm_hpd_cb_unlocked(&hdev->tx_comm);
 }
 
-/* Set avmute_set signal to HDMIRX */
+/* Note: HPLL is disabled when suspend/shutdown, and should
+ * not be called when reboot/early suspend, otherwise
+ * there will be no vsync for drm.
+ */
 static int hdmitx_reboot_notifier(struct notifier_block *nb,
 				  unsigned long action, void *data)
 {
@@ -393,8 +393,6 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 	hdmitx21_rst_stream_type(hdev->am_hdcp);
 	hdmitx_set_frl_rate_none(hdev);
 	hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
-	hdmitx_hw_cntl(&hdev->tx_hw.base,
-		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_EARLY_SUSPEND);
 
 	return NOTIFY_OK;
 }

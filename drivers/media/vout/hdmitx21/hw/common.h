@@ -162,10 +162,12 @@ void hdmitx21_sys_reset_s7d(void);
 void hdmitx21_debugfs_init(void);
 
 void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk);
+void hdmitx_t7_clock_gate_ctrl(bool en);
 void set21_s5_htxpll_clk_out(u32 clk, u32 div);
 void set21_s7d_htxpll_clk_out(u32 clk, u32 div);
 void set_hdmitx_s7d_htx_pll(struct hdmitx_dev *hdev);
 void set21_s1a_hpll_clk_out(u32 frac_rate, u32 clk);
+void hdmitx_s1a_clock_gate_ctrl(bool en);
 void s1a_reset_div_clk(struct hdmitx_dev *hdev);
 void set21_s7_htxpll_clk_out(u32 clk, u32 div);
 void set_hdmitx_s7_htx_pll(struct hdmitx_dev *hdev);
