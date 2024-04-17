@@ -513,6 +513,8 @@ static void meson_v2_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm
 		break;
 
 	case 1:
+		if (meson->data->channel_separated)
+			return;// after s7, only channel 0 and 2 used.
 		en_mask = MISC_B_EN;
 		constant_mask = MISC_B_CONSTANT;
 		break;
@@ -523,6 +525,8 @@ static void meson_v2_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm
 		break;
 
 	case 3:
+		if (meson->data->channel_separated)
+			return;// after s7, only channel 0 and 2 used.
 		en_mask = MISC_B2_EN;
 		constant_mask = MISC_B_CONSTANT;
 		break;
