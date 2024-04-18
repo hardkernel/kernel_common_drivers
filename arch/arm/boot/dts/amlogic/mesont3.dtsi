@@ -2760,7 +2760,6 @@
 		mux {
 			groups = "pwm_f_c";
 			function = "pwm_f";
-			drive-strength-microamp = <500>;
 		};
 	};
 
