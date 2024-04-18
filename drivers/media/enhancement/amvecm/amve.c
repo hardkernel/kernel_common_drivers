@@ -5246,6 +5246,7 @@ void amve_sharpness_sub_ctrl(unsigned int sel, unsigned int enable)
 		enable = 1;
 
 	/*0:sr all; 1:peaking; 2:lti/cti; 3:dering;*/
+	/*4: pi; 5: safa; 6: drlpf;*/
 	switch (sel) {
 	case 0:
 		WRITE_VPP_REG_BITS(VPP_SR_EN,
@@ -5268,6 +5269,22 @@ void amve_sharpness_sub_ctrl(unsigned int sel, unsigned int enable)
 	case 3:
 		WRITE_VPP_REG_BITS(VPP_DERING_EN,
 			enable, 0, 1);
+		break;
+	case 4:
+		WRITE_VPP_REG_BITS(VPP_PI_EN_MODE,
+			enable, 4, 1);
+		break;
+	case 5:
+		WRITE_VPP_REG_BITS(SAFA_PPS_INTERP_EN_MODE,
+			enable, 25, 1);
+		break;
+	case 6:
+		WRITE_VPP_REG_BITS(VPP_NR_LPF_EN,
+			enable, 24, 1);
+		WRITE_VPP_REG_BITS(VPP_NR_LPF_EN,
+			enable, 16, 1);
+		WRITE_VPP_REG_BITS(VPP_NR_LPF_EN,
+			enable, 12, 1);
 		break;
 	default:
 		break;

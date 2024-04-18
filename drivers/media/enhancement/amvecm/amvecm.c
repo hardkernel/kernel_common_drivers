@@ -303,7 +303,7 @@ unsigned int vecm_latch_flag2;
 module_param(vecm_latch_flag2, uint, 0664);
 MODULE_PARM_DESC(vecm_latch_flag2, "\n vecm_latch_flag2\n");
 
-unsigned int pq_load_en; /*load pq table enable/disable*/
+unsigned int pq_load_en = 1; /*load pq table enable/disable*/
 module_param(pq_load_en, uint, 0664);
 MODULE_PARM_DESC(pq_load_en, "\n pq_load_en\n");
 
@@ -10182,10 +10182,16 @@ static ssize_t amvecm_debug_store(struct class *cla,
 				amvecm_sharpness_enable(11);
 			pr_info("SR3 disable dering\n");
 		} else if (!strncmp(parm[1], "drlpf_en", 8)) {
-			amvecm_sharpness_enable(12);
+			if (chip_type_id == chip_s7d)
+				amve_sharpness_sub_ctrl(6, 1);
+			else
+				amvecm_sharpness_enable(12);
 			pr_info("SR3 enable drlpf\n");
 		} else if (!strncmp(parm[1], "drlpf_dis", 9)) {
-			amvecm_sharpness_enable(13);
+			if (chip_type_id == chip_s7d)
+				amve_sharpness_sub_ctrl(6, 0);
+			else
+				amvecm_sharpness_enable(13);
 			pr_info("SR3 disable drlpf\n");
 		} else if (!strncmp(parm[1], "enable", 6)) {
 			if (chip_type_id == chip_s7d) {
@@ -11098,6 +11104,22 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		vsr_update_flag = val;
 	} else if (!strcmp(parm[0], "g_vsr_update_flag")) {
 		pr_info("vsr_update_flag: %d\n", vsr_update_flag);
+	} else if (!strncmp(parm[0], "pi", 2)) {
+		if (!strncmp(parm[1], "enable", 6)) {
+			amve_sharpness_sub_ctrl(4, 1);
+			pr_info("enable pi\n");
+		} else if (!strncmp(parm[1], "disable", 7)) {
+			amve_sharpness_sub_ctrl(4, 0);
+			pr_info("disable pi\n");
+		}
+	} else if (!strncmp(parm[0], "safa", 4)) {
+		if (!strncmp(parm[1], "enable", 6)) {
+			amve_sharpness_sub_ctrl(5, 1);
+			pr_info("enable safa\n");
+		} else if (!strncmp(parm[1], "disable", 7)) {
+			amve_sharpness_sub_ctrl(5, 0);
+			pr_info("disable safa\n");
+		}
 #endif
 	} else if (!strcmp(parm[0], "s_peak_final_ngain")) {
 		if (!parm[1]) {
