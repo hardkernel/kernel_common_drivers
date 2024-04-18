@@ -2236,10 +2236,12 @@ static void vd_slices_padding_set(u32 vpp_index,
 				slice_pad_v_end[slice] =
 					vd1_proc_unit_dout_vsize - 1;
 			}
-			pr_info("%s(slice=%d), vd1_dout_hsize[0]=%d, temp_hsize=%d, vd1_proc_unit_dout_hsize=%d\n",
-				__func__, slice,
-				vd_proc_vd1_info->vd1_dout_hsize[0], temp_hsize,
-				vd1_proc_unit_dout_hsize);
+			if (debug_flag_s5 & DEBUG_VD_PROC) {
+				pr_info("%s(slice=%d), vd1_dout_hsize[0]=%d, temp_hsize=%d, vd1_proc_unit_dout_hsize=%d\n",
+					__func__, slice,
+					vd_proc_vd1_info->vd1_dout_hsize[0], temp_hsize,
+					vd1_proc_unit_dout_hsize);
+			}
 			rdma_wr(vd1_slice_pad_reg->vd1_slice_pad_h_size,
 				slice_pad_h_bgn[slice] << 16 |
 				slice_pad_h_end[slice]);
