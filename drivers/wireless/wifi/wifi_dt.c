@@ -34,7 +34,7 @@
 #include <gpiolib-of.h>
 #define OWNER_NAME "sdio_wifi"
 
-static char aml_wifi_chip_type[10] = "NULL";
+static char aml_wifi_chip_type[15] = "NULL";
 
 struct pcie_wifi_chip {
 	unsigned int vendor;
@@ -1110,7 +1110,15 @@ EXPORT_SYMBOL(wifi_get_mac);
 
 void aml_wifi_chip(const char *type)
 {
-	memcpy(aml_wifi_chip_type, type, 10);
+	size_t len = strlen(type);
+
+	if (len >= sizeof(aml_wifi_chip_type)) {
+		WIFI_INFO("Input string is too long for aml_wifi_chip_type array.\n");
+		return;
+	}
+
+	memset(aml_wifi_chip_type, 0, sizeof(aml_wifi_chip_type));
+	strncpy(aml_wifi_chip_type, type, len);
 }
 EXPORT_SYMBOL(aml_wifi_chip);
 
