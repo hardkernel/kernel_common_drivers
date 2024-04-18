@@ -26,6 +26,7 @@
 #include <dt-bindings/power/s1a-pd.h>
 #include <dt-bindings/power/s7d-pd.h>
 #include <dt-bindings/power/s6-pd.h>
+#include <dt-bindings/power/t6d-pd.h>
 #include <linux/kallsyms.h>
 
 struct sec_pm_private_domain {
@@ -806,6 +807,23 @@ static struct sec_pm_domain_data s6_pm_domain_data __initdata = {
 	.domains_count = ARRAY_SIZE(s6_pm_domains),
 };
 
+static struct sec_pm_private_domain t6d_pm_domains[] __initdata = {
+	[PDID_T6D_AMFC] = POWER_DOMAIN(amfc, PDID_T6D_AMFC,
+					   DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T6D_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_T6D_DOS_HEVC,
+						DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T6D_GE2D] = POWER_DOMAIN(ge2d, PDID_T6D_GE2D,
+					DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T6D_VPU_HDMI] = POWER_DOMAIN(vpu, PDID_T6D_VPU_HDMI,
+					DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T6D_DEMOD] = POWER_DOMAIN(demod, PDID_T6D_DEMOD,
+					  DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+};
+
+static struct sec_pm_domain_data t6d_pm_domain_data __initdata = {
+	.domains = t6d_pm_domains,
+	.domains_count = ARRAY_SIZE(t6d_pm_domains),
+};
 #endif
 
 static struct sec_pm_private_domain s1a_pm_domains[] __initdata = {
@@ -1037,6 +1055,10 @@ static const struct of_device_id pd_match_table[] = {
 	{
 		.compatible = "amlogic,s6-power-domain",
 		.data = &s6_pm_domain_data,
+	},
+	{
+		.compatible = "amlogic,t6d-power-domain",
+		.data = &t6d_pm_domain_data,
 	},
 #endif
 	{
