@@ -392,7 +392,9 @@ enum vpp_matrix_e {
 	POST_MTX = 0x4,
 	VPP1_POST2_MTX = 0x8,
 	VPP2_POST2_MTX = 0x10,
-	OSD_MTX = 0x20
+	OSD_MTX = 0x20,
+	VPP_OSD1_MTX = 0x40,
+	VPP_OSD2_MTX = 0x80
 };
 
 struct matrix_coef_s {
