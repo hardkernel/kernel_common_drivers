@@ -166,6 +166,8 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->hdr_conversion_ctrl = cur_state->hdr_conversion_ctrl;
 	new_state->attr_changed = false;
 	new_state->brr_update = false;
+	new_state->brr = cur_state->brr;
+	strncpy(new_state->brr_mode, cur_state->brr_mode, DRM_DISPLAY_MODE_LEN);
 
 	/*reset dynamic info.*/
 	if (amcrtc->priv->logo_show_done)

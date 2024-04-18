@@ -415,3 +415,8 @@ int meson_panel_dev_unbind(struct drm_device *drm,
 	return 0;
 }
 
+int am_meson_lcd_get_vrr_range(struct drm_connector *connector,
+			struct drm_vrr_mode_group *groups, int max_group)
+{
+	return 0;
+}
