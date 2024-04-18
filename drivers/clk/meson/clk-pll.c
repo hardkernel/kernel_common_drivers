@@ -639,6 +639,14 @@ static int meson_clk_pll_enable(struct clk_hw *hw)
 	/* Enable the pll */
 	meson_parm_write(clk->map, &pll->en, 1);
 
+	/* Make sure the pll is in lock reset */
+	if (MESON_PARM_APPLICABLE(&pll->l_rst)) {
+		if (pll->flags & CLK_MESON_PLL_RSTN)
+			meson_parm_write(clk->map, &pll->l_rst, 0);
+		else
+			meson_parm_write(clk->map, &pll->l_rst, 1);
+	}
+
 	/*
 	 * Make the PLL more stable, if not,
 	 * It will probably lock failed (GP0 PLL)
@@ -652,6 +660,15 @@ static int meson_clk_pll_enable(struct clk_hw *hw)
 		meson_parm_write(clk->map, &pll->rst, 1);
 	else
 		meson_parm_write(clk->map, &pll->rst, 0);
+
+	/* Take the pll out lock reset */
+	if (MESON_PARM_APPLICABLE(&pll->l_rst)) {
+		udelay(20);
+		if (pll->flags & CLK_MESON_PLL_RSTN)
+			meson_parm_write(clk->map, &pll->l_rst, 1);
+		else
+			meson_parm_write(clk->map, &pll->l_rst, 0);
+	}
 
 	if (meson_clk_pll_wait_lock(hw))
 		return -EIO;
@@ -882,9 +899,10 @@ static int meson_clk_pll_v3_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned int val;
 	const struct reg_sequence *init_regs = pll->init_regs;
 	int i, ret = 0, retry = 10;
-	/* OD is required in ARM64 when clk_rate_rate invalid, enable callback do it */
+#ifdef CONFIG_ARM
 	unsigned int od;
 	struct parm *pod = &pll->od;
+#endif
 
 	if (parent_rate == 0 || rate == 0)
 		return -EINVAL;
@@ -894,8 +912,6 @@ static int meson_clk_pll_v3_set_rate(struct clk_hw *hw, unsigned long rate,
 	ret = meson_clk_get_pll_settings(rate, parent_rate, &m, &n, pll, &od);
 #else
 	ret = meson_clk_get_pll_settings(rate, parent_rate, &m, &n, pll);
-	if ((pll->flags & CLK_MESON_PLL_RETAIN_OD) && MESON_PARM_APPLICABLE(&pll->od))
-		od = meson_parm_read(clk->map, &pll->od);
 #endif
 	if (ret)
 		return ret;
@@ -934,7 +950,7 @@ static int meson_clk_pll_v3_set_rate(struct clk_hw *hw, unsigned long rate,
 	do {
 		for (i = 0; i < pll->init_count; i++) {
 			if (pn->reg_off == init_regs[i].reg) {
-				/* Clear M N OD bits and Update M N OD value */
+				/* Clear M N bits and Update M N value */
 				val = init_regs[i].def;
 				if (MESON_PARM_APPLICABLE(&pll->th)) {
 					val &= CLRPMASK(pth->width, pth->shift);
@@ -955,12 +971,6 @@ static int meson_clk_pll_v3_set_rate(struct clk_hw *hw, unsigned long rate,
 #ifdef CONFIG_ARM
 				val &= CLRPMASK(pod->width, pod->shift);
 				val |= od << pod->shift;
-#else
-				if ((pll->flags & CLK_MESON_PLL_RETAIN_OD) &&
-				    MESON_PARM_APPLICABLE(&pll->od)) {
-					val &= CLRPMASK(pod->width, pod->shift);
-					val |= od << pod->shift;
-				}
 #endif
 				regmap_write(clk->map, pn->reg_off, val);
 			} else if (pfrac->reg_off == init_regs[i].reg &&
@@ -1010,21 +1020,15 @@ static int meson_clk_pll_v3_set_rate(struct clk_hw *hw, unsigned long rate,
 static int meson_clk_pll_v3_enable(struct clk_hw *hw)
 {
 	unsigned long rate, parent_rate;
-	struct clk_regmap *clk = to_clk_regmap(hw);
-	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
 
 	/* do nothing if the PLL is already enabled */
 	if (clk_hw_is_enabled(hw))
 		return 0;
 
-	/* add flag to pll data, set rate used */
-	pll->flags |= CLK_MESON_PLL_RETAIN_OD;
 	/* Deal clk_set_rate return when set the same rate */
 	parent_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
 	rate = meson_clk_pll_recalc_rate(hw, parent_rate);
 	meson_clk_pll_v3_set_rate(hw, rate, parent_rate);
-	/* clear data flag after set rate */
-	pll->flags &= ~CLK_MESON_PLL_RETAIN_OD;
 
 	if (meson_clk_pll_wait_lock(hw))
 		return -EIO;
