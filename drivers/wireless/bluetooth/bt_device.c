@@ -365,6 +365,17 @@ static int bt_set_block(void *data, bool blocked)
 {
 	struct bt_dev_data *pdata = data;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_RFKILL_INIT_SW_UNBLOCK)
+	static bool rfkill_state = true;
+
+	if (rfkill_state == blocked) {
+		pr_info("%s:rfkill already %s\n", __func__, blocked ? "off" : "on");
+		return 0;
+	}
+
+	rfkill_state = blocked;
+#endif
+
 	pr_info("BT_RADIO going: %s\n", blocked ? "off" : "on");
 
 	if (!blocked) {
