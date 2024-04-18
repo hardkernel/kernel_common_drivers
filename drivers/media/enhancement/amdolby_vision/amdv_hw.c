@@ -2575,7 +2575,6 @@ static int dv_core2c_set
 			     g_hpotch, g_vpotch, g_hwidth, reset, set_lut, force_set_lut,
 			     stb_core_setting_update_flag,
 			     hsize, vsize, tmp_h, tmp_v);
-
 	/* core2 metadata program done */
 	VSYNC_WR_DV_REG(AMDV_CORE2C_REG_START + 3, 1);
 
@@ -2613,8 +2612,6 @@ static int dv_core2c_set
 			}
 		}
 	}
-
-
 	/* enable core2 */
 	VSYNC_WR_DV_REG(AMDV_CORE2C_SWAP_CTRL0, osd_enable << 0);
 
@@ -2847,8 +2844,6 @@ static int dv_core2a_set
 				(AMDV_CORE2A_CLKGATE_CTRL, 0, 2, 2);
 #endif
 	}
-
-
 	/* enable core2 */
 	VSYNC_WR_DV_REG(AMDV_CORE2A_SWAP_CTRL0, osd_enable << 0);
 
@@ -3792,6 +3787,21 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 	stb_core_setting_update_flag = 0;
 	update_flag_more = update_bk;
 }
+
+u32 *get_core2_lut(void)
+{
+	struct dm_lut_ipcore *p_dm_lut2 = NULL;
+
+	if (is_aml_s5() && is_amdv_on()) {
+		if (multi_dv_mode)
+			p_dm_lut2 = &new_m_dovi_setting.dm_lut2;
+		else
+			p_dm_lut2 = &new_dovi_setting.dm_lut2;
+	}
+
+	return (u32 *)p_dm_lut2;
+}
+EXPORT_SYMBOL(get_core2_lut);
 
 static void osd_bypass(int bypass)
 {
