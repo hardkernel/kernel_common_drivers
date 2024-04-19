@@ -3400,6 +3400,78 @@ static bool check_mosaic_22(struct composer_dev *dev, struct received_frames_t *
 	return true;
 }
 
+static bool detect_composer_usage(struct composer_dev *dev,
+	struct received_frames_t *received_frames, bool *need_composer_ptr, bool *mosaic_22_ptr)
+{
+	struct vframe_s *vf = NULL;
+	int count;
+	u32 frame_transform = 0;
+	struct file *file_vf = NULL;
+	struct file *fence_file = NULL;
+	struct frames_info_t *frames_info = NULL;
+	struct frame_info_t *frame_info = NULL;
+	bool is_dec_vf = false, is_v4l_vf = false;
+
+	count = received_frames->frames_info.frame_count;
+	if (count == 1) {
+		if ((dev->index == 0 && force_composer) ||
+		    (dev->index == 1 && force_composer_pip))
+			*need_composer_ptr = true;
+		frame_transform =
+			received_frames->frames_info.frame_info[0].transform;
+		if (frame_transform == VC_TRANSFORM_ROT_90 ||
+			frame_transform == VC_TRANSFORM_ROT_180 ||
+			frame_transform == VC_TRANSFORM_ROT_270 ||
+			frame_transform == VC_TRANSFORM_FLIP_H_ROT_90 ||
+			frame_transform == VC_TRANSFORM_FLIP_V_ROT_90) {
+			*need_composer_ptr = true;
+			dev->need_rotate = true;
+		}
+	} else {
+		if (check_mosaic_22(dev, received_frames)) {
+			*need_composer_ptr = false;
+			*mosaic_22_ptr = true;
+		} else {
+			*need_composer_ptr = true;
+		}
+	}
+
+	if (dev->output_duration >= 240 && dev->vinfo_w > 1920 && !*need_composer_ptr) {
+		vc_print(dev->index, PRINT_AXIS, "fps > 240, need composer.\n");
+		fence_file = received_frames->fence_file[0];
+		if (video_wait_file_fence(dev, fence_file) == 0)
+			return false;
+		frames_info = &received_frames->frames_info;
+		frame_info = frames_info->frame_info;
+		file_vf = received_frames->file_vf[0];
+		if (!file_vf) {
+			vc_print(dev->index, PRINT_ERROR, "file_vf is NULL\n");
+			return false;
+		}
+		is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
+		is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+		if (is_dec_vf || is_v4l_vf) {
+			vf = get_vf_from_file(dev, file_vf, false);
+			if (!vf) {
+				vc_print(dev->index, PRINT_ERROR, "get NULL vf!!\n");
+				return false;
+			}
+			vc_print(dev->index, PRINT_OTHER,
+					 "%s vf_height:%d vf_com_height:%d\n",
+					 __func__, vf->height, vf->compHeight);
+			if (vf->height > 1088 || vf->compHeight > 1088)
+				*need_composer_ptr = true;
+		} else {
+			vc_print(dev->index, PRINT_OTHER,
+				"%s: frame_info->height:%d\n",
+				 __func__, frame_info->buffer_h);
+			if (frame_info->buffer_h > 1088)
+				*need_composer_ptr = true;
+		}
+	}
+	return true;
+}
+
 static void video_composer_task(struct composer_dev *dev)
 {
 	struct vframe_s *vf = NULL;
@@ -3446,27 +3518,13 @@ static void video_composer_task(struct composer_dev *dev)
 	count = received_frames->frames_info.frame_count;
 	time_us64 = received_frames->time_us64;
 
-	if (count == 1) {
-		if ((dev->index == 0 && force_composer) ||
-		    (dev->index == 1 && force_composer_pip))
-			need_composer = true;
-		frame_transform =
-			received_frames->frames_info.frame_info[0].transform;
-		if (frame_transform == VC_TRANSFORM_ROT_90 ||
-			frame_transform == VC_TRANSFORM_ROT_180 ||
-			frame_transform == VC_TRANSFORM_ROT_270 ||
-			frame_transform == VC_TRANSFORM_FLIP_H_ROT_90 ||
-			frame_transform == VC_TRANSFORM_FLIP_V_ROT_90) {
-			need_composer = true;
-			dev->need_rotate = true;
-		}
-	} else {
-		if (check_mosaic_22(dev, received_frames)) {
-			need_composer = false;
-			do_mosaic_22 = true;
-		} else {
-			need_composer = true;
-		}
+	if (count == 1)
+		frame_transform = received_frames->frames_info.frame_info[0].transform;
+
+	if (!detect_composer_usage(dev, received_frames, &need_composer, &do_mosaic_22)) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "task: fail to get need_composer status.\n");
+		return;
 	}
 
 	if (!need_composer && !do_mosaic_22) {
