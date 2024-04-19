@@ -5740,7 +5740,7 @@ static int meson_t5m_probe(struct platform_device *pdev)
 	pll_map = meson_clk_regmap_resource(pdev, dev, 1);
 	if (IS_ERR(pll_map)) {
 		dev_err(dev, "pll clk registers not found\n");
-		return PTR_ERR(basic_map);
+		return PTR_ERR(pll_map);
 	}
 
 	cpu_map = meson_clk_regmap_resource(pdev, dev, 2);
