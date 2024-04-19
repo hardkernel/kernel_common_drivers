@@ -48,4 +48,18 @@ static inline void meson_pmic6b_gpio_exit(void)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_GPIOLIB_SYSFS)
+int gpiolib_sysfs_module_init(void);
+void gpiolib_sysfs_module_exit(void);
+#else
+static inline int gpiolib_sysfs_module_init(void)
+{
+	return 0;
+}
+
+static inline void gpiolib_sysfs_module_exit(void)
+{
+}
+#endif
+
 #endif /*__GPIO_MAIN_H_*/

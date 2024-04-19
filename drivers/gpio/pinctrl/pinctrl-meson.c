@@ -54,6 +54,7 @@
 
 #include <pinctrl/core.h>
 #include <pinctrl/pinctrl-utils.h>
+#include <linux/amlogic/gpiolib.h>
 #include "pinctrl-meson.h"
 
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -792,6 +793,10 @@ static int meson_gpiolib_register(struct meson_pinctrl *pc)
 			pc->data->name);
 		return ret;
 	}
+
+#if IS_ENABLED(CONFIG_AMLOGIC_GPIOLIB_SYSFS)
+	gpiochip_sysfs_register(pc->chip.gpiodev);
+#endif
 
 	return 0;
 }
