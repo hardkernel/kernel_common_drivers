@@ -67,5 +67,11 @@ int aipq_base_peaking_param(unsigned int reg,
 			    unsigned int mask,
 			    unsigned int value);
 int aipq_base_satur_param(int value);
+extern unsigned int aipq_debug;
+extern unsigned int aipq_smooth_dbg;
+extern unsigned int aipq_en;
+extern int aipq_bld_rs;
+extern int slower_coef;
+
 #endif
 #endif

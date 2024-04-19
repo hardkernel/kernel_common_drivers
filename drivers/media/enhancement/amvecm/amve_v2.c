@@ -53,7 +53,7 @@ int dump_lc_curve;
 __module_param(dump_lc_curve, int, 0644);
 MODULE_PARM_DESC(dump_lc_curve, "dump_lc_curve for t3x");
 
-static int vev2_dbg;
+int vev2_dbg;
 __module_param(vev2_dbg, int, 0644);
 MODULE_PARM_DESC(vev2_dbg, "ve dbg after s5");
 

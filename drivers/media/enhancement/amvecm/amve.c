@@ -72,19 +72,19 @@ __module_param(gamma_loadprotect_en, int, 0664);
 MODULE_PARM_DESC(gamma_loadprotect_en, "gamma_loadprotect_en");
 
 unsigned int gamma_update_flag_r;
-__module_param(gamma_update_flag_r, int, 0664);
+__module_param(gamma_update_flag_r, int, 0664);//
 MODULE_PARM_DESC(gamma_update_flag_r, "gamma_update_flag_r");
 
 unsigned int gamma_update_flag_g;
-__module_param(gamma_update_flag_g, int, 0664);
+__module_param(gamma_update_flag_g, int, 0664);//
 MODULE_PARM_DESC(gamma_update_flag_g, "gamma_update_flag_g");
 
 unsigned int gamma_update_flag_b;
-__module_param(gamma_update_flag_b, int, 0664);
+__module_param(gamma_update_flag_b, int, 0664);//
 MODULE_PARM_DESC(gamma_update_flag_b, "gamma_update_flag_b");
 
 unsigned int gamma_disable_flag;
-__module_param(gamma_disable_flag, int, 0664);
+__module_param(gamma_disable_flag, int, 0664);//
 MODULE_PARM_DESC(gamma_disable_flag, "gamma_disable_flag");
 #endif
 
@@ -105,12 +105,12 @@ MODULE_PARM_DESC(dnlp_sel, "dnlp_sel");
 /* #endif */
 #endif
 
-static int amve_debug;
+int amve_debug;
 __module_param(amve_debug, int, 0664);
 MODULE_PARM_DESC(amve_debug, "amve_debug");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static int amve_bringup_debug;
+int amve_bringup_debug;
 __module_param(amve_bringup_debug, int, 0664);
 MODULE_PARM_DESC(amve_bringup_debug, "amve_bringup_debug");
 
@@ -191,10 +191,10 @@ int lut3d_debug;
 #endif
 
 //static int frame_lock_freq;
-__module_param(frame_lock_freq, int, 0664);
+__module_param(frame_lock_freq, int, 0664);//
 MODULE_PARM_DESC(frame_lock_freq, "frame_lock_50");
 
-static int video_rgb_ogo_mode_sw;
+int video_rgb_ogo_mode_sw;
 __module_param(video_rgb_ogo_mode_sw, int, 0664);
 MODULE_PARM_DESC(video_rgb_ogo_mode_sw,
 		 "enable/disable video_rgb_ogo_mode_sw");
@@ -234,7 +234,7 @@ MODULE_PARM_DESC(contrast_adj_sel, "\n contrast_adj_sel\n");
 
 /*gxlx adaptive sr level*/
 static unsigned int sr_adapt_level;
-__module_param(sr_adapt_level, uint, 0664);
+__module_param(sr_adapt_level, uint, 0664);//
 MODULE_PARM_DESC(sr_adapt_level, "\n sr_adapt_level\n");
 
 /* *********************************************************************** */
@@ -2298,15 +2298,15 @@ void amve_sharpness_init(void)
 }
 #endif
 
-static int overscan_timing = TIMING_MAX;
+int overscan_timing = TIMING_MAX;
 __module_param(overscan_timing, uint, 0664);
 MODULE_PARM_DESC(overscan_timing, "\n overscan_control\n");
 
-static int overscan_screen_mode = 0xff;
+int overscan_screen_mode = 0xff;
 __module_param(overscan_screen_mode, uint, 0664);
 MODULE_PARM_DESC(overscan_screen_mode, "\n overscan_screen_mode\n");
 
-static int overscan_disable;
+int overscan_disable;
 __module_param(overscan_disable, uint, 0664);
 MODULE_PARM_DESC(overscan_disable, "\n overscan_disable\n");
 

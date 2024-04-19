@@ -48,6 +48,8 @@ struct sa_param_s    {
 	struct sa_fw_param_s *sa_fw_param;
 };
 
+extern unsigned int ai_clr_dbg;
+
 void ai_color_proc(struct vframe_s *vf);
 int ai_color_debug_store(char **parm);
 void ai_clr_config(int enable);

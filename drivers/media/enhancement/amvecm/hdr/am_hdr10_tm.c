@@ -45,7 +45,7 @@ unsigned int panell = 400;
 __module_param(panell, uint, 0664);
 MODULE_PARM_DESC(panell, "display panel luminance\n");
 
-static unsigned int hdr10_tm_sel = 2; /*1 old algorithm, 2 hdr_tmo algorithm  default 2*/
+unsigned int hdr10_tm_sel = 2; /*1 old algorithm, 2 hdr_tmo algorithm  default 2*/
 __module_param(hdr10_tm_sel, uint, 0664);
 MODULE_PARM_DESC(hdr10_tm_sel, "hdr10_tm_sel\n");
 

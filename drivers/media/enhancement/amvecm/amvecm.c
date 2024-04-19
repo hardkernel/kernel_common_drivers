@@ -90,6 +90,9 @@
 #include "amve_v2.h"
 #include "color/ai_color.h"
 #include "am_lut3d.h"
+#include "hdr/am_hdr10_tm.h"
+#include "amcsc_pip.h"
+
 #endif
 #include "vlock.h"
 #include "reg_helper.h"
@@ -281,12 +284,12 @@ struct pq_ctrl_s pq_cfg_init[PQ_CFG_MAX] = {
 
 /*void __iomem *amvecm_hiu_reg_base;*//* = *ioremap(0xc883c000, 0x2000); */
 
-static int debug_amvecm;
+int debug_amvecm;
 __module_param(debug_amvecm, int, 0664);
 MODULE_PARM_DESC(debug_amvecm, "\n debug_amvecm\n");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static int debug_amvecm_bringup;
+int debug_amvecm_bringup;
 __module_param(debug_amvecm_bringup, int, 0664);
 MODULE_PARM_DESC(debug_amvecm_bringup, "\n debug_amvecm_bringup\n");
 #endif
@@ -304,12 +307,12 @@ __module_param(pq_load_en, uint, 0664);
 MODULE_PARM_DESC(pq_load_en, "\n pq_load_en\n");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-bool gamma_en;  /* wb_gamma_en enable/disable */
+int gamma_en;  /* wb_gamma_en enable/disable */
 __module_param(gamma_en, bool, 0664);
 MODULE_PARM_DESC(gamma_en, "\n gamma_en\n");
 #endif
 
-bool wb_en;  /* wb_en enable/disable */
+int wb_en;  /* wb_en enable/disable */
 __module_param(wb_en, bool, 0664);
 MODULE_PARM_DESC(wb_en, "\n wb_en\n");
 
@@ -325,11 +328,11 @@ __module_param(probe_ok, uint, 0664);
 MODULE_PARM_DESC(probe_ok, "\n probe_ok\n");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static unsigned int sr1_index;/* for sr1 read */
+unsigned int sr1_index;/* for sr1 read */
 __module_param(sr1_index, uint, 0664);
 MODULE_PARM_DESC(sr1_index, "\n sr1_index\n");
 
-static int mtx_sel_dbg;/* for mtx debug */
+int mtx_sel_dbg;/* for mtx debug */
 __module_param(mtx_sel_dbg, uint, 0664);
 MODULE_PARM_DESC(mtx_sel_dbg, "\n mtx_sel_dbg\n");
 #endif
@@ -9606,12 +9609,25 @@ static const char *amvecm_debug_usage_str = {
 	"echo vpp_mtx post_12 yuv2rgb > /sys/class/amvecm/debug; 12bit post mtx\n"
 	"echo vpp_mtx vd1_12 rgb2yuv > /sys/class/amvecm/debug; 12bit vd1 mtx\n"
 	"echo vpp_mtx vd1_12 yuv2rgb > /sys/class/amvecm/debug; 12bit vd1 mtx\n"
+	"echo ai_clr_dbg value > /sys/class/amvecm/debug;\n"
+	"echo aipq_debug value > /sys/class/amvecm/debug;\n"
+	"echo aipq_smooth_dbg value > /sys/class/amvecm/debug;\n"
+	"echo amve_bringup_debug value > /sys/class/amvecm/debug;\n"
+	"echo mtx_sel_dbg value > /sys/class/amvecm/debug;\n"
+	"echo fmeter_debug value > /sys/class/amvecm/debug;\n"
+	"echo cuva_sw_dbg value > /sys/class/amvecm/debug;\n"
+	"echo hdr10_tm_dbg value > /sys/class/amvecm/debug;\n"
+	"echo amlc_debug value > /sys/class/amvecm/debug;\n"
 #endif
 	"echo bitdepth 10/12/other-num > /sys/class/amvecm/debug; config data path\n"
 	"echo datapath_config param1(D) param2(D) > /sys/class/amvecm/debug; config data path\n"
 	"echo datapath_status > /sys/class/amvecm/debug; data path status\n"
 	"echo clip_config 0/1/2/.. 0/1/... 0/1 > /sys/class/amvecm/debug; config clip\n"
 	"echo vpp_mtrx_test sel csc on slice > /sys/class/amvecm/debug;\n"
+	"echo debug_amcm value > /sys/class/amvecm/debug;\n"
+	"echo debug_regload value > /sys/class/amvecm/debug;\n"
+	"echo amve_debug value > /sys/class/amvecm/debug;\n"
+	"echo debug_amvecm value > /sys/class/amvecm/debug;\n"
 };
 
 static ssize_t amvecm_debug_show(const struct class *class,
@@ -9620,8 +9636,84 @@ static ssize_t amvecm_debug_show(const struct class *class,
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	pr_info("cm2_debug:%d\n", cm2_debug);
-	pr_info("cm_cur_work_color_md:%d\n", cm_cur_work_color_md);
+	pr_info("ai_clr_dbg:%d\n", ai_clr_dbg);
+	pr_info("aipq_debug:%d\n", aipq_debug);
+	pr_info("aipq_smooth_dbg:%d\n", aipq_smooth_dbg);
+	pr_info("aipq_en:%d\n", aipq_en);
+	pr_info("aipq_bld_rs:%d\n", aipq_bld_rs);
+	pr_info("slower_coef:%d\n", slower_coef);
+	pr_info("cm_level:%d\n", cm_level);
+	pr_info("cm_width_limit:%d\n", cm_width_limit);
+	pr_info("slice_set:%d\n", slice_set);
+	pr_info("gamma_loadprotect_en:%d\n", gamma_loadprotect_en);
+	pr_info("dnlp_sel:%d\n", dnlp_sel);
+	pr_info("amve_bringup_debug:%d\n", amve_bringup_debug);
+	pr_info("fmeter_en:%d\n", fmeter_en);
+	pr_info("dnlp_en:%d\n", dnlp_en);
+	pr_info("dnlp_en_2:%d\n", dnlp_en_2);
+	pr_info("dnlp_en_dsw:%d\n", dnlp_en_dsw);
+	pr_info("gamma_en:%d\n", gamma_en);
+	pr_info("sr1_index:%d\n", sr1_index);
+	pr_info("mtx_sel_dbg:%d\n", mtx_sel_dbg);
+	pr_info("fmeter_debug:%d\n", fmeter_debug);
+	pr_info("fmeter_count:%d\n", fmeter_count);
+	pr_info("bs_3dlut_en:%d\n", bs_3dlut_en);
+	pr_info("ct_en:%d\n", ct_en);
+	pr_info("ai_color_enable:%d\n", ai_color_enable);
+	pr_info("multi_picture_case:%d\n", multi_picture_case);
+	pr_info("multi_slice_case:%d\n", multi_slice_case);
+	pr_info("dnlp_slice_num_changed:%d\n", dnlp_slice_num_changed);
+	pr_info("lc_slice_num_changed:%d\n", lc_slice_num_changed);
+	pr_info("hist_dma_case:%d\n", hist_dma_case);
+	pr_info("dump_lc_curve:%d\n", dump_lc_curve);
+	pr_info("vev2_dbg:%d\n", vev2_dbg);
+	pr_info("lc_overlap_s0:%d\n", lc_overlap_s0);
+	pr_info("lc_overlap:%d\n", lc_overlap);
+	pr_info("cuva_sw_dbg:%d\n", cuva_sw_dbg);
+	pr_info("hdr10_plus_printk:%d\n", hdr10_plus_printk);
+	pr_info("force_ref_peak:%d\n", force_ref_peak);
+	pr_info("hdr10_tm_dbg:%d\n", hdr10_tm_dbg);
+	pr_info("panell:%d\n", panell);
+	pr_info("hdr10_tm_sel:%d\n", hdr10_tm_sel);
+	pr_info("sc_th:%d\n", sc_th);
+	pr_info("hdr_tm_iir:%d\n", hdr_tm_iir);
+	pr_info("pr_tmo_en:%d\n", pr_tmo_en);
+	pr_info("hist_sel:%d\n", hist_sel);
+	pr_info("dnlp_dbg_print:%d\n", dnlp_dbg_print);
+	pr_info("dnlp_insmod_ok:%d\n", dnlp_insmod_ok);
+	pr_info("force_primary:%d\n", force_primary);
+	pr_info("force_matrix:%d\n", force_matrix);
+	pr_info("amlc_debug:%d\n", amlc_debug);
+	pr_info("lc_curve_isr_defined:%d\n", lc_curve_isr_defined);
+	pr_info("lc_rdma_mode:%d\n", lc_rdma_mode);
+	pr_info("lc_hist_prcnt:%d\n", lc_hist_prcnt);
+	pr_info("cpu_write_lut:%d\n", cpu_write_lut);
+	pr_info("dma_sel:%d\n", dma_sel);
+	pr_info("dma_sel1:%d\n", dma_sel1);
 #endif
+	pr_info("debug_amcm:%d\n", debug_amcm);
+	pr_info("debug_regload:%d\n", debug_regload);
+	pr_info("cm_en:%d\n", cm_en);
+	pr_info("pq_reg_wr_rdma:%d\n", pq_reg_wr_rdma);
+	pr_info("amve_debug:%d\n", amve_debug);
+	pr_info("video_rgb_ogo_mode_sw:%d\n", video_rgb_ogo_mode_sw);
+	pr_info("video_rgb_ogo_xvy_mtx:%d\n", video_rgb_ogo_xvy_mtx);
+	pr_info("contrast_adj_sel:%d\n", contrast_adj_sel);
+	pr_info("overscan_timing:%d\n", overscan_timing);
+	pr_info("overscan_screen_mode:%d\n", overscan_screen_mode);
+	pr_info("overscan_disable:%d\n", overscan_disable);
+	pr_info("debug_amvecm:%d\n", debug_amvecm);
+	pr_info("vecm_latch_flag:%d\n", vecm_latch_flag);
+	pr_info("vecm_latch_flag2:%d\n", vecm_latch_flag2);
+	pr_info("pq_load_en:%d\n", pq_load_en);
+	pr_info("wb_en:%d\n", wb_en);
+	pr_info("probe_ok:%d\n", probe_ok);
+	pr_info("pq_user_latch_flag:%d\n", pq_user_latch_flag);
+	pr_info("tx_op_color_primary:%d\n", tx_op_color_primary);
+	pr_info("debug_game_mode_1:%d\n", debug_game_mode_1);
+	pr_info("freerun_en:%d\n", freerun_en);
+	pr_info("hdr_output_mode:%d\n", hdr_output_mode);
+	pr_info("data_path:%d\n", data_path);
 	return sprintf(buf, "%s\n", amvecm_debug_usage_str);
 }
 
@@ -10726,7 +10818,392 @@ static ssize_t amvecm_debug_store(const struct class *class,
 		ve_mtrx_setting(mtx_sel, mtx_csc, mtx_on, slice);
 		pr_info("ve_mtrx: %d %d %d %d\n",
 			mtx_sel, mtx_csc, mtx_on, slice);
+	} else if (!strcmp(parm[0], "ai_clr_dbg")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		ai_clr_dbg = val;
+		pr_info("set ai_clr_dbg %d\n", ai_clr_dbg);
+	} else if (!strcmp(parm[0], "aipq_debug")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		aipq_debug = val;
+		pr_info("set aipq_debug %d\n", aipq_debug);
+	} else if (!strcmp(parm[0], "aipq_smooth_dbg")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		aipq_smooth_dbg = val;
+		pr_info("set aipq_smooth_dbg %d\n", aipq_smooth_dbg);
+	} else if (!strcmp(parm[0], "aipq_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		aipq_en = val;
+		pr_info("set aipq_en %d\n", aipq_en);
+	} else if (!strcmp(parm[0], "aipq_bld_rs")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		aipq_bld_rs = val;
+		pr_info("set aipq_bld_rs %d\n", aipq_bld_rs);
+	} else if (!strcmp(parm[0], "slower_coef")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		slower_coef = val;
+		pr_info("set slower_coef %d\n", slower_coef);
+	} else if (!strcmp(parm[0], "cm_level")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		cm_level = val;
+		pr_info("set cm_level %d\n", cm_level);
+	} else if (!strcmp(parm[0], "cm_width_limit")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		cm_width_limit = val;
+		pr_info("set cm_width_limit %d\n", cm_width_limit);
+	} else if (!strcmp(parm[0], "slice_set")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		slice_set = val;
+		pr_info("set slice_set %d\n", slice_set);
+	} else if (!strcmp(parm[0], "gamma_loadprotect_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		gamma_loadprotect_en = val;
+		pr_info("set gamma_loadprotect_en %d\n", gamma_loadprotect_en);
+	} else if (!strcmp(parm[0], "dnlp_sel")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		dnlp_sel = val;
+		pr_info("set dnlp_sel %d\n", dnlp_sel);
+	} else if (!strcmp(parm[0], "amve_bringup_debug")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		amve_bringup_debug = val;
+		pr_info("set amve_bringup_debug %d\n", amve_bringup_debug);
+	} else if (!strcmp(parm[0], "fmeter_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		fmeter_en = val;
+		pr_info("set fmeter_en %d\n", fmeter_en);
+	} else if (!strcmp(parm[0], "dnlp_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		dnlp_en = val;
+		pr_info("set dnlp_en %d\n", dnlp_en);
+	} else if (!strcmp(parm[0], "dnlp_en_2")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		dnlp_en_2 = val;
+		pr_info("set dnlp_en_2 %d\n", dnlp_en_2);
+	} else if (!strcmp(parm[0], "dnlp_en_dsw")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		dnlp_en_dsw = val;
+		pr_info("set dnlp_en_dsw %d\n", dnlp_en_dsw);
+	} else if (!strcmp(parm[0], "gamma_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		gamma_en = val;
+		pr_info("set gamma_en %d\n", gamma_en);
+	} else if (!strcmp(parm[0], "sr1_index")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		sr1_index = val;
+		pr_info("set sr1_index %d\n", sr1_index);
+	} else if (!strcmp(parm[0], "mtx_sel_dbg")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		mtx_sel_dbg = val;
+		pr_info("set mtx_sel_dbg %d\n", mtx_sel_dbg);
+	} else if (!strcmp(parm[0], "fmeter_debug")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		fmeter_debug = val;
+		pr_info("set fmeter_debug %d\n", fmeter_debug);
+	} else if (!strcmp(parm[0], "fmeter_count")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		fmeter_count = val;
+		pr_info("set fmeter_count %d\n", fmeter_count);
+	} else if (!strcmp(parm[0], "bs_3dlut_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		bs_3dlut_en = val;
+		pr_info("set bs_3dlut_en %d\n", bs_3dlut_en);
+	} else if (!strcmp(parm[0], "ct_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		ct_en = val;
+		pr_info("set ct_en %d\n", ct_en);
+	} else if (!strcmp(parm[0], "ai_color_enable")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		ai_color_enable = val;
+		pr_info("set ai_color_enable %d\n", ai_color_enable);
+	} else if (!strcmp(parm[0], "multi_picture_case")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		multi_picture_case = val;
+		pr_info("set multi_picture_case %d\n", multi_picture_case);
+	} else if (!strcmp(parm[0], "multi_slice_case")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		multi_slice_case = val;
+		pr_info("set multi_slice_case %d\n", multi_slice_case);
+	} else if (!strcmp(parm[0], "dnlp_slice_num_changed")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		dnlp_slice_num_changed = val;
+		pr_info("set dnlp_slice_num_changed %d\n", dnlp_slice_num_changed);
+	} else if (!strcmp(parm[0], "lc_slice_num_changed")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_slice_num_changed = val;
+		pr_info("set lc_slice_num_changed %d\n", lc_slice_num_changed);
+	} else if (!strcmp(parm[0], "hist_dma_case")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		hist_dma_case = val;
+		pr_info("set hist_dma_case %d\n", hist_dma_case);
+	} else if (!strcmp(parm[0], "dump_lc_curve")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		dump_lc_curve = val;
+		pr_info("set dump_lc_curve %d\n", dump_lc_curve);
+	} else if (!strcmp(parm[0], "vev2_dbg")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		vev2_dbg = val;
+		pr_info("set vev2_dbg %d\n", vev2_dbg);
+	} else if (!strcmp(parm[0], "lc_overlap_s0")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_overlap_s0 = val;
+		pr_info("set lc_overlap_s0 %d\n", lc_overlap_s0);
+	} else if (!strcmp(parm[0], "lc_overlap")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_overlap = val;
+		pr_info("set lc_overlap %d\n", lc_overlap);
+	} else if (!strcmp(parm[0], "cuva_sw_dbg")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		cuva_sw_dbg = val;
+		pr_info("set cuva_sw_dbg %d\n", cuva_sw_dbg);
+	} else if (!strcmp(parm[0], "hdr10_plus_printk")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		hdr10_plus_printk = val;
+		pr_info("set hdr10_plus_printk %d\n", hdr10_plus_printk);
+	} else if (!strcmp(parm[0], "force_ref_peak")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		force_ref_peak = val;
+		pr_info("set force_ref_peak %d\n", force_ref_peak);
+	} else if (!strcmp(parm[0], "hdr10_tm_dbg")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		hdr10_tm_dbg = val;
+		pr_info("set hdr10_tm_dbg %d\n", hdr10_tm_dbg);
+	} else if (!strcmp(parm[0], "panell")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		panell = val;
+		pr_info("set panell %d\n", panell);
+	} else if (!strcmp(parm[0], "hdr10_tm_sel")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		hdr10_tm_sel = val;
+		pr_info("set hdr10_tm_sel %d\n", hdr10_tm_sel);
+	} else if (!strcmp(parm[0], "sc_th")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		sc_th = val;
+		pr_info("set sc_th %d\n", sc_th);
+	} else if (!strcmp(parm[0], "hdr_tm_iir")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		hdr_tm_iir = val;
+		pr_info("set hdr_tm_iir %d\n", hdr_tm_iir);
+	} else if (!strcmp(parm[0], "pr_tmo_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		pr_tmo_en = val;
+		pr_info("set pr_tmo_en %d\n", pr_tmo_en);
+	} else if (!strcmp(parm[0], "hist_sel")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		hist_sel = val;
+		pr_info("set hist_sel %d\n", hist_sel);
+	} else if (!strcmp(parm[0], "dnlp_dbg_print")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		dnlp_dbg_print = val;
+		pr_info("set dnlp_dbg_print %d\n", dnlp_dbg_print);
+	} else if (!strcmp(parm[0], "dnlp_insmod_ok")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		dnlp_insmod_ok = val;
+		pr_info("set dnlp_insmod_ok %d\n", dnlp_insmod_ok);
+	} else if (!strcmp(parm[0], "force_primary")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		force_primary = val;
+		pr_info("set force_primary %d\n", force_primary);
+	} else if (!strcmp(parm[0], "force_matrix")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		force_matrix = val;
+		pr_info("set force_matrix %d\n", force_matrix);
+	} else if (!strcmp(parm[0], "amlc_debug")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		amlc_debug = val;
+		pr_info("set amlc_debug %d\n", amlc_debug);
+	} else if (!strcmp(parm[0], "lc_curve_isr_defined")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_curve_isr_defined = val;
+		pr_info("set lc_curve_isr_defined %d\n", lc_curve_isr_defined);
+	} else if (!strcmp(parm[0], "lc_rdma_mode")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_rdma_mode = val;
+		pr_info("set lc_rdma_mode %d\n", lc_rdma_mode);
+	} else if (!strcmp(parm[0], "lc_hist_prcnt")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		lc_hist_prcnt = val;
+		pr_info("set lc_hist_prcnt %d\n", lc_hist_prcnt);
+	} else if (!strcmp(parm[0], "cpu_write_lut")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		cpu_write_lut = val;
+		pr_info("set cpu_write_lut %d\n", cpu_write_lut);
+	} else if (!strcmp(parm[0], "dma_sel")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		dma_sel = val;
+		pr_info("set dma_sel %d\n", dma_sel);
+	} else if (!strcmp(parm[0], "dma_sel1")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		dma_sel1 = val;
+		pr_info("set dma_sel1 %d\n", dma_sel1);
 #endif
+	} else if (!strcmp(parm[0], "debug_amcm")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		debug_amcm = val;
+		pr_info("set debug_amcm %d\n", debug_amcm);
+	} else if (!strcmp(parm[0], "debug_regload")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		debug_regload = val;
+		pr_info("set debug_regload %d\n", debug_regload);
+	} else if (!strcmp(parm[0], "cm_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		cm_en = val;
+		pr_info("set cm_en %d\n", cm_en);
+	} else if (!strcmp(parm[0], "pq_reg_wr_rdma")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		pq_reg_wr_rdma = val;
+		pr_info("set pq_reg_wr_rdma %d\n", pq_reg_wr_rdma);
+	} else if (!strcmp(parm[0], "amve_debug")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		amve_debug = val;
+		pr_info("set amve_debug %d\n", amve_debug);
+	} else if (!strcmp(parm[0], "video_rgb_ogo_mode_sw")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		video_rgb_ogo_mode_sw = val;
+		pr_info("set video_rgb_ogo_mode_sw %d\n", video_rgb_ogo_mode_sw);
+	} else if (!strcmp(parm[0], "video_rgb_ogo_xvy_mtx")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		video_rgb_ogo_xvy_mtx = val;
+		pr_info("set video_rgb_ogo_xvy_mtx %d\n", video_rgb_ogo_xvy_mtx);
+	} else if (!strcmp(parm[0], "contrast_adj_sel")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		contrast_adj_sel = val;
+		pr_info("set contrast_adj_sel %d\n", contrast_adj_sel);
+	} else if (!strcmp(parm[0], "overscan_timing")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		overscan_timing = val;
+		pr_info("set overscan_timing %d\n", overscan_timing);
+	} else if (!strcmp(parm[0], "overscan_screen_mode")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		overscan_screen_mode = val;
+		pr_info("set overscan_screen_mode %d\n", overscan_screen_mode);
+	} else if (!strcmp(parm[0], "overscan_disable")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		overscan_disable = val;
+		pr_info("set overscan_disable %d\n", overscan_disable);
+	} else if (!strcmp(parm[0], "debug_amvecm")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		debug_amvecm = val;
+		pr_info("set debug_amvecm %d\n", debug_amvecm);
+	} else if (!strcmp(parm[0], "vecm_latch_flag")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		vecm_latch_flag = val;
+		pr_info("set vecm_latch_flag %d\n", vecm_latch_flag);
+	} else if (!strcmp(parm[0], "vecm_latch_flag2")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		vecm_latch_flag2 = val;
+		pr_info("set vecm_latch_flag2 %d\n", vecm_latch_flag2);
+	} else if (!strcmp(parm[0], "pq_load_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		pq_load_en = val;
+		pr_info("set pq_load_en %d\n", pq_load_en);
+	} else if (!strcmp(parm[0], "wb_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		wb_en = val;
+		pr_info("set wb_en %d\n", wb_en);
+	} else if (!strcmp(parm[0], "probe_ok")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		probe_ok = val;
+		pr_info("set probe_ok %d\n", probe_ok);
+	} else if (!strcmp(parm[0], "pq_user_latch_flag")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		pq_user_latch_flag = val;
+		pr_info("set pq_user_latch_flag %d\n", pq_user_latch_flag);
+	} else if (!strcmp(parm[0], "tx_op_color_primary")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		tx_op_color_primary = val;
+		pr_info("set tx_op_color_primary %d\n", tx_op_color_primary);
+	} else if (!strcmp(parm[0], "debug_game_mode_1")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		debug_game_mode_1 = val;
+		pr_info("set debug_game_mode_1 %d\n", debug_game_mode_1);
+	} else if (!strcmp(parm[0], "freerun_en")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		freerun_en = val;
+		pr_info("set freerun_en %d\n", freerun_en);
+	} else if (!strcmp(parm[0], "hdr_output_mode")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		hdr_output_mode = val;
+		pr_info("set hdr_output_mode %d\n", hdr_output_mode);
+	} else if (!strcmp(parm[0], "data_path")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		data_path = val;
+		pr_info("set data_path %d\n", data_path);
 	} else {
 		pr_info("unsupport cmd\n");
 	}

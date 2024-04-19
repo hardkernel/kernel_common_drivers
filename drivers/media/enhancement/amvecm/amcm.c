@@ -52,16 +52,16 @@
 			pr_info("AMCM: " fmt, ## args);\
 	} while (0)\
 
-static int debug_amcm;
+int debug_amcm;
 __module_param(debug_amcm, int, 0664);
 MODULE_PARM_DESC(debug_amcm, "\n debug_amcm\n");
 
-static bool debug_regload;
+int debug_regload;
 __module_param(debug_regload, bool, 0664);
 MODULE_PARM_DESC(debug_regload, "\n debug_regload\n");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static int cm_level = 1;/* 0:optimize;1:enhancement */
+int cm_level = 1;/* 0:optimize;1:enhancement */
 __module_param(cm_level, int, 0664);
 MODULE_PARM_DESC(cm_level, "\n select cm lever\n");
 #endif
@@ -71,7 +71,7 @@ __module_param(cm_en, int, 0664);
 MODULE_PARM_DESC(cm_en, "\n enable or disable cm\n");
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static unsigned int cm_width_limit = 50;/* vlsi adjust */
+unsigned int cm_width_limit = 50;/* vlsi adjust */
 __module_param(cm_width_limit, uint, 0664);
 MODULE_PARM_DESC(cm_width_limit, "\n cm_width_limit\n");
 #endif

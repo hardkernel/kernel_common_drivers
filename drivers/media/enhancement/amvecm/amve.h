@@ -175,10 +175,17 @@ void amve_fmetersize_config(u32 sr0_w, u32 sr0_h, u32 sr1_w, u32 sr1_h);
 /* unsigned long long ve_get_vs_cnt(void); */
 /* #endif */
 extern int video_rgb_ogo_xvy_mtx;
+extern int video_rgb_ogo_mode_sw;
+extern unsigned int contrast_adj_sel;
+extern int overscan_timing;
+extern int overscan_screen_mode;
+extern int overscan_disable;
 
 #define GAMMA_SIZE 256
 
 extern unsigned int dnlp_sel;
+extern int amve_bringup_debug;
+
 void ve_dnlp_load_reg(void);
 
 /*gxlx sr adaptive setting*/
@@ -227,5 +234,11 @@ void vpp_pst_hist_sta_read(unsigned int *hist);
 void eye_proc(int mtx_ep[][4], int mtx_on);
 void set_vpp_enh_clk(struct vframe_s *vf, struct vframe_s *rpt_vf);
 void lut3d_update(unsigned int p3dlut_in[][3]);
+extern int amve_debug;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+extern int dnlp_en_2;
+extern int dnlp_en_dsw;
+#endif
+
 #endif
 

@@ -12,6 +12,10 @@ extern int multi_slice_case;
 extern int hist_dma_case;
 extern unsigned int lc_overlap;
 extern int lc_slice_num_changed;
+extern int dnlp_slice_num_changed;
+extern int dump_lc_curve;
+extern int vev2_dbg;
+extern unsigned int lc_overlap_s0;
 
 struct cm_port_s {
 	int cm_addr_port[4];

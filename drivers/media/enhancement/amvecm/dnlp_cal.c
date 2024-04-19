@@ -47,11 +47,11 @@ ulong ve_dnlp_reg_def[16] = {
 	0xdad7d5d2,	0xe6e3e0dd,	0xf2efece9,	0xfdfaf7f4
 };
 
-static bool hist_sel = 1; /*1->vpp , 0->vdin*/
+int hist_sel = 1; /*1->vpp , 0->vdin*/
 __module_param(hist_sel, bool, 0664);
 MODULE_PARM_DESC(hist_sel, "hist_sel");
 
-static unsigned int dnlp_dbg_print; /*1->vpp , 0->vdin*/
+unsigned int dnlp_dbg_print; /*1->vpp , 0->vdin*/
 __module_param(dnlp_dbg_print, uint, 0664);
 MODULE_PARM_DESC(dnlp_dbg_print, "dnlp_dbg_print");
 

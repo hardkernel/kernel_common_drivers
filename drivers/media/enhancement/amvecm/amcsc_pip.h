@@ -38,5 +38,7 @@ void video_post_process(struct vframe_s *vf,
 			enum vd_path_e vd_path,
 			struct vframe_master_display_colour_s *master_info,
 			enum hdr_type_e *source_type, enum vpp_index_e vpp_index);
+extern uint slice_set;
+
 #endif
 #endif

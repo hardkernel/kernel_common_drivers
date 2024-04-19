@@ -31,6 +31,11 @@
 #define MAX_32 0xffffffff
 
 extern unsigned int panell;
+extern unsigned int hdr10_tm_dbg;
+extern unsigned int hdr10_tm_sel;
+extern u32 sc_th;
+extern u32 hdr_tm_iir;
+
 int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p);
 #endif
 #endif

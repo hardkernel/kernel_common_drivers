@@ -33,6 +33,13 @@ extern unsigned int cm_size;
 extern unsigned int cm2_patch_flag;
 extern int cm_en; /* 0:disable;1:enable */
 extern int dnlp_en;/*0:disable;1:enable */
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+extern int cm_level;
+extern unsigned int cm_width_limit;
+#endif
+
+extern int debug_amcm;
+extern int debug_regload;
 
 extern unsigned int sr1_reg_val[101];
 extern int pq_reg_wr_rdma;

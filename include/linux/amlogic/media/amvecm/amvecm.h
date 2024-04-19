@@ -449,11 +449,11 @@ struct vdj_parm_s {
 };
 
 extern signed int vd1_brightness, vd1_contrast;
-extern bool gamma_en;
+extern int gamma_en;
 extern unsigned int atv_source_flg;
 extern enum hdr_type_e hdr_source_type;
 extern unsigned int pd_detect_en;
-extern bool wb_en;
+extern int wb_en;
 extern struct pq_ctrl_s pq_cfg;
 
 extern struct pq_ctrl_s pq_cfg;
@@ -604,5 +604,19 @@ struct gamma_data_s *get_gm_data(void);
 void bs_ct_latch(void);
 int pkt_adv_chip(void);
 extern unsigned int ai_color_enable;
+extern int debug_amvecm;
+extern unsigned int vecm_latch_flag;
+extern unsigned int pq_load_en;
+extern unsigned int probe_ok;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+extern unsigned int sr1_index;
+extern int mtx_sel_dbg;
+extern unsigned int fmeter_debug;
+extern unsigned int fmeter_count;
+#endif
+extern unsigned int debug_game_mode_1;
+extern unsigned int hdr_output_mode;
+extern unsigned int data_path;
+
 #endif /* AMVECM_H */
 
