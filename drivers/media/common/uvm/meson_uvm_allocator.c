@@ -32,6 +32,7 @@
 #include "linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h"
 #include "meson_uvm_aicolor_processor.h"
 #include "meson_uvm_buffer_info.h"
+#include "meson_uvm_lcevc_processor.h"
 
 static struct mua_device *mua_dev;
 
@@ -774,6 +775,11 @@ static int mua_attach(int fd, int type, char *buf)
 		break;
 	case PROCESS_AICOLOR:
 		ret = attach_aicolor_hook_mod_info(fd, buf, &info);
+		if (ret)
+			return -EINVAL;
+		break;
+	case PROCESS_LCEVC:
+		ret = attach_lcevc_hook_mod_info(fd, buf, &info);
 		if (ret)
 			return -EINVAL;
 		break;
