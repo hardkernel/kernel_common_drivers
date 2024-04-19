@@ -12,6 +12,7 @@ static int __init gpio_main_init(void)
 {
 	pr_debug("### %s() start\n", __func__);
 	call_sub_init(gpiolib_module_init);
+	call_sub_init(gpiolib_sysfs_module_init);
 	call_sub_init(meson_gpio_irq_init);
 	call_sub_init(meson_pmic6b_gpio_init);
 	pr_debug("### %s() end\n", __func__);
@@ -21,6 +22,7 @@ static int __init gpio_main_init(void)
 static void __exit gpio_main_exit(void)
 {
 	meson_gpio_irq_exit();
+	gpiolib_sysfs_module_exit();
 	gpiolib_module_exit();
 	meson_pmic6b_gpio_exit();
 }

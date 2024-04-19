@@ -10,6 +10,7 @@
 #include <linux/bug.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/gpio/driver.h>
 
 enum gpiod_pull_type {
 	GPIOD_PULL_DIS = 0,
@@ -27,5 +28,14 @@ static inline int gpiod_set_pull(struct gpio_desc *desc, unsigned int value)
 	return -EINVAL;
 }
 #endif /* CONFIG_GPIOLIB */
+
+#if IS_ENABLED(CONFIG_AMLOGIC_GPIOLIB_SYSFS)
+int gpiochip_sysfs_register(struct gpio_device *gdev);
+#else
+static inline int gpiochip_sysfs_register(struct gpio_device *gdev)
+{
+	return 0;
+}
+#endif
 
 #endif //__AML_GPIO_H__
