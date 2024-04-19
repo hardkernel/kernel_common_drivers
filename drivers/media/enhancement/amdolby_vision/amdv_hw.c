@@ -106,7 +106,7 @@ u32 force_update_reg;
 #define CP_FLAG_CHANGE_3DLUT_OLD	0x000080
 #define CP_FLAG_CONST_TC		0x100000
 #define CP_FLAG_CONST_TC2		0x200000
-#define CP_FLAG_CHANGE_ALL		0xffffffff
+#define CP_FLAG_CHANGE_ALL		0xffcfffff
 
 /* update all core */
 static u32 stb_core_setting_update_flag = CP_FLAG_CHANGE_ALL;
@@ -126,7 +126,7 @@ struct vpp_post_info_t core3_slice_info;
  */
 static int (*get_osd_status)(enum OSD_INDEX index);
 
-static bool get_core2_enable_info(enum OSD_INDEX index)
+bool get_core2_enable_info(enum OSD_INDEX index)
 {
 	bool osd_enable = (amdv_mask & 2);
 	int osd_status = 0;
@@ -2464,13 +2464,16 @@ static int dv_core2c_set
 		amdv_core_reset(AMDV_CORE2C);
 		force_reset_core2[1] = false;
 		reset = true;
+		amdv_core2_on_cnt[1] = 0;
 		pr_dv_dbg("reset core2c\n");
 	}
 
 	if (osd_enable &&
-	    amdv_core2_on_cnt < DV_CORE2_RECONFIG_CNT) {
+	    amdv_core2_on_cnt[1] < DV_CORE2_RECONFIG_CNT) {
 		reset = true;
-		/*amdv_core2_on_cnt++;*/
+		amdv_core2_on_cnt[1]++;
+	} else if (!osd_enable) {
+		amdv_core2_on_cnt[1] = 0;
 	}
 
 	if (dolby_vision_flags & FLAG_CERTIFICATION)
@@ -2544,7 +2547,8 @@ static int dv_core2c_set
 				(AMDV_CORE2C_REG_START + 6 + i,
 				 p_core2_dm_regs[i]);
 			set_lut = true;
-			if ((debug_dolby & 0x20000000))
+			if ((debug_dolby & 0x20000000) &&
+				p_core2_dm_regs[i] != last_dm[i])
 				pr_dv_dbg("core2c dm change dm_regs[%d] %x->%x\n",
 					     i, last_dm[i], p_core2_dm_regs[i]);
 		}
@@ -2573,9 +2577,10 @@ static int dv_core2c_set
 		set_lut = false;
 
 	if (debug_dolby & 2)
-		pr_dv_dbg("core2c %x %x, reset %d, %d, flag %x, size %d %d\n",
-			     g_hpotch, g_vpotch, reset, set_lut,
-			     stb_core_setting_update_flag, hsize, vsize);
+		pr_dv_dbg("core2c %x %x %x,reset %d,%d,%d,flag %x,size %d %d %d %d\n",
+			     g_hpotch, g_vpotch, g_hwidth, reset, set_lut, force_set_lut,
+			     stb_core_setting_update_flag,
+			     hsize, vsize, tmp_h, tmp_v);
 
 	/* core2 metadata program done */
 	VSYNC_WR_DV_REG(AMDV_CORE2C_REG_START + 3, 1);
@@ -2614,7 +2619,6 @@ static int dv_core2c_set
 			}
 		}
 	}
-	force_set_lut = false;
 
 	/* enable core2 */
 	VSYNC_WR_DV_REG(AMDV_CORE2C_SWAP_CTRL0, osd_enable << 0);
@@ -2678,12 +2682,15 @@ static int dv_core2a_set
 		force_reset_core2[0] = false;
 		reset = true;
 		pr_dv_dbg("reset core2a\n");
+		amdv_core2_on_cnt[0] = 0;
 	}
 
 	if (osd_enable &&
-	    amdv_core2_on_cnt < DV_CORE2_RECONFIG_CNT) {
+	    amdv_core2_on_cnt[0] < DV_CORE2_RECONFIG_CNT) {
 		reset = true;
-		amdv_core2_on_cnt++;
+		amdv_core2_on_cnt[0]++;
+	} else if (!osd_enable) {
+		amdv_core2_on_cnt[0] = 0;
 	}
 
 	if (dolby_vision_flags & FLAG_CERTIFICATION)
@@ -2763,7 +2770,8 @@ static int dv_core2a_set
 				(AMDV_CORE2A_REG_START + 6 + i,
 				 p_core2_dm_regs[i]);
 			set_lut = true;
-			if ((debug_dolby & 0x20000000))
+			if ((debug_dolby & 0x20000000) &&
+				p_core2_dm_regs[i] != last_dm[i])
 				pr_dv_dbg("core2a dm change dm_regs[%d] %x->%x\n",
 					     i, last_dm[i], p_core2_dm_regs[i]);
 		}
@@ -2843,7 +2851,6 @@ static int dv_core2a_set
 				(AMDV_CORE2A_CLKGATE_CTRL, 0, 2, 2);
 #endif
 	}
-	force_set_lut = false;
 
 	/* enable core2 */
 	VSYNC_WR_DV_REG(AMDV_CORE2A_SWAP_CTRL0, osd_enable << 0);
@@ -3644,9 +3651,9 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 			       p_dm_lut2_last,
 			       sizeof(struct dm_lut_ipcore));
 
-
 		osd_enable[0] = get_core2_enable_info(OSD1_INDEX);
-		osd_enable[1] = get_core2_enable_info(OSD3_INDEX);
+		osd_enable[1] = get_core2_enable_info(OSD3_INDEX) ||
+						(force_core2c_on && (core2_sel & 2));
 
 		dv_core2a_set
 			(24, 256 * 5,
@@ -3660,6 +3667,7 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 				 (u32 *)p_dm_reg2,
 				 (u32 *)p_dm_lut2,
 				 graphics_w[1], graphics_h[1], osd_enable[1], 1);
+		force_set_lut = false;
 	}
 
 	if (mask & 4) {
@@ -3937,10 +3945,12 @@ void set_bypass_all_vpp_pq(int flag)
 		bypass_all_vpp_pq = 1;
 }
 
-void set_force_reset_core2(bool flag)
+void set_force_reset_core2(bool flag, enum OSD_INDEX index)
 {
-	force_reset_core2[0] = flag;
-	force_reset_core2[1] = flag;
+	if (index == OSD1_INDEX)
+		force_reset_core2[0] = flag;
+	if (index == OSD3_INDEX)
+		force_reset_core2[1] = flag;
 }
 
 /*flag bit0: bypass from preblend to VADJ1, skip sr/pps/cm2*/
@@ -4567,7 +4577,8 @@ void enable_amdv_v1(int enable)
 							 1,
 							 0, 1);/*core2a bypass*/
 					}
-					if (get_core2_enable_info(OSD3_INDEX)) {
+					if (get_core2_enable_info(OSD3_INDEX) ||
+						(force_core2c_on && (core2_sel & 2))) {
 						pr_info("enable core2c\n");
 						VSYNC_WR_DV_REG_BITS
 							(OSD_DOLBY_BYPASS_EN,
@@ -5575,7 +5586,8 @@ void enable_amdv_v2_stb(int enable)
 							 1,
 							 0, 1);/*core2a bypass*/
 					}
-					if (get_core2_enable_info(OSD3_INDEX)) {
+					if (get_core2_enable_info(OSD3_INDEX) ||
+						(force_core2c_on && (core2_sel & 2))) {
 						pr_info("enable core2c\n");
 						VSYNC_WR_DV_REG_BITS
 							(OSD_DOLBY_BYPASS_EN,
