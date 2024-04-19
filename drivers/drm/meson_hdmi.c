@@ -1784,6 +1784,7 @@ void meson_hdmitx_encoder_atomic_disable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
 {
 	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
+	struct hdmitx_hw_common *hw_comm = am_hdmi_info.hdmitx_dev->hw_common;
 	struct am_meson_crtc_state *meson_crtc_state =
 		to_am_meson_crtc_state(encoder->crtc->state);
 
@@ -1798,6 +1799,12 @@ void meson_hdmitx_encoder_atomic_disable(struct drm_encoder *encoder,
 
 	am_hdmi_info.hdmitx_on = 0;
 	hdmitx_common_avmute_locked(tx_comm, SET_AVMUTE, AVMUTE_PATH_DRM);
+	msleep(100);
+	/* there's about 300ms delay after hdmitx encoder disable and
+	 * before hdmitx_module_disable(disable phy), need to disable
+	 * hdmitx phy asap for TV better detection
+	 */
+	hdmitx_hw_set_phy(hw_comm, 0);
 	meson_hdmitx_stop_hdcp();
 	msleep(100);
 }
