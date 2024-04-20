@@ -822,7 +822,7 @@
 			card_type = <1>;
 			ignore_desc_busy;
 			mmc_debug_flag;
-			src_clk_rate = <1536000000>;
+			src_clk_rate = <1152000000>;
 			tx_delay = <17>;
 		//	nwr_cnt = <0>;
 		//	resets = <&reset RESET_SD_EMMC_C>;
