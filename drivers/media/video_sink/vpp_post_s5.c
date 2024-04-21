@@ -675,12 +675,19 @@ static void vpp_vd1_hwin_set(u32 vpp_index,
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
 	struct vpp_post_misc_reg_s *vpp_reg = &vpp_post_reg.vpp_post_misc_reg;
 	u32 vd1_win_in_hsize = 0, vd1_slice_num = 0;
+	u32 vd1_proc_dout_hsize = 0;
+	struct vd_proc_s *vd_proc = get_vd_proc_info();
 
+	vd1_proc_dout_hsize =
+			vd_proc->vd_proc_vd1_info.vd1_proc_unit_dout_hsize[0];
 	if (vpp_post->vd1_hwin.vd1_hwin_en) {
 		if (video_is_meson_s5_cpu()) {
-			vd1_win_in_hsize =
-				(vpp_post->vd1_hwin.vd1_hwin_in_hsize +
-				SLICE_NUM - 1) / SLICE_NUM;
+			if (!vd_proc->vd_proc_vd1_info.slice_out_calc)
+				vd1_win_in_hsize =
+					(vpp_post->vd1_hwin.vd1_hwin_in_hsize +
+					SLICE_NUM - 1) / SLICE_NUM;
+			else
+				vd1_win_in_hsize = vd1_proc_dout_hsize / 2;
 			rdma_wr(vpp_reg->vpp_post_vd1_win_cut_ctrl,
 				 vpp_post->vd1_hwin.vd1_hwin_en << 31  |
 				 vd1_win_in_hsize);
@@ -1590,7 +1597,8 @@ int update_vpp_input_info(const struct vinfo_s *info, u8 vpp_index)
 			vpp_input.vd1_size_after_padding =
 				SIZE_ALIG32(vpp_input.din_hsize[0]);
 		if (vpp_input.vd1_size_before_padding !=
-			vpp_input.vd1_size_after_padding)
+			vpp_input.vd1_size_after_padding ||
+			vd_proc_vd1_info->slice_out_calc)
 			vpp_input.vd1_padding_en = 1;
 		if (vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_4S4P)
 			vpp_input.vd1_proc_slice = 4;
