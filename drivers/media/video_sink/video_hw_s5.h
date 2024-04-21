@@ -263,6 +263,7 @@ struct vd_proc_vd1_info_s {
 	u32 vd1_whole_hsize;
 	u32 vd1_whole_vsize;
 	u32 crop_left;
+	u32 slice_out_calc;
 	u32 h_no_scale[SLICE_NUM];
 	bool no_compress;
 };
