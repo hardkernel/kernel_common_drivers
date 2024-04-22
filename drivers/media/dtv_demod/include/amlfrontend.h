@@ -166,6 +166,7 @@
 /*  V3.5.039 fix aml_demod_ioctl and dump adc issue */
 /*  V3.5.040 fix coverity errors */
 /*  V3.5.041 fix occasional failure to lock dvbt signal */
+/*  V3.5.042 fix dvbs_read_signal_strength issue */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -182,8 +183,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.041"
-#define DTVDEMOD_VER	"2024/05/10: fix occasional failure to lock dvbt signal"
+#define AMLDTVDEMOD_VER "V3.5.042"
+#define DTVDEMOD_VER	"2024/05/22: fix dvbs_read_signal_strength issue"
 #define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
