@@ -576,7 +576,7 @@ MESON_CLK_PLL_RW(hifi_pll, ANACTRL_HIFI0PLL_CTRL1, 27, 1,  /* en */
 		 hifi0_init_regs, NULL, hifi_pll_table,  /* init_regs, range, table */
 		 CLK_MESON_PLL_POWER_OF_TWO | CLK_MESON_PLL_FIXED_EN0P5 |
 		 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
-		 CLK_MESON_PLL_RSTN,  /* dflags */
+		 CLK_MESON_PLL_RSTN | CLK_MESON_PLL_IGNORE_INIT,  /* dflags */
 		 &hifi0_pll_parent, 0,  /* pdata, iflags */
 		 ANACTRL_HIFI0PLL_CTRL0, 20, 3);  /* od */
 
