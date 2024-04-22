@@ -217,7 +217,6 @@
 		status = "okay";
 		pwr_led {
 			label = "pwr_led";
-			gpios = <&gpio GPIODV_5 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
@@ -640,7 +639,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				sound-dai = <&amlogic_codec>;
+				prefix-names = "AMP";
+				sound-dai = <&sy602x_54 &amlogic_codec>;
 			};
 		};
 
@@ -871,6 +871,14 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_pins2>;
 	clock-frequency = <300000>; /* default 100k */
+
+	sy602x_54: sy602x_54@2a {
+		compatible = "silergy,sy602x";
+		#sound-dai-cells = <0>;
+		reg = <0x2a>;
+		status = "okay";
+		reset_pin = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
+	};
 
 	aw9523: aw9523_led@5b {
 		compatible = "amlogic,aw9523b_led";

@@ -160,7 +160,11 @@
 				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
-
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <
+			&tdm_c_pins
+			&tdm_d2_pins
+			&tdmc_clk_pins>;
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -504,11 +508,35 @@
 	};
 
 	pdmin: pdmin {
-		mux { /* GPIODV_3, GPIODV_4, GPIODV_5*/
+		mux { /* GPIODV_3, GPIODV_4*/
 			groups = "pdm_dclk_dv3",
-					"pdm_din0_dv4",
-					"pdm_din1_dv5";
+					"pdm_din0_dv4";
 			function = "pdm";
+		};
+	};
+
+	tdm_c_pins: tdm_c_pin {
+		mux { /* GPIODV_1, GPIODV_2, GPIODV_5 */
+			groups = "tdm_sclk1_dv1",
+				"tdm_fs1_dv2",
+				"tdm_d2_dv5";
+			function = "tdm";
+		};
+	};
+};
+
+&pinctrl_audio {
+	tdm_d2_pins: tdm_d2_pin {
+		mux {
+			groups = "tdm_d2";
+			function = "tdmoutc_lane0";
+		};
+	};
+
+	tdmc_clk_pins: tdmc_clk_pin {
+		mux {
+			groups = "tdm_sclk1", "tdm_lrclk1";
+			function = "tdm_clk_outc";
 		};
 	};
 };
