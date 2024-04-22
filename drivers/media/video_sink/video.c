@@ -7145,6 +7145,28 @@ static ssize_t video_sr_store(struct class *cla,
 	return strnlen(buf, count);
 }
 
+static ssize_t video_safa_dir_interp_show(struct class *cla,
+			     struct class_attribute *attr,
+			     char *buf)
+{
+	return sprintf(buf, "safa_dir_interp_en:%d\n", safa_dir_interp_en);
+}
+
+static ssize_t video_safa_dir_interp_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int parsed[1];
+
+	if (likely(parse_para(buf, 1, parsed) == 1)) {
+		if (safa_dir_interp_en != (parsed[0] & 0x1)) {
+			safa_dir_interp_en = parsed[0] & 0x1;
+			vd_layer[0].property_changed = true;
+		}
+	}
+	return strnlen(buf, count);
+}
+
 static ssize_t video_crop_show(struct class *cla, struct class_attribute *attr,
 			       char *buf)
 {
@@ -12858,6 +12880,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0644,
 	       video_sr_show,
 	       video_sr_store),
+	__ATTR(safa_dir_interp_en,
+	       0644,
+	       video_safa_dir_interp_show,
+	       video_safa_dir_interp_store),
 	__ATTR(global_offset,
 	       0644,
 	       video_global_offset_show,

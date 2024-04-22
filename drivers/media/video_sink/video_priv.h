@@ -806,6 +806,7 @@ extern int vdec_out_size_threshold_8k;
 extern int vpp_in_size_threshold_8k;
 extern int vdec_out_size_threshold_4k;
 extern int vpp_in_size_threshold_4k;
+extern u8 safa_dir_interp_en;
 extern u64 vsync_cnt[VPP_MAX];
 extern struct vpu_venc_regs_s venc_regs[VPP_NUM];
 extern u32 vpp_hold_line[VPP_MAX];

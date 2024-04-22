@@ -90,6 +90,8 @@ static unsigned int g_axi_rps_ratio  = 0xff;
 module_param(g_axi_rps_ratio, uint, 0664);
 MODULE_PARM_DESC(g_axi_rps_ratio, "g_axi_rps_ratio");
 
+u8 safa_dir_interp_en = 1;
+
 struct pi_reg_s {
 	u32 pi_dic_num;
 	u32 pi_out_scl_mode;
@@ -1024,11 +1026,27 @@ static void set_vd1_frm2fld_en(struct vsr_setting_s *vsr)
 	}
 }
 
+static void sharpness_and_dir_interp_enable(void)
+{
+	u8 vpp_index = VPP0;
+	struct hw_vsr_safa_reg_s *vsr_reg;
+	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
+
+	vsr_reg = &vsr_safa_reg;
+	rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
+		safa_dir_interp_en, 25, 1);
+	if (super_scaler)
+		rdma_wr_bits(VPP_SR_EN, 1, 0, 1);
+	else
+		rdma_wr_bits(VPP_SR_EN, 0, 0, 1);
+}
+
 void set_vsr_scaler(struct vsr_setting_s *vsr)
 {
 	set_vsr_input_size(vsr);
 	set_vsr_input_format(vsr);
 	set_vd1_frm2fld_en(vsr);
+	sharpness_and_dir_interp_enable();
 	if (vsr->vsr_top.vsr_en) {
 		set_cfg_pi_safa(vsr);
 		set_vsr_pi(vsr);
