@@ -1457,45 +1457,6 @@
 			};
 		};/*meson cooling devices end*/
 
-	thermal-zones {
-		soc_thermal: soc_thermal {
-			polling-delay = <1000>;
-			polling-delay-passive = <100>;
-			sustainable-power = <1160>;
-			thermal-sensors = <&p_tsensor 0>;
-			trips {
-				pswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				pcontrol: trip-point@1 {
-					temperature = <95000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				pcritical: trip-point@2 {
-					temperature = <105000>;
-					hysteresis = <1000>;
-					type = "critical";
-				};
-			};
-
-			cooling-maps {
-				cpufreq_cooling_map {
-					trip = <&pcontrol>;
-					cooling-device = <&CPU0 0 8>;
-					contribution = <1024>;
-				};
-				gpufreq_cooling_map {
-					trip = <&pcontrol>;
-					cooling-device = <&gpu 0 3>;
-					contribution = <1024>;
-				};
-			};
-		};
-	};/*thermal zone end*/
-
 	ion_dev {
 		compatible = "amlogic, ion_dev";
 		memory-region = <&ion_cma_reserved
