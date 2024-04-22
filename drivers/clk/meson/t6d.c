@@ -640,42 +640,36 @@ static struct clk_regmap t6d_rtc_32k_div = {
 	},
 };
 
-static struct clk_regmap t6d_rtc_32k_xtal = {
-	.data = &(struct clk_regmap_gate_data){
-		.offset = CLKCTRL_RTC_BY_OSCIN_CTRL1,
-		.bit_idx = 24,
+static struct clk_regmap t6d_rtc_32k_dual_sel = {
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = CLKCTRL_RTC_CTRL,
+		.mask = 0x1,
+		.shift = 24,
 	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "rtc_32k_xtal",
-		.ops = &clk_regmap_gate_ops,
+	.hw.init = &(struct clk_init_data){
+		.name = "rtc_32k_dual_sel",
+		.ops = &clk_regmap_mux_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&t6d_rtc_32k_clkin.hw
+			&t6d_rtc_32k_div.hw,
+			&t6d_rtc_32k_clkin.hw,
 		},
-		.num_parents = 1,
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-/*
- * three parent for rtc clock out
- * pad is from where?
- */
-static u32 rtc_32k_sel[] = {0, 1};
-static struct clk_regmap t6d_rtc_32k_sel = {
-	.data = &(struct clk_regmap_mux_data) {
-		.offset = CLKCTRL_RTC_CTRL,
-		.mask = 0x3,
-		.shift = 0,
-		.table = rtc_32k_sel,
-		.flags = CLK_MUX_ROUND_CLOSEST,
+static struct clk_regmap t6d_rtc_dual = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_RTC_BY_OSCIN_CTRL0,
+		.bit_idx = 30,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "rtc_32k_sel",
-		.ops = &clk_regmap_mux_ops,
+		.name = "rtc_dual",
+		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&t6d_rtc_32k_xtal.hw,
-			&t6d_rtc_32k_div.hw
+			&t6d_rtc_32k_dual_sel.hw
 		},
-		.num_parents = 2,
+		.num_parents = 1,
 		/*
 		 * rtc 32k is directly used in other modules, and the
 		 * parent rate needs to be modified
@@ -684,18 +678,27 @@ static struct clk_regmap t6d_rtc_32k_sel = {
 	},
 };
 
+/*
+ * three parent for rtc clock out
+ * pad is from where?
+ */
+static u32 rtc_32k_sel[] = {0, 1};
 static struct clk_regmap t6d_rtc_clk = {
-	.data = &(struct clk_regmap_gate_data){
-		.offset = CLKCTRL_RTC_BY_OSCIN_CTRL0,
-		.bit_idx = 30,
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = CLKCTRL_RTC_CTRL,
+		.mask = 0x3,
+		.shift = 0,
+		.table = rtc_32k_sel,
+		.flags = CLK_MUX_ROUND_CLOSEST,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "rtc_clk",
-		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t6d_rtc_32k_sel.hw
+		.name = "rtc_32k",
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+			.hw = &t6d_rtc_dual.hw,
 		},
-		.num_parents = 1,
+		.ops = &clk_regmap_mux_ops,
+		.num_parents = 2,
 		/*
 		 * rtc 32k is directly used in other modules, and the
 		 * parent rate needs to be modified
@@ -4079,8 +4082,8 @@ static struct clk_hw_onecell_data t6d_hw_onecell_data = {
 		[CLKID_MPLL_50M]			= &t6d_mpll_50m.hw,
 		[CLKID_RTC_32K_CLKIN]			= &t6d_rtc_32k_clkin.hw,
 		[CLKID_RTC_32K_DIV]			= &t6d_rtc_32k_div.hw,
-		[CLKID_RTC_32K_XATL]			= &t6d_rtc_32k_xtal.hw,
-		[CLKID_RTC_32K_SEL]			= &t6d_rtc_32k_sel.hw,
+		[CLKID_RTC_32K_DUAL_SEL]		= &t6d_rtc_32k_dual_sel.hw,
+		[CLKID_RTC_32K_DUAL]			= &t6d_rtc_dual.hw,
 		[CLKID_RTC_CLK]				= &t6d_rtc_clk.hw,
 		[CLKID_SYS_CLK_0_SEL]			= &t6d_sys_clk_0_sel.hw,
 		[CLKID_SYS_CLK_0_DIV]			= &t6d_sys_clk_0_div.hw,
@@ -4320,8 +4323,8 @@ static struct clk_hw_onecell_data t6d_hw_onecell_data = {
 static struct clk_regmap *const t6d_clk_regmaps[] = {
 	&t6d_rtc_32k_clkin,
 	&t6d_rtc_32k_div,
-	&t6d_rtc_32k_xtal,
-	&t6d_rtc_32k_sel,
+	&t6d_rtc_32k_dual_sel,
+	&t6d_rtc_dual,
 	&t6d_rtc_clk,
 	&t6d_sys_clk_0_sel,
 	&t6d_sys_clk_0_div,
