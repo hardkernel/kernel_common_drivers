@@ -8,6 +8,7 @@
 #include "meson-s7d.dtsi"
 #include "mesons7d_drm.dtsi"
 #include "mesons7d_audio.dtsi"
+#include "firmware_ab.dtsi"
 / {
 	amlogic-dt-id = "s7d_s905x5m_bm201";
 	compatible = "s7d_s905x5m_bm201";
