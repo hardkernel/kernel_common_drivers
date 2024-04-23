@@ -167,18 +167,18 @@ static void video_disable_fence(struct meson_vpu_video *video)
 /*background data R[32:47] G[16:31] B[0:15] alpha[48:63]->
  *dummy data Y[16:23] Cb[8:15] Cr[0:7]
  */
-static void video_dummy_data_set(struct am_meson_crtc_state *crtc_state)
+void video_dummy_data_set(u64 crtc_bgcolor, bool crtc_bgcolor_flag)
 {
 	int r, g, b, alpha, y, u, v;
 	u32 vpp_index = 0;
 
-	if (!crtc_state->crtc_bgcolor_flag)
+	if (!crtc_bgcolor_flag)
 		return;
 
-	b = (crtc_state->crtc_bgcolor & 0xffff) / 256;
-	g = ((crtc_state->crtc_bgcolor >> 16) & 0xffff) / 256;
-	r = ((crtc_state->crtc_bgcolor >> 32) & 0xffff) / 256;
-	alpha = ((crtc_state->crtc_bgcolor >> 48) & 0xffff) / 256;
+	b = (crtc_bgcolor & 0xffff) / 256;
+	g = ((crtc_bgcolor >> 16) & 0xffff) / 256;
+	r = ((crtc_bgcolor >> 32) & 0xffff) / 256;
+	alpha = ((crtc_bgcolor >> 48) & 0xffff) / 256;
 
 	y = ((47 * r + 157 * g + 16 * b + 128) >> 8) + 16;
 	u = ((-26 * r - 87 * g + 113 * b + 128) >> 8) + 128;
@@ -328,9 +328,6 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			    struct meson_vpu_block_state *state,
 			    struct meson_vpu_block_state *old_state)
 {
-	int crtc_index;
-	struct am_meson_crtc *amc;
-	struct am_meson_crtc_state *meson_crtc_state;
 	struct meson_vpu_video *video = to_video_block(vblk);
 	struct meson_vpu_video_state *mvvs = to_video_state(state);
 	struct video_display_frame_info_t vf_info;
@@ -345,11 +342,6 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		MESON_DRM_BLOCK("set_state break for NULL.\n");
 		return;
 	}
-
-	crtc_index = mvvs->crtc_index;
-	amc = vblk->pipeline->priv->crtcs[crtc_index];
-	meson_crtc_state = to_am_meson_crtc_state(amc->base.state);
-	video_dummy_data_set(meson_crtc_state);
 
 	src_h = mvvs->src_h;
 	byte_stride = mvvs->byte_stride;

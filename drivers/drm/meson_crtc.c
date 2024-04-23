@@ -168,6 +168,8 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->brr_update = false;
 	new_state->brr = cur_state->brr;
 	strncpy(new_state->brr_mode, cur_state->brr_mode, DRM_DISPLAY_MODE_LEN);
+	new_state->crtc_bgcolor_flag = cur_state->crtc_bgcolor_flag;
+	new_state->crtc_bgcolor = cur_state->crtc_bgcolor;
 
 	/*reset dynamic info.*/
 	if (amcrtc->priv->logo_show_done)
@@ -934,6 +936,11 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 		set_hdr_policy(meson_crtc_state->crtc_hdr_process_policy);
 	}
 #endif
+	if (meson_crtc_state->crtc_bgcolor !=
+		old_am_crtc_state->crtc_bgcolor) {
+		video_dummy_data_set(meson_crtc_state->crtc_bgcolor,
+			meson_crtc_state->crtc_bgcolor_flag);
+	}
 }
 
 bool am_meson_crtc_get_scanout_position(struct drm_crtc *crtc,

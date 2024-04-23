@@ -725,6 +725,7 @@ int vpu_pipeline_read_scanout_pos(struct meson_vpu_pipeline *pipeline,
 void vpu_pipeline_prepare_update(struct meson_vpu_pipeline *pipeline,
 	int vdisplay, int vrefresh, int crtc_index);
 void vpu_pipeline_finish_update(struct meson_vpu_pipeline *pipeline, int crtc_index);
+void video_dummy_data_set(u64 crtc_bgcolor, bool crtc_bgcolor_flag);
 
 /* meson_vpu_pipeline_private.c */
 struct meson_vpu_block_state *
