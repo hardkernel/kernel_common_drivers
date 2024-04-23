@@ -108,6 +108,8 @@ struct earc_chipinfo {
 	bool unstable_tick_sel;
 	bool rx_enable;
 	bool tx_enable;
+	bool arc_in_new;
+	bool arc_ch_sync;
 	int arc_version;
 };
 
@@ -446,8 +448,8 @@ static void earcrx_init(bool st)
 	earcrx_cmdc_init(p_earc->rx_top_map,
 			 st,
 			 p_earc->chipinfo->rx_dmac_sync_int,
-			 p_earc->chipinfo->rterm_on);
-
+			 p_earc->chipinfo->rterm_on,
+			 p_earc->chipinfo->arc_in_new);
 	if (st)
 		earcrx_cmdc_int_mask(p_earc->rx_top_map);
 
@@ -496,19 +498,26 @@ static void earcrx_update_attend_event(struct earc *p_earc,
 static void earcrx_pll_reset(struct earc *p_earc)
 {
 	int i = 0, count = 0;
+	bool arc_in_new = p_earc->chipinfo->arc_in_new;
 
 	earcrx_dmac_sync_int_enable(p_earc->rx_top_map, 0);
 	earcrx_pll_refresh(p_earc->rx_top_map,
 			   RST_BY_SELF,
-			   true);
+			   true,
+			   arc_in_new);
 	/* wait pll valid */
 	usleep_range(350, 400);
 	/* bit 31 is 1, and bit 30 is 0, then need reset pll */
-	while (earxrx_get_pll_valid(p_earc->rx_top_map) &&
-	       !earxrx_get_pll_valid_auto(p_earc->rx_top_map)) {
+	while (earcrx_get_pll_valid(p_earc->rx_top_map) &&
+		!earcrx_get_pll_valid_auto(p_earc->rx_top_map)) {
+		/* new arc in, add check bit29, then need reset pll */
+		if (arc_in_new &&
+			earcrx_get_dmac_valid_auto(p_earc->rx_top_map))
+			break;
 		earcrx_pll_refresh(p_earc->rx_top_map,
-				   RST_BY_SELF,
-				   true);
+					   RST_BY_SELF,
+					   true,
+					   arc_in_new);
 		dev_info(p_earc->dev, "refresh earcrx pll, i %d\n", i++);
 		if (i >= 9) {
 			dev_info(p_earc->dev,
@@ -521,8 +530,8 @@ static void earcrx_pll_reset(struct earc *p_earc)
 	/* there are 5 times continues bit 31 and bit 30 is 1 */
 	i = 0;
 	while (true) {
-		if (earxrx_get_pll_valid(p_earc->rx_top_map) &&
-		    earxrx_get_pll_valid_auto(p_earc->rx_top_map)) {
+		if (earcrx_get_pll_valid(p_earc->rx_top_map) &&
+		    earcrx_get_pll_valid_auto(p_earc->rx_top_map)) {
 			i++;
 		} else {
 			i = 0;
@@ -544,8 +553,8 @@ static void earcrx_pll_reset(struct earc *p_earc)
 
 	earcrx_dmac_sync_int_enable(p_earc->rx_top_map, 1);
 	dev_info(p_earc->dev, "earcrx pll %d, auto %d, pending is 0x%x\n",
-		earxrx_get_pll_valid(p_earc->rx_top_map),
-		earxrx_get_pll_valid_auto(p_earc->rx_top_map),
+		earcrx_get_pll_valid(p_earc->rx_top_map),
+		earcrx_get_pll_valid_auto(p_earc->rx_top_map),
 		earcrx_dmac_get_irqs(p_earc->rx_top_map));
 }
 
@@ -627,14 +636,16 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 			dev_info(p_earc->dev, "EARCRX_ANA_RST_C_NEW_FORMAT_SET\n");
 
 			earcrx_pll_refresh(p_earc->rx_top_map,
-					   RST_BY_SELF, true);
+					   RST_BY_SELF, true,
+					   p_earc->chipinfo->arc_in_new);
 		}
 
 		if (p_earc->rx_status1 & INT_EARCRX_ERR_CORRECT_C_BCHERR_INT_SET)
 			dev_info(p_earc->dev, "EARCRX_ERR_CORRECT_BCHERR\n");
 		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_R_PARITY_ERR) {
 			dev_info(p_earc->dev, "ARCRX_R_PARITY_ERR reset\n");
-			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true);
+			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true,
+							p_earc->chipinfo->arc_in_new);
 		}
 
 		if (p_earc->rx_status0 & INT_EARCRX_CMDC_HB_STATUS) {
@@ -658,7 +669,8 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 			if (p_earc->rx_cs_mute != mute) {
 				p_earc->rx_cs_mute = mute;
 				earcrx_pll_refresh(p_earc->rx_top_map,
-						   RST_BY_SELF, true);
+						   RST_BY_SELF, true,
+						   p_earc->chipinfo->arc_in_new);
 			}
 			if (!mute)
 				earcrx_err_correction_force_mode(p_earc->rx_dmac_map, false);
@@ -674,7 +686,8 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 			   p_earc->rx_status1 & INT_EARCRX_DMAC_VALID_AUTO_NEG_INT_SET) {
 			earcrx_dmac_sync_clr_irqs(p_earc->rx_top_map);
 			dev_info(p_earc->dev, "%s unstable tick happen\n", __func__);
-			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true);
+			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true,
+				p_earc->chipinfo->arc_in_new);
 		}
 	}
 	spin_unlock_irqrestore(&p_earc->rx_lock, flags);
@@ -1114,7 +1127,8 @@ static int earc_dai_prepare(struct snd_pcm_substream *substream,
 		earcrx_dmac_init(p_earc->rx_top_map,
 				 p_earc->rx_dmac_map,
 				 p_earc->chipinfo->unstable_tick_sel,
-				 p_earc->chipinfo->chnum_mult_mode);
+				 p_earc->chipinfo->chnum_mult_mode,
+				 p_earc->chipinfo->arc_ch_sync);
 		earcrx_arc_init(p_earc->rx_dmac_map);
 	}
 
@@ -1486,8 +1500,9 @@ static int earc_dai_startup(struct snd_pcm_substream *substream,
 			dev_err(p_earc->dev, "Can't enable earc clk_rx_dmac_srcpll: %d\n", ret);
 			goto err;
 		}
-
-		earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true);
+		if (!p_earc->chipinfo->arc_in_new)
+			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true,
+			p_earc->chipinfo->arc_in_new);
 	}
 
 	p_earc->substreams[substream->stream] = substream;
@@ -2744,6 +2759,7 @@ struct earc_chipinfo t7_earc_chipinfo = {
 	.unstable_tick_sel = true,
 	.rx_enable = true,
 	.tx_enable = true,
+	.arc_ch_sync = true,
 	.arc_version = T7_ARC,
 };
 
@@ -2768,6 +2784,15 @@ struct earc_chipinfo s5_earc_chipinfo = {
 	.unstable_tick_sel = true,
 	.rx_enable = true,
 	.tx_enable = false,
+};
+
+struct earc_chipinfo s7d_earc_chipinfo = {
+	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
+	.rx_dmac_sync_int = true,
+	.rx_enable = true,
+	.tx_enable = false,
+	.arc_in_new = true,
+	.arc_ch_sync = true,
 };
 
 static const struct of_device_id earc_device_id[] = {
@@ -2798,6 +2823,10 @@ static const struct of_device_id earc_device_id[] = {
 	{
 		.compatible = "amlogic, s5-snd-earc",
 		.data = &s5_earc_chipinfo,
+	},
+	{
+		.compatible = "amlogic, s7d-snd-earc",
+		.data = &s7d_earc_chipinfo,
 	},
 	{}
 };
