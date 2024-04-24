@@ -986,6 +986,14 @@ void osd_global_alpha_set(struct meson_vpu_block *vblk,
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_ctrl_stat, val, 12, 9);
 }
 
+/*gfcd global alpha setting, osd1:bit[28:20] osd2:bit[19:11]*/
+void gfcd_global_alpha_set(struct meson_vpu_block *vblk,
+			  struct rdma_reg_ops *reg_ops,
+			  struct osd_mif_reg_s *reg, u32 index, u32 val)
+{
+	reg_ops->rdma_write_reg_bits(VIU_OSD_BLEND_DUMMY_ALPHA, val, 20 - index * 9, 9);
+}
+
 /*osd alpha_div en
  *if input is premult,alpha_div=1,else alpha_div=0
  */
@@ -1561,7 +1569,11 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 		mvps->sec_src |= osd_secure_input_index[vblk->index];
 
 	osd_premult_enable(vblk, reg_ops, reg, alpha_div_en);
-	osd_global_alpha_set(vblk, reg_ops, reg, global_alpha);
+	if (crtc_index == 0 && osd->gfcd_global_alpha_policy)
+		gfcd_global_alpha_set(vblk, reg_ops, reg, vblk->index, global_alpha);
+	else
+		osd_global_alpha_set(vblk, reg_ops, reg, global_alpha);
+
 	osd_scan_mode_config(vblk, reg_ops, reg, pipe->subs[crtc_index].mode.flags &
 				 DRM_MODE_FLAG_INTERLACE);
 	osd_set_dimm_ctrl(vblk, reg_ops, reg, 0);
@@ -1938,6 +1950,8 @@ static void s7d_osd_hw_init(struct meson_vpu_block *vblk)
 	//osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = LINEAR_MIF;
 	osd->mali_src_en_switch = 1;
+	osd->gfcd_global_alpha_policy =
+		!!(pipeline->priv->of_conf.gfcd_mask & BIT(GFCD_GLOBAL_ALPHA));
 
     /* osd secure function init */
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
