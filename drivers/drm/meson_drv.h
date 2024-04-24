@@ -71,8 +71,9 @@ struct meson_of_conf {
 
 	/*
 	 * this will be used as drm usage, one item occupy one bit.
-	 * bit0:
-	 * gfcd afbc flag, 1:enable 0:disable;
+	 * bit0: gfcd odd size
+	 * bit1: gfcd global alpha
+	 * bit2: hdr before blend
 	 */
 	u64 drm_policy_mask;
 

@@ -248,8 +248,9 @@ struct meson_vpu_osd {
 	u32 mali_src_en_switch;
 	const struct meson_drm_format_info **infos;
 	int format_swap;
-
 	DECLARE_KFIFO(canvas_q, u32, MAX_CANVAS_FIFO_NUM);
+	bool has_gfcd;
+	bool gfcd_global_alpha_policy;
 };
 
 struct osd_zorder_s {
@@ -482,6 +483,7 @@ struct meson_vpu_scaler_param {
 struct meson_vpu_osdblend {
 	struct meson_vpu_block base;
 	struct osdblend_reg_s *reg;
+	bool gfcd_global_alpha_policy;
 };
 
 struct meson_vpu_osdblend_state {
@@ -856,6 +858,8 @@ extern struct meson_vpu_block_ops gfcd_ops;
 extern struct meson_vpu_block_ops s7d_hdr_ops;
 extern struct meson_vpu_block_ops s7d_osd_ops;
 extern struct meson_vpu_block_ops s7d_afbc_ops;
+extern struct meson_vpu_block_ops s7d_osdblend_ops;
+
 
 extern struct meson_vpu_pipeline_ops g12a_vpu_pipeline_ops;
 extern struct meson_vpu_pipeline_ops t7_vpu_pipeline_ops;
