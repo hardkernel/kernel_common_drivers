@@ -539,6 +539,7 @@ struct meson_vpu_gfcd {
 	struct meson_vpu_block base;
 	struct gfcd_reg_s *reg;
 	u32 num_surface;
+	bool gfcd_global_alpha_policy;
 };
 
 struct meson_vpu_gfcd_state {

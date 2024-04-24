@@ -127,7 +127,8 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 
 			/*global alpha1*/
 			//NEED FIX: if zorder change
-			gfcd_global_alpha_set(vblk, reg_ops, reg, i, global_alpha);
+			if (gfcd->gfcd_global_alpha_policy)
+				gfcd_global_alpha_set(vblk, reg_ops, reg, i, global_alpha);
 
 			/*reverse config*/
 			reg_ops->rdma_write_reg_bits(reg->gfcd_mif_mode_sel, reverse_x, 5, 1);
@@ -294,9 +295,14 @@ static void gfcd_dump_register(struct drm_printer *p,
 static void gfcd_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_gfcd *gfcd = to_gfcd_block(vblk);
+	struct meson_vpu_pipeline *pipeline;
 
 	gfcd->reg = &gfcd_reg[0];
 	gfcd->num_surface = 2;
+	pipeline = gfcd->base.pipeline;
+	gfcd->gfcd_global_alpha_policy =
+		!!(pipeline->priv->of_conf.gfcd_mask & BIT(GFCD_GLOBAL_ALPHA));
+
 	DRM_DEBUG("%s hw init.\n", vblk->name);
 }
 
