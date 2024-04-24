@@ -134,9 +134,10 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/*
-			 * DTV PIP is the largest scenario, requiring 316MB.
+			 * Two-channel 1080i HEVC secure playback
+			 * requires at least 168MB without DTV enable
 			 */
-			size = <0x0 0x13C00000>;
+			size = <0x0 0xA800000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
