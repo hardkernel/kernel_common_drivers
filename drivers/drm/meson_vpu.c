@@ -216,6 +216,17 @@ static void vpu_pipeline_pre_init(struct meson_vpu_pipeline *pipeline, struct de
 		vpu_data->crtc_func.pre_init(pipeline, dev);
 }
 
+static void meson_init_policy_mask(struct meson_drm *private)
+{
+	const enum meson_policy_id *policy;
+
+	if (private->vpu_data->policy) {
+		policy = private->vpu_data->policy;
+		for (; *policy != MAX_POLICY_ID; policy++)
+			private->of_conf.drm_policy_mask = BIT(*policy);
+	}
+}
+
 static int am_meson_vpu_bind(struct device *dev,
 			     struct device *master, void *data)
 {
@@ -272,6 +283,7 @@ static int am_meson_vpu_bind(struct device *dev,
 
 	vpu_pipeline_pre_init(pipeline, dev);
 	vpu_pipeline_init(pipeline);
+	meson_init_policy_mask(private);
 
 	/* HW config for different VPUs */
 	if (vpu_data && vpu_data->crtc_func.init_default_reg)
@@ -305,6 +317,18 @@ static const struct component_ops am_meson_vpu_component_ops = {
 	.bind = am_meson_vpu_bind,
 	.unbind = am_meson_vpu_unbind,
 };
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static const enum meson_policy_id s5_policy[] = {
+	HDR_BEFORE_BLEND,
+	MAX_POLICY_ID,
+};
+
+static const enum meson_policy_id s7d_policy[] = {
+	HDR_BEFORE_BLEND,
+	MAX_POLICY_ID,
+};
+#endif
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
 static const struct meson_vpu_data vpu_g12a_data = {
@@ -453,6 +477,7 @@ static const struct meson_vpu_data vpu_s5_data = {
 	.slice_mode = 1,
 	.max_osdblend_width = 3840,
 	.max_osdblend_height = 2160,
+	.policy = s5_policy,
 };
 
 static const struct meson_vpu_data vpu_t3x_data = {
@@ -510,6 +535,7 @@ static const struct meson_vpu_data vpu_s7d_data = {
 	.video_ops = &video_ops,
 	.osd_formats = &osd_formats_s7d,
 	.video_formats = &video_formats,
+	.policy = s7d_policy,
 };
 #endif
 

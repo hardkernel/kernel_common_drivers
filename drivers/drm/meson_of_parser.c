@@ -88,6 +88,17 @@ static void meson_osd_parse_config(struct drm_device *dev, struct meson_of_conf 
 	conf->osd_afbc_mask = osd_afbc_mask;
 }
 
+static void meson_parse_gfcd_config(struct drm_device *dev,
+		struct meson_of_conf *conf)
+{
+	u32 temp = 0;
+	int ret;
+
+	ret = of_property_read_u32(dev->dev->of_node,
+				   "gfcd_afbc_enable", &temp);
+	conf->drm_policy_mask |= ((!!temp) << GFCD_ODD_SIZE);
+}
+
 static void am_meson_vpu_get_plane_crtc_mask(struct meson_drm *priv,
 	char *name, u32 num, u32 *crtc_mask)
 {
@@ -156,5 +167,6 @@ void meson_of_init(struct device *vpu_dev, struct drm_device *dev,
 	meson_osd_parse_config(dev, conf);
 	meson_video_parse_config(dev, conf);
 	meson_connect_parse_config(dev, conf);
+	meson_parse_gfcd_config(dev, conf);
 }
 

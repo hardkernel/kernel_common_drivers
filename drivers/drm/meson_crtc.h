@@ -108,6 +108,7 @@ struct am_meson_crtc {
 	struct drm_property *osd_pixelformat_property;
 	struct drm_property *hdr_conversion_ctrl_property;
 	struct drm_property *hdr_conversion_cap_property;
+	struct drm_property *drm_policy_property;
 
 	/*debug*/
 	int dump_enable;

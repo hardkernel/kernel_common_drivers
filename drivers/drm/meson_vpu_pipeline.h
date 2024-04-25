@@ -71,7 +71,15 @@
 #define VIU_OSD2_TCOLOR_AG3 0x1a3a
 #define VIU_OSD3_TCOLOR_AG3 0x3d87
 
+#define MAX_POLICY_ID 64
+
 extern u32 frame_seq[MESON_MAX_OSDS];
+
+enum meson_policy_id {
+	GFCD_ODD_SIZE,
+	GFCD_GLOBAL_ALPHA,
+	HDR_BEFORE_BLEND,
+};
 
 enum slice_index {
 	OSD1_SLICE0,

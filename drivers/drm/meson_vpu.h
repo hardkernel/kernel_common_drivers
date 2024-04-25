@@ -41,6 +41,7 @@ struct meson_vpu_data {
 	int enc_method;
 	int slice_mode;
 	unsigned int max_osdblend_width, max_osdblend_height;
+	const enum meson_policy_id *policy;
 };
 
 enum meson_vout_event {

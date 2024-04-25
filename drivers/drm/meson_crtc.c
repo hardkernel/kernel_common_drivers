@@ -364,6 +364,9 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->brr_update_property) {
 		*val = crtc_state->brr_update;
 		return 0;
+	} else if (property == meson_crtc->drm_policy_property) {
+		*val = meson_crtc->priv->of_conf.drm_policy_mask;
+		return 0;
 	}
 
 	return ret;
@@ -448,6 +451,7 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tnum_plane=%u\n", mvps->num_plane);
 	drm_printf(p, "\t\tnum_plane_video=%u\n", mvps->num_plane_video);
 	drm_printf(p, "\t\tglobal_afbc=%u\n", mvps->global_afbc);
+	drm_printf(p, "\t\tdrm_policy_mask=%llu\n", priv->of_conf.drm_policy_mask);
 }
 
 static const char * const pipe_crc_sources[] = {"vpp1", "NULL"};
@@ -1141,6 +1145,21 @@ static void meson_crtc_init_hdr_conversion_ctrl_property(struct drm_device *drm_
 	}
 }
 
+static void meson_crtc_init_drm_policy_property(struct drm_device *drm_dev,
+						  struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0, "drm_policy_mask",
+					0, GENMASK_ULL(MAX_POLICY_ID - 1, 0));
+	if (prop) {
+		amcrtc->drm_policy_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to drm_policy property\n");
+	}
+}
+
 struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 {
 	struct am_meson_crtc *amcrtc;
@@ -1215,6 +1234,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	meson_crtc_init_video_pixelformat_property(priv->drm, amcrtc);
 	meson_crtc_init_hdr_conversion_cap_property(priv->drm, amcrtc);
 	meson_crtc_init_hdr_conversion_ctrl_property(priv->drm, amcrtc);
+	meson_crtc_init_drm_policy_property(priv->drm, amcrtc);
 	amcrtc->pipeline = pipeline;
 	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
 	priv->crtcs[priv->num_crtcs++] = amcrtc;

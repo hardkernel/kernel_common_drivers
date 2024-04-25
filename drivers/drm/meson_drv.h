@@ -69,6 +69,13 @@ struct meson_of_conf {
 	u32 crtcmask_osd[MESON_MAX_OSD];
 	u32 crtcmask_video[MESON_MAX_VIDEO];
 
+	/*
+	 * this will be used as drm usage, one item occupy one bit.
+	 * bit0:
+	 * gfcd afbc flag, 1:enable 0:disable;
+	 */
+	u64 drm_policy_mask;
+
 	char *pref_mode;
 };
 
