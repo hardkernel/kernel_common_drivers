@@ -19,7 +19,7 @@
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
 #include "meson-ir-map.dtsi"
 #include "mesong12a-bifrost.dtsi"
-#include <dt-bindings/mailbox/t5m-mbox.h>
+#include <dt-bindings/mailbox/t6d-mbox.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
 
@@ -324,36 +324,36 @@
 		compatible = "amlogic,meson-vrtc";
 		reg = <0xfe010288 0x4>; //SYSCTRL_STATUS_REG2
 		status = "disabled";
-		mboxes = <&mbox_fifo T5M_REE2AO_VRTC>;
+		mboxes = <&mbox_fifo T6D_REE2AO_VRTC>;
 	};
 
 	mbox_fifo: mbox_fifo@0xfe006000 {
-		status = "disabled";
-		compatible = "amlogic, t5m-mbox-fifo";
+		status = "okay";
+		compatible = "amlogic, t6d-mbox-fifo";
 		reg = <0xfe006000 0x800>,  /* mbox wr fifo */
-		      < 0xfe007180 0x80>,   /* mbox set reg */
-		      < 0xfe007200 0x80>,   /* mbox clr reg */
-		      < 0xfe007280 0x80>,   /* mbox sts reg */
-		      < 0xfe007040 0xc0>;   /* mbox irqctrl reg */
+		      <0xfe007180 0x80>,   /* mbox set reg */
+		      <0xfe007200 0x80>,   /* mbox clr reg */
+		      <0xfe007280 0x80>,   /* mbox sts reg */
+		      <0xfe007040 0xc0>;   /* mbox irqctrl reg */
 		interrupts = <GIC_SPI 248 IRQ_TYPE_EDGE_RISING>;  /* mbox irq top */
 		mbox-irqmax = <32>;
 		mbox-irqctlr = <0x14>;
 		mbox-irqclr = <0x8>;
-		mbox-nums = <T5M_MBOX_NUMS>;
-		mboxids = <T5M_MBOX_AO2REE>,
-			  <T5M_MBOX_REE2AO>;
-		aocpu_sts_mboxid = <T5M_MBOX_AO2TEE>;
-		ree2aocpu_mboxid = <T5M_MBOX_REE2AO>;
+		mbox-nums = <T6D_MBOX_NUMS>;
+		mboxids = <T6D_MBOX_AO2REE>,
+			  <T6D_MBOX_REE2AO>;
+		aocpu_sts_mboxid = <T6D_MBOX_AO2TEE>;
+		ree2aocpu_mboxid = <T6D_MBOX_REE2AO>;
 		#mbox-cells = <1>;
 		mbox-wr-same;
 	};
 
 	mbox_devfs {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, mbox-devfs";
 		mbox-nums = <1>;
 		mbox-names = "ree2aocpu";
-		mboxes = <&mbox_fifo T5M_REE2AO_DEV>;
+		mboxes = <&mbox_fifo T6D_REE2AO_DEV>;
 		mbox-dests = <MAILBOX_AOCPU>;
 	};
 
@@ -1047,7 +1047,7 @@
 			tx-fifo-depth = <2048>;
 			/*1:inphy; 2:exphy;*/
 			internal_phy = <1>;
-			mboxes = <&mbox_fifo T5M_REE2AO_ETH>;
+			mboxes = <&mbox_fifo T6D_REE2AO_ETH>;
 			status = "disabled";
 
 			mdio0: mdio {
@@ -1527,7 +1527,7 @@
 		       0xfe004000 0x2000>;
 		reg-names = "ao","periphs","clock","pad_reg";
 		mbox-names = "mbox_cec";
-		mboxes = <&mbox_fifo T5M_REE2AO_AOCEC>;
+		mboxes = <&mbox_fifo T6D_REE2AO_AOCEC>;
 	};
 
 	aml_dma {
@@ -2296,7 +2296,7 @@
 
 	state_led: state_led {
 		compatible = "amlogic,state-led-aocpu";
-		mboxes = <&mbox_fifo T5M_REE2AO_LED>;
+		mboxes = <&mbox_fifo T6D_REE2AO_LED>;
 		status = "disabled";
 	};
 
