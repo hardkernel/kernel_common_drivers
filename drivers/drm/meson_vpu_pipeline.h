@@ -238,6 +238,7 @@ struct meson_vpu_osd {
 	struct osd_mif_reg_s *reg;
 	int mif_acc_mode;
 	u32 mali_src_en_switch;
+	bool has_gfcd;
 };
 
 struct osd_zorder_s {

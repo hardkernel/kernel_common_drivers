@@ -1454,19 +1454,22 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 		old_mvos = to_osd_state(old_state);
 
 	osd_ctrl_init(vblk, reg_ops, reg);
-	process_unit = mvos->process_unit;
-	if (process_unit == GFCD_AFBC || process_unit == GFCD_AFRC) {
-		MESON_DRM_BLOCK("set gfcd %d.\n", process_unit);
-		osd_gfcd_axi_input_en(vblk, reg_ops, reg, vblk->index, 1);
-		osd_gfcd_dout_en(vblk, reg_ops, reg, vblk->index, 1);
-		if (osd->mali_src_en_switch)
-			osd_mali_src_en(vblk, reg_ops, reg, vblk->index, 1);
-		return;
-	}
 
-	MESON_DRM_BLOCK("set mif or afbc.\n");
-	osd_gfcd_axi_input_en(vblk, reg_ops, reg, vblk->index, 0);
-	osd_gfcd_dout_en(vblk, reg_ops, reg, vblk->index, 0);
+	if (osd->has_gfcd) {
+		process_unit = mvos->process_unit;
+		if (process_unit == GFCD_AFBC || process_unit == GFCD_AFRC) {
+			MESON_DRM_BLOCK("set gfcd %d.\n", process_unit);
+			osd_gfcd_axi_input_en(vblk, reg_ops, reg, vblk->index, 1);
+			osd_gfcd_dout_en(vblk, reg_ops, reg, vblk->index, 1);
+			if (osd->mali_src_en_switch)
+				osd_mali_src_en(vblk, reg_ops, reg, vblk->index, 1);
+			return;
+		}
+
+		MESON_DRM_BLOCK("set mif or afbc.\n");
+		osd_gfcd_axi_input_en(vblk, reg_ops, reg, vblk->index, 0);
+		osd_gfcd_dout_en(vblk, reg_ops, reg, vblk->index, 0);
+	}
 
 	if (mvos->crtc_index == 1)
 		/*for multi-vpp, the vpp1 default is 4*/
@@ -1935,6 +1938,7 @@ static void s7d_osd_hw_init(struct meson_vpu_block *vblk)
 	//osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = LINEAR_MIF;
 	osd->mali_src_en_switch = 1;
+	osd->has_gfcd = true;
 
     /* osd secure function init */
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
