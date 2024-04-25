@@ -587,7 +587,7 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		/*avout mute gpio*/
-		spk_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		spk_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_LOW>;
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
 			mclk-fs = <512>;
