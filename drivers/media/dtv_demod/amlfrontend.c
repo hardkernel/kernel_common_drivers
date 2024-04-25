@@ -96,6 +96,14 @@ module_param(dvbc_new_driver, byte, 0644);
 static unsigned char dvbtx_auto;
 MODULE_PARM_DESC(dvbtx_auto, "");
 module_param(dvbtx_auto, byte, 0644);
+
+MODULE_PARM_DESC(dvbt2_common_plp_skip, "");
+static bool dvbt2_common_plp_skip = true;
+module_param(dvbt2_common_plp_skip, bool, 0644);
+
+MODULE_PARM_DESC(dvbt2_mplp_retune, "");
+bool dvbt2_mplp_retune;
+module_param(dvbt2_mplp_retune, bool, 0644);
 #endif
 
 int aml_demod_debug = DBG_INFO;
@@ -105,14 +113,6 @@ MODULE_PARM_DESC(aml_demod_debug, "");
 static unsigned int cma_mem_size;
 module_param(cma_mem_size, uint, 0644);
 MODULE_PARM_DESC(cma_mem_size, "");
-
-MODULE_PARM_DESC(dvbt2_common_plp_skip, "");
-static bool dvbt2_common_plp_skip = true;
-module_param(dvbt2_common_plp_skip, bool, 0644);
-
-MODULE_PARM_DESC(dvbt2_mplp_retune, "");
-bool dvbt2_mplp_retune;
-module_param(dvbt2_mplp_retune, bool, 0644);
 
 /*-----------------------------------*/
 static struct amldtvdemod_device_s *dtvdd_devp;
@@ -2777,6 +2777,7 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 		break;
 
 	case DTV_DVBT2_PLP_ID:
+#ifdef AML_DEMOD_SUPPORT_DVBT
 		if (dvbt2_mplp_retune || demod_is_t5d_cpu(devp)) {
 			demod->plp_id = tvp->u.data;
 		} else {
@@ -2787,6 +2788,7 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 			}
 		}
 		PR_INFO("[id %d] plp_id %d\n", demod->id, demod->plp_id);
+#endif
 		break;
 
 	case DTV_BLIND_SCAN_MIN_FRE:
@@ -3007,6 +3009,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 		break;
 
 	case DTV_DVBT2_PLP_ID:
+#ifdef AML_DEMOD_SUPPORT_DVBT
 		/* plp nums & ids */
 		tvp->u.buffer.reserved1[0] = demod->real_para.plp_num;
 		if (tvp->u.buffer.reserved2 && demod->real_para.plp_num > 0) {
@@ -3035,6 +3038,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 		}
 		PR_INFO("get plp num %d, common 0x%llx\n",
 			tvp->u.buffer.reserved1[0], demod->real_para.plp_common);
+#endif
 		break;
 
 	case DTV_STAT_CNR:

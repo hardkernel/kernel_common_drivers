@@ -105,7 +105,9 @@
 
 /* debug info=====================================================*/
 extern int aml_demod_debug;
+#ifdef AML_DEMOD_SUPPORT_DVBT
 extern bool dvbt2_mplp_retune;
+#endif
 
 #define DBG_INFO	BIT(0)
 #define DBG_REG		BIT(1)
