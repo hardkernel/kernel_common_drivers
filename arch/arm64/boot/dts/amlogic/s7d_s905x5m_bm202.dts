@@ -662,7 +662,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				sound-dai = <&amlogic_codec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
@@ -845,33 +845,6 @@
 				"tdm_d0",
 				"tdm_d1";
 			function = "tdm";
-		};
-	};
-
-	pdmin: pdmin {
-		mux { /* GPIOD_8, GPIOD_9 */
-			groups = "pdm_din0_d";
-			function = "pdm";
-		};
-		mux1 {
-			groups = "pdm_dclk_d";
-			function = "pdm";
-			drive-strength-microamp = <500>;
-		};
-	};
-
-	spdifout: spdifout {
-		mux { /* GPIOH_4 */
-			groups = "spdif_out_h";
-			function = "spdif_out";
-		};
-	};
-
-	spdifout_a_mute: spdifout_a_mute {
-		mux { /* GPIOH_4 */
-			groups = "GPIOH_4";
-			function = "gpio_periphs";
-			output-low;
 		};
 	};
 
