@@ -124,9 +124,9 @@ struct vpp_post_info_t core3_slice_info;
  *  0: osd is disabled
  *  1: osd is enabled
  */
-static int (*get_osd_status)(enum OSD_INDEX index);
+static int (*get_osd_status)(u32 index);
 
-bool get_core2_enable_info(enum OSD_INDEX index)
+bool get_core2_enable_info(u32 index)
 {
 	bool osd_enable = (amdv_mask & 2);
 	int osd_status = 0;
@@ -6350,7 +6350,7 @@ int get_operate_mode(void)
 	return operate_mode;
 }
 
-int register_osd_func(int (*get_osd_enable_status)(enum OSD_INDEX index))
+int register_osd_func(int (*get_osd_enable_status)(u32 index))
 {
 	pr_info("register osd enable status func\n");
 	get_osd_status = get_osd_enable_status;
