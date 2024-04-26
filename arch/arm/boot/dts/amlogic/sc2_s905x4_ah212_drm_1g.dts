@@ -896,7 +896,7 @@
 		reg = <0x5b>;
 		status = "okay";
 		// reset-gpio = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
-		platform = <4>;
+		platform = <10>;
 
 		led3 {
 			default_colors = <0 0 0>;
