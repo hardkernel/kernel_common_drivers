@@ -885,7 +885,7 @@
 		reg = <0x5b>;
 		status = "disabled";
 		reset-gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
-		platform = <4>;
+		platform = <10>;
 
 		led1 {
 			default_colors = <0 0 0>;
