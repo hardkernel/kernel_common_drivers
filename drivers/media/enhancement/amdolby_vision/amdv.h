@@ -1250,7 +1250,7 @@ void reset_dv_param(void);
 void update_stb_core_setting_flag(int flag);
 u32 get_graphic_width(u32 index);
 u32 get_graphic_height(u32 index);
-bool get_core2_enable_info(enum OSD_INDEX index);
+bool get_core2_enable_info(u32 index);
 bool need_send_emp_meta(const struct vinfo_s *vinfo);
 void convert_hdmi_metadata(uint32_t *md);
 bool get_core1a_core1b_switch(void);
