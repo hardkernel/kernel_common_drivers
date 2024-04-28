@@ -37,6 +37,7 @@
 
 /* 0 dummyl, 1 dummyp, 2 dummyi */
 static u32 dummy_venc_type;
+static int projector_fps_ctl;
 
 enum dummy_venc_chip_e {
 	DUMMY_VENC_DFT = 0,
@@ -506,6 +507,10 @@ static void dummy_encp_vinfo_update(struct dummy_venc_driver_s *venc_drv)
 		venc_drv->vinfo->vtotal = vinfo->vtotal;
 		venc_drv->vinfo->viu_color_fmt = vinfo->viu_color_fmt;
 	}
+
+	/*sync_duration_num div 2 when the fps of wrbak is 1/2 display*/
+	if (projector_fps_ctl == 1)
+		venc_drv->vinfo->sync_duration_num = vinfo->sync_duration_num  / 2;
 }
 
 static struct vinfo_s *dummy_encp_get_current_info(void *data)
@@ -1829,7 +1834,6 @@ static ssize_t dummy_encp_projector_fps_store(struct class *class,
 				      const char *buf, size_t count)
 {
 	int ret;
-	int projector_fps_ctl;
 
 	ret = kstrtoint(buf, 10, &projector_fps_ctl);
 	if (ret)
