@@ -912,6 +912,7 @@ extern struct mutex lcd_power_mutex;
 void set_output_mute(bool on);
 int get_output_mute(void);
 void fr_lock_recovery_freq(struct aml_lcd_drv_s *pdrv);
+unsigned char get_vout_lcd_mode(unsigned char vout_index);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 bool vlock_is_working(int enc_mux);
@@ -927,6 +928,5 @@ static inline bool vlock_is_working(int enc_mux)
 	return false;
 }
 #endif
-
 
 #endif
