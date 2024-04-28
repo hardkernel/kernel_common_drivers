@@ -1258,8 +1258,8 @@
 		};/* end of audiobus*/
 
 		vpu: vpu {
-			compatible = "amlogic, vpu-t5m";
-			status = "disabled";
+			compatible = "amlogic, vpu-t6d";
+			status = "okay";
 			reg =   <0xfe000000 0x100    /* clk */
 				0xfe00c000 0x70     /* pwrctrl */
 				0xff800000 0xa000>; /* vcbus */
@@ -1275,7 +1275,7 @@
 					"vpu_clk0",
 					"vpu_clk1",
 					"vpu_clk";
-			clk_level = <8>;
+			clk_level = <6>;
 			/* 0: 24.0M  1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
 			/* 5: 333.3M    6: 400.0M    7: 500.0M    8: 666.7M */
 		};
@@ -2281,7 +2281,7 @@
 		efuse_obj_cmd_status = <0x1>;
 		key = <&efusekey>;
 		clock-names = "efuse_clk";
-		status = "disabled";
+		status = "okay";
 	};
 
 	efusekey:efusekey{
