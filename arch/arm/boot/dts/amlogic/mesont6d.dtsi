@@ -229,7 +229,7 @@
 		dis_nb_cpus_in_shutdown;
 		extend_reboot_reason; /* Support up to 128 reboot reasons*/
 		reg = <0xfe01037c 0x4>; /* SEC_AO_SEC_SD_CFG15 */
-		status = "disabled";
+		status = "okay";
 	};
 
 	ram-dump {
@@ -325,14 +325,6 @@
 		reg = <0xfe010288 0x4>; //SYSCTRL_STATUS_REG2
 		status = "disabled";
 		mboxes = <&mbox_fifo T5M_REE2AO_VRTC>;
-	};
-
-	aml_reboot {
-		compatible = "aml, reboot";
-		sys_reset = <0x84000009>;
-		sys_poweroff = <0x84000008>;
-		dis_nb_cpus_in_shutdown;
-		status = "disabled";
 	};
 
 	mbox_fifo: mbox_fifo@0xfe006000 {
