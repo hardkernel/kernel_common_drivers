@@ -55,6 +55,9 @@
 static unsigned int ctrl_regs[SKIP_CTRE_NUM];
 static struct SC2_OVERLAP_REG_s sc2overlap_reg[SC2_OVERLAP_NUM];
 
+static bool pd_source_en;
+module_param_named(pd_source_en, pd_source_en, bool, 0664);
+
 /*ary move to di_hw_v2.c */
 static void set_di_inp_fmt_more(unsigned int repeat_l0_en,
 				int hz_yc_ratio,	/* 2bit */
@@ -269,6 +272,8 @@ void dimh_init_field_mode(unsigned short height)
 		DIM_DI_WR(DIPD_COMB_CTRL6, 0x00107064);
 	DIM_DI_WR_REG_BITS(DI_MC_32LVL0, 16, 0, 8);
 	DIM_DI_WR_REG_BITS(DI_MC_22LVL0, 256, 0, 16);
+	if (DIM_IS_IC(S7D) && pd_source_en)
+		DIM_DI_WR_REG_BITS(DI_PD_GRAD_CTRL, 1, 0, 1);
 }
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -1004,7 +1009,7 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 			    unsigned char pre_vdin_link,
 			    void *pre, unsigned int channel)
 {
-	bool mem_bypass = false, chan2_disable = false;
+	bool mem_bypass = false, chan2_disable = false, source_debug = true;
 	unsigned short nrwr_hsize = 0, nrwr_vsize = 0;
 	unsigned short chan2_hsize = 0, chan2_vsize = 0;
 	unsigned short mem_hsize = 0, mem_vsize = 0;
@@ -1128,7 +1133,8 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 		pd32_infor = 0x1;
 	else
 		pd32_infor = madi_en;
-
+	if (DIM_IS_IC(S7D) && pd_source_en)
+		source_debug = 0;
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		if (madi_en) {
 			if (DIM_IS_IC_EF(T7))
@@ -1161,7 +1167,7 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 					    /*check3:2pulldown*/
 					    (pd32_infor << 3) |
 					    /*check2:2pulldown*/
-					    (1 << 4)	 |
+					    (source_debug << 4)	 |
 					    (madi_en << 5) |
 					    /*hist check enable*/
 					    (1 << 6)	| /* MTN after NR. */
@@ -1184,7 +1190,7 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 					    (madi_en << 1)	| /* mtn en */
 					    (pd32_infor << 2)	| /* check3:2pulldown*/
 					    (pd32_infor << 3)	| /* check2:2pulldown*/
-					    (1 << 4)		|
+					    (source_debug << 4)	|
 					    (madi_en << 5)	| /*hist check enable*/
 					/* hist check  use chan2. */
 					    (madi_en << 6)	|
