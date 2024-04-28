@@ -1,3 +1,7 @@
 #ntfs3.ko
   __page_pinner_put_page
   page_pinner_inited
+
+#aml_drm.ko
+  dma_resv_get_singleton
+  drm_get_format_info

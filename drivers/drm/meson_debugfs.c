@@ -114,7 +114,7 @@ static int osd_fbdump_open(struct inode *inode, struct file *filp)
 	pipeline = priv->pipeline;
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
 
-	index = plane->index;
+	index = amp->plane_index;
 	info = &mvps->plane_info[index];
 
 	if (!info->enable) {
@@ -129,6 +129,7 @@ static int osd_fbdump_open(struct inode *inode, struct file *filp)
 	amp->bflg = bflg;
 	amp->vir_addr = vir_addr;
 	amp->dump_size = fb_size;
+	DRM_INFO("%s, %px, %u\n", __func__, vir_addr, fb_size);
 
 	return 0;
 }
@@ -361,7 +362,7 @@ static int meson_osd_read_port_show(struct seq_file *sf, void *data)
 
 	seq_puts(sf, "echo 1 > enable read port setting\n");
 	seq_puts(sf, "echo 0 > disable read port setting\n");
-	seq_printf(sf, "\nstatus：%d\n", (amp->osd_read_ports == 1) ? 1 : 0);
+	seq_printf(sf, "\nstatus: %d\n", (amp->osd_read_ports == 1) ? 1 : 0);
 
 	return 0;
 }
@@ -409,10 +410,10 @@ static const struct file_operations meson_osd_read_port_fops = {
 	.write = meson_osd_read_port_write,
 };
 
-u32 overwrite_reg[256];
-u32 overwrite_val[256];
-int overwrite_enable;
-int reg_num;
+//u32 overwrite_reg[256];
+//u32 overwrite_val[256];
+//int overwrite_enable;
+//int reg_num;
 
 static int meson_reg_debug_show(struct seq_file *sf, void *data)
 {

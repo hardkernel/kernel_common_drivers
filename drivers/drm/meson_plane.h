@@ -47,6 +47,7 @@ struct am_osd_plane {
 	struct drm_property *occupied_property;
 	struct drm_property *prop_sec_en;
 	struct drm_property *palette;
+	struct drm_property *unsupport_nonafbc;
 	bool osd_occupied;
 	u32 palette_id;
 	/*max fb property*/
@@ -62,6 +63,9 @@ struct am_osd_plane {
 	bool bflg;
 	u32 *receive_palette;
 	int osd_permanent_blank;
+
+	/* sysfs debug*/
+	u16 pixel_blend_debug;
 };
 
 struct am_video_plane {

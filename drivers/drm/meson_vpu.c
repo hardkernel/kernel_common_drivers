@@ -162,6 +162,7 @@ static irqreturn_t am_meson_vpu_irq(int irq, void *arg)
 		return IRQ_NONE;
 
 	am_meson_crtc_handle_vsync(amcrtc);
+	amcrtc->priv->pan_async_commit_ran = false;
 
 	return IRQ_HANDLED;
 }
@@ -213,6 +214,17 @@ static void vpu_pipeline_pre_init(struct meson_vpu_pipeline *pipeline, struct de
 
 	if (vpu_data->crtc_func.pre_init)
 		vpu_data->crtc_func.pre_init(pipeline, dev);
+}
+
+static void meson_init_policy_mask(struct meson_drm *private)
+{
+	const enum meson_policy_id *policy;
+
+	if (private->vpu_data->policy) {
+		policy = private->vpu_data->policy;
+		for (; *policy != MAX_POLICY_ID; policy++)
+			private->of_conf.drm_policy_mask = BIT(*policy);
+	}
 }
 
 static int am_meson_vpu_bind(struct device *dev,
@@ -271,6 +283,7 @@ static int am_meson_vpu_bind(struct device *dev,
 
 	vpu_pipeline_pre_init(pipeline, dev);
 	vpu_pipeline_init(pipeline);
+	meson_init_policy_mask(private);
 
 	/* HW config for different VPUs */
 	if (vpu_data && vpu_data->crtc_func.init_default_reg)
@@ -280,10 +293,6 @@ static int am_meson_vpu_bind(struct device *dev,
 		am_meson_vpu_power_config(1);
 	else
 		osd_vpu_power_on();
-
-	for (i = 0; i < pipeline->num_video; i++)
-		pipeline->video[i]->vfm_mode =
-			private->video_planes[i]->vfm_mode;
 
 	DRM_DEBUG("%s out[%d]\n", __func__, __LINE__);
 	return 0;
@@ -308,6 +317,18 @@ static const struct component_ops am_meson_vpu_component_ops = {
 	.bind = am_meson_vpu_bind,
 	.unbind = am_meson_vpu_unbind,
 };
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static const enum meson_policy_id s5_policy[] = {
+	HDR_BEFORE_BLEND,
+	MAX_POLICY_ID,
+};
+
+static const enum meson_policy_id s7d_policy[] = {
+	HDR_BEFORE_BLEND,
+	MAX_POLICY_ID,
+};
+#endif
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
 static const struct meson_vpu_data vpu_g12a_data = {
@@ -343,7 +364,22 @@ static const struct meson_vpu_data vpu_g12b_data = {
 	.dv_ops = &db_ops,
 	.postblend_ops = &g12b_postblend_ops,
 	.video_ops = &video_ops,
-	.osd_formats = &osd_formats,
+};
+
+static const struct meson_vpu_data vpu_s7_data = {
+	.crtc_func = {
+		.reg_ops = common_reg_ops,
+	},
+	.pipe_ops = &g12a_vpu_pipeline_ops,
+	.osd_ops = &t7_osd_ops,
+	.afbc_ops = &s7_afbc_ops,
+	.scaler_ops = &scaler_ops,
+	.osdblend_ops = &osdblend_ops,
+	.hdr_ops = &hdr_ops,
+	.dv_ops = &db_ops,
+	.postblend_ops = &s7_postblend_ops,
+	.video_ops = &video_ops,
+	.osd_formats = &osd_formats_s1a,
 	.video_formats = &video_formats,
 };
 
@@ -356,7 +392,7 @@ static const struct meson_vpu_data vpu_t7_data = {
 	.afbc_ops = &t7_afbc_ops,
 	.scaler_ops = &scaler_ops,
 	.osdblend_ops = &osdblend_ops,
-	.hdr_ops = &hdr_ops,
+	.hdr_ops = &t7_hdr_ops,
 	.dv_ops = &db_ops,
 	.postblend_ops = &t7_postblend_ops,
 	.video_ops = &video_ops,
@@ -441,6 +477,7 @@ static const struct meson_vpu_data vpu_s5_data = {
 	.slice_mode = 1,
 	.max_osdblend_width = 3840,
 	.max_osdblend_height = 2160,
+	.policy = s5_policy,
 };
 
 static const struct meson_vpu_data vpu_t3x_data = {
@@ -480,6 +517,25 @@ static const struct meson_vpu_data vpu_txhd2_data = {
 	.video_ops = &video_ops,
 	.osd_formats = &osd_formats,
 	.video_formats = &video_formats,
+};
+
+static const struct meson_vpu_data vpu_s7d_data = {
+		.crtc_func = {
+		.reg_ops = common_reg_ops,
+	},
+	.pipe_ops = &g12a_vpu_pipeline_ops,
+	.osd_ops = &s7d_osd_ops,
+	.gfcd_ops = &gfcd_ops,
+	.afbc_ops = &s7d_afbc_ops,
+	.scaler_ops = &scaler_ops,
+	.osdblend_ops = &osdblend_ops,
+	.hdr_ops = &s7d_hdr_ops,
+	.dv_ops = &db_ops,
+	.postblend_ops = &postblend_ops,
+	.video_ops = &video_ops,
+	.osd_formats = &osd_formats_s7d,
+	.video_formats = &video_formats,
+	.policy = s7d_policy,
 };
 #endif
 
@@ -543,6 +599,10 @@ static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
 	  .data = &vpu_txhd2_data,},
 	{.compatible = "amlogic, meson-t5m-vpu",
 	 .data = &vpu_t5m_data,},
+	{.compatible = "amlogic, meson-s7-vpu",
+	  .data = &vpu_s7_data,},
+	{.compatible = "amlogic, meson-s7d-vpu",
+	  .data = &vpu_s7d_data,},
 #endif
 	{.compatible = "amlogic, meson-s1a-vpu",
 	  .data = &vpu_s1a_data,},

@@ -35,7 +35,7 @@
 #include "vout_func.h"
 #include "vout_reg.h"
 
-/* 0 dummyl，1 dummyp，2 dummyi */
+/* 0 dummyl, 1 dummyp, 2 dummyi */
 static u32 dummy_venc_type;
 enum dummy_venc_chip_e {
 	DUMMY_VENC_DFT = 0,
@@ -119,6 +119,8 @@ static struct dummy_venc_driver_s *dummy_encp_drv;
 static struct dummy_venc_driver_s *dummy_enci_drv;
 static struct dummy_venc_driver_s *dummy_encl_drv;
 
+static u32 dummyp_timing_flip;
+
 #define DUMMY_L_NAME    "dummy_encl"
 #define DUMMY_I_NAME    "dummy_enci"
 #define DUMMY_P_NAME    "dummy_encp"
@@ -127,6 +129,22 @@ static struct dummy_venc_driver_s *dummy_encl_drv;
  * common function
  * **********************************************************
  */
+
+static int dummy_encp_timing_flip_setup(char *str)
+{
+	int ret;
+
+	ret = kstrtoint(str, 0, &dummyp_timing_flip);
+	return ret;
+}
+__setup("dummyp_timing_flip=", dummy_encp_timing_flip_setup);
+
+int get_dummyp_timing_flip(void)
+{
+	return dummyp_timing_flip;
+}
+EXPORT_SYMBOL(get_dummyp_timing_flip);
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static void dummy_venc_sel_t7(struct dummy_venc_driver_s *venc_drv, unsigned int venc_sel)
 {
@@ -456,17 +474,31 @@ static void dummy_encp_vinfo_update(struct dummy_venc_driver_s *venc_drv)
 		return;
 	}
 
-	venc_drv->vinfo->width = vinfo->width;
-	venc_drv->vinfo->height = vinfo->height;
-	venc_drv->vinfo->field_height = vinfo->field_height;
-	venc_drv->vinfo->aspect_ratio_num = vinfo->aspect_ratio_num;
-	venc_drv->vinfo->aspect_ratio_den = vinfo->aspect_ratio_den;
-	venc_drv->vinfo->sync_duration_num = vinfo->sync_duration_num;
-	venc_drv->vinfo->sync_duration_den = vinfo->sync_duration_den;
-	venc_drv->vinfo->video_clk = vinfo->video_clk;
-	venc_drv->vinfo->htotal = vinfo->htotal;
-	venc_drv->vinfo->vtotal = vinfo->vtotal;
-	venc_drv->vinfo->viu_color_fmt = vinfo->viu_color_fmt;
+	if (dummyp_timing_flip) {
+		venc_drv->vinfo->width = vinfo->height;
+		venc_drv->vinfo->height = vinfo->width;
+		venc_drv->vinfo->field_height = vinfo->width;
+		venc_drv->vinfo->aspect_ratio_num = vinfo->aspect_ratio_den;
+		venc_drv->vinfo->aspect_ratio_den = vinfo->aspect_ratio_num;
+		venc_drv->vinfo->sync_duration_num = vinfo->sync_duration_num;
+		venc_drv->vinfo->sync_duration_den = vinfo->sync_duration_den;
+		venc_drv->vinfo->video_clk = vinfo->video_clk;
+		venc_drv->vinfo->htotal = vinfo->vtotal;
+		venc_drv->vinfo->vtotal = vinfo->htotal;
+		venc_drv->vinfo->viu_color_fmt = vinfo->viu_color_fmt;
+	} else {
+		venc_drv->vinfo->width = vinfo->width;
+		venc_drv->vinfo->height = vinfo->height;
+		venc_drv->vinfo->field_height = vinfo->field_height;
+		venc_drv->vinfo->aspect_ratio_num = vinfo->aspect_ratio_num;
+		venc_drv->vinfo->aspect_ratio_den = vinfo->aspect_ratio_den;
+		venc_drv->vinfo->sync_duration_num = vinfo->sync_duration_num;
+		venc_drv->vinfo->sync_duration_den = vinfo->sync_duration_den;
+		venc_drv->vinfo->video_clk = vinfo->video_clk;
+		venc_drv->vinfo->htotal = vinfo->htotal;
+		venc_drv->vinfo->vtotal = vinfo->vtotal;
+		venc_drv->vinfo->viu_color_fmt = vinfo->viu_color_fmt;
+	}
 }
 
 static struct vinfo_s *dummy_encp_get_current_info(void *data)
@@ -1225,24 +1257,26 @@ static void dummy_encl_clk_ctrl(struct dummy_venc_driver_s *venc_drv, int flag)
 	vconf = venc_drv->vdata->vconf;
 
 	if (flag) {
-		if (venc_drv->vdata->venc_type == VENC_TYPE_ENCP) {
+		if (venc_drv->vdata->venc_type == VENC_TYPE_ENCP &&
+			venc_drv->vdata->chip_type != DUMMY_VENC_S5) {
 			/* clk source sel: fckl_div5 */
-			vout_clk_setb(vconf->vid_clk_div_reg, 0xf, VCLK_XD0, 8);
+			vout_clk_setb(vconf->vid2_clk_div_reg, 0xf, VCLK2_XD, 8);
 			usleep_range(5, 6);
-			vout_clk_setb(vconf->vid_clk_ctrl_reg, 6, VCLK_CLK_IN_SEL, 3);
-			vout_clk_setb(vconf->vid_clk_ctrl_reg, 1, VCLK_EN0, 1);
+			vout_clk_setb(vconf->vid2_clk_ctrl_reg, 6, VCLK2_CLK_IN_SEL, 3);
+			vout_clk_setb(vconf->vid2_clk_ctrl_reg, 1, VCLK2_EN, 1);
 			usleep_range(5, 6);
-			vout_clk_setb(vconf->vid_clk_div_reg, 0, ENCP_CLK_SEL, 4);
-			vout_clk_setb(vconf->vid_clk_div_reg, 1, VCLK_XD_EN, 1);
+			vout_clk_setb(vconf->vid_clk_div_reg, 8, ENCP_CLK_SEL, 4);
+			vout_clk_setb(vconf->vid2_clk_div_reg, 1, VCLK2_XD_EN, 1);
 			usleep_range(5, 6);
-			vout_clk_setb(vconf->vid_clk_ctrl_reg, 1, VCLK_DIV1_EN, 1);
-			vout_clk_setb(vconf->vid_clk_ctrl_reg, 1, VCLK_SOFT_RST, 1);
+			vout_clk_setb(vconf->vid2_clk_ctrl_reg, 1, VCLK2_DIV1_EN, 1);
+			vout_clk_setb(vconf->vid2_clk_ctrl_reg, 1, VCLK2_SOFT_RST, 1);
 			usleep_range(10, 11);
-			vout_clk_setb(vconf->vid_clk_ctrl_reg, 0, VCLK_SOFT_RST, 1);
+			vout_clk_setb(vconf->vid2_clk_ctrl_reg, 0, VCLK2_SOFT_RST, 1);
 			usleep_range(5, 6);
 			vout_clk_setb(vconf->vid_clk_ctrl2_reg, 1, ENCP_GATE_VCLK, 1);
 			return;
 		}
+
 		/* clk source sel: fckl_div5 */
 		vout_clk_setb(vconf->vid2_clk_div_reg, 0xf, VCLK2_XD, 8);
 		usleep_range(5, 6);
@@ -1476,6 +1510,28 @@ static struct vout_server_s dummy_encl_vout2_server = {
 };
 #endif
 
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+static struct vout_server_s dummy_encl_vout3_server = {
+	.name = "dummy_encl_vout3_server",
+	.op = {
+		.get_vinfo          = dummy_encl_get_current_info,
+		.set_vmode          = dummy_encl_set_current_vmode,
+		.validate_vmode     = dummy_encl_validate_vmode,
+		.vmode_is_supported = dummy_encl_vmode_is_supported,
+		.disable            = dummy_encl_disable,
+		.set_state          = dummy_encl_vout_set_state,
+		.clr_state          = dummy_encl_vout_clr_state,
+		.get_state          = dummy_encl_vout_get_state,
+		.set_bist           = NULL,
+#ifdef CONFIG_PM
+		.vout_suspend       = NULL,
+		.vout_resume        = NULL,
+#endif
+	},
+	.data = NULL,
+};
+#endif
+
 static void dummy_encl_vout_server_init(struct dummy_venc_driver_s *venc_drv)
 {
 	venc_drv->vinfo = &dummy_encl_vinfo;
@@ -1487,6 +1543,11 @@ static void dummy_encl_vout_server_init(struct dummy_venc_driver_s *venc_drv)
 	dummy_encl_vout2_server.data = (void *)venc_drv;
 	vout2_register_server(&dummy_encl_vout2_server);
 #endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	dummy_encl_vout3_server.data = (void *)venc_drv;
+	vout3_register_server(&dummy_encl_vout3_server);
+#endif
+
 }
 
 static void dummy_encl_vout_server_remove(void)
@@ -1495,6 +1556,10 @@ static void dummy_encl_vout_server_remove(void)
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	vout2_unregister_server(&dummy_encl_vout2_server);
 #endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	vout3_unregister_server(&dummy_encl_vout3_server);
+#endif
+
 }
 
 /* ********************************************************* */
@@ -1964,8 +2029,8 @@ static struct venc_config_s dummy_venc_conf_s5 = {
 	.vid_clk_ctrl_reg = CLKCTRL_VID_CLK0_CTRL,
 	.vid_clk_ctrl2_reg = CLKCTRL_VID_CLK0_CTRL2,
 	.vid_clk_div_reg = CLKCTRL_VID_CLK0_DIV,
-	.vid2_clk_ctrl_reg = CLKCTRL_VID_CLK0_CTRL,
-	.vid2_clk_div_reg = CLKCTRL_VID_CLK0_DIV,
+	.vid2_clk_ctrl_reg = CLKCTRL_VIID_CLK0_CTRL,
+	.vid2_clk_div_reg = CLKCTRL_VIID_CLK0_DIV,
 
 	.venc_index = 0,
 	.venc_offset = 0,

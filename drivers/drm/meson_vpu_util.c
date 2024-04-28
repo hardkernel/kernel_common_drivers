@@ -24,35 +24,35 @@ static int drm_vsync_rdma_handle[RDMA_COUNT] = {-1, -1, -1};
 
 static void meson_vpu_vsync_rdma_irq(void *arg)
 {
-	unsigned long ptr = (unsigned long)arg;
-	u32 vpp_index = lower_32_bits(ptr);
+	struct meson_vpu_sub_pipeline *sub_pipeline = arg;
 
-	if (drm_vsync_rdma_handle[vpp_index] == -1)
+	if (drm_vsync_rdma_handle[sub_pipeline->index] == -1)
 		return;
 
-	vpu_pipeline_check_finish_reg(vpp_index);
+	vpu_pipeline_check_finish_reg(sub_pipeline->index);
+	vpu_pipeline_detect_reset(sub_pipeline);
 }
 
 static void meson_vpu1_vsync_rdma_irq(void *arg)
 {
-	unsigned long ptr = (unsigned long)arg;
-	u32 vpp_index = lower_32_bits(ptr);
+	struct meson_vpu_sub_pipeline *sub_pipeline = arg;
 
-	if (drm_vsync_rdma_handle[vpp_index] == -1)
+	if (drm_vsync_rdma_handle[sub_pipeline->index] == -1)
 		return;
 
-	vpu_pipeline_check_finish_reg(vpp_index);
+	vpu_pipeline_check_finish_reg(sub_pipeline->index);
+	vpu_pipeline_detect_reset(sub_pipeline);
 }
 
 static void meson_vpu2_vsync_rdma_irq(void *arg)
 {
-	unsigned long ptr = (unsigned long)arg;
-	u32 vpp_index = lower_32_bits(ptr);
+	struct meson_vpu_sub_pipeline *sub_pipeline = arg;
 
-	if (drm_vsync_rdma_handle[vpp_index] == -1)
+	if (drm_vsync_rdma_handle[sub_pipeline->index] == -1)
 		return;
 
-	vpu_pipeline_check_finish_reg(vpp_index);
+	vpu_pipeline_check_finish_reg(sub_pipeline->index);
+	vpu_pipeline_detect_reset(sub_pipeline);
 }
 
 static struct rdma_op_s meson_vpu_vsync_rdma_op = {
@@ -68,21 +68,27 @@ static struct rdma_op_s meson_vpu2_vsync_rdma_op = {
 	NULL
 };
 
-void meson_vpu_reg_handle_register(u32 vpp_index)
+void meson_vpu_reg_handle_register(void *arg)
 {
+	struct meson_vpu_sub_pipeline *sub_pipeline = arg;
+	u32 vpp_index = sub_pipeline->index;
+
 	if (drm_vsync_rdma_handle[vpp_index] == -1) {
 		if (vpp_index == 0) {
+			meson_vpu_vsync_rdma_op.arg = sub_pipeline;
 			drm_vsync_rdma_handle[vpp_index] = rdma_register(&meson_vpu_vsync_rdma_op,
-				(void *)(uintptr_t)vpp_index, MESON_VPU_RDMA_TABLE_SIZE);
+				NULL, MESON_VPU_RDMA_TABLE_SIZE);
 		}
 
 		if (vpp_index == 1) {
+			meson_vpu1_vsync_rdma_op.arg = sub_pipeline;
 			drm_vsync_rdma_handle[vpp_index] = rdma_register(&meson_vpu1_vsync_rdma_op,
-				(void *)(uintptr_t)vpp_index, MESON_VPU_RDMA_TABLE_SIZE);
+				NULL, MESON_VPU_RDMA_TABLE_SIZE);
 		}
 		if (vpp_index == 2) {
+			meson_vpu2_vsync_rdma_op.arg = sub_pipeline;
 			drm_vsync_rdma_handle[vpp_index] = rdma_register(&meson_vpu2_vsync_rdma_op,
-				(void *)(uintptr_t)vpp_index, MESON_VPU_RDMA_TABLE_SIZE);
+				NULL, MESON_VPU_RDMA_TABLE_SIZE);
 		}
 	}
 
@@ -142,6 +148,18 @@ int meson_vpu_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
 	aml_vcbus_update_bits(addr, ((1 << len) - 1) << start, val << start);
 	return 0;
 #endif
+}
+
+int meson_vpu_dummy_write_reg(u32 addr, u32 val)
+{
+	MESON_DRM_REG("%s, 0x%x, 0x%x dummy_write\n", __func__, addr, val);
+	return 0;
+}
+
+int meson_vpu_dummy_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
+{
+	MESON_DRM_REG("%s, 0x%x, 0x%x, %d, %d dummy_write\n", __func__, addr, val, start, len);
+	return 0;
 }
 
 static u32 meson_vpu1_read_reg(u32 addr)
@@ -229,6 +247,8 @@ struct rdma_reg_ops common_reg_ops[3] = {
 		.rdma_read_reg = meson_vpu_read_reg,
 		.rdma_write_reg = meson_vpu_write_reg,
 		.rdma_write_reg_bits = meson_vpu_write_reg_bits,
+		.dummy_write_reg = meson_vpu_dummy_write_reg,
+		.dummy_write_reg_bits = meson_vpu_dummy_write_reg_bits,
 	},
 	{
 		.rdma_read_reg = meson_vpu1_read_reg,

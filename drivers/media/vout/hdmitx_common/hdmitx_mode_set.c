@@ -154,7 +154,7 @@ static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
 		HDMITX_ERROR("Should run disable_mode before enable new mode.\n");
 
 	if (tx_comm->hpd_state == 0 || tx_comm->suspend_flag) {
-		HDMITX_ERROR("current hpd_state/suspend (%d,%d), exit %s\n",
+		HDMITX_ERROR("%s current hpd_state/suspend (%d,%d), exit\n",
 			__func__, tx_comm->hpd_state, tx_comm->suspend_flag);
 		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_SKIP);
 		return -1;
@@ -162,6 +162,23 @@ static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
 
 	/*TODO: keep for hw module to read formatpara, remove later.*/
 	memcpy(&tx_comm->fmt_para, para, sizeof(struct hdmi_format_para));
+
+	/*check if vic supported by rx*/
+	if (!hdmitx_edid_validate_mode(&tx_comm->rxcap, tx_comm->fmt_para.vic)) {
+		HDMITX_ERROR("edid invalid vic-%d return error\n", tx_comm->fmt_para.vic);
+		return -EINVAL;
+	}
+
+	if (hdmitx_common_validate_vic(tx_comm, tx_comm->fmt_para.vic)) {
+		HDMITX_ERROR("validate vic-%d return error\n", tx_comm->fmt_para.vic);
+		return -EINVAL;
+	}
+
+	if (hdmitx_common_validate_format_para(tx_comm, &tx_comm->fmt_para)) {
+		HDMITX_ERROR("format para check fail.\n");
+		return -EINVAL;
+	}
+
 	/* update fmt_attr: userspace still need this.*/
 	hdmitx_format_para_rebuild_fmtattr_str(&tx_comm->fmt_para, tx_comm->fmt_attr,
 					       sizeof(tx_comm->fmt_attr));

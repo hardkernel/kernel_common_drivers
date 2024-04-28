@@ -71,12 +71,14 @@ static void meson_video_parse_config(struct drm_device *dev, struct meson_of_con
 	if (ret)
 		DRM_DEBUG("%s parse vfm mode fail!\n", __func__);
 
+	DRM_INFO("%s:vfm_mode = %d\n", __func__, mode_flag);
 	conf->vfm_mode = mode_flag;
 }
 
 static void meson_osd_parse_config(struct drm_device *dev, struct meson_of_conf *conf)
 {
 	u32 osd_afbc_mask = 0xff;
+	u32 osd_force_slice = 0;
 	int ret;
 
 	ret = of_property_read_u32(dev->dev->of_node,
@@ -85,6 +87,24 @@ static void meson_osd_parse_config(struct drm_device *dev, struct meson_of_conf 
 		DRM_DEBUG("%s parse osd afbc mask fail!\n", __func__);
 
 	conf->osd_afbc_mask = osd_afbc_mask;
+
+	ret = of_property_read_u32(dev->dev->of_node,
+				   "force_slice", &osd_force_slice);
+	if (ret)
+		DRM_DEBUG("%s parse osd_force_slice fail!\n", __func__);
+
+	conf->force_slice = osd_force_slice;
+}
+
+static void meson_parse_gfcd_config(struct drm_device *dev,
+		struct meson_of_conf *conf)
+{
+	u32 temp = 0;
+	int ret;
+
+	ret = of_property_read_u32(dev->dev->of_node,
+				   "gfcd_afbc_enable", &temp);
+	conf->drm_policy_mask |= ((!!temp) << GFCD_ODD_SIZE);
 }
 
 static void am_meson_vpu_get_plane_crtc_mask(struct meson_drm *priv,
@@ -119,6 +139,13 @@ void meson_of_init(struct device *vpu_dev, struct drm_device *dev,
 		DRM_ERROR("osd_ver parser failed, need fix it!!\n");
 
 	ret = of_property_read_u32(vpu_dev->of_node,
+					"osd_axi_sel", &pipeline->osd_axi_sel);
+	if (ret) {
+		DRM_ERROR("osd_axi_sel parser failed and set default 0\n");
+		pipeline->osd_axi_sel = 0;
+	}
+
+	ret = of_property_read_u32(vpu_dev->of_node,
 				"osd_occupied_index", &osd_occupied_index);
 	if (!ret)
 		priv->osd_occupied_index = osd_occupied_index;
@@ -128,6 +155,9 @@ void meson_of_init(struct device *vpu_dev, struct drm_device *dev,
 
 	ret = of_property_read_u8(dev->dev->of_node,
 				"remove_get_vblank_timestamp", &priv->remove_get_vblank_timestamp);
+
+	ret = of_property_read_u32(dev->dev->of_node,
+					"pxp_mode", &priv->pxp_mode);
 
 	am_meson_vpu_get_plane_crtc_mask(priv, "crtcmask_of_osd",
 		pipeline->num_osds, conf->crtcmask_osd);
@@ -145,5 +175,6 @@ void meson_of_init(struct device *vpu_dev, struct drm_device *dev,
 	meson_osd_parse_config(dev, conf);
 	meson_video_parse_config(dev, conf);
 	meson_connect_parse_config(dev, conf);
+	meson_parse_gfcd_config(dev, conf);
 }
 

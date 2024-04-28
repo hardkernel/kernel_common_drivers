@@ -354,14 +354,14 @@ static struct sg_table *am_meson_gem_create_sg_table(struct drm_gem_object *obj)
 	if ((meson_gem_obj->flags & MESON_USE_VIDEO_PLANE) &&
 	    (meson_gem_obj->flags & MESON_USE_PROTECTED)) {
 		gem_page = phys_to_page(meson_gem_obj->addr);
-		dst_table = kmalloc(sizeof(*dst_table), GFP_KERNEL);
+		dst_table = vmalloc(sizeof(*dst_table));
 		if (!dst_table) {
 			ret = -ENOMEM;
 			return ERR_PTR(ret);
 		}
 		ret = sg_alloc_table(dst_table, 1, GFP_KERNEL);
 		if (ret) {
-			kfree(dst_table);
+			vfree(dst_table);
 			return ERR_PTR(ret);
 		}
 		dst_sg = dst_table->sgl;
@@ -378,7 +378,7 @@ static struct sg_table *am_meson_gem_create_sg_table(struct drm_gem_object *obj)
 #ifdef CONFIG_AMLOGIC_ION
 		if (meson_gem_obj->ionbuffer) {
 			src_table = meson_gem_obj->ionbuffer->sg_table;
-			dst_table = kmalloc(sizeof(*dst_table), GFP_KERNEL);
+			dst_table = vmalloc(sizeof(*dst_table));
 			if (!dst_table) {
 				ret = -ENOMEM;
 				return ERR_PTR(ret);
@@ -386,7 +386,7 @@ static struct sg_table *am_meson_gem_create_sg_table(struct drm_gem_object *obj)
 
 			ret = sg_alloc_table(dst_table, 1, GFP_KERNEL);
 			if (ret) {
-				kfree(dst_table);
+				vfree(dst_table);
 				return ERR_PTR(ret);
 			}
 
@@ -448,7 +448,7 @@ static struct dma_buf *meson_gem_prime_export(struct drm_gem_object *obj,
 			if (meson_gem_obj->is_afbc ||
 			    meson_gem_obj->is_secure) {
 				sg_free_table(info.sgt);
-				kfree(info.sgt);
+				vfree(info.sgt);
 			}
 		}
 
@@ -479,7 +479,7 @@ static struct sg_table *meson_gem_prime_get_sg_table(struct drm_gem_object *obj)
 #ifdef CONFIG_AMLOGIC_ION
 	if (!meson_gem_obj->base.import_attach && meson_gem_obj->ionbuffer) {
 		src_table = meson_gem_obj->ionbuffer->sg_table;
-		dst_table = kmalloc(sizeof(*dst_table), GFP_KERNEL);
+		dst_table = vmalloc(sizeof(*dst_table));
 		if (!dst_table) {
 			ret = -ENOMEM;
 			return ERR_PTR(ret);
@@ -487,7 +487,7 @@ static struct sg_table *meson_gem_prime_get_sg_table(struct drm_gem_object *obj)
 
 		ret = sg_alloc_table(dst_table, src_table->nents, GFP_KERNEL);
 		if (ret) {
-			kfree(dst_table);
+			vfree(dst_table);
 			return ERR_PTR(ret);
 		}
 

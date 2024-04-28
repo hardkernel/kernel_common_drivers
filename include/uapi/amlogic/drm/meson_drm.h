@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
- * Copyright © 2019-2022 Amlogic Inc.
+ * Copyright (c)  2019-2022 Amlogic Inc.
  */
 
 #ifndef _MESON_DRM_H_
 #define _MESON_DRM_H_
 
 #include <drm/drm.h>
+#include <drm/drm_fourcc.h>
 
 /* Use flags */
 #define MESON_USE_NONE			0
@@ -25,6 +26,11 @@
 #define FBIOPUT_OSD_WINDOW_AXIS          0x4513
 #define FBIOGET_DISPLAY_MODE             0x4580
 
+#define MAX_VRR_MODE_GROUP 12
+/* 40 bpp RGB */
+#define DRM_FORMAT_ABGR10101010	fourcc_code('A', 'B', '4', '0')
+		/* [39:0] A:B:G:R 10:10:10:10 little endian */
+
 /**
  * User-desired buffer creation information structure.
  *
@@ -40,8 +46,8 @@ struct drm_meson_gem_create {
 };
 
 struct drm_mode_test_attr {
-	char modename[32];
-	char attr[32];
+	char modename[DRM_DISPLAY_MODE_LEN];
+	char attr[DRM_DISPLAY_MODE_LEN];
 	__u32 valid;
 };
 
@@ -51,6 +57,22 @@ struct drm_meson_fbdev_rect {
 	__u32 width;
 	__u32 height;
 	__u32 mask;
+};
+
+struct drm_vrr_mode_group {
+	__u32 brr_vic;
+	__u32 width;
+	__u32 height;
+	__u32 vrr_min;
+	__u32 vrr_max;
+	__u32 brr;
+	char modename[DRM_DISPLAY_MODE_LEN];
+};
+
+struct drm_vrr_mode_groups {
+	__u32 conn_id;
+	__u32 num;
+	struct drm_vrr_mode_group groups[MAX_VRR_MODE_GROUP];
 };
 
 /**
@@ -105,6 +127,8 @@ struct drm_meson_plane_mute {
 		0x01, unsigned int)
 #define DRM_IOCTL_MESON_DMABUF_EXPORT_SYNC_FILE	DRM_IOWR(DRM_COMMAND_BASE + \
 		0x02, struct drm_meson_dma_buf_export_sync_file)
+#define DRM_IOCTL_MESON_ADDFB2	DRM_IOWR(DRM_COMMAND_BASE + \
+		0x03, struct drm_mode_fb_cmd2)
 
 /*KMS related.*/
 #define DRM_IOCTL_MESON_ASYNC_ATOMIC    DRM_IOWR(DRM_COMMAND_BASE + \
@@ -113,6 +137,8 @@ struct drm_meson_plane_mute {
 		0x11, struct drm_mode_test_attr) /*hdmitx related.*/
 #define DRM_IOCTL_MESON_MUTE_PLANE DRM_IOWR(DRM_COMMAND_BASE + \
 		0x12, struct drm_meson_plane_mute)
+#define DRM_IOCTL_MESON_GET_VRR_RANGE DRM_IOWR(DRM_COMMAND_BASE + \
+		0x13, struct drm_vrr_mode_groups)/*hdmitx related*/
 
 /*present fence*/
 #define DRM_IOCTL_MESON_CREAT_PRESENT_FENCE	DRM_IOWR(DRM_COMMAND_BASE + \

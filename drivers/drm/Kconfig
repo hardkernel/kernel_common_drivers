@@ -4,13 +4,11 @@ config AMLOGIC_DRM
 	tristate "DRM Support for Amlogic new Display Controller"
 	default n
 	depends on AMLOGIC_DRIVER && DRM && OF && (ARM || ARM64)
-	depends on DRM_KMS_HELPER
-	depends on VIDEOMODE_HELPERS
-	#KV_TODO: modify
-	#depends on DRM_KMS_CMA_HELPER
-	#depends on DRM_GEM_CMA_HELPER
+	select DRM_KMS_HELPER
 	select DRM_GEM_DMA_HELPER
+	select VIDEOMODE_HELPERS
 	select DRM_DISPLAY_HELPER
+	select DRM_DISPLAY_HDCP_HELPER
 	help
 		amlogic new soc display controller
 		use the pipeline and modularized
@@ -25,23 +23,18 @@ config AMLOGIC_DRM_VPU
 		This driver provides KMS.
 		This driver also provides crtcs and planes management.
 
-config AMLOGIC_DRM_HDMI
+config AMLOGIC_DRM_CUT_HDMI
 	bool "support drm hdmi function for meson drm display."
-	default n
-	depends on AMLOGIC_DRM
-	depends on AMLOGIC_HDMITX
-	select DRM_DISPLAY_HDCP_HELPER
+	depends on !(AMLOGIC_HDMITX || AMLOGIC_HDMITX21)
 	help
 		add drm hdmi support.
 		use internal amlogic media vout hdmi driver.
 		We should confirm AMLOGIC_HDMITX is configured if
 		AMLOGIC_DRM_HDMI is selected.
 
-config AMLOGIC_DRM_CVBS
+config AMLOGIC_DRM_CUT_CVBS
 	bool "support drm cvbs function for meson drm display."
-	default n
-	depends on AMLOGIC_DRM
-	depends on AMLOGIC_CVBS_OUTPUT
+	depends on !AMLOGIC_CVBS_OUTPUT
 	help
 		add drm cvbs support.
 		use internal amlogic media vout cvbs driver.

@@ -26,6 +26,7 @@ MODULE_PARM_DESC(crtc_force_hint, "\n force modesetting hint\n");
 __module_param(crtc_force_hint, int, 0644);
 
 int gamma_ctl = 1;
+int meson_gamma_ctl = -1;
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 bool get_amdv_mode(void)
@@ -163,6 +164,12 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->prev_vrefresh = cur_state->prev_vrefresh;
 	new_state->prev_height = cur_state->prev_height;
 	new_state->hdr_conversion_ctrl = cur_state->hdr_conversion_ctrl;
+	new_state->attr_changed = false;
+	new_state->brr_update = false;
+	new_state->brr = cur_state->brr;
+	strncpy(new_state->brr_mode, cur_state->brr_mode, DRM_DISPLAY_MODE_LEN);
+	new_state->crtc_bgcolor_flag = cur_state->crtc_bgcolor_flag;
+	new_state->crtc_bgcolor = cur_state->crtc_bgcolor;
 
 	/*reset dynamic info.*/
 	if (amcrtc->priv->logo_show_done)
@@ -356,6 +363,12 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->hdr_conversion_cap_property) {
 		*val = get_hdr_conversion_cap();
 		return 0;
+	} else if (property == meson_crtc->brr_update_property) {
+		*val = crtc_state->brr_update;
+		return 0;
+	} else if (property == meson_crtc->drm_policy_property) {
+		*val = meson_crtc->priv->of_conf.drm_policy_mask;
+		return 0;
 	}
 
 	return ret;
@@ -383,12 +396,16 @@ static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
 		return 0;
 	} else if (property == meson_crtc->bgcolor_property) {
 		crtc_state->crtc_bgcolor = val;
+		crtc_state->crtc_bgcolor_flag = true;
 		return 0;
 	} else if (property == meson_crtc->dv_mode_property) {
 		crtc_state->dv_mode = val;
 		return 0;
 	} else if (property == meson_crtc->hdr_conversion_ctrl_property) {
 		crtc_state->hdr_conversion_ctrl = val;
+		return 0;
+	} else if (property == meson_crtc->brr_update_property) {
+		crtc_state->brr_update = val;
 		return 0;
 	}
 
@@ -436,6 +453,7 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tnum_plane=%u\n", mvps->num_plane);
 	drm_printf(p, "\t\tnum_plane_video=%u\n", mvps->num_plane_video);
 	drm_printf(p, "\t\tglobal_afbc=%u\n", mvps->global_afbc);
+	drm_printf(p, "\t\tdrm_policy_mask=%llu\n", priv->of_conf.drm_policy_mask);
 }
 
 static const char * const pipe_crc_sources[] = {"vpp1", "NULL"};
@@ -675,7 +693,10 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 
 		if (crtc->state->vrr_enabled &&
 			adjusted_mode->hdisplay == old_mode->hdisplay &&
-			adjusted_mode->vdisplay == old_mode->vdisplay) {
+			adjusted_mode->vdisplay == old_mode->vdisplay &&
+			!meson_crtc_state->attr_changed &&
+			!meson_crtc_state->brr_update &&
+			!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
 			drm_crtc_vblank_on(crtc);
 			return;
 		}
@@ -718,7 +739,10 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	if (crtc->state->vrr_enabled &&
 		adjusted_mode->hdisplay == old_mode->hdisplay &&
-		adjusted_mode->vdisplay == old_mode->vdisplay) {
+		adjusted_mode->vdisplay == old_mode->vdisplay &&
+		!meson_crtc_state->attr_changed &&
+		!meson_crtc_state->brr_update &&
+		!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
 		DRM_INFO("%s, vrr enable, skip crtc disable\n", __func__);
 		return;
 	}
@@ -779,10 +803,11 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	else
 		mvsps->more_4k = 0;
 
-	if (priv->vpu_data->slice_mode == 1 && drm_mode_vrefresh(mode) > 60)
-		mvsps->more_60 = 1;
-	else
-		mvsps->more_60 = 0;
+	mvsps->more_60 = 0;
+	if (priv->vpu_data->slice_mode == 1) {
+		if (drm_mode_vrefresh(mode) > 60 || priv->of_conf.force_slice)
+			mvsps->more_60 = 1;
+	}
 
 	new_state = to_am_meson_crtc_state(crtc_state);
 	/*apply parameters need modeset.*/
@@ -804,6 +829,9 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 			crtc_state->mode_changed = true;
 
 		if (cur_state->hdr_conversion_ctrl != new_state->hdr_conversion_ctrl)
+			crtc_state->mode_changed = true;
+
+		if (cur_state->brr_update)
 			crtc_state->mode_changed = true;
 	}
 
@@ -909,6 +937,11 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 		set_hdr_policy(meson_crtc_state->crtc_hdr_process_policy);
 	}
 #endif
+	if (meson_crtc_state->crtc_bgcolor !=
+		old_am_crtc_state->crtc_bgcolor) {
+		video_dummy_data_set(meson_crtc_state->crtc_bgcolor,
+			meson_crtc_state->crtc_bgcolor_flag);
+	}
 }
 
 bool am_meson_crtc_get_scanout_position(struct drm_crtc *crtc,
@@ -1017,6 +1050,20 @@ static void meson_crtc_init_dv_enable_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_crtc_init_brr_update_property(struct drm_device *drm_dev,
+						  struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "brr_update");
+	if (prop) {
+		amcrtc->brr_update_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to brr_update property\n");
+	}
+}
+
 static void meson_crtc_init_dv_mode_property(struct drm_device *drm_dev,
 						  struct am_meson_crtc *amcrtc)
 {
@@ -1106,11 +1153,27 @@ static void meson_crtc_init_hdr_conversion_ctrl_property(struct drm_device *drm_
 	}
 }
 
+static void meson_crtc_init_drm_policy_property(struct drm_device *drm_dev,
+						  struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0, "drm_policy_mask",
+					0, GENMASK_ULL(MAX_POLICY_ID - 1, 0));
+	if (prop) {
+		amcrtc->drm_policy_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to drm_policy property\n");
+	}
+}
+
 struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 {
 	struct am_meson_crtc *amcrtc;
 	struct drm_crtc *crtc;
 	struct meson_vpu_pipeline *pipeline = priv->pipeline;
+	struct meson_vpu_sub_pipeline *sub_pipeline;
 	struct drm_plane *primary_plane;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 	int gamma_lut_size = 0;
@@ -1132,6 +1195,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	crtc = &amcrtc->base;
 	plane_index = priv->primary_plane_index[idx];
 	primary_plane = &priv->osd_planes[plane_index]->base;
+	sub_pipeline = &pipeline->subs[idx];
 
 	snprintf(crtc_name, 64, "%s-%d", "VPP", amcrtc->crtc_index);
 
@@ -1149,10 +1213,13 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 
 	drm_crtc_helper_add(crtc, &am_crtc_helper_funcs);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	meson_vpu_reg_handle_register(amcrtc->crtc_index);
+	meson_vpu_reg_handle_register(sub_pipeline);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
-	if (gamma_ctl) {
+	ret = of_property_read_u32(priv->dev->of_node, "gamma_ctl", &meson_gamma_ctl);
+	if (!gamma_ctl || !meson_gamma_ctl || priv->pxp_mode) {
+		DRM_INFO("skip gamma init\n");
+	} else {
 		amvecm_drm_init(0);
 		gamma_lut_size = amvecm_drm_get_gamma_size(0);
 		drm_mode_crtc_set_gamma_size(crtc, gamma_lut_size);
@@ -1168,12 +1235,14 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	meson_crtc_init_property(priv->drm, amcrtc);
 	meson_crtc_init_hdmi_eotf_property(priv->drm, amcrtc);
 	meson_crtc_init_dv_enable_property(priv->drm, amcrtc);
+	meson_crtc_init_brr_update_property(priv->drm, amcrtc);
 	meson_crtc_init_dv_mode_property(priv->drm, amcrtc);
 	meson_crtc_add_bgcolor_property(priv->drm, amcrtc);
 	meson_crtc_init_osd_pixelformat_property(priv->drm, amcrtc);
 	meson_crtc_init_video_pixelformat_property(priv->drm, amcrtc);
 	meson_crtc_init_hdr_conversion_cap_property(priv->drm, amcrtc);
 	meson_crtc_init_hdr_conversion_ctrl_property(priv->drm, amcrtc);
+	meson_crtc_init_drm_policy_property(priv->drm, amcrtc);
 	amcrtc->pipeline = pipeline;
 	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
 	priv->crtcs[priv->num_crtcs++] = amcrtc;

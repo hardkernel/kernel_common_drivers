@@ -7,6 +7,8 @@
 #define _MESON_VPU_POSTBLEND_H_
 
 #define VPP_OSD1_IN_SIZE                           0x1df1
+#define VPP_OSD2_IN_SIZE                           0x1df3
+
 #define VPP_OSD1_BLD_H_SCOPE                       0x1df5
 #define VPP_OSD1_BLD_V_SCOPE                       0x1df6
 #define VPP_OSD2_BLD_H_SCOPE                       0x1df7

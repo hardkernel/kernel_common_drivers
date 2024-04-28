@@ -69,7 +69,17 @@ struct meson_of_conf {
 	u32 crtcmask_osd[MESON_MAX_OSD];
 	u32 crtcmask_video[MESON_MAX_VIDEO];
 
+	/*
+	 * this will be used as drm usage, one item occupy one bit.
+	 * bit0:
+	 * gfcd afbc flag, 1:enable 0:disable;
+	 */
+	u64 drm_policy_mask;
+
 	char *pref_mode;
+
+	/* force osd slice_mode: 1*/
+	u32 force_slice;
 };
 
 struct meson_drm {
@@ -101,6 +111,10 @@ struct meson_drm {
 	struct am_osd_plane *osd_planes[MESON_MAX_OSD];
 	struct am_video_plane *video_planes[MESON_MAX_VIDEO];
 
+	/* During a vsync of pan display, an async commit already ran */
+	bool pan_async_commit_ran;
+	u32 disable_video_plane;
+
 	struct meson_of_conf of_conf;
 
 	/*CONFIG_AMLOGIC_DRM_EMULATE_FBDEV*/
@@ -117,6 +131,8 @@ struct meson_drm {
 	u32 osd_occupied_index;
 	u8 dummyl_from_hdmitx;
 	u8 remove_get_vblank_timestamp;
+
+	u32 pxp_mode;
 };
 
 /*component bind functions*/

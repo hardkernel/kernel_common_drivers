@@ -994,7 +994,7 @@ static void scaler_set_state(struct meson_vpu_block *vblk,
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
 	/*todo:move afbc start to afbc block.*/
 	if (pipeline->osd_version < OSD_V7)
-		arm_fbc_start(mvps);
+		arm_fbc_start(mvps, state->sub->reg_ops);
 
 	if (!scaler_state) {
 		MESON_DRM_BLOCK("scaler or scaler_state is NULL!!\n");
@@ -1027,11 +1027,7 @@ static void scaler_hw_disable(struct meson_vpu_block *vblk,
 			      struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
-	struct osd_scaler_reg_s *reg = scaler->reg;
-	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
 
-	/*disable sc*/
-	reg_ops->rdma_write_reg(reg->vpp_osd_sc_ctrl0, 0);
 	MESON_DRM_BLOCK("%s disable called.\n", scaler->base.name);
 }
 
@@ -1119,7 +1115,6 @@ static void scaler_hw_init(struct meson_vpu_block *vblk)
 	scaler->linebuffer = OSD_SCALE_LINEBUFFER;
 	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
 
-//	meson_vpu_write_reg(scaler->reg->vpp_osd_sc_ctrl0, 0);
 	MESON_DRM_BLOCK("%s hw_init called.\n", scaler->base.name);
 }
 
@@ -1132,7 +1127,6 @@ static void s5_scaler_hw_init(struct meson_vpu_block *vblk)
 	scaler->linebuffer = OSD_SCALE_LINEBUFFER;
 	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
 
-	meson_vpu_write_reg(scaler->reg->vpp_osd_sc_ctrl0, 0);
 	MESON_DRM_BLOCK("%s hw_init called.\n", scaler->base.name);
 }
 #endif

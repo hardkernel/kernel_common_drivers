@@ -9,6 +9,7 @@
 #include <drm/drm_modes.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_format_para.h>
+#include <uapi/amlogic/drm/meson_drm.h>
 
 #define MESON_CONNECTOR_TYPE_PROP_NAME "meson.connector_type"
 
@@ -82,14 +83,6 @@ struct connector_hdcp_cb {
 	void *data;
 };
 
-struct drm_vrr_mode_group {
-	u32 brr_vic;
-	u32 width;
-	u32 height;
-	u32 vrr_min;
-	u32 vrr_max;
-};
-
 struct meson_hdmitx_dev {
 	struct meson_connector_dev base;
 	struct hdmitx_common *hdmitx_common;
@@ -129,6 +122,7 @@ struct meson_cvbs_dev {
 struct meson_panel_dev {
 	struct meson_connector_dev base;
 	int (*get_modes)(struct meson_panel_dev *panel, struct drm_display_mode **modes, int *num);
+	int (*get_modes_vrr_range)(struct meson_panel_dev *panel, void *range, int max, int *num);
 };
 
 /*dummy_l specified struct*/

@@ -169,9 +169,9 @@ static void parse_vpu_node(struct device_node *child_node,
 		}
 		para->outputs_mask = out_mask;
 	}
-	DRM_DEBUG("id=%d,index=%d,num_in_links=%d,num_out_links=%d\n",
+	DRM_DEBUG("id=%d,index=%d,num_in_links=%d,num_out_links=%d, name=%s\n",
 		 para->id, para->index,
-		para->num_inputs, para->num_outputs);
+		para->num_inputs, para->num_outputs, para->name);
 	DRM_DEBUG("in_mask=0x%llx,out_mask=0x%llx\n", in_mask, out_mask);
 }
 
@@ -277,6 +277,18 @@ meson_vpu_create_block(struct meson_vpu_block_para *para,
 
 		mvb = create_block(blk_size, para, ops, pipeline);
 		pipeline->slice2ppc = to_slice2ppc_block(mvb);
+		break;
+	case MESON_BLK_GFCD:
+		blk_size = sizeof(struct meson_vpu_gfcd);
+		if (pipeline->priv && pipeline->priv->vpu_data &&
+		    pipeline->priv->vpu_data->gfcd_ops)
+			ops = pipeline->priv->vpu_data->gfcd_ops;
+		else
+			ops = &gfcd_ops;
+
+		mvb = create_block(blk_size, para, ops, pipeline);
+		pipeline->gfcd[mvb->index] = to_gfcd_block(mvb);
+		pipeline->num_gfcd++;
 		break;
 	case MESON_BLK_VIDEO:
 		blk_size = sizeof(struct meson_vpu_video);
@@ -496,6 +508,34 @@ void vpu_pipeline_check_finish_reg(int crtc_index)
 			  crtc_index, drm_rdma_cnt[crtc_index].val >> 8, val >> 8);
 }
 
+void vpu_pipeline_detect_reset(struct meson_vpu_sub_pipeline *sub_pipeline)
+{
+	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
+	struct meson_vpu_pipeline_state *new_mvps;
+	struct meson_vpu_sub_pipeline_state *new_mvsps;
+	struct meson_vpu_block *mvb;
+	struct meson_vpu_block_state *mvbs;
+	unsigned long affected_blocks = 0;
+	unsigned long id;
+
+	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
+	new_mvsps = &new_mvps->sub_states[sub_pipeline->index];
+	affected_blocks = new_mvsps->enable_blocks;
+
+	for_each_set_bit(id, &affected_blocks, 32) {
+		mvb = vpu_blocks[id];
+		if (mvb->type != MESON_BLK_OSD)
+			continue;
+
+		mvbs = priv_to_block_state(mvb->obj.state);
+		if ((affected_blocks & BIT(id)) && mvb->ops->detect_reset) {
+			DRM_DEBUG("detect reset, block %s: mvbs new-%p\n",
+					mvb->name, mvbs);
+			mvb->ops->detect_reset(mvb, mvbs);
+		}
+	}
+}
+
 int vpu_pipeline_check(struct meson_vpu_pipeline *pipeline,
 		       struct drm_atomic_state *state)
 {
@@ -543,6 +583,11 @@ void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline)
 
 	if (pipeline->slice2ppc)
 		VPU_PIPELINE_HW_INIT(&pipeline->slice2ppc->base);
+
+	for (i = 0; i < pipeline->num_gfcd; i++) {
+		if (pipeline->gfcd[i])
+			VPU_PIPELINE_HW_INIT(&pipeline->gfcd[i]->base);
+	}
 }
 
 void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline)
@@ -613,7 +658,7 @@ int vpu_pipeline_video_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			struct drm_atomic_state *old_state)
 {
-#ifdef CONFIG_DEBUG_FS
+#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_AMLOGIC_ZAPPER_CUT)
 	int i;
 #endif
 	int crtc_index;
@@ -634,7 +679,9 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 		mvb = vpu_blocks[id];
 		/*TODO: we may need also update other blocks on newer soc.*/
 		if (mvb->type != MESON_BLK_OSD &&
-			mvb->type != MESON_BLK_AFBC)
+			mvb->type != MESON_BLK_AFBC &&
+			mvb->type != MESON_BLK_VPPBLEND &&
+			mvb->type != MESON_BLK_OSDBLEND)
 			continue;
 
 		mvbs = priv_to_block_state(mvb->obj.state);
@@ -647,7 +694,7 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 		}
 	}
 
-#ifdef CONFIG_DEBUG_FS
+#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_AMLOGIC_ZAPPER_CUT)
 	if (overwrite_enable) {
 		for (i = 0; i < reg_num; i++)
 			meson_vpu_write_reg(overwrite_reg[i], overwrite_val[i]);
@@ -700,7 +747,7 @@ int vpu_video_plane_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			struct drm_atomic_state *old_state)
 {
-#ifdef CONFIG_DEBUG_FS
+#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_AMLOGIC_ZAPPER_CUT)
 	int i;
 #endif
 
@@ -754,7 +801,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 		}
 	}
 
-#ifdef CONFIG_DEBUG_FS
+#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_AMLOGIC_ZAPPER_CUT)
 	if (overwrite_enable) {
 		for (i = 0; i < reg_num; i++)
 			meson_vpu_write_reg(overwrite_reg[i], overwrite_val[i]);

@@ -71,6 +71,7 @@ struct am_meson_crtc_state {
 	/*eotf value by property*/
 	u8 eotf_type_by_property;
 	/*crtc background*/
+	bool crtc_bgcolor_flag;
 	u64 crtc_bgcolor;
 	/*basic refresh rate*/
 	u32 brr;
@@ -81,6 +82,8 @@ struct am_meson_crtc_state {
 	int prev_vrefresh;
 	int prev_height;
 	int hdr_conversion_ctrl;
+	bool attr_changed;
+	bool brr_update;
 };
 
 struct am_meson_crtc {
@@ -98,12 +101,14 @@ struct am_meson_crtc {
 	struct drm_property *hdr_policy;
 	struct drm_property *hdmi_eotf;
 	struct drm_property *dv_enable_property;
+	struct drm_property *brr_update_property;
 	struct drm_property *dv_mode_property;
 	struct drm_property *bgcolor_property;
 	struct drm_property *video_pixelformat_property;
 	struct drm_property *osd_pixelformat_property;
 	struct drm_property *hdr_conversion_ctrl_property;
 	struct drm_property *hdr_conversion_cap_property;
+	struct drm_property *drm_policy_property;
 
 	/*debug*/
 	int dump_enable;
@@ -137,6 +142,12 @@ struct am_meson_crtc {
 struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv,
 	int idx);
 int meson_crtc_creat_present_fence_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file_priv);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+int am_meson_lcd_get_vrr_range(struct drm_connector *connector,
+			struct drm_vrr_mode_group *groups, int max_group);
+#endif
+int am_meson_hdmi_get_vrr_range(struct drm_device *dev,
 			void *data, struct drm_file *file_priv);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
