@@ -724,6 +724,7 @@ static int lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_c
 		break;
 	case LCD_CHIP_T5M: //the same as t3, but only support 1 driver
 	case LCD_CHIP_T3: /* only one pll */
+	case LCD_CHIP_T6D:
 		lcd_clk_config_chip_init_t3(pdrv, cconf);
 		break;
 	case LCD_CHIP_T5W:

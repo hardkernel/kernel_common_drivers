@@ -80,54 +80,80 @@ static void lcd_venc_gamma_debug_test_en(struct aml_lcd_drv_s *pdrv, int flag)
 	}
 }
 
-#define LCD_ENC_TST_NUM_MAX    9
-static char *lcd_enc_tst_str[] = {
-	"0-None",        /* 0 */
-	"1-Color Bar",   /* 1 */
-	"2-Thin Line",   /* 2 */
-	"3-Dot Grid",    /* 3 */
-	"4-Gray",        /* 4 */
-	"5-Red",         /* 5 */
-	"6-Green",       /* 6 */
-	"7-Blue",        /* 7 */
-	"8-Black",       /* 8 */
+struct lcd_enc_test_t {
+	char *name;
+	unsigned int mode;
+	unsigned int y;
+	unsigned int cb;
+	unsigned int cr;
+	unsigned int en;
+	unsigned int vfifo_en;
+	unsigned int rgb_in;
 };
 
-static unsigned int lcd_enc_tst[][7] = {
-/*tst_mode,    Y,       Cb,     Cr,     tst_en,  vfifo_en  rgbin*/
-	{0,    0x200,   0x200,  0x200,   0,      1,        3},  /* 0 */
-	{1,    0x200,   0x200,  0x200,   1,      0,        1},  /* 1 */
-	{2,    0x200,   0x200,  0x200,   1,      0,        1},  /* 2 */
-	{3,    0x200,   0x200,  0x200,   1,      0,        1},  /* 3 */
-	{0,    0x1ff,   0x1ff,  0x1ff,   1,      0,        3},  /* 4 */
-	{0,    0x3ff,     0x0,    0x0,   1,      0,        3},  /* 5 */
-	{0,      0x0,   0x3ff,    0x0,   1,      0,        3},  /* 6 */
-	{0,      0x0,     0x0,  0x3ff,   1,      0,        3},  /* 7 */
-	{0,      0x0,     0x0,    0x0,   1,      0,        3},  /* 8 */
+static struct lcd_enc_test_t lcd_enc_tst_comm[] = {
+	{"0-None",         0,    0x200,   0x200, 0x200, 0, 1, 3},  /* 0 */
+	{"1-Color Bar",    1,    0x200,   0x200, 0x200, 1, 0, 1},  /* 1 */
+	{"2-Thin Line",    2,    0x200,   0x200, 0x200, 1, 0, 1},  /* 2 */
+	{"3-Dot Grid",     3,    0x200,   0x200, 0x200, 1, 0, 1},  /* 3 */
+	{"4-Gray",         0,    0x1ff,   0x1ff, 0x1ff, 1, 0, 3},  /* 4 */
+	{"5-Red",          0,    0x3ff,     0x0,   0x0, 1, 0, 3},  /* 5 */
+	{"6-Green",        0,      0x0,   0x3ff,   0x0, 1, 0, 3},  /* 6 */
+	{"7-Blue",         0,      0x0,     0x0, 0x3ff, 1, 0, 3},  /* 7 */
+	{"8-Black",        0,      0x0,     0x0,   0x0, 1, 0, 3},  /* 8 */
+};
+
+static struct lcd_enc_test_t lcd_enc_tst_t6d[] = {
+	{"0-None",         0,    0x200,   0x200, 0x200, 0, 1, 3},  /* 0 */
+	{"1-Color Bar",    1,    0x200,   0x200, 0x200, 1, 0, 1},  /* 1 */
+	{"2-Thin Line",    2,    0x200,   0x200, 0x200, 1, 0, 1},  /* 2 */
+	{"3-Dot Grid",     3,    0x200,   0x200, 0x200, 1, 0, 1},  /* 3 */
+	{"4-Gray",         0,    0x1ff,   0x1ff, 0x1ff, 1, 0, 3},  /* 4 */
+	{"5-Red",          0,    0x3ff,     0x0,   0x0, 1, 0, 3},  /* 5 */
+	{"6-Green",        0,      0x0,   0x3ff,   0x0, 1, 0, 3},  /* 6 */
+	{"7-Blue",         0,      0x0,     0x0, 0x3ff, 1, 0, 3},  /* 7 */
+	{"8-Black",        0,      0x0,     0x0,   0x0, 1, 0, 3},  /* 8 */
+	{"9-Gray Scale",   5, 0xffffffff,   0x7,   0x7, 1, 0, 3},  /* 9 */
+	{"10-Red Scale",   5,      0x1,     0x0,   0x1, 1, 0, 3},  /* 10 */
+	{"11-Green Scale", 5,      0x1,     0x0,   0x2, 1, 0, 3},  /* 11 */
+	{"12-Blue Scale",  5,      0x1,     0x0,   0x4, 1, 0, 3},  /* 12 */
 };
 
 static int lcd_venc_bist_set(struct aml_lcd_drv_s *pdrv, unsigned int num)
 {
 	unsigned int h_active, video_on_pixel, offset;
+	struct lcd_enc_test_t *pcur_test = NULL;
+	unsigned int cur_test_num = 0;
 
-	if (num >= LCD_ENC_TST_NUM_MAX)
+	switch (pdrv->data->chip_type) {
+	case LCD_CHIP_T6D:
+		pcur_test = lcd_enc_tst_t6d;
+		cur_test_num = ARRAY_SIZE(lcd_enc_tst_t6d);
+		break;
+	default:
+		pcur_test = lcd_enc_tst_comm;
+		cur_test_num = ARRAY_SIZE(lcd_enc_tst_comm);
+		break;
+	}
+
+	if (num >= cur_test_num || !pcur_test)
 		return -1;
 
 	offset = pdrv->data->offset_venc[pdrv->index];
 	h_active = pdrv->config.timing.act_timing.h_active;
 	video_on_pixel = pdrv->config.timing.hstart;
 
-	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, lcd_enc_tst[num][6]);
-	lcd_vcbus_write(ENCL_TST_MDSEL + offset, lcd_enc_tst[num][0]);
-	lcd_vcbus_write(ENCL_TST_Y + offset, lcd_enc_tst[num][1]);
-	lcd_vcbus_write(ENCL_TST_CB + offset, lcd_enc_tst[num][2]);
-	lcd_vcbus_write(ENCL_TST_CR + offset, lcd_enc_tst[num][3]);
-	lcd_vcbus_write(ENCL_TST_CLRBAR_STRT + offset, video_on_pixel);
+	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, pcur_test[num].rgb_in);
+	lcd_vcbus_write(ENCL_TST_MDSEL + offset, pcur_test[num].mode);
+	lcd_vcbus_write(ENCL_TST_Y + offset, pcur_test[num].y);
+	lcd_vcbus_write(ENCL_TST_CB + offset, pcur_test[num].cb);
+	lcd_vcbus_write(ENCL_TST_CR + offset, pcur_test[num].cr);
+	lcd_vcbus_write(ENCL_TST_CLRBAR_STRT + offset, video_on_pixel - 2);
 	lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH + offset, (h_active / 9));
-	lcd_vcbus_write(ENCL_TST_EN + offset, lcd_enc_tst[num][4]);
-	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, lcd_enc_tst[num][5], 3, 1);
+	lcd_vcbus_write(ENCL_TST_EN + offset, pcur_test[num].en);
+	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, pcur_test[num].vfifo_en, 3, 1);
 	if (num > 0)
-		LCDPR("[%d]: show test pattern: %s\n", pdrv->index, lcd_enc_tst_str[num]);
+		LCDPR("[%d]: show test pattern: %s\n", pdrv->index, pcur_test[num].name);
 
 	return 0;
 }
@@ -286,6 +312,7 @@ static void lcd_venc_set_timing(struct aml_lcd_drv_s *pdrv)
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T5W:
 	case LCD_CHIP_T5M:
+	case LCD_CHIP_T6D:
 		/*[15:14]: 2'b10 or 2'b01*/
 		lcd_vcbus_write(ENCL_INBUF_CNTL1 + offset,
 				(2 << 14) | (pconf->timing.act_timing.h_active - 1));

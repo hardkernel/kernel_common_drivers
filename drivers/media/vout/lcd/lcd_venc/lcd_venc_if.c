@@ -250,6 +250,7 @@ int lcd_venc_probe(struct aml_lcd_drv_s *pdrv)
 	case LCD_CHIP_T3:
 	case LCD_CHIP_T5W:
 	case LCD_CHIP_T5M:
+	case LCD_CHIP_T6D:
 		ret = lcd_venc_op_init_t7(pdrv, &lcd_venc_op);
 		break;
 	case LCD_CHIP_C3:

@@ -5629,6 +5629,7 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_CHIP_T3:
 	case LCD_CHIP_T5M:
+	case LCD_CHIP_T6D:
 		if (pdrv->index == 1)
 			lcd_debug_info = &lcd_debug_info_t3_1;
 		else

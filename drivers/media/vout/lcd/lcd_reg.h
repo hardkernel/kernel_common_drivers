@@ -1799,6 +1799,7 @@ extern int lcd_reg_t7[];
 extern int lcd_reg_c3[];
 extern int lcd_reg_t3x[];
 extern int lcd_reg_txhd2[];
+extern int lcd_reg_t6d[];
 
 int lcd_ioremap(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev);
 unsigned int lcd_vcbus_read(unsigned int reg);
