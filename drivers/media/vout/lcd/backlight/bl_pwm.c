@@ -777,6 +777,7 @@ int bl_pwm_channel_register(struct device *dev, phandle pwm_phandle,
 	struct device_node *child;
 	const char *pwm_str;
 	unsigned int pwm_port, pwm_index = BL_PWM_MAX;
+	struct fwnode_handle *fwnode;
 	int ret = 0;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
@@ -813,8 +814,10 @@ int bl_pwm_channel_register(struct device *dev, phandle pwm_phandle,
 			continue;
 
 		bl_pwm->pwm_data.meson_index = pwm_index;
-		//KV_TODO: modify
-		bl_pwm->pwm_data.pwm = devm_pwm_get(dev, NULL);
+		fwnode = of_node_to_fwnode(child); //Convert device node 2 fwnode handle
+		bl_pwm->pwm_data.pwm = devm_fwnode_pwm_get(dev, fwnode, NULL);
+		fwnode_handle_put(fwnode);
+
 		if (IS_ERR_OR_NULL(bl_pwm->pwm_data.pwm)) {
 			ret = PTR_ERR(bl_pwm->pwm_data.pwm);
 			BLERR("unable to request %s(%d): 0x%x\n", pwm_str, pwm_port, ret);
