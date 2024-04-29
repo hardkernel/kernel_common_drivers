@@ -144,3 +144,6 @@ CONFIG_AMLOGIC_BGKI_SCHED_SYSCTL=y
 
 # boot optimize
 CONFIG_AMLOGIC_BOOT_TIME=y
+
+# remove rc core
+# CONFIG_RC_CORE is not set
