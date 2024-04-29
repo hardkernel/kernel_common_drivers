@@ -360,7 +360,8 @@ enum chip_type {
 	chip_t3x,
 	chip_txhd2,
 	chip_s1a,
-	chip_a4
+	chip_a4,
+	chip_sc2
 };
 
 enum chip_cls_e {

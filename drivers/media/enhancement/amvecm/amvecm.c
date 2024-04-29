@@ -13068,6 +13068,19 @@ static const struct vecm_match_data_s vecm_dt_s1a = {
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 };
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static const struct vecm_match_data_s vecm_dt_sc2 = {
+	.chip_id = chip_sc2,
+	.chip_cls = STB_CHIP,
+	.vlk_chip = vlock_chip_sm1,
+	.vlk_support = false,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_tm2verb,
+	.vlk_phlock_en = false,
+	.vlk_pll_sel = vlock_pll_sel_tcon,
+};
+#endif
+
 static const struct of_device_id aml_vecm_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
 	{
@@ -13139,6 +13152,12 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 		.compatible = "amlogic, vecm-s1a",
 		.data = &vecm_dt_s1a,
 	},
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	{
+		.compatible = "amlogic, vecm-sc2",
+		.data = &vecm_dt_sc2,
+	},
+#endif
 	{},
 };
 
@@ -13642,7 +13661,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 #endif
 
 	probe_ok = 1;
-	pr_debug("%s: ok\n", __func__);
+	pr_info("%s: ok\n", __func__);
 	return 0;
 
 fail_create_device:
@@ -13804,7 +13823,7 @@ int __init aml_vecm_init(void)
 {
 	/*unsigned int hiu_reg_base;*/
 
-	pr_info("%s:module init_20230911-0\n", __func__);
+	pr_info("%s:module init_20240428-0\n", __func__);
 
 	if (platform_driver_register(&aml_vecm_driver)) {
 		pr_err("failed to register bl driver module\n");
