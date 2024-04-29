@@ -714,6 +714,8 @@ int vdac_enable_check_cvbs(void)
 
 static void vdac_dev_disable(void)
 {
+	unsigned int reg_val;
+
 	if (!s_vdac_data)
 		return;
 
@@ -726,6 +728,21 @@ static void vdac_dev_disable(void)
 		 */
 		vdac_ana_reg_write(s_vdac_data->reg_cntl0, 0);
 		vdac_ana_reg_write(s_vdac_data->reg_cntl1, 0);
+	} else if (s_vdac_data->cpu_id == VDAC_CPU_S7 ||
+		s_vdac_data->cpu_id == VDAC_CPU_S7D) {
+		/* for S7/S7D, band gap is used by both cvbs out
+		 * and sar adc, can't disable it when suspend.
+		 * reg_cntl0 only enable bg_en bit, other bits set 0;
+		 * reg_cntl1 set cdac_en bit to 0;
+		 */
+		reg_val = vdac_ana_reg_read(s_vdac_data->reg_cntl0);
+		reg_val &= BIT(11);
+		vdac_ana_reg_write(s_vdac_data->reg_cntl0, reg_val);
+		reg_val = vdac_ana_reg_read(s_vdac_data->reg_cntl1);
+		reg_val &= ~BIT(7);
+		vdac_ana_reg_write(s_vdac_data->reg_cntl1, reg_val);
+		if (vdac_debug_print)
+			print_vdac_reg_value();
 	}
 
 	if ((pri_flag & VDAC_MODULE_MASK) == 0) {
