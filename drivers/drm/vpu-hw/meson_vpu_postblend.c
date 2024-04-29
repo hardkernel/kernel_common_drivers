@@ -831,6 +831,22 @@ static void g12b_postblend_hw_disable(struct meson_vpu_block *vblk,
 	MESON_DRM_BLOCK("%s disable called.\n", postblend->base.name);
 }
 
+static void txhd2_postblend_hw_disable(struct meson_vpu_block *vblk,
+		struct meson_vpu_block_state *state)
+{
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+	u32 project_en = reg_ops->rdma_read_reg(VPP_PROJECTOR) & (1 << 27);
+
+	if (vblk->index == 0) {
+		vpp_osd1_postblend_mux_set(vblk, reg_ops, postblend->reg, VPP_NULL);
+		if (!project_en)
+			vpp_osd2_postblend_mux_set(vblk, reg_ops, postblend->reg, VPP_NULL);
+	}
+
+	MESON_DRM_BLOCK("%s disable called.\n", postblend->base.name);
+}
+
 static void s5_postblend_hw_disable(struct meson_vpu_block *vblk,
 				    struct meson_vpu_block_state *state)
 {
@@ -1309,7 +1325,7 @@ struct meson_vpu_block_ops txhd2_postblend_ops = {
 	.check_state = postblend_check_state,
 	.update_state = txhd2_postblend_set_state,
 	.enable = postblend_hw_enable,
-	.disable = g12b_postblend_hw_disable,
+	.disable = txhd2_postblend_hw_disable,
 	.dump_register = postblend_dump_register,
 	.init = txhd2_postblend_hw_init,
 };
