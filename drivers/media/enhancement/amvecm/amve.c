@@ -3776,9 +3776,9 @@ void s7d_sharpness_init(void)
 	WRITE_VPP_REG(VPP_HCTI_BP_3TAP_COEF, 0x0000c07f);
 	WRITE_VPP_REG(VPP_SR_EN, 0x1);
 
-	WRITE_VPP_REG(VPP_PK_OS_ADP_LUT_0, 0x0a080604);/*52d5-52d7 */
-	WRITE_VPP_REG(VPP_PK_OS_ADP_LUT_1, 0x06080a0c);
-	WRITE_VPP_REG(VPP_PK_OS_ADP_LUT_F, 0x00000004);
+//	WRITE_VPP_REG(VPP_PK_OS_ADP_LUT_0, 0x0a080604);/*52d5-52d7 */
+//	WRITE_VPP_REG(VPP_PK_OS_ADP_LUT_1, 0x06080a0c);
+//	WRITE_VPP_REG(VPP_PK_OS_ADP_LUT_F, 0x00000004);
 	WRITE_VPP_REG(VPP_PI_LUMA_GAIN_1, 0x0810183f);/*5080 */
 
 	WRITE_VPP_REG(VPP_PI_MAXSAD_GAMMA_LUT2D_0_0_0, 0x30303038);/*5061-5069*/
@@ -3833,7 +3833,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(VPP_DERING_EDGE_CONF_GAIN, 8, 4, 4);
 /*			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 0, 8);*/
 /*			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 8, 8);*/
-			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 96, 16, 8);
+/*			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 96, 16, 8);*/
 /*
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 8, 0, 6);
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 12, 8, 6);
@@ -3845,7 +3845,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 12, 24, 6);
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_F, 8, 0, 6);
 */
-			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 16, 0, 8);
+/*			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 16, 0, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 32, 8, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 72, 16, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 80, 24, 8);
@@ -3854,7 +3854,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 60, 16, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 60, 24, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_F, 60, 0, 8);
-
+*/
 			WRITE_VPP_REG_BITS(VPP_HTI_EN_MODE, 1, 20, 1);
 			WRITE_VPP_REG_BITS(VPP_HTI_OS_UP_DN_GAIN, 8, 8, 4);
 
@@ -3908,11 +3908,12 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			data32 = (data32 & 0xfffffff0) | (0x8 << 4);
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_DERING_EDGE_CONF_GAIN,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(VPP_PK_FINAL_GAIN);
+/*			data32 = READ_VPP_REG_S5(VPP_PK_FINAL_GAIN);
 			data32 = (data32 & 0xff00ffff) |
 				(0x60 << 16);
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_FINAL_GAIN,
 				data32, vpp_index);
+*/
 /*
 			data32 = (0x18 << 24) | (0x10 << 16) | (0xc << 8) | 0x8;
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_0,
@@ -3925,7 +3926,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_F,
 				data32, vpp_index);
 */
-			data32 = (0x50 << 24) | (0x48 << 16) | (0x20 << 8) | 0x10;
+/*			data32 = (0x50 << 24) | (0x48 << 16) | (0x20 << 8) | 0x10;
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_0,
 				data32, vpp_index);
 			data32 = (0x3c << 24) | (0x3c << 16) | (0x3c << 8) | 0x40;
@@ -3935,7 +3936,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			data32 = (data32 & 0xffffffc0) | 0x3c;
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_F,
 				data32, vpp_index);
-
+*/
 			data32 = READ_VPP_REG_S5(VPP_HTI_EN_MODE);
 			data32 = (data32 & 0xffefffff) | (0x1 << 20);
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_EN_MODE,
@@ -4011,7 +4012,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(VPP_DERING_EDGE_CONF_GAIN, 3, 4, 4);
 /*			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 0, 8);*/
 /*			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 8, 8);*/
-			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 96, 16, 8);
+//			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 96, 16, 8);
 /*
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 8, 0, 6);
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 16, 8, 6);
@@ -4023,7 +4024,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 12, 24, 6);
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_F, 8, 0, 6);
 */
-			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 16, 0, 8);
+/*			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 16, 0, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 56, 8, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 88, 16, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 96, 24, 8);
@@ -4032,7 +4033,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 56, 16, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 56, 24, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_F, 56, 0, 8);
-
+*/
 			WRITE_VPP_REG_BITS(VPP_HTI_EN_MODE, 0, 20, 1);
 			WRITE_VPP_REG_BITS(VPP_HTI_OS_UP_DN_GAIN, 15, 8, 4);
 			WRITE_VPP_REG_BITS(VPP_VTI_OS_UP_DN_GAIN, 15, 8, 4);
@@ -4084,11 +4085,12 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			data32 = (data32 & 0xfffffff0) | (0x3 << 4);
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_DERING_EDGE_CONF_GAIN,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(VPP_PK_FINAL_GAIN);
+/*			data32 = READ_VPP_REG_S5(VPP_PK_FINAL_GAIN);
 			data32 = (data32 & 0xff00ffff) |
 				(0x60 << 16);
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_FINAL_GAIN,
 				data32, vpp_index);
+*/
 /*
 			data32 = (0x20 << 24) | (0x18 << 16) | (0x10 << 8) | 0x8;
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_0,
@@ -4101,7 +4103,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_F,
 				data32, vpp_index);
 */
-			data32 = (0x60 << 24) | (0x58 << 16) | (0x38 << 8) | 0x10;
+/*			data32 = (0x60 << 24) | (0x58 << 16) | (0x38 << 8) | 0x10;
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_0,
 				data32, vpp_index);
 			data32 = (0x38 << 24) | (0x38 << 16) | (0x38 << 8) | 0x40;
@@ -4111,7 +4113,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			data32 = (data32 & 0xffffffc0) | 0x38;
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_F,
 				data32, vpp_index);
-
+*/
 			data32 = READ_VPP_REG_S5(VPP_HTI_EN_MODE);
 			data32 = (data32 & 0xffefffff) | (0x0 << 20);
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_EN_MODE,
@@ -4187,7 +4189,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(VPP_DERING_EDGE_CONF_GAIN, 3, 4, 4);
 /*			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 0, 8);*/
 /*			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 8, 8);*/
-			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 96, 16, 8);
+//			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 96, 16, 8);
 /*
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 8, 0, 6);
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 16, 8, 6);
@@ -4199,7 +4201,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 12, 24, 6);
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_F, 8, 0, 6);
 */
-			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 16, 0, 8);
+/*			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 16, 0, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 56, 8, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 106, 16, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 124, 24, 8);
@@ -4208,7 +4210,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 48, 16, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 48, 24, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_F, 48, 0, 8);
-
+*/
 			WRITE_VPP_REG_BITS(VPP_HTI_EN_MODE, 1, 20, 1);
 			WRITE_VPP_REG_BITS(VPP_HTI_OS_UP_DN_GAIN, 12, 8, 4);
 			WRITE_VPP_REG_BITS(VPP_VTI_OS_UP_DN_GAIN, 15, 8, 4);
@@ -4260,11 +4262,12 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			data32 = (data32 & 0xfffffff0) | (0x3 << 4);
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_DERING_EDGE_CONF_GAIN,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(VPP_PK_FINAL_GAIN);
+/*			data32 = READ_VPP_REG_S5(VPP_PK_FINAL_GAIN);
 			data32 = (data32 & 0xff00ffff) |
 				(0x60 << 16);
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_FINAL_GAIN,
 				data32, vpp_index);
+*/
 /*
 			data32 = (0x20 << 24) | (0x1c << 16) | (0x10 << 8) | 0x8;
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_0,
@@ -4277,7 +4280,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_F,
 				data32, vpp_index);
 */
-			data32 = (0x7c << 24) | (0x6a << 16) | (0x38 << 8) | 0x10;
+/*			data32 = (0x7c << 24) | (0x6a << 16) | (0x38 << 8) | 0x10;
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_0,
 				data32, vpp_index);
 			data32 = (0x30 << 24) | (0x30 << 16) | (0x4a << 8) | 0x5c;
@@ -4287,7 +4290,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			data32 = (data32 & 0xffffffc0) | 0x30;
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_F,
 				data32, vpp_index);
-
+*/
 			data32 = READ_VPP_REG_S5(VPP_HTI_EN_MODE);
 			data32 = (data32 & 0xffefffff) | (0x1 << 20);
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_EN_MODE,
@@ -4362,7 +4365,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(VPP_DERING_EDGE_CONF_GAIN, 4, 4, 4);
 /*			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 0, 8);*/
 /*			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 8, 8);*/
-			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 16, 8);
+//			WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN, 64, 16, 8);
 /*
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 8, 0, 6);
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_0, 12, 8, 6);
@@ -4374,7 +4377,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_1, 12, 24, 6);
 			WRITE_VPP_REG_BITS(VPP_PK_OS_ADP_LUT_F, 8, 0, 6);
 */
-			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 16, 0, 8);
+/*			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 16, 0, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 32, 8, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 64, 16, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_0, 64, 24, 8);
@@ -4383,7 +4386,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 16, 16, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_1, 8, 24, 8);
 			WRITE_VPP_REG_BITS(VPP_PK_CIR_GAIN_LUT_F, 4, 0, 8);
-
+*/
 			WRITE_VPP_REG_BITS(VPP_HTI_EN_MODE, 1, 20, 1);
 			WRITE_VPP_REG_BITS(VPP_HTI_OS_UP_DN_GAIN, 8, 8, 4);
 			WRITE_VPP_REG_BITS(VPP_VTI_OS_UP_DN_GAIN, 8, 8, 4);
@@ -4435,11 +4438,12 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			data32 = (data32 & 0xfffffff0) | (0x4 << 4);
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_DERING_EDGE_CONF_GAIN,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(VPP_PK_FINAL_GAIN);
+/*			data32 = READ_VPP_REG_S5(VPP_PK_FINAL_GAIN);
 			data32 = (data32 & 0xff00ffff) |
 				(0x40 << 16);
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_FINAL_GAIN,
 				data32, vpp_index);
+*/
 /*
 			data32 = (0x14 << 24) | (0x10 << 16) | (0xc << 8) | 0x8;
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_0,
@@ -4452,7 +4456,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_OS_ADP_LUT_F,
 				data32, vpp_index);
 */
-			data32 = (0x40 << 24) | (0x40 << 16) | (0x20 << 8) | 0x10;
+/*			data32 = (0x40 << 24) | (0x40 << 16) | (0x20 << 8) | 0x10;
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_0,
 				data32, vpp_index);
 			data32 = (0x8 << 24) | (0x10 << 16) | (0x20 << 8) | 0x38;
@@ -4462,7 +4466,7 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			data32 = (data32 & 0xffffffc0) | 0x4;
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_PK_CIR_GAIN_LUT_F,
 				data32, vpp_index);
-
+*/
 			data32 = READ_VPP_REG_S5(VPP_HTI_EN_MODE);
 			data32 = (data32 & 0xffefffff) | (0x1 << 20);
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_HTI_EN_MODE,
