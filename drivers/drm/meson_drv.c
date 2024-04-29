@@ -124,15 +124,21 @@ int am_meson_get_vrr_range_ioctl(struct drm_device *dev,
 	if (!connector)
 		return -ENOENT;
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA)
+	switch (connector->connector_type) {
+#ifndef CONFIG_AMLOGIC_DRM_CUT_HDMI
+	case DRM_MODE_CONNECTOR_HDMIA:
 		num_group = am_meson_hdmi_get_vrr_range(dev, data, file_priv);
+		break;
+#endif
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	else if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)
+	case DRM_MODE_CONNECTOR_LVDS:
 		num_group = am_meson_lcd_get_vrr_range(connector, groups->groups,
 						       MAX_VRR_MODE_GROUP);
+		break;
 #endif
-	else
+	default:
 		return -ENOENT;
+	}
 
 	if (!num_group) {
 		DRM_ERROR("get vrr error or not support qms\n");
