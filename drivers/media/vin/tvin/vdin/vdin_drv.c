@@ -5884,7 +5884,7 @@ static const struct match_data_s vdin_dt_s7 = {
 	.hw_ver = VDIN_HW_S7,
 	.vdin0_en = 0,                  .vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/  .ipt444_to_422_12bit = 0, /*0,1*/
-	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x1000,
+	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
 	.vdin0_max_w_h = 0,	.vdin1_set_hdr = true,
 };
 
@@ -5893,7 +5893,7 @@ static const struct match_data_s vdin_dt_s7d = {
 	.hw_ver = VDIN_HW_S7D,
 	.vdin0_en = 0,                  .vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/  .ipt444_to_422_12bit = 0, /*0,1*/
-	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x1000,
+	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
 	.vdin0_max_w_h = 0,	.vdin1_set_hdr = true,
 };
 
