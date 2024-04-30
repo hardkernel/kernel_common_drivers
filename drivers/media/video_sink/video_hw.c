@@ -968,6 +968,11 @@ int get_amdv_mode(void)
 void set_amdv_mode(int mode)
 {
 }
+
+int get_amdv_src_format(enum vd_path_e vd_path)
+{
+	return 0;
+}
 #endif
 
 bool is_dovi_tv_on(void)
