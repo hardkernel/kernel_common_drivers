@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
+#include <linux/sched/clock.h>
 #ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
@@ -84,6 +85,7 @@ static enum vmode_e lcd_validate_vmode(char *mode, unsigned int frac, void *data
 static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+	unsigned long long local_time[2];
 	int ret = 0;
 
 	if (!pdrv)
@@ -95,6 +97,9 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 	}
 
 	mutex_lock(&lcd_power_mutex);
+
+	lcd_proc_time_clear(pdrv);
+	local_time[0] = sched_clock();
 	/* clear fr*/
 	pdrv->fr_duration = 0;
 	pdrv->fr_mode = 0;
@@ -115,6 +120,9 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 
 	pdrv->vmode_switch = 0;
 	pdrv->status |= LCD_STATUS_VMODE_ACTIVE;
+
+	local_time[1] = sched_clock();
+	pdrv->proc_time.full_time = local_time[1] - local_time[0];
 	mutex_unlock(&lcd_power_mutex);
 
 	return ret;
@@ -396,6 +404,7 @@ static int lcd_suspend(void *data)
 		return -1;
 
 	mutex_lock(&lcd_power_mutex);
+	lcd_proc_time_clear(pdrv);
 	pdrv->init_flag = 0;
 	pdrv->status &= ~LCD_STATUS_POWER;
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);

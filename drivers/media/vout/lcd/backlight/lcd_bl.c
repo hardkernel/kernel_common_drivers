@@ -1875,7 +1875,7 @@ static int bl_lcd_on_notifier(struct notifier_block *nb,
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
 	struct aml_bl_drv_s *bdrv;
-	unsigned long long local_time[3];
+	unsigned long long local_time[2];
 
 	if ((event & LCD_EVENT_BL_ON) == 0)
 		return NOTIFY_DONE;
@@ -1909,7 +1909,7 @@ static int bl_lcd_on_notifier(struct notifier_block *nb,
 	}
 
 	local_time[1] = sched_clock();
-	pdrv->config.cus_ctrl.bl_on_time = local_time[1] - local_time[0];
+	pdrv->proc_time.bl_on_time = local_time[1] - local_time[0];
 
 	return NOTIFY_OK;
 }
@@ -1919,7 +1919,7 @@ static int bl_lcd_off_notifier(struct notifier_block *nb,
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
 	struct aml_bl_drv_s *bdrv;
-	unsigned long long local_time[3];
+	unsigned long long local_time[2];
 
 	if ((event & LCD_EVENT_BL_OFF) == 0)
 		return NOTIFY_DONE;
@@ -1947,7 +1947,7 @@ static int bl_lcd_off_notifier(struct notifier_block *nb,
 	mutex_unlock(&bl_level_mutex);
 
 	local_time[1] = sched_clock();
-	pdrv->config.cus_ctrl.bl_off_time = local_time[1] - local_time[0];
+	pdrv->proc_time.bl_off_time = local_time[1] - local_time[0];
 
 	return NOTIFY_OK;
 }

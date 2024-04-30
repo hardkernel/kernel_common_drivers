@@ -64,7 +64,8 @@
 /* 20240319: add tcon pre_proc_clk_en control*/
 /* 20240403: update lcd status, notifier event and bypass ufr switch when power off */
 /* 20240513: update tcon ufr switch mode 3 flow */
-#define LCD_DRV_VERSION    "20240513"
+/* 20240515: update lcd ufr switch flow and process time record */
+#define LCD_DRV_VERSION    "20240515"
 
 static inline unsigned char __p_to_u8(void *p)
 {
@@ -315,6 +316,7 @@ void lcd_screen_black(struct aml_lcd_drv_s *pdrv);
 void lcd_screen_restore(struct aml_lcd_drv_s *pdrv);
 
 /* lcd driver */
+void lcd_proc_time_clear(struct aml_lcd_drv_s *pdrv);
 #ifdef CONFIG_AMLOGIC_LCD_TV
 void lcd_tv_vout_server_init(struct aml_lcd_drv_s *pdrv);
 void lcd_tv_vout_server_remove(struct aml_lcd_drv_s *pdrv);

@@ -539,21 +539,29 @@ struct cus_ctrl_config_s {
 
 	struct lcd_cus_ctrl_attr_config_s *attr_config;
 	struct lcd_cus_ctrl_attr_config_s *cur_timing_attr;
+};
 
+struct lcd_time_s {
 	unsigned long long mute_time;
 	unsigned long long unmute_time;
-	unsigned long long switch_time;
-	unsigned long long power_off_time;
+	unsigned long long switch_off_time;
+	unsigned long long switch_on_time;
 	unsigned long long bl_off_time;
 	unsigned long long bl_on_time;
 	unsigned long long driver_change_time;
-	unsigned long long driver_disable_time;
-	unsigned long long driver_init_time;
-	unsigned long long tcon_reload_time;
-	unsigned long long reg_set_time;
-	unsigned long long data_set_time;
-	unsigned long long level_shift_time;
-	unsigned long long dlg_time;
+	unsigned long long signal_off_time;
+	unsigned long long signal_on_time;
+	unsigned long long tcon_off_time;
+	unsigned long long tcon_on_time;
+	unsigned long long tcon_reg_time;
+	unsigned long long tcon_data_time;
+	unsigned long long extern_init_time;
+	unsigned long long power_off_time;
+	unsigned long long power_on_time;
+	unsigned long long full_time;
+
+	unsigned long long lcd_vs_isr_time;
+	unsigned long long tcon_vs_isr_time;
 };
 
 struct lcd_power_ctrl_s {
@@ -756,6 +764,7 @@ struct aml_lcd_drv_s {
 #endif
 	void *debug_info;
 	struct lcd_disp_tmg_req_s disp_req;
+	struct lcd_time_s proc_time;
 
 	unsigned int *vs_msr_rt;
 	unsigned int *vs_msr;

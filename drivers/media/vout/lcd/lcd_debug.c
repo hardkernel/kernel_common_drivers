@@ -743,66 +743,54 @@ static int lcd_info_adv_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	return len;
 }
 
-static ssize_t lcd_cus_ctrl_switch_time_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t lcd_proc_time_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	ssize_t len = 0;
 
-	if (pdrv->config.cus_ctrl.timing_switch_flag == 3) {
-		len = sprintf(buf, "switch times attr:\n"
-				"switch_type:    0x%x\n"
-				"switch_flag:    %u\n"
-				"mute_time:      %llu\n"
-				"switch_time:    %llu\n"
-				"level_shfit_time:      %llu\n"
-				"tcon_reload_time(total):      %llu\n"
-				"tcon_reg_set_time:      %llu\n"
-				"tcon_data_set_time:     %llu\n"
-				"driver_change_time:     %llu\n"
-				"unmute_time:      %llu\n"
-				"switch_full_time: %llu\n",
-				pdrv->config.cus_ctrl.active_timing_type,
-				pdrv->config.cus_ctrl.timing_switch_flag,
-				pdrv->config.cus_ctrl.mute_time,
-				pdrv->config.cus_ctrl.switch_time,
-				pdrv->config.cus_ctrl.level_shift_time,
-				pdrv->config.cus_ctrl.tcon_reload_time,
-				pdrv->config.cus_ctrl.reg_set_time,
-				pdrv->config.cus_ctrl.data_set_time,
-				pdrv->config.cus_ctrl.driver_change_time,
-				pdrv->config.cus_ctrl.unmute_time,
-				pdrv->config.cus_ctrl.dlg_time);
-	} else if (pdrv->config.cus_ctrl.timing_switch_flag == 2) {
-		len = sprintf(buf, "switch times attr:\n"
-				"switch_type:    0x%x\n"
-				"switch_flag:    %u\n"
-				"mute_time:      %llu\n"
-				"bl_off_time:    %llu\n"
-				"driver_disable_time:      %llu\n"
-				"power_off_time:      %llu\n"
-				"driver_init_time:    %llu\n"
-				"level_shfit_time:    %llu\n"
-				"bl_on_time:      %llu\n"
-				"unmute_time:     %llu\n"
-				"switch_time:     %llu\n"
-				"driver_change_time: %llu\n"
-				"switch_full_time:   %llu\n",
-				pdrv->config.cus_ctrl.active_timing_type,
-				pdrv->config.cus_ctrl.timing_switch_flag,
-				pdrv->config.cus_ctrl.mute_time,
-				pdrv->config.cus_ctrl.bl_off_time,
-				pdrv->config.cus_ctrl.driver_disable_time,
-				pdrv->config.cus_ctrl.power_off_time,
-				pdrv->config.cus_ctrl.driver_init_time,
-				pdrv->config.cus_ctrl.level_shift_time,
-				pdrv->config.cus_ctrl.bl_on_time,
-				pdrv->config.cus_ctrl.unmute_time,
-				pdrv->config.cus_ctrl.switch_time,
-				pdrv->config.cus_ctrl.driver_change_time,
-				pdrv->config.cus_ctrl.dlg_time);
-	} else {
-	}
+	len = sprintf(buf, "switch times attr:\n"
+		"switch_type:    0x%x\n"
+		"switch_flag:    %u\n"
+		"mute_time:        %llu\n"
+		"bl_off_time:      %llu\n"
+		"tcon_off_time:    %llu\n"
+		"switch_off_time:  %llu\n"
+		"signal_off_time:  %llu\n"
+		"power_off_time:   %llu\n"
+		"signal_on_time:   %llu\n"
+		"drv_change_time:  %llu\n"
+		"extern_init_time: %llu\n"
+		"tcon_reg_time:    %llu\n"
+		"tcon_data_time:   %llu\n"
+		"tcon_on_time:     %llu\n"
+		"switch_on_time:   %llu\n"
+		"power_on_time:    %llu\n"
+		"bl_on_time:       %llu\n"
+		"unmute_time:      %llu\n"
+		"full_time:        %llu\n\n"
+		"lcd_vs_isr_time:  %llu\n"
+		"tcon_vs_isr_time: %llu\n\n",
+		pdrv->config.cus_ctrl.active_timing_type,
+		pdrv->config.cus_ctrl.timing_switch_flag,
+		pdrv->proc_time.mute_time,
+		pdrv->proc_time.bl_off_time,
+		pdrv->proc_time.tcon_off_time,
+		pdrv->proc_time.switch_off_time,
+		pdrv->proc_time.signal_off_time,
+		pdrv->proc_time.power_off_time,
+		pdrv->proc_time.signal_on_time,
+		pdrv->proc_time.driver_change_time,
+		pdrv->proc_time.extern_init_time,
+		pdrv->proc_time.tcon_reg_time,
+		pdrv->proc_time.tcon_data_time,
+		pdrv->proc_time.tcon_on_time,
+		pdrv->proc_time.switch_on_time,
+		pdrv->proc_time.power_on_time,
+		pdrv->proc_time.bl_on_time,
+		pdrv->proc_time.unmute_time,
+		pdrv->proc_time.full_time,
+		pdrv->proc_time.lcd_vs_isr_time,
+		pdrv->proc_time.tcon_vs_isr_time);
 
 	return len;
 }
@@ -2363,6 +2351,7 @@ static ssize_t lcd_debug_enable_store(struct device *dev, struct device_attribut
 		mutex_unlock(&lcd_power_mutex);
 	} else {
 		mutex_lock(&lcd_power_mutex);
+		lcd_proc_time_clear(pdrv);
 		pdrv->status &= ~(LCD_STATUS_PREPARE | LCD_STATUS_POWER);
 		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
 		mutex_unlock(&lcd_power_mutex);
@@ -4498,7 +4487,7 @@ static struct device_attribute lcd_debug_attrs[] = {
 	__ATTR(prbs,        0644, lcd_debug_prbs_show, lcd_debug_prbs_store),
 	__ATTR(reg,         0200, NULL, lcd_debug_reg_store),
 	__ATTR(vlock,       0444, lcd_debug_vlock_show, NULL),
-	__ATTR(switch_time, 0444, lcd_cus_ctrl_switch_time_show, NULL),
+	__ATTR(time,        0444, lcd_proc_time_show, NULL),
 	__ATTR(dump,        0644, lcd_debug_dump_show, lcd_debug_dump_store),
 	__ATTR(print,       0644, lcd_debug_print_show, lcd_debug_print_store),
 	__ATTR(cus_ctrl,    0444, lcd_debug_cus_ctrl_show, NULL),

@@ -1487,14 +1487,18 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 	//lcd_venc_enable(pdrv, 1);
 	lcd_tcon_setb(pdrv, 0x207, 1, 4, 1);//enable pre_proc_clk
 
-	pdrv->config.cus_ctrl.reg_set_time = local_time[1] - local_time[0];
-	pdrv->config.cus_ctrl.data_set_time = local_time[2] - local_time[1];
+	pdrv->proc_time.tcon_reg_time = local_time[1] - local_time[0];
+	pdrv->proc_time.tcon_data_time = local_time[2] - local_time[1];
 
 	return 0;
 }
 
 int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv)
 {
+	unsigned long long local_time[2];
+
+	local_time[0] = sched_clock();
+
 	/* disable unit(reg_func_enable) timing signal */
 	lcd_tcon_write(pdrv, 0x30e, 0);
 
@@ -1514,6 +1518,9 @@ int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv)
 
 	//move to tcon_disable api for common flow
 	//lcd_tcon_global_reset_t5(pdrv);
+
+	local_time[1] = sched_clock();
+	pdrv->proc_time.tcon_off_time = local_time[1] - local_time[0];
 
 	return 0;
 }
