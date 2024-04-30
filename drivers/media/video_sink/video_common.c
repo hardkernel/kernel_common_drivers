@@ -514,6 +514,7 @@ static void dump_pps_reg(void)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if (cur_dev->vd1_vsr_safa_support && i == 0) {
 			dump_vd_vsr_safa_reg();
+			dump_vd_vsr_safa_nonlinear_reg();
 			continue;
 		}
 #endif

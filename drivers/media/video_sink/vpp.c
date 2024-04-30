@@ -853,6 +853,7 @@ static void calculate_non_linear_ratio_T
 	next_frame_par->VPP_hsc_linear_startp = region1_hsize - 1;
 	next_frame_par->VPP_hsc_linear_endp =
 		region1_hsize + region2_hsize_B - 1;
+	vpp_filter->vpp_hsc_nonlinear_4region_en = true;
 }
 
 /*
@@ -873,6 +874,7 @@ static void calculate_non_linear_ratio_V
 	vpp_filter->vpp_hf_start_phase_slope = diff_ratio * 4 / width_out;
 	vpp_filter->vpp_hf_end_phase_slope =
 		vpp_filter->vpp_hf_start_phase_slope | 0x1000000;
+	vpp_filter->vpp_hsc_nonlinear_4region_en = true;
 }
 /*
  *We find that the minimum line the video can be scaled
@@ -2486,6 +2488,7 @@ RESTART:
 
 		next_frame_par->VPP_hsc_endp = end;
 	}
+	next_frame_par->vpp_filter.vpp_hsc_nonlinear_4region_en = false;
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR &&
 	    end > start) {
 		calculate_non_linear_ratio_V

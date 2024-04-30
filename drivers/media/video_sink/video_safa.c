@@ -278,6 +278,44 @@ void dump_vd_vsr_safa_reg(void)
 		reg_addr, reg_val);
 };
 
+void dump_vd_vsr_safa_nonlinear_reg(void)
+{
+	u32 reg_addr, reg_val = 0;
+	struct hw_vsr_safa_nonlinear_reg_s *vsr_non_linear_reg;
+
+	vsr_non_linear_reg = &vsr_safa_nonlinear_reg;
+
+	pr_info("vsr safa nonlinear regs:\n");
+	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region12_startp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%x [safa_pps_hsc_region12_startp]\n",
+		reg_addr, reg_val);
+	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region34_startp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%x [safa_pps_hsc_region34_startp]\n",
+		reg_addr, reg_val);
+	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region4_endp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%x [safa_pps_hsc_region4_endp]\n",
+		reg_addr, reg_val);
+	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region0_phase_slop;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%x [safa_pps_hsc_region0_phase_slop]\n",
+		reg_addr, reg_val);
+	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region1_phase_slop;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%x [safa_pps_hsc_region1_phase_slop]\n",
+		reg_addr, reg_val);
+	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region3_phase_slop;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%x [safa_pps_hsc_region3_phase_slop]\n",
+		reg_addr, reg_val);
+	reg_addr = vsr_non_linear_reg->safa_pps_hsc_region4_phase_slop;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%x [safa_pps_hsc_region4_phase_slop]\n",
+		reg_addr, reg_val);
+}
+
 static void safa_pps_scale_set_coef(struct vsr_setting_s *vsr,
 	u32 SAFA_PPS_CNTL_SCALE_COEF_IDX,
 	u32 SAFA_PPS_CNTL_SCALE_COEF)
@@ -595,7 +633,7 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 	u32 out_pi_xsize, out_pi_ysize;
 	u32 pre_hsize = 0, pre_vsize = 0;
 	u32 pi_scl_rate;
-	u32 ratio = 2, ret;
+	u32 ratio = 2, ret = 0;
 
 	if (vsr_pi->pi_en) {
 		ratio = MIN((vsr_pi->hsize_out / vsr_pi->hsize_in),
@@ -626,15 +664,15 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 	out_pi_xsize = hsize_in * pi_scl_rate;
 	out_pi_ysize = vsize_in * pi_scl_rate;
 	vsr_pi->pi_hf_hsc_integer_part = out_pi_xsize / hsize_out;
-	vsr_pi->pi_hf_hsc_fraction_part = ((ulong)out_pi_xsize << 24) /
-		hsize_out - (vsr_pi->pi_hf_hsc_integer_part << 24);
-	vsr_pi->pi_hf_hsc_ini_phase = (((ulong)out_pi_xsize << 16) /
-		hsize_out + (1 << 16)) / 2;
+	vsr_pi->pi_hf_hsc_fraction_part = div_u64((u64)out_pi_xsize << 24,
+		hsize_out) - (vsr_pi->pi_hf_hsc_integer_part << 24);
+	vsr_pi->pi_hf_hsc_ini_phase = (div_u64((u64)out_pi_xsize << 16,
+		hsize_out) + (1 << 16)) / 2;
 	vsr_pi->pi_hf_vsc_integer_part = out_pi_ysize / vsize_out;
-	vsr_pi->pi_hf_vsc_fraction_part = ((ulong)out_pi_ysize << 24) /
-		vsize_out - (vsr_pi->pi_hf_vsc_integer_part << 24);
-	vsr_pi->pi_hf_vsc_ini_phase = (((ulong)out_pi_ysize << 16) /
-		vsize_out + (1 << 16)) / 2;
+	vsr_pi->pi_hf_vsc_fraction_part = div_u64((u64)out_pi_ysize << 24,
+		vsize_out) - (vsr_pi->pi_hf_vsc_integer_part << 24);
+	vsr_pi->pi_hf_vsc_ini_phase = (div_u64((u64)out_pi_ysize << 16,
+		vsize_out) + (1 << 16)) / 2;
 	pre_hsize = vsr_safa->preh_en ? vsr_safa->preh_ratio == 0 ?
 		hsize_in : (vsr_safa->preh_ratio == 1) ? ((hsize_in + 1) >> 1) :
 		vsr_safa->preh_ratio == 2 ? ((hsize_in + 3) >> 2) :
@@ -644,7 +682,8 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 		(vsr_safa->prev_ratio == 2) ? ((vsize_in + 3) >> 2) :
 		((vsize_in + 7) >> 3) : vsize_in;
 
-	ret = safa_speed_up_handle(vsr);
+	if (video_is_meson_s7d_cpu())
+		ret = safa_speed_up_handle(vsr);
 	if (ret)
 		pre_hsize = ret;
 
@@ -672,15 +711,15 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 	vsr_safa->pre_hsize = pre_hsize;
 	vsr_safa->pre_vsize = pre_vsize;
 	vsr_top->pi_safa_hsc_integer_part = pre_hsize / hsize_out;
-	vsr_top->pi_safa_hsc_fraction_part = ((ulong)pre_hsize << 24) /
-		hsize_out - (vsr_top->pi_safa_hsc_integer_part << 24);
-	vsr_top->pi_safa_hsc_ini_phase = (((ulong)pre_hsize << 16) /
-		hsize_out + (1 << 16)) / 2;
+	vsr_top->pi_safa_hsc_fraction_part = div_u64((u64)pre_hsize << 24,
+		hsize_out) - (vsr_top->pi_safa_hsc_integer_part << 24);
+	vsr_top->pi_safa_hsc_ini_phase = (div_u64((u64)pre_hsize << 16,
+		hsize_out) + (1 << 16)) / 2;
 	vsr_top->pi_safa_vsc_integer_part  = pre_vsize / vsize_out;
-	vsr_top->pi_safa_vsc_fraction_part = ((ulong)pre_vsize << 24) /
-		vsize_out - (vsr_top->pi_safa_vsc_integer_part << 24);
-	vsr_top->pi_safa_vsc_ini_phase = (((ulong)pre_vsize << 16) /
-		vsize_out + (1 << 16)) / 2;
+	vsr_top->pi_safa_vsc_fraction_part = div_u64((u64)pre_vsize << 24,
+		vsize_out) - (vsr_top->pi_safa_vsc_integer_part << 24);
+	vsr_top->pi_safa_vsc_ini_phase = (div_u64((u64)pre_vsize << 16,
+		vsize_out) + (1 << 16)) / 2;
 	vsr_top->pi_safa_hsc_ini_integer = 0x1f;
 	vsr_top->pi_safa_vsc_ini_integer = 0x1f;
 
@@ -701,24 +740,24 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 
 	if (pre_hsize < hsize_out) {
 		vsr_top->pi_safa_hsc_ini_integer = 0x1f;
-		vsr_top->pi_safa_hsc_ini_phase = (((ulong)pre_hsize << 16) /
-			hsize_out + (1 << 16)) / 2;
+		vsr_top->pi_safa_hsc_ini_phase = (div_u64((u64)pre_hsize << 16,
+			hsize_out) + (1 << 16)) / 2;
 	} else {
-		vsr_top->pi_safa_hsc_ini_integer = ((((ulong)pre_hsize << 16) /
-			hsize_out - (1 << 16)) / 2) >> 16;
-		vsr_top->pi_safa_hsc_ini_phase = (((ulong)pre_hsize << 16) /
-			hsize_out - (1 << 16)) / 2 -
+		vsr_top->pi_safa_hsc_ini_integer = ((div_u64((u64)pre_hsize << 16,
+			hsize_out) - (1 << 16)) / 2) >> 16;
+		vsr_top->pi_safa_hsc_ini_phase = (div_u64((u64)pre_hsize << 16,
+			hsize_out) - (1 << 16)) / 2 -
 			(vsr_top->pi_safa_hsc_ini_integer << 16);
 	}
 	if (pre_vsize < vsize_out) {
 		vsr_top->pi_safa_vsc_ini_integer = 0x1f;
-		vsr_top->pi_safa_vsc_ini_phase = (((ulong)pre_vsize << 16) /
-			vsize_out + (1 << 16)) / 2;
+		vsr_top->pi_safa_vsc_ini_phase = (div_u64((u64)pre_vsize << 16,
+			vsize_out) + (1 << 16)) / 2;
 	} else {
-		vsr_top->pi_safa_vsc_ini_integer = ((((ulong)pre_vsize << 16) /
-			vsize_out - (1 << 16)) / 2) >> 16;
-		vsr_top->pi_safa_vsc_ini_phase = (((ulong)pre_vsize << 16) /
-			vsize_out - (1 << 16)) / 2 -
+		vsr_top->pi_safa_vsc_ini_integer = ((div_u64((u64)pre_vsize << 16,
+			vsize_out) - (1 << 16)) / 2) >> 16;
+		vsr_top->pi_safa_vsc_ini_phase = (div_u64((u64)pre_vsize << 16,
+			vsize_out) - (1 << 16)) / 2 -
 			(vsr_top->pi_safa_vsc_ini_integer << 16);
 	}
 	if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA) {
@@ -838,7 +877,7 @@ static void set_vsr_pi(struct vsr_setting_s *vsr)
 		(vsr_pi->pi_en), 4, 1);
 }
 
-void set_safa_pps(struct vsr_setting_s *vsr)
+void set_safa_pps_s7d(struct vsr_setting_s *vsr)
 {
 	struct vsr_safa_setting_s *vsr_safa = &vsr->vsr_safa;
 	struct vsr_top_setting_s *vsr_top = &vsr->vsr_top;
@@ -1037,6 +1076,228 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			vsr_safa->dejaggy_en, 31, 1);
 }
 
+void set_safa_pps(struct vsr_setting_s *vsr)
+{
+	struct vsr_safa_setting_s *vsr_safa = &vsr->vsr_safa;
+	struct vsr_top_setting_s *vsr_top = &vsr->vsr_top;
+	u32 postsc_size_mux = 0, dir_info_ds_x_en = 0;
+	u32 drt_intp_en = 0, drt_intp_chrm_en = 0, sharp_en = 0;
+	u32 pi_vofst = 0, adp_tap_alp_mode = 0;
+	u32 beta_mode = 0;
+	u32 sr_delta_alp_mode = 0, sr_gamma_alp_mode = 0;
+	u32 pi_gamma_mode = 0, pi_max_sad_mode = 0;
+	u32 analy_en = vsr_safa->postsc_en;
+	//1 bits prehscaler en
+	u32 preh_en = vsr_safa->preh_en;
+	//1 bits prevscaler en
+	u32 prev_en = vsr_safa->prev_en;
+	//2 bits prehor ds ratio 0:1/1 1:1/2 2:1/4 3:1/8
+	u32 preh_ratio = vsr_safa->preh_ratio;
+	//2 bits prever ds ratio 0:1/1 1:1/2 2:1/4 3:1/8
+	u32 prev_ratio = vsr_safa->prev_ratio;
+	//1 bits postscaler en
+	u32 postsc_en = vsr_safa->postsc_en;
+	//1 bits 0: yuv444 pc mode 1: yuv422
+	u32 input_422_en = vsr_top->input_422_en;
+	u32 safa_pps_top_en = postsc_en | preh_en | prev_en;
+	u8 vpp_index = vsr->vpp_index;
+	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
+	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
+	struct hw_vsr_safa_reg_s *vsr_reg;
+	struct hw_vsr_safa_nonlinear_reg_s *vsr_nonlinear_reg;
+	u32 filt_num_c = 0, step = 0;
+
+	vsr_reg = &vd_layer[0].vsr_safa_reg;
+	vsr_nonlinear_reg = &vsr_safa_nonlinear_reg;
+	adp_tap_alp_mode = 1;
+	beta_mode        = 1;
+	sr_delta_alp_mode = 1;
+	sr_gamma_alp_mode = 1;
+	pi_gamma_mode    = 1;
+	pi_max_sad_mode  = 1;
+
+	if (safa_pps_top_en) {
+		if (vsr_safa->mode == 0 || vsr_safa->mode == 1) {
+			step = vsr_safa->pre_hsize <= 1024 ? 1 :
+				(vsr_safa->pre_hsize <= 2048 ? 2 : 3);
+		} else {
+			step = vsr_safa->pre_hsize <= 512  ? 1 :
+				(vsr_safa->pre_hsize <= 1024 ? 2 : 3);
+			drt_intp_chrm_en = 0;
+		}
+		if (vsr->vsr_top.input_422_en) {
+			sharp_en = 1;
+			pi_vofst = 2;
+			analy_en = 1;
+			//postsc hsize region
+			if (step == 1) {
+				postsc_size_mux = 0;
+				dir_info_ds_x_en = 0;
+				drt_intp_en = 1;
+			} else if (step == 2) {
+				postsc_size_mux = 0;
+				dir_info_ds_x_en = 1;
+				drt_intp_en = 1;
+			} else {
+				postsc_size_mux = 1;
+				dir_info_ds_x_en = 1;
+				drt_intp_en = 0;
+				adp_tap_alp_mode = 3;
+				beta_mode = 3;
+				sr_delta_alp_mode = 3;
+				sr_gamma_alp_mode = 3;
+				pi_gamma_mode = 3;
+				pi_max_sad_mode = 3;
+			}
+		} else {
+			analy_en = 0;
+			sharp_en = 0;
+			pi_vofst = 1;
+			adp_tap_alp_mode = 3;
+			beta_mode = 3;
+			sr_delta_alp_mode = 3;
+			sr_gamma_alp_mode = 3;
+			pi_gamma_mode = 3;
+			pi_max_sad_mode = 3;
+			/* new add for t6d */
+			if (step == 3)
+				postsc_size_mux = 1;
+			else
+				postsc_size_mux = 0;
+		}
+		if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
+			pr_info("%s:preh/v_en:%d, %d, pre_h/vsize:%d, %d, preh/v_ratio:%d, %d, postsc_en:%d\n",
+				__func__,
+				vsr_safa->preh_en,
+				vsr_safa->prev_en,
+				vsr_safa->pre_hsize,
+				vsr_safa->pre_vsize,
+				vsr_safa->preh_ratio,
+				vsr_safa->prev_ratio,
+				vsr_safa->postsc_en);
+		//postsc coef lut config
+		safa_pps_scale_set_coef(vsr,
+			vsr_reg->safa_pps_cntl_scale_coef_idx_luma,
+			vsr_reg->safa_pps_cntl_scale_coef_luma);
+		safa_pps_scale_set_coef(vsr,
+			vsr_reg->safa_pps_cntl_scale_coef_idx_chro,
+			vsr_reg->safa_pps_cntl_scale_coef_chro);
+
+		//reg config
+		rdma_wr_bits(vsr_reg->safa_pps_sr_422_en,
+			input_422_en, 0, 1);
+		if (input_422_en)
+			filt_num_c = 2;
+		else
+			filt_num_c = 4;
+		rdma_wr(vsr_reg->safa_pps_pre_scale,
+			(4 << 16) |
+			(filt_num_c << 12) |
+			(4 << 8) |
+			(preh_ratio << 4) |
+			(prev_ratio << 0));
+		rdma_wr(vsr_reg->safa_pps_pre_hscale_coef_y1,
+			(0 << 16) |
+			(0 << 0));
+		rdma_wr(vsr_reg->safa_pps_pre_hscale_coef_y0,
+			(64 << 16) |
+			(192 << 0));
+		rdma_wr(vsr_reg->safa_pps_pre_hscale_coef_c1,
+			(0 << 16) |
+			(0 << 0));
+		rdma_wr(vsr_reg->safa_pps_pre_hscale_coef_c0,
+			(0 << 16) |
+			(256 << 0));
+		rdma_wr(vsr_reg->safa_pps_pre_vscale_coef,
+			(64 << 16) |
+			(194 << 0));
+
+		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+			postsc_size_mux, 1, 1);
+		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+			pi_vofst, 9, 2);
+		rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
+			adp_tap_alp_mode, 8, 2);
+		rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
+			beta_mode, 12, 2);
+		/* changed since t6d, s7d bit24, t6d bit25 */
+		rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
+			drt_intp_en, 25, 1);
+		/* new add for t6d */
+		rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
+			drt_intp_chrm_en, 24, 1);
+		rdma_wr_bits(vsr_reg->safa_pps_yuv_sharpen_en,
+			sharp_en, 4, 1);
+		rdma_wr_bits(vsr_reg->safa_pps_dir_en_mode,
+			dir_info_ds_x_en, 24, 1);
+		rdma_wr_bits(vsr_reg->safa_pps_sr_alp_info,
+			sr_delta_alp_mode, 24, 2);
+		rdma_wr_bits(vsr_reg->safa_pps_sr_alp_info,
+			sr_gamma_alp_mode, 8, 2);
+		rdma_wr_bits(vsr_reg->safa_pps_pi_info,
+			pi_gamma_mode, 20, 2);
+		rdma_wr_bits(vsr_reg->safa_pps_pi_info,
+			pi_max_sad_mode, 8, 2);
+		rdma_wr(vsr_reg->safa_pps_hsc_start_phase_step,
+			((vsr_top->pi_safa_hsc_integer_part & 0xf) << 24) |
+			((vsr_top->pi_safa_hsc_fraction_part & 0xffffff) << 0));
+		rdma_wr(vsr_reg->safa_pps_vsc_start_phase_step,
+			((vsr_top->pi_safa_vsc_integer_part & 0xf) << 24) |
+			((vsr_top->pi_safa_vsc_fraction_part & 0xffffff) << 0));
+		rdma_wr_bits(vsr_reg->safa_pps_vsc_init,
+			vsr_top->pi_safa_vsc_ini_phase, 0, 16);
+		rdma_wr_bits(vsr_reg->safa_pps_hsc_init,
+			vsr_top->pi_safa_hsc_ini_phase, 0, 16);
+		rdma_wr_bits(vsr_reg->safa_pps_vsc_init,
+			vsr_top->pi_safa_vsc_ini_integer, 0, 5);
+		rdma_wr_bits(vsr_reg->safa_pps_hsc_init,
+			vsr_top->pi_safa_hsc_ini_integer, 0, 5);
+		rdma_wr_bits(vsr_reg->safa_pps_bot_vsc_init,
+			vsr_top->pi_safa_vsc_ini_phase, 0, 16);
+		rdma_wr_bits(vsr_reg->safa_pps_sc_misc,
+			prev_en, 4, 1);
+		rdma_wr_bits(vsr_reg->safa_pps_sc_misc,
+			preh_en, 8, 1);
+		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+			postsc_en, 2, 1);
+		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+			analy_en, 4, 1);
+
+		if (vsr_safa->nonlinear_4region_en) {
+			//Wr_reg_bits(SAFA_PPS_INTERP_EN_MODE,1,26,1);
+			//Wr_reg_bits(SAFA_PPS_HW_CTRL,1,19,1);
+			rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
+				1, 26, 1);
+			rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+				1, 19, 1);
+			rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region12_startp,
+				(0 << VPP_REGION1_BIT) |
+				((vsr_safa->vpp_hsc_r1 & VPP_REGION_MASK)
+				<< VPP_REGION2_BIT));
+			rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region34_startp,
+				((vsr_safa->vpp_hsc_r2 & VPP_REGION_MASK)
+				<< VPP_REGION3_BIT) |
+				((vsr_safa->vpp_hsc_r3 & VPP_REGION_MASK)
+				<< VPP_REGION4_BIT));
+			rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region4_endp,
+				vsr_safa->vpp_hsc_r3);
+			rdma_wr(vsr_reg->safa_pps_hsc_start_phase_step,
+				vsr_safa->vpp_hf_start_phase_step);
+			rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region1_phase_slop,
+				vsr_safa->vpp_hf_start_phase_slope);
+			rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region3_phase_slop,
+				vsr_safa->vpp_hf_end_phase_slope);
+		} else {
+			rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
+				0, 26, 1);
+			rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+				0, 19, 1);
+		}
+	}
+	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+		safa_pps_top_en, 8, 1);
+}
+
 static void set_vsr_input_format(struct vsr_setting_s *vsr)
 {
 	u32 vsr_en = vsr->vsr_top.vsr_en;
@@ -1149,6 +1410,12 @@ void set_vsr_scaler(struct vsr_setting_s *vsr)
 		set_cfg_pi_safa(vsr);
 		set_vsr_pi(vsr);
 		set_safa_pps(vsr);
+		#ifdef test
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_T6D))
+			set_safa_pps(vsr);
+		else
+			set_safa_pps_s7d(vsr);
+		#endif
 	}
 	sharpness_and_dir_interp_enable(vsr);
 }
