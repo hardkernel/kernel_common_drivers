@@ -382,6 +382,7 @@ struct vsr_top_setting_s {
 };
 
 struct vsr_safa_setting_s {
+	u32 mode;//0:tv 4k 1:stb 2:tv 2k
 	u32 pre_hsize;//calc later
 	u32 pre_vsize;//calc later
 	u32 preh_en; //1 bits prehscaler en
@@ -390,6 +391,14 @@ struct vsr_safa_setting_s {
 	u32 prev_ratio; //2 bits prever ds ratio 0:1/1 1:1/2 2:1/4 3:1/8
 	u32 postsc_en; //1 bits postscaler en
 	bool dejaggy_en;
+	/* nonlinear */
+	u32 nonlinear_4region_en;
+	u32 vpp_hf_start_phase_step;
+	u32 vpp_hsc_r1;
+	u32 vpp_hsc_r2;
+	u32 vpp_hsc_r3;
+	u32 vpp_hf_start_phase_slope;
+	u32 vpp_hf_end_phase_slope;
 };
 
 struct vsr_pi_setting_s {
@@ -586,6 +595,7 @@ struct video_layer_s {
 	struct hw_fg_reg_s fg_reg;
 	struct hw_pps_reg_s pps_reg;
 	struct hw_vsr_safa_reg_s vsr_safa_reg;
+	struct hw_vsr_safa_nonlinear_reg_s vsr_safa_nonlinear_reg;
 	struct hw_vpp_blend_reg_s vpp_blend_reg;
 	u8 cur_canvas_id;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
@@ -743,6 +753,7 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_S7_,
 	MESON_CPU_MAJOR_ID_S7D_,
 	MESON_CPU_MAJOR_ID_S6_,
+	MESON_CPU_MAJOR_ID_T6D_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
@@ -1126,6 +1137,7 @@ bool video_is_meson_s1a_cpu(void);
 bool video_is_meson_s7_cpu(void);
 bool video_is_meson_s7d_cpu(void);
 bool video_is_meson_s6_cpu(void);
+bool video_is_meson_t6d_cpu(void);
 void alpha_win_set(struct video_layer_s *layer);
 void fgrain_config(struct video_layer_s *layer,
 		   struct vpp_frame_par_s *frame_par,
@@ -1169,6 +1181,7 @@ void set_vsr_scaler(struct vsr_setting_s *vsr);
 void s7d_vsr_default_init(void);
 void vsr_debug_mode_update(u32 debug_mode, struct vsr_setting_s *vsr);
 void dump_vd_vsr_safa_reg(void);
+void dump_vd_vsr_safa_nonlinear_reg(void);
 void pre_process_for_3d(struct vframe_s *vf);
 int get_vpu_urgent_info_t3(void);
 int set_vpu_super_urgent_t3(u32 module_id, u32 low_level, u32 high_level);

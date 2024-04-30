@@ -1789,7 +1789,8 @@ static void vd1_path_select(struct video_layer_s *layer,
 	u8 vpp_index;
 
 	vpp_index = layer->vpp_index;
-	if (cur_dev->display_module == T7_DISPLAY_MODULE)
+	if (cur_dev->display_module == T7_DISPLAY_MODULE &&
+		!video_is_meson_t6d_cpu())
 		return;
 
 	if (!legacy_vpp && !layer->vd1_vd2_mux) {
@@ -1815,7 +1816,7 @@ static void vd1_path_select(struct video_layer_s *layer,
 			(0 << 0),
 			0, 22);
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			if (video_is_meson_txhd2_cpu())
+			if (video_is_meson_txhd2_cpu() || video_is_meson_t6d_cpu())
 				cur_dev->rdma_func[vpp_index].rdma_wr_bits
 					(VD1_AFBCD0_MISC_CTRL,
 					/* txhd2 is two memory, this ram always to afbcd */
@@ -1851,6 +1852,10 @@ static void vd1_path_select(struct video_layer_s *layer,
 					20, 2);
 			}
 		}
+		if (!di_post && !di_pre_link && video_is_meson_t6d_cpu())
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VIU_MISC_CTRL0 + misc_off,
+			1, 16, 4);
 	} else {
 		if (!di_post)
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
@@ -1869,7 +1874,8 @@ static void vdx_path_select(struct video_layer_s *layer,
 	u8 vpp_index;
 
 	vpp_index = layer->vpp_index;
-	if (cur_dev->display_module == T7_DISPLAY_MODULE)
+	if (cur_dev->display_module == T7_DISPLAY_MODULE &&
+		!video_is_meson_t6d_cpu())
 		return;
 
 	if (!legacy_vpp) {
@@ -1894,12 +1900,23 @@ static void vdx_path_select(struct video_layer_s *layer,
 			/* afbc1 gclk ctrl */
 			(0 << 0),
 			0, 22);
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			if (video_is_meson_t6d_cpu())
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(VD1_AFBCD0_MISC_CTRL,
+					/* txhd2 is two memory, this ram always to afbcd */
+					1, 22, 1);
+			else
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(VD2_AFBCD1_MISC_CTRL,
+					/* Vd2_afbc0_mem_sel */
+					(afbc ? 1 : 0),
+					22, 1);
+		}
+		if (video_is_meson_t6d_cpu())
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
-				(VD2_AFBCD1_MISC_CTRL,
-				/* Vd2_afbc0_mem_sel */
-				(afbc ? 1 : 0),
-				22, 1);
+			(VIU_MISC_CTRL0 + misc_off,
+			(afbc ? 2 : 3), 20, 4);
 	} else {
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(VIU_MISC_CTRL1 + misc_off,
@@ -6060,6 +6077,36 @@ s32 config_vd_pps_internal(struct video_layer_s *layer,
 		setting->vsr.vsr_safa.postsc_en = postsc_en;
 		setting->vsr.vsr_safa.preh_ratio = vpp_filter->vpp_pre_hsc_ratio;
 		setting->vsr.vsr_safa.prev_ratio = vpp_filter->vpp_pre_vsc_ratio;
+
+		/* vsr safa non-linear */
+		setting->vsr.vsr_safa.nonlinear_4region_en =
+			vpp_filter->vpp_hsc_nonlinear_4region_en;
+		setting->vsr.vsr_safa.vpp_hsc_r1 =
+			cur_frame_par->VPP_hsc_linear_startp
+			- cur_frame_par->VPP_hsc_startp;
+		setting->vsr.vsr_safa.vpp_hsc_r2 =
+			cur_frame_par->VPP_hsc_linear_endp
+			- cur_frame_par->VPP_hsc_startp;
+		setting->vsr.vsr_safa.vpp_hsc_r3 =
+			cur_frame_par->VPP_hsc_endp
+			- cur_frame_par->VPP_hsc_startp;
+		setting->vsr.vsr_safa.vpp_hf_start_phase_step =
+			vpp_filter->vpp_hf_start_phase_step;
+		setting->vsr.vsr_safa.vpp_hf_start_phase_slope =
+			vpp_filter->vpp_hf_start_phase_slope;
+		setting->vsr.vsr_safa.vpp_hf_end_phase_slope =
+			vpp_filter->vpp_hf_end_phase_slope;
+		/* 0:tv 4k 1:stb 2:tv 2k */
+		if (!cur_dev->is_tv_panel)
+			setting->vsr.vsr_safa.mode = 1;
+		else if (glayer_info[0].src_width_max <= 2048)
+			setting->vsr.vsr_safa.mode = 2;
+		else
+			setting->vsr.vsr_safa.mode = 0;
+
+		if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
+			pr_info("safa_mode :%d\n", setting->vsr.vsr_safa.mode);
+
 		/* pi config for inline_aisr */
 		setting->vsr.vsr_pi.index = layer->layer_id;
 		if (setting->vsr.vsr_top.input_422_en && aisr_en)
@@ -7426,32 +7473,6 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 	if (bypass_cm)
 		mode |= COMPOSE_MODE_BYPASS_CM;
 
-	/* check the vpp post size first */
-	if (!legacy_vpp && vinfo) {
-		u32 read_value = cur_dev->rdma_func[vpp_index].rdma_rd
-			(VPP_POSTBLEND_H_SIZE + vpp_off);
-		if (((vinfo->field_height << 16) | vinfo->width)
-			!= read_value)
-			cur_dev->rdma_func[vpp_index].rdma_wr
-				(VPP_POSTBLEND_H_SIZE + vpp_off,
-				((vinfo->field_height << 16) | vinfo->width));
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_OUT_H_V_SIZE + vpp_off,
-			vinfo->width << 16 |
-			vinfo->field_height);
-	} else if (vinfo) {
-		if (cur_dev->rdma_func[vpp_index].rdma_rd
-			(VPP_POSTBLEND_H_SIZE + vpp_off)
-			!= vinfo->width)
-			cur_dev->rdma_func[vpp_index].rdma_wr
-				(VPP_POSTBLEND_H_SIZE + vpp_off,
-				vinfo->width);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_OUT_H_V_SIZE + vpp_off,
-			vinfo->width << 16 |
-			vinfo->field_height);
-	}
-
 	vpp_misc_save = READ_VCBUS_REG(VPP_MISC + vpp_off);
 
 	vpp_misc_set = vpp_misc_save;
@@ -7786,6 +7807,48 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 		video_lcevc.lcevc_switch_normal = false;
 	}
 	force_flush |= vpp_zorder_check_t7();
+	if (vinfo)
+		force_flush |= vout_change_check(vinfo);
+
+	if (force_flush) {
+		/* check the vpp post size first */
+		if (!legacy_vpp && vinfo) {
+			u32 read_value = cur_dev->rdma_func[vpp_index].rdma_rd
+				(VPP_POSTBLEND_H_SIZE + vpp_off);
+			if (cur_dev->frm2fld_support) {
+				if (((vinfo->height << 16) | vinfo->width)
+					!= read_value)
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(VPP_POSTBLEND_H_SIZE + vpp_off,
+						((vinfo->height << 16) | vinfo->width));
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(VPP_OUT_H_V_SIZE + vpp_off,
+					vinfo->width << 16 |
+					vinfo->height);
+			} else {
+				if (((vinfo->field_height << 16) | vinfo->width)
+					!= read_value)
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(VPP_POSTBLEND_H_SIZE + vpp_off,
+						((vinfo->field_height << 16) | vinfo->width));
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(VPP_OUT_H_V_SIZE + vpp_off,
+					vinfo->width << 16 |
+					vinfo->field_height);
+			}
+		} else if (vinfo) {
+			if (cur_dev->rdma_func[vpp_index].rdma_rd
+				(VPP_POSTBLEND_H_SIZE + vpp_off)
+				!= vinfo->width)
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(VPP_POSTBLEND_H_SIZE + vpp_off,
+					vinfo->width);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(VPP_OUT_H_V_SIZE + vpp_off,
+				vinfo->width << 16 |
+				vinfo->field_height);
+		}
+	}
 
 	if (!legacy_vpp) {
 		u32 set_value = 0;
@@ -14576,7 +14639,8 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 				p_amvideo->pps_support[i];
 		}
 		if ((video_is_meson_s7d_cpu() ||
-			video_is_meson_s6_cpu()) && i == 0)
+			video_is_meson_s6_cpu() ||
+			video_is_meson_t6d_cpu()) && i == 0)
 			glayer_info[i].vsr_safa_support =
 				p_amvideo->dev_property.vd1_vsr_safa_support;
 		if (p_amvideo->dv_support)
@@ -14675,6 +14739,14 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 			memcpy(&vd_layer[i].vpp_blend_reg,
 			       &vpp_blend_reg_t7_array[i],
 			       sizeof(struct hw_vpp_blend_reg_s));
+			if (i == 0 && video_is_meson_t6d_cpu()) {
+				memcpy(&vd_layer[i].vsr_safa_reg,
+					&vsr_safa_reg_t6d,
+					sizeof(struct hw_vsr_safa_reg_s));
+				memcpy(&vd_layer[i].vsr_safa_nonlinear_reg,
+					&vsr_safa_nonlinear_reg,
+					sizeof(struct hw_vsr_safa_nonlinear_reg_s));
+			}
 		}
 		if (cur_dev->aisr_support)
 			memcpy(&cur_dev->aisr_pps_reg,

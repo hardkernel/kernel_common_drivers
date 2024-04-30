@@ -260,13 +260,23 @@ struct hw_vsr_safa_reg_s {
 	u32 safa_pps_vsc_start_phase_step;
 	u32 safa_pps_vsc_init;
 	u32 safa_pps_hsc_init;
+	u32 safa_pps_bot_vsc_init;
 	u32 safa_pps_sc_misc;
 	u32 safa_pps_cntl_scale_coef_idx_luma;
 	u32 safa_pps_cntl_scale_coef_luma;
 	u32 safa_pps_cntl_scale_coef_idx_chro;
 	u32 safa_pps_cntl_scale_coef_chro;
 	u32 safa_pps_dejaggy_ctrl;
-	u32 safa_pps_bot_vsc_init;
+};
+
+struct hw_vsr_safa_nonlinear_reg_s {
+	u32 safa_pps_hsc_region12_startp;
+	u32 safa_pps_hsc_region34_startp;
+	u32 safa_pps_hsc_region4_endp;
+	u32 safa_pps_hsc_region0_phase_slop;
+	u32 safa_pps_hsc_region1_phase_slop;
+	u32 safa_pps_hsc_region3_phase_slop;
+	u32 safa_pps_hsc_region4_phase_slop;
 };
 
 extern struct hw_vd_reg_s vd_mif_reg_legacy_array[MAX_VD_LAYER_G12];
@@ -296,4 +306,7 @@ extern struct hw_vd_linear_reg_s vd_mif_linear_reg_c3_array[MAX_VD_LAYER_C3];
 extern struct hw_aisr_reshape_reg_s aisr_reshape_reg;
 extern struct hw_vsr_safa_reg_s vsr_safa_reg;
 extern struct hw_vsr_safa_reg_s s6_vsr_safa_reg;
+extern struct hw_vsr_safa_reg_s vsr_safa_reg_t6d;
+extern struct hw_vsr_safa_nonlinear_reg_s vsr_safa_nonlinear_reg;
+
 #endif
