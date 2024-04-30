@@ -107,6 +107,7 @@
 			/* 720p STB androidT size 24M */
 			size = <0x1800000>;
 			alignment = <0x400000>;
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
@@ -159,6 +160,7 @@
 			no-map;
 			size = <0x400000>;
 			alignment = <0x100000>;
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -179,6 +181,7 @@
 			/* 444 mode:1280x720x3x4=12MB */
 			size = <0x000000>;
 			alignment = <0x400000>;
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
 
 		/* global autoconfigured region for contiguous allocations */
@@ -188,7 +191,7 @@
 			size = <0x800000>;
 			alignment = <0x400000>;
 			linux,cma-default;
-			alloc-ranges = <0x0 0x30000000>;
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
 	};
 	codec_mm {
