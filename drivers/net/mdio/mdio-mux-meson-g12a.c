@@ -89,6 +89,14 @@ struct g12a_ephy_pll {
 #define g12a_ephy_pll_to_dev(_hw)			\
 	container_of(_hw, struct g12a_ephy_pll, hw)
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_HIBERNATION
+struct device *g12a_mdio_dev;
+#endif
+#endif
+#endif
+
 static unsigned long g12a_ephy_pll_recalc_rate(struct clk_hw *hw,
 					       unsigned long parent_rate)
 {
@@ -406,6 +414,23 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_HIBERNATION
+int g12a_resume_enable_internal_mdio(void)
+{
+	struct g12a_mdio_mux *priv = dev_get_drvdata(g12a_mdio_dev);
+
+	g12a_ephy_pll_init(__clk_get_hw(priv->pll));
+	g12a_ephy_pll_enable(__clk_get_hw(priv->pll));
+
+	return g12a_enable_internal_mdio(priv);
+}
+EXPORT_SYMBOL_GPL(g12a_resume_enable_internal_mdio);
+#endif
+#endif
+#endif
+
 static int g12a_enable_external_mdio(struct g12a_mdio_mux *priv)
 {
 	/* Reset the mdio bus mux */
@@ -539,6 +564,13 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_HIBERNATION
+	g12a_mdio_dev = dev;
+#endif
+#endif
+#endif
 	platform_set_drvdata(pdev, priv);
 
 	priv->regs = devm_platform_ioremap_resource(pdev, 0);

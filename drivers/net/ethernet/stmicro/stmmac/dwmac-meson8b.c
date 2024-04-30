@@ -437,11 +437,11 @@ static void set_wol_notify_bl30(struct meson8b_dwmac *dwmac, u32 enable_bl30)
 #endif
 unsigned int internal_phy;
 unsigned int mdns_switch_from_user;
+unsigned int mc_val;
 static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac *dwmac)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct net_device *ndev = platform_get_drvdata(pdev);
-	unsigned int mc_val = 0;
 	unsigned int cali_val = 0;
 
 	pr_info("aml_cust_setting\n");
@@ -815,8 +815,55 @@ static int meson8b_dwmac_remove(struct platform_device *pdev)
 	return err;
 }
 
-static SIMPLE_DEV_PM_OPS(meson8b_pm_ops,
-	meson8b_suspend, meson8b_resume);
+#ifdef CONFIG_HIBERNATION
+static int meson8b_freeze(struct device *dev)
+{
+	int ret;
+
+	ret = stmmac_suspend(dev);
+	return ret;
+}
+
+static int meson8b_thaw(struct device *dev)
+{
+	return 0;
+}
+
+static int meson8b_restore(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct meson8b_dwmac *dwmac = priv->plat->bsp_priv;
+	struct phy_device *phydev = ndev->phydev;
+	int ret;
+
+	if (mc_val)
+		writel(mc_val, dwmac->regs + PRG_ETH0);
+	else
+		writel(0x4be04, dwmac->regs + PRG_ETH0);
+	g12a_resume_enable_internal_mdio();
+	/*our phy not support wol by now*/
+	if (phydev)
+		phydev->irq_suspended = 0;
+	ret = stmmac_resume(dev);
+	gxl_resume_internal_registers(phydev);
+
+	priv->amlogic_task_action = 100;
+	stmmac_trigger_amlogic_task(priv);
+
+	return ret;
+}
+#endif
+
+static const struct dev_pm_ops meson8b_pm_ops = {
+	.suspend	= meson8b_suspend,
+	.resume		= meson8b_resume,
+#ifdef CONFIG_HIBERNATION
+	.freeze		= meson8b_freeze,
+	.thaw		= meson8b_thaw,
+	.restore	= meson8b_restore,
+#endif
+};
 #endif
 #endif
 static const struct meson8b_dwmac_data meson8b_dwmac_data = {

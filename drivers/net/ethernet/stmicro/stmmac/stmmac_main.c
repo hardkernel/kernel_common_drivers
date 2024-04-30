@@ -297,10 +297,12 @@ static void stmmac_amlogic_task(struct work_struct *work)
 		regval = readl(priv->ioaddr + MAC_CTRL_REG);
 		regval |= MAC_ENABLE_RX | MAC_ENABLE_TX;
 		writel(regval, priv->ioaddr + MAC_CTRL_REG);
-		if (priv->linkup_after_resume < 2) {
+#ifdef CONFIG_PM_SLEEP
+		if (wol_switch_from_user && priv->linkup_after_resume < 2) {
 			// revert the effect of phy_speed_down() again
 			//phylink_speed_up(priv->phylink);
 		}
+#endif
 	}
 	priv->amlogic_task_action = 0;
 }
@@ -7126,7 +7128,7 @@ int stmmac_dvr_probe(struct device *device,
 
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	/* Allocate workqueue for Amlogic task */
-	priv->amlogic_wq = create_singlethread_workqueue("amlogic_wq");
+	priv->amlogic_wq = create_singlethread_workqueue("stmmacamlogictask_wq");
 	if (!priv->amlogic_wq) {
 		dev_err(priv->device, "failed to create workqueue\n");
 		ret = -ENOMEM;

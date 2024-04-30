@@ -2095,7 +2095,7 @@
 			tx-fifo-depth = <2048>;
 			/*1:inphy; 2:exphy;*/
 			internal_phy = <1>;
-			cali_val = <0x80000>;
+			mc_val = <0x1e04>;
 			mboxes = <&mbox_fifo T7_REE2AO_ETH>;
 			status = "disabled";
 
