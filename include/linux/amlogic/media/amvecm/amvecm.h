@@ -32,18 +32,6 @@
 #include <drm/drmP.h>
 #include <uapi/amlogic/amvecm_ext.h>
 
-#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-bool is_amdv_enable(void);
-bool is_amdv_on(void);
-bool is_amdv_stb_mode(void);
-bool for_amdv_certification(void);
-int is_amdv_frame(struct vframe_s *vf);
-void amdv_set_toggle_flag(int flag);
-int get_dv_support_info(void);
-bool support_multi_core1(void);
-bool is_hdmi_ll_as_hdr10(void);
-#endif
-
 #ifndef MAX
 #define MAX(a, b) ({ \
 	typeof(a) _a = a; \
@@ -613,6 +601,19 @@ int register_osd_status_cb(int (*get_osd_enable_status)(u32 index));
 extern uint demo_pk_sr_final_pgains;
 extern uint demo_pk_sr_final_ngains;
 void amve_safa_demo_ctrl(unsigned int enable);
+
+#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+bool is_amdv_enable(void);
+bool is_amdv_on(void);
+bool is_amdv_stb_mode(void);
+bool for_amdv_certification(void);
+int is_amdv_frame(struct vframe_s *vf);
+void amdv_set_toggle_flag(int flag);
+int get_dv_support_info(void);
+bool support_multi_core1(void);
+bool is_hdmi_ll_as_hdr10(void);
+int get_amdv_src_format(enum vd_path_e vd_path);
+#endif
 
 #endif /* AMVECM_H */
 
