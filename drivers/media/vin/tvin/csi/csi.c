@@ -192,6 +192,11 @@ int amcsi_isr(struct tvin_frontend_s *fe, unsigned int hcnt, enum tvin_port_type
 	unsigned int data1 = 0;
 	struct am_csi2_frame_s frame;
 
+	if (devp->dec_status == TVIN_AMCSI_STOP || devp->fe_status == CAMERA_FE_CLOSE) {
+		DPRINT("%s: fe close or csi stop. dec status: %d, fe status: %d\n", __func__,
+			devp->dec_status, devp->fe_status);
+		return 0;
+	}
 	frame.w = READ_CSI_ADPT_REG_BIT(CSI2_PIC_SIZE_STAT, 0, 16);
 	frame.h = READ_CSI_ADPT_REG_BIT(CSI2_PIC_SIZE_STAT, 16, 16);
 	frame.err = READ_CSI_ADPT_REG(CSI2_ERR_STAT0);
@@ -352,6 +357,8 @@ static int amcsi_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port,
 
 	cal_csi_para(&csi_devp->csi_parm);
 	am_mipi_csi2_init(&csi_devp->csi_parm);
+	csi_devp->fe_status = CAMERA_FE_OPEN;
+	DPRINT("%s camera fe open\n", __func__);
 
 	return 0;
 }
@@ -369,7 +376,10 @@ static void amcsi_feclose(struct tvin_frontend_s *fe, enum tvin_port_type_e port
 
 	devp->reset = 0;
 	devp->reset_count = 0;
-
+	if (devp->fe_status == CAMERA_FE_OPEN) {
+		DPRINT("%s camera fe close\n", __func__);
+		devp->fe_status = CAMERA_FE_CLOSE;
+	}
 	am_mipi_csi2_uninit();
 
 	memset(&devp->para, 0, sizeof(struct vdin_parm_s));
