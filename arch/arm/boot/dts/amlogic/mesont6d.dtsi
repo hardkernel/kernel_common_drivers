@@ -196,13 +196,12 @@
 		in_base_func = <0x82000020>;
 		out_base_func = <0x82000021>;
 		inout_size_func = <0x8200002a>;
-		reserve_mem_size = <0x00300000>;
+		reserve_mem_size = <0x01B00000>;
 	};
 
 	optee {
 		compatible = "linaro,optee-tz";
 		method = "smc";
-		status = "disabled";
 	};
 
 	provisionkey {
