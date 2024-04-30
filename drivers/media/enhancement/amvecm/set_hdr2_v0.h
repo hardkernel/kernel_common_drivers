@@ -208,5 +208,41 @@ struct VPU_LUT_DMA_t {
 	u32 chan_little_endian[16];
 	u32 chan_swap_64bit[16];
 };
+
+struct hdr_lut1_param_s {
+	s32 ogain_lut1[HDR2_OOTF_LUT_SIZE];
+	unsigned int reg_adpscl1_mode; //2bits, 0:r+g+b linear, 1:max(rgb) linear, 2:nolinear input
+	unsigned int reg_ogain_blend;  //1bits, 0:ootf1, 1:ootf1 blend ootf2
+	unsigned int reg_adpscl1_sft;  //4bits
+};
+
+enum GMT_COMP_SEL_e {
+	GMT_COMP_SEL_EN = 0,
+	GMT_COMP_SEL_OFST_R,
+	GMT_COMP_SEL_OFST_G,
+	GMT_COMP_SEL_OFST_B,
+	GMT_COMP_SEL_MIN_R,
+	GMT_COMP_SEL_MIN_G,
+	GMT_COMP_SEL_MIN_B,
+	GMT_COMP_SEL_RAT_R,
+	GMT_COMP_SEL_RAT_G,
+	GMT_COMP_SEL_RAT_B
+};
+
+struct hdr_gmt_comp_param_s {
+	unsigned int reg_hdr2_gm_comp_en;  //u1 enable
+	unsigned int reg_hdr_comp_ofst_r;  //u20
+	unsigned int reg_hdr_comp_ofst_g;
+	unsigned int reg_hdr_comp_ofst_b;
+	unsigned int reg_hdr_comp_min_r;   //u20
+	unsigned int reg_hdr_comp_min_g;
+	unsigned int reg_hdr_comp_min_b;
+	unsigned int reg_hdr_comp_rat_r;   //u22
+	unsigned int reg_hdr_comp_rat_g;
+	unsigned int reg_hdr_comp_rat_b;
+};
+
+void hdr_lut1_param_debug(int offset, int sel_val, int para_val);
+void hdr_gmut_comp_debug(int offset, int sel_val, int comp_val);
 #endif
 #endif

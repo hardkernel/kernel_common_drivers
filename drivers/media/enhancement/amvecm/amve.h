@@ -24,6 +24,14 @@
 #include "linux/amlogic/media/amvecm/cm.h"
 #include "linux/amlogic/media/amvecm/amvecm.h"
 
+/*lut3d*/
+#define LUT3D_SIZE 14739 /* 17*17*17*3 */
+#define LUT3D_SINGLE_SIZE 4913 /* 17*17*17 */
+#define LUT3D_POINTS 17
+#define LUT3D_SIZE9 2187 /* 9*9*9*3 */
+#define LUT3D_SINGLE_SIZE9 729 /* 9*9*9 */
+#define LUT3D_POINTS9 9
+
 enum pq_ctl_cfg_e {
 	TV_CFG_DEF = 0,
 	OTT_CFG_DEF,

@@ -601,7 +601,8 @@ void lcd_gamma_api(unsigned int index,
 		max_idx = 257;
 	} else if (chip_type_id == chip_t5m ||
 		chip_type_id == chip_t3x ||
-		chip_type_id == chip_txhd2) {
+		chip_type_id == chip_txhd2 ||
+		chip_type_id == chip_t6d) {
 		p_gm = get_gm_data();
 		auto_inc = p_gm->auto_inc;
 		max_idx = p_gm->max_idx;
@@ -716,7 +717,8 @@ void vpp_get_lcd_gamma_table(u32 rgb_mask)
 		if (chip_type_id == chip_t5m ||
 			chip_type_id == chip_t3x ||
 			chip_type_id == chip_txhd2 ||
-			chip_type_id == chip_a4) {
+			chip_type_id == chip_a4 ||
+			chip_type_id == chip_t6d) {
 			p_gm = get_gm_data();
 			lcd_gamma_api(gamma_index,
 				p_gm->dbg_gm_tbl.gamma_r,
@@ -802,7 +804,8 @@ void amve_write_gamma_table(u16 *data, u32 rgb_mask)
 		if (chip_type_id == chip_t5m ||
 			chip_type_id == chip_t3x ||
 			chip_type_id == chip_txhd2 ||
-			chip_type_id == chip_a4) {
+			chip_type_id == chip_a4 ||
+			chip_type_id == chip_t6d) {
 			p_gm = get_gm_data();
 			max_idx = p_gm->max_idx;
 			lcd_gamma_api(gamma_index, p_gm->dbg_gm_tbl.gamma_r,
@@ -1463,7 +1466,8 @@ void ve_lcd_gamma_process(int vpp_index)
 			if (chip_type_id == chip_t5m ||
 				chip_type_id == chip_t3x ||
 				chip_type_id == chip_txhd2 ||
-				chip_type_id == chip_a4) {
+				chip_type_id == chip_a4 ||
+				chip_type_id == chip_t6d) {
 				p_gm = get_gm_data();
 				memcpy(p_gm->gm_tbl.gamma_r,
 					video_gamma_table_r.data,
@@ -2515,6 +2519,16 @@ int vpp_set_lut3d(int bfromkey,
 	mm_segment_t fs;
 	loff_t pos;
 	#endif
+	int lut3d_single_sz;
+	int lut3d_points;
+
+	if (chip_type_id == chip_t6d) {
+		lut3d_single_sz = LUT3D_SINGLE_SIZE9;
+		lut3d_points = LUT3D_POINTS9;
+	} else {
+		lut3d_single_sz = LUT3D_SINGLE_SIZE;
+		lut3d_points = LUT3D_POINTS;
+	}
 
 	if (!lut3d_en)
 		return 1;
@@ -2527,12 +2541,12 @@ int vpp_set_lut3d(int bfromkey,
 	/* load 3d lut from unifykey store */
 	if (bfromkey) {
 		/* allocate a little bit more buffer than required for safety */
-		key_len = (4914 * 5 * max_3dlut_count);
+		key_len = ((lut3d_single_sz + 1) * 5 * max_3dlut_count);
 		pkeylutall = kmalloc(key_len, GFP_KERNEL);
 		if (!pkeylutall)
 			return 1;
 
-		pkeylut = kmalloc(4914 * sizeof(int) * 3,
+		pkeylut = kmalloc((lut3d_single_sz + 1) * sizeof(int) * 3,
 				  GFP_KERNEL);
 		if (!pkeylut) {
 			kfree(pkeylutall);
@@ -2580,7 +2594,7 @@ int vpp_set_lut3d(int bfromkey,
 			#endif
 		}
 
-		size = (4914 * 9) / 2;
+		size = ((lut3d_single_sz + 1) * 9) / 2;
 		key_count = key_len / size;
 		if (keyindex >= key_count || keyindex <= INT_MIN) {
 			pr_info("warn: key index out of range");
@@ -2602,14 +2616,18 @@ int vpp_set_lut3d(int bfromkey,
 			++counter;
 		}
 
-		if (counter != 4914 * 3)
+		if (counter != (lut3d_single_sz + 1) * 3)
 			pr_info("warn: key lut read size error");
 
-		for (d0 = 0; d0 < 17; d0++) {
-			for (d1 = 0; d1 < 17; d1++) {
-				for (d2 = 0; d2 < 17; d2++) {
-					index0 = d0 * 289 + d1 * 17 + d2;
-					index1 = d2 * 289 + d1 * 17 + d0;
+		for (d0 = 0; d0 < lut3d_points; d0++) {
+			for (d1 = 0; d1 < lut3d_points; d1++) {
+				for (d2 = 0; d2 < lut3d_points; d2++) {
+					index0 =
+						d0 * lut3d_points * lut3d_points +
+						d1 * lut3d_points + d2;
+					index1 =
+						d2 * lut3d_points * lut3d_points +
+						d1 * lut3d_points + d0;
 					idn =
 					lut3d_order ? index1 : index0;
 					plut3d[index0 * 3 + 0] =
@@ -2626,13 +2644,15 @@ int vpp_set_lut3d(int bfromkey,
 		kfree(pkeylut);
 	} else {
 		if (p3dlut_in) {
-			for (d0 = 0; d0 < 17; d0++) {
-				for (d1 = 0; d1 < 17; d1++) {
-					for (d2 = 0; d2 < 17; d2++) {
+			for (d0 = 0; d0 < lut3d_points; d0++) {
+				for (d1 = 0; d1 < lut3d_points; d1++) {
+					for (d2 = 0; d2 < lut3d_points; d2++) {
 						index0 =
-						d0 * 289 + d1 * 17 + d2;
+						d0 * lut3d_points * lut3d_points +
+						d1 * lut3d_points + d2;
 						index1 =
-						d2 * 289 + d1 * 17 + d0;
+						d2 * lut3d_points * lut3d_points +
+						d1 * lut3d_points + d0;
 						idn =
 						lut3d_order ? index1 : index0;
 						plut3d[index0 * 3 + 0] =
@@ -2659,14 +2679,14 @@ int vpp_set_lut3d(int bfromkey,
 
 		WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 1);
 		WRITE_VPP_REG(VPP_LUT3D_RAM_ADDR, 0 | (0 << 31));
-		for (i = 0; i < 17 * 17 * 17; i++) {
+		for (i = 0; i < lut3d_single_sz; i++) {
 			//{comp0, comp1, comp2}
 			WRITE_VPP_REG(VPP_LUT3D_RAM_DATA,
 				((plut3d[i * 3 + 1] & 0xfff) << 16) |
 				(plut3d[i * 3 + 2] & 0xfff));
 			WRITE_VPP_REG(VPP_LUT3D_RAM_DATA,
 				(plut3d[i * 3 + 0] & 0xfff)); /*MSB*/
-			if (lut3d_debug == 1 && (i < 17 * 17))
+			if (lut3d_debug == 1 && (i < lut3d_points * lut3d_points))
 				pr_info("%d: %03x %03x %03x\n",
 					i,
 					plut3d[i * 3 + 0],
@@ -2677,7 +2697,7 @@ int vpp_set_lut3d(int bfromkey,
 		if (blut3dcheck) {
 			WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 1);
 			WRITE_VPP_REG(VPP_LUT3D_RAM_ADDR, 0 | (1 << 31));
-			for (i = 0; i < 17 * 17 * 17; i++) {
+			for (i = 0; i < lut3d_single_sz; i++) {
 				dwtemp  = READ_VPP_REG(VPP_LUT3D_RAM_DATA);
 				wrgb[2] = dwtemp & 0xfff;
 				wrgb[1] = (dwtemp >> 16) & 0xfff;
@@ -2724,15 +2744,27 @@ void lut3d_update(unsigned int p3dlut_in[][3], int vpp_index)
 	int d0, d1, d2, index0;
 	int i;
 	int offset = 0;
+	int lut3d_single_sz;
+	int lut3d_points;
+
+	if (chip_type_id == chip_t6d) {
+		lut3d_single_sz = LUT3D_SINGLE_SIZE9;
+		lut3d_points = LUT3D_POINTS9;
+	} else {
+		lut3d_single_sz = LUT3D_SINGLE_SIZE;
+		lut3d_points = LUT3D_POINTS;
+	}
 
 	if (p3dlut_in) {
 		if (is_meson_t7_cpu())
 			offset = 2;
 
-		for (d0 = 0; d0 < 17; d0++) {
-			for (d1 = 0; d1 < 17; d1++) {
-				for (d2 = 0; d2 < 17; d2++) {
-					index0 = d0 * 289 + d1 * 17 + d2;
+		for (d0 = 0; d0 < lut3d_points; d0++) {
+			for (d1 = 0; d1 < lut3d_points; d1++) {
+				for (d2 = 0; d2 < lut3d_points; d2++) {
+					index0 =
+						d0 * lut3d_points * lut3d_points +
+						d1 * lut3d_points + d2;
 					plut3d[index0 * 3 + 0] =
 					(p3dlut_in[index0][0] << offset) & 0xfff;
 					plut3d[index0 * 3 + 1] =
@@ -2753,14 +2785,14 @@ void lut3d_update(unsigned int p3dlut_in[][3], int vpp_index)
 		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LUT3D_CBUS2RAM_CTRL, 1, vpp_index);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LUT3D_RAM_ADDR, 0 | (0 << 31), vpp_index);
 
-		for (i = 0; i < 17 * 17 * 17; i++) {
+		for (i = 0; i < lut3d_single_sz; i++) {
 			//{comp0, comp1, comp2}
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LUT3D_RAM_DATA,
 				((plut3d[i * 3 + 1] & 0xfff) << 16) |
 				(plut3d[i * 3 + 2] & 0xfff), vpp_index);
 			VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_LUT3D_RAM_DATA,
 				(plut3d[i * 3 + 0] & 0xfff), vpp_index); /*MSB*/
-			if (lut3d_debug == 1 && (i < 17 * 17))
+			if (lut3d_debug == 1 && (i < lut3d_points * lut3d_points))
 				pr_info("%d: %03x %03x %03x\n",
 					i,
 					plut3d[i * 3 + 0],
@@ -2778,6 +2810,7 @@ int vpp_write_lut3d_section(int index, int section_len,
 	int i;
 	int r_offset, g_offset;
 	u32 ctltemp;
+	int lut3d_points;
 
 	if (!lut3d_en)
 		return 1;
@@ -2789,10 +2822,15 @@ int vpp_write_lut3d_section(int index, int section_len,
 	} else
 #endif
 	{
-		index = index * section_len / 17;
+		if (chip_type_id == chip_t6d)
+			lut3d_points = LUT3D_POINTS9;
+		else
+			lut3d_points = LUT3D_POINTS;
 
-		g_offset = index % 17;
-		r_offset = index / 17;
+		index = index * section_len / lut3d_points;
+
+		g_offset = index % lut3d_points;
+		r_offset = index / lut3d_points;
 
 		ctltemp  = READ_VPP_REG(VPP_LUT3D_CTRL);
 		WRITE_VPP_REG(VPP_LUT3D_CTRL, ctltemp & 0xFFFFFFFE);
@@ -2824,6 +2862,7 @@ int vpp_read_lut3d_section(int index, int section_len,
 	int i;
 	int r_offset, g_offset;
 	u32 dwtemp;
+	int lut3d_points;
 
 	if (!lut3d_en)
 		return 1;
@@ -2835,10 +2874,15 @@ int vpp_read_lut3d_section(int index, int section_len,
 	} else
 #endif
 	{
-		index = index * section_len / 17;
+		if (chip_type_id == chip_t6d)
+			lut3d_points = LUT3D_POINTS9;
+		else
+			lut3d_points = LUT3D_POINTS;
 
-		g_offset = index % 17;
-		r_offset = index / 17;
+		index = index * section_len / lut3d_points;
+
+		g_offset = index % lut3d_points;
+		r_offset = index / lut3d_points;
 
 		WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 1);
 		/* LUT3D_RAM_ADDR  bit20:16 R, bit12:8 G, bit4:0 B */
@@ -2884,9 +2928,19 @@ void vpp_lut3d_table_init(int r, int g, int b)
 {
 	int d0, d1, d2, step, max_val = 4095;
 	unsigned int i, index;
+	int lut3d_size;
+	int lut3d_points;
+
+	if (chip_type_id == chip_t6d) {
+		lut3d_size = LUT3D_SIZE9;
+		lut3d_points = LUT3D_POINTS9;
+	} else {
+		lut3d_size = LUT3D_SIZE;
+		lut3d_points = LUT3D_POINTS;
+	}
 
 	if (!plut3d)
-		plut3d = kzalloc(14739 * sizeof(int), GFP_KERNEL);
+		plut3d = kzalloc(lut3d_size * sizeof(int), GFP_KERNEL);
 
 	if (!plut3d)
 		return;
@@ -2897,17 +2951,19 @@ void vpp_lut3d_table_init(int r, int g, int b)
 		is_meson_t3_cpu() ||
 		is_meson_t5w_cpu() ||
 		chip_type_id == chip_t5m ||
-		chip_type_id == chip_t3x)
+		chip_type_id == chip_t3x ||
+		chip_type_id == chip_t6d)
 		max_val = 1023;
 
-	step = (max_val + 1) / 16;
+	step = (max_val + 1) / (lut3d_points - 1);
 
 	/*initialize the lut3d ad same input and output;*/
-	for (d0 = 0; d0 < 17; d0++) {
-		for (d1 = 0; d1 < 17; d1++) {
-			for (d2 = 0; d2 < 17; d2++) {
+	for (d0 = 0; d0 < lut3d_points; d0++) {
+		for (d1 = 0; d1 < lut3d_points; d1++) {
+			for (d2 = 0; d2 < lut3d_points; d2++) {
 				index =
-				d0 * 17 * 17 * 3 + d1 * 17 * 3 + d2 * 3;
+				d0 * lut3d_points * lut3d_points * 3 +
+				d1 * lut3d_points * 3 + d2 * 3;
 				if (r < 0 || g < 0 || b < 0) {
 					/* bypass data */
 					plut3d[index + 0] =
@@ -2927,7 +2983,7 @@ void vpp_lut3d_table_init(int r, int g, int b)
 			}
 		}
 	}
-	for (i = 0; i < 289; i++)
+	for (i = 0; i < lut3d_points * lut3d_points; i++)
 		P3dlut_tab[i] = plut3d[i];
 }
 
@@ -2940,14 +2996,21 @@ void vpp_lut3d_table_release(void)
 void dump_plut3d_table(void)
 {
 	unsigned int i, j;
+	int lut3d_points;
 
-	pr_info("*****dump lut3d table:plut3d[0]~plut3d[288]*****\n");
-	for (i = 0; i < 17; i++) {
-		pr_info("*****dump plut3d:17* %d*****\n", i);
-		for (j = 0; j < 17; j++) {
-			if ((j % 16) == 0)
+	if (chip_type_id == chip_t6d)
+		lut3d_points = LUT3D_POINTS9;
+	else
+		lut3d_points = LUT3D_POINTS;
+
+	pr_info("*****dump lut3d table:plut3d[0]~plut3d[%d]*****\n",
+		lut3d_points * lut3d_points - 1);
+	for (i = 0; i < lut3d_points; i++) {
+		pr_info("*****dump plut3d:%d * %d*****\n", lut3d_points, i);
+		for (j = 0; j < lut3d_points; j++) {
+			if ((j % (lut3d_points - 1)) == 0)
 				pr_info("\n");
-			pr_info("%d\t", P3dlut_tab[i * 17 + j]);
+			pr_info("%d\t", P3dlut_tab[i * lut3d_points + j]);
 		}
 	}
 }
@@ -2955,14 +3018,21 @@ void dump_plut3d_table(void)
 void dump_plut3d_reg_table(void)
 {
 	unsigned int i, j;
+	int lut3d_points;
 
-	pr_info("*****dump lut3d reg table:[0]~[288]*****\n");
-	for (i = 0; i < 17; i++) {
-		pr_info("*****dump plut3d regtab:17* %d*****\n", i);
-		for (j = 0; j < 17; j++) {
-			if ((j % 16) == 0)
+	if (chip_type_id == chip_t6d)
+		lut3d_points = LUT3D_POINTS9;
+	else
+		lut3d_points = LUT3D_POINTS;
+
+	pr_info("*****dump lut3d reg table:[0]~[%d]*****\n",
+		lut3d_points * lut3d_points - 1);
+	for (i = 0; i < lut3d_points; i++) {
+		pr_info("*****dump plut3d regtab:%d * %d*****\n", lut3d_points, i);
+		for (j = 0; j < lut3d_points; j++) {
+			if ((j % (lut3d_points - 1)) == 0)
 				pr_info("\n");
-			pr_info("%d\t", P3dlut_regtab[i * 17 + j]);
+			pr_info("%d\t", P3dlut_regtab[i * lut3d_points + j]);
 		}
 	}
 }

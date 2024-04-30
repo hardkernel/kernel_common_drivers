@@ -536,6 +536,8 @@ static unsigned int cm_slice_idx;
 
 unsigned int osd_pic_en;
 unsigned int slt_lut3d_en;
+module_param(osd_pic_en, uint, 0664);
+MODULE_PARM_DESC(osd_pic_en, "\n osd_pic_en\n");
 
 #define COEFF_NORM(a) ((int)((((a) * 2048.0) + 1) / 2))
 #define MATRIX_5x3_COEF_SIZE 24
@@ -2137,7 +2139,7 @@ static int vpp_mtx_update(struct vpp_mtx_info_s *mtx_info, int vpp_index)
 		matrix_pre_offset2 = VPP2_POST2_MATRIX_PRE_OFFSET2;
 		matrix_en_ctrl = VPP2_POST2_MATRIX_EN_CTRL;
 		break;
-	case OSD_MTX:
+	case OSD1_HDR_MTX:
 		matrix_coef00_01 = OSD1_HDR2_MATRIXI_COEF00_01;
 		matrix_coef02_10 = OSD1_HDR2_MATRIXI_COEF02_10;
 		matrix_coef11_12 = OSD1_HDR2_MATRIXI_COEF11_12;
@@ -2150,7 +2152,19 @@ static int vpp_mtx_update(struct vpp_mtx_info_s *mtx_info, int vpp_index)
 		matrix_pre_offset2 = OSD1_HDR2_MATRIXI_PRE_OFFSET2;
 		matrix_en_ctrl = OSD1_HDR2_MATRIXI_EN_CTRL;
 		break;
-
+	case OSD1_PQ_MTX:
+		matrix_coef00_01 = OSD1_PQ_MATRIX_COEF00_01;
+		matrix_coef02_10 = OSD1_PQ_MATRIX_COEF02_10;
+		matrix_coef11_12 = OSD1_PQ_MATRIX_COEF11_12;
+		matrix_coef20_21 = OSD1_PQ_MATRIX_COEF20_21;
+		matrix_coef22 = OSD1_PQ_MATRIX_COEF22;
+		matrix_clip = OSD1_PQ_MATRIX_CLIP;
+		matrix_offset0_1 = OSD1_PQ_MATRIX_OFFSET0_1;
+		matrix_offset2 = OSD1_PQ_MATRIX_OFFSET2;
+		matrix_pre_offset0_1 = OSD1_PQ_MATRIX_PRE_OFFSET0_1;
+		matrix_pre_offset2 = OSD1_PQ_MATRIX_PRE_OFFSET2;
+		matrix_en_ctrl = OSD1_PQ_MATRIX_EN_CTRL;
+		break;
 	case MTX_NULL:
 	default:
 		break;
@@ -2272,47 +2286,119 @@ void eye_prot_update(struct eye_protect_s *eye_prot, int vpp_index)
 static int amvecm_set_osd_mtx_en(int enable)
 {
 	int *m = NULL;
+	unsigned int OSD_MATRIX_COEF00_01 = 0;
+	unsigned int OSD_MATRIX_COEF02_10 = 0;
+	unsigned int OSD_MATRIX_COEF11_12 = 0;
+	unsigned int OSD_MATRIX_COEF20_21 = 0;
+	unsigned int OSD_MATRIX_COEF22 = 0;
+	unsigned int OSD_MATRIX_OFFSET0_1 = 0;
+	unsigned int OSD_MATRIX_OFFSET2 = 0;
+	unsigned int OSD_MATRIX_PRE_OFFSET0_1 = 0;
+	unsigned int OSD_MATRIX_PRE_OFFSET2 = 0;
+	unsigned int OSD_MATRIX_EN_CTRL = 0;
+	unsigned int OSD_PQ_MATRIX_COEF00_01 = 0;
+	unsigned int OSD_PQ_MATRIX_COEF02_10 = 0;
+	unsigned int OSD_PQ_MATRIX_COEF11_12 = 0;
+	unsigned int OSD_PQ_MATRIX_COEF20_21 = 0;
+	unsigned int OSD_PQ_MATRIX_COEF22 = 0;
+	unsigned int OSD_PQ_MATRIX_OFFSET0_1 = 0;
+	unsigned int OSD_PQ_MATRIX_OFFSET2 = 0;
+	unsigned int OSD_PQ_MATRIX_PRE_OFFSET0_1 = 0;
+	unsigned int OSD_PQ_MATRIX_PRE_OFFSET2 = 0;
+	unsigned int OSD_PQ_MATRIX_CLIP = 0;
+	unsigned int OSD_PQ_MATRIX_EN_CTRL = 0;
 
-	if (!enable || chip_type_id != chip_t5m)
+	if (!enable)
 		return 0;
+
+	if (chip_type_id == chip_t5m) {
+		OSD_MATRIX_COEF00_01 = VPP_WRAP_OSD1_MATRIX_COEF00_01;
+		OSD_MATRIX_COEF02_10 = VPP_WRAP_OSD1_MATRIX_COEF02_10;
+		OSD_MATRIX_COEF11_12 = VPP_WRAP_OSD1_MATRIX_COEF11_12;
+		OSD_MATRIX_COEF20_21 = VPP_WRAP_OSD1_MATRIX_COEF20_21;
+		OSD_MATRIX_COEF22 = VPP_WRAP_OSD1_MATRIX_COEF22;
+		OSD_MATRIX_OFFSET0_1 = VPP_WRAP_OSD1_MATRIX_OFFSET0_1;
+		OSD_MATRIX_OFFSET2 = VPP_WRAP_OSD1_MATRIX_OFFSET2;
+		OSD_MATRIX_PRE_OFFSET0_1 = VPP_WRAP_OSD1_MATRIX_PRE_OFFSET0_1;
+		OSD_MATRIX_PRE_OFFSET2 = VPP_WRAP_OSD1_MATRIX_PRE_OFFSET2;
+		OSD_MATRIX_EN_CTRL = VPP_WRAP_OSD1_MATRIX_EN_CTRL;
+
+		OSD_PQ_MATRIX_COEF00_01 = OSD1_HDR2_MATRIXI_COEF00_01;
+		OSD_PQ_MATRIX_COEF02_10 = OSD1_HDR2_MATRIXI_COEF02_10;
+		OSD_PQ_MATRIX_COEF11_12 = OSD1_HDR2_MATRIXI_COEF11_12;
+		OSD_PQ_MATRIX_COEF20_21 = OSD1_HDR2_MATRIXI_COEF20_21;
+		OSD_PQ_MATRIX_COEF22 = OSD1_HDR2_MATRIXI_COEF22;
+		OSD_PQ_MATRIX_OFFSET0_1 = OSD1_HDR2_MATRIXI_OFFSET0_1;
+		OSD_PQ_MATRIX_OFFSET2 = OSD1_HDR2_MATRIXI_OFFSET2;
+		OSD_PQ_MATRIX_PRE_OFFSET0_1 = OSD1_HDR2_MATRIXI_PRE_OFFSET0_1;
+		OSD_PQ_MATRIX_PRE_OFFSET2 = OSD1_HDR2_MATRIXI_PRE_OFFSET2;
+		OSD_PQ_MATRIX_CLIP = OSD1_HDR2_MATRIXI_CLIP;
+		OSD_PQ_MATRIX_EN_CTRL = OSD1_HDR2_MATRIXI_EN_CTRL;
+	} else if (chip_type_id == chip_t6d) {
+		OSD_MATRIX_COEF00_01 = OSD1_HDR2_MATRIXI_COEF00_01;
+		OSD_MATRIX_COEF02_10 = OSD1_HDR2_MATRIXI_COEF02_10;
+		OSD_MATRIX_COEF11_12 = OSD1_HDR2_MATRIXI_COEF11_12;
+		OSD_MATRIX_COEF20_21 = OSD1_HDR2_MATRIXI_COEF20_21;
+		OSD_MATRIX_COEF22 = OSD1_HDR2_MATRIXI_COEF22;
+		OSD_MATRIX_OFFSET0_1 = OSD1_HDR2_MATRIXI_OFFSET0_1;
+		OSD_MATRIX_OFFSET2 = OSD1_HDR2_MATRIXI_OFFSET2;
+		OSD_MATRIX_PRE_OFFSET0_1 = OSD1_HDR2_MATRIXI_PRE_OFFSET0_1;
+		OSD_MATRIX_PRE_OFFSET2 = OSD1_HDR2_MATRIXI_PRE_OFFSET2;
+		OSD_MATRIX_EN_CTRL = OSD1_HDR2_MATRIXI_EN_CTRL;
+
+		OSD_PQ_MATRIX_COEF00_01 = OSD1_PQ_MATRIX_COEF00_01;
+		OSD_PQ_MATRIX_COEF02_10 = OSD1_PQ_MATRIX_COEF02_10;
+		OSD_PQ_MATRIX_COEF11_12 = OSD1_PQ_MATRIX_COEF11_12;
+		OSD_PQ_MATRIX_COEF20_21 = OSD1_PQ_MATRIX_COEF20_21;
+		OSD_PQ_MATRIX_COEF22 = OSD1_PQ_MATRIX_COEF22;
+		OSD_PQ_MATRIX_OFFSET0_1 = OSD1_PQ_MATRIX_OFFSET0_1;
+		OSD_PQ_MATRIX_OFFSET2 = OSD1_PQ_MATRIX_OFFSET2;
+		OSD_PQ_MATRIX_PRE_OFFSET0_1 = OSD1_PQ_MATRIX_PRE_OFFSET0_1;
+		OSD_PQ_MATRIX_PRE_OFFSET2 = OSD1_PQ_MATRIX_PRE_OFFSET2;
+		OSD_PQ_MATRIX_CLIP = OSD1_PQ_MATRIX_CLIP;
+		OSD_PQ_MATRIX_EN_CTRL = OSD1_PQ_MATRIX_EN_CTRL;
+	} else {
+		return 0;
+	}
 
 	/* RGB -> 709 limit */
 	m = RGB709_to_YUV709l_coeff;
-	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET0_1,
+	WRITE_VPP_REG(OSD_MATRIX_PRE_OFFSET0_1,
 		((m[0] & 0xfff) << 16) | (m[1] & 0xfff));
-	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET2,
+	WRITE_VPP_REG(OSD_MATRIX_PRE_OFFSET2,
 		m[2] & 0xfff);
-	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_COEF00_01,
+	WRITE_VPP_REG(OSD_MATRIX_COEF00_01,
 		((m[3] & 0x1fff) << 16) | (m[4] & 0x1fff));
-	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_COEF02_10,
+	WRITE_VPP_REG(OSD_MATRIX_COEF02_10,
 		((m[5]  & 0x1fff) << 16) | (m[6] & 0x1fff));
-	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_COEF11_12,
+	WRITE_VPP_REG(OSD_MATRIX_COEF11_12,
 		((m[7] & 0x1fff) << 16) | (m[8] & 0x1fff));
-	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_COEF20_21,
+	WRITE_VPP_REG(OSD_MATRIX_COEF20_21,
 		((m[9] & 0x1fff) << 16) | (m[10] & 0x1fff));
-	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_COEF22,
+	WRITE_VPP_REG(OSD_MATRIX_COEF22,
 		m[11] & 0x1fff);
-	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_OFFSET0_1,
+	WRITE_VPP_REG(OSD_MATRIX_OFFSET0_1,
 		((m[18] & 0xfff) << 16) | (m[19] & 0xfff));
-	WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_OFFSET2,
+	WRITE_VPP_REG(OSD_MATRIX_OFFSET2,
 		m[20] & 0xfff);
-	WRITE_VPP_REG_BITS(VPP_WRAP_OSD1_MATRIX_EN_CTRL, 1, 0, 1);
+	WRITE_VPP_REG_BITS(OSD_MATRIX_EN_CTRL, 1, 0, 1);
 
-	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_PRE_OFFSET0_1,
+	/* osd pq setting matrix*/
+	WRITE_VPP_REG(OSD_PQ_MATRIX_PRE_OFFSET0_1,
 		(0x7c0 << 16) | 0x600);
-	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_PRE_OFFSET2,
+	WRITE_VPP_REG(OSD_PQ_MATRIX_PRE_OFFSET2,
 		0x600);
-	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_COEF00_01, 0x400 << 16);
-	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_COEF02_10, 0x0);
-	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_COEF11_12, 0x400 << 16);
-	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_COEF20_21, 0x0);
-	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_COEF22, 0x400);
-	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_OFFSET0_1,
+	WRITE_VPP_REG(OSD_PQ_MATRIX_COEF00_01, 0x400 << 16);
+	WRITE_VPP_REG(OSD_PQ_MATRIX_COEF02_10, 0x0);
+	WRITE_VPP_REG(OSD_PQ_MATRIX_COEF11_12, 0x400 << 16);
+	WRITE_VPP_REG(OSD_PQ_MATRIX_COEF20_21, 0x0);
+	WRITE_VPP_REG(OSD_PQ_MATRIX_COEF22, 0x400);
+	WRITE_VPP_REG(OSD_PQ_MATRIX_OFFSET0_1,
 		(0x0040 << 16) | 0x0200);
-	WRITE_VPP_REG(OSD1_HDR2_MATRIXI_OFFSET2,
+	WRITE_VPP_REG(OSD_PQ_MATRIX_OFFSET2,
 		0x0200);
-	WRITE_VPP_REG_BITS(OSD1_HDR2_MATRIXI_EN_CTRL, 1, 0, 1);
-	WRITE_VPP_REG_BITS(OSD1_HDR2_MATRIXI_CLIP, 0, 5, 3);
+	WRITE_VPP_REG_BITS(OSD_PQ_MATRIX_EN_CTRL, 1, 0, 1);
+	WRITE_VPP_REG_BITS(OSD_PQ_MATRIX_CLIP, 0, 5, 3);
 
 	return 0;
 }
@@ -2321,8 +2407,16 @@ static int amvecm_set_osd_brightness(int val)
 {
 	struct vpp_mtx_info_s *mtx_p = &mtx_info;
 
-	if (osd_pic_en && chip_type_id == chip_t5m) {
-		mtx_p->mtx_sel = OSD_MTX;
+	if (!osd_pic_en)
+		return 0;
+
+	if (chip_type_id == chip_t5m ||
+		chip_type_id == chip_t6d) {
+		if (chip_type_id == chip_t5m)
+			mtx_p->mtx_sel = OSD1_HDR_MTX;
+		else
+			mtx_p->mtx_sel = OSD1_PQ_MTX;
+
 		vecm_latch_flag2 |= VPP_MARTIX_GET;
 		vpp_mtx_update(mtx_p, VPP_TOP0);
 
@@ -2331,7 +2425,7 @@ static int amvecm_set_osd_brightness(int val)
 		mtx_p->mtx_coef.pre_offset[0] = val;
 		vecm_latch_flag2 |= VPP_MARTIX_UPDATE;
 	} else {
-		pr_info("osd pq setting: only for t5m enable osd_pic_en\n");
+		pr_info("osd pq setting: only for t5m/t6d enable osd_pic_en\n");
 	}
 	return 0;
 }
@@ -2340,15 +2434,23 @@ static int amvecm_set_osd_contrast(int val)
 {
 	struct vpp_mtx_info_s *mtx_p = &mtx_info;
 
-	if (osd_pic_en && chip_type_id == chip_t5m) {
-		mtx_p->mtx_sel = OSD_MTX;
+	if (!osd_pic_en)
+		return 0;
+
+	if (chip_type_id == chip_t5m ||
+		chip_type_id == chip_t6d) {
+		if (chip_type_id == chip_t5m)
+			mtx_p->mtx_sel = OSD1_HDR_MTX;
+		else
+			mtx_p->mtx_sel = OSD1_PQ_MTX;
+
 		vecm_latch_flag2 |= VPP_MARTIX_GET;
 		vpp_mtx_update(mtx_p, VPP_TOP0);
 
 		mtx_p->mtx_coef.matrix_coef[0][0] = val + 1024;
 		vecm_latch_flag2 |= VPP_MARTIX_UPDATE;
 	} else {
-		pr_info("osd pq setting: only for t5m enable osd_pic_en\n");
+		pr_info("osd pq setting: only for t5m/t6d enable osd_pic_en\n");
 	}
 	return 0;
 }
@@ -2358,8 +2460,16 @@ static int amvecm_set_osd_saturation(int val)
 	struct vpp_mtx_info_s *mtx_p = &mtx_info;
 	u16 sat_val, sat_u, sat_v;
 
-	if (osd_pic_en && chip_type_id == chip_t5m) {
-		mtx_p->mtx_sel = OSD_MTX;
+	if (!osd_pic_en)
+		return 0;
+
+	if (chip_type_id == chip_t5m ||
+		chip_type_id == chip_t6d) {
+		if (chip_type_id == chip_t5m)
+			mtx_p->mtx_sel = OSD1_HDR_MTX;
+		else
+			mtx_p->mtx_sel = OSD1_PQ_MTX;
+
 		vecm_latch_flag2 |= VPP_MARTIX_GET;
 		vpp_mtx_update(mtx_p, VPP_TOP0);
 
@@ -2374,7 +2484,7 @@ static int amvecm_set_osd_saturation(int val)
 		mtx_p->mtx_coef.matrix_coef[2][2] = sat_v;
 		vecm_latch_flag2 |= VPP_MARTIX_UPDATE;
 	} else {
-		pr_info("osd pq setting: only for t5m enable osd_pic_en\n");
+		pr_info("osd pq setting: only for t5m/t6d enable osd_pic_en\n");
 	}
 	return 0;
 }
@@ -2386,8 +2496,16 @@ static ssize_t osd_brightness_show(struct class *cla,
 	struct vpp_mtx_info_s *mtx_p = &mtx_info;
 	int brightness;
 
-	if (osd_pic_en && chip_type_id == chip_t5m) {
-		mtx_p->mtx_sel = OSD_MTX;
+	if (!osd_pic_en)
+		return -EINVAL;
+
+	if (chip_type_id == chip_t5m ||
+		chip_type_id == chip_t6d) {
+		if (chip_type_id == chip_t5m)
+			mtx_p->mtx_sel = OSD1_HDR_MTX;
+		else
+			mtx_p->mtx_sel = OSD1_PQ_MTX;
+
 		vecm_latch_flag2 |= VPP_MARTIX_GET;
 		vpp_mtx_update(mtx_p, VPP_TOP0);
 
@@ -2409,9 +2527,10 @@ static ssize_t osd_brightness_store(struct class *cla,
 	int val;
 
 	r = sscanf(buf, "%d\n", &val);
-	if (val < -1024 || val > 1023)
+	if (val < -1024 || val > 1023) {
+		pr_info("osd brightness range: -1024 ~ 1023\n");
 		return -EINVAL;
-
+	}
 	amvecm_set_osd_brightness(val);
 	return count;
 }
@@ -2422,8 +2541,16 @@ static ssize_t osd_contrast_show(struct class *cla,
 {
 	struct vpp_mtx_info_s *mtx_p = &mtx_info;
 
-	if (osd_pic_en && chip_type_id == chip_t5m) {
-		mtx_p->mtx_sel = OSD_MTX;
+	if (!osd_pic_en)
+		return -EINVAL;
+
+	if (chip_type_id == chip_t5m ||
+		chip_type_id == chip_t6d) {
+		if (chip_type_id == chip_t5m)
+			mtx_p->mtx_sel = OSD1_HDR_MTX;
+		else
+			mtx_p->mtx_sel = OSD1_PQ_MTX;
+
 		vecm_latch_flag2 |= VPP_MARTIX_GET;
 		vpp_mtx_update(mtx_p, VPP_TOP0);
 
@@ -2442,9 +2569,10 @@ static ssize_t osd_contrast_store(struct class *cla,
 	int val;
 
 	r = sscanf(buf, "%d\n", &val);
-	if (val < -1024 || val > 1023)
+	if (val < -1024 || val > 1023) {
+		pr_info("osd brightness range: -1024 ~ 1023\n");
 		return -EINVAL;
-
+	}
 	amvecm_set_osd_contrast(val);
 	return count;
 }
@@ -2456,8 +2584,16 @@ static ssize_t osd_saturation_show(struct class *cla,
 	struct vpp_mtx_info_s *mtx_p = &mtx_info;
 	u16 sat_val, sat_u, sat_v;
 
-	if (osd_pic_en && chip_type_id == chip_t5m) {
-		mtx_p->mtx_sel = OSD_MTX;
+	if (!osd_pic_en)
+		return -EINVAL;
+
+	if (chip_type_id == chip_t5m ||
+		chip_type_id == chip_t6d) {
+		if (chip_type_id == chip_t5m)
+			mtx_p->mtx_sel = OSD1_HDR_MTX;
+		else
+			mtx_p->mtx_sel = OSD1_PQ_MTX;
+
 		vecm_latch_flag2 |= VPP_MARTIX_GET;
 		vpp_mtx_update(mtx_p, VPP_TOP0);
 		sat_u = mtx_p->mtx_coef.matrix_coef[1][1];
@@ -2484,9 +2620,10 @@ static ssize_t osd_saturation_store(struct class *cla,
 	int val;
 
 	r = sscanf(buf, "%d\n", &val);
-	if (val < -128 || val > 128)
+	if (val < -128 || val > 128) {
+		pr_info("osd brightness range: -128 ~ 128\n");
 		return -EINVAL;
-
+	}
 	amvecm_set_osd_saturation(val);
 	return count;
 }
@@ -2791,8 +2928,9 @@ int amvecm_on_vs(struct vframe_s *vf,
 
 		if (toggle_vf && vd_path == VD1_PATH) {
 			if (chip_type_id != chip_t3x) {
-				lc_process(toggle_vf, sps_h_en, sps_v_en,
-					sps_w_in, sps_h_in, vpp_index, &vpp_hist_param);
+				if (chip_type_id != chip_t6d)
+					lc_process(toggle_vf, sps_h_en, sps_v_en,
+						sps_w_in, sps_h_in, vpp_index, &vpp_hist_param);
 			} else {
 				if ((toggle_vf->flag & VFRAME_FLAG_COMPOSER_DONE) &&
 					toggle_vf->composer_info &&
@@ -2824,8 +2962,9 @@ int amvecm_on_vs(struct vframe_s *vf,
 		/*refresh vframe*/
 		if (!toggle_vf && vf && vd_path == VD1_PATH) {
 			if (chip_type_id != chip_t3x) {
-				lc_process(vf, sps_h_en, sps_v_en,
-					sps_w_in, sps_h_in, vpp_index, &vpp_hist_param);
+				if (chip_type_id != chip_t6d)
+					lc_process(vf, sps_h_en, sps_v_en,
+						sps_w_in, sps_h_in, vpp_index, &vpp_hist_param);
 			} else {
 				if ((vf->flag & VFRAME_FLAG_COMPOSER_DONE) &&
 					vf->composer_info &&
@@ -2854,9 +2993,11 @@ int amvecm_on_vs(struct vframe_s *vf,
 			vpp_index);
 		pr_amvecm_bringup_dbg("[on_vs] matrix_process else done.\n");
 		if (vd_path == VD1_PATH) {
-			lc_process(NULL, sps_h_en, sps_v_en,
-				sps_w_in, sps_h_in, vpp_index, &vpp_hist_param);
-			pr_amvecm_bringup_dbg("[on_vs] lc_proc else done.\n");
+			if (chip_type_id != chip_t6d) {
+				lc_process(NULL, sps_h_en, sps_v_en,
+					sps_w_in, sps_h_in, vpp_index, &vpp_hist_param);
+				pr_amvecm_bringup_dbg("[on_vs] lc_proc else done.\n");
+			}
 			/*1080i pulldown combing workaround*/
 			amvecm_dejaggy_patch(NULL);
 			pr_amvecm_bringup_dbg("[on_vs] dejaggy_patch else done.\n");
@@ -3366,6 +3507,7 @@ static long amvecm_ioctl(struct file *file,
 	struct color_param_s ct_parm1;
 	struct color_tune_parm_s ct_param;
 	struct db_aicolor_param_s db_aicolor_param;
+	int lut3d_single_sz;
 #endif
 
 	if (debug_amvecm & 2)
@@ -3637,13 +3779,21 @@ static long amvecm_ioctl(struct file *file,
 		break;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case AMVECM_IOC_SET_3D_LUT:
-		p3dlut = vmalloc(4913 * 3 * sizeof(unsigned int));
+
+		if (chip_type_id == chip_t6d)
+			lut3d_single_sz = LUT3D_SINGLE_SIZE9;
+		else
+			lut3d_single_sz = LUT3D_SINGLE_SIZE;
+
+		p3dlut = vmalloc(LUT3D_SINGLE_SIZE * 3 * sizeof(unsigned int));
 		if (!p3dlut)
 			return -ENOMEM;
 
+		memset(p3dlut, 0, LUT3D_SINGLE_SIZE * 3 * sizeof(unsigned int));
+
 		if (copy_from_user(p3dlut,
 			(void __user *)arg,
-			4913 * 3 * sizeof(unsigned int))) {
+			lut3d_single_sz * 3 * sizeof(unsigned int))) {
 			ret = -EFAULT;
 		} else {
 			vpp_lut3d_table_init(0, 0, 0);
@@ -7499,6 +7649,7 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 	int i;
 	int curve_val[65] = {0};
 	char *stemp = NULL;
+	int addr_ofst, sel_val, para_val, comp_val;
 
 	if (!buf)
 		return count;
@@ -7559,6 +7710,64 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 			for (i = 0; i < 65; i++)
 				cgain_lut_bypass[i] = curve_val[i];
 		}
+	} else if (!strncmp(parm[0], "lut1_param", 10)) {
+		if (!strncmp(parm[1], "blend", 5))
+			sel_val = 0;
+		else if (!strncmp(parm[1], "sft", 3))
+			sel_val = 1;
+		else if (!strncmp(parm[1], "idx", 3))
+			sel_val = 2;
+		else
+			goto free_buf;
+		pr_info("lut1_param sel_val = %d\n", sel_val);
+		if (kstrtoul(parm[2], 10, &val) < 0)
+			goto free_buf;
+		para_val = val;
+		pr_info("lut1_param para_val = %d\n", para_val);
+		if (kstrtoul(parm[3], 16, &val) < 0)
+			addr_ofst = 0x2a00;
+		else
+			addr_ofst = val;
+		pr_info("lut1_param addr_ofst = 0x%x\n", addr_ofst);
+		hdr_lut1_param_debug(addr_ofst, sel_val, para_val);
+	} else if (!strncmp(parm[0], "gmt_comp_en", 11)) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		comp_val = val;
+		pr_info("gmt_comp_en comp_val = %d\n", comp_val);
+		if (kstrtoul(parm[2], 16, &val) < 0)
+			addr_ofst = 0x2a00;
+		else
+			addr_ofst = val;
+		pr_info("gmt_comp_en addr_ofst = 0x%x\n", addr_ofst);
+		sel_val = GMT_COMP_SEL_EN;
+		hdr_gmut_comp_debug(addr_ofst, sel_val, comp_val);
+	} else if (!strncmp(parm[0], "gmt_comp", 8)) {
+		if (!strncmp(parm[1], "ofst_r", 6))
+			sel_val = GMT_COMP_SEL_OFST_R;
+		else if (!strncmp(parm[1], "ofst_g", 6))
+			sel_val = GMT_COMP_SEL_OFST_G;
+		else if (!strncmp(parm[1], "ofst_b", 6))
+			sel_val = GMT_COMP_SEL_OFST_B;
+		else if (!strncmp(parm[1], "min_r", 5))
+			sel_val = GMT_COMP_SEL_MIN_R;
+		else if (!strncmp(parm[1], "min_g", 5))
+			sel_val = GMT_COMP_SEL_MIN_G;
+		else if (!strncmp(parm[1], "min_b", 5))
+			sel_val = GMT_COMP_SEL_MIN_B;
+		else
+			goto free_buf;
+		pr_info("gmt_comp sel_val = %d\n", sel_val);
+		if (kstrtoul(parm[2], 10, &val) < 0)
+			goto free_buf;
+		comp_val = val;
+		pr_info("gmt_comp comp_val = %d\n", comp_val);
+		if (kstrtoul(parm[3], 16, &val) < 0)
+			addr_ofst = 0x2a00;
+		else
+			addr_ofst = val;
+		pr_info("gmt_comp addr_ofst = 0x%x\n", addr_ofst);
+		hdr_gmut_comp_debug(addr_ofst, sel_val, comp_val);
 	} else if (!strcmp(parm[0], "cuva_dbg")) {
 		cuva_hdr_dbg();
 	} else if (!strcmp(parm[0], "reg_dump")) {
@@ -9870,6 +10079,7 @@ static void sr_init_config(void)
 #endif
 	case chip_s7d:
 	case chip_s6:
+	case chip_t6d:
 		s7d_sharpness_init();
 	break;
 	default:
@@ -10815,28 +11025,32 @@ static ssize_t amvecm_debug_store(struct class *cla,
 	} else if (!strncmp(parm[0], "sharpness", 9)) {
 		if (!strncmp(parm[1], "peaking_en", 10)) {
 			if (chip_type_id == chip_s7d ||
-				chip_type_id == chip_s6)
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
 				amve_sharpness_sub_ctrl(1, 1);
 			else
 				amvecm_sharpness_enable(0);
 			pr_info("enable peaking\n");
 		} else if (!strncmp(parm[1], "peaking_dis", 11)) {
 			if (chip_type_id == chip_s7d ||
-				chip_type_id == chip_s6)
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
 				amve_sharpness_sub_ctrl(1, 0);
 			else
 				amvecm_sharpness_enable(1);
 			pr_info("disable peaking\n");
 		} else if (!strncmp(parm[1], "lcti_en", 7)) {
 			if (chip_type_id == chip_s7d ||
-				chip_type_id == chip_s6)
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
 				amve_sharpness_sub_ctrl(2, 1);
 			else
 				amvecm_sharpness_enable(2);
 			pr_info("enable lti cti\n");
 		} else if (!strncmp(parm[1], "lcti_dis", 8)) {
 			if (chip_type_id == chip_s7d ||
-				chip_type_id == chip_s6)
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
 				amve_sharpness_sub_ctrl(2, 0);
 			else
 				amvecm_sharpness_enable(3);
@@ -10861,35 +11075,40 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			pr_info("SR3 disable dejaggy\n");
 		} else if (!strncmp(parm[1], "dering_en", 9)) {
 			if (chip_type_id == chip_s7d ||
-				chip_type_id == chip_s6)
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
 				amve_sharpness_sub_ctrl(3, 1);
 			else
 				amvecm_sharpness_enable(10);
 			pr_info("SR3 enable dering\n");
 		} else if (!strncmp(parm[1], "dering_dis", 10)) {
 			if (chip_type_id == chip_s7d ||
-				chip_type_id == chip_s6)
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
 				amve_sharpness_sub_ctrl(3, 0);
 			else
 				amvecm_sharpness_enable(11);
 			pr_info("SR3 disable dering\n");
 		} else if (!strncmp(parm[1], "drlpf_en", 8)) {
 			if (chip_type_id == chip_s7d ||
-				chip_type_id == chip_s6)
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
 				amve_sharpness_sub_ctrl(6, 1);
 			else
 				amvecm_sharpness_enable(12);
 			pr_info("SR3 enable drlpf\n");
 		} else if (!strncmp(parm[1], "drlpf_dis", 9)) {
 			if (chip_type_id == chip_s7d ||
-				chip_type_id == chip_s6)
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d)
 				amve_sharpness_sub_ctrl(6, 0);
 			else
 				amvecm_sharpness_enable(13);
 			pr_info("SR3 disable drlpf\n");
 		} else if (!strncmp(parm[1], "enable", 6)) {
 			if (chip_type_id == chip_s7d ||
-				chip_type_id == chip_s6) {
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d) {
 				amve_sharpness_sub_ctrl(0, 1);
 			} else {
 				amvecm_sharpness_enable(0);
@@ -10903,7 +11122,8 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			pr_info("sharpness enable\n");
 		} else if (!strncmp(parm[1], "disable", 7)) {
 			if (chip_type_id == chip_s7d ||
-				chip_type_id == chip_s6) {
+				chip_type_id == chip_s6 ||
+				chip_type_id == chip_t6d) {
 				amve_sharpness_sub_ctrl(0, 0);
 			} else {
 				amvecm_sharpness_enable(1);
@@ -11243,13 +11463,23 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			mm_segment_t fs;
 			loff_t pos;
 			#endif
+			unsigned int section_max;
 
 			encode_table_size =
 				257 * sizeof(unsigned long);
-
-			section_len = 17;
-			if (lut3d_long_sec_en)
-				section_len = 17 * 17 * 17;
+			if (chip_type_id == chip_t6d) {
+				section_len = LUT3D_POINTS9;
+				section_max = LUT3D_SINGLE_SIZE9;
+			} else {
+				section_len = LUT3D_POINTS;
+				section_max = LUT3D_SINGLE_SIZE;
+			}
+			if (lut3d_long_sec_en) {
+				if (chip_type_id == chip_t6d)
+					section_len = LUT3D_SINGLE_SIZE9;
+				else
+					section_len = LUT3D_SINGLE_SIZE;
+			}
 			section_in = kmalloc(sizeof(unsigned int) * section_len * 3,
 				GFP_KERNEL);
 			if (!section_in)
@@ -11265,10 +11495,10 @@ static ssize_t amvecm_debug_store(struct class *cla,
 				start = 0;
 			}
 
-			if (start > ((17 * 17 * 17 / section_len) - 1)) {
-				start = (17 * 17 * 17 / section_len) - 1;
+			if (start > ((section_max / section_len) - 1)) {
+				start = (section_max / section_len) - 1;
 				pr_info("section index should be in 0 ~ %d-1\n",
-					(17 * 17 * 17 / section_len));
+					(section_max / section_len));
 			}
 
 			memset(section_in, 0,
@@ -11355,12 +11585,23 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			mm_segment_t fs;
 			loff_t pos;
 			#endif
+			unsigned int section_max;
 
 			encode_table_size =
 				257 * sizeof(unsigned long);
-			section_len = 17;
-			if (lut3d_long_sec_en)
-				section_len = 17 * 17 * 17;
+			if (chip_type_id == chip_t6d) {
+				section_len = LUT3D_POINTS9;
+				section_max = LUT3D_SINGLE_SIZE9;
+			} else {
+				section_len = LUT3D_POINTS;
+				section_max = LUT3D_SINGLE_SIZE;
+			}
+			if (lut3d_long_sec_en) {
+				if (chip_type_id == chip_t6d)
+					section_len = LUT3D_SINGLE_SIZE9;
+				else
+					section_len = LUT3D_SINGLE_SIZE;
+			}
 			section_out =
 			kmalloc(sizeof(unsigned int) * section_len * 3,
 				GFP_KERNEL);
@@ -11389,10 +11630,10 @@ static ssize_t amvecm_debug_store(struct class *cla,
 				start = 0;
 			}
 
-			if (start > ((17 * 17 * 17 / section_len) - 1)) {
-				start = (17 * 17 * 17 / section_len) - 1;
+			if (start > ((section_max / section_len) - 1)) {
+				start = (section_max / section_len) - 1;
 				pr_info("section index should be in 0 ~ %d-1\n",
-					(17 * 17 * 17 / section_len));
+					(section_max / section_len));
 			}
 
 			vpp_read_lut3d_section(start,
@@ -13647,7 +13888,8 @@ void init_pq_setting(void)
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T5W ||
 		chip_type_id == chip_t5m ||
 		chip_type_id == chip_t3x ||
-		chip_type_id == chip_txhd2)
+		chip_type_id == chip_txhd2 ||
+		chip_type_id == chip_t6d)
 		goto tvchip_pq_setting;
 	else if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
 		 is_meson_sm1_cpu() ||
@@ -13710,7 +13952,8 @@ tvchip_pq_setting:
 			get_cpu_type() == MESON_CPU_MAJOR_ID_T5W ||
 			chip_type_id == chip_t5m ||
 			chip_type_id == chip_t3x ||
-			chip_type_id == chip_txhd2)
+			chip_type_id == chip_txhd2 ||
+			chip_type_id == chip_t6d)
 			bitdepth = 10;
 		else if (is_meson_tm2_cpu())
 			bitdepth = 12;
@@ -13727,7 +13970,8 @@ tvchip_pq_setting:
 #endif
 		cm_init_config(bitdepth);
 		/*lc init*/
-		lc_init(bitdepth);
+		if (chip_type_id != chip_t6d)
+			lc_init(bitdepth);
 
 		/*frequence meter init*/
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -13883,9 +14127,10 @@ void amvecm_gamma_init(bool en)
 			vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
 			vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
 		} else if (chip_type_id == chip_t5m ||
-				   chip_type_id == chip_t3x ||
-				   chip_type_id == chip_txhd2 ||
-				   chip_type_id == chip_a4) {
+			chip_type_id == chip_t3x ||
+			chip_type_id == chip_txhd2 ||
+			chip_type_id == chip_a4 ||
+			chip_type_id == chip_t6d) {
 			p_gm = get_gm_data();
 			p_gm->max_idx = 257;
 			p_gm->auto_inc = 1 << L_H_AUTO_INC_2;
@@ -14468,6 +14713,19 @@ static const struct vecm_match_data_s vecm_dt_s6 = {
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 };
 
+static const struct vecm_match_data_s vecm_dt_t6d = {
+	.chip_id = chip_t6d,
+	.chip_cls = TV_CHIP,
+	.vlk_chip = vlock_chip_t5,
+	.vlk_support = true,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_tm2verb,
+	.vlk_phlock_en = true,
+	.vlk_pll_sel = vlock_pll_sel_tcon,
+	.vlk_ctl_for_frc = 0,
+	.vrr_support_flag = 1,
+};
+
 static const struct of_device_id aml_vecm_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
 	{
@@ -14550,6 +14808,10 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm-s6",
 		.data = &vecm_dt_s6,
+	},
+	{
+		.compatible = "amlogic, vecm-t6d",
+		.data = &vecm_dt_t6d,
 	},
 	{},
 };

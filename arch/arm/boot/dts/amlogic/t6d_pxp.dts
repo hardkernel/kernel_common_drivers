@@ -1872,11 +1872,14 @@
 };
 
 &amlvecm {
-	status = "disabled";
+	compatible = "amlogic, vecm-t6d";
+	dev_name = "aml_vecm";
+	status = "okay";
 	gamma_en = <1>;/*1:enable ;0:disable*/
 	wb_en = <1>;/*1:enable ;0:disable*/
 	cm_en = <1>;/*1:enable ;0:disable*/
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
+	osd_pic_en = <1>;/*1:enable osd picture setting;0:disable*/
 	vlock_en = <1>;/*1:enable;0:disable*/
 	vlock_mode = <0x8>;
 	vrr_priority = <1>;/*1:game mode vrr always on;0:vrr on depend on vrr signal*/

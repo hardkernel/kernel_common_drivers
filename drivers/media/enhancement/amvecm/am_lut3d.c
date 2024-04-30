@@ -24,10 +24,16 @@ extern unsigned int (*plut_out)[3];
 void bs_ct_tbl(void)
 {
 	int i, j;
+	int lut3d_single_sz;
+
+	if (chip_type_id == chip_t6d)
+		lut3d_single_sz = LUT3D_SINGLE_SIZE9;
+	else
+		lut3d_single_sz = LUT3D_SINGLE_SIZE;
 
 	if (bs_3dlut_en) {
 		//memcpy(&plut[0][0], plut3d, 14739 * sizeof(int));
-		for (i = 0; i < 4913; i++)
+		for (i = 0; i < lut3d_single_sz; i++)
 			for (j = 0; j < 3; j++)
 				plut[i][j] = plut3d[i * 3 + j];
 	}
