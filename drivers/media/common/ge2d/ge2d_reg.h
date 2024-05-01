@@ -170,5 +170,6 @@ enum meson_chip_e {
 	MESON_CPU_MAJOR_ID_S7,
 	MESON_CPU_MAJOR_ID_S7D = 0x47,
 	MESON_CPU_MAJOR_ID_S6 = 0x48,
+	MESON_CPU_MAJOR_ID_T6D = 0x49,
 };
 #endif
