@@ -5293,6 +5293,19 @@ static struct osd_device_hw_s s7_dev_property = {
 	.prevsync_support = 0,
 };
 
+static struct osd_device_hw_s t6d_dev_property = {
+	.display_type = T7_DISPLAY,
+	.has_8G_addr = 1,
+	.multi_afbc_core = 1,
+	.has_multi_vpp = 0,
+	.new_blend_bypass = 1,
+	.path_ctrl_independ = 1,
+	.remove_afbc = 0,
+	.remove_pps = 0,
+	.prevsync_support = 0,
+	.single_blend_core = 1,
+};
+
 static struct osd_device_data_s osd_txhd2 = {
 	.cpu_id = __MESON_CPU_MAJOR_ID_TXHD2,
 	.osd_ver = OSD_HIGH_ONE,
@@ -5365,6 +5378,24 @@ static struct osd_device_data_s osd_s6 = {
 	.has_new_viu2 = 1,
 };
 
+static struct osd_device_data_s osd_t6d = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_T6D,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 2,
+	.has_deband = 0,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 0,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
+	.mif_linear = 1,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
+};
 #endif
 
 static const struct of_device_id meson_fb_dt_match[] = {
@@ -5493,6 +5524,10 @@ static const struct of_device_id meson_fb_dt_match[] = {
 	{
 		.compatible = "amlogic, fb-s6",
 		.data = &osd_s6,
+	},
+	},
+		.compatible = "amlogic, fb-t6d",
+		.data = &osd_t6d,
 	},
 #endif
 	{},
@@ -5641,6 +5676,8 @@ static int __init osd_probe(struct platform_device *pdev)
 		       sizeof(struct osd_device_hw_s));
 	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_S6)
 		memcpy(&osd_dev_hw, &s7_dev_property,
+	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T6D)
+		memcpy(&osd_dev_hw, &t6d_dev_property,
 		       sizeof(struct osd_device_hw_s));
 	else
 		memcpy(&osd_dev_hw, &legcy_dev_property,
@@ -5660,7 +5697,8 @@ static int __init osd_probe(struct platform_device *pdev)
 
 	config_osd_table(display_device_cnt);
 	if (display_device_cnt == 2 &&
-		osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_TXHD2)
+		(osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_TXHD2 ||
+		osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T6D))
 		osd_meson_dev.has_vpp1 = 1;
 	/* get interrupt resource */
 	int_viu_vsync = platform_get_irq_byname(pdev, "viu-vsync");
@@ -5711,7 +5749,8 @@ static int __init osd_probe(struct platform_device *pdev)
 	 * osd1 loop back use viu2_vsync
 	 * osd2 display use viu1_vsync
 	 */
-	if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_TXHD2 &&
+	if ((osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_TXHD2 ||
+		osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T6D) &&
 		osd_meson_dev.has_vpp1) {
 		exchange_viu_vsync = int_viu_vsync;
 		int_viu_vsync = int_viu2_vsync;

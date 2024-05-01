@@ -330,6 +330,7 @@ enum cpuid_type_e {
 	__MESON_CPU_MAJOR_ID_S7,
 	__MESON_CPU_MAJOR_ID_S7D,
 	__MESON_CPU_MAJOR_ID_S6,
+	__MESON_CPU_MAJOR_ID_T6D,
 	__MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -630,6 +631,7 @@ struct osd_device_hw_s {
 	u32 remove_pps;
 	u32 prevsync_support;
 	u32 s5_display;
+	u32 single_blend_core;
 };
 
 struct hw_osd_reg_s {

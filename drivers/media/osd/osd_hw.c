@@ -4109,6 +4109,7 @@ static u32 osd_get_hw_reset_flag(u32 output_index)
 	case __MESON_CPU_MAJOR_ID_S4:
 	case __MESON_CPU_MAJOR_ID_TXHD2:
 	case __MESON_CPU_MAJOR_ID_S1A:
+	case __MESON_CPU_MAJOR_ID_T6D:
 		{
 		int i, afbc_enable = 0;
 
@@ -6865,6 +6866,16 @@ static bool is_keystone_enable_for_txhd2(void)
 		return false;
 }
 
+static bool is_keystone_enable_for_t6d(void)
+{
+	if (osd_hw.osd_meson_dev.cpu_id ==
+		    __MESON_CPU_MAJOR_ID_T6D &&
+		    osd_hw.osd_meson_dev.has_vpp1)
+		return true;
+	else
+		return false;
+}
+
 static const struct color_bit_define_s *convert_hal_format(u32 format)
 {
 	const struct color_bit_define_s *color = NULL;
@@ -8820,7 +8831,8 @@ static void osd_update_enable(u32 index)
 					     (postbld_src_sel & 0xf) << 0 |
 					     (0 & 0x1) << 4);
 			} else {
-				if (is_keystone_enable_for_txhd2()) {
+				if (is_keystone_enable_for_txhd2() ||
+					is_keystone_enable_for_t6d()) {
 					postbld_src_sel = POSTBLD_CLOSE;
 					set_vpp_osd2_rgb2yuv(0);
 				} else {
@@ -9264,6 +9276,73 @@ static void exchange_vpp_order(struct hw_osd_blending_s *blending)
 {
 	blending->b_exchange_blend_in = 1;
 	osd_log_dbg(MODULE_BLEND, "need exchange vpp order\n");
+}
+
+static void generate_single_blend_din_table(struct hw_osd_blending_s *blending)
+{
+	int i = 0;
+	int osd_count = osd_hw.osd_meson_dev.osd_count;
+
+	/* reorder[i] = osd[i]'s display layer */
+	for (i = 0; i < OSD_BLEND_LAYERS; i++)
+		blending->osd_to_bdin_table[i] = -1;
+	blending->din_reoder_sel = 0;
+	switch (blending->layer_cnt) {
+	case 0:
+		break;
+	case 1:
+		for (i = 0; i < osd_count; i++) {
+			if (blending->reorder[i] != LAYER_UNSUPPORT) {
+				/* blend_din1 */
+				blending->din_reoder_sel |= (i + 1) << 0;
+				/* blend_din1 -- osdx */
+				blending->osd_to_bdin_table[0] = i;
+				break;
+			}
+		}
+		break;
+	case 2:
+	{
+		int temp_index[2] = {0};
+		int j = 0;
+
+		for (i = 0; i < osd_count; i++) {
+			if (blending->reorder[i] != LAYER_UNSUPPORT) {
+				/* save the osd index */
+				temp_index[j] = i;
+				j++;
+			}
+		}
+		osd_log_dbg(MODULE_BLEND, "blend_din2==%d\n",
+			    blending->reorder[temp_index[0]]);
+		osd_log_dbg(MODULE_BLEND, "blend_din1==%d\n",
+			    blending->reorder[temp_index[1]]);
+
+		/* blend_din1 */
+		blending->din_reoder_sel |= (temp_index[0] + 1) << 0;
+		/* blend_din1 -- osdx */
+		blending->osd_to_bdin_table[0] = temp_index[0];
+		/* blend_din2 */
+		blending->din_reoder_sel |= (temp_index[1] + 1) << 4;
+		/* blend_din2 -- osdx */
+		blending->osd_to_bdin_table[1] = temp_index[1];
+		/* exchane vpp osd blend in order */
+		if (blending->reorder[temp_index[0]] <
+			blending->reorder[temp_index[1]]) {
+			blending->b_exchange_blend_in = 1;
+			osd_log_dbg(MODULE_BLEND, "need exchange vpp order\n");
+		}
+		break;
+	}
+	}
+
+	osd_log_dbg(MODULE_BLEND, "osd_to_bdin_table[i]=[%x,%x,%x,%x]\n",
+		    blending->osd_to_bdin_table[0],
+		    blending->osd_to_bdin_table[1],
+		    blending->osd_to_bdin_table[2],
+		    blending->osd_to_bdin_table[3]);
+	blending->osd_blend_reg.din_reoder_sel =
+		blending->din_reoder_sel;
 }
 
 static void generate_blend_din_table(struct hw_osd_blending_s *blending)
@@ -10702,12 +10781,24 @@ static void set_blend_path(struct hw_osd_blending_s *blending)
 	case OSD_BLEND_AC:
 		/* blend0 & sc-->blend1-->blend2-->sc-->vpp_osd1 */
 		/* sc-->blend0 & blend1-->blend2-->sc-->vpp_osd1 */
-		if (!blending->b_exchange_din) {
-			input1 = BLEND_DIN1;
-			input2 = BLEND_DIN4;
+
+		/* single blend core only use blend din1/din2 */
+		if (!osd_dev_hw.single_blend_core) {
+			if (!blending->b_exchange_din) {
+				input1 = BLEND_DIN1;
+				input2 = BLEND_DIN4;
+			} else {
+				input1 = BLEND_DIN4;
+				input2 = BLEND_DIN1;
+			}
 		} else {
-			input1 = BLEND_DIN4;
-			input2 = BLEND_DIN1;
+			if (!blending->b_exchange_din) {
+				input1 = BLEND_DIN1;
+				input2 = BLEND_DIN2;
+			} else {
+				input1 = BLEND_DIN2;
+				input2 = BLEND_DIN1;
+			}
 		}
 		layer_blend->input1 = input1;
 		layer_blend->input2 = BLEND_NO_DIN;
@@ -12528,7 +12619,8 @@ static void set_vpp0_blend_reg(struct vpp0_blend_reg_s *vpp0_blend_reg)
 					     (vpp0_blend_reg->postbld_src4_sel & 0xf) << 0 |
 					     (0 << 4));
 		} else {
-			if (is_keystone_enable_for_txhd2()) {
+			if (is_keystone_enable_for_txhd2() ||
+				is_keystone_enable_for_t6d()) {
 				vpp0_blend_reg->postbld_src4_sel = 0;
 				set_vpp_osd2_rgb2yuv(0);
 			} else {
@@ -12575,7 +12667,8 @@ static void set_osd0_scaler_before_blend(void)
 {
 	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T3 ||
 		osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T5W ||
-		osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T5M)
+		osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T5M ||
+		osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T6D)
 		VSYNCOSD_WR_MPEG_REG_BITS(VIU_OSD1_PATH_CTRL, 1, 0, 1);
 }
 
@@ -13026,7 +13119,10 @@ static int osd_setting_order(u32 output_index)
 
 	/* set blend mode */
 	set_blend_mode(blending);
-	generate_blend_din_table(blending);
+	if (!osd_dev_hw.single_blend_core)
+		generate_blend_din_table(blending);
+	else
+		generate_single_blend_din_table(blending);
 
 	set_blend_din(blending);
 
@@ -14795,7 +14891,8 @@ static void set_rdma_func_handler(void)
 	int viu3 = VIU3;
 
 	if (osd_dev_hw.display_type != C3_DISPLAY) {
-		if (is_keystone_enable_for_txhd2()) {
+		if (is_keystone_enable_for_txhd2() ||
+			is_keystone_enable_for_t6d()) {
 			viu1 = VIU2;
 			viu2 = VIU1;
 		}
@@ -15243,7 +15340,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		       osd_hw.osd_meson_dev.osd_count);
 	} else if (osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_T3 ||
 		   osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_T5W ||
-		   osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_T5M) {
+		   osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_T5M ||
+		   osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_T6D) {
 		/* 4 or 3 OSD, multi_afbc_core */
 		memcpy(&hw_osd_reg_array[0], &hw_osd_reg_array_t3[0],
 		       sizeof(struct hw_osd_reg_s) *
@@ -15536,7 +15634,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 		register_osd_status_cb(get_osd_status);
 #endif
-	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_TXHD2)
+	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_TXHD2 ||
+		osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T6D)
 		enable_vd_zorder = 0;
 	osd_log_out = 1;
 }
