@@ -245,7 +245,7 @@ static int dump_hdmivpfdet_show(struct seq_file *s, void *p)
 		hdmitx21_set_reg_bits(HDMITX_TOP_CLK_GATE, 1, 1, 1);//enable fdet gate
 	hdmitx21_wr_reg(VP_FDET_CLEAR_IVCTX, 0);
 	hdmitx21_wr_reg(VP_FDET_STATUS_IVCTX, 0);
-	mdelay(hdev->pxp_mode ? 10 : 50); /* at least 1 frame? */
+	mdelay(50); /* at least 1 frame? */
 
 	reg = VP_FDET_FRAME_RATE_IVCTX;
 	val = CONNECT3REG(reg);
