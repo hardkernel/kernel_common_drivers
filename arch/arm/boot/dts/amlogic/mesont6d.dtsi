@@ -2318,31 +2318,6 @@
 		bootargs = "usbcore.autosuspend=-1";
 	};
 
-	gpu_opp_table: gpu_opp_table {
-		compatible = "operating-points-v2";
-
-		opp-250 {
-			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <1150>;
-		};
-		opp-400 {
-			opp-hz = /bits/ 64 <400000000>;
-			opp-microvolt = <1150>;
-		};
-		opp-500 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <1150>;
-		};
-		opp-666 {
-			opp-hz = /bits/ 64 <666666666>;
-			opp-microvolt = <1150>;
-		};
-		opp-800 {
-			opp-hz = /bits/ 64 <800000000>;
-			opp-microvolt = <1150>;
-		};
-	};
-
 	aml_mkl {
 		compatible = "amlogic,aml_mkl";
 		reg = <0xfe440200 0xf0>;
@@ -3478,18 +3453,15 @@
 };
 
 &gpu{
-	status = "disabled";
-	operating-points-v2 = <&gpu_opp_table>;
-	reg =   <0xFE400000 0x04000>, /*mali APB bus base address*/
-		<0xFE002000 0x01000>, /*reset register*/
-		<0xFE000000 0x01000>; /*hiu register*/
+	status = "okay";
+	reg =   <0xFE400000 0x40000>, /*mali APB bus base address*/
+		<0xFE002000 0x02000>; /*reset register*/
+		/*<0xFE000000 0x02000>; gpu clk register*/
 
-	interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
-		     <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
-		     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+	interrupts = <0 144 4>, <0 145 4>, <0 146 4>;
 	interrupt-names = "GPU", "MMU", "JOB";
 	num_of_pp = <2>;
-	system-coherency = <31>;
+	/*system-coherency = <31>;*/
 	clocks = <&clkc CLKID_MALI>;
 	clock-names = "gpu_mux";
 
@@ -3501,18 +3473,17 @@
 	assigned-clocks = <&clkc CLKID_MALI_0_SEL>,
 			  <&clkc CLKID_MALI_0>,
 			  <&clkc CLKID_MALI>; /* Glitch free mux */
-	assigned-clock-parents = <&clkc CLKID_FCLK_DIV2P5>,
+	assigned-clock-parents = <&clkc CLKID_FCLK_DIV5>,
 				 <0>, /* Do Nothing */
 				 <&clkc CLKID_MALI_0>;
 	assigned-clock-rates = <0>, /* Do Nothing */
-			       <800000000>,
+			       <400000000>,
 			       <0>; /* Do Nothing */
 
-	tbl =  <&dvfs250_cfg
+	tbl =  <&dvfs400_cfg
 		&dvfs400_cfg
-		&dvfs500_cfg
-		&dvfs666_cfg
-		&dvfs800_cfg
-		&dvfs800_cfg>;
-
+		&dvfs400_cfg
+		&dvfs400_cfg
+		&dvfs400_cfg
+		&dvfs400_cfg>;
 };
