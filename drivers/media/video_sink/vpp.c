@@ -2461,7 +2461,7 @@ RESTART:
 			screen_h = vinfo->height;
 		else
 			screen_h = vinfo->height >>
-			(vpp_flags & VPP_FLAG_INTERLACE_OUT) ? 1 : 0;
+			((vpp_flags & VPP_FLAG_INTERLACE_OUT) ? 1 : 0);
 		int skip = vpp_process_speed_check
 			(input->layer_id,
 			(next_frame_par->VPP_hd_end_lines_ -

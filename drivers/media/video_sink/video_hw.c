@@ -10710,8 +10710,7 @@ void alpha_win_set(struct video_layer_s *layer)
 	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
 		if (glayer_info[layer_id].alpha_support) {
 			if (layer_id == 0 &&
-				get_pi_enabled(layer_id) &&
-				layer->alpha_win_en == 0) {
+				get_pi_enabled(layer_id)) {
 				layer->alpha_win_en = 1;
 				layer->alpha_win.scpxn_bgn_h[0] = glayer_info[layer_id].layer_left;
 				layer->alpha_win.scpxn_end_h[0] = glayer_info[layer_id].layer_left +
