@@ -1,35 +1,39 @@
-From e9b84ee47af712ae1ba28c7b0a09f402a0ecacdd Mon Sep 17 00:00:00 2001
+From fad86ebec67efbdccb19f247698b92396a95fdde Mon Sep 17 00:00:00 2001
 From: Feng Chen <feng.chen@amlogic.com>
 Date: Tue, 21 Mar 2023 10:59:15 +0800
-Subject: [PATCH 1/9] mtdblock: modify for squashfs mount [1/2]
+Subject: [PATCH] mtdblock: modify for squashfs mount [1/2]
 
 PD#SWPL-116004
 PD#SWPL-157951
+PD#SWPL-168212
 
 Problem:
 1.squashfs don't handle bad block
 2.partition size returned from mtdblock
 is incorrect
 3.mtdblock io performance
+4.mtdblock report partition size wrong when meet bad block
 
 Solution:
 1.mtdblock handle bad block
 2.fix mtdblock size
 3.mtd disk block size set to mtd writesize
+4.correct the decrease size when meet bad block
 
 Verify:
 s4_aq2432
 BA409-A113L2_SOCKET #10
+C3_C308L_AW419_SOCKET_V01_R05
 
 Change-Id: Icbaec2b6679727ebe0d12fd92bf4d21cc4d5f3fe
 Signed-off-by: Feng Chen <feng.chen@amlogic.com>
 Signed-off-by: zhikui.cui <zhikui.cui@amlogic.com>
 ---
- drivers/mtd/mtdblock.c | 128 ++++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 127 insertions(+), 1 deletion(-)
+ drivers/mtd/mtdblock.c | 133 ++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 132 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/mtd/mtdblock.c b/drivers/mtd/mtdblock.c
-index 9751416c2a91..02a6c262ec42 100644
+index 9751416c2a91..ff8925ebe48d 100644
 --- a/drivers/mtd/mtdblock.c
 +++ b/drivers/mtd/mtdblock.c
 @@ -31,6 +31,14 @@ struct mtdblk_dev {
@@ -186,7 +190,7 @@ index 9751416c2a91..02a6c262ec42 100644
  	pr_debug("ok\n");
  
  	return 0;
-@@ -311,27 +402,62 @@ static int mtdblock_flush(struct mtd_blktrans_dev *dev)
+@@ -311,27 +402,67 @@ static int mtdblock_flush(struct mtd_blktrans_dev *dev)
  	ret = write_cached_data(mtdblk);
  	mutex_unlock(&mtdblk->cache_mutex);
  	mtd_sync(dev->mtd);
@@ -228,7 +232,12 @@ index 9751416c2a91..02a6c262ec42 100644
 +
 +	for (i = 0; i < (mtd->size >> mtd->erasesize_shift); i++)
 +		if (mtd_block_isbad(mtd, i * mtd->erasesize))
++#if (IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND) || \
++			IS_ENABLED(CONFIG_AMLOGIC_MTD_SPI_NAND))
++			dev->mbd.size -= (mtd->erasesize >> tr->blkshift);
++#else
 +			dev->mbd.size -= (mtd->erasesize >> 9);
++#endif
 +_ok:
 +#endif
  	dev->mbd.tr = tr;
