@@ -184,7 +184,7 @@ void update_vout2_viu(void);
 int set_vout2_vmode(enum vmode_e mode);
 int set_vout2_mode_pre_process(enum vmode_e mode);
 int set_vout2_mode_post_process(enum vmode_e mode);
-
+char *get_uboot_connector1_type(void);
 #else
 static inline int vout2_register_client(struct notifier_block *p)
 {
@@ -276,6 +276,10 @@ static inline int set_vout2_mode_post_process(enum vmode_e mode)
 	return 0;
 }
 
+static inline char *get_uboot_connector1_type(void)
+{
+	return NULL;
+}
 #endif
 
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
@@ -295,6 +299,7 @@ int get_vframe3_rate_policy(void);
 void set_vout3_bist(unsigned int bist);
 void set_vout3_bl_brightness(unsigned int brightness);
 unsigned int get_vout3_bl_brightness(void);
+char *get_uboot_connector2_type(void);
 #else
 static inline int vout3_register_client(struct notifier_block *p)
 {
@@ -370,6 +375,11 @@ static inline unsigned int get_vout3_bl_brightness(void)
 {
 	return 0;
 }
+
+static inline char *get_uboot_connector2_type(void)
+{
+	return NULL;
+}
 #endif
 
 #define VOUT_EVENT_MODE_CHANGE_PRE     0x00010000
@@ -387,8 +397,6 @@ int get_vout_mode_uboot_state(void);
 int get_vout2_mode_uboot_state(void);
 int get_vout3_mode_uboot_state(void);
 char *get_uboot_connector0_type(void);
-char *get_uboot_connector1_type(void);
-char *get_uboot_connector2_type(void);
 
 int set_vout_mode(char *name);
 void set_vout_init(enum vmode_e mode);
