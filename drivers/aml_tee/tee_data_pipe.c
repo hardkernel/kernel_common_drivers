@@ -103,14 +103,17 @@ struct data_pipe_s {
 };
 
 static struct data_pipe_s g_data_pipe_set[MAX_NUM_DATA_PIPE];
-static struct mutex g_pipe_set_lock; // pipe set lock
-
 static u32 g_cur_all_cache_size;
 static u32 g_cur_persistence_cache_size;
 static u32 g_cur_max_pipe_id;
 static u32 g_backlog; // set the max pipe count from server
 static u32 g_cur_pipe_cnt; // current pipe count
-static struct mutex g_pipe_cnt_lock; // pipe count lock
+
+/* common lock for
+ * g_data_pipe_set & g_cur_all_cache_size & g_cur_persistence_cache_size
+ * & g_cur_max_pipe_id & g_cur_pipe_cnt
+ */
+static struct mutex g_common_lock;
 
 static wait_queue_head_t g_wait_queue_for_accept;
 static wait_queue_head_t g_wait_queue_for_open;
@@ -211,7 +214,7 @@ static struct data_pipe_s *get_adapted_pipe(u32 exp_cache_size, u32 mode)
 	struct data_pipe_s *pipe_ptr = NULL;
 	u32 i = 0;
 
-	mutex_lock(&g_pipe_set_lock);
+	mutex_lock(&g_common_lock);
 
 	/* find adapted persistent data pipe */
 	for (i = 0; i < g_backlog; i++) {
@@ -282,7 +285,7 @@ static struct data_pipe_s *get_adapted_pipe(u32 exp_cache_size, u32 mode)
 	adapted_pipe->status = STATUS_OPENING;
 
 exit:
-	mutex_unlock(&g_pipe_set_lock);
+	mutex_unlock(&g_common_lock);
 
 	return adapted_pipe;
 }
@@ -508,9 +511,9 @@ static u32 close_pipe_by_id(u32 pipe_id)
 	}
 
 	if (pipe_ptr->status == STATUS_OPENED) {
-		mutex_lock(&g_pipe_cnt_lock);
+		mutex_lock(&g_common_lock);
 		g_cur_pipe_cnt--;
-		mutex_unlock(&g_pipe_cnt_lock);
+		mutex_unlock(&g_common_lock);
 	}
 
 	pipe_ptr->status = STATUS_CLOSED;
@@ -531,6 +534,7 @@ static u32 close_pipe_by_id(u32 pipe_id)
 	if (pipe_ptr->is_persistent)
 		goto exit;
 
+	mutex_lock(&g_common_lock);
 	if (cache_to_svr->cache_size >= MIN_SIZE_PERSISTENCE_PIPE_CACHE &&
 			cache_to_svr->cache_size <= MAX_SIZE_PERSISTENCE_PIPE_CACHE &&
 			cache_from_svr->cache_size >= MIN_SIZE_PERSISTENCE_PIPE_CACHE &&
@@ -550,6 +554,7 @@ static u32 close_pipe_by_id(u32 pipe_id)
 		cache_from_svr->cache_size = 0;
 		cache_from_svr->cache = NULL;
 	}
+	mutex_unlock(&g_common_lock);
 
 exit:
 	mutex_unlock(&pipe_ptr->pipe_lock);
@@ -573,8 +578,7 @@ void init_data_pipe_set(void)
 		mutex_init(&g_data_pipe_set[i].pipe_lock);
 	}
 
-	mutex_init(&g_pipe_set_lock);
-	mutex_init(&g_pipe_cnt_lock);
+	mutex_init(&g_common_lock);
 	init_waitqueue_head(&g_wait_queue_for_accept);
 	init_waitqueue_head(&g_wait_queue_for_open);
 	init_waitqueue_head(&g_wait_queue_for_data);
@@ -638,12 +642,15 @@ u32 tee_ioctl_open_data_pipe(struct tee_context *tee_ctx,
 		return TEE_ERROR_ACCESS_DENIED;
 	}
 
+	mutex_lock(&g_common_lock);
 	if (g_cur_pipe_cnt >= g_backlog) {
 		ERROR("there are too many opened data pipes\n");
 		ERROR("max pipe count: %d, current pipe count: %d\n",
 				g_backlog, g_cur_pipe_cnt);
+		mutex_unlock(&g_common_lock);
 		return TEE_ERROR_ACCESS_DENIED;
 	}
+	mutex_unlock(&g_common_lock);
 
 	if (copy_from_user(&pipe_ctx, user_pipe_ctx, sizeof(pipe_ctx))) {
 		ERROR("copy_from_user failed\n");
@@ -687,9 +694,9 @@ u32 tee_ioctl_open_data_pipe(struct tee_context *tee_ctx,
 			return TEEC_ERROR_SECURITY;
 		}
 
-		mutex_lock(&g_pipe_cnt_lock);
+		mutex_lock(&g_common_lock);
 		g_cur_pipe_cnt++;
-		mutex_unlock(&g_pipe_cnt_lock);
+		mutex_unlock(&g_common_lock);
 
 		DEBUG("leave function %s\n", __func__);
 
