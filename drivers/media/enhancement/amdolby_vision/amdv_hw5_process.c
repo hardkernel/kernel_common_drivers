@@ -2516,6 +2516,24 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 			p_ambient = &dynamic_darkdetail;
 		}
 	}
+
+	if (lightsense_test_mode == 1 && toggle_mode == 1) {
+		if ((top2_info.core_on_cnt % 100) < 50)
+			p_ambient = &lightsense_test_cfg_hw5[0];
+		else
+			p_ambient = &lightsense_test_cfg_hw5[1];
+	} else if (((struct pq_config_dvp *)pq_config_dvp_fake)->
+		tdc.ambient_config.ambient) {
+		if (((struct pq_config_dvp *)pq_config_dvp_fake)->
+			tdc.ambient_config.dark_detail)
+			dynamic_config_new.dark_detail =
+				cfg_info[cur_pic_mode].dark_detail;
+		/*only if cfg enables ambient we allow use light sense feature*/
+		/*light sense: update rear and front*/
+		p_ambient = &dynamic_config_new;
+		update_ambient_lightsense_hw5(p_ambient);
+	}
+
 	if (variable_fps_mode == 1 && toggle_mode == 1 &&
 		vf && vf->source_type == VFRAME_SOURCE_TYPE_HDMI &&
 		hdmi_frame_count < VARIABLE_FPS_COUNT) {
@@ -2906,6 +2924,22 @@ int amdv_hw5_control_path(struct vframe_s *vf, struct vd_proc_info_t *vd_proc_in
 		do_gettimeofday(&start);
 
 	flag = p_funcs_tv->tv_hw5_control_path(tv_hw5_setting);
+
+	if (apo_value.content_type != tv_hw5_setting->input_info->content_type ||
+		apo_value.white_point != tv_hw5_setting->input_info->white_point) {
+		apo_value.content_type = tv_hw5_setting->input_info->content_type;
+		apo_value.white_point = tv_hw5_setting->input_info->white_point;
+		apo_value.L11_byte2 = tv_hw5_setting->input_info->L11_byte2;
+		apo_value.L11_byte3 = tv_hw5_setting->input_info->L11_byte3;
+		set_amdv_apo_enable(true);
+	}
+
+	if (debug_dolby & 0x200)
+		pr_dv_dbg("dv content type = %d, white_point = %d, L11_byte2 = %d, L11_byte3 = %d\n",
+			tv_hw5_setting->input_info->content_type,
+			tv_hw5_setting->input_info->white_point,
+			tv_hw5_setting->input_info->L11_byte2,
+			tv_hw5_setting->input_info->L11_byte3);
 
 	if (debug_dolby & 0x400) {
 		do_gettimeofday(&end);

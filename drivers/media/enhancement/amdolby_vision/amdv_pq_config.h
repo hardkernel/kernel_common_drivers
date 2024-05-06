@@ -288,6 +288,7 @@ struct dv_cfg_info_s {
 	int dark_detail;        /*dark detail, on or off*/
 	int light_sense;        /*light sense, on or off*/
 	int t_front_lux;
+	int t_rear_lum;
 	bool bypass_pd_from_user;
 };
 
@@ -330,6 +331,7 @@ extern struct target_config def_tgt_display_cfg_bestpq;
 extern struct target_config def_tgt_display_cfg_ll;
 extern int cur_pic_mode;/*current picture mode id*/
 extern struct ambient_cfg_s lightsense_test_cfg[2];
+extern struct dynamic_cfg_s lightsense_test_cfg_hw5[2];
 extern struct ambient_cfg_s ambient_test_cfg[AMBIENT_CFG_FRAMES];
 extern struct ambient_cfg_s ambient_test_cfg_2[AMBIENT_CFG_FRAMES];
 extern struct ambient_cfg_s ambient_test_cfg_3[AMBIENT_CFG_FRAMES];
@@ -372,6 +374,7 @@ void update_cp_cfg(void);
 void update_cp_cfg_hw5(bool update_pyramid, bool is_top1, bool enable);
 void update_user_cfg_to_bin(void);
 void update_ambient_lightsense(struct ambient_cfg_s *p_ambient);
+void update_ambient_lightsense_hw5(struct dynamic_cfg_s *p_ambient);
 void calculate_user_pq_config(void);
 void get_dv_bin_config_hw5(void);
 u32 check_cfg_enabled_top1(void);

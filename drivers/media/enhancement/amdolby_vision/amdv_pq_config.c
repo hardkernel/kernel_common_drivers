@@ -104,6 +104,7 @@ module_param(force_hdr_tonemapping, uint, 0664);
 MODULE_PARM_DESC(force_hdr_tonemapping, "\n force_hdr_tonemapping\n");
 
 static u32 last_front_lux;
+static u32 last_real_lum;
 
 u16 L2PQ_100_500[] = {
 	2081, /* 100 */
@@ -804,6 +805,14 @@ struct ambient_cfg_s lightsense_test_cfg[2] = {
 	{ 9, 65536, 0, 65535, 0, 0, 0},
 };
 
+struct dynamic_cfg_s lightsense_test_cfg_hw5[2] = {
+	/*update_flag, ambient, rear, front, whitex, whitey,dark_detail*/
+	/*precision_rendering_upd_mode,precision_rendering_strength*/
+	/*global_dimming_upd_mode,six_vector_upd_mode,l1l4_filtering_upd_mode*/
+	{ 9, 65536, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{ 9, 65536, 0, 65535, 0, 0, 0, 0, 0, 0, 0, 0},
+};
+
 struct target_config def_tgt_display_cfg_bestpq = {
 	36045,
 	2,
@@ -1288,6 +1297,7 @@ u32 check_cfg_enabled_top1(void)
 void update_cp_cfg_hw5(bool update_pyramid, bool is_top1, bool enable)
 {
 	struct target_config_dvp *tdc;
+	int i = 0;
 
 	if (debug_dolby & 0x80000)
 		pr_dv_dbg("update_cp_cfg_hw5 %d\n",	is_top1);
@@ -1314,6 +1324,16 @@ void update_cp_cfg_hw5(bool update_pyramid, bool is_top1, bool enable)
 	tdc->d_contrast = cfg_info[cur_pic_mode].contrast;
 	tdc->d_color_shift = cfg_info[cur_pic_mode].colorshift;
 	tdc->d_saturation = cfg_info[cur_pic_mode].saturation;
+
+	if (dv_user_cfg_flag) {
+		tdc->gamma = user_target_config[cur_pic_mode].gamma;
+		tdc->max = user_target_config[cur_pic_mode].max_lin;
+		tdc->min = user_target_config[cur_pic_mode].min_lin;
+		for (i = 0; i < 8; i++) {
+			tdc->t_primaries[i] =
+				user_target_config[cur_pic_mode].t_primaries[i];
+		}
+	}
 
 	if (debug_tprimary) {
 		tdc->t_primaries[0] = cur_debug_tprimary[0][0]; /*rx*/
@@ -1391,7 +1411,10 @@ void update_cp_cfg(void)
 
 void update_ambient_lightsense(struct ambient_cfg_s *p_ambient)
 {
-	int print_flag = 0;
+	u32 print_flag = 0;
+
+	if (!p_ambient)
+		return;
 
 	if (cfg_info[cur_pic_mode].light_sense == 0)
 		return;
@@ -1409,12 +1432,41 @@ void update_ambient_lightsense(struct ambient_cfg_s *p_ambient)
 	p_ambient->update_flag |= 9;
 	p_ambient->ambient = (1 << 16);
 	p_ambient->t_frontLux = cfg_info[cur_pic_mode].t_front_lux;
+	p_ambient->t_rearLum = cfg_info[cur_pic_mode].t_rear_lum;
 	print_flag = (p_ambient->t_frontLux - last_front_lux > 1000) ? 1 : 0;
+	print_flag |= (p_ambient->t_rearLum - last_real_lum > 1000) ? 2 : 0;
 
 	if ((debug_dolby & 0x200) && print_flag)
-		pr_dv_dbg("%s: sensor frontLux %d, last frontLux %d\n",
-			__func__, p_ambient->t_frontLux, last_front_lux);
+		pr_dv_dbg("%s: frontLux %d, last frontLux %d, rearLum %d, last rearLum %d\n",
+			__func__, p_ambient->t_frontLux, last_front_lux,
+			p_ambient->t_rearLum, last_real_lum);
 	last_front_lux = p_ambient->t_frontLux;
+	last_real_lum = p_ambient->t_rearLum;
+}
+
+void update_ambient_lightsense_hw5(struct dynamic_cfg_s *p_ambient)
+{
+	u32 print_flag = 0;
+
+	if (!p_ambient)
+		return;
+
+	if (cfg_info[cur_pic_mode].light_sense == 0)
+		return;
+
+	p_ambient->update_flag |= 9;
+	p_ambient->ambient = (1 << 16);
+	p_ambient->t_frontLux = cfg_info[cur_pic_mode].t_front_lux;
+	p_ambient->t_rearLum = cfg_info[cur_pic_mode].t_rear_lum;
+	print_flag = (p_ambient->t_frontLux - last_front_lux > 1000) ? 1 : 0;
+	print_flag |= (p_ambient->t_rearLum - last_real_lum > 1000) ? 2 : 0;
+
+	if ((debug_dolby & 0x200) && print_flag)
+		pr_dv_dbg("%s: frontLux %d, last frontLux %d, rearLum %d, last rearLum %d\n",
+			__func__, p_ambient->t_frontLux, last_front_lux,
+			p_ambient->t_rearLum, last_real_lum);
+	last_front_lux = p_ambient->t_frontLux;
+	last_real_lum = p_ambient->t_rearLum;
 }
 
 /*0: reset picture mode and reset pq for all picture mode*/
@@ -2840,27 +2892,36 @@ int get_dv_pq_info(char *buf)
 					user_cfg_info[cur_pic_mode].tprimaries[5],
 					user_cfg_info[cur_pic_mode].tprimaries[6],
 					user_cfg_info[cur_pic_mode].tprimaries[7]);
+		if (is_aml_hw5()) {
+			pos += sprintf(buf + pos,
+					"user bin max:              [%d]\n",
+					user_target_config[cur_pic_mode].max_lin);
+			pos += sprintf(buf + pos,
+					"user bin min:              [%d]\n",
+					user_target_config[cur_pic_mode].min_lin);
+		} else {
+			pos += sprintf(buf + pos,
+					"user bin max_lin:          [%d]\n",
+					user_target_config[cur_pic_mode].max_lin);
+			pos += sprintf(buf + pos,
+					"user bin max_line_dm3:     [%d]\n",
+					user_target_config[cur_pic_mode].max_lin_dm3);
+			pos += sprintf(buf + pos,
+					"user bin max_pq:           [%d]\n",
+					user_target_config[cur_pic_mode].max_pq);
+			pos += sprintf(buf + pos,
+					"user bin max_pq_dm3:       [%d]\n",
+					user_target_config[cur_pic_mode].max_pq_dm3);
+			pos += sprintf(buf + pos,
+					"user bin min_lin:          [%d]\n",
+					user_target_config[cur_pic_mode].min_lin);
+			pos += sprintf(buf + pos,
+					"user bin min_pq:           [%d]\n",
+					user_target_config[cur_pic_mode].min_pq);
+		}
 		pos += sprintf(buf + pos,
 					"user bin gamma:            [%d]\n",
 					user_target_config[cur_pic_mode].gamma);
-		pos += sprintf(buf + pos,
-					"user bin max_lin:          [%d]\n",
-					user_target_config[cur_pic_mode].max_lin);
-		pos += sprintf(buf + pos,
-					"user bin max_line_dm3:     [%d]\n",
-					user_target_config[cur_pic_mode].max_lin_dm3);
-		pos += sprintf(buf + pos,
-					"user bin max_pq:           [%d]\n",
-					user_target_config[cur_pic_mode].max_pq);
-		pos += sprintf(buf + pos,
-					"user bin max_pq_dm3:       [%d]\n",
-					user_target_config[cur_pic_mode].max_pq_dm3);
-		pos += sprintf(buf + pos,
-					"user bin min_lin:          [%d]\n",
-					user_target_config[cur_pic_mode].min_lin);
-		pos += sprintf(buf + pos,
-					"user bin min_pq:           [%d]\n",
-					user_target_config[cur_pic_mode].min_pq);
 		pos += sprintf(buf + pos,
 					"user bin tPrimaries:       ");
 		pos += sprintf(buf + pos, "[%d][%d][%d][%d][%d][%d][%d][%d]\n",

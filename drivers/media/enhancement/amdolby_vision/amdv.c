@@ -464,7 +464,7 @@ u32 ambient_test_mode;
 module_param(ambient_test_mode, uint, 0664);
 MODULE_PARM_DESC(ambient_test_mode, "\n ambient_test_mode\n");
 
-static unsigned int lightsense_test_mode;
+u32 lightsense_test_mode;
 module_param(lightsense_test_mode, uint, 0664);
 MODULE_PARM_DESC(lightsense_test_mode, "\n lightsense_test_mode\n");
 
@@ -15254,13 +15254,19 @@ static long amdolby_vision_ioctl(struct file *file,
 		if (copy_from_user(&light_sensor, argp,
 			sizeof(struct light_sensor_s)) == 0) {
 			if (debug_dolby & 0x200)
-				pr_info("[DV]: cur mode %d, light_sense %d, t_frontLux %d\n",
-					mode_id, light_sensor.flag, light_sensor.t_frontLux);
-			if (light_sensor.flag != cfg_info[mode_id].light_sense ||
-				light_sensor.t_frontLux != cfg_info[mode_id].t_front_lux) {
-				need_update_cfg = true;
-				cfg_info[mode_id].light_sense = light_sensor.flag;
-				cfg_info[mode_id].t_front_lux = light_sensor.t_frontLux;
+				pr_info("[DV]: cur mode %d, light_sense %d, t_frontLux %d, t_rearLum %d\n",
+					mode_id, light_sensor.flag,
+					light_sensor.t_frontLux, light_sensor.t_rearLum);
+			if (light_sensor.flag) {
+				if (light_sensor.t_frontLux != cfg_info[mode_id].t_front_lux ||
+					light_sensor.t_rearLum != cfg_info[mode_id].t_rear_lum) {
+					cfg_info[mode_id].light_sense = light_sensor.flag;
+					cfg_info[mode_id].t_front_lux = light_sensor.t_frontLux;
+					cfg_info[mode_id].t_rear_lum = light_sensor.t_rearLum;
+					need_update_cfg = true;
+				}
+			} else {
+				cfg_info[mode_id].light_sense = 0;
 			}
 		} else {
 			ret = -EFAULT;

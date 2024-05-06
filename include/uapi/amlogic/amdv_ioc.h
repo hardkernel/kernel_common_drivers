@@ -75,6 +75,7 @@ struct dv_user_cfg_s {
 struct light_sensor_s {
 	int flag;
 	__u32 t_frontLux;
+	__u32 t_rearLum;
 };
 
 #define DV_M 'D'
