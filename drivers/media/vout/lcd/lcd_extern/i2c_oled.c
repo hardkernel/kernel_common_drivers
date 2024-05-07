@@ -105,7 +105,7 @@ static int ext_oled_temperature_get(struct lcd_extern_driver_s *edrv,
 
 static int ext_oled_off_rs_set(struct lcd_extern_driver_s *edrv,
 			       struct lcd_extern_dev_s *edev,
-			       int flag)
+			       unsigned int flag)
 {
 	unsigned short addr;
 	unsigned char val, buf[3];

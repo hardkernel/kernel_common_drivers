@@ -62,7 +62,7 @@ static void lcd_tcon_multi_lut_print(void)
 	struct tcon_data_list_s *data_list;
 	int i, j;
 
-	if (!mm_table->data_multi || mm_table->data_multi_cnt == 0) {
+	if (!mm_table || !mm_table->data_multi || mm_table->data_multi_cnt == 0) {
 		LCDERR("tcon data_multi is null\n");
 		return;
 	}

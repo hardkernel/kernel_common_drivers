@@ -304,7 +304,7 @@ static int dsi_exec_init_table(struct aml_lcd_drv_s *pdrv,
 	u16 i = 0, j = 0, step = 0;
 	u8 cmd_size;
 	u32 delay_ms;
-	u8 rd_cnt = 0, ret;
+	int rd_cnt = 0, ret;
 
 	/* mipi command(payload)
 	 * format:  data_type, cmd_size, data....

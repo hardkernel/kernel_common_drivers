@@ -258,12 +258,33 @@ int lcd_unifykey_get_no_header(char *key_name, unsigned char *buf, int len)
 	return 0;
 }
 
+static void lcd_unifykey_data_dump(char *pr_buf, char *key_name, unsigned int key_len,
+		unsigned char *key_buf)
+{
+	int i, j, pr_len;
+
+	if (!pr_buf || !key_name) {
+		LCDUKEYERR("%s: pr_buf or key_name is NULL\n", __func__);
+		return;
+	}
+
+	LCDUKEY("print: %s: %d\n", key_name, key_len);
+	for (i = 0; i < key_len; i += 16) {
+		pr_len = sprintf(pr_buf, "0x%04x:", i);
+		for (j = 0; j < 16; j++) {
+			if ((i + j) >= key_len)
+				break;
+			pr_len += sprintf(pr_buf + pr_len, " %02x", key_buf[i + j]);
+		}
+		pr_info("%s\n", pr_buf);
+	}
+}
+
 void lcd_unifykey_print(int index)
 {
 	unsigned char *buf, *pr_buf;
 	char key_name[32];
 	unsigned int key_len;
-	int i, j, pr_len;
 	int ret;
 
 	pr_buf = kcalloc(128, sizeof(unsigned char), GFP_KERNEL);
@@ -282,6 +303,7 @@ void lcd_unifykey_print(int index)
 	buf = kcalloc(key_len, sizeof(unsigned char), GFP_KERNEL);
 	if (!buf) {
 		LCDUKEY("%s: buf malloc error\n", __func__);
+		kfree(pr_buf);
 		return;
 	}
 	ret = lcd_unifykey_get(key_name, buf, key_len);
@@ -289,22 +311,7 @@ void lcd_unifykey_print(int index)
 		kfree(buf);
 		goto lcd_ukey_print_next1;
 	}
-	LCDUKEY("%s: %s: %d\n", __func__, key_name, key_len);
-	i = 0;
-	while (1) {
-		pr_len = sprintf(pr_buf, "0x%04x:", (i * 16));
-		for (j = 0; j < 16; j++) {
-			if ((i * 16 + j) < key_len) {
-				pr_len += sprintf(pr_buf + pr_len, " %02x", buf[i * 16 + j]);
-			} else {
-				pr_info("%s\n", pr_buf);
-				kfree(buf);
-				goto lcd_ukey_print_next1;
-			}
-		}
-		pr_info("%s\n", pr_buf);
-		i++;
-	}
+	lcd_unifykey_data_dump(pr_buf, key_name, key_len, buf);
 	kfree(buf);
 
 lcd_ukey_print_next1:
@@ -318,6 +325,7 @@ lcd_ukey_print_next1:
 	buf = kcalloc(key_len, sizeof(unsigned char), GFP_KERNEL);
 	if (!buf) {
 		LCDUKEY("%s: buf malloc error\n", __func__);
+		kfree(pr_buf);
 		return;
 	}
 	ret = lcd_unifykey_get(key_name, buf, key_len);
@@ -325,22 +333,7 @@ lcd_ukey_print_next1:
 		kfree(buf);
 		goto lcd_ukey_print_next2;
 	}
-	LCDUKEY("%s: %s: %d\n", __func__, key_name, key_len);
-	i = 0;
-	while (1) {
-		pr_len = sprintf(pr_buf, "0x%04x:", (i * 16));
-		for (j = 0; j < 16; j++) {
-			if ((i * 16 + j) < key_len) {
-				pr_len += sprintf(pr_buf + pr_len, " %02x", buf[i * 16 + j]);
-			} else {
-				pr_info("%s\n", pr_buf);
-				kfree(buf);
-				goto lcd_ukey_print_next2;
-			}
-		}
-		pr_info("%s\n", pr_buf);
-		i++;
-	}
+	lcd_unifykey_data_dump(pr_buf, key_name, key_len, buf);
 	kfree(buf);
 
 lcd_ukey_print_next2:
@@ -354,6 +347,7 @@ lcd_ukey_print_next2:
 	buf = kcalloc(key_len, sizeof(unsigned char), GFP_KERNEL);
 	if (!buf) {
 		LCDUKEY("%s: buf malloc error\n", __func__);
+		kfree(pr_buf);
 		return;
 	}
 	ret = lcd_unifykey_get(key_name, buf, key_len);
@@ -361,22 +355,7 @@ lcd_ukey_print_next2:
 		kfree(buf);
 		goto lcd_ukey_print_next3;
 	}
-	LCDUKEY("%s: %s: %d\n", __func__, key_name, key_len);
-	i = 0;
-	while (1) {
-		pr_len = sprintf(pr_buf, "0x%04x:", (i * 16));
-		for (j = 0; j < 16; j++) {
-			if ((i * 16 + j) < key_len) {
-				pr_len += sprintf(pr_buf + pr_len, " %02x", buf[i * 16 + j]);
-			} else {
-				pr_info("%s\n", pr_buf);
-				kfree(buf);
-				goto lcd_ukey_print_next3;
-			}
-		}
-		pr_info("%s\n", pr_buf);
-		i++;
-	}
+	lcd_unifykey_data_dump(pr_buf, key_name, key_len, buf);
 	kfree(buf);
 
 lcd_ukey_print_next3:
