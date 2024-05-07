@@ -163,6 +163,7 @@
 /*  V3.5.036 fix T5D switch to dvbt2 unlock(sync from 5.4/4.9) */
 /*  V3.5.037 fix dvbt2 mplp id list and mplp tune(execpt T5D) */
 /*  V3.5.038 fix compile error when remove dvbt2 module */
+/*  V3.5.039 fix aml_demod_ioctl and dump adc issue */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -179,8 +180,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.038"
-#define DTVDEMOD_VER	"2024/04/25: fix compile error when remove dvbt2 module"
+#define AMLDTVDEMOD_VER "V3.5.039"
+#define DTVDEMOD_VER	"2024/05/07: fix aml_demod_ioctl and dump adc issue"
 #define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

@@ -159,8 +159,8 @@ static long aml_demod_ioctl(struct file *file,
 		return -EINVAL;
 	}
 
-	if (!devp->flg_cma_allc || !devp->cma_mem_size) {
-		PR_ERR("not enter_mode or invalid cma_mem_size\n");
+	if (!demod->inited) {
+		PR_ERR("%s: demod not inited!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -291,6 +291,10 @@ static long aml_demod_ioctl(struct file *file,
 		break;
 
 	case DEMOD_IOC_START_DUMP_ADC:
+		if (!devp->flg_cma_allc || !devp->cma_mem_size) {
+			PR_ERR("%s: cma alloc fail or invalid cma_mem_size!!\n", __func__);
+			return -EINVAL;
+		}
 		ret = copy_from_user(&dump_param, argp, sizeof(unsigned int));
 		if (ret)
 			break;
@@ -306,6 +310,10 @@ static long aml_demod_ioctl(struct file *file,
 		break;
 
 	case DEMOD_IOC_START_DUMP_TS:
+		if (!devp->flg_cma_allc || !devp->cma_mem_size) {
+			PR_ERR("%s: cma alloc fail or invalid cma_mem_size!!\n", __func__);
+			return -EINVAL;
+		}
 		ret = copy_from_user(&dump_param, argp, sizeof(unsigned int));
 		if (ret)
 			break;
