@@ -489,9 +489,63 @@ static const struct meson_drm_format_info t3x_formats[] = {
 	{ .format = DRM_FORMAT_INVALID },
 };
 
+static const struct meson_drm_format_info t6d_formats[] = {
+	{ .format = DRM_FORMAT_RGBX1010102,
+		.hw_blkmode = BLOCK_MODE_32BIT,
+		.hw_colormat = COLOR_MATRIX_RGBA1010102,
+		.alpha_replace = 1 },
+	{ .format = DRM_FORMAT_XBGR2101010,
+		.hw_blkmode = BLOCK_MODE_32BIT,
+		.hw_colormat = COLOR_MATRIX_ABGR2101010,
+		.alpha_replace = 1 },
+	{ .format = DRM_FORMAT_RGB565,
+		.hw_blkmode = BLOCK_MODE_16BIT,
+		.hw_colormat = COLOR_MATRIX_565_T6D,
+		.alpha_replace = 0 },
+	{ .format = DRM_FORMAT_RGBA4444,
+		.hw_blkmode = BLOCK_MODE_16BIT,
+		.hw_colormat = COLOR_MATRIX_RGBA4444,
+		.alpha_replace = 0 },
+	{ .format = DRM_FORMAT_ARGB4444,
+		.hw_blkmode = BLOCK_MODE_16BIT,
+		.hw_colormat = COLOR_MATRIX_ARGB4444,
+		.alpha_replace = 0 },
+	{ .format = DRM_FORMAT_RGBX4444,
+		.hw_blkmode = BLOCK_MODE_16BIT,
+		.hw_colormat = COLOR_MATRIX_RGBA4444,
+		.alpha_replace = 1 },
+	{ .format = DRM_FORMAT_XRGB4444,
+		.hw_blkmode = BLOCK_MODE_16BIT,
+		.hw_colormat = COLOR_MATRIX_ARGB4444,
+		.alpha_replace = 1 },
+	{ .format = DRM_FORMAT_RGBA5551,
+		.hw_blkmode = BLOCK_MODE_16BIT,
+		.hw_colormat = COLOR_MATRIX_RGBA5551,
+		.alpha_replace = 0 },
+	{ .format = DRM_FORMAT_ARGB1555,
+		.hw_blkmode = BLOCK_MODE_16BIT,
+		.hw_colormat = COLOR_MATRIX_ARGB1555,
+		.alpha_replace = 0 },
+	{ .format = DRM_FORMAT_RGBX5551,
+		.hw_blkmode = BLOCK_MODE_16BIT,
+		.hw_colormat = COLOR_MATRIX_RGBA5551,
+		.alpha_replace = 1 },
+	{ .format = DRM_FORMAT_XRGB1555,
+		.hw_blkmode = BLOCK_MODE_16BIT,
+		.hw_colormat = COLOR_MATRIX_ARGB1555,
+		.alpha_replace = 1 },
+	{ .format = DRM_FORMAT_INVALID },
+};
+
 static const struct meson_drm_format_info *formats_of_t3x[] = {
 	base_formats,
 	t3x_formats,
+	NULL,
+};
+
+static const struct meson_drm_format_info *formats_of_t6d[] = {
+	base_formats,
+	t6d_formats,
 	NULL,
 };
 #endif
@@ -1793,6 +1847,36 @@ static void t7_osd_hw_init(struct meson_vpu_block *vblk)
 	MESON_DRM_BLOCK("%s hw_init done.\n", osd->base.name);
 }
 
+static void t6d_osd_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_pipeline *pipeline;
+	struct meson_vpu_osd *osd = to_osd_block(vblk);
+
+	if (!vblk || !osd) {
+		MESON_DRM_BLOCK("hw_init break for NULL.\n");
+		return;
+	}
+
+	pipeline = osd->base.pipeline;
+	if (!pipeline) {
+		MESON_DRM_BLOCK("hw_init break for NULL.\n");
+		return;
+	}
+
+	osd->reg = &osd_mif_reg[vblk->index];
+	//osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
+	osd->mif_acc_mode = LINEAR_MIF;
+	osd->viu2_hold_line = VIU2_DEFAULT_HOLD_LINE;
+	osd->infos = formats_of_t6d;
+
+	/* osd secure function init */
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	secure_register(OSD_MODULE, 0, osd_secure_op, osd_secure_cb);
+#endif
+
+	MESON_DRM_BLOCK("%s hw_init done.\n", osd->base.name);
+}
+
 static void s5_osd_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_pipeline *pipeline;
@@ -2000,6 +2084,16 @@ struct meson_vpu_block_ops t7_osd_ops = {
 	.dump_register = osd_dump_register,
 	.init = t7_osd_hw_init,
 	.init_register = osd_register_init,
+	.fini = osd_hw_fini,
+};
+
+struct meson_vpu_block_ops t6d_osd_ops = {
+	.check_state = osd_check_state,
+	.update_state = osd_set_state,
+	.enable = osd_hw_enable,
+	.disable = osd_hw_disable,
+	.dump_register = osd_dump_register,
+	.init = t6d_osd_hw_init,
 	.fini = osd_hw_fini,
 };
 

@@ -848,6 +848,8 @@ extern struct meson_vpu_block_ops s1a_osd_ops;
 extern struct meson_vpu_block_ops txhd2_osd_ops;
 extern struct meson_vpu_block_ops txhd2_osdblend_ops;
 extern struct meson_vpu_block_ops txhd2_postblend_ops;
+extern struct meson_vpu_block_ops t6d_osd_ops;
+extern struct meson_vpu_block_ops t6d_postblend_ops;
 
 /*
  * for s7 soc
@@ -883,6 +885,7 @@ extern struct meson_plane_supported_formats osd_formats_t3x;
 extern struct meson_plane_supported_formats osd_formats_t5m;
 extern struct meson_plane_supported_formats osd_formats_s1a;
 extern struct meson_plane_supported_formats osd_formats_s7d;
+extern struct meson_plane_supported_formats osd_formats_t6d;
 extern struct meson_plane_supported_formats video_formats;
 
 extern u32 s5_reg_table_cached[VPU_CACHED_REG_TABLE_SIZE];

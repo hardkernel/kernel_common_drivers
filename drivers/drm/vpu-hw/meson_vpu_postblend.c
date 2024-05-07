@@ -560,6 +560,75 @@ static void t7_postblend_set_state(struct meson_vpu_block *vblk,
 		  scope.h_start, scope.h_end, scope.v_start, scope.v_end);
 }
 
+static void t6d_postblend_set_state(struct meson_vpu_block *vblk,
+				struct meson_vpu_block_state *state,
+				struct meson_vpu_block_state *old_state)
+{
+	int i, crtc_index;
+	struct am_meson_crtc *amc;
+	struct meson_vpu_pipeline_state *mvps;
+
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	struct osd_scope_s scope = {0, 1919, 0, 1079};
+	struct meson_vpu_pipeline *pipeline = postblend->base.pipeline;
+	struct postblend_reg_s *reg = postblend->reg;
+	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+	u32 *crtcmask_osd;
+
+	crtc_index = vblk->index;
+	amc = vblk->pipeline->priv->crtcs[crtc_index];
+	crtcmask_osd = amc->priv->of_conf.crtcmask_osd;
+
+	MESON_DRM_BLOCK("%s set_state called.\n", postblend->base.name);
+	mvps = priv_to_pipeline_state(pipeline->obj.state);
+	scope.h_start = mvps->vpp_scope_x;
+	scope.v_start = mvps->vpp_scope_y;
+	scope.h_end = scope.h_start + mvps->scaler_param[0].output_width - 1;
+	scope.v_end = scope.v_start + mvps->scaler_param[0].output_height - 1;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	secure_config(OSD_MODULE, mvps->sec_src, crtc_index);
+#endif
+	if (crtc_index == 0) {
+		vpp_osd1_blend_scope_set(vblk, reg_ops, reg, scope);
+
+		if (amc->blank_enable) {
+			vpp_osd1_postblend_mux_set(vblk, reg_ops,
+						   postblend->reg, VPP_NULL);
+		} else {
+			/*dout switch config*/
+			osd1_blend_switch_set(vblk, reg_ops, postblend->reg,
+					      VPP_POSTBLEND);
+			/*vpp input config*/
+			vpp_osd1_preblend_mux_set(vblk, reg_ops,
+						  postblend->reg, VPP_NULL);
+
+			vpp_osd1_postblend_mux_set(vblk, reg_ops,
+						   postblend->reg,
+						   VPP_OSD2);
+		}
+
+		for (i = 0; i < MESON_MAX_OSDS; i++) {
+			if (mvps->plane_info[i].enable &&
+			    mvps->plane_info[i].crtc_index == crtc_index &&
+			    mvps->plane_info[i].plane_index == 1) {
+				/*osd2 not bypass osdblend*/
+				reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, 0x0, 4, 1);
+			}
+		}
+
+		vpp_chk_crc(vblk, reg_ops, amc);
+		osd1_blend_premult_set(vblk, reg_ops, reg);
+	} else {
+		/*osd2 bypass osdblend*/
+		reg_ops->rdma_write_reg_bits(VIU_OSD2_PATH_CTRL, 0x1, 4, 1);
+		MESON_DRM_BLOCK("%s keystone vpp2.\n", postblend->base.name);
+	}
+
+	MESON_DRM_BLOCK("scope h/v start/end [%d,%d,%d,%d].\n",
+		  scope.h_start, scope.h_end, scope.v_start, scope.v_end);
+}
+
 static void s5_postblend_set_state(struct meson_vpu_block *vblk,
 				struct meson_vpu_block_state *state,
 				struct meson_vpu_block_state *old_state)
@@ -1323,6 +1392,25 @@ static void t3_postblend_hw_init(struct meson_vpu_block *vblk)
 	MESON_DRM_BLOCK("%s hw_init called.\n", postblend->base.name);
 }
 
+static void t6d_postblend_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	struct rdma_reg_ops *reg_ops = vblk->pipeline->subs[0].reg_ops;
+
+	postblend->reg = &postblend_reg;
+
+	independ_path_default_regs(vblk, reg_ops);
+
+	/*t3 t5w t5m t6d paht crtl flag*/
+	postblend->postblend_path_mask = true;
+
+	/*pxp set 0x0, but silicon set 0x108080*/
+	//reg_ops->rdma_write_reg(VPP_POST_BLEND_BLEND_DUMMY_DATA, 0x0);
+	reg_ops->rdma_write_reg(VPP_POST_BLEND_BLEND_DUMMY_DATA, 0x108080);
+	reg_ops->rdma_write_reg_bits(PATH_START_SEL, 0x3, 20, 2);
+	MESON_DRM_BLOCK("%s hw_init called.\n", postblend->base.name);
+}
+
 static void s5_postblend_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
@@ -1419,6 +1507,15 @@ struct meson_vpu_block_ops t3_postblend_ops = {
 	.dump_register = postblend_dump_register,
 	.init = t3_postblend_hw_init,
 	.init_register = t3_postblend_register_init,
+};
+
+struct meson_vpu_block_ops t6d_postblend_ops = {
+	.check_state = postblend_check_state,
+	.update_state = t6d_postblend_set_state,
+	.enable = postblend_hw_enable,
+	.disable = g12b_postblend_hw_disable,
+	.dump_register = postblend_dump_register,
+	.init = t6d_postblend_hw_init,
 };
 
 struct meson_vpu_block_ops s5_postblend_ops = {

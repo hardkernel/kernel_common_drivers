@@ -6,7 +6,7 @@
 /dts-v1/;
 
 #include "mesont6d.dtsi"
-//#include "mesont5m_drm.dtsi"
+#include "mesont6d_drm.dtsi"
 #include "firmware_ab.dtsi"
 #include "mesont6d_pxp-panel.dtsi"
 
@@ -136,7 +136,7 @@
 			size = <0x0>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x00000000 0x1d400000>;
-			status = "disabled";
+			status = "okay";
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
@@ -145,7 +145,7 @@
 			size = <0x2400000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x00000000 0x1d400000>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		/*  vdin0 CMA pool */
@@ -1082,30 +1082,30 @@
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
-//&drm_vpu {
-//	status = "disabled";
-//	logo_addr = "0x3f800000";
-//
-//	connectors_dev: port@1 {
-//		drm_to_lcd0: endpoint@2 {
-//			reg = <2>;
-//			remote-endpoint = <&lcd0_to_drm>;
-//		};
-//	};
-//};
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x3f800000";
 
-//&lcd {
-//	ports {
-//		port {
-//			#address-cells = <1>;
-//			#size-cells = <0>;
-//			lcd0_to_drm: endpoint@0 {
-//				reg = <0>;
-//				remote-endpoint = <&drm_to_lcd0>;
-//			};
-//		};
-//	};
-//};
+	connectors_dev: port@1 {
+		drm_to_lcd0: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&lcd0_to_drm>;
+		};
+	};
+};
+
+&lcd {
+	ports {
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			lcd0_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd0>;
+			};
+		};
+	};
+};
 
 /*audio soc*/
 &audiobus {

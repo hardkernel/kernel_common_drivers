@@ -46,6 +46,7 @@ enum dummy_venc_chip_e {
 	DUMMY_VENC_S5,  /* 4, stb new single display */
 	DUMMY_VENC_S1A, /* 5 */
 	DUMMY_VENC_TXHD2, /* 6 */
+	DUMMY_VENC_T6D, /* 7 */
 	DUMMY_VENC_MAX,
 };
 
@@ -2225,6 +2226,22 @@ static struct dummy_venc_data_s dummy_venc_match_data_txhd2 = {
 	.enci_clk_gate_switch = NULL,
 	.encl_clk_gate_switch = NULL,
 };
+
+static struct dummy_venc_data_s dummy_venc_match_data_t6d = {
+	.vconf = NULL,
+
+	.chip_type = DUMMY_VENC_T6D,
+	.default_venc_index = 0,
+	.projection_valid = 1,
+	.venc_type = VENC_TYPE_ENCL,
+
+	.clktree_probe = NULL,
+	.clktree_remove = NULL,
+	.encp_clk_gate_switch = NULL,
+	.enci_clk_gate_switch = NULL,
+	.encl_clk_gate_switch = NULL,
+};
+
 #endif
 
 static const struct of_device_id dummy_venc_dt_match_table[] = {
@@ -2270,6 +2287,10 @@ static const struct of_device_id dummy_venc_dt_match_table[] = {
 	{
 		.compatible = "amlogic, dummy_venc_txhd2",
 		.data = &dummy_venc_match_data_txhd2,
+	},
+	{
+		.compatible = "amlogic, dummy_venc_t6d",
+		.data = &dummy_venc_match_data_t6d,
 	},
 #endif
 	{}

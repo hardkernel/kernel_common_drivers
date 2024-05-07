@@ -1632,22 +1632,22 @@
 
 	vclk_serve: vclk_serve {
 		compatible = "amlogic, vclk_serve";
-		status = "disabled";
+		status = "okay";
 		reg = <0xfe008000 0x400    /* ana reg */
 			0xfe000000 0x4a0>; /* clk reg */
 	};
 
 	vout_mux: vout_mux {
-		compatible = "amlogic, vout_mux-t5m";
-		status = "disabled";
+		compatible = "amlogic, vout_mux-t6d";
+		status = "okay";
 		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
 		clock-names = "fclk_div5", "vdin_meas_clk";
 	};
 
 	vout: vout {
 		compatible = "amlogic, vout";
-		status = "disabled";
-		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
+		status = "okay";
+		interrupts = <GIC_SPI 194 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vsync";
 		vs_meas=<0>;
 	};
@@ -1668,12 +1668,23 @@
 
 	vout2: vout2 {
 		compatible = "amlogic, vout2";
-		status = "disabled";
+		status = "okay";
 	};
 
 	dummy_venc: dummy_venc {
-		compatible = "amlogic, dummy_venc_t5m";
-		status = "disabled";
+		compatible = "amlogic, dummy_venc_t6d";
+		status = "okay";
+		dummy_venc_type = <1>; /* 0 dummyl，1 dummyp，2 dummyi */
+		ports {
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				dummyp_to_drm: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <0>;
+				};
+			};
+		};
 	};
 
 	vrr0: vrr0 {

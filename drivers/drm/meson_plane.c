@@ -117,6 +117,32 @@ u32 supported_drm_formats_v2[] = {
 	DRM_FORMAT_RGB565,
 };
 
+u32 supported_drm_formats_v6[] = {
+	DRM_FORMAT_RGBA1010102,
+	DRM_FORMAT_RGBX1010102,
+	DRM_FORMAT_ABGR2101010,
+	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_RGBA4444,
+	DRM_FORMAT_RGBX4444,
+	DRM_FORMAT_XRGB4444,
+	DRM_FORMAT_RGBA5551,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_RGBX5551,
+	DRM_FORMAT_XRGB1555,
+};
+
 /* v2 groups + 4444 formats */
 u32 supported_drm_formats_v3[] = {
 	DRM_FORMAT_RGBA1010102,
@@ -310,6 +336,11 @@ struct meson_plane_supported_formats osd_formats = {
 struct meson_plane_supported_formats osd_formats_t5m = {
 	.formats = supported_drm_formats_v2,
 	.format_num = ARRAY_SIZE(supported_drm_formats_v2),
+};
+
+struct meson_plane_supported_formats osd_formats_t6d = {
+	.formats = supported_drm_formats_v6,
+	.format_num = ARRAY_SIZE(supported_drm_formats_v6),
 };
 
 struct meson_plane_supported_formats osd_formats_t3x = {
