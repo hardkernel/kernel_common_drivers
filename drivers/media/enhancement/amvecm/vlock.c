@@ -139,6 +139,14 @@ static struct stvlock_sig_sts vlock1;
 static struct stvlock_sig_sts vlock2;
 static struct stvlock_sig_sts *vlock_tab[VLOCK_ENC_MAX];
 
+bool vlock_is_working(int enc_mux)
+{
+	if (enc_mux < VLOCK_ENC_MAX && vlock_tab[enc_mux] && vlock_tab[enc_mux]->vf_sts)
+		return vlock_tab[enc_mux]->md_support;
+
+	return false;
+}
+
 #define dprintk(level, fmt, arg...)				\
 	do {							\
 		if ((vlock_debug & VLOCK_DEBUG_INFO) >= level)	\

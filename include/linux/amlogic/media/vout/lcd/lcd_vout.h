@@ -23,6 +23,7 @@
 #include <linux/amlogic/media/vout/lcd/aml_lcd.h>
 #include <linux/amlogic/media/vout/lcd/lcd_cus_ctrl.h>
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_data.h>
+#include <linux/amlogic/media/vout/lcd/lcd_math.h>
 
 /* **********************************
  * debug print define
@@ -710,6 +711,84 @@ struct lcd_resource_s {
 
 #define LCD_VIU_SEL_NONE         0
 
+struct aml_fr_lock_s {
+	int en;
+	int rst;
+	int mode;
+	int show;
+	int dbg;
+	int step;
+	int frame_cnt;
+
+	int base_fr;
+	int base_dura_num;
+	int base_dura_den;
+	int base_vtotal;
+	int adj_vtotal;
+
+	unsigned long long pll_base_hz;
+	unsigned long long pll_adj_hz;
+	unsigned int pll_base_m;
+	unsigned int pll_base_frac;
+	unsigned int pll_adj_m;
+	unsigned int pll_adj_frac;
+
+	int stable_cnt;
+	int calibration_cnt;
+
+	long long exp_sum_cnt_m;
+	int exp_vs_cnt_m;//multiplied
+	int exp_vs_cnt;
+	int exp_line_cnt;
+	int exp_line_freq;
+	unsigned int msr_clk;
+	int msr_vs_cnt;
+	int msr_vs_cnt_ft;
+	long long msr_sum_cnt_m;//multiplied
+	int err_sum_cnt;
+	int err_sum_cnt_ft;
+	int err_sum_cnt_max;
+
+	long long start_time;
+	long long exp_ns_temp;
+	long long exp_sum_ns;
+	int exp_line_us;
+	int exp_vs_ns;
+	int msr_vs_ns;
+	long long msr_cur_ns;
+	long long msr_last_ns;
+	long long msr_sum_ns;
+	int err_sum_ns;
+	int err_sum_ns_ft;
+	int err_sum_ns_max;
+	int err_sum_us;
+	int err_sum_us_ft;
+
+	int kp;
+	int ki;
+	int kd;
+	int err;
+	int err_last;
+	int err_sum;
+	int out;
+
+	int line_limit;
+	int freq_limit;
+
+	int hw_vlock_sta;
+	int hw_vlock_sta_last;
+	int ss_sta;
+	int ss_sta_last;
+	int ss_sta_back;
+	int ss_switching;
+	unsigned int ss_level;
+	unsigned int ss_freq;
+	unsigned int ss_mode;
+
+	struct s32_slide_filter_s ft_cnt;
+	struct s32_slide_filter_s ft_time;
+};
+
 struct aml_lcd_drv_s {
 	unsigned int index;
 	unsigned int status;
@@ -743,6 +822,7 @@ struct aml_lcd_drv_s {
 	unsigned int vmode_switch;
 	unsigned char config_check_glb;
 	unsigned char config_check_en;
+	int fr_lock_en;
 
 	struct lcd_data_s *data;
 	struct lcd_resource_s *resource;
@@ -759,6 +839,7 @@ struct aml_lcd_drv_s {
 	struct lcd_debug_ctrl_s *debug_ctrl;
 	struct vout_server_s *vout_server[3];
 	struct vrr_device_s *vrr_dev;
+	struct aml_fr_lock_s *fr_lock;
 #ifdef CONFIG_OF
 	struct device_node *of_node;
 #endif
@@ -820,6 +901,7 @@ struct aml_lcd_drv_s {
 struct aml_lcd_drv_s *aml_lcd_get_driver(int index);
 void lcd_resource_ready(int drv_index, unsigned int res_type, unsigned int res_index);
 
+unsigned long long lcd_pll_freq_get(int index);
 void lcd_vlock_m_update(int index, unsigned int vlock_m);
 void lcd_vlock_frac_update(int index, unsigned int vlock_farc);
 int lcd_ss_enable(int index, unsigned int flag);
@@ -828,5 +910,22 @@ extern struct mutex lcd_power_mutex;
 
 void set_output_mute(bool on);
 int get_output_mute(void);
+void fr_lock_recovery_freq(struct aml_lcd_drv_s *pdrv);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+bool vlock_is_working(int enc_mux);
+int get_framelock_sta(void);
+#else
+static inline int get_framelock_sta(void)
+{
+	return 0;
+}
+
+static inline bool vlock_is_working(int enc_mux)
+{
+	return false;
+}
+#endif
+
 
 #endif

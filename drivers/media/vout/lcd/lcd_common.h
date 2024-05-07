@@ -65,56 +65,13 @@
 /* 20240403: update lcd status, notifier event and bypass ufr switch when power off */
 /* 20240513: update tcon ufr switch mode 3 flow */
 /* 20240515: update lcd ufr switch flow and process time record */
-#define LCD_DRV_VERSION    "20240515"
-
-static inline unsigned char __p_to_u8(void *p)
-{
-	return p ? (((u8 *)(p))[0]) : 0;
-}
-
-/* unsafe, must ensure the length of memory */
-static inline unsigned short __p_to_u16(void *p)
-{
-	return p ? (((u8 *)(p))[0] | (((u8 *)(p))[1] << 8)) : 0;
-}
-
-/* unsafe, must ensure the length of memory */
-static inline unsigned int __p_to_u32(void *p)
-{
-	return p ? (((u8 *)(p))[0] | (((u8 *)(p))[1] << 8) |
-		(((u8 *)(p))[2] << 16) | (((u8 *)(p))[3] << 24)) : 0;
-}
+/* 20240529: add lcd frame_lock function */
+#define LCD_DRV_VERSION    "20240529"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
 extern int lcd_vout_serve_bypass;
 extern struct mutex lcd_tcon_dbg_mutex;
-
-static inline unsigned long long lcd_do_div(unsigned long long num, unsigned int den)
-{
-	unsigned long long ret = num;
-
-	do_div(ret, den);
-
-	return ret;
-}
-
-static inline unsigned long long lcd_diff(unsigned long long a, unsigned long long b)
-{
-	return (a >= b) ? (a - b) : (b - a);
-}
-
-static inline unsigned long long div_around(unsigned long long num, unsigned int den)
-{
-	unsigned long long ret = num + den / 2;
-
-	if (den == 1)
-		return num;
-
-	do_div(ret, den);
-
-	return ret;
-}
 
 /* lcd common */
 void lcd_dbg_mem_dump(void *addr, size_t size);
@@ -170,10 +127,11 @@ void lcd_vinfo_update(struct aml_lcd_drv_s *pdrv);
 void lcd_vrr_dev_update(struct aml_lcd_drv_s *pdrv);
 void lcd_vrr_dev_register(struct aml_lcd_drv_s *pdrv);
 void lcd_vrr_dev_unregister(struct aml_lcd_drv_s *pdrv);
+void lcd_fr_lock_init(struct aml_lcd_drv_s *pdrv);
+void lcd_fr_lock(struct aml_lcd_drv_s *pdrv);
 
 void lcd_queue_work(struct work_struct *work);
 inline void lcd_queue_delayed_work(struct delayed_work *delayed_work, int ms);
-unsigned int cal_crc32(unsigned int crc, const unsigned char *buf, int buf_len);
 
 /* lcd cus_ctrl */
 int lcd_cus_ctrl_dump_raw_data(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
@@ -314,6 +272,7 @@ int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv);
 int lcd_venc_probe(struct aml_lcd_drv_s *pdrv);
 void lcd_screen_black(struct aml_lcd_drv_s *pdrv);
 void lcd_screen_restore(struct aml_lcd_drv_s *pdrv);
+void lcd_venc_adj_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal);
 
 /* lcd driver */
 void lcd_proc_time_clear(struct aml_lcd_drv_s *pdrv);

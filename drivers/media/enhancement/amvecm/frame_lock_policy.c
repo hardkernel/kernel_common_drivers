@@ -86,6 +86,11 @@ struct vrr_sig_sts frame_sts = {
 	.vrr_frame_out_fps_max = 120,
 };
 
+int get_framelock_sta(void)
+{
+	return frame_sts.vrr_frame_sts;
+}
+
 void frame_lock_set_vrr_support_flag(bool support_flag)
 {
 	frame_sts.vrr_support = support_flag;

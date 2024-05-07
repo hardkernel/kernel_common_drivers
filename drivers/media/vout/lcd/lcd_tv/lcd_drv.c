@@ -142,6 +142,8 @@ int lcd_tv_driver_init(struct aml_lcd_drv_s *pdrv)
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
 
+	if (pdrv->fr_lock)
+		pdrv->fr_lock->rst = 1;
 	return 0;
 }
 
@@ -153,6 +155,9 @@ void lcd_tv_driver_disable(struct aml_lcd_drv_s *pdrv)
 	ret = lcd_type_supported(&pdrv->config);
 	if (ret)
 		return;
+
+	if (pdrv->fr_lock)
+		pdrv->fr_lock->rst = 1;
 
 	switch (pdrv->config.basic.lcd_type) {
 	case LCD_LVDS:

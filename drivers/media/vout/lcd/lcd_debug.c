@@ -3487,6 +3487,177 @@ static ssize_t lcd_debug_vinfo_show(struct device *dev, struct device_attribute 
 	return len;
 }
 
+static ssize_t lcd_debug_sw_vlock_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+#define __MAX_PARAM 8
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	char *buf_orig;
+	char *parm[__MAX_PARAM] = {NULL};
+	unsigned int en, mode;
+	int ret;
+	struct aml_fr_lock_s *fr_lock = NULL;
+	int kp, ki, kd;
+
+	if (!buf || !pdrv)
+		return count;
+
+	fr_lock = pdrv->fr_lock;
+	if (!fr_lock)
+		return count;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig) {
+		LCDERR("%s: buf malloc error\n", __func__);
+		return count;
+	}
+	lcd_debug_parse_param(buf_orig, (char **)&parm, __MAX_PARAM);
+
+	if (strcmp(parm[0], "mode") == 0) {
+		if (!parm[1]) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vlock_store_next;
+		}
+
+		ret = kstrtouint(parm[1], 10, &mode);
+		if (ret) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vlock_store_next;
+		}
+		fr_lock->mode = mode;
+		fr_lock->base_dura_num = 0;
+		fr_lock->base_dura_den = 0;
+		fr_lock->rst = 1;
+		LCDPR("sw_vlock init mode:%d\n", mode);
+	} else if (strcmp(parm[0], "en") == 0) {
+		if (!parm[1]) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vlock_store_next;
+		}
+		ret = kstrtouint(parm[1], 10, &en);
+		if (ret) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vlock_store_next;
+		}
+		if (en && !fr_lock->en) {
+			fr_lock->base_dura_num = 0;
+			fr_lock->base_dura_den = 0;
+			fr_lock->rst = 1;
+			fr_lock->en = 1;
+			LCDPR("sw_vlock enable\n");
+		} else if (!en && fr_lock->en) {
+			fr_lock->rst = 1;
+			fr_lock->en = 0;
+			fr_lock_recovery_freq(pdrv);
+			LCDPR("sw_vlock disable\n");
+		}
+	} else if (strcmp(parm[0], "rst") == 0) {
+		fr_lock->rst = 1;
+		fr_lock->base_dura_num = 0;
+		fr_lock->base_dura_den = 0;
+		LCDPR("sw_vlock reset\n");
+	} else if (strcmp(parm[0], "show") == 0) {
+		if (!parm[1]) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vlock_store_next;
+		}
+
+		ret = kstrtouint(parm[1], 10, &mode);
+		if (ret) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vlock_store_next;
+		}
+		fr_lock->show = mode;
+		LCDPR("sw_vlock show %d\n", mode);
+	} else if (strcmp(parm[0], "pid") == 0) {
+		if (!parm[1] || !parm[2] || !parm[3]) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vlock_store_next;
+		}
+
+		ret = kstrtoint(parm[1], 10, &kp);
+		ret |= kstrtoint(parm[2], 10, &ki);
+		ret |= kstrtoint(parm[3], 10, &kd);
+		if (ret) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vlock_store_next;
+		}
+		fr_lock->kp = kp;
+		fr_lock->ki = ki;
+		fr_lock->kd = kd;
+		LCDPR("sw_vlock pid %d %d, %d\n", kp, ki, kd);
+	} else if (strcmp(parm[0], "dbg") == 0) {
+		if (!parm[1]) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vlock_store_next;
+		}
+
+		ret = kstrtouint(parm[1], 10, &mode);
+		if (ret) {
+			pr_err("invalid data\n");
+			goto lcd_debug_sw_vlock_store_next;
+		}
+		fr_lock->dbg = mode;
+		LCDPR("sw_vlock dbg %d\n", mode);
+	}
+lcd_debug_sw_vlock_store_next:
+	kfree(buf_orig);
+
+	return count;
+}
+
+static ssize_t lcd_debug_sw_vlock_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	struct aml_fr_lock_s *fr_lock = NULL;
+	ssize_t len = 0;
+
+	if (!buf || !pdrv)
+		return sprintf(buf, "null\n");
+
+	fr_lock = pdrv->fr_lock;
+	if (!fr_lock) {
+		len = sprintf(buf, "not support sw_vlock\n");
+		return len;
+	}
+	len = sprintf(buf, "en:%d, rst=%d, mode=%d, show:%d, ss_sta=%d, ss_level:%d, hw_vlock:%d\n"
+		"base_fr=%d\n"
+		"sync_num:%d\n"
+		"sync_den:%d\n"
+		"base_vtotal:%d\n"
+		"pll_base_hz:%llu\n"
+		"pll_adj_hz:%llu\n"
+		"pll_base_m:%u\n"
+		"pll_base_frac:%u\n"
+		"pll_adj_m:%u\n"
+		"pll_adj_frac:%s%u\n"
+		"exp_vs_cnt:%d\n"
+		"exp_vs_ns:%d\n"
+		"line_limit:%d\n"
+		"freq_limit:%d\n"
+		"kp:%d, ki:%d, kd:%d\n",
+		fr_lock->en, fr_lock->rst, fr_lock->mode, fr_lock->show,
+		fr_lock->ss_sta, fr_lock->ss_level, fr_lock->hw_vlock_sta,
+		fr_lock->base_fr,
+		fr_lock->base_dura_num,
+		fr_lock->base_dura_den,
+		fr_lock->base_vtotal,
+		fr_lock->pll_base_hz,
+		fr_lock->pll_adj_hz,
+		fr_lock->pll_base_m,
+		fr_lock->pll_base_frac,
+		fr_lock->pll_adj_m,
+		(fr_lock->pll_adj_frac & (1 << 18)) ? "-" : "+", fr_lock->pll_adj_frac & 0x3ffff,
+		fr_lock->exp_vs_cnt,
+		fr_lock->exp_vs_ns,
+		fr_lock->line_limit,
+		fr_lock->freq_limit,
+		fr_lock->kp, fr_lock->ki, fr_lock->kd
+		);
+
+	return len;
+}
+
 //make sure 30min diff is less than half frame
 #define LCD_VS_MSR_ERR_MAX    280   //unit:0.000001
 #define LCD_VS_MSR_DUMP       1
@@ -4492,6 +4663,7 @@ static struct device_attribute lcd_debug_attrs[] = {
 	__ATTR(print,       0644, lcd_debug_print_show, lcd_debug_print_store),
 	__ATTR(cus_ctrl,    0444, lcd_debug_cus_ctrl_show, NULL),
 	__ATTR(vinfo,       0444, lcd_debug_vinfo_show, NULL),
+	__ATTR(sw_vlock,    0644, lcd_debug_sw_vlock_show, lcd_debug_sw_vlock_store),
 	__ATTR(vs_msr,      0644, lcd_debug_vs_msr_show, lcd_debug_vs_msr_store)
 };
 

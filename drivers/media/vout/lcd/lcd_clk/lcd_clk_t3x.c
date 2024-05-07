@@ -146,8 +146,8 @@ static void lcd_pll_frac_set(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 		offset[1] = pixconf->pll_offset;
 		val[0] = lcd_ana_read(ANACTRL_TCON_PLL0_CNTL1 + offset[0]);
 		val[1] = lcd_ana_read(ANACTRL_TCON_PLL0_CNTL1 + offset[1]);
-		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL1 + offset[0], phyconf->pll_frac, 0, 17);
-		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL1 + offset[1], pixconf->pll_frac, 0, 17);
+		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL1 + offset[0], phyconf->pll_frac, 0, 19);
+		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL1 + offset[1], pixconf->pll_frac, 0, 19);
 
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 			LCDPR("[%d]: %s: phyconf reg 0x%x: 0x%08x->0x%08x, pll_frac=0x%x\n",
@@ -162,7 +162,7 @@ static void lcd_pll_frac_set(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 	} else {
 		offset[0] = cconf->pll_offset;
 		val[0] = lcd_ana_read(ANACTRL_TCON_PLL0_CNTL1 + offset[0]);
-		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL1 + offset[0], frac, 0, 17);
+		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL1 + offset[0], frac, 0, 19);
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 			LCDPR("[%d]: %s: reg 0x%x: 0x%08x->0x%08x, pll_frac=0x%x\n",
 				pdrv->index, __func__, ANACTRL_TCON_PLL0_CNTL1 + offset[0],

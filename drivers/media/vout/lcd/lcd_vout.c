@@ -883,6 +883,8 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 
 	local_time[0] = sched_clock();
 
+	lcd_fr_lock(pdrv);
+
 	switch (pdrv->config.basic.lcd_type) {
 	case LCD_MIPI:
 		break;
@@ -2167,6 +2169,8 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	lcd_venc_probe(pdrv);
 	lcd_config_default(pdrv);
 	lcd_init_vout(pdrv);
+	lcd_fr_lock_init(pdrv);
+
 
 	/* lock pinmux as earlier as possible if lcd in on */
 	if (pdrv->status & LCD_STATUS_IF_ON) {

@@ -556,6 +556,14 @@ static unsigned int lcd_venc_get_encl_frm_cnt(struct aml_lcd_drv_s *pdrv)
 	return cnt;
 }
 
+static void lcd_venc_set_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal)
+{
+	unsigned int offset;
+
+	offset = pdrv->data->offset_venc[pdrv->index];
+	lcd_vcbus_setb(ENCL_VIDEO_MAX_CNT + offset, (vtotal - 1), 0, 16);
+}
+
 int lcd_venc_op_init_t3x(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_op)
 {
 	if (!venc_op)
@@ -577,6 +585,7 @@ int lcd_venc_op_init_t3x(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_
 	venc_op->venc_vrr_recovery = lcd_venc_set_vrr_recovery;
 	venc_op->get_encl_line_cnt = lcd_venc_get_encl_line_cnt;
 	venc_op->get_encl_frm_cnt = lcd_venc_get_encl_frm_cnt;
+	venc_op->venc_set_vtotal = lcd_venc_set_vtotal;
 
 	return 0;
 };

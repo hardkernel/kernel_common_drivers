@@ -140,7 +140,7 @@ int lcd_get_ss_num(struct aml_lcd_drv_s *pdrv,
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf || !cconf->data) {
 		LCDERR("[%d] %s: clk_conf is null\n", pdrv->index, __func__);
-		return -1;
+		return 0;
 	}
 
 	if (cconf->data->ss_support == 0) {
@@ -159,7 +159,7 @@ int lcd_get_ss_num(struct aml_lcd_drv_s *pdrv,
 			*mode = cconf->ss_mode;
 	}
 
-	return 0;
+	return cconf->ss_en;
 }
 
 int lcd_get_ss(struct aml_lcd_drv_s *pdrv, char *buf)
@@ -304,6 +304,31 @@ void lcd_clk_pll_reset(struct aml_lcd_drv_s *pdrv)
 	LCDPR("[%d]: %s\n", pdrv->index, __func__);
 }
 
+unsigned long long lcd_pll_freq_get(int index)
+{
+	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(index);
+	struct lcd_clk_config_s *cconf;
+	long long m, f, hz;
+	int sign = 1;
+
+	if (!pdrv)
+		return 0;
+
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf)
+		return 0;
+
+#define PLL_FRAC_CONST_LEN 17
+	m = cconf->pll_m;
+	f = cconf->pll_frac & ((1 << (PLL_FRAC_CONST_LEN + 1)) - 1);
+	sign = (f & (1 << cconf->data->pll_frac_sign_bit)) ? -1 : 1;
+	f *= sign;
+	hz = 24000000 * ((m << PLL_FRAC_CONST_LEN) + f) >> PLL_FRAC_CONST_LEN;
+#undef PLL_FRAC_CONST_LEN
+
+	return (unsigned long long)hz;
+}
+
 //can't mutex_lock for atomic context
 void lcd_vlock_m_update(int index, unsigned int vlock_m)
 {
@@ -352,7 +377,7 @@ void lcd_vlock_frac_update(int index, unsigned int vlock_frac)
 		return;
 	}
 
-	vlock_frac &= 0x1ffff;
+	vlock_frac &= 0x7ffff;
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
 		LCDPR("[%d]: %s, vlock_frac: 0x%x\n", index, __func__, vlock_frac);
 

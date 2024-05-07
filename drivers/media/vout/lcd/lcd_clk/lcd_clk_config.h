@@ -113,6 +113,7 @@ struct lcd_clk_data_s {
 	void (*clk_ss_init)(struct lcd_clk_config_s *cconf);
 	void (*pll_frac_set)(struct aml_lcd_drv_s *pdrv, unsigned int frac);
 	void (*pll_m_set)(struct aml_lcd_drv_s *pdrv, unsigned int m);
+	unsigned long long (*pll_hz_get)(struct aml_lcd_drv_s *pdrv);
 	void (*pll_reset)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_set)(struct aml_lcd_drv_s *pdrv);
 	void (*vclk_crt_set)(struct aml_lcd_drv_s *pdrv);

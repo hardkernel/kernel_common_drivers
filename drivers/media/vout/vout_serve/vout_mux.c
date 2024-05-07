@@ -31,6 +31,7 @@
 
 struct vout_mux_data_s {
 	struct clk *msr_clk;
+	unsigned int (*vs_cnt_measure)(int index);
 	unsigned int (*vs_measure)(int index);
 	unsigned int (*vs_measure_high_res)(int index);
 	void (*msr_ctrl_init)(struct platform_device *pdev, struct vout_mux_data_s *vdata);
@@ -103,6 +104,18 @@ static inline unsigned int vout_do_div(unsigned long long num, unsigned int den)
 	do_div(val, den);
 
 	return (unsigned int)val;
+}
+
+static unsigned int vout_vs_cnt_measure_dft(int index)
+{
+	unsigned int val;
+
+	if (index > 1 || vout_vdo_meas_init == 0)
+		return 0;
+
+	val = vout_vcbus_read(VPP_VDO_MEAS_VS_COUNT_LO);
+
+	return val;
 }
 
 static unsigned int vout_vs_measure_dft(int index)
@@ -216,6 +229,22 @@ static unsigned int vout_vs_measure_high_res_s5(int index)
 	return fr;
 }
 #endif
+
+unsigned int vout_measure_freq(void)
+{
+	return vdin_meas_clk_val;
+}
+
+unsigned int vout_frame_cnt_measure(int index)
+{
+	unsigned int cnt;
+
+	if (!vout_mux_data || !vout_mux_data->vs_cnt_measure)
+		return 0;
+
+	cnt = vout_mux_data->vs_cnt_measure(index);
+	return cnt;
+}
 
 unsigned int vout_frame_rate_measure(int index)
 {
@@ -434,6 +463,7 @@ void vout_viu_mux_clear(int index, unsigned int mux_sel)
 /* ********************************************************* */
 static struct vout_mux_data_s vout_mux_match_data = {
 	.msr_clk = NULL,
+	.vs_cnt_measure = vout_vs_cnt_measure_dft,
 	.vs_measure = vout_vs_measure_dft,
 	.vs_measure_high_res = vout_vs_measure_high_res_dft,
 	.msr_ctrl_init = vout_meas_ctrl_init_dft,
@@ -444,6 +474,7 @@ static struct vout_mux_data_s vout_mux_match_data = {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static struct vout_mux_data_s vout_mux_match_data_txhd2 = {
 	.msr_clk = NULL,
+	.vs_cnt_measure = vout_vs_cnt_measure_dft,
 	.vs_measure = vout_vs_measure_dft,
 	.msr_ctrl_init = vout_meas_ctrl_init_dft,
 	.update_viu_mux = vout_viu_mux_update_default_txhd2,
@@ -452,6 +483,7 @@ static struct vout_mux_data_s vout_mux_match_data_txhd2 = {
 
 static struct vout_mux_data_s vout_mux_match_data_t7 = {
 	.msr_clk = NULL,
+	.vs_cnt_measure = vout_vs_cnt_measure_dft,
 	.vs_measure = vout_vs_measure_dft,
 	.vs_measure_high_res = vout_vs_measure_high_res_dft,
 	.msr_ctrl_init = vout_meas_ctrl_init_dft,
@@ -461,6 +493,7 @@ static struct vout_mux_data_s vout_mux_match_data_t7 = {
 
 static struct vout_mux_data_s vout_mux_match_data_t3 = {
 	.msr_clk = NULL,
+	.vs_cnt_measure = vout_vs_cnt_measure_dft,
 	.vs_measure = vout_vs_measure_dft,
 	.vs_measure_high_res = vout_vs_measure_high_res_dft,
 	.msr_ctrl_init = vout_meas_ctrl_init_dft,
@@ -470,6 +503,7 @@ static struct vout_mux_data_s vout_mux_match_data_t3 = {
 
 static struct vout_mux_data_s vout_mux_match_data_t5w = {
 	.msr_clk = NULL,
+	.vs_cnt_measure = vout_vs_cnt_measure_dft,
 	.vs_measure = vout_vs_measure_dft,
 	.vs_measure_high_res = vout_vs_measure_high_res_dft,
 	.msr_ctrl_init = vout_meas_ctrl_init_dft,

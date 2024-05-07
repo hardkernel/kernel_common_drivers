@@ -1238,6 +1238,29 @@ int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 			pdrv->index, pdrv->config.propname);
 	}
 
+	ret = of_property_read_u32_array(np, "sw_vlock", &para[0], 7);
+	if (ret == 0) {
+		pdrv->fr_lock_en = para[0];
+		pdrv->fr_lock = kzalloc(sizeof(*pdrv->fr_lock), GFP_KERNEL);
+		if (pdrv->fr_lock) {
+			pdrv->fr_lock->en = para[0];
+			pdrv->fr_lock->mode = para[1];
+			pdrv->fr_lock->kp = para[2];
+			pdrv->fr_lock->ki = para[3];
+			pdrv->fr_lock->kd = para[4];
+			pdrv->fr_lock->line_limit = para[5];
+			pdrv->fr_lock->freq_limit = para[6];
+			LCDPR("fr_lock:%d, mode:%d, kp:%d, ki:%d, kd:%d,\n"
+				  "line_limit:%d, freq_limit:%d\n",
+				pdrv->fr_lock_en, pdrv->fr_lock->mode, pdrv->fr_lock->kp,
+				pdrv->fr_lock->ki, pdrv->fr_lock->kd,
+				pdrv->fr_lock->line_limit, pdrv->fr_lock->freq_limit);
+		}
+	} else {
+		pdrv->fr_lock_en = 0;
+		LCDPR("no fr_lock\n");
+	}
+
 	return 0;
 }
 

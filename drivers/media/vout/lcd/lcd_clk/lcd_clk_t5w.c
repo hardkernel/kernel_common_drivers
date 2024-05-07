@@ -134,7 +134,7 @@ static void lcd_pll_frac_set(struct aml_lcd_drv_s *pdrv, unsigned int frac)
 	unsigned int val;
 
 	val = lcd_ana_read(HHI_TCON_PLL_CNTL1);
-	lcd_ana_setb(HHI_TCON_PLL_CNTL1, frac, 0, 17);
+	lcd_ana_setb(HHI_TCON_PLL_CNTL1, frac, 0, 19);
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDPR("[%d]: %s: reg 0x%x: 0x%08x->0x%08x, pll_frac=0x%x\n",
 			pdrv->index, __func__, HHI_TCON_PLL_CNTL1,
