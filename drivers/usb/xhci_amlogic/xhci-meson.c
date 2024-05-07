@@ -3021,7 +3021,7 @@ static int xhci_configure_endpoint(struct aml_xhci_hcd *xhci,
 
 #if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 	if (xhci->meson_quirks & XHCI_CRG_HOST_003) {
-		if ((udev) && udev->speed == USB_SPEED_FULL &&
+		if (udev->speed == USB_SPEED_FULL &&
 			udev->level == 1 && udev->state == USB_STATE_NOTATTACHED) {
 			db_wait  = 1;
 			for (i = 0; i < MAX_HC_SLOTS; i++) {
