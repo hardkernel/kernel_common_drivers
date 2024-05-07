@@ -799,7 +799,7 @@
 		/*GPIOT-19 conflict with audio speaker */
 		status = "okay";
 
-		fe_num = <2>;
+		fe_num = <1>;
 		fe0_demod = "cxd2856";
 		fe0_i2c_adap_id = <&i2c2>;
 		fe0_demod_i2c_addr = <0xD8>;
