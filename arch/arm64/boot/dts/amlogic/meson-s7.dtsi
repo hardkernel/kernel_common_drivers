@@ -825,6 +825,7 @@
 			mmc_debug_flag;
 			tx_delay = <17>;
 			src_clk_rate = <1152000000>;
+			cap-mmc-crypto;
 		//	nwr_cnt = <0>;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};

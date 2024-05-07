@@ -190,6 +190,7 @@ struct meson_host {
 	bool ignore_desc_busy;
 	bool use_intf3_tuning;
 	bool enable_hwcq;
+	bool enable_inline_crypto;
 	int flags;
 	spinlock_t lock; /* lock for claim and bus ops */
 	bool src_clk_cfg_done;

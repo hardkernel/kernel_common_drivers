@@ -180,6 +180,10 @@ int amlogic_of_parse(struct mmc_host *host)
 		mmc->enable_hwcq = true;
 	else
 		mmc->enable_hwcq = false;
+	if (device_property_read_bool(dev, "cap-mmc-crypto"))
+		mmc->enable_inline_crypto = true;
+	else
+		mmc->enable_inline_crypto = false;
 
 	if (device_property_read_bool(dev, "use-64bit-dma"))
 		mmc->flags |= AML_USE_64BIT_DMA;
@@ -1795,6 +1799,11 @@ static void meson_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	/* Stop execution */
 	writel(0, host->regs + SD_EMMC_START);
+
+#if IS_ENABLED(CONFIG_AMLOGIC_MMC_CQHCI)
+	if (host->enable_inline_crypto)
+		meson_crypto_prepare_req(mmc, mrq);
+#endif
 
 	meson_mmc_start_cmd(mmc, mrq->cmd);
 }

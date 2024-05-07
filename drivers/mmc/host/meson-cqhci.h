@@ -16,36 +16,37 @@
 
 #include "../drivers/mmc/host/cqhci.h"
 /* The resp returned by cmd19 and cmd52/3 can't use the same mask */
-#define SDIO_RESP_ERR_MASK 0x0
+#define SDIO_RESP_ERR_MASK      0x0
 
-#define SD_EMMC_CQE_REG    0x100
-#define SD_EMMC_CQVER    (SD_EMMC_CQE_REG + 0x0)
-#define SD_EMMC_CQCAP    (SD_EMMC_CQE_REG + 0x4)
-#define SD_EMMC_CQCFG    (SD_EMMC_CQE_REG + 0x8)
-#define SD_EMMC_CQCTL    (SD_EMMC_CQE_REG + 0xc)
+#define SD_EMMC_CQE_REG         0x100
+/* Crypto General Enable: Enable/Disable bit for Crypto Engine */
+#define   CRYPTO_ENGINE         BIT(2)
+/* CRYPTO REGISTERS */
+#define CQHCI_CRNQP		(0x70)
+/* Crypto Enable for Non-Queue Data Transfers (CE) */
+#define   CRYPTO_NON_QUEUE      BIT(8)
+/* Crypto Configuration Index for Non-Queue Data Transfers (CCI) */
+#define   CRYPTO_CFG_INDEX      GENMASK(7, 0)
 
-#define SD_EMMC_CQIS     (SD_EMMC_CQE_REG + 0x10)
-#define SD_EMMC_CQISTE   (SD_EMMC_CQE_REG + 0x14)
-#define SD_EMMC_CQISGE   (SD_EMMC_CQE_REG + 0x18)
-#define SD_EMMC_CQIC     (SD_EMMC_CQE_REG + 0x1c)
+#define CQHCI_CRNQDUN           (0x74)
+#define CQHCI_CRNQIS            (0x78)
+#define CQHCI_CRNQIE            (0x7C)
+/* crypto rev1; CFGPTR = 2 */
+#define CQHCI_CRCAP             (0x100)
+#define   CQHCI_CFGPTR          (2)
 
-#define SD_EMMC_CQTDLBA  (SD_EMMC_CQE_REG + 0x20)
-#define SD_EMMC_CQTDLBAU (SD_EMMC_CQE_REG + 0x24)
-#define SD_EMMC_CQTDBR   (SD_EMMC_CQE_REG + 0x28)
-#define SD_EMMC_CQTCN    (SD_EMMC_CQE_REG + 0x2c)
+#define CQHCI_CRCAP0            (0x104)
+#define   CQHCI_RESERVED_KS     (0)
+#define   CFG_128_BIT	        (1)
+#define   CFG_192_BIT           (2)
+#define   CFG_256_BIT           (3)
+#define   CFG_512_BIT           (4)
+#define   CRYPTO_KS(x)          ((x) << 16)
+#define CQHCI_CRCAP1            (0x108)
+#define CQHCI_CRCAP2            (0x10C)
+#define CQHCI_CRCFG0            (CQHCI_CFGPTR * 0x100)
+#define CQHCI_CRCFG1            (CQHCI_CFGPTR * 0X100 + 0x80)
 
-#define SD_EMMC_CQDQS    (SD_EMMC_CQE_REG + 0x30)
-#define SD_EMMC_CQDPT    (SD_EMMC_CQE_REG + 0x34)
-#define SD_EMMC_CQTCLR   (SD_EMMC_CQE_REG + 0x38)
-
-#define SD_EMMC_CQSSC1   (SD_EMMC_CQE_REG + 0x40)
-#define SD_EMMC_CQSSC2   (SD_EMMC_CQE_REG + 0x44)
-#define SD_EMMC_CQCRDCT  (SD_EMMC_CQE_REG + 0x48)
-
-#define SD_EMMC_CQRMEM   (SD_EMMC_CQE_REG + 0x50)
-#define SD_EMMC_CQTERRI  (SD_EMMC_CQE_REG + 0x54)
-#define SD_EMMC_CQCRI    (SD_EMMC_CQE_REG + 0x58)
-#define SD_EMMC_CQCRA    (SD_EMMC_CQE_REG + 0x5c)
 
 bool aml_cqe_irq(struct meson_host *host, u32 intmask, int *cmd_error,
 	int *data_error);
@@ -55,5 +56,7 @@ u32 aml_cqhci_readl(struct cqhci_host *host, int reg);
 void aml_cqe_enable(struct mmc_host *mmc);
 void aml_cqe_disable(struct mmc_host *mmc, bool recovery);
 int amlogic_add_host(struct meson_host *host);
+void meson_crypto_init(struct cqhci_host *cq_host);
+int meson_crypto_prepare_req(struct mmc_host *mmc, struct mmc_request *mrq);
 
 #endif

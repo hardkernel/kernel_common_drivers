@@ -155,6 +155,34 @@ struct cqhci_host_ops amlogic_cqhci_ops = {
 //	.update_dcmd_desc = aml_update_dcmd_desc,
 };
 
+void meson_crypto_init(struct cqhci_host *cq_host)
+{
+	/* set 256Byte key in cap0 */
+	cqhci_writel(cq_host, CRYPTO_KS(CFG_256_BIT), CQHCI_CRCAP0);
+	/* set 256Byte key in cap1 */
+	cqhci_writel(cq_host, CRYPTO_KS(CFG_256_BIT), CQHCI_CRCAP1);
+}
+
+int meson_crypto_prepare_req(struct mmc_host *mmc, struct mmc_request *mrq)
+{
+	struct cqhci_host *cq_host = NULL;
+	int slot = 0;
+
+	if (!mrq->data || !mrq->crypto_ctx)
+		return 1;
+	cq_host = mmc->cqe_private;
+	slot = mrq->crypto_key_slot;
+	/* enable Crypt Engine */
+	cqhci_writel(cq_host, CRYPTO_ENGINE, CQHCI_CFG);
+	/* enable Crypt Engine for Non-Qeueu */
+	cqhci_writel(cq_host, CRYPTO_NON_QUEUE | slot, CQHCI_CRNQP);
+	/* We set max_dun_bytes_supported=4, so all DUNs should be 32-bit. */
+	WARN_ON_ONCE(mrq->crypto_ctx->bc_dun[0] > U32_MAX);
+	cqhci_writel(cq_host, mrq->crypto_ctx->bc_dun[0], CQHCI_CRNQDUN);
+
+	return 0;
+}
+
 int amlogic_add_host(struct meson_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
@@ -162,11 +190,14 @@ int amlogic_add_host(struct meson_host *host)
 	bool dma64;
 	int ret;
 
-	if (!host->enable_hwcq)
+	if (!aml_card_type_mmc(host) ||
+		(!host->enable_hwcq && !host->enable_inline_crypto))
 		return mmc_add_host(mmc);
 
-	mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
-	mmc->max_seg_size = SD_EMMC_MAX_SEG_SIZE;
+	if (host->enable_hwcq) {
+		mmc->caps2 |= MMC_CAP2_CQE | MMC_CAP2_CQE_DCMD;
+		mmc->max_seg_size = SD_EMMC_MAX_SEG_SIZE;
+	}
 
 	cq_host = devm_kzalloc(host->dev,
 				sizeof(*cq_host), GFP_KERNEL);
@@ -177,6 +208,11 @@ int amlogic_add_host(struct meson_host *host)
 
 	cq_host->mmio = host->regs + SD_EMMC_CQE_REG;
 	cq_host->ops = &amlogic_cqhci_ops;
+
+	if (host->enable_inline_crypto) {
+		mmc->caps2 |= MMC_CAP2_CRYPTO;
+		meson_crypto_init(cq_host);
+	}
 
 	dma64 = host->flags & AML_USE_64BIT_DMA;
 	if (dma64)
