@@ -326,6 +326,15 @@
 //Bit  3: 1        reserved
 //Bit  0        reg_yuv_sharpen_win_mode  // unsigned ,    RW, default = 0
 				//0: 3x3, 1: 5x5
+#define SAFA_PPS_DIR_MIN_IDX_VALID  0x511f
+//Bit 31:13        reserved
+//Bit 12           reg_delta_chk_min_idx_valid // unsigned ,    RW, default = 0
+//Bit 11: 9        reserved
+//Bit  8           reg_dir_hist_chk_min_idx_valid // unsigned ,    RW, default = 1
+//Bit  7: 5        reserved
+//Bit  4           reg_dir_dif_chk_min_idx_valid // unsigned ,    RW, default = 1
+//Bit  3: 1        reserved
+//Bit  0           reg_beta_chk_min_idx_valid // unsigned ,    RW, default = 0
 #define SAFA_PPS_DIR_EN_MODE      0x511e
 //Bit 31:25        reserved
 //Bit 24        reg_dir_x_ds_en// unsigned ,    RW, default = 1
