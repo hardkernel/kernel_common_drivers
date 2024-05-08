@@ -7,6 +7,7 @@
 #define __UAPI_IR_COMMON_MESON_H__
 
 #include <linux/types.h>
+#include <linux/input.h>
 
 #define MAX_KEYMAP_SIZE 256
 #define CUSTOM_NAME_LEN 64
@@ -57,9 +58,7 @@ struct ir_map_tab {
 	__u16 map_size;
 	__u32 custom_code;
 	__u32 release_delay;
-	__u32 vendor;
-	__u32 product;
-	__u32 version;
+	struct input_id id;
 	union _codemap codemap[0];
 };
 
