@@ -103,7 +103,7 @@ void meson_ir_raw_event_handle(struct meson_ir_dev *dev)
 {
 	/*unsigned long flags;*/
 
-	if (!dev || !dev->raw)
+	if (!dev || !dev->raw || !dev->raw->thread)
 		return;
 
 	/*spin_lock_irqsave(&dev->raw->lock, flags);*/

@@ -683,6 +683,9 @@ static int meson_ir_hardware_init(struct platform_device *pdev)
 	chip->irq_cpumask = 1;
 
 	for (cnt = 0; cnt < (ENABLE_LEGACY_IR(chip->protocol) ? 2 : 1); cnt++) {
+		if (chip->irqno[cnt] < 0)
+			continue;
+
 		ret = devm_request_irq(&pdev->dev, chip->irqno[cnt],
 				       meson_ir_interrupt,
 				       IRQF_SHARED, "meson_ir", (void *)chip);
@@ -691,6 +694,7 @@ static int meson_ir_hardware_init(struct platform_device *pdev)
 			return -ENODEV;
 		}
 
+		disable_irq(chip->irqno[cnt]);
 		irq_set_affinity_hint(chip->irqno[cnt],
 				      cpumask_of(chip->irq_cpumask));
 	}
@@ -789,9 +793,6 @@ static int meson_ir_probe(struct platform_device *pdev)
 	dev->rc_type = chip->protocol;
 
 	device_init_wakeup(&pdev->dev, true);
-	dev_pm_set_wake_irq(&pdev->dev, chip->irqno[0]);
-	if (ENABLE_LEGACY_IR(chip->protocol))
-		dev_pm_set_wake_irq(&pdev->dev, chip->irqno[1]);
 
 	led_trigger_register_simple("ir_led", &dev->led_feedback);
 
@@ -804,6 +805,14 @@ static int meson_ir_probe(struct platform_device *pdev)
 					BIT(15), 0);
 		}
 	}
+
+	dev_pm_set_wake_irq(&pdev->dev, chip->irqno[0]);
+	enable_irq(chip->irqno[0]);
+	if (chip->irqno[1] >= 0) {
+		dev_pm_set_wake_irq(&pdev->dev, chip->irqno[1]);
+		enable_irq(chip->irqno[1]);
+	}
+
 	return 0;
 }
 
@@ -826,7 +835,7 @@ static int meson_ir_remove(struct platform_device *pdev)
 	input_unregister_device(chip->r_dev->input_device);
 	meson_ir_map_tab_list_free(chip);
 	irq_set_affinity_hint(chip->irqno[0], NULL);
-	if (ENABLE_LEGACY_IR(chip->protocol))
+	if (chip->irqno[1] >= 0)
 		irq_set_affinity_hint(chip->irqno[1], NULL);
 
 	return 0;
@@ -870,7 +879,7 @@ static int meson_ir_resume(struct device *dev)
 	irq_set_affinity_hint(chip->irqno[0], cpumask_of(chip->irq_cpumask));
 	enable_irq(chip->irqno[0]);
 
-	if (ENABLE_LEGACY_IR(chip->protocol)) {
+	if (chip->irqno[1] >= 0) {
 		irq_set_affinity_hint(chip->irqno[1], cpumask_of(chip->irq_cpumask));
 		enable_irq(chip->irqno[1]);
 	}
@@ -882,7 +891,7 @@ static int meson_ir_suspend(struct device *dev)
 	struct meson_ir_chip *chip = dev_get_drvdata(dev);
 
 	disable_irq(chip->irqno[0]);
-	if (ENABLE_LEGACY_IR(chip->protocol))
+	if (chip->irqno[1] >= 0)
 		disable_irq(chip->irqno[1]);
 	return 0;
 }
