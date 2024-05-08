@@ -54,8 +54,6 @@ struct pulse_group {
 struct meson_ir_raw_handle;
 struct meson_ir_dev {
 	struct device *dev;
-	struct input_dev *input_device;
-	struct input_dev *input_device_ots[3];
 	struct list_head reg_list;
 	struct list_head aml_list;
 	struct meson_ir_raw_handle *raw;
@@ -96,6 +94,9 @@ struct meson_ir_dev {
 	u8 debug_enable;
 	u8 enable;
 	u8 ir_learning_on;
+
+	unsigned int input_dev_num;
+	struct input_dev **input_devs;
 };
 
 struct meson_ir_raw_handle {
@@ -180,7 +181,7 @@ static inline void decrease_duration(struct meson_ir_raw_event *ev,
 		ev->duration -= duration;
 }
 
-void meson_ir_input_configure(struct meson_ir_dev *dev,
+void meson_ir_input_configure(struct input_dev *input_device,
 			      struct ir_map_tab *ir_map);
 void meson_ir_input_mouse_configure(struct meson_ir_dev *dev);
 void meson_ir_keydown(struct meson_ir_dev *dev, int scancode, int status);
