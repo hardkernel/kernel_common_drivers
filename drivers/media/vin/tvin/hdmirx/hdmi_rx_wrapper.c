@@ -1804,10 +1804,12 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT, port);
 			if (log_level & 0x100)
 				rx_pr("[isr] sqofclk_fall\n");
 		}
+		//todo
 		if (hdmirx_top_intr_stat & (1 << 28)) {
 			if (log_level & 0x100)
 				rx_pr("[isr] sqofclk_rise\n");
 		}
+		//emp
 		if (rx_info.chip_id >= CHIP_ID_T3X) {//todo
 			if (hdmirx_top_intr_stat & (1 << 21))
 				need_check = true;
@@ -1826,11 +1828,15 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT, port);
 			if (log_level & 0x400)
 				rx_pr("[isr] emp_field_done\n");
 		}
+		//----------------DE---------------------
 		if (rx_info.chip_id >= CHIP_ID_T3X) {//todo
 			if (hdmirx_top_intr_stat & (1 << 23))
 				need_check = true;
 		} else if (rx_info.chip_id >= CHIP_ID_T7 &&
 				   rx_info.chip_id <= CHIP_ID_TXHD2) {//todo
+			if (hdmirx_top_intr_stat & (1 << 27))
+				need_check = true;
+		} else {
 			if (hdmirx_top_intr_stat & (1 << 27))
 				need_check = true;
 		}
