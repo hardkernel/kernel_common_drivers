@@ -29,8 +29,6 @@
 #include "meson_ir_main.h"
 #include <linux/amlogic/gki_module.h>
 
-static void meson_ir_input_device_init(struct input_dev *dev,
-				       struct device *parent, const char *name);
 static void meson_ir_tasklet(struct tasklet_struct *t);
 DECLARE_TASKLET_DISABLED(tasklet, meson_ir_tasklet);
 
@@ -160,7 +158,7 @@ static int meson_ir_report_rel(struct meson_ir_dev *dev, u32 scancode,
 	s32 cursor_value = 0;
 	u32 valid_scancode;
 	u16 mouse_code;
-	int cnt;
+	struct input_dev *input_device;
 	s32 move_accelerate[] = CURSOR_MOVE_ACCELERATE;
 
 	/*nothing need to do in normal mode*/
@@ -196,25 +194,15 @@ static int meson_ir_report_rel(struct meson_ir_dev *dev, u32 scancode,
 		return -EINVAL;
 	}
 
-	if (DECIDE_VENDOR_TA_ID) {
-		for (cnt = 0; cnt <= chip->input_cnt; cnt++) {
-			if (chip->search_id[cnt] == ct->tab.vendor)
-				break;
-		}
-		if (cnt > chip->input_cnt) {
-			dev_err(chip->dev, "vendor ID Configuration error\n");
-			dev_err(chip->dev, "vendor = %x, product = %x, version = %x\n",
-					ct->tab.vendor, ct->tab.product, ct->tab.version);
-			return 0;
-		}
-		input_event(chip->r_dev->input_device_ots[cnt], EV_REL,
-					mouse_code, cursor_value);
-		input_sync(chip->r_dev->input_device_ots[cnt]);
-	} else {
-		input_event(chip->r_dev->input_device, EV_REL,
-		    mouse_code, cursor_value);
-		input_sync(chip->r_dev->input_device);
+	input_device = meson_ir_match_input_dev(dev, ct);
+	if (!input_device) {
+		dev_err(chip->dev, "Input ID not found\n");
+		return 0;
 	}
+
+	input_event(input_device, EV_REL, mouse_code, cursor_value);
+	input_sync(input_device);
+
 	meson_ir_dbg(chip->r_dev, "mouse cursor be %s moved %d.\n",
 		     mouse_code == REL_X ? "horizontal" : "vertical",
 		     cursor_value);
@@ -410,8 +398,6 @@ static int meson_ir_get_custom_tables(struct device_node *node,
 	u32 value;
 	int ret = -1;
 	int index;
-	int cnt = 0;
-	int cnl;
 	char *propname;
 	const char *uname;
 	unsigned long flags;
@@ -494,22 +480,27 @@ static int meson_ir_get_custom_tables(struct device_node *node,
 		ptable->tab.release_delay = value;
 
 		ret = of_property_read_u32(map, "vendor", &value);
-		if (ret)
-			value = 0;
-		chip->vendor = value;
-		ptable->tab.vendor = chip->vendor;
+		if (ret) {
+			ret = of_property_read_u32(node, "vendor", &value);
+			if (ret)
+				value = 0x0001;
+		}
+		ptable->tab.id.vendor = value;
 
 		ret = of_property_read_u32(map, "product", &value);
-		if (ret)
-			value = 0;
-		chip->product = value;
-		ptable->tab.product = chip->product;
+		if (ret) {
+			ret = of_property_read_u32(node, "product", &value);
+			if (ret)
+				value = 0x0001;
+		}
+		ptable->tab.id.product = value;
 
 		ret = of_property_read_u32(map, "version", &value);
 		if (ret)
-			value = 0;
-		chip->version = value;
-		ptable->tab.version = chip->version;
+			value = 0x0100;
+		ptable->tab.id.version = value;
+
+		ptable->tab.id.bustype = BUS_ISA;
 
 		ret = of_property_read_u32_array(map, "keymap",
 						 (u32 *)&ptable->tab.codemap[0],
@@ -519,28 +510,8 @@ static int meson_ir_get_custom_tables(struct device_node *node,
 			goto err;
 		}
 
-		if (DECIDE_VENDOR_CHIP_ID) {
-			if (cnt == 0 || cnl != chip->vendor) {
-				chip->r_dev->input_device_ots[cnt] =
-					devm_input_allocate_device(chip->dev);
-				input_set_drvdata(chip->r_dev->input_device_ots[cnt], chip->r_dev);
-				meson_ir_input_device_ots_init(chip->r_dev->input_device_ots[cnt],
-					chip->dev, chip, "ir_keypad1", cnt);
-				meson_ir_input_ots_configure(chip->r_dev, cnt,
-							     &ptable->tab);
-				chip->input_cnt = cnt;
-				chip->search_id[cnt] = chip->vendor;
-				ret = input_register_device(chip->r_dev->input_device_ots[cnt]);
-				if (ret < 0)
-					goto err;
-			}
-			cnl = chip->vendor;
-			cnt++;
-		}
-
 		memset(&ptable->tab.cursor_code, 0xff,
 		       sizeof(struct cursor_codemap));
-		meson_ir_input_configure(chip->r_dev, &ptable->tab);
 		meson_ir_scancode_sort(&ptable->tab);
 		/*insert list*/
 		spin_lock_irqsave(&chip->slock, flags);
@@ -640,23 +611,8 @@ static int meson_ir_get_devtree_pdata(struct platform_device *pdev)
 
 	chip->r_dev->max_frame_time = value;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "vendor", &chip->vendor);
-	if (ret)
-		chip->vendor = 0x0001;
-
-	ret = of_property_read_u32(pdev->dev.of_node, "product", &chip->product);
-	if (ret)
-		chip->product = 0x0001;
-
-	meson_ir_input_device_init(chip->r_dev->input_device,
-				   &pdev->dev, "ir_keypad");
-
 	/*create map table */
 	ret = meson_ir_get_custom_tables(pdev->dev.of_node, chip);
-	if (ret < 0)
-		return ret;
-
-	ret = input_register_device(chip->r_dev->input_device);
 	if (ret < 0)
 		return ret;
 
@@ -705,35 +661,68 @@ static int meson_ir_hardware_init(struct platform_device *pdev)
 	return 0;
 }
 
-static void meson_ir_input_device_init(struct input_dev *dev,
-				       struct device *parent, const char *name)
+static int meson_ir_input_device_init(struct device *parent, const char *name)
 {
+	int ret;
 	struct meson_ir_chip *chip = dev_get_drvdata(parent);
+	struct meson_ir_dev *r_dev = chip->r_dev;
+	struct meson_ir_map_tab_list *ir_map = NULL;
+	struct input_dev *input_device;
+	unsigned int match_cnt = 0, i;
+	struct input_id *match_id;
 
-	dev->name = name;
-	dev->phys = "keypad/input0";
-	dev->dev.parent = parent;
-	dev->id.bustype = BUS_ISA;
-	dev->id.vendor  = chip->vendor;
-	dev->id.product = chip->product;
-	dev->id.version = 0x0100;
-	dev->rep[REP_DELAY] = 0xffffffff;  /*close input repeat*/
-	dev->rep[REP_PERIOD] = 0xffffffff; /*close input repeat*/
-}
+	match_id = kcalloc(chip->custom_num, sizeof(*match_id), GFP_KERNEL);
 
-void meson_ir_input_device_ots_init(struct input_dev *dev,
-		struct device *parent,  struct meson_ir_chip *chip, const char *name, int cnt0)
+	list_for_each_entry(ir_map, &chip->map_tab_head, list) {
+		for (i = 0; i < match_cnt; i++)
+			if (!memcmp(&ir_map->tab.id, &match_id[i],
+				    sizeof(*match_id)))
+				break;
 
-{
-	chip->r_dev->input_device_ots[cnt0]->name = "ir_keypad1";
-	chip->r_dev->input_device_ots[cnt0]->phys = "keypad/input0";
-	chip->r_dev->input_device_ots[cnt0]->dev.parent = chip->dev;
-	chip->r_dev->input_device_ots[cnt0]->id.bustype = BUS_ISA;
-	chip->r_dev->input_device_ots[cnt0]->id.vendor  = chip->vendor;
-	chip->r_dev->input_device_ots[cnt0]->id.product = chip->product;
-	chip->r_dev->input_device_ots[cnt0]->id.version = chip->version;
-	chip->r_dev->input_device_ots[cnt0]->rep[REP_DELAY] = 0xffffffff;
-	chip->r_dev->input_device_ots[cnt0]->rep[REP_PERIOD] = 0xffffffff;
+		if (i == match_cnt) {
+			memcpy(&match_id[match_cnt], &ir_map->tab.id,
+			       sizeof(*match_id));
+			match_cnt++;
+		}
+	}
+
+	kfree(match_id);
+
+	r_dev->input_devs = devm_kzalloc(chip->dev,
+					 sizeof(struct input_dev *) * match_cnt,
+					 GFP_KERNEL);
+	r_dev->input_dev_num = 0;
+
+	list_for_each_entry(ir_map, &chip->map_tab_head, list) {
+		input_device = meson_ir_match_input_dev(r_dev, ir_map);
+		if (input_device) {
+			meson_ir_input_configure(input_device, &ir_map->tab);
+			continue;
+		}
+
+		input_device = devm_input_allocate_device(chip->dev);
+		if (!input_device)
+			return -ENOMEM;
+
+		input_device->name = name;
+		input_device->phys = "keypad/input0";
+		input_device->dev.parent = parent;
+		memcpy(&input_device->id, &ir_map->tab.id,
+		       sizeof(struct input_id));
+		input_device->rep[REP_DELAY] = 0xffffffff;  /*close input repeat*/
+		input_device->rep[REP_PERIOD] = 0xffffffff; /*close input repeat*/
+
+		meson_ir_input_configure(input_device, &ir_map->tab);
+
+		input_set_drvdata(input_device, r_dev);
+		ret = input_register_device(input_device);
+		if (ret < 0)
+			return ret;
+
+		r_dev->input_devs[r_dev->input_dev_num] = input_device;
+		r_dev->input_dev_num++;
+	}
+	return 0;
 }
 
 static int meson_ir_probe(struct platform_device *pdev)
@@ -752,14 +741,8 @@ static int meson_ir_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	dev->input_device = devm_input_allocate_device(&pdev->dev);
-	if (!dev->input_device)
-		return -ENOMEM;
-
-	input_set_drvdata(dev->input_device, dev);
 	spin_lock_init(&dev->keylock);
 	dev->wait_next_repeat = 0;
-	dev->enable = 1;
 
 	mutex_init(&chip->file_lock);
 	spin_lock_init(&chip->slock);
@@ -784,6 +767,10 @@ static int meson_ir_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	ret = meson_ir_input_device_init(&pdev->dev, "ir_keypad");
+	if (ret < 0)
+		return ret;
+
 	timer_setup(&dev->timer_keyup, meson_ir_timer_keyup, 0);
 
 	ret = meson_ir_cdev_init(chip);
@@ -804,6 +791,9 @@ static int meson_ir_probe(struct platform_device *pdev)
 			regmap_update_bits(chip->ir_contr[id].base, REG_REG1,
 					BIT(15), 0);
 		}
+		dev->enable = 0;
+	} else {
+		dev->enable = 1;
 	}
 
 	dev_pm_set_wake_irq(&pdev->dev, chip->irqno[0]);
@@ -818,6 +808,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 
 static int meson_ir_remove(struct platform_device *pdev)
 {
+	int i;
 	struct meson_ir_chip *chip = platform_get_drvdata(pdev);
 
 	tasklet_disable(&tasklet);
@@ -832,7 +823,11 @@ static int meson_ir_remove(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, false);
 
 	meson_ir_cdev_free(chip);
-	input_unregister_device(chip->r_dev->input_device);
+
+	for (i = 0; i < chip->r_dev->input_dev_num; i++)
+		input_unregister_device(chip->r_dev->input_devs[i]);
+	kfree(chip->r_dev->input_devs);
+
 	meson_ir_map_tab_list_free(chip);
 	irq_set_affinity_hint(chip->irqno[0], NULL);
 	if (chip->irqno[1] >= 0)
@@ -864,19 +859,17 @@ static int meson_ir_resume(struct device *dev)
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	if (get_resume_method() == REMOTE_WAKEUP) {
-		input_event(chip->r_dev->input_device,
-			    EV_KEY, KEY_POWER, 1);
-		input_sync(chip->r_dev->input_device);
-		input_event(chip->r_dev->input_device,
-			    EV_KEY, KEY_POWER, 0);
-		input_sync(chip->r_dev->input_device);
+		input_event(chip->r_dev->input_devs[0], EV_KEY, KEY_POWER, 1);
+		input_sync(chip->r_dev->input_devs[0]);
+		input_event(chip->r_dev->input_devs[0], EV_KEY, KEY_POWER, 0);
+		input_sync(chip->r_dev->input_devs[0]);
 	}
 
 	if (get_resume_method() == REMOTE_CUS_WAKEUP) {
-		input_event(chip->r_dev->input_device, EV_KEY, 133, 1);
-		input_sync(chip->r_dev->input_device);
-		input_event(chip->r_dev->input_device, EV_KEY, 133, 0);
-		input_sync(chip->r_dev->input_device);
+		input_event(chip->r_dev->input_devs[0], EV_KEY, 133, 1);
+		input_sync(chip->r_dev->input_devs[0]);
+		input_event(chip->r_dev->input_devs[0], EV_KEY, 133, 0);
+		input_sync(chip->r_dev->input_devs[0]);
 	}
 #endif
 

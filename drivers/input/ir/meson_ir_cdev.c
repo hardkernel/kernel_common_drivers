@@ -39,7 +39,7 @@ static long meson_ir_ioctl(struct file *file, unsigned int cmd,
 	void __user *parg = (void __user *)arg;
 	unsigned long flags;
 	u32 value;
-	int retval = 0;
+	int retval = 0, i;
 
 	if (!parg) {
 		dev_err(chip->dev, "%s invalid user space pointer\n", __func__);
@@ -92,7 +92,9 @@ static long meson_ir_ioctl(struct file *file, unsigned int cmd,
 				goto err;
 			}
 
-			meson_ir_input_configure(chip->r_dev, &ir_map->tab);
+			for (i = 0; i < chip->r_dev->input_dev_num; i++)
+				meson_ir_input_configure(chip->r_dev->input_devs[i],
+							 &ir_map->tab);
 			/*scancode sort*/
 			meson_ir_scancode_sort(&ir_map->tab);
 
