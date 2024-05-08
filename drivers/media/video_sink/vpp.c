@@ -965,6 +965,129 @@ static bool is_4k2k144hz_out(const struct vinfo_s *vinfo)
 		return false;
 }
 
+static u32 is_video_output_window_overlap(void)
+{
+	struct video_layer_s *layer = NULL;
+	struct vpp_frame_par_s *next_frame_par = NULL;
+	u32 vd1_v_start = 0, vd1_v_end = 0;
+	u32 vdx_v_start = 0, vdx_v_end = 0;
+	u32 overlap_size = 0;
+	bool vd1_enable = false, vdx_enable = false;
+
+	/* vd1 and vd2/3 enable and output window v axis overlap */
+	layer = get_vd_layer(0);
+	if (layer)
+		next_frame_par = layer->next_frame_par;
+	if (next_frame_par) {
+		vd1_v_start = next_frame_par->VPP_vsc_startp;
+		vd1_v_end = next_frame_par->VPP_vsc_endp;
+		vd1_enable = true;
+		if (super_debug)
+			pr_info("%s:vd0, v out win %d %d\n",
+				__func__, vd1_v_start, vd1_v_end);
+	}
+	layer = get_vd_layer(2);
+	if (layer)
+		next_frame_par = layer->next_frame_par;
+	if (next_frame_par) {
+		vdx_v_start = next_frame_par->VPP_vsc_startp;
+		vdx_v_end = next_frame_par->VPP_vsc_endp;
+		vdx_enable = true;
+		if (super_debug)
+			pr_info("%s:vd1, v out win %d %d\n",
+				__func__, vdx_v_start, vdx_v_end);
+	}
+	if (!vd1_enable || !vdx_enable)
+		return 0;
+	/* check overlap */
+	if (vdx_v_start >= vd1_v_start) {
+		/* on overlap_size  case 5*/
+		if (vdx_v_start >= vd1_v_end)
+			overlap_size = 0;
+		/* vdx in vd1 case 3*/
+		else if (vdx_v_end <= vd1_v_end)
+			overlap_size = vdx_v_end - vdx_v_start + 1;
+			/* vdx part overlap vd1 case 4*/
+		else if (vdx_v_end > vd1_v_end)
+			overlap_size = vd1_v_end - vdx_v_start + 1;
+	} else {
+		/* case 2 */
+		if (vd1_v_start > vdx_v_end) {
+			overlap_size = 0;
+		/* case 1 */
+		} else {
+			if (vdx_v_end > vd1_v_end)
+				overlap_size = vd1_v_end - vd1_v_start + 1;
+			else
+				overlap_size = vdx_v_end - vd1_v_start + 1;
+		}
+	}
+	if (overlap_size)
+		pr_info("%s:, v overlap_size %d\n",
+			__func__, overlap_size);
+	return overlap_size;
+}
+
+static bool is_video_input_4k(u8 layer_id)
+{
+	bool video_en = false, is_4k_input = false;
+	struct video_layer_s *layer = NULL;
+
+	layer = get_vd_layer(layer_id);
+	if (layer->new_vframe_count)
+		video_en = true;
+	if (!video_en)
+		return false;
+	if (layer->src_width >= 3840 && layer->src_height >= 2160)
+		is_4k_input = true;
+	return is_4k_input;
+}
+
+static bool is_vskip_adj_need(u8 layer_id)
+{
+	struct video_layer_s *layer = NULL;
+	struct vpp_frame_par_s *next_frame_par = NULL;
+
+	if (!video_is_meson_t7_cpu())
+		return false;
+	if (is_video_output_window_overlap() &&
+		is_video_input_4k(0) &&
+		is_video_input_4k(2)) {
+		if (layer_id == 0) {
+			layer = get_vd_layer(0);
+			if (layer)
+				next_frame_par = layer->next_frame_par;
+			/* only non-afbc has vskip > 1 */
+			if (next_frame_par &&
+				next_frame_par->vscale_skip_count >= 2) {
+				next_frame_par->vscale_skip_count += 2;
+				if (next_frame_par->vscale_skip_count >= MAX_VSKIP_COUNT)
+					next_frame_par->vscale_skip_count = 8;
+				if (super_debug)
+					pr_info("%s:, vd0 vscale_skip_count %d\n",
+						__func__, next_frame_par->vscale_skip_count);
+				return true;
+			}
+		}
+		if (layer_id == 2) {
+			layer = get_vd_layer(2);
+			if (layer)
+				next_frame_par = layer->next_frame_par;
+			if (next_frame_par &&
+				next_frame_par->vscale_skip_count >= 2) {
+				next_frame_par->vscale_skip_count += 2;
+				if (next_frame_par->vscale_skip_count >= MAX_VSKIP_COUNT)
+					next_frame_par->vscale_skip_count = 8;
+				if (super_debug)
+					pr_info("%s:, vd2 vscale_skip_count %d\n",
+						__func__, next_frame_par->vscale_skip_count);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 /*
  *test on txlx:
  *Time_out = (V_out/V_screen_total)/FPS_out;
@@ -1630,6 +1753,7 @@ static int vpp_set_filters_internal
 	bool hskip_adjust = false;
 	bool src_crop_adjust = false;
 	bool force_dw = false, force_skip_update = false;
+	bool force_skip_adj = false;
 	u32 force_vskip_cnt = 0, force_hskip_cnt = 0, slice_num = 0;
 	bool vd1s1_vd2_prebld_en = false;
 	u32 w_out, h_out;
@@ -2646,6 +2770,11 @@ RESTART:
 			src_crop_adjust = true;
 			goto RESTART_ALL;
 		}
+	}
+
+	if (!force_skip_adj && is_vskip_adj_need(input->layer_id)) {
+		force_skip_adj = true;
+		goto RESTART;
 	}
 
 	if (get_force_skip_cnt(input->layer_id,
