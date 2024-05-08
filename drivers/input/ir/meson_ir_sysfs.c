@@ -61,6 +61,10 @@ static ssize_t protocol_store(struct device *dev,
 	chip->set_register_config(chip, chip->protocol);
 	spin_unlock_irqrestore(&chip->slock, flags);
 
+	disable_irq(chip->irqno[0]);
+	if (chip->irqno[1] >= 0)
+		disable_irq(chip->irqno[1]);
+
 	if (MULTI_IR_SOFTWARE_DECODE(chip->r_dev->rc_type) &&
 	    !MULTI_IR_SOFTWARE_DECODE(chip->protocol)) {
 		meson_ir_raw_event_unregister(chip->r_dev); /*raw->no raw*/
@@ -69,6 +73,11 @@ static ssize_t protocol_store(struct device *dev,
 		  MULTI_IR_SOFTWARE_DECODE(chip->protocol)) {
 		meson_ir_raw_event_register(chip->r_dev); /*no raw->raw*/
 	}
+
+	enable_irq(chip->irqno[0]);
+	if (chip->irqno[1] >= 0)
+		enable_irq(chip->irqno[1]);
+
 	chip->r_dev->rc_type = chip->protocol;
 	return count;
 }
@@ -296,7 +305,7 @@ static ssize_t ir_learning_store(struct device *dev,
 		return count;
 
 	disable_irq(chip->irqno[0]);
-	if (ENABLE_LEGACY_IR(chip->protocol))
+	if (chip->irqno[1] >= 0)
 		disable_irq(chip->irqno[1]);
 	mutex_lock(&chip->file_lock);
 	r_dev->ir_learning_on = !!val;
@@ -307,7 +316,7 @@ static ssize_t ir_learning_store(struct device *dev,
 		if (meson_ir_pulses_malloc(chip) < 0) {
 			mutex_unlock(&chip->file_lock);
 			enable_irq(chip->irqno[0]);
-			if (ENABLE_LEGACY_IR(chip->protocol))
+			if (chip->irqno[1] >= 0)
 				enable_irq(chip->irqno[1]);
 			return -ENOMEM;
 		}
@@ -318,7 +327,7 @@ static ssize_t ir_learning_store(struct device *dev,
 	}
 	mutex_unlock(&chip->file_lock);
 	enable_irq(chip->irqno[0]);
-	if (ENABLE_LEGACY_IR(chip->protocol))
+	if (chip->irqno[1] >= 0)
 		enable_irq(chip->irqno[1]);
 	return count;
 }
@@ -335,7 +344,7 @@ static ssize_t learned_pulse_show(struct device *dev,
 		return len;
 
 	disable_irq(chip->irqno[0]);
-	if (ENABLE_LEGACY_IR(chip->protocol))
+	if (chip->irqno[1] >= 0)
 		disable_irq(chip->irqno[1]);
 	mutex_lock(&chip->file_lock);
 
@@ -345,7 +354,7 @@ static ssize_t learned_pulse_show(struct device *dev,
 
 	mutex_unlock(&chip->file_lock);
 	enable_irq(chip->irqno[0]);
-	if (ENABLE_LEGACY_IR(chip->protocol))
+	if (chip->irqno[1] >= 0)
 		enable_irq(chip->irqno[1]);
 	len += sprintf(buf + len, "\n");
 
