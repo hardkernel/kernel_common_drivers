@@ -1201,12 +1201,8 @@ static struct meson_bank meson_c3_analog_banks[] = {
 };
 
 static struct meson_pmx_bank meson_c3_analog_pmx_banks[] = {
-	/* reg j*/
-	BANK_PMX("DSI0",      DSI_D0P,    DSI_D0N,    0x0,  0),
-	BANK_PMX("DSI1",      DSI_D1P,    DSI_D3N,    0x0,  8),
-	/* reg k*/
-	BANK_PMX("DSI2",      DSI_CLKP,   DSI_CLKN,   0x1,  0),
-	BANK_PMX("SAR",       SAR_CH0,    SAR_CH3,    0x1,  8),
+	BANK_PMX("DSI",       DSI_D0P,    DSI_D2N,   0x0,  0),
+	BANK_PMX("DSI-SAR",   DSI_D3P,    SAR_CH3,   0x1,  0),
 };
 
 static struct meson_bank meson_c3_periphs_banks[] = {
