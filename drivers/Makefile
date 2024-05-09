@@ -42,6 +42,7 @@ obj-$(CONFIG_AMLOGIC_LED)		+= led/
 obj-$(CONFIG_AMLOGIC_INPHY)		+= net/
 obj-$(CONFIG_AMLOGIC_MTD_COMMON)	+= mtd/common/
 obj-$(CONFIG_AMLOGIC_MTD_SPI_NAND)	+= mtd/spinand/
+obj-$(CONFIG_AMLOGIC_MTD_SPI_NOR)	+= mtd/spinor/
 obj-$(CONFIG_AMLOGIC_MTD_NAND)		+= mtd/nand/
 obj-$(CONFIG_AMLOGIC_FREERTOS)		+= freertos/
 obj-$(CONFIG_AMLOGIC_JTAG_MESON)	+= jtag/

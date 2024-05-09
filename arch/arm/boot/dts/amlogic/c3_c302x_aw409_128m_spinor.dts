@@ -12,7 +12,7 @@
 };
 
 &spifc {
-	spi-nand@0 {
+	spi-nor@0 {
 		status = "okay";
 	};
 };

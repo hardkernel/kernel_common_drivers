@@ -29,6 +29,9 @@
 #define BAE_DDRFIP                  "DDRFIP"
 #define BAE_DEVFIP                  "DEVFIP"
 
+/*cmdline_parser - MTD Master Name*/
+#define AML_MTD_NAME                 "aml-mtd"
+
 struct boot_area_entry {
 	char name[11];
 	unsigned char idx;

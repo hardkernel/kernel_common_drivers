@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+config AMLOGIC_MTD_SPI_NOR
+        tristate "AMLOGIC SPI NOR support"
+        default n
+        help
+          This is based on MTD_SPI_NOR, adding partition management.
+          Say Y, Will register partitions according to bootargs or dts management.
+          Say N, Only register one mtd device.

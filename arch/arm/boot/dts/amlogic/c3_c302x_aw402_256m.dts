@@ -10,3 +10,9 @@
 	amlogic-dt-id = "c3_c302x_aw402-256m";
 	compatible = "c3_c302x_aw402-256m";
 };
+
+&spifc {
+	spi-nand@0 {
+		status = "okay";
+	};
+};

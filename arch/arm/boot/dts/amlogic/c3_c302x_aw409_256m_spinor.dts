@@ -5,14 +5,14 @@
 
 /dts-v1/;
 
-#include "c3_c30xx_aw409_128m.dtsi"
+#include "c3_c30xx_aw409_256m.dtsi"
 / {
-	amlogic-dt-id = "c3_c302x_aw409-128m";
-	compatible = "c3_c302x_aw409-128m";
+	amlogic-dt-id = "c3_c302x_aw409-256m";
+	compatible = "c3_c302x_aw409-256m";
 };
 
 &spifc {
-	spi-nand@0 {
+	spi-nor@0 {
 		status = "okay";
 	};
 };

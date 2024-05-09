@@ -1171,9 +1171,17 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spifc_pins>;
+	spi-nor@0 {
+		compatible = "spi-nor";
+		status = "disabled";
+		reg = <0>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <83000000>;
+	};
 	spi-nand@0 {
 		compatible = "spi-nand";
-		status = "okay";
+		status = "disabled";
 		reg = <0>;
 		spi-max-frequency = <83000000>;
 		spi-tx-bus-width = <4>;

@@ -16,15 +16,12 @@
 #include <linux/spi/spi.h>
 #include <linux/types.h>
 #include <linux/amlogic/aml_pageinfo.h>
-#ifdef CONFIG_MTD_SPI_NOR
-#include <linux/mtd/spi-nor.h>
-#endif
 #include <linux/atomic.h>
 #include "page_info.h"
 
 #define CONFIG_SPIFC_HWCAPS_DUAL_QUAD
 
-#define SPIFC_AHB_BUF_CACHE_SIZE	(4096 + 256)
+#define SPIFC_AHB_BUF_CACHE_SIZE	0x1000000
 #define CONFIG_ENABLE_AHB_MODE		1
 //#define CONFIG_SPIFC_DEBUG
 
@@ -247,12 +244,6 @@ void __iomem *spifc_ahb_map_addr;
  * @device:	the device structure
  */
 struct meson_spifc {
-#ifdef CONFIG_MTD_SPI_NOR
-	struct spi_nor *nor;
-	/* used by nor core */
-	struct mutex lock;
-	u32 clk_rate;
-#endif
 	struct spi_master *master;
 	struct regmap *regmap;
 	struct clk *clk;
@@ -461,6 +452,11 @@ static void meson_spifc_ahb_disable(struct meson_spifc *spifc)
 	regmap_read(spifc->regmap, SPIFC_AHB_CTRL, &regv);
 	regv &= ~(AHB_BUS_EN);
 	regmap_write(spifc->regmap, SPIFC_AHB_CTRL, regv);
+
+	do {
+		regmap_read(spifc->regmap, SPIFC_AHB_STS, &regv);
+	} while (!(regv & AHB_STATUS));
+
 }
 
 static void spifc_user_ahb_din(struct meson_spifc *spifc, u8 *buf, int len)
@@ -483,6 +479,11 @@ static void spifc_user_ahb_din(struct meson_spifc *spifc, u8 *buf, int len)
 		data = readl_relaxed(tmp++);
 		memcpy((void *)p, (void *)&data, len);
 	}
+
+	do {
+		regmap_read(spifc->regmap, SPIFC_AHB_STS, &regv);
+	} while (regv & AHB_BUS_SPI_STATUS);
+
 }
 
 static void meson_spifc_user_init(struct meson_spifc *spifc)
@@ -551,7 +552,7 @@ static void meson_spifc_set_dummy(struct meson_spifc *spifc)
  * Return:	0 on success, a negative value on error
  */
 static int meson_spifc_dout(struct meson_spifc *spifc,
-			    u8 *buf, int offset, int len)
+			    const u8 *buf, int offset, int len)
 {
 	u32 regv;
 
@@ -738,170 +739,6 @@ static int meson_spifc_transfer_one(struct spi_master *master,
 	return ret;
 }
 
-#ifdef CONFIG_MTD_SPI_NOR
-static int meson_snor_prep(struct spi_nor *nor, enum spi_nor_ops ops)
-{
-	struct meson_spifc *spifc = nor->priv;
-
-	mutex_lock(&spifc->lock);
-
-	return 0;
-}
-
-static void meson_snor_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
-{
-	struct meson_spifc *spifc = nor->priv;
-
-	mutex_unlock(&spifc->lock);
-}
-
-static int meson_snor_read_reg(struct spi_nor *nor, u8 opcode,
-			       u8 *buf, int len)
-{
-	struct meson_spifc *spifc = nor->priv;
-
-	spifc_dbg("read_reg: cmd=0x%x, len=%d\n", opcode, len);
-
-	if (len > SPIFC_BUFFER_SIZE)
-		return -ENOBUFS;
-
-	meson_spifc_user_init(spifc);
-	spifc->cmd = opcode;
-	meson_spifc_set_cmd(spifc);
-	return meson_spifc_din(spifc, buf, 0, len);
-}
-
-ssize_t meson_snor_read(struct spi_nor *nor, loff_t from,
-			size_t len, u_char *read_buf)
-{
-	struct meson_spifc *spifc = nor->priv;
-	int current_len, done = 0, ret = 0;
-
-	spifc_dbg("read: cmd=0x%x, len=%d, from=0x%x\n",
-		  nor->read_opcode, (u32)len, (u32)from);
-
-	meson_spifc_user_init(spifc);
-	spifc->cmd = nor->read_opcode;
-	spifc->addr = from;
-	spifc->addr_len = nor->addr_width; /* 3 */
-	spifc->dummy_clk_cycles = nor->read_dummy;
-	spifc->din_nbits = convert_nbits(SNOR_PROTO_DATA(nor->read_proto));
-	while (done < len && !ret) {
-		current_len = min_t(int, len - done, SPIFC_BUFFER_SIZE);
-		meson_spifc_set_cmd(spifc);
-		meson_spifc_set_addr(spifc);
-		if (spifc->dummy_clk_cycles)
-			meson_spifc_set_dummy(spifc);
-		ret = meson_spifc_din(spifc, read_buf, done, current_len);
-		if (ret)
-			break;
-		done += current_len;
-		spifc->addr += current_len;
-	}
-
-	return ret ? 0 : len;
-}
-
-static int meson_snor_write_reg(struct spi_nor *nor, u8 opcode,
-				u8 *buf, int len)
-{
-	struct meson_spifc *spifc = nor->priv;
-
-	spifc_dbg("write_reg: cmd=0x%x, len=%d\n", opcode, len);
-
-	if (len > SPIFC_BUFFER_SIZE)
-		return -ENOBUFS;
-
-	meson_spifc_user_init(spifc);
-	spifc->cmd = opcode;
-	meson_spifc_set_cmd(spifc);
-	return meson_spifc_dout(spifc, buf, 0, len);
-}
-
-static ssize_t meson_snor_write(struct spi_nor *nor, loff_t to,
-				size_t len, const u_char *write_buf)
-{
-	struct meson_spifc *spifc = nor->priv;
-	int current_len, done = 0, ret = 0;
-
-	spifc_dbg("write: cmd=0x%x, len=%d, to=0x%x\n",
-		  nor->program_opcode, (u32)len, (u32)to);
-
-	meson_spifc_user_init(spifc);
-	spifc->cmd = nor->program_opcode;
-	spifc->addr = to;
-	spifc->addr_len = nor->addr_width; /* 3 */
-	spifc->dout_nbits = convert_nbits(SNOR_PROTO_DATA(nor->write_proto));
-	while (done < len && !ret) {
-		current_len = min_t(int, len - done, SPIFC_BUFFER_SIZE);
-		meson_spifc_set_cmd(spifc);
-		meson_spifc_set_addr(spifc);
-		ret = meson_spifc_dout(spifc, (u8 *)write_buf, done, current_len);
-		if (ret)
-			break;
-		done += current_len;
-		spifc->addr += current_len;
-	}
-
-	return ret ? 0 : len;
-}
-
-static struct spi_nor *meson_snor_init(struct meson_spifc *spifc,
-				       struct device_node *np)
-{
-	struct device *dev = spifc->dev;
-	struct spi_nor *nor;
-	struct mtd_info *mtd;
-
-	const struct spi_nor_hwcaps hwcaps = {
-#ifdef CONFIG_SPIFC_HWCAPS_DUAL_QUAD
-		.mask = SNOR_HWCAPS_READ |
-			SNOR_HWCAPS_READ_FAST |
-			SNOR_HWCAPS_READ_1_1_2 |
-			SNOR_HWCAPS_READ_1_1_4 |
-			SNOR_HWCAPS_PP |
-			SNOR_HWCAPS_PP_1_1_4,
-#else
-		.mask = SNOR_HWCAPS_READ |
-			SNOR_HWCAPS_PP,
-#endif
-	};
-
-	nor = devm_kzalloc(dev, sizeof(*nor), GFP_KERNEL);
-	if (!nor)
-		return 0;
-
-	spifc->clk_rate = 24000000;
-	of_property_read_u32(np, "spi-max-frequency", &spifc->clk_rate);
-	clk_set_rate(spifc->clk, spifc->clk_rate);
-	dev_info(dev, "clk_rate = %d\n", spifc->clk_rate);
-
-	nor->dev = dev;
-	spi_nor_set_flash_node(nor, np);
-	nor->priv = spifc;
-	nor->prepare = meson_snor_prep;
-	nor->unprepare = meson_snor_unprep;
-	nor->read_reg = meson_snor_read_reg;
-	nor->write_reg = meson_snor_write_reg;
-	nor->read = meson_snor_read;
-	nor->write = meson_snor_write;
-	nor->erase = NULL;
-	if (!spi_nor_scan(nor, NULL, &hwcaps)) {
-		dev_info(dev, "read_proto = 0x%x\n", nor->read_proto);
-		dev_info(dev, "write_proto = 0x%x\n", nor->write_proto);
-		dev_info(dev, "addr_width = %d\n", nor->addr_width);
-		dev_info(dev, "read_dummy = %d\n", nor->read_dummy);
-		mtd = &nor->mtd;
-		mtd->name = (np->name) ? np->name : "meson_snor";
-		if (!mtd_device_register(mtd, NULL, 0))
-			return nor;
-	}
-
-	devm_kfree(dev, nor);
-	return 0;
-}
-#endif /* end CONFIG_MTD_SPI_NOR */
-
 /**
  * meson_spifc_hw_init() - reset and initialize the SPI controller
  * @spifc:	the Meson SPI device
@@ -927,9 +764,6 @@ static void meson_spifc_hw_init(struct meson_spifc *spifc)
 
 static int meson_spifc_probe(struct platform_device *pdev)
 {
-#ifdef CONFIG_MTD_SPI_NOR
-	struct device_node *np;
-#endif
 	struct spi_master *master = 0;
 	struct meson_spifc *spifc;
 	struct resource *res;
@@ -999,20 +833,6 @@ static int meson_spifc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, spifc);
 	meson_spifc_hw_init(spifc);
 
-#ifdef CONFIG_MTD_SPI_NOR
-	np = of_get_next_available_child(spifc->dev->of_node, NULL);
-	if (np && of_device_is_compatible(np, "jedec,spi-nor")) {
-		mutex_init(&spifc->lock);
-		spifc->nor = meson_snor_init(spifc, np);
-	}
-
-	if (spifc->nor)
-		return 0;
-
-	mutex_destroy(&spifc->lock);
-	dev_warn(spifc->dev, "no snor on spifc bus\n");
-#endif
-
 	pm_runtime_set_autosuspend_delay(spifc->dev, 500);
 	pm_runtime_use_autosuspend(spifc->dev);
 	pm_runtime_enable(spifc->dev);
@@ -1055,9 +875,6 @@ static int meson_spifc_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 	clk_disable_unprepare(spifc->clk);
-#ifdef CONFIG_MTD_SPI_NOR
-	mutex_destroy(&spifc->lock);
-#endif
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
