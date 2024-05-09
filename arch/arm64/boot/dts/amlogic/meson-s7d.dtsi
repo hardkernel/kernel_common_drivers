@@ -323,13 +323,16 @@
 	saradc: saradc@fe026000 {
 		compatible = "amlogic,saradc";
 		reg = <0x00 0xfe026000 0x00 0x84>;
-		interrupts = <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>;
 		clock-names = "src", "core", "gate", "mux";
 		clocks = <&xtal>,
 			 <&clkc CLKID_SYS_SAR_ADC>,
 			 <&clkc CLKID_SAR_ADC>,
 			 <&clkc CLKID_SAR_ADC_SEL>;
 		#io-channel-cells = <1>;
+		amlogic,clock-frequency = <3000000>;
+		amlogic,test-channel = <7>;
+		amlogic,fifo-data-width = <16>;
 		status = "disabled";
 	};
 
