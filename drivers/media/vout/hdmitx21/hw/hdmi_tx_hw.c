@@ -3604,12 +3604,19 @@ static void hdmi_phy_suspend(void)
 	 * keep tmds_clk, because hdcp14 certification requires tmds_clk,
 	 * otherwise it may poll fail lead to crash.
 	 */
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
-		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D)
-		;//for s7 suspend power test, not operate phy_ctrl3 reg
-	else
+	switch (hdev->tx_hw.chip_data->chip_type) {
+	case MESON_CPU_ID_S7:
+		hd21_write_reg(phy_cntl5, 0x800);
+		break;
+	case MESON_CPU_ID_S7D:
+		hd21_write_reg(phy_cntl3, 0xC1B);
+		hd21_write_reg(phy_cntl5, 0x0);
+		break;
+	default:
 		hd21_write_reg(phy_cntl3, 0x3);
-	hd21_write_reg(phy_cntl5, 0x800);
+		hd21_write_reg(phy_cntl5, 0x800);
+		break;
+	}
 }
 
 static void hdmi_phy_wakeup(struct hdmitx_dev *hdev)
