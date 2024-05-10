@@ -1116,17 +1116,19 @@
 				<&clkc CLKID_SD_EMMC_C_SEL>,
 				<&clkc CLKID_SD_EMMC_C>,
 				<&xtal>,
-				<&clkc CLKID_GP0_PLL>,
-				<&clkc CLKID_GP0_PLL>;
+				<&clkc CLKID_FCLK_DIV2>,
+				<&clkc CLKID_FCLK_DIV2>;
+				//<&clkc CLKID_GP0_PLL>,
+				//<&clkc CLKID_GP0_PLL>;
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1", "clkin2";
 
 			card_type = <1>;
-			src_clk_rate = <1152000000>;
+			//src_clk_rate = <1152000000>;
 			mmc_debug_flag;
 			ignore_desc_busy;
-			tx_delay = <18>;
-			no-sd;
+			//tx_delay = <18>;
+			//no-sd;
 			no-sdio;
 			resets = <&reset RESET_SD_EMMC_C>;
 		};
@@ -2370,14 +2372,14 @@
 &periphs_pinctrl {
 	emmc_pins: emmc {
 		mux-0 {
-			groups = "emmc_nand_d0",
-				 "emmc_nand_d1",
-				 "emmc_nand_d2",
-				 "emmc_nand_d3",
-				 "emmc_nand_d4",
-				 "emmc_nand_d5",
-				 "emmc_nand_d6",
-				 "emmc_nand_d7",
+			groups = "emmc_d0",
+				 "emmc_d1",
+				 "emmc_d2",
+				 "emmc_d3",
+				 "emmc_d4",
+				 "emmc_d5",
+				 "emmc_d6",
+				 "emmc_d7",
 				 "emmc_cmd";
 			function = "emmc";
 			bias-pull-up;
@@ -2394,7 +2396,7 @@
 
 	emmc_ds_pins: emmc-ds {
 		mux {
-			groups = "emmc_nand_ds";
+			groups = "emmc_ds";
 			function = "emmc";
 			bias-pull-down;
 			drive-strength-microamp = <4000>;
