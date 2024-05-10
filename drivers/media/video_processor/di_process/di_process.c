@@ -514,6 +514,10 @@ static int queue_input_to_di(struct di_process_dev *dev, struct vframe_s *vf,
 	vf->crop[2] = di_buf->caller_mng.dummy;
 	vf->vc_private = (struct video_composer_private *)di_buf->caller_mng.src_file;
 
+	if (vf->type & VIDTYPE_FORCE_SIGN_IP_JOINT) {
+		vf->type &= ~VIDTYPE_FORCE_SIGN_IP_JOINT;
+		dp_print(dev->index, PRINT_OTHER, "rm IP_JOINT type\n");
+	}
 	ret = di_empty_input_buffer(dev->di_index, di_buf);
 	if (ret != 0) {
 		di_buf->caller_mng.queued = false;
