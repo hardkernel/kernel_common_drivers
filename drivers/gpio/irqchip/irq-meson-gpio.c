@@ -181,6 +181,21 @@ struct meson_gpio_irq_params {
 	.both_sel_reg =  0x0c,					\
 	.channel_num = 32,
 
+#define INIT_MESON_A4_AO_COMMON_DATA(irqs)			\
+	INIT_MESON_SC2_COMMON(irqs, meson_a1_gpio_irq_init,	\
+			      meson_a1_gpio_irq_sel_pin,	\
+			      meson_p1_gpio_irq_sel_type)	\
+	.support_edge_both = true,				\
+	.edge_both_offset = 0,					\
+	.edge_single_offset = 12,				\
+	.pol_low_offset = 0,					\
+	.pin_sel_mask = 0xff,					\
+	.pin_sel_reg_base = 0x04,				\
+	.edge_sel_reg = 0x00,					\
+	.pol_low_sel_reg = 0x00,				\
+	.both_sel_reg =  0x08,					\
+	.channel_num = 2,
+
 #endif
 #endif
 
@@ -296,6 +311,10 @@ static const struct meson_gpio_irq_params a4_params = {
 	INIT_MESON_SC2_COMMON_DATA(81)
 };
 
+static const struct meson_gpio_irq_params a4_ao_params = {
+	INIT_MESON_A4_AO_COMMON_DATA(8)
+};
+
 static const struct meson_gpio_irq_params a5_params = {
 	INIT_MESON_SC2_COMMON_DATA(99)
 };
@@ -338,6 +357,7 @@ static const struct of_device_id meson_irq_gpio_matches[] = {
 #endif // end of ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	{ .compatible = "amlogic,meson-s1a-gpio-intc", .data = &s1a_params },
 	{ .compatible = "amlogic,meson-a4-gpio-intc", .data = &a4_params },
+	{ .compatible = "amlogic,meson-a4-gpio-ao-intc", .data = &a4_ao_params },
 	{ .compatible = "amlogic,meson-a5-gpio-intc", .data = &a5_params },
 #endif // end of CONFIG_AMLOGIC_MODIFY
 	{ }
@@ -912,6 +932,7 @@ static int meson_gpio_irq_probe(struct platform_device *pdev)
 
 static const struct of_device_id meson_gpio_irq_match_table[] = {
 	{ .compatible = "amlogic,meson-gpio-intc" },
+	{ .compatible = "amlogic,meson-gpio-ao-intc" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, meson_gpio_irq_match_table);

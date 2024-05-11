@@ -812,7 +812,8 @@ static struct regmap *meson_map_resource(struct meson_pinctrl *pc,
 	return devm_regmap_init_mmio(pc->dev, base, &meson_regmap_config);
 }
 
-static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc)
+static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
+				  struct device_node *node)
 {
 	struct device_node *gpio_np;
 	unsigned int chips;
@@ -838,13 +839,19 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc)
 	gpio_np = to_of_node(pc->fwnode);
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-	pc->of_irq = of_find_compatible_node(NULL,
-					     NULL,
-					     "amlogic,meson-gpio-intc-ext");
-	if (!pc->of_irq)
+	if (of_property_read_bool(node, "amlogic,ao-interrupt-controller")) {
 		pc->of_irq = of_find_compatible_node(NULL,
 						     NULL,
-						     "amlogic,meson-gpio-intc");
+						     "amlogic,meson-gpio-ao-intc");
+	} else {
+		pc->of_irq = of_find_compatible_node(NULL,
+						     NULL,
+						     "amlogic,meson-gpio-intc-ext");
+		if (!pc->of_irq)
+			pc->of_irq = of_find_compatible_node(NULL,
+							     NULL,
+							     "amlogic,meson-gpio-intc");
+	}
 #endif
 
 	pc->reg_mux = meson_map_resource(pc, gpio_np, "mux");
@@ -973,7 +980,7 @@ int meson_pinctrl_probe(struct platform_device *pdev)
 
 	pc->dev = dev;
 	pc->data = (struct meson_pinctrl_data *)of_device_get_match_data(dev);
-	ret = meson_pinctrl_parse_dt(pc);
+	ret = meson_pinctrl_parse_dt(pc, dev->of_node);
 	if (ret)
 		return ret;
 #ifdef CONFIG_AMLOGIC_MODIFY
