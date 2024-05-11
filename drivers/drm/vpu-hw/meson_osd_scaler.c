@@ -818,12 +818,12 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 		coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
 		coef_v = osd_scaler_filter_table[COEFS_2POINT_BILINEAR];
 	} else if (width_out <= 720) {
-		if (width_in == width_out)
+		if (width_in <= width_out)
 			coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
 		else
 			coef_h = osd_scaler_filter_table[COEFS_4POINT_TRIANGLE];
 
-		if (height_in == height_out)
+		if (height_in <= height_out)
 			coef_v = osd_scaler_filter_table[COEFS_BICUBIC];
 		else
 			coef_v = osd_scaler_filter_table[COEFS_4POINT_TRIANGLE];
