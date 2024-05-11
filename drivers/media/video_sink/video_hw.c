@@ -10176,31 +10176,52 @@ static int update_afd_param(u8 id,
 	in_p.video_w = is_comp ? vf->compWidth : vf->width;
 	in_p.video_h = is_comp ? vf->compHeight : vf->height;
 
-	frame_ar = (vf->ratio_control & DISP_RATIO_ASPECT_RATIO_MASK);
-	frame_ar = frame_ar >> DISP_RATIO_ASPECT_RATIO_BIT;
-	if (frame_ar == DISP_RATIO_ASPECT_RATIO_MAX) {
-		in_p.video_ar.numerator = in_p.video_w * vf->sar_width;
-		in_p.video_ar.denominator = in_p.video_h * vf->sar_height;
-	} else if (frame_ar != 0) {
-		/* frame_width/frame_height = 0x100/ar */
-		in_p.video_ar.numerator = 0x100;
-		in_p.video_ar.denominator = frame_ar;
+	if (vf->ratio_control & DISP_RATIO_PARSE_BY_AFD) {
+		in_p.source_type = (enum E_AFD_SOURCE_TYPE_T)vf->source_type;
+		in_p.afd_info = vf->afd_info;
 	} else {
-		in_p.video_ar.numerator = in_p.video_w;
-		in_p.video_ar.denominator = in_p.video_h;
-	}
+		in_p.source_type = 0;
+		frame_ar = (vf->ratio_control & DISP_RATIO_ASPECT_RATIO_MASK);
+		frame_ar = frame_ar >> DISP_RATIO_ASPECT_RATIO_BIT;
+		if (frame_ar == DISP_RATIO_ASPECT_RATIO_MAX) {
+			in_p.video_ar.numerator = in_p.video_w * vf->sar_width;
+			in_p.video_ar.denominator = in_p.video_h * vf->sar_height;
+		} else if (frame_ar != 0) {
+			/* frame_width/frame_height = 0x100/ar */
+			in_p.video_ar.numerator = 0x100;
+			in_p.video_ar.denominator = frame_ar;
+		} else {
+			in_p.video_ar.numerator = in_p.video_w;
+			in_p.video_ar.denominator = in_p.video_h;
+		}
 
-	if (in_p.video_ar.numerator * 9 == in_p.video_ar.denominator * 16) {
-		in_p.video_ar.numerator = 16;
-		in_p.video_ar.denominator = 9;
-	} else if (in_p.video_ar.numerator * 3 == in_p.video_ar.denominator * 4) {
-		in_p.video_ar.numerator = 4;
-		in_p.video_ar.denominator = 3;
+		if (in_p.video_ar.numerator * 9 == in_p.video_ar.denominator * 16) {
+			in_p.video_ar.numerator = 16;
+			in_p.video_ar.denominator = 9;
+		} else if (in_p.video_ar.numerator * 3 == in_p.video_ar.denominator * 4) {
+			in_p.video_ar.numerator = 4;
+			in_p.video_ar.denominator = 3;
+		}
 	}
-
 	if (is_ud_param_valid(vf->vf_ud_param)) {
 		in_p.ud_param = (void *)&vf->vf_ud_param.ud_param;
 		in_p.ud_param_size = vf->vf_ud_param.ud_param.buf_len; /* data_size? */
+	}
+
+	/* porting from roku project */
+	in_p.crop_type = AFD_CROP_INVALID;
+	if (vf->ratio_control & DISP_RATIO_ADAPTED_PICMODE) {
+		in_p.src_crop.top = vf->pic_mode.vs;
+		in_p.src_crop.bottom = vf->pic_mode.ve;
+		in_p.src_crop.left = vf->pic_mode.hs;
+		in_p.src_crop.right = vf->pic_mode.he;
+		in_p.crop_type = AFD_CROP_DB;
+	} else {
+		in_p.src_crop.top = layer_info->crop_top;
+		in_p.src_crop.bottom = layer_info->crop_bottom;
+		in_p.src_crop.left = layer_info->crop_left;
+		in_p.src_crop.right = layer_info->crop_right;
+		in_p.crop_type = AFD_CROP_SYSFS;
 	}
 
 	in_p.disp_info.x_start = layer_info->layer_left;
