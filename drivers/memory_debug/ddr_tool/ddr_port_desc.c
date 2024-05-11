@@ -1089,6 +1089,7 @@ static struct ddr_port_desc ddr_port_desc_s7[] __initdata = {
 	{ .port_id = 11, .port_name = "DEMUX"         },
 	{ .port_id = 12, .port_name = "MALI"          },
 	{ .port_id = 13, .port_name = "GE2D"          },
+	{ .port_id = 14, .port_name = "AMFC"          },
 	/* start of each device */
 	{ .port_id = 32, .port_name = "SDIO_B"        },
 	{ .port_id = 33, .port_name = "EMMC"          },

@@ -1,0 +1,1324 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+#include <linux/cdev.h>
+#include <linux/types.h>
+#include <linux/fs.h>
+#include <linux/device.h>
+#include <linux/slab.h>
+#include <linux/delay.h>
+#include <linux/uaccess.h>
+#include <linux/sched.h>
+#include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
+#include <linux/of_device.h>
+#include <linux/irqreturn.h>
+#include <linux/memcontrol.h>
+#include <linux/mmzone.h>
+#include <linux/module.h>
+#include <linux/mm.h>
+#include <linux/crypto.h>
+#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
+#include <linux/completion.h>
+#include <crypto/internal/scompress.h>
+
+#include <linux/cpu.h>
+#include <linux/smp.h>
+#include <linux/kallsyms.h>
+#include <linux/of_irq.h>
+#include <linux/interrupt.h>
+#include <linux/amlogic/page_trace.h>
+#include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/gki_module.h>
+#include <linux/arm-smccc.h>
+#include <linux/highmem.h>
+#include <linux/amlogic/amfc_regs.h>
+#include <linux/amlogic/amfc.h>
+
+#undef CONFIG_AMFC_TEST
+#undef CONFIG_AMFC_DEBUG
+
+static struct amfc *amfc;
+static struct page *garbage_page;
+
+static inline int _vmalloc_or_module_addr(const void *x)
+{
+	/*
+	 * ARM, x86-64 and sparc64 put modules in a special place,
+	 * and fall back on vmalloc() if that fails. Others
+	 * just put it in the vmalloc space.
+	 */
+#if defined(CONFIG_MODULES) && defined(MODULES_VADDR)
+	unsigned long addr = (unsigned long)kasan_reset_tag(x);
+
+	if (addr >= MODULES_VADDR && addr < MODULES_END)
+		return 1;
+#endif
+	return is_vmalloc_addr(x);
+}
+
+static unsigned int amfc_hw_read(unsigned int reg)
+{
+	return readl(amfc->io_base + reg);
+}
+
+static void amfc_hw_write(unsigned int value, unsigned int reg)
+{
+	writel(value, amfc->io_base + reg);
+}
+
+static unsigned int amfc_clk_read(unsigned int reg)
+{
+	return readl(amfc->clk_base + reg);
+}
+
+static void amfc_clk_write(unsigned int value, unsigned int reg)
+{
+	writel(value, amfc->clk_base + reg);
+}
+
+/* MHz */
+static unsigned int amfc_clk[] = {
+	24,
+	166,
+	1000,
+	800,
+	666,
+	500,
+	400,
+	285
+};
+
+static unsigned int init_clk __initdata;
+
+static int early_amfc_clk_set(char *buf)
+{
+	int clk = 0;
+	int i = 0;
+
+	if (kstrtoint(buf, 10, &clk) != 1)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(amfc_clk); i++) {
+		if (clk == amfc_clk[i]) {
+			pr_emerg("set amfc_clk to %dMHz\n", clk);
+			init_clk = clk;
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+__setup("amfc_clk=", early_amfc_clk_set);
+
+static int amfc_hw_init(void)
+{
+	unsigned int value, i;
+	unsigned int clk_idx = 5; /* default 500Mhz */
+
+	amfc->clk = 500;
+	if (init_clk) {
+		for (i = 0; i < ARRAY_SIZE(amfc_clk); i++) {
+			if (amfc_clk[i] == init_clk) {
+				clk_idx   = i;
+				amfc->clk = init_clk;
+				break;
+			}
+		}
+	}
+	/* clk to 500MHz */
+	amfc_clk_write(0 | (1 << 6) | (clk_idx << 7), CLKCTRL_AMFC_CLK_CTRL);
+
+	pr_info("AMFC VLSI version:%x, feature:%x\n",
+		amfc_hw_read(AMFC_GL_VERSION),
+		amfc_hw_read(AMFC_GL_CMD0_FEATURE));
+	/* sw reset */
+	amfc_hw_write(0x80000000, AMFC_GL_CMD0_CONTROL);
+	amfc_hw_write(0, AMFC_GL_CMD0_CONTROL);
+	amfc_hw_write(0, AMFC_GL_CMD1_CONTROL);
+	amfc_hw_write(3, AMFC_GL_CMD0_IRQCLR);
+	amfc_hw_write(3, AMFC_GL_CMD1_IRQCLR);
+	amfc_hw_write(0, AMFC_GL_MISC);		// cmd0/1 mixed
+	amfc_hw_write((2 << 6) | (2 << 4) | (1 << 1) | (1), AMFC_CODEC_CTRL);
+	amfc_hw_write(1, AMFC_ZSTD_MODE_MISC);
+
+	value = amfc_hw_read(AMFC_WR_MIF_CTRL);
+	value &= ~(0x7 << 8);
+	value |=  (2 << 8);
+	amfc_hw_write(value, AMFC_WR_MIF_CTRL);
+
+	value = amfc_hw_read(AMFC_RD_MIF_CTRL);
+	value &= ~(0x7 << 8);
+	value |=  (2 << 8);
+	amfc_hw_write(value, AMFC_RD_MIF_CTRL);
+
+	return 0;
+}
+
+static unsigned long vmalloc_to_phys(void *va)
+{
+	unsigned long pfn = vmalloc_to_pfn(va);
+
+	WARN_ON(!pfn);
+	return __pa(pfn_to_kaddr(pfn)) + offset_in_page(va);
+}
+
+static void amfc_map_addr(void *addr, unsigned int size, int dir)
+{
+	struct page *page;
+	dma_addr_t dma;
+	unsigned long count, offset, pfn;
+
+	while (size > 0) {
+		if (_vmalloc_or_module_addr(addr))
+			page = vmalloc_to_page(addr);
+		else
+			page = virt_to_page(addr);
+
+		pfn = page_to_pfn(page);
+		if (!pfn_valid(pfn))
+			break;
+
+		offset = (unsigned long)addr & (~PAGE_MASK);
+		count = PAGE_SIZE - offset;
+		if (count > size)
+			count = size;
+		dma = dma_map_page(amfc->dev, page, offset, count, dir);
+		if (dma_mapping_error(amfc->dev, dma)) {
+			pr_err("%s, dma map %px, size %d failed\n",
+				__func__, addr, size);
+			continue;
+		}
+		size -= count;
+		addr += count;
+	}
+}
+
+static void amfc_unmap_addr(void *addr, ssize_t size, int dir)
+{
+	struct page *page;
+	dma_addr_t dma;
+	unsigned long count, offset, pfn;
+
+	while (size > 0) {
+		if (_vmalloc_or_module_addr(addr))
+			page = vmalloc_to_page(addr);
+		else
+			page = virt_to_page(addr);
+
+		pfn = page_to_pfn(page);
+		if (!pfn_valid(pfn))
+			break;
+
+		offset = (unsigned long)addr & (~PAGE_MASK);
+		count = PAGE_SIZE - offset;
+		if (count > size)
+			count = size;
+		dma = (pfn << PAGE_SHIFT) + offset;
+		dma_unmap_page(amfc->dev, dma, count, dir);
+		size -= count;
+		addr += count;
+	}
+}
+
+static int show_regs(char *buf)
+{
+	unsigned int *p;
+	unsigned int phy_base, i, size  = 0;
+
+	phy_base = vmalloc_to_phys(amfc->io_base);
+	p = (unsigned int *)amfc->io_base;
+	if (buf) {
+		size += sprintf(buf + size, "AMFC_REGS:");
+		for (i = 0; i < 0x48; i++) {
+			if (!(i & 0x3))
+				size += sprintf(buf + size, "\n0x%08x: ",
+						phy_base + i * 4);
+			size += sprintf(buf + size, "%08x ", p[i]);
+		}
+		size += sprintf(buf + size, "\n");
+		size += sprintf(buf + size, "CLKCTRL_AMFC_CLK_CTRL:%08x\n",
+				amfc_clk_read(CLKCTRL_AMFC_CLK_CTRL));
+	} else {
+		pr_info("AMFC_REGS:\n");
+		for (i = 0; i < 0x48; i++) {
+			if (!(i & 0x3))
+				pr_info("0x%08x: ", phy_base + i * 4);
+			pr_cont("%08x ", p[i]);
+		}
+		pr_info("\n");
+		pr_info("CLKCTRL_AMFC_CLK_CTRL:%08x\n",
+			amfc_clk_read(CLKCTRL_AMFC_CLK_CTRL));
+	}
+	return size;
+}
+
+static void show_acl(struct amfc_cmd_list *acl)
+{
+	if (!acl)
+		return;
+
+	pr_info("acl:%px\n", acl);
+	pr_info("%08x %08x %08x %08x  %08x %08x %08x %08x\n",
+		acl->src_addr, acl->dst_addr, acl->link_addr, acl->src_size,
+		acl->dst_size, acl->control,  acl->status,    acl->result_size);
+}
+
+#ifndef CONFIG_AMFC_DEBUG
+static void dump_addr(void *buf, unsigned int size)
+{
+	int i;
+	unsigned int *p = (unsigned int *)buf;
+
+	pr_info("%s addr:%px, size:%d\n", __func__, buf, size);
+	for (i = 0; i < size / 4; i += 4) {
+		pr_info("%px: %08x %08x %08x %08x\n",
+			p + i, p[i], p[i + 1], p[i + 2], p[i + 3]);
+	}
+}
+#else
+static inline void dump_addr(void *buf, unsigned int size)
+{
+}
+#endif
+
+/*
+ *TODO:
+ * 1, add debug fs
+ * 2, lock protect for multi-processor
+ */
+static void *build_tables(unsigned int *table, void *base, ssize_t size, int stream)
+{
+	int i, count;
+	unsigned long tmp, pfn;
+	struct page *page;
+
+	if (!table)
+		return NULL;
+
+	if ((unsigned long)base & ~PAGE_MASK) {
+		pr_info("%s, base:%px not align to %ld\n", __func__, base, PAGE_SIZE);
+		return NULL;
+	}
+
+	/* physical contiguous in uboot */
+	count = ALIGN(size, PAGE_SIZE) / PAGE_SIZE;
+	for (i = 0; i < count; i++) {
+		if (_vmalloc_or_module_addr(base)) {
+			page = vmalloc_to_page(base);
+			if (!page) { /* out of vmalloc range due to a new cache line added */
+				pfn = page_to_pfn(garbage_page);
+			} else {
+				pfn = page_to_pfn(page);
+			}
+		} else {
+			pfn = virt_to_pfn(base);
+		}
+		tmp = (pfn << 6) | 1;
+		table[i] = tmp;
+	#ifdef CONFIG_AMFC_DEBUG
+		pr_info("%s, base:%px, table:%px:%x, pfn:%lx\n",
+			__func__, base, table, tmp, pfn);
+	#endif
+		base += PAGE_SIZE;
+	}
+	if (stream) {
+		/* avoid overflow if we force exit */
+		pfn = page_to_pfn(garbage_page);
+		tmp = (pfn << 6) | 1;
+		table[count++] = tmp;
+	}
+	table[count++] = 0;	// hardware stop
+	amfc_map_addr(table, count * 4, DMA_TO_DEVICE);
+
+	return table;
+}
+
+static inline int get_page_count(size_t size)
+{
+	int num;
+
+	size = PAGE_ALIGN(size);
+	num  = size / PAGE_SIZE * sizeof(int);
+	return PAGE_ALIGN(num) / PAGE_SIZE;
+}
+
+static struct page *alloc_page_table(size_t size, int type, int *order)
+{
+	struct page *page;
+	int pages;
+
+	pages = get_page_count(size);
+	if (likely(pages == 1))
+		return amfc->pages[type];
+
+	*order = get_order(pages << PAGE_SHIFT);
+	page = alloc_pages(GFP_KERNEL, *order);
+	return page;
+}
+
+static void set_up_addr(struct amfc_cmd_list *acl, unsigned long addr, int type)
+{
+	unsigned int low, high = 0;
+
+	low  = addr & 0xffffffff;
+#ifdef CONFIG_64BIT
+	high = (addr >> 32) & 0xf;
+#endif
+	switch (type) {
+	case ADDR_SRC:
+		acl->src_addr = low;
+		acl->control |= (high << 20);
+		break;
+
+	case ADDR_DST:
+		acl->dst_addr = low;
+		acl->control |= (high << 16);
+		break;
+
+	default:
+		break;
+	}
+}
+
+/*
+ * src: source buffer that need decompress
+ * dst: destination buffer that need store
+ * src_size: size of source buffer
+ * dst_size: size for destination buffer, caller should make sure
+ *           dst size is enough
+ * stream: stream decompress mode
+ * return value: decompressed size if success, negative value if failed
+ */
+int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, int stream)
+{
+	struct page *src_table = NULL, *dst_table = NULL;
+	struct amfc_cmd_list *acl;
+	int ret = -EINVAL;
+	int src_order = 0, dst_order = 0;
+	void *table_addr1 = NULL, *table_addr2 = NULL;
+	unsigned int status, control;
+	unsigned long flags;
+	unsigned long timeout = ((src_size) / PAGE_SIZE) * 50 + 5000; // us
+	unsigned long tick, cur;
+	int need_copy = 0;
+	void *tmp;
+
+	if (!amfc || !amfc->decompress)
+		return -ENOMEM;
+
+	if (amfc->log > 1)
+		pr_info("%s, src:%px, dst:%px, src size:%ld, dst size:%ld\n",
+			__func__, src, dst, src_size, dst_size);
+	spin_lock_irqsave(&amfc->dec_lock, flags);
+	if (((unsigned long)dst & ~PAGE_MASK) &&
+	    (dst_size + ((unsigned long)dst & ~PAGE_MASK) > PAGE_SIZE)) {
+		tmp = dst;
+		dst = amfc->bounce_buffer;
+		need_copy   = 1;
+	}
+
+	acl = amfc->decompress;
+	/* setup command list, decompress use cmd0 */
+	memset(acl, 0, sizeof(struct amfc_cmd_list));
+	acl->src_size = src_size;
+	acl->dst_size = dst_size;
+	if (_vmalloc_or_module_addr(src)) {
+		if (src_size <= PAGE_SIZE) {
+			/* TODO: fix src + src_size cross page case */
+			WARN_ON((((unsigned long)src + src_size - 1) >> PAGE_SHIFT) >
+				((unsigned long)src >> PAGE_SHIFT));
+			set_up_addr(acl, vmalloc_to_phys(src), ADDR_SRC);
+		} else {
+			src_table = alloc_page_table(src_size, TABLE_SRC_DECOMPRESS,
+						     &src_order);
+			if (!src_table) {
+				ret = -ENOMEM;
+				goto out;
+			}
+
+			table_addr1 = build_tables(page_address(src_table), src, src_size, 0);
+			set_up_addr(acl, page_to_phys(src_table), ADDR_SRC);
+			acl->src_scatter = 1;
+		}
+	} else {
+		set_up_addr(acl, virt_to_phys(src), ADDR_SRC);
+	}
+
+	if (_vmalloc_or_module_addr(dst) || stream) {
+		if (dst_size <= PAGE_SIZE) {
+			WARN_ON((((unsigned long)dst + dst_size - 1) >> PAGE_SHIFT) >
+				((unsigned long)dst >> PAGE_SHIFT));
+			set_up_addr(acl, vmalloc_to_phys(dst), ADDR_DST);
+		} else {
+			dst_table = alloc_page_table(dst_size, TABLE_DST_DECOMPRESS,
+						     &dst_order);
+			if (!dst_table) {
+				ret = -ENOMEM;
+				goto out;
+			}
+
+			/* special handle for erofs stream decompress:
+			 * source added a cache line to make sure content write
+			 * to DDR when truncate output, but build page table should
+			 * not consider it.
+			 */
+			if (stream)
+				table_addr2 = build_tables(page_address(dst_table), dst,
+							   dst_size - AMFC_STREAM_MARGIN, stream);
+			else
+				table_addr2 = build_tables(page_address(dst_table),
+							   dst, dst_size, 0);
+			set_up_addr(acl, page_to_phys(dst_table), ADDR_DST);
+			acl->dst_scatter = 1;
+		}
+	} else {
+		set_up_addr(acl, virt_to_phys(dst), ADDR_DST);
+	}
+	control        = 1;
+	acl->algorithm = ALGORITHM_ZSTD;
+	acl->end       = 1;
+	acl->compress  = CMD_DECOMPRESS;
+	acl->owner     = 1;
+	acl->status    = 0xffffffff;
+	if (!amfc->work_mode) {
+		acl->interrupt = 1;
+		control |= (1 << 4);
+	}
+
+	if (stream)
+		amfc_map_addr(dst, dst_size - AMFC_STREAM_MARGIN, DMA_FROM_DEVICE);
+	else
+		amfc_map_addr(dst, dst_size, DMA_FROM_DEVICE);
+	amfc_map_addr(acl, sizeof(*acl), DMA_TO_DEVICE);
+	amfc_map_addr(src, src_size, DMA_TO_DEVICE);
+
+	amfc_hw_write(3, AMFC_GL_CMD1_IRQCLR);
+	amfc_hw_write(virt_to_phys(acl) >> ADDR_SHIFT, AMFC_GL_CMD1_DESC_BASE_ADDR);
+	/* trigger with irq en */
+	amfc_hw_write(control, AMFC_GL_CMD1_CONTROL);
+
+	if (!amfc->work_mode) {
+		/* wait hw irq */
+		ret = wait_for_completion_interruptible(&amfc->dcomp);
+		if (ret) {
+			ret = -EINTR;
+			goto out;
+		}
+	} else {
+		/* poll */
+		tick = sched_clock();
+		while (1) {
+			status = amfc_hw_read(AMFC_GL_CMD1_STATUS);
+			if ((status & IRQ_MASK))
+				break;
+			cur = sched_clock();
+			if (cur - tick >= timeout * 1000) {
+				pr_emerg("%s timeout:%ld -> %ld, %ld\n",
+					 __func__, tick, cur, timeout);
+				show_regs(NULL);
+				show_acl(acl);
+				break;
+			}
+		}
+		amfc->dtick = amfc_hw_read(AMFC_CMD1_TIME_MEASURE);
+		ret = 0;
+	}
+
+	amfc_unmap_addr(acl, sizeof(*acl), DMA_FROM_DEVICE);
+	if (stream)
+		amfc_unmap_addr(dst, dst_size - AMFC_STREAM_MARGIN, DMA_FROM_DEVICE);
+	else
+		amfc_unmap_addr(dst, dst_size, DMA_FROM_DEVICE);
+	amfc_unmap_addr(src, src_size, DMA_TO_DEVICE);
+
+	if (table_addr1)
+		amfc_unmap_addr(table_addr1, ALIGN(src_size, PAGE_SIZE) / PAGE_SIZE,
+				DMA_TO_DEVICE);
+	if (table_addr2)
+		amfc_unmap_addr(table_addr2, ALIGN(dst_size, PAGE_SIZE) / PAGE_SIZE,
+				DMA_TO_DEVICE);
+	status = amfc_hw_read(AMFC_GL_CMD1_STATUS);
+	if (!(status & AMFC_ERROR_MASK))
+		ret = acl->result_size;
+	else
+		ret = 0 - ((status & AMFC_ERROR_MASK) >> 8);
+out:
+	if (src_table && src_table != amfc->pages[TABLE_SRC_DECOMPRESS])
+		__free_pages(src_table, src_order);
+	if (dst_table && dst_table != amfc->pages[TABLE_DST_DECOMPRESS])
+		__free_pages(dst_table, dst_order);
+	if (ret < 0) {
+		if ((ret == -AMFC_DEC_DST_SIZE_OVF || ret == -AMFC_DEC_DST_PAGE_ERR) && stream) {
+			while (amfc_hw_read(AMFC_WR_MIF_STATUS))
+				;
+			if (amfc->log)
+				pr_info("decompress acl:%px, src:%px, dst:%px, src size:%5d, result size:%5d:%5d, tick:%lld\n",
+					acl, src, dst, src_size, ret,
+					acl->result_size, amfc->dtick);
+		} else {
+			pr_err("acl:%px, decompress failed, src:%px, dst:%px, ssize:%ld, dsize:%ld, ret:%d, status:%x\n",
+				acl, src, dst, src_size, dst_size,
+				ret, amfc_hw_read(AMFC_GL_CMD1_STATUS));
+			show_regs(NULL);
+			show_acl(acl);
+			dump_addr(src, src_size);
+			dump_addr(dst, dst_size);
+			need_copy = 0;	// decompress real failed
+		}
+		spin_lock(&amfc->com_lock);
+		/* sw reset */
+		amfc_hw_write(0x80000000, AMFC_GL_CMD1_CONTROL);
+		spin_unlock(&amfc->com_lock);
+	} else {
+		amfc->din         += src_size;
+		amfc->dout        += ret;
+		amfc->total_dtick += amfc->dtick;
+		if (amfc->log)
+			pr_info("decompress acl:%px, src:%px, dst:%px, src size:%5d, result size:%5d, tick:%lld\n",
+				acl, src, dst, src_size, ret, amfc->dtick);
+	}
+	amfc_hw_write(0x03, AMFC_GL_CMD1_IRQCLR);
+	if (need_copy)
+		memcpy(tmp, amfc->bounce_buffer, dst_size - AMFC_STREAM_MARGIN);
+
+	spin_unlock_irqrestore(&amfc->dec_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(amfc_decompress);
+
+/*
+ * src: source buffer that need compress
+ * dst: destination buffer that need store
+ * src_size: size of source buffer
+ * dst_size: size for destination buffer, caller should make sure
+ *           dst size is enough
+ * return value: compressed size if success, negative value if failed
+ */
+int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
+{
+	struct page *src_table = NULL, *dst_table = NULL;
+	struct amfc_cmd_list *acl;
+	int ret = -EINVAL;
+	int src_order = 0, dst_order = 0;
+	void *table_addr1 = NULL, *table_addr2;
+	unsigned int status, control;
+	unsigned long flags;
+	unsigned long timeout = ((src_size) / PAGE_SIZE) * 100 + 5000; // us
+	unsigned long tick, cur;
+
+	if (!amfc || !amfc->compress)
+		return -ENOMEM;
+
+	if (amfc->log > 1)
+		pr_info("%s, src:%px, dst:%px, src size:%ld, dst size:%ld\n",
+			__func__, src, dst, src_size, dst_size);
+	spin_lock_irqsave(&amfc->com_lock, flags);
+	acl = amfc->compress;
+	/* setup command list, decompress use cmd0 */
+	memset(acl, 0, sizeof(struct amfc_cmd_list));
+	acl->src_size = src_size;
+	acl->dst_size = dst_size;
+	if (_vmalloc_or_module_addr(src)) {
+		if (src_size <= PAGE_SIZE) {
+			/* TODO: fix src + src_size cross page case */
+			WARN_ON((((unsigned long)src + src_size - 1) >> PAGE_SHIFT) >
+				((unsigned long)src >> PAGE_SHIFT));
+			set_up_addr(acl, vmalloc_to_phys(src), ADDR_SRC);
+		} else {
+			src_table = alloc_page_table(src_size, TABLE_SRC_COMPRESS,
+						     &src_order);
+			if (!src_table) {
+				ret = -ENOMEM;
+				goto out;
+			}
+
+			table_addr1 = build_tables(page_address(src_table), src, src_size, 0);
+			set_up_addr(acl, page_to_phys(src_table), ADDR_SRC);
+			acl->src_scatter = 1;
+		}
+	} else {
+		set_up_addr(acl, virt_to_phys(src), ADDR_SRC);
+	}
+
+	if (_vmalloc_or_module_addr(dst)) {
+		if (dst_size <= PAGE_SIZE) {
+			WARN_ON((((unsigned long)dst + dst_size - 1) >> PAGE_SHIFT) >
+				((unsigned long)dst >> PAGE_SHIFT));
+			set_up_addr(acl, vmalloc_to_phys(dst), ADDR_DST);
+		} else {
+			dst_table = alloc_page_table(dst_size, TABLE_DST_COMPRESS,
+						     &dst_order);
+			if (!dst_table) {
+				ret = -ENOMEM;
+				goto out;
+			}
+
+			table_addr2 = build_tables(page_address(dst_table), dst, dst_size, 0);
+			set_up_addr(acl, page_to_phys(dst_table), ADDR_DST);
+			acl->dst_scatter = 1;
+		}
+	} else {
+		set_up_addr(acl, virt_to_phys(dst), ADDR_DST);
+	}
+	control        = 1;
+	acl->algorithm = ALGORITHM_ZSTD;
+	acl->end       = 1;
+	acl->compress  = CMD_COMPRESS;
+	acl->owner     = 1;
+	acl->status    = 0xffffffff;
+	if (!amfc->work_mode) {
+		acl->interrupt = 1;
+		control |= (1 << 4);
+	}
+
+	amfc_map_addr(src, src_size, DMA_TO_DEVICE);
+	amfc_map_addr(acl, sizeof(*acl), DMA_TO_DEVICE);
+	amfc_map_addr(dst, dst_size, DMA_FROM_DEVICE);
+
+	amfc_hw_write(3, AMFC_GL_CMD0_IRQCLR);
+	amfc_hw_write(virt_to_phys(acl) >> ADDR_SHIFT, AMFC_GL_CMD0_DESC_BASE_ADDR);
+	/* trigger with irq en */
+	amfc_hw_write(control, AMFC_GL_CMD0_CONTROL);
+
+	if (!amfc->work_mode) {
+		/* wait hw irq */
+		ret = wait_for_completion_interruptible(&amfc->ccomp);
+		if (ret) {
+			ret = -EINTR;
+			goto out;
+		}
+	} else {
+		/* poll */
+		tick = sched_clock();
+		while (1) {
+			status = amfc_hw_read(AMFC_GL_CMD0_STATUS);
+			if ((status & IRQ_MASK))
+				break;
+			cur = sched_clock();
+			if (cur - tick >= timeout * 1000) {
+				pr_emerg("%s timeout:%ld -> %ld, %ld\n",
+					 __func__, tick, cur, timeout);
+				show_regs(NULL);
+				show_acl(acl);
+				break;
+			}
+		}
+		amfc->ctick = amfc_hw_read(AMFC_CMD0_TIME_MEASURE);
+		ret = 0;
+	}
+
+	amfc_unmap_addr(acl, sizeof(*acl), DMA_FROM_DEVICE);
+	amfc_unmap_addr(dst, dst_size, DMA_FROM_DEVICE);
+	amfc_unmap_addr(src, src_size, DMA_TO_DEVICE);
+	if (table_addr1)
+		amfc_unmap_addr(table_addr1, ALIGN(src_size, PAGE_SIZE) / PAGE_SIZE,
+				DMA_TO_DEVICE);
+	if (table_addr2)
+		amfc_unmap_addr(table_addr2, ALIGN(dst_size, PAGE_SIZE) / PAGE_SIZE,
+				DMA_TO_DEVICE);
+	status = amfc_hw_read(AMFC_GL_CMD0_STATUS);
+	if (!(status & AMFC_ERROR_MASK))
+		ret = acl->result_size;
+	else
+		ret = 0 - ((status & AMFC_ERROR_MASK) >> 8);
+out:
+	if (src_table && src_table != amfc->pages[TABLE_SRC_COMPRESS])
+		__free_pages(src_table, src_order);
+	if (dst_table && dst_table != amfc->pages[TABLE_DST_COMPRESS])
+		__free_pages(dst_table, dst_order);
+	if (ret < 0) {
+		if (((status & AMFC_ERR_MASK) >> 8) == AMFC_ENC_DST_SIZE_OVF) {
+			amfc->fail_compress_cnt++;
+			amfc->fail_compress_size += src_size;
+		} else {
+			pr_err("acl:%px, compress failed, src:%px, dst:%px, ssize:%ld, dsize:%ld, ret:%d, status:%x\n",
+				acl, src, dst, src_size, dst_size,
+				ret, amfc_hw_read(AMFC_GL_CMD0_STATUS));
+			show_regs(NULL);
+			show_acl(acl);
+			spin_lock(&amfc->dec_lock);
+			/* sw reset */
+			amfc_hw_write(0x80000000, AMFC_GL_CMD0_CONTROL);
+			spin_unlock(&amfc->dec_lock);
+		}
+	} else {
+		amfc->cin         += src_size;
+		amfc->cout        += ret;
+		amfc->total_ctick += amfc->ctick;
+		if (amfc->log)
+			pr_info("  compress acl:%px, src:%px, dst:%px, src size:%5d, result size:%5d, tick:%lld\n",
+				acl, src, dst, src_size, ret, amfc->ctick);
+	}
+	amfc_hw_write(0x03, AMFC_GL_CMD0_IRQCLR);
+	spin_unlock_irqrestore(&amfc->com_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(amfc_compress);
+
+/*
+ * IRQ for compress
+ */
+static irqreturn_t amfc0_irq_handler(int irq, void *dev_instance)
+{
+	struct amfc *amfc = (struct amfc *)dev_instance;
+	unsigned int val;
+
+	val = amfc_hw_read(AMFC_GL_CMD0_STATUS);
+	if (val & AMFC_IRQ_FLAG) { /* job done or error */
+		if (val & AMFC_IRQ_ERR)
+			amfc->cerror++;
+		amfc->ctick = amfc_hw_read(AMFC_CMD0_TIME_MEASURE);
+		complete(&amfc->ccomp);
+	} else {
+		pr_err("AMFC0 BUG: no valid IRQ flags but irq happen:%x\n", val);
+	}
+	amfc_hw_write(3, AMFC_GL_CMD0_IRQCLR); /* clear IRQ */
+
+	return IRQ_HANDLED;
+}
+
+/*
+ * IRQ for decompress
+ */
+static irqreturn_t amfc1_irq_handler(int irq, void *dev_instance)
+{
+	struct amfc *amfc = (struct amfc *)dev_instance;
+	unsigned int val;
+
+	val = amfc_hw_read(AMFC_GL_CMD1_STATUS);
+	if (val & AMFC_IRQ_FLAG) { /* job done or error */
+		if (val & AMFC_IRQ_ERR)
+			amfc->derror++;
+		amfc->dtick = amfc_hw_read(AMFC_CMD1_TIME_MEASURE);
+		complete(&amfc->dcomp);
+	} else {
+		pr_err("AMFC1 BUG: no valid IRQ flags but irq happen:%x\n", val);
+	}
+	amfc_hw_write(3, AMFC_GL_CMD1_IRQCLR); /* clear IRQ */
+
+	return IRQ_HANDLED;
+}
+
+/* --------------------- crypto interface --------------------- */
+// TODO: implement them
+static int amfc_crypto_init(struct crypto_tfm *tfm)
+{
+	return 0;
+}
+
+static void amfc_crypto_exit(struct crypto_tfm *tfm)
+{
+}
+
+static int amfc_crypto_compress(struct crypto_tfm *tfm, const u8 *src,
+			 unsigned int slen, u8 *dst, unsigned int *dlen)
+{
+	int ret;
+
+	ret = amfc_compress((void *)src, dst, slen, *dlen);
+	if (ret < 0)
+		return ret;
+	*dlen = ret;
+	return 0;
+}
+
+static int amfc_crypto_decompress(struct crypto_tfm *tfm, const u8 *src,
+			   unsigned int slen, u8 *dst, unsigned int *dlen)
+{
+	int ret;
+
+	ret = amfc_decompress((void *)src, dst, slen, *dlen, 0);
+	if (ret < 0)
+		return ret;
+	*dlen = ret;
+	return 0;
+}
+
+static struct crypto_alg amfc_alg = {
+	.cra_name		= "amfc",
+	.cra_driver_name	= "amfc-generic",
+	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
+	.cra_ctxsize		= 0,
+	.cra_module		= THIS_MODULE,
+	.cra_init		= amfc_crypto_init,
+	.cra_exit		= amfc_crypto_exit,
+	.cra_u			= {
+		.compress = {
+			.coa_compress	= amfc_crypto_compress,
+			.coa_decompress	= amfc_crypto_decompress,
+		}
+	}
+};
+
+static int eamfc_crypto_decompress(struct crypto_tfm *tfm, const u8 *src,
+			   unsigned int slen, u8 *dst, unsigned int *dlen)
+{
+	int ret;
+	int off;
+	unsigned int out_size;
+
+	/* special handle for EROFS */
+	// align src addr to  page header
+	if (slen > PAGE_SIZE) {
+		off = ((unsigned long)src) & ~PAGE_MASK;
+		src -= off;
+		slen += off;
+	}
+	out_size = *dlen;
+	*dlen += AMFC_STREAM_MARGIN;
+	ret = amfc_decompress((void *)src, dst, slen, *dlen, 1);
+	if (ret < 0 && ((ret != -AMFC_DEC_DST_SIZE_OVF) && (ret != -AMFC_DEC_DST_PAGE_ERR)))
+		return ret;
+	*dlen = out_size;
+	return 0;
+}
+
+/* for erofs*/
+static struct crypto_alg eamfc_alg = {
+	.cra_name		= "eamfc",
+	.cra_driver_name	= "amfc-generic",
+	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
+	.cra_ctxsize		= 0,
+	.cra_module		= THIS_MODULE,
+	.cra_init		= amfc_crypto_init,
+	.cra_exit		= amfc_crypto_exit,
+	.cra_u			= {
+		.compress = {
+			.coa_compress	= amfc_crypto_compress,
+			.coa_decompress	= eamfc_crypto_decompress,
+		}
+	}
+};
+
+/*----------- debug fs layer --------------*/
+static ssize_t log_store(struct class *cla,
+			     struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	unsigned long value = -1UL;
+
+	if (kstrtoul(buf, 10, &value))
+		return -EINVAL;
+	amfc->log = value;
+	return count;
+}
+
+static ssize_t log_show(struct class *cla,
+			    struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "log:%d\n", amfc->log);
+}
+static CLASS_ATTR_RW(log);
+
+static ssize_t statistics_store(struct class *cla,
+			     struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	/* clear all statictics data */
+	amfc->cin                = 0;
+	amfc->cout               = 0;
+	amfc->din                = 0;
+	amfc->dout               = 0;
+	amfc->total_ctick        = 0;
+	amfc->total_dtick        = 0;
+	amfc->cerror             = 0;
+	amfc->derror             = 0;
+	amfc->derror             = 0;
+	amfc->fail_compress_size = 0;
+	amfc->fail_compress_cnt  = 0;
+	return count;
+}
+
+static ssize_t statistics_show(struct class *cla,
+			    struct class_attribute *attr, char *buf)
+{
+	int s = 0;
+	unsigned long long ctmp1, dtmp1, ctmp2, dtmp2;
+
+	ctmp1 = amfc->cout * 100;
+	do_div(ctmp1, amfc->cin);
+	s += sprintf(buf + s, "Total compressed in:           %16lld\n", amfc->cin);
+	s += sprintf(buf + s, "Total compressed out:          %16lld\n", amfc->cout);
+	s += sprintf(buf + s, "Average compress ratio:        %16lld%%\n", ctmp1);
+	s += sprintf(buf + s, "Total decompressed in:         %16lld\n", amfc->din);
+	s += sprintf(buf + s, "Total decompressed out:        %16lld\n", amfc->dout);
+
+	ctmp1 = amfc->total_ctick;
+	dtmp1 = amfc->total_dtick;
+	do_div(ctmp1, amfc->clk);
+	do_div(dtmp1, amfc->clk);
+	s += sprintf(buf + s, "Total compressed tick(us):     %16lld\n", ctmp1);
+	s += sprintf(buf + s, "Total decompressed tick(us):   %16lld\n", dtmp1);
+
+	ctmp2 = amfc->cin;
+	dtmp2 = amfc->dout;
+	do_div(ctmp2, ctmp1);
+	do_div(dtmp2, dtmp1);
+	s += sprintf(buf + s, "Average compress speed(MB/s):  %16lld\n", ctmp2);
+	s += sprintf(buf + s, "Average decompress speed(MB/s):%16lld\n", dtmp2);
+
+	s += sprintf(buf + s, "Total compress errors:         %16ld\n",  amfc->cerror);
+	s += sprintf(buf + s, "Total decompress errors:       %16ld\n",  amfc->derror);
+	s += sprintf(buf + s, "Total failed compress size:    %16lld\n", amfc->fail_compress_size);
+	s += sprintf(buf + s, "Total failed compress count:   %16ld\n",  amfc->fail_compress_cnt);
+	s += sprintf(buf + s, "Clock speed(MHz):              %16d\n",   amfc->clk);
+
+	return s;
+}
+static CLASS_ATTR_RW(statistics);
+
+static ssize_t work_mode_store(struct class *cla,
+			     struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	unsigned long value = -1UL;
+
+	if (kstrtoul(buf, 16, &value))
+		return -EINVAL;
+	if (value >= 3) {
+		pr_info("invalid input:%s\n", buf);
+		return -EINVAL;
+	}
+	amfc->work_mode = value;
+	return count;
+}
+
+static ssize_t work_mode_show(struct class *cla,
+			    struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "work_mode:%d\n", amfc->work_mode);
+}
+static CLASS_ATTR_RW(work_mode);
+
+static ssize_t clk_store(struct class *cla,
+			     struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	unsigned long value = -1UL;
+	int i;
+
+	if (kstrtoul(buf, 10, &value))
+		return -EINVAL;
+	for (i = 0; i < ARRAY_SIZE(amfc_clk); i++) {
+		if (amfc_clk[i] == value)
+			break;
+	}
+	if (i >= ARRAY_SIZE(amfc_clk)) {
+		pr_emerg("unsupported clk:%ld\n", value);
+		return -1;
+	}
+	amfc_clk_write(0 | (1 << 6) | ((i & 0x7) << 7), CLKCTRL_AMFC_CLK_CTRL);
+	amfc->clk = amfc_clk[i];
+	return count;
+}
+
+static ssize_t clk_show(struct class *cla,
+			    struct class_attribute *attr, char *buf)
+{
+	unsigned int idx;
+
+	idx = amfc_clk_read(CLKCTRL_AMFC_CLK_CTRL);
+	idx = (idx >> 7) & 7;
+	return sprintf(buf, "FREQ:%d Mhz\n", amfc_clk[idx]);
+}
+static CLASS_ATTR_RW(clk);
+
+static ssize_t reg_dump_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	unsigned int off, value;
+
+	if (sscanf(buf, "%x %x\n", &off, &value) != 2)
+		return -EINVAL;
+
+	if (off > AMFC_MIF_QOS_UGT)
+		return -EINVAL;
+
+	amfc_hw_write(value, off);
+	return count;
+}
+
+static ssize_t reg_dump_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	int size;
+
+	size = show_regs(buf);
+	return size;
+}
+static CLASS_ATTR_RW(reg_dump);
+
+#ifdef CONFIG_AMFC_TEST
+static char test_buf[PAGE_SIZE * 4] __aligned(4096);
+static ssize_t zram_test_store(struct class *cla,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct lruvec *lruvec;
+	pg_data_t *pgdat, *tmp;
+	struct page *page, *next;
+	struct list_head *list;
+	void *src;
+	int ret, lru;
+	struct mem_cgroup *root = NULL, *memcg;
+	int pages = 0;
+
+	kstrtoint(buf, 10, &pages);
+	if (pages <= 0)
+		return count;
+	for_each_online_pgdat(pgdat) {
+		memcg = mem_cgroup_iter(root, NULL, NULL);
+		do {
+			lruvec = mem_cgroup_lruvec(memcg, pgdat);
+			tmp = lruvec_pgdat(lruvec);
+
+			for_each_lru(lru) {
+				/* only count for filecache */
+				if (is_file_lru(lru) &&
+				    lru != LRU_UNEVICTABLE)
+					continue;
+
+				list = &lruvec->lists[lru];
+				//spin_lock(&tmp->lru_lock);
+				list_for_each_entry_safe(page, next,
+							 list, lru) {
+					src = kmap(page);
+					ret = amfc_compress(src, test_buf,
+							    PAGE_SIZE, PAGE_SIZE);
+					if (ret > 0)
+						ret = amfc_decompress(test_buf,
+								      test_buf + PAGE_SIZE,
+								      ret, PAGE_SIZE);
+					kunmap(page);
+					pages--;
+					if (pages <= 0)
+						return count;
+				}
+				//spin_unlock(&tmp->lru_lock);
+			}
+		} while ((memcg =  mem_cgroup_iter(root, memcg, NULL)));
+	}
+
+	return count;
+}
+static CLASS_ATTR_WO(zram_test);
+
+static ssize_t zfile_test_store(struct class *cla,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int i = 0, size, ret;
+	unsigned long addr;
+	void *p;
+
+	if (sscanf(buf, "%lx %x", &addr, &size) != 2)
+		return -EINVAL;
+
+	if (size < 0)
+		return count;
+
+	pr_info("%s, input addr:%lx, size:%x\n", __func__, addr, size);
+	p = ioremap(addr, size);
+	if (!p)
+		return count;
+	while (i < size) {
+		ret = amfc_compress(p + i, test_buf, PAGE_SIZE, PAGE_SIZE);
+		if (ret > 0)
+			amfc_decompress(test_buf, test_buf + 2 * PAGE_SIZE, ret, PAGE_SIZE);
+		i += PAGE_SIZE;
+	}
+	iounmap(p);
+
+	return count;
+}
+static CLASS_ATTR_WO(zfile_test);
+#endif
+
+static struct attribute *amfc_attrs[] = {
+	&class_attr_log.attr,
+	&class_attr_reg_dump.attr,
+	&class_attr_work_mode.attr,
+	&class_attr_statistics.attr,
+	&class_attr_clk.attr,
+#ifdef CONFIG_AMFC_TEST
+	&class_attr_zram_test.attr,
+	&class_attr_zfile_test.attr,
+#endif
+	NULL
+};
+ATTRIBUTE_GROUPS(amfc);
+
+static struct class amfc_class = {
+	.name = "amfc",
+	.class_groups = amfc_groups,
+};
+
+/*------------ driver layer ---------------*/
+static int __init amfc_probe(struct platform_device *pdev)
+{
+	int r = 0, irq, num;
+	unsigned int tmp;
+	struct resource *res;
+	struct device_node *node;
+
+	amfc = devm_kzalloc(&pdev->dev, sizeof(*amfc), GFP_KERNEL);
+	if (!amfc)
+		return -ENOMEM;
+
+	garbage_page = alloc_pages(GFP_KERNEL, 0);
+	if (!garbage_page)
+		return -ENOMEM;
+
+	amfc->bounce_buffer = vzalloc(128 * 1024 + AMFC_STREAM_MARGIN);
+	if (!amfc->bounce_buffer)
+		return -ENOMEM;
+
+	node = pdev->dev.of_node;
+	amfc->dev = &pdev->dev;
+	amfc->compress = kzalloc(sizeof(*amfc->compress), GFP_KERNEL);
+	amfc->decompress = kzalloc(sizeof(amfc->decompress), GFP_KERNEL);
+	if (!amfc->compress || !amfc->decompress)
+		goto err;
+
+	for (num = 0; num < 4; num++) {
+		amfc->pages[num] = alloc_pages(GFP_KERNEL, 0);
+		if (!amfc->pages[num]) {
+			r = -ENOMEM;
+			goto err;
+		}
+	}
+	tmp = (unsigned long)of_device_get_match_data(&pdev->dev);
+	pr_info("%s, chip type:%d, conherent:%d, garbage page:%lx, bounce:%px\n",
+		__func__, tmp, dev_is_dma_coherent(amfc->dev),
+		page_to_pfn(garbage_page), amfc->bounce_buffer);
+	amfc->chip = tmp;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res)
+		amfc->io_base = ioremap(res->start, res->end - res->start);
+	if (!amfc->io_base) {
+		pr_err("map io base failed:%px\n", res);
+		r = -EIO;
+		goto err;
+	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (res)
+		amfc->clk_base = ioremap(res->start, res->end - res->start);
+	if (!amfc->clk_base) {
+		pr_err("map clk base failed:%px\n", res);
+		r = -EIO;
+		goto err;
+	}
+
+	irq = platform_get_irq_byname(pdev, "amfc0");
+	r = request_irq(irq, amfc0_irq_handler,
+			IRQF_SHARED, "amfc0", amfc);
+	if (r < 0)
+		pr_err("request irq failed:%d, r:%d\n", irq, r);
+
+	irq = platform_get_irq_byname(pdev, "amfc1");
+	r = request_irq(irq, amfc1_irq_handler,
+			IRQF_SHARED, "amfc1", amfc);
+	if (r < 0)
+		pr_err("request irq failed:%d, r:%d\n", irq, r);
+
+	init_completion(&amfc->ccomp);
+	init_completion(&amfc->dcomp);
+	spin_lock_init(&amfc->com_lock);
+	spin_lock_init(&amfc->dec_lock);
+	amfc_hw_init();
+	amfc->work_mode = AMFC_POLL_IRQ_OFF;
+#ifdef CONFIG_AMFC_DEBUG
+	amfc->log = 1;
+#endif
+
+	r = crypto_register_alg(&amfc_alg);
+	if (r)
+		goto err;
+
+	r = crypto_register_alg(&eamfc_alg);
+	if (r) {
+		crypto_unregister_alg(&amfc_alg);
+		goto err;
+	}
+
+	r = class_register(&amfc_class);
+	if (r)
+		pr_info("%s, class regist failed\n", __func__);
+
+	return 0;
+err:
+	for (num = 0; num < 4; num++) {
+		if (amfc->pages[num])
+			__free_pages(amfc->pages[num], 0);
+	}
+	kfree(amfc->compress);
+	kfree(amfc->decompress);
+	devm_kfree(&pdev->dev, amfc);
+	amfc = NULL;
+	return r;
+}
+
+static int amfc_remove(struct platform_device *pdev)
+{
+	int i;
+
+	if (amfc) {
+		class_destroy(&amfc_class);
+		crypto_unregister_alg(&amfc_alg);
+		crypto_unregister_alg(&eamfc_alg);
+		for (i = 0; i < 4; i++) {
+			if (amfc->pages[i])
+				__free_pages(amfc->pages[i], 0);
+		}
+		vfree(amfc->bounce_buffer);
+		kfree(amfc->compress);
+		kfree(amfc->decompress);
+		devm_kfree(&pdev->dev, amfc);
+		amfc = NULL;
+	}
+	return 0;
+}
+
+#ifdef CONFIG_OF
+static const struct of_device_id amfc_match[] = {
+	{
+		.compatible = "amlogic,amfc-s7d",
+		.data = (void *)AMFC_S7D,
+	},
+	{}
+};
+#endif
+
+static struct platform_driver amfc_driver = {
+	.driver = {
+		.name  = "amfc",
+		.owner = THIS_MODULE,
+	},
+	.remove = amfc_remove,
+};
+
+int __init amfc_init(void)
+{
+	int ret;
+#ifdef CONFIG_OF
+	const struct of_device_id *match_id;
+
+	match_id = amfc_match;
+	amfc_driver.driver.of_match_table = match_id;
+#endif
+	ret = platform_driver_probe(&amfc_driver, amfc_probe);
+	return ret;
+}
+
+void __exit amfc_exit(void)
+{
+	platform_driver_unregister(&amfc_driver);
+}
+module_init(amfc_init);
+module_exit(amfc_exit);
+MODULE_LICENSE("GPL");

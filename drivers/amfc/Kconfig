@@ -1,0 +1,8 @@
+config AMLOGIC_AMFC
+	tristate "Amlogic AMFC driver"
+	default n
+	help
+		Amlogic AMFC driver for
+		Hardware compress/decompress module
+		This module can help for speed up
+		zram and some other cases which using compress/decompress
