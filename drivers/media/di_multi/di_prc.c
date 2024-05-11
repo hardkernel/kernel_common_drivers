@@ -2277,7 +2277,8 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 		pch = get_chdata(ch);
 		mem_cfg_pre(pch);
 		mem_cfg_2local(pch);
-		if (pch->link_mode == EPVPP_API_MODE_POST)
+		if (pch->link_mode == EPVPP_API_MODE_POST ||
+		    !(dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support)))
 			mem_cfg_2pstlink(pch);
 		else
 			mem_cfg_2pst(pch);
@@ -5195,7 +5196,10 @@ static bool ndis_fill_ready_bypass(struct di_ch_s *pch, struct di_buf_s *di_buf)
 		//di_buf->queue_index = -1;
 		//di_que_in(pch->ch_id, QUE_POST_BACK, di_buf);
 		di_buf_clear(pch, di_buf);
-		di_que_in(pch->ch_id, QUE_PST_NO_BUF, di_buf);
+		if (dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support))
+			di_que_in(pch->ch_id, QUE_PST_NO_BUF, di_buf);
+		else
+			di_que_in(pch->ch_id, QUE_POST_FREE, di_buf);
 		queue_in(pch->ch_id, ibuf, QUEUE_RECYCLE);
 
 		/* to ready buffer */

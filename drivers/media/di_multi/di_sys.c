@@ -1770,7 +1770,7 @@ bool mem_cfg_2pstlink(struct di_ch_s *pch)
 		cnt++;
 		length_pst--;
 	}
-	pch->sts_mem_2_pst = 0;//cnt;
+	pch->sts_mem_2_pst = cnt;
 	if (err_cnt)
 		return false;
 	return true;

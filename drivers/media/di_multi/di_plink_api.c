@@ -2717,7 +2717,8 @@ unsigned int dpvpp_is_bypass_dvfm_prelink(struct dvfm_s *dvfm, bool en_4k,
 		return EPVPP_BYPASS_REASON_DV_PATH;
 	if (dvfm->vfs.flag & VFRAME_FLAG_GAME_MODE)
 		return EPVPP_BYPASS_REASON_GAME_MODE;
-
+	if (dvfm->vfs.duration < 1600 && dvfm->vfs.duration != 0)
+		return EPVPP_BYPASS_REASON_120HZ;
 	return 0;
 }
 
@@ -3183,7 +3184,6 @@ static unsigned int dpvpp_bypass_check_prelink(struct vframe_s *vfm, bool first)
 static unsigned int dpvpp_bypass_check_postlink(struct vframe_s *vfm, bool first)
 {
 	unsigned int reason = 0;
-	unsigned int x, y;
 
 	dbg_dbg("vfm_type:0x%x", vfm->type);
 	if (vfm->type & DIM_BYPASS_VF_TYPE)
@@ -3211,16 +3211,21 @@ static unsigned int dpvpp_bypass_check_postlink(struct vframe_s *vfm, bool first
 	if (VFMT_IS_EOS(vfm->type) && first && !reason)
 		return 0;
 
-	dim_vf_x_y(vfm, &x, &y);
-	if (x > 1920 || y > 1088)
-		reason = EPVPP_BYPASS_REASON_SIZE_L;
-
-	if (vfm->width < 128 || vfm->height < 16)
-		reason = EPVPP_BYPASS_REASON_SIZE_S;
-
-	/* If vframe is EOS, information below maybe invalid */
-	if (vfm->duration < 1600 && vfm->duration != 0)
-		reason = EPVPP_BYPASS_REASON_120HZ;
+	if (!first) {
+		/* Skip the first check to keep prelink pipeline will be activated */
+		if (cfgg(4K)) {
+			if (vfm->width > 3840 ||
+			    vfm->height > 2160)
+				reason = EPVPP_BYPASS_REASON_SIZE_L;
+		} else {
+			if (vfm->width > 1920 || vfm->height > (1080 + 8))
+				reason = EPVPP_BYPASS_REASON_SIZE_L;
+		}
+		if (vfm->width < 128 || vfm->height < 16)
+			reason = EPVPP_BYPASS_REASON_SIZE_S;
+		if (vfm->duration < 1600 && vfm->duration != 0)
+			reason = EPVPP_BYPASS_REASON_120HZ;
+	}
 	if (VFMT_IS_EOS(vfm->type))
 		reason = EPVPP_BYPASS_REASON_EOS;
 	return reason;

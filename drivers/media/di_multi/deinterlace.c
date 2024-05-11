@@ -1689,6 +1689,13 @@ unsigned int is_bypass2(struct vframe_s *vf_in, unsigned int ch)
 		goto tag_bypass;
 	}
 
+	/* P frame need be bypassed when post write is disabled and without prelink */
+	if (VFMT_IS_P(vf_in->type) && (vf_in->type & VIDTYPE_FORCE_SIGN_IP_JOINT) &&
+	    !(dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support))) {
+		reason = 0x8c;
+		goto tag_bypass;
+	}
+
 	reason = dim_polic_is_bypass(pch, vf_in);
 	if (reason)
 		goto tag_bypass;
@@ -5012,7 +5019,9 @@ static bool pp_check_buf_post(struct di_ch_s *pch)
 
 	ch = pch->ch_id;
 
-	if (di_que_is_empty(ch, QUE_PST_NO_BUF))
+	if (dimp_get(edi_mp_post_wr_en) &&
+	    dimp_get(edi_mp_post_wr_support) &&
+	    di_que_is_empty(ch, QUE_PST_NO_BUF))
 		return false;
 
 	return true;
@@ -10273,10 +10282,7 @@ int dim_process_post_vframe(unsigned int channel)
 //ary 2020-12-09			di_lock_irqfiq_save(irq_flag2);
 
 			queue_out(channel, ready_di_buf);
-			if (is_pw)
-				di_buf = pp_local_2_post(pch, ready_di_buf);
-			else
-				di_buf = di_que_out_to_di_buf(channel, QUE_POST_FREE);
+			di_buf = pp_local_2_post(pch, ready_di_buf);
 			if (dim_check_di_buf(di_buf, 19, channel)) {
 //ary 2020-12-09				di_unlock_irqfiq_restore(irq_flag2);
 				return 0;
