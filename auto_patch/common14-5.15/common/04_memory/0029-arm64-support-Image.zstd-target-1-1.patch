@@ -1,0 +1,58 @@
+From 0443831beebe54de360bdf1c6d9da4594dbcead6 Mon Sep 17 00:00:00 2001
+From: Tao Zeng <tao.zeng@amlogic.com>
+Date: Tue, 9 Apr 2024 12:44:27 +0800
+Subject: [PATCH] arm64: support Image.zstd target [1/1]
+
+PD#SWPL-163856
+
+Problem:
+not support Image.zstd build target
+
+Solution:
+add it
+
+Change-Id: I95a4214fd19a3d6206f972ddc3f318de5b58cc4c
+Signed-off-by: Tao Zeng <tao.zeng@amlogic.com>
+---
+ BUILD.bazel              | 1 +
+ arch/arm64/boot/Makefile | 5 ++++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/BUILD.bazel b/BUILD.bazel
+index 14b3bbedd46fe..5dfc9706c3f6b 100644
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -27,6 +27,7 @@ _GKI_AARCH64_MAKE_GOALS = [
+     "Image",
+     "Image.lz4",
+     "Image.gz",
++    "Image.zstd",
+     "modules",
+ ]
+ 
+diff --git a/arch/arm64/boot/Makefile b/arch/arm64/boot/Makefile
+index ebe80faab8837..a5486d9b13d4a 100644
+--- a/arch/arm64/boot/Makefile
++++ b/arch/arm64/boot/Makefile
+@@ -16,7 +16,7 @@
+ 
+ OBJCOPYFLAGS_Image :=-O binary -R .note -R .note.gnu.build-id -R .comment -S
+ 
+-targets := Image Image.bz2 Image.gz Image.lz4 Image.lzma Image.lzo
++targets := Image Image.bz2 Image.gz Image.lz4 Image.lzma Image.lzo Image.zstd
+ 
+ $(obj)/Image: vmlinux FORCE
+ 	$(call if_changed,objcopy)
+@@ -27,6 +27,9 @@ $(obj)/Image.bz2: $(obj)/Image FORCE
+ $(obj)/Image.gz: $(obj)/Image FORCE
+ 	$(call if_changed,gzip)
+ 
++$(obj)/Image.zstd: $(obj)/Image FORCE
++	$(ZSTD) -19 $< -o $@
++
+ $(obj)/Image.lz4: $(obj)/Image FORCE
+ 	$(call if_changed,lz4)
+ 
+-- 
+2.42.0
+
