@@ -84,6 +84,7 @@ static int video_irq_handler(struct aml_video *vd, int status)
 	unsigned long flags;
 	int ret = 0;
 	static int drop_frame_count;
+	const int video_drop_frame_count = 1;
 	struct aml_buffer *b_current_filled = vd->b_current;
 	struct aml_buffer *b_next_to_fill = NULL;
 
@@ -92,6 +93,15 @@ static int video_irq_handler(struct aml_video *vd, int status)
 	if (vd->status != AML_ON) {
 		spin_unlock_irqrestore(&vd->buff_list_lock, flags);
 		pr_err("err not stream on\n");
+		return 0;
+	}
+
+	if (vd->frm_cnt < video_drop_frame_count) {
+		pr_debug("%s drop first frame\n", __func__);
+		vd->frm_cnt++;
+		if (vd->dev_ops.dev_cfg_buf)
+			ret = vd->dev_ops.dev_cfg_buf(vd->priv, b_current_filled);
+		spin_unlock_irqrestore(&vd->buff_list_lock, flags);
 		return 0;
 	}
 
@@ -112,7 +122,7 @@ static int video_irq_handler(struct aml_video *vd, int status)
 				}
 				vd->audit_begtime_ms = vd->audit_endtime_ms;
 			}
-			b_current_filled->vb.sequence = vd->frm_cnt;
+			b_current_filled->vb.sequence = vd->frm_cnt - video_drop_frame_count;
 			b_current_filled->vb.vb2_buf.timestamp = ktime_get_ns();
 			b_current_filled->vb.field = V4L2_FIELD_NONE;
 			vb2_buffer_done(&b_current_filled->vb.vb2_buf, VB2_BUF_STATE_DONE);
