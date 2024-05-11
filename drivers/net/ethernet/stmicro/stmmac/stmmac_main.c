@@ -7420,7 +7420,11 @@ int stmmac_suspend(struct device *dev)
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	u32 chan;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	if (!ndev || !netif_running(ndev) || !netif_device_present(ndev))
+#else
 	if (!ndev || !netif_running(ndev))
+#endif
 		return 0;
 
 	mutex_lock(&priv->lock);
