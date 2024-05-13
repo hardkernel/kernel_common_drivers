@@ -262,90 +262,97 @@ exit:
 	return adapted_pipe;
 }
 
+static u32 write_once_cache(struct data_pipe_s *pipe, struct cyclic_cache_s *cache,
+		void __user **to_write_data, u32 *to_write_size, u32 *finished_size)
+{
+	u32 once_write_size = 0;
+	u32 empty_size = 0;
+	char *cache_end = NULL;
+
+	if (is_cache_empty(pipe->status, cache)) {
+		once_write_size = MIN(*to_write_size, cache->cache_size);
+		if (once_write_size &&
+				copy_from_user(cache->cache, *to_write_data, once_write_size))
+			goto err;
+		cache->data_start = cache->cache;
+		cache->data_end = cache->cache + once_write_size - 1;
+		DEBUG("cache->cache = 0x%016lx, cache->data_start = 0x%016lx\n",
+				(long)cache->cache, (long)cache->data_start);
+		DEBUG("cache->data_end = 0x%016lx, once_write_size = %d\n",
+				(long)cache->data_end, once_write_size);
+	} else if (cache->data_start <= cache->data_end) {
+		cache_end = cache->cache + cache->cache_size - 1;
+		if (cache->data_end != cache_end) {
+			empty_size = cache_end - cache->data_end;
+			once_write_size = MIN(*to_write_size, empty_size);
+			if (once_write_size && copy_from_user(cache->data_end + 1,
+						*to_write_data, once_write_size))
+				goto err;
+			cache->data_end += once_write_size;
+			DEBUG("cache->cache = 0x%016lx\n", (long)cache->cache);
+			DEBUG("cache->data_start = 0x%016lx\n", (long)cache->data_start);
+			DEBUG("cache->data_end = 0x%016lx\n", (long)cache->data_end);
+			DEBUG("once_write_size = %d\n", once_write_size);
+			DEBUG("empty_size = %d\n", empty_size);
+		} else {
+			empty_size = cache->data_start - cache->cache;
+			once_write_size = MIN(*to_write_size, empty_size);
+			if (once_write_size && copy_from_user(cache->cache,
+						*to_write_data, once_write_size))
+				goto err;
+			cache->data_end = cache->cache + once_write_size - 1;
+			DEBUG("cache->cache = 0x%016lx\n", (long)cache->cache);
+			DEBUG("cache->data_start = 0x%016lx\n", (long)cache->data_start);
+			DEBUG("cache->data_end = 0x%016lx\n", (long)cache->data_end);
+			DEBUG("once_write_size = %d\n", once_write_size);
+			DEBUG("empty_size = %d\n", empty_size);
+		}
+	} else if (cache->data_start > cache->data_end) {
+		once_write_size = MIN(*to_write_size, cache->data_size);
+		if (once_write_size && copy_from_user(cache->data_end + 1,
+					*to_write_data, once_write_size))
+			goto err;
+		cache->data_end += once_write_size;
+		DEBUG("cache->cache = 0x%016lx\n", (long)cache->cache);
+		DEBUG("cache->data_start = 0x%016lx\n", (long)cache->data_start);
+		DEBUG("cache->data_end = 0x%016lx\n", (long)cache->data_end);
+		DEBUG("once_write_size = %d\n", once_write_size);
+	}
+
+	cache->data_size += once_write_size;
+	DEBUG("cache->data_size = %d\n", cache->data_size);
+	*finished_size += once_write_size;
+	if (once_write_size < *to_write_size)
+		*to_write_size -= once_write_size;
+	else
+		*to_write_size = 0;
+	*to_write_data += once_write_size;
+
+	return TEEC_SUCCESS;
+
+err:
+	ERROR("copy_from_user failed\n");
+	return TEEC_ERROR_SECURITY;
+}
+
 static u32 write_cache(struct data_pipe_s *pipe, struct cyclic_cache_s *cache,
 		void __user *to_write_data, u32 *to_write_size)
 {
-	u32 once_write_size = 0;
 	u32 finished_size = 0;
-	u32 empty_size = 0;
-	char *cache_end = NULL;
 	u32 tmp_id = pipe->id;
 	int wait_status = 0;
 
 	while (pipe->status == STATUS_OPENED && *to_write_size > 0 &&
 			pipe->id == tmp_id && wait_status == 0) {
 		mutex_lock(&pipe->pipe_lock);
-		if (pipe->status == STATUS_OPENED && !is_cache_full(pipe->status, cache) &&
+		if (pipe->status == STATUS_OPENED &&
+				!is_cache_full(pipe->status, cache) &&
 				pipe->id == tmp_id) {
-			if (is_cache_empty(pipe->status, cache)) {
-				once_write_size = MIN(*to_write_size, cache->cache_size);
-				if (once_write_size && copy_from_user(cache->cache,
-							to_write_data, once_write_size))
-					goto err;
-				cache->data_start = cache->cache;
-				cache->data_end = cache->cache + once_write_size - 1;
-				DEBUG("cache->cache = 0x%016lx, cache->data_start = 0x%016lx\n",
-					(long)cache->cache, (long)cache->data_start);
-				DEBUG("cache->data_end = 0x%016lx, once_write_size = %d\n",
-					(long)cache->data_end, once_write_size);
-			} else if (cache->data_start <= cache->data_end) {
-				cache_end = cache->cache + cache->cache_size - 1;
-				if (cache->data_end != cache_end) {
-					empty_size = cache_end - cache->data_end;
-					once_write_size = MIN(*to_write_size, empty_size);
-					if (once_write_size && copy_from_user(cache->data_end + 1,
-							to_write_data, once_write_size))
-						goto err;
-					cache->data_end += once_write_size;
-					DEBUG("cache->cache = 0x%016lx\n",
-							(long)cache->cache);
-					DEBUG("cache->data_start = 0x%016lx\n",
-							(long)cache->data_start);
-					DEBUG("cache->data_end = 0x%016lx\n",
-							(long)cache->data_end);
-					DEBUG("once_write_size = %d\n",
-							once_write_size);
-					DEBUG("empty_size = %d\n", empty_size);
-				} else {
-					empty_size = cache->data_start - cache->cache;
-					once_write_size = MIN(*to_write_size, empty_size);
-					if (once_write_size && copy_from_user(cache->cache,
-							to_write_data, once_write_size))
-						goto err;
-					cache->data_end = cache->cache + once_write_size - 1;
-					DEBUG("cache->cache = 0x%016lx\n",
-							(long)cache->cache);
-					DEBUG("cache->data_start = 0x%016lx\n",
-							(long)cache->data_start);
-					DEBUG("cache->data_end = 0x%016lx\n",
-							(long)cache->data_end);
-					DEBUG("once_write_size = %d\n",
-							once_write_size);
-					DEBUG("empty_size = %d\n", empty_size);
-				}
-			} else if (cache->data_start > cache->data_end) {
-				once_write_size = MIN(*to_write_size, cache->data_size);
-				if (once_write_size && copy_from_user(cache->data_end + 1,
-						to_write_data, once_write_size))
-					goto err;
-				cache->data_end += once_write_size;
-				DEBUG("cache->cache = 0x%016lx\n",
-						(long)cache->cache);
-				DEBUG("cache->data_start = 0x%016lx\n",
-						(long)cache->data_start);
-				DEBUG("cache->data_end = 0x%016lx\n",
-						(long)cache->data_end);
-				DEBUG("once_write_size = %d\n", once_write_size);
+			if (write_once_cache(pipe, cache, &to_write_data, to_write_size,
+						&finished_size) != TEEC_SUCCESS) {
+				mutex_unlock(&pipe->pipe_lock);
+				goto err;
 			}
-
-			cache->data_size += once_write_size;
-			DEBUG("cache->data_size = %d\n", cache->data_size);
-			finished_size += once_write_size;
-			if (once_write_size < *to_write_size)
-				*to_write_size -= once_write_size;
-			else
-				*to_write_size = 0;
-			to_write_data += once_write_size;
 		}
 		mutex_unlock(&pipe->pipe_lock);
 		wake_up_interruptible(&g_wait_queue_for_data);
@@ -371,18 +378,68 @@ static u32 write_cache(struct data_pipe_s *pipe, struct cyclic_cache_s *cache,
 	return TEEC_SUCCESS;
 
 err:
-	mutex_unlock(&pipe->pipe_lock);
-	ERROR("copy_from_user failed\n");
+	return TEEC_ERROR_SECURITY;
+}
+
+static u32 read_once_cache(struct data_pipe_s *pipe, struct cyclic_cache_s *cache,
+		void __user **data_buf, u32 *buf_size, u32 *finished_size)
+{
+	u32 once_read_size = 0;
+	u32 readable_size = 0;
+	char *cache_end = NULL;
+
+	if (cache->data_start > cache->data_end) {
+		cache_end = cache->cache + cache->cache_size - 1;
+		readable_size = cache_end - cache->data_start + 1;
+		once_read_size = MIN(*buf_size, readable_size);
+		if (once_read_size && copy_to_user(*data_buf, cache->data_start,
+					once_read_size))
+			goto err;
+		if (readable_size == once_read_size)
+			cache->data_start = cache->cache;
+		else
+			cache->data_start += once_read_size;
+		DEBUG("cache->cache = 0x%016lx, cache->data_start = 0x%016lx\n",
+				(long)cache->cache, (long)cache->data_start);
+		DEBUG("cache->data_end = 0x%016lx, once_read_size = %d\n",
+				(long)cache->data_end, once_read_size);
+		DEBUG("readable_size = %d\n", readable_size);
+	} else {
+		once_read_size = MIN(*buf_size, cache->data_size);
+		if (once_read_size && copy_to_user(*data_buf, cache->data_start,
+					once_read_size))
+			goto err;
+		cache->data_start += once_read_size;
+		DEBUG("cache->cache = 0x%016lx, cache->data_start = 0x%016lx\n",
+				(long)cache->cache, (long)cache->data_start);
+		DEBUG("cache->data_end = 0x%016lx, once_read_size = %d\n",
+				(long)cache->data_end, once_read_size);
+	}
+
+	cache->data_size -= once_read_size;
+	DEBUG("cache->data_size = %d\n", cache->data_size);
+	*finished_size += once_read_size;
+	if (once_read_size < *buf_size)
+		*buf_size -= once_read_size;
+	else
+		*buf_size = 0;
+	*data_buf += once_read_size;
+	if (is_cache_empty(pipe->status, cache)) {
+		cache->data_start = NULL;
+		cache->data_end = NULL;
+	}
+
+	return TEEC_SUCCESS;
+
+err:
+	ERROR("copy_to_user failed\n");
 	return TEEC_ERROR_SECURITY;
 }
 
 static u32 read_cache(struct data_pipe_s *pipe, struct cyclic_cache_s *cache,
 		void __user *data_buf, u32 *buf_size)
 {
-	u32 once_read_size = 0;
 	u32 finished_size = 0;
-	u32 readable_size = 0;
-	char *cache_end = NULL;
 	u32 tmp_id = pipe->id;
 	int wait_status = 0;
 
@@ -392,45 +449,10 @@ static u32 read_cache(struct data_pipe_s *pipe, struct cyclic_cache_s *cache,
 		if (pipe->status == STATUS_OPENED &&
 				!is_cache_empty(pipe->status, cache) &&
 				pipe->id == tmp_id) {
-			if (cache->data_start > cache->data_end) {
-				cache_end = cache->cache + cache->cache_size - 1;
-				readable_size = cache_end - cache->data_start + 1;
-				once_read_size = MIN(*buf_size, readable_size);
-				if (once_read_size && copy_to_user(data_buf, cache->data_start,
-						once_read_size))
-					goto err;
-				if (readable_size == once_read_size)
-					cache->data_start = cache->cache;
-				else
-					cache->data_start += once_read_size;
-				DEBUG("cache->cache = 0x%016lx, cache->data_start = 0x%016lx\n",
-						(long)cache->cache, (long)cache->data_start);
-				DEBUG("cache->data_end = 0x%016lx, once_read_size = %d\n",
-						(long)cache->data_end, once_read_size);
-				DEBUG("readable_size = %d\n", readable_size);
-			} else {
-				once_read_size = MIN(*buf_size, cache->data_size);
-				if (once_read_size && copy_to_user(data_buf, cache->data_start,
-						once_read_size))
-					goto err;
-				cache->data_start += once_read_size;
-				DEBUG("cache->cache = 0x%016lx, cache->data_start = 0x%016lx\n",
-						(long)cache->cache, (long)cache->data_start);
-				DEBUG("cache->data_end = 0x%016lx, once_read_size = %d\n",
-					(long)cache->data_end, once_read_size);
-			}
-
-			cache->data_size -= once_read_size;
-			DEBUG("cache->data_size = %d\n", cache->data_size);
-			finished_size += once_read_size;
-			if (once_read_size < *buf_size)
-				*buf_size -= once_read_size;
-			else
-				*buf_size = 0;
-			data_buf += once_read_size;
-			if (is_cache_empty(pipe->status, cache)) {
-				cache->data_start = NULL;
-				cache->data_end = NULL;
+			if (read_once_cache(pipe, cache, &data_buf, buf_size,
+						&finished_size) != TEEC_SUCCESS) {
+				mutex_unlock(&pipe->pipe_lock);
+				goto err;
 			}
 		}
 		mutex_unlock(&pipe->pipe_lock);
@@ -457,8 +479,6 @@ static u32 read_cache(struct data_pipe_s *pipe, struct cyclic_cache_s *cache,
 	return TEEC_SUCCESS;
 
 err:
-	mutex_unlock(&pipe->pipe_lock);
-	ERROR("copy_to_user failed\n");
 	return TEEC_ERROR_SECURITY;
 }
 
