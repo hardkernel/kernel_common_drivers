@@ -24,6 +24,7 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include <linux/miscdevice.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_edid.h>
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
@@ -460,16 +461,33 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	int *vrr_list;
 	int *tmp;
 	int num_group = 0;
+	u64 sequence_id = 0;
 
 	if (!am_hdmitx) {
 		DRM_ERROR("am_hdmitx is NULL!\n");
 		return count;
 	}
 
+	sequence_id = am_hdmitx->sequence_id;
 	edid = (struct edid *)hdmitx_get_raw_edid(tx_comm);
 
 	am_hdmitx->sequence_id = hdmitx_get_hpd_hw_sequence_id(tx_comm);
-
+	/*
+	 * After set mode, hwc will update the connector.
+	 * In order to prevent the edid from being parsed every time,
+	 * the sequence_id judgment is added, and the edid is only parsed
+	 * when the hot_plug time occurs.
+	 */
+	if (sequence_id != am_hdmitx->sequence_id) {
+		DRM_INFO("[%s:%d]:edid parse\n", __func__, __LINE__);
+		/* step1: SW: edid parse */
+		hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+		hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
+		/* update the hdr/hdr10+/dv capabilities in the end of parse */
+		hdmitx_set_hdr_priority(tx_comm, tx_comm->hdr_priority);
+		/* step3：SW: update ced status */
+		hdmitx_common_notify_ced_status(tx_comm);
+	}
 	drm_connector_update_edid_property(connector, edid);
 
 	vrr_list = kcalloc(MAX_VRR_GROUP_VIC_NUM, sizeof(int),  GFP_KERNEL);

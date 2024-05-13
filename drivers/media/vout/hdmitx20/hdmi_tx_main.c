@@ -3121,6 +3121,20 @@ static DEVICE_ATTR_RO(clkmsr);
 static DEVICE_ATTR_RO(hdcp22_stopauth);
 static DEVICE_ATTR_WO(reset_tv_hdcp);
 
+static void hdmitx20_bootup_update_vinfo(struct hdmitx_dev *hdev)
+{
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+
+	edidinfo_attach_to_vinfo(tx_comm);
+	update_vinfo_from_formatpara(tx_comm);
+
+	/* Should be started at end of output */
+	if (hdev->tx_comm.cedst_en) {
+		cancel_delayed_work(&hdev->tx_comm.work_cedst);
+		queue_delayed_work(hdev->tx_comm.cedst_wq, &hdev->tx_comm.work_cedst, 0);
+	}
+}
+
 static int hdmitx20_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para)
 {
 	int ret;
@@ -3136,24 +3150,11 @@ static int hdmitx20_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_forma
 
 static int hdmitx20_init_uboot_mode(enum vmode_e mode)
 {
-	struct hdmitx_dev *hdev = get_hdmitx_device();
-
-	HDMITX_INFO("%s[%d]\n", __func__, __LINE__);
-
-	if (!(mode & VMODE_INIT_BIT_MASK)) {
+	if (!(mode & VMODE_INIT_BIT_MASK))
 		HDMITX_ERROR("warning, echo /sys/class/display/mode is disabled\n");
-	} else {
+	else
 		HDMITX_INFO("alread display in uboot\n");
-		mutex_lock(&hdev->tx_comm.hdmimode_mutex);
-		edidinfo_attach_to_vinfo(&hdev->tx_comm);
-		update_vinfo_from_formatpara(&hdev->tx_comm);
-		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
-		/* Should be started at end of output */
-		if (hdev->tx_comm.cedst_en) {
-			cancel_delayed_work(&hdev->tx_comm.work_cedst);
-			queue_delayed_work(hdev->tx_comm.cedst_wq, &hdev->tx_comm.work_cedst, 0);
-		}
-	}
+
 	return 0;
 }
 
@@ -3214,12 +3215,20 @@ static void hdmitx_cedst_process(struct work_struct *work)
 	queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst, HZ);
 }
 
-static void hdmitx_process_plugin(struct hdmitx_dev *hdev, bool set_audio)
+static void hdmitx_bootup_process_plugin(struct hdmitx_dev *hdev, bool set_audio)
 {
 	struct vinfo_s *info = NULL;
 
 	/* step1: SW: EDID read/parse, notify client modules */
-	hdmitx_plugin_common_work(&hdev->tx_comm);
+	hdmitx_bootup_plugin_work(&hdev->tx_comm);
+
+	/*
+	 * During the kernel startup process, the HDR/DV module will use
+	 * vinfo information, it needs to attach vinfo after the EDID is
+	 * parsed and before the HDR/DV module is enabled.
+	 * so do as hdmitx_common_post_enable_mode()
+	 */
+	hdmitx20_bootup_update_vinfo(hdev);
 
 	/* TODO: need remove/optimised, keep it temporarily */
 	if (set_audio) {
@@ -3229,7 +3238,35 @@ static void hdmitx_process_plugin(struct hdmitx_dev *hdev, bool set_audio)
 	}
 
 	/* step2: SW: notify client modules and update uevent state */
-	hdmitx_common_notify_hpd_status(&hdev->tx_comm, false);
+	hdmitx_bootup_notify_hpd_status(&hdev->tx_comm, false);
+}
+
+static void hdmitx_process_plugin(struct hdmitx_dev *hdev)
+{
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	int i;
+	unsigned char cta_block_count;
+	u8 *edid_buf = tx_comm->EDID_buf;
+	u8 edid_check = 0;
+	unsigned long flags = 0;
+
+	/* step1: SW: EDID read */
+	hdmitx_plugin_common_work(tx_comm);
+
+	/* step2: SW: update cec phy addr and audio data block */
+	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
+	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
+	hdmitx_cec_phy_addr_parse(&tx_comm->rxcap.vsdb_phy_addr, edid_buf);
+	edid_check = tx_comm->rxcap.edid_check;
+	cta_block_count = hdmitx_edid_get_cta_block_count(edid_buf);
+	for (i = 1; i <= cta_block_count; i++) {
+		if (edid_buf[i * 0x80] == 0x02 || edid_check & 0x01)
+			hdmitx_edid_audio_block_parse(&tx_comm->rxcap, edid_buf);
+	}
+	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
+
+	/* step3: SW: notify client modules and update uevent state */
+	hdmitx_common_notify_hpd_status(tx_comm, false);
 }
 
 /*
@@ -3243,7 +3280,7 @@ static void hdmitx_bootup_plugin_handler(struct hdmitx_dev *hdev)
 {
 	if (hdev->tx_comm.fmt_para.tmds_clk_div40)
 		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_SCDC_DIV40_SCRAMB, 1);
-	hdmitx_process_plugin(hdev, hdev->tx_comm.ready);
+	hdmitx_bootup_process_plugin(hdev, hdev->tx_comm.ready);
 }
 
 static void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
@@ -3274,8 +3311,8 @@ static void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		return;
 	}
-	HDMITX_INFO("hpd_high\n");
-	hdmitx_process_plugin(hdev, false);
+	HDMITX_INFO(SYS "hpd_high\n");
+	hdmitx_process_plugin(hdev);
 
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 
@@ -3816,7 +3853,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	struct hdmitx_event_mgr *tx_uevent_mgr;
 	bool hpd_state;
 
-	HDMITX_DEBUG("amhdmitx_probe_start\n");
+	HDMITX_INFO("amhdmitx_probe_start\n");
 
 	hdev = devm_kzalloc(device, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
@@ -3999,6 +4036,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		hdmitx_bootup_plugin_handler(hdev);
 	else
 		hdmitx_bootup_plugout_handler(hdev);
+
 	/* after unlock, now can take actions of bottom half of hpd irq */
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 	/* notify to drm hdmi */
@@ -4008,7 +4046,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_sysfs_common_create(dev, &hdev->tx_comm, &hdev->tx_hw.base);
 	hdev->hdmi_init = 1;
 
-	HDMITX_DEBUG("amhdmitx_probe_end\n");
+	HDMITX_INFO("amhdmitx_probe_end\n");
+
 	return r;
 }
 

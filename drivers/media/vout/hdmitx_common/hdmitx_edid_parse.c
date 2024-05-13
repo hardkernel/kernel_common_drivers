@@ -66,16 +66,32 @@ const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
 static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data);
 static void hdmitx_edid_set_default_aud(struct rx_cap *prxcap);
 
-static void phy_addr_clear(struct vsdb_phyaddr *vsdb_phy_addr)
+static u16 hdmitx_cec_get_edid_phys_addr(const u8 *edid, unsigned int size)
 {
+	unsigned int loc = cec_get_edid_spa_location(edid, size);
+
+	if (loc == 0)
+		return 0xffff;
+	return (edid[loc] << 8) | edid[loc + 1];
+}
+
+void hdmitx_cec_phy_addr_parse(struct vsdb_phyaddr *vsdb_phy_addr, const u8 *edid_buf)
+{
+	u16 pa = 0xffff;
+
 	if (!vsdb_phy_addr)
 		return;
 
-	vsdb_phy_addr->a = 0;
-	vsdb_phy_addr->b = 0;
-	vsdb_phy_addr->c = 0;
-	vsdb_phy_addr->d = 0;
-	vsdb_phy_addr->valid = 0;
+	if (edid_buf && edid_buf[0x7e]) {
+		pa = hdmitx_cec_get_edid_phys_addr((const u8 *)edid_buf,
+				128 * (edid_buf[0x7e] + 1));
+		vsdb_phy_addr->a = (pa >> 12) & 0xf;
+		vsdb_phy_addr->b = (pa >> 8) & 0xf;
+		vsdb_phy_addr->c = (pa >> 4) & 0xf;
+		vsdb_phy_addr->d = (pa >> 0) & 0xf;
+		if (pa != 0xffff)
+			vsdb_phy_addr->valid = 1;
+	}
 }
 
 static bool hdmitx_edid_header_invalid(u8 edid_check, const u8 *buf)
@@ -99,7 +115,7 @@ static bool hdmitx_edid_header_invalid(u8 edid_check, const u8 *buf)
 }
 
 /* return the blocks of extension CTA */
-static unsigned char hdmitx_edid_get_cta_block_count(const u8 *edid_buf)
+unsigned char hdmitx_edid_get_cta_block_count(const u8 *edid_buf)
 {
 	unsigned char cta_block_count = 0;
 
@@ -642,39 +658,6 @@ static void edid_parseceatiming(struct rx_cap *prxcap,
 		edid_dtd_parsing(prxcap, dtd_base);
 		dtd_base += 0x12;
 	}
-}
-
-static struct vsdb_phyaddr vsdb_local = {0};
-int get_vsdb_phy_addr(struct vsdb_phyaddr *vsdb)
-{
-	if (!vsdb)
-		return -1;
-
-	vsdb = &vsdb_local;
-	return vsdb->valid;
-}
-
-static void set_vsdb_phy_addr(struct rx_cap *prxcap,
-	unsigned char *edid_offset)
-{
-	int phy_addr;
-	struct vsdb_phyaddr *vsdb;
-
-	if (!prxcap || !edid_offset)
-		return;
-	vsdb = &prxcap->vsdb_phy_addr;
-	vsdb->a = (edid_offset[0] >> 4) & 0xf;
-	vsdb->b = (edid_offset[0] >> 0) & 0xf;
-	vsdb->c = (edid_offset[1] >> 4) & 0xf;
-	vsdb->d = (edid_offset[1] >> 0) & 0xf;
-	vsdb_local = *vsdb;
-	vsdb->valid = 1;
-
-	phy_addr = ((vsdb->a & 0xf) << 12) |
-		   ((vsdb->b & 0xf) <<  8) |
-		   ((vsdb->c & 0xf) <<  4) |
-		   ((vsdb->d & 0xf) <<  0);
-	prxcap->physical_addr = phy_addr;
 }
 
 static void set_vsdb_dc_cap(struct rx_cap *prxcap)
@@ -1483,7 +1466,6 @@ static void hdmitx_edid_parse_hdmi14(struct rx_cap *prxcap,
 		return;
 
 	prxcap->ieeeoui = HDMI_IEEE_OUI;
-	set_vsdb_phy_addr(prxcap, &block_buf[offset + 3]);
 
 	prxcap->ColorDeepSupport = (count > 5) ? block_buf[offset + 5] : 0;
 	set_vsdb_dc_cap(prxcap);
@@ -1869,14 +1851,79 @@ static void _store_vics(struct rx_cap *prxcap, u8 vic_dat)
 	}
 }
 
-static int hdmitx_edid_cta_block_parse(struct rx_cap *prxcap, u8 *block_buf)
+int hdmitx_edid_audio_block_parse(struct rx_cap *prxcap, u8 *block_buf)
 {
 	u8 offset, end;
 	u8 count;
 	u8 tag;
 	int i, tmp, idx;
-	u8 *vfpdb_offset = NULL;
 	u32 aud_flag = 0;
+
+	if (!prxcap || !block_buf)
+		return -1;
+
+	/* CTA Block */
+	block_buf += 0x80;
+	/* CEA description */
+	end = block_buf[2];
+	/* Initialize SVD_VIC used for SVD storage in the video data block */
+	if (end > 127)
+		return 0;
+
+	if (block_buf[1] <= 2) {
+		/* skip below for loop */
+		goto next;
+	}
+
+	/* this loop should be parsing when revision number is larger than 2 */
+	for (offset = 4 ; offset < end ; ) {
+		tag = block_buf[offset] >> 5;
+		count = block_buf[offset] & 0x1f;
+		switch (tag) {
+		case HDMI_EDID_BLOCK_TYPE_AUDIO:
+			aud_flag = 1;
+			tmp = count / 3;
+			idx = prxcap->AUD_count;
+			prxcap->AUD_count += tmp;
+			offset++;
+			for (i = 0; i < tmp; i++) {
+				prxcap->RxAudioCap[idx + i].audio_format_code =
+					(block_buf[offset + i * 3] >> 3) & 0xf;
+				prxcap->RxAudioCap[idx + i].channel_num_max =
+					block_buf[offset + i * 3] & 0x7;
+				prxcap->RxAudioCap[idx + i].freq_cc =
+					block_buf[offset + i * 3 + 1] & 0x7f;
+				prxcap->RxAudioCap[idx + i].cc3 =
+					block_buf[offset + i * 3 + 2];
+			}
+			offset += count;
+			break;
+		default:
+			offset++;
+			offset += count;
+			break;
+		}
+	}
+next:
+	if (aud_flag == 0)
+		hdmitx_edid_set_default_aud(prxcap);
+
+	/* dtds in extended blocks */
+	i = 0;
+	offset = block_buf[2] + i * 18;
+	for ( ; (offset + 18) < 0x7f; i++)
+		offset += 18;
+
+	return 0;
+}
+
+static int hdmitx_edid_cta_block_parse(struct rx_cap *prxcap, u8 *block_buf)
+{
+	u8 offset, end;
+	u8 count;
+	u8 tag;
+	int i;
+	u8 *vfpdb_offset = NULL;
 
 	if (!prxcap || !block_buf)
 		return -1;
@@ -1911,25 +1958,6 @@ static int hdmitx_edid_cta_block_parse(struct rx_cap *prxcap, u8 *block_buf)
 		tag = block_buf[offset] >> 5;
 		count = block_buf[offset] & 0x1f;
 		switch (tag) {
-		case HDMI_EDID_BLOCK_TYPE_AUDIO:
-			aud_flag = 1;
-			tmp = count / 3;
-			idx = prxcap->AUD_count;
-			prxcap->AUD_count += tmp;
-			offset++;
-			for (i = 0; i < tmp; i++) {
-				prxcap->RxAudioCap[idx + i].audio_format_code =
-					(block_buf[offset + i * 3] >> 3) & 0xf;
-				prxcap->RxAudioCap[idx + i].channel_num_max =
-					block_buf[offset + i * 3] & 0x7;
-				prxcap->RxAudioCap[idx + i].freq_cc =
-					block_buf[offset + i * 3 + 1] & 0x7f;
-				prxcap->RxAudioCap[idx + i].cc3 =
-					block_buf[offset + i * 3 + 2];
-			}
-			offset += count;
-			break;
-
 		case HDMI_EDID_BLOCK_TYPE_VIDEO:
 			offset++;
 			for (i = 0; i < count ; i++) {
@@ -2047,6 +2075,8 @@ static int hdmitx_edid_cta_block_parse(struct rx_cap *prxcap, u8 *block_buf)
 			break;
 
 		default:
+			offset++;
+			offset += count;
 			break;
 		}
 	}
@@ -2067,9 +2097,6 @@ next:
 		}
 		edid_parsedrmsb(prxcap, drm_data);
 	}
-
-	if (aud_flag == 0)
-		hdmitx_edid_set_default_aud(prxcap);
 
 	edid_y420cmdb_postprocess(prxcap);
 
@@ -2565,7 +2592,6 @@ static void edid_set_fallback_mode(struct rx_cap *prxcap)
 	phyaddr->c = 0xf;
 	phyaddr->d = 0xf;
 	phyaddr->valid = 0;
-	prxcap->physical_addr = 0xffff;
 
 	/* 165MHZ / 5 */
 	prxcap->Max_TMDS_Clock1 = DEFAULT_MAX_TMDS_CLK;
@@ -2829,11 +2855,9 @@ int hdmitx_edid_parse(struct rx_cap *prxcap, u8 *edid_buf)
 	if (edid_zero_data(edid_buf) || prxcap->VIC_count == 0)
 		hdmitx_edid_set_default_vic(prxcap);
 
-	if (prxcap->ieeeoui != HDMI_IEEE_OUI)
-		prxcap->physical_addr = 0xffff;
-
 	return 0;
 }
+EXPORT_SYMBOL(hdmitx_edid_parse);
 
 void hdmitx_edid_buffer_clear(u8 *edid_buf, int size)
 {
@@ -2866,7 +2890,6 @@ void hdmitx_edid_rxcap_clear(struct rx_cap *prxcap)
 	hdmitx_edid_set_default_aud(prxcap);
 	rx_set_hdr_lumi(&tmp[0], 2);
 	/* rx_set_receiver_edid(&tmp[0], 2); */
-	phy_addr_clear(&prxcap->vsdb_phy_addr);
 }
 
 /*
@@ -2986,6 +3009,7 @@ int hdmitx_edid_print_sink_cap(const struct rx_cap *prxcap,
  *	pos += snprintf(buffer + pos, buffer_len - pos,
  *		"EDID block number: 0x%x\n", tx_comm->EDID_buf[0x7e]);
  */
+
 	pos += snprintf(buffer + pos, buffer_len - pos,
 		"Source Physical Address[a.b.c.d]: %x.%x.%x.%x\n",
 		prxcap->vsdb_phy_addr.a,

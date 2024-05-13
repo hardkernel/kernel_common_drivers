@@ -3881,6 +3881,40 @@ static bool is_frl_ready(struct hdmitx_dev *hdev)
 	}
 }
 
+static void hdmitx21_bootup_update_vinfo(struct hdmitx_dev *hdev)
+{
+	struct vinfo_s *vinfo = NULL;
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+
+	edidinfo_attach_to_vinfo(tx_comm);
+	update_vinfo_from_formatpara(tx_comm);
+	vinfo = hdmitx_get_current_vinfo(NULL);
+	if (vinfo) {
+		vinfo->cur_enc_ppc = 1;
+		if (hdev->frl_rate > FRL_NONE)
+			vinfo->cur_enc_ppc = 4;
+#ifdef CONFIG_AMLOGIC_DSC
+		/* can also use if (hdev->dsc_en) */
+		if (get_dsc_en()) {
+			if (hdev->tx_comm.fmt_para.cs == HDMI_COLORSPACE_RGB)
+				vinfo->vpp_post_out_color_fmt = 1;
+			else
+				vinfo->vpp_post_out_color_fmt = 0;
+		} else {
+			vinfo->vpp_post_out_color_fmt = 0;
+		}
+#endif
+		HDMITX_INFO("vinfo: set cur_enc_ppc as %d, vpp color: %d\n",
+			vinfo->cur_enc_ppc, vinfo->vpp_post_out_color_fmt);
+	}
+
+	/* started after output setting done */
+	if (hdev->tx_comm.cedst_en) {
+		cancel_delayed_work(&hdev->tx_comm.work_cedst);
+		queue_delayed_work(hdev->tx_comm.cedst_wq, &hdev->tx_comm.work_cedst, 0);
+	}
+}
+
 static int hdmitx21_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para)
 {
 	int ret;
@@ -3959,48 +3993,11 @@ static int hdmitx21_disable_mode(struct hdmitx_common *tx_comm, struct hdmi_form
 
 static int hdmitx21_init_uboot_mode(enum vmode_e mode)
 {
-	struct vinfo_s *vinfo = NULL;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	hdmitx_register_vrr(hdev);
-#endif
-
-	if (!(mode & VMODE_INIT_BIT_MASK)) {
+	if (!(mode & VMODE_INIT_BIT_MASK))
 		HDMITX_ERROR("warning, echo /sys/class/display/mode is disabled\n");
-	} else {
+	else
 		HDMITX_INFO("already display in uboot\n");
-		mutex_lock(&hdev->tx_comm.hdmimode_mutex);
-		if (!is_frl_ready(hdev))
-			hdev->tx_comm.ready = 0;
-		edidinfo_attach_to_vinfo(&hdev->tx_comm);
-		update_vinfo_from_formatpara(&hdev->tx_comm);
-		vinfo = get_current_vinfo();
-		if (vinfo) {
-			vinfo->cur_enc_ppc = 1;
-			if (hdev->frl_rate > FRL_NONE)
-				vinfo->cur_enc_ppc = 4;
-#ifdef CONFIG_AMLOGIC_DSC
-			/* can also use if (hdev->dsc_en) */
-			if (get_dsc_en()) {
-				if (hdev->tx_comm.fmt_para.cs == HDMI_COLORSPACE_RGB)
-					vinfo->vpp_post_out_color_fmt = 1;
-				else
-					vinfo->vpp_post_out_color_fmt = 0;
-			} else {
-				vinfo->vpp_post_out_color_fmt = 0;
-			}
-#endif
-			HDMITX_INFO("vinfo: set cur_enc_ppc as %d, vpp color: %d\n",
-				vinfo->cur_enc_ppc, vinfo->vpp_post_out_color_fmt);
-		}
-		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
-		/* started after output setting done */
-		if (hdev->tx_comm.cedst_en) {
-			cancel_delayed_work(&hdev->tx_comm.work_cedst);
-			queue_delayed_work(hdev->tx_comm.cedst_wq, &hdev->tx_comm.work_cedst, 0);
-		}
-	}
+
 	return 0;
 }
 
@@ -4062,12 +4059,19 @@ static void hdmitx_cedst_process(struct work_struct *work)
 	queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst, HZ);
 }
 
-static void hdmitx_process_plugin(struct hdmitx_dev *hdev, bool set_audio)
+static void hdmitx_bootup_process_plugin(struct hdmitx_dev *hdev, bool set_audio)
 {
 	struct vinfo_s *info = NULL;
 
 	/* step1: SW: EDID read/parse, notify client modules */
-	hdmitx_plugin_common_work(&hdev->tx_comm);
+	hdmitx_bootup_plugin_work(&hdev->tx_comm);
+
+	/* During the kernel startup process, the HDR/DV module will use
+	 * vinfo information, it needs to attach vinfo after the EDID is
+	 * parsed and before the HDR/DV module is enabled.
+	 * so do as hdmitx_common_post_enable_mode()
+	 */
+	hdmitx21_bootup_update_vinfo(hdev);
 
 	/* only bootup plugin will set audio mode, other plugin will not do that */
 	if (set_audio) {
@@ -4077,7 +4081,35 @@ static void hdmitx_process_plugin(struct hdmitx_dev *hdev, bool set_audio)
 	}
 
 	/* step2: SW: notify client modules and update uevent state */
-	hdmitx_common_notify_hpd_status(&hdev->tx_comm, false);
+	hdmitx_bootup_notify_hpd_status(&hdev->tx_comm, false);
+}
+
+static void hdmitx_process_plugin(struct hdmitx_dev *hdev)
+{
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	int i;
+	unsigned char cta_block_count;
+	unsigned char *edid_buf = tx_comm->EDID_buf;
+	unsigned char edid_check = 0;
+	unsigned long flags = 0;
+
+	/* step1: SW: EDID read */
+	hdmitx_plugin_common_work(tx_comm);
+
+	/* step2: update cec phy addr and audio data block */
+	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
+	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
+	hdmitx_cec_phy_addr_parse(&tx_comm->rxcap.vsdb_phy_addr, tx_comm->EDID_buf);
+	edid_check = tx_comm->rxcap.edid_check;
+	cta_block_count = hdmitx_edid_get_cta_block_count(edid_buf);
+	for (i = 1; i <= cta_block_count; i++) {
+		if (edid_buf[i * 0x80] == 0x02 || edid_check & 0x01)
+			hdmitx_edid_audio_block_parse(&tx_comm->rxcap, edid_buf);
+	}
+	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
+
+	/* step3: SW: notify client modules and update uevent state */
+	hdmitx_common_notify_hpd_status(tx_comm, false);
 }
 
 /*
@@ -4098,7 +4130,7 @@ static void hdmitx_bootup_plugin_handler(struct hdmitx_dev *hdev)
 		if (!is_frl_ready(hdev))
 			hdev->tx_comm.ready = 0;
 	}
-	hdmitx_process_plugin(hdev, hdev->tx_comm.ready);
+	hdmitx_bootup_process_plugin(hdev, hdev->tx_comm.ready);
 }
 
 static void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
@@ -4131,7 +4163,7 @@ static void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
 		return;
 	}
 	HDMITX_INFO(SYS "hpd_high\n");
-	hdmitx_process_plugin(hdev, false);
+	hdmitx_process_plugin(hdev);
 
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 
@@ -4302,7 +4334,6 @@ static int amhdmitx21_device_init(struct hdmitx_dev *hdev)
 
 	hdev->hdtx_dev = NULL;
 
-	hdev->tx_comm.rxcap.physical_addr = 0xffff;
 	hdev->tx_comm.hdmi_last_hdr_mode = 0;
 	hdev->tx_comm.hdmi_current_hdr_mode = 0;
 
@@ -5002,6 +5033,10 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		hdev->tx_comm.fmt_attr, sizeof(hdev->tx_comm.fmt_attr));
 	/* load init hdr state for HW info */
 	hdmitx_hdr_state_init(&hdev->tx_comm);
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	hdmitx_register_vrr(hdev);
+#endif
 
 	/* after unlock, now can take actions of bottom half of hpd irq */
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);

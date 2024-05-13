@@ -104,7 +104,6 @@ struct hdmitx_common {
 	u32 forced_edid; /* for external loading EDID */
 	unsigned char EDID_buf[EDID_MAX_BLOCK * 128];
 	struct rx_cap rxcap;
-
 	/****** hdmitx state ******/
 	/* Normally, after the HPD in or late resume, there will reading EDID, and
 	 * notify application to select a hdmi mode output. But during the mode
@@ -250,16 +249,20 @@ enum HDMITX_PLATFORM_API_TYPE {
 int hdmitx_common_attch_platform_data(struct hdmitx_common *tx_comm,
 	enum HDMITX_PLATFORM_API_TYPE type, void *plt_data);
 
-/*Notify hpd event to all outer modules: vpp by vout, drm, userspace
- *bool force_uevent: force send uevent even the hpd state NOT change.
+/*
+ * Notify hpd event to all outer modules: vpp by vout, drm, userspace
+ * bool force_uevent: force send uevent even the hpd state NOT change
  */
+int hdmitx_common_notify_ced_status(struct hdmitx_common *tx_comm);
+int hdmitx_bootup_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_uevent);
 int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_uevent);
 
-/*packet api*/
+/* packet api */
 /* mode = 0 , disable allm; mode 1: set allm; mode -1: */
 int hdmitx_common_set_allm_mode(struct hdmitx_common *tx_comm, int mode);
 
-/* avmute function with lock:
+/*
+ * avmute function with lock:
  * do set mute when mute cmd from any path;
  * do clear when all path have cleared avmute;
  */
@@ -370,6 +373,8 @@ __weak bool is_hdr10plus_enable(void)
 }
 #endif
 
+/* work for bootup when hpd is high */
+void hdmitx_bootup_plugin_work(struct hdmitx_common *tx_comm);
 /* common work for plugin/resume, which is done in lock */
 void hdmitx_plugin_common_work(struct hdmitx_common *tx_comm);
 /* common work for plugout */

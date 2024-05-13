@@ -57,7 +57,6 @@ int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *h
 		tx_comm->tx_hw->hdmi_tx_cap.dsc_policy = boot_param->dsc_policy;
 	hw_comm->hdcp_repeater_en = 0;
 
-	tx_comm->rxcap.physical_addr = 0xffff;
 	tx_comm->debug_param.avmute_frame = 0;
 
 	hdmitx_format_para_reset(&tx_comm->fmt_para);
@@ -593,15 +592,23 @@ int hdmitx_common_parse_vic_in_edid(struct hdmitx_common *tx_comm, const char *m
 }
 EXPORT_SYMBOL(hdmitx_common_parse_vic_in_edid);
 
-int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_uevent)
+int hdmitx_common_notify_ced_status(struct hdmitx_common *tx_comm)
 {
-	if (!tx_comm->suspend_flag) {
+	/* if cedst_en is 1, ced detection will be enabled in hdmitx_common_post_enable_mode */
+	if (tx_comm->cedst_policy == 1)
+		tx_comm->cedst_en = !!tx_comm->rxcap.scdc_present;
+
+	return 0;
+}
+EXPORT_SYMBOL(hdmitx_common_notify_ced_status);
+
+int hdmitx_bootup_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_uevent)
+{
+	if (!tx_comm->suspend_flag)
 		/* notify to userspace by uevent */
 		hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
-					HDMITX_HPD_EVENT, tx_comm->hpd_state, force_uevent);
-		hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
-					HDMITX_AUDIO_EVENT, tx_comm->hpd_state, force_uevent);
-	} else {
+				HDMITX_HPD_EVENT, tx_comm->hpd_state, force_uevent);
+	else
 		/*
 		 * under early suspend, only update uevent state, not
 		 * post to system, in case 1.old android system will
@@ -609,10 +616,7 @@ int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_ue
 		 * start run, increase power consumption
 		 */
 		hdmitx_event_mgr_set_uevent_state(tx_comm->event_mgr,
-			HDMITX_HPD_EVENT, tx_comm->hpd_state);
-		hdmitx_event_mgr_set_uevent_state(tx_comm->event_mgr,
-			HDMITX_AUDIO_EVENT, tx_comm->hpd_state);
-	}
+				HDMITX_HPD_EVENT, tx_comm->hpd_state);
 
 	/*
 	 * always notify to other driver module: CEC/RX
@@ -627,6 +631,37 @@ int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_ue
 		hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_UNPLUG, NULL);
 	return 0;
 }
+EXPORT_SYMBOL(hdmitx_bootup_notify_hpd_status);
+
+int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_uevent)
+{
+	if (!tx_comm->suspend_flag)
+		/* notify to userspace by uevent */
+		hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
+				HDMITX_HPD_EVENT, tx_comm->hpd_state, force_uevent);
+	else
+		/*
+		 * under early suspend, only update uevent state, not
+		 * post to system, in case 1.old android system will
+		 * set hdmi mode, 2.audio server and audio_hal will
+		 * start run, increase power consumption
+		 */
+		hdmitx_event_mgr_set_uevent_state(tx_comm->event_mgr,
+				HDMITX_HPD_EVENT, tx_comm->hpd_state);
+	/*
+	 * always notify to other driver module: CEC/RX
+	 * CEC/RX side will decide to update HPD/EDID or
+	 * not by product type
+	 */
+	/* if (tx_comm->hdmi_repeater == 1) { */
+	if (tx_comm->hpd_state)
+		hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_PLUG, tx_comm->EDID_buf);
+	else
+		hdmitx_event_mgr_notify(tx_comm->event_mgr, HDMITX_UNPLUG, NULL);
+
+	return 0;
+}
+EXPORT_SYMBOL(hdmitx_common_notify_hpd_status);
 
 bool hdmitx_hdr_en(struct hdmitx_hw_common *tx_hw)
 {
@@ -765,11 +800,11 @@ int hdmitx_common_edid_tracer_post_proc(struct hdmitx_common *tx_comm, struct rx
 
 	return 0;
 }
+EXPORT_SYMBOL(hdmitx_common_edid_tracer_post_proc);
 
 int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 {
 	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
-	unsigned long flags = 0;
 
 	if (tx_comm->forced_edid) {
 		HDMITX_INFO("using fixed edid\n");
@@ -810,16 +845,6 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 			hdmitx_hw_cntl_ddc(tx_hw_base, DDC_EDID_READ_DATA, 0);
 		}
 	}
-
-	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
-	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
-	hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
-	hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
-
-	/* update the hdr/hdr10+/dv capabilities in the end of parse */
-	hdmitx_set_hdr_priority(tx_comm, tx_comm->hdr_priority);
-
-	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
 
 	/*
 	 * notify phy addr to rx/cec:

@@ -155,17 +155,18 @@ void update_vinfo_from_formatpara(struct hdmitx_common *tx_comm)
 	struct vinfo_s *vinfo = &tx_comm->hdmitx_vinfo;
 	struct hdmi_format_para *fmtpara = &tx_comm->fmt_para;
 
-	/*update vinfo for out device.*/
+	/* update vinfo for out device */
 	calc_vinfo_from_hdmi_timing(&fmtpara->timing, vinfo);
-	/*vinfo->info_3d = NON_3D;
-	 *if (hdev->flag_3dfp)
-	 *	vinfo->info_3d = FP_3D;
-	 *if (hdev->flag_3dtb)
-	 *	vinfo->info_3d = TB_3D;
-	 *if (hdev->flag_3dss)
-	 *	vinfo->info_3d = SS_3D;
+	/*
+	 * vinfo->info_3d = NON_3D;
+	 * if (hdev->flag_3dfp)
+	 *	 vinfo->info_3d = FP_3D;
+	 * if (hdev->flag_3dtb)
+	 *	 vinfo->info_3d = TB_3D;
+	 * if (hdev->flag_3dss)
+	 *	 vinfo->info_3d = SS_3D;
 	 */
-	/*dynamic info, always need set.*/
+	/* dynamic info, always need set */
 	vinfo->cs = fmtpara->cs;
 	vinfo->cd = fmtpara->cd;
 }
@@ -241,7 +242,8 @@ static int hdmitx_common_post_enable_mode(struct hdmitx_common *tx_comm,
 		cancel_delayed_work(&tx_comm->work_cedst);
 		queue_delayed_work(tx_comm->cedst_wq, &tx_comm->work_cedst, 0);
 	}
-	/* attach vinfo, if hdr_cap and dv_cap change, the HDR/DV module will
+	/*
+	 * attach vinfo, if hdr_cap and dv_cap change, the HDR/DV module will
 	 * call the packet sending function, need to set ready flag to 1 first
 	 */
 	tx_comm->ready = 1;
@@ -517,16 +519,8 @@ struct vinfo_s *hdmitx_get_current_vinfo(void *data)
 
 static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 {
-	if (!(mode & VMODE_INIT_BIT_MASK)) {
+	if (!(mode & VMODE_INIT_BIT_MASK))
 		HDMITX_INFO("warning, echo /sys/class/display/mode is disabled\n");
-	} else {
-		/* During the kernel startup process, the HDR/DV module will use
-		 * vinfo information, it needs to attach vinfo after the EDID is
-		 * parsed and before the HDR/DV module is enabled.
-		 * so do as hdmitx_common_post_enable_mode()
-		 */
-		global_tx_common->ctrl_ops->init_uboot_mode(mode);
-	}
 
 	return 0;
 }
@@ -828,6 +822,87 @@ void hdmitx_vout_uninit(void)
 	}
 }
 
+static void hdmitx_bootup_parse_edid(struct hdmitx_common *tx_comm)
+{
+	unsigned long flags = 0;
+	int i;
+	unsigned char cta_block_count;
+	unsigned char *edid_buf = tx_comm->EDID_buf;
+	unsigned char edid_check = 0;
+
+	spin_lock_irqsave(&tx_comm->edid_spinlock, flags);
+	hdmitx_edid_rxcap_clear(&tx_comm->rxcap);
+	hdmitx_edid_parse(&tx_comm->rxcap, tx_comm->EDID_buf);
+	/* update cec phy addr and audio data block */
+	hdmitx_cec_phy_addr_parse(&tx_comm->rxcap.vsdb_phy_addr, tx_comm->EDID_buf);
+	edid_check = tx_comm->rxcap.edid_check;
+	cta_block_count = hdmitx_edid_get_cta_block_count(edid_buf);
+	for (i = 1; i <= cta_block_count; i++) {
+		if (edid_buf[i * 0x80] == 0x02 || edid_check & 0x01)
+			hdmitx_edid_audio_block_parse(&tx_comm->rxcap, edid_buf);
+	}
+	hdmitx_common_edid_tracer_post_proc(tx_comm, &tx_comm->rxcap);
+
+	/* update the hdr/hdr10+/dv capabilities in the end of parse */
+	hdmitx_set_hdr_priority(tx_comm, tx_comm->hdr_priority);
+
+	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
+}
+
+/* work for bootup when hpd is high */
+void hdmitx_bootup_plugin_work(struct hdmitx_common *tx_comm)
+{
+	/* trace event */
+	hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_HPD_PLUGIN);
+
+	tx_comm->tx_hw->hw_sequence_id = get_jiffies_64();
+	HDMITX_INFO("plugin sequence id: %lld\n", tx_comm->tx_hw->hw_sequence_id);
+
+	/* SW: start rxsense check */
+	if (tx_comm->rxsense_policy) {
+		cancel_delayed_work(&tx_comm->work_rxsense);
+		queue_delayed_work(tx_comm->rxsense_wq, &tx_comm->work_rxsense, 0);
+	}
+
+	/* SW/HW: read/parse EDID */
+	/* there may be such case:
+	 * hpd rising & hpd level high (0.6S > HZ/2)-->
+	 * plugin handler-->hpd falling & hpd level low(0.05S)-->
+	 * continue plugin handler, EDID read normal,
+	 * post plugin uevent-->
+	 * plugout handler(may be filtered and skipped):
+	 * stop hdcp/clear edid, post plugout uevent-->
+	 * system plugin handle: set hdmi mode/hdcp auth-->
+	 * system plugout handle: set non-hdmi mode(but hdcp is still running)-->
+	 * hpd rising & keep level high-->plugin handler, EDID read abnormal
+	 * as hdcp auth is running and may access DDC when reading EDID.
+	 * so need to disable hdcp auth before EDID reading
+	 */
+	if (tx_comm->hdcp_mode != 0) {
+		HDMITX_INFO("hdcp: %d should not be enabled before signal ready\n",
+			tx_comm->hdcp_mode);
+		tx_comm->ctrl_ops->disable_hdcp(tx_comm);
+	}
+
+	/* read edid */
+	hdmitx_common_get_edid(tx_comm);
+	/* edid parse */
+	hdmitx_bootup_parse_edid(tx_comm);
+
+	/* SW: update flags */
+	if (tx_comm->cedst_policy == 1)
+		tx_comm->cedst_en = !!tx_comm->rxcap.scdc_present;
+
+	tx_comm->hpd_state = 1;
+	tx_comm->already_used = 1;
+
+	/* SW: special for hdcp repeater */
+	if (tx_comm->tx_hw->hdcp_repeater_en)
+		rx_set_repeater_support(1);
+
+	tx_comm->last_hpd_handle_done_stat = HDMI_TX_HPD_PLUGIN;
+}
+
 /* common work for plugin/resume, which is done in lock */
 void hdmitx_plugin_common_work(struct hdmitx_common *tx_comm)
 {
@@ -865,10 +940,6 @@ void hdmitx_plugin_common_work(struct hdmitx_common *tx_comm)
 
 	/*read edid*/
 	hdmitx_common_get_edid(tx_comm);
-
-	/* SW: update flags */
-	if (tx_comm->cedst_policy == 1)
-		tx_comm->cedst_en = !!tx_comm->rxcap.scdc_present;
 
 	tx_comm->hpd_state = 1;
 	tx_comm->already_used = 1;
@@ -930,6 +1001,7 @@ void hdmitx_ext_plugin_handler(void)
 		mutex_lock(&global_tx_common->hdmimode_mutex);
 		hdmitx_common_get_edid(global_tx_common);
 		mutex_unlock(&global_tx_common->hdmimode_mutex);
+		HDMITX_INFO("read edid by erac\n");
 	}
 }
 EXPORT_SYMBOL(hdmitx_ext_plugin_handler);
