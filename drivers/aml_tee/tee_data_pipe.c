@@ -41,10 +41,6 @@
 #define MAX_NUM_DATA_PIPE                 (64)
 
 #define MAX_SIZE_ALL_CACHE                (8 * SIZE_1M)
-#define MAX_SIZE_ALL_PERSISTENCE_CACHE    (2 * SIZE_1M)
-
-#define MAX_SIZE_PERSISTENCE_PIPE_CACHE   (128 * SIZE_1K)
-#define MIN_SIZE_PERSISTENCE_PIPE_CACHE   (32 * SIZE_1K)
 
 #define MODE_BLOCKING                     (0)
 #define MODE_NOT_BLOCKING                 (1)
@@ -69,7 +65,9 @@
 	pr_err(LOG_TAG "[Error] [Function: %s, Line: %d] " arg, \
 			__func__, __LINE__, ##__VA_ARGS__)
 
-#define INFO(arg, ...)                    pr_info(LOG_TAG arg)
+#define INFO(arg, ...) \
+	pr_info(LOG_TAG "[Info] [Function: %s, Line: %d] " arg, \
+			__func__, __LINE__, ##__VA_ARGS__)
 
 #if DATA_PIPE_DEBUG
 #define DEBUG(arg, ...) \
@@ -79,11 +77,6 @@
 #define DEBUG(arg, ...)
 #endif
 
-/*
- * when pipe.is_persistent = true, the pipe cache will not be free and will be reused.
- * pipe.status may be STATUS_CLOSED or STATUS_OPENING or STATUS_OPENED.
- * pipe,mode may be MODE_BLOCKING or MODE_NOT_BLOCKING.
- */
 struct cyclic_cache_s {
 	u32 cache_size;
 	u32 data_size;
@@ -92,8 +85,11 @@ struct cyclic_cache_s {
 	char *cache;
 };
 
+/*
+ * pipe.status may be STATUS_CLOSED or STATUS_OPENING or STATUS_OPENED.
+ * pipe,mode may be MODE_BLOCKING or MODE_NOT_BLOCKING.
+ */
 struct data_pipe_s {
-	bool is_persistent;
 	u32 status;
 	u32 id;
 	u32 mode;
@@ -104,14 +100,12 @@ struct data_pipe_s {
 
 static struct data_pipe_s g_data_pipe_set[MAX_NUM_DATA_PIPE];
 static u32 g_cur_all_cache_size;
-static u32 g_cur_persistence_cache_size;
 static u32 g_cur_max_pipe_id;
 static u32 g_backlog; // set the max pipe count from server
 static u32 g_cur_pipe_cnt; // current pipe count
 
 /* common lock for
- * g_data_pipe_set & g_cur_all_cache_size & g_cur_persistence_cache_size
- * & g_cur_max_pipe_id & g_cur_pipe_cnt
+ * g_data_pipe_set & g_cur_all_cache_size & g_cur_max_pipe_id & g_cur_pipe_cnt
  */
 static struct mutex g_common_lock;
 
@@ -128,18 +122,14 @@ static u32 MIN(u32 arg1, u32 arg2)
 
 static void *cache_malloc(u32 size)
 {
-	if (size <= MAX_SIZE_PERSISTENCE_PIPE_CACHE)
-		return kmalloc(size, GFP_KERNEL);
-	else
-		return vmalloc(size);
+	return vmalloc(size);
 }
 
 static void cache_free(void *cache, u32 size)
 {
-	if (size <= MAX_SIZE_PERSISTENCE_PIPE_CACHE)
-		kfree(cache);
-	else
-		vfree(cache);
+	(void)size;
+
+	vfree(cache);
 }
 
 static bool is_cache_full(u32 status, const struct cyclic_cache_s *cache)
@@ -160,7 +150,6 @@ static void dump_pipe_info(const struct data_pipe_s *pipe)
 	DEBUG("pipe->id = %d\n", pipe->id);
 	DEBUG("pipe->status = %d\n", pipe->status);
 	DEBUG("pipe->mode = %d\n", pipe->mode);
-	DEBUG("pipe->is_persistent = %d\n", (int)pipe->is_persistent);
 
 	DEBUG("pipe->cache_to_svr.cache_size = 0x%08X\n",
 			pipe->cache_to_svr.cache_size);
@@ -221,35 +210,12 @@ static struct data_pipe_s *get_adapted_pipe(u32 exp_cache_size, u32 mode)
 
 	mutex_lock(&g_common_lock);
 
-	/* find adapted persistent data pipe */
+	/* find adapted data pipe */
 	for (i = 0; i < g_backlog; i++) {
 		pipe_ptr = &g_data_pipe_set[i];
-		if (pipe_ptr->status != STATUS_CLOSED ||
-				!pipe_ptr->is_persistent ||
-				pipe_ptr->cache_to_svr.cache_size < exp_cache_size ||
-				pipe_ptr->cache_from_svr.cache_size < exp_cache_size)
-			continue;
-
-		if (!adapted_pipe) {
-			adapted_pipe = &g_data_pipe_set[i]; // find the first adapted data pipe
-			continue;
-		}
-
-		if (pipe_ptr->cache_to_svr.cache_size <
-				adapted_pipe->cache_to_svr.cache_size &&
-				pipe_ptr->cache_from_svr.cache_size <
-				adapted_pipe->cache_from_svr.cache_size)
-			adapted_pipe = pipe_ptr; // the cur pipe is more adapted then pre one
-	}
-
-	if (!adapted_pipe) {
-		/* find adapted not persistent data pipe */
-		for (i = 0; i < g_backlog; i++) {
-			pipe_ptr = &g_data_pipe_set[i];
-			if (pipe_ptr->status == STATUS_CLOSED) {
-				adapted_pipe = pipe_ptr;
-				break;
-			}
+		if (pipe_ptr->status == STATUS_CLOSED) {
+			adapted_pipe = &g_data_pipe_set[i];
+			break;
 		}
 	}
 
@@ -258,34 +224,35 @@ static struct data_pipe_s *get_adapted_pipe(u32 exp_cache_size, u32 mode)
 		goto exit;
 	}
 
-	/* initialize data pipe */
-	if (!adapted_pipe->is_persistent) {
-		if (g_cur_all_cache_size + exp_cache_size * 2 > MAX_SIZE_ALL_CACHE) {
-			adapted_pipe = NULL;
-			ERROR("the allocated pipe cache exceeds the limit\n");
-			goto exit;
-		}
-
-		adapted_pipe->cache_to_svr.cache = cache_malloc(exp_cache_size);
-		if (!adapted_pipe->cache_to_svr.cache) {
-			adapted_pipe = NULL;
-			ERROR("cache_malloc failed\n");
-			goto exit;
-		}
-
-		adapted_pipe->cache_from_svr.cache = cache_malloc(exp_cache_size);
-		if (!adapted_pipe->cache_from_svr.cache) {
-			adapted_pipe = NULL;
-			ERROR("cache_malloc failed\n");
-			goto exit;
-		}
-
-		adapted_pipe->cache_to_svr.cache_size = exp_cache_size;
-		adapted_pipe->cache_from_svr.cache_size = exp_cache_size;
-		g_cur_all_cache_size += exp_cache_size * 2;
+	if (g_cur_all_cache_size + exp_cache_size * 2 > MAX_SIZE_ALL_CACHE) {
+		adapted_pipe = NULL;
+		ERROR("the allocated pipe cache exceeds the limit\n");
+		goto exit;
 	}
+
+	/* initialize data pipe */
+	adapted_pipe->cache_to_svr.cache = cache_malloc(exp_cache_size);
+	if (!adapted_pipe->cache_to_svr.cache) {
+		adapted_pipe = NULL;
+		ERROR("cache_malloc failed\n");
+		goto exit;
+	}
+
+	adapted_pipe->cache_from_svr.cache = cache_malloc(exp_cache_size);
+	if (!adapted_pipe->cache_from_svr.cache) {
+		cache_free(adapted_pipe->cache_to_svr.cache, exp_cache_size);
+		adapted_pipe = NULL;
+		ERROR("cache_malloc failed\n");
+		goto exit;
+	}
+
+	adapted_pipe->cache_to_svr.cache_size = exp_cache_size;
+	adapted_pipe->cache_from_svr.cache_size = exp_cache_size;
+
+	g_cur_all_cache_size += exp_cache_size * 2;
 	adapted_pipe->id = g_cur_max_pipe_id + 1;
 	g_cur_max_pipe_id++;
+
 	adapted_pipe->mode = mode;
 	adapted_pipe->status = STATUS_OPENING;
 
@@ -504,14 +471,15 @@ static u32 close_pipe_by_id(u32 pipe_id)
 	pipe_ptr = get_pipe_by_id(pipe_id);
 
 	if (!pipe_ptr) {
-		INFO("data pipe had been closed\n");
+		INFO("data pipe had been closed(pipe_id = %d)\n", pipe_id);
 		return TEEC_SUCCESS;
 	}
 
 	mutex_lock(&pipe_ptr->pipe_lock);
 
 	if (pipe_ptr->status == STATUS_CLOSED) {
-		INFO("data pipe had been closed\n");
+		INFO("data pipe had been closed(STATUS_CLOSED, pipe_id = %d)\n",
+				pipe_id);
 		goto exit;
 	}
 
@@ -536,30 +504,17 @@ static u32 close_pipe_by_id(u32 pipe_id)
 
 	pipe_ptr->id = 0;
 
-	if (pipe_ptr->is_persistent)
-		goto exit;
-
 	mutex_lock(&g_common_lock);
-	if (cache_to_svr->cache_size >= MIN_SIZE_PERSISTENCE_PIPE_CACHE &&
-			cache_to_svr->cache_size <= MAX_SIZE_PERSISTENCE_PIPE_CACHE &&
-			cache_from_svr->cache_size >= MIN_SIZE_PERSISTENCE_PIPE_CACHE &&
-			cache_from_svr->cache_size <= MAX_SIZE_PERSISTENCE_PIPE_CACHE &&
-			cache_to_svr->cache_size + cache_from_svr->cache_size +
-			g_cur_persistence_cache_size <= MAX_SIZE_ALL_PERSISTENCE_CACHE) {
-		pipe_ptr->is_persistent = true;
-		g_cur_persistence_cache_size += (cache_to_svr->cache_size +
-				cache_from_svr->cache_size);
-	} else {
-		g_cur_all_cache_size -= (cache_to_svr->cache_size +
-				cache_from_svr->cache_size);
-		cache_free(cache_to_svr->cache, cache_to_svr->cache_size);
-		cache_to_svr->cache_size = 0;
-		cache_to_svr->cache = NULL;
-		cache_free(cache_from_svr->cache, cache_from_svr->cache_size);
-		cache_from_svr->cache_size = 0;
-		cache_from_svr->cache = NULL;
-	}
+	g_cur_all_cache_size -= (cache_to_svr->cache_size +
+			cache_from_svr->cache_size);
 	mutex_unlock(&g_common_lock);
+
+	cache_free(cache_to_svr->cache, cache_to_svr->cache_size);
+	cache_to_svr->cache_size = 0;
+	cache_to_svr->cache = NULL;
+	cache_free(cache_from_svr->cache, cache_from_svr->cache_size);
+	cache_from_svr->cache_size = 0;
+	cache_from_svr->cache = NULL;
 
 exit:
 	mutex_unlock(&pipe_ptr->pipe_lock);
@@ -579,7 +534,6 @@ void init_data_pipe_set(void)
 	memset(g_data_pipe_set, 0, sizeof(g_data_pipe_set));
 	for (i = 0; i < MAX_NUM_DATA_PIPE; i++) {
 		g_data_pipe_set[i].status = STATUS_CLOSED;
-		g_data_pipe_set[i].is_persistent = false;
 		mutex_init(&g_data_pipe_set[i].pipe_lock);
 	}
 
