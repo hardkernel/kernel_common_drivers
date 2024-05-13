@@ -674,22 +674,29 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 		DIM_DI_WR(DI_CLKG_CTRL, 0x1); /* di no clock gate */
 	}
 
+	fifo_size_vpp = 0x180;
+
 	if (is_meson_txl_cpu()	||
 	    is_meson_txlx_cpu()	||
-	    is_meson_gxlx_cpu() ||
-	    is_meson_txhd_cpu() ||
-	    is_meson_g12a_cpu() ||
-	    is_meson_g12b_cpu() ||
+	    is_meson_gxlx_cpu()	||
+	    is_meson_txhd_cpu()	||
+	    is_meson_g12a_cpu()	||
+	    is_meson_g12b_cpu()	||
 	    is_meson_sm1_cpu()	||
 	    is_meson_tl1_cpu()	||
-	    is_meson_tm2_cpu()	||
-	    DIM_IS_IC(T5)	||
-	    DIM_IS_IC(T5DB)	||
-	    DIM_IS_IC(T5D)) {
-		/* vpp fifo max size on txl :128*3=384[0x180] */
-		/* di fifo max size on txl :96*3=288[0x120] */
-		fifo_size_vpp = 0x180;
+	    is_meson_tm2_cpu())
 		fifo_size_di = 0x120;
+	else if (DIM_IS_IC_TXHD2)
+		fifo_size_di = 0x80;
+	else if (DIM_IS_IC(T5)	||
+		DIM_IS_IC(T5DB)	||
+		DIM_IS_IC(T5D))
+		fifo_size_di = 0xc0;
+	else if (DIM_IS_IC_EF(SC2)) {
+		if (DIM_IS_ICS(T5W) || DIM_IS_ICS_T5M)
+			fifo_size_di = 0x80;
+		else
+			fifo_size_di = 0x100;
 	}
 
 	/*enable lock win, suggestion from vlsi zheng.bao*/
@@ -4001,6 +4008,16 @@ void dim_top_gate_control(bool top_en, bool mc_en)
 		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, mc_en ? 1 : 0, 10, 1);
 		/* enable di arb */
 		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 2, 0, 2);
+		if (DIM_IS_IC(T5)	||
+		   DIM_IS_IC(T5DB)	||
+		   DIM_IS_IC(T5D)) {
+			DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 3, 1);
+			DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 5, 1);
+			DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 7, 1);
+			DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 17, 1);
+			DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 19, 1);
+			DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 21, 1);
+		}
 	} else {
 		/* disable clkb input */
 		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 0, 0, 1);
@@ -4009,6 +4026,16 @@ void dim_top_gate_control(bool top_en, bool mc_en)
 		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 0, 10, 1);
 		/* disable di arb */
 		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 0, 2);
+		if (DIM_IS_IC(T5)	||
+		   DIM_IS_IC(T5DB)	||
+		   DIM_IS_IC(T5D)) {
+			DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 0, 3, 1);
+			DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 0, 5, 1);
+			DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 0, 7, 1);
+			DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 0, 17, 1);
+			DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 0, 19, 1);
+			DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 0, 21, 1);
+		}
 	}
 }
 
@@ -4022,6 +4049,7 @@ void dim_top_gate_control_sc2(bool top_en, bool mc_en)
 		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, mc_en ? 1 : 0, 10, 1);
 		/* enable di arb */
 		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 2, 0, 2);
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL2, 1, 5, 1);
 
 	} else {
 		/* disable clkb input */
@@ -4031,6 +4059,7 @@ void dim_top_gate_control_sc2(bool top_en, bool mc_en)
 		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL0, 0, 10, 1);
 		/* disable di arb */
 		//DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL1, 1, 0, 2);
+		DIM_DI_WR_REG_BITS(VIUB_GCLK_CTRL2, 0, 5, 1);
 	}
 }
 

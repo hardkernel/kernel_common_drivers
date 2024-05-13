@@ -5072,7 +5072,6 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 		chroma0_rpt_loop_end = 0;
 		luma0_rpt_loop_pat = 0x80;
 		chroma0_rpt_loop_pat = 0x00;
-		op->wr(off + reg[MIF_LUMA_FIFO_SIZE], 0xC0);
 	} else {
 		chro_rpt_lastl_ctrl = 0;
 		luma0_rpt_loop_start = 0;
@@ -5081,13 +5080,6 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 		chroma0_rpt_loop_end = 0;
 		luma0_rpt_loop_pat = 0x00;
 		chroma0_rpt_loop_pat = 0x00;
-		op->wr(off + reg[MIF_LUMA_FIFO_SIZE], 0xC0);
-	}
-
-	if (DIM_IS_ICS(T5W) || DIM_IS_ICS_T5M) {
-		//axi bus fifo from feijun.fan for t5w
-		op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, 0x80);
-		op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, 0x80);
 	}
 
 	bytes_per_pixel = (mif->set_separate_en) ?
@@ -5355,12 +5347,31 @@ static void hw_init_v3(void)
 	const struct reg_acc *op = &di_pre_regset;
 	unsigned int path_sel;
 
-	if (DIM_IS_IC_EF(TXL)) {
-		/* vpp fifo max size on txl :128*3=384[0x180] */
-		/* di fifo max size on txl :96*3=288[0x120] */
-		fifo_size_vpp = 0x180;
+	fifo_size_vpp = 0x180;
+
+	if (is_meson_txl_cpu()	||
+	    is_meson_txlx_cpu()	||
+	    is_meson_gxlx_cpu()	||
+	    is_meson_txhd_cpu()	||
+	    is_meson_g12a_cpu()	||
+	    is_meson_g12b_cpu()	||
+	    is_meson_sm1_cpu()	||
+	    is_meson_tl1_cpu()	||
+	    is_meson_tm2_cpu())
 		fifo_size_di = 0x120;
+	else if (DIM_IS_IC_TXHD2)
+		fifo_size_di = 0x80;
+	else if (DIM_IS_IC(T5)	||
+		DIM_IS_IC(T5DB)	||
+		DIM_IS_IC(T5D))
+		fifo_size_di = 0xc0;
+	else if (DIM_IS_IC_EF(SC2)) {
+		if (DIM_IS_ICS(T5W) || DIM_IS_ICS_T5M)
+			fifo_size_di = 0x80;
+		else
+			fifo_size_di = 0x100;
 	}
+
 	if (DIM_IS_ICS_T5M) {
 		op->bwr(VIUB_GCLK_CTRL3, 0x3f, 16, 6);
 		op->wr(REG_DCTR_T3_GCLK_CTRL0, 0xc0);
@@ -5373,18 +5384,10 @@ static void hw_init_v3(void)
 		op->wr(DI_SC2_CHAN2_LUMA_FIFO_SIZE, fifo_size_di);
 
 		/*post*/
-		//op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, fifo_size_di);
+		op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, fifo_size_di);
 		op->wr(DI_SC2_IF1_LUMA_FIFO_SIZE, fifo_size_di);
-		//op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, fifo_size_di);
+		op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, fifo_size_di);
 
-		if (DIM_IS_ICS(T5W) || DIM_IS_ICS_T5M) {
-			//axi bus fifo from feijun.fan for t5w
-			op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, 0x80);
-			op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, 0x80);
-		} else {
-			op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, fifo_size_di);
-			op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, fifo_size_di);
-		}
 
 		path_sel = 1;
 		op->bwr(DI_TOP_PRE_CTRL, (path_sel & 0x3), 0, 2);
