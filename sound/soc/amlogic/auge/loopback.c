@@ -160,6 +160,7 @@ struct loopback {
 	/*tdm_in lb select mclk*/
 	int tdmlb_mclk_sel;
 	int data_lb_rate;
+	int asrc_sel;
 };
 
 static struct loopback *loopback_priv[2];
@@ -604,7 +605,8 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 		lb_set_datalb_cfg(p_loopback->id,
 			&datalb_cfg,
 			p_loopback->chipinfo->multi_bits_lbsrcs,
-			p_loopback->chipinfo->use_resamplea);
+			p_loopback->chipinfo->use_resamplea,
+			p_loopback->asrc_sel);
 	}
 
 	tdminlb_set_format(p_loopback->lb_format == SND_SOC_DAIFMT_I2S);
@@ -1700,7 +1702,13 @@ static int loopback_parse_of(struct device_node *node,
 		ret = -EINVAL;
 		goto fail;
 	}
-
+	ret = of_property_read_u32(node, "asrc-sel",
+				   &p_loopback->asrc_sel);
+	if (ret < 0)
+		p_loopback->asrc_sel = 0;
+	else
+		pr_info("%s asrc asrc_sel from dts:%d\n",
+			__func__, p_loopback->asrc_sel);
 	ret = snd_soc_of_get_slot_mask(node, "datalb-lane-mask-in",
 		&p_loopback->datalb_lane_mask);
 	if (ret < 0) {

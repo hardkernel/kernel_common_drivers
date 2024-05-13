@@ -83,6 +83,8 @@ struct audioresample {
 	bool timer_running;
 	unsigned int syssrc_clk_rate;
 	int suspend_clk_off;
+	unsigned int ch_sync_reg;
+	unsigned int src_sel;
 };
 
 struct audioresample *s_resample_a;
@@ -115,6 +117,18 @@ struct audioresample *get_audioresample(enum resample_idx id)
 		return NULL;
 
 	return p_resample;
+}
+
+unsigned int get_audioresample_ch_sync_reg(enum resample_idx id)
+{
+	struct audioresample *p_resample;
+
+	p_resample = ((id == RESAMPLE_A) ? s_resample_a : s_resample_b);
+
+	if (!p_resample)
+		return 0;
+
+	return p_resample->ch_sync_reg;
 }
 
 int get_resample_module_num(void)
@@ -157,6 +171,20 @@ bool get_resample_enable(enum resample_idx id)
 	}
 
 	return p_resample->enable;
+}
+
+unsigned int get_source_enable(enum resample_idx id)
+{
+	struct audioresample *p_resample;
+
+	p_resample = get_audioresample(id);
+
+	if (!p_resample) {
+		pr_debug("Not init audio resample\n");
+		return 0;
+	}
+
+	return p_resample->src_sel;
 }
 
 bool get_resample_enable_chnum_sync(enum resample_idx id)
@@ -1021,7 +1049,21 @@ static int resample_platform_probe(struct platform_device *pdev)
 			&p_resample->suspend_clk_off);
 	if (ret < 0)
 		dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
+	ret = of_property_read_u32(dev->of_node, "src-sel",
+			&p_resample->src_sel);
+	if (ret < 0)
+		p_resample->src_sel = 0;
+	else
+		pr_info("%s resample src_sel from dts:%d\n",
+			__func__, p_resample->src_sel);
 
+	ret = of_property_read_u32(dev->of_node, "ch-sync-reg",
+				   &p_resample->ch_sync_reg);
+	if (ret < 0)
+		p_resample->ch_sync_reg = 0;
+	else
+		pr_info("%s ch_sync_reg from dts:%d\n",
+			__func__, p_resample->ch_sync_reg);
 	/* config from dts */
 	p_resample->resample_module = resample_module;
 

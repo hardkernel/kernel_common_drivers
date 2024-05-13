@@ -20,10 +20,12 @@ int get_resample_module_num(void);
 int set_resample_source(enum resample_idx id, enum toddr_src src);
 struct audioresample *get_audioresample(enum resample_idx id);
 int get_resample_version_id(enum resample_idx id);
+unsigned int get_source_enable(enum resample_idx id);
 bool get_resample_enable(enum resample_idx id);
 bool get_resample_enable_chnum_sync(enum resample_idx id);
 bool get_resample_need_reset(enum resample_idx id);
 int get_resample_source(enum resample_idx id);
 int get_resample_version(void);
+unsigned int get_audioresample_ch_sync_reg(enum resample_idx id);
 
 #endif
