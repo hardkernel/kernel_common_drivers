@@ -191,8 +191,6 @@ static void cma_clear_bitmap(struct dummy_cma *cma, unsigned long pfn,
 	spin_unlock_irqrestore(&cma->lock, flags);
 }
 
-unsigned long aml_totalcma_pages;
-
 #ifdef CONFIG_PAGE_PINNER
 static void __nocfi aml_page_pinner_failure_detect(struct page *page)
 {
@@ -1494,11 +1492,10 @@ static int cma_debug_show(struct seq_file *m, void *arg)
 	seq_printf(m, "level=%d, alloc trace:%d, allow task:%d\n",
 		   cma_debug_level, cma_alloc_trace, allow_cma_tasks);
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
-	seq_printf(m, "driver used:%lu isolated:%d total:%lu\n",
-		   get_cma_allocated(), 0, totalcma_pages);
+	seq_printf(m, "driver used:%lu, total:%lu\n",
+		   get_cma_allocated(), totalcma_pages);
 #else
-	seq_printf(m, "driver used:%lu isolated:%d total:%lu\n",
-		   get_cma_allocated(), 0, aml_totalcma_pages);
+	seq_printf(m, "driver used:%lu\n", get_cma_allocated());
 #endif
 	return 0;
 }
@@ -1854,7 +1851,6 @@ static int __nocfi common_symbol_init(void *data)
 
 	aml_kallsyms_lookup_name = (unsigned long (*)(const char *name))kp_lookup_name.addr;
 
-	aml_totalcma_pages = *(unsigned long *)aml_kallsyms_lookup_name("totalcma_pages");
 	aml_prep_huge_page = (void (*)(struct page *page))get_symbol_addr("prep_transhuge_page");
 	aml_reclaim_clean_pages_from_list = (unsigned int (*)(struct zone *zone,
 		struct list_head *page_list))get_symbol_addr("reclaim_clean_pages_from_list");
