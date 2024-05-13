@@ -286,6 +286,7 @@ static void dump_mem_infos(struct seq_file *m);
 
 static int dump_free_mem_infos(void *buf, int size);
 static int __init secure_vdec_res_setup(struct reserved_mem *rmem);
+static int __init codec_mm_res_setup(struct reserved_mem *rmem);
 
 static inline u32 codec_mm_align_up2n(u32 addr, u32 alg2n)
 {
@@ -4073,45 +4074,50 @@ bool is_2k_platform(void)
 
 	return false;
 }
-static int codec_mm_probe(struct platform_device *pdev)
+
+static inline void codec_mm_parse_reserved_mem(struct platform_device *pdev, char *name,
+	int (*vdec_res_setup)(struct reserved_mem *rmem))
 {
 	int r;
 	struct reserved_mem *mem = NULL;
-	int secure_region_index = 0;
+	int region_index = 0;
 	struct device_node *search_target = NULL;
-	struct codec_mm_mgt_s *mgt = NULL;
 
 	while (1) {
 		search_target = of_parse_phandle(pdev->dev.of_node,
 						"memory-region",
-						secure_region_index);
+						region_index);
 		if (!search_target)
 			break;
 
-		if (!strcmp(search_target->name, "linux,secure_vdec_reserved")) {
+		if (!strcmp(search_target->name, name)) {
 			mem = of_reserved_mem_lookup(search_target);
 			if (mem) {
-				r = secure_vdec_res_setup(mem);
+				r = vdec_res_setup(mem);
 				if (r)
-					pr_err("secure_vdec_res_setup res %x\n", r);
+					pr_err("%s vdec_res_setup res %x\n", name, r);
 				r = of_reserved_mem_device_init_by_idx(&pdev->dev,
-					pdev->dev.of_node, secure_region_index);
+					pdev->dev.of_node, region_index);
 				if (r)
-					pr_err("secure_vdec_res_setup device init failed\n");
+					pr_err("%s vdec_res_setup device init failed\n", name);
 			}
 			break;
 		}
-		secure_region_index++;
+		region_index++;
 	}
+}
+
+static int codec_mm_probe(struct platform_device *pdev)
+{
+	int r;
+	struct codec_mm_mgt_s *mgt = NULL;
+
+	codec_mm_parse_reserved_mem(pdev, "linux,secure_vdec_reserved", secure_vdec_res_setup);
+	codec_mm_parse_reserved_mem(pdev, "linux,codec_mm_reserved", codec_mm_res_setup);
 
 	mgt = get_mem_mgt();
-
 	pdev->dev.platform_data = mgt;
-	r = of_reserved_mem_device_init(&pdev->dev);
-	if (r == 0)
-		pr_debug("%s mem init done\n", __func__);
 
-	codec_mm_mgt_init(&pdev->dev);
 	r = class_register(&codec_mm_class);
 	if (r) {
 		pr_err("vdec class create fail.\n");
@@ -4119,9 +4125,10 @@ static int codec_mm_probe(struct platform_device *pdev)
 	}
 	r = of_reserved_mem_device_init(&pdev->dev);
 	if (r == 0)
-		pr_debug("codec_mm reserved memory probed done\n");
+		pr_debug("codec_mm cma memory probed done\n");
 
 	pr_info("%s ok\n", __func__);
+	codec_mm_mgt_init(&pdev->dev);
 
 #if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
 	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
