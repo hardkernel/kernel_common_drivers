@@ -168,6 +168,7 @@ u32 nfc_send_cmd_addr_and_wait(unsigned char cmd_bitmap, u8 cmd,
 	enum CMD_TYPE cmd_type;
 	enum STATE_AND_DUMMY_CTL action;
 	int i = 0, j = 0, ret;
+	unsigned int reg_value;
 
 	if (((cmd_bitmap & TYPE_ADDR) && !addr) ||
 	    ((cmd_bitmap & TYPE_DATA_DRD) && !buffer) ||
@@ -229,7 +230,8 @@ u32 nfc_send_cmd_addr_and_wait(unsigned char cmd_bitmap, u8 cmd,
 				ret = nfc_wait_command_fifo_done(NFC_COMMAND_FIFO_TIMEOUT, 0);
 				if (ret)
 					return ret;
-				regmap_read(nfc_regmap[NFC_IDX], NAND_BUF, (unsigned int *)buffer);
+				regmap_read(nfc_regmap[NFC_IDX], NAND_BUF, &reg_value);
+				*buffer = reg_value;
 			}
 			return 0;
 		case TYPE_DATA_DWR:
