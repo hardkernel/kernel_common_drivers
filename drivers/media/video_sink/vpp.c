@@ -1754,7 +1754,8 @@ static int vpp_set_filters_internal
 	s32 vpp_zoom_center_x, vpp_zoom_center_y;
 	u32 crop_ratio = 1;
 	u32 crop_left, crop_right, crop_top, crop_bottom;
-	u32 src_crop_right, src_crop_bottom;
+	u32 src_crop_top = 0, src_crop_left = 0;
+	u32 src_crop_right = 0, src_crop_bottom = 0;
 	u32 sar_width = 0, sar_height = 0;
 	bool ext_sar = false;
 	bool no_compress = false;
@@ -1833,6 +1834,30 @@ static int vpp_set_filters_internal
 		video_source_crop_right = input->crop_right;
 		video_source_crop_top = input->crop_top;
 		video_source_crop_bottom = input->crop_bottom;
+
+		if (is_src_crop_valid(vf->src_crop)) {
+			if (cur_super_debug)
+				pr_info("%s:vf src crop(%d/%d/%d/%d)\n", __func__,
+					vf->src_crop.top, vf->src_crop.left,
+					vf->src_crop.bottom, vf->src_crop.right);
+			if (vf->type_original & VIDTYPE_COMPRESS) {
+				src_crop_top = vf->src_crop.top;
+				src_crop_left = vf->src_crop.left;
+				src_crop_bottom = vf->src_crop.bottom;
+				src_crop_right = vf->src_crop.right;
+			} else {
+				src_crop_top = vf->src_crop.top;
+				src_crop_left = vf->src_crop.left;
+			}
+		}
+		video_source_crop_top =
+			max(video_source_crop_top, src_crop_top);
+		video_source_crop_left =
+			max(video_source_crop_left, src_crop_left);
+		video_source_crop_bottom =
+			max(video_source_crop_bottom, src_crop_bottom);
+		video_source_crop_right =
+			max(video_source_crop_right, src_crop_right);
 	}
 	next_frame_par->crop_top = 0;
 	next_frame_par->crop_bottom = 0;
@@ -2778,16 +2803,6 @@ RESTART:
 		if (vf->width && vf->compWidth)
 			crop_ratio = vf->compWidth / vf->width;
 		goto RESTART_ALL;
-	} else {
-		if (vf->type_original & VIDTYPE_COMPRESS &&
-			is_src_crop_valid(vf->src_crop) &&
-			!src_crop_adjust) {
-			/* src crop top/left will always be 0 */
-			src_crop_bottom = vf->src_crop.bottom;
-			src_crop_right = vf->src_crop.right;
-			src_crop_adjust = true;
-			goto RESTART_ALL;
-		}
 	}
 
 	if (!force_skip_adj && is_vskip_adj_need(input->layer_id)) {

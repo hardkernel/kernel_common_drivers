@@ -9384,7 +9384,17 @@ static bool is_vframe_changed
 	     cur_vf->ratio_control != new_vf->ratio_control ||
 	     ((cur_vf->type_backup & VIDTYPE_INTERLACE) !=
 	      (new_vf->type_backup & VIDTYPE_INTERLACE)) ||
-	     cur_vf->type != new_vf->type))
+	     cur_vf->type != new_vf->type ||
+	     ((is_src_crop_valid(cur_vf->src_crop) &&
+	     is_src_crop_valid(new_vf->src_crop) &&
+	     (cur_vf->src_crop.top != new_vf->src_crop.top ||
+	     cur_vf->src_crop.left != new_vf->src_crop.left ||
+	     cur_vf->src_crop.bottom != new_vf->src_crop.bottom ||
+	     cur_vf->src_crop.right != new_vf->src_crop.right)) ||
+	     (is_src_crop_valid(cur_vf->src_crop) &&
+	     !is_src_crop_valid(new_vf->src_crop)) ||
+	     (!is_src_crop_valid(cur_vf->src_crop) &&
+	     is_src_crop_valid(new_vf->src_crop)))))
 		return true;
 
 	if (cur_vf && new_vf) {

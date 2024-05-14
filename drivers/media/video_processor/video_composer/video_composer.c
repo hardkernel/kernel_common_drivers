@@ -2677,10 +2677,26 @@ static void vframe_composer(struct composer_dev *dev)
 				vf_dev[i], vframe_info_cur->fd, addr);
 		}
 
-		crop_info.left = vframe_info_cur->crop_x;
-		crop_info.top = vframe_info_cur->crop_y;
-		crop_info.width = vframe_info_cur->crop_w;
-		crop_info.height = vframe_info_cur->crop_h;
+		if (is_src_crop_valid(src_vf->src_crop)) {
+			crop_info.left = MAX(vframe_info_cur->crop_x, src_vf->src_crop.left);
+			crop_info.top = MAX(vframe_info_cur->crop_y, src_vf->src_crop.top);
+			if (!(src_vf->type_original & VIDTYPE_COMPRESS)) {
+				crop_info.width = MIN(vframe_info_cur->crop_w, src_vf->width -
+					src_vf->src_crop.left - src_vf->src_crop.right);
+				crop_info.height = MIN(vframe_info_cur->crop_h, src_vf->height -
+					src_vf->src_crop.top - src_vf->src_crop.bottom);
+			} else {
+				crop_info.width = MIN(vframe_info_cur->crop_w, src_vf->compWidth -
+					src_vf->src_crop.left - src_vf->src_crop.right);
+				crop_info.height = MIN(vframe_info_cur->crop_h, src_vf->compHeight -
+					src_vf->src_crop.top - src_vf->src_crop.bottom);
+			}
+		} else {
+			crop_info.left = vframe_info_cur->crop_x;
+			crop_info.top = vframe_info_cur->crop_y;
+			crop_info.width = vframe_info_cur->crop_w;
+			crop_info.height = vframe_info_cur->crop_h;
+		}
 
 		dst_axis = output_axis_adjust(dev, vframe_info_cur);
 		display_axis.left = dst_axis.left * dst_buf->buf_w / dev->vinfo_w;
@@ -3095,12 +3111,24 @@ static void vframe_composer(struct composer_dev *dev)
 			dewarp_src_w = vframe_info_cur->buffer_w;
 			dewarp_src_h = vframe_info_cur->buffer_h;
 		}
-		dewarp_crop_top = vframe_info_cur->crop_y;
-		dewarp_crop_left = vframe_info_cur->crop_x;
-		dewarp_crop_bottom = dewarp_src_h - vframe_info_cur->crop_y
-			- vframe_info_cur->crop_h;
-		dewarp_crop_right = dewarp_src_w - vframe_info_cur->crop_x
-			- vframe_info_cur->crop_w;
+
+		if (is_src_crop_valid(src_vf->src_crop)) {
+			dewarp_crop_top =
+				MAX(vframe_info_cur->crop_y, src_vf->src_crop.top);
+			dewarp_crop_left =
+				MAX(vframe_info_cur->crop_x, src_vf->src_crop.left);
+			dewarp_crop_bottom = MAX(dewarp_src_h - vframe_info_cur->crop_y
+				- vframe_info_cur->crop_h, src_vf->src_crop.bottom);
+			dewarp_crop_right = MAX(dewarp_src_w - vframe_info_cur->crop_x
+				- vframe_info_cur->crop_w, src_vf->src_crop.right);
+		} else {
+			dewarp_crop_top = vframe_info_cur->crop_y;
+			dewarp_crop_left = vframe_info_cur->crop_x;
+			dewarp_crop_bottom = dewarp_src_h - vframe_info_cur->crop_y
+				- vframe_info_cur->crop_h;
+			dewarp_crop_right = dewarp_src_w - vframe_info_cur->crop_x
+				- vframe_info_cur->crop_w;
+		}
 		dewarp_dst_w = common_para.output_para.pic_info.align_w;
 		dewarp_dst_h = common_para.output_para.pic_info.align_h;
 
@@ -3548,20 +3576,8 @@ static int config_crop_param(struct composer_dev *dev,
 	is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
 	if (is_dec_vf || is_v4l_vf) {
 		if ((vf->type_original & VIDTYPE_COMPRESS) != 0) {
-			if (is_src_crop_valid(vf->src_crop)) {
-				vc_print(dev->index, PRINT_AXIS, "src_crop:%d %d %d %d.\n",
-					vf->src_crop.left,
-					vf->src_crop.right,
-					vf->src_crop.top,
-					vf->src_crop.bottom);
-				pic_w = vf->compWidth -
-					vf->src_crop.left - vf->src_crop.right;
-				pic_h = vf->compHeight -
-					vf->src_crop.top - vf->src_crop.bottom;
-			} else {
-				pic_w = vf->compWidth;
-				pic_h = vf->compHeight;
-			}
+			pic_w = vf->compWidth;
+			pic_h = vf->compHeight;
 		} else {
 			pic_w = vf->width;
 			pic_h = vf->height;

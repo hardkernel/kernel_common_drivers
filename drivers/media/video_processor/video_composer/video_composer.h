@@ -96,6 +96,14 @@ extern int actual_delay_count[MAX_VD_LAYERS];
 	})
 #endif // MAX
 
+#ifndef MIN
+#define MIN(a, b) ({ \
+			typeof(a) _a = a; \
+			typeof(b) _b = b; \
+			_a < _b ? _a : _b; \
+		})
+#endif // MIN
+
 enum vc_transform_t {
 	/* flip source image horizontally */
 	VC_TRANSFORM_FLIP_H = 1,
