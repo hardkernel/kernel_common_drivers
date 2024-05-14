@@ -13143,7 +13143,7 @@ void aisr_demo_axis_set(struct video_layer_s *layer)
 					(DEMO_MODE_WINDO_CTRL1, original_reg_value2);
 			} else {
 				cur_dev->rdma_func[vpp_index].rdma_wr
-					(SAFA_PPS_DEBUG_DEMO_WND_COEF_1, original_reg_value1);
+					(SAFA_PPS_DEBUG_DEMO_EN, original_reg_value1);
 				cur_dev->rdma_func[vpp_index].rdma_wr
 					(VPP_PI_DEBUG_DEMO_WND_EN, original_reg_value2);
 				cur_dev->rdma_func[vpp_index].rdma_wr
