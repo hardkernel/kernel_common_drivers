@@ -10,26 +10,32 @@
 
 / {
     partitions: partitions{
-		parts = <16>;
+		parts = <17>;
 		part-0 = <&logo>;
-		part-1 = <&recovery>;
-		part-2 = <&misc>;
-		part-3 = <&cri_data>;
-		part-4 = <&param>;
-		part-5 = <&boot>;
-		part-6 = <&rsv>;
-		part-7 = <&tee>;
-		part-8 = <&factory>;
-		part-9 = <&vendor>;
-		part-10 = <&vbmeta>;
-		part-11 = <&odm>;
-		part-12 = <&system>;
-		part-13 = <&product>;
-		part-14 = <&cache>;
-		part-15 = <&data>;
+		part-1 = <&bootloader_up>;
+		part-2 = <&recovery>;
+		part-3 = <&misc>;
+		part-4 = <&cri_data>;
+		part-5 = <&param>;
+		part-6 = <&boot>;
+		part-7 = <&rsv>;
+		part-8 = <&tee>;
+		part-9 = <&factory>;
+		part-10 = <&vendor>;
+		part-11 = <&vbmeta>;
+		part-12 = <&odm>;
+		part-13 = <&system>;
+		part-14 = <&product>;
+		part-15 = <&cache>;
+		part-16 = <&data>;
 
 		logo:logo{
 			pname = "logo";
+			size = <0x0 0x800000>;
+			mask = <1>;
+		};
+		bootloader_up:bootloader_up{
+			pname = "bootloader_up";
 			size = <0x0 0x800000>;
 			mask = <1>;
 		};

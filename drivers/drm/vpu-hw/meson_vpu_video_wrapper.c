@@ -23,7 +23,7 @@
 #include "meson_plane.h"
 
 static int video_axis_zoom = -1;
-__module_param(video_axis_zoom, int, 0664);
+module_param(video_axis_zoom, int, 0664);
 MODULE_PARM_DESC(video_axis_zoom, "video_axis_zoom");
 
 static void
