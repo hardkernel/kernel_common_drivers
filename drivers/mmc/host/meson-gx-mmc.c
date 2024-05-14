@@ -1488,6 +1488,10 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	case MMC_POWER_OFF:
 		if (!IS_ERR(mmc->supply.vmmc))
 			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
+		if (aml_card_type_non_sdio(host) && !IS_ERR(host->pins_sleep)) {
+			pinctrl_select_state(host->pinctrl, host->pins_sleep);
+			msleep(100);
+		}
 
 		if (!IS_ERR(mmc->supply.vqmmc) && host->vqmmc_enabled) {
 			regulator_set_voltage_triplet(mmc->supply.vqmmc, 1700000, 1800000, 1950000);
@@ -4382,8 +4386,10 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	} else {
 		mmc->rescan_entered = 0;
 	}
-	if (aml_card_type_non_sdio(host))
+	if (aml_card_type_non_sdio(host)) {
 		host->pins_default = pinctrl_lookup_state(host->pinctrl, "sd_default");
+		host->pins_sleep = pinctrl_lookup_state(host->pinctrl, "sleep");
+	}
 
 	mmc->ops = &meson_mmc_ops;
 #if IS_ENABLED(CONFIG_AMLOGIC_MMC_CQHCI)

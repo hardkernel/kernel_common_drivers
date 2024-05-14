@@ -179,13 +179,13 @@
 		status = "okay";
 	};
 
-	sdcard_power: regulator-sdcard {
+	sdcard_3v3: sdcard-regulator-consumer_3v3 {
 		compatible = "regulator-fixed";
-		regulator-name = "SDCARD_POWER";
+		regulator-name = "SDCARD_3V3: SD/TF.";
 		vin-supply = <&vddao3v3_reg>;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		//gpio = <&gpio GPIOD_13 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio GPIOA_4 GPIO_ACTIVE_HIGH>;  /* 0R */
 		enable-active-high;
 		regulator-boot-on;
 	};
@@ -1090,7 +1090,7 @@
 	pinctrl-names = "sd_default",
 			"clk-gate",
 			"sd_1bit_pins",
-			 "sleep";
+			"sleep";
 //			"sd_clk_cmd_uart_pins";
 //			"sd_1bit_uart_pins",
 //			"sd_to_ao_uart_pins",
@@ -1107,7 +1107,7 @@
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
 	dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 	//dat3-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
-	//vmmc-supply = <&sdcard_power>;
+	vmmc-supply = <&sdcard_3v3>;
 	//vqmmc-supply = <&vddio_card>;
 };
 

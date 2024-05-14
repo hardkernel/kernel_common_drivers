@@ -2626,7 +2626,7 @@
 				"GPIOC_4",
 				"GPIOC_5";
 			function = "gpio_periphs";
-			input-enable;
+			output-low;
 			bias-disable;
 		};
 	};

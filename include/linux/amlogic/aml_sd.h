@@ -168,6 +168,7 @@ struct meson_host {
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_default;
 	struct pinctrl_state *pins_clk_gate;
+	struct pinctrl_state *pins_sleep;
 
 	unsigned int bounce_buf_size;
 	void *bounce_buf;
