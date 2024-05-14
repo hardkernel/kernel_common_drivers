@@ -173,11 +173,12 @@ int hdmitx_tracer_write_event(struct hdmitx_tracer *tracer,
 
 	log_str = hdmitx_event_to_str(event);
 	ret = kfifo_in(&tracer->log_fifo, log_str, strlen(log_str));
-	if (!ret)
-		HDMITX_ERROR("%s fifo error %d\n", __func__, ret);
-	else
+	if (!ret) {
+		HDMITX_ERROR("%s fifo error %d reset it\n", __func__, ret);
+		kfifo_reset(&tracer->log_fifo);
+	} else {
 		tracer->hdr10plus_event = tracer->previous_event;
-
+	}
 	/*after write trace, trigger uevent to save trace log.*/
 	schedule_work(&tracer->uevent_work);
 
