@@ -197,15 +197,15 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_TMODE_1]  = {"tmode1",
 			EDI_CFG_TMODE_1,
-#ifdef CONFIG_AMLOGIC_LOWMEM
-			1,
+#if _DI_CHANNEL_NUM_1 > 0
+			0,
 #else
-			2,
+			DI_CHANNEL_NUB - 2,
 #endif
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_TMODE_2]  = {"tmode2",
 			EDI_CFG_TMODE_2,
-#ifdef CONFIG_AMLOGIC_LOWMEM
+#if _DI_CHANNEL_NUM_1 > 0
 			1,
 #else
 			2,
@@ -2569,19 +2569,6 @@ bool di_tout_contr(enum EDI_TOUT_CONTR cmd, struct di_time_out_s *tout)
 	return ret;
 }
 
-#ifdef CONFIG_AMLOGIC_LOWMEM
-const unsigned int di_ch2mask_table[DI_CHANNEL_MAX] = {
-	DI_BIT0,
-	DI_BIT1,
-};
-#else
-const unsigned int di_ch2mask_table[DI_CHANNEL_MAX] = {
-	DI_BIT0,
-	DI_BIT1,
-	DI_BIT2,
-	DI_BIT3,
-};
-#endif
 
 /****************************************
  *bit control
