@@ -1197,6 +1197,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	u32 is_repeat = false;
 	u32 omx_index = 0;
 	u32 max_width_new = 0, max_width_last = 0;
+	bool ip_switch = false, tvp_switch = false;
 
 	if (!dev || !frame_info) {
 		pr_err("%s: param is invalid.\n", __func__);
@@ -1208,8 +1209,6 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 			 "set_frame but not inited\n");
 		return -EINVAL;
 	}
-
-	dp_print(dev->index, PRINT_MORE, "%s in\n", __func__);
 
 	file_vf = dp_get_file(dev, frame_info->in_fd);
 	if (!file_vf) {
@@ -1231,42 +1230,43 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		__func__, kfifo_len(&dev->receive_q), frame_info->in_fd, vf->omx_index,
 		 file_vf, file_count(file_vf));
 
-	/*first vf need check tvp*/
+	/*vf need check tvp switch*/
 	if (dev->last_vf.type == 0) {
 		if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) && !dev->di_is_tvp) {
-			dp_print(dev->index, PRINT_OTHER, "need reinit to tvp");
+			dp_print(dev->index, PRINT_OTHER, "need reinit to tvp.\n");
 			di_process_set_tvp(dev, true);
 		} else if (!(vf->flag & VFRAME_FLAG_VIDEO_SECURE) && dev->di_is_tvp) {
-			dp_print(dev->index, PRINT_OTHER, "need reinit to non-tvp");
+			dp_print(dev->index, PRINT_OTHER, "need reinit to non-tvp.\n");
 			di_process_set_tvp(dev, false);
 		}
 	} else {
 		if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) && !dev->di_is_tvp) {
-			dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to tvp");
-			dp_put_file(dev, file_vf);
-			frame_info->is_tvp = true;
-			return 1;
+			dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to tvp.\n");
+			tvp_switch = true;
 		} else if (!(vf->flag & VFRAME_FLAG_VIDEO_SECURE) && dev->di_is_tvp) {
-			dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to non-tvp");
-			dp_put_file(dev, file_vf);
-			frame_info->is_tvp = false;
-			return 1;
+			dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to non-tvp.\n");
+			tvp_switch = true;
+		} else {
+			tvp_switch = false;
 		}
-	}
 
-	/*support I and P to switch while open vpp pre link*/
-	if (dim_get_pre_link()) {
-		dp_print(dev->index, PRINT_OTHER, "chek I/P switch.\n");
-		if ((vf->type & VIDTYPE_INTERLACE) && !dev->cur_is_i) {
-			dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to I");
-			dev->cur_is_i = true;
+		/*need check I/P switch when vpp pre link*/
+		if (dim_get_pre_link()) {
+			if ((vf->type & VIDTYPE_INTERLACE) && !dev->cur_is_i) {
+				dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to I.\n");
+				ip_switch = true;
+			} else if (!(vf->type & VIDTYPE_INTERLACE) && dev->cur_is_i) {
+				dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to P.\n");
+				ip_switch = true;
+			} else {
+				ip_switch = false;
+			}
+		}
+
+		if (tvp_switch || ip_switch) {
+			dev->last_vf.type = 0;
 			dp_put_file(dev, file_vf);
-			return 2;
-		} else if (!(vf->type & VIDTYPE_INTERLACE) && dev->cur_is_i) {
-			dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to P");
-			dev->cur_is_i = false;
-			dp_put_file(dev, file_vf);
-			return 2;
+			return 1;
 		}
 	}
 
@@ -1275,7 +1275,10 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	else
 		dev->cur_is_i = false;
 
-	omx_index = vf->omx_index;
+	if (vf->flag & VFRAME_FLAG_VIDEO_SECURE)
+		frame_info->is_tvp = true;
+	else
+		frame_info->is_tvp = false;
 
 	dp_print(dev->index, PRINT_OTHER,
 		"omx_index=%d,type=0x%x,flag=0x%x,compWidth=%d,compHeight=%d,width=%d,height=%d.\n",
@@ -1295,12 +1298,9 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 			dev->q_dummy_frame_done = false;
 		}
 	}
-	dev->last_vf = *vf;
 
-	if (vf->flag & VFRAME_FLAG_VIDEO_SECURE)
-		frame_info->is_tvp = true;
-	else
-		frame_info->is_tvp = false;
+	omx_index = vf->omx_index;
+	dev->last_vf = *vf;
 
 	if (!dev->first_out) {
 		dp_print(dev->index, PRINT_OTHER, "not first out.\n");
