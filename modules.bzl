@@ -122,6 +122,7 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-tl1.ko",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-sy6026l.ko",
     "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-t6d.ko",
+    "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-ad82088d.ko",
     "drivers/dma-buf/heaps/system_heap.ko",
     "drivers/i2c/i2c-dev.ko",
     "drivers/leds/leds-gpio.ko",
