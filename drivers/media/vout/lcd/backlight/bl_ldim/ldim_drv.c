@@ -172,12 +172,16 @@ void ldim_delay(int ms)
 
 static int ldim_on_init(void)
 {
+	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
+
 	if (ldim_debug_print)
 		LDIMPR("%s\n", __func__);
 
 	ldim_driver.init_on_flag = 1;
 	ldim_driver.level_update = 1;
 	ldim_driver.state |= LDIM_STATE_POWER_ON;
+	if (bdrv)
+		lcd_resource_ready(bdrv->index, LCD_RES_BACKLIGHT, bdrv->bconf.index);
 
 	return 0;
 }

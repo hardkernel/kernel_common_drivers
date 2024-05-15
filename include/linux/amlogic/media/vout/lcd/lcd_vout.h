@@ -681,6 +681,16 @@ struct lcd_reg_map_s {
 	char flag;
 };
 
+#define LCD_RES_BACKLIGHT   1
+#define LCD_RES_EXTERN      2
+#define LCD_RES_TCON        3
+struct lcd_resource_s {
+	unsigned int type;
+	unsigned int index;
+	unsigned int ready;
+	struct lcd_resource_s *next_res;
+};
+
 #define LCD_STATUS_IF_ON         BIT(0) //real status
 #define LCD_STATUS_ENCL_ON       BIT(1) //real status
 #define LCD_STATUS_ON         (LCD_STATUS_IF_ON | LCD_STATUS_ENCL_ON)
@@ -727,6 +737,7 @@ struct aml_lcd_drv_s {
 	unsigned char config_check_en;
 
 	struct lcd_data_s *data;
+	struct lcd_resource_s *resource;
 	struct cdev cdev;
 	struct device *dev;
 	struct platform_device *pdev;
@@ -782,6 +793,7 @@ struct aml_lcd_drv_s {
 	struct work_struct late_resume_work;
 	struct work_struct vx1_reset_work;
 	struct work_struct screen_restore_work;
+	struct delayed_work init_on_delayed_work;
 	struct delayed_work test_delayed_work;
 	struct resource *res_vsync_irq[3];
 	struct resource *res_vx1_irq;
@@ -797,6 +809,7 @@ struct aml_lcd_drv_s {
 };
 
 struct aml_lcd_drv_s *aml_lcd_get_driver(int index);
+void lcd_resource_ready(int drv_index, unsigned int res_type, unsigned int res_index);
 
 void lcd_vlock_m_update(int index, unsigned int vlock_m);
 void lcd_vlock_frac_update(int index, unsigned int vlock_farc);

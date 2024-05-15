@@ -1611,6 +1611,7 @@ static void lcd_extern_dev_probe_work(struct work_struct *p_work)
 		edrv->dev_cnt++;
 	}
 
+	lcd_resource_ready(edrv->index, LCD_RES_EXTERN, dev_index);
 	return;
 
 lcd_ext_dev_probe_work_err:
@@ -1685,6 +1686,8 @@ static int lcd_extern_config_load(struct lcd_extern_driver_s *edrv)
 			} else {
 				edrv->dev_cnt++;
 			}
+
+			lcd_resource_ready(edrv->index, LCD_RES_EXTERN, dev_index);
 		}
 	}
 

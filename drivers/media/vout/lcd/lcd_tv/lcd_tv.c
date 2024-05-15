@@ -1053,6 +1053,7 @@ static int lcd_suspend(void *data)
 
 	mutex_lock(&lcd_power_mutex);
 	lcd_init_on_flag = 1; //align lcd_init flag
+	pdrv->init_flag = 0;
 	pdrv->status &= ~LCD_STATUS_POWER;
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
 	LCDPR("[%d]: early_suspend finished\n", pdrv->index);

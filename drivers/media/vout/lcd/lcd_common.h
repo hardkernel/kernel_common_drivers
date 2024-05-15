@@ -348,6 +348,8 @@ int lcd_mode_tablet_init(struct aml_lcd_drv_s *pdrv);
 int lcd_mode_tablet_remove(struct aml_lcd_drv_s *pdrv);
 #endif
 
+void lcd_resource_add(struct aml_lcd_drv_s *pdrv, unsigned int res_type, unsigned int res_index);
+int lcd_resource_is_ready(struct aml_lcd_drv_s *pdrv);
 int lcd_drm_add(struct device *dev);
 void lcd_drm_remove(struct device *dev);
 

@@ -171,6 +171,102 @@ struct aml_lcd_drv_s *aml_lcd_get_driver(int index)
 }
 EXPORT_SYMBOL(aml_lcd_get_driver);
 
+void lcd_resource_add(struct aml_lcd_drv_s *pdrv, unsigned int res_type, unsigned int res_index)
+{
+	struct lcd_resource_s *res_i, *res_tail, *pres;
+
+	if (!pdrv)
+		return;
+
+	pres = kzalloc(sizeof(*pres), GFP_KERNEL);
+	if (!pres)
+		return;
+	pres->type = res_type;
+	pres->index = res_index;
+
+	if (!pdrv->resource) {
+		pdrv->resource = pres;
+		goto lcd_resource_add_success;
+	}
+
+	res_i = pdrv->resource;
+	while (res_i) {
+		if (res_i->type == res_type && res_i->index == res_index) {
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+				LCDPR("[%d]: %s: already exist, res_type[idx]: %d[%d], rdy %d\n",
+					pdrv->index, __func__, res_type, res_index, res_i->ready);
+			}
+			kfree(pres);
+			return;
+		}
+		res_tail = res_i;
+		res_i = res_i->next_res;
+	}
+	res_tail->next_res = pres;
+
+lcd_resource_add_success:
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("[%d]: %s: done: res_type[idx]: %d[%d]\n",
+			pdrv->index, __func__, res_type, res_index);
+	}
+}
+
+void lcd_resource_ready(int drv_index, unsigned int res_type, unsigned int res_index)
+{
+	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(drv_index);
+	struct lcd_resource_s *res_i, *res_tail, *pres;
+
+	if (!pdrv)
+		return;
+
+	res_i = pdrv->resource;
+	while (res_i) {
+		if (res_i->type == res_type && res_i->index == res_index) {
+			res_i->ready = 1;
+			goto lcd_resource_ready_success;
+		}
+		res_tail = res_i;
+		res_i = res_i->next_res;
+	}
+
+	//when ahead of lcd_resource_add with lcd config probe
+	pres = kzalloc(sizeof(*pres), GFP_KERNEL);
+	if (!pres)
+		return;
+	pres->type = res_type;
+	pres->index = res_index;
+	pres->ready = 1;
+	res_tail->next_res = pres;
+
+lcd_resource_ready_success:
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("[%d]: %s: done: res_type[idx]: %d[%d]\n",
+			pdrv->index, __func__, res_type, res_index);
+	}
+}
+
+int lcd_resource_is_ready(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_resource_s *res_i;
+
+	if (!pdrv)
+		return 0;
+
+	res_i = pdrv->resource;
+	while (res_i) {
+		if (res_i->ready == 0) {
+			if (lcd_debug_print_flag & LCD_DBG_PR_ADV2) {
+				LCDERR("[%d]: %s: not ready: res_type[index]: %d[%d]\n",
+					pdrv->index, __func__, res_i->type, res_i->index);
+			}
+			return 0;
+		}
+		res_i = res_i->next_res;
+	}
+
+	return 1;
+}
+
 inline void lcd_queue_work(struct work_struct *work)
 {
 	if (lcd_workqueue)
@@ -626,6 +722,34 @@ static void lcd_lata_resume_work(struct work_struct *work)
 	lcd_if_enable_retry(pdrv);
 	pdrv->status |= LCD_STATUS_POWER;
 	LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
+	mutex_unlock(&lcd_power_mutex);
+}
+
+static void lcd_init_on_delayed_work(struct work_struct *p_work)
+{
+	struct delayed_work *d_work;
+	struct aml_lcd_drv_s *pdrv;
+	int res_ready;
+
+	d_work = container_of(p_work, struct delayed_work, work);
+	pdrv = container_of(d_work, struct aml_lcd_drv_s, init_on_delayed_work);
+
+	if (pdrv->init_flag == 0)
+		return;
+
+	res_ready = lcd_resource_is_ready(pdrv);
+	if (res_ready == 0) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("[%d]: %s: lcd resource is not ready\n", pdrv->index, __func__);
+		lcd_queue_delayed_work(&pdrv->init_on_delayed_work, 10);
+		return;
+	}
+
+	mutex_lock(&lcd_power_mutex);
+	LCDPR("[%d]: power on for init_flag\n", pdrv->index);
+	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
+	lcd_if_enable_retry(pdrv);
+	pdrv->status |= LCD_STATUS_POWER;
 	mutex_unlock(&lcd_power_mutex);
 }
 
@@ -1294,6 +1418,7 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			mutex_unlock(&lcd_power_mutex);
 		} else {
 			mutex_lock(&lcd_power_mutex);
+			pdrv->init_flag = 0;
 			pdrv->status &= ~LCD_STATUS_POWER;
 			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
 			mutex_unlock(&lcd_power_mutex);
@@ -1719,14 +1844,8 @@ static int lcd_mode_probe(struct aml_lcd_drv_s *pdrv)
 
 	lcd_vsync_irq_init(pdrv);
 
-	if (pdrv->init_flag) {
-		LCDPR("[%d]: power on for init_flag\n", pdrv->index);
-		mutex_lock(&lcd_power_mutex);
-		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
-		lcd_if_enable_retry(pdrv);
-		pdrv->status |= LCD_STATUS_POWER;
-		mutex_unlock(&lcd_power_mutex);
-	}
+	if (pdrv->init_flag)
+		lcd_queue_delayed_work(&pdrv->init_on_delayed_work, 0);
 
 	/* add notifier for video sync_duration info refresh */
 	lcd_vout_notify_mode_change(pdrv);
@@ -2264,6 +2383,7 @@ static int lcd_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&pdrv->config_probe_dly_work, lcd_config_probe_work);
 	INIT_WORK(&pdrv->late_resume_work, lcd_lata_resume_work);
 	INIT_WORK(&pdrv->screen_restore_work, lcd_screen_restore_work);
+	INIT_DELAYED_WORK(&pdrv->init_on_delayed_work, lcd_init_on_delayed_work);
 	INIT_DELAYED_WORK(&pdrv->test_delayed_work, lcd_auto_test_delayed);
 
 	ret = lcd_cdev_add(pdrv, &pdev->dev);
@@ -2306,6 +2426,7 @@ static int lcd_remove(struct platform_device *pdev)
 
 	cancel_work_sync(&pdrv->late_resume_work);
 	cancel_work_sync(&pdrv->screen_restore_work);
+	cancel_delayed_work(&pdrv->init_on_delayed_work);
 	cancel_delayed_work(&pdrv->config_probe_dly_work);
 	if (lcd_workqueue)
 		destroy_workqueue(lcd_workqueue);
@@ -2356,6 +2477,7 @@ static int lcd_suspend(struct platform_device *pdev, pm_message_t state)
 		return 0;
 
 	mutex_lock(&lcd_power_mutex);
+	pdrv->init_flag = 0;
 	if (pdrv->status & LCD_STATUS_IF_ON)
 		LCDERR("[%d]: %s: lcd interface is still enabled!\n", pdrv->index, __func__);
 
@@ -2378,6 +2500,7 @@ static void lcd_shutdown(struct platform_device *pdev)
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("%s\n", __func__);
 
+	pdrv->init_flag = 0;
 	if (pdrv->status & LCD_STATUS_ENCL_ON) {
 		pdrv->status &= ~(LCD_STATUS_PREPARE | LCD_STATUS_POWER);
 		aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)pdrv);

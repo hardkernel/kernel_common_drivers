@@ -4256,22 +4256,6 @@ static const struct of_device_id bl_dt_match_table[] = {
 };
 #endif
 
-static void aml_bl_power_init(struct aml_bl_drv_s *bdrv)
-{
-	struct bl_config_s *bconf = &bdrv->bconf;
-
-	/* update bl status */
-	bdrv->state = (BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
-	bdrv->on_request = 1;
-	/* lcd power on sequence control */
-	if (bconf->method < BL_CTRL_MAX) {
-		lcd_queue_delayed_work(&bdrv->delayed_on_work,
-				       bconf->power_on_delay);
-	} else {
-		BLERR("[%d]: wrong backlight control method\n", bdrv->index);
-	}
-}
-
 static void bl_init_status_update(struct aml_bl_drv_s *bdrv)
 {
 	struct aml_lcd_drv_s *pdrv;
@@ -4282,21 +4266,21 @@ static void bl_init_status_update(struct aml_bl_drv_s *bdrv)
 
 	/* default power state on */
 	bdrv->state = BL_STATE_BL_POWER_ON;
+	switch (bdrv->bconf.method) {
+	case BL_CTRL_PWM:
+	case BL_CTRL_PWM_COMBO:
+		lcd_resource_ready(bdrv->index, LCD_RES_BACKLIGHT, bdrv->bconf.index);
+		break;
+	default:
+		break;
+	}
+
 	/* default disable lcd & backlight */
 	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
 		return;
 
-	if (pdrv->boot_ctrl) {
-		if (pdrv->boot_ctrl->init_level == LCD_INIT_LEVEL_KERNEL_ON) {
-			BLPR("[%d]: power on for init_level %d\n",
-			     bdrv->index, pdrv->boot_ctrl->init_level);
-			aml_bl_power_init(bdrv);
-			return;
-		}
-	}
-
 	/* update bl status */
-	bdrv->state = (BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON | BL_STATE_BL_ON);
+	bdrv->state |= (BL_STATE_LCD_ON | BL_STATE_BL_ON);
 	bdrv->on_request = 1;
 
 	mutex_lock(&bl_level_mutex);

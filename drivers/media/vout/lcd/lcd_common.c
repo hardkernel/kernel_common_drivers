@@ -1413,6 +1413,7 @@ static int lcd_power_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_nod
 				break;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 			case LCD_POWER_TYPE_EXTERN:
+				lcd_resource_add(pdrv, LCD_RES_EXTERN, index);
 				lcd_extern_dev_index_add(pdrv->index, index);
 				break;
 #endif
@@ -1505,6 +1506,7 @@ static int lcd_power_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_nod
 				break;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 			case LCD_POWER_TYPE_EXTERN:
+				lcd_resource_add(pdrv, LCD_RES_EXTERN, index);
 				lcd_extern_dev_index_add(pdrv->index, index);
 				break;
 #endif
@@ -1576,6 +1578,7 @@ static int lcd_power_load_from_unifykey(struct aml_lcd_drv_s *pdrv,
 			break;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 		case LCD_POWER_TYPE_EXTERN:
+			lcd_resource_add(pdrv, LCD_RES_EXTERN, index);
 			lcd_extern_dev_index_add(pdrv->index, index);
 			break;
 #endif
@@ -1639,6 +1642,7 @@ static int lcd_power_load_from_unifykey(struct aml_lcd_drv_s *pdrv,
 			break;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 		case LCD_POWER_TYPE_EXTERN:
+			lcd_resource_add(pdrv, LCD_RES_EXTERN, index);
 			lcd_extern_dev_index_add(pdrv->index, index);
 			break;
 #endif
@@ -2297,6 +2301,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 			LCDPR("[%d]: failed to get extern_init\n", pdrv->index);
 		} else {
 			pctrl->mipi_cfg.extern_init = para[0];
+			lcd_resource_add(pdrv, LCD_RES_EXTERN, para[0]);
 			lcd_extern_dev_index_add(pdrv->index, para[0]);
 		}
 #endif
@@ -2391,6 +2396,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 	} else {
 		pconf->backlight_index = para[0];
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
+		lcd_resource_add(pdrv, LCD_RES_BACKLIGHT, pconf->backlight_index);
 		aml_bl_index_add(pdrv->index, pconf->backlight_index);
 #endif
 	}
@@ -2778,6 +2784,7 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 	lcd_optical_load_from_unifykey(pdrv);
 
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
+	lcd_resource_add(pdrv, LCD_RES_BACKLIGHT, 0);
 	aml_bl_index_add(pdrv->index, 0);
 #endif
 
