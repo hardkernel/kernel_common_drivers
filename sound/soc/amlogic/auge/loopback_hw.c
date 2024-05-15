@@ -270,9 +270,13 @@ void loopback_data_orig_channel_sync(int loopback_id, int channel, int enable)
 
 	offset = EE_AUDIO_LB_B_CHSYNC_CTRL_ORIG - EE_AUDIO_LB_A_CHSYNC_CTRL_ORIG;
 	reg = EE_AUDIO_LB_A_CHSYNC_CTRL_ORIG + offset * loopback_id;
-	audiobus_update_bits(reg, 0xff, channel - 1);
-	audiobus_update_bits(reg, 1 << 29, 1 << 29);
-	audiobus_update_bits(reg, 1 << 31, enable << 31);
+	if (channel == 0) {
+		enable = 0;
+		channel = 1;
+	}
+
+	audiobus_update_bits(reg, 0xff | (1 << 29) | (1 << 31),
+		(channel - 1) | (1 << 29) | (enable << 31));
 }
 
 void loopback_data_insert_channel_sync(int loopback_id, int channel, int enable)
@@ -281,8 +285,11 @@ void loopback_data_insert_channel_sync(int loopback_id, int channel, int enable)
 
 	offset = EE_AUDIO_LB_B_CHSYNC_CTRL_INSERT - EE_AUDIO_LB_A_CHSYNC_CTRL_INSERT;
 	reg = EE_AUDIO_LB_A_CHSYNC_CTRL_INSERT + offset * loopback_id;
+	if (channel == 0) {
+		enable = 0;
+		channel = 1;
+	}
 
-	audiobus_update_bits(reg, 0xff, channel - 1);
-	audiobus_update_bits(reg, 1 << 29, 1 << 29);
-	audiobus_update_bits(reg, 1 << 31, enable << 31);
+	audiobus_update_bits(reg, 0xff | (1 << 29) | (1 << 31),
+		(channel - 1) | (1 << 29) | (enable << 31));
 }
