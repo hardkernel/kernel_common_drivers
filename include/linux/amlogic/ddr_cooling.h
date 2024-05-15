@@ -9,6 +9,12 @@
 #include <linux/thermal.h>
 #include <linux/amlogic/meson_cooldev.h>
 
+enum ddr_die_type {
+	DDR_TYPE1,  /*20nm*/
+	DDR_TYPE2,  /*18nm*/
+	DDR_TYPE_MAX
+};
+
 struct ddr_cooling_device {
 	int id;
 	struct thermal_cooling_device *cool_dev;

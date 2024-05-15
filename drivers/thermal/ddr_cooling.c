@@ -35,8 +35,16 @@ static int ddr_get_max_state(struct thermal_cooling_device *cdev,
 			     unsigned long *state)
 {
 	struct ddr_cooling_device *ddr_device = cdev->devdata;
+	int datacnt = ddr_device->ddr_status, regcnt = ddr_device->ddr_reg_cnt, i, j;
 
-	*state = ddr_device->ddr_status - 1;
+	*state = datacnt - 1;
+	pr_info("ddr reg data:\n");
+	for (i = 0; i < regcnt; i++) {
+		for (j = 0; j < datacnt; j++)
+			pr_cont("0x%x ", ddr_device->ddr_data[i][j]);
+		pr_cont("\n");
+	}
+
 	return 0;
 }
 
@@ -176,6 +184,7 @@ ddr_cooling_register(struct device_node *np, struct cool_dev *cool)
 	struct ddr_cooling_device *ddr_dev = NULL;
 	struct thermal_instance *pos = NULL;
 	char dev_name[THERMAL_NAME_LENGTH];
+	u32 state_set;
 	int i;
 
 	ddr_dev = kmalloc(sizeof(*ddr_dev), GFP_KERNEL);
@@ -216,7 +225,9 @@ ddr_cooling_register(struct device_node *np, struct cool_dev *cool)
 
 	list_for_each_entry(pos, &cool_dev->thermal_instances, cdev_node) {
 		if (!strncmp(pos->cdev->type, dev_name, sizeof(dev_name))) {
-			pr_err("Notice!!! The notify interface has been removed.\n");
+			cool_dev->ops->get_requested_power(cool_dev, &state_set);
+			cool_dev->ops->set_cur_state(cool_dev, (unsigned long)state_set);
+			ddr_dev->last_state = state_set;
 			break;
 		}
 	}
