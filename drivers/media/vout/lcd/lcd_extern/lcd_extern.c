@@ -2341,7 +2341,9 @@ static int aml_lcd_extern_probe(struct platform_device *pdev)
 
 	/* set drvdata */
 	platform_set_drvdata(pdev, edrv);
-	ext_cdev_add(edrv, &pdev->dev);
+	ret = ext_cdev_add(edrv, &pdev->dev);
+	if (ret)
+		goto lcd_extern_probe_err;
 	edrv->pdev = pdev;
 	edrv->dev_cnt = 0;
 
