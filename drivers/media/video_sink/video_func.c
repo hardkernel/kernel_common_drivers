@@ -4816,6 +4816,8 @@ static void dump_current_display_regs_info(void)
 	struct vframe_s *dispbuf = NULL;
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	struct afbcd_info di_vfm;
+
+	memset(&di_vfm, 0, sizeof(struct afbcd_info));
 #endif
 
 	memset(&cs0, 0, sizeof(struct canvas_s));

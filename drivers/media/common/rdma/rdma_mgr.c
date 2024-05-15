@@ -1325,20 +1325,20 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 		get_rdma_handle(VSYNC_RDMA) == handle) {
 #endif
 		dump_stack();
-		pr_info("rdma_write(%d) %d(%x)<=%x\n",
-			handle, ins->rdma_item_count, adr, val);
+		pr_info("rdma_write(%d)(%s) %d(%x)<=%x\n",
+			handle, current->comm, ins->rdma_item_count, adr, val);
 	}
 
 	if (adr == 0) {
-		pr_info("rdma_write(%d) write zero addr = %x, count:%d\n",
-			handle, val, ins->rdma_item_count);
+		pr_info("rdma_write(%d)(%s) write zero addr = %x, count:%d\n",
+			handle, current->comm, val, ins->rdma_item_count);
 		dump_stack();
 	}
 	if (debug_flag & 1 ||
 		(rdma_trace_enable &&
 		rdma_trace_channel == handle))
-		pr_info("rdma_write(%d) %d(%x)<=%x\n",
-			handle, ins->rdma_item_count, adr, val);
+		pr_info("rdma_write(%d)(%s) %d(%x)<=%x\n",
+			handle, current->comm, ins->rdma_item_count, adr, val);
 	if (rdma_check_conflict(handle, adr, NULL))
 		rdma_update_conflict(adr, val);
 
@@ -1350,10 +1350,10 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 	} else {
 		int i;
 
-			pr_info("%s(%d, %x, %x ,%d) buf overflow, ins->rdma_item_count=%d\n",
-				__func__, rdma_watchdog_count[handle],
-				handle, adr, val,
-				ins->rdma_item_count);
+		pr_info("%s(%s)(%d, %x, %x ,%d) buf overflow, ins->rdma_item_count=%d\n",
+			__func__, current->comm, rdma_watchdog_count[handle],
+			handle, adr, val,
+			ins->rdma_item_count);
 		for (i = 0; i < ins->rdma_item_count; i++)
 			WRITE_VCBUS_REG(ins->reg_buf[i << 1],
 					ins->reg_buf[(i << 1) + 1]);
@@ -1366,9 +1366,9 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 	if (rdma_trace_enable) {
 		for (j = 0; j < rdma_trace_num; j++) {
 			if (adr == rdma_trace_reg[j]) {
-				pr_info("(%s) handle %d, %04x=0x%08x (%d), cur_val:0x%x\n",
+				pr_info("(%s) handle %d(%s), %04x=0x%08x (%d), cur_val:0x%x\n",
 					__func__,
-					handle, adr,
+					handle, current->comm, adr,
 					val,
 					ins->rdma_item_count,
 					READ_VCBUS_REG(adr));
@@ -1432,9 +1432,9 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 	for (j = 0; j < rdma_trace_num; j++) {
 		if (adr == rdma_trace_reg[j]) {
 			if (read_from == 3)
-				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from conflict table(%d %d %d), cur_val:0x%x\n",
+				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from conflict table(%d %d %d), cur_val:0x%x\n",
 					__func__,
-					handle, adr,
+					handle, current->comm, adr,
 					read_val,
 					write_val,
 					ins->rdma_write_count,
@@ -1442,9 +1442,9 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 					match ? i : ins->rdma_write_count,
 					READ_VCBUS_REG(adr));
 			else if (read_from == 2)
-				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from write table(%d %d %d), cur_val:0x%x\n",
+				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from write table(%d %d %d), cur_val:0x%x\n",
 					__func__,
-					handle, adr,
+					handle, current->comm, adr,
 					read_val,
 					write_val,
 					ins->rdma_write_count,
@@ -1452,9 +1452,9 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 					match ? i : ins->rdma_write_count,
 					READ_VCBUS_REG(adr));
 			else if (read_from == 1)
-				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from item table(%d %d %d), cur_val:0x%x\n",
+				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from item table(%d %d %d), cur_val:0x%x\n",
 					__func__,
-					handle, adr,
+					handle, current->comm, adr,
 					read_val,
 					write_val,
 					ins->rdma_item_count,
@@ -1462,23 +1462,24 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 					match ? i : ins->rdma_item_count,
 					READ_VCBUS_REG(adr));
 			else
-				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from real reg, cur_val:0x%x\n",
+				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from real reg, cur_val:0x%x\n",
 					__func__,
-					handle, adr,
+					handle, current->comm, adr,
 					read_val,
 					write_val,
 					READ_VCBUS_REG(adr));
 		}
 	}
 	if (match) {
+		if (debug_flag & 1 ||
+			(rdma_trace_enable &&
+			rdma_trace_channel == handle))
+			pr_info("rdma_write_bits(%d)(%s) %d(%x)<=%x\n",
+				handle, current->comm, ins->rdma_item_count,
+				adr, val);
 		ins->reg_buf[(i << 1) + 1] = write_val;
 		return 0;
 	}
-	if (debug_flag & 1 ||
-		(rdma_trace_enable &&
-		rdma_trace_channel == handle))
-		pr_info("rdma_write(%d) %d(%x)<=%x\n",
-			handle, ins->rdma_item_count, adr, val);
 
 	rdma_write_reg(handle, adr, write_val);
 	return 0;
