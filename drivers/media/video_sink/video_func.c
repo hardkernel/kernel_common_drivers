@@ -4965,7 +4965,7 @@ pre_exit_1:
 
 static void dump_current_display_regs_info(void)
 {
-	int i, layer, afbc, dw;
+	int i, layer = 0, afbc, dw;
 	struct vpp_frame_par_s *cur_frame_par;
 	struct hw_vd_linear_reg_s *mif_linear_reg;
 	struct hw_vd_reg_s *mif_reg = NULL;
@@ -4978,6 +4978,8 @@ static void dump_current_display_regs_info(void)
 	struct vframe_s *dispbuf = NULL;
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	struct afbcd_info di_vfm;
+
+	memset(&di_vfm, 0, sizeof(struct afbcd_info));
 #endif
 
 	memset(&cs0, 0, sizeof(struct canvas_s));
