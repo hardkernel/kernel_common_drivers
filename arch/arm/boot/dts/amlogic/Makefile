@@ -75,3 +75,7 @@ dtb-y += s7_pxp.dtb
 dtb-y += s7_s905y5_bh201.dtb
 dtb-y += s7_s805x3_bp202_1g.dtb
 dtb-y += s7_s805x3_bp201_1g.dtb
+dtb-y += s7d_s905x5m_bm201.dtb
+dtb-y += s7d_s905x5m_bm201_linux.dtb
+dtb-y += s7d_s905x5m_bm202.dtb
+dtb-y += s7d_s905x5m_bm209.dtb
