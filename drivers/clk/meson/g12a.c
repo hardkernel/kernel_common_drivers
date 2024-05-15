@@ -1224,7 +1224,6 @@ static const struct pll_params_table g12a_gp0_pll_table[] = {
  * Internal gp0 pll emulation configuration parameters
  */
 static const struct reg_sequence g12a_gp0_init_regs[] = {
-	{ .reg = HHI_GP0_PLL_CNTL1,	.def = 0x00000000 },
 	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0x00000000 },
 	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x48681c00 },
 	{ .reg = HHI_GP0_PLL_CNTL4,	.def = 0x33771290 },
@@ -1275,7 +1274,6 @@ static struct clk_regmap g12a_gp0_pll_dco = {
 		.table = g12a_gp0_pll_table,
 		.init_regs = g12a_gp0_init_regs,
 		.init_count = ARRAY_SIZE(g12a_gp0_init_regs),
-		.flags = CLK_MESON_PLL_IGNORE_INIT,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll_dco",
