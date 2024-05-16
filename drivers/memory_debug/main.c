@@ -60,6 +60,9 @@ EXPORT_SYMBOL(aml_free_reserved_area);
 #include <linux/of_address.h>
 #include <linux/of.h>
 #include <linux/amlogic/aml_iotrace.h>
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
+#include <linux/amlogic/aml_iotm.h>
+#endif
 void free_iotrace_reserved_memory(void)
 {
 	int ret;
@@ -80,6 +83,13 @@ void free_iotrace_reserved_memory(void)
 
 	// free reserved-memory if no need
 	if (!ramoops_ftrace_en) {
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
+		unsigned int iotm_ddr_size = 0;
+
+		/* exclude iotm_ddr_size in axi_mode. */
+		if (get_iotm_en_ddr_size(&iotm_ddr_size) && get_iotm_monitor_mode() == 0)
+			res.end = res.end - PAGE_ALIGN(iotm_ddr_size);
+#endif
 		aml_free_reserved_area(__va(res.start), __va(PAGE_ALIGN(res.end)), 0,
 								"free_reserved");
 		pr_debug("free iotrace reserved_memory\n");

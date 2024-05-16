@@ -140,6 +140,13 @@ config AMLOGIC_DEBUG_IOTRACE
 	help
 	  support io/sched/irq/smc/misc trace
 
+config AMLOGIC_DEBUG_IOTM
+	bool "amlogic iotm config"
+	depends on AMLOGIC_DEBUG_IOTRACE
+	default n
+	help
+	  support for hw iotrace function
+
 config AMLOGIC_ARMV8_AARCH32
 	bool "AARCH32 kernel support for Amlogic ARMv8 Soc"
 	depends on AMLOGIC_BREAK_GKI_20

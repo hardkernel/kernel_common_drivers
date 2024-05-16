@@ -28,6 +28,7 @@ endif
 MODULE_NAME_IOTRACE = amlogic-debug-iotrace
 obj-$(CONFIG_AMLOGIC_DEBUG_IOTRACE) += $(MODULE_NAME_IOTRACE).o
 $(MODULE_NAME_IOTRACE)-y = aml_iotrace.o ftrace_ramoops.o
+$(MODULE_NAME_IOTRACE)-$(CONFIG_AMLOGIC_DEBUG_IOTM) += aml_iotm.o
 
 # builtin
 obj-$(CONFIG_AMLOGIC_BGKI_DEBUG_MISC) += debug_misc.o

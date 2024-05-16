@@ -42,6 +42,11 @@
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 #include <linux/amlogic/aml_iotrace.h>
 #endif
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
+#include <linux/amlogic/aml_iotm.h>
+#endif
+
 #include <sched.h>
 
 #include "lockup.h"
@@ -190,6 +195,10 @@ static void __maybe_unused isr_in_hook(void *data, int irq, struct irqaction *ac
 		aml_pstore_write(AML_PSTORE_TYPE_IRQ, &rec, irqs_disabled(), 0);
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
+	iotm_sw_record_write(IOTM_SW_IRQ_IN, irq, 0);
+#endif
+
 	cpu = smp_processor_id();
 
 	info = per_cpu_ptr(infos, cpu);
@@ -235,6 +244,10 @@ static void __maybe_unused isr_out_hook(void *data, int irq, struct irqaction *a
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 	if ((ramoops_ftrace_en) && (ramoops_trace_mask & TRACE_MASK_IRQ))
 		aml_pstore_write(AML_PSTORE_TYPE_IRQ, &rec, irqs_disabled(), 0);
+#endif
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
+	iotm_sw_record_write(IOTM_SW_IRQ_OUT, irq, 0);
 #endif
 
 	now = sched_clock();
@@ -358,6 +371,13 @@ static void smc_in_hook(unsigned long smcid, unsigned long val, bool noret)
 		aml_pstore_write(AML_PSTORE_TYPE_SMC, &rec, irqs_disabled(), 0);
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
+	if (noret)
+		iotm_sw_record_write(IOTM_SW_SMC_NORET_IN, smcid, val);
+	else
+		iotm_sw_record_write(IOTM_SW_SMC_IN, smcid, val);
+#endif
+
 	if (noret)
 		return;
 
@@ -387,6 +407,10 @@ static void smc_out_hook(unsigned long smcid, unsigned long val)
 
 	if ((ramoops_ftrace_en) && (ramoops_trace_mask & TRACE_MASK_SMC))
 		aml_pstore_write(AML_PSTORE_TYPE_SMC, &rec, irqs_disabled(), 0);
+#endif
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
+	iotm_sw_record_write(IOTM_SW_SMC_OUT, smcid, val);
 #endif
 
 	if (!initialized || !smc_check_en)
@@ -1040,6 +1064,30 @@ static struct notifier_block debug_panic_notifier = {
 	.notifier_call = debug_panic_notifier_func,
 };
 
+static void __maybe_unused schedule_hook(void *data, struct task_struct *prev,
+					struct task_struct *next, struct rq *rq)
+{
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+	struct iotrace_record rec = {
+		.type = RECORD_TYPE_SCHED_SWITCH,
+		.curr_pid = prev->pid,
+		.next_pid = next->pid,
+	};
+
+	if (ramoops_ftrace_en && (ramoops_trace_mask & TRACE_MASK_SCHED)) {
+		strscpy(rec.curr_comm, prev->comm, sizeof(rec.curr_comm));
+		strscpy(rec.next_comm, next->comm, sizeof(rec.next_comm));
+
+		aml_pstore_write(AML_PSTORE_TYPE_SCHED, &rec, irqs_disabled(), 0);
+	}
+
+#endif
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
+	iotm_sw_record_write(IOTM_SW_SCHED, prev->pid, next->pid);
+#endif
+}
+
 int debug_lockup_init(void)
 {
 	int cpu;
@@ -1069,6 +1117,7 @@ int debug_lockup_init(void)
 
 	register_trace_android_vh_ftrace_format_check(ftrace_format_check_hook, NULL);
 
+	register_trace_android_rvh_schedule(schedule_hook, NULL);
 #endif
 	initialized = 1;
 

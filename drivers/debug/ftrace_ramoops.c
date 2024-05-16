@@ -408,24 +408,6 @@ void __nocfi pstore_io_save(unsigned long reg, unsigned long val, unsigned int f
 EXPORT_SYMBOL(pstore_io_save);
 
 #ifdef CONFIG_ANDROID_VENDOR_HOOKS
-static void schedule_hook(void *data, struct task_struct *prev, struct task_struct *next,
-							struct rq *rq)
-{
-	struct iotrace_record rec = {
-		.type = RECORD_TYPE_SCHED_SWITCH,
-		.curr_pid = prev->pid,
-		.next_pid = next->pid,
-	};
-
-	if (!ramoops_ftrace_en || !(ramoops_trace_mask & TRACE_MASK_SCHED))
-		return;
-
-	strscpy(rec.curr_comm, prev->comm, sizeof(rec.curr_comm));
-	strscpy(rec.next_comm, next->comm, sizeof(rec.next_comm));
-
-	aml_pstore_write(AML_PSTORE_TYPE_SCHED, &rec, irqs_disabled(), 0);
-}
-
 static DEFINE_PER_CPU(unsigned long, irqflag);
 
 static void __nocfi rwmmio_write_hook(void *data, unsigned long caller_addr,
@@ -483,8 +465,6 @@ int ftrace_ramoops_init(void)
 	aml_ramoops_filter_dt();
 
 #ifdef CONFIG_ANDROID_VENDOR_HOOKS
-	register_trace_android_rvh_schedule(schedule_hook, NULL);
-
 	register_trace_rwmmio_write(rwmmio_write_hook, NULL);
 	register_trace_rwmmio_post_write(rwmmio_post_write_hook, NULL);
 

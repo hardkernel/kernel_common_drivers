@@ -67,11 +67,13 @@
 		debug_reserved:linux,iotrace {
 			compatible = "amlogic, iotrace";
 			reg = <0x04f00000 0x00100000>;
-			io-size = <0x1b000>;
+			io-size = <0x19800>;
 			sched-size = <0x2000>;
 			irq-size = <0x1000>;
 			smc-size = <0x1000>;
 			misc-size = <0x1000>;
+			iotm-size = <0xbb80>;
+			status = "okay";
 		};
 
 		secmon_reserved:linux,secmon {

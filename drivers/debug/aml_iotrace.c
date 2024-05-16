@@ -26,6 +26,10 @@
 #include <linux/rbtree.h>
 #include <linux/sched/clock.h>
 #include <linux/delay.h>
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
+#include <linux/amlogic/aml_iotm.h>
+#endif
+
 #define AML_PERSISTENT_RAM_SIG (0x4c4d41) /* AML */
 
 int ramoops_ftrace_en;
@@ -1179,6 +1183,10 @@ int __init aml_iotrace_init(void)
 {
 	int ret = 0;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTM)
+	iotm_init();
+#endif
+
 	if (!ramoops_io_en)
 		return 0;
 
@@ -1207,8 +1215,9 @@ int __init aml_iotrace_init(void)
 	 * V4: iotrace read/write use vendor hooks
 	 *	   depends on 13-5.15-16 or 14-5.15-9
 	 * V5: modify iotrace data, delay free module init_layout memory
+	 * V6: add iotm support
 	 */
-	pr_info("iotrace V5\n");
+	pr_info("iotrace V6\n");
 
 	return 0;
 }
