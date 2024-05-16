@@ -266,26 +266,22 @@
 	};
 
 	ddr_bandwidth {
-		compatible = "amlogic,ddr-bandwidth-t5m";
-		status = "disabled";
+		compatible = "amlogic,ddr-bandwidth-t6d";
+		status = "okay";
 		reg = <0xfe036000 0x400
-		       0xfe034000 0x400
 		       0xfe0368a4 0x4>;
 		freq_reg = <0xfe0348a4>;
-		interrupts = <0 136 IRQ_TYPE_EDGE_RISING
-			      0 140 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <0 136 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ddr_bandwidth";
 	};
 
 	dmc_monitor {
-		compatible = "amlogic,dmc_monitor-t5m";
-		status = "disabled";
+		compatible = "amlogic,dmc_monitor-t6d";
+		status = "okay";
 		memory-region = <&dmc_reserved>;
-		reg = <0xfe036000 0x400
-		       0xfe034000 0x400>;
+		reg = <0xfe036000 0x400>;
 		reg_base = <0xfe036000>;
-		interrupts = <0 137 IRQ_TYPE_LEVEL_HIGH
-			      0 141 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <0 137 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	pwrdm: power-domains {

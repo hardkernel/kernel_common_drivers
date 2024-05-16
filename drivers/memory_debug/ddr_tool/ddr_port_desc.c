@@ -1165,6 +1165,34 @@ static struct ddr_port_desc ddr_port_desc_s7d[] __initdata = {
 	{ .port_id = 42, .port_name = "SPICCX2"       },
 	{ .port_id = 43, .port_name = "AUCPU"         },
 };
+
+static struct ddr_port_desc ddr_port_desc_t6d[] __initdata = {
+	{ .port_id =  0, .port_name = "ARM"           },
+	{ .port_id =  1, .port_name = "MALI"          },
+	{ .port_id =  2, .port_name = "VPU0"          },
+	{ .port_id =  3, .port_name = "VPU1"          },
+	{ .port_id =  4, .port_name = "HEVC"          },
+	{ .port_id =  6, .port_name = "GE2D"          },
+	{ .port_id =  7, .port_name = "DEVICE"        },
+	{ .port_id =  8, .port_name = "AMFC"          },
+	/* start of each device */
+	{ .port_id = 32, .port_name = "EMMC"          },
+	{ .port_id = 34, .port_name = "DMA"           },
+	{ .port_id = 35, .port_name = "AUDIO"         },
+	{ .port_id = 36, .port_name = "DEMUX"         },
+	{ .port_id = 37, .port_name = "IOTM"          },
+	{ .port_id = 38, .port_name = "TVFE"          },
+	{ .port_id = 39, .port_name = "ETH"           },
+	{ .port_id = 40, .port_name = "HDMI"          },
+	{ .port_id = 41, .port_name = "AOCPU"         },
+	{ .port_id = 42, .port_name = "USB2_0"        },
+	{ .port_id = 43, .port_name = "USB2_1"        },
+	{ .port_id = 44, .port_name = "USB2_2"        },
+	{ .port_id = 45, .port_name = "I2CMON"        },
+	{ .port_id = 46, .port_name = "DEMOD"         },
+	{ .port_id = 48, .port_name = "SPICC"         },
+	{ .port_id = 50, .port_name = "DAP"           },
+};
 #endif
 static struct ddr_port_desc ddr_port_desc_s1a[] __initdata = {
 	{ .port_id =  0, .port_name = "ARM_A35"       },
@@ -1364,6 +1392,10 @@ int __init ddr_find_port_desc_type(int cpu_type, struct ddr_port_desc **desc, in
 	case DMC_TYPE_S7D:
 		*desc = ddr_port_desc_s7d;
 		desc_size = ARRAY_SIZE(ddr_port_desc_s7d);
+		break;
+	case DMC_TYPE_T6D:
+		*desc = ddr_port_desc_t6d;
+		desc_size = ARRAY_SIZE(ddr_port_desc_t6d);
 		break;
 #endif
 	case DMC_TYPE_S1A:

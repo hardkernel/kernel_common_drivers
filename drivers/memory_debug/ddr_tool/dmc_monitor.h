@@ -180,6 +180,9 @@ extern struct dmc_mon_ops s1a_dmc_mon_ops;
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_S7
 extern struct dmc_mon_ops s7_dmc_mon_ops;
 #endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_T6D
+extern struct dmc_mon_ops t6d_dmc_mon_ops;
+#endif
 
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR
 int __init dmc_monitor_init(void);

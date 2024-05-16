@@ -507,6 +507,7 @@ char *to_sub_ports_name(int mid, int sid, char rw)
 	if (!port_name)
 		return NULL;
 
+	sid &= 0x1f;
 	if (strstr(port_name, "VPU")) {
 		name = vpu_to_sub_port(port_name, rw, sid, NULL);
 	} else if (strstr(port_name, "DEVICE")) {
@@ -1556,6 +1557,11 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 		mon->ops = &s7_dmc_mon_ops;
 		break;
 #endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_T6D
+	case DMC_TYPE_T6D:
+		mon->ops = &t6d_dmc_mon_ops;
+		break;
+#endif
 	default:
 		pr_err("%s, Can't find ops for chip:%x\n", __func__, chip);
 		break;
@@ -1842,6 +1848,10 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-s7d",
 		.data = (void *)DMC_TYPE_S7D,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-t6d",
+		.data = (void *)DMC_TYPE_T6D,
 	},
 #endif
 	{
