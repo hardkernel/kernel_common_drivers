@@ -243,7 +243,7 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 			else if (vinfo->width <= 1920 &&
 				vinfo->height <= 1080 &&
 				vinfo->field_height <= 1080)
-				g_vpotch = 0x50;
+				g_vpotch = 0x48;
 			else
 				g_vpotch = 0x20;
 
