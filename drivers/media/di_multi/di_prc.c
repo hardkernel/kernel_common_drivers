@@ -3991,7 +3991,8 @@ bool nins_dct_2_done(struct di_ch_s *pch, struct dim_nins_s *nins)
 
 	ret = qbuf_in(pbufq, QBF_NINS_Q_CHECK, nins->header.index);
 	ATRACE_COUNTER("dim_dct", 0);
-
+	if (ret)
+		task_send_ready(32);
 	return ret;
 }
 
