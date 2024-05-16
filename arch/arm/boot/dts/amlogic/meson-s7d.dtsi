@@ -946,6 +946,7 @@
 			fifosize = < 64 >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&a_uart_pins>;
+			uart_for_bt = <1>;
 		};
 
 		uart_C: serial@fe07c000 {
