@@ -1809,6 +1809,296 @@ void ve_sharpness_ctl(enum wr_md_e mode, int sr0_en,
 	}
 }
 
+void ve_sharpness_enable(int sel)
+{
+	int sr0_reg = VPP_SRSHARP0_PK_NR_EN;
+	int sr1_reg = VPP_SRSHARP1_PK_NR_EN;
+
+	/*0:peaking enable   1:peaking disable*/
+	/*2:lti/cti enable   3:lti/cti disable*/
+	switch (sel) {
+	case 0:
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			1, 1, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			1, 1, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			1, 1, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			1, 1, 1);
+		break;
+	case 1:
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			0, 1, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			0, 1, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			0, 1, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			0, 1, 1);
+		break;
+	case 2:
+		sr0_reg = VPP_SRSHARP0_HCTI_FLT_CLP_DC;
+		sr1_reg = VPP_SRSHARP1_HCTI_FLT_CLP_DC;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			1, 28, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			1, 28, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			1, 28, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			1, 28, 1);
+		sr0_reg = VPP_SRSHARP0_HLTI_FLT_CLP_DC;
+		sr1_reg = VPP_SRSHARP1_HLTI_FLT_CLP_DC;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			1, 28, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			1, 28, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			1, 28, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			1, 28, 1);
+		sr0_reg = VPP_SRSHARP0_VLTI_FLT_CON_CLP;
+		sr1_reg = VPP_SRSHARP1_VLTI_FLT_CON_CLP;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			1, 14, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			1, 14, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			1, 14, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			1, 14, 1);
+		sr0_reg = VPP_SRSHARP0_VCTI_FLT_CON_CLP;
+		sr1_reg = VPP_SRSHARP1_VCTI_FLT_CON_CLP;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			1, 14, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			1, 14, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			1, 14, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			1, 14, 1);
+		break;
+	case 3:
+		sr0_reg = VPP_SRSHARP0_HCTI_FLT_CLP_DC;
+		sr1_reg = VPP_SRSHARP1_HCTI_FLT_CLP_DC;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			0, 28, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			0, 28, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			0, 28, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			0, 28, 1);
+		sr0_reg = VPP_SRSHARP0_HLTI_FLT_CLP_DC;
+		sr1_reg = VPP_SRSHARP1_HLTI_FLT_CLP_DC;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			0, 28, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			0, 28, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			0, 28, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			0, 28, 1);
+		sr0_reg = VPP_SRSHARP0_VLTI_FLT_CON_CLP;
+		sr1_reg = VPP_SRSHARP1_VLTI_FLT_CON_CLP;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			0, 14, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			0, 14, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			0, 14, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			0, 14, 1);
+		sr0_reg = VPP_SRSHARP0_VCTI_FLT_CON_CLP;
+		sr1_reg = VPP_SRSHARP1_VCTI_FLT_CON_CLP;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			0, 14, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			0, 14, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			0, 14, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			0, 14, 1);
+		break;
+	/*sr4 drtlpf theta en*/
+	case 4:
+		sr0_reg = VPP_SRSHARP0_SR3_DRTLPF_EN;
+		sr1_reg = VPP_SRSHARP1_SR3_DRTLPF_EN;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			7, 4, 3);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			7, 3, 3);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			7, 4, 3);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			7, 3, 3);
+		break;
+	case 5:
+		sr0_reg = VPP_SRSHARP0_SR3_DRTLPF_EN;
+		sr1_reg = VPP_SRSHARP1_SR3_DRTLPF_EN;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			0, 4, 3);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			0, 3, 3);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			0, 4, 3);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			0, 3, 3);
+		break;
+	/*sr4 debanding en*/
+	case 6:
+		sr0_reg = VPP_SRSHARP0_DB_FLT_CTRL;
+		sr1_reg = VPP_SRSHARP1_DB_FLT_CTRL;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			1, 4, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			1, 5, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			1, 22, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			1, 23, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			1, 4, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			1, 5, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			1, 22, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			1, 23, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			1, 4, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			1, 5, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			1, 22, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			1, 23, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			1, 4, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			1, 5, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			1, 22, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			1, 23, 1);
+		break;
+	case 7:
+		sr0_reg = VPP_SRSHARP0_DB_FLT_CTRL;
+		sr1_reg = VPP_SRSHARP1_DB_FLT_CTRL;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			0, 4, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			0, 5, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			0, 22, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			0, 23, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			0, 4, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			0, 5, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			0, 22, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			0, 23, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			0, 4, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			0, 5, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			0, 22, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			0, 23, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			0, 4, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			0, 5, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			0, 22, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			0, 23, 1);
+		break;
+	/*sr3 dejaggy en*/
+	case 8:
+		sr0_reg = VPP_SRSHARP0_DEJ_CTRL;
+		sr1_reg = VPP_SRSHARP1_DEJ_CTRL;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			1, 0, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			1, 0, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			1, 0, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			1, 0, 1);
+		break;
+	case 9:
+		sr0_reg = VPP_SRSHARP0_DEJ_CTRL;
+		sr1_reg = VPP_SRSHARP1_DEJ_CTRL;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			0, 0, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			0, 0, 1);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			0, 0, 1);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			0, 0, 1);
+		break;
+	/*sr3 dering en*/
+	case 10:
+		sr0_reg = VPP_SRSHARP0_SR3_DERING_CTRL;
+		sr1_reg = VPP_SRSHARP1_SR3_DERING_CTRL;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			1, 28, 3);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			1, 28, 3);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			1, 28, 3);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			1, 28, 3);
+		break;
+	case 11:
+		sr0_reg = VPP_SRSHARP0_SR3_DERING_CTRL;
+		sr1_reg = VPP_SRSHARP1_SR3_DERING_CTRL;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			0, 28, 3);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			0, 28, 3);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			0, 28, 3);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			0, 28, 3);
+		break;
+	/*sr3 direction lpf en*/
+	case 12:
+		sr0_reg = VPP_SRSHARP0_SR3_DRTLPF_EN;
+		sr1_reg = VPP_SRSHARP1_SR3_DRTLPF_EN;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			7, 0, 3);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			7, 0, 3);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			7, 0, 3);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			7, 0, 3);
+		break;
+	case 13:
+		sr0_reg = VPP_SRSHARP0_SR3_DRTLPF_EN;
+		sr1_reg = VPP_SRSHARP1_SR3_DRTLPF_EN;
+		WRITE_VPP_REG_BITS_S5(sr0_reg,
+			0, 0, 3);
+		WRITE_VPP_REG_BITS_S5(sr1_reg,
+			0, 0, 3);
+		WRITE_VPP_REG_BITS_S5(sr0_reg + sr_sharp_reg_ofst[1],
+			0, 0, 3);
+		WRITE_VPP_REG_BITS_S5(sr1_reg + sr_sharp_reg_ofst[1],
+			0, 0, 3);
+		break;
+	default:
+		break;
+	}
+}
+
 void ve_dnlp_set(ulong *data)
 {
 	int i;

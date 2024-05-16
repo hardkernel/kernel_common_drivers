@@ -3210,18 +3210,24 @@ static void parse_overscan_table(unsigned int length,
 		overscan_table[i].ve =
 				(amvecm_pq_load_table[i].value2 >> 16) & 0xffff;
 	}
+
 	/* overscan reset for dtv auto afd set.
 	 * if auto set load_flag = 0 by user, overscan set by dtv afd
 	 */
 	if (!overscan_table[0].load_flag &&
 		!overscan_table[offset].load_flag)
 		pq_user_latch_flag |= PQ_USER_OVERSCAN_RESET;
+
 	/*because SOURCE_TV is 0,so need to add a flg to check ATV*/
 	if (overscan_table[offset].load_flag == 1 &&
-	    overscan_table[offset].source == SOURCE_TV)
+		overscan_table[offset].source == SOURCE_TV)
 		atv_source_flg = 1;
 	else
 		atv_source_flg = 0;
+
+	pr_amvecm_dbg("%s load_flag[0]/[%d] = %d/%d\n",
+		__func__, offset,
+		overscan_table[0].load_flag, overscan_table[offset].load_flag);
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -3304,7 +3310,7 @@ static long amvecm_ioctl(struct file *file,
 	int aipq_data_length;
 	struct cm_color_md cm_color_mode;
 	struct table_3dlut_s *p3dlut;
-	int lut_order, lut_index;
+	int lut_order, lut_index, sdr_hdr_ctrl;
 	struct vpp_mtx_info_s *mtx_p = &mtx_info;
 	struct pre_gamma_table_s *pre_gma_tb = NULL;
 	struct hdr_tmo_sw pre_tmo_reg;
@@ -4349,9 +4355,28 @@ static long amvecm_ioctl(struct file *file,
 			pr_amvecm_dbg("db_aicolor_param set success\n");
 		}
 		break;
+	case AMVECM_IOC_S_SDR2HDR_CTRL:
+		if (copy_from_user(&sdr_hdr_ctrl,
+			(void __user *)arg, sizeof(int))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("sdr_hdr_ctrl copy from user fail.\n");
+		} else {
+			if (!sdr_hdr_ctrl) {
+				set_hdr_policy(0);
+				set_force_output(UNKNOWN_FMT);
+			} else {
+				set_hdr_policy(2);
+				set_force_output(BT2020_PQ);
+			}
+			force_toggle();
+			pr_amvecm_dbg("AMVECM_IOC_S_SDR2HDR_CTRL sdr_hdr_ctrl = %d\n",
+				sdr_hdr_ctrl);
+		}
+		break;
 #endif
 	default:
 		ret = -EINVAL;
+		pr_amvecm_dbg("ioctl default case.\n");
 		break;
 	}
 
@@ -6786,7 +6811,7 @@ static ssize_t amvecm_wb_store(struct class *cls,
 			if (value > 2047 || value < 0) {
 				pr_info("\t gain g over range\n");
 			} else {
-				if (data_path)
+				if (!data_path)
 					white_balance_adjust(5, value);
 				else
 					white_balance_adjust_sub(5, value);
@@ -8499,6 +8524,11 @@ static void dump_vpp_size_info(void)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 void amvecm_sharpness_enable(int sel)
 {
+	if (chip_type_id == chip_t3x) {
+		ve_sharpness_enable(sel);
+		return;
+	}
+
 	/*0:peaking enable   1:peaking disable*/
 	/*2:lti/cti enable   3:lti/cti disable*/
 	switch (sel) {
@@ -8694,66 +8724,20 @@ static void amvecm_pq_enable(int enable)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 			amcm_enable(WR_VCB, 0);
 
-		WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
-				   1, 1, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_PK_NR_ENABLE,
-				   1, 1, 1);
-
-		WRITE_VPP_REG_BITS(SRSHARP0_HCTI_FLT_CLP_DC,
-				   1, 28, 1);
-		WRITE_VPP_REG_BITS(SRSHARP0_HLTI_FLT_CLP_DC,
-				   1, 28, 1);
-		WRITE_VPP_REG_BITS(SRSHARP0_VLTI_FLT_CON_CLP,
-				   1, 14, 1);
-		WRITE_VPP_REG_BITS(SRSHARP0_VCTI_FLT_CON_CLP,
-				   1, 14, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_HCTI_FLT_CLP_DC,
-				   1, 28, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_HLTI_FLT_CLP_DC,
-				   1, 28, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_VLTI_FLT_CON_CLP,
-				   1, 14, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_VCTI_FLT_CON_CLP,
-				   1, 14, 1);
+		amvecm_sharpness_enable(0);
+		amvecm_sharpness_enable(2);
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-			WRITE_VPP_REG_BITS(SRSHARP0_DEJ_CTRL,
-					   1, 0, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR3_DRTLPF_EN,
-					   7, 0, 3);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR3_DERING_CTRL,
-					   1, 28, 3);
-
-			WRITE_VPP_REG_BITS(SRSHARP1_DEJ_CTRL,
-					   1, 0, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR3_DRTLPF_EN,
-					   7, 0, 3);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR3_DERING_CTRL,
-					   1, 28, 3);
+			amvecm_sharpness_enable(8);
+			amvecm_sharpness_enable(10);
+			amvecm_sharpness_enable(12);
 		}
+
 		/*sr4 drtlpf theta/ debanding en*/
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
-			WRITE_VPP_REG_BITS(SRSHARP0_SR3_DRTLPF_EN,
-					   7, 4, 3);
-
-			WRITE_VPP_REG_BITS(SRSHARP0_DB_FLT_CTRL,
-					   1, 4, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_DB_FLT_CTRL,
-					   1, 5, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_DB_FLT_CTRL,
-					   1, 22, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_DB_FLT_CTRL,
-					   1, 23, 1);
-
-			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL,
-					   1, 4, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL,
-					   1, 5, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL,
-					   1, 22, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL,
-					   1, 23, 1);
+			amvecm_sharpness_enable(4);
+			amvecm_sharpness_enable(6);
 		}
 #endif
 
@@ -8829,66 +8813,19 @@ static void amvecm_pq_enable(int enable)
 
 		amcm_disable(WR_VCB, 0);
 
-		WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
-				   0, 1, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_PK_NR_ENABLE,
-				   0, 1, 1);
-
-		WRITE_VPP_REG_BITS(SRSHARP0_HCTI_FLT_CLP_DC,
-				   0, 28, 1);
-		WRITE_VPP_REG_BITS(SRSHARP0_HLTI_FLT_CLP_DC,
-				   0, 28, 1);
-		WRITE_VPP_REG_BITS(SRSHARP0_VLTI_FLT_CON_CLP,
-				   0, 14, 1);
-		WRITE_VPP_REG_BITS(SRSHARP0_VCTI_FLT_CON_CLP,
-				   0, 14, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_HCTI_FLT_CLP_DC,
-				   0, 28, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_HLTI_FLT_CLP_DC,
-				   0, 28, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_VLTI_FLT_CON_CLP,
-				   0, 14, 1);
-		WRITE_VPP_REG_BITS(SRSHARP1_VCTI_FLT_CON_CLP,
-				   0, 14, 1);
+		amvecm_sharpness_enable(1);
+		amvecm_sharpness_enable(3);
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-			WRITE_VPP_REG_BITS(SRSHARP0_DEJ_CTRL,
-					   0, 0, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR3_DRTLPF_EN
-				, 0, 0, 3);
-			WRITE_VPP_REG_BITS(SRSHARP0_SR3_DERING_CTRL
-				, 0, 28, 3);
-
-			WRITE_VPP_REG_BITS(SRSHARP1_DEJ_CTRL,
-					   0, 0, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR3_DRTLPF_EN
-				, 0, 0, 3);
-			WRITE_VPP_REG_BITS(SRSHARP1_SR3_DERING_CTRL
-				, 0, 28, 3);
+			amvecm_sharpness_enable(9);
+			amvecm_sharpness_enable(11);
+			amvecm_sharpness_enable(13);
 		}
 		/*sr4 drtlpf theta/ debanding en*/
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_txlx_cpu()) {
-			WRITE_VPP_REG_BITS(SRSHARP0_SR3_DRTLPF_EN
-				, 0, 4, 3);
-
-			WRITE_VPP_REG_BITS(SRSHARP0_DB_FLT_CTRL,
-					   0, 4, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_DB_FLT_CTRL,
-					   0, 5, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_DB_FLT_CTRL,
-					   0, 22, 1);
-			WRITE_VPP_REG_BITS(SRSHARP0_DB_FLT_CTRL,
-					   0, 23, 1);
-
-			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL,
-					   0, 4, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL,
-					   0, 5, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL,
-					   0, 22, 1);
-			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL,
-					   0, 23, 1);
+			amvecm_sharpness_enable(5);
+			amvecm_sharpness_enable(7);
 		}
 #endif
 
@@ -10462,20 +10399,22 @@ static const char *amvecm_debug_usage_str = {
 	"echo gamma disable > /sys/class/amvecm/debug\n"
 	"echo gamma load_protect_en > /sys/class/amvecm/debug\n"
 	"echo gamma load_protect_dis > /sys/class/amvecm/debug\n"
-	"echo sr peaking_en > /sys/class/amvecm/debug\n"
-	"echo sr peaking_dis > /sys/class/amvecm/debug\n"
-	"echo sr lcti_en > /sys/class/amvecm/debug\n"
-	"echo sr lcti_dis > /sys/class/amvecm/debug\n"
-	"echo sr dejaggy_en > /sys/class/amvecm/debug\n"
-	"echo sr dejaggy_dis > /sys/class/amvecm/debug\n"
-	"echo sr dering_en > /sys/class/amvecm/debug\n"
-	"echo sr dering_dis > /sys/class/amvecm/debug\n"
-	"echo sr drlpf_en > /sys/class/amvecm/debug\n"
-	"echo sr drlpf_dis > /sys/class/amvecm/debug\n"
-	"echo sr theta_en > /sys/class/amvecm/debug\n"
-	"echo sr theta_dis > /sys/class/amvecm/debug\n"
-	"echo sr deband_en > /sys/class/amvecm/debug\n"
-	"echo sr deband_dis > /sys/class/amvecm/debug\n"
+	"echo sharpness enable > /sys/class/amvecm/debug\n"
+	"echo sharpness disable > /sys/class/amvecm/debug\n"
+	"echo sharpness peaking_en > /sys/class/amvecm/debug\n"
+	"echo sharpness peaking_dis > /sys/class/amvecm/debug\n"
+	"echo sharpness lcti_en > /sys/class/amvecm/debug\n"
+	"echo sharpness lcti_dis > /sys/class/amvecm/debug\n"
+	"echo sharpness dejaggy_en > /sys/class/amvecm/debug\n"
+	"echo sharpness dejaggy_dis > /sys/class/amvecm/debug\n"
+	"echo sharpness dering_en > /sys/class/amvecm/debug\n"
+	"echo sharpness dering_dis > /sys/class/amvecm/debug\n"
+	"echo sharpness drlpf_en > /sys/class/amvecm/debug\n"
+	"echo sharpness drlpf_dis > /sys/class/amvecm/debug\n"
+	"echo sharpness theta_en > /sys/class/amvecm/debug\n"
+	"echo sharpness theta_dis > /sys/class/amvecm/debug\n"
+	"echo sharpness deband_en > /sys/class/amvecm/debug\n"
+	"echo sharpness deband_dis > /sys/class/amvecm/debug\n"
 	"echo cm enable > /sys/class/amvecm/debug\n"
 	"echo cm disable > /sys/class/amvecm/debug\n"
 	"echo cm cm2_clr_dbg val > /sys/class/amvecm/debug\n"
@@ -10728,7 +10667,7 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS_SUB; /* gamma off */
 			pr_info("disable gamma\n");
 		}
-	} else if (!strncmp(parm[0], "sr", 2)) {
+	} else if (!strncmp(parm[0], "sharpness", 9)) {
 		if (!strncmp(parm[1], "peaking_en", 10)) {
 			if (chip_type_id == chip_s7d)
 				amve_sharpness_sub_ctrl(1, 1);
@@ -10807,7 +10746,7 @@ static ssize_t amvecm_debug_store(struct class *cla,
 				amvecm_sharpness_enable(10);
 				amvecm_sharpness_enable(12);
 			}
-			pr_info("SR enable\n");
+			pr_info("sharpness enable\n");
 		} else if (!strncmp(parm[1], "disable", 7)) {
 			if (chip_type_id == chip_s7d) {
 				amve_sharpness_sub_ctrl(0, 0);
@@ -10820,7 +10759,7 @@ static ssize_t amvecm_debug_store(struct class *cla,
 				amvecm_sharpness_enable(11);
 				amvecm_sharpness_enable(13);
 			}
-			pr_info("SR disable\n");
+			pr_info("sharpness disable\n");
 		}
 	} else if (!strcmp(parm[0], "cm")) {
 		if (!strncmp(parm[1], "enable", 6)) {

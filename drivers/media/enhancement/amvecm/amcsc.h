@@ -169,6 +169,7 @@ extern uint cur_csc_type[VD_PATH_MAX];
 
 int get_hdr_policy(void);
 int get_primary_policy(void);
+void set_hdr_policy(int policy);
 void set_cur_hdr_policy(uint policy);
 enum output_format_e get_force_output(void);
 void set_force_output(enum output_format_e output);

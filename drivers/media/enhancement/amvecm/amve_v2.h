@@ -84,6 +84,7 @@ void ve_sharpness_gain_set(int sr0_gain, int sr1_gain,
 	enum wr_md_e mode, int vpp_index);
 void ve_sharpness_ctl(enum wr_md_e mode, int sr0_en,
 	int sr1_en, int vpp_index);
+void ve_sharpness_enable(int sel);
 void ve_dnlp_set(ulong *data);
 void ve_dnlp_ctl(int enable);
 void ve_dnlp_sat_set(unsigned int value, int vpp_index);
