@@ -261,7 +261,7 @@ static int aml_mkl_etsi_run(struct file *filp, struct amlkl_params *param)
 	    (pu->uid > AML_KT_USER_TSE && pu->uid < KL_USERID_MASK) ||
 	    pu->algo & ~KL_KEYALGO_MASK ||
 	    (pu->algo > AML_KT_ALGO_DES && pu->algo < AML_KT_ALGO_NDL) ||
-	    (pu->algo > AML_KT_ALGO_CSA2 && pu->algo < AML_KT_ALGO_HMAC) ||
+	    (pu->algo > AML_KT_ALGO_MULTI2 && pu->algo < AML_KT_ALGO_HMAC) ||
 	    (pu->algo > AML_KT_ALGO_HMAC && pu->algo < KL_KEYALGO_MASK) ||
 	    pu->crypto & ~KL_FLAG_MASK ||
 	    param->levels < AML_KL_LEVEL_3 || param->levels > AML_KL_LEVEL_6 ||
@@ -490,7 +490,7 @@ static int aml_mkl_run(struct file *filp, struct amlkl_params *param)
 	    (pu->uid > AML_KT_USER_TSE && pu->uid < KL_USERID_MASK) ||
 	    pu->algo & ~KL_KEYALGO_MASK ||
 	    (pu->algo > AML_KT_ALGO_DES && pu->algo < AML_KT_ALGO_NDL) ||
-	    (pu->algo > AML_KT_ALGO_CSA2 && pu->algo < AML_KT_ALGO_HMAC) ||
+	    (pu->algo > AML_KT_ALGO_MULTI2 && pu->algo < AML_KT_ALGO_HMAC) ||
 	    (pu->algo > AML_KT_ALGO_HMAC && pu->algo < KL_KEYALGO_MASK) ||
 	    pu->crypto & ~KL_FLAG_MASK || param->kl_algo > AML_KL_ALGO_AES) {
 		KL_LOGE("Error: param data has bad parameter\n");
@@ -576,7 +576,7 @@ static int aml_mkl_msr_run(struct file *filp, struct amlkl_params *param)
 	    (pu->uid > AML_KT_USER_TSE && pu->uid < KL_USERID_MASK) ||
 	    pu->algo & ~KL_KEYALGO_MASK ||
 	    (pu->algo > AML_KT_ALGO_DES && pu->algo < AML_KT_ALGO_NDL) ||
-	    (pu->algo > AML_KT_ALGO_CSA2 && pu->algo < AML_KT_ALGO_HMAC) ||
+	    (pu->algo > AML_KT_ALGO_MULTI2 && pu->algo < AML_KT_ALGO_HMAC) ||
 	    (pu->algo > AML_KT_ALGO_HMAC && pu->algo < KL_KEYALGO_MASK) ||
 	    pu->crypto & ~KL_FLAG_MASK ||
 	    param->kl_algo > AML_KL_ALGO_AES) {
