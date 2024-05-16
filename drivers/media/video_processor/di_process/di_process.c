@@ -1122,8 +1122,13 @@ static int di_process_uninit(struct di_process_dev *dev)
 			dp_print(dev->index, PRINT_OTHER,
 				  "%s omx_index=%d\n", __func__, buf->vf->omx_index);
 			dropped = buf->caller_mng.dropped;
-			if (!dropped)
+			if (!dropped) {
+				ret = di_processed_checkin(buf->caller_mng.src_file);
+				if (ret != 0)
+					dp_print(dev->index, PRINT_ERROR,
+						" uninit not empty done buf failed.\n");
 				dp_put_file(dev, buf->caller_mng.src_file);
+			}
 
 			buf->caller_mng.queued = false;
 
