@@ -10,8 +10,8 @@
 #include "mesons7_audio.dtsi"
 #include "firmware_ab.dtsi"
 / {
-	amlogic-dt-id = "s7_s805x3_bp202_1.5g";
-	compatible = "s7_s805x3_bp202_1.5g";
+	amlogic-dt-id = "s7_s805x3_bp202-1.5g";
+	compatible = "s7_s805x3_bp202-1.5g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
