@@ -75,6 +75,7 @@ enum KT_ALGO_CAPABILITY {
 	KT_CAP_ND = 0x100,
 	KT_CAP_CSA3 = 0x200,
 	KT_CAP_CSA2 = 0x400,
+	KT_CAP_MULTI2 = 0x800,
 	KT_CAP_HMAC = 0x2000,
 };
 
@@ -471,6 +472,10 @@ int aml_kt_config(struct aml_kt_dev *dev, struct amlkt_cfg_param key_cfg)
 		break;
 	case AML_KT_ALGO_CSA2:
 		if (!(dev->algo_cap & KT_CAP_CSA2))
+			goto error_algo;
+		break;
+	case AML_KT_ALGO_MULTI2:
+		if (!(dev->algo_cap & KT_CAP_MULTI2))
 			goto error_algo;
 		break;
 	case AML_KT_ALGO_HMAC:

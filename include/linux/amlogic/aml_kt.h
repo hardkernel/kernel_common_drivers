@@ -30,6 +30,7 @@
 #define AML_KT_ALGO_ND           (8)
 #define AML_KT_ALGO_CSA3         (9)
 #define AML_KT_ALGO_CSA2         (10)
+#define AML_KT_ALGO_MULTI2       (11)
 #define AML_KT_ALGO_HMAC         (13)
 
 /* key flag */
