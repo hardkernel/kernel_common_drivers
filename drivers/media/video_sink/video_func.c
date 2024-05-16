@@ -2508,6 +2508,18 @@ struct cur_line_info_t *get_cur_line_info(u8 index)
 	return &g_cur_line_info[index];
 }
 
+u32 get_enc_num_start(u8 index)
+{
+	return g_cur_line_info[index].enc_num_start;
+}
+
+ulong get_enc_time_start(u8 index)
+{
+	struct timeval *t = &g_cur_line_info[index].start;
+
+	return (t->tv_sec * 1000000 + t->tv_usec);
+}
+
 static inline void trace_performance(struct cur_line_info_t *cur_line_info,
 	int cur_enc_line)
 {

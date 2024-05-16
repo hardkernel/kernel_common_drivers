@@ -5,6 +5,7 @@
 
 #define INFO_PREFIX "video_rdma"
 #define pr_fmt(fmt) "rdma: " fmt
+#define DEBUG
 
 #include <linux/version.h>
 #include <linux/kernel.h>
@@ -44,6 +45,8 @@
 			WRITE_VCBUS_REG_BITS(adr, val, start, len)
 
 #define RDMA_NUM  7
+#define VIU_OSD4_MISC   0x1a18 /* used as rdma_done_detect register */
+
 static int second_rdma_feature;
 int vsync_rdma_handle[RDMA_NUM];
 static int irq_count[RDMA_NUM];
@@ -57,11 +60,12 @@ static bool first_config[RDMA_NUM];
 static bool rdma_done[RDMA_NUM];
 static u32 cur_vsync_handle_id;
 static int ex_vsync_rdma_enable;
-static u32 rdma_reset;
-static int g_set_threshold[RDMA_NUM];
-static int g_cur_threshold[RDMA_NUM];
 ulong rdma_done_us[RDMA_NUM];
 ulong rdma_vsync_us[RDMA_NUM];
+unsigned int rdma_done_detect_reg;
+unsigned int rdma_done_detect_cnt;
+unsigned int use_rdma_done_detect;
+unsigned int no_rdma_done_max_cnt = 5;
 
 static DEFINE_SPINLOCK(lock);
 static void vsync_rdma_irq(void *arg);
@@ -147,76 +151,126 @@ static void set_rdma_trigger_line(void)
 	aml_write_vcbus(VPP_INT_LINE_NUM, trigger_line);
 }
 
-void set_force_rdma_config(void)
+static inline int is_rdma_done(int rdma_type)
 {
-	rdma_reset = 1;
+	unsigned int hw_done_bit = rdma_hw_done_bit();
+	int ret = 1;
+
+	if (!rdma_done[rdma_type] &&
+	    !(hw_done_bit & (1 << vsync_rdma_handle[rdma_type])))
+		ret = 0;
+
+	if (debug_flag[rdma_type] & 2)
+		pr_devel("%s, rdma_type:%d rdma_done:%d hw_done_bit:0x%x\n",
+			 __func__, rdma_type, rdma_done[rdma_type],
+			 hw_done_bit);
+
+	return ret;
 }
-EXPORT_SYMBOL(set_force_rdma_config);
 
-bool need_to_rdma_config(int rdma_type)
+/*
+ * Description: Determine whether to execute RDMA configuration.
+ * Return:
+ *    0: Do not execute RDMA configuration.
+ *    1: Execute RDMA configuration.
+ */
+int need_to_rdma_config(int rdma_type)
 {
-	struct vinfo_s *vinfo = NULL;
-	ulong sync_interval = 0, interval1 = 0, interval2 = 0;
-	bool run_config = 0;
-	int threshold = 0;
+	int run_config = 1;
 
-	switch (rdma_type) {
-	case VSYNC_RDMA_VPP1:
-		#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-		vinfo = get_current_vinfo2();
-		#endif
-		break;
-	case VSYNC_RDMA_VPP2:
-		#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-		vinfo = get_current_vinfo3();
-		#endif
-		break;
-	default:
+	if (rdma_type != PRE_VSYNC_RDMA) {
+		pr_info("%s, %d not supported\n", __func__, rdma_type);
+		return 1;
+	}
+
+	if (!use_rdma_done_detect)
+		return 1;
+
+	if (rdma_configured[rdma_type]) {
+		struct vinfo_s *vinfo = NULL;
+		u32 done_detect_cnt = 0, run_case = 0;
+		u32 enc_num_start = 0, enc_num_cur = 0, enc_num_cur_tmp = 0;
+		ulong t = 0, enc_time_start = 0, enc_time_cur = 0;
+		ulong sync_interval = 16666, interval = 0, enc_num_cycle_time;
+		static int no_rdma_done;
+		struct timeval cur;
+
 		#ifdef CONFIG_AMLOGIC_VOUT_SERVE
 		vinfo = get_current_vinfo();
 		#endif
-		break;
-	}
+		if (vinfo)
+			sync_interval = vinfo->sync_duration_den * 1000000 /
+						vinfo->sync_duration_num;
 
-	if (vinfo && vinfo->sync_duration_num) {
-		ulong t1, t2, t3, t4;
+		enc_num_start = get_enc_num_start(1);
+		enc_num_cur = get_cur_enc_num();
 
-		sync_interval = vinfo->sync_duration_den * 1000000 /
-				vinfo->sync_duration_num;
+		/* cycling from 0 to 7 */
+		if (enc_num_cur < enc_num_start)
+			enc_num_cur_tmp = enc_num_cur + 8;
+		else
+			enc_num_cur_tmp = enc_num_cur;
+		enc_num_cycle_time = sync_interval * 7;
 
-		t1 = rdma_vsync_us[rdma_type];
-		t2 = rdma_config_us[rdma_type];
-		t3 = rdma_done_us[rdma_type];
-		t4 = max(t1, t3);
-		interval1 = abs(t4 - t2);
-		interval2 = abs(t1 - t3);
+		do_gettimeofday(&cur);
+		enc_time_start = get_enc_time_start(1);
+		enc_time_cur = cur.tv_sec * 1000000 + cur.tv_usec;
+		interval = enc_time_cur - enc_time_start;
+		t = abs(enc_time_start - rdma_config_us[rdma_type]);
 
-		threshold = sync_interval / 2;
-		if (g_set_threshold[rdma_type])
-			threshold = g_set_threshold[rdma_type];
-		g_cur_threshold[rdma_type] = threshold;
-
-		/* compare latest time and rdma_config time
-		 * if too close, don't do rdma configuration
+		/* check rdma_done
+		 * make sure the last configuration is completed
 		 */
-		if (interval1 > threshold) {
-			/* compare (pre/vpp0/vpp1/vpp2)vsync and rdma_done
-			 * determine which comes first.
-			 * use the latter one to do rdma configuration.
-			 */
-			if (interval2 > threshold)
-				run_config = 0;
-			else
-				run_config = 1;
-		} else {
+		if (!is_rdma_done(rdma_type)) {
 			run_config = 0;
+			no_rdma_done++;
+			run_case = 1;
+			goto check_count;
+		}
+		/* check enc num
+		 * avoid multiple configurations in one vsync
+		 */
+		if (enc_num_configed[rdma_type] == enc_num_start &&
+		    t < enc_num_cycle_time) {
+			run_config = 0;
+			no_rdma_done++;
+			run_case = 2;
+			goto check_count;
+		}
+		/* check done_detect_cnt
+		 * make sure all registers in the table are completed
+		 */
+		done_detect_cnt = READ_VCBUS_REG(rdma_done_detect_reg);
+		if (done_detect_cnt != rdma_done_detect_cnt) {
+			run_config = 0;
+			no_rdma_done++;
+			run_case = 3;
+			goto check_count;
+		}
+
+check_count:
+		/* check no_rdma_count */
+		if (no_rdma_done >= no_rdma_done_max_cnt) {
+			run_config = 1;
+			no_rdma_done = 0;
+			run_case = 4;
+		}
+
+		/* do rdma_stop for the next configuration */
+		if (run_config) {
+			no_rdma_done = 0;
+			rdma_stop(vsync_rdma_handle[PRE_VSYNC_RDMA]);
+		}
+		if (debug_flag[rdma_type] & 2) {
+			pr_devel("%s enc_num(configed:%d start:%d cur:%d(%d)) interval:%lu sync_interval:%lu\n",
+				 __func__, enc_num_configed[rdma_type],
+				 enc_num_start, enc_num_cur, enc_num_cur_tmp,
+				 interval, sync_interval);
+			pr_devel("no_rdma_done:%d case:%d configed:%d run_config:%d\n",
+				 no_rdma_done, run_case,
+				 rdma_configured[rdma_type], run_config);
 		}
 	}
-
-	if (debug_flag[rdma_type] & 2)
-		pr_info("%s interval:%lu %lu %lu threshold:%d\n",
-			__func__,
-			sync_interval, interval1, interval2, threshold);
 
 	return run_config;
 }
@@ -227,7 +281,7 @@ int _vsync_rdma_config(int rdma_type)
 	int enable_ = cur_enable[rdma_type] & 0xf;
 	unsigned long flags;
 	struct timeval t;
-	int to_config;
+	int config = 1, handle;
 
 	if (vsync_rdma_handle[rdma_type] <= 0)
 		return -1;
@@ -246,10 +300,12 @@ int _vsync_rdma_config(int rdma_type)
 		return 0;
 	}
 
-	to_config = need_to_rdma_config(rdma_type);
-
 	if (rdma_type == EX_VSYNC_RDMA) {
 		spin_lock_irqsave(&lock, flags);
+		force_rdma_config[rdma_type] = 1;
+	}
+	if (use_rdma_done_detect && rdma_type == PRE_VSYNC_RDMA) {
+		config = need_to_rdma_config(rdma_type);
 		force_rdma_config[rdma_type] = 1;
 	}
 
@@ -262,14 +318,15 @@ int _vsync_rdma_config(int rdma_type)
 	if (force_rdma_config[rdma_type])
 		rdma_done[rdma_type] = true;
 
+	handle = vsync_rdma_handle[rdma_type];
 	if (enable_ == 1) {
 		if (rdma_done[rdma_type])
-			iret = rdma_watchdog_setting(0);
+			iret = rdma_watchdog_setting(0, handle);
 		else
-			iret = rdma_watchdog_setting(1);
+			iret = rdma_watchdog_setting(1, handle);
 	} else {
 		/* not vsync mode */
-		iret = rdma_watchdog_setting(0);
+		iret = rdma_watchdog_setting(0, handle);
 		force_rdma_config[rdma_type] = 1;
 	}
 	rdma_done[rdma_type] = false;
@@ -277,7 +334,8 @@ int _vsync_rdma_config(int rdma_type)
 		force_rdma_config[rdma_type] = 1;
 
 	iret = 0;
-	if (to_config || force_rdma_config[rdma_type] || rdma_reset) {
+	if (force_rdma_config[rdma_type] ||
+	    rdma_reset_trigger_flag[handle]) {
 		if (enable_ == 1) {
 			if (has_multi_vpp) {
 				if (rdma_type == VSYNC_RDMA) {
@@ -294,7 +352,8 @@ int _vsync_rdma_config(int rdma_type)
 				} else if (rdma_type == VSYNC_RDMA_VPP2) {
 					iret = rdma_config(vsync_rdma_handle[rdma_type],
 							  RDMA_TRIGGER_VPP2_VSYNC_INPUT);
-				} else if (rdma_type == PRE_VSYNC_RDMA) {
+				} else if (rdma_type == PRE_VSYNC_RDMA &&
+					   config) {
 					if (is_meson_t3x_cpu())
 						iret = rdma_config(vsync_rdma_handle[rdma_type],
 							RDMA_TRIGGER_PRE_VSYNC_INPUT_T3X);
@@ -359,8 +418,8 @@ int _vsync_rdma_config(int rdma_type)
 		} else {
 			force_rdma_config[rdma_type] = 0;
 			iret = 0;
-			if (rdma_reset) {
-				rdma_reset = 0;
+			if (rdma_reset_trigger_flag[handle]) {
+				rdma_reset_trigger_flag[handle] = 0;
 				iret = 1;
 			}
 		}
@@ -458,14 +517,10 @@ static void vsync_rdma_irq(void *arg)
 {
 	int iret;
 	int enable_ = cur_enable[VSYNC_RDMA] & 0xf;
-	int to_config;
 	struct timeval t;
 
 	do_gettimeofday(&t);
 	rdma_done_us[VSYNC_RDMA] = t.tv_sec * 1000000 + t.tv_usec;
-	to_config = need_to_rdma_config(VSYNC_RDMA);
-	if (!to_config)
-		goto not_to_config;
 
 	if (enable_ == 1) {
 		/*triggered by next vsync*/
@@ -487,7 +542,6 @@ static void vsync_rdma_irq(void *arg)
 	else
 		force_rdma_config[VSYNC_RDMA] = 0;
 
-not_to_config:
 	rdma_done[VSYNC_RDMA] = true;
 	irq_count[VSYNC_RDMA]++;
 }
@@ -496,14 +550,10 @@ static void vsync_rdma_vpp1_irq(void *arg)
 {
 	int iret;
 	int enable_ = cur_enable[VSYNC_RDMA_VPP1] & 0xf;
-	int to_config;
 	struct timeval t;
 
 	do_gettimeofday(&t);
 	rdma_done_us[VSYNC_RDMA_VPP1] = t.tv_sec * 1000000 + t.tv_usec;
-	to_config = need_to_rdma_config(VSYNC_RDMA_VPP1);
-	if (!to_config)
-		goto not_to_config;
 
 	if (enable_ == 1) {
 		/*triggered by next vsync*/
@@ -521,7 +571,6 @@ static void vsync_rdma_vpp1_irq(void *arg)
 	else
 		force_rdma_config[VSYNC_RDMA_VPP1] = 0;
 
-not_to_config:
 	rdma_done[VSYNC_RDMA_VPP1] = true;
 	irq_count[VSYNC_RDMA_VPP1]++;
 }
@@ -530,14 +579,10 @@ static void vsync_rdma_vpp2_irq(void *arg)
 {
 	int iret;
 	int enable_ = cur_enable[VSYNC_RDMA_VPP2] & 0xf;
-	int to_config;
 	struct timeval t;
 
 	do_gettimeofday(&t);
 	rdma_done_us[VSYNC_RDMA_VPP2] = t.tv_sec * 1000000 + t.tv_usec;
-	to_config = need_to_rdma_config(VSYNC_RDMA_VPP2);
-	if (!to_config)
-		goto not_to_config;
 
 	if (enable_ == 1) {
 		/*triggered by next vsync*/
@@ -555,7 +600,6 @@ static void vsync_rdma_vpp2_irq(void *arg)
 	else
 		force_rdma_config[VSYNC_RDMA_VPP2] = 0;
 
-not_to_config:
 	rdma_done[VSYNC_RDMA_VPP2] = true;
 	irq_count[VSYNC_RDMA_VPP2]++;
 }
@@ -564,13 +608,11 @@ static void pre_vsync_rdma_irq(void *arg)
 {
 	int iret;
 	int enable_ = cur_enable[PRE_VSYNC_RDMA] & 0xf;
-	int to_config;
 	struct timeval t;
 
 	do_gettimeofday(&t);
 	rdma_done_us[PRE_VSYNC_RDMA] = t.tv_sec * 1000000 + t.tv_usec;
-	to_config = need_to_rdma_config(PRE_VSYNC_RDMA);
-	if (!to_config)
+	if (use_rdma_done_detect)
 		goto not_to_config;
 
 	if (enable_ == 1) {
@@ -1159,15 +1201,15 @@ static int parse_para(const char *para, int para_num, int *result)
 }
 
 static ssize_t show_second_rdma_feature(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+					const struct class_attribute *attr,
+					char *buf)
 {
 	return snprintf(buf, 40, "%d\n", second_rdma_feature);
 }
 
 static ssize_t store_second_rdma_feature(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+					 const struct class_attribute *attr,
+					 const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -1180,8 +1222,8 @@ static ssize_t store_second_rdma_feature(const struct class *class,
 }
 
 static ssize_t show_enable(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+			   const struct class_attribute *attr,
+			   char *buf)
 {
 	int i;
 	int enable_flag = 0;
@@ -1195,8 +1237,8 @@ static ssize_t show_enable(const struct class *class,
 }
 
 static ssize_t store_enable(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+			    const struct class_attribute *attr,
+			    const char *buf, size_t count)
 {
 	int i = 0;
 	int enable_flag = 0, ret;
@@ -1210,8 +1252,8 @@ static ssize_t store_enable(const struct class *class,
 }
 
 static ssize_t show_irq_count(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+			      const struct class_attribute *attr,
+			      char *buf)
 {
 	int i;
 	char str[8];
@@ -1226,8 +1268,8 @@ static ssize_t show_irq_count(const struct class *class,
 }
 
 static ssize_t store_irq_count(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+			       const struct class_attribute *attr,
+			       const char *buf, size_t count)
 {
 	int i = 0;
 	int channel = 0;
@@ -1248,8 +1290,8 @@ static ssize_t store_irq_count(const struct class *class,
 }
 
 static ssize_t show_debug_flag(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+			       const struct class_attribute *attr,
+			       char *buf)
 {
 	int i;
 	char str[8];
@@ -1264,8 +1306,8 @@ static ssize_t show_debug_flag(const struct class *class,
 }
 
 static ssize_t store_debug_flag(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	int channel = 0;
 	int parsed[2];
@@ -1286,8 +1328,8 @@ static ssize_t store_debug_flag(const struct class *class,
 }
 
 static ssize_t show_vsync_cfg_count(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				    const struct class_attribute *attr,
+				    char *buf)
 {
 	int i;
 	char str[8];
@@ -1302,8 +1344,8 @@ static ssize_t show_vsync_cfg_count(const struct class *class,
 }
 
 static ssize_t store_vsync_cfg_count(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				     const struct class_attribute *attr,
+				     const char *buf, size_t count)
 {
 	int i = 0;
 	int channel = 0;
@@ -1324,8 +1366,8 @@ static ssize_t store_vsync_cfg_count(const struct class *class,
 }
 
 static ssize_t show_force_rdma_config(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				      const struct class_attribute *attr,
+				      char *buf)
 {
 	int i;
 	char str[8];
@@ -1340,20 +1382,20 @@ static ssize_t show_force_rdma_config(const struct class *class,
 }
 
 static ssize_t store_force_rdma_config(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				       const struct class_attribute *attr,
+				       const char *buf, size_t count)
 {
-	int i = 0;
-	int channel = 0;
+	int rdma_type = VSYNC_RDMA;
 	int parsed[2];
 
 	if (likely(parse_para(buf, 2, parsed) == 2)) {
-		channel = parsed[0];
-		if (channel < RDMA_NUM) {
-			force_rdma_config[channel] = parsed[1];
-			pr_info("force_rdma_config[%d]: %d\n", i, force_rdma_config[i]);
+		rdma_type = parsed[0];
+		if (rdma_type < RDMA_NUM) {
+			force_rdma_config[rdma_type] = parsed[1];
+			pr_info("force_rdma_config[%d]: %d\n",
+				rdma_type, force_rdma_config[rdma_type]);
 		} else {
-			pr_info("error please input: rdma_channel, force_rdma_config\n");
+			pr_info("error please input: rdma_type, force_rdma_config\n");
 		}
 	} else {
 		pr_info("error please input: rdma_channel, force_rdma_config\n");
@@ -1361,35 +1403,28 @@ static ssize_t store_force_rdma_config(const struct class *class,
 	return count;
 }
 
-static ssize_t show_threshold(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t show_rdma_done_detect(const struct class *class,
+				     const struct class_attribute *attr,
+				     char *buf)
 {
-	int len = 0, i;
-
-	for (i = VSYNC_RDMA; i < RDMA_NUM; i++)
-		len += sprintf(buf + len, "rdma_type:%d threshold:%d\n",
-			       i, g_cur_threshold[i]);
-
-	return len;
+	return snprintf(buf, PAGE_SIZE,
+			"use_rdma_done_detect:%d no_rdma_done_max_cnt:%d\n",
+			use_rdma_done_detect, no_rdma_done_max_cnt);
 }
 
-static ssize_t store_threshold(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t store_rdma_done_detect(const struct class *class,
+				      const struct class_attribute *attr,
+				      const char *buf, size_t count)
 {
 	int parsed[2];
-	int rdma_type = VSYNC_RDMA;
 
 	if (likely(parse_para(buf, 2, parsed) == 2)) {
-		rdma_type = parsed[0];
-		if (rdma_type < RDMA_NUM) {
-			g_set_threshold[rdma_type] = parsed[1];
-			pr_info("rdma_type:%d threshold:%d\n",
-				rdma_type, g_set_threshold[rdma_type]);
-		}
+		use_rdma_done_detect = parsed[0];
+		no_rdma_done_max_cnt = parsed[1];
+		pr_info("use_rdma_done_detect:%d no_rdma_done_max_cnt:%d\n",
+			use_rdma_done_detect, no_rdma_done_max_cnt);
 	} else {
-		pr_info("error please input: rdma_type threshold\n");
+		pr_info("error please input: use_rdma_done_detect no_rdma_done_max_cnt\n");
 	}
 
 	return count;
@@ -1408,8 +1443,8 @@ static struct class_attribute rdma_attrs[] = {
 	       show_vsync_cfg_count, store_vsync_cfg_count),
 	__ATTR(force_rdma_config, 0664,
 	       show_force_rdma_config, store_force_rdma_config),
-	__ATTR(threshold, 0664,
-	       show_threshold, store_threshold),
+	__ATTR(rdma_done_detect, 0664,
+	       show_rdma_done_detect, store_rdma_done_detect),
 };
 
 static struct class *rdma_class;
@@ -1448,6 +1483,11 @@ static int remove_rdma_class(void)
 int rdma_init(void)
 
 {
+	if (is_meson_t3x_cpu()) {
+		use_rdma_done_detect = 1;
+		rdma_done_detect_reg = VIU_OSD4_MISC;
+	}
+
 	second_rdma_feature = 0;
 
 	ex_vsync_rdma_enable = 1;

@@ -52,9 +52,10 @@
 #define rdma_io_write(addr, val) writel((val), addr)
 
 /* #define SKIP_OSD_CHANNEL */
+#define RDMA_NUM        16
 int has_multi_vpp;
 int rdma_mgr_irq_request;
-int rdma_reset_trigger_flag;
+int rdma_reset_trigger_flag[RDMA_NUM];
 
 struct reset_control *rdma_rst;
 static int debug_flag;
@@ -63,10 +64,9 @@ static int ctrl_ahb_rd_burst_size = 3;
 static int ctrl_ahb_wr_burst_size = 3;
 static int rdma_watchdog = 20;
 static int reset_count;
-static int rdma_watchdog_count;
+static int rdma_watchdog_count[RDMA_NUM];
 static int rdma_force_reset = -1;
 
-#define RDMA_NUM        16
 #define RDMA_TABLE_SIZE (8 * (PAGE_SIZE))
 #define MAX_TRACE_NUM  16
 #define RDMA_MGR_CLASS_NAME  "rdma_mgr"
@@ -81,6 +81,7 @@ static int g_vsync_rdma_item_count_max;
 static int enable[RDMA_NUM];
 int rdma_configured[RDMA_NUM];
 ulong rdma_config_us[RDMA_NUM];
+int enc_num_configed[RDMA_NUM] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 MODULE_PARM_DESC(g_vsync_rdma_item_count, "\n g_vsync_rdma_item_count\n");
 __module_param(g_vsync_rdma_item_count, uint, 0664);
@@ -118,6 +119,7 @@ struct rdma_instance_s {
 	u32 *reg_buf;
 	dma_addr_t dma_handle;
 	u32 *rdma_table_addr;
+	u32 *rdma_table_mirror;
 	ulong rdma_table_phy_addr;
 	int rdma_item_count;
 	int rdma_write_count;
@@ -146,6 +148,10 @@ struct rdma_device_info {
 
 static struct rdma_device_data_s rdma_meson_dev;
 static struct rdma_irq_reg_s irq_status;
+static int vdisp_async_hold_ctrl_val;
+static int vpuarb2_async_hold_ctrl_val;
+static int reset4_register_val;
+static int rdma_ctrl_val;
 static int rdma_ctrl;
 static int rdma_access_man;
 int rdma_status_reg;
@@ -565,6 +571,8 @@ int rdma_register(struct rdma_op_s *rdma_op, void *op_arg, int table_size)
 				(ulong)(dma_handle);
 			info->rdma_ins[i].reg_buf =
 				kmalloc(table_size, GFP_KERNEL);
+			info->rdma_ins[i].rdma_table_mirror =
+				kmalloc(table_size, GFP_KERNEL);
 			pr_debug("%s, rdma_table_addr %lx phy: %lx reg_buf %lx\n",
 				__func__,
 				(unsigned long)
@@ -575,10 +583,13 @@ int rdma_register(struct rdma_op_s *rdma_op, void *op_arg, int table_size)
 		}
 
 		if (!info->rdma_ins[i].rdma_table_addr ||
-		    !info->rdma_ins[i].reg_buf) {
+		    !info->rdma_ins[i].reg_buf ||
+		    !info->rdma_ins[i].rdma_table_mirror) {
 			if (!info->rdma_ins[i].keep_buf) {
 				kfree(info->rdma_ins[i].reg_buf);
 				info->rdma_ins[i].reg_buf = NULL;
+				kfree(info->rdma_ins[i].rdma_table_mirror);
+				info->rdma_ins[i].rdma_table_mirror = NULL;
 			}
 			if (info->rdma_ins[i].rdma_table_addr) {
 				dma_free_coherent
@@ -617,6 +628,8 @@ void rdma_unregister(int i)
 		if (!info->rdma_ins[i].keep_buf) {
 			kfree(info->rdma_ins[i].reg_buf);
 			info->rdma_ins[i].reg_buf = NULL;
+			kfree(info->rdma_ins[i].rdma_table_mirror);
+			info->rdma_ins[i].rdma_table_mirror = NULL;
 		}
 		if (info->rdma_ins[i].rdma_table_addr) {
 			dma_free_coherent
@@ -657,6 +670,16 @@ static void rdma_reset(unsigned char external_reset)
 		 (0x0 << 1));
 	}
 	reset_count++;
+}
+
+unsigned int rdma_hw_done_bit(void)
+{
+	u32 rdma_status, done_bit;
+
+	rdma_status = READ_VCBUS_REG(irq_status.reg);
+	done_bit = rdma_status >> irq_status.start;
+
+	return done_bit;
 }
 
 static int rdma_isr_count;
@@ -725,6 +748,16 @@ QUERY:
 	return IRQ_HANDLED;
 }
 
+void rdma_stop(int handle)
+{
+	struct rdma_device_info *info = &rdma_info;
+	struct rdma_instance_s *ins = &info->rdma_ins[handle];
+
+	WRITE_VCBUS_REG_BITS(ins->rdma_regadr->trigger_mask_reg,
+			     0, ins->rdma_regadr->trigger_mask_reg_bitpos,
+			     rdma_meson_dev.trigger_mask_len);
+}
+
 /*
  *	trigger_type:
  *		0, stop,
@@ -748,7 +781,7 @@ int rdma_config(int handle, u32 trigger_type)
 	bool rdma_read = false;
 	int buffer_lock = 0;
 	int trigger_type_backup = trigger_type, rdma_type;
-	bool rdma_configured = 0;
+	bool configured = 0;
 
 	if (handle <= 0 || handle >= rdma_meson_dev.channel_num) {
 		pr_info
@@ -830,7 +863,18 @@ int rdma_config(int handle, u32 trigger_type)
 		ins->rdma_empty_config_count++;
 		ret = 0;
 	} else {
+		if (use_rdma_done_detect &&
+		    handle == get_rdma_handle(PRE_VSYNC_RDMA)) {
+			rdma_done_detect_cnt++;
+			rdma_write_reg(handle, rdma_done_detect_reg,
+				       rdma_done_detect_cnt);
+		}
+
 		memcpy(ins->rdma_table_addr, ins->reg_buf,
+		       ins->rdma_item_count *
+		       (rdma_read ? 1 : 2) * sizeof(u32));
+		/* cp to mirror buf */
+		memcpy(ins->rdma_table_mirror, ins->reg_buf,
 		       ins->rdma_item_count *
 		       (rdma_read ? 1 : 2) * sizeof(u32));
 		ins->prev_read_count = ins->rdma_item_count;
@@ -1008,14 +1052,18 @@ int rdma_config(int handle, u32 trigger_type)
 
 	rdma_type = get_rdma_type(handle);
 	if (rdma_type >= 0) {
-		rdma_configured = ret ? 1 : 0;
-		if (rdma_configured) {
+		configured = ret ? 1 : 0;
+		if (configured) {
 			struct timeval t;
 
 			do_gettimeofday(&t);
 			rdma_config_us[rdma_type] =
 				t.tv_sec * 1000000 + t.tv_usec;
+			enc_num_configed[rdma_type] = get_cur_enc_num();
+		} else {
+			enc_num_configed[rdma_type] = 0xff;
 		}
+		rdma_configured[rdma_type] = configured;
 	}
 	/* don't reset rdma_item_count for read function */
 	if (handle != get_rdma_handle(VSYNC_RDMA_READ) &&
@@ -1100,8 +1148,9 @@ u32 rdma_read_reg(int handle, u32 adr)
 			}
 		}
 	}
+	/* changed to read from rdma_table_adr to mirror for optimize */
 	if (!match) {
-		write_table = ins->rdma_table_addr;
+		write_table = ins->rdma_table_mirror;
 		for (i = (ins->rdma_write_count - 1);
 			i >= 0; i--) {
 			if (write_table[i << 1] == adr) {
@@ -1193,31 +1242,41 @@ int rdma_buffer_unlock(int handle)
 }
 EXPORT_SYMBOL(rdma_buffer_unlock);
 
-int rdma_watchdog_setting(int flag)
+int rdma_watchdog_setting(int flag, int handle)
 {
 	int ret = 0;
 
+	if (handle < 0 || handle >= RDMA_NUM) {
+		pr_info("%s, flag:%d handle:%d out of range[0, %d)\n",
+			__func__, flag, handle, RDMA_NUM);
+		return 0;
+	}
+
 	if (flag == 0)
-		rdma_watchdog_count = 0;
+		rdma_watchdog_count[handle] = 0;
 	else
-		rdma_watchdog_count++;
+		rdma_watchdog_count[handle]++;
 
 	if (debug_flag & 8) {
 		rdma_force_reset = 1;
 		debug_flag = 0;
 	}
+	if (debug_flag & 0x40)
+		pr_info("%s, flag:%d handle:%d rdma_watchdog_count:%d\n",
+			__func__, flag, handle, rdma_watchdog_count[handle]);
+
 	if ((rdma_watchdog > 0 &&
-	     rdma_watchdog_count > rdma_watchdog) ||
+	     rdma_watchdog_count[handle] > rdma_watchdog) ||
 	     rdma_force_reset > 0) {
-		pr_info("%s rdma reset: %d, force flag:%d\n",
+		pr_info("%s rdma reset: %d, force flag:%d handle:%d\n",
 			__func__,
-			rdma_watchdog_count,
-			rdma_force_reset);
-		rdma_watchdog_count = 0;
+			rdma_watchdog_count[handle],
+			rdma_force_reset,
+			handle);
+		rdma_watchdog_count[handle] = 0;
 		rdma_force_reset = 0;
 		rdma_reset(1);
-		rdma_reset_trigger_flag = 1;
-		set_force_rdma_config();
+		rdma_reset_trigger_flag[handle] = 1;
 		ret = 1;
 	}
 	return ret;
@@ -1341,7 +1400,7 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 		int i;
 
 			pr_info("%s(%d, %x, %x ,%d) buf overflow, ins->rdma_item_count=%d\n",
-				__func__, rdma_watchdog_count,
+				__func__, rdma_watchdog_count[handle],
 				handle, adr, val,
 				ins->rdma_item_count);
 		for (i = 0; i < ins->rdma_item_count; i++)
@@ -1401,8 +1460,9 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 			break;
 		}
 	}
+	/* changed to read from rdma_table_adr to mirror for optimize */
 	if (!match) {
-		write_table = ins->rdma_table_addr;
+		write_table = ins->rdma_table_mirror;
 		for (i = (ins->rdma_write_count - 1);
 			i >= 0; i--) {
 			if (write_table[i << 1] == adr) {
@@ -1721,15 +1781,15 @@ int rdma_end_addr_msb(int handle)
 EXPORT_SYMBOL(rdma_end_addr_msb);
 
 static ssize_t show_debug_flag(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+			       const struct class_attribute *attr,
+			       char *buf)
 {
 	return snprintf(buf, 40, "%d\n", debug_flag);
 }
 
 static ssize_t store_debug_flag(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -1742,15 +1802,15 @@ static ssize_t store_debug_flag(const struct class *class,
 }
 
 static ssize_t show_rdma_watchdog(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				  const struct class_attribute *attr,
+				  char *buf)
 {
 	return snprintf(buf, 40, "%d\n", rdma_watchdog);
 }
 
 static ssize_t store_rdma_watchdog(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -1763,15 +1823,15 @@ static ssize_t store_rdma_watchdog(const struct class *class,
 }
 
 static ssize_t show_reset_count(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				const struct class_attribute *attr,
+				char *buf)
 {
 	return snprintf(buf, 40, "%d\n", reset_count);
 }
 
 static ssize_t store_reset_count(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -1784,15 +1844,15 @@ static ssize_t store_reset_count(const struct class *class,
 }
 
 static ssize_t show_ctrl_ahb_rd_burst_size(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+					   const struct class_attribute *attr,
+					   char *buf)
 {
 	return snprintf(buf, 40, "%d\n", ctrl_ahb_rd_burst_size);
 }
 
 static ssize_t store_ctrl_ahb_rd_burst_size(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+					    const struct class_attribute *attr,
+					    const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -1806,15 +1866,15 @@ static ssize_t store_ctrl_ahb_rd_burst_size(const struct class *class,
 }
 
 static ssize_t show_ctrl_ahb_wr_burst_size(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+					   const struct class_attribute *attr,
+					   char *buf)
 {
 	return snprintf(buf, 40, "%d\n", ctrl_ahb_wr_burst_size);
 }
 
 static ssize_t store_ctrl_ahb_wr_burst_size(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+					    const struct class_attribute *attr,
+					    const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -1866,16 +1926,16 @@ static int parse_para(const char *para, int para_num, int *result)
 	return count;
 }
 
-static ssize_t rdma_mgr_trace_enable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t rdma_mgr_trace_enable_show(const struct class *cla,
+					  const struct class_attribute *attr,
+					  char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%x\n", rdma_trace_enable);
 }
 
-static ssize_t rdma_mgr_trace_enable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t rdma_mgr_trace_enable_stroe(const struct class *cla,
+					   const struct class_attribute *attr,
+					   const char *buf, size_t count)
 {
 	int ret = 0;
 
@@ -1885,9 +1945,8 @@ static ssize_t rdma_mgr_trace_enable_store(const struct class *class,
 	return count;
 }
 
-static ssize_t rdma_mgr_trace_reg_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t rdma_mgr_trace_reg_show(const struct class *cla,
+				       const struct class_attribute *attr, char *buf)
 {
 	int i;
 	char reg_info[16];
@@ -1907,9 +1966,9 @@ static ssize_t rdma_mgr_trace_reg_show(const struct class *class,
 	return i;
 }
 
-static ssize_t rdma_mgr_trace_reg_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t rdma_mgr_trace_reg_stroe(const struct class *cla,
+					const struct class_attribute *attr,
+					const char *buf, size_t count)
 {
 	int parsed[MAX_TRACE_NUM];
 	int i = 0, num = 0;
@@ -1928,16 +1987,16 @@ static ssize_t rdma_mgr_trace_reg_store(const struct class *class,
 }
 
 static ssize_t show_ex_vsync_rdma(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+			       const struct class_attribute *attr,
+			       char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			get_ex_vsync_rdma_enable());
 }
 
 static ssize_t store_ex_vsync_rdma(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -1949,9 +2008,8 @@ static ssize_t store_ex_vsync_rdma(const struct class *class,
 	return count;
 }
 
-static ssize_t rdma_irq_count_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t rdma_irq_count_show(const struct class *cla,
+				       const struct class_attribute *attr, char *buf)
 {
 	int i;
 	char str_info[1024];
@@ -1975,16 +2033,16 @@ static ssize_t rdma_irq_count_show(const struct class *class,
 	return i;
 }
 
-static ssize_t rdma_mgr_trace_channel_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t rdma_mgr_trace_channel_show(const struct class *cla,
+					  const struct class_attribute *attr,
+					  char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%x\n", rdma_trace_channel);
 }
 
-static ssize_t rdma_mgr_trace_channel_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t rdma_mgr_trace_channel_stroe(const struct class *cla,
+					   const struct class_attribute *attr,
+					   const char *buf, size_t count)
 {
 	int ret = 0;
 
@@ -1995,8 +2053,8 @@ static ssize_t rdma_mgr_trace_channel_store(const struct class *class,
 }
 
 static ssize_t store_rdma_reset(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -2008,8 +2066,8 @@ static ssize_t store_rdma_reset(const struct class *class,
 }
 
 static ssize_t show_enable(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+			   const struct class_attribute *attr,
+			   char *buf)
 {
 	int i;
 	int enable_flag = 0;
@@ -2023,8 +2081,8 @@ static ssize_t show_enable(const struct class *class,
 }
 
 static ssize_t store_enable(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+			    const struct class_attribute *attr,
+			    const char *buf, size_t count)
 {
 	int i = 0;
 	int enable_flag = 0, ret;
@@ -2049,15 +2107,15 @@ static struct class_attribute rdma_mgr_attrs[] = {
 	__ATTR(ctrl_ahb_wr_burst_size, 0664,
 	       show_ctrl_ahb_wr_burst_size, store_ctrl_ahb_wr_burst_size),
 	__ATTR(trace_enable, 0664,
-	       rdma_mgr_trace_enable_show, rdma_mgr_trace_enable_store),
+	       rdma_mgr_trace_enable_show, rdma_mgr_trace_enable_stroe),
 	__ATTR(trace_reg, 0664,
-	       rdma_mgr_trace_reg_show, rdma_mgr_trace_reg_store),
+	       rdma_mgr_trace_reg_show, rdma_mgr_trace_reg_stroe),
 	__ATTR(ex_vsync_rdma, 0664,
 	       show_ex_vsync_rdma, store_ex_vsync_rdma),
 	__ATTR(irq_count_stat, 0664,
 		   rdma_irq_count_show, NULL),
 	__ATTR(trace_channel, 0664,
-	       rdma_mgr_trace_channel_show, rdma_mgr_trace_channel_store),
+	       rdma_mgr_trace_channel_show, rdma_mgr_trace_channel_stroe),
 	__ATTR(reset, 0664,
 	       NULL, store_rdma_reset),
 	__ATTR(enable, 0664,
@@ -2159,7 +2217,6 @@ static int __init rdma_probe(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_VPU
 	rdma_vpu_dev = vpu_dev_register(VPU_RDMA, "rdma");
 	vpu_dev_mem_power_on(rdma_vpu_dev);
-
 	WRITE_VCBUS_REG(VPU_VDISP_ASYNC_HOLD_CTRL, 0x18101810);
 	WRITE_VCBUS_REG(VPU_VPUARB2_ASYNC_HOLD_CTRL, 0x18101810);
 #endif
@@ -2280,17 +2337,51 @@ static int __init rdma_probe(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int rdma_suspend(struct platform_device *dev, pm_message_t state)
+static int rdma_suspend(struct device *dev)
 {
 	set_rdma_channel_enable(0);
 	return 0;
 }
 
-static int rdma_resume(struct platform_device *dev)
+static int rdma_resume(struct device *dev)
 {
 	set_rdma_channel_enable(1);
 	return 0;
 }
+
+static int rdma_freeze(struct device *dev)
+{
+	vdisp_async_hold_ctrl_val = READ_VCBUS_REG(VPU_VDISP_ASYNC_HOLD_CTRL);
+	vpuarb2_async_hold_ctrl_val = READ_VCBUS_REG(VPU_VPUARB2_ASYNC_HOLD_CTRL);
+	if (rdma_meson_dev.cpu_type < CPU_SC2)
+		reset4_register_val = READ_MPEG_REG(RESET4_REGISTER);
+	rdma_ctrl_val = READ_VCBUS_REG(rdma_ctrl);
+	return 0;
+}
+
+static int rdma_thaw(struct device *dev)
+{
+	return 0;
+}
+
+static int rdma_restore(struct device *dev)
+{
+	WRITE_VCBUS_REG(VPU_VDISP_ASYNC_HOLD_CTRL, vdisp_async_hold_ctrl_val);
+	WRITE_VCBUS_REG(VPU_VPUARB2_ASYNC_HOLD_CTRL, vpuarb2_async_hold_ctrl_val);
+	if (rdma_meson_dev.cpu_type < CPU_SC2)
+		WRITE_MPEG_REG(RESET4_REGISTER, reset4_register_val);
+	WRITE_VCBUS_REG(rdma_ctrl, rdma_ctrl_val);
+	return 0;
+}
+
+static const struct dev_pm_ops rdma_pm_ops = {
+	.freeze = rdma_freeze,
+	.thaw = rdma_thaw,
+	.restore = rdma_restore,
+	.suspend = rdma_suspend,
+	.resume = rdma_resume,
+};
+
 #endif
 
 /* static int __devexit rdma_remove(struct platform_device *pdev) */
@@ -2308,13 +2399,10 @@ static int rdma_remove(struct platform_device *pdev)
 
 static struct platform_driver rdma_driver = {
 	.remove = rdma_remove,
-#ifdef CONFIG_PM
-	.suspend  = rdma_suspend,
-	.resume    = rdma_resume,
-#endif
 	.driver = {
 		.name = "amlogic-rdma",
 		.of_match_table = rdma_dt_match,
+		.pm = &rdma_pm_ops,
 	},
 };
 

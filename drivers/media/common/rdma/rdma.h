@@ -19,6 +19,17 @@ extern int has_multi_vpp;
 extern ulong rdma_done_us[];
 extern ulong rdma_vsync_us[];
 extern ulong rdma_config_us[];
+extern int rdma_reset_trigger_flag[];
+extern int rdma_configured[];
+extern unsigned int use_rdma_done_detect;
+extern unsigned int rdma_done_detect_cnt;
+extern unsigned int rdma_done_detect_reg;
+extern int enc_num_configed[];
+
+ulong get_enc_time_start(u8 index);
+u32 get_enc_num_start(u8 index);
+u32 get_cur_enc_num(void);
+void rdma_stop(int handle);
 
 void vpp1_vsync_rdma_register(void);
 void vpp2_vsync_rdma_register(void);
@@ -39,7 +50,7 @@ bool is_pre_vsync_rdma_enable(void);
 void start_rdma(void);
 void enable_rdma_log(int flag);
 void enable_rdma(int enable_flag);
-int rdma_watchdog_setting(int flag);
+int rdma_watchdog_setting(int flag, int handle);
 int rdma_init2(void);
 struct rdma_op_s *get_rdma_ops(int rdma_type);
 void set_rdma_handle(int rdma_type, int handle);
@@ -50,16 +61,18 @@ int rdma_init(void);
 void rdma_exit(void);
 int get_ex_vsync_rdma_enable(void);
 void set_ex_vsync_rdma_enable(int enable);
-void set_force_rdma_config(void);
+void set_force_rdma_config(int handle);
 int is_in_vsync_isr(void);
 int is_in_pre_vsync_isr(void);
 int is_in_vsync_isr_viu2(void);
 int is_in_vsync_isr_viu3(void);
 int is_video_process_in_thread(void);
+bool get_lowlatency_mode(void);
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 int is_in_ldim_vsync_isr(void);
 #endif
 void set_rdma_channel_enable(u8 rdma_en);
+unsigned int rdma_hw_done_bit(void);
 
 //extern int vsync_rdma_handle[5];
 u32 VCBUS_RD_MPEG_REG(u32 adr);

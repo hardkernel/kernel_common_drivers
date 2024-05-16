@@ -137,6 +137,7 @@ extern atomic_t vt_unreg_flag;
 
 struct cur_line_info_t {
 	int enc_line_start;
+	u32 enc_num_start;
 	struct timeval start;
 	struct timeval end1;
 	struct timeval end2;

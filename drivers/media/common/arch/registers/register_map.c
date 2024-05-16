@@ -28,6 +28,7 @@ static u32 regs_cmd_debug;
 
 struct codecio_device_data_s codecio_meson_dev;
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct codecio_device_data_s codecio_gxbb = {
@@ -113,8 +114,10 @@ static struct codecio_device_data_s codecio_s4d = {
 	.cpu_id = MESON_CPU_MAJOR_ID_S4D,
 };
 #endif
+#endif
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct codecio_device_data_s codecio_t3 = {
 	.cpu_id = MESON_CPU_MAJOR_ID_T3,
 };
@@ -122,17 +125,19 @@ static struct codecio_device_data_s codecio_t3 = {
 static struct codecio_device_data_s codecio_t5w = {
 	.cpu_id = MESON_CPU_MAJOR_ID_T5W,
 };
+#endif
 
 static struct codecio_device_data_s codecio_c3 = {
 	.cpu_id = MESON_CPU_MAJOR_ID_C3,
 };
 
-static struct codecio_device_data_s codecio_s5 = {
-	.cpu_id = MESON_CPU_MAJOR_ID_S5,
-};
-
 static struct codecio_device_data_s codecio_a4 = {
 	.cpu_id = MESON_CPU_MAJOR_ID_A4,
+};
+
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
+static struct codecio_device_data_s codecio_s5 = {
+	.cpu_id = MESON_CPU_MAJOR_ID_S5,
 };
 
 static struct codecio_device_data_s codecio_t5m = {
@@ -146,13 +151,18 @@ static struct codecio_device_data_s codecio_t3x = {
 static struct codecio_device_data_s codecio_txhd2 = {
 	.cpu_id = MESON_CPU_MAJOR_ID_TXHD2,
 };
+
+#endif
 #endif
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct codecio_device_data_s codecio_s1a = {
 	.cpu_id = MESON_CPU_MAJOR_ID_S1A,
 };
+#endif
 
 static const struct of_device_id codec_io_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -244,7 +254,9 @@ static const struct of_device_id codec_io_dt_match[] = {
 		.data = &codecio_s4d,
 	},
 #endif
+#endif
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic, meson-t3, codec-io",
 		.data = &codecio_t3,
@@ -253,6 +265,7 @@ static const struct of_device_id codec_io_dt_match[] = {
 		.compatible = "amlogic, meson-t5w, codec-io",
 		.data = &codecio_t5w,
 	},
+#endif
 	{
 		.compatible = "amlogic, meson-c3, codec-io",
 		.data = &codecio_c3,
@@ -261,6 +274,7 @@ static const struct of_device_id codec_io_dt_match[] = {
 		.compatible = "amlogic, meson-a4, codec-io",
 		.data = &codecio_a4,
 	},
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic, meson-s5, codec-io",
 		.data = &codecio_s5,
@@ -278,10 +292,13 @@ static const struct of_device_id codec_io_dt_match[] = {
 		.data = &codecio_txhd2,
 	},
 #endif
+#endif
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic, meson-s1a, codec-io",
 		.data = &codecio_s1a,
 	},
+#endif
 	{},
 };
 

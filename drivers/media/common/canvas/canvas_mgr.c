@@ -519,7 +519,7 @@ static int canvas_pool_config(void)
 	if (ret < 0)
 		return ret;
 	if (is_meson_s1a_cpu()) {
-		canvas_pool_register_const_canvas(0, 0x39, "amvdec");
+		canvas_pool_register_const_canvas(0, 0x30, "amvdec");
 		canvas_pool_register_const_canvas(0x58, 0x63, "display");
 		canvas_pool_register_const_canvas(0x40, 0x44, "osd");
 	} else {
