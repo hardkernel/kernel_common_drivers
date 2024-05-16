@@ -357,6 +357,26 @@ static void bl_power_en_ctrl(struct aml_bl_drv_s *bdrv, int status)
 	}
 }
 
+static void bl_pwm_ctrl_status_set(struct aml_bl_drv_s *bdrv, int status)
+{
+	struct bl_config_s *bconf = &bdrv->bconf;
+
+	switch (bconf->method) {
+	case BL_CTRL_PWM:
+		bl_pwm_ctrl(bconf->bl_pwm, status);
+		break;
+	case BL_CTRL_PWM_COMBO:
+		bl_pwm_ctrl(bconf->bl_pwm_combo0, status);
+		bl_pwm_ctrl(bconf->bl_pwm_combo1, status);
+		break;
+	default:
+		BLPR("invalid pwm control method\n");
+	}
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+		BLPR("backlight power on pwm first\n");
+}
+
 static void bl_power_on(struct aml_bl_drv_s *bdrv)
 {
 	struct bl_config_s *bconf = &bdrv->bconf;
@@ -399,11 +419,9 @@ static void bl_power_on(struct aml_bl_drv_s *bdrv)
 			if (bconf->pwm_on_delay > 0)
 				lcd_delay_ms(bconf->pwm_on_delay);
 			/* step 2: power on pwm */
-			bl_pwm_ctrl(bconf->bl_pwm, 1);
 			bl_pwm_pinmux_set(bdrv, 1);
 		} else {
 			/* step 1: power on pwm */
-			bl_pwm_ctrl(bconf->bl_pwm, 1);
 			bl_pwm_pinmux_set(bdrv, 1);
 			if (bconf->pwm_on_delay > 0)
 				lcd_delay_ms(bconf->pwm_on_delay);
@@ -418,13 +436,9 @@ static void bl_power_on(struct aml_bl_drv_s *bdrv)
 			if (bconf->pwm_on_delay > 0)
 				lcd_delay_ms(bconf->pwm_on_delay);
 			/* step 2: power on pwm_combo */
-			bl_pwm_ctrl(bconf->bl_pwm_combo0, 1);
-			bl_pwm_ctrl(bconf->bl_pwm_combo1, 1);
 			bl_pwm_pinmux_set(bdrv, 1);
 		} else {
 			/* step 1: power on pwm_combo */
-			bl_pwm_ctrl(bconf->bl_pwm_combo0, 1);
-			bl_pwm_ctrl(bconf->bl_pwm_combo1, 1);
 			bl_pwm_pinmux_set(bdrv, 1);
 			if (bconf->pwm_on_delay > 0)
 				lcd_delay_ms(bconf->pwm_on_delay);
@@ -1896,6 +1910,8 @@ static int bl_lcd_on_notifier(struct notifier_block *nb,
 
 	bdrv->on_request = 1;
 	/* lcd power on sequence control */
+	bl_pwm_ctrl_status_set(bdrv, 1);
+
 	if (bdrv->bconf.method < BL_CTRL_MAX) {
 #ifdef BL_POWER_ON_DELAY_WORK
 		lcd_queue_delayed_on_work(&bdrv->delayed_on_work,
