@@ -2062,11 +2062,21 @@ int aml_xhci_bus_resume(struct usb_hcd *hcd)
 	for_each_set_bit(port_index, &bus_state->bus_suspended, BITS_PER_LONG) {
 		sret = aml_xhci_handshake(ports[port_index]->addr, PORT_PLC,
 				      PORT_PLC, 10 * 1000);
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		if (sret) {
+			aml_xhci_warn(xhci, "port %d-%d resume PLC timeout\n",
+				hcd->self.busnum, port_index + 1);
+			spin_unlock_irqrestore(&xhci->lock, flags);
+			aml_xhci_resume(xhci, 0);
+			spin_lock_irqsave(&xhci->lock, flags);
+		}
+#else
 		if (sret) {
 			aml_xhci_warn(xhci, "port %d-%d resume PLC timeout\n",
 				  hcd->self.busnum, port_index + 1);
 			continue;
 		}
+#endif
 		aml_xhci_test_and_clear_bit(xhci, ports[port_index], PORT_PLC);
 		slot_id = aml_xhci_find_slot_id_by_port(hcd, xhci, port_index + 1);
 		if (slot_id)
