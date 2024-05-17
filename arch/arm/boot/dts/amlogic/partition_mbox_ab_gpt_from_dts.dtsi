@@ -192,7 +192,7 @@
 		{
 			pname = "userdata";
 			size = <0xffffffff 0xffffffff>;
-			mask = <4>;
+			mask = <0x1004>;
 		};
 	};
 };/* end of / */
