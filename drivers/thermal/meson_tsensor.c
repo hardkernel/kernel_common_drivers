@@ -21,6 +21,7 @@
 #include <linux/amlogic/ddr_cooling.h>
 #include <linux/amlogic/meson_cooldev.h>
 #include <linux/amlogic/media_cooling.h>
+#include <linux/amlogic/aml_indmc_sensor.h>
 #include <linux/debugfs.h>
 #include "thermal_core.h"
 #include "thermal_hwmon.h"
@@ -1092,7 +1093,7 @@ static int __init meson_platdrv_init(void)
 	ret = platform_driver_register(&(meson_tsensor_driver));
 	if (ret)
 		return ret;
-
+	platform_driver_register(&aml_indmc_sensor_platdrv);
 	return platform_driver_register(&(meson_cooldev_platdrv));
 }
 
