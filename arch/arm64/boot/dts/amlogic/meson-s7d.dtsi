@@ -693,6 +693,7 @@
 					0x0 0xfe35c000 0x0 0x60>; /* phy_cfg_base(s) */
 			pll-setting-1 = <0x244a0030>;
 			pll-setting-2 = <0x03200022>;
+			pll-setting-4 = <0x7e18>;
 			pll-setting-5 = <0x7>;
 			//dis-thred-enhance = <0x2>;
 			pll-version = <3>;
@@ -713,6 +714,7 @@
 					0x0 0xfe34c000 0x0 0x60>; /* phy_cfg_base(s) */
 			pll-setting-1 = <0x244a0030>;
 			pll-setting-2 = <0x03200022>;
+			pll-setting-4 = <0x7e18>;
 			pll-setting-5 = <0x7>;
 			//dis-thred-enhance = <0x2>;
 			pll-version = <3>;

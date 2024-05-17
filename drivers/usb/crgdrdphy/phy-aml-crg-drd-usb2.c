@@ -319,6 +319,7 @@ okay:
 	writel(PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0_v3, phy_reg_base + 0xC);
 	/* The USB2_REG_CFG_DIS is not used but default set. Clear it.*/
 	writel(readl(phy_reg_base + 0x38) & ~BIT_U(USB2_REG_CFG_DIS), phy_reg_base + 0x38);
+	writel(phy->pll_setting[3], phy_reg_base + 0x50);
 }
 
 static void amlogic_crg_drd_usb2_set_usb_vbus_power
