@@ -1263,6 +1263,19 @@ err:
 	return r;
 }
 
+static int amfc_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int amfc_resume(struct device *dev)
+{
+	amfc_hw_init();
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(amfc_pm_ops, amfc_suspend, amfc_resume);
+
 static int amfc_remove(struct platform_device *pdev)
 {
 	int i;
@@ -1298,6 +1311,7 @@ static struct platform_driver amfc_driver = {
 	.driver = {
 		.name  = "amfc",
 		.owner = THIS_MODULE,
+		.pm = &amfc_pm_ops,
 	},
 	.remove = amfc_remove,
 };
@@ -1305,9 +1319,9 @@ static struct platform_driver amfc_driver = {
 int __init amfc_init(void)
 {
 	int ret;
+
 #ifdef CONFIG_OF
 	const struct of_device_id *match_id;
-
 	match_id = amfc_match;
 	amfc_driver.driver.of_match_table = match_id;
 #endif
