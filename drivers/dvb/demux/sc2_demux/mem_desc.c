@@ -188,8 +188,10 @@ static int cache_init(int cache_level)
 	return 0;
 }
 
-static void cache_destroy(int cache_level)
+static int cache_destroy(int cache_level)
 {
+	int ret = -1;
+
 	if (cache_level == 0 && first_cache) {
 		dma_free_coherent(aml_get_device(),
 			first_cache->elem_size * first_cache->elem_count,
@@ -198,12 +200,15 @@ static void cache_destroy(int cache_level)
 		vfree(first_cache);
 		first_cache = NULL;
 		dprint_i("clear first cache done\n");
+		ret = 0;
 	} else if (cache_level == 1 && second_cache) {
 		codec_mm_free_for_dma("dmx_cache", second_cache->start_phys);
 		vfree(second_cache);
 		second_cache = NULL;
 		dprint_i("clear second cache done\n");
+		ret = 0;
 	}
+	return ret;
 }
 
 static int cache_get_block(struct mem_cache *cache,
@@ -284,11 +289,17 @@ static int cache_free(int len, unsigned long phys_mem)
 
 int cache_clear(void)
 {
+	int ret0 = -1;
+	int ret1 = -1;
+
 	if (first_cache && first_cache->used_count == 0)
-		cache_destroy(0);
+		ret0 = cache_destroy(0);
 	if (second_cache && second_cache->used_count == 0)
-		cache_destroy(1);
-	return 0;
+		ret1 = cache_destroy(1);
+	if (!ret0 && !ret1)
+		return 0;
+	else
+		return -1;
 }
 
 int cache_adjust(int cache0_count, int cache1_count)

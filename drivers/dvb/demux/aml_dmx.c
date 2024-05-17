@@ -17,6 +17,7 @@
 #include <linux/fcntl.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/kthread.h>
 #include <linux/poll.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
@@ -152,11 +153,23 @@ MODULE_PARM_DESC(find_error_pack, "\n\t\t find error package default 2 package")
 static int find_error_pack = 2;
 module_param(find_error_pack, int, 0644);
 
+MODULE_PARM_DESC(cache_clear_time, "\n\t\t cache_clear_time");
+static int cache_clear_time = 5000;
+module_param(cache_clear_time, int, 0644);
+
+static int timer_cache_clear_wake_up;
+static wait_queue_head_t cache_clear_wait_queue;
+static struct timer_list cache_timer;
+static struct task_struct *cache_clear_task;
+
 static int out_ts_elem_cb(struct out_elem *pout,
 			  char *buf, int count, void *udata,
 			  int req_len, int *req_ret);
 static int _dmx_free_input_id(int id);
 static int find_adjust_mem_item(int format, int data);
+static int recovery_dmx_input(struct aml_dmx *pdmx);
+static int free_all_dmx_input(void);
+static int trigger_cache_clear_timer(void);
 
 static inline void _invert_mode(struct dmx_section_filter *filter)
 {
@@ -779,6 +792,9 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
+
+	/*after clear dmx cache, it should recovery*/
+	recovery_dmx_input(demux);
 
 	if (pes_type == DMX_PES_OTHER && dump_type >= DMX_DUMP_DVR_TYPE &&
 		dump_type <= DMX_DUMP_INPUT_TYPE) {
@@ -1438,6 +1454,9 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 		mutex_unlock(demux->pmutex);
 		return 0;
 	}
+	/*after clear dmx cache, it should recovery*/
+	recovery_dmx_input(demux);
+
 	sid = demux->sid;
 
 	if (get_dvb_loop_tsn()) {
@@ -1724,9 +1743,9 @@ static int _dmx_allocate_ts_feed(struct dmx_demux *dmx,
 	(*ts_feed)->start_filtering = _dmx_ts_feed_start_filtering;
 	(*ts_feed)->stop_filtering = _dmx_ts_feed_stop_filtering;
 	(*ts_feed)->set = _dmx_ts_feed_set;
+	demux->used_feed_num++;
 
 	if (advb->ts_clone) {
-		demux->used_feed_num++;
 		if (demux->used_feed_num == 1) {
 			_dmx_alloc_input(demux);
 			ts_clone_connect(demux->id, demux->hw_source, demux->sc2_input);
@@ -1760,6 +1779,8 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
+
+	pr_dbg("%s pid:%d\n", __func__, feed->pid);
 
 	if (feed->pes_type >= DMX_DUMP_DVR_TYPE) {
 		if (feed->pes_type == DMX_DUMP_INPUT_TYPE) {
@@ -1852,6 +1873,7 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 
 	feed->state = DMX_STATE_FREE;
 	feed->ts_out_elem = NULL;
+	demux->used_feed_num--;
 
 	list_for_each_entry_safe(ts_entry, ts_tmp, &demux->ts_feed_list, node) {
 		if (ts_entry == feed) {
@@ -1861,10 +1883,11 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 	}
 
 	if (advb->ts_clone) {
-		demux->used_feed_num--;
 		if (demux->used_feed_num == 0)
 			ts_clone_disconnect(demux->id, demux->hw_source, demux->sc2_input);
 	}
+	if (!demux->used_feed_num)
+		trigger_cache_clear_timer();
 
 	mutex_unlock(demux->pmutex);
 	return 0;
@@ -1914,9 +1937,9 @@ static int _dmx_allocate_section_feed(struct dmx_demux *dmx,
 	(*feed)->release_filter = _dmx_section_feed_release_filter;
 
 	sec_feed->sec_out_elem = NULL;
+	demux->used_feed_num++;
 
 	if (advb->ts_clone) {
-		demux->used_feed_num++;
 		if (demux->used_feed_num == 1) {
 			_dmx_alloc_input(demux);
 			ts_clone_connect(demux->id, demux->hw_source, demux->sc2_input);
@@ -1939,6 +1962,8 @@ static int _dmx_release_section_feed(struct dmx_demux *dmx,
 	struct sw_demux_sec_feed *tmp = NULL;
 
 	sec_feed = (struct sw_demux_sec_feed *)feed;
+
+	pr_dbg("%s pid:%d\n", __func__, sec_feed->pid);
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
@@ -1963,11 +1988,14 @@ static int _dmx_release_section_feed(struct dmx_demux *dmx,
 		}
 	}
 
+	demux->used_feed_num--;
 	if (advb->ts_clone) {
-		demux->used_feed_num--;
 		if (demux->used_feed_num == 0)
 			ts_clone_disconnect(demux->id, demux->hw_source, demux->sc2_input);
 	}
+
+	if (!demux->used_feed_num)
+		trigger_cache_clear_timer();
 
 	mutex_unlock(demux->pmutex);
 	pr_dbg("%s\n", __func__);
@@ -2179,6 +2207,8 @@ static int _dmx_set_input(struct dmx_demux *demux, int source)
 				mutex_unlock(pdmx->pmutex);
 				return -ENODEV;
 			}
+			if (advb->ts_clone)
+				pdmx->sid = pdmx->sc2_input->id;
 		}
 	} else {
 		pr_dbg("%s remote\n", __func__);
@@ -2522,6 +2552,104 @@ static int _dmx_decode_info(struct dmx_demux *dmx, void *v_info)
 	return 0;
 }
 
+static int _dmx_set_command(struct dmx_demux *dmx, void *v_info)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	struct dmx_set_command_info *info = v_info;
+	int ret = 0;
+//	pr_dbg("%s dmx%d\n", __func__, demux->id);
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	if (info->command == DMX_CLEAR_CACHE) {
+		free_all_dmx_input();
+		ret = cache_clear();
+		if (ret != 0)
+			ret = -EFAULT;
+	} else {
+		ret = -EINVAL;
+	}
+	mutex_unlock(demux->pmutex);
+	return ret;
+}
+
+static int _check_timer_cache_wakeup(void)
+{
+	if (timer_cache_clear_wake_up) {
+		timer_cache_clear_wake_up = 0;
+		return 1;
+	}
+	return 0;
+}
+
+static int _task_cache_clear_func(void *data)
+{
+	int timeout = 0;
+	int i = 0;
+	int flag = 0;
+	struct aml_dvb *advb = aml_get_dvb_device();
+
+	while (1) {
+		flag = 0;
+		timeout = wait_event_interruptible(cache_clear_wait_queue,
+						     _check_timer_cache_wakeup());
+
+		pr_dbg("cache clear start\n");
+		if (mutex_lock_interruptible(&advb->mutex))
+			continue;
+
+		for (i = 0; i < DMX_DEV_COUNT; i++) {
+			if (!advb->dmx[i])
+				break;
+			if (advb->dmx[i]->used_feed_num) {
+				pr_dbg("cache clear start dmx:%d, feed_num:%d\n",
+					i, advb->dmx[i]->used_feed_num);
+				flag = 1;
+				break;
+			}
+		}
+		if (flag) {
+			mutex_unlock(&advb->mutex);
+			continue;
+		}
+		free_all_dmx_input();
+		cache_clear();
+		mutex_unlock(&advb->mutex);
+	}
+	return 0;
+}
+
+static void _timer_cache_clear_func(struct timer_list *timer)
+{
+	timer_cache_clear_wake_up = 1;
+	wake_up_interruptible(&cache_clear_wait_queue);
+	pr_dbg("trigger cache clear timeout:%d ms\n", cache_clear_time);
+}
+
+static int trigger_cache_clear_timer(void)
+{
+	int i = 0;
+	int flag = 0;
+	struct aml_dvb *advb = aml_get_dvb_device();
+
+	for (i = 0; i < DMX_DEV_COUNT; i++) {
+		if (!advb->dmx[i])
+			break;
+		if (advb->dmx[i]->used_feed_num) {
+			flag = 1;
+			break;
+		}
+	}
+	if (flag) {
+		pr_dbg("trigger cache clear fail, dmx using\n");
+		return 0;
+	}
+	pr_dbg("trigger cache clear success\n");
+	mod_timer(&cache_timer, jiffies + msecs_to_jiffies(cache_clear_time));
+	return 0;
+}
+
 void dmx_init_hw(void)
 {
 	ts_output_init();
@@ -2530,6 +2658,13 @@ void dmx_init_hw(void)
 	_dmx_init_input_id();
 	memset(jiffies_pcr_record, 0, sizeof(jiffies_pcr_record));
 	INIT_LIST_HEAD(&dmx_adjust_mem_head);
+	init_waitqueue_head(&cache_clear_wait_queue);
+	timer_setup(&cache_timer, _timer_cache_clear_func, 0);
+
+	cache_clear_task =
+	    kthread_run(_task_cache_clear_func, (void *)NULL, "cache_clear_task");
+	if (!cache_clear_task)
+		dprint("create cache_clear_task fail\n");
 }
 
 int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
@@ -2580,6 +2715,7 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 	pdmx->dmx_ext.get_dvr_mem = _dmx_get_dvr_mem;
 	pdmx->dmx_ext.remap_pid = _dmx_remap_pid;
 	pdmx->dmx_ext.decode_info = _dmx_decode_info;
+	pdmx->dmx_ext.dmx_set_command = _dmx_set_command;
 	pdmx->dev.filternum = (MAX_TS_FEED_NUM + MAX_SEC_FEED_NUM);
 	pdmx->dev.demux = &pdmx->dmx_ext.dmx;
 	pdmx->dev.capabilities = DMXDEV_CAP_DUPLEX;
@@ -2617,6 +2753,7 @@ int dmx_destroy(struct aml_dmx *pdmx)
 {
 	if (pdmx->init) {
 		if (pdmx->sc2_input) {
+			_dmx_free_input_id(pdmx->sc2_input->id);
 			ts_input_close(pdmx->sc2_input);
 			pdmx->sc2_input = NULL;
 		}
@@ -2864,6 +3001,46 @@ static ssize_t dump_ringbuffer_store(struct class *class,
 	return size;
 }
 
+static int free_all_dmx_input(void)
+{
+	int i = 0;
+	struct aml_dvb *advb = aml_get_dvb_device();
+
+	for (i = 0; i < DMX_DEV_COUNT; i++) {
+		if (!advb->dmx[i])
+			break;
+		if (!advb->dmx[i]->used_feed_num &&
+			advb->dmx[i]->sc2_input) {
+			_dmx_free_input_id(advb->dmx[i]->sc2_input->id);
+			ts_input_close(advb->dmx[i]->sc2_input);
+			advb->dmx[i]->sc2_input = NULL;
+		}
+	}
+	return 0;
+}
+
+static int recovery_dmx_input(struct aml_dmx *pdmx)
+{
+	int id;
+	struct aml_dvb *advb = aml_get_dvb_device();
+
+	if (!pdmx->sc2_input &&  (advb->ts_clone || pdmx->source != INPUT_DEMOD)) {
+		id = _dmx_find_input_id(pdmx->id);
+		if (id == -1) {
+			dprint("%s find input fail\n", __func__);
+			return -ENODEV;
+		}
+		pdmx->sc2_input = ts_input_open(id);
+		if (!pdmx->sc2_input) {
+			dprint("%s ts_input_open fail\n", __func__);
+			return -ENODEV;
+		}
+		if (advb->ts_clone)
+			pdmx->sid = pdmx->sc2_input->id;
+	}
+	return 0;
+}
+
 static ssize_t cache_status_show(struct class *class,
 				struct class_attribute *attr, char *buf)
 {
@@ -2893,6 +3070,7 @@ static ssize_t cache_status_store(struct class *class,
 
 	dprint_i("%s\n", buf);
 	if (!strncmp(buf, "clear", 5)) {
+		free_all_dmx_input();
 		cache_clear();
 	} else if (!strncmp(buf, "adjust", 6)) {
 		ret = sscanf(buf + 7, "%d %d", &cache0_count, &cache1_count);
