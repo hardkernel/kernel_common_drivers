@@ -1300,7 +1300,7 @@ static struct meson_bank meson_sc2_periphs_banks[] = {
 	BANK_DS("B", GPIOB_0,    GPIOB_15,   2, 17,
 		0x63,  0,  0x64,  0,  0x62, 0,  0x61, 0,  0x60, 0, 0x67, 0),
 	BANK_DS("A", GPIOA_14,   GPIOA_15,   0, 1,
-		0x73, 14,  0x74,  14, 0x72, 14, 0x71, 14, 0x70, 14, 0x77, 28),
+		0x73, 14,  0x74,  14, 0x72, 14, 0x71, 14, 0x70, 14, 0x77, 14),
 	BANK_DS("TEST_N", GPIO_TEST_N,    GPIO_TEST_N,   86, 86,
 		0x83,  0,  0x84,  0,  0x82, 0,  0x81,  0, 0x80, 0, 0x87, 0),
 };
