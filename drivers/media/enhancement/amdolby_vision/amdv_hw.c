@@ -5623,7 +5623,7 @@ void enable_amdv_v2_stb(int enable)
 				/*core1*/
 				if (is_aml_g12() || is_aml_sc2() || is_aml_s4d() || is_aml_s7d()) {
 					if ((amdv_mask & 1) &&
-					    amdv_setting_video_flag) {
+					    dv_core1[0].amdv_setting_video_flag) {
 						VSYNC_WR_DV_REG_BITS
 							(AMDV_PATH_CTRL,
 							 0,
