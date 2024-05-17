@@ -5442,7 +5442,8 @@ exit:
 		alpha_win_set(&vd_layer[0]);
 
 	/* do blend,judge really update in update_vpp_input_info for vpp_index */
-	vpp_blend_update(vinfo, VPP0);
+	if (!cur_dev->pre_vsync_enable)
+		vpp_blend_update(vinfo, VPP0);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (cur_dev->vd1_vsr_safa_support)
