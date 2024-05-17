@@ -503,10 +503,16 @@
 		add_asyncfifo = <1>;
 
 		/*"parallel","serial","disable"*/
+		ts1 = "parallel";
+		ts1_control = <0>;
+		ts1_invert = <0>;
+		ts1_csa_enable = <0>;
+
 		ts2 = "parallel";
 		ts2_control = <0>;
 		ts2_invert = <0>;
 		tsin_deglitch = <1>;
+		ts2_csa_enable = <1>;
 
 		clocks = <&clkc CLKID_CLK81_DEMUX
 		&clkc CLKID_CLK81_AHB_ARB0
