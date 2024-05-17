@@ -1121,6 +1121,19 @@
 			0x1c59  0xf850
 			0xffff  0x0>; /* ending flag */
 	};
+
+	amfc {
+		compatible = "amlogic,amfc-s7d";
+		status = "okay";
+		/* registers and clk */
+		reg = <0x0 0xfe024000 0x0 0x200
+		       0x0 0xfe000000 0x0 0x400>;
+		interrupts = <0 185 IRQ_TYPE_EDGE_RISING
+			      0 186 IRQ_TYPE_EDGE_RISING>;
+		power-domains = <&pwrdm PDID_S7D_AMFC>;
+		interrupt-names = "amfc0", "amfc1";
+	};
+
 	amhdmitx: amhdmitx{
 		compatible = "amlogic, amhdmitx-s7d";
 		dev_name = "amhdmitx";
