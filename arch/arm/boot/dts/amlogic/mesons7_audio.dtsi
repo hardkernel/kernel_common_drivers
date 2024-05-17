@@ -199,7 +199,7 @@
 				<GIC_SPI 151 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "irq_spdifin";
 		pinctrl-names = "spdif_pins", "spdif_pins_mute";
-		pinctrl-0 = <&spdif_out_a_h4_pins>;
+		pinctrl-0 = <&spdif_out_a_h4_pins &spdif_in_a_h7_pins>;
 		pinctrl-1 = <&spdif_out_a_h4_mute_pins>;
 		/*
 		 * 0: tdmout_a;
@@ -431,4 +431,12 @@
 			output-low;
 		};
 	};
+	spdif_in_a_h7_pins: spdifin_a_h7 {
+		mux { /* GPIOH_4 */
+			groups = "spdif_in_h7";
+			function = "spdif_in";
+
+		};
+	};
+
 };
