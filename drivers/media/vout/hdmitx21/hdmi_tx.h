@@ -64,6 +64,7 @@ enum hdcptx_oprcmd {
 	HDCP22_GET_TOPO,
 	CONF_ENC_IDX, /* 0: get idx; 1: set idx */
 	HDMITX_GET_RTERM, /* get the rterm value */
+	HDCP_SET_SUS_FLAG
 };
 
 /* DDC bus error codes */
@@ -428,8 +429,6 @@ bool hdcp_need_control_by_upstream(struct hdmitx_dev *hdev);
 u32 hdmitx21_get_hdcp_mode(void);
 void hdcptx_en_aes_dualpipe(bool en);
 void pr_hdcp_info(const char *fmt, ...);
-void set_hdcp2_topo(u32 topo_type);
-bool get_hdcp2_topo(void);
 extern unsigned long hdcp_reauth_dbg;
 extern unsigned long streamtype_dbg;
 extern unsigned long en_fake_rcv_id;

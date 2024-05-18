@@ -4023,7 +4023,13 @@ static void hdmitx_process_plugout(struct hdmitx_dev *hdev)
 	hdmitx21_reset_hdcp_param(&hdev->tx_comm);
 	/* for vsync loss when HPD loss */
 	hdmitx21_vid_pll_clk_check(hdev);
-	hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_SET_TOPO_INFO, 0);
+	/* after suspend, hdcp auth state(including topo info) should
+	 * keep not changed, thus that encrypted video stream can
+	 * recover playing normally after resume, specially for hdcp
+	 * repeater case
+	 */
+	if (!hdev->tx_comm.suspend_flag)
+		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_SET_TOPO_INFO, 0);
 	/* Reset the ll_enabled_in_auto_mode flag used for auto mode
 	 * status. If we are in auto mode, gaming signal should be enabled
 	 * when the request arrives again from the input device or playback

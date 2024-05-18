@@ -3228,7 +3228,13 @@ static void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
 static void hdmitx_process_plugout(struct hdmitx_dev *hdev)
 {
 	hdmitx_plugout_common_work(&hdev->tx_comm);
-	hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_SET_TOPO_INFO, 0);
+	/* after suspend, hdcp auth state(including topo info) should
+	 * keep not changed, thus that encrypted video stream can
+	 * recover playing normally after resume, specially for hdcp
+	 * repeater case
+	 */
+	if (!hdev->tx_comm.suspend_flag)
+		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_SET_TOPO_INFO, 0);
 
 	/* SW: notify event to user space and other modules */
 	hdmitx_common_notify_hpd_status(&hdev->tx_comm, false);
