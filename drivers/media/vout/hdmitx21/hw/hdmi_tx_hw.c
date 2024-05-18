@@ -2663,6 +2663,9 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 			hdev->tx_comm.config_csc_en = false;
 		else if (value == 1)
 			hdev->tx_comm.config_csc_en = true;
+	} else if (strncmp(tmpbuf, "hdcp_result", 11) == 0) {
+		HDMITX_INFO("hdcp filtered result: hdcp22: %d topo: %d, hdcp14: %d\n",
+			get_hdcp2_result(), get_hdcp2_topo(), get_hdcp1_result());
 	}
 }
 
@@ -3097,6 +3100,7 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			    u32 argv)
 {
 	struct hdmitx_dev *hdev = to_hdmitx21_dev(tx_hw);
+	struct arm_smccc_res res;
 
 	if ((cmd & CMD_MISC_OFFSET) != CMD_MISC_OFFSET) {
 		HDMITX_ERROR(HW "misc: w: invalid cmd 0x%x\n", cmd);
@@ -3170,6 +3174,9 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			hdmitx21_set_reg_bits(ACR_CTRL_IVCTX, 0, 1, 1);
 		if (argv == 1)	//enable
 			hdmitx21_set_reg_bits(ACR_CTRL_IVCTX, 1, 1, 1);
+		break;
+	case MISC_SUSFLAG:
+		arm_smccc_smc(HDCPTX_IOOPR, HDCP_SET_SUS_FLAG, !!argv, 0, 0, 0, 0, 0, &res);
 		break;
 	default:
 		break;

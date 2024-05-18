@@ -3517,6 +3517,9 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 		}
 	} else if (strncmp(tmpbuf, "drm_hdcp_ver", 12) == 0) {
 		HDMITX_INFO("test drm_hdcp_ver: %d\n", meson_hdcp_get_rx_cap());
+	} else if (strncmp(tmpbuf, "hdcp_result", 11) == 0) {
+		HDMITX_INFO("hdcp result: hdcp22: %d topo: %d, hdcp14: %d\n",
+			hdmitx_hdcp_opr(7), hdmitx_hdcp_opr(0xe), hdmitx_hdcp_opr(2));
 	}
 }
 
