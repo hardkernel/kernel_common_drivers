@@ -3034,6 +3034,16 @@ static ssize_t clkmsr_show(struct device *dev,
 	return _show20_clkmsr(buf);
 }
 
+static ssize_t hdcp22_stopauth_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\r\n",
+		is_hdcp22_stop_state());
+	return pos;
+}
+
 static DEVICE_ATTR_RW(disp_mode);
 static DEVICE_ATTR_RW(vid_mute);
 static DEVICE_ATTR_WO(config);
@@ -3065,6 +3075,7 @@ static DEVICE_ATTR_RO(dump_debug_reg);
 static DEVICE_ATTR_RW(hdr_priority_mode);
 static DEVICE_ATTR_WO(hdcp22_top_reset);
 static DEVICE_ATTR_RO(clkmsr);
+static DEVICE_ATTR_RO(hdcp22_stopauth);
 
 static int hdmitx20_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para)
 {
@@ -3828,6 +3839,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_dump_debug_reg);
 	ret = device_create_file(dev, &dev_attr_hdr_priority_mode);
 	ret = device_create_file(dev, &dev_attr_clkmsr);
+	ret = device_create_file(dev, &dev_attr_hdcp22_stopauth);
 
 #ifdef CONFIG_AMLOGIC_VPU
 	hdev->encp_vpu_dev = vpu_dev_register(VPU_VENCP, DEVICE_NAME);
@@ -4005,6 +4017,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_dump_debug_reg);
 	device_remove_file(dev, &dev_attr_hdr_priority_mode);
 	device_remove_file(dev, &dev_attr_clkmsr);
+	device_remove_file(dev, &dev_attr_hdcp22_stopauth);
 
 	cdev_del(&hdev->cdev);
 	device_destroy(hdmitx_class, hdev->hdmitx_id);

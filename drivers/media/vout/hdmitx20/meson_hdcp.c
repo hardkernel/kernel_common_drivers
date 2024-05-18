@@ -22,44 +22,6 @@
 #include "meson_hdcp.h"
 #include "meson_drm_hdmitx.h"
 
-/* ioctl numbers */
-enum {
-	TEE_HDCP_START,
-	TEE_HDCP_END,
-	HDCP_DAEMON_LOAD_END,
-	HDCP_DAEMON_REPORT,
-	HDCP_EXE_VER_SET,
-	HDCP_TX_VER_REPORT,
-	HDCP_DOWNSTR_VER_REPORT,
-	HDCP_EXE_VER_REPORT
-};
-
-#define TEE_HDCP_IOC_START    _IOW('P', TEE_HDCP_START, int)
-#define TEE_HDCP_IOC_END    _IOW('P', TEE_HDCP_END, int)
-#define HDCP_DAEMON_IOC_LOAD_END    _IOW('P', HDCP_DAEMON_LOAD_END, int)
-#define HDCP_DAEMON_IOC_REPORT    _IOR('P', HDCP_DAEMON_REPORT, int)
-#define HDCP_EXE_VER_IOC_SET    _IOW('P', HDCP_EXE_VER_SET, int)
-#define HDCP_TX_VER_IOC_REPORT    _IOR('P', HDCP_TX_VER_REPORT, int)
-#define HDCP_DOWNSTR_VER_IOC_REPORT    _IOR('P', HDCP_DOWNSTR_VER_REPORT, int)
-#define HDCP_EXE_VER_IOC_REPORT    _IOR('P', HDCP_EXE_VER_REPORT, int)
-
-enum {
-	HDCP_TX22_DISCONNECT = 0,
-	HDCP_TX22_START,
-	HDCP_TX22_STOP
-};
-
-enum {
-	HDCP22_DAEMON_LOADING = 0,
-	HDCP22_DAEMON_DONE,
-	HDCP22_DAEMON_TIMEOUT
-};
-
-#define HDCP_AUTH_TIMEOUT (40) /*40*200ms = 8s*/
-#define HDCP22_LOAD_TIMEOUT (160)
-#define TIMER_CHECK	(1 * HZ / 2)
-#define TIMER_CHK_CNT 60
-
 struct meson_hdmitx_hdcp {
 	struct miscdevice hdcp_comm_device;
 	wait_queue_head_t hdcp_comm_queue;
@@ -168,29 +130,36 @@ void meson_hdcp_disable(void)
 		return;
 
 	DRM_INFO("[%s]: %d\n", __func__, meson_hdcp.hdcp_execute_type);
+	/* when switch mode under hdcp1.4, should not
+	 * trigger hdcp_tx22 daemon to change status.
+	 * otherwise, it may exit idle state and
+	 * enter polling(driver hdcp2.2 start) per 5ms
+	 * which cause high cpu CPU utilization
+	 */
 	if (meson_hdcp.hdcp_execute_type == HDCP_MODE22) {
-		/* when switch mode under hdcp1.4, should not
-		 * trigger hdcp_tx22 daemon to change status.
-		 * otherwise, it may exit idle state and
-		 * enter polling(driver hdcp2.2 start) per 5ms
-		 * which cause high cpu CPU utilization
-		 */
-		meson_hdcp.hdcp_report = HDCP_TX22_DISCONNECT;
-		/* wait for tx22 to enter unconnected state */
-		msleep(200);
-		meson_hdcp.hdcp_report = HDCP_TX22_STOP;
-		/* wakeup hdcp_tx22 to stop hdcp22 */
-		wake_up(&meson_hdcp.hdcp_comm_queue);
-		/* wait for hdcp_tx22 stop hdcp22 done */
-		msleep(200);
+		if (meson_hdcp.hdcp_report == HDCP_TX22_START) {
+			/* notify hdcp_tx22 to stop hdcp22 */
+			meson_hdcp.hdcp_report = HDCP_TX22_STOP;
+			wake_up(&meson_hdcp.hdcp_comm_queue);
+			/* wait for hdcp_tx22 stop hdcp22 done */
+			msleep_interruptible(200);
+		}
 		drm_hdmitx_disable_hdcp_mode(HDCP_MODE22);
-	} else if (meson_hdcp.hdcp_execute_type  == HDCP_MODE14) {
+		/* notify hdcp_tx22 to enter hdcp22 init state(DISCONNECT) */
+		meson_hdcp.hdcp_report = HDCP_TX22_DISCONNECT;
+		wake_up(&meson_hdcp.hdcp_comm_queue);
+	} else if (meson_hdcp.hdcp_execute_type == HDCP_MODE14) {
 		drm_hdmitx_disable_hdcp_mode(HDCP_MODE14);
 	}
 	meson_hdcp.hdcp_execute_type = HDCP_NULL;
 	meson_hdcp.hdcp_auth_result = HDCP_AUTH_UNKNOWN;
 	meson_hdcp.hdcp_en = 0;
 	meson_hdcp.hdcp_fail_cnt = 0;
+}
+
+bool is_hdcp22_stop_state(void)
+{
+	return meson_hdcp.hdcp_report == HDCP_TX22_STOP;
 }
 
 void meson_hdcp_disconnect(void)
