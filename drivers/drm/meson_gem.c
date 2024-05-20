@@ -371,8 +371,29 @@ static struct sg_table *am_meson_gem_create_sg_table(struct drm_gem_object *obj)
 		return dst_table;
 	} else if (meson_gem_obj->is_afbc) {
 #if (defined CONFIG_AMLOGIC_HEAP_CMA) || (defined CONFIG_AMLOGIC_HEAP_CODEC_MM)
-		if (meson_gem_obj->is_dma)
-			return meson_gem_obj->sg;
+		if (meson_gem_obj->is_dma) {
+			src_table = meson_gem_obj->sg;
+			dst_table = vmalloc(sizeof(*dst_table));
+			if (!dst_table) {
+				ret = -ENOMEM;
+				return ERR_PTR(ret);
+			}
+
+			ret = sg_alloc_table(dst_table, 1, GFP_KERNEL);
+			if (ret) {
+				vfree(dst_table);
+				return ERR_PTR(ret);
+			}
+
+			dst_sg = dst_table->sgl;
+			src_sg = src_table->sgl;
+
+			sg_set_page(dst_sg, sg_page(src_sg), obj->size, 0);
+			sg_dma_address(dst_sg) = sg_phys(src_sg);
+			sg_dma_len(dst_sg) = obj->size;
+
+			return dst_table;
+		}
 #endif
 #ifdef CONFIG_AMLOGIC_ION
 		if (meson_gem_obj->ionbuffer) {
