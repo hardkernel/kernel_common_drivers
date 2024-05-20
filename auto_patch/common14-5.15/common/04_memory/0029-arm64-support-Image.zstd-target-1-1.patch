@@ -1,4 +1,4 @@
-From 0443831beebe54de360bdf1c6d9da4594dbcead6 Mon Sep 17 00:00:00 2001
+From dc0b07153192480b8dc3fc99cbfcefbfe159965d Mon Sep 17 00:00:00 2001
 From: Tao Zeng <tao.zeng@amlogic.com>
 Date: Tue, 9 Apr 2024 12:44:27 +0800
 Subject: [PATCH] arm64: support Image.zstd target [1/1]
@@ -14,9 +14,9 @@ add it
 Change-Id: I95a4214fd19a3d6206f972ddc3f318de5b58cc4c
 Signed-off-by: Tao Zeng <tao.zeng@amlogic.com>
 ---
- BUILD.bazel              | 1 +
- arch/arm64/boot/Makefile | 5 ++++-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ BUILD.bazel              |  1 +
+ arch/arm64/boot/Makefile | 12 +++++++++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)
 
 diff --git a/BUILD.bazel b/BUILD.bazel
 index 14b3bbedd46fe..5dfc9706c3f6b 100644
@@ -31,7 +31,7 @@ index 14b3bbedd46fe..5dfc9706c3f6b 100644
  ]
  
 diff --git a/arch/arm64/boot/Makefile b/arch/arm64/boot/Makefile
-index ebe80faab8837..a5486d9b13d4a 100644
+index ebe80faab8837..f71519746c4b4 100644
 --- a/arch/arm64/boot/Makefile
 +++ b/arch/arm64/boot/Makefile
 @@ -16,7 +16,7 @@
@@ -43,12 +43,19 @@ index ebe80faab8837..a5486d9b13d4a 100644
  
  $(obj)/Image: vmlinux FORCE
  	$(call if_changed,objcopy)
-@@ -27,6 +27,9 @@ $(obj)/Image.bz2: $(obj)/Image FORCE
+@@ -27,6 +27,16 @@ $(obj)/Image.bz2: $(obj)/Image FORCE
  $(obj)/Image.gz: $(obj)/Image FORCE
  	$(call if_changed,gzip)
  
++ifdef CONFIG_AMLOGIC_AMFC
 +$(obj)/Image.zstd: $(obj)/Image FORCE
 +	$(ZSTD) -19 $< -o $@
++else
++# use lz4 as fallback to avoid build failed
++# Image.zstd should be only used on soc have AMFC
++$(obj)/Image.zstd: $(obj)/Image FORCE
++	$(call if_changed,lz4)
++endif
 +
  $(obj)/Image.lz4: $(obj)/Image FORCE
  	$(call if_changed,lz4)
