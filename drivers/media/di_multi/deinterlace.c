@@ -3066,7 +3066,7 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index)
 		 *so FCC switch channel, the other two channel not work but also has di buffer.
 		 *We need free the buffer when EDI_TOP_STATE_REG_STEP1 (reg but no vf)
 		 */
-		if (mm->fcc_value)
+		if (mm->fcc_value || pch->sts_keep)
 			dim_post_keep_release_one_check(ch, index);
 		else
 			ndkb_qin_byidx(pch, index);
@@ -5178,7 +5178,7 @@ static void re_build_buf(struct di_ch_s *pch, enum EDI_SGN sgn)
 	struct mtsk_cmd_s blk_cmd;
 	unsigned int ch;
 	unsigned int release_post = 0, length_keep = 0;
-	unsigned int post_nub;
+	unsigned int post_nub, pre_nub;
 
 	if (sgn == EDI_SGN_4K)
 		is_4k  = true;
@@ -5207,6 +5207,10 @@ static void re_build_buf(struct di_ch_s *pch, enum EDI_SGN sgn)
 	post_nub = cfgg(POST_NUB);
 	if (post_nub && post_nub < POST_BUF_NUM)
 		mm->cfg.num_post = post_nub;
+
+	pre_nub = cfgg(PRE_NUB);
+	if (pre_nub && pre_nub < POST_BUF_NUM)
+		mm->cfg.num_local = pre_nub;
 
 	if (pch->ponly && dip_is_ponly_sct_mem(pch))
 		mm->cfg.dis_afbce = 0;
@@ -10716,6 +10720,7 @@ void di_unreg_variable(unsigned int channel)
 	pch->sumx.need_local = 0;
 	pch->self_trig_need = 0;
 	pch->rsc_bypass.d32 = 0;
+	pch->sts_keep = 0;
 	set_bypass2_complete(channel, false);
 	init_completion(&tsk->fcmd[channel].alloc_done);
 	dbg_timer_clear(channel);
@@ -11783,12 +11788,21 @@ bool dim_pre_link_state(void)
 
 	if (IS_ERR_OR_NULL(de_devp))
 		return false;
-	if (DIM_IS_IC_BF(SC2))
+	if (DIM_IS_IC_BF(T5) || DIM_IS_IC(T5D))
 		return false;
 	return (cfgg(EN_PRE_LINK) && IS_IC_SUPPORT(PRE_VPP_LINK));
 }
 
 __module_param_named(invert_top_bot, invert_top_bot, int, 0664);
+
+bool dim_post_link_state(void)
+{
+	struct di_dev_s  *de_devp = get_dim_de_devp();
+
+	if (IS_ERR_OR_NULL(de_devp))
+		return false;
+	return (cfgg(EN_POST_LINK) && IS_IC_SUPPORT(POST_VPP_LINK));
+}
 
 bool dim_get_vfm_info(struct afbcd_info *vfm_info)
 {

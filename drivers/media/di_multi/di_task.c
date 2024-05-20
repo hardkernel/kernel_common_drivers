@@ -219,8 +219,12 @@ void task_polling_cmd_keep(unsigned int ch, unsigned int top_sts)
 
 //	if (pbm->cma_flg_run)
 //		return;
+	pch = get_chdata(ch);
+	if (IS_ERR_OR_NULL(pch))
+		return;
+
 	if (top_sts == EDI_TOP_STATE_READY) {
-		pch = get_chdata(ch);
+		//pch = get_chdata(ch);
 		mem_cfg_realloc(pch);
 		mem_cfg_pst(pch);//2020-12-17
 		//mem_cfg_realloc_wait(pch);
@@ -236,7 +240,8 @@ void task_polling_cmd_keep(unsigned int ch, unsigned int top_sts)
 	if (top_sts != EDI_TOP_STATE_IDLE	&&
 	    top_sts != EDI_TOP_STATE_READY	&&
 	    top_sts != EDI_TOP_STATE_BYPASS &&
-	    top_sts != EDI_TOP_STATE_REG_STEP1)
+	    (top_sts != EDI_TOP_STATE_REG_STEP1 ||
+		!pch->sts_keep))
 		return;
 
 //ary 2020-12-09	spin_lock_irqsave(&plist_lock, flags);

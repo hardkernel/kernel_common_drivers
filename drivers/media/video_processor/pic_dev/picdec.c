@@ -784,8 +784,8 @@ static int test_b = 0xff;
  *   main task functions.
  *************************************************
  */
-//static unsigned int print_ifmt;
-__module_param(print_ifmt, uint, 0644);
+static unsigned int print_ifmt;
+module_param(print_ifmt, uint, 0644);
 MODULE_PARM_DESC(print_ifmt, "print input format\n");
 
 /* fill the RGB user buffer to physical buffer */
@@ -1363,7 +1363,6 @@ int picdec_cma_buf_init(void)
 			cma_area = dma_contiguous_default_area;
 		if (picdec_device.output_format_mode) {
 			if (picdec_device.cma_mode == 0) {
-//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
 				picdec_device.cma_pages =
 					cma_alloc(cma_area,
@@ -1390,7 +1389,6 @@ int picdec_cma_buf_init(void)
 			}
 		} else {
 			if (picdec_device.cma_mode == 0) {
-//KV_TODO: modify
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
 				picdec_device.cma_pages =
 					cma_alloc(cma_area,
@@ -1914,9 +1912,8 @@ static int parse_para(const char *para, int para_num, int *result)
 	return count;
 }
 
-static ssize_t frame_render_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t frame_render_show(const struct class *cla,
+				 const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80,
 			"render width:%d\nheight:%d\nformat:%d\ndirection:%d\n",
@@ -1925,9 +1922,9 @@ static ssize_t frame_render_show(const struct class *class,
 }
 
 static int first_running = 1;
-static ssize_t frame_render_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t frame_render_store(const struct class *cla,
+				  const struct class_attribute *attr,
+				  const char *buf, size_t count)
 {
 	/*
 	 * ssize_t size;
@@ -1958,17 +1955,16 @@ static ssize_t frame_render_store(const struct class *class,
 	return count;
 }
 
-static ssize_t frame_post_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t frame_post_show(const struct class *cla,
+			       const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "post command is %d\n",
 			picdec_device.frame_post);
 }
 
-static ssize_t frame_post_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t frame_post_store(const struct class *cla,
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	unsigned long r;
 	int ret = 0;
@@ -1980,25 +1976,23 @@ static ssize_t frame_post_store(const struct class *class,
 	return count;
 }
 
-static ssize_t dec_status_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t dec_status_show(const struct class *cla,
+			       const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "PIC decoder status is %d\n",
 			(picdec_device.open_count > 0) ? 1 : 0);
 }
 
-static ssize_t test_color_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t test_color_show(const struct class *cla,
+			       const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "post command is %d\n",
 			picdec_device.frame_post);
 }
 
-static ssize_t test_color_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t test_color_store(const struct class *cla,
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	/*
 	 * ssize_t size;
@@ -2017,16 +2011,16 @@ static ssize_t test_color_store(const struct class *class,
 	return count;
 }
 
-static ssize_t debug_flag_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t debug_flag_show(const struct class *cla,
+			       const struct class_attribute *attr,
+			       char *buf)
 {
 	return snprintf(buf, 40, "%d\n", debug_flag);
 }
 
-static ssize_t debug_flag_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t debug_flag_store(const struct class *cla,
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -2038,16 +2032,16 @@ static ssize_t debug_flag_store(const struct class *class,
 	return count;
 }
 
-static ssize_t dump_file_flag_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t dump_file_flag_show(const struct class *cla,
+				   const struct class_attribute *attr,
+				   char *buf)
 {
 	return snprintf(buf, 40, "%d\n", dump_file_flag);
 }
 
-static ssize_t dump_file_flag_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t dump_file_flag_store(const struct class *cla,
+				    const struct class_attribute *attr,
+				    const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -2059,16 +2053,16 @@ static ssize_t dump_file_flag_store(const struct class *class,
 	return count;
 }
 
-static ssize_t p2p_mode_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t p2p_mode_show(const struct class *cla,
+			     const struct class_attribute *attr,
+			     char *buf)
 {
 	return snprintf(buf, 40, "%d\n", p2p_mode);
 }
 
-static ssize_t p2p_mode_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t p2p_mode_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -2080,16 +2074,16 @@ static ssize_t p2p_mode_store(const struct class *class,
 	return count;
 }
 
-static ssize_t cpu_draw_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t cpu_draw_show(const struct class *cla,
+			     const struct class_attribute *attr,
+			     char *buf)
 {
 	return snprintf(buf, 40, "%d\n", cpu_draw);
 }
 
-static ssize_t cpu_draw_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t cpu_draw_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -2101,16 +2095,16 @@ static ssize_t cpu_draw_store(const struct class *class,
 	return count;
 }
 
-static ssize_t output_format_mode_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t output_format_mode_show(const struct class *cla,
+				       const struct class_attribute *attr,
+				       char *buf)
 {
 	return snprintf(buf, 40, "%d\n", output_format_mode);
 }
 
-static ssize_t output_format_mode_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t output_format_mode_store(const struct class *cla,
+					const struct class_attribute *attr,
+					const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -2122,16 +2116,16 @@ static ssize_t output_format_mode_store(const struct class *class,
 	return count;
 }
 
-static ssize_t txlx_output_format_mode_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t txlx_output_format_mode_show(const struct class *cla,
+					    const struct class_attribute *attr,
+					    char *buf)
 {
 	return snprintf(buf, 40, "%d\n", txlx_output_format_mode);
 }
 
-static ssize_t txlx_output_format_mode_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t txlx_output_format_mode_store(const struct class *cla,
+					     const struct class_attribute *attr,
+					     const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -2144,16 +2138,16 @@ static ssize_t txlx_output_format_mode_store(const struct class *class,
 	return count;
 }
 
-static ssize_t cma_layout_flag_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t cma_layout_flag_show(const struct class *cla,
+				    const struct class_attribute *attr,
+				    char *buf)
 {
 	return snprintf(buf, 40, "%d\n", cma_layout_flag);
 }
 
-static ssize_t cma_layout_flag_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t cma_layout_flag_store(const struct class *cla,
+				     const struct class_attribute *attr,
+				     const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -2195,8 +2189,8 @@ ATTRIBUTE_GROUPS(picdec_class);
 
 #define PICDEC_CLASS_NAME               "picdec"
 static struct class picdec_class = {
-	.name = PICDEC_CLASS_NAME,
-	.class_groups = picdec_class_groups,
+		.name = PICDEC_CLASS_NAME,
+		.class_groups = picdec_class_groups,
 };
 
 struct class *init_picdec_cls(void)

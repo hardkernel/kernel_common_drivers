@@ -9,7 +9,6 @@ menu "Amlogic ion video support"
 config AMLOGIC_VIDEOBUF2_ION
 	tristate "videobuf2-ion video device support"
 	depends on VIDEO_DEV
-	depends on VIDEO_V4L2
 	depends on VIDEOBUF2_CORE
 	depends on VIDEOBUF2_MEMOPS
 	depends on DMA_SHARED_BUFFER

@@ -173,6 +173,8 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_EN_PRE_LINK,
 	EDI_CFG_AFBCE_LOSS_EN,
 	EDI_CFG_TB,
+	EDI_CFG_PRE_NUB,
+	EDI_CFG_EN_POST_LINK,
 	EDI_CFG_END,
 };
 
@@ -2080,6 +2082,8 @@ struct di_ch_s {
 	bool en_tb; //
 	unsigned char tb_owner;	//
 	bool	tb_busy;//
+	unsigned int sts_keep	: 1,
+			rev	: 31;
 };
 
 struct dim_policy_s {
@@ -3567,6 +3571,7 @@ static inline void p_ref_set_buf(struct di_buf_s *buf,
 #define IC_SUPPORT_DW		DI_BIT2 /* double write */
 #define IC_SUPPORT_PRE_VPP_LINK	DI_BIT3
 #define IC_SUPPORT_TB		DI_BIT4
+#define IC_SUPPORT_POST_VPP_LINK	DI_BIT5
 
 #define IS_IC_SUPPORT(cc)	(get_datal()->mdata->support & \
 				IC_SUPPORT_##cc ? true : false)

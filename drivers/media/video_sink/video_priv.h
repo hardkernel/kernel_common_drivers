@@ -125,8 +125,12 @@
 	(((vftype) & (VIDTYPE_PRE_INTERLACE | VIDTYPE_DI_PW)) \
 	 == VIDTYPE_PRE_INTERLACE)
 #define IS_DI_POSTWRTIE(vftype) ((vftype) & VIDTYPE_DI_PW)
+/* pre link */
 #define IS_DI_PRELINK(di_flag) ((di_flag) & DI_FLAG_DI_PVPPLINK)
-#define IS_DI_PRELINK_BYPASS(di_flag) ((di_flag) & DI_FLAG_DI_PVPPLINK_BYPASS)
+#define IS_DI_PLINK_BYPASS(di_flag) ((di_flag) & DI_FLAG_DI_PVPPLINK_BYPASS)
+/* new post link */
+#define IS_DI_PSTLINK(di_flag) ((di_flag) & DI_FLAG_DI_PSTVPPLINK)
+#define HAS_DI_LOCAL_BUF(di_flag) ((di_flag) & DI_FLAG_DI_LOCAL_BUF)
 
 #define MAX_PIP_WINDOW    16
 #define VPP_FILER_COEFS_NUM   33

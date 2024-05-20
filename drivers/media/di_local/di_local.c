@@ -253,6 +253,15 @@ int di_release_keep_buf(struct di_buffer *buffer)
 }
 EXPORT_SYMBOL(di_release_keep_buf);
 
+int di_set_buffer_num(unsigned int post, unsigned int pre)
+{
+	if (dil_api && dil_api->set_buffer_num)
+		return dil_api->set_buffer_num(post, pre);
+	PR_ERR("%s:not attach\n", __func__);
+	return 0;
+}
+EXPORT_SYMBOL(di_set_buffer_num);
+
 int di_get_output_buffer_num(int index)
 {
 	if (dil_api && dil_api->new_get_output_buffer_num)
@@ -370,6 +379,14 @@ int di_s_bypass_ch(int index, bool on)
 	return DI_ERR_UNDEFINED;
 }
 EXPORT_SYMBOL(di_s_bypass_ch);
+
+bool dim_get_post_link(void)
+{
+	if (dil_api && dil_api->is_post_link)
+		return dil_api->is_post_link();
+	return 0;
+}
+EXPORT_SYMBOL(dim_get_post_link);
 
 /***************************************
  * reserved mem for di *

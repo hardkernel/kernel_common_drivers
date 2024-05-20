@@ -37,6 +37,7 @@ struct afbcd_info {
 };
 
 bool dim_get_pre_link(void);
+bool dim_get_post_link(void);
 
 bool di_vfm_info(struct afbcd_info *vfm_info);
 

@@ -177,7 +177,7 @@ static int count_dst;
 
 static unsigned int ppmgr_color_format;
 MODULE_PARM_DESC(ppmgr_color_format, "\n ppmgr_color_format\n");
-__module_param(ppmgr_color_format, uint, 0664);
+module_param(ppmgr_color_format, uint, 0664);
 
 const struct vframe_receiver_op_s *vf_ppmgr_reg_provider(void);
 

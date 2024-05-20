@@ -2165,8 +2165,7 @@ static const struct file_operations vdetect_fops = {
 };
 
 static ssize_t vdetect_debug_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				  const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%-18s=%d\n%-18s=%d\n%-18s=%d\n%-18s=%d\n",
 			"detect_debug",
@@ -2180,8 +2179,8 @@ static ssize_t vdetect_debug_show(const struct class *class,
 }
 
 static ssize_t vdetect_debug_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;
@@ -2199,15 +2198,14 @@ static ssize_t vdetect_debug_store(const struct class *class,
 }
 
 static ssize_t vdetect_dump_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				 const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "vdetect debug: %d\n", detect_dump);
 }
 
 static ssize_t vdetect_dump_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				  const struct class_attribute *attr,
+				  const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;
@@ -2225,15 +2223,14 @@ static ssize_t vdetect_dump_store(const struct class *class,
 }
 
 static ssize_t vdetect_use_thread_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				       const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "vdetect use thread: %d\n", detect_thread);
 }
 
 static ssize_t vdetect_use_thread_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+					const struct class_attribute *attr,
+					const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;
@@ -2251,15 +2248,14 @@ static ssize_t vdetect_use_thread_store(const struct class *class,
 }
 
 static ssize_t tv_add_vdetect_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				   const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", tv_add_vdetect);
 }
 
 static ssize_t tv_add_vdetect_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				    const struct class_attribute *attr,
+				    const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;
@@ -2277,15 +2273,14 @@ static ssize_t tv_add_vdetect_store(const struct class *class,
 }
 
 static ssize_t aipq_enable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", aipq_enable);
 }
 
 static ssize_t aipq_enable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	ssize_t r;
 	int val;

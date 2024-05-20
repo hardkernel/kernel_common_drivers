@@ -9,7 +9,6 @@ menu "V4L2 Video Support"
 config AMLOGIC_V4L_VIDEO
 		tristate "Amlogic v4l video device support"
 		depends on VIDEO_DEV
-		depends on VIDEO_V4L2
 		depends on AMLOGIC_VIDEOBUF_RESOURCE
 		default n
 		help

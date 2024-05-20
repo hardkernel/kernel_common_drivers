@@ -54,7 +54,9 @@ struct di_ext_ops {
 	int (*s_bypass_ch)(int index, bool on);
 	unsigned int (*get_vpu_clkb_ext)(void);
 	bool (*is_pre_link)(void);
+	bool (*is_post_link)(void);
 	bool (*get_vfm_info)(struct afbcd_info *vfm_info);
+	int (*set_buffer_num)(unsigned int post, unsigned int pre);
 };
 
 #endif	/*__DI_LOCAL_H__*/

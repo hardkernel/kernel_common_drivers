@@ -526,9 +526,8 @@ static void videosync_unregister(struct videosync_s *dev_s)
 #endif
 }
 
-static ssize_t dump_queue_state_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t dump_queue_state_show(struct class *class,
+				     struct class_attribute *attr, char *buf)
 {
 	int ret = 0;
 	int i = 0;
@@ -565,9 +564,8 @@ static ssize_t dump_queue_state_show(const struct class *class,
 	return ret;
 }
 
-static ssize_t dump_pts_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t dump_pts_show(struct class *class,
+			     struct class_attribute *attr, char *buf)
 {
 	int ret = 0;
 	int i = 0;
@@ -595,9 +593,9 @@ static ssize_t dump_pts_show(const struct class *class,
 	return ret;
 }
 
-static ssize_t dump_get_put_framecount_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t dump_get_put_framecount_show(struct class *class,
+					    struct class_attribute *attr,
+					    char *buf)
 {
 	int ret = 0;
 	int i = 0;
@@ -625,9 +623,8 @@ static ssize_t dump_get_put_framecount_show(const struct class *class,
 	return ret;
 }
 
-static ssize_t dump_rect_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t dump_rect_show(struct class *class,
+			      struct class_attribute *attr, char *buf)
 {
 	int ret = 0;
 	int i = 0;
@@ -659,18 +656,17 @@ static ssize_t dump_rect_show(const struct class *class,
 	return ret;
 }
 
-static ssize_t audio_mode_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t audio_mode_show(struct class *cla,
+			       struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80,
 			"current async_mode is %d\n",
 			async_mode);
 }
 
-static ssize_t audio_mode_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t audio_mode_store(struct class *cla,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -684,18 +680,17 @@ static ssize_t audio_mode_store(const struct class *class,
 	return count;
 }
 
-static ssize_t not_rendor_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t not_rendor_show(struct class *cla,
+			       struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80,
 			"current no_render is %d\n",
 			no_render);
 }
 
-static ssize_t not_rendor_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t not_rendor_store(struct class *cla,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -709,18 +704,17 @@ static ssize_t not_rendor_store(const struct class *class,
 	return count;
 }
 
-static ssize_t current_omx_index_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t current_omx_index_show(struct class *cla,
+				      struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80,
 			"current cur_omx_index is %d\n",
 			cur_omx_index);
 }
 
-static ssize_t current_omx_index_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t current_omx_index_store(struct class *cla,
+				       struct class_attribute *attr,
+				       const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -734,18 +728,17 @@ static ssize_t current_omx_index_store(const struct class *class,
 	return count;
 }
 
-static ssize_t vpts_align_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vpts_align_show(struct class *cla,
+			       struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80,
 			"current vsync_pts_align is %d\n",
 			vsync_pts_align);
 }
 
-static ssize_t vpts_align_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpts_align_store(struct class *cla,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -759,18 +752,17 @@ static ssize_t vpts_align_store(const struct class *class,
 	return count;
 }
 
-static ssize_t first_frame_nosync_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t first_frame_nosync_show(struct class *cla,
+				       struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80,
 			"current show_first_frame_nosync is %d\n",
 			show_first_frame_nosync);
 }
 
-static ssize_t first_frame_nosync_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t first_frame_nosync_store(struct class *cla,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -784,18 +776,17 @@ static ssize_t first_frame_nosync_store(const struct class *class,
 	return count;
 }
 
-static ssize_t delata_time_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t delata_time_show(struct class *cla,
+				struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80,
 			"current max_delata_time is %d\n",
 			max_delata_time);
 }
 
-static ssize_t delata_time_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t delata_time_store(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -809,18 +800,17 @@ static ssize_t delata_time_store(const struct class *class,
 	return count;
 }
 
-static ssize_t no_sync_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t no_sync_show(struct class *cla,
+			    struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80,
 			"current show_nosync is %d\n",
 			show_nosync);
 }
 
-static ssize_t no_sync_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t no_sync_store(struct class *cla,
+			     struct class_attribute *attr,
+			     const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -834,18 +824,18 @@ static ssize_t no_sync_store(const struct class *class,
 	return count;
 }
 
-static ssize_t is_smooth_sync_enable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t is_smooth_sync_enable_show(struct class *cla,
+					  struct class_attribute *attr,
+					  char *buf)
 {
 	return snprintf(buf, 80,
 			"current smooth_sync_enable is %d\n",
 			smooth_sync_enable);
 }
 
-static ssize_t is_smooth_sync_enable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t is_smooth_sync_enable_store(struct class *cla,
+					   struct class_attribute *attr,
+					   const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -859,18 +849,18 @@ static ssize_t is_smooth_sync_enable_store(const struct class *class,
 	return count;
 }
 
-static ssize_t vp_debug_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vp_debug_show(struct class *cla,
+			     struct class_attribute *attr,
+			     char *buf)
 {
 	return snprintf(buf, 80,
 			"current vp_debug_flag is %d\n",
 			vp_debug_flag);
 }
 
-static ssize_t vp_debug_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vp_debug_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -884,18 +874,18 @@ static ssize_t vp_debug_store(const struct class *class,
 	return count;
 }
 
-static ssize_t gcd_duration_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t gcd_duration_show(struct class *cla,
+				 struct class_attribute *attr,
+				 char *buf)
 {
 	return snprintf(buf, 80,
 			"current duration_gcd is %d\n",
 			duration_gcd);
 }
 
-static ssize_t gcd_duration_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t gcd_duration_store(struct class *cla,
+				  struct class_attribute *attr,
+				  const char *buf, size_t count)
 {
 	long tmp;
 	int ret;
@@ -909,18 +899,18 @@ static ssize_t gcd_duration_store(const struct class *class,
 	return count;
 }
 
-static ssize_t pts_enforce_pull_down_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pts_enforce_pull_down_show(struct class *cla,
+					  struct class_attribute *attr,
+					  char *buf)
 {
 	return snprintf(buf, 80,
 			"current pts_enforce_pulldown is %d\n",
 			pts_enforce_pulldown);
 }
 
-static ssize_t pts_enforce_pull_down_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pts_enforce_pull_down_store(struct class *cla,
+					   struct class_attribute *attr,
+					   const char *buf, size_t count)
 {
 	long tmp;
 	int ret;

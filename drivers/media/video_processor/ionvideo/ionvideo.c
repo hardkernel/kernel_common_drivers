@@ -32,7 +32,7 @@ static unsigned int video_nr_base = 13;
 static int scaling_rate = 100;
 static int ionvideo_seek_flag;
 
-#ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
+#if defined(CONFIG_AMLOGIC_MEDIA_MULTI_DEC) && !defined(CONFIG_AMLOGIC_LOWMEM)
 static unsigned int n_devs = 9;
 #else
 static unsigned int n_devs = 1;
@@ -1087,8 +1087,7 @@ void ionvideo_release_map(int inst)
 }
 
 static ssize_t vframe_states_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				  const struct class_attribute *attr, char *buf)
 {
 	int ret = 0;
 	struct vframe_states states;
@@ -1111,17 +1110,16 @@ static ssize_t vframe_states_show(const struct class *class,
 	return ret;
 }
 
-static ssize_t scaling_rate_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
-
+static ssize_t scaling_rate_show(const struct class *cla,
+				 const struct class_attribute *attr,
+				 char *buf)
 {
 	return snprintf(buf, 80, "current scaling rate is %d\n", scaling_rate);
 }
 
-static ssize_t scaling_rate_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t scaling_rate_store(const struct class *cla,
+				  const struct class_attribute *attr,
+				  const char *buf, size_t count)
 {
 	ssize_t size;
 	char *endp = NULL;
@@ -1139,16 +1137,16 @@ static ssize_t scaling_rate_store(const struct class *class,
 	return count;
 }
 
-static ssize_t ionvideo_seek_flag_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t ionvideo_seek_flag_show(const struct class *cla,
+				       const struct class_attribute *attr,
+				       char *buf)
 {
 	return sprintf(buf, "%d\n", ionvideo_seek_flag);
 }
 
-static ssize_t ionvideo_seek_flag_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t ionvideo_seek_flag_store(const struct class *cla,
+					const struct class_attribute *attr,
+					const char *buf, size_t count)
 {
 	size_t r;
 
@@ -1158,16 +1156,16 @@ static ssize_t ionvideo_seek_flag_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_nr_base_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_nr_base_show(const struct class *cla,
+				  const struct class_attribute *attr,
+				  char *buf)
 {
 	return sprintf(buf, "%d\n", video_nr_base);
 }
 
-static ssize_t video_nr_base_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_nr_base_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
 	size_t r;
 
@@ -1177,16 +1175,16 @@ static ssize_t video_nr_base_store(const struct class *class,
 	return count;
 }
 
-static ssize_t n_devs_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t n_devs_show(const struct class *cla,
+			   const struct class_attribute *attr,
+			   char *buf)
 {
 	return sprintf(buf, "%d\n", n_devs);
 }
 
-static ssize_t n_devs_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t n_devs_store(const struct class *cla,
+			    const struct class_attribute *attr,
+			    const char *buf, size_t count)
 {
 	size_t r;
 
@@ -1196,16 +1194,16 @@ static ssize_t n_devs_store(const struct class *class,
 	return count;
 }
 
-static ssize_t ionvideo_debug_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t ionvideo_debug_show(const struct class *cla,
+				   const struct class_attribute *attr,
+				   char *buf)
 {
 	return sprintf(buf, "%d\n", debug);
 }
 
-static ssize_t ionvideo_debug_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t ionvideo_debug_store(const struct class *cla,
+				    const struct class_attribute *attr,
+				    const char *buf, size_t count)
 {
 	size_t r;
 
@@ -1215,16 +1213,16 @@ static ssize_t ionvideo_debug_store(const struct class *class,
 	return count;
 }
 
-static ssize_t vid_limit_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vid_limit_show(const struct class *cla,
+			      const struct class_attribute *attr,
+			      char *buf)
 {
 	return sprintf(buf, "%d\n", vid_limit);
 }
 
-static ssize_t vid_limit_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vid_limit_store(const struct class *cla,
+			       const struct class_attribute *attr,
+			       const char *buf, size_t count)
 {
 	size_t r;
 
@@ -1234,16 +1232,16 @@ static ssize_t vid_limit_store(const struct class *class,
 	return count;
 }
 
-static ssize_t freerun_mode_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t freerun_mode_show(const struct class *cla,
+				 const struct class_attribute *attr,
+				 char *buf)
 {
 	return sprintf(buf, "%d\n", freerun_mode);
 }
 
-static ssize_t freerun_mode_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t freerun_mode_store(const struct class *cla,
+				  const struct class_attribute *attr,
+				  const char *buf, size_t count)
 {
 	size_t r;
 
