@@ -3571,8 +3571,13 @@ static void video_composer_task(struct composer_dev *dev)
 			frame_info->crop_w,
 			frame_info->crop_h);
 		if (is_dec_vf || is_v4l_vf) {
-			if ((vf->type & VIDTYPE_COMPRESS) != 0) {
+			if ((vf->type_original & VIDTYPE_COMPRESS) != 0) {
 				if (is_src_crop_valid(vf->src_crop)) {
+					vc_print(dev->index, PRINT_AXIS, "src_crop:%d %d %d %d.\n",
+						vf->src_crop.left,
+						vf->src_crop.right,
+						vf->src_crop.top,
+						vf->src_crop.bottom);
 					pic_w = vf->compWidth -
 						vf->src_crop.left - vf->src_crop.right;
 					pic_h = vf->compHeight -
@@ -3585,6 +3590,7 @@ static void video_composer_task(struct composer_dev *dev)
 				pic_w = vf->width;
 				pic_h = vf->height;
 			}
+			vc_print(dev->index, PRINT_AXIS, "pic_w: %d, pic_h: %d.\n", pic_w, pic_h);
 			if (frame_info->source_type == SOURCE_DTV_FIX_TUNNEL) {
 				vf->flag |= VFRAME_FLAG_FIX_TUNNEL;
 				vf->crop[0] = frame_info->crop_y;
@@ -3753,7 +3759,7 @@ static void video_composer_task(struct composer_dev *dev)
 				BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 		}
 		vc_print(dev->index, PRINT_AXIS,
-			 "axis: %d %d %d %d\ncrop: %d %d %d %d\n",
+			 "axis: %d %d %d %d, crop: %d %d %d %d\n",
 			 vf->axis[0], vf->axis[1], vf->axis[2], vf->axis[3],
 			 vf->crop[0], vf->crop[1], vf->crop[2], vf->crop[3]);
 		vc_print(dev->index, PRINT_AXIS,

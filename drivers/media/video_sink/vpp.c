@@ -2761,7 +2761,7 @@ RESTART:
 			crop_ratio = vf->compWidth / vf->width;
 		goto RESTART_ALL;
 	} else {
-		if (vf->type & VIDTYPE_COMPRESS &&
+		if (vf->type_original & VIDTYPE_COMPRESS &&
 			is_src_crop_valid(vf->src_crop) &&
 			!src_crop_adjust) {
 			/* src crop top/left will always be 0 */
