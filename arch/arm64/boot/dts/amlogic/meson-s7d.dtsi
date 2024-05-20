@@ -698,7 +698,7 @@
 			//dis-thred-enhance = <0x2>;
 			pll-version = <3>;
 			phy0-reset-level-bit = <8>;
-			usb-reset-bit = <7>;
+			usb-reset-bit = <5>;
 			reset-level = <0x40>;
 			usb-phy-trim-reg = <0xfe010330>;
 			phy-id = <0>;
@@ -719,7 +719,7 @@
 			//dis-thred-enhance = <0x2>;
 			pll-version = <3>;
 			phy0-reset-level-bit = <9>;
-			usb-reset-bit = <6>;
+			usb-reset-bit = <4>;
 			reset-level = <0x40>;
 			usb-phy-trim-reg = <0xfe010330>;
 			phy-id = <1>;
