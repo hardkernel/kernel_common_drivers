@@ -645,6 +645,7 @@
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
+		use_vad_toddr = <1>;
 		pdm5v-supply = <&vcc5v_reg>;
 		//pdm3v3-supply = <&vddio3v3_reg>;
 		status = "okay";

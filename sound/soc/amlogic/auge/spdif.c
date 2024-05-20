@@ -1081,7 +1081,7 @@ static int aml_spdif_open(struct snd_soc_component *component,
 	} else {
 		p_spdif->tddr = aml_audio_register_toddr(dev,
 			p_spdif->actrl,
-			aml_spdif_ddr_isr, substream);
+			aml_spdif_ddr_isr, substream, 0);
 		if (!p_spdif->tddr) {
 			ret = -ENXIO;
 			dev_err(dev, "failed to claim to ddr\n");
@@ -1103,7 +1103,7 @@ static int aml_spdif_open(struct snd_soc_component *component,
 	return 0;
 
 err_irq:
-	aml_audio_unregister_toddr(p_spdif->dev, substream);
+	aml_audio_unregister_toddr(p_spdif->dev, substream, 0);
 err_ddr:
 	snd_pcm_lib_free_pages(substream);
 	return ret;
@@ -1119,7 +1119,7 @@ static int aml_spdif_close(struct snd_soc_component *component,
 		p_spdif->on = false;
 		aml_audio_unregister_frddr(p_spdif->dev, substream);
 	} else {
-		aml_audio_unregister_toddr(p_spdif->dev, substream);
+		aml_audio_unregister_toddr(p_spdif->dev, substream, 0);
 		free_irq(p_spdif->irq_spdifin, p_spdif);
 
 		/* clear extcon status */

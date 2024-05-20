@@ -1353,7 +1353,7 @@ static int aml_tdm_open(struct snd_soc_component *component, struct snd_pcm_subs
 		}
 	} else {
 		p_tdm->tddr = aml_audio_register_toddr(dev,
-			p_tdm->actrl, aml_tdm_ddr_isr, substream);
+			p_tdm->actrl, aml_tdm_ddr_isr, substream, 0);
 		if (!p_tdm->tddr) {
 			ret = -ENXIO;
 			dev_err(dev, "failed to claim to ddr\n");
@@ -1380,7 +1380,7 @@ static int aml_tdm_close(struct snd_soc_component *component,
 				substream);
 	else
 		aml_audio_unregister_toddr(p_tdm->dev,
-				substream);
+				substream, 0);
 	snd_pcm_lib_free_pages(substream);
 
 	return 0;

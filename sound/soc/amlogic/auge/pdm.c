@@ -583,7 +583,7 @@ static int aml_pdm_open(struct snd_soc_component *component, struct snd_pcm_subs
 	runtime->private_data = p_pdm;
 
 	p_pdm->tddr = aml_audio_register_toddr
-		(dev, p_pdm->actrl, aml_pdm_isr_handler, substream);
+		(dev, p_pdm->actrl, aml_pdm_isr_handler, substream, p_pdm->use_vad_toddr);
 	if (!p_pdm->tddr) {
 		ret = -ENXIO;
 		dev_err(dev, "failed to claim to ddr\n");
@@ -603,7 +603,7 @@ static int aml_pdm_close(struct snd_soc_component *component, struct snd_pcm_sub
 	struct aml_pdm *p_pdm = runtime->private_data;
 
 	pr_debug("enter %s type: %d\n", __func__, substream->stream);
-	aml_audio_unregister_toddr(p_pdm->dev, substream);
+	aml_audio_unregister_toddr(p_pdm->dev, substream, p_pdm->use_vad_toddr);
 	snd_pcm_lib_free_pages(substream);
 
 	return 0;
@@ -1360,6 +1360,12 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 			}
 		}
 	}
+
+	ret = of_property_read_u32(node, "use_vad_toddr",
+			&p_pdm->use_vad_toddr);
+	if (ret < 0)
+		p_pdm->use_vad_toddr = 0;
+	pr_debug("%s use_vad_toddr:%d\n", __func__, p_pdm->use_vad_toddr);
 
 	s_pdm = p_pdm;
 

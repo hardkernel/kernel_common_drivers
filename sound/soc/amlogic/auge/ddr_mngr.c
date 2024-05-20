@@ -16,6 +16,7 @@
 
 #include <linux/notifier.h>
 #include <linux/suspend.h>
+#include <linux/delay.h>
 
 #include "regs.h"
 #include "ddr_mngr.h"
@@ -38,6 +39,8 @@ static DEFINE_MUTEX(ddr_mutex);
 
 static struct frddr frddrs[DDRMAX];
 static struct toddr toddrs[DDRMAX];
+
+static struct toddr toddr_vad;
 
 struct src_enum_table {
 	enum toddr_src src;
@@ -108,22 +111,27 @@ static irqreturn_t aml_ddr_isr(int irq, void *devid)
 /* to DDRS */
 static struct toddr *register_toddr_l(struct device *dev,
 	struct aml_audio_controller *actrl,
-	irq_handler_t handler, void *data)
+	irq_handler_t handler, void *data, int use_vad_toddr)
 {
 	struct toddr *to;
 	unsigned int mask_bit;
 	int i, ret;
 
 	/* lookup unused toddr */
-	for (i = 0; i < DDRMAX; i++) {
-		if (!toddrs[i].in_use)
-			break;
+	if (!use_vad_toddr) {
+		for (i = 0; i < DDRMAX; i++) {
+			if (!toddrs[i].in_use)
+				break;
+		}
+
+		if (i >= DDRMAX)
+			return NULL;
+
+		to = &toddrs[i];
+	} else {
+		to = &toddr_vad;
+		to->use_vad_toddr = use_vad_toddr;
 	}
-
-	if (i >= DDRMAX)
-		return NULL;
-
-	to = &toddrs[i];
 
 	/* irqs request */
 	ret = request_threaded_irq(to->irq, aml_ddr_isr, handler,
@@ -144,26 +152,30 @@ static struct toddr *register_toddr_l(struct device *dev,
 	return to;
 }
 
-static int unregister_toddr_l(struct device *dev, void *data)
+static int unregister_toddr_l(struct device *dev, void *data, int use_vad_toddr)
 {
 	struct toddr *to;
 	struct aml_audio_controller *actrl;
 	unsigned int mask_bit;
 	unsigned int value;
-	int i;
+	int i = 0;
 
 	if (!dev)
 		return -EINVAL;
 
-	for (i = 0; i < DDRMAX; i++) {
-		if (toddrs[i].dev == dev && toddrs[i].in_use)
-			break;
+	if (!use_vad_toddr) {
+		for (i = 0; i < DDRMAX; i++) {
+			if (toddrs[i].dev == dev && toddrs[i].in_use)
+				break;
+		}
+
+		if (i >= DDRMAX)
+			return -EINVAL;
+
+		to = &toddrs[i];
+	} else {
+		to = &toddr_vad;
 	}
-
-	if (i >= DDRMAX)
-		return -EINVAL;
-
-	to = &toddrs[i];
 
 	/* disable audio ddr arb */
 	mask_bit = i;
@@ -202,6 +214,10 @@ struct toddr *fetch_toddr_by_src(int toddr_src)
 {
 	int i;
 
+	/*loop up toddr vad priority*/
+	if (toddr_vad.use_vad_toddr && toddr_vad.src == toddr_src)
+		return &toddr_vad;
+
 	for (i = 0; i < DDRMAX; i++) {
 		if (toddrs[i].in_use && toddrs[i].src == toddr_src)
 			return &toddrs[i];
@@ -212,23 +228,23 @@ struct toddr *fetch_toddr_by_src(int toddr_src)
 
 struct toddr *aml_audio_register_toddr(struct device *dev,
 	struct aml_audio_controller *actrl,
-	irq_handler_t handler, void *data)
+	irq_handler_t handler, void *data, int use_vad_toddr)
 {
 	struct toddr *to = NULL;
 
 	mutex_lock(&ddr_mutex);
 	to = register_toddr_l(dev, actrl,
-		handler, data);
+		handler, data, use_vad_toddr);
 	mutex_unlock(&ddr_mutex);
 	return to;
 }
 
-int aml_audio_unregister_toddr(struct device *dev, void *data)
+int aml_audio_unregister_toddr(struct device *dev, void *data, int use_vad_toddr)
 {
 	int ret;
 
 	mutex_lock(&ddr_mutex);
-	ret = unregister_toddr_l(dev, data);
+	ret = unregister_toddr_l(dev, data, use_vad_toddr);
 	mutex_unlock(&ddr_mutex);
 	return ret;
 }
@@ -262,15 +278,20 @@ int aml_toddr_set_buf(struct toddr *to, unsigned int start,
 	to->start_addr = start;
 	to->end_addr   = end;
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_START_ADDR, reg_base);
-	aml_audiobus_write(actrl, reg, start);
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_FINISH_ADDR, reg_base);
-	aml_audiobus_write(actrl, reg, end);
-
-	/* int address */
-	if (to->chipinfo && !to->chipinfo->int_start_same_addr) {
-		reg = calc_toddr_address(EE_AUDIO_TODDR_A_INIT_ADDR, reg_base);
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_write(to->reg_map, EE_AUDIO2_TODDR_VAD_START_ADDR, start);
+		mmio_write(to->reg_map, EE_AUDIO2_TODDR_VAD_FINISH_ADDR, end);
+		mmio_write(to->reg_map, EE_AUDIO2_TODDR_VAD_INIT_ADDR, start);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_START_ADDR, reg_base);
 		aml_audiobus_write(actrl, reg, start);
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_FINISH_ADDR, reg_base);
+		aml_audiobus_write(actrl, reg, end);
+		/* int address */
+		if (to->chipinfo && !to->chipinfo->int_start_same_addr) {
+			reg = calc_toddr_address(EE_AUDIO_TODDR_A_INIT_ADDR, reg_base);
+			aml_audiobus_write(actrl, reg, start);
+		}
 	}
 
 	return 0;
@@ -284,13 +305,18 @@ int aml_toddr_set_buf_startaddr(struct toddr *to, unsigned int start)
 
 	to->start_addr = start;
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_START_ADDR, reg_base);
-	aml_audiobus_write(actrl, reg, start);
-
-	/* int address */
-	if (to->chipinfo && !to->chipinfo->int_start_same_addr) {
-		reg = calc_toddr_address(EE_AUDIO_TODDR_A_INIT_ADDR, reg_base);
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_write(to->reg_map, EE_AUDIO2_TODDR_VAD_START_ADDR, start);
+		mmio_write(to->reg_map, EE_AUDIO2_TODDR_VAD_INIT_ADDR, start);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_START_ADDR, reg_base);
 		aml_audiobus_write(actrl, reg, start);
+
+		/* int address */
+		if (to->chipinfo && !to->chipinfo->int_start_same_addr) {
+			reg = calc_toddr_address(EE_AUDIO_TODDR_A_INIT_ADDR, reg_base);
+			aml_audiobus_write(actrl, reg, start);
+		}
 	}
 
 	return 0;
@@ -304,9 +330,12 @@ int aml_toddr_set_buf_endaddr(struct toddr *to, unsigned int end)
 
 	to->end_addr   = end;
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_FINISH_ADDR, reg_base);
-	aml_audiobus_write(actrl, reg, end);
-
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_write(to->reg_map, EE_AUDIO2_TODDR_VAD_FINISH_ADDR, end);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_FINISH_ADDR, reg_base);
+		aml_audiobus_write(actrl, reg, end);
+	}
 	return 0;
 }
 
@@ -316,11 +345,15 @@ int aml_toddr_set_intrpt(struct toddr *to, unsigned int intrpt)
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_INT_ADDR, reg_base);
-	aml_audiobus_write(actrl, reg, intrpt);
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
-	aml_audiobus_update_bits(actrl, reg, 0xff << 16, 0x4 << 16);
-
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_write(to->reg_map, EE_AUDIO2_TODDR_VAD_INT_ADDR, intrpt);
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL0, 0xff << 16, 0x4 << 16);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_INT_ADDR, reg_base);
+		aml_audiobus_write(actrl, reg, intrpt);
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
+		aml_audiobus_update_bits(actrl, reg, 0xff << 16, 0x4 << 16);
+	}
 	return 0;
 }
 
@@ -335,25 +368,36 @@ unsigned int aml_toddr_get_addr(struct toddr *to, enum status_sel sel)
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg_sel, reg, addr;
 
-	reg_sel = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
-	aml_audiobus_update_bits(actrl, reg_sel,
-		0xf << 8,
-		sel << 8);
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL1,
+			0xf << 8,
+			sel << 8);
+		addr =  mmio_read(to->reg_map, EE_AUDIO2_TODDR_VAD_STATUS2);
+		if (sel == VAD_WAKEUP_ADDR) {
+			mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL0,
+			0x1 << 1, 0x1 << 1);
+		}
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL1, 0xf << 8, 0x2 << 8);
+	} else {
+		reg_sel = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
+		aml_audiobus_update_bits(actrl, reg_sel,
+			0xf << 8,
+			sel << 8);
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_STATUS2, reg_base);
-	addr = aml_audiobus_read(actrl, reg);
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_STATUS2, reg_base);
+		addr = aml_audiobus_read(actrl, reg);
 
-	if (sel == VAD_WAKEUP_ADDR) {
-		/* clear VAD addr/cnt */
-		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
-		aml_audiobus_update_bits(actrl, reg, 0x1 << 1, 0x1 << 1);
+		if (sel == VAD_WAKEUP_ADDR) {
+			/* clear VAD addr/cnt */
+			reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
+			aml_audiobus_update_bits(actrl, reg, 0x1 << 1, 0x1 << 1);
+		}
+
+		/* reset to default, current write addr */
+		aml_audiobus_update_bits(actrl, reg_sel,
+			0xf << 8,
+			0x2 << 8);
 	}
-
-	/* reset to default, current write addr */
-	aml_audiobus_update_bits(actrl, reg_sel,
-		0xf << 8,
-		0x2 << 8);
-
 	return addr;
 }
 
@@ -363,8 +407,12 @@ void aml_toddr_enable(struct toddr *to, bool enable)
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
-	aml_audiobus_update_bits(actrl,	reg, 1 << 31, enable << 31);
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL0, 1 << 31, enable << 31);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
+		aml_audiobus_update_bits(actrl,	reg, 1 << 31, enable << 31);
+	}
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* check resample */
 	aml_check_resample(to, enable);
@@ -377,11 +425,19 @@ void aml_toddr_enable(struct toddr *to, bool enable)
 			aml_check_vad(to, enable);
 	}
 #endif
-	if (!enable) {
-		aml_audiobus_write(actrl, reg, 0x0);
-		/* clear ctrl1 register */
-		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
-		aml_audiobus_write(actrl, reg, 0x0);
+
+	if (to->reg_map && to->use_vad_toddr) {
+		if (!enable) {
+			mmio_write(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL0, 0);
+			mmio_write(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL1, 0);
+		}
+	} else {
+		if (!enable) {
+			aml_audiobus_write(actrl, reg, 0x0);
+			/* clear ctrl1 register */
+			reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
+			aml_audiobus_write(actrl, reg, 0x0);
+		}
 	}
 }
 
@@ -391,8 +447,12 @@ void aml_vad_toddr_enable(struct toddr *to, bool enable)
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
-	aml_audiobus_update_bits(actrl,	reg, 1 << 31, enable << 31);
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL0, 1 << 31, enable << 31);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
+		aml_audiobus_update_bits(actrl,	reg, 1 << 31, enable << 31);
+	}
 }
 
 static char *toddr_src2str(enum toddr_src tsrc)
@@ -434,16 +494,26 @@ void aml_toddr_select_src(struct toddr *to, enum toddr_src src)
 	/* store to check toddr num */
 	to->src = src;
 
-	conf = to->chipinfo->to_srcs;
+	if (to->reg_map && to->use_vad_toddr)
+		conf = to->chipinfo->vad_to_srcs;
+	else
+		conf = to->chipinfo->to_srcs;
+
 	for (; conf->name[0]; conf++) {
 		if (strncmp(conf->name, src_str, strlen(src_str)) == 0)
 			break;
 	}
 
-	reg = calc_toddr_address(conf->reg, reg_base);
-	aml_audiobus_update_bits(actrl, reg,
-				 conf->mask << conf->shift,
-				 conf->val << conf->shift);
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_update_bits(to->reg_map, conf->reg,
+		conf->mask << conf->shift,
+		conf->val << conf->shift);
+	} else {
+		reg = calc_toddr_address(conf->reg, reg_base);
+		aml_audiobus_update_bits(actrl, reg,
+					 conf->mask << conf->shift,
+					 conf->val << conf->shift);
+	}
 }
 
 void aml_toddr_set_fifos(struct toddr *to, unsigned int threshold)
@@ -475,11 +545,16 @@ void aml_toddr_set_fifos(struct toddr *to, unsigned int threshold)
 		val = (threshold - 1) << 16 | 2 << 8;
 	}
 
-	aml_audiobus_update_bits(actrl, reg, mask, val);
-
-	if (to->chipinfo && to->chipinfo->ugt) {
-		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
-		aml_audiobus_update_bits(actrl, reg, 0x1, 0x1);
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL1, mask, val);
+		if (to->chipinfo && to->chipinfo->ugt)
+			mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL0, 0x1, 0x1);
+	} else {
+		aml_audiobus_update_bits(actrl, reg, mask, val);
+		if (to->chipinfo && to->chipinfo->ugt) {
+			reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
+			aml_audiobus_update_bits(actrl, reg, 0x1, 0x1);
+		}
 	}
 }
 
@@ -489,23 +564,38 @@ void aml_toddr_force_finish(struct toddr *to)
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
-	aml_audiobus_update_bits(actrl, reg, 1 << 25, 0 << 25);
-	aml_audiobus_update_bits(actrl, reg, 1 << 25, 1 << 25);
-	aml_audiobus_update_bits(actrl, reg, 1 << 25, 0 << 25);
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL1, 1 << 25, 0 << 25);
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL1, 1 << 25, 1 << 25);
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL1, 1 << 25, 0 << 25);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
+		aml_audiobus_update_bits(actrl, reg, 1 << 25, 0 << 25);
+		aml_audiobus_update_bits(actrl, reg, 1 << 25, 1 << 25);
+		aml_audiobus_update_bits(actrl, reg, 1 << 25, 0 << 25);
+	}
 }
 
-static void aml_toddr_chsync_enable(int fifo_id, int chnum_max, bool enable)
+static void aml_toddr_chsync_enable(struct toddr *to, int fifo_id, int chnum_max, bool enable)
 {
 	unsigned int reg, offset;
 
 	offset = EE_AUDIO_TODDR_B_CHSYNC_CTRL - EE_AUDIO_TODDR_A_CHSYNC_CTRL;
 	reg = EE_AUDIO_TODDR_A_CHSYNC_CTRL + offset * fifo_id;
 
-	if (enable) {
-		audiobus_update_bits(reg,
-				     0xFF << 0,
-				     chnum_max << 0);
+	if (to->reg_map && to->use_vad_toddr) {
+		if (enable) {
+			mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CHSYNC_CTRL,
+				0xFF << 0, chnum_max << 0);
+			mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CHSYNC_CTRL,
+				0x1 << 31, enable << 31);
+		}
+	} else {
+		if (enable) {
+			audiobus_update_bits(reg,
+					     0xFF << 0,
+					     chnum_max << 0);
+		}
 	}
 
 	/* bit 31: enable */
@@ -528,12 +618,18 @@ void aml_toddr_set_format(struct toddr *to, struct toddr_fmt *fmt)
 	to->fmt.ch_num	  = fmt->ch_num;
 	to->fmt.rate	  = fmt->rate;
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
-	aml_audiobus_update_bits(actrl, reg,
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL0,
 		0x1 << 27 | 0x7 << 24 | 0x1fff << 3,
 		0x1 << 27 | fmt->endian << 24 | fmt->type << 13 |
 		fmt->msb << 8 | fmt->lsb << 3);
-
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
+		aml_audiobus_update_bits(actrl, reg,
+			0x1 << 27 | 0x7 << 24 | 0x1fff << 3,
+			0x1 << 27 | fmt->endian << 24 | fmt->type << 13 |
+			fmt->msb << 8 | fmt->lsb << 3);
+	}
 	/* bit 0-7: chnum_max, same with record channels */
 	if (to->chipinfo && to->chipinfo->chnum_sync) {
 		bool chsync_enable = true;
@@ -542,7 +638,7 @@ void aml_toddr_set_format(struct toddr *to, struct toddr_fmt *fmt)
 		if (to->src == EARCRX_DMAC && !get_earcrx_chnum_mult_mode() && fmt->ch_num > 2)
 			chsync_enable = false;
 #endif
-		aml_toddr_chsync_enable(to->fifo_id,
+		aml_toddr_chsync_enable(to, to->fifo_id,
 					fmt->ch_num - 1,
 					chsync_enable);
 	}
@@ -553,10 +649,16 @@ unsigned int aml_toddr_get_status(struct toddr *to)
 	struct aml_audio_controller *actrl = to->actrl;
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
+	unsigned int ret;
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_STATUS1, reg_base);
+	if (to->reg_map && to->use_vad_toddr) {
+		ret = mmio_read(to->reg_map, EE_AUDIO2_TODDR_VAD_STATUS1);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_STATUS1, reg_base);
+		ret = aml_audiobus_read(actrl, reg);
+	}
 
-	return aml_audiobus_read(actrl, reg);
+	return ret;
 }
 
 unsigned int aml_toddr_get_fifo_cnt(struct toddr *to)
@@ -570,10 +672,15 @@ void aml_toddr_ack_irq(struct toddr *to, int status)
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL1, MEMIF_INT_MASK, status);
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL1, MEMIF_INT_MASK, 0);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
 
-	aml_audiobus_update_bits(actrl, reg, MEMIF_INT_MASK, status);
-	aml_audiobus_update_bits(actrl, reg, MEMIF_INT_MASK, 0);
+		aml_audiobus_update_bits(actrl, reg, MEMIF_INT_MASK, status);
+		aml_audiobus_update_bits(actrl, reg, MEMIF_INT_MASK, 0);
+	}
 }
 
 void aml_toddr_insert_chanum(struct toddr *to)
@@ -582,52 +689,12 @@ void aml_toddr_insert_chanum(struct toddr *to)
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
-	aml_audiobus_update_bits(actrl, reg, 1 << 24, 1 << 24);
-}
-
-unsigned int aml_toddr_read(struct toddr *to)
-{
-	struct aml_audio_controller *actrl = to->actrl;
-	unsigned int reg_base = to->reg_base;
-	unsigned int reg;
-
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
-
-	return aml_audiobus_read(actrl, reg);
-}
-
-void aml_toddr_write(struct toddr *to, unsigned int val)
-{
-	struct aml_audio_controller *actrl = to->actrl;
-	unsigned int reg_base = to->reg_base;
-	unsigned int reg;
-
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
-
-	aml_audiobus_write(actrl, reg, val);
-}
-
-unsigned int aml_toddr_read1(struct toddr *to)
-{
-	struct aml_audio_controller *actrl = to->actrl;
-	unsigned int reg_base = to->reg_base;
-	unsigned int reg;
-
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
-
-	return aml_audiobus_read(actrl, reg);
-}
-
-void aml_toddr_write1(struct toddr *to, unsigned int val)
-{
-	struct aml_audio_controller *actrl = to->actrl;
-	unsigned int reg_base = to->reg_base;
-	unsigned int reg;
-
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
-
-	aml_audiobus_write(actrl, reg, val);
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL1, 1 << 24, 1 << 24);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
+		aml_audiobus_update_bits(actrl, reg, 1 << 24, 1 << 24);
+	}
 }
 
 unsigned int aml_toddr_read_status2(struct toddr *to)
@@ -635,10 +702,16 @@ unsigned int aml_toddr_read_status2(struct toddr *to)
 	struct aml_audio_controller *actrl = to->actrl;
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
+	unsigned int ret;
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_STATUS2, reg_base);
+	if (to->reg_map && to->use_vad_toddr) {
+		ret = mmio_read(to->reg_map, EE_AUDIO2_TODDR_VAD_STATUS2);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_STATUS2, reg_base);
+		ret = aml_audiobus_read(actrl, reg);
+	}
 
-	return aml_audiobus_read(actrl, reg);
+	return ret;
 }
 
 static bool aml_toddr_check_status_flag(struct toddr *to)
@@ -657,16 +730,26 @@ static bool aml_toddr_check_status_flag(struct toddr *to)
 	 * step4: compare request count and receive count;
 	 * step5: done if two count matched;
 	 */
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL2, reg_base);
-	aml_audiobus_update_bits(actrl,	reg, 1 << 30, 0 << 30);
-	aml_audiobus_update_bits(actrl,	reg, 1 << 30, 1 << 30);
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL2, 1 << 30, 0 << 30);
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL2, 1 << 30, 1 << 30);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL2, reg_base);
+		aml_audiobus_update_bits(actrl,	reg, 1 << 30, 0 << 30);
+		aml_audiobus_update_bits(actrl,	reg, 1 << 30, 1 << 30);
+	}
 
 	/* max 200us delay */
 	for (i = 0; i < 200; i++) {
 		udelay(1);
 		/* STATUS1 bit 23, stop_ddr_done */
-		reg = calc_toddr_address(EE_AUDIO_TODDR_A_STATUS1, reg_base);
-		status = (aml_audiobus_read(actrl, reg) & 0x800000) >> 23;
+		if (to->reg_map && to->use_vad_toddr) {
+			status = (mmio_read(to->reg_map,
+					EE_AUDIO2_TODDR_VAD_STATUS1) & 0x800000) >> 23;
+		} else {
+			reg = calc_toddr_address(EE_AUDIO_TODDR_A_STATUS1, reg_base);
+			status = (aml_audiobus_read(actrl, reg) & 0x800000) >> 23;
+		}
 		if (status) {
 			udelay(1);
 			if (to->chipinfo->use_arb)
@@ -713,8 +796,12 @@ static bool aml_toddr_check_status_flag(struct toddr *to)
 		pr_err("Error: 200us time out, TODDR_STATUS1 bit 23: %u\n",
 			status);
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL2, reg_base);
-	aml_audiobus_update_bits(actrl,	reg, 1 << 30, 0 << 30);
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL2, 1 << 30, 0 << 30);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL2, reg_base);
+		aml_audiobus_update_bits(actrl,	reg, 1 << 30, 0 << 30);
+	}
 
 	return ret;
 }
@@ -753,12 +840,21 @@ static bool aml_toddr_check_fifo_count(struct toddr *to)
 
 	/* max 200us delay */
 	for (i = 0; i < 200; i++) {
-		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
-		aml_audiobus_update_bits(actrl,	reg, 0xf << 8, 0x0 << 8);
+		if (to->reg_map && to->use_vad_toddr) {
+			mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL1, 1 << 30, 0 << 30);
+		} else {
+			reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
+			aml_audiobus_update_bits(actrl,	reg, 0xf << 8, 0x0 << 8);
+		}
 		addr_request = aml_toddr_get_position(to);
 
-		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
-		aml_audiobus_update_bits(actrl,	reg, 0xf << 8, 0x2 << 8);
+		if (to->reg_map && to->use_vad_toddr) {
+			mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL1,
+					0xf << 8, 0x2 << 8);
+		} else {
+			reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
+			aml_audiobus_update_bits(actrl,	reg, 0xf << 8, 0x2 << 8);
+		}
 		addr_reply = aml_toddr_get_position(to);
 
 		if (addr_request == addr_reply) {
@@ -875,8 +971,12 @@ static void aml_toddr_set_resample(struct toddr *to, bool enable)
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
-	aml_audiobus_update_bits(actrl,	reg, 1 << 30, !!enable << 30);
+	if (to->reg_map && to->use_vad_toddr) {
+		mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL1, 1 << 30, !!enable << 30);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
+		aml_audiobus_update_bits(actrl,	reg, 1 << 30, !!enable << 30);
+	}
 }
 
 /* tl1 after */
@@ -887,9 +987,15 @@ static void aml_toddr_set_resample_ab(struct toddr *to,
 	unsigned int reg_base = to->reg_base;
 	unsigned int reg;
 
-	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
-	if (index == RESAMPLE_A)
-		aml_audiobus_update_bits(actrl,	reg, 1 << 27, !!enable << 27);
+	if (to->reg_map && to->use_vad_toddr) {
+		if (index == RESAMPLE_A)
+			mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL1,
+				1 << 27, !!enable << 27);
+	} else {
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
+		if (index == RESAMPLE_A)
+			aml_audiobus_update_bits(actrl,	reg, 1 << 27, !!enable << 27);
+	}
 
 }
 
@@ -920,10 +1026,16 @@ static void aml_resample_enable(struct toddr *to, struct toddr_attach *p_attach_
 		toddr_type = 4;
 
 		/* FIX ME */
-		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
-		aml_audiobus_update_bits(actrl, reg,
-			0x7 << 24 | 0x7 << 13,
+		if (to->reg_map && to->use_vad_toddr) {
+			mmio_update_bits(to->reg_map, EE_AUDIO2_TODDR_VAD_CTRL0,
+				0x7 << 24 | 0x7 << 13,
 			endian << 24 | toddr_type << 13);
+		} else {
+			reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
+			aml_audiobus_update_bits(actrl, reg,
+				0x7 << 24 | 0x7 << 13,
+				endian << 24 | toddr_type << 13);
+		}
 	}
 
 	if (p_attach_resample->resample_version >= SM1_RESAMPLE) {
@@ -2083,6 +2195,12 @@ int fr_reset_reg_shift_array_v2[]  = {9, 10, 11, 0, 4};
 int fr_reset_reg_offset_array_v3[] = {0xa, 0xa};
 int fr_reset_reg_shift_array_v3[]  = {7, 8};
 
+struct toddr_src_conf toddr_srcs_vad_v0[] = {
+	TODDR_SRC_CONFIG("tdmin_c", 19, EE_AUDIO2_TODDR_VAD_CTRL1, 26, 0x1f),
+	TODDR_SRC_CONFIG("pdmin", 4, EE_AUDIO2_TODDR_VAD_CTRL1, 26, 0x1f),
+	{ /* sentinel */ }
+};
+
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct ddr_chipinfo tl1_ddr_chipinfo = {
 	.same_src_fn           = true,
@@ -2252,6 +2370,7 @@ static struct ddr_chipinfo a5_ddr_chipinfo = {
 	.frddr_num             = 3,
 	.fifo_depth            = FIFO_DEPTH_512,
 	.to_srcs               = &toddr_srcs_v4[0],
+	.vad_to_srcs           = &toddr_srcs_vad_v0[0],
 	.use_arb               = false,
 	.fr_reset_reg_offset   = &fr_reset_reg_offset_array_v2[0],
 	.fr_reset_reg_shift    = &fr_reset_reg_shift_array_v2[0],
@@ -2371,7 +2490,10 @@ static const struct of_device_id aml_ddr_mngr_device_id[] = {
 		.data       = &t3x_ddr_chipinfo,
 	},
 #endif
-
+	{
+		.compatible = "amlogic, toddrvad",
+		.data       = &a5_ddr_chipinfo,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, aml_ddr_mngr_device_id);
@@ -2447,6 +2569,9 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 	struct aml_audio_controller *actrl = NULL;
 	struct ddr_chipinfo *p_ddr_chipinfo;
 	int i, ret;
+	const char *name;
+	void __iomem *regs;
+	struct resource *res_mem;
 
 	/* get audio controller */
 	node_prt = of_get_parent(node);
@@ -2464,6 +2589,38 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"check to update ddr_mngr chipinfo\n");
 		return -EINVAL;
+	}
+
+	toddr_vad.irq = platform_get_irq_byname(pdev, "toddr_vad");
+	if (toddr_vad.irq > 0) {
+		static struct regmap_config regmap_config = {
+				.reg_bits = 32,
+				.val_bits = 32,
+				.reg_stride = 4,
+		};
+
+		res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res_mem)
+			return -ENOENT;
+		regs = ioremap(res_mem->start, resource_size(res_mem));
+		if (IS_ERR(regs))
+			return PTR_ERR(regs);
+
+		regmap_config.max_register = resource_size(res_mem) - 4;
+		regmap_config.name =
+			devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s-%s", node->name, name);
+
+		if (!regmap_config.name)
+			return -ENOMEM;
+
+		toddr_vad.reg_map = devm_regmap_init_mmio(&pdev->dev, regs, &regmap_config);
+		if (IS_ERR(toddr_vad.reg_map)) {
+			dev_err(&pdev->dev, "toddr vad regmap failed\n");
+			return -EINVAL;
+		}
+		toddr_vad.chipinfo = p_ddr_chipinfo;
+		toddr_vad.actrl = actrl;
+		return 0;
 	}
 
 	for (i = 0; i < p_ddr_chipinfo->toddr_num; i++) {

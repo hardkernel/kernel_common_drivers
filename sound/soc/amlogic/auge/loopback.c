@@ -247,7 +247,7 @@ static int loopback_open(struct snd_soc_component *component, struct snd_pcm_sub
 
 	p_loopback->tddr = aml_audio_register_toddr(dev,
 		p_loopback->actrl,
-		loopback_ddr_isr, ss);
+		loopback_ddr_isr, ss, 0);
 	if (!p_loopback->tddr) {
 		ret = -ENXIO;
 		dev_err(dev, "failed to claim to ddr\n");
@@ -268,7 +268,7 @@ static int loopback_close(struct snd_soc_component *component, struct snd_pcm_su
 	struct snd_pcm_runtime *runtime = ss->runtime;
 	struct loopback *p_loopback = runtime->private_data;
 
-	aml_audio_unregister_toddr(p_loopback->dev, ss);
+	aml_audio_unregister_toddr(p_loopback->dev, ss, 0);
 
 	runtime->private_data = NULL;
 	snd_pcm_lib_free_pages(ss);

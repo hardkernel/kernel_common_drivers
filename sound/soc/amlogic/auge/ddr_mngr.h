@@ -193,6 +193,7 @@ struct ddr_chipinfo {
 	bool use_arb;
 	int *fr_reset_reg_offset;
 	int *fr_reset_reg_shift;
+	struct toddr_src_conf *vad_to_srcs;
 };
 
 struct toddr {
@@ -214,6 +215,8 @@ struct toddr {
 	bool in_use: 1;
 	struct aml_audio_controller *actrl;
 	struct ddr_chipinfo *chipinfo;
+	int use_vad_toddr;
+	struct regmap *reg_map;
 };
 
 enum status {
@@ -280,8 +283,8 @@ struct ddr_info {
 struct toddr *fetch_toddr_by_src(int toddr_src);
 struct toddr *aml_audio_register_toddr(struct device *dev,
 		struct aml_audio_controller *actrl,
-		irq_handler_t handler, void *data);
-int aml_audio_unregister_toddr(struct device *dev, void *data);
+		irq_handler_t handler, void *data, int use_vad_toddr);
+int aml_audio_unregister_toddr(struct device *dev, void *data, int use_vad_toddr);
 void audio_toddr_irq_enable(struct toddr *to, bool en);
 int aml_toddr_set_buf(struct toddr *to, unsigned int start,
 			unsigned int end);

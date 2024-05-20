@@ -970,6 +970,21 @@
 			};
 		};/* end of audiobus*/
 
+		vadbus@0xFE334C00 {
+			compatible = "simple-bus";
+			reg = <0x0 0xFE334C00 0x0 0x400>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0 0x0 0xFE334C00 0x0 0x400>;
+			toddr_vad: toddrvad@0xfe334c80 {
+				compatible = "amlogic, toddrvad";
+				interrupts = <GIC_SPI 80 IRQ_TYPE_EDGE_RISING>;
+				interrupt-names = "toddr_vad";
+				reg =<0x0 0x0 0x0 0x400>;
+				reg-names = "toddrvad_reg";
+			};
+		};
+
 		/* snd-vad-top buffer */
 		sram:sram@F7000000 {
 			compatible = "amlogic, audio-sram";

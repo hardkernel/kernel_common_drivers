@@ -810,7 +810,7 @@ static int earc_open(struct snd_soc_component *component, struct snd_pcm_substre
 	} else {
 		p_earc->tddr = aml_audio_register_toddr(dev,
 			p_earc->actrl,
-			earc_ddr_isr, substream);
+			earc_ddr_isr, substream, 0);
 		if (!p_earc->tddr) {
 			ret = -ENXIO;
 			dev_err(dev, "failed to claim toddr\n");
@@ -835,7 +835,7 @@ static int earc_close(struct snd_soc_component *component, struct snd_pcm_substr
 		p_earc->earctx_on = false;
 		aml_audio_unregister_frddr(p_earc->dev, substream);
 	} else {
-		aml_audio_unregister_toddr(p_earc->dev, substream);
+		aml_audio_unregister_toddr(p_earc->dev, substream, 0);
 	}
 
 	runtime->private_data = NULL;

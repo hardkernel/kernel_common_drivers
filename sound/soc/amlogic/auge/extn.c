@@ -267,7 +267,7 @@ static int extn_open(struct snd_soc_component *component, struct snd_pcm_substre
 	} else {
 		p_extn->tddr = aml_audio_register_toddr(dev,
 			p_extn->actrl,
-			extn_ddr_isr, substream);
+			extn_ddr_isr, substream, 0);
 		if (!p_extn->tddr) {
 			ret = -ENXIO;
 			dev_err(dev, "failed to claim to ddr\n");
@@ -293,7 +293,7 @@ static int extn_open(struct snd_soc_component *component, struct snd_pcm_substre
 	return 0;
 
 err_irq:
-	aml_audio_unregister_toddr(p_extn->dev, substream);
+	aml_audio_unregister_toddr(p_extn->dev, substream, 0);
 err_ddr:
 	snd_pcm_lib_free_pages(substream);
 	return ret;
@@ -309,7 +309,7 @@ static int extn_close(struct snd_soc_component *component, struct snd_pcm_substr
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		aml_audio_unregister_frddr(p_extn->dev, substream);
 	} else {
-		aml_audio_unregister_toddr(p_extn->dev, substream);
+		aml_audio_unregister_toddr(p_extn->dev, substream, 0);
 
 		if (p_extn->irq_on) {
 			frhdmirx_nonpcm2pcm_clr_reset(p_extn);
