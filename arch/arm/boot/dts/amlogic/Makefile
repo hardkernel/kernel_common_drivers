@@ -102,3 +102,5 @@ dtb-y += s7d_s905x5m_bm201.dtb
 dtb-y += s7d_s905x5m_bm201_linux.dtb
 dtb-y += s7d_s905x5m_bm202.dtb
 dtb-y += s7d_s905x5m_bm209.dtb
+dtb-y += t5m_t963d4_ay301_1.5g.dtb
+dtb-y += t5m_t963d4_ay301_2g.dtb

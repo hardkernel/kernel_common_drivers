@@ -8,8 +8,8 @@
 	gpu:valhall {
 		compatible = "arm,malit60x", "arm,malit6xx", "arm,mali-midgard";
 		#cooling-cells = <2>;		/* min followed by max */
-		reg = <0 0xFE400000 0 0x04000>, /*mali APB bus base address*/
-			<0 0xFE002000 0 0x01000>; /*reset register*/
+		reg = <0xFE400000 0x04000>, /*mali APB bus base address*/
+			<0xFE002000 0x01000>; /*reset register*/
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
