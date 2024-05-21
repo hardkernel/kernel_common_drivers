@@ -780,6 +780,7 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 
 	do {
 		/* process a cmd or a cmd queue */
+		pitem->time_start_process = ktime_get();
 		cmd_queue_mode = is_cmd_queue(pitem);
 		if (cmd_queue_mode && is_cmd_queue_ready(pitem)) {
 			pos = ge2d_process_cmd_queue(wq, pitem);
@@ -835,6 +836,18 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 			}
 		}
 
+		pitem->time_process_done = ktime_get();
+		if (ge2d_log_level) {
+			ktime_t diff_time;
+			int time_ms_1 = 0, time_ms_2 = 0;
+
+			diff_time = ktime_sub(pitem->time_start_process, pitem->time_add_queue);
+			time_ms_1 = ktime_to_ms(diff_time);
+			diff_time = ktime_sub(pitem->time_process_done, pitem->time_start_process);
+			time_ms_2 = ktime_to_ms(diff_time);
+			ge2d_log_dbg("item:%p ge2d process time (%d + %d)ms\n",
+				pitem, time_ms_1, time_ms_2);
+		}
 		if (cmd_queue_mode)
 			stop_cmd_queue_process();
 
@@ -991,6 +1004,7 @@ int ge2d_wq_add_work(struct ge2d_context_s *wq, int enqueue)
 
 	block = pitem->cmd.wait_done_flag;
 	spin_lock(&wq->lock);
+	pitem->time_add_queue = ktime_get();
 	list_add_tail(&pitem->list, &wq->work_queue);
 	spin_unlock(&wq->lock);
 	ge2d_log_dbg("add new work ok\n");
@@ -2602,7 +2616,7 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 					     __func__);
 				return -1;
 			}
-			ge2d_log_dbg("ge2d dma alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
+			ge2d_log_dbg("ge2d src dma alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 				     src_addr[0],
 				     src_stride[0],
 				     ge2d_config->src_para.format);
@@ -2690,7 +2704,7 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 					     __func__);
 				return -1;
 			}
-			ge2d_log_dbg("ge2d dma alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
+			ge2d_log_dbg("ge2d src2 dma alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 				     src2_addr[0],
 				     src2_stride[0],
 				     ge2d_config->src2_para.format);
@@ -2781,7 +2795,7 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 					     __func__);
 				return -1;
 			}
-			ge2d_log_dbg("ge2d dma alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
+			ge2d_log_dbg("ge2d dst dma alloc phy_addr:0x%lx,stride=0x%x,format:0x%x\n",
 				     dst_addr[0],
 				     dst_stride[0],
 				     ge2d_config->dst_para.format);

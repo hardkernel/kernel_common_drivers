@@ -778,6 +778,9 @@ struct ge2d_queue_item_s {
 	struct ge2d_cmd_s cmd;
 	struct ge2d_config_s config;
 	struct ge2d_item_flag_s flag;
+	ktime_t time_add_queue;
+	ktime_t time_start_process;
+	ktime_t time_process_done;
 };
 
 struct ge2d_context_s {

@@ -24,6 +24,9 @@
 #include "ge2d_log.h"
 #include "ge2d_dmabuf.h"
 
+ktime_t time_sync_cache_start;
+ktime_t time_sync_cache_end;
+
 static void clear_dma_buffer(struct aml_dma_buffer *buffer, int index);
 
 static void *aml_mm_vmap(phys_addr_t phys, unsigned long size)
@@ -541,6 +544,7 @@ int ge2d_dma_buffer_map(struct aml_dma_cfg *cfg)
 	struct device *dev = NULL;
 	enum dma_data_direction dir;
 
+	time_sync_cache_start = ktime_get();
 	if (!cfg || cfg->fd < 0 || !cfg->dev) {
 		pr_err("%s: error input param\n", __func__);
 		return -EINVAL;
@@ -567,10 +571,19 @@ int ge2d_dma_buffer_map(struct aml_dma_cfg *cfg)
 		goto map_attach_err;
 	}
 
+	time_sync_cache_end = ktime_get();
 	cfg->dbuf = dbuf;
 	cfg->attach = d_att;
 	cfg->sg = sg;
 	ge2d_log_dbg("%s, dbuf=0x%p\n", __func__, dbuf);
+	if (ge2d_log_level) {
+		ktime_t diff_time;
+		int time_ms = 0;
+
+		diff_time = ktime_sub(time_sync_cache_end, time_sync_cache_start);
+		time_ms = ktime_to_ms(diff_time);
+		ge2d_log_dbg("%s, ge2d sync cache cost time %d ms\n", __func__, time_ms);
+	}
 	return 0;
 
 map_attach_err:
@@ -686,6 +699,7 @@ void ge2d_dma_buffer_dma_flush(struct device *dev, int fd)
 	struct aml_dma_buf_priv *buf_priv;
 	struct aml_dma_buf *buf;
 
+	time_sync_cache_start = ktime_get();
 	ge2d_log_dbg("%s fd=%d\n", __func__, fd);
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR_OR_NULL(dmabuf)) {
@@ -707,6 +721,15 @@ void ge2d_dma_buffer_dma_flush(struct device *dev, int fd)
 	if (buf->size > 0 && buf->dev == dev)
 		dma_sync_single_for_device(buf->dev, buf->dma_addr,
 					   buf->size, DMA_TO_DEVICE);
+	time_sync_cache_end = ktime_get();
+	if (ge2d_log_level) {
+		ktime_t diff_time;
+		int time_ms = 0;
+
+		diff_time = ktime_sub(time_sync_cache_end, time_sync_cache_start);
+		time_ms = ktime_to_ms(diff_time);
+		ge2d_log_dbg("%s, ge2d sync cache cost time %d ms\n", __func__, time_ms);
+	}
 put:
 	dma_buf_put(dmabuf);
 }
