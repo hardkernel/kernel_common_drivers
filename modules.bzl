@@ -133,6 +133,7 @@ AMLOGIC_COMMON_MODULES = [
     "drivers/net/phy/realtek.ko",
     "drivers/regulator/gpio-regulator.ko",
     "drivers/regulator/pwm-regulator.ko",
+    "drivers/clk/clk-scmi.ko",
     "fs/ntfs3/ntfs3.ko",
     "net/mac80211/mac80211.ko",
     "net/wireless/cfg80211.ko",
