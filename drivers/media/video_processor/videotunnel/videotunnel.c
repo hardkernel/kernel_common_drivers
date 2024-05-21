@@ -1078,13 +1078,13 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 	} else {
 		vt_instance_get(instance);
 	}
-	mutex_unlock(&dev->instance_lock);
 
 	mutex_lock(&instance->lock);
 	if (data->role == VT_ROLE_PRODUCER) {
 		if (instance->producer &&
 		    instance->producer != session) {
 			mutex_unlock(&instance->lock);
+			mutex_unlock(&dev->instance_lock);
 			vt_instance_put(instance);
 			pr_err("Connect to vt [%d] err, already has producer\n",
 			       id);
@@ -1098,6 +1098,7 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 		if (instance->consumer &&
 		    instance->consumer != session) {
 			mutex_unlock(&instance->lock);
+			mutex_unlock(&dev->instance_lock);
 			vt_instance_put(instance);
 			pr_err("Connect to vt [%d] err, already has consumer\n",
 			       id);
@@ -1107,6 +1108,7 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 		ret = vt_resend_cmd_process_locked(instance, session);
 		if (ret != 0) {
 			mutex_unlock(&instance->lock);
+			mutex_unlock(&dev->instance_lock);
 			vt_instance_put(instance);
 			pr_err("Connect to vt [%d], resend cmd fail\n", id);
 			return ret;
@@ -1125,6 +1127,7 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 		 session->pid,
 		 atomic_read(&instance->ref.refcount.refs));
 	mutex_unlock(&instance->lock);
+	mutex_unlock(&dev->instance_lock);
 
 	return 0;
 }
