@@ -151,7 +151,7 @@ struct meson_pwm {
 	spinlock_t lock;
 	struct regmap *regmap_base;
 #ifdef CONFIG_HIBERNATION
-#define PWM_REG_NUMS			8
+#define PWM_REG_NUMS			(8 + 1) //add buffer for ext_clock
 	u32 regs_restore[PWM_REG_NUMS];
 #endif
 };
