@@ -262,7 +262,8 @@ bool vdin_dv_is_need_tunnel(struct vdin_dev_s *devp)
 	    (is_amdv_stb_mode() && !is_hdmi_ll_as_hdr10())) &&
 	    (devp->prop.color_format == TVIN_YUV422 ||
 	     devp->prop.color_format == TVIN_YUV420) &&
-	     !devp->bypass_tunnel)
+	     !devp->debug.bypass_tunnel &&
+	     vdin_is_dv_supported())
 		return true;
 	else
 		return false;
