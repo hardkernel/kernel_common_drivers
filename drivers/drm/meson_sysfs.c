@@ -588,6 +588,182 @@ static ssize_t osd_blank_store(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
+static ssize_t osd_resize_src_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	struct meson_drm *priv;
+	int osd_index = *(int *)attr->private;
+	int pos = 0;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (off > 0)
+		return 0;
+
+	priv = minor->dev->dev_private;
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo src_x src_y src_w src_h > resize_source to enable osd-%d resize src\n",
+		osd_index);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 0 0 0 0 > resize_source to disable osd-%d resize src\n", osd_index);
+
+	return pos;
+}
+
+static ssize_t osd_resize_src_store(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	int osd_index = *(int *)attr->private;
+	struct meson_drm *priv;
+	unsigned int src_x, src_y, src_w, src_h;
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_atomic_state *state;
+	char dst_buf[64];
+	char *bufp, *parm[8] = {NULL};
+	int err;
+	int lens = strlen(buf);
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (lens > sizeof(dst_buf) - 1)
+		return -EINVAL;
+
+	memcpy(dst_buf, buf, lens);
+
+	dst_buf[lens] = '\0';
+	bufp = dst_buf;
+	parse_param(bufp, (char **)&parm);
+
+	priv = minor->dev->dev_private;
+	state = ERR_PTR(-EINVAL);
+
+	if (!(parm[0] && parm[1] && parm[2] && parm[3])) {
+		DRM_INFO("%s, parameters is incorrect.\n", __func__);
+		return -EINVAL;
+	}
+	if (kstrtouint(parm[0], 10, &src_x) < 0)
+		return -EINVAL;
+	if (kstrtouint(parm[1], 10, &src_y) < 0)
+		return -EINVAL;
+	if (kstrtouint(parm[2], 10, &src_w) < 0)
+		return -EINVAL;
+	if (kstrtouint(parm[3], 10, &src_h) < 0)
+		return -EINVAL;
+
+	priv->osd_planes[osd_index]->reset_src_x = src_x;
+	priv->osd_planes[osd_index]->reset_src_y = src_y;
+	priv->osd_planes[osd_index]->reset_src_w = src_w;
+	priv->osd_planes[osd_index]->reset_src_h = src_h;
+
+	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
+	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
+	if (IS_ERR(state))
+		return -EFAULT;
+	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
+	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
+	if (IS_ERR(state))
+		return -EFAULT;
+	drm_atomic_state_put(state);
+
+	return count;
+}
+
+static ssize_t osd_resize_dst_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	struct meson_drm *priv;
+	int osd_index = *(int *)attr->private;
+	int pos = 0;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (off > 0)
+		return 0;
+
+	priv = minor->dev->dev_private;
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo dst_x dst_y dst_w dst_h > resize_destination to enable osd-%d resize dst\n",
+		osd_index);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 0 0 0 0 > resize_destination to disable osd-%d resize dst\n", osd_index);
+
+	return pos;
+}
+
+static ssize_t osd_resize_dst_store(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	int osd_index = *(int *)attr->private;
+	struct meson_drm *priv;
+	unsigned int dst_x, dst_y, dst_w, dst_h;
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_atomic_state *state;
+	char dst_buf[64];
+	char *bufp, *parm[8] = {NULL};
+	int err;
+	int lens = strlen(buf);
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (lens > sizeof(dst_buf) - 1)
+		return -EINVAL;
+
+	memcpy(dst_buf, buf, lens);
+
+	dst_buf[lens] = '\0';
+	bufp = dst_buf;
+	parse_param(bufp, (char **)&parm);
+
+	priv = minor->dev->dev_private;
+	state = ERR_PTR(-EINVAL);
+
+	if (!(parm[0] && parm[1] && parm[2] && parm[3])) {
+		DRM_INFO("%s, parameters is incorrect.\n", __func__);
+		return -EINVAL;
+	}
+	if (kstrtouint(parm[0], 10, &dst_x) < 0)
+		return -EINVAL;
+	if (kstrtouint(parm[1], 10, &dst_y) < 0)
+		return -EINVAL;
+	if (kstrtouint(parm[2], 10, &dst_w) < 0)
+		return -EINVAL;
+	if (kstrtouint(parm[3], 10, &dst_h) < 0)
+		return -EINVAL;
+
+	priv->osd_planes[osd_index]->reset_dst_x = dst_x;
+	priv->osd_planes[osd_index]->reset_dst_y = dst_y;
+	priv->osd_planes[osd_index]->reset_dst_w = dst_w;
+	priv->osd_planes[osd_index]->reset_dst_h = dst_h;
+
+	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
+	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
+	if (IS_ERR(state))
+		return -EFAULT;
+	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
+	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
+	if (IS_ERR(state))
+		return -EFAULT;
+	drm_atomic_state_put(state);
+
+	return count;
+}
+
 static ssize_t state_show(struct file *filp, struct kobject *kobj,
 			 struct bin_attribute *attr, char *buf, loff_t off,
 			 size_t count)
@@ -1095,6 +1271,20 @@ static struct bin_attribute osd0_attr[] = {
 		.read = osd_pixel_blend_show,
 		.write = osd_pixel_blend_store,
 	},
+	{
+		.attr.name = "resize_source",
+		.attr.mode = 0664,
+		.private = &osd_index[0],
+		.read = osd_resize_src_show,
+		.write = osd_resize_src_store,
+	},
+	{
+		.attr.name = "resize_destination",
+		.attr.mode = 0664,
+		.private = &osd_index[0],
+		.read = osd_resize_dst_show,
+		.write = osd_resize_dst_store,
+	},
 };
 
 static struct bin_attribute *osd0_bin_attrs[] = {
@@ -1104,6 +1294,8 @@ static struct bin_attribute *osd0_bin_attrs[] = {
 	&osd0_attr[3],
 	&osd0_attr[4],
 	&osd0_attr[5],
+	&osd0_attr[6],
+	&osd0_attr[7],
 	NULL,
 };
 
@@ -1151,6 +1343,20 @@ static struct bin_attribute osd1_attr[] = {
 		.read = osd_pixel_blend_show,
 		.write = osd_pixel_blend_store,
 	},
+	{
+		.attr.name = "resize_source",
+		.attr.mode = 0664,
+		.private = &osd_index[1],
+		.read = osd_resize_src_show,
+		.write = osd_resize_src_store,
+	},
+	{
+		.attr.name = "resize_destination",
+		.attr.mode = 0664,
+		.private = &osd_index[1],
+		.read = osd_resize_dst_show,
+		.write = osd_resize_dst_store,
+	},
 };
 
 static struct bin_attribute *osd1_bin_attrs[] = {
@@ -1160,6 +1366,8 @@ static struct bin_attribute *osd1_bin_attrs[] = {
 	&osd1_attr[3],
 	&osd1_attr[4],
 	&osd1_attr[5],
+	&osd1_attr[6],
+	&osd1_attr[7],
 	NULL,
 };
 
@@ -1207,7 +1415,20 @@ static struct bin_attribute osd2_attr[] = {
 		.read = osd_pixel_blend_show,
 		.write = osd_pixel_blend_store,
 	},
-
+	{
+		.attr.name = "resize_source",
+		.attr.mode = 0664,
+		.private = &osd_index[2],
+		.read = osd_resize_src_show,
+		.write = osd_resize_src_store,
+	},
+	{
+		.attr.name = "resize_destination",
+		.attr.mode = 0664,
+		.private = &osd_index[2],
+		.read = osd_resize_dst_show,
+		.write = osd_resize_dst_store,
+	},
 };
 
 static struct bin_attribute *osd2_bin_attrs[] = {
@@ -1217,6 +1438,8 @@ static struct bin_attribute *osd2_bin_attrs[] = {
 	&osd2_attr[3],
 	&osd2_attr[4],
 	&osd2_attr[5],
+	&osd2_attr[6],
+	&osd2_attr[7],
 	NULL,
 };
 
@@ -1264,7 +1487,20 @@ static struct bin_attribute osd3_attr[] = {
 		.read = osd_pixel_blend_show,
 		.write = osd_pixel_blend_store,
 	},
-
+	{
+		.attr.name = "resize_source",
+		.attr.mode = 0664,
+		.private = &osd_index[3],
+		.read = osd_resize_src_show,
+		.write = osd_resize_src_store,
+	},
+	{
+		.attr.name = "resize_destination",
+		.attr.mode = 0664,
+		.private = &osd_index[3],
+		.read = osd_resize_dst_show,
+		.write = osd_resize_dst_store,
+	},
 };
 
 static struct bin_attribute *osd3_bin_attrs[] = {
@@ -1274,6 +1510,8 @@ static struct bin_attribute *osd3_bin_attrs[] = {
 	&osd3_attr[3],
 	&osd3_attr[4],
 	&osd3_attr[5],
+	&osd3_attr[6],
+	&osd3_attr[7],
 	NULL,
 };
 

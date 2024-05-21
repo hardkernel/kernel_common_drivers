@@ -373,6 +373,31 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 		plane_info->dst_x, plane_info->dst_y, plane_info->dst_w, plane_info->dst_h);
 	if (state->plane) {
 		amp = to_am_osd_plane(state->plane);
+
+		if (amp->reset_src_x)
+			plane_info->src_x = amp->reset_src_x;
+		if (amp->reset_src_y)
+			plane_info->src_y = amp->reset_src_y;
+		if (amp->reset_src_w)
+			plane_info->src_w = amp->reset_src_w;
+		if (amp->reset_src_h)
+			plane_info->src_h = amp->reset_src_h;
+		if (amp->reset_src_x || amp->reset_src_y || amp->reset_src_w || amp->reset_src_h)
+			DRM_DEBUG("resize original src: src_x=%d, src_y=%d, src_w=%d, src_h=%d\n",
+			amp->reset_src_x, amp->reset_src_y, amp->reset_src_w, amp->reset_src_h);
+
+		if (amp->reset_dst_x)
+			plane_info->dst_x = amp->reset_dst_x;
+		if (amp->reset_dst_y)
+			plane_info->dst_y = amp->reset_dst_y;
+		if (amp->reset_dst_w)
+			plane_info->dst_w = amp->reset_dst_w;
+		if (amp->reset_dst_h)
+			plane_info->dst_h = amp->reset_dst_h;
+		if (amp->reset_dst_x || amp->reset_dst_y || amp->reset_dst_w || amp->reset_dst_h)
+			DRM_DEBUG("resize original dst: dst_x=%d, dst_y=%d, dst_w=%d, dst_h=%d\n",
+			amp->reset_dst_x, amp->reset_dst_y, amp->reset_dst_w, amp->reset_dst_h);
+
 		if (plane_info->rotation != amp->osd_reverse)
 			plane_info->rotation = amp->osd_reverse;
 		if (plane_info->blend_bypass != amp->osd_blend_bypass)

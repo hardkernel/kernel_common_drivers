@@ -78,6 +78,14 @@ struct am_osd_plane {
 
 	/* sysfs debug*/
 	u16 pixel_blend_debug;
+	int reset_src_x;
+	int reset_src_y;
+	int reset_src_w;
+	int reset_src_h;
+	int reset_dst_x;
+	int reset_dst_y;
+	int reset_dst_w;
+	int reset_dst_h;
 };
 
 struct am_video_plane {
