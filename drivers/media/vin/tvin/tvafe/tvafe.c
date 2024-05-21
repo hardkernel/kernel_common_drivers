@@ -1032,7 +1032,7 @@ static bool tvafe_is_nosig(struct tvin_frontend_s *fe, enum tvin_port_type_e por
 	else
 		ret = tvafe_cvd2_no_sig(&tvafe->cvd2, &devp->mem, 0);
 
-	if (!tvafe_mode && IS_TVAFE_ATV_SRC(port) &&
+	if (/*!tvafe_mode && */IS_TVAFE_ATV_SRC(port) &&
 	    (devp->flags & TVAFE_FLAG_DEV_SNOW_FLAG)) { /* playing snow */
 		get_random_bytes(&snow_value, sizeof(snow_value));
 		W_APB_REG(ACD_REG_A6, snow_value);
