@@ -22,3 +22,8 @@
 
 # amlogic-crypto-dma.ko
   sg_nents_for_len
+
+ # amlogic-clk.ko
+  clk_hw_set_rate_range
+  scmi_driver_register
+  scmi_driver_unregister
