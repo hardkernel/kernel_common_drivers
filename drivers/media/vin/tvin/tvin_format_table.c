@@ -317,7 +317,7 @@ const struct tvin_format_s *tvin_get_fmt_info(enum tvin_sig_fmt_e fmt)
 		return &tvin_bt601_fmt_tbl[fmt -
 				TVIN_SIG_FMT_BT656IN_576I_50HZ];
 	else
-		return NULL;
+		return &tvin_hdmi_fmt_tbl[0];
 }
 EXPORT_SYMBOL(tvin_get_fmt_info);
 

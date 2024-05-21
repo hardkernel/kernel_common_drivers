@@ -3279,7 +3279,15 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		devp->vdin_drop_cnt++;
 		goto irq_handled;
 	}
-
+	state = tvin_get_sm_status(devp->index);
+	if ((devp->parm.info.status != TVIN_SIG_STATUS_STABLE ||
+		state != TVIN_SM_STATUS_STABLE) &&
+		(!(devp->flags & VDIN_FLAG_SNOW_FLAG))) {
+		devp->vdin_irq_flag = VDIN_IRQ_FLG_SIG_NOT_STABLE;
+		vdin_drop_frame_info(devp, "sig not stable");
+		vdin_drop_cnt++;
+		goto irq_handled;
+	}
 	vdin_handle_game_mode_chg(devp);
 
 	if (!devp->curr_wr_vfe) {
@@ -3377,18 +3385,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			vlock_delay_jiffies = msecs_to_jiffies(5);
 		}
 		schedule_delayed_work(&devp->vlock_dwork, vlock_delay_jiffies);
-	}
-
-	/* ignore the unstable signal */
-	state = tvin_get_sm_status(devp->index);
-	if ((devp->parm.info.status != TVIN_SIG_STATUS_STABLE ||
-	     state != TVIN_SM_STATUS_STABLE) &&
-	    (!(devp->flags & VDIN_FLAG_SNOW_FLAG))) {
-		devp->vdin_irq_flag = VDIN_IRQ_FLG_SIG_NOT_STABLE;
-		vdin_pause_hw_write(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE);
-		vdin_drop_frame_info(devp, "sig not stable");
-		devp->vdin_drop_cnt++;
-		goto irq_handled;
 	}
 
 	/* for 3D mode & interlaced format,

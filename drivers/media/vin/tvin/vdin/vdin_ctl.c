@@ -6754,6 +6754,9 @@ u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 	/* struct tvin_parm_s *parm = &devp->parm; */
 	const struct tvin_format_s *fmt_info = devp->fmt_info_p;
 
+	if (!fmt_info)
+		return devp->curr_field_type;
+
 	if (fmt_info->scan_mode == TVIN_SCAN_MODE_PROGRESSIVE) {
 		type |= VIDTYPE_PROGRESSIVE;
 	} else {
