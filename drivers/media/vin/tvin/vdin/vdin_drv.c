@@ -3456,7 +3456,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		pre_prop->dest_cfmt = prop->dest_cfmt;
 		if (prop->color_format != pre_prop->color_format ||
 		    prop->vdin_hdr_flag != pre_prop->vdin_hdr_flag) {
-			pre_prop->vdin_hdr_flag = prop->vdin_hdr_flag;
+			//pre_prop->vdin_hdr_flag = prop->vdin_hdr_flag;
 			pre_prop->color_format = prop->color_format;
 			pre_prop->color_fmt_range = prop->color_fmt_range;
 			devp->csc_cfg = 0;
@@ -3466,7 +3466,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			devp->vdin_drop_cnt++;
 			goto irq_handled;
 		} else {
-			pre_prop->vdin_hdr_flag = prop->vdin_hdr_flag;
+			//pre_prop->vdin_hdr_flag = prop->vdin_hdr_flag;
 			pre_prop->color_format = prop->color_format;
 			pre_prop->color_fmt_range = prop->color_fmt_range;
 			devp->csc_cfg = 0;
