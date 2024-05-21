@@ -4172,6 +4172,22 @@ static void vpp_set_super_scaler
 		next_frame_par->supsc0_hori_ratio = 0;
 		next_frame_par->supsc0_vert_ratio = 0;
 	}
+	/* for t3x 2 slice mode */
+	if (video_is_meson_t3x_cpu() &&
+		slice_num == 2 &&
+		next_frame_par->supsc0_enable &&
+		next_frame_par->supsc0_vert_ratio &&
+		next_frame_par->supsc0_hori_ratio &&
+		!next_frame_par->supsc1_enable) {
+		/* switch from sr0 to sr1 */
+		next_frame_par->supsc0_enable = 0;
+		next_frame_par->supsc0_hori_ratio = 0;
+		next_frame_par->supsc0_vert_ratio = 0;
+
+		next_frame_par->supsc1_enable = 1;
+		next_frame_par->supsc1_hori_ratio = 1;
+		next_frame_par->supsc1_vert_ratio = 1;
+	}
 
 	if (cur_dev->aisr_enable) {
 		next_frame_par->supsc1_enable = 1;
@@ -4192,6 +4208,7 @@ static void vpp_set_super_scaler
 		next_frame_par->supsc1_enable = 0;
 		next_frame_par->supsc1_hori_ratio = 0;
 		next_frame_par->supsc1_vert_ratio = 0;
+		cur_dev->aisr_enable = 0;
 	}
 
 	/* new add according to pq test @20170808 on gxlx*/
