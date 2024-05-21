@@ -1854,7 +1854,7 @@
 	};
 
 	vpu_security {
-		compatible = "amlogic, meson-t3, vpu_security";
+		compatible = "amlogic, meson-t6d, vpu_security";
 		status = "okay";
 		interrupts = <GIC_SPI 220 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vpu_security";

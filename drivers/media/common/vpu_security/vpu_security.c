@@ -129,6 +129,25 @@ static struct vpu_sec_reg_s reg_v5[] = {
 	{VPU_LUT_DMA_SEC_IN, 1, 2, 1}  /* 15. DI FG */
 };
 
+static struct vpu_sec_reg_s reg_v6[] = {
+	{VIU_OSD1_PATH_CTRL,     1, 28, 1}, /* 00. OSD1 */
+	{VIU_OSD2_PATH_CTRL,     1, 28, 1}, /* 01. OSD2 */
+	{VIU_VD1_PATH_CTRL,      1, 28, 1}, /* 02. VD1 */
+	{VIU_VD2_PATH_CTRL,      1, 28, 1}, /* 03. VD2 */
+	{VIU_OSD3_PATH_CTRL,     1, 28, 1}, /* 04. OSD3 */
+	{0,                      1,  0, 1}, /* 05. VD AFBC, not used */
+	{VIU_VD1_PATH_CTRL,      1, 29, 1}, /* 06. DV */
+	{VIU_OSD4_PATH_CTRL,     1, 28, 1}, /* 07. OSD AFBC */
+	{VIU_FRM_CTRL,	         1, 26, 1}, /* 08. VPP_TOP */
+	{0,                      1, 0,  1}, /* 09. OSD4, not used */
+	{VIU_VD3_PATH_CTRL,      1, 28, 1}, /* 10. VD3 */
+	{VIU_FRM_CTRL,           1, 26, 1}, /* 11. VPP_TOP1 */
+	{VIU_FRM_CTRL,           1, 26, 1}, /* 12. VPP_TOP2 */
+	{T6D_VPU_LUT_DMA_SEC_IN, 1,  0, 1}, /* 13. VD1 FG */
+	{T6D_VPU_LUT_DMA_SEC_IN, 1,  1, 1}, /* 14. VD2 FG */
+	{T6D_VPU_LUT_DMA_SEC_IN, 1,  2, 1}  /* 15. DI FG */
+};
+
 static struct sec_dev_data_s vpu_security_sc2 = {
 	.version = VPU_SEC_V1,
 };
@@ -153,6 +172,10 @@ static struct sec_dev_data_s vpu_security_s5 = {
 
 static struct sec_dev_data_s vpu_security_s7 = {
 	.version = VPU_SEC_V5,
+};
+
+static struct sec_dev_data_s vpu_security_t6d = {
+	.version = VPU_SEC_V6,
 };
 #endif
 
@@ -183,6 +206,10 @@ static const struct of_device_id vpu_security_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-s7, vpu_security",
 		.data = &vpu_security_s7,
+	},
+	{
+		.compatible = "amlogic, meson-t6d, vpu_security",
+		.data = &vpu_security_t6d,
 	},
 #endif
 	{}
@@ -273,6 +300,9 @@ static void secure_reg_update(struct vpu_secure_ins *ins,
 		} else if (version == VPU_SEC_V5) {
 			reg_size = ARRAY_SIZE(reg_v5);
 			reg_item = &reg_v5[0];
+		} else if (version == VPU_SEC_V6) {
+			reg_size = ARRAY_SIZE(reg_v6);
+			reg_item = &reg_v6[0];
 		}
 		if (log_level & 1)
 			pr_info("line=%d, vpu secure bit 0x%x, reg_size=0x%x, bit_changed=0x%x\n",
