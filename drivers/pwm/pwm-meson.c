@@ -977,7 +977,10 @@ static int meson_pwm_freeze(struct device *dev)
 
 	pinctrl_pm_select_sleep_state(dev);
 	for (i = 0; i < PWM_REG_NUMS; i++) {
-		meson->regs_restore[i] = readl(meson->base + 4 * i);
+		if (i == PWM_REG_NUMS - 1 && meson->data->extern_clk)//read clock reg
+			meson->regs_restore[i] = readl(meson->ext_clk_base);
+		else
+			meson->regs_restore[i] = readl(meson->base + 4 * i);
 		pr_debug("pwm freeze, reg%d: 0x%x\n", i, meson->regs_restore[i]);
 	}
 
@@ -997,7 +1000,10 @@ static int meson_pwm_restore(struct device *dev)
 
 	pinctrl_pm_select_default_state(dev);
 	for (i = 0; i < PWM_REG_NUMS; i++) {
-		writel(meson->regs_restore[i], meson->base + 4 * i);
+		if (i == PWM_REG_NUMS - 1 && meson->data->extern_clk)// restore clock reg
+			writel(meson->regs_restore[i], meson->ext_clk_base);
+		else
+			writel(meson->regs_restore[i], meson->base + 4 * i);
 		pr_debug("pwm restore, reg%d: 0x%x\n", i, meson->regs_restore[i]);
 	}
 
