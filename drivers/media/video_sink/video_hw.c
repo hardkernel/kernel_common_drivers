@@ -186,6 +186,8 @@ static struct vpu_dev_s *vpu_dolby2;
 static struct vpu_dev_s *vpu_dolby_core3;
 static struct vpu_dev_s *vpu_prime_dolby_ram;
 
+static bool force_vpp_blend_update;
+
 #define VPU_VD1_CLK_SWITCH(level) \
 	do { \
 		unsigned long flags; \
@@ -7457,6 +7459,11 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 		vd_layer[2].pre_blend_en = 0;
 		vd_layer[2].post_blend_en = 0;
 	}
+
+	if (force_vpp_blend_update) {
+		force_flush = true;
+		force_vpp_blend_update = false;
+	}
 	force_flush |= vpp_zorder_check_t7();
 
 	if (!legacy_vpp) {
@@ -7934,6 +7941,11 @@ static void vpp_blend_update_s5(const struct vinfo_s *vinfo, u8 vpp_index)
 		vd_layer[2].pre_blend_en = 0;
 		vd_layer[2].post_blend_en = 0;
 	}
+
+	if (force_vpp_blend_update) {
+		force_flush = true;
+		force_vpp_blend_update = false;
+	}
 	force_flush |= vpp_zorder_check();
 	force_flush |= update_vpp_input_info(vinfo, vpp_index);
 
@@ -8285,6 +8297,10 @@ void vpp_blend_update(const struct vinfo_s *vinfo, u8 vpp_index)
 		video_keeper_new_frame_notify(vd_layer[0].keep_frame_id);
 	}
 
+	if (force_vpp_blend_update) {
+		force_flush = true;
+		force_vpp_blend_update = false;
+	}
 	force_flush |= vpp_zorder_check();
 	force_flush |= vout_change_check(vinfo);
 
@@ -8608,8 +8624,14 @@ void vpp_blend_update_c3(const struct vinfo_s *vinfo)
 	int video1_off_req = 0;
 	unsigned long flags;
 	u32 vpp_index = 0;
+	bool force_flush = false;
 
-	if (vd1_matrix != save_setting) {
+	if (force_vpp_blend_update) {
+		force_flush = true;
+		force_vpp_blend_update = false;
+	}
+
+	if (vd1_matrix != save_setting || force_flush) {
 		vd1_matrix_yuv2rgb(vd1_matrix);
 
 		if (vinfo) {
@@ -8657,7 +8679,7 @@ void vpp_blend_update_c3(const struct vinfo_s *vinfo)
 		vd_layer[0].enabled = vd_layer[0].enabled_status_saved;
 	}
 	if (vd1_enabled != vd_layer[0].enabled ||
-		video1_off_req) {
+		video1_off_req || force_flush) {
 		if (vd_layer[0].enabled) {
 			video_prop_status &= ~VIDEO_PROP_CHANGE_DISABLE;
 			video_prop_status |= VIDEO_PROP_CHANGE_ENABLE;
@@ -8793,6 +8815,10 @@ static void vpp1_blend_update_s5(const struct vinfo_s *vinfo, u32 vpp_index)
 		osd_en_status_save = osd_vpp1_bld_ctrl;
 	}
 
+	if (force_vpp_blend_update) {
+		force_flush = true;
+		force_vpp_blend_update = false;
+	}
 	force_flush |= update_vpp1_input_info(vinfo);
 
 	if (force_flush)
@@ -8885,6 +8911,10 @@ void vpp1_blend_update(u32 vpp_index)
 		}
 	}
 
+	if (force_vpp_blend_update) {
+		force_flush = true;
+		force_vpp_blend_update = false;
+	}
 	layer_id = vd_layer_vpp[0].layer_id;
 	if ((vd_layer_vpp[0].vpp_index != VPP0) &&
 		(blend_en_status_save != vd_layer_vpp[0].vppx_blend_en ||
@@ -9039,6 +9069,11 @@ void vpp2_blend_update(u32 vpp_index)
 				vd_layer_vpp[1].vppx_blend_en = 0;
 			}
 		}
+	}
+
+	if (force_vpp_blend_update) {
+		force_flush = true;
+		force_vpp_blend_update = false;
 	}
 	layer_id = vd_layer_vpp[1].layer_id;
 	if (vd_layer_vpp[1].vpp_index != VPP0 &&
@@ -14286,6 +14321,7 @@ void video_resume_hw_recovery(void)
 	vd_layer[2].property_changed = true;
 	vd_layer_vpp[0].property_changed = true;
 	vd_layer_vpp[1].property_changed = true;
+	force_vpp_blend_update = true;
 }
 
 int video_late_uninit(void)
