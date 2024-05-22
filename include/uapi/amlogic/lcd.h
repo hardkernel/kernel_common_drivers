@@ -51,7 +51,7 @@ struct ioctl_phy_config_s {
 	unsigned int vcm;
 	unsigned int odt;
 	unsigned int ref_bias;
-	unsigned int mode;
+	unsigned int cv_mode;
 	unsigned int weakly_pull_down;
 	unsigned int lane_num;
 	unsigned int ext_pullup;

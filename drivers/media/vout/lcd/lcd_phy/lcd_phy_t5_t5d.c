@@ -9,9 +9,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/delay.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
-#include <linux/amlogic/cpu_version.h>
 #include "../lcd_reg.h"
 #include "lcd_phy_config.h"
 
@@ -43,13 +41,13 @@ static void lcd_phy_common_update(struct phy_config_s *phy, unsigned int cntl14)
 
 	cntl16 = (phy->ckdi << 12) | 0x80000000;
 
-	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL14, cntl14);
-	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL15, cntl15);
-	lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL16, cntl16);
+	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL14, cntl14);
+	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL15, cntl15);
+	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL16, cntl16);
 }
 
 static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy, int status,
-			unsigned int flag, int bypass)
+				unsigned int flag, int bypass)
 {
 	unsigned int chreg, reg_data = 0, chdig = 0;
 	unsigned char i, bit;
@@ -81,9 +79,9 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, struct phy_config_s *ph
 			reg_data &= ~(1 << 3);
 	} else {
 		reg_data = (!phy_ctrl_p->ctrl_bit_on) << 0;
-		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL14, 0);
-		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL15, 0);
-		lcd_hiu_write(HHI_DIF_CSI_PHY_CNTL16, 0);
+		lcd_ana_write(HHI_DIF_CSI_PHY_CNTL14, 0);
+		lcd_ana_write(HHI_DIF_CSI_PHY_CNTL15, 0);
+		lcd_ana_write(HHI_DIF_CSI_PHY_CNTL16, 0);
 	}
 
 	for (i = 0; i < 12; i++) {
@@ -95,42 +93,9 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, struct phy_config_s *ph
 				chreg |= (phy->lane[i].en ? 0 : 1) << 7;
 				chreg |= (phy->lane[i].preem & 0xff) << 8;
 			}
-			lcd_hiu_setb(chreg_reg[i >> 1], chreg, bit, 16);
-			lcd_hiu_setb(chdig_reg[i >> 1], chdig, bit, 16);
+			lcd_ana_setb(chreg_reg[i >> 1], chreg, bit, 16);
+			lcd_ana_setb(chdig_reg[i >> 1], chdig, bit, 16);
 		}
-	}
-}
-
-void lcd_phy_tcon_chpi_bbc_init_tl1(struct aml_lcd_drv_s *pdrv)
-{
-	unsigned int data32[12];
-	unsigned int n = 10;
-	unsigned char i, bit;
-
-	unsigned int chreg_reg[6] = {
-		HHI_DIF_CSI_PHY_CNTL1, HHI_DIF_CSI_PHY_CNTL2,
-		HHI_DIF_CSI_PHY_CNTL3, HHI_DIF_CSI_PHY_CNTL4,
-		HHI_DIF_CSI_PHY_CNTL6, HHI_DIF_CSI_PHY_CNTL7,
-	};
-
-	if (!phy_ctrl_p)
-		return;
-
-	for (i = 0; i < 12; i++) {
-		bit = i & 0x1 ? 16 : 0;
-		data32[i] = lcd_hiu_getb(chreg_reg[i >> 1], bit, 16);
-	}
-
-	udelay(n);
-	for (i = 0; i < 12; i++) {
-		bit = i & 0x1 ? 16 : 0;
-		lcd_hiu_setb(chreg_reg[i >> 1], 1, bit + 3, 1);
-	}
-	LCDPR("%s: delay: %dus\n", __func__, n);
-
-	for (i = 0; i < 12; i++) {
-		bit = i & 0x1 ? 16 : 0;
-		lcd_hiu_setb(chreg_reg[i >> 1], data32[i], bit, 16);
 	}
 }
 
@@ -138,8 +103,8 @@ static void lcd_lvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
 	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int cntl14 = 0, flag;
-	unsigned short lvds_flag_6lane_map0[2][3] = {
-		{0x000f, 0x001f, 0x003f}, {0x03c0, 0x07c0, 0x0fc0}};
+	unsigned short lvds_flag_6lane_map1[2][3] = {
+		{0x000f, 0x001f, 0x041f}, {0x01e0, 0x03e0, 0x0be0}};
 	unsigned char bit_idx;
 
 	if (status == LCD_PHY_LOCK_LANE)
@@ -153,12 +118,12 @@ static void lcd_lvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 		bit_idx = 2;
 
 	if (pdrv->config.control.lvds_cfg.dual_port) {
-		flag = lvds_flag_6lane_map0[0][bit_idx] | lvds_flag_6lane_map0[1][bit_idx];
+		flag = lvds_flag_6lane_map1[0][bit_idx] | lvds_flag_6lane_map1[1][bit_idx];
 	} else {
 		if (pdrv->config.control.lvds_cfg.port_swap)
-			flag = lvds_flag_6lane_map0[1][bit_idx];
+			flag = lvds_flag_6lane_map1[1][bit_idx];
 		else
-			flag = lvds_flag_6lane_map0[0][bit_idx];
+			flag = lvds_flag_6lane_map1[0][bit_idx];
 	}
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
@@ -272,7 +237,7 @@ static void lcd_p2p_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	lcd_phy_cntl_set(pdrv, phy, status, flag, 1);
 }
 
-static struct lcd_phy_ctrl_s lcd_phy_ctrl_tl1 = {
+static struct lcd_phy_ctrl_s lcd_phy_ctrl_t5 = {
 	.lane_num = 12,
 	.ctrl_bit_on = 1,
 	.lane_lock = 0,
@@ -288,13 +253,8 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_tl1 = {
 	.phy_set_edp = NULL,
 };
 
-struct lcd_phy_ctrl_s *lcd_phy_config_init_tl1(struct aml_lcd_drv_s *pdrv)
+struct lcd_phy_ctrl_s *lcd_phy_config_init_t5(struct aml_lcd_drv_s *pdrv)
 {
-	phy_ctrl_p = &lcd_phy_ctrl_tl1;
-
-	if ((pdrv->data->chip_type == LCD_CHIP_TL1 && is_meson_rev_b()) || is_meson_rev_a())
-		phy_ctrl_p->ctrl_bit_on = 0;
-	else
-		phy_ctrl_p->ctrl_bit_on = 1;
+	phy_ctrl_p = &lcd_phy_ctrl_t5;
 	return phy_ctrl_p;
 }

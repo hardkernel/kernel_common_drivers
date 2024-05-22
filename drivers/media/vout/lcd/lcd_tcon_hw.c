@@ -1409,7 +1409,7 @@ int lcd_tcon_enable_tl1(struct aml_lcd_drv_s *pdrv)
 		p2p_type = pconf->control.p2p_cfg.p2p_type & 0x1f;
 		switch (p2p_type) {
 		case P2P_CHPI:
-			lcd_phy_tcon_chpi_bbc_init_tl1(pconf);
+			lcd_phy_tcon_chpi_bbc_init_tl1(pdrv);
 			break;
 		default:
 			break;

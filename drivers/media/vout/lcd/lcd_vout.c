@@ -119,7 +119,7 @@ static struct ioctl_phy_config_s ioctl_phy_config = {
 	.vcm = 0,
 	.odt = 0,
 	.ref_bias = 0,
-	.mode = 0,
+	.cv_mode = 0,
 	.weakly_pull_down = 0,
 	.lane_num = 0,
 	.ext_pullup = 0,
@@ -1579,7 +1579,7 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ioctl_phy_cfg->vcm = phy_cfg->vcm;
 		ioctl_phy_cfg->odt = phy_cfg->odt;
 		ioctl_phy_cfg->ref_bias = phy_cfg->ref_bias;
-		ioctl_phy_cfg->mode = phy_cfg->mode;
+		ioctl_phy_cfg->cv_mode = phy_cfg->cv_mode;
 		ioctl_phy_cfg->weakly_pull_down = phy_cfg->weakly_pull_down;
 		ioctl_phy_cfg->lane_num = phy_cfg->lane_num;
 		ioctl_phy_cfg->ext_pullup = phy_cfg->ext_pullup;
@@ -1635,7 +1635,7 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			phy_cfg->vcm = ioctl_phy_usr.vcm;
 			phy_cfg->odt = ioctl_phy_usr.odt;
 			phy_cfg->ref_bias = ioctl_phy_usr.ref_bias;
-			phy_cfg->mode = ioctl_phy_usr.mode;
+			phy_cfg->cv_mode = ioctl_phy_usr.cv_mode;
 			phy_cfg->weakly_pull_down = ioctl_phy_usr.weakly_pull_down;
 			phy_cfg->lane_num = ioctl_phy_usr.lane_num;
 			phy_cfg->ext_pullup = ioctl_phy_usr.ext_pullup;
@@ -1655,7 +1655,11 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			lcd_phy_set(pdrv, 1);
 		break;
 	case LCD_IOC_GET_SS:
-		lcd_get_ss_num(pdrv, &ss_ctl.level, &ss_ctl.freq, &ss_ctl.mode);
+		ret = lcd_get_ss_num(pdrv, &ss_ctl.level, &temp, &ss_ctl.freq, &ss_ctl.mode);
+		if (ret < 0) {
+			ret = -EFAULT;
+			break;
+		}
 		if (copy_to_user(argp, (const void *)&ss_ctl, sizeof(struct aml_lcd_ss_ctl_s)))
 			ret = -EFAULT;
 		break;
@@ -2218,20 +2222,28 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 		case LCD_BT1120:
 			lcd_bt_pinmux_set(pdrv, 1);
 			break;
+		case LCD_LVDS:
+			pdrv->config.phy_cfg.state = 1;
+			break;
 		case LCD_VBYONE:
 			lcd_vbyone_pinmux_set(pdrv, 1);
+			pdrv->config.phy_cfg.state = 1;
 			break;
 		case LCD_MLVDS:
 			lcd_mlvds_pinmux_set(pdrv, 1);
+			pdrv->config.phy_cfg.state = 1;
 			break;
 		case LCD_P2P:
 			lcd_p2p_pinmux_set(pdrv, 1);
+			pdrv->config.phy_cfg.state = 1;
 			break;
 		case LCD_EDP:
 			lcd_edp_pinmux_set(pdrv, 1);
+			pdrv->config.phy_cfg.state = 1;
 			break;
 		case LCD_MIPI:
 			lcd_mipi_pinmux_set(pdrv, 1);
+			pdrv->config.phy_cfg.state = 1;
 			break;
 		default:
 			break;

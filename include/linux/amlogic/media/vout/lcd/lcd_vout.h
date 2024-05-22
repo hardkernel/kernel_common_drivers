@@ -281,6 +281,8 @@ struct vbyone_config_s {
 	/* hw filter */
 	unsigned int hw_filter_time; /* ms */
 	unsigned int hw_filter_cnt;
+
+	unsigned int slice;
 };
 
 /* mipi-dsi config */
@@ -505,24 +507,43 @@ struct lcd_power_step_s {
 	unsigned short delay;
 };
 
+#define PHY_BIT_VSWING      BIT(0)
+#define PHY_BIT_VCM         BIT(1)
+#define PHY_BIT_REF_BIAS    BIT(2)
+#define PHY_BIT_ODT         BIT(3)
+#define PHY_BIT_CV_MODE     BIT(4)
+#define PHY_BIT_LANE_PREEM  BIT(12)
+#define PHY_BIT_LAEN_AMP    BIT(13)
+#define PHY_BIT_LANE_SEL    BIT(14)
+
 struct phy_lane_s {
-	unsigned int preem;
-	unsigned int amp;
+	unsigned int preem; //flag bit[12]
+	unsigned int amp;   //flag bit[13]
+	unsigned char sel;  //flag bit[14]
+	unsigned char en;
 };
 
+#define PHY_CMODE   0
+#define PHY_VMODE   1
 struct phy_config_s {
 	unsigned int flag;
-	unsigned int vswing;
-	unsigned int vcm;
-	unsigned int odt;
-	unsigned int ref_bias;
-	unsigned int mode;
-	unsigned int weakly_pull_down;
-	unsigned int lane_num;
-	unsigned int ext_pullup;
-	unsigned int vswing_level;
-	unsigned int preem_level;
+	unsigned int vswing;     //flag bit[0]
+	unsigned int vcm;        //flag bit[1]
+	unsigned int ref_bias;   //flag bit[2]
+	unsigned int odt;        //flag bit[3]
+	unsigned int cv_mode;    //flag bit[4] //val:0=cm,1=vm
 	struct phy_lane_s lane[CH_LANE_MAX];
+
+	unsigned int lane_num;
+	unsigned int ch_swap0;
+	unsigned int ch_swap1;
+	unsigned int vswing_level;
+	unsigned int ext_pullup;
+	unsigned int preem_level;
+	unsigned int weakly_pull_down;
+	unsigned int low_common_mode;
+	unsigned int ckdi;
+	unsigned int state;
 };
 
 enum lcd_phy_set_status {

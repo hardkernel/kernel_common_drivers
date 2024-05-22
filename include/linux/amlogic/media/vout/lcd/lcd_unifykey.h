@@ -138,8 +138,8 @@ struct aml_lcd_unifykey_header_s {
 #define LCD_UKEY_PHY_ATTR_11       (LCD_UKEY_HEAD_SIZE + 26)
 #define LCD_UKEY_PHY_LANE_CTRL     (LCD_UKEY_HEAD_SIZE + 28)//64*4
 #define LCD_UKEY_PHY_LANE_PN_SWAP  (LCD_UKEY_HEAD_SIZE + 284)//8
-#define LCD_UKEY_PHY_LANE_SWAP     (LCD_UKEY_HEAD_SIZE + 292)//64
-/* custom ctrl (76Byte) */
+#define LCD_UKEY_PHY_LANE_SEL      (LCD_UKEY_HEAD_SIZE + 292)//64
+/* custom ctrl v2(76Byte) */
 #define LCD_UKEY_CUS_CTRL_ATTR_FLAG    (LCD_UKEY_HEAD_SIZE + 356)
 #define LCD_UKEY_CUS_CTRL_ATTR_0       (LCD_UKEY_HEAD_SIZE + 360)
 #define LCD_UKEY_CUS_CTRL_ATTR_0_PARM0 (LCD_UKEY_HEAD_SIZE + 362)
@@ -151,6 +151,8 @@ struct aml_lcd_unifykey_header_s {
 #define LCD_UKEY_CUS_CTRL_ATTR_0_PARM6 (LCD_UKEY_HEAD_SIZE + 374)
 #define LCD_UKEY_CUS_CTRL_ATTR_0_PARM7 (LCD_UKEY_HEAD_SIZE + 376)
 #define LCD_UKEY_CUS_CTRL_END          (LCD_UKEY_HEAD_SIZE + 432)
+/* custom ctrl v3 */
+#define LCD_UKEY_CUS_CTRL_ATTR_FLAG_V3  (LCD_UKEY_HEAD_SIZE + 0)
 
 /* ********************************
  * lcd extern
@@ -387,6 +389,7 @@ bool lcd_unifykey_init_get(void);
 int lcd_unifykey_len_check(int key_len, int len);
 int lcd_unifykey_check(char *key_name);
 int lcd_unifykey_get_size(char *key_name, int *len);
+void lcd_unifykey_header_print(unsigned char *buf);
 int lcd_unifykey_get(char *key_name, unsigned char *buf, int len);
 int lcd_unifykey_get_tcon(char *key_name, unsigned char *buf, int len);
 int lcd_unifykey_get_no_header(char *key_name, unsigned char *buf, int len);

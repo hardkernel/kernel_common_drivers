@@ -500,16 +500,6 @@ static int lcd_vbyone_lanes_set_t3x(struct aml_lcd_drv_s *pdrv, unsigned int off
 	lcd_vcbus_setb(VBO_CTRL_T3X + offset, 2, 16, 4);
 	lcd_vcbus_setb(VBO_CTRL_T3X + offset, 1, 0, 1);//enable
 
-	if (pdrv->index)
-		return 0;
-
-	if (lane_num <= 8 && slice == 2) {
-		lcd_vcbus_write(P2P_CH_SWAP0_T7, 0xba983210);
-		lcd_vcbus_write(P2P_CH_SWAP1_T7, 0xfedc7654);
-	} else {
-		lcd_vcbus_write(P2P_CH_SWAP0_T7, 0x76543210);
-		lcd_vcbus_write(P2P_CH_SWAP1_T7, 0xfedcba98);
-	}
 	return 0;
 }
 

@@ -5,8 +5,6 @@
  *
  */
 
-/* include clk for chip: tl1 tm2 t5 t5d t5w*/
-
 #include <linux/init.h>
 #include <linux/version.h>
 #include <linux/types.h>
@@ -45,8 +43,7 @@ static void lcd_pll_ss_init(struct lcd_clk_config_s *cconf)
 static void lcd_pll_ss_enable(struct aml_lcd_drv_s *pdrv, int status)
 {
 	struct lcd_clk_config_s *cconf;
-	unsigned int pll_ctrl2;
-	unsigned int flag;
+	unsigned int pll_ctrl2, flag;
 
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
@@ -254,8 +251,7 @@ static void lcd_set_vclk_crt(struct aml_lcd_drv_s *pdrv)
 		lcd_clk_setb(HHI_VIID_CLK0_CTRL, 7, VCLK2_CLK_IN_SEL, 3);
 	} else {
 		/* setup the XD divider value */
-		lcd_clk_setb(HHI_VIID_CLK0_DIV, (cconf->xd - 1),
-			     VCLK2_XD, 8);
+		lcd_clk_setb(HHI_VIID_CLK0_DIV, (cconf->xd - 1), VCLK2_XD, 8);
 		udelay(5);
 
 		/* select vid_pll_clk */
@@ -293,24 +289,38 @@ static void lcd_clk_disable(struct aml_lcd_drv_s *pdrv)
 	lcd_ana_setb(HHI_TCON_PLL_CNTL0, 1, 29, 1);  //reset
 }
 
-static void lcd_set_tcon_clk_tl1(struct aml_lcd_drv_s *pdrv)
+static int lcd_set_mlvds_clk_phase(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int phase_value;
+
+	phase_value = pdrv->config.control.mlvds_cfg.clk_phase & 0xfff;
+	lcd_ana_setb(HHI_TCON_PLL_CNTL1, (phase_value & 0xf), 24, 4);
+	lcd_ana_setb(HHI_TCON_PLL_CNTL4, ((phase_value >> 4) & 0xf), 28, 4);
+	lcd_ana_setb(HHI_TCON_PLL_CNTL4, ((phase_value >> 8) & 0xf), 24, 4);
+	return 0;
+}
+
+static void lcd_set_tcon_clk_t5(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
 	struct lcd_config_s *pconf = &pdrv->config;
-	unsigned int freq, val;
+	unsigned int freq;
+
+	if (pdrv->status & LCD_STATUS_IF_ON)
+		return;
+	if (pdrv->config.basic.lcd_type != LCD_MLVDS &&
+	    pdrv->config.basic.lcd_type != LCD_P2P)
+		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("lcd clk: set_tcon_clk_tl1\n");
+		LCDPR("lcd clk: set_tcon_clk\n");
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
 		return;
 
 	switch (pconf->basic.lcd_type) {
 	case LCD_MLVDS:
-		val = pconf->control.mlvds_cfg.clk_phase & 0xfff;
-		lcd_ana_setb(HHI_TCON_PLL_CNTL1, (val & 0xf), 24, 4);
-		lcd_ana_setb(HHI_TCON_PLL_CNTL4, ((val >> 4) & 0xf), 28, 4);
-		lcd_ana_setb(HHI_TCON_PLL_CNTL4, ((val >> 8) & 0xf), 24, 4);
+		lcd_set_mlvds_clk_phase(pdrv);
 
 		/* tcon_clk */
 		if (pconf->timing.enc_clk >= 100000000) /* 25M */
@@ -331,17 +341,6 @@ static void lcd_set_tcon_clk_tl1(struct aml_lcd_drv_s *pdrv)
 	default:
 		break;
 	}
-}
-
-static void lcd_set_tcon_clk_t5(struct aml_lcd_drv_s *pdrv)
-{
-	if (pdrv->status & LCD_STATUS_IF_ON)
-		return;
-	if (pdrv->config.basic.lcd_type != LCD_MLVDS &&
-	    pdrv->config.basic.lcd_type != LCD_P2P)
-		return;
-
-	lcd_set_tcon_clk_tl1(pdrv);
 
 	lcd_tcon_global_reset(pdrv);
 }
@@ -710,6 +709,7 @@ static struct lcd_clk_data_s lcd_clk_data_t5w = {
 	.clk_set = lcd_clk_set,
 	.vclk_crt_set = lcd_set_vclk_crt,
 	.clk_disable = lcd_clk_disable,
+	.mlvds_clk_phase_set = lcd_set_mlvds_clk_phase,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
 	.prbs_test = lcd_clk_prbs_test,

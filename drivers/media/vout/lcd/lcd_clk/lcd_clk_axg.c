@@ -64,7 +64,7 @@ static void lcd_set_pll(struct aml_lcd_drv_s *pdrv)
 	int ret, cnt = 0;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+		LCDPR("%s\n", __func__);
 
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
@@ -104,7 +104,7 @@ static void lcd_set_vclk_crt(struct aml_lcd_drv_s *pdrv)
 	struct lcd_clk_config_s *cconf;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+		LCDPR("%s\n", __func__);
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
 		return;
@@ -337,6 +337,7 @@ static struct lcd_clk_data_s lcd_clk_data_axg = {
 	.clk_set = lcd_clk_set,
 	.vclk_crt_set = lcd_set_vclk_crt,
 	.clk_disable = lcd_clk_disable,
+	.mlvds_clk_phase_set = NULL,
 	.clk_config_init_print = lcd_clk_config_init_print_axg,
 	.clk_config_print = lcd_clk_config_print_axg,
 	.prbs_test = NULL,

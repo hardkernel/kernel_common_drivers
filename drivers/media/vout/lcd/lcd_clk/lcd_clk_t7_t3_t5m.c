@@ -705,11 +705,22 @@ static void lcd_clk_set_t3(struct aml_lcd_drv_s *pdrv)
 	lcd_set_vid_pll_div_t3(pdrv);
 }
 
+static int lcd_set_mlvds_clk_phase(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int phase_value;
+
+	phase_value = pdrv->config.control.mlvds_cfg.clk_phase & 0xfff;
+	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL1, (phase_value & 0xf), 24, 4);
+	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL4, ((phase_value >> 4) & 0xf), 28, 4);
+	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL4, ((phase_value >> 8) & 0xf), 24, 4);
+	return 0;
+}
+
 static void lcd_set_tcon_clk_t3(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
 	struct lcd_config_s *pconf = &pdrv->config;
-	unsigned int freq, val;
+	unsigned int freq;
 
 	if (pdrv->index > 0) /* tcon_clk only valid for lcd0 */
 		return;
@@ -728,10 +739,7 @@ static void lcd_set_tcon_clk_t3(struct aml_lcd_drv_s *pdrv)
 
 	switch (pconf->basic.lcd_type) {
 	case LCD_MLVDS:
-		val = pconf->control.mlvds_cfg.clk_phase & 0xfff;
-		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL1, (val & 0xf), 24, 4);
-		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL4, ((val >> 4) & 0xf), 28, 4);
-		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL4, ((val >> 8) & 0xf), 24, 4);
+		lcd_set_mlvds_clk_phase(pdrv);
 
 		/* tcon_clk */
 		if (pconf->timing.enc_clk >= 100000000) /* 25M */
@@ -1536,6 +1544,7 @@ static struct lcd_clk_data_s lcd_clk_data_t7_0 = {
 	.clk_set = lcd_clk_set_t7,
 	.vclk_crt_set = lcd_set_vclk_crt,
 	.clk_disable = lcd_clk_disable,
+	.mlvds_clk_phase_set = NULL,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
 	.prbs_test = lcd_clk_prbs_test_t7,
@@ -1597,6 +1606,7 @@ static struct lcd_clk_data_s lcd_clk_data_t7_1 = {
 	.clk_set = lcd_clk_set_t7,
 	.vclk_crt_set = lcd_set_vclk_crt,
 	.clk_disable = lcd_clk_disable,
+	.mlvds_clk_phase_set = NULL,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
 	.prbs_test = lcd_clk_prbs_test_t7,
@@ -1658,6 +1668,7 @@ static struct lcd_clk_data_s lcd_clk_data_t7_2 = {
 	.clk_set = lcd_clk_set_t7,
 	.vclk_crt_set = lcd_set_vclk_crt,
 	.clk_disable = lcd_clk_disable,
+	.mlvds_clk_phase_set = NULL,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
 	.prbs_test = lcd_clk_prbs_test_t7,
@@ -1719,6 +1730,7 @@ static struct lcd_clk_data_s lcd_clk_data_t3_0 = {
 	.clk_set = lcd_clk_set_t3,
 	.vclk_crt_set = lcd_set_vclk_crt,
 	.clk_disable = lcd_clk_disable,
+	.mlvds_clk_phase_set = lcd_set_mlvds_clk_phase,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
 	.prbs_test = lcd_clk_prbs_test_t3,
@@ -1780,6 +1792,7 @@ static struct lcd_clk_data_s lcd_clk_data_t3_1 = {
 	.clk_set = lcd_clk_set_t3,
 	.vclk_crt_set = lcd_set_vclk_crt,
 	.clk_disable = lcd_clk_disable,
+	.mlvds_clk_phase_set = lcd_set_mlvds_clk_phase,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
 	.prbs_test = lcd_clk_prbs_test_t3,
