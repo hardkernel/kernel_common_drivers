@@ -726,7 +726,7 @@
 			pll-setting-1 = <0x244a0030>;
 			pll-setting-2 = <0x03200022>;
 			pll-setting-4 = <0x7e18>;
-			pll-setting-5 = <0x7>;
+			pll-setting-5 = <0x9>;
 			//dis-thred-enhance = <0x2>;
 			pll-version = <3>;
 			phy0-reset-level-bit = <8>;
@@ -747,7 +747,7 @@
 			pll-setting-1 = <0x244a0030>;
 			pll-setting-2 = <0x03200022>;
 			pll-setting-4 = <0x7e18>;
-			pll-setting-5 = <0x7>;
+			pll-setting-5 = <0x9>;
 			//dis-thred-enhance = <0x2>;
 			pll-version = <3>;
 			phy0-reset-level-bit = <9>;

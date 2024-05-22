@@ -45,6 +45,8 @@ static void usb_set_calibration_trim
 	cali = cali >> 8;
 	if (cali_en) {
 		cali = cali & 0xf;
+		if (is_meson_s7d_cpu())
+			cali = cali + 2;
 		if (cali > 12)
 			cali = 12;
 	} else {
