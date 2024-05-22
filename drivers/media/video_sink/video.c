@@ -10730,8 +10730,8 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 				vsr->vsr_top.vsize_out);
 			len += sprintf(buf + len, "safa preh/v_en %d,%d, ratio:%d, %d\n",
 				vsr->vsr_safa.preh_en,
-				vsr->vsr_safa.preh_ratio,
 				vsr->vsr_safa.prev_en,
+				vsr->vsr_safa.preh_ratio,
 				vsr->vsr_safa.prev_ratio);
 			len += sprintf(buf + len, "safa pre_h/vsize %d,%d, postsc_en:%d\n",
 				vsr->vsr_safa.pre_hsize,

@@ -1017,10 +1017,16 @@ static void set_vd1_frm2fld_en(struct vsr_setting_s *vsr)
 	if (vinfo->field_height != vinfo->height && cur_dev->frm2fld_support)
 		frm2fld_en = 1;
 	if (frm2fld_en) {
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
-			0, 5, 1);
+		/* VPP_MISC have been moved to vpp_blend_update()
+		 * bit4:reg_frm2fld_en bit5:reg_bgn_bot_top
+		 *
+		 * cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
+		 *	1, 4, 1);
+		 * cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC,
+		 *	0, 5, 1);
+		 */
 		cur_dev->rdma_func[vpp_index].rdma_wr(VPP_P2I_H_V_SIZE,
-			vinfo->width << 16 | vinfo->height);
+			vsr->vsr_top.hsize_out << 16 | vsr->vsr_top.vsize_out);
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits(SAFA_PPS_HW_CTRL,
 			1, 26, 1);
 	}
