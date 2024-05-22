@@ -171,6 +171,19 @@ struct aml_lcd_drv_s *aml_lcd_get_driver(int index)
 }
 EXPORT_SYMBOL(aml_lcd_get_driver);
 
+static struct lcd_resource_s *lcd_resource_new(unsigned int res_type, unsigned int res_index)
+{
+	struct lcd_resource_s *pres;
+
+	pres = kzalloc(sizeof(*pres), GFP_KERNEL);
+	if (!pres)
+		return NULL;
+	pres->type = res_type;
+	pres->index = res_index;
+
+	return pres;
+}
+
 void lcd_resource_add(struct aml_lcd_drv_s *pdrv, unsigned int res_type, unsigned int res_index)
 {
 	struct lcd_resource_s *res_i, *res_tail, *pres;
@@ -178,11 +191,14 @@ void lcd_resource_add(struct aml_lcd_drv_s *pdrv, unsigned int res_type, unsigne
 	if (!pdrv)
 		return;
 
-	pres = kzalloc(sizeof(*pres), GFP_KERNEL);
-	if (!pres)
+	mutex_lock(&lcd_power_mutex);
+	pres = lcd_resource_new(res_type, res_index);
+	if (!pres) {
+		LCDPR("[%d]: %s: res_type[idx]: %d[%d]\n",
+			pdrv->index, __func__, res_type, res_index);
+		mutex_unlock(&lcd_power_mutex);
 		return;
-	pres->type = res_type;
-	pres->index = res_index;
+	}
 
 	if (!pdrv->resource) {
 		pdrv->resource = pres;
@@ -197,6 +213,7 @@ void lcd_resource_add(struct aml_lcd_drv_s *pdrv, unsigned int res_type, unsigne
 					pdrv->index, __func__, res_type, res_index, res_i->ready);
 			}
 			kfree(pres);
+			mutex_unlock(&lcd_power_mutex);
 			return;
 		}
 		res_tail = res_i;
@@ -209,16 +226,19 @@ lcd_resource_add_success:
 		LCDPR("[%d]: %s: done: res_type[idx]: %d[%d]\n",
 			pdrv->index, __func__, res_type, res_index);
 	}
+
+	mutex_unlock(&lcd_power_mutex);
 }
 
 void lcd_resource_ready(int drv_index, unsigned int res_type, unsigned int res_index)
 {
 	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(drv_index);
-	struct lcd_resource_s *res_i, *res_tail, *pres;
+	struct lcd_resource_s *res_i, *res_tail = NULL, *pres;
 
 	if (!pdrv)
 		return;
 
+	mutex_lock(&lcd_power_mutex);
 	res_i = pdrv->resource;
 	while (res_i) {
 		if (res_i->type == res_type && res_i->index == res_index) {
@@ -230,19 +250,26 @@ void lcd_resource_ready(int drv_index, unsigned int res_type, unsigned int res_i
 	}
 
 	//when ahead of lcd_resource_add with lcd config probe
-	pres = kzalloc(sizeof(*pres), GFP_KERNEL);
-	if (!pres)
+	pres = lcd_resource_new(res_type, res_index);
+	if (!pres) {
+		LCDPR("[%d]: %s: res_type[idx]: %d[%d]\n",
+			pdrv->index, __func__, res_type, res_index);
+		mutex_unlock(&lcd_power_mutex);
 		return;
-	pres->type = res_type;
-	pres->index = res_index;
+	}
 	pres->ready = 1;
-	res_tail->next_res = pres;
+	if (res_tail)
+		res_tail->next_res = pres;
+	else
+		pdrv->resource = pres;
 
 lcd_resource_ready_success:
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDPR("[%d]: %s: done: res_type[idx]: %d[%d]\n",
 			pdrv->index, __func__, res_type, res_index);
 	}
+
+	mutex_unlock(&lcd_power_mutex);
 }
 
 int lcd_resource_is_ready(struct aml_lcd_drv_s *pdrv)
@@ -252,6 +279,7 @@ int lcd_resource_is_ready(struct aml_lcd_drv_s *pdrv)
 	if (!pdrv)
 		return 0;
 
+	mutex_lock(&lcd_power_mutex);
 	res_i = pdrv->resource;
 	while (res_i) {
 		if (res_i->ready == 0) {
@@ -259,11 +287,13 @@ int lcd_resource_is_ready(struct aml_lcd_drv_s *pdrv)
 				LCDERR("[%d]: %s: not ready: res_type[index]: %d[%d]\n",
 					pdrv->index, __func__, res_i->type, res_i->index);
 			}
+			mutex_unlock(&lcd_power_mutex);
 			return 0;
 		}
 		res_i = res_i->next_res;
 	}
 
+	mutex_unlock(&lcd_power_mutex);
 	return 1;
 }
 
