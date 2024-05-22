@@ -169,6 +169,18 @@ static void aml_tl1_acodec_dac_extra_gain_set(struct snd_soc_component *componen
 	}
 }
 
+static void tl1_acodec_reg_set_to_default(struct snd_soc_component *component)
+{
+	int i;
+
+	if (component) {
+		for (i = 0; i < ARRAY_SIZE(tl1_acodec_init_list); i++)
+			snd_soc_component_write(component,
+			tl1_acodec_init_list[i].reg,
+			tl1_acodec_init_list[i].def);
+	}
+}
+
 static int tl1_acodec_reg_init(struct snd_soc_component *component)
 {
 	int i;
@@ -833,6 +845,7 @@ static int tl1_acodec_probe(struct snd_soc_component *component)
 	}
 	aml_acodec->component = component;
 	aml_acodec->rst = devm_reset_control_get(component->dev, "acodec");
+	tl1_acodec_reg_set_to_default(component);
 	INIT_WORK(&aml_acodec->work, tl1_acodec_release_fast_mode_work_func);
 	schedule_work(&aml_acodec->work);
 
