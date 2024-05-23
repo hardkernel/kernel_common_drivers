@@ -5276,8 +5276,8 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 				sr0_din_hsize = s1_din_hsize_tmp;
 				if (vd_proc_unit->vd_proc_sr0.h_scaleup_en) {
 					sr0_dout_hsize = sr0_din_hsize << 1;
-					slice_x_st <<= 1;
-					slice_x_end[slice] = ((slice_x_end[slice] + 1) << 1) - 1;
+					//slice_x_st <<= 1;
+					//slice_x_end[slice] = ((slice_x_end[slice] + 1) << 1) - 1;
 				} else {
 					sr0_dout_hsize = sr0_din_hsize;
 				}
@@ -5285,24 +5285,15 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 				if (h_no_scale) {
 					pps_dout_hsize = pps_din_hsize;
 				} else {
-					cal_pps_dout_hsize(&pps_dout_hsize0,
-						0, slice_x_st + 1 - crop_left, horz_phase_step,
-						pre_hsc_en);
-					cal_pps_dout_hsize(&pps_dout_hsize1,
-						0, slice_x_end[slice] + 1 - crop_left,
+					cal_pps_dout_hsize(&pps_dout_hsize,
+						0,
+						pps_din_hsize,
 						horz_phase_step,
 						pre_hsc_en);
-					pps_dout_hsize = pps_dout_hsize1 - pps_dout_hsize0;
-					if (debug_flag_s5 & DEBUG_PPS) {
-						pr_info("slice_x_st=0x%x, slice_x_end=0x%x, horz_phase_step=0x%x\n",
-							slice_x_st,
-							slice_x_end[slice],
-							horz_phase_step);
-						pr_info("pps_dout_hsize0=0x%x, pps_dout_hsize1=0x%x, pps_dout_hsize=0x%x\n",
-							pps_dout_hsize0,
-							pps_dout_hsize1,
+					if (debug_flag_s5 & DEBUG_PPS)
+						pr_info("pps_din_hsize=0x%x, pps_dout_hsize=0x%x\n",
+							pps_din_hsize,
 							pps_dout_hsize);
-					}
 				}
 				sr1_din_hsize = pps_dout_hsize;
 				sr1_dout_hsize = vd_proc_unit->vd_proc_sr1.h_scaleup_en ?
@@ -5324,24 +5315,13 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 				if (h_no_scale) {
 					pps_dout_hsize = pps_din_hsize;
 				} else {
-					cal_pps_dout_hsize(&pps_dout_hsize0,
-						0, slice_x_st + 1 - crop_left, horz_phase_step,
+					cal_pps_dout_hsize(&pps_dout_hsize,
+						0, pps_din_hsize, horz_phase_step,
 						pre_hsc_en);
-					cal_pps_dout_hsize(&pps_dout_hsize1,
-						0, slice_x_end[slice] + 1 - crop_left,
-						horz_phase_step,
-						pre_hsc_en);
-					pps_dout_hsize = pps_dout_hsize1 - pps_dout_hsize0;
-					if (debug_flag_s5 & DEBUG_PPS) {
-						pr_info("slice_x_st=0x%x, slice_x_end=0x%x, horz_phase_step=0x%x\n",
-							slice_x_st,
-							slice_x_end[slice],
-							horz_phase_step);
-						pr_info("pps_dout_hsize0=0x%x, pps_dout_hsize1=0x%x, pps_dout_hsize=0x%x\n",
-							pps_dout_hsize0,
-							pps_dout_hsize1,
+					if (debug_flag_s5 & DEBUG_PPS)
+						pr_info("pps_din_hsize=0x%x, pps_dout_hsize=0x%x\n",
+							pps_din_hsize,
 							pps_dout_hsize);
-					}
 				}
 				sr0_din_hsize = pps_dout_hsize;
 				sr0_dout_hsize = vd_proc_unit->vd_proc_sr0.h_scaleup_en ?
