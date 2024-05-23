@@ -33,7 +33,7 @@
 #define		SUSPEND_CLK_FREQ	24000000
 
 /*free reserved memory*/
-unsigned long host_free_reserved_area(void *start, void *end, int poison, const char *s)
+static unsigned long host_free_reserved_area(void *start, void *end, int poison, const char *s)
 {
 	void *pos;
 	unsigned long pages = 0;
@@ -69,7 +69,6 @@ unsigned long host_free_reserved_area(void *start, void *end, int poison, const 
 
 	return pages;
 }
-EXPORT_SYMBOL(host_free_reserved_area);
 
 static int host_dump_memory(const void *buf, unsigned int bytes, int col)
 {
@@ -724,28 +723,16 @@ static int host_firmware_reserved_ddr(struct platform_device *pdev, struct reser
 	struct resource res = {0};
 
 	mem_node = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
-	if (!mem_node) {
-		ret = -1;
+	if (!mem_node)
 		goto out;
-	}
 	ret = of_address_to_resource(mem_node, 0, &res);
-	of_node_put(mem_node);
 	if (ret) {
 		dev_err(&pdev->dev, "resource memory init failed\n");
 		goto out;
 	}
+
+	of_node_put(mem_node);
 	fwmem->base = res.start;
-
-	/*when dsp is not supported, the reserved memory is released*/
-	if (!IS_ERR_OR_NULL(host->dspsup_reg) && (readl(host->dspsup_reg) & DSP_OTP)) {
-		dev_err(&pdev->dev, "this device not support dsp\n");
-		ret = host_free_reserved_area(__va(res.start), __va(PAGE_ALIGN(res.start +
-							resource_size(&res))), 0, "free_reserved");
-		if (ret)
-			pr_debug("reserved memory  release succeed!\n");
-		host_platform_remove(pdev);
-	}
-
 out:
 	return ret;
 }
@@ -759,9 +746,17 @@ static int host_parse_devtree(struct platform_device *pdev, struct host_module *
 	struct mbox_chan *mbox_chan;
 	int ret;
 
+	host->dspsup_reg = devm_platform_ioremap_resource_byname(pdev, "dspsupport-reg");
+	if (!IS_ERR_OR_NULL(host->dspsup_reg) && (readl(host->dspsup_reg) & DSP_OTP)) {
+		dev_err(&pdev->dev, "this device not support dsp\n");
+		return -EINVAL;
+	}
+
 	host->base_reg = devm_platform_ioremap_resource_byname(pdev, "base-reg");
-	if (IS_ERR_OR_NULL(host->base_reg))
+	if (IS_ERR_OR_NULL(host->base_reg)) {
 		dev_err(dev, "Reg base register is error\n");
+		return -EINVAL;
+	}
 
 	host->health_reg = devm_platform_ioremap_resource_byname(pdev, "health-reg");
 	if (IS_ERR_OR_NULL(host->health_reg))
@@ -807,12 +802,13 @@ static int host_parse_devtree(struct platform_device *pdev, struct host_module *
 		host->clk = devm_clk_get(dev, clk_name);
 		if (IS_ERR_OR_NULL(host->clk)) {
 			dev_err(dev, "can't get clk\n");
+			goto err;
 		} else {
 			ret = of_property_read_u32(dev->of_node, "clkfreq-khz",
 						   &host->clk_rate);
 			if (ret) {
 				dev_err(&pdev->dev, "of get clkfreq-khz failed\n");
-				return -EINVAL;
+				goto err;
 			}
 		}
 	}
@@ -836,10 +832,14 @@ static int host_parse_devtree(struct platform_device *pdev, struct host_module *
 	ret = of_property_read_u8(dev->of_node, "startup-position", &host->start_pos);
 	if (ret) {
 		dev_err(dev, "Not find startup-position\n");
-		return -EINVAL;
+		goto err;
 	}
 
 	return 0;
+
+err:
+	return host_free_reserved_area(__va(fwmem.base), __va(PAGE_ALIGN(fwmem.base +
+				host->phys_ddr_size)), 0, "free_reserved");
 }
 
 static int host_platform_probe(struct platform_device *pdev)
