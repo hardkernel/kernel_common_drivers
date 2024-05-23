@@ -98,9 +98,9 @@ bool tvafe_clk_status;
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
 /*opened port,1:av1, 2:av2, 0:none av*/
 unsigned int avport_opened;
-/*0:in, 1:out*/
-unsigned int av1_plugin_state;
-unsigned int av2_plugin_state;
+/*0:in, 1:out, 2:unknown*/
+unsigned int av1_plugin_state = 2;
+unsigned int av2_plugin_state = 2;
 #endif
 
 /*tvafe_dbg_print:
@@ -493,15 +493,15 @@ static int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		if (adc_ch == TVAFE_ADC_CH_0) {
 			avport_opened = TVAFE_PORT_AV1;
 			W_APB_BIT(TVFE_CLAMP_INTF, 1,
-				  CLAMP_EN_BIT, CLAMP_EN_WID);
+				CLAMP_EN_BIT, CLAMP_EN_WID);
 		} else if (adc_ch == TVAFE_ADC_CH_1) {
 			avport_opened = TVAFE_PORT_AV2;
 			W_APB_BIT(TVFE_CLAMP_INTF, 1,
-				  CLAMP_EN_BIT, CLAMP_EN_WID);
+				CLAMP_EN_BIT, CLAMP_EN_WID);
 		} else {
 			avport_opened = 0;
 			W_APB_BIT(TVFE_CLAMP_INTF, 1,
-					CLAMP_EN_BIT, CLAMP_EN_WID);
+				CLAMP_EN_BIT, CLAMP_EN_WID);
 		}
 	} else {
 		W_APB_BIT(TVFE_CLAMP_INTF, 1, CLAMP_EN_BIT, CLAMP_EN_WID);
@@ -509,6 +509,7 @@ static int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
 #else
 	W_APB_BIT(TVFE_CLAMP_INTF, 1, CLAMP_EN_BIT, CLAMP_EN_WID);
 #endif
+
 	tvafe->parm.port = port;
 	vs_adj_val_pre = 0;
 
@@ -580,8 +581,15 @@ static void tvafe_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt,
 		else if (adc_ch == TVAFE_ADC_CH_1)
 			tvafe_avin_detect_ch2_anlog_enable(0);
 	}
+	if (tvafe_cpu_type() == TVAFE_CPU_TYPE_T3X) {
+		detect_start = false;
+		W_APB_BIT(TVFE_CLAMP_INTF, 1,
+			CLAMP_EN_BIT, CLAMP_EN_WID);
+		W_HIU_BIT(ANACTRL_CVBS_DETECT_CNTL, 0,
+			AFE_CH1_EN_DC_BIAS_BIT,
+			AFE_CH1_EN_DC_BIAS_WIDTH);
+	}
 #endif
-
 	tvafe->parm.info.fmt = fmt;
 	tvafe->parm.info.status = TVIN_SIG_STATUS_STABLE;
 	devp->flags |= TVAFE_FLAG_DEV_STARTED;
@@ -644,11 +652,17 @@ static void tvafe_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		else if (adc_ch == TVAFE_ADC_CH_1)
 			tvafe_avin_detect_ch2_anlog_enable(1);
 	}
+	//close clamp to start avin detect
+	if (tvafe_cpu_type() == TVAFE_CPU_TYPE_T3X) {
+		W_APB_BIT(TVFE_CLAMP_INTF, 0,
+			CLAMP_EN_BIT, CLAMP_EN_WID);
+		detect_start = true;
+		//avin_detect_reset();
+	}
 #endif
 	tvafe->aspect_ratio_cnt = 0;
 	tvafe->aspect_ratio = TVIN_ASPECT_NULL;
 	devp->flags &= (~TVAFE_FLAG_DEV_STARTED);
-
 	tvafe_pr_info("%s stop port:0x%x ok.\n", __func__, port);
 
 	mutex_unlock(&devp->afe_mutex);
@@ -969,7 +983,7 @@ static bool white_pattern_reset_pag(enum tvin_port_e port,
 
 		if ((av1_plugin_state == 0 || av2_plugin_state == 0) &&
 			!R_APB_BIT(TVFE_CLAMP_INTF,
-				CLAMP_EN_BIT, CLAMP_EN_WID)) {
+				CLAMP_EN_BIT, CLAMP_EN_WID) && !sm_print_nosig) {
 			white_pattern_pga_reset(port);
 			tvafe_pr_info("av1:%u av2:%u\n", av1_plugin_state,
 				      av2_plugin_state);
@@ -1870,6 +1884,7 @@ static const struct of_device_id meson_tvafe_dt_match[] = {
 
 static unsigned int tvafe_use_reserved_mem;
 static struct resource tvafe_memobj;
+
 static int tvafe_drv_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -2094,8 +2109,8 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
 	avport_opened = 0;
-	av1_plugin_state = 0;
-	av2_plugin_state = 0;
+	av1_plugin_state = 2;
+	av2_plugin_state = 2;
 #endif
 
 	tvafe_dev_local = tdevp;
