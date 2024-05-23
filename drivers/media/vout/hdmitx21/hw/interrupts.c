@@ -270,7 +270,7 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 				dat_top &= ~(1 << 1);
 		}
 		/* bit[2:1] of dat_top means HPD falling and rising */
-		if ((dat_top & 0x6) && hdev->tx_hw.base.hdmitx_gpios_hpd != -EPROBE_DEFER) {
+		if ((dat_top & 0x6) && hdev->tx_hw.base.hdmitx_gpios_hpd >= 0) {
 			struct timespec64 kts;
 			struct rtc_time tm;
 

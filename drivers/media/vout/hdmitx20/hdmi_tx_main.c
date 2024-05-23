@@ -3500,15 +3500,15 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 	tx_hw_base = &hdev->tx_hw.base;
 	tx_hw_base->hdmitx_gpios_hpd = of_get_named_gpio_flags(pdev->dev.of_node,
 		"hdmitx-gpios-hpd", 0, NULL);
-	if (tx_hw_base->hdmitx_gpios_hpd == -EPROBE_DEFER)
+	if (tx_hw_base->hdmitx_gpios_hpd < 0)
 		HDMITX_ERROR("get hdmitx-gpios-hpd error\n");
 	tx_hw_base->hdmitx_gpios_scl = of_get_named_gpio_flags(pdev->dev.of_node,
 		"hdmitx-gpios-scl", 0, NULL);
-	if (tx_hw_base->hdmitx_gpios_scl == -EPROBE_DEFER)
+	if (tx_hw_base->hdmitx_gpios_scl < 0)
 		HDMITX_ERROR("get hdmitx-gpios-scl error\n");
 	tx_hw_base->hdmitx_gpios_sda = of_get_named_gpio_flags(pdev->dev.of_node,
 		"hdmitx-gpios-sda", 0, NULL);
-	if (tx_hw_base->hdmitx_gpios_sda == -EPROBE_DEFER)
+	if (tx_hw_base->hdmitx_gpios_sda < 0)
 		HDMITX_ERROR("get hdmitx-gpios-sda error\n");
 
 #ifdef CONFIG_OF
