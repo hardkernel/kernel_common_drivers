@@ -1969,7 +1969,6 @@ static bool check_dewarp_support_status(struct composer_dev *dev,
 	struct vframe_s *src_vf = NULL;
 	struct file *file_vf = NULL;
 	bool is_dec_vf = false, is_v4l_vf = false;
-	u32 crop_w, crop_h;
 
 	if (IS_ERR_OR_NULL(dev) || IS_ERR_OR_NULL(received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "%s: invalid param.\n", __func__);
@@ -1989,8 +1988,6 @@ static bool check_dewarp_support_status(struct composer_dev *dev,
 	vframe_para.dst_vf_width = dewarp_rotate_width;
 	vframe_para.dst_vf_height = dewarp_rotate_height;
 	vframe_para.src_vf_angle = frame_info.transform;
-	crop_w = frame_info.crop_w;
-	crop_h = frame_info.crop_h;
 	file_vf = received_frames->file_vf[0];
 	is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
 	is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
@@ -2002,22 +1999,9 @@ static bool check_dewarp_support_status(struct composer_dev *dev,
 			vframe_para.src_vf_format = NV12;
 		} else {
 			vframe_para.src_vf_format = get_dewarp_format(dev->index, src_vf);
-			if (crop_w > 0 || crop_h > 0) {
-				if (src_vf->type & VIDTYPE_COMPRESS) {
-					crop_w = vframe_para.src_vf_width *
-						src_vf->width / src_vf->compWidth;
-					crop_h = vframe_para.src_vf_height *
-						src_vf->width / src_vf->compWidth;
-				}
-				if (crop_w != src_vf->width || crop_h != src_vf->height)
-					return false;
-			}
 		}
 	} else {
 		vframe_para.src_vf_format = NV12;
-		if ((crop_w > 0 || crop_h > 0) &&
-			(crop_w != frame_info.buffer_w || crop_h != frame_info.buffer_h))
-			return false;
 	}
 	dev->dewarp_para.vf_para = &vframe_para;
 	if (dev->need_rotate && is_dewarp_supported(dev->index, dev->dewarp_para.vf_para))
@@ -2508,6 +2492,10 @@ static void vframe_composer(struct composer_dev *dev)
 	struct output_axis out_axis[MXA_LAYER_COUNT] = {0};
 	struct file *fence_file;
 	bool has_fence;
+	u32 dewarp_crop_top = 0, dewarp_crop_left = 0;
+	u32 dewarp_crop_bottom = 0, dewarp_crop_right = 0;
+	u32 dewarp_src_w, dewarp_src_h;
+	u32 dewarp_dst_w, dewarp_dst_h;
 
 	if (IS_ERR_OR_NULL(dev)) {
 		vc_print(dev->index, PRINT_ERROR, "%s: invalid param.\n", __func__);
@@ -2548,6 +2536,7 @@ static void vframe_composer(struct composer_dev *dev)
 	dst_buf = to_dst_buf(dst_vf);
 	composer_info = &dst_buf->componser_info;
 	memset(composer_info, 0, sizeof(struct composer_info_t));
+	memset(&common_para, 0, sizeof(struct composer_common_para));
 
 	while (1) {
 		if (!kfifo_get(&dev->receive_q, &received_frames)) {
@@ -3082,6 +3071,64 @@ static void vframe_composer(struct composer_dev *dev)
 			dst_vf->canvas0_config[1].height = dst_vf->canvas0_config[0].height >> 1;
 		}
 	}
+
+	if (dev->dev_choice == COMPOSER_WITH_DEWARP &&
+		(vframe_info_cur->crop_w > 0 || vframe_info_cur->crop_h > 0)) {
+		if (src_vf) {
+			//uvm
+			if (src_vf->type & VIDTYPE_COMPRESS) {
+				dewarp_src_w = src_vf->compWidth;
+				dewarp_src_h = src_vf->compHeight;
+			} else {
+				dewarp_src_w = src_vf->width;
+				dewarp_src_h = src_vf->height;
+			}
+			vc_print(dev->index, PRINT_DEWARP,
+				"src_vf: compWidth:%d compHeight:%d w:%d h:%d.\n",
+				src_vf->compWidth,
+				src_vf->compHeight,
+				src_vf->width,
+				src_vf->height);
+		} else {
+			//dma
+			dewarp_src_w = vframe_info_cur->buffer_w;
+			dewarp_src_h = vframe_info_cur->buffer_h;
+		}
+		dewarp_crop_top = vframe_info_cur->crop_y;
+		dewarp_crop_left = vframe_info_cur->crop_x;
+		dewarp_crop_bottom = dewarp_src_h - vframe_info_cur->crop_y
+			- vframe_info_cur->crop_h;
+		dewarp_crop_right = dewarp_src_w - vframe_info_cur->crop_x
+			- vframe_info_cur->crop_w;
+		dewarp_dst_w = common_para.output_para.pic_info.align_w;
+		dewarp_dst_h = common_para.output_para.pic_info.align_h;
+
+		if (vframe_info_cur->transform == VC_TRANSFORM_ROT_270) {
+			dst_vf->crop[0] = dewarp_crop_right * dewarp_dst_h / dewarp_src_w;
+			dst_vf->crop[1] = dewarp_crop_top * dewarp_dst_w / dewarp_src_h;
+			dst_vf->crop[2] = dewarp_crop_left * dewarp_dst_h / dewarp_src_w;
+			dst_vf->crop[3] = dewarp_crop_bottom * dewarp_dst_w / dewarp_src_h;
+		} else if (vframe_info_cur->transform == VC_TRANSFORM_ROT_180) {
+			dst_vf->crop[0] = dewarp_crop_bottom * dewarp_dst_h / dewarp_src_h;
+			dst_vf->crop[1] = dewarp_crop_right * dewarp_dst_w / dewarp_src_w;
+			dst_vf->crop[2] = dewarp_crop_top * dewarp_dst_h / dewarp_src_h;
+			dst_vf->crop[3] = dewarp_crop_left * dewarp_dst_w / dewarp_src_w;
+		} else if (vframe_info_cur->transform == VC_TRANSFORM_ROT_90 ||
+					vframe_info_cur->transform == VC_TRANSFORM_FLIP_H_ROT_90 ||
+					vframe_info_cur->transform == VC_TRANSFORM_FLIP_V_ROT_90) {
+			dst_vf->crop[0] = dewarp_crop_left * dewarp_dst_h / dewarp_src_w;
+			dst_vf->crop[1] = dewarp_crop_bottom * dewarp_dst_w / dewarp_src_h;
+			dst_vf->crop[2] = dewarp_crop_right * dewarp_dst_h / dewarp_src_w;
+			dst_vf->crop[3] = dewarp_crop_top * dewarp_dst_w / dewarp_src_h;
+		}
+		vc_print(dev->index, PRINT_DEWARP,
+			"dst_vf->crop: top:%d left:%d bottom:%d right:%d.\n",
+			dst_vf->crop[0],
+			dst_vf->crop[1],
+			dst_vf->crop[2],
+			dst_vf->crop[3]);
+	}
+
 	vc_print(dev->index, PRINT_DEWARP,
 		"canvas0_addr: 0x%lx, canvas0_w: %d, canvas0_h: %d.\n",
 		dst_vf->canvas0_config[0].phy_addr,
