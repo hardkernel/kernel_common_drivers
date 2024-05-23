@@ -2138,7 +2138,7 @@ void vdin_set_frame_mif_write_addr_s5(struct vdin_dev_s *devp,
 				       VDIN_WRMIF_STRIDE_CHROMA + devp->addr_offset,
 				       stride_chroma);
 		}
-		if (devp->pause_dec || devp->msct_top.sct_pause_dec)
+		if (devp->pause_dec)
 			rdma_write_reg_bits(devp->rdma_handle,
 				VDIN_WRMIF_CTRL + devp->addr_offset,
 				0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
@@ -2156,7 +2156,7 @@ void vdin_set_frame_mif_write_addr_s5(struct vdin_dev_s *devp,
 			wr(devp->addr_offset, VDIN_WRMIF_STRIDE_CHROMA,
 			   stride_chroma);
 		}
-		if (devp->pause_dec || devp->msct_top.sct_pause_dec)
+		if (devp->pause_dec)
 			wr_bits(devp->addr_offset, VDIN_WRMIF_CTRL,
 				0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 		else
@@ -2217,7 +2217,7 @@ void vdin_set_canvas_id_s5(struct vdin_dev_s *devp, unsigned int rdma_enable,
 				    VDIN_WRMIF_CTRL + devp->addr_offset,
 				    canvas_id, WR_CANVAS_BIT, WR_CANVAS_WID);
 
-		if (devp->pause_dec || devp->msct_top.sct_pause_dec)
+		if (devp->pause_dec)
 			rdma_write_reg_bits(devp->rdma_handle, VDIN_WRMIF_CTRL + devp->addr_offset,
 					    0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 		else
@@ -2228,7 +2228,7 @@ void vdin_set_canvas_id_s5(struct vdin_dev_s *devp, unsigned int rdma_enable,
 		wr_bits(devp->addr_offset, VDIN_WRMIF_CTRL, canvas_id,
 			WR_CANVAS_BIT, WR_CANVAS_WID);
 
-		if (devp->pause_dec || devp->msct_top.sct_pause_dec)
+		if (devp->pause_dec)
 			wr_bits(devp->addr_offset, VDIN_WRMIF_CTRL, 0,
 				WR_REQ_EN_BIT, WR_REQ_EN_WID);
 		else
@@ -4672,7 +4672,12 @@ void vdin_vs_proc_monitor_s5(struct vdin_dev_s *devp)
 		else
 			devp->prop.hdr_info.hdr_check_cnt = 0;
 
-		if (devp->prop.latency.allm_mode != devp->pre_prop.latency.allm_mode ||
+		if (devp->prop.hdr10p_info.hdr10p_on != devp->pre_prop.hdr10p_info.hdr10p_on)
+			devp->prop.hdr10p_info.hdr10p_check_cnt++;
+		else
+			devp->prop.hdr10p_info.hdr10p_check_cnt = 0;
+
+		if (!!devp->prop.latency.allm_mode != !!devp->pre_prop.latency.allm_mode ||
 		    devp->prop.latency.it_content != devp->pre_prop.latency.it_content ||
 		    devp->prop.latency.cn_type != devp->pre_prop.latency.cn_type)
 			devp->dv.allm_chg_cnt++;
@@ -4686,11 +4691,15 @@ void vdin_vs_proc_monitor_s5(struct vdin_dev_s *devp)
 		else
 			devp->sg_chg_afd_cnt = 0;
 
-		if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en ||
-			vdin_check_spd_data_chg(devp))
+		if (vdin_is_vrr_state_chg(devp))
 			devp->vrr_data.vrr_chg_cnt++;
 		else
 			devp->vrr_data.vrr_chg_cnt = 0;
+
+		if (vdin_check_freesync_state_chg(devp))
+			devp->vrr_data.freesync_chg_cnt++;
+		else
+			devp->vrr_data.freesync_chg_cnt = 0;
 
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_FLAG)
 			pr_info("dv:%d, LL:%d hdr st:%d eotf:%d fg:%d allm:%d sty:0x%x spd:0x%x 0x%x\n",

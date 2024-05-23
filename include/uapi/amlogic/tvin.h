@@ -188,6 +188,18 @@ enum tvin_sig_fmt_e {
 	TVIN_SIG_FMT_HDMI_5120X2880 = 0x463,
 	TVIN_SIG_FMT_HDMI_2560X2880 = 0x464,
 	TVIN_SIG_FMT_HDMI_720X240 = 0x465,
+	TVIN_SIG_FMT_HDMI_360X480I = 0x466,
+	TVIN_SIG_FMT_HDMI_360X576I = 0x467,
+	TVIN_SIG_FMT_HDMI_360X480P = 0x468,
+	TVIN_SIG_FMT_HDMI_360X576P = 0x469,
+	TVIN_SIG_FMT_HDMI_2560X1080P_24HZ = 0x46a,
+	TVIN_SIG_FMT_HDMI_2560X1080P_25HZ = 0x46b,
+	TVIN_SIG_FMT_HDMI_2560X1080P_30HZ = 0x46c,
+	TVIN_SIG_FMT_HDMI_2560X1080P_50HZ = 0x46d,
+	TVIN_SIG_FMT_HDMI_2560X1080P_60HZ = 0x46e,
+	TVIN_SIG_FMT_HDMI_2560X1080P_100HZ = 0x46f,
+	TVIN_SIG_FMT_HDMI_2560X1080P_120HZ = 0x470,
+	TVIN_SIG_FMT_HDMI_3840X1080P_60HZ = 0x471,
 	TVIN_SIG_FMT_HDMI_MAX,
 	TVIN_SIG_FMT_HDMI_THRESHOLD = 0x600,
 	/* Video Formats */
@@ -502,6 +514,12 @@ struct vdin_vrr_freesync_param_s {
 	__u8 native_color_en;
 };
 
+struct vdin_qms_param_s {
+	__u8 qms_en;
+	unsigned int qms_fr;
+	__u8 qms_base_fr;
+};
+
 struct vdin_hist_s {
 	__kernel_long_t sum;
 	int width;
@@ -536,7 +554,7 @@ enum tvin_cn_type_e {
 };
 
 struct tvin_latency_s {
-	__u8 allm_mode;
+	__u8 allm_mode; /* bit0:hdmi allm, bit1:dv allm*/
 	__u8 it_content;
 	enum tvin_cn_type_e cn_type;
 };
@@ -565,7 +583,8 @@ enum tvin_sg_chg_flg {
 	TVIN_SIG_CHG_VS_FRQ	= 0x80,
 	TVIN_SIG_CHG_DV_ALLM	= 0x100,
 	TVIN_SIG_CHG_AFD	= 0x200,/*aspect ratio*/
-	TVIN_SIG_CHG_VRR        = 0x1000, /*vrr*/
+	TVIN_SIG_CHG_VRR        = 0x1000, /* gaming-vrr */
+	TVIN_SIG_CHG_QMS        = 0x2000, /* qms-vrr */
 	TVIN_SIG_CHG_CLOSE_FE	= 0x40000000,	/*closed frontend*/
 	TVIN_SIG_CHG_STS	= 0x80000000,	/*sm state change*/
 };
@@ -621,6 +640,7 @@ enum tvin_sg_chg_flg {
 #define TVIN_IOC_G_VDIN_STATUS         _IOR(_TM_T, 0x54, unsigned int)
 #define TVIN_IOC_G_IMAX_STATUS         _IOR(_TM_T, 0x55, bool)
 #define TVIN_IOC_S_PIP			_IOW(_TM_T, 0x56, struct vdin_pip_s)
+#define TVIN_IOC_G_QMS_STATUS		_IOR(_TM_T, 0x57, struct vdin_qms_param_s)
 
 #define TVIN_IOC_S_CANVAS_RECOVERY  _IO(_TM_T, 0x0a)
 /* TVAFE */

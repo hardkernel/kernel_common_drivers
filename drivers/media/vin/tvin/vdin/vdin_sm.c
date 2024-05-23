@@ -50,7 +50,7 @@
 #define EXIT_STABLE_MAX_CNT 1
 /* Signal stable for some cycles  => back to TVAFE_STATE_STABLE */
 /* must >=500ms,for new api function */
-#define BACK_STABLE_MAX_CNT 50
+#define BACK_STABLE_MAX_CNT 3
 #define EXIT_PRESTABLE_MAX_CNT 50
 static struct tvin_sm_s sm_dev[VDIN_MAX_DEVS];
 
@@ -63,7 +63,7 @@ static int sm_print_prestable;
 
 /*bit0:general debug bit;bit1:hdmirx color change*/
 static unsigned int sm_debug_enable = VDIN_SM_LOG_L_1;
-__module_param(sm_debug_enable, uint, 0664);
+module_param(sm_debug_enable, uint, 0664);
 MODULE_PARM_DESC(sm_debug_enable,
 		 "enable/disable state machine debug message");
 
@@ -167,6 +167,10 @@ static unsigned int vdin_vrr_chg_cnt = 1;
 __module_param(vdin_vrr_chg_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_vrr_chg_cnt, "vdin_vrr_chg_cnt");
 
+static unsigned int vdin_qms_chg_cnt = 2;
+__module_param(vdin_qms_chg_cnt, uint, 0664);
+MODULE_PARM_DESC(vdin_qms_chg_cnt, "vdin_qms_chg_cnt");
+
 enum tvin_color_fmt_range_e
 	tvin_get_force_fmt_range(enum tvin_color_fmt_e color_fmt)
 {
@@ -195,6 +199,8 @@ enum tvin_color_fmt_range_e
 void vdin_update_prop(struct vdin_dev_s *devp)
 {
 	/*devp->pre_prop.fps = devp->prop.fps;*/
+	devp->vrr_data.cur_vrr_status = get_cur_vrr_status(devp);
+	devp->vrr_data.pre_vrr_status = devp->vrr_data.cur_vrr_status;
 	devp->dv.dv_flag = devp->prop.dolby_vision;
 	devp->dv.low_latency = devp->prop.low_latency;
 	/*devp->pre_prop.latency.allm_mode = devp->prop.latency.allm_mode;*/
@@ -203,6 +209,21 @@ void vdin_update_prop(struct vdin_dev_s *devp)
 	vdin_get_base_fr(devp);
 	memcpy(&devp->pre_prop, &devp->prop,
 	       sizeof(struct tvin_sig_property_s));
+}
+
+static inline void vdin_update_parm(struct vdin_dev_s *devp)
+{
+	/* 3D interlaced signals are not supported default to 2D */
+	if (devp->fmt_info_p &&
+	    devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
+		devp->parm.info.trans_fmt = TVIN_TFMT_2D;
+	else
+		devp->parm.info.trans_fmt = devp->prop.trans_fmt;
+
+	devp->parm.info.is_dvi = devp->prop.dvi_info;
+	devp->parm.info.fps = devp->prop.fps;
+	devp->parm.info.cfmt =
+		devp->prop.color_format;
 }
 
 /*
@@ -216,6 +237,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 	/*enum tvin_color_fmt_e cur_dest_color_fmt, pre_dest_color_fmt;*/
 	struct tvin_sig_property_s *prop, *pre_prop;
 	unsigned int vdin_hdr_flag, pre_vdin_hdr_flag;
+	unsigned int vdin_hdr10p_flag, pre_vdin_hdr10p_flag;
 	unsigned int vdin_fmt_range, pre_vdin_fmt_range;
 	unsigned int cur_dv_flag, pre_dv_flag;
 	unsigned int temp;
@@ -248,7 +270,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 
 		vdin_hdr_flag = prop->vdin_hdr_flag;
 		pre_vdin_hdr_flag = pre_prop->vdin_hdr_flag;
-		if (vdin_hdr_flag != pre_vdin_hdr_flag) {
+		if (vdin_hdr_flag != pre_vdin_hdr_flag ||
+			prop->hdr_info.hdr_data.eotf != pre_prop->hdr_info.hdr_data.eotf) {
 			if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
 				prop->hdr_info.hdr_check_cnt++;
 			if (prop->hdr_info.hdr_check_cnt >=
@@ -259,14 +282,38 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 					TVIN_SIG_CHG_HDR2SDR;
 				if (signal_chg &&
 				    (sm_debug_enable & VDIN_SM_LOG_L_1))
-					pr_info("%s hdr chg 0x%x:(0x%x->0x%x)\n",
+					pr_info("%s hdr chg 0x%x:(0x%x->0x%x), eotf:%d\n",
 						__func__,
 						signal_chg, pre_vdin_hdr_flag,
-						vdin_hdr_flag);
+						vdin_hdr_flag,
+						devp->prop.hdr_info.hdr_data.eotf);
 				pre_prop->vdin_hdr_flag = prop->vdin_hdr_flag;
 			}
 		} else {
 			prop->hdr_info.hdr_check_cnt = 0;
+		}
+
+		vdin_hdr10p_flag = prop->hdr10p_info.hdr10p_on;
+		pre_vdin_hdr10p_flag = pre_prop->hdr10p_info.hdr10p_on;
+		if (vdin_hdr10p_flag != pre_vdin_hdr10p_flag) {
+			if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
+				prop->hdr10p_info.hdr10p_check_cnt++;
+			if (prop->hdr10p_info.hdr10p_check_cnt >=
+			    vdin_hdr_chg_cnt) {
+				prop->hdr10p_info.hdr10p_check_cnt = 0;
+				signal_chg |= vdin_hdr10p_flag ?
+					TVIN_SIG_CHG_SDR2HDR :
+					TVIN_SIG_CHG_HDR2SDR;
+				if (signal_chg &&
+				    (sm_debug_enable & VDIN_SM_LOG_L_1))
+					pr_info("%s hdr10p chg 0x%x:(0x%x->0x%x)\n",
+						__func__,
+						signal_chg, pre_vdin_hdr10p_flag,
+						vdin_hdr10p_flag);
+				pre_prop->hdr10p_info.hdr10p_on = prop->hdr10p_info.hdr10p_on;
+			}
+		} else {
+			prop->hdr10p_info.hdr10p_check_cnt = 0;
 		}
 
 		cur_dv_flag = prop->dolby_vision;
@@ -307,8 +354,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			}
 		}
 
-		if (devp->pre_prop.latency.allm_mode !=
-		    devp->prop.latency.allm_mode) {
+		if (!!devp->prop.latency.allm_mode !=
+			!!devp->pre_prop.latency.allm_mode) {
 			if (devp->dv.allm_chg_cnt > vdin_dv_chg_cnt) {
 				devp->dv.allm_chg_cnt = 0;
 				signal_chg |= TVIN_SIG_CHG_DV_ALLM;
@@ -318,6 +365,12 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 						__func__,
 						temp,
 						devp->prop.latency.allm_mode);
+				if (sm_ops->hdmi_is_xbox_dev) {
+					if (sm_ops->hdmi_is_xbox_dev(devp->frontend) &&
+						!devp->dv.dv_flag &&
+						!devp->pre_prop.latency.allm_mode)
+						devp->chg_drop_frame_cnt = vdin_re_cfg_drop_cnt;
+				}
 				devp->pre_prop.latency.allm_mode =
 					devp->prop.latency.allm_mode;
 			}
@@ -395,9 +448,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			devp->sg_chg_fps_cnt = 0;
 		}
 
-		if (devp->pre_prop.aspect_ratio !=
-		     devp->prop.aspect_ratio &&
-		    IS_HDMI_SRC(devp->parm.port)) {
+		if (devp->pre_prop.aspect_ratio != devp->prop.aspect_ratio) {
 			if (devp->sg_chg_afd_cnt > 1) {
 				signal_chg |= TVIN_SIG_CHG_AFD;
 				if (signal_chg)
@@ -414,12 +465,14 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			devp->sg_chg_afd_cnt = 0;
 		}
 
-		if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en ||
-			vdin_check_spd_data_chg(devp)) {
+		if (vdin_is_vrr_state_chg(devp) ||
+		    vdin_check_freesync_state_chg(devp)) {
 			if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
 				devp->vrr_data.vrr_chg_cnt++;
-			if (devp->vrr_data.vrr_chg_cnt > vdin_vrr_chg_cnt) {
+			if (devp->vrr_data.vrr_chg_cnt > vdin_vrr_chg_cnt ||
+			    devp->vrr_data.freesync_chg_cnt > vdin_vrr_chg_cnt) {
 				devp->vrr_data.vrr_chg_cnt = 0;
+				devp->vrr_data.freesync_chg_cnt = 0;
 				signal_chg |= TVIN_SIG_CHG_VRR;
 				vdin_frame_lock_check(devp, 1);
 				if (signal_chg && (sm_debug_enable & VDIN_SM_LOG_L_1))
@@ -431,12 +484,21 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 						devp->prop.spd_data.data[5],
 						devp->pre_prop.spd_data.data[0],
 						devp->prop.spd_data.data[0]);
-				devp->pre_prop.spd_data.data[5] = devp->prop.spd_data.data[5];
 			}
 		} else {
 			devp->vrr_data.vrr_chg_cnt = 0;
+			devp->vrr_data.freesync_chg_cnt = 0;
 		}
 
+		if (vdin_is_qms_state_chg(devp)) {
+			devp->vrr_data.qms_chg_cnt++;
+			if (devp->vrr_data.qms_chg_cnt >= vdin_qms_chg_cnt) {
+				devp->vrr_data.qms_chg_cnt = 0;
+				signal_chg |= TVIN_SIG_CHG_QMS;
+			}
+		} else {
+			devp->vrr_data.qms_chg_cnt = 0;
+		}
 		if (color_range_force)
 			prop->color_fmt_range =
 			tvin_get_force_fmt_range(pre_prop->color_format);
@@ -452,7 +514,14 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 					pre_color_fmt, cur_color_fmt,
 					pre_vdin_fmt_range, vdin_fmt_range,
 					devp->csc_cfg);
-			vdin_get_format_convert(devp);
+
+			if (cur_color_fmt != pre_color_fmt) {
+				if (!devp->game_mode) {
+					vdin_vf_skip_all_disp(devp->vfp);
+					devp->chg_drop_frame_cnt = vdin_re_cfg_drop_cnt;
+				}
+				vdin_get_format_convert(devp);
+			}
 			devp->csc_cfg = 1;
 		}
 	}
@@ -479,7 +548,7 @@ void vdin_auto_de_handler(struct vdin_dev_s *devp)
 	prop = &devp->prop;
 	sm_ops = devp->frontend->sm_ops;
 	if ((devp->flags & VDIN_FLAG_DEC_STARTED) &&
-	    sm_ops->get_sig_property) {
+	    sm_ops->get_sig_property && !devp->cut_window_cfg) {
 		sm_ops->get_sig_property(devp->frontend, prop, devp->port_type);
 		cur_vs = prop->vs;
 		cur_ve = prop->ve;
@@ -527,13 +596,16 @@ void tvin_smr_init_counter(int index)
 	sm_dev[index].exit_prestable_cnt = 0;
 }
 
-u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
+u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp, enum tvin_sm_status_e state)
 {
 	unsigned int signal_type = devp->parm.info.signal_type;
 	enum tvin_sg_chg_flg signal_chg = TVIN_SIG_CHG_NONE;
 	struct tvin_state_machine_ops_s *sm_ops;
 	struct tvin_sig_property_s *prop;
 	unsigned int i;
+
+	if (state < TVIN_SM_STATUS_PRESTABLE)
+		return TVIN_SIG_CHG_NONE;
 
 	/* need always polling the signal property, if isr enable,
 	 * it be called in isr
@@ -562,11 +634,11 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 			pr_info("data[%d ~ %d]=%#x %#x %#x %#x\n", i, i + 3,
 				devp->prop.spd_data.data[i], devp->prop.spd_data.data[i + 1],
 				devp->prop.spd_data.data[i + 2], devp->prop.spd_data.data[i + 3]);
-		pr_info("vrr_en:%d,const:%#x,qms:%#x,fva:%#x,v_front:%d,rb:%d,fr:%d,vic:%d\n",
+		pr_info("vrr_en:%d,const:%#x,qms:%#x,fva:%#x,v_front:%d,fr:%d,vic:%d\n",
 			devp->prop.vtem_data.vrr_en, devp->prop.vtem_data.m_const,
 			devp->prop.vtem_data.qms_en, devp->prop.vtem_data.fva_factor_m1,
-			devp->prop.vtem_data.base_v_front, devp->prop.vtem_data.rb,
-			devp->prop.vtem_data.base_framerate, devp->prop.hw_vic);
+			devp->prop.vtem_data.base_vfront, devp->prop.vtem_data.base_framerate,
+			devp->prop.hw_vic);
 	}
 
 	if (devp->prop.dolby_vision)
@@ -619,7 +691,6 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 					(signal_type & (~0xFF00)));
 			}
 		}
-		devp->prop.hdr_info.hdr_state = HDR_STATE_SET;
 	} else if (prop->hdr_info.hdr_state == HDR_STATE_NULL) {
 		devp->prop.vdin_hdr_flag = false;
 		signal_type &= ~(1 << 29);
@@ -661,10 +732,10 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 			devp->prop.hdr_info.hdr_data.eotf, devp->prop.vdin_hdr_flag,
 			devp->prop.vdin_vrr_flag, signal_type);
 
-	if (devp->prop.vdin_hdr_flag &&
-	    devp->parm.info.signal_type != signal_type) {
-		signal_chg |= TVIN_SIG_CHG_SDR2HDR;
-	}
+	//if (devp->prop.vdin_hdr_flag &&
+	    //devp->parm.info.signal_type != signal_type) {
+		//signal_chg |= TVIN_SIG_CHG_SDR2HDR;
+	//}
 	/* check HDR 10+ end */
 
 	/* check vrr begin */
@@ -742,20 +813,34 @@ void tvin_sig_chg_event_process(struct vdin_dev_s *devp, u32 chg)
 			devp->event_info.event_sts = TVIN_SIG_CHG_AFD;
 		} else if (chg & TVIN_SIG_CHG_VRR) {
 			devp->event_info.event_sts = TVIN_SIG_CHG_VRR;
-			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d)%d,vic:%d,fr:%d\n", __func__,
+			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d),vic:%d,fr:%d\n", __func__,
 				devp->vrr_data.vdin_vrr_en_flag,
 				devp->prop.vtem_data.vrr_en,
 				devp->pre_prop.spd_data.data[5],
 				devp->prop.spd_data.data[5],
-				devp->vrr_data.cur_spd_data5,
 				devp->prop.hw_vic,
 				devp->prop.vtem_data.base_framerate);
-			devp->vrr_data.cur_spd_data5    = devp->prop.spd_data.data[5];
-			devp->pre_prop.spd_data.data[5] = devp->prop.spd_data.data[5];
+			memcpy(&devp->pre_prop.spd_data, &devp->prop.spd_data,
+				sizeof(devp->prop.spd_data));
+			devp->vrr_data.cur_vrr_status = get_cur_vrr_status(devp);
+			devp->vrr_data.pre_vrr_status = devp->vrr_data.cur_vrr_status;
 			devp->pre_prop.vtem_data.vrr_en =
 				devp->prop.vtem_data.vrr_en;
 			devp->vrr_data.vdin_vrr_en_flag =
 				devp->prop.vtem_data.vrr_en;
+		} else if (chg & TVIN_SIG_CHG_QMS) {
+			devp->event_info.event_sts = TVIN_SIG_CHG_QMS;
+			memcpy(&devp->pre_prop.vtem_data, &devp->prop.vtem_data,
+				sizeof(devp->prop.vtem_data));
+			if (sm_debug_enable & VDIN_SM_LOG_L_1) {
+				pr_info("qms_chg:(%d->%d) const:%d,fr:%d,vf:%d,base:%d\n",
+					devp->pre_prop.vtem_data.qms_en,
+					devp->prop.vtem_data.qms_en,
+					devp->prop.vtem_data.m_const,
+					devp->prop.vtem_data.next_tfr,
+					devp->prop.vtem_data.base_vfront,
+					devp->prop.vtem_data.base_framerate);
+			}
 		} else {
 			return;
 		}
@@ -811,7 +896,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 	prop = &devp->prop;
 	pre_prop = &devp->pre_prop;
 
-	signal_chg = tvin_hdmirx_signal_type_check(devp);
+	signal_chg = tvin_hdmirx_signal_type_check(devp, sm_p->state);
 
 	switch (sm_p->state) {
 	case TVIN_SM_STATUS_NOSIG:
@@ -915,12 +1000,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 						/*prop);*/
 						info->cfmt = prop->color_format;
 						memcpy(pre_prop, prop, cnt);
-						devp->parm.info.trans_fmt =
-							prop->trans_fmt;
-						devp->parm.info.is_dvi =
-							prop->dvi_info;
-						devp->parm.info.fps =
-							prop->fps;
 					}
 
 					if (sm_ops->fmt_config)
@@ -1033,6 +1112,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 					sm_p->state = TVIN_SM_STATUS_STABLE;
 					info->status = TVIN_SIG_STATUS_STABLE;
 					vdin_update_prop(devp);
+					vdin_update_parm(devp);
 					/* vrr case */
 					devp->vrr_data.vdin_vrr_en_flag =
 						devp->pre_prop.vtem_data.vrr_en;
@@ -1060,6 +1140,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 				sm_p->state = TVIN_SM_STATUS_STABLE;
 				info->status = TVIN_SIG_STATUS_STABLE;
 				vdin_update_prop(devp);
+				vdin_update_parm(devp);
 				/* vrr case */
 				devp->vrr_data.vdin_vrr_en_flag =
 					devp->pre_prop.vtem_data.vrr_en;

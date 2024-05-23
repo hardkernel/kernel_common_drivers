@@ -20,9 +20,9 @@
 #define VFRAME_H
 
 #include <linux/types.h>
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
+//#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
-#endif
+//#endif
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/atomic.h>
 #include <linux/amlogic/iomap.h>
@@ -65,6 +65,7 @@
 #define VIDTYPE_EXT_VDIN_SCATTER        0x1
 #define VIDTYPE_EXT_MOSAIC_22           0x2
 #define VIDTYPE_EXT_BYPASS_DETUNNEL	0x4
+#define VIDTYPE_EXT_VDIN_HDCP		0x8
 
 #define DISP_RATIO_FORCECONFIG          0x80000000
 #define DISP_RATIO_FORCE_NORMALWIDE     0x40000000
@@ -667,6 +668,8 @@ struct vframe_s {
 	u32 compHeight;
 	u32 ratio_control;
 	u32 bitdepth;
+	/* for mif if dw output */
+	u32 bitdepth_dw;
 
 	/*
 	 * bit 31: is_cuva
@@ -703,11 +706,11 @@ struct vframe_s {
 	enum vframe_source_type_e source_type;
 	enum vframe_secam_phase_e phase;
 	enum vframe_source_mode_e source_mode;
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
+//#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 	enum tvin_sig_fmt_e sig_fmt;
 	enum tvin_trans_fmt trans_fmt;
 	struct tvafe_vga_parm_s vga_parm;
-#endif
+//#endif
 	struct vframe_view_s left_eye;
 	struct vframe_view_s right_eye;
 	u32 mode_3d_enable;

@@ -181,8 +181,8 @@ struct tvin_state_machine_ops_s *tvin_get_sm_ops(enum tvin_port_e port,
 EXPORT_SYMBOL(tvin_get_sm_ops);
 
 static ssize_t frontend_names_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				   const struct class_attribute *attr,
+				   char *buf)
 {
 	size_t len = 0;
 	struct tvin_frontend_s *f = NULL;

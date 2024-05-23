@@ -576,6 +576,21 @@ void unregister_cec_callback(void)
 }
 EXPORT_SYMBOL(unregister_cec_callback);
 
+void rx_update_edid_callback(u32 tvin_port, u32 hdr_priority)
+{
+	u8 port;
+
+	port = (tvin_port - TVIN_PORT_HDMI0) & 0xff;
+#ifdef CONFIG_AMLOGIC_HDMITX
+	tx_hdr_priority = hdr_priority;
+#endif
+	rx_pr(" edid update:%d\n", hdr_priority);
+	hdmi_rx_top_edid_update();
+	port_hpd_rst_flag |= (1 << rx_info.main_port);
+	rx[port].state = FSM_HPD_LOW;
+}
+EXPORT_SYMBOL(rx_update_edid_callback);
+
 static bool video_mute_enabled(u8 port)
 {
 	if (rx[port].state != FSM_SIG_READY || port == rx_info.sub_port)

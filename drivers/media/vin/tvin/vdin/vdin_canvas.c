@@ -348,7 +348,11 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	default:
 		break;
 	}
-
+	if (devp->double_wr && (devp->dv_hw5.hw5_ctl & BIT3)) {
+		devp->canvas_w = h_active * VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
+		pr_info("%s dw_wrmif_444_10bit,%dx%d;canvas_w:%d\n",
+			__func__, h_active, v_active, devp->canvas_w);
+	}
 	/*backup before roundup*/
 	devp->canvas_active_w = devp->canvas_w;
 	/*canvas_w must ensure divided exact by 256bit(32byte)*/
@@ -480,7 +484,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		 * up to 4k 444 8bit mode
 		 */
 		if (/*devp->source_bitdepth > VDIN_MIN_SOURCE_BIT_DEPTH &&*/
-		    !vdin_is_4k(devp)) {
+		    !vdin_is_4k(devp) || (devp->dv_hw5.hw5_ctl & BIT3)) {
 			h_size = roundup(h_size * VDIN_YUV444_10BIT_PER_PIXEL_BYTE,
 				devp->canvas_align);
 			devp->canvas_align_w = h_size / VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
@@ -574,6 +578,12 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				devp->vf_mem_size / devp->v_shrink_times;
 		else
 			devp->vf_mem_size_small = 0;
+		if (devp->dv_hw5.hw5_ctl & BIT3) {
+			devp->vf_mem_size_small = devp->h_shrink_out * devp->v_shrink_out *
+				VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
+			pr_info("vdin%d,dw_wrmif_444_10bit,%dx%d",
+				devp->index, devp->h_shrink_out, devp->v_shrink_out);
+		}
 	} else {
 		devp->vf_mem_size_small = 0;
 	}
@@ -651,7 +661,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	mem_size = roundup(mem_size, 64 * 1024);
 #endif
 
-	if (mem_size > devp->cma_mem_size) {
+	if (mem_size > devp->cma_mem_size &&
+	    !(devp->cma_config_flag & MEM_ALLOC_FROM_CODEC)) {
 		pr_err("vdin[%d] warning: cma_mem_size (need %d, cur %d) is not enough!!!\n",
 		       devp->index, mem_size, devp->cma_mem_size);
 		/*mem_size = devp->cma_mem_size;*/
@@ -1038,4 +1049,3 @@ void vdin_cma_malloc_mode(struct vdin_dev_s *devp)
 	}
 }
 #endif
-

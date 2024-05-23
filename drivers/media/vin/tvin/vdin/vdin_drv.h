@@ -173,7 +173,7 @@ enum vdin_hw_ver_e {
 	VDIN_HW_SM1,
 	VDIN_HW_TL1,
 	/*
-	 * tm2 vdin0/vdin1 all support up to 40k
+	 * tm2 vdin0/vdin1 all support up to 4k
 	 */
 	VDIN_HW_TM2,
 	VDIN_HW_TM2_B,
@@ -202,6 +202,8 @@ enum vdin_hw_ver_e {
 	VDIN_HW_T5M,
 	VDIN_HW_T3X,
 	VDIN_HW_TXHD2,
+	VDIN_HW_S7,
+	VDIN_HW_S7D,
 };
 
 /* 20230607: game mode optimize and add debug */
@@ -216,7 +218,8 @@ enum vdin_hw_ver_e {
 /* 20231022: add auto pc game and optimize tvin_update_vdin_prop */
 /* 20231109: add freesync type rate low and source-led */
 /* 20231117: compare in and out frame rate has problem */
-#define VDIN_VER_V1 "20231117: compare in and out frame rate has problem"
+/* 20231129: remove cdev_del and optimize game debug */
+#define VDIN_VER_V1 "20231129: remove cdev_del and optimize game debug"
 
 enum vdin_irq_flg_e {
 	VDIN_IRQ_FLG_NO_END = 1,
@@ -318,6 +321,8 @@ struct match_data_s {
 #define VDIN_GAME_MODE_2                (BIT2)
 /*when phase lock, will switch 2 to 1*/
 #define VDIN_GAME_MODE_SWITCH_EN        (BIT3)
+/* game 1 or game 2 */
+#define VDIN_GAME_MODE_1_2        (VDIN_GAME_MODE_1 | VDIN_GAME_MODE_2)
 
 /*flag for flush vdin buff*/
 #define VDIN_FLAG_BLACK_SCREEN_ON	1
@@ -329,9 +334,9 @@ struct match_data_s {
 #define VDIN_SELF_STOP_START		BIT(0)
 #define VDIN_V4L2_IOCTL_CHK		BIT(1)
 #define VDIN_ADJUST_VLOCK		BIT(4)
-#define VDIN_PROP_RX_UPDATE		BIT(5)
 #define VDIN_GAME_NOT_TANSFER		BIT(6) //control for tx output when game mode
-#define VDIN_FORCE_444_NOT_CONVERT	BIT(7) //commercial display control
+#define VDIN_FORCE_444_NOT_CONVERT      BIT(7) //vdin 444 to 444 by default
+#define VDIN_ONLY_SEND_WSS_VALUE	BIT(8) //vdin send aspect ratio value
 #define VDIN_SET_DISPLAY_RATIO		BIT(9)
 #define VDIN_NOT_DATA_INPUT_DROP	BIT(10)
 #define VDIN_BYPASS_HDR_SEI_CHECK	BIT(11) //bypass Non-standard hdr stream detection
@@ -356,6 +361,8 @@ struct match_data_s {
 // 23.97 Set this parameter to 23 to distinguish between 24
 #define FPS_23_97_SET_TO_23		23
 #define VDIN_SET_MODE_MAX_FRAME		60
+#define VDIN_VRR_MIN_FRAME_RATE		25
+#define VDIN_RDMA_UNDONE_MAX_CNT	10
 
 #define IS_HDMI_SRC(src)	\
 		({typeof(src) src_ = src; \
@@ -435,11 +442,17 @@ enum vdin_vf_put_md {
 
 #define DBG_RX_UPDATE_VDIN_PROP		BIT(20)
 #define VDIN_ISR_MONITOR_INPUT		BIT(21)
+#define VDIN_ISR_MONITOR_RDMA		BIT(22)
+
+#define VDIN_ISR_MONITOR_CFMT		BIT(23)
 
 #define VDIN_DBG_CNTL_IOCTL	BIT(10)
 #define VDIN_DBG_CNTL_FLUSH	BIT(11)
 
-#define SEND_LAST_FRAME_GET_PROP	2
+#define CURRENT_FRAME_GET_PROP	BIT(0)
+
+//pattern 4 used for protect hdcp content,others for debug
+#define VDIN_HDCP_PATTERN	4
 
 /* *********************************************************************** */
 /* *** enum definitions ********************************************* */
@@ -582,6 +595,7 @@ struct vdin_debug_s {
 	unsigned int dbg_pattern;
 	unsigned int dbg_device_id;
 	unsigned int dbg_sct_ctl;
+	unsigned int dbg_wrmif_444;
 	unsigned int dbg_de_interlanced_ctl;
 	unsigned short scaling4h;/* for vertical scaling */
 	unsigned short scaling4w;/* for horizontal scaling */
@@ -593,6 +607,7 @@ struct vdin_debug_s {
 	/* vdin1 hdr set bypass */
 	bool vdin1_set_hdr_bypass;
 	bool dbg_force_shrink_en;
+	bool bypass_update_prop;
 	bool bypass_pc_mode;//bypass pc mode set
 	bool bypass_game_mode;//bypass game mode set
 	bool bypass_tunnel;
@@ -606,6 +621,9 @@ struct vdin_debug_s {
 	unsigned int dbg_reg_addr[DBG_REG_LENGTH];
 	unsigned int dbg_reg_val[DBG_REG_LENGTH];
 	unsigned int dbg_reg_bit[DBG_REG_LENGTH];
+	/* bit0:scl_mode;bit1:bypass dsc;bit2:bypass sc */
+	unsigned int dbg_dv_hw5;
+	unsigned int hconv_mode;
 };
 
 struct vdin_dv_s {
@@ -632,6 +650,20 @@ struct vdin_dv_s {
 	bool low_latency;
 	unsigned int chg_cnt;
 	unsigned int allm_chg_cnt;
+};
+
+struct vdin_hdr_s {
+	u8 rawdata[HDR_RAW_DATA_SIZE];
+	u8 empbuf[HDR_EMP_DATA_SIZE];
+	u8 emp_size;
+};
+
+struct vdin_dv_hw5_s {
+	/* bit0:scl_mode;bit1:bypass dsc;bit2:bypass sc */
+	unsigned int hw5_ctl;
+	unsigned int dw_out_w;
+	unsigned int dw_out_h;
+	unsigned int dw_dfmt;
 };
 
 struct vdin_afbce_s {
@@ -706,6 +738,7 @@ struct vdin_frame_stat_s {
 	unsigned int meta_wr_done_irq_cnt;
 	/* Continuous cycle error counting */
 	unsigned int cycle_err_cnt_con;
+	unsigned int rdma_manual_cnt;
 };
 
 struct vdin_v4l2_s {
@@ -720,13 +753,15 @@ struct vdin_vrr_s {
 	struct tvin_vtem_data_s vtem_data;
 	struct tvin_spd_data_s spd_data;
 	unsigned int vrr_chg_cnt;
+	unsigned int freesync_chg_cnt;
 	unsigned int vrr_mode;
 	/* vrr_en in frame_lock_policy */
 	bool frame_lock_vrr_en;
-	/* vrr states may changed only once and recovery quickly
-	 * app may get wrong state if from prop.spd_data[5]
-	 */
-	u8 cur_spd_data5;
+	/* app get this status */
+	enum vdin_vrr_mode_e pre_vrr_status;
+	/* driver detect status */
+	enum vdin_vrr_mode_e cur_vrr_status;
+	unsigned int qms_chg_cnt;
 };
 
 /* scatter start */
@@ -761,7 +796,7 @@ struct vdin_msct_top_s {
 	unsigned int mmu_4k_number; /* mmu 4k number in full size */
 	unsigned int buffer_size_nub; /* 4k number per frame */
 	unsigned int tail_cnt;
-	bool	 sct_pause_dec; /* pause dec flag on sct mem */
+	bool	sct_stop_flag;
 	/* statistics info*/
 	unsigned int que_work_cnt;
 	unsigned int worker_run_cnt;
@@ -794,6 +829,7 @@ struct vdin_dev_s {
 	struct tvin_sig_property_s prop;
 	struct vframe_provider_s vf_provider;
 	struct vdin_dv_s dv;
+	struct vdin_hdr_s hdr;
 	struct delayed_work vlock_dwork;
 	struct vdin_afbce_s *afbce_info;
 	struct tvin_to_vpp_info_s vdin2vpp_info;
@@ -819,10 +855,11 @@ struct vdin_dev_s {
 	struct vdin_debug_s debug;
 	enum vdin_format_convert_e format_convert;
 	unsigned int mif_fmt;/*enum vdin_mif_fmt*/
-	enum vdin_color_deeps_e source_bitdepth;
+	enum vdin_color_deeps_e source_bitdepth;/* afbce or main mif */
+	enum vdin_color_deeps_e source_bitdepth_dw;/* dw or main mif */
 	enum vdin_matrix_csc_e csc_idx;
-	struct vf_entry *curr_wr_vfe;
-	struct vf_entry *last_wr_vfe;
+	struct vf_entry *curr_wr_vfe;//current isr config addr because RDMA next isr write this addr
+	struct vf_entry *last_wr_vfe;//last isr config addr because RDMA current isr write this addr
 	unsigned int vdin_delay_vfe2rd_list;
 	unsigned int curr_field_type;
 	unsigned int curr_dv_flag;
@@ -1105,8 +1142,9 @@ struct vdin_dev_s {
 	unsigned int force_disp_skip_num;
 	unsigned int dbg_dump_frames;
 	unsigned int dbg_stop_dec_delay;
-	unsigned int vinfo_std_duration; /* get vinfo out fps value */
-	unsigned int vdin_std_duration; /* get in fps value */
+	unsigned int vout_base_fps; /* get vinfo out base fps value */
+	unsigned int vinfo_std_duration; /* get vinfo out real time fps value */
+	unsigned int vdin_std_duration; /* get in real time fps value */
 	unsigned int dbg_no_swap_en:1;
 	/* 0:auto;1:force on;2:force off */
 	unsigned int dbg_force_one_buffer;
@@ -1132,6 +1170,9 @@ struct vdin_dev_s {
 	unsigned int vdin_drop_cnt;
 	unsigned int vdin_isr_drop;
 	unsigned int vdin_isr_drop_num;
+	unsigned int fs_open_cnt;
+	unsigned int rdma_undone_cnt;
+	struct vdin_dv_hw5_s dv_hw5;
 };
 
 extern unsigned int max_ignore_frame_cnt;

@@ -17,5 +17,5 @@ int register_cec_callback(cec_callback callback);
 void unregister_cec_callback(void);
 unsigned int hdmirx_get_base_fps(unsigned int hw_vic);
 unsigned int hdmirx_get_hpd_info(void);
-
+void rx_update_edid_callback(u32 tvin_port, u32 hdr_priority);
 #endif

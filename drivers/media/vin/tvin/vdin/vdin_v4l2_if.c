@@ -66,6 +66,7 @@
 /* Local Headers */
 /*#include "../tvin_global.h"*/
 #include "../tvin_format_table.h"
+#include "../hdmirx/hdmi_rx_drv_ext.h"
 /*#include "../tvin_frontend.h"*/
 /*#include "../tvin_global.h"*/
 #include "vdin_regs.h"
@@ -278,7 +279,7 @@ void vdin_fill_pix_format(struct vdin_dev_s *devp)
 				v4l2_fmt->fmt.pix_mp.width / 2;
 		}
 	} else {
-		pr_err("vdin%d,err.not support num_planes=%d\n ",
+		dprintk(0, "vdin%d,err.not support num_planes=%d\n ",
 			devp->index, v4l2_fmt->fmt.pix_mp.num_planes);
 		return;
 	}
@@ -602,8 +603,11 @@ static int vdin_vidioc_dqbuf(struct file *file, void *priv,
 
 	ret = vb2_ioctl_dqbuf(file, priv, p);
 	if (ret) {
-		dprintk(0, "DQ error,ret=%d,%#x\n", ret, file->f_flags);
-		return -1;
+		if (devp->parm.info.status == TVIN_SIG_STATUS_NOSIG)
+			ret = -ENODEV;
+		dprintk(0, "DQ error,ret=%d,%#x,status:%d\n", ret, file->f_flags,
+			devp->parm.info.status);
+		return ret;
 	}
 
 	for (i = 0; i < devp->v4l2_fmt.fmt.pix_mp.num_planes; i++)
@@ -1246,14 +1250,13 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 		return -EINVAL;
 	}
 
-	mutex_lock(&devp->fe_lock);
-
-	if (devp->flags & VDIN_FLAG_DEC_OPENED &&
-		devp->v4l2_port_cur != devp->v4l2_port[i]) {
-		dprintk(0, "%s current port:%d is opened already,close it\n",
-			__func__, devp->v4l2_port_cur);
+	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
+		dprintk(0, "%s warning VDIN_FLAG_DEC_STARTED\n", __func__);
+		stop_tvin_service(devp->index);
 		vdin_close_fe(devp);
 	}
+
+	mutex_lock(&devp->fe_lock);
 
 	devp->parm.index    = devp->index;
 	devp->parm.port     = devp->v4l2_port[i];
@@ -1263,18 +1266,34 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	devp->work_mode = VDIN_WORK_MD_V4L;
 	devp->afbce_flag = 0;
 
-	if (devp->index == 0 && !(devp->flags & VDIN_FLAG_DEC_OPENED)) {
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+	if (IS_HDMI_SRC(devp->v4l2_port_cur))
+		rx_update_edid_callback(devp->v4l2_port_cur, RX_EDID_REMOVE_HDR);
+#endif
+	if (devp->parm.port != TVIN_PORT_MIPI && devp->index == 0 &&
+		!(devp->flags & VDIN_FLAG_DEC_OPENED)) {
 		ret = vdin_open_fe(devp->parm.port, 0, devp);
 		if (ret) {
-			pr_err("TVIN_IOC_OPEN(%d) failed to open port 0x%x\n",
-				   devp->index, devp->parm.port);
+			dprintk(0, "TVIN_IOC_OPEN(%d) failed to open port 0x%x\n",
+				devp->index, devp->parm.port);
 			mutex_unlock(&devp->fe_lock);
 			return -EFAULT;
 		}
 	}
+
+	/* mipi-csi donot support state_machine */
+	if (devp->parm.port == TVIN_PORT_MIPI) {
+		if (devp->frontend && devp->frontend->sm_ops &&
+			devp->frontend->sm_ops->get_fmt)
+			devp->parm.info.fmt =
+				devp->frontend->sm_ops->get_fmt(devp->frontend, 0);
+		else
+			devp->parm.info.fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
+	}
+
 	mutex_unlock(&devp->fe_lock);
 
-	pr_info("%s current port:%#x(%s)\n", __func__,
+	dprintk(0, "%s current port:%#x(%s)\n", __func__,
 		devp->v4l2_port_cur, tvin_port_str(devp->v4l2_port_cur));
 	return 0;
 }
@@ -1444,11 +1463,6 @@ static int vdin_v4l2_open(struct file *file)
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
-	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
-		dprintk(0, "%s error VDIN_FLAG_DEC_STARTED\n", __func__);
-		return -EPERM;
-	}
-
 	dprintk(0, "%s\n", __func__);
 	/*dump_stack();*/
 	devp->afbce_flag_backup = devp->afbce_flag;
@@ -1499,7 +1513,10 @@ static int vdin_v4l2_release(struct file *file)
 		devp->afbce_flag = devp->afbce_flag_backup;
 	}
 	devp->work_mode = VDIN_WORK_MD_NORMAL;
-
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+	if (IS_HDMI_SRC(devp->v4l2_port_cur))
+		rx_update_edid_callback(devp->v4l2_port_cur, RX_EDID_DEFAULT);
+#endif
 	return ret;
 }
 
@@ -2044,7 +2061,7 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *devp)
 	/* Check args */
 	fmt_info_p = tvin_get_fmt_info(devp->parm.info.fmt);
 	if (!fmt_info_p) {
-		pr_warn("%s,invalid fmt:%s\n",
+		dprintk(0, "%s,invalid fmt:%s\n",
 			__func__, tvin_sig_fmt_str(devp->parm.info.fmt));
 		return -1;
 	}
@@ -2077,10 +2094,19 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *devp)
 	}
 	if (vdin_cap_param.frame_rate == 0)
 		vdin_cap_param.frame_rate = 60;
+
+	if (devp->parm.port == TVIN_PORT_MIPI) {
+		//vdin_cap_param.frame_rate = 30;
+		vdin_cap_param.cfmt = TVIN_YUV422;
+		//vdin_cap_param.bt_path = BT_PATH_CSI2;
+		vdin_cap_param.hsync_phase = 1;
+		vdin_cap_param.vsync_phase = 1;
+	}
+
 	/* vdin can not do scale up */
 	if (devp->v4l2_fmt.fmt.pix_mp.width > vdin_cap_param.h_active ||
 		devp->v4l2_fmt.fmt.pix_mp.height > vdin_cap_param.v_active) {
-		pr_err("%s,out of range!v4l2_fmt:%dx%d > active:%dx%d\n",
+		dprintk(0, "%s,out of range!v4l2_fmt:%dx%d > active:%dx%d\n",
 			__func__, devp->v4l2_fmt.fmt.pix_mp.width,
 			devp->v4l2_fmt.fmt.pix_mp.height, vdin_cap_param.h_active,
 			vdin_cap_param.v_active);

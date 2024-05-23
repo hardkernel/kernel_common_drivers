@@ -77,6 +77,11 @@ enum amcsi_status_e {
 	TVIN_AMCSI_START,
 };
 
+enum camera_fe_status {
+	CAMERA_FE_OPEN,
+	CAMERA_FE_CLOSE,
+};
+
 struct amcsi_dev_s {
 	int                     index;
 	dev_t                   devt;
@@ -95,6 +100,7 @@ struct amcsi_dev_s {
 	unsigned int            min_frmrate;
 	struct timer_list       t;
 	void __iomem            *csi_adapt_addr;
+	enum camera_fe_status   fe_status;
 };
 
 struct csi_adapt {

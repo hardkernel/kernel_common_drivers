@@ -1941,6 +1941,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->prop.imax_flag);
 	pr_info("dv emp size:%d crc_flag:%d\n", devp->prop.emp_data.size,
 		devp->dv.dv_crc_check);
+	pr_info("dv_is_not_std:%d\n", devp->dv_is_not_std);
 	pr_info("size of struct vdin_dev_s: %d\n", devp->vdin_dev_ssize);
 	pr_info("devp->dv.dv_vsif:(%d,%d,%d,%d,%d,%d,%d,%d);\n",
 		devp->dv.dv_vsif.dolby_vision_signal,
@@ -1973,6 +1974,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("hv reverse enabled: %d\n", devp->hv_reverse_en);
 	pr_info("dbg_dump_frames: %d,dbg_stop_dec_delay:%d\n",
 		devp->dbg_dump_frames, devp->dbg_stop_dec_delay);
+	pr_info("fs_open_cnt: %d\n", devp->fs_open_cnt);
 	pr_info("vdin_function_sel: 0x%x\n", devp->vdin_function_sel);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 	pr_info("Vdin driver version_V1 :  %s\n", VDIN_VER_V1);
@@ -2127,6 +2129,8 @@ static void vdin_dump_count(struct vdin_dev_s *devp)
 	pr_info("frame_drop_num:%d\n", devp->frame_drop_num);
 	pr_info("vdin_drop_cnt: %d\n", devp->vdin_drop_cnt);
 	pr_info("vdin_drop_num:%d\n", devp->vdin_drop_num);
+	pr_info("rdma_manual_cnt: %d,rdma_undone_cnt: %d\n",
+		devp->stats.rdma_manual_cnt, devp->rdma_undone_cnt);
 	pr_info("dbg_fr_ctl:%d,drop_ctl_cnt:%d\n", devp->dbg_fr_ctl, devp->vdin_drop_ctl_cnt);
 
 	vdin_dump_vs_info(devp);
@@ -3990,12 +3994,13 @@ start_chk:
 		}
 	} else if (!strcmp(parm[0], "afbce_flag")) {
 		if (parm[1]) {
-			if (kstrtouint(parm[1], 16, &devp->dts_config.afbce_flag_cfg) == 0) {
-				pr_info("set vdin_afbce_flag_cfg: 0x%x\n",
+			if (kstrtouint(parm[1], 16, &temp) == 0) {
+				devp->dts_config.afbce_flag_cfg = temp;
+				pr_info("set afbce_flag: 0x%x\n",
 					devp->dts_config.afbce_flag_cfg);
 			}
 		} else {
-			pr_info("vdin_afbce_flag_cfg: 0x%x\n", devp->dts_config.afbce_flag_cfg);
+			pr_err("err.afbce_flag: 0x%x\n", devp->dts_config.afbce_flag_cfg);
 		}
 	} else if (!strcmp(parm[0], "afbce_mode")) {
 		if (parm[2]) {
@@ -4099,19 +4104,17 @@ start_chk:
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (temp) {
 				devp->debug.bypass_game_mode = true;
-				if (temp == 1) {
-					//upper not control and open game
-					game_mode = 1;
-				} else if (temp <= 0xb) {
-					//upper not control and force game mode
-					game_mode = 1;
+				if (temp <= 0xb) {
 					vdin_force_game_mode = temp;
+					vdin_game_mode_chg(devp, game_mode, 1);
+					game_mode = 1;
 				} else {
-					//upper not control and close game mode
+					vdin_force_game_mode = 0;
+					vdin_game_mode_chg(devp, game_mode, 0);
 					game_mode = 0;
 				}
 			} else {
-				//open upper control and close force game mode
+				vdin_game_mode_chg(devp, game_mode, 0);
 				devp->debug.bypass_game_mode = false;
 				vdin_force_game_mode = 0;
 				game_mode = 0;
@@ -4351,6 +4354,10 @@ start_chk:
 		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
 			devp->debug.change_get_drm = temp;
 		pr_info("change_get_drm:%#x\n", devp->debug.change_get_drm);
+	}  else if (!strcmp(parm[0], "bypass_update_prop")) {
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+			devp->debug.bypass_update_prop = temp;
+		pr_info("bypass_update_prop:%#x\n", devp->debug.bypass_update_prop);
 	}  else if (!strcmp(parm[0], "force_shrink")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dbg_force_shrink_en = temp;
@@ -4461,6 +4468,28 @@ start_chk:
 			devp->index, devp->pip.en,
 			devp->pip.main_port, tvin_port_str(devp->pip.main_port),
 			devp->pip.sub_port, tvin_port_str(devp->pip.sub_port));
+	} else if (!strcmp(parm[0], "dbg_dv_hw5")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			devp->debug.dbg_dv_hw5 = temp;
+			devp->dv_hw5.hw5_ctl = temp;
+		}
+		if (parm[2] && (kstrtouint(parm[2], 0, &temp) == 0))
+			devp->dv_hw5.dw_out_w = temp;
+		if (parm[3] && (kstrtouint(parm[3], 0, &temp) == 0))
+			devp->dv_hw5.dw_out_h = temp;
+		if (parm[4] && (kstrtouint(parm[4], 0, &temp) == 0))
+			devp->dv_hw5.dw_dfmt = temp;
+		pr_info("vdin%d:dv_hw5:%#x;%d,%d,%d\n", devp->index,
+			devp->dv_hw5.hw5_ctl, devp->dv_hw5.dw_out_w, devp->dv_hw5.dw_out_h,
+			devp->dv_hw5.dw_dfmt);
+	} else if (!strcmp(parm[0], "hconv_mode")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 10, &val) == 0) {
+			devp->debug.hconv_mode = val;
+			pr_info("hconv_mode(%d):0x%x\n\n", devp->index,
+				devp->debug.hconv_mode);
+		}
 	}
 #endif
 	else if (!strcmp(parm[0], "state")) {
@@ -4786,6 +4815,49 @@ static ssize_t snow_flag_show(struct device *dev,
 
 static DEVICE_ATTR_RO(snow_flag);
 
+static inline unsigned int vdin_do_div(unsigned long long num, unsigned int den)
+{
+	unsigned long long val = num;
+
+	do_div(val, den);
+
+	return (unsigned int)val;
+}
+
+//for vrr get input fate
+static ssize_t input_rate_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	u64 tmp_msr_clk_val;
+	unsigned int tmp;
+	static unsigned int input_rate = 60000;//60.000hz
+	struct vdin_dev_s *devp = dev_get_drvdata(dev);
+
+	if (devp->parm.info.status == TVIN_SIG_STATUS_STABLE) {
+		if (devp->irq_cnt > 2 && devp->cycle != 0) {
+			tmp_msr_clk_val = (u64)devp->msr_clk_val * 1000;
+			tmp = vdin_do_div(tmp_msr_clk_val, devp->cycle);
+			if (tmp > devp->parm.info.fps * 1000) {
+				if (vdin_dbg_en)
+					pr_info("invalid input_rate:%d.%03d,fps:%d\n",
+						(input_rate / 1000), (input_rate % 1000),
+						devp->parm.info.fps);
+			} else {
+				input_rate = tmp;
+			}
+			return sprintf(buf, "%d.%03d\n",
+				 (input_rate / 1000), (input_rate % 1000));
+		} else {
+			input_rate = devp->parm.info.fps * 1000;
+			return sprintf(buf, "%d.000\n", (input_rate / 1000));
+		}
+	} else {
+		input_rate = 60000;//unstable default 60hz
+		return sprintf(buf, "%d.000\n", (input_rate / 1000));
+	}
+}
+static DEVICE_ATTR_RO(input_rate);
+
 static void vdin_dump_sct_state(struct vdin_dev_s *devp)
 {
 	int i, sum = 0;
@@ -4794,11 +4866,11 @@ static void vdin_dump_sct_state(struct vdin_dev_s *devp)
 	struct vdin_mmu_box *box = NULL;
 
 	pr_info("mem_type:%d\n", devp->mem_type);
-	pr_info("irq:%d,frm:%d,que:%d,run:%d,pause:%d,af_num:%d\n",
+	pr_info("irq:%d,frm:%d,que:%d,run:%d,af_num:%d\n",
 		devp->irq_cnt, devp->frame_cnt,
 		devp->msct_top.que_work_cnt,
 		devp->msct_top.worker_run_cnt,
-		devp->msct_top.sct_pause_dec, devp->af_num);
+		devp->af_num);
 
 	pr_info("pool,size:%d,wr_list:%d,wr_mode:%d,rd_list:%d,rd_mode:%d\n",
 		devp->vfp->size, devp->vfp->wr_list_size,
@@ -4905,6 +4977,7 @@ int vdin_create_debug_files(struct device *dev)
 	/*ret = device_create_file(dev, &dev_attr_debug_for_isp);*/
 	ret = device_create_file(dev, &dev_attr_crop);
 	ret = device_create_file(dev, &dev_attr_snow_flag);
+	ret = device_create_file(dev, &dev_attr_input_rate);
 #endif
 	return ret;
 }
@@ -4924,6 +4997,7 @@ void vdin_remove_debug_files(struct device *dev)
 	/*device_remove_file(dev, &dev_attr_debug_for_isp);*/
 	device_remove_file(dev, &dev_attr_crop);
 	device_remove_file(dev, &dev_attr_snow_flag);
+	device_remove_file(dev, &dev_attr_input_rate);
 #endif
 	device_remove_file(dev, &dev_attr_attr);
 	device_remove_file(dev, &dev_attr_sig_det);
@@ -4954,9 +5028,8 @@ static char *memp_str(int profile)
 /*
  * cat /sys/class/vdin/memp
  */
-static ssize_t memp_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t memp_show(struct class *class,
+			 struct class_attribute *attr, char *buf)
 {
 	int len = 0;
 
@@ -5122,9 +5195,9 @@ static void memp_set(int type)
 	}
 }
 
-static ssize_t memp_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t memp_store(struct class *class,
+			  struct class_attribute *attr,
+			  const char *buf, size_t count)
 {
 	/* int type = simple_strtol(buf, NULL, 10); */
 	long type;

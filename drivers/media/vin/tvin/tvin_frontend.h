@@ -74,8 +74,11 @@ struct tvin_state_machine_ops_s {
 	bool (*hdmi_dv_config)(bool en, struct tvin_frontend_s *fe);
 	bool (*hdmi_clr_vsync)(struct tvin_frontend_s *fe);
 	bool (*vdin_set_property)(struct tvin_frontend_s *fe);
+	void (*frontend_clr_value)(struct tvin_frontend_s *fe);
 	void (*hdmi_reset_pcs)(struct tvin_frontend_s *fe);
 	void (*hdmi_de_hactive)(bool en, struct tvin_frontend_s *fe);
+	bool (*hdmi_clr_pkts)(struct tvin_frontend_s *f);
+	bool (*hdmi_is_xbox_dev)(struct tvin_frontend_s *fe);
 };
 
 struct tvin_frontend_s {
@@ -105,7 +108,12 @@ struct tvin_decoder_ops_s *tvin_get_fe_ops(enum tvin_port_e port, int index);
 struct tvin_state_machine_ops_s *tvin_get_sm_ops(enum tvin_port_e port,
 						 int index);
 void tvin_notify_vdin_skip_frame(unsigned int drop_num,  enum tvin_port_type_e port_type);
-void tvin_update_vdin_prop(void);
+void tvin_update_vdin_prop(u8 port_type);
 void viuin_select_loopback_path(void);
 void viuin_clear_loopback_path(void);
+void dsc_dec_en(bool on_off, struct dsc_pps_data_s *pps_data);
+void __weak dsc_dec_en(bool on_off, struct dsc_pps_data_s *pps_data)
+{
+}
+
 #endif
