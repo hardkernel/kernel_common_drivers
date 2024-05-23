@@ -5319,9 +5319,11 @@ int parse_sei_and_meta_ext_v1(struct vframe_s *vf,
 			spin_lock_irqsave(&amdv_lock, flags);
 			if (!prepare_parser(reset_flag)) {
 				spin_unlock_irqrestore(&amdv_lock, flags);
-				pr_dv_error
-				("meta(%d), pts(%lld) -> parser init fail\n",
-					rpu_size, vf->pts_us64);
+				if (vf) {
+					pr_dv_error
+					("meta(%d), pts(%lld) -> parser init fail\n",
+						rpu_size, vf->pts_us64);
+				}
 				ret = 1;
 				goto parse_err;
 			}
@@ -13964,32 +13966,44 @@ static ssize_t amdolby_vision_load_reg_file_store
 		load_reg_and_lut_file(parm[1], &top1_reg_txt);
 		if (!top1_reg_buf) {
 			top1_reg_buf = vmalloc(top1_reg_num * 2 * 8);
-			if (!top1_reg_buf)
+			if (!top1_reg_buf) {
+				if (top1_reg_txt)
+					vfree(top1_reg_txt);
 				return count;
+			}
 		}
 		read_txt_to_buf(top1_reg_txt, top1_reg_buf, top1_reg_num, true);
 	} else if (!strcmp(parm[0], "top1b_reg")) {
 		load_reg_and_lut_file(parm[1], &top1b_reg_txt);
 		if (!top1b_reg_buf) {
 			top1b_reg_buf = vmalloc(top1b_reg_num * 2 * 8);
-			if (!top1b_reg_buf)
+			if (!top1b_reg_buf) {
+				if (top1b_reg_txt)
+					vfree(top1b_reg_txt);
 				return count;
+			}
 		}
 		read_txt_to_buf(top1b_reg_txt, top1b_reg_buf, top1b_reg_num, true);
 	} else if (!strcmp(parm[0], "top2_reg")) {
 		load_reg_and_lut_file(parm[1], &top2_reg_txt);
 		if (!top2_reg_buf) {
 			top2_reg_buf = vmalloc(top2_reg_num * 2 * 8);
-			if (!top2_reg_buf)
+			if (!top2_reg_buf) {
+				if (top2_reg_txt)
+					vfree(top2_reg_txt);
 				return count;
+			}
 		}
 		read_txt_to_buf(top2_reg_txt, top2_reg_buf, top2_reg_num, true);
 	} else if (!strcmp(parm[0], "top1_lut")) {
 		load_reg_and_lut_file(parm[1], &top1_lut_txt);
 		if (!top1_lut_buf) {
 			top1_lut_buf = vmalloc(top1_lut_num * 4 * 8);
-			if (!top1_lut_buf)
+			if (!top1_lut_buf) {
+				if (top1_lut_txt)
+					vfree(top1_lut_txt);
 				return count;
+			}
 		}
 		read_txt_to_buf(top1_lut_txt, top1_lut_buf, top1_lut_num, false);
 
@@ -13997,8 +14011,11 @@ static ssize_t amdolby_vision_load_reg_file_store
 		load_reg_and_lut_file(parm[1], &top2_lut_txt);
 		if (!top2_lut_buf) {
 			top2_lut_buf = vmalloc(top2_lut_num * 4 * 8);
-			if (!top2_lut_buf)
+			if (!top2_lut_buf) {
+				if (top2_lut_txt)
+					vfree(top2_lut_txt);
 				return count;
+			}
 		}
 		read_txt_to_buf(top2_lut_txt, top2_lut_buf, top2_lut_num, false);
 	} else if (!strcmp(parm[0], "case0_top1")) {/*420-8bit uv interleaved, 2plane*/
@@ -15199,6 +15216,8 @@ static long amdolby_vision_ioctl(struct file *file,
 			if (copy_from_user(user_cfg_data, argp, size)) {
 				ret = -EFAULT;
 				pr_dv_dbg("user_cfg copy from user fail!\n");
+				if (user_cfg_data)
+					vfree(user_cfg_data);
 				break;
 			}
 
@@ -16415,7 +16434,7 @@ static ssize_t amdolby_vision_dv_mode_show(struct class *cla,
 	ssize_t len = 0;
 
 	len += sprintf(buf + len, "%s\n", amdolby_vision_mode_str);
-	if (is_amdv_enable())
+	if (is_amdv_enable() && (get_amdv_mode() <= AMDV_OUTPUT_MODE_BYPASS))
 		len += sprintf(buf + len, "current dv_mode = %s\n",
 			       dv_mode_str[get_amdv_mode()]);
 	else
