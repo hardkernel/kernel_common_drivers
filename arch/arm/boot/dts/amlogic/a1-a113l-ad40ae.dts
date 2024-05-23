@@ -883,7 +883,7 @@
 		#sound-dai-cells = <0>;
 		reg = <0x31>;
 		status = "okay";
-		reset_pin = <&gpio GPIOP_12 GPIO_ACTIVE_HIGH>;
+		reset_pin-gpios = <&gpio GPIOP_12 GPIO_ACTIVE_HIGH>;
 	};
 };
 
