@@ -188,7 +188,7 @@
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x800000>;
+			size = <0x400000>;
 			alignment = <0x400000>;
 			linux,cma-default;
 			alloc-ranges = <0x30000000 0x10000000>;
