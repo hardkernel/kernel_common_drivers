@@ -20,7 +20,7 @@
 
 #define SD_EMMC_CQE_REG         0x100
 /* Crypto General Enable: Enable/Disable bit for Crypto Engine */
-#define   CRYPTO_ENGINE         BIT(2)
+#define   CRYPTO_ENGINE         BIT(1)
 /* CRYPTO REGISTERS */
 #define CQHCI_CRNQP		(0x70)
 /* Crypto Enable for Non-Queue Data Transfers (CE) */
@@ -44,8 +44,8 @@
 #define   CRYPTO_KS(x)          ((x) << 16)
 #define CQHCI_CRCAP1            (0x108)
 #define CQHCI_CRCAP2            (0x10C)
-#define CQHCI_CRCFG0            (CQHCI_CFGPTR * 0x100)
-#define CQHCI_CRCFG1            (CQHCI_CFGPTR * 0X100 + 0x80)
+#define CQHCI_CRCFG(x)          (CQHCI_CFGPTR * 0x100 + ((x) * 0x80))
+#define CQHCI_DUSIZE_MASK       (0xFF)
 
 
 bool aml_cqe_irq(struct meson_host *host, u32 intmask, int *cmd_error,
@@ -58,5 +58,6 @@ void aml_cqe_disable(struct mmc_host *mmc, bool recovery);
 int amlogic_add_host(struct meson_host *host);
 void meson_crypto_init(struct cqhci_host *cq_host);
 int meson_crypto_prepare_req(struct mmc_host *mmc, struct mmc_request *mrq);
+int meson_crypto_post_req(struct mmc_host *mmc, struct mmc_request *mrq);
 
 #endif

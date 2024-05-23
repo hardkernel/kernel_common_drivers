@@ -61,9 +61,11 @@ struct para_e {
 	struct mmc_phase sdr;
 };
 
-#define LATCHING_RXPHASE 0
-#define LATCHING_TXPHASE 1
-#define LATCHING_FIXADJ 2
+#define LATCHING_RXPHASE    0
+#define LATCHING_TXPHASE    1
+#define LATCHING_FIXADJ     2
+#define MMC_HOST_V8         8
+#define MMC_HOST_VERSION(h)        ((h)->data->version)
 
 struct meson_mmc_data {
 	unsigned int tx_delay_mask;
@@ -71,6 +73,7 @@ struct meson_mmc_data {
 	unsigned int always_on;
 	unsigned int adjust;
 	u8 latching_mode;
+	u8 version;
 };
 
 enum aml_host_bus_fsm { /* Host bus fsm status */
@@ -91,6 +94,11 @@ struct sd_emmc_desc {
 	u32 cmd_data;
 	u32 cmd_resp;
 };
+
+#define SG_VALID            BIT(0)
+#define SG_EOC              BIT(1)
+#define SG_LENGTH_MASK      GENMASK(31, 16)
+#define SG_LENGTH_MAX       (64 * 1024)
 
 struct meson_mmc_hole {
 	u8 start;
@@ -128,10 +136,10 @@ struct aml_tuning_para {
 };
 
 struct meson_host {
-	struct	device		*dev;
-	struct	meson_mmc_data *data;
-	struct	mmc_host	*mmc;
-	struct	mmc_command	*cmd;
+	struct device		*dev;
+	struct meson_mmc_data *data;
+	struct mmc_host	*mmc;
+	struct mmc_command	*cmd;
 	struct delayed_work dtbkey;
 	void __iomem *regs;
 	void __iomem *pin_mux_base;
@@ -158,6 +166,8 @@ struct meson_host {
 	dma_addr_t bounce_dma_addr;
 	struct sd_emmc_desc *descs;
 	dma_addr_t descs_dma_addr;
+	u32 *sg_descs;
+	dma_addr_t sg_descs_dma_addr;
 
 	int irq;
 
@@ -187,6 +197,7 @@ struct meson_host {
 	unsigned int cmd_c;
 	int cd_irq;
 	irqreturn_t (*cd_gpio_isr)(int irq, void *dev_id);
+	void (*pre_dma)(struct mmc_host *mmc, u32 cmd_cfg, struct mmc_command *cmd);
 	int is_uart;
 	int sd_uart_init;
 	int first_temp_index;
@@ -484,7 +495,8 @@ void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
 #define CMD_CFG_RESP_NUM BIT(22)
 #define CMD_CFG_DATA_NUM BIT(23)
 #define CMD_CFG_CMD_INDEX_MASK GENMASK(29, 24)
-#define CMD_CFG_ERROR BIT(30)
+
+#define CMD_CFG_LINK  BIT(30)
 #define CMD_CFG_OWNER BIT(31)
 
 #define CMD_DATA_MASK GENMASK(31, 2)

@@ -166,7 +166,7 @@ void meson_crypto_init(struct cqhci_host *cq_host)
 int meson_crypto_prepare_req(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct cqhci_host *cq_host = NULL;
-	int slot = 0;
+	unsigned int slot = 0;
 
 	if (!mrq->data || !mrq->crypto_ctx)
 		return 1;
@@ -178,8 +178,30 @@ int meson_crypto_prepare_req(struct mmc_host *mmc, struct mmc_request *mrq)
 	cqhci_writel(cq_host, CRYPTO_NON_QUEUE | slot, CQHCI_CRNQP);
 	/* We set max_dun_bytes_supported=4, so all DUNs should be 32-bit. */
 	WARN_ON_ONCE(mrq->crypto_ctx->bc_dun[0] > U32_MAX);
+	//cqhci_readl(cq_host, CQHCI_CRCFG(slot) + 17 * sizeof(__le32)));
+	/* Write dword 16, which includes the new value of CFGE */
+	//cqhci_readl(cq_host, CQHCI_CRCFG(slot) + 16 * sizeof(__le32)));
 	cqhci_writel(cq_host, mrq->crypto_ctx->bc_dun[0], CQHCI_CRNQDUN);
 
+	return 0;
+}
+
+int meson_crypto_post_req(struct mmc_host *mmc, struct mmc_request *mrq)
+{
+	struct cqhci_host *cq_host = NULL;
+	unsigned int slot = 0, val = 0;
+
+	if (!mrq->data || !mrq->crypto_ctx)
+		return 1;
+	cq_host = mmc->cqe_private;
+	slot = mrq->crypto_key_slot;
+	/* disable Crypt Engine */
+	val = cqhci_readl(cq_host, CQHCI_CFG);
+	cqhci_writel(cq_host, val & ~CRYPTO_ENGINE, CQHCI_CFG);
+	/* disable Crypt Engine for Non-Qeueu */
+	val = cqhci_readl(cq_host, CQHCI_CRNQP);
+	cqhci_writel(cq_host, val & ~CRYPTO_NON_QUEUE, CQHCI_CRNQP);
+	cqhci_writel(cq_host, 0, CQHCI_CRNQDUN);
 	return 0;
 }
 

@@ -804,7 +804,7 @@
 		};
 
 		sd_emmc_c: mmc@fe08c000 {
-			compatible = "amlogic,meson-axg-mmc";
+			compatible = "amlogic,meson-v8-mmc";
 			reg = <0x0 0xfe08c000 0x0 0x800>,
 				<0x0 0xfe000168 0x0 0x4>,
 				<0x0 0xfe004000 0x0 0x4>;
@@ -825,12 +825,13 @@
 			mmc_debug_flag;
 			tx_delay = <17>;
 			src_clk_rate = <1152000000>;
+			cap-mmc-crypto;
 		//	nwr_cnt = <0>;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
 
 		sd_emmc_b: sd@fe08a000 {
-			compatible = "amlogic,meson-axg-mmc";
+			compatible = "amlogic,meson-v8-mmc";
 			reg = <0x0 0xfe08a000 0x0 0x800>,
 				<0x0 0xfe00016c 0x0 0x4>,
 				<0x0 0xfe004024 0x0 0x4>;
@@ -851,7 +852,7 @@
 		};
 
 		sd_emmc_a: sdio@fe088000 {
-			compatible = "amlogic,meson-axg-mmc";
+			compatible = "amlogic,meson-v8-mmc";
 			reg = <0x0 0xfe088000 0x0 0x800>,
 				<0x0 0xfe00016c 0x0 0x4>,
 				<0x0 0xfe00400c 0x0 0x4>;
