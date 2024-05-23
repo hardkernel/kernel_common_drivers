@@ -879,10 +879,10 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 		msleep(20);
 		ktime_get_real_ts64(&kts);
 		rtc_time64_to_tm(kts.tv_sec, &tm);
-		if (tx_hw_base->hdmitx_gpios_scl != -EPROBE_DEFER)
+		if (tx_hw_base->hdmitx_gpios_scl >= 0)
 			HDMITX_INFO("UTC+0 %ptRd %ptRt DDC SCL %s\n", &tm, &tm,
 			gpio_get_value(tx_hw_base->hdmitx_gpios_scl) ? "HIGH" : "LOW");
-		if (tx_hw_base->hdmitx_gpios_sda != -EPROBE_DEFER)
+		if (tx_hw_base->hdmitx_gpios_sda >= 0)
 			HDMITX_INFO("UTC+0 %ptRd %ptRt DDC SDA %s\n", &tm, &tm,
 			gpio_get_value(tx_hw_base->hdmitx_gpios_sda) ? "HIGH" : "LOW");
 		msleep(80);

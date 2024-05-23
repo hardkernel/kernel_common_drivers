@@ -792,7 +792,7 @@ static irqreturn_t intr_handler(int irq, void *dev)
 
 	HDMITX_INFO(SYS "irq %x %x\n", dat_top, dat_dwc);
 	/* bit[2:1] of dat_top means HPD falling and rising */
-	if ((dat_top & 0x6) && hdev->tx_hw.base.hdmitx_gpios_hpd != -EPROBE_DEFER) {
+	if ((dat_top & 0x6) && hdev->tx_hw.base.hdmitx_gpios_hpd >= 0) {
 		struct timespec64 kts;
 		struct rtc_time tm;
 
