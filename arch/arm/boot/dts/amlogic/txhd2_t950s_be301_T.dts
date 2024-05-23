@@ -344,6 +344,15 @@
 			size = <0x400000>;
 			alignment = <0x100000>;
 		};
+
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x400000>;
+			alignment = <0x400000>;
+			linux,cma-default;
+		};
 	};
 
 	wifi5v_reg: fixed@wifi5v_reg{
