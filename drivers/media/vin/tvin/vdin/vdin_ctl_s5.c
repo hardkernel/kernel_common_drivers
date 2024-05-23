@@ -2855,8 +2855,11 @@ void vdin_enable_module_s5(struct vdin_dev_s *devp, bool enable)
 	}
 }
 
-bool vdin_write_done_check_s5(unsigned int offset, struct vdin_dev_s *devp)
+bool vdin_write_done_check_s5(struct vdin_dev_s *devp)
 {
+	unsigned int offset;
+
+	offset = devp->addr_offset;
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE) {
 		pr_info("vdin%d,[%#x]:%#x,[%#x]:%#x,[%#x]:%#x\n", devp->index,
 			VDIN_LFIFO_BUF_COUNT, rd(0, VDIN_LFIFO_BUF_COUNT),

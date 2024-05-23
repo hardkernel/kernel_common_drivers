@@ -4299,9 +4299,12 @@ void vdin_enable_module(struct vdin_dev_s *devp, bool enable)
 	}
 }
 
-bool vdin_write_done_check(unsigned int offset, struct vdin_dev_s *devp)
+bool vdin_write_done_check(struct vdin_dev_s *devp)
 {
 	bool ret = false;
+	unsigned int offset;
+
+	offset = devp->addr_offset;
 
 	/* If write ddr paused,donot checking write done */
 	if (devp->debug.pause_mif_dec || devp->debug.pause_afbce_dec ||
@@ -4310,9 +4313,9 @@ bool vdin_write_done_check(unsigned int offset, struct vdin_dev_s *devp)
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu())
-		return vdin_write_done_check_s5(offset, devp);
+		return vdin_write_done_check_s5(devp);
 	else if (is_meson_t3x_cpu())
-		return vdin_write_done_check_t3x(offset, devp);
+		return vdin_write_done_check_t3x(devp);
 #endif
 
 	/*clear int status*/

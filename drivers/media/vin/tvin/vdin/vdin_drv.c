@@ -1427,8 +1427,6 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	}
 #endif
-	sts = vdin_write_done_check(devp->addr_offset, devp);
-
 	devp->dv.chg_cnt = 0;
 	devp->prop.hdr_info.hdr_check_cnt = 0;
 	devp->prop.hdr10p_info.hdr10p_check_cnt = 0;
@@ -1623,7 +1621,7 @@ void vdin_self_start_dec(struct vdin_dev_s *devp)
 void vdin_stop_dec(struct vdin_dev_s *devp)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	int afbc_write_down_timeout = 500; /* 50ms to cover a 24Hz vsync */
+	int frm_done_timeout = 200;
 	int i = 0;
 #endif
 	struct vdin_dev_s *vdin1_devp = vdin_devp[1];
@@ -1652,8 +1650,6 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 		return;
 	}
 #endif
-	vdin_frame_lock_check(devp, 0);
-
 	disable_irq(devp->irq);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->index == 0 &&
 	    devp->vpu_crash_irq > 0)
@@ -1666,24 +1662,37 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 		disable_irq(devp->vdin2_meta_wr_done_irq);
 
 	devp->flags &= (~VDIN_FLAG_ISR_EN);
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	/* waiting frm_end */
+	while (i++ < frm_done_timeout) {
+		if (vdin_write_done_check(devp))
+			break;
+		usleep_range(100, 105);
+	}
+	if (i >= frm_done_timeout) {
+		pr_info("vdin.%d frm write done timeout\n",
+			devp->index);
+	}
+#endif
+	vdin_pause_hw_write(devp, 0);
+
+	if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
+		if (devp->dv.dv_config && devp->index == devp->dv.dv_path_idx &&
+		    !devp->dv_is_not_std) {
+			devp->dv.dv_config = 0;
+			vf_unreg_provider(&devp->dv.dv_vf_provider);
+			pr_info("vdin%d provider: dv unreg\n", devp->index);
+		} else {
+			vf_unreg_provider(&devp->vf_provider);
+			pr_info("vdin%d provider: unreg\n", devp->index);
+		}
+	}
+
 	/* for wss value not clear when snow */
 	if (IS_TVAFE_SRC(devp->parm.port) && devp->frontend &&
 	    devp->frontend->sm_ops->frontend_clr_value)
 		devp->frontend->sm_ops->frontend_clr_value(devp->frontend);
-
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (devp->afbce_mode == 1 || devp->double_wr) {
-		while (i++ < afbc_write_down_timeout) {
-			if (vdin_afbce_read_write_down_flag(devp))
-				break;
-			usleep_range(100, 105);
-		}
-		if (i >= afbc_write_down_timeout) {
-			pr_info("vdin.%d afbc write done timeout\n",
-				devp->index);
-		}
-	}
-#endif
 
 	vdin_dump_frames(devp);
 
@@ -1700,7 +1709,6 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 			devp->frontend->dec_ops->stop(devp->frontend,
 				devp->parm.port, devp->port_type);
 	}
-	vdin_pause_hw_write(devp, 0);
 	pr_info("%s vdin%d,delay %u us before stop\n",
 		__func__, devp->index, devp->dbg_stop_dec_delay);
 	if (devp->dbg_stop_dec_delay)
@@ -1717,17 +1725,6 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	/* reset default canvas  */
 	vdin_set_def_wr_canvas(devp);
 
-	if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
-		if (devp->dv.dv_config && devp->index == devp->dv.dv_path_idx &&
-		    !devp->dv_is_not_std) {
-			devp->dv.dv_config = 0;
-			vf_unreg_provider(&devp->dv.dv_vf_provider);
-			pr_info("vdin%d provider: dv unreg\n", devp->index);
-		} else {
-			vf_unreg_provider(&devp->vf_provider);
-			pr_info("vdin%d provider: unreg\n", devp->index);
-		}
-	}
 	vdin_dolby_addr_release(devp, devp->vfp->size);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -1755,6 +1752,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 			vdin1_hw_hist_on_off(vdin1_devp, true);
 		}
 	}
+	vdin_frame_lock_check(devp, 0);
 
 	devp->flags &= (~VDIN_FLAG_RDMA_ENABLE);
 	devp->ignore_frames = max_ignore_frame_cnt;
@@ -2893,7 +2891,7 @@ irqreturn_t vdin_write_done_isr(int irq, void *dev_id)
 	bool sts;
 
 	/*need clear write done flag*/
-	sts = vdin_write_done_check(devp->addr_offset, devp);
+	sts = vdin_write_done_check(devp);
 
 	/*write done flag VDIN_RO_WRMIF_STATUS bit 0*/
 	devp->stats.wr_done_irq_cnt++;
@@ -3420,7 +3418,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	/* Check whether frame written done */
 	if (devp->dts_config.chk_write_done_en && !devp->dbg_no_wr_check) {
-		if (!vdin_write_done_check(offset, devp)) {
+		if (!vdin_write_done_check(devp)) {
 			devp->vdin_irq_flag = VDIN_IRQ_FLG_SKIP_FRAME;
 			vdin_drop_frame_info(devp, "write done check");
 			devp->vdin_drop_cnt++;
@@ -3912,7 +3910,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 
 	if (devp->parm.port == TVIN_PORT_VIU1 ||
 	    devp->parm.port == TVIN_PORT_CAMERA) {
-		if (!vdin_write_done_check(offset, devp)) {
+		if (!vdin_write_done_check(devp)) {
 			if (vdin_dbg_en)
 				pr_info("[vdin.%u] write undone skiped.\n",
 						devp->index);

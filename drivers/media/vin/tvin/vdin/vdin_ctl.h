@@ -242,8 +242,7 @@ void vdin_set_matrix(struct vdin_dev_s *devp);
 void vdin_select_matrix(struct vdin_dev_s *devp, unsigned char no,
 		      enum vdin_format_convert_e csc);
 bool vdin_check_cycle(struct vdin_dev_s *devp);
-bool vdin_write_done_check(unsigned int offset,
-			   struct vdin_dev_s *devp);
+bool vdin_write_done_check(struct vdin_dev_s *devp);
 void vdin_calculate_duration(struct vdin_dev_s *devp);
 void vdin_wr_reverse(unsigned int offset, bool h_reverse,
 		     bool v_reverse);

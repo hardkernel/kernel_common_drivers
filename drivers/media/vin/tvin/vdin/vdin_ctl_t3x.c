@@ -2679,9 +2679,12 @@ void vdin_enable_module_t3x(struct vdin_dev_s *devp, bool enable)
 	}
 }
 
-bool vdin_write_done_check_t3x(unsigned int offset, struct vdin_dev_s *devp)
+bool vdin_write_done_check_t3x(struct vdin_dev_s *devp)
 {
 	bool ret = false;
+	unsigned int offset;
+
+	offset = devp->addr_offset;
 
 	devp->stats.write_done_check++;
 

@@ -136,8 +136,7 @@ void vdin_set_matrix_t3x(struct vdin_dev_s *devp);
 void vdin_select_matrix_t3x(struct vdin_dev_s *devp, unsigned char no,
 		      enum vdin_format_convert_e csc);
 bool vdin_check_cycle(struct vdin_dev_s *devp);
-bool vdin_write_done_check_t3x(unsigned int offset,
-			   struct vdin_dev_s *devp);
+bool vdin_write_done_check_t3x(struct vdin_dev_s *devp);
 void vdin_calculate_duration(struct vdin_dev_s *devp);
 void vdin_wr_reverse_t3x(unsigned int offset, bool h_reverse,
 		     bool v_reverse);
