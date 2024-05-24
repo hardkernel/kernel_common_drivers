@@ -4344,10 +4344,10 @@ static int meson_mmc_remove(struct platform_device *pdev)
 	dma_free_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
 			  host->descs, host->descs_dma_addr);
 
-#if IS_ENABLED(CONFIG_AMLOGIC_MMC_CQHCI)
-	dma_free_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
+	if (MMC_HOST_VERSION(host) == MMC_HOST_V8 && aml_card_type_mmc(host))
+		dma_free_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
 			  host->sg_descs, host->sg_descs_dma_addr);
-#endif
+
 	if (!host->dram_access_quirk)
 		dma_free_coherent(host->dev, host->bounce_buf_size,
 				  host->bounce_buf, host->bounce_dma_addr);
