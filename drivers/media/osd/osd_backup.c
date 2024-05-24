@@ -64,7 +64,6 @@ u32 mali_afbc2_t7_backup[MALI_AFBC2_VALUE_T7_COUNT];
 
 /* 0: not backup */
 static u32 backup_enable;
-
 /* module parameter for debugging */
 struct osd_module_debug_s debug_osd_backup[7] = {
 	{"osd_backup", osd_backup, OSD_VALUE_COUNT, 1},

@@ -328,6 +328,8 @@ enum cpuid_type_e {
 	__MESON_CPU_MAJOR_ID_T3X,
 	__MESON_CPU_MAJOR_ID_TXHD2,
 	__MESON_CPU_MAJOR_ID_S1A,
+	__MESON_CPU_MAJOR_ID_S7,
+	__MESON_CPU_MAJOR_ID_S7D,
 	__MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -920,6 +922,7 @@ struct hw_osd_blending_s {
 extern struct hw_osd_reg_s hw_osd_reg_array[HW_OSD_COUNT];
 extern struct hw_osd_blend_reg_s hw_osd_reg_blend;
 extern struct hw_osd_vout_blend_reg_s hw_osd_vout_blend_reg;
+
 typedef void (*update_func_t)(u32);
 struct hw_list_s {
 	struct list_head list;

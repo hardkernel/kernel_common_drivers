@@ -356,22 +356,22 @@ static void osd_debug_dump_register_all(void)
 		if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE ||
 			osd_dev_hw.display_type == C3_DISPLAY) {
 			reg = osd_reg->osd_blk1_cfg_w4;
-			osd_log_info("reg[0x%x]: 0x%08x(osd_blk1_cfg_w4)\n",
+			osd_log_info("reg[0x%x]: 0x%08x\n",
 				     reg, osd_reg_read(reg));
 			reg = osd_reg->osd_blk2_cfg_w4;
-			osd_log_info("reg[0x%x]: 0x%08x(osd_blk2_cfg_w4)\n",
+			osd_log_info("reg[0x%x]: 0x%08x\n",
 				     reg, osd_reg_read(reg));
 			reg = osd_reg->osd_prot_ctrl;
-			osd_log_info("reg[0x%x]: 0x%08x(osd_prot_ctrl)\n",
+			osd_log_info("reg[0x%x]: 0x%08x\n",
 				     reg, osd_reg_read(reg));
 			reg = osd_reg->osd_mali_unpack_ctrl;
-			osd_log_info("reg[0x%x]: 0x%08x(osd_mali_unpack_ctrl)\n",
+			osd_log_info("reg[0x%x]: 0x%08x\n",
 				     reg, osd_reg_read(reg));
 			reg = osd_reg->osd_dimm_ctrl;
-			osd_log_info("reg[0x%x]: 0x%08x(osd_dimm_ctrl)\n",
+			osd_log_info("reg[0x%x]: 0x%08x\n",
 				     reg, osd_reg_read(reg));
 			reg = osd_reg->osd_matrix_en_ctrl;
-			osd_log_info("reg[0x%x]: 0x%08x(osd_matrix_en_ctrl)\n",
+			osd_log_info("reg[0x%x]: 0x%08x\n",
 				     reg, osd_reg_read(reg));
 			reg = osd_reg->osd_vsc_phase_step;
 			osd_log_info("reg[0x%x]: 0x%08x\n",

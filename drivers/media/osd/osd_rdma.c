@@ -36,6 +36,7 @@
 #endif
 #include "osd_rdma.h"
 #include "osd_hw.h"
+#include "osd_fb.h"
 #include "osd_backup.h"
 #include "osd_log.h"
 #include "osd_fb.h"
@@ -86,8 +87,7 @@ static int rdma_reject_cnt[2];
 static int rdma_done_line[VPP_NUM];
 static int g_osd_rdma_item_count;
 static int g_osd_rdma_item_count_max;
-
-void *memcpy(void *dest, const void *src, size_t len);
+//void *memcpy(void *dest, const void *src, size_t len);
 
 static inline void spin_lock_irqsave_vpp(u32 vpp_index, unsigned long *flags)
 {
@@ -271,7 +271,7 @@ u32 rdma_detect_reg;
 
 void osd_rdma_flag_init(void)
 {
-	if (osd_dev_hw.display_type == S5_DISPLAY) {
+	if (osd_dev_hw.s5_display) {
 		/* no OSD2 for S5 */
 		osd_rdma_flag_reg[VPP0] = S5_VIU_OSD1_TCOLOR_AG3;
 		osd_rdma_flag_reg[VPP1] = S5_VIU_OSD1_TCOLOR_AG2;
@@ -587,9 +587,10 @@ static int update_table_item(u32 vpp_index, u32 addr, u32 val, u8 irq_mode)
 	int reject1 = 0, reject2 = 0, ret = 0;
 	ulong paddr;
 	static int pace_logging[VPP_NUM];
+	int handle = osd_rdma_handle[vpp_index];
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	if (item_count[vpp_index] > 500 || rdma_reset_trigger_flag) {
+	if (item_count[vpp_index] > 500 || rdma_reset_trigger_flag[handle]) {
 //#else
 //	if (item_count[vpp_index] > 500) {
 #endif
@@ -1870,18 +1871,20 @@ void enable_vsync_rdma(u32 vpp_index)
 
 void osd_rdma_interrupt_done_clear(u32 vpp_index)
 {
+	int handle = osd_rdma_handle[vpp_index];
+
 	vsync_irq_count[vpp_index]++;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (osd_rdma_done[vpp_index])
-		rdma_watchdog_setting(0);
+		rdma_watchdog_setting(0, handle);
 	else
-		rdma_watchdog_setting(1);
+		rdma_watchdog_setting(1, handle);
 #endif
 	osd_rdma_done[vpp_index] = false;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	if (rdma_reset_trigger_flag) {
+	if (rdma_reset_trigger_flag[handle]) {
 		u32 rdma_status;
 
 		rdma_status =
@@ -1890,7 +1893,7 @@ void osd_rdma_interrupt_done_clear(u32 vpp_index)
 			rdma_status);
 		osd_rdma_enable(vpp_index, 0);
 		osd_rdma_enable(vpp_index, 2);
-		rdma_reset_trigger_flag = 0;
+		rdma_reset_trigger_flag[handle] = 0;
 	}
 #endif
 }

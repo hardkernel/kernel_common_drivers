@@ -76,7 +76,6 @@ extern unsigned int osd_game_mode[];
 extern unsigned int osd_pi_debug, osd_pi_enable;
 extern unsigned int osd_slice2ppc_debug, osd_slice2ppc_enable;
 extern struct mutex preblend_lock;
-
 extern struct osd_module_debug_s debug_osd_backup[7];
 extern struct osd_module_debug_s debug_osd_rdma[14];
 extern struct osd_module_debug_s debug_osd_hw[15];
