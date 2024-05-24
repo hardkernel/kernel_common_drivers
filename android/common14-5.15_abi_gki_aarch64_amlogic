@@ -39,3 +39,6 @@
   clk_hw_set_rate_range
   scmi_driver_register
   scmi_driver_unregister
+
+# snd-soc-sy6026l.ko
+  __devm_regmap_init
