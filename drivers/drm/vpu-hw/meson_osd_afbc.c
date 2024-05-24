@@ -18,6 +18,7 @@
 #include "meson_vpu_util.h"
 #include "meson_osd_afbc.h"
 #include "meson_vpu_postblend.h"
+#include <linux/amlogic/media/registers/cpu_version.h>
 
 #define BYTE_8_ALIGNED(x)	(((x) + 7) & ~7)
 #define BYTE_32_ALIGNED(x)	(((x) + 31) & ~31)
@@ -238,6 +239,55 @@ static struct afbc_osd_reg_s afbc_osd_t3x_regs[MESON_MAX_OSDS] = {
 		VPU_MAFBC2_PREFETCH_CFG_S2,
 	}
 
+};
+
+static struct afbc_osd_reg_s afbc_osd_s6_regs[MESON_MAX_OSDS] = {
+	{
+		VPU_MAFBC_HEADER_BUF_ADDR_LOW_S0,
+		VPU_MAFBC_HEADER_BUF_ADDR_HIGH_S0,
+		VPU_MAFBC_FORMAT_SPECIFIER_S0,
+		VPU_MAFBC_BUFFER_WIDTH_S0,
+		VPU_MAFBC_BUFFER_HEIGHT_S0,
+		VPU_MAFBC_BOUNDING_BOX_X_START_S0,
+		VPU_MAFBC_BOUNDING_BOX_X_END_S0,
+		VPU_MAFBC_BOUNDING_BOX_Y_START_S0,
+		VPU_MAFBC_BOUNDING_BOX_Y_END_S0,
+		VPU_MAFBC_OUTPUT_BUF_ADDR_LOW_S0,
+		VPU_MAFBC_OUTPUT_BUF_ADDR_HIGH_S0,
+		VPU_MAFBC_OUTPUT_BUF_STRIDE_S0,
+		VPU_MAFBC_PREFETCH_CFG_S0,
+	},
+	{
+		VPU_MAFBC_HEADER_BUF_ADDR_LOW_S1,
+		VPU_MAFBC_HEADER_BUF_ADDR_HIGH_S1,
+		VPU_MAFBC_FORMAT_SPECIFIER_S1,
+		VPU_MAFBC_BUFFER_WIDTH_S1,
+		VPU_MAFBC_BUFFER_HEIGHT_S1,
+		VPU_MAFBC_BOUNDING_BOX_X_START_S1,
+		VPU_MAFBC_BOUNDING_BOX_X_END_S1,
+		VPU_MAFBC_BOUNDING_BOX_Y_START_S1,
+		VPU_MAFBC_BOUNDING_BOX_Y_END_S1,
+		VPU_MAFBC_OUTPUT_BUF_ADDR_LOW_S1,
+		VPU_MAFBC_OUTPUT_BUF_ADDR_HIGH_S1,
+		VPU_MAFBC_OUTPUT_BUF_STRIDE_S1,
+		VPU_MAFBC_PREFETCH_CFG_S1,
+	},
+	{
+		VPU_MAFBC2_HEADER_BUF_ADDR_LOW_S2,
+		VPU_MAFBC2_HEADER_BUF_ADDR_HIGH_S2,
+		VPU_MAFBC2_FORMAT_SPECIFIER_S2,
+		VPU_MAFBC2_BUFFER_WIDTH_S2,
+		VPU_MAFBC2_BUFFER_HEIGHT_S2,
+		VPU_MAFBC2_BOUNDING_BOX_X_START_S2,
+		VPU_MAFBC2_BOUNDING_BOX_X_END_S2,
+		VPU_MAFBC2_BOUNDING_BOX_Y_START_S2,
+		VPU_MAFBC2_BOUNDING_BOX_Y_END_S2,
+		VPU_MAFBC2_OUTPUT_BUF_ADDR_LOW_S2,
+		VPU_MAFBC2_OUTPUT_BUF_ADDR_HIGH_S2,
+		VPU_MAFBC2_OUTPUT_BUF_STRIDE_S2,
+		VPU_MAFBC2_PREFETCH_CFG_S2,
+	},
+	{}
 };
 
 static struct afbc_status_reg_s afbc_status_t7_regs[3] = {
@@ -571,11 +621,30 @@ static void g12a_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	reg_ops = state->sub->reg_ops;
 
 	if (!plane_info->afbc_en) {
-		osd_afbc_enable(vblk, reg_ops, osd_index, 0);
+		if (is_meson_s6_cpu()) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			t7_osd_afbc_enable(vblk, reg_ops, afbc->status_regs, osd_index, 0);
+				if (osd_index == 2)
+					reg_ops->rdma_write_reg_bits(VPP2_MISC, 0, 0, 1);
+#endif
+		} else {
+			osd_afbc_enable(vblk, reg_ops, osd_index, 0);
+		}
+
 		return;
 	}
 
-	osd_afbc_enable(vblk, reg_ops, osd_index, 1);
+	if (is_meson_s6_cpu()) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		t7_osd_afbc_enable(vblk, reg_ops, afbc->status_regs, osd_index, 1);
+		if (osd_index == 2)
+			//s6 viu2 src from mali afbcd
+			reg_ops->rdma_write_reg_bits(VPP2_MISC, 1, 0, 1);
+#endif
+	} else {
+		osd_afbc_enable(vblk, reg_ops, osd_index, 1);
+	}
+
 
 	aligned_32 = 1;
 	afbc_color_reorder = afbc_color_order(plane_info->pixel_format);
@@ -1734,9 +1803,50 @@ static void s7d_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 
 	DRM_DEBUG("%s hw_init called.\n", afbc->base.name);
 }
+
+static void s6_osd_afbc_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_pipeline *pipeline = vblk->pipeline;
+	struct meson_vpu_afbc *afbc = to_afbc_block(vblk);
+
+	afbc->afbc_regs = &afbc_osd_s6_regs[vblk->index];
+	if (vblk->index == 2)
+		afbc->status_regs = &afbc_status_t7_regs[2];
+	else
+		afbc->status_regs = &afbc_status_regs;
+	afbc->shift_bits = 1;
+
+	pipeline->subs[0].reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0, 23, 1);
+
+	if (vblk->index == 0 || vblk->index == 1) {
+		t7_osd_afbc_enable(vblk, pipeline->subs[0].reg_ops, afbc->status_regs,
+			vblk->index, 0);
+	} else {
+		t7_osd_afbc_enable(vblk, pipeline->subs[1].reg_ops, afbc->status_regs,
+			vblk->index, 0);
+		pipeline->subs[1].reg_ops->rdma_write_reg_bits(VPP2_MISC, 0, 0, 1);
+	}
+
+	DRM_DEBUG("%s hw_init called.\n", afbc->base.name);
+}
+
+void s6_viu2_arm_fbc_start(struct meson_vpu_pipeline_state *pipeline_state,
+	struct rdma_reg_ops *reg_ops)
+{
+	if (!pipeline_state->global_afbc && global_afbc_mask) {
+		reg_ops->rdma_write_reg(VPU_MAFBC2_IRQ_MASK, 0xf);
+		reg_ops->rdma_write_reg(VPU_MAFBC2_IRQ_CLEAR, 0x3f);
+		reg_ops->rdma_write_reg(VPU_MAFBC2_COMMAND, 1);
+		pipeline_state->global_afbc = 1;
+		afbc_err_irq_clear = 1;
+	}
+
+	afbc_set_cnt = pipeline_state->global_afbc;
+}
 #endif
 
-void arm_fbc_start(struct meson_vpu_pipeline_state *pipeline_state)
+void arm_fbc_start(struct meson_vpu_pipeline_state *pipeline_state,
+	struct rdma_reg_ops *reg_ops)
 {
 	if (!pipeline_state->global_afbc && global_afbc_mask) {
 		meson_vpu_write_reg(VPU_MAFBC_IRQ_MASK, 0xf);
@@ -1836,5 +1946,14 @@ struct meson_vpu_block_ops s7d_afbc_ops = {
 	.disable = osd_afbc_hw_disable,
 	.dump_register = osd_afbc_dump_register,
 	.init = s7d_osd_afbc_hw_init,
+};
+
+struct meson_vpu_block_ops s6_afbc_ops = {
+	.check_state = osd_afbc_check_state,
+	.update_state = g12a_osd_afbc_set_state,
+	.enable = osd_afbc_hw_enable,
+	.disable = osd_afbc_hw_disable,
+	.dump_register = osd_afbc_dump_register,
+	.init = s6_osd_afbc_hw_init,
 };
 #endif

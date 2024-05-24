@@ -698,6 +698,34 @@ static void t3x_postblend_set_state(struct meson_vpu_block *vblk,
 	}
 }
 
+static void s6_postblend_hw_disable(struct meson_vpu_block *vblk,
+				 struct meson_vpu_block_state *state)
+{
+//	u32 vppx_bld;
+//	int crtc_index = vblk->index;
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+//	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+//	struct postblend1_reg_s *reg1 = postblend->reg1;
+
+	if (vblk->index == 0) {
+		vpp_osd1_postblend_mux_set(vblk, state->sub->reg_ops, postblend->reg, VPP_NULL);
+	} else if (vblk->index == 1 || vblk->index == 2) {
+//		vppx_bld = reg_ops->rdma_read_reg(reg1->vpp_bld_ctrl);
+//		vppx_bld = vppx_bld & 0xffffff0f;
+//		if (crtc_index == 1) {
+//			reg_ops->rdma_write_reg(reg1->vpp_bld_ctrl, vppx_bld);
+//			osd_vpp1_bld_ctrl = vppx_bld | osd_vpp_bld_ctrl_update_mask;
+//		} else if (crtc_index == 2) {
+//			osd_vpp2_bld_ctrl = vppx_bld | osd_vpp_bld_ctrl_update_mask;
+//		} else {
+//			MESON_DRM_BLOCK("invalid crtc index\n");
+//		}
+//
+//		drm_postblend_notify_amvideo();
+	}
+
+	MESON_DRM_BLOCK("%s disable called.\n", postblend->base.name);
+}
 #endif
 
 static void postblend_hw_enable(struct meson_vpu_block *vblk,
@@ -802,6 +830,21 @@ static void g12b_postblend_set_state(struct meson_vpu_block *vblk,
 	}
 
 	MESON_DRM_BLOCK("g12b postblend set state done!\n");
+}
+
+static void s6_postblend_set_state(struct meson_vpu_block *vblk,
+				struct meson_vpu_block_state *state,
+				struct meson_vpu_block_state *old_state)
+{
+	int crtc_index;
+
+	crtc_index = vblk->index;
+	if (crtc_index == 1)
+		return;
+
+	postblend_set_state(vblk, state, old_state);
+
+	MESON_DRM_BLOCK("s6 postblend set state done!\n");
 }
 
 static void g12b_postblend_hw_disable(struct meson_vpu_block *vblk,
@@ -1243,6 +1286,24 @@ static void t3x_postblend_hw_init(struct meson_vpu_block *vblk)
 #endif
 }
 
+static void s6_postblend_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+
+	postblend->reg = &postblend_reg;
+	MESON_DRM_BLOCK("%s hw_init called.\n", postblend->base.name);
+	meson_drm_write_reg(0x1a0c, 0x0c880c0f);
+	meson_drm_write_reg(0x279d, 0);
+	meson_drm_write_reg(0x3d60, 0x00bb0275);
+	meson_drm_write_reg(0x3d61, 0x003f1f99);
+	meson_drm_write_reg(0x3d62, 0x1ea601c2);
+	meson_drm_write_reg(0x3d63, 0x01c21e67);
+	meson_drm_write_reg(0x3d64, 0x00001fd7);
+	meson_drm_write_reg(0x3d69, 0x00400200);
+	meson_drm_write_reg(0x3d6a, 0x00000200);
+	meson_drm_write_reg(0x3d6d, 0x01);
+}
+
 #endif
 
 struct meson_vpu_block_ops postblend_ops = {
@@ -1318,4 +1379,12 @@ struct meson_vpu_block_ops txhd2_postblend_ops = {
 	.init = txhd2_postblend_hw_init,
 };
 
+struct meson_vpu_block_ops s6_postblend_ops = {
+	.check_state = postblend_check_state,
+	.update_state = s6_postblend_set_state,
+	.enable = postblend_hw_enable,
+	.disable = s6_postblend_hw_disable,
+	.dump_register = postblend_dump_register,
+	.init = s6_postblend_hw_init,
+};
 #endif

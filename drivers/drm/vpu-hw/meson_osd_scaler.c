@@ -9,6 +9,7 @@
 #include "meson_vpu_util.h"
 #include "meson_osd_scaler.h"
 #include "meson_osd_afbc.h"
+#include <linux/amlogic/media/registers/cpu_version.h>
 
 static int osdscaler_force_update;
 module_param(osdscaler_force_update, int, 0664);
@@ -206,6 +207,58 @@ static struct osd_scaler_reg_s osd_scaler_s5_reg[HW_OSD_SCALER_NUM] = {
 		OSD4_PROC_SCO_H_START_END,
 		OSD4_PROC_SCO_V_START_END,
 	},
+};
+
+static struct osd_scaler_reg_s osd_scaler_s6_reg[HW_OSD_SCALER_NUM] = {
+	{
+		VPP_OSD_SCALE_COEF_IDX,
+		VPP_OSD_SCALE_COEF,
+		VPP_OSD_VSC_PHASE_STEP,
+		VPP_OSD_VSC_INI_PHASE,
+		VPP_OSD_VSC_CTRL0,
+		VPP_OSD_HSC_PHASE_STEP,
+		VPP_OSD_HSC_INI_PHASE,
+		VPP_OSD_HSC_CTRL0,
+		VPP_OSD_HSC_INI_PAT_CTRL,
+		VPP_OSD_SC_DUMMY_DATA,
+		VPP_OSD_SC_CTRL0,
+		VPP_OSD_SCI_WH_M1,
+		VPP_OSD_SCO_H_START_END,
+		VPP_OSD_SCO_V_START_END,
+	},
+	{
+		OSD2_SCALE_COEF_IDX,
+		OSD2_SCALE_COEF,
+		OSD2_VSC_PHASE_STEP,
+		OSD2_VSC_INI_PHASE,
+		OSD2_VSC_CTRL0,
+		OSD2_HSC_PHASE_STEP,
+		OSD2_HSC_INI_PHASE,
+		OSD2_HSC_CTRL0,
+		OSD2_HSC_INI_PAT_CTRL,
+		OSD2_SC_DUMMY_DATA,
+		OSD2_SC_CTRL0,
+		OSD2_SCI_WH_M1,
+		OSD2_SCO_H_START_END,
+		OSD2_SCO_V_START_END,
+	},
+	{
+		VIU2_OSD_SCALE_COEF_IDX,
+		VIU2_OSD_SCALE_COEF,
+		VIU2_OSD_VSC_PHASE_STEP,
+		VIU2_OSD_VSC_INI_PHASE,
+		VIU2_OSD_VSC_CTRL0,
+		VIU2_OSD_HSC_PHASE_STEP,
+		VIU2_OSD_HSC_INI_PHASE,
+		VIU2_OSD_HSC_CTRL0,
+		VIU2_OSD_HSC_INI_PAT_CTRL,
+		VIU2_OSD_SC_DUMMY_DATA,
+		VIU2_OSD_SC_CTRL0,
+		VIU2_OSD_SCI_WH_M1,
+		VIU2_OSD_SCO_H_START_END,
+		VIU2_OSD_SCO_V_START_END,
+	},
+	{}
 };
 #endif
 
@@ -1002,8 +1055,13 @@ static void scaler_set_state(struct meson_vpu_block *vblk,
 
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
 	/*todo:move afbc start to afbc block.*/
-	if (pipeline->osd_version < OSD_V7)
-		arm_fbc_start(mvps);
+
+	if (pipeline->osd_version < OSD_V7) {
+		if (is_meson_s6_cpu() && vblk->index == 2)
+			s6_viu2_arm_fbc_start(mvps, state->sub->reg_ops);
+		else
+			arm_fbc_start(mvps, state->sub->reg_ops);
+	}
 
 	if (!scaler_state) {
 		MESON_DRM_BLOCK("scaler or scaler_state is NULL!!\n");
@@ -1137,7 +1195,17 @@ static void s5_scaler_hw_init(struct meson_vpu_block *vblk)
 	scaler->linebuffer = OSD_SCALE_LINEBUFFER;
 	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
 
-	meson_vpu_write_reg(scaler->reg->vpp_osd_sc_ctrl0, 0);
+	MESON_DRM_BLOCK("%s hw_init called.\n", scaler->base.name);
+}
+
+static void s6_scaler_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
+
+	scaler->reg = &osd_scaler_s6_reg[vblk->index];
+	scaler->linebuffer = OSD_SCALE_LINEBUFFER;
+	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
+
 	MESON_DRM_BLOCK("%s hw_init called.\n", scaler->base.name);
 }
 #endif
@@ -1159,5 +1227,14 @@ struct meson_vpu_block_ops s5_scaler_ops = {
 	.disable = scaler_hw_disable,
 	.dump_register = scaler_dump_register,
 	.init = s5_scaler_hw_init,
+};
+
+struct meson_vpu_block_ops s6_scaler_ops = {
+	.check_state = scaler_check_state,
+	.update_state = scaler_set_state,
+	.enable = scaler_hw_enable,
+	.disable = scaler_hw_disable,
+	.dump_register = scaler_dump_register,
+	.init = s6_scaler_hw_init,
 };
 #endif

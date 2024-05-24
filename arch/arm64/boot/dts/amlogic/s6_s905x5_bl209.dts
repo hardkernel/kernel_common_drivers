@@ -115,14 +115,15 @@
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p STB androidT size 56M */
-			size = <0x0 0x1000000>;
+			/* 1080p STB androidU size 88M */
+			size = <0x0 0x5800000>;
 			alignment = <0x0 0x400000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x0>;
+			/* 1080p STB androidU size 56M */
+			size = <0x0 0x3800000>;
 			alignment = <0x0 0x400000>;
 		};
 		dmaheap_secure_reserved:heap-secure {
@@ -1375,9 +1376,14 @@
 };
 
 &drm_vpu {
-	status = "disabled";
+	status = "okay";
 	logo_addr = "0x1fc00000";
 
+};
+
+&drm_subsystem {
+	status = "okay";
+	fbdev_sizes = <1280 720 1280 1440 32>;
 };
 
 &amhdmitx {
@@ -1452,10 +1458,6 @@
 
 &cma_shrinker {
 	free = <7680 24288 28528 32600 32768 36624>;
-};
-
-&drm_subsystem {
-	fbdev_sizes = <1280 720 1280 1440 32>;
 };
 
 &amlogic_codec {

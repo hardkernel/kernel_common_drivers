@@ -813,6 +813,10 @@ extern struct meson_vpu_block_ops s7d_osd_ops;
 extern struct meson_vpu_block_ops s7d_afbc_ops;
 extern struct meson_vpu_block_ops s7d_osdblend_ops;
 
+extern struct meson_vpu_block_ops s6_osd_ops;
+extern struct meson_vpu_block_ops s6_scaler_ops;
+extern struct meson_vpu_block_ops s6_afbc_ops;
+extern struct meson_vpu_block_ops s6_postblend_ops;
 
 extern struct meson_vpu_block_ops txhd2_osdblend_ops;
 extern struct meson_vpu_block_ops txhd2_postblend_ops;
