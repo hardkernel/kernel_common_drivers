@@ -300,7 +300,9 @@ static void stmmac_amlogic_task(struct work_struct *work)
 #ifdef CONFIG_PM_SLEEP
 		if (wol_switch_from_user && priv->linkup_after_resume < 2) {
 			// revert the effect of phy_speed_down() again
+			rtnl_lock();
 			phylink_speed_up(priv->phylink);
+			rtnl_unlock();
 		}
 #endif
 	}
