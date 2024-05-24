@@ -42,6 +42,9 @@
   scmi_driver_register
   scmi_driver_unregister
 
+# snd-soc-sy6026l.ko
+  __devm_regmap_init
+
 # amlogic-adc.ko
   devm_of_platform_populate
   irq_chip_ack_parent

@@ -565,8 +565,7 @@ static int sy602x_i2c_probe(struct i2c_client *i2c,
 	if (!sy602x_priv_data)
 		return -ENOMEM;
 
-	sy602x_priv_data->regmap = devm_regmap_init_i2c(i2c,
-									&sy602x_regmap_config);
+	sy602x_priv_data->regmap = devm_regmap_init(&i2c->dev, NULL, i2c, &sy602x_regmap_config);
 
 	if (IS_ERR(sy602x_priv_data->regmap)) {
 		ret = PTR_ERR(sy602x_priv_data->regmap);
