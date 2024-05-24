@@ -3514,8 +3514,8 @@ static int lcd_timing_fr_update(struct aml_lcd_drv_s *pdrv)
 	}
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		if (len > 0) {
-			LCDPR("[%d]: %s: sync_duration: %d/%d, %s\n",
-				pdrv->index, __func__,
+			LCDPR("[%d]: %s: fr_adj_type: %d, sync_duration: %d/%d, %s\n",
+				pdrv->index, __func__, type,
 				pconf->timing.act_timing.sync_duration_num,
 				pconf->timing.act_timing.sync_duration_den,
 				str);

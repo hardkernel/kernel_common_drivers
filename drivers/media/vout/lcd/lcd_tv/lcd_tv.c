@@ -927,8 +927,9 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 
 	mutex_lock(&lcd_vout_mutex);
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: fr_auto_flag = 0x%x\n",
-		      pdrv->index, pdrv->config.fr_auto_flag);
+		LCDPR("[%d]: fr_auto_flag: 0x%x, fr_adj_type: %d\n",
+		      pdrv->index, pdrv->config.fr_auto_flag,
+		      pdrv->config.timing.act_timing.fr_adjust_type);
 	}
 
 	info = &pdrv->vinfo;
