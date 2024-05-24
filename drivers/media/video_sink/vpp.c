@@ -1147,12 +1147,19 @@ static int vpp_process_speed_check
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	frc_enable = frc_n2m_worked();
 #endif
-	if ((frc_enable || (slice_num == 2 &&
-		video_is_meson_t3x_cpu())) && layer_id == 0)
-		sync_duration_num = vinfo->sync_duration_num / 2;
-	else
-		sync_duration_num = vinfo->sync_duration_num;
-	sync_duration_den = vinfo->sync_duration_den;
+	/* brr_duration only for QMS case */
+	if (vinfo->brr_duration) {
+		sync_duration_num = vinfo->brr_duration * sync_duration_den;
+		if (frc_enable && layer_id == 0)
+			sync_duration_num /= 2;
+	} else {
+		if ((frc_enable || (slice_num == 2 &&
+			video_is_meson_t3x_cpu())) && layer_id == 0)
+			sync_duration_num = vinfo->sync_duration_num / 2;
+		else
+			sync_duration_num = vinfo->sync_duration_num;
+		sync_duration_den = vinfo->sync_duration_den;
+	}
 
 	if (IS_DI_POST(vf->type) &&
 	    !(op_flag & OP_HAS_DI_LOCAL)) {
