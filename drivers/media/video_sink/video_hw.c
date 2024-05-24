@@ -11555,6 +11555,8 @@ u32 get_cur_enc_line(void)
 
 	return enc_line;
 }
+EXPORT_SYMBOL(get_cur_enc_line);
+
 
 u32 get_cur_enc_num(void)
 {

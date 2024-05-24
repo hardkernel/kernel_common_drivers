@@ -75,6 +75,7 @@ int is_in_ldim_vsync_isr(u8 cur_cpuid);
 int is_in_amblt_vsync_isr(u8 cur_cpuid);
 #endif
 void set_rdma_channel_enable(u8 rdma_en);
+u32 get_cur_enc_line(void);
 unsigned int rdma_hw_done_bit(void);
 
 //extern int vsync_rdma_handle[5];

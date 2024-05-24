@@ -84,6 +84,13 @@ int rdma_configured[RDMA_NUM];
 ulong rdma_config_us[RDMA_NUM];
 int enc_num_configed[RDMA_NUM] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
+/* bit0~bit3 already used */
+#define DEBUG_RDMA_DONE_SKIP      0x10
+#define DEBUG_RDMA_REG_CONFLICT   0x20
+#define DEBUG_RDMA_WATCHDOG       0x40
+#define DEBUG_RDMA_CONFIG         0x80
+#define DEBUG_RDMA_DONE           0x100
+
 MODULE_PARM_DESC(g_vsync_rdma_item_count, "\n g_vsync_rdma_item_count\n");
 module_param(g_vsync_rdma_item_count, uint, 0664);
 
@@ -691,14 +698,17 @@ irqreturn_t rdma_mgr_isr(int irq, void *dev_id)
 	u32 rdma_status, mask;
 	int i;
 	u32 read_val;
+	u32 cur_enc_line_start = 0, cur_enc_line_end = 0;
+
 
 	rdma_done_cpuid = smp_processor_id();
-	if (debug_flag & 0x10)
+	if (debug_flag & DEBUG_RDMA_DONE_SKIP)
 		return IRQ_HANDLED;
 	rdma_isr_count++;
 QUERY:
 	retry_count++;
 	rdma_status = READ_VCBUS_REG(irq_status.reg);
+	cur_enc_line_start = get_cur_enc_line();
 	if ((debug_flag & 4) && ((rdma_isr_count % 30) == 0))
 		pr_info("%s: %x\r\n", __func__, rdma_status);
 	for (i = 0; i < rdma_meson_dev.channel_num; i++) {
@@ -747,6 +757,12 @@ QUERY:
 				info->rdma_reg.adr[i] = 0;
 		}
 	}
+	cur_enc_line_end = get_cur_enc_line();
+	if (debug_flag & DEBUG_RDMA_DONE)
+		pr_info("%s: enc_line(%d, %d)\n",
+			__func__,
+			cur_enc_line_start,
+			cur_enc_line_end);
 	return IRQ_HANDLED;
 }
 
@@ -783,6 +799,7 @@ int rdma_config(int handle, u32 trigger_type)
 	bool rdma_read = false;
 	int buffer_lock = 0;
 	int trigger_type_backup = trigger_type, rdma_type;
+	u32 cur_enc_line_start = 0, cur_enc_line_end = 0;
 	bool configured = 0;
 
 	if (handle <= 0 || handle >= rdma_meson_dev.channel_num) {
@@ -804,6 +821,7 @@ int rdma_config(int handle, u32 trigger_type)
 		return -1;
 	}
 
+	cur_enc_line_start = get_cur_enc_line();
 	if (!(trigger_type & RDMA_TRIGGER_OMIT_LOCK))
 		buffer_lock = ins->lock_flag;
 
@@ -1077,13 +1095,16 @@ int rdma_config(int handle, u32 trigger_type)
 		}
 		ins->rdma_item_count = 0;
 	}
+	cur_enc_line_end = get_cur_enc_line();
 	spin_unlock_irqrestore(&rdma_lock, flags);
 
 	if (debug_flag & 2 ||
+		debug_flag & DEBUG_RDMA_CONFIG ||
 		(rdma_trace_enable &&
 		rdma_trace_channel == handle))
-		pr_info("%s: (%d 0x%x) rdma_item_count=%d, ret %d\r\n",
-			__func__, handle, trigger_type_backup, ins->rdma_item_count, ret);
+		pr_info("%s: (%d 0x%x) rdma_item_count=%d, ret %d, enc line(%d, %d)\r\n",
+			__func__, handle, trigger_type_backup, ins->rdma_item_count, ret,
+			cur_enc_line_start, cur_enc_line_end);
 	ins->rdma_config_count++;
 	return ret;
 }
@@ -1287,7 +1308,7 @@ int rdma_watchdog_setting(int flag, int handle)
 		rdma_force_reset = 1;
 		debug_flag = 0;
 	}
-	if (debug_flag & 0x40)
+	if (debug_flag & DEBUG_RDMA_WATCHDOG)
 		pr_info("%s, flag:%d handle:%d rdma_watchdog_count:%d\n",
 			__func__, flag, handle, rdma_watchdog_count[handle]);
 
@@ -1333,7 +1354,7 @@ static bool rdma_check_conflict(int handle, u32 adr, u32 *read_val)
 				continue;
 			for (n = 0; n < rdma_trace_num; n++) {
 				if (adr == rdma_trace_reg[n] ||
-				    (debug_flag & 0x20))
+				    (debug_flag & DEBUG_RDMA_REG_CONFLICT))
 					pr_info("(%s) handle %d, conflict write %04x=0x%08x (oth handle %d), cur_val:0x%x\n",
 						__func__,
 						handle, adr,
@@ -1364,7 +1385,7 @@ static void rdma_update_conflict(u32 adr, u32 val)
 	for (i = 0; i < MAX_CONFLICT; i++) {
 		if (rdma_info.rdma_reg.adr[i] == adr) {
 			rdma_info.rdma_reg.val[i] = val;
-			if (debug_flag & 0x20)
+			if (debug_flag & DEBUG_RDMA_REG_CONFLICT)
 				pr_info("(%s) %04x=0x%08x\n",
 					__func__,
 					adr, val);
