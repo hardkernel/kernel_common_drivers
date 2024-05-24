@@ -386,6 +386,8 @@ struct vinfo_s {
 	u32 screen_real_height;
 	u32 sync_duration_num;
 	u32 sync_duration_den;
+	/* the BaseRefreshRate value of VRR case, larger than 50, usually 60 or 120 */
+	u32 brr_duration;
 	u32 std_duration;
 	u32 vfreq_max;
 	u32 vfreq_min;
