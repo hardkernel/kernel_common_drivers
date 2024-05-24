@@ -440,6 +440,25 @@ static void vout_viu_mux_clear_t7(int index, unsigned int mux_sel)
 		VOUTPR("%s: update viu_mux reg=0x%x\n", __func__, reg_value);
 	}
 }
+
+static void vout_viu_mux_clear_s6(int index, unsigned int mux_sel)
+{
+	unsigned int reg_value = vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL);
+
+	if (vout_debug_print) {
+		VOUTPR("%s: index=%d, mux_sel=0x%x\n", __func__, index, mux_sel);
+		VOUTPR("%s: viu_mux reg=0x%x\n", __func__, reg_value);
+	}
+
+// [ 3: 2] cntl_viu2_sel_venc. Select which one of the encI/P/T that VIU2 connects to:
+//		   0=No connection, 1=ENCI, 2=ENCP, 3=ENCT.
+// [ 1: 0] cntl_viu1_sel_venc. Select which one of the encI/P/T that VIU1 connects to:
+//		   0=No connection, 1=ENCI, 2=ENCP, 3=ENCT.
+	if (index == 1)
+		vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, 0, 0, 2);
+	else
+		vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, 0, 2, 2);
+}
 #endif
 
 void vout_viu_mux_update(int index, unsigned int mux_sel)
@@ -519,6 +538,15 @@ static struct vout_mux_data_s vout_mux_match_data_s5 = {
 	.update_viu_mux = vout_viu_mux_update_t3,
 	.clear_viu_mux = vout_viu_mux_clear_t7,
 };
+
+static struct vout_mux_data_s vout_mux_match_data_s6 = {
+	.msr_clk = NULL,
+	.vs_measure = vout_vs_measure_dft,
+	.vs_measure_high_res = vout_vs_measure_high_res_dft,
+	.msr_ctrl_init = vout_meas_ctrl_init_dft,
+	.update_viu_mux = vout_viu_mux_update_default,
+	.clear_viu_mux = vout_viu_mux_clear_s6,
+};
 #endif
 
 static const struct of_device_id vout_mux_dt_match_table[] = {
@@ -554,6 +582,10 @@ static const struct of_device_id vout_mux_dt_match_table[] = {
 	{
 		.compatible = "amlogic, vout_mux-txhd2",
 		.data = &vout_mux_match_data_txhd2,
+	},
+	{
+		.compatible = "amlogic, vout_mux-s6",
+		.data = &vout_mux_match_data_s6,
 	},
 #endif
 	{}

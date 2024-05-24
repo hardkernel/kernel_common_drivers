@@ -319,6 +319,76 @@ static struct osd_mif_reg_s s5_osd_mif_reg[HW_OSD_MIF_NUM] = {
 		VIU_OSD4_NORMAL_SWAP_S5
 	},
 };
+
+static struct osd_mif_reg_s s6_osd_mif_reg[HW_OSD_MIF_NUM] = {
+	{
+		VIU_OSD1_CTRL_STAT,
+		VIU_OSD1_CTRL_STAT2,
+		VIU_OSD1_COLOR_ADDR,
+		VIU_OSD1_COLOR,
+		VIU_OSD1_TCOLOR_AG0,
+		VIU_OSD1_TCOLOR_AG1,
+		VIU_OSD1_TCOLOR_AG2,
+		VIU_OSD1_TCOLOR_AG3,
+		VIU_OSD1_BLK0_CFG_W0,
+		VIU_OSD1_BLK0_CFG_W1,
+		VIU_OSD1_BLK0_CFG_W2,
+		VIU_OSD1_BLK0_CFG_W3,
+		VIU_OSD1_BLK0_CFG_W4,
+		VIU_OSD1_BLK1_CFG_W4,
+		VIU_OSD1_BLK2_CFG_W4,
+		VIU_OSD1_FIFO_CTRL_STAT,
+		VIU_OSD1_TEST_RDDATA,
+		VIU_OSD1_PROT_CTRL,
+		VIU_OSD1_MALI_UNPACK_CTRL,
+		VIU_OSD1_DIMM_CTRL,
+	},
+	{
+		VIU_OSD2_CTRL_STAT,
+		VIU_OSD2_CTRL_STAT2,
+		VIU_OSD2_COLOR_ADDR,
+		VIU_OSD2_COLOR,
+		VIU_OSD2_TCOLOR_AG0,
+		VIU_OSD2_TCOLOR_AG1,
+		VIU_OSD2_TCOLOR_AG2,
+		VIU_OSD2_TCOLOR_AG3,
+		VIU_OSD2_BLK0_CFG_W0,
+		VIU_OSD2_BLK0_CFG_W1,
+		VIU_OSD2_BLK0_CFG_W2,
+		VIU_OSD2_BLK0_CFG_W3,
+		VIU_OSD2_BLK0_CFG_W4,
+		VIU_OSD2_BLK1_CFG_W4,
+		VIU_OSD2_BLK2_CFG_W4,
+		VIU_OSD2_FIFO_CTRL_STAT,
+		VIU_OSD2_TEST_RDDATA,
+		VIU_OSD2_PROT_CTRL,
+		VIU_OSD2_MALI_UNPACK_CTRL,
+		VIU_OSD2_DIMM_CTRL,
+	},
+	{
+		VIU2_OSD1_CTRL_STAT,
+		VIU2_OSD1_CTRL_STAT2,
+		VIU2_OSD1_COLOR_ADDR,
+		VIU2_OSD1_COLOR,
+		VIU2_OSD1_TCOLOR_AG0,
+		VIU2_OSD1_TCOLOR_AG1,
+		VIU2_OSD1_TCOLOR_AG2,
+		VIU2_OSD1_TCOLOR_AG3,
+		VIU2_OSD1_BLK0_CFG_W0,
+		VIU2_OSD1_BLK0_CFG_W1,
+		VIU2_OSD1_BLK0_CFG_W2,
+		VIU2_OSD1_BLK0_CFG_W3,
+		VIU2_OSD1_BLK0_CFG_W4,
+		VIU2_OSD1_BLK1_CFG_W4,
+		VIU2_OSD1_BLK2_CFG_W4,
+		VIU2_OSD1_FIFO_CTRL_STAT,
+		VIU2_OSD1_TEST_RDDATA,
+		VIU2_OSD1_PROT_CTRL,
+		VIU2_OSD1_MALI_UNPACK_CTRL,
+		VIU2_OSD1_DIMM_CTRL,
+	},
+	{}
+};
 #endif
 
 /*
@@ -1820,6 +1890,36 @@ static void s7d_osd_hw_init(struct meson_vpu_block *vblk)
 	MESON_DRM_BLOCK("%s hw_init done.\n", osd->base.name);
 }
 
+static void s6_osd_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_pipeline *pipeline;
+	struct meson_vpu_osd *osd = to_osd_block(vblk);
+
+	if (!vblk || !osd) {
+		MESON_DRM_BLOCK("hw_init break for NULL.\n");
+		return;
+	}
+
+	pipeline = osd->base.pipeline;
+	if (!pipeline) {
+		MESON_DRM_BLOCK("hw_init break for NULL.\n");
+		return;
+	}
+
+	osd->reg = &s6_osd_mif_reg[vblk->index];
+	//osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
+	osd->mif_acc_mode = LINEAR_MIF;
+	osd->mali_src_en_switch = 1;
+	
+	osd->infos = formats_of_s1a;
+
+    /* osd secure function init */
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	secure_register(OSD_MODULE, 0, osd_secure_op, osd_secure_cb);
+#endif
+
+	MESON_DRM_BLOCK("%s hw_init done.\n", osd->base.name);
+}
 #endif
 
 /*
@@ -1945,4 +2045,13 @@ struct meson_vpu_block_ops s7d_osd_ops = {
 	.fini = osd_hw_fini,
 };
 
+struct meson_vpu_block_ops s6_osd_ops = {
+	.check_state = osd_check_state,
+	.update_state = osd_set_state,
+	.enable = osd_hw_enable,
+	.disable = osd_hw_disable,
+	.dump_register = osd_dump_register,
+	.init = s6_osd_hw_init,
+	.fini = osd_hw_fini,
+};
 #endif

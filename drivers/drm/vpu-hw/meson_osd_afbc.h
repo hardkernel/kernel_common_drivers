@@ -300,6 +300,8 @@ enum afbc_core_e {
 };
 
 void arm_fbc_start(struct meson_vpu_pipeline_state *pipeline_state, struct rdma_reg_ops *reg_ops);
+void s6_viu2_arm_fbc_start(struct meson_vpu_pipeline_state *pipeline_state,
+	struct rdma_reg_ops *reg_ops);
 void arm_fbc_check_error(void);
 
 #endif
