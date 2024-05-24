@@ -528,6 +528,7 @@ static ssize_t vout3_vinfo_show(struct class *class,
 		"    screen_real_height:    %d\n"
 		"    sync_duration_num:     %d\n"
 		"    sync_duration_den:     %d\n"
+		"    brr_duration:          %d\n"
 		"    std_duration:          %d\n"
 		"    vfreq_max:             %d\n"
 		"    vfreq_min:             %d\n"
@@ -544,6 +545,7 @@ static ssize_t vout3_vinfo_show(struct class *class,
 		info->aspect_ratio_num, info->aspect_ratio_den,
 		info->screen_real_width, info->screen_real_height,
 		info->sync_duration_num, info->sync_duration_den,
+		info->brr_duration,
 		info->std_duration, info->vfreq_max, info->vfreq_min,
 		info->htotal, info->vtotal, info->video_clk,
 		info->fr_adj_type, info->viu_color_fmt, info->viu_mux,

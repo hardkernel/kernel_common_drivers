@@ -121,6 +121,7 @@ static int calc_vinfo_from_hdmi_timing(const struct hdmi_timing *timing, struct 
 		tx_vinfo->sync_duration_num = timing->v_freq;
 		tx_vinfo->sync_duration_den = 1000;
 	}
+	tx_vinfo->brr_duration = 0;
 	tx_vinfo->video_clk = timing->pixel_freq;
 	tx_vinfo->htotal = timing->h_total;
 	tx_vinfo->vtotal = timing->v_total;

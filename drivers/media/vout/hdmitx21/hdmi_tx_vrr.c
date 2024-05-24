@@ -1108,7 +1108,7 @@ static bool check_qms_brr_format(const enum hdmi_vic vic)
 
 /* rate: 2400, 2397, 2500, ..., 5994, 6000, etc */
 static void updata_vinfo_sync_duration(struct vinfo_s *vinfo,
-	int rate, bool frac_rate)
+	int rate, bool frac_rate, int brr_rate)
 {
 	if (!vinfo)
 		return;
@@ -1125,6 +1125,7 @@ static void updata_vinfo_sync_duration(struct vinfo_s *vinfo,
 		vinfo->sync_duration_num = rate * 1000 / 1001;
 		vinfo->sync_duration_den = 100;
 	}
+	vinfo->brr_duration = brr_rate;
 }
 
 int hdmitx_set_fr_hint(int rate, void *data)
@@ -1198,7 +1199,8 @@ int hdmitx_set_fr_hint(int rate, void *data)
 		para.duration = rate;
 	}
 	updata_vinfo_sync_duration(&tx_comm->hdmitx_vinfo, rate,
-		tx_comm->frac_rate_policy);
+		tx_comm->frac_rate_policy,
+		(fmt_para->timing.v_freq + 999) / 1000);
 
 	para.vrr_enabled = 1;
 	para.fapa_end_extended = prxcap->fapa_end_extended;

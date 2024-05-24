@@ -641,6 +641,7 @@ static ssize_t disp_mode_show(struct device *dev,
 		vinfo->screen_real_width, vinfo->screen_real_height);
 	pos += snprintf(buf + pos, PAGE_SIZE, "sync_duration_num/den: %d/%d\n",
 		vinfo->sync_duration_num, vinfo->sync_duration_den);
+	pos += snprintf(buf + pos, PAGE_SIZE, "brr_duration: %d\n", vinfo->brr_duration);
 	pos += snprintf(buf + pos, PAGE_SIZE, "video_clk: %d\n", vinfo->video_clk);
 	pos += snprintf(buf + pos, PAGE_SIZE, "h/vtotal: %d/%d\n", vinfo->htotal, vinfo->vtotal);
 	pos += snprintf(buf + pos, PAGE_SIZE, "hdmichecksum:\n");
