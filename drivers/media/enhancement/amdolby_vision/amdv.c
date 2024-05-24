@@ -13393,6 +13393,8 @@ EXPORT_SYMBOL(is_amdv_el_disable);
 
 void set_amdv_ll_policy(int policy)
 {
+	if (debug_dolby & 1)
+		pr_info("set ll policy %d\n", policy);
 	dolby_vision_ll_policy = policy;
 }
 EXPORT_SYMBOL(set_amdv_ll_policy);
@@ -15874,7 +15876,7 @@ static const char dv_mode_str[6][12] = {
 	"BYPASS"
 };
 
-u32 amdv_ll_policy_enable;
+u32 amdv_uboot_dolby_status;
 
 unsigned int amdv_check_enable(void)
 {
@@ -15952,16 +15954,16 @@ unsigned int amdv_check_enable(void)
 			} else if (amdv_uboot_on == 3) {
 				/*HDR mode*/
 				uboot_dv_mode = dv_mode_table[3];
-				if (amdv_ll_policy_enable == 1)
+				if (amdv_uboot_dolby_status == 1)
 					uboot_dv_sink_led = 1;
-				else if (amdv_ll_policy_enable == 2)
+				else if (amdv_uboot_dolby_status == 2)
 					uboot_dv_source_led_yuv = 1;
 			} else if (amdv_uboot_on == 4) {
 				/*SDR mode*/
 				uboot_dv_mode = dv_mode_table[5];
-				if (amdv_ll_policy_enable == 1)
+				if (amdv_uboot_dolby_status == 1)
 					uboot_dv_sink_led = 1;
-				else if (amdv_ll_policy_enable == 2)
+				else if (amdv_uboot_dolby_status == 2)
 					uboot_dv_source_led_yuv = 1;
 			} else {
 				/*STANDARD RGB444 mode*/
@@ -16026,7 +16028,8 @@ unsigned int amdv_check_enable(void)
 						dolby_vision_ll_policy = uboot_dv_sink_led ?
 							DOLBY_VISION_LL_DISABLE :
 							DOLBY_VISION_LL_YUV422;
-						pr_info("dovi enable in uboot and mode is HDR10\n");
+						pr_info("dovi enable in uboot and mode is HDR10, ll_policy %d\n",
+							dolby_vision_ll_policy);
 						last_dst_format = FORMAT_HDR10;
 					} else if (uboot_dv_mode ==
 						dv_mode_table[5]) {
@@ -16039,7 +16042,8 @@ unsigned int amdv_check_enable(void)
 						dolby_vision_ll_policy = uboot_dv_sink_led ?
 							DOLBY_VISION_LL_DISABLE :
 							DOLBY_VISION_LL_YUV422;
-						pr_info("dovi enable in uboot and mode is SDR\n");
+						pr_info("dovi enable in uboot and mode is SDR, ll_policy %d\n",
+							dolby_vision_ll_policy);
 						last_dst_format = FORMAT_SDR;
 					} else {
 						/*STANDARD RGB444 mode*/
@@ -16051,7 +16055,8 @@ unsigned int amdv_check_enable(void)
 						dolby_vision_ll_policy =
 							DOLBY_VISION_LL_DISABLE;
 						last_dst_format = FORMAT_DOVI;
-						pr_info("dovi enable in uboot and mode is DV ST\n");
+						pr_info("dovi enable in uboot and mode is DV ST, ll_policy %d\n",
+							dolby_vision_ll_policy);
 					}
 				}
 				amdv_target_mode = dolby_vision_mode;
@@ -17408,56 +17413,74 @@ static struct platform_driver aml_amdolby_vision_driver = {
 	.remove = __exit_p(amdolby_vision_remove),
 };
 
-static int get_amdv_uboot_status(char *str)
+static int get_amdv_uboot_on(char *str)
 {
-	char uboot_dolby_status[DV_NAME_LEN_MAX] = {0};
+	char uboot_amdv_on[DV_NAME_LEN_MAX] = {0};
 	amdv_uboot_on = *str - '0';
 
-	snprintf(uboot_dolby_status, DV_NAME_LEN_MAX, "%s", str);
-	pr_info("get_amdv_on: %s\n", uboot_dolby_status);
+	snprintf(uboot_amdv_on, DV_NAME_LEN_MAX, "%s", str);
+	pr_info("get_amdv_on: %s, %d\n", uboot_amdv_on, amdv_uboot_on);
 
-	if (!strcmp(uboot_dolby_status, "1") ||
-		!strcmp(uboot_dolby_status, "2") ||
-		!strcmp(uboot_dolby_status, "3") ||
-		!strcmp(uboot_dolby_status, "4")) {
+	if (!strcmp(uboot_amdv_on, "1") ||
+		!strcmp(uboot_amdv_on, "2") ||
+		!strcmp(uboot_amdv_on, "3") ||
+		!strcmp(uboot_amdv_on, "4")) {
 		amdv_on_in_uboot = 1;
 		dolby_vision_enable = 1;
 	}
 	return 0;
 }
-__setup("dolby_vision_on=", get_amdv_uboot_status);
+__setup("dolby_vision_on=", get_amdv_uboot_on);
 
 static int get_amdv_uboot_policy(char *str)
 {
-	if (strncmp("1", str, 1) == 0) {
-		dolby_vision_policy = AMDV_FOLLOW_SOURCE;
-		pr_debug("boot dolby_vision_policy: 1\n");
-	} else if (strncmp("0", str, 1) == 0) {
+	char uboot_amdv_policy[DV_NAME_LEN_MAX] = {0};
+
+	snprintf(uboot_amdv_policy, DV_NAME_LEN_MAX, "%s", str);
+	if (debug_dolby & 1)
+		pr_info("boot dolby_policy: %s, %s\n", uboot_amdv_policy, str);
+
+	if (!strcmp(uboot_amdv_policy, "0")) {
 		dolby_vision_policy = AMDV_FOLLOW_SINK;
-		pr_debug("boot dolby_vision_policy: 0\n");
-	} else if (strncmp("2", str, 1) == 0) {
+		if (debug_dolby & 1)
+			pr_info("boot dolby_vision_policy: 1\n");
+	} else if (!strcmp(uboot_amdv_policy, "1")) {
+		dolby_vision_policy = AMDV_FOLLOW_SOURCE;
+		if (debug_dolby & 1)
+			pr_info("boot dolby_vision_policy: 0\n");
+	} else if (!strcmp(uboot_amdv_policy, "2")) {
 		dolby_vision_policy = AMDV_FORCE_OUTPUT_MODE;
-		pr_debug("boot dolby_vision_policy: 2\n");
+		if (debug_dolby & 1)
+			pr_info("boot dolby_vision_policy: 2\n");
 	}
 	return 0;
 }
 __setup("hdr_policy=", get_amdv_uboot_policy);
 
-static int get_amdv_uboot_ll_policy(char *str)
+static int get_amdv_uboot_status(char *str)
 {
-	if (strncmp("1", str, 1) == 0) {
-		amdv_ll_policy_enable = 1;
-		pr_debug("boot dolby_vision_ll_policy: 1\n");
-	} else if (strncmp("0", str, 1) == 0) {
-		amdv_ll_policy_enable = 0;
-		pr_debug("boot dolby_vision_ll_policy: 0\n");
-	} else if (strncmp("2", str, 1) == 0) {
-		amdv_ll_policy_enable = 2;
-		pr_debug("boot dolby_vision_ll_policy: 2\n");
+	char uboot_amdv_status[DV_NAME_LEN_MAX] = {0};
+
+	snprintf(uboot_amdv_status, DV_NAME_LEN_MAX, "%s", str);
+	if (debug_dolby & 1)
+		pr_info("boot dolby_status: %s, %s, %d\n", uboot_amdv_status, str);
+
+	if (!strcmp(uboot_amdv_status, "0")) {
+		amdv_uboot_dolby_status = 0;
+		if (debug_dolby & 1)
+			pr_info("boot dolby_status: 0\n");
+	} else if (!strcmp(uboot_amdv_status, "1")) {
+		amdv_uboot_dolby_status = 1;
+		if (debug_dolby & 1)
+			pr_info("boot dolby_status: 1\n");
+	} else if (!strcmp(uboot_amdv_status, "2")) {
+		amdv_uboot_dolby_status = 2;
+		if (debug_dolby & 1)
+			pr_info("boot dolby_status: 2\n");
 	}
 	return 0;
 }
-__setup("dolby_status=", get_amdv_uboot_ll_policy);
+__setup("dolby_status=", get_amdv_uboot_status);
 
 static int recovery_mode_check(char *str)
 {
