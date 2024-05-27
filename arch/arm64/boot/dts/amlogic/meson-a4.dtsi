@@ -481,7 +481,7 @@
 			     "amlogic,meson-saradc";
 		status = "disabled";
 		#io-channel-cells = <1>;
-		clocks = <&xtal>,
+		clocks = <&scmi_clk CLKID_OSC>,
 			 <&clkc CLKID_SYS_CLK_SAR_ADC>,
 			 <&clkc CLKID_SARADC>,
 			 <&clkc CLKID_SARADC_SEL>;
@@ -511,9 +511,14 @@
 				      <0x0 0x8000 0x0 0x348>;
 				reg-names = "basic", "pll";
 				clocks = <&xtal>,
-					 <&scmi_clk CLKID_SCMI_GP1_PLL>,
-					 <&scmi_clk CLKID_SCMI_ACLKM>;
-				clock-names = "xtal", "gp1_pll", "aclkm";
+					 <&scmi_clk CLKID_OSC>,
+					 <&scmi_clk CLKID_FIXED_PLL>,
+					 <&scmi_clk CLKID_GP1_PLL>,
+					 <&scmi_clk CLKID_ACLKM>,
+					 <&scmi_clk CLKID_SYS_CLK>,
+					 <&scmi_clk CLKID_AXI_CLK>;
+				clock-names = "xtal", "oscin", "fix_pll", "gp1_pll",
+					      "aclkm", "sys_clk", "axi_clk";
 				status = "okay";
 			};
 
@@ -1028,7 +1033,7 @@
 			clocks = <&clkc CLKID_SYS_CLK_SD_EMMCC>,
 				<&clkc CLKID_SD_EMMC_C_CLK_SEL>,
 				 <&clkc CLKID_SD_EMMC_C_CLK>,
-				 <&xtal>,
+				 <&scmi_clk CLKID_OSC>,
 				 <&clkc CLKID_GP0_PLL>,
 				 <&clkc CLKID_GP0_PLL>;
 				// <&clkc CLKID_FCLK_DIV2>,
@@ -1059,7 +1064,7 @@
 			//clocks = <&clkc CLKID_SD_EMMC_B>,
 			//	<&clkc CLKID_SD_EMMC_B_CLK_MUX>,
 			//	 <&clkc CLKID_SD_EMMC_B_CLK>,
-			//	 <&xtal>,
+			//	 <&scmi_clk CLKID_OSC>,
 			//	 <&clkc CLKID_FCLK_DIV2>;
 			//clock-names = "core", "mux0", "mux1",
 			//		"clkin0", "clkin1";
@@ -1079,7 +1084,7 @@
 			clocks = <&clkc CLKID_SYS_CLK_SD_EMMCA>,
 				<&clkc CLKID_SD_EMMC_A_CLK_SEL>,
 				 <&clkc CLKID_SD_EMMC_A_CLK>,
-				 <&xtal>,
+				 <&scmi_clk CLKID_OSC>,
 				 <&clkc CLKID_GP0_PLL>;
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1";
