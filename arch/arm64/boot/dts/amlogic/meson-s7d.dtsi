@@ -683,7 +683,7 @@
 				phy_pll_mode = <3>;
 				phy_mode = <5>;
 				tx_amp_src = <0xFE010330>;
-				led_setting = <0x42>;
+				led_setting = <0x5>;
 
 				ext_mdio: mdio@0 {
 					reg = <0>;
@@ -2641,6 +2641,14 @@
 			function = "eth";
 			drive-strength-microamp = <4000>;
 			bias-disable;
+		};
+	};
+
+	eth_led_pins: eth {
+		mux {
+			groups = "eth_link_led",
+				 "eth_act_led";
+			function = "eth";
 		};
 	};
 };

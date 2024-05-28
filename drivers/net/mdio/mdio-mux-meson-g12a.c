@@ -371,7 +371,12 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 		st_mode = 7;
 	}
 	if (of_property_read_u32(np, "led_setting", &led_setting) == 0) {
-		led_setting = led_setting << 24;
+		/*led setting 10bit ETH_PHY_CNTL0 bit[31:23] and ETH_PLL_CTL4 bit0*/
+		/*led_cfg_1 in ETH_PLL_CTL4*/
+		if ((led_setting >> 9) == 1)
+			writel(0x1, priv->regs + ETH_PLL_CTL4);
+		/*ETH_PHY_CNTL0 bit[31:23]*/
+		led_setting = ((led_setting & 0x1ff) << 23);
 		pr_info("led setting 0x%x\n", led_setting);
 	}
 #endif
