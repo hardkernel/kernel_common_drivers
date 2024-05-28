@@ -7,8 +7,9 @@
 
 #include "meson-s4d.dtsi"
 #include "mesons4d_drm.dtsi"
-#include "partition_mbox_ab.dtsi"
+#include "partition_normal_linux.dtsi"
 #include <dt-bindings/input/input.h>
+#include "meson-ir-map-linux.dtsi"
 
 / {
 	amlogic-dt-id = "s4d_s905c3_ap232_1g";
@@ -1465,6 +1466,8 @@
 	status = "okay";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
+	/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
+	map = <&custom_maps_linux>;
 };
 
 &spicc0 {
@@ -1498,11 +1501,16 @@
 
 &amhdmitx {
 	status = "okay";
+	hdcp_ctl_lvl = <1>;
 };
 
 &drm_amhdmitx {
 	status = "okay";
 	hdcp = "disabled";
+};
+
+&drm_subsystem {
+	fbdev_overlay_sizes = <1920 1080 1920 2160 32>;
 };
 
 &drm_amcvbsout {
@@ -1511,10 +1519,6 @@
 
 &drm_lcd {
 	status = "disabled";
-};
-
-&vpu {
-	clk_level = <7>;
 };
 
 /*if you want to use vdin just modify status to "ok"*/
