@@ -288,6 +288,28 @@ unsigned long get_cma_allocated(void)
 }
 EXPORT_SYMBOL(get_cma_allocated);
 
+static int cma_alloc_trace_setup(char *str)
+{
+	if (kstrtoint(str, 0, &cma_alloc_trace)) {
+		pr_err("cma_alloc_trace: bad arg:%s\n", str);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+__setup("cma_alloc_trace=", cma_alloc_trace_setup);
+
+static int cma_debug_level_setup(char *str)
+{
+	if (kstrtoint(str, 0, &cma_debug_level)) {
+		pr_err("cma_debug_level: bad arg:%s\n", str);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+__setup("cma_debug_level=", cma_debug_level_setup);
+
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
 static int cma_alloc_ref(void)
 {
