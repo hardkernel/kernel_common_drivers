@@ -1109,7 +1109,7 @@ static void osd_color_config(struct meson_vpu_block *vblk,
 			reg_ops->rdma_write_reg(reg->viu_osd_normal_swap, 0x1230);
 			reg_ops->rdma_write_reg_bits(reg->viu_osd_fifo_ctrl_stat, 1, 30, 1);
 		}
-	} else if (is_meson_s7_cpu()) {
+	} else if (is_meson_s7_cpu() || is_meson_s7d_cpu()) {
 		blk_mode = meson_drm_format_hw_blkmode_s7(pixel_format, afbc_en);
 		color = meson_drm_format_hw_colormat_s7(pixel_format, afbc_en);
 		alpha_replace = (pixel_blend == DRM_MODE_BLEND_PIXEL_NONE) ||
