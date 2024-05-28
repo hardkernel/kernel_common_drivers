@@ -1142,10 +1142,13 @@ static int vpp_process_speed_check
 	if (next_frame_par->vscale_skip_count < force_vskip_cnt)
 		return SPEED_CHECK_VSKIP;
 
+	slice_num = get_slice_num(layer_id);
+	pi_enable = get_pi_enabled(layer_id);
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	frc_enable = frc_n2m_worked();
 #endif
-	if (frc_enable && layer_id == 0)
+	if ((frc_enable || (slice_num == 2 &&
+		video_is_meson_t3x_cpu())) && layer_id == 0)
 		sync_duration_num = vinfo->sync_duration_num / 2;
 	else
 		sync_duration_num = vinfo->sync_duration_num;
@@ -1177,8 +1180,6 @@ static int vpp_process_speed_check
 	if (video_is_meson_s5_cpu())
 		max_height = 4320;
 #endif
-	slice_num = get_slice_num(layer_id);
-	pi_enable = get_pi_enabled(layer_id);
 	if (pi_enable)
 		height_screen /= 2;
 	if (slice_num == 4)
@@ -1209,6 +1210,15 @@ static int vpp_process_speed_check
 		min_ratio_1000 =  min_skip_ratio;
 	else
 		min_ratio_1000 = 1750;
+	if ((frc_enable || slice_num == 2) && layer_id == 0) {
+		if (width_in > 1920) {
+			min_ratio_1000 =  min_skip_ratio;
+			min_ratio_1000 = min_ratio_1000 * 140 / 100;
+		} else {
+			min_ratio_1000 = 1750;
+			min_ratio_1000 = min_ratio_1000 * 115 / 100;
+		}
+	}
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* for s5 non-afbc and 480i output*/
@@ -2676,7 +2686,8 @@ RESTART:
 			vinfo, vf, vpp_flags,
 			input->op_flag);
 
-		if (skip == SPEED_CHECK_VSKIP) {
+		if (skip == SPEED_CHECK_VSKIP &&
+			!force_skip_update) {
 			u32 next_vskip =
 				next_frame_par->vscale_skip_count + vskip_step;
 
@@ -2689,7 +2700,8 @@ RESTART:
 				if (w_in & 1)
 					goto RESTART;
 			}
-		} else if (skip == SPEED_CHECK_HSKIP) {
+		} else if (skip == SPEED_CHECK_HSKIP &&
+			!force_skip_update) {
 			next_frame_par->hscale_skip_count = 1;
 			/* hskip =1, w_in must aligned */
 			if (w_in & 1)
