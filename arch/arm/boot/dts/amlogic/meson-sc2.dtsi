@@ -2941,7 +2941,6 @@
 		mux {
 			groups = "pwm_e";
 			function = "pwm_e";
-			drive-strength-microamp = <500>;
 		};
 	};
 
