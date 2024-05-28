@@ -1498,7 +1498,7 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 		__func__, file_vf, file_vf->private_data);
 
 	private_data = di_proc_get_file_private_data(file_vf, false);
-	if (!private_data) {
+	if (!private_data || !private_data->vf_p) {
 		dp_print(dev->index, PRINT_ERROR,
 			"%s: private_data null, put file=%px.\n",
 			__func__, file_vf);
@@ -1508,12 +1508,12 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 	}
 	/*if di bypass, not need queue di_buffer to di, it is input di_buffer*/
 	if (private_data->flag & V4LVIDEO_FLAG_DI_V3) {
-		di_p = (struct di_buffer *)(private_data->vf_p);
 		dp_print(dev->index, PRINT_OTHER,
 			"%s: no bypss need put file=%px.\n",
 			__func__, private_data->file);
+		di_p = (struct di_buffer *)(private_data->vf_p);
 		/*di vf has dec vf, need put dec file*/
-		if (di_p->vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+		if (di_p->vf && (di_p->vf->flag & VFRAME_FLAG_DOUBLE_FRAM)) {
 			/*decoder vf maybe free, so should not to use vf struct*/
 			vf = di_p->vf->vf_ext;
 			if (vf && private_data->file)
@@ -1523,8 +1523,8 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 					"%s: has dec vf, but vf/file is null vf=%px.\n",
 					__func__, vf);
 			private_data->file = NULL;
+			omx_index = di_p->vf->omx_index;
 		}
-		omx_index = di_p->vf->omx_index;
 		queue_outbuf_to_di(dev, di_p);
 	} else if (private_data->flag & V4LVIDEO_FLAG_DI_BYPASS) {
 		/*di bypass, need put dec file*/
