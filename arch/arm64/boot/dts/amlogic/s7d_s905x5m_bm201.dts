@@ -1179,6 +1179,8 @@
 };
 
 &ethmac {
+	pinctrl-0 = <&eth_led_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
