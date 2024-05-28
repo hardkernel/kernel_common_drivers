@@ -443,8 +443,13 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 			goto err;
 		}
 		strncpy(usrinfo->fw_name, host->host_data->name, sizeof(usrinfo->fw_name));
-		usrinfo->phy_addr = host->phys_ddr_addr;
-		usrinfo->size = host->phys_ddr_size;
+		if (host->start_pos == PURE_SRAM || host->start_pos == DDR_SRAM) {
+			usrinfo->phy_addr = host->phys_sram_addr;
+			usrinfo->size = host->phys_sram_size;
+		} else {
+			usrinfo->phy_addr = host->phys_ddr_addr;
+			usrinfo->size = host->phys_ddr_size;
+		}
 		ret = copy_to_user(argp, usrinfo,
 				   sizeof(struct host_info_t));
 		if (ret) {
@@ -456,6 +461,8 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 			 usrinfo->fw_name);
 	break;
 	case HOST_SHM_CLEAN:
+		if (host->start_pos == PURE_SRAM || host->start_pos == DDR_SRAM)
+			break;
 		ret = copy_from_user(&shminfo, argp, sizeof(shminfo));
 		pr_debug("%s clean cache, addr:%u, size:%u\n",
 			 __func__, shminfo.addr, shminfo.size);
@@ -475,6 +482,8 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 					   DMA_TO_DEVICE);
 	break;
 	case HOST_SHM_INV:
+		if (host->start_pos == PURE_SRAM || host->start_pos == DDR_SRAM)
+			break;
 		ret = copy_from_user(&shminfo, argp, sizeof(shminfo));
 		pr_debug("%s invalidate cache, addr:%u, size:%u\n",
 			 __func__, shminfo.addr, shminfo.size);
@@ -536,7 +545,11 @@ static int host_miscdev_mmap(struct file *fp, struct vm_area_struct *vma)
 
 	host = fp->private_data;
 
-	phys_page_addr = host->phys_ddr_addr >> PAGE_SHIFT;
+	if (host->start_pos == PURE_SRAM || host->start_pos == DDR_SRAM)
+		phys_page_addr = host->phys_sram_addr >> PAGE_SHIFT;
+	else
+		phys_page_addr = host->phys_ddr_addr >> PAGE_SHIFT;
+
 	size = ((unsigned long)vma->vm_end - (unsigned long)vma->vm_start);
 	pr_debug("vma=0x%pK.\n", vma);
 	pr_debug("size=%ld, vma->vm_start=%ld, end=%ld.\n",
@@ -547,8 +560,13 @@ static int host_miscdev_mmap(struct file *fp, struct vm_area_struct *vma)
 	vma->vm_page_prot = PAGE_SHARED;
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
-	if (size > host->phys_ddr_size)
-		size = host->phys_ddr_size;
+	if (host->start_pos == PURE_SRAM || host->start_pos == DDR_SRAM) {
+		if (size > host->phys_sram_size)
+			size = host->phys_sram_size;
+	} else {
+		if (size > host->phys_ddr_size)
+			size = host->phys_ddr_size;
+	}
 
 	ret = remap_pfn_range(vma,
 			      vma->vm_start,
