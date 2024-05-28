@@ -61,4 +61,8 @@
 #define	TDM_MCLK3		45
 #define	TDM_MCLK4		46
 
+#define	TDMA_OE			47
+#define	TDMB_OE			48
+#define	TDMC_OE			49
+
 #endif
