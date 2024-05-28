@@ -395,13 +395,17 @@ enum osd_blk_mode_e {
 };
 
 enum osd_color_matrix_e {
-	/*for 16bit:blk-mode=BLOCK_MODE_16BIT*/
+	/*for 16bit:blk-mode=BLOCK_MODE_16BIT，default color format is RGB space*/
 	COLOR_MATRIX_655 = 0,
 	COLOR_MATRIX_844,
 	COLOR_MATRIX_4444 = 4,
+	COLOR_MATRIX_RGBA4444 = 4,
 	COLOR_MATRIX_565 = 4,
-	COLOR_MATRIX_4444_t3x = 5,
-	COLOR_MATRIX_565_t3x = 6,
+	COLOR_MATRIX_4444_T3X = 5,
+	COLOR_MATRIX_ARGB4444 = 5,
+	COLOR_MATRIX_565_T3X = 2,
+	COLOR_MATRIX_RGBA5551 = 6,
+	COLOR_MATRIX_ARGB1555 = 7,
 	/*for 32bit:blk-mode=BLOCK_MODE_32BIT*/
 	COLOR_MATRIX_RGBA8888 = 0,
 	COLOR_MATRIX_ARGB8888,
@@ -416,6 +420,4 @@ enum osd_color_matrix_e {
 	COLOR_MATRIX_BGR888 = 5,
 };
 
-const struct meson_drm_format_info *meson_drm_format_info(u32 format,
-							  bool afbc_en);
 #endif

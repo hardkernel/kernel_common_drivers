@@ -366,23 +366,6 @@ static const struct meson_vpu_data vpu_g12b_data = {
 	.video_ops = &video_ops,
 };
 
-static const struct meson_vpu_data vpu_s7_data = {
-	.crtc_func = {
-		.reg_ops = common_reg_ops,
-	},
-	.pipe_ops = &g12a_vpu_pipeline_ops,
-	.osd_ops = &t7_osd_ops,
-	.afbc_ops = &s7_afbc_ops,
-	.scaler_ops = &scaler_ops,
-	.osdblend_ops = &osdblend_ops,
-	.hdr_ops = &hdr_ops,
-	.dv_ops = &db_ops,
-	.postblend_ops = &s7_postblend_ops,
-	.video_ops = &video_ops,
-	.osd_formats = &osd_formats_s1a,
-	.video_formats = &video_formats,
-};
-
 static const struct meson_vpu_data vpu_t7_data = {
 	.crtc_func = {
 		.reg_ops = common_reg_ops,
@@ -485,7 +468,7 @@ static const struct meson_vpu_data vpu_t3x_data = {
 		.reg_ops = common_reg_ops,
 	},
 	.pipe_ops = &s5_vpu_pipeline_ops,
-	.osd_ops = &s5_osd_ops,
+	.osd_ops = &t3x_osd_ops,
 	.afbc_ops = &t3x_afbc_ops,
 	.scaler_ops = &s5_scaler_ops,
 	.osdblend_ops = &t3x_osdblend_ops,
@@ -507,7 +490,7 @@ static const struct meson_vpu_data vpu_txhd2_data = {
 		.reg_ops = common_reg_ops,
 	},
 	.pipe_ops = &g12a_vpu_pipeline_ops,
-	.osd_ops = &osd_ops,
+	.osd_ops = &txhd2_osd_ops,
 	.afbc_ops = &afbc_ops,
 	.scaler_ops = &scaler_ops,
 	.osdblend_ops = &txhd2_osdblend_ops,
@@ -516,6 +499,23 @@ static const struct meson_vpu_data vpu_txhd2_data = {
 	.postblend_ops = &txhd2_postblend_ops,
 	.video_ops = &video_ops,
 	.osd_formats = &osd_formats,
+	.video_formats = &video_formats,
+};
+
+static const struct meson_vpu_data vpu_s7_data = {
+	.crtc_func = {
+		.reg_ops = common_reg_ops,
+	},
+	.pipe_ops = &g12a_vpu_pipeline_ops,
+	.osd_ops = &s7_osd_ops,
+	.afbc_ops = &s7_afbc_ops,
+	.scaler_ops = &scaler_ops,
+	.osdblend_ops = &osdblend_ops,
+	.hdr_ops = &hdr_ops,
+	.dv_ops = &db_ops,
+	.postblend_ops = &s7_postblend_ops,
+	.video_ops = &video_ops,
+	.osd_formats = &osd_formats_s1a,
 	.video_formats = &video_formats,
 };
 
@@ -544,7 +544,7 @@ static const struct meson_vpu_data vpu_s1a_data = {
 		.reg_ops = common_reg_ops,
 	},
 	.pipe_ops = &g12a_vpu_pipeline_ops,
-	.osd_ops = &osd_ops,
+	.osd_ops = &s1a_osd_ops,
 	.afbc_ops = &afbc_ops,
 	.scaler_ops = &scaler_ops,
 	.osdblend_ops = &osdblend_ops,

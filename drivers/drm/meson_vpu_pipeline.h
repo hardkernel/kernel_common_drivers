@@ -240,6 +240,8 @@ struct meson_vpu_osd {
 	int viu2_hold_line;
 	u32 mali_src_en_switch;
 	bool has_gfcd;
+	const struct meson_drm_format_info **infos;
+	int format_swap;
 };
 
 struct osd_zorder_s {
@@ -766,10 +768,15 @@ struct meson_vpu_pipeline_state *
 meson_vpu_pipeline_get_new_state(struct meson_vpu_pipeline *pipeline,
 			     struct drm_atomic_state *state);
 void sort_osd_by_zorder(struct osd_zorder_s *din, u32 osd_num);
+const struct meson_drm_format_info *meson_drm_format_info(struct meson_vpu_block *vblk, u32 format,
+							  bool afbc_en);
 
 extern struct rdma_reg_ops common_reg_ops[3];
 extern struct rdma_reg_ops g12b_reg_ops[2];
 
+/*
+ * for g12a/s4/s4d/sc2 soc
+ */
 extern struct meson_vpu_block_ops video_ops;
 extern struct meson_vpu_block_ops osd_ops;
 extern struct meson_vpu_block_ops afbc_ops;
@@ -779,34 +786,58 @@ extern struct meson_vpu_block_ops hdr_ops;
 extern struct meson_vpu_block_ops db_ops;
 extern struct meson_vpu_block_ops postblend_ops;
 
+/*
+ * for g12b/sm1 soc with dual display
+ */
 extern struct meson_vpu_block_ops g12b_osd_ops;
 extern struct meson_vpu_block_ops g12b_postblend_ops;
+
+/*
+ * for t7/t3/t5w/t5m soc with multi encoder
+ */
 extern struct meson_vpu_block_ops t7_osd_ops;
 extern struct meson_vpu_block_ops t7_afbc_ops;
 extern struct meson_vpu_block_ops t7_hdr_ops;
 extern struct meson_vpu_block_ops t3_afbc_ops;
 extern struct meson_vpu_block_ops t7_postblend_ops;
 extern struct meson_vpu_block_ops t3_postblend_ops;
-extern struct meson_vpu_block_ops t3x_postblend_ops;
 
+/*
+ * for s5/t3x soc with slice block
+ */
 extern struct meson_vpu_block_ops s5_osd_ops;
 extern struct meson_vpu_block_ops s5_afbc_ops;
 extern struct meson_vpu_block_ops s5_scaler_ops;
 extern struct meson_vpu_block_ops s5_osdblend_ops;
 extern struct meson_vpu_block_ops s5_postblend_ops;
 extern struct meson_vpu_block_ops slice2ppc_ops;
+extern struct meson_vpu_block_ops t3x_osd_ops;
 extern struct meson_vpu_block_ops t3x_osdblend_ops;
 extern struct meson_vpu_block_ops t3x_afbc_ops;
+extern struct meson_vpu_block_ops t3x_postblend_ops;
+
+/*
+ * for s1a/txhd2 soc
+ */
+extern struct meson_vpu_block_ops s1a_osd_ops;
+extern struct meson_vpu_block_ops txhd2_osd_ops;
+extern struct meson_vpu_block_ops txhd2_osdblend_ops;
+extern struct meson_vpu_block_ops txhd2_postblend_ops;
+
+/*
+ * for s7 soc
+ */
+extern struct meson_vpu_block_ops s7_osd_ops;
 extern struct meson_vpu_block_ops s7_afbc_ops;
 extern struct meson_vpu_block_ops s7_postblend_ops;
 
+/*
+ * for s7d soc
+ */
 extern struct meson_vpu_block_ops gfcd_ops;
 extern struct meson_vpu_block_ops s7d_hdr_ops;
 extern struct meson_vpu_block_ops s7d_osd_ops;
 extern struct meson_vpu_block_ops s7d_afbc_ops;
-
-extern struct meson_vpu_block_ops txhd2_osdblend_ops;
-extern struct meson_vpu_block_ops txhd2_postblend_ops;
 
 extern struct meson_vpu_pipeline_ops g12a_vpu_pipeline_ops;
 extern struct meson_vpu_pipeline_ops t7_vpu_pipeline_ops;
