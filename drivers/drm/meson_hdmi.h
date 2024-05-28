@@ -89,6 +89,7 @@ struct am_hdmi_tx {
 	 */
 	struct drm_property *hdcp_user_prop;
 	int hdmi_type;
+	struct drm_property *frac_rate_policy_prop;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;
@@ -113,6 +114,7 @@ struct am_hdmitx_connector_state {
 	bool color_force : 1;
 	bool avmute : 1;
 	bool ready : 1;
+	bool frac_rate_policy : 1;
 	int allm_mode;
 };
 
