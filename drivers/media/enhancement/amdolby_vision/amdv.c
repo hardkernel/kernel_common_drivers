@@ -4285,8 +4285,8 @@ static int amdv_policy_process_v2_stb(struct vframe_s *vf,
 					*mode = AMDV_OUTPUT_MODE_BYPASS;
 					mode_change = 1;
 				}
-			} else if (is_meson_g12b_cpu() || is_meson_g12a_cpu()
-			/* || is_aml_tm2_stbmode() */) {
+			} else if (is_meson_g12b_cpu() || is_meson_g12a_cpu() ||
+				support_multi_core1()/* || is_aml_tm2_stbmode() */) {
 				/* dv cores keep on if in sdr mode */
 				if (dolby_vision_mode !=
 				AMDV_OUTPUT_MODE_SDR8) {
@@ -4434,6 +4434,10 @@ static int amdv_policy_process_v2_stb(struct vframe_s *vf,
 					mode_change = 1;
 				}
 			}
+		} else if (vf && is_amdv_on() && support_multi_core1()) {
+			/* vd2 follow vd1 dv mode when multi dv mode */
+			pr_dv_dbg("vd2 follow vd1 dv mode and keep mode");
+			mode_change = 0;
 		} else if (dolby_vision_mode !=
 			AMDV_OUTPUT_MODE_BYPASS) {
 			/* HDR/SDR bypass */
@@ -12598,6 +12602,7 @@ static int amdolby_vision_process_v2_stb
 	if (video_status[0] == -1) {
 		video_turn_off[0] = true;
 		pr_dv_dbg("VD1 video off, video_status -1\n");
+		dv_core1[0].amdv_setting_video_flag = 0;
 	} else if (video_status[0] == 1) {
 		pr_dv_dbg("VD1 video on, video_status 1\n");
 		video_turn_off[0] = false;
@@ -12607,6 +12612,7 @@ static int amdolby_vision_process_v2_stb
 	if (video_status[1] == -1) {
 		video_turn_off[1] = true;
 		pr_dv_dbg("VD2 video off, video_status -1\n");
+		dv_core1[1].amdv_setting_video_flag = 0;
 	} else if (video_status[1] == 1) {
 		pr_dv_dbg("VD2 video on, video_status 1\n");
 		video_turn_off[1] = false;
