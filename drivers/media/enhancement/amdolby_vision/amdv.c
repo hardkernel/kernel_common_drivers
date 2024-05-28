@@ -12531,6 +12531,8 @@ static int amdolby_vision_process_v2_stb
 	enum signal_format_enum cur_src_format;
 	static int last_pri_input;
 	bool pri_change = false;
+	static int last_hdmi_inst_id = -1;
+	bool hdmi_inst_change = false;
 
 	if (vf) {
 		if (dv_inst_valid(vf->src_fmt.dv_id))
@@ -12811,9 +12813,17 @@ static int amdolby_vision_process_v2_stb
 		last_pri_input = pri_input;
 	}
 
+	if (last_hdmi_inst_id != hdmi_inst_id) {
+		hdmi_inst_change = true;
+		if (debug_dolby & 1)
+			pr_dv_dbg("hdmi_inst_change changed %d=> %d\n",
+				  last_hdmi_inst_id, hdmi_inst_id);
+		last_hdmi_inst_id = hdmi_inst_id;
+	}
+
 	if (sink_changed || policy_changed || format_changed ||
 	    video_status[0] == 1 || video_status[1] == 1 ||
-	    (graphic_status & 3) || pri_change ||
+	    (graphic_status & 3) || pri_change || hdmi_inst_change ||
 	    force_toggle_once || force_toggle_each_vsync ||
 	    (dolby_vision_flags & FLAG_FORCE_HDMI_PKT)) {
 		if (debug_dolby & 1)
