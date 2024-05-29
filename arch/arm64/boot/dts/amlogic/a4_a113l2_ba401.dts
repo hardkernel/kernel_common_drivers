@@ -273,6 +273,8 @@
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
+		/*avout mute gpio*/
+		avout_mute-gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
 		//spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
 
 		aml-audio-card,dai-link@0 {
@@ -1319,13 +1321,6 @@
 	status = "okay";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
-};
-
-&i2c1 {
-	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c1_pins2>;
-	clock-frequency = <100000>;
 };
 
 &i2c2 {
