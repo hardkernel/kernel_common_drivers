@@ -215,22 +215,32 @@ static struct lcd_vframe_match_s lcd_vframe_match_table_2[] = {
 
 static int lcd_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 {
+	int clk_change = 0;
+
 	if (!pdrv)
 		return -1;
 
-	LCDPR("%s\n", __func__);
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("%s\n", __func__);
 	lcd_vout_notify_mode_change_pre(pdrv);
 
 	/* update clk & timing config */
 	lcd_frame_rate_change(pdrv);
-	/* update interface timing if needed, current no need */
-#ifdef CONFIG_AMLOGIC_VPU
-	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
-#endif
 
-	/* change clk parameter */
-	lcd_clk_change(pdrv);
+	if (pdrv->config.timing.clk_change & LCD_CLK_CHANGE) {
+		clk_change = 1; //pdrv->config.timing.clk_change will clear in lcd_clk_change
+#ifdef CONFIG_AMLOGIC_VPU
+		vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
+#endif
+		if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+			lcd_vbyone_interrupt_enable(pdrv, 0);
+		lcd_clk_change(pdrv);
+	}
+
 	lcd_venc_change(pdrv);
+
+	if (clk_change && pdrv->config.basic.lcd_type == LCD_VBYONE)
+		lcd_vbyone_wait_stable(pdrv);
 
 	lcd_vout_notify_mode_change(pdrv);
 
