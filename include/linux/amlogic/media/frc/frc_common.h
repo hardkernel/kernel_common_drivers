@@ -24,18 +24,18 @@
 
 #ifndef ABS
 #define ABS(a)	({ \
-			int _a = (int)a;\
+			typeof(a) _a = (a);\
 			((_a) > 0 ? (_a) : -(_a));\
 		})
 #endif // ABS
 
 #ifndef DIV
 #define DIV(a, b) ({ \
-			int _a = (int)a; \
-			int _b = (int)b; \
+			typeof(a) _a = (a); \
+			typeof(b) _b = (b); \
 			_b == 0 ? 0 : _a / _b; \
 		})
-#endif
+#endif // DIV
 
 #define BIT_0		0x00000001
 #define BIT_1		0x00000002
