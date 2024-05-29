@@ -379,12 +379,6 @@ static int datain_pdm_startup(struct loopback *p_loopback)
 		goto err;
 	}
 
-	ret = clk_prepare_enable(p_loopback->pdm_dclk);
-	if (ret) {
-		pr_err("Can't enable pcm pdm_dclk clock: %d\n", ret);
-		goto err;
-	}
-
 	return 0;
 err:
 	pr_err("failed enable pdm clock\n");
@@ -975,6 +969,7 @@ static void datain_pdm_set_clk(struct loopback *p_loopback)
 {
 	unsigned int pdm_sysclk_srcpll_freq, pdm_dclk_srcpll_freq;
 	char *clk_name = NULL;
+	int ret = 0;
 
 	pdm_sysclk_srcpll_freq = clk_get_rate(p_loopback->pdm_sysclk_srcpll);
 	pdm_dclk_srcpll_freq = clk_get_rate(p_loopback->pdm_dclk_srcpll);
@@ -1017,6 +1012,10 @@ static void datain_pdm_set_clk(struct loopback *p_loopback)
 	clk_set_rate(p_loopback->pdm_sysclk, 133333351);
 	clk_set_rate(p_loopback->pdm_dclk,
 		pdm_dclkidx2rate(p_loopback->dclk_idx));
+
+	ret = clk_prepare_enable(p_loopback->pdm_dclk);
+	if (ret)
+		pr_err("Can't enable pcm pdm_dclk clock: %d\n", ret);
 
 	pr_info("pdm pdm_sysclk:%lu pdm_dclk:%lu\n",
 		clk_get_rate(p_loopback->pdm_sysclk),
