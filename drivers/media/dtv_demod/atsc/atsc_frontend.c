@@ -254,7 +254,7 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 				atsc_write_reg_v4(ATSC_AGC_REG_0X42, 0x40208003);
 
 				/* agc target */
-				if (is_meson_t5m_cpu())
+				if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M))
 					agc_target = 0x1f; //for t5m single AGC
 				atsc_write_reg_bits_v4(ATSC_AGC_REG_0X40,
 					atsc_agc_target ? atsc_agc_target : agc_target, 0, 8);
@@ -431,6 +431,7 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 {
 	int fsm_status;//0:none;1:lock;-1:lost
 	s16 strength = 0;
+	u16 rf_strength = 0;
 	unsigned int sys_sts;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	static int lock_status;
@@ -533,11 +534,17 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 			PR_ATSC("lock signal times:%d\n", lock_status);
 		}
 
-		if (lock_status >= lock_continuous_cnt)
+		if (lock_status >= lock_continuous_cnt) {
 			*status = FE_HAS_LOCK | FE_HAS_SIGNAL |
 				FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC;
-		else
+
+			/* for call r842 atsc monitor */
+			if (tuner_find_by_name(fe, "r842") &&
+					fe->ops.tuner_ops.get_rf_strength)
+				fe->ops.tuner_ops.get_rf_strength(fe, &rf_strength);
+		} else {
 			*status = 0;
+		}
 	} else {
 		*status = 0;
 	}
