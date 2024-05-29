@@ -1327,6 +1327,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				if (sink_hdr_support(vinfo) & HDR_SUPPORT) {
 					/* hdr bypass */
 					hdr_process_mode[vd_path] = PROC_BYPASS;
+					hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_HDR;
 					if (source_format[vd_path] == HDRTYPE_HDR10)
 						target_format[vd_path] = BT2020_PQ;
 					else
