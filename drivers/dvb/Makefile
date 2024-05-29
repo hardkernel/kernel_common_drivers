@@ -25,3 +25,5 @@ include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/dvb/smartcard/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/dvb/smartcard_sc2/Makefile
 
 obj-$(CONFIG_AMLOGIC_DVB_DMX) += demux/
+
+#obj-$(CONFIG_AMLOGIC_DVB_EXTERN_TUNER) += tuner/

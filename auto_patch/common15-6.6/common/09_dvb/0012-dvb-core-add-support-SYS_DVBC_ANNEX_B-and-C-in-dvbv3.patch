@@ -1,0 +1,38 @@
+From cc8adf48f52cc1f8313ada990cca64aafec132dc Mon Sep 17 00:00:00 2001
+From: "yali.zhang" <yali.zhang@amlogic.com>
+Date: Mon, 3 Jun 2024 13:56:55 +0800
+Subject: [PATCH] dvb-core: add support SYS_DVBC_ANNEX_B and C in dvbv3 [1/1]
+
+PD#SWPL-156400
+PD#TV-109289
+
+Problem:
+SET_FRONTEND fail when use SYS_DVBC_ANNEX_B.
+
+Solution:
+add support SYS_DVBC_ANNEX_B and C in dvbv3.
+
+Verify:
+T5D.
+
+Change-Id: I0b246d4ba82dced5fb3112ceb912655c8438a269
+Signed-off-by: Yali Zhang <yali.zhang@amlogic.com>
+---
+ drivers/media/dvb-core/dvb_frontend.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/media/dvb-core/dvb_frontend.c b/drivers/media/dvb-core/dvb_frontend.c
+index 422d4d33c02b..ab7fc84a9839 100644
+--- a/drivers/media/dvb-core/dvb_frontend.c
++++ b/drivers/media/dvb-core/dvb_frontend.c
+@@ -1694,6 +1694,7 @@ static bool is_dvbv3_delsys(u32 delsys)
+
+ #ifdef CONFIG_AMLOGIC_DVB_COMPAT
+ 	status = (delsys == SYS_DVBT) || (delsys == SYS_DVBC_ANNEX_A) ||
++		 (delsys == SYS_DVBC_ANNEX_B) || (delsys == SYS_DVBC_ANNEX_C) ||
+ 		 (delsys == SYS_DVBS) || (delsys == SYS_ATSC) ||
+ 		 (delsys == SYS_DTMB) || (delsys == SYS_DVBS2) ||
+ 		 (delsys == SYS_DVBT2) || (delsys == SYS_ISDBC) ||
+--
+2.42.0
+

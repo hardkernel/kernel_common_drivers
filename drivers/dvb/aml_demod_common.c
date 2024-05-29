@@ -173,6 +173,12 @@ int aml_demod_gpio_config(struct gpio_config *cfg, const char *label)
 }
 EXPORT_SYMBOL(aml_demod_gpio_config);
 
+struct class *aml_class_create(struct module *owner, const char *name)
+{
+	return class_create(name);
+}
+EXPORT_SYMBOL(aml_class_create);
+
 void aml_class_destroy(struct class *cls)
 {
 	class_destroy(cls);
