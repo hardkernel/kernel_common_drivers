@@ -6153,15 +6153,29 @@ s32 config_vd_blend(struct video_layer_s *layer,
 			cur_frame_par->VPP_vd_start_lines_ +
 			cur_frame_par->video_input_h - 1;
 	} else {
+		const struct vinfo_s *vinfo = get_current_vinfo();
+
 		/* FIXME: use sr output */
 		setting->postblend_h_start =
 			cur_frame_par->VPP_hsc_startp;
 		setting->postblend_h_end =
 			cur_frame_par->VPP_hsc_endp;
-		setting->postblend_v_start =
-			cur_frame_par->VPP_vsc_startp;
-		setting->postblend_v_end =
-			cur_frame_par->VPP_vsc_endp;
+		if (cur_dev->frm2fld_support &&
+		    vinfo->field_height != vinfo->height) {
+			int height = 0, h_start = 0, h_end = 0;
+
+			height = (cur_frame_par->VPP_vsc_endp -
+				  cur_frame_par->VPP_vsc_startp + 1) / 2;
+			h_start = cur_frame_par->VPP_vsc_startp >> 1;
+			h_end = h_start + height - 1;
+			setting->postblend_v_start = h_start;
+			setting->postblend_v_end = h_end;
+		} else {
+			setting->postblend_v_start =
+				cur_frame_par->VPP_vsc_startp;
+			setting->postblend_v_end =
+				cur_frame_par->VPP_vsc_endp;
+		}
 	}
 
 	if (!legacy_vpp) {
