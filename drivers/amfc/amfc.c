@@ -1180,7 +1180,7 @@ static int __init amfc_probe(struct platform_device *pdev)
 	node = pdev->dev.of_node;
 	amfc->dev = &pdev->dev;
 	amfc->compress = kzalloc(sizeof(*amfc->compress), GFP_KERNEL);
-	amfc->decompress = kzalloc(sizeof(amfc->decompress), GFP_KERNEL);
+	amfc->decompress = kzalloc(sizeof(*amfc->decompress), GFP_KERNEL);
 	if (!amfc->compress || !amfc->decompress)
 		goto err;
 
