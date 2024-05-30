@@ -297,20 +297,6 @@ int lcd_resource_is_ready(struct aml_lcd_drv_s *pdrv)
 	return 1;
 }
 
-unsigned char get_vout_lcd_mode(unsigned char vout_index)
-{
-	unsigned char i;
-	struct aml_lcd_drv_s *pdrv;
-
-	for (i = 0; i < 3; i++) {
-		pdrv = aml_lcd_get_driver(i);
-		if (pdrv && pdrv->viu_sel == vout_index)
-			return pdrv->mode;
-	}
-	return LCD_MODE_MAX;
-}
-EXPORT_SYMBOL(get_vout_lcd_mode);
-
 inline void lcd_queue_work(struct work_struct *work)
 {
 	if (lcd_workqueue)
@@ -1919,7 +1905,8 @@ static void lcd_init_vout(struct aml_lcd_drv_s *pdrv)
 		break;
 #endif
 	default:
-		LCDERR("[%d]: invalid lcd mode: %d\n", pdrv->index, pdrv->mode);
+		LCDERR("[%d]: invalid lcd mode: %d\n",
+		       pdrv->index, pdrv->mode);
 		break;
 	}
 }
@@ -1941,7 +1928,8 @@ static int lcd_mode_init(struct aml_lcd_drv_s *pdrv)
 		break;
 #endif
 	default:
-		LCDERR("[%d]: invalid lcd mode: %d\n", pdrv->index, pdrv->mode);
+		LCDERR("[%d]: invalid lcd mode: %d\n",
+		       pdrv->index, pdrv->mode);
 		break;
 	}
 
@@ -1976,7 +1964,6 @@ static int lcd_mode_probe(struct aml_lcd_drv_s *pdrv)
 	if (pdrv->auto_test)
 		lcd_auto_test_func(pdrv);
 
-	// if (pdrv->viu_sel)
 	lcd_drm_add(pdrv->dev);
 
 	return 0;
@@ -2464,7 +2451,8 @@ static int lcd_probe(struct platform_device *pdev)
 		return -1;
 	}
 	if (lcd_drv_init_state & (1 << index)) {
-		LCDERR("%s: index %d driver already registered\n", __func__, index);
+		LCDERR("%s: index %d driver already registered\n",
+		       __func__, index);
 		return -1;
 	}
 	lcd_drv_init_state |= (1 << index);
@@ -2476,7 +2464,10 @@ static int lcd_probe(struct platform_device *pdev)
 	}
 	pdata = (struct lcd_data_s *)match->data;
 	LCDPR("[%d]: driver version: %s(%d-%s)\n",
-	      index, LCD_DRV_VERSION, pdata->chip_type, pdata->chip_name);
+	      index,
+	      LCD_DRV_VERSION,
+	      pdata->chip_type,
+	      pdata->chip_name);
 	if (index >= pdata->drv_max) {
 		LCDERR("[%d]: %s: invalid index\n", index, __func__);
 		return -1;

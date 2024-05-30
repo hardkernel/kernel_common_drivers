@@ -65,8 +65,7 @@
 /* 20240403: update lcd status, notifier event and bypass ufr switch when power off */
 /* 20240513: update tcon ufr switch mode 3 flow */
 /* 20240515: update lcd ufr switch flow and process time record */
-/* 20240528: lcd tablet multi timing support */
-#define LCD_DRV_VERSION    "20240528"
+#define LCD_DRV_VERSION    "20240515"
 
 static inline unsigned char __p_to_u8(void *p)
 {
@@ -116,9 +115,6 @@ static inline unsigned long long div_around(unsigned long long num, unsigned int
 
 	return ret;
 }
-
-unsigned int str_add_vmode(char *buf, unsigned char newline,
-		unsigned short width, unsigned short height, unsigned short fr);
 
 /* lcd common */
 void lcd_dbg_mem_dump(void *addr, size_t size);
