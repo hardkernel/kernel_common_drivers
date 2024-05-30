@@ -774,7 +774,7 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 		reg_ops->rdma_write_reg(reg->vpp_osd_sc_ctrl0, 0);
 		vblk->init_done = 1;
 	}
-	if (version <= OSD_V2)
+	if (version <= OSD_V2 && vblk->index == MESON_OSD1)
 		phase_step_v = (u64)(height_in - 1) << OSD_ZOOM_HEIGHT_BITS;
 	else
 		phase_step_v = (u64)height_in << OSD_ZOOM_HEIGHT_BITS;
@@ -804,9 +804,9 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 		vsc_bot_rpt_l0_num = 0;
 		vsc_bot_init_phase = 0;
 	}
-	if (version <= OSD_V2)
+	if (version <= OSD_V2 && vblk->index == MESON_OSD1)
 		vsc_top_init_rec_num++;
-	if (version <= OSD_V2 && scan_mode_out)
+	if (version <= OSD_V2 && scan_mode_out && vblk->index == MESON_OSD1)
 		vsc_bot_init_rec_num++;
 	phase_step_v <<= (OSD_ZOOM_TOTAL_BITS - OSD_ZOOM_HEIGHT_BITS);
 	phase_step_h = (u64)width_in << OSD_ZOOM_WIDTH_BITS;
