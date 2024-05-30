@@ -320,20 +320,35 @@
 		status = "disabled";
 	};
 
-	saradc: saradc@fe026000 {
-		compatible = "amlogic,saradc";
+	saradc_common: saradc-common@fe026000 {
+		compatible = "amlogic,saradc-common";
 		reg = <0x00 0xfe026000 0x00 0x84>;
-		interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>;
-		clock-names = "src", "core", "gate", "mux";
-		clocks = <&xtal>,
-			 <&clkc CLKID_SYS_SAR_ADC>,
-			 <&clkc CLKID_SAR_ADC>,
-			 <&clkc CLKID_SAR_ADC_SEL>;
-		#io-channel-cells = <1>;
-		amlogic,clock-frequency = <3000000>;
-		amlogic,test-channel = <7>;
-		amlogic,fifo-data-width = <16>;
-		status = "disabled";
+
+		saradc: saradc {
+			compatible = "amlogic,saradc";
+			interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>;
+			clock-names = "src", "core", "gate", "mux";
+			clocks = <&xtal>,
+				 <&clkc CLKID_SYS_SAR_ADC>,
+				 <&clkc CLKID_SAR_ADC>,
+				 <&clkc CLKID_SAR_ADC_SEL>;
+			#io-channel-cells = <1>;
+			amlogic,clock-frequency = <3000000>;
+			amlogic,test-channel = <7>;
+			amlogic,fifo-data-width = <16>;
+			status = "disabled";
+		};
+
+		pdd: pdd {
+			compatible = "amlogic,pdd";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			amlogic,interrupt = <182>;
+			amlogic,digital-maps = <0x18 26>, <0x18 23>, <0x18 17>;
+			amlogic,analog-maps = <0x14 26>, <0x14 22>, <0x14 24>;
+			amlogic,voltage-maps = <400>, <800>, <800>, <1200>;
+			status = "okay";
+		};
 	};
 
 	shmem@50f7e00 {

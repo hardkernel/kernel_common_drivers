@@ -579,6 +579,7 @@ static int amlogic_saradc_probe(struct platform_device *pdev)
 	int index;
 	int ret;
 	int fifo_irq;
+	struct resource *res;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*priv));
 	if (!indio_dev)
@@ -626,14 +627,21 @@ static int amlogic_saradc_probe(struct platform_device *pdev)
 		priv->fifo_data_width = SARADC_DEFAULT_FIFO_DATA_WIDTH;
 	dev_dbg(dev, "fifo-data-width: %u\n", priv->fifo_data_width);
 
-	base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res) {
+		base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(base))
+			return PTR_ERR(base);
 
-	priv->regmap = devm_regmap_init_mmio(dev, base,
-					     &amlogic_saradc_regmap_config);
-	if (IS_ERR(priv->regmap))
-		return PTR_ERR(priv->regmap);
+		priv->regmap = devm_regmap_init_mmio(dev, base,
+						     &amlogic_saradc_regmap_config);
+		if (IS_ERR(priv->regmap))
+			return PTR_ERR(priv->regmap);
+	} else {
+		priv->regmap = dev_get_regmap(dev->parent, NULL);
+		if (!priv->regmap)
+			return dev_err_probe(dev, -EINVAL, "Couldn't get parent's regmap\n");
+	}
 
 	fifo_irq = irq_of_parse_and_map(dev->of_node, 0);
 	if (!fifo_irq)
