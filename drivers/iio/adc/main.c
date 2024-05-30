@@ -11,16 +11,20 @@
 static int __init amlogic_saradc_main_init(void)
 {
 	pr_debug("### %s() start\n", __func__);
+	call_sub_init(amlogic_saradc_common_driver_init);
 	call_sub_init(meson_sar_adc_driver_init);
 	call_sub_init(amlogic_saradc_driver_init);
+	call_sub_init(amlogic_pdd_driver_init);
 	pr_debug("### %s() end\n", __func__);
 	return 0;
 }
 
 static void __exit amlogic_saradc_main_exit(void)
 {
+	amlogic_pdd_driver_exit();
 	meson_sar_adc_driver_exit();
 	amlogic_saradc_driver_exit();
+	amlogic_saradc_common_driver_exit();
 }
 
 module_init(amlogic_saradc_main_init);

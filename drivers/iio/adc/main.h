@@ -20,6 +20,20 @@ static inline void meson_sar_adc_driver_exit(void)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_SARADC_COMMON)
+int amlogic_saradc_common_driver_init(void);
+void amlogic_saradc_common_driver_exit(void);
+#else
+static inline int amlogic_saradc_common_driver_init(void)
+{
+	return 0;
+}
+
+static inline void amlogic_saradc_common_driver_exit(void)
+{
+}
+#endif
+
 #if IS_ENABLED(CONFIG_AMLOGIC_SARADC)
 int amlogic_saradc_driver_init(void);
 void amlogic_saradc_driver_exit(void);
@@ -30,6 +44,20 @@ static inline int amlogic_saradc_driver_init(void)
 }
 
 static inline void amlogic_saradc_driver_exit(void)
+{
+}
+#endif
+
+#if IS_ENABLED(CONFIG_AMLOGIC_PDD)
+int amlogic_pdd_driver_init(void);
+void amlogic_pdd_driver_exit(void);
+#else
+static inline int amlogic_pdd_driver_init(void)
+{
+	return 0;
+}
+
+static inline void amlogic_pdd_driver_exit(void)
 {
 }
 #endif
