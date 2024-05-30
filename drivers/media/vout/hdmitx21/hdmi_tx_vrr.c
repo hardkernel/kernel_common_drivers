@@ -1145,6 +1145,10 @@ int hdmitx_set_fr_hint(int rate, void *data)
 	/* TODO, BRR mode should have frac_rate_policy as 0 */
 	if (tx_comm->frac_rate_policy == 1)
 		tmp_rate = tmp_rate + 2 + tmp_rate / 1000;
+	if (tmp_rate > 5990 && tmp_rate < 6010)
+		tmp_rate = 6000;
+	if (tmp_rate > 5990 * 2 && tmp_rate < 6010 * 2)
+		tmp_rate = 120000;
 	if (rate < 2397 || rate > 120000 || rate > tmp_rate) {
 		HDMITX_INFO("vrr rate over range %d [2397~%d]\n", rate, tmp_rate);
 		return 0;
