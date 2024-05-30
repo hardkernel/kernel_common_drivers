@@ -15,5 +15,11 @@ $(MODULE_NAME)-$(CONFIG_AMLOGIC_MESON_SARADC) += \
 	meson_saradc_m8.o \
 	meson_saradc_s7.o
 
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_SARADC_COMMON) += \
+	amlogic_saradc_common.o
+
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_SARADC) += \
 	amlogic_saradc.o
+
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_PDD) += \
+	amlogic_pdd.o

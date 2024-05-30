@@ -63,3 +63,11 @@
   sprint_symbol_no_offset
   task_sched_runtime
   bpf_trace_run9
+
+# amlogic-adc.ko
+  devm_of_platform_populate
+  irq_chip_ack_parent
+  irq_chip_disable_parent
+  irq_chip_enable_parent
+  irq_domain_free_irqs_common
+  irq_domain_xlate_onecell
