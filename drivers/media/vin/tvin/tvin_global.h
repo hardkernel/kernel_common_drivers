@@ -78,7 +78,7 @@ int tvafe_hiu_reg_write(unsigned int reg, unsigned int val);
 
 static inline u32 R_APB_REG(u32 reg)
 {
-	unsigned int val;
+	unsigned int val = 0;
 
 	tvafe_reg_read(reg, &val);
 	return val;
