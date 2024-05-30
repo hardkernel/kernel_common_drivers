@@ -83,3 +83,11 @@
 # amlogic-amfc.ko
   crypto_register_alg
   crypto_unregister_alg
+
+# amlogic-adc.ko
+  devm_of_platform_populate
+  irq_chip_ack_parent
+  irq_chip_disable_parent
+  irq_chip_enable_parent
+  irq_domain_free_irqs_common
+  irq_domain_xlate_onecell
