@@ -2220,16 +2220,39 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 			/*first es error, jump & correct wp*/
 			if (ret == 0 && es_params->es_wp_has_err) {
 				unsigned int cur_wp = 0;
+				__u64 cur_pts = 0;
+				unsigned int time_ms = 0;
 
-				cur_wp = pcur_header[7] << 24 |
-					pcur_header[6] << 16 | pcur_header[5] << 8 | pcur_header[4];
-				memcpy(&es_params->last_last_header,
-					&es_params->last_header, 16);
-				memcpy(&es_params->last_header, pcur_header,
-						sizeof(es_params->last_header));
-				pout->pchan->r_offset = cur_wp % pout->pchan->mem_size;
+				cur_pts = pcur_header[3] >> 1 & 0x1;
+				cur_pts <<= 32;
+				cur_pts |= ((__u64)pcur_header[15]) << 24
+					| ((__u64)pcur_header[14]) << 16
+					| ((__u64)pcur_header[13]) << 8
+					| ((__u64)pcur_header[12]);
+				if (cur_pts > pheader->pts)
+					time_ms = cur_pts - pheader->pts;
+				else
+					time_ms = pheader->pts - cur_pts;
+
+				pr_dbg("notify last pts:0x%lx cur pts:0x%lx, time:%d ms\n",
+					(unsigned long)pheader->pts,
+					(unsigned long)cur_pts, time_ms);
 				es_params->es_wp_has_err = 0;
-				return 0;
+
+				/*we think it's encrypt program to clear program*/
+				if (time_ms >= 2000 * 90) {
+					cur_wp = pcur_header[7] << 24 |
+						pcur_header[6] << 16 |
+						pcur_header[5] << 8 |
+						pcur_header[4];
+					memcpy(&es_params->last_last_header,
+						&es_params->last_header, 16);
+					memcpy(&es_params->last_header, pcur_header,
+							sizeof(es_params->last_header));
+					pout->pchan->r_offset = cur_wp % pout->pchan->mem_size;
+					es_params->es_wp_has_err = 0;
+					return 0;
+				}
 			}
 		}
 		if (ret < 0) {
