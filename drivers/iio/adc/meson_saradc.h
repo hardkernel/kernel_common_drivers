@@ -89,7 +89,6 @@ struct meson_sar_adc_param {
 	u32                                     bandgap_reg;
 	u32					bandgap_en_mask;
 	unsigned int				resolution;
-	const struct regmap_config		*regmap_config;
 	u8					temperature_trimming_bits;
 	unsigned int				temperature_multiplier;
 	unsigned int				temperature_divider;

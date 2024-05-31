@@ -311,20 +311,6 @@ const struct regmap_config meson_sar_adc_regmap_config_g12a = {
 };
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
-static const struct regmap_config meson_sar_adc_regmap_config_gxbb = {
-	.reg_bits = 8,
-	.val_bits = 32,
-	.reg_stride = 4,
-	.max_register = MESON_SAR_ADC_REG13,
-};
-
-static const struct regmap_config meson_sar_adc_regmap_config_meson8 = {
-	.reg_bits = 8,
-	.val_bits = 32,
-	.reg_stride = 4,
-	.max_register = MESON_SAR_ADC_DELTA_10,
-};
-
 static const struct meson_sar_adc_calib meson_sar_adc_calib_gxbb = {
 	.test_upper = TEST_MUX_VDD_MUL3_DIV4,
 	.test_lower = TEST_MUX_VDD_DIV4,
@@ -336,7 +322,6 @@ static const struct meson_sar_adc_calib meson_sar_adc_calib_gxbb = {
 const struct meson_sar_adc_param meson_sar_adc_meson8_param __initconst = {
 	.has_bl30_integration = false,
 	.clock_rate = 1150000,
-	.regmap_config = &meson_sar_adc_regmap_config_meson8,
 	.resolution = 10,
 	.temperature_trimming_bits = 4,
 	.temperature_multiplier = 18 * 10000,
@@ -352,7 +337,6 @@ const struct meson_sar_adc_param meson_sar_adc_meson8b_param __initconst = {
 	.clock_rate = 1150000,
 	.bandgap_reg = MESON_SAR_ADC_DELTA_10,
 	.bandgap_en_mask = BIT(10),
-	.regmap_config = &meson_sar_adc_regmap_config_meson8,
 	.resolution = 10,
 	.calib = &meson_sar_adc_calib_gxbb,
 	.dops = &meson_m8_diff_ops,
@@ -365,7 +349,6 @@ const struct meson_sar_adc_param meson_sar_adc_gxbb_param __initconst = {
 	.clock_rate = 1200000,
 	.bandgap_reg = MESON_SAR_ADC_REG11,
 	.bandgap_en_mask = BIT(13),
-	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 10,
 	.vrefp_select = 1,
 	.vcm_select = 1,
@@ -380,7 +363,6 @@ const struct meson_sar_adc_param meson_sar_adc_gxl_param __initconst = {
 	.clock_rate = 1200000,
 	.bandgap_reg = MESON_SAR_ADC_REG11,
 	.bandgap_en_mask = BIT(13),
-	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 12,
 	.disable_ring_counter = 1,
 	.vrefp_select = 1,
@@ -396,7 +378,6 @@ const struct meson_sar_adc_param meson_sar_adc_txlx_param __initconst = {
 	.clock_rate = 1200000,
 	.bandgap_reg = MESON_SAR_ADC_REG11,
 	.bandgap_en_mask = BIT(13),
-	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 12,
 	.vref_is_optional = true,
 	.disable_ring_counter = 1,
@@ -414,7 +395,6 @@ const struct meson_sar_adc_param meson_sar_adc_g12a_param __initconst = {
 	.clock_rate = 1200000,
 	.bandgap_reg = MESON_SAR_ADC_REG11,
 	.bandgap_en_mask = BIT(13),
-	.regmap_config = &meson_sar_adc_regmap_config_g12a,
 	.resolution = 12,
 	.vref_is_optional = true,
 	.disable_ring_counter = 1,
@@ -433,7 +413,6 @@ const struct meson_sar_adc_param meson_sar_adc_txhd2_param __initconst = {
 	.clock_rate = 1200000,
 	.bandgap_reg = MESON_SAR_ADC_REG11,
 	.bandgap_en_mask = BIT(12),
-	.regmap_config = &meson_sar_adc_regmap_config_g12a,
 	.resolution = 12,
 	.vref_is_optional = true,
 	.disable_ring_counter = 1,
