@@ -1076,10 +1076,6 @@
 
 &saradc {
 	status = "okay";
-
-	pd {
-		enabled;
-	};
 };
 
 &ethmac {

@@ -187,6 +187,12 @@ struct meson_sar_adc_data {
 	const char				*name;
 };
 
+const struct regmap_config meson_sar_adc_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 32,
+	.reg_stride = 4,
+};
+
 static bool meson_sar_adc_pm_runtime_supported(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
@@ -1455,18 +1461,24 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	indio_dev->info = &meson_sar_adc_iio_info;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	if (res) {
+		base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(base))
+			return PTR_ERR(base);
+
+		priv->regmap = devm_regmap_init_mmio(&pdev->dev, base,
+						     &meson_sar_adc_regmap_config);
+		if (IS_ERR(priv->regmap))
+			return PTR_ERR(priv->regmap);
+	} else {
+		priv->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+		if (!priv->regmap)
+			return dev_err_probe(&pdev->dev, -EINVAL, "Couldn't get parent's regmap\n");
+	}
 
 	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	if (!irq)
 		return -EINVAL;
-
-	priv->regmap = devm_regmap_init_mmio(&pdev->dev, base,
-					     priv->param->regmap_config);
-	if (IS_ERR(priv->regmap))
-		return PTR_ERR(priv->regmap);
 
 	priv->clkin = devm_clk_get(&pdev->dev, "clkin");
 	if (IS_ERR(priv->clkin)) {

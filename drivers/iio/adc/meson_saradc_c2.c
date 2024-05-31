@@ -318,17 +318,9 @@ static const struct meson_sar_adc_diff_ops meson_c2_diff_ops = {
 	.tuning_clock = meson_c2_sar_adc_tuning_clock,
 };
 
-static const struct regmap_config meson_sar_adc_regmap_config_c2 = {
-	.reg_bits = 8,
-	.val_bits = 32,
-	.reg_stride = 4,
-	.max_register = MESON_C2_SAR_ADC_CHNL7,
-};
-
 const struct meson_sar_adc_param meson_sar_adc_c2_param __initconst = {
 	.has_bl30_integration = false,
 	.clock_rate = 600000,
-	.regmap_config = &meson_sar_adc_regmap_config_c2,
 	.resolution = 12,
 	.vref_is_optional = true,
 	.has_chnl_regs = true,
