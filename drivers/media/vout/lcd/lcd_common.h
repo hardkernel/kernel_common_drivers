@@ -67,7 +67,8 @@
 /* 20240515: update lcd ufr switch flow and process time record */
 /* 20240529: add lcd frame_lock function */
 /* 20240601: lcd tablet multi timing support */
-#define LCD_DRV_VERSION    "20240601"
+/* 20240607: lcd tcon support extern header */
+#define LCD_DRV_VERSION    "20240607"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
