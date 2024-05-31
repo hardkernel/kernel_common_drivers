@@ -3784,9 +3784,11 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			(module_sel == OSD1_HDR ||
 			module_sel == OSD2_HDR ||
 			module_sel == OSD3_HDR)  &&
-			(hdr_process_select & SDR_HDR)) {
-			pr_csc(128, "%s: module_sel = %d SDR_HDR ic(%d) bypass matrix in.\n",
-				__func__, module_sel, chip_type_id);
+			(hdr_process_select & SDR_HDR ||
+			hdr_process_select & SDR_HLG ||
+			hdr_process_select & SDR_CUVA)) {
+			pr_csc(128, "%s: module_sel(%d) hdr_proc(%d) ic(%d) bypass matrix in.\n",
+				__func__, module_sel, hdr_process_select, chip_type_id);
 			coeff_in = bypass_coeff;
 			oft_pre_in = bypass_pre;
 			oft_post_in = bypass_pos;
@@ -4069,10 +4071,9 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				hdr_mtx_param.mtx_cgain[i] =
 					bypass_coeff[i];
 				if (chip_type_id == chip_t3x &&
-					((module_sel == OSD1_HDR ||
-					  module_sel == OSD2_HDR ||
-					  module_sel == OSD3_HDR) &&
-					(hdr_process_select & SDR_HDR))) {
+					(module_sel == OSD1_HDR ||
+					module_sel == OSD2_HDR ||
+					module_sel == OSD3_HDR)) {
 					hdr_mtx_param.mtx_out[i] = bypass_coeff[i];
 					pr_csc(128, "%s: module_sel = %d t3x bypass matrix out.\n",
 						__func__, module_sel);
@@ -4097,8 +4098,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 					chip_type_id == chip_s5) &&
 					(module_sel == OSD1_HDR ||
 					module_sel == OSD2_HDR ||
-					module_sel == OSD3_HDR) &&
-					(hdr_process_select & SDR_HDR)) {
+					module_sel == OSD3_HDR)) {
 					hdr_mtx_param.mtx_out[i] = bypass_coeff[i];
 					if (i == 1)
 						pr_csc(128, "%s:moduleSel=%d ic(%d) bypass mtx_o\n",
@@ -4463,7 +4463,9 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		(module_sel == OSD1_HDR ||
 		module_sel == OSD3_HDR))) &&
 		((hdr_process_select & HDR_BYPASS) ||
-		(hdr_process_select & SDR_HDR))) {
+		(hdr_process_select & SDR_HDR ||
+		hdr_process_select & SDR_HLG ||
+		hdr_process_select & SDR_CUVA))) {
 		if (is_amdv_on())
 			mtx_on = MTX_OFF;
 		else
@@ -4471,7 +4473,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 
 		if (hdr_process_select & HDR_BYPASS)
 			mtx_csc = MATRIX_RGB_YUV709;
-		else if (hdr_process_select & SDR_HDR)
+		else
 			mtx_csc = MATRIX_RGB_BT2020YUV;
 
 		if (chip_type_id == chip_s5) {
