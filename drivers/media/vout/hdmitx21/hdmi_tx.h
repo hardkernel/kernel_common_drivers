@@ -545,6 +545,8 @@ void frl_tx_lts_1_hdmi21_config(void);
 void frl_tx_training_handler(struct hdmitx_dev *hdev);
 void frl_tx_stop(void);
 unsigned int drm_hdmitx_get_rx_hdcp_cap(void);
+u32 drm_hdmitx_get_vrr_cap(void);
+int drm_hdmitx_get_vrr_mode_group(struct drm_vrr_mode_group *group, int max_group);
 bool frl_check_full_bw(enum hdmi_colorspace cs, enum hdmi_color_depth cd, u32 pixel_clock,
 	u32 h_active, enum frl_rate_enum frl_rate, u32 *tri_bytes);
 void fifo_flow_enable_intrs(bool en);

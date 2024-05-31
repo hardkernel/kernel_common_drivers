@@ -333,7 +333,7 @@ static int meson_hdmitx_decide_color_attr
 
 int meson_hdmitx_get_modes(struct drm_connector *connector)
 {
-	bool vrr_cap;
+	u32 vrr_cap;
 	struct edid *edid;
 	int *vics;
 	int count = 0, i = 0;
@@ -364,7 +364,7 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	/* get vrr capability */
 	if (am_hdmitx->hdmitx_dev->get_vrr_cap) {
 		vrr_cap = am_hdmitx->hdmitx_dev->get_vrr_cap();
-		drm_connector_set_vrr_capable_property(connector, vrr_cap);
+		drm_connector_set_vrr_capable_property(connector, vrr_cap & QMS_VRR_SUP);
 	} else {
 		drm_connector_set_vrr_capable_property(connector, false);
 	}

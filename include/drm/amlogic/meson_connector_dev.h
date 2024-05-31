@@ -67,6 +67,12 @@ enum {
 	HDCP_KEY_UPDATE = 1 << 2
 };
 
+enum vrr_types_e {
+	QMS_VRR_SUP = BIT(0),
+	GAMING_VRR_SUP = BIT(1),
+	UI_VRR_SUP = BIT(2),
+};
+
 enum {
 	HDCP_AUTH_FAIL = 0,
 	HDCP_AUTH_OK = 1,
@@ -100,7 +106,7 @@ struct meson_hdmitx_dev {
 	void (*register_hdcp_notify)(struct connector_hdcp_cb *cb);
 
 	/*vrr apis*/
-	bool (*get_vrr_cap)(void);
+	u32 (*get_vrr_cap)(void);
 	int (*get_vrr_mode_group)(struct drm_vrr_mode_group *groups, int max_group);
 	int (*set_vframe_rate_hint)(int duration, void *data);
 

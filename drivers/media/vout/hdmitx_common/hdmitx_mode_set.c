@@ -760,7 +760,7 @@ void hdmitx_plugout_common_work(struct hdmitx_common *tx_comm)
 	HDMITX_INFO("plug out sequence id: %lld\n", tx_comm->tx_hw->hw_sequence_id);
 
 	/* step1: disable output */
-	hdmitx_common_output_disable(tx_comm, true, true, true, true);
+	hdmitx_common_output_disable(tx_comm, true, true, true, tx_comm->forced_edid ? 0 : 1);
 	/* as this function may be called in deep suspend/resume
 	 * (hot plugout when resume), not update topo info
 	 * here, update in plugout handler instead
