@@ -1128,6 +1128,7 @@ static void updata_vinfo_sync_duration(struct vinfo_s *vinfo,
 	vinfo->brr_duration = brr_rate;
 }
 
+/* rate: Unit *100. Example, 1080p23.976Hz, rate = 2397 */
 int hdmitx_set_fr_hint(int rate, void *data)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -1148,8 +1149,8 @@ int hdmitx_set_fr_hint(int rate, void *data)
 	if (tmp_rate > 5990 && tmp_rate < 6010)
 		tmp_rate = 6000;
 	if (tmp_rate > 5990 * 2 && tmp_rate < 6010 * 2)
-		tmp_rate = 120000;
-	if (rate < 2397 || rate > 120000 || rate > tmp_rate) {
+		tmp_rate = 12000;
+	if (rate < 2397 || rate > 12000 || rate > tmp_rate) {
 		HDMITX_INFO("vrr rate over range %d [2397~%d]\n", rate, tmp_rate);
 		return 0;
 	}
