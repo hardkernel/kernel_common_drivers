@@ -16,4 +16,5 @@ source "$(COMMON_DRIVERS_DIR)/drivers/media/common/resource_mgr/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/common/dma-buf-heaps/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/common/sw_sync/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/drivers/media/common/vicp/Kconfig"
+source "$(COMMON_DRIVERS_DIR)/drivers/media/common/media_proxy/Kconfig"
 
