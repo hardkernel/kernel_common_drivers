@@ -66,12 +66,16 @@
 /* 20240513: update tcon ufr switch mode 3 flow */
 /* 20240515: update lcd ufr switch flow and process time record */
 /* 20240529: add lcd frame_lock function */
-#define LCD_DRV_VERSION    "20240529"
+/* 20240601: lcd tablet multi timing support */
+#define LCD_DRV_VERSION    "20240601"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
 extern int lcd_vout_serve_bypass;
 extern struct mutex lcd_tcon_dbg_mutex;
+
+unsigned int str_add_vmode(char *buf, unsigned char newline,
+		unsigned short width, unsigned short height, unsigned short fr);
 
 /* lcd common */
 void lcd_dbg_mem_dump(void *addr, size_t size);

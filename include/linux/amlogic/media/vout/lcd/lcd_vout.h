@@ -838,7 +838,7 @@ struct aml_lcd_drv_s {
 	struct lcd_reg_map_s *reg_map;
 	struct lcd_boot_ctrl_s *boot_ctrl;
 	struct lcd_debug_ctrl_s *debug_ctrl;
-	struct vout_server_s *vout_server[3];
+	struct vout_server_s *vout_server;
 	struct vrr_device_s *vrr_dev;
 	struct aml_fr_lock_s *fr_lock;
 #ifdef CONFIG_OF
