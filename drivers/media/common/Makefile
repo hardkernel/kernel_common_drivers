@@ -16,3 +16,4 @@ include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/common/resource_mgr/Makef
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/common/dma-buf-heaps/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/common/sw_sync/Makefile
 include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/common/vicp/Makefile
+include $(srctree)/$(COMMON_DRIVERS_DIR)/drivers/media/common/media_proxy/Makefile
