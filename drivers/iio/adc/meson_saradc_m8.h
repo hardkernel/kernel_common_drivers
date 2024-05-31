@@ -14,5 +14,3 @@ void meson_m8_sar_adc_enable_chnl(struct iio_dev *indio_dev, bool en);
 int meson_m8_sar_adc_read_chnl(struct iio_dev *indio_dev,
 			       const struct iio_chan_spec *chan);
 void meson_m8_sar_adc_disable_ring(struct meson_sar_adc_priv *priv);
-
-extern const struct regmap_config meson_sar_adc_regmap_config_g12a;
