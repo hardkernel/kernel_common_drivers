@@ -3770,8 +3770,10 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 
 		if (chip_type_id == chip_s7d &&
 			((module_sel == OSD1_HDR ||
-			  module_sel == OSD2_HDR) &&
-			(hdr_process_select & SDR_HDR))) {
+			module_sel == OSD2_HDR) &&
+			(hdr_process_select & SDR_HDR ||
+			hdr_process_select & SDR_HLG ||
+			hdr_process_select & SDR_CUVA))) {
 			/* s7d osd blend after hdr core*/
 			pr_csc(128, "%s: module_sel = %d s7d bypass matrix in.\n",
 				__func__, module_sel);
@@ -4064,9 +4066,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 					rgb2ycbcr_ncl2020[i];
 				hdr_mtx_param.mtx_ogain[i] = rgb2ycbcr_709[i];
 				if (chip_type_id == chip_s7d &&
-					((module_sel == OSD1_HDR ||
-					  module_sel == OSD2_HDR) &&
-					(hdr_process_select & SDR_HDR))) {
+					(module_sel == OSD1_HDR ||
+					module_sel == OSD2_HDR)) {
 					hdr_mtx_param.mtx_out[i] = bypass_coeff[i];
 					if (i == 1)
 						pr_csc(128, "%s: module_sel=%d s7d bypass mtx_o\n",
@@ -4434,7 +4435,9 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				mtx_setting(VPP_OSD1_MTX, MATRIX_RGB_YUV709, mtx_on);
 				pr_csc(12, "%s: s7d OSD1 HDR_BYPASS MATRIX_RGB_YUV709 mtx_on=%d.\n",
 					__func__, mtx_on);
-			} else if (hdr_process_select & SDR_HDR) {
+			} else if (hdr_process_select & SDR_HDR ||
+				       hdr_process_select & SDR_HLG ||
+				       hdr_process_select & SDR_CUVA) {
 				mtx_setting(VPP_OSD1_MTX, MATRIX_RGB_BT2020YUV, mtx_on);
 				pr_csc(12, "%s: s7d OSD1 SDR_HDR MATRIX_RGB_BT2020YUV mtx_on=%d.\n",
 					__func__, mtx_on);
@@ -4444,7 +4447,9 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				mtx_setting(VPP_OSD2_MTX, MATRIX_RGB_YUV709, mtx_on);
 				pr_csc(12, "%s: s7d OSD2 HDR_BYPASS MATRIX_RGB_YUV709 mtx_on=%d.\n",
 					__func__, mtx_on);
-			} else if (hdr_process_select & SDR_HDR) {
+			} else if (hdr_process_select & SDR_HDR ||
+				       hdr_process_select & SDR_HLG ||
+				       hdr_process_select & SDR_CUVA) {
 				mtx_setting(VPP_OSD2_MTX, MATRIX_RGB_BT2020YUV, mtx_on);
 				pr_csc(12, "%s: s7d OSD2 SDR_HDR MATRIX_RGB_BT2020YUV mtx_on=%d.\n",
 					__func__, mtx_on);
