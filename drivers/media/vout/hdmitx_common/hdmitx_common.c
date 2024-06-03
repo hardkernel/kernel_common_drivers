@@ -1395,23 +1395,6 @@ bool hdmitx_edid_only_support_sd(struct rx_cap *prxcap)
 	return only_support_sd;
 }
 
-/* When connect both hdmi and panel, here will use different parameters
- * for HDR packets send out. Before hdmitx send HDR packets, check
- * current mode is HDMI or not. specially for T7
- */
-bool is_cur_hdmi_mode(void)
-{
-	struct vinfo_s *vinfo = NULL;
-
-	vinfo = get_current_vinfo();
-	if (vinfo && vinfo->mode == VMODE_HDMI)
-		return 1;
-	vinfo = get_current_vinfo2();
-	if (vinfo && vinfo->mode == VMODE_HDMI)
-		return 1;
-	return 0;
-}
-
 #ifdef CONFIG_AMLOGIC_DSC
 /* get the needed frl rate, refer to 2.1 spec table 7-37/38,
  * actually it may also need to check bpp

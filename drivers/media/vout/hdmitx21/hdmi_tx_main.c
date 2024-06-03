@@ -814,8 +814,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	else
 		memset(&drm_config_data, 0,
 		       sizeof(struct master_display_info_s));
-	if (!is_cur_hdmi_mode())
-		return;
 
 	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
 
@@ -1145,8 +1143,7 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 	else
 		memcpy(&vsif_debug_info.data, data,
 		       sizeof(struct dv_vsif_para));
-	if (!is_cur_hdmi_mode())
-		return;
+
 	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
 	if (hdev->bist_lock) {
 		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
@@ -1481,8 +1478,7 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 	else
 		memset(&hdr10p_config_data, 0,
 		       sizeof(struct hdr10plus_para));
-	if (!is_cur_hdmi_mode())
-		return;
+
 	if (hdev->bist_lock)
 		return;
 	/* if ready is 0, only can clear pkt */
@@ -1606,8 +1602,6 @@ static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data)
 	unsigned char *ven_db = &db[1];
 	unsigned int ieee_code;
 
-	if (!is_cur_hdmi_mode())
-		return;
 	if (vic == HDMI_95_3840x2160p30_16x9 ||
 		vic == HDMI_94_3840x2160p25_16x9 ||
 		vic == HDMI_93_3840x2160p24_16x9 ||
@@ -1662,8 +1656,6 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	int max_size;
 
-	if (!is_cur_hdmi_mode())
-		return;
 	memset(vs_emds, 0, sizeof(vs_emds));
 	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
 	if (!data) {
