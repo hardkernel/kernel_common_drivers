@@ -3150,9 +3150,11 @@ static void vdx_misc_late_proc(u8 layer_id)
 		/* prevsync + postvsync case */
 		if (cur_dev->pre_vsync_enable) {
 			u32 pts_inc_scale_base = 0;
+			u32 frc_ratio = 10;
 
+			frc_ratio = frc_get_n2m_ratio();
 			if (frc_n2m_worked())
-				pts_inc_scale_base = vsync_pts_inc_scale_base / 2;
+				pts_inc_scale_base = vsync_pts_inc_scale_base * 10 / frc_ratio;
 			else
 				pts_inc_scale_base = vsync_pts_inc_scale_base;
 #ifdef CONFIG_AMLOGIC_VIDEOQUEUE
@@ -4278,6 +4280,95 @@ static int misc_early_proc(void)
 	return ret;
 }
 
+static void dump_current_display_regs_info(void)
+{
+	int i, layer = 0, afbc, dw;
+	struct vpp_frame_par_s *cur_frame_par;
+	struct hw_vd_linear_reg_s *mif_linear_reg;
+	struct hw_vd_reg_s *mif_reg = NULL;
+	struct hw_afbc_reg_s *afbc_reg = NULL;
+	u32 vd_if_baddr_y, vd_if_baddr_cb, vd_if_baddr_cr;
+	u32 canvas_id;
+	struct canvas_s cs0, cs1, cs2;
+	u64 baddr_y = 0, baddr_cb = 0, baddr_cr = 0;
+	u64 head_addr = 0, body_addr = 0;
+	struct vframe_s *dispbuf = NULL;
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+	struct afbcd_info di_vfm;
+
+	memset(&di_vfm, 0, sizeof(struct afbcd_info));
+#endif
+
+	memset(&cs0, 0, sizeof(struct canvas_s));
+	memset(&cs1, 0, sizeof(struct canvas_s));
+	memset(&cs2, 0, sizeof(struct canvas_s));
+	for (i = 0; i < cur_dev->max_vd_layers; i++) {
+		dispbuf = get_dispbuf(i);
+		if (!dispbuf)
+			continue;
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+		if (IS_DI_PRELINK(dispbuf->di_flag)) {
+			if (di_vfm_info(&di_vfm))
+				pr_info("VID(%s): VD%d prelink afbc:0x%llx-0x%llx hsize:%d vsize:%d\n",
+					__func__, i + 1, (u64)di_vfm.head_addr,
+					(u64)di_vfm.body_addr,
+					di_vfm.hsize_out, di_vfm.vsize_out);
+			continue;
+		}
+#endif
+		if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+			if (i != 0)
+				layer = i + SLICE_NUM - 1;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			mif_reg = (struct hw_vd_reg_s *)&vd_proc_reg.vd_mif_reg[layer];
+			mif_linear_reg = (struct hw_vd_linear_reg_s *)
+				&vd_proc_reg.vd_mif_linear_reg[layer];
+			afbc_reg = (struct hw_afbc_reg_s *)&vd_proc_reg.vd_afbc_reg[layer];
+#endif
+		} else {
+			mif_reg = &vd_layer[i].vd_mif_reg;
+			mif_linear_reg = &vd_layer[i].vd_mif_linear_reg;
+			afbc_reg = &vd_layer[i].vd_afbc_reg;
+			if (i == 0 && vd_layer[i].vd1_vd2_mux) {
+				/* vd2 replaced vd1 mif reg */
+				mif_reg = &vd_layer[1].vd_mif_reg;
+			}
+		}
+
+		cur_frame_par = vd_layer[i].cur_frame_par;
+		if (!mif_reg || !afbc_reg || !cur_frame_par)
+			return;
+		afbc = dispbuf->type & VIDTYPE_COMPRESS ? 1 : 0;
+		dw = afbc && cur_frame_par->nocomp;
+
+		canvas_id = READ_VCBUS_REG(mif_reg->vd_if0_canvas0);
+		if (afbc && !dw) {
+			head_addr = (u64)READ_VCBUS_REG(afbc_reg->afbc_head_baddr) << 4;
+			body_addr = (u64)READ_VCBUS_REG(afbc_reg->afbc_body_baddr) << 4;
+		} else {
+			if (cur_dev->mif_linear) {
+				vd_if_baddr_y = mif_linear_reg->vd_if0_baddr_y;
+				vd_if_baddr_cb = mif_linear_reg->vd_if0_baddr_cb;
+				vd_if_baddr_cr = mif_linear_reg->vd_if0_baddr_cr;
+				baddr_y = (u64)READ_VCBUS_REG(vd_if_baddr_y) << 4;
+				baddr_cb = (u64)READ_VCBUS_REG(vd_if_baddr_cb) << 4;
+				baddr_cr = (u64)READ_VCBUS_REG(vd_if_baddr_cr) << 4;
+			} else {
+				canvas_read(canvas_id & 0xff, &cs0);
+				canvas_read((canvas_id >> 8) & 0xff, &cs1);
+				canvas_read((canvas_id >> 16) & 0xff, &cs2);
+				baddr_y = (u64)cs0.addr;
+				baddr_cb = (u64)cs1.addr;
+				baddr_cr = (u64)cs2.addr;
+			}
+		}
+		pr_info("VID(%s): VD%d afbc:%d dw:%d, canvas:%x canvas adr:0x%llx-0x%llx-0x%llx, afbc:0x%llx-0x%llx\n",
+			__func__, i + 1, afbc, dw, canvas_id,
+			baddr_y, baddr_cb, baddr_cr,
+			head_addr, body_addr);
+	}
+}
+
 static void misc_late_proc(void)
 {
 	struct cur_line_info_t *cur_line_info = NULL;
@@ -4928,6 +5019,8 @@ void pre_vsync_process(void)
 		cur_vd1_path_id = VFM_PATH_INVALID;
 		vd_path_id[0] = VFM_PATH_INVALID;
 	}
+	if (debug_common_flag & DEBUG_FLAG_COMMON_PER_PREVSYNC)
+		dump_current_display_regs_info();
 
 	if (cur_vd1_path_id != vd_path_id[0])
 		path_switch = true;
@@ -4962,95 +5055,6 @@ pre_exit_1:
 	vpp_trace_encline("AFTER-PRE-VSYNC-RDMA", cur_line_info->enc_line_start, enc_line);
 }
 #endif
-
-static void dump_current_display_regs_info(void)
-{
-	int i, layer = 0, afbc, dw;
-	struct vpp_frame_par_s *cur_frame_par;
-	struct hw_vd_linear_reg_s *mif_linear_reg;
-	struct hw_vd_reg_s *mif_reg = NULL;
-	struct hw_afbc_reg_s *afbc_reg = NULL;
-	u32 vd_if_baddr_y, vd_if_baddr_cb, vd_if_baddr_cr;
-	u32 canvas_id;
-	struct canvas_s cs0, cs1, cs2;
-	u64 baddr_y = 0, baddr_cb = 0, baddr_cr = 0;
-	u64 head_addr = 0, body_addr = 0;
-	struct vframe_s *dispbuf = NULL;
-#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
-	struct afbcd_info di_vfm;
-
-	memset(&di_vfm, 0, sizeof(struct afbcd_info));
-#endif
-
-	memset(&cs0, 0, sizeof(struct canvas_s));
-	memset(&cs1, 0, sizeof(struct canvas_s));
-	memset(&cs2, 0, sizeof(struct canvas_s));
-	for (i = 0; i < cur_dev->max_vd_layers; i++) {
-		dispbuf = get_dispbuf(i);
-		if (!dispbuf)
-			continue;
-#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
-		if (IS_DI_PRELINK(dispbuf->di_flag)) {
-			if (di_vfm_info(&di_vfm))
-				pr_info("VID(%s): VD%d prelink afbc:0x%llx-0x%llx hsize:%d vsize:%d\n",
-					__func__, i + 1, (u64)di_vfm.head_addr,
-					(u64)di_vfm.body_addr,
-					di_vfm.hsize_out, di_vfm.vsize_out);
-			continue;
-		}
-#endif
-		if (cur_dev->display_module == S5_DISPLAY_MODULE) {
-			if (i != 0)
-				layer = i + SLICE_NUM - 1;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-			mif_reg = (struct hw_vd_reg_s *)&vd_proc_reg.vd_mif_reg[layer];
-			mif_linear_reg = (struct hw_vd_linear_reg_s *)
-				&vd_proc_reg.vd_mif_linear_reg[layer];
-			afbc_reg = (struct hw_afbc_reg_s *)&vd_proc_reg.vd_afbc_reg[layer];
-#endif
-		} else {
-			mif_reg = &vd_layer[i].vd_mif_reg;
-			mif_linear_reg = &vd_layer[i].vd_mif_linear_reg;
-			afbc_reg = &vd_layer[i].vd_afbc_reg;
-			if (i == 0 && vd_layer[i].vd1_vd2_mux) {
-				/* vd2 replaced vd1 mif reg */
-				mif_reg = &vd_layer[1].vd_mif_reg;
-			}
-		}
-
-		cur_frame_par = vd_layer[i].cur_frame_par;
-		if (!mif_reg || !afbc_reg || !cur_frame_par)
-			return;
-		afbc = dispbuf->type & VIDTYPE_COMPRESS ? 1 : 0;
-		dw = afbc && cur_frame_par->nocomp;
-
-		canvas_id = READ_VCBUS_REG(mif_reg->vd_if0_canvas0);
-		if (afbc && !dw) {
-			head_addr = (u64)READ_VCBUS_REG(afbc_reg->afbc_head_baddr) << 4;
-			body_addr = (u64)READ_VCBUS_REG(afbc_reg->afbc_body_baddr) << 4;
-		} else {
-			if (cur_dev->mif_linear) {
-				vd_if_baddr_y = mif_linear_reg->vd_if0_baddr_y;
-				vd_if_baddr_cb = mif_linear_reg->vd_if0_baddr_cb;
-				vd_if_baddr_cr = mif_linear_reg->vd_if0_baddr_cr;
-				baddr_y = (u64)READ_VCBUS_REG(vd_if_baddr_y) << 4;
-				baddr_cb = (u64)READ_VCBUS_REG(vd_if_baddr_cb) << 4;
-				baddr_cr = (u64)READ_VCBUS_REG(vd_if_baddr_cr) << 4;
-			} else {
-				canvas_read(canvas_id & 0xff, &cs0);
-				canvas_read((canvas_id >> 8) & 0xff, &cs1);
-				canvas_read((canvas_id >> 16) & 0xff, &cs2);
-				baddr_y = (u64)cs0.addr;
-				baddr_cb = (u64)cs1.addr;
-				baddr_cr = (u64)cs2.addr;
-			}
-		}
-		pr_info("VID(%s): VD%d afbc:%d dw:%d, canvas:%x canvas adr:0x%llx-0x%llx-0x%llx, afbc:0x%llx-0x%llx\n",
-			__func__, i + 1, afbc, dw, canvas_id,
-			baddr_y, baddr_cb, baddr_cr,
-			head_addr, body_addr);
-	}
-}
 
 void post_vsync_process(void)
 {

@@ -27,6 +27,8 @@ extern int debug_common_flag;
 #define DEBUG_FLAG_COMMON_FG_MORE  BIT(3)
 #define DEBUG_FLAG_COMMON_AMDV     BIT(4)
 #define DEBUG_FLAG_COMMON_SAFA     BIT(5)
+#define DEBUG_FLAG_COMMON_PER_PREVSYNC     BIT(6)
+
 
 
 u32 is_crop_left_odd(struct vpp_frame_par_s *frame_par);
@@ -45,6 +47,7 @@ bool is_layer_aisr_supported(struct video_layer_s *layer);
 ssize_t reg_dump_store(struct class *cla,
 				 struct class_attribute *attr,
 				const char *buf, size_t count);
+u32 frc_get_n2m_ratio(void);
 bool frc_n2m_worked(void);
 bool frc_n2m_1st_frame_worked(struct video_layer_s *layer);
 bool frc_n2m_is_stable(struct video_layer_s *layer);

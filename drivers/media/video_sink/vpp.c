@@ -1127,7 +1127,7 @@ static int vpp_process_speed_check
 	u32 vpu_clk = 0, max_height = 2160;
 	u32 slice_num, max_proc_height_temp = max_proc_height;
 	u32 pi_enable, clk_calc = 0, overlap_size = 0;
-	u32 frc_enable = 0;
+	u32 frc_enable = 0, frc_ratio = 10;
 
 	if (!vf)
 		return SPEED_CHECK_DONE;
@@ -1146,16 +1146,18 @@ static int vpp_process_speed_check
 	pi_enable = get_pi_enabled(layer_id);
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	frc_enable = frc_n2m_worked();
+	frc_ratio  = frc_get_n2m_ratio();
 #endif
 	/* brr_duration only for QMS case */
 	if (vinfo->brr_duration) {
 		sync_duration_num = vinfo->brr_duration * sync_duration_den;
 		if (frc_enable && layer_id == 0)
-			sync_duration_num /= 2;
+			sync_duration_num =
+				sync_duration_num * 10 / frc_ratio;
 	} else {
 		if ((frc_enable || (slice_num == 2 &&
 			video_is_meson_t3x_cpu())) && layer_id == 0)
-			sync_duration_num = vinfo->sync_duration_num / 2;
+			sync_duration_num = vinfo->sync_duration_num * 10 / frc_ratio;
 		else
 			sync_duration_num = vinfo->sync_duration_num;
 		sync_duration_den = vinfo->sync_duration_den;

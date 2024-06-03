@@ -1329,11 +1329,32 @@ bool frc_n2m_worked(void)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 		/* frc_get_n2m_setting 1 : n2m is 1:1; 2 :n2m is 1:2 */
+		/* 3: n2m is 1:2.5*/
 		/* frc_is_on() 1: means frc really worked */
-		if ((frc_get_n2m_setting() == 2) && frc_is_on())
+		if ((frc_get_n2m_setting() >= 2) && frc_is_on())
 			ret = true;
 #endif
 	return ret;
+}
+
+u32 frc_get_n2m_ratio(void)
+{
+	u32 ratio = 10;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+	int ret = 0;
+
+	ret = frc_get_n2m_setting();
+	switch (ret) {
+	case 2:
+		ratio = 20;
+		break;
+	case 3:
+		ratio = 25;
+		break;
+	}
+#endif
+	return ratio;
 }
 
 bool frc_n2m_1st_frame_worked(struct video_layer_s *layer)
