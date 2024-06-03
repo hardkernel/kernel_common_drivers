@@ -245,6 +245,17 @@ enum aml_screen_mode_e {
 	AML_SCREEN_MODE_MAX
 };
 
+enum amlvideo2_source_type {
+	DECODER_8BIT_NORMAL = 0,
+	DECODER_8BIT_BOTTOM,
+	DECODER_8BIT_TOP,
+	DECODER_10BIT_NORMAL,
+	DECODER_10BIT_BOTTOM,
+	DECODER_10BIT_TOP,
+	VDIN_8BIT_NORMAL,
+	VDIN_10BIT_NORMAL,
+};
+
 struct amlvideo2_fmt {
 	char *name;
 	u32 fourcc; /* v4l2 format id */
@@ -548,6 +559,7 @@ struct vinfo_s *amlvideo2_get_vinfo(struct amlvideo2_node *node)
 
 #endif
 	} else {
+		vinfo = get_current_vinfo();
 		pr_err("amlvideo2: unsupport vdin_port %d\n", node->vdin_port_ext);
 	}
 
@@ -703,40 +715,160 @@ int convert_canvas_index(struct amlvideo2_output *output,
 
 /* #endif */
 
+static int get_source_type(struct vframe_s *vf)
+{
+	enum amlvideo2_source_type ret;
+	int interlace_mode;
+
+	interlace_mode = vf->type & VIDTYPE_TYPEMASK;
+	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+	    vf->source_type == VFRAME_SOURCE_TYPE_CVBS) {
+		if ((vf->bitdepth & BITDEPTH_Y10)  &&
+		    (!(vf->type & VIDTYPE_COMPRESS)) &&
+		    (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL))
+			ret = VDIN_10BIT_NORMAL;
+		else
+			ret = VDIN_8BIT_NORMAL;
+	} else {
+		if ((vf->bitdepth & BITDEPTH_Y10)  &&
+		    (!(vf->type & VIDTYPE_COMPRESS)) &&
+		    (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL)) {
+			if (interlace_mode == VIDTYPE_INTERLACE_TOP)
+				ret = DECODER_10BIT_TOP;
+			else if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM)
+				ret = DECODER_10BIT_BOTTOM;
+			else
+				ret = DECODER_10BIT_NORMAL;
+		} else {
+			if (interlace_mode == VIDTYPE_INTERLACE_TOP)
+				ret = DECODER_8BIT_TOP;
+			else if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM)
+				ret = DECODER_8BIT_BOTTOM;
+			else
+				ret = DECODER_8BIT_NORMAL;
+		}
+	}
+	return ret;
+}
+
 static int get_input_format(struct vframe_s *vf)
 {
-	int format = GE2D_FORMAT_M24_NV21;
+	int format = GE2D_FORMAT_M24_YUV420;
+	enum amlvideo2_source_type soure_type;
 
-	if (vf->type & VIDTYPE_VIU_422) {
-		if (vf->type & VIDTYPE_INTERLACE_BOTTOM) {
+	soure_type = get_source_type(vf);
+	switch (soure_type) {
+	case DECODER_8BIT_NORMAL:
+		if (vf->type & VIDTYPE_VIU_422)
+			format = GE2D_FORMAT_S16_YUV422;
+		else if (vf->type & VIDTYPE_VIU_NV21)
+			format = GE2D_FORMAT_M24_NV21;
+		else if (vf->type & VIDTYPE_VIU_NV12)
+			format = GE2D_FORMAT_M24_NV12;
+		else if (vf->type & VIDTYPE_VIU_444)
+			format = GE2D_FORMAT_S24_YUV444;
+		else
+			format = GE2D_FORMAT_M24_YUV420;
+		break;
+	case DECODER_8BIT_BOTTOM:
+		if (vf->type & VIDTYPE_VIU_422)
 			format = GE2D_FORMAT_S16_YUV422
 				| (GE2D_FORMAT_S16_YUV422B & (3 << 3));
-		} else if (vf->type & VIDTYPE_INTERLACE_TOP) {
-			format = GE2D_FORMAT_S16_YUV422
-				| (GE2D_FORMAT_S16_YUV422T & (3 << 3));
-		} else {
-			format = GE2D_FORMAT_S16_YUV422;
-		}
-	} else if (vf->type & VIDTYPE_VIU_NV21) {
-		if (vf->type & VIDTYPE_INTERLACE_BOTTOM) {
+		else if (vf->type & VIDTYPE_VIU_NV21)
 			format = GE2D_FORMAT_M24_NV21
 				| (GE2D_FORMAT_M24_NV21B & (3 << 3));
-		} else if (vf->type & VIDTYPE_INTERLACE_TOP) {
-			format = GE2D_FORMAT_M24_NV21
-				| (GE2D_FORMAT_M24_NV21T & (3 << 3));
-		} else {
-			format = GE2D_FORMAT_M24_NV21;
-		}
-	} else {
-		if (vf->type & VIDTYPE_INTERLACE_BOTTOM) {
+		else if (vf->type & VIDTYPE_VIU_NV12)
+			format = GE2D_FORMAT_M24_NV12
+				| (GE2D_FORMAT_M24_NV12B & (3 << 3));
+		else if (vf->type & VIDTYPE_VIU_444)
+			format = GE2D_FORMAT_S24_YUV444
+				| (GE2D_FORMAT_S24_YUV444B & (3 << 3));
+		else
 			format = GE2D_FORMAT_M24_YUV420
 				| (GE2D_FMT_M24_YUV420B & (3 << 3));
-		} else if (vf->type & VIDTYPE_INTERLACE_TOP) {
+		break;
+	case DECODER_8BIT_TOP:
+		if (vf->type & VIDTYPE_VIU_422)
+			format = GE2D_FORMAT_S16_YUV422
+				| (GE2D_FORMAT_S16_YUV422T & (3 << 3));
+		else if (vf->type & VIDTYPE_VIU_NV21)
+			format = GE2D_FORMAT_M24_NV21
+				| (GE2D_FORMAT_M24_NV21T & (3 << 3));
+		else if (vf->type & VIDTYPE_VIU_NV12)
+			format = GE2D_FORMAT_M24_NV12
+				| (GE2D_FORMAT_M24_NV12T & (3 << 3));
+		else if (vf->type & VIDTYPE_VIU_444)
+			format = GE2D_FORMAT_S24_YUV444
+				| (GE2D_FORMAT_S24_YUV444T & (3 << 3));
+		else
 			format = GE2D_FORMAT_M24_YUV420
-				| (GE2D_FORMAT_M24_YUV420T & (3 << 3));
+				| (GE2D_FMT_M24_YUV420T & (3 << 3));
+		break;
+	case DECODER_10BIT_NORMAL:
+		if (vf->type & VIDTYPE_VIU_422) {
+			if (vf->bitdepth & FULL_PACK_422_MODE)
+				format = GE2D_FORMAT_S16_10BIT_YUV422;
+			else
+				format = GE2D_FORMAT_S16_12BIT_YUV422;
+		}
+		break;
+	case DECODER_10BIT_BOTTOM:
+		if (vf->type & VIDTYPE_VIU_422) {
+			if (vf->bitdepth & FULL_PACK_422_MODE)
+				format = GE2D_FORMAT_S16_10BIT_YUV422
+					| (GE2D_FORMAT_S16_10BIT_YUV422B
+					& (3 << 3));
+			else
+				format = GE2D_FORMAT_S16_12BIT_YUV422
+					| (GE2D_FORMAT_S16_12BIT_YUV422B
+					& (3 << 3));
+		}
+		break;
+	case DECODER_10BIT_TOP:
+		if (vf->type & VIDTYPE_VIU_422) {
+			if (vf->bitdepth & FULL_PACK_422_MODE)
+				format = GE2D_FORMAT_S16_10BIT_YUV422
+					| (GE2D_FORMAT_S16_10BIT_YUV422T
+					& (3 << 3));
+			else
+				format = GE2D_FORMAT_S16_12BIT_YUV422
+					| (GE2D_FORMAT_S16_12BIT_YUV422T
+					& (3 << 3));
+		}
+		break;
+	case VDIN_8BIT_NORMAL:
+		if (vf->type & VIDTYPE_VIU_422) {
+			format = GE2D_FORMAT_S16_YUV422;
+		} else if (vf->type & VIDTYPE_VIU_NV21) {
+			format = GE2D_FORMAT_M24_NV21;
+		} else if (vf->type & VIDTYPE_VIU_NV12) {
+			format = GE2D_FORMAT_M24_NV12;
+		} else if (vf->type & VIDTYPE_VIU_444) {
+			format = GE2D_FORMAT_S24_YUV444;
+		} else if (vf->type & VIDTYPE_RGB_444) {
+			format = GE2D_FORMAT_S24_RGB;
+			if (!(vf->flag & VFRAME_FLAG_VIDEO_LINEAR))
+				format &= (~GE2D_LITTLE_ENDIAN);
 		} else {
 			format = GE2D_FORMAT_M24_YUV420;
 		}
+		break;
+	case VDIN_10BIT_NORMAL:
+		if (vf->type & VIDTYPE_VIU_422) {
+			if (vf->bitdepth & FULL_PACK_422_MODE)
+				format = GE2D_FORMAT_S16_10BIT_YUV422;
+			else
+				format = GE2D_FORMAT_S16_12BIT_YUV422;
+		} else if (vf->type & VIDTYPE_VIU_444) {
+			format = GE2D_FORMAT_S24_10BIT_YUV444;
+		} else if (vf->type & VIDTYPE_RGB_444) {
+			format = GE2D_FORMAT_S24_10BIT_RGB888;
+			if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+				format |= GE2D_LITTLE_ENDIAN;
+		}
+		break;
+	default:
+		format = GE2D_FORMAT_M24_YUV420;
 	}
 	return format;
 }
@@ -3690,6 +3822,14 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
 		pr_err("++ge2d configing error.\n");
 		return -1;
+	}
+
+	//amlvideo2.0 screencap, don't know src data width and height
+	if (node->vid == 0) {
+		src_top = src_top * vf->height / output->height;
+		src_left = src_left * vf->width / output->width;
+		src_width = src_width * vf->width / output->width;
+		src_height = src_height * vf->height / output->height;
 	}
 	if (amlvideo2_dbg_en & 4) {
 		if (vf->canvas0Addr != (u32)-1) {
