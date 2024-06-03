@@ -736,6 +736,7 @@ enum cpu_id_e {
 	_CPU_MAJOR_ID_S5,
 	_CPU_MAJOR_ID_T3X,
 	_CPU_MAJOR_ID_S7D,
+	_CPU_MAJOR_ID_S6,
 	_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -1179,6 +1180,7 @@ bool is_aml_s5(void);
 bool is_aml_t3x(void);
 bool is_aml_hw5(void);
 bool is_aml_s7d(void);
+bool is_aml_s6(void);
 
 u32 VSYNC_RD_DV_REG(u32 adr);
 int VSYNC_WR_DV_REG(u32 adr, u32 val);
