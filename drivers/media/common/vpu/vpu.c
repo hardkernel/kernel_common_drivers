@@ -2748,6 +2748,7 @@ static struct vpu_data_s vpu_data_s7d = {
 	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
+	.vpu_read_type = ONLY_READ0,
 
 	.pwrctrl_id_table = vpu_pwrctrl_id_table,
 
@@ -2947,6 +2948,11 @@ static int vpu_probe(struct platform_device *pdev)
 	mutex_lock(&vpu_clk_mutex);
 	set_vpu_clk(vpu_conf.clk_level);
 	mutex_unlock(&vpu_clk_mutex);
+	if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_S7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_S7D ||
+		vpu_conf.data->chip_type == VPU_CHIP_TXHD2)
+		ret = init_arb_urgent_table();
 	if (ret)
 		vpu_power_init();
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
