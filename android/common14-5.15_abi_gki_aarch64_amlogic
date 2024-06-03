@@ -50,3 +50,7 @@
   irq_chip_enable_parent
   irq_domain_free_irqs_common
   irq_domain_xlate_onecell
+
+# amlogic-amfc.ko
+  crypto_register_alg
+  crypto_unregister_alg
