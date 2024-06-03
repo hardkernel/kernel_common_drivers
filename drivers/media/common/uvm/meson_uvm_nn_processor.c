@@ -21,6 +21,10 @@
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
 
+#ifdef CONFIG_AMLOGIC_DI_PROCESS
+#include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
+#endif
+
 #include "meson_uvm_nn_processor.h"
 
 static int uvm_nn_debug;
@@ -232,6 +236,7 @@ int attach_nn_hook_mod_info(int shared_fd,
 	struct vframe_s *vf = NULL;
 	int output_fps, output_pts_inc_scale = 0, output_pts_inc_scale_base = 0;
 	memset(&nn_sr_t, 0, sizeof(struct vf_nn_sr_t));
+	int di_backend_en = 0;
 
 	if (!uvm_open_nn) {
 		ai_sr_info->hf_phy_addr = 0;
@@ -239,10 +244,16 @@ int attach_nn_hook_mod_info(int shared_fd,
 		ai_sr_info->hf_height = 0;
 		ai_sr_info->need_do_aisr = 0;
 	} else {
-		ret = nn_get_hf_info(shared_fd, &nn_sr_t, &src_interlace_flag);
-		ai_sr_info->hf_phy_addr = nn_sr_t.hf_phy_addr;
-		ai_sr_info->hf_width = nn_sr_t.hf_width;
-		ai_sr_info->hf_height = nn_sr_t.hf_height;
+#ifdef CONFIG_AMLOGIC_DI_PROCESS
+		di_backend_en = get_di_proc_enable();
+#endif
+		if (!di_backend_en) {
+			nn_print(PRINT_OTHER, "di backend not enable.\n");
+			ret = nn_get_hf_info(shared_fd, &nn_sr_t, &src_interlace_flag);
+			ai_sr_info->hf_phy_addr = nn_sr_t.hf_phy_addr;
+			ai_sr_info->hf_width = nn_sr_t.hf_width;
+			ai_sr_info->hf_height = nn_sr_t.hf_height;
+		}
 		ai_sr_info->need_do_aisr = 1;
 
 		get_output_pcrscr_info(&output_pts_inc_scale, &output_pts_inc_scale_base);
