@@ -1494,6 +1494,11 @@ void init_read1_write1_urgent(void)
 
 void init_di_arb_urgent(void)
 {
+	if (vpu_conf.data->chip_type != VPU_CHIP_T7 &&
+		vpu_conf.data->chip_type != VPU_CHIP_S7 &&
+		vpu_conf.data->chip_type != VPU_CHIP_S7D &&
+		vpu_conf.data->chip_type != VPU_CHIP_TXHD2)
+		return;
 	init_read1_bind();
 	init_write1_bind();
 	init_read1_write1_urgent();

@@ -4137,8 +4137,7 @@ static int dim_probe(struct platform_device *pdev)
 	dim_debugfs_init();	/*2018-07-18 add debugfs*/
 
 	dimh_patch_post_update_mc_sw(DI_MC_SW_IC, true);
-	if (DIM_IS_IC(T7))
-		init_di_arb_urgent();
+	init_di_arb_urgent();
 #ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
 	register_media_cooling();
 #endif
