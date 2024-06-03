@@ -1549,7 +1549,7 @@
 		reg = <0x5b>;
 		status = "okay";
 		reset-gpio = <&gpio GPIOA_4 GPIO_ACTIVE_HIGH>;
-		platform = <4>;
+		platform = <10>;
 
 		led1 {
 			default_colors = <0 0 0>;
