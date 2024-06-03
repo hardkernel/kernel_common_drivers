@@ -29,6 +29,7 @@
 static char adc_key_mode_name[MAX_NAME_LEN] = "abcdef";
 static char kernelkey_en_name[MAX_NAME_LEN] = "abcdef";
 static bool keypad_enable_flag = true;
+/* Only the old version of bl30 (arm core) needs to configure mbox! */
 struct mbox_chan *adc_mbox_chan;
 
 static int meson_adc_kp_search_key(struct meson_adc_kp *kp)
@@ -121,8 +122,12 @@ static void send_data_to_bl301(struct mbox_chan *adc_mbox_chan)
 	} else if (!strcmp(adc_key_mode_name, "POWER_WAKEUP_NONE")) {
 		val = 2; /*no key can resume*/
 	}
-	aml_mbox_transfer_data(adc_mbox_chan, MBOX_CMD_SET_USR_DATA,
-			       &val, sizeof(val), &buf, sizeof(buf), MBOX_SYNC);
+
+	if (!IS_ERR_OR_NULL(adc_mbox_chan)) {
+		aml_mbox_transfer_data(adc_mbox_chan, MBOX_CMD_SET_USR_DATA,
+				       &val, sizeof(val), &buf, sizeof(buf),
+				       MBOX_SYNC);
+	}
 }
 
 static void kernel_keypad_enable_mode_enable(void)
@@ -539,7 +544,8 @@ static int meson_adc_kp_probe(struct platform_device *pdev)
 	struct meson_adc_kp *kp;
 	int ret = 0;
 
-	adc_mbox_chan = aml_mbox_request_channel_byidx(&pdev->dev, 0);
+	if (of_property_read_bool(pdev->dev.of_node, "mboxes"))
+		adc_mbox_chan = aml_mbox_request_channel_byidx(&pdev->dev, 0);
 	send_data_to_bl301(adc_mbox_chan);
 	kernel_keypad_enable_mode_enable();
 
@@ -662,10 +668,15 @@ static int __maybe_unused meson_adc_kp_resume(struct device *dev)
 				meson_adc_kp_report_key(kp, KEY_POWER, 1);
 				meson_adc_kp_report_key(kp, KEY_POWER, 0);
 
-				aml_mbox_transfer_data(adc_mbox_chan, MBOX_CMD_WAKEUP_REASON_CLR,
-						       NULL, 0, &val, sizeof(val), MBOX_SYNC);
-				if (val)
-					pr_debug("clr adc wakeup reason fail.\n");
+				if (!IS_ERR_OR_NULL(adc_mbox_chan)) {
+					aml_mbox_transfer_data(adc_mbox_chan,
+							       MBOX_CMD_WAKEUP_REASON_CLR,
+							       NULL, 0, &val,
+							       sizeof(val),
+							       MBOX_SYNC);
+					if (val)
+						pr_debug("clr adc wakeup reason fail.\n");
+				}
 			}
 		}
 	}
