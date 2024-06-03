@@ -1007,8 +1007,6 @@ static void receive_q_uninit(struct di_process_dev *dev)
 
 static int di_process_init(struct di_process_dev *dev)
 {
-	struct sched_param param = {.sched_priority = 2};
-
 	dev->di_index = -1;
 
 	dev->di_parm.work_mode = WORK_MODE_PRE_POST;
@@ -1042,8 +1040,6 @@ static int di_process_init(struct di_process_dev *dev)
 	dev->fence_creat_count = 0;
 	dev->fence_release_count = 0;
 
-	dev->kthread = NULL;
-	dev->thread_need_stop = false;
 	dev->last_dec_type = DEC_TYPE_MAX;
 	dev->last_instance_id = 0xFFFFFFFF;
 	dev->last_buf_mgr_reset_id = 0xFFFFFFFF;
@@ -1055,22 +1051,7 @@ static int di_process_init(struct di_process_dev *dev)
 
 	receive_q_init(dev);
 	di_input_free_q_init(dev);
-
 	file_q_init(dev);
-
-	init_waitqueue_head(&dev->wq);
-
-	dev->kthread = kthread_create(di_process_thread,
-				      dev, dev->port->name);
-	if (IS_ERR(dev->kthread)) {
-		pr_err("di_process_thread creat failed\n");
-		return -ENOMEM;
-	}
-
-	if (sched_setscheduler(dev->kthread, SCHED_FIFO, &param))
-		dp_print(dev->index, PRINT_ERROR, "Could not set realtime priority.\n");
-
-	wake_up_process(dev->kthread);
 
 	return 0;
 }
@@ -1083,25 +1064,6 @@ static int di_process_uninit(struct di_process_dev *dev)
 	struct di_buffer *buf;
 
 	dev->inited = false;
-
-	if (dev->kthread) {
-		dev->thread_need_stop = true;
-		kthread_stop(dev->kthread);
-		wake_up_interruptible(&dev->wq);
-		dev->kthread = NULL;
-		dev->thread_need_stop = false;
-	}
-
-	while (1) {
-		i++;
-		if (dev->thread_stopped)
-			break;
-		usleep_range(9000, 10000);
-		if (i > WAIT_THREAD_STOPPED_TIMEOUT) {
-			pr_err("wait thread timeout\n");
-			break;
-		}
-	}
 
 	if (dev->di_index >= 0) {
 		ret = di_destroy_instance(dev->di_index);
@@ -1613,6 +1575,7 @@ static int di_process_open(struct inode *inode, struct file *file)
 	struct di_process_dev *dev;
 	struct di_process_port_s *port;
 	int index;
+	struct sched_param param = {.sched_priority = 2};
 
 	index = iminor(inode);
 	pr_info("%s iminor(inode) =%d\n", __func__, index);
@@ -1646,6 +1609,19 @@ static int di_process_open(struct inode *inode, struct file *file)
 
 	mutex_unlock(&di_process_mutex);
 
+	dev->thread_need_stop = false;
+	init_waitqueue_head(&dev->wq);
+	dev->kthread = kthread_create(di_process_thread, dev, dev->port->name);
+	if (IS_ERR(dev->kthread)) {
+		pr_err("di_process_thread creat failed\n");
+		return -ENOMEM;
+	}
+
+	if (sched_setscheduler(dev->kthread, SCHED_FIFO, &param))
+		dp_print(dev->index, PRINT_ERROR, "Could not set realtime priority.\n");
+
+	wake_up_process(dev->kthread);
+
 	return 0;
 }
 
@@ -1653,12 +1629,31 @@ static int di_process_release(struct inode *inode, struct file *file)
 {
 	struct di_process_dev *dev = file->private_data;
 	struct di_process_port_s *port = dev->port;
-	int ret = 0;
+	int ret = 0, i = 0;
 
 	pr_info("di process release\n");
 
 	if (iminor(inode) >= di_process_instance_num)
 		return -ENODEV;
+
+	if (dev->kthread) {
+		dev->thread_need_stop = true;
+		kthread_stop(dev->kthread);
+		wake_up_interruptible(&dev->wq);
+		dev->kthread = NULL;
+		dev->thread_need_stop = false;
+	}
+
+	while (1) {
+		i++;
+		if (dev->thread_stopped)
+			break;
+		usleep_range(9000, 10000);
+		if (i > WAIT_THREAD_STOPPED_TIMEOUT) {
+			pr_err("wait thread timeout\n");
+			break;
+		}
+	}
 
 	if (dev->inited) {
 		dp_print(dev->index, PRINT_ERROR,
