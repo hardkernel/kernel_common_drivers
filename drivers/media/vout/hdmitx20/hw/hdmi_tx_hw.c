@@ -2519,6 +2519,9 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 	case HDMI_PACKET_DRM:
 		pkt_data_len = 26;
 		if (!DB || !HB) {
+			for (i = 0; i < pkt_data_len + 2; i++)
+				hdmitx_wr_reg(HDMITX_DWC_FC_DRM_HB01 + i, 0);
+
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 0, 6, 1);
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN,
 					    0, 7, 1);
