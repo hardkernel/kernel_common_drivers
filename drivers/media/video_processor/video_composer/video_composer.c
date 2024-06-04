@@ -2842,9 +2842,9 @@ static void vframe_composer(struct composer_dev *dev)
 		return;
 	}
 	if (vframe_info_cur->transform == VC_TRANSFORM_FLIP_H_ROT_90)
-		dst_vf->flag |= VFRAME_FLAG_MIRROR_H;
-	if (vframe_info_cur->transform == VC_TRANSFORM_FLIP_V_ROT_90)
 		dst_vf->flag |= VFRAME_FLAG_MIRROR_V;
+	if (vframe_info_cur->transform == VC_TRANSFORM_FLIP_V_ROT_90)
+		dst_vf->flag |= VFRAME_FLAG_MIRROR_H;
 
 	if (debug_axis_pip) {
 		dst_vf->axis[0] = 0;
