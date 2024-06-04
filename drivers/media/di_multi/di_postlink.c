@@ -1085,12 +1085,6 @@ static int dpvpp_post_process_update(struct dimn_itf_s *itf, struct di_buf_s *di
 	di_pldn_buf = di_buf->di_buf_dup_p[pldn_dly];
 	cur_overturn = dim_get_overturn();
 
-	if (di_que_is_in_que(channel, QUE_POST_FREE, di_buf)) {
-		PR_ERR("%s:post_buf[%d] is in post free list.\n",
-		       __func__, di_buf->index);
-		return 0;
-	}
-
 	if (flush_all)
 		ppost->update_post_reg_flag = 1;
 

@@ -65,6 +65,9 @@
 #endif
 #include <linux/amlogic/media/video_sink/video.h>
 
+#ifdef CONFIG_AMLOGIC_DI_PROCESS
+#include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
+#endif
 #include "../common/vfm/vfm.h"
 
 #include "register.h"
@@ -9905,11 +9908,23 @@ int dim_process_post_vframe(unsigned int channel)
 		return 1;
 	}
 
+	#ifndef CONFIG_AMLOGIC_DI_PROCESS
 	if (di_que_is_empty(channel, QUE_POST_FREE) &&
 	    !dimp_get(edi_mp_bypass_post_state)) {
 		dbg_bypass("%s:bypass no post\n", __func__);
 		return 0;
 	}
+	#else
+	if (get_di_proc_enable()) {
+		dbg_bypass("%s:not keep\n", __func__);
+	} else {
+		if (di_que_is_empty(channel, QUE_POST_FREE) &&
+		    !dimp_get(edi_mp_bypass_post_state)) {
+			dbg_bypass("%s:bypass no post\n", __func__);
+			return 0;
+		}
+	}
+	#endif
 
 	if (ready_di_buf->post_proc_flag > 0) {
 		if (ready_count >= buffer_keep_count && flg_eos)  {
