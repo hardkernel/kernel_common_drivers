@@ -79,7 +79,6 @@ struct work_cma {
 	unsigned long pfn;
 	unsigned long count;
 	struct task_struct *host;
-	int ret;
 };
 
 struct cma_pcp {
@@ -87,6 +86,7 @@ struct cma_pcp {
 	struct completion end;
 	struct task_struct *task;
 	int cpu;
+	int ret;
 };
 
 static DEFINE_MUTEX(cma_mutex);
@@ -957,12 +957,11 @@ again:
 		end      = pfn + job->count;
 		ret      = aml_alloc_contig_migrate_range(&cc, pfn, end,
 							  1, job->host);
-		job->ret = ret;
+		c_work->ret = ret;
 		if (!ret) {
 			goto again;
 		} else if (ret == -EBUSY) {
 			spin_lock(&work_list_lock);
-			job->ret = 0;
 			list_add(&job->list, &work_list);
 			spin_unlock(&work_list_lock);
 			cma_debug(1, pfn_to_page(pfn), "contig migrate ebusy\n");
@@ -1143,7 +1142,6 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 		INIT_LIST_HEAD(&job[i].list);
 		job[i].pfn   = start_pfn + i * delta;
 		job[i].count = delta;
-		job[i].ret   = 0;
 		job[i].host  = current;
 		if (i == cnt - 1)
 			job[i].count = count - i * delta;
@@ -1169,8 +1167,8 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 	for_each_cpu(cpu, &has_work) {
 		work = &per_cpu(cma_pcp_thread, cpu);
 		wait_for_completion(&work->end);
-		if (job[cpu].ret) {
-			if (job[cpu].ret != -EBUSY)
+		if (work->ret) {
+			if (work->ret != -EBUSY)
 				einv++;
 			else
 				ebusy++;
