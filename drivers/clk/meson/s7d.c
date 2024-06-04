@@ -19,6 +19,8 @@
 #include "clk-dualdiv.h"
 #include <dt-bindings/clock/s7d-clkc.h>
 
+#include <linux/amlogic/cpu_version.h>
+
 /*
  * Clock controller register offsets
  * REG_BASE:  REGISTER_BASE_ADDR = 0xfe000000
@@ -503,7 +505,7 @@ static const struct clk_parent_data fclk_parent = {
 
 MESON_CLK_FIXED_FACTOR_FCLK(fclk_div2_div, 1, 2);
 MESON_CLK_GATE_RO(fclk_div2, ANACTRL_FIXPLL_CTRL1, 30, 0, &fclk_div2_div.hw, 0);
-MESON_CLK_FIXED_FACTOR_FCLK(fclk_div3_div, 1, 2);
+MESON_CLK_FIXED_FACTOR_FCLK(fclk_div3_div, 1, 3);
 MESON_CLK_GATE_RO(fclk_div3, ANACTRL_FIXPLL_CTRL1, 26, 0, &fclk_div3_div.hw, 0);
 MESON_CLK_FIXED_FACTOR_FCLK(fclk_div4_div, 1, 4);
 MESON_CLK_GATE_RO(fclk_div4, ANACTRL_FIXPLL_CTRL1, 27, 0, &fclk_div4_div.hw, 0);
@@ -2152,6 +2154,15 @@ static int meson_s7d_probe(struct platform_device *pdev)
 			continue;
 
 		//dev_err(dev, "register %d  %s\n", i, hw_onecell_data->hws[i]->init->name);
+
+		/*
+		 * HACK: S7D fclk_div3 design intent should have been div3
+		 * output 666M, in fact revA designed to div2 output 1G, the
+		 * issue has been fixed in revB.
+		 */
+		if (hw_onecell_data->hws[i] == &fclk_div3_div.hw &&
+		    is_meson_rev_a())
+			fclk_div3_div.div = 2;
 
 		ret = devm_clk_hw_register(dev, hw_onecell_data->hws[i]);
 		if (ret) {
