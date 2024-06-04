@@ -1245,8 +1245,7 @@ struct vframe_s *videocomposer_vf_peek(void *op_arg)
 			return NULL;
 
 		if (!vf->vc_private) {
-			vc_print(dev->index, PRINT_OTHER,
-				"peek: vf->vc_private is NULL\n");
+			vc_print(dev->index, PRINT_OTHER, "peek: vf->vc_private is NULL\n");
 			return vf;
 		}
 
@@ -3469,6 +3468,184 @@ static bool detect_composer_usage(struct composer_dev *dev,
 	return true;
 }
 
+static int config_crop_param(struct composer_dev *dev,
+	struct received_frames_t *received_frames, struct vframe_s *vf)
+{
+	u32 pic_w;
+	u32 pic_h;
+	bool is_dec_vf = false, is_v4l_vf = false;
+	struct frames_info_t *frames_info = NULL;
+	struct frame_info_t *frame_info = NULL;
+	struct file *file_vf = NULL;
+
+	if (!dev || !received_frames || !vf) {
+		pr_info("vc: %s: NULL param.\n", __func__);
+		return -1;
+	}
+
+	frames_info = &received_frames->frames_info;
+	frame_info = frames_info->frame_info;
+	file_vf = received_frames->file_vf[0];
+	if (!file_vf)
+		return -1;
+
+	vc_print(dev->index, PRINT_AXIS,
+		"frame_info crop: x y w h %d %d %d %d\n",
+		frame_info->crop_x,
+		frame_info->crop_y,
+		frame_info->crop_w,
+		frame_info->crop_h);
+
+	is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
+	is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+	if (is_dec_vf || is_v4l_vf) {
+		if ((vf->type_original & VIDTYPE_COMPRESS) != 0) {
+			if (is_src_crop_valid(vf->src_crop)) {
+				vc_print(dev->index, PRINT_AXIS, "src_crop:%d %d %d %d.\n",
+					vf->src_crop.left,
+					vf->src_crop.right,
+					vf->src_crop.top,
+					vf->src_crop.bottom);
+				pic_w = vf->compWidth -
+					vf->src_crop.left - vf->src_crop.right;
+				pic_h = vf->compHeight -
+					vf->src_crop.top - vf->src_crop.bottom;
+			} else {
+				pic_w = vf->compWidth;
+				pic_h = vf->compHeight;
+			}
+		} else {
+			pic_w = vf->width;
+			pic_h = vf->height;
+		}
+		vc_print(dev->index, PRINT_AXIS, "pic_w: %d, pic_h: %d.\n", pic_w, pic_h);
+		if (frame_info->source_type == SOURCE_DTV_FIX_TUNNEL) {
+			vf->flag |= VFRAME_FLAG_FIX_TUNNEL;
+			vf->crop[0] = frame_info->crop_y;
+			vf->crop[1] = frame_info->crop_x;
+			vf->crop[2] = frame_info->crop_y +
+				frame_info->crop_h;
+			vf->crop[3] = frame_info->crop_x +
+				frame_info->crop_w;
+			vc_print(dev->index, PRINT_AXIS,
+				"tunnel set vf crop:%d %d %d %d\n",
+				vf->crop[0],
+				vf->crop[1],
+				vf->crop[2],
+				vf->crop[3]);
+		} else if ((pic_w > MAX(frame_info->reserved[0], frame_info->buffer_w)) ||
+			(pic_h > MAX(frame_info->reserved[1], frame_info->buffer_h))) {
+			/*omx receive w*h is small than actual w*h;such as 8k*/
+			vf->crop[0] = 0;
+			vf->crop[1] = 0;
+			vf->crop[2] = 0;
+			vf->crop[3] = 0;
+			vc_print(dev->index, PRINT_AXIS,
+				"crop info is error!\n");
+		} else {
+			vf->crop[0] = frame_info->crop_y;
+			vf->crop[1] = frame_info->crop_x;
+			vf->crop[2] = pic_h
+				- frame_info->crop_h
+				- frame_info->crop_y;
+			vf->crop[3] = pic_w
+				- frame_info->crop_w
+				- frame_info->crop_x;
+			vc_print(dev->index, PRINT_AXIS,
+				"none-tunnel set vf crop:%d %d %d %d\n",
+				vf->crop[0],
+				vf->crop[1],
+				vf->crop[2],
+				vf->crop[3]);
+		}
+	} else {
+		if (frame_info->type == 1) {
+			vf->crop[0] = frame_info->crop_y;
+			vf->crop[1] = frame_info->crop_x;
+			vf->crop[2] = frame_info->buffer_h
+				- frame_info->crop_h
+				- frame_info->crop_y;
+			vf->crop[3] = frame_info->buffer_w
+				- frame_info->crop_w
+				- frame_info->crop_x;
+		} else {
+			vf->crop[0] = 0;
+			vf->crop[1] = 0;
+			vf->crop[2] = 0;
+			vf->crop[3] = 0;
+		}
+	}
+
+	return 0;
+}
+
+static int config_ai_param(struct composer_dev *dev,
+	struct received_frames_t *received_frames, struct vframe_s *vf)
+{
+	struct frames_info_t *frames_info = NULL;
+	struct frame_info_t *frame_info = NULL;
+	struct file *file_vf = NULL;
+	struct vf_nn_sr_t *srout_data = NULL;
+	u32 nn_status;
+	struct vf_aiface_t *aiface_info = NULL;
+	struct vf_aicolor_t *aicolor_info = NULL;
+
+	if (!dev || !received_frames || !vf || !vf->vc_private) {
+		pr_info("vc: %s: NULL param.\n", __func__);
+		return -1;
+	}
+
+	frames_info = &received_frames->frames_info;
+	frame_info = frames_info->frame_info;
+	file_vf = received_frames->file_vf[0];
+	if (!file_vf)
+		return -1;
+
+	if (vf->hf_info && !nn_bypass)
+		srout_data = vc_get_hfout_data(dev, file_vf);
+	if (srout_data) {
+		video_wait_sr_fence(dev, srout_data->fence);
+		nn_status = srout_data->nn_status;
+		if (vf->hf_info->phy_addr != 0 &&
+			vf->hf_info->width != 0 &&
+			vf->hf_info->height != 0 &&
+			(nn_status == NN_WAIT_DOING ||
+			nn_status == NN_START_DOING ||
+			nn_status == NN_DONE)) {
+			vf->vc_private->srout_data = srout_data;
+			vf->vc_private->flag |= VC_FLAG_AI_SR;
+		}
+	}
+
+	aiface_info = aiface_info_adjust(dev,
+					file_vf,
+					vf->omx_index,
+					frame_info->dst_x,
+					frame_info->dst_y,
+					frame_info->dst_w,
+					frame_info->dst_h);
+	if (aiface_info) {
+		vf->vc_private->aiface_info = aiface_info;
+		vf->vc_private->flag |= VC_FLAG_AI_FACE;
+		vc_print(dev->index, PRINT_AIFACE,
+			"omx_index = %d, aiface_value_count = %d.\n",
+			vf->omx_index, aiface_info->aiface_value_count);
+	}
+
+	aicolor_info = vc_get_aicolor_info(dev, file_vf);
+	if (aicolor_info) {
+		nn_status = aicolor_info->nn_status;
+		if (nn_status == NN_WAIT_DOING ||
+			nn_status == NN_START_DOING ||
+			nn_status == NN_DONE) {
+			vf->vc_private->aicolor_info = aicolor_info;
+			vf->vc_private->flag |= VC_FLAG_AI_COLOR;
+		}
+	}
+
+	return 0;
+}
+
 static void video_composer_task(struct composer_dev *dev)
 {
 	struct vframe_s *vf = NULL;
@@ -3484,22 +3661,16 @@ static void video_composer_task(struct composer_dev *dev)
 	unsigned long phy_addr;
 	u64 time_us64;
 	struct vframe_s *vf_ext = NULL;
-	u32 pic_w;
-	u32 pic_h;
 	bool is_dec_vf = false, is_v4l_vf = false, is_repeat_vf = false;
-	struct vf_nn_sr_t *srout_data = NULL;
-	struct video_composer_private *vc_private;
-	u32 nn_status;
 	u64 delay_time1;
 	u64 delay_time2;
 	u64 now_time;
 	struct vd_prepare_s *vd_prepare = NULL;
 	size_t usage = 0;
 	bool do_mosaic_22 = false;
-	struct vf_aiface_t *aiface_info = NULL;
-	struct vf_aicolor_t *aicolor_info = NULL;
 	bool enable_prelink = false;
 	unsigned int ds_ratio = 0;
+	int ret = 0;
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "task: peek failed\n");
@@ -3542,46 +3713,26 @@ static void video_composer_task(struct composer_dev *dev)
 			vc_print(dev->index, PRINT_ERROR, "file_vf is NULL\n");
 			return;
 		}
-		is_dec_vf =
-		is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
-		is_v4l_vf =
-		is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+
+		is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
+		is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
 		/*check repeat vframe*/
 		if (dev->last_file == file_vf && (is_dec_vf || is_v4l_vf))
 			is_repeat_vf = true;
 
-		if (frame_info->type == 0) {
-			if (is_dec_vf || is_v4l_vf)
-				vf = get_vf_from_file(dev, file_vf, false);
-			vc_print(dev->index, PRINT_OTHER,
-				 "%s type 0 is vf\n", __func__);
+		if (is_dec_vf || is_v4l_vf) {
+			vf = get_vf_from_file(dev, file_vf, false);
 			if (!vf) {
-				vc_print(dev->index, PRINT_ERROR,
-					 "%s get vf is NULL\n", __func__);
+				vc_print(dev->index, PRINT_ERROR, "%s get vf is NULL\n", __func__);
 				return;
 			}
 			video_wait_decode_fence(dev, vf);
-		} else if (frame_info->type == 1) {
-			if (is_dec_vf || is_v4l_vf) {
-				vf = get_vf_from_file(dev, file_vf, false);
-				vc_print(dev->index, PRINT_OTHER,
-					 "%s dma is vf\n", __func__);
-				if (!vf) {
-					vc_print(dev->index, PRINT_ERROR,
-						 "%s get vf is NULL\n",
-						 __func__);
-					return;
-				}
-				video_wait_decode_fence(dev, vf);
-			} else {
-				vc_print(dev->index, PRINT_OTHER,
-					 "%s dma buffer not vf\n", __func__);
-			}
+		} else {
+			vc_print(dev->index, PRINT_OTHER, "%s dma buffer not vf\n", __func__);
 		}
 
 		if (!kfifo_get(&dev->receive_q, &received_frames)) {
-			vc_print(dev->index, PRINT_ERROR,
-				 "task: get failed\n");
+			vc_print(dev->index, PRINT_ERROR, "task: get failed\n");
 			return;
 		}
 
@@ -3598,8 +3749,7 @@ static void video_composer_task(struct composer_dev *dev)
 
 			if (is_dec_vf || is_v4l_vf) {
 				if (!vf) {
-					vc_print(dev->index, PRINT_ERROR,
-						 "vf is NULL\n");
+					vc_print(dev->index, PRINT_ERROR, "vf is NULL\n");
 					return;
 				}
 				vd_prepare->src_frame = vf;
@@ -3619,89 +3769,10 @@ static void video_composer_task(struct composer_dev *dev)
 		vf->axis[3] = frame_info->dst_h + frame_info->dst_y - 1;
 		vf->composer_info = NULL;
 
-		vc_print(dev->index, PRINT_AXIS,
-			"frame_info crop: x y w h %d %d %d %d\n",
-			frame_info->crop_x,
-			frame_info->crop_y,
-			frame_info->crop_w,
-			frame_info->crop_h);
-		if (is_dec_vf || is_v4l_vf) {
-			if ((vf->type_original & VIDTYPE_COMPRESS) != 0) {
-				if (is_src_crop_valid(vf->src_crop)) {
-					vc_print(dev->index, PRINT_AXIS, "src_crop:%d %d %d %d.\n",
-						vf->src_crop.left,
-						vf->src_crop.right,
-						vf->src_crop.top,
-						vf->src_crop.bottom);
-					pic_w = vf->compWidth -
-						vf->src_crop.left - vf->src_crop.right;
-					pic_h = vf->compHeight -
-						vf->src_crop.top - vf->src_crop.bottom;
-				} else {
-					pic_w = vf->compWidth;
-					pic_h = vf->compHeight;
-				}
-			} else {
-				pic_w = vf->width;
-				pic_h = vf->height;
-			}
-			vc_print(dev->index, PRINT_AXIS, "pic_w: %d, pic_h: %d.\n", pic_w, pic_h);
-			if (frame_info->source_type == SOURCE_DTV_FIX_TUNNEL) {
-				vf->flag |= VFRAME_FLAG_FIX_TUNNEL;
-				vf->crop[0] = frame_info->crop_y;
-				vf->crop[1] = frame_info->crop_x;
-				vf->crop[2] = frame_info->crop_y +
-					frame_info->crop_h;
-				vf->crop[3] = frame_info->crop_x +
-					frame_info->crop_w;
-				vc_print(dev->index, PRINT_AXIS,
-					"tunnel set vf crop:%d %d %d %d\n",
-					vf->crop[0],
-					vf->crop[1],
-					vf->crop[2],
-					vf->crop[3]);
-			} else if ((pic_w > MAX(frame_info->reserved[0], frame_info->buffer_w)) ||
-				(pic_h > MAX(frame_info->reserved[1], frame_info->buffer_h))) {
-				/*omx receive w*h is small than actual w*h;such as 8k*/
-				vf->crop[0] = 0;
-				vf->crop[1] = 0;
-				vf->crop[2] = 0;
-				vf->crop[3] = 0;
-				vc_print(dev->index, PRINT_AXIS,
-					"crop info is error!\n");
-			} else {
-				vf->crop[0] = frame_info->crop_y;
-				vf->crop[1] = frame_info->crop_x;
-				vf->crop[2] = pic_h
-					- frame_info->crop_h
-					- frame_info->crop_y;
-				vf->crop[3] = pic_w
-					- frame_info->crop_w
-					- frame_info->crop_x;
-				vc_print(dev->index, PRINT_AXIS,
-					"none-tunnel set vf crop:%d %d %d %d\n",
-					vf->crop[0],
-					vf->crop[1],
-					vf->crop[2],
-					vf->crop[3]);
-			}
-		} else {
-			if (frame_info->type == 1) {
-				vf->crop[0] = frame_info->crop_y;
-				vf->crop[1] = frame_info->crop_x;
-				vf->crop[2] = frame_info->buffer_h
-					- frame_info->crop_h
-					- frame_info->crop_y;
-				vf->crop[3] = frame_info->buffer_w
-					- frame_info->crop_w
-					- frame_info->crop_x;
-			} else {
-				vf->crop[0] = 0;
-				vf->crop[1] = 0;
-				vf->crop[2] = 0;
-				vf->crop[3] = 0;
-			}
-		}
+		ret = config_crop_param(dev, received_frames, vf);
+		if (ret)
+			vc_print(dev->index, PRINT_ERROR, "config crop param failed.\n");
+
 		vf->zorder = frames_info->disp_zorder;
 		vf->file_vf = file_vf;
 		//vf->zorder = 1;
@@ -3740,54 +3811,33 @@ static void video_composer_task(struct composer_dev *dev)
 			vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
 			vf->canvas0Addr = -1;
 			vf->canvas0_config[0].phy_addr = phy_addr;
-			if (frame_info->buffer_w > frame_info->reserved[0]) {
-				if (frame_info->buffer_format == YUV444) {
-					vf->canvas0_config[0].width = frame_info->buffer_w * 3;
-					vc_print(dev->index, PRINT_OTHER,
-						"frame_info->buffer_w * 3\n");
-				} else {
-					vf->canvas0_config[0].width = frame_info->buffer_w;
-				}
-				vc_print(dev->index, PRINT_PATTERN,
-					 "buffer_w(%d) > deal_w(%d)\n",
-					 frame_info->buffer_w,
-					 frame_info->reserved[0]);
-			} else {
-				if (frame_info->buffer_format == YUV444) {
-					vf->canvas0_config[0].width = frame_info->reserved[0] * 3;
-					vc_print(dev->index, PRINT_OTHER,
-						"frame_info->reserved[0] * 3\n");
-				} else {
-					vf->canvas0_config[0].width = frame_info->reserved[0];
-				}
-				vc_print(dev->index, PRINT_PATTERN,
-					 "buffer_w: %d, deal_w: %d\n",
-					 frame_info->buffer_w,
-					 frame_info->reserved[0]);
+
+			vc_print(dev->index, PRINT_PATTERN,
+				"buffer: format = %d, w*h = %d*%d, deal: w*h = %d*%d.\n",
+				frame_info->buffer_format,
+				frame_info->buffer_w,
+				frame_info->buffer_h,
+				frame_info->reserved[0],
+				frame_info->reserved[1]);
+			if (frame_info->buffer_w > frame_info->reserved[0])
+				vf->canvas0_config[0].width = frame_info->buffer_w;
+			else
+				vf->canvas0_config[0].width = frame_info->reserved[0];
+			if (frame_info->buffer_format == YUV444) {
+				vc_print(dev->index, PRINT_OTHER, "buffer_format_t YUV444\n");
+				vf->canvas0_config[0].width *= 3;
 			}
-			if (frame_info->buffer_h > frame_info->reserved[1]) {
-				vf->canvas0_config[0].height =
-						frame_info->buffer_h;
-				vc_print(dev->index, PRINT_PATTERN,
-					 "buffer_h(%d) > deal_h(%d)\n",
-					 frame_info->buffer_h,
-					 frame_info->reserved[1]);
-			} else {
-				vf->canvas0_config[0].height =
-						frame_info->reserved[1];
-				vc_print(dev->index, PRINT_PATTERN,
-					 "buffer_h: %d, deal_h: %d\n",
-					 frame_info->buffer_h,
-					 frame_info->reserved[1]);
-			}
+
+			if (frame_info->buffer_h > frame_info->reserved[1])
+				vf->canvas0_config[0].height = frame_info->buffer_h;
+			else
+				vf->canvas0_config[0].height = frame_info->reserved[1];
+
 			vf->canvas1Addr = -1;
 			vf->canvas0_config[1].phy_addr = phy_addr
-				+ vf->canvas0_config[0].width
-				* vf->canvas0_config[0].height;
-			vf->canvas0_config[1].width =
-				vf->canvas0_config[0].width;
-			vf->canvas0_config[1].height =
-				vf->canvas0_config[0].height;
+				+ vf->canvas0_config[0].width * vf->canvas0_config[0].height;
+			vf->canvas0_config[1].width = vf->canvas0_config[0].width;
+			vf->canvas0_config[1].height = vf->canvas0_config[0].height;
 			vf->width = frame_info->buffer_w;
 			vf->height = frame_info->buffer_h;
 #ifdef CONFIG_AMLOGIC_UVM_CORE
@@ -3801,7 +3851,6 @@ static void video_composer_task(struct composer_dev *dev)
 				vf->type = VIDTYPE_VIU_SINGLE_PLANE
 					| VIDTYPE_VIU_FIELD
 					| VIDTYPE_VIU_444;
-				vc_print(dev->index, PRINT_OTHER, "buffer_format_t YUV444\n");
 			} else {
 				vf->plane_num = 2;
 				vf->type = VIDTYPE_PROGRESSIVE
@@ -3810,8 +3859,7 @@ static void video_composer_task(struct composer_dev *dev)
 			}
 			if (usage == UVM_USAGE_IMAGE_PLAY)
 				vf->type |= VIDTYPE_PIC;
-			vf->bitdepth =
-				BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+			vf->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 		}
 		vc_print(dev->index, PRINT_AXIS,
 			 "axis: %d %d %d %d, crop: %d %d %d %d\n",
@@ -3840,12 +3888,8 @@ static void video_composer_task(struct composer_dev *dev)
 		if (is_dec_vf) {
 			/* copy to uvm vf */
 			vf_ext = vf->uvm_vf;
-		} else if (is_v4l_vf) {
-			if (vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
-				vf_ext = vf->vf_ext;
-				if (!vf_ext)
-					vc_print(dev->index, PRINT_ERROR, "vf_ext is null\n");
-			}
+		} else if (is_v4l_vf && vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+			vf_ext = vf->vf_ext;
 		}
 
 		if (vf_ext) {
@@ -3860,6 +3904,8 @@ static void video_composer_task(struct composer_dev *dev)
 			vf_ext->zorder = vf->zorder;
 			vf_ext->flag |= VFRAME_FLAG_VIDEO_COMPOSER
 				| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
+		} else {
+			vc_print(dev->index, PRINT_OTHER, "no vf_ext.\n");
 		}
 
 		if (is_repeat_vf) {
@@ -3870,50 +3916,18 @@ static void video_composer_task(struct composer_dev *dev)
 				 vf->omx_index);
 		} else {
 			if (is_dec_vf || is_v4l_vf) {
-				if (vf->hf_info && !nn_bypass)
-					srout_data =
-						vc_get_hfout_data(dev, file_vf);
-				if (srout_data)
-					video_wait_sr_fence(dev, srout_data->fence);
-				vc_private = vc_private_q_pop(dev);
-				if (srout_data && vc_private && vf->hf_info) {
-					nn_status = srout_data->nn_status;
-					if (vf->hf_info->phy_addr != 0 &&
-						vf->hf_info->width != 0 &&
-						vf->hf_info->height != 0 &&
-						(nn_status == NN_WAIT_DOING ||
-						nn_status == NN_START_DOING ||
-						nn_status == NN_DONE)) {
-						vc_private->srout_data = srout_data;
-						vc_private->flag |= VC_FLAG_AI_SR;
-					}
+				vf->vc_private = vc_private_q_pop(dev);
+				if (vf->vc_private)
+					vf->vc_private->src_vf = vd_prepare->src_frame;
+
+				/*only vd0 support ai feature*/
+				if (dev->video_render_index == 0) {
+					ret = config_ai_param(dev, received_frames, vf);
+					if (ret)
+						vc_print(dev->index, PRINT_ERROR,
+							"config ai param failed");
 				}
-				vc_private->src_vf = vd_prepare->src_frame;
-				vf->vc_private = vc_private;
-				aiface_info = aiface_info_adjust(dev,
-								file_vf,
-								vf->omx_index,
-								frame_info->dst_x,
-								frame_info->dst_y,
-								frame_info->dst_w,
-								frame_info->dst_h);
-				if (aiface_info) {
-					vf->vc_private->aiface_info = aiface_info;
-					vf->vc_private->flag |= VC_FLAG_AI_FACE;
-					vc_print(dev->index, PRINT_AIFACE,
-						"omx_index = %d, aiface_value_count = %d.\n",
-						vf->omx_index, aiface_info->aiface_value_count);
-				}
-				aicolor_info = vc_get_aicolor_info(dev, file_vf);
-				if (aicolor_info) {
-					nn_status = aicolor_info->nn_status;
-					if (nn_status == NN_WAIT_DOING ||
-						nn_status == NN_START_DOING ||
-						nn_status == NN_DONE) {
-						vf->vc_private->aicolor_info = aicolor_info;
-						vc_private->flag |= VC_FLAG_AI_COLOR;
-					}
-				}
+
 			}
 			dev->last_file = file_vf;
 			vf->repeat_count = 0;
@@ -3926,9 +3940,7 @@ static void video_composer_task(struct composer_dev *dev)
 						 "total: time1=%lld,  time2=%lld\n",
 						 delay_time1, delay_time2);
 				if (delay_time1 > 1000)
-					vc_print(dev->index, PRINT_PATTERN,
-						 "too time1=%lld, time2=%lld\n",
-						 delay_time1, delay_time2);
+					vc_print(dev->index, PRINT_PATTERN, "delay too long.\n");
 			}
 
 			if (!(vf->type & VIDTYPE_VIU_FIELD) &&
