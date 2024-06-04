@@ -2267,6 +2267,77 @@ ssize_t _show21_clkmsr(char *buf)
 	return pos;
 }
 
+static bool is_tmds_clk_en(enum amhdmitx_chip_e chip_type)
+{
+	unsigned int tmds_clk_idx = 0xffff;
+
+	switch (chip_type) {
+	case MESON_CPU_ID_S5:
+		tmds_clk_idx = 92;
+		break;
+	case MESON_CPU_ID_T7:
+	case MESON_CPU_ID_S1A:
+	case MESON_CPU_ID_S7:
+	case MESON_CPU_ID_S7D:
+		tmds_clk_idx = 76;
+		break;
+	default:
+		break;
+	}
+	if (tmds_clk_idx == 0xffff)
+		return false;
+	if (meson_clk_measure(tmds_clk_idx) < 25000000)
+		return false;
+
+	return true;
+}
+
+static int hdmitx_validate_hdcp14_key(struct hdmitx_dev *hdev)
+{
+	u32 hdcp14_gate_status;
+	int set_mode_ret = 1;
+	int ret = 0;
+
+	if (!hdev)
+		return ret;
+
+	/* set default display mode firstly if no tmds clk */
+	if (!is_tmds_clk_en(hdev->tx_hw.chip_data->chip_type)) {
+		set_mode_ret = hdmitx_common_build_format_para(&hdev->tx_comm,
+			&hdev->tx_comm.fmt_para,
+			HDMI_4_1280x720p60_16x9, 1,
+			HDMI_COLORSPACE_RGB, COLORDEPTH_24B, HDMI_QUANTIZATION_RANGE_FULL);
+		if (set_mode_ret < 0) {
+			HDMITX_ERROR("%s format para build fail\n", __func__);
+			return ret;
+		}
+		set_mode_ret = hdev->tx_comm.ctrl_ops->enable_mode(&hdev->tx_comm,
+			&hdev->tx_comm.fmt_para);
+		if (set_mode_ret < 0) {
+			HDMITX_ERROR("mode enable fail\n");
+			return ret;
+		}
+	}
+	/* enable hdcp1.4 gate if gate is disabled */
+	if (hdev->tx_hw.chip_data->chip_type >= MESON_CPU_ID_S7) {
+		hdcp14_gate_status =
+			hdmitx21_get_gate_status() & BIT_HDMITX_TOP_CLK_GATE_HDCP1X;
+		if (!hdcp14_gate_status)
+			hdmitx21_ctrl_hdcp_gate(1, true);
+	}
+	/* load key into HW for crc check */
+	ret = hdcptx1_load_key();
+	/* recover disable display mode */
+	if (set_mode_ret != 1)
+		hdmitx_common_disable_mode(&hdev->tx_comm, NULL);
+	/* recover hdcp1.4 gate status */
+	if (hdev->tx_hw.chip_data->chip_type >= MESON_CPU_ID_S7) {
+		if (!hdcp14_gate_status)
+			hdmitx21_ctrl_hdcp_gate(1, false);
+	}
+	return ret;
+}
+
 static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -2683,6 +2754,9 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	} else if (strncmp(tmpbuf, "hdcp_result", 11) == 0) {
 		HDMITX_INFO("hdcp filtered result: hdcp22: %d topo: %d, hdcp14: %d\n",
 			get_hdcp2_result(), get_hdcp2_topo(), get_hdcp1_result());
+	} else if (strncmp(tmpbuf, "load_14key", 10) == 0) {
+		HDMITX_INFO("hdcp1.4 key load result: %d\n",
+			hdmitx_hw_cntl_misc(hdev->tx_comm.tx_hw, MISC_VALIDATE_HDCP14_KEY, 0));
 	}
 }
 
@@ -3212,6 +3286,8 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case MISC_SUSFLAG:
 		arm_smccc_smc(HDCPTX_IOOPR, HDCP_SET_SUS_FLAG, !!argv, 0, 0, 0, 0, 0, &res);
 		break;
+	case MISC_VALIDATE_HDCP14_KEY:
+		return hdmitx_validate_hdcp14_key(hdev);
 	default:
 		break;
 	}
