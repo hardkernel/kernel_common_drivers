@@ -179,7 +179,7 @@
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
-			size = <0x0 0x100000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x100000>;
 			//no-map;
 		};
