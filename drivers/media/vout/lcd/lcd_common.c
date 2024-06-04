@@ -3266,7 +3266,7 @@ void lcd_clk_frame_rate_init(struct lcd_detail_timing_s *ptiming)
 	if (ptiming->pixel_clk == 0) /* default 0 for 60hz */
 		ptiming->pixel_clk = 60;
 	else
-		LCDPR("config init pixel_clk: %d\n", ptiming->pixel_clk);
+		LCDPR("init pclk: %dHz\n", ptiming->pixel_clk);
 
 	h_period = ptiming->h_period;
 	v_period = ptiming->v_period;
