@@ -1168,14 +1168,6 @@
 		spi-max-frequency = <24000000>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <1>;
-		rsv_dts_config;
-		rsv_block_num = <24>;
-		rsv_gap_block_num = <4>;
-		rsv_bbt_block_num = <4>;
-		rsv_env_block_num = <4>;
-		rsv_key_block_num = <4>;
-		rsv_dtb_block_num = <4>;
-		rsv_ddr_block_num = <4>;
 		bl_mode = <2>; /* advance mode */
 		fip_copies = <2>;
 		info_p_mode = <1>; /* Info page on page 0 */
@@ -1224,6 +1216,37 @@
 			data{
 				offset=<0xffffffff 0xffffffff>;
 				size=<0x0 0x0>;
+			};
+		};
+
+		rsv_partition {
+			node0 {
+				label = "nrsv";
+				block_cnt = <24>;
+			};
+			node1 {
+				label = "ngap";
+				block_cnt = <4>;
+			};
+			node2 {
+				label = "nbbt";
+				block_cnt = <4>;
+			};
+			node3 {
+				label = "nenv";
+				block_cnt = <4>;
+			};
+			node4 {
+				label = "nkey";
+				block_cnt = <4>;
+			};
+			node5 {
+				label = "ndtb";
+				block_cnt = <4>;
+			};
+			node6 {
+				label = "nddr";
+				block_cnt = <4>;
 			};
 		};
 	};

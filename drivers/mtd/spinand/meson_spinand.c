@@ -410,21 +410,26 @@ int meson_add_mtd_partitions(struct mtd_info *mtd)
 	struct mtd_partition *part;
 	loff_t offset;
 	u32 rsv_block_num = meson_rsv_get_block_cnt(NAND_RSV_INDEX);
-	int i = 0, ret;
+	int i = 0;
 
-	pdata = meson_partition_parse_platform_data(mtd_get_of_node(mtd));
-	if (!pdata) {
-		pr_err("no partition in dts, init partition from env!\n");
-		mtd->name = "aml-nand";
-		ret = mtd_device_parse_register(mtd, meson_mtd_types, NULL, NULL, 0);
-		if (ret)
-			return ret;
+	mtd->name = "aml-mtd";
+	if (mtd_device_parse_register(mtd, meson_mtd_types, NULL, NULL, 0) == 0) {
+		if (!mtd_has_partitions(mtd)) {
+			if (device_is_registered(&mtd->dev))
+				mtd_device_unregister(mtd);
+			goto parse_dtb;
+		}
+		pr_debug("init partition from env!\n");
 #ifdef CONFIG_NAND_ENCRYPTION
-		aml_nand_param_check_and_layout_init(mtd);
 		mtd_loop_encrypted_partition(mtd);
 #endif
 		return 0;
 	}
+
+parse_dtb:
+	pdata = meson_partition_parse_platform_data(mtd_get_of_node(mtd));
+	if (!pdata)
+		return -1;
 
 	/* bootloader */
 	part = pdata->part;

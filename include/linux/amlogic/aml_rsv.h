@@ -39,11 +39,12 @@ enum meson_rsv_blk_cnt {
 	NAND_RSV_END_INDEX
 };
 
-struct meson_rsv_block_t {
-	char para_rsv_name[32];
+struct meson_rsv_part_t {
+	char name[32];
 	u32 block_cnt;
 	u32 size;
 	u32 index;
+	u32 block_start;
 };
 
 struct meson_rsv_info_t {
@@ -125,7 +126,8 @@ struct meson_rsv_user_t {
 	struct mutex lock;
 };
 
-int meson_rsv_prase_parameter_from_dtb(struct mtd_info *mtd);
+int meson_rsv_prase_parameter_from_dtb(struct mtd_info *mtd,
+	struct device_node *part_np);
 int meson_rsv_prase_parameter_from_cmdline(struct mtd_info *mtd);
 int meson_rsv_register_cdev(struct meson_rsv_info_t *info, char *name);
 int meson_rsv_register_unifykey(struct meson_rsv_info_t *key);
