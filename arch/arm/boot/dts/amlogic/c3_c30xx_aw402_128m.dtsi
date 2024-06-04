@@ -1230,6 +1230,37 @@
 				size=<0x0 0x0>;
 			};
 		};
+
+		rsv_partition {
+			node0 {
+				label = "nrsv";
+				block_cnt = <24>;
+			};
+			node1 {
+				label = "ngap";
+				block_cnt = <4>;
+			};
+			node2 {
+				label = "nbbt";
+				block_cnt = <4>;
+			};
+			node3 {
+				label = "nenv";
+				block_cnt = <4>;
+			};
+			node4 {
+				label = "nkey";
+				block_cnt = <4>;
+			};
+			node5 {
+				label = "ndtb";
+				block_cnt = <4>;
+			};
+			node6 {
+				label = "nddr";
+				block_cnt = <4>;
+			};
+		};
 	};
 };
 
