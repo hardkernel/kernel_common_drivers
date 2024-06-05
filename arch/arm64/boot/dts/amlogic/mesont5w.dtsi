@@ -651,7 +651,7 @@
 		reg=<0x0 0xff800228 0x0 0x4>;
 		memory-region = <&defendkey_reserved>;
 		mem_size = <0x100000>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	provisionkey {
@@ -1305,6 +1305,12 @@
 			interrupts = <GIC_SPI 204 IRQ_TYPE_EDGE_RISING>;
 			pinctrl-names="jtag_a_pins";
 			pinctrl-0=<&jtag_apao_pins>;
+		};
+
+		di_process {
+			compatible = "amlogic, di_process";
+			dev_name = "di_process";
+			status = "okay";
 		};
 
 		vrr0: vrr0 {

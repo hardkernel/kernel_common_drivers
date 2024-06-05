@@ -63,7 +63,7 @@
 
 	meson-cpufreq {
 		compatible = "amlogic, aml-cpufreq-v2";
-		status = "disabled";
+		status = "okay";
 
 		cluster0-cpu-supply = <&vddcpu0>;
 

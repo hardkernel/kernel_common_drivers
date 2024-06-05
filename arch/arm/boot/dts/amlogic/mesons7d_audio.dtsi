@@ -158,13 +158,18 @@
 		compatible = "amlogic, t5-snd-tdma";
 		#sound-dai-cells = <0>;
 
-		dai-tdm-lane-slot-mask-in = <1 1>;
-		dai-tdm-lane-slot-mask-out = <1 1>;
+		dai-tdm-lane-slot-mask-in = <1 0>;
+		dai-tdm-lane-slot-mask-out = <0 1>;
 		dai-tdm-clk-sel = <0>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <&tdm_a_pins
+			&tdm_d0_pins
+			&tdm_d1_pins
+			&tdma_clk_pins>;
 		suspend-clk-off = <1>;
 		/* enable control gain */
 		ctrl_gain = <1>;
@@ -528,18 +533,30 @@
 }; /* end of audiobus */
 
 &periphs_pinctrl {
+	tdm_a_pins: tdm_a_pins {
+		mux { /* GPIOX_11, GPIOX_10, GPIOX_8, GPIOX_9 */
+			groups = "tdm_sclk0",
+				"tdm_fs0",
+				"tdm_d0",
+				"tdm_d1";
+			function = "tdm";
+		};
+	};
+
 	spdif_out_a_h4_pins: spdifout_a_h4 {
 		mux { /* GPIOH_4 */
 			groups = "spdif_out_h4";
 			function = "spdif";
 		};
 	};
+
 	spdifin: spdifin {
 		mux {/* GPIOH_9 */
 			groups = "spdif_in_h9";
 			function = "spdif";
 		};
 	};
+
 	spdif_out_a_h4_mute_pins: spdifout_a_h4_mute {
 		 mux { /* GPIOH_4 */
 			groups = "GPIOH_4";
@@ -567,6 +584,27 @@
 };
 
 &pinctrl_audio {
+	tdm_d0_pins: tdm_d0_pin {
+		mux {
+			groups = "tdm_d0";
+			function = "tdmouta_lane1";
+		};
+	};
+
+	tdm_d1_pins: tdm_d1_pin {
+		mux {
+			groups = "tdm_d1";
+			function = "tdmina_lane0";
+		};
+	};
+
+	tdma_clk_pins: tdm_clk_pin {
+		mux {
+			groups = "tdm_sclk0", "tdm_lrclk0";
+			function = "tdm_clk_outa";
+		};
+	};
+
 	tdm_d2_pins: tdm_d2_pin {
 		mux {
 			groups = "tdm_d2";
