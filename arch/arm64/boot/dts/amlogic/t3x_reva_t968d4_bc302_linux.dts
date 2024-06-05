@@ -589,6 +589,10 @@
 
 		/*avout mute gpio*/
 		avout_mute-gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
+
+		/*headphone insert det */
+		aml-audio-card,hp-det-gpio = <&analog_gpio CDAC_IOUT GPIO_ACTIVE_LOW>;
+
 		interrupts = <GIC_SPI 83 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
 
@@ -1758,6 +1762,10 @@
 //	mmc-pwrseq = <&emmc_pwrseq>;
 //	vmmc-supply = <&sdcard_3v3>;
 //	vqmmc-supply = <&vddio_c>;
+};
+
+&vdac {
+	cdac_disable = <1>;
 };
 
 &saradc {
