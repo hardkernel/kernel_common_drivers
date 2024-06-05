@@ -623,6 +623,22 @@ static void frc_disable_deal_diff_win(void)
 	}
 }
 
+static void frc_disable_deal_n2m_change(void)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+
+	if (devp->in_sts.vc_set_n2m_change &&
+		(devp->frc_sts.state == FRC_STATE_ENABLE ||
+		devp->frc_sts.new_state == FRC_STATE_ENABLE)) {
+		pr_frc(2, "n2m change, start disable frc\n");
+		set_frc_enable(false);
+		set_frc_bypass(true);
+		// frc_change_to_state(FRC_STATE_DISABLE);
+		frc_change_to_state(FRC_STATE_BYPASS);
+		frc_state_change_finish(devp);
+	}
+}
+
 const char * const frc_state_ary[] = {
 	"FRC_STATE_DISABLE",
 	"FRC_STATE_ENABLE",
@@ -728,9 +744,19 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	devp->in_sts.source_type = cur_in_sts->source_type;
 	devp->in_sts.frc_vsc_startp = cur_in_sts->frc_vsc_startp;
 	devp->in_sts.frc_hsc_startp = cur_in_sts->frc_hsc_startp;
-	devp->in_sts.vf_index =	cur_in_sts->vf_index;
+	devp->in_sts.vf_index = cur_in_sts->vf_index;
+	devp->in_sts.vf = cur_in_sts->vf;
 	frc_top->inp_padding_xofst = devp->in_sts.frc_hsc_startp;
 	frc_top->inp_padding_yofst = devp->in_sts.frc_vsc_startp;
+	if (cur_in_sts->vf && cur_in_sts->vf->vc_private &&
+		devp->in_sts.vc_set_n2m_mode != cur_in_sts->vf->vc_private->frc_operation_mode) {
+		devp->in_sts.vc_set_n2m_mode = cur_in_sts->vf->vc_private->frc_operation_mode;
+		devp->in_sts.vc_set_n2m_change = 1;
+		pr_frc(2, "ready to change n2m[%d]\n", devp->in_sts.vc_set_n2m_mode);
+		frc_disable_deal_n2m_change();
+	} else {
+		devp->in_sts.vc_set_n2m_change = 0;
+	}
 
 	if (devp->next_frame == 1) {
 		devp->need_bypass = 0;
@@ -952,8 +978,8 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	/* even attach , mode change */
 	if (devp->frc_sts.auto_ctrl && sts_change) {
 		if (sts_change & FRC_EVENT_VF_CHG_TO_NO)
-			frc_change_to_state(FRC_STATE_DISABLE);
-			//frc_change_to_state(FRC_STATE_BYPASS);
+			//frc_change_to_state(FRC_STATE_DISABLE);
+			frc_change_to_state(FRC_STATE_BYPASS);
 		else if (sts_change & FRC_EVENT_VF_CHG_TO_HAVE)
 			frc_change_to_state(FRC_STATE_ENABLE);
 	}
@@ -971,6 +997,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					struct vpp_frame_par_s *cur_video_sts)
 {
 	struct st_frc_in_sts cur_in_sts;
+	struct frc_fw_data_s *pfw_data;
 	u32 no_input = false, vd_en_flag;// vd_regval;
 	u32 in_size = 0;
 	enum efrc_event frc_event = FRC_EVENT_NO_EVENT;
@@ -981,6 +1008,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	if (!devp->probe_ok || !devp->power_on_flag)
 		return;
 
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	frc_in_sts_init(&cur_in_sts);
 	vd_en_flag = get_video_enabled(0);
 	// vd_regval = vpu_reg_read(0x1dfb);
@@ -1183,6 +1211,16 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	} else {
 		frc_re_cfg_cnt = FRC_RE_CFG_CNT;
 	}
+
+	if (no_input && (devp->control_0 & BIT_0) && get_chip_type() == ID_T5M)
+		devp->auto_n2m = 2;
+	else if ((devp->control_0 & BIT_1) && get_chip_type() == ID_T5M)
+		pfw_data->frc_fw_alg_ctrl.frc_algctrl_u8param4 = 0;
+	else if ((devp->control_0 & BIT_2) && get_chip_type() == ID_T5M)
+		devp->auto_n2m = 1;
+
+	if (frc_set_n2m_from_vc(vf) == -1)
+		no_input = true;
 
 	if (devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND)
 		cur_in_sts.vf_sts = true;
@@ -2453,7 +2491,7 @@ void frc_chk_vd_sts_chg(struct frc_dev_s *devp, struct vframe_s *vf)
 	// every vframe detect frame rate
 	frc_check_vf_rate(vf->duration, devp);
 
-	if (devp->in_sts.frc_is_tvin) {
+	if (devp->in_sts.frc_is_tvin) { // hdmi source
 		if (vf->duration == 4000 || vf->duration == 4004)
 			vlock_locked = vlock_get_vlock_flag();
 		else

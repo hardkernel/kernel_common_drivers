@@ -124,13 +124,14 @@
 // frc_20240428 frc add lost task info when working
 // frc_20240510 memc func run in irq
 // frc_20240522 modify t5m dlg flow
-// frc_2024-0522 adjust mcdw param for window size
-// frc_2024-0617 add rdma access for alg
-// frc_2024-0621 modify t3x muti flow
-// frc_2024-0626 frc cursor control debug
-// frc_2024-0704 fix frc clk latency err
+// frc_20240522 adjust mcdw param for window size
+// frc_20240617 add rdma access for alg
+// frc_20240621 modify t3x muti flow
+// frc_20240626 frc cursor control debug
+// frc_20240704 fix frc clk latency err
+// frc_20240709 frc add crc debug
 
-#define FRC_FW_VER			"2024-0709 frc add crc debug"
+#define FRC_FW_VER			"2024-0708 frc adaptive n2m in t5m"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
@@ -288,6 +289,7 @@ extern int frc_dbg_en;
 #define FRC_RES_4K1K	3
 #define FRC_RES__MAX	4
 
+#define PRE_VSYNC_NONE   0
 #define PRE_VSYNC_120HZ   BIT_0
 #define PRE_VSYNC_060HZ   BIT_1
 
@@ -501,6 +503,8 @@ struct st_frc_in_sts {
 	u32 in_vsize;
 	u32 signal_type;
 	u32 source_type;	/*enum vframe_source_type_e*/
+	u8 vc_set_n2m_change;
+	enum frc_operation_mode_e vc_set_n2m_mode;
 	struct vframe_s *vf;
 	u32 vf_repeat_cnt;
 	u32 vf_null_cnt;
@@ -764,6 +768,8 @@ struct frc_dev_s {
 	u8 need_bypass;	/*notify vpu to bypass frc*/
 	u8 next_frame;
 	u8 task_run_method;
+
+	u8  control_0;
 
 	u32 dbg_force_en;
 	u32 dbg_in_out_ratio;

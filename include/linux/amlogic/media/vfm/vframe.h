@@ -856,6 +856,8 @@ enum frc_operation_mode_e {
 	VC_FRC_FLAG_1_1,
 	VC_FRC_FLAG_1_2,
 	VC_FRC_FLAG_2_5,
+	VC_FRC_FLAG_5_6,
+	VC_FRC_FLAG_5_12,
 };
 
 struct video_composer_private {

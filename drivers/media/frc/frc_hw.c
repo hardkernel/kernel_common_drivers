@@ -1506,6 +1506,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	u32 frc_vporch_cal;
 	u32 frc_porch_delta;
 	u32 adj_mc_dly;
+	u32 out_frm_dly_num;
 	enum chip_id chip;
 
 	struct frc_fw_data_s *fw_data;
@@ -1757,6 +1758,19 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	if (chip >= ID_T3X && frc_devp->no_ko_mode == 1) {
 		frc_drv_bbd_init_xyxy(fw_data);
 		frc_drv_fw_param_init(frc_top->hsize, frc_top->vsize, frc_top->is_me1mc4);
+	}
+
+	/*T5M n2m change*/
+	out_frm_dly_num = 0;
+	if ((frc_devp->control_0 & BIT_3) && chip == ID_T5M) {
+		if (frc_devp->in_out_ratio == FRC_RATIO_1_1)
+			out_frm_dly_num = 0x03000000;
+		regdata_top_ctl_0009 = READ_FRC_REG(FRC_REG_TOP_CTRL9);
+		if ((regdata_top_ctl_0009 & 0x0F000000) != out_frm_dly_num) {
+			frc_config_reg_value(out_frm_dly_num, 0x0F000000,
+				&regdata_top_ctl_0009);
+			WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL9, regdata_top_ctl_0009);
+		}
 	}
 }
 
@@ -3048,6 +3062,75 @@ void frc_set_n2m(u8 ratio_value)
 		if (devp->frc_sts.state == FRC_STATE_ENABLE)
 			devp->frc_sts.re_config = true;
 	}
+}
+
+int frc_set_n2m_from_vc(struct vframe_s *vf)
+{
+	enum frc_operation_mode_e vc_flag;
+	int ret;
+	struct frc_dev_s *devp;
+	struct frc_fw_data_s *pfw_data;
+
+	ret = 0;
+	devp = get_frc_devp();
+	if (!devp)
+		return -1;
+	if (devp->auto_n2m != 2)
+		return ret;
+
+	if (!vf) {
+		return -1;
+	} else if (!vf->vc_private) {
+		PR_FRC("omx_index = %d   vf->vc_private is NULL\n", vf->omx_index);
+		return -1;
+	}
+
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	vc_flag = vf->vc_private->frc_operation_mode;
+	if (!devp->in_sts.vc_set_n2m_change)
+		return vc_flag == VC_FRC_FLAG_BYPASS ? -1 : 0;
+
+	switch (vc_flag) {
+	case VC_FRC_FLAG_BYPASS:
+		ret = -1;
+		break;
+	case VC_FRC_FLAG_1_1:
+		frc_set_n2m(FRC_RATIO_1_1);
+		set_vsync_2to1_mode(0);
+		set_pre_vsync_mode(0);
+		pfw_data->frc_fw_alg_ctrl.frc_algctrl_u8param4 = 1;
+		break;
+	case VC_FRC_FLAG_1_2:
+		frc_set_n2m(FRC_RATIO_1_2);
+		set_vsync_2to1_mode(0);
+		set_pre_vsync_mode(1);
+		pfw_data->frc_fw_alg_ctrl.frc_algctrl_u8param4 = 2;
+		break;
+	case VC_FRC_FLAG_2_5:
+		frc_set_n2m(FRC_RATIO_2_5);
+		set_vsync_2to1_mode(0);
+		set_pre_vsync_mode(1);
+		pfw_data->frc_fw_alg_ctrl.frc_algctrl_u8param4 = 2;
+		break;
+	case VC_FRC_FLAG_5_6:
+		frc_set_n2m(FRC_RATIO_5_6);
+		set_vsync_2to1_mode(0);
+		set_pre_vsync_mode(1);
+		pfw_data->frc_fw_alg_ctrl.frc_algctrl_u8param4 = 2;
+		break;
+	case VC_FRC_FLAG_5_12:
+		frc_set_n2m(FRC_RATIO_5_12);
+		set_vsync_2to1_mode(0);
+		set_pre_vsync_mode(1);
+		pfw_data->frc_fw_alg_ctrl.frc_algctrl_u8param4 = 2;
+		break;
+	default:
+		ret = -1;
+		pr_frc(1, "%s vc input arg err", __func__);
+		break;
+	}
+	pr_frc(2, "%s --> %d\n", __func__, vf->vc_private->frc_operation_mode);
+	return ret;
 }
 
 void frc_set_axi_crash_irq(struct frc_dev_s *frc_devp, u8 enable)

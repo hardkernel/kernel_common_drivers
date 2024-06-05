@@ -1064,7 +1064,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->frc_sts.out_put_mode_changed = false;
 	devp->frc_sts.re_config = false;
 	devp->dbg_force_en = 0;
-	devp->auto_n2m = 1;
+
 	devp->other1_flag = 0;
 	devp->other2_flag = 0;  // 25, 16;
 	devp->vlock_flag = 1;
@@ -1090,8 +1090,6 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	}
 	devp->dbg_buf_len = 0;
 	devp->prot_mode = true;
-	devp->use_pre_vsync = PRE_VSYNC_120HZ;
-
 	devp->in_out_ratio = FRC_RATIO_1_1;
 	// devp->in_out_ratio = FRC_RATIO_2_5;
 	// devp->in_out_ratio = FRC_RATIO_1_2;
@@ -1143,15 +1141,24 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	memset(&devp->force_size, 0, sizeof(struct frc_force_size_s));
 	devp->ud_dbg.res2_dbg_en = 3;  // t3x_revB test
 	devp->ud_dbg.align_dbg_en = 0;  // t3x_revB test
+
 	if (get_chip_type() == ID_T3X) {
 		devp->in_sts.boot_timestamp_en = 1;
 		devp->vpu_byp_frc_reg_addr = VIU_FRC_MISC;
+		devp->auto_n2m = 1;
+		devp->use_pre_vsync = PRE_VSYNC_120HZ;
 	} else if (get_chip_type() == ID_T5M) {
 		devp->vpu_byp_frc_reg_addr = VPU_FRC_TOP_CTRL;
+		devp->auto_n2m = 1;
+		devp->use_pre_vsync = PRE_VSYNC_120HZ;
 	} else if (get_chip_type() == ID_T3) {
 		devp->vpu_byp_frc_reg_addr = VPU_FRC_TOP_CTRL;
+		devp->auto_n2m = 0;
+		devp->use_pre_vsync = PRE_VSYNC_NONE;
 	} else {
 		devp->vpu_byp_frc_reg_addr = VPU_FRC_TOP_CTRL;
+		devp->auto_n2m = 0;
+		devp->use_pre_vsync = PRE_VSYNC_NONE;
 	}
 }
 
@@ -1201,14 +1208,12 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 					set_vsync_2to1_mode(0);
 					set_pre_vsync_mode(0);
 				}
-
 			}
 		}
 		pr_frc(1, "vout:w-%d,h-%d,rate-%d\n",
 				frc_devp->out_sts.vout_width,
 				frc_devp->out_sts.vout_height,
 				frc_devp->out_sts.out_framerate);
-
 	}
 }
 

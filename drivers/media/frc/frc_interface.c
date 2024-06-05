@@ -321,6 +321,12 @@ int frc_get_n2m_setting(void)
 		return 1;
 	else if (devp->in_out_ratio == FRC_RATIO_1_2)
 		return 2;
+	else if  (devp->in_out_ratio == FRC_RATIO_2_5)
+		return 3;
+	else if  (devp->in_out_ratio == FRC_RATIO_5_6)
+		return 4;
+	else if  (devp->in_out_ratio == FRC_RATIO_5_12)
+		return 5;
 	else
 		return 0;
 }

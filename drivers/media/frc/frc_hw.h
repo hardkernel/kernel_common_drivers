@@ -129,6 +129,7 @@ void frc_set_arb_ugt_cfg(enum frc_arb_ugt ch, u8 urgent, u8 level);
 void frc_input_init(struct frc_dev_s *frc_devp,
 	struct frc_top_type_s *frc_top);
 void frc_set_n2m(u8 ratio_value);
+int frc_set_n2m_from_vc(struct vframe_s *vf);
 void frc_set_axi_crash_irq(struct frc_dev_s *frc_devp, u8 enable);
 int get_chip_type(void);
 void frc_set_h2v2(u32 enable);

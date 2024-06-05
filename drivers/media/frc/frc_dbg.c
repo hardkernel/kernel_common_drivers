@@ -747,6 +747,7 @@ ssize_t frc_debug_param_if_help(struct frc_dev_s *devp, char *buf)
 	len += sprintf(buf + len, "no_ko_mode\t=%d\n", devp->no_ko_mode);
 	len += sprintf(buf + len, "tell_ready\t=%d\n", devp->other2_flag);
 	len += sprintf(buf + len, "chg_slice_num\t=(read reg check)\n");
+	len += sprintf(buf + len, "control_0\t=%d\n", devp->control_0);
 	return len;
 }
 
@@ -977,6 +978,11 @@ void frc_debug_param_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			frc_chg_loss_slice_num(val1);
+	} else if (!strcmp(parm[0], "control_0")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->control_0 = val1;
 	}
 exit:
 	kfree(buf_orig);
