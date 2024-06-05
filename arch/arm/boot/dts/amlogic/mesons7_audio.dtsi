@@ -32,17 +32,6 @@
 			status = "okay";
 		};
 
-		//hdmirx arc
-		hdmirx_arc {
-			compatible = "amlogic, hdmirx-arc-iomap";
-			reg = <0xff61c000 0x10c>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0x0 0xff61c000 0x10c>;
-			reg-names = "hdmirx-arc";
-			status = "disabled";
-
-		};
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";
@@ -89,17 +78,6 @@
 					"toddr_d",
 					"frddr_a", "frddr_b", "frddr_c",
 					"frddr_d";
-			};
-			pcpd_monitor_a: pcpd_monitor@ff600ec0 {
-				compatible = "amlogic, pcpda_monitor";
-				/*regbase:0xFE600000 + 0x2e0 << 2*/
-				/*size 0x28 byte*/
-				reg =<0xec0 0x28>;
-				reg-names = "pcpd_reg";
-				interrupts = <GIC_SPI 241
-					IRQ_TYPE_EDGE_RISING>;
-				interrupt-names = "irq_pcpd";
-				status = "disabled";
 			};
 			pinctrl_audio: pinctrl {
 				compatible = "amlogic, audio-pinctrl";

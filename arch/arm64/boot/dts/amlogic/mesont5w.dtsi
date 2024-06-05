@@ -651,7 +651,7 @@
 		reg=<0x0 0xff800228 0x0 0x4>;
 		memory-region = <&defendkey_reserved>;
 		mem_size = <0x100000>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	provisionkey {
@@ -1278,30 +1278,9 @@
 			pinctrl-0=<&jtag_apao_pins>;
 		};
 
-		vclk_serve: vclk_serve {
-			compatible = "amlogic, vclk_serve";
-			status = "okay";
-			reg = <0x0 0xff63c000 0x0 0x400    /* ana reg */
-			       0x0 0xff646000 0x0 0x4a0>; /* clk reg */
-		};
-
-		vout_mux: vout_mux {
-			compatible = "amlogic, vout_mux-t5w";
-			status = "okay";
-		};
-
-		vout: vout {
-			compatible = "amlogic, vout";
-			status = "okay";
-		};
-
-		vout2: vout2 {
-			compatible = "amlogic, vout2";
-			status = "okay";
-		};
-
-		dummy_venc: dummy_venc {
-			compatible = "amlogic, dummy_venc_t5w";
+		di_process {
+			compatible = "amlogic, di_process";
+			dev_name = "di_process";
 			status = "okay";
 		};
 
