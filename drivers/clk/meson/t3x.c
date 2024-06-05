@@ -782,12 +782,16 @@ static struct clk_regmap t3x_gp0_pll_dco = {
 static const struct pll_params_table t3x_gp1_pll_table[] = {
 	PLL_PARAMS(124, 1, 2), /* DCO = 2976M OD = 2 PLL = 744M */
 	PLL_PARAMS(128, 1, 2), /* DCO = 3072M OD = 2 PLL = 768M */
+	PLL_PARAMS(76, 1, 1), /* DCO = 1824M OD = 1 PLL = 912M */
+	PLL_PARAMS(80, 1, 1), /* DCO = 1920M OD = 1 PLL = 960M */
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table t3x_gp1_pll_table[] = {
 	PLL_PARAMS(124, 1), /* DCO = 2976M OD = 2 PLL = 744M */
 	PLL_PARAMS(128, 1), /* DCO = 3072M OD = 2 PLL = 768M */
+	PLL_PARAMS(76, 1), /* DCO = 1824M OD = 1 PLL = 912M */
+	PLL_PARAMS(80, 1), /* DCO = 1920M OD = 1 PLL = 960M */
 	{ /* sentinel */  }
 };
 #endif
