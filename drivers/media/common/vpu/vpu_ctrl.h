@@ -33,12 +33,12 @@
 /* T3X */
 /* freq max=800M, default=800M */
 #define CLK_LEVEL_DFT_T3X    9
-#define CLK_LEVEL_MAX_T3X    12
+#define CLK_LEVEL_MAX_T3X    13
 
 /* T5M */
 /* connect to gp0 clk=768M, default=768M */
 #define CLK_LEVEL_DFT_T5M    8
-#define CLK_LEVEL_MAX_T5M    12
+#define CLK_LEVEL_MAX_T5M    13
 
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
 /* vpu clk setting */
@@ -93,7 +93,9 @@ static struct vpu_clk_s vpu_clk_table[] = {
 	{800000000,    FCLK_DIV2P5,  0}, /* 9 */
 	{744000000,    GPLL_CLK,     0}, /* 10 */
 	{768000000,    GPLL_CLK,     0}, /* 11 */
-	{850000000,    FCLK_DIV_MAX, 0}, /* 12 */ /* invalid */
+	{912000000,    GPLL_CLK,     0}, /* 12 */
+	{960000000,    GPLL_CLK,     0}, /* 13 */
+	{850000000,    FCLK_DIV_MAX, 0}, /* 14 */ /* invalid */
 };
 
 /* ******************************************************* */

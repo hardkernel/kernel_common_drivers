@@ -91,7 +91,28 @@ unsigned int get_vpu_clk_level_from_venc(unsigned int venc_clk)
 			VPUERR("%s unknown overclock_sel:%d\n", __func__, vpu_conf.overclock_sel);
 		}
 	}
-
+	if (vpu_conf.data->chip_type == VPU_CHIP_T3X) {
+		if (vpu_conf.overclock_sel == 0) {
+			clk_level = 11;
+		} else if (vpu_conf.overclock_sel == 1) {
+			clk_level = 12;
+		} else if (vpu_conf.overclock_sel == 2) {
+			if (venc_clk <= 720000000) {
+				clk_level = 11;
+			} else if (venc_clk > 720000000 && venc_clk < 820000000) {
+				if (vpu_conf.vpu_overclock) {
+					clk_level = 12;
+				} else {
+					clk_level = 11;
+					VPUPR("do not support vpu overclock\n");
+				}
+			} else {
+				VPUERR("%s unknown video_clk:%d\n", __func__, venc_clk);
+			}
+		} else {
+			VPUERR("%s unknown overclock_sel:%d\n", __func__, vpu_conf.overclock_sel);
+		}
+	}
 	return clk_level;
 }
 
@@ -365,7 +386,7 @@ int set_vpu_clk(unsigned int vclk)
 		return ret;
 	}
 #endif
-	if (clk_level >= 12) {
+	if (clk_level >= 14) {
 		ret = 7;
 		VPUERR("clk_level %d is invalid\n", clk_level);
 		return ret;

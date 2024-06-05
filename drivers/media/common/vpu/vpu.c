@@ -192,7 +192,8 @@ static int vpu_vmod_clk_request(unsigned int vclk, unsigned int vmod)
 #ifdef CONFIG_AMLOGIC_VPU_DYNAMIC_ADJ
 	unsigned int clk_level;
 
-	if (vpu_conf.data->chip_type == VPU_CHIP_T5M) {
+	if (vpu_conf.data->chip_type == VPU_CHIP_T5M ||
+		vpu_conf.data->chip_type == VPU_CHIP_T3X) {
 		ret = vpu_chip_valid_check();
 		if (ret)
 			return -1;
@@ -238,21 +239,38 @@ static int vpu_vmod_clk_request(unsigned int vclk, unsigned int vmod)
 
 			new_freq = get_vpu_clk_freq(clk_level);
 			vpu_clk_info.new_freq = new_freq;
-			if (new_freq == 768000000) {
-				vd_signal_notifier_call_chain(VIDEO_VPU_CLK_CHANGED,
-							      &vpu_clk_info);
-				dim_set_vpuclkb_ext(500000000);
-				/* vdin_status 0:idle 1:vdin 0 worked 2:vdin1 worked */
-				vdin_status = get_vdin_status(1);
-				if (vdin_status || vpu_debug_print_flag)
-					VPUPR("%s, vdin_status:%d\n",
-					      __func__, vdin_status);
-				set_vpu_clk(clk_level);
-			} else if (new_freq == 666666667) {
-				set_vpu_clk(clk_level);
-				dim_set_vpuclkb_ext(666666667);
-				vd_signal_notifier_call_chain(VIDEO_VPU_CLK_CHANGED,
-							      &vpu_clk_info);
+			if (vpu_conf.data->chip_type == VPU_CHIP_T5M) {
+				if (new_freq == 768000000) {
+					vd_signal_notifier_call_chain(VIDEO_VPU_CLK_CHANGED,
+								      &vpu_clk_info);
+					dim_set_vpuclkb_ext(500000000);
+					/* vdin_status 0:idle 1:vdin 0 worked 2:vdin1 worked */
+					vdin_status = get_vdin_status(1);
+					if (vdin_status || vpu_debug_print_flag)
+						VPUPR("%s, vdin_status:%d\n",
+						      __func__, vdin_status);
+					set_vpu_clk(clk_level);
+				} else if (new_freq == 666666667) {
+					set_vpu_clk(clk_level);
+					dim_set_vpuclkb_ext(666666667);
+					vd_signal_notifier_call_chain(VIDEO_VPU_CLK_CHANGED,
+								      &vpu_clk_info);
+				}
+			} else if (vpu_conf.data->chip_type == VPU_CHIP_T3X) {
+				if (new_freq == 912000000) {
+					vd_signal_notifier_call_chain(VIDEO_VPU_CLK_CHANGED,
+									  &vpu_clk_info);
+					/* vdin_status 0:idle 1:vdin 0 worked 2:vdin1 worked */
+					vdin_status = get_vdin_status(1);
+					if (vdin_status || vpu_debug_print_flag)
+						VPUPR("%s, vdin_status:%d\n",
+							  __func__, vdin_status);
+					set_vpu_clk(clk_level);
+				} else if (new_freq == 768000000) {
+					set_vpu_clk(clk_level);
+					vd_signal_notifier_call_chain(VIDEO_VPU_CLK_CHANGED,
+									  &vpu_clk_info);
+				}
 			}
 		}
 
@@ -1050,6 +1068,7 @@ static const char *vpu_usage_str = {
 "		0: 25M     1: 100M    2: 167M    3: 200M\n"
 "		4: 250M    5: 333M    6: 400M    7: 500M\n"
 "		8: 667M    9: 800M    10: 744M   11:768M\n"
+"		12:912M    13:960M\n"
 "\n"
 "	echo <0|1> > /sys/class/vpu/print ; set debug print flag\n"
 };
