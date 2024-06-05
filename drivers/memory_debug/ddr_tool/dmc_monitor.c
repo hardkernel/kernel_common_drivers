@@ -202,6 +202,10 @@ struct page_trace *dmc_find_page_base(struct page *page)
 	return trace;
 }
 #else
+#ifdef CONFIG_ARM64
+#define PAGE_TRACE_OFFSET	(_PAGE_END(CONFIG_ARM64_VA_BITS))
+#endif
+
 struct page_trace *dmc_trace_buffer;
 static unsigned long _kernel_text;
 static unsigned int dmc_trace_step;
@@ -297,6 +301,9 @@ static unsigned long dmc_unpack_ip(struct page_trace *trace)
 	if (trace->order == IP_INVALID)
 		return 0;
 
+#ifdef CONFIG_ARM64
+	text = PAGE_TRACE_OFFSET;
+#else
 	if (trace->module_flag)
 #ifdef CONFIG_RANDOMIZE_BASE
 		text = module_alloc_base_dmc;
@@ -305,6 +312,7 @@ static unsigned long dmc_unpack_ip(struct page_trace *trace)
 #endif
 	else
 		text = (unsigned long)_kernel_text;
+#endif
 	return text + ((trace->ret_ip) << 2);
 }
 

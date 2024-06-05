@@ -54,6 +54,10 @@
 #define COMMON_CALLER_SIZE	64
 #endif
 
+#ifdef CONFIG_ARM64
+#define PAGE_TRACE_OFFSET	(_PAGE_END(CONFIG_ARM64_VA_BITS))
+#endif
+
 static const char * const aml_migratetype_names[MIGRATE_TYPES] = {
 	"Unmovable",
 	"Movable",
@@ -69,7 +73,6 @@ static const char * const aml_migratetype_names[MIGRATE_TYPES] = {
 
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 unsigned long *free_pages_bitmap;
-unsigned long aml_text;
 #else
 unsigned long aml_text = (unsigned long)_text;
 #endif
@@ -464,6 +467,7 @@ static void push_ip(struct page_trace *base, struct page_trace *ip)
 }
 #endif /* CONFIG_AMLOGIC_PAGE_TRACE_INLINE */
 
+#ifdef CONFIG_ARM
 static inline int is_module_addr(unsigned long ip)
 {
 #ifdef CONFIG_RANDOMIZE_BASE
@@ -476,6 +480,7 @@ static inline int is_module_addr(unsigned long ip)
 		return 1;
 	return 0;
 }
+#endif
 
 /*
  * set up information for common caller in memory allocate API
@@ -732,6 +737,9 @@ unsigned long unpack_ip(struct page_trace *trace)
 	if (trace->order == IP_INVALID)
 		return 0;
 
+#ifdef CONFIG_ARM64
+	text = PAGE_TRACE_OFFSET;
+#else
 	if (trace->module_flag)
 #ifdef CONFIG_RANDOMIZE_BASE
 		text = aml_module_alloc_base;
@@ -740,6 +748,7 @@ unsigned long unpack_ip(struct page_trace *trace)
 #endif
 	else
 		text = aml_text;
+#endif
 	return text + ((trace->ret_ip) << 2);
 }
 
@@ -1074,11 +1083,15 @@ static void __init set_init_page_trace(struct page *page, unsigned int order, gf
 {
 	unsigned long text;
 	unsigned long ip;
-	struct page_trace trace = {}, *base;
+	struct page_trace trace = {0}, *base;
 
 	if (page && trace_buffer) {
 		ip = (unsigned long)set_page_trace;
+	#ifdef CONFIG_ARM64
+		text = PAGE_TRACE_OFFSET;
+	#else
 		text = aml_text;
+	#endif
 
 		trace.ret_ip = (ip - text) >> 2;
 		trace.migrate_type = aml_gfp_migratetype(flag);
@@ -1089,11 +1102,14 @@ static void __init set_init_page_trace(struct page *page, unsigned int order, gf
 }
 #endif
 
-unsigned int pack_ip(unsigned long ip, unsigned int order, gfp_t flag)
+unsigned long pack_ip(unsigned long ip, unsigned int order, gfp_t flag)
 {
 	unsigned long text;
 	struct page_trace trace = {};
 
+#ifdef CONFIG_ARM64
+	text = PAGE_TRACE_OFFSET;
+#else
 	text = aml_text;
 	if (ip >= aml_text) {
 		text = aml_text;
@@ -1105,6 +1121,7 @@ unsigned int pack_ip(unsigned long ip, unsigned int order, gfp_t flag)
 #endif
 		trace.module_flag = 1;
 	}
+#endif
 
 	trace.ret_ip = (ip - text) >> 2;
 #ifdef CONFIG_AMLOGIC_CMA
@@ -1117,19 +1134,19 @@ unsigned int pack_ip(unsigned long ip, unsigned int order, gfp_t flag)
 #endif /* CONFIG_AMLOGIC_CMA */
 	trace.order = order;
 #if DEBUG_PAGE_TRACE
-	pr_debug("%s, base:%p, page:%lx, _ip:%x, o:%d, f:%x, ip:%lx\n",
+	pr_debug("%s, base:%p, page:%lx, _ip:%lx, o:%d, f:%x, ip:%lx\n",
 		 __func__, base, page_to_pfn(page),
-		 (*((unsigned int *)&trace)), order,
+		 (*((unsigned long *)&trace)), order,
 		 flag, ip);
 #endif
-	return *((unsigned int *)&trace);
+	return *((unsigned long *)&trace);
 }
 
 void set_page_trace(struct page *page, unsigned int order, gfp_t flag, void *func)
 {
-	unsigned long ip;
+	unsigned long ip, val = 0;
 	struct page_trace *base;
-	unsigned int val = 0, i;
+	unsigned int i;
 
 	if (!page)
 		return;
@@ -1160,7 +1177,7 @@ void set_page_trace(struct page *page, unsigned int order, gfp_t flag, void *fun
 		ip = (unsigned long)func;
 
 	if (!ip) {
-		pr_debug("can't find backtrace for page:%lx\n",
+		pr_err("can't find backtrace for page:%lx\n",
 			 page_to_pfn(page));
 		return;
 	}
@@ -1797,10 +1814,6 @@ static int __init page_trace_module_init(void)
 
 	aml_kallsyms_lookup_name = (unsigned long (*)(const char *name))kp_lookup_name.addr;
 
-#ifdef CONFIG_RANDOMIZE_BASE
-	aml_module_alloc_base = *(unsigned long *)aml_kallsyms_lookup_name("module_alloc_base");
-#endif
-	aml_text = aml_kallsyms_lookup_name("_text");
 	page_trace_mem_init();
 
 	dump_sum = vzalloc(size);
