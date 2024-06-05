@@ -908,6 +908,7 @@ static void lcd_tcon_time_sort_save(unsigned long long *table, unsigned long lon
 }
 #endif
 
+/*vsync stage*/
 static int lcd_tcon_data_multi_match_policy(struct aml_lcd_drv_s *pdrv, unsigned int frame_rate,
 		struct tcon_data_multi_s *data_multi, struct tcon_data_list_s *data_list)
 {
@@ -920,14 +921,14 @@ static int lcd_tcon_data_multi_match_policy(struct aml_lcd_drv_s *pdrv, unsigned
 	switch (data_list->ctrl_method) {
 	case LCD_TCON_DATA_CTRL_MULTI_VFREQ_DIRECT:
 	case LCD_TCON_DATA_CTRL_MULTI_VFREQ_NOTIFY:
-
-		if (frame_rate < data_list->min || frame_rate > data_list->max)
+		if (frame_rate < data_list->multi.range.min ||
+		    frame_rate > data_list->multi.range.max)
 			goto lcd_tcon_data_multi_match_policy_exit;
 		if (!data_multi)
 			break;
 		if (lcd_debug_print_flag & LCD_DBG_PR_ISR) {
-			snprintf(data_multi->dbg_str, 64, "vfreq %d-%d hit, %d",
-				data_list->min, data_list->max, frame_rate);
+			snprintf(data_multi->dbg_str, 64, "vfreq %d-%d hit: %d",
+				data_list->multi.range.min, data_list->multi.range.max, frame_rate);
 		}
 		break;
 	case LCD_TCON_DATA_CTRL_MULTI_BL_LEVEL:
@@ -937,13 +938,13 @@ static int lcd_tcon_data_multi_match_policy(struct aml_lcd_drv_s *pdrv, unsigned
 			goto lcd_tcon_data_multi_match_policy_err_type;
 		temp = bldrv->level;
 
-		if (temp < data_list->min || temp > data_list->max)
+		if (temp < data_list->multi.range.min || temp > data_list->multi.range.max)
 			goto lcd_tcon_data_multi_match_policy_exit;
 		if (!data_multi)
 			break;
 		if (lcd_debug_print_flag & LCD_DBG_PR_ISR) {
-			snprintf(data_multi->dbg_str, 64, "bl_level %d-%d hit, %d",
-				data_list->min, data_list->max, temp);
+			snprintf(data_multi->dbg_str, 64, "bl_level %d-%d hit: %d",
+				data_list->multi.range.min, data_list->multi.range.max, temp);
 		}
 #endif
 		break;
@@ -972,13 +973,14 @@ static int lcd_tcon_data_multi_match_policy(struct aml_lcd_drv_s *pdrv, unsigned
 			goto lcd_tcon_data_multi_match_policy_err_type;
 
 		temp = bl_pwm->pwm_duty;
-		if (temp < data_list->min || temp > data_list->max)
+		if (temp < data_list->multi.range.min || temp > data_list->multi.range.max)
 			goto lcd_tcon_data_multi_match_policy_exit;
 		if (!data_multi)
 			break;
 		if (lcd_debug_print_flag & LCD_DBG_PR_ISR) {
-			snprintf(data_multi->dbg_str, 64, "bl_pwm[%d] duty %d-%d hit, %d",
-				bl_pwm->index, data_list->min, data_list->max, temp);
+			snprintf(data_multi->dbg_str, 64, "bl_pwm[%d] duty %d-%d hit: %d",
+				bl_pwm->index, data_list->multi.range.min,
+				data_list->multi.range.max, temp);
 		}
 #endif
 		break;
@@ -1017,8 +1019,8 @@ static int lcd_tcon_data_multi_match_init(struct aml_lcd_drv_s *pdrv,
 	data_list->ctrl_method = LCD_TCON_DATA_CTRL_MULTI_MAX;
 
 	k = 0;
-	data_list->min = 0;
-	data_list->max = 0;
+	data_list->multi.range.min = 0;
+	data_list->multi.range.max = 0;
 	data_list->ctrl_data_cnt = 0;
 	kfree(data_list->ctrl_data);
 	data_list->ctrl_data = NULL;
@@ -1030,10 +1032,10 @@ static int lcd_tcon_data_multi_match_init(struct aml_lcd_drv_s *pdrv,
 
 		data_list->ctrl_method = ctrl_part->ctrl_method;
 		for (j = 0; j < data_byte; j++)
-			data_list->min |= (p[k + j] << (j * 8));
+			data_list->multi.range.min |= (p[k + j] << (j * 8));
 		k += data_byte;
 		for (j = 0; j < data_byte; j++)
-			data_list->max |= (p[k + j] << (j * 8));
+			data_list->multi.range.max |= (p[k + j] << (j * 8));
 		break;
 	case LCD_TCON_DATA_CTRL_MULTI_VFREQ_NOTIFY:
 		if (data_cnt <= 2)
@@ -1041,10 +1043,10 @@ static int lcd_tcon_data_multi_match_init(struct aml_lcd_drv_s *pdrv,
 
 		data_list->ctrl_method = ctrl_part->ctrl_method;
 		for (j = 0; j < data_byte; j++)
-			data_list->min |= (p[k + j] << (j * 8));
+			data_list->multi.range.min |= (p[k + j] << (j * 8));
 		k += data_byte;
 		for (j = 0; j < data_byte; j++)
-			data_list->max |= (p[k + j] << (j * 8));
+			data_list->multi.range.max |= (p[k + j] << (j * 8));
 
 		data_list->ctrl_data_cnt = data_cnt - 2;
 		if (data_list->ctrl_data_cnt == 0)
@@ -1059,16 +1061,27 @@ static int lcd_tcon_data_multi_match_init(struct aml_lcd_drv_s *pdrv,
 				data_list->ctrl_data[i] |= (p[k + j] << (j * 8));
 		}
 		break;
+	case LCD_TCON_DATA_CTRL_MULTI_RESOLUTION:
+		if (data_cnt != 2)
+			goto lcd_tcon_data_multi_match_init_err_data_cnt;
+
+		data_list->ctrl_method = ctrl_part->ctrl_method;
+		for (j = 0; j < data_byte; j++)
+			data_list->multi.resolution.hsize |= (p[k + j] << (j * 8));
+		k += data_byte;
+		for (j = 0; j < data_byte; j++)
+			data_list->multi.resolution.vsize |= (p[k + j] << (j * 8));
+		break;
 	case LCD_TCON_DATA_CTRL_MULTI_BL_LEVEL:
 		if (data_cnt != 2)
 			goto lcd_tcon_data_multi_match_init_err_data_cnt;
 
 		data_list->ctrl_method = ctrl_part->ctrl_method;
 		for (j = 0; j < data_byte; j++)
-			data_list->min |= (p[k + j] << (j * 8));
+			data_list->multi.range.min |= (p[k + j] << (j * 8));
 		k += data_byte;
 		for (j = 0; j < data_byte; j++)
-			data_list->max |= (p[k + j] << (j * 8));
+			data_list->multi.range.max |= (p[k + j] << (j * 8));
 		break;
 	case LCD_TCON_DATA_CTRL_MULTI_BL_PWM_DUTY:
 		if (data_cnt != 3)
@@ -1084,10 +1097,10 @@ static int lcd_tcon_data_multi_match_init(struct aml_lcd_drv_s *pdrv,
 			data_list->ctrl_data[0] |= (p[k + j] << (j * 8));
 		k += data_byte;
 		for (j = 0; j < data_byte; j++)
-			data_list->min |= (p[k + j] << (j * 8));
+			data_list->multi.range.min |= (p[k + j] << (j * 8));
 		k += data_byte;
 		for (j = 0; j < data_byte; j++)
-			data_list->max |= (p[k + j] << (j * 8));
+			data_list->multi.range.max |= (p[k + j] << (j * 8));
 		break;
 	case LCD_TCON_DATA_CTRL_DEFAULT:
 		return 1;
@@ -1107,6 +1120,7 @@ lcd_tcon_data_multi_match_init_err_malloc:
 	return -1;
 }
 
+/*tcon init stage*/
 static int lcd_tcon_data_multi_match_check(struct aml_lcd_drv_s *pdrv,
 		unsigned int frame_rate,
 		struct lcd_tcon_data_part_ctrl_s *ctrl_part, unsigned char *p)
@@ -1116,8 +1130,8 @@ static int lcd_tcon_data_multi_match_check(struct aml_lcd_drv_s *pdrv,
 	struct bl_pwm_config_s *bl_pwm = NULL;
 	unsigned int temp;
 #endif
-	unsigned int data_byte, data_cnt, data, min, max;
-	unsigned int j, k;
+	unsigned int data_byte, data_cnt, data = 0, min = 0, max = 0, hsize = 0, vsize = 0;
+	unsigned int j, k = 0;
 
 	if (!ctrl_part)
 		return -1;
@@ -1126,11 +1140,6 @@ static int lcd_tcon_data_multi_match_check(struct aml_lcd_drv_s *pdrv,
 
 	data_byte = ctrl_part->data_byte_width;
 	data_cnt = ctrl_part->data_cnt;
-
-	k = 0;
-	data = 0;
-	min = 0;
-	max = 0;
 
 	switch (ctrl_part->ctrl_method) {
 	case LCD_TCON_DATA_CTRL_MULTI_VFREQ_DIRECT:
@@ -1145,7 +1154,23 @@ static int lcd_tcon_data_multi_match_check(struct aml_lcd_drv_s *pdrv,
 		if (frame_rate < min || frame_rate > max)
 			goto lcd_tcon_data_multi_match_check_exit;
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-			LCDPR("%s: vfreq %d-%d hit, %d", __func__, min, max, frame_rate);
+			LCDPR("%s: vfreq %d-%d hit: %d\n", __func__, min, max, frame_rate);
+		break;
+	case LCD_TCON_DATA_CTRL_MULTI_RESOLUTION:
+		if (data_cnt != 2)
+			goto lcd_tcon_data_multi_match_check_err_data_cnt;
+
+		for (j = 0; j < data_byte; j++)
+			hsize |= (p[k + j] << (j * 8));
+		k += data_byte;
+		for (j = 0; j < data_byte; j++)
+			vsize |= (p[k + j] << (j * 8));
+
+		if (pdrv->config.timing.act_timing.h_active != hsize ||
+		    pdrv->config.timing.act_timing.v_active != vsize)
+			goto lcd_tcon_data_multi_match_check_exit;
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("%s: resolution %dx%d hit\n", __func__, hsize, vsize);
 		break;
 	case LCD_TCON_DATA_CTRL_MULTI_BL_LEVEL:
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
@@ -1164,7 +1189,7 @@ static int lcd_tcon_data_multi_match_check(struct aml_lcd_drv_s *pdrv,
 		if (temp < min || temp > max)
 			goto lcd_tcon_data_multi_match_check_exit;
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-			LCDPR("%s: bl_level %d-%d hit, %d", __func__, min, max, temp);
+			LCDPR("%s: bl_level %d-%d hit: %d\n", __func__, min, max, temp);
 #endif
 		break;
 	case LCD_TCON_DATA_CTRL_MULTI_BL_PWM_DUTY:
@@ -1205,7 +1230,7 @@ static int lcd_tcon_data_multi_match_check(struct aml_lcd_drv_s *pdrv,
 			goto lcd_tcon_data_multi_match_check_exit;
 
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("%s: bl_pwm[%d] duty %d-%d hit, %d",
+			LCDPR("%s: bl_pwm[%d] duty %d-%d hit: %d\n",
 				__func__, bl_pwm->index, min, max, temp);
 		}
 #endif
@@ -1283,7 +1308,8 @@ static int lcd_tcon_data_multi_list_init(struct aml_lcd_drv_s *pdrv,
 	return -1;
 }
 
-/* return:
+/* tcon init stage
+ * return:
  *    0: matched
  *    1: dft list
  *   -1: not match
@@ -1334,7 +1360,7 @@ int lcd_tcon_data_multi_match_find(struct aml_lcd_drv_s *pdrv, unsigned char *da
 	return -1;
 }
 
-/* for tcon power on init,
+/* tcon init stage
  * will apply block_type: LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT
  */
 void lcd_tcon_data_multi_current_update(struct tcon_mem_map_table_s *mm_table,
@@ -1515,6 +1541,7 @@ static int lcd_tcon_data_multi_update(struct aml_lcd_drv_s *pdrv,
 	return ret;
 }
 
+/*vsync stage*/
 static int lcd_tcon_data_multi_set(struct aml_lcd_drv_s *pdrv,
 				   struct tcon_mem_map_table_s *mm_table)
 {

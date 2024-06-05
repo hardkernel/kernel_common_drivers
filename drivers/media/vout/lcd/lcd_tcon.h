@@ -117,11 +117,25 @@ struct tcon_rmem_s {
 	struct tcon_rmem_config_s acc_lut_rmem;
 };
 
+struct tcon_multi_range_s {
+	unsigned int max;
+	unsigned int min;
+};
+
+struct tcon_multi_resolution_s {
+	unsigned int hsize;
+	unsigned int vsize;
+};
+
+union tcon_multi_val_u {
+	struct tcon_multi_range_s range;
+	struct tcon_multi_resolution_s resolution;
+};
+
 struct tcon_data_list_s {
 	unsigned int id;
 	unsigned int ctrl_method;
-	unsigned int max;
-	unsigned int min;
+	union tcon_multi_val_u multi;
 	unsigned int ctrl_data_cnt;
 	unsigned int *ctrl_data;
 	char *block_name;

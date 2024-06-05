@@ -86,8 +86,8 @@ static void lcd_tcon_multi_lut_print(void)
 				"  ctrl_data_cnt: %d\n",
 				i, data_list->id,
 				data_list->block_name,
-				data_list->min,
-				data_list->max,
+				data_list->multi.range.min,
+				data_list->multi.range.max,
 				data_list->ctrl_data_cnt);
 			if (data_list->ctrl_data_cnt) {
 				if (data_list->ctrl_data) {
@@ -109,8 +109,8 @@ static void lcd_tcon_multi_lut_print(void)
 			pr_info("  block[%d]: %s, range: %d,%d, ctrl_data_cnt:%d, vaddr=0x%px\n",
 				data_list->id,
 				data_list->block_name,
-				data_list->min,
-				data_list->max,
+				data_list->multi.range.min,
+				data_list->multi.range.max,
 				data_list->ctrl_data_cnt,
 				data_list->block_vaddr);
 			data_list = data_list->next;
@@ -239,7 +239,8 @@ static int lcd_tcon_mm_table_v1_print(struct tcon_mem_map_table_s *mm_table,
 					mm_table->data_multi[i].block_type,
 					mm_table->data_multi[i].list_cnt,
 					cur_list->id, cur_list->block_name,
-					cur_list->min, cur_list->max);
+					cur_list->multi.range.min,
+					cur_list->multi.range.max);
 			}
 		}
 	}
