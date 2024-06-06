@@ -102,7 +102,7 @@ void set21_s6_htxpll_clk_out(const u32 clk, u32 div)
 
 	set_s6_htxpll_clk_other(clk, hdev->frl_rate ? 1 : 0);
 
-	//pll_od10
+	//pll_od00
 	if ((div % 8) == 0) {
 		pll_od00 = 3; //div8
 		div = div / 8;
@@ -114,7 +114,7 @@ void set21_s6_htxpll_clk_out(const u32 clk, u32 div)
 		div = div / 2;
 	}
 
-	//pll_od11
+	//pll_od01
 	if ((div % 8) == 0) {
 		pll_od01 = 3;
 		div = div / 8;
@@ -146,7 +146,7 @@ void set21_s6_htxpll_clk_out(const u32 clk, u32 div)
 
 	pll_od2 = (pll_od20 << 3) | pll_od21;
 
-	//pll_od3
+	//pll_od1
 	if (cd == COLORDEPTH_24B)
 		pll_od1 = 0;//pll_div3 = 5;
 	else if (cd == COLORDEPTH_30B)
@@ -173,19 +173,19 @@ void set21_phy_by_mode_s6(u32 mode)
 	case HDMI_PHYPARA_3p7G:
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x8003a8fb);
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x1555);
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x304efc1b);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x4ef001);
 		break;
 	case HDMI_PHYPARA_3G: /* 2.97Gbps */
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x800380dd);
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x1555);
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x304efc1b);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x4ef001);
 		break;
 	case HDMI_PHYPARA_270M: /* 1.485Gbps, and below */
 	case HDMI_PHYPARA_DEF:
 	default:
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x820380a0);
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x1555);
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x304efc1b);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x4ef001);
 		break;
 	}
 	/* The bit with resetn is configured later than other bits. */
@@ -193,9 +193,10 @@ void set21_phy_by_mode_s6(u32 mode)
 	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 3, 10, 2);
 	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 3, 3, 2);
 	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 1, 1, 1);
-	/* finally config bit[29:28] */
+	/* finally config bit[30:28] */
 	usleep_range(1000, 1010);
 	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 3, 28, 2);
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 1, 30, 1);
 }
 
 void hdmitx21_sys_reset_s6(void)
@@ -264,7 +265,7 @@ void hdmitx_s6_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en)
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x0);
 	}
 	if (gates6_bit_mask & BIT(11)) {// power off need
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x304efc1b);
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x704efc1b);
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0xc1b);
 	}
 	usleep_range(1, 10);
