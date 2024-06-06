@@ -94,6 +94,14 @@
 			reg = <0x2ec00000 0x00c00000>;
 			//no-map;
 		};
+		/* global autoconfigured region for contiguous allocations */
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x800000>;
+			alignment = <0x400000>;
+			linux,cma-default;
+		};
 
 		/*  vdin0 CMA pool */
 		/*vdin0_cma_reserved:linux,vdin0_cma {*/
