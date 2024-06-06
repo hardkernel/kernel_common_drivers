@@ -321,6 +321,14 @@ void check_cma_isolated(unsigned long *isolate,
 		  raw, cma_isolated, inactive, active);
 }
 
+static int write_can_use_cma;
+module_param(write_can_use_cma, int, 0644);
+
+int can_write_use_cma(void)
+{
+	return write_can_use_cma;
+}
+
 bool can_use_cma(gfp_t gfp_flags)
 {
 #ifdef CONFIG_ANDROID_VENDOR_HOOKS
