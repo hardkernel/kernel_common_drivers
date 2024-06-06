@@ -1405,7 +1405,7 @@
 
 &drm_subsystem {
 	status = "okay";
-	fbdev_sizes = <1280 720 1280 1440 32>;
+	fbdev_sizes = <1920 1080 1920 2160 32>;
 };
 
 &amhdmitx {

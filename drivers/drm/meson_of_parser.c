@@ -80,6 +80,7 @@ static void meson_osd_parse_config(struct drm_device *dev, struct meson_of_conf 
 {
 	u32 osd_afbc_mask = 0xff;
 	u32 osd_force_slice = 0;
+	u32 afbc_aligned_size = 1;
 	int ret;
 
 	ret = of_property_read_u32(dev->dev->of_node,
@@ -96,6 +97,12 @@ static void meson_osd_parse_config(struct drm_device *dev, struct meson_of_conf 
 
 	conf->force_slice = osd_force_slice;
 
+	ret = of_property_read_u32(dev->dev->of_node,
+				   "afbc_aligned_size", &afbc_aligned_size);
+	if (ret)
+		DRM_DEBUG("%s parse afbc_aligned_size fail!\n", __func__);
+
+	conf->afbc_aligned_size = afbc_aligned_size;
 }
 
 static void meson_parse_gfcd_config(struct drm_device *dev,
