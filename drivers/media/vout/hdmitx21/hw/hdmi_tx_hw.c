@@ -780,6 +780,7 @@ static void set_phy_by_mode(u32 mode)
 		break;
 	case MESON_CPU_ID_S7:
 		set21_phy_by_mode_s7(mode);
+		break;
 	case MESON_CPU_ID_S6:
 		set21_phy_by_mode_s6(mode);
 		break;

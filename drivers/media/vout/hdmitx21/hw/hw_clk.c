@@ -238,6 +238,7 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 		break;
 	case MESON_CPU_ID_S7:
 		set21_hpll_sspll_s7(vic);
+		break;
 	case MESON_CPU_ID_S6:
 		set21_hpll_sspll_s6(vic);
 		break;
@@ -511,7 +512,6 @@ static void clocks_set_vid_clk_div_for_hdmi(int div_sel)
 
 	/* Enable the final output clock */
 	hd21_set_reg_bits(reg_vid_pll, 1, 19, 1);
-
 }
 
 static void set_vid_clk_div(struct hdmitx_dev *hdev, u32 div)
@@ -1143,8 +1143,8 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 
 	struct hw_enc_clk_val_group tmp_clk = {0};
 
-	if (hdev->pxp_mode) /* skip VCO setting */
-		return;
+	//if (hdev->pxp_mode) /* skip VCO setting */
+	//	return;
 
 	if (!test_clk)
 		return;
