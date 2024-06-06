@@ -939,9 +939,13 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			preh_en, 8, 1);
 		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 			postsc_en, 2, 1);
-		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-			analy_en, 4, 1);
 	}
+	//scale down disable analy_en
+	if (vsr->vsr_top.hsize_in >= vsr->vsr_top.hsize_out ||
+		vsr->vsr_top.vsize_in >= vsr->vsr_top.vsize_out)
+		analy_en = 0;
+	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+		analy_en, 4, 1);
 	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 		safa_pps_top_en, 8, 1);
 }
