@@ -1032,6 +1032,12 @@ static int release_spdif_same_src(struct aml_spdif *p_spdif,
 	return 0;
 }
 
+static irqreturn_t aml_spdifin_isr(int irq, void *devid)
+{
+	(void)devid;
+	return IRQ_WAKE_THREAD;
+}
+
 static int aml_spdif_open(struct snd_soc_component *component,
 			  struct snd_pcm_substream *substream)
 {
@@ -1068,7 +1074,7 @@ static int aml_spdif_open(struct snd_soc_component *component,
 			goto err_ddr;
 		}
 
-		ret = request_irq(p_spdif->irq_spdifin,
+		ret = request_threaded_irq(p_spdif->irq_spdifin, aml_spdifin_isr,
 				aml_spdifin_status_isr, 0, "irq_spdifin",
 				p_spdif);
 		if (ret) {
