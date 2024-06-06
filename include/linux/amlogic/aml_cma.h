@@ -8,8 +8,17 @@
 
 #ifdef CONFIG_AMLOGIC_CMA
 #define GFP_NO_CMA    (__GFP_NO_CMA | __GFP_WRITE)
+
+int can_write_use_cma(void);
+
 static inline bool cma_forbidden_mask(gfp_t gfp_flags)
 {
+	if (can_write_use_cma()) {
+		if ((gfp_flags & __GFP_NO_CMA) || !(gfp_flags & __GFP_MOVABLE))
+			return true;
+		return false;
+	}
+
 	if ((gfp_flags & GFP_NO_CMA) || !(gfp_flags & __GFP_MOVABLE))
 		return true;
 	return false;
