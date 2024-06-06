@@ -145,13 +145,13 @@ struct tcon_data_list_s {
 };
 
 struct tcon_data_multi_s {
+	unsigned int id;
 	unsigned int block_type;
 	unsigned int list_cnt;
 	unsigned int bypass_flag;
 	unsigned int switch_flag;
 	struct tcon_data_list_s *list_header;
 	struct tcon_data_list_s *list_cur;
-	struct tcon_data_list_s *list_update;
 	struct tcon_data_list_s *list_remove;
 	char dbg_str[64];
 };
@@ -175,7 +175,6 @@ struct tcon_mem_map_table_s {
 	unsigned int lut_valid_flag;
 	unsigned char demura_cnt;
 	unsigned int block_bit_flag;
-	unsigned int frame_rate;
 
 	unsigned int core_reg_table_size;
 	struct lcd_tcon_init_block_header_s *core_reg_header;
@@ -194,7 +193,6 @@ struct tcon_mem_map_table_s {
 
 #ifdef TCON_DBG_TIME
 	unsigned long long vsync_time[10];
-	unsigned long long list_trave_time[10];
 #endif
 };
 
@@ -329,13 +327,13 @@ int lcd_tcon_setting_check_t5d(struct aml_lcd_drv_s *pdrv, struct lcd_detail_tim
 /* common */
 void lcd_tcon_mem_sync(struct aml_lcd_drv_s *pdrv, unsigned long paddr, unsigned int mem_size);
 unsigned char *lcd_tcon_paddrtovaddr(unsigned long paddr, unsigned int mem_size);
-int lcd_tcon_data_multi_match_find(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf);
-void lcd_tcon_data_multi_current_update(struct tcon_mem_map_table_s *mm_table,
-		struct lcd_tcon_data_block_header_s *block_header, unsigned int index);
 void lcd_tcon_data_multi_bypass_set(struct tcon_mem_map_table_s *mm_table,
 				    unsigned int block_type, int flag);
-int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
-				   unsigned char *data_buf, phys_addr_t paddr, int init_flag);
+int lcd_tcon_data_multi_init_check(struct aml_lcd_drv_s *pdrv, unsigned short block_type,
+		struct lcd_tcon_data_part_ctrl_s *ctrl_part, unsigned char *p,
+		unsigned int data_index);
+int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf,
+		phys_addr_t paddr, int init_flag, unsigned int data_index);
 void lcd_tcon_init_data_version_update(char *data_buf);
 int lcd_tcon_data_load(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf, int index);
 void lcd_tcon_reg_table_print(void);
@@ -344,7 +342,7 @@ void lcd_tcon_axi_rmem_lut_load(struct aml_lcd_drv_s *pdrv, unsigned int index,
 				unsigned char *buf, unsigned int size);
 #ifdef TCON_DBG_TIME
 void lcd_tcon_dbg_trace_clear(void);
-void lcd_tcon_dbg_trace_print(unsigned int flag);
+void lcd_tcon_dbg_trace_print(void);
 #endif
 
 int lcd_tcon_axi_mem_print(struct tcon_rmem_s *tcon_rmem, char *buf, int offset);

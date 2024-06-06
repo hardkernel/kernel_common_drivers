@@ -665,16 +665,9 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 				pdrv->tcon_isr_bypass = 0;
 				goto lcd_tcon_debug_store_end;
 			} else if (strcmp(parm[1], "log") == 0) {
-				if (parm[2]) {
-					ret = kstrtouint(parm[2], 16, &temp);
-					if (ret)
-						goto lcd_tcon_debug_store_err;
-				} else {
-					temp = 0x1;
-				}
 				pdrv->tcon_isr_bypass = 1;
 				lcd_delay_ms(100);
-				lcd_tcon_dbg_trace_print(temp);
+				lcd_tcon_dbg_trace_print();
 				pdrv->tcon_isr_bypass = 0;
 				goto lcd_tcon_debug_store_end;
 			}
@@ -682,7 +675,7 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 		pr_err("tcon dbg_log_en: %d\n",
 			(lcd_debug_print_flag & LCD_DBG_PR_TEST) ? 1 : 0);
 		if (lcd_debug_print_flag & LCD_DBG_PR_TEST)
-			lcd_tcon_dbg_trace_print(0);
+			lcd_tcon_dbg_trace_print();
 #endif
 	} else {
 		goto lcd_tcon_debug_store_err;

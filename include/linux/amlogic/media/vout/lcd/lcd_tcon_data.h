@@ -53,7 +53,6 @@
 #define LCD_TCON_DATA_PART_FLAG_CMD_IGNORE_ISR  0x80
 
 #define LCD_TCON_DATA_BLOCK_HEADER_SIZE         64
-#define LCD_TCON_DATA_BLOCK_EXT_HEADER_SIZE_PRE        16
 #define LCD_TCON_DATA_BLOCK_NAME_SIZE           36
 #define LCD_TCON_DATA_PART_NAME_SIZE            48
 #define LCD_TCON_INIT_BIN_NAME_SIZE             28
@@ -116,6 +115,7 @@ struct lcd_tcon_data_block_header_s {
 	unsigned char name[LCD_TCON_DATA_BLOCK_NAME_SIZE];
 };
 
+#define LCD_TCON_DATA_BLOCK_EXT_HEADER_SIZE_PRE  16
 struct lcd_tcon_data_block_ext_header_s {
 	unsigned short part_cnt;
 	unsigned char part_mapping_byte;

@@ -69,7 +69,8 @@
 /* 20240601: lcd tablet multi timing support */
 /* 20240607: lcd tcon support extern header */
 /* 20240618: lcd tcon new ctrl_type(resolution) for demura multi lut */
-#define LCD_DRV_VERSION    "20240618"
+/* 20240620: optimize tcon multi data set flow */
+#define LCD_DRV_VERSION    "20240620"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
