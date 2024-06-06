@@ -2180,7 +2180,7 @@ int codec_mm_scatter_alloc_want_pages_in(struct codec_mm_scatter_mgt *smgt,
 int codec_mm_scatter_alloc_want_pages(struct codec_mm_scatter *mms,
 				      int want_pages)
 {
-	struct codec_mm_scatter_mgt *smgt = (struct codec_mm_scatter_mgt *)mms->manager;
+	struct codec_mm_scatter_mgt *smgt;
 	int ret;
 	u64 startus;
 	int need_pages = codec_mm_scatter_align_count(want_pages);
@@ -2190,7 +2190,7 @@ int codec_mm_scatter_alloc_want_pages(struct codec_mm_scatter *mms,
 		__func__, need_pages, want_pages);
 	if (!mms)
 		return -1;
-
+	smgt = (struct codec_mm_scatter_mgt *)mms->manager;
 	startus = codec_mm_get_current_us();
 	if (sc_swap_thrld &&
 		smgt->total_page_num - smgt->alloced_page_num > PAGE_COUNT(sc_swap_thrld * SZ_1M)) {
