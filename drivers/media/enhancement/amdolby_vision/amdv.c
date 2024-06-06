@@ -129,7 +129,7 @@ MODULE_PARM_DESC(primary_debug, "\n primary_debug\n");
 /* #define AMDV_FORCE_OUTPUT_MODE	2 */
 
 u32 dolby_vision_policy;
-__module_param(dolby_vision_policy, uint, 0664);
+module_param(dolby_vision_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_policy, "\n dolby_vision_policy\n");
 static unsigned int last_dolby_vision_policy;
 
@@ -153,7 +153,7 @@ static unsigned int last_dolby_vision_policy;
 #define SDR_BY_DV_F_SRC 0x40
 
 static unsigned int dolby_vision_hdr10_policy;
-__module_param(dolby_vision_hdr10_policy, uint, 0664);
+module_param(dolby_vision_hdr10_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_hdr10_policy, "\n dolby_vision_hdr10_policy\n");
 static unsigned int last_dolby_vision_hdr10_policy;
 
@@ -167,7 +167,7 @@ MODULE_PARM_DESC(hdmi_to_stb_policy, "\n hdmi_to_stb_policy\n");
 static bool hdmi_source_led_as_hdr10 = true;
 
 static bool dolby_vision_enable;
-__module_param(dolby_vision_enable, bool, 0664);
+module_param(dolby_vision_enable, bool, 0664);
 MODULE_PARM_DESC(dolby_vision_enable, "\n dolby_vision_enable\n");
 
 static bool amdv_efuse_bypass;
@@ -180,7 +180,7 @@ __module_param(amdv_mask, uint, 0664);
 MODULE_PARM_DESC(amdv_mask, "\n amdv_mask\n");
 
 u32 dolby_vision_status;
-__module_param(dolby_vision_status, uint, 0664);
+module_param(dolby_vision_status, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_status, "\n dolby_vision_status\n");
 
 /* delay before first frame toggle when core off->on */
@@ -220,7 +220,7 @@ __module_param(amdv_tuning_mode, uint, 0664);
 MODULE_PARM_DESC(amdv_tuning_mode, "\n amdv_tuning_mode\n");
 
 u32 dolby_vision_ll_policy = DOLBY_VISION_LL_DISABLE;
-__module_param(dolby_vision_ll_policy, uint, 0664);
+module_param(dolby_vision_ll_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_ll_policy, "\n dolby_vision_ll_policy\n");
 
 u32 last_dolby_vision_ll_policy = DOLBY_VISION_LL_DISABLE;
@@ -470,7 +470,7 @@ int enable_vf_check;
 static u32 last_vf_valid_crc;
 bool venc_crc_enable;
 unsigned int debug_dolby;
-__module_param(debug_dolby, uint, 0664);
+module_param(debug_dolby, uint, 0664);
 MODULE_PARM_DESC(debug_dolby, "\n debug_dolby\n");
 
 static unsigned int debug_dolby_frame = 0xffff;
@@ -554,6 +554,7 @@ static bool vsvdb_config_set_flag;
 static bool vfm_path_on;
 bool dv_unique_drm;
 
+static bool debug_force_mode;
 static int force_mode;
 static bool tv_mode;
 static bool mel_mode;
@@ -3902,7 +3903,8 @@ static int amdv_policy_process_v1(struct vframe_s *vf,
 		}
 	} else if (dolby_vision_policy == AMDV_FORCE_OUTPUT_MODE) {
 		if (force_mode == AMDV_OUTPUT_MODE_IPT_TUNNEL) {
-			if (vinfo && sink_support_dv(vinfo) && is_match_amdv_attr()) {
+			if ((vinfo && sink_support_dv(vinfo) && is_match_amdv_attr()) ||
+				debug_force_mode) {
 				*mode = AMDV_OUTPUT_MODE_IPT_TUNNEL;
 				if (dolby_vision_mode != *mode)
 					mode_change = 1;
@@ -3930,7 +3932,8 @@ static int amdv_policy_process_v1(struct vframe_s *vf,
 					src_format, dolby_vision_mode, *mode);
 				}
 		} else if (force_mode == AMDV_OUTPUT_MODE_HDR10) {
-			if (vinfo && sink_support_hdr(vinfo)) {
+			if ((vinfo && sink_support_hdr(vinfo))  ||
+				debug_force_mode) {
 				*mode = AMDV_OUTPUT_MODE_HDR10;
 				if (dolby_vision_mode != *mode)
 					mode_change = 1;
@@ -4337,7 +4340,8 @@ static int amdv_policy_process_v2_stb(struct vframe_s *vf,
 		}
 	} else if (dolby_vision_policy == AMDV_FORCE_OUTPUT_MODE) {
 		if (force_mode == AMDV_OUTPUT_MODE_IPT_TUNNEL) {
-			if (vinfo && sink_support_dv(vinfo) && is_match_amdv_attr()) {
+			if ((vinfo && sink_support_dv(vinfo) && is_match_amdv_attr()) ||
+				debug_force_mode) {
 				*mode = AMDV_OUTPUT_MODE_IPT_TUNNEL;
 				if (dolby_vision_mode != *mode)
 					mode_change = 1;
@@ -4365,7 +4369,8 @@ static int amdv_policy_process_v2_stb(struct vframe_s *vf,
 					src_format, dolby_vision_mode, *mode);
 				}
 		} else if (force_mode == AMDV_OUTPUT_MODE_HDR10) {
-			if (vinfo && sink_support_hdr(vinfo)) {
+			if ((vinfo && sink_support_hdr(vinfo))  ||
+				debug_force_mode) {
 				*mode = AMDV_OUTPUT_MODE_HDR10;
 				if (dolby_vision_mode != *mode)
 					mode_change = 1;
@@ -14771,6 +14776,7 @@ static const char *amdolby_vision_debug_usage_str = {
 	"echo force_unmap > /sys/class/amdolby_vision/debug;\n"
 	"echo trace_amdv_isr value > /sys/class/amdolby_vision/debug;\n"
 	"echo output_4k240hz value > /sys/class/amdolby_vision/debug;\n"
+	"echo debug_force_mode value > /sys/class/amdolby_vision/debug;\n"
 };
 
 static ssize_t  amdolby_vision_debug_show(const struct class *cla,
@@ -15029,6 +15035,15 @@ static ssize_t amdolby_vision_debug_store(const struct class *cla,
 			return -EINVAL;
 		variable_fps_mode = val;
 		pr_info("set variable_fps_mode %d\n", variable_fps_mode);
+	} else if (!strcmp(parm[0], "debug_force_mode")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		debug_force_mode = val;
+		if (val == 0)
+			debug_force_mode = false;
+		else
+			debug_force_mode = true;
+		pr_info("set debug_force_mode %d\n", debug_force_mode);
 	} else {
 		pr_info("unsupport cmd\n");
 	}
