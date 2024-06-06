@@ -911,15 +911,38 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 	bool ds_repeater = false;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
+	/* if signal not ready, should not propagate stream type */
+	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
 	mutex_lock(&stream_type_mutex);
 	if (update_scene == STREAMTYPE_UPDATE) {
 		/* update upstream type firstly */
 		p_hdcp->saved_upstream_type = 0x10 | upstream_type;
+		if (hdev->tx_comm.suspend_flag) {
+			pr_hdcp_info(L_1, "%s, suspend, no need propagate stream type\n", __func__);
+			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+			return;
+		}
+		if (!hdev->tx_comm.hpd_state) {
+			pr_hdcp_info(L_1, "%s, hdmitx hpd low, no need propagate stream type\n",
+				__func__);
+			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+			return;
+		}
+		if (!hdev->tx_comm.ready) {
+			pr_hdcp_info(L_1, "%s, hdmitx signal not done, no need propagate stream type\n",
+				__func__);
+			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+			return;
+		}
 		/* make sure hdcp is enabled */
 		if (hdmitx21_get_hdcp_mode() == 0) {
 			pr_hdcp_info(L_1, "%s, hdcp disabled, no need propagate stream type\n",
 				__func__);
 			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 			return;
 		}
 		ds_repeater = hdcptx_query_ds_repeater(p_hdcp);
@@ -927,6 +950,7 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 			pr_hdcp_info(L_1, "case[%d] no need propagate stream type, ds_repeater: %d, ds_hdcp_type: %d\n",
 				update_scene, ds_repeater, p_hdcp->hdcp_type);
 			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 			return;
 		}
 		/* if downstream connect repeater, then propagate stream id to downstream */
@@ -953,18 +977,35 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 		/* update upstream type firstly */
 		p_hdcp->saved_upstream_type = 0;
 		if (hdev->tx_comm.suspend_flag) {
-			pr_hdcp_info(L_1, "%s exit hdmirx, enter suspend, no need respond\n",
+			pr_hdcp_info(L_1, "%s, exit hdmirx, suspend, no need propagate stream type\n",
 				__func__);
 			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 			return;
 		}
+		if (!hdev->tx_comm.hpd_state) {
+			pr_hdcp_info(L_1, "%s, exit hdmirx, hdmitx hpd low, no need propagate stream type\n",
+				__func__);
+			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+			return;
+		}
+		if (!hdev->tx_comm.ready) {
+			pr_hdcp_info(L_1, "%s, exit hdmirx, hdmitx signal not done, no need propagate stream type\n",
+				__func__);
+			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+			return;
+		}
+
 		/* when switch from hdmirx channel to hdmitx home
 		 * need to start hdcp auth if it's not enabled
 		 */
 		if (hdmitx21_get_hdcp_mode() == 0) {
-			pr_hdcp_info(L_1, "%s exit hdmirx, need to enable hdcp\n", __func__);
+			pr_hdcp_info(L_1, "%s, exit hdmirx, need to enable hdcp\n", __func__);
 			hdmitx21_enable_hdcp(hdev);
 			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 			return;
 		}
 		ds_repeater = hdcptx_query_ds_repeater(p_hdcp);
@@ -972,6 +1013,7 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 			pr_hdcp_info(L_1, "case[%d] no need propagate stream type, ds_repeater: %d, ds_hdcp_type: %d\n",
 				update_scene, ds_repeater, p_hdcp->hdcp_type);
 			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 			return;
 		}
 		/* decide stream type to be sent according to
@@ -1011,11 +1053,34 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 	} else if (update_scene == UPSTREAM_ACTIVE) {
 		/* update upstream type firstly */
 		p_hdcp->saved_upstream_type = 0x10 | upstream_type;
+		if (hdev->tx_comm.suspend_flag) {
+			pr_hdcp_info(L_1, "%s, enter hdmirx, suspend, no need propagate stream type\n",
+				__func__);
+			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+			return;
+		}
+		if (!hdev->tx_comm.hpd_state) {
+			pr_hdcp_info(L_1, "%s, enter hdmirx, hdmitx hpd low, no need propagate stream type\n",
+				__func__);
+			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+			return;
+		}
+		if (!hdev->tx_comm.ready) {
+			pr_hdcp_info(L_1, "%s, enter hdmirx, hdmitx signal not done, no need propagate stream type\n",
+				__func__);
+			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+			return;
+		}
+
 		/* make sure hdcp is enabled */
 		if (hdmitx21_get_hdcp_mode() == 0) {
 			pr_hdcp_info(L_1, "%s, hdcp disabled, no need propagate stream type2\n",
 				__func__);
 			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 			return;
 		}
 		ds_repeater = hdcptx_query_ds_repeater(p_hdcp);
@@ -1023,6 +1088,7 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 			pr_hdcp_info(L_1, "case[%d] no need propagate stream type, ds_repeater: %d, ds_hdcp_type: %d\n",
 				update_scene, ds_repeater, p_hdcp->hdcp_type);
 			mutex_unlock(&stream_type_mutex);
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 			return;
 		}
 		cur_content_type = p_hdcp->csm_message.streamid_type & 0x00FF;
@@ -1045,6 +1111,7 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 		}
 	}
 	mutex_unlock(&stream_type_mutex);
+	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 }
 
 /* note: it maybe used in timer */

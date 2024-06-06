@@ -2735,6 +2735,12 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	} else if (strncmp(tmpbuf, "load_14key", 10) == 0) {
 		HDMITX_INFO("hdcp1.4 key load result: %d\n",
 			hdmitx_hw_cntl_misc(hdev->tx_comm.tx_hw, MISC_VALIDATE_HDCP14_KEY, 0));
+	} else if (strncmp(tmpbuf, "hdcp_reauth", 11) == 0) {
+		ret = kstrtoul(tmpbuf + 11, 16, &value);
+		if (ret != 0)
+			return;
+		HDMITX_INFO("hdcp reauth: %lu\n", value);
+		hdmitx_reauth_request(value & 0xFF);
 	}
 }
 
