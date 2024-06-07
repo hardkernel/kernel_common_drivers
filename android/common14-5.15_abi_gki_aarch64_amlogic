@@ -28,10 +28,6 @@
   scmi_driver_register
   scmi_driver_unregister
 
-# amlogic-amfc.ko
-  crypto_register_alg
-  crypto_unregister_alg
-
 # amlogic-adc.ko
   devm_of_platform_populate
   irq_chip_ack_parent
@@ -39,3 +35,31 @@
   irq_chip_enable_parent
   irq_domain_free_irqs_common
   irq_domain_xlate_onecell
+
+# amlogic-amfc.ko
+  crypto_register_alg
+  crypto_unregister_alg
+
+# aml-erofs.ko
+  register_sysctl
+  __wake_up_locked
+  __xa_erase
+  bit_wait
+  blkdev_get_by_path
+  blkdev_put
+  fs_kobj
+  get_fs_type
+  init_user_ns
+  io_schedule
+  iov_iter_alignment
+  kobject_del
+  kobject_set_name
+  kset_unregister
+  kthread_destroy_worker
+  readahead_gfp_mask
+  vm_map_ram
+  vm_unmap_ram
+  wake_up_bit
+  xa_find
+  xa_find_after
+  xa_load

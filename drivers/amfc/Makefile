@@ -60,3 +60,5 @@ $(obj)/zstd:
 	cp $@ $(srctree)/../build/kernel/build-tools/path/linux-x86/
 
 $(obj)/amfc.o: ${obj}/zstd
+
+obj-$(CONFIG_AMLOGIC_EROFS) += aml_erofs/
