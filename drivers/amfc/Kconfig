@@ -6,3 +6,5 @@ config AMLOGIC_AMFC
 		Hardware compress/decompress module
 		This module can help for speed up
 		zram and some other cases which using compress/decompress
+
+source "$(COMMON_DRIVERS_DIR)/drivers/amfc/aml_erofs/Kconfig"

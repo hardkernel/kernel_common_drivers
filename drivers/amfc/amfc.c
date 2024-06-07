@@ -412,6 +412,12 @@ int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, in
 	if (amfc->log > 1)
 		pr_info("%s, src:%px, dst:%px, src size:%ld, dst size:%ld\n",
 			__func__, src, dst, src_size, dst_size);
+	if (stream)
+		amfc_map_addr(dst, dst_size - AMFC_STREAM_MARGIN, DMA_FROM_DEVICE);
+	else
+		amfc_map_addr(dst, dst_size, DMA_FROM_DEVICE);
+	amfc_map_addr(src, src_size, DMA_TO_DEVICE);
+
 	spin_lock_irqsave(&amfc->dec_lock, flags);
 	if (((unsigned long)dst & ~PAGE_MASK) &&
 	    (dst_size + ((unsigned long)dst & ~PAGE_MASK) > PAGE_SIZE)) {
@@ -488,12 +494,7 @@ int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, in
 		control |= (1 << 4);
 	}
 
-	if (stream)
-		amfc_map_addr(dst, dst_size - AMFC_STREAM_MARGIN, DMA_FROM_DEVICE);
-	else
-		amfc_map_addr(dst, dst_size, DMA_FROM_DEVICE);
 	amfc_map_addr(acl, sizeof(*acl), DMA_TO_DEVICE);
-	amfc_map_addr(src, src_size, DMA_TO_DEVICE);
 
 	amfc_hw_write(3, AMFC_GL_CMD1_IRQCLR);
 	amfc_hw_write(virt_to_phys(acl) >> ADDR_SHIFT, AMFC_GL_CMD1_DESC_BASE_ADDR);
@@ -528,12 +529,6 @@ int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, in
 	}
 
 	amfc_unmap_addr(acl, sizeof(*acl), DMA_FROM_DEVICE);
-	if (stream)
-		amfc_unmap_addr(dst, dst_size - AMFC_STREAM_MARGIN, DMA_FROM_DEVICE);
-	else
-		amfc_unmap_addr(dst, dst_size, DMA_FROM_DEVICE);
-	amfc_unmap_addr(src, src_size, DMA_TO_DEVICE);
-
 	if (table_addr1)
 		amfc_unmap_addr(table_addr1, ALIGN(src_size, PAGE_SIZE) / PAGE_SIZE,
 				DMA_TO_DEVICE);
@@ -585,6 +580,12 @@ out:
 		memcpy(tmp, amfc->bounce_buffer, dst_size - AMFC_STREAM_MARGIN);
 
 	spin_unlock_irqrestore(&amfc->dec_lock, flags);
+	if (stream)
+		amfc_unmap_addr(dst, dst_size - AMFC_STREAM_MARGIN, DMA_FROM_DEVICE);
+	else
+		amfc_unmap_addr(dst, dst_size, DMA_FROM_DEVICE);
+	amfc_unmap_addr(src, src_size, DMA_TO_DEVICE);
+
 	return ret;
 }
 EXPORT_SYMBOL(amfc_decompress);
@@ -615,6 +616,8 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
 	if (amfc->log > 1)
 		pr_info("%s, src:%px, dst:%px, src size:%ld, dst size:%ld\n",
 			__func__, src, dst, src_size, dst_size);
+	amfc_map_addr(src, src_size, DMA_TO_DEVICE);
+	amfc_map_addr(dst, dst_size, DMA_FROM_DEVICE);
 	spin_lock_irqsave(&amfc->com_lock, flags);
 	acl = amfc->compress;
 	/* setup command list, decompress use cmd0 */
@@ -674,9 +677,7 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
 		control |= (1 << 4);
 	}
 
-	amfc_map_addr(src, src_size, DMA_TO_DEVICE);
 	amfc_map_addr(acl, sizeof(*acl), DMA_TO_DEVICE);
-	amfc_map_addr(dst, dst_size, DMA_FROM_DEVICE);
 
 	amfc_hw_write(3, AMFC_GL_CMD0_IRQCLR);
 	amfc_hw_write(virt_to_phys(acl) >> ADDR_SHIFT, AMFC_GL_CMD0_DESC_BASE_ADDR);
@@ -711,8 +712,6 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
 	}
 
 	amfc_unmap_addr(acl, sizeof(*acl), DMA_FROM_DEVICE);
-	amfc_unmap_addr(dst, dst_size, DMA_FROM_DEVICE);
-	amfc_unmap_addr(src, src_size, DMA_TO_DEVICE);
 	if (table_addr1)
 		amfc_unmap_addr(table_addr1, ALIGN(src_size, PAGE_SIZE) / PAGE_SIZE,
 				DMA_TO_DEVICE);
@@ -754,6 +753,8 @@ out:
 	}
 	amfc_hw_write(0x03, AMFC_GL_CMD0_IRQCLR);
 	spin_unlock_irqrestore(&amfc->com_lock, flags);
+	amfc_unmap_addr(dst, dst_size, DMA_FROM_DEVICE);
+	amfc_unmap_addr(src, src_size, DMA_TO_DEVICE);
 	return ret;
 }
 EXPORT_SYMBOL(amfc_compress);
@@ -879,7 +880,7 @@ static int eamfc_crypto_decompress(struct crypto_tfm *tfm, const u8 *src,
 /* for erofs*/
 static struct crypto_alg eamfc_alg = {
 	.cra_name		= "eamfc",
-	.cra_driver_name	= "amfc-generic",
+	.cra_driver_name	= "eamfc-generic",
 	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
 	.cra_ctxsize		= 0,
 	.cra_module		= THIS_MODULE,
@@ -1179,10 +1180,13 @@ static int __init amfc_probe(struct platform_device *pdev)
 
 	node = pdev->dev.of_node;
 	amfc->dev = &pdev->dev;
+	dma_set_mask(amfc->dev, DMA_BIT_MASK(36));
 	amfc->compress = kzalloc(sizeof(*amfc->compress), GFP_KERNEL);
 	amfc->decompress = kzalloc(sizeof(*amfc->decompress), GFP_KERNEL);
-	if (!amfc->compress || !amfc->decompress)
+	if (!amfc->compress || !amfc->decompress) {
+		r = -ENOMEM;
 		goto err;
+	}
 
 	for (num = 0; num < 4; num++) {
 		amfc->pages[num] = alloc_pages(GFP_KERNEL, 0);
@@ -1237,18 +1241,21 @@ static int __init amfc_probe(struct platform_device *pdev)
 #endif
 
 	r = crypto_register_alg(&amfc_alg);
-	if (r)
+	if (r) {
+		pr_err("register amfc crypto failed:%d\n", r);
 		goto err;
+	}
 
 	r = crypto_register_alg(&eamfc_alg);
 	if (r) {
 		crypto_unregister_alg(&amfc_alg);
+		pr_err("register eamfc crypto failed:%d\n", r);
 		goto err;
 	}
 
 	r = class_register(&amfc_class);
 	if (r)
-		pr_info("%s, class regist failed\n", __func__);
+		pr_info("%s, class regist failed:%d\n", __func__, r);
 
 	return 0;
 err:
