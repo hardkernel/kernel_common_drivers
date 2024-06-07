@@ -1451,7 +1451,9 @@ static int vpp_process_speed_check
 					(get_cpu_type() !=
 					MESON_CPU_MAJOR_ID_GXM) &&
 					(get_cpu_type() !=
-					MESON_CPU_MAJOR_ID_S5))
+					MESON_CPU_MAJOR_ID_S5) &&
+					(get_cpu_type() !=
+					MESON_CPU_MAJOR_ID_T3))
 					return SPEED_CHECK_VSKIP;
 				else
 					return SPEED_CHECK_DONE;
