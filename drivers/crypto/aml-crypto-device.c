@@ -515,6 +515,11 @@ static int fill_kcop_from_cop(struct kernel_crypt_op *kcop, struct fcrypt *fcr)
 		return -EINVAL;
 	}
 	kcop->param_len = cop->param_len;
+	if (kcop->param_len > 4) {
+		dbgp(2, "param length too large: %d\n",
+		     kcop->param_len);
+		return -EINVAL;
+	}
 
 	crypto_put_session(ses_ptr);
 
@@ -818,18 +823,26 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
-	wait_owner_bit(&dsc[s + i]);
+	if (!err)
+		wait_owner_bit(&dsc[s + i]);
 	aml_write_crypto_reg(crypto_dd->status, 0xff);
 #else
 	wait_for_completion(&crypto_dd->done);
 	err = crypto_dd->err;
-	wait_owner_bit(&dsc[s + i]);
+	if (!err)
+		wait_owner_bit(&dsc[s + i]);
 #endif
 	crypto_dd->dma_busy = 0;
 	mutex_unlock(&crypto_dd->lock);
 
 	if (err & DMA_STATUS_KEY_ERROR) {
+		int old_debug = debug;
+
 		rc = -EACCES;
+		debug = 0;
+		aml_dma_debug(dsc, s + i + 1, __func__,
+			      crypto_dd->thread, crypto_dd->status);
+		debug = old_debug;
 		goto error;
 	}
 
@@ -1093,18 +1106,26 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 		while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 			;
-		wait_owner_bit(&dsc[s]);
+		if (!err)
+			wait_owner_bit(&dsc[s]);
 		aml_write_crypto_reg(crypto_dd->status, 0xf);
 #else
 		wait_for_completion(&crypto_dd->done);
 		err = crypto_dd->err;
-		wait_owner_bit(&dsc[s]);
+		if (!err)
+			wait_owner_bit(&dsc[s]);
 #endif
 		crypto_dd->dma_busy = 0;
 		mutex_unlock(&crypto_dd->lock);
 		dma_unmap_single(dev, dma_buf, length, DMA_TO_DEVICE);
 		if (err & DMA_STATUS_KEY_ERROR) {
+			int old_debug = debug;
+
 			rc = -EACCES;
+			debug = 0;
+			aml_dma_debug(dsc, s + 1, __func__,
+				      crypto_dd->thread, crypto_dd->status);
+			debug = old_debug;
 			goto error;
 		}
 	}
@@ -1137,17 +1158,25 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
-	wait_owner_bit(&dsc[0]);
+	if (!err)
+		wait_owner_bit(&dsc[0]);
 	aml_write_crypto_reg(crypto_dd->status, 0xff);
 #else
 	wait_for_completion(&crypto_dd->done);
 	err = crypto_dd->err;
-	wait_owner_bit(&dsc[0]);
+	if (!err)
+		wait_owner_bit(&dsc[0]);
 #endif
 	crypto_dd->dma_busy = 0;
 	mutex_unlock(&crypto_dd->lock);
 	if (err & DMA_STATUS_KEY_ERROR) {
+		int old_debug = debug;
+
 		rc = -EACCES;
+		debug = 0;
+		aml_dma_debug(dsc, 1, __func__,
+			      crypto_dd->thread, crypto_dd->status);
+		debug = old_debug;
 		goto error;
 	}
 
@@ -1329,18 +1358,26 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 		while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 			;
-		wait_owner_bit(&dsc[s]);
+		if (!err)
+			wait_owner_bit(&dsc[s]);
 		aml_write_crypto_reg(crypto_dd->status, 0xff);
 #else
 		wait_for_completion(&crypto_dd->done);
 		err = crypto_dd->err;
-		wait_owner_bit(&dsc[s]);
+		if (!err)
+			wait_owner_bit(&dsc[s]);
 #endif
 		crypto_dd->dma_busy = 0;
 		mutex_unlock(&crypto_dd->lock);
 		dma_unmap_single(dev, dma_buf, length, DMA_FROM_DEVICE);
 		if (err & DMA_STATUS_KEY_ERROR) {
+			int old_debug = debug;
+
 			rc = -EACCES;
+			debug = 0;
+			aml_dma_debug(dsc, s + 1, __func__,
+				      crypto_dd->thread, crypto_dd->status);
+			debug = old_debug;
 			goto error;
 		}
 		count_dst = __copy_buffers_out(&dst, length,
@@ -1380,17 +1417,25 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
-	wait_owner_bit(&dsc[0]);
+	if (!err)
+		wait_owner_bit(&dsc[0]);
 	aml_write_crypto_reg(crypto_dd->status, 0xff);
 #else
 	wait_for_completion(&crypto_dd->done);
 	err = crypto_dd->err;
-	wait_owner_bit(&dsc[0]);
+	if (!err)
+		wait_owner_bit(&dsc[0]);
 #endif
 	crypto_dd->dma_busy = 0;
 	mutex_unlock(&crypto_dd->lock);
 	if (err & DMA_STATUS_KEY_ERROR) {
+		int old_debug = debug;
+
 		rc = -EACCES;
+		debug = 0;
+		aml_dma_debug(dsc, 1, __func__,
+			      crypto_dd->thread, crypto_dd->status);
+		debug = old_debug;
 		goto error;
 	}
 
@@ -1593,19 +1638,27 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 		while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 			;
-		wait_owner_bit(&dsc[s]);
+		if (!err)
+			wait_owner_bit(&dsc[s]);
 		aml_write_crypto_reg(crypto_dd->status, 0xff);
 #else
 		wait_for_completion(&crypto_dd->done);
 		err = crypto_dd->err;
-		wait_owner_bit(&dsc[s]);
+		if (!err)
+			wait_owner_bit(&dsc[s]);
 #endif
 		crypto_dd->dma_busy = 0;
 		mutex_unlock(&crypto_dd->lock);
 		dma_sync_single_for_cpu(dev, dma_buf,
 					PAGE_SIZE, DMA_FROM_DEVICE);
 		if (err & DMA_STATUS_KEY_ERROR) {
+			int old_debug = debug;
+
 			rc = -EACCES;
+			debug = 0;
+			aml_dma_debug(dsc, s + 1, __func__,
+				      crypto_dd->thread, crypto_dd->status);
+			debug = old_debug;
 			goto error;
 		}
 		count_dst = __copy_buffers_out(&dst, count,
@@ -1646,17 +1699,25 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
-	wait_owner_bit(&dsc[0]);
+	if (!err)
+		wait_owner_bit(&dsc[0]);
 	aml_write_crypto_reg(crypto_dd->status, 0xff);
 #else
 	wait_for_completion(&crypto_dd->done);
 	err = crypto_dd->err;
-	wait_owner_bit(&dsc[0]);
+	if (!err)
+		wait_owner_bit(&dsc[0]);
 #endif
 	crypto_dd->dma_busy = 0;
 	mutex_unlock(&crypto_dd->lock);
 	if (err & DMA_STATUS_KEY_ERROR) {
+		int old_debug = debug;
+
 		rc = -EACCES;
+		debug = 0;
+		aml_dma_debug(dsc, 1, __func__,
+			      crypto_dd->thread, crypto_dd->status);
+		debug = old_debug;
 		goto error;
 	}
 	if (ses_ptr->cdata.op_mode == OP_MODE_CBC) {
@@ -1831,12 +1892,14 @@ static long aml_crypto_dev_ioctl(struct file *filp,
 		ret = kcop_from_user(&kcop, fcr, arg);
 		if (unlikely(ret)) {
 			dbgp(2, "Error copying from user");
+			kfree(kcop.param);
 			return ret;
 		}
 
 		ret = crypto_run(fcr, &kcop);
 		if (unlikely(ret)) {
 			dbgp(2, "Error in crypto_run");
+			kfree(kcop.param);
 			return ret;
 		}
 
@@ -2012,6 +2075,7 @@ static int compat_kcop_to_user(struct kernel_crypt_op *kcop,
 	struct compat_crypt_op compat_cop;
 
 	ret = fill_cop_from_kcop(kcop, fcr);
+	kfree(kcop->param);
 	if (unlikely(ret)) {
 		dbgp(2, "Error in fill_cop_from_kcop");
 		return ret;
@@ -2048,12 +2112,16 @@ static long aml_crypto_dev_compat_ioctl(struct file *filp,
 		return aml_crypto_dev_ioctl(filp, cmd, arg_);
 	case DO_CRYPTO_COMPAT:
 		ret = compat_kcop_from_user(&kcop, fcr, arg);
-		if (unlikely(ret))
+		if (unlikely(ret)) {
+			kfree(kcop.param);
 			return ret;
+		}
 
 		ret = crypto_run(fcr, &kcop);
-		if (unlikely(ret))
+		if (unlikely(ret)) {
+			kfree(kcop.param);
 			return ret;
+		}
 
 		return compat_kcop_to_user(&kcop, fcr, arg);
 	default:
