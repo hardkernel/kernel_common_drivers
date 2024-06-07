@@ -735,7 +735,7 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 		/* enable di all arb */
 		DIM_DI_WR_REG_BITS(DI_ARB_CTRL, 0xf0f, 0, 16);
 
-	if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_ICS_T5M || DIM_IS_IC(S7D))
+	if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_IC(T3) || DIM_IS_IC(S7D))
 		DIM_RDMA_WR(DI_WRARB_AXIWR_PROT, 0x80002);
 
 	/* 17b3 is DI_chan2_luma_fifo_size */
@@ -881,7 +881,7 @@ static void set_ma_pre_mif_g12(struct DI_SIM_MIF_S *mtnwr_mif,
 	/* current field mtn canvas index. */
 	DIM_RDMA_WR_BITS(MTNWR_X, mtnwr_mif->start_x, 16, 13);
 	DIM_RDMA_WR_BITS(MTNWR_X, mtnwr_mif->end_x, 0, 13);
-	if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_ICS_T5M || DIM_IS_IC(S7D))
+	if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_IC(T3) || DIM_IS_IC(S7D))
 		DIM_RDMA_WR_BITS(MTNWR_X, 0, 30, 2);
 	else
 		DIM_RDMA_WR_BITS(MTNWR_X, 2, 30, 2);
@@ -895,7 +895,7 @@ static void set_ma_pre_mif_g12(struct DI_SIM_MIF_S *mtnwr_mif,
 
 	DIM_RDMA_WR_BITS(CONTWR_X, contwr_mif->start_x, 16, 13);
 	DIM_RDMA_WR_BITS(CONTWR_X, contwr_mif->end_x, 0, 13);
-	if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_ICS_T5M || DIM_IS_IC(S7D))
+	if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_IC(T3) || DIM_IS_IC(S7D))
 		DIM_RDMA_WR_BITS(CONTWR_X, 0, 30, 2);
 	else
 		DIM_RDMA_WR_BITS(CONTWR_X, 2, 30, 2);
@@ -1326,7 +1326,7 @@ void dimh_enable_mc_di_pre_g12(struct DI_MC_MIF_s *mcinford_mif,
 	DIM_RDMA_WR_BITS(MCINFRD_CTRL1, mcinford_mif->canvas_num, 16, 8);
 	DIM_RDMA_WR_BITS(MCINFRD_CTRL1, 2, 0, 3);
 
-	if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_ICS_T5M || DIM_IS_IC(S7D))
+	if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_IC(T3) || DIM_IS_IC(S7D))
 		DIM_RDMA_WR_BITS(MCVECWR_X, 0, 30, 2);
 	DIM_RDMA_WR_BITS(MCVECWR_X, mcvecwr_mif->size_x, 0, 13);
 	DIM_RDMA_WR_BITS(MCVECWR_Y, mcvecwr_mif->size_y, 0, 13);
@@ -1334,7 +1334,7 @@ void dimh_enable_mc_di_pre_g12(struct DI_MC_MIF_s *mcinford_mif,
 	DIM_RDMA_WR_BITS(MCVECWR_CAN_SIZE, mcvecwr_mif->size_y, 0, 13);
 	DIM_RDMA_WR_BITS(MCVECWR_CAN_SIZE, mcvecwr_mif->size_x, 16, 13);
 
-	if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_ICS_T5M || DIM_IS_IC(S7D))
+	if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_IC(T3) || DIM_IS_IC(S7D))
 		DIM_RDMA_WR_BITS(MCINFWR_X, 0, 30, 2);
 	DIM_RDMA_WR_BITS(MCINFWR_X, mcinfowr_mif->size_x, 0, 13);
 	DIM_RDMA_WR_BITS(MCINFWR_Y, mcinfowr_mif->size_y, 0, 13);
@@ -4309,11 +4309,11 @@ void dim_pre_nr_wr_done_sel(bool on)
 {
 	if (on) {	/*wait till response finish*/
 		DIM_RDMA_WR_BITS(DI_CANVAS_URGENT0, 1, 8, 1);
-		if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_ICS_T5M || DIM_IS_IC(S7D))
+		if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_IC(T3) || DIM_IS_IC(S7D))
 			DIM_RDMA_WR_BITS(DI_CANVAS_URGENT0, 1, 24, 1);
 	} else {
 		DIM_RDMA_WR_BITS(DI_CANVAS_URGENT0, 0, 8, 1);
-		if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_ICS_T5M || DIM_IS_IC(S7D))
+		if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_IC(T3) || DIM_IS_IC(S7D))
 			DIM_RDMA_WR_BITS(DI_CANVAS_URGENT0, 0, 24, 1);
 	}
 }
@@ -4468,7 +4468,7 @@ void di_async_txhd2(void)
 {
 	unsigned int mask, val1, val2, val3;
 
-	if (!DIM_IS_IC_TXHD2 && !DIM_IS_IC(T5DB) && !DIM_IS_ICS_T5M && !DIM_IS_IC(S7D))
+	if (!DIM_IS_IC_TXHD2 && !DIM_IS_IC(T5DB) && !DIM_IS_IC(T3) && !DIM_IS_IC(S7D))
 		return;
 
 	/* reset inp/mem/nr wr mif */
@@ -4479,7 +4479,7 @@ void di_async_txhd2(void)
 	DIM_DI_WR(VIUB_SW_RESET, val2);
 	val3 = val2 & (~mask);
 	DIM_DI_WR(VIUB_SW_RESET, val3);
-	if (DIM_IS_ICS_T5M) {
+	if (DIM_IS_IC(T3)) {
 		DIM_RDMA_WR_BITS(DI_TOP_CTRL1, 1, 22, 1);
 		DIM_RDMA_WR_BITS(DI_TOP_CTRL1, 0, 22, 1);
 	}
