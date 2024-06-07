@@ -663,6 +663,9 @@ static bool amdv_apo_flag;
 static bool force_toggle_once;
 static bool force_toggle_each_vsync;
 
+u32 hlg_max = HLG_MAX;
+u32 hlg_min = HLG_MIN;
+
 bool is_aml_gxm(void)
 {
 	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_GXM)
@@ -1650,13 +1653,17 @@ bool is_hdr10_src_primary_changed(void)
 	    hdr10_param.g_x != last_hdr10_param.g_x ||
 	    hdr10_param.g_y != last_hdr10_param.g_y ||
 	    hdr10_param.b_x != last_hdr10_param.b_x ||
-	    hdr10_param.b_y != last_hdr10_param.b_y) {
+	    hdr10_param.b_y != last_hdr10_param.b_y ||
+	    hdr10_param.min_display_mastering_lum != last_hdr10_param.min_display_mastering_lum ||
+	    hdr10_param.max_display_mastering_lum != last_hdr10_param.max_display_mastering_lum) {
 		last_hdr10_param.r_x = hdr10_param.r_x;
 		last_hdr10_param.r_y = hdr10_param.r_y;
 		last_hdr10_param.g_x = hdr10_param.g_x;
 		last_hdr10_param.g_y = hdr10_param.g_y;
 		last_hdr10_param.b_x = hdr10_param.b_x;
 		last_hdr10_param.b_y = hdr10_param.b_y;
+		last_hdr10_param.min_display_mastering_lum = hdr10_param.min_display_mastering_lum;
+		last_hdr10_param.max_display_mastering_lum = hdr10_param.max_display_mastering_lum;
 		return 1;
 	}
 	return 0;
@@ -8291,9 +8298,15 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 			((struct pq_config *)pq_config_fake)
 				->tdc.dm31_avail = 1;
 		}
+		tv_input_info->enable_hlg_src_max_set = 0;
+		if (src_format == FORMAT_HLG && tv_input_info->enable_hlg_src_max_set == 1) {
+			/*for hlg, set source min/max, reuse hdr10 param*/
+			hdr10_param.min_display_mastering_lum = hlg_min;
+			hdr10_param.max_display_mastering_lum = hlg_max;
+		}
 		if (is_hdr10_src_primary_changed()) {
 			hdr10_src_primary_changed = true;
-			pr_dv_dbg("hdr10 src primary changed!\n");
+			pr_dv_dbg("source info changed!\n");
 		}
 		if (src_format != tv_dovi_setting->src_format ||
 			tv_dovi_setting->video_width != w ||
