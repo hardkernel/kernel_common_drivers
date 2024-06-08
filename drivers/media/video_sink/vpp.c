@@ -2130,7 +2130,8 @@ RESTART:
 	if (aspect_factor == 0 ||
 	    wide_mode == VIDEO_WIDEOPTION_FULL_STRETCH ||
 	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
-	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T) {
+	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T ||
+	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP) {
 		aspect_factor = 0x100;
 		height_after_ratio = h_in;
 	} else if (ext_sar) {
