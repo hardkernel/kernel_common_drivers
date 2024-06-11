@@ -772,6 +772,7 @@ struct dsub_vf_s {
 	enum vframe_signal_fmt_e fmt;
 	u32 sei_magic_code;
 	void *mem_handle;	/* di use this for struct dim_mm_blk_s */
+	u32 duration;
 };
 
 /* use this to replace vframe_s in di */

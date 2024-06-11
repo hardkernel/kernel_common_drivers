@@ -2743,7 +2743,8 @@ unsigned int dpvpp_is_bypass_dvfm_postlink(struct dvfm_s *dvfm)
 		return EPVPP_BYPASS_REASON_DV_PATH;
 	if (dvfm->vfs.flag & VFRAME_FLAG_GAME_MODE)
 		return EPVPP_BYPASS_REASON_GAME_MODE;
-
+	if (dvfm->vfs.duration < 1600 && dvfm->vfs.duration != 0)
+		return EPVPP_BYPASS_REASON_120HZ;
 	return 0;
 }
 
@@ -3159,10 +3160,10 @@ static unsigned int dpvpp_bypass_check_prelink(struct vframe_s *vfm, bool first)
 		}
 		if (vfm->width < 128 || vfm->height < 16)
 			reason = EPVPP_BYPASS_REASON_SIZE_S;
+		if (vfm->duration < 1600 && vfm->duration != 0)
+			reason = EPVPP_BYPASS_REASON_120HZ;
 	}
 	/* If vframe is EOS, information below maybe invalid */
-	if (vfm->duration < 1600 && vfm->duration != 0)
-		reason = EPVPP_BYPASS_REASON_120HZ;
 	if (VFMT_IS_EOS(vfm->type))
 		reason = EPVPP_BYPASS_REASON_EOS;
 	return reason;
