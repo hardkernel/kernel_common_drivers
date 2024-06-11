@@ -2549,7 +2549,7 @@ const struct di_dbg_func_s di_func_tab[] = {
 		"trig task", "no para"},
 	{EDI_DBG_F_02, dpre_dbg_f_trig,
 		"trig pre flow debug", "bit[4]:ddebug on/off;bi[3:0]:cnt"},
-	{EDI_DBG_F_03, dpst_dbg_f_trig,
+	{EDI_DBG_F_03, dbg_f_trig_task,
 		"trig post flow debug", "bit[4]:ddebug on/off;bi[3:0]:cnt"},
 	{EDI_DBG_F_04, hpst_dbg_power_ctr_trig,
 		"trig post power", "1: on; 0: off"},

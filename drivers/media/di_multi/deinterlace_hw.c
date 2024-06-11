@@ -4499,8 +4499,8 @@ void di_async_txhd2(void)
 void h_dbg_reg_set(unsigned int val)
 {
 	struct di_hpst_s  *pst = get_hw_pst();
-	enum EDI_PST_ST pst_st = pst->state;
-	unsigned int valb;
+//	enum EDI_PST_ST pst_st = pst->state;
+	unsigned int valb, pst_st = 0;
 
 	DIM_DI_WR(DI_NOP_REG1, val);
 

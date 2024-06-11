@@ -430,6 +430,7 @@ struct di_func_tab_s {
 
 /*for mark of do_table_ops_s id*/
 #define K_DO_TABLE_CAN_STOP		0x01
+#define K_DO_TABLE_IS_WAIT		0x04
 
 /*for op ret*/
 #define K_DO_TABLE_R_B_FINISH		0x01/*bit 0: 0:not finish, 1:finish*/
@@ -480,6 +481,41 @@ struct do_table_s {
 
 };
 
+enum POL_M_ST {	/*use this for co work with do table*/
+	POL_M_ST_EXIT,
+	POL_M_ST_IDLE,	/*switch to next channel?*/
+	POL_M_ST_CHECK,	/*check mode do_table and set*/
+	POL_M_ST_DO_TABLE,	/* do table statue;*/
+};
+
+enum POL_M_RJ {
+	POL_M_RJ_ST, /*stay here*/
+	POL_M_RJ_2_NX, /* to next */
+	POL_M_RJ_2_ID, /* to idle */
+};
+
+/* polling main data */
+struct s_pol_l_s {
+//	enum POL_M_ST st;	//main polling state
+//	unsigned int ch_crr;
+	unsigned int ch_max; //means channel nub
+	unsigned int idle_cnt;	//use this to judge if loop
+//	unsigned int cmd_asy_stop_en;
+	unsigned int cmd_asy_stop_ch_bits; /* one bit for one ch*/
+	spinlock_t	 lock_c_stop; /*spinlock*/
+
+	bool (*m_is_reg)(unsigned int ch);
+	void (*m_idle2check)(unsigned int ch);
+	void (*m_bypass_proc)(unsigned int ch);
+	enum POL_M_RJ (*m_check)(unsigned int ch); /*switch do_table */
+
+	void (*m_2_idle)(void);
+	void (*m_2_check)(unsigned int ch);
+	void (*m_2_do)(unsigned int ch);
+	void (*m_2_ext)(void);
+	/* sub polling*/
+	struct do_table_s s_do; /* switch do_table*/
+};
 /*************************************/
 
 /**********************/
@@ -610,18 +646,9 @@ struct di_hpre_s {
 /**************************************/
 /* POST */
 /**************************************/
-enum EDI_PST_ST {
-	EDI_PST_ST_EXIT,
-	EDI_PST_ST_IDLE,	/*switch to next channel?*/
-	EDI_PST_ST_CHECK,
-	EDI_PST_ST_SET,
-	EDI_PST_ST_WAIT_INT,
-	EDI_PST_ST_TIMEOUT,
-	EDI_PST_ST_DONE,	/*use for bypass_all*/
-};
 
 struct di_hpst_s {
-	enum EDI_PST_ST state;
+//	enum EDI_PST_ST state;
 	unsigned int curr_ch;
 	/*set when have vframe in; clear when int have get*/
 	bool hw_flg_busy_post;
@@ -629,6 +656,8 @@ struct di_hpst_s {
 	struct di_post_stru_s *psts;
 	struct di_time_out_s tout;	/*for time out*/
 	bool flg_int_done;
+
+	struct s_pol_l_s mpl;/* polling for di */
 
 	/*dbg flow:*/
 	bool dbg_f_en;
@@ -1304,7 +1333,9 @@ struct dim_itf_s {
 	/*status:*/
 	bool bypass_complete;
 	bool flg_s4dw; /* copy */
+	bool flg_rotation;	//
 	bool p_vpp_link; //
+	unsigned char rotation_mode; //1:180; 2:90; 3:270
 	struct dimn_itf_s *p_itf;	/* @ary 11-08 add */
 	bool reg;
 	struct mutex lock_reg; /* for reg */
@@ -1982,6 +2013,19 @@ enum EDIM_TMODE {
 };
 
 /************************************************/
+struct di_ch_sub_s {
+	bool pre_dis; //add for rotation
+	bool pst_pol_en;
+	unsigned int last_bypass;
+	struct dim_nins_s *nins;
+	struct di_vinfo_s vinf_lst;
+	struct di_vinfo_s vinf_crr;
+	enum POL_M_ST st;	//main polling state
+	void (*op_mp_check_sw)(unsigned int ch);/*switch do_table */
+	bool (*op_mp_has_job)(unsigned int ch); //option
+	void (*op_mp_stop_done)(unsigned int ch);
+
+}; //
 struct di_ch_s {
 	/*struct di_cfgx_s dbg_cfg;*/
 	unsigned char cfgx_en[K_DI_CFGX_NUB];
@@ -2098,7 +2142,7 @@ struct di_ch_s {
 	bool ponly_set;/* plink ponly check */
 	bool plink_dct;/* plink ponly check */
 	enum EPVPP_API_MODE link_mode;
-	unsigned int last_bypass;
+//	unsigned int last_bypass;
 	struct kfifo	fifo32[DIM_Q_NUB];
 	bool flg_fifo32[DIM_Q_NUB];
 	unsigned int err;
@@ -2114,6 +2158,7 @@ struct di_ch_s {
 #endif
 	unsigned int sts_keep	: 1,
 			rev	: 31;
+	struct di_ch_sub_s c;
 };
 
 struct dim_policy_s {
@@ -3067,6 +3112,11 @@ static inline struct di_ch_s *get_chdata(unsigned int ch)
 static inline struct di_mng_s *get_bufmng(void)
 {
 	return &get_datal()->mng;
+}
+
+static inline struct s_pol_l_s  *get_poll_pst(void)
+{
+	return &get_datal()->hw_pst.mpl;
 }
 
 static inline struct di_hpre_s  *get_hw_pre(void)

@@ -157,9 +157,13 @@ void do_table_init(struct do_table_s *pdo,
 /* now only call in same thread */
 void do_table_cmd(struct do_table_s *pdo, enum EDO_TABLE_CMD cmd);
 void do_table_working(struct do_table_s *pdo);
-bool do_table_is_crr(struct do_table_s *pdo, unsigned int state);
+bool do_table_is_crr(const struct do_table_s *pdo, unsigned int state);
+bool do_table_is_wait(struct do_table_s *pdo); /**/
 
 enum EDI_SUB_ID pw_ch_next_count(enum EDI_SUB_ID channel);
+
+void s_pol_pst_trig_start(unsigned int ch);
+
 
 /************************************************
  * bypass state
@@ -328,6 +332,8 @@ bool dbg_src_change_simple(unsigned int ch);
 bool dbg_checkcrc(struct di_buf_s *di_buf, unsigned int cnt);
 
 void dbg_cp_4k(struct di_ch_s *pch, unsigned int mode);
+void polling_for_rotation(struct di_ch_s *pch); //ary@0525
+
 void dbg_afbc_update_level1(struct vframe_s *vf,
 			    enum EAFBC_DEC dec);//debug for copy
 void dbg_afbce_update_level1(struct vframe_s *vf,
@@ -526,6 +532,39 @@ extern const struct dim_s4dw_data_s dim_s4dw_def;
 //unsigned char s4dw_pre_buf_config(struct di_ch_s *pch);
 enum DI_ERRORTYPE s4dw_empty_input(struct di_ch_s *pch, struct di_buffer *buffer);
 
+//--------------------------
+//rotation:
+bool rotation_test_ins(void);
+bool rotation_test_chgflg(void);
+bool rotation_test_420_10(void);
+bool rotation_test_mode(void);
+void cfg_ch_set_for_rotation(struct di_ch_s *pch);
+enum DI_ERRORTYPE rt_empty_input(struct di_ch_s *pch,
+				   struct di_buffer *buffer);
+void rt_reg_variable(struct di_ch_s *pch, struct vframe_s *vframe);
+void rt_parser_infor(struct di_ch_s *pch);
+void rt_unreg(struct di_ch_s *pch);
+//void rt_prob(void);
+void dim_p_pst_prob(void);
+void pol_pst_set_dtb(const struct do_table_ops_s *ptable,
+		   unsigned int size_tab);
+void dim_p_pst_start(unsigned int ch);
+//unsigned int dim_dbg_get_rot_mode(void);
+//unsigned int dim_dbg_get_rot_(void);
+
+bool dim_is_pre_disable(unsigned int ch);
+unsigned int dim_dbg_c_get(void); //dbg only
+
+//--------------------------
+//vframe_s:
+void dim_vfm_2_vinfo(struct di_vinfo_s *vt, struct vframe_s *ori_vframe);
+unsigned int dim_is_vinfo_chg(struct di_vinfo_s *v1, /* new*/
+							  struct di_vinfo_s *v2,
+							  bool prt_en);
+
+//--------------------------
+void di_cnt_pst_afbct(struct di_ch_s *pch);
+int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/);
 void dim_pps_disable(void);
 
 unsigned char is_source_change(struct vframe_s *vframe, unsigned int channel);

@@ -26,6 +26,8 @@ enum di_work_mode {
 	/*copy for decoder 1/4 * 1/4 */
 	/*  */
 	WORK_MODE_S4_DCOPY,
+	WORK_MODE_ROTATION,
+	WORK_MODE_ROTATION_270,
 	WORK_MODE_MAX
 };
 

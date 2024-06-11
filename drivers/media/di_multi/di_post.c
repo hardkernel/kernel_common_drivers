@@ -37,180 +37,137 @@
 #include "nr_downscale.h"
 #include "register.h"
 
-void dpost_clear(void)/*not been called*/
+bool dpst_can_exit(unsigned int ch)
 {
-	struct di_hpst_s  *pst = get_hw_pst();
-
-	memset(pst, 0, sizeof(struct di_hpst_s));
-}
-
-void dpost_init(void)
-{/*reg:*/
-	struct di_hpst_s  *pst = get_hw_pst();
-
-	pst->state = EDI_PST_ST_IDLE;
-
-	/*timer out*/
-	di_tout_int(&pst->tout, 40);	/*ms*/
-}
-
-void pw_use_hw_post(enum EDI_SUB_ID channel, bool on)
-{
-	struct di_hpst_s  *post = get_hw_pst();
-
-	post->hw_flg_busy_post = on;
-	if (on)
-		post->curr_ch = channel;
-}
-
-static bool pw_try_sw_ch_next_post(enum EDI_SUB_ID channel)
-{
+	//struct di_hpst_s  *pst = get_hw_pst();
 	bool ret = false;
+	struct di_ch_s *pch;
 
-	struct di_hpst_s *post = get_hw_pst();
-	enum EDI_SUB_ID lst_ch, nch;
+	pch = get_chdata(ch);
 
-	lst_ch = channel;
+	if (pch->c.st <= POL_M_ST_IDLE) //EDI_PST_ST_IDLE
+		ret = true;
 
-	nch = pw_ch_next_count(lst_ch);
-	if (!get_reg_flag(nch) || get_flag_trig_unreg(nch))
-		return false;
-
-	if (nch != channel)
-		dim_ddbg_mod_save(EDI_DBG_MOD_POST_CH_CHG, nch, 0);/*dbg*/
-
-	post->curr_ch = nch;
-	post->hw_flg_busy_post = true;
-	ret = true;
-
-	/*dim_print("%s:%d->%d:%d\n", __func__, lst_ch, nch, ret);*/
+	if (!ret)
+		PR_INF("%s:ch[%d]:stat[%d] ret[%d]\n",
+		       __func__,
+		       ch, pch->c.st,
+		       ret);
 	return ret;
 }
 
-/*****************************/
-/* debug */
-/*****************************/
+//----------------------------------------------
+//------------------function----------------
+//this is pst normal table
+enum EDI_NM_ST {
+	EDI_NM_ST_CHECK = K_DO_TABLE_ID_START,
+	EDI_NM_ST_SET,
+	EDI_NM_ST_WAIT_INT,
+	EDI_NM_ST_TIMEOUT,
+	EDI_NM_ST_UB,
+};
 
-/*****************************/
-/* STEP */
-/*****************************/
-
-bool dpst_step_idle(void)
+/* check:
+ * cfg is bypass or not,
+ *	bypass: K_DO_R_JUMP(K_DO_TABLE_ID_STOP);
+ * normal: K_DO_R_FINISH
+ */
+static unsigned int nm_check(void *data)
 {
-	struct di_hpst_s  *pst = get_hw_pst();
-	bool reflesh = false;
 
-	if (!pw_try_sw_ch_next_post(pst->curr_ch))
-		return false;
-
-	pst->pres = get_pre_stru(pst->curr_ch);
-	pst->psts = get_post_stru(pst->curr_ch);
-	pst->state++;/*tmp*/
-	reflesh = true;
-
-	return reflesh;
-}
-
-bool dpst_step_check(void)
-{
 	struct di_hpst_s  *pst = get_hw_pst();
 	unsigned int ch;
 	struct di_post_stru_s *ppost;
-	bool reflesh = false;
+//	bool reflesh = false;
 
 	ch = pst->curr_ch;
 	ppost = get_post_stru(ch);
 
-	//if (queue_empty(ch, QUEUE_POST_DOING)) {
 	if (di_que_is_empty(ch, QUE_POST_DOING)) {
+	//dbg only if (!nm_trig_is_havebuffer(ch)) {
 		ppost->post_peek_underflow++;
-		pst->state--;
-		return reflesh;
+		return K_DO_R_JUMP(K_DO_TABLE_ID_STOP);
 	}
-
-	pst->state++;
-	reflesh = true;
-
-	return reflesh;
+	return K_DO_R_FINISH;
 }
 
-bool dpst_step_set(void)
+//true: set ok; failed: need go to stop
+bool _dpst_step_set(unsigned int ch)
 {
 	struct di_buf_s *di_buf = NULL;
 	struct vframe_s *vf_p = NULL;
 	struct di_post_stru_s *ppost;
 	struct di_hpst_s  *pst = get_hw_pst();
-	unsigned int ch;
-	bool reflesh = false;
-//ary 2020-12-09	ulong flags = 0;
 	struct di_ch_s *pch;
 
-	ch = pst->curr_ch;
 	ppost = get_post_stru(ch);
 
-	//di_buf = get_di_buf_head(ch, QUEUE_POST_DOING);
 	di_buf = di_que_peek(ch, QUE_POST_DOING);
 	if (dim_check_di_buf(di_buf, 20, ch)) {
 		PR_ERR("%s:err1\n", __func__);
-		return reflesh;
+		return false;
 	}
 
 	vf_p = di_buf->vframe;
 
 	pch = get_chdata(ch);
-	dim_print("%s: di_buf %px pr_index=%d\n",
-		__func__, di_buf, di_buf->process_fun_index);
+	dim_print("%s:pr_index=%d\n", __func__, di_buf->process_fun_index);
 	if (pch->link_mode == EPVPP_API_MODE_NONE &&
 	    di_buf->process_fun_index) { /*not bypass?*/
 
 		ppost->post_wr_cnt++;
 		ppost->process_doing = true;
-//ary 2020-12-09		spin_lock_irqsave(&plist_lock, flags);
+
 		dim_post_process(di_buf, 0, vf_p->width - 1,
 				 0, vf_p->height - 1, vf_p);
-//ary 2020-12-09		spin_unlock_irqrestore(&plist_lock, flags);
 
 		/*begin to count timer*/
 		di_tout_contr(EDI_TOUT_CONTR_EN, &pst->tout);
 
 		ppost->post_de_busy = 1;
 		ppost->irq_time = cur_to_msecs();
-
-		/*state*/
-		pst->state++;
-		/*reflesh = true;*/
 	} else {
 		ppost->de_post_process_done = 1;	/*trig done*/
 		pst->flg_int_done = 1;
-
-		/*state*/
-		pst->state++;/*pst->state = EDI_PST_ST_DONE;*/
-		reflesh = true;
 	}
 	ppost->cur_post_buf = di_buf;
 
-	return reflesh;
+	return true;
 }
 
-bool dpst_step_wait_int(void)
+static unsigned int nm_set(void *data)
 {
 	struct di_hpst_s  *pst = get_hw_pst();
 	unsigned int ch;
-	struct di_post_stru_s *ppost;
-	bool reflesh = false;
-	struct di_ch_s *pch;
-	struct di_buf_s *di_buf = NULL;
-	//ary 2020-12-07 ulong flags = 0;
 
 	ch = pst->curr_ch;
+	if (_dpst_step_set(ch))
+		return K_DO_R_FINISH;
+
+	return K_DO_R_JUMP(K_DO_TABLE_ID_STOP);
+}
+
+//0: need wait;
+//1: get int, to stop
+//2: time out, to timeout
+static unsigned int _dpst_step_wait_int(unsigned int ch)
+{
+	struct di_hpst_s  *pst = get_hw_pst();
+	struct di_post_stru_s *ppost;
+	unsigned int ret = 0;
+
+	struct di_ch_s *pch;
+	struct di_buf_s *di_buf = NULL;
+
 	pch = get_chdata(ch);
 	ppost = get_post_stru(ch);
+
 	dim_print("%s:ch[%d],done_flg[%d]\n", __func__,
 		  pst->curr_ch, pst->flg_int_done);
-	if (pst->flg_int_done) {
+	if (pst->flg_int_done) { //done
 		/*finish to count timer*/
 		di_tout_contr(EDI_TOUT_CONTR_FINISH, &pst->tout);
-		//ary 2020-12-07 spin_lock_irqsave(&plist_lock, flags);
+
 		if (pch->link_mode == EPVPP_API_MODE_POST) {
 			di_buf = ppost->cur_post_buf;
 			di_buf->is_lastp = 0;
@@ -227,11 +184,11 @@ bool dpst_step_wait_int(void)
 		} else {
 			dim_post_de_done_buf_config(ch);
 		}
-		//ary 2020-12-07 spin_unlock_irqrestore(&plist_lock, flags);
+
 		pst->flg_int_done = false;
 		/*state*/
-		pst->state = EDI_PST_ST_IDLE;
-		reflesh = true;
+
+		ret = 1;
 	} else {
 		/*check if timeout:*/
 		if (di_tout_contr(EDI_TOUT_CONTR_CHECK, &pst->tout)) {
@@ -241,11 +198,37 @@ bool dpst_step_wait_int(void)
 			hpst_timeout_read();
 			dim_ddbg_mod_save(EDI_DBG_MOD_POST_TIMEOUT, ch, 0);
 			/*state*/
-			pst->state = EDI_PST_ST_TIMEOUT;
-			reflesh = true;
+			//pst->state = EDI_PST_ST_TIMEOUT;
+			//reflesh = true;
+			ret = 2;
+		} else {
+			ret = 0;
 		}
 	}
-	return reflesh;
+	return ret;
+}
+
+/* wait int:
+ * return
+ *	: stay here, wait	: K_DO_R_NOT_FINISH
+ *	: got interrupt, to normal finish : K_DO_R_JUMP(K_DO_TABLE_ID_STOP)
+ *	: timeout, to timeout control : K_DO_R_FINISH
+ */
+static unsigned int nm_wait_int(void *data)
+{
+	unsigned int wait;
+	unsigned int ret = K_DO_R_NOT_FINISH;
+	struct di_hpst_s  *pst = get_hw_pst();
+
+	wait = _dpst_step_wait_int(pst->curr_ch);
+	if (!wait)
+		ret = K_DO_R_NOT_FINISH;
+	else if (wait == 1)
+		ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);
+	else //timeout:
+		ret = K_DO_R_JUMP(EDI_NM_ST_TIMEOUT);
+
+	return ret;
 }
 
 void dpst_timeout(unsigned int ch)
@@ -256,156 +239,444 @@ void dpst_timeout(unsigned int ch)
 	dimh_pst_trig_resize();
 }
 
-bool dpst_step_timeout(void)
+void _dpst_step_timeout(unsigned int ch)
 {
 	struct di_hpst_s  *pst = get_hw_pst();
-	unsigned int ch;
-	bool reflesh = false;
-	//ary 2020-12-07 ulong flags = 0;
 
-	ch = pst->curr_ch;
 	dpst_timeout(ch);
-	//ary 2020-12-07 spin_lock_irqsave(&plist_lock, flags);
 	dim_post_de_done_buf_config(ch);
-	//ary 2020-12-07 spin_unlock_irqrestore(&plist_lock, flags);
+
 	pst->flg_int_done = false;
 	pst->flg_have_set = false;
-
-	/*state*/
-	pst->state = EDI_PST_ST_IDLE;
-	reflesh = true;
-
-	return reflesh;
 }
 
-bool dpst_step_done(void)/*this step no use ?*/
+/* timeout control */
+static unsigned int nm_timeout(void *data)
 {
 	struct di_hpst_s  *pst = get_hw_pst();
-	unsigned int ch;
-	bool reflesh = false;
 
-	ch = pst->curr_ch;
-/*	dim_post_de_done_buf_config(ch);*/
+	_dpst_step_timeout(pst->curr_ch);
 
-	/*state*/
-	pst->state = EDI_PST_ST_IDLE;
-	reflesh = true;
-
-	return reflesh;
+	return K_DO_R_JUMP(K_DO_TABLE_ID_STOP);
 }
 
-const struct di_func_tab_s di_pst_func_tab[] = {
-	{EDI_PST_ST_EXIT, NULL},
-	{EDI_PST_ST_IDLE, dpst_step_idle},
-	{EDI_PST_ST_CHECK, dpst_step_check},
-	{EDI_PST_ST_SET, dpst_step_set},
-	{EDI_PST_ST_WAIT_INT, dpst_step_wait_int},
-	{EDI_PST_ST_TIMEOUT, dpst_step_timeout},
-	{EDI_PST_ST_DONE, dpst_step_done},
+const struct do_table_ops_s nm_sub_pol_tab[] = {
+	/*fix*/
+	[K_DO_TABLE_ID_PAUSE] = {
+	.id = K_DO_TABLE_ID_PAUSE,
+	.mark = 0,
+	.con = NULL,
+	.do_op = NULL,
+	.do_stop_op = NULL,
+	.name = "pause",
+	},
+	[K_DO_TABLE_ID_STOP] = {
+	.id = K_DO_TABLE_ID_STOP,
+	.mark = 0,
+	.con = NULL,
+	.do_op = NULL,
+	.do_stop_op = NULL,
+	.name = "nm_stop",
+	},
+	/******************/
+	[K_DO_TABLE_ID_START] = {	/*EDI_NM_ST_CHECK*/
+	.id = K_DO_TABLE_ID_START,
+	.mark = 0,
+	.con = NULL,
+	.do_op = nm_check,
+	.do_stop_op = NULL,
+	.name = "nm-check",
+	},
+	[EDI_NM_ST_SET] = {	/*EDI_NM_ST_CHECK*/
+	.id = EDI_NM_ST_SET,
+	.mark = 0,
+	.con = NULL,
+	.do_op = nm_set,
+	.do_stop_op = NULL,
+	.name = "nm-set",
+	},
+	[EDI_NM_ST_WAIT_INT] = {
+	.id = EDI_NM_ST_WAIT_INT,
+	.mark = K_DO_TABLE_IS_WAIT,
+	.con = NULL,
+	.do_op = nm_wait_int,
+	.do_stop_op = NULL,
+	.name = "nm_wait_int",
+	},
+	[EDI_NM_ST_TIMEOUT] = {
+	.id = EDI_NM_ST_TIMEOUT,
+	.mark = 0,
+	.con = NULL,
+	.do_op = nm_timeout,
+	.do_stop_op = NULL,
+	.name = "nm_timeout",
+	},
 };
 
-const char * const dpst_state_name[] = {
+/*call in main loop check state */
+void mp_check_sw_nm(unsigned int ch)
+{
+	struct di_ch_s *pch;
+
+	dbg_dt("m_chk_sw[%d]\n", ch);
+
+	pch = get_chdata(ch);
+	if (!pch->itf.flg_rotation) {
+		//tmp: set do_table:
+		pol_pst_set_dtb(&nm_sub_pol_tab[0], ARRAY_SIZE(nm_sub_pol_tab));
+	}
+}
+
+static void mp_stop_done_nm(unsigned int ch)
+{
+	PR_INF("%s:ch[%d]\n", __func__, ch);
+}
+
+static bool mp_has_job_nm(unsigned int ch)
+{
+	if (di_que_is_empty(ch, QUE_POST_DOING))
+		return false;
+
+	return true;
+}
+
+void dpost_init(unsigned int ch)
+{/*reg:*/
+	struct di_hpst_s  *pst = get_hw_pst();
+	struct di_ch_s *pch;
+
+	pch = get_chdata(ch);
+	if (!pch->itf.flg_rotation) {
+		memset(&pch->c, 0, sizeof(pch->c));
+		pch->c.pst_pol_en = true;
+		pch->c.pre_dis = false;
+		pch->c.op_mp_check_sw = mp_check_sw_nm;
+		pch->c.op_mp_has_job = mp_has_job_nm;
+		pch->c.op_mp_stop_done = mp_stop_done_nm;
+	}
+	//no used pst->state = EDI_PST_ST_IDLE;
+
+	/*timer out*/
+	di_tout_int(&pst->tout, 40);	/*ms*/
+	dim_p_pst_start(ch);
+}
+
+void dpost_unreg(unsigned int ch)
+{
+	struct di_ch_s *pch;
+
+	pch = get_chdata(ch);
+
+	memset(&pch->c, 0, sizeof(pch->c));
+}
+
+//=================================================
+
+//---------------------------------------
+// new main polling
+//---------------------------------------
+
+/************************************************/
+//main polling:
+/* function: idle find next ch, if there is some ch have job, to check
+ *return:
+ *	false: still in idle
+ *	true: go next
+ */
+static bool m_pst_is_active(unsigned int ch)
+{
+	struct di_ch_s *pch;
+
+	pch = get_chdata(ch);
+
+	if (get_reg_flag(ch)			&&
+	    !get_flag_trig_unreg(ch)	&&
+	    !is_bypss2_complete(ch)		&&
+	    pch->c.pst_pol_en) {
+		return true;
+	}
+
+	return false;
+}
+
+static enum POL_M_RJ m_pst_check(unsigned int ch) /*switch do_table */
+{
+//	struct di_hpst_s  *pst = get_hw_pst();
+	struct di_ch_s *pch;
+	bool job = true;
+
+	dbg_dt("m_chk[%d]\n", ch);
+
+	pch = get_chdata(ch);
+	if (pch->itf.flg_rotation && di_is_pause(ch))
+		return POL_M_RJ_2_ID;
+
+	di_pause_step_done(ch);
+
+	if (pch->c.op_mp_has_job)
+		job = pch->c.op_mp_has_job(ch);
+
+	if (job)
+		return POL_M_RJ_2_NX;
+
+	return POL_M_RJ_2_ID;
+}
+
+const char * const mp_name4[] = {
 	"EXIT",
 	"IDLE",	/*switch to next channel?*/
 	"CHECK",
-	"SET",
-	"WAIT_INT",
-	"TIMEOUT",
-	"DONE",
+	"DO_TABLE",
 };
 
-const char *dpst_state_name_get(enum EDI_PST_ST state)
+static const char *_mp_name_get(enum POL_M_ST state)
 {
-	if (state > EDI_PST_ST_DONE)
+	if (state > POL_M_ST_DO_TABLE)
 		return "nothing";
 
-	return dpst_state_name[state];
+	return mp_name4[state];
 }
 
-bool dpst_can_exit(unsigned int ch)
+void dim_p_pst_prob(void)
 {
-	struct di_hpst_s  *pst = get_hw_pst();
-	bool ret = false;
+	struct s_pol_l_s *po;
 
-	if (ch != pst->curr_ch) {
-		ret = true;
-	} else {
-		if (pst->state <= EDI_PST_ST_IDLE)
-			ret = true;
-	}
-	if (!ret)
-		PR_INF("%s:ch[%d]:curr[%d]:stat[%s] ret[%d]\n",
-		       __func__,
-		       ch, pst->curr_ch,
-		       dpst_state_name_get(pst->state),
-		       ret);
-	return ret;
-}
-
-static bool dpst_process_step2(void)
-{
-	struct di_hpst_s  *pst = get_hw_pst();
-	enum EDI_PST_ST pst_st = pst->state;
-	unsigned int ch;
-
-	ch = pst->curr_ch;
-	if (pst_st > EDI_PST_ST_EXIT)
-		dim_recycle_post_back(ch);
-
-	if (pst_st <= EDI_PST_ST_DONE &&
-	    di_pst_func_tab[pst_st].func)
-		return di_pst_func_tab[pst_st].func();
-	else
-		return false;
-}
-
-void dpst_dbg_f_trig(unsigned int cmd)
-{
-	struct di_task *tsk = get_task();
-
-	struct di_hpst_s *pst = get_hw_pst();
-
-	if (down_interruptible(&tsk->sem)) {
-		PR_ERR("%s:can't get sem\n", __func__);
+	po = get_poll_pst();
+	if (!po) {
+		PR_ERR("%s:no po\n", __func__);
 		return;
 	}
 
-	/*set on/off and trig*/
-	if (cmd & 0x10) {
-		pst->dbg_f_en = 1;
-		pst->dbg_f_cnt = cmd & 0xf;
-		pst->dbg_f_lstate = pst->state;
-	} else {
-		pst->dbg_f_en = 0;
+	po->cmd_asy_stop_ch_bits = 0; /* one bit for one ch*/
+	po->m_is_reg = m_pst_is_active;
+	po->m_check = m_pst_check;
+	spin_lock_init(&po->lock_c_stop);
+}
+
+/**************************************
+ * dim_p_pst_asy_stop:
+ *	has spinlock
+ **************************************/
+void dim_p_pst_asy_stop(unsigned int ch, bool sw)
+{
+	struct s_pol_l_s *po;
+
+	po = get_poll_pst();
+
+	if (!po) {
+		PR_ERR("%s:no po\n", __func__);
+		return;
+	}
+	PR_INF("asy_stop_cmd: ch[%d] %d\n", ch, sw);
+
+	spin_lock(&po->lock_c_stop);//-------------
+	if (sw)
+		bset(&po->cmd_asy_stop_ch_bits, ch);
+	else
+		bclr(&po->cmd_asy_stop_ch_bits, ch);
+	spin_unlock(&po->lock_c_stop);//-----------
+}
+
+static unsigned int _asy_stop_get(void)
+{
+	struct s_pol_l_s *po;
+	unsigned int ret;
+
+	po = get_poll_pst();
+	if (!po) {
+		PR_ERR("%s:no po\n", __func__);
+		return false;
 	}
 
-	up(&tsk->sem);
+	spin_lock(&po->lock_c_stop);//-------------
+	ret = po->cmd_asy_stop_ch_bits;
+	spin_unlock(&po->lock_c_stop);//-----------
+
+	return ret;
+}
+
+void dim_p_pst_start(unsigned int ch)
+{
+	struct di_ch_s *pch;
+
+	pch = get_chdata(ch);
+	if (!pch)
+		return;
+
+	if (pch->c.st == POL_M_ST_EXIT) {
+		pch->c.st = POL_M_ST_IDLE;
+		PR_INF("%s:%d\n", "poll main start", ch);
+	}
+}
+
+void pol_pst_set_dtb(const struct do_table_ops_s *ptable,
+		   unsigned int size_tab)
+{
+	struct s_pol_l_s *po;
+
+	po = get_poll_pst();
+	if (!po)
+		return;
+
+	do_table_init(&po->s_do, ptable, size_tab);
+}
+
+static void _m_stop_pro(void)
+{
+	unsigned int stop, ch;
+	struct s_pol_l_s *op;
+	struct di_ch_s *pch;
+
+	op = get_poll_pst();
+
+	if (!op) {
+		PR_ERR("%s:nothing\n", __func__);
+		return;
+	}
+	stop = _asy_stop_get();
+	if (!stop)
+		return;
+	for (ch = 0; ch < DI_CHANNEL_MAX; ch++) {
+		if (bget(&stop, ch)) {
+			pch = get_chdata(ch);
+			if (pch->c.st != POL_M_ST_DO_TABLE) {
+				pch->c.st = POL_M_ST_EXIT;
+				dim_p_pst_asy_stop(ch, false);
+				PR_INF("%s:ch[%d]\n", "poll stop", ch);
+				//stop ch
+				if (pch->c.op_mp_stop_done)
+					pch->c.op_mp_stop_done(ch);
+			}
+		}
+	}
+}
+
+static unsigned int _m_pst_prc(unsigned int ch)
+{
+	struct s_pol_l_s *op;
+	enum POL_M_RJ mr;
+//	unsigned int i;
+	enum POL_M_ST ch_st;
+	struct di_ch_s *pch;
+	struct di_hpst_s *pst;
+
+	unsigned int do_n = 2;
+
+	op = get_poll_pst();
+
+	pch = get_chdata(ch);
+
+	if (!op || !pch || !pch->c.st) {
+		//PR_INF("%s:nothing\n", __func__);
+		return 0;
+	}
+	ch_st = pch->c.st;
+	pst = get_hw_pst();
+	if (ch_st > POL_M_ST_EXIT)
+		dim_recycle_post_back(ch); //tmp
+	dbg_dt("%s:ch[%d]:%d:state:%s\n", "m-polling", ch, ch_st, _mp_name_get(ch_st));
+
+	switch (ch_st) {
+	case POL_M_ST_IDLE:	//judge if reg, if pst is enable
+
+		mr = POL_M_RJ_ST;
+
+		if (op->m_is_reg(ch))
+			mr = POL_M_RJ_2_NX;
+
+		if (mr == POL_M_RJ_2_NX) {
+			do_n = 1; /* need loop */
+			ch_st++;
+			if (op->m_idle2check)
+				op->m_idle2check(ch);
+			if (op->m_2_check)
+				op->m_2_check(ch);
+		} else {
+			do_n = 0;	/* no loop */
+		}
+
+		break;
+	case POL_M_ST_CHECK:
+
+		if (op->m_bypass_proc)
+			op->m_bypass_proc(ch);
+
+		if (pst->hw_flg_busy_post) {
+			ch_st = POL_M_ST_IDLE;
+			do_n = 0;	/* no loop */
+			break;
+		}
+
+		if (op->m_check)
+			mr = op->m_check(ch);
+		else
+			mr = POL_M_RJ_2_NX;
+
+		if (mr ==  POL_M_RJ_2_NX) {
+			if (pch->c.op_mp_check_sw)
+				pch->c.op_mp_check_sw(ch);
+			ch_st++;
+			//to do table
+			do_table_cmd(&op->s_do, EDO_TABLE_CMD_START);
+			if (op->m_2_do)
+				op->m_2_do(ch);
+			do_n = 1; /* need loop */
+			//set busy
+			pst->hw_flg_busy_post = true;
+			pst->curr_ch = ch;
+			pst->pres = get_pre_stru(pst->curr_ch);
+			pst->psts = get_post_stru(pst->curr_ch);
+		} else if (mr == POL_M_RJ_2_ID) {
+			ch_st = POL_M_ST_IDLE;
+			do_n = 0;
+
+			if (op->m_2_idle)
+				op->m_2_idle();
+		}
+		break;
+	case POL_M_ST_DO_TABLE:
+		do_table_working(&op->s_do);
+		if (do_table_is_crr(&op->s_do, K_DO_TABLE_ID_STOP)) {
+			pst->hw_flg_busy_post = false;
+			ch_st = POL_M_ST_IDLE;
+			if (op->m_2_idle)
+				op->m_2_idle();
+			do_n = 0;
+		} else {
+			if (do_table_is_wait(&op->s_do))
+				do_n = 0;
+			else
+				do_n = 1;
+		}
+		break;
+	default:
+		break;
+	}
+
+	pch->c.st = ch_st;
+	return do_n;
 }
 
 void dpst_process(void)
 {
-	bool reflesh;
+	bool re_do = true;
+	unsigned int do_nt;
+	int i;
 
-	struct di_hpst_s *pst = get_hw_pst();
+	_m_stop_pro();
+	for (i = 0; i < DI_CHANNEL_MAX; i++) {
+		re_do = true;
 
-	if (pst->dbg_f_en) {
-		if (pst->dbg_f_cnt) {
-			dpst_process_step2();
-			pst->dbg_f_cnt--;
+		while (re_do) {
+			do_nt = _m_pst_prc(i);
+			if (do_nt == 1)
+				re_do = true;
+			else if (!do_nt)
+				re_do = false;
+			else
+				re_do = false;
 		}
-		if (pst->dbg_f_lstate != pst->state) {
-			pr_info("ch[%d]:state:%s->%s\n",
-				pst->curr_ch,
-				dpst_state_name_get(pst->dbg_f_lstate),
-				dpst_state_name_get(pst->state));
-
-			pst->dbg_f_lstate = pst->state;
-		}
-		return;
 	}
-
-	reflesh = true;
-
-	while (reflesh)
-		reflesh = dpst_process_step2();
+	_m_stop_pro();
 }
+

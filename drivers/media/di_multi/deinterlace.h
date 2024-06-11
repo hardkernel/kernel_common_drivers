@@ -371,8 +371,8 @@ struct di_buf_s {
 	unsigned int en_hf	: 1; //only flg post buffer
 	unsigned int hf_done	: 1; //
 	unsigned int is_plink : 1;
-
-	unsigned int rev2	: 16;
+	unsigned int rot	: 2; //2024-06-4
+	unsigned int rev2	: 14;
 	struct dsub_bufv_s	c;
 	unsigned int datacrc;
 	unsigned int nrcrc;

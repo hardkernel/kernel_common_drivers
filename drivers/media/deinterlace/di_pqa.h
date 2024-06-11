@@ -567,6 +567,7 @@ struct afd_ops_s {
 	void (*pvpp_sw_setting_op)(bool on, const struct reg_acc *op);
 	void (*pvpp_pre_check_dvfm)(void *ds_in, void *vfm);
 	u32 (*pvpp_en_pre_set)(void *ds_in, void *vfm, const struct reg_acc *op);
+	u32 (*set_rotation)(struct vframe_s *vfm_in, struct vframe_s *wr_vf);
 };
 
 enum EDI_MIFSM {

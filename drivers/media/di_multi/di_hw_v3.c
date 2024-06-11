@@ -6371,6 +6371,7 @@ void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg,
 	val &= ~((3	<< 0)	|
 		(7	<< 4)	|
 		(7	<< 7)	| /* bit[9:7] */
+		(0xff << 12) |
 		(3	<< 30));
 
 	val |= ((cfg->b.mif_en		<< 0)	|
@@ -6382,6 +6383,7 @@ void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg,
 		(cfg->b.is_if1_4k		<< 7)	|
 		(cfg->b.is_if0_4k		<< 8)	|
 		(cfg->b.is_if2_4k		<< 9)	|
+		(cfg->b.pst_bypass		<< 12)  |
 		(cfg->b.post_frm_sel	<< 30));
 
 	op->wr(DI_TOP_POST_CTRL, val);

@@ -1485,7 +1485,8 @@ void dim_sumx_set(struct di_ch_s *pch)
 	} else {
 		bclr(&pch->self_trig_need, 0);
 	}
-
+	if (di_is_pause(ch))
+		bclr(&pch->self_trig_need, 0);
 	if (pch->dbg_self_trig_need != pch->self_trig_need) {//debug only
 		dbg_tsk("trig_need:ch[%d],0x%x->0x%x:<%d,%d,%d><%d,%d>\n",
 			ch, pch->dbg_self_trig_need, pch->self_trig_need,
@@ -1706,6 +1707,7 @@ void dip_chst_process_ch(void)
 		case EDI_TOP_STATE_READY:
 			dip_itf_vf_op_polling(pch);
 			s4dw_parser_infor(pch);
+			rt_parser_infor(pch);
 			dip_itf_back_input(pch);
 //ary 2020-12-09			spin_lock_irqsave(&plist_lock, flags);
 			dim_post_keep_back_recycle(pch);
@@ -2030,7 +2032,7 @@ bool dim_process_unreg(struct di_ch_s *pch)
 			dbg_pl("ch[%d]:unreg1,bypass:\n", ch);
 			di_unreg_setting(false);
 			dpre_init();
-			dpost_init();
+			dpost_unreg(ch);
 		}
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 		ret = true;
@@ -2048,7 +2050,7 @@ bool dim_process_unreg(struct di_ch_s *pch)
 			dbg_pl("ch[%d]:unreg1,bypass:\n", ch);
 			di_unreg_setting(false);
 			dpre_init();
-			dpost_init();
+			dpost_unreg(ch);
 		}
 		dbg_mem2("%s:link to idle\n", __func__);
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
@@ -2089,7 +2091,7 @@ bool dim_process_unreg(struct di_ch_s *pch)
 			dbg_pl("ch[%d]:unreg2,step2:\n", ch);
 			di_unreg_setting(false);
 			dpre_init();
-			dpost_init();
+			dpost_unreg(ch);
 		}
 		dbg_dbg("%s:in reg step2\n", __func__);
 		set_reg_flag(ch, false);
@@ -2131,7 +2133,7 @@ bool dim_process_unreg(struct di_ch_s *pch)
 			dbg_pl("ch[%d]:unreg3,step2:\n", ch);
 			di_unreg_setting(false);
 			dpre_init();
-			dpost_init();
+			dpost_unreg(ch);
 		}
 
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
@@ -2183,6 +2185,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 	case EDI_TOP_STATE_REG_STEP1:/*wait peek*/
 		dip_itf_vf_op_polling(pch);
 		s4dw_parser_infor(pch);
+		rt_parser_infor(pch);
 		vframe = nins_peekvfm(pch);
 
 		if (vframe) {
@@ -2220,7 +2223,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 				if (!get_reg_flag_all()) {
 					/*first channel reg*/
 					dpre_init();
-					dpost_init();
+					dpost_init(ch);
 					//get_dim_de_devp()->nrds_enable = 0;
 					//nrds cause pre-vpp link crash
 					di_reg_setting(ch, vframe);
@@ -2237,6 +2240,8 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 		}
 		if (pch->itf.flg_s4dw && pch->s4dw)
 			pch->s4dw->reg_variable(pch, vframe);
+		else if (pch->itf.flg_rotation)
+			rt_reg_variable(pch, vframe);
 		else
 			di_reg_variable(ch, vframe);
 		/*di_reg_process_irq(ch);*/ /*check if bypass*/
@@ -2249,7 +2254,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			if (!get_reg_flag_all()) {
 				/*first channel reg*/
 				dpre_init();
-				dpost_init();
+				dpost_init(ch);
 				di_reg_setting(ch, vframe);
 				get_datal()->pre_vpp_set = false;
 			}
@@ -2260,7 +2265,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			if (!get_reg_flag_all()) {
 				/*first channel reg*/
 				dpre_init();
-				dpost_init();
+				dpost_init(ch);
 				di_reg_setting(ch, vframe);
 				get_datal()->pre_vpp_set = false;
 				di_reg_setting_working(pch, vframe);
@@ -2705,9 +2710,19 @@ void do_table_cmd(struct do_table_s *pdo, enum EDO_TABLE_CMD cmd)
 	}
 }
 
-bool do_table_is_crr(struct do_table_s *pdo, unsigned int state)
+bool do_table_is_crr(const struct do_table_s *pdo, unsigned int state)
 {
 	if (pdo->op_crr == state)
+		return true;
+	return false;
+}
+
+bool do_table_is_wait(struct do_table_s *pdo)
+{
+	const struct do_table_ops_s *pcrr;
+
+	pcrr = pdo->ptab + pdo->op_crr;
+	if (pcrr->mark & K_DO_TABLE_IS_WAIT)
 		return true;
 	return false;
 }
@@ -6553,7 +6568,8 @@ bool dip_prob(void)
 	dip_chst_init();
 
 	dpre_init();
-	dpost_init();
+//	dpost_init();
+	dim_p_pst_prob();
 
 	//dip_init_pq_ops();
 	/*dim_polic_prob();*/

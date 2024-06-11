@@ -523,7 +523,8 @@ union hw_sc2_ctr_pst_s {
 	unsigned int is_if2_4k		: 1;
 	unsigned int reserve2		: 1;
 
-	unsigned int reserve3		: 16;
+	unsigned int pst_bypass		: 8;
+	unsigned int reserve3		: 8;
 	} b;
 };
 

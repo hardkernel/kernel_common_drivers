@@ -2249,7 +2249,7 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 	return 0;
 }
 
-static void di_cnt_pst_afbct(struct di_ch_s *pch)
+void di_cnt_pst_afbct(struct di_ch_s *pch)
 {
 #ifdef CFG_BUF_ALLOC_SP
 
@@ -2316,7 +2316,8 @@ static void di_cnt_pst_afbct(struct di_ch_s *pch)
 }
 
 /* width, height from mm*/
-static int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
+//static
+int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 {
 	unsigned int ch;
 	struct div2_mm_s *mm;
@@ -7387,6 +7388,7 @@ void dim_post_irq_sub(int irq)
 	struct di_post_stru_s *ppost;
 	struct di_hpst_s  *pst = get_hw_pst();
 	bool flg_right = false;
+	struct di_ch_s *pch;
 
 	if (!sc2_dbg_is_en_pst_irq()) {
 		sc2_dbg_pst_info(data32);
@@ -7395,20 +7397,20 @@ void dim_post_irq_sub(int irq)
 
 	channel = pst->curr_ch;
 	ppost = pst->psts;
-
+	pch = get_chdata(channel);
 	data32 &= 0x3fffffff;
 	if ((data32 & 4) == 0) {
 		if (dimp_get(edi_mp_di_dbg_mask) & 8)
 			pr_info("irq[%d]post write undone.\n", irq);
 		return;
 	}
-	if (pst->state == EDI_PST_ST_SET && pst->flg_have_set)
+	if (pch->c.st == POL_M_ST_DO_TABLE && pst->flg_have_set)
 		flg_right = true;
 
-	if (pst->state != EDI_PST_ST_WAIT_INT &&
+	if (pch->c.st != POL_M_ST_DO_TABLE &&
 	    !pst->pst_tst_use			&&
 	    !flg_right) {
-		PR_ERR("%s:ch[%d]:s[%d]\n", __func__, channel, pst->state);
+		PR_ERR("%s:ch[%d]:s[%d]\n", __func__, channel, pch->c.st);
 		//ddbg_sw(EDI_LOG_TYPE_MOD, false);
 		return;
 	}
@@ -10986,6 +10988,8 @@ void di_unreg_variable(unsigned int channel)
 	pch->record_10bit_flag = 0;
 	pch->record_8bit_flag = 0;
 #endif
+	rt_unreg(pch);
+
 	get_datal()->ch_data[channel].dbg_data.pfm_out = NULL;
 	set_bypass2_complete(channel, false);
 	init_completion(&tsk->fcmd[channel].alloc_done);

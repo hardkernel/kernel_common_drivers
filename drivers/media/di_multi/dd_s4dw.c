@@ -98,6 +98,28 @@ static bool dip_cfg_afbc_dbg_display_buffer(void)
 	return (dim_afbc_skip_en & DI_BIT9) ? true : false;
 }
 
+bool rotation_test_ins(void)
+{
+	/* use internal buffer to test create instance */
+	return (dim_afbc_skip_en & DI_BIT12) ? true : false;
+}
+
+bool rotation_test_mode(void)
+{
+	return (dim_afbc_skip_en & DI_BIT13) ? true : false;
+}
+
+bool rotation_test_420_10(void)
+{
+	/* use internal buffer to test create instance */
+	return (dim_afbc_skip_en & DI_BIT14) ? true : false;
+}
+
+bool rotation_test_chgflg(void)
+{
+	return (dim_afbc_skip_en & DI_BIT16) ? true : false;
+}
+
 void dim_dbg_buffer_flow(struct di_ch_s *pch,
 			 unsigned long addr,
 			 unsigned long addr2,
@@ -647,10 +669,10 @@ static u32 s4dw_is_bypass(struct di_ch_s *pch, struct vframe_s *vf)
 	if (!ret && vf)
 		ret = s4dw_bypasse_checkvf(vf);
 	//debug only
-	if (pch->last_bypass != ret) {
+	if (pch->c.last_bypass != ret) {
 		PR_INF("%s:ch[%d]:%d->%d\n", __func__,
-		       pch->ch_id, pch->last_bypass, ret);
-		pch->last_bypass = ret;
+		       pch->ch_id, pch->c.last_bypass, ret);
+		pch->c.last_bypass = ret;
 	}
 	return ret;
 }

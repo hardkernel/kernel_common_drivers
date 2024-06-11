@@ -3360,6 +3360,7 @@ void bufq_sct_rest(struct di_ch_s *pch)
 {
 	struct buf_que_s *pbufq;
 	int i;
+	unsigned int post_nub, sct_nub;
 
 	if (!pch) {
 		PR_ERR("%s:\n", __func__);
@@ -3370,6 +3371,14 @@ void bufq_sct_rest(struct di_ch_s *pch)
 
 	for (i = 0; i < QBF_SCT_Q_NUB; i++)
 		qbufp_restq(pbufq, i);
+
+	post_nub = cfgg(POST_NUB);
+	if ((post_nub) && post_nub <= POST_BUF_NUM)
+		sct_nub = post_nub;
+	else
+		sct_nub = DIM_SCT_NUB;
+
+	pbufq->nub_buf = sct_nub;
 
 	/* all to idle */
 	qbuf_in_all(pbufq, QBF_SCT_Q_IDLE);

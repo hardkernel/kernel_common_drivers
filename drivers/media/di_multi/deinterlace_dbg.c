@@ -1026,7 +1026,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	unsigned int tmpa[MAX_FIFO_SIZE]; /*new que*/
 	unsigned int psize; /*new que*/
 	struct di_hpre_s  *pre = get_hw_pre();
-	struct di_hpst_s *post = get_hw_pst();
+//	struct di_hpst_s *post = get_hw_pst();
 	char *splt = "---------------------------";
 	struct div2_mm_s *mm = dim_mm_get(channel);	/*mm-0705*/
 	struct di_ch_s *pch = get_chdata(channel);
@@ -1347,8 +1347,8 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 		   get_reg_flag(channel));
 	seq_printf(seq, "%-15s=%s\n", "pre_state",
 		   dpre_state4_name_get(pre->pre_st));
-	seq_printf(seq, "%-15s=%s\n", "post_state",
-		   dpst_state_name_get(post->state));
+//	seq_printf(seq, "%-15s=%s\n", "post_state",
+//		   dpst_state_name_get(post->state));
 
 	seq_printf(seq, "%-15s=%d\n", "pre_get_sum",
 		   get_sum_g(channel));
