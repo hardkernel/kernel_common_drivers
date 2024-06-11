@@ -69,8 +69,11 @@ enum pw_state_e {
 enum vsr_pq_cfg_e {
 	DEFAULT_PARAM = 0,
 	RES_480P,
+	RES_480I,
 	RES_720P,
-	RES_1080P
+	RES_720I,
+	RES_1080P,
+	RES_1080I,
 };
 
 extern unsigned int gamma_loadprotect_en;
