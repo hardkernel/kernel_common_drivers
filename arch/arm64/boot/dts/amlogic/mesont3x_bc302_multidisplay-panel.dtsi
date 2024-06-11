@@ -736,7 +736,7 @@
 				1 0 /*on_value, off_value*/
 				200 200>; /*on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_D";
-			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positvie)*/
+			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positive)*/
 				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
 			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
@@ -754,7 +754,7 @@
 				1 0 /*on_value, off_value*/
 				200 200>; /* on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_VS";
-			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positvie)*/
+			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positive)*/
 				2 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
 			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/

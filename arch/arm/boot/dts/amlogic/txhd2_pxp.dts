@@ -6,7 +6,7 @@
 /dts-v1/;
 
 #include "mesontxhd2.dtsi"
-#include "meson_txhd2_pxp-panel.dtsi"
+#include "mesontxhd2_pxp-panel.dtsi"
 
 / {
 	model = "Amlogic";

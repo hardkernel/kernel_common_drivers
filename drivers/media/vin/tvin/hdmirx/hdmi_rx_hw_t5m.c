@@ -1052,7 +1052,7 @@ void dfe_tap0_pol_polling(u32 pos_min_eh, u32 pos_avg_eh, u32 wst_ch)
 }
 
 //dfe tap polarity was set positive in initial setting matrix
-//dfe_tap_pol_polling is for polling tap polarity by the order positvie
+//dfe_tap_pol_polling is for polling tap polarity by the order positive
 //->interleave->negative->positive->positive
 //positive = (dchd_eq[20:19] = 2'b10), interleave = (dchd_eq[20:19] = 2'b00)
 //negative = (dchd_eq[20:19] = 2'b11)

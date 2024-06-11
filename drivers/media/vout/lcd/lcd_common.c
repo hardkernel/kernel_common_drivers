@@ -1149,6 +1149,17 @@ int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		pdrv->fr_auto_policy = (unsigned char)val;
 	}
 
+	ret = of_property_read_u32(np, "vout_regist_on", &val);
+	if (ret) {
+		pdrv->vout_regist_on_ctrl = 0;
+	} else {
+		pdrv->vout_regist_on_ctrl = (unsigned char)val;
+		LCDPR("set lcd drv regist:%s%s%s\n",
+			pdrv->vout_regist_on_ctrl & 0x1 ? " vout"  : "",
+			pdrv->vout_regist_on_ctrl & 0x2 ? " vout2" : "",
+			pdrv->vout_regist_on_ctrl & 0x4 ? " vout3" : "");
+	}
+
 	switch (pdrv->debug_ctrl->debug_para_source) {
 	case 1:
 		LCDPR("[%d]: debug_para_source: 1,dts\n", pdrv->index);

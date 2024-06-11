@@ -1112,46 +1112,43 @@ static void lcd_vinfo_update_default(struct aml_lcd_drv_s *pdrv)
 
 void lcd_tv_vout_server_init(struct aml_lcd_drv_s *pdrv)
 {
-	struct vout_server_s *vserver;
-
-	vserver = kzalloc(sizeof(*vserver), GFP_KERNEL);
-	if (!vserver)
+	pdrv->vout_server[0] = kzalloc(sizeof(*pdrv->vout_server[0]), GFP_KERNEL);
+	if (!pdrv->vout_server[0])
 		return;
-	vserver->name = kzalloc(32, GFP_KERNEL);
-	if (!vserver->name) {
-		kfree(vserver);
+	pdrv->vout_server[0]->name = kzalloc(32, GFP_KERNEL);
+	if (!pdrv->vout_server[0]->name) {
+		kfree(pdrv->vout_server[0]);
 		return;
 	}
-	pdrv->vout_server = vserver;
 
-	sprintf(vserver->name, "lcd%d_vout_server", pdrv->index);
-	vserver->op.get_vinfo = lcd_get_current_info;
-	vserver->op.set_vmode = lcd_set_current_vmode;
-	vserver->op.validate_vmode = lcd_validate_vmode;
-	vserver->op.check_same_vmodeattr = lcd_check_same_vmodeattr;
-	vserver->op.vmode_is_supported = lcd_vmode_is_supported;
-	vserver->op.disable = lcd_vout_disable;
-	vserver->op.set_state = lcd_vout_set_state;
-	vserver->op.clr_state = lcd_vout_clr_state;
-	vserver->op.get_state = lcd_vout_get_state;
-	vserver->op.get_disp_cap = lcd_vout_get_disp_cap;
-	vserver->op.set_vframe_rate_hint = lcd_set_vframe_rate_hint;
-	vserver->op.get_vframe_rate_hint = lcd_get_vframe_rate_hint;
-	vserver->op.set_bist = lcd_vout_debug_test;
-	vserver->op.set_bl_brightness = lcd_vout_set_bl_brightness;
-	vserver->op.get_bl_brightness = lcd_vout_get_bl_brightness;
-	vserver->op.vout_suspend = lcd_suspend;
-	vserver->op.vout_resume = lcd_resume;
-	vserver->data = (void *)pdrv;
+	sprintf(pdrv->vout_server[0]->name, "lcd%d_vout_server", pdrv->index);
+	pdrv->vout_server[0]->op.get_vinfo = lcd_get_current_info;
+	pdrv->vout_server[0]->op.set_vmode = lcd_set_current_vmode;
+	pdrv->vout_server[0]->op.validate_vmode = lcd_validate_vmode;
+	pdrv->vout_server[0]->op.check_same_vmodeattr = lcd_check_same_vmodeattr;
+	pdrv->vout_server[0]->op.vmode_is_supported = lcd_vmode_is_supported;
+	pdrv->vout_server[0]->op.disable = lcd_vout_disable;
+	pdrv->vout_server[0]->op.set_state = lcd_vout_set_state;
+	pdrv->vout_server[0]->op.clr_state = lcd_vout_clr_state;
+	pdrv->vout_server[0]->op.get_state = lcd_vout_get_state;
+	pdrv->vout_server[0]->op.get_disp_cap = lcd_vout_get_disp_cap;
+	pdrv->vout_server[0]->op.set_vframe_rate_hint = lcd_set_vframe_rate_hint;
+	pdrv->vout_server[0]->op.get_vframe_rate_hint = lcd_get_vframe_rate_hint;
+	pdrv->vout_server[0]->op.set_bist = lcd_vout_debug_test;
+	pdrv->vout_server[0]->op.set_bl_brightness = lcd_vout_set_bl_brightness;
+	pdrv->vout_server[0]->op.get_bl_brightness = lcd_vout_get_bl_brightness;
+	pdrv->vout_server[0]->op.vout_suspend = lcd_suspend;
+	pdrv->vout_server[0]->op.vout_resume = lcd_resume;
+	pdrv->vout_server[0]->data = (void *)pdrv;
 
 	lcd_vinfo_update_default(pdrv);
 
-	vout_register_server(pdrv->vout_server);
+	vout_register_server(pdrv->vout_server[0]);
 }
 
 void lcd_tv_vout_server_remove(struct aml_lcd_drv_s *pdrv)
 {
-	vout_unregister_server(pdrv->vout_server);
+	vout_unregister_server(pdrv->vout_server[0]);
 }
 
 static void lcd_vmode_init(struct aml_lcd_drv_s *pdrv)

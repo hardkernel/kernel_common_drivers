@@ -4,21 +4,14 @@
  */
 
 / {
-	lcd_resman {
-		compatible = "amlogic, lcd-resman";
-		status = "okay";
-		memory-region = <&lcd_cma_reserved>;
-		memory-region-names = "lcd_cma_reserved";
-	};
-
 	lcd:lcd {
 		compatible = "amlogic, lcd-txhd2";
 		status = "okay";
 		index = <0>;
 		pxp = <0>;
-		mode = "tv";
+		mode = "tablet";
 		fr_auto_policy = <2>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
-		key_valid = <1>;
+		key_valid = <0>;
 		assigned-clocks = <&clkc CLKID_CTS_TCON_PLL_CLK_SEL>;
 		assigned-clock-parents = <&clkc CLKID_FCLK_DIV5>;
 		assigned-clock-rates = <0>;
@@ -34,9 +27,6 @@
 		interrupts = <0 3 1
 			0 88 1>;
 		interrupt-names = "vsync","tcon";
-		pinctrl-names = "tcon_mlvds","tcon_mlvds_off";
-		pinctrl-0 = <&lcd_tcon_mlvds_pins>;
-		pinctrl-1 = <&lcd_tcon_mlvds_off_pins>;
 
 		lcd_cpu-gpios = <&gpio GPIOZ_3  GPIO_ACTIVE_HIGH
 				 &gpio GPIOH_14 GPIO_ACTIVE_HIGH
@@ -414,52 +404,11 @@
 		};
 	};
 
-	lcd_extern{
-		compatible = "amlogic, lcd_extern";
-		status = "okay";
-		index = <0>;
-		key_valid = <1>;
-		i2c_bus = "i2c_bus_3";
-
-		extern_0{
-			index = <0>;
-			extern_name = "ext_default";
-			status = "okay";
-			type = <0>; /*0=i2c, 1=spi, 2=mipi*/
-			i2c_address = <0x33>; /*7bit i2c_addr*/
-			i2c_address2 = <0xff>;
-			cmd_size = <0xff>; /*dynamic cmd_size*/
-
-			/* init on/off:
-			 *  fixed cmd_size: (type, value...);
-			 *                  cmd_size include all data.
-			 *  dynamic cmd_size: (type, cmd_size, value...);
-			 *                    cmd_size include value.
-			 */
-			/* type: 0x00=cmd with delay(bit[3:0]=1 for address2),
-			 *       0xc0=cmd(bit[3:0]=1 for address2),
-			 *       0xf0=gpio,
-			 *       0xfd=delay,
-			 *       0xff=ending
-			 */
-			/* value: i2c or spi cmd, or gpio index & level */
-			/* delay: unit ms */
-			init_on = <
-				0xc0 43 0x00
-					0x48 0x19 0xa4 0x00 0x00 0x23 0xfc 0x66 0xfb 0x2b 0x28 0x00
-					0x10 0x10 0x07 0x07 0x3e 0xc3 0xd3 0x33 0xa2 0xde 0x2b 0x02
-					0x3d 0x21 0xa1 0xbf 0x1a 0x71 0x33 0x0f 0xd0 0xa1 0x01 0x70
-					0x0e 0x1a 0x11 0xb5 0xcd 0xf9
-				0xff 0>; /*ending*/
-			init_off = <0xff 0>; /*ending*/
-		};
-	};
-
 	backlight{
 		compatible = "amlogic, backlight-txhd2";
 		status = "okay";
 		index = <0>;
-		key_valid = <1>;
+		key_valid = <0>;
 		pinctrl-names = "pwm_on","pwm_vs_on",
 				"pwm_off";
 		pinctrl-0 = <&pwm_b_pins2>;
@@ -491,7 +440,7 @@
 				1 0 /*on_value, off_value*/
 				200 200>; /*on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_B";
-			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positvie)*/
+			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positive)*/
 				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
 			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
@@ -509,7 +458,7 @@
 				1 0 /*on_value, off_value*/
 				200 200>; /* on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_VS";
-			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positvie)*/
+			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positive)*/
 				2 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
 			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
@@ -527,7 +476,7 @@
 				1 0 /*on_value, off_value*/
 				200 200>; /*on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_E";
-			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positvie)*/
+			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positive)*/
 				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
 			bl_pwm_power = <2 0 /*pwm_gpio_index, pwm_gpio_off*/
@@ -545,7 +494,7 @@
 				1 0 /*on_value, off_value*/
 				200 200>; /*on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_E";
-			bl_pwm_attr = <0 /*pwm_method(0=negative, 1=positvie)*/
+			bl_pwm_attr = <0 /*pwm_method(0=negative, 1=positive)*/
 				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
 			bl_pwm_power = <2 0 /*pwm_gpio_index, pwm_gpio_off*/
