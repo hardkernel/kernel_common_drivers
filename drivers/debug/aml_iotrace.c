@@ -936,7 +936,7 @@ static struct prz_record_iter *prz_record_iter_init(void)
 	struct prz_record_iter *iter = NULL;
 	int cpu;
 
-	memset(&aml_oops_cxt.record_iter[0][0], 0, sizeof(aml_oops_cxt.record_iter[0][0])
+	memset(aml_oops_cxt.record_iter, 0, sizeof(aml_oops_cxt.record_iter[0][0])
 			* AML_PSTORE_TYPE_MAX * 8); // max possible cpu 8
 
 	for (cpu = 0; cpu < possible_cpu; cpu++) {

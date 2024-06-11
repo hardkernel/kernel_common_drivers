@@ -735,7 +735,7 @@ void demod_dvbc_qam_reset(struct aml_dtvdemod *demod);
 void demod_dvbc_fsm_reset(struct aml_dtvdemod *demod);
 void demod_dvbc_store_qam_cfg(struct aml_dtvdemod *demod);
 void demod_dvbc_restore_qam_cfg(struct aml_dtvdemod *demod);
-void demod_dvbc_set_qam(struct aml_dtvdemod *demod, unsigned int qam, bool auto_sr);
+void demod_dvbc_set_qam(struct aml_dtvdemod *demod, enum qam_md_e qam, bool auto_sr);
 void dvbc_init_reg_ext(struct aml_dtvdemod *demod);
 u32 dvbc_get_ch_sts(struct aml_dtvdemod *demod);
 u32 dvbc_get_qam_mode(struct aml_dtvdemod *demod);

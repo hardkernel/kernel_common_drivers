@@ -33,6 +33,7 @@
 #include <linux/amlogic/freertos.h>
 #include <linux/mm.h>
 #include <linux/sched/clock.h>
+#include <linux/cpu.h>
 
 #define AML_RTOS_NAME "freertos"
 
