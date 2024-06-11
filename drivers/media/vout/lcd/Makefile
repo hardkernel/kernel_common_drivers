@@ -20,6 +20,7 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_tcon_swpdf.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_math.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_frame_lock.o
 
+include $(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_resman/Makefile
 include $(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_venc/Makefile
 
 include $(COMMON_DRIVERS_DIR)/drivers/media/vout/lcd/lcd_tv/Makefile

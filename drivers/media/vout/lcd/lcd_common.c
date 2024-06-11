@@ -211,6 +211,8 @@ void lcd_cma_pool_init(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev)
 
 	if (pdrv->index)
 		sprintf(rsv_mem_name, "lcd%d_cma_reserved", pdrv->index);
+	else
+		sprintf(rsv_mem_name, "lcd_cma_reserved");
 	dev = &pdrv->pdev->dev;
 	ret = __of_reserved_mem_device_init_by_name(dev, dev->of_node, rsv_mem_name);
 	if (ret == 0) {

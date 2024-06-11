@@ -25,6 +25,7 @@
 #include "lcd_common.h"
 #include "lcd_tcon.h"
 #include "lcd_tcon_pdf.h"
+#include <linux/amlogic/media/vout/lcd/lcd_resman.h>
 
 //1: unlocked, 0: locked, negative: locked, possible waiters
 struct mutex lcd_tcon_dbg_mutex;
@@ -1235,8 +1236,8 @@ long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned lon
 	struct device *dev;
 	phys_addr_t paddr = 0, paddr_old = 0;
 	unsigned char *mem_vaddr = NULL, *vaddr = NULL, *vaddr_old = NULL;
-	char *str = NULL;
 	unsigned char *buf = NULL;
+	char *str = NULL, name[32];
 	int index = 0;
 	int ret = 0;
 
@@ -1343,7 +1344,10 @@ long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned lon
 		}
 
 		if (is_block_ctrl_dma(block_header.block_ctrl)) {
-			vaddr = lcd_alloc_dma_buffer(pdrv, size, &paddr);
+			sprintf(name, "tcon_data_block%d", index);
+			if (lrm_exist())
+				vaddr = lrm_alloc(size, &paddr, name);
+
 			if (lcd_debug_print_flag)
 				LCDPR("alloc for tcon mm_table[%d] form lcd_cma_pool\n"
 					"pa:0x%llx, va:%p, size:0x%x\n",
@@ -1371,8 +1375,8 @@ long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned lon
 set_tcon_bin_error_break:
 		mm_table->data_mem_vaddr[index] = vaddr_old;
 		mm_table->data_mem_paddr[index] = paddr_old;
-		if (is_block_ctrl_dma(block_header.block_ctrl))
-			dma_free_coherent(dev, size, vaddr, paddr);
+		if (is_block_ctrl_dma(block_header.block_ctrl) && lrm_exist())
+			lrm_free(vaddr, paddr);
 		else
 			kfree(vaddr);
 		ret = -EFAULT;

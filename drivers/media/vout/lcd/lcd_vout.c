@@ -46,6 +46,7 @@
 #include "lcd_common.h"
 
 #include <linux/amlogic/gki_module.h>
+#include <linux/amlogic/media/vout/lcd/lcd_resman.h>
 
 #define LCD_CDEV_NAME  "lcd"
 
@@ -1772,9 +1773,6 @@ static int lcd_global_init_once(struct platform_device *pdev)
 		return 0;
 	}
 	lcd_global_init_flag++;
-
-	lcd_debug_print_flag = lcd_debug_ctrl_config.debug_print_flag;
-
 	mutex_init(&lcd_vout_mutex);
 	mutex_init(&lcd_power_mutex);
 	lcd_clk_init();
@@ -2039,6 +2037,7 @@ static void lcd_config_probe_work(struct work_struct *p_work)
 	struct aml_lcd_drv_s *pdrv;
 	bool is_init;
 	int ret;
+	char lrm_dev_name[32] = {0};
 
 	d_work = container_of(p_work, struct delayed_work, work);
 	pdrv = container_of(d_work, struct aml_lcd_drv_s, config_probe_dly_work);
@@ -2056,6 +2055,8 @@ static void lcd_config_probe_work(struct work_struct *p_work)
 	LCDPR("[%d]: key_init_flag=%d, retry_cnt=%d\n", pdrv->index, is_init, pdrv->retry_cnt);
 
 	ret = lcd_mode_probe(pdrv);
+	sprintf(lrm_dev_name, "lcd%d", pdrv->index);
+	lrm_resource_device_finish(lrm_dev_name);
 	if (ret) {
 		LCDERR("[%d]: %s: mode_probe failed, exit\n", pdrv->index, __func__);
 		goto lcd_config_probe_work_failed;
@@ -2174,6 +2175,7 @@ static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
 static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev)
 {
 	int ret = 0;
+	char lrm_dev_name[32] = {0};
 
 	lcd_bootup_config_init(pdrv);
 
@@ -2181,6 +2183,8 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	if (ret)
 		return -1;
 
+	sprintf(lrm_dev_name, "lcd%d", pdrv->index);
+	lrm_resource_device_prepare(lrm_dev_name);
 	pdrv->res_vsync_irq[0] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
 	pdrv->res_vsync_irq[1] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync2");
 	pdrv->res_vsync_irq[2] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync3");
@@ -2229,6 +2233,7 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 		lcd_queue_delayed_work(&pdrv->config_probe_dly_work, 0);
 	} else {
 		ret = lcd_mode_probe(pdrv);
+		lrm_resource_device_finish(lrm_dev_name);
 		if (ret) {
 			lcd_vout_server_remove(pdrv);
 			LCDERR("[%d]: probe exit\n", pdrv->index);
@@ -2829,6 +2834,8 @@ static int lcd_debug_ctrl_setup(char *str)
 	debug_ctrl->debug_test_pattern = (data32 >> 16) & 0xf;
 	debug_ctrl->debug_para_source = (data32 >> 28) & 0x3;
 	debug_ctrl->debug_lcd_mode = (data32 >> 30) & 0x3;
+	lcd_debug_print_flag = debug_ctrl->debug_print_flag;
+
 	return 0;
 }
 

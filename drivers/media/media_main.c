@@ -56,6 +56,7 @@ static int __init media_main_init(void)
 #ifdef CONFIG_AMLOGIC_CVBS_OUTPUT
 	call_sub_init(cvbs_init_module);
 #endif
+	call_sub_init(lcd_resman_init);
 	call_sub_init(lcd_init);
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 	call_sub_init(aml_lcd_extern_i2c_dev_init);

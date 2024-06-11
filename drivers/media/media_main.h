@@ -177,8 +177,13 @@ static inline int cvbs_init_module(void)
 #endif
 
 #ifdef CONFIG_AMLOGIC_LCD
+int lcd_resman_init(void);
 int lcd_init(void);
 #else
+static inline int lcd_resman_init(void)
+{
+	return 0;
+}
 static inline int lcd_init(void)
 {
 	return 0;

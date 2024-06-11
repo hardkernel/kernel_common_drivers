@@ -95,6 +95,7 @@ struct tcon_sec_mem_config_s {
 
 struct tcon_rmem_s {
 	unsigned char flag;
+	int use_lrm;
 	unsigned int rsv_mem_size;
 	unsigned int axi_mem_size;
 	unsigned int axi_bank;

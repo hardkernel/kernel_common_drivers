@@ -45,6 +45,7 @@
 #include "lcd_tcon.h"
 #include "lcd_tcon_pdf.h"
 #include "lcd_tcon_swpdf.h"
+#include <linux/amlogic/media/vout/lcd/lcd_resman.h>
 
 enum {
 	TCON_AXI_MEM_TYPE_OD = 0,
@@ -2014,6 +2015,7 @@ static void lcd_tcon_data_complete_check(struct aml_lcd_drv_s *pdrv, int index)
 		return;
 
 	tcon_mm_table.data_complete = 1;
+	lrm_resource_device_finish("lcd_tcon_data");
 	LCDPR("%s: data_complete: %d\n", __func__, tcon_mm_table.data_complete);
 
 	/* specially check demura setting */
@@ -2139,7 +2141,7 @@ int lcd_tcon_data_load(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf, int 
 static int lcd_tcon_reserved_mem_data_load(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned char *table = tcon_mm_table.core_reg_table;
-	int ret;
+	int ret, ret1 = 0;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("%s: mm_table version: %d\n", __func__, tcon_mm_table.version);
@@ -2149,11 +2151,12 @@ static int lcd_tcon_reserved_mem_data_load(struct aml_lcd_drv_s *pdrv)
 	    pdrv->data->chip_type != LCD_CHIP_TM2)
 		return 0;
 	if (tcon_mm_table.version)
-		return 0;
+		goto tcon_reserved_mem_data_load_exit;
 
 	if (!table) {
 		LCDERR("%s: no tcon bin table\n", __func__);
-		return -1;
+		ret1 = -1;
+		goto tcon_reserved_mem_data_load_exit;
 	}
 
 	ret = lcd_tcon_vac_load();
@@ -2183,7 +2186,9 @@ static int lcd_tcon_reserved_mem_data_load(struct aml_lcd_drv_s *pdrv)
 
 	tcon_mm_table.data_complete = 1;
 
-	return 0;
+tcon_reserved_mem_data_load_exit:
+	lrm_resource_device_finish("lcd_tcon_data");
+	return ret1;
 }
 
 static int lcd_tcon_bin_path_update(unsigned int size)
@@ -2721,6 +2726,25 @@ static int lcd_tcon_reserved_memory_init(struct aml_lcd_drv_s *pdrv)
 	struct device_node *mem_node;
 	struct resource res;
 	int ret;
+	u64 paddr = 0;
+	u32 size = 0;
+
+	/*
+	 * this is a temporary use, consistent with the original architecture
+	 * because tcon will change too much if reconstruct
+	 */
+	tcon_rmem.use_lrm = 0;
+	lrm_get_by_name("lcd_tcon_rsvd", &paddr, &size);
+	if (paddr && size) {
+		tcon_rmem.rsv_mem_paddr = paddr;
+		tcon_rmem.rsv_mem_size = size;
+		tcon_rmem.use_lrm = 1;
+		if (lrm_no_map())
+			tcon_rmem.flag = 2;
+		else
+			tcon_rmem.flag = 1;
+		goto lcd_tcon_reserved_memory_init_exit;
+	}
 
 	mem_node = of_parse_phandle(pdrv->dev->of_node, "memory-region", 0);
 	if (!mem_node) {
@@ -2751,6 +2775,8 @@ static int lcd_tcon_reserved_memory_init(struct aml_lcd_drv_s *pdrv)
 		tcon_rmem.flag = 2;
 	else
 		tcon_rmem.flag = 1;
+
+lcd_tcon_reserved_memory_init_exit:
 	LCDPR("tcon resv_mem flag:%d, paddr:0x%lx, size:0x%x\n",
 		tcon_rmem.flag,
 		(unsigned long)tcon_rmem.rsv_mem_paddr,
@@ -2766,6 +2792,9 @@ static void lcd_tcon_reserved_memory_release(struct aml_lcd_drv_s *pdrv)
 	unsigned long end;
 	unsigned int highmem_flag = 0;
 	int ret;
+
+	if (tcon_rmem.use_lrm)
+		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("%s\n", __func__);
@@ -3015,6 +3044,8 @@ static int lcd_tcon_get_config(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_debug_file_add(pdrv, &tcon_local_cfg);
 
 	lcd_tcon_dccd_flow_check(pdrv);
+
+	lrm_resource_device_finish("lcd_tcon");
 
 	return 0;
 }
@@ -3497,6 +3528,8 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
 
 	mutex_init(&lcd_tcon_dbg_mutex);
 
+	lrm_resource_device_prepare("lcd_tcon");
+	lrm_resource_device_prepare("lcd_tcon_data");
 	lcd_tcon_reserved_memory_init(pdrv);
 	lcd_tcon_mem_config();
 
@@ -3546,10 +3579,9 @@ int lcd_tcon_remove(struct aml_lcd_drv_s *pdrv)
 							tcon_mm_table.data_mem_vaddr[i];
 				if (!is_block_type_basic_init(block_header->block_type) &&
 					is_block_ctrl_dma(block_header->block_ctrl)) {
-					dma_free_coherent(&pdrv->pdev->dev,
-						block_header->block_size,
-						tcon_mm_table.data_mem_vaddr[i],
-						tcon_mm_table.data_mem_paddr[i]);
+					if (lrm_exist())
+						lrm_free(tcon_mm_table.data_mem_vaddr[i],
+							tcon_mm_table.data_mem_paddr[i]);
 				} else {
 					kfree(tcon_mm_table.data_mem_vaddr[i]);
 				}
