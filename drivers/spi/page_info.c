@@ -4,8 +4,16 @@
  */
 
 #include "page_info.h"
+#include <linux/amlogic/aml_spi_nand.h>
 
 struct boot_info *page_info;
+
+enum BOOT_LAYOUT_VERS {
+	BOOT_DISCRETE_DEFAULT = 0,
+	BOOT_DISCRETE_ALL,
+	BOOT_DISCRETE_BL2,
+	BOOT_DISCRETE_MAX,
+};
 
 unsigned char page_info_get_data_lanes_mode(void)
 {
@@ -167,7 +175,7 @@ void page_info_initialize(unsigned int default_n2m,
 
 int get_page_info_version(void)
 {
-	return page_info->version;
+	return page_info->version & 0x0F;
 }
 EXPORT_SYMBOL_GPL(get_page_info_version);
 
@@ -177,12 +185,37 @@ int get_page_info_size(void)
 }
 EXPORT_SYMBOL_GPL(get_page_info_size);
 
+static void page_info_set_boot_layout(u8 boot_layout)
+{
+	page_info->version |= ((boot_layout & 0x0F) << 4);
+}
+
+static unsigned int do_checksum(unsigned char *buf, int len)
+{
+	unsigned int i, checksum = 0;
+
+	for (i = 0; i < len; i++)
+		checksum += buf[i];
+
+	return checksum;
+}
+
 static void page_info_init_from_mtd(struct mtd_info *mtd, u8 cmd, u32 fip_size, u32 fip_copies)
 {
 	struct nand_device *dev = mtd_to_nanddev(mtd);
-	unsigned char ecc_steps, *temp;
-	unsigned int checksum = 0, i;
+	unsigned char ecc_steps;
+	unsigned int check_len = sizeof(struct boot_info), i;
 	enum PAGE_INFO_V page_info_ver;
+	u32 boot_layout;
+
+	if (of_property_read_u32(mtd_get_of_node(mtd),
+					"boot_layout", &boot_layout)) {
+		pr_info("%s: not found boot_layout in dts\n", __func__);
+		boot_layout = 0;
+	} else {
+		pr_info("%s: found boot_layout(%d) in dts\n", __func__, boot_layout);
+		page_info_set_boot_layout(boot_layout);
+	}
 
 	page_info_ver = get_page_info_version();
 	memcpy(page_info->magic, BOOTINFO_MAGIC, strlen(BOOTINFO_MAGIC));
@@ -210,10 +243,11 @@ static void page_info_init_from_mtd(struct mtd_info *mtd, u8 cmd, u32 fip_size, 
 		/* for compatible,  C3 use this field  */
 		i = mtd->erasesize_shift + mtd->writesize_shift;
 		page_info->reserved[2] = ((mtd->size >> i) ? (mtd->size >> i) : 1) & 0x3;
+		check_len = 20;
 	}
 
 	if (page_info_ver != PAGE_INFO_V3)
-		goto _cal_sum;
+		goto _do_final;
 
 	ecc_steps = mtd->writesize >> 9;
 	page_info->host_cfg.frequency_index = 0xFF;
@@ -225,13 +259,13 @@ static void page_info_init_from_mtd(struct mtd_info *mtd, u8 cmd, u32 fip_size, 
 	page_info->dev_cfg1.xor_bbt_start_block |= (1 << 24);
 	page_info->dev_cfg1.block_num_in_chip = mtd->size >> mtd->erasesize_shift;
 
-_cal_sum:
+_do_final:
+	if (boot_layout == BOOT_DISCRETE_BL2)
+		page_info->dev_cfg1.enable_bbt = 1;
+
 	page_info->checksum = 0;
-	temp = (unsigned char *)page_info;
-	for (i = 0; i < sizeof(struct boot_info); i++)
-		checksum += temp[i];
-	page_info->checksum = checksum;
-	pr_info("page info updated checksum : 0x%x\n", checksum);
+	page_info->checksum = do_checksum((unsigned char *)page_info, check_len);
+	pr_info("page info updated checksum : 0x%x\n", page_info->checksum);
 }
 
 static void page_info_dump_info(void)
@@ -290,7 +324,7 @@ EXPORT_SYMBOL_GPL(page_info_post_init);
 int page_info_pre_init(u8 *boot_info, int version)
 {
 	page_info = (struct boot_info *)boot_info;
-	page_info->version = version;
+	page_info->version |= (version & 0x0F);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(page_info_pre_init);
@@ -302,9 +336,9 @@ bool page_info_is_page(int page)
 
 	page_info_ver = get_page_info_version();
 	if (page_info_ver == PAGE_INFO_V1)
-		is_info_page = unlikely(((page % 128) == 31) && (page < 1024));
+		is_info_page = unlikely(((page % 128) == 31) && (page < SPI_NAND_BOOT_TOTAL_PAGES));
 	else if (page_info_ver == PAGE_INFO_V2 || page_info_ver == PAGE_INFO_V3)
-		is_info_page = unlikely(!(page % 128) && (page < 1024));
+		is_info_page = unlikely(!(page % 128) && (page < SPI_NAND_BOOT_TOTAL_PAGES));
 
 #if IS_ENABLED(CONFIG_AMLOGIC_SPI_NFC)
 	if (spi_nfc_need_infopage_force_hostecc()) {
