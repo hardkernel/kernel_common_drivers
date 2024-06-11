@@ -116,6 +116,7 @@ static u32 vicp_shrink_mode = 1; /*0 2x, 1 4x, 2 8x*/
 static u32 force_comp_w;
 static u32 force_comp_h;
 static u32 lossy_compress_rate;//0: 100% copress; 1: 67% compress; 2: 83% compress
+static u32 enable_frc_pattern;
 
 u32 vd_pulldown_level = 2;
 u32 vd_max_hold_count = 300;
@@ -3693,6 +3694,35 @@ static int config_ai_param(struct composer_dev *dev,
 	return 0;
 }
 
+static void set_frc_pattern(struct composer_dev *dev, struct vframe_s *vf)
+{
+	if (!vf->vc_private)
+		return;
+	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+		vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		vf->source_type == VFRAME_SOURCE_TYPE_TUNER) {
+		vf->vc_private->frc_operation_mode = VC_FRC_FLAG_1_1;
+		vc_print(dev->index, PRINT_OTHER, "%s:HDMI mode, FRC full function", __func__);
+		return;
+	}
+
+	switch (vf->duration) {
+	case 3200:
+	case 3203:
+	case 3840:
+		vf->vc_private->frc_operation_mode = VC_FRC_FLAG_1_2;
+		break;
+	case 4000:
+	case 4004:
+		vf->vc_private->frc_operation_mode = VC_FRC_FLAG_2_5;
+		break;
+	default:
+		vf->vc_private->frc_operation_mode = VC_FRC_FLAG_BYPASS;
+		break;
+	}
+	vc_print(dev->index, PRINT_OTHER, "%s: set frc mode:%d\n",
+		__func__, vf->vc_private->frc_operation_mode);
+}
 static void video_composer_task(struct composer_dev *dev)
 {
 	struct vframe_s *vf = NULL;
@@ -3973,6 +4003,8 @@ static void video_composer_task(struct composer_dev *dev)
 					if (ret)
 						vc_print(dev->index, PRINT_ERROR,
 							"config ai param failed");
+					if (enable_frc_pattern)
+						set_frc_pattern(dev, vf);
 				}
 
 			}
@@ -5871,6 +5903,31 @@ static ssize_t lossy_compress_rate_store(struct class *cla, struct class_attribu
 	return count;
 }
 
+static ssize_t enable_frc_pattern_show(struct class *cla,
+				struct class_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, 80,
+			"current print_close is %d\n",
+			enable_frc_pattern);
+}
+
+static ssize_t enable_frc_pattern_store(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	enable_frc_pattern = tmp;
+	return count;
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -5920,6 +5977,8 @@ static CLASS_ATTR_RW(force_comp_h);
 static CLASS_ATTR_RW(vd_test_fps);
 static CLASS_ATTR_RW(dewarp_load_flag);
 static CLASS_ATTR_RW(lossy_compress_rate);
+static CLASS_ATTR_RW(enable_frc_pattern);
+
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -5971,6 +6030,7 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_vd_test_fps.attr,
 	&class_attr_dewarp_load_flag.attr,
 	&class_attr_lossy_compress_rate.attr,
+	&class_attr_enable_frc_pattern.attr,
 	NULL
 };
 

@@ -845,9 +845,18 @@ struct vframe_s {
 #define VC_FLAG_AI_FACE		0x10
 #define VC_FLAG_AI_COLOR	0x20
 
+enum frc_operation_mode_e {
+	VC_FRC_FLAG_NOP = 0,
+	VC_FRC_FLAG_BYPASS,
+	VC_FRC_FLAG_1_1,
+	VC_FRC_FLAG_1_2,
+	VC_FRC_FLAG_2_5,
+};
+
 struct video_composer_private {
 	u32 index;
 	u32 flag; /*if  & VC_FLAG_AI_SR, and VPP will get AI_SR_out*/
+	enum frc_operation_mode_e frc_operation_mode;
 	struct vf_nn_sr_t *srout_data;
 	struct vframe_s *src_vf;
 	u32 last_disp_count; /*last frame disp vsync count*/
