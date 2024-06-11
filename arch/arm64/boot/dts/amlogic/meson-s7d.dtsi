@@ -770,6 +770,7 @@
 			usb-phy = <&usb_phy20>, <&usb_phy30>;
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
+			in-nak-rty = <0x5>;
 		};
 
 		crg_udc: crgudc@0xfe350000 {
@@ -795,33 +796,7 @@
 			usb-phy = <&usb_phy21>, <&usb_phy31>;
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
-		};
-
-		dwc2_a: dwc2_a@fdd00000 {
-			compatible = "amlogic,dwc2";
-			status = "disable";
-			device_name = "dwc2_a";
-			reg = <0x0 0xfdd00000 0x0 0x100000>;
-			interrupts = <0 131 4>;
-			pl-periph-id = <0>; /** lm name */
-			clock-src = "usb0"; /** clock src */
-			port-id = <0>;  /** ref to mach/usb.h */
-			port-type = <2>;        /** 0: otg, 1: host, 2: slave */
-			port-speed = <0>; /** 0: default, high, 1: full */
-			port-config = <0>; /** 0: default */
-			/*0:default,1:single,2:incr,3:incr4,4:incr8,5:incr16,6:disable*/
-			port-dma = <0>;
-			port-id-mode = <0>; /** 0: hardware, 1: sw_host, 2: sw_slave*/
-			usb-fifo = <728>;
-			cpu-type = "v2";
-			phy-reg = <0xfe03a000>;
-			phy-reg-size = <0xa0>;
-			/** phy-interface: 0x0: amlogic phy, 0x1: synopsys phy **/
-			phy-interface = <0x2>;
-			//clocks = <&clkc CLKID_USB
-			//			&clkc CLKID_USB1_TO_DDR>;
-			//clock-names = "usb_general",
-			//			"usb1";
+			in-nak-rty = <0x5>;
 		};
 
 		dolby_fw: dolby_fw {

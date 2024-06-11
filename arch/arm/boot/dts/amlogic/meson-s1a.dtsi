@@ -648,6 +648,7 @@
 			//clock-src = "usb3.0";
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
+			in-nak-rty = <0x5>;
 		};
 
 		crg_udc_2: crgudc2@fe310000 {
