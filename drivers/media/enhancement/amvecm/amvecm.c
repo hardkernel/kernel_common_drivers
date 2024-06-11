@@ -528,7 +528,8 @@ bool is_hdr_stb_mode(void)
 		is_meson_g12b_cpu() || is_meson_sm1_cpu() ||
 		is_meson_sc2_cpu() || is_meson_s4d_cpu() ||
 		is_meson_s5_cpu() || is_meson_s4_cpu() ||
-		is_meson_s7_cpu() || is_meson_s7d_cpu())
+		is_meson_s7_cpu() || is_meson_s7d_cpu() ||
+		is_meson_s6_cpu())
 		return true;
 	else
 		return false;
@@ -2864,7 +2865,8 @@ int amvecm_on_vs(struct vframe_s *vf,
 	cabc_aad_on_vs(vf_state);
 	pr_amvecm_bringup_dbg("[on_vs] cabc_aad done.\n");
 
-	if (chip_type_id == chip_s7d && vsr_update_flag)
+	if ((chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6) && vsr_update_flag)
 		amve_vsr_config_update(vf, vpp_index);
 #endif
 	return result;
@@ -6974,7 +6976,8 @@ static ssize_t amvecm_set_post_matrix_show(struct class *cla,
 		!is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
 		chip_type_id != chip_txhd2 && chip_type_id != chip_s1a &&
 		chip_type_id != chip_s7 &&
-		chip_type_id != chip_s7d) {
+		chip_type_id != chip_s7d &&
+		!is_meson_s6_cpu()) {
 		val = READ_VPP_REG(VPP_PROBE_CTRL);
 		pr_info("current setting: %d\n", val & 0x3f);
 	} else {
@@ -6998,7 +7001,8 @@ static ssize_t amvecm_set_post_matrix_store(struct class *cla,
 		chip_type_id != chip_txhd2 &&
 		chip_type_id != chip_s1a &&
 		chip_type_id != chip_s7 &&
-		chip_type_id != chip_s7d) {
+		chip_type_id != chip_s7d &&
+		!is_meson_s6_cpu()) {
 		reg_val = READ_VPP_REG(VPP_PROBE_CTRL);
 		reg_val = reg_val & 0xffffffc0;
 		/*reg_val |= 0x10000;*/
@@ -7040,7 +7044,8 @@ static ssize_t amvecm_post_matrix_pos_show(struct class *cla,
 	    chip_type_id != chip_txhd2 &&
 	    chip_type_id != chip_s1a &&
 	    chip_type_id != chip_s7 &&
-	    chip_type_id != chip_s7d)
+	    chip_type_id != chip_s7d &&
+	    !is_meson_s6_cpu())
 		val = READ_VPP_REG(VPP_PROBE_POS);
 	else
 		val = READ_VPP_REG(VPP_MATRIX_PROBE_POS);
@@ -7079,7 +7084,8 @@ static ssize_t amvecm_post_matrix_pos_store(struct class *cla,
 		chip_type_id != chip_txhd2 &&
 		chip_type_id != chip_s1a &&
 		chip_type_id != chip_s7 &&
-		chip_type_id != chip_s7d)
+		chip_type_id != chip_s7d &&
+		!is_meson_s6_cpu())
 		reg_val = READ_VPP_REG(VPP_PROBE_POS);
 	else
 		reg_val = READ_VPP_REG(VPP_MATRIX_PROBE_POS);
@@ -7091,7 +7097,8 @@ static ssize_t amvecm_post_matrix_pos_store(struct class *cla,
 		chip_type_id != chip_txhd2 &&
 		chip_type_id != chip_s1a &&
 		chip_type_id != chip_s7 &&
-		chip_type_id != chip_s7d)
+		chip_type_id != chip_s7d &&
+		!is_meson_s6_cpu())
 		WRITE_VPP_REG(VPP_PROBE_POS, reg_val);
 	else
 		WRITE_VPP_REG(VPP_MATRIX_PROBE_POS, reg_val);
@@ -7113,7 +7120,8 @@ static ssize_t amvecm_post_matrix_data_show(struct class *cla,
 		chip_type_id != chip_txhd2 &&
 		chip_type_id != chip_s1a &&
 		chip_type_id != chip_s7 &&
-		chip_type_id != chip_s7d) {
+		chip_type_id != chip_s7d &&
+		!is_meson_s6_cpu()) {
 		probe_color = VPP_PROBE_COLOR;
 		probe_color1 = VPP_PROBE_COLOR1;
 	} else {
@@ -9815,6 +9823,7 @@ static void sr_init_config(void)
 	break;
 #endif
 	case chip_s7d:
+	case chip_s6:
 		s7d_sharpness_init();
 	break;
 	default:
@@ -10134,25 +10143,29 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		}
 	} else if (!strncmp(parm[0], "sr", 2)) {
 		if (!strncmp(parm[1], "peaking_en", 10)) {
-			if (chip_type_id == chip_s7d)
+			if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6)
 				amve_sharpness_sub_ctrl(1, 1);
 			else
 				amvecm_sharpness_enable(0);
 			pr_info("enable peaking\n");
 		} else if (!strncmp(parm[1], "peaking_dis", 11)) {
-			if (chip_type_id == chip_s7d)
+			if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6)
 				amve_sharpness_sub_ctrl(1, 0);
 			else
 				amvecm_sharpness_enable(1);
 			pr_info("disable peaking\n");
 		} else if (!strncmp(parm[1], "lcti_en", 7)) {
-			if (chip_type_id == chip_s7d)
+			if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6)
 				amve_sharpness_sub_ctrl(2, 1);
 			else
 				amvecm_sharpness_enable(2);
 			pr_info("enable lti cti\n");
 		} else if (!strncmp(parm[1], "lcti_dis", 8)) {
-			if (chip_type_id == chip_s7d)
+			if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6)
 				amve_sharpness_sub_ctrl(2, 0);
 			else
 				amvecm_sharpness_enable(3);
@@ -10176,31 +10189,36 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			amvecm_sharpness_enable(9);
 			pr_info("SR3 disable dejaggy\n");
 		} else if (!strncmp(parm[1], "dering_en", 9)) {
-			if (chip_type_id == chip_s7d)
+			if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6)
 				amve_sharpness_sub_ctrl(3, 1);
 			else
 				amvecm_sharpness_enable(10);
 			pr_info("SR3 enable dering\n");
 		} else if (!strncmp(parm[1], "dering_dis", 10)) {
-			if (chip_type_id == chip_s7d)
+			if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6)
 				amve_sharpness_sub_ctrl(3, 0);
 			else
 				amvecm_sharpness_enable(11);
 			pr_info("SR3 disable dering\n");
 		} else if (!strncmp(parm[1], "drlpf_en", 8)) {
-			if (chip_type_id == chip_s7d)
+			if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6)
 				amve_sharpness_sub_ctrl(6, 1);
 			else
 				amvecm_sharpness_enable(12);
 			pr_info("SR3 enable drlpf\n");
 		} else if (!strncmp(parm[1], "drlpf_dis", 9)) {
-			if (chip_type_id == chip_s7d)
+			if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6)
 				amve_sharpness_sub_ctrl(6, 0);
 			else
 				amvecm_sharpness_enable(13);
 			pr_info("SR3 disable drlpf\n");
 		} else if (!strncmp(parm[1], "enable", 6)) {
-			if (chip_type_id == chip_s7d) {
+			if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6) {
 				amve_sharpness_sub_ctrl(0, 1);
 			} else {
 				amvecm_sharpness_enable(0);
@@ -10213,7 +10231,8 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			}
 			pr_info("SR enable\n");
 		} else if (!strncmp(parm[1], "disable", 7)) {
-			if (chip_type_id == chip_s7d) {
+			if (chip_type_id == chip_s7d ||
+				chip_type_id == chip_s6) {
 				amve_sharpness_sub_ctrl(0, 0);
 			} else {
 				amvecm_sharpness_enable(1);
@@ -12264,7 +12283,8 @@ void init_pq_setting(void)
 		 is_meson_s4_cpu() ||
 		 is_meson_s4d_cpu() ||
 		 is_meson_s7_cpu() ||
-		 chip_type_id == chip_s7d) {
+		 chip_type_id == chip_s7d ||
+		 is_meson_s6_cpu()) {
 		if (is_meson_s4_cpu())
 			bitdepth = 10;
 		else
@@ -13024,6 +13044,17 @@ static const struct vecm_match_data_s vecm_dt_s7d = {
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 };
 
+static const struct vecm_match_data_s vecm_dt_s6 = {
+	.chip_id = chip_s6,
+	.chip_cls = STB_CHIP,
+	.vlk_chip = vlock_chip_t5,
+	.vlk_support = false,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_tm2verb,
+	.vlk_phlock_en = false,
+	.vlk_pll_sel = vlock_pll_sel_tcon,
+};
+
 static const struct of_device_id aml_vecm_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
 	{
@@ -13098,6 +13129,10 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm-s7d",
 		.data = &vecm_dt_s7d,
+	},
+	{
+		.compatible = "amlogic, vecm-s6",
+		.data = &vecm_dt_s6,
 	},
 	{},
 };
@@ -13771,7 +13806,7 @@ int __init aml_vecm_init(void)
 {
 	/*unsigned int hiu_reg_base;*/
 
-	pr_info("%s:module init_20240402-0\n", __func__);
+	pr_info("%s:module init_20240611-0\n", __func__);
 
 	if (platform_driver_register(&aml_vecm_driver)) {
 		pr_err("failed to register bl driver module\n");

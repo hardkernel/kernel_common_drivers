@@ -2145,7 +2145,8 @@ void lc_process(struct vframe_s *vf,
 		__func__, chip_type_id);
 
 	if (chip_type_id == chip_s5 ||
-		chip_type_id == chip_s7)
+		chip_type_id == chip_s7 ||
+		chip_type_id == chip_s6)
 		return;
 
 	if (!lc_malloc_ok) {

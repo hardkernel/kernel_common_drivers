@@ -1399,7 +1399,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 	int vpp_sel;
 	unsigned int addr_offset_osd2 = 0;
 
-	if (chip_type_id == chip_s7d)
+	if (chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6)
 		addr_offset_osd2 = 0x500;
 
 	if (vpp_index == VPP_TOP1 &&
@@ -2211,7 +2212,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(CGAIN_COEF1,
 					 c_gain_lim_coef[2],	0, 12, vpp_sel);
 
-		if (chip_type_id == chip_s7d) {
+		if (chip_type_id == chip_s7d ||
+			chip_type_id == chip_s6) {
 			VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_CTRL,
 				1 << 16 |
 				adpscl_bypass[2] << 6 |
@@ -2317,7 +2319,8 @@ void set_eotf_lut(enum hdr_module_sel module_sel,
 	int vpp_sel;
 	unsigned int addr_offset_osd2 = 0;
 
-	if (chip_type_id == chip_s7d)
+	if (chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6)
 		addr_offset_osd2 = 0x500;
 
 	if (vpp_index == VPP_TOP1 &&
@@ -2395,7 +2398,8 @@ void set_ootf_lut(enum hdr_module_sel module_sel,
 	int vpp_sel;
 	unsigned int addr_offset_osd2 = 0;
 
-	if (chip_type_id == chip_s7d)
+	if (chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6)
 		addr_offset_osd2 = 0x500;
 
 	if (vpp_index == VPP_TOP1 &&
@@ -2477,7 +2481,8 @@ void set_oetf_lut(enum hdr_module_sel module_sel,
 	int vpp_sel;
 	unsigned int addr_offset_osd2 = 0;
 
-	if (chip_type_id == chip_s7d)
+	if (chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6)
 		addr_offset_osd2 = 0x500;
 
 	if (vpp_index == VPP_TOP1 &&
@@ -2569,7 +2574,8 @@ void set_c_gain(enum hdr_module_sel module_sel,
 	int vpp_sel;
 	unsigned int addr_offset_osd2 = 0;
 
-	if (chip_type_id == chip_s7d)
+	if (chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6)
 		addr_offset_osd2 = 0x500;
 
 	if (vpp_index == VPP_TOP1 &&
@@ -2895,7 +2901,8 @@ void hdr_hist_config(enum hdr_module_sel module_sel,
 	int vpp_sel;
 	unsigned int addr_offset_osd2 = 0;
 
-	if (chip_type_id == chip_s7d)
+	if (chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6)
 		addr_offset_osd2 = 0x500;
 
 	if (vpp_index == VPP_TOP1 &&
@@ -3093,7 +3100,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			get_cpu_type() != MESON_CPU_MAJOR_ID_T5W &&
 			chip_type_id != chip_t5m &&
 			chip_type_id != chip_t3x &&
-			chip_type_id != chip_s7d)
+			chip_type_id != chip_s7d &&
+			chip_type_id != chip_s6)
 			return hdr_process_select;
 		break;
 	case OSD3_HDR:
@@ -3206,7 +3214,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		chip_type_id == chip_txhd2)
 		bit_depth = 10;
 
-	if (chip_type_id == chip_s7d &&
+	if ((chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6) &&
 		(module_sel == OSD1_HDR ||
 		module_sel == OSD2_HDR))
 		bit_depth = 10;
@@ -3730,13 +3739,15 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			oft_post_out = bypass_pos;
 		}
 
-		if (chip_type_id == chip_s7d &&
+		if ((chip_type_id == chip_s7d ||
+			chip_type_id == chip_s6) &&
 			((module_sel == OSD1_HDR ||
 			  module_sel == OSD2_HDR) &&
 			(hdr_process_select & HDR_BYPASS))) {
 			/* s7d osd blend after hdr core*/
 			pr_csc(128, "%s: module_sel = %d s7d HDR_BYPASS bypass matrix in.\n",
 				__func__, module_sel);
+
 			coeff_in = bypass_coeff;
 			oft_pre_in = bypass_pre;
 			oft_post_in = bypass_pos;
@@ -3768,7 +3779,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			oft_post_out = rgb2yuvpos;
 		}
 
-		if (chip_type_id == chip_s7d &&
+		if ((chip_type_id == chip_s7d ||
+			chip_type_id == chip_s6) &&
 			((module_sel == OSD1_HDR ||
 			module_sel == OSD2_HDR) &&
 			(hdr_process_select & SDR_HDR ||
@@ -3777,6 +3789,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			/* s7d osd blend after hdr core*/
 			pr_csc(128, "%s: module_sel = %d s7d bypass matrix in.\n",
 				__func__, module_sel);
+
 			coeff_in = bypass_coeff;
 			oft_pre_in = bypass_pre;
 			oft_post_in = bypass_pos;
@@ -4065,7 +4078,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				hdr_mtx_param.mtx_cgain[i] =
 					rgb2ycbcr_ncl2020[i];
 				hdr_mtx_param.mtx_ogain[i] = rgb2ycbcr_709[i];
-				if (chip_type_id == chip_s7d &&
+				if ((chip_type_id == chip_s7d ||
+					chip_type_id == chip_s6) &&
 					(module_sel == OSD1_HDR ||
 					module_sel == OSD2_HDR)) {
 					hdr_mtx_param.mtx_out[i] = bypass_coeff[i];
@@ -4425,7 +4439,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			hdr_gclk_ctrl_switch(module_sel, hdr_process_select, vpp_sel);
 	}
 
-	if (chip_type_id == chip_s7d) {
+	if (chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6) {
 		if (is_amdv_on())
 			mtx_on = MTX_OFF;
 		else
@@ -4516,7 +4531,8 @@ int hdr10p_ebzcurve_update(enum hdr_module_sel module_sel,
 		chip_type_id == chip_txhd2)
 		bit_depth = 10;
 
-	if (chip_type_id == chip_s7d &&
+	if ((chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6) &&
 		(module_sel == OSD1_HDR ||
 		module_sel == OSD2_HDR))
 		bit_depth = 10;
@@ -4631,7 +4647,8 @@ int hdr10_tm_update(enum hdr_module_sel module_sel,
 		chip_type_id == chip_txhd2)
 		bit_depth = 10;
 
-	if (chip_type_id == chip_s7d &&
+	if ((chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6) &&
 		(module_sel == OSD1_HDR ||
 		module_sel == OSD2_HDR))
 		bit_depth = 10;
@@ -4701,7 +4718,8 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 		if (get_cpu_type() != MESON_CPU_MAJOR_ID_T3 &&
 			get_cpu_type() != MESON_CPU_MAJOR_ID_T5W &&
 			chip_type_id != chip_t5m &&
-			chip_type_id != chip_s7d)
+			chip_type_id != chip_s7d &&
+			chip_type_id != chip_s6)
 			return hdr_process_select;
 		break;
 	case OSD3_HDR:
@@ -4791,7 +4809,8 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 		chip_type_id == chip_txhd2)
 		bit_depth = 10;
 
-	if (chip_type_id == chip_s7d &&
+	if ((chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6) &&
 		(module_sel == OSD1_HDR ||
 		module_sel == OSD2_HDR))
 		bit_depth = 10;
@@ -5455,7 +5474,8 @@ static int create_hdr_full_setting(enum hdr_module_sel module_sel,
 		chip_type_id == chip_txhd2)
 		bit_depth = 10;
 
-	if (chip_type_id == chip_s7d &&
+	if ((chip_type_id == chip_s7d ||
+		chip_type_id == chip_s6) &&
 		(module_sel == OSD1_HDR ||
 		module_sel == OSD2_HDR))
 		bit_depth = 10;
