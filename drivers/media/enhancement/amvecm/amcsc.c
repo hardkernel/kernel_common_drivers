@@ -4165,12 +4165,17 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 			hdr_cap |= (dv_cap << DV_SUPPORT_SHF) & DV_SUPPORT;
 	}
 
-	/*always hdr, add 8bit hdr10 limitation*/
-	/*adatpive hdr, no 8bit limitation, hdmi will trans 444-8=>422-12*/
-	if (get_hdr_policy() == 0 && get_hdmi_colordepth(vinfo) == COLORDEPTH_24B)
-		new_hdr_cap = hdr_cap & (~HDR_SUPPORT) & (~HLG_SUPPORT) & (~HDRP_SUPPORT);
-	else
+	/*add 8bit hdr10 limitation except(sink-led and matchcontent*/
+	if (get_hdmi_colordepth(vinfo) == COLORDEPTH_24B) {
+		if (is_amdv_enable() && get_hdr_policy() == 1 &&
+			sink_dv_support(vinfo) && get_amdv_ll_policy() == 0)
+			new_hdr_cap = hdr_cap;/*no 8bit limition,hdmi will trans 444-8=>422-12*/
+		else
+			new_hdr_cap = hdr_cap & (~HDR_SUPPORT) & (~HLG_SUPPORT)
+				& (~HDRP_SUPPORT) & (~CUVA_SUPPORT);
+	} else {
 		new_hdr_cap = hdr_cap;
+	}
 
 	if (vinfo)
 		pr_csc(256, "%s:support %d %d %d,mode=%d,hdr_cap 0x%x,0x%x\n",
