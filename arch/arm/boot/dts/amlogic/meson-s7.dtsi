@@ -779,6 +779,7 @@
 			usb-phy = <&usb_phy20>, <&usb_phy30>;
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
+			in-nak-rty = <0x5>;
 		};
 
 		crg_udc: crgudc@0xfe350000 {
@@ -804,6 +805,7 @@
 			usb-phy = <&usb_phy21>, <&usb_phy31>;
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
+			in-nak-rty = <0x5>;
 		};
 
 		dolby_fw: dolby_fw {

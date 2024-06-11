@@ -365,6 +365,7 @@ static int crg_probe(struct platform_device *pdev)
 	u32 tmp;
 	const void *prop;
 	unsigned int wr_outstanding_tune = 0;
+	unsigned int innakrty = 0;
 
 	mem = devm_kzalloc(dev, sizeof(*crg) + CRG_ALIGN_MASK, GFP_KERNEL);
 	if (!mem)
@@ -462,6 +463,14 @@ static int crg_probe(struct platform_device *pdev)
 		wr_outstanding_tune = readl((void __iomem *)((unsigned long)crg->regs + 0x210c));
 		wr_outstanding_tune &= (~0x7f000);
 		writel(wr_outstanding_tune, (void __iomem *)((unsigned long)crg->regs + 0x210c));
+	}
+
+	prop = of_get_property(dev->of_node, "in-nak-rty", NULL);
+	if (prop) {
+		innakrty = of_read_ulong(prop, 1);
+		innakrty = (readl((void __iomem *)((unsigned long)crg->regs + 0x2110)) &
+					~(0xff << 13)) | (innakrty << 13);
+		writel(innakrty, (void __iomem *)((unsigned long)crg->regs + 0x2110));
 	}
 
 	pm_runtime_put(dev);
