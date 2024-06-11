@@ -7,7 +7,7 @@
 
 #include "mesont5m_reva.dtsi"
 #include "firmware_ab.dtsi"
-#include "mesont5m_reva_ay301-panel.dtsi"
+#include "mesont5m_ay301-panel.dtsi"
 #include "mesont5m_drm.dtsi"
 
 / {
@@ -87,18 +87,10 @@
 			reg = <0x0 0xbf800000 0x0 0x800000>;
 		};
 
-		lcd_tcon_reserved:linux,lcd_tcon {
-			compatible = "amlogic, lcd_tcon";
-			reg = <0x0 0x3e000000 0x0 0x00a02840>;
-			//no-map;
-		};
-
-		lcd_cma_reserved:linux,lcd-cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* 512k for lcd dma data */
-			size = <0x0 0x00080000>;
-			reg = <0x0 0x3ea80000 0x0 0x00080000>;
+		lcd_cma_reserved:linux,lcd-reserved {
+			compatible = "amlogic, lcd_rsvd";
+			reg = <0x0 0x3e000000 0x0 0x00a80000>;
+			tcon-size = <0 0x00a02840>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {

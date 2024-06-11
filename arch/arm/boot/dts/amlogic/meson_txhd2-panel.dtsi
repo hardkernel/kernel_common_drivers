@@ -4,6 +4,13 @@
  */
 
 / {
+	lcd_resman {
+		compatible = "amlogic, lcd-resman";
+		status = "okay";
+		memory-region = <&lcd_cma_reserved>;
+		memory-region-names = "lcd_cma_reserved";
+	};
+
 	lcd:lcd {
 		compatible = "amlogic, lcd-txhd2";
 		status = "okay";
@@ -30,7 +37,6 @@
 		pinctrl-names = "tcon_mlvds","tcon_mlvds_off";
 		pinctrl-0 = <&lcd_tcon_mlvds_pins>;
 		pinctrl-1 = <&lcd_tcon_mlvds_off_pins>;
-		memory-region = <&lcd_tcon_reserved>;
 
 		lcd_cpu-gpios = <&gpio GPIOZ_3  GPIO_ACTIVE_HIGH
 				 &gpio GPIOH_14 GPIO_ACTIVE_HIGH
