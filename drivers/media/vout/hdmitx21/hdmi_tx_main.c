@@ -5061,11 +5061,12 @@ static int amhdmitx_resume(struct platform_device *pdev)
 
 	HDMITX_INFO("amhdmitx: resume\n");
 	hdmitx_clk_ctrl(hdev, 1);
-	/* When s7 is in standby and wakes up, it will turn off and on the vpu power domain.
-	 * When it is turned off, the reg of the relevant modules will be reset. When it wakes up,
-	 * the hdmitx driver needs to reinitialize the required top register.
+	/* Since the S7 chip, in order to optimize power consumption, it will turn off and on the
+	 * vpu power domain when standby and wakes up.When it is turned off, the reg of the relevant
+	 * modules will be reset. When it wakes up,the hdmitx driver needs to reinitialize the
+	 * required top register.
 	 */
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)
+	if (hdev->tx_hw.chip_data->chip_type >= MESON_CPU_ID_S7)
 		hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_HW_INIT, 0);
 	mutex_lock(&tx_comm->hdmimode_mutex);
 	hdmitx_event_mgr_suspend(tx_comm->event_mgr, false);
