@@ -190,4 +190,7 @@ int hdmitx_ext_get_audio_status(void);
 void get_attr(char attr[16]);
 void setup_attr(const char *buf);
 
+/* for eARC audio call */
+void hdmitx_ext_plugin_handler(void);
+
 #endif

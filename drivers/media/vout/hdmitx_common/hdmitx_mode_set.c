@@ -799,3 +799,13 @@ void hdmitx_common_late_resume(struct hdmitx_common *tx_comm)
 		HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP, false);
 }
 
+void hdmitx_ext_plugin_handler(void)
+{
+	/*read edid*/
+	if (global_tx_common) {
+		mutex_lock(&global_tx_common->hdmimode_mutex);
+		hdmitx_common_get_edid(global_tx_common);
+		mutex_unlock(&global_tx_common->hdmimode_mutex);
+	}
+}
+EXPORT_SYMBOL(hdmitx_ext_plugin_handler);
