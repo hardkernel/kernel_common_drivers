@@ -2249,6 +2249,7 @@ void lc_process(struct vframe_s *vf,
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1 ||
 		chip_type_id == chip_s5 ||
 		chip_type_id == chip_s7 ||
+		chip_type_id == chip_s6 ||
 		lc_force_ctrl)
 		return;
 

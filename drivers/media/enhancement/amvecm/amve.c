@@ -293,7 +293,7 @@ void ve_dnlp_load_reg(void)
 				else
 					dnlp_reg = SRSHARP1_DNLP2_00;
 
-				if (chip_type_id == chip_s7d)
+				if (chip_type_id == chip_s7d || chip_type_id == chip_s6)
 					dnlp_reg = VPP_DNLP_YGRID_0;
 
 				for (i = 0; i < 32; i++)
@@ -1152,7 +1152,8 @@ void ve_enable_dnlp(void)
 		if (dnlp_sel == NEW_DNLP_IN_SHARPNESS) {
 			if (is_meson_gxlx_cpu() || is_meson_txlx_cpu()) {
 				reg_ctrl = SRSHARP1_DNLP_EN;
-			} else if (chip_type_id == chip_s7d) {
+			} else if (chip_type_id == chip_s7d ||
+			chip_type_id == chip_s6) {
 				reg_ctrl = VPP_DNLP_EN_MODE;
 			} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 				if ((!vinfo_lcd_support() && chip_type_id != chip_s5) ||
@@ -1165,7 +1166,7 @@ void ve_enable_dnlp(void)
 				reg_ctrl = SRSHARP0_DNLP_EN;
 			}
 
-			if (chip_type_id != chip_s7d)
+			if (chip_type_id != chip_s7d && chip_type_id != chip_s6)
 				WRITE_VPP_REG_BITS(reg_ctrl, 1, 0, 1);
 			else
 				WRITE_VPP_REG_BITS(reg_ctrl, 1, 4, 1);
@@ -1188,7 +1189,8 @@ void ve_disable_dnlp(void)
 		if (dnlp_sel == NEW_DNLP_IN_SHARPNESS) {
 			if (is_meson_gxlx_cpu() || is_meson_txlx_cpu()) {
 				reg_ctrl = SRSHARP1_DNLP_EN;
-			} else if (chip_type_id == chip_s7d) {
+			} else if (chip_type_id == chip_s7d ||
+			chip_type_id == chip_s6) {
 				reg_ctrl = VPP_DNLP_EN_MODE;
 			} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 				if ((!vinfo_lcd_support() && chip_type_id != chip_s5) ||
@@ -1201,7 +1203,7 @@ void ve_disable_dnlp(void)
 				reg_ctrl = SRSHARP0_DNLP_EN;
 			}
 
-			if (chip_type_id != chip_s7d)
+			if (chip_type_id != chip_s7d && chip_type_id != chip_s6)
 				WRITE_VPP_REG_BITS(reg_ctrl, 0, 0, 1);
 			else
 				WRITE_VPP_REG_BITS(reg_ctrl, 0, 4, 1);
@@ -5808,7 +5810,8 @@ void amve_vsr_config_update(struct vframe_s *vf, int vpp_index)
 		width_in = (vf->type & VIDTYPE_COMPRESS) ?
 			vf->compWidth : vf->width;
 
-	if (chip_type_id == chip_s7d &&
+	if ((chip_type_id == chip_s7d  ||
+                chip_type_id == chip_s6) &&
 		(height_out <= 2160 &&
 		width_out <= 3840)) {
 		if (width_in <= 1024) {
