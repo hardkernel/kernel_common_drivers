@@ -127,7 +127,7 @@ static unsigned long aml_cancel_transfer(struct file *filp, struct aml_usbcam *u
 static unsigned long aml_get_usbcam_state(struct aml_usbcam *usbcam_dev, unsigned long arg)
 {
 	int ret;
-	unsigned int status = usbcam_dev->device_state;
+	unsigned int status;
 
 	usbcam_dbg("get usbcam state\n");
 
@@ -135,6 +135,8 @@ static unsigned long aml_get_usbcam_state(struct aml_usbcam *usbcam_dev, unsigne
 		usbcam_err("invalid parameter\n");
 		return -EINVAL;
 	}
+
+	status = usbcam_dev->device_state;
 
 	ret = copy_to_user((unsigned int *)arg, &status, sizeof(unsigned int));
 	if (ret) {
