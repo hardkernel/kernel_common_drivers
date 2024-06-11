@@ -214,7 +214,8 @@ bool mm_codec_alloc(const char *owner, size_t count,
 		istvp = true;
 		flags |= CODEC_MM_FLAGS_TVP;
 	} else {
-		flags |= CODEC_MM_FLAGS_RESERVED | CODEC_MM_FLAGS_CPU;
+		flags |= CODEC_MM_FLAGS_RESERVED | CODEC_MM_FLAGS_CMA |
+				CODEC_MM_FLAGS_CPU;
 	}
 	#endif
 	if (cma_mode == 4 && !istvp)
