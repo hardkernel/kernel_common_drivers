@@ -1052,7 +1052,7 @@
 		};/* end of ion_dev*/
 
 		audiobus: audiobus@0xFF660000 {
-			compatible = "amlogic, audio-controller", "simple-bus";
+			compatible = "amlogic, axg-audio-controller", "simple-bus";
 			status = "okay";
 			reg = <0x0 0xFF660000 0x0 0x3000>;
 			#address-cells = <2>;

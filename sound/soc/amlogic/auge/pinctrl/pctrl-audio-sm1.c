@@ -23,7 +23,7 @@
 
 #define AUDIO_PIN(x) PINCTRL_PIN(x, #x)
 
-static const struct pinctrl_pin_desc sm1_audio_pins[] = {
+struct pinctrl_pin_desc sm1_audio_pins[] = {
 	AUDIO_PIN(TDM_D0),
 	AUDIO_PIN(TDM_D1),
 	AUDIO_PIN(TDM_D2),
@@ -71,7 +71,10 @@ static const struct pinctrl_pin_desc sm1_audio_pins[] = {
 	AUDIO_PIN(TDM_MCLK1),
 	AUDIO_PIN(TDM_MCLK2),
 	AUDIO_PIN(TDM_MCLK3),
-	AUDIO_PIN(TDM_MCLK4)
+	AUDIO_PIN(TDM_MCLK4),
+	AUDIO_PIN(TDMA_OE),
+	AUDIO_PIN(TDMB_OE),
+	AUDIO_PIN(TDMC_OE)
 };
 
 struct pin_group {
@@ -135,6 +138,11 @@ static const unsigned int tdm_mclk2_pins[] = {TDM_MCLK2};
 static const unsigned int tdm_mclk3_pins[] = {TDM_MCLK3};
 static const unsigned int tdm_mclk4_pins[] = {TDM_MCLK4};
 
+/* tdm oe pin */
+static const unsigned int tdma_oe_pins[] = {TDMA_OE};
+static const unsigned int tdmb_oe_pins[] = {TDMB_OE};
+static const unsigned int tdmc_oe_pins[] = {TDMC_OE};
+
 #define GROUP(n)  \
 	{			\
 		.name = #n,	\
@@ -192,8 +200,10 @@ static const struct pin_group sm1_audio_pin_groups[] = {
 	GROUP(tdm_mclk1),
 	GROUP(tdm_mclk2),
 	GROUP(tdm_mclk3),
-	GROUP(tdm_mclk4)
-
+	GROUP(tdm_mclk4),
+	GROUP(tdma_oe),
+	GROUP(tdmb_oe),
+	GROUP(tdmc_oe)
 };
 
 static int sm1_ap_get_groups_count(struct pinctrl_dev *pctldev)
@@ -228,7 +238,7 @@ static const char * const tdm_groups[] = {
 	"tdm_d15", "tdm_d16", "tdm_d17", "tdm_d18", "tdm_d19",
 	"tdm_d20", "tdm_d21", "tdm_d22", "tdm_d23", "tdm_d24",
 	"tdm_d25", "tdm_d26", "tdm_d27", "tdm_d28", "tdm_d29",
-	"tdm_d30", "tdm_d31"
+	"tdm_d30", "tdm_d31", "tdma_oe", "tdmb_oe", "tdmc_oe"
 };
 
 static const char * const tdm_clk_groups[] = {
@@ -385,25 +395,61 @@ static int sm1_ap_set_mux(struct pinctrl_dev *pctldev,
 	unsigned int base = 0, offset = 0, addr = 0, val = 0;
 
 	if (selector <= FUNC_TDM_DIN_LAST) {
-		/* tdmin */
-		base = EE_AUDIO_DAT_PAD_CTRL0;
-		addr = selector / 4 + base;
-		offset = (selector % 4) * 8;
-		val = group;
-		aml_audiobus_update_bits(actrl, addr,
-			0x1f << offset, val << offset);
-		aml_audiobus_update_bits(actrl, EE_AUDIO_DAT_PAD_CTRLF,
-			1 << val, 1 << val);
+		/*32 is tdma_oe pin*/
+		if (group == 47) {
+			/* tdmina */
+			if (selector / 8 == 0) {
+				val = selector % 8;
+				aml_audiobus_update_bits(actrl, EE_AUDIO_TDMOUT_A_CTRL2,
+					0x1 << (8 + val), 0 << (8 + val));
+				aml_audiobus_update_bits(actrl, EE_AUDIO_TDMOUT_A_CTRL2,
+					0x1 << (16 + val), 0 << (16 + val));			}
+		} else if (group == 48) {
+			/* tdmina */
+			if (selector / 8 == 1) {
+				val = selector % 8;
+				aml_audiobus_update_bits(actrl, EE_AUDIO_TDMOUT_B_CTRL2,
+					0x1 << (8 + val), 0 << (8 + val));
+				aml_audiobus_update_bits(actrl, EE_AUDIO_TDMOUT_B_CTRL2,
+					0x1 << (16 + val), 0 << (16 + val));			}
+		} else if (group == 49) {
+			/* tdmina */
+			if (selector / 8 == 2) {
+				val = selector % 8;
+				aml_audiobus_update_bits(actrl, EE_AUDIO_TDMOUT_C_CTRL2,
+				0x1 << (8 + val), 0 << (8 + val));
+				aml_audiobus_update_bits(actrl, EE_AUDIO_TDMOUT_C_CTRL2,
+				0x1 << (16 + val), 0 << (16 + val));
+			}
+		}
 	} else if (selector <= FUNC_TDM_DOUT_LAST) {
-		/* tdmout */
-		base = EE_AUDIO_DAT_PAD_CTRL6;
-		addr = group / 4 + base;
-		offset = (group % 4) * 8;
-		val = selector - FUNC_TDM_DOUT_START;
-		aml_audiobus_update_bits(actrl, addr,
-			0x1f << offset, val << offset);
-		aml_audiobus_update_bits(actrl, EE_AUDIO_DAT_PAD_CTRLF,
-			1 << group, 0);
+		offset = selector - FUNC_TDM_DOUT_START;
+		if (group == 47) {
+			/* tdmouta */
+			if (offset / 8 == 0) {
+				val = offset % 8;
+				aml_audiobus_update_bits(actrl, EE_AUDIO_TDMOUT_A_CTRL2,
+					0x1 << (8 + val), 1 << (8 + val));
+				aml_audiobus_update_bits(actrl, EE_AUDIO_TDMOUT_A_CTRL2,
+					0x1 << (16 + val), 1 << (16 + val));
+			}
+		} else if (group == 48) {
+			if (offset / 8 == 1) {
+				val = offset % 8;
+				aml_audiobus_update_bits(actrl, EE_AUDIO_TDMOUT_B_CTRL2,
+				0x1 << (8 + val), 1 << (8 + val));
+				aml_audiobus_update_bits(actrl, EE_AUDIO_TDMOUT_B_CTRL2,
+				0x1 << (16 + val), 1 << (16 + val));
+			}
+		} else if (group == 49) {
+			if (offset / 8 == 2) {
+				val = offset % 8;
+				aml_audiobus_update_bits(actrl, EE_AUDIO_TDMOUT_C_CTRL2,
+					0x1 << (8 + val), 1 << (8 + val));
+				aml_audiobus_update_bits(actrl, EE_AUDIO_TDMOUT_C_CTRL2,
+					0x1 << (16 + val), 1 << (16 + val));
+			}
+		}
 	} else if (selector <= FUNC_TDM_CLK_IN_LAST) {
 		int tmp = group - GRP_TDM_SCLK_START;
 
@@ -453,7 +499,7 @@ static int sm1_ap_pmx_request(struct pinctrl_dev *pctldev, unsigned int offset)
 	return 0;
 }
 
-static struct pinmux_ops sm1_ap_pmxops = {
+static const struct pinmux_ops sm1_ap_pmxops = {
 	.request = sm1_ap_pmx_request,
 	.get_functions_count = sm1_ap_get_functions_count,
 	.get_function_name = sm1_ap_get_fname,

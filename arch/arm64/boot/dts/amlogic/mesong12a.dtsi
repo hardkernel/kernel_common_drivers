@@ -916,7 +916,7 @@
 		};/* end of ion_dev*/
 
 		audiobus: audiobus@0xff642000 {
-			compatible = "amlogic, audio-controller", "simple-bus";
+			compatible = "amlogic, axg-audio-controller", "simple-bus";
 			reg = <0x0 0xff642000 0x0 0x2000>;
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -926,6 +926,9 @@
 				compatible = "amlogic, g12a-audio-clocks";
 				#clock-cells = <1>;
 				reg = <0x0 0x0 0x0 0xb0>;
+			};
+			pinctrl_audio: pinctrl {
+				compatible = "amlogic, g12a-audio-pinctrl";
 			};
 			ddr_manager {
 				compatible = "amlogic, g12a-audio-ddr-manager";
