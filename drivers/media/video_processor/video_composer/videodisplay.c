@@ -997,6 +997,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 {
 	int repeat_count;
 	struct file *file_vf;
+	struct vframe_s *display_vf = vf;
 	struct composer_dev *dev = (struct composer_dev *)op_arg;
 	struct vd_prepare_s *vd_prepare_tmp;
 	struct mbp_buffer_info_t *mpb_buf = NULL;
@@ -1008,6 +1009,21 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	enable_prelink = dim_get_pre_link();
 #endif
+
+	if (vf->type_ext & VIDTYPE_EXT_LCEVC) {
+		vc_print(dev->index, PRINT_OTHER,
+			"%s: enhance_vf=%px, type:0x%x, flag=0x%x, y_addr=0x%px, width=%d, height=%d\n",
+			__func__,
+			vf,
+			vf->type,
+			vf->flag,
+			vf->canvas0_config[0].phy_addr,
+			vf->width,
+			vf->height);
+		vf = vf->enhance_vf;
+		display_vf = vf->enhance_vf;
+		vf->rendered = display_vf->rendered;
+	}
 
 	vc_print(dev->index, PRINT_OTHER,
 		"%s: prelink_en=%d, vf=%px(%px), omx_index=%d, vf_type=0x%x, vf_flag=0x%x, vf->timestamp: %lld.\n",
@@ -1085,7 +1101,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 			"%s: omx_index=%d, put_count=%lld.\n",
 			__func__, vf->omx_index, dev->fput_count);
 	} else {
-		vf_pop_display_q(dev, vf);
+		vf_pop_display_q(dev, display_vf);
 		videocomposer_vf_put(vf, op_arg);
 	}
 

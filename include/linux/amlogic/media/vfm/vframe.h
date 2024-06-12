@@ -586,6 +586,11 @@ struct vf_aicolor_t {
 	struct timeval start_time;
 };
 
+struct vf_lcevc_t {
+	s16 k[2][8];
+	u32 len;
+};
+
 #define VF_UD_MAX_SIZE 5120 /* 5K size */
 #define UD_MAGIC_CODE 0x55445020 /* UDP */
 #define is_ud_param_valid(ud) ((ud.magic_code) == UD_MAGIC_CODE)
@@ -789,6 +794,7 @@ struct vframe_s {
 	u32 codec_vfmt;
 	/*for di process NR and cts, storage dec vf*/
 	void *vf_ext;
+	void *enhance_vf;
 	u32 di_cm_cnt;
 	u32 dwHeadAddr;
 	u32 dwBodyAddr;
@@ -842,6 +848,7 @@ struct vframe_s {
 	enum vdin_channel_id_e vdin_channel_id;
 	/*decoder real used size*/
 	u32 scatter_mem_size;
+	struct vf_lcevc_t scaler_coeff;
 } /*vframe_t */;
 
 #define VC_FLAG_AI_SR		0x1
