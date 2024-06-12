@@ -104,6 +104,7 @@ static int __init media_main_init(void)
 	call_sub_init(lut_dma_init);
 	call_sub_init(vdin_drv_init);
 	call_sub_init(video_init);
+	call_sub_init(video_provider_init_module);
 	call_sub_init(ppmgr_init_module);
 	call_sub_init(videosync_init);
 #ifdef CONFIG_AMLOGIC_PIC_DEC

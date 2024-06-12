@@ -298,6 +298,15 @@ static inline int video_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_DUMMY_PROVIDER
+int video_provider_init_module(void);
+#else
+static inline int video_provider_init_module(void)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 int vout2_init_module(void);
 #endif

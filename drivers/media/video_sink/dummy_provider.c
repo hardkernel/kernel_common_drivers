@@ -17,6 +17,10 @@
 #include <linux/compat.h>
 #endif
 #include <linux/of.h>
+#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
+#include <linux/cma.h>
+#include <linux/of_reserved_mem.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/ion.h>
@@ -45,6 +49,7 @@ static struct vp_pool_s vp_pool[VP_VFM_POOL_SIZE];
 static s32 fill_ptr, get_ptr, put_ptr;
 static int vp_canvas_table[VP_VFM_POOL_SIZE];
 static DEFINE_SPINLOCK(lock);
+static struct vp_cma_info cma_info;
 unsigned int dummy_video_log_level;
 
 #define INCPTR(p) ptr_wrap_inc(&(p))
@@ -309,7 +314,7 @@ static int vp_dma_buf_get_phys(int fd, unsigned long *addr)
 	struct dma_buf *dbuf = NULL;
 	struct dma_buf_attachment *d_att = NULL;
 	struct sg_table *sg = NULL;
-	struct device *dev = video_provider_device.dev;
+	struct device *dev = &video_provider_device.pdev->dev;
 	enum dma_data_direction dir = DMA_TO_DEVICE;
 	struct page *page;
 
@@ -415,6 +420,11 @@ static int set_vfm_type(struct vp_frame_s *frame_info,
 				VIDTYPE_VIU_FIELD;
 		*bpp = 24;
 		break;
+	case VP_FMT_AFBC:
+		vf->type = VIDTYPE_COMPRESS | VIDTYPE_VIU_NV12 | VIDTYPE_SCATTER;
+		vf->bitdepth = BITDEPTH_Y10 | BITDEPTH_U10 | BITDEPTH_V10;
+		vf->source_type = VFRAME_SOURCE_TYPE_HDMI;
+		break;
 	default:
 		vp_info("%s-%d vf error\n", __func__, __LINE__);
 		return -EINVAL;
@@ -475,9 +485,15 @@ static int set_vfm_info_from_frame(struct vp_frame_s *frame_info)
 	}
 	memset(&vp_pool[fill_ptr], 0, sizeof(struct vp_pool_s));
 
-	ret = get_fram_phyaddr(frame_info, &addr);
-	if (ret < 0)
-		return ret;
+	if (frame_info->mem_type == VP_MEM_DRIVER_CMA) {
+		if (!cma_info.alloc_page)
+			return -EINVAL;
+		addr = page_to_phys(cma_info.alloc_page);
+	} else {
+		ret = get_fram_phyaddr(frame_info, &addr);
+		if (ret < 0)
+			return ret;
+	}
 
 	new_vf = &vp_pool[fill_ptr].vfm;
 	ret = set_vfm_type(frame_info, new_vf, &bpp);
@@ -510,6 +526,14 @@ static int set_vfm_info_from_frame(struct vp_frame_s *frame_info)
 				canvas_width, frame_info->height,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
 		new_vf->canvas0Addr = vp_canvas_table[fill_ptr] & 0xff;
+		break;
+	case VP_FMT_AFBC:
+		new_vf->compWidth    = frame_info->width;
+		new_vf->compHeight   = frame_info->height;
+		new_vf->compHeadAddr = addr;
+		new_vf->compBodyAddr = addr + frame_info->offset;
+		vp_dbg("afbc compHeadAddr:0x%lx compBodyAddr:0x%lx\n",
+		       new_vf->compHeadAddr, new_vf->compBodyAddr);
 		break;
 	default:
 		vp_err("unsupported format to canvas_config\n");
@@ -553,6 +577,7 @@ static long video_provider_ioctl(struct file *filp, unsigned int cmd,
 			vp_dbg(" frame mem_type: %d\n", frame_info.mem_type);
 			vp_dbg("frame shared_fd: %d\n", frame_info.shared_fd);
 			vp_dbg("   frame endian: %d\n", frame_info.endian);
+			vp_dbg("         offset: 0x%x\n", frame_info.offset);
 			ret = set_vfm_info_from_frame(&frame_info);
 		} else {
 			ret = -EINVAL;
@@ -569,10 +594,84 @@ static long video_provider_ioctl(struct file *filp, unsigned int cmd,
 	return ret;
 }
 
+static int memory_cma_alloc(int len)
+{
+	struct device *dev = &video_provider_device.pdev->dev;
+	struct page *cma_pages = NULL;
+	struct cma *cma_area = NULL;
+	dma_addr_t cma_paddr = 0;
+
+	if (cma_info.alloc_page || cma_info.alloc_len) {
+		vp_err("%s, already allocated, len:%d\n",
+		       __func__, cma_info.alloc_len);
+		return -EINVAL;
+	}
+	if (len <= 0) {
+		vp_err("failed to alloc, len:%d\n", len);
+		return -EINVAL;
+	}
+
+	len = PAGE_ALIGN(len);
+	/* change in kernel5.15 */
+	if (dev && dev->cma_area)
+		cma_area = dev->cma_area;
+	else
+		cma_area = dma_contiguous_default_area;
+
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+	cma_pages = cma_alloc(cma_area, len >> PAGE_SHIFT, 0, GFP_KERNEL);
+#else
+	cma_pages = cma_alloc(cma_area, len >> PAGE_SHIFT, 0, 0);
+#endif
+	if (!cma_pages) {
+		vp_err("failed to alloc buff, len:%d\n", len);
+		return -ENOMEM;
+	}
+
+	cma_info.alloc_page = cma_pages;
+	cma_info.alloc_len = len;
+	cma_paddr = page_to_phys(cma_info.alloc_page);
+	vp_dbg("%s, paddr:%pad len:%d\n", __func__, &cma_paddr, len);
+	dma_sync_single_for_device(dev, cma_paddr, len, DMA_TO_DEVICE);
+
+	return 0;
+}
+
+static void memory_cma_release(void)
+{
+	struct device *dev = &video_provider_device.pdev->dev;
+	struct page *cma_pages = cma_info.alloc_page;
+	struct cma *cma_area = NULL;
+	int len = cma_info.alloc_len;
+	bool ret = false;
+
+	if (!cma_pages || !len) {
+		vp_err("%s failed, cma_pages:%p len:%d\n",
+		       __func__, cma_pages, len);
+		return;
+	}
+
+	if (dev && dev->cma_area)
+		cma_area = dev->cma_area;
+	else
+		cma_area = dma_contiguous_default_area;
+	ret = cma_release(cma_area, cma_pages, len >> PAGE_SHIFT);
+	if (!ret) {
+		vp_err("failed to release output buff\n");
+		return;
+	}
+
+	cma_info.alloc_page = NULL;
+	cma_info.alloc_len = 0;
+}
+
 static int video_provider_release(struct inode *inode, struct file *file)
 {
 	video_provider_release_path();
 	canvas_table_release();
+
+	if (cma_info.alloc_page && cma_info.alloc_len)
+		memory_cma_release();
 
 	return 0;
 }
@@ -588,6 +687,29 @@ static long video_provider_compat_ioctl(struct file *filp, unsigned int cmd,
 }
 #endif
 
+static int video_provider_mmap(struct file *file_p,
+			  struct vm_area_struct *vma)
+{
+	int ret = -1;
+	unsigned long buf_len = 0;
+	dma_addr_t cma_paddr;
+
+	buf_len = vma->vm_end - vma->vm_start;
+	ret = memory_cma_alloc(buf_len);
+	if (ret < 0)
+		return ret;
+
+	cma_paddr = page_to_phys(cma_info.alloc_page);
+
+	ret = remap_pfn_range(vma, vma->vm_start,
+			      cma_paddr >> PAGE_SHIFT,
+			      buf_len, vma->vm_page_prot);
+	if (ret != 0)
+		vp_err("Failed to mmap buffer\n");
+
+	return ret;
+}
+
 static const struct file_operations video_provider_fops = {
 	.owner = THIS_MODULE,
 	.open = video_provider_open,
@@ -596,6 +718,7 @@ static const struct file_operations video_provider_fops = {
 	.compat_ioctl = video_provider_compat_ioctl,
 #endif
 	.release = video_provider_release,
+	.mmap = video_provider_mmap,
 };
 
 static int video_provider_probe(struct platform_device *pdev)
@@ -625,6 +748,15 @@ static int video_provider_probe(struct platform_device *pdev)
 		class_unregister(video_provider_device.cla);
 		return -1;
 	}
+	video_provider_device.pdev = pdev;
+
+	/* 8g memory support */
+	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+
+	ret = of_reserved_mem_device_init(&pdev->dev);
+	if (ret != 0)
+		vp_err("reserve_mem is not used\n");
 
 	return ret;
 }
@@ -662,7 +794,8 @@ static struct platform_driver video_provider_drv = {
 	}
 };
 
-static int __init video_provider_init_module(void)
+//static int __init video_provider_init_module(void)
+int __init video_provider_init_module(void)
 {
 	vp_info("%s\n", __func__);
 
@@ -674,14 +807,15 @@ static int __init video_provider_init_module(void)
 	return 0;
 }
 
-static void __exit video_provider_remove_module(void)
+//static void __exit video_provider_remove_module(void)
+void __exit video_provider_remove_module(void)
 {
 	platform_driver_unregister(&video_provider_drv);
 	vp_info("video provider module removed.\n");
 }
 
-module_init(video_provider_init_module);
-module_exit(video_provider_remove_module);
+//module_init(video_provider_init_module);
+//module_exit(video_provider_remove_module);
 
-MODULE_DESCRIPTION("Amlogic dummy video provider driver");
-MODULE_LICENSE("GPL");
+//MODULE_DESCRIPTION("Amlogic dummy video provider driver");
+//MODULE_LICENSE("GPL");
