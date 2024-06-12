@@ -6,6 +6,20 @@
 #ifndef __HDMITX_UEVENT_MGR_H
 #define __HDMITX_UEVENT_MGR_H
 
+struct hdmitx_event_mgr {
+	/*for uevent*/
+	struct kobject *kobj;
+	/* can't send uevent after enter suspend */
+	bool deep_suspend_flag;
+	/*for extcon event*/
+	struct extcon_dev *hdmitx_extcon_hdmi;
+	struct device *attached_extcon_dev;
+	/*notifier for driver*/
+	struct blocking_notifier_head hdmitx_event_notify_list;
+	/* if en, not send hpd extcon even to android*/
+	bool soundbar_en_flag;
+};
+
 enum hdmitx_event {
 	HDMITX_NONE_EVENT = 0,
 	HDMITX_HPD_EVENT,
@@ -16,6 +30,7 @@ enum hdmitx_event {
 	HDMITX_HDR_EVENT,
 	HDMITX_RXSENSE_EVENT,
 	HDMITX_CEDST_EVENT,
+	HDMITX_SOUNDBAR_EVENT,
 };
 
 /*HDMITX_HDCPPWR_EVENT event value*/
