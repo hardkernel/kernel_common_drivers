@@ -678,6 +678,7 @@ struct video_layer_s {
 	u8 cur_link_mode;
 	atomic_t disable_plink_done;
 
+	bool hscaler_8tap_enable_save;
 	bool mosaic_frame;
 	bool frc_n2m_1st_frame;
 	u8 plink_skip_cnt;
@@ -691,6 +692,23 @@ struct video_layer_s {
 	struct vframe_s *vf_top1;
 	u32 frc_h_size_pre;
 	u32 frc_v_size_pre;
+};
+
+struct video_lcevc_s {
+	bool preblend_en;
+	bool vd2_vd1_shared_vf;
+	bool lcevc_switch_normal;
+	bool lcevc_unreged;
+	struct vframe_s *enhance_vf;
+	u32 vd1_src_width;
+	u32 vd1_src_height;
+	u32 vd1_type;
+	u32 display_path_id;
+	u32 alpha;
+	u32 vf_lcevc_coeff0;
+	u32 vf_lcevc_coeff1;
+	u32 vd1_zorder;
+	u32 vd2_zorder;
 };
 
 struct video_save_s {
@@ -839,6 +857,13 @@ extern struct vpu_venc_regs_s venc_regs[VPP_NUM];
 extern u32 vpp_hold_line[VPP_MAX];
 extern u8 vsync_isr_cpuid;
 extern bool force_scaler_all;
+extern struct video_lcevc_s video_lcevc;
+extern bool lcevc_en;
+extern u32 lcevc_ctrl;
+extern u32 lcevc_coef_demo;
+extern uint int_hv_phase;
+extern uint int_hv_rpt_num;
+extern bool force_vpp_blend_update;
 
 bool is_amdv_enable(void);
 bool is_amdv_on(void);
@@ -1199,7 +1224,7 @@ int vpp_set_super_scaler_regs(struct video_layer_s *layer,
 			      int vpp_postblend_out_width,
 			      int vpp_postblend_out_height);
 void update_primary_fmt_event(void);
-
+void switch_from_lcevc_to_nonlcevc(bool unreg);
 #ifndef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 enum avevent_e {
 	VIDEO_START,
