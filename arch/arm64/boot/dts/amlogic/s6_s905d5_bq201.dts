@@ -47,9 +47,9 @@
 		};
 
 		/* global autoconfigured region for contiguous allocations */
-		ramoops@0x07400000 {
+		ramoops@0x06b00000 {
 			compatible = "ramoops";
-			reg = <0x0 0x07400000 0x0 0x00100000>;
+			reg = <0x0 0x06b00000 0x0 0x00100000>;
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
@@ -77,9 +77,8 @@
 			compatible = "shared-dma-pool";
 			/*reusable;*/
 			no-map;
-			size = <0x0 0x400000>;
-			alignment = <0x0 0x400000>;
-			reg = <0x0 0x05000000 0x0 0x400000>;
+			alignment = <0x0 0x100000>;
+			reg = <0x0 0x05000000 0x0 0x1b00000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -167,6 +166,13 @@
 			//no-map;
 		};
 
+		secure_vdec_reserved:linux,secure_vdec_reserved {
+			compatible = "amlogic, secure-vdec-reserved";
+			no-map;
+			size = <0x0 0x1000000>;
+			alignment = <0x0 0x100000>;
+		};
+
 		/*  vdin0 CMA pool */
 		//vdin0_cma_reserved:linux,vdin0_cma {
 		//	compatible = "shared-dma-pool";
@@ -199,7 +205,7 @@
 	};
 	codec_mm {
 		compatible = "amlogic, codec, mm";
-		memory-region = <&codec_mm_cma &codec_mm_reserved>;
+		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
 		dev_name = "codec_mm";
 		status = "okay";
 	};
