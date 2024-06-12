@@ -583,11 +583,19 @@ void lcd_tcon_axi_rmem_lut_load(struct aml_lcd_drv_s *pdrv,
 			LCDERR("tcon axi_rmem[%d] mapping failed: 0x%lx\n", index, paddr);
 			return;
 		}
+
+		memcpy(vaddr, buf, size);
+
+		if (tcon_rmem->flag == 1)
+			lcd_unmap_phyaddr(vaddr);
+		else if (tcon_rmem->flag == 2)
+			iounmap(vaddr);
+
 	} else {
 		vaddr = tcon_rmem->axi_rmem[index].mem_vaddr;
+		memcpy(vaddr, buf, size);
 	}
 
-	memcpy(vaddr, buf, size);
 	if (tcon_rmem->flag == 1)
 		lcd_tcon_mem_sync(pdrv, paddr, size);
 }
