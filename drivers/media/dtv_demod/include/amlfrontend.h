@@ -170,6 +170,7 @@
 /*  V3.5.043 optimize dvb-s rssi for rda5815m */
 /*  V3.5.044 fix atsc VBS to NTSC N+1 aci and R.1 test */
 /*  V3.5.045 fix low probability missing 8vsb channel */
+/*  V3.5.046 optimize dvb-c auto qam for T3 T5D */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -186,8 +187,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.045"
-#define DTVDEMOD_VER	"2024/06/19: fix low probability missing 8vsb channel"
+#define AMLDTVDEMOD_VER "V3.5.046"
+#define DTVDEMOD_VER	"2024/07/10: optimize dvb-c auto qam for T3 T5D"
 #define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -220,7 +221,7 @@
 
 #ifdef AML_DEMOD_SUPPORT_DVBC
 #define THRD_TUNER_STRENGTH_DVBC (-87)
-#define TIMEOUT_DVBC		3000
+#define TIMEOUT_DVBC		4000
 #endif
 
 #ifdef AML_DEMOD_SUPPORT_ISDBT
@@ -442,6 +443,7 @@ struct aml_dtvdemod {
 	enum qam_md_e last_qam_mode;
 	unsigned int auto_times;
 	unsigned int auto_done_times;
+	unsigned int qam_wait_times;
 	bool auto_qam_done;
 	bool fsm_reset;
 	unsigned int auto_qam_index;

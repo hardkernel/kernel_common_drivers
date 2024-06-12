@@ -492,11 +492,8 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 						fe->dtv_property_cache.frequency,
 						demod->sr_val_hw_stable,
 						jiffies_to_msecs(jiffies) - time_start);
-				if (fsm_state != 5) {
-					demod_dvbc_fsm_reset(demod);
-					*delay = HZ / 2;//500ms
-					return 2; // wait qam256 lock.
-				}
+				demod->qam_wait_times = 0;
+				return 2;
 			} else {
 				if (demod->sr_val_hw < 6820 &&
 					sym_speed_high == 0) {
@@ -591,6 +588,17 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 			fe->dtv_property_cache.symbol_rate;
 
 		return 1;
+	} else if ((fsm_state & 0xf) == 6) {
+		if ((is_meson_t5d_cpu() || is_meson_t3_cpu()) &&
+			demod->qam_wait_times < 4) {
+			PR_DVBC("qam wait times %d.\n", demod->qam_wait_times);
+			if (demod->qam_wait_times == 1)
+				demod_dvbc_fsm_reset(demod);
+			else
+				*delay = HZ / 10;
+			demod->qam_wait_times++;
+			return 2;
+		}
 	}
 
 	if (demod->auto_times == 15 || ((cpu_after_eq(MESON_CPU_MAJOR_ID_T5W) &&
@@ -602,13 +610,23 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		*delay = HZ / 4;
 
 		return 0;
+	} else if (demod->auto_times == 5 && (is_meson_t5d_cpu() || is_meson_t3_cpu())) {
+		demod->auto_times = 0;
+		demod->auto_no_sig_cnt = 0;
+		*delay = HZ / 4;
+		demod->qam_wait_times = 0;
+
+		return 0;
 	}
 
+	if (is_meson_t5d_cpu() || is_meson_t3_cpu())
+		*delay = HZ / 10;
 	demod->auto_times++;
 	/* loop from 16 to 256 */
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T5W) || is_meson_s1a_cpu()) {
 		demod->auto_qam_mode = dvbc_switch_qam(demod->auto_qam_mode);
 		demod_dvbc_set_qam(demod, demod->auto_qam_mode, false);
+		demod->qam_wait_times = 0;
 	} else {
 		if (demod->auto_qam_done) {
 			demod->auto_done_times++;
