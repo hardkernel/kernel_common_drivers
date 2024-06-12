@@ -1427,6 +1427,47 @@ static ssize_t config_csc_en_store(struct device *dev,
 
 static DEVICE_ATTR_RW(config_csc_en);
 
+static ssize_t soundbar_en_show(struct device *dev,
+					struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n\r",
+		global_tx_common->event_mgr->soundbar_en_flag);
+
+	return pos;
+}
+
+/* For controlling the soundbar switch on Android.
+ * 1: turn on
+ * 0: turn off
+ */
+static ssize_t soundbar_en_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf,
+					size_t count)
+{
+	int soundbar_en = 0;
+
+	mutex_lock(&global_tx_common->hdmimode_mutex);
+	if (com_str(buf, "0")) {
+		soundbar_en = 0;
+		if (global_tx_common->hpd_state)
+			hdmitx_event_mgr_send_uevent(global_tx_common->event_mgr,
+					HDMITX_SOUNDBAR_EVENT, 1, 1);
+	} else if (com_str(buf, "1")) {
+		soundbar_en = 1;
+		if (global_tx_common->hpd_state)
+			hdmitx_event_mgr_send_uevent(global_tx_common->event_mgr,
+					HDMITX_SOUNDBAR_EVENT, 0, 1);
+	}
+	global_tx_common->event_mgr->soundbar_en_flag = soundbar_en;
+	mutex_unlock(&global_tx_common->hdmimode_mutex);
+	return count;
+}
+
+static DEVICE_ATTR_RW(soundbar_en);
+
 /*********************************************************/
 int hdmitx_sysfs_common_create(struct device *dev,
 		struct hdmitx_common *tx_comm,
@@ -1477,6 +1518,7 @@ int hdmitx_sysfs_common_create(struct device *dev,
 	ret = device_create_file(dev, &dev_attr_debug);
 	ret = device_create_file(dev, &dev_attr_fake_plug);
 	ret = device_create_file(dev, &dev_attr_config_csc_en);
+	ret = device_create_file(dev, &dev_attr_soundbar_en);
 
 	return ret;
 }
@@ -1523,6 +1565,7 @@ int hdmitx_sysfs_common_destroy(struct device *dev)
 	device_remove_file(dev, &dev_attr_debug);
 	device_remove_file(dev, &dev_attr_fake_plug);
 	device_remove_file(dev, &dev_attr_config_csc_en);
+	device_remove_file(dev, &dev_attr_soundbar_en);
 
 	global_tx_common = 0;
 	global_tx_hw = 0;

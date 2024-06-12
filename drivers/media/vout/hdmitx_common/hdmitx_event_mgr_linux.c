@@ -14,18 +14,6 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_platform_linux.h>
 #include "hdmitx_log.h"
 
-struct hdmitx_event_mgr {
-	/*for uevent*/
-	struct kobject *kobj;
-	/* can't send uevent after enter suspend */
-	bool deep_suspend_flag;
-	/*for extcon event*/
-	struct extcon_dev *hdmitx_extcon_hdmi;
-	struct device *attached_extcon_dev;
-	/*notifier for driver*/
-	struct blocking_notifier_head hdmitx_event_notify_list;
-};
-
 static const unsigned int hdmi_extcon_cable[] = {
 	EXTCON_DISP_HDMI,
 	EXTCON_NONE,
@@ -69,6 +57,10 @@ static struct hdmitx_uevent hdmi_events[] = {
 	{
 		.type = HDMITX_CEDST_EVENT,
 		.env = "hdmitx_cedst=",
+	},
+	{
+		.type = HDMITX_SOUNDBAR_EVENT,
+		.env = "hdmitx_soundbar=",
 	},
 	{ /* end of hdmi_events[] */
 		.type = HDMITX_NONE_EVENT,
@@ -156,7 +148,8 @@ int hdmitx_event_mgr_set_uevent_state(struct hdmitx_event_mgr *event_mgr,
 
 	event->state = state;
 
-	if (type == HDMITX_HPD_EVENT && event_mgr->hdmitx_extcon_hdmi) {
+	if ((type == HDMITX_HPD_EVENT || type == HDMITX_SOUNDBAR_EVENT) &&
+			event_mgr->hdmitx_extcon_hdmi) {
 		extcon_set_state(event_mgr->hdmitx_extcon_hdmi, EXTCON_DISP_HDMI, state);
 		extcon_event = true;
 	}
@@ -201,7 +194,17 @@ int hdmitx_event_mgr_send_uevent(struct hdmitx_event_mgr *uevent_mgr,
 	} else {
 		ret = kobject_uevent_env(uevent_mgr->kobj, KOBJ_CHANGE, envp);
 
-		if (type == HDMITX_HPD_EVENT && uevent_mgr->hdmitx_extcon_hdmi) {
+		if (type == HDMITX_HPD_EVENT && uevent_mgr->hdmitx_extcon_hdmi &&
+			!uevent_mgr->soundbar_en_flag) {
+			extcon_set_state_sync(uevent_mgr->hdmitx_extcon_hdmi,
+				EXTCON_DISP_HDMI, state);
+			extcon_event = true;
+		}
+		/* add new event type to control send soundbar event.
+		 * When the soundbar is turned on, it is not necessary to send an
+		 * extcon event to Android.
+		 */
+		if (type == HDMITX_SOUNDBAR_EVENT && uevent_mgr->hdmitx_extcon_hdmi) {
 			extcon_set_state_sync(uevent_mgr->hdmitx_extcon_hdmi,
 				EXTCON_DISP_HDMI, state);
 			extcon_event = true;
