@@ -798,6 +798,117 @@
 			     &gpio  GPIOD_3  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
+
+	vin_12v_reg: fixed@vin_12v_reg {
+		compatible = "regulator-fixed";
+		regulator-name = "DC_IN";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddao_5v_reg: fixed@vddao_5v_reg {
+		vin-supply = <&vin_12v_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDAO_5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdd3v3_ao_reg: fixed@vdd3v3_ao_reg {
+		vin-supply = <&vin_12v_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDAO_3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdd1v8_dcdc_reg: fixed@vdd1v8_dcdc {
+		compatible = "regulator-fixed";
+		vin-supply = <&vin_12v_reg>;
+		regulator-name = "VDD1V8_DCDC";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdd2h_reg: fixed@vdd2h_reg {
+		vin-supply = <&vin_12v_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDD2H";
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddq_lpddr4x_reg: fixed@vddq_lpddr4x_reg {
+		compatible = "regulator-fixed";
+		vin-supply = <&vin_12v_reg>;
+		regulator-name = "VDDQ_LPDDR4X";
+		regulator-min-microvolt = <600000>;
+		regulator-max-microvolt = <600000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vcc5v_reg: gpio-regulator@vcc5v_reg {
+		vin-supply = <&vddao_5v_reg>;
+		compatible = "regulator-gpio";
+		regulator-name = "VCC5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		pinctrl-names = "default";
+		// GPIOH_7(Down) Output H/L= Enable/Disable VCC3V3
+		gpio = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <5000000 1 0 0>;
+		startup-delay-us = <7000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vcc3v3_reg: gpio-regulator@vcc3v3_reg {
+		vin-supply = <&vdd3v3_ao_reg>;
+		compatible = "regulator-gpio";
+		regulator-name = "VCC3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		pinctrl-names = "default";
+		// GPIOF_2(Down) Output L/H= Enable/Disable VCC3V3
+		gpio = <&gpio GPIOF_2 GPIO_ACTIVE_HIGH>;
+		gpios-states = <0>;
+		states = <3300000 0 0 1>;
+		startup-delay-us = <7000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdd3v3_soc_reg: fixed@vdd3v3_soc_reg {
+		vin-supply = <&vdd3v3_ao_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDIO_SOC";
+		regulator-min-microvolt = <3100000>;
+		regulator-max-microvolt = <3100000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdd1v8_ldo_reg: fixed@vdd1v8_ldo_reg {
+		compatible = "regulator-fixed";
+		vin-supply = <&vdd3v3_ao_reg>;
+		regulator-name = "VDD1V8_LDO";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
 };
 
 &i2c3 {
@@ -870,35 +981,7 @@
 };
 
 &vddcpu0 {
-	status = "disabled";
-};
-
-&CPU0 {
-	operating-points-v2 = <&cpu_opp_table0_s805c3>,
-		<&cpu_opp_table1_s805c3>,
-		<&cpu_opp_table2_s805c3>,
-		<&cpu_opp_table3_s805c3>;
-};
-
-&CPU1 {
-	operating-points-v2 = <&cpu_opp_table0_s805c3>,
-		<&cpu_opp_table1_s805c3>,
-		<&cpu_opp_table2_s805c3>,
-		<&cpu_opp_table3_s805c3>;
-};
-
-&CPU2 {
-	operating-points-v2 = <&cpu_opp_table0_s805c3>,
-		<&cpu_opp_table1_s805c3>,
-		<&cpu_opp_table2_s805c3>,
-		<&cpu_opp_table3_s805c3>;
-};
-
-&CPU3 {
-	operating-points-v2 = <&cpu_opp_table0_s805c3>,
-		<&cpu_opp_table1_s805c3>,
-		<&cpu_opp_table2_s805c3>,
-		<&cpu_opp_table3_s805c3>;
+	status = "okay";
 };
 
 &tdmc {
@@ -1029,10 +1112,10 @@
 	//		"ao_to_sd_jtag_pins";
 	bus-width = <4>;
 	cap-sd-highspeed;
-//	sd-uhs-sdr12;
-//	sd-uhs-sdr25;
-//	sd-uhs-sdr50;
-//	sd-uhs-sdr104;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
 	max-frequency = <200000000>;
 	disable-wp;
 
