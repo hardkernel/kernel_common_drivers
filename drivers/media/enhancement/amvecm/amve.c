@@ -120,6 +120,10 @@ int fmeter_en = 1;
 module_param(fmeter_en, int, 0664);
 MODULE_PARM_DESC(fmeter_en, "fmeter_en");
 
+int fmeter_slt;
+module_param(fmeter_slt, int, 0664);
+MODULE_PARM_DESC(fmeter_slt, "fmeter_slt");
+
 struct ve_hist_s video_ve_hist;
 #endif
 

@@ -4076,5 +4076,31 @@ ssize_t vlock_debug_store(struct class *cla,
 	kfree(buf_orig);
 	return count;
 }
+
+ssize_t vlock_slt_lock_st_show(struct class *cla,
+	 struct class_attribute *attr, char *buf)
+{
+	u16 plock_flg		= 0;
+	u16 flock_flg		= 0;
+	bool vl_lock_st		= false;
+	struct stvlock_sig_sts *pvlock;
+
+	pvlock = vlock_tab[VLOCK_ENC0];
+	plock_flg = vlock_get_phlock_flag_ex(pvlock);
+	flock_flg = vlock_get_vlock_flag_ex(pvlock);
+
+	if (plock_flg || flock_flg)
+		vl_lock_st = true;
+
+	return sprintf(buf, "%d\n", vl_lock_st);
+}
+
+ssize_t vlock_slt_lock_st_store(struct class *cla,
+			  struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	//do nothing;
+	return count;
+}
 /*video lock end*/
 #endif

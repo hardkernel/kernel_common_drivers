@@ -358,6 +358,13 @@ ssize_t vlock_debug_store(struct class *cla,
 			  const char *buf, size_t count);
 ssize_t vlock_debug_show(struct class *cla,
 			 struct class_attribute *attr, char *buf);
+ssize_t vlock_slt_lock_st_show(struct class *cla,
+	 struct class_attribute *attr, char *buf);
+
+ssize_t vlock_slt_lock_st_store(struct class *cla,
+			  struct class_attribute *attr,
+		const char *buf, size_t count);
+
 //void vlock_clk_config(struct device *dev);
 int frc_is_on(void);
 bool vlock_get_phlock_flag(void);

@@ -174,6 +174,7 @@ extern unsigned int sync_3d_out_inv;
 extern unsigned int sync_3d_black_color;
 extern unsigned int sync_3d_sync_to_vbo;
 
+extern int fmeter_slt;
 extern int fmeter_en;
 extern int cur_sr_level;
 extern int pre_fmeter_level, cur_fmeter_level, fmeter_flag;
