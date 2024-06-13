@@ -294,6 +294,11 @@ static ssize_t amblt_enable_store(struct device *dev, struct device_attribute *a
 	ret = sscanf(buf, "%d %d %d", &temp, &zone_h, &zone_v);
 	if (ret == 3) {
 		if (temp) {
+			if (zone_h == 0 || zone_h > 32 ||
+				zone_v == 0 || zone_v > 20) {
+				AMBLTERR("invalid zone size h * v = %d * %d\n", zone_h, zone_v);
+				return -EINVAL;
+			}
 			amblt_drv->zone_h = zone_h;
 			amblt_drv->zone_v = zone_v;
 			amblt_drv->zone_size = zone_h * zone_v;
@@ -389,24 +394,67 @@ static long amblt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	argp = (void __user *)arg;
 	switch (mcd_nr) {
-	case AMBLT_IOC_EN_CTRL:
+	case AMBLT_IOC_GET_EN_CTRL:
+		if (amblt_debug_print) {
+			AMBLTPR("%s: AMBLT_IOC_GET_EN_CTRL: %d\n",
+				__func__, amblt_drv->en);
+		}
+
+		temp = amblt_drv->en;
+		if (copy_to_user(argp, &temp, sizeof(unsigned int)))
+			ret = -EFAULT;
+		break;
+	case AMBLT_IOC_SET_EN_CTRL:
 		if (copy_from_user(&temp, argp, sizeof(unsigned int)))
 			ret = -EFAULT;
 		if (amblt_debug_print)
-			AMBLTPR("%s: AMBLT_IOC_EN_CTRL: %d\n", __func__, temp);
+			AMBLTPR("%s: AMBLT_IOC_SET_EN_CTRL: %d\n", __func__, temp);
 		if (temp)
 			amblt_function_enable(amblt_drv);
 		else
 			amblt_function_disable(amblt_drv);
 		break;
-	case AMBLT_IOC_GET_ZONE_SIZE:
+	case AMBLT_IOC_GET_ZONE_H_V:
 		if (amblt_debug_print) {
-			AMBLTPR("%s: AMBLT_IOC_GET_ZONE_SIZE: %d\n",
-				__func__, amblt_drv->zone_size);
+			AMBLTPR("%s: AMBLT_IOC_GET_ZONE_H_V: %d * %d\n",
+				__func__, amblt_drv->zone_h, amblt_drv->zone_v);
 		}
 
-		temp = amblt_drv->zone_size;
+		temp = (amblt_drv->zone_h << 8) | amblt_drv->zone_v;
 		if (copy_to_user(argp, &temp, sizeof(unsigned int)))
+			ret = -EFAULT;
+		break;
+	case AMBLT_IOC_SET_ZONE_H_V:
+		if (copy_from_user(&temp, argp, sizeof(unsigned int)))
+			ret = -EFAULT;
+		if (amblt_debug_print)
+			AMBLTPR("%s: AMBLT_IOC_SET_ZONE_H_V: 0x%x\n", __func__, temp);
+
+		amblt_drv->zone_h = (temp >> 8) & 0xff;
+		amblt_drv->zone_v = temp & 0xff;
+		if (amblt_drv->zone_h == 0 || amblt_drv->zone_h > 32 ||
+			amblt_drv->zone_v == 0 || amblt_drv->zone_v > 20) {
+			AMBLTERR("invalid zone size h * v = %d * %d\n",
+			amblt_drv->zone_h, amblt_drv->zone_v);
+			return -EINVAL;
+		}
+		amblt_drv->zone_size = amblt_drv->zone_h * amblt_drv->zone_v;
+		amblt_zone_pixel_init(amblt_drv);
+		if (amblt_drv->en)
+			amblt_function_enable(amblt_drv);
+		else
+			amblt_function_disable(amblt_drv);
+		break;
+	case AMBLT_IOC_GET_DATA:
+		if (amblt_debug_print)
+			AMBLTPR("%s: AMBLT_IOC_GET_ZONE_DATA\n", __func__);
+
+		if (!amblt_drv->buf) {
+			AMBLTERR("amblt_drv->buf is null!");
+			return -EINVAL;
+		}
+		if (copy_to_user(argp, amblt_drv->buf,
+			amblt_drv->zone_size * sizeof(struct amblt_data_s)))
 			ret = -EFAULT;
 		break;
 	default:

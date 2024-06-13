@@ -6,9 +6,12 @@
 #ifndef _AMBILIGHT_H_
 #define _AMBILIGHT_H_
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
+#include <uapi/amlogic/amblt.h>
 
 //20230613, init version
-#define AMBLT_DRV_VER        "20230613"
+//20240613, add uapi/amlogic/amblt.h
+
+#define AMBLT_DRV_VER        "20240613"
 
 #define AMBLTPR(fmt, args...)     pr_info("ambilight: " fmt "", ## args)
 #define AMBLTERR(fmt, args...)     pr_err("error: ambilight: " fmt "", ## args)
@@ -56,16 +59,6 @@ struct amblt_data_sum_s {
 	unsigned short y;
 };
 
-struct amblt_data_s {
-	unsigned int sum_r;
-	unsigned int sum_g;
-	unsigned int sum_b;
-	unsigned short avg_r;
-	unsigned short avg_g;
-	unsigned short avg_b;
-	unsigned char  err;
-};
-
 struct amblt_drv_data_s {
 	enum lcd_chip_e chip_type;
 	const char *chip_name;
@@ -110,17 +103,6 @@ int amblt_debug_file_add(struct amblt_drv_s *amblt_drv);
 int amblt_debug_file_remove(struct amblt_drv_s *amblt_drv);
 int amblt_function_enable(struct amblt_drv_s *amblt_drv);
 int amblt_function_disable(struct amblt_drv_s *amblt_drv);
-
-/********************ioctl************************/
-#define AMBLT_IOC_TYPE               'B'
-#define AMBLT_IOC_EN_CTRL             0x1
-#define AMBLT_IOC_GET_ZONE_SIZE       0x2
-#define AMBLT_IOC_GET_DATA            0x3
-
-#define AMBLT_IOC_CMD_POWER_CTRL   \
-	_IOW(AMBLT_IOC_TYPE, AMBLT_IOC_EN_CTRL, unsigned int)
-#define AMBLT_IOC_CMD_GET_SS   \
-	_IOR(AMBLT_IOC_TYPE, AMBLT_IOC_GET_ZONE_SIZE, unsigned int)
 
 /********************regs************************/
 #define LCD_OLED_SIZE                              0x14ec
