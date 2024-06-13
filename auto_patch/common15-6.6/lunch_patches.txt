@@ -1,0 +1,14 @@
+tools/kernel#configs#0001-tool-bring-up-androidu-with-common15-6.6-1-1.patch
+tools/kernel#tests#0001-tool-bring-up-androidu-with-common15-6.6-1-1.patch
+tools/prebuilts#build-tools#0001-tool-bring-up-androidu-with-common15-6.6-1-1.patch
+tools/prebuilts#clang#host#linux-x86#0001-tool-bring-up-androidu-with-common15-6.6-1-1.patch
+tools/tools#mkbootimg#0001-tool-bring-up-androidu-with-common15-6.6-1-1.patch
+tools/external#libcap#0001-tool-bring-up-androidu-with-common15-6.6-1-1.patch
+tools/external#libcap-ng#0001-tool-bring-up-androidu-with-common15-6.6-1-1.patch
+tools/external#zlib#0001-tool-bring-up-androidu-with-common15-6.6-1-1.patch
+tools/external#zopfli#0001-tool-bring-up-androidu-with-common15-6.6-1-1.patch
+tools/prebuilts#asuite#0001-tool-bring-up-androidu-with-common15-6.6-1-1.patch
+tools/prebuilts#gcc#linux-x86#host#x86_64-linux-glibc2.17-4.8#0001-tool-bring-up-androidu-with-common15-6.6-1-1.patch
+tools/prebuilts#ndk-r26#0001-tool-bring-up-androidu-with-common15-6.6-1-1.patch
+tools/prebuilts#rust#0001-tool-bring-up-androidu-with-common15-6.6-1-1.patch
+tools/prebuilts#tradefed#0001-tool-bring-up-androidu-with-common15-6.6-1-1.patch
