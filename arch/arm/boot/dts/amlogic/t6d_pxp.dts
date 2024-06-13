@@ -1897,16 +1897,6 @@
 	interrupt-names = "lc_curve";
 };
 
-&pwm_cd {
-	status = "disabled";
-};
-
-&pwm_ef {
-	pinctrl-0 = <&pwm_f_pins1>;
-	pinctrl-names = "default";
-	status = "disabled";
-};
-
 &uart_A {
 	status = "disabled";
 	uart-has-rtscts;
