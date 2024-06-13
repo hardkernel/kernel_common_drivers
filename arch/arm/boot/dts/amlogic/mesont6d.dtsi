@@ -3031,62 +3031,34 @@
 		mux {
 			groups = "dcon_led_d7";
 			function = "dcon_led";
-			drive-strength-microamp = <3000>;
-			bias-disable;
 		};
 	};
 
 	dcon_led_pins2:dcon_led_pins2 {
 		mux {
-			groups = "dcon_led_c";
+			groups = "dcon_led_c10";
 			function = "dcon_led";
-			drive-strength-microamp = <3000>;
-			bias-disable;
 		};
 	};
 
 	dcon_led_pins3:dcon_led_pins3 {
 		mux {
-			groups = "dcon_led_z";
+			groups = "dcon_led_z18";
 			function = "dcon_led";
-			drive-strength-microamp = <3000>;
-			bias-disable;
 		};
 	};
 
 	dcon_led_pins4:dcon_led_pins4 {
 		mux {
-			groups = "dcon_led_h";
+			groups = "dcon_led_d8";
 			function = "dcon_led";
-			drive-strength-microamp = <3000>;
-			bias-disable;
 		};
 	};
 
 	dcon_led_pins5:dcon_led_pins5 {
 		mux {
-			groups = "dcon_led_p";
-			function = "dcon_led";
-			drive-strength-microamp = <3000>;
-			bias-disable;
-		};
-	};
-
-	dcon_led_pins6:dcon_led_pins6 {
-		mux {
-			groups = "dcon_led_d8";
-			function = "dcon_led";
-			drive-strength-microamp = <3000>;
-			bias-disable;
-		};
-	};
-
-	dcon_led_pins7:dcon_led_pins7 {
-		mux {
 			groups = "dcon_led_d9";
 			function = "dcon_led";
-			drive-strength-microamp = <3000>;
-			bias-disable;
 		};
 	};
 
