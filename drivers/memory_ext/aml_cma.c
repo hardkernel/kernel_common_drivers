@@ -1738,6 +1738,7 @@ struct page *aml_cma_alloc(struct dummy_cma *cma, unsigned long count,
 	int dummy;
 	unsigned long tick = 0;
 	unsigned long long in_tick, timeout;
+	int timeout_count = 0;
 
 	in_tick = sched_clock();
 
@@ -1830,9 +1831,19 @@ struct page *aml_cma_alloc(struct dummy_cma *cma, unsigned long count,
 		 * 2. refcout and mapcount mismatch.
 		 * may blocked on some pages, relax CPU and try later.
 		 */
-		if ((sched_clock() - in_tick) >= timeout)
+		if ((sched_clock() - in_tick) >= timeout) {
+			if (timeout_count > 20) {
+				pr_err("cma: %s alloc too long %lx ,%lx\n",
+					cma->name, pfn, count);
+				cma_debug_level = 6;
+			}
+			timeout_count++;
 			usleep_range(1000, 2000);
+		}
 	}
+
+	if (cma_debug_level == 6)
+		cma_debug_level = 0;
 
 	//trace_cma_alloc_finish(cma->name, pfn, page, count, align);
 
