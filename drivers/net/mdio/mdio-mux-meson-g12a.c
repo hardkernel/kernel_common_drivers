@@ -298,11 +298,11 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 					tx_R = (efuse_get_tmp & 0xf00000) >> 20;
 					rx_R = (efuse_get_tmp & 0x0f0000) >> 16;
 					writel(((tx_R << 28) | (rx_R << 20))
-						| (0x0b02cf01),
+						| (0x0802cf01),
 						priv->regs + ETH_PLL_CTL6);
 				} else {
 					pr_debug("no efuse setting use default\n");
-					writel(0x8a82cf01, priv->regs + ETH_PLL_CTL6);
+					writel(0x8882cf01, priv->regs + ETH_PLL_CTL6);
 				}
 				writel(0x20220000, priv->regs + ETH_PLL_CTL5);
 				/*writel(0x8a82cf01, priv->regs + ETH_PLL_CTL6);*/
@@ -316,11 +316,11 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 					tx_R = (efuse_get_tmp & 0xf00000) >> 20;
 					rx_R = (efuse_get_tmp & 0x0f0000) >> 16;
 					writel(((tx_R << 28) | (rx_R << 20))
-						| (0x0b020000),
+						| (0x08020000),
 						priv->regs + ETH_PLL_CTL3);
 				} else {
 					pr_debug("no efuse setting use default\n");
-					writel(0xaa820000, priv->regs + ETH_PLL_CTL3);
+					writel(0xa8820000, priv->regs + ETH_PLL_CTL3);
 				}
 				writel(0xcf01, priv->regs + ETH_PLL_CTL6);
 				writel(0x20220000, priv->regs + ETH_PLL_CTL5);
