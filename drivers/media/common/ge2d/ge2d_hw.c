@@ -1183,7 +1183,7 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg, u32 mask)
 			if ((cfg->src1_x_rev + cfg->dst_x_rev) == 1) {
 				x_extra_bit_start = 3;
 				x_extra_bit_end   = 2;
-				x_chr_phase = 0x08;
+				x_chr_phase = 0x0c;
 			} else {
 				x_extra_bit_start = 2;
 				x_extra_bit_end   = 3;
@@ -1219,15 +1219,6 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg, u32 mask)
 
 	ge2d_reg_set_bits(mask | GE2D_SRC1_FMT_CTRL, x_chr_phase, 8, 8);
 	ge2d_reg_set_bits(mask | GE2D_SRC1_FMT_CTRL, y_chr_phase, 0, 8);
-
-	if (((cfg->src1_x_end - cfg->src1_x_start) ==
-	     (cfg->dst_x_end - cfg->dst_x_start)) &&
-	    ((cfg->src1_y_end - cfg->src1_y_start) ==
-	     (cfg->dst_y_end - cfg->dst_y_start))) {
-		/* set chroma formatter repeat mode */
-		ge2d_reg_set_bits(mask | GE2D_SRC1_FMT_CTRL, 1, 19, 1);
-		ge2d_reg_set_bits(mask | GE2D_SRC1_FMT_CTRL, 1, 17, 1);
-	}
 
 	/* src1 scaler setting */
 	widthi  = cfg->src1_x_end - cfg->src1_x_start + 1;
