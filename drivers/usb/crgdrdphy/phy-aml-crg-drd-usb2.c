@@ -325,6 +325,8 @@ okay:
 static void amlogic_crg_drd_usb2_set_usb_vbus_power
 	(struct gpio_desc *usb_gd, int pin, char is_power_on)
 {
+	pr_err("%s %d.\n", __func__, is_power_on);
+
 	if (is_power_on)
 		/*set vbus on by gpio*/
 		gpiod_direction_output(usb_gd, 1);
