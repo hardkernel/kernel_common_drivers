@@ -1758,6 +1758,15 @@ static int codec_mm_tvp_pool_protect(struct extpool_mgt_s *tvp_pool)
 	return ret;
 }
 
+static bool codec_mm_from_reserved(int flags)
+{
+	if (flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES ||
+		flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED)
+		return true;
+
+	return false;
+}
+
 static int codec_mm_extpool_pool_release_inner(int slot_num_start,
 					       struct extpool_mgt_s *tvp_pool)
 {
@@ -1780,8 +1789,7 @@ static int codec_mm_extpool_pool_release_inner(int slot_num_start,
 			if (tvp_pool->mm[i]) {
 				struct page *mm = tvp_pool->mm[i]->mem_handle;
 
-				if (tvp_pool->mm[i]->from_flags ==
-					AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES)
+				if (codec_mm_from_reserved(tvp_pool->mm[i]->from_flags))
 					mm = phys_to_page((unsigned long)mm);
 				cma_mmu_op(mm,
 					   tvp_pool->mm[i]->page_count,
@@ -1813,8 +1821,7 @@ static int codec_mm_tvp_pool_alloc_by_type(struct extpool_mgt_s *tvp_pool,
 		if (mem) {
 			struct page *mm = mem->mem_handle;
 
-			if (mem->from_flags ==
-				AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES)
+			if (codec_mm_from_reserved(mem->from_flags))
 				mm = phys_to_page((unsigned long)mm);
 			cma_mmu_op(mm, mem->page_count, 0);
 			ret = codec_mm_init_tvp_pool(tvp_pool, mem);
@@ -1842,6 +1849,11 @@ static int codec_mm_tvp_pool_alloc_by_type(struct extpool_mgt_s *tvp_pool,
 				CODEC_MM_FLAGS_RESERVED);
 
 		if (mem) {
+			struct page *mm = mem->mem_handle;
+
+			if (codec_mm_from_reserved(mem->from_flags))
+				mm = phys_to_page((unsigned long)mm);
+			cma_mmu_op(mm, mem->page_count, 0);
 			ret = codec_mm_init_tvp_pool(tvp_pool, mem);
 			if (ret < 0) {
 				codec_mm_release(mem, TVP_POOL_NAME);
@@ -2107,6 +2119,11 @@ int codec_mm_extpool_pool_alloc(struct extpool_mgt_s *tvp_pool,
 						CODEC_MM_FLAGS_RESERVED);
 
 			if (mem) {
+				struct page *mm = mem->mem_handle;
+
+				if (codec_mm_from_reserved(mem->from_flags))
+					mm = phys_to_page((unsigned long)mm);
+				cma_mmu_op(mm, mem->page_count, 0);
 				ret = codec_mm_init_tvp_pool(tvp_pool, mem);
 				if (ret < 0) {
 					codec_mm_release(mem, TVP_POOL_NAME);
@@ -2155,8 +2172,7 @@ int codec_mm_extpool_pool_alloc(struct extpool_mgt_s *tvp_pool,
 			if (mem) {
 				struct page *mm = mem->mem_handle;
 
-				if (mem->from_flags ==
-					AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES)
+				if (codec_mm_from_reserved(mem->from_flags))
 					mm = phys_to_page((unsigned long)mm);
 				if (for_tvp) {
 					cma_mmu_op(mm,
@@ -2243,8 +2259,7 @@ static int codec_mm_extpool_pool_release(struct extpool_mgt_s *tvp_pool)
 			if (tvp_pool->mm[i]) {
 				struct page *mm = tvp_pool->mm[i]->mem_handle;
 
-				if (tvp_pool->mm[i]->from_flags ==
-				    AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES)
+				if (codec_mm_from_reserved(tvp_pool->mm[i]->from_flags))
 					mm = phys_to_page((unsigned long)mm);
 				cma_mmu_op(mm,
 					   tvp_pool->mm[i]->page_count,
@@ -2311,8 +2326,8 @@ static int codec_mm_tvp_pool_unprotect_and_release(struct extpool_mgt_s *tvp_poo
 					tee_unprotect_tvp_mem(tvp_pool->mm[i]->tvp_handle);
 					tvp_pool->mm[i]->tvp_handle = -1;
 				}
-				if (tvp_pool->mm[i]->from_flags ==
-					AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES)
+
+				if (codec_mm_from_reserved(tvp_pool->mm[i]->from_flags))
 					mm = phys_to_page((unsigned long)mm);
 				cma_mmu_op(mm, tvp_pool->mm[i]->page_count, 1);
 				codec_mm_release(tvp_pool->mm[i], TVP_POOL_NAME);
