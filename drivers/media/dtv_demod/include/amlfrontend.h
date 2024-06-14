@@ -169,6 +169,7 @@
 /*  V3.5.042 fix dvbs_read_signal_strength issue */
 /*  V3.5.043 optimize dvb-s rssi for rda5815m */
 /*  V3.5.044 fix atsc VBS to NTSC N+1 aci and R.1 test */
+/*  V3.5.045 fix low probability missing 8vsb channel */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -185,8 +186,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.044"
-#define DTVDEMOD_VER	"2024/06/18: fix atsc VBS to NTSC N+1 aci and R.1 test"
+#define AMLDTVDEMOD_VER "V3.5.045"
+#define DTVDEMOD_VER	"2024/06/19: fix low probability missing 8vsb channel"
 #define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

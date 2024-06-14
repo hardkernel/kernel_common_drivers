@@ -39,7 +39,7 @@
 #include "atsc_frontend.h"
 #include <linux/amlogic/aml_dtvdemod.h>
 
-#define ATSC_TIME_CHECK_SIGNAL 600
+#define ATSC_TIME_CHECK_SIGNAL 400
 #define ATSC_TIME_START_CCI 1500
 #define ATSC_AGC_TARGET_VALUE 0x28
 
@@ -211,6 +211,18 @@ int gxtv_demod_atsc_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
+static void atsc_rst(void)
+{
+	union atsc_cntl_reg_0x20 val;
+
+	val.bits = atsc_read_reg_v4(ATSC_CNTR_REG_0X20);
+	val.b.cpu_rst = 1;
+	atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
+	usleep_range(1000, 1001);
+	val.b.cpu_rst = 0;
+	atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
+}
+
 int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
@@ -219,7 +231,6 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_demod_atsc param_atsc;
 	union ATSC_DEMOD_REG_0X6A_BITS val_0x6a;
-	union atsc_cntl_reg_0x20 val;
 	/*[0]: spectrum inverse(1),normal(0); [1]:if_frequency*/
 	unsigned int tuner_freq[2] = {0};
 	enum fe_delivery_system delsys = demod->last_delsys;
@@ -264,9 +275,6 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 
 	tuner_set_params(fe);
 
-	if (c->modulation > QAM_AUTO && tuner_find_by_name(fe, "r842"))
-		msleep(200);
-
 	if (c->modulation > QAM_AUTO) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			val_0x6a.bits = atsc_read_reg_v4(ATSC_DEMOD_REG_0X6A);
@@ -304,12 +312,7 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 
 			/*for timeshift mosaic issue*/
 			atsc_write_reg_v4(0x12, 0x18);
-			val.bits = atsc_read_reg_v4(ATSC_CNTR_REG_0X20);
-			val.b.cpu_rst = 1;
-			atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
-			usleep_range(1000, 1001);
-			val.b.cpu_rst = 0;
-			atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
+			atsc_rst();
 			usleep_range(5000, 5001);
 			demod->last_status = 0;
 		} else {
@@ -434,8 +437,10 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 	u16 rf_strength = 0;
 	unsigned int sys_sts;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	static int lock_status;
 	static int peak;
+	static unsigned char chk_fsm, first_chk;
 	//Threshold value of times of continuous lock and lost
 	int lock_continuous_cnt = atsc_t_lock_continuous_cnt > 1 ? atsc_t_lock_continuous_cnt : 1;
 	int lost_continuous_cnt = atsc_t_lost_continuous_cnt > 1 ? atsc_t_lost_continuous_cnt : 1;
@@ -447,6 +452,8 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 		lock_status = 0;
 		demod->last_status = 0;
 		peak = 0;
+		chk_fsm = 1;
+		first_chk = 1;
 		demod->time_start = jiffies_to_msecs(jiffies);
 		*status = 0;
 		atsc_optimize_cn(true);
@@ -457,10 +464,8 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 
 	if (tuner_find_by_name(fe, "r842") ||
 		tuner_find_by_name(fe, "r836") ||
-		tuner_find_by_name(fe, "r850")) {
+		tuner_find_by_name(fe, "r850"))
 		tuner_strength_threshold = -89;
-		check_signal_time += 100;
-	}
 
 	gxtv_demod_atsc_read_signal_strength(fe, &strength);
 	if (strength < tuner_strength_threshold) {
@@ -479,14 +484,39 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 		atsc_optimize_cn(false);
 		fsm_status = 1;
 		peak = 1;//atsc signal
+
+		/* for call r842 atsc monitor */
+		if (tuner_find_by_name(fe, "r842") && fe->ops.tuner_ops.get_rf_strength)
+			fe->ops.tuner_ops.get_rf_strength(fe, &rf_strength);
 	} else {
+		if (chk_fsm) {
+			if (sys_sts >= CR_LOCK) {
+				chk_fsm = 0;
+			} else {
+				chk_fsm++;
+				if (chk_fsm == 3) {
+					chk_fsm = 0;
+					*status = FE_TIMEDOUT;
+					PR_ATSC("fsm check failed\n");
+
+					goto finish;
+				}
+			}
+		}
+
 		if (sys_sts >= (CR_PEAK_LOCK & 0xf0))
 			peak = 1;//atsc signal
 
 		if (sys_sts >= ATSC_SYNC_LOCK ||
-			demod->time_passed <= check_signal_time ||
+			demod->time_passed <= (check_signal_time * 2) ||
 			(demod->time_passed <= TIMEOUT_ATSC && peak)) {
 			fsm_status = 0;
+
+			if (!peak && first_chk && demod->time_passed >= check_signal_time) {
+				first_chk = 0;
+				atsc_rst();
+				PR_ATSC("do a reset for check @%dHz\n", c->frequency);
+			}
 		} else {
 			fsm_status = -1;
 
@@ -497,6 +527,11 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 				PR_ATSC("not atsc signal\n");
 
 				goto finish;
+			}
+
+			if (lock_status == 0) {
+				atsc_rst();
+				PR_ATSC("do a reset for retry @%dHz\n", c->frequency);
 			}
 		}
 
@@ -534,17 +569,11 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 			PR_ATSC("lock signal times:%d\n", lock_status);
 		}
 
-		if (lock_status >= lock_continuous_cnt) {
+		if (lock_status >= lock_continuous_cnt)
 			*status = FE_HAS_LOCK | FE_HAS_SIGNAL |
 				FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC;
-
-			/* for call r842 atsc monitor */
-			if (tuner_find_by_name(fe, "r842") &&
-					fe->ops.tuner_ops.get_rf_strength)
-				fe->ops.tuner_ops.get_rf_strength(fe, &rf_strength);
-		} else {
+		else
 			*status = 0;
-		}
 	} else {
 		*status = 0;
 	}
@@ -552,7 +581,7 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 finish:
 	if (demod->last_status != *status && *status != 0) {
 		PR_INFO("!!  >> %s << !!, freq=%d, time_passed=%d\n", *status == FE_TIMEDOUT ?
-			"UNLOCK" : "LOCK", fe->dtv_property_cache.frequency, demod->time_passed);
+			"UNLOCK" : "LOCK", c->frequency, demod->time_passed);
 		demod->last_status = *status;
 	}
 }
