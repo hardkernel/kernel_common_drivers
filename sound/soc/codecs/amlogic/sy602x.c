@@ -42,6 +42,7 @@
 #include <linux/string.h>
 #include <linux/fs.h>
 #include <asm/uaccess.h>
+#include <linux/gpio.h>
 
 #include "sy602x.h"
 
@@ -68,6 +69,7 @@ struct sy602x_priv {
 	u8  dap_ram[DAP_RAM_ITEM_NUM][DAP_RAM_ITEM_SIZE];
 	u32 dap_ram_update;
 	struct mutex dap_ram_lock; /* device lock */
+	struct gpio_desc *reset_pin_desc;
 };
 
 static struct sy602x_priv *sy602x_priv_data;
@@ -564,6 +566,16 @@ static int sy602x_i2c_probe(struct i2c_client *i2c,
 	sy602x_priv_data = devm_kzalloc(&i2c->dev, sizeof(struct sy602x_priv), GFP_KERNEL);
 	if (!sy602x_priv_data)
 		return -ENOMEM;
+	sy602x_priv_data->reset_pin_desc = gpiod_get(&i2c->dev,
+		"reset_pin", GPIOF_OUT_INIT_LOW);
+
+	if (!IS_ERR(sy602x_priv_data->reset_pin_desc)) {
+		gpiod_direction_output(sy602x_priv_data->reset_pin_desc,
+			GPIOF_OUT_INIT_HIGH);
+		pr_info("sy602x reset pin status: %s\n",
+			gpiod_get_value(sy602x_priv_data->reset_pin_desc) ?
+			"high" : "low");
+	}
 
 	sy602x_priv_data->regmap = devm_regmap_init(&i2c->dev, NULL, i2c, &sy602x_regmap_config);
 
