@@ -1537,12 +1537,23 @@
 	};
 };
 
+/*exphy setting*/
 &ethmac {
-	status = "disabled";
-	phy-handle = <&internal_ephy>;
-	phy-mode = "rmii";
-	keep-alive = <1>;
+	pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+	phy-mode = "rgmii";
+	phy-handle = <&external_phy>;
+	amlogic,tx-delay-ns = <2>;
 };
+
+/*inphy setting*/
+//&ethmac {
+//	status = "okay";
+//	phy-handle = <&internal_ephy>;
+//	phy-mode = "rmii";
+//      internal_phy = <1>;
+//};
 
 &ir {
 	status = "okay";
