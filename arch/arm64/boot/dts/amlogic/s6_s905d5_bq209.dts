@@ -8,7 +8,7 @@
 #include "meson-s6.dtsi"
 #include "mesons6_drm.dtsi"
 / {
-	amlogic-dt-id = "s6_s905d5_bq209-8g";
+	amlogic-dt-id = "s6_s905d5_bq209";
 	compatible = "s6_s905d5_bq209";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
