@@ -484,7 +484,7 @@ union phy_m31_r15 {
 struct aml_usb3_phy {
 	struct usb_phy		phy;
 	struct device		*dev;
-	struct clk		*clk;
+	struct clk		*clk[3];
 	void __iomem	*cfg_reg;
 	void __iomem	*ctrl_reg;
 	void __iomem	*reset_reg;
@@ -492,13 +492,14 @@ struct aml_usb3_phy {
 	phys_addr_t ctrl_reg_phy;
 	phys_addr_t reset_reg_phy;
 	u32 reset_level_shift;
-	u8 suspend_flag;
 	u8 portnum;
 	u8 phy_id;
 	u8 usb3_apb_reset_bit;
 	u8 usb3_phy_reset_bit;
 	u8 controller_reset_shift;
 	u8 reset_level_bit;
+	u8 num_clk;
+	bool off;
 };
 
 #define	phy_to_amlusb3phy(p)	container_of((p), struct aml_usb3_phy, phy)

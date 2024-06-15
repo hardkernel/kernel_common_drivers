@@ -887,22 +887,22 @@
 	portnum = <1>;
 	/* otg & 3.0 share the vbus power.*/
 	gpio-vbus-power = "GPIOH_8";
-	gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
+	gpios = <&gpio GPIOH_8 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 };
 
 &usb_phy30 {
 	status = "okay";
-	portnum = <0>;
+	portnum = /bits/ 8 <0>;
 };
 
 &usb_phy31 {
 	status = "okay";
-	portnum = <1>;
+	portnum = /bits/ 8 <1>;
 };
 
 &crg_otg {
 	status = "okay";
-	controller-type = <1>; /* 0~3: normal, host, device, otg */
+	controller-type = <3>; /* 0~3: normal, host, device, otg */
 };
 
 &crg_drd {
