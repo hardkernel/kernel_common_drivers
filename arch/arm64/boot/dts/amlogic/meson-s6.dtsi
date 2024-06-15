@@ -976,8 +976,8 @@
 				<&clkc CLKID_SD_EMMC_C_MUX>,
 				 <&clkc CLKID_SD_EMMC_C>,
 				 <&xtal>,
-				 <&clkc CLKID_FCLK_DIV2>,
-				 <&clkc CLKID_FCLK_DIV2>;
+				 <&clkc CLKID_GP0_PLL>,
+				 <&clkc CLKID_GP0_PLL>;
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1", "clkin2";
 			no-sdio;
@@ -985,8 +985,8 @@
 			card_type = <1>;
 			ignore_desc_busy;
 			mmc_debug_flag;
-		//	src_clk_rate = <1152000000>;
-		//	tx_delay = <8>;
+			src_clk_rate = <1152000000>;
+			tx_delay = <16>;
 		//	nwr_cnt = <0>;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
