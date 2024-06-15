@@ -938,7 +938,7 @@
 &usb_phy21 {
 	status = "okay";
 	portnum = <1>;
-	/* otg & 3.0 share the vbus power.*/
+	/* otg & 3.0 share the vbus power. */
 	gpio-vbus-power = "GPIOH_8";
 	gpios = <&gpio GPIOH_8 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
 };

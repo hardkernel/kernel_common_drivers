@@ -1261,14 +1261,15 @@
 			reg = <0x0 0xfe358080 0x0 0x20		/* phy3 cfg base */
 					0X0 0xfe002000 0X0 0x100	/* reset base */
 					0X0 0xfe35a000 0X0 0x184>;	/* phy3 ctrl base */
-			usb3-phy-reset-bit = <3>;
-			usb3-apb-reset-bit = <2>;
+			usb3-phy-reset-bit = /bits/ 8 <3>;
+			usb3-apb-reset-bit = /bits/ 8 <2>;
 			reset-level-shift = <0x40>;
-			phy-id = <1>;
+			phy-id = /bits/ 8 <1>;
 			clocks = <&clkc CLKID_SYS_USB>,
 						<&clkc CLKID_USB_250M>;
-			clock-names = "u3p_0",
-							"u3p_1";
+			clock-names = "u3p_clk_0",
+							"u3p_clk_1";
+			num_clk = /bits/ 8 <2>;
 		};
 
 		crg_otg: crgotg@fe348000 {
@@ -1279,7 +1280,7 @@
 			usb3-phy-reg = <0xfe348080>;
 			usb3-phy-reg-size = <0x20>;
 			interrupts = <0 129 IRQ_TYPE_EDGE_RISING>;
-			udc-name = "0xfe340000.crgudc";
+			udc-name = "fe340000.crgudc";
 		};
 
 		crg_drd: crgdrd@fe340000 {
