@@ -1038,8 +1038,8 @@
 				reg = <0x0 0x58000 0x0 0x24>,
 					  <0x0 0x180 0x0 0x4>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_A_MUX>;
-				//clock-names = "clkin0";
+				clocks = <&clkc CLKID_PWM_A_MUX>;
+				clock-names = "clkin0";
 				status = "disabled";
 			};
 
@@ -1048,49 +1048,49 @@
 				reg = <0x0 0x58200 0x0 0x24>,
 					  <0x0 0x180 0x0 0x4>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_B_MUX>;
-				//clock-names = "clkin0";
+				clocks = <&clkc CLKID_PWM_B_MUX>;
+				clock-names = "clkin0";
 				status = "disabled";
 			};
 
-			pwm_c: pwm@5a000 {
+			pwm_c: pwm@58400 {
 				compatible = "amlogic,meson-even-pwm";
-				reg = <0x0 0x5a000 0x0 0x24>,
+				reg = <0x0  0x58400 0x0 0x24>,
+					  <0x0  0x184 0x0 0x4>;
+				#pwm-cells = <3>;
+				clocks = <&clkc CLKID_PWM_C_MUX>;
+				clock-names = "clkin0";
+				status = "disabled";
+			};
+
+			pwm_d: pwm@58600 {
+				compatible = "amlogic,meson-odd-pwm";
+				reg = <0x0 0x58600 0x0 0x24>,
 					  <0x0 0x184 0x0 0x4>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_C_MUX>;
-				//clock-names = "clkin0";
+				clocks = <&clkc CLKID_PWM_D_MUX>;
+				clock-names = "clkin0";
 				status = "disabled";
 			};
 
-			pwm_d: pwm@5a200 {
-				compatible = "amlogic,meson-odd-pwm";
-				reg = <0x0 0x5a000 0x0 0x24>,
-					  <0x0 0x184 0x0 0x4>;
-				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_D_MUX>;
-				//clock-names = "clkin0";
-				status = "disabled";
-			};
-
-			pwm_e: pwm@5c000 {
+			pwm_e: pwm@58800 {
 				compatible = "amlogic,meson-even-pwm";
-				reg = <0x0 0x5c000 0x0 0x24>,
+				reg = <0x0 0x58800 0x0 0x24>,
 					  <0x0 0x188 0x0 0x4>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_E_MUX>;
-				//clock-names = "clkin0";
+				clocks = <&clkc CLKID_PWM_E_MUX>;
+				clock-names = "clkin0";
 				status = "disabled";
 			};
 
-			pwm_f: pwm@5c200 {
-				compatible = "amlogic,meson-odd-pwm";
-				reg = <0x0 0x5c000 0x0 0x24>,
-					  <0x0 0x188 0x0 0x4>;
+			pwm_f: pwm@58a00 {
+				compatible = "amlogic,meson-pwm-tee";
+				reg = <0x0 0x58a00 0x0 0x24>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_F_MUX>;
-				//clock-names = "clkin0";
-				status = "disabled";
+				clocks = <&clkc CLKID_PWM_F>;
+				clock-names = "clkin0";
+				tee_id = <5>;
+				status = "okay";
 			};
 
 			i2c0: i2c@66000 {
