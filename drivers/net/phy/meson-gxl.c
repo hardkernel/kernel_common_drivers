@@ -372,8 +372,8 @@ static int custom_internal_config(struct phy_device *phydev)
 		usleep_range(800, 1000);
 		phy_tst_write(phydev, 0x1b, 0x00a0);
 	}
-	/*s7d*/
-	if (voltage_phy == 5) {
+	/*s7d s6*/
+	if (voltage_phy == 5 || voltage_phy == 6) {
 		phy_tst_write(phydev, 0x16, 0x8402);
 		phy_tst_write(phydev, 0x15, 0x4408);
 		pr_debug("setup voltage phy reg16 %x reg15 %x\n",

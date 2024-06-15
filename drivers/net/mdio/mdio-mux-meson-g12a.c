@@ -344,8 +344,8 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 				writel(0x20000000, priv->regs + ETH_PLL_CTL5);
 				writel(0x00000023, priv->regs + ETH_PLL_CTL7);
 			}
-			/*s7d*/
-			if (phy_mode == 5) {
+			/*s7d s6*/
+			if (phy_mode == 5 || phy_mode == 6) {
 				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
 				if (efuse_get_tmp >> 0x18) { /*bit24 is valid*/
 					tx_R = (efuse_get_tmp & 0xf00000) >> 20;
