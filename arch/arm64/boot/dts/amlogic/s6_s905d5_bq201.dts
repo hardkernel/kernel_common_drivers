@@ -10,7 +10,7 @@
 #include "mesons6_audio.dtsi"
 #include "firmware_ab.dtsi"
 / {
-	amlogic-dt-id = "s6_s905d5_bq201";
+	amlogic-dt-id = "s6_s905d5_bq201-8g";
 	compatible = "s6_s905d5_bq201";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
