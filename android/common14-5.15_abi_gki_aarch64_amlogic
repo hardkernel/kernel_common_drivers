@@ -80,3 +80,6 @@
   xa_find
   xa_find_after
   xa_load
+# amlogic-amfc.ko
+  crypto_register_alg
+  crypto_unregister_alg
