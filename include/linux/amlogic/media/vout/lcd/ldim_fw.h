@@ -123,6 +123,26 @@ struct fw_pqdata_s {
 	struct fw_pq_s pqdata[4];
 };
 
+/* fw_ctrl description
+ * bit31: pqbypass
+ * bit30: get hist
+ * bit29: bypass alg
+ * bit28: bypass remap bl
+ * bit27: resume
+ * bit5:  boost_en
+ * bit4:  ld sel
+ * bit3--0:  level_idx
+ */
+#define FW_CTRL_PQBYPASS 0x80000000
+#define FW_CTRL_GET_HIST 0x40000000
+#define FW_CTRL_BYPASS_ALG 0x20000000
+#define FW_CTRL_BYPASS_REMAP_BL 0x10000000
+#define FW_CTRL_RESUME 0x08000000
+
+#define FW_CTRL_BOOST_EN 0x00000020
+#define FW_CTRL_LD_SEL 0x00000010
+#define FW_CTRL_LEVEL_IDX 0x0000000F
+
 struct ldim_fw_s {
 	/* header */
 	unsigned int para_ver;
@@ -138,8 +158,16 @@ struct ldim_fw_s {
 	unsigned char func_en;
 	unsigned char remap_en;
 	unsigned char res_update;
+	unsigned int litgain;
 	unsigned int fw_ctrl;
+
+	/* fw_state description
+	 * bit1: boost change state
+	 * bit0: bbd state
+	 */
 	unsigned int fw_state;
+	int *iparam;
+	int *oparam;
 
 	unsigned int bl_matrix_dbg;
 	unsigned char fw_hist_print;
@@ -193,8 +221,9 @@ struct ldim_fw_custom_s {
 
 /* if struct ldim_fw_s changed, FW_PARA_VER must be update */
 /*20221118 version 1*/
-/*20230915 version 2*/
-#define FW_PARA_VER    2
+/*20230915 version 2 modify interface for set pq*/
+/*20230915 version 3 add in_param, out_param*/
+#define FW_PARA_VER    3
 
 struct ldim_fw_s *aml_ldim_get_fw(void);
 struct ldim_fw_custom_s *aml_ldim_get_fw_cus(void);

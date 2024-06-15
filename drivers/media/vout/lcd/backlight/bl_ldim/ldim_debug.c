@@ -666,7 +666,7 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 
 			ldim_drv->level_idx = (unsigned char)val1;
 
-			fw->fw_ctrl &= ~0xf;
+			fw->fw_ctrl &= ~FW_CTRL_LEVEL_IDX;
 			fw->fw_ctrl |= ldim_drv->level_idx;
 
 			fw_pq = ldim_pq.pqdata[ldim_drv->level_idx];
@@ -1089,6 +1089,24 @@ static ssize_t ldim_debug_store(struct class *class, struct class_attribute *att
 		ldim_time_print(ldim_drv->arithmetic_time);
 		pr_info("xfer_time:\n");
 		ldim_time_print(ldim_drv->xfer_time);
+	} else if (!strcmp(parm[0], "fw_iparam")) {
+		if (!fw->iparam)
+			goto ldim_debug_store_err;
+		if (parm[2]) {
+			if (kstrtouint(parm[1], 0, &temp) < 0)
+				goto ldim_debug_store_err;
+			if (kstrtouint(parm[2], 0, &val) < 0)
+				goto ldim_debug_store_err;
+			fw->iparam[temp] = val;
+		}
+		for (i = 0; i < FW_IPARAM_LEN; i++)
+			pr_info("iparam[%d]: 0x%x\n", i, fw->iparam[i]);
+	} else if (!strcmp(parm[0], "fw_oparam")) {
+		if (!fw->oparam)
+			goto ldim_debug_store_err;
+
+		for (i = 0; i < FW_IPARAM_LEN; i++)
+			pr_info("oparam[%d]:0x%x\n", i, fw->oparam[i]);
 	} else {
 		pr_info("no support cmd!!!\n");
 	}

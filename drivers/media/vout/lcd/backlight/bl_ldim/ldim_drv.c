@@ -197,7 +197,7 @@ static int ldim_power_on(void)
 	LDIMPR("%s\n", __func__);
 
 	if (fw || ldim_driver.dev_drv) {
-		fw->fw_ctrl |= 0x0800; // FW_CTRL_RESUME
+		fw->fw_ctrl |= FW_CTRL_RESUME;
 		if (ldim_driver.dev_drv->spi_sync == SPI_DMA_TRIG)
 			ldim_wr_vcbus(VPP_INT_LINE_NUM, ldim_driver.dev_drv->spi_line_n);
 
@@ -311,6 +311,7 @@ static int ldim_set_level(unsigned int level)
 	} else {
 		level &= 0xfff;
 		ldim_driver.litgain = (unsigned int)level;
+		ldim_driver.fw->litgain = ldim_driver.litgain;
 		ldim_driver.level_update = 1;
 	}
 
@@ -344,8 +345,9 @@ static void ldim_ld_sel_ctrl(int flag)
 	}
 
 	if (ldim_driver.fw) {
-		ldim_driver.fw->fw_ctrl &= ~0x10;//bit 4
-		ldim_driver.fw->fw_ctrl |= ldim_driver.ld_sel << 4;
+		ldim_driver.fw->fw_ctrl &= ~FW_CTRL_LD_SEL;//bit 4
+		if (ldim_driver.ld_sel)
+			ldim_driver.fw->fw_ctrl |= FW_CTRL_LD_SEL;
 	}
 }
 
@@ -385,6 +387,7 @@ static void ldim_fw_vsync_update(void)
 		ldim_driver.resolution_update = 0;
 		fw->res_update = 0;
 	}
+
 }
 
 void ldim_vs_arithmetic(struct aml_ldim_driver_s *ldim_drv)
@@ -777,7 +780,7 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		}
 
-		ldim_driver.fw->fw_ctrl &= ~0xf;
+		ldim_driver.fw->fw_ctrl &= ~FW_CTRL_LEVEL_IDX;
 		ldim_driver.fw->fw_ctrl |= ldim_driver.level_idx;
 
 		fw_pq = ldim_pq.pqdata[ldim_driver.level_idx];
@@ -852,7 +855,7 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			vfree(bl_matrix);
 			return -EFAULT;
 		}
-		fw->fw_ctrl |= 0x1000;//FW_CTRL_BYPASS_REMAP_BL
+		fw->fw_ctrl |= FW_CTRL_BYPASS_REMAP_BL;
 		if (fw->fw_rmem_duty_set)
 			fw->fw_rmem_duty_set(bl_matrix);
 		vfree(bl_matrix);
@@ -1050,6 +1053,7 @@ static int aml_ldim_malloc(struct platform_device *pdev, struct ldim_drv_data_s 
 	unsigned int zone_num = row * col;
 	unsigned int mem_size;
 	int i, ret = 0;
+	struct ldim_fw_s *fw = aml_ldim_get_fw();
 	struct ldim_fw_custom_s *fw_cus = aml_ldim_get_fw_cus();
 
 	/* init reserved memory */
@@ -1099,8 +1103,23 @@ static int aml_ldim_malloc(struct platform_device *pdev, struct ldim_drv_data_s 
 			goto ldim_malloc_t7_err4;
 	}
 
+	if (fw) {
+		fw->iparam = kcalloc(FW_IPARAM_LEN, sizeof(int), GFP_KERNEL);
+		if (!fw->iparam)
+			goto ldim_malloc_t7_err5;
+		fw->oparam = kcalloc(FW_IPARAM_LEN, sizeof(int), GFP_KERNEL);
+		if (!fw->oparam)
+			goto ldim_malloc_t7_err6;
+	}
+
 	return 0;
 
+ldim_malloc_t7_err6:
+	if (fw)
+		kfree(fw->iparam);
+ldim_malloc_t7_err5:
+	if (fw_cus)
+		kfree(fw_cus->param);
 ldim_malloc_t7_err4:
 	kfree(ldim_driver.test_matrix);
 ldim_malloc_t7_err3:

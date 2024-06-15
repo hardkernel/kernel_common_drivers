@@ -27,8 +27,9 @@
 /*20230915: add cus_fw set pq */
 /*20231108: remove ldim_off_vs_brightness */
 /*20231208: support spi dma trig interface */
+/*20240730: add fw iparam */
 
-#define LDIM_DRV_VER    "20231208"
+#define LDIM_DRV_VER    "20240730"
 
 enum spi_sync_type_e {
 	SPI_SYNC	= 0x00,
@@ -42,6 +43,8 @@ enum spiout_type_e {
 	SPIOUT_VSYNC		= 0x01,
 	SPIOUT_MAX,
 };
+
+#define FW_IPARAM_LEN		16
 
 #define LDIM_DBG_PR_VSYNC_ISR		0x80
 #define LDIM_DBG_PR_PWM_VS_ISR		0x40

@@ -45,8 +45,8 @@ struct ldim_config_s {
 };
 
 #define LDIM_DEV_NAME_MAX    30
-#define LDIM_INIT_ON_MAX     1000
-#define LDIM_INIT_OFF_MAX    24
+#define LDIM_INIT_ON_MAX     2000
+#define LDIM_INIT_OFF_MAX    100
 struct ldim_dev_driver_s {
 	unsigned char index;
 	char name[LDIM_DEV_NAME_MAX];
