@@ -1165,6 +1165,7 @@ static int __init amfc_probe(struct platform_device *pdev)
 	unsigned int tmp;
 	struct resource *res;
 	struct device_node *node;
+	unsigned int clk = 0;
 
 	amfc = devm_kzalloc(&pdev->dev, sizeof(*amfc), GFP_KERNEL);
 	if (!amfc)
@@ -1180,6 +1181,7 @@ static int __init amfc_probe(struct platform_device *pdev)
 
 	node = pdev->dev.of_node;
 	amfc->dev = &pdev->dev;
+	
 	dma_set_mask(amfc->dev, DMA_BIT_MASK(36));
 	amfc->compress = kzalloc(sizeof(*amfc->compress), GFP_KERNEL);
 	amfc->decompress = kzalloc(sizeof(*amfc->decompress), GFP_KERNEL);
@@ -1196,9 +1198,9 @@ static int __init amfc_probe(struct platform_device *pdev)
 		}
 	}
 	tmp = (unsigned long)of_device_get_match_data(&pdev->dev);
-	pr_info("%s, chip type:%d, conherent:%d, garbage page:%lx, bounce:%px\n",
+	pr_info("%s, socs:%d, coherent:%d, garbage page:%lx, bounce:%px, c:%px, d:%px\n",
 		__func__, tmp, dev_is_dma_coherent(amfc->dev),
-		page_to_pfn(garbage_page), amfc->bounce_buffer);
+		page_to_pfn(garbage_page), amfc->bounce_buffer, amfc->compress, amfc->decompress);
 	amfc->chip = tmp;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
