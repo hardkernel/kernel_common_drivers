@@ -2352,8 +2352,28 @@
 
 	gpu_opp_table: gpu_opp_table {
 		compatible = "operating-points-v2";
+		opp-285 {
+			opp-hz = /bits/ 64 <285714281>;
+			opp-microvolt = <1150>;
+		};
 		opp-400 {
 			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1150>;
+		};
+		opp-500 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <1150>;
+		};
+		opp-666 {
+			opp-hz = /bits/ 64 <666666666>;
+			opp-microvolt = <1150>;
+		};
+		opp-800 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <1150>;
+		};
+		opp-996 {
+			opp-hz = /bits/ 64 <996000000>;
 			opp-microvolt = <1150>;
 		};
 	};
@@ -3341,19 +3361,22 @@
 			  <&clkc CLKID_MALI>,
 			  <&clkc CLKID_MALI_STACK_0_MUX>,
 			  <&clkc CLKID_MALI_STACK_0>,
-			  <&clkc CLKID_MALI_STACK>; /* Glitch free mux */
+			  <&clkc CLKID_MALI_STACK>, /* Glitch free mux */
+			  <&scmi_clk CLKID_GP1_PLL>;
 	assigned-clock-parents = <&clkc CLKID_FCLK_DIV5>,
 				 <0>, /* Do Nothing */
 				 <&clkc CLKID_MALI_0>,
 				 <&clkc CLKID_FCLK_DIV5>,
 				 <0>,
-				 <&clkc CLKID_MALI_STACK_0>;
+				 <&clkc CLKID_MALI_STACK_0>,
+				 <0>;
 	assigned-clock-rates = <0>, /* Do Nothing */
 			       <400000000>,
 			       <0>,
 			       <0>,
 			       <400000000>,
-			       <0>; /* Do Nothing */
+			       <0>, /* Do Nothing */
+			       <996000000>;
 
 	tbl = <&dvfs400_cfg>;//bringup s6 use fix clock 400M
 
