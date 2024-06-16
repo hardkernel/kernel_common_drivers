@@ -33,7 +33,7 @@
 			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
-			//cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			//dynamic-power-coefficient = <230>;
 			#cooling-cells = <2>;
 			//clocks = <&clkc CLKID_CPU_CLK>,
@@ -57,7 +57,7 @@
 			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
-			//cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			//dynamic-power-coefficient = <230>;
 			#cooling-cells = <2>;
 			//clocks = <&clkc CLKID_CPU_CLK>,
@@ -81,7 +81,7 @@
 			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x200>;
 			enable-method = "psci";
-			//cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			//dynamic-power-coefficient = <230>;
 			#cooling-cells = <2>;
 			//clocks = <&clkc CLKID_CPU_CLK>,
@@ -105,7 +105,7 @@
 			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x300>;
 			enable-method = "psci";
-			//cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			//dynamic-power-coefficient = <230>;
 			#cooling-cells = <2>;
 			//clocks = <&clkc CLKID_CPU_CLK>,
@@ -123,7 +123,6 @@
 			//voltage-tolerance = <0>;
 			//clock-latency = <50000>;
 		};
-#if 0
 		idle-states {
 			entry-method = "arm,psci-0.2";
 			CPU_SLEEP_0: cpu-sleep-0 {
@@ -142,7 +141,6 @@
 					min-residency-us = <0xffffffff>;
 			};
 		};
-#endif
 	};
 
 	timer {
@@ -198,7 +196,7 @@
 
 	cpu_info {
 		compatible = "amlogic, cpuinfo";
-		status = "disabled";
+		status = "okay";
 		cpuinfo_cmd = <0x82000044>;
 	};
 
