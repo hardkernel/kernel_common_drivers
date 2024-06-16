@@ -309,7 +309,7 @@ static const unsigned int tsin_b_clk_c_pins[]			= { GPIOC_0 };
 static const unsigned int tsin_b_sop_c_pins[]			= { GPIOC_1 };
 static const unsigned int tsin_b_valid_c_pins[]			= { GPIOC_2 };
 static const unsigned int tsin_b_din0_c_pins[]			= { GPIOC_3 };
-static const unsigned int tsin_b_d3_c_pins[]			= { GPIOC_4 };
+static const unsigned int tdm_d3_c_pins[]			= { GPIOC_4 };
 
 /* GPIOC func7 */
 static const unsigned int iso7816_clk_c0_pins[]			= { GPIOC_0 };
@@ -914,7 +914,7 @@ static struct meson_pmx_group meson_s6_periphs_groups[] __initdata = {
 	GROUP(tsin_b_sop_c,		6),
 	GROUP(tsin_b_valid_c,		6),
 	GROUP(tsin_b_din0_c,		6),
-	GROUP(tsin_b_d3_c,		6),
+	GROUP(tdm_d3_c,			6),
 
 	/* GPIOC func7 */
 	GROUP(iso7816_clk_c0,		7),
@@ -1370,7 +1370,7 @@ static const char * const tsin_groups[] = {
 	"tsin_a_sop_d", "tsin_a_din0_d", "tsin_a_clk_d", "tsin_a_valid_d",
 	"tsin_a_clk_c", "tsin_a_sop_c", "tsin_a_valid_c", "tsin_a_din0_c",
 	"tsin_b_clk_c", "tsin_b_sop_c", "tsin_b_valid_c", "tsin_b_din0_c",
-	"tsin_b_d3_c", "tsin_b_din0_x0", "tsin_b_sop_x1", "tsin_b_valid_x2",
+	"tsin_b_din0_x0", "tsin_b_sop_x1", "tsin_b_valid_x2",
 	"tsin_b_clk_x3", "tsin_b_sop_x8", "tsin_b_valid_x9", "tsin_b_din0_x10",
 	"tsin_b_clk_x11", "tsin_a_din0_z", "tsin_a_sop_z", "tsin_a_valid_z",
 	"tsin_a_clk_z", "tsin_b_sop_z4", "tsin_b_valid_z5", "tsin_b_din0_z6",
@@ -1395,7 +1395,8 @@ static const char * const tdm_groups[] = {
 	"tdm_d9_z", "tdm_d10_z", "tdm_d11_z", "tdm_d2_a",
 	"tdm_d3_a", "tdm_d5_a", "tdm_d6_a", "tdm_d7_a", "tdm_fs2_a",
 	"tdm_sclk2_a", "tdm_sclk1_a", "tdm_fs1_a", "tdm_d8_a", "tdm_d9_a",
-	"tdm_d10_a14", "tdm_d11_a15", "tdm_d10_a7", "tdm_d11_a8"
+	"tdm_d10_a14", "tdm_d11_a15", "tdm_d10_a7", "tdm_d11_a8",
+	"tdm_d3_c"
 };
 
 static const char * const mclk_groups[] = {
@@ -1478,6 +1479,10 @@ static const char * const eth_groups[] = {
 	"eth_link_led_a", "eth_act_led_a"
 };
 
+static const char * const hdmitx_groups[] = {
+	"hdmitx_sda", "hdmitx_scl", "hdmitx_hpd_in"
+};
+
 static struct meson_pmx_func meson_s6_periphs_functions[] __initdata = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(uart_a),
@@ -1520,7 +1525,8 @@ static struct meson_pmx_func meson_s6_periphs_functions[] __initdata = {
 	FUNCTION(eth),
 	FUNCTION(mic_mute),
 	FUNCTION(clk_32k_in),
-	FUNCTION(ao_cec)
+	FUNCTION(ao_cec),
+	FUNCTION(hdmitx)
 };
 
 static struct meson_bank meson_s6_periphs_banks[] = {
