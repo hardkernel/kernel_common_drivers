@@ -1017,7 +1017,9 @@ static void set_vd1_frm2fld_en(struct vsr_setting_s *vsr)
 	u8 vpp_index = vsr->vpp_index;
 	struct vinfo_s *vinfo = get_current_vinfo();
 	u32 frm2fld_en = 0;
+	struct hw_vsr_safa_reg_s *vsr_reg;
 
+	vsr_reg = &vd_layer[0].vsr_safa_reg;
 	if (vinfo->field_height != vinfo->height && cur_dev->frm2fld_support)
 		frm2fld_en = 1;
 	if (frm2fld_en) {
@@ -1031,7 +1033,7 @@ static void set_vd1_frm2fld_en(struct vsr_setting_s *vsr)
 		 */
 		cur_dev->rdma_func[vpp_index].rdma_wr(VPP_P2I_H_V_SIZE,
 			vsr->vsr_top.hsize_out << 16 | vsr->vsr_top.vsize_out);
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits(SAFA_PPS_HW_CTRL,
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 			1, 26, 1);
 	}
 }
@@ -1042,7 +1044,7 @@ static void sharpness_and_dir_interp_enable(void)
 	struct hw_vsr_safa_reg_s *vsr_reg;
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 
-	vsr_reg = &vsr_safa_reg;
+	vsr_reg = &vd_layer[0].vsr_safa_reg;
 	rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
 		safa_dir_interp_en, 25, 1);
 	if (super_scaler)
