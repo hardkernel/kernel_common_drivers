@@ -1347,10 +1347,15 @@ static void vlock_disable_step1(struct stvlock_sig_sts *pvlock)
 	u32 m_f_reg_value, pll_m, pll_f;
 	u32 offset_vlck = pvlock->offset_vlck;
 	u32 offset_enc = pvlock->offset_encl;
+	struct vinfo_s *vinfo = NULL;
 
 	/* VLOCK_CNTL_EN disable */
 	vlock_enable(pvlock, 0);
 	vlock_vmode_check(pvlock);
+
+	vinfo = get_current_vinfo();
+	if (!vinfo)
+		return;
 
 	m_f_reg_value = READ_VPP_REG(VPU_VLOCK_RO_M_INT_FRAC + offset_vlck);
 	if (IS_AUTO_PLL_MODE(vlock_mode)) {
@@ -1397,6 +1402,8 @@ static void vlock_disable_step1(struct stvlock_sig_sts *pvlock)
 	}
 	if (IS_ENC_MODE(vlock_mode)) {
 		pvlock->err_accum = 0;
+		//pvlock->org_enc_pixel_num = vinfo->htotal - 1;
+		pvlock->org_enc_line_num = vinfo->vtotal - 1;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if (chip_type_id == chip_t3x) {
 			WRITE_VPP_REG_BITS(pvlock->enc_video_mode_adv_addr + offset_enc, 0, 19, 1);
