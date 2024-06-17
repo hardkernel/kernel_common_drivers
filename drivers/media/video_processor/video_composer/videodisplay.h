@@ -32,6 +32,7 @@ extern u32 vd_max_hold_count;
 extern u32 vd_set_frame_delay[];
 extern struct vframe_s *current_display_vf;
 extern u32 vpp_drop_count;
+extern u32 use_low_latency;
 extern u32 vd_test_fps[MAX_VD_LAYERS];
 extern u64 vd_test_fps_val[MAX_VD_LAYERS];
 extern u64 vd_test_vsync_val[MAX_VD_LAYERS];

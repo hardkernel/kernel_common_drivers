@@ -66,7 +66,7 @@
 
 #define ADDR_VALUE_8G    0x200000000
 
-static u32 use_low_latency;
+u32 use_low_latency;
 MODULE_PARM_DESC(use_low_latency, "\n use_low_latency\n");
 module_param(use_low_latency, uint, 0664);
 
