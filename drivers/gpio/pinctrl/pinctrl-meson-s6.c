@@ -602,8 +602,8 @@ static const unsigned int ir_remote_out_a_pins[]		= { GPIOA_15 };
 /* GPIOA func4 */
 static const unsigned int iso7816_clk_a_pins[]			= { GPIOA_0 };
 static const unsigned int iso7816_data_a_pins[]			= { GPIOA_1 };
-static const unsigned int i2c5_scl_a14_pins[]			= { GPIOA_14 };
-static const unsigned int i2c5_sda_a15_pins[]			= { GPIOA_15 };
+static const unsigned int i2c5_sda_a14_pins[]			= { GPIOA_14 };
+static const unsigned int i2c5_scl_a15_pins[]			= { GPIOA_15 };
 
 /* GPIOA func5 */
 static const unsigned int eth_link_led_a_pins[]			= { GPIOA_14 };
@@ -1207,8 +1207,8 @@ static struct meson_pmx_group meson_s6_periphs_groups[] __initdata = {
 	/* GPIOA func4 */
 	GROUP(iso7816_clk_a,		4),
 	GROUP(iso7816_data_a,		4),
-	GROUP(i2c5_scl_a14,		4),
-	GROUP(i2c5_sda_a15,		4),
+	GROUP(i2c5_sda_a14,		4),
+	GROUP(i2c5_scl_a15,		4),
 
 	/* GPIOA func5 */
 	GROUP(eth_link_led_a,		5),
@@ -1288,7 +1288,7 @@ static const char * const i2c4_groups[] = {
 
 static const char * const i2c5_groups[] = {
 	"i2c5_scl_z", "i2c5_sda_z", "i2c5_scl_a10", "i2c5_sda_a11",
-	"i2c5_scl_a14", "i2c5_sda_a15"
+	"i2c5_sda_a14", "i2c5_scl_a15"
 };
 
 static const char * const ir_remote_groups[] = {
