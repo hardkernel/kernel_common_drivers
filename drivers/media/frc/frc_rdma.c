@@ -1150,11 +1150,15 @@ int frc_rdma_init(void)
 	frc_rdma_alloc_buf(devp);
 
 	if (frc_rdma->buf_alloced) {
-		fw_data->frc_top_type.rdma_en = 0;  // alg init rdma off
-		if ((chip == ID_T3 || chip == ID_T5M) && !frc_rdma->rdma_en)
+		if ((chip == ID_T3 || chip == ID_T5M) && !frc_rdma->rdma_en) {
 			frc_rdma->rdma_en = 0;              // drv rdma off
-		else if (chip == ID_T3X)
+			frc_rdma->rdma_alg_en = 0;          // drv alg default off
+			fw_data->frc_top_type.rdma_en = 0;  // to alg
+		} else if (chip == ID_T3X) {
 			frc_rdma->rdma_en = 1;              // drv rdma en
+			frc_rdma->rdma_alg_en = 0;          // alg rdma default off
+			fw_data->frc_top_type.rdma_en = 0;
+		}
 	} else {
 		PR_ERR("alloc frc rdma buffer failed\n");
 		return 0;

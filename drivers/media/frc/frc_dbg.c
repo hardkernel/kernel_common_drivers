@@ -613,18 +613,16 @@ exit:
 ssize_t frc_debug_rdma_if_help(struct frc_dev_s *devp, char *buf)
 {
 	ssize_t len = 0;
-	struct frc_fw_data_s *fw_data;
 	struct frc_rdma_s *frc_rdma = get_frc_rdma();
 
 	if (!devp)
 		return len;
 
-	fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	len += sprintf(buf + len, "status\t=show frc rdma status\n");
 	// len += sprintf(buf + len, "frc_rdma\t=ctrl or debug frc rdma\n");
 	len += sprintf(buf + len, "addr_val\t=addr val(set reg value to rdma table)\n");
 	len += sprintf(buf + len, "rdma_en\t\t=%d drv, %d alg\n",
-		frc_rdma->rdma_en, fw_data->frc_top_type.rdma_en);
+		frc_rdma->rdma_en, frc_rdma->rdma_alg_en);
 	len += sprintf(buf + len, "rdma_table\t=show frc rdma table\n");
 	len += sprintf(buf + len, "trace_en\t=echo 1 > rdma_trace_enable\n");
 	len += sprintf(buf + len, "trace_reg\t=echo 0x60 0x61 xx > rdma_trace_reg\n");
@@ -666,9 +664,8 @@ void frc_debug_rdma_if(struct frc_dev_s *devp, const char *buf, size_t count)
 		if (!parm[1])
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0) {
-			// fw_data->frc_top_type.rdma_en = val1;
 			pr_frc(2, "input rdma status:%d\n", val1);
-			frc_rdma->rdma_en = val1;
+			frc_rdma->rdma_en = (u8)val1;
 			if (val1)
 				frc_rdma_init();
 			else
@@ -676,6 +673,14 @@ void frc_debug_rdma_if(struct frc_dev_s *devp, const char *buf, size_t count)
 		}
 	} else if (!strcmp(parm[0], "rdma_table")) {
 		frc_read_table(frc_rdma);
+	} else if (!strcmp(parm[0], "rdma_alg_en")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0) {
+			pr_frc(2, "input rdma alg status:%d\n", val1);
+			frc_rdma->rdma_alg_en = (u8)val1;
+			// fw_data->frc_top_type.rdma_en = (u8)val1;
+		}
 	}
 
 exit:

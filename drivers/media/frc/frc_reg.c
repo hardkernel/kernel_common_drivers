@@ -254,7 +254,37 @@ void FRC_RDMA_WR_REG_OUT(unsigned int reg, unsigned int val)
 }
 EXPORT_SYMBOL(FRC_RDMA_WR_REG_OUT);
 
-int READ_FRC_RDMA_REG(unsigned int reg)
+void FRC_RDMA_WR_REG_IN_ALG(unsigned int reg, unsigned int val)
+{
+#ifndef FRC_DISABLE_REG_RD_WR
+	if (get_frc_devp()->power_on_flag == 0)
+		return;
+	if (get_frc_devp()->clk_state == FRC_CLOCK_OFF)
+		return;
+	if (get_frc_rdma()->rdma_alg_en)
+		_frc_rdma_wr_reg_in(reg, val);
+	else
+		writel(val, (frc_base + (reg << 2)));
+#endif
+}
+EXPORT_SYMBOL(FRC_RDMA_WR_REG_IN_ALG);
+
+void FRC_RDMA_WR_REG_OUT_ALG(unsigned int reg, unsigned int val)
+{
+#ifndef FRC_DISABLE_REG_RD_WR
+	if (get_frc_devp()->power_on_flag == 0)
+		return;
+	if (get_frc_devp()->clk_state == FRC_CLOCK_OFF)
+		return;
+	if (get_frc_rdma()->rdma_alg_en)
+		_frc_rdma_wr_reg_out(reg, val);
+	else
+		writel(val, (frc_base + (reg << 2)));
+#endif
+}
+EXPORT_SYMBOL(FRC_RDMA_WR_REG_OUT_ALG);
+
+int FRC_RDMA_RD_REG(unsigned int reg)
 {
 #ifndef FRC_DISABLE_REG_RD_WR
 	// if (get_frc_devp()->power_on_flag == 0)
@@ -266,7 +296,7 @@ int READ_FRC_RDMA_REG(unsigned int reg)
 	return _frc_rdma_rd_reg(reg);
 #endif
 }
-EXPORT_SYMBOL(READ_FRC_RDMA_REG);
+EXPORT_SYMBOL(FRC_RDMA_RD_REG);
 
 void UPDATE_FRC_REG_BITS(unsigned int reg,
 	unsigned int value,

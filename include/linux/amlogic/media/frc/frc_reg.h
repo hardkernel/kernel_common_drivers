@@ -2946,13 +2946,14 @@ inline void WRITE_FRC_REG(unsigned int reg, unsigned int val);
 inline void WRITE_FRC_REG_BY_CPU(unsigned int reg, unsigned int val);
 inline void FRC_RDMA_WR_REG_IN(unsigned int reg, unsigned int val);
 inline void FRC_RDMA_WR_REG_OUT(unsigned int reg, unsigned int val);
-inline int READ_FRC_RDMA_REG(unsigned int reg);
+inline void FRC_RDMA_WR_REG_IN_ALG(unsigned int reg, unsigned int val);
+inline void FRC_RDMA_WR_REG_OUT_ALG(unsigned int reg, unsigned int val);
+inline int FRC_RDMA_RD_REG(unsigned int reg);
 
 inline void WRITE_FRC_BITS(unsigned int reg, unsigned int value,
     unsigned int start, unsigned int len);
 inline void UPDATE_FRC_REG_BITS(unsigned int reg, unsigned int value, unsigned int mask);
 // #define UPDATE_FRC_REG_BITS(addr, val, mask) FRC_RDMA_VSYNC_REG_UPDATE(addr, val, mask)
-inline void UPDATE_FRC_REG_BITS_1(unsigned int reg, unsigned int value, unsigned int mask);
 inline int is_rdma_enable(void);
 
 inline int READ_FRC_REG(unsigned int reg);
