@@ -197,6 +197,9 @@ int amlogic_of_parse(struct mmc_host *host)
 		mmc->sd_clk_sample = true;
 	else
 		mmc->sd_clk_sample = false;
+	/* Get the wifi model that needs to be optimized */
+	if (device_property_read_u32(dev, "vendor-id", &mmc->vendor_id) < 0)
+		mmc->vendor_id = 0;
 
 	return 0;
 }
@@ -593,7 +596,14 @@ static int no_pxp_clk_set(struct meson_host *host, struct mmc_ios *ios,
 			dev_err(host->dev, "set src err\n");
 				return ret;
 		}
-		src_clk = host->clk[1];
+		/* Switch sdio source clock to DIV2 to provide bandwidth */
+		if (sdio_host && sdio_host->card &&
+			host->vendor_id &&
+			sdio_host->card->cis.vendor == host->vendor_id)
+			src_clk = host->clk[2];
+		else
+			src_clk = host->clk[1];
+
 		cfg |= CFG_AUTO_CLK;
 	/* sdio set clk always on default */
 		if (aml_card_type_sdio(host) && !host->auto_clk)
@@ -1266,10 +1276,11 @@ tuning:
 	return 0;
 }
 
-//void sdio_get_card(struct mmc_host *host, struct mmc_card *card)
-//{
-//	host->card = card;
-//}
+void sdio_get_card(struct mmc_host *host, struct mmc_card *card)
+{
+	if (!host->card)
+		host->card = card;
+}
 
 int sdio_get_device(void)
 {
@@ -3832,7 +3843,7 @@ static const struct mmc_host_ops meson_mmc_ops = {
 	.card_busy	= meson_mmc_card_busy,
 	.start_signal_voltage_switch = meson_mmc_voltage_switch,
 	.hs400_enhanced_strobe = meson_mmc_enhance_strobe,
-//	.init_card      = sdio_get_card,
+	.init_card      = sdio_get_card,
 };
 
 static int mmc_clktest_show(struct seq_file *s, void *data)

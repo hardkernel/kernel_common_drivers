@@ -882,13 +882,16 @@
 				<&clkc CLKID_SD_EMMC_A_SEL>,
 				 <&clkc CLKID_SD_EMMC_A>,
 				 <&xtal>,
-				 <&clkc CLKID_GP0_PLL>;
+				 <&clkc CLKID_GP0_PLL>,
+				 <&clkc CLKID_FCLK_DIV2>;
 			clock-names = "core", "mux0", "mux1",
-					"clkin0", "clkin1";
+					"clkin0", "clkin1", "clkin2";
 			card_type = <3>;
 			mmc_debug_flag;
 			cap-sdio-irq;
 			src_clk_rate = <1152000000>;
+			/* the wifi vendor-id that needs to be optimized */
+			vendor-id = <0x1B8E>;
 			keep-power-in-suspend;
 			use_intf3_tuning;
 			no-mmc;
