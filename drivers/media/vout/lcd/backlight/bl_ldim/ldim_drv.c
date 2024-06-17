@@ -204,13 +204,14 @@ static int ldim_power_on(void)
 		LDIMPR("%s: fw_resume\n", __func__);
 	}
 
-	ldim_driver.init_on_flag = 1;
-
 	if (ldim_driver.dev_drv && ldim_driver.dev_drv->power_on)
 		ldim_driver.dev_drv->power_on(&ldim_driver);
 
 	ldim_driver.level_update = 1;
 	ldim_driver.state |= LDIM_STATE_POWER_ON;
+
+	/*init_on_flag should be set behind power_on*/
+	ldim_driver.init_on_flag = 1;
 
 	return 0;
 }
