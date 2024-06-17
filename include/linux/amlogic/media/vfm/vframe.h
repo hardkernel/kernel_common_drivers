@@ -839,6 +839,8 @@ struct vframe_s {
 	struct src_crop_s src_crop;
 	/*vdin.0:0  vdin.2:1*/
 	enum vdin_channel_id_e vdin_channel_id;
+	/*decoder real used size*/
+	u32 scatter_mem_size;
 } /*vframe_t */;
 
 #define VC_FLAG_AI_SR		0x1

@@ -57,6 +57,7 @@ static u32 q_dropped = 1;
 static u32 di_pre_buf_count = 4;
 static u32 di_post_buf_count = 4;
 static u32 di_pre_buf_count_postlink = 7;
+static u32 compression_ratio_limit;
 
 static DEFINE_MUTEX(di_process_mutex);
 
@@ -1151,6 +1152,46 @@ static int di_process_set_tvp(struct di_process_dev *dev, bool is_tvp)
 	return 0;
 }
 
+static bool check_vf_compression_ratio(struct di_process_dev *dev, struct vframe_s *vf)
+{
+	bool ret = false;
+	int src_size = 0, estimated_size = 0;
+
+	if (!dev || !vf) {
+		pr_err("%s: param is invalid.\n", __func__);
+		return ret;
+	}
+
+	if (!(vf->type & VIDTYPE_COMPRESS)) {
+		dp_print(dev->index, PRINT_OTHER, "not compress, no need check.\n");
+		return false;
+	}
+
+	if (vf->type & VIDTYPE_VIU_422)
+		src_size = vf->compWidth * vf->compHeight * 8 * 2;
+	else if (vf->type & VIDTYPE_VIU_444)
+		src_size = vf->compWidth * vf->compHeight * 8 * 3;
+	else//default or 420
+		src_size = vf->compWidth * vf->compHeight * 8 * 3 / 2;
+
+	if (vf->bitdepth & BITDEPTH_Y10)
+		src_size = src_size / 10;
+	else
+		src_size = src_size / 8;
+
+	dp_print(dev->index, PRINT_OTHER,
+		"scatter_size:%d, src_size:%d, compression_ratio：%d.\n",
+		vf->scatter_mem_size, src_size, compression_ratio_limit);
+
+	estimated_size = src_size * compression_ratio_limit / 100;
+	if (vf->scatter_mem_size < estimated_size)
+		ret = true;
+	else
+		ret = false;
+
+	return ret;
+}
+
 static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t *frame_info)
 {
 	int i;
@@ -1196,6 +1237,17 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		"%s: len =%d, fd=%d, omx_index=%d, file_vf=%px, file_count=%ld\n",
 		__func__, kfifo_len(&dev->receive_q), frame_info->in_fd, vf->omx_index,
 		 file_vf, file_count(file_vf));
+
+	if (check_vf_compression_ratio(dev, vf)) {
+		dp_print(dev->index, PRINT_OTHER, "over compression ratio, bypass di.\n");
+		frame_info->out_fd = -1;
+		frame_info->out_fence_fd = -1;
+		frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
+		frame_info->omx_index = vf->omx_index;
+		frame_info->need_bypass = true;
+		dp_put_file(dev, file_vf);
+		return 0;
+	}
 
 	/*vf need check tvp switch*/
 	if (dev->last_vf.type == 0) {
@@ -1902,6 +1954,30 @@ static ssize_t di_pre_buf_count_postlink_store(struct class *cla,
 	return count;
 }
 
+static ssize_t compression_ratio_limit_show(struct class *class,
+				      struct class_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "%d\n", compression_ratio_limit);
+}
+
+static ssize_t compression_ratio_limit_store(struct class *cla,
+
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	compression_ratio_limit = tmp;
+	return count;
+}
+
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RO(total_get_count);
 static CLASS_ATTR_RO(total_put_count);
@@ -1917,6 +1993,8 @@ static CLASS_ATTR_RW(q_dropped);
 static CLASS_ATTR_RW(di_pre_buf_count);
 static CLASS_ATTR_RW(di_post_buf_count);
 static CLASS_ATTR_RW(di_pre_buf_count_postlink);
+static CLASS_ATTR_RW(compression_ratio_limit);
+
 
 static struct attribute *di_process_class_attrs[] = {
 	&class_attr_print_flag.attr,
@@ -1934,6 +2012,7 @@ static struct attribute *di_process_class_attrs[] = {
 	&class_attr_di_pre_buf_count.attr,
 	&class_attr_di_post_buf_count.attr,
 	&class_attr_di_pre_buf_count_postlink.attr,
+	&class_attr_compression_ratio_limit.attr,
 	NULL
 };
 
