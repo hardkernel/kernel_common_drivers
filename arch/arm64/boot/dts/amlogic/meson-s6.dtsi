@@ -1334,47 +1334,38 @@
 			    "efusebus";
 	};
 
-	amvenc_avc{
-		compatible = "amlogic, amvenc_avc";
-		dev_name = "amvenc_avc";
-		status = "disabled";
-		//clocks = <&clkc CLKID_HCODEC_P0>;
-		//clock-names = "cts_hcodec_aclk";
-		interrupts = <0 93 1>;
-		interrupt-names = "mailbox_2";
-		reset-names = "hcodec_rst";
-		//resets = <&reset RESET_BRG_HCODEC_PIPL0>;
-	};
-	jpegenc{
-		compatible = "amlogic, jpegenc";
-		dev_name = "jpegenc";
-		status = "disabled";
-		//clocks = <&clkc CLKID_HCODEC_P0>;
-		//clock-names = "cts_jpegenc_aclk";
-		interrupts = <0 93 1>;
-		interrupt-names = "mailbox_2";
-		reset-names = "jpegenc_rst";
-		//resets = <&reset RESET_BRG_HCODEC_PIPL0>;
-	};
-	hevc_enc{
-		compatible = "cnm, HevcEnc";
-		//memory-region = <&hevc_enc_reserved>;
-		dev_name = "HevcEnc";
-		status = "disabled";
-		interrupts = <0 94 1>;
-		interrupt-names = "wave420l_irq";
+	vc9000e_rev {
+		compatible = "vc9000e_rev";
+		memory-region = <&vc9000e_reserved>;
+		dev_name = "vc9000e";
+		status = "okay";
+		clocks = <&clkc CLKID_SYS_VC9000E>,
+			<&clkc CLKID_VC9000E_CORE>,
+			<&clkc CLKID_VC9000E_AXI>;
+		clock-names = "vers_sys_clk",
+			"vers_core_clk",
+			"vers_aclk";
+		interrupts = <GIC_SPI 259 IRQ_TYPE_EDGE_RISING
+			GIC_SPI 256 IRQ_TYPE_EDGE_RISING
+			GIC_SPI 257 IRQ_TYPE_EDGE_RISING
+			GIC_SPI 258 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "vc9000e_active_irq",
+			"vc9000e_irq0",
+			"vc9000e_irq1",
+			"vc9000e_irq2";
+		power-domains = <&pwrdm PDID_S6_VC9000E>;
+		reset-names = "vc9000e_areset", "vc9000e_core_rst", "vc9000e_apb_reset";
+		resets = <&reset RESET_VC9000E>,
+			<&reset RESET_VC9000E_CORE>,
+			<&reset RESET_VC9000E_APB>;
 		#address-cells=<2>;
 		#size-cells=<2>;
-		//clocks = <&clkc CLKID_WAVE_A_GATE
-		//		&clkc CLKID_WAVE_B_GATE
-		//		&clkc CLKID_WAVE_C_GATE>;
-		//clock-names = "cts_wave420_aclk",
-		//		"cts_wave420_bclk",
-		//		"cts_wave420_cclk";
 		ranges;
-		io_reg_base{
-				reg = <0x0 0xfe310000 0x0 0x4000>;
-		};
+		/* use cbus space for reset_ctrl*/
+		reg = <0x0 0xfe370000 0x0 0x10000>,
+			<0x0 0xfe096000 0x0 0x2000>;
+		reg-names = "vc9000e_core",
+			"vc9000e_top";
 	};
 	vpu: vpu {
 		compatible = "amlogic, vpu-s6";
