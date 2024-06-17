@@ -224,6 +224,7 @@ struct meson_host {
 	unsigned int f_min;
 	unsigned int f_max;
 	struct completion drv_completion;
+	unsigned int vendor_id;
 };
 
 struct amlsd_platform {
