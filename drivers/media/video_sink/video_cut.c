@@ -623,6 +623,7 @@ static int line_n_in;
 static struct task_struct *video_thread;
 static wait_queue_head_t frame_process_wq;
 static irqreturn_t vsync_isr_in(int irq, void *dev_id);
+static bool video_thread_init_done;
 
 static u32 lowlatency_proc_drop;
 static u32 lowlatency_err_drop;
@@ -663,7 +664,8 @@ static irqreturn_t line_n_isr(int irq, void *dev_id)
 		if (debug_flag & DEBUG_FLAG_LATENCY)
 			pr_info("line_n isr\n");
 		line_n_in = 1;
-		wake_up_interruptible(&frame_process_wq);
+		if (video_thread_init_done)
+			wake_up_interruptible(&frame_process_wq);
 	}
 	return IRQ_HANDLED;
 }
@@ -806,11 +808,13 @@ static void video_start_monitor(void)
 	if (sched_setscheduler(video_thread, SCHED_FIFO, &param))
 		pr_err("VID: Could not set realtime priority.\n");
 	wake_up_process(video_thread);
+	video_thread_init_done = true;
 }
 
 static void video_stop_monitor(void)
 {
 	if (video_thread) {
+		video_thread_init_done = false;
 		kthread_stop(video_thread);
 		video_thread = NULL;
 	}
@@ -9150,7 +9154,7 @@ static int video_attr_create(void)
 	}
 
 	/* create amvideo_poll class attr files */
-	for (i = 0; i < ARRAY_SIZE(amvideo_poll_class_attrs); i++) {
+	for (i = 0; amvideo_poll_class_attrs[i].attr.name; i++) {
 		if (class_create_file(amvideo_poll_class,
 				      &amvideo_poll_class_attrs[i])) {
 			pr_err("create amvideo_poll attribute %s fail\n",

@@ -13683,7 +13683,7 @@ static int video_attr_create(void)
 	}
 
 	/* create amvideo_poll class attr files */
-	for (i = 0; i < ARRAY_SIZE(amvideo_poll_class_attrs); i++) {
+	for (i = 0; amvideo_poll_class_attrs[i].attr.name; i++) {
 		if (class_create_file(amvideo_poll_class,
 				      &amvideo_poll_class_attrs[i])) {
 			pr_err("create amvideo_poll attribute %s fail\n",

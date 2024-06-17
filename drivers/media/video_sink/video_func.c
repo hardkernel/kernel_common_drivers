@@ -4261,7 +4261,10 @@ static int misc_early_proc(void)
 	int i, ret = 0;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-	set_vsync_rdma_id(VSYNC_RDMA);
+	if (is_video_process_in_thread())
+		set_vsync_rdma_id(EX_VSYNC_RDMA);
+	else
+		set_vsync_rdma_id(VSYNC_RDMA);
 
 	if (is_vsync_rdma_enable())
 		over_field_info_record();
