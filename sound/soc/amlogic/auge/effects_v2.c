@@ -759,6 +759,9 @@ static int effect_platform_probe(struct platform_device *pdev)
 	/*set master & channel volume gain to 0dB*/
 	aed_set_volume(0xc0, 0x30, 0x30);
 
+	/* enable DC filter */
+	aed_dc_enable(true);
+
 	return 0;
 }
 
