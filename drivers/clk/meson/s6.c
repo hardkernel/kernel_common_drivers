@@ -77,7 +77,8 @@ static struct clk_regmap gp0_pll = {
 		.init_regs = gp0_pll_vco_init_regs,
 		.init_count = ARRAY_SIZE(gp0_pll_vco_init_regs),
 		.flags = CLK_MESON_PLL_POWER_OF_TWO | CLK_MESON_PLL_RSTN |
-			 CLK_MESON_PLL_FIXED_EN0P5,
+			 CLK_MESON_PLL_FIXED_EN0P5 |
+			 CLK_MESON_PLL_IGNORE_INIT,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "gp0_pll",
@@ -437,12 +438,12 @@ static struct clk_regmap fclk_div7 = {
 };
 
 static const struct pll_params_table mclk_pll_params_table[] = {
-	PLL_PARAMS_v4(99, 1, 1), /* VCO = 2376M, CLK_OUT = 1188M */
+	PLL_PARAMS_v4(198, 0, 1), /* VCO = 2376M, CLK_OUT = 1188M */
 	{ /* sentinel */  },
 };
 
 static const struct reg_sequence mclk_pll_init_regs[] = {
-	{ .reg = ANACTRL_CSIPLL_CTRL1,	.def = 0x20627040 },
+	{ .reg = ANACTRL_CSIPLL_CTRL1,	.def = 0x20627000 },
 	{ .reg = ANACTRL_CSIPLL_CTRL2,	.def = 0x60000201 },
 	{ .reg = ANACTRL_CSIPLL_CTRL3,	.def = 0x03180060 }
 };
@@ -465,8 +466,8 @@ static struct clk_regmap mclk_pll = {
 			.width   = 3,
 		},
 		.od = {
-			.reg_off = ANACTRL_CSIPLL_CTRL0,
-			.shift   = 12,
+			.reg_off = ANACTRL_CSIPLL_CTRL1,
+			.shift   = 0,
 			.width   = 3,
 		},
 		.l = {
@@ -500,36 +501,18 @@ static struct clk_regmap mclk_pll = {
 	},
 };
 
-static struct clk_regmap mclk_pll_div = {
-	.data = &(struct clk_regmap_div_data) {
-		.offset = ANACTRL_CSIPLL_CTRL1,
-		.shift   = 0,
-		.width   = 3,
-		.flags = CLK_DIVIDER_POWER_OF_TWO,
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "mclk_pll_div",
-		.ops = &clk_regmap_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&mclk_pll.hw,
-		},
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-
 static struct clk_regmap mclk_pll_clk = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = ANACTRL_CSIPLL_CTRL1,
 		.shift = 3,
 		.width = 5,
-		.flags = CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO,
+		.flags = CLK_DIVIDER_MAX_AT_ZERO,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mclk_pll_clk",
 		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&mclk_pll_div.hw,
+			&mclk_pll.hw,
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -557,12 +540,14 @@ static struct clk_regmap mclk0_mux = {
 	},
 };
 
-static struct clk_fixed_factor mclk0_div2_div = {
-	.mult = 1,
-	.div = 2,
+static struct clk_regmap mclk0_div = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = ANACTRL_CSIPLL_CTRL3,
+		.bit_idx = 10,
+	},
 	.hw.init = &(struct clk_init_data) {
-		.name = "mclk0_div2_div",
-		.ops = &clk_fixed_factor_ops,
+		.name = "mclk0_div",
+		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&mclk0_mux.hw,
 		},
@@ -571,16 +556,14 @@ static struct clk_fixed_factor mclk0_div2_div = {
 	},
 };
 
-static struct clk_regmap mclk0_div2 = {
-	.data = &(struct clk_regmap_gate_data){
-		.offset = ANACTRL_CSIPLL_CTRL3,
-		.bit_idx = 10,
-	},
+static struct clk_fixed_factor mclk0_div2 = {
+	.mult = 1,
+	.div = 2,
 	.hw.init = &(struct clk_init_data) {
 		.name = "mclk0_div2",
-		.ops = &clk_regmap_gate_ops,
+		.ops = &clk_fixed_factor_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&mclk0_div2_div.hw,
+			&mclk0_div.hw,
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -597,7 +580,7 @@ static struct clk_regmap mclk0_div_mux = {
 		.name = "mclk0_div_mux",
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&mclk0_mux.hw,
+			&mclk0_div.hw,
 			&mclk0_div2.hw,
 		},
 		.num_parents = 2,
@@ -911,6 +894,7 @@ static struct clk_regmap cecb_dual_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = cecb_dual_parent_data,
 		.num_parents = ARRAY_SIZE(cecb_dual_parent_data),
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -926,6 +910,7 @@ static struct clk_regmap cecb_dual = {
 			&cecb_dual_mux.hw,
 		},
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -945,6 +930,7 @@ static struct clk_regmap cecb_clk = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = cecb_clk_parent_data,
 		.num_parents = ARRAY_SIZE(cecb_clk_parent_data),
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4614,7 +4600,7 @@ static const struct clk_parent_data dspa_01_parent_data[] = {
 	{ .hw = &fclk_div5.hw },
 	{ .fw_name = "gp2_pll" },
 	{ .hw = &fclk_div4.hw },
-	{ .hw = &fclk_div7.hw },
+	{ .hw = &hifi_pll.hw },
 	{ .hw = &rtc_clk.hw }
 };
 
@@ -4987,6 +4973,7 @@ MESON_CLK_GATE_SYS_CLK(sys_i2c_m_b, CLKCTRL_SYS_CLK_EN0_REG1, 31);
 MESON_CLK_GATE_SYS_CLK(sys_i2c_m_c, CLKCTRL_SYS_CLK_EN0_REG2, 0);
 MESON_CLK_GATE_SYS_CLK(sys_i2c_m_d, CLKCTRL_SYS_CLK_EN0_REG2, 1);
 MESON_CLK_GATE_SYS_CLK(sys_i2c_m_e, CLKCTRL_SYS_CLK_EN0_REG2, 2);
+MESON_CLK_GATE_SYS_CLK(sys_i2c_m_f, CLKCTRL_SYS_CLK_EN0_REG2, 3);
 MESON_CLK_GATE_SYS_CLK(sys_hdmitx_apb, CLKCTRL_SYS_CLK_EN0_REG2, 4);
 MESON_CLK_GATE_SYS_CLK(sys_i2c_s_a, CLKCTRL_SYS_CLK_EN0_REG2, 5);
 MESON_CLK_GATE_SYS_CLK(sys_hdmi20_aes, CLKCTRL_SYS_CLK_EN0_REG2, 9);
@@ -5026,10 +5013,9 @@ static struct clk_regmap *const pll_regmaps[] = {
 	&fclk_div5,
 	&fclk_div7,
 	&mclk_pll,
-	&mclk_pll_div,
 	&mclk_pll_clk,
 	&mclk0_mux,
-	&mclk0_div2,
+	&mclk0_div,
 	&mclk0_div_mux,
 	&mclk0
 };
@@ -5297,6 +5283,7 @@ static struct clk_regmap *const clk_regmaps[] = {
 	&sys_i2c_m_c,
 	&sys_i2c_m_d,
 	&sys_i2c_m_e,
+	&sys_i2c_m_f,
 	&sys_hdmitx_apb,
 	&sys_i2c_s_a,
 	&sys_hdmi20_aes,
@@ -5344,10 +5331,9 @@ static struct clk_hw_onecell_data hw_onecell_data = {
 		[CLKID_FCLK_DIV7_DIV]         = &fclk_div7_div.hw,
 		[CLKID_FCLK_DIV7]             = &fclk_div7.hw,
 		[CLKID_MCLK_PLL]              = &mclk_pll.hw,
-		[CLKID_MCLK_PLL_DIV]          = &mclk_pll_div.hw,
 		[CLKID_MCLK_PLL_CLK]          = &mclk_pll_clk.hw,
 		[CLKID_MCLK0_MUX]             = &mclk0_mux.hw,
-		[CLKID_MCLK0_DIV2_DIV]        = &mclk0_div2_div.hw,
+		[CLKID_MCLK0_DIV]             = &mclk0_div.hw,
 		[CLKID_MCLK0_DIV2]            = &mclk0_div2.hw,
 		[CLKID_MCLK0_DIV_MUX]         = &mclk0_div_mux.hw,
 		[CLKID_MCLK0]                 = &mclk0.hw,
@@ -5623,6 +5609,7 @@ static struct clk_hw_onecell_data hw_onecell_data = {
 		[CLKID_SYS_I2C_M_C]           = &sys_i2c_m_c.hw,
 		[CLKID_SYS_I2C_M_D]           = &sys_i2c_m_d.hw,
 		[CLKID_SYS_I2C_M_E]           = &sys_i2c_m_e.hw,
+		[CLKID_SYS_I2C_M_F]           = &sys_i2c_m_f.hw,
 		[CLKID_SYS_HDMITX_APB]        = &sys_hdmitx_apb.hw,
 		[CLKID_SYS_I2C_S_A]           = &sys_i2c_s_a.hw,
 		[CLKID_SYS_HDMI20_AES]        = &sys_hdmi20_aes.hw,

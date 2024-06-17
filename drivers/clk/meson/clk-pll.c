@@ -1273,17 +1273,22 @@ static int meson_clk_pll_v4_determine_rate(struct clk_hw *hw,
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
-	struct pll_rate_range *pll_range = &pll->pll_range;
-	unsigned long rate = req->rate;
+	unsigned int m, n, od, frac;
+	int ret;
 
 	if (pll->flags & CLK_MESON_PLL_READ_ONLY) {
 		req->rate = clk_hw_get_rate(hw);
 		return 0;
 	}
 
-	rate = clamp(rate, pll_range->min_rate, pll_range->max_rate);
-	rate = clamp(rate, req->min_rate, req->max_rate);
-	req->rate = rate;
+	/* calculate M, N, OD*/
+	ret = meson_clk_pll_v4_get_params(pll, req->rate, req->best_parent_rate,
+					  &m, &n, &od, &frac);
+	if (ret)
+		return ret;
+
+	req->rate = meson_clk_pll_params_to_rate(pll, req->best_parent_rate,
+						 m, n, frac, od);
 
 	return 0;
 }
