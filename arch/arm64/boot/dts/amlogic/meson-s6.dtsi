@@ -91,24 +91,15 @@
 				<GIC_PPI 10 0xff08>;
 	};
 
-#if 0
 	arm_pmu {
-		compatible = "arm,armv8-pmuv3";
-		private-interrupts;
-		/* clusterb-enabled; */
-		interrupts = <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 234 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 235 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 236 IRQ_TYPE_LEVEL_HIGH>;
+		compatible = "arm,cortex-a510-pmu";
+		/*private-interrupts;*/
 
-		reg = <0x0 0xff634680 0x0 0x4>;
-		cpumasks = <0xf>;
-		/* default 10ms */
-		relax-timer-ns = <10000000>;
-		/* default 10000us */
-		max-wait-cnt = <10000>;
+		interrupts = <GIC_SPI 364 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 365 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 366 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 367 IRQ_TYPE_LEVEL_HIGH>;
 	};
-#endif
 
 	gic: interrupt-controller@ff200000 {
 		compatible = "arm,gic-v3";
