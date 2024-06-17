@@ -1534,7 +1534,7 @@ void set_vid_cmpr_wmif(struct vid_cmpr_mif_s *wr_mif, int wrmif_en)
 	wrmif_control.rgb_mode = rgb_mode;
 	wrmif_control.h_conv = 0;
 	wrmif_control.v_conv = 0;
-	wrmif_control.swap_cbcr = wr_mif->swap_cbcr;/*1 NV12, 0 NV21*/
+	wrmif_control.swap_cbcr = 0;//wr_mif->swap_cbcr;/*1 NV12, 0 NV21*/
 	wrmif_control.urgent = 0;
 	wrmif_control.word_limit = 4;
 	wrmif_control.data_ext_ena = 0;
