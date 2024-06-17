@@ -652,6 +652,16 @@
 				status = "disabled";
 			};
 
+			i2c5: i2c@67400 {
+				compatible = "amlogic,meson-i2c";
+				reg = <0x0 0x67400 0x0 0x24>;
+				interrupts = <GIC_SPI 165 IRQ_TYPE_EDGE_RISING>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&clkc CLKID_SYS_I2C_M_F>;
+				status = "disabled";
+			};
+
 			uart_B: serial@7a000 {
 				compatible = "amlogic,meson-uart";
 				reg = <0x0 0x7a000 0x0 0x18>;
@@ -1995,7 +2005,6 @@
 			groups = "i2c1_sda_c",
 				"i2c1_scl_c";
 			function = "i2c1";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2005,7 +2014,6 @@
 			groups = "i2c1_sda_d",
 				"i2c1_scl_d";
 			function = "i2c1";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2015,7 +2023,6 @@
 			groups = "i2c1_sda_a",
 				"i2c1_scl_a";
 			function = "i2c1";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2025,7 +2032,6 @@
 			groups = "i2c1_sda_x",
 				"i2c1_scl_x";
 			function = "i2c1";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2035,7 +2041,6 @@
 			groups = "i2c1_sda_z3",
 				"i2c1_scl_z3";
 			function = "i2c1";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2045,7 +2050,6 @@
 			groups = "i2c1_sda_z3",
 				"i2c1_scl_z11";
 			function = "i2c1";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2055,7 +2059,6 @@
 			groups = "i2c2_sda_d",
 				"i2c2_scl_d";
 			function = "i2c2";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2065,7 +2068,6 @@
 			groups = "i2c2_sda_h",
 				"i2c2_scl_h";
 			function = "i2c2";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2075,7 +2077,6 @@
 			groups = "i2c2_sda_x",
 				"i2c2_scl_x";
 			function = "i2c2";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2085,7 +2086,6 @@
 			groups = "i2c2_sda_a",
 				"i2c2_scl_a";
 			function = "i2c2";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2095,7 +2095,6 @@
 			groups = "i2c2_sda_z0",
 				"i2c2_scl_z1";
 			function = "i2c2";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2105,7 +2104,6 @@
 			groups = "i2c2_sda_z10",
 				"i2c2_scl_z11";
 			function = "i2c2";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2115,7 +2113,6 @@
 			groups = "i2c3_sda_x0",
 				"i2c3_scl_x1";
 			function = "i2c3";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2125,7 +2122,6 @@
 			groups = "i2c3_sda_f",
 				"i2c3_scl_f";
 			function = "i2c3";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2135,7 +2131,6 @@
 			groups = "i2c3_sda_h",
 				"i2c3_scl_h";
 			function = "i2c3";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2145,7 +2140,6 @@
 			groups = "i2c3_sda_x0",
 				"i2c3_scl_x1";
 			function = "i2c3";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2155,7 +2149,6 @@
 			groups = "i2c3_sda_a6",
 				"i2c3_scl_a7";
 			function = "i2c3";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2165,7 +2158,6 @@
 			groups = "i2c3_sda_x14",
 				"i2c3_scl_x15";
 			function = "i2c3";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2175,7 +2167,6 @@
 			groups = "i2c4_sda_b",
 				"i2c4_scl_b";
 			function = "i2c4";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2185,7 +2176,6 @@
 			groups = "i2c4_sda_h",
 				"i2c4_scl_h";
 			function = "i2c4";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2195,7 +2185,6 @@
 			groups = "i2c4_sda_z",
 				"i2c4_scl_z";
 			function = "i2c4";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2205,7 +2194,6 @@
 			groups = "i2c4_sda_a",
 				"i2c4_scl_a";
 			function = "i2c4";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2215,7 +2203,6 @@
 			groups = "i2c5_sda_z",
 				"i2c5_scl_z";
 			function = "i2c5";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2225,7 +2212,6 @@
 			groups = "i2c5_sda_a0",
 				"i2c5_scl_a11";
 			function = "i2c5";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
@@ -2235,7 +2221,6 @@
 			groups = "i2c5_sda_a14",
 				"i2c5_scl_a15";
 			function = "i2c5";
-			drive-strength = <3>;
 			bias-disable;
 		};
 	};
