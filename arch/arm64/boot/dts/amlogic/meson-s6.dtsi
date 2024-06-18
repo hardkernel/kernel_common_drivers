@@ -274,6 +274,8 @@
 			  <S6_MBOX_REE2DSPA>,
 			  <S6_MBOX_AO2REE>,
 			  <S6_MBOX_REE2AO>;
+		aocpu_sts_mboxid = <S6_MBOX_AO2TEE>;
+		ree2aocpu_mboxid = <S6_MBOX_REE2AO>;
 		#mbox-cells = <1>;
 	};
 
