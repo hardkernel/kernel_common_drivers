@@ -31,6 +31,7 @@
 #define   PCIE_BAR_MEM_MASK	(~0x0fUL)
 #define   PCIE_BAR_IO_MASK	(~0x03UL)
 
+#define PHYMAC_CFG		0x33c
 #define PCIE_CFGNUM		0x140
 #define IMASK_LOCAL		0x180
 #define ISTATUS_LOCAL		0x184
@@ -120,6 +121,13 @@
 #define PCIE_LINK_STATE_CHECK(val, state) \
 	(((((val) >> 18)) & GENMASK(4, 0)) == (state))
 
+/* amlogic phy V1 register offset */
+#define UPCRX_DR_REG1				(0x0015 << 2)
+#define REG_DCHD_EQ_LPBK_REG			(0x0032 << 2)
+#define REG_DCHD_EQ_GEN1_REG			(0x0033 << 2)
+#define REG_DCHD_EQ_GEN2_REG			(0x0034 << 2)
+#define REG_DCHD_EQ_GEN3_REG			(0x0035 << 2)
+
 enum pcie_data_rate {
 	PCIE_GEN1,
 	PCIE_GEN2,
@@ -131,6 +139,12 @@ enum pcie_phy_type {
 	M31_PHY,
 	M31_COMBPHY,
 	AMLOGIC_PHY,
+};
+
+enum aml_phy_pll_version {
+	AMLOGIC_PHY_PLL_V1 = 1,
+	AMLOGIC_PHY_PLL_V2,
+	AMLOGIC_PHY_PLL_V3,
 };
 
 struct amlogic_pcie {
@@ -164,10 +178,13 @@ struct amlogic_pcie {
 	struct clk *dev_clk;
 
 	struct reset_control *m31phy_rst;/*RESETCTRL_RESET1 bit 21*/
+	struct reset_control *amlphy_rst;
 	struct reset_control *gen3_l0_rst; /*RESETCTRL_RESET1 bit 18*/
 	struct reset_control *gen2_l0_rst;
+	struct reset_control *u3p2_phy_apb_rst;
 	struct reset_control *pcie_apb_rst; /*RESETCTRL_RESET1 bit 14*/
 	struct reset_control *pcie_phy_rst; /*RESETCTRL_RESET1 bit 13*/
+	struct reset_control *pcie_pipe_rst;
 	struct reset_control *pcie_a_rst;   /*RESETCTRL_RESET1 bit 12*/
 	struct reset_control *pcie_rst0;    /*RESETCTRL_RESET3 bit 12*/
 	struct reset_control *pcie_rst1;    /*RESETCTRL_RESET3 bit 13*/
@@ -183,13 +200,17 @@ struct amlogic_pcie {
 	struct pinctrl *p;
 
 	u32 m31phy_rst_bit;
+	u32 amlphy_rst_bit;
 	u32 gen3_l0_rst_bit;
 	u32 gen2_l0_rst_bit;
+	u32 u3p2_phy_apb_rst_bit;
 	u32 apb_rst_bit;
 	u32 phy_rst_bit;
+	u32 pcie_pipe_bit;
 	u32 pcie_a_rst_bit;
 	u32 pcie_rst_bit;
 	u32 pcie_rst_mask;
+	u32 pll_setting_number;
 
 	bool is_rc;
 
@@ -346,5 +367,6 @@ void amlogic_pcie_cfg_addr_map(struct amlogic_pcie *amlogic,
 			       u64 trsl_addr,
 			       int size,
 			       int trsl_param);
-
+int amlogic_pcie_set_reset_for_aml_phy(struct amlogic_pcie *amlogic);
+int amlogic_pcie_set_phy_pll(struct amlogic_pcie *amlogic);
 #endif /* _PCIE_AMLOGIC_V3_H */

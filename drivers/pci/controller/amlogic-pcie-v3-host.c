@@ -331,12 +331,6 @@ static int amlogic_pcie_parse_host_dt(struct amlogic_pcie_rc *rc)
 	struct device_node *node = dev->of_node;
 	int ret;
 
-	ret = of_property_read_u32(node, "phy-type",
-				   &amlogic->phy_type);
-	if (ret)
-		amlogic->phy_type = M31_PHY;
-	dev_dbg(amlogic->dev, "PCIE phy type is %d\n", amlogic->phy_type);
-
 	if (of_property_read_bool(node, "max-link-speed"))
 		of_property_read_u32(node, "max-link-speed",
 				     &amlogic->link_gen);
@@ -666,7 +660,7 @@ err_deinit_port:
 	amlogic_pcie_deinit_phys(amlogic);
 err_disable_clk:
 	if (pcie_test)
-		return 0;
+		return err;
 
 	amlogic_pcie_disable_clocks(amlogic);
 	return err;
@@ -735,18 +729,18 @@ static void amlogic_pcie_shutdown(struct platform_device *pdev)
 	amlogic_pcie_disable_clocks(amlogic);
 }
 
-static const struct of_device_id amlogic_pcie_of_match[] = {
+static const struct of_device_id amlogic_pcie_v3_of_match[] = {
 	{ .compatible = "amlogic, amlogic-pcie-v3", },
 	{ .compatible = "amlogic,amlogic-pcie-v3", },
 	{}
 };
-MODULE_DEVICE_TABLE(of, amlogic_pcie_of_match);
+MODULE_DEVICE_TABLE(of, amlogic_pcie_v3_of_match);
 
-static struct platform_driver amlogic_pcie_driver = {
+static struct platform_driver amlogic_pcie_v3_driver = {
 	.driver = {
 		.suppress_bind_attrs = true,
 		.name = "amlogic-pcie-v3",
-		.of_match_table = amlogic_pcie_of_match,
+		.of_match_table = amlogic_pcie_v3_of_match,
 		.pm = &amlogic_pcie_pm_ops,
 	},
 	.probe = amlogic_pcie_rc_probe,
@@ -754,8 +748,20 @@ static struct platform_driver amlogic_pcie_driver = {
 	.shutdown = amlogic_pcie_shutdown,
 };
 
-module_platform_driver(amlogic_pcie_driver);
+int __init aml_pcie_rc_v3_init(void)
+{
+	return platform_driver_register(&amlogic_pcie_v3_driver);
+}
 
-MODULE_AUTHOR("Amlogic Inc");
-MODULE_DESCRIPTION("Amlogic AXI PCIe Host driver");
-MODULE_LICENSE("GPL v2");
+void __exit aml_pcie_rc_v3_exit(void)
+{
+	platform_driver_unregister(&amlogic_pcie_v3_driver);
+}
+
+/*
+ * module_platform_driver(amlogic_pcie_driver);
+ *
+ * MODULE_AUTHOR("Amlogic Inc");
+ * MODULE_DESCRIPTION("Amlogic AXI PCIe Host driver");
+ * MODULE_LICENSE("GPL v2");
+ */
