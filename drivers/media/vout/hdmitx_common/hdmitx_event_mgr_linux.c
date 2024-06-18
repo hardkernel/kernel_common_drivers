@@ -75,7 +75,7 @@ static struct hdmitx_uevent hdmi_events[] = {
 struct hdmitx_event_mgr *hdmitx_event_mgr_create(struct platform_device *extcon_dev,
 	struct device *uevent_dev)
 {
-	struct hdmitx_event_mgr *instance = vmalloc(sizeof(*instance));
+	struct hdmitx_event_mgr *instance = vzalloc(sizeof(*instance));
 	struct blocking_notifier_head *notify_head = &instance->hdmitx_event_notify_list;
 	int ret = 0;
 
