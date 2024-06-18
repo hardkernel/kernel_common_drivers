@@ -82,8 +82,9 @@ int top_init_en;
 
 /*0: atv playmode*/
 /*1: atv search mode*/
+#ifdef CONFIG_AMLOGIC_ATV_DEMOD
 static bool tvafe_mode;
-
+#endif
 /*tvconfig snow config*/
 static bool snow_cfg;
 /*1: snow function on;*/
