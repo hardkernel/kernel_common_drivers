@@ -281,6 +281,8 @@ static int ss_prepare(struct snd_pcm_substream *substream,
 		p_spdif = ops->private;
 		if (p_spdif->spdifout_on)
 			return 0;
+		/* first mute hw for pop, unmute it when trigger start */
+		aml_spdif_out_mute(p_spdif->actrl, p_spdif->id, true);
 	}
 
 	pr_debug("%s() %d, lvl %d\n", __func__, __LINE__, share_lvl);
@@ -1143,6 +1145,8 @@ static int aml_spdif_open(struct snd_soc_component *component,
 		dev, SPDIF_BUFFER_BYTES / 2, SPDIF_BUFFER_BYTES);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		/* first mute hw for pop, unmute it when trigger start */
+		aml_spdif_out_mute(p_spdif->actrl, p_spdif->id, true);
 		if (p_spdif->same_src_on)
 			release_spdif_same_src(p_spdif, substream);
 
