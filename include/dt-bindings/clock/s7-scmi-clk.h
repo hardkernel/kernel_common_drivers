@@ -26,4 +26,9 @@
 
 #define CLKID_SCMI_ACLKM              12
 
+#define CLKID_SCMI_PWM_G             13
+#define CLKID_SCMI_PWM_H             14
+#define CLKID_SCMI_PWM_I             15
+#define CLKID_SCMI_PWM_J             16
+
 #endif /* __S7_SCMI_CLKC_H */
