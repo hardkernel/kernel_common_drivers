@@ -448,7 +448,7 @@ extern unsigned int atv_source_flg;
 extern enum hdr_type_e hdr_source_type;
 extern unsigned int pd_detect_en;
 extern bool wb_en;
-extern struct pq_ctrl_s pq_cfg;
+extern struct pq_ctrl_s pq_cfg_cur;
 
 extern struct pq_ctrl_s pq_cfg;
 extern struct pq_ctrl_s dv_cfg_bypass;
