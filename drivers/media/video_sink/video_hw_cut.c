@@ -6630,6 +6630,8 @@ static bool is_vframe_changed
 	    (((cur_vf->type & VIDTYPE_COMPRESS) &&
 	      (cur_vf->compWidth != new_vf->compWidth ||
 	       cur_vf->compHeight != new_vf->compHeight)) ||
+	    (cur_vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) !=
+	    (new_vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) ||
 	     cur_vf->bufWidth != new_vf->bufWidth ||
 	     cur_vf->width != new_vf->width ||
 	     cur_vf->height != new_vf->height ||
