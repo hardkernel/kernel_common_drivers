@@ -687,9 +687,8 @@
 		io-channel-names = "key-chan-0";
 		key_chan = <SARADC_CH0 SARADC_CH0 SARADC_CH0>;
 		key_code = <KEY_POWER KEY_VOLUMEUP KEY_VOLUMEDOWN>;
-		/* key_val = voltage / 1800mV * 1023 */
-		key_val = <0 512 890>;
-		key_tolerance = <40 40 40>;
+		key_val = <0 901 1566>; // Unit: millivolt
+		key_tolerance = <70 70 70>; // Unit: millivolt
 	};
 
 	gpioleds {

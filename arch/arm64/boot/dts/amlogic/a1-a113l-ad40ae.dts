@@ -347,8 +347,8 @@
 		io-channel-names = "key-chan-0";
 		key_chan = <0 0 0 0>;
 		key_code = <KEY_VOLUMEDOWN KEY_VOLUMEUP KEY_BLUETOOTH KEY_MODE>;
-		key_val = <390 267 141 0>;
-		key_tolerance = <40 40 40 40>;
+		key_val = <686 470 248 0>; // Unit: millivolt
+		key_tolerance = <70 70 70 70>; // Unit: millivolt
 	};
 };
 

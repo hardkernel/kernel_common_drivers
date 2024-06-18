@@ -1016,8 +1016,8 @@
 		io-channel-names = "key-chan-0";
 		key_chan = <0 0 0>;
 		key_code = <141 114 115>;
-		key_val = <900 511 0>; //val=voltage/1800mV*1023
-		key_tolerance = <40 40 40>;
+		key_val = <1584 899 0>; // Unit: millivolt
+		key_tolerance = <70 70 70>; // Unit: millivolt
 	};
 
 	vddnpu: pwm_ef-regulator {
