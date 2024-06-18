@@ -208,6 +208,7 @@ static int vdj_mode_flg;
 struct am_vdj_mode_s vdj_mode_s;
 struct pq_ctrl_s pq_cfg;
 struct pq_ctrl_s dv_cfg_bypass;
+struct pq_ctrl_s pq_cfg_cur;
 
 /*demo final gain */
 uint demo_pk_sr_final_pgains = 0xa0;
@@ -12191,6 +12192,8 @@ void init_pq_control(unsigned int enable)
 		memcpy(&dv_cfg_bypass, &pq_cfg_init[OTT_DV_BYPASS],
 		       sizeof(struct pq_ctrl_s));
 	}
+	memcpy(&pq_cfg_cur, &pq_cfg_init[OTT_DV_BYPASS],
+	       sizeof(struct pq_ctrl_s));
 }
 
 int vinfo_lcd_support(void)

@@ -3193,105 +3193,164 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md, int vpp_index)
 	switch (md) {
 	case WR_VCB:
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (pq_cfg.dnlp_en) {
-			ve_enable_dnlp();
-			dnlp_en = 1;
-		} else {
-			ve_disable_dnlp();
-			dnlp_en = 0;
+		if (pq_cfg_cur.dnlp_en != pq_cfg.dnlp_en) {
+			pq_cfg_cur.dnlp_en = pq_cfg.dnlp_en;
+			if (pq_cfg.dnlp_en) {
+				ve_enable_dnlp();
+				dnlp_en = 1;
+			} else {
+				ve_disable_dnlp();
+				dnlp_en = 0;
+			}
 		}
-
-		if (pq_cfg.cm_en) {
-			amcm_enable(WR_VCB, 0);
-			cm_en = 1;
-		} else {
-			amcm_disable(WR_VCB, 0);
-			cm_en = 0;
+		if (pq_cfg_cur.cm_en != pq_cfg.cm_en) {
+			pq_cfg_cur.cm_en = pq_cfg.cm_en;
+			if (pq_cfg.cm_en) {
+				amcm_enable(WR_VCB, 0);
+				cm_en = 1;
+			} else {
+				amcm_disable(WR_VCB, 0);
+				cm_en = 0;
+			}
 		}
 
 		if (chip_type_id == chip_s5 ||
 			chip_type_id == chip_t3x) {
-			ve_vadj_ctl(md, VE_VADJ1, pq_cfg.vadj1_en, vpp_index);
-			ve_vadj_ctl(md, VE_VADJ2, pq_cfg.vadj2_en, vpp_index);
+			if (pq_cfg_cur.vadj1_en != pq_cfg.vadj1_en) {
+				pq_cfg_cur.vadj1_en = pq_cfg.vadj1_en;
+				ve_vadj_ctl(md, VE_VADJ1, pq_cfg.vadj1_en, vpp_index);
+			}
+			if (pq_cfg_cur.vadj2_en != pq_cfg.vadj2_en) {
+				pq_cfg_cur.vadj2_en = pq_cfg.vadj2_en;
+				ve_vadj_ctl(md, VE_VADJ2, pq_cfg.vadj2_en, vpp_index);
+			}
 			ve_bs_ctl(md, 0, vpp_index);
-			ve_ble_ctl(md, pq_cfg.black_ext_en, vpp_index);
-			ve_cc_ctl(md, pq_cfg.chroma_cor_en, vpp_index);
-			post_wb_ctl(md, pq_cfg.wb_en, vpp_index);
+			if (pq_cfg_cur.black_ext_en != pq_cfg.black_ext_en) {
+				pq_cfg_cur.black_ext_en = pq_cfg.black_ext_en;
+				ve_ble_ctl(md, pq_cfg.black_ext_en, vpp_index);
+			}
+			if (pq_cfg_cur.chroma_cor_en != pq_cfg.chroma_cor_en) {
+				pq_cfg_cur.chroma_cor_en = pq_cfg.chroma_cor_en;
+				ve_cc_ctl(md, pq_cfg.chroma_cor_en, vpp_index);
+			}
+			if (pq_cfg_cur.wb_en != pq_cfg.wb_en) {
+				pq_cfg_cur.wb_en = pq_cfg.wb_en;
+				post_wb_ctl(md, pq_cfg.wb_en, vpp_index);
+			}
 
 			if (chip_type_id == chip_t3x) {
 				wb_en = pq_cfg.wb_en;
-
-				gamma_en = pq_cfg.gamma_en;
-				if (gamma_en)
-					vpp_enable_lcd_gamma_table(0, 0, vpp_index);
-				else
-					vpp_disable_lcd_gamma_table(0, 0, vpp_index);
-
-				if (pq_cfg.lc_en)
-					lc_en = 1;
-				else
-					lc_en = 0;
-
-				ve_sharpness_ctl(md, pq_cfg.sharpness0_en,
-					pq_cfg.sharpness1_en, vpp_index);
+				if (pq_cfg_cur.gamma_en != pq_cfg.gamma_en) {
+					pq_cfg_cur.gamma_en = pq_cfg.gamma_en;
+					gamma_en = pq_cfg.gamma_en;
+					if (gamma_en)
+						vpp_enable_lcd_gamma_table(0, 0, vpp_index);
+					else
+						vpp_disable_lcd_gamma_table(0, 0, vpp_index);
+				}
+				if (pq_cfg_cur.lc_en != pq_cfg.lc_en) {
+					pq_cfg_cur.lc_en = pq_cfg.lc_en;
+					if (pq_cfg.lc_en)
+						lc_en = 1;
+					else
+						lc_en = 0;
+				}
+				if (pq_cfg_cur.sharpness0_en != pq_cfg.sharpness0_en ||
+					pq_cfg_cur.sharpness1_en != pq_cfg.sharpness1_en) {
+					pq_cfg_cur.sharpness0_en = pq_cfg.sharpness0_en;
+					pq_cfg_cur.sharpness1_en = pq_cfg.sharpness1_en;
+					ve_sharpness_ctl(md, pq_cfg.sharpness0_en,
+						pq_cfg.sharpness1_en, vpp_index);
+				}
 			} else {
-				WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
-					pq_cfg.sharpness0_en, 1, 1);
-				WRITE_VPP_REG_BITS(SRSHARP1_PK_NR_ENABLE,
-					pq_cfg.sharpness1_en, 1, 1);
+				if (pq_cfg_cur.sharpness0_en != pq_cfg.sharpness0_en) {
+					pq_cfg_cur.sharpness0_en = pq_cfg.sharpness0_en;
+					WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
+						pq_cfg.sharpness0_en, 1, 1);
+				}
+				if (pq_cfg_cur.sharpness1_en != pq_cfg.sharpness1_en) {
+					pq_cfg_cur.sharpness1_en = pq_cfg.sharpness1_en;
+					WRITE_VPP_REG_BITS(SRSHARP1_PK_NR_ENABLE,
+						pq_cfg.sharpness1_en, 1, 1);
+				}
 			}
 		} else {
-			WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
-				pq_cfg.sharpness0_en, 1, 1);
-
-			if (chip_type_id != chip_txhd2)
-				WRITE_VPP_REG_BITS(SRSHARP1_PK_NR_ENABLE,
-					pq_cfg.sharpness1_en, 1, 1);
+			if (pq_cfg_cur.sharpness0_en != pq_cfg.sharpness0_en) {
+				pq_cfg_cur.sharpness0_en = pq_cfg.sharpness0_en;
+				WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
+					pq_cfg.sharpness0_en, 1, 1);
+			}
+			if (pq_cfg_cur.sharpness1_en != pq_cfg.sharpness1_en) {
+				pq_cfg_cur.sharpness1_en = pq_cfg.sharpness1_en;
+				if (chip_type_id != chip_txhd2)
+					WRITE_VPP_REG_BITS(SRSHARP1_PK_NR_ENABLE,
+						pq_cfg.sharpness1_en, 1, 1);
+			}
 #endif
-			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-				WRITE_VPP_REG_BITS(VPP_VADJ1_MISC,
-					pq_cfg.vadj1_en, 0, 1);
-			else
-				WRITE_VPP_REG_BITS(VPP_VADJ_CTRL,
-					pq_cfg.vadj1_en, 0, 1);
-
-			WRITE_VPP_REG_BITS(VPP_VD1_RGB_CTRST,
-				pq_cfg.vd1_ctrst_en, 1, 1);
-
-			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-				WRITE_VPP_REG_BITS(VPP_VADJ2_MISC,
-					pq_cfg.vadj2_en, 0, 1);
-			else
-				WRITE_VPP_REG_BITS(VPP_VADJ_CTRL,
-					pq_cfg.vadj2_en, 2, 1);
-
-			WRITE_VPP_REG_BITS(VPP_POST_RGB_CTRST,
-				pq_cfg.post_ctrst_en, 1, 1);
-
-			amvecm_wb_enable(pq_cfg.wb_en);
-
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-			gamma_en = pq_cfg.gamma_en;
-			if (gamma_en)
-				vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;
-			else
-				vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;
-
-			if (pq_cfg.lc_en) {
-				lc_en = 1;
-			} else {
-				lc_en = 0;
-				if (is_meson_tl1_cpu() ||
-					is_meson_tm2_cpu())
-					lc_disable(0, vpp_index);
+			if (pq_cfg_cur.vadj1_en != pq_cfg.vadj1_en) {
+				pq_cfg_cur.vadj1_en = pq_cfg.vadj1_en;
+				if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+					WRITE_VPP_REG_BITS(VPP_VADJ1_MISC,
+						pq_cfg.vadj1_en, 0, 1);
+				else
+					WRITE_VPP_REG_BITS(VPP_VADJ_CTRL,
+						pq_cfg.vadj1_en, 0, 1);
 			}
 
-			WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
-				pq_cfg.black_ext_en, 3, 1);
+			if (pq_cfg_cur.vd1_ctrst_en != pq_cfg.vd1_ctrst_en) {
+				pq_cfg_cur.vd1_ctrst_en = pq_cfg.vd1_ctrst_en;
+				WRITE_VPP_REG_BITS(VPP_VD1_RGB_CTRST,
+					pq_cfg.vd1_ctrst_en, 1, 1);
+			}
 
-			WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
-				pq_cfg.chroma_cor_en, 4, 1);
-
+			if (pq_cfg_cur.vadj2_en != pq_cfg.vadj2_en) {
+				pq_cfg_cur.vadj2_en = pq_cfg.vadj2_en;
+				if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+					WRITE_VPP_REG_BITS(VPP_VADJ2_MISC,
+						pq_cfg.vadj2_en, 0, 1);
+				else
+					WRITE_VPP_REG_BITS(VPP_VADJ_CTRL,
+						pq_cfg.vadj2_en, 2, 1);
+			}
+			if (pq_cfg_cur.post_ctrst_en != pq_cfg.post_ctrst_en) {
+				pq_cfg_cur.post_ctrst_en = pq_cfg.post_ctrst_en;
+				WRITE_VPP_REG_BITS(VPP_POST_RGB_CTRST,
+					pq_cfg.post_ctrst_en, 1, 1);
+			}
+			if (pq_cfg_cur.wb_en != pq_cfg.wb_en) {
+				pq_cfg_cur.wb_en = pq_cfg.wb_en;
+				amvecm_wb_enable(pq_cfg.wb_en);
+			}
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			if (pq_cfg_cur.gamma_en != pq_cfg.gamma_en) {
+				pq_cfg_cur.gamma_en = pq_cfg.gamma_en;
+				gamma_en = pq_cfg.gamma_en;
+				if (gamma_en)
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;
+				else
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;
+			}
+			if (pq_cfg_cur.lc_en != pq_cfg.lc_en) {
+				pq_cfg_cur.lc_en = pq_cfg.lc_en;
+				if (pq_cfg.lc_en) {
+					lc_en = 1;
+				} else {
+					lc_en = 0;
+					if (is_meson_tl1_cpu() ||
+						is_meson_tm2_cpu())
+						lc_disable(0, vpp_index);
+				}
+			}
+			if (pq_cfg_cur.black_ext_en != pq_cfg.black_ext_en) {
+				pq_cfg_cur.black_ext_en = pq_cfg.black_ext_en;
+				WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
+					pq_cfg.black_ext_en, 3, 1);
+			}
+			if (pq_cfg_cur.chroma_cor_en != pq_cfg.chroma_cor_en) {
+				pq_cfg_cur.chroma_cor_en = pq_cfg.chroma_cor_en;
+				WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
+					pq_cfg.chroma_cor_en, 4, 1);
+			}
 			/*blue stretch*/
 			if (chip_type_id == chip_txhd2)
 				WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
@@ -3301,111 +3360,169 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md, int vpp_index)
 		break;
 	case WR_DMA:
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (pq_cfg.dnlp_en) {
-			ve_enable_dnlp();
-			dnlp_en = 1;
-		} else {
-			ve_disable_dnlp();
-			dnlp_en = 0;
+		if (pq_cfg_cur.dnlp_en != pq_cfg.dnlp_en) {
+			pq_cfg_cur.dnlp_en = pq_cfg.dnlp_en;
+			if (pq_cfg.dnlp_en) {
+				ve_enable_dnlp();
+				dnlp_en = 1;
+			} else {
+				ve_disable_dnlp();
+				dnlp_en = 0;
+			}
 		}
-
-		if (pq_cfg.cm_en) {
-			amcm_enable(WR_DMA, vpp_index);
-			cm_en = 1;
-		} else {
-			amcm_disable(WR_DMA, vpp_index);
-			cm_en = 0;
+		if (pq_cfg_cur.cm_en != pq_cfg.cm_en) {
+			pq_cfg_cur.cm_en = pq_cfg.cm_en;
+			if (pq_cfg.cm_en) {
+				amcm_enable(WR_DMA, vpp_index);
+				cm_en = 1;
+			} else {
+				amcm_disable(WR_DMA, vpp_index);
+				cm_en = 0;
+			}
 		}
 
 		if (chip_type_id == chip_s5 ||
 			chip_type_id == chip_t3x) {
-			ve_vadj_ctl(md, VE_VADJ1, pq_cfg.vadj1_en, vpp_index);
-			ve_vadj_ctl(md, VE_VADJ2, pq_cfg.vadj2_en, vpp_index);
+			if (pq_cfg_cur.vadj1_en != pq_cfg.vadj1_en) {
+				pq_cfg_cur.vadj1_en = pq_cfg.vadj1_en;
+				ve_vadj_ctl(md, VE_VADJ1, pq_cfg.vadj1_en, vpp_index);
+			}
+			if (pq_cfg_cur.vadj2_en != pq_cfg.vadj2_en) {
+				pq_cfg_cur.vadj2_en = pq_cfg.vadj2_en;
+				ve_vadj_ctl(md, VE_VADJ2, pq_cfg.vadj2_en, vpp_index);
+			}
 			ve_bs_ctl(md, 0, vpp_index);
-			ve_ble_ctl(md, pq_cfg.black_ext_en, vpp_index);
-			ve_cc_ctl(md, pq_cfg.chroma_cor_en, vpp_index);
-			post_wb_ctl(md, pq_cfg.wb_en, vpp_index);
+			if (pq_cfg_cur.black_ext_en != pq_cfg.black_ext_en) {
+				pq_cfg_cur.black_ext_en = pq_cfg.black_ext_en;
+				ve_ble_ctl(md, pq_cfg.black_ext_en, vpp_index);
+			}
+			if (pq_cfg_cur.chroma_cor_en != pq_cfg.chroma_cor_en) {
+				pq_cfg_cur.chroma_cor_en = pq_cfg.chroma_cor_en;
+				ve_cc_ctl(md, pq_cfg.chroma_cor_en, vpp_index);
+			}
+			if (pq_cfg_cur.wb_en != pq_cfg.wb_en) {
+				pq_cfg_cur.wb_en = pq_cfg.wb_en;
+				post_wb_ctl(md, pq_cfg.wb_en, vpp_index);
+			}
 
 			if (chip_type_id == chip_t3x) {
-				gamma_en = pq_cfg.gamma_en;
-				if (gamma_en)
-					vpp_enable_lcd_gamma_table(0, 1, vpp_index);
-				else
-					vpp_disable_lcd_gamma_table(0, 1, vpp_index);
-
-				if (pq_cfg.lc_en)
-					lc_en = 1;
-				else
-					lc_en = 0;
-
-				ve_sharpness_ctl(md, pq_cfg.sharpness0_en,
-					pq_cfg.sharpness1_en, vpp_index);
+				wb_en = pq_cfg.wb_en;
+				if (pq_cfg_cur.gamma_en != pq_cfg.gamma_en) {
+					pq_cfg_cur.gamma_en = pq_cfg.gamma_en;
+					gamma_en = pq_cfg.gamma_en;
+					if (gamma_en)
+						vpp_enable_lcd_gamma_table(0, 1, vpp_index);
+					else
+						vpp_disable_lcd_gamma_table(0, 1, vpp_index);
+				}
+				if (pq_cfg_cur.lc_en != pq_cfg.lc_en) {
+					pq_cfg_cur.lc_en = pq_cfg.lc_en;
+					if (pq_cfg.lc_en)
+						lc_en = 1;
+					else
+						lc_en = 0;
+				}
+				if (pq_cfg_cur.sharpness0_en != pq_cfg.sharpness0_en ||
+					pq_cfg_cur.sharpness1_en != pq_cfg.sharpness1_en) {
+					pq_cfg_cur.sharpness0_en = pq_cfg.sharpness0_en;
+					pq_cfg_cur.sharpness1_en = pq_cfg.sharpness1_en;
+					ve_sharpness_ctl(md, pq_cfg.sharpness0_en,
+						pq_cfg.sharpness1_en, vpp_index);
+				}
 			} else {
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_PK_NR_ENABLE,
-					pq_cfg.sharpness0_en, 1, 1, vpp_index);
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_PK_NR_ENABLE,
-					pq_cfg.sharpness1_en, 1, 1, vpp_index);
+				if (pq_cfg_cur.sharpness0_en != pq_cfg.sharpness0_en) {
+					pq_cfg_cur.sharpness0_en = pq_cfg.sharpness0_en;
+					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_PK_NR_ENABLE,
+						pq_cfg.sharpness0_en, 1, 1, vpp_index);
+				}
+				if (pq_cfg_cur.sharpness1_en != pq_cfg.sharpness1_en) {
+					pq_cfg_cur.sharpness1_en = pq_cfg.sharpness1_en;
+					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_PK_NR_ENABLE,
+						pq_cfg.sharpness1_en, 1, 1, vpp_index);
+				}
 			}
 		} else {
-			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_PK_NR_ENABLE,
-				pq_cfg.sharpness0_en, 1, 1, vpp_index);
-
-			if (chip_type_id != chip_txhd2)
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_PK_NR_ENABLE,
-					pq_cfg.sharpness1_en, 1, 1, vpp_index);
+			if (pq_cfg_cur.sharpness0_en != pq_cfg.sharpness0_en) {
+				pq_cfg_cur.sharpness0_en = pq_cfg.sharpness0_en;
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP0_PK_NR_ENABLE,
+					pq_cfg.sharpness0_en, 1, 1, vpp_index);
+			}
+			if (pq_cfg_cur.sharpness1_en != pq_cfg.sharpness1_en) {
+				pq_cfg_cur.sharpness1_en = pq_cfg.sharpness1_en;
+				if (chip_type_id != chip_txhd2)
+					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(SRSHARP1_PK_NR_ENABLE,
+						pq_cfg.sharpness1_en, 1, 1, vpp_index);
+			}
 #endif
-
-			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ1_MISC,
-					pq_cfg.vadj1_en, 0, 1, vpp_index);
-			else
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ_CTRL,
-					pq_cfg.vadj1_en, 0, 1, vpp_index);
-
-			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VD1_RGB_CTRST,
-				pq_cfg.vd1_ctrst_en, 1, 1, vpp_index);
-
-			if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ2_MISC,
-					pq_cfg.vadj2_en, 0, 1, vpp_index);
-			else
-				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ_CTRL,
-					pq_cfg.vadj2_en, 2, 1, vpp_index);
-
-			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_POST_RGB_CTRST,
-				pq_cfg.post_ctrst_en, 1, 1, vpp_index);
-
-			amvecm_wb_enable(pq_cfg.wb_en);
-
+			if (pq_cfg_cur.vadj1_en != pq_cfg.vadj1_en) {
+				pq_cfg_cur.vadj1_en = pq_cfg.vadj1_en;
+				if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ1_MISC,
+						pq_cfg.vadj1_en, 0, 1, vpp_index);
+				else
+					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ_CTRL,
+						pq_cfg.vadj1_en, 0, 1, vpp_index);
+			}
+			if (pq_cfg_cur.vd1_ctrst_en != pq_cfg.vd1_ctrst_en) {
+				pq_cfg_cur.vd1_ctrst_en = pq_cfg.vd1_ctrst_en;
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VD1_RGB_CTRST,
+					pq_cfg.vd1_ctrst_en, 1, 1, vpp_index);
+			}
+			if (pq_cfg_cur.vadj2_en != pq_cfg.vadj2_en) {
+				pq_cfg_cur.vadj2_en = pq_cfg.vadj2_en;
+				if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ2_MISC,
+						pq_cfg.vadj2_en, 0, 1, vpp_index);
+				else
+					VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VADJ_CTRL,
+						pq_cfg.vadj2_en, 2, 1, vpp_index);
+			}
+			if (pq_cfg_cur.post_ctrst_en != pq_cfg.post_ctrst_en) {
+				pq_cfg_cur.post_ctrst_en = pq_cfg.post_ctrst_en;
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_POST_RGB_CTRST,
+					pq_cfg.post_ctrst_en, 1, 1, vpp_index);
+			}
+			if (pq_cfg_cur.wb_en != pq_cfg.wb_en) {
+				pq_cfg_cur.wb_en = pq_cfg.wb_en;
+				amvecm_wb_enable(pq_cfg.wb_en);
+			}
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-			gamma_en = pq_cfg.gamma_en;
-			if (gamma_en) {
-				if (is_meson_t7_cpu())
-					vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;
-				else
-					vpp_enable_lcd_gamma_table(0, 1, vpp_index);
-			} else {
-				if (is_meson_t7_cpu())
-					vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;
-				else
-					vpp_disable_lcd_gamma_table(0, 1, vpp_index);
+			if (pq_cfg_cur.gamma_en != pq_cfg.gamma_en) {
+				pq_cfg_cur.gamma_en = pq_cfg.gamma_en;
+				gamma_en = pq_cfg.gamma_en;
+				if (gamma_en) {
+					if (is_meson_t7_cpu())
+						vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;
+					else
+						vpp_enable_lcd_gamma_table(0, 1, vpp_index);
+				} else {
+					if (is_meson_t7_cpu())
+						vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;
+					else
+						vpp_disable_lcd_gamma_table(0, 1, vpp_index);
+				}
 			}
-
-			if (pq_cfg.lc_en) {
-				lc_en = 1;
-			} else {
-				lc_en = 0;
-				if (is_meson_tl1_cpu() ||
-					is_meson_tm2_cpu())
-					lc_disable(0, vpp_index);
+			if (pq_cfg_cur.lc_en != pq_cfg.lc_en) {
+				pq_cfg_cur.lc_en = pq_cfg.lc_en;
+				if (pq_cfg.lc_en) {
+					lc_en = 1;
+				} else {
+					lc_en = 0;
+					if (is_meson_tl1_cpu() ||
+						is_meson_tm2_cpu())
+						lc_disable(0, vpp_index);
+				}
 			}
-
-			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VE_ENABLE_CTRL,
-				pq_cfg.black_ext_en, 3, 1, vpp_index);
-
-			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VE_ENABLE_CTRL,
-				pq_cfg.chroma_cor_en, 4, 1, vpp_index);
-
+			if (pq_cfg_cur.black_ext_en != pq_cfg.black_ext_en) {
+				pq_cfg_cur.black_ext_en = pq_cfg.black_ext_en;
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VE_ENABLE_CTRL,
+					pq_cfg.black_ext_en, 3, 1, vpp_index);
+			}
+			if (pq_cfg_cur.chroma_cor_en != pq_cfg.chroma_cor_en) {
+				pq_cfg_cur.chroma_cor_en = pq_cfg.chroma_cor_en;
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VE_ENABLE_CTRL,
+					pq_cfg.chroma_cor_en, 4, 1, vpp_index);
+			}
 			/*blue stretch*/
 			if (chip_type_id == chip_txhd2)
 				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VE_ENABLE_CTRL,
@@ -3536,9 +3653,19 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl)
 			    dv_pq_bypass);
 		break;
 	case DV_PQ_STB_BYPASS:
-		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
 		cfg.sharpness0_en = pq_cfg.sharpness0_en;
 		cfg.sharpness1_en = pq_cfg.sharpness1_en;
+		cfg.dnlp_en = dv_cfg_bypass.dnlp_en;
+		cfg.cm_en = dv_cfg_bypass.cm_en;
+		cfg.vadj1_en = dv_cfg_bypass.vadj1_en;
+		cfg.vd1_ctrst_en = dv_cfg_bypass.vd1_ctrst_en;
+		cfg.vadj2_en = dv_cfg_bypass.vadj2_en;
+		cfg.post_ctrst_en = dv_cfg_bypass.post_ctrst_en;
+		cfg.wb_en = dv_cfg_bypass.wb_en;
+		cfg.gamma_en = dv_cfg_bypass.gamma_en;
+		cfg.lc_en = dv_cfg_bypass.lc_en;
+		cfg.black_ext_en = dv_cfg_bypass.black_ext_en;
+		cfg.chroma_cor_en = dv_cfg_bypass.chroma_cor_en;
 		vpp_pq_ctrl_config(cfg, WR_DMA, vpp_index);
 		eye_proc(eye_protect.mtx_ep, 0, vpp_index);
 		dv_pq_bypass = 2;
@@ -3630,6 +3757,7 @@ int mtx_multi(int mtx_ep[][4], int (*mtx_out)[3])
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 void eye_proc(int mtx_ep[][4], int mtx_on, int vpp_index)
 {
+	unsigned int temp;
 	unsigned int matrix_coef00_01 = 0;
 	unsigned int matrix_coef02_10 = 0;
 	unsigned int matrix_coef11_12 = 0;
@@ -3671,7 +3799,9 @@ void eye_proc(int mtx_ep[][4], int mtx_on, int vpp_index)
 	matrix_pre_offset2 = VPP_POST_MATRIX_PRE_OFFSET2;
 	matrix_en_ctrl = VPP_POST_MATRIX_EN_CTRL;
 
-	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_POST_MATRIX_EN_CTRL, mtx_on, 0, 1, vpp_index);
+	temp = VSYNC_READ_VPP_REG(matrix_en_ctrl);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_en_ctrl,
+		(temp & 0xfffffffe) | (mtx_on & 0x1), vpp_index);
 
 	if (!mtx_on)
 		return;
