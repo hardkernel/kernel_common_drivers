@@ -59,6 +59,7 @@ struct tl1_acodec_priv {
 	struct reset_control *rst;
 	int diff_output;
 	int diff_input;
+	int use_vadtop;
 	int dac_extra_gain;
 	int dac_output_invert;
 	int lane_offset;
@@ -613,6 +614,8 @@ static const struct snd_soc_dapm_route tl1_acodec_dapm_routes[] = {
 static int tl1_acodec_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_component *component = dai->component;
+	struct tl1_acodec_priv *aml_acodec =
+	    snd_soc_component_get_drvdata(component);
 	u32 val = snd_soc_component_read(component, ACODEC_0);
 
 	pr_debug("%s, format:%x, codec = %p\n", __func__, fmt, component);
@@ -620,6 +623,8 @@ static int tl1_acodec_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
 		val |= (0x1 << I2S_MODE);
+		if (aml_acodec && aml_acodec->use_vadtop == 1)
+			snd_soc_component_update_bits(component, ACODEC_4, 0x1 << 4, 0x1 << 4);
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
 		val &= ~(0x1 << I2S_MODE);
@@ -1134,6 +1139,11 @@ static int aml_tl1_acodec_probe(struct platform_device *pdev)
 			(pdev->dev.of_node,
 			"diff_input",
 			&aml_acodec->diff_input);
+
+	of_property_read_u32
+			(pdev->dev.of_node,
+			"use_vadtop",
+			&aml_acodec->use_vadtop);
 
 	of_property_read_u32
 			(pdev->dev.of_node,

@@ -760,7 +760,7 @@ void aml_update_tdmin_src(struct aml_audio_controller *actrl,
 	unsigned int reg, offset;
 	if (use_vadtop) {
 		reg = EE_AUDIO2_TDMIN_VAD_CTRL;
-		vad_top_update_bits(reg, 0xf << 20, 0 << 20);
+		vad_top_update_bits(reg, 0xf << 20, in_src << 20);
 	} else {
 		if (index == 3) {
 			reg = EE_AUDIO_TDMIN_D_CTRL;
