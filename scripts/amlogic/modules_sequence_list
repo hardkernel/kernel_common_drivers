@@ -52,11 +52,10 @@ VENDOR_MODULES_LOAD_FIRST_LIST=(
 	amlogic-crypto-dma
 	amlogic-usb.ko
 	amlogic-wireless.ko
-	amlogic_pcie_v2_host.ko
-	amlogic-pcie-v3_host.ko
 )
 
 VENDOR_MODULES_LOAD_LAST_LIST=(
+	amlogic-pcie.ko
 )
 
 RECOVERY_MODULES_LOAD_LIST=(

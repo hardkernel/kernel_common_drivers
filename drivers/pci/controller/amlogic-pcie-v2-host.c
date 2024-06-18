@@ -44,9 +44,9 @@
 #define PCIE_SHARED_RESET		1
 #define PCIE_NORMAL_RESET		0
 
-static int link_times = WAIT_LINKUP_TIMEOUT - 10;
-module_param(link_times, int, 0644);
-MODULE_PARM_DESC(link_times, "select pcie link speed ");
+static int link_times_v2 = WAIT_LINKUP_TIMEOUT - 10;
+module_param(link_times_v2, int, 0644);
+MODULE_PARM_DESC(link_times_v2, "select pcie link times");
 
 enum pcie_phy_type {
 	DW_PHY,
@@ -689,7 +689,7 @@ static int amlogic_pcie_start_link(struct dw_pcie *pci)
 		if (cnt > WAIT_LINKUP_TIMEOUT) {
 			dev_err(dev, "Error: Wait linkup timeout. Pls check pcie device\n");
 			goto err_linkup;
-		} else if (unlikely(cnt >= link_times)) {
+		} else if (unlikely(cnt >= link_times_v2)) {
 			dev_info(dev, "ltssm_up = 0x%x\n", ((state12 >> 10) & 0x1f));
 		}
 
@@ -904,7 +904,7 @@ static void amlogic_pcie_shutdown(struct platform_device *pdev)
 	amlogic_pcie_phy_power_off(aml_pcie);
 }
 
-static const struct of_device_id amlogic_pcie_of_match[] = {
+static const struct of_device_id amlogic_pcie_v2_of_match[] = {
 	{
 		.compatible = "amlogic, amlogic-pcie-v2",
 	},
@@ -913,23 +913,35 @@ static const struct of_device_id amlogic_pcie_of_match[] = {
 	},
 	{}
 };
-MODULE_DEVICE_TABLE(of, amlogic_pcie_of_match);
+MODULE_DEVICE_TABLE(of, amlogic_pcie_v2_of_match);
 
-static struct platform_driver amlogic_pcie_driver = {
+static struct platform_driver amlogic_pcie_v2_driver = {
 	.probe = amlogic_pcie_probe,
 	.remove = amlogic_pcie_remove,
 	.driver = {
 		.suppress_bind_attrs = true,
 		.name = "amlogic-pcie-v2",
-		.of_match_table = amlogic_pcie_of_match,
+		.of_match_table = amlogic_pcie_v2_of_match,
 		.pm = &aml_pcie_pm_ops,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.shutdown = amlogic_pcie_shutdown,
 };
 
-module_platform_driver(amlogic_pcie_driver);
+int __init aml_pcie_rc_v2_init(void)
+{
+	return platform_driver_register(&amlogic_pcie_v2_driver);
+}
 
-MODULE_AUTHOR("Amlogic Inc.");
-MODULE_DESCRIPTION("Amlogic PCIe Controller driver");
-MODULE_LICENSE("GPL v2");
+void __exit aml_pcie_rc_v2_exit(void)
+{
+	platform_driver_unregister(&amlogic_pcie_v2_driver);
+}
+
+/*
+ * module_platform_driver(amlogic_pcie_driver);
+ *
+ * MODULE_AUTHOR("Amlogic Inc.");
+ * MODULE_DESCRIPTION("Amlogic PCIe Controller driver");
+ * MODULE_LICENSE("GPL v2");
+ */
