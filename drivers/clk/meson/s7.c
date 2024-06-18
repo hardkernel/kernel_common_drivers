@@ -1532,34 +1532,6 @@ MESON_CLK_COMPOSITE_RW(pwm_f, CLKCTRL_PWM_CLK_EF_CTRL, 0x3, 25,
 		       CLKCTRL_PWM_CLK_EF_CTRL, 24,
 		       0, CLK_SET_RATE_PARENT);
 
-MESON_CLK_COMPOSITE_RW(pwm_g, CLKCTRL_PWM_CLK_GH_CTRL, 0x3, 9,
-		       pwm_parent_table, 0, pwm_parent_data, 0,
-		       CLKCTRL_PWM_CLK_GH_CTRL, 0, 8, NULL,
-		       0, CLK_SET_RATE_PARENT,
-		       CLKCTRL_PWM_CLK_GH_CTRL, 8,
-		       0, CLK_SET_RATE_PARENT);
-
-MESON_CLK_COMPOSITE_RW(pwm_h, CLKCTRL_PWM_CLK_GH_CTRL, 0x3, 25,
-		       pwm_parent_table, 0, pwm_parent_data, 0,
-		       CLKCTRL_PWM_CLK_GH_CTRL, 16, 8, NULL,
-		       0, CLK_SET_RATE_PARENT,
-		       CLKCTRL_PWM_CLK_GH_CTRL, 24,
-		       0, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
-
-MESON_CLK_COMPOSITE_RW(pwm_i, CLKCTRL_PWM_CLK_IJ_CTRL, 0x3, 9,
-		       pwm_parent_table, 0, pwm_parent_data, 0,
-		       CLKCTRL_PWM_CLK_IJ_CTRL, 0, 8, NULL,
-		       0, CLK_SET_RATE_PARENT,
-		       CLKCTRL_PWM_CLK_IJ_CTRL, 8,
-		       0, CLK_SET_RATE_PARENT);
-
-MESON_CLK_COMPOSITE_RW(pwm_j, CLKCTRL_PWM_CLK_IJ_CTRL, 0x3, 25,
-		       pwm_parent_table, 0, pwm_parent_data, 0,
-		       CLKCTRL_PWM_CLK_IJ_CTRL, 16, 8, NULL,
-		       0, CLK_SET_RATE_PARENT,
-		       CLKCTRL_PWM_CLK_IJ_CTRL, 24,
-		       0, CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED);
-
 /*cts_sar_adc_clk*/
 static const struct clk_parent_data sar_adc_parent_data[] = {
 	{ .fw_name = "xtal", },
@@ -1896,18 +1868,6 @@ static struct clk_hw_onecell_data s7_hw_onecell_data = {
 		[CLKID_PWM_F_SEL]		= &pwm_f_sel.hw,
 		[CLKID_PWM_F_DIV]		= &pwm_f_div.hw,
 		[CLKID_PWM_F]			= &pwm_f.hw,
-		[CLKID_PWM_G_SEL]		= &pwm_g_sel.hw,
-		[CLKID_PWM_G_DIV]		= &pwm_g_div.hw,
-		[CLKID_PWM_G]			= &pwm_g.hw,
-		[CLKID_PWM_H_SEL]		= &pwm_h_sel.hw,
-		[CLKID_PWM_H_DIV]		= &pwm_h_div.hw,
-		[CLKID_PWM_H]			= &pwm_h.hw,
-		[CLKID_PWM_I_SEL]		= &pwm_i_sel.hw,
-		[CLKID_PWM_I_DIV]		= &pwm_i_div.hw,
-		[CLKID_PWM_I]			= &pwm_i.hw,
-		[CLKID_PWM_J_SEL]		= &pwm_j_sel.hw,
-		[CLKID_PWM_J_DIV]		= &pwm_j_div.hw,
-		[CLKID_PWM_J]			= &pwm_j.hw,
 
 		[CLKID_SAR_ADC_SEL]		= &sar_adc_sel.hw,
 		[CLKID_SAR_ADC_DIV]		= &sar_adc_div.hw,
@@ -2163,18 +2123,6 @@ static struct clk_regmap *const s7_clk_regmaps[] = {
 	&pwm_f_sel,
 	&pwm_f_div,
 	&pwm_f,
-	&pwm_g_sel,
-	&pwm_g_div,
-	&pwm_g,
-	&pwm_h_sel,
-	&pwm_h_div,
-	&pwm_h,
-	&pwm_i_sel,
-	&pwm_i_div,
-	&pwm_i,
-	&pwm_j_sel,
-	&pwm_j_div,
-	&pwm_j,
 
 	&sar_adc_sel,
 	&sar_adc_div,
