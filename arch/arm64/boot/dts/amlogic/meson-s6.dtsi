@@ -2057,12 +2057,12 @@
 		clock-names = "vpu_clkc";
 	};
 
-	irblaster: meson-irblaster@fe08410c {
+	irblaster: meson-irblaster@fe08414c {
 		compatible = "amlogic, meson_irblaster";
 		status = "disabled";
-		reg = <0x0 0xfe08410c 0x0 0x10>;
+		reg = <0x0 0xfe08414c 0x0 0x10>;
 		#irblaster-cells = <2>;
-		interrupts = <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 81 IRQ_TYPE_EDGE_RISING>;
 	};
 
 	/*if you want to use vdin just modify status to "ok"*/
@@ -3269,10 +3269,31 @@
 		};
 	};
 
-	irblaster_pins:irblaster_pin {
+	irblaster_pin_f:irblaster_pin_f {
 		mux {
-			groups = "remote_out";
-			function = "remote_out";
+			groups = "ir_remote_out_f";
+			function = "ir_remote";
+		};
+	};
+
+	irblaster_pin_h:irblaster_pin_h {
+		mux {
+			groups = "ir_remote_out_h";
+			function = "ir_remote";
+		};
+	};
+
+	irblaster_pin_z:irblaster_pin_z {
+		mux {
+			groups = "ir_remote_out_z";
+			function = "ir_remote";
+		};
+	};
+
+	irblaster_pin_a:irblaster_pin_a {
+		mux {
+			groups = "ir_remote_out_a";
+			function = "ir_remote";
 		};
 	};
 
