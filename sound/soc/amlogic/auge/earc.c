@@ -718,11 +718,9 @@ static void earctx_update_attend_event(struct earc *p_earc,
 		if (is_earc) {
 			if (p_earc->tx_arc_status != ATNDTYP_EARC) {
 				p_earc->earctx_connected_device_type = ATNDTYP_EARC;
-				if (p_earc->tx_dmac_clk_on) {
-					earctx_dmac_force_mode(p_earc->tx_dmac_map, false);
+				if (p_earc->tx_dmac_clk_on)
 					earctx_compressed_enable(p_earc->tx_dmac_map,
 						ATNDTYP_EARC, p_earc->tx_audio_coding_type, true);
-				}
 				send = true;
 				p_earc->tx_arc_status = ATNDTYP_EARC;
 			}
@@ -731,11 +729,9 @@ static void earctx_update_attend_event(struct earc *p_earc,
 			if (p_earc->earctx_connected_device_type != ATNDTYP_EARC)
 				p_earc->earctx_connected_device_type = ATNDTYP_ARC;
 			if (earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_ARC) {
-				if (p_earc->tx_dmac_clk_on) {
-					earctx_dmac_force_mode(p_earc->tx_dmac_map, false);
+				if (p_earc->tx_dmac_clk_on)
 					earctx_compressed_enable(p_earc->tx_dmac_map,
 						ATNDTYP_ARC, p_earc->tx_audio_coding_type, true);
-				}
 				send = true;
 				p_earc->tx_arc_status = ATNDTYP_ARC;
 			}
@@ -747,6 +743,9 @@ static void earctx_update_attend_event(struct earc *p_earc,
 			p_earc->tx_arc_status = ATNDTYP_DISCNCT;
 		}
 	}
+
+	if (p_earc->tx_dmac_clk_on)
+		earctx_dmac_force_mode(p_earc->tx_dmac_map, false);
 	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
 
 	if (send) {
