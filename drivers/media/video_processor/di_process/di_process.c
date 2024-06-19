@@ -1250,6 +1250,20 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		return 0;
 	}
 
+	/*lcevc no need do di*/
+	if (vf->type_ext & VIDTYPE_EXT_LCEVC) {
+		dp_print(dev->index, PRINT_OTHER, "lcevc mode,no need do di.\n");
+		frame_info->out_fd = -1;
+		frame_info->out_fence_fd = -1;
+		frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
+		frame_info->omx_index = vf->omx_index;
+		frame_info->need_bypass = true;
+		dev->last_file = file_vf;
+
+		dp_put_file(dev, file_vf);
+		return 0;
+	}
+
 	/*vf need check tvp switch*/
 	if (dev->last_vf.type == 0) {
 		if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) && !dev->di_is_tvp) {
