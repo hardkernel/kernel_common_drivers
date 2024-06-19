@@ -1258,7 +1258,7 @@
 		#sound-dai-cells = <0>;
 		reg = <0x30>;
 		status = "disabled";
-		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
+		reset_pin-gpios = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 	};
 	ad82128_c_31: ad82128_c_31@31 {
 		compatible = "ESMT,ad82128";

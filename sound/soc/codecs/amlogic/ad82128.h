@@ -26,6 +26,9 @@
 #define AD82128_VOLUME_CTRL_REG_CH1  0x04
 #define AD82128_VOLUME_CTRL_REG_CH2  0x05
 #define AD82128_STATE_CTRL5_REG	0x1A
+#define AD82128_MONO_KEY_HIGH 0X5b
+#define AD82128_MONO_KEY_LOW 0X5c
+
 
 #define CFADDR    0x1d
 #define A1CF1     0x1e
@@ -52,6 +55,9 @@
 
 /* AD82128_STATE_CTRL5_REG */
 #define AD82128_SW_RESET			BIT(5)
+
+/* AD82128 Subwoofer Config*/
+#define AD82128_Subwoofer   BIT(6)
 
 /* AD82128_ANALOG_CTRL_REG */
 #define AD82128_ANALOG_GAIN_15_5DBV	(0x0)
