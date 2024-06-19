@@ -9,14 +9,14 @@
  */
 
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM xhci-hcd
+#define TRACE_SYSTEM xhci-hcd-meson
 
 /*
  * The TRACE_SYSTEM_VAR defaults to TRACE_SYSTEM, but must be a
  * legitimate C variable. It is not exported to user space.
  */
 #undef TRACE_SYSTEM_VAR
-#define TRACE_SYSTEM_VAR xhci_hcd
+#define TRACE_SYSTEM_VAR xhci_hcd_meson
 
 #if !defined(__XHCI_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
 #define __XHCI_TRACE_H
