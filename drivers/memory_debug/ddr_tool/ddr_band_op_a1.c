@@ -79,6 +79,9 @@ static unsigned long a1_get_dmc_freq_quick(struct ddr_bandwidth *db)
 		pr_debug("%s, val:%lx, freq:%ld\n", __func__, val, freq);
 	}
 
+	db->dmc_freq = freq;
+	db->ddr_freq = freq * 2;
+
 	return freq;
 }
 

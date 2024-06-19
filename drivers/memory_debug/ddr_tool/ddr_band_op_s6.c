@@ -70,12 +70,12 @@ static void s6_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 
 static unsigned long s6_get_dmc_freq_quick(struct ddr_bandwidth *db)
 {
-	unsigned long freq;
+	db->ddr_freq = readl(db->pll_reg) * 1000000;
 
-	freq = readl(db->pll_reg) * 1000000;
-	freq = freq >> 1;
+	/* S6 dmc freq =  1/4 ddr freq */
+	db->dmc_freq = db->ddr_freq >> 2;
 
-	return freq;
+	return db->dmc_freq;
 }
 
 static void s6_dmc_bandwidth_enable(struct ddr_bandwidth *db)

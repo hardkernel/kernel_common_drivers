@@ -136,18 +136,17 @@ static void t5m_dmc_range_config(struct ddr_bandwidth *db, int channel,
 
 static unsigned long t5m_get_dmc_freq_quick(struct ddr_bandwidth *db)
 {
-	unsigned long freq;
-
-	freq = readl(db->pll_reg) * 1000000;
-	freq = freq >> 1;
+	db->ddr_freq = readl(db->pll_reg) * 1000000;
+	db->dmc_freq = db->ddr_freq >> 1;
 
 	if (db->soc_feature & DMC_ASYMMETRY) {
-		db->data_extern[0].freq = freq;
-		db->data_extern[1].freq = readl(db->freq_reg) * 1000000;
-		db->data_extern[1].freq = db->data_extern[1].freq >> 1;
+		db->data_extern[0].ddr_freq = db->ddr_freq;
+		db->data_extern[0].dmc_freq = db->dmc_freq;
+		db->data_extern[1].ddr_freq = readl(db->freq_reg) * 1000000;
+		db->data_extern[1].dmc_freq = db->data_extern[1].ddr_freq >> 1;
 	}
 
-	return freq;
+	return db->dmc_freq;
 }
 
 static void t5m_dmc_bandwidth_enable(struct ddr_bandwidth *db)

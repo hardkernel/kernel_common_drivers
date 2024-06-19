@@ -155,7 +155,7 @@ static void s6_dmc_vio_to_port(void *data, unsigned long *vio_bit)
 	if (port == 0x01 || port == 0x02 || port == 0x03)		//vpu
 		subport = mon_comm->status & 0xff;
 	if (port == 0x0e)						//device
-		subport = (((mon_comm->status >> 9) & 0x01) << 5) || (mon_comm->status & 0x1f);
+		subport = (((mon_comm->status >> 9) & 0x01) << 5) | (mon_comm->status & 0x1f);
 	if (port == 0x0d)						//vge
 		subport = mon_comm->status & 0x3;
 
