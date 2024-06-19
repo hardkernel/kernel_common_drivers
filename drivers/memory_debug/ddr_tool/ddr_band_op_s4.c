@@ -156,6 +156,9 @@ static unsigned long s4_get_dmc_freq_quick(struct ddr_bandwidth *db)
 	if (n)
 		freq = ((((freq * m) / n) >> od1) / od_div) * 1000;
 
+	db->dmc_freq = freq;
+	db->ddr_freq = freq * 2;
+
 	return freq;
 }
 

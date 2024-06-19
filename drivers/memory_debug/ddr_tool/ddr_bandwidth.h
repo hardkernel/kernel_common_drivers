@@ -20,7 +20,8 @@
 #define MAX_DMC_NUM			4
 
 /* for soc_feature */
-#define DMC_ASYMMETRY		BIT(4)
+#define DMC_ASYMMETRY		BIT(5)
+#define DDR_WIDTH_IS_64BIT	BIT(4)
 #define DDR_WIDTH_IS_16BIT	BIT(3)
 #define DDR_DEVICE_8BIT		BIT(2)
 #define PLL_IS_SEC		BIT(1)
@@ -148,7 +149,8 @@ struct ddr_avg_bandwidth {
 
 struct ddr_data_extern {
 	char data_bus_width;
-	unsigned long freq;
+	unsigned long ddr_freq;
+	unsigned long dmc_freq;
 	unsigned int usage_stat[10];
 	struct ddr_grant dg;
 	struct ddr_bandwidth_sample cur_sample;
@@ -185,6 +187,8 @@ struct ddr_bandwidth {
 	unsigned int channels;
 	unsigned int dmc_number;
 	unsigned int usage_stat[10];
+	unsigned long ddr_freq;
+	unsigned long dmc_freq;
 	spinlock_t lock;		/* lock for usage statistics */
 	struct ddr_bandwidth_sample cur_sample;
 	struct ddr_bandwidth_sample max_sample;

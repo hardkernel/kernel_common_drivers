@@ -25,31 +25,9 @@
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DDR_BW
 #include <trace/events/meson_atrace.h>
 
-static const char chann_names0[][50] = {
-	"ddr_bw ch 0 (MB/S)",
-	"ddr_bw ch 1 (MB/S)",
-	"ddr_bw ch 2 (MB/S)",
-	"ddr_bw ch 3 (MB/S)",
-	"ddr_bw ch 4 (MB/S)",
-	"ddr_bw ch 5 (MB/S)",
-	"ddr_bw ch 6 (MB/S)",
-	"ddr_bw ch 7 (MB/S)",
-};
-
-static char chann_names1[][50] = {
-	"ddr_bw0 ch 0 (MB/S)",
-	"ddr_bw0 ch 1 (MB/S)",
-	"ddr_bw0 ch 2 (MB/S)",
-	"ddr_bw0 ch 3 (MB/S)",
-	"ddr_bw0 ch 4 (MB/S)",
-	"ddr_bw0 ch 5 (MB/S)",
-	"ddr_bw0 ch 6 (MB/S)",
-	"ddr_bw0 ch 7 (MB/S)",
-};
-
 #define PXP_DEBUG	1
 #if PXP_DEBUG
-static unsigned long pxp_debug_freq;
+static unsigned long pxp_debug_dmc_freq, pxp_debug_ddr_freq;
 #endif
 
 // #define DEBUG
@@ -68,6 +46,7 @@ static enum hrtimer_restart  ddr_hrtimer_handler(struct hrtimer *timer)
 					ktime_set(0, aml_db->increase_tool.t_ns),
 					HRTIMER_MODE_REL);
 	memset(aml_db->increase_tool.buf_addr + index, 0, aml_db->increase_tool.once_size);
+
 	index += aml_db->increase_tool.once_size;
 	if ((index + aml_db->increase_tool.once_size) > T_BUF_SIZE)
 		index = 0;
@@ -108,6 +87,13 @@ static int ddr_width_is_16bit(struct ddr_bandwidth *db)
 	return 0;
 }
 
+static int ddr_width_is_64bit(struct ddr_bandwidth *db)
+{
+	if (db && (db->soc_feature & DDR_WIDTH_IS_64BIT))
+		return 1;
+	return 0;
+}
+
 static int dmc_is_asymmetry(struct ddr_bandwidth *db)
 {
 	if (db && (db->soc_feature & DMC_ASYMMETRY))
@@ -120,18 +106,18 @@ static void cal_ddr_usage_single(struct ddr_bandwidth *db)
 	u64 mul, mbw; /* avoid overflow */
 	int i, j;
 	unsigned long cnt, freq = 0;
+	char label[] = "ddr_bw  total (MB/S)";
+	char chann_names[] = "ddr_bw0 ch 0 (MB/S)";
 
 	cnt  = db->clock_count;
 
 	for (i = 0; i < db->dmc_number; i++) {
-		char label[] = "ddr_bw  total (MB/S)";
-
-		/* mbw = ((freq * 2) * 2 * (data_bus_width/8)) */
-		freq = db->data_extern[i].freq;
-		mbw = (u64)freq * db->data_extern[i].data_bus_width / 2;
+		/* mbw = (ddr_freq * 2 * (data_bus_width/8)) */
+		freq = db->data_extern[i].ddr_freq;
+		mbw = (u64)freq * (db->data_extern[i].data_bus_width >> 2);
 		mbw /= 1024;
 		mul  = db->data_extern[i].dg.all_grant;
-		mul *= freq;
+		mul *= db->data_extern[i].dmc_freq;
 		mul /= 1024;
 		do_div(mul, cnt);
 		if (mul >= mbw) {
@@ -145,7 +131,7 @@ static void cal_ddr_usage_single(struct ddr_bandwidth *db)
 		db->data_extern[i].cur_sample.tick = sched_clock();
 		for (j = 0; j < db->channels; j++) {
 			mul  =  db->data_extern[i].dg.channel_grant[j];
-			mul *= freq;
+			mul *= db->data_extern[i].dmc_freq;
 			mul /= 1024;
 			do_div(mul, cnt);
 			db->data_extern[i].cur_sample.bandwidth[j] = mul;
@@ -175,12 +161,13 @@ static void cal_ddr_usage_single(struct ddr_bandwidth *db)
 		db->data_extern[i].avg.sample_count++;
 
 		label[6] = '0' + i;
-
+		chann_names[6] = '0' + i;
 		ATRACE_COUNTER(label, db->data_extern[i].prev_sample.total_bandwidth / 1000);
 
 		for (j = 0; j < db->channels; j++) {
-			chann_names1[j][6] = '0' + i;
-			ATRACE_COUNTER(chann_names1[j],
+			/* ddr_bw<i> ch <j> (MB/S) */
+			chann_names[11] = '0' + j;
+			ATRACE_COUNTER(chann_names,
 					db->data_extern[i].prev_sample.bandwidth[j] / 1000);
 		}
 
@@ -192,6 +179,7 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 {
 	u64 mul = 0, mul_tmp = 0, mbw = 0; /* avoid overflow */
 	unsigned long i, cnt, freq = 0, flags;
+	char chann_names[] = "ddr_bw ch 0 (MB/S)";
 
 	if (db->mode == MODE_AUTODETECT) { /* ignore mali bandwidth */
 		static int count;
@@ -219,61 +207,47 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 		}
 		return;
 	}
-#if PXP_DEBUG
-	if (pxp_debug_freq) {
-		freq = pxp_debug_freq;
-	} else {
-		if (db->ops && db->ops->get_freq)
-			freq = db->ops->get_freq(db);
-	}
-#else
-	if (db->ops && db->ops->get_freq)
-		freq = db->ops->get_freq(db);
-#endif
+
 	cnt  = db->clock_count;
 
-	if (freq) {
+	if (db->dmc_freq && db->ddr_freq) {
 		/* calculate in KB */
 		if (dmc_is_asymmetry(aml_db)) {
 			for (i = 0; i < db->dmc_number; i++) {
-				freq = db->data_extern[i].freq;
-				mbw += (u64)freq * db->data_extern[i].data_bus_width / 2;
+				freq = db->data_extern[i].ddr_freq;
+				mbw += (u64)freq * (db->data_extern[i].data_bus_width >> 2);
 			}
-
 		} else {
-			/* ddr data bus width = dmc bus width * dmc number.
-			 * After s4 soc, not register to distinguish ddr data bus width,
-			 * default ereryone dmc bus width is 32, but p1 and s5 is 16.
-			 */
+			/* theoretic max bandwidth =  ddr_freq * 2 * width / 8 */
 			if (ddr_width_is_16bit(db))
-				mbw = (u64)freq * db->bytes_per_cycle * db->dmc_number / 2;
-			else
-				mbw = (u64)freq * db->bytes_per_cycle * db->dmc_number;
+				mbw = (u64)db->ddr_freq * 2 * 2;
+			else if (ddr_width_is_64bit(db))
+				mbw = (u64)db->ddr_freq * 2 * 8;
+			else /* default is 32 */
+				mbw = (u64)db->ddr_freq * 2 * 4;
 		}
 		if (!mbw) {
-			pr_emerg("warning: theoretic max bandwidth is zer0\n");
+			pr_emerg("warning: theoretic max bandwidth is zero\n");
 			return;
 		}
 		mbw /= 1024;	/* theoretic max bandwidth */
 
 		if (dmc_is_asymmetry(aml_db)) {
 			for (i = 0; i < db->dmc_number; i++) {
-				freq = db->data_extern[i].freq;
 				mul_tmp = db->data_extern[i].dg.all_grant;
-				mul_tmp *= freq;
+				mul_tmp *= db->data_extern[i].dmc_freq;
 				mul += mul_tmp;
 			}
 
 		} else {
 			mul = dg->all_grant;
-			mul *= freq;
+			mul *= db->dmc_freq;
 		}
 		mul /= 1024;
 		do_div(mul, cnt);
 		if (mul >= mbw) {
 			/* sample may overflow if irq tick changed, ignore it */
-			pr_emerg("%s, bandwidth:%lld large than max :%lld\n",
-				 __func__, mul, mbw);
+			pr_emerg("%s, bandwidth:%lld large than max :%lld\n", __func__, mul, mbw);
 			//return;
 		}
 		db->cur_sample.total_bandwidth = mul;
@@ -283,7 +257,7 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 		db->cur_sample.tick = sched_clock();
 		for (i = 0; i < db->channels; i++) {
 			mul  = dg->channel_grant[i];
-			mul *= freq;
+			mul *= db->dmc_freq;
 			mul /= 1024;
 			do_div(mul, cnt);
 			db->cur_sample.bandwidth[i] = mul;
@@ -312,12 +286,14 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	}
 	db->avg.sample_count++;
 
-	ATRACE_COUNTER("ddr_bw total (MB/S)",
-			db->prev_sample.total_bandwidth / 1000);
+	ATRACE_COUNTER("ddr_bw total (MB/S)", db->prev_sample.total_bandwidth / 1000);
 
-	for (i = 0; i < db->channels; i++)
-		ATRACE_COUNTER(chann_names0[i],
-				db->prev_sample.bandwidth[i] / 1000);
+	for (i = 0; i < db->channels; i++) {
+		/*  ddr_bw ch <i> (MB/S) */
+		chann_names[11] = '0' + i;
+		ATRACE_COUNTER(chann_names, db->prev_sample.bandwidth[i] / 1000);
+	}
+
 
 	db->prev_sample = db->cur_sample;
 
@@ -860,11 +836,12 @@ static ssize_t freq_store(struct class *cla,
 				struct class_attribute *attr,
 				const char *buf, size_t count)
 {
-	unsigned int freq = 0;
+	unsigned long ddr_freq = 0, dmc_freq = 0;
 
-	if (kstrtoint(buf, 10, &freq))
+	if (sscanf(buf, "%ld-%ld", &ddr_freq, &dmc_freq) != 2)
 		return count;
-	pxp_debug_freq = freq;
+	pxp_debug_ddr_freq = ddr_freq;
+	pxp_debug_dmc_freq = dmc_freq;
 	return count;
 }
 
@@ -873,24 +850,33 @@ static ssize_t freq_show(struct class *cla,
 {
 	int i = 0;
 	size_t s = 0;
-	unsigned long clk = 0;
 
-	if (pxp_debug_freq) {
-		clk = pxp_debug_freq;
-		s += sprintf(buf + s, "%ld MHz\n", clk / 1000000);
-	} else {
-		if (aml_db->ops && aml_db->ops->get_freq)
-			clk = aml_db->ops->get_freq(aml_db);
-
+	if (pxp_debug_dmc_freq && pxp_debug_ddr_freq) {
+		aml_db->ddr_freq = pxp_debug_ddr_freq;
+		aml_db->dmc_freq = pxp_debug_dmc_freq;
 		if (dmc_is_asymmetry(aml_db)) {
 			for (i = 0; i < aml_db->dmc_number; i++) {
-				s += sprintf(buf + s, "DMC%d: %ld MHz\n", i,
-					aml_db->data_extern[i].freq / 1000000);
+				aml_db->data_extern[i].ddr_freq = pxp_debug_ddr_freq;
+				aml_db->data_extern[i].dmc_freq = pxp_debug_dmc_freq;
 			}
-		} else {
-			s += sprintf(buf + s, "%ld MHz\n", clk / 1000000);
 		}
+	} else {
+		if (aml_db->ops && aml_db->ops->get_freq)
+			aml_db->ops->get_freq(aml_db);
 	}
+
+	if (dmc_is_asymmetry(aml_db)) {
+		for (i = 0; i < aml_db->dmc_number; i++) {
+			s += sprintf(buf + s, "DMC%d: DMC_FREQ %ld MHz, DDR_FREQ %ld MHz\n", i,
+				aml_db->data_extern[i].dmc_freq / 1000000,
+				aml_db->data_extern[i].ddr_freq / 1000000);
+		}
+	} else {
+		s += sprintf(buf + s, "DMC_FREQ %ld MHz, DDR_FREQ %ld MHz\n",
+				aml_db->dmc_freq / 1000000,
+				aml_db->ddr_freq / 1000000);
+	}
+
 	return s;
 }
 static CLASS_ATTR_RW(freq);
@@ -1275,6 +1261,7 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		band->channels     = 8;
 		band->dmc_number   = 2;
 		band->soc_feature |= DDR_DEVICE_8BIT;
+		band->soc_feature |= DDR_WIDTH_IS_64BIT;
 		band->mali_port[0] = 3; /* port3: mali */
 		band->mali_port[1] = 4;
 		break;
@@ -1283,7 +1270,7 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		band->channels     = 8;
 		band->dmc_number   = 4;
 		band->soc_feature |= DDR_DEVICE_8BIT;
-		band->soc_feature |= DDR_WIDTH_IS_16BIT;
+		band->soc_feature |= DDR_WIDTH_IS_64BIT;
 		band->mali_port[0] = 3; /* port3: mali */
 		band->mali_port[1] = 4;
 		break;
@@ -1332,7 +1319,7 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		band->channels     = 8;
 		band->dmc_number   = 4;
 		band->soc_feature |= DDR_DEVICE_8BIT;
-		band->soc_feature |= DDR_WIDTH_IS_16BIT;
+		band->soc_feature |= DDR_WIDTH_IS_64BIT;
 		band->mali_port[0] = 4;
 		band->mali_port[1] = -1;
 		break;
@@ -1538,6 +1525,9 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	else
 		aml_db->freq_reg = (void *)ioremap(freq_reg, 4);
 #endif
+	if (aml_db->ops && aml_db->ops->get_freq)
+		aml_db->ops->get_freq(aml_db);
+
 	spin_lock_init(&aml_db->lock);
 	aml_db->clock_count = DEFAULT_CLK_CNT;
 	aml_db->mode = MODE_DISABLE;
