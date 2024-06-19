@@ -2603,10 +2603,10 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd2_mif_reg->vd_if0_gen_reg, r);
 
-	if (type & VIDTYPE_VIU_NV21)
+	if (type & VIDTYPE_VIU_NV21 || type & VIDTYPE_VIU_NV61)
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_mif_reg->vd_if0_gen_reg2, 1, 0, 2);
-	else if (type & VIDTYPE_VIU_NV12)
+	else if (type & VIDTYPE_VIU_NV12 || type & VIDTYPE_VIU_NV16)
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_mif_reg->vd_if0_gen_reg2, 2, 0, 2);
 	else
@@ -2662,6 +2662,8 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		if (is_crop_left_odd(frame_par)) {
 			if ((type & VIDTYPE_VIU_NV21) ||
 			     (type & VIDTYPE_VIU_NV12) ||
+			     (type & VIDTYPE_VIU_NV16) ||
+			     (type & VIDTYPE_VIU_NV61) ||
 			    (type & VIDTYPE_VIU_422))
 				hphase = 0x8 << HFORMATTER_PHASE_BIT;
 		}
@@ -2679,7 +2681,10 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 			hformatter |= HFORMATTER_REPEAT;
 		vrepeat = VFORMATTER_RPTLINE0_EN;
 		vini_phase = (0xc << VFORMATTER_INIPHASE_BIT);
-		if (type & VIDTYPE_VIU_422) {
+		if (type & VIDTYPE_VIU_NV16 || type & VIDTYPE_VIU_NV61) {
+			vformatter = 1;
+			vphase = (0x10 << VFORMATTER_PHASE_BIT);
+		} else if (type & VIDTYPE_VIU_422) {
 			vformatter = 0;
 			vphase = (0x10 << VFORMATTER_PHASE_BIT);
 		} else {
@@ -3112,11 +3117,11 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 
 	cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_reg->vd_if0_gen_reg, r);
 
-	if (type & VIDTYPE_VIU_NV21)
+	if (type & VIDTYPE_VIU_NV21 || type & VIDTYPE_VIU_NV61)
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_mif_reg->vd_if0_gen_reg2,
 			1, 0, 2);
-	else if (type & VIDTYPE_VIU_NV12)
+	else if (type & VIDTYPE_VIU_NV12 || type & VIDTYPE_VIU_NV16)
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_mif_reg->vd_if0_gen_reg2,
 			2, 0, 2);
@@ -3171,7 +3176,10 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 			hformatter |= HFORMATTER_REPEAT;
 		vrepeat = VFORMATTER_RPTLINE0_EN;
 		vini_phase = (0xc << VFORMATTER_INIPHASE_BIT);
-		if (type & VIDTYPE_VIU_422) {
+		if (type & VIDTYPE_VIU_NV16 || type & VIDTYPE_VIU_NV61) {
+			vformatter = 1;
+			vphase = (0x10 << VFORMATTER_PHASE_BIT);
+		} else if (type & VIDTYPE_VIU_422) {
 			vformatter = 0;
 			vphase = (0x10 << VFORMATTER_PHASE_BIT);
 		} else {
@@ -5129,6 +5137,7 @@ void config_dvel_position(struct video_layer_s *layer,
 	int shift = 0, line_in_length;
 	struct vpp_frame_par_s *cur_frame_par;
 	struct vframe_s *bl_vf;
+	int v_chrm_ratio = 1;
 
 	if (!layer || !layer->cur_frame_par ||
 	    !layer->dispbuf || !setting || !el_vf)
@@ -5236,10 +5245,14 @@ void config_dvel_position(struct video_layer_s *layer,
 	setting->l_he_chrm = setting->l_he_luma >> 1;
 	setting->r_hs_chrm = setting->r_hs_luma >> 1;
 	setting->r_he_chrm = setting->r_he_luma >> 1;
-	setting->l_vs_chrm = setting->l_vs_luma >> 1;
-	setting->l_ve_chrm = setting->l_ve_luma >> 1;
-	setting->r_vs_chrm = setting->r_vs_luma >> 1;
-	setting->r_ve_chrm = setting->r_ve_luma >> 1;
+
+	if (bl_vf->type & VIDTYPE_VIU_NV16 ||
+	    bl_vf->type & VIDTYPE_VIU_NV61)
+		v_chrm_ratio = 0;
+	setting->l_vs_chrm = setting->l_vs_luma >> v_chrm_ratio;
+	setting->l_ve_chrm = setting->l_ve_luma >> v_chrm_ratio;
+	setting->r_vs_chrm = setting->r_vs_luma >> v_chrm_ratio;
+	setting->r_ve_chrm = setting->r_ve_luma >> v_chrm_ratio;
 	setting->vpp_3d_mode = 0;
 }
 
@@ -5872,6 +5885,7 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 {
 	struct vframe_s *dispbuf = NULL;
 	u32 blank;
+	int v_chrm_ratio = 1;
 
 	if (!layer || !layer->cur_frame_par || !layer->dispbuf || !setting)
 		return -1;
@@ -5946,14 +5960,19 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 			&setting->r_vs_luma, &setting->r_ve_luma);
 	}
 #endif
+
 	setting->l_hs_chrm = setting->l_hs_luma >> 1;
 	setting->l_he_chrm = setting->l_he_luma >> 1;
 	setting->r_hs_chrm = setting->r_hs_luma >> 1;
 	setting->r_he_chrm = setting->r_he_luma >> 1;
-	setting->l_vs_chrm = setting->l_vs_luma >> 1;
-	setting->l_ve_chrm = setting->l_ve_luma >> 1;
-	setting->r_vs_chrm = setting->r_vs_luma >> 1;
-	setting->r_ve_chrm = setting->r_ve_luma >> 1;
+
+	if (dispbuf->type & VIDTYPE_VIU_NV16 ||
+	    dispbuf->type & VIDTYPE_VIU_NV61)
+		v_chrm_ratio = 0;
+	setting->l_vs_chrm = setting->l_vs_luma >> v_chrm_ratio;
+	setting->l_ve_chrm = setting->l_ve_luma >> v_chrm_ratio;
+	setting->r_vs_chrm = setting->r_vs_luma >> v_chrm_ratio;
+	setting->r_ve_chrm = setting->r_ve_luma >> v_chrm_ratio;
 
 #ifdef TV_3D_FUNCTION_OPEN
 	/* need not change the horz position */

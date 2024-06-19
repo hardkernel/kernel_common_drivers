@@ -39,6 +39,8 @@
 #define VIDTYPE_NO_VIDEO_ENABLE         0x20
 #define VIDTYPE_SEC_MD			0x40
 #define VIDTYPE_VIU_NV12                0x80
+#define VIDTYPE_VIU_NV16                0x100
+#define VIDTYPE_VIU_NV61                0x200
 #define VIDTYPE_VIU_422                 0x800
 #define VIDTYPE_VIU_FIELD               0x1000
 #define VIDTYPE_VIU_SINGLE_PLANE        0x2000
