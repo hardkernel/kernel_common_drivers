@@ -125,8 +125,9 @@
 // frc_20240510 memc func run in irq
 // frc_20240522 modify t5m dlg flow
 // frc_2024-0522 adjust mcdw param for window size
+// frc_2024-0617 add rdma access for alg
 
-#define FRC_FW_VER			"2024-0617 add rdma access for alg"
+#define FRC_FW_VER			"2024-0621 modify t3x muti flow"
 #define FRC_KERDRV_VER		3597
 
 #define FRC_DEVNO	1
