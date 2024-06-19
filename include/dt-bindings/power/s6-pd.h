@@ -22,3 +22,4 @@
 #define PDID_S6_NNA_4T		16
 #define PDID_S6_AUDIO		17
 #define PDID_S6_AUCPU		18
+#define PDID_S6_ADAPT		19
