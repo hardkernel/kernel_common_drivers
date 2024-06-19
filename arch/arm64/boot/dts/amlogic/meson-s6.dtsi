@@ -1505,7 +1505,7 @@
 			cooling_devices {
 				gpufreq_cool {
 					dyn_coeff = <140>;
-					node_name = "valhall";
+					node_name = "bifrost";
 					device_type = "gpufreq";
 				};
 			};
