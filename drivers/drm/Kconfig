@@ -69,6 +69,8 @@ config AMLOGIC_DRM_EMULATE_FBDEV
 	bool "emulate framebuffer dev by drm."
 	default n
 	depends on AMLOGIC_DRM && AMLOGIC_DRM_USE_ION
+	select DRM_FBDEV_EMULATION
+	select FB_DMAMEM_HELPERS
 	help
 		Emulate framebuffer device for device
 		which need use fbdev api.
