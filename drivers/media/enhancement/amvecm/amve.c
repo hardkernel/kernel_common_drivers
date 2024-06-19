@@ -3000,6 +3000,56 @@ void set_gamma_regs(int en, int sel)
 	}
 }
 
+void set_viu2_gamma_regs(int en, int sel)
+{
+	int i;
+	int *gamma_lut = NULL;
+
+	static int gamma_lut_default[66] =  {
+	0, 0, 0, 1, 2, 4, 6, 8, 11, 14, 17, 21, 26, 31,
+	36, 42, 49, 55, 63, 71, 79, 88, 98, 108, 118,
+	129, 141, 153, 166, 179, 193, 208, 223, 238,
+	255, 271, 289, 307, 325, 344, 364, 384, 405,
+	427, 449, 472, 495, 519, 544, 569, 595, 621,
+	649, 676, 705, 734, 763, 794, 825, 856, 888,
+	921, 955, 989, 1023, 0};
+
+	static int gamma_lut_straight[66] =  {
+	 0, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160,
+	 176, 192, 208, 224, 240, 256, 272, 288, 304, 320,
+	 336, 352, 368, 384, 400, 416, 432, 448, 464, 480,
+	 496, 512, 528, 544, 560, 576, 592, 608, 624, 640,
+	 656, 672, 688, 704, 720, 736, 752, 768, 784, 800,
+	 816, 832, 848, 864, 880, 896, 912, 928, 944, 960,
+	 976, 992, 1008, 1023, 0};
+
+	if (!sel)
+		gamma_lut = gamma_lut_default;
+	else
+		gamma_lut = gamma_lut_straight;
+
+	if (en) {
+		WRITE_VPP_REG_BITS(VPP2_MISC, 1, 17, 1);
+		WRITE_VPP_REG_BITS(VPP2_GAMMA_CTRL, 1, 0, 1);
+		WRITE_VPP_REG(VPP2_GAMMA_BIN_ADDR, 0);
+
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP2_GAMMA_BIN_DATA,
+				(((gamma_lut[i * 2 + 1] << 2) & 0xffff) << 16 |
+				((gamma_lut[i * 2] << 2) & 0xffff)));
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP2_GAMMA_BIN_DATA,
+				(((gamma_lut[i * 2 + 1] << 2) & 0xffff) << 16 |
+				((gamma_lut[i * 2] << 2) & 0xffff)));
+		for (i = 0; i < 33; i = i + 1)
+			WRITE_VPP_REG(VPP2_GAMMA_BIN_DATA,
+				(((gamma_lut[i * 2 + 1] << 2) & 0xffff) << 16 |
+				((gamma_lut[i * 2] << 2) & 0xffff)));
+	} else {
+		WRITE_VPP_REG_BITS(VPP2_GAMMA_CTRL, 0, 0, 1);
+	}
+}
+
 void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb, int vpp_index)
 {
 	int i;
@@ -4030,6 +4080,10 @@ void s7d_sharpness_init(void)
 	WRITE_VPP_REG(VPP_PK_DIR5_BP_COEF, 0x00e00536);
 	WRITE_VPP_REG(VPP_PK_DIR6_BP_COEF, 0x00e00536);
 	WRITE_VPP_REG(VPP_PK_DIR7_BP_COEF, 0x0000e040);
+
+	if (chip_type_id == chip_s6)
+		WRITE_VPP_REG(SAFA_PPS_DEJAGGY_CTRL, 0x80004444);
+
 }
 
 static enum vsr_pq_cfg_e pre_vsr_cfg;
@@ -5920,3 +5974,70 @@ void amve_safa_demo_ctrl(unsigned int enable)
 		WRITE_VPP_REG(VPP_PK_OS_ADP_LUT_F, 0x00000004);
 	}
 }
+
+void osd_sharpness_init(void)
+{
+	WRITE_VPP_REG_BITS(OSD_SR_EN, 0, 0, 1);
+	WRITE_VPP_REG_BITS(OSD_PK_EN, 0, 0, 1);
+	WRITE_VPP_REG_BITS(OSD_PK_OS_EN_MODE, 0, 31, 1);
+//	WRITE_VPP_REG_BITS(OSD_PK_OS_EN_MODE, 1, 5, 1);
+//	WRITE_VPP_REG_BITS(OSD_PK_OS_EN_MODE, 1, 0, 1);
+	WRITE_VPP_REG_BITS(OSD_SR_CC_EN, 0, 0, 1);
+
+	/*size config*/
+	WRITE_VPP_REG_BITS(OSD_SR_SIZE, 3840, 0, 16);//hsize
+	WRITE_VPP_REG_BITS(OSD_SR_SIZE, 2160, 16, 16);//vsize
+
+	/*mic config*/
+	WRITE_VPP_REG_BITS(OSD_SR_MISC, 0x0, 16, 8);
+	WRITE_VPP_REG_BITS(OSD_SR_MISC, 0x4, 8, 8);
+	WRITE_VPP_REG_BITS(OSD_SR_MISC, 0x1, 1, 1);
+	WRITE_VPP_REG_BITS(OSD_SR_MISC, 0x1, 0, 1);
+
+	/*gclk*/
+	WRITE_VPP_REG_BITS(OSD_SR_GCLK_CTRL, 0x0, 0, 32);
+}
+
+void osd_sharpness_ctrl(unsigned int sel, unsigned int enable)
+{
+	if (enable)
+		enable = 1;
+
+	/* 0: sr; 1: pk；2：os; 3: cc*/
+	switch (sel) {
+	case 0:
+		WRITE_VPP_REG_BITS(OSD_SR_EN,
+			enable, 0, 1);
+		break;
+	case 1:
+		WRITE_VPP_REG_BITS(OSD_PK_EN,
+			enable, 0, 1);
+		break;
+	case 2:
+		WRITE_VPP_REG_BITS(OSD_PK_OS_EN_MODE,
+			enable, 31, 1);
+		break;
+	case 3:
+		WRITE_VPP_REG_BITS(OSD_SR_CC_EN,
+			enable, 0, 1);
+		break;
+	default:
+		break;
+	}
+}
+
+void osd_sharpness_size_ctrl(void)
+{
+	WRITE_VPP_REG_BITS(OSD_SR_SIZE, hsize_in, 0, 16);//hsize
+	WRITE_VPP_REG_BITS(OSD_SR_SIZE, vsize_in, 16, 16);//vsize
+}
+
+void osd_sharpness_demo_ctrl(void)
+{
+	WRITE_VPP_REG_BITS(OSD_PK_MODE, reg_pk_nor_rsft_mode, 20, 2);
+	WRITE_VPP_REG_BITS(OSD_PK_FINAL_GAIN, reg_pk_dir_final_gain, 24, 8);
+	WRITE_VPP_REG_BITS(OSD_PK_FINAL_GAIN, reg_pk_cir_final_gain, 16, 8);
+	WRITE_VPP_REG_BITS(OSD_PK_FINAL_GAIN, reg_pk_final_pgain, 8, 8);
+	WRITE_VPP_REG_BITS(OSD_PK_FINAL_GAIN, reg_pk_final_ngain, 0, 8);
+}
+

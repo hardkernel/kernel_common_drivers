@@ -222,6 +222,7 @@ void dump_plut3d_reg_table(void);
 
 void amvecm_gamma_init(bool en);
 void set_gamma_regs(int en, int sel);
+void set_viu2_gamma_regs(int en, int sel);
 void amvecm_wb_enable(int enable);
 void amvecm_wb_enable_sub(int enable);
 int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md, int vpp_index);
@@ -248,5 +249,8 @@ void amve_vsr_config_update(struct vframe_s *vf, int vpp_index);
 extern int dnlp_en_dsw;
 void set_sharpness_gain(int sr0_gain, int sr1_gain);
 void sharpness_gain_update(int vpp_index);
+void osd_sharpness_init(void);
+void osd_sharpness_ctrl(unsigned int sel, unsigned int enable);
+
 #endif
 

@@ -607,7 +607,17 @@ int register_osd_status_cb(int (*get_osd_enable_status)(u32 index));
 void resume_recovery_process(int vpp_index);
 extern uint demo_pk_sr_final_pgains;
 extern uint demo_pk_sr_final_ngains;
+extern uint reg_pk_dir_final_gain;
+extern uint reg_pk_cir_final_gain;
+extern uint reg_pk_final_pgain;
+extern uint reg_pk_final_ngain;
+extern uint reg_pk_nor_rsft_mode;
+extern int hsize_in;
+extern int vsize_in;
+
 void amve_safa_demo_ctrl(unsigned int enable);
+void osd_sharpness_size_ctrl(void);
+void osd_sharpness_demo_ctrl(void);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 bool is_amdv_enable(void);
