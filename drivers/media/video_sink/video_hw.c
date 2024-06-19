@@ -6981,15 +6981,24 @@ static int vpp_zorder_check(void)
 static bool vout_change_check(const struct vinfo_s *vinfo)
 {
 	bool ret;
-	static u32 field_height_save;
+	static u32 field_height_save, height_save, width_save;
 
-	if (field_height_save != vinfo->field_height)
+	if (field_height_save != vinfo->field_height ||
+		width_save != vinfo->width ||
+		height_save != vinfo->height)
 		ret = true;
 	else
 		ret = false;
+	if (ret)
+		pr_info("vout changed: %dx%d->%dx%d\n",
+			width_save, field_height_save,
+			vinfo->width, vinfo->field_height);
+	width_save = vinfo->width;
+	height_save = vinfo->height;
 	field_height_save = vinfo->field_height;
 	return ret;
 }
+
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
 static int vpp_zorder_check_t7(void)
 {
