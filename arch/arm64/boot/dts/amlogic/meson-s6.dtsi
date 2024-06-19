@@ -252,6 +252,9 @@
 		clocks = <&clkc CLKID_NNA>;
 		clock-names = "adla_core_clk";
 		power-domains=<&pwrdm PDID_S6_NNA_4T>;
+		nn_hw_version="r3p1";
+		adla_core_clk_rate = <1000000000>;
+		adla_smc_cmd = <0x820000b2>;
 		smmu;
 	};
 
