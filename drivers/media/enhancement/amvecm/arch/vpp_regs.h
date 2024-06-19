@@ -1545,5 +1545,22 @@
 #define VPP1_GAINOFF_CTRL3 0x59a4
 #define VPP1_GAINOFF_CTRL4 0x59a5
 
+/*s6 */
+#define OSD_SR_EN                    0x6104
+#define OSD_PK_EN                    0x6137
+#define OSD_PK_OS_EN_MODE            0x617f
+#define OSD_SR_CC_EN                 0x618a
+#define OSD_SR_SIZE                  0x6102
+#define OSD_SR_MISC                  0x6100
+#define OSD_SR_GCLK_CTRL             0x6101
+#define OSD_PK_MODE                  0x6149
+#define OSD_PK_FINAL_GAIN            0x6157
+#define SAFA_PPS_DEJAGGY_CTRL        0x518a
+
+#define VPP2_MISC                    0x1e26
+#define VPP2_GAMMA_CTRL              0x1ed2
+#define VPP2_GAMMA_BIN_ADDR          0x1ed3
+#define VPP2_GAMMA_BIN_DATA          0x1ed4
+
 #endif
 

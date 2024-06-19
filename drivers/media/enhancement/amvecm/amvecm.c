@@ -214,6 +214,14 @@ struct pq_ctrl_s pq_cfg_cur;
 uint demo_pk_sr_final_pgains = 0xa0;
 uint demo_pk_sr_final_ngains = 0xa0;
 
+uint reg_pk_dir_final_gain = 0xFF;
+uint reg_pk_cir_final_gain = 0xFF;
+uint reg_pk_final_pgain = 0xFF;
+uint reg_pk_final_ngain = 0xFF;
+uint reg_pk_nor_rsft_mode;
+int hsize_in = 3840;
+int vsize_in = 2160;
+
 struct pq_ctrl_s pq_cfg_init[PQ_CFG_MAX] = {
 	/*for tv enable pq module*/
 	{
@@ -11145,6 +11153,15 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			amve_sharpness_sub_ctrl(5, 0);
 			pr_info("disable safa\n");
 		}
+	} else if (!strcmp(parm[0], "set_viu2_gamma_lut_65")) {
+		if (!strcmp(parm[1], "default"))
+			set_viu2_gamma_regs(1, 0);
+		else if (!strcmp(parm[1], "straight"))
+			set_viu2_gamma_regs(1, 1);
+		else if (!strcmp(parm[1], "disable"))
+			set_viu2_gamma_regs(0, 0);
+		else
+			pr_info("unsupport cmd\n");
 #endif
 	} else if (!strcmp(parm[0], "s_peak_final_ngain")) {
 		if (!parm[1]) {
@@ -11166,6 +11183,102 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		demo_pk_sr_final_pgains = val;
 	} else if (!strcmp(parm[0], "g_peak_final_pgain")) {
 		pr_info("vsr_update_flag: %d\n", demo_pk_sr_final_pgains);
+	} else if (!strncmp(parm[0], "osd_sharpness", 13)) {
+		if (!strncmp(parm[1], "enable", 6)) {
+			osd_sharpness_ctrl(0, 1);
+			pr_info("enable osd sharpness\n");
+		} else if (!strncmp(parm[1], "disable", 7)) {
+			osd_sharpness_ctrl(0, 0);
+			pr_info("disable osd sharpness\n");
+		} else if (!strncmp(parm[1], "pk_en", 5)) {
+			osd_sharpness_ctrl(1, 1);
+			pr_info("enable osd sharpness peak\n");
+		} else if (!strncmp(parm[1], "pk_dis", 6)) {
+			osd_sharpness_ctrl(1, 0);
+			pr_info("disable osd sharpness peak\n");
+		} else if (!strncmp(parm[1], "os_en", 5)) {
+			osd_sharpness_ctrl(2, 1);
+			pr_info("enable osd sharpness os\n");
+		} else if (!strncmp(parm[1], "os_dis", 6)) {
+			osd_sharpness_ctrl(2, 0);
+			pr_info("disable osd sharpness os\n");
+		} else if (!strncmp(parm[1], "cc_en", 5)) {
+			osd_sharpness_ctrl(3, 1);
+			pr_info("enable osd sharpness cc\n");
+		} else if (!strncmp(parm[1], "cc_dis", 6)) {
+			osd_sharpness_ctrl(3, 0);
+			pr_info("disable osd sharpness cc\n");
+		}
+	} else if (!strcmp(parm[0], "s_hsize_in")) {
+		if (!parm[1]) {
+			pr_info("misss param1\n");
+			goto free_buf;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		hsize_in = val;
+	} else if (!strcmp(parm[0], "g_hsize_in")) {
+		pr_info("hsize_in: %d\n", hsize_in);
+	} else if (!strcmp(parm[0], "s_vsize_in")) {
+		if (!parm[1]) {
+			pr_info("misss param1\n");
+			goto free_buf;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		vsize_in = val;
+	} else if (!strcmp(parm[0], "g_vsize_in")) {
+		pr_info("vsize_in: %d\n", vsize_in);
+	} else if (!strcmp(parm[0], "s_reg_pk_dir_final_gain")) {
+		if (!parm[1]) {
+			pr_info("misss param1\n");
+			goto free_buf;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		reg_pk_dir_final_gain = val;
+	} else if (!strcmp(parm[0], "g_reg_pk_dir_final_gain")) {
+		pr_info("reg_pk_dir_final_gain: %d\n", reg_pk_dir_final_gain);
+	} else if (!strcmp(parm[0], "s_reg_pk_cir_final_gain")) {
+		if (!parm[1]) {
+			pr_info("misss param1\n");
+			goto free_buf;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		reg_pk_cir_final_gain = val;
+	} else if (!strcmp(parm[0], "g_reg_pk_cir_final_gain")) {
+		pr_info("reg_pk_cir_final_gain: %d\n", reg_pk_cir_final_gain);
+	} else if (!strcmp(parm[0], "s_reg_pk_final_pgain")) {
+		if (!parm[1]) {
+			pr_info("misss param1\n");
+			goto free_buf;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		reg_pk_final_pgain = val;
+	} else if (!strcmp(parm[0], "g_reg_pk_final_pgain")) {
+		pr_info("reg_pk_final_pgain: %d\n", reg_pk_final_pgain);
+	} else if (!strcmp(parm[0], "s_reg_pk_final_ngain")) {
+		if (!parm[1]) {
+			pr_info("misss param1\n");
+			goto free_buf;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		reg_pk_final_ngain = val;
+	} else if (!strcmp(parm[0], "g_reg_pk_final_ngain")) {
+		pr_info("reg_pk_final_ngain: %d\n", reg_pk_final_ngain);
+	} else if (!strcmp(parm[0], "s_reg_pk_nor_rsft_mode")) {
+		if (!parm[1]) {
+			pr_info("misss param1\n");
+			goto free_buf;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		reg_pk_nor_rsft_mode = val;
+	} else if (!strcmp(parm[0], "g_reg_pk_nor_rsft_mode")) {
+		pr_info("reg_pk_nor_rsft_mode: %d\n", reg_pk_nor_rsft_mode);
 	} else {
 		pr_info("unsupport cmd\n");
 	}
@@ -12293,6 +12406,10 @@ void init_pq_setting(void)
 		 *VPP_GCLK_CTRL1 must enable
 		 */
 		WRITE_VPP_REG_BITS(VPP_GCLK_CTRL1, 0xf, 0, 4);
+
+		if (chip_type_id == chip_s6)
+			osd_sharpness_init();
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		sr_init_config();
 		dnlp_init_config();
