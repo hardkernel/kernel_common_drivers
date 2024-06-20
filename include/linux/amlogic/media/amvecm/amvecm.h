@@ -188,6 +188,7 @@
 #define HDR_OUTPUT_MODE_CUVA_HLG				5
 #define HDR_OUTPUT_MODE_SDR						6
 #define HDR_OUTPUT_MODE_BYPASS					7
+#define LC_EVC_SIZE  5
 
 //48-56hz gm_tb[1][3]
 //57-64hz gm_tb[2][3]
@@ -556,6 +557,7 @@ int vinfo_hdmi_out_fmt(void);
 int dv_pq_ctl(enum dv_pq_ctl_e ctl);
 int cm_force_update_flag(void);
 int get_lum_ave(void);
+extern int flag_lc_evc;
 
 enum demo_module_e {
 	E_DEMO_SR = 0,/*SHARPNESS/DEJAGGY/DNLP/LC*/
@@ -602,6 +604,7 @@ struct gamma_data_s *get_gm_data(void);
 void bs_ct_latch(void);
 int pkt_adv_chip(void);
 extern unsigned int ai_color_enable;
+void amve_lc_elc_ctrl(unsigned int enable);
 
 int register_osd_status_cb(int (*get_osd_enable_status)(u32 index));
 void resume_recovery_process(int vpp_index);

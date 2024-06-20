@@ -3587,12 +3587,14 @@ void video_post_process(struct vframe_s *vf,
 			if (chip_type_id == chip_s5) {
 				output_color_fmt_convert(vpp_index);
 			} else {
-				if (vpp_index == VPP_TOP1)
+				if (vpp_index == VPP_TOP1) {
 					mtx_setting(VPP1_POST2_MTX, MATRIX_NULL, MTX_OFF);
-				else if (vpp_index == VPP_TOP2)
+				} else if (vpp_index == VPP_TOP2) {
 					mtx_setting(VPP2_POST2_MTX, MATRIX_NULL, MTX_OFF);
-				else
-					mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
+				} else {
+					if (!flag_lc_evc)
+						mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
+				}
 			}
 		} else {
 			pr_csc(12, "%s: vpp_index = %d mode = %d [%d]\n",
