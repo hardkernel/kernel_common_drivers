@@ -1125,7 +1125,7 @@ static int vpp_process_speed_check
 	u32 input_time_us = 0, display_time_us = 0, dummy_time_us = 0;
 	u32 width_out = 0;
 	u32 vpu_clk = 0, max_height = 2160;
-	u32 slice_num, max_proc_height_temp = 0;
+	u32 slice_num, max_proc_height_temp = max_proc_height;
 	u32 pi_enable, clk_calc = 0, overlap_size = 0;
 	u32 frc_enable = 0;
 
@@ -1184,28 +1184,30 @@ static int vpp_process_speed_check
 	}
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* 8k mode */
-	if (video_is_meson_s5_cpu())
+	if (video_is_meson_s5_cpu()) {
 		max_height = 4320;
-#endif
-	if (pi_enable)
-		height_screen /= 2;
-	if (slice_num == 4)
-		max_proc_height_temp = max_proc_height * 2;
-	else
-		max_proc_height_temp = max_proc_height;
-	switch (slice_num) {
-	case 4:
-		overlap_size = 32 * 2;
-		break;
-	case 2:
-		overlap_size = 32;
-		break;
-	case 1:
-	default:
-		overlap_size = 0;
-		break;
+
+		if (pi_enable)
+			height_screen /= 2;
+		if (slice_num == 4)
+			max_proc_height_temp = max_proc_height * 2;
+		else
+			max_proc_height_temp = max_proc_height;
+		switch (slice_num) {
+		case 4:
+			overlap_size = 32 * 2;
+			break;
+		case 2:
+			overlap_size = 32;
+			break;
+		case 1:
+		default:
+			overlap_size = 0;
+			break;
+		}
+		width_in = width_in / slice_num + overlap_size;
 	}
-	width_in = width_in / slice_num + overlap_size;
+#endif
 
 	if (layer_id == 0 && (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME)) {
 		if (max_proc_height_temp < max_height)
@@ -1217,15 +1219,6 @@ static int vpp_process_speed_check
 		min_ratio_1000 =  min_skip_ratio;
 	else
 		min_ratio_1000 = 1750;
-	if ((frc_enable || slice_num == 2) && layer_id == 0) {
-		if (width_in > 1920) {
-			min_ratio_1000 =  min_skip_ratio;
-			min_ratio_1000 = min_ratio_1000 * 140 / 100;
-		} else {
-			min_ratio_1000 = 1750;
-			min_ratio_1000 = min_ratio_1000 * 115 / 100;
-		}
-	}
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* for s5 non-afbc and 480i output*/
