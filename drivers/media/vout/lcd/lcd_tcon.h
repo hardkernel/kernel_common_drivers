@@ -236,6 +236,10 @@ struct lcd_tcon_local_cfg_s *get_lcd_tcon_local_cfg(void);
 void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *tcon_conf);
 int lcd_tcon_fw_buf_table_generate(struct lcd_tcon_fw_s *tcon_fw);
 void lcd_tcon_fw_base_timing_update(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_fw_add_core_table(struct lcd_tcon_fw_s *fw, unsigned char *core_table);
+void lcd_tcon_fw_remove_core_table(struct lcd_tcon_fw_s *fw);
+int lcd_tcon_fw_core_table_cnt(struct lcd_tcon_fw_s *fw);
+void lcd_tcon_fw_update_core(struct lcd_tcon_fw_s *fw);
 
 /* **********************************
  * tcon config

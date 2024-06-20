@@ -888,7 +888,7 @@ static void lcd_init_on_delayed_work(struct work_struct *p_work)
 
 	res_ready = lcd_resource_is_ready(pdrv);
 	if (res_ready == 0) {
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
 			LCDPR("[%d]: %s: lcd resource is not ready\n", pdrv->index, __func__);
 		lcd_queue_delayed_work(&pdrv->init_on_delayed_work, 10);
 		return;
@@ -1701,17 +1701,6 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			}
 		}
 		break;
-	case LCD_IOC_GET_TCON_BIN_MAX_CNT_INFO:
-	case LCD_IOC_SET_TCON_DATA_INDEX_INFO:
-	case LCD_IOC_GET_TCON_BIN_PATH_INFO:
-	case LCD_IOC_SET_TCON_BIN_DATA_INFO:
-	case TCON_IOC_SET_DCCD:
-	case TCON_IOC_SET_QUICK_REG:
-	case TCON_IOC_GET_DCCD_FLG:
-	case TCON_IOC_GET_CALC_BUF:
-	case TCON_IOC_GET_CALC_STATUS:
-		ret = lcd_tcon_ioctl_handler(pdrv, mcd_nr, arg);
-		break;
 	case LCD_IOC_POWER_CTRL:
 		if (copy_from_user((void *)&temp, argp, sizeof(unsigned int))) {
 			ret = -EFAULT;
@@ -1864,8 +1853,9 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	default:
-		LCDERR("[%d]: not support ioctl cmd_nr: 0x%x\n", pdrv->index, mcd_nr);
-		ret = -EINVAL;
+		ret = lcd_tcon_ioctl_handler(pdrv, mcd_nr, arg);
+		if (ret)
+			LCDERR("[%d]: not support ioctl cmd_nr: 0x%x\n", pdrv->index, mcd_nr);
 		break;
 	}
 

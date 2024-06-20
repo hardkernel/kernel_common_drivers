@@ -109,9 +109,12 @@ struct aml_lcd_dccd_config_s {
  */
 #define TCON_IOC_SET_DCCD         0x20
 #define TCON_IOC_SET_QUICK_REG    0x21
-#define TCON_IOC_GET_DCCD_FLG     0x22
-#define TCON_IOC_GET_CALC_BUF     0x23
-#define TCON_IOC_GET_CALC_STATUS  0x24
+#define TCON_IOC_SET_CORE_BASE    0x22
+#define TCON_IOC_GET_DCCD_FLG     0x23
+#define TCON_IOC_GET_CALC_BUF     0x24
+#define TCON_IOC_GET_CALC_STATUS  0x25
+#define TCON_IOC_GET_CALC_CNT     0x26
+#define TCON_IOC_SET_DCCD_DONE    0x27
 
 #define LCD_IOC_CMD_GET_HDR_INFO   \
 	_IOR(LCD_IOC_TYPE, LCD_IOC_NR_GET_HDR_INFO, struct lcd_optical_info_s)
@@ -143,12 +146,18 @@ struct aml_lcd_dccd_config_s {
 	_IOW(LCD_IOC_TYPE, TCON_IOC_SET_DCCD, struct aml_lcd_dccd_config_s)
 #define TCON_IOC_CMD_SET_QUICK_REG \
 	_IOW(LCD_IOC_TYPE, TCON_IOC_SET_QUICK_REG, unsigned int)
+#define TCON_IOC_CMD_SET_CORE_BASE \
+	_IOW(LCD_IOC_TYPE, TCON_IOC_SET_CORE_BASE, struct aml_lcd_dccd_config_s)
 #define TCON_IOC_CMD_GET_DCCD_FLG \
 	_IOR(LCD_IOC_TYPE, TCON_IOC_GET_DCCD_FLG, unsigned int)
 #define TCON_IOC_CMD_GET_CALC_BUF \
 	_IOR(LCD_IOC_TYPE, TCON_IOC_GET_CALC_BUF, struct aml_lcd_dccd_config_s)
 #define TCON_IOC_CMD_GET_CALC_STATUS \
 	_IOR(LCD_IOC_TYPE, TCON_IOC_GET_CALC_STATUS, unsigned int)
+#define TCON_IOC_CMD_GET_CALC_CNT \
+	_IOR(LCD_IOC_TYPE, TCON_IOC_GET_CALC_CNT, unsigned int)
+#define TCON_IOC_CMD_SET_DCCD_DONE \
+	_IOW(LCD_IOC_TYPE, TCON_IOC_SET_DCCD_DONE, unsigned int)
 
 /* **********************************
  * lcd_extern IOCTL define

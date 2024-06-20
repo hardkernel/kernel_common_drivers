@@ -2993,16 +2993,9 @@ static int lcd_tcon_dccd_flow_check(struct aml_lcd_drv_s *pdrv)
 	struct lcd_tcon_fw_s *fw = aml_lcd_tcon_get_fw();
 
 	if (pdrv->boot_ctrl->dccd_flag && fw && fw->valid) {
-		//step 1. wait fw alg handle dccd flow
-		LCDPR("Wait fw alg to handle...\n");
-		wait_for_completion(&fw->alg_comp);
-
-		//step 2. update core reg from fw alg
-		LCDPR("fw alg handle done, update core reg\n");
-		memcpy(tcon_mm_table.core_reg_header, fw->config->core_reg_header,
-			tcon_mm_table.core_reg_header->header_size);
-		memcpy(tcon_mm_table.core_reg_table, fw->config->core_reg_table,
-			tcon_mm_table.core_reg_table_size);
+		lcd_resource_add(pdrv, LCD_RES_TCON_DCCD, 0);
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("Add tcon dccd resource, wait resource ready\n");
 	}
 
 	return 0;

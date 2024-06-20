@@ -1267,7 +1267,8 @@ long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned lon
 	struct lcd_tcon_fw_s *tcon_fw = aml_lcd_tcon_get_fw();
 	struct lcd_tcon_data_block_header_s block_header, block_header_old;
 	struct aml_lcd_dccd_config_s dccd_config;
-	unsigned int size = 0, old_size, temp, m = 0, header_size = 0;
+	struct tcon_fw_core_reg_s *core_info = NULL, *temp_core;
+	unsigned int size = 0, old_size, temp = 0, m = 0, header_size = 0;
 	struct device *dev;
 	phys_addr_t paddr = 0, paddr_old = 0;
 	unsigned char *mem_vaddr = NULL, *vaddr = NULL, *vaddr_old = NULL;
@@ -1417,6 +1418,7 @@ set_tcon_bin_error_break:
 		ret = -EFAULT;
 		break;
 	case TCON_IOC_SET_DCCD:
+	case TCON_IOC_SET_CORE_BASE:
 		ret = -EINVAL;
 		if (copy_from_user(&dccd_config, argp, sizeof(dccd_config)))
 			goto __dccd_set_exit;
@@ -1435,13 +1437,15 @@ set_tcon_bin_error_break:
 			goto __dccd_set_exit;
 		}
 		dccd_config.data.ptr = buf;
-		tcon_fw->buf_table_in = (void *)&dccd_config;
-		if (tcon_fw->tcon_alg)
-			ret = tcon_fw->tcon_alg(tcon_fw, 0);
+		if (mcd_nr == TCON_IOC_SET_DCCD) {
+			tcon_fw->buf_table_in = (void *)&dccd_config;
+			if (tcon_fw->tcon_alg)
+				ret = tcon_fw->tcon_alg(tcon_fw, 0);
+		} else if (mcd_nr == TCON_IOC_SET_CORE_BASE) {
+			ret = lcd_tcon_fw_add_core_table(tcon_fw, dccd_config.data.ptr);
+		}
 __dccd_set_exit:
 		kfree(buf);
-		if (!ret)
-			complete_all(&tcon_fw->alg_comp);
 		break;
 	case TCON_IOC_SET_QUICK_REG:
 		ret = -EINVAL;
@@ -1453,10 +1457,10 @@ __dccd_set_exit:
 		}
 		break;
 	case TCON_IOC_GET_DCCD_FLG:
-		temp = !!(tcon_fw->flag & (1 << 8));
+		temp = !!(tcon_fw->flag & TCON_FW_FLAG_DCCD_RUN);
 		if (!copy_to_user(argp, &temp, sizeof(temp)))
 			ret = 0;
-		LCDPR("Get dccd flag(%d) %s!\n", temp, !ret ? "ok" : "error");
+		LCDPR("DCCD get flag(%d) %s!\n", temp, !ret ? "ok" : "error");
 		break;
 	case TCON_IOC_GET_CALC_STATUS:
 		temp = 0;
@@ -1467,28 +1471,55 @@ __dccd_set_exit:
 		}
 		if (!ret && !copy_to_user(argp, &temp, sizeof(temp)))
 			ret = 0;
-		LCDPR("Get dccd status(%d) %s!\n", temp, !ret ? "ok" : "error");
+		LCDPR("DCCD get status(%d) %s!\n", temp, !ret ? "ok" : "error");
 		break;
 	case TCON_IOC_GET_CALC_BUF:
-		if (!tcon_fw->config || !tcon_fw->config->core_reg)
+		if (!tcon_fw->config)
 			goto __tcon_get_calc_exit;
 		if (copy_from_user(&dccd_config, argp, sizeof(dccd_config)))
 			goto __tcon_get_calc_exit;
 
-		dccd_config.size = tcon_fw->config->core_reg_size;
+		m = 0;
+		temp = dccd_config.size;  //core reg index
+		list_for_each_entry(temp_core, &tcon_fw->config->core_reg_list, list) {
+			if (temp == m++) {
+				core_info = temp_core;
+				break;
+			}
+		}
+		if (!core_info)
+			goto __tcon_get_calc_exit;
+		dccd_config.size = core_info->init_header->block_size;
 		if (copy_to_user(argp, &dccd_config, sizeof(dccd_config)))
 			goto __tcon_get_calc_exit;
 
 		argp = (void __user *)dccd_config.data.ptr;
-		if (copy_to_user(argp, tcon_fw->config->core_reg, dccd_config.size))
+		if (copy_to_user(argp, core_info->full_table, dccd_config.size))
 			goto __tcon_get_calc_exit;
 		ret = 0;
 
 __tcon_get_calc_exit:
-		LCDPR("Get tcon calc buf %s\n", ret ? "fail" : "ok");
+		if (ret) {
+			LCDERR("DCCD get core_info[%d] fail\n", temp);
+		} else {
+			LCDPR("DCCD get tcon core_info[%d] size=%d (%#x), ptr=%p\n",
+				temp, dccd_config.size, dccd_config.size, dccd_config.data.ptr);
+		}
+		break;
+	case TCON_IOC_GET_CALC_CNT:
+		temp = lcd_tcon_fw_core_table_cnt(tcon_fw);
+		if (!copy_to_user(argp, &temp, sizeof(temp)))
+			ret = 0;
+		LCDPR("DCCD get cnt=%d\n", temp);
+		break;
+	case TCON_IOC_SET_DCCD_DONE:
+		lcd_tcon_fw_update_core(tcon_fw);
+		lcd_tcon_fw_remove_core_table(tcon_fw);
+		lcd_resource_ready(pdrv->index, LCD_RES_TCON_DCCD, 0);
+		ret = 0;
+		LCDPR("DCCD set done\n");
 		break;
 	default:
-		LCDERR("tcon: don't support ioctl cmd_nr: 0x%x\n", mcd_nr);
 		ret = -EINVAL;
 		break;
 	}
@@ -1540,9 +1571,12 @@ static long lcd_tcon_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	case LCD_IOC_SET_TCON_BIN_DATA_INFO:
 	case TCON_IOC_SET_DCCD:
 	case TCON_IOC_SET_QUICK_REG:
+	case TCON_IOC_SET_CORE_BASE:
 	case TCON_IOC_GET_DCCD_FLG:
 	case TCON_IOC_GET_CALC_BUF:
 	case TCON_IOC_GET_CALC_STATUS:
+	case TCON_IOC_GET_CALC_CNT:
+	case TCON_IOC_SET_DCCD_DONE:
 		ret = lcd_tcon_ioctl_handler(pdrv, mcd_nr, arg);
 		break;
 	default:

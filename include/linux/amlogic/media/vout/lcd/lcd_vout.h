@@ -740,6 +740,7 @@ struct lcd_reg_map_s {
 #define LCD_RES_BACKLIGHT   1
 #define LCD_RES_EXTERN      2
 #define LCD_RES_TCON        3
+#define LCD_RES_TCON_DCCD   4
 struct lcd_resource_s {
 	unsigned int type;
 	unsigned int index;

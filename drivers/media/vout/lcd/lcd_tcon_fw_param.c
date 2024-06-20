@@ -143,10 +143,6 @@ static struct tcon_fw_config_s lcd_tcon_fw_config = {
 	.if_type = TCON_IF_TYPE_MAX,
 	.axi_cnt = 0,
 	.axi_rmem = NULL,
-	.core_reg = NULL,
-	.core_reg_size  = 0,
-	.core_reg_header = NULL,
-	.core_reg_table = NULL,
 };
 
 static struct tcon_fw_base_timing_s lcd_tcon_fw_base_timing;
@@ -245,6 +241,211 @@ void lcd_tcon_fw_base_timing_update(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_fw.base_timing->update_flag = 1;
 }
 
+int lcd_tcon_fw_add_core_table(struct lcd_tcon_fw_s *fw, unsigned char *core_table)
+{
+	struct lcd_tcon_config_s *tcon_cfg = get_lcd_tcon_config();
+	struct tcon_fw_core_reg_s *fw_core = NULL;
+	struct lcd_tcon_init_block_header_s *init_header = NULL;
+	struct lcd_tcon_init_block_ext_header_s *ext_header = NULL;
+	char str[64] = "";
+	int ret = -1;
+
+	if (!fw || !fw->config || !core_table || !tcon_cfg)
+		goto __add_core_table_exit;
+
+	fw_core = kzalloc(sizeof(*fw_core), GFP_KERNEL);
+	if (!fw_core)
+		goto __add_core_table_exit;
+
+	init_header = (struct lcd_tcon_init_block_header_s *)core_table;
+	if (init_header->ext_header_size) {
+		ext_header = (struct lcd_tcon_init_block_ext_header_s *)
+			(core_table + init_header->header_size);
+	}
+
+	fw_core->full_table = kzalloc(init_header->block_size, GFP_KERNEL);
+	if (!fw_core->full_table)
+		goto __add_core_table_exit;
+
+	memmove(fw_core->full_table, core_table, init_header->block_size);
+	fw_core->core_reg_size = tcon_cfg->reg_table_len;
+	fw_core->init_header = (struct lcd_tcon_init_block_header_s *)fw_core->full_table;
+	if (init_header->ext_header_size) {
+		fw_core->ext_header = (struct lcd_tcon_init_block_ext_header_s *)
+			(fw_core->full_table + init_header->header_size);
+	}
+	fw_core->core_reg = fw_core->full_table + init_header->header_size
+		+ init_header->ext_header_size;
+
+	list_add_tail(&fw_core->list, &fw->config->core_reg_list);
+	ret = 0;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		memset(str, 0, sizeof(str));
+		memcpy(str, init_header->version, LCD_TCON_INIT_BIN_VERSION_SIZE);
+		LCDPR("Add core reg info:\n");
+		LCDPR("  name       = %s\n", init_header->name);
+		LCDPR("  version    = %s\n", str);
+		LCDPR("  block_size = %#x (%d)\n", init_header->block_size,
+			init_header->block_size);
+		LCDPR("  resolution = %dx%d\n", init_header->h_active, init_header->v_active);
+		if (ext_header) {
+			LCDPR("  fr range   = %d~%d\n",
+				ext_header->framerate_min, ext_header->framerate_max);
+		}
+		LCDPR("  crc        = %#x\n", init_header->crc32);
+	}
+
+__add_core_table_exit:
+	if (ret) {
+		if (fw_core)
+			kfree(fw_core->full_table);
+		kfree(fw_core);
+	}
+
+	return ret;
+}
+
+void lcd_tcon_fw_remove_core_table(struct lcd_tcon_fw_s *fw)
+{
+	struct tcon_fw_core_reg_s *fw_core, *core_n;
+
+	if (!fw || !fw->config)
+		return;
+
+	list_for_each_entry_safe(fw_core, core_n, &fw->config->core_reg_list, list) {
+		kfree(fw_core->full_table);
+		list_del(&fw_core->list);
+		kfree(fw_core);
+	}
+}
+
+int lcd_tcon_fw_core_table_cnt(struct lcd_tcon_fw_s *fw)
+{
+	struct list_head *cur_list = NULL;
+	int cnt = 0;
+
+	if (!fw || !fw->config)
+		return 0;
+
+	list_for_each(cur_list, &fw->config->core_reg_list)
+		cnt++;
+
+	return cnt;
+}
+
+static int lcd_tcon_fw_alloc_core_reg(struct lcd_tcon_fw_s *fw,
+		struct tcon_fw_core_reg_s *fw_core_reg)
+{
+	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
+	struct lcd_tcon_init_block_header_s *core_header = NULL;
+	int ret = -1;
+
+	if (!fw || !fw_core_reg || !mm_table)
+		goto __alloc_mem_by_reg_exit;
+	core_header = fw_core_reg->init_header;
+
+	if (!mm_table->core_reg_header && core_header) {
+		mm_table->core_reg_header = kzalloc(core_header->header_size,
+			GFP_KERNEL);
+		if (!mm_table->core_reg_header) {
+			LCDERR("%s: mm_table alloc core header fail\n", __func__);
+			goto __alloc_mem_by_reg_exit;
+		}
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("%s: mm_table alloc core header\n", __func__);
+	}
+
+	if (!mm_table->core_reg_ext_header && core_header &&
+			core_header->ext_header_size) {
+		mm_table->core_reg_ext_header = kzalloc(core_header->ext_header_size,
+			GFP_KERNEL);
+		if (!mm_table->core_reg_ext_header) {
+			LCDERR("%s: mm_table alloc core ext header fail\n", __func__);
+			goto __alloc_mem_by_reg_exit;
+		}
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("%s: mm_table alloc core ext header\n", __func__);
+	}
+
+	if (!mm_table->core_reg_table) {
+		mm_table->core_reg_table = kzalloc(mm_table->core_reg_table_size,
+			GFP_KERNEL);
+		if (!mm_table->core_reg_table) {
+			LCDERR("%s: mm_table alloc core reg table fail\n", __func__);
+			goto __alloc_mem_by_reg_exit;
+		}
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("%s: mm_table alloc core table\n", __func__);
+	}
+	ret = 0;
+
+__alloc_mem_by_reg_exit:
+	return ret;
+}
+
+void lcd_tcon_fw_update_core(struct lcd_tcon_fw_s *fw)
+{
+	struct aml_lcd_drv_s *pdrv = NULL;
+	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
+	struct tcon_fw_core_reg_s *core_reg = NULL;
+	struct tcon_fw_core_reg_s *match_reg = NULL;
+	struct lcd_detail_timing_s *dft_timing = NULL;
+	struct lcd_tcon_init_block_header_s *init_header;
+	struct lcd_tcon_init_block_ext_header_s *ext_header;
+
+	if (!fw || !mm_table)
+		return;
+
+	pdrv = (struct aml_lcd_drv_s *)fw->drvdat;
+	dft_timing = pdrv ? pdrv->config.timing.dft_timing : NULL;
+	if (!pdrv || !dft_timing)
+		return;
+
+	list_for_each_entry(core_reg, &fw->config->core_reg_list, list) {
+		init_header = core_reg->init_header;
+		ext_header = core_reg->ext_header;
+
+		//find match binary and add to core reg
+		if (dft_timing->h_active == core_reg->init_header->h_active &&
+				dft_timing->v_active == core_reg->init_header->v_active) {
+			if (ext_header) {
+				if (dft_timing->frame_rate < ext_header->framerate_min ||
+				    dft_timing->frame_rate > ext_header->framerate_max)
+					continue;
+			}
+			match_reg = core_reg;
+			LCDPR("%s: match %dx%d@%dhz\n", __func__, init_header->h_active,
+				init_header->v_active, dft_timing->frame_rate);
+			break;
+		}
+	}
+
+	//step 3. update core reg
+	if (match_reg) {
+		lcd_tcon_fw_alloc_core_reg(fw, match_reg);
+		if (mm_table->core_reg_header) {
+			memcpy(mm_table->core_reg_header, match_reg->init_header,
+				mm_table->core_reg_header->header_size);
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("%s: core reg header updated\n", __func__);
+		}
+		if (mm_table->core_reg_ext_header &&
+				match_reg->init_header) {
+			memcpy(mm_table->core_reg_ext_header, match_reg->ext_header,
+				match_reg->init_header->ext_header_size);
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("%s: core reg ext header updated\n", __func__);
+		}
+		if (mm_table->core_reg_table) {
+			memcpy(mm_table->core_reg_table, match_reg->core_reg,
+				mm_table->core_reg_table_size);
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("%s: core reg table updated\n", __func__);
+		}
+	}
+}
+
 void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *tcon_conf)
 {
 	struct tcon_rmem_s *tcon_rmem = get_lcd_tcon_rmem();
@@ -312,31 +513,7 @@ void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *t
 		lcd_tcon_fw.config->axi_rmem[i].mem_size = tcon_rmem->axi_rmem[i].mem_size;
 	}
 
-	if (!mm_table->core_reg_table || !mm_table->core_reg_header) {
-		LCDERR("Invalid core reg table\n");
-		kfree(lcd_tcon_fw.config->axi_rmem);
-		lcd_tcon_fw.config->axi_rmem = NULL;
-		lcd_tcon_fw.config->axi_cnt = 0;
-		return;
-	}
-
-	if (pdrv->boot_ctrl->dccd_flag) {
-		lcd_tcon_fw.config->core_reg_size = mm_table->core_reg_header->header_size +
-			mm_table->core_reg_table_size;
-		lcd_tcon_fw.config->core_reg =
-			kzalloc(lcd_tcon_fw.config->core_reg_size, GFP_KERNEL);
-		if (lcd_tcon_fw.config->core_reg) {
-			memmove(lcd_tcon_fw.config->core_reg, mm_table->core_reg_header,
-				mm_table->core_reg_header->header_size);
-			memmove(lcd_tcon_fw.config->core_reg +
-				mm_table->core_reg_header->header_size,
-				mm_table->core_reg_table, mm_table->core_reg_table_size);
-			lcd_tcon_fw.config->core_reg_header =
-				(struct lcd_tcon_init_block_header_s *)lcd_tcon_fw.config->core_reg;
-			lcd_tcon_fw.config->core_reg_table = lcd_tcon_fw.config->core_reg +
-				lcd_tcon_fw.config->core_reg_header->header_size;
-		}
-	}
+	INIT_LIST_HEAD(&lcd_tcon_fw.config->core_reg_list);
 
 	if (pdrv->status & LCD_STATUS_IF_ON)
 		lcd_tcon_fw.tcon_state |= TCON_FW_STATE_TCON_EN;
@@ -358,7 +535,9 @@ void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *t
 
 	lcd_tcon_fw.drvdat = (void *)pdrv;
 	lcd_tcon_fw.dev = pdrv->dev;
-	lcd_tcon_fw.flag |= (((unsigned int)pdrv->boot_ctrl->dccd_flag) << 8);
+	lcd_tcon_fw.flag = 0;
+	if (pdrv->boot_ctrl->dccd_flag)
+		lcd_tcon_fw.flag |= TCON_FW_FLAG_DCCD_RUN;
 
 	lcd_tcon_fw.valid = 1;
 
