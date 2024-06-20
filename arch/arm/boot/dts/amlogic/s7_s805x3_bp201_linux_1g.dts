@@ -175,10 +175,7 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1280x720 yuv420 8bit (nv21) and 4 buffers
-			 * 1280x720x1.5x4 = 8 M
-			 */
-			size = <0x00000000>;
+			size = <0x00c00000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x30000000 0x10000000>;
 		};

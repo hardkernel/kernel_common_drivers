@@ -174,7 +174,7 @@
 			/* 420 mode:1280x720x1.5x4=8MB */
 			/* 422 mode:1280x720x2x4=8MB */
 			/* 444 mode:1280x720x3x4=12MB */
-			size = <0x00800000>;
+			size = <0x00c00000>;
 			alignment = <0x400000>;
 		};
 		/* global autoconfigured region for contiguous allocations */
