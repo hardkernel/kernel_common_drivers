@@ -186,8 +186,14 @@ static inline int lcd_init(void)
 #endif
 
 #ifdef CONFIG_AMLOGIC_PERIPHERAL_LCD
+int plcd_spi_device_init(void);
 int peripheral_lcd_init(void);
 #else
+static inline int plcd_spi_device_init(void)
+{
+	return 0;
+}
+
 static inline int peripheral_lcd_init(void)
 {
 	return 0;

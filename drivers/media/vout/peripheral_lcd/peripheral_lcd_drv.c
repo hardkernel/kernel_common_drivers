@@ -27,6 +27,7 @@ struct per_gpio_s plcd_gpio[PER_GPIO_NUM_MAX];
 static struct per_lcd_reg_map_s plcd_reg_map;
 
 struct peripheral_lcd_driver_s *plcd_drv;
+struct spi_device *plcd_spi_dev;
 unsigned char per_lcd_debug_flag;
 
 static void plcd_ioremap(struct platform_device *pdev)
@@ -84,8 +85,6 @@ static int plcd_add_dev_driver(void)
 	switch (plcd_drv->pcfg->type) {
 	case PLCD_TYPE_SPI:
 	case PLCD_TYPE_QSPI:
-		if (plcd_spi_driver_add())
-			return -1;
 		if (strcmp(plcd_drv->pcfg->name, "spi_st7789") == 0)
 			ret = plcd_st7789_probe();
 		else if (strcmp(plcd_drv->pcfg->name, "TL015WVC01-H1650A") == 0)

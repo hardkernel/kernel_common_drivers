@@ -442,42 +442,11 @@ int plcd_get_detail_config_dts(void)
 	switch (pcfg->type) {
 	case PLCD_TYPE_SPI:
 	case PLCD_TYPE_QSPI:
-		/* get spi config */
-		pcfg->spi_cfg.spi_info = kcalloc(1, sizeof(struct spi_board_info), GFP_KERNEL);
-
-		ret = of_property_read_u32(child, "spi_bus_num", &val);
-		if (ret) {
-			LCDERR("failed to get spi_bus_num\n");
+		if (!plcd_spi_dev) {
+			LCDERR("plcd_spi_dev is null\n");
 			return -1;
 		}
-		pcfg->spi_cfg.spi_info->bus_num = val;
-		if (per_lcd_debug_flag)
-			LCDPR("spi bus_num: %d\n", pcfg->spi_cfg.spi_info->bus_num);
-
-		ret = of_property_read_u32(child, "spi_chip_select", &val);
-		if (ret)
-			LCDERR("failed to get spi_chip_select\n");
-		pcfg->spi_cfg.spi_info->chip_select = ret ? 0 : val;
-		if (per_lcd_debug_flag)
-			LCDPR("spi chip_select: %d\n", pcfg->spi_cfg.spi_info->chip_select);
-
-		ret = of_property_read_u32(child, "spi_max_frequency", &val);
-		if (ret)
-			LCDERR("failed to get spi_max_frequency\n");
-		pcfg->spi_cfg.spi_info->max_speed_hz = ret ? 1000000 : val;
-		if (per_lcd_debug_flag)
-			LCDPR("spi max_speed_hz: %d\n", pcfg->spi_cfg.spi_info->max_speed_hz);
-
-		ret = of_property_read_u32(child, "spi_mode", &val);
-		if (ret)
-			LCDERR("failed to get spi_mode\n");
-		pcfg->spi_cfg.spi_info->mode = ret ? 0 : val;
-		if (per_lcd_debug_flag)
-			LCDPR("spi mode: %d\n", pcfg->spi_cfg.spi_info->mode);
-
-		ret = of_property_read_u32_array(child, "spi_cs_delay", para, 2);
-		pcfg->spi_cfg.cs_hold_delay = ret ? 0 : para[0];
-		pcfg->spi_cfg.cs_clk_delay = ret ? 0 : para[1];
+		pcfg->spi_cfg.spi_dev = plcd_spi_dev;
 		break;
 
 	case PLCD_TYPE_MCU_8080:

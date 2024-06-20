@@ -128,7 +128,7 @@ static ssize_t plcd_print_store(const struct class *class,
 	int flag = 0, ret;
 
 	ret = kstrtoint(buf, 10, &flag);
-	if (ret)
+	if (!ret)
 		per_lcd_debug_flag = flag;
 	return count;
 }

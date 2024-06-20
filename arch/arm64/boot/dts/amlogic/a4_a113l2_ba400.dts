@@ -7,7 +7,7 @@
 
 #include "meson-a4.dtsi"
 #include <dt-bindings/input/input.h>
-//#include "mesona4_ba400-panel.dtsi"
+#include "mesona4_ba400-panel.dtsi"
 
 / {
 	model = "Amlogic";
@@ -1273,6 +1273,18 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_t>;
+
+	plcd_spi_device@0 {
+		compatible = "amlogic,plcd-spi-device";
+		reg = <0>;
+		spi-cpha;
+		spi-cpol;
+		spi-tx-bus-width = <4>;
+		spi-max-frequency = <16000000>; /* unit: hz */
+		spi_mode = <0x203>;
+		spi_cs_delay = <10  /* hold_high_delay */
+				100>; /* clk_cs_delay (unit: us) */
+	};
 };
 
 &spicc1 {

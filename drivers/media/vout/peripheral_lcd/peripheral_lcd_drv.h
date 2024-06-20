@@ -13,6 +13,7 @@ extern unsigned int rgb666_color_data[8];
 extern unsigned int rgb565_color_data[8];
 
 extern struct peripheral_lcd_driver_s *plcd_drv;
+extern struct spi_device *plcd_spi_dev;
 
 /* peripheral lcd utils GPIO */
 void plcd_usleep(unsigned int us);

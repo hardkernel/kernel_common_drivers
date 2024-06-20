@@ -174,15 +174,6 @@
 				0 /*reserved*/
 				0 /*reserved*/
 				0>; /*reserved*/
-			spi_bus_num = <1>;
-			spi_chip_select = <0>;
-			spi_max_frequency = <16000000>; /* unit: hz */
-
-			/* see <include/drivers/spi/spi.h>@spi_device.mode */
-			spi_mode = <0x203>;
-			spi_cs_delay = <10  /* hold_high_delay */
-				100>; /* clk_cs_delay (unit: us) */
-
 			cmd_size = <0xff>;
 			/* init: (type, data...) */
 			/*   type: 0x00=cmd with delay,

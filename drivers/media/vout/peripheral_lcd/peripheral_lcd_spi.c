@@ -77,13 +77,18 @@ int plcd_spi_write_cmd1_data4(void *cbuf, int clen, void *dbuf, int dlen, int wo
 	struct spi_config_s *spi_cfg = &plcd_drv->pcfg->spi_cfg;
 	int ret;
 
+	if (!spi_cfg->spi_dev) {
+		LCDERR("spi_cfg->spi_dev is NULL\n");
+		return -ENODEV;
+	}
+
 	plcd_usleep(spi_cfg->cs_hold_delay);
 
 	spi_cfg->spi_dev->bits_per_word = word_bits;
 
 	memset(&msg, 0, sizeof(msg));
 	memset(&xfer_head, 0, sizeof(xfer_head));
-	memset(&xfer_data, 0, sizeof(xfer_head));
+	memset(&xfer_data, 0, sizeof(xfer_data));
 	spi_message_init(&msg);
 
 	xfer_head.tx_buf = (void *)cbuf;
@@ -136,10 +141,7 @@ static int plcd_spi_dev_probe(struct spi_device *spi)
 {
 	int ret;
 
-	if (per_lcd_debug_flag)
-		LCDPR("%s\n", __func__);
-
-	plcd_drv->pcfg->spi_cfg.spi_dev = spi;
+	plcd_spi_dev = spi;
 	dev_set_drvdata(&spi->dev, plcd_drv);
 	spi->bits_per_word = 8;
 
@@ -152,66 +154,37 @@ static int plcd_spi_dev_probe(struct spi_device *spi)
 
 static void plcd_spi_dev_remove(struct spi_device *spi)
 {
-	// struct per_lcd_driver_s *plcd_drv = peripheral_lcd_get_driver();
-
-	if (per_lcd_debug_flag)
-		LCDPR("%s\n", __func__);
-
-	plcd_drv->pcfg->spi_cfg.spi_dev = NULL;
 	dev_set_drvdata(&spi->dev, NULL);
+	plcd_drv->pcfg->spi_cfg.spi_dev = NULL;
+	plcd_spi_dev = NULL;
 }
+
+#ifdef CONFIG_OF
+static const struct of_device_id spi_of_plcd_match[] = {
+	{ .compatible = "amlogic,plcd-spi-device", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, spi_of_plcd_match);
+#endif
+
+static const struct spi_device_id plcd_spi_id[] = {
+	{ "plcd-spi-device", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, plcd_spi_id);
 
 static struct spi_driver plcd_spi_dev_driver = {
 	.probe = plcd_spi_dev_probe,
 	.remove = plcd_spi_dev_remove,
 	.driver = {
-		.name = "peripheral_lcd",
+		.name = "peripheral_lcd_spi",
 		.owner = THIS_MODULE,
-	},
-};
-
-int plcd_spi_driver_add(void)
-{
-	struct spi_controller *ctlr;
-	struct spi_device *spi_device;
-	int ret;
-
-	if (!plcd_drv->pcfg->spi_cfg.spi_info) {
-		LCDERR("%s: spi_info is null\n", __func__);
-		return -1;
-	}
-
-//KV_TODO: modify
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
-	ctlr = NULL;
-#else
-	ctlr = spi_busnum_to_master(plcd_drv->pcfg->spi_cfg.spi_info->bus_num);
+#ifdef CONFIG_OF
+		.of_match_table = spi_of_plcd_match,
 #endif
-	if (!ctlr) {
-		LCDERR("get busnum failed\n");
-		return -1;
-	}
-
-	spi_device = spi_new_device(ctlr, plcd_drv->pcfg->spi_cfg.spi_info);
-	if (!spi_device) {
-		LCDERR("get spi_device failed\n");
-		return -1;
-	}
-	plcd_drv->pcfg->spi_cfg.spi_dev = spi_device;
-
-	ret = spi_register_driver(&plcd_spi_dev_driver);
-	if (ret) {
-		LCDERR("%s failed\n", __func__);
-		return -1;
-	}
-	if (!plcd_drv->pcfg->spi_cfg.spi_dev) {
-		LCDERR("%s failed\n", __func__);
-		return -1;
-	}
-
-	LCDPR("%s ok\n", __func__);
-	return 0;
-}
+	},
+	.id_table = plcd_spi_id,
+};
 
 int plcd_spi_driver_remove(void)
 {
@@ -549,4 +522,19 @@ int spi_power_off_dft(void)
 		ret = spi_power_cmd_fixed_size(0);
 	plcd_drv->init_flag = 0;
 	return ret;
+}
+
+int __init plcd_spi_device_init(void)
+{
+	LCDPR("plcd spi device init\n");
+	if (spi_register_driver(&plcd_spi_dev_driver)) {
+		LCDPR("plcd spi driver registration failed\n");
+		return -ENODEV;
+	}
+	return 0;
+}
+
+void __exit plcd_spi_device_exit(void)
+{
+	spi_unregister_driver(&plcd_spi_dev_driver);
 }

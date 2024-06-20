@@ -571,6 +571,8 @@
 				clocks = <&clkc CLKID_SYS_CLK_SPICC_0>,
 					 <&clkc CLKID_SPICC0>;
 				clock-names = "sys", "spi";
+				assigned-clocks = <&clkc CLKID_SPICC0>;
+				assigned-clock-rates = <500000000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
