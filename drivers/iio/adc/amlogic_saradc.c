@@ -369,6 +369,10 @@ static int amlogic_saradc_self_calib(struct iio_dev *indio_dev)
 static int amlogic_saradc_init(struct iio_dev *indio_dev)
 {
 	struct amlogic_saradc_priv *priv = iio_priv(indio_dev);
+	struct device_node *np = indio_dev->dev.parent->of_node;
+	char buf[32];
+	u32 reg_value;
+	int index;
 	int ret;
 
 	ret = clk_set_parent(priv->clk_mux, priv->clk_src);
@@ -386,25 +390,26 @@ static int amlogic_saradc_init(struct iio_dev *indio_dev)
 
 	usleep_range(5, 10);
 
-	/* Filter control */
-	regmap_write(priv->regmap, SARADC_REG7, 0x00000c21);
-	regmap_write(priv->regmap, SARADC_REG8, 0x0280614d);
-
-	/* Delay configure */
-	regmap_write(priv->regmap, SARADC_REG3, 0x10a02403);
-	regmap_write(priv->regmap, SARADC_REG4, 0x00000080);
-	regmap_write(priv->regmap, SARADC_REG5, 0x0010340b);
-
-	/* Control */
-	regmap_write(priv->regmap, SARADC_REG6, 0x00000031);
-
-	/* Set aux and extern vref */
-	regmap_write(priv->regmap, SARADC_REG9, 0x0000e4e4);
-	regmap_write(priv->regmap, SARADC_REG10, 0x74543414);
-	regmap_write(priv->regmap, SARADC_REG11, 0xf4d4b494);
+	/* Load register configuration from DT [REG0 - REG14] */
+	for (index = 0; index <= 14; index++) {
+		/* Generate attribute names */
+		snprintf(buf, sizeof(buf), "amlogic,reg%d-init", index);
+		/* If it exists, configure it to the register */
+		ret = of_property_read_u32(np, buf, &reg_value);
+		if (!ret)
+			regmap_write(priv->regmap, index << 2, reg_value);
+	}
 
 	/* ADC is disabled by default */
-	regmap_write(priv->regmap, SARADC_REG0, 0x00400000);
+	regmap_update_bits(priv->regmap, SARADC_REG0,
+			   SARADC_REG0_FIFO_IRQ_EN, 0);
+	regmap_update_bits(priv->regmap, SARADC_REG0,
+			   SARADC_REG0_SAMPLING_STOP,
+			   SARADC_REG0_SAMPLING_STOP);
+	regmap_update_bits(priv->regmap, SARADC_REG0,
+			   SARADC_REG0_SAMPLING_ENABLE, 0);
+	regmap_update_bits(priv->regmap, SARADC_REG0,
+			   SARADC_REG0_ADC_EN, 0);
 
 	return 0;
 }
