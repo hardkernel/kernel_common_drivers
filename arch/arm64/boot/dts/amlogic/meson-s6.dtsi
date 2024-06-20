@@ -21,6 +21,7 @@
 #include <dt-bindings/mailbox/amlogic,mbox.h>
 #include <dt-bindings/firmware/amlogic,firmware.h>
 #include <dt-bindings/mailbox/s6-mbox.h>
+#include <dt-bindings/iio/adc/amlogic-saradc.h>
 #include "meson-ir-map.dtsi"
 #include "meson-valhall.dtsi"
 / {
