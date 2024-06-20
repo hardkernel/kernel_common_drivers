@@ -1230,11 +1230,7 @@
 };
 
 &saradc {
-	status = "disabled";
-
-	pd {
-		enabled;
-	};
+	status = "okay";
 };
 
 /*exphy setting*/

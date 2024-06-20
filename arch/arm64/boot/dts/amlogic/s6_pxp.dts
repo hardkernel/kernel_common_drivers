@@ -1109,10 +1109,6 @@
 
 &saradc {
 	status = "disabled";
-
-	pd {
-		enabled;
-	};
 };
 
 &ethmac {

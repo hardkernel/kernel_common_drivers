@@ -339,23 +339,47 @@
 		status = "disabled";
 	};
 
-	saradc: saradc@fe026000 {
-		compatible = "amlogic,meson-s7-saradc",
-			     "amlogic,meson-saradc";
-		status = "disabled";
-		#io-channel-cells = <1>;
-		//clocks = <&xtal>,
-		//	 <&clkc CLKID_SYS_SAR_ADC>,
-		//	 <&clkc CLKID_SAR_ADC>,
-		//	 <&clkc CLKID_SAR_ADC_MUX>;
-		//clock-names = "clkin", "core", "adc_clk", "adc_sel";
-		interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>,
-			     <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
-		reg = <0x00 0xfe026000 0x00 0x48>;
+	saradc_common: saradc-common@fe026000 {
+		compatible = "amlogic,saradc-common";
+		reg = <0x00 0xfe026000 0x00 0x84>;
 
-		pd {
-			ctrl = <2>;	/* 2bit: 0 ~ 3 */
-			trim = <16>;	/* 6bit: 0 ~ 63 */
+		saradc: saradc {
+			compatible = "amlogic,saradc";
+			interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>;
+			clock-names = "src", "core", "gate", "mux";
+			clocks = <&xtal>,
+				 <&clkc CLKID_SYS_SAR_ADC>,
+				 <&clkc CLKID_SAR_ADC>,
+				 <&clkc CLKID_SAR_ADC_MUX>;
+			#io-channel-cells = <1>;
+			amlogic,clock-frequency = <3000000>;
+			amlogic,test-channel = <7>;
+			amlogic,fifo-data-width = <16>;
+			/* Filter control */
+			amlogic,reg7-init = <0x00000c11>;
+			amlogic,reg8-init = <0x0280614d>;
+			/* Delay configure */
+			amlogic,reg3-init = <0x10a02403>;
+			amlogic,reg4-init = <0x001dd080>;
+			amlogic,reg5-init = <0x00103c0b>;
+			/* Control */
+			amlogic,reg6-init = <0x00000031>;
+			/* Set aux and extern vref */
+			amlogic,reg9-init = <0x0000e4e4>;
+			amlogic,reg10-init = <0x74543414>;
+			amlogic,reg11-init = <0xf4d4b494>;
+			status = "disabled";
+		};
+
+		pdd: pdd {
+			compatible = "amlogic,pdd";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			amlogic,interrupt = <182>;
+			amlogic,digital-maps = <0x18 26>, <0x18 23>, <0x18 17>;
+			amlogic,analog-maps = <0x14 26>, <0x14 22>, <0x14 24>;
+			amlogic,voltage-maps = <400>, <800>, <800>, <1200>;
+			status = "okay";
 		};
 	};
 
