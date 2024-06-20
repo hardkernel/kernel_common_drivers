@@ -1007,6 +1007,7 @@ static struct ddr_port_desc ddr_port_desc_s6[] __initdata = {
 	{ .port_id =   6, .port_name = "HEVC_B"		},
 	{ .port_id =   7, .port_name = "HEVC_F"		},
 	{ .port_id =   8, .port_name = "VDEC"		},
+	{ .port_id =   9, .port_name = "MTE"		},
 	{ .port_id =  11, .port_name = "DEMUX"		},
 	{ .port_id =  12, .port_name = "MALI"		},
 	{ .port_id =  13, .port_name = "VGE"		},

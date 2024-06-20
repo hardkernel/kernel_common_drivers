@@ -522,6 +522,11 @@ static struct ddr_priority ddr_priority_s6[] __initdata = {
 		.w_offset = (0xa0 << 2), .w_bit_s = 16, .w_width = 0xf,
 		.r_offset = (0xa0 << 2), .r_bit_s = 16, .r_width = 0xf	},
 
+	{ .port_id = 9, .reg_base = 0xfe036000,
+		.reg_mode = 0, .reg_config = BIT(15),
+		.w_offset = (0xa4 << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0xa4 << 2), .r_bit_s = 16, .r_width = 0xf	},
+
 	{ .port_id = 11, .reg_base = 0xfe036000,
 		.reg_mode = 0, .reg_config = BIT(15),
 		.w_offset = (0xac << 2), .w_bit_s = 16, .w_width = 0xf,
