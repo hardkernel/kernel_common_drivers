@@ -1560,6 +1560,10 @@ static bool dpvpp_reg(struct dimn_itf_s *itf,
 	else
 		ds->en_4k = false;
 	ds->out_mode = EDPST_MODE_422_10BIT_PACK;
+	if (link_mode == EPVPP_API_MODE_PRE && cfgg(EN_PRE_LINK) == 3)
+		ds->en_4k_snr = true;
+	else
+		ds->en_4k_snr = false;
 /* */
 	if (cfgg(POUT_FMT) == 0) {
 		ds->o_hd.b.mode = EDPST_MODE_422_10BIT_PACK;
@@ -1615,13 +1619,19 @@ static bool dpvpp_reg(struct dimn_itf_s *itf,
 		ds->o_hd.b.is_afbce = 0;
 		if (ds->en_4k) {
 			ds->o_uhd.d32 = ds->o_hd.d32;
-			ds->o_uhd.b.out_buf = EPVPP_BUF_CFG_T_UHD_F_AFBCE;
+			if (ds->en_4k_snr)
+				ds->o_uhd.b.out_buf = EPVPP_BUF_CFG_T_HD_F;
+			else
+				ds->o_uhd.b.out_buf = EPVPP_BUF_CFG_T_UHD_F_AFBCE;
 			ds->o_uhd.b.is_afbce = 1;
 			ds->o_uhd.b.afbce_fmt = EAFBC_T_4K_FULL;
 			ds->en_out_afbce = true;
 		}
 		ds->m_mode_n_hd = EPVPP_MEM_T_HD_FULL;
-		ds->m_mode_n_uhd = EPVPP_MEM_T_UHD_AFBCE;
+		if (ds->en_4k_snr)
+			ds->m_mode_n_uhd = EPVPP_MEM_T_HD_FULL;
+		else
+			ds->m_mode_n_uhd = EPVPP_MEM_T_UHD_AFBCE;
 		dbg_plink1("fix uhd is afbce\n");
 	}
 
@@ -2664,7 +2674,8 @@ void mif_cfg_v2_update_addr(struct DI_MIF_S *di_mif,
 	}
 }
 
-unsigned int dpvpp_is_bypass_dvfm_prelink(struct dvfm_s *dvfm, bool en_4k)
+unsigned int dpvpp_is_bypass_dvfm_prelink(struct dvfm_s *dvfm, bool en_4k,
+										  bool en_4k_snr)
 {
 	struct dim_pvpp_hw_s *hw;
 
@@ -2679,7 +2690,7 @@ unsigned int dpvpp_is_bypass_dvfm_prelink(struct dvfm_s *dvfm, bool en_4k)
 		if (dvfm->vfs.width > 3840 ||
 		    dvfm->vfs.height > 2160)
 			return EPVPP_BYPASS_REASON_SIZE_L;
-		if (dvfm->is_4k && !hw->blk_rd_uhd)
+		if (dvfm->is_4k && !hw->blk_rd_uhd && !en_4k_snr)
 			return EPVPP_BYPASS_REASON_BUF_UHD;
 		else if (!dvfm->is_4k && !hw->blk_rd_hd)
 			return EPVPP_BYPASS_REASON_BUF_HD;

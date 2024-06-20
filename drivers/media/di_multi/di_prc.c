@@ -279,6 +279,7 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 	[EDI_CFG_EN_PRE_LINK]  = {"prelink_en",
 			/* 0:disable;	*/
 			/* 1:enable */
+			/* bit 1: for 4k snr mode only support T5M/T3 */
 			EDI_CFG_EN_PRE_LINK,
 #ifdef TMP_EN_PLINK
 			1,
@@ -515,6 +516,8 @@ void di_cfg_top_dts(void)
 		cfgs(T5DB_AFBCD_EN, 0);
 	}
 #endif
+	if (cfgg(EN_PRE_LINK) == 3 && !DIM_IS_IC(T3))
+		PR_WARN("pre link is 3 for %d\n", get_datal()->mdata->ic_id);
 }
 
 static void di_cfgt_show_item_one(struct seq_file *s, unsigned int index)

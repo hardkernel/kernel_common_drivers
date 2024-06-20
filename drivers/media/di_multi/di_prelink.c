@@ -267,6 +267,15 @@ static bool dpvpp_dbg_force_mem_en(void)
 	return false;
 }
 
+//mem follow
+static bool dpvpp_dbg_mem_fl_in(void)
+{
+	if (tst_pre_vpp & DI_BIT26)
+		return true;
+
+	return false;
+}
+
 static bool dpvpp_dbg_force_disable_pre_hold(void)
 {
 	if (tst_pre_vpp & DI_BIT30)
@@ -3083,7 +3092,7 @@ int dpvpp_pre_display(struct vframe_s *vfm,
 		bypass_reason = 7;
 		goto DISPLAY_BYPASS;
 	}
-	if (ndvfm->c.is_out_4k && !hw->blk_rd_uhd) {
+	if (ndvfm->c.is_out_4k && !hw->blk_rd_uhd && !ds->en_4k_snr) {
 		bypass_reason = 8;
 		PR_WARN("%s:output buffer is mismatch, too small.\n", __func__);
 		goto DISPLAY_BYPASS;
@@ -3394,6 +3403,7 @@ static void dpvpph_size_change(struct dim_pvpp_ds_s *ds,
 	struct nr_cfg_s cfg_data;
 	struct nr_cfg_s *cfg = &cfg_data;
 	struct dim_pvpp_hw_s *hw;
+	unsigned int val;
 
 	hw = &get_datal()->dvs_pvpp.hw;
 
@@ -3411,6 +3421,31 @@ static void dpvpph_size_change(struct dim_pvpp_ds_s *ds,
 	/* need check if write register. */
 	if (nr_op() && !(ds->en_dbg_off_nr & DI_BIT7))
 		nr_op()->nr_all_config(vf_type, op, cfg);
+
+	/* after nr_all_config and change setting */
+	if (dvfm->c.set_cfg.b.en_4k_snr) {
+		if (!hw->back_reg_nr) {
+			hw->back_reg_nr = RD(NR4_TOP_CTRL);
+			//clear [19:0], keep bit 4, 15, 16 for snr
+			val = hw->back_reg_nr;
+			val &= 0xfff18010;
+			DIM_DI_WR(NR4_TOP_CTRL, val);
+			dbg_plink1("en:4k_snr:0x%x -> 0x%08x\n", hw->back_reg_nr, val);
+		} else {
+			//not save:
+			val = RD(NR4_TOP_CTRL);
+			//clear [19:0], keep bit 4, 15, 16 for snr
+			val &= 0xfff18010;
+			DIM_DI_WR(NR4_TOP_CTRL, val);
+			dbg_plink1("en:4k_snr 2: 0x%08x\n", val);
+		}
+	} else {
+		if (hw->back_reg_nr) {
+			DIM_DI_WR(NR4_TOP_CTRL, hw->back_reg_nr);
+			dbg_plink1("dis:4k_snr0x%08x\n", hw->back_reg_nr);
+		}
+		hw->back_reg_nr = 0;
+	}
 
 	op->wr(DI_PRE_SIZE, (width - 1) | ((height - 1) << 16));
 	PR_INF("%s:DI_PRE_SIZE:%d,%d: arb:%x\n", __func__,
@@ -3812,7 +3847,8 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 	in_dvfm		= &ndvfm->c.in_dvfm;
 	//out_dvfm	= &ndvfm->c.out_dvfm;
 
-	bypass = dpvpp_is_bypass_dvfm_prelink(in_dvfm, ds->en_4k);
+	bypass = dpvpp_is_bypass_dvfm_prelink(in_dvfm, ds->en_4k,
+										  ds->en_4k_snr);
 	if (hw->flg_tvp != itf->c.is_tvp) {
 		dbg_plink2("bypass reason:%d to %d (tvp:c:%d t:%d), cnt:%d\n",
 			bypass, EPVPP_BYPASS_REASON_TVP,
@@ -3911,6 +3947,16 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 			dvfm_dm->is_p_pw	= 1;
 		else
 			dvfm_dm->is_prvpp_link	= 1;
+
+		if (ds->is_out_4k && ds->en_4k_snr)
+			ds->set_cfg_cur.b.en_4k_snr = 1;
+		else
+			ds->set_cfg_cur.b.en_4k_snr = 0;
+
+		if (ds->set_cfg_cur.b.en_4k_snr || dpvpp_dbg_mem_fl_in())
+			ds->set_cfg_cur.b.en_mem_cp_in = 1;
+		else
+			ds->set_cfg_cur.b.en_mem_cp_in = 0;
 		/* dvfm_demo end ********************************/
 		/* do not care no-support */
 		/* cfg seting en */
@@ -3950,7 +3996,13 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 			ds->set_cfg_cur.b.en_wr_cvs	= false;
 			ds->set_cfg_cur.b.en_mem_cvs	= false;
 		}
-
+		if (ds->set_cfg_cur.b.en_mem_cp_in) {
+			ds->set_cfg_cur.b.en_mem_mif = ds->set_cfg_cur.b.en_in_mif;
+			ds->set_cfg_cur.b.en_mem_afbcd = ds->set_cfg_cur.b.en_in_afbcd;
+			ds->set_cfg_cur.b.en_mem_cvs = ds->set_cfg_cur.b.en_in_cvs;
+			ds->afbc_sgn_cfg.b.mem = ds->afbc_sgn_cfg.b.inp;
+			dim_print("cp:mem\n");
+		}
 		/* cfg out dvfm demo */
 		ds->out_dvfm_demo.vfs.height	= in_dvfm->vfs.height;
 		ds->out_dvfm_demo.vfs.width	= in_dvfm->vfs.width;
@@ -4089,6 +4141,7 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 	u32 REG_VPU_ARB_DBG_STAT_L1C1;
 	u32 WRARB_onval;
 	u32 WRARB_offval;
+	struct dim_pvpp_hw_s *hw;
 
 	if (DIM_IS_IC_BF(TM2B)) {
 		dim_print("%s:check return;\n", __func__);
@@ -4147,6 +4200,15 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 			op->bwr(VD1_AFBCD0_MISC_CTRL, 0, 8, 1);
 			op->bwr(VD1_AFBCD0_MISC_CTRL, 0, 20, 1);
 		}
+
+		//for en_4k_snr
+		hw = &get_datal()->dvs_pvpp.hw;
+		if (hw->back_reg_nr) {
+			DIM_DI_WR(NR4_TOP_CTRL, hw->back_reg_nr);
+			dbg_plink1("dis:4k_snr0x%08x\n", hw->back_reg_nr);
+		}
+		hw->back_reg_nr = 0;
+
 		//prelink_status = false;
 		op->wr(REG_VPU_WRARB_REQEN_SLV_L1C1, WRARB_offval);
 		op->wr(REG_VPU_RDARB_REQEN_SLV_L1C1, 0xf079);
@@ -4310,7 +4372,9 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 	}
 
 	/* check mem */
-	if (!ndvfm->c.cnt_display || !ndvfm_last) {//tmp
+	if (ndvfm->c.set_cfg.b.en_mem_cp_in) {
+		memcpy(&ndvfm->c.mem_dvfm, in_dvfm,	sizeof(ndvfm->c.mem_dvfm));
+	} else if (!ndvfm->c.cnt_display || !ndvfm_last) {//tmp
 		ref_en = false;
 		//ndvfm->c.set_cfg.b.en_mem_cvs = false;
 		ndvfm->c.set_cfg.b.en_mem_mif = false;
@@ -4369,6 +4433,9 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 			return;
 		}
 		opl1()->pre_mif_set(&ds->mif_in, DI_MIF0_ID_INP, op_in);
+
+		if (ndvfm->c.set_cfg.b.en_mem_cp_in)
+			opl1()->pre_mif_set(&ds->mif_in, DI_MIF0_ID_MEM, op_in);
 	}
 	/* mif wr */
 	if (ndvfm->c.set_cfg.b.en_wr_mif) {
@@ -4382,7 +4449,10 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 
 		opl1()->set_wrmif_pp(&ds->mif_wr, op_in, EDI_MIFSM_NR);
 	}
-	if (ndvfm->c.set_cfg.b.en_mem_mif) {
+
+	if (ndvfm->c.set_cfg.b.en_mem_cp_in) {
+		dim_print("cp\n");
+	} else if (ndvfm->c.set_cfg.b.en_mem_mif) {
 		mif_cfg_v2(&ds->mif_mem,
 			&ndvfm_last->c.nr_wr_dvfm, &ds->mifpara_mem, EPVPP_API_MODE_PRE);
 #ifdef DBG_FLOW_SETTING
@@ -4421,9 +4491,10 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 	}
 
 	/* nr write */
-	if (!dpvpp_dbg_force_disable_ddr_wr())
+	if (ndvfm->c.set_cfg.b.en_4k_snr || dpvpp_dbg_force_disable_ddr_wr())
+		ds->pre_top_cfg.b.nr_ch0_en = 0;
+	else
 		ds->pre_top_cfg.b.nr_ch0_en = 1;
-
 	if (DIM_IS_IC_EF(SC2))
 		dim_sc2_contr_pre(&ds->pre_top_cfg, op_in);
 	else
@@ -4442,8 +4513,14 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 	}
 	if (!ndvfm->c.set_cfg.b.en_mem_mif && !ndvfm->c.set_cfg.b.en_mem_afbcd)
 		bypass_mem = 1;
-	if (dpvpp_dbg_force_mem_bypass())
+	if (ndvfm->c.set_cfg.b.en_4k_snr || dpvpp_dbg_force_mem_bypass())
 		bypass_mem = 1;
+
+	if (bypass_mem != ds->dbg_last_mem_bypass) {
+		dbg_plink1("mem bypass:%d %d->%d\n", ndvfm->c.cnt_in,
+				   ds->dbg_last_mem_bypass, bypass_mem);
+		ds->dbg_last_mem_bypass = bypass_mem ? true : false;
+	}
 	dpvpph_enable_di_pre_aml(hw->op,
 				 hw->en_pst_wr_test, bypass_mem << 4, NULL);
 	dct_pst(hw->op, ndvfm);
@@ -4647,7 +4724,9 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 	}
 
 	/* check mem */
-	if (!ndvfm->c.cnt_display || !ndvfm_last) {//tmp
+	if (ndvfm->c.set_cfg.b.en_mem_cp_in) {
+		memcpy(&ndvfm->c.mem_dvfm, in_dvfm,	sizeof(ndvfm->c.mem_dvfm));
+	} else if (!ndvfm->c.cnt_display || !ndvfm_last) {//tmp
 		ref_en = false;
 		ndvfm->c.set_cfg.b.en_mem_cvs = false;
 		ndvfm->c.set_cfg.b.en_mem_mif = false;
@@ -4669,7 +4748,8 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 	}
 
 	dim_print("display:set_cfg:0x%x", ndvfm->c.set_cfg.d32);
-	if (ndvfm->c.set_cfg.b.en_mem_cvs) {
+	if (ndvfm->c.set_cfg.b.en_mem_cp_in) {
+	} else if (ndvfm->c.set_cfg.b.en_mem_cvs) {
 		/* cvs for out */
 		cvsp = &ndvfm->c.cvspara_mem;
 		//update no need
@@ -4693,6 +4773,8 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 		mif_cfg_v2_update_addr(&ds->mif_in,
 				       &ndvfm->c.in_dvfm_crop, &ds->mifpara_in);
 		opl1()->mif_rd_update_addr(&ds->mif_in, DI_MIF0_ID_INP, op_in);
+		if (ndvfm->c.set_cfg.b.en_mem_cp_in)
+			opl1()->mif_rd_update_addr(&ds->mif_in, DI_MIF0_ID_MEM, op_in);
 	}
 	/* mif wr */
 	if (ndvfm->c.set_cfg.b.en_wr_mif) {
@@ -4706,7 +4788,9 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 		print_dim_mifpara(&ds->mifpara_out, "display:all:out_use");
 #endif
 	}
-	if (ndvfm->c.set_cfg.b.en_mem_mif) {
+	if (ndvfm->c.set_cfg.b.en_mem_cp_in) {
+		dim_print("part mem cp\n");
+	} else if (ndvfm->c.set_cfg.b.en_mem_mif) {
 		if (diff & EDIM_DVPP_DIFF_MEM) {
 			mif_cfg_v2(&ds->mif_mem,
 				&ndvfm_last->c.nr_wr_dvfm, &ds->mifpara_mem, EPVPP_API_MODE_PRE);
@@ -4743,7 +4827,7 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 		ds->pre_top_cfg.b.nr_ch0_en = 1;
 		atomic_set(&ndvfm->c.wr_set, 1);
 	}
-	if (dpvpp_dbg_force_disable_ddr_wr())
+	if (ndvfm->c.set_cfg.b.en_4k_snr || dpvpp_dbg_force_disable_ddr_wr())
 		ds->pre_top_cfg.b.nr_ch0_en = 0;
 
 	if (DIM_IS_IC_EF(SC2)) {
@@ -4763,12 +4847,15 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 	}
 	if (!ndvfm->c.set_cfg.b.en_mem_mif && !ndvfm->c.set_cfg.b.en_mem_afbcd)
 		bypass_mem = 1;
-	if (dpvpp_dbg_force_mem_bypass())
+	if (ndvfm->c.set_cfg.b.en_4k_snr || dpvpp_dbg_force_mem_bypass())
 		bypass_mem = 1;
 	if (dpvpp_dbg_force_mem_en())
 		bypass_mem = 0;
-	if (bypass_mem)
-		dbg_plink1("mem bypass:%d\n", ndvfm->c.cnt_in);
+	if (bypass_mem != ds->dbg_last_mem_bypass) {
+		dbg_plink1("mem bypass:%d %d->%d\n", ndvfm->c.cnt_in,
+				   ds->dbg_last_mem_bypass, bypass_mem);
+		ds->dbg_last_mem_bypass = bypass_mem ? true : false;
+	}
 
 	dpvpph_enable_di_pre_aml(hw->op,
 				 hw->en_pst_wr_test, bypass_mem << 4, NULL);
@@ -4873,7 +4960,7 @@ static bool vtype_fill_d(struct dimn_itf_s *itf,
 			dvfm = (struct dimn_dvfm_s *)vfmt->private_data;
 			if (dvfm) {
 				dcntr_mem = (struct dcntr_mem_s *)dvfm->c.dct_pre;
-				dbg_plink1("%s: private_data:0x%px\n",
+				dbg_plink2("%s: private_data:0x%px\n",
 						__func__, vfmt->private_data);
 			}
 			pch = get_chdata(itf->bind_ch);

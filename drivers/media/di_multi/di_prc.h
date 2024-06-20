@@ -664,7 +664,8 @@ unsigned int check_diff(struct dimn_itf_s *itf,
 		struct pvpp_dis_para_in_s *in_para);
 void dpvpp_ins_fill_out(struct dimn_itf_s *itf);
 
-unsigned int dpvpp_is_bypass_dvfm_prelink(struct dvfm_s *dvfm, bool en_4k);
+unsigned int dpvpp_is_bypass_dvfm_prelink(struct dvfm_s *dvfm, bool en_4k,
+										  bool en_4k_snr);
 unsigned int dpvpp_is_bypass_dvfm_postlink(struct dvfm_s *dvfm);
 int dpvpp_pre_unreg_bypass(void);
 int dpvpp_pre_display(struct vframe_s *vfm,

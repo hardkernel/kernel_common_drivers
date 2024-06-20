@@ -2504,6 +2504,8 @@ struct dim_dvpp_set_s {
 				en_mem_mif	: 1,
 				en_mem_afbcd	: 1,
 				en_mem_cvs	: 1,
+				en_mem_cp_in : 1,
+				en_4k_snr	: 1,
 				en_wr_mif	: 1,
 				en_wr_afbce	: 1,
 				en_wr_cvs	: 1,
@@ -2589,6 +2591,7 @@ struct dim_pvpp_hw_s {
 	unsigned int id_c;
 	unsigned int id_l;
 	unsigned int reg_cnt; /* @ary 11-08 add */
+	unsigned int back_reg_nr;
 	bool	en_linear;
 	bool	has_notify_vpp;
 	unsigned char	reg_nub; /* @ary 11-08 add*/
@@ -2674,6 +2677,7 @@ struct dim_pvpp_ds_s {
 	bool	en_hf_buf;	/* not support hf */
 	bool	en_dw;
 	bool	en_out_nv12;
+	bool	en_4k_snr;
 	bool	en_dbg_check_ud;
 	bool	en_dbg_check_vf;
 	unsigned char	en_dbg_off_nr;//bit 7: disable all; bit 0:disable nr
@@ -2702,6 +2706,7 @@ struct dim_pvpp_ds_s {
 	struct di_dbg_datax_s dbg_data;
 	unsigned int pre_done_nub;
 	unsigned int dbg_last_diff;
+	bool dbg_last_mem_bypass;
 	int	field_count_for_cont;
 	unsigned int bypass_cnt;
 };
