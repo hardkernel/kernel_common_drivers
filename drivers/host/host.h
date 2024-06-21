@@ -23,12 +23,6 @@ struct host_data {
 	u8 hostid;
 } __packed;
 
-struct mbox_buf {
-	u32 id;
-	u32 addr;
-	u32 cfg0;
-} __packed;
-
 struct host_info_t {
 	char id;			/*dsp_id 0,1,2...*/
 	char fw_id;
@@ -94,7 +88,6 @@ struct host_shm_info_t {
  * @cur_cnt:          Host health monitor current value
  * @started:          Host suspend flag
  * @init_mbox_chan:   Aocpu mbox chan
- * @mbox_buf:         Aocpu mbox buffer
  * @hang:             Host hang flag
  * @firmware_load:    Host firmware is load
  * @nb:               Host die notifier
@@ -129,7 +122,7 @@ struct host_module {
 	int hostid;
 	char fname0[HOSTFW_NAME_LEN];
 	char fname1[HOSTFW_NAME_LEN];
-	struct mbox_buf mbox_buf;
+
 	u32 pre_cnt, cur_cnt;
 	struct delayed_work host_monitor_work;
 	struct delayed_work host_logbuff_work;
