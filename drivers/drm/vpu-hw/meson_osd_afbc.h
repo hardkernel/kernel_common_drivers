@@ -246,6 +246,9 @@
 #define VPP_INTF_OSD3_CTRL             0x4107
 #define VPP_INTF_OSD4_CTRL             0x4108
 
+#define S6_VPU_MAFBC_OUT_ADDR_S0 0x01000000
+#define S6_VPU_MAFBC_OUT_ADDR_S1 0x03500000
+
 struct afbc_osd_reg_s {
 	u32 vpu_mafbc_header_buf_addr_low_s;
 	u32 vpu_mafbc_header_buf_addr_high_s;

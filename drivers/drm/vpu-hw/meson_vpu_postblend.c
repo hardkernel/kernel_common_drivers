@@ -1299,25 +1299,6 @@ static void t3x_postblend_hw_init(struct meson_vpu_block *vblk)
 	register_vpp_postblend_info_func(get_postblend_osd1_scope);
 #endif
 }
-
-static void s6_postblend_hw_init(struct meson_vpu_block *vblk)
-{
-	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
-
-	postblend->reg = &postblend_reg;
-	MESON_DRM_BLOCK("%s hw_init called.\n", postblend->base.name);
-	meson_drm_write_reg(0x1a0c, 0x0c880c0f);
-	meson_drm_write_reg(0x279d, 0);
-	meson_drm_write_reg(0x3d60, 0x00bb0275);
-	meson_drm_write_reg(0x3d61, 0x003f1f99);
-	meson_drm_write_reg(0x3d62, 0x1ea601c2);
-	meson_drm_write_reg(0x3d63, 0x01c21e67);
-	meson_drm_write_reg(0x3d64, 0x00001fd7);
-	meson_drm_write_reg(0x3d69, 0x00400200);
-	meson_drm_write_reg(0x3d6a, 0x00000200);
-	meson_drm_write_reg(0x3d6d, 0x01);
-}
-
 #endif
 
 struct meson_vpu_block_ops postblend_ops = {
@@ -1399,6 +1380,6 @@ struct meson_vpu_block_ops s6_postblend_ops = {
 	.enable = postblend_hw_enable,
 	.disable = s6_postblend_hw_disable,
 	.dump_register = postblend_dump_register,
-	.init = s6_postblend_hw_init,
+	.init = postblend_hw_init,
 };
 #endif

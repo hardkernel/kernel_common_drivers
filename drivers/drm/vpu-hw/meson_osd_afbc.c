@@ -1515,6 +1515,157 @@ static void t3x_osd_afbc_set_state(struct meson_vpu_block *vblk,
 
 	MESON_DRM_BLOCK("%s set_state called.\n", afbc->base.name);
 }
+
+static void s6_osd_afbc_set_state(struct meson_vpu_block *vblk,
+				    struct meson_vpu_block_state *state,
+				    struct meson_vpu_block_state *old_state)
+{
+	u32 pixel_format, line_stride, output_stride;
+	u32 frame_width, frame_height;
+	u32 osd_index;
+	u64 header_addr, out_addr;
+	u32 aligned_32, afbc_color_reorder;
+	unsigned int depth;
+	int bpp;
+	bool reverse_x, reverse_y;
+
+	struct meson_vpu_afbc *afbc;
+	struct meson_vpu_afbc_state *afbc_state;
+	struct meson_vpu_osd_layer_info *plane_info;
+	struct meson_vpu_pipeline *pipeline;
+	struct meson_vpu_pipeline_state *pipeline_state;
+	struct osd_mif_reg_s *osd_reg;
+	struct afbc_osd_reg_s *afbc_reg;
+	const struct drm_format_info *info;
+	struct rdma_reg_ops *reg_ops;
+
+	afbc = to_afbc_block(vblk);
+	afbc_state = to_afbc_state(state);
+	pipeline = vblk->pipeline;
+	osd_index = vblk->index;
+	pipeline_state = priv_to_pipeline_state(pipeline->obj.state);
+	osd_reg = pipeline->osds[osd_index]->reg;
+	afbc_reg = afbc->afbc_regs;
+	plane_info = &pipeline_state->plane_info[osd_index];
+	reg_ops = state->sub->reg_ops;
+
+	if (!plane_info->afbc_en) {
+		t7_osd_afbc_enable(vblk, reg_ops, afbc->status_regs, osd_index, 0);
+
+		if (osd_index == 2)
+			reg_ops->rdma_write_reg_bits(VPP2_MISC, 0, 0, 1);
+
+		return;
+	}
+
+	t7_osd_afbc_enable(vblk, reg_ops, afbc->status_regs, osd_index, 1);
+
+	if (osd_index == 2)
+		//s6 viu2 src from mali afbcd
+		reg_ops->rdma_write_reg_bits(VPP2_MISC, 1, 0, 1);
+
+	aligned_32 = 1;
+	afbc_color_reorder = afbc_color_order(plane_info->pixel_format);
+
+	pixel_format = afbc_pix_format(plane_info->pixel_format);
+	info = drm_format_info(plane_info->pixel_format);
+	depth = info->depth;
+	bpp = info->cpp[0] * 8;
+	header_addr = plane_info->phy_addr;
+
+	frame_width = plane_info->byte_stride / 4;
+	frame_height = BYTE_8_ALIGNED(plane_info->fb_h);
+	line_stride = line_stride_calc_afbc(pixel_format,
+					    frame_width, aligned_32);
+
+	output_stride = frame_width * bpp / 8;
+
+	header_addr = plane_info->phy_addr;
+	out_addr = ((u64)(vblk->index + 1)) << 24;
+	reverse_x = (plane_info->rotation & DRM_MODE_REFLECT_X) ? 1 : 0;
+	reverse_y = (plane_info->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0;
+
+	if (osd_index == 0)
+		out_addr = S6_VPU_MAFBC_OUT_ADDR_S0;
+	else if (osd_index == 1)
+		out_addr = S6_VPU_MAFBC_OUT_ADDR_S1;
+
+	if (pipeline_state->sec_src)
+		pipeline_state->sec_src |= MALI_AFBCD_SECURE;
+
+	/* set osd path misc ctrl */
+	reg_ops->rdma_write_reg_bits(OSD_PATH_MISC_CTRL, 0x1,
+				(osd_index + 4), 1);
+
+	/* set linear addr */
+	reg_ops->rdma_write_reg_bits(osd_reg->viu_osd_ctrl_stat, 0x1, 2, 1);
+
+	/* set read from mali */
+	reg_ops->rdma_write_reg_bits(osd_reg->viu_osd_blk0_cfg_w0, 0x1, 30, 1);
+	reg_ops->rdma_write_reg_bits(osd_reg->viu_osd_blk0_cfg_w0, 0, 15, 1);
+
+	/* set line_stride */
+	reg_ops->rdma_write_reg_bits(osd_reg->viu_osd_blk2_cfg_w4,
+				 line_stride, 0, 12);
+
+	/* set frame addr */
+	if (afbc->shift_bits) {
+		reg_ops->rdma_write_reg(osd_reg->viu_osd_blk1_cfg_w4,
+				(out_addr >> 4) & 0xffffffff);
+	} else {
+		reg_ops->rdma_write_reg(osd_reg->viu_osd_blk1_cfg_w4,
+				out_addr & 0xffffffff);
+	}
+
+	/* set afbc color reorder and mali src*/
+	reg_ops->rdma_write_reg_bits(osd_reg->viu_osd_mali_unpack_ctrl,
+				 afbc_color_reorder, 0, 16);
+	reg_ops->rdma_write_reg_bits(osd_reg->viu_osd_mali_unpack_ctrl,
+				 0x1, 31, 1);
+
+	/* set header addr */
+	reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_header_buf_addr_low_s,
+			    header_addr & 0xffffffff);
+	reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_header_buf_addr_high_s,
+			    (header_addr >> 32) & 0xffffffff);
+
+	/* set format specifier */
+	reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_format_specifier_s,
+			    plane_info->afbc_inter_format |
+			    (pixel_format & 0x0f));
+
+	/* set pic size */
+	reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_buffer_width_s,
+			    frame_width);
+	reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_buffer_height_s,
+			    frame_height);
+
+	/* set buf stride */
+	reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_output_buf_stride_s,
+			    output_stride);
+	reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_output_buf_addr_low_s,
+			    out_addr & 0xffffffff);
+	reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_output_buf_addr_high_s,
+			    (out_addr >> 32) & 0xffffffff);
+
+	/* set bounding box */
+	reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_bounding_box_x_start_s,
+			    plane_info->src_x);
+	reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_bounding_box_x_end_s,
+			    (plane_info->src_x + plane_info->src_w - 1));
+	reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_bounding_box_y_start_s,
+			    plane_info->src_y);
+	reg_ops->rdma_write_reg(afbc_reg->vpu_mafbc_bounding_box_y_end_s,
+			    (plane_info->src_y + plane_info->src_h - 1));
+
+	/*reverse config*/
+	reg_ops->rdma_write_reg_bits(afbc_reg->vpu_mafbc_prefetch_cfg_s,
+				 reverse_x, 0, 1);
+	reg_ops->rdma_write_reg_bits(afbc_reg->vpu_mafbc_prefetch_cfg_s,
+				 reverse_y, 1, 1);
+
+	MESON_DRM_BLOCK("%s set_state called.\n", afbc->base.name);
+}
 #endif
 
 static void osd_afbc_dump_register(struct drm_printer *p,
@@ -1994,6 +2145,7 @@ static void s6_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 	struct meson_vpu_afbc *afbc = to_afbc_block(vblk);
 
 	afbc->afbc_regs = &afbc_osd_s6_regs[vblk->index];
+	afbc->num_of_4k_osd = 2;
 	if (vblk->index == 2)
 		afbc->status_regs = &afbc_status_t7_regs[2];
 	else
@@ -2133,7 +2285,7 @@ struct meson_vpu_block_ops s7d_afbc_ops = {
 
 struct meson_vpu_block_ops s6_afbc_ops = {
 	.check_state = osd_afbc_check_state,
-	.update_state = g12a_osd_afbc_set_state,
+	.update_state = s6_osd_afbc_set_state,
 	.enable = osd_afbc_hw_enable,
 	.disable = osd_afbc_hw_disable,
 	.dump_register = osd_afbc_dump_register,
