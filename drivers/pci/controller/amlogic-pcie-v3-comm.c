@@ -954,6 +954,7 @@ int amlogic_pcie_set_reset_for_aml_phy(struct amlogic_pcie *amlogic)
 {
 	struct device *dev = amlogic->dev;
 	int err = 0, val = 0;
+	static int flag;
 
 	if (amlogic->rst_base)
 		goto set_rst_reg;
@@ -1090,27 +1091,42 @@ int amlogic_pcie_set_reset_for_aml_phy(struct amlogic_pcie *amlogic)
 	}
 
 set_rst_reg:
-	val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
-	val &= ~(BIT(amlogic->amlphy_rst_bit) |
-		 BIT(amlogic->pcie_a_rst_bit) |
-		 BIT(amlogic->apb_rst_bit) |
-		 BIT(amlogic->u3p2_phy_apb_rst_bit) |
-		 BIT(amlogic->pcie_pipe_bit) |
-		 (amlogic->pcie_rst_mask << amlogic->pcie_rst_bit));
-	writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
+	if (!flag) {
+		val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
+		val &= ~(BIT(amlogic->amlphy_rst_bit) |
+			 BIT(amlogic->pcie_a_rst_bit) |
+			 BIT(amlogic->apb_rst_bit) |
+			 BIT(amlogic->u3p2_phy_apb_rst_bit) |
+			 BIT(amlogic->pcie_pipe_bit) |
+			 (amlogic->pcie_rst_mask << amlogic->pcie_rst_bit));
+		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
 
-	usleep_range(100, 200);
+		usleep_range(100, 200);
 
-	val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
-	val |= (BIT(amlogic->amlphy_rst_bit) |
-		 BIT(amlogic->pcie_a_rst_bit) |
-		 BIT(amlogic->apb_rst_bit) |
-		 BIT(amlogic->u3p2_phy_apb_rst_bit) |
-		 BIT(amlogic->pcie_pipe_bit) |
-		 (amlogic->pcie_rst_mask << amlogic->pcie_rst_bit));
-	writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
+		val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
+		val |= (BIT(amlogic->amlphy_rst_bit) |
+			 BIT(amlogic->pcie_a_rst_bit) |
+			 BIT(amlogic->apb_rst_bit) |
+			 BIT(amlogic->u3p2_phy_apb_rst_bit) |
+			 BIT(amlogic->pcie_pipe_bit) |
+			 (amlogic->pcie_rst_mask << amlogic->pcie_rst_bit));
+		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
 
-	usleep_range(800, 1000);
+		usleep_range(800, 1000);
+		flag++;
+	} else {
+		val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
+		val &= ~BIT(amlogic->amlphy_rst_bit);
+		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
+
+		usleep_range(10, 20);
+
+		val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
+		val |= BIT(amlogic->amlphy_rst_bit);
+		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
+
+		usleep_range(10, 20);
+	}
 
 	return 0;
 }
@@ -1585,7 +1601,7 @@ static int amlogic_pcie_do_pll_v1_set(struct amlogic_pcie *amlogic, int cnt)
 
 	if (cnt != amlogic->pll_setting_number) {
 		writel(reg[1], amlogic->phy_base + reg[0]);
-		usleep_range(50, 60);
+		usleep_range(100, 200);
 	} else {
 		if (!(readl(amlogic->phy_base + reg[0]) & reg[1]))
 			dev_err(dev, "aml pcie phy pll lock failed\n");
@@ -1641,13 +1657,28 @@ static int amlogic_pcie_init_port_for_aml_phy(struct amlogic_pcie *amlogic)
 	if (ret)
 		return ret;
 
-	/* bit13 : always use pll1 reg clk */
+	/* bit13 : always use pll1 ref clk */
 	writel(readl(amlogic->phy_base + UPCRX_DR_REG1) | BIT(13),
 	       amlogic->phy_base + UPCRX_DR_REG1);
 
+	/* fom bypass */
+	writel(0x42389800, amlogic->phy_base + EQVAL_CTRL_REG);
+	/* CTLE reset */
+	writel(0x2c032100, amlogic->phy_base + SW_CTRL_PMA_REG0);
+	/* LEQ timer */
+	writel(0x222e0, amlogic->phy_base + DELAY_TIME24);
+
+	/* tx rtem odt */
+	writel(0x3a98, amlogic->phy_base + SAMPLE_3RD_TIME);
+
+	/* tx deemph */
+	writel(0x4010, amlogic->phy_base + UPCTX_CTRL_REG);
+
 	/* set phy pll */
-	if (of_property_read_bool(dev_of_node(dev), "phy_pll_setting_1"))
+	if (of_property_read_bool(dev_of_node(dev), "phy_pll_setting_1")) {
 		ret = amlogic_pcie_set_phy_pll(amlogic);
+		return ret;
+	}
 
 	/* GEN3 EQ */
 	for (i = 0; i < 4; i++) {
@@ -1656,6 +1687,10 @@ static int amlogic_pcie_init_port_for_aml_phy(struct amlogic_pcie *amlogic)
 		val |= (1 << 6);
 		writel(val, amlogic->phy_base + REG_DCHD_EQ_LPBK_REG + i * 4);
 	}
+
+	ret = amlogic_pcie_set_reset_for_aml_phy(amlogic);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -1740,7 +1775,7 @@ int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
 	if (!amlogic_pcie_link_up(amlogic))
 		return -ETIMEDOUT;
 
-	usleep_range(20, 30);
+	usleep_range(100, 200);
 	reg = amlogic_pcieinter_read(amlogic, PCIE_BASIC_STATUS);
 
 	dev_info(dev, "current link speed is GEN%d,link width is x%d\n",

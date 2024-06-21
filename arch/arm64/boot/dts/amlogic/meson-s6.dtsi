@@ -877,6 +877,7 @@
 			msi-controller;
 			msi-parent = <&pcie>;
 			interrupt-parent = <&gic>;
+			linux,pci-domain = <0>;
 			bus-range = <0x0 0xff>;
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -918,19 +919,24 @@
 			/* <reg_offset vlaue> */
 			phy_pll_setting_1 = <0x0000 0x03e855e9>;
 			phy_pll_setting_2 = <0x0004 0x0009e085>;
-			phy_pll_setting_3 = <0x0014 0x000b4788>;
+			phy_pll_setting_3 = <0x0014 0x000b9788>;
 			phy_pll_setting_4 = <0x0018 0x0>;
-			phy_pll_setting_5 = <0x0018 0x1>;
+			phy_pll_setting_5 = <0x0018 0x0>;
 			phy_pll_setting_6 = <0x0000 0x03e855ed>;
 			phy_pll_setting_7 = <0x0004 0x0809e085>;
 			phy_pll_setting_8 = <0x0000 0x0be855ed>;
-			phy_pll_setting_9 = <0x0008 0x40000071>;
-			phy_pll_setting_10 = <0x000c 0x3843a320>;
-			phy_pll_setting_11 = <0x0010 0x00000050>;
+			/* pll1 */
+			phy_pll_setting_9 = <0x0008 0x40000075>;/* bias_en=1 */
+			phy_pll_setting_10 = <0x000c 0x3842a320>;
+			phy_pll_setting_11 = <0x0010 0x00000050>;/* reset=0 */
 			phy_pll_setting_12 = <0x0008 0x4000007d>;
-			phy_pll_setting_13 = <0x0010 0x00002050>;
-			phy_pll_setting_14 = <0x0010 0x00006050>;
-			phy_pll_setting_15 = <0x000C 0x384ba320>;
+			phy_pll_setting_13 = <0x0010 0x00002050>;/* reset_13=1 */
+			phy_pll_setting_14 = <0x0010 0x00006050>;/* reset_14=1 */
+			phy_pll_setting_15 = <0x000C 0x384ba320>;/* lock_start=1 */
+			/* open ssc 5000 ppm
+			 * phy_pll_setting_17 = <0x0008 0x4800007d>;
+			 * phy_pll_setting_18 = <0x0010 0x2150e050>;
+			 */
 			phy_pll_setting_16 = <0x017c 0x3000000 >;
 
 			/*reset-gpio-type
