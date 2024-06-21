@@ -116,7 +116,6 @@ static u32 host_get_logbuff(struct ring_buffer *rbuf, char *name)
 {
 	char buff[BUFF_LEN + 1] = {0};
 	u32 idx = 0;
-	char *ringbuff;
 	u32 len = 0;
 
 	len = get_buff_len(ring_buffer);
@@ -125,9 +124,9 @@ static u32 host_get_logbuff(struct ring_buffer *rbuf, char *name)
 	if (len > BUFF_LEN)
 		len = BUFF_LEN;
 
-	ringbuff = rbuf->buffer;
 	for (idx = 0; idx < len; idx++) {
-		buff[idx] = *(ringbuff + rbuf->headr);
+		buff[idx] = rbuf->buffer[rbuf->headr];
+		idx += 1;
 		rbuf->headr += 1;
 		rbuf->headr %= rbuf->size;
 	}
@@ -150,20 +149,19 @@ static void host_polling_logbuff(struct work_struct *work)
 
 	if (IS_ERR_OR_NULL(ring_buffer))
 		return;
-
 	host_get_logbuff(ring_buffer, host_firm->host_data->name);
-	queue_delayed_work(host_firm->host_logbuff_wq, &host_firm->host_logbuff_work,
+	queue_delayed_work(host_firm->host_wq, &host_firm->host_logbuff_work,
 			msecs_to_jiffies(logbuff_polling_ms));
 }
 
 static void host_polling_logbuff_start(struct host_module *host)
 {
 	if (host->logbuff_polling_ms)
-		host->host_logbuff_wq = create_workqueue("host_logbuff_wq");
+		host->host_wq = create_workqueue("host_wq");
 
-	INIT_DEFERRABLE_WORK(&host->host_logbuff_work, host_polling_logbuff);
-	queue_delayed_work(host->host_logbuff_wq, &host->host_logbuff_work,
-			   msecs_to_jiffies(logbuff_polling_ms));
+	INIT_DEFERRABLE_WORK(&host->host_monitor_work, host_polling_logbuff);
+	queue_delayed_work(host->host_wq, &host->host_monitor_work,
+			   msecs_to_jiffies(health_polling_ms));
 }
 
 int host_logbuff_start(struct host_module *host)
@@ -177,6 +175,7 @@ int host_logbuff_start(struct host_module *host)
 
 	// wait for remote mcu boot up
 	msleep(100);
+
 	ret = aml_mbox_transfer_data(host->mbox_chan, MBOX_CMD_HIFI5_SYSLOG_START,
 					data, sizeof(data), &rbuf, sizeof(rbuf),
 						MBOX_SYNC);
@@ -215,13 +214,13 @@ void host_logbuff_stop(struct host_module *host)
 {
 	if (IS_ERR_OR_NULL(ring_buffer))
 		return;
-	if (!host->host_logbuff_wq)
+	if (!host->host_wq)
 		return;
 
 	pr_debug("[%s %d]\n", __func__, __LINE__);
 	cancel_delayed_work_sync(&host->host_logbuff_work);
-	flush_workqueue(host->host_logbuff_wq);
+	flush_workqueue(host->host_wq);
 	unregister_die_notifier(&host->nb);
-	destroy_workqueue(host->host_logbuff_wq);
-	host->host_logbuff_wq = NULL;
+	destroy_workqueue(host->host_wq);
+	host->host_wq = NULL;
 }
