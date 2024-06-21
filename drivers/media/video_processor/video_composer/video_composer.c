@@ -2532,6 +2532,7 @@ static void vframe_composer(struct composer_dev *dev)
 	struct output_axis out_axis[MXA_LAYER_COUNT] = {0};
 	struct file *fence_file;
 	bool has_fence;
+	u32 transform_tmp;
 	u32 dewarp_crop_top = 0, dewarp_crop_left = 0;
 	u32 dewarp_crop_bottom = 0, dewarp_crop_right = 0;
 	u32 dewarp_src_w, dewarp_src_h;
@@ -2891,8 +2892,20 @@ static void vframe_composer(struct composer_dev *dev)
 				&src_data);
 			if (ret < 0)
 				continue;
-
-			dev->ge2d_para.angle = vframe_info_cur->transform;
+			transform_tmp = vframe_info_cur->transform;
+			if (src_vf->flag & VFRAME_FLAG_MIRROR_H) {
+				if (transform_tmp & VC_TRANSFORM_FLIP_H)
+					transform_tmp &= ~VC_TRANSFORM_FLIP_H;
+				else
+					transform_tmp |= VC_TRANSFORM_FLIP_H;
+			}
+			if (src_vf->flag & VFRAME_FLAG_MIRROR_V) {
+				if (transform_tmp & VC_TRANSFORM_FLIP_V)
+					transform_tmp &= ~VC_TRANSFORM_FLIP_V;
+				else
+					transform_tmp |= VC_TRANSFORM_FLIP_V;
+			}
+			dev->ge2d_para.angle = transform_tmp;
 			dev->ge2d_para.position_left = display_axis.left;
 			dev->ge2d_para.position_top = display_axis.top;
 			dev->ge2d_para.position_width = display_axis.width;
@@ -3917,11 +3930,17 @@ static void video_composer_task(struct composer_dev *dev)
 		vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER
 			| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
 		//mirror frame
-		if (frame_transform == VC_TRANSFORM_FLIP_H)
-			vf->flag |= VFRAME_FLAG_MIRROR_H;
-		else if (frame_transform == VC_TRANSFORM_FLIP_V)
-			vf->flag |= VFRAME_FLAG_MIRROR_V;
-
+		if (frame_transform == VC_TRANSFORM_FLIP_H) {
+			if (vf->flag | VFRAME_FLAG_MIRROR_H)
+				vf->flag &= ~VFRAME_FLAG_MIRROR_H;
+			else
+				vf->flag |= VFRAME_FLAG_MIRROR_H;
+		} else if (frame_transform == VC_TRANSFORM_FLIP_V) {
+			if (vf->flag | VFRAME_FLAG_MIRROR_V)
+				vf->flag &= ~VFRAME_FLAG_MIRROR_V;
+			else
+				vf->flag |= VFRAME_FLAG_MIRROR_V;
+		}
 		vf->pts_us64 = time_us64;
 		vf->disp_pts = 0;
 

@@ -603,6 +603,11 @@ static void dpvpp_post_fill_outvf(struct vframe_s *vfm,
 	}
 	dbg_plink2("%s bitdepth: 0x%x\n", __func__, vfm->bitdepth);
 #endif
+	if (DIM_IS_IC(T5DB) || DIM_IS_IC(T5)) {
+		if (di_reverse)
+			vfm->flag |= (VFRAME_FLAG_MIRROR_H |
+			VFRAME_FLAG_MIRROR_V);
+	}
 }
 
 static void dpvpp_post_feed_buffer(struct dimn_itf_s *itf,

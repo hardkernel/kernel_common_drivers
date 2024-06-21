@@ -99,6 +99,7 @@
 /*2018-07-18 add debugfs*/
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/amlogic/gki_module.h>
 /*2018-07-18 -----------*/
 
 #ifdef DET3D
@@ -112,6 +113,8 @@ static bool dim_trig_fg;
 module_param_named(dim_trig_fg, dim_trig_fg, bool, 0664);
 static int dim_trig_delay = 1;
 module_param_named(dim_trig_delay, dim_trig_delay, int, 0664);
+bool di_reverse;
+module_param_named(di_reverse, di_reverse, bool, 0664);
 
 static bool fg_bypass;
 
@@ -12175,6 +12178,36 @@ int dim_seq_file_module_para_di(struct seq_file *seq)
 #endif
 	return 0;
 }
+
+static int di_axis_reverse(char *str)
+{
+	char *ptr = str;
+
+	pr_info("%s: bootargs is %s\n", __func__, str);
+
+	/* Bootargs are defined as follows:
+	 *   "video_reverse=n"
+	 *      n=0: No flip
+	 *      n=1: X and Y flip
+	 *      n=2: X flip
+	 *      n=3: Y flip
+	 * The corresponding global vars:
+	 *   reverse -- 0:No flip  1.X and Y flip
+	 *    mirror -- 0:No flip  1:X flip 2:Y flip
+	 */
+	if (strstr(ptr, "1"))
+		di_reverse = true;
+	else if (strstr(ptr, "2"))
+		di_reverse = false;
+	else if (strstr(ptr, "3"))
+		di_reverse = false;
+	else
+		di_reverse = false;
+
+	return 0;
+}
+
+__setup("video_reverse=", di_axis_reverse);
 
 #ifdef MARK_HIS /*move to di_sys.c*/
 //MODULE_DESCRIPTION("AMLOGIC DEINTERLACE driver");

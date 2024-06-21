@@ -1617,6 +1617,13 @@ static void set_di_inp_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 		    ((mif->set_separate_en != 0) << 1) |
 		    (0 << 0)/* cntl_enable */
 		    );
+	if (DIM_IS_IC(T5DB) || DIM_IS_IC(T5)) {
+		/*TXHD2 post-link mode reverse by pre inputmif*/
+		/*post mif reverse unavailable*/
+		/*MTN MCVEC mif y direction flip will black screen*/
+		if (di_reverse && cfgg(EN_POST_LINK))
+			DIM_RDMA_WR_BITS(DI_INP_GEN_REG2, 3, 2, 2);
+	}
 	if (mif->set_separate_en == 2) {
 		/* Enable NV12 Display */
 		if (mif->cbcr_swap)
