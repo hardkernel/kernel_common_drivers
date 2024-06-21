@@ -800,10 +800,6 @@ static void amdolby_vision_proc
 				(disp_vf_1, frame_size_1,
 				 disp_vf_2, frame_size_2,
 				 toggle_mode_1, toggle_mode_2, pps_state);
-
-		/*update setting according to vd1*/
-		if (!is_aml_hw5())
-			amdv_update_setting(disp_vf_1);
 	}
 }
 #endif

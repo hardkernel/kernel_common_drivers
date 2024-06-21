@@ -1585,7 +1585,7 @@ int tv_top1_set(u64 *top1_reg,
 
 	if (!top1_info.core_on && wait_first_frame_top1) {/*update lut data when top2 not on*/
 		set_dovi_setting_update_flag(true);
-		amdv_update_setting(NULL);
+		amdv_update_setting();
 		dma_lut_write();
 	}
 
@@ -1848,7 +1848,7 @@ int tv_top2_set(u64 *reg_data,
 
 	if (reset || toggle) {/*no need update lut data when no toggle*/
 		set_dovi_setting_update_flag(true);
-		amdv_update_setting(NULL);
+		amdv_update_setting();
 		dma_lut_write();
 	}
 

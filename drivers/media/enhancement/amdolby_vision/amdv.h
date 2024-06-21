@@ -9,7 +9,7 @@
 /*#define V2_4_3*/
 
 /*  driver version */
-#define DRIVER_VER "20240205"
+#define DRIVER_VER "20240626"
 
 #include <linux/types.h>
 #include "amdv_pq_config.h"
@@ -845,7 +845,7 @@ extern bool force_set_lut;
 extern int use_target_lum_from_cfg;
 extern s16 brightness_off[8][2];
 extern bool disable_aoi;
-extern u32 aoi_info[2][4];
+extern u32 aoi_info[3][4];
 extern int debug_disable_aoi;
 extern bool update_aoi_info;
 extern int debug_dma_start_line;
@@ -1307,6 +1307,7 @@ void update_src_format(enum signal_format_enum src_format, struct vframe_s *vf);
 int amdv_policy_process(struct vframe_s *vf, int *mode, enum signal_format_enum src_format);
 int is_graphics_output_off(void);
 void update_aoi_flag(struct vframe_s *vf, u32 display_size);
+void handle_aoi(u32 hsize, u32 vsize);
 void dump_tv_setting
 	(void *p_setting,
 	 int frame_cnt, int debug_flag);

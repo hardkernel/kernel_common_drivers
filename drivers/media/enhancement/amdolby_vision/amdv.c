@@ -1745,7 +1745,7 @@ static inline void switch_to_tv_mode(void)
 		RUN_MODE_DELAY;
 }
 
-int amdv_update_setting(struct vframe_s *vf)
+int amdv_update_setting(void)
 {
 	u64 *dma_data;
 	u32 size = 0;
@@ -1872,9 +1872,8 @@ int amdv_update_setting(struct vframe_s *vf)
 	}
 	dovi_setting_update_flag = false;
 	if (multi_dv_mode) {
-		if (vf && dv_inst_valid(vf->src_fmt.dv_id))
-			dv_id = vf->src_fmt.dv_id;
-		setting_update_count = dv_inst[dv_id].frame_count;
+		dv_id = vd1_inst_id;
+		setting_update_count = dv_inst_valid(dv_id) ? dv_inst[dv_id].frame_count : 0;
 	} else if (is_aml_hw5()) {
 		setting_update_count = top2_v_info.frame_count;
 	} else {
@@ -8486,6 +8485,19 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 				pr_info("controlpath time: %5ld us\n", time_use);
 			}
 			if (flag >= 0) {
+				aoi_info[0][0] =
+					(tv_dovi_setting->core1_reg_lut[44] >> 12) & 0xfff;
+				aoi_info[0][1] =
+					(tv_dovi_setting->core1_reg_lut[44]) & 0xfff;
+				aoi_info[0][2] =
+					(tv_dovi_setting->core1_reg_lut[45] >> 12) & 0xfff;
+				aoi_info[0][3] =
+					(tv_dovi_setting->core1_reg_lut[45]) & 0xfff;
+				if (debug_dolby & 1)
+					pr_dv_dbg
+					("get ori AOI info %d %d %d %d\n",
+					 aoi_info[0][0], aoi_info[0][1],
+					 aoi_info[0][2], aoi_info[0][3]);
 				if (input_mode == IN_MODE_HDMI) {
 					if (h > 1080)
 						tv_dovi_setting->core1_reg_lut[1] =
@@ -11662,10 +11674,6 @@ void update_aoi_flag(struct vframe_s *vf, u32 display_size)
 			 tmp_h, tmp_v,
 			 (display_size >> 16) & 0xffff,
 			 display_size & 0xffff);
-		aoi_info[0][0] = (tv_dovi_setting->core1_reg_lut[44] >> 12) & 0xfff;
-		aoi_info[0][1] = (tv_dovi_setting->core1_reg_lut[44]) & 0xfff;
-		aoi_info[0][2] = (tv_dovi_setting->core1_reg_lut[45] >> 12) & 0xfff;
-		aoi_info[0][3] = (tv_dovi_setting->core1_reg_lut[45]) & 0xfff;
 
 		if (debug_dolby & 1)
 			pr_dv_dbg
@@ -11673,48 +11681,50 @@ void update_aoi_flag(struct vframe_s *vf, u32 display_size)
 			 aoi_info[0][0], aoi_info[0][1],
 			 aoi_info[0][2], aoi_info[0][3]);
 
-		aoi_info[0][2] = tmp_v - 1 > aoi_info[0][2] ? tmp_v - 1 - aoi_info[0][2] : 0;
-		aoi_info[0][3] = tmp_h - 1 > aoi_info[0][3] ? tmp_h - 1 - aoi_info[0][3] : 0;
+		aoi_info[1][0] = aoi_info[0][0];
+		aoi_info[1][1] = aoi_info[0][1];
+		aoi_info[1][2] = tmp_v - 1 > aoi_info[0][2] ? tmp_v - 1 - aoi_info[0][2] : 0;
+		aoi_info[1][3] = tmp_h - 1 > aoi_info[0][3] ? tmp_h - 1 - aoi_info[0][3] : 0;
 
 		h_ratio = tmp_h / ((display_size >> 16) & 0xffff);
 		v_ratio = tmp_v / (display_size & 0xffff);
 		if (debug_dolby & 1)
 			pr_dv_dbg
 			("ori crop info %d %d %d %d, ratio %d %d\n",
-			 aoi_info[0][0], aoi_info[0][1],
-			 aoi_info[0][2], aoi_info[0][3],
+			 aoi_info[1][0], aoi_info[1][1],
+			 aoi_info[1][2], aoi_info[1][3],
 			 h_ratio, v_ratio);
 
 		if ((h_ratio >= 2 || v_ratio >= 2) &&
-			(aoi_info[0][0] || aoi_info[0][1] || aoi_info[0][2] || aoi_info[0][3])) {
+			(aoi_info[1][0] || aoi_info[1][1] || aoi_info[1][2] || aoi_info[1][3])) {
 			if (h_ratio >= 2) {
-				aoi_info[1][1] = aoi_info[0][1] / h_ratio;
-				aoi_info[1][3] = aoi_info[0][3] / h_ratio;
+				aoi_info[2][1] = aoi_info[1][1] / h_ratio;
+				aoi_info[2][3] = aoi_info[1][3] / h_ratio;
 			} else {
-				aoi_info[1][1] = aoi_info[0][1];
-				aoi_info[1][3] = aoi_info[0][3];
+				aoi_info[2][1] = aoi_info[1][1];
+				aoi_info[2][3] = aoi_info[1][3];
 			}
 			if (v_ratio >= 2) {
-				aoi_info[1][0] = aoi_info[0][0] / v_ratio;
-				aoi_info[1][2] = aoi_info[0][2] / v_ratio;
+				aoi_info[2][0] = aoi_info[1][0] / v_ratio;
+				aoi_info[2][2] = aoi_info[1][2] / v_ratio;
 			} else {
-				aoi_info[1][0] = aoi_info[0][0];
-				aoi_info[1][2] = aoi_info[0][2];
+				aoi_info[2][0] = aoi_info[1][0];
+				aoi_info[2][2] = aoi_info[1][2];
 			}
 			if (debug_dolby & 1)
 				pr_dv_dbg("update crop info %d %d %d %d\n",
-						aoi_info[1][0], aoi_info[1][1],
-						aoi_info[1][2], aoi_info[1][3]);
+						aoi_info[2][0], aoi_info[2][1],
+						aoi_info[2][2], aoi_info[2][3]);
 
-			aoi_info[1][2] = disp_v - 1 > aoi_info[1][2] ?
-				disp_v - 1 - aoi_info[1][2] : disp_v - 1;
-			aoi_info[1][3] = disp_h - 1 > aoi_info[1][3] ?
-				disp_h - 1 - aoi_info[1][3] : disp_h - 1;
+			aoi_info[2][2] = disp_v - 1 > aoi_info[2][2] ?
+				disp_v - 1 - aoi_info[2][2] : disp_v - 1;
+			aoi_info[2][3] = disp_h - 1 > aoi_info[2][3] ?
+				disp_h - 1 - aoi_info[2][3] : disp_h - 1;
 
 			if (debug_dolby & 1)
 				pr_dv_dbg("update AOI info %d %d %d %d\n",
-						aoi_info[1][0], aoi_info[1][1],
-						aoi_info[1][2], aoi_info[1][3]);
+						aoi_info[2][0], aoi_info[2][1],
+						aoi_info[2][2], aoi_info[2][3]);
 			update_aoi_info = true;
 		} else {
 			disable_aoi = true;
@@ -11723,6 +11733,43 @@ void update_aoi_flag(struct vframe_s *vf, u32 display_size)
 	} else {
 		disable_aoi = false;
 		update_aoi_info = false;
+	}
+}
+
+void handle_aoi(u32 hsize, u32 vsize)
+{
+	if (debug_dolby & 1)
+		pr_dv_dbg("%s: debug_aoi %d,update %d,%llx,%llx,[%d %d %d %d]\n",
+			     __func__, debug_disable_aoi,
+			     update_aoi_info,
+			     tv_dovi_setting->core1_reg_lut[44],
+			     tv_dovi_setting->core1_reg_lut[45],
+			     aoi_info[2][0], aoi_info[2][1],
+			     aoi_info[2][2], aoi_info[2][3]);
+
+	if (debug_disable_aoi) {
+		if (debug_disable_aoi == 1) {
+			tv_dovi_setting->core1_reg_lut[44] =
+			0x0000002e00000000;
+			tv_dovi_setting->core1_reg_lut[45] =
+			0x0000002f00000000 | (vsize << 12) | hsize;
+		} else if (debug_disable_aoi > 1 && debug_disable_aoi < vsize) {/*debug mode*/
+			tv_dovi_setting->core1_reg_lut[44] =
+			0x0000002e00000000 | (debug_disable_aoi << 12);
+		}
+	} else if (update_aoi_info) {
+		tv_dovi_setting->core1_reg_lut[44] =
+		0x0000002e00000000 | (aoi_info[2][0] << 12) | aoi_info[2][1];
+		tv_dovi_setting->core1_reg_lut[45] =
+		0x0000002f00000000 | (aoi_info[2][2] << 12) | aoi_info[2][3];
+	} else if (disable_aoi) {
+		tv_dovi_setting->core1_reg_lut[44] =
+		0x0000002e00000000;
+		tv_dovi_setting->core1_reg_lut[45] =
+		0x0000002f00000000 | (vsize << 12) | hsize;
+	} else {
+		/*if (top < 5)*/
+			/*tv_dovi_setting->core1_reg_lut[44] = 0x0000002e00000000;*/
 	}
 }
 
