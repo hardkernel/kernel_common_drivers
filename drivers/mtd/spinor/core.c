@@ -24,7 +24,7 @@
 #include <linux/amlogic/aml_storage.h>
 #include <linux/amlogic/aml_spi_mem.h>
 
-#define CONFIG_AMLOGIC_MTD_SPI_NOR_USE_4K_SECTORS
+// #define CONFIG_AMLOGIC_MTD_SPI_NOR_USE_4K_SECTORS
 
 /* Define max times to check status register before we give up. */
 
