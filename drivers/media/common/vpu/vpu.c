@@ -2990,10 +2990,6 @@ static void vpu_shutdown(struct platform_device *pdev)
 
 	if (!IS_ERR_OR_NULL(vpu_conf.vpu_intr))
 		clk_disable_unprepare(vpu_conf.vpu_intr);
-
-	if (!IS_ERR_OR_NULL(vpu_conf.gp_pll) &&
-		__clk_is_enabled(vpu_conf.gp_pll))
-		clk_disable_unprepare(vpu_conf.gp_pll);
 }
 
 #ifdef CONFIG_PM
@@ -3090,10 +3086,6 @@ static int vpu_freeze(struct device *dev)
 
 	if (!IS_ERR_OR_NULL(vpu_conf.vpu_intr))
 		clk_disable_unprepare(vpu_conf.vpu_intr);
-
-	if (!IS_ERR_OR_NULL(vpu_conf.gp_pll) &&
-		__clk_is_enabled(vpu_conf.gp_pll))
-		clk_disable_unprepare(vpu_conf.gp_pll);
 
 	return 0;
 }
