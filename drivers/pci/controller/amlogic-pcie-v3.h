@@ -122,11 +122,16 @@
 	(((((val) >> 18)) & GENMASK(4, 0)) == (state))
 
 /* amlogic phy V1 register offset */
+#define UPCTX_CTRL_REG				(0x0012 << 2)
 #define UPCRX_DR_REG1				(0x0015 << 2)
 #define REG_DCHD_EQ_LPBK_REG			(0x0032 << 2)
 #define REG_DCHD_EQ_GEN1_REG			(0x0033 << 2)
 #define REG_DCHD_EQ_GEN2_REG			(0x0034 << 2)
 #define REG_DCHD_EQ_GEN3_REG			(0x0035 << 2)
+#define SW_CTRL_PMA_REG0			(0x0044 << 2)
+#define SAMPLE_3RD_TIME				(0x0043 << 2)
+#define EQVAL_CTRL_REG				(0x0061 << 2)
+#define DELAY_TIME24				(0x0065 << 2)
 
 enum pcie_data_rate {
 	PCIE_GEN1,
