@@ -28,44 +28,18 @@
 
 static void s6_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 {
-	unsigned int val;
-	unsigned long off;
-	int i;
-	void *io;
+	unsigned int i, val;
 
-	for (i = 0; i < db->dmc_number; i++) {
-		switch (i) {
-		case 0:
-			io = db->ddr_reg1;
-			break;
-		case 1:
-			io = db->ddr_reg2;
-			break;
-		case 2:
-			io = db->ddr_reg3;
-			break;
-		case 3:
-			io = db->ddr_reg4;
-			break;
-		default:
-			break;
-		}
-
-		port = 0;
-		for (i = 0; i < db->channels; i++)
-			port |= db->port[i];
-
-		off = DMC_MON_CTRL0;
-		if (port < 0) {
-			/* clear all port mask */
-			val = (readl(io + DMC_MON_CTRL0) & 0xff000000);
-			writel(val, io + off);
-		} else {
-			val = (readl(io + DMC_MON_CTRL0) & 0xff000000);
-			val |= port;
-			writel(val, io + off);
-		}
+	/* s6 can not se port, default be set */
+	for (i = 0; i < db->channels; i++) {
+		db->port[i] = 1 << i;
+		db->range[i].start = 0;
+		db->range[i].end   = 0x3ffffffffULL;
 	}
+
+	val = readl(db->ddr_reg1 + DMC_MON_CTRL0);
+	val |= 0xffffff;
+	writel(val,  db->ddr_reg1 + DMC_MON_CTRL0);
 }
 
 static unsigned long s6_get_dmc_freq_quick(struct ddr_bandwidth *db)
@@ -134,10 +108,7 @@ static void s6_dmc_bandwidth_init(struct ddr_bandwidth *db)
 	}
 	s6_dmc_bandwidth_enable(db);
 
-	if (!db->port[0])
-		s6_dmc_port_config(db, 0, -1);
-	db->range[0].start = 0;
-	db->range[0].end   = 0x3ffffffffULL;
+	s6_dmc_port_config(db, -1, -1);
 }
 
 static int s6_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
