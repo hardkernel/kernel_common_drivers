@@ -839,6 +839,14 @@ int aml_bl_set_level_brightness(struct aml_bl_drv_s *bdrv, unsigned int brightne
 		return 0;
 	}
 
+	if ((bdrv->state & BL_STATE_LCD_ON) == 0 ||
+		(bdrv->state & BL_STATE_BL_POWER_ON) == 0) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV)
+			BLPR("[%d]: %s: backlight is off, state: 0x%x\n",
+					bdrv->index, __func__, bdrv->state);
+		return 0;
+	}
+
 	mutex_lock(&bl_status_mutex);
 	bdrv->level_brightness = bl_brightness_level_map(bdrv, brightness);
 
