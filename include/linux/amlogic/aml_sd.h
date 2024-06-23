@@ -466,6 +466,9 @@ void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
 #define SD_EMMC_CMD_RSP2 0x64
 #define SD_EMMC_CMD_RSP3 0x68
 
+#define SD_EMMC_CURR_CFG 0x70
+#define SD_EMMC_NEXT_CFG 0x80
+
 #define SD_EMMC_RXD 0x94
 #define SD_EMMC_TXD 0x94
 #define SD_EMMC_LAST_REG SD_EMMC_TXD

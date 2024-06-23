@@ -2325,23 +2325,34 @@ static int emmc_test_bus(struct mmc_host *mmc)
 	u32 blksz = 512, cali_blk_cnt;
 	struct meson_host *host = mmc_priv(mmc);
 	struct device *dev = mmc->parent;
+	u32 curr_cmd_idx, next_cmd_idx;
 
 	err = aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
 				  host->blk_test, blksz, 40, MMC_PATTERN_NAME);
 	if (err)
-		return err;
+		goto _out;
 
 	if (device_property_read_u32(dev, "cali_blk_cnt", &cali_blk_cnt) <= 0)
 		cali_blk_cnt = CALI_BLK_CNT;
 	err = aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
 				  host->blk_test, blksz, cali_blk_cnt, MMC_RANDOM_NAME);
 	if (err)
-		return err;
+		goto _out;
 
 	err = aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
 				  host->blk_test, blksz, 40, MMC_MAGIC_NAME);
 	if (err)
-		return err;
+		goto _out;
+
+_out:
+	/* get cmd index from curr desc & next desc */
+	curr_cmd_idx = readl(host->regs + SD_EMMC_CURR_CFG) &
+		CMD_CFG_CMD_INDEX_MASK;
+	next_cmd_idx = readl(host->regs + SD_EMMC_NEXT_CFG) &
+		CMD_CFG_CMD_INDEX_MASK;
+	if (curr_cmd_idx != next_cmd_idx)
+		emmc_send_cmd(mmc, MMC_STOP_TRANSMISSION,
+			0, MMC_RSP_R1 | MMC_CMD_AC);
 
 	return err;
 }
