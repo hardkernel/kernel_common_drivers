@@ -52,6 +52,7 @@ static const struct aml_format video_support_format[] = {
 static struct v4l2_frmsize_discrete video_support_frmsize[] = {
 	{1920, 1080},
 	{1280, 720},
+	{640,  480},
 	{640,  360}
 };
 

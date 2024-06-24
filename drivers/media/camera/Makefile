@@ -15,6 +15,5 @@ obj-${CONFIG_AMLOGIC_VIDEO_CAPTURE} = $(MODULE_CAMERA_NAME).o
 $(MODULE_CAMERA_NAME)-y = common/flashlight.o
 $(MODULE_CAMERA_NAME)-y += common/plat_ctrl.o
 $(MODULE_CAMERA_NAME)-y += common/vm.o  common/aml_video.o common/aml_video_ops.o
-$(MODULE_CAMERA_NAME)-y += common/cam_prober.o
+$(MODULE_CAMERA_NAME)-y += common/cam_prober.o common/cam_probe_s6.o
 $(MODULE_CAMERA_NAME)-$(CONFIG_AMLOGIC_VIDEO_CAPTURE_OV5640) += ov5640.o
-
