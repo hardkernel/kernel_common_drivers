@@ -2864,7 +2864,7 @@ void rx_set_term_value_pre(unsigned char port, bool value)
 				data32 |= (1 << port);
 			} else {
 				/* rst cdr to clr tmds_valid */
-				data32 &= ~(MSK(3, 7));
+				//data32 &= ~(MSK(3, 7));
 				data32 &= ~(1 << port);
 			}
 			wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32);
@@ -2908,7 +2908,7 @@ void rx_set_term_value_t5(unsigned char port, bool value)
 			data32 |= (1 << port);
 		} else {
 			/* rst cdr to clr tmds_valid */
-			data32 &= ~(MSK(3, 7));
+			//data32 &= ~(MSK(3, 7));
 			data32 &= ~(1 << port);
 		}
 		hdmirx_wr_amlphy(T5_HHI_RX_PHY_MISC_CNTL0, data32);
