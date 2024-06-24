@@ -49,7 +49,7 @@
 #define CLKID_SC_PRE_MUX                          40
 #define CLKID_SC_PRE_DIV                          41
 #define CLKID_SC_PRE                              42
-#define CLKID_SC_DIV                              43
+#define CLKID_SC                                  43
 #define CLKID_CDAC_MUX                            44
 #define CLKID_CDAC_DIV                            45
 #define CLKID_CDAC                                46
