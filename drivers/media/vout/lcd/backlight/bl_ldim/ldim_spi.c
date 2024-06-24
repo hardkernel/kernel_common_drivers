@@ -260,7 +260,7 @@ int ldim_spi_write_dma_trig(struct spi_device *spi, unsigned char *tbuf,
 		return 0;
 	}
 
-	memcpy(dev_drv->spi_tx_buf, tbuf, xlen * sizeof(unsigned int));//copy duty to spi tx buf
+	memcpy(dev_drv->spi_tx_buf, tbuf, xlen * sizeof(unsigned char));//copy duty to spi tx buf
 
 	if (xlen != dev_drv->spi_xlen ||
 		spi->bits_per_word != 64) {
