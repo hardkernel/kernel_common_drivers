@@ -46,6 +46,7 @@ struct resolution_param {
 	enum resolution_size size_type;
 	struct aml_camera_i2c_fig_s *reg_script;
 	int     reg_script_nums;
+	int     sensor_out_fmt;
 };
 
 // device abstract object.

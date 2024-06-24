@@ -379,21 +379,36 @@ int vm_ge2d_process(struct vframe_s *vf,
 	canvas_read(vf->canvas0Addr & 0xff, &cs0);
 	canvas_read((vf->canvas0Addr >> 8) & 0xff, &cs1);
 	canvas_read((vf->canvas0Addr >> 16) & 0xff, &cs2);
-	ge2d_config->src_planes[0].addr = cs0.addr;
-	ge2d_config->src_planes[0].w = cs0.width;
-	ge2d_config->src_planes[0].h = cs0.height;
-	ge2d_config->src_planes[1].addr = cs1.addr;
-	ge2d_config->src_planes[1].w = cs1.width;
-	ge2d_config->src_planes[1].h = cs1.height;
-	ge2d_config->src_planes[2].addr = cs2.addr;
-	ge2d_config->src_planes[2].w = cs2.width;
-	ge2d_config->src_planes[2].h = cs2.height;
+
+	if (vf->canvas0Addr == (u32)-1) {
+		ge2d_config->src_planes[0].addr = vf->canvas0_config[0].phy_addr;
+		ge2d_config->src_planes[0].w = src_width;
+		ge2d_config->src_planes[0].h = src_height;
+		ge2d_config->src_planes[1].addr = vf->canvas0_config[1].phy_addr;
+		ge2d_config->src_planes[1].w = src_width;
+		ge2d_config->src_planes[1].h = src_height / 2;
+	} else {
+		ge2d_config->src_planes[0].addr = cs0.addr;
+		ge2d_config->src_planes[0].w = cs0.width;
+		ge2d_config->src_planes[0].h = cs0.height;
+		ge2d_config->src_planes[1].addr = cs1.addr;
+		ge2d_config->src_planes[1].w = cs1.width;
+		ge2d_config->src_planes[1].h = cs1.height;
+		ge2d_config->src_planes[2].addr = cs2.addr;
+		ge2d_config->src_planes[2].w = cs2.width;
+		ge2d_config->src_planes[2].h = cs2.height;
+	}
 
 	ge2d_config->src_key.key_enable = 0;
 	ge2d_config->src_key.key_mask = 0;
 	ge2d_config->src_key.key_mode = 0;
-	ge2d_config->src_para.canvas_index = vf->canvas0Addr;
-	ge2d_config->src_para.mem_type =  CANVAS_TYPE_INVALID;
+	if (vf->canvas0Addr == (u32)-1) {
+		ge2d_config->src_para.mem_type =  CANVAS_ALLOC;
+		ge2d_config->src_para.canvas_index = 0;
+	} else {
+		ge2d_config->src_para.mem_type =  CANVAS_TYPE_INVALID;
+		ge2d_config->src_para.canvas_index = vf->canvas0Addr;
+	}
 	ge2d_config->src_para.format = get_input_format(vf);
 
 	ge2d_config->src_para.fill_color_en = 0;
@@ -454,9 +469,9 @@ int vm_ge2d_process(struct vframe_s *vf,
 			   src_width, src_height, 0, 0,
 			   output_para->width, output_para->height);
 
-	//pr_err("src fmt 0x%x w %d h %d, dst fmt 0x%x w %d h %d",
-	// ge2d_config->src_para.format, ge2d_config->src_para.width, ge2d_config->src_para.height,
-	// ge2d_config->dst_para.format, ge2d_config->dst_para.width, ge2d_config->dst_para.height);
+	pr_debug("src fmt 0x%x w %d h %d, dst fmt 0x%x w %d h %d\n",
+	 ge2d_config->src_para.format, ge2d_config->src_para.width, ge2d_config->src_para.height,
+	 ge2d_config->dst_para.format, ge2d_config->dst_para.width, ge2d_config->dst_para.height);
 
 	return 0;
 }

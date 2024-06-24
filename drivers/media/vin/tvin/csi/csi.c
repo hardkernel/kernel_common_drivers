@@ -27,6 +27,7 @@
 #include "../tvin_format_table.h"
 #include "../tvin_frontend.h"
 #include "csi.h"
+#include "csi_reg.h"
 
 #define DEV_NAME  "amvdec_csi"
 #define DRV_NAME  "amvdec_csi"
@@ -38,6 +39,7 @@
 
 static dev_t amcsi_devno;
 static struct class *amcsi_clsp;
+static struct csi_chip_info_s g_csi_chip_info;
 
 static void init_csi_dec_parameter(struct amcsi_dev_s *devp)
 {
@@ -307,7 +309,7 @@ static ssize_t hw_info_store(struct device *dev,
 
 	if (strcmp(parm[0], "reset") == 0) {
 		pr_info("reset\n");
-		am_mipi_csi2_init(&csi_devp->csi_parm);
+		am_mipi_csi2_init(csi_devp);
 	} else if (strcmp(parm[0], "init") == 0) {
 		pr_info("init mipi measure clock\n");
 		init_am_mipi_csi2_clock();
@@ -355,8 +357,8 @@ static int amcsi_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port,
 	csi_devp->reset = 0;
 	csi_devp->reset_count = 0;
 
-	cal_csi_para(&csi_devp->csi_parm);
-	am_mipi_csi2_init(&csi_devp->csi_parm);
+	cal_csi_para(csi_devp);
+	am_mipi_csi2_init(csi_devp);
 	csi_devp->fe_status = CAMERA_FE_OPEN;
 	DPRINT("%s camera fe open\n", __func__);
 
@@ -376,11 +378,12 @@ static void amcsi_feclose(struct tvin_frontend_s *fe, enum tvin_port_type_e port
 
 	devp->reset = 0;
 	devp->reset_count = 0;
+
 	if (devp->fe_status == CAMERA_FE_OPEN) {
 		DPRINT("%s camera fe close\n", __func__);
 		devp->fe_status = CAMERA_FE_CLOSE;
 	}
-	am_mipi_csi2_uninit();
+	am_mipi_csi2_uninit(devp);
 
 	memset(&devp->para, 0, sizeof(struct vdin_parm_s));
 }
@@ -441,18 +444,62 @@ static void csi_delete_device(int minor)
 	device_destroy(amcsi_clsp, devno);
 }
 
+static struct csi_chip_info_s csi_info_on_sm1 = {
+	.csi_chip_type = CSI_ON_SM1,
+};
+
+static struct csi_chip_info_s csi_info_on_s6 = {
+	.csi_chip_type = CSI_ON_S6,
+};
+
+static const struct of_device_id csi_dt_match[] = {
+	{
+		.compatible = "amlogic, amvdec_csi",
+		.data = &csi_info_on_sm1,
+	},
+	{
+		.compatible = "amlogic, amvdec_csi-s6",
+		.data = &csi_info_on_s6,
+	},
+	{},
+};
+
 static int amvdec_csi_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	int id = 0;
 	struct amcsi_dev_s *devp = NULL;
 
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		struct csi_chip_info_s *matched_data;
+
+		match = of_match_node(csi_dt_match, pdev->dev.of_node);
+		if (match) {
+			matched_data = (struct csi_chip_info_s *)match->data;
+			if (matched_data) {
+				memcpy(&g_csi_chip_info, matched_data,
+					   sizeof(struct csi_chip_info_s));
+			} else {
+				pr_err("%s data NOT match\n", __func__);
+				return -ENODEV;
+			}
+		} else {
+			pr_err("%s NOT match\n", __func__);
+			return -ENODEV;
+		}
+	}
+
 	devp = kmalloc(sizeof(*devp), GFP_KERNEL);
 	if (!devp) {
 		ret = -1;
 		goto fail_kmalloc_dev;
 	}
+
 	memset(devp, 0, sizeof(struct amcsi_dev_s));
+	// keep this assignment first.
+	// other initialization may depends on chip info.
+	devp->csi_chip_info = &g_csi_chip_info;
 
 	ret = csi_add_cdev(&devp->cdev, &amcsi_fops, 0);
 	if (ret != 0) {
@@ -502,13 +549,6 @@ static int amvdec_csi_remove(struct platform_device *pdev)
 	kfree(devp);
 	return 0;
 }
-
-static const struct of_device_id csi_dt_match[] = {
-	{
-		.compatible = "amlogic, amvdec_csi",
-	},
-	{},
-};
 
 static struct platform_driver amvdec_csi_driver = {
 	.probe      = amvdec_csi_probe,

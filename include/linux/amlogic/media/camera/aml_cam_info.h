@@ -91,6 +91,7 @@ typedef int (*aml_cam_probe_fun_t)(struct i2c_adapter *);
 struct aml_cam_info_s {
 	struct list_head info_entry;
 	const char *name;
+	unsigned int cam_type;
 	unsigned int i2c_bus_num;
 	unsigned int pwdn_act;
 	unsigned int front_back; /* front is 0, back is 1 */
@@ -102,7 +103,8 @@ struct aml_cam_info_s {
 	const char *motor_driver;
 	const char *resolution;
 	const char *version;
-	unsigned int mclk;
+	unsigned int mclk_freq;
+	void *mclk;
 	unsigned int flash_support;
 	unsigned int flash_ctrl_level;
 	unsigned int torch_support;
@@ -120,13 +122,14 @@ struct aml_cam_info_s {
 	/* gpio_t torch_ctrl_pin; */
 	unsigned int pwdn_pin;
 	unsigned int rst_pin;
-	int cam_vdd;
+	unsigned int cam_vdd;
 	unsigned int flash_ctrl_pin;
 	unsigned int torch_ctrl_pin;
 	enum resolution_size max_cap_size;
 	enum tvin_color_fmt_e bayer_fmt;
 	const char *config;
 	struct pinctrl *camera_pin_ctrl;
+	void *cam_plat_dev;
 };
 
 struct aml_camera_i2c_fig_s {

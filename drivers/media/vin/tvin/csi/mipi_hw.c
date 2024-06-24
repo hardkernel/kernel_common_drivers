@@ -21,11 +21,9 @@
 //#include <dt-bindings/power/amlogic,pd.h>
 
 #include "csi.h"
+#include "csi_reg.h"
 
-#define HHI_CSI_PHY         0xff63c000
-#define HHI_CSI_PHY_CNTL0  (0x0d3 << 2)
-#define HHI_CSI_PHY_CNTL1  (0x0d4 << 2)
-#define HHI_CSI_PHY_CNTL2  (0x0d5 << 2)
+#include "mipi_hw_s6.h"
 
 static struct csi_adapt g_csi;
 
@@ -187,23 +185,30 @@ void deinit_am_mipi_csi2_clock(void)
 	}
 }
 
-static void init_am_mipi_csi2_host(struct csi_parm_s *info)
+static void init_am_mipi_csi2_host(struct amcsi_dev_s *csi_dev, struct csi_adapt *adap_dev)
 {
+	struct csi_parm_s *info = &csi_dev->csi_parm;
 	pr_info("info->lanes = %d\n", info->lanes);
 	WRITE_CSI_HST_REG(CSI2_HOST_CSI2_RESETN, 1);
 	WRITE_CSI_HST_REG(CSI2_HOST_N_LANES, (info->lanes - 1) & 3);
-	WRITE_CSI_HST_REG(CSI2_HOST_MASK1, 0x0);
+
+	if (get_csi_chip_type(csi_dev) == CSI_ON_S6) {
+		WRITE_CSI_HST_REG(CSI2_HOST_MASK1, 0xf00);
+	} else {
+		// default to sm1;
+		WRITE_CSI_HST_REG(CSI2_HOST_MASK1, 0x0);
+	}
 	WRITE_CSI_HST_REG(CSI2_HOST_MASK2, 0x0);
+
 	udelay(1);
 }
 
-static int init_am_mipi_csi2_adapter(struct csi_parm_s *info)
+static int init_am_mipi_csi2_adapter(struct amcsi_dev_s *csi_dev, struct csi_adapt *adap_dev)
 {
 	unsigned int data32;
-	struct amcsi_dev_s *csi_devp;
 
-	csi_devp = container_of(info, struct amcsi_dev_s, csi_parm);
 	WRITE_CSI_ADPT_REG(CSI2_CLK_RESET, 0);
+
 	data32  = 0;
 	data32 |= CSI2_CFG_422TO444_MODE        << 21;
 	data32 |= 0x1f                          << 16;
@@ -217,12 +222,12 @@ static int init_am_mipi_csi2_adapter(struct csi_parm_s *info)
 	WRITE_CSI_ADPT_REG(CSI2_GEN_CTRL0,  data32);
 
 	data32  = 0;
-	data32 |= (csi_devp->para.h_active - 1) << 16;
+	data32 |= (csi_dev->para.h_active - 1) << 16;
 	data32 |= 0                             <<  0;
 	WRITE_CSI_ADPT_REG(CSI2_X_START_END_ISP, data32);
 
 	data32  = 0;
-	data32 |= (csi_devp->para.v_active - 1) << 16;
+	data32 |= (csi_dev->para.v_active - 1) << 16;
 	data32 |= 0                             <<  0;
 	WRITE_CSI_ADPT_REG(CSI2_Y_START_END_ISP, data32);
 
@@ -237,7 +242,7 @@ static int init_am_mipi_csi2_adapter(struct csi_parm_s *info)
 	return 0;
 }
 
-static void powerup_csi_analog(struct csi_parm_s *info)
+static void powerup_csi_analog_sm1(struct csi_adapt *adap_dev)
 {
 	void __iomem *base_addr;
 
@@ -256,13 +261,14 @@ static void powerup_csi_analog(struct csi_parm_s *info)
 	//power_domain_switch(PM_CSI, PWR_ON);
 }
 
-static void powerdown_csi_analog(void)
+static void powerdown_csi_analog_sm1(struct csi_adapt *adap_dev)
 {
 	//power_domain_switch(PM_CSI, PWR_OFF);
 }
 
-static void init_am_mipi_phy(struct csi_parm_s *info)
+static void init_am_mipi_phy(struct amcsi_dev_s *csi_dev, struct csi_adapt *adap_dev)
 {
+	struct csi_parm_s *info = &csi_dev->csi_parm;
 	u32 settle = 0;
 	u32 ui_val = 0;
 	u32 cycle_time = 5;
@@ -274,13 +280,24 @@ static void init_am_mipi_phy(struct csi_parm_s *info)
 	settle = settle / cycle_time;
 	pr_info("settle = 0x%04x\n", settle);
 
-	mipi_phy_reg_wr_and_check(MIPI_PHY_CLK_LANE_CTRL, 0x3d8);
+	if (get_csi_chip_type(csi_dev) == CSI_ON_S6) {
+		settle = settle - 4;
+		pr_info("adjust settle = 0x%04x\n", settle);
+		mipi_phy_reg_wr_and_check(MIPI_PHY_CLK_LANE_CTRL, 0x140d8);
+		mipi_phy_reg_wr_and_check(MIPI_PHY_TINIT, 0x0d);
+	} else {
+		// default to sm1
+		mipi_phy_reg_wr_and_check(MIPI_PHY_CLK_LANE_CTRL, 0x3d8);
+		mipi_phy_reg_wr_and_check(MIPI_PHY_TINIT, 0x4e20);
+	}
 	mipi_phy_reg_wr_and_check(MIPI_PHY_TCLK_MISS, 0x9);
 	mipi_phy_reg_wr_and_check(MIPI_PHY_TCLK_SETTLE, 0x1f);
-	mipi_phy_reg_wr_and_check(MIPI_PHY_THS_EXIT, 0x1f);
 	mipi_phy_reg_wr_and_check(MIPI_PHY_THS_SKIP, 0xa);
 	mipi_phy_reg_wr_and_check(MIPI_PHY_THS_SETTLE, settle);
-	mipi_phy_reg_wr_and_check(MIPI_PHY_TINIT, 0x4e20);
+	if (get_csi_chip_type(csi_dev) == CSI_ON_S6)
+		mipi_phy_reg_wr_and_check(MIPI_PHY_THS_EXIT, 0x8);
+	else
+		mipi_phy_reg_wr_and_check(MIPI_PHY_THS_EXIT, 0x1f);
 	mipi_phy_reg_wr_and_check(MIPI_PHY_TMBIAS, 0x100);
 	mipi_phy_reg_wr_and_check(MIPI_PHY_TULPS_C, 0x1000);
 	mipi_phy_reg_wr_and_check(MIPI_PHY_TULPS_S, 0x100);
@@ -291,22 +308,72 @@ static void init_am_mipi_phy(struct csi_parm_s *info)
 	mipi_phy_reg_wr_and_check(MIPI_PHY_DATA_LANE_CTRL, 0x0);
 	mipi_phy_reg_wr_and_check(MIPI_PHY_DATA_LANE_CTRL1,
 		0x3 | (0x1f << 2) | (0x3 << 7));
-	mipi_phy_reg_wr_and_check(MIPI_PHY_MUX_CTRL0, 0x00000123);
-	mipi_phy_reg_wr_and_check(MIPI_PHY_MUX_CTRL1, 0x00000123);
+	if (get_csi_chip_type(csi_dev) == CSI_ON_S6) {
+		if (info->lanes == 4) {
+			// bit [17:16] clk lane select ob00 from clk-0; 0b01 from clk-1;
+			// bit [15:0] SFEN 0 1 2 3 from: data lans 0 1 2 3;
+			mipi_phy_reg_wr_and_check(MIPI_PHY_MUX_CTRL0_S6, 0x00000123);
+			// bit [17] clk-1 lane ctrl signal from: 0 DPHY SCNN; 1 input 0;
+			// bit [16] clk-1 lane ctrl signal from: 0 DPHY SCNN; 1 input 0;
+			// bit [15:0] data lane 0 1 2 3 ctrl signal from: SFEN 0 1 2 3;
+			mipi_phy_reg_wr_and_check(MIPI_PHY_MUX_CTRL1_S6, 0x00020123);
+		} else if (info->lanes == 2) {
+			// using clk a and data lane 0 & 1
+			mipi_phy_reg_wr_and_check(MIPI_PHY_MUX_CTRL0_S6, 0x000001ff);
+			mipi_phy_reg_wr_and_check(MIPI_PHY_MUX_CTRL1_S6, 0x000201ff);
+			// using clk a and data lane 2 & 3
+			//mipi_phy_reg_wr_and_check(MIPI_PHY_MUX_CTRL0_S6, 0x000023ff);
+			//mipi_phy_reg_wr_and_check(MIPI_PHY_MUX_CTRL1_S6, 0x0002ff01);
+		}
+		// deskew_mode
+		//[31] 1,       enable deskew
+		//[26] 0,       use identical deskew sync data
+		//[25] 1,       adjust auto adjust deskew phase, 0: manual 1: auto;
+		//[24] 1,       deskew pattern format, 1: 0x55, 0: 0xAA.
+		//[23:12] 0,    deskew window start
+		//[11:0] ‘d128  deskew window end; 256 is 0x100; 512 is 0x200
+
+		if (g_csi.deskew_mode == 0) {
+			// disable initial deskew
+			WRITE_CSI_PHY_REG_BITS(MIPI_PHY_DESKEW_CTRL_S6, 0, 31, 1);
+			mipi_phy_reg_wr_and_check(MIPI_PHY_DESKEW_CTRL1_S6, 0x8);
+		} else {
+			// enable initial deskew
+			mipi_phy_reg_wr_and_check(MIPI_PHY_DESKEW_CTRL_S6, 0x83000080);
+			mipi_phy_reg_wr_and_check(MIPI_PHY_DESKEW_CTRL1_S6, 0x007507fc);
+		}
+		// disable period deskew.
+		mipi_phy_reg_wr_and_check(MIPI_PHY_DESKEW_CTRL2_S6, 0x0);
+		mipi_phy_reg_wr_and_check(MIPI_PHY_DESKEW_CTRL3_S6, 0x0);
+
+		// analog squlech_mode
+		if (g_csi.squlech_mode == 0) // disable
+			WRITE_CSI_PHY_REG_BITS(MIPI_PHY_DESKEW_CTRL1_S6, 0, 3, 1);
+		else
+			WRITE_CSI_PHY_REG_BITS(MIPI_PHY_DESKEW_CTRL1_S6, 1, 3, 1);
+
+		mipi_phy_reg_wr_and_check(MIPI_PHY_SQRST_CTRL_S6,
+			(0x1 << 0) + (0x2 << 5) + (0x1f << 10) + (0x8 << 15) +
+			(0x10 << 20) + (0x11 << 25));
+	} else {
+		// default to sm1
+		mipi_phy_reg_wr_and_check(MIPI_PHY_MUX_CTRL0, 0x00000123);
+		mipi_phy_reg_wr_and_check(MIPI_PHY_MUX_CTRL1, 0x00000123);
+	}
 	mipi_phy_reg_wr_and_check(MIPI_PHY_CTRL, 0);
 }
 
-static void reset_am_mipi_csi2_host(void)
+static void reset_am_mipi_csi2_host(struct amcsi_dev_s *csi_dev, struct csi_adapt *adap_dev)
 {
 	WRITE_CSI_HST_REG(CSI2_HOST_CSI2_RESETN, 0);
 }
 
-static void reset_am_mipi_csi2_adapter(void)
+static void reset_am_mipi_csi2_adapter(struct amcsi_dev_s *csi_dev, struct csi_adapt *adap_dev)
 {
 	WRITE_CSI_ADPT_REG(CSI2_CLK_RESET, 1);
 }
 
-static void reset_am_mipi_phy(void)
+static void reset_am_mipi_phy(struct amcsi_dev_s *csi_dev, struct csi_adapt *adap_dev)
 {
 	WRITE_CSI_PHY_REG_BITS(MIPI_PHY_CTRL, 0x1, 31, 1);
 }
@@ -319,6 +386,15 @@ void am_mipi_csi2_para_init(struct platform_device *pdev)
 
 	memset(&g_csi, 0, sizeof(struct csi_adapt));
 	g_csi.p_dev = pdev;
+
+	rtn = of_property_read_u32(pdev->dev.of_node, "squlech_mode", &g_csi.squlech_mode);
+	if (rtn != 0)
+		pr_info("%s: squlech_mode not found in dts\n", __func__);
+
+	rtn = of_property_read_u32(pdev->dev.of_node, "deskew_mode", &g_csi.deskew_mode);
+	if (rtn != 0) {
+		pr_info("%s: deskew_mode not found in dts\n", __func__);
+	}
 
 	for (i = 0; i < 3; i++) {
 		rtn = of_address_to_resource(pdev->dev.of_node, i, &rs);
@@ -352,23 +428,34 @@ void am_mipi_csi2_para_init(struct platform_device *pdev)
 	}
 }
 
-void am_mipi_csi2_init(struct csi_parm_s *info)
+void am_mipi_csi2_init(struct amcsi_dev_s *csi_dev)
 {
-	powerup_csi_analog(info);
-	init_am_mipi_phy(info);
-	init_am_mipi_csi2_host(info);
-	init_am_mipi_csi2_adapter(info);
+	if (get_csi_chip_type(csi_dev) == CSI_ON_SM1)
+		powerup_csi_analog_sm1(&g_csi);
+	else if (get_csi_chip_type(csi_dev) == CSI_ON_S6)
+		powerup_csi_analog_s6(&g_csi);
+	else
+		pr_err("unknown chip type %d", csi_dev->csi_chip_info->csi_chip_type);
+
+	init_am_mipi_phy(csi_dev, &g_csi);
+	init_am_mipi_csi2_host(csi_dev, &g_csi);
+	init_am_mipi_csi2_adapter(csi_dev, &g_csi);
 }
 
-void am_mipi_csi2_uninit(void)
+void am_mipi_csi2_uninit(struct amcsi_dev_s *csi_dev)
 {
-	reset_am_mipi_phy();
-	reset_am_mipi_csi2_host();
-	reset_am_mipi_csi2_adapter();
+	reset_am_mipi_phy(csi_dev, &g_csi);
+	reset_am_mipi_csi2_host(csi_dev, &g_csi);
+	reset_am_mipi_csi2_adapter(csi_dev, &g_csi);
 	disable_am_mipi_csi2_clk();
-	powerdown_csi_analog();
+	if (get_csi_chip_type(csi_dev) == CSI_ON_SM1)
+		powerdown_csi_analog_sm1(&g_csi);
+	else if (get_csi_chip_type(csi_dev) == CSI_ON_S6)
+		powerdown_csi_analog_s6(&g_csi);
+	else
+		pr_err("unknown chip type %d", csi_dev->csi_chip_info->csi_chip_type);
 }
 
-void cal_csi_para(struct csi_parm_s *info)
+void cal_csi_para(struct amcsi_dev_s *csi_dev)
 {
 }
