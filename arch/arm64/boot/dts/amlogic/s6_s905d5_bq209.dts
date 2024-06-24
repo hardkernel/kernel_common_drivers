@@ -625,9 +625,8 @@
 		clock-names = "cts_csi_adapt_clk_composite",
 			"cts_csi_phy_clk_composite";
 
-		// depends on power domain. ID expect to be PDID_S6_CSI2_ADAPT
-		// maybe. always on; need to be tested.
-		//power-domains = <&pwrdm PDID_S6_CSI2_ADAPT>;
+		// depends on power domain.
+		power-domains = <&pwrdm PDID_S6_ADAPT>;
 
 		// 88 for csi2_adap_int
 		interrupts = <GIC_SPI 88 IRQ_TYPE_EDGE_RISING>;
