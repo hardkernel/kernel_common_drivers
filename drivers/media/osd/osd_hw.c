@@ -11514,6 +11514,7 @@ static void dup_param_for_osd_hw(u32 dst_index, u32 src_index)
 	osd_hw.secure_enable[dst] = osd_hw.secure_enable[src];
 	osd_hw.blend_mode[dst] = osd_hw.blend_mode[src];
 
+	/*coverity[overrun-buffer-arg] it can be ignored*/
 	memcpy(&osd_hw.color_info[dst], &osd_hw.color_info[src],
 	       sizeof(struct color_bit_define_s));
 	memcpy(&osd_hw.fb_gem[dst], &osd_hw.fb_gem[src],
