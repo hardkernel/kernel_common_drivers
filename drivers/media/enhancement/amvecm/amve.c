@@ -286,7 +286,7 @@ void ve_dnlp_load_reg(void)
 					WRITE_VPP_REG(SRSHARP1_DNLP_00 + i,
 						ve_dnlp_reg[i]);
 			} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-				if (!vinfo_lcd_support() ||
+				if ((!vinfo_lcd_support() && chip_type_id != chip_s5) ||
 					is_meson_t7_cpu() ||
 					chip_type_id == chip_txhd2)
 					dnlp_reg = SRSHARP0_DNLP2_00;
@@ -2381,6 +2381,8 @@ void amvecm_fresh_overscan(struct vframe_s *vf)
 			vf->pic_mode.ve = overscan_table[overscan_timing].ve;
 		}
 		vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
+		pr_amve_dbg("\n[%s] DISP_RATIO_ADAPTED_PICMODE.\n",
+			__func__);
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 	if (overscan_table[offset].load_flag) {
@@ -2426,6 +2428,8 @@ void amvecm_fresh_overscan(struct vframe_s *vf)
 			vf->pic_mode.ve = overscan_table[overscan_timing].ve;
 		}
 		vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
+		pr_amve_dbg("\n[%s] TVIN DISP_RATIO_ADAPTED_PICMODE.\n",
+			__func__);
 	}
 #endif
 	if (pq_user_latch_flag & PQ_USER_OVERSCAN_RESET) {
@@ -2437,8 +2441,9 @@ void amvecm_fresh_overscan(struct vframe_s *vf)
 		vf->pic_mode.vs = 0;
 		vf->pic_mode.ve = 0;
 		vf->ratio_control &= ~DISP_RATIO_ADAPTED_PICMODE;
+		pr_amve_dbg("\n[%s] PQ_USER_OVERSCAN_RESET.\n",
+			__func__);
 	}
-
 }
 
 void amvecm_reset_overscan(void)
@@ -2449,16 +2454,18 @@ void amvecm_reset_overscan(void)
 	source0 = overscan_table[0].source;
 	if (overscan_disable)
 		return;
+
 	if (overscan_timing != TIMING_MAX) {
 		overscan_timing = TIMING_MAX;
 		if (source0 != SOURCE_DTV &&
-		    source0 != SOURCE_MPEG)
+			source0 != SOURCE_MPEG)
 			overscan_table[0].load_flag = 0;
 		else if (!atv_source_flg)
 			overscan_table[offset].load_flag = 0;
+
 		if (source0 != SOURCE_DTV &&
-		    source0 != SOURCE_MPEG &&
-		    !atv_source_flg)
+			source0 != SOURCE_MPEG &&
+			!atv_source_flg)
 			overscan_screen_mode = 0xff;
 	}
 }

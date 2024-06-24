@@ -2582,16 +2582,22 @@ static void amvecm_overscan_process(struct vframe_s *vf,
 			amvecm_fresh_overscan(toggle_vf);
 		else if (vf)
 			amvecm_fresh_overscan(vf);
+		pr_amvecm_dbg("CSC_FLAG_CHECK_OUTPUT fresh_overscan.\n");
 		return;
 	}
 
-	if (!toggle_vf && !vf)
+	if (!toggle_vf && !vf) {
 		amvecm_reset_overscan();
+		pr_amvecm_dbg("no vframe reset_overscan.\n");
+	}
 
-	if (vf)
+	if (vf) {
 		amvecm_fresh_overscan(vf);
-	else
+		pr_amvecm_dbg("repeat vf fresh_overscan.\n");
+	} else {
 		amvecm_reset_overscan();
+		pr_amvecm_dbg("no repeat vf reset_overscan.\n");
+	}
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -3197,10 +3203,14 @@ static int gamma_table_compare(struct tcon_gamma_table_s *table1,
 #endif
 
 static void parse_overscan_table(unsigned int length,
-				 struct ve_pq_table_s *amvecm_pq_load_table)
+	struct ve_pq_table_s *amvecm_pq_load_table)
 {
 	unsigned int i;
 	unsigned int offset = TIMING_UHD + 1;
+
+	pr_amvecm_dbg("%s pre load_flag[0]/[%d] = %d/%d\n",
+		__func__, offset,
+		overscan_table[0].load_flag, overscan_table[offset].load_flag);
 
 	memset(overscan_table, 0, sizeof(overscan_table));
 	for (i = 0; i < length; i++) {
@@ -3228,7 +3238,8 @@ static void parse_overscan_table(unsigned int length,
 	 * if auto set load_flag = 0 by user, overscan set by dtv afd
 	 */
 	if (!overscan_table[0].load_flag &&
-		!overscan_table[offset].load_flag)
+		!overscan_table[offset].load_flag &&
+		chip_type_id != chip_t3x)
 		pq_user_latch_flag |= PQ_USER_OVERSCAN_RESET;
 
 	/*because SOURCE_TV is 0,so need to add a flg to check ATV*/
