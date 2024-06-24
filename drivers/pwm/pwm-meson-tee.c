@@ -120,10 +120,11 @@ static int pwm_constant_enable_tee(struct meson_pwm_tee *meson, struct pwm_devic
 
 static int pwm_constant_disable_tee(struct meson_pwm_tee *meson, struct pwm_device *pwm)
 {
-	struct arm_smccc_res res;
+	// struct arm_smccc_res res;
 
-	arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
-				 SECID_PWM_CONSTANT_DIS, 0, 0, 0, 0, &res);
+	/*for secure,pwm should not be disabled*/
+	// arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
+	// SECID_PWM_CONSTANT_DIS, 0, 0, 0, 0, &res);
 
 	return 0;
 }
@@ -134,7 +135,7 @@ static int meson_pwm_tee_calc(struct meson_pwm_tee *meson, struct pwm_device *pw
 	struct meson_pwm_tee_channel *channel = &meson->channels[pwm->hwpwm];
 	unsigned int cnt, duty_cnt;
 	unsigned long fin_freq;
-	u64 duty, period, freq;
+	u64 duty, period;
 
 	duty = state->duty_cycle;
 	period = state->period;
@@ -148,11 +149,7 @@ static int meson_pwm_tee_calc(struct meson_pwm_tee *meson, struct pwm_device *pw
 	if (state->polarity == PWM_POLARITY_INVERSED)
 		duty = period - duty;
 
-	freq = div64_u64(NSEC_PER_SEC * 0xffffULL, period);
-	if (freq > ULONG_MAX)
-		freq = ULONG_MAX;
-
-	fin_freq = clk_round_rate(channel->clk, freq);
+	fin_freq = clk_get_rate(channel->clk);
 	if (fin_freq == 0) {
 		dev_err(meson->chip.dev, "invalid source clock frequency\n");
 		return -EINVAL;
