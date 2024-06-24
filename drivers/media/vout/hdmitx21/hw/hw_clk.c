@@ -1230,10 +1230,18 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 		clocks_set_vid_clk_div_for_hdmi(clk_div_val);
 		return;
 	}
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6) { //S6 TODO
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6) {
 		set_hdmitx_s6_htx_pll(hdev);
 		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->sspll)
 			set_hpll_sspll(vic);
+		if (hdev->tx_hw.s7_clk_config) {
+			/* bit15
+			 * 1: Analog frequency division
+			 * 0: Digital frequency division(default)
+			 */
+			hd21_set_reg_bits(CLKCTRL_HDMI_CLK_CTRL, 1, 15, 1);
+			return;
+		}
 		if (cs != HDMI_COLORSPACE_YUV422) {
 			if (cd == COLORDEPTH_36B)
 				clk_div_val = VID_PLL_DIV_7p5;
