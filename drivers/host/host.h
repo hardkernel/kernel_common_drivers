@@ -140,6 +140,7 @@ struct host_module {
 	struct delayed_work host_monitor_work;
 	struct delayed_work host_logbuff_work;
 	struct workqueue_struct *host_wq;
+	struct workqueue_struct *host_logbuff_wq;
 	u32 hang;
 	u32 firmware_load;
 	struct host_data *host_data;
