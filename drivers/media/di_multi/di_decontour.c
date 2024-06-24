@@ -858,8 +858,8 @@ static void decontour_uninit(struct di_ch_s *pch)
 	dct->src_cnt--;
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_ACT);
 
-	PR_INF("ch[%d]decontour:uninit: pdct:%px curr_nins:%px pre-link:%d,%d\n",
-		pch->ch_id, pdct, dct->curr_nins, pre_link, dct->state);
+	PR_INF("ch[%d]decontour:uninit: curr_nins:%px pre-link:%d,%d\n",
+		pch->ch_id, dct->curr_nins, pre_link, dct->state);
 	if (dct->curr_nins) {
 		PR_WARN("%s:ch[%d]:state:%d sdt_mode:%d\n",
 			__func__, dct->curr_ch, dct->state, dct->sdt_mode.op_crr);
