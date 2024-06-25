@@ -168,6 +168,7 @@
 		interrupts = <0 185 IRQ_TYPE_EDGE_RISING
 			      0 186 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "amfc0", "amfc1";
+		power-domains=<&pwrdm PDID_S6_AMFC>;
 		clk = <666>;
 	};
 
