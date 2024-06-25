@@ -16,13 +16,16 @@
 
 #include <linux/amlogic/media/camera/aml_cam_info.h>
 
+#define USING_CLK_API 1
+
+#ifndef USING_CLK_API
 static inline u32 WRITE_CBUS_REG(void __iomem *base, u32 reg_offset, u32 val)
 {
 	__raw_writel(val, base + reg_offset);
 	return 0;
 }
 
-static int mclk_enable_24m(struct device *dev, uint32_t rate)
+static int mclk_enable(struct device *dev, uint32_t rate)
 {
 	void __iomem *base_addr;
 
@@ -43,10 +46,11 @@ static int mclk_enable_24m(struct device *dev, uint32_t rate)
 	WRITE_CBUS_REG(base_addr, 0x26c, 0x07180c40);
 
 	iounmap(base_addr);
+	dev_dbg(dev, "ioremap clk api - fixed 24M mclk\n");
+
 	return 0;
 }
-
-#ifdef USING_CLK_API
+#else
 static int mclk_enable(struct device *dev, uint32_t rate)
 {
 	struct clk *mclk0 = NULL;
@@ -58,11 +62,6 @@ static int mclk_enable(struct device *dev, uint32_t rate)
 		pr_err("cannot get %s\n", "mclk0");
 		mclk0 = NULL;
 		return -1;
-	}
-
-	if (rate != 24000000) {
-		// not supported yet!
-		dev_err(dev, "mclk rate %d not supported yet!\n", rate);
 	}
 
 	ret = clk_set_rate(mclk0, rate);
@@ -77,7 +76,7 @@ static int mclk_enable(struct device *dev, uint32_t rate)
 	clk_val = clk_get_rate(mclk0);
 	devm_clk_put(dev, mclk0);
 
-	dev_info(dev, "mclk is %d MHZ\n", clk_val / 1000000);
+	dev_dbg(dev, "std clk api - mclk is %d MHZ\n", clk_val / 1000000);
 
 	return 0;
 }
@@ -100,7 +99,7 @@ static int mclk_disable(struct device *dev)
 
 	devm_clk_put(dev, mclk0);
 
-	dev_info(dev, "disable mclk\n");
+	dev_dbg(dev, "disable mclk\n");
 #endif
 	return 0;
 }
@@ -109,7 +108,7 @@ int cam_enable_clk_s6(struct aml_cam_info_s *cam_dev)
 {
 	struct platform_device *pdev = cam_dev->cam_plat_dev;
 
-	return mclk_enable_24m(&pdev->dev, cam_dev->mclk_freq);
+	return mclk_enable(&pdev->dev, cam_dev->mclk_freq);
 }
 
 int cam_disable_clk_s6(struct aml_cam_info_s *cam_dev)
