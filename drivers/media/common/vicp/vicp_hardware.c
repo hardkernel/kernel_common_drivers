@@ -9,6 +9,7 @@
 #include "vicp_rdma.h"
 
 static u32 rdma_enable_flag;
+static u32 enhance_sec_flag;
 
 static int pps_lut_tap8[33][8] = {{0, 0, 0, 128, 0, 0, 0, 0},
 			{-1, 1, 0, 127, 2, -1, 1, -1},
@@ -1348,8 +1349,20 @@ void set_fgrain_ppconv_size(u32 size_h, u32 size_v)
 	return write_vicp_reg(VID_CMPR_AFBCDM_VDTOP_CTRL1, value);
 }
 
+void set_enhance_sec_enable(u32 enable)
+{
+	enhance_sec_flag = enable;
+	if (enable)
+		write_vicp_reg(VID_CMPR_SEC_MODE_CTRL, 0xa);
+	else
+		write_vicp_reg(VID_CMPR_SEC_MODE_CTRL, 0x5);
+}
+
 int read_vicp_reg(u32 reg)
 {
+	if (enhance_sec_flag)
+		return vicp_reg_tee_read(reg);
+
 	return vicp_reg_read(reg);
 }
 
@@ -1357,6 +1370,9 @@ void write_vicp_reg(u32 reg, u32 val)
 {
 	struct rdma_buf_type_s *buf = NULL;
 	vicp_print(VICP_DUMP_REG, "%s: set reg 0x%04x with 0x%08x\n", __func__, reg, val);
+
+	if (enhance_sec_flag)
+		return vicp_reg_tee_write(reg, val);
 
 	if (rdma_enable_flag) {
 		buf = get_current_vicp_rdma_buf();
@@ -1367,11 +1383,26 @@ void write_vicp_reg(u32 reg, u32 val)
 	}
 }
 
+int read_vicp_reg_bits(u32 reg, const u32 start, const u32 len)
+{
+	u32 value = 0;
+
+	if (enhance_sec_flag)
+		value = vicp_reg_tee_get_bits(reg, start, len);
+	else
+		value = vicp_reg_get_bits(reg, start, len);
+
+	return value;
+}
+
 void write_vicp_reg_bits(u32 reg, const u32 value, const u32 start, const u32 len)
 {
 	struct rdma_buf_type_s *buf = NULL;
 	vicp_print(VICP_DUMP_REG, "%s: set reg 0x%04x from %d to %d bit with 0x%08x\n",
 		__func__, reg, start, (start + len - 1), value);
+
+	if (enhance_sec_flag)
+		return vicp_reg_tee_set_bits(reg, value, start, len);
 
 	if (rdma_enable_flag) {
 		buf = get_current_vicp_rdma_buf();

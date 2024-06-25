@@ -19,11 +19,14 @@
 #include <linux/io.h>
 #include <linux/amlogic/media/registers/register_map.h>
 #include <linux/amlogic/media/registers/regs/ao_regs.h>
+#include <linux/amlogic/tee.h>
 #include <linux/amlogic/power_domain.h>
 #include "vicp_reg.h"
 #include "vicp_log.h"
 
 #define VICPBUS_REG_ADDR(reg) ((reg) << 2)
+
+static u64 reg_addr_base;
 
 struct vicp_afbce_reg_s vicp_afbce_reg_array[VICP_SUPPORT_CHIP_MAX] = {
 	{
@@ -269,6 +272,44 @@ void vicp_vcbus_write(u32 reg, u32 val)
 #endif
 }
 
+u32 vicp_reg_tee_read(u32 reg)
+{
+	u32 addr = 0;
+	u32 val = 0;
+
+	addr = VICPBUS_REG_ADDR(reg);
+	tee_read_reg_bits(reg_addr_base + addr, &val, 0, 32);
+
+	return val;
+}
+
+void vicp_reg_tee_write(u32 reg, u32 val)
+{
+	u32 addr = 0;
+
+	addr = VICPBUS_REG_ADDR(reg);
+	tee_write_reg_bits(reg_addr_base + addr, val, 0, 32);
+}
+
+void vicp_reg_tee_set_bits(u32 reg, const u32 value, const u32 start, const u32 len)
+{
+	u32 addr = 0;
+
+	addr = VICPBUS_REG_ADDR(reg);
+	tee_write_reg_bits(reg_addr_base + addr, value, start, len);
+}
+
+u32 vicp_reg_tee_get_bits(u32 reg, const u32 start, const u32 len)
+{
+	u32 addr = 0;
+	u32 val = 0;
+
+	addr = VICPBUS_REG_ADDR(reg);
+	tee_read_reg_bits(reg_addr_base + addr, &val, start, len);
+
+	return val;
+}
+
 u32 vicp_reg_get_bits(u32 reg, const u32 start, const u32 len)
 {
 	u32 val;
@@ -296,6 +337,11 @@ u64 vicp_reg_read_addr(u64 addr)
 	val = readl((void __iomem *)(phys_to_virt(addr)));
 
 	return (val & 0xffffffff);
+}
+
+void vicp_reg_addr_base_init(u64 addr)
+{
+	reg_addr_base = addr;
 }
 
 u32 vicp_reg_array_init(enum vicp_support_chip_e chip, enum vicp_module_e module, void *array)

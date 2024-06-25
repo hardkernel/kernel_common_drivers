@@ -8,6 +8,7 @@
 #endif
 #include "vicp_rdma.h"
 #include "vicp_reg.h"
+#include "vicp_hardware.h"
 #include <linux/amlogic/media/vicp/vicp.h>
 
 struct rdma_buf_type_s rdma_buf[MAX_INPUTSOURCE_COUNT];
@@ -18,7 +19,7 @@ u32 rdma_buf_choice;
 // --------------------------------------------------------
 void vicp_rdma_reset(void)
 {
-	vicp_reg_set_bits(VID_CMPR_DMA_RESET, 1, 0, 1);
+	write_vicp_reg_bits(VID_CMPR_DMA_RESET, 1, 0, 1);
 }
 
 void vicp_rdma_init(struct rdma_buf_type_s *rdma_buf)
@@ -27,37 +28,37 @@ void vicp_rdma_init(struct rdma_buf_type_s *rdma_buf)
 		__func__, rdma_buf->cmd_buf_start_addr, rdma_buf->cmd_buf_len);
 	vicp_print(VICP_RDMA, "%s: load_buf: start_addr: 0x%llx, len: %lld.\n",
 		__func__, rdma_buf->load_buf_start_addr, rdma_buf->load_buf_len);
-	vicp_reg_set_bits(VID_CMPR_DMA_CBUF_BADDR_LSB,
+	write_vicp_reg_bits(VID_CMPR_DMA_CBUF_BADDR_LSB,
 		((rdma_buf->cmd_buf_start_addr >> 4) >> 0) & 0xffffffff, 0, 32);
-	vicp_reg_set_bits(VID_CMPR_DMA_CBUF_BADDR_MSB,
+	write_vicp_reg_bits(VID_CMPR_DMA_CBUF_BADDR_MSB,
 		((rdma_buf->cmd_buf_start_addr >> 4) >> 32) & 0xffffffff, 0, 32);
-	vicp_reg_set_bits(VID_CMPR_DMA_CBUF_LENGTH, rdma_buf->cmd_buf_len, 0, 32);
-	vicp_reg_set_bits(VID_CMPR_DMA_LBUF_BADDR_LSB,
+	write_vicp_reg_bits(VID_CMPR_DMA_CBUF_LENGTH, rdma_buf->cmd_buf_len, 0, 32);
+	write_vicp_reg_bits(VID_CMPR_DMA_LBUF_BADDR_LSB,
 		((rdma_buf->load_buf_start_addr >> 4) >> 0) & 0xffffffff, 0, 32);
-	vicp_reg_set_bits(VID_CMPR_DMA_LBUF_BADDR_MSB,
+	write_vicp_reg_bits(VID_CMPR_DMA_LBUF_BADDR_MSB,
 		((rdma_buf->load_buf_start_addr >> 4) >> 32) & 0xffffffff, 0, 32);
-	vicp_reg_set_bits(VID_CMPR_DMA_LBUF_LENGTH, rdma_buf->load_buf_len, 0, 32);
+	write_vicp_reg_bits(VID_CMPR_DMA_LBUF_LENGTH, rdma_buf->load_buf_len, 0, 32);
 }
 
 void vicp_rdma_trigger(void)
 {
 	/*0:link mode 1: trigle mode*/
-	vicp_reg_set_bits(VID_CMPR_DMA_MODE, 0, 0, 1);
-	vicp_reg_set_bits(VID_CMPR_DMA_START, 1, 0, 1);
+	write_vicp_reg_bits(VID_CMPR_DMA_MODE, 0, 0, 1);
+	write_vicp_reg_bits(VID_CMPR_DMA_START, 1, 0, 1);
 }
 
 void vicp_rdma_enable(int rdma_cfg_en, int rdma_lbuf_en, int rdma_test_mode)
 {
-	vicp_reg_set_bits(VID_CMPR_DMA_ENABLE, rdma_cfg_en, 0, 1);
-	vicp_reg_set_bits(VID_CMPR_DMA_LBUF_CTRL, rdma_lbuf_en, 0, 1);
-	vicp_reg_set_bits(VID_CMPR_DMA_MODE, 1, 16, 1);/*open selt ro read back*/
-	vicp_reg_set_bits(VID_CMPR_DMA_MODE, rdma_test_mode, 12, 1);
+	write_vicp_reg_bits(VID_CMPR_DMA_ENABLE, rdma_cfg_en, 0, 1);
+	write_vicp_reg_bits(VID_CMPR_DMA_LBUF_CTRL, rdma_lbuf_en, 0, 1);
+	write_vicp_reg_bits(VID_CMPR_DMA_MODE, 1, 16, 1);/*open selt ro read back*/
+	write_vicp_reg_bits(VID_CMPR_DMA_MODE, rdma_test_mode, 12, 1);
 }
 
 void vicp_rdma_cbuf_ready(int buf_index)
 {
-	vicp_reg_set_bits(VID_CMPR_DMA_CBUF_READY, buf_index, 4, 16);
-	vicp_reg_set_bits(VID_CMPR_DMA_CBUF_READY, 1, 0, 1);
+	write_vicp_reg_bits(VID_CMPR_DMA_CBUF_READY, buf_index, 4, 16);
+	write_vicp_reg_bits(VID_CMPR_DMA_CBUF_READY, 1, 0, 1);
 }
 
 // --------------------------------------------------------
@@ -118,15 +119,15 @@ struct rdma_buf_type_s *get_current_vicp_rdma_buf(void)
 
 void vicp_rdma_errorflag_clear(void)
 {
-	vicp_reg_set_bits(VID_CMPR_DMA_ERR_CLR, 0xff, 0, 8);
-	return vicp_reg_set_bits(VID_CMPR_DMA_ERR_CLR, 0, 0, 8);
+	write_vicp_reg_bits(VID_CMPR_DMA_ERR_CLR, 0xff, 0, 8);
+	return write_vicp_reg_bits(VID_CMPR_DMA_ERR_CLR, 0, 0, 8);
 }
 
 void vicp_rdma_errorflag_parser(void)
 {
 	u32 reg_val;
 
-	reg_val = vicp_reg_get_bits(VID_CMPR_DMA_ERR_FLAG, 0, 8);
+	reg_val = read_vicp_reg_bits(VID_CMPR_DMA_ERR_FLAG, 0, 8);
 	pr_info("%s: errorflag is %d.\n", __func__, reg_val);
 
 	if (reg_val & (1 << 7))
@@ -154,7 +155,7 @@ void vicp_rdma_cpsr_dump(void)
 	int i = 0;
 
 	for (i = 0; i < 0x1ff; i++)
-		pr_info("[0x%04x] = 0x%08x\n", i, vicp_reg_read(i));
+		pr_info("[0x%04x] = 0x%08x\n", i, read_vicp_reg(i));
 }
 
 void vicp_rdma_buf_dump(u32 buf_count, u32 buf_num)

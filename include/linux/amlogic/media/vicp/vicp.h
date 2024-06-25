@@ -70,6 +70,8 @@ struct vicp_device_data_s {
 	bool film_grain_support;
 	bool cr_lossy_support;
 	bool ddr16_support;
+	u64 reg_addr_base;
+	bool enhance_sec_support;
 };
 
 struct vicp_clock_config_s {

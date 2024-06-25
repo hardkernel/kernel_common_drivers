@@ -631,11 +631,16 @@ struct vicp_lossy_compress_reg_s {
 /* *********************************************************************** */
 u32 vicp_reg_read(u32 reg);
 void vicp_reg_write(u32 reg, u32 val);
+u32 vicp_reg_tee_read(u32 reg);
+void vicp_reg_tee_set_bits(u32 reg, const u32 value, const u32 start, const u32 len);
+u32 vicp_reg_tee_get_bits(u32 reg, const u32 start, const u32 len);
+void vicp_reg_tee_write(u32 reg, u32 val);
 u32 vicp_vcbus_read(u32 reg);
 void vicp_vcbus_write(u32 reg, u32 val);
 u32 vicp_reg_get_bits(u32 reg, const u32 start, const u32 len);
 void vicp_reg_set_bits(u32 reg, const u32 value, const u32 start, const u32 len);
 void vicp_reg_write_addr(u64 addr, u64 data);
 u64 vicp_reg_read_addr(u64 addr);
+void vicp_reg_addr_base_init(u64 addr);
 u32 vicp_reg_array_init(enum vicp_support_chip_e chip, enum vicp_module_e module, void *array);
 #endif
