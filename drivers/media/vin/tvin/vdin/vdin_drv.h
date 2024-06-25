@@ -352,6 +352,7 @@ struct match_data_s {
 #define VDIN_AUTO_GAME_MODE		BIT(20)
 #define VDIN_AUTO_PC_MODE		BIT(21)
 #define VDIN_SET_DISPLAY_RATIO_TRANS	BIT(22) //vdin transparent transmission aspect ratio
+#define VDIN_MEM_MEMSET_EN      BIT(23)
 
 /* vdin_function_sel control bits end */
 
@@ -598,6 +599,15 @@ struct vdin_slt_test_s {
 	u32 vf_pass_cnt;
 };
 
+enum vdin_memset_dbg_flag {
+	YUV422_8B_FULL = 1,
+	YUV422_8B_LIMIT,
+	YUV422_10B_FULL,
+	YUV422_10B_LIMIT,
+	RGB_8B_FULL,
+	RGB_8B_LIMIT
+};
+
 /*******for debug **********/
 struct vdin_debug_s {
 	struct tvin_cutwin_s cutwin;
@@ -635,6 +645,15 @@ struct vdin_debug_s {
 	unsigned int dbg_dv_hw5;
 	unsigned int hconv_mode;
 	struct vdin_slt_test_s slt_test;
+	int vdin_memset_dbg_en;
+	int vdin_memset_en;
+	enum vdin_memset_dbg_flag flag;
+	unsigned char yuv422_10l[5];
+	unsigned char yuv422_10f[5];
+	unsigned char yuv422_8l[4];
+	unsigned char yuv422_8f[4];
+	unsigned char rgb_8f[3];
+	unsigned char rgb_8l[3];
 };
 
 struct vdin_dv_s {

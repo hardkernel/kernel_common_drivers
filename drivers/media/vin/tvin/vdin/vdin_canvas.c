@@ -421,6 +421,128 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 }
 
 #ifdef CONFIG_CMA
+
+void vdin_mem_memset(struct vdin_dev_s *devp)
+{
+	int highmem_flag = 0;
+	void *buf = NULL;
+	void *buf_1 = NULL;
+	unsigned int j = 0;
+	unsigned int cnt = 0;
+	int i = 0;
+	int h = 0;
+	int len = 0;
+	int byt_index = 0;
+	unsigned int count, span, width;
+	unsigned int frame_size = 0;
+	unsigned char *ptr = NULL;
+	unsigned char *p = NULL;
+	unsigned char yuv422_10l[5] = {0x1, 0x20, 0x10, 0x0, 0x2};/*limit 10bit YUV422 black*/
+	unsigned char yuv422_10f[5] = {0x0, 0x20, 0x0, 0x0, 0x2};/*full 10bit YUV422 black*/
+	unsigned char yuv422_8l[4] = {0x80, 0x10, 0x80, 0x10};/*limit 8bit YUV422 black*/
+	unsigned char yuv422_8f[4] = {0x80, 0x0, 0x80, 0x0};/*full 8bit YUV422 black*/
+	unsigned char byt_1[40] = {0};
+	unsigned char rgb_8f[3] = {0};/*full 8bit rgb black*/
+	unsigned char rgb_8l[3] = {0x10, 0x10, 0x10};/*limit 8bit rgb black*/
+	unsigned int yuv422_10l_len = ARRAY_SIZE(yuv422_10l);
+	unsigned int yuv422_8l_len = ARRAY_SIZE(yuv422_8l);
+	unsigned int rgb8_len = ARRAY_SIZE(rgb_8l);
+	unsigned int byt1_len = ARRAY_SIZE(byt_1);
+	u32 val;
+
+	if (!(devp->vdin_function_sel & VDIN_MEM_MEMSET_EN))
+		return;
+	if (!(vdin_is_convert_to_422(devp->format_convert) ||
+		vdin_is_convert_to_rgb(devp->format_convert)) ||
+		devp->hw_core == VDIN_HW_CORE_NORMAL) {
+		return;
+	}
+	if (devp->debug.vdin_memset_en != 1) {
+		memcpy(devp->debug.yuv422_8f, yuv422_8f, yuv422_8l_len);
+		memcpy(devp->debug.yuv422_8l, yuv422_8l, yuv422_8l_len);
+		memcpy(devp->debug.yuv422_10f, yuv422_10f, yuv422_10l_len);
+		memcpy(devp->debug.yuv422_10l, yuv422_10l, yuv422_10l_len);
+		memcpy(devp->debug.rgb_8f, rgb_8f, rgb8_len);
+		memcpy(devp->debug.rgb_8l, rgb_8l, rgb8_len);
+	}
+	val = vdin_matrix_range_chk(devp);
+	for (i = 0; i < devp->canvas_max_num; i++) {
+		if (devp->cma_config_flag & 0x100)
+			highmem_flag =
+				PageHighMem(phys_to_page(devp->vf_mem_start[0]));
+		else
+			highmem_flag = PageHighMem(phys_to_page(devp->mem_start));
+		count = devp->canvas_h;
+		span = devp->canvas_active_w;
+		width = devp->canvas_w;
+		frame_size = count * width;
+		if (highmem_flag)
+			buf = vdin_vmap(devp->vf_mem_start[i], frame_size);
+		else
+			buf = phys_to_virt(devp->vf_mem_start[i]);
+		if (!buf)
+			return;
+		p = (unsigned char *)buf;
+		for (h = 0; h < count; h++) {
+			buf_1 = buf + h  * width;
+			ptr = (unsigned char *)buf_1;
+			if (vdin_is_convert_to_422(devp->format_convert) &&
+				devp->source_bitdepth == VDIN_COLOR_DEEPS_8BIT) {
+				for (j = 0; j < span; j += yuv422_8l_len) {
+					len = min(yuv422_8l_len, span - j);
+					if (val)
+						memcpy(ptr, devp->debug.yuv422_8f, len);
+					else
+						memcpy(ptr, devp->debug.yuv422_8l, len);
+					ptr += len;
+				}
+			} else if (vdin_is_convert_to_rgb(devp->format_convert) &&
+				devp->source_bitdepth == VDIN_COLOR_DEEPS_8BIT) {
+				for (j = 0; j < span; j += rgb8_len) {
+					len = min(rgb8_len, span - j);
+					if (val)
+						memcpy(ptr, devp->debug.rgb_8f, len);
+					else
+						memcpy(ptr, devp->debug.rgb_8l, len);
+					ptr += len;
+				}
+			} else if (vdin_is_convert_to_422(devp->format_convert) &&
+				devp->source_bitdepth == VDIN_COLOR_DEEPS_10BIT) {
+				while (j < 40) {
+					if (j > 0 && j % 8 == 0)
+						cnt--;
+					byt_index = cnt % yuv422_10l_len;
+					if (val)
+						byt_1[j] = devp->debug.yuv422_10f[byt_index];
+					else
+						byt_1[j] = devp->debug.yuv422_10l[byt_index];
+					j++;
+					cnt++;
+				}
+				for (j = 0; j < span; j += byt1_len) {
+					len = min(byt1_len, span - j);
+					memcpy(ptr, byt_1, len);
+					ptr += len;
+				}
+			}
+			if (devp->debug.vdin_memset_dbg_en == 1 && p) {
+				pr_info("%s:buf[%d], 8 byte\n", __func__, i);
+				for (j = 0; j < 10; j++)
+					pr_info("0x%02X ", p[j]);
+				pr_info("\n");
+				devp->debug.vdin_memset_dbg_en = 0;
+			}
+		}
+		vdin_dma_flush(devp, buf, frame_size, DMA_TO_DEVICE);
+		if (highmem_flag)
+			vdin_unmap_phyaddr(buf);
+		if (vdin_dbg_en & 0x10)
+			pr_info("vdin%d,buf[%d] mem_start = 0x%lx, mem_size = 0x%x, highmem_flag = %d, color_range = %d\n",
+				devp->index, i, devp->vf_mem_start[i],
+				devp->frame_size, highmem_flag, val);
+	}
+}
+
 /* need to be static for pointer use in codec_mm */
 static char vdin_name[6];
 
@@ -764,7 +886,6 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				}
 				devp->vf_mem_start[i] = page_to_phys(devp->vf_venc_pages[i]);
 			}
-
 			if (vdin_dbg_en)
 				pr_info("vdin%d buf[%d] mem_start = 0x%lx, mem_size = 0x%x\n",
 					devp->index, i,	devp->vf_mem_start[i], frame_size);

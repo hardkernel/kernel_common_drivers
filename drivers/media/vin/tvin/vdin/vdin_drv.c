@@ -1379,6 +1379,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		       devp->index, __func__);
 		return -1;
 	}
+	vdin_mem_memset(devp);
 #endif
 
 	/* h_active/v_active will be used by bellow calling */

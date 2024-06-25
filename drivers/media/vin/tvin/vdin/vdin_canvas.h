@@ -39,6 +39,7 @@ extern const unsigned int vdin_canvas_ids[VDIN_MAX_DEVS][VDIN_CANVAS_MAX_CNT];
 void vdin_canvas_init(struct vdin_dev_s *devp);
 void vdin_canvas_start_config(struct vdin_dev_s *devp);
 void vdin_canvas_auto_config(struct vdin_dev_s *devp);
+void vdin_mem_memset(struct vdin_dev_s *devp);
 unsigned int vdin_cma_alloc(struct vdin_dev_s *devp);
 void vdin_cma_release(struct vdin_dev_s *devp);
 void vdin_cma_malloc_mode(struct vdin_dev_s *devp);

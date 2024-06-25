@@ -5272,7 +5272,7 @@ static bool vdin_is_convert_to_yuv(u32 format_convert)
 		return false;
 }
 
-static bool vdin_is_convert_to_rgb(u32 format_convert)
+bool vdin_is_convert_to_rgb(u32 format_convert)
 {
 	if (format_convert == VDIN_FORMAT_CONVERT_YUV_RGB ||
 	    format_convert == VDIN_FORMAT_CONVERT_YUV_GBR ||

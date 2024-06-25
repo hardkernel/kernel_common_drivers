@@ -2333,6 +2333,71 @@ void vdin_dbg_access_reg(struct vdin_dev_s *devp, unsigned int update_site)
 }
 #endif
 
+void vdin_memset_dbg(char *parm[], struct vdin_dev_s *devp)
+{
+	unsigned int temp = 0, i = 0;
+
+	if (parm[2] && kstrtouint(parm[2], 10, &temp) == 0) {
+		devp->debug.flag = (enum vdin_memset_dbg_flag)temp;
+		switch (devp->debug.flag) {
+		case YUV422_8B_FULL:
+			for (i = 0; i < 4; i++) {
+				if (kstrtouint(parm[i + 3], 16, &temp) == 0) {
+					devp->debug.yuv422_8f[i] = temp;
+					pr_info("debug.yuv422_8f[%d] = 0x%02X\n",
+						i, devp->debug.yuv422_8f[i]);
+				}
+			}
+			break;
+		case YUV422_8B_LIMIT:
+			for (i = 0; i < 4; i++) {
+				if (kstrtouint(parm[i + 3], 16, &temp) == 0) {
+					devp->debug.yuv422_8l[i] = temp;
+					pr_info("debug.yuv422_8l[%d] = 0x%02X\n",
+						i, devp->debug.yuv422_8l[i]);
+				}
+			}
+			break;
+		case YUV422_10B_FULL:
+			for (i = 0; i < 5; i++) {
+				if (kstrtouint(parm[i + 3], 16, &temp) == 0) {
+					devp->debug.yuv422_10f[i] = temp;
+					pr_info("debug.yuv422_10f[%d] = 0x%02X\n",
+						i, devp->debug.yuv422_10f[i]);
+				}
+			}
+			break;
+		case YUV422_10B_LIMIT:
+			for (i = 0; i < 5; i++) {
+				if (kstrtouint(parm[i + 3], 16, &temp) == 0) {
+					devp->debug.yuv422_10l[i] = temp;
+					pr_info("debug.yuv422_10l[%d] = 0x%02X\n",
+						i, devp->debug.yuv422_10l[i]);
+				}
+			}
+			break;
+		case RGB_8B_FULL:
+			for (i = 0; i < 3; i++) {
+				if (kstrtouint(parm[i + 3], 16, &temp) == 0) {
+					devp->debug.rgb_8f[i] = temp;
+					pr_info("devp->debug.rgb_8f[%d] = 0x%02X\n",
+						i, devp->debug.rgb_8f[i]);
+				}
+			}
+			break;
+		case RGB_8B_LIMIT:
+			for (i = 0; i < 3; i++) {
+				if (kstrtouint(parm[i + 3], 16, &temp) == 0) {
+					devp->debug.rgb_8l[i] = temp;
+					pr_info("devp->debug.rgb_8l[%d] = 0x%02X\n",
+						i, devp->debug.rgb_8l[i]);
+				}
+			}
+			break;
+		}
+	}
+}
+
 /*
  * 1.show the current frame rate
  * echo fps >/sys/class/vdin/vdinx/attr
@@ -3828,6 +3893,14 @@ start_chk:
 			pr_info("vdin%d,buffer num:(%d)\n\n", devp->index,
 				devp->frame_buff_num);
 		}
+	} else if (!strcmp(parm[0], "vdin_mem_memset")) {
+		devp->debug.vdin_memset_dbg_en = 1;
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+			devp->debug.vdin_memset_en = temp;
+		if (parm[2])
+			vdin_memset_dbg(parm, devp);
+		pr_info("vdin_mem_memset_flag = %d,vdin_memset_en = %d\n",
+			devp->debug.vdin_memset_dbg_en, devp->debug.vdin_memset_en);
 	}
 #endif
 	else if (!strcmp(parm[0], "state")) {

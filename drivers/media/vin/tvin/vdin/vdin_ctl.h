@@ -201,6 +201,7 @@ void vdin_dma_flush(struct vdin_dev_s *devp, void *vaddr,
 void vdin_set_vframe_prop_info(struct vframe_s *vf,
 			       struct vdin_dev_s *devp);
 void vdin_get_crc_val(struct vframe_s *vf, struct vdin_dev_s *devp);
+u32 vdin_matrix_range_chk(struct vdin_dev_s *devp);
 void vdin_get_format_convert(struct vdin_dev_s *devp);
 enum vdin_format_convert_e
 	vdin_get_format_convert_matrix0(struct vdin_dev_s *devp);
@@ -332,6 +333,7 @@ enum tvin_color_fmt_range_e
 bool vdin_is_convert_to_444(u32 format_convert);
 bool vdin_is_convert_to_422(u32 format_convert);
 bool vdin_is_convert_to_nv21(u32 format_convert);
+bool vdin_is_convert_to_rgb(u32 format_convert);
 bool vdin_is_4k(struct vdin_dev_s *devp);
 void vdin_set_matrix_color(struct vdin_dev_s *devp);
 void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int on_off, unsigned int pat);
