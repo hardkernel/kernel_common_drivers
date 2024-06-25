@@ -1603,6 +1603,7 @@ static void set_vid_cmpr_security(bool sec_en)
 
 	if (sec_en) {
 		input_sec = 1;
+		dma_sec = 1;
 	} else {
 		dma_sec = 0;
 		mmu_sec = 0;
@@ -2035,6 +2036,7 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 void vicp_device_init(struct vicp_device_data_s device)
 {
 	vicp_dev = device;
+	vicp_reg_addr_base_init(device.reg_addr_base);
 }
 
 int vicp_process_config(struct vicp_data_config_s *data_config,
@@ -2356,6 +2358,9 @@ int vicp_process_task(struct vid_cmpr_top_s *vid_cmpr_top)
 		vicp_print(VICP_ERROR, "%s: NULL param, please check.\n", __func__);
 		return -1;
 	}
+
+	if (vicp_dev.enhance_sec_support)
+		set_enhance_sec_enable(enhance_sec_en);
 
 	set_vid_cmpr_rdma_config(vid_cmpr_top->rdma_enable, vid_cmpr_top->src_count,
 		vid_cmpr_top->src_num);

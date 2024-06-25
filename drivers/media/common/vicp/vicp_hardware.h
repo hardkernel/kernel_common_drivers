@@ -519,6 +519,8 @@ void set_fgrain_path_control(u32 is_enable);
 void set_fgrain_post_control(struct vicp_fgrain_post_ctrl_reg_s post_ctrl_reg);
 void set_fgrain_alone_mode_control(struct vicp_fgrain_alone_mode_ctrl_reg_s alone_ctrl_reg);
 void set_fgrain_ppconv_size(u32 size_h, u32 size_v);
+void set_enhance_sec_enable(u32 enable);
 int read_vicp_reg(u32 reg);
 void write_vicp_reg(u32 reg, u32 val);
+int read_vicp_reg_bits(u32 reg, const u32 start, const u32 len);
 void write_vicp_reg_bits(u32 reg, const u32 value, const u32 start, const u32 len);

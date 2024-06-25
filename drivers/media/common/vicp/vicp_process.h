@@ -49,7 +49,7 @@ extern u32 debug_rdma_en;
 extern u32 fgrain_en;
 extern u32 debug_reg_en;
 extern u32 suspend_flag;
-
+extern u32 enhance_sec_en;
 
 /* *********************************************************************** */
 /* ************************* enum definitions **************************.*/

@@ -79,6 +79,7 @@ u32 rdma_en;
 u32 debug_rdma_en;
 u32 debug_reg_en;
 u32 suspend_flag;
+u32 enhance_sec_en;
 
 struct mutex vicp_mutex; /*used to avoid user space call at the same time*/
 struct vicp_hdr_data_s *vicp_hdr;
@@ -208,7 +209,7 @@ static ssize_t reg_store(struct class *class,
 			return -EINVAL;
 		}
 		reg_val = val;
-		vicp_reg_write(reg_addr, reg_val);
+		write_vicp_reg(reg_addr, reg_val);
 	}
 	kfree(buf_orig);
 	buf_orig = NULL;
@@ -739,6 +740,31 @@ static ssize_t debug_reg_en_store(struct class *cla, struct class_attribute *att
 	return count;
 }
 
+static ssize_t enhance_sec_en_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "current enhance_sec_en is %d.\n", enhance_sec_en);
+}
+
+static ssize_t enhance_sec_en_store(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	int val;
+	ssize_t ret;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		enhance_sec_en = val;
+	else
+		enhance_sec_en = 0;
+
+	pr_info("set enhance_sec_en to %d.\n", enhance_sec_en);
+	return count;
+}
+
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RW(reg);
 static CLASS_ATTR_RW(demo_enable);
@@ -761,6 +787,7 @@ static CLASS_ATTR_RW(axis);
 static CLASS_ATTR_RW(rdma_en);
 static CLASS_ATTR_RW(debug_rdma_en);
 static CLASS_ATTR_RW(debug_reg_en);
+static CLASS_ATTR_RW(enhance_sec_en);
 
 static struct attribute *vicp_class_attrs[] = {
 	&class_attr_print_flag.attr,
@@ -785,6 +812,7 @@ static struct attribute *vicp_class_attrs[] = {
 	&class_attr_rdma_en.attr,
 	&class_attr_debug_rdma_en.attr,
 	&class_attr_debug_reg_en.attr,
+	&class_attr_enhance_sec_en.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(vicp_class);
@@ -949,6 +977,8 @@ static struct vicp_device_data_s vicp_s5 = {
 	.film_grain_support = false,
 	.cr_lossy_support = false,
 	.ddr16_support = false,
+	.reg_addr_base = 0xfe03e000,
+	.enhance_sec_support = false,
 };
 
 static struct vicp_device_data_s vicp_t3x = {
@@ -957,6 +987,8 @@ static struct vicp_device_data_s vicp_t3x = {
 	.film_grain_support = true,
 	.cr_lossy_support = true,
 	.ddr16_support = true,
+	.reg_addr_base = 0xfe03e000,
+	.enhance_sec_support = false,
 };
 
 static struct vicp_device_data_s vicp_s6 = {
@@ -965,6 +997,8 @@ static struct vicp_device_data_s vicp_s6 = {
 	.film_grain_support = true,
 	.cr_lossy_support = true,
 	.ddr16_support = true,
+	.reg_addr_base = 0xfe094000,
+	.enhance_sec_support = true,
 };
 
 static const struct of_device_id vicp_dt_match[] = {
