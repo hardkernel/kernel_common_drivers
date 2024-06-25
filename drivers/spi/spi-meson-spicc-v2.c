@@ -1071,7 +1071,9 @@ struct platform_driver meson_spicc_v2_driver = {
 	},
 };
 
-//module_platform_driver(meson_spicc_v2_driver);
+#ifndef MODULE
+module_platform_driver(meson_spicc_v2_driver);
+#endif
 
 MODULE_DESCRIPTION("Meson SPI Communication Controller(v2) driver");
 MODULE_AUTHOR("Sunny.luo <sunny.luo@amlogic.com>");
