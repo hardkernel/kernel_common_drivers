@@ -162,8 +162,8 @@ struct spicc_sg_link {
 struct spicc_descriptor {
 	union spicc_cfg_start		cfg_start;
 	union spicc_cfg_bus		cfg_bus;
-	dma_addr_t			tx_paddr;
-	dma_addr_t			rx_paddr;
+	u64				tx_paddr;
+	u64				rx_paddr;
 };
 
 struct spicc_device {
@@ -269,7 +269,7 @@ static inline unsigned long spicc_xfer_time_max(struct spicc_device *spicc,
 {
 	unsigned long ms;
 
-	ms = 8LL * 1000LL * len / spicc->effective_speed_hz;
+	ms = (8 * len) / (spicc->effective_speed_hz / 1000);
 	ms += ms + 20; /* some tolerance */
 
 	return ms;
@@ -380,7 +380,7 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 			ccxfer->tx_ccsg_len = xfer->tx_sg.nents * sizeof(void *);
 			ccxfer->tx_ccsg = dma_alloc_coherent(dev,
 					ccxfer->tx_ccsg_len,
-					&desc->tx_paddr,
+					(dma_addr_t *)&desc->tx_paddr,
 					GFP_KERNEL | GFP_DMA);
 			if (!ccxfer->tx_ccsg) {
 				spicc_err("alloc tx_ccsg failed\n");
@@ -394,14 +394,14 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 			ccxfer->rx_ccsg_len = xfer->rx_sg.nents * sizeof(void *);
 			ccxfer->rx_ccsg = dma_alloc_coherent(dev,
 					ccxfer->rx_ccsg_len,
-					&desc->rx_paddr,
+					(dma_addr_t *)&desc->rx_paddr,
 					GFP_KERNEL | GFP_DMA);
 			if (!ccxfer->rx_ccsg) {
 				if (ccxfer->tx_ccsg)
 					dma_free_coherent(dev,
 							ccxfer->tx_ccsg_len,
 							ccxfer->tx_ccsg,
-							desc->tx_paddr);
+							(dma_addr_t)desc->tx_paddr);
 				spicc_err("alloc rx_ccsg failed\n");
 				return -ENOMEM;
 			}
@@ -528,14 +528,14 @@ static void spicc_destroy_desc_table(struct spicc_device *spicc,
 				dma_free_coherent(dev,
 						ccxfer->tx_ccsg_len,
 						ccxfer->tx_ccsg,
-						desc->tx_paddr);
+						(dma_addr_t)desc->tx_paddr);
 			}
 
 			if (xfer->rx_buf) {
 				dma_free_coherent(dev,
 						ccxfer->rx_ccsg_len,
 						ccxfer->rx_ccsg,
-						desc->rx_paddr);
+						(dma_addr_t)desc->rx_paddr);
 			}
 		} else {
 			if (xfer->tx_buf)
