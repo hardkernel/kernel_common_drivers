@@ -439,13 +439,14 @@ static struct clk_regmap fclk_div7 = {
 
 static const struct pll_params_table mclk_pll_params_table[] = {
 	PLL_PARAMS_v4(198, 0, 1), /* VCO = 2376M, CLK_OUT = 1188M */
+	PLL_PARAMS_v4(200, 0, 1), /* VCO = 2400M, CLK_OUT = 1200M */
 	{ /* sentinel */  },
 };
 
 static const struct reg_sequence mclk_pll_init_regs[] = {
 	{ .reg = ANACTRL_CSIPLL_CTRL1,	.def = 0x20627000 },
 	{ .reg = ANACTRL_CSIPLL_CTRL2,	.def = 0x60000201 },
-	{ .reg = ANACTRL_CSIPLL_CTRL3,	.def = 0x03180060 }
+	{ .reg = ANACTRL_CSIPLL_CTRL3,	.def = 0x03180260 }
 };
 
 static struct clk_regmap mclk_pll = {
@@ -519,27 +520,6 @@ static struct clk_regmap mclk_pll_clk = {
 	},
 };
 
-static const struct clk_parent_data mclk0_parent_data[] = {
-	{ .hw = &mclk_pll_clk.hw },
-	{ .fw_name = "mclk_pll_src", },
-	{ .hw = &fclk50m.hw }
-};
-
-static struct clk_regmap mclk0_mux = {
-	.data = &(struct clk_regmap_mux_data){
-		.offset = ANACTRL_CSIPLL_CTRL3,
-		.mask = 0x7,
-		.shift = 26,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "mclk0_mux",
-		.ops = &clk_regmap_mux_ops,
-		.parent_data = mclk0_parent_data,
-		.num_parents = ARRAY_SIZE(mclk0_parent_data),
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-
 static struct clk_regmap mclk0_div = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = ANACTRL_CSIPLL_CTRL3,
@@ -549,7 +529,7 @@ static struct clk_regmap mclk0_div = {
 		.name = "mclk0_div",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&mclk0_mux.hw,
+			&mclk_pll_clk.hw,
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -570,24 +550,6 @@ static struct clk_fixed_factor mclk0_div2 = {
 	},
 };
 
-static struct clk_regmap mclk0_div_mux = {
-	.data = &(struct clk_regmap_mux_data){
-		.offset = ANACTRL_CSIPLL_CTRL3,
-		.mask = 0x1,
-		.shift = 9,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "mclk0_div_mux",
-		.ops = &clk_regmap_mux_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&mclk0_div.hw,
-			&mclk0_div2.hw,
-		},
-		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
-	},
-};
-
 static struct clk_regmap mclk0 = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = ANACTRL_CSIPLL_CTRL3,
@@ -597,7 +559,7 @@ static struct clk_regmap mclk0 = {
 		.name = "mclk0",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&mclk0_div_mux.hw,
+			&mclk0_div2.hw,
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -5033,9 +4995,7 @@ static struct clk_regmap *const pll_regmaps[] = {
 	&fclk_div7,
 	&mclk_pll,
 	&mclk_pll_clk,
-	&mclk0_mux,
 	&mclk0_div,
-	&mclk0_div_mux,
 	&mclk0
 };
 
@@ -5351,10 +5311,8 @@ static struct clk_hw_onecell_data hw_onecell_data = {
 		[CLKID_FCLK_DIV7]             = &fclk_div7.hw,
 		[CLKID_MCLK_PLL]              = &mclk_pll.hw,
 		[CLKID_MCLK_PLL_CLK]          = &mclk_pll_clk.hw,
-		[CLKID_MCLK0_MUX]             = &mclk0_mux.hw,
 		[CLKID_MCLK0_DIV]             = &mclk0_div.hw,
 		[CLKID_MCLK0_DIV2]            = &mclk0_div2.hw,
-		[CLKID_MCLK0_DIV_MUX]         = &mclk0_div_mux.hw,
 		[CLKID_MCLK0]                 = &mclk0.hw,
 		[CLKID_RTC_DUAL_CLKIN]        = &rtc_dual_clkin.hw,
 		[CLKID_RTC_DUAL_DIV]          = &rtc_dual_div.hw,
