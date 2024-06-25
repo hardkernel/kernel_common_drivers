@@ -1602,6 +1602,25 @@ err_free_pool:
 	return rc;
 }
 
+#ifdef CONFIG_PM
+static int optee_restore(struct device *dev)
+{
+	optee_log_init();
+	return 0;
+}
+
+static int optee_freeze(struct device *dev)
+{
+	optee_log_uninit();
+	return 0;
+}
+
+static const struct dev_pm_ops optee_pm_ops = {
+	.freeze = optee_freeze,
+	.restore = optee_restore,
+};
+#endif
+
 static const struct of_device_id optee_dt_match[] = {
 	{ .compatible = "linaro,optee-tz" },
 	{},
@@ -1615,6 +1634,9 @@ static struct platform_driver optee_driver = {
 	.driver = {
 		.name = "optee",
 		.of_match_table = optee_dt_match,
+#ifdef CONFIG_PM
+		.pm = &optee_pm_ops,
+#endif
 	},
 };
 

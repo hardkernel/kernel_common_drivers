@@ -45,6 +45,7 @@ struct loopbuffer_ctl_s {
 
 static void *log_buf_va;
 static u8 line_buff[OPTEE_LOG_LINE_MAX];
+static bool logger_initialized;
 
 struct delayed_work log_work;
 static struct workqueue_struct *log_workqueue;
@@ -147,6 +148,9 @@ int optee_log_init(void)
 	struct arm_smccc_res smccc = { 0 };
 	struct loopbuffer_ctl_s *log_ctl = NULL;
 
+	if (logger_initialized)
+		return 0;
+
 	arm_smccc_smc(OPTEE_SMC_GET_LOGGER_CONFIG, 0, 0, 0, 0, 0, 0, 0, &smccc);
 	if (smccc.a0 == TEEC_SUCCESS) {
 		/* v3, get log buffer config from BL32 */
@@ -202,6 +206,8 @@ int optee_log_init(void)
 		goto err;
 	}
 
+	logger_initialized = true;
+
 	return rc;
 
 err:
@@ -214,10 +220,20 @@ void optee_log_uninit(void)
 {
 	struct arm_smccc_res smccc;
 
+	if (!logger_initialized)
+		return;
+
 	if (log_workqueue) {
 		cancel_delayed_work_sync(&log_work);
 		destroy_workqueue(log_workqueue);
 	}
 
+	if (log_buf_va) {
+		iounmap(log_buf_va);
+		log_buf_va = NULL;
+	}
+
 	arm_smccc_smc(OPTEE_SMC_ENABLE_LOGGER, 0, 0, 0, 0, 0, 0, 0, &smccc);
+
+	logger_initialized = false;
 }
