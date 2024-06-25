@@ -36,6 +36,12 @@ u32 original_swap_t3x[HW_OSD_MIF_NUM];
 u32 original_osd1_fifo_ctrl_stat_t3x[HW_OSD_MIF_NUM];
 #endif
 
+static u32 osd_secure_input_index[] = {OSD1_INPUT_SECURE,
+	OSD2_INPUT_SECURE, OSD3_INPUT_SECURE, OSD4_INPUT_SECURE};
+
+static unsigned int osd_canvas[MESON_MAX_OSDS][MAX_CANVAS_NUM];
+static u32 canvas_index[MESON_MAX_OSDS] = {-1, -1, -1, -1};
+
 static struct osd_mif_reg_s osd_mif_reg[HW_OSD_MIF_NUM] = {
 	{
 		VIU_OSD1_CTRL_STAT,
@@ -314,11 +320,6 @@ static struct osd_mif_reg_s s5_osd_mif_reg[HW_OSD_MIF_NUM] = {
 	},
 };
 #endif
-
-static unsigned int osd_canvas[4][2];
-static u32 osd_canvas_index[4] = {0, 0, 0, 0};
-static u32 osd_secure_input_index[] = {OSD1_INPUT_SECURE,
-	OSD2_INPUT_SECURE, OSD3_INPUT_SECURE, OSD4_INPUT_SECURE};
 
 /*
  * Internal function to query information for a given format. See
@@ -636,6 +637,40 @@ static u8 meson_drm_format_alpha_replace(struct meson_vpu_block *vblk, u32 forma
 	return info ? info->alpha_replace : 0;
 }
 
+static u32 osd_plane_update_canvas(struct meson_vpu_osd *osd,
+	struct osd_mif_reg_s *reg, u32 flush_reg)
+{
+	u32 val, idx, canvas_idx = 0;
+
+	if (!osd) {
+		DRM_ERROR("osd is null!\n");
+		return -1;
+	}
+
+	idx = osd->base.index;
+	val = meson_drm_read_reg(reg->viu_osd_blk0_cfg_w0);
+	val = (val >> 16) & 0xff;
+	if (canvas_index[idx] == -1 || (canvas_index[idx] == val && flush_reg)) {
+		MESON_DRM_BLOCK("update canvas_index[%d]:0x%x-0x%x, flush_reg:%d\n",
+			idx, canvas_index[idx], val, flush_reg);
+
+		if (!kfifo_get(&osd->canvas_q, &canvas_idx)) {
+			DRM_ERROR("canvas_q is NULL!");
+			return -EINVAL;
+		}
+
+		if (!kfifo_put(&osd->canvas_q, canvas_idx)) {
+			DRM_ERROR("canvas_q is full!");
+			return -EINVAL;
+		}
+	}
+
+	if (!kfifo_peek(&osd->canvas_q, &canvas_idx))
+		DRM_ERROR("canvas_q peek fail!");
+
+	return canvas_idx;
+}
+
 /*osd hold line config*/
 void ods_hold_line_config(struct meson_vpu_block *vblk,
 			  struct rdma_reg_ops *reg_ops,
@@ -666,10 +701,10 @@ void osd_input_size_config(struct meson_vpu_block *vblk,
 /*osd canvas config*/
 void osd_canvas_config(struct meson_vpu_block *vblk,
 		       struct rdma_reg_ops *reg_ops,
-		       struct osd_mif_reg_s *reg, u32 canvas_index)
+		       struct osd_mif_reg_s *reg, u32 canvas_idx)
 {
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blk0_cfg_w0,
-				     canvas_index, 16, 8);
+				     canvas_idx, 16, 8);
 }
 
 static void osd_rpt_y_config(struct meson_vpu_block *vblk,
@@ -992,22 +1027,18 @@ static void osd_scan_mode_config(struct meson_vpu_block *vblk,
 		reg_ops->rdma_write_reg_bits(reg->viu_osd_blk0_cfg_w0, 0, 1, 1);
 }
 
-static void meson_drm_osd_canvas_alloc(void)
+static void meson_drm_osd_canvas_alloc(unsigned int *canvas_array, int size)
 {
 	if (canvas_pool_alloc_canvas_table("osd_drm",
-					   &osd_canvas[0][0],
-					   sizeof(osd_canvas) /
-					   sizeof(osd_canvas[0][0]),
+					   canvas_array, size,
 					   CANVAS_MAP_TYPE_1)) {
 		DRM_INFO("allocate drm osd canvas error.\n");
 	}
 }
 
-static void meson_drm_osd_canvas_free(void)
+static void meson_drm_osd_canvas_free(u8 index)
 {
-	canvas_pool_free_canvas_table(&osd_canvas[0][0],
-				      sizeof(osd_canvas) /
-				      sizeof(osd_canvas[0][0]));
+	canvas_pool_free_canvas_table(osd_canvas[index], MAX_CANVAS_NUM);
 }
 
 static void osd_linear_addr_config(struct meson_vpu_block *vblk,
@@ -1203,7 +1234,7 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_pipeline_state *mvps;
 	struct rdma_reg_ops *reg_ops;
 	int crtc_index;
-	u32 pixel_format, canvas_index, src_h, byte_stride, flush_reg, hold_line;
+	u32 pixel_format, canvas_idx, src_h, byte_stride, flush_reg, hold_line;
 	struct osd_scope_s scope_src = {0, 1919, 0, 1079};
 	struct osd_mif_reg_s *reg;
 	bool alpha_div_en = 0, reverse_x, reverse_y, afbc_en;
@@ -1260,7 +1291,8 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	flush_reg = osd_check_config(mvos, old_mvos);
 	MESON_DRM_BLOCK("flush_reg-%d index-%d\n", flush_reg, vblk->index);
 	if (!flush_reg &&
-		meson_drm_read_reg(reg->viu_osd_tcolor_ag3) == frame_seq[vblk->index]) {
+		meson_drm_read_reg(reg->viu_osd_tcolor_ag3) == frame_seq[vblk->index] &&
+		osd->mif_acc_mode != CANVAS_MODE) {
 		/*after v7 chips, always linear addr*/
 		if (osd->mif_acc_mode == LINEAR_MIF)
 			osd_mem_mode(vblk, reg_ops, reg, 1);
@@ -1312,15 +1344,12 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 		MESON_DRM_BLOCK("byte stride=0x%x,phy_addr=0x%pa\n",
 			  byte_stride, &phy_addr);
 	} else {
-		u32 canvas_index_idx = osd_canvas_index[vblk->index];
-
-		canvas_index = osd_canvas[vblk->index][canvas_index_idx];
-		canvas_config(canvas_index, phy_addr, byte_stride, src_h,
+		canvas_idx = osd_plane_update_canvas(osd, reg, flush_reg);
+		canvas_config(canvas_idx, phy_addr, byte_stride, src_h,
 				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-		osd_canvas_config(vblk, reg_ops, reg, canvas_index);
-		MESON_DRM_BLOCK("canvas_index[%d]=0x%x,phy_addr=0x%pa\n",
-			  canvas_index_idx, canvas_index, &phy_addr);
-		osd_canvas_index[vblk->index] ^= 1;
+		osd_canvas_config(vblk, reg_ops, reg, canvas_idx);
+		MESON_DRM_BLOCK("canvas_idx=0x%x,phy_addr=0x%pa\n",
+			  canvas_idx, &phy_addr);
 	}
 
 	osd_rpt_y_config(vblk, reg_ops, reg);
@@ -1491,6 +1520,7 @@ static void osd_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_pipeline *pipeline;
 	struct meson_vpu_osd *osd = to_osd_block(vblk);
+	int i;
 
 	if (!vblk || !osd) {
 		MESON_DRM_BLOCK("hw_init break for NULL.\n");
@@ -1503,13 +1533,16 @@ static void osd_hw_init(struct meson_vpu_block *vblk)
 		return;
 	}
 
-	meson_drm_osd_canvas_alloc();
-
+	meson_drm_osd_canvas_alloc(osd_canvas[vblk->index], MAX_CANVAS_NUM);
 	osd->reg = &osd_mif_reg[vblk->index];
 	//osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = CANVAS_MODE;
 	osd->viu2_hold_line = VIU2_DEFAULT_HOLD_LINE;
 	osd->infos = formats_of_g12;
+	INIT_KFIFO(osd->canvas_q);
+	kfifo_reset(&osd->canvas_q);
+	for (i = 0; i < MAX_CANVAS_NUM; i++)
+		kfifo_put(&osd->canvas_q, osd_canvas[vblk->index][i]);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	secure_register(OSD_MODULE, 0, osd_secure_op, osd_secure_cb);
@@ -1567,6 +1600,7 @@ static void g12b_osd_hw_init(struct meson_vpu_block *vblk)
 	struct meson_vpu_pipeline *pipeline;
 	struct meson_vpu_osd *osd = to_osd_block(vblk);
 	u32 data32;
+	int i;
 
 	if (!vblk || !osd) {
 		MESON_DRM_BLOCK("hw_init break for NULL.\n");
@@ -1579,13 +1613,17 @@ static void g12b_osd_hw_init(struct meson_vpu_block *vblk)
 		return;
 	}
 
-	meson_drm_osd_canvas_alloc();
+	meson_drm_osd_canvas_alloc(osd_canvas[vblk->index], MAX_CANVAS_NUM);
 
 	osd->reg = &g12b_osd_mif_reg[vblk->index];
 	//osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = CANVAS_MODE;
 	osd->viu2_hold_line = VIU2_DEFAULT_HOLD_LINE;
 	osd->infos = formats_of_g12;
+	INIT_KFIFO(osd->canvas_q);
+	kfifo_reset(&osd->canvas_q);
+	for (i = 0; i < MAX_CANVAS_NUM; i++)
+		kfifo_put(&osd->canvas_q, osd_canvas[vblk->index][i]);
 
 	if (vblk->index == MESON_VIU2_OSD1) {
 		DRM_INFO("%s hw_init for %s, index:%d.\n", __func__,
@@ -1798,7 +1836,7 @@ static void osd_hw_fini(struct meson_vpu_block *vblk)
 	}
 
 	if (osd->mif_acc_mode == CANVAS_MODE)
-		meson_drm_osd_canvas_free();
+		meson_drm_osd_canvas_free(vblk->index);
 }
 
 struct meson_vpu_block_ops s1a_osd_ops = {

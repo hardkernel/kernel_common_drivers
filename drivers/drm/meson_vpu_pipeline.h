@@ -43,6 +43,10 @@
 #define VP_MAP_STRUCT_SIZE	120
 #define BUFFER_NUM		4
 #define MAX_DFS_PATH_NUM 4
+
+#define MAX_CANVAS_NUM	3
+#define MAX_CANVAS_FIFO_NUM  4
+
 /*
  *according to reg description,scale down limit shold be 4bits=16
  *but test result is 10,it will display abnormal if bigger than 10.xx
@@ -242,6 +246,8 @@ struct meson_vpu_osd {
 	bool has_gfcd;
 	const struct meson_drm_format_info **infos;
 	int format_swap;
+
+	DECLARE_KFIFO(canvas_q, u32, MAX_CANVAS_FIFO_NUM);
 };
 
 struct osd_zorder_s {
