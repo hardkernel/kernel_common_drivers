@@ -154,8 +154,9 @@ static int video_buffer_queue_setup(struct aml_video *video,  unsigned int *num_
 			unsigned int *num_planes,
 			unsigned int sizes[])
 {
+/*
 	*num_buffers = DEF_VIDEO_Q_BUFFER_NUM;
-
+*/
 	while (sizes[0] * *num_buffers > DEF_VIDEO_Q_BUFFER_SIZE_MEGA * 1024 * 1024)
 		(*num_buffers)--;
 
