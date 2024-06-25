@@ -104,6 +104,11 @@ struct meson_hdmitx_dev {
 	unsigned int (*get_tx_hdcp_cap)(void);
 	unsigned int (*get_rx_hdcp_cap)(void);
 	void (*register_hdcp_notify)(struct connector_hdcp_cb *cb);
+	/* get downstream hdcp topo info:
+	 * return 1 if downstream devices are all capable of hdcp2.2/2.3
+	 * return 0 if downstream contains hdcp1.4 or hdcp2.0 legacy device
+	 */
+	unsigned char (*get_dw_hdcp_topo_info)(void);
 
 	/*vrr apis*/
 	u32 (*get_vrr_cap)(void);

@@ -4163,6 +4163,7 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_tx_hdcp_cap = meson_hdcp_get_tx_cap,
 	.get_rx_hdcp_cap = meson_hdcp_get_rx_cap,
 	.register_hdcp_notify = meson_hdcp_reg_result_notify,
+	.get_dw_hdcp_topo_info = drm_hdmitx_get_hdcp_topo_info,
 };
 
 int hdmitx_hook_drm(struct device *device)

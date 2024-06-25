@@ -687,3 +687,10 @@ void drm_hdmitx_disable_hdcp_mode(unsigned int content_type)
 	hdmitx_current_status(HDMITX_HDCP_NOT_ENABLED);
 }
 
+unsigned char drm_hdmitx_get_hdcp_topo_info(void)
+{
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	HDMITX_DEBUG("%s %d\n", __func__, hdev->hdcp22_type);
+	return hdev->hdcp22_type;
+}

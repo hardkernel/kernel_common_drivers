@@ -20,5 +20,6 @@ bool hdcp_tx22_daemon_ready(void);
 
 unsigned int meson_hdcp_get_rx_cap(void);
 unsigned int meson_hdcp_get_tx_cap(void);
-
+bool is_hdcp22_stop_state(void);
+unsigned char drm_hdmitx_get_hdcp_topo_info(void);
 #endif
