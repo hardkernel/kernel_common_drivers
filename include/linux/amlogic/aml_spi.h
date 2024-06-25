@@ -32,6 +32,10 @@ struct spicc_controller_data {
 			   u8 *tx_buf,
 			   u8 *rx_buf,
 			   int len);
+	int (*dirspi_xfer)(struct spi_device *spi,
+			   u8 *tx_buf,
+			   u8 *rx_buf,
+			   int len);
 	int (*dirspi_dma_trig)(struct spi_device *spi,
 			       dma_addr_t tx_dma,
 			       dma_addr_t rx_dma,

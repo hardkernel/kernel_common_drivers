@@ -430,6 +430,7 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 	struct spicc_controller_data *cdata;
 	struct spi_transfer *xfer;
 	unsigned long v;
+	unsigned long t1, t2;
 	int ret = -EIO;
 
 	spi = testdev->spi;
@@ -459,6 +460,24 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 			testdev_print_xfer(testdev);
 		} else {
 			dev_info(dev, "dirspi_sync test failed\n");
+		}
+	}
+
+	else if (cdata->dirspi_xfer &&
+		!spicc_getopt(argc, argv, "dirspi_xfer", NULL, NULL, 0)) {
+		xfer = testdev_get_current_xfer(testdev);
+		t1 = ktime_get_ns();
+		ret = cdata->dirspi_xfer(testdev->spi,
+					 (u8 *)xfer->tx_buf,
+					 xfer->rx_buf,
+					 xfer->len);
+		t2 = ktime_get_ns();
+		dev_info(dev, "time consume %lu ns\n", t2 - t1);
+		if (!ret) {
+			dev_info(dev, "dirspi_xfer test success\n");
+			testdev_print_xfer(testdev);
+		} else {
+			dev_info(dev, "dirspi_xfer test failed\n");
 		}
 	}
 

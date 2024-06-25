@@ -342,6 +342,7 @@ struct meson_spicc_device {
 	unsigned long			tx_remain;
 	unsigned long			rx_remain;
 	unsigned int			*store_buf;
+	spinlock_t			lock; /* dirspi_xfer in interrupt */
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -357,6 +358,10 @@ static int dirspi_async(struct spi_device *spi,
 			void (*complete)(void *context),
 			void *context);
 static int dirspi_sync(struct spi_device *spi,
+			u8 *tx_buf,
+			u8 *rx_buf,
+			int len);
+static int dirspi_xfer(struct spi_device *spi,
 			u8 *tx_buf,
 			u8 *rx_buf,
 			int len);
@@ -989,6 +994,7 @@ static int meson_spicc_setup(struct spi_device *spi)
 		cdata->dirspi_stop = dirspi_stop;
 		cdata->dirspi_async = dirspi_async;
 		cdata->dirspi_sync = dirspi_sync;
+		cdata->dirspi_xfer = dirspi_xfer;
 		cdata->dirspi_dma_trig = dirspi_dma_trig;
 		cdata->dirspi_dma_trig_start = dirspi_dma_trig_start;
 		cdata->dirspi_dma_trig_stop = dirspi_dma_trig_stop;
@@ -1154,6 +1160,61 @@ static int dirspi_sync(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len)
 	ret = wait_for_completion_timeout(&done, msecs_to_jiffies(200));
 
 	return ret ? 0 : -ETIMEDOUT;
+}
+
+static int dirspi_xfer(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len)
+{
+	struct meson_spicc_device *spicc;
+	unsigned long timeout;
+	unsigned long flags;
+	u32 sta;
+
+	if (len && !tx_buf)
+		return -EINVAL;
+
+	spicc = spi_controller_get_devdata(spi->controller);
+	spin_lock_irqsave(&spicc->lock, flags);
+	dirspi_start(spi);
+
+	/* Setup transfer parameters */
+	spicc->using_dma = 0;
+	spicc->bytes_per_word = DIV_ROUND_UP(spi->bits_per_word, 8);
+	spicc->tx_buf = tx_buf;
+	spicc->rx_buf = rx_buf;
+	spicc->tx_remain = len / spicc->bytes_per_word;
+	spicc->rx_remain = spicc->tx_remain;
+
+	meson_spicc_hw_prepare(spicc, spi->mode, spi->chip_select);
+	meson_spicc_set_width(spicc, spi->bits_per_word);
+	meson_spicc_set_speed(spicc, spi->max_speed_hz);
+	meson_spicc_set_endian(spicc, spi->mode & SPI_LSB_FIRST);
+	meson_spicc_set_word_mode(spicc);
+
+	if (spicc->tx_remain <= SPICC_FIFO_SIZE) {
+		meson_spicc_tx(spicc);
+		writel_bits_relaxed(SPICC_XCH, SPICC_XCH,
+				    spicc->base + SPICC_CONREG);
+	} else {
+		writel_bits_relaxed(SPICC_SMC, SPICC_SMC,
+				    spicc->base + SPICC_CONREG);
+	}
+
+	timeout = msecs_to_jiffies(200) + jiffies;
+	while ((spicc->tx_remain || spicc->rx_remain) &&
+	       time_before(jiffies, timeout)) {
+		sta = readl_relaxed(spicc->base + SPICC_STATREG);
+		if (spicc->tx_remain && !(sta & SPICC_TF))
+			writel_relaxed(meson_spicc_pull_data(spicc),
+				spicc->base + SPICC_TXDATA);
+		if (sta & SPICC_RR)
+			meson_spicc_push_data(spicc,
+				readl_relaxed(spicc->base + SPICC_RXDATA));
+	}
+
+	dirspi_stop(spi);
+	spin_unlock_irqrestore(&spicc->lock, flags);
+
+	return (spicc->rx_remain || spicc->rx_remain) ? -ETIMEDOUT : 0;
 }
 
 /*
@@ -1574,6 +1635,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+	spin_lock_init(&spicc->lock);
 #ifdef CONFIG_SPICC_TEST
 	device_create_file(&ctlr->dev, &dev_attr_test);
 	device_create_file(&ctlr->dev, &dev_attr_testdev);
