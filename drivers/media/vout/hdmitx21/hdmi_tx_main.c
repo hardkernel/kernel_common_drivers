@@ -5300,6 +5300,14 @@ static int drm_hdmitx_validate_hdcp_key(int hdcp_mode)
 	return ret;
 }
 
+static unsigned char drm_hdmitx_get_hdcp_topo_info(void)
+{
+	bool hdcp22_topo = get_hdcp2_topo();
+
+	HDMITX_DEBUG("%s %d\n", __func__, hdcp22_topo);
+	return hdcp22_topo;
+}
+
 static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_hdmi_hdr_status = hdmi_hdr_status_to_drm,
 
@@ -5312,6 +5320,7 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_tx_hdcp_cap = drm_hdmitx_get_tx_hdcp_cap,
 	.get_rx_hdcp_cap = drm_hdmitx_get_rx_hdcp_cap,
 	.register_hdcp_notify = drm_hdmitx_register_hdcp_notify,
+	.get_dw_hdcp_topo_info = drm_hdmitx_get_hdcp_topo_info,
 	.get_vrr_cap = drm_hdmitx_get_vrr_cap,
 	.get_vrr_mode_group = drm_hdmitx_get_vrr_mode_group,
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
