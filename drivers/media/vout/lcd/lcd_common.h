@@ -70,7 +70,8 @@
 /* 20240607: lcd tcon support extern header */
 /* 20240618: lcd tcon new ctrl_type(resolution) for demura multi lut */
 /* 20240620: optimize tcon multi data set flow */
-#define LCD_DRV_VERSION    "20240620"
+/* 20240704: lcd tcon support user info */
+#define LCD_DRV_VERSION    "20240704"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
@@ -226,6 +227,7 @@ ssize_t lcd_tcon_fw_dbg_store(struct device *dev, struct device_attribute *attr,
 ssize_t lcd_tcon_pdf_dbg_show(struct device *dev, struct device_attribute *attr, char *buf);
 ssize_t lcd_tcon_pdf_dbg_store(struct device *dev, struct device_attribute *attr,
 				const char *buf, size_t count);
+ssize_t lcd_tcon_info_dbg_show(struct device *dev, struct device_attribute *attr, char *buf);
 long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned long arg);
 
 /* lcd debug */

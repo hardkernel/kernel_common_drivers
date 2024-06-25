@@ -1202,12 +1202,53 @@ __lcd_tcon_pdf_dbg_store_exit:
 #undef __MAX_PARAM
 }
 
+ssize_t lcd_tcon_info_dbg_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct lcd_tcon_local_cfg_s *local_cfg = get_lcd_tcon_local_cfg();
+	char user_version[TCON_BIN_VER_LEN];
+	ssize_t len = 0;
+
+	if (!local_cfg)
+		return 0;
+
+	if (local_cfg->cur_core_header) {
+		memset(user_version, 0, sizeof(user_version));
+		memcpy(user_version, local_cfg->cur_core_header->version,
+			sizeof(local_cfg->cur_core_header->version));
+		len += sprintf((buf + len),
+			"bin info:\n"
+			"basic info:\n"
+			"userVersion=%s\n"
+			"userBinName=%s\n"
+			"h_active=%d\n"
+			"v_active=%d\n"
+			"block_ctrl=%d\n",
+			user_version,
+			local_cfg->cur_core_header->name,
+			local_cfg->cur_core_header->h_active,
+			local_cfg->cur_core_header->v_active,
+			local_cfg->cur_core_header->block_ctrl);
+	}
+	if (local_cfg->cur_core_ext_header) {
+		len += sprintf((buf + len),
+			"framerate_min=%d\n"
+			"framerate_max=%d\n",
+			local_cfg->cur_core_ext_header->framerate_min,
+			local_cfg->cur_core_ext_header->framerate_max);
+	}
+	if (local_cfg->cur_user_info && strlen(local_cfg->cur_user_info) > 0)
+		len += sprintf((buf + len), "\nuser info:\n%s\n", local_cfg->cur_user_info);
+
+	return len;
+}
+
 static struct device_attribute lcd_tcon_debug_attrs[] = {
 	__ATTR(debug,     0644, lcd_tcon_debug_show, lcd_tcon_debug_store),
 	__ATTR(status,    0444, lcd_tcon_status_show, NULL),
 	__ATTR(reg,       0644, lcd_tcon_reg_debug_show, lcd_tcon_reg_debug_store),
 	__ATTR(tcon_fw,   0644, lcd_tcon_fw_dbg_show, lcd_tcon_fw_dbg_store),
 	__ATTR(tcon_pdf,  0644, lcd_tcon_pdf_dbg_show, lcd_tcon_pdf_dbg_store),
+	__ATTR(tcon_info, 0444, lcd_tcon_info_dbg_show, NULL),
 };
 
 /* **********************************

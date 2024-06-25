@@ -1988,6 +1988,49 @@ void lcd_tcon_pdf_clean_data(struct list_head *head)
 	}
 }
 
+static void lcd_tcon_update_ufr_cur_info(struct aml_lcd_drv_s *pdrv,
+		struct lcd_tcon_config_s *tcon_conf, unsigned char *data_buf)
+{
+	struct lcd_detail_timing_s *act_timing = NULL;
+	struct lcd_tcon_init_block_header_s *init_header = NULL;
+	struct lcd_tcon_init_block_ext_header_s *ext_header = NULL;
+	unsigned char *core_reg_table;
+	struct lcd_tcon_local_cfg_s *local_cfg = get_lcd_tcon_local_cfg();
+	int is_match = 0, data_len = 0;
+
+	if (!pdrv || !tcon_conf || !data_buf || !local_cfg)
+		return;
+
+	act_timing = &pdrv->config.timing.act_timing;
+	init_header = (struct lcd_tcon_init_block_header_s *)data_buf;
+	if (init_header->ext_header_size) {
+		ext_header = (struct lcd_tcon_init_block_ext_header_s *)
+			(data_buf + init_header->header_size);
+	}
+	core_reg_table = data_buf + init_header->header_size + init_header->ext_header_size;
+	data_len = tcon_conf->reg_table_len + init_header->header_size
+			+ init_header->ext_header_size;
+
+	if (act_timing->h_active == init_header->h_active &&
+		act_timing->v_active == init_header->v_active) {
+		is_match = 1;
+		if (ext_header &&
+			(act_timing->frame_rate < ext_header->framerate_min ||
+			act_timing->frame_rate > ext_header->framerate_max)) {
+			is_match = 0;
+		}
+	}
+
+	if (is_match) {
+		local_cfg->cur_core_header = init_header;
+		local_cfg->cur_core_ext_header = ext_header;
+		local_cfg->cur_core_reg_table = core_reg_table;
+		local_cfg->cur_user_info = NULL;
+		if (init_header->block_size > data_len)
+			local_cfg->cur_user_info = (char *)(data_buf + data_len);
+	}
+}
+
 int lcd_tcon_data_load(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf, int index)
 {
 	struct lcd_tcon_data_block_header_s *block_header;
@@ -2023,6 +2066,9 @@ int lcd_tcon_data_load(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf, int 
 		match_timing.h_active = init_header->h_active;
 		match_timing.v_active = init_header->v_active;
 		lcd_tcon_init_setting_check(pdrv, &match_timing, core_reg_table);
+
+		if (is_block_ctrl_ufr(init_header->block_ctrl))
+			lcd_tcon_update_ufr_cur_info(pdrv, tcon_conf, data_buf);
 	} else {
 		tcon_mm_table.lut_valid_flag |= block_header->block_flag;
 		if (block_header->block_flag == LCD_TCON_DATA_VALID_DEMURA)
@@ -2893,6 +2939,17 @@ static int lcd_tcon_load_init_data_from_unifykey_new(struct aml_lcd_drv_s *pdrv)
 				data_ext_header->framerate_max);
 		}
 	}
+	if (data_header->block_size > data_len) {
+		//user info
+		tcon_mm_table.user_info = kcalloc(data_header->block_size - data_len + 1,
+				sizeof(char), GFP_KERNEL);
+		if (!tcon_mm_table.user_info)
+			goto lcd_tcon_load_init_data_new_err;
+		memcpy(tcon_mm_table.user_info, buf + data_len,
+			data_header->block_size - data_len);
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("user info:\n%s\n", tcon_mm_table.user_info);
+	}
 	lcd_tcon_init_data_version_update(data_header->version);
 
 	data_len = tcon_mm_table.core_reg_table_size;
@@ -2907,6 +2964,9 @@ static int lcd_tcon_load_init_data_from_unifykey_new(struct aml_lcd_drv_s *pdrv)
 	kfree(buf);
 
 	tcon_local_cfg.cur_core_reg_table = tcon_mm_table.core_reg_table;
+	tcon_local_cfg.cur_user_info = tcon_mm_table.user_info;
+	tcon_local_cfg.cur_core_header = tcon_mm_table.core_reg_header;
+	tcon_local_cfg.cur_core_ext_header = tcon_mm_table.core_reg_ext_header;
 	lcd_tcon_init_setting_check(pdrv, &pdrv->config.timing.dft_timing,
 			tcon_mm_table.core_reg_table);
 
@@ -2918,6 +2978,7 @@ lcd_tcon_load_init_data_new_err:
 	kfree(buf);
 	kfree(data_header);
 	kfree(data_ext_header);
+	kfree(tcon_mm_table.user_info);
 	LCDERR("%s: tcon unifykey load error!!!\n", __func__);
 	return -1;
 }
