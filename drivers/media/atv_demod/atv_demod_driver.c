@@ -73,7 +73,8 @@
 /* 2024/03/06 --- V3.08 --- Fix pal bg gde filter and peaking. */
 /* 2024/03/15 --- V3.09 --- Fix afc value sync. */
 /* 2024/03/28 --- V3.10 --- remove more print logs. */
-#define AMLATVDEMOD_VER "V3.10"
+/* 2024/06/25 --- V3.11 --- Revert "Fix pal bg gde filter and peaking", cause vbi abnormality. */
+#define AMLATVDEMOD_VER "V3.11"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
