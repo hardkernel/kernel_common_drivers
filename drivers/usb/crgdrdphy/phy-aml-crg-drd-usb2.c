@@ -254,7 +254,7 @@ __retry:
 	goto __retry;
 }
 
-/* s7d */
+/* s7d, s6 */
 static void set_usb_pll_v3(struct amlogic_usb_v2 *phy, void __iomem *phy_reg_base)
 {
 #define USB2_MPPLL_EN_CTRL_BIT	27
@@ -315,10 +315,15 @@ static void set_usb_pll_v3(struct amlogic_usb_v2 *phy, void __iomem *phy_reg_bas
 	return;
 okay:
 	dev_info(phy->dev, "usb2 pll init done, val: 0x%08x\n", readl(pll_cfg));
-	/* The default value 0b000 of usb2_disc_trim leads to hs handake err. */
+
+	/* The s7d default value 0b000 of usb2_disc_trim leads to hs handshake err.
+	 * S6 shares the params with s7d.
+	 */
 	writel(PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0_v3, phy_reg_base + 0xC);
 	/* The USB2_REG_CFG_DIS is not used but default set. Clear it.*/
 	writel(readl(phy_reg_base + 0x38) & ~BIT_U(USB2_REG_CFG_DIS), phy_reg_base + 0x38);
+
+	/* edgedrv cali for signal quality. */
 	writel(phy->pll_setting[3], phy_reg_base + 0x50);
 }
 
