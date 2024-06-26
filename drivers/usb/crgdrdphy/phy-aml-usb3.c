@@ -40,6 +40,41 @@ static inline void aml_usb3_phy_set_hw_on(struct aml_usb3_phy *phy, bool on)
 	phy->phy.flags = on ? AML_USB3_PHY_ENABLE : AML_USB3_PHY_DISABLE;
 }
 
+static inline phys_addr_t aml_usb3_phy_virt_to_phy(struct aml_usb3_phy *phy,
+										void __iomem *reg)
+{
+	if (reg >= phy->ctrl_reg && reg < phy->ctrl_reg + phy->ctrl_reg_size)
+		return phy->ctrl_reg_phy + (phys_addr_t)reg - (phys_addr_t)phy->ctrl_reg;
+
+	if (reg >= phy->cfg_reg && reg < phy->cfg_reg + phy->cfg_reg_size)
+		return phy->cfg_reg_phy + (phys_addr_t)reg - (phys_addr_t)phy->cfg_reg;
+
+	if (reg >= phy->reset_reg && reg < phy->reset_reg + phy->reset_reg_size)
+		return phy->reset_reg_phy + (phys_addr_t)reg - (phys_addr_t)phy->reset_reg;
+
+	return (phys_addr_t)(-1);
+}
+
+static inline void aml_usb3_phy_modify_reg32(struct aml_usb3_phy *phy,
+			void __iomem *reg, u32 clear_mask, u32 set_mask)
+{
+	phys_addr_t pa = aml_usb3_phy_virt_to_phy(phy, reg);
+
+	dev_dbg(phy->dev, "initial: %pa, 0x%x.\n", &pa, readl(reg));
+	writel((readl(reg) & ~clear_mask) | set_mask, reg);
+	dev_dbg(phy->dev, "modified: %pa, 0x%x.\n", &pa, readl(reg));
+}
+
+static inline void aml_usb3_phy_write_reg32(struct aml_usb3_phy *phy,
+								u32 val, void __iomem *reg)
+{
+	phys_addr_t pa = aml_usb3_phy_virt_to_phy(phy, reg);
+
+	dev_dbg(phy->dev, "initial: %pa, 0x%x.\n", &pa, readl(reg));
+	writel(val, reg);
+	dev_dbg(phy->dev, "written: %pa, 0x%x.\n", &pa, readl(reg));
+}
+
 static int aml_usb3_phy_set_clk(struct aml_usb3_phy *phy, bool on)
 {
 	int i, ret = 0;
@@ -63,28 +98,41 @@ static int aml_usb3_phy_set_clk(struct aml_usb3_phy *phy, bool on)
 	return ret;
 }
 
-static inline void aml_usb3_phy_reset(struct aml_usb3_phy *phy)
+/* RESET_reg, write each bit to 1 can reset related module, the reset will auto-cover to 0 by HW.
+ * RESETn_module(low active) = (~RESET_reg & RESET_LEVEL) | RESET_MASK.
+ */
+static inline void aml_usb3_phy_pre_reset(struct aml_usb3_phy *phy)
 {
-	/* Reset u3phy only. U2phy driver will reset the controller. */
-	writel((0x1 << phy->usb3_apb_reset_bit) | (0x1 << phy->usb3_phy_reset_bit),
-		(void __iomem *)phy->reset_reg);
+	if (phy->pll_sw_cfg)
+		return;
+
+	aml_usb3_phy_write_reg32(phy, BIT(phy->usb3_apb_reset_bit), phy->reset_reg);
+
+	usleep_range(100, 200);
+}
+
+static inline void aml_usb3_phy_post_reset(struct aml_usb3_phy *phy)
+{
+	if (phy->pll_sw_cfg)
+		aml_usb3_phy_write_reg32(phy, BIT(phy->usb3_phy_reset_bit), phy->reset_reg);
+	else
+		aml_usb3_phy_write_reg32(phy, BIT(phy->usb3_phy_reset_bit) |
+			BIT(phy->usb3_controller_reset_bit), phy->reset_reg);
+
 	usleep_range(100, 200);
 }
 
 static void aml_usb3_phy_set_power(struct aml_usb3_phy *phy, bool on)
 {
-	u32 val;
-
+	/* The vbus power is controlled by the companion usb2 phy. */
 	if (on) {
-		val = readl(phy->reset_reg + phy->reset_level_shift);
-		writel(val | (0x1 << phy->usb3_apb_reset_bit) | (0x1 << phy->usb3_phy_reset_bit),
-			(void __iomem *)
-			((unsigned long)phy->reset_reg + phy->reset_level_shift));
+		aml_usb3_phy_modify_reg32(phy, phy->reset_reg + phy->reset_level_shift,
+				BIT(phy->usb3_apb_reset_bit) | BIT(phy->usb3_phy_reset_bit),
+				BIT(phy->usb3_apb_reset_bit) | BIT(phy->usb3_phy_reset_bit));
 	} else {
-		val = readl(phy->reset_reg + phy->reset_level_shift);
-		writel(val & ~(0x1 << phy->usb3_phy_reset_bit),
-			(void __iomem *)
-			((unsigned long)phy->reset_reg + phy->reset_level_shift));
+		/* Don't touch any bit else. */
+		aml_usb3_phy_modify_reg32(phy, phy->reset_reg + phy->reset_level_shift,
+							BIT(phy->usb3_phy_reset_bit), 0);
 	}
 	usleep_range(100, 200);
 }
@@ -94,6 +142,8 @@ static int aml_usb3_phy_pll_init_v0(struct aml_usb3_phy *phy)
 #define U3P2PLL0_BIAS_EN 9
 #define U3P2PLL0_RSTN 10
 #define	U3P2PLL0_LOCK_EN 11
+#define U3P2PLL_HCSL_LDO_EN_TM 16
+#define U3P2PLL_HCSL_DREN0_TM 17
 #define	U3P2PLL1_BIAS_EN 20
 #define	U3P2PLL1_RSTN 21
 #define	U3P2PLL1_RSTN_LOCK 22
@@ -102,74 +152,88 @@ static int aml_usb3_phy_pll_init_v0(struct aml_usb3_phy *phy)
 #define U3P2PLL0_PLL_DONE 25
 #define PLL_LOCKED_MASK (BIT(U3P2PLL1_PLL_LOCK_FLAG) | BIT(U3P2PLL0_PLL_DONE))
 #define IS_PLL_LOCKED(x) (((x) & PLL_LOCKED_MASK) == PLL_LOCKED_MASK)
-
-	u32 val = 0;
-	int rty = 5;
 	int plldone_i;
 
-	//0xFE35A020 [15:14]=2'b11
-	val = readl(phy->ctrl_reg + 0x20);
-	pr_debug("FE35A020: 0x%x.\n", val);
-	val |= 0x3 << 14;
-	pr_debug("wr: 0x%x.\n", val);
-	writel(val, phy->ctrl_reg + 0x20);
-	pr_debug("FE35A020: 0x%x.\n", readl(phy->ctrl_reg + 0x20));
-	usleep_range(160, 170);
+	/* Tx output impedance. */
+	aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x16c, 0x7f << 24, 0x10 << 24);
 
-	//	0xFE35A028 [1:0]=2'b11
-	val = readl(phy->ctrl_reg + 0x28);
-	pr_debug("FE35A028: 0x%x.\n", val);
-	val |= 0x3;
-	val |= 0x1 << 10;
-	pr_debug("wr: 0x%x.\n", val);
-	writel(val, phy->ctrl_reg + 0x28);
-	pr_debug("FE35A028: 0x%x.\n", readl(phy->ctrl_reg + 0x28));
+	if (phy->pll_sw_cfg) {
+		/* Enable sw configure upcrx_igen_en & upcrx_ldo_en. */
+		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x20, 0x3 << 14, 0x3 << 14);
+		/* Enable upcrx_igen_en & upcrx_ldo_en. */
+		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x28, 0x3, 0x3);
+		/* Enable sw configure pll. */
+		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x50, 0x7f << 25, 0x7f << 25);
+		/* Configure pll_cfg 0~5. */
+		aml_usb3_phy_write_reg32(phy, 0x00FA117F, phy->ctrl_reg + 0x2C);
+		aml_usb3_phy_write_reg32(phy, 0x72007821, phy->ctrl_reg + 0x30);
+		aml_usb3_phy_write_reg32(phy, 0xA0900000, phy->ctrl_reg + 0x34);
+		aml_usb3_phy_write_reg32(phy, 0x081C1C23, phy->ctrl_reg + 0x38);
+		aml_usb3_phy_write_reg32(phy, 0x1435DC92, phy->ctrl_reg + 0x3C);
+		aml_usb3_phy_write_reg32(phy, 0x00000000, phy->ctrl_reg + 0x40);
 
-	while (rty--) {
-		/*enable sw force pll*/
-		writel(0xFE000000, phy->ctrl_reg + 0x50);
-		usleep_range(20, 30);
-
-		writel(0x1C0422, phy->ctrl_reg + 0x38);
-
-		val = readl(phy->ctrl_reg + 0x44);
-		dev_info(phy->dev, "pll_cfg6 default val 0x%x.", val);
-
-		val |= 1 << U3P2PLL0_BIAS_EN;
-		writel(val, phy->ctrl_reg + 0x44);
+		/* Configure pll_cfg 6. */
+		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+						BIT(U3P2PLL0_BIAS_EN), BIT(U3P2PLL0_BIAS_EN));
 		udelay(5);
-		val |= 1 << U3P2PLL0_RSTN;
-		writel(val, phy->ctrl_reg + 0x44);
+		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+						BIT(U3P2PLL0_RSTN), BIT(U3P2PLL0_RSTN));
 		usleep_range(40, 50);
-		val |= 1 << U3P2PLL0_LOCK_EN;
-		writel(val, phy->ctrl_reg + 0x44);
+		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+						BIT(U3P2PLL0_LOCK_EN), BIT(U3P2PLL0_LOCK_EN));
 		usleep_range(160, 170);
-		val |= 1 << U3P2PLL1_BIAS_EN;
-		writel(val, phy->ctrl_reg + 0x44);
+		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+					BIT(U3P2PLL_HCSL_LDO_EN_TM) | BIT(U3P2PLL_HCSL_DREN0_TM),
+						BIT(U3P2PLL_HCSL_LDO_EN_TM));
+		usleep_range(20, 30);
+		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+						BIT(U3P2PLL1_BIAS_EN), BIT(U3P2PLL1_BIAS_EN));
 		usleep_range(50, 60);
-		val |= 1 << U3P2PLL1_RSTN;
-		writel(val, phy->ctrl_reg + 0x44);
+		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+						BIT(U3P2PLL1_RSTN), BIT(U3P2PLL1_RSTN));
 		usleep_range(40, 50);
-		val |= 1 << U3P2PLL1_RSTN_LOCK;
-		writel(val, phy->ctrl_reg + 0x44);
+		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+						BIT(U3P2PLL1_RSTN_LOCK), BIT(U3P2PLL1_RSTN_LOCK));
 		udelay(1);
-		val |= 1 << U3P2PLL1_LOCK_START;
-		writel(val, phy->ctrl_reg + 0x44);
-
-		for (plldone_i = 5; plldone_i > 0; plldone_i--) {
-			usleep_range(20, 30);
-			if (IS_PLL_LOCKED(readl(phy->ctrl_reg + 0x154)))
-				goto done;
-		}
-		dev_dbg(phy->dev, "usb2 pll not locked. val: 0x%08x\n",
-								readl(phy->ctrl_reg + 0x154));
+		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+						BIT(U3P2PLL1_LOCK_START), BIT(U3P2PLL1_LOCK_START));
+	} else {
+		/* Enable sw configure upcrx_igen_en & upcrx_ldo_en. */
+		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x20, 0x3 << 14, 0x3 << 14);
+		/* Enable upcrx_igen_en & upcrx_ldo_en. */
+		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x28, 0x3, 0x3);
+		/* Configure pll_cfg 0~5. */
+		aml_usb3_phy_write_reg32(phy, 0x00FA117F, phy->ctrl_reg + 0x2C);
+		aml_usb3_phy_write_reg32(phy, 0x72007821, phy->ctrl_reg + 0x30);
+		aml_usb3_phy_write_reg32(phy, 0xA0900000, phy->ctrl_reg + 0x34);
+		aml_usb3_phy_write_reg32(phy, 0x081C1C23, phy->ctrl_reg + 0x38);
+		aml_usb3_phy_write_reg32(phy, 0x1435DC92, phy->ctrl_reg + 0x3C);
+		aml_usb3_phy_write_reg32(phy, 0x00000000, phy->ctrl_reg + 0x40);
+		/* enable u3p2pll_hcsl_ldo_en & u3p2pll_hcsl_dren0 */
+		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
+					BIT(U3P2PLL_HCSL_LDO_EN_TM) | BIT(U3P2PLL_HCSL_DREN0_TM),
+					BIT(U3P2PLL_HCSL_LDO_EN_TM));
+		/* HW do the rest. */
+		usleep_range(320, 400);
 	}
 
-	dev_err(phy->dev, "%s set pll failed, exit, val:0x%08x.\n",
-			__func__, readl(phy->ctrl_reg + 0x154));
+	for (plldone_i = 5; plldone_i > 0; plldone_i--) {
+		usleep_range(20, 30);
+		if (IS_PLL_LOCKED(readl(phy->ctrl_reg + 0x154)))
+			goto done;
+	}
+
+	dev_err(phy->dev, "usb3 pll not locked. val: 0x%08x\n",
+						readl(phy->ctrl_reg + 0x154));
 	return -1;
+
 done:
 	return 0;
+}
+
+static int aml_usb3_phy_pll_init(struct aml_usb3_phy *phy)
+{
+	return aml_usb3_phy_pll_init_v0(phy);
 }
 
 static int aml_usb3_phy_init(struct usb_phy *p)
@@ -187,12 +251,14 @@ static int aml_usb3_phy_init(struct usb_phy *p)
 	if (ret)
 		goto exit;
 
-	aml_usb3_phy_reset(phy);
 	aml_usb3_phy_set_power(phy, true);
+	aml_usb3_phy_pre_reset(phy);
 
-	ret = aml_usb3_phy_pll_init_v0(phy);
+	ret = aml_usb3_phy_pll_init(phy);
 	if (ret)
 		goto cleanup;
+
+	aml_usb3_phy_post_reset(phy);
 
 	aml_usb3_phy_set_hw_on(phy, true);
 
@@ -236,6 +302,7 @@ static int aml_usb3_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	u8 portnum;
 	bool phy_off = true;
+	bool pll_sw_cfg = true;
 	struct resource *reg_res = NULL;
 	void __iomem *cfg_reg = NULL;
 	void __iomem *reset_reg = NULL;
@@ -244,6 +311,7 @@ static int aml_usb3_phy_probe(struct platform_device *pdev)
 	u32 reset_level_shift = 0;
 	u8 usb3_apb_reset_bit = 0;
 	u8 usb3_phy_reset_bit = 0;
+	u8 usb3_controller_reset_bit = 0;
 	u8 num_clk = 0;
 	int ret, i;
 
@@ -265,6 +333,7 @@ static int aml_usb3_phy_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	phy->cfg_reg_phy = reg_res->start;
+	phy->cfg_reg_size = resource_size(reg_res);
 
 	cfg_reg = devm_ioremap(dev, reg_res->start, resource_size(reg_res));
 	if (IS_ERR(cfg_reg))
@@ -275,6 +344,7 @@ static int aml_usb3_phy_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	phy->reset_reg_phy = reg_res->start;
+	phy->reset_reg_size = resource_size(reg_res);
 
 	reset_reg = devm_ioremap(dev, reg_res->start, resource_size(reg_res));
 	if (IS_ERR(reset_reg))
@@ -285,12 +355,15 @@ static int aml_usb3_phy_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	phy->ctrl_reg_phy = reg_res->start;
+	phy->ctrl_reg_size = resource_size(reg_res);
 
 	ctrl_reg = devm_ioremap(dev, reg_res->start, resource_size(reg_res));
 	if (IS_ERR(ctrl_reg))
 		return PTR_ERR(ctrl_reg);
 
 	phy_off = of_property_read_bool(dev->of_node, "off");
+
+	pll_sw_cfg = of_property_read_bool(dev->of_node, "pll-sw-cfg");
 
 	ret = of_property_read_u8(dev->of_node, "phy-id", &phy_id);
 	if (ret)
@@ -308,6 +381,11 @@ static int aml_usb3_phy_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = of_property_read_u8(dev->of_node, "usb3-controller-reset-bit",
+							&usb3_controller_reset_bit);
+	if (ret)
+		return ret;
+
 	ret = of_property_read_u8(dev->of_node, "num_clk", &num_clk);
 	if (ret)
 		return ret;
@@ -320,17 +398,18 @@ static int aml_usb3_phy_probe(struct platform_device *pdev)
 			return PTR_ERR(phy->clk[i]);
 	}
 
-	dev_dbg(&pdev->dev, "USB3 phy probe:cfg_reg_phy:0x%lx, iomap cfg_reg:%px\n",
-			(unsigned long)phy->cfg_reg_phy, cfg_reg);
-	dev_dbg(&pdev->dev, "USB3 phy probe:reset_phy:0x%lx, iomap reset_reg:%px\n",
-			(unsigned long)phy->reset_reg_phy, reset_reg);
-	dev_dbg(&pdev->dev, "USB3 phy probe:ctrl_phy:0x%lx, iomap ctrl_reg:%px\n",
-			(unsigned long)phy->ctrl_reg_phy, ctrl_reg);
-	dev_dbg(&pdev->dev, "USB3 phy_off:%d, phy_id:%d, num_clk:%d\n"
+	dev_dbg(&pdev->dev, "USB3 phy probe:cfg_reg_phy:%pa, iomap cfg_reg:%px, s:%pa\n",
+			&phy->cfg_reg_phy, cfg_reg, &phy->cfg_reg_size);
+	dev_dbg(&pdev->dev, "USB3 phy probe:reset_phy:%pa, iomap reset_reg:%px, s:%pa\n",
+			&phy->reset_reg_phy, reset_reg, &phy->reset_reg_size);
+	dev_dbg(&pdev->dev, "USB3 phy probe:ctrl_phy:%pa, iomap ctrl_reg:%px, s:%pa\n",
+			&phy->ctrl_reg_phy, ctrl_reg, &phy->ctrl_reg_size);
+	dev_dbg(&pdev->dev, "USB3 phy_off:%d, pll_sw_cfg:%d, phy_id:%d, num_clk:%d\n"
 						 "reset_level_shift:0x%x, usb3-apb-reset-bit:%d\n"
-						 "usb3-phy-reset-bit:%d\n",
-						phy_off, phy_id, num_clk, reset_level_shift,
-						usb3_apb_reset_bit, usb3_phy_reset_bit);
+						 "usb3-phy-reset-bit:%d, usb3-controller-reset-bit:%d\n",
+						phy_off, pll_sw_cfg, phy_id, num_clk,
+						reset_level_shift, usb3_apb_reset_bit,
+						usb3_phy_reset_bit, usb3_controller_reset_bit);
 
 no_port:
 	phy->dev = dev;
@@ -349,9 +428,12 @@ no_port:
 	phy->reset_level_shift = reset_level_shift;
 	phy->usb3_apb_reset_bit = usb3_apb_reset_bit;
 	phy->usb3_phy_reset_bit = usb3_phy_reset_bit;
+	phy->usb3_controller_reset_bit = usb3_controller_reset_bit;
 	phy->off = phy_off;
+	phy->pll_sw_cfg = pll_sw_cfg;
 	phy->num_clk = num_clk;
 
+	/* Sync state to hw off. */
 	if (aml_usb3_phy_is_exist(phy))
 		aml_usb3_phy_set_power(phy, false);
 

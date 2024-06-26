@@ -792,6 +792,7 @@
 					0X0 0xfe35a000 0X0 0x184>;	/* phy3 ctrl base */
 			usb3-phy-reset-bit = /bits/ 8 <3>;
 			usb3-apb-reset-bit = /bits/ 8 <2>;
+			usb3-controller-reset-bit = /bits/ 8 <5>;
 			reset-level-shift = <0x40>;
 			phy-id = /bits/ 8 <1>;
 			clocks = <&clkc CLKID_SYS_USB>,
@@ -799,6 +800,7 @@
 			clock-names = "u3p_clk_0",
 							"u3p_clk_1";
 			num_clk = /bits/ 8 <2>;
+			pll-sw-cfg;
 		};
 
 		crg_otg: crgotg@fe348000 {
