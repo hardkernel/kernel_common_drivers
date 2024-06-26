@@ -35,7 +35,7 @@
 #include "../xhci_amlogic/xhci-plat-meson.h"
 //#include "crg_xhci.h"
 
-static const struct aml_xhci_plat_priv crg_xhci_plat_priv = {
+static struct aml_xhci_plat_priv crg_xhci_plat_priv = {
 	.quirks = XHCI_NO_64BIT_SUPPORT | XHCI_RESET_ON_RESUME,
 };
 
@@ -450,6 +450,11 @@ static int crg_probe(struct platform_device *pdev)
 			crg->maximum_speed);
 		break;
 	}
+
+	prop = of_get_property(pdev->dev.of_node, "dma-64bit-support", NULL);
+	if (prop)
+		if (of_read_ulong(prop, 1))
+			crg_xhci_plat_priv.quirks &= (~XHCI_NO_64BIT_SUPPORT);
 
 	ret = crg_core_init_mode(crg);
 	if (ret)
