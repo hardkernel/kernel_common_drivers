@@ -1295,8 +1295,15 @@
 			status = "okay";
 		};
 
+		aml_sm4 {
+			compatible = "amlogic,sm4_dma";
+			dev_name = "aml_sm4_dma";
+			status = "okay";
+			iv_swap = /bits/ 8 <0x0>;
+		};
+
 		crypto {
-			compatible = "amlogic,crypto_s4d";
+			compatible = "amlogic,crypto_s5";
 			dev_name = "aml_crypto_dev";
 			status = "okay";
 			thread = /bits/ 8 <0x5>;
