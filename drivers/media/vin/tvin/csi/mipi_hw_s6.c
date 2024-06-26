@@ -50,7 +50,7 @@ void powerup_csi_analog_s6(struct csi_adapt *adap_dev)
 		return;
 	}
 
-	WRITE_CBUS_REG(base_addr, ANACTRL_MIPICSI_CTRL0_S6, 0x2377f022);
+	WRITE_CBUS_REG(base_addr, ANACTRL_MIPICSI_CTRL0_S6, 0x2733f022);
 	if (adap_dev->squlech_mode == 0) // disable squlech bit 4 is 1;
 		WRITE_CBUS_REG(base_addr, ANACTRL_MIPICSI_CTRL1_S6, 0x00070010);
 	else // enable squlech. default value.
