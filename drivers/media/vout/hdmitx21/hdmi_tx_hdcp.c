@@ -1471,10 +1471,23 @@ void hdcp2x_intr_handler(struct intr_t *intr)
 
 static void hdcp1x_auth_start(struct hdcp_t *p_hdcp)
 {
+	bool key_valid;
+
 	pr_hdcp_info(L_2, "%s[%d]\n", __func__, __LINE__);
 	p_hdcp->hdcp_type = HDCP_VER_HDCP1X;
 	update_hdcp_state(p_hdcp, HDCP_STAT_AUTH);
 	hdcptx1_encryption_update(false);
+
+	if (!p_hdcp->hdcp14_key_loaded) {
+		key_valid = hdcptx1_load_key();
+		if (!key_valid)
+			HDMITX_ERROR("%s: hdcp1.4 key load failed!\n", __func__);
+		else
+			p_hdcp->hdcp14_key_loaded = true;
+	} else {
+		HDMITX_DEBUG("%s: hdcp1.4 key already loaded\n", __func__);
+	}
+
 	hdcptx1_auth_start();
 	hdcp_schedule_work(&p_hdcp->timer_bksv_poll_done, HDCP_BSKV_CHECK_TIMER, 0);
 }

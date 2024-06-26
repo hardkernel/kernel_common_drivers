@@ -166,10 +166,6 @@ void hdcptx1_encryption_update(bool en)
 
 void hdcptx1_auth_start(void)
 {
-	bool key_valid = hdcptx1_load_key();
-
-	if (!key_valid)
-		HDMITX_ERROR("%s: hdcp1.4 key crc check invalid!\n", __func__);
 	hdmitx21_set_bit(LM_DDC_IVCTX, BIT_LM_DDC_SWTPIEN_B7, true);
 	hdmitx21_set_bit(TPI_COPP_DATA2_IVCTX, BIT_TPI_COPP_DATA2_CANCEL_PROT_EN, false);
 	hdmitx21_set_bit(TPI_COPP_DATA2_IVCTX,

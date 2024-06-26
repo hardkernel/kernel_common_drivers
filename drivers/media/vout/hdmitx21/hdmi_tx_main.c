@@ -4976,8 +4976,13 @@ static int amhdmitx_suspend(struct platform_device *pdev,
 {
 	struct hdmitx_dev *hdev = dev_get_drvdata(&pdev->dev);
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
 
 	hdmitx_clk_ctrl(hdev, 0);
+	/* after suspend, VPU power domain will be powered off,
+	 * so hdcp1.4 key otp/crc need to be loaded again
+	 */
+	p_hdcp->hdcp14_key_loaded = false;
 	hdmitx_event_mgr_suspend(tx_comm->event_mgr, true);
 	/* if HPD is high before suspend, and there were hpd
 	 * plugout -> in event happened in deep suspend stage,
