@@ -4329,6 +4329,17 @@ static long amvecm_ioctl(struct file *file,
 				ai_color_enable);
 		}
 		break;
+	case AMVECM_IOC_G_CHIP_TYPE:
+		argp = (void __user *)arg;
+		tmp = get_cpu_type();
+		if (copy_to_user(argp, &tmp, sizeof(int))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("AMVECM_IOC_G_CHIP_TYPE copy to user fail.\n");
+		} else {
+			pr_amvecm_dbg("AMVECM_IOC_G_CHIP_TYPE 0x%x\n",
+				tmp);
+		}
+		break;
 #endif
 	default:
 		ret = -EINVAL;
