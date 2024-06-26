@@ -339,8 +339,8 @@ static void init_am_mipi_phy(struct amcsi_dev_s *csi_dev, struct csi_adapt *adap
 			mipi_phy_reg_wr_and_check(MIPI_PHY_DESKEW_CTRL1_S6, 0x8);
 		} else {
 			// enable initial deskew
-			mipi_phy_reg_wr_and_check(MIPI_PHY_DESKEW_CTRL_S6, 0x83000080);
-			mipi_phy_reg_wr_and_check(MIPI_PHY_DESKEW_CTRL1_S6, 0x007507fc);
+			mipi_phy_reg_wr_and_check(MIPI_PHY_DESKEW_CTRL_S6, 0x82006026);
+			mipi_phy_reg_wr_and_check(MIPI_PHY_DESKEW_CTRL1_S6, 0x007101E8);
 		}
 		// disable period deskew.
 		mipi_phy_reg_wr_and_check(MIPI_PHY_DESKEW_CTRL2_S6, 0x0);
