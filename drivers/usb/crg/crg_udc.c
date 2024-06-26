@@ -565,8 +565,7 @@ static void setup_link_trb(struct transfer_trb_s *link_trb,
 	u32 dw = 0;
 
 	link_trb->dw0 = cpu_to_le32(lower_32_bits(next_trb));
-	/* link_trb->dw1 = cpu_to_le32(upper_32_bits(next_trb)); */
-	link_trb->dw1 = 0;
+	link_trb->dw1 = cpu_to_le32(upper_32_bits(next_trb));
 
 	link_trb->dw2 = 0;
 
@@ -797,8 +796,7 @@ static void crg_udc_epcx_setup(struct crg_udc_ep *udc_ep)
 	epcx->dw2 = cpu_to_le32(dw);
 
 	/* fill ep_dw3 */
-	/* dw = upper_32_bits(udc_ep->tran_ring_info.dma); */
-	dw = 0;
+	dw = upper_32_bits(udc_ep->tran_ring_info.dma);
 	epcx->dw3 = cpu_to_le32(dw);
 	/* wmb */
 	wmb();
@@ -826,8 +824,7 @@ static void crg_udc_epcx_update_dqptr(struct crg_udc_ep *udc_ep)
 	epcx->dw2 = cpu_to_le32(dw);
 
 	/* fill ep_dw3 */
-	/* dw = upper_32_bits(dqptaddr); */
-	dw = 0;
+	dw = upper_32_bits(dqptaddr);
 	epcx->dw3 = cpu_to_le32(dw);
 
 	cmd_param0 = (0x1 << udc_ep->DCI);
@@ -901,8 +898,7 @@ void setup_datastage_trb(struct crg_gadget_dev *crg_udc,
 	CRG_DEBUG("buf = 0x%x, ", usb_req->buf);
 
 	p_trb->dw0 = lower_32_bits(usb_req->dma);
-	/* p_trb->dw1 = upper_32_bits(usb_req->dma); */
-	p_trb->dw1 = 0;
+	p_trb->dw1 = upper_32_bits(usb_req->dma);
 
 	CRG_DEBUG("data_buf_ptr_lo = 0x%x, data_buf_ptr_hi = 0x%x\n",
 		p_trb->dw0, p_trb->dw1);
@@ -951,8 +947,7 @@ void setup_trb(struct crg_gadget_dev *crg_udc,
 	u32 tmp;
 
 	p_trb->dw0 = lower_32_bits(xfer_buf_addr);
-	/* p_trb->dw1 = upper_32_bits(xfer_buf_addr); */
-	p_trb->dw1 = 0;
+	p_trb->dw1 = upper_32_bits(xfer_buf_addr);
 
 	CRG_DEBUG("data_buf_ptr_lo = 0x%x, data_buf_ptr_hi = 0x%x\n",
 		p_trb->dw0, p_trb->dw1);
@@ -2544,8 +2539,7 @@ static int prepare_for_setup(struct crg_gadget_dev *crg_udc, unsigned long flags
 	cmd_param0 = (lower_32_bits(dqptaddr) &
 			CRG_CMD0_0_DQPTRLO_MASK) |
 			CRG_CMD0_0_DCS(udc_ep0_ptr->pcs);
-	/* cmd_param1 = upper_32_bits(dqptaddr); */
-	cmd_param1 = 0;
+	cmd_param1 = upper_32_bits(dqptaddr);
 	crg_issue_command(crg_udc,
 		CRG_CMD_INIT_EP0, cmd_param0, cmd_param1);
 
@@ -2635,8 +2629,8 @@ static int init_event_ring(struct crg_gadget_dev *crg_udc, int index)
 
 	udc_event->p_erst->seg_addr_lo =
 		lower_32_bits(udc_event->event_ring.dma);
-	/* udc_event->p_erst->seg_addr_hi = upper_32_bits(udc_event->event_ring.dma); */
-	udc_event->p_erst->seg_addr_hi = 0;
+	udc_event->p_erst->seg_addr_hi =
+		upper_32_bits(udc_event->event_ring.dma);
 	udc_event->p_erst->seg_size = cpu_to_le32(CRG_EVENT_RING_SIZE);
 	udc_event->p_erst->rsvd = 0;
 	/* wmb */
@@ -2653,12 +2647,10 @@ static int init_event_ring(struct crg_gadget_dev *crg_udc, int index)
 	/**************************/
 	reg_write(&uicr->erstsz, CRG_ERST_SIZE);
 	reg_write(&uicr->erstbalo, lower_32_bits(udc_event->erst.dma));
-	/* reg_write(&uicr->erstbahi, upper_32_bits(udc_event->erst.dma)); */
-	reg_write(&uicr->erstbahi, 0);
+	reg_write(&uicr->erstbahi, upper_32_bits(udc_event->erst.dma));
 	reg_write(&uicr->erdplo,
 		lower_32_bits(udc_event->event_ring.dma) | CRG_U3DC_ERDPLO_EHB);
-	/* reg_write(&uicr->erdphi, upper_32_bits(udc_event->event_ring.dma)); */
-	reg_write(&uicr->erdphi, 0);
+	reg_write(&uicr->erdphi, upper_32_bits(udc_event->event_ring.dma));
 
 	reg_write(&uicr->iman, (CRG_U3DC_IMAN_INT_EN | CRG_U3DC_IMAN_INT_PEND));
 	reg_write(&uicr->imod, (0L << 0) | (4000L << 0));
@@ -2696,8 +2688,7 @@ static int init_device_context(struct crg_gadget_dev *crg_udc)
 
 	/*hw ops DCBAPLO DCBAPHI*/
 	reg_write(&uccr->dcbaplo, lower_32_bits(crg_udc->ep_cx.dma));
-	/* reg_write(&uccr->dcbaphi, upper_32_bits(crg_udc->ep_cx.dma)); */
-	reg_write(&uccr->dcbaphi, 0);
+	reg_write(&uccr->dcbaphi, upper_32_bits(crg_udc->ep_cx.dma));
 
 	CRG_DEBUG("dcbaplo[0x%p]=0x%x\n", &uccr->dcbaplo, reg_read(&uccr->dcbaplo));
 	CRG_DEBUG("dcbaphi[0x%p]=0x%x\n", &uccr->dcbaphi, reg_read(&uccr->dcbaphi));
@@ -2798,8 +2789,7 @@ static int init_ep0(struct crg_gadget_dev *crg_udc)
 	cmd_param0 = (lower_32_bits(udc_ep_ptr->tran_ring_info.dma) &
 			CRG_CMD0_0_DQPTRLO_MASK) |
 			CRG_CMD0_0_DCS(udc_ep_ptr->pcs);
-	/* cmd_param1 = upper_32_bits(udc_ep_ptr->tran_ring_info.dma); */
-	cmd_param1 = 0;
+	cmd_param1 = upper_32_bits(udc_ep_ptr->tran_ring_info.dma);
 
 	CRG_DEBUG("ep0 ring dma addr = 0x%llx\n", udc_ep_ptr->tran_ring_info.dma);
 
@@ -4362,10 +4352,8 @@ int process_event_ring(struct crg_gadget_dev *crg_udc, int index, unsigned long 
 
 	/* update dequeue pointer */
 	erdp = event_trb_virt_to_dma(udc_event, udc_event->evt_dq_pt);
-	/* tmp =  upper_32_bits(erdp); */
-	tmp = 0;
-	/* reg_write(&uicr->erdphi, upper_32_bits(erdp)); */
-	reg_write(&uicr->erdphi, 0);
+	tmp =  upper_32_bits(erdp);
+	reg_write(&uicr->erdphi, upper_32_bits(erdp));
 	tmp = lower_32_bits(erdp);
 	tmp |= CRG_U3DC_ERDPLO_EHB;
 	reg_write(&uicr->erdplo, lower_32_bits(erdp | CRG_U3DC_ERDPLO_EHB));
@@ -4572,6 +4560,7 @@ static int crg_udc_probe(struct platform_device *pdev)
 	int retval = 0;
 	u32 phy_id = 1;
 	u32 version = 0;
+	u32 dma_64bit_support = 0;
 	unsigned long flags = 0;
 	struct device		*sysdev;
 
@@ -4650,11 +4639,20 @@ static int crg_udc_probe(struct platform_device *pdev)
 				version = of_read_ulong(prop, 1);
 			else
 				version = 0;
-		}
+
+			prop = of_get_property(pdev->dev.of_node, "dma-64bit-support", NULL);
+			if (prop)
+				dma_64bit_support = of_read_ulong(prop, 1);
+			}
 	}
 
 	sysdev = &pdev->dev;
-	ret = dma_set_mask_and_coherent(sysdev, DMA_BIT_MASK(32));
+
+	if (dma_64bit_support)
+		ret = dma_set_mask_and_coherent(sysdev, DMA_BIT_MASK(64));
+	else
+		ret = dma_set_mask_and_coherent(sysdev, DMA_BIT_MASK(32));
+
 	if (ret)
 		goto err0;
 
