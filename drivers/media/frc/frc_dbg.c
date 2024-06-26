@@ -210,6 +210,27 @@ ssize_t frc_other_store(struct class *class,
 	return count;
 }
 
+ssize_t frc_probe_dbg_show(struct class *class,
+	struct class_attribute *attr,
+	char *buf)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+
+	return frc_probe_dbg_if_help(devp, buf);
+}
+
+ssize_t frc_probe_dbg_store(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+
+	frc_probe_dbg_if(devp, buf, count);
+
+	return count;
+}
+
 void frc_status(struct frc_dev_s *devp)
 {
 	struct frc_fw_data_s *fw_data;
@@ -1159,6 +1180,80 @@ void frc_debug_other_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			if (val1 >= 0 && val1 < 4)
 				devp->in_sts.t3x_adj_mcdw_hv = val1;
 		}
+	}
+exit:
+	kfree(buf_orig);
+}
+
+ssize_t frc_probe_dbg_if_help(struct frc_dev_s *devp, char *buf)
+{
+	ssize_t len = 0;
+	u32 reg_data;
+
+	if (!devp)
+		return len;
+
+	len += sprintf(buf + len, "path\t= %d [0:inp 1:vp 2:mc 3:mc csc]\n",
+		devp->probe_dbg.probe_path);
+	len += sprintf(buf + len, "posi\t= (x:%d y:%d)\n",
+		devp->probe_dbg.posi_x, devp->probe_dbg.posi_y);
+	len += sprintf(buf + len, "en\t= %d\n", devp->probe_dbg.probe_en);
+	len += sprintf(buf + len, "color\t= %d [0:W 1:R 2:G 3:B]\n",
+		devp->probe_dbg.probe_color);
+
+	if (devp->probe_dbg.probe_en) {
+		frc_probe_dbg_proc(devp);
+		reg_data = devp->probe_dbg.out_data;
+		len += sprintf(buf + len, "out-color\t= 0x%8x (Y:%d U:%d V:%d)\n",
+			reg_data,
+			(reg_data >> 20) & 0x3ff,
+			(reg_data >> 10) & 0x3ff,
+			(reg_data >>  0) & 0x3ff);
+	}
+
+	return len;
+}
+
+void frc_probe_dbg_if(struct frc_dev_s *devp, const char *buf, size_t count)
+{
+	char *buf_orig, *parm[47] = {NULL};
+	int val1, val2;
+
+	if (!devp || !buf)
+		return;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig)
+		return;
+
+	frc_debug_parse_param(buf_orig, (char **)&parm);
+
+	if (!strcmp(parm[0], "en")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->probe_dbg.probe_en = (u8)val1;
+		frc_probe_dbg_proc(devp);
+	} else if (!strcmp(parm[0], "path")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->probe_dbg.probe_path = (u8)val1;
+		frc_probe_dbg_proc(devp);
+	} else if (!strcmp(parm[0], "posi")) {
+		if (!parm[2])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->probe_dbg.posi_x = (u16)val1;
+		if (kstrtoint(parm[2], 10, &val2) == 0)
+			devp->probe_dbg.posi_y = (u16)val2;
+		frc_probe_dbg_proc(devp);
+	} else if (!strcmp(parm[0], "color")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->probe_dbg.probe_color = (u8)val1;
+		frc_probe_dbg_proc(devp);
 	}
 exit:
 	kfree(buf_orig);

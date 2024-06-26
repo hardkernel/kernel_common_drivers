@@ -1965,6 +1965,9 @@
 #define FRC_MC_SETTING1                            0x3000
 #define FRC_MC_SETTING2                            0x3001
 #define FRC_MC_LOSS_SLICE_SEC                      0x3905
+#define FRC_MC_PRB_CTRL0                           0x3988
+//Bit 31:30         reserved
+//Bit 29:0          reg_mc_probe_pix          // unsigned ,RW,default=32'h40080200,{R,G,B}/{Y,U,V}
 #define FRC_MC_PRB_CTRL1                           0x3989
 //Bit 31            reserved
 //Bit 30            reg_mc_probe_en           // unsigned ,    RW, default = 0    reg_mc_probe_en
@@ -2202,6 +2205,12 @@
 //Bit 2             reg_mcp_byp_en            // unsigned ,    RW, default = 0
 //Bit 1             reg_mc_byp_ctrl           // unsigned ,    RW, default = 0
 //Bit 0             reg_mc_bypass_en          // unsigned ,    RW, default = 0
+#define FRC_RO_MC_PROBE                            0x3991
+//Bit 31:30         reserved
+//Bit 29: 0         ro_mc_probe               // unsigned ,   RW, default = 0  ro_frc_stat0, yuv422
+#define FRC_RO_MC_PROBE_CSC                        0x3993
+//Bit 31:30         reserved
+//Bit 29: 0         ro_mc_probe_csc               // unsigned ,   RW, default = 0  ro_frc_stat5, rgb
 #define FRC_RO_MC_STAT                             0x3994
 //Bit 31:29         reserved
 //Bit 28:16         ro_undone_vcnt               // unsigned ,   RO, default = 0  ro_undone_vcnt

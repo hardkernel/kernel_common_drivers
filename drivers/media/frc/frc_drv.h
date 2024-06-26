@@ -126,9 +126,10 @@
 // frc_20240522 modify t5m dlg flow
 // frc_2024-0522 adjust mcdw param for window size
 // frc_2024-0617 add rdma access for alg
+// frc_2024-0621 modify t3x muti flow
 
-#define FRC_FW_VER			"2024-0621 modify t3x muti flow"
-#define FRC_KERDRV_VER		3597
+#define FRC_FW_VER			"2024-0626 frc cursor control debug"
+#define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
@@ -308,6 +309,12 @@ extern int frc_dbg_en;
 #define DEBUG_NODES      6
 #define CMD_LEN          32
 #define MODULE_LEN       128
+
+// probe debug
+#define FRC_PROBE_INP_PATH       0
+#define FRC_PROBE_VP_PATH        1
+#define FRC_PROBE_MC_PATH        2
+#define FRC_PROBE_MC_CSC_PATH    3
 
 enum chip_id {
 	ID_NULL = 0,
@@ -704,6 +711,16 @@ struct frc_timer_dbg {
 	u16 timer_level; // dbg level
 };
 
+struct frc_probe_dbg {
+	u8  probe_en;
+	u8  probe_path;
+	u8  probe_color;
+	u8  reserved;
+	u16 posi_x;
+	u16 posi_y;
+	u32 out_data;
+};
+
 struct frc_dev_s {
 	dev_t devt;
 	struct cdev cdev;
@@ -806,6 +823,7 @@ struct frc_dev_s {
 	struct frc_csc_set_s init_csc[2];
 	struct frc_pat_dbg_s pat_dbg;
 	struct frc_timer_dbg timer_dbg;
+	struct frc_probe_dbg probe_dbg;
 };
 
 extern struct hrtimer frc_hi_timer;

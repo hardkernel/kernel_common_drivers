@@ -3643,7 +3643,7 @@ void frc_chg_loss_slice_num(u8 num)
 		return;
 
 	tmp_value = READ_FRC_REG(FRC_INP_MCDW_CTRL);
-	tmp_value &= 0xFFC00FF;
+	tmp_value &= 0xFFC00FF; // 0xFFFC00FF
 	tmp_value2 = READ_FRC_REG(FRC_REG_TOP_CTRL11);
 	tmp_value2 &= 0x0000FFFF;
 	tmp_value |= (num & 0x3FF) << 8;
@@ -3995,4 +3995,87 @@ void frc_clr_badedit_effect_before_enable(void)
 	}
 	regdata_top_ctl_0007 = 0;
 	WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL7, regdata_top_ctl_0007);
+}
+
+void frc_probe_dbg_proc(struct frc_dev_s *devp)
+{
+	u8  en, path, color;
+	u16 posi_x, posi_y;
+	u32 reg_data = 0;
+	u32 reg_data2, reg_data3;
+	u32 color_list[4] = {0x3fffffff, 0xfa66bc0, 0x2b02a069, 0x7ff01d8}; // W/R/G/B
+
+	en = devp->probe_dbg.probe_en;
+	path = devp->probe_dbg.probe_path;
+	color = devp->probe_dbg.probe_color;
+	posi_x = devp->probe_dbg.posi_x;
+	posi_y = devp->probe_dbg.posi_y;
+
+	if (color > 3)
+		color = 3;
+	if (posi_x > devp->in_sts.in_hsize)
+		posi_x = devp->in_sts.in_hsize - 1;
+	if (posi_y > devp->in_sts.in_vsize)
+		posi_y = devp->in_sts.in_vsize - 1;
+
+	switch (path) {
+	case FRC_PROBE_INP_PATH:
+		/*reserved*/
+		pr_frc(0, "INP path unsupport\n");
+		break;
+	case FRC_PROBE_VP_PATH:
+		if (en) {
+			// en
+			WRITE_FRC_BITS(FRC_REG_CURSOR, 1, 16, 1);
+			// line color
+			WRITE_FRC_BITS(FRC_REG_CURSOR, color, 8, 3);
+			// set posi
+			WRITE_FRC_BITS(FRC_REG_MC_CURSOR_0, posi_x, 0, 12);
+			WRITE_FRC_BITS(FRC_REG_MC_CURSOR_1, posi_y, 0, 12);
+			reg_data  = READ_FRC_REG(FRC_REG_MC_CURSOR_0);
+			reg_data2 = READ_FRC_REG(FRC_REG_MC_CURSOR_1);
+			reg_data3 = READ_FRC_REG(FRC_REG_MC_CURSOR_2);
+			reg_data =  ((reg_data3 >> 13) & 0x3ff) << 20 |
+						((reg_data2 >> 13) & 0x3ff) << 10 |
+						((reg_data  >> 13) & 0x3ff);
+		} else {
+			WRITE_FRC_BITS(FRC_REG_CURSOR, 0, 16, 1);
+		}
+		break;
+	case FRC_PROBE_MC_PATH:
+		if (en) {
+			WRITE_FRC_BITS(FRC_MC_PRB_CTRL1, 1, 30, 1);
+			WRITE_FRC_BITS(FRC_MC_PRB_CTRL0, color_list[color], 0, 30);
+			WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL1,
+				posi_y << 16 | posi_x);
+			reg_data = READ_FRC_REG(FRC_RO_MC_PROBE);
+		} else {
+			WRITE_FRC_BITS(FRC_MC_PRB_CTRL1, 0, 30, 1);
+		}
+		break;
+	case FRC_PROBE_MC_CSC_PATH:
+		if (en) {
+			WRITE_FRC_BITS(FRC_MC_PRB_CTRL1, 1, 29, 1);
+			WRITE_FRC_BITS(FRC_MC_PRB_CTRL0, color_list[color], 0, 30);
+			WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL1,
+				posi_y << 16 | posi_x);
+			reg_data = READ_FRC_REG(FRC_RO_MC_PROBE_CSC);
+		} else {
+			WRITE_FRC_BITS(FRC_MC_PRB_CTRL1, 0, 29, 1);
+		}
+		break;
+	default:
+		if (en) {
+			WRITE_FRC_BITS(FRC_MC_PRB_CTRL1, 1, 30, 1);
+			reg_data = READ_FRC_REG(FRC_RO_MC_PROBE);
+			pr_frc(0, "need set path,default: mc\n");
+		} else {
+			WRITE_FRC_BITS(FRC_MC_PRB_CTRL1, 0, 29, 2);
+			WRITE_FRC_BITS(FRC_REG_CURSOR, 0, 16, 1);
+			reg_data = 0;
+		}
+		break;
+	}
+
+	devp->probe_dbg.out_data = reg_data;
 }

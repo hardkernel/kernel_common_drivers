@@ -151,5 +151,6 @@ void t3x_verB_set_cfg(u8 flag, struct frc_dev_s *frc_devp);
 void frc_pattern_dbg_ctrl(struct frc_dev_s *devp);
 void t3x_verB_60hz_patch(void);
 void frc_clr_badedit_effect_before_enable(void);
+void frc_probe_dbg_proc(struct frc_dev_s *devp);
 
 #endif

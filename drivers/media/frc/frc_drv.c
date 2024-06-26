@@ -163,9 +163,10 @@ static struct class_attribute frc_class_attrs[] = {
 	__ATTR(region_fb_ctrl_param, 0644, frc_region_fb_ctrl_param_show,
 			frc_region_fb_ctrl_param_store),
 	__ATTR(trace_enable, 0664,
-	       frc_rdma_trace_enable_show, frc_rdma_trace_enable_stroe),
+			frc_rdma_trace_enable_show, frc_rdma_trace_enable_stroe),
 	__ATTR(trace_reg, 0664,
-	       frc_rdma_trace_reg_show, frc_rdma_trace_reg_stroe),
+			frc_rdma_trace_reg_show, frc_rdma_trace_reg_stroe),
+	__ATTR(probe, 0664, frc_probe_dbg_show, frc_probe_dbg_store),
 	__ATTR_NULL
 };
 

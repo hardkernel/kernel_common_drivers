@@ -41,6 +41,10 @@ ssize_t frc_other_show(struct class *class,
 	struct class_attribute *attr, char *buf);
 ssize_t frc_other_store(struct class *class,
 	struct class_attribute *attr, const char *buf, size_t count);
+ssize_t frc_probe_dbg_show(struct class *class,
+	struct class_attribute *attr, char *buf);
+ssize_t frc_probe_dbg_store(struct class *class,
+	struct class_attribute *attr, const char *buf, size_t count);
 void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff);
 void frc_debug_if(struct frc_dev_s *frc_devp, const char *buf, size_t count);
 ssize_t frc_debug_if_help(struct frc_dev_s *devp, char *buf);
@@ -59,5 +63,7 @@ void frc_debug_other_if(struct frc_dev_s *devp, const char *buf, size_t count);
 void frc_timer_proc(struct frc_dev_s *devp);
 void frc_dbg_frame_show(struct frc_dev_s *devp);
 void set_frc_config(const char *module, const char *debug, int len);
+ssize_t frc_probe_dbg_if_help(struct frc_dev_s *devp, char *buf);
+void frc_probe_dbg_if(struct frc_dev_s *devp, const char *buf, size_t count);
 
 #endif
