@@ -1022,7 +1022,7 @@ static u32 is_video_output_window_overlap(void)
 				overlap_size = vdx_v_end - vd1_v_start + 1;
 		}
 	}
-	if (overlap_size)
+	if (overlap_size && super_debug)
 		pr_info("%s:, v overlap_size %d\n",
 			__func__, overlap_size);
 	return overlap_size;

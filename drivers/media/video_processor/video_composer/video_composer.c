@@ -478,6 +478,22 @@ void debug_vc_get_count(const char *module, int debug_flags)
 }
 EXPORT_SYMBOL(debug_vc_get_count);
 
+static void detect_vf_type(struct frame_info_t *frame_info, struct file *file_vf,
+	bool *is_dec_vf_ptr, bool *is_v4l_vf_ptr)
+{
+	if (!is_dec_vf_ptr || !is_v4l_vf_ptr) {
+		pr_info("is_dec_vf or is_v4l_vf err.\n");
+		return;
+	}
+	if (frame_info->source_type == SOURCE_HWC_CREAT_ION) {
+		*is_dec_vf_ptr = false;
+		*is_v4l_vf_ptr = false;
+		return;
+	}
+	*is_dec_vf_ptr = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
+	*is_v4l_vf_ptr = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+}
+
 static void *video_timeline_create(struct composer_dev *dev)
 {
 	const char *tl_name = "videocomposer_timeline_0";
@@ -1990,8 +2006,7 @@ static bool check_dewarp_support_status(struct composer_dev *dev,
 	vframe_para.dst_vf_height = dewarp_rotate_height;
 	vframe_para.src_vf_angle = frame_info.transform;
 	file_vf = received_frames->file_vf[0];
-	is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
-	is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+	detect_vf_type(&frame_info, file_vf, &is_dec_vf, &is_v4l_vf);
 
 	if (is_dec_vf || is_v4l_vf) {
 		src_vf = get_vf_from_file(dev, file_vf, true);
@@ -2692,9 +2707,7 @@ static void vframe_composer(struct composer_dev *dev)
 			vc_print(dev->index, PRINT_ERROR, "vframe_info_cur NULL\n");
 			return;
 		}
-		is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
-		is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
-
+		detect_vf_type(vframe_info_cur, file_vf, &is_dec_vf, &is_v4l_vf);
 		if (vframe_info_cur->source_type == SOURCE_DTV_FIX_TUNNEL)
 			is_fixtunnel = true;
 
@@ -2717,7 +2730,7 @@ static void vframe_composer(struct composer_dev *dev)
 				vf_dev[i], vframe_info_cur->fd, addr);
 		}
 
-		if (is_src_crop_valid(src_vf->src_crop)) {
+		if (src_vf && is_src_crop_valid(src_vf->src_crop)) {
 			crop_info.left = MAX(vframe_info_cur->crop_x, src_vf->src_crop.left);
 			crop_info.top = MAX(vframe_info_cur->crop_y, src_vf->src_crop.top);
 			if (!(src_vf->type_original & VIDTYPE_COMPRESS)) {
@@ -2893,13 +2906,13 @@ static void vframe_composer(struct composer_dev *dev)
 			if (ret < 0)
 				continue;
 			transform_tmp = vframe_info_cur->transform;
-			if (src_vf->flag & VFRAME_FLAG_MIRROR_H) {
+			if (src_vf && src_vf->flag & VFRAME_FLAG_MIRROR_H) {
 				if (transform_tmp & VC_TRANSFORM_FLIP_H)
 					transform_tmp &= ~VC_TRANSFORM_FLIP_H;
 				else
 					transform_tmp |= VC_TRANSFORM_FLIP_H;
 			}
-			if (src_vf->flag & VFRAME_FLAG_MIRROR_V) {
+			if (src_vf && src_vf->flag & VFRAME_FLAG_MIRROR_V) {
 				if (transform_tmp & VC_TRANSFORM_FLIP_V)
 					transform_tmp &= ~VC_TRANSFORM_FLIP_V;
 				else
@@ -3578,8 +3591,7 @@ static bool detect_composer_usage(struct composer_dev *dev,
 			vc_print(dev->index, PRINT_ERROR, "file_vf is NULL\n");
 			return false;
 		}
-		is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
-		is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+		detect_vf_type(frame_info, file_vf, &is_dec_vf, &is_v4l_vf);
 		if (is_dec_vf || is_v4l_vf) {
 			vf = get_vf_from_file(dev, file_vf, false);
 			if (!vf) {
@@ -3630,8 +3642,7 @@ static int config_crop_param(struct composer_dev *dev,
 		frame_info->crop_w,
 		frame_info->crop_h);
 
-	is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
-	is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+	detect_vf_type(frame_info, file_vf, &is_dec_vf, &is_v4l_vf);
 	if (is_dec_vf || is_v4l_vf) {
 		if ((vf->type_original & VIDTYPE_COMPRESS) != 0) {
 			pic_w = vf->compWidth;
@@ -3865,8 +3876,7 @@ static void video_composer_task(struct composer_dev *dev)
 			return;
 		}
 
-		is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
-		is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+		detect_vf_type(frame_info, file_vf, &is_dec_vf, &is_v4l_vf);
 		/*check repeat vframe*/
 		if (dev->last_file == file_vf && (is_dec_vf || is_v4l_vf))
 			is_repeat_vf = true;
@@ -4576,8 +4586,7 @@ static void set_frames_info(struct composer_dev *dev,
 		dev->received_frames[i].fence_file[j] = fence_file;
 
 		type = frames_info->frame_info[j].type;
-		is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
-		is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+		detect_vf_type(&frames_info->frame_info[j], file_vf, &is_dec_vf, &is_v4l_vf);
 
 		vc_print(dev->index, PRINT_FENCE,
 			"receive:file=%px, dma=%px, file_fd=%d, file_count=%ld\n",
