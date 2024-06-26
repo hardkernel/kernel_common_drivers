@@ -2104,6 +2104,8 @@ static ssize_t hdcp_type_policy_store(struct device *dev,
 		val = 0;
 	if (strncmp(buf, "1", 1) == 0)
 		val = 1;
+	if (strncmp(buf, "2", 1) == 0)
+		val = 2;
 	if (strncmp(buf, "-1", 2) == 0)
 		val = -1;
 	HDMITX_INFO(SYS "set hdcp_type_policy as %d\n", val);
@@ -3087,6 +3089,32 @@ static ssize_t hdcp22_stopauth_show(struct device *dev,
 	return pos;
 }
 
+/* the workaround is enabled only for special TV
+ * it can also be forcely enabled for debug on other TV by
+ * echo poll_en1 > /sys/class/amhdmitx/amhdmitx0/debug
+ */
+static ssize_t reset_tv_hdcp_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	u8 data;
+	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
+
+	if (!hdev->en_poll_rx_status) {
+		if (!hdmitx_find_vendor_hdcp22_non_std(hdev->tx_comm.EDID_buf))
+			return count;
+	}
+	if (strncmp(buf, "1", 1) == 0) {
+		if (hdev->poll_rx_status_mtd == 0) {
+			pr_info("force poll rx_status to reset TV hdcp\n");
+			hdmitx_reset_tv_hdcp();
+		} else if (hdev->poll_rx_status_mtd == 1) {
+			pr_info("force read 1byte hdcp msg\n");
+			ddc_read_1byte(HDCP_SLAVE, HDCP2_RD_MSG, &data);
+		}
+	}
+	return count;
+}
+
 static DEVICE_ATTR_RW(disp_mode);
 static DEVICE_ATTR_RW(vid_mute);
 static DEVICE_ATTR_WO(config);
@@ -3119,6 +3147,7 @@ static DEVICE_ATTR_RW(hdr_priority_mode);
 static DEVICE_ATTR_WO(hdcp22_top_reset);
 static DEVICE_ATTR_RO(clkmsr);
 static DEVICE_ATTR_RO(hdcp22_stopauth);
+static DEVICE_ATTR_WO(reset_tv_hdcp);
 
 static int hdmitx20_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_format_para *para)
 {
@@ -3669,9 +3698,11 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 		if (!ret) {
 			hdev->hdcp_type_policy = 0;
 			if (val == 2)
-				hdev->hdcp_type_policy = -1;
+				hdev->hdcp_type_policy = 2;
 			if (val == 1)
 				hdev->hdcp_type_policy = 1;
+			if (val == 3)
+				hdev->hdcp_type_policy = -1;
 		}
 
 		/* Get vendor information */
@@ -3885,6 +3916,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdr_priority_mode);
 	ret = device_create_file(dev, &dev_attr_clkmsr);
 	ret = device_create_file(dev, &dev_attr_hdcp22_stopauth);
+	ret = device_create_file(dev, &dev_attr_reset_tv_hdcp);
 
 #ifdef CONFIG_AMLOGIC_VPU
 	hdev->encp_vpu_dev = vpu_dev_register(VPU_VENCP, DEVICE_NAME);
@@ -4066,6 +4098,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_hdr_priority_mode);
 	device_remove_file(dev, &dev_attr_clkmsr);
 	device_remove_file(dev, &dev_attr_hdcp22_stopauth);
+	device_remove_file(dev, &dev_attr_reset_tv_hdcp);
 
 	cdev_del(&hdev->cdev);
 	device_destroy(hdmitx_class, hdev->hdmitx_id);

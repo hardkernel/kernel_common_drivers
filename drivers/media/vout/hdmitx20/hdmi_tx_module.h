@@ -105,6 +105,13 @@ struct hdmitx_dev {
 	bool hdcp22_type;
 	struct hdcprp_topo *topo_info;
 	struct drm_hdmitx_hdcp_cb drm_hdcp_cb;
+	/* enable poll rx_status for workaround of special hdcp2.2 TV */
+	bool en_poll_rx_status;
+	/* poll rx_status workaround method:
+	 * 0: continuously poll rx_status(2bytes) for 300ms, default method
+	 * 1: read only 1 byte of hdcp msg
+	 */
+	u8 poll_rx_status_mtd;
 	/*hdcp end*/
 
 	struct {

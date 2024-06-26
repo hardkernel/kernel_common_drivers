@@ -86,4 +86,6 @@ void scdc_config(struct hdmitx_dev *hdev);
 void edid_read_head_8bytes(void);
 int scdc_status_flags(struct hdmitx_dev *hdev);
 void hdmitx_read_edid(unsigned char *rx_edid);
+void hdmitx_reset_tv_hdcp(void);
+u32 ddc_read_1byte(u8 slave, uint8_t offset_addr, uint8_t *data);
 #endif  /* __HDMI_TX_SCDC_H__ */

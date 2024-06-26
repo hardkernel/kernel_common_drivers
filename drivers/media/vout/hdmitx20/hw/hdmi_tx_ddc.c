@@ -115,12 +115,11 @@ static uint32_t ddc_write_1byte(u8 slave, u8 offset_addr, u8 data)
 	return st;
 }
 
-static uint32_t ddc_read_8byte(u8 slave, u8 offset_addr, u8 *data)
+static uint32_t ddc_read_8byte_nolock(u8 slave, u8 offset_addr, u8 *data)
 {
 	u32 st = 0;
 	s32 i;
 
-	mutex_lock(&ddc_mutex);
 	hdmitx_wr_reg(HDMITX_DWC_I2CM_SLAVE, slave);
 	hdmitx_wr_reg(HDMITX_DWC_I2CM_ADDRESS, offset_addr);
 	hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 2);
@@ -135,15 +134,23 @@ static uint32_t ddc_read_8byte(u8 slave, u8 offset_addr, u8 *data)
 	for (i = 0; i < 8; i++)
 		data[i] = hdmitx_rd_reg(HDMITX_DWC_I2CM_READ_BUFF0 + i);
 
-	mutex_unlock(&ddc_mutex);
 	return st;
 }
 
-static uint32_t ddc_read_1byte(u8 slave, u8 offset_addr, u8 *data)
+static uint32_t ddc_read_8byte(u8 slave, u8 offset_addr, u8 *data)
 {
 	u32 st = 0;
 
 	mutex_lock(&ddc_mutex);
+	st = ddc_read_8byte_nolock(slave, offset_addr, data);
+	mutex_unlock(&ddc_mutex);
+	return st;
+}
+
+static u32 ddc_read_1byte_nolock(u8 slave, u8 offset_addr, u8 *data)
+{
+	u32 st = 0;
+
 	hdmitx_wr_reg(HDMITX_DWC_I2CM_SLAVE, slave);
 	hdmitx_wr_reg(HDMITX_DWC_I2CM_ADDRESS, offset_addr);
 	hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 0);
@@ -157,6 +164,16 @@ static uint32_t ddc_read_1byte(u8 slave, u8 offset_addr, u8 *data)
 	hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 0x7);
 	*data = hdmitx_rd_reg(HDMITX_DWC_I2CM_DATAI);
 
+	return st;
+}
+
+u32 ddc_read_1byte(u8 slave, uint8_t offset_addr,
+	uint8_t *data)
+{
+	u32 st = 0;
+
+	mutex_lock(&ddc_mutex);
+	st = ddc_read_1byte_nolock(slave, offset_addr, data);
 	mutex_unlock(&ddc_mutex);
 	return st;
 }
@@ -281,3 +298,37 @@ void hdmitx_read_edid(unsigned char *rx_edid)
 	hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, 0x0);
 	mutex_unlock(&ddc_mutex);
 } /* hdmi20_tx_read_edid */
+
+/* read rx_status 2bytes take 4.4ms each time, poll rx_status for 300ms */
+static int poll_status_ms = 300;
+void hdmitx_reset_tv_hdcp(void)
+{
+	u8 data1, data2;
+	int hdcpSize;
+	__u64 timeout;
+
+	pr_info("[hdcp22] reset hdcp2.2 of special TV\n");
+	mutex_lock(&ddc_mutex);
+	timeout = get_jiffies_64() + msecs_to_jiffies(poll_status_ms);
+
+	while (time_before64(get_jiffies_64(), timeout)) {
+		/* pr_info("[hdcp22] Reading RxStatus..."); */
+
+		/* 2b-register, i2c controller can only do 1B or 8B reads */
+		if (!ddc_read_1byte_nolock(HDCP_SLAVE, HDCP2_RXSTATUS, &data1))
+			break;
+		if (!ddc_read_1byte_nolock(HDCP_SLAVE, HDCP2_RXSTATUS + 1, &data2))
+			break;
+		/* pr_info("[hdcp22] rx_status %02hhx:%02hhx\n", data1, data2); */
+		hdcpSize = data1 | ((data2 & 3) << 8);
+		if (hdcpSize) {
+			pr_err("[hdcp22] forcely read 1 byte msg to reset and empty queue of RX\n");
+			ddc_read_1byte_nolock(HDCP_SLAVE, HDCP2_RD_MSG, &data2);
+		}
+	}
+
+	/* wait 100ms for HDCP22 TV controller restart work */
+	msleep_interruptible(100);
+	mutex_unlock(&ddc_mutex);
+}
+

@@ -42,6 +42,12 @@ static struct edid_venddat_t hdr_delay_id[] = {
 	/* Add new vendor data here */
 };
 
+static struct edid_venddat_t vendor_hdcp22_non_std_tv[] = {
+	/* Kogan KALED50XU9010SKA */
+	{ {0x63, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x1B} }
+	/* Add new vendor data here */
+};
+
 /* HDMIPLL_CTRL3/4 under 4k50/60hz 6G mode should use the setting
  * witch is used under 4k59.94hz, specailly for SAMSUNG UA55KS7300JXXZ
  * flash screen/no signal issue on SM1/SC2
@@ -117,6 +123,24 @@ bool hdmitx_find_hdr_pkt_delay_to_vsync(unsigned char *edid_buf)
 	for (i = 0; i < ARRAY_SIZE(hdr_delay_id); i++) {
 		if (memcmp(&edid_buf[8], hdr_delay_id[i].data,
 			sizeof(hdr_delay_id[i].data)) == 0)
+			return true;
+	}
+	return false;
+}
+
+/* hdcp2.2 non-standard TV, it's easily get hdp2.2 auth failed
+ * when switch mode, need to mask its hdcp2.2 & 4k capability,
+ * or use special workaround method to recover hdcp2.2 auth
+ */
+bool hdmitx_find_vendor_hdcp22_non_std(unsigned char *edid_buf)
+{
+	int i;
+
+	if (!edid_buf)
+		return false;
+	for (i = 0; i < ARRAY_SIZE(vendor_hdcp22_non_std_tv); i++) {
+		if (memcmp(&edid_buf[8], vendor_hdcp22_non_std_tv[i].data,
+		    sizeof(vendor_hdcp22_non_std_tv[i].data)) == 0)
 			return true;
 	}
 	return false;

@@ -3249,6 +3249,7 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	unsigned long adr = 0;
 	unsigned long value = 0;
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
+	u8 data;
 
 	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ')) {
 		tmpbuf[i] = buf[i];
@@ -3517,6 +3518,24 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	} else if (strncmp(tmpbuf, "hdcp_result", 11) == 0) {
 		HDMITX_INFO("hdcp result: hdcp22: %d topo: %d, hdcp14: %d\n",
 			hdmitx_hdcp_opr(7), hdmitx_hdcp_opr(0xe), hdmitx_hdcp_opr(2));
+	} else if (strncmp(tmpbuf, "tv_hdcp_rst", 11) == 0) {
+		pr_info("force poll and reset TV hdcp\n");
+		hdmitx_reset_tv_hdcp();
+	} else if (strncmp(tmpbuf, "hdcp_msg", 8) == 0) {
+		pr_info("force read 1byte hdcp msg\n");
+		ddc_read_1byte(HDCP_SLAVE, HDCP2_RD_MSG, &data);
+	} else if (strncmp(tmpbuf, "poll_en", 7) == 0) {
+		if (tmpbuf[7] == '0')
+			hdev->en_poll_rx_status = false;
+		else
+			hdev->en_poll_rx_status = true;
+		pr_info("reset hdcp by poll rx_status workaround enable:%d\n",
+			hdev->en_poll_rx_status);
+	} else if (strncmp(tmpbuf, "poll_rx_sts", 11) == 0) {
+		if (tmpbuf[11] == '0')
+			hdev->poll_rx_status_mtd = 0;
+		else
+			hdev->poll_rx_status_mtd = 1;
 	}
 }
 
