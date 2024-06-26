@@ -71,4 +71,9 @@ int printk_vendor_hook_init(void);
 void printk_vendor_hook_exit(void);
 #endif
 
+#if IS_ENABLED(CONFIG_ARM64_MTE)
+int aml_debug_mte_init(void);
+void aml_debug_mte_exit(void);
+#endif
+
 #endif /*_DEBUG_MAIN_H__*/

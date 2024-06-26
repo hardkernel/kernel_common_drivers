@@ -117,6 +117,11 @@
 		method = "smc";
 	};
 
+	mte_debug {
+		status = "okay";
+		reg = <0x0 0xfe010250 0x0 0x4>; /*SYSCTRL_DEBUG_REG4*/
+	};
+
 	meson_suspend:pm {
 		compatible = "amlogic, pm";
 		status = "disabled";
