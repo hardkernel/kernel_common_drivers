@@ -371,6 +371,10 @@ struct hdcp_t {
 	/* flag: csm already updated by single csm message */
 	bool csm_updated;
 	bool hdcp14_second_part_pass;
+	/* hdcp1.4 key only need to be loaded once when bootup/resume,
+	 * set this flag true after hdcp1.4 key loaded
+	 */
+	bool hdcp14_key_loaded;
 };
 
 /* hdcp related */
