@@ -58,6 +58,8 @@ static u32 di_pre_buf_count = 4;
 static u32 di_post_buf_count = 4;
 static u32 di_pre_buf_count_postlink = 7;
 static u32 compression_ratio_limit;
+static u32 di_rotate[DI_INSTANCE_COUNT];
+static u32 di_force_rotate;
 
 static DEFINE_MUTEX(di_process_mutex);
 
@@ -907,6 +909,9 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 	if (di_bypass) {
 		process_empty_done_buf(dev, buf);
 	} else {
+		dp_print(dev->index, PRINT_OTHER, "%s:rotate=%d.\n", __func__, dev->di_do_rotate);
+		if (dev->di_do_rotate)
+			private_data->vf.type_ext |= VIDTYPE_EXT_DI_DO_ROTATE;
 		/*not bypass and di vf include dec vf, need get dec file*/
 		dp_print(dev->index, PRINT_OTHER,
 			"%s: has dec vf, vf=%px, file=%px\n",
@@ -918,7 +923,6 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 			dp_print(dev->index, PRINT_OTHER, "no dw vf.\n");
 		}
 	}
-
 	dp_timeline_increase(dev, 1);
 	return 0;
 }
@@ -1017,6 +1021,15 @@ static int di_process_init(struct di_process_dev *dev)
 	dev->di_parm.ops.fill_output_done = dp_fill_output_done;
 	dev->di_parm.caller_data = (void *)dev;
 	dev->di_parm.buffer_keep = 1;
+
+	if (di_rotate[dev->index] == DI_BACKEND_TRANSFORM_90) {
+		dev->di_parm.work_mode = WORK_MODE_ROTATION;
+		dev->di_do_rotate = 1;
+	} else if (di_rotate[dev->index] == DI_BACKEND_TRANSFORM_270) {
+		dev->di_parm.work_mode = WORK_MODE_ROTATION_270;
+		dev->di_do_rotate = 1;
+	}
+
 	dev->di_index = di_create_instance(dev->di_parm);
 	if (dev->di_index < 0) {
 		dp_print(dev->index, PRINT_ERROR,
@@ -1234,6 +1247,9 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		goto error1;
 	}
 
+	if (di_force_rotate)
+		frame_info->transform = di_force_rotate;
+
 	dp_print(dev->index, PRINT_OTHER,
 		"%s: len =%d, fd=%d, omx_index=%d, file_vf=%px, file_count=%ld\n",
 		__func__, kfifo_len(&dev->receive_q), frame_info->in_fd, vf->omx_index,
@@ -1248,6 +1264,25 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		frame_info->need_bypass = true;
 		dp_put_file(dev, file_vf);
 		return 0;
+	}
+	if ((vf->type & VIDTYPE_COMPRESS) &&
+		di_rotate[dev->index] != frame_info->transform) {
+		switch (frame_info->transform) {
+		case DI_BACKEND_TRANSFORM_90:
+			di_rotate[dev->index] = DI_BACKEND_TRANSFORM_90;
+			break;
+		case DI_BACKEND_TRANSFORM_270:
+			di_rotate[dev->index] = DI_BACKEND_TRANSFORM_270;
+			break;
+		default:
+			di_rotate[dev->index] = 0;
+			break;
+		}
+		dp_print(dev->index, PRINT_ERROR,
+			"%s: di need do rotate %d,need reset!!!\n",
+			__func__, di_rotate[dev->index]);
+		dp_put_file(dev, file_vf);
+		return 2;
 	}
 
 	/*lcevc no need do di*/
@@ -2000,6 +2035,29 @@ static ssize_t compression_ratio_limit_store(struct class *cla,
 	return count;
 }
 
+static ssize_t di_force_rotate_show(struct class *class,
+				      struct class_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "%d\n", di_force_rotate);
+}
+
+static ssize_t di_force_rotate_store(struct class *cla,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	di_force_rotate = tmp;
+	return count;
+}
+
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RO(total_get_count);
 static CLASS_ATTR_RO(total_put_count);
@@ -2016,7 +2074,7 @@ static CLASS_ATTR_RW(di_pre_buf_count);
 static CLASS_ATTR_RW(di_post_buf_count);
 static CLASS_ATTR_RW(di_pre_buf_count_postlink);
 static CLASS_ATTR_RW(compression_ratio_limit);
-
+static CLASS_ATTR_RW(di_force_rotate);
 
 static struct attribute *di_process_class_attrs[] = {
 	&class_attr_print_flag.attr,
@@ -2035,6 +2093,7 @@ static struct attribute *di_process_class_attrs[] = {
 	&class_attr_di_post_buf_count.attr,
 	&class_attr_di_pre_buf_count_postlink.attr,
 	&class_attr_compression_ratio_limit.attr,
+	&class_attr_di_force_rotate.attr,
 	NULL
 };
 

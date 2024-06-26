@@ -2704,10 +2704,11 @@ static void vframe_composer(struct composer_dev *dev)
 
 	for (i = 0; i < count; i++) {
 		file_vf = received_frames->file_vf[vf_dev[i]];
-		fence_file = received_frames->fence_file[vf_dev[i]];
-		if (video_wait_file_fence(dev, fence_file) == 0)
-			continue;
-
+		if (i != 0) {
+			fence_file = received_frames->fence_file[vf_dev[i]];
+			if (video_wait_file_fence(dev, fence_file) == 0)
+				continue;
+		}
 		vframe_info_cur = vframe_info[vf_dev[i]];
 		if (!vframe_info_cur) {
 			vc_print(dev->index, PRINT_ERROR, "vframe_info_cur NULL\n");
@@ -3666,7 +3667,6 @@ static bool detect_composer_usage(struct composer_dev *dev,
 	int count;
 	u32 frame_transform = 0;
 	struct file *file_vf = NULL;
-	struct file *fence_file = NULL;
 	struct frames_info_t *frames_info = NULL;
 	struct frame_info_t *frame_info = NULL;
 	bool is_dec_vf = false, is_v4l_vf = false;
@@ -3695,25 +3695,34 @@ static bool detect_composer_usage(struct composer_dev *dev,
 		}
 	}
 
-	if (dev->output_duration >= 240 && dev->vinfo_w > 1920 && !*need_composer_ptr) {
-		vc_print(dev->index, PRINT_AXIS, "fps > 240, need composer.\n");
-		fence_file = received_frames->fence_file[0];
-		if (video_wait_file_fence(dev, fence_file) == 0)
-			return false;
-		frames_info = &received_frames->frames_info;
-		frame_info = frames_info->frame_info;
-		file_vf = received_frames->file_vf[0];
-		if (!file_vf) {
-			vc_print(dev->index, PRINT_ERROR, "file_vf is NULL\n");
+	frames_info = &received_frames->frames_info;
+	frame_info = frames_info->frame_info;
+	file_vf = received_frames->file_vf[0];
+	if (!file_vf) {
+		vc_print(dev->index, PRINT_ERROR, "file_vf is NULL\n");
+		return false;
+	}
+	detect_vf_type(frame_info, file_vf, &is_dec_vf, &is_v4l_vf);
+
+	if (is_dec_vf || is_v4l_vf) {
+		vf = get_vf_from_file(dev, file_vf, false);
+		if (!vf) {
+			vc_print(dev->index, PRINT_ERROR, "get NULL vf!!\n");
 			return false;
 		}
-		detect_vf_type(frame_info, file_vf, &is_dec_vf, &is_v4l_vf);
+	}
+	if (vf && (vf->type & VIDTYPE_DI_PW || vf->di_flag & DI_FLAG_DI_PVPPLINK)) {
+		vc_print(dev->index, PRINT_OTHER, "di_vf=%px type_ext=%x.\n", vf, vf->type_ext);
+		if (vf->type_ext & VIDTYPE_EXT_DI_DO_ROTATE && count == 1) {
+			*need_composer_ptr = false;
+			dev->need_rotate = false;
+			vc_print(dev->index, PRINT_OTHER, "di already do rotate, vc needn't do.\n");
+		}
+	}
+
+	if (dev->output_duration >= 240 && dev->vinfo_w > 1920 && !*need_composer_ptr) {
+		vc_print(dev->index, PRINT_AXIS, "fps > 240, need composer.\n");
 		if (is_dec_vf || is_v4l_vf) {
-			vf = get_vf_from_file(dev, file_vf, false);
-			if (!vf) {
-				vc_print(dev->index, PRINT_ERROR, "get NULL vf!!\n");
-				return false;
-			}
 			vc_print(dev->index, PRINT_OTHER,
 					 "%s vf_height:%d vf_com_height:%d\n",
 					 __func__, vf->height, vf->compHeight);
@@ -3969,6 +3978,10 @@ static void video_composer_task(struct composer_dev *dev)
 	if (count == 1)
 		frame_transform = received_frames->frames_info.frame_info[0].transform;
 
+	fence_file = received_frames->fence_file[0];
+	if (video_wait_file_fence(dev, fence_file) == 0)
+		return;
+
 	if (!detect_composer_usage(dev, received_frames, &need_composer, &do_mosaic_22)) {
 		vc_print(dev->index, PRINT_ERROR,
 			 "task: fail to get need_composer status.\n");
@@ -3976,9 +3989,6 @@ static void video_composer_task(struct composer_dev *dev)
 	}
 
 	if (!need_composer && !do_mosaic_22) {
-		fence_file = received_frames->fence_file[0];
-		if (video_wait_file_fence(dev, fence_file) == 0)
-			return;
 		frames_info = &received_frames->frames_info;
 		frame_info = frames_info->frame_info;
 		phy_addr = received_frames->phy_addr[0];

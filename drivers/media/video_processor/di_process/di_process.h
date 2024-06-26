@@ -45,6 +45,11 @@
 extern u32 dp_buf_mgr_print_flag;
 extern u32 di_proc_enable;
 
+enum di_backend_transform_t {
+	DI_BACKEND_TRANSFORM_90 = 4,
+	DI_BACKEND_TRANSFORM_270 = 7,
+};
+
 struct di_process_port_s {
 	const char *name;
 	u32 index;
@@ -62,7 +67,8 @@ struct frame_info_t {
 	u32 omx_index;
 	u32 need_bypass;
 	u32 is_tvp;
-	u32 reserved[14];
+	u32 transform;
+	u32 reserved[13];
 };
 
 struct received_frame_t {
@@ -113,6 +119,7 @@ struct di_process_dev {
 	bool di_is_tvp;
 	struct vframe_s last_vf;
 	bool cur_is_i;
+	bool di_do_rotate;
 };
 
 #define DI_PROCESS_IOC_MAGIC  'I'
