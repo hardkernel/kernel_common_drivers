@@ -150,5 +150,25 @@ struct aml_lcd_dccd_config_s {
 #define TCON_IOC_CMD_GET_CALC_STATUS \
 	_IOR(LCD_IOC_TYPE, TCON_IOC_GET_CALC_STATUS, unsigned int)
 
-#endif
+/* **********************************
+ * lcd_extern IOCTL define
+ * **********************************
+ */
+struct aml_lcd_extern_bin_s {
+	unsigned int dev_index;
+	unsigned int i2c_index;
+	unsigned int multi_id;
+	unsigned int bin_size;
+	union {
+		void *ptr;
+		long long ptr_length;
+	};
+};
 
+#define LCD_EXT_IOC_TYPE               'E'
+#define LCD_EXT_IOC_NR_SET_BIN         0x01
+
+#define LCD_EXT_IOC_CMD_SET_HDR_INFO   \
+	_IOW(LCD_EXT_IOC_TYPE, LCD_EXT_IOC_NR_SET_BIN, struct aml_lcd_extern_bin_s)
+
+#endif

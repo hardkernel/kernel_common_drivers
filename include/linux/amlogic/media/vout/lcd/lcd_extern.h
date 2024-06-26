@@ -125,6 +125,8 @@ struct lcd_extern_driver_s {
 	struct platform_device    *pdev;
 	struct device             *sub_dev;
 	struct delayed_work       dev_probe_dly_work;
+	/* 1: unlocked, 0: locked, negative: locked, possible waiters */
+	struct mutex power_mutex;
 };
 
 struct lcd_extern_driver_s *lcd_extern_get_driver(int drv_index);

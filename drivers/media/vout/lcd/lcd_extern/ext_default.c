@@ -110,9 +110,11 @@ static int lcd_extern_power_on(struct lcd_extern_driver_s *edrv,
 {
 	int ret;
 
+	mutex_lock(&edrv->power_mutex);
 	lcd_extern_pinmux_set(edrv, 1);
 	ret = lcd_extern_power_ctrl(edrv, edev, 1);
 	edev->state = 1;
+	mutex_unlock(&edrv->power_mutex);
 	return ret;
 }
 
@@ -121,9 +123,11 @@ static int lcd_extern_power_off(struct lcd_extern_driver_s *edrv,
 {
 	int ret;
 
+	mutex_lock(&edrv->power_mutex);
 	edev->state = 0;
 	ret = lcd_extern_power_ctrl(edrv, edev, 0);
 	lcd_extern_pinmux_set(edrv, 0);
+	mutex_unlock(&edrv->power_mutex);
 	return ret;
 }
 
