@@ -105,10 +105,11 @@ int unregister_freertos_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL(unregister_freertos_notifier);
 
-static int call_freertos_notifiers(unsigned long val, void *v)
+int call_freertos_notifiers(unsigned long val, void *v)
 {
 	return blocking_notifier_call_chain(&rtos_nofitier_chain, val, v);
 }
+EXPORT_SYMBOL_GPL(call_freertos_notifiers);
 #endif
 
 #if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS_MEMORY_FREE)

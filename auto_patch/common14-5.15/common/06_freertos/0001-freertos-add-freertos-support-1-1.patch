@@ -1,4 +1,4 @@
-From 7ab31fd1d624dff4d48434d232c18a32690447df Mon Sep 17 00:00:00 2001
+From 16f6ad0a94be466a597811e69558822f47ff759e Mon Sep 17 00:00:00 2001
 From: "wanwei.jiang" <wanwei.jiang@amlogic.com>
 Date: Mon, 28 Feb 2022 09:54:55 +0800
 Subject: [PATCH] freertos: add freertos support [1/1]
@@ -20,14 +20,14 @@ C2 T7
 Change-Id: Ib2b18fbcb026afa8df7654eac90355f080e9a74b
 Signed-off-by: wanwei.jiang <wanwei.jiang@amlogic.com>
 ---
- arch/arm/kernel/smp.c            | 19 +++++++++++++++++
+ arch/arm/kernel/smp.c            | 22 +++++++++++++++++++
  arch/arm64/kernel/smp.c          | 23 ++++++++++++++++++++
  drivers/irqchip/irq-gic-common.c | 36 ++++++++++++++++++++++++++++++++
  drivers/irqchip/irq-gic.c        | 20 +++++++++++++++++-
- 4 files changed, 97 insertions(+), 1 deletion(-)
+ 4 files changed, 100 insertions(+), 1 deletion(-)
 
 diff --git a/arch/arm/kernel/smp.c b/arch/arm/kernel/smp.c
-index f46317f6d8ce..86f17e8f6260 100644
+index f46317f6d8ce..5481187b3c57 100644
 --- a/arch/arm/kernel/smp.c
 +++ b/arch/arm/kernel/smp.c
 @@ -48,6 +48,10 @@
@@ -51,18 +51,21 @@ index f46317f6d8ce..86f17e8f6260 100644
  	/*
  	 * CPU_BACKTRACE is special and not included in NR_IPI
  	 * or tracable with trace_ipi_*
-@@ -679,6 +686,10 @@ static void do_handle_IPI(int ipinr)
+@@ -679,6 +686,13 @@ static void do_handle_IPI(int ipinr)
  		break;
  
  	case IPI_CPU_BACKTRACE:
 +#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
++#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS_NOFITIER) && IS_ENABLED(CONFIG_AMLOGIC_FREERTOS_C3)
++		call_freertos_notifiers(1, NULL);
++#endif
 +		if (!freertos_finish())
 +			break;
 +#endif
  		printk_deferred_enter();
  		nmi_cpu_backtrace(get_irq_regs());
  		printk_deferred_exit();
-@@ -763,6 +774,14 @@ void smp_send_reschedule(int cpu)
+@@ -763,6 +777,14 @@ void smp_send_reschedule(int cpu)
  	smp_cross_call(cpumask_of(cpu), IPI_RESCHEDULE);
  }
  
@@ -78,7 +81,7 @@ index f46317f6d8ce..86f17e8f6260 100644
  {
  	unsigned long timeout;
 diff --git a/arch/arm64/kernel/smp.c b/arch/arm64/kernel/smp.c
-index 7fec4e38e8e2..82b1fb0a8dfb 100644
+index 05623bda874a..011cf0e88b39 100644
 --- a/arch/arm64/kernel/smp.c
 +++ b/arch/arm64/kernel/smp.c
 @@ -56,6 +56,10 @@
@@ -140,7 +143,7 @@ index 7fec4e38e8e2..82b1fb0a8dfb 100644
  		pr_crit("CPU%u: Unknown IPI message 0x%x\n", cpu, ipinr);
  		break;
 diff --git a/drivers/irqchip/irq-gic-common.c b/drivers/irqchip/irq-gic-common.c
-index a610821c8ff2..496d591d54f2 100644
+index afd6a1841715..ad924faa25aa 100644
 --- a/drivers/irqchip/irq-gic-common.c
 +++ b/drivers/irqchip/irq-gic-common.c
 @@ -10,6 +10,10 @@
@@ -154,7 +157,7 @@ index a610821c8ff2..496d591d54f2 100644
  static DEFINE_RAW_SPINLOCK(irq_controller_lock);
  
  void gic_enable_of_quirks(const struct device_node *np,
-@@ -88,30 +92,62 @@ void gic_dist_config(void __iomem *base, int gic_irqs,
+@@ -94,30 +98,62 @@ void gic_dist_config(void __iomem *base, int gic_irqs,
  		     void (*sync_access)(void))
  {
  	unsigned int i;
@@ -218,10 +221,10 @@ index a610821c8ff2..496d591d54f2 100644
  	if (sync_access)
  		sync_access();
 diff --git a/drivers/irqchip/irq-gic.c b/drivers/irqchip/irq-gic.c
-index 50041c044a1a..2a879a249758 100644
+index a02bdad09318..111efcd5045d 100644
 --- a/drivers/irqchip/irq-gic.c
 +++ b/drivers/irqchip/irq-gic.c
-@@ -51,6 +51,10 @@
+@@ -48,6 +48,10 @@
  
  #include "irq-gic-common.h"
  
@@ -232,7 +235,7 @@ index 50041c044a1a..2a879a249758 100644
  #ifdef CONFIG_ARM64
  #include <asm/cpufeature.h>
  
-@@ -469,15 +473,21 @@ static void gic_cpu_if_up(struct gic_chip_data *gic)
+@@ -466,15 +470,21 @@ static void gic_cpu_if_up(struct gic_chip_data *gic)
  	writel_relaxed(bypass | mode | GICC_ENABLE, cpu_base + GIC_CPU_CTRL);
  }
  
@@ -255,7 +258,7 @@ index 50041c044a1a..2a879a249758 100644
  
  	/*
  	 * Set all global interrupts to this CPU only.
-@@ -485,8 +495,16 @@ static void gic_dist_init(struct gic_chip_data *gic)
+@@ -482,8 +492,16 @@ static void gic_dist_init(struct gic_chip_data *gic)
  	cpumask = gic_get_cpumask(gic);
  	cpumask |= cpumask << 8;
  	cpumask |= cpumask << 16;

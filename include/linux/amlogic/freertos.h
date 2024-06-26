@@ -15,7 +15,9 @@ u32 freertos_get_irqregval(u32 val, u32 oldval,
 			   unsigned int irqbase,
 			   unsigned int n);
 struct xrtosinfo_t *freertos_get_info(void);
-
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS_NOFITIER)
+int call_freertos_notifiers(unsigned long val, void *v);
+#endif
 #if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS_IPI_SEND)
 void arch_send_ipi_rtos(int cpu);
 #endif
