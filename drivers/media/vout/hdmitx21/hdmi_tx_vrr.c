@@ -836,13 +836,12 @@ int hdmitx_dump_vrr_status(struct seq_file *s, void *p)
 	return 0;
 }
 
+static struct vrr_conf_para vrr_para_tmp;
 static bool is_vrrconf_changed(struct vrr_conf_para *cur)
 {
-	static struct vrr_conf_para tmp;
-
 	/* compare the local variable tmp, update if different */
-	if (memcmp(&tmp, cur, sizeof(tmp))) {
-		hdmitx_get_vrr_params(&tmp);
+	if (memcmp(&vrr_para_tmp, cur, sizeof(vrr_para_tmp))) {
+		hdmitx_get_vrr_params(&vrr_para_tmp);
 		return 1;
 	}
 	return 0;
@@ -979,6 +978,32 @@ static void vrr_init_qms_para(struct tx_vrr_params *para)
 		vsync_match_to_tfr(para->mconst_val->duration));
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_BASE_VFRONT, brr_vfront);
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_BASE_REFRESH_RATE, brr_rate);
+}
+
+/* when exit game-vrr or qms-vrr, the MD of EMP will be set as 0 */
+static void hdmi_vrr_disable_emp_packet(struct tx_vrr_params *para)
+{
+	struct emp_packet_st *vrr_pkt;
+
+	if (!para)
+		return;
+
+	vrr_pkt = &para->emp_vrr_pkt;
+	memset(vrr_pkt, 0, sizeof(*vrr_pkt));
+	hdmi_emp_frame_set_member(vrr_pkt, CONF_HEADER_INIT, HDMI_INFOFRAME_TYPE_EMP);
+	hdmi_emp_frame_set_member(vrr_pkt, CONF_HEADER_FIRST, 1);
+	hdmi_emp_frame_set_member(vrr_pkt, CONF_HEADER_LAST, 1);
+	hdmi_emp_frame_set_member(vrr_pkt, CONF_HEADER_SEQ_INDEX, 0);
+	hdmi_emp_frame_set_member(vrr_pkt, CONF_DS_TYPE, 0);
+	hdmi_emp_frame_set_member(vrr_pkt, CONF_SYNC, 1);
+	hdmi_emp_frame_set_member(vrr_pkt, CONF_VFR, 1);
+	hdmi_emp_frame_set_member(vrr_pkt, CONF_AFR, 0);
+	hdmi_emp_frame_set_member(vrr_pkt, CONF_NEW, 0);
+	hdmi_emp_frame_set_member(vrr_pkt, CONF_END, 0);
+	hdmi_emp_frame_set_member(vrr_pkt, CONF_ORG_ID, 1);
+	hdmi_emp_frame_set_member(vrr_pkt, CONF_DATA_SET_TAG, 1);
+	hdmi_emp_frame_set_member(vrr_pkt, CONF_DATA_SET_LENGTH, 0);
+	hdmi_emp_infoframe_set(EMP_TYPE_VRR_GAME, vrr_pkt);
 }
 
 static void vrr_init_para(struct tx_vrr_params *para)
@@ -1465,6 +1490,7 @@ int hdmitx_set_fr_hint(int rate, void *data)
 	int tmp_rate;
 	struct hdmi_format_para *fmt_para = &hdev->tx_comm.fmt_para;
 
+	vrr_debug_info("%s[%d] rate %d\n", __func__, __LINE__, rate);
 	hdmitx_vrr_disable();
 
 	/* check current rate, should less or equal than current rate of BRR */
@@ -1476,6 +1502,17 @@ int hdmitx_set_fr_hint(int rate, void *data)
 		tmp_rate = 6000;
 	if (tmp_rate > 5990 * 2 && tmp_rate < 6010 * 2)
 		tmp_rate = 12000;
+	/* if rate is 0, then disable VRR packet */
+	if (rate == 0) {
+		/* When disable VRR, here must clear vrr_para_tmp.
+		 * So when enter VRR next time, vrr packet will be updated again
+		 */
+		memset(&vrr_para_tmp, 0, sizeof(vrr_para_tmp));
+		if (hdev->vrr_mode == T_VRR_QMS || hdev->vrr_mode == T_VRR_GAME)
+			hdmi_vrr_disable_emp_packet(&vrr_para);
+		HDMITX_INFO("disable VRR/EMP packet\n");
+		return 0;
+	}
 	if (rate < 2397 || rate > 12000 || rate > tmp_rate) {
 		HDMITX_INFO("vrr rate over range %d [2397~%d]\n", rate, tmp_rate);
 		return 0;
@@ -1548,6 +1585,7 @@ int hdmitx_set_fr_hint(int rate, void *data)
 
 	hdmitx_set_vrr_para(&para);
 	hdmitx_vrr_enable();
+	vrr_debug_info("%s[%d]\n", __func__, __LINE__);
 
 	return 1;
 }
