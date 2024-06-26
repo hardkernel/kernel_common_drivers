@@ -552,6 +552,7 @@
 		/*avout mute gpio*/
 		avout_mute-gpios = <&gpio GPIOH_4 GPIO_ACTIVE_HIGH>;
 		av_mute_sleep_time = <700>;
+
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
 			mclk-fs = <512>;
