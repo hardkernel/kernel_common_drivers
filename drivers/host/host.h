@@ -34,9 +34,10 @@ struct host_mfh;
 struct host_dsp;
 
 struct host_data {
-	struct miscdevice *misc;
+	struct miscdevice misc;
 	char name[20];
 	u8 hostid;
+	struct host_module *host;
 } __packed;
 
 struct dsp_info_t {
