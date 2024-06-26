@@ -7,6 +7,7 @@
 #include <linux/kfifo.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_tracer.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_event_mgr.h>
+#include <linux/amlogic/media/resource_mgr/resourcemanage.h>
 #include "hdmitx_log.h"
 
 #define HDMI_TRACE_SIZE (BIT(12)) /* 4k */
@@ -19,6 +20,50 @@ struct hdmitx_tracer {
 	/* to trigger userspace read fifo logs */
 	struct work_struct uevent_work;
 };
+
+/* hdmitx diagnostic information reporting function, see SWPL-164722 for details
+ * subModule
+ *   11: EERORMONITOR_SUBMODULE_HDMITX
+ * level
+ *   0: EERORMONITOR_ERROR_LEVEL_SERIOUS
+ *   1: EERORMONITOR_ERROR_LEVEL_NORMAL
+ *   2: EERORMONITOR_ERROR_LEVEL_SLIGHT
+ * logTyep
+ *   0: logcat
+ *   1: bugreport
+ *   3: logcat & bugreport
+ * errorType
+ *   5: AML_SYS_TYPE_DISP_HDMI_SETTING_ABNORMAL
+ *   6: AML_SYS_TYPE_DISP_HDMI_SHOW_ABNORMAL
+ *   7: AML_SYS_TYPE_DISP_HDMI_CEC_ABNORMAL
+ *   8: AML_SYS_TYPE_DISP_HDMI_HDCP_ABNORMAL
+ *
+ **/
+static void hdmitx_diagnostic_info(enum hdmitx_event_log_bits event)
+{
+	char base_info[100] = {"{\"subModule\":11,\"level\":2,\"logType\":1,\"errorType\":"};
+	char *msg_info = NULL;
+
+	switch (event) {
+	case HDMITX_HPD_PLUGOUT:
+		msg_info = "6,\"msg\":\"HDMITX_HPD_PLUGOUT\"}";
+		strcat(base_info, msg_info);
+		resman_notify_error_info(base_info);
+		break;
+	case HDMITX_HDCP_AUTH_FAILURE:
+		msg_info = "8,\"msg\":\"HDMITX_HDCP_AUTH_FAILURE\"}";
+		strcat(base_info, msg_info);
+		resman_notify_error_info(base_info);
+		break;
+	case HDMITX_EDID_HEAD_ERROR:
+		msg_info = "6,\"msg\":\"HDMITX_EDID_ERROR\"}";
+		strcat(base_info, msg_info);
+		resman_notify_error_info(base_info);
+		break;
+	default:
+		break;
+	}
+}
 
 const char *hdmitx_event_to_str(enum hdmitx_event_log_bits event)
 {
@@ -173,6 +218,7 @@ int hdmitx_tracer_write_event(struct hdmitx_tracer *tracer,
 	if (event & HDMITX_HDMI_ERROR_MASK)
 		HDMITX_ERROR("Record HDMI error: %s\n", hdmitx_event_to_str(event));
 
+	hdmitx_diagnostic_info(event);
 	log_str = hdmitx_event_to_str(event);
 	ret = kfifo_in(&tracer->log_fifo, log_str, strlen(log_str));
 	if (!ret)
