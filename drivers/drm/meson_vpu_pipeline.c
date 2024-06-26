@@ -16,14 +16,6 @@
 #include "meson_drv.h"
 #include "meson_vpu.h"
 
-static int flush_time = 3;
-__module_param(flush_time, int, 0664);
-MODULE_PARM_DESC(flush_time, "flush time");
-
-static int osd_slice_mode;
-__module_param(osd_slice_mode, int, 0664);
-MODULE_PARM_DESC(osd_slice_mode, "osd_slice_mode");
-
 #define MAX_LINKS 5
 #define MAX_PORTS 6
 #define MAX_PORT_ID 32
@@ -401,7 +393,7 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 	for (i = 0; i < MESON_MAX_CRTC; i++) {
 		mvsps = &mvps->sub_states[i];
 		mvsps->enable_blocks = 0;
-		if (osd_slice_mode)
+		if (am_drm_param.osd_slice_mode)
 			mvsps->more_60 = 1;
 	}
 
@@ -1024,6 +1016,7 @@ void vpu_pipeline_prepare_update(struct meson_vpu_pipeline *pipeline,
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	int vsync_active_begin, wait_cnt, cur_line, cur_col, line_threshold;
+	int flush_time_param = am_drm_param.flush_time;
 
 	/*for rdma, we need
 	 * 1. finish rdma table write before VACTIVE(last_VFP~VBP).
@@ -1032,7 +1025,7 @@ void vpu_pipeline_prepare_update(struct meson_vpu_pipeline *pipeline,
 	 */
 	vsync_active_begin = vpu_pipeline_get_active_begin_line(pipeline, crtc_index);
 	vpu_pipeline_read_scanout_pos(pipeline, &cur_line, &cur_col, crtc_index);
-	line_threshold = vdisplay * flush_time * vrefresh / 1000;
+	line_threshold = vdisplay * flush_time_param * vrefresh / 1000;
 	wait_cnt = 0;
 	while (cur_line >= vdisplay + vsync_active_begin - line_threshold ||
 			cur_line <= vsync_active_begin) {

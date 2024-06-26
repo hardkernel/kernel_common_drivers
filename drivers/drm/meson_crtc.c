@@ -21,10 +21,6 @@
 
 #define OSD_DUMP_PATH		"/tmp/osd_dump/"
 
-int crtc_force_hint;
-MODULE_PARM_DESC(crtc_force_hint, "\n force modesetting hint\n");
-__module_param(crtc_force_hint, int, 0644);
-
 int gamma_ctl = 1;
 int meson_gamma_ctl = -1;
 
@@ -814,9 +810,9 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	if (atomic_state->allow_modeset) {
 		/*apply state value not set from property.*/
 		DRM_DEBUG_KMS("%s force modeset.\n", __func__);
-		if (crtc_force_hint > 0) {
+		if (am_drm_param.crtc_force_hint > 0) {
 			crtc_state->mode_changed = true;
-			crtc_force_hint = 0;
+			am_drm_param.crtc_force_hint = 0;
 		}
 
 		if (cur_state->crtc_dv_enable != new_state->crtc_dv_enable)

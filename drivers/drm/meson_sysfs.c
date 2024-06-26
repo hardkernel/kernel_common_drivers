@@ -18,6 +18,7 @@
 #include "meson_vpu_pipeline.h"
 
 static const char vpu_group_name[] = "vpu";
+static const char module_param_group_name[] = "module_param";
 static const char osd0_group_name[] = "osd0";
 static const char osd1_group_name[] = "osd1";
 static const char osd2_group_name[] = "osd2";
@@ -32,6 +33,63 @@ u32 overwrite_reg[256];
 u32 overwrite_val[256];
 int overwrite_enable;
 int reg_num;
+
+#define AM_BIN_ATTR_MOD_PARAM_W_DEF(_name) \
+static ssize_t _name##_store(struct file *filp, struct kobject *kobj,	\
+			 struct bin_attribute *attr, char *buf, loff_t off,	\
+			 size_t count)	\
+{\
+	struct device *dev = kobj_to_dev(kobj);	\
+	struct drm_minor *minor = dev_get_drvdata(dev);	\
+	struct meson_drm *priv;	 \
+	int val;	\
+\
+	if (!minor || !minor->dev)	\
+		return -EINVAL;	\
+\
+	priv = minor->dev->dev_private;	\
+\
+	if (kstrtouint(buf, 10, &val) < 0)	\
+		return -EINVAL;	\
+\
+	 am_drm_param._name = val;	\
+\
+	return count;	\
+}
+
+#define AM_BIN_ATTR_MOD_PARAM_R_DEF(_name) \
+static ssize_t _name##_show(struct file *filp, struct kobject *kobj,	\
+			 struct bin_attribute *attr, char *buf, loff_t off,	\
+			 size_t count)	\
+{\
+	struct device *dev = kobj_to_dev(kobj);	\
+	struct drm_minor *minor = dev_get_drvdata(dev);	\
+	struct meson_drm *priv;	\
+	int pos = 0;	\
+\
+	if (!minor || !minor->dev)	\
+		return -EINVAL;	\
+	if (off > 0)	\
+		return 0;	\
+\
+	priv = minor->dev->dev_private;	\
+\
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,\
+	__stringify(_name) ": %d\n", am_drm_param._name);	\
+\
+	return pos;\
+}
+
+#define _AM_BIN_ATTR(_name, _mode, _show, _store)		\
+	{\
+		.attr = { .name = __stringify(_name), .mode = _mode },\
+		.read	= _show,	\
+		.write = _store,	\
+	},
+
+#define AM_BIN_ATTR_MOD_PARAM_RW(_name)	\
+		_AM_BIN_ATTR(_name, 0644, _name##_show, _name##_store)
+
 //EXPORT_SYMBOL_GPL(vpu_group_name);
 
 static u8 *am_meson_drm_vmap(ulong addr, u32 size, bool *bflg)
@@ -1296,6 +1354,41 @@ static const struct attribute_group osd_attr_group[MESON_MAX_OSDS] = {
 	},
 };
 
+AM_BIN_ATTR_MOD_PARAM_R_DEF(crtc_force_hint)
+AM_BIN_ATTR_MOD_PARAM_W_DEF(crtc_force_hint)
+AM_BIN_ATTR_MOD_PARAM_R_DEF(flush_time)
+AM_BIN_ATTR_MOD_PARAM_W_DEF(flush_time)
+AM_BIN_ATTR_MOD_PARAM_R_DEF(osd_slice_mode)
+AM_BIN_ATTR_MOD_PARAM_W_DEF(osd_slice_mode)
+AM_BIN_ATTR_MOD_PARAM_R_DEF(afbc_order_conf)
+AM_BIN_ATTR_MOD_PARAM_W_DEF(afbc_order_conf)
+AM_BIN_ATTR_MOD_PARAM_R_DEF(osdscaler_force_update)
+AM_BIN_ATTR_MOD_PARAM_W_DEF(osdscaler_force_update)
+AM_BIN_ATTR_MOD_PARAM_R_DEF(osdscaler_v_filter_mode)
+AM_BIN_ATTR_MOD_PARAM_W_DEF(osdscaler_v_filter_mode)
+AM_BIN_ATTR_MOD_PARAM_R_DEF(osdscaler_h_filter_mode)
+AM_BIN_ATTR_MOD_PARAM_W_DEF(osdscaler_h_filter_mode)
+AM_BIN_ATTR_MOD_PARAM_R_DEF(osd_hold_line)
+AM_BIN_ATTR_MOD_PARAM_W_DEF(osd_hold_line)
+AM_BIN_ATTR_MOD_PARAM_R_DEF(force_gfcd_mode)
+AM_BIN_ATTR_MOD_PARAM_W_DEF(force_gfcd_mode)
+
+static struct bin_attribute module_param_attr[] = {
+AM_BIN_ATTR_MOD_PARAM_RW(crtc_force_hint)
+AM_BIN_ATTR_MOD_PARAM_RW(flush_time)
+AM_BIN_ATTR_MOD_PARAM_RW(osd_slice_mode)
+AM_BIN_ATTR_MOD_PARAM_RW(afbc_order_conf)
+AM_BIN_ATTR_MOD_PARAM_RW(osdscaler_force_update)
+AM_BIN_ATTR_MOD_PARAM_RW(osdscaler_v_filter_mode)
+AM_BIN_ATTR_MOD_PARAM_RW(osdscaler_h_filter_mode)
+AM_BIN_ATTR_MOD_PARAM_RW(osd_hold_line)
+AM_BIN_ATTR_MOD_PARAM_RW(force_gfcd_mode)
+};
+
+static struct attribute_group module_param_group = {
+	.name = module_param_group_name,
+};
+
 static struct bin_attribute crtc0_attr[] = {
 	{
 		.attr.name = "blank",
@@ -1423,17 +1516,28 @@ int meson_drm_sysfs_register(struct drm_device *drm_dev)
 	int rc, i;
 	struct meson_drm *priv = drm_dev->dev_private;
 	struct device *dev = drm_dev->primary->kdev;
+	struct bin_attribute **module_param_bin_attrs;
 
 	rc = sysfs_create_group(&dev->kobj, &vpu_attr_group);
 
 	rc = sysfs_create_bin_file(&dev->kobj, &state_attr);
 	rc = sysfs_create_bin_file(&dev->kobj, &reg_dump_attr);
 
-	for (i = 0; i < MESON_MAX_OSDS; i++) {
-		if (!priv->pipeline->osds[i])
-			continue;
-		rc = sysfs_create_group(&dev->kobj, &osd_attr_group[i]);
+	module_param_bin_attrs = devm_kcalloc(dev, sizeof(struct bin_attribute *),
+			ARRAY_SIZE(module_param_attr) + 1, GFP_KERNEL); /* Zeroed */
+	if (module_param_bin_attrs) {
+		for (i = 0; i < ARRAY_SIZE(module_param_attr); i++)
+			module_param_bin_attrs[i] = &module_param_attr[i];
+
+		module_param_group.bin_attrs = module_param_bin_attrs;
+		rc = sysfs_create_group(&dev->kobj, &module_param_group);
+	} else {
+		DRM_ERROR("Failed to calloc param bin attrs!\n");
 	}
+
+	for (i = 0; i < priv->pipeline->num_osds; i++)
+		rc = sysfs_create_group(&dev->kobj, &osd_attr_group[i]);
+
 	for (i = 0; i < MESON_MAX_POSTBLEND; i++) {
 		if (!priv->pipeline->postblends[i])
 			continue;
@@ -1452,6 +1556,11 @@ void meson_drm_sysfs_unregister(struct drm_device *drm_dev)
 	sysfs_remove_group(&dev->kobj, &vpu_attr_group);
 	sysfs_remove_bin_file(&dev->kobj, &state_attr);
 	sysfs_remove_bin_file(&dev->kobj, &reg_dump_attr);
+
+	if (module_param_group.bin_attrs) {
+		sysfs_remove_group(&dev->kobj, &module_param_group);
+		module_param_group.bin_attrs = NULL;
+	}
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (!priv->pipeline->osds[i])

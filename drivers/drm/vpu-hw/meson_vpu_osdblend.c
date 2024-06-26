@@ -13,12 +13,10 @@
 #include "meson_osd_proc.h"
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 
-static int align_proc = 4;
-__module_param(align_proc, int, 0664);
-MODULE_PARM_DESC(align_proc, "align_proc");
-
 #define BLEND_DOUT_DEF_HSIZE 3840
 #define BLEND_DOUT_DEF_VSIZE 2160
+#define BLEND_DIN_WIDTH_2_PIXEL_ALIGN 2
+#define BLEND_DIN_WIDTH_4_PIXEL_ALIGN 4
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static int osd_enable[MESON_MAX_OSDS] = {1, 0, 1, 0};
@@ -665,6 +663,7 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 	struct osdblend_reg_s *reg = osdblend->reg;
 	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
 	struct osd_scope_s scope_default = {0xffff, 0xffff, 0xffff, 0xffff};
+	int align_proc;
 
 	MESON_DRM_BLOCK("%s set_state called.\n", osdblend->base.name);
 	mvobs = to_osdblend_state(state);
@@ -739,21 +738,11 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 			max_height = mvps->osd_scope_pre[i].v_end + 1;
 	}
 	/*sub blend size check*/
-	if (mvsps->more_4k)
-		align_proc = 2;
-	else
-		align_proc = 4;
+	align_proc = mvsps->more_4k ? BLEND_DIN_WIDTH_2_PIXEL_ALIGN :
+					BLEND_DIN_WIDTH_4_PIXEL_ALIGN;
 
-	if (align_proc == 4) {
-		mvobs->input_width[OSD_SUB_BLEND0] = ALIGN(max_width, 4);
-		mvobs->input_width[OSD_SUB_BLEND1] = ALIGN(max_width, 4);
-	} else if (align_proc == 2) {
-		mvobs->input_width[OSD_SUB_BLEND0] = ALIGN(max_width, 2);
-		mvobs->input_width[OSD_SUB_BLEND1] = ALIGN(max_width, 2);
-	} else {
-		mvobs->input_width[OSD_SUB_BLEND0] = max_width;
-		mvobs->input_width[OSD_SUB_BLEND1] = max_width;
-	}
+	mvobs->input_width[OSD_SUB_BLEND0] = ALIGN(max_width, align_proc);
+	mvobs->input_width[OSD_SUB_BLEND1] = ALIGN(max_width, align_proc);
 	mvobs->input_height[OSD_SUB_BLEND0] = max_height;
 	mvobs->input_height[OSD_SUB_BLEND1] = max_height;
 
@@ -860,6 +849,7 @@ static void t3x_osdblend_set_state(struct meson_vpu_block *vblk,
 	struct osd_zorder_s osdblend_t3x_din[MESON_MAX_OSDS] = {
 		{-1, -1}, {-1, -1}, {-1, -1}, {-1, -1}
 	};
+	int align_proc;
 
 	MESON_DRM_BLOCK("%s set_state called.\n", osdblend->base.name);
 	mvobs = to_osdblend_state(state);
@@ -935,21 +925,11 @@ static void t3x_osdblend_set_state(struct meson_vpu_block *vblk,
 			max_height = mvps->osd_scope_pre[i].v_end + 1;
 	}
 	/*sub blend size check*/
-	if (mvsps->more_4k)
-		align_proc = 2;
-	else
-		align_proc = 4;
+	align_proc = mvsps->more_4k ? BLEND_DIN_WIDTH_2_PIXEL_ALIGN :
+					BLEND_DIN_WIDTH_4_PIXEL_ALIGN;
 
-	if (align_proc == 4) {
-		mvobs->input_width[OSD_SUB_BLEND0] = ALIGN(max_width, 4);
-		mvobs->input_width[OSD_SUB_BLEND1] = ALIGN(max_width, 4);
-	} else if (align_proc == 2) {
-		mvobs->input_width[OSD_SUB_BLEND0] = ALIGN(max_width, 2);
-		mvobs->input_width[OSD_SUB_BLEND1] = ALIGN(max_width, 2);
-	} else {
-		mvobs->input_width[OSD_SUB_BLEND0] = max_width;
-		mvobs->input_width[OSD_SUB_BLEND1] = max_width;
-	}
+	mvobs->input_width[OSD_SUB_BLEND0] = ALIGN(max_width, align_proc);
+	mvobs->input_width[OSD_SUB_BLEND1] = ALIGN(max_width, align_proc);
 	mvobs->input_height[OSD_SUB_BLEND0] = max_height;
 	mvobs->input_height[OSD_SUB_BLEND1] = max_height;
 

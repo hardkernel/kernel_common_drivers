@@ -57,6 +57,7 @@
 
 static int skip_logo;
 int recovery_mode;
+struct meson_drm_param am_drm_param;
 
 static int check_reboot_mode(char *str)
 {
@@ -354,6 +355,10 @@ static int am_meson_drm_bind(struct device *dev)
 	 * - with irq_enabled = true, we can use the vblank feature.
 	 */
 	priv->irq_enabled = true;
+	am_drm_param.flush_time = 3;
+	am_drm_param.osdscaler_v_filter_mode = -1;
+	am_drm_param.osdscaler_h_filter_mode = -1;
+	am_drm_param.osd_hold_line = 0x08; /* same as VIU1_DEFAULT_HOLD_LINE in osd mif */
 
 	drm_kms_helper_poll_init(drm);
 

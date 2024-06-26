@@ -64,9 +64,6 @@ static u32 afbc_set_cnt;
 static u32 global_afbc_mask;
 static u32 afbc_err_cnt;
 static u32 afbc_err_irq_clear;
-static u32 afbc_order_conf;
-__module_param(afbc_order_conf, uint, 0664);
-MODULE_PARM_DESC(afbc_order_conf, "afbc order conf");
 
 static struct afbc_osd_reg_s afbc_osd_regs[MESON_MAX_OSDS] = {
 	{
@@ -405,8 +402,8 @@ static int afbc_pix_format(u32 fmt_mode)
 
 static u32 afbc_color_order(u32 fmt_mode)
 {
-	if (afbc_order_conf)
-		return afbc_order_conf;
+	if (am_drm_param.afbc_order_conf)
+		return am_drm_param.afbc_order_conf;
 
 	switch (fmt_mode) {
 	case DRM_FORMAT_BGRX8888:

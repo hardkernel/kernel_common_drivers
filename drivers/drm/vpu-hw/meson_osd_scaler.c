@@ -10,18 +10,6 @@
 #include "meson_osd_scaler.h"
 #include "meson_osd_afbc.h"
 
-static int osdscaler_force_update;
-__module_param(osdscaler_force_update, int, 0664);
-MODULE_PARM_DESC(osdscaler_force_update, "osdscaler_force_update");
-
-static int osdscaler_v_filter_mode = -1;
-__module_param(osdscaler_v_filter_mode, int, 0664);
-MODULE_PARM_DESC(osdscaler_v_filter_mode, "osdscaler_v_filter_mode");
-
-static int osdscaler_h_filter_mode = -1;
-__module_param(osdscaler_h_filter_mode, int, 0664);
-MODULE_PARM_DESC(osdscaler_h_filter_mode, "osdscaler_h_filter_mode");
-
 static struct osd_scaler_reg_s osd_scaler_reg[HW_OSD_SCALER_NUM] = {
 	{
 		VPP_OSD_SCALE_COEF_IDX,
@@ -752,6 +740,8 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 	u32 *coef_h, *coef_v;
 	u64 phase_step_v, phase_step_h;
 	bool scaler_enable;
+	int v_filter_mode_param = am_drm_param.osdscaler_v_filter_mode;
+	int h_filter_mode_param = am_drm_param.osdscaler_h_filter_mode;
 
 	if (width_in == width_out && height_in == height_out &&
 	    version > OSD_V2 && version < OSD_V7)
@@ -838,12 +828,12 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 		coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
 		coef_v = osd_scaler_filter_table[COEFS_BICUBIC];
 	}
-	if (osdscaler_v_filter_mode != -1 &&
-	    osdscaler_v_filter_mode < COEFS_MAX)
-		coef_v = osd_scaler_filter_table[osdscaler_v_filter_mode];
-	if (osdscaler_h_filter_mode != -1 &&
-	    osdscaler_h_filter_mode < COEFS_MAX)
-		coef_h = osd_scaler_filter_table[osdscaler_h_filter_mode];
+	if (v_filter_mode_param != -1 &&
+	    v_filter_mode_param < COEFS_MAX)
+		coef_v = osd_scaler_filter_table[v_filter_mode_param];
+	if (h_filter_mode_param != -1 &&
+	    h_filter_mode_param < COEFS_MAX)
+		coef_h = osd_scaler_filter_table[h_filter_mode_param];
 
 	/*input size config*/
 	osd_sc_in_h_set(vblk, reg_ops, reg, height_in);
@@ -957,7 +947,7 @@ void scaler_filter_mode_check(struct meson_vpu_block *vblk,
 
 	if (scaler_state->scaler_filter_mode != scaling_filter_mode) {
 		scaler_state->scaler_filter_mode = scaling_filter_mode;
-		osdscaler_force_update = 1;
+		am_drm_param.osdscaler_force_update = 1;
 	}
 }
 
@@ -1004,10 +994,10 @@ static void scaler_set_state(struct meson_vpu_block *vblk,
 	scan_mode_check(vblk->pipeline, scaler_state);
 	scaler_filter_mode_check(vblk, scaler_state, mvps);
 	MESON_DRM_BLOCK("scaler_state=0x%x\n", scaler_state->state_changed);
-	if (scaler_state->state_changed || osdscaler_force_update) {
+	if (scaler_state->state_changed || am_drm_param.osdscaler_force_update) {
 		osd_scaler_config(reg, scaler_state, vblk, state->sub->reg_ops);
 		scaler_state->state_changed = 0;
-		osdscaler_force_update = 0;
+		am_drm_param.osdscaler_force_update = 0;
 	}
 	MESON_DRM_BLOCK("scaler%d input/output w/h[%d, %d, %d, %d].\n",
 		  scaler->base.index,

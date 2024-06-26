@@ -28,10 +28,6 @@
 
 u32 frame_seq[MESON_MAX_OSDS];
 
-static int osd_hold_line = VIU1_DEFAULT_HOLD_LINE;
-__module_param(osd_hold_line, int, 0664);
-MODULE_PARM_DESC(osd_hold_line, "osd_hold_line");
-
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 u32 original_swap_t3x[HW_OSD_MIF_NUM];
 u32 original_osd1_fifo_ctrl_stat_t3x[HW_OSD_MIF_NUM];
@@ -1449,7 +1445,7 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 		/*for multi-vpp, the vpp1 default is 4*/
 		hold_line = osd->viu2_hold_line;
 	else
-		hold_line = osd_hold_line;
+		hold_line = am_drm_param.osd_hold_line;
 
 	flush_reg = osd_check_config(mvos, old_mvos);
 	MESON_DRM_BLOCK("flush_reg-%d index-%d\n", flush_reg, vblk->index);

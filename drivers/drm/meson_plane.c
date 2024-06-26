@@ -23,18 +23,6 @@
 #include "meson_gem.h"
 #include "meson_logo.h"
 
-static int force_gfcd_mode;
-module_param(force_gfcd_mode, int, 0664);
-MODULE_PARM_DESC(force_gfcd_mode, "force_gfcd_mode");
-
-static int force_dst_w;
-module_param(force_dst_w, int, 0664);
-MODULE_PARM_DESC(force_dst_w, "force_dst_w");
-
-static int force_dst_h;
-module_param(force_dst_h, int, 0664);
-MODULE_PARM_DESC(force_dst_h, "force_dst_h");
-
 static u64 afbc_modifier[] = {
 	/*
 	 * - TOFIX Support AFBC modifiers for YUV formats (16x16 + TILED)
@@ -367,10 +355,6 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 	plane_info->dst_w = state->crtc_w;
 	plane_info->dst_h = state->crtc_h;
 
-	if (force_dst_w)
-		plane_info->dst_w = force_dst_w;
-	if (force_dst_h)
-		plane_info->dst_h = force_dst_h;
 	plane_info->rotation = state->rotation;
 	DRM_DEBUG("original destination: dst_x=%d, dst_y=%d, dst_w=%d, dst_h=%d\n",
 		plane_info->dst_x, plane_info->dst_y, plane_info->dst_w, plane_info->dst_h);
@@ -735,7 +719,7 @@ static int meson_plane_get_fb_info(struct drm_plane *plane,
 
 			plane_info->process_unit = GFCD_AFRC;
 		} else {
-			if (force_gfcd_mode) {
+			if (am_drm_param.force_gfcd_mode) {
 				plane_info->process_unit = GFCD_AFBC;
 			} else {
 				plane_info->afbc_en = 1;

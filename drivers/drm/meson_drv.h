@@ -82,6 +82,20 @@ struct meson_of_conf {
 	u32 force_slice;
 };
 
+struct meson_drm_param {
+	int crtc_force_hint;
+	int flush_time;
+	int osd_slice_mode;
+	u32 afbc_order_conf;
+	int osdscaler_force_update;
+	int osdscaler_v_filter_mode;
+	int osdscaler_h_filter_mode;
+	int osd_hold_line;
+	int force_gfcd_mode;
+};
+
+extern struct meson_drm_param am_drm_param;
+
 struct meson_drm {
 	struct device *dev;
 
