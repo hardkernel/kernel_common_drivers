@@ -1120,8 +1120,10 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 1, 19, 1);
 		return;
 	}
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) { //s7 todo
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7) {
 		set_hdmitx_s7_htx_pll(hdev);
+		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->sspll)
+			set_hpll_sspll(vic);
 		if (hdev->tx_hw.s7_clk_config)
 			return;
 		if (cs != HDMI_COLORSPACE_YUV422) {
@@ -1135,7 +1137,7 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 		clocks_set_vid_clk_div_for_hdmi(clk_div_val);
 		return;
 	}
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) { //s7d todo
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) {
 		set_hdmitx_s7d_htx_pll(hdev);
 		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->sspll)
 			set_hpll_sspll(vic);
