@@ -24,6 +24,9 @@ static int __init debug_main_init(void)
 	call_sub_init(aml_sched_init);
 	call_sub_init(aml_kprobes_init);
 	call_sub_init(aml_isolcpus_init);
+#if IS_ENABLED(CONFIG_ARM64_MTE)
+	call_sub_init(aml_debug_mte_init);
+#endif
 	pr_debug("### %s() end\n", __func__);
 	return 0;
 }
@@ -33,6 +36,9 @@ static void __exit debug_main_exit(void)
 	debug_file_exit();
 #if IS_MODULE(CONFIG_AMLOGIC_DEBUG_PRINTK)
 	printk_vendor_hook_exit();
+#endif
+#if IS_ENABLED(CONFIG_ARM64_MTE)
+	aml_debug_mte_exit();
 #endif
 }
 
