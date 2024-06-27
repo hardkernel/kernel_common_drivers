@@ -94,9 +94,8 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type);
 /*****************************************************/
 /*****************************************************/
 /*****************************************************/
-//void rdma_config_enable(u8 chan_id, int enable,
 void rdma_config_enable(struct chan_id *pchan, int enable,
-			unsigned int desc, unsigned int total_size,
+			unsigned long desc, unsigned int total_size,
 			unsigned int len, unsigned int pack_len);
 void rdma_config_ready(u8 chan_id);
 void rdma_clean(u8 chan_id);
@@ -106,7 +105,7 @@ void rdma_config_sync_num(unsigned int sync_num);
 unsigned int rdma_get_status(u8 chan_id);
 unsigned int rdma_get_len(u8 chan_id);
 unsigned int rdma_get_rd_len(u8 chan_id);
-unsigned int rdma_get_ptr(u8 chan_id);
+u64 rdma_get_rptr(u8 chan_id);
 unsigned int rdma_get_pkt_sync_status(u8 chan_id);
 unsigned int rdma_get_ready(u8 chan_id);
 unsigned int rdma_get_err(void);
@@ -119,13 +118,12 @@ unsigned int rdma_get_cfg_fifo(void);
 /*****************************************************/
 /*****************************************************/
 void wdma_clean(u8 chan_id);
-//void wdma_config_enable(u8 chan_id, int enable,
 void wdma_config_enable(struct chan_id *pchan, int enable,
-			unsigned int desc, unsigned int total_size,
+			unsigned long desc, unsigned int total_size,
 			int sid, int pid, int sec_level);
 
 void wdam_config_ready(u8 chan_id);
-unsigned int wdma_get_wptr(u8 chan_id);
+u64 wdma_get_wptr(u8 chan_id);
 unsigned int wdma_get_wcmdcnt(u8 chan_id);
 unsigned int wdma_get_active(u8 chan_id);
 unsigned int wdma_get_done(u8 chan_id);

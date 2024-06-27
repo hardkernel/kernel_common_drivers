@@ -11,15 +11,17 @@
 #endif
 
 union mem_desc {
-	u64 data;
+	u64 data[2];
 	struct {
 		u64 byte_length:27;	// 26:0
 		u64 irq:1;	// 27 not used
-		u64 eoc:1;	// 28 not used
+		u64 eoc:1;	// 28
 		u64 loop:1;	// 29
 		u64 error:1;	// 30 not used
 		u64 owner:1;	// 31 not used
-		u64 address:32;	// 63:32
+		u64 address_low:32;	// 63:32
+		u64 address_high:2;	// 65:64
+		u64 reserved:62;	// 127:66 reserved
 	} bits;
 };
 
@@ -34,7 +36,7 @@ struct chan_id {
 	unsigned int mem_size;
 	int sec_level;
 	union mem_desc *memdescs;
-	unsigned int memdescs_phy;
+	unsigned long memdescs_phy;
 	unsigned int r_offset;
 	unsigned int pts_newest_r_offset;
 	unsigned long memdescs_map;
