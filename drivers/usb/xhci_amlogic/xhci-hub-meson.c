@@ -2069,6 +2069,7 @@ int aml_xhci_bus_resume(struct usb_hcd *hcd)
 			spin_unlock_irqrestore(&xhci->lock, flags);
 			aml_xhci_resume(xhci, 0);
 			spin_lock_irqsave(&xhci->lock, flags);
+			continue;
 		}
 #else
 		if (sret) {
@@ -2092,6 +2093,7 @@ int aml_xhci_bus_resume(struct usb_hcd *hcd)
 	temp = readl(&xhci->op_regs->command);
 
 	spin_unlock_irqrestore(&xhci->lock, flags);
+
 	return 0;
 }
 
