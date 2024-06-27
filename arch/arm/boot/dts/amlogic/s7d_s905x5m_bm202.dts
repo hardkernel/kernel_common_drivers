@@ -814,6 +814,14 @@
 	status = "okay";
 };
 
+&CPU0 {
+	#cooling-cells = <2>;
+	operating-points-v2 = <&cpu_opp_table0>,
+				<&cpu_opp_table1>,
+				<&cpu_opp_table2>,
+				<&cpu_opp_table3>;
+};
+
 &periphs_pinctrl {
 	dvb_s_ts0_pins: dvb_s_ts0_pins {
 		tsin_a {
