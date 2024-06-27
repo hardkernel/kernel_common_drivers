@@ -173,6 +173,7 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->attr_changed = false;
 	new_state->brr_update = false;
 	new_state->brr = cur_state->brr;
+	new_state->seamless = false;
 	strncpy(new_state->brr_mode, cur_state->brr_mode, DRM_DISPLAY_MODE_LEN);
 	new_state->crtc_bgcolor_flag = cur_state->crtc_bgcolor_flag;
 	new_state->crtc_bgcolor = cur_state->crtc_bgcolor;
@@ -444,6 +445,7 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tvrr_enabled=%u\n", state->vrr_enabled);
 	drm_printf(p, "\t\tbrr_mode=%s\n", cstate->brr_mode);
 	drm_printf(p, "\t\tbrr=%u\n", cstate->brr);
+	drm_printf(p, "\t\tseamless=%d\n", cstate->seamless);
 	drm_printf(p, "\t\tuboot_mode_init=%u\n", cstate->uboot_mode_init);
 	drm_printf(p, "\t\tcrtc_hdr_policy:[%u,%u]\n",
 		cstate->crtc_hdr_process_policy,
@@ -600,6 +602,62 @@ static bool am_meson_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
+static int meson_crtc_seamless_change(struct drm_crtc *crtc, struct drm_atomic_state *state)
+{
+	char *brr_name;
+	struct drm_crtc_state *new_state, *old_state;
+	struct drm_display_mode *new_mode, *old_mode;
+	struct am_meson_crtc_state *meson_crtc_state, *old_crtc_state;
+
+	new_state = drm_atomic_get_new_crtc_state(state, crtc);
+	old_state = drm_atomic_get_old_crtc_state(state, crtc);
+
+	if (!new_state || !old_state) {
+		DRM_INFO("%s crtc state is NULL!\n", __func__);
+		return 0;
+	}
+	new_mode = &new_state->adjusted_mode;
+	old_mode = &old_state->adjusted_mode;
+	meson_crtc_state = to_am_meson_crtc_state(new_state);
+	old_crtc_state = to_am_meson_crtc_state(old_state);
+
+	if (new_mode->hdisplay != old_mode->hdisplay ||
+		new_mode->vdisplay != old_mode->vdisplay ||
+		meson_crtc_state->attr_changed ||
+		meson_crtc_state->brr_update ||
+		(new_mode->flags & DRM_MODE_FLAG_INTERLACE))
+		return meson_crtc_state->seamless;
+
+	if (new_state->vrr_enabled) {
+		if (old_state->vrr_enabled) {
+			/*qms->qms*/
+			meson_crtc_state->seamless = true;
+		} else {
+			/*allm -> qms, new vrr_enable 1，brr_update 0*/
+			brr_name = meson_crtc_state->brr_mode;
+			if (!strcmp(old_mode->name, brr_name))
+				meson_crtc_state->seamless = true;
+			else
+				meson_crtc_state->seamless = false;
+		}
+	} else {
+		if (old_state->vrr_enabled) {
+			/*qms->allm*/
+			brr_name = old_crtc_state->brr_mode;
+			if (!strcmp(old_mode->name, brr_name) &&
+				!strcmp(new_mode->name, brr_name))
+				meson_crtc_state->seamless = true;
+			else
+				meson_crtc_state->seamless = false;
+		} else {
+			/*none qms-> none qms*/
+			meson_crtc_state->seamless = false;
+		}
+	}
+
+	return meson_crtc_state->seamless;
+}
+
 static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 					struct drm_atomic_state *old_atomic_state)
 {
@@ -714,12 +772,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		if (meson_crtc_state->uboot_mode_init)
 			mode |= VMODE_INIT_BIT_MASK;
 
-		if (crtc->state->vrr_enabled &&
-			adjusted_mode->hdisplay == old_mode->hdisplay &&
-			adjusted_mode->vdisplay == old_mode->vdisplay &&
-			!meson_crtc_state->attr_changed &&
-			!meson_crtc_state->brr_update &&
-			!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
+		if (meson_crtc_state->seamless) {
 			drm_crtc_vblank_on(crtc);
 			return;
 		}
@@ -743,9 +796,7 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 						struct drm_atomic_state *old_atomic_state)
 {
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
-	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	struct drm_crtc_state *old_crtc_state;
-	struct drm_display_mode *old_mode;
 	struct am_meson_crtc_state *meson_crtc_state =
 		to_am_meson_crtc_state(crtc->state);
 	enum vmode_e mode;
@@ -757,18 +808,7 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 		return;
 	}
 
-	old_mode = &old_crtc_state->adjusted_mode;
 	drm_crtc_vblank_off(crtc);
-
-	if (crtc->state->vrr_enabled &&
-		adjusted_mode->hdisplay == old_mode->hdisplay &&
-		adjusted_mode->vdisplay == old_mode->vdisplay &&
-		!meson_crtc_state->attr_changed &&
-		!meson_crtc_state->brr_update &&
-		!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
-		DRM_INFO("%s, vrr enable, skip crtc disable\n", __func__);
-		return;
-	}
 
 	if (crtc->state->event && !crtc->state->active) {
 		spin_lock_irq(&crtc->dev->event_lock);
@@ -776,6 +816,12 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 		spin_unlock_irq(&crtc->dev->event_lock);
 		crtc->state->event = NULL;
 	}
+
+	if (meson_crtc_seamless_change(crtc, old_atomic_state)) {
+		DRM_INFO("skip set vmode to null\n");
+		return;
+	}
+
 #ifdef CONFIG_AMLOGIC_LCD
 	/*0=tv, 1=tablet, 2=invalid*/
 	if ((meson_crtc_state->vmode & VMODE_MASK) == VMODE_LCD &&
