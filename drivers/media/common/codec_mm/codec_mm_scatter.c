@@ -34,6 +34,7 @@
 
 #include "codec_mm_priv.h"
 #include "codec_mm_scatter_priv.h"
+#include "codec_mm_sys_priv.h"
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_CODEC_MM
 #include <trace/events/meson_atrace.h>
 
@@ -1002,22 +1003,63 @@ static int codec_mm_page_free_to_slot(struct codec_mm_scatter_mgt *smgt,
 	return 0;
 }
 
-static int codec_mm_page_alloc_from_one_pages(struct codec_mm_scatter_mgt *smgt,
-					      phy_addr_type *pages, int num)
+#define MAX_PAGE_ALLOC_ONCE 4096
+struct page *page_array[MAX_PAGE_ALLOC_ONCE];
+static DEFINE_MUTEX(alloc_page_array_mutex);
+
+static int multi_task_alloc_pages(struct codec_mm_scatter_mgt *smgt,
+			unsigned long nr_pages, phy_addr_type *pages, gfp_t gfp)
 {
-	int neednum = num;
+	int neednum = nr_pages;
 	int alloced = 0;
+	int idx;
 
 	while (neednum > 0) {	/*one page  alloc */
+		ulong paddr;
+		page_sid_type sid;
+		int page_num = MIN(neednum, MAX_PAGE_ALLOC_ONCE);
+		ulong ret = -1;
+
+		mutex_lock(&alloc_page_array_mutex);
+		ret = aml_alloc_pages_array(gfp, page_num, page_array);
+		if (!ret) {
+			for (idx = 0; idx < page_num; idx++) {
+				paddr = page_to_phys(page_array[idx]);
+				sid = ONE_PAGE_SID;
+				paddr |= sid;
+				pages[alloced++] = paddr;
+				neednum--;
+
+				/* Invalidate range of cache lines. */
+				dma_sync_single_for_device(smgt->dev,
+					page_to_phys(page_array[idx]),
+					PAGE_SIZE,
+					DMA_FROM_DEVICE);
+			}
+		} else {
+			/*can't alloced memory from ONEPAGE alloc */
+			WAR_LOG("Out of memory OnePage alloc =%d,%ld\n",
+				alloced, nr_pages);
+			break;
+		}
+		mutex_unlock(&alloc_page_array_mutex);
+	}
+
+	return alloced;
+}
+
+static int single_task_alloc_pages(struct codec_mm_scatter_mgt *smgt,
+			unsigned long nr_pages, phy_addr_type *pages, gfp_t gfp)
+{
+	int neednum = nr_pages;
+	int alloced = 0;
+
+	while (neednum > 0) {	/*one page	alloc */
 		void *vpage;
 		ulong page;
 		page_sid_type sid;
 
-		if (smgt->config_alloc_flags & SC_ALLOC_SYS_DMA32) {
-			vpage = (void *)__get_free_page(GFP_KERNEL | GFP_DMA32);
-		} else {
-			vpage = (void *)__get_free_page(GFP_KERNEL);
-		}
+		vpage = (void *)__get_free_page(gfp);
 		if (vpage) {
 			page = virt_to_phys(vpage);
 			sid = ONE_PAGE_SID;
@@ -1032,16 +1074,35 @@ static int codec_mm_page_alloc_from_one_pages(struct codec_mm_scatter_mgt *smgt,
 				DMA_FROM_DEVICE);
 		} else {
 			/*can't alloced memory from ONEPAGE alloc */
-			WAR_LOG("Out of memory OnePage alloc =%d,%d\n",
-				alloced, num);
+			WAR_LOG("Out of memory OnePage alloc =%d,%ld\n",
+				alloced, nr_pages);
 			break;
 		}
 	}
+
+	return alloced;
+}
+
+int scatter_muilt_alloc = 1;
+
+static int codec_mm_page_alloc_from_one_pages(struct codec_mm_scatter_mgt *smgt,
+					      phy_addr_type *pages, int num)
+{
+	int alloced = 0;
+	gfp_t gfp = (smgt->config_alloc_flags & SC_ALLOC_SYS_DMA32) ?
+				(GFP_KERNEL | GFP_DMA32) : GFP_KERNEL;
+
+	if (scatter_muilt_alloc)
+		alloced = multi_task_alloc_pages(smgt, num, pages, gfp);
+	else
+		alloced = single_task_alloc_pages(smgt, num, pages, gfp);
+
 	codec_mm_list_lock(smgt);
 	smgt->total_page_num += alloced;
 	smgt->one_page_cnt += alloced;
 	smgt->alloced_page_num += alloced;
 	codec_mm_list_unlock(smgt);
+
 	return alloced;
 }
 
@@ -3231,6 +3292,7 @@ static struct mconfig codec_mm_sc_configs[] = {
 	MC_PU32("watermark_for_high", &g_scatter.watermark_for_high),
 	MC_PU32("scatter_align_pages_size", &scatter_align_pages_size),
 	MC_PU32("scatter_swap_threshold_size_M", &scatter_swap_threshold_size),
+	MC_PU32("scatter_muilt_alloc", &scatter_muilt_alloc),
 };
 
 static struct mconfig_node codec_mm_sc;

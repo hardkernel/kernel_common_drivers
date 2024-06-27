@@ -55,6 +55,7 @@ unsigned char get_meson_cpu_version(int level)
 #include "codec_mm_scatter_priv.h"
 #include "codec_mm_keeper_priv.h"
 #include "codec_mm_track_priv.h"
+#include "codec_mm_sys_priv.h"
 #include <linux/highmem.h>
 #include <linux/page-flags.h>
 #include <linux/vmalloc.h>
@@ -112,7 +113,17 @@ void (*aml_mte_sync_tags)(pte_t old_pte, pte_t pte);
 
 struct mm_struct *aml_init_mm;
 
+long (*aml_sched_setaffinity)(pid_t pid, const struct cpumask *in_mask);
+
 struct device *codec_dev;
+
+long __nocfi codec_sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
+{
+	if (aml_sched_setaffinity)
+		return aml_sched_setaffinity(pid, in_mask);
+	pr_err("aml_sched_setaffinity not fount:%px\n", aml_sched_setaffinity);
+	return -1;
+}
 
 #ifdef CONFIG_ARM64
 static void aml_set_pte_at(struct mm_struct *mm, unsigned long addr,
@@ -4062,6 +4073,11 @@ int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
 	}
 	aml_mte_sync_tags = (void (*)(pte_t old_pte, pte_t pte))aml_syms_lookup("mte_sync_tags");
 	pr_info("aml_init_mm: %px, aml_mte_sync_tags: %px\n", aml_init_mm, aml_mte_sync_tags);
+
+	aml_sched_setaffinity =
+		(long (*)(pid_t pid, const struct cpumask *in_mask))
+					aml_syms_lookup("sched_setaffinity");
+	pr_info("aml_sched_setaffinity: %px", aml_sched_setaffinity);
 #endif
 
 	cma = dev_get_cma_area(codec_dev);
@@ -4082,6 +4098,8 @@ int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
 	/* spin_unlock_irqrestore(&cma->lock, flags); */
 	mutex_unlock(&lock);
 	cma_release(cma, page, cma->count);
+
+	init_alloc_page_boost_task();
 	return 0;
 }
 #endif
@@ -4194,6 +4212,7 @@ static int codec_mm_probe(struct platform_device *pdev)
 	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK)
 	kthread_run(get_mte_sync_tags_hook_kprobe, NULL, "AML_CODEC_MM");
 #endif
+
 	return 0;
 }
 
