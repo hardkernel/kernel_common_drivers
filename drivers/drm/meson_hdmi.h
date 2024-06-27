@@ -70,6 +70,7 @@ struct am_hdmi_tx {
 	struct drm_property *dv_cap_property;
 	struct drm_property *hdcp_ver_prop;
 	struct drm_property *hdcp_mode_property;
+	struct drm_property *hdcp_topo_property;
 	struct drm_property *hdr_priority_prop;
 	struct drm_property *contenttype_cap_prop;
 	struct drm_property *allm_prop;
