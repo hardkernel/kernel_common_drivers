@@ -1540,7 +1540,7 @@
 
 			pwm_AO_cd: pwm@2000 {
 				compatible = "amlogic,meson-g12a-ao-pwm-cd";
-				reg = <0x7000 0x20>;
+				reg = <0x2000 0x20>;
 				#pwm-cells = <3>;
 				clocks = <&xtal>,
 					<&xtal>,
