@@ -812,6 +812,9 @@ static void amdolby_vision_proc
 void vsync_rdma_process(void)
 {
 	int ret;
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+	int i;
+#endif
 
 	ret = vsync_rdma_config();
 	if (ret == 1) {
@@ -820,6 +823,20 @@ void vsync_rdma_process(void)
 		vd_layer[1].property_changed = true;
 		vd_layer[2].property_changed = true;
 	}
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+	for (i = 0; i < MAX_VD_LAYER; i++) {
+		if (vd_layer[i].dispbuf) {
+			ATRACE_COUNTER("vpp_omx_index_end",
+				       vd_layer[i].dispbuf->omx_index);
+			ATRACE_COUNTER("vpp_omx_index_end", 0);
+			ATRACE_COUNTER("vpp_timestamp_end",
+				       (unsigned long)
+				       div_u64(vd_layer[i].dispbuf->timestamp,
+					       1000000000));
+			ATRACE_COUNTER("vpp_timestamp_end", 0);
+		}
+	}
+#endif
 }
 #endif
 
