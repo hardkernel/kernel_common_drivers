@@ -794,6 +794,9 @@ static int am_hdmitx_connector_atomic_get_property
 	} else if (property == am_hdmi->hdcp_mode_property) {
 		*val = get_hdcp_mode();
 		return 0;
+	} else if (property == am_hdmi->hdcp_topo_property) {
+		*val = am_hdmi_info.hdmitx_dev->get_dw_hdcp_topo_info();
+		return 0;
 	} else if (property == am_hdmi->contenttype_cap_prop) {
 		*val = hdmitx_common_get_contenttypes();
 		return 0;
@@ -1951,6 +1954,20 @@ static void meson_hdmitx_init_hdcp_mode_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_hdmitx_init_hdcp_topo_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "hdcp_topo");
+	if (prop) {
+		am_hdmi->hdcp_topo_property = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to hdcp_topo property\n");
+	}
+}
+
 /* Optional colorspace properties. */
 static const struct drm_prop_enum_list hdmi_color_space_enum_list[] = {
 	{ HDMI_COLORSPACE_RGB, "RGB" },
@@ -2285,6 +2302,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_dv_cap_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_ver_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_mode_property(drm, am_hdmi);
+	meson_hdmitx_init_hdcp_topo_property(drm, am_hdmi);
 	meson_hdmitx_init_contenttype_cap_property(drm, am_hdmi);
 	meson_hdmitx_init_allm_property(drm, am_hdmi);
 	meson_hdmitx_init_hdr_priority_property(drm, am_hdmi);
