@@ -1206,6 +1206,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	u32 omx_index = 0;
 	u32 max_width_new = 0, max_width_last = 0;
 	bool ip_switch = false, tvp_switch = false;
+	bool need_do_dummy = false;
 
 	if (!dev || !frame_info) {
 		pr_err("%s: param is invalid.\n", __func__);
@@ -1308,14 +1309,21 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	max_width_new = vf->compWidth >= vf->width ? vf->compWidth : vf->width;
 	max_width_last = dev->last_vf.compWidth >= dev->last_vf.width
 		? dev->last_vf.compWidth : dev->last_vf.width;
-	if ((!(dev->last_vf.type & VIDTYPE_INTERLACE) && (vf->type & VIDTYPE_INTERLACE)) ||
-		(max_width_last <= 1920 && max_width_new > 1920) ||
-		(max_width_last > 1920 && max_width_new <= 1920)) {
+	if (!(dev->last_vf.type & VIDTYPE_INTERLACE) && (vf->type & VIDTYPE_INTERLACE)) {
 		dp_print(dev->index, PRINT_OTHER, "fmt change\n");
-		if (dev->first_out) {
-			dev->first_out = false;
-			dev->q_dummy_frame_done = false;
-		}
+		need_do_dummy = true;
+	}
+
+	if (!dim_get_pre_link() &&
+		((max_width_last <= 1920 && max_width_new > 1920) ||
+		(max_width_last > 1920 && max_width_new <= 1920))) {
+		dp_print(dev->index, PRINT_OTHER, "input size change\n");
+		need_do_dummy = true;
+	}
+
+	if (dev->first_out && need_do_dummy) {
+		dev->first_out = false;
+		dev->q_dummy_frame_done = false;
 	}
 
 	omx_index = vf->omx_index;
