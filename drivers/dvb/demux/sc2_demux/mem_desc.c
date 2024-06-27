@@ -949,7 +949,10 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 	pchan->memdescs = (union mem_desc *)memdescs;
 	pchan->memdescs_phy = memdescs_phy;
 
-	pchan->memdescs->bits.address = mem_phy;
+	if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+		pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
+							((mem_phy >> 32) & 0x3) : 0;
+	pchan->memdescs->bits.address_low = mem_phy & 0xFFFFFFFF;
 	pchan->memdescs->bits.byte_length = mem_size;
 	pchan->memdescs->bits.loop = loop_desc;
 	pchan->memdescs->bits.eoc = 1;
@@ -957,7 +960,7 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 	dma_sync_single_for_device(aml_get_device(),
 		pchan->memdescs_phy, sizeof(union mem_desc), DMA_TO_DEVICE);
 	pr_dbg("flush mem descs to ddr\n");
-	pr_dbg("%s mem_desc phy addr 0x%x, memdescs:0x%lx\n", __func__,
+	pr_dbg("%s mem_desc phy addr 0x%lx, memdescs:0x%lx\n", __func__,
 	       pchan->memdescs_phy, (unsigned long)pchan->memdescs);
 
 	/*mem from secure os, don't operate this memory*/
@@ -1204,7 +1207,7 @@ int SC2_bufferid_set_sec_mem(struct chan_id *pchan,
  */
 int SC2_bufferid_set_enable(struct chan_id *pchan, int enable, int sid, int pid)
 {
-	unsigned int tmp;
+	u64 tmp = 0;
 
 	if (pchan->enable == enable)
 		return 0;
@@ -1213,19 +1216,19 @@ int SC2_bufferid_set_enable(struct chan_id *pchan, int enable, int sid, int pid)
 
 	pchan->enable = enable;
 
-	tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-	pr_dbg("WCH_ADDR, buffer id:%d, desc_phy:0x%x, addr:0x%x, length:%d\n",
-			pchan->id, tmp,
-			pchan->memdescs->bits.address,
+	if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+		tmp = pchan->memdescs->bits.address_high;
+	tmp = (tmp << 32) + pchan->memdescs->bits.address_low;
+	pr_dbg("WCH_ADDR, buffer id:%d, desc_phy:0x%lx, addr:0x%llx, length:%d\n",
+			pchan->id, pchan->memdescs_phy, tmp,
 			pchan->memdescs->bits.byte_length);
-	//wdma_config_enable(pchan->id, enable, tmp, pchan->mem_size);
-	wdma_config_enable(pchan, enable, tmp, pchan->mem_size,
+	wdma_config_enable(pchan, enable, pchan->memdescs_phy, pchan->mem_size,
 		sid, pid, pchan->sec_level);
 
 	pr_dbg("######wdma start###########\n");
 	pr_dbg("err:0x%0x, active:%d\n", wdma_get_err(pchan->id),
 	       wdma_get_active(pchan->id));
-	pr_dbg("wptr:0x%0x\n", wdma_get_wptr(pchan->id));
+	pr_dbg("wptr:0x%0llx\n", wdma_get_wptr(pchan->id));
 	pr_dbg("wr_len:0x%0x\n", wdma_get_wr_len(pchan->id, NULL));
 	pr_dbg("######wdma end###########\n");
 
@@ -1460,9 +1463,8 @@ int SC2_bufferid_move_read_rp(struct chan_id *pchan, unsigned int len, int flag)
 int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 		       unsigned int count, int isphybuf, int pack_len)
 {
-	unsigned int len;
 	unsigned int ret;
-	unsigned int tmp;
+	unsigned long tmp;
 	unsigned int times = 0;
 	struct dmx_sec_ts_data *ts_data;
 	int total = count;
@@ -1491,8 +1493,11 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 #ifdef CHECK_PACKET_ALIGNM
 		check_packet_alignm(ts_data->buf_start, ts_data->buf_end, pack_len);
 #endif
-		tmp = (unsigned long)ts_data->buf_start & 0xFFFFFFFF;
-		pchan->memdescs->bits.address = tmp;
+		tmp = (unsigned long)ts_data->buf_start;
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+			pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
+								((tmp >> 32) & 0x3) : 0;
+		pchan->memdescs->bits.address_low = tmp & 0xFFFFFFFF;
 		pchan->memdescs->bits.byte_length =
 			ts_data->buf_end - ts_data->buf_start;
 
@@ -1538,15 +1543,9 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 			pchan->memdescs_phy, sizeof(union mem_desc),
 			DMA_TO_DEVICE);
 
-//			tmp = (unsigned long)(pchan->memdescs) & 0xFFFFFFFF;
-		tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-		len = pchan->memdescs->bits.byte_length;
-		//rdma_config_enable(pchan->id, 1, tmp, count, len);
-
-		rdma_config_enable(pchan, 1, tmp, count, len, pack_len);
+		total = pchan->memdescs->bits.byte_length;
+		rdma_config_enable(pchan, 1, pchan->memdescs_phy, count, total, pack_len);
 		pr_dbg("%s isphybuf\n", __func__);
-		/*it will exit write loop*/
-		total = len;
 	} else {
 		if (dump_input_cb)
 			dump_input_cb(pchan->id, -1, DMX_DUMP_INPUT_TYPE, (char *)buf,
@@ -1555,7 +1554,11 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 		dma_sync_single_for_device(aml_get_device(),
 			(dma_addr_t)buf_phys, total, DMA_TO_DEVICE);
 
-		pchan->memdescs->bits.address = (u32)(unsigned long)buf_phys;
+		tmp = (unsigned long)buf_phys;
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+			pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
+								((tmp >> 32) & 0x3) : 0;
+		pchan->memdescs->bits.address_low = tmp & 0xFFFFFFFF;
 		//set desc mem ==len for trigger data transfer.
 		pchan->memdescs->bits.byte_length = total;
 		dma_sync_single_for_device(aml_get_device(),
@@ -1566,14 +1569,12 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 
 		pr_dbg("%s, input data:0x%0x, des len:%d\n", __func__,
 		       (*(char *)(pchan->mem)), total);
-		pr_dbg("%s, desc data:0x%0x 0x%0x\n", __func__,
-		       (*(unsigned int *)(pchan->memdescs)),
-		       (*((unsigned int *)(pchan->memdescs) + 1)));
+		pr_dbg("%s, desc data:0x%0lx 0x%0lx\n", __func__,
+		       (*(unsigned long *)(pchan->memdescs)),
+		       (*((unsigned long *)(pchan->memdescs) + 1)));
 
 		pchan->enable = 1;
-		tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-		//rdma_config_enable(pchan->id, 1, tmp,
-		rdma_config_enable(pchan, 1, tmp,
+		rdma_config_enable(pchan, 1, pchan->memdescs_phy,
 				   pchan->mem_size, total, pack_len);
 	}
 	prev_time_nsec = ktime_to_ns(ktime_get());
@@ -1593,12 +1594,11 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 	pr_dbg("err:0x%0x, len err:0x%0x, active:%d\n",
 		       rdma_get_err(), rdma_get_len_err(), rdma_get_active());
 	pr_dbg("pkt_sync:0x%0x\n", rdma_get_pkt_sync_status(pchan->id));
-	pr_dbg("ptr:0x%0x\n", rdma_get_ptr(pchan->id));
+	pr_dbg("ptr:0x%0llx\n", rdma_get_rptr(pchan->id));
 	pr_dbg("cfg fifo:0x%0x\n", rdma_get_cfg_fifo());
 	pr_dbg("#######rdma##########\n");
 
 	/*disable */
-	//rdma_config_enable(pchan->id, 0, 0, 0, 0);
 	rdma_config_enable(pchan, 0, 0, 0, 0, 0);
 	rdma_clean(pchan->id);
 
@@ -1620,8 +1620,7 @@ int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *buf_phys,
 		       unsigned int count, int isphybuf, int pack_len)
 {
-	unsigned int len;
-	unsigned int tmp;
+	unsigned long tmp;
 	unsigned int times = 0;
 	struct dmx_sec_ts_data *ts_data;
 	int total = count;
@@ -1642,8 +1641,11 @@ int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *b
 #ifdef CHECK_PACKET_ALIGNM
 		check_packet_alignm(ts_data->buf_start, ts_data->buf_end, pack_len);
 #endif
-		tmp = (unsigned long)ts_data->buf_start & 0xFFFFFFFF;
-		pchan->memdescs->bits.address = tmp;
+		tmp = (unsigned long)ts_data->buf_start;
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+			pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
+								((tmp >> 32) & 0x3) : 0;
+		pchan->memdescs->bits.address_low = tmp & 0xFFFFFFFF;
 		pchan->memdescs->bits.byte_length =
 			ts_data->buf_end - ts_data->buf_start;
 
@@ -1651,21 +1653,19 @@ int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *b
 			pchan->memdescs_phy, sizeof(union mem_desc),
 			DMA_TO_DEVICE);
 
-//			tmp = (unsigned long)(pchan->memdescs) & 0xFFFFFFFF;
-		tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-		len = pchan->memdescs->bits.byte_length;
-		//rdma_config_enable(pchan->id, 1, tmp, count, len);
-
-		rdma_config_enable(pchan, 1, tmp, count, len, pack_len);
+		total = pchan->memdescs->bits.byte_length;
+		rdma_config_enable(pchan, 1, pchan->memdescs_phy, count, total, pack_len);
 		pr_dbg("%s isphybuf\n", __func__);
-		/*it will exit write loop*/
-		total = len;
 	} else {
 		if (dump_input_cb)
 			dump_input_cb(pchan->id, -1, DMX_DUMP_INPUT_TYPE, (char *)buf,
 				total, &dump_input_head);
 
-		pchan->memdescs->bits.address = (u32)(unsigned long)buf_phys;
+		tmp = (unsigned long)buf_phys;
+		if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+			pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
+								((tmp >> 32) & 0x3) : 0;
+		pchan->memdescs->bits.address_low = tmp & 0xFFFFFFFF;
 		//set desc mem ==len for trigger data transfer.
 		pchan->memdescs->bits.byte_length = total;
 		dma_sync_single_for_device(aml_get_device(),
@@ -1681,9 +1681,7 @@ int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *b
 			   (*((unsigned int *)(pchan->memdescs) + 1)));
 
 		pchan->enable = 1;
-		tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-		//rdma_config_enable(pchan->id, 1, tmp,
-		rdma_config_enable(pchan, 1, tmp,
+		rdma_config_enable(pchan, 1, pchan->memdescs_phy,
 				   pchan->mem_size, total, pack_len);
 	}
 	return count;
@@ -1707,7 +1705,6 @@ int SC2_bufferid_non_block_write_status(struct chan_id *pchan)
 int SC2_bufferid_non_block_write_free(struct chan_id *pchan)
 {
 	/*disable */
-	//rdma_config_enable(pchan->id, 0, 0, 0, 0);
 	rdma_config_enable(pchan, 0, 0, 0, 0, 0);
 	rdma_clean(pchan->id);
 
@@ -1722,7 +1719,6 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	unsigned int len;
 	unsigned int ret;
 	char *p;
-	unsigned int tmp;
 	int i = 0;
 	unsigned int times = 0;
 	unsigned long virt = 0;
@@ -1760,7 +1756,10 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	dma_sync_single_for_device(aml_get_device(),
 		phys, len, DMA_TO_DEVICE);
 
-	pchan->memdescs->bits.address = phys;
+	if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
+		pchan->memdescs->bits.address_high = (sizeof(unsigned long) == 8) ?
+							((phys >> 32) & 0x3) : 0;
+	pchan->memdescs->bits.address_low = phys & 0xFFFFFFFF;
 	//set desc mem ==len for trigger data transfer.
 	pchan->memdescs->bits.byte_length = len;
 	dma_sync_single_for_device(aml_get_device(),
@@ -1774,9 +1773,7 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	       (*((unsigned int *)(pchan->memdescs) + 1)));
 
 	pchan->enable = 1;
-	tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-	//rdma_config_enable(pchan->id, 1, tmp,
-	rdma_config_enable(pchan, 1, tmp, len, len, 188);
+	rdma_config_enable(pchan, 1, pchan->memdescs_phy, len, len, 188);
 
 	do {
 	} while (!rdma_get_done(pchan->id));
@@ -1791,12 +1788,11 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	pr_dbg("err:0x%0x, len err:0x%0x, active:%d\n",
 	       rdma_get_err(), rdma_get_len_err(), rdma_get_active());
 	pr_dbg("pkt_sync:0x%0x\n", rdma_get_pkt_sync_status(pchan->id));
-	pr_dbg("ptr:0x%0x\n", rdma_get_ptr(pchan->id));
+	pr_dbg("ptr:0x%0llx\n", rdma_get_rptr(pchan->id));
 	pr_dbg("cfg fifo:0x%0x\n", rdma_get_cfg_fifo());
 	pr_dbg("#######rdma##########\n");
 
 	/*disable */
-	//rdma_config_enable(pchan->id, 0, 0, 0, 0);
 	rdma_config_enable(pchan, 0, 0, 0, 0, 0);
 	rdma_clean(pchan->id);
 
