@@ -1126,7 +1126,6 @@ int aml_xhci_suspend(struct aml_xhci_hcd *xhci, bool do_wakeup)
 	/* step 5: remove core well power */
 	/* synchronize irq when using MSI-X */
 	xhci_msix_sync_irqs(xhci);
-
 	return rc;
 }
 EXPORT_SYMBOL_GPL(aml_xhci_suspend);
@@ -1233,9 +1232,10 @@ int aml_xhci_resume(struct aml_xhci_hcd *xhci, bool hibernated)
 		aml_xhci_halt(xhci);
 		xhci_zero_64b_regs(xhci);
 		retval = aml_xhci_reset(xhci, XHCI_RESET_LONG_USEC);
-		spin_unlock_irq(&xhci->lock);
-		if (retval)
+		if (retval) {
+			spin_unlock_irq(&xhci->lock);
 			return retval;
+		}
 		xhci_cleanup_msix(xhci);
 
 		aml_xhci_dbg(xhci, "// Disabling event ring interrupts\n");
@@ -1243,7 +1243,7 @@ int aml_xhci_resume(struct aml_xhci_hcd *xhci, bool hibernated)
 		writel((temp & ~0x1fff) | STS_EINT, &xhci->op_regs->status);
 		temp = readl(&xhci->ir_set->irq_pending);
 		writel(ER_IRQ_DISABLE(temp), &xhci->ir_set->irq_pending);
-
+		spin_unlock_irq(&xhci->lock);
 		aml_xhci_dbg(xhci, "cleaning up memory\n");
 		aml_xhci_mem_cleanup(xhci);
 		aml_xhci_debugfs_exit(xhci);
@@ -1271,6 +1271,7 @@ int aml_xhci_resume(struct aml_xhci_hcd *xhci, bool hibernated)
 			aml_xhci_dbg(xhci, "Start the secondary HCD\n");
 			retval = aml_xhci_run(secondary_hcd);
 		}
+
 		hcd->state = HC_STATE_SUSPENDED;
 		xhci->shared_hcd->state = HC_STATE_SUSPENDED;
 		goto done;
@@ -1310,8 +1311,10 @@ int aml_xhci_resume(struct aml_xhci_hcd *xhci, bool hibernated)
 		}
 
 		if (pending_portevent) {
+			spin_lock_irq(&xhci->lock);
 			usb_hcd_resume_root_hub(xhci->shared_hcd);
 			usb_hcd_resume_root_hub(hcd);
+			spin_unlock_irq(&xhci->lock);
 		}
 	}
 	/*
@@ -1329,9 +1332,13 @@ int aml_xhci_resume(struct aml_xhci_hcd *xhci, bool hibernated)
 	/* Re-enable port polling. */
 	aml_xhci_dbg(xhci, "%s: starting usb%d port polling.\n",
 		 __func__, hcd->self.busnum);
+	spin_lock_irq(&xhci->lock);
 	set_bit(HCD_FLAG_POLL_RH, &xhci->shared_hcd->flags);
+	spin_unlock_irq(&xhci->lock);
 	usb_hcd_poll_rh_status(xhci->shared_hcd);
+	spin_lock_irq(&xhci->lock);
 	set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
+	spin_unlock_irq(&xhci->lock);
 	usb_hcd_poll_rh_status(hcd);
 
 	return retval;
