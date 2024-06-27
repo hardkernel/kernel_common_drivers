@@ -1629,7 +1629,8 @@ static enum hdcp_ver_t hdcp_check_ds_hdcp2ver(struct hdcp_t *p_hdcp)
 	enum ddc_err_t ddc_err = DDC_ERR_NONE;
 	u8 cap_val = 0;
 
-	ddc_err = hdmitx_ddcm_read(0, DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION, &cap_val, 1);
+	ddc_err = hdmitx_ddcm_read(0, DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION, &cap_val,
+				   1, TPI_DDC_CMD_SEQUENTIAL_READ);
 
 	if (ddc_err == DDC_ERR_NONE) {
 		if (cap_val == 0x04)
