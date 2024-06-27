@@ -35,7 +35,7 @@
 	memory@00000000 {
 		device_type = "memory";
 		linux,usable-memory = <0x0 0x000000 0x0 0xe0000000
-					0x1 0x000000 0x0 0x20000000>;
+					0x1 0x000000 0x1 0x20000000>;
 	};
 
 	reserved-memory {
@@ -77,7 +77,7 @@
 		mte_reserved:linux,mte {
 			compatible = "shared-dma-pool";
 			no-map;
-			reg = <0x0 0x0c000000 0x0 0x8000000>;
+			reg = <0x0 0x0c000000 0x0 0x10000000>;
 		};
 
 		secmon_reserved:linux,secmon {
