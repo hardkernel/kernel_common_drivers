@@ -30,6 +30,7 @@
 #include <linux/kfifo.h>
 
 #include <linux/amlogic/media/di/di_interface.h>
+#include <linux/amlogic/media/di/di.h>
 #include <linux/amlogic/media/video_sink/v4lvideo_ext.h>
 
 #include "di_proc_buf_mgr_internal.h"
