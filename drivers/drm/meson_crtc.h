@@ -84,6 +84,8 @@ struct am_meson_crtc_state {
 	int hdr_conversion_ctrl;
 	bool attr_changed;
 	bool brr_update;
+
+	bool seamless;
 };
 
 struct am_meson_crtc {
