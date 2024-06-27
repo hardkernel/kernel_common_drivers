@@ -981,6 +981,14 @@
 	status = "okay";
 };
 
+&CPU0 {
+	#cooling-cells = <2>;
+	operating-points-v2 = <&cpu_opp_table0>,
+				<&cpu_opp_table1>,
+				<&cpu_opp_table2>,
+				<&cpu_opp_table3>;
+};
+
 &tdm_d2_pins {
 	mux {
 		groups = "tdm_d2";
