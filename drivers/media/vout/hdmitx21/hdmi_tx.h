@@ -443,7 +443,7 @@ void hdmitx_top_intr_handler(struct work_struct *work);
 void hdmitx_setupirqs(struct hdmitx_dev *phdev);
 void intr_status_init_clear(void);
 void ddc_toggle_sw_tpi(void);
-bool hdmitx_ddcm_read(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 *p_buf, u16 len);
+bool hdmitx_ddcm_read(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 *p_buf, u16 len, u8 read_cmd);
 bool hdmitx_ddcm_write(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 data);
 bool ddc_bus_wait_free(void);
 

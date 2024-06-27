@@ -317,7 +317,7 @@ void hdcptx2_auth_stop(void)
 			hdmitx21_set_bit(HDCP2X_CTL_0_IVCTX, BIT_HDCP2X_CTL_0_EN, false);
 			hdmitx21_set_bit(TPI_DDC_MASTER_EN_IVCTX,
 				BIT_TPI_DDC_MASTER_EN_HW_EN, true);
-			hdmitx21_wr_reg(DDC_CMD_IVCTX, BIT_DDC_CMD_DDC_CMD);
+			hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_ABORT_TRANSACTION);
 			usleep_range(2000, 3000);
 			hdmitx21_set_bit(TPI_DDC_MASTER_EN_IVCTX,
 				BIT_TPI_DDC_MASTER_EN_HW_EN, false);

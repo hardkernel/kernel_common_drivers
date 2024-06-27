@@ -2897,9 +2897,6 @@ static int hdmitx_cntl_ddc(struct hdmitx_hw_common *hw_comm, u32 cmd,
 	case DDC_RESET_EDID:
 		break;
 	case DDC_EDID_READ_DATA:
-		/* if running on pxp, then skip EDID reading */
-		if (hdev->pxp_mode)
-			return 0;
 		hdmitx21_read_edid(hdev->tx_comm.EDID_buf);
 		break;
 	case DDC_GLITCH_FILTER_RESET:

@@ -23,20 +23,16 @@
 #include <linux/clk.h>
 #include "common.h"
 
-#define TPI_DDC_CMD_ENHANCED_DDC_READ  0x04
-#define TPI_DDC_CMD_SEQUENTIAL_READ    0x02
-#define LEN_TPI_DDC_FIFO_SIZE          16
-
 static DEFINE_MUTEX(ddc_mutex);
 
 void scdc21_rd_sink(u8 adr, u8 *val)
 {
-	hdmitx_ddcm_read(0, DDC_SCDC_ADDR, adr, val, 1);
+	hdmitx_ddcm_read(0, DDC_SCDC_ADDR, adr, val, 1, TPI_DDC_CMD_SEQUENTIAL_READ);
 }
 
 void scdc21_sequential_rd_sink(u8 adr, u8 *val, u8 len)
 {
-	hdmitx_ddcm_read(0, DDC_SCDC_ADDR, adr, val, len);
+	hdmitx_ddcm_read(0, DDC_SCDC_ADDR, adr, val, len, TPI_DDC_CMD_SEQUENTIAL_READ);
 }
 
 void scdc21_wr_sink(u8 adr, u8 val)
@@ -49,6 +45,11 @@ void hdmitx21_read_edid(u8 *_rx_edid)
 	u32 blk_idx = 0;
 	u8 ext_block_num = 0;
 	u8 *rx_edid = _rx_edid;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	/* skip edid reading in pxp */
+	if (hdev->pxp_mode)
+		return;
 
 	if (0) {
 		/* DDC_DELAY_CNT_IVCTX, config scl fre 100k */
@@ -61,8 +62,9 @@ void hdmitx21_read_edid(u8 *_rx_edid)
 	}
 	/* Read complete EDID data sequentially */
 	while (blk_idx < (1 + ext_block_num)) {
-		hdmitx_ddcm_read(blk_idx >> 1, DDC_EDID_ADDR, (blk_idx * 128) & 0xff,
-			&rx_edid[blk_idx * 128], 128);
+		hdmitx_ddcm_read(blk_idx >> 1, DDC_EDID_ADDR, (blk_idx * EDID_BLK_SIZE) & 0xff,
+			&rx_edid[blk_idx * EDID_BLK_SIZE], EDID_BLK_SIZE,
+			TPI_DDC_CMD_ENHANCED_DDC_READ);
 		if (blk_idx == 0)
 			ext_block_num = rx_edid[126];
 		if (blk_idx == 1)
@@ -82,8 +84,8 @@ void hdmitx21_read_edid(u8 *_rx_edid)
 void hdmi_ddc_error_reset(void)
 {
 	hdmitx21_set_reg_bits(TPI_DDC_MASTER_EN_IVCTX, 1, 7, 1);
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x0f);
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x0a);
+	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_ABORT_TRANSACTION);
+	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_CLK_RESET);
 	hdmitx21_set_reg_bits(TPI_DDC_MASTER_EN_IVCTX, 0, 7, 1);
 }
 
@@ -159,22 +161,21 @@ static void ddc_tx_en(u8 seg_index, u8 slave_addr, u8 reg_addr)
 	hdmitx21_wr_reg(DDC_OFFSET_IVCTX, reg_addr);
 }
 
-static void ddc_tx_read(u8 seg_index, u16 length)
+/* After fifo clear, need some delay */
+static void ddc_tx_read(u8 seg_index, u16 length, u8 read_cmd)
 {
-	u8 read_cmd;
-
-	read_cmd = seg_index ? TPI_DDC_CMD_ENHANCED_DDC_READ : TPI_DDC_CMD_SEQUENTIAL_READ;
+	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_CLR_FIFO);
 	hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, (u8)(length >> 8));
 	hdmitx21_wr_reg(DDC_DIN_CNT1_IVCTX, (u8)length);
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_CLR_FIFO);
 	hdmitx21_wr_reg(DDC_CMD_IVCTX, read_cmd);
 }
 
+/* After fifo clear, need some delay */
 static void ddc_tx_write(u8 data)
 {
+	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_CLR_FIFO | 0x30);
 	hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, 0);
 	hdmitx21_wr_reg(DDC_DIN_CNT1_IVCTX, 1);
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_CLR_FIFO | 0x30);
 	hdmitx21_wr_reg(DDC_DATA_AON_IVCTX, data);
 	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_SEQ_RW_IGNORE_ACK | 0x30);
 }
@@ -223,7 +224,7 @@ static void ddc_tx_disable(void)
 }
 
 static enum ddc_err_t _hdmitx_ddcm_read_(u8 seg_index,
-	u8 slave_addr, u8 reg_addr, u8 *p_buf, u16 length)
+	u8 slave_addr, u8 reg_addr, u8 *p_buf, u16 length, u8 read_cmd)
 {
 	enum ddc_err_t ds_ddc_error = DDC_ERR_NONE;
 	u16 fifo_size;
@@ -246,7 +247,7 @@ static enum ddc_err_t _hdmitx_ddcm_read_(u8 seg_index,
 		}
 
 		ddc_tx_en(seg_index, slave_addr, reg_addr);
-		ddc_tx_read(seg_index, length);
+		ddc_tx_read(seg_index, length, read_cmd);
 
 		timeout_ms = (u16)(length * 12 / 10);
 		usleep_range(2000, 3000);
@@ -260,13 +261,12 @@ static enum ddc_err_t _hdmitx_ddcm_read_(u8 seg_index,
 				} else if (fifo_size > LEN_TPI_DDC_FIFO_SIZE) {
 					ds_ddc_error = DDC_ERR_LIM_EXCEED;
 					break;
-				} else {
-					/* read fifo_size bytes */
-					ddc_tx_fifo_read(p_buf, fifo_size);
-
-					length -= fifo_size;
-					p_buf += fifo_size;
 				}
+				/* read fifo_size bytes */
+				ddc_tx_fifo_read(p_buf, fifo_size);
+
+				length -= fifo_size;
+				p_buf += fifo_size;
 			} else {
 				usleep_range(1000, 1500);
 				timeout_ms--;
@@ -325,11 +325,11 @@ void ddc_toggle_sw_tpi(void)
 	hdmitx21_set_bit(LM_DDC_IVCTX, BIT_LM_DDC_SWTPIEN_B7, false);
 }
 
-bool hdmitx_ddcm_read(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 *p_buf, u16 len)
+bool hdmitx_ddcm_read(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 *p_buf, u16 len, u8 read_cmd)
 {
 	enum ddc_err_t ddc_err;
 
-	ddc_err = _hdmitx_ddcm_read_(seg_index, slave_addr, reg_addr, p_buf, len);
+	ddc_err = _hdmitx_ddcm_read_(seg_index, slave_addr, reg_addr, p_buf, len, read_cmd);
 	return (ddc_err == DDC_ERR_NONE) ? false : true;
 }
 
@@ -344,13 +344,13 @@ bool hdmitx_ddcm_write(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 data)
 enum ddc_err_t hdmitx_ddc_read_1byte(u8 slave_addr, u8 reg_addr, u8 *p_buf)
 {
 	hdmitx21_wr_reg(LM_DDC_IVCTX, 0x80);
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x09);
+	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_CLR_FIFO);
 	hdmitx21_wr_reg(DDC_ADDR_IVCTX, slave_addr & BIT_DDC_ADDR_REG);
 
 	hdmitx21_wr_reg(DDC_OFFSET_IVCTX, reg_addr);
 	hdmitx21_wr_reg(DDC_DIN_CNT1_IVCTX, 1);
 	hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, 0x00);
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x02);
+	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_SEQ_RD_NO_ACK);
 	/* Wait until I2C done */
 	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 1 << 4, ~(1 << 4), HZ / 100);
 	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 0 << 4, ~(1 << 4), HZ / 100);
@@ -369,7 +369,8 @@ bool is_rx_hdcp2ver(void)
 	 * so use hdmitx_ddcm_read() method instead
 	 */
 	/* hdmitx_ddc_read_1byte(DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION, &cap_val); */
-	ret = hdmitx_ddcm_read(0, DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION, &cap_val, 1);
+	ret = hdmitx_ddcm_read(0, DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION, &cap_val,
+			1, TPI_DDC_CMD_SEQUENTIAL_READ);
 	if (ret)
 		HDMITX_ERROR("hdmitx: ddc read hdcp version failed\n");
 
