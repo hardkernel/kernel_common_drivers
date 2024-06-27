@@ -4133,6 +4133,25 @@ static inline void codec_mm_parse_reserved_mem(struct platform_device *pdev, cha
 	}
 }
 
+u32 codec_mm_get_property_from_dts(char *property_name)
+{
+	struct device_node *pnode = NULL;
+	u32 ret = -1;
+
+	pnode = of_find_node_by_name(NULL, "codec_mm");
+	if (!pnode) {
+		pr_info("not find codec_mm node\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_u32(pnode, property_name, &ret)) {
+		pr_info("read format in dts failed, ret = %d\n", ret);
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 static int codec_mm_probe(struct platform_device *pdev)
 {
 	int r;
