@@ -85,7 +85,9 @@ int gxtv_demod_dvbc_read_status_timer(struct dvb_frontend *fe,
 		*status =
 			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
 			FE_HAS_VITERBI | FE_HAS_SYNC;
+		qam_write_reg(demod, 0x62, 0xd009);
 	} else {
+		qam_write_reg(demod, 0x62, 0x1f00d009);
 		ilock = 0;
 
 		if (timer_not_enough(demod, D_TIMER_DETECT)) {
@@ -1207,18 +1209,22 @@ finish:
 	if (*status == 0) {
 		PR_DVBC("!! >> wait << !!\n");
 	} else if (*status == FE_TIMEDOUT) {
-		if (demod->last_lock == -1)
+		if (demod->last_lock == -1) {
 			PR_DVBC("!! >> lost again << !!\n");
-		else
+		} else {
 			PR_INFO("!! >> UNLOCK << !!, freq=%d, time_passed:%u\n",
 				c->frequency, demod->time_passed);
+			qam_write_reg(demod, 0x62, 0x1f00d009);
+		}
 		demod->last_lock = -1;
 	} else {
-		if (demod->last_lock == 1)
+		if (demod->last_lock == 1) {
 			PR_DVBC("!! >> lock continue << !!\n");
-		else
+		} else {
 			PR_INFO("!! >> LOCK << !!, freq=%d, time_passed:%u\n",
 				c->frequency, demod->time_passed);
+			qam_write_reg(demod, 0x62, 0xd009);
+		}
 		demod->last_lock = 1;
 	}
 	demod->last_status = *status;

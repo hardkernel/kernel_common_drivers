@@ -174,6 +174,7 @@
 /*  V3.5.047 fix lock fail when switch to atsc */
 /*  V3.5.048 fix all get_frontend and code optimize */
 /*  V3.5.049 calibrate j83b signal strength read from R842*/
+/*  V3.5.050 fix sfc device lock dvbc 256qam failed*/
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -190,8 +191,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.049"
-#define DTVDEMOD_VER	"2024/08/04: calibrate j83b signal strength read from R842"
+#define AMLDTVDEMOD_VER "V3.5.050"
+#define DTVDEMOD_VER	"2024/08/14: fix sfc device lock dvbc 256qam failed"
 #define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
