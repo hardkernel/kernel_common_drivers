@@ -127,8 +127,14 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x1fc00000>;
+			/*
+			 * Scenario: Primary + Secondary + PIP
+			 * Total size: 628M
+			 * Note:
+			 *  setting to 604M if scatter_alloc_mode is 0.
+			 *  setting to 580M if scatter_alloc_mode is 1.
+			 */
+			size = <0x0 0x24400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -275,6 +281,12 @@
 		dev_name = "codec_mm";
 		random_access = <1>;
 		status = "okay";
+		/*
+		 * scatter_alloc_mode: the mode of scatter memory allocation
+		 * 0: default mode, alloc from system and cma
+		 * 1: only alloc from system
+		 */
+		scatter_alloc_mode = <1>;
 	};
 
 	multi-di {
