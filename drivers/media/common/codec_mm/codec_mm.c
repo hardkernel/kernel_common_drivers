@@ -541,15 +541,20 @@ static void *codec_mm_extpool_alloc(struct extpool_mgt_s *tvp_pool,
 	int i = 0;
 	void *handle = NULL;
 
+	mutex_lock(&tvp_pool->pool_lock);
 	for (i = 0; i < tvp_pool->slot_num; i++) {
-		if (!tvp_pool->gen_pool[i])
+		if (!tvp_pool->gen_pool[i]) {
+			mutex_unlock(&tvp_pool->pool_lock);
 			return NULL;
+		}
 		handle = (void *)gen_pool_alloc(tvp_pool->gen_pool[i], size);
 		if (handle) {
 			*from_pool = tvp_pool->gen_pool[i];
+			mutex_unlock(&tvp_pool->pool_lock);
 			return handle;
 		}
 	}
+	mutex_unlock(&tvp_pool->pool_lock);
 	return NULL;
 }
 
