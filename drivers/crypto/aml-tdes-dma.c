@@ -137,6 +137,7 @@ static int set_tdes_kl_key_iv(struct aml_tdes_dev *dd,
 			      u32 *key, u32 keylen, u32 *iv)
 {
 	struct dma_dsc *dsc = dd->descriptor;
+	struct dma_dsc_64 *dsc_64 = dd->descriptor;
 	struct device *dev = dd->dev;
 	u32 *key_iv = kzalloc(DMA_KEY_IV_BUF_SIZE, GFP_ATOMIC);
 	u32 *piv = key_iv;
@@ -162,38 +163,66 @@ static int set_tdes_kl_key_iv(struct aml_tdes_dev *dd,
 		return -EINVAL;
 	}
 
-	dsc[0].src_addr = (u32)(0xffffff00 | dd->ctx->kte);
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	/* Internal key_iv storage of DMA is 48 bytes (32 for key; 16 for iv)
-	 * For some reason, it fails to set key if key length is 8 bytes(ex: DES).
-	 * Therefore, we always set length to 32 bytes(full key storage) regardless of
-	 * real key length.
-	 * PLEASE ask Qian Cheng(cheng.qian@amlogic.com) for details.
-	 */
-	dsc[0].dsc_cfg.b.length = 32;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.owner = 1;
-	dsc[0].dsc_cfg.b.eoc = 0;
+	if (dd->dma->dma_bus64) {
+		dsc_64[0].src_addr = (u64)(0xffffffffffffff00 | dd->ctx->kte);
+		dsc_64[0].tgt_addr = 0;
+		dsc_64[0].dsc_cfg.d32 = 0;
+		/* Internal key_iv storage of DMA is 48 bytes (32 for key; 16 for iv)
+		 * For some reason, it fails to set key if key length is 8 bytes(ex: DES).
+		 * Therefore, we always set length to 32 bytes(full key storage) regardless of
+		 * real key length.
+		 * PLEASE ask Qian Cheng(cheng.qian@amlogic.com) for details.
+		 */
+		dsc_64[0].dsc_cfg.b.length = 32;
+		dsc_64[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc_64[0].dsc_cfg.b.owner = 1;
+		dsc_64[0].dsc_cfg.b.eoc = 0;
 
-	if (iv) {
-		dsc[1].src_addr = (u32)dma_addr_key;
-		dsc[1].tgt_addr = 32;
-		dsc[1].dsc_cfg.d32 = 0;
-		dsc[1].dsc_cfg.b.length = 16;
-		dsc[1].dsc_cfg.b.mode = MODE_KEY;
-		dsc[1].dsc_cfg.b.owner = 1;
-		dsc[1].dsc_cfg.b.eoc = 1;
+		if (iv) {
+			dsc_64[1].src_addr = (u64)dma_addr_key;
+			dsc_64[1].tgt_addr = 32;
+			dsc_64[1].dsc_cfg.d32 = 0;
+			dsc_64[1].dsc_cfg.b.length = 16;
+			dsc_64[1].dsc_cfg.b.mode = MODE_KEY;
+			dsc_64[1].dsc_cfg.b.owner = 1;
+			dsc_64[1].dsc_cfg.b.eoc = 1;
+		} else {
+			dsc_64[0].dsc_cfg.b.eoc = 1;
+		}
 	} else {
-		dsc[0].dsc_cfg.b.eoc = 1;
-	}
+		dsc[0].src_addr = (u32)(0xffffff00 | dd->ctx->kte);
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		/* Internal key_iv storage of DMA is 48 bytes (32 for key; 16 for iv)
+		 * For some reason, it fails to set key if key length is 8 bytes(ex: DES).
+		 * Therefore, we always set length to 32 bytes(full key storage) regardless of
+		 * real key length.
+		 * PLEASE ask Qian Cheng(cheng.qian@amlogic.com) for details.
+		 */
+		dsc[0].dsc_cfg.b.length = 32;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.owner = 1;
+		dsc[0].dsc_cfg.b.eoc = 0;
 
-	aml_write_crypto_reg(dd->thread,
+		if (iv) {
+			dsc[1].src_addr = (u32)dma_addr_key;
+			dsc[1].tgt_addr = 32;
+			dsc[1].dsc_cfg.d32 = 0;
+			dsc[1].dsc_cfg.b.length = 16;
+			dsc[1].dsc_cfg.b.mode = MODE_KEY;
+			dsc[1].dsc_cfg.b.owner = 1;
+			dsc[1].dsc_cfg.b.eoc = 1;
+		} else {
+			dsc[0].dsc_cfg.b.eoc = 1;
+		}
+	}
+	aml_write_crypto_reg(dd->dma, dd->thread,
 			     (uintptr_t)dd->dma_descript_tab | 2);
-	aml_dma_debug(dsc, iv ? 2 : 1, __func__, dd->thread, dd->status);
+	aml_dma_debug(dd->descriptor, iv ? 2 : 1, __func__, dd->thread,
+			 dd->status, dd->dma->dma_bus64);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
-	aml_write_crypto_reg(dd->status, 0xff);
+	aml_write_crypto_reg(dd->dma, dd->status, 0xff);
 	dma_unmap_single(dd->parent, dma_addr_key,
 			 DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
 
@@ -205,6 +234,7 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 			   u32 *key, u32 keylen, u32 *iv)
 {
 	struct dma_dsc *dsc = dd->descriptor;
+	struct dma_dsc_64 *dsc_64 = dd->descriptor;
 	struct device *dev = dd->dev;
 	u32 *key_iv = kzalloc(DMA_KEY_IV_BUF_SIZE, GFP_ATOMIC);
 	u32 *piv = key_iv + 8;
@@ -236,17 +266,26 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 		return -EINVAL;
 	}
 
-	dsc[0].src_addr = (u32)dma_addr_key;
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = len;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.owner = 1;
-	dsc[0].dsc_cfg.b.eoc = 1;
-
-	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
+	if (dd->dma->dma_bus64) {
+		dsc_64[0].src_addr = (u64)dma_addr_key;
+		dsc_64[0].tgt_addr = 0;
+		dsc_64[0].dsc_cfg.d32 = 0;
+		dsc_64[0].dsc_cfg.b.length = len;
+		dsc_64[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc_64[0].dsc_cfg.b.owner = 1;
+		dsc_64[0].dsc_cfg.b.eoc = 1;
+	} else {
+		dsc[0].src_addr = (u32)dma_addr_key;
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		dsc[0].dsc_cfg.b.length = len;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.owner = 1;
+		dsc[0].dsc_cfg.b.eoc = 1;
+	}
+	aml_dma_debug(dd->descriptor, 1, __func__, dd->thread, dd->status, dd->dma->dma_bus64);
 #if DMA_IRQ_MODE
-	aml_write_crypto_reg(dd->thread,
+	aml_write_crypto_reg(dd->dma, dd->thread,
 			     (uintptr_t)dd->dma_descript_tab | 2);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
@@ -255,11 +294,12 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 		dev_err(dev, "hw crypto failed, status: %u\n");
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->status, 0xff);
+	aml_write_crypto_reg(dd->dma, dd->status, 0xff);
 #else
-	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dd->dma_descript_tab,
+	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, 1, dd->dma_descript_tab,
 			     1, DMA_FLAG_TDES_IN_USE);
-	aml_dma_debug(dsc, 1, "end tdes keyiv", dd->thread, dd->status);
+	aml_dma_debug(dd->descriptor, 1, "end tdes keyiv", dd->thread,
+			 dd->status, dd->dma->dma_bus64);
 	if (status & DMA_STATUS_KEY_ERROR) {
 		dev_err(dev, "hw crypto failed.\n");
 		err = -EINVAL;
@@ -303,16 +343,21 @@ static size_t aml_tdes_sg_copy(struct scatterlist **sg, size_t *offset,
 	return off;
 }
 
-static size_t aml_tdes_sg_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
+static size_t aml_tdes_sg_dma(struct aml_tdes_dev *dd, void *descriptor,
 			     size_t total)
 {
 	struct device *dev = dd->dev;
+	struct dma_dsc *dsc = descriptor;
+	struct dma_dsc_64 *dsc_64 = descriptor;
 	u32 i = 0;
 	int err = 0;
 	struct scatterlist *in_sg = dd->in_sg;
 	struct scatterlist *out_sg = dd->out_sg;
 	u32 in_nents = 0, out_nents = 0;
 	struct dma_sg_dsc *sg_dsc = NULL;
+	struct dma_sg_dsc_64 *sg_dsc_64 = NULL;
+	u32 dma_sg_dsc_sz = dd->dma->dma_bus64 ? sizeof(struct dma_sg_dsc_64) :
+						 sizeof(struct dma_sg_dsc);
 
 	in_nents = sg_nents(in_sg);
 	out_nents = sg_nents(out_sg);
@@ -345,7 +390,7 @@ static size_t aml_tdes_sg_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
 
 #if DMA_IRQ_MODE
 	dd->sg_dsc_in = dma_alloc_coherent(dd->parent,
-			in_nents * sizeof(struct dma_sg_dsc),
+			in_nents * dma_sg_dsc_sz,
 			&dd->dma_sg_dsc_in, GFP_ATOMIC | GFP_DMA);
 	if (!dd->sg_dsc_in) {
 		dev_err(dev, "dma_alloc_coherent() for input error\n");
@@ -353,17 +398,17 @@ static size_t aml_tdes_sg_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
 	}
 
 	dd->sg_dsc_out = dma_alloc_coherent(dd->parent,
-			out_nents * sizeof(struct dma_sg_dsc),
+			out_nents * dma_sg_dsc_sz,
 			&dd->dma_sg_dsc_out, GFP_ATOMIC | GFP_DMA);
 	if (!dd->dma_sg_dsc_out) {
 		dev_err(dev, "dma_alloc_coherent() for output error\n");
-		dma_free_coherent(dd->parent, in_nents * sizeof(struct dma_sg_dsc),
+		dma_free_coherent(dd->parent, in_nents * dma_sg_dsc_sz,
 				dd->sg_dsc_in, dd->dma_sg_dsc_in);
 		return 0;
 	}
 #else
 	dd->sg_dsc_in = dma_alloc_coherent(dd->parent,
-			in_nents * sizeof(struct dma_sg_dsc),
+			in_nents * dma_sg_dsc_sz,
 			&dd->dma_sg_dsc_in, GFP_KERNEL | GFP_DMA);
 	if (!dd->sg_dsc_in) {
 		dev_err(dev, "dma_alloc_coherent() for input error\n");
@@ -371,49 +416,82 @@ static size_t aml_tdes_sg_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
 	}
 
 	dd->sg_dsc_out = dma_alloc_coherent(dd->parent,
-			out_nents * sizeof(struct dma_sg_dsc),
+			out_nents * dma_sg_dsc_sz,
 			&dd->dma_sg_dsc_out, GFP_KERNEL | GFP_DMA);
 	if (!dd->dma_sg_dsc_out) {
 		dev_err(dev, "dma_alloc_coherent() for output error\n");
-		dma_free_coherent(dd->parent, in_nents * sizeof(struct dma_sg_dsc),
+		dma_free_coherent(dd->parent, in_nents * dma_sg_dsc_sz,
 				dd->sg_dsc_in, dd->dma_sg_dsc_in);
 		return 0;
 	}
 #endif
-
-	sg_dsc = dd->sg_dsc_in;
 	in_sg = dd->in_sg;
-	for (i = 0; i < in_nents; i++) {
-		sg_dsc[i].dsc_cfg.d32 = 0;
-		sg_dsc[i].dsc_cfg.b.valid = 1;
-		sg_dsc[i].dsc_cfg.b.eoc = i == (in_nents - 1) ? 1 : 0;
-		sg_dsc[i].dsc_cfg.b.length = in_sg->length;
-		sg_dsc[i].addr = in_sg->dma_address;
-		in_sg = sg_next(in_sg);
+	if (dd->dma->dma_bus64) {
+		sg_dsc_64 = dd->sg_dsc_in;
+		for (i = 0; i < in_nents; i++) {
+			sg_dsc_64[i].dsc_cfg.d32 = 0;
+			sg_dsc_64[i].dsc_cfg.b.valid = 1;
+			sg_dsc_64[i].dsc_cfg.b.eoc = i == (in_nents - 1) ? 1 : 0;
+			sg_dsc_64[i].dsc_cfg.b.length = in_sg->length;
+			sg_dsc_64[i].addr = in_sg->dma_address;
+			in_sg = sg_next(in_sg);
+		}
+	} else {
+		sg_dsc = dd->sg_dsc_in;
+		for (i = 0; i < in_nents; i++) {
+			sg_dsc[i].dsc_cfg.d32 = 0;
+			sg_dsc[i].dsc_cfg.b.valid = 1;
+			sg_dsc[i].dsc_cfg.b.eoc = i == (in_nents - 1) ? 1 : 0;
+			sg_dsc[i].dsc_cfg.b.length = in_sg->length;
+			sg_dsc[i].addr = in_sg->dma_address;
+			in_sg = sg_next(in_sg);
+		}
 	}
 	WARN_ON(in_sg);
 
 	out_sg = dd->out_sg;
-	sg_dsc = dd->sg_dsc_out;
-	for (i = 0; i < out_nents; i++) {
-		sg_dsc[i].dsc_cfg.d32 = 0;
-		sg_dsc[i].dsc_cfg.b.valid = 1;
-		sg_dsc[i].dsc_cfg.b.eoc = i == (out_nents - 1) ? 1 : 0;
-		sg_dsc[i].dsc_cfg.b.length = out_sg->length;
-		sg_dsc[i].addr = out_sg->dma_address;
-		out_sg = sg_next(out_sg);
+
+	if (dd->dma->dma_bus64) {
+		sg_dsc_64 = dd->sg_dsc_out;
+		for (i = 0; i < out_nents; i++) {
+			sg_dsc_64[i].dsc_cfg.d32 = 0;
+			sg_dsc_64[i].dsc_cfg.b.valid = 1;
+			sg_dsc_64[i].dsc_cfg.b.eoc = i == (out_nents - 1) ? 1 : 0;
+			sg_dsc_64[i].dsc_cfg.b.length = out_sg->length;
+			sg_dsc_64[i].addr = out_sg->dma_address;
+			out_sg = sg_next(out_sg);
+		}
+	} else {
+		sg_dsc = dd->sg_dsc_out;
+		for (i = 0; i < out_nents; i++) {
+			sg_dsc[i].dsc_cfg.d32 = 0;
+			sg_dsc[i].dsc_cfg.b.valid = 1;
+			sg_dsc[i].dsc_cfg.b.eoc = i == (out_nents - 1) ? 1 : 0;
+			sg_dsc[i].dsc_cfg.b.length = out_sg->length;
+			sg_dsc[i].addr = out_sg->dma_address;
+			out_sg = sg_next(out_sg);
+		}
 	}
 	WARN_ON(out_sg);
 
-	aml_dma_link_debug(dd->sg_dsc_in, dd->dma_sg_dsc_in, in_nents, __func__);
-	aml_dma_link_debug(dd->sg_dsc_out, dd->dma_sg_dsc_out, in_nents, __func__);
+	aml_dma_link_debug(dd->sg_dsc_in, dd->dma_sg_dsc_in, in_nents,
+			      __func__, dd->dma->dma_bus64);
+	aml_dma_link_debug(dd->sg_dsc_out, dd->dma_sg_dsc_out, in_nents,
+			      __func__, dd->dma->dma_bus64);
 
-	dsc->src_addr = dd->dma_sg_dsc_in;
-	dsc->tgt_addr = dd->dma_sg_dsc_out;
-	dsc->dsc_cfg.d32 = 0;
-	dsc->dsc_cfg.b.length = total;
-	dsc->dsc_cfg.b.link_error = 1;
-
+	if (dd->dma->dma_bus64) {
+		dsc_64->src_addr = dd->dma_sg_dsc_in;
+		dsc_64->tgt_addr = dd->dma_sg_dsc_out;
+		dsc_64->dsc_cfg.d32 = 0;
+		dsc_64->dsc_cfg.b.length = total;
+		dsc_64->dsc_cfg.b.link_error = 1;
+	} else {
+		dsc->src_addr = dd->dma_sg_dsc_in;
+		dsc->tgt_addr = dd->dma_sg_dsc_out;
+		dsc->dsc_cfg.d32 = 0;
+		dsc->dsc_cfg.b.length = total;
+		dsc->dsc_cfg.b.link_error = 1;
+	}
 	return total;
 }
 
@@ -464,10 +542,12 @@ static void aml_tdes_finish_req(struct aml_tdes_dev *dd, int err)
 #endif
 }
 
-static int aml_tdes_crypt_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
+static int aml_tdes_crypt_dma(struct aml_tdes_dev *dd, void *descriptor,
 			      u32 nents)
 {
 	u32 op_mode = OP_MODE_ECB;
+	struct dma_dsc *dsc = descriptor;
+	struct dma_dsc_64 *dsc_64 = descriptor;
 	u32 i = 0;
 #if DMA_IRQ_MODE
 	unsigned long flags;
@@ -479,18 +559,30 @@ static int aml_tdes_crypt_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
 	if (dd->flags & TDES_FLAGS_CBC)
 		op_mode = OP_MODE_CBC;
 
-	for (i = 0; i < nents; i++) {
-		dsc[i].dsc_cfg.b.enc_sha_only = dd->flags & TDES_FLAGS_ENCRYPT;
-		dsc[i].dsc_cfg.b.mode =
-			((dd->ctx->keylen == DES_KEY_SIZE) ? MODE_DES :
-			 ((dd->ctx->keylen == 2 * DES_KEY_SIZE) ?
-			  MODE_TDES_2K : MODE_TDES_3K));
-		dsc[i].dsc_cfg.b.op_mode = op_mode;
-		dsc[i].dsc_cfg.b.eoc = (i == (nents - 1));
-		dsc[i].dsc_cfg.b.owner = 1;
+	if (dd->dma->dma_bus64) {
+		for (i = 0; i < nents; i++) {
+			dsc_64[i].dsc_cfg.b.enc_sha_only = dd->flags & TDES_FLAGS_ENCRYPT;
+			dsc_64[i].dsc_cfg.b.mode =
+				((dd->ctx->keylen == DES_KEY_SIZE) ? MODE_DES :
+				 ((dd->ctx->keylen == 2 * DES_KEY_SIZE) ?
+				  MODE_TDES_2K : MODE_TDES_3K));
+			dsc_64[i].dsc_cfg.b.op_mode = op_mode;
+			dsc_64[i].dsc_cfg.b.eoc = (i == (nents - 1));
+			dsc_64[i].dsc_cfg.b.owner = 1;
+		}
+	} else {
+		for (i = 0; i < nents; i++) {
+			dsc[i].dsc_cfg.b.enc_sha_only = dd->flags & TDES_FLAGS_ENCRYPT;
+			dsc[i].dsc_cfg.b.mode =
+				((dd->ctx->keylen == DES_KEY_SIZE) ? MODE_DES :
+				 ((dd->ctx->keylen == 2 * DES_KEY_SIZE) ?
+				  MODE_TDES_2K : MODE_TDES_3K));
+			dsc[i].dsc_cfg.b.op_mode = op_mode;
+			dsc[i].dsc_cfg.b.eoc = (i == (nents - 1));
+			dsc[i].dsc_cfg.b.owner = 1;
+		}
 	}
-
-	aml_dma_debug(dsc, nents, __func__, dd->thread, dd->status);
+	aml_dma_debug(descriptor, nents, __func__, dd->thread, dd->status, dd->dma->dma_bus64);
 
 	/* Start DMA transfer */
 #if DMA_IRQ_MODE
@@ -500,16 +592,16 @@ static int aml_tdes_crypt_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
 
 	dd->flags |= TDES_FLAGS_DMA;
 
-	aml_write_crypto_reg(dd->thread,
+	aml_write_crypto_reg(dd->dma, dd->thread,
 			     (uintptr_t)dd->dma_descript_tab | 2);
 	return -EINPROGRESS;
 #else
 	dd->flags |= TDES_FLAGS_DMA;
-	status = aml_dma_do_hw_crypto(dd->dma, dsc, nents, dd->dma_descript_tab,
+	status = aml_dma_do_hw_crypto(dd->dma, descriptor, nents, dd->dma_descript_tab,
 			     1, DMA_FLAG_TDES_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR)
 		dd->flags |= TDES_FLAGS_ERROR;
-	aml_dma_debug(dsc, nents, "end tdes", dd->thread, dd->status);
+	aml_dma_debug(descriptor, nents, "end tdes", dd->thread, dd->status, dd->dma->dma_bus64);
 	err = aml_tdes_crypt_dma_stop(dd);
 	if (!err) {
 		err = dd->flags & TDES_FLAGS_ERROR;
@@ -524,9 +616,8 @@ static int aml_tdes_crypt_dma_link_mode_start(struct aml_tdes_dev *dd)
 {
 	int err = 0;
 	size_t count = 0;
-	struct dma_dsc *dsc = dd->descriptor;
 
-	count = aml_tdes_sg_dma(dd, dsc, dd->total);
+	count = aml_tdes_sg_dma(dd, dd->descriptor, dd->total);
 	dd->flags |= TDES_FLAGS_FAST;
 	dd->fast_total = count;
 	dd->total -= dd->fast_total;
@@ -539,7 +630,7 @@ static int aml_tdes_crypt_dma_link_mode_start(struct aml_tdes_dev *dd)
 					 DES_BLOCK_SIZE, 0);
 
 	/* using 1 entry in link mode */
-	err = aml_tdes_crypt_dma(dd, dsc, 1);
+	err = aml_tdes_crypt_dma(dd, dd->descriptor, 1);
 
 	return err;
 }
@@ -550,6 +641,7 @@ static int aml_tdes_crypt_dma_start(struct aml_tdes_dev *dd)
 	size_t count = 0;
 	dma_addr_t addr_in, addr_out;
 	struct dma_dsc *dsc = dd->descriptor;
+	struct dma_dsc_64 *dsc_64 = dd->descriptor;
 	u32 nents;
 
 	/* slow dma */
@@ -561,15 +653,22 @@ static int aml_tdes_crypt_dma_start(struct aml_tdes_dev *dd)
 	dd->dma_size = count;
 	dma_sync_single_for_device(dd->parent, addr_in, dd->dma_size,
 				   DMA_TO_DEVICE);
-	dsc->src_addr = (u32)addr_in;
-	dsc->tgt_addr = (u32)addr_out;
-	dsc->dsc_cfg.d32 = 0;
-	dsc->dsc_cfg.b.length = count;
+	if (dd->dma->dma_bus64) {
+		dsc_64->src_addr = (u32)addr_in;
+		dsc_64->tgt_addr = (u32)addr_out;
+		dsc_64->dsc_cfg.d32 = 0;
+		dsc_64->dsc_cfg.b.length = count;
+	} else {
+		dsc->src_addr = (u32)addr_in;
+		dsc->tgt_addr = (u32)addr_out;
+		dsc->dsc_cfg.d32 = 0;
+		dsc->dsc_cfg.b.length = count;
+	}
 	nents = 1;
 	dd->flags &= ~TDES_FLAGS_FAST;
 
 	dd->total -= count;
-	err = aml_tdes_crypt_dma(dd, dsc, nents);
+	err = aml_tdes_crypt_dma(dd, dd->descriptor, nents);
 
 	return err;
 }
@@ -695,7 +794,8 @@ static int aml_tdes_crypt_dma_stop(struct aml_tdes_dev *dd)
 	int err = -EINVAL;
 	size_t count;
 	u32 in_nents = 0, out_nents = 0;
-
+	u32 dma_sg_dsc_sz = dd->dma->dma_bus64 ? sizeof(struct dma_sg_dsc_64) :
+						 sizeof(struct dma_sg_dsc);
 	if (dd->flags & TDES_FLAGS_DMA) {
 		err = 0;
 		if  (dd->flags & TDES_FLAGS_FAST) {
@@ -713,12 +813,14 @@ static int aml_tdes_crypt_dma_stop(struct aml_tdes_dev *dd)
 					     in_nents, DMA_BIDIRECTIONAL);
 			}
 
-			aml_dma_link_debug(dd->sg_dsc_in, dd->dma_sg_dsc_in, in_nents, __func__);
-			aml_dma_link_debug(dd->sg_dsc_out, dd->dma_sg_dsc_out, in_nents, __func__);
+			aml_dma_link_debug(dd->sg_dsc_in, dd->dma_sg_dsc_in, in_nents,
+					      __func__, dd->dma->dma_bus64);
+			aml_dma_link_debug(dd->sg_dsc_out, dd->dma_sg_dsc_out, in_nents,
+					      __func__, dd->dma->dma_bus64);
 
-			dma_free_coherent(dd->parent, in_nents * sizeof(struct dma_sg_dsc),
+			dma_free_coherent(dd->parent, in_nents * dma_sg_dsc_sz,
 					dd->sg_dsc_in, dd->dma_sg_dsc_in);
-			dma_free_coherent(dd->parent, out_nents * sizeof(struct dma_sg_dsc),
+			dma_free_coherent(dd->parent, out_nents * dma_sg_dsc_sz,
 					dd->sg_dsc_out, dd->dma_sg_dsc_out);
 			/* install IV */
 			if (dd->flags & TDES_FLAGS_CBC) {
@@ -768,6 +870,8 @@ static int aml_tdes_buff_init(struct aml_tdes_dev *dd)
 {
 	struct device *dev = dd->dev;
 	int err = -ENOMEM;
+	u32 dma_sg_dsc_sz = dd->dma->dma_bus64 ? sizeof(struct dma_sg_dsc_64) :
+						 sizeof(struct dma_sg_dsc);
 
 	dd->buf_in = (void *)__get_free_pages(GFP_KERNEL, 0);
 	dd->buf_out = (void *)__get_free_pages(GFP_KERNEL, 0);
@@ -781,7 +885,7 @@ static int aml_tdes_buff_init(struct aml_tdes_dev *dd)
 
 	dd->descriptor =
 		dmam_alloc_coherent(dd->parent,
-				   MAX_NUM_TABLES * sizeof(struct dma_dsc),
+				   MAX_NUM_TABLES * dma_sg_dsc_sz,
 				   &dd->dma_descript_tab, GFP_KERNEL | GFP_DMA);
 	if (!dd->descriptor) {
 		dev_err(dev, "dma descriptor error\n");
@@ -822,11 +926,14 @@ err_alloc:
 
 static void aml_tdes_buff_cleanup(struct aml_tdes_dev *dd)
 {
+	u32 dma_sg_dsc_sz = dd->dma->dma_bus64 ? sizeof(struct dma_sg_dsc_64) :
+						 sizeof(struct dma_sg_dsc);
+
 	dma_unmap_single(dd->parent, dd->dma_addr_out, dd->buflen,
 			 DMA_FROM_DEVICE);
 	dma_unmap_single(dd->parent, dd->dma_addr_in, dd->buflen,
 			 DMA_TO_DEVICE);
-	dmam_free_coherent(dd->parent, MAX_NUM_TABLES * sizeof(struct dma_dsc),
+	dmam_free_coherent(dd->parent, MAX_NUM_TABLES * dma_sg_dsc_sz,
 			dd->descriptor, dd->dma_descript_tab);
 	free_page((unsigned long)dd->buf_out);
 	free_page((unsigned long)dd->buf_in);
@@ -1331,7 +1438,7 @@ static irqreturn_t aml_tdes_irq(int irq, void *dev_id)
 		    (tdes_dd->flags & TDES_FLAGS_DMA)) {
 			if (status & DMA_STATUS_KEY_ERROR)
 				tdes_dd->flags |= TDES_FLAGS_ERROR;
-			aml_write_crypto_reg(tdes_dd->status, 0xff);
+			aml_write_crypto_reg(tdes_dd->dma, tdes_dd->status, 0xff);
 			tdes_dd->dma->dma_busy &= ~DMA_FLAG_TDES_IN_USE;
 			tasklet_schedule(&tdes_dd->done_task);
 			return IRQ_HANDLED;

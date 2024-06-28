@@ -138,6 +138,7 @@ static int set_sm4_kl_key_iv(struct aml_sm4_dev *dd, u32 *key,
 {
 	struct device *dev = dd->dev;
 	struct dma_dsc *dsc = dd->descriptor;
+	struct dma_dsc_64 *dsc_64 = dd->descriptor;
 	u32 *key_iv = kzalloc(DMA_KEY_IV_BUF_SIZE, GFP_ATOMIC);
 
 	s32 len = keylen;
@@ -172,32 +173,54 @@ static int set_sm4_kl_key_iv(struct aml_sm4_dev *dd, u32 *key,
 		return -EINVAL;
 	}
 
-	dsc[0].src_addr = (u32)(0xffffff00 | dd->ctx->kte);
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = keylen;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.eoc = 0;
-	dsc[0].dsc_cfg.b.owner = 1;
+	if (dd->dma->dma_bus64) {
+		dsc_64[0].src_addr = (u64)(0xffffffffffffff00 | dd->ctx->kte);
+		dsc_64[0].tgt_addr = 0;
+		dsc_64[0].dsc_cfg.d32 = 0;
+		dsc_64[0].dsc_cfg.b.length = keylen;
+		dsc_64[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc_64[0].dsc_cfg.b.eoc = 0;
+		dsc_64[0].dsc_cfg.b.owner = 1;
 
-	if (iv) {
-		dsc[1].src_addr = (u32)dma_addr_key;
-		dsc[1].tgt_addr = 32;
-		dsc[1].dsc_cfg.d32 = 0;
-		dsc[1].dsc_cfg.b.length = 16;
-		dsc[1].dsc_cfg.b.mode = MODE_KEY;
-		dsc[1].dsc_cfg.b.eoc = 1;
-		dsc[1].dsc_cfg.b.owner = 1;
+		if (iv) {
+			dsc_64[1].src_addr = (u64)dma_addr_key;
+			dsc_64[1].tgt_addr = 32;
+			dsc_64[1].dsc_cfg.d32 = 0;
+			dsc_64[1].dsc_cfg.b.length = 16;
+			dsc_64[1].dsc_cfg.b.mode = MODE_KEY;
+			dsc_64[1].dsc_cfg.b.eoc = 1;
+			dsc_64[1].dsc_cfg.b.owner = 1;
+		} else {
+			dsc_64[0].dsc_cfg.b.eoc = 1;
+		}
 	} else {
-		dsc[0].dsc_cfg.b.eoc = 1;
-	}
+		dsc[0].src_addr = (u32)(0xffffff00 | dd->ctx->kte);
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		dsc[0].dsc_cfg.b.length = keylen;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.eoc = 0;
+		dsc[0].dsc_cfg.b.owner = 1;
 
-	aml_write_crypto_reg(dd->thread,
+		if (iv) {
+			dsc[1].src_addr = (u32)dma_addr_key;
+			dsc[1].tgt_addr = 32;
+			dsc[1].dsc_cfg.d32 = 0;
+			dsc[1].dsc_cfg.b.length = 16;
+			dsc[1].dsc_cfg.b.mode = MODE_KEY;
+			dsc[1].dsc_cfg.b.eoc = 1;
+			dsc[1].dsc_cfg.b.owner = 1;
+		} else {
+			dsc[0].dsc_cfg.b.eoc = 1;
+		}
+	}
+	aml_write_crypto_reg(dd->dma, dd->thread,
 			     (uintptr_t)dd->dma_descript_tab | 2);
-	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
+	aml_dma_debug(dd->descriptor, 1, __func__, dd->thread, dd->status,
+			 dd->dma->dma_bus64);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
-	aml_write_crypto_reg(dd->status, 0xf);
+	aml_write_crypto_reg(dd->dma, dd->status, 0xf);
 	dma_unmap_single(dd->parent, dma_addr_key,
 			 DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
 
@@ -210,6 +233,7 @@ static int set_sm4_key_iv(struct aml_sm4_dev *dd, u32 *key,
 {
 	struct device *dev = dd->dev;
 	struct dma_dsc *dsc = dd->descriptor;
+	struct dma_dsc_64 *dsc_64 = dd->descriptor;
 	u32 *key_iv = kzalloc(DMA_KEY_IV_BUF_SIZE, GFP_ATOMIC);
 
 	s32 len = keylen;
@@ -249,17 +273,27 @@ static int set_sm4_key_iv(struct aml_sm4_dev *dd, u32 *key,
 		return -EINVAL;
 	}
 
-	dsc[0].src_addr = (u32)dma_addr_key;
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = len;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.eoc = 1;
-	dsc[0].dsc_cfg.b.owner = 1;
-
-	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
+	if (dd->dma->dma_bus64) {
+		dsc_64[0].src_addr = (u64)dma_addr_key;
+		dsc_64[0].tgt_addr = 0;
+		dsc_64[0].dsc_cfg.d32 = 0;
+		dsc_64[0].dsc_cfg.b.length = len;
+		dsc_64[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc_64[0].dsc_cfg.b.eoc = 1;
+		dsc_64[0].dsc_cfg.b.owner = 1;
+	} else {
+		dsc[0].src_addr = (u32)dma_addr_key;
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		dsc[0].dsc_cfg.b.length = len;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.eoc = 1;
+		dsc[0].dsc_cfg.b.owner = 1;
+	}
+	aml_dma_debug(dd->descriptor, 1, __func__, dd->thread,
+			 dd->status, dd->dma->dma_bus64);
 #if DMA_IRQ_MODE
-	aml_write_crypto_reg(dd->thread,
+	aml_write_crypto_reg(dd->dma, dd->thread,
 			     (uintptr_t)dd->dma_descript_tab | 2);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
@@ -268,11 +302,12 @@ static int set_sm4_key_iv(struct aml_sm4_dev *dd, u32 *key,
 		dev_err(dev, "hw crypto failed.\n");
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->status, 0xf);
+	aml_write_crypto_reg(dd->dma, dd->status, 0xf);
 #else
-	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dd->dma_descript_tab,
+	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, 1, dd->dma_descript_tab,
 			     1, DMA_FLAG_SM4_IN_USE);
-	aml_dma_debug(dsc, 1, "end sm4 keyiv", dd->thread, dd->status);
+	aml_dma_debug(dd->descriptor, 1, "end sm4 keyiv", dd->thread, dd->status,
+			 dd->dma->dma_bus64);
 	if (status & DMA_STATUS_KEY_ERROR) {
 		dev_err(dev, "hw crypto failed.\n");
 		err = -EINVAL;
@@ -316,7 +351,7 @@ static size_t aml_sm4_sg_copy(struct scatterlist **sg, size_t *offset,
 	return off;
 }
 
-static size_t aml_sm4_sg_dma(struct aml_sm4_dev *dd, struct dma_dsc *dsc,
+static size_t aml_sm4_sg_dma(struct aml_sm4_dev *dd, void *descriptor,
 			     size_t total)
 {
 	struct device *dev = dd->dev;
@@ -325,8 +360,12 @@ static size_t aml_sm4_sg_dma(struct aml_sm4_dev *dd, struct dma_dsc *dsc,
 	struct scatterlist *in_sg = dd->in_sg;
 	struct scatterlist *out_sg = dd->out_sg;
 	u32 in_nents = 0, out_nents = 0;
+	struct dma_dsc *dsc = descriptor;
+	struct dma_dsc_64 *dsc_64 = descriptor;
 	struct dma_sg_dsc *sg_dsc = NULL;
-
+	struct dma_sg_dsc_64 *sg_dsc_64 = NULL;
+	u32 dma_sg_dsc_sz = dd->dma->dma_bus64 ? sizeof(struct dma_sg_dsc_64) :
+						 sizeof(struct dma_sg_dsc);
 	in_nents = sg_nents(in_sg);
 	out_nents = sg_nents(out_sg);
 
@@ -358,7 +397,7 @@ static size_t aml_sm4_sg_dma(struct aml_sm4_dev *dd, struct dma_dsc *dsc,
 
 #if DMA_IRQ_MODE
 	dd->sg_dsc_in = dma_alloc_coherent(dd->parent,
-			in_nents * sizeof(struct dma_sg_dsc),
+			in_nents * dma_sg_dsc_sz,
 			&dd->dma_sg_dsc_in, GFP_ATOMIC | GFP_DMA);
 	if (!dd->sg_dsc_in) {
 		dev_err(dev, "dma_alloc_coherent() for input error\n");
@@ -366,17 +405,17 @@ static size_t aml_sm4_sg_dma(struct aml_sm4_dev *dd, struct dma_dsc *dsc,
 	}
 
 	dd->sg_dsc_out = dma_alloc_coherent(dd->parent,
-			out_nents * sizeof(struct dma_sg_dsc),
+			out_nents * dma_sg_dsc_sz,
 			&dd->dma_sg_dsc_out, GFP_ATOMIC | GFP_DMA);
 	if (!dd->dma_sg_dsc_out) {
 		dev_err(dev, "dma_alloc_coherent() for output error\n");
-		dma_free_coherent(dd->parent, in_nents * sizeof(struct dma_sg_dsc),
+		dma_free_coherent(dd->parent, in_nents * dma_sg_dsc_sz,
 				dd->sg_dsc_in, dd->dma_sg_dsc_in);
 		return 0;
 	}
 #else
 	dd->sg_dsc_in = dma_alloc_coherent(dd->parent,
-			in_nents * sizeof(struct dma_sg_dsc),
+			in_nents * dma_sg_dsc_sz,
 			&dd->dma_sg_dsc_in, GFP_KERNEL | GFP_DMA);
 	if (!dd->sg_dsc_in) {
 		dev_err(dev, "dma_alloc_coherent() for input error\n");
@@ -384,49 +423,81 @@ static size_t aml_sm4_sg_dma(struct aml_sm4_dev *dd, struct dma_dsc *dsc,
 	}
 
 	dd->sg_dsc_out = dma_alloc_coherent(dd->parent,
-			out_nents * sizeof(struct dma_sg_dsc),
+			out_nents * dma_sg_dsc_sz,
 			&dd->dma_sg_dsc_out, GFP_KERNEL | GFP_DMA);
 	if (!dd->dma_sg_dsc_out) {
 		dev_err(dev, "dma_alloc_coherent() for output error\n");
-		dma_free_coherent(dd->parent, in_nents * sizeof(struct dma_sg_dsc),
+		dma_free_coherent(dd->parent, in_nents * dma_sg_dsc_sz,
 				dd->sg_dsc_in, dd->dma_sg_dsc_in);
 		return 0;
 	}
 #endif
-
-	sg_dsc = dd->sg_dsc_in;
 	in_sg = dd->in_sg;
-	for (i = 0; i < in_nents; i++) {
-		sg_dsc[i].dsc_cfg.d32 = 0;
-		sg_dsc[i].dsc_cfg.b.valid = 1;
-		sg_dsc[i].dsc_cfg.b.eoc = i == (in_nents - 1) ? 1 : 0;
-		sg_dsc[i].dsc_cfg.b.length = in_sg->length;
-		sg_dsc[i].addr = in_sg->dma_address;
-		in_sg = sg_next(in_sg);
+	if (dd->dma->dma_bus64) {
+		sg_dsc_64 = dd->sg_dsc_in;
+		for (i = 0; i < in_nents; i++) {
+			sg_dsc_64[i].dsc_cfg.d32 = 0;
+			sg_dsc_64[i].dsc_cfg.b.valid = 1;
+			sg_dsc_64[i].dsc_cfg.b.eoc = i == (in_nents - 1) ? 1 : 0;
+			sg_dsc_64[i].dsc_cfg.b.length = in_sg->length;
+			sg_dsc_64[i].addr = in_sg->dma_address;
+			in_sg = sg_next(in_sg);
+		}
+	} else {
+		sg_dsc = dd->sg_dsc_in;
+		for (i = 0; i < in_nents; i++) {
+			sg_dsc[i].dsc_cfg.d32 = 0;
+			sg_dsc[i].dsc_cfg.b.valid = 1;
+			sg_dsc[i].dsc_cfg.b.eoc = i == (in_nents - 1) ? 1 : 0;
+			sg_dsc[i].dsc_cfg.b.length = in_sg->length;
+			sg_dsc[i].addr = in_sg->dma_address;
+			in_sg = sg_next(in_sg);
+		}
 	}
 	WARN_ON(in_sg);
 
 	out_sg = dd->out_sg;
-	sg_dsc = dd->sg_dsc_out;
-	for (i = 0; i < out_nents; i++) {
-		sg_dsc[i].dsc_cfg.d32 = 0;
-		sg_dsc[i].dsc_cfg.b.valid = 1;
-		sg_dsc[i].dsc_cfg.b.eoc = i == (out_nents - 1) ? 1 : 0;
-		sg_dsc[i].dsc_cfg.b.length = out_sg->length;
-		sg_dsc[i].addr = out_sg->dma_address;
-		out_sg = sg_next(out_sg);
+	if (dd->dma->dma_bus64) {
+		sg_dsc_64 = dd->sg_dsc_out;
+		for (i = 0; i < out_nents; i++) {
+			sg_dsc_64[i].dsc_cfg.d32 = 0;
+			sg_dsc_64[i].dsc_cfg.b.valid = 1;
+			sg_dsc_64[i].dsc_cfg.b.eoc = i == (out_nents - 1) ? 1 : 0;
+			sg_dsc_64[i].dsc_cfg.b.length = out_sg->length;
+			sg_dsc_64[i].addr = out_sg->dma_address;
+			out_sg = sg_next(out_sg);
+		}
+	} else {
+		sg_dsc = dd->sg_dsc_out;
+		for (i = 0; i < out_nents; i++) {
+			sg_dsc[i].dsc_cfg.d32 = 0;
+			sg_dsc[i].dsc_cfg.b.valid = 1;
+			sg_dsc[i].dsc_cfg.b.eoc = i == (out_nents - 1) ? 1 : 0;
+			sg_dsc[i].dsc_cfg.b.length = out_sg->length;
+			sg_dsc[i].addr = out_sg->dma_address;
+			out_sg = sg_next(out_sg);
+		}
 	}
 	WARN_ON(out_sg);
 
-	aml_dma_link_debug(dd->sg_dsc_in, dd->dma_sg_dsc_in, in_nents, __func__);
-	aml_dma_link_debug(dd->sg_dsc_out, dd->dma_sg_dsc_out, in_nents, __func__);
+	aml_dma_link_debug(dd->sg_dsc_in, dd->dma_sg_dsc_in, in_nents,
+			      __func__, dd->dma->dma_bus64);
+	aml_dma_link_debug(dd->sg_dsc_out, dd->dma_sg_dsc_out, in_nents,
+			      __func__, dd->dma->dma_bus64);
 
-	dsc->src_addr = dd->dma_sg_dsc_in;
-	dsc->tgt_addr = dd->dma_sg_dsc_out;
-	dsc->dsc_cfg.d32 = 0;
-	dsc->dsc_cfg.b.length = total;
-	dsc->dsc_cfg.b.link_error = 1;
-
+	if (dd->dma->dma_bus64) {
+		dsc_64->src_addr = dd->dma_sg_dsc_in;
+		dsc_64->tgt_addr = dd->dma_sg_dsc_out;
+		dsc_64->dsc_cfg.d32 = 0;
+		dsc_64->dsc_cfg.b.length = total;
+		dsc_64->dsc_cfg.b.link_error = 1;
+	} else {
+		dsc->src_addr = dd->dma_sg_dsc_in;
+		dsc->tgt_addr = dd->dma_sg_dsc_out;
+		dsc->dsc_cfg.d32 = 0;
+		dsc->dsc_cfg.b.length = total;
+		dsc->dsc_cfg.b.link_error = 1;
+	}
 	return total;
 }
 
@@ -477,10 +548,12 @@ static void aml_sm4_finish_req(struct aml_sm4_dev *dd, s32 err)
 #endif
 }
 
-static int aml_sm4_crypt_dma(struct aml_sm4_dev *dd, struct dma_dsc *dsc,
+static int aml_sm4_crypt_dma(struct aml_sm4_dev *dd, void *descriptor,
 			     u32 nents)
 {
 	u32 op_mode = OP_MODE_ECB;
+	struct dma_dsc *dsc = descriptor;
+	struct dma_dsc_64 *dsc_64 = descriptor;
 	u32 i = 0;
 #if DMA_IRQ_MODE
 	unsigned long flags;
@@ -494,15 +567,25 @@ static int aml_sm4_crypt_dma(struct aml_sm4_dev *dd, struct dma_dsc *dsc,
 	else if (dd->flags & SM4_FLAGS_CTR)
 		op_mode = OP_MODE_CTR;
 
-	for (i = 0; i < nents; i++) {
-		dsc[i].dsc_cfg.b.enc_sha_only = dd->flags & SM4_FLAGS_ENCRYPT;
-		dsc[i].dsc_cfg.b.mode = MODE_SM4;
-		dsc[i].dsc_cfg.b.op_mode = op_mode;
-		dsc[i].dsc_cfg.b.eoc = (i == (nents - 1));
-		dsc[i].dsc_cfg.b.owner = 1;
+	if (dd->dma->dma_bus64) {
+		for (i = 0; i < nents; i++) {
+			dsc_64[i].dsc_cfg.b.enc_sha_only = dd->flags & SM4_FLAGS_ENCRYPT;
+			dsc_64[i].dsc_cfg.b.mode = MODE_SM4;
+			dsc_64[i].dsc_cfg.b.op_mode = op_mode;
+			dsc_64[i].dsc_cfg.b.eoc = (i == (nents - 1));
+			dsc_64[i].dsc_cfg.b.owner = 1;
+		}
+	} else {
+		for (i = 0; i < nents; i++) {
+			dsc[i].dsc_cfg.b.enc_sha_only = dd->flags & SM4_FLAGS_ENCRYPT;
+			dsc[i].dsc_cfg.b.mode = MODE_SM4;
+			dsc[i].dsc_cfg.b.op_mode = op_mode;
+			dsc[i].dsc_cfg.b.eoc = (i == (nents - 1));
+			dsc[i].dsc_cfg.b.owner = 1;
+		}
 	}
-
-	aml_dma_debug(dsc, nents, __func__, dd->thread, dd->status);
+	aml_dma_debug(descriptor, nents, __func__, dd->thread, dd->status,
+			 dd->dma->dma_bus64);
 
 	/* Start DMA transfer */
 #if DMA_IRQ_MODE
@@ -511,15 +594,16 @@ static int aml_sm4_crypt_dma(struct aml_sm4_dev *dd, struct dma_dsc *dsc,
 	spin_unlock_irqrestore(&dd->dma->dma_lock, flags);
 
 	dd->flags |= SM4_FLAGS_DMA;
-	aml_write_crypto_reg(dd->thread, dd->dma_descript_tab | 2);
+	aml_write_crypto_reg(dd->dma, dd->thread, dd->dma_descript_tab | 2);
 	return -EINPROGRESS;
 #else
 	dd->flags |= SM4_FLAGS_DMA;
-	status = aml_dma_do_hw_crypto(dd->dma, dsc, nents, dd->dma_descript_tab,
+	status = aml_dma_do_hw_crypto(dd->dma, descriptor, nents, dd->dma_descript_tab,
 			     1, DMA_FLAG_SM4_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR)
 		dd->flags |= SM4_FLAGS_ERROR;
-	aml_dma_debug(dsc, nents, "end sm4", dd->thread, dd->status);
+	aml_dma_debug(descriptor, nents, "end sm4", dd->thread, dd->status,
+			 dd->dma->dma_bus64);
 	err = aml_sm4_crypt_dma_stop(dd);
 	if (!err) {
 		err = dd->flags & SM4_FLAGS_ERROR;
@@ -535,6 +619,7 @@ static int aml_sm4_crypt_dma_start(struct aml_sm4_dev *dd)
 	size_t count = 0;
 	dma_addr_t addr_in, addr_out;
 	struct dma_dsc *dsc = dd->descriptor;
+	struct dma_dsc_64 *dsc_64 = dd->descriptor;
 	u32 nents;
 
 	/* slow dma */
@@ -548,20 +633,32 @@ static int aml_sm4_crypt_dma_start(struct aml_sm4_dev *dd)
 				   ((dd->dma_size + SM4_BLOCK_SIZE - 1)
 				   / SM4_BLOCK_SIZE) * SM4_BLOCK_SIZE,
 				   DMA_TO_DEVICE);
-	dsc->src_addr = (u32)addr_in;
-	dsc->tgt_addr = (u32)addr_out;
-	dsc->dsc_cfg.d32 = 0;
-	/* We align data to SM4_BLOCK_SIZE for old aml-dma devices */
-	dsc->dsc_cfg.b.length = ((count + SM4_BLOCK_SIZE - 1)
-				 / SM4_BLOCK_SIZE) * SM4_BLOCK_SIZE;
-	nents = 1;
-	dd->flags &= ~SM4_FLAGS_FAST;
-	dbgp(1, "use slow dma: cnt:%zd, len:%d\n",
-	     count, dsc->dsc_cfg.b.length);
-
+	if (dd->dma->dma_bus64) {
+		dsc_64->src_addr = (u64)addr_in;
+		dsc_64->tgt_addr = (u64)addr_out;
+		dsc_64->dsc_cfg.d32 = 0;
+		/* We align data to SM4_BLOCK_SIZE for old aml-dma devices */
+		dsc_64->dsc_cfg.b.length = ((count + SM4_BLOCK_SIZE - 1)
+				/ SM4_BLOCK_SIZE) * SM4_BLOCK_SIZE;
+		nents = 1;
+		dd->flags &= ~SM4_FLAGS_FAST;
+		dbgp(1, "use slow dma: cnt:%zd, len:%d\n",
+				count, dsc_64->dsc_cfg.b.length);
+	} else {
+		dsc->src_addr = (u32)addr_in;
+		dsc->tgt_addr = (u32)addr_out;
+		dsc->dsc_cfg.d32 = 0;
+		/* We align data to SM4_BLOCK_SIZE for old aml-dma devices */
+		dsc->dsc_cfg.b.length = ((count + SM4_BLOCK_SIZE - 1)
+				/ SM4_BLOCK_SIZE) * SM4_BLOCK_SIZE;
+		nents = 1;
+		dd->flags &= ~SM4_FLAGS_FAST;
+		dbgp(1, "use slow dma: cnt:%zd, len:%d\n",
+				count, dsc->dsc_cfg.b.length);
+	}
 	dd->total -= count;
 
-	err = aml_sm4_crypt_dma(dd, dsc, nents);
+	err = aml_sm4_crypt_dma(dd, dd->descriptor, nents);
 
 	return err;
 }
@@ -570,9 +667,8 @@ static int aml_sm4_crypt_dma_link_mode_start(struct aml_sm4_dev *dd)
 {
 	int err = 0;
 	size_t count = 0;
-	struct dma_dsc *dsc = dd->descriptor;
 
-	count = aml_sm4_sg_dma(dd, dsc, dd->total);
+	count = aml_sm4_sg_dma(dd, dd->descriptor, dd->total);
 	dd->flags |= SM4_FLAGS_FAST;
 	dd->fast_total = count;
 	dd->total -= dd->fast_total;
@@ -585,7 +681,7 @@ static int aml_sm4_crypt_dma_link_mode_start(struct aml_sm4_dev *dd)
 					 16, 0);
 
 	/* using 1 entry in link mode */
-	err = aml_sm4_crypt_dma(dd, dsc, 1);
+	err = aml_sm4_crypt_dma(dd, dd->descriptor, 1);
 
 	return err;
 }
@@ -742,6 +838,8 @@ static int aml_sm4_crypt_dma_stop(struct aml_sm4_dev *dd)
 	int err = -EINVAL;
 	size_t count;
 	u32 in_nents = 0, out_nents = 0;
+	u32 dma_sg_dsc_sz = dd->dma->dma_bus64 ? sizeof(struct dma_sg_dsc_64) :
+						 sizeof(struct dma_sg_dsc);
 
 	if (dd->flags & SM4_FLAGS_DMA) {
 		err = 0;
@@ -760,14 +858,16 @@ static int aml_sm4_crypt_dma_stop(struct aml_sm4_dev *dd)
 						DMA_BIDIRECTIONAL);
 			}
 
-			aml_dma_link_debug(dd->sg_dsc_in, dd->dma_sg_dsc_in, in_nents, __func__);
-			aml_dma_link_debug(dd->sg_dsc_out, dd->dma_sg_dsc_out, in_nents, __func__);
+			aml_dma_link_debug(dd->sg_dsc_in, dd->dma_sg_dsc_in, in_nents,
+					   __func__, dd->dma->dma_bus64);
+			aml_dma_link_debug(dd->sg_dsc_out, dd->dma_sg_dsc_out, in_nents,
+					   __func__, dd->dma->dma_bus64);
 
 			dma_free_coherent(dd->parent,
-					  in_nents * sizeof(struct dma_sg_dsc),
+					  in_nents * dma_sg_dsc_sz,
 					  dd->sg_dsc_in, dd->dma_sg_dsc_in);
 			dma_free_coherent(dd->parent,
-					  out_nents * sizeof(struct dma_sg_dsc),
+					  out_nents * dma_sg_dsc_sz,
 					  dd->sg_dsc_out, dd->dma_sg_dsc_out);
 
 			/* install IV */
@@ -837,6 +937,8 @@ static int aml_sm4_buff_init(struct aml_sm4_dev *dd)
 {
 	struct device *dev = dd->dev;
 	int err = -ENOMEM;
+	u32 dma_dsc_sz = dd->dma->dma_bus64 ? sizeof(struct dma_dsc_64) :
+					      sizeof(struct dma_dsc);
 
 	dd->buf_in = (void *)__get_free_pages(GFP_KERNEL, 0);
 	dd->buf_out = (void *)__get_free_pages(GFP_KERNEL, 0);
@@ -850,7 +952,7 @@ static int aml_sm4_buff_init(struct aml_sm4_dev *dd)
 
 	dd->descriptor =
 		dmam_alloc_coherent(dd->parent,
-				   MAX_NUM_TABLES * sizeof(struct dma_dsc),
+				   MAX_NUM_TABLES * dma_dsc_sz,
 				   &dd->dma_descript_tab, GFP_KERNEL | GFP_DMA);
 	if (!dd->descriptor) {
 		dev_err(dev, "dma descriptor error\n");
@@ -891,11 +993,14 @@ err_alloc:
 
 static void aml_sm4_buff_cleanup(struct aml_sm4_dev *dd)
 {
+	u32 dma_dsc_sz = dd->dma->dma_bus64 ? sizeof(struct dma_dsc_64) :
+					      sizeof(struct dma_dsc);
+
 	dma_unmap_single(dd->parent, dd->dma_addr_out, dd->buflen,
 			 DMA_FROM_DEVICE);
 	dma_unmap_single(dd->parent, dd->dma_addr_in, dd->buflen,
 			 DMA_TO_DEVICE);
-	dmam_free_coherent(dd->parent, MAX_NUM_TABLES * sizeof(struct dma_dsc),
+	dmam_free_coherent(dd->parent, MAX_NUM_TABLES * dma_dsc_sz,
 			dd->descriptor, dd->dma_descript_tab);
 	free_page((uintptr_t)dd->buf_out);
 	free_page((uintptr_t)dd->buf_in);
@@ -1178,7 +1283,8 @@ static void aml_sm4_done_task(unsigned long data)
 		dd->flags = (dd->flags & ~SM4_FLAGS_ERROR);
 	}
 
-	aml_dma_debug(dd->descriptor, 1, __func__, dd->thread, dd->status);
+	aml_dma_debug(dd->descriptor, 1, __func__, dd->thread,
+			 dd->status, dd->dma->dma_bus64);
 
 	err = dd->err ? dd->err : err;
 
@@ -1211,7 +1317,7 @@ static irqreturn_t aml_sm4_irq(int irq, void *dev_id)
 		    (sm4_dd->dma->dma_busy & DMA_FLAG_SM4_IN_USE)) {
 			if (status & DMA_STATUS_KEY_ERROR)
 				sm4_dd->flags |= SM4_FLAGS_ERROR;
-			aml_write_crypto_reg(sm4_dd->status, 0xf);
+			aml_write_crypto_reg(sm4_dd->dma, sm4_dd->status, 0xf);
 			sm4_dd->dma->dma_busy &= ~DMA_FLAG_SM4_IN_USE;
 			tasklet_schedule(&sm4_dd->done_task);
 			return IRQ_HANDLED;

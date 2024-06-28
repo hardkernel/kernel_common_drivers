@@ -61,6 +61,7 @@ struct aml_crypto_dev {
 #if !USE_BUSY_POLLING
 	struct completion done;
 #endif
+	struct aml_dma_dev	*dma;
 };
 
 struct aml_crypto_dev *crypto_dd;
@@ -146,21 +147,14 @@ struct kernel_crypt_op {
 	u8 ivlen;
 };
 
-static noinline int call_smc(u64 func_id, u64 arg0, u64 arg1, u64 arg2)
+static inline void wait_owner_bit(void *descriptor)
 {
-	struct arm_smccc_res res;
+	/* Since the common part of dma_dsc and dma_dsc_64 is the same,
+	 * we can cast pointer to dma_dsc to check owner bit.
+	 */
+	struct dma_dsc *dsc = descriptor;
 
-	arm_smccc_smc((unsigned long)func_id,
-		      (unsigned long)arg0,
-		      (unsigned long)arg1,
-		      (unsigned long)arg2,
-		      0, 0, 0, 0, &res);
-	return res.a0;
-}
-
-static inline void wait_owner_bit(struct dma_dsc *dsc)
-{
-	if (dsc) {
+	if (descriptor) {
 		/* Must provide the last dsc */
 		WARN_ON(!dsc->dsc_cfg.b.eoc);
 		if (dsc->dsc_cfg.b.eoc == 1) {
@@ -189,7 +183,7 @@ static irqreturn_t aml_crypto_dev_irq(int irq, void *dev_id)
 			} else {
 				dd->err = 0;
 			}
-			aml_write_crypto_reg(dd->status, 0xff);
+			aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xff);
 			complete(&dd->done);
 			return IRQ_HANDLED;
 		} else {
@@ -661,7 +655,11 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 	dma_addr_t dsc_addr = 0;
 	dma_addr_t dma_iv_addr = 0;
 	dma_addr_t cleanup_addr = 0;
+	void *descriptor = NULL;
 	struct dma_dsc *dsc = NULL;
+	struct dma_dsc_64 *dsc_64 = NULL;
+	u32 dma_dsc_sz = crypto_dd->dma->dma_bus64 ? sizeof(struct dma_dsc_64) :
+						     sizeof(struct dma_dsc);
 	u8 *iv = NULL;
 	u8 *key_clean = NULL;
 	struct device *dev = NULL;
@@ -717,23 +715,37 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 		src_bufsz += kcop->cop.src[i].length;
 
 	/* extra three descriptor for key and IV and cleanup */
-	dsc = dma_alloc_coherent(dev, (nbufs + 3) * sizeof(struct dma_dsc),
+	descriptor = dma_alloc_coherent(dev, (nbufs + 3) * dma_dsc_sz,
 				 &dsc_addr, GFP_KERNEL | GFP_DMA);
-	if (!dsc) {
+	if (!descriptor) {
 		dbgp(2, "cannot allocate dsc\n");
 		rc = -ENOMEM;
 		goto error;
 	}
+	dsc = descriptor;
+	dsc_64 = descriptor;
 
-	dsc[0].src_addr = (u32)(0xffffff00 | ses_ptr->cdata.kte);
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	/* HW bug, key length needs to stay at 16 */
-	dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
-				  16 : ses_ptr->cdata.keylen;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.eoc = 0;
-	dsc[0].dsc_cfg.b.owner = 1;
+	if (crypto_dd->dma->dma_bus64) {
+		dsc_64[0].src_addr = (u64)(0xffffffffffffff00 | ses_ptr->cdata.kte);
+		dsc_64[0].tgt_addr = 0;
+		dsc_64[0].dsc_cfg.d32 = 0;
+		/* HW bug, key length needs to stay at 16 */
+		dsc_64[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
+			16 : ses_ptr->cdata.keylen;
+		dsc_64[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc_64[0].dsc_cfg.b.eoc = 0;
+		dsc_64[0].dsc_cfg.b.owner = 1;
+	} else {
+		dsc[0].src_addr = (u32)(0xffffff00 | ses_ptr->cdata.kte);
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		/* HW bug, key length needs to stay at 16 */
+		dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
+			16 : ses_ptr->cdata.keylen;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.eoc = 0;
+		dsc[0].dsc_cfg.b.owner = 1;
+	}
 	s++;
 
 	if (kcop->ivlen) {
@@ -745,14 +757,25 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 			goto error;
 		}
 		memcpy(iv, kcop->iv, kcop->ivlen);
-		dsc[1].src_addr = (u32)dma_iv_addr;
-		dsc[1].tgt_addr = 32;
-		dsc[1].dsc_cfg.d32 = 0;
-		/* HW bug, iv length needs to stay at 16 */
-		dsc[1].dsc_cfg.b.length = kcop->ivlen <= 16 ? 16 : kcop->ivlen;
-		dsc[1].dsc_cfg.b.mode = MODE_KEY;
-		dsc[1].dsc_cfg.b.eoc = 0;
-		dsc[1].dsc_cfg.b.owner = 1;
+		if (crypto_dd->dma->dma_bus64) {
+			dsc_64[1].src_addr = (u64)dma_iv_addr;
+			dsc_64[1].tgt_addr = 32;
+			dsc_64[1].dsc_cfg.d32 = 0;
+			/* HW bug, iv length needs to stay at 16 */
+			dsc_64[1].dsc_cfg.b.length = kcop->ivlen <= 16 ? 16 : kcop->ivlen;
+			dsc_64[1].dsc_cfg.b.mode = MODE_KEY;
+			dsc_64[1].dsc_cfg.b.eoc = 0;
+			dsc_64[1].dsc_cfg.b.owner = 1;
+		} else {
+			dsc[1].src_addr = (u32)dma_iv_addr;
+			dsc[1].tgt_addr = 32;
+			dsc[1].dsc_cfg.d32 = 0;
+			/* HW bug, iv length needs to stay at 16 */
+			dsc[1].dsc_cfg.b.length = kcop->ivlen <= 16 ? 16 : kcop->ivlen;
+			dsc[1].dsc_cfg.b.mode = MODE_KEY;
+			dsc[1].dsc_cfg.b.eoc = 0;
+			dsc[1].dsc_cfg.b.owner = 1;
+		}
 		s++;
 	}
 
@@ -765,32 +788,62 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 	else
 		begin = 0;
 
-	for (i = 0; i < nbufs; i++) {
-		u32 length = kcop->cop.src[i].length;
+	if (crypto_dd->dma->dma_bus64) {
+		for (i = 0; i < nbufs; i++) {
+			u32 length = kcop->cop.src[i].length;
 
-		if (!(length % DMA_BLOCK_MODE_SIZE))
-			block_mode = 1;
-		else
-			block_mode = 0;
+			if (!(length % DMA_BLOCK_MODE_SIZE))
+				block_mode = 1;
+			else
+				block_mode = 0;
 
-		dsc[s + i].src_addr = (uintptr_t)kcop->cop.src[i].addr;
-		dsc[s + i].tgt_addr = (uintptr_t)kcop->cop.dst[i].addr;
-		dsc[s + i].dsc_cfg.d32 = 0;
-		dsc[s + i].dsc_cfg.b.enc_sha_only = (kcop->cop.op ==
-						     CRYPTO_OP_ENCRYPT);
-		dsc[s + i].dsc_cfg.b.block = block_mode;
-		if (block_mode)
-			dsc[s + i].dsc_cfg.b.length =
-				length / DMA_BLOCK_MODE_SIZE;
-		else
-			dsc[s + i].dsc_cfg.b.length = length;
-		dsc[s + i].dsc_cfg.b.op_mode = ses_ptr->cdata.op_mode;
-		dsc[s + i].dsc_cfg.b.mode = ses_ptr->cdata.crypt_mode;
-		dsc[s + i].dsc_cfg.b.begin = begin;
-		dsc[s + i].dsc_cfg.b.eoc = 0;
-		dsc[s + i].dsc_cfg.b.owner = 1;
+			dsc_64[s + i].src_addr = (uintptr_t)kcop->cop.src[i].addr;
+			dsc_64[s + i].tgt_addr = (uintptr_t)kcop->cop.dst[i].addr;
+			dsc_64[s + i].dsc_cfg.d32 = 0;
+			dsc_64[s + i].dsc_cfg.b.enc_sha_only = (kcop->cop.op ==
+					CRYPTO_OP_ENCRYPT);
+			dsc_64[s + i].dsc_cfg.b.block = block_mode;
+			if (block_mode)
+				dsc_64[s + i].dsc_cfg.b.length =
+					length / DMA_BLOCK_MODE_SIZE;
+			else
+				dsc_64[s + i].dsc_cfg.b.length = length;
+			dsc_64[s + i].dsc_cfg.b.op_mode = ses_ptr->cdata.op_mode;
+			dsc_64[s + i].dsc_cfg.b.mode = ses_ptr->cdata.crypt_mode;
+			dsc_64[s + i].dsc_cfg.b.begin = begin;
+			dsc_64[s + i].dsc_cfg.b.eoc = 0;
+			dsc_64[s + i].dsc_cfg.b.owner = 1;
 
-		begin = 0;
+			begin = 0;
+		}
+	} else {
+		for (i = 0; i < nbufs; i++) {
+			u32 length = kcop->cop.src[i].length;
+
+			if (!(length % DMA_BLOCK_MODE_SIZE))
+				block_mode = 1;
+			else
+				block_mode = 0;
+
+			dsc[s + i].src_addr = (uintptr_t)kcop->cop.src[i].addr;
+			dsc[s + i].tgt_addr = (uintptr_t)kcop->cop.dst[i].addr;
+			dsc[s + i].dsc_cfg.d32 = 0;
+			dsc[s + i].dsc_cfg.b.enc_sha_only = (kcop->cop.op ==
+					CRYPTO_OP_ENCRYPT);
+			dsc[s + i].dsc_cfg.b.block = block_mode;
+			if (block_mode)
+				dsc[s + i].dsc_cfg.b.length =
+					length / DMA_BLOCK_MODE_SIZE;
+			else
+				dsc[s + i].dsc_cfg.b.length = length;
+			dsc[s + i].dsc_cfg.b.op_mode = ses_ptr->cdata.op_mode;
+			dsc[s + i].dsc_cfg.b.mode = ses_ptr->cdata.crypt_mode;
+			dsc[s + i].dsc_cfg.b.begin = begin;
+			dsc[s + i].dsc_cfg.b.eoc = 0;
+			dsc[s + i].dsc_cfg.b.owner = 1;
+
+			begin = 0;
+		}
 	}
 	key_clean = dma_alloc_coherent(dev, DMA_BUF_SIZE, &cleanup_addr,
 				       GFP_KERNEL | GFP_DMA);
@@ -800,16 +853,25 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 		goto error;
 	}
 	memset(key_clean, 0, DMA_BUF_SIZE);
-	dsc[s + i].src_addr = cleanup_addr;
-	dsc[s + i].tgt_addr = 0;
-	dsc[s + i].dsc_cfg.d32 = 0;
-	dsc[s + i].dsc_cfg.b.length = DMA_BUF_SIZE;
-	dsc[s + i].dsc_cfg.b.mode = MODE_KEY;
-	dsc[s + i].dsc_cfg.b.eoc = 1;
-	dsc[s + i].dsc_cfg.b.owner = 1;
-
-	aml_dma_debug(dsc, s + i + 1, __func__,
-		      crypto_dd->thread, crypto_dd->status);
+	if (crypto_dd->dma->dma_bus64) {
+		dsc_64[s + i].src_addr = cleanup_addr;
+		dsc_64[s + i].tgt_addr = 0;
+		dsc_64[s + i].dsc_cfg.d32 = 0;
+		dsc_64[s + i].dsc_cfg.b.length = DMA_BUF_SIZE;
+		dsc_64[s + i].dsc_cfg.b.mode = MODE_KEY;
+		dsc_64[s + i].dsc_cfg.b.eoc = 1;
+		dsc_64[s + i].dsc_cfg.b.owner = 1;
+	} else {
+		dsc[s + i].src_addr = cleanup_addr;
+		dsc[s + i].tgt_addr = 0;
+		dsc[s + i].dsc_cfg.d32 = 0;
+		dsc[s + i].dsc_cfg.b.length = DMA_BUF_SIZE;
+		dsc[s + i].dsc_cfg.b.mode = MODE_KEY;
+		dsc[s + i].dsc_cfg.b.eoc = 1;
+		dsc[s + i].dsc_cfg.b.owner = 1;
+	}
+	aml_dma_debug(descriptor, s + i + 1, __func__,
+		      crypto_dd->thread, crypto_dd->status, crypto_dd->dma->dma_bus64);
 
 	lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
 	if (lock_ret)
@@ -818,19 +880,27 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 #if !USE_BUSY_POLLING
 	reinit_completion(&crypto_dd->done);
 #endif
-	aml_write_crypto_reg(crypto_dd->thread, (uintptr_t)dsc_addr | 2);
+	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->thread, (uintptr_t)dsc_addr | 2);
 
 #if USE_BUSY_POLLING
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
-	if (!err)
-		wait_owner_bit(&dsc[s + i]);
-	aml_write_crypto_reg(crypto_dd->status, 0xff);
+	if (!err) {
+		if (crypto_dd->dma->dma_bus64)
+			wait_owner_bit((void *)&dsc_64[s + i]);
+		else
+			wait_owner_bit((void *)&dsc[s + i]);
+	}
+	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xff);
 #else
 	wait_for_completion(&crypto_dd->done);
 	err = crypto_dd->err;
-	if (!err)
-		wait_owner_bit(&dsc[s + i]);
+	if (!err) {
+		if (crypto_dd->dma->dma_bus64)
+			wait_owner_bit((void *)&dsc_64[s + i]);
+		else
+			wait_owner_bit(&dsc[s + i]);
+	}
 #endif
 	crypto_dd->dma_busy = 0;
 	mutex_unlock(&crypto_dd->lock);
@@ -840,8 +910,9 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 
 		rc = -EACCES;
 		debug = 0;
-		aml_dma_debug(dsc, s + i + 1, __func__,
-			      crypto_dd->thread, crypto_dd->status);
+		aml_dma_debug(descriptor, s + i + 1, __func__,
+			      crypto_dd->thread, crypto_dd->status,
+			      crypto_dd->dma->dma_bus64);
 		debug = old_debug;
 		goto error;
 	}
@@ -858,9 +929,9 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 error:
 	if (iv)
 		dma_free_coherent(dev, kcop->ivlen, iv, dma_iv_addr);
-	if (dsc)
-		dma_free_coherent(dev, (nbufs + 3) * sizeof(struct dma_dsc),
-				  dsc, dsc_addr);
+	if (descriptor)
+		dma_free_coherent(dev, (nbufs + 3) * dma_dsc_sz,
+				  descriptor, dsc_addr);
 	if (key_clean)
 		dma_free_coherent(dev, DMA_BUF_SIZE,
 				  key_clean, cleanup_addr);
@@ -941,7 +1012,11 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 	dma_addr_t dma_iv_addr = 0;
 	dma_addr_t dma_buf = 0;
 	dma_addr_t cleanup_addr = 0;
+	void *descriptor = NULL;
 	struct dma_dsc *dsc = NULL;
+	struct dma_dsc_64 *dsc_64 = NULL;
+	u32 dma_dsc_sz = crypto_dd->dma->dma_bus64 ? sizeof(struct dma_dsc_64) :
+						     sizeof(struct dma_dsc);
 	u8 *iv = NULL;
 	u8 *key_clean = NULL;
 	struct device *dev = NULL;
@@ -983,23 +1058,37 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 	}
 
 	/* three descriptor for key, IV and data */
-	dsc = dma_alloc_coherent(dev, 3 * sizeof(struct dma_dsc),
+	descriptor = dma_alloc_coherent(dev, 3 * dma_dsc_sz,
 				 &dsc_addr, GFP_KERNEL | GFP_DMA);
-	if (!dsc) {
+	if (!descriptor) {
 		dbgp(2, "cannot allocate dsc\n");
 		rc = -ENOMEM;
 		goto error;
 	}
+	dsc = descriptor;
+	dsc_64 = descriptor;
 
-	dsc[0].src_addr = (u32)(0xffffff00 | ses_ptr->cdata.kte);
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	/* HW bug, key length needs to stay at 16 */
-	dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
-				  16 : ses_ptr->cdata.keylen;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.eoc = 0;
-	dsc[0].dsc_cfg.b.owner = 1;
+	if (crypto_dd->dma->dma_bus64) {
+		dsc_64[0].src_addr = (u64)(0xffffffffffffff00 | ses_ptr->cdata.kte);
+		dsc_64[0].tgt_addr = 0;
+		dsc_64[0].dsc_cfg.d32 = 0;
+		/* HW bug, key length needs to stay at 16 */
+		dsc_64[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
+			16 : ses_ptr->cdata.keylen;
+		dsc_64[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc_64[0].dsc_cfg.b.eoc = 0;
+		dsc_64[0].dsc_cfg.b.owner = 1;
+	} else {
+		dsc[0].src_addr = (u32)(0xffffff00 | ses_ptr->cdata.kte);
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		/* HW bug, key length needs to stay at 16 */
+		dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
+			16 : ses_ptr->cdata.keylen;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.eoc = 0;
+		dsc[0].dsc_cfg.b.owner = 1;
+	}
 	s++;
 
 	if (kcop->ivlen) {
@@ -1011,14 +1100,25 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 			goto error;
 		}
 		memcpy(iv, kcop->iv, kcop->ivlen);
-		dsc[1].src_addr = (u32)dma_iv_addr;
-		dsc[1].tgt_addr = 32;
-		dsc[1].dsc_cfg.d32 = 0;
-		/* HW bug, iv length needs to stay at 16 */
-		dsc[1].dsc_cfg.b.length = kcop->ivlen <= 16 ? 16 : kcop->ivlen;
-		dsc[1].dsc_cfg.b.mode = MODE_KEY;
-		dsc[1].dsc_cfg.b.eoc = 0;
-		dsc[1].dsc_cfg.b.owner = 1;
+		if (crypto_dd->dma->dma_bus64) {
+			dsc_64[1].src_addr = (u64)dma_iv_addr;
+			dsc_64[1].tgt_addr = 32;
+			dsc_64[1].dsc_cfg.d32 = 0;
+			/* HW bug, iv length needs to stay at 16 */
+			dsc_64[1].dsc_cfg.b.length = kcop->ivlen <= 16 ? 16 : kcop->ivlen;
+			dsc_64[1].dsc_cfg.b.mode = MODE_KEY;
+			dsc_64[1].dsc_cfg.b.eoc = 0;
+			dsc_64[1].dsc_cfg.b.owner = 1;
+		} else {
+			dsc[1].src_addr = (u32)dma_iv_addr;
+			dsc[1].tgt_addr = 32;
+			dsc[1].dsc_cfg.d32 = 0;
+			/* HW bug, iv length needs to stay at 16 */
+			dsc[1].dsc_cfg.b.length = kcop->ivlen <= 16 ? 16 : kcop->ivlen;
+			dsc[1].dsc_cfg.b.mode = MODE_KEY;
+			dsc[1].dsc_cfg.b.eoc = 0;
+			dsc[1].dsc_cfg.b.owner = 1;
+		}
 		s++;
 	}
 
@@ -1072,23 +1172,41 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 
 		dma_buf = dma_map_single(dev, tmp_buf, length, DMA_TO_DEVICE);
 
-		dsc[s].src_addr = dma_buf;
-		dsc[s].tgt_addr = (uintptr_t)kcop->cop.dst[i].addr;
-		dsc[s].dsc_cfg.d32 = 0;
-		dsc[s].dsc_cfg.b.enc_sha_only = (kcop->cop.op
-						 == CRYPTO_OP_ENCRYPT);
-		dsc[s].dsc_cfg.b.block = block_mode;
-		if (block_mode)
-			dsc[s].dsc_cfg.b.length =
-				length / DMA_BLOCK_MODE_SIZE;
-		else
-			dsc[s].dsc_cfg.b.length = length;
-		dsc[s].dsc_cfg.b.op_mode = ses_ptr->cdata.op_mode;
-		dsc[s].dsc_cfg.b.mode = ses_ptr->cdata.crypt_mode;
-		dsc[s].dsc_cfg.b.begin = begin;
-		dsc[s].dsc_cfg.b.eoc = 1;
-		dsc[s].dsc_cfg.b.owner = 1;
-
+		if (crypto_dd->dma->dma_bus64) {
+			dsc_64[s].src_addr = dma_buf;
+			dsc_64[s].tgt_addr = (uintptr_t)kcop->cop.dst[i].addr;
+			dsc_64[s].dsc_cfg.d32 = 0;
+			dsc_64[s].dsc_cfg.b.enc_sha_only = (kcop->cop.op
+					== CRYPTO_OP_ENCRYPT);
+			dsc_64[s].dsc_cfg.b.block = block_mode;
+			if (block_mode)
+				dsc_64[s].dsc_cfg.b.length =
+					length / DMA_BLOCK_MODE_SIZE;
+			else
+				dsc_64[s].dsc_cfg.b.length = length;
+			dsc_64[s].dsc_cfg.b.op_mode = ses_ptr->cdata.op_mode;
+			dsc_64[s].dsc_cfg.b.mode = ses_ptr->cdata.crypt_mode;
+			dsc_64[s].dsc_cfg.b.begin = begin;
+			dsc_64[s].dsc_cfg.b.eoc = 1;
+			dsc_64[s].dsc_cfg.b.owner = 1;
+		} else {
+			dsc[s].src_addr = dma_buf;
+			dsc[s].tgt_addr = (uintptr_t)kcop->cop.dst[i].addr;
+			dsc[s].dsc_cfg.d32 = 0;
+			dsc[s].dsc_cfg.b.enc_sha_only = (kcop->cop.op
+					== CRYPTO_OP_ENCRYPT);
+			dsc[s].dsc_cfg.b.block = block_mode;
+			if (block_mode)
+				dsc[s].dsc_cfg.b.length =
+					length / DMA_BLOCK_MODE_SIZE;
+			else
+				dsc[s].dsc_cfg.b.length = length;
+			dsc[s].dsc_cfg.b.op_mode = ses_ptr->cdata.op_mode;
+			dsc[s].dsc_cfg.b.mode = ses_ptr->cdata.crypt_mode;
+			dsc[s].dsc_cfg.b.begin = begin;
+			dsc[s].dsc_cfg.b.eoc = 1;
+			dsc[s].dsc_cfg.b.owner = 1;
+		}
 		begin = 0;
 
 		crypto_dd->dma_busy = 1;
@@ -1096,22 +1214,31 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 		reinit_completion(&crypto_dd->done);
 #endif
 
-		aml_dma_debug(dsc, s + 1, __func__,
-			      crypto_dd->thread, crypto_dd->status);
-		aml_write_crypto_reg(crypto_dd->thread,
+		aml_dma_debug(descriptor, s + 1, __func__,
+			      crypto_dd->thread, crypto_dd->status,
+			      crypto_dd->dma->dma_bus64);
+		aml_write_crypto_reg(crypto_dd->dma, crypto_dd->thread,
 				    (uintptr_t)dsc_addr | 2);
 
 #if USE_BUSY_POLLING
 		while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 			;
-		if (!err)
-			wait_owner_bit(&dsc[s]);
-		aml_write_crypto_reg(crypto_dd->status, 0xf);
+		if (!err) {
+			if (crypto_dd->dma->dma_bus64)
+				wait_owner_bit(&dsc_64[s]);
+			else
+				wait_owner_bit(&dsc[s]);
+		}
+		aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xf);
 #else
 		wait_for_completion(&crypto_dd->done);
 		err = crypto_dd->err;
-		if (!err)
-			wait_owner_bit(&dsc[s]);
+		if (!err) {
+			if (crypto_dd->dma->dma_bus64)
+				wait_owner_bit(&dsc_64[s]);
+			else
+				wait_owner_bit(&dsc[s]);
+		}
 #endif
 		crypto_dd->dma_busy = 0;
 		dma_unmap_single(dev, dma_buf, length, DMA_TO_DEVICE);
@@ -1120,8 +1247,9 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 
 			rc = -EACCES;
 			debug = 0;
-			aml_dma_debug(dsc, s + 1, __func__,
-				      crypto_dd->thread, crypto_dd->status);
+			aml_dma_debug(descriptor, s + 1, __func__,
+				      crypto_dd->thread, crypto_dd->status,
+				      crypto_dd->dma->dma_bus64);
 			debug = old_debug;
 			mutex_unlock(&crypto_dd->lock);
 			goto error;
@@ -1138,14 +1266,23 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 		goto error;
 	}
 	memset(key_clean, 0, DMA_BUF_SIZE);
-	dsc[0].src_addr = cleanup_addr;
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = DMA_BUF_SIZE;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.eoc = 1;
-	dsc[0].dsc_cfg.b.owner = 1;
-
+	if (crypto_dd->dma->dma_bus64) {
+		dsc_64[0].src_addr = cleanup_addr;
+		dsc_64[0].tgt_addr = 0;
+		dsc_64[0].dsc_cfg.d32 = 0;
+		dsc_64[0].dsc_cfg.b.length = DMA_BUF_SIZE;
+		dsc_64[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc_64[0].dsc_cfg.b.eoc = 1;
+		dsc_64[0].dsc_cfg.b.owner = 1;
+	} else {
+		dsc[0].src_addr = cleanup_addr;
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		dsc[0].dsc_cfg.b.length = DMA_BUF_SIZE;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.eoc = 1;
+		dsc[0].dsc_cfg.b.owner = 1;
+	}
 	lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
 	if (lock_ret)
 		goto error;
@@ -1153,19 +1290,28 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 #if !USE_BUSY_POLLING
 	reinit_completion(&crypto_dd->done);
 #endif
-	aml_dma_debug(dsc, 1, __func__, crypto_dd->thread, crypto_dd->status);
-	aml_write_crypto_reg(crypto_dd->thread, (uintptr_t)dsc_addr | 2);
+	aml_dma_debug(descriptor, 1, __func__, crypto_dd->thread,
+			 crypto_dd->status, crypto_dd->dma->dma_bus64);
+	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->thread, (uintptr_t)dsc_addr | 2);
 #if USE_BUSY_POLLING
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
-	if (!err)
-		wait_owner_bit(&dsc[0]);
-	aml_write_crypto_reg(crypto_dd->status, 0xff);
+	if (!err) {
+		if (crypto_dd->dma->dma_bus64)
+			wait_owner_bit(&dsc_64[0]);
+		else
+			wait_owner_bit(&dsc[0]);
+	}
+	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xff);
 #else
 	wait_for_completion(&crypto_dd->done);
 	err = crypto_dd->err;
-	if (!err)
-		wait_owner_bit(&dsc[0]);
+	if (!err) {
+		if (crypto_dd->dma->dma_bus64)
+			wait_owner_bit(&dsc_64[0]);
+		else
+			wait_owner_bit(&dsc[0]);
+	}
 #endif
 	crypto_dd->dma_busy = 0;
 	mutex_unlock(&crypto_dd->lock);
@@ -1174,8 +1320,9 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 
 		rc = -EACCES;
 		debug = 0;
-		aml_dma_debug(dsc, 1, __func__,
-			      crypto_dd->thread, crypto_dd->status);
+		aml_dma_debug(descriptor, 1, __func__,
+			      crypto_dd->thread, crypto_dd->status,
+			      crypto_dd->dma->dma_bus64);
 		debug = old_debug;
 		goto error;
 	}
@@ -1192,9 +1339,9 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 error:
 	if (iv)
 		dma_free_coherent(dev, kcop->ivlen, iv, dma_iv_addr);
-	if (dsc)
-		dma_free_coherent(dev, 3 * sizeof(struct dma_dsc),
-				  dsc, dsc_addr);
+	if (descriptor)
+		dma_free_coherent(dev, 3 * dma_dsc_sz,
+				  descriptor, dsc_addr);
 	if (key_clean)
 		dma_free_coherent(dev, DMA_BUF_SIZE,
 				  key_clean, cleanup_addr);
@@ -1211,7 +1358,11 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 	dma_addr_t dma_iv_addr = 0;
 	dma_addr_t dma_buf = 0;
 	dma_addr_t cleanup_addr = 0;
+	void *descriptor = NULL;
 	struct dma_dsc *dsc = NULL;
+	struct dma_dsc_64 *dsc_64 = NULL;
+	u32 dma_dsc_sz = crypto_dd->dma->dma_bus64 ? sizeof(struct dma_dsc_64) :
+						     sizeof(struct dma_dsc);
 	u8 *iv = NULL;
 	u8 *key_clean = NULL;
 	struct device *dev = NULL;
@@ -1254,23 +1405,37 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 		src_bufsz += kcop->cop.src[i].length;
 
 	/* three descriptor for key, IV and data */
-	dsc = dma_alloc_coherent(dev, 3 * sizeof(struct dma_dsc),
+	descriptor = dma_alloc_coherent(dev, 3 * dma_dsc_sz,
 				 &dsc_addr, GFP_KERNEL | GFP_DMA);
-	if (!dsc) {
+	if (!descriptor) {
 		dbgp(2, "cannot allocate dsc\n");
 		rc = -ENOMEM;
 		goto error;
 	}
 
-	dsc[0].src_addr = (u32)(0xffffff00 | ses_ptr->cdata.kte);
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	/* HW bug, key length needs to stay at 16 */
-	dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
-				  16 : ses_ptr->cdata.keylen;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.eoc = 0;
-	dsc[0].dsc_cfg.b.owner = 1;
+	if (crypto_dd->dma->dma_bus64) {
+		dsc_64 = descriptor;
+		dsc_64[0].src_addr = (u64)(0xffffffffffffff00 | ses_ptr->cdata.kte);
+		dsc_64[0].tgt_addr = 0;
+		dsc_64[0].dsc_cfg.d32 = 0;
+		/* HW bug, key length needs to stay at 16 */
+		dsc_64[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
+			16 : ses_ptr->cdata.keylen;
+		dsc_64[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc_64[0].dsc_cfg.b.eoc = 0;
+		dsc_64[0].dsc_cfg.b.owner = 1;
+	} else {
+		dsc = descriptor;
+		dsc[0].src_addr = (u32)(0xffffff00 | ses_ptr->cdata.kte);
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		/* HW bug, key length needs to stay at 16 */
+		dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
+			16 : ses_ptr->cdata.keylen;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.eoc = 0;
+		dsc[0].dsc_cfg.b.owner = 1;
+	}
 	s++;
 
 	if (kcop->ivlen) {
@@ -1282,14 +1447,25 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 			goto error;
 		}
 		memcpy(iv, kcop->iv, kcop->ivlen);
-		dsc[1].src_addr = (u32)dma_iv_addr;
-		dsc[1].tgt_addr = 32;
-		dsc[1].dsc_cfg.d32 = 0;
-		/* HW bug, iv length needs to stay at 16 */
-		dsc[1].dsc_cfg.b.length = kcop->ivlen <= 16 ? 16 : kcop->ivlen;
-		dsc[1].dsc_cfg.b.mode = MODE_KEY;
-		dsc[1].dsc_cfg.b.eoc = 0;
-		dsc[1].dsc_cfg.b.owner = 1;
+		if (crypto_dd->dma->dma_bus64) {
+			dsc_64[1].src_addr = (u64)dma_iv_addr;
+			dsc_64[1].tgt_addr = 32;
+			dsc_64[1].dsc_cfg.d32 = 0;
+			/* HW bug, iv length needs to stay at 16 */
+			dsc_64[1].dsc_cfg.b.length = kcop->ivlen <= 16 ? 16 : kcop->ivlen;
+			dsc_64[1].dsc_cfg.b.mode = MODE_KEY;
+			dsc_64[1].dsc_cfg.b.eoc = 0;
+			dsc_64[1].dsc_cfg.b.owner = 1;
+		} else {
+			dsc[1].src_addr = (u32)dma_iv_addr;
+			dsc[1].tgt_addr = 32;
+			dsc[1].dsc_cfg.d32 = 0;
+			/* HW bug, iv length needs to stay at 16 */
+			dsc[1].dsc_cfg.b.length = kcop->ivlen <= 16 ? 16 : kcop->ivlen;
+			dsc[1].dsc_cfg.b.mode = MODE_KEY;
+			dsc[1].dsc_cfg.b.eoc = 0;
+			dsc[1].dsc_cfg.b.owner = 1;
+		}
 		s++;
 	}
 
@@ -1324,23 +1500,41 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 
 		dma_buf = dma_map_single(dev, tmp_buf, length, DMA_FROM_DEVICE);
 
-		dsc[s].src_addr = (uintptr_t)kcop->cop.src[i].addr;
-		dsc[s].tgt_addr = dma_buf;
-		dsc[s].dsc_cfg.d32 = 0;
-		dsc[s].dsc_cfg.b.enc_sha_only = (kcop->cop.op
-						 == CRYPTO_OP_ENCRYPT);
-		dsc[s].dsc_cfg.b.block = block_mode;
-		if (block_mode)
-			dsc[s].dsc_cfg.b.length =
-				length / DMA_BLOCK_MODE_SIZE;
-		else
-			dsc[s].dsc_cfg.b.length = length;
-		dsc[s].dsc_cfg.b.op_mode = ses_ptr->cdata.op_mode;
-		dsc[s].dsc_cfg.b.mode = ses_ptr->cdata.crypt_mode;
-		dsc[s].dsc_cfg.b.begin = begin;
-		dsc[s].dsc_cfg.b.eoc = 1;
-		dsc[s].dsc_cfg.b.owner = 1;
-
+		if (crypto_dd->dma->dma_bus64) {
+			dsc_64[s].src_addr = (uintptr_t)kcop->cop.src[i].addr;
+			dsc_64[s].tgt_addr = dma_buf;
+			dsc_64[s].dsc_cfg.d32 = 0;
+			dsc_64[s].dsc_cfg.b.enc_sha_only = (kcop->cop.op
+					== CRYPTO_OP_ENCRYPT);
+			dsc_64[s].dsc_cfg.b.block = block_mode;
+			if (block_mode)
+				dsc_64[s].dsc_cfg.b.length =
+					length / DMA_BLOCK_MODE_SIZE;
+			else
+				dsc_64[s].dsc_cfg.b.length = length;
+			dsc_64[s].dsc_cfg.b.op_mode = ses_ptr->cdata.op_mode;
+			dsc_64[s].dsc_cfg.b.mode = ses_ptr->cdata.crypt_mode;
+			dsc_64[s].dsc_cfg.b.begin = begin;
+			dsc_64[s].dsc_cfg.b.eoc = 1;
+			dsc_64[s].dsc_cfg.b.owner = 1;
+		} else {
+			dsc[s].src_addr = (uintptr_t)kcop->cop.src[i].addr;
+			dsc[s].tgt_addr = dma_buf;
+			dsc[s].dsc_cfg.d32 = 0;
+			dsc[s].dsc_cfg.b.enc_sha_only = (kcop->cop.op
+					== CRYPTO_OP_ENCRYPT);
+			dsc[s].dsc_cfg.b.block = block_mode;
+			if (block_mode)
+				dsc[s].dsc_cfg.b.length =
+					length / DMA_BLOCK_MODE_SIZE;
+			else
+				dsc[s].dsc_cfg.b.length = length;
+			dsc[s].dsc_cfg.b.op_mode = ses_ptr->cdata.op_mode;
+			dsc[s].dsc_cfg.b.mode = ses_ptr->cdata.crypt_mode;
+			dsc[s].dsc_cfg.b.begin = begin;
+			dsc[s].dsc_cfg.b.eoc = 1;
+			dsc[s].dsc_cfg.b.owner = 1;
+		}
 		begin = 0;
 
 		crypto_dd->dma_busy = 1;
@@ -1348,22 +1542,31 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 		reinit_completion(&crypto_dd->done);
 #endif
 
-		aml_dma_debug(dsc, s + 1, __func__,
-			      crypto_dd->thread, crypto_dd->status);
-		aml_write_crypto_reg(crypto_dd->thread,
+		aml_dma_debug(descriptor, s + 1, __func__,
+				 crypto_dd->thread, crypto_dd->status,
+				 crypto_dd->dma->dma_bus64);
+		aml_write_crypto_reg(crypto_dd->dma, crypto_dd->thread,
 				    (uintptr_t)dsc_addr | 2);
 
 #if USE_BUSY_POLLING
 		while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 			;
-		if (!err)
-			wait_owner_bit(&dsc[s]);
-		aml_write_crypto_reg(crypto_dd->status, 0xff);
+		if (!err) {
+			if (crypto_dd->dma->dma_bus64)
+				wait_owner_bit(&dsc_64[s]);
+			else
+				wait_owner_bit(&dsc_64[s]);
+		}
+		aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xff);
 #else
 		wait_for_completion(&crypto_dd->done);
 		err = crypto_dd->err;
-		if (!err)
-			wait_owner_bit(&dsc[s]);
+		if (!err) {
+			if (crypto_dd->dma->dma_bus64)
+				wait_owner_bit(&dsc_64[s]);
+			else
+				wait_owner_bit(&dsc[s]);
+		}
 #endif
 		crypto_dd->dma_busy = 0;
 		mutex_unlock(&crypto_dd->lock);
@@ -1373,8 +1576,9 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 
 			rc = -EACCES;
 			debug = 0;
-			aml_dma_debug(dsc, s + 1, __func__,
-				      crypto_dd->thread, crypto_dd->status);
+			aml_dma_debug(descriptor, s + 1, __func__,
+				      crypto_dd->thread, crypto_dd->status,
+				      crypto_dd->dma->dma_bus64);
 			debug = old_debug;
 			mutex_unlock(&crypto_dd->lock);
 			goto error;
@@ -1399,14 +1603,23 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 		goto error;
 	}
 	memset(key_clean, 0, DMA_BUF_SIZE);
-	dsc[0].src_addr = cleanup_addr;
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = DMA_BUF_SIZE;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.eoc = 1;
-	dsc[0].dsc_cfg.b.owner = 1;
-
+	if (crypto_dd->dma->dma_bus64) {
+		dsc_64[0].src_addr = cleanup_addr;
+		dsc_64[0].tgt_addr = 0;
+		dsc_64[0].dsc_cfg.d32 = 0;
+		dsc_64[0].dsc_cfg.b.length = DMA_BUF_SIZE;
+		dsc_64[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc_64[0].dsc_cfg.b.eoc = 1;
+		dsc_64[0].dsc_cfg.b.owner = 1;
+	} else {
+		dsc[0].src_addr = cleanup_addr;
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		dsc[0].dsc_cfg.b.length = DMA_BUF_SIZE;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.eoc = 1;
+		dsc[0].dsc_cfg.b.owner = 1;
+	}
 	lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
 	if (lock_ret)
 		goto error;
@@ -1414,19 +1627,28 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 #if !USE_BUSY_POLLING
 	reinit_completion(&crypto_dd->done);
 #endif
-	aml_dma_debug(dsc, 1, __func__, crypto_dd->thread, crypto_dd->status);
-	aml_write_crypto_reg(crypto_dd->thread, (uintptr_t)dsc_addr | 2);
+	aml_dma_debug(descriptor, 1, __func__, crypto_dd->thread,
+			 crypto_dd->status, crypto_dd->dma->dma_bus64);
+	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->thread, (uintptr_t)dsc_addr | 2);
 #if USE_BUSY_POLLING
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
-	if (!err)
-		wait_owner_bit(&dsc[0]);
-	aml_write_crypto_reg(crypto_dd->status, 0xff);
+	if (!err) {
+		if (crypto_dd->dma->dma_bus64)
+			wait_owner_bit(&dsc_64[0]);
+		else
+			wait_owner_bit(&dsc[0]);
+	}
+	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xff);
 #else
 	wait_for_completion(&crypto_dd->done);
 	err = crypto_dd->err;
-	if (!err)
-		wait_owner_bit(&dsc[0]);
+	if (!err) {
+		if (crypto_dd->dma->dma_bus64)
+			wait_owner_bit(&dsc_64[0]);
+		else
+			wait_owner_bit(&dsc[0]);
+	}
 #endif
 	crypto_dd->dma_busy = 0;
 	mutex_unlock(&crypto_dd->lock);
@@ -1435,8 +1657,9 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 
 		rc = -EACCES;
 		debug = 0;
-		aml_dma_debug(dsc, 1, __func__,
-			      crypto_dd->thread, crypto_dd->status);
+		aml_dma_debug(descriptor, 1, __func__,
+			      crypto_dd->thread, crypto_dd->status,
+			      crypto_dd->dma->dma_bus64);
 		debug = old_debug;
 		goto error;
 	}
@@ -1457,9 +1680,9 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 error:
 	if (iv)
 		dma_free_coherent(dev, kcop->ivlen, iv, dma_iv_addr);
-	if (dsc)
-		dma_free_coherent(dev, 3 * sizeof(struct dma_dsc),
-				  dsc, dsc_addr);
+	if (descriptor)
+		dma_free_coherent(dev, 3 * dma_dsc_sz,
+				  descriptor, dsc_addr);
 	if (key_clean)
 		dma_free_coherent(dev, DMA_BUF_SIZE,
 				  key_clean, cleanup_addr);
@@ -1476,7 +1699,11 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 	dma_addr_t dma_iv_addr = 0;
 	dma_addr_t dma_buf = 0;
 	dma_addr_t cleanup_addr = 0;
+	void *descriptor = NULL;
 	struct dma_dsc *dsc = NULL;
+	struct dma_dsc_64 *dsc_64 = NULL;
+	u32 dma_dsc_sz = crypto_dd->dma->dma_bus64 ? sizeof(struct dma_dsc_64) :
+						     sizeof(struct dma_dsc);
 	u8 *key_clean = NULL;
 	u8 *iv = NULL;
 	struct device *dev = NULL;
@@ -1539,23 +1766,37 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 	dma_buf = dma_map_single(dev, tmp_buf, PAGE_SIZE, DMA_TO_DEVICE);
 
 	/* three descriptor for key, IV and data */
-	dsc = dma_alloc_coherent(dev, 3 * sizeof(struct dma_dsc),
+	descriptor = dma_alloc_coherent(dev, 3 * dma_dsc_sz,
 				 &dsc_addr, GFP_KERNEL | GFP_DMA);
-	if (!dsc) {
+	if (!descriptor) {
 		dbgp(2, "cannot allocate dsc\n");
 		rc = -ENOMEM;
 		goto error;
 	}
+	dsc = descriptor;
+	dsc_64 = descriptor;
 
-	dsc[0].src_addr = (u32)(0xffffff00 | ses_ptr->cdata.kte);
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	/* HW bug, key length needs to stay at 16 */
-	dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
-				  16 : ses_ptr->cdata.keylen;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.eoc = 0;
-	dsc[0].dsc_cfg.b.owner = 1;
+	if (crypto_dd->dma->dma_bus64) {
+		dsc_64[0].src_addr = (u64)(0xffffffffffffff00 | ses_ptr->cdata.kte);
+		dsc_64[0].tgt_addr = 0;
+		dsc_64[0].dsc_cfg.d32 = 0;
+		/* HW bug, key length needs to stay at 16 */
+		dsc_64[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
+			16 : ses_ptr->cdata.keylen;
+		dsc_64[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc_64[0].dsc_cfg.b.eoc = 0;
+		dsc_64[0].dsc_cfg.b.owner = 1;
+	} else {
+		dsc[0].src_addr = (u32)(0xffffff00 | ses_ptr->cdata.kte);
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		/* HW bug, key length needs to stay at 16 */
+		dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
+			16 : ses_ptr->cdata.keylen;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.eoc = 0;
+		dsc[0].dsc_cfg.b.owner = 1;
+	}
 	s++;
 
 	if (kcop->ivlen) {
@@ -1568,14 +1809,25 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 		}
 		memcpy(iv, kcop->iv, kcop->ivlen);
 
-		dsc[1].src_addr = (u32)dma_iv_addr;
-		dsc[1].tgt_addr = 32;
-		dsc[1].dsc_cfg.d32 = 0;
-		/* HW bug, iv length needs to stay at 16 */
-		dsc[1].dsc_cfg.b.length = kcop->ivlen <= 16 ? 16 : kcop->ivlen;
-		dsc[1].dsc_cfg.b.mode = MODE_KEY;
-		dsc[1].dsc_cfg.b.eoc = 0;
-		dsc[1].dsc_cfg.b.owner = 1;
+		if (crypto_dd->dma->dma_bus64) {
+			dsc_64[1].src_addr = (u64)dma_iv_addr;
+			dsc_64[1].tgt_addr = 32;
+			dsc_64[1].dsc_cfg.d32 = 0;
+			/* HW bug, iv length needs to stay at 16 */
+			dsc_64[1].dsc_cfg.b.length = kcop->ivlen <= 16 ? 16 : kcop->ivlen;
+			dsc_64[1].dsc_cfg.b.mode = MODE_KEY;
+			dsc_64[1].dsc_cfg.b.eoc = 0;
+			dsc_64[1].dsc_cfg.b.owner = 1;
+		} else {
+			dsc[1].src_addr = (u32)dma_iv_addr;
+			dsc[1].tgt_addr = 32;
+			dsc[1].dsc_cfg.d32 = 0;
+			/* HW bug, iv length needs to stay at 16 */
+			dsc[1].dsc_cfg.b.length = kcop->ivlen <= 16 ? 16 : kcop->ivlen;
+			dsc[1].dsc_cfg.b.mode = MODE_KEY;
+			dsc[1].dsc_cfg.b.eoc = 0;
+			dsc[1].dsc_cfg.b.owner = 1;
+		}
 		s++;
 	}
 
@@ -1613,41 +1865,62 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 		dma_sync_single_for_device(dev, dma_buf,
 					   PAGE_SIZE, DMA_TO_DEVICE);
 
-		dsc[s].src_addr = dma_buf;
-		dsc[s].tgt_addr = dma_buf;
-		dsc[s].dsc_cfg.d32 = 0;
-		dsc[s].dsc_cfg.b.enc_sha_only = (kcop->cop.op
-						 == CRYPTO_OP_ENCRYPT);
-		dsc[s].dsc_cfg.b.length = count;
-		dsc[s].dsc_cfg.b.op_mode = ses_ptr->cdata.op_mode;
-		dsc[s].dsc_cfg.b.mode = ses_ptr->cdata.crypt_mode;
-		dsc[s].dsc_cfg.b.begin = begin;
-		dsc[s].dsc_cfg.b.eoc = 1;
-		dsc[s].dsc_cfg.b.owner = 1;
-
+		if (crypto_dd->dma->dma_bus64) {
+			dsc_64[s].src_addr = dma_buf;
+			dsc_64[s].tgt_addr = dma_buf;
+			dsc_64[s].dsc_cfg.d32 = 0;
+			dsc_64[s].dsc_cfg.b.enc_sha_only = (kcop->cop.op
+					== CRYPTO_OP_ENCRYPT);
+			dsc_64[s].dsc_cfg.b.length = count;
+			dsc_64[s].dsc_cfg.b.op_mode = ses_ptr->cdata.op_mode;
+			dsc_64[s].dsc_cfg.b.mode = ses_ptr->cdata.crypt_mode;
+			dsc_64[s].dsc_cfg.b.begin = begin;
+			dsc_64[s].dsc_cfg.b.eoc = 1;
+			dsc_64[s].dsc_cfg.b.owner = 1;
+		} else {
+			dsc[s].src_addr = dma_buf;
+			dsc[s].tgt_addr = dma_buf;
+			dsc[s].dsc_cfg.d32 = 0;
+			dsc[s].dsc_cfg.b.enc_sha_only = (kcop->cop.op
+					== CRYPTO_OP_ENCRYPT);
+			dsc[s].dsc_cfg.b.length = count;
+			dsc[s].dsc_cfg.b.op_mode = ses_ptr->cdata.op_mode;
+			dsc[s].dsc_cfg.b.mode = ses_ptr->cdata.crypt_mode;
+			dsc[s].dsc_cfg.b.begin = begin;
+			dsc[s].dsc_cfg.b.eoc = 1;
+			dsc[s].dsc_cfg.b.owner = 1;
+		}
 		begin = 0;
 
 		crypto_dd->dma_busy = 1;
 #if !USE_BUSY_POLLING
 		reinit_completion(&crypto_dd->done);
 #endif
-
-		aml_dma_debug(dsc, s + 1, __func__,
-			      crypto_dd->thread, crypto_dd->status);
-		aml_write_crypto_reg(crypto_dd->thread,
+		aml_dma_debug(descriptor, s + 1, __func__,
+				 crypto_dd->thread, crypto_dd->status,
+				 crypto_dd->dma->dma_bus64);
+		aml_write_crypto_reg(crypto_dd->dma, crypto_dd->thread,
 				     (uintptr_t)dsc_addr | 2);
 
 #if USE_BUSY_POLLING
 		while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 			;
-		if (!err)
-			wait_owner_bit(&dsc[s]);
-		aml_write_crypto_reg(crypto_dd->status, 0xff);
+		if (!err) {
+			if (crypto_dd->dma->dma_bus64)
+				wait_owner_bit(&dsc_64[s]);
+			else
+				wait_owner_bit(&dsc[s]);
+		}
+		aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xff);
 #else
 		wait_for_completion(&crypto_dd->done);
 		err = crypto_dd->err;
-		if (!err)
-			wait_owner_bit(&dsc[s]);
+		if (!err) {
+			if (crypto_dd->dma->dma_bus64)
+				wait_owner_bit(&dsc_64[s]);
+			else
+				wait_owner_bit(&dsc[s]);
+		}
 #endif
 		crypto_dd->dma_busy = 0;
 		dma_sync_single_for_cpu(dev, dma_buf,
@@ -1657,8 +1930,9 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 
 			rc = -EACCES;
 			debug = 0;
-			aml_dma_debug(dsc, s + 1, __func__,
-				      crypto_dd->thread, crypto_dd->status);
+			aml_dma_debug(descriptor, s + 1, __func__,
+				      crypto_dd->thread, crypto_dd->status,
+				      crypto_dd->dma->dma_bus64);
 			debug = old_debug;
 			mutex_unlock(&crypto_dd->lock);
 			goto error;
@@ -1683,14 +1957,23 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 		goto error;
 	}
 	memset(key_clean, 0, DMA_BUF_SIZE);
-	dsc[0].src_addr = cleanup_addr;
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = DMA_BUF_SIZE;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.eoc = 1;
-	dsc[0].dsc_cfg.b.owner = 1;
-
+	if (crypto_dd->dma->dma_bus64) {
+		dsc_64[0].src_addr = cleanup_addr;
+		dsc_64[0].tgt_addr = 0;
+		dsc_64[0].dsc_cfg.d32 = 0;
+		dsc_64[0].dsc_cfg.b.length = DMA_BUF_SIZE;
+		dsc_64[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc_64[0].dsc_cfg.b.eoc = 1;
+		dsc_64[0].dsc_cfg.b.owner = 1;
+	} else {
+		dsc[0].src_addr = cleanup_addr;
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		dsc[0].dsc_cfg.b.length = DMA_BUF_SIZE;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.eoc = 1;
+		dsc[0].dsc_cfg.b.owner = 1;
+	}
 	lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
 	if (lock_ret)
 		goto error;
@@ -1698,19 +1981,28 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 #if !USE_BUSY_POLLING
 	reinit_completion(&crypto_dd->done);
 #endif
-	aml_dma_debug(dsc, 1, __func__, crypto_dd->thread, crypto_dd->status);
-	aml_write_crypto_reg(crypto_dd->thread, (uintptr_t)dsc_addr | 2);
+	aml_dma_debug(descriptor, 1, __func__, crypto_dd->thread, crypto_dd->status,
+			 crypto_dd->dma->dma_bus64);
+	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->thread, (uintptr_t)dsc_addr | 2);
 #if USE_BUSY_POLLING
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
-	if (!err)
-		wait_owner_bit(&dsc[0]);
-	aml_write_crypto_reg(crypto_dd->status, 0xff);
+	if (!err) {
+		if (crypto_dd->dma->dma_bus64)
+			wait_owner_bit(&dsc_64[0]);
+		else
+			wait_owner_bit(&dsc[0]);
+	}
+	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xff);
 #else
 	wait_for_completion(&crypto_dd->done);
 	err = crypto_dd->err;
-	if (!err)
-		wait_owner_bit(&dsc[0]);
+	if (!err) {
+		if (crypto_dd->dma->dma_bus64)
+			wait_owner_bit(&dsc_64[0]);
+		else
+			wait_owner_bit(&dsc[0]);
+	}
 #endif
 	crypto_dd->dma_busy = 0;
 	mutex_unlock(&crypto_dd->lock);
@@ -1719,8 +2011,9 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 
 		rc = -EACCES;
 		debug = 0;
-		aml_dma_debug(dsc, 1, __func__,
-			      crypto_dd->thread, crypto_dd->status);
+		aml_dma_debug(descriptor, 1, __func__,
+			      crypto_dd->thread, crypto_dd->status,
+			      crypto_dd->dma->dma_bus64);
 		debug = old_debug;
 		goto error;
 	}
@@ -1742,9 +2035,9 @@ error:
 		dma_unmap_single(dev, dma_buf, PAGE_SIZE, DMA_TO_DEVICE);
 	if (iv)
 		dma_free_coherent(dev, kcop->ivlen, iv, dma_iv_addr);
-	if (dsc)
-		dma_free_coherent(dev, 3 * sizeof(struct dma_dsc),
-				  dsc, dsc_addr);
+	if (descriptor)
+		dma_free_coherent(dev, 3 * dma_dsc_sz,
+				  descriptor, dsc_addr);
 	if (key_clean)
 		dma_free_coherent(dev, DMA_BUF_SIZE,
 				  key_clean, cleanup_addr);
@@ -1784,7 +2077,7 @@ int crypto_run(struct fcrypt *fcr, struct kernel_crypt_op *kcop)
 				memcpy(&s17_cfg, kcop->param, kcop->param_len);
 				s17_cfg = ((s17_cfg & 0x1fff) |
 					    crypto_dd->thread << 13);
-				if (call_smc(CRYPTO_OPERATION_CFG,
+				if (aml_dma_call_smc(CRYPTO_OPERATION_CFG,
 					     SET_S17_M2M_CFG, s17_cfg, 0)) {
 					dbgp(0, "Not support s17 cfg from ree");
 					ret = -EINVAL;
@@ -2162,6 +2455,8 @@ static int aml_crypto_dev_probe(struct platform_device *pdev)
 	const struct meson_crypto_dev_data *priv_data = NULL;
 	int err = 0;
 	u8 thread = 0;
+	u8 dma_bus64 = 0;
+	u32 mode = 0;
 
 	crypto_dd = devm_kzalloc(dev, sizeof(struct aml_crypto_dev),
 				 GFP_KERNEL);
@@ -2181,9 +2476,19 @@ static int aml_crypto_dev_probe(struct platform_device *pdev)
 
 	of_property_read_u8(pdev->dev.of_node, "thread", &thread);
 
+	of_property_read_u8(pdev->dev.parent->of_node, "dma_bus64", &dma_bus64);
+	mode = dma_bus64 ? 64 : 32;
+	err = aml_dma_call_smc(CRYPTO_CMD, CRYPTO_CMD_CRYPTO_DMA_SET_BUS64,
+				thread, mode);
+	if (err) {
+		dev_err(dev, "failed to set thread %d to %u bits\n", thread, mode);
+		goto error;
+	}
+
 	priv_data = match->data;
 	crypto_dd->dev = dev;
 	crypto_dd->thread = thread;
+	crypto_dd->dma = dev_get_drvdata(dev->parent);
 	crypto_dd->status = priv_data->status + thread;
 	crypto_dd->algo_cap = priv_data->algo_cap;
 	crypto_dd->irq = res_irq->start;

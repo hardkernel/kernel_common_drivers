@@ -14,6 +14,10 @@
 
 #define DMA_BLOCK_MODE_SIZE (512)
 
+#define CRYPTO_CMD					0x8200007B
+	#define CRYPTO_CMD_PART_ENC_DERIVE_KEY  0x001
+	#define CRYPTO_CMD_CRYPTO_DMA_SET_BUS64 0x002
+
 enum GXL_DMA_REG_OFFSETS {
 	GXL_DMA_T0   = 0x00,
 	GXL_DMA_T1   = 0x01,
@@ -108,13 +112,30 @@ struct dma_dsc {
 			unsigned owner:1;
 		} b;
 	} dsc_cfg;
-#if DMA_DSC_64_BIT_MODE
-	u64 src_addr;
-	u64 tgt_addr;
-#else
 	u32 src_addr;
 	u32 tgt_addr;
-#endif
+} __packed;
+
+struct dma_dsc_64 {
+	union {
+		u32 d32;
+		struct {
+			unsigned length:17;
+			unsigned irq:1;
+			unsigned eoc:1;
+			unsigned loop:1;
+			unsigned mode:4;
+			unsigned begin:1;
+			unsigned end:1;
+			unsigned op_mode:2;
+			unsigned enc_sha_only:1;
+			unsigned block:1;
+			unsigned link_error:1;
+			unsigned owner:1;
+		} b;
+	} dsc_cfg;
+	u64 src_addr;
+	u64 tgt_addr;
 } __packed;
 
 struct dma_sg_dsc {
@@ -128,12 +149,22 @@ struct dma_sg_dsc {
 			unsigned length:26;
 		} b;
 	} dsc_cfg;
-#if DMA_DSC_64_BIT_MODE
+	u32 addr;
+} __packed;
+
+struct dma_sg_dsc_64 {
+	union {
+		u32 d32;
+		struct {
+			unsigned valid:1;
+			unsigned eoc:1;
+			unsigned intr:1;
+			unsigned act:3;
+			unsigned length:26;
+		} b;
+	} dsc_cfg;
 	u64 addr;
 	u32 rsv;
-#else
-	u32 addr;
-#endif
 } __packed;
 
 #define DMA_FLAG_MAY_OCCUPY    BIT(0)
@@ -157,21 +188,23 @@ struct aml_dma_dev {
 	struct task_struct *kthread;
 	struct crypto_queue	queue;
 	spinlock_t queue_lock; /* spinlock for queue */
+	u8 dma_bus64;
 };
 
 u32 swap_ulong32(u32 val);
-void aml_write_crypto_reg(u32 addr, u32 data);
+void aml_write_crypto_reg(struct aml_dma_dev *dd, u32 addr, u64 data);
 u32 aml_read_crypto_reg(u32 addr);
-void aml_dma_debug(struct dma_dsc *dsc, u32 nents, const char *msg,
-		   u32 thread, u32 status);
-void aml_dma_link_debug(struct dma_sg_dsc *dsc, dma_addr_t dma_dsc,
-			u32 nents, const char *msg);
-
+void aml_dma_debug(void *dsc, u32 nents, const char *msg,
+		   u32 thread, u32 status, u8 dma_bus64);
+void aml_dma_link_debug(void *descriptor, dma_addr_t dma_dsc,
+			u32 nents, const char *msg, u8 dma_bus64);
 u8 aml_dma_do_hw_crypto(struct aml_dma_dev *dd,
-			  struct dma_dsc *dsc,
+			  void *dsc,
 			  u32 dsc_len,
 			  dma_addr_t dsc_addr,
 			  u8 polling, u8 dma_flags);
+
+noinline int aml_dma_call_smc(u64 func_id, u64 arg0, u64 arg1, u64 arg2);
 
 void aml_dma_finish_hw_crypto(struct aml_dma_dev *dd, u8 dma_flags);
 
