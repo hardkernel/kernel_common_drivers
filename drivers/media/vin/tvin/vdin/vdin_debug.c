@@ -3426,7 +3426,9 @@ start_chk:
 			pr_info("t3x vf crc:0x%x\n", rd(devp->addr_offset, VDIN0_PP_CRC_OUT));
 		else
 #endif
-			pr_info("vf crc:0x%x\n", rd(devp->addr_offset, VDIN_RO_CRC));
+			pr_info("ro crc:0x%x\n", rd(devp->addr_offset, VDIN_RO_CRC));
+		if (devp->vfp && devp->vfp->last_last_vfe)
+			pr_info("vf crc:0x%x\n", devp->vfp->last_last_vfe->vf.crc);
 	} else if (!strcmp(parm[0], "game_mode")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (temp) {
@@ -4194,6 +4196,59 @@ static ssize_t input_rate_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(input_rate);
 
+ssize_t slt_test_store(struct device *dev,
+		      struct device_attribute *attr,
+		      const char *buf, size_t len)
+{
+	char *buf_orig, *parm[48] = {NULL};
+	struct vdin_dev_s *devp = dev_get_drvdata(dev);
+	long val = 0;
+
+	if (!buf)
+		return len;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	vdin_parse_param(buf_orig, (char **)&parm);
+
+	if (!strcmp(parm[0], "set_crc")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			devp->debug.slt_test.vf_ori_crc = val;
+			pr_info("vdin%d:vf_ori_crc = 0x%x\n\n", devp->index,
+				devp->debug.slt_test.vf_ori_crc);
+		}
+	} else if (!strcmp(parm[0], "enable")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			devp->debug.slt_test.en = !!val;
+			pr_info("vdin%d:en:%d,vf_ori_crc = 0x%x\n\n", devp->index,
+				devp->debug.slt_test.en, devp->debug.slt_test.vf_ori_crc);
+		}
+	} else if (!strcmp(parm[0], "state")) {
+		pr_info("vdin%d:en:%d,vf_ori_crc = 0x%x,chk:%d,cnt:%d\n", devp->index,
+			devp->debug.slt_test.en, devp->debug.slt_test.vf_ori_crc,
+			devp->debug.slt_test.vf_check_result, devp->debug.slt_test.vf_pass_cnt);
+	}
+
+	kfree(buf_orig);
+
+	return len;
+}
+
+static ssize_t slt_test_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct vdin_dev_s *devp = dev_get_drvdata(dev);
+
+	if (devp->debug.slt_test.vf_check_result)
+		return sprintf(buf, "%s\n", "pass");
+	else
+		return sprintf(buf, "%s\n", "fail");
+}
+static DEVICE_ATTR_RW(slt_test);
+
 static void vdin_dump_sct_state(struct vdin_dev_s *devp)
 {
 	int i, sum = 0;
@@ -4314,6 +4369,7 @@ int vdin_create_debug_files(struct device *dev)
 	ret = device_create_file(dev, &dev_attr_crop);
 	ret = device_create_file(dev, &dev_attr_snow_flag);
 	ret = device_create_file(dev, &dev_attr_input_rate);
+	ret = device_create_file(dev, &dev_attr_slt_test);
 #endif
 	return ret;
 }
@@ -4334,6 +4390,7 @@ void vdin_remove_debug_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_crop);
 	device_remove_file(dev, &dev_attr_snow_flag);
 	device_remove_file(dev, &dev_attr_input_rate);
+	device_remove_file(dev, &dev_attr_slt_test);
 #endif
 	device_remove_file(dev, &dev_attr_attr);
 	device_remove_file(dev, &dev_attr_sig_det);

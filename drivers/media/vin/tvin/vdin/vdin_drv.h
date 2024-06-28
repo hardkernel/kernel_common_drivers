@@ -590,6 +590,14 @@ struct vdin_vf_info {
 /***vdin_dbg_en control for print***/
 #define DBG_VDIN1_HIST		(BIT(1)) /*print vdin1 HIST_IOC */
 
+struct vdin_slt_test_s {
+	bool en;
+	bool vf_check_result;
+	u32 vf_ori_crc;
+	u32 vf_last_crc;
+	u32 vf_pass_cnt;
+};
+
 /*******for debug **********/
 struct vdin_debug_s {
 	struct tvin_cutwin_s cutwin;
@@ -626,6 +634,7 @@ struct vdin_debug_s {
 	/* bit0:scl_mode;bit1:bypass dsc;bit2:bypass sc */
 	unsigned int dbg_dv_hw5;
 	unsigned int hconv_mode;
+	struct vdin_slt_test_s slt_test;
 };
 
 struct vdin_dv_s {

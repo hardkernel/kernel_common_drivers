@@ -4482,6 +4482,11 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 			if (abs(duration_diff) > VDIN_DURATION_FILTER_VALUE)
 				curr_wr_vf->duration = devp->duration;
 		}
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
+			pr_info("vdin%d,[%d,%d] duration:%d %d,fps:%d %d,cycle:%d\n",
+				devp->index, devp->irq_cnt, devp->frame_cnt,
+				devp->duration, curr_wr_vf->duration,
+				devp->parm.info.fps, devp->prop.fps, devp->cycle);
 
 		if (devp->index)
 			curr_wr_vf->duration = devp->duration;

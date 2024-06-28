@@ -1204,6 +1204,9 @@ static void vdin_start_param_init(struct vdin_dev_s *devp)
 
 	devp->afbce_flag = devp->dts_config.afbce_flag_cfg;
 	devp->bypass_tunnel = false;
+	devp->debug.slt_test.vf_check_result = false;
+	devp->debug.slt_test.vf_pass_cnt = 0;
+
 	//todo:more parameter initializations will be move here
 }
 
@@ -1794,6 +1797,8 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 		memset(&devp->pre_prop, 0, sizeof(devp->pre_prop));
 		memset(&devp->prop, 0, sizeof(devp->prop));
 	}
+	devp->debug.slt_test.vf_check_result = false;
+	devp->debug.slt_test.vf_pass_cnt = 0;
 
 	if (vdin_time_en)
 		pr_info("vdin.%d stop time %ums,run time:%ums.\n",
@@ -3125,6 +3130,44 @@ static void vdin_handle_secure_content(struct vdin_dev_s *devp)
 	}
 }
 
+static void vdin_slt_test(struct vdin_dev_s *devp)
+{
+	u32 stable_cnt = 10;
+
+	if (!devp->debug.slt_test.en)
+		return;
+
+	if (devp->vfp->last_last_vfe) {
+		if (devp->debug.slt_test.vf_ori_crc) {
+			stable_cnt = 10;
+			if (devp->vfp->last_last_vfe->vf.crc == devp->debug.slt_test.vf_ori_crc)
+				devp->debug.slt_test.vf_pass_cnt++;
+			else
+				devp->debug.slt_test.vf_pass_cnt = 0;
+		} else {
+			stable_cnt = 30;
+			if (devp->debug.slt_test.vf_last_crc == devp->vfp->last_last_vfe->vf.crc)
+				devp->debug.slt_test.vf_pass_cnt++;
+			else
+				devp->debug.slt_test.vf_pass_cnt = 0;
+
+			devp->debug.slt_test.vf_last_crc = devp->vfp->last_last_vfe->vf.crc;
+		}
+	} else {
+		devp->debug.slt_test.vf_pass_cnt = 0;
+	}
+	if (devp->debug.slt_test.vf_pass_cnt >= stable_cnt)
+		devp->debug.slt_test.vf_check_result = true;
+	else
+		devp->debug.slt_test.vf_check_result = false;
+
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_INPUT)
+		pr_info("vdin%d,crc=[%#x %#x],cnt=[%d %d]\n",
+			devp->index,
+			devp->vfp->last_last_vfe->vf.crc, devp->debug.slt_test.vf_ori_crc,
+			devp->debug.slt_test.vf_pass_cnt, devp->debug.slt_test.vf_check_result);
+}
+
 /*
  *VDIN_FLAG_RDMA_ENABLE=1
  *	provider_vf_put(devp->last_wr_vfe, devp->vfp);
@@ -3730,6 +3773,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 
 	devp->frame_cnt++;
+	vdin_slt_test(devp);
 
 irq_handled:
 	//for debug
@@ -4041,6 +4085,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 			VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 
 	devp->frame_cnt++;
+	vdin_slt_test(devp);
 
 irq_handled:
 	devp->vdin_irq_flag = 0;
