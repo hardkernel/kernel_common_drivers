@@ -599,7 +599,7 @@
 			 * bitclock-master = <&tdmacodec>;
 			 * frame-master = <&tdmacodec>;
 			 */
-			suffix-name = "alsaPORT-pcm";
+			suffix-name = "alsaPORT-pcm-builtinmic";
 			tdmacpu: cpu {
 				sound-dai = <&tdma>;
 				dai-tdm-slot-tx-mask =
