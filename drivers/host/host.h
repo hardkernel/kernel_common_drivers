@@ -23,9 +23,10 @@ struct host_info_t;
 struct host_data;
 
 struct host_data {
-	struct miscdevice *misc;
+	struct miscdevice misc;
 	char name[20];
 	u8 hostid;
+	struct host_module *host;
 } __packed;
 
 struct host_info_t {
