@@ -30,6 +30,7 @@
 #include <crypto/internal/hash.h>
 #include <crypto/skcipher.h>
 #include <linux/of_platform.h>
+#include <linux/arm-smccc.h>
 #include "aml-crypto-dma.h"
 #include "aml-sha-dma.h"
 #include "aml-sha3-dma.h"
@@ -174,6 +175,36 @@ static int aml_dma_queue_manage(void *data)
 }
 #endif
 
+static int aml_dma_set_dma_mode(struct device *dev, uint32_t mode)
+{
+	int err = -1;
+	/* 40 bits are reserved for dsc addr in thread register */
+	u32 coherent_mask_bits;
+
+	if (mode != 32 && mode != 64) {
+		dev_err(dev, "Invalid mode(%u)\n", mode);
+		goto out;
+	}
+	err = aml_dma_call_smc(CRYPTO_CMD, CRYPTO_CMD_CRYPTO_DMA_SET_BUS64,
+			       TXLX_DMA_T0, mode);
+	if (err) {
+		dev_err(dev, "failed to set thread 0 to %u bits\n", mode);
+		goto out;
+	}
+	/* Set DMA mask */
+	err = dma_set_mask(dev, DMA_BIT_MASK(mode));
+	if (err) {
+		dev_err(dev, "failed to set dma mask to %u bits\n", mode);
+		goto out;
+	}
+	coherent_mask_bits = mode > 40 ? 40 : mode;
+	err = dma_set_coherent_mask(dev, DMA_BIT_MASK(coherent_mask_bits));
+	if (err)
+		dev_err(dev, "failed to set dma coherent mask to %u bits\n", mode);
+out:
+	return err;
+}
+
 static int aml_dma_probe(struct platform_device *pdev)
 {
 	struct aml_dma_dev *dma_dd;
@@ -209,6 +240,14 @@ static int aml_dma_probe(struct platform_device *pdev)
 			goto dma_err;
 		}
 	}
+
+	of_property_read_u8(pdev->dev.of_node, "dma_bus64", &dma_dd->dma_bus64);
+	if (dma_dd->dma_bus64)
+		err = aml_dma_set_dma_mode(dev, 64);
+	else
+		err = aml_dma_set_dma_mode(dev, 32);
+	if (err)
+		goto dma_err;
 
 	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	dma_dd->irq = res_irq->start;

@@ -1264,9 +1264,10 @@
 	};
 
 	aml_dma {
-		compatible = "amlogic,aml_txlx_dma";
+		compatible = "amlogic,aml_p1_dma";
 		reg = <0x0 0xfe440400 0x0 0x48>;
 		interrupts = <0 24 1>;
+		dma_bus64 = /bits/ 8 <0x1>;
 
 		aml_aes {
 			compatible = "amlogic,aes_g12a_dma";
