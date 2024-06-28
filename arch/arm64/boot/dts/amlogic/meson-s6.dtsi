@@ -2132,8 +2132,8 @@
 
 	i2c3_pins4:i2c3_pins4 {
 		mux {
-			groups = "i2c3_sda_x0",
-				"i2c3_scl_x1";
+			groups = "i2c3_sda_x10",
+				"i2c3_scl_x11";
 			function = "i2c3";
 			bias-disable;
 		};
@@ -2152,6 +2152,15 @@
 		mux {
 			groups = "i2c3_sda_x14",
 				"i2c3_scl_x15";
+			function = "i2c3";
+			bias-disable;
+		};
+	};
+
+	i2c3_pins7:i2c3_pins7 {
+		mux {
+			groups = "i2c3_sda_a14",
+				"i2c3_scl_a15";
 			function = "i2c3";
 			bias-disable;
 		};
@@ -2204,7 +2213,7 @@
 
 	i2c5_pins2:i2c5_pins2 {
 		mux {
-			groups = "i2c5_sda_a0",
+			groups = "i2c5_sda_a10",
 				"i2c5_scl_a11";
 			function = "i2c5";
 			bias-disable;
