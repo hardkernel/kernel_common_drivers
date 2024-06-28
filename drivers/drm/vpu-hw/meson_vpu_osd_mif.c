@@ -923,6 +923,20 @@ void osd_ctrl_init(struct meson_vpu_block *vblk, struct rdma_reg_ops *reg_ops,
 	/*Need config follow crtc index.*/
 	u8 holdline = VIU1_DEFAULT_HOLD_LINE;
 	u8 fifo_val = 0x20;
+	u32 osd_cfg_sync_en = 0;
+
+	/* S7 and t5w are platforms with low-power consumption, so resuming will
+	 * cause osd_cfg_sync_en bit of viu_osd_ctrl_stat to reset to be 1, not initial 0
+	 * anymore.Other previous platforms would not reset and always keep it to be initial 0.
+	 * Currently, 0 is configured anyway to fix it.
+	 * TODO: reset callback for each block is needed for more complicated reset cases.
+	 */
+	osd_cfg_sync_en = meson_drm_read_reg(reg->viu_osd_ctrl_stat) & 0x80000000;
+	osd_cfg_sync_en = osd_cfg_sync_en >> 31;
+	if (osd_cfg_sync_en == 1) {
+		reg_ops->rdma_write_reg_bits(reg->viu_osd_ctrl_stat, 0, 31, 1);
+		MESON_DRM_BLOCK("fixed reset of osd_cfg_sync_en in mif [%d].\n", vblk->index);
+	}
 
 	if (vblk->init_done)
 		return;
