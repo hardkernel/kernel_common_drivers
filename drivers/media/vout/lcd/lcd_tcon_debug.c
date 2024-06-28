@@ -15,17 +15,16 @@
 #include <linux/io.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
-#include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_data.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_fw.h>
+#include <linux/amlogic/media/vout/lcd/lcd_resman.h>
 #include "lcd_reg.h"
 #include "lcd_common.h"
 #include "lcd_tcon.h"
 #include "lcd_tcon_pdf.h"
-#include <linux/amlogic/media/vout/lcd/lcd_resman.h>
 
 //1: unlocked, 0: locked, negative: locked, possible waiters
 struct mutex lcd_tcon_dbg_mutex;

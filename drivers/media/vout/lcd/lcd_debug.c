@@ -16,14 +16,16 @@
 #include <linux/io.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
+#ifdef CONFIG_AMLOGIC_VPU
+#include <linux/amlogic/media/vpu/vpu.h>
+#endif
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
+#endif
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_data.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
-#ifdef CONFIG_AMLOGIC_VPU
-#include <linux/amlogic/media/vpu/vpu.h>
-#endif
 #include "./lcd_clk/lcd_clk_config.h"
 #include "lcd_reg.h"
 #include "lcd_common.h"

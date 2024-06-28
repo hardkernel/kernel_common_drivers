@@ -546,9 +546,9 @@ static void lcd_ufr_switch_mode_on(struct aml_lcd_drv_s *pdrv)
 	struct lcd_extern_driver_s *edrv;
 	struct lcd_extern_dev_s *edev;
 	unsigned int index;
+	unsigned long long local_time[3];
 #endif
 	unsigned int i = 0;
-	unsigned long long local_time[3];
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);

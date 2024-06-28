@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/reset.h>
+#include <linux/of_address.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/cma.h>
 #include <linux/dma-map-ops.h>
@@ -870,8 +871,8 @@ static int lcd_tcon_data_multi_match_policy(struct aml_lcd_drv_s *pdrv, unsigned
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
 	struct aml_bl_drv_s *bldrv;
 	struct bl_pwm_config_s *bl_pwm = NULL;
-#endif
 	unsigned int temp;
+#endif
 
 	switch (data_list->ctrl_method) {
 	case LCD_TCON_DATA_CTRL_MULTI_VFREQ_DIRECT:
@@ -1166,9 +1167,9 @@ int lcd_tcon_data_multi_init_check(struct aml_lcd_drv_s *pdrv, unsigned short bl
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
 	struct aml_bl_drv_s *bldrv;
 	struct bl_pwm_config_s *bl_pwm = NULL;
-	unsigned int temp;
+	unsigned int data = 0, temp;
 #endif
-	unsigned int data_byte, data_cnt, data = 0, min = 0, max = 0, hsize = 0, vsize = 0;
+	unsigned int data_byte, data_cnt, min = 0, max = 0, hsize = 0, vsize = 0;
 	unsigned int j, k = 0;
 
 	if (!ctrl_part)

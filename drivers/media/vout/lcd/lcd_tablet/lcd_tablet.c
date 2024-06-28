@@ -29,7 +29,9 @@
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
+#endif
 #include "lcd_tablet.h"
 #include "../lcd_reg.h"
 #include "../lcd_common.h"
@@ -903,25 +905,35 @@ static void lcd_vout_debug_test(unsigned int num, void *data)
 static void lcd_vout_set_bl_brightness(unsigned int brightness, void *data)
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
 	struct aml_bl_drv_s *bdrv;
+#endif
 
 	if (!pdrv)
 		return;
 
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
 	bdrv = aml_bl_get_driver(pdrv->index);
 	aml_bl_set_level_brightness(bdrv, brightness);
+#endif
 }
 
 static unsigned int lcd_vout_get_bl_brightness(void *data)
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
 	struct aml_bl_drv_s *bdrv;
+#endif
+	unsigned int ret = 0;
 
 	if (!pdrv)
 		return 0;
 
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
 	bdrv = aml_bl_get_driver(pdrv->index);
-	return aml_bl_get_level_brightness(bdrv);
+	ret = aml_bl_get_level_brightness(bdrv);
+#endif
+	return ret;
 }
 
 static int lcd_suspend(void *data)
