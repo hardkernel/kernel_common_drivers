@@ -4159,7 +4159,8 @@ static void vpp_set_super_scaler
 	 * todo:if you have better idea,you can improve it
 	 */
 	/* step1: judge core0&core1 vertical enable or disable*/
-	if (ver_sc_multiple_num >= 2 * SUPER_SCALER_V_FACTOR) {
+	if (ver_sc_multiple_num >= 2 * SUPER_SCALER_V_FACTOR ||
+		force_scaler_all) {
 		next_frame_par->supsc0_vert_ratio =
 			((src_width_limit < core0_v_enable_width_max) &&
 			(sr_support & SUPER_CORE0_SUPPORT)) ? 1 : 0;
@@ -4170,6 +4171,8 @@ static void vpp_set_super_scaler
 		if (next_frame_par->supsc0_vert_ratio &&
 		    (ver_sc_multiple_num < 4 * SUPER_SCALER_V_FACTOR))
 			next_frame_par->supsc1_vert_ratio = 0;
+		if (force_scaler_all)
+			next_frame_par->supsc0_vert_ratio = 1;
 		next_frame_par->supsc0_enable =
 			next_frame_par->supsc0_vert_ratio ? 1 : 0;
 		next_frame_par->supsc1_enable =
@@ -4182,9 +4185,10 @@ static void vpp_set_super_scaler
 	}
 
 	/* step2: judge core0&core1 horizontal enable or disable*/
-	if (hor_sc_multiple_num >= 2 &&
+	if ((hor_sc_multiple_num >= 2 &&
 	    (vpp_wide_mode != VIDEO_WIDEOPTION_NONLINEAR &&
-	    vpp_wide_mode != VIDEO_WIDEOPTION_NONLINEAR_T)) {
+	    vpp_wide_mode != VIDEO_WIDEOPTION_NONLINEAR_T)) ||
+	    force_scaler_all) {
 		if (src_width_limit > core0_v_disable_width_max ||
 		    (src_width_limit > core0_v_enable_width_max &&
 		     next_frame_par->supsc0_vert_ratio) ||

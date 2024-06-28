@@ -636,6 +636,7 @@ bool vd1_vd2_mux;
 bool aisr_en;
 bool vsr_top_en;
 u32 vsr_debug_mode;
+bool force_scaler_all;
 bool video_suspend;
 u32 video_suspend_cycle;
 int log_out;
@@ -13073,6 +13074,36 @@ static ssize_t vsr_debug_mode_store(struct class *cla,
 	return count;
 }
 
+static ssize_t force_scaler_all_show(struct class *cla,
+				struct class_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, 40, "force_scaler_all:%d\n", force_scaler_all);
+}
+
+static ssize_t force_scaler_all_store(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	if (res != force_scaler_all) {
+		force_scaler_all = res;
+		vd_layer[0].property_changed = true;
+		vd_layer[1].property_changed = true;
+		vd_layer[2].property_changed = true;
+		vd_layer_vpp[0].property_changed = true;
+		vd_layer_vpp[1].property_changed = true;
+	}
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -13670,6 +13701,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0664,
 		vsr_debug_mode_show,
 		vsr_debug_mode_store),
+	__ATTR(force_scaler_all,
+		0664,
+		force_scaler_all_show,
+		force_scaler_all_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {

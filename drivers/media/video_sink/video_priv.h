@@ -838,6 +838,7 @@ extern u64 vsync_cnt[VPP_MAX];
 extern struct vpu_venc_regs_s venc_regs[VPP_NUM];
 extern u32 vpp_hold_line[VPP_MAX];
 extern u8 vsync_isr_cpuid;
+extern bool force_scaler_all;
 
 bool is_amdv_enable(void);
 bool is_amdv_on(void);
