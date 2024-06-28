@@ -234,5 +234,4 @@ extern struct aud_para hdmi21aud_config_data;
  ***********************************************************************/
 void hdmitx21_meson_init(struct hdmitx_dev *hdev);
 
-u32 aud_sr_idx_to_val(enum hdmi_audio_fs e_sr_idx);
 #endif

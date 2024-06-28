@@ -1949,9 +1949,7 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw,
 	u32 data32;
 	bool hbr_audio = false;
 	u8 div_n = 1;
-	u32 sample_rate_k;
 	u8 i2s_line_mask = 0;
-	u8 hdmitx_aud_clk_div = 18;
 	u8 aud_output_i2s_ch;
 
 	if (!tx_hw || !audio_param)
@@ -1967,29 +1965,13 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw,
 		hbr_audio = true;
 		if (audio_param->aud_src_if != AUD_SRC_IF_I2S)
 			HDMITX_INFO("warning: hbr with non-i2s\n");
-		//div_n = 4;
 	}
 	if (audio_param->type == CT_DOLBY_D)
 		div_n = 4;
 
-	sample_rate_k = aud_sr_idx_to_val(audio_param->rate);
-	//HDMITX_INFO("rate = %d\n", sample_rate_k);
-	//HDMITX_INFO("div_n = %d\n", div_n);
 	/* audio asynchronous sample clock, for spdif */
-	hdmitx_aud_clk_div = 2000000 / 3 / 6  / 128 / sample_rate_k / div_n;
-	HDMITX_DEBUG("clk_div = %d\n", hdmitx_aud_clk_div);
-	//if (audio_param->rate == FS_32K)
-		//hdmitx_aud_clk_div = 26;
-	//else if (audio_param->rate == FS_48K)
-		//hdmitx_aud_clk_div = 18;
-	//else if (audio_param->rate == FS_192K)
-		//hdmitx_aud_clk_div = 4;
-	//else
-		//HDMITX_INFO("Error:no audio clk setting for sample rate: %d\n",
-			//audio_param->rate);
-	hdmitx21_set_audioclk(hdmitx_aud_clk_div);
-	//audio_mute_op(hdev->tx_comm.cur_audio_param.aud_output_en);
-	//HDMITX_INFO("audio_param->type = %d\n", audio_param->type);
+	hdmitx21_set_audioclk(true);
+
 	HDMITX_INFO("audio_param->chs = %d\n", audio_param->chs);
 	hdmitx21_set_reg_bits(SPDIF_SSMPL2_IVCTX, 0, 5, 1);
 

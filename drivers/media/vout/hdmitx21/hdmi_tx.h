@@ -86,7 +86,7 @@ void hdmitx21_hdcp_exit(void);
 bool hdmitx21_uboot_audio_en(void);
 
 int hdmitx21_init_reg_map(struct platform_device *pdev);
-void hdmitx21_set_audioclk(u8 hdmitx_aud_clk_div);
+void hdmitx21_set_audioclk(bool en);
 void hdmitx21_disable_clk(struct hdmitx_dev *hdev);
 u32 hdcp21_rd_hdcp22_ver(void);
 void hdmitx_infoframe_send(u16 info_type, u8 *body);
