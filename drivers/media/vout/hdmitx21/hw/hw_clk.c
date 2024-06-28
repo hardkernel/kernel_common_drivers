@@ -88,31 +88,23 @@ static void hdmitx_disable_tx_pixel_clk(struct hdmitx_dev *hdev)
 	//hd21_set_reg_bits(CLKCTRL_VID_CLK_CTRL2, 0, 5, 1);
 }
 
-void hdmitx21_set_audioclk(u8 hdmitx_aud_clk_div)
+void hdmitx21_set_audioclk(bool en)
 {
 	u32 data32;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	if (hdmitx_aud_clk_div == 0)
-		hdmitx_aud_clk_div = 1;
 	// Enable hdmitx_aud_clk
 	// [10: 9] clk_sel for cts_hdmitx_aud_clk: 2=fclk_div3
 	// [    8] clk_en for cts_hdmitx_aud_clk
 	// [ 6: 0] clk_div for cts_hdmitx_aud_clk: fclk_div3/aud_clk_div
+	//use 200M = 2G / 5 / 2
 	data32 = 0;
-	data32 |= (2 << 9);
+	data32 |= (3 << 9); /* FIXPLL/5 */
 	data32 |= (0 << 8);
+	data32 |= (1 << 0); /* div 2 */
+	hd21_write_reg(CLKCTRL_HTX_CLK_CTRL1, data32);
 
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_T7) {
-		data32 |= ((hdmitx_aud_clk_div - 1) << 0);
-		hd21_write_reg(CLKCTRL_HTX_CLK_CTRL1, data32);
-	} else {
-		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 8, 1); /* enable */
-		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 3, 9, 2); /* FIXPLL/5 */
-		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 0, 8); /* div 2 */
-	}
 	// [    8] clk_en for cts_hdmitx_aud_clk
-	hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 8, 1);
+	hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, en, 8, 1);
 }
 
 void hdmitx21_set_default_clk(void)

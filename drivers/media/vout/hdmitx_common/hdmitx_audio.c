@@ -757,18 +757,6 @@ static enum hdmi_audio_sampsize aud_size_map(u32 bits)
 	return SS_MAX;
 }
 
-u32 aud_sr_idx_to_val(enum hdmi_audio_fs e_sr_idx)
-{
-	int i = 0;
-
-	for (i = 0; i < ARRAY_SIZE(map_fs); i++) {
-		if (map_fs[i].fs == e_sr_idx)
-			return map_fs[i].rate / 1000;
-	}
-	HDMITX_INFO("wrong idx: %d\n", e_sr_idx);
-	return -1;
-}
-
 static bool hdmitx_set_i2s_mask(struct aud_para *tx_aud_param, char ch_num, char ch_msk)
 {
 	unsigned int update_flag;
