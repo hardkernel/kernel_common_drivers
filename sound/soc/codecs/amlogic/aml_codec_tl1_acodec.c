@@ -880,6 +880,7 @@ static int tl1_acodec_suspend(struct snd_soc_component *component)
 	int i = 0;
 
 	if (aml_acodec) {
+		regcache_cache_only(aml_acodec->to_acodec_regmap, true);
 		for (i = 0; i < ARRAY_SIZE(tl1_acodec_init_list); i++)
 			aml_acodec->user_setting[i] = snd_soc_component_read(component,
 				tl1_acodec_init_list[i].reg);
@@ -895,6 +896,18 @@ static int tl1_acodec_resume(struct snd_soc_component *component)
 {
 	struct tl1_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
 	int i = 0;
+	int ret;
+
+	if (aml_acodec) {
+		regcache_cache_only(aml_acodec->to_acodec_regmap, false);
+		tl1_acodec_set_toacodec(aml_acodec);
+		regcache_mark_dirty(aml_acodec->to_acodec_regmap);
+		ret = regcache_sync(aml_acodec->to_acodec_regmap);
+		if (ret < 0) {
+			dev_err(component->dev, "failed to sync regcache: %d\n", ret);
+			return ret;
+		}
+	}
 
 	tl1_acodec_reset(component);
 	tl1_acodec_start_up(component);
