@@ -3348,9 +3348,6 @@ static int earc_platform_suspend(struct platform_device *pdev,
 		}
 	}
 
-	/* shutdown the power */
-	if (!IS_ERR(p_earc->tx_cmdc_map))
-		earctx_enable_d2a(p_earc->tx_top_map, false);
 	p_earc->resumed = false;
 	p_earc->last_tx_audio_coding_type = AUDIO_CODING_TYPE_UNDEFINED;
 	mutex_unlock(&earc_mutex);
