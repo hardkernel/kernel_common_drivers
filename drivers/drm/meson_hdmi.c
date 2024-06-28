@@ -365,8 +365,9 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	drm_connector_update_edid_property(connector, edid);
 
 	groups = kcalloc(MAX_VRR_MODE_GROUP, sizeof(*groups), GFP_KERNEL);
-	num_group = am_hdmi_info.hdmitx_dev->get_vrr_mode_group(groups,
-						   MAX_VRR_MODE_GROUP);
+	if (groups && am_hdmi_info.hdmitx_dev->get_vrr_mode_group)
+		num_group = am_hdmi_info.hdmitx_dev->get_vrr_mode_group(groups,
+							  MAX_VRR_MODE_GROUP);
 
 	/* get vrr capability */
 	if (am_hdmitx->hdmitx_dev->get_vrr_cap) {
@@ -380,17 +381,17 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	count = hdmitx_common_get_vic_list(&vics);
 
 	for (i = 0; i < count; i++) {
-		int vicslist[8] = {HDMI_0_UNKNOWN};
+		int vic_list[8] = {HDMI_0_UNKNOWN};
 		int count_list = 0;
 
-		if (vrr_cap && groups && num_group) {
+		if (vrr_cap) {
 			for (j = 0; j < num_group; j++) {
 				group = &groups[j];
 				if (group->brr_vic == vics[i] && group->vrr_max / 100 >= 60) {
 					for (k = 0; k < ARRAY_SIZE(group->qms_vic_lists); k++) {
-						vicslist[k] = group->qms_vic_lists[k];
-						DRM_DEBUG("%s__%d__%d__%ld\n", __func__,
-						__LINE__, vicslist[k],
+						vic_list[k] = group->qms_vic_lists[k];
+						DRM_DEBUG("%s__%d__%d__%zd\n", __func__,
+						__LINE__, vic_list[k],
 						ARRAY_SIZE(group->qms_vic_lists));
 						count_list++;
 					}
@@ -399,14 +400,14 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 		}
 
 		if (count_list == 0) {
-			vicslist[0] = vics[i];
+			vic_list[0] = vics[i];
 			count_list = 1;
 		}
 
 		for (k = 0; k < count_list; k++) {
-			ret = hdmitx_common_get_timing_para(vicslist[k], &para);
+			ret = hdmitx_common_get_timing_para(vic_list[k], &para);
 			if (ret < 0) {
-				DRM_ERROR("Get hdmi para by vic [%d] failed.\n", vicslist[k]);
+				DRM_ERROR("Get hdmi para by vic [%d] failed.\n", vic_list[k]);
 				continue;
 			}
 
