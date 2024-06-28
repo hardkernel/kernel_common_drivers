@@ -1170,9 +1170,9 @@
 		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
 		pinctrl-0=<&hdmitx_hpd>;
 		pinctrl-1=<&hdmitx_ddc>;
-		hdmitx-gpios-hpd = <&gpio GPIOH_2 0>;
-		hdmitx-gpios-scl = <&gpio GPIOH_1 0>;
-		hdmitx-gpios-sda = <&gpio GPIOH_0 0>;
+		hdmitx-gpios-hpd = <&gpio GPIOH_2 GPIO_ACTIVE_HIGH>;
+		hdmitx-gpios-scl = <&gpio GPIOH_1 GPIO_ACTIVE_HIGH>;
+		hdmitx-gpios-sda = <&gpio GPIOH_0 GPIO_ACTIVE_HIGH>;
 		interrupts = <GIC_SPI 204 IRQ_TYPE_LEVEL_HIGH
 			GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "hdmitx_hpd", "vrr_vsync";
