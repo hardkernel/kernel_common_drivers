@@ -91,6 +91,8 @@ EXPORT_SYMBOL(is_in_vsync_isr_viu3);
 struct video_layer_s vd_layer_vpp[2];
 atomic_t video_inirq_flag_vpp[2] = {ATOMIC_INIT(0), ATOMIC_INIT(0)};
 atomic_t video_unreg_flag_vpp[2] = {ATOMIC_INIT(0), ATOMIC_INIT(0)};
+u8 viu2_isr_cpuid;
+u8 viu3_isr_cpuid;
 
 static int vsync_enter_line_max_vpp[2];
 static int vsync_exit_line_max_vpp[2];
@@ -497,6 +499,7 @@ irqreturn_t vsync_isr_viu2(int irq, void *dev_id)
 	irqreturn_t ret;
 	const struct vinfo_s *info = NULL;
 
+	viu2_isr_cpuid = smp_processor_id();
 	atomic_set(&video_inirq_flag_vpp[0], 1);
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	info = get_current_vinfo2();
@@ -511,6 +514,7 @@ irqreturn_t vsync_isr_viu3(int irq, void *dev_id)
 	irqreturn_t ret;
 	const struct vinfo_s *info = NULL;
 
+	viu3_isr_cpuid = smp_processor_id();
 	atomic_set(&video_inirq_flag_vpp[1], 1);
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
 	info = get_current_vinfo3();
@@ -520,8 +524,10 @@ irqreturn_t vsync_isr_viu3(int irq, void *dev_id)
 	return ret;
 }
 
-int is_in_vsync_isr_viu2(void)
+int is_in_vsync_isr_viu2(u8 cur_cpuid)
 {
+	if (viu2_isr_cpuid != cur_cpuid)
+		return 0;
 	if (atomic_read(&video_inirq_flag_vpp[0]) > 0)
 		return 1;
 	else
@@ -529,8 +535,10 @@ int is_in_vsync_isr_viu2(void)
 }
 EXPORT_SYMBOL(is_in_vsync_isr_viu2);
 
-int is_in_vsync_isr_viu3(void)
+int is_in_vsync_isr_viu3(u8 cur_cpuid)
 {
+	if (viu3_isr_cpuid != cur_cpuid)
+		return 0;
 	if (atomic_read(&video_inirq_flag_vpp[1]) > 0)
 		return 1;
 	else

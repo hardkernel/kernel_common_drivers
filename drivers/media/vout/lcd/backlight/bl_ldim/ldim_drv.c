@@ -451,9 +451,12 @@ static void ldim_time_sort_save(unsigned long long *table,
 static void ldim_on_vs_brightness(void);
 
 atomic_t ldim_inirq_flag = ATOMIC_INIT(0);
+u8 ldim_isr_cpuid;
 
-int is_in_ldim_vsync_isr(void)
+int is_in_ldim_vsync_isr(u8 cur_cpuid)
 {
+	if (ldim_isr_cpuid != cur_cpuid)
+		return 0;
 	if (atomic_read(&ldim_inirq_flag) > 0)
 		return 1;
 	else
@@ -473,6 +476,7 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 	unsigned char frm_cnt;
 	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(0);
 
+	ldim_isr_cpuid = smp_processor_id();
 	if (ldim_driver.valid_flag == 0)
 		return IRQ_HANDLED;
 
