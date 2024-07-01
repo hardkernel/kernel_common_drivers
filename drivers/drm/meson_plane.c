@@ -12,6 +12,12 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
 #include <linux/amlogic/media/osd/osd_logo.h>
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+#include <linux/amlogic/media/amvecm/amvecm.h>
+#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#endif
 #include <linux/amlogic/media/video_sink/video.h>
 #include "meson_plane.h"
 #include "meson_crtc.h"
@@ -33,6 +39,8 @@ MODULE_PARM_DESC(force_dst_w, "force_dst_w");
 static int force_dst_h;
 module_param(force_dst_h, int, 0664);
 MODULE_PARM_DESC(force_dst_h, "force_dst_h");
+
+static int osd_enable[MESON_MAX_OSDS];
 
 static u64 afbc_modifier[] = {
 	/*
@@ -1284,7 +1292,42 @@ static void meson_plane_cleanup_fb(struct drm_plane *plane,
 static void meson_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_atomic_state *state)
 {
-	DRM_DEBUG("osd plane atomic_update.\n");
+	struct meson_vpu_osd_layer_info *plane_info;
+	struct meson_vpu_pipeline_state *mvps;
+	struct am_osd_plane *osd_plane = to_am_osd_plane(plane);
+	struct meson_drm *drv;
+	struct drm_private_state *obj_state;
+
+	if (!plane->state) {
+		DRM_INFO("%s state is NULL!\n", __func__);
+		return;
+	}
+
+	drv = osd_plane->drv;
+	if (!drv || !drv->pipeline) {
+		DRM_INFO("%s private state or pipeline is NULL!\n", __func__);
+		return;
+	}
+
+	obj_state = drv->pipeline->obj.state;
+	if (!obj_state) {
+		DRM_ERROR("null pipeline obj state!\n");
+		return;
+	}
+
+	mvps = container_of(obj_state, struct meson_vpu_pipeline_state, obj);
+	if (!mvps || osd_plane->plane_index >= MESON_MAX_OSDS) {
+		DRM_INFO("%s mvps/osd_plane is NULL!\n", __func__);
+		return;
+	}
+	plane_info = &mvps->plane_info[osd_plane->plane_index];
+
+	if (plane_info->enable == 1)
+		osd_enable[plane_info->plane_index] = 1;
+	else
+		osd_enable[plane_info->plane_index] = 0;
+
+	DRM_DEBUG("%s [%d]\n", __func__, osd_plane->plane_index);
 }
 
 static void meson_video_plane_atomic_update(struct drm_plane *plane,
@@ -1309,6 +1352,21 @@ static void meson_video_plane_atomic_update(struct drm_plane *plane,
 		meson_video_prepare_fence(plane, old_plane_state, mvv);
 	vpu_video_plane_update(sub_pipe, old_atomic_state, video_index);
 }
+
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION) ||\
+	defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+/* -1: invalid osd index
+ *  0: osd is disabled
+ *  1: osd is enabled
+ */
+int get_osd_status_callback(u32 index)
+{
+	if (index < MESON_MAX_OSDS)
+		return osd_enable[index];
+	else
+		return -1;
+}
+#endif
 
 static int meson_plane_atomic_check(struct drm_plane *plane,
 					struct drm_atomic_state *atomic_state)
@@ -1513,7 +1571,36 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 static void meson_plane_atomic_disable(struct drm_plane *plane,
 				       struct drm_atomic_state *old_state)
 {
+	struct meson_vpu_osd_layer_info *plane_info;
+	struct meson_vpu_pipeline_state *mvps;
 	struct am_osd_plane *osd_plane = to_am_osd_plane(plane);
+	struct meson_drm *drv;
+	struct drm_private_state *obj_state;
+
+	if (!plane->state) {
+		DRM_INFO("%s state  is NULL!\n", __func__);
+		return;
+	}
+
+	drv = osd_plane->drv;
+	if (!drv || !drv->pipeline) {
+		DRM_INFO("%s private state or pipeline is NULL!\n", __func__);
+		return;
+	}
+
+	obj_state = drv->pipeline->obj.state;
+	if (!obj_state) {
+		DRM_ERROR("null pipeline obj state!\n");
+		return;
+	}
+
+	mvps = container_of(obj_state, struct meson_vpu_pipeline_state, obj);
+	if (!mvps || osd_plane->plane_index >= MESON_MAX_OSDS) {
+		DRM_INFO("%s mvps/osd_plane is NULL!\n", __func__);
+		return;
+	}
+	plane_info = &mvps->plane_info[osd_plane->plane_index];
+	osd_enable[plane_info->plane_index] = 0;
 
 	DRM_DEBUG("%s osd %d.\n", __func__, osd_plane->plane_index);
 }
@@ -2095,6 +2182,17 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 	return video_plane;
 }
 
+static void register_osd_status_cb_func(void)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	register_osd_status_cb(get_osd_status_callback);
+#endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	register_osd_func(get_osd_status_callback);
+#endif
+}
+
 int am_meson_plane_create(struct meson_drm *priv)
 {
 	struct am_osd_plane *plane;
@@ -2109,6 +2207,8 @@ int am_meson_plane_create(struct meson_drm *priv)
 
 	/*calculate primary plane*/
 	meson_plane_get_primary_plane(priv, type);
+
+	register_osd_status_cb_func();
 
 	/*osd plane*/
 	for (i = 0; i < MESON_MAX_OSD; i++) {

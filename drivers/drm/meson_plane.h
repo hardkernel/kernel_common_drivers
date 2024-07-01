@@ -106,6 +106,11 @@ struct meson_plane_supported_formats {
 
 int am_meson_plane_create(struct meson_drm *priv);
 
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION) ||\
+	defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+int get_osd_status_callback(u32 index);
+#endif
+
 /*For async commit on kernel 4.9, and can be reused on kernel 5.4.*/
 int meson_video_plane_async_check(struct drm_plane *plane,
 	struct drm_atomic_state *state);
