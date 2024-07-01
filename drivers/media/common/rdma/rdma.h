@@ -62,14 +62,14 @@ void rdma_exit(void);
 int get_ex_vsync_rdma_enable(void);
 void set_ex_vsync_rdma_enable(int enable);
 void set_force_rdma_config(int handle);
-int is_in_vsync_isr(void);
-int is_in_pre_vsync_isr(void);
-int is_in_vsync_isr_viu2(void);
-int is_in_vsync_isr_viu3(void);
+int is_in_vsync_isr(u8 cur_cpuid);
+int is_in_pre_vsync_isr(u8 cur_cpuid);
+int is_in_vsync_isr_viu2(u8 cur_cpuid);
+int is_in_vsync_isr_viu3(u8 cur_cpuid);
 int is_video_process_in_thread(void);
 bool get_lowlatency_mode(void);
 #ifdef CONFIG_AMLOGIC_BL_LDIM
-int is_in_ldim_vsync_isr(void);
+int is_in_ldim_vsync_isr(u8 cur_cpuid);
 #endif
 void set_rdma_channel_enable(u8 rdma_en);
 unsigned int rdma_hw_done_bit(void);

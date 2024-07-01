@@ -58,6 +58,7 @@ int rdma_mgr_irq_request;
 int rdma_reset_trigger_flag[RDMA_NUM];
 
 struct reset_control *rdma_rst;
+static u8 rdma_done_cpuid;
 static int debug_flag;
 /* burst size 0=16; 1=24; 2=32; 3=48.*/
 static int ctrl_ahb_rd_burst_size = 3;
@@ -679,6 +680,7 @@ irqreturn_t rdma_mgr_isr(int irq, void *dev_id)
 	int i;
 	u32 read_val;
 
+	rdma_done_cpuid = smp_processor_id();
 	if (debug_flag & 0x10)
 		return IRQ_HANDLED;
 	rdma_isr_count++;
@@ -1335,26 +1337,27 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 	struct rdma_device_info *info = &rdma_info;
 	struct rdma_instance_s *ins = &info->rdma_ins[handle];
 	int j = 0;
+	u8 cur_cpuid = smp_processor_id();
 
 	if (ins->rdma_table_size == 0)
 		return -1;
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 	if (!is_video_process_in_thread() &&
-		(((smp_processor_id() == 0) &&
-		!is_in_vsync_isr() &&
-		!is_in_pre_vsync_isr() &&
-		!is_in_vsync_isr_viu2() &&
-		!is_in_vsync_isr_viu3() &&
-		!is_in_ldim_vsync_isr()) || (smp_processor_id() != 0)) &&
-		get_rdma_handle(VSYNC_RDMA) == handle) {
+		(get_rdma_handle(VSYNC_RDMA) == handle) &&
+		(cur_cpuid != rdma_done_cpuid ||
+		(!is_in_vsync_isr(cur_cpuid) &&
+		!is_in_pre_vsync_isr(cur_cpuid) &&
+		!is_in_vsync_isr_viu2(cur_cpuid) &&
+		!is_in_vsync_isr_viu3(cur_cpuid) &&
+		!is_in_ldim_vsync_isr(cur_cpuid)))) {
 #else
 	if (!is_video_process_in_thread() &&
-		(((smp_processor_id() == 0) &&
-		!is_in_vsync_isr() &&
-		!is_in_pre_vsync_isr() &&
-		!is_in_vsync_isr_viu2() &&
-		!is_in_vsync_isr_viu3()) || (smp_processor_id() != 0)) &&
-		get_rdma_handle(VSYNC_RDMA) == handle) {
+		(get_rdma_handle(VSYNC_RDMA) == handle) &&
+		(cur_cpuid != rdma_done_cpuid ||
+		(!is_in_vsync_isr(cur_cpuid) &&
+		!is_in_pre_vsync_isr(cur_cpuid) &&
+		!is_in_vsync_isr_viu2(cur_cpuid) &&
+		!is_in_vsync_isr_viu3(cur_cpuid)))) {
 #endif
 		dump_stack();
 		pr_info("rdma_write(%d)(%s) %d(%x)<=%x\n",

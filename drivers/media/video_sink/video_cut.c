@@ -518,6 +518,8 @@ bool video_suspend;
 u32 video_suspend_cycle;
 int log_out;
 u64 vsync_cnt[VPP_MAX] = {0, 0, 0};
+u8 vsync_isr_cpuid;
+u8 prevsync_isr_cpuid;
 
 #ifdef CONFIG_PM
 struct video_pm_state_s {
@@ -3169,7 +3171,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	}
 	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)
 		return IRQ_HANDLED;
-
+	vsync_isr_cpuid = smp_processor_id();
 	post_vsync_process();
 	return IRQ_HANDLED;
 }
@@ -3791,8 +3793,10 @@ int get_output_pcrscr_info(s32 *inc, u32 *base)
 }
 EXPORT_SYMBOL(get_output_pcrscr_info);
 
-int is_in_vsync_isr(void)
+int is_in_vsync_isr(u8 cur_cpuid)
 {
+	if (vsync_isr_cpuid != cur_cpuid)
+		return 0;
 	if (atomic_read(&video_inirq_flag) > 0)
 		return 1;
 	else
@@ -3800,8 +3804,10 @@ int is_in_vsync_isr(void)
 }
 EXPORT_SYMBOL(is_in_vsync_isr);
 
-int is_in_pre_vsync_isr(void)
+int is_in_pre_vsync_isr(u8 cur_cpuid)
 {
+	if (prevsync_isr_cpuid != cur_cpuid)
+		return 0;
 	if (atomic_read(&video_prevsync_inirq_flag) > 0)
 		return 1;
 	else
