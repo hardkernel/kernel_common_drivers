@@ -186,7 +186,8 @@ static  struct platform_driver cpuinfo_platform_driver = {
 
 static int __init meson_cpuinfo_init(void)
 {
-	pr_notice("build info: %s, common_drivers: %s\n", BUILD_TIME, COMMON_DRIVER_RELEASE);
+	pr_notice("build info: %s %s, common_drivers: %s\n", BUILD_GKI_VERSION, BUILD_TIME,
+			COMMON_DRIVER_RELEASE);
 	pr_notice("kernel upgrade info: <%d> <%s> <%s-%s>\n",
 		  AML_KERNEL_VERSION, MERGE_DATE, UPSTREAM_VERSION, AML_PATCH_VERSION);
 
