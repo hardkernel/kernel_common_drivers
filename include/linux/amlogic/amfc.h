@@ -158,7 +158,8 @@ struct amfc {
 	unsigned long cerror, derror;		/* hardware errors            */
 	unsigned long fail_compress_cnt;	/* source can't compress      */
 
-	unsigned int clk;			/* Mhz */
+	unsigned long rate;			/* hz */
+	struct clk *clk;
 	unsigned int chip;
 	unsigned int work_mode;			/* 0: irq mode, 1: poll mode  */
 	unsigned char log;

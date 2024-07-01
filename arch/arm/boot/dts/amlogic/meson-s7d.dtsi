@@ -1107,6 +1107,9 @@
 			      0 186 IRQ_TYPE_EDGE_RISING>;
 		power-domains = <&pwrdm PDID_S7D_AMFC>;
 		interrupt-names = "amfc0", "amfc1";
+		clocks = <&clkc CLKID_AMFC>;
+		assigned-clocks = <&clkc CLKID_AMFC>;
+		assigned-clock-rates = <666666666>;
 	};
 
 	amhdmitx: amhdmitx{
