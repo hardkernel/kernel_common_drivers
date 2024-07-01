@@ -23,6 +23,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-map-ops.h>
 #include <linux/completion.h>
+#include <linux/clk.h>
 #include <crypto/internal/scompress.h>
 
 #include <linux/cpu.h>
@@ -33,6 +34,7 @@
 #include <linux/amlogic/page_trace.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/gki_module.h>
+#include <linux/amlogic/cpu_version.h>
 #include <linux/arm-smccc.h>
 #include <linux/highmem.h>
 #include <linux/amlogic/amfc_regs.h>
@@ -75,21 +77,16 @@ static unsigned int amfc_clk_read(unsigned int reg)
 	return readl(amfc->clk_base + reg);
 }
 
-static void amfc_clk_write(unsigned int value, unsigned int reg)
-{
-	writel(value, amfc->clk_base + reg);
-}
-
 /* MHz */
 static unsigned int amfc_clk[] = {
-	24,
-	166,
-	1000,
-	800,
-	666,
-	500,
-	400,
-	285
+	 24000000,
+	166666666,
+	100000000,
+	800000000,
+	666666666,
+	500000000,
+	400000000,
+	285000000
 };
 
 static unsigned int init_clk __initdata;
@@ -104,7 +101,7 @@ static int early_amfc_clk_set(char *buf)
 
 	for (i = 0; i < ARRAY_SIZE(amfc_clk); i++) {
 		if (clk == amfc_clk[i]) {
-			pr_emerg("set amfc_clk to %dMHz\n", clk);
+			pr_emerg("set amfc_clk to %d Hz\n", clk);
 			init_clk = clk;
 			return 0;
 		}
@@ -115,25 +112,19 @@ __setup("amfc_clk=", early_amfc_clk_set);
 
 static int amfc_hw_init(void)
 {
-	unsigned int value, i;
-	unsigned int clk_idx = 5; /* default 500Mhz */
+	unsigned int value;
 
-	amfc->clk = 500;
-	if (init_clk) {
-		for (i = 0; i < ARRAY_SIZE(amfc_clk); i++) {
-			if (amfc_clk[i] == init_clk) {
-				clk_idx   = i;
-				amfc->clk = init_clk;
-				break;
-			}
-		}
+	/* fix 500mhz for s7d reva */
+	if (is_meson_s7d_cpu() && is_meson_rev_a()) {
+		pr_info("reva of s7d\n");
+		amfc->rate = 500000000;
 	}
-	/* clk to 500MHz */
-	amfc_clk_write(0 | (1 << 6) | (clk_idx << 7), CLKCTRL_AMFC_CLK_CTRL);
 
-	pr_info("AMFC VLSI version:%x, feature:%x\n",
+	pr_info("AMFC VLSI version:%x, feature:%x, clk:%ld\n",
 		amfc_hw_read(AMFC_GL_VERSION),
-		amfc_hw_read(AMFC_GL_CMD0_FEATURE));
+		amfc_hw_read(AMFC_GL_CMD0_FEATURE), amfc->rate);
+	clk_set_rate(amfc->clk, amfc->rate);
+
 	/* sw reset */
 	amfc_hw_write(0x80000000, AMFC_GL_CMD0_CONTROL);
 	amfc_hw_write(0, AMFC_GL_CMD0_CONTROL);
@@ -938,6 +929,7 @@ static ssize_t statistics_show(struct class *cla,
 {
 	int s = 0;
 	unsigned long long ctmp1, dtmp1, ctmp2, dtmp2;
+	unsigned long rate = amfc->rate / 1000000;
 
 	ctmp1 = amfc->cout * 100;
 	do_div(ctmp1, amfc->cin);
@@ -949,8 +941,8 @@ static ssize_t statistics_show(struct class *cla,
 
 	ctmp1 = amfc->total_ctick;
 	dtmp1 = amfc->total_dtick;
-	do_div(ctmp1, amfc->clk);
-	do_div(dtmp1, amfc->clk);
+	do_div(ctmp1, rate);
+	do_div(dtmp1, rate);
 	s += sprintf(buf + s, "Total compressed tick(us):     %16lld\n", ctmp1);
 	s += sprintf(buf + s, "Total decompressed tick(us):   %16lld\n", dtmp1);
 
@@ -965,7 +957,7 @@ static ssize_t statistics_show(struct class *cla,
 	s += sprintf(buf + s, "Total decompress errors:       %16ld\n",  amfc->derror);
 	s += sprintf(buf + s, "Total failed compress size:    %16lld\n", amfc->fail_compress_size);
 	s += sprintf(buf + s, "Total failed compress count:   %16ld\n",  amfc->fail_compress_cnt);
-	s += sprintf(buf + s, "Clock speed(MHz):              %16d\n",   amfc->clk);
+	s += sprintf(buf + s, "Clock speed(Hz):               %16ld\n",  amfc->rate);
 
 	return s;
 }
@@ -1011,19 +1003,17 @@ static ssize_t clk_store(struct class *cla,
 		pr_emerg("unsupported clk:%ld\n", value);
 		return -1;
 	}
-	amfc_clk_write(0 | (1 << 6) | ((i & 0x7) << 7), CLKCTRL_AMFC_CLK_CTRL);
-	amfc->clk = amfc_clk[i];
+	if (is_meson_s7d_cpu() && is_meson_rev_a())
+		value = 500000000;
+	clk_set_rate(amfc->clk, value);
+	amfc->rate = value;
 	return count;
 }
 
 static ssize_t clk_show(struct class *cla,
 			    struct class_attribute *attr, char *buf)
 {
-	unsigned int idx;
-
-	idx = amfc_clk_read(CLKCTRL_AMFC_CLK_CTRL);
-	idx = (idx >> 7) & 7;
-	return sprintf(buf, "FREQ:%d Mhz\n", amfc_clk[idx]);
+	return sprintf(buf, "FREQ:%ld hz\n", clk_get_rate(amfc->clk));
 }
 static CLASS_ATTR_RW(clk);
 
@@ -1230,6 +1220,14 @@ static int __init amfc_probe(struct platform_device *pdev)
 			IRQF_SHARED, "amfc1", amfc);
 	if (r < 0)
 		pr_err("request irq failed:%d, r:%d\n", irq, r);
+
+	amfc->clk = devm_clk_get(&pdev->dev, NULL);
+	if (!amfc->clk) {
+		pr_err("%s, can't get clk\n", __func__);
+		goto err;
+	}
+	clk_prepare_enable(amfc->clk);
+	amfc->rate = clk_get_rate(amfc->clk);
 
 	init_completion(&amfc->ccomp);
 	init_completion(&amfc->dcomp);
