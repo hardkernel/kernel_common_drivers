@@ -666,6 +666,8 @@ static bool force_toggle_each_vsync;
 u32 hlg_max = HLG_MAX;
 u32 hlg_min = HLG_MIN;
 
+static u32 amdv_reg_list[4];
+
 bool is_aml_gxm(void)
 {
 	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_GXM)
@@ -17215,6 +17217,30 @@ LOAD_END:
 	return count;
 }
 
+static int amdv_drv_suspend(struct device *dev)
+{
+	if (is_aml_s7d()) {
+		amdv_reg_list[0] = READ_VPP_DV_REG(AMDV_PATH_CTRL);
+		amdv_reg_list[1] = READ_VPP_DV_REG(AMDV_CORE1A_CLKGATE_CTRL);
+		amdv_reg_list[2] = READ_VPP_DV_REG(AMDV_CORE2A_CLKGATE_CTRL);
+		amdv_reg_list[3] = READ_VPP_DV_REG(AMDV_CORE3_CLKGATE_CTRL);
+	}
+	pr_dv_dbg("amdv suspend\n");
+	return 0;
+}
+
+static int amdv_drv_resume(struct device *dev)
+{
+	if (is_aml_s7d()) {
+		WRITE_VPP_DV_REG(AMDV_PATH_CTRL, amdv_reg_list[0]);
+		WRITE_VPP_DV_REG(AMDV_CORE1A_CLKGATE_CTRL, amdv_reg_list[1]);
+		WRITE_VPP_DV_REG(AMDV_CORE2A_CLKGATE_CTRL, amdv_reg_list[2]);
+		WRITE_VPP_DV_REG(AMDV_CORE3_CLKGATE_CTRL, amdv_reg_list[3]);
+	}
+	pr_dv_dbg("amdv resume\n");
+	return 0;
+}
+
 static int amdv_notify_callback(struct notifier_block *block,
 	unsigned long cmd,
 	void *para)
@@ -17784,11 +17810,17 @@ static int __exit amdolby_vision_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct dev_pm_ops amdv_pm_ops = {
+	.suspend = amdv_drv_suspend,
+	.resume = amdv_drv_resume,
+};
+
 static struct platform_driver aml_amdolby_vision_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "aml_amdolby_vision_driver",
 		.of_match_table = amlogic_dolby_vision_match,
+		.pm = &amdv_pm_ops,
 	},
 	.probe = amdolby_vision_probe,
 	.remove = __exit_p(amdolby_vision_remove),
