@@ -1,4 +1,4 @@
-From d5439a9be250c4b06d600dae35641d4a08fd4302 Mon Sep 17 00:00:00 2001
+From b5ec88775ab9e6e1bd8f7b320cc28955821c3284 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Wed, 20 Dec 2023 14:27:52 +0800
 Subject: [PATCH] mm: add memory extend support. [2/2]
@@ -45,10 +45,10 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  mm/page_alloc.c                | 72 ++++++++++++++++++++++++++++++++++
  mm/show_mem.c                  | 12 ++++++
  mm/slab_common.c               | 65 ++++++++++++++++++++++++++++++
- mm/slub.c                      |  7 ++++
+ mm/slub.c                      | 12 ++++++
  mm/usercopy.c                  |  4 ++
  mm/vmscan.c                    | 17 ++++++++
- 21 files changed, 280 insertions(+), 2 deletions(-)
+ 21 files changed, 285 insertions(+), 2 deletions(-)
 
 diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
 index ceb368d33bf4..bc236bc302b5 100644
@@ -419,10 +419,10 @@ index 256930da578a..69fa54752585 100644
  		     KASAN_PAGE_REDZONE, false);
  
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a248fb7d2a47..2c7462b74a75 100644
+index 83d45d211d41..fbeddfd29b9e 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -63,6 +63,9 @@
+@@ -67,6 +67,9 @@
  #ifdef CONFIG_AMLOGIC_CMA
  #include <linux/amlogic/aml_cma.h>
  #endif
@@ -432,7 +432,7 @@ index a248fb7d2a47..2c7462b74a75 100644
  
  /* Free Page Internal flags: for internal, non-pcp variants of free_pages(). */
  typedef int __bitwise fpi_t;
-@@ -691,6 +694,10 @@ static inline void add_to_free_list(struct page *page, struct zone *zone,
+@@ -695,6 +698,10 @@ static inline void add_to_free_list(struct page *page, struct zone *zone,
  
  	list_add(&page->buddy_list, &area->free_list[migratetype]);
  	area->nr_free++;
@@ -443,7 +443,7 @@ index a248fb7d2a47..2c7462b74a75 100644
  }
  
  /* Used for pages not on another list */
-@@ -701,6 +708,10 @@ static inline void add_to_free_list_tail(struct page *page, struct zone *zone,
+@@ -705,6 +712,10 @@ static inline void add_to_free_list_tail(struct page *page, struct zone *zone,
  
  	list_add_tail(&page->buddy_list, &area->free_list[migratetype]);
  	area->nr_free++;
@@ -454,7 +454,7 @@ index a248fb7d2a47..2c7462b74a75 100644
  }
  
  /*
-@@ -714,6 +725,10 @@ static inline void move_to_free_list(struct page *page, struct zone *zone,
+@@ -718,6 +729,10 @@ static inline void move_to_free_list(struct page *page, struct zone *zone,
  	struct free_area *area = &zone->free_area[order];
  
  	list_move_tail(&page->buddy_list, &area->free_list[migratetype]);
@@ -465,7 +465,7 @@ index a248fb7d2a47..2c7462b74a75 100644
  }
  
  static inline void del_page_from_free_list(struct page *page, struct zone *zone,
-@@ -727,6 +742,9 @@ static inline void del_page_from_free_list(struct page *page, struct zone *zone,
+@@ -731,6 +746,9 @@ static inline void del_page_from_free_list(struct page *page, struct zone *zone,
  	__ClearPageBuddy(page);
  	set_page_private(page, 0);
  	zone->free_area[order].nr_free--;
@@ -475,7 +475,7 @@ index a248fb7d2a47..2c7462b74a75 100644
  }
  
  static inline struct page *get_page_from_free_area(struct free_area *area,
-@@ -854,7 +872,15 @@ static inline void __free_one_page(struct page *page,
+@@ -858,7 +876,15 @@ static inline void __free_one_page(struct page *page,
  	else if (is_shuffle_order(order))
  		to_tail = shuffle_pick_tail();
  	else
@@ -491,7 +491,7 @@ index a248fb7d2a47..2c7462b74a75 100644
  
  	if (to_tail)
  		add_to_free_list_tail(page, zone, order, migratetype);
-@@ -2432,7 +2458,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
+@@ -2439,7 +2465,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
  
  	__count_vm_events(PGFREE, 1 << order);
  	pindex = order_to_pindex(migratetype, order);
@@ -507,7 +507,7 @@ index a248fb7d2a47..2c7462b74a75 100644
  	pcp->count += 1 << order;
  
  	/*
-@@ -4546,6 +4580,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
+@@ -4553,6 +4587,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
  	 */
  	alloc_flags |= alloc_flags_nofragment(ac.preferred_zoneref->zone, gfp);
  
@@ -517,7 +517,7 @@ index a248fb7d2a47..2c7462b74a75 100644
  	/* First allocation attempt */
  	page = get_page_from_freelist(alloc_gfp, order, alloc_flags, &ac);
  	if (likely(page))
-@@ -6684,6 +6721,41 @@ bool put_page_back_buddy(struct page *page)
+@@ -6700,6 +6737,41 @@ bool put_page_back_buddy(struct page *page)
  }
  #endif
  
@@ -751,7 +751,7 @@ index c4600e2e757a..bd6eeb404329 100644
  	seq_putc(m, '\n');
  }
 diff --git a/mm/slub.c b/mm/slub.c
-index 14781fff1068..642c6b1122b4 100644
+index 14781fff1068..196d3740a2e6 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
 @@ -48,6 +48,9 @@
@@ -764,7 +764,20 @@ index 14781fff1068..642c6b1122b4 100644
  /*
   * Lock order:
   *   1. slab_mutex (Global Mutex)
-@@ -4158,6 +4161,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
+@@ -3888,7 +3891,12 @@ int build_detached_freelist(struct kmem_cache *s, size_t size,
+ 	if (!s) {
+ 		/* Handle kalloc'ed objects */
+ 		if (unlikely(!folio_test_slab(folio))) {
++		#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
++			if (!aml_free_nonslab_page(folio, object))
++				__free_pages(folio_page(folio, 0), folio_order(folio));
++		#else
+ 			free_large_kmalloc(folio, object);
++		#endif
+ 			df->slab = NULL;
+ 			return size;
+ 		}
+@@ -4158,6 +4166,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
  
  static inline int calculate_order(unsigned int size)
  {
@@ -774,7 +787,7 @@ index 14781fff1068..642c6b1122b4 100644
  	unsigned int order;
  	unsigned int min_objects;
  	unsigned int max_objects;
-@@ -4219,6 +4225,7 @@ static inline int calculate_order(unsigned int size)
+@@ -4219,6 +4230,7 @@ static inline int calculate_order(unsigned int size)
  	if (order <= MAX_ORDER)
  		return order;
  	return -ENOSYS;
@@ -798,10 +811,10 @@ index 83c164aba6e0..98f84510f34c 100644
  		if (n > folio_size(folio) - offset)
  			usercopy_abort("page alloc", NULL, to_user, offset, n);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 376283ef1521..83a12dfcf0c2 100644
+index e5cf1c3f5e52..0eaa325bde30 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1711,6 +1711,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
+@@ -1718,6 +1718,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
  	return !data_race(folio_swap_flags(folio) & SWP_FS_OPS);
  }
  
@@ -819,7 +832,7 @@ index 376283ef1521..83a12dfcf0c2 100644
  /*
   * shrink_folio_list() returns the number of reclaimed pages
   */
-@@ -1756,7 +1767,11 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1763,7 +1774,11 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		if (unlikely(!folio_evictable(folio)))
  			goto activate_locked;
  
@@ -831,7 +844,7 @@ index 376283ef1521..83a12dfcf0c2 100644
  			goto keep_locked;
  
  		/* folio_update_gen() tried to promote this page? */
-@@ -2491,8 +2506,10 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
+@@ -2498,8 +2513,10 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
  	 * won't get blocked by normal direct-reclaimers, forming a circular
  	 * deadlock.
  	 */

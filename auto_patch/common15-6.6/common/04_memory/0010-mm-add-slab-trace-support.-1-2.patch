@@ -1,4 +1,4 @@
-From 6aee266219c9a17ce5d9e0b46e6f6c57a1468bc6 Mon Sep 17 00:00:00 2001
+From d563f9ebe6ec8e01219c841000806bfffa44fd0d Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Thu, 21 Dec 2023 17:05:43 +0800
 Subject: [PATCH] mm: add slab trace support. [1/2]
@@ -21,10 +21,10 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  1 file changed, 41 insertions(+)
 
 diff --git a/mm/slub.c b/mm/slub.c
-index 9b403b3f0833..a7bec9180bde 100644
+index 196d3740a2e6..cde130d292c8 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -50,6 +50,9 @@
+@@ -51,6 +51,9 @@
  #ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
  #include <linux/amlogic/memory.h>
  #endif
@@ -34,7 +34,7 @@ index 9b403b3f0833..a7bec9180bde 100644
  /*
   * Lock order:
   *   1. slab_mutex (Global Mutex)
-@@ -2030,6 +2033,9 @@ static struct slab *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+@@ -2052,6 +2055,9 @@ static struct slab *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
  			return NULL;
  		stat(s, ORDER_FALLBACK);
  	}
@@ -44,7 +44,7 @@ index 9b403b3f0833..a7bec9180bde 100644
  
  	slab->objects = oo_objects(oo);
  	slab->inuse = 0;
-@@ -2087,6 +2093,9 @@ static void __free_slab(struct kmem_cache *s, struct slab *slab)
+@@ -2109,6 +2115,9 @@ static void __free_slab(struct kmem_cache *s, struct slab *slab)
  	__folio_clear_slab(folio);
  	mm_account_reclaimed_pages(pages);
  	unaccount_slab(slab, order, s);
@@ -54,7 +54,7 @@ index 9b403b3f0833..a7bec9180bde 100644
  	__free_pages(&folio->page, order);
  }
  
-@@ -3176,6 +3185,9 @@ static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
+@@ -3198,6 +3207,9 @@ static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
  	c->freelist = get_freepointer(s, freelist);
  	c->tid = next_tid(c->tid);
  	local_unlock_irqrestore(&s->cpu_slab->lock, flags);
@@ -64,7 +64,7 @@ index 9b403b3f0833..a7bec9180bde 100644
  	return freelist;
  
  deactivate_slab:
-@@ -3241,6 +3253,9 @@ static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
+@@ -3263,6 +3275,9 @@ static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
  
  		if (s->flags & SLAB_STORE_USER)
  			set_track(s, freelist, TRACK_ALLOC, addr);
@@ -74,7 +74,7 @@ index 9b403b3f0833..a7bec9180bde 100644
  
  		return freelist;
  	}
-@@ -3267,6 +3282,9 @@ static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
+@@ -3289,6 +3304,9 @@ static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
  		if (s->flags & SLAB_STORE_USER)
  			set_track(s, freelist, TRACK_ALLOC, addr);
  
@@ -84,7 +84,7 @@ index 9b403b3f0833..a7bec9180bde 100644
  		return freelist;
  	}
  
-@@ -3276,6 +3294,9 @@ static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
+@@ -3298,6 +3316,9 @@ static void *___slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
  		 * we don't make further mismatched allocations easier.
  		 */
  		deactivate_slab(s, slab, get_freepointer(s, freelist));
@@ -94,7 +94,7 @@ index 9b403b3f0833..a7bec9180bde 100644
  		return freelist;
  	}
  
-@@ -3399,6 +3420,9 @@ static __always_inline void *__slab_alloc_node(struct kmem_cache *s,
+@@ -3421,6 +3442,9 @@ static __always_inline void *__slab_alloc_node(struct kmem_cache *s,
  		}
  		prefetch_freepointer(s, next_object);
  		stat(s, ALLOC_FASTPATH);
@@ -104,7 +104,7 @@ index 9b403b3f0833..a7bec9180bde 100644
  	}
  
  	return object;
-@@ -3756,6 +3780,10 @@ static __always_inline void do_slab_free(struct kmem_cache *s,
+@@ -3778,6 +3802,10 @@ static __always_inline void do_slab_free(struct kmem_cache *s,
  	/* Same with comment on barrier() in slab_alloc_node() */
  	barrier();
  
@@ -115,17 +115,17 @@ index 9b403b3f0833..a7bec9180bde 100644
  	if (unlikely(slab != c->slab)) {
  		__slab_free(s, slab, head, tail_obj, cnt, addr);
  		return;
-@@ -3869,6 +3897,9 @@ int build_detached_freelist(struct kmem_cache *s, size_t size,
+@@ -3891,6 +3919,9 @@ int build_detached_freelist(struct kmem_cache *s, size_t size,
  	if (!s) {
  		/* Handle kalloc'ed objects */
  		if (unlikely(!folio_test_slab(folio))) {
 +		#ifdef CONFIG_AMLOGIC_SLAB_TRACE
 +			slab_trace_remove_page(&folio->page, folio_order(folio), s);
 +		#endif
- 			free_large_kmalloc(folio, object);
- 			df->slab = NULL;
- 			return size;
-@@ -4513,6 +4544,13 @@ static int calculate_sizes(struct kmem_cache *s)
+ 		#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+ 			if (!aml_free_nonslab_page(folio, object))
+ 				__free_pages(folio_page(folio, 0), folio_order(folio));
+@@ -4540,6 +4571,13 @@ static int calculate_sizes(struct kmem_cache *s)
  	return !!oo_objects(s->oo);
  }
  
@@ -139,7 +139,7 @@ index 9b403b3f0833..a7bec9180bde 100644
  static int kmem_cache_open(struct kmem_cache *s, slab_flags_t flags)
  {
  	s->flags = kmem_cache_flags(s->size, flags, s->name);
-@@ -5068,6 +5106,9 @@ void __init kmem_cache_init(void)
+@@ -5095,6 +5133,9 @@ void __init kmem_cache_init(void)
  	/* Now we can use the kmem_cache to allocate kmalloc slabs */
  	setup_kmalloc_cache_index_table();
  	create_kmalloc_caches(0);
