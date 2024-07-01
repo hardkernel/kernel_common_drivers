@@ -5,8 +5,7 @@
 
 #ifndef __DVBS_FUNC_H__
 #define __DVBS_FUNC_H__
-#include <media/dvb_frontend.h>
-
+#include "dvb_frontend.h"
 
 #define BLIND_SEARCH_AGC2BANDWIDTH_40 (40)
 #define BLIND_SEARCH_AGC2BANDWIDTH_60 (60)
@@ -18,7 +17,6 @@
 
 #define CNR_HIGH	0xcae
 #define CNR_LOW		0xcad
-
 #define AUTOSR_ON  0xdc
 
 extern unsigned int diseqc_out_invert;
@@ -109,12 +107,13 @@ struct fft_total_result {
 
 #define DVBS_REG_DISIRQCFG	0x300
 #define DVBS_REG_DISIRQSTAT	0x301
-
+#define DVBS_REG_DISTXCFG	0x302
 #define DVBS_REG_DISTXSTATUS	0x303
 #define DVBS_REG_DISTXBYTES	0x304
 #define DVBS_REG_DISTXFIFO	0x305
 #define DVBS_REG_DISTXF22	0x306
 #define DVBS_REG_DISTXWAIT	0x307
+#define DVBS_REG_DISTIMEOCFG	0x308
 #define DVBS_REG_DISTIMEOUT	0x309
 #define DVBS_REG_DISRXCFG	0x30A
 #define DVBS_REG_DISRXSTAT1	0x30B
@@ -140,6 +139,9 @@ struct fft_total_result {
 
 #define DVBS_REG_DSQADCINCFG	0x121
 
+#define DVBS_AUTOSR_REG 0x922
+#define DVBS_AUTOSR_OFF 0xcc
+
 /* carrier offset */
 #define	CFR12	0x9cf
 #define	CFR11	0x9d0
@@ -158,8 +160,12 @@ void dvbs2_diseqc_init(void);
 void dvbs2_diseqc_recv_en(bool onoff);
 void dvbs2_diseqc_continuous_tone(bool onoff);
 void dvbs_check_status(struct seq_file *seq);
+unsigned int dvbs_get_quality(void);
+int dvbs_get_s_s2_system(void);
+int dvbs_get_modulation_coderate(u32 *modulation, u32 *coderate);
 unsigned int dvbs_get_freq_offset(unsigned int *polarity);
 unsigned int dvbs_get_symbol_rate(void);
+int dvbs_get_signal_strength_off(void);
 void dvbs_fft_reg_init(unsigned int *reg_val);
 void dvbs_fft_reg_term(unsigned int reg_val[60]);
 void dvbs_blind_fft_work(struct fft_threadcontrols *spectr_ana_data,

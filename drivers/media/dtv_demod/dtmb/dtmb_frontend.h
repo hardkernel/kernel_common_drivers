@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __DTMB_FRONTEND_H__
@@ -41,7 +41,7 @@ int gxtv_demod_dtmb_read_signal_strength(struct dvb_frontend *fe, s16 *strength)
 int gxtv_demod_dtmb_read_snr(struct dvb_frontend *fe, u16 *snr);
 int gxtv_demod_dtmb_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks);
 int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe);
-int gxtv_demod_dtmb_get_frontend(struct dvb_frontend *fe);
+int gxtv_demod_dtmb_get_frontend(struct dvb_frontend *fe, struct dtv_frontend_properties *p);
 int gxtv_demod_dtmb_tune(struct dvb_frontend *fe, bool re_tune,
 	unsigned int mode_flags, unsigned int *delay, enum fe_status *status);
 int dtmb_tune(struct dvb_frontend *fe, bool re_tune,

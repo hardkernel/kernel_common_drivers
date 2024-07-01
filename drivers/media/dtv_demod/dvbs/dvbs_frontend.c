@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #define __DVB_CORE__	/*ary 2018-1-31*/
@@ -35,9 +35,10 @@
 #include "aml_demod.h"
 #include "demod_func.h"
 #include "demod_dbg.h"
-#include "amlfrontend.h"
+
 #include "dvbs_frontend.h"
 #include "dvbs.h"
+#include "dvbs_diseqc.h"
 #include "dvbs_singlecable.h"
 #include <linux/amlogic/aml_dtvdemod.h>
 
@@ -189,6 +190,7 @@ int dtvdemod_dvbs_blind_check_signal(struct dvb_frontend *fe,
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	int ret = 0, next_step_khz1 = 0, asperity = 0;
+	enum fe_status status = 0;
 
 #ifdef DVBS_BLIND_SCAN_DEBUG
 	unsigned int fld_value[2] = { 0 };
@@ -204,6 +206,12 @@ int dtvdemod_dvbs_blind_check_signal(struct dvb_frontend *fe,
 		c->bandwidth_hz = 45000000;
 		c->symbol_rate = 45000000;
 	}
+
+	/* update current search info */
+	demod->blind_result_frequency = c->frequency;
+	demod->blind_result_symbol_rate = c->symbol_rate;
+	status = BLINDSCAN_UPDATESTARTFREQ | FE_HAS_LOCK;
+	dvb_frontend_add_event(fe, status);
 
 	//in Unicable blind scan mode, when try signal, the actual IF freq
 	//should be moved to the specified user band freq first,
@@ -1043,6 +1051,9 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 	demod->real_para.snr = calc_ave(snr, 8, 1, 1);
 	PR_DVBS("calc snr %d dBx10\n", demod->real_para.snr);
 
+	dvbs_get_modulation_coderate(&demod->real_para.modulation,
+			&demod->real_para.coderate);
+
 	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
 	if (demod->time_passed >= 500) {
 		if (!dvbs_rd_byte(0x160)) {
@@ -1074,7 +1085,7 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 		}
 	} else {
 		if (timer_not_enough(demod, D_TIMER_DETECT)) {
-			ilock = 0;
+			ilock = -1;
 			*status = 0;
 		} else {
 			ilock = 0;
@@ -1106,7 +1117,7 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 		}
 
 		PR_INFO("%s [id %d]: %s.freq: %s, sr: %d %s%s\n", __func__, demod->id,
-				ilock ? "!!  >> LOCK << !!" : "!! >> UNLOCK << !!",
+				ilock == 1 ? "!!  >> LOCK << !!" : "!! >> UNLOCK << !!",
 				buf, c->symbol_rate,
 				polarity_name ? polarity_name : "",
 				band ? band : "");
@@ -1122,6 +1133,32 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 			dvbs_wr_byte(0x991, 0x40);
 		}
 	}
+
+	return 0;
+}
+
+int dtvdemod_dvbs_get_frontend(struct dvb_frontend *fe,
+		struct dtv_frontend_properties *p)
+{
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	if (!devp->blind_scan_stop) {
+		p->delivery_system = demod->last_delsys;
+		p->frequency = demod->blind_result_frequency;
+		p->symbol_rate = demod->blind_result_symbol_rate;
+	} else {
+		p->delivery_system = demod->last_delsys;
+		p->frequency = c->frequency;
+		p->symbol_rate = c->symbol_rate;
+		p->modulation = demod->real_para.modulation;
+		p->fec_inner = demod->real_para.coderate;
+	}
+
+	PR_DVBS("dvbs get delsys %d,freq %d,sr %d,coderate %d,modul %d\n",
+			p->delivery_system, p->frequency, p->symbol_rate,
+			p->fec_inner, p->modulation);
 
 	return 0;
 }
@@ -1219,10 +1256,7 @@ int dtvdemod_dvbs2_init(struct aml_dtvdemod *demod)
 	demod->auto_flags_trig = 0;
 	demod->last_status = 0;
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_S4D) {
-		dd_hiu_reg_write(0x81, 0x702);
-		dd_hiu_reg_write(0x80, 0x501);
-	} else if (devp->data->hw_ver == DTVDEMOD_HW_S1A) {
+	if (devp->data->hw_ver == DTVDEMOD_HW_S1A) {
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 	} else {

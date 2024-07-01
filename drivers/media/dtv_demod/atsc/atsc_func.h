@@ -47,18 +47,8 @@ int atsc_set_ch(struct aml_dtvdemod *demod,
 		struct aml_demod_atsc *demod_atsc);
 int check_atsc_fsm_status(void);
 
-void atsc_write_reg(unsigned int reg_addr, unsigned int reg_data);
-
-unsigned int atsc_read_reg(unsigned int reg_addr);
-extern void atsc_write_reg_v4(unsigned int addr, unsigned int data);
-void atsc_write_reg_bits_v4(u32 addr, const u32 data, const u32 start, const u32 len);
-extern unsigned int atsc_read_reg_v4(unsigned int addr);
-
-unsigned int atsc_read_iqr_reg(void);
-
 /*int atsc_qam_set(fe_modulation_t mode);*/
 int atsc_qam_set(enum fe_modulation mode);
-
 
 void qam_initial(int qam_id);
 
@@ -89,5 +79,6 @@ unsigned int atsc_check_cci(struct aml_dtvdemod *demod);
 void atsc_reset_new(void);
 unsigned int cfo_run_new(void);
 void set_cr_ck_rate_new(struct aml_dtvdemod *demod);
+int atsc_get_power_strength(int agc_gain, int tuner_strength);
 
 #endif

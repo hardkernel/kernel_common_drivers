@@ -6,6 +6,7 @@
 #include "addr_dtmb_front_bit.h"
 #include "demod_func.h"
 #include "demod_dbg.h"
+#include "dtmb_func.h"
 
 MODULE_PARM_DESC(demod_enable_performance, "");
 static int demod_enable_performance = 1;
@@ -300,7 +301,7 @@ int dtmb_information(struct seq_file *seq)
 
 	che_snr = dtmb_reg_r_che_snr();
 	snr = che_snr;
-	snr = convert_snr(snr);
+	snr = dtmb_convert_snr(snr);
 	/*	if (che_snr >= 8192) */
 	/*		che_snr = che_snr - 16384;*/
 	/*	snr = che_snr / 32;*/
@@ -684,7 +685,6 @@ int dtmb_check_status_txl(struct dvb_frontend *fe)
 	return 0;
 }
 
-#ifdef DVB_CORE_ORI
 void dtmb_no_signal_check_v3(struct aml_dtvdemod *demod)
 {
 	if (((dtmb_read_reg(DTMB_TOP_CTRL_CHE_WORKCNT)
@@ -712,7 +712,6 @@ void dtmb_no_signal_check_finishi_v3(struct aml_dtvdemod *demod)
 	else
 		demod->demod_status.spectrum = 0;
 }
-#endif
 
 void dtmb_reset(void)
 {
@@ -915,4 +914,45 @@ unsigned int dtmb_detect_first(void)
 	}
 
 	return timeout;
+}
+
+int dtmb_get_power_strength(int agc_gain)
+{
+	int strength = 0;
+	int j = 0;
+	static int calcE_R840[13] = {
+		1010, 969, 890, 840, 800,
+		760, 720, 680, 670, 660,
+		510, 440, 368};
+
+	for (j = 0; j < sizeof(calcE_R840) / sizeof(int); j++)
+		if (agc_gain >= calcE_R840[j])
+			break;
+
+	if (agc_gain >= 440)
+		strength = -90 + j * 3;
+	else
+		strength = -56;
+
+	return strength;
+}
+
+int dtmb_convert_snr(int in_snr)
+{
+	int out_snr;
+	int calce_snr[40] = {
+		5, 6, 8, 10, 13,
+		16, 20, 25, 32, 40,
+		50, 63, 80, 100, 126,
+		159, 200, 252, 318, 400,
+		504, 634, 798, 1005, 1265,
+		1592, 2005, 2524, 3177, 4000,
+		5036, 6340, 7981, 10048, 12649,
+		15924, 20047, 25238, 31773, 40000 };
+
+	for (out_snr = 1; out_snr < 40; out_snr++)
+		if (in_snr <= calce_snr[out_snr])
+			break;
+
+	return out_snr;
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #define __DVB_CORE__	/*ary 2018-1-31*/
@@ -59,84 +59,6 @@ module_param(isdbt_lock_continuous_cnt, int, 0644);
 MODULE_PARM_DESC(isdbt_lost_continuous_cnt, "");
 static unsigned int isdbt_lost_continuous_cnt = 10;
 module_param(isdbt_lost_continuous_cnt, int, 0644);
-
-int dvbt_isdbt_set_ch(struct aml_dtvdemod *demod,
-		struct aml_demod_dvbt *demod_dvbt)
-{
-	int ret = 0;
-	u8_t demod_mode = 1;
-	u8_t bw, sr, ifreq, agc_mode;
-	u32_t ch_freq;
-	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D)
-		bw = BANDWIDTH_AUTO;
-	else
-		bw = demod_dvbt->bw;
-
-	sr = demod_dvbt->sr;
-	ifreq = demod_dvbt->ifreq;
-	agc_mode = demod_dvbt->agc_mode;
-	ch_freq = demod_dvbt->ch_freq;
-	demod_mode = demod_dvbt->dat0;
-	PR_DVBT("bw:%d, sr:%d, ifreq:%d, agc_mode:%d, ch_freq:%d, demod_mode:%d\n",
-		bw, sr, ifreq, agc_mode, ch_freq, demod_mode);
-	if (ch_freq < 1000 || ch_freq > 900000000) {
-		/* PR_DVBT("Error: Invalid Channel Freq option %d\n",*/
-		/* ch_freq); */
-		ch_freq = 474000;
-		ret = -1;
-	}
-
-	/*if (demod_mode < 0 || demod_mode > 4) {*/
-	if (demod_mode > 4) {
-		/* PR_DVBT("Error: Invalid demod mode option %d\n",*/
-		/* demod_mode); */
-		demod_mode = 1;
-		ret = -1;
-	}
-
-	demod->demod_status.ch_mode = 0;	/* TODO */
-	demod->demod_status.agc_mode = agc_mode;
-	demod->demod_status.ch_freq = ch_freq;
-	/*   if (demod_i2c->tuner == 1) */
-	/*     demod_sta->ch_if = 36130;*/
-	/* else if (demod_i2c->tuner == 2)*/
-	/*     demod_sta->ch_if = 4570;*/
-	/* else if (demod_i2c->tuner == 3)*/
-	/*     demod_sta->ch_if = 4000;// It is nouse.(alan)*/
-	/* else if (demod_i2c->tuner == 7)*/
-	/*     demod_sta->ch_if = 5000;//silab 5000kHz IF*/
-
-	demod->demod_status.ch_bw = (8 - bw) * 1000;
-	demod->demod_status.symb_rate = 0;	/* TODO */
-
-	/* bw=0; */
-	demod_mode = 1;
-	/* for si2176 IF:5M   sr 28.57 */
-	sr = 4;
-	ifreq = 4;
-	PR_INFO("%s:1:bw=%d, demod_mode=%d\n", __func__, bw, demod_mode);
-
-	/*bw = BANDWIDTH_AUTO;*/
-	if (bw == BANDWIDTH_AUTO)
-		demod_mode = 2;
-
-	ofdm_initial(bw,
-			/* 00:8M 01:7M 10:6M 11:5M */
-		     sr,
-		     /* 00:45M 01:20.8333M 10:20.7M 11:28.57  100:24m */
-		     ifreq,
-		     /* 000:36.13M 001:-5.5M 010:4.57M 011:4M 100:5M */
-		     demod_mode - 1,
-		     /* 00:DVBT,01:ISDBT */
-		     1
-		     /* 0: Unsigned, 1:TC */
-	    );
-	PR_DVBT("DVBT/ISDBT mode\n");
-
-	return ret;
-}
 
 int dvbt_isdbt_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
@@ -358,9 +280,7 @@ int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 	/*struct aml_demod_sts demod_sts;*/
 	struct aml_demod_dvbt param;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-#endif
 
 	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
@@ -382,7 +302,6 @@ int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 	demod->last_lock = -1;
 	demod->last_status = 0;
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t5w_cpu() || is_meson_t3_cpu() ||
 		demod_is_t5d_cpu(devp)) {
 		dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
@@ -395,22 +314,29 @@ int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 		if (is_meson_t5w_cpu())
 			t5w_write_ambus_reg(0xe138, 0x1, 23, 1);
 	}
-#endif
 
 	tuner_set_params(fe);
 	msleep(20);
 	dvbt_isdbt_set_ch(demod, &param);
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t5w_cpu())
 		t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
-#endif
 
 	return 0;
 }
 
-int gxtv_demod_isdbt_get_frontend(struct dvb_frontend *fe)
+int gxtv_demod_isdbt_get_frontend(struct dvb_frontend *fe,
+		struct dtv_frontend_properties *p)
 {
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	p->delivery_system = demod->last_delsys;
+	p->frequency = c->frequency;
+
+	PR_ATSC("isdbt get delsys %d,freq %d\n",
+			p->delivery_system, p->frequency);
+
 	return 0;
 }
 

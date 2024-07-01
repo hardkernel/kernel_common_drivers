@@ -42,6 +42,12 @@ static int dagc_switch;
 static int ar_flag;
 static int awgn_flag;
 
+struct atsc_cfg {
+	int adr;
+	int dat;
+	int rw;
+};
+
 /* 8vsb */
 static struct atsc_cfg list_8vsb[22] = {
 	{0x0733, 0x00, 0},
@@ -1726,84 +1732,23 @@ void atsc_check_fsm_status(struct aml_dtvdemod *demod)
 		snr_db / 10, sm, cr, ck, ber, ser);
 }
 
-void atsc_write_reg(unsigned int reg_addr, unsigned int reg_data)
+int atsc_get_power_strength(int agc_gain, int tuner_strength)
 {
-	unsigned int data;
+	int strength = 0;
+	int i = 0;
+	int atsc_R842[6] = {
+		/*-90,-89,-88,  -87, -86  , -85 , -84 , -83  , -82 , -81dbm*/
+		2160, 2110, 2060, 2010, 1960, 1910/*, 1870, 1910, 1860, 1900*/
+	};
 
-	if (!get_dtvpll_init_flag())
-		return;
+	for (i = 0; i < sizeof(atsc_R842) / sizeof(int); i++)
+		if (agc_gain >= atsc_R842[i])
+			break;
 
-	data = (reg_addr & 0xffff) << 8 | (reg_data & 0xff);
+	if (agc_gain >= 1910)
+		strength = -90 + i * 1;
+	else
+		strength = tuner_strength;
 
-	demod_mutex_lock();
-	/* printk("[demod][write]%x,data is %x\n",(addr),data);*/
-	writel(data, gbase_atsc());
-	demod_mutex_unlock();
-}
-
-unsigned int atsc_read_reg(unsigned int reg_addr)
-{
-	unsigned int tmp;
-
-	if (!get_dtvpll_init_flag())
-		return 0;
-
-	demod_mutex_lock();
-
-	writel((reg_addr & 0xffff) << 8, gbase_atsc() + 4);
-	tmp = readl(gbase_atsc());
-
-	demod_mutex_unlock();
-
-	return tmp & 0xff;
-}
-
-/*TL1*/
-void atsc_write_reg_v4(unsigned int addr, unsigned int data)
-{
-	if (!get_dtvpll_init_flag())
-		return;
-
-	demod_mutex_lock();
-
-	writel(data, gbase_atsc() + (addr << 2));
-
-	demod_mutex_unlock();
-}
-
-void atsc_write_reg_bits_v4(u32 addr, const u32 data, const u32 start, const u32 len)
-{
-	unsigned int val;
-	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
-
-	if (!get_dtvpll_init_flag() || unlikely(!devp))
-		return;
-
-	demod_mutex_lock();
-	val = readl(gbase_atsc() + (addr << 2));
-	val &= ~(((1L << (len)) - 1) << (start));
-	val |= (((data) & ((1L << (len)) - 1)) << (start));
-	writel(val, gbase_atsc() + (addr << 2));
-	demod_mutex_unlock();
-
-	if (devp->print_on)
-		PR_INFO("atsc wrBit 0x%x=0x%x, s:%d,l:%d\n", addr, data, start, len);
-}
-
-unsigned int atsc_read_iqr_reg(void)
-{
-	unsigned int tmp;
-
-	if (!get_dtvpll_init_flag())
-		return 0;
-
-	demod_mutex_lock();
-
-	tmp = readl(gbase_atsc() + 8);
-
-	demod_mutex_unlock();
-
-	PR_DBG("[atsc irq] %x\n", tmp);
-
-	return tmp & 0xffffffff;
+	return strength;
 }

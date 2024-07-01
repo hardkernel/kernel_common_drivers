@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #define __DVB_CORE__	/*ary 2018-1-31*/
@@ -35,6 +35,7 @@
 #include "aml_demod.h"
 #include "demod_func.h"
 #include "demod_dbg.h"
+#include "dtmb_func.h"
 #include "dtmb_frontend.h"
 #include "amlfrontend.h"
 #include "addr_dtmb_top.h"
@@ -315,7 +316,7 @@ int gxtv_demod_dtmb_read_status_old(struct dvb_frontend *fe,
 		return -1;
 	}
 
-	demod->real_para.snr = convert_snr(dtmb_reg_r_che_snr()) * 10;
+	demod->real_para.snr = dtmb_convert_snr(dtmb_reg_r_che_snr()) * 10;
 	PR_DTMB("snr %d dBx10.\n", demod->real_para.snr);
 
 	s = amdemod_stat_dtmb_islock(demod, SYS_DTMB);
@@ -360,7 +361,7 @@ int gxtv_demod_dtmb_read_signal_strength(struct dvb_frontend *fe,
 	if (tuner_find_by_name(fe, "r842") ||
 		tuner_find_by_name(fe, "r836") ||
 		tuner_find_by_name(fe, "r850"))
-		*strength += 16;
+		*strength += 7;
 
 	PR_DTMB("demod [id %d] signal strength %d dBm\n", demod->id, *strength);
 
@@ -407,7 +408,6 @@ int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 
 	demod->last_lock = -1;
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t3_cpu()) {
 		PR_DTMB("dtmb set ddr\n");
 		dtmb_write_reg(0x7, 0x6ffffd);
@@ -418,7 +418,6 @@ int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 		if (is_meson_t3_cpu() && is_meson_rev_b())
 			t3_revb_set_ambus_state(false, false);
 	}
-#endif
 
 	tuner_set_params(fe);
 	if (!dtmb_new_driver)
@@ -442,9 +441,17 @@ int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-int gxtv_demod_dtmb_get_frontend(struct dvb_frontend *fe)
+int gxtv_demod_dtmb_get_frontend(struct dvb_frontend *fe,
+		struct dtv_frontend_properties *p)
 {
-	/* these content will be written into eeprom. */
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	p->delivery_system = demod->last_delsys;
+	p->frequency = c->frequency;
+
+	PR_DTMB("dtmb get delsys %d,freq %d\n",
+			p->delivery_system, p->frequency);
 
 	return 0;
 }
@@ -548,9 +555,9 @@ static void dtmb_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 
 	val = dtmb_read_reg(DTMB_TOP_FEC_LOCK_SNR);
 	if (is_meson_gxtvbb_cpu())
-		demod->real_para.snr = convert_snr(val & 0xfff) * 10;
+		demod->real_para.snr = dtmb_convert_snr(val & 0xfff) * 10;
 	else
-		demod->real_para.snr = convert_snr(val & 0x3fff) * 10;
+		demod->real_para.snr = dtmb_convert_snr(val & 0x3fff) * 10;
 	PR_DTMB("fsm=0x%x, r_snr=0x%x, snr=%d dB*10, time_passed=%d\n",
 		fsm_state, val, demod->real_para.snr, demod->time_passed);
 	if (val & 0x4000) {

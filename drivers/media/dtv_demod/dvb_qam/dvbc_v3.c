@@ -22,6 +22,86 @@ module_param(j83b_agc_target, byte, 0644);
 static unsigned char dvbc_qam_reg[15] = { 0 };
 static unsigned int dvbc_qam_value[15] = { 0 };
 
+int amdemod_qam(enum fe_modulation qam)
+{
+	switch (qam) {
+	case QAM_16:
+		return QAM_MODE_16;
+	case QAM_32:
+		return QAM_MODE_32;
+	case QAM_64:
+		return QAM_MODE_64;
+	case QAM_128:
+		return QAM_MODE_128;
+	case QAM_256:
+		return QAM_MODE_256;
+	case QAM_AUTO:
+		return QAM_MODE_AUTO;
+	default:
+		return QAM_MODE_64;
+	}
+
+	return QAM_MODE_64;
+}
+
+enum fe_modulation amdemod_qam_fe(enum qam_md_e qam)
+{
+	switch (qam) {
+	case QAM_MODE_16:
+		return QAM_16;
+	case QAM_MODE_32:
+		return QAM_32;
+	case QAM_MODE_64:
+		return QAM_64;
+	case QAM_MODE_128:
+		return QAM_128;
+	case QAM_MODE_256:
+	default:
+		return QAM_256;
+	}
+
+	return QAM_256;
+}
+
+const char *qam_name[] = {
+	"QAM_16",
+	"QAM_32",
+	"QAM_64",
+	"QAM_128",
+	"QAM_256",
+	"QAM_UNDEF"
+};
+
+const char *get_qam_name(enum qam_md_e qam)
+{
+	if (qam >= QAM_MODE_16 && qam <= QAM_MODE_256)
+		return qam_name[qam];
+	else
+		return qam_name[5];
+}
+
+int dvbc_get_power_strength(int agc_gain, int tuner_strength)
+{
+	int strength = 0;
+	int i = 0;
+	/*tuner has 3 stage gain control, only last is controlled by demod agc*/
+	int dvbc_R842[20] = {
+		/*-90,-89,-88,  -87, -86  , -85 , -84 , -83  , -82 , -81dbm*/
+		1200, 1180, 1150, 1130, 1100, 1065, 1040, 1030, 1000, 970
+	};
+
+	for (i = 0; i < sizeof(dvbc_R842) / sizeof(int); i++)
+		if (agc_gain >= dvbc_R842[i])
+			break;
+
+	if (agc_gain >= 970)
+		strength = -90 + i * 1;
+	else
+		strength = tuner_strength + 22;
+
+	return strength;
+}
+
 u32 dvbc_get_status(struct aml_dtvdemod *demod)
 {
 	/*PR_DVBC("c4 is %x\n",dvbc_read_reg(QAM_BASE+0xc4));*/
@@ -579,6 +659,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	/*dvbc_set_auto_symtrack(demod); */
 }
 
+#ifdef AML_DEMOD_SUPPORT_DVBC
 u32 dvbc_set_auto_symtrack(struct aml_dtvdemod *demod)
 {
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
@@ -594,6 +675,7 @@ u32 dvbc_set_auto_symtrack(struct aml_dtvdemod *demod)
 	/* Sw enable demod */
 	return 0;
 }
+#endif
 
 int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts, struct seq_file *seq)
 {
@@ -1337,4 +1419,68 @@ AUTO_QAM_DONE:
 		PR_INFO("can not find qam(ret %d)\n", ret);
 
 	return ret;
+}
+
+static int x_to_power_y(int number, unsigned int power)
+{
+	unsigned int i;
+	int result = 1;
+
+	for (i = 0; i < power; i++)
+		result *= number;
+
+	return result;
+}
+
+void fe_l2a_get_agc2accu(struct fe_l2a_internal_param *pparams, unsigned int *pintegrator)
+{
+	unsigned int agc2acc_mant, agc2acc_exp, fld_value[2] = {0};
+
+	unsigned int mantissa;
+	signed int exponent;
+	//unsigned long long Value;
+	//unsigned int Value;
+	unsigned int AGC2I1, AGC2I0;
+	unsigned short mant;
+	unsigned char exp;
+	signed int exp_abs_s32 = 0, exp_s32 = 0;
+
+	fld_value[0] = dvbs_rd_byte(0x9a0);
+	fld_value[1] = (dvbs_rd_byte(0x9a1) & 0xc0) >> 6;//9a1&c0
+	mantissa = fld_value[1] + (fld_value[0] << 2);
+	fld_value[0] = (dvbs_rd_byte(0x9a1) & 0x3f);
+	exponent = (signed int)(fld_value[0]);
+
+	*pintegrator = mantissa * (unsigned int)POWOF2(exponent + 5 - 9); /* 2^5=32 */
+
+	/* Georg's method */
+	fld_value[0] = dvbs_rd_byte(0x9a0);
+	fld_value[1] = (dvbs_rd_byte(0x9a1) & 0xc0) >> 6;//9a1&c0
+	agc2acc_mant = (MAKEWORD(fld_value[0], fld_value[1])) >> 6;
+	agc2acc_exp = dvbs_rd_byte(0x9a1) & 0x3f;
+	if (((int)(agc2acc_exp - 9)) >= 0)
+		*pintegrator = agc2acc_mant * (unsigned int)POWOF2(agc2acc_exp - 9);
+	//printf("Integrator is %d\n",*pIntegrator);
+
+	AGC2I1 = dvbs_rd_byte(0x9a0);
+	//printf("0x9a0 is %x\n",AGC2I1);
+	AGC2I0 = dvbs_rd_byte(0x9a1);
+	mant = (unsigned short)((AGC2I1 * 4) + ((AGC2I0 >> 6) & 0x3));
+	exp = (unsigned char)(AGC2I0 & 0x3f);
+	PR_DVBC("mant %d\n", mant);
+	/*evaluate exp-9 */
+	exp_s32 = (signed int)(exp - 9);
+
+	/*evaluate exp -9 sign */
+	if (exp_s32 < 0) {
+		/* if exp_s32<0 divide the mantissa  by 2^abs(exp_s32)*/
+		exp_abs_s32 = x_to_power_y(2, (unsigned int)(-exp_s32));
+		*pintegrator = (unsigned int)((1000 * (mant)) / exp_abs_s32);
+		PR_DVBC("Integrator %d\n", *pintegrator);
+	} else {
+		/*if exp_s32> 0 multiply the mantissa  by 2^(exp_s32)*/
+		exp_abs_s32 = x_to_power_y(2, (unsigned int)(exp_s32));
+		*pintegrator = (unsigned int)((1000 * mant) * exp_abs_s32);
+		PR_DVBC("Integrator %d\n", *pintegrator);
+	}
 }

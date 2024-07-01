@@ -10,7 +10,7 @@
 #ifdef AML_DEMOD_SUPPORT_DVBS
 #include "dvbs_diseqc.h"
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBC
+#if defined AML_DEMOD_SUPPORT_DVBC || defined AML_DEMOD_SUPPORT_J83B
 #include "dvbc_func.h"
 #endif
 
@@ -172,6 +172,7 @@
 /*  V3.5.045 fix low probability missing 8vsb channel */
 /*  V3.5.046 optimize dvb-c auto qam for T3 T5D */
 /*  V3.5.047 fix lock fail when switch to atsc */
+/*  V3.5.048 fix all get_frontend and code optimize */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -188,8 +189,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.047"
-#define DTVDEMOD_VER	"2024/07/12: fix lock fail when switch to atsc"
+#define AMLDTVDEMOD_VER "V3.5.048"
+#define DTVDEMOD_VER	"2024/07/12: fix all get_frontend and code optimize"
 #define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -232,15 +233,6 @@
 
 #define TIMEOUT_DDR_LEAVE	50
 
-enum qam_md_e {
-	QAM_MODE_16,
-	QAM_MODE_32,
-	QAM_MODE_64,
-	QAM_MODE_128,
-	QAM_MODE_256,
-	QAM_MODE_AUTO,
-	QAM_MODE_NUM
-};
 
 enum DEMOD_TUNER_IF {
 	DEMOD_4M_IF = 4000,
@@ -361,16 +353,13 @@ struct poll_machie_s {
 	unsigned int bch;
 };
 
-struct aml_demod_para {
-	u32_t dvbc_symbol;
-	u32_t dvbc_qam;
-	u32_t dtmb_qam;
-	u32_t dtmb_coderate;
-};
-
 struct aml_demod_para_real {
 	u32_t modulation;
 	u32_t coderate;
+	u32_t hp_coderate;
+	u32_t lp_coderate;
+	u32_t fft_mode;
+	u32_t gi;
 	u32_t symbol;
 	u32_t snr;
 	u32_t plp_num;
@@ -421,7 +410,6 @@ struct aml_dtvdemod {
 	unsigned int freq;
 	unsigned int freq_dvbc;
 	enum fe_modulation atsc_mode;
-	struct aml_demod_para para_demod;
 	unsigned int timeout_atsc_ms;
 #ifdef AML_DEMOD_SUPPORT_DVBT
 	unsigned int timeout_dvbt_ms;
@@ -439,9 +427,13 @@ struct aml_dtvdemod {
 	int auto_flags_trig;
 	unsigned int p1_peak;
 
+#if defined AML_DEMOD_SUPPORT_DVBC || defined AML_DEMOD_SUPPORT_J83B
 	enum qam_md_e auto_qam_mode;
-	enum qam_md_e auto_qam_list[5];
 	enum qam_md_e last_qam_mode;
+#endif
+#ifdef AML_DEMOD_SUPPORT_DVBC
+	enum qam_md_e auto_qam_list[5];
+#endif
 	unsigned int auto_times;
 	unsigned int auto_done_times;
 	unsigned int qam_wait_times;
@@ -578,9 +570,6 @@ struct amldtvdemod_device_s {
 	unsigned char index;
 	struct list_head demod_list;
 };
-
-/*int M6_Demod_Dtmb_Init(struct aml_fe_dev *dev);*/
-int convert_snr(int in_snr);
 
 struct amldtvdemod_device_s *dtvdemod_get_dev(void);
 
@@ -733,13 +722,9 @@ static inline unsigned int gphybase_hiu(void)
 
 //int amdemod_stat_islock(struct aml_dtvdemod *demod, enum fe_delivery_system delsys);
 
-unsigned int dtmb_is_have_check(void);
 const char *dtvdemod_get_cur_delsys(enum fe_delivery_system delsys);
-void aml_dtv_demode_isr_en(struct amldtvdemod_device_s *devp, u32 en);
 unsigned int demod_is_t5d_cpu(struct amldtvdemod_device_s *devp);
-#ifdef AML_DEMOD_SUPPORT_DTMB
-int dtmb_information(struct seq_file *seq);
-#endif
+
 #ifdef MODULE
 struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config);
 #endif

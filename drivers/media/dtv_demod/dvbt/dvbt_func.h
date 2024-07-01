@@ -499,15 +499,23 @@ enum ldpc_ite_md {
 
 extern const unsigned int minimum_snr_x10[4][6];
 void dvbt2_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
-unsigned int dtvdemod_calcul_get_field(unsigned int memory_base, unsigned int nb_bits_shift,
-					unsigned int var_size);
-void dtvdemod_get_plp(struct amldtvdemod_device_s *devp, struct dtv_property *tvp);
-void dtvdemod_get_plp_dbg(void);
-void dtvdemod_set_plpid(char id);
+unsigned int dvbt2_calcul_get_field(unsigned int memory_base,
+		unsigned int nb_bits_shift, unsigned int var_size);
+int dvbt2_get_plp(u32 *plp_num, u64 *plp_common);
+void dvbt2_get_plp_dbg(void);
+void dvbt2_set_plpid(char id);
 void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe);
 void dvbt_rst_demod(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
 void dvbt2_reset(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
 void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
+unsigned int write_riscv_ram(void);
 void dvbt2_info(struct aml_dtvdemod *demod, struct seq_file *seq);
 void dvbt_info(struct aml_dtvdemod *demod, struct seq_file *seq);
+int dvbt2_get_modulation_coderate(u32 *modulation, u32 *coderate);
+int dvbt2_get_FFT_GI(u32 *fft_mode, u32 *guard_interval);
+int dvbt_get_modulation_coderate(u32 *modulation, u32 *coderate, u32 *lcoderate);
+int dvbt_get_FFT_GI(u32 *fft_mode, u32 *guard_interval);
+unsigned int dvbt_set_ch(struct aml_dtvdemod *demod,
+		struct aml_demod_dvbt *demod_dvbt, struct dvb_frontend *fe);
+int dvbt2_set_ch(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
 #endif

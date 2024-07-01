@@ -29,7 +29,9 @@ module_param(front_agc_target, int, 0644);
 unsigned int diseqc_out_invert = 1;
 MODULE_PARM_DESC(diseqc_out_invert, "");
 module_param(diseqc_out_invert, int, 0644);
+#endif
 
+#if defined AML_DEMOD_SUPPORT_DVBS || defined AML_DEMOD_SUPPORT_DVBC
 static unsigned char dvbs_agc_target = 0x50;
 MODULE_PARM_DESC(dvbs_agc_target, "");
 module_param(dvbs_agc_target, byte, 0644);
@@ -95,7 +97,7 @@ static struct stchip_register_t l2a_def_val_local[] = {
 	{0x237,    0x80},/* REG_RL2A_DVBSX_FSK_FSKRCFG */
 	/*{0x300,    0x00},*//* REG_RL2A_DVBSX_DISEQC_DISIRQCFG */
 	/*{0x301,    0x00},*//* REG_RL2A_DVBSX_DISEQC_DISIRQSTAT */
-	{0x302,    0x00},/* REG_RL2A_DVBSX_DISEQC_DISTXCFG */
+	{0x302,    0x02},/* REG_RL2A_DVBSX_DISEQC_DISTXCFG */
 	/*{0x303,    0x20},*//* REG_RL2A_DVBSX_DISEQC_DISTXSTATUS */
 	/*{0x304,    0x00},*//* REG_RL2A_DVBSX_DISEQC_DISTXBYTES */
 	/*{0x305,    0x00},*//* REG_RL2A_DVBSX_DISEQC_DISTXFIFO */
@@ -500,7 +502,7 @@ static struct stchip_register_t l2a_def_val_local[] = {
 	{0x931,    0x01},/* REG_RL2A_DVBSX_DEMOD_DMDPLFNUM */
 	{0x932,    0x09},/* REG_RL2A_DVBSX_DEMOD_DMDSTATE */
 	{0x933,    0x00},/* REG_RL2A_DVBSX_DEMOD_DMDFLYW */
-	{DSTATUS,    0x00},/* REG_RL2A_DVBSX_DEMOD_DSTATUS */
+	{0x934,    0x00},/* REG_RL2A_DVBSX_DEMOD_DSTATUS */
 	{0x935,    0x00},/* REG_RL2A_DVBSX_DEMOD_DSTATUS2 */
 	{0x936,    0x80},/* REG_RL2A_DVBSX_DEMOD_DSTATUS3 */
 	{0x937,    0x60},/* REG_RL2A_DVBSX_DEMOD_DSTATUS4 */
@@ -1825,6 +1827,106 @@ void dtmb_write_reg_bits(u32 addr, const u32 data, const u32 start, const u32 le
 }
 #endif
 
+#ifdef AML_DEMOD_SUPPORT_ATSC
+void atsc_write_reg(unsigned int reg_addr, unsigned int reg_data)
+{
+	unsigned int data;
+
+	if (!get_dtvpll_init_flag())
+		return;
+
+	data = (reg_addr & 0xffff) << 8 | (reg_data & 0xff);
+
+	demod_mutex_lock();
+	/* printk("[demod][write]%x,data is %x\n",(addr),data);*/
+	writel(data, gbase_atsc());
+	demod_mutex_unlock();
+}
+
+unsigned int atsc_read_reg(unsigned int reg_addr)
+{
+	unsigned int tmp;
+
+	if (!get_dtvpll_init_flag())
+		return 0;
+
+	demod_mutex_lock();
+
+	writel((reg_addr & 0xffff) << 8, gbase_atsc() + 4);
+	tmp = readl(gbase_atsc());
+
+	demod_mutex_unlock();
+
+	return tmp & 0xff;
+}
+
+/*TL1*/
+void atsc_write_reg_v4(unsigned int addr, unsigned int data)
+{
+	if (!get_dtvpll_init_flag())
+		return;
+
+	demod_mutex_lock();
+
+	writel(data, gbase_atsc() + (addr << 2));
+
+	demod_mutex_unlock();
+}
+
+void atsc_write_reg_bits_v4(u32 addr, const u32 data, const u32 start, const u32 len)
+{
+	unsigned int val;
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
+	if (!get_dtvpll_init_flag() || unlikely(!devp))
+		return;
+
+	demod_mutex_lock();
+	val = readl(gbase_atsc() + (addr << 2));
+	val &= ~(((1L << (len)) - 1) << (start));
+	val |= (((data) & ((1L << (len)) - 1)) << (start));
+	writel(val, gbase_atsc() + (addr << 2));
+	demod_mutex_unlock();
+
+	if (devp->print_on)
+		PR_INFO("atsc wrBit 0x%x=0x%x, s:%d,l:%d\n", addr, data, start, len);
+}
+
+unsigned int atsc_read_reg_v4(unsigned int addr)
+{
+	unsigned int tmp;
+
+	if (!get_dtvpll_init_flag())
+		return 0;
+
+	demod_mutex_lock();
+
+	tmp = readl(gbase_atsc() + (addr << 2));
+
+	demod_mutex_unlock();
+
+	return tmp;
+}
+
+unsigned int atsc_read_iqr_reg(void)
+{
+	unsigned int tmp;
+
+	if (!get_dtvpll_init_flag())
+		return 0;
+
+	demod_mutex_lock();
+
+	tmp = readl(gbase_atsc() + 8);
+
+	demod_mutex_unlock();
+
+	PR_DBG("[atsc irq] %x\n", tmp);
+
+	return tmp & 0xffffffff;
+}
+#endif
+
 #if defined AML_DEMOD_SUPPORT_ISDBT || defined AML_DEMOD_SUPPORT_DVBT
 void dvbt_isdbt_wr_reg(unsigned int addr, unsigned int data)
 {
@@ -1980,7 +2082,9 @@ char dvbt_t2_rdb(unsigned int addr)
 
 	return tmp;
 }
+#endif
 
+#ifdef AML_DEMOD_SUPPORT_DVBT
 /* only for T5D T2 use, have to set top 0x10 = 0x97 before any access */
 void riscv_ctl_write_reg(unsigned int addr, unsigned int data)
 {
@@ -2043,8 +2147,8 @@ void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 	unsigned int reg = 0;
 #ifdef AML_DEMOD_SUPPORT_DVBS
 	unsigned char data = 0;
-#endif
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+#endif
 
 	do {
 		if (l2a_def_val_local[reg].addr == 0xffff)
@@ -2054,11 +2158,11 @@ void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 		if (symb_rate_kbs < (SR_LOW_THRD / 1000) && !is_blind_scan &&
 			l2a_def_val_local[reg].addr == 0x9b0) {
 			dvbs_wr_byte(0x9b0, 0x6);
-		} else if (is_blind_scan && l2a_def_val_local[reg].addr == AUTOSR_REG) {
-			dvbs_wr_byte(AUTOSR_REG, AUTOSR_OFF);
+		} else if (is_blind_scan && l2a_def_val_local[reg].addr == 0x922) {
+			dvbs_wr_byte(0x922, 0xcc);
 		} else if (l2a_def_val_local[reg].addr == 0xe60) {
 			dvbs_wr_byte(0xe60, 0x75);
-		} else if (l2a_def_val_local[reg].addr == DVBS_REG_DISTXCFG) {
+		} else if (l2a_def_val_local[reg].addr == 0x302) {
 #ifdef AML_DEMOD_SUPPORT_DVBS
 			if (!devp->diseqc.tone_on)
 				data = l2a_def_val_local[reg].value | 0x2;
@@ -2068,14 +2172,14 @@ void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 			if (devp->diseqc.lnbc.is_internal_tone)
 				data = data | 0x8;
 
-			dvbs_wr_byte(DVBS_REG_DISTXCFG, data);
+			dvbs_wr_byte(0x302, data);
 #endif
 		} else if (l2a_def_val_local[reg].addr == 0x913) {
 			dvbs_wr_byte(0x913, dvbs_agc_target);
-		} else if (l2a_def_val_local[reg].addr == DVBS_REG_DISTIMEOCFG &&
+		} else if (l2a_def_val_local[reg].addr == 0x308 &&
 			devp->data->hw_ver == DTVDEMOD_HW_S1A) {
 #ifdef AML_DEMOD_SUPPORT_DVBS
-			dvbs_wr_byte(DVBS_REG_DISTIMEOCFG, l2a_def_val_local[reg].value |
+			dvbs_wr_byte(0x308, l2a_def_val_local[reg].value |
 				(diseqc_out_invert << 3));
 #endif
 		} else {
@@ -2108,24 +2212,7 @@ void dvbs2_reg_initial(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 	dvbs_wr_byte(0x130, 0x00);
 	dvbs_wr_byte(0x120, 0x04);
 }
-#endif
 
-#if defined AML_DEMOD_SUPPORT_ATSC || defined AML_DEMOD_SUPPORT_J83B
-unsigned int atsc_read_reg_v4(unsigned int addr)
-{
-	unsigned int tmp;
-
-	if (!get_dtvpll_init_flag())
-		return 0;
-
-	demod_mutex_lock();
-
-	tmp = readl(gbase_atsc() + (addr << 2));
-
-	demod_mutex_unlock();
-
-	return tmp;
-}
 #endif
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -2349,7 +2436,7 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 	case SYS_DVBT:
 	case SYS_DVBT2:
 		break;
-
+#ifdef AML_DEMOD_SUPPORT_DVBS
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
@@ -2381,7 +2468,7 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 				demod_top_write_reg(DEMOD_TOP_REG0, 0x0);
 		}
 		break;
-
+#endif
 	default:
 		break;
 	}
@@ -2390,30 +2477,6 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 
 	return 0;
 }
-
-#ifdef AML_DEMOD_SUPPORT_J83B
-/*TL1*/
-void set_j83b_filter_reg_v4(struct aml_dtvdemod *demod)
-{
-	//j83_1
-	qam_write_reg(demod, 0x40, 0x3F010201);//25M:0x36333c0d
-	qam_write_reg(demod, 0x41, 0xA003A3B);//25M:0xa110d01
-	qam_write_reg(demod, 0x42, 0xE1EE030E);//25M:0xf0e4ea7a
-	qam_write_reg(demod, 0x43, 0x2601F2);//25M:0x3c0010
-	qam_write_reg(demod, 0x44, 0x9B006B);//25M:0x7e0065
-
-	//j83_2
-	qam_write_reg(demod, 0x45, 0xb3a1905);
-	qam_write_reg(demod, 0x46, 0x1c396e07);
-	qam_write_reg(demod, 0x47, 0x3801cc08);
-	qam_write_reg(demod, 0x48, 0x10800a2);
-
-	qam_write_reg(demod, 0x49, 0x53b1f03);
-	qam_write_reg(demod, 0x4a, 0x18377407);
-	qam_write_reg(demod, 0x4b, 0x3401cf0b);
-	qam_write_reg(demod, 0x4c, 0x10d00a1);
-}
-#endif
 
 void demod_set_reg(struct aml_dtvdemod *demod, struct aml_demod_reg *demod_reg)
 {
@@ -2687,8 +2750,7 @@ void monitor_isdbt(void)
 }
 #endif
 
-#if defined AML_DEMOD_SUPPORT_DVBS || defined AML_DEMOD_SUPPORT_DVBC || \
-	defined AML_DEMOD_SUPPORT_J83B
+#if defined AML_DEMOD_SUPPORT_DVBC || defined AML_DEMOD_SUPPORT_J83B
 /*dvbc_write_reg -> apb_write_reg in dvbc_func*/
 /*dvbc_read_reg -> apb_read_reg in dvbc_func*/
 #if 0
@@ -2856,7 +2918,8 @@ unsigned int isdbt_read_reg_v4(unsigned int addr)
 }
 #endif
 
-#if defined AML_DEMOD_SUPPORT_DVBC  || defined AML_DEMOD_SUPPORT_J83B
+#if defined AML_DEMOD_SUPPORT_DVBS || defined AML_DEMOD_SUPPORT_DVBC || \
+	defined AML_DEMOD_SUPPORT_J83B
 /*dvbc v3:*/
 void qam_write_reg(struct aml_dtvdemod *demod,
 		unsigned int reg_addr, unsigned int reg_data)
@@ -3091,68 +3154,14 @@ int timer_tuner_not_enough(struct aml_dtvdemod *demod)
 	return ret;
 }
 
-int amdemod_qam(enum fe_modulation qam)
-{
-	switch (qam) {
-	case QAM_16:
-		return QAM_MODE_16;
-	case QAM_32:
-		return QAM_MODE_32;
-	case QAM_64:
-		return QAM_MODE_64;
-	case QAM_128:
-		return QAM_MODE_128;
-	case QAM_256:
-		return QAM_MODE_256;
-	case QAM_AUTO:
-		return QAM_MODE_AUTO;
-	default:
-		return QAM_MODE_64;
-	}
-
-	return QAM_MODE_64;
-}
-
-enum fe_modulation amdemod_qam_fe(enum qam_md_e qam)
-{
-	switch (qam) {
-	case QAM_MODE_16:
-		return QAM_16;
-	case QAM_MODE_32:
-		return QAM_32;
-	case QAM_MODE_64:
-		return QAM_64;
-	case QAM_MODE_128:
-		return QAM_128;
-	case QAM_MODE_256:
-	default:
-		return QAM_256;
-	}
-
-	return QAM_256;
-}
-
-const char *qam_name[] = {
-	"QAM_16",
-	"QAM_32",
-	"QAM_64",
-	"QAM_128",
-	"QAM_256",
-	"QAM_UNDEF"
-};
-
-const char *get_qam_name(enum qam_md_e qam)
-{
-	if (qam >= QAM_MODE_16 && qam <= QAM_MODE_256)
-		return qam_name[qam];
-	else
-		return qam_name[5];
-}
-
 void real_para_clear(struct aml_demod_para_real *para)
 {
 	para->modulation = -1;
 	para->coderate = -1;
+	para->hp_coderate = 0;
+	para->lp_coderate = 0;
+	para->fft_mode = 0;
+	para->gi = 0;
 	para->symbol = 0;
 	para->snr = 0;
 	para->plp_num = 0;
@@ -3245,11 +3254,6 @@ int is_s1a_dvbc_disabled(void)
 }
 
 #if defined AML_DEMOD_SUPPORT_DVBT || defined AML_DEMOD_SUPPORT_ISDBT
-void calculate_cordic_para(void)
-{
-	dvbt_isdbt_wr_reg(0x0c, 0x00000040);
-}
-
 static int coef[] = {
 	0xf900, 0xfe00, 0x0000, 0x0000, 0x0100, 0x0100, 0x0000, 0x0000,
 	0xfd00, 0xf700, 0x0000, 0x0000, 0x4c00, 0x0000, 0x0000, 0x0000,
@@ -3814,6 +3818,83 @@ void ofdm_initial(int bandwidth,
 /* dvbt_check_status(); */
 }
 
+int dvbt_isdbt_set_ch(struct aml_dtvdemod *demod,
+		struct aml_demod_dvbt *demod_dvbt)
+{
+	int ret = 0;
+	u8_t demod_mode = 1;
+	u8_t bw, sr, ifreq, agc_mode;
+	u32_t ch_freq;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+
+	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D)
+		bw = BANDWIDTH_AUTO;
+	else
+		bw = demod_dvbt->bw;
+
+	sr = demod_dvbt->sr;
+	ifreq = demod_dvbt->ifreq;
+	agc_mode = demod_dvbt->agc_mode;
+	ch_freq = demod_dvbt->ch_freq;
+	demod_mode = demod_dvbt->dat0;
+	PR_DVBT("bw:%d, sr:%d, ifreq:%d, agc_mode:%d, ch_freq:%d, demod_mode:%d\n",
+		bw, sr, ifreq, agc_mode, ch_freq, demod_mode);
+	if (ch_freq < 1000 || ch_freq > 900000000) {
+		/* PR_DVBT("Error: Invalid Channel Freq option %d\n",*/
+		/* ch_freq); */
+		ch_freq = 474000;
+		ret = -1;
+	}
+
+	/*if (demod_mode < 0 || demod_mode > 4) {*/
+	if (demod_mode > 4) {
+		/* PR_DVBT("Error: Invalid demod mode option %d\n",*/
+		/* demod_mode); */
+		demod_mode = 1;
+		ret = -1;
+	}
+
+	demod->demod_status.ch_mode = 0;	/* TODO */
+	demod->demod_status.agc_mode = agc_mode;
+	demod->demod_status.ch_freq = ch_freq;
+	/*   if (demod_i2c->tuner == 1) */
+	/*     demod_sta->ch_if = 36130;*/
+	/* else if (demod_i2c->tuner == 2)*/
+	/*     demod_sta->ch_if = 4570;*/
+	/* else if (demod_i2c->tuner == 3)*/
+	/*     demod_sta->ch_if = 4000;// It is nouse.(alan)*/
+	/* else if (demod_i2c->tuner == 7)*/
+	/*     demod_sta->ch_if = 5000;//silab 5000kHz IF*/
+
+	demod->demod_status.ch_bw = (8 - bw) * 1000;
+	demod->demod_status.symb_rate = 0;	/* TODO */
+
+	/* bw=0; */
+	demod_mode = 1;
+	/* for si2176 IF:5M   sr 28.57 */
+	sr = 4;
+	ifreq = 4;
+	PR_INFO("%s:1:bw=%d, demod_mode=%d\n", __func__, bw, demod_mode);
+
+	/*bw = BANDWIDTH_AUTO;*/
+	if (bw == BANDWIDTH_AUTO)
+		demod_mode = 2;
+
+	ofdm_initial(bw,
+			/* 00:8M 01:7M 10:6M 11:5M */
+		     sr,
+		     /* 00:45M 01:20.8333M 10:20.7M 11:28.57  100:24m */
+		     ifreq,
+		     /* 000:36.13M 001:-5.5M 010:4.57M 011:4M 100:5M */
+		     demod_mode - 1,
+		     /* 00:DVBT,01:ISDBT */
+		     1
+		     /* 0: Unsigned, 1:TC */
+	    );
+	PR_DVBT("DVBT/ISDBT mode\n");
+
+	return ret;
+}
 #endif
 
 //when frontend top AGC is enabled, sub-module local AGC
@@ -3912,7 +3993,7 @@ void fe_l2a_set_symbol_rate(struct fe_l2a_internal_param *pparams, unsigned int 
 	//pParams->master_clock = 135000000;
 
 	//reg32 = reg32 / (pParams->master_clock / 1000);
-	reg32 = reg32 / (135000000 / 1000);
+	reg32 = reg32 / ADC_CLK_135M;
 	reg32 = reg32 * (1 << 9);
 	//PR_DVBC("reg32:%d, sr:%d\n", reg32, symbol_rate);
 
@@ -3923,71 +4004,5 @@ void fe_l2a_set_symbol_rate(struct fe_l2a_internal_param *pparams, unsigned int 
 			(dvbs_rd_byte(0x9f2)));
 	tmp_f = tmp * 135 / 16777216;
 	//PR_DVBC("rd sr %d %d\n", __func__, tmp, tmp_f);
-}
-#endif
-
-#ifdef AML_DEMOD_SUPPORT_DVBC
-static int x_to_power_y(int number, unsigned int power)
-{
-	unsigned int i;
-	int result = 1;
-
-	for (i = 0; i < power; i++)
-		result *= number;
-
-	return result;
-}
-
-void fe_l2a_get_agc2accu(struct fe_l2a_internal_param *pparams, unsigned int *pintegrator)
-{
-	unsigned int agc2acc_mant, agc2acc_exp, fld_value[2] = {0};
-
-	unsigned int Mantissa;
-	signed int Exponent;
-	//unsigned long long Value;
-	//unsigned int Value;
-	unsigned int AGC2I1, AGC2I0;
-	unsigned short mant;
-	unsigned char exp;
-	signed int exp_abs_s32 = 0, exp_s32 = 0;
-
-	fld_value[0] = dvbs_rd_byte(0x9a0);
-	fld_value[1] = (dvbs_rd_byte(0x9a1) & 0xc0) >> 6;//9a1&c0
-	Mantissa = fld_value[1] + (fld_value[0] << 2);
-	fld_value[0] = (dvbs_rd_byte(0x9a1) & 0x3f);
-	Exponent = (signed int)(fld_value[0]);
-
-	*pintegrator = Mantissa * (unsigned int)POWOF2(Exponent + 5 - 9); /* 2^5=32 */
-
-	/* Georg's method */
-	fld_value[0] = dvbs_rd_byte(0x9a0);
-	fld_value[1] = (dvbs_rd_byte(0x9a1) & 0xc0) >> 6;//9a1&c0
-	agc2acc_mant = (MAKEWORD(fld_value[0], fld_value[1])) >> 6;
-	agc2acc_exp = dvbs_rd_byte(0x9a1) & 0x3f;
-	if (((int)(agc2acc_exp - 9)) >= 0)
-		*pintegrator = agc2acc_mant * (unsigned int)POWOF2(agc2acc_exp - 9);
-	//printf("Integrator is %d\n",*pIntegrator);
-
-	AGC2I1 = dvbs_rd_byte(0x9a0);
-	//printf("0x9a0 is %x\n",AGC2I1);
-	AGC2I0 = dvbs_rd_byte(0x9a1);
-	mant = (unsigned short)((AGC2I1 * 4) + ((AGC2I0 >> 6) & 0x3));
-	exp = (unsigned char)(AGC2I0 & 0x3f);
-	PR_DVBC("mant %d\n", mant);
-	/*evaluate exp-9 */
-	exp_s32 = (signed int)(exp - 9);
-
-	/*evaluate exp -9 sign */
-	if (exp_s32 < 0) {
-		/* if exp_s32<0 divide the mantissa  by 2^abs(exp_s32)*/
-		exp_abs_s32 = x_to_power_y(2, (unsigned int)(-exp_s32));
-		*pintegrator = (unsigned int)((1000 * (mant)) / exp_abs_s32);
-		PR_DVBC("Integrator %d\n", *pintegrator);
-	} else {
-		/*if exp_s32> 0 multiply the mantissa  by 2^(exp_s32)*/
-		exp_abs_s32 = x_to_power_y(2, (unsigned int)(exp_s32));
-		*pintegrator = (unsigned int)((1000 * mant) * exp_abs_s32);
-		PR_DVBC("Integrator %d\n", *pintegrator);
-	}
 }
 #endif

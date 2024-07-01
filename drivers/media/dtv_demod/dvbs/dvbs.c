@@ -451,6 +451,174 @@ unsigned int dvbs_get_quality(void)
 	return c_n;
 }
 
+int dvbs_get_s_s2_system(void)
+{
+	unsigned char system = dvbs_rd_byte(0x932) & 0x60;
+
+	//bit[5-6].
+	if (system == 0x40)
+		return SYS_DVBS2;
+	else if (system == 0x60)
+		return SYS_DVBS;
+	else
+		return SYS_DVBS;
+}
+
+int dvbs_get_modulation_coderate(u32 *modulation, u32 *coderate)
+{
+	int system = dvbs_get_s_s2_system();
+	int value = (dvbs_rd_byte(0x930) >> 2) & 0x3f;//bit[2-7]
+
+	if (system == SYS_DVBS2) {
+		switch (value) {
+		case 0x1://0x1~0xB:QPSK
+			*modulation = QPSK;
+			*coderate = FEC_1_4;
+			break;
+		case 0x2:
+			*modulation = QPSK;
+			*coderate = FEC_1_3;
+			break;
+		case 0x3:
+			*modulation = QPSK;
+			*coderate = FEC_2_5;
+			break;
+		case 0x4:
+			*modulation = QPSK;
+			*coderate = FEC_1_2;
+			break;
+		case 0x5:
+			*modulation = QPSK;
+			*coderate = FEC_3_5;
+			break;
+		case 0x6:
+			*modulation = QPSK;
+			*coderate = FEC_2_3;
+			break;
+		case 0x7:
+			*modulation = QPSK;
+			*coderate = FEC_3_4;
+			break;
+
+		case 0x8:
+			*modulation = QPSK;
+			*coderate = FEC_4_5;
+			break;
+		case 0x9:
+			*modulation = QPSK;
+			*coderate = FEC_5_6;
+			break;
+		case 0xA:
+			*modulation = QPSK;
+			*coderate = FEC_8_9;
+			break;
+		case 0xB:
+			*modulation = QPSK;
+			*coderate = FEC_9_10;
+			break;
+		case 0xC://0xC~0x11:8PSK
+			*modulation = PSK_8;
+			*coderate = FEC_3_5;
+			break;
+		case 0xD:
+			*modulation = PSK_8;
+			*coderate = FEC_2_3;
+			break;
+		case 0xE:
+			*modulation = PSK_8;
+			*coderate = FEC_3_4;
+			break;
+		case 0xF:
+			*modulation = PSK_8;
+			*coderate = FEC_5_6;
+			break;
+		case 0x10:
+			*modulation = PSK_8;
+			*coderate = FEC_8_9;
+			break;
+		case 0x11:
+			*modulation = PSK_8;
+			*coderate = FEC_9_10;
+			break;
+		case 0x12://0x12~0x17:APSK_16
+			*modulation = APSK_16;
+			*coderate = FEC_2_3;
+			break;
+		case 0x13:
+			*modulation = APSK_16;
+			*coderate = FEC_3_4;
+			break;
+		case 0x14:
+			*modulation = APSK_16;
+			*coderate = FEC_4_5;
+			break;
+		case 0x15:
+			*modulation = APSK_16;
+			*coderate = FEC_5_6;
+			break;
+		case 0x16:
+			*modulation = APSK_16;
+			*coderate = FEC_8_9;
+			break;
+		case 0x17:
+			*modulation = APSK_16;
+			*coderate = FEC_9_10;
+			break;
+		case 0x18://0x18~0x1C:APSK_32
+			*modulation = APSK_32;
+			*coderate = FEC_3_4;
+			break;
+		case 0x19:
+			*modulation = APSK_32;
+			*coderate = FEC_4_5;
+			break;
+		case 0x1A:
+			*modulation = APSK_32;
+			*coderate = FEC_5_6;
+			break;
+		case 0x1B:
+			*modulation = APSK_32;
+			*coderate = FEC_8_9;
+			break;
+		case 0x1C:
+			*modulation = APSK_32;
+			*coderate = FEC_9_10;
+			break;
+		default:
+			*modulation = QPSK;
+			*coderate = FEC_AUTO;
+			break;
+		};
+	} else { //SYS_DVBS
+		*modulation = QPSK;
+		switch (value) {
+		case 0x20:
+			*coderate = FEC_1_2;
+			break;
+		case 0x21:
+			*coderate = FEC_2_3;
+			break;
+		case 0x22:
+			*coderate = FEC_3_4;
+			break;
+		case 0x23:
+			*coderate = FEC_5_6;
+			break;
+		case 0x24:
+			*coderate = FEC_6_7;
+			break;
+		case 0x25:
+			*coderate = FEC_7_8;
+			break;
+		default:
+			*coderate = FEC_AUTO;
+			break;
+		}
+	}
+
+	return 0;
+}
+
 unsigned int dvbs_get_freq_offset(unsigned int *polarity)
 {
 	unsigned int carrier_offset = 0, freq_offset = 0;
@@ -461,10 +629,6 @@ unsigned int dvbs_get_freq_offset(unsigned int *polarity)
 
 	*polarity = carrier_offset >> 23 & 0x1;
 	/* negative val, convert to original code */
-
-	PR_DVBS("%s: polarity %d, carrier_offset 0x%x\n",
-		__func__, *polarity, carrier_offset);
-
 	if (*polarity) {
 		carrier_offset ^= 0xffffff;
 		carrier_offset += 1;
@@ -528,7 +692,7 @@ unsigned int dvbs_get_symbol_rate(void)
 }
 
 #define SIGNAL_STRENGTH_READ_TIMES 50
-static unsigned char s_aStrengthVal[] = {
+static unsigned char sastrengthval[] = {
 	0xd3,
 	0xd5, 0xd2, 0xd0, 0xce, 0xcb,
 	0xc8, 0xc5, 0xc2, 0xbe, 0xb9,
@@ -547,8 +711,8 @@ int dvbs_get_signal_strength_off(void)
 		val += dvbs_rd_byte(0x91a);
 	val /= SIGNAL_STRENGTH_READ_TIMES;
 
-	for (i = 1; i < sizeof(s_aStrengthVal); i++) {
-		if (val >= s_aStrengthVal[i])
+	for (i = 1; i < sizeof(sastrengthval); i++) {
+		if (val >= sastrengthval[i])
 			break;
 	}
 
@@ -1019,7 +1183,7 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
 
 			if (agc2_ratio > blind_search_agc2bandwidth &&
 				agc2_level == min_agc2_level &&
-				agc2_level <  blind_search_pow_th &&
+				agc2_level < blind_search_pow_th &&
 				wait_for_fall == 0 &&
 				*signal_state == 0 &&
 				i < 84) {
@@ -1366,3 +1530,4 @@ unsigned int dvbs_get_iq_swap(void)
 {
 	return dvbs_iq_swap;
 }
+

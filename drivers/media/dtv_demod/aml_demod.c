@@ -31,7 +31,9 @@
 #include "aml_demod.h"
 #include "demod_func.h"
 #include "demod_dbg.h"
-
+#ifdef AML_DEMOD_SUPPORT_DTMB
+#include "dtmb_func.h"
+#endif
 #include <linux/slab.h>
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
@@ -226,9 +228,9 @@ static long aml_demod_ioctl(struct file *file,
 		dvbc_status(demod, (struct aml_demod_sts *)arg, NULL);
 		break;
 #endif
-#ifdef AML_DEMOD_SUPPORT_DVBT
+#if defined AML_DEMOD_SUPPORT_ISDBT || defined AML_DEMOD_SUPPORT_DVBT
 	case AML_DEMOD_DVBT_SET_CH:
-		dvbt_dvbt_set_ch(demod, (struct aml_demod_dvbt *)arg);
+		dvbt_isdbt_set_ch(demod, (struct aml_demod_dvbt *)arg);
 		break;
 #endif
 	case AML_DEMOD_DVBT_GET_CH:
@@ -293,6 +295,7 @@ static long aml_demod_ioctl(struct file *file,
 	case DEMOD_IOC_START_DUMP_ADC:
 		if (!devp->flg_cma_allc || !devp->cma_mem_size) {
 			PR_ERR("%s: cma alloc fail or invalid cma_mem_size!!\n", __func__);
+			mutex_unlock(&demod_lock);
 			return -EINVAL;
 		}
 		ret = copy_from_user(&dump_param, argp, sizeof(unsigned int));
@@ -312,6 +315,7 @@ static long aml_demod_ioctl(struct file *file,
 	case DEMOD_IOC_START_DUMP_TS:
 		if (!devp->flg_cma_allc || !devp->cma_mem_size) {
 			PR_ERR("%s: cma alloc fail or invalid cma_mem_size!!\n", __func__);
+			mutex_unlock(&demod_lock);
 			return -EINVAL;
 		}
 		ret = copy_from_user(&dump_param, argp, sizeof(unsigned int));

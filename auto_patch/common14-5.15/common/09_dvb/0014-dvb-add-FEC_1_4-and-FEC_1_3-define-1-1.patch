@@ -1,0 +1,39 @@
+From 76932bb0a35469b371a6a56868e924f7b90b253b Mon Sep 17 00:00:00 2001
+From: "nengwen.chen" <nengwen.chen@amlogic.com>
+Date: Fri, 5 Jul 2024 20:20:27 +0800
+Subject: [PATCH] dvb: add FEC_1_4 and FEC_1_3 define [1/1]
+
+PD#SWPL-176015
+
+Problem:
+add FEC_1_4 and FEC_1_3 define.
+
+Solution:
+add FEC_1_4 and FEC_1_3 define.
+
+Verify:
+T5M/S4D.
+
+Change-Id: I0da28d3ff7f670427c0d864da0c59578eb2d7056
+Signed-off-by: nengwen.chen <nengwen.chen@amlogic.com>
+---
+ include/uapi/linux/dvb/aml_fe_ext.h | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/include/uapi/linux/dvb/aml_fe_ext.h b/include/uapi/linux/dvb/aml_fe_ext.h
+index d78cffb39b07a..5c91181afb4b2 100644
+--- a/include/uapi/linux/dvb/aml_fe_ext.h
++++ b/include/uapi/linux/dvb/aml_fe_ext.h
+@@ -20,6 +20,9 @@
+ #define FE_DTMB			(FE_ANALOG + 1)
+ #define FE_ISDBT		(FE_DTMB + 1)
+ 
++#define FEC_1_4			(FEC_2_5 + 1)
++#define FEC_1_3			(FEC_1_4 + 1)
++
+ struct fe_blind_scan_parameters {
+ 	/* minimum tuner frequency in kHz */
+ 	__u32 min_frequency;
+-- 
+2.42.0
+

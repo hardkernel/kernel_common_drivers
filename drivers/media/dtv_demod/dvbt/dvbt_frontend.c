@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #define __DVB_CORE__	/*ary 2018-1-31*/
@@ -58,12 +58,16 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 	u16 rf_strength = 0;
 	int strength_limit = THRD_TUNER_STRENGTH_DVBT;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	unsigned int tps_coderate, ts_fifo_cnt = 0, ts_cnt = 0, fec_rate = 0;
 	static int no_signal_cnt, unlock_cnt, reset_time;
 	unsigned int cur_time, reset_per_times = dvbt_reset_per_times;
 
 	cur_time = jiffies_to_msecs(jiffies);
 	demod->time_passed = cur_time - demod->time_start;
+
+	if (devp->tuner_strength_limit)
+		strength_limit = devp->tuner_strength_limit;
 
 	gxtv_demod_dvbt_read_signal_strength(fe, &strength);
 	if (strength < strength_limit) {
@@ -115,8 +119,14 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 		demod->real_para.snr =
 			(((dvbt_t2_rdb(CHC_CIR_SNR1) & 0x7) << 8)
 			| dvbt_t2_rdb(CHC_CIR_SNR0)) * 30 / 64;
-		demod->real_para.modulation = dvbt_t2_rdb(0x2912) & 0x3;
-		demod->real_para.coderate = dvbt_t2_rdb(0x2913) & 0x7;
+
+		dvbt_get_modulation_coderate(&demod->real_para.modulation,
+				&demod->real_para.hp_coderate,
+				&demod->real_para.lp_coderate);
+		demod->real_para.coderate = demod->real_para.hp_coderate;
+
+		dvbt_get_FFT_GI(&demod->real_para.fft_mode, &demod->real_para.gi);
+
 		demod->real_para.tps_cell_id =
 			(dvbt_t2_rdb(0x2916) & 0xff) |
 			((dvbt_t2_rdb(0x2915) & 0xff) << 8);
@@ -274,25 +284,6 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 	return 0;
 }
 
-static u64_t get_common_plp(void)
-{
-	int i, id, common_cnt;
-	u64_t plp_common = 0;
-
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3)) {
-		common_cnt = dvbt_t2_rdb(0xe0);
-		for (i = 0; i < common_cnt; i++) {
-			id = dvbt_t2_rdb(0xa0 + i);
-			if (id < 64)
-				plp_common |= 1ULL << id;
-		}
-	}
-
-	PR_DVBT("get common plp: 0x%llx\n", plp_common);
-
-	return plp_common;
-}
-
 #define DVBT2_DEBUG_INFO
 #define TIMEOUT_SIGNAL_T2 800
 #define CONTINUE_TIMES_LOCK 3
@@ -316,12 +307,6 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 
 	cur_time = jiffies_to_msecs(jiffies);
 	demod->time_passed = cur_time - demod->time_start;
-
-	if (!devp->demod_thread) {
-		real_para_clear(&demod->real_para);
-
-		return 0;
-	}
 
 	if (devp->tuner_strength_limit)
 		strength_limit = devp->tuner_strength_limit;
@@ -369,19 +354,18 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 		ldpc = (val >> 7) & 0x3E;
 		snr = val >> 13;
 		l1post = (val >> 30) & 0x1;
-		plp_num = (val >> 24) & 0x3f;
-		plp_common = 0;
 	} else {
 		snr = (dvbt_t2_rdb(0x2a09) << 8) | dvbt_t2_rdb(0x2a08);
 		cr = (dvbt_t2_rdb(0x8c3) >> 1) & 0x7;
 		modu = (dvbt_t2_rdb(0x8c3) >> 4) & 0x7;
 		ldpc = dvbt_t2_rdb(0xa50);
 		l1post = (dvbt_t2_rdb(0x839) >> 3) & 0x1;
-		plp_num = dvbt_t2_rdb(0x805);
-		plp_common = get_common_plp();
 	}
 	snr &= 0x7ff;
 	snr = snr * 30 / 64; //dBx10.
+
+	dvbt2_get_plp(&plp_num, &plp_common);
+	PR_DVBT("plp number %d, common plp: 0x%llx\n", plp_num, plp_common);
 
 #ifdef DVBT2_DEBUG_INFO
 	if (plp_num > 0) {
@@ -451,6 +435,8 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 		demod->real_para.plp_num = plp_num;
 		demod->real_para.plp_common = plp_common;
 		demod->real_para.fef_info = fef_info;
+
+		dvbt2_get_FFT_GI(&demod->real_para.fft_mode, &demod->real_para.gi);
 
 		/* for call r842 dvbt agc slow */
 		if (tuner_find_by_name(fe, "r842") && fe->ops.tuner_ops.get_rf_strength)
@@ -571,11 +557,9 @@ int dvbt2_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	unsigned int abus_en_dly = 0, top_saved = 0;
 	int retry_count = 2;
-#endif
 
 	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
@@ -596,7 +580,6 @@ int dvbt2_set_frontend(struct dvb_frontend *fe)
 	demod->p1_peak = 0;
 	real_para_clear(&demod->real_para);
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t5w_cpu() || is_meson_t3_cpu() ||
 		demod_is_t5d_cpu(devp)) {
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
@@ -641,7 +624,7 @@ int dvbt2_set_frontend(struct dvb_frontend *fe)
 		//f040 = 0x182: host only can access top regs and t2 regs
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, top_saved);
 	}
-#endif
+
 	tuner_set_params(fe);
 
 	/* wait tuner stable */
@@ -652,10 +635,8 @@ int dvbt2_set_frontend(struct dvb_frontend *fe)
 	demod->freq = c->frequency / 1000;
 	demod->time_start = jiffies_to_msecs(jiffies);
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t5w_cpu())
 		t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
-#endif
 
 	return 0;
 }
@@ -789,8 +770,25 @@ int dvbtx_tune(struct dvb_frontend *fe, bool re_tune,
 	return 0;
 }
 
-int gxtv_demod_dvbt_get_frontend(struct dvb_frontend *fe)
+int gxtv_demod_dvbt_get_frontend(struct dvb_frontend *fe,
+		struct dtv_frontend_properties *p)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+
+	p->delivery_system = demod->last_delsys;
+	p->bandwidth_hz = c->bandwidth_hz;
+	p->fec_inner = demod->real_para.coderate;
+	p->code_rate_HP = demod->real_para.hp_coderate;
+	p->code_rate_LP = demod->real_para.lp_coderate;
+	p->modulation = demod->real_para.modulation;
+	p->transmission_mode = demod->real_para.fft_mode;
+	p->guard_interval = demod->real_para.gi;
+
+	PR_DVBT("dvbt/t2 get delsys %d,freq %d,coderate %d,modul %d,fft %d,gi %d\n",
+			p->delivery_system, p->frequency, p->fec_inner,
+			p->modulation, p->transmission_mode, p->guard_interval);
+
 	return 0;
 }
 

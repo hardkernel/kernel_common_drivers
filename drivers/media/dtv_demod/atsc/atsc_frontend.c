@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #define __DVB_CORE__	/*ary 2018-1-31*/
@@ -41,7 +41,6 @@
 
 #define ATSC_TIME_CHECK_SIGNAL 400
 #define ATSC_TIME_START_CCI 1500
-#define ATSC_AGC_TARGET_VALUE 0x28
 
 //atsc-c
 
@@ -51,7 +50,7 @@ module_param(std_lock_timeout, int, 0644);
 
 //atsc-t
 MODULE_PARM_DESC(atsc_agc_target, "");
-static unsigned char atsc_agc_target;
+static unsigned char atsc_agc_target; //after and t5m 0x1f, other 0x28.
 module_param(atsc_agc_target, byte, 0644);
 
 MODULE_PARM_DESC(atsc_t_lock_continuous_cnt, "");
@@ -234,7 +233,6 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 	/*[0]: spectrum inverse(1),normal(0); [1]:if_frequency*/
 	unsigned int tuner_freq[2] = {0};
 	enum fe_delivery_system delsys = demod->last_delsys;
-	unsigned char agc_target = ATSC_AGC_TARGET_VALUE;
 
 	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
@@ -269,9 +267,11 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 
 				/* agc target */
 				if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5M))
-					agc_target = 0x1f; //for t5m single AGC
-				atsc_write_reg_bits_v4(ATSC_AGC_REG_0X40,
-					atsc_agc_target ? atsc_agc_target : agc_target, 0, 8);
+					atsc_write_reg_bits_v4(ATSC_AGC_REG_0X40,
+						atsc_agc_target ? atsc_agc_target : 0x1f, 0, 8);
+				else
+					atsc_write_reg_bits_v4(ATSC_AGC_REG_0X40,
+						atsc_agc_target ? atsc_agc_target : 0x28, 0, 8);
 			}
 
 			val_0x6a.bits = atsc_read_reg_v4(ATSC_DEMOD_REG_0X6A);
@@ -333,12 +333,19 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-int gxtv_demod_atsc_get_frontend(struct dvb_frontend *fe)
+int gxtv_demod_atsc_get_frontend(struct dvb_frontend *fe,
+		struct dtv_frontend_properties *p)
 {
-	/*these content will be written into eeprom .*/
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	PR_ATSC("frequency %d\n", c->frequency);
+	p->delivery_system = demod->last_delsys;
+	p->modulation = c->modulation;
+	p->frequency = c->frequency;
+
+	PR_ATSC("atsc get delsys %d,freq %d,modul %d\n",
+			p->delivery_system, p->frequency, p->modulation);
+
 	return 0;
 }
 
@@ -607,9 +614,6 @@ int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 
 		if (c->modulation == QPSK) {
 			PR_ATSC("[id %d] modulation QPSK do nothing", demod->id);
-		} else if (c->modulation <= QAM_AUTO) {
-			PR_ATSC("[id %d] modulation j83 first\n", demod->id);
-			PR_ATSC("do not call this function\n");
 		} else if (c->modulation > QAM_AUTO) {
 			PR_ATSC("[id %d] modulation 8VSB.\n", demod->id);
 			atsc_read_status(fe, status, re_tune);
@@ -661,13 +665,8 @@ int dtvdemod_atsc_init(struct aml_dtvdemod *demod)
 	demod->demod_status.clk_freq = sys.demod_clk;
 	demod->last_status = 0;
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_S4D) {
-		demod->demod_status.adc_freq = sys.adc_clk;
-		dd_hiu_reg_write(DEMOD_CLK_CTL_S4D, 0x501);
-	} else {
-		if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
-			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
-	}
+	if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 
 	ret = demod_set_sys(demod, &sys);
 
@@ -681,36 +680,32 @@ int amdemod_stat_atsc_islock(struct aml_dtvdemod *demod,
 	unsigned int ret = 0;
 	unsigned int val;
 
-	if (delsys == SYS_ATSC || delsys == SYS_ATSCMH) {
-		if (demod->atsc_mode == VSB_8) {
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-				//ret = amdemod_check_8vsb_rst(demod);
-				val = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
-				if (val >= ATSC_LOCK)
-					ret = 1;
-				else if (val >= CR_PEAK_LOCK)
-					ret = atsc_check_cci(demod);
-				else //if (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) <= 0x50)
-					ret = 0;
-			} else {
-				atsc_fsm = atsc_read_reg(0x0980);
-				PR_DBGL("atsc status [%x]\n", atsc_fsm);
-
-				if (atsc_read_reg(0x0980) >= 0x79)
-					ret = 1;
-				else
-					ret = 0;
-			}
+	if (demod->atsc_mode == VSB_8) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			//ret = amdemod_check_8vsb_rst(demod);
+			val = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
+			if (val >= ATSC_LOCK)
+				ret = 1;
+			else if (val >= CR_PEAK_LOCK)
+				ret = atsc_check_cci(demod);
+			else //if (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) <= 0x50)
+				ret = 0;
 		} else {
 			atsc_fsm = atsc_read_reg(0x0980);
 			PR_DBGL("atsc status [%x]\n", atsc_fsm);
+
 			if (atsc_read_reg(0x0980) >= 0x79)
 				ret = 1;
 			else
 				ret = 0;
 		}
 	} else {
-		PR_ERR("delsys wrong\n");
+		atsc_fsm = atsc_read_reg(0x0980);
+		PR_DBGL("atsc status [%x]\n", atsc_fsm);
+		if (atsc_read_reg(0x0980) >= 0x79)
+			ret = 1;
+		else
+			ret = 0;
 	}
 
 	return ret;

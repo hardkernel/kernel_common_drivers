@@ -22,85 +22,6 @@ MODULE_PARM_DESC(dvbt2_agc_target2, "");
 static unsigned char dvbt2_agc_target2 = 0x11;
 module_param(dvbt2_agc_target2, byte, 0644);
 
-/* copy from dvbt_isdbt_set_ch*/
-int dvbt_dvbt_set_ch(struct aml_dtvdemod *demod,
-		struct aml_demod_dvbt *demod_dvbt)
-{
-	int ret = 0;
-	u8_t demod_mode = 1;
-	u8_t bw, sr, ifreq, agc_mode;
-	u32_t ch_freq;
-	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D)
-		bw = BANDWIDTH_AUTO;
-	else
-		bw = demod_dvbt->bw;
-
-	sr = demod_dvbt->sr;
-	ifreq = demod_dvbt->ifreq;
-	agc_mode = demod_dvbt->agc_mode;
-	ch_freq = demod_dvbt->ch_freq;
-	demod_mode = demod_dvbt->dat0;
-	PR_DVBT("bw:%d, sr:%d, ifreq:%d, agc_mode:%d, ch_freq:%d, demod_mode:%d\n",
-		bw, sr, ifreq, agc_mode, ch_freq, demod_mode);
-	if (ch_freq < 1000 || ch_freq > 900000000) {
-		/* PR_DVBT("Error: Invalid Channel Freq option %d\n",*/
-		/* ch_freq); */
-		ch_freq = 474000;
-		ret = -1;
-	}
-
-	/*if (demod_mode < 0 || demod_mode > 4) {*/
-	if (demod_mode > 4) {
-		/* PR_DVBT("Error: Invalid demod mode option %d\n",*/
-		/* demod_mode); */
-		demod_mode = 1;
-		ret = -1;
-	}
-
-	demod->demod_status.ch_mode = 0;	/* TODO */
-	demod->demod_status.agc_mode = agc_mode;
-	demod->demod_status.ch_freq = ch_freq;
-	/*   if (demod_i2c->tuner == 1) */
-	/*     demod_sta->ch_if = 36130;*/
-	/* else if (demod_i2c->tuner == 2)*/
-	/*     demod_sta->ch_if = 4570;*/
-	/* else if (demod_i2c->tuner == 3)*/
-	/*     demod_sta->ch_if = 4000;// It is nouse.(alan)*/
-	/* else if (demod_i2c->tuner == 7)*/
-	/*     demod_sta->ch_if = 5000;//silab 5000kHz IF*/
-
-	demod->demod_status.ch_bw = (8 - bw) * 1000;
-	demod->demod_status.symb_rate = 0;	/* TODO */
-
-	/* bw=0; */
-	demod_mode = 1;
-	/* for si2176 IF:5M   sr 28.57 */
-	sr = 4;
-	ifreq = 4;
-	PR_INFO("%s:1:bw=%d, demod_mode=%d\n", __func__, bw, demod_mode);
-
-	/*bw = BANDWIDTH_AUTO;*/
-	if (bw == BANDWIDTH_AUTO)
-		demod_mode = 2;
-
-	ofdm_initial(bw,
-			/* 00:8M 01:7M 10:6M 11:5M */
-		     sr,
-		     /* 00:45M 01:20.8333M 10:20.7M 11:28.57  100:24m */
-		     ifreq,
-		     /* 000:36.13M 001:-5.5M 010:4.57M 011:4M 100:5M */
-		     demod_mode - 1,
-		     /* 00:DVBT,01:ISDBT */
-		     1
-		     /* 0: Unsigned, 1:TC */
-	    );
-	PR_DVBT("DVBT/ISDBT mode\n");
-
-	return ret;
-}
-
 static void setsrcgain(unsigned int val)
 {
 	dvbt_t2_wrb(0x15b2, val & 0xff);
@@ -142,6 +63,11 @@ const unsigned int minimum_snr_x10[4][6] = {
 	{100, 118, 131, 146, 157, 163},	/* QAM64 */
 	{139, 163, 177, 197, 212, 219}	/* QAM256 */
 };
+
+void calculate_cordic_para(void)
+{
+	dvbt_isdbt_wr_reg(0x0c, 0x00000040);
+}
 
 struct st_chip_register_t {
 	unsigned short addr;/* Address */
@@ -323,7 +249,7 @@ void dvbt2_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	dvbt_t2_wrb(0x360e, (devp->mem_start >> 16) & 0xff);
 	dvbt_t2_wrb(0x360f, (devp->mem_start >> 24) & 0xff);
 
-	dtvdemod_set_plpid(demod->plp_id);
+	dvbt2_set_plpid(demod->plp_id);
 
 	/* test bus addr4 */
 	dvbt_t2_wr_byte_bits(0xe5, 0x1, 0, 6);
@@ -991,7 +917,7 @@ unsigned int pow2[32] = {
 	(1) << 28, (1) << 29, (1) << 30, (1) << 31
 };
 
-unsigned int dtvdemod_calcul_get_field(unsigned int memory_base, unsigned int nb_bits_shift,
+unsigned int dvbt2_calcul_get_field(unsigned int memory_base, unsigned int nb_bits_shift,
 					unsigned int var_size)
 {
 	unsigned int nb_bits;
@@ -1048,52 +974,32 @@ unsigned int dtvdemod_calcul_get_field(unsigned int memory_base, unsigned int nb
 	return result;
 }
 
-void dtvdemod_get_plp(struct amldtvdemod_device_s *devp, struct dtv_property *tvp)
+int dvbt2_get_plp(u32 *plp_num, u64 *plp_common)
 {
-	/* unsigned int miso_mode; */
-	unsigned int plp_num;
-	/* unsigned int pos; */
-	unsigned int i;
-	char plp_ids[MAX_PLP_NUM];
-	/* char plp_type[MAX_PLP_NUM]; */
-	unsigned int val;
+	unsigned int value = 0, i = 0, id = 0;
 
-	/* val[29-24]:0x805, plp num */
-	if (demod_is_t5d_cpu(devp)) {
-		val = front_read_reg(0x3e);
-		plp_num = (val >> 24) & 0x3f;
+	if (is_meson_t5d_cpu()) {
+		value = front_read_reg(0x3e);
+		*plp_num = (value >> 24) & 0x3f;
 	} else {
-		plp_num = dvbt_t2_rdb(0x805);
-		PR_INFO("read 0x805: %d\n", plp_num);
+		*plp_num = dvbt_t2_rdb(0x805);
 	}
 
-	/* miso_mode = (dvbt_t2_rdb(0x871) >> 4) & 0x7; */
-	/* plp_num = dvbt_t2_rdb(0x805); */
-	/* PR_INFO("plp num: %d, miso mode: 0x%x\n", plp_num, miso_mode); */
-	PR_INFO("plp num: %d\n", plp_num);
-
-	/* if (miso_mode)
-	 *	pos = 70 + 4 + 22 + 8;
-	 * else
-	 *	pos = 70;
-	 */
-
-	tvp->u.buffer.reserved1[0] = plp_num;
-
-	for (i = 0; i < plp_num; i++) {
-		/* plp_ids[i] = dtvdemod_calcul_get_field(0, pos, 8); */
-		plp_ids[i] = i;
-		/* plp_type[i] = (enum plp_type_e)dtvdemod_calcul_get_field(0, pos + 8, 3);
-		 * pos += 89;
-		 * PR_INFO("plp id: %d, type : %d\n", plp_ids[i], plp_type[i]);
-		 */
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3)) {
+		value = dvbt_t2_rdb(0xe0);
+		for (i = 0; i < value; i++) {
+			id = dvbt_t2_rdb(0xa0 + i);
+			if (id < 64)
+				*plp_common |= 1ULL << id;
+		}
+	} else {
+		*plp_common = 0;
 	}
 
-	if (copy_to_user(tvp->u.buffer.reserved2, plp_ids, plp_num * sizeof(char)))
-		pr_err("copy plp ids to user err\n");
+	return 0;
 }
 
-void dtvdemod_get_plp_dbg(void)
+void dvbt2_get_plp_dbg(void)
 {
 	unsigned int miso_mode;
 	unsigned int plp_num;
@@ -1112,14 +1018,14 @@ void dtvdemod_get_plp_dbg(void)
 		pos = 70;
 
 	for (i = 0; i < plp_num; i++) {
-		plp_ids[i] = dtvdemod_calcul_get_field(0, pos, 8);
-		plp_type[i] = (enum plp_type_e)dtvdemod_calcul_get_field(0, pos + 8, 3);
+		plp_ids[i] = dvbt2_calcul_get_field(0, pos, 8);
+		plp_type[i] = (enum plp_type_e)dvbt2_calcul_get_field(0, pos + 8, 3);
 		pos += 89;
 		PR_INFO("plp id: %d, type : %d\n", plp_ids[i], plp_type[i]);
 	}
 }
 
-void dtvdemod_set_plpid(char id)
+void dvbt2_set_plpid(char id)
 {
 	dvbt_t2_wrb(0x806, id);
 	PR_INFO("%s: %d\n", __func__, id);
@@ -1378,7 +1284,7 @@ void dvbt2_info(struct aml_dtvdemod *demod, struct seq_file *seq)
 	unsigned int pp_mode = (dvbt_t2_rdb(0x876) >> 2) & 0xf;
 
 	/* CFO */
-	unsigned int cfo = calcul_carrier_offset(demod);
+	int cfo = calcul_carrier_offset(demod);
 
 	/* ldpc status */
 	unsigned int ldpc_it = dvbt_t2_rdb(0xa50);
@@ -1550,4 +1456,179 @@ void dvbt2_info(struct aml_dtvdemod *demod, struct seq_file *seq)
 			dvbt_t2_rdb(0x361b));
 		PR_DVBT("pwr_meter 0x%x\n\n", (dvbt_t2_rdb(0x82f) << 8) + dvbt_t2_rdb(0x82e));
 	}
+}
+
+int dvbt2_get_modulation_coderate(u32 *modulation, u32 *coderate)
+{
+	unsigned int value = 0;
+
+	if (is_meson_t5d_cpu()) {
+		value = front_read_reg(0x3e);
+		*coderate = (value >> 2) & 0x7;
+		*modulation = (value >> 5) & 0x3;
+	} else {
+		value = dvbt_t2_rdb(0x8c3);
+		*coderate = (value >> 1) & 0x7;
+		*modulation = (value >> 4) & 0x7;
+	}
+
+	if (*modulation == 0)
+		*modulation = QPSK;
+	else if (*modulation == 1)
+		*modulation = QAM_16;
+	else if (*modulation == 2)
+		*modulation = QAM_64;
+	else if (*modulation == 3)
+		*modulation = QAM_256;
+	else
+		*modulation = QPSK;
+
+	if (*coderate == 0)
+		*coderate = FEC_1_2;
+	else if (*coderate == 1)
+		*coderate = FEC_3_5;
+	else if (*coderate == 2)
+		*coderate = FEC_2_3;
+	else if (*coderate == 3)
+		*coderate = FEC_3_4;
+	else if (*coderate == 4)
+		*coderate = FEC_4_5;
+	else if (*coderate == 5)
+		*coderate = FEC_5_6;
+	else
+		*coderate = FEC_AUTO;
+
+	return 0;
+}
+
+int dvbt2_get_FFT_GI(u32 *fft_mode, u32 *guard_interval)
+{
+	unsigned int gi = 0;
+	unsigned int fft = 0;
+
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T3)) {
+		*fft_mode = TRANSMISSION_MODE_AUTO;
+		*guard_interval = GUARD_INTERVAL_AUTO;
+
+		return 0;
+	}
+
+	gi = dvbt_t2_rdb(0x83a) & 0x7;
+	fft = dvbt_t2_rdb(0x2745);
+
+	if (fft == 0)
+		*fft_mode = TRANSMISSION_MODE_2K;
+	else if (fft == 1)
+		*fft_mode = TRANSMISSION_MODE_8K;
+	else if (fft == 2)
+		*fft_mode = TRANSMISSION_MODE_4K;
+	else if (fft == 3)
+		*fft_mode = TRANSMISSION_MODE_1K;
+	else if (fft == 4)
+		*fft_mode = TRANSMISSION_MODE_16K;
+	else if (fft == 5)
+		*fft_mode = TRANSMISSION_MODE_32K;
+	else if (fft == 6)
+		*fft_mode = TRANSMISSION_MODE_8K;
+	else if (fft == 7)
+		*fft_mode = TRANSMISSION_MODE_32K;
+	else
+		*fft_mode = TRANSMISSION_MODE_AUTO;
+
+	if (gi == 0)
+		*guard_interval = GUARD_INTERVAL_1_32;
+	else if (gi == 1)
+		*guard_interval = GUARD_INTERVAL_1_16;
+	else if (gi == 2)
+		*guard_interval = GUARD_INTERVAL_1_8;
+	else if (gi == 3)
+		*guard_interval = GUARD_INTERVAL_1_4;
+	else if (gi == 4)
+		*guard_interval = GUARD_INTERVAL_1_128;
+	else if (gi == 5)
+		*guard_interval = GUARD_INTERVAL_19_128;
+	else if (gi == 6)
+		*guard_interval = GUARD_INTERVAL_19_256;
+	else
+		*guard_interval = GUARD_INTERVAL_AUTO;
+
+	return 0;
+}
+
+int dvbt_get_modulation_coderate(u32 *modulation, u32 *hcoderate, u32 *lcoderate)
+{
+	unsigned int value = 0;
+
+	value = dvbt_t2_rdb(0x2913) & 0x7;
+	*hcoderate = value & 0x07;
+	*lcoderate = (value >> 4) & 0x07;
+
+	value = dvbt_t2_rdb(0x2912) & 0x3;
+	*modulation = value & 0x3;
+
+	if (*modulation == 0)
+		*modulation = QPSK;
+	else if (*modulation == 1)
+		*modulation = QAM_16;
+	else if (*modulation == 2)
+		*modulation = QAM_64;
+	else
+		*modulation = QPSK;
+
+	if (*hcoderate == 0)
+		*hcoderate = FEC_1_2;
+	else if (*hcoderate == 1)
+		*hcoderate = FEC_2_3;
+	else if (*hcoderate == 2)
+		*hcoderate = FEC_3_4;
+	else if (*hcoderate == 3)
+		*hcoderate = FEC_5_6;
+	else if (*hcoderate == 4)
+		*hcoderate = FEC_7_8;
+	else
+		*hcoderate = FEC_AUTO;
+
+	if (*lcoderate == 0)
+		*lcoderate = FEC_1_2;
+	else if (*lcoderate == 1)
+		*lcoderate = FEC_2_3;
+	else if (*lcoderate == 2)
+		*lcoderate = FEC_3_4;
+	else if (*lcoderate == 3)
+		*lcoderate = FEC_5_6;
+	else if (*lcoderate == 4)
+		*lcoderate = FEC_7_8;
+	else
+		*lcoderate = FEC_AUTO;
+
+	return 0;
+}
+
+int dvbt_get_FFT_GI(u32 *fft_mode, u32 *guard_interval)
+{
+	unsigned int value = 0;
+
+	value = dvbt_t2_rdb(0x2914);
+	*fft_mode = value & 0xf;
+	*guard_interval = (value >> 4) & 0x7;
+
+	if (*fft_mode == 0)
+		*fft_mode = TRANSMISSION_MODE_2K;
+	else if (*fft_mode == 1)
+		*fft_mode = TRANSMISSION_MODE_8K;
+	else
+		*fft_mode = TRANSMISSION_MODE_AUTO;
+
+	if (*guard_interval == 0)
+		*guard_interval = GUARD_INTERVAL_1_32;
+	else if (*guard_interval == 1)
+		*guard_interval = GUARD_INTERVAL_1_16;
+	else if (*guard_interval == 2)
+		*guard_interval = GUARD_INTERVAL_1_8;
+	else if (*guard_interval == 3)
+		*guard_interval = GUARD_INTERVAL_1_4;
+	else
+		*guard_interval = GUARD_INTERVAL_AUTO;
+
+	return 0;
 }
