@@ -4569,11 +4569,27 @@
 		};
 	};
 
+	pwm_a_pins1_sleep: pwm_a_pins1_sleep {
+		mux {
+			groups = "GPIOE_0";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_a_pins2: pwm_a_pins2 {
 		mux {
 			groups = "pwm_a_d";
 			function = "pwm_a";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_a_pins2_sleep: pwm_a_pins2_sleep {
+		mux {
+			groups = "GPIOD_11";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4585,11 +4601,27 @@
 		};
 	};
 
+	pwm_b_pins1_sleep: pwm_b_pins1_sleep {
+		mux {
+			groups = "GPIOE_1";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_b_pins2: pwm_b_pins2 {
 		mux {
 			groups = "pwm_b_z";
 			function = "pwm_b";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_b_pins2_sleep: pwm_b_pins2_sleep {
+		mux {
+			groups = "GPIOZ_4";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4601,11 +4633,27 @@
 		};
 	};
 
+	pwm_c_pins1_sleep: pwm_c_pins1_sleep {
+		mux {
+			groups = "GPIOD_5";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_c_pins2: pwm_c_pins2 {
 		mux {
 			groups = "pwm_c_d7";
 			function = "pwm_c";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_c_pins2_sleep: pwm_c_pins2_sleep {
+		mux {
+			groups = "GPIOD_7";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4617,11 +4665,27 @@
 		};
 	};
 
+	pwm_c_pins3_sleep: pwm_c_pins3_sleep {
+		mux {
+			groups = "GPIOD_11";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_d_pins1: pwm_d_pins1 {
 		mux {
 			groups = "pwm_d_z";
 			function = "pwm_d";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_d_pins1_sleep: pwm_d_pins1_sleep {
+		mux {
+			groups = "GPIOZ_5";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4633,11 +4697,27 @@
 		};
 	};
 
+	pwm_d_pins2_sleep: pwm_d_pins2_sleep {
+		mux {
+			groups = "GPIOD_9";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_d_pins3: pwm_d_pins3 {
 		mux {
 			groups = "pwm_d_h5";
 			function = "pwm_d";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_d_pins3_sleep: pwm_d_pins3_sleep {
+		mux {
+			groups = "GPIOH_5";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4649,11 +4729,27 @@
 		};
 	};
 
+	pwm_d_pins4_sleep: pwm_d_pins4_sleep {
+		mux {
+			groups = "GPIOH_12";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_d_pins5: pwm_d_pins5 {
 		mux {
 			groups = "pwm_d_m1";
 			function = "pwm_d";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_d_pins5_sleep: pwm_d_pins5_sleep {
+		mux {
+			groups = "GPIOM_1";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4665,6 +4761,14 @@
 		};
 	};
 
+	pwm_d_pins6_sleep: pwm_d_pins6_sleep {
+		mux {
+			groups = "GPIOM_23";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_e_pins1: pwm_e_pins1 {
 		mux {
 			groups = "pwm_e_e";
@@ -4672,11 +4776,28 @@
 			drive-strength-microamp = <3000>;
 		};
 	};
+
+	pwm_e_pins1_sleep: pwm_e_pins1_sleep {
+		mux {
+			groups = "GPIOE_2";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_e_pins2: pwm_e_pins2 {
 		mux {
 			groups = "pwm_e_z";
 			function = "pwm_e";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_e_pins2_sleep: pwm_e_pins2_sleep {
+		mux {
+			groups = "GPIOZ_6";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4688,11 +4809,27 @@
 		};
 	};
 
+	pwm_e_pins3_sleep: pwm_e_pins3_sleep {
+		mux {
+			groups = "GPIOH_13";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_e_pins4: pwm_e_pins4 {
 		mux {
 			groups = "pwm_e_m";
 			function = "pwm_e";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_e_pins4_sleep: pwm_e_pins4_sleep {
+		mux {
+			groups = "GPIOM_24";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4704,11 +4841,27 @@
 		};
 	};
 
+	pwm_e_pins5_sleep: pwm_e_pins5_sleep {
+		mux {
+			groups = "GPIOD_10";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_e_pins6: pwm_e_pins6 {
 		mux {
 			groups = "pwm_e_p6";
 			function = "pwm_e";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_e_pins6_sleep: pwm_e_pins6_sleep {
+		mux {
+			groups = "GPIOP_6";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4719,11 +4872,28 @@
 			drive-strength-microamp = <3000>;
 		};
 	};
+
+	pwm_f_pins1_sleep: pwm_f_pins1_sleep {
+		mux {
+			groups = "GPIOP_6";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_f_pins2: pwm_f_pins2 {
 		mux {
 			groups = "pwm_f_d12";
 			function = "pwm_f";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_f_pins2_sleep: pwm_f_pins2_sleep {
+		mux {
+			groups = "GPIOD_12";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4735,11 +4905,27 @@
 		};
 	};
 
+	pwm_f_pins3_sleep: pwm_f_pins3_sleep {
+		mux {
+			groups = "GPIOM_10";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_f_pins4: pwm_f_pins4 {
 		mux {
 			groups = "pwm_f_m26";
 			function = "pwm_f";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_f_pins4_sleep: pwm_f_pins4_sleep {
+		mux {
+			groups = "GPIOM_26";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4751,11 +4937,27 @@
 		};
 	};
 
+	pwm_f_pins5_sleep: pwm_f_pins5_sleep {
+		mux {
+			groups = "GPIOD_6";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_g_pins1: pwm_g_pins1 {
 		mux {
 			groups = "pwm_g_m";
 			function = "pwm_g";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_g_pins1_sleep: pwm_g_pins1_sleep {
+		mux {
+			groups = "GPIOM_6";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4767,11 +4969,27 @@
 		};
 	};
 
+	pwm_g_pins2_sleep: pwm_g_pins2_sleep {
+		mux {
+			groups = "GPIOZ_19";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_g_pins3: pwm_g_pins3 {
 		mux {
 			groups = "pwm_g_z12";
 			function = "pwm_g";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_g_pins3_sleep: pwm_g_pins3_sleep {
+		mux {
+			groups = "GPIOZ_12";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4783,11 +5001,27 @@
 		};
 	};
 
+	pwm_g_pins4_sleep: pwm_g_pins4_sleep {
+		mux {
+			groups = "GPIOP_7";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_g_pins5: pwm_g_pins5 {
 		mux {
 			groups = "pwm_g_p1";
 			function = "pwm_g";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_g_pins5_sleep: pwm_g_pins5_sleep {
+		mux {
+			groups = "GPIOP_1";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4799,6 +5033,14 @@
 		};
 	};
 
+	pwm_h_pins1_sleep: pwm_h_pins1_sleep {
+		mux {
+			groups = "GPIOD_6";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_h_pins2: pwm_h_pins2 {
 		mux {
 			groups = "pwm_h_z";
@@ -4806,11 +5048,28 @@
 			drive-strength-microamp = <3000>;
 		};
 	};
+
+	pwm_h_pins2_sleep: pwm_h_pins2_sleep {
+		mux {
+			groups = "GPIOZ_13";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_h_pins3: pwm_h_pins3 {
 		mux {
 			groups = "pwm_h_m";
 			function = "pwm_h";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_h_pins3_sleep: pwm_h_pins3_sleep {
+		mux {
+			groups = "GPIOM_12";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4822,11 +5081,27 @@
 		};
 	};
 
+	pwm_h_pins4_sleep: pwm_h_pins4_sleep {
+		mux {
+			groups = "GPIOP_2";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_h_pins5: pwm_h_pins5 {
 		mux {
 			groups = "pwm_h_p8";
 			function = "pwm_h";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_h_pins5_sleep: pwm_h_pins5_sleep {
+		mux {
+			groups = "GPIOP_8";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4838,11 +5113,27 @@
 		};
 	};
 
+	pwm_i_pins1_sleep: pwm_i_pins1_sleep {
+		mux {
+			groups = "GPIOZ_11";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_i_pins2: pwm_i_pins2 {
 		mux {
 			groups = "pwm_i_p";
 			function = "pwm_i";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_i_pins2_sleep: pwm_i_pins2_sleep {
+		mux {
+			groups = "GPIOP_4";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4854,11 +5145,27 @@
 		};
 	};
 
+	pwm_i_pins3_sleep: pwm_i_pins3_sleep {
+		mux {
+			groups = "GPIOM_11";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_i_pins4: pwm_i_pins4 {
 		mux {
 			groups = "pwm_i_d11";
 			function = "pwm_i";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_i_pins4_sleep: pwm_i_pins4_sleep {
+		mux {
+			groups = "GPIOD_11";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4870,11 +5177,27 @@
 		};
 	};
 
+	pwm_i_pins5_sleep: pwm_i_pins5_sleep {
+		mux {
+			groups = "GPIOD_6";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_j_pins1: pwm_j_pins1 {
 		mux {
 			groups = "pwm_j_d";
 			function = "pwm_j";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_j_pins1_sleep: pwm_j_pins1_sleep {
+		mux {
+			groups = "GPIOD_11";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
@@ -4886,6 +5209,14 @@
 		};
 	};
 
+	pwm_j_pins2_sleep: pwm_j_pins2_sleep {
+		mux {
+			groups = "GPIOP_5";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_j_pins3: pwm_j_pins3 {
 		mux {
 			groups = "pwm_j_m";
@@ -4894,11 +5225,27 @@
 		};
 	};
 
+	pwm_j_pins2_sleep: pwm_j_pins2_sleep {
+		mux {
+			groups = "GPIOM_12";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	pwm_j_pins4: pwm_j_pins4 {
 		mux {
 			groups = "pwm_j_z0";
 			function = "pwm_j";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	pwm_j_pins2_sleep: pwm_j_pins2_sleep {
+		mux {
+			groups = "GPIOZ_0";
+			function = "gpio_periphs";
+			input-enable;
 		};
 	};
 
