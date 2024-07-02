@@ -78,6 +78,8 @@ struct in_elem *ts_input_open(int id)
 		dprint("%s id:%d invalid\n", __func__, id);
 		return NULL;
 	}
+
+	memset(&attr, 0, sizeof(attr));
 	attr.mode = INPUT_MODE;
 	attr.req_id = id;
 	ret = SC2_bufferid_alloc(&attr, &ts_input_table[id].pchan, NULL);
