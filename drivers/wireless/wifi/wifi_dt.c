@@ -1022,6 +1022,7 @@ void __exit wifi_dt_exit(void)
 
 /**************** wifi mac *****************/
 u8 WIFI_MAC[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+u8 WIFI_MAC_RANDOM[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 char wifi_mac[32] = {0};
 char *wifimac;
 #ifdef MODULE
@@ -1087,17 +1088,28 @@ __setup("mac_wifi=", mac_addr_set);
 static ssize_t wifi_mac_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
 	int ret;
-	char mac[18];
+	int i = 0;
+	char mac[20];
+	unsigned char wifi_mac[6];
 
-	if (WIFI_MAC[0] != 0xff)
-		return 0;
+	if (count > 18) {
+		WIFI_INFO("MAC addresses don't need to be that long.\n");
+		return -EFAULT;
+	}
 
 	ret = copy_from_user(mac, buf, count);
 	if (ret < 0) {
-		WIFI_INFO("wifi mac write failed\n");
+		WIFI_INFO("wifi rand mac write failed\n");
 		return -EFAULT;
 	}
-	mac_addr_set(mac);
+	for (i = 0; i < 6 && mac[i * 3] != '\0' && mac[i * 3 + 1] != '\0'; i++)
+		wifi_mac[i] = chartonum(mac[i * 3]) << 4 | chartonum(mac[i * 3 + 1]);
+
+	memcpy(WIFI_MAC_RANDOM, wifi_mac, 6);
+
+	WIFI_INFO("wifi rand mac is %x:%x:%x:%x:%x:%x\n",
+		  WIFI_MAC_RANDOM[0], WIFI_MAC_RANDOM[1], WIFI_MAC_RANDOM[2],
+		  WIFI_MAC_RANDOM[3], WIFI_MAC_RANDOM[4], WIFI_MAC_RANDOM[5]);
 
 	return 0;
 }
@@ -1107,6 +1119,12 @@ u8 *wifi_get_mac(void)
 	return WIFI_MAC;
 }
 EXPORT_SYMBOL(wifi_get_mac);
+
+u8 *wifi_get_mac_random(void)
+{
+	return WIFI_MAC_RANDOM;
+}
+EXPORT_SYMBOL(wifi_get_mac_random);
 
 void aml_wifi_chip(const char *type)
 {
