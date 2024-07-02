@@ -1556,13 +1556,9 @@
 		compatible = "amlogic, aml-wifi";
 		status = "disabled";
 		irq_trigger_type = "IRQF_TRIGGER_LOW";
-		wifi_static_buf = <2>;
 		pinctrl-0 = <&pwm_e_pins>;
 		pinctrl-names = "default";
-		pwm_config = <&wifi_pwm_conf>;
-	};
 
-	wifi_pwm_conf:wifi_pwm_conf{
 		pwm_channel1_conf {
 			pwms = <&pwm_ef MESON_PWM_0 30541 0>;
 			duty-cycle = <15270>;

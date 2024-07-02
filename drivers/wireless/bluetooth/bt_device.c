@@ -561,8 +561,12 @@ static int bt_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_rfk_alloc;
 	}
-
+#if defined(CONFIG_AMLOGIC_RFKILL_INIT_SW_UNBLOCK) &&                          \
+	IS_ENABLED(CONFIG_AMLOGIC_RFKILL_INIT_SW_UNBLOCK)
+	rfkill_init_sw_state(bt_rfk, false);
+#else
 	rfkill_init_sw_state(bt_rfk, true);
+#endif
 	ret = rfkill_register(bt_rfk);
 	if (ret) {
 		pr_err("rfkill_register fail\n");
@@ -710,10 +714,10 @@ void __exit bt_exit(void)
 	platform_driver_unregister(&bt_driver);
 }
 
-__module_param(btpower_evt, int, 0664);
+module_param(btpower_evt, int, 0664);
 MODULE_PARM_DESC(btpower_evt, "btpower_evt");
 
-__module_param(btwake_evt, int, 0664);
+module_param(btwake_evt, int, 0664);
 MODULE_PARM_DESC(btwake_evt, "btwake_evt");
 
 /**************** bt mac *****************/
