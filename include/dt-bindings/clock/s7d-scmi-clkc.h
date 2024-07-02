@@ -28,6 +28,10 @@
 #define CLKID_SCMI_FIXED_PLL				16
 #define CLKID_SCMI_GP1_PLL				17
 #define CLKID_SCMI_ACLKM				18
+#define CLKID_SCMI_PWM_G				19
+#define CLKID_SCMI_PWM_H				20
+#define CLKID_SCMI_PWM_I				21
+#define CLKID_SCMI_PWM_J				22
 
 #endif /* __S7D_CLKC_H */
 
