@@ -1781,14 +1781,16 @@ static int loopback_platform_probe(struct platform_device *pdev)
 	if (np_src) {
 		dev_src = of_find_device_by_node(np_src);
 		of_node_put(np_src);
-		p_loopback->mic_src = platform_get_drvdata(dev_src);
+		if (dev_src)
+			p_loopback->mic_src = platform_get_drvdata(dev_src);
 		pr_debug("%s(), mic_src found\n", __func__);
 	}
 	np_src = of_parse_phandle(node, "ref-src", 0);
 	if (np_src) {
 		dev_src = of_find_device_by_node(np_src);
 		of_node_put(np_src);
-		p_loopback->ref_src = platform_get_drvdata(dev_src);
+		if (dev_src)
+			p_loopback->ref_src = platform_get_drvdata(dev_src);
 		pr_debug("%s(), mic_src found\n", __func__);
 	}
 
