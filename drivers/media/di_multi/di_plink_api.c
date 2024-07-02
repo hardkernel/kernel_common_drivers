@@ -1289,6 +1289,7 @@ static bool dpvpp_unreg_val(struct dimn_itf_s *itf)
 	}
 	if (flg_disable && atomic_read(&hw->link_on_bydi)) {
 		dpvpp_link_sw_by_di(false);
+		ext_vpp_plink_real_sw(false, true, false);
 		if (itf->link_mode == EPVPP_API_MODE_PRE)
 			dpvpp_reg_prelink_sw(false);
 		else if (itf->link_mode == EPVPP_API_MODE_POST)

@@ -2242,7 +2242,7 @@ int dpvpp_reg_prelink_sw(bool vpp_disable_async)
 			PR_INF("wait for bypass\n");
 			return 0;
 		}
-		if (!sw_done)
+		if (!sw_done && !ton_di)
 			ext_vpp_plink_real_sw(false, true, false);
 		atomic_set(&hw->link_sts, 0);//on
 		get_datal()->pre_vpp_active = false;/* interface */

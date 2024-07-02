@@ -2176,7 +2176,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 
 	chst = dip_chst_get(ch);
 
-	//dbg_reg("%s:ch[%d]%s\n", __func__, ch, dip_chst_get_name(chst));
+	//dbg_dbg("%s:ch[%d]%s\n", __func__, ch, dip_chst_get_name(chst));
 
 	switch (chst) {
 	case EDI_TOP_STATE_NOPROB:
@@ -3823,7 +3823,6 @@ struct dim_nins_s *nins_peek_pre(struct di_ch_s *pch)
 	if (!ret || !q_buf.qbc)
 		return NULL;
 	ins = (struct dim_nins_s *)q_buf.qbc;
-
 	return ins;
 }
 
@@ -3984,6 +3983,8 @@ struct dim_nins_s *nins_dct_get_bypass(struct di_ch_s *pch)
 	qbuf_in(pbufq, QBF_NINS_Q_CHECK, index);
 	ATRACE_COUNTER("dim_dct", 0);
 	//qbuf_dbg_checkid(pbufq, 2);
+	if (ret)
+		task_send_ready(33);
 
 	return ins;
 }
