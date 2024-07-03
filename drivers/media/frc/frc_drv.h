@@ -127,8 +127,9 @@
 // frc_2024-0522 adjust mcdw param for window size
 // frc_2024-0617 add rdma access for alg
 // frc_2024-0621 modify t3x muti flow
+// frc_2024-0626 frc cursor control debug
 
-#define FRC_FW_VER			"2024-0626 frc cursor control debug"
+#define FRC_FW_VER			"2024-0704 fix frc clk latency err"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
