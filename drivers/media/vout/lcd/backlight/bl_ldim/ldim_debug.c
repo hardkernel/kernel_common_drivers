@@ -283,6 +283,9 @@ static ssize_t ldim_attr_show(struct class *cla, struct class_attribute *attr,
 	struct ldim_fw_s *fw = ldim_drv->fw;
 	ssize_t len;
 
+	if (!fw || !fw->fw_debug_show)
+		return -EINVAL;
+
 	len = fw->fw_debug_show(fw, LDC_DBG_ATTR, buf);
 	if (len)
 		return len;
@@ -333,8 +336,8 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 	size_t ret = 0;
 	unsigned int seg_size;
 
-	if (!fw)
-		return len;
+	if (!fw || !fw->fw_debug_store)
+		return -EINVAL;
 
 	if (!buf)
 		return len;
@@ -752,6 +755,9 @@ static ssize_t ldim_remap_show(struct class *class,
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	int ret = 0;
 
+	if (!ldim_drv->fw)
+		return -EINVAL;
+
 	ret = sprintf(buf, "%d\n", ldim_drv->fw->conf->remap_en);
 
 	return ret;
@@ -764,6 +770,9 @@ static ssize_t ldim_remap_store(struct class *class,
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	unsigned int val = 0;
 	int ret = 0;
+
+	if (!ldim_drv->fw)
+		return -EINVAL;
 
 	ret = kstrtouint(buf, 0, &val);
 	LDIMPR("local diming remap: %s\n", (val ? "enable" : "disable"));
@@ -779,6 +788,9 @@ static ssize_t ldim_para_show(struct class *class,
 	struct ldim_fw_s *fw = ldim_drv->fw;
 	ssize_t len;
 
+	if (!fw || !fw->fw_debug_show)
+		return -EINVAL;
+
 	len = fw->fw_debug_show(fw, LDC_DBG_PARA, buf);
 
 	return len;
@@ -790,6 +802,9 @@ static ssize_t ldim_para_store(struct class *class, struct class_attribute *attr
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
 	char *buf_orig;
+
+	if (!fw || !fw->fw_debug_store)
+		return -EINVAL;
 
 	if (!buf)
 		return len;
@@ -810,6 +825,9 @@ static ssize_t ldim_mem_show(struct class *class,
 	struct ldim_fw_s *fw = ldim_drv->fw;
 	ssize_t len;
 
+	if (!fw || !fw->fw_debug_show)
+		return -EINVAL;
+
 	len = fw->fw_debug_show(fw, LDC_DBG_MEM, buf);
 
 	return len;
@@ -821,6 +839,9 @@ static ssize_t ldim_mem_store(struct class *class, struct class_attribute *attr,
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
 	char *buf_orig;
+
+	if (!fw || !fw->fw_debug_store)
+		return -EINVAL;
 
 	if (!buf)
 		return len;
@@ -841,6 +862,9 @@ static ssize_t ldim_reg_show(struct class *class,
 	struct ldim_fw_s *fw = ldim_drv->fw;
 	ssize_t len;
 
+	if (!fw || !fw->fw_debug_show)
+		return -EINVAL;
+
 	len = fw->fw_debug_show(fw, LDC_DBG_REG, buf);
 
 	return len;
@@ -852,6 +876,9 @@ static ssize_t ldim_reg_store(struct class *class, struct class_attribute *attr,
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
 	char *buf_orig;
+
+	if (!fw || !fw->fw_debug_store)
+		return -EINVAL;
 
 	if (!buf)
 		return len;
@@ -872,6 +899,9 @@ static ssize_t ldim_dbg_reg_show(struct class *class,
 	struct ldim_fw_s *fw = ldim_drv->fw;
 	ssize_t len;
 
+	if (!fw || !fw->fw_debug_show)
+		return -EINVAL;
+
 	len = fw->fw_debug_show(fw, LDC_DBG_DBGREG, buf);
 
 	return len;
@@ -883,6 +913,9 @@ static ssize_t ldim_dbg_reg_store(struct class *class, struct class_attribute *a
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
 	char *buf_orig;
+
+	if (!fw || !fw->fw_debug_store)
+		return -EINVAL;
 
 	if (!buf)
 		return len;
@@ -918,6 +951,9 @@ static ssize_t ldim_debug_show(struct class *class, struct class_attribute *attr
 	struct ldim_fw_s *fw = ldim_drv->fw;
 	ssize_t len;
 
+	if (!fw || !fw->fw_debug_show)
+		return -EINVAL;
+
 	len = fw->fw_debug_show(fw, LDC_DBG_DEBUG, buf);
 
 	return len;
@@ -937,6 +973,9 @@ static ssize_t ldim_debug_store(struct class *class, struct class_attribute *att
 	char *ps, *token;
 	char **parm = NULL;
 	char str[3] = {' ', '\n', '\0'};
+
+	if (!fw || !fw->fw_debug_store)
+		return -EINVAL;
 
 	if (!buf)
 		return len;
