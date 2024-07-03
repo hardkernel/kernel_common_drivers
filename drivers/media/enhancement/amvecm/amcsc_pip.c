@@ -1815,7 +1815,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 		}
 	} else if (cur_hdr_policy == 2 &&
 		   is_amdv_enable()) {
-		if (vd_path == VD1_PATH && !is_amdv_on() && is_amdv_stb_mode()) {
+		if (vd_path == VD1_PATH && !is_amdv_on()) {
 			if (source_format[vd_path] == HDRTYPE_DOVI ||
 			    ((source_format[vd_path] == HDRTYPE_HDR10 ||
 			    source_format[vd_path] == HDRTYPE_HDR10_709) &&
