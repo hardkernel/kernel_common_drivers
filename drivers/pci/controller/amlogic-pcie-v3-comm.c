@@ -1677,7 +1677,9 @@ static int amlogic_pcie_init_port_for_aml_phy(struct amlogic_pcie *amlogic)
 	/* set phy pll */
 	if (of_property_read_bool(dev_of_node(dev), "phy_pll_setting_1")) {
 		ret = amlogic_pcie_set_phy_pll(amlogic);
-		return ret;
+		if (ret)
+			return ret;
+
 	}
 
 	/* GEN3 EQ */
