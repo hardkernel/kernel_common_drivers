@@ -2540,6 +2540,7 @@ struct dim_type_smp_s { //use this to check signal change or not
 	unsigned int y_size;
 	unsigned int cur_source_type;
 	unsigned int other;
+	bool is_4k_snr;
 };
 
 struct dim_dvpp_set_s {
@@ -2640,6 +2641,7 @@ struct dim_pvpp_hw_s {
 	unsigned int id_l;
 	unsigned int reg_cnt; /* @ary 11-08 add */
 	unsigned int back_reg_nr;
+	bool	en_4k_snr;
 	bool	en_linear;
 	bool	has_notify_vpp;
 	unsigned char	reg_nub; /* @ary 11-08 add*/
@@ -2726,8 +2728,22 @@ struct dim_pvpp_ds_s {
 	bool	en_dw;
 	bool	en_out_nv12;
 	bool	en_4k_snr;
+	bool	en_4k_tnr;//2024-08-20 ext
+	bool	en_snr_tm; //2024-08-20
 	bool	en_dbg_check_ud;
 	bool	en_dbg_check_vf;
+	unsigned char  snr_st;
+/******************
+ *	0: reg
+ *	1: alloc hd buffer;
+ *	2: alloc 4k buffer,
+ *	//3:wait release 4k buffer;
+ *	4: release 4k buffer
+ *	5: release all buffer
+ *	0x10: no buffer,
+ *	0x11: have hd buffer,
+ *	0x12: have 4k buffer
+ ******************/
 	unsigned char	en_dbg_off_nr;//bit 7: disable all; bit 0:disable nr
 	/* setting cfg */
 	struct dim_dvpp_set_s set_cfg_cur;
@@ -2757,6 +2773,7 @@ struct dim_pvpp_ds_s {
 	bool dbg_last_mem_bypass;
 	int	field_count_for_cont;
 	unsigned int bypass_cnt;
+	unsigned long jiff_mem;//2024-08-20
 };
 
 struct dimn_vfm_s {

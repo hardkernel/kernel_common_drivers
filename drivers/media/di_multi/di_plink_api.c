@@ -145,6 +145,22 @@ bool dpvpp_bypass_display(void)
 	return false;
 }
 
+bool dpvpp_dbg_tnr_disable(void)
+{
+	if (tst_plink_vpp & DI_BIT27)
+		return true;
+	return false;
+}
+
+//when 1: 4k used tnr; when 0: 4k used snr;
+//
+bool dpvpp_dbg_4k_tsnr(void)
+{
+	if (tst_plink_vpp & DI_BIT29)
+		return true;
+	return false;
+}
+
 void ext_vpp_disable_plink_notify(bool async)
 {
 #ifndef VPP_LINK_USED_FUNC
@@ -1403,6 +1419,7 @@ static bool dpvpp_reg(struct dimn_itf_s *itf,
 	unsigned int id;
 	struct dim_pvpp_hw_s *hw;
 	struct div2_mm_s *mm;
+	struct di_ch_s *pch;
 
 	pvpp = &get_datal()->dvs_pvpp;
 
@@ -1561,10 +1578,19 @@ static bool dpvpp_reg(struct dimn_itf_s *itf,
 	else
 		ds->en_4k = false;
 	ds->out_mode = EDPST_MODE_422_10BIT_PACK;
-	if (link_mode == EPVPP_API_MODE_PRE && cfgg(EN_PRE_LINK) == 3)
+	pch = get_chdata(itf->bind_ch);
+	if (link_mode == EPVPP_API_MODE_PRE && cfgg(EN_PRE_LINK) == 3 &&
+		pch && !IS_VDIN_SRC(pch->src_type))
 		ds->en_4k_snr = true;
 	else
 		ds->en_4k_snr = false;
+
+	ds->en_4k_tnr = false; //fix false
+
+	dbg_plink1("snr:%s:[%d][%d]:src[%d]\n", __func__,
+			ds->en_4k_snr,
+			ds->en_4k_tnr,
+			pch->src_type);
 /* */
 	if (cfgg(POUT_FMT) == 0) {
 		ds->o_hd.b.mode = EDPST_MODE_422_10BIT_PACK;
@@ -1620,19 +1646,13 @@ static bool dpvpp_reg(struct dimn_itf_s *itf,
 		ds->o_hd.b.is_afbce = 0;
 		if (ds->en_4k) {
 			ds->o_uhd.d32 = ds->o_hd.d32;
-			if (ds->en_4k_snr)
-				ds->o_uhd.b.out_buf = EPVPP_BUF_CFG_T_HD_F;
-			else
-				ds->o_uhd.b.out_buf = EPVPP_BUF_CFG_T_UHD_F_AFBCE;
+			ds->o_uhd.b.out_buf = EPVPP_BUF_CFG_T_UHD_F_AFBCE;
 			ds->o_uhd.b.is_afbce = 1;
 			ds->o_uhd.b.afbce_fmt = EAFBC_T_4K_FULL;
 			ds->en_out_afbce = true;
 		}
 		ds->m_mode_n_hd = EPVPP_MEM_T_HD_FULL;
-		if (ds->en_4k_snr)
-			ds->m_mode_n_uhd = EPVPP_MEM_T_HD_FULL;
-		else
-			ds->m_mode_n_uhd = EPVPP_MEM_T_UHD_AFBCE;
+		ds->m_mode_n_uhd = EPVPP_MEM_T_UHD_AFBCE;
 		dbg_plink1("fix uhd is afbce\n");
 	}
 
@@ -1861,6 +1881,12 @@ unsigned int check_diff(struct dimn_itf_s *itf,
 		PR_INF("diff:change id:%d:%d\n", hw->id_l, hw->id_c);
 		return EDIM_DVPP_DIFF_ALL;
 	}
+	if (hw->en_4k_snr != dvfm_c->c.in_dvfm.en_4k_snr) {
+		dbg_plink1("snr:diff:%d->%d\n", hw->en_4k_snr,
+			dvfm_c->c.in_dvfm.en_4k_snr);
+		return EDIM_DVPP_DIFF_ALL;
+	}
+
 	pa_l = &hw->dis_last_para;
 	win_l = &pa_l->win;
 	if (pa_c->dmode != pa_l->dmode		||
@@ -2675,8 +2701,7 @@ void mif_cfg_v2_update_addr(struct DI_MIF_S *di_mif,
 	}
 }
 
-unsigned int dpvpp_is_bypass_dvfm_prelink(struct dvfm_s *dvfm, bool en_4k,
-										  bool en_4k_snr)
+unsigned int dpvpp_is_bypass_dvfm_prelink(struct dvfm_s *dvfm, bool en_4k)
 {
 	struct dim_pvpp_hw_s *hw;
 
@@ -2691,7 +2716,7 @@ unsigned int dpvpp_is_bypass_dvfm_prelink(struct dvfm_s *dvfm, bool en_4k,
 		if (dvfm->vfs.width > 3840 ||
 		    dvfm->vfs.height > 2160)
 			return EPVPP_BYPASS_REASON_SIZE_L;
-		if (dvfm->is_4k && !hw->blk_rd_uhd && !en_4k_snr)
+		if (dvfm->is_4k && !hw->blk_rd_uhd && !dvfm->en_4k_snr)
 			return EPVPP_BYPASS_REASON_BUF_UHD;
 		else if (!dvfm->is_4k && !hw->blk_rd_hd)
 			return EPVPP_BYPASS_REASON_BUF_HD;
@@ -2767,6 +2792,7 @@ void dpvpp_set_type_smp(struct dim_type_smp_s *smp,
 	smp->vf_type = dvfm->vfs.type & VFMT_MASK_ALL;
 	smp->x_size	= dvfm->vfs.width;
 	smp->y_size	= dvfm->vfs.height;
+	smp->is_4k_snr = dvfm->en_4k_snr;
 	//smp->other?
 }
 
@@ -2778,6 +2804,8 @@ unsigned int dpvpp_is_change_dvfm(struct dim_type_smp_s *in_last,
 	if (in_last->x_size != dvfm->vfs.width ||
 	    in_last->y_size != dvfm->vfs.height)
 		return 2;
+	if (in_last->is_4k_snr != dvfm->en_4k_snr)
+		return 3;
 	return 0;
 }
 
@@ -3250,6 +3278,8 @@ bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm,
 	dim_bypass_set(pch, 0, reason);
 	if (reason != 0)
 		return false;
+
+	pch->src_type = vfm->source_type; //for 4K SNR
 
 	//check  ponly:
 	if (link_mode == EPVPP_API_MODE_PRE) {

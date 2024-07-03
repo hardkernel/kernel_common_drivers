@@ -830,6 +830,7 @@ struct dvfm_s {
 	bool	is_linear;	//for ic is linear or not
 	bool	en_win;	/**/
 	bool	is_4k;
+	bool	en_4k_snr;
 	struct di_win_s win;
 	unsigned int src_w;//temp
 	unsigned int src_h; //temp

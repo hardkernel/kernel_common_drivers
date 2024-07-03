@@ -30,6 +30,7 @@
 
 #include <linux/dma-map-ops.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
+#include <linux/amlogic/media/video_sink/video.h>
 
 #define MAX_DI_HOLD_CTRL_CNT 20
 #define MAX_SCREEN_RATIO 400
@@ -1999,7 +2000,7 @@ void dpvpp_mem_mng_get(unsigned int id)
 		spin_unlock_irqrestore(&lock_pvpp, irq_flag);
 		return;
 	}
-
+#ifdef _HIS_CODE_	//add snr
 	if (get_datal()->pre_vpp_active) {
 		/* check if cur_m_mode is none */
 		if (hw->m_mode_tgt != EPVPP_MEM_T_NONE) {
@@ -2016,7 +2017,7 @@ void dpvpp_mem_mng_get(unsigned int id)
 				hw->blk_rd_uhd, hw->blk_rd_hd);
 		}
 	}
-
+#endif
 	dbg_plink1("%s:s2:<%d,%d>, <%d,%d>\n", __func__,
 		hw->m_mode_tgt, hw->flg_tvp_tgt,
 		hw->m_mode, hw->flg_tvp);
@@ -2181,7 +2182,7 @@ int dpvpp_reg_prelink_sw(bool vpp_disable_async)
 	unsigned int ton, ton_vpp, ton_di;
 	struct platform_device *pdev;
 	struct dim_pvpp_hw_s *hw;
-	ulong irq_flag = 0;
+//	ulong irq_flag = 0;
 
 //	if (itf && itf->c.src_state & EDVPP_SRC_NEED_REG2)
 //		return 0;
@@ -2247,10 +2248,12 @@ int dpvpp_reg_prelink_sw(bool vpp_disable_async)
 		atomic_set(&hw->link_sts, 0);//on
 		get_datal()->pre_vpp_active = false;/* interface */
 		atomic_set(&hw->link_in_busy, 0);
+#ifdef _HIS_CODE_	//move 2024-08-19
 		spin_lock_irqsave(&lock_pvpp, irq_flag);
 		hw->blk_used_hd = false;
 		hw->blk_used_uhd = false;
 		spin_unlock_irqrestore(&lock_pvpp, irq_flag);
+#endif
 		ext_vpp_plink_state_changed_notify();
 		PR_INF("%s:set inactive<%d, %d> arb:%x\n", __func__,
 				ton_vpp, ton_di, RD(DI_ARB_DBG_STAT_L1C1));
@@ -2258,8 +2261,40 @@ int dpvpp_reg_prelink_sw(bool vpp_disable_async)
 	return 0;
 }
 
-/*count 4k input */
-static void count_4k(struct dimn_itf_s *itf, struct dvfm_s *vf)
+//static
+bool ext_is_fps_l_30(void)
+{
+	int output_fps, output_pts_inc_scale = 0, output_pts_inc_scale_base = 0;
+	bool ret = false;
+	static bool last_st;
+
+	if (dpvpp_dbg_tnr_disable())
+		return false;
+
+	get_output_pcrscr_info(&output_pts_inc_scale, &output_pts_inc_scale_base);
+	if (!output_pts_inc_scale_base) {
+		PR_WARN("get output pcrscr info failed.\n");
+		output_fps = 0;
+	} else {
+		output_fps = 90000 * 16 * (u64)output_pts_inc_scale;
+		output_fps = div64_u64(output_fps, output_pts_inc_scale_base);
+	}
+	dbg_plink2("scale: %d, base: %d, output_fps is %d.\n",
+		output_pts_inc_scale, output_pts_inc_scale_base, output_fps);
+	if (output_fps >= 48000) { //rate is < 30Hz
+		dbg_plink2("output fps < 30\n");
+		ret = true;
+	}
+
+	if (last_st != ret) {
+		dbg_plink1("snr:ext tnr :%d -> %d\n", last_st, ret);
+		last_st = ret;
+	}
+	return ret;
+}
+
+//old:
+static void count_4k_old(struct dimn_itf_s *itf, struct dvfm_s *vf)
 {
 	unsigned char mode_back; //debug only
 	struct dim_pvpp_ds_s *ds;
@@ -2289,6 +2324,170 @@ static void count_4k(struct dimn_itf_s *itf, struct dvfm_s *vf)
 			itf->bind_ch, mode_back, itf->c.m_mode_n);
 		//dpvpp_mem_mng_get(1);//
 	}
+}
+
+/*****************************************************
+ *	count 4k input for enable_4k and enable 4k_snr
+ *	new
+ *****************************************************/
+void count_4k_snr(struct dimn_itf_s *itf, struct dvfm_s *vf)
+{
+	struct dim_pvpp_ds_s *ds;
+	struct dim_pvpp_hw_s *hw;
+	unsigned long delay;
+	bool trig_alloc = false;
+	bool trig_release = false;
+	unsigned char mode = EPVPP_MEM_T_NONE;
+	bool cur_tnr = false;
+	bool old_tnr;
+	unsigned char mode_back; //debug only
+	unsigned char tmp_snr_st = 0;
+
+	if (!itf || !vf || VFMT_IS_EOS(vf->vfs.type) || !itf->ds)
+		return;
+
+	ds = itf->ds;
+	hw = &get_datal()->dvs_pvpp.hw;
+
+	//ext_is_fps_l_30(); //test only
+	if (dimp_get(edi_mp_di_debug_flag) & 0x100000 &&
+	    ds->snr_st == 0) { //only can used for reg
+		//itf->c.m_mode_n = EPVPP_MEM_T_NONE;
+		if (itf->c.m_mode_n != EPVPP_MEM_T_NONE) {
+			dbg_plink1("ch[%d]:mode:%d->none\n",
+				itf->bind_ch, itf->c.m_mode_n);
+			itf->c.m_mode_n = EPVPP_MEM_T_NONE;
+			//dpvpp_mem_mng_get(1);//
+		}
+		return;
+	}
+
+	if (vf->is_4k)
+		itf->c.sum_4k++;
+
+	if (ext_is_fps_l_30() || dpvpp_dbg_4k_tsnr())
+		cur_tnr = true;
+
+	if (vf->is_4k) { //note: follow before tnr status
+		if (ds->en_4k_tnr)
+			vf->en_4k_snr = false;
+		else
+			vf->en_4k_snr = true;
+	} else {
+		vf->en_4k_snr = false;
+	}
+
+	//init:
+	if (ds->snr_st == 0) { //init
+		if (itf->c.sum_4k && cur_tnr) {
+			mode = ds->m_mode_n_uhd;
+			ds->snr_st = 0x2;
+		} else {
+			mode = ds->m_mode_n_hd;
+			ds->snr_st = 0x1;
+		}
+		itf->c.m_mode_n = mode;
+
+		dbg_plink1("snr:[%d,%d,%d,0x%x,%d]\n", cur_tnr, ds->en_4k_tnr,
+			vf->en_4k_snr, ds->snr_st, itf->c.m_mode_n);
+		return;
+	}
+
+	tmp_snr_st = ds->snr_st;
+	old_tnr = ds->en_4k_tnr;
+	if (ds->snr_st == 1 && hw->blk_rd_hd)
+		ds->snr_st = 0x11;
+	else if (ds->snr_st == 2 && hw->blk_rd_uhd)
+		ds->snr_st = 0x12;
+	else if (ds->snr_st == 4 && hw->blk_rd_hd)
+		ds->snr_st = 0x11;
+	else if (ds->snr_st == 5 && !hw->blk_rd_hd && !hw->blk_rd_uhd)
+		ds->snr_st = 0x10;
+	if (tmp_snr_st != ds->snr_st) {
+		//change:
+		dbg_plink1("snr:st 0x%x->0x%x\n", tmp_snr_st, ds->snr_st);
+	}
+
+	if (ds->snr_st < 0x0f)
+		return;
+
+	mode_back = itf->c.m_mode_n;
+
+	if (cur_tnr != ds->en_4k_tnr &&
+	    vf->is_4k) { //change for input tnr and snr_st
+		//dbg_plink1("snr:tnr chg %d-%d\n", ds->en_4k_tnr, cur_tnr);
+		if (ds->en_4k_tnr) {
+			// from tnr to snr
+			ds->en_4k_tnr = false;
+			vf->en_4k_snr = true;
+			//wait for release buffer
+		} else {
+			//from snr to tnr?
+			if (hw->blk_rd_uhd &&
+			    ds->snr_st == 0x12) {
+				ds->en_4k_tnr = true;
+			} else {
+				if (ds->snr_st == 0x10 ||
+				    ds->snr_st == 0x11) {
+					//trig alloc buffer, and need wait
+					dbg_plink1("snr:trig alloc 4k buffer:\n");
+					trig_alloc = true;
+				} else {
+					dbg_plink1("snr:wait:0x%x\n", ds->snr_st);
+				}
+			}
+		}
+	} else if (!vf->is_4k) {
+		ds->en_4k_tnr = cur_tnr;
+	}
+
+	//release count timer:
+	if (vf->en_4k_snr && ds->snr_st == 0x12) {
+		if (!ds->en_snr_tm) {
+			//begin to time:
+			ds->jiff_mem = jiffies;
+			ds->en_snr_tm = true;
+		} else if (hw->blk_used_hd	||
+			   hw->blk_used_uhd) { //reset timer
+			ds->jiff_mem = jiffies;
+		} else {
+			delay = ds->jiff_mem + 3 * HZ;
+			if (time_after(jiffies, delay)) {
+				dbg_plink1("snr:trig release 4k buffer\n");
+				trig_release = true;
+			}
+		}
+	} else {
+		ds->en_snr_tm = false;
+	}
+
+	if (trig_alloc) {
+		ds->snr_st = 2;
+		itf->c.m_mode_n = ds->m_mode_n_uhd;
+	} else if (trig_release) {
+		ds->snr_st = 4;
+		hw->blk_rd_uhd = false;
+		hw->blk_rd_hd  = false;
+		itf->c.m_mode_n = ds->m_mode_n_hd;
+	}
+	if (cur_tnr != ds->en_4k_tnr ||
+	    old_tnr != ds->en_4k_tnr ||
+	    tmp_snr_st != ds->snr_st ||
+	    mode_back != itf->c.m_mode_n)
+		dbg_plink1("snr:[%d,%d,%d,0x%x,%d]\n", cur_tnr, ds->en_4k_tnr,
+				vf->en_4k_snr, ds->snr_st, itf->c.m_mode_n);
+}
+
+static void count_4k(struct dimn_itf_s *itf, struct dvfm_s *vf)
+{
+	struct dim_pvpp_ds_s *ds;
+
+	if (!itf || !vf || VFMT_IS_EOS(vf->vfs.type) || !itf->ds)
+		return;
+	ds = itf->ds;
+	if (!ds->en_4k_snr || !ds->en_4k)
+		return count_4k_old(itf, vf);
+	count_4k_snr(itf, vf);
 }
 
 static unsigned int vtype_fill_bypass(struct vframe_s *vf)
@@ -2981,6 +3180,10 @@ int dpvpp_pre_unreg_bypass(void)
 	}
 	hw->dis_last_para.dmode = EPVPP_DISPLAY_MODE_BYPASS;
 	hw->dis_last_dvf	= NULL;
+	if (hw->en_4k_snr) {
+		dbg_plink1("snr:3:to bypass\n");
+		hw->en_4k_snr = 0;
+	}
 	/* move to dpvpp_reg_prelink_sw */
 	//hw->blk_used_hd = false;
 	//hw->blk_used_uhd = false;
@@ -3061,7 +3264,7 @@ int dpvpp_pre_display(struct vframe_s *vfm,
 		goto DISPLAY_BYPASS;
 	}
 
-	if (!hw->blk_rd_uhd && !hw->blk_rd_hd) {
+	if (!hw->blk_rd_uhd && !hw->blk_rd_hd && !ds->en_4k_snr) {
 		bypass_reason = 3;
 		PR_WARN("%s:src_state ready but blk invalid\n", __func__);
 		goto DISPLAY_BYPASS;
@@ -3096,16 +3299,22 @@ int dpvpp_pre_display(struct vframe_s *vfm,
 		bypass_reason = 7;
 		goto DISPLAY_BYPASS;
 	}
-	if (ndvfm->c.is_out_4k && !hw->blk_rd_uhd && !ds->en_4k_snr) {
+	if (ndvfm->c.is_out_4k && !hw->blk_rd_uhd &&
+		/*!ds->en_4k_snr*/ !ndvfm->c.in_dvfm.en_4k_snr) {
 		bypass_reason = 8;
 		PR_WARN("%s:output buffer is mismatch, too small.\n", __func__);
 		goto DISPLAY_BYPASS;
+	} else if (!ndvfm->c.is_out_4k && !hw->blk_rd_hd) {
+		bypass_reason = 9;
+		PR_WARN("%s:no buffer.\n", __func__);
+		goto DISPLAY_BYPASS;
 	}
-
+#ifdef _HIS_CODE_	//move to dpvpph_size_change
 	if (ndvfm->c.is_out_4k)
 		hw->blk_used_uhd = true;
 	else
 		hw->blk_used_hd = true;
+#endif
 	diff = check_diff(itf, ndvfm, para);
 
 	vf_in = &ndvfm->c.vf_in_cp;
@@ -3194,6 +3403,10 @@ int dpvpp_pre_display(struct vframe_s *vfm,
 		memcpy(&hw->dis_last_para,
 		       &hw->dis_c_para, sizeof(hw->dis_last_para));
 		hw->id_l = hw->id_c;
+		if (ndvfm->c.in_dvfm.en_4k_snr != hw->en_4k_snr)
+			dbg_plink1("snr:disp:chg:%d->%d\n", hw->en_4k_snr,
+				ndvfm->c.in_dvfm.en_4k_snr);
+		hw->en_4k_snr = ndvfm->c.in_dvfm.en_4k_snr;
 		dim_print("display:set end:%d\n", ds->cnt_display);
 		hw->dis_last_dvf	=  ndvfm;
 		/* dct */
@@ -3257,6 +3470,11 @@ DISPLAY_BYPASS:
 	if (hw->dis_last_para.dmode != EPVPP_DISPLAY_MODE_BYPASS) {
 		hw->dis_ch = 0xff;
 		hw->last_dct_bypass = true;
+		hw->blk_used_uhd = false;
+		if (hw->en_4k_snr) {
+			dbg_plink1("snr: to bypass\n");
+			hw->en_4k_snr = false;
+		}
 		/* from pre-vpp link to bypass */
 		//be sure vpp can display
 		dim_afds()->pvpp_sw_setting_op(false, hw->op); //disable afbcd
@@ -3427,26 +3645,41 @@ static void dpvpph_size_change(struct dim_pvpp_ds_s *ds,
 		nr_op()->nr_all_config(vf_type, op, cfg);
 
 	/* after nr_all_config and change setting */
+
 	if (dvfm->c.set_cfg.b.en_4k_snr) {
+		hw->blk_used_uhd = false;
+		hw->blk_used_hd = false;
 		if (!hw->back_reg_nr) {
 			hw->back_reg_nr = RD(NR4_TOP_CTRL);
-			//clear [19:0], keep bit 4, 15, 16 for snr
+			//clear bit 18 VLSI: ml
 			val = hw->back_reg_nr;
-			val &= 0xfff18010;
+			val &= 0xfffbffff;
 			DIM_DI_WR(NR4_TOP_CTRL, val);
-			dbg_plink1("en:4k_snr:0x%x -> 0x%08x\n", hw->back_reg_nr, val);
+			wr_reg_bits(NR2_MATNR_YBETA_SCL, 0xffff, 16, 16);
+			wr_reg_bits(NR2_MATNR_CBETA_SCL, 0xffff, 16, 16);
+			dbg_plink1("snr:reg:0x%x -> 0x%08x\n", hw->back_reg_nr, val);
 		} else {
 			//not save:
 			val = RD(NR4_TOP_CTRL);
-			//clear [19:0], keep bit 4, 15, 16 for snr
-			val &= 0xfff18010;
+			//clear bit 18 VLSI: ml
+			val &= 0xfffbffff;
 			DIM_DI_WR(NR4_TOP_CTRL, val);
-			dbg_plink1("en:4k_snr 2: 0x%08x\n", val);
+			dbg_plink1("snr:en 2: 0x%08x\n", val);
 		}
 	} else {
+		if (dvfm->c.is_out_4k) {
+			hw->blk_used_uhd = true;
+			hw->blk_used_hd = false;
+		} else {
+			hw->blk_used_hd = true;
+			hw->blk_used_uhd = false;
+		}
+
 		if (hw->back_reg_nr) {
 			DIM_DI_WR(NR4_TOP_CTRL, hw->back_reg_nr);
-			dbg_plink1("dis:4k_snr0x%08x\n", hw->back_reg_nr);
+			wr_reg_bits(NR2_MATNR_YBETA_SCL, 0x0, 16, 16);
+			wr_reg_bits(NR2_MATNR_CBETA_SCL, 0x0, 16, 16);
+			dbg_plink1("snr:reg:tnr:0x%08x\n", hw->back_reg_nr);
 		}
 		hw->back_reg_nr = 0;
 	}
@@ -3499,12 +3732,21 @@ static void dpvpph_enable_di_pre_aml(const struct reg_acc *op_in,
 	unsigned int pre_field_num = 1;
 //	unsigned int tmpk;
 	u32 val;
+	bool mem_bit8 = 1;
+	bool cp_mode = false;
 
 	if (!pw_en || dim_is_pre_link_l())
 		pre_link_en = 1;
 
 	mem_bypass = (pre_vdin_link & 0x30) ? true : false;
 
+	if (pre_vdin_link & DI_BIT6)
+		cp_mode = true;
+
+	if (mem_bypass) {
+		if (DIM_IS_IC_EF(SC2))
+			mem_bit8 = 0;
+	}
 	pre_vdin_link &= 0xf;
 
 	/*bit 12:11*/
@@ -3554,7 +3796,7 @@ static void dpvpph_enable_di_pre_aml(const struct reg_acc *op_in,
 					    (FIX_MADI_EN << 5) |
 					    /*hist check enable*/
 					    (1 << 6)	| /* MTN after NR. */
-					    (1 << 8) | /* mem en. */
+					    (mem_bit8 << 8) | /* mem en. */
 						/* chan 2 enable */
 					    ((FIX_CHAN2_DISABLE ? 0 : 1) << 9) |
 					    (sc2_tfbf << 11)	|
@@ -3571,14 +3813,15 @@ static void dpvpph_enable_di_pre_aml(const struct reg_acc *op_in,
 					    /* under prelink mode, need enable upsample filter */
 					    (2 << 26)  |
 					    /* mode_444c422 [27:26] */
-					    ((mem_bypass ? 1 : 0) << 28)   |
 					    pre_field_num << 29);
 				val = op_in->rd(DI_TOP_PRE_CTRL);
+				//use cp_mode SWPL-127836
 				val &= ~(0xff << 12);
-				if (mem_bypass)
+				if (cp_mode)
 					val |= (0x81 << 12);
 				op_in->wr(DI_TOP_PRE_CTRL, val);
-				dim_print("%s:b:%d\n", __func__, pre_field_num);
+
+				dim_print("%s:b:%d, cp[0x%x]\n", __func__, pre_field_num, val);
 			} else {
 				op_in->wr(DI_PRE_CTRL,
 					  1		 | /* nr wr en */
@@ -3851,8 +4094,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 	in_dvfm		= &ndvfm->c.in_dvfm;
 	//out_dvfm	= &ndvfm->c.out_dvfm;
 
-	bypass = dpvpp_is_bypass_dvfm_prelink(in_dvfm, ds->en_4k,
-										  ds->en_4k_snr);
+	bypass = dpvpp_is_bypass_dvfm_prelink(in_dvfm, ds->en_4k);
 	if (hw->flg_tvp != itf->c.is_tvp) {
 		dbg_plink2("bypass reason:%d to %d (tvp:c:%d t:%d), cnt:%d\n",
 			bypass, EPVPP_BYPASS_REASON_TVP,
@@ -3885,7 +4127,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 			PR_INF("dbg change:ppause\n");
 		}
 		/* change */
-		PR_INF("source change:ch[%d]:id[%d]:0x%x/%d/%d/%d=>0x%x/%d/%d/%d:%d\n",
+		PR_INF("source change:ch[%d]:id[%d]:0x%x/%d/%d/%d=>0x%x/%d/%d/%d:%d:%d\n",
 				itf->bind_ch,
 			       itf->id,
 			       ds->in_last.vf_type,
@@ -3896,7 +4138,8 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 			       in_dvfm->vfs.width,
 			       in_dvfm->vfs.height,
 			       in_dvfm->vfs.source_type,
-			       ndvfm->c.cnt_in);
+			       ndvfm->c.cnt_in,
+			       in_dvfm->en_4k_snr);
 		/* reset last_ds_ratio when source size change */
 		itf->c.last_ds_ratio = DI_FLAG_DCT_DS_RATIO_MAX;
 		ds->set_cfg_cur.b.en_linear_cp = hw->en_linear;
@@ -3912,6 +4155,9 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 		} else {
 			ds->o_c.d32 = ds->o_hd.d32;
 		}
+
+		if (in_dvfm->is_4k && in_dvfm->en_4k_snr)
+			ds->o_c.b.out_buf = ds->o_hd.b.out_buf;
 
 		dvfm_dm	= &ds->out_dvfm_demo;
 		//memset(out_dvfm, 0, sizeof(*out_dvfm));
@@ -3952,11 +4198,14 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 		else
 			dvfm_dm->is_prvpp_link	= 1;
 
-		if (ds->is_out_4k && ds->en_4k_snr)
+		if (ds->is_out_4k && in_dvfm->en_4k_snr) {
 			ds->set_cfg_cur.b.en_4k_snr = 1;
-		else
+		} else if (ds->is_out_4k && ds->en_4k_snr && !hw->blk_rd_uhd) {
+			PR_WARN("snr:4k tnr no buffer? force snr\n");
+			ds->set_cfg_cur.b.en_4k_snr = 1;
+		} else {
 			ds->set_cfg_cur.b.en_4k_snr = 0;
-
+		}
 		if (ds->set_cfg_cur.b.en_4k_snr || dpvpp_dbg_mem_fl_in())
 			ds->set_cfg_cur.b.en_mem_cp_in = 1;
 		else
@@ -4216,9 +4465,13 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 		hw = &get_datal()->dvs_pvpp.hw;
 		if (hw->back_reg_nr) {
 			DIM_DI_WR(NR4_TOP_CTRL, hw->back_reg_nr);
-			dbg_plink1("dis:4k_snr0x%08x\n", hw->back_reg_nr);
+			wr_reg_bits(NR2_MATNR_YBETA_SCL, 0x0, 16, 16);
+			wr_reg_bits(NR2_MATNR_CBETA_SCL, 0x0, 16, 16);
+			dbg_plink1("snr:reg:tnr 2:0x%08x\n", hw->back_reg_nr);
 		}
 		hw->back_reg_nr = 0;
+		hw->blk_used_hd = false;
+		hw->blk_used_uhd = false;
 
 		//prelink_status = false;
 		op->wr(REG_VPU_WRARB_REQEN_SLV_L1C1, WRARB_offval);
@@ -4277,6 +4530,7 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 	struct dim_pvpp_hw_s *hw;
 	struct pvpp_buf_cfg_s *buf_cfg;
 	unsigned short t5d_cnt;
+	unsigned int cp_mode = 0;
 
 	hw = &get_datal()->dvs_pvpp.hw;
 	/* ndvfm_last */
@@ -4524,6 +4778,9 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 	}
 	if (!ndvfm->c.set_cfg.b.en_mem_mif && !ndvfm->c.set_cfg.b.en_mem_afbcd)
 		bypass_mem = 1;
+
+	if (bypass_mem)	//note: before en_4k_snr
+		cp_mode = 1;
 	if (ndvfm->c.set_cfg.b.en_4k_snr || dpvpp_dbg_force_mem_bypass())
 		bypass_mem = 1;
 
@@ -4532,6 +4789,8 @@ static void dpvpph_display_update_all(struct dim_pvpp_ds_s *ds,
 				   ds->dbg_last_mem_bypass, bypass_mem);
 		ds->dbg_last_mem_bypass = bypass_mem ? true : false;
 	}
+	if (cp_mode)
+		bypass_mem |= DI_BIT2;
 	dpvpph_enable_di_pre_aml(hw->op,
 				 hw->en_pst_wr_test, bypass_mem << 4, NULL);
 	dct_pst(hw->op, ndvfm);
@@ -4632,6 +4891,7 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 	unsigned int bypass_mem = 0;
 	struct dim_pvpp_hw_s *hw;
 	unsigned short t5d_cnt;
+	unsigned int cp_mode = 0;
 
 	hw = &get_datal()->dvs_pvpp.hw;
 
@@ -4858,6 +5118,8 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 	}
 	if (!ndvfm->c.set_cfg.b.en_mem_mif && !ndvfm->c.set_cfg.b.en_mem_afbcd)
 		bypass_mem = 1;
+	if (bypass_mem)
+		cp_mode = 1;
 	if (ndvfm->c.set_cfg.b.en_4k_snr || dpvpp_dbg_force_mem_bypass())
 		bypass_mem = 1;
 	if (dpvpp_dbg_force_mem_en())
@@ -4868,6 +5130,8 @@ static void dpvpph_display_update_part(struct dim_pvpp_ds_s *ds,
 		ds->dbg_last_mem_bypass = bypass_mem ? true : false;
 	}
 
+	if (cp_mode)
+		bypass_mem |= DI_BIT2;
 	dpvpph_enable_di_pre_aml(hw->op,
 				 hw->en_pst_wr_test, bypass_mem << 4, NULL);
 	dct_pst(hw->op, ndvfm);
