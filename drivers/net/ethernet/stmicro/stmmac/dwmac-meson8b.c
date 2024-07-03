@@ -457,6 +457,13 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 #ifdef CONFIG_PM_SLEEP
 	if (of_property_read_u32(np, "mac_wol", &wol_switch_from_user) == 0)
 		pr_info("feature mac_wol\n");
+
+	if (of_property_read_u32(np, "wol", &support_gpio_wol) != 0) {
+		pr_info("no gpio wol %d\n", support_gpio_wol);
+	} else {
+		pr_info("gpio %d\n", support_gpio_wol);
+		ndev->wol_enabled = false;
+	}
 #endif
 
 	/*internal_phy 1:inphy;2:exphy; 0 as default*/
@@ -787,6 +794,19 @@ static int meson8b_resume(struct device *dev)
 		if (phy_mode == 2)
 			stmmac_global_err(priv);
 	}
+
+	if (support_gpio_wol) {
+		if (get_resume_method() == ETH_PHY_GPIO) {
+			pr_info("wzh gpio wol rx--KEY_POWER\n");
+			input_event(dwmac->input_dev,
+				EV_KEY, KEY_POWER, 1);
+			input_sync(dwmac->input_dev);
+			input_event(dwmac->input_dev,
+				EV_KEY, KEY_POWER, 0);
+			input_sync(dwmac->input_dev);
+		}
+	}
+
 	return ret;
 }
 

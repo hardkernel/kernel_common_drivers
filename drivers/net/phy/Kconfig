@@ -4,3 +4,8 @@ config AMLOGIC_INPHY
 	tristate "Amlogic Meson GXL Internal PHY"
 	help
 	  Currently has a driver for the Amlogic Meson GXL Internal PHY
+
+config AMLOGIC_REALTEK
+	tristate "Amlogic realtek PHY"
+	help
+	  Currently has a driver for the Amlogic realtek PHY
