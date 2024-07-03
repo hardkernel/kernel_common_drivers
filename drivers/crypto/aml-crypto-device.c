@@ -1044,12 +1044,16 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 	else
 		begin = 0;
 
+	lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
+	if (lock_ret)
+		goto error;
 	for (i = 0; i < nbufs; i++) {
 		length = kcop->cop.dst[i].length;
 		tmp_buf2 = krealloc(tmp_buf, length, GFP_KERNEL | GFP_DMA);
 		if (!tmp_buf2) {
 			dbgp(2, "cannot allocate memory, size: %d\n", length);
 			rc = -ENOMEM;
+			mutex_unlock(&crypto_dd->lock);
 			goto error;
 		}
 		tmp_buf = tmp_buf2;
@@ -1057,6 +1061,7 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 					  tmp_buf, length);
 		if (unlikely(count != length)) {
 			dbgp(2, "incompatible num %d %d read\n", count, length);
+			mutex_unlock(&crypto_dd->lock);
 			goto error;
 		}
 
@@ -1066,10 +1071,6 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 			block_mode = 0;
 
 		dma_buf = dma_map_single(dev, tmp_buf, length, DMA_TO_DEVICE);
-
-		// Re-enable previous descriptor
-		for (i = 0; i < s; i++)
-			dsc[i].dsc_cfg.b.owner = 1;
 
 		dsc[s].src_addr = dma_buf;
 		dsc[s].tgt_addr = (uintptr_t)kcop->cop.dst[i].addr;
@@ -1090,9 +1091,6 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 
 		begin = 0;
 
-		lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
-		if (lock_ret)
-			goto error;
 		crypto_dd->dma_busy = 1;
 #if !USE_BUSY_POLLING
 		reinit_completion(&crypto_dd->done);
@@ -1116,7 +1114,6 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 			wait_owner_bit(&dsc[s]);
 #endif
 		crypto_dd->dma_busy = 0;
-		mutex_unlock(&crypto_dd->lock);
 		dma_unmap_single(dev, dma_buf, length, DMA_TO_DEVICE);
 		if (err & DMA_STATUS_KEY_ERROR) {
 			int old_debug = debug;
@@ -1126,9 +1123,12 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 			aml_dma_debug(dsc, s + 1, __func__,
 				      crypto_dd->thread, crypto_dd->status);
 			debug = old_debug;
+			mutex_unlock(&crypto_dd->lock);
 			goto error;
 		}
+		s = 0;
 	}
+	mutex_unlock(&crypto_dd->lock);
 
 	key_clean = dma_alloc_coherent(dev, DMA_BUF_SIZE, &cleanup_addr,
 			GFP_KERNEL | GFP_DMA);
@@ -1303,12 +1303,16 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 	else
 		begin = 0;
 
+	lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
+	if (lock_ret)
+		goto error;
 	for (i = 0; i < nbufs; i++) {
 		length = kcop->cop.src[i].length;
 		tmp_buf2 = krealloc(tmp_buf, length, GFP_KERNEL | GFP_DMA);
 		if (!tmp_buf2) {
 			dbgp(2, "cannot allocate memory, size: %d\n", length);
 			rc = -ENOMEM;
+			mutex_unlock(&crypto_dd->lock);
 			goto error;
 		}
 		tmp_buf = tmp_buf2;
@@ -1320,9 +1324,6 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 
 		dma_buf = dma_map_single(dev, tmp_buf, length, DMA_FROM_DEVICE);
 
-		// Re-enable previous descriptor
-		for (i = 0; i < s; i++)
-			dsc[i].dsc_cfg.b.owner = 1;
 		dsc[s].src_addr = (uintptr_t)kcop->cop.src[i].addr;
 		dsc[s].tgt_addr = dma_buf;
 		dsc[s].dsc_cfg.d32 = 0;
@@ -1342,9 +1343,6 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 
 		begin = 0;
 
-		lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
-		if (lock_ret)
-			goto error;
 		crypto_dd->dma_busy = 1;
 #if !USE_BUSY_POLLING
 		reinit_completion(&crypto_dd->done);
@@ -1378,6 +1376,7 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 			aml_dma_debug(dsc, s + 1, __func__,
 				      crypto_dd->thread, crypto_dd->status);
 			debug = old_debug;
+			mutex_unlock(&crypto_dd->lock);
 			goto error;
 		}
 		count_dst = __copy_buffers_out(&dst, length,
@@ -1385,9 +1384,12 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 		if (unlikely(count_dst != length)) {
 			dbgp(2, "incorrect number of data, c = %d, dst = %d\n",
 			     length, count_dst);
+			mutex_unlock(&crypto_dd->lock);
 			goto error;
 		}
+		s = 0;
 	}
+	mutex_unlock(&crypto_dd->lock);
 
 	key_clean = dma_alloc_coherent(dev, DMA_BUF_SIZE, &cleanup_addr,
 			GFP_KERNEL | GFP_DMA);
@@ -1598,16 +1600,19 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 	else
 		begin = 0;
 
+	lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
+	if (lock_ret)
+		goto error;
 	while (total) {
 		count = __copy_buffers_in(&src, total, &offset,
 					  tmp_buf, PAGE_SIZE);
-		if (count < 0)
+		if (count < 0) {
+			mutex_unlock(&crypto_dd->lock);
 			goto error;
+		}
 		dma_sync_single_for_device(dev, dma_buf,
 					   PAGE_SIZE, DMA_TO_DEVICE);
-		// Re-enable previous descriptor
-		for (i = 0; i < s; i++)
-			dsc[i].dsc_cfg.b.owner = 1;
+
 		dsc[s].src_addr = dma_buf;
 		dsc[s].tgt_addr = dma_buf;
 		dsc[s].dsc_cfg.d32 = 0;
@@ -1622,9 +1627,6 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 
 		begin = 0;
 
-		lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
-		if (lock_ret)
-			goto error;
 		crypto_dd->dma_busy = 1;
 #if !USE_BUSY_POLLING
 		reinit_completion(&crypto_dd->done);
@@ -1648,7 +1650,6 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 			wait_owner_bit(&dsc[s]);
 #endif
 		crypto_dd->dma_busy = 0;
-		mutex_unlock(&crypto_dd->lock);
 		dma_sync_single_for_cpu(dev, dma_buf,
 					PAGE_SIZE, DMA_FROM_DEVICE);
 		if (err & DMA_STATUS_KEY_ERROR) {
@@ -1659,6 +1660,7 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 			aml_dma_debug(dsc, s + 1, __func__,
 				      crypto_dd->thread, crypto_dd->status);
 			debug = old_debug;
+			mutex_unlock(&crypto_dd->lock);
 			goto error;
 		}
 		count_dst = __copy_buffers_out(&dst, count,
@@ -1666,11 +1668,13 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 		if (unlikely(count_dst != count)) {
 			dbgp(2, "incorrect number of data, c = %d, dst = %d\n",
 			     count, count_dst);
+			mutex_unlock(&crypto_dd->lock);
 			goto error;
 		}
 		total -= count;
+		s = 0;
 	}
-
+	mutex_unlock(&crypto_dd->lock);
 	key_clean = dma_alloc_coherent(dev, DMA_BUF_SIZE, &cleanup_addr,
 			GFP_KERNEL | GFP_DMA);
 	if (!key_clean) {
