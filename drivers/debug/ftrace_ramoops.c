@@ -31,14 +31,11 @@
 #include <linux/of_address.h>
 #include <linux/scs.h>
 
-#ifdef CONFIG_SHADOW_CALL_STACK
-#define SCS_MASK (~(SCS_SIZE - 1))
-#endif
-
 static DEFINE_PER_CPU(int, en);
 
 #define IRQ_D	1
 #define MAX_DETECT_REG 10
+#define MAX_STACK_DEPTH 6
 
 /*
  * bit0: skip vdec-core,vdec irqthread read/write
@@ -331,16 +328,6 @@ static int is_filter_reg(unsigned int reg)
 	return 0;
 }
 
-#ifdef CONFIG_SHADOW_CALL_STACK
-unsigned long get_prev_lr_val(unsigned long lr, unsigned long offset)
-{
-	unsigned long lr_mask = lr & SCS_MASK;
-
-	return ((lr - offset) & SCS_MASK) == lr_mask ? *(u64 *)(lr - offset) : 0x0;
-}
-EXPORT_SYMBOL(get_prev_lr_val);
-#endif
-
 void __nocfi pstore_io_save(unsigned long reg, unsigned long val, unsigned int flag,
 									unsigned long *irq_flags)
 {
@@ -348,9 +335,6 @@ void __nocfi pstore_io_save(unsigned long reg, unsigned long val, unsigned int f
 		.type = flag,
 	};
 
-#ifdef CONFIG_SHADOW_CALL_STACK
-	unsigned long lr;
-#endif
 	int cpu = raw_smp_processor_id();
 
 	if (!ramoops_ftrace_en || !(ramoops_trace_mask & TRACE_MASK_IO))
@@ -377,12 +361,6 @@ void __nocfi pstore_io_save(unsigned long reg, unsigned long val, unsigned int f
 	}
 #endif
 
-#ifdef CONFIG_SHADOW_CALL_STACK
-	/* get lr from scs */
-	asm volatile("mov %0, x18\n"
-		: "=&r" (lr));
-#endif
-
 	if ((flag == RECORD_TYPE_IO_R || flag == RECORD_TYPE_IO_W) && IRQ_D)
 		local_irq_save(*irq_flags);
 
@@ -393,39 +371,19 @@ void __nocfi pstore_io_save(unsigned long reg, unsigned long val, unsigned int f
 	if (reg_check_flag && flag == RECORD_TYPE_IO_W_END)
 		reg_check_func();
 
-#ifdef CONFIG_SHADOW_CALL_STACK
-	if (flag == RECORD_TYPE_IO_W || flag == RECORD_TYPE_IO_R) {
-		rec.ip = get_prev_lr_val(lr, (ramoops_io_skip + 4) * sizeof(unsigned long));
-		rec.parent_ip = get_prev_lr_val(lr, (ramoops_io_skip + 5) * sizeof(unsigned long));
-	} else {
-		rec.ip = get_prev_lr_val(lr, (ramoops_io_skip + 8) * sizeof(unsigned long));
-		rec.parent_ip = get_prev_lr_val(lr, (ramoops_io_skip + 9) * sizeof(unsigned long));
-	}
-#else
-	if (flag == RECORD_TYPE_IO_W || flag == RECORD_TYPE_IO_R) {
-		switch (ramoops_io_skip) {
-		case 0:
-			rec.ip = CALLER_ADDR2;
-			rec.parent_ip = CALLER_ADDR3;
-			break;
-		case 1:
-			rec.ip = CALLER_ADDR3;
-			rec.parent_ip = CALLER_ADDR4;
-			break;
-		case 2:
-			rec.ip = CALLER_ADDR4;
-			rec.parent_ip = CALLER_ADDR5;
-			break;
-		default:
-			rec.ip = CALLER_ADDR0;
-			rec.parent_ip = CALLER_ADDR1;
-			break;
+	if (ramoops_io_stack) {
+		unsigned long stack_entries[MAX_STACK_DEPTH];
+
+		stack_trace_save(stack_entries, ARRAY_SIZE(stack_entries), 2 + ramoops_io_skip);
+
+		if (flag == RECORD_TYPE_IO_W || flag == RECORD_TYPE_IO_R) {
+			rec.ip = stack_entries[0];
+			rec.parent_ip = stack_entries[1];
+		} else {
+			rec.ip = stack_entries[4];
+			rec.parent_ip = stack_entries[5];
 		}
-	} else {
-		rec.ip = 0;
-		rec.parent_ip = 0;
 	}
-#endif
 
 	cpu = raw_smp_processor_id();
 	if (unlikely(oops_in_progress) || unlikely(per_cpu(en, cpu))) {

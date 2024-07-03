@@ -6,6 +6,7 @@
 #ifndef __AML_IOTRACE_H
 #define __AML_IOTRACE_H
 
+extern int ramoops_io_stack;
 extern int ramoops_io_skip;
 extern int ramoops_ftrace_en;
 extern int ramoops_trace_mask;
