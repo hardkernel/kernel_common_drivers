@@ -69,9 +69,28 @@ static int ramoops_io_skip_setup(char *buf)
 		return -EINVAL;
 	}
 
+	if (ramoops_io_skip > 2)
+		ramoops_io_skip = 2;
+
 	return 0;
 }
 __setup("ramoops_io_skip=", ramoops_io_skip_setup);
+
+int ramoops_io_stack;
+
+static int ramoops_io_stack_setup(char *buf)
+{
+	if (!buf)
+		return -EINVAL;
+
+	if (kstrtoint(buf, 0, &ramoops_io_stack)) {
+		pr_err("ramoops_io_stack error: %s\n", buf);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+__setup("ramoops_io_stack=", ramoops_io_stack_setup);
 
 static int ramoops_io_en;
 
@@ -1151,8 +1170,8 @@ void iotrace_auto_dump(void)
 
 static void iotrace_work_func(struct work_struct *work)
 {
-	pr_info("ramoops_io_en:%d, ramoops_io_dump=%d, ramoops_io_skip=%d\n",
-		ramoops_io_en, ramoops_io_dump, ramoops_io_skip);
+	pr_info("ramoops: en:%d, dump=%d, skip=%d, stack=%d\n",
+		ramoops_io_en, ramoops_io_dump, ramoops_io_skip, ramoops_io_stack);
 	iotrace_auto_dump();
 }
 
