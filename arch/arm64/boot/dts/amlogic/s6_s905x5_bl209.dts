@@ -919,7 +919,7 @@
 		regulator-always-on;
 	};
 
-	vdd1v8_dcdc_reg: fixed@vdd1v8_dcdc {
+	vdd1v8_dcdc_reg: fixed@vdd1v8_dcdc_reg {
 		compatible = "regulator-fixed";
 		vin-supply = <&vin_12v_reg>;
 		regulator-name = "VDD1V8_DCDC";
@@ -1013,7 +1013,7 @@
 
 	sd_3v3_reg: gpio-regulator@sd_3v3_reg {
 		compatible = "regulator-gpio";
-		regulator-name = "CARD_VCC";
+		regulator-name = "3V3_CARD";
 		vin-supply = <&vdd3v3_ao_reg>;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -1212,8 +1212,8 @@
 
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
 	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-	//vmmc-supply = <&vddao_3v3>;
-	//vqmmc-supply = <&emmc_1v8>;
+	vmmc-supply = <&sd_3v3_reg>;
+	vqmmc-supply = <&vddio_c_p>;
 };
 
 &sd_emmc_c {
