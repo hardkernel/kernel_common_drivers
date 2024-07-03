@@ -1055,7 +1055,7 @@
 			clock-names = "stmmaceth", "clkin0", "clkin1";
 			rx-fifo-depth = <4096>;
 			tx-fifo-depth = <2048>;
-//			mboxes = <&mbox_fifo S7_REE2AO_ETH>;
+			mboxes = <&mbox_fifo S6_REE2AO_ETH>;
 			status = "disabled";
 			internal_phy = <2>;
 			cali_val = <0x290000>;
