@@ -28,3 +28,11 @@
 	disable-wp;
 	bus-width = <8>;
 };
+
+&secmon_reserved {
+	reg = <0x07F00000 0x100000>;
+};
+
+&pmz_a1_reserved {
+	reg = <0x08000000 0x8000000>;
+};

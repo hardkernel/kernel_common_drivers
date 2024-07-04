@@ -20,3 +20,7 @@
 &secmon_reserved {
 	reg = <0x0F700000 0x900000>;
 };
+
+&pmz_a1_reserved {
+	reg = <0x05F00000 0x9800000>;
+};
