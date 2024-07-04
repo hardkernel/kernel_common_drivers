@@ -724,10 +724,25 @@ void show_regs_32(struct pt_regs *regs)
 #endif
 
 #ifdef CONFIG_ARM64
+/* arm64: kill flush_cache_all() 68234df4ea79
+ * Flush the whole D-cache.
+ * Corrupted registers: x0-x7, x9-x11
+ */
 noinline void aml_flush_cache_all(void)
 {
 	asm volatile
-		("mov	x12, x30\n"
+		("sub sp, sp, #0x60\n"			//save corrupted registers: x0-x7, x9-x11
+		"str x0, [sp]\n"
+		"str x1, [sp,#8]\n"
+		"str x2, [sp,#16]\n"
+		"str x3, [sp,#24]\n"
+		"str x4, [sp,#32]\n"
+		"str x5, [sp,#40]\n"
+		"str x6, [sp,#48]\n"
+		"str x7, [sp,#56]\n"
+		"str x9, [sp,#64]\n"
+		"str x10, [sp,#72]\n"
+		"str x11, [sp,#80]\n"
 		"dsb	sy\n"
 		"mrs	x0, clidr_el1\n"
 		"and	x3, x0, #0x7000000\n"
@@ -776,7 +791,19 @@ noinline void aml_flush_cache_all(void)
 		"isb\n"
 		"mov	x0, #0\n"
 		"ic	ialluis\n"
-		"ret	x12\n");
+		"ldr x0, [sp]\n"			//restore corrupted registers: x0-x7, x9-x11
+		"ldr x1, [sp,#8]\n"
+		"ldr x2, [sp,#16]\n"
+		"ldr x3, [sp,#24]\n"
+		"ldr x4, [sp,#32]\n"
+		"ldr x5, [sp,#40]\n"
+		"ldr x6, [sp,#48]\n"
+		"ldr x7, [sp,#56]\n"
+		"ldr x9, [sp,#64]\n"
+		"ldr x10, [sp,#72]\n"
+		"ldr x11, [sp,#80]\n"
+		"add sp, sp, #0x60\n"
+		"ret\n");
 }
 #else
 noinline void aml_flush_cache_all(void)
