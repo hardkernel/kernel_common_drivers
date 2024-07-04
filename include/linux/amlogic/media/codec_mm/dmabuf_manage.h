@@ -93,18 +93,14 @@ struct secure_vdec_channel {
 	__u32 id_low;
 };
 
-#define SECURE_HEAP_DEFAULT_VERSION				1
-#define SECURE_HEAP_DYNAMIC_ALLOC_VERSION		2
 #define SECURE_HEAP_USER_TA_VERSION				3
 #define SECURE_HEAP_MAX_VERSION					4
 
 int dmabuf_manage_secure_pool_create(u32 id_high, u32 id_low, u32 block_size,
-	u32 *pool_addr, u32 *pool_size, u32 version);
-int dmabuf_manage_secure_pool_status(u32 id_high, u32 id_low, u32 frame_size,
-	u32 *block_count, u32 *block_free_slot, u32 version);
+	u32 version);
 phys_addr_t dmabuf_manage_secure_block_alloc(u32 id_high, u32 id_low, u32 size,
 	u32 version);
-int dmabuf_manage_secure_block_free(u32 id_high, u32 id_low, u32 release,
+int dmabuf_manage_secure_block_free(u32 id_high, u32 id_low,
 	phys_addr_t addr, u32 size, u32 version);
 int dmabuf_manage_get_secure_heap_version(void);
 
