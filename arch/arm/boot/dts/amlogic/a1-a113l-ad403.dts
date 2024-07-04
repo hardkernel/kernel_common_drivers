@@ -306,7 +306,7 @@
 	};
 	audiobridge {
 		compatible = "amlogic, audio-bridge";
-		status = "okay";
+		status = "disabled";
 		mboxes = <&mbox_pl A1_REE2DSPA_AUDIO>,
 			 <&mbox_pl A1_REE2DSPB_AUDIO>;
 		aml-audio-line,link@0 {

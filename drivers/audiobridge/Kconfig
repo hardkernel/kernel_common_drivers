@@ -34,7 +34,7 @@ config AMLOGIC_BRIDGE_HID
 
 config AMLOGIC_BRIDGE_DSP
 	bool "audio DSP bridge support"
-	depends on AMLOGIC_AUDIO_BRIDGE && AMLOGIC_HIFI4DSP
+	depends on AMLOGIC_AUDIO_BRIDGE
 	default n
 	help
 		This is the Amlogic.

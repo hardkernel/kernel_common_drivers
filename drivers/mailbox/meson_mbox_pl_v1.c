@@ -196,13 +196,15 @@ static void mbox_wakeup_wait_task(void *mssg)
 	struct aml_mbox_data *aml_rdata = mssg;
 	struct completion *p_comp = (struct completion *)(unsigned long)aml_rdata->rev_complete;
 	struct aml_mbox_data *aml_sdata = container_of(p_comp, struct aml_mbox_data, complete);
+	int rxsize;
 
 	if (IS_ERR_OR_NULL(p_comp))
 		return;
 
 	if (aml_rdata->rxsize && aml_rdata->rxbuf) {
+		rxsize = min(aml_sdata->rxsize, aml_rdata->rxsize);
 		aml_sdata->rxsize = aml_rdata->rxsize;
-		memcpy(aml_sdata->rxbuf, aml_rdata->rxbuf, aml_rdata->rxsize);
+		memcpy(aml_sdata->rxbuf, aml_rdata->rxbuf, rxsize);
 	}
 	complete(p_comp);
 }

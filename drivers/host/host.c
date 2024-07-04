@@ -39,6 +39,28 @@
 static struct early_suspend host_early_suspend_handler;
 #endif
 
+#define HOST_NUM	2
+static struct host_module *host_p[HOST_NUM];
+
+bool host_firmware_ready(u8 host_id)
+{
+	if (host_id < HOST_NUM && host_p[host_id] &&
+		host_p[host_id]->firmware_load && host_p[host_id]->firmware_started)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(host_firmware_ready);
+
+struct device *host_to_device(u8 host_id)
+{
+	if (host_id < HOST_NUM && host_p[host_id])
+		return host_p[host_id]->dev;
+
+	return NULL;
+}
+EXPORT_SYMBOL(host_to_device);
+
 /*free reserved memory*/
 static unsigned long host_free_reserved_area(void *start, void *end, int poison, const char *s)
 {
@@ -664,6 +686,7 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 			goto err;
 		}
 		pm_runtime_get_sync(dev);
+		host->firmware_started = 1;
 	break;
 	case HOST_STOP:
 		pr_debug("%s HOST_STOP\n", __func__);
@@ -675,6 +698,7 @@ static long host_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 			goto err;
 		}
 		pm_runtime_put_sync(dev);
+		host->firmware_started = 0;
 	break;
 	case HOST_GET_INFO:
 		pr_debug("%s HOST_GET_INFO\n", __func__);
@@ -1159,6 +1183,7 @@ static int host_platform_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 	}
+	host_p[host->hostid] = host;
 
 	return 0;
 }

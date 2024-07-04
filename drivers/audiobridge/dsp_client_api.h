@@ -174,6 +174,8 @@ enum LOOPBACK_BUF {
 	RAWBUF,
 };
 
+struct mbox_chan;
+
 struct rpc_pcm_config {
 	/** The number of channels in a frame */
 	u32 channels;
@@ -322,31 +324,31 @@ struct buf_info {
 u32 pcm_client_format_to_bytes(enum DSP_PCM_FORMAT format);
 u32 pcm_client_frame_to_bytes(void *hdl, u32 frame);
 void *pcm_client_open(u32 card, u32 device, u32 flags,
-		struct rpc_pcm_config *config, struct device *dev, u32 dspid);
-int pcm_client_close(void *hdl, struct device *dev, u32 dspid);
+		struct rpc_pcm_config *config, struct mbox_chan *chan, u32 sync);
+int pcm_client_close(void *hdl, struct mbox_chan *chan, u32 sync);
 int pcm_client_writei(void *hdl, const phys_addr_t data, u32 count,
-		struct device *dev, u32 dspid);
+		struct mbox_chan *chan, u32 sync);
 int pcm_client_readi(void *hdl, const phys_addr_t data, u32 count,
-		struct device *dev, u32 dspid);
+		struct mbox_chan *chan, u32 sync);
 int pcm_process_client_writei_to_speaker(void *hdl, const phys_addr_t data, u32 count,
-		u32 bypass, struct device *dev, u32 dspid);
+		u32 bypass, struct mbox_chan *chan, u32 sync);
 void *pcm_process_client_open(u32 card, u32 device, u32 flags,
-		struct rpc_pcm_config *config, struct device *dev, u32 dspid);
-int pcm_process_client_close(void        *hdl, struct device *dev, u32 dspid);
-int pcm_process_client_start(void *hdl, struct device *dev, u32 dspid);
-int pcm_process_client_stop(void *hdl, struct device *dev, u32 dspid);
+		struct rpc_pcm_config *config, struct mbox_chan *chan, u32 sync);
+int pcm_process_client_close(void        *hdl, struct mbox_chan *chan, u32 sync);
+int pcm_process_client_start(void *hdl, struct mbox_chan *chan, u32 sync);
+int pcm_process_client_stop(void *hdl, struct mbox_chan *chan, u32 sync);
 int pcm_process_client_dqbuf(void *hdl, struct buf_info *buf, struct buf_info *release_buf,
-		u32 type, struct device *dev, u32 dspid);
+		u32 type, struct mbox_chan *chan, u32 sync);
 int pcm_process_client_qbuf(void *hdl, struct buf_info *buf, u32 type,
-		struct device *dev, u32 dspid);
+		struct mbox_chan *chan, u32 sync);
 int pcm_process_client_get_volume_gain(void *hdl, int *gain,
-		int is_out, struct device *dev, u32 dspid);
+		int is_out, struct mbox_chan *chan, u32 sync);
 int pcm_process_client_set_volume_gain(void *hdl, int gain,
-		int is_out, struct device *dev, u32 dspid);
-void *aml_dsp_mem_allocate(phys_addr_t *phy, size_t size, struct device *dev, u32 dspid);
-void aml_dsp_mem_free(phys_addr_t phy, struct device *dev, u32 dspid);
+		int is_out, struct mbox_chan *chan, u32 sync);
+void *aml_dsp_mem_allocate(phys_addr_t *phy, size_t size, struct mbox_chan *chan, u32 sync);
+void aml_dsp_mem_free(phys_addr_t phy, struct mbox_chan *chan, u32 sync);
 
 void *audio_device_open(u32 card, u32 device, u32 flags,
-		struct rpc_pcm_config *config, struct device *dev, u32 dspid);
+		struct rpc_pcm_config *config, struct mbox_chan *chan, u32 sync);
 
 #endif /*_DSP_CLIENT_API_H*/

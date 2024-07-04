@@ -238,9 +238,14 @@ struct host_module {
 	u32 hang;
 
 	u32 firmware_load;
+	u32 firmware_started;
 	struct host_data *host_data;
 	struct host_mfh *host_mfh;
 	struct host_dsp *host_dsp;
 	struct notifier_block nb;
 };
+
+bool host_firmware_ready(u8 host_id);
+struct device *host_to_device(u8 host_id);
+
 #endif /*_HOST_MODULE_H*/

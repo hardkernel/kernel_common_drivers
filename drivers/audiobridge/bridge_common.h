@@ -62,7 +62,7 @@ enum PCM_CONTROL {
  * arm period size = dsp period size * DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE
  */
 #define DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE (1)
-#define PERIOD_SIZE_MAX (2048)
+#define PERIOD_SIZE_MAX (4096)
 #define PERIOD_COUNT    (4)
 #define DSP_PERIOD_SIZE (1024)
 
@@ -93,6 +93,7 @@ struct audio_pcm_function_t {
 	struct kobject *kobj;
 	struct audio_pcm_function_t *opposite;
 	struct audio_pcm_bridge_t *audio_bridge;
+	struct mbox_chan *mbox_chan;
 };
 
 struct audio_pcm_bridge_t {

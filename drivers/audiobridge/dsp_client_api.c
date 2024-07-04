@@ -10,14 +10,16 @@
 #include <linux/dev_printk.h>
 #include "dsp_client_api.h"
 #include "bridge_common.h"
+#include <linux/amlogic/aml_mbox.h>
 
-int Mbox_invoke(struct device *dev, u32 dspid, int cmd, void *data, u32 len)
+int Mbox_invoke(struct mbox_chan *chan, u32 sync, int cmd, void *data, u32 len)
 {
 	int ret = 0;
 
-	ret = mbox_message_send_data_sync(dev, cmd, data, len, dspid);
+	ret = aml_mbox_transfer_data(chan, cmd, data, len, data, len, sync);
 	if (ret < 0)
-		dev_err(dev, "Mbox invoke write error: %d\n", ret);
+		pr_err("Mbox invoke write error: %d\n", ret);
+
 	return ret;
 }
 
@@ -50,7 +52,7 @@ u32 pcm_client_frame_to_bytes(void           *hdl, u32 frame)
 }
 
 void *pcm_client_open(u32 card, u32 device, u32 flags, struct rpc_pcm_config *config,
-		struct device *dev, u32 dspid)
+		struct mbox_chan *chan, u32 sync)
 {
 	struct pcm_open_st arg;
 	struct aml_pcm_ctx *p_aml_pcm_ctx = kmalloc(sizeof(*p_aml_pcm_ctx), GFP_KERNEL);
@@ -63,7 +65,7 @@ void *pcm_client_open(u32 card, u32 device, u32 flags, struct rpc_pcm_config *co
 	memcpy(&arg.pcm_config, config, sizeof(struct rpc_pcm_config));
 	arg.out_pcm = 0;
 
-	Mbox_invoke(dev, dspid, MBX_TINYALSA_OPEN, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, MBX_TINYALSA_OPEN, &arg, sizeof(arg));
 	if (!arg.out_pcm) {
 		kfree(p_aml_pcm_ctx);
 		return NULL;
@@ -73,7 +75,7 @@ void *pcm_client_open(u32 card, u32 device, u32 flags, struct rpc_pcm_config *co
 	return p_aml_pcm_ctx;
 }
 
-int pcm_client_close(void        *hdl, struct device *dev, u32 dspid)
+int pcm_client_close(void        *hdl, struct mbox_chan *chan, u32 sync)
 {
 	struct pcm_close_st arg;
 	struct aml_pcm_ctx *p_aml_pcm_ctx = (struct aml_pcm_ctx *)hdl;
@@ -82,14 +84,14 @@ int pcm_client_close(void        *hdl, struct device *dev, u32 dspid)
 	arg.pcm = p_aml_pcm_ctx->pcm_srv_hdl;
 	arg.out_ret = -EINVAL;
 
-	Mbox_invoke(dev, dspid, MBX_TINYALSA_CLOSE, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, MBX_TINYALSA_CLOSE, &arg, sizeof(arg));
 
 	kfree(p_aml_pcm_ctx);
 	return arg.out_ret;
 }
 
 int pcm_client_writei(void *hdl, const phys_addr_t data, u32 count,
-		struct device *dev, u32 dspid)
+		struct mbox_chan *chan, u32 sync)
 {
 	struct pcm_io_st arg;
 	struct aml_pcm_ctx *p_aml_pcm_ctx = (struct aml_pcm_ctx *)hdl;
@@ -100,13 +102,13 @@ int pcm_client_writei(void *hdl, const phys_addr_t data, u32 count,
 	arg.count = count;
 	arg.out_ret = 0;
 
-	Mbox_invoke(dev, dspid, MBX_TINYALSA_WRITEI, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, MBX_TINYALSA_WRITEI, &arg, sizeof(arg));
 
 	return arg.out_ret;
 }
 
 int pcm_process_client_writei_to_speaker(void *hdl, const phys_addr_t data, u32 count,
-		u32 bypass, struct device *dev, u32 dspid)
+		u32 bypass, struct mbox_chan *chan, u32 sync)
 {
 	struct pcm_process_io_st arg;
 	struct aml_pcm_ctx *p_aml_pcm_ctx = (struct aml_pcm_ctx *)hdl;
@@ -118,13 +120,13 @@ int pcm_process_client_writei_to_speaker(void *hdl, const phys_addr_t data, u32 
 	arg.out_ret = 0;
 	arg.id = bypass;
 
-	Mbox_invoke(dev, dspid, MBX_CMD_APROCESS_WRITE_SPEAKER, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, MBX_CMD_APROCESS_WRITE_SPEAKER, &arg, sizeof(arg));
 
 	return arg.out_ret;
 }
 
 int pcm_client_readi(void *hdl, const phys_addr_t data, u32 count,
-		struct device *dev, u32 dspid)
+		struct mbox_chan *chan, u32 sync)
 {
 	struct pcm_io_st arg;
 	struct aml_pcm_ctx *p_aml_pcm_ctx = (struct aml_pcm_ctx *)hdl;
@@ -135,13 +137,13 @@ int pcm_client_readi(void *hdl, const phys_addr_t data, u32 count,
 	arg.count = count;
 	arg.out_ret = 0;
 
-	Mbox_invoke(dev, dspid, MBX_TINYALSA_READI, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, MBX_TINYALSA_READI, &arg, sizeof(arg));
 
 	return arg.out_ret;
 }
 
 void *pcm_process_client_open(u32 card, u32 device, u32 flags,
-		struct rpc_pcm_config *config, struct device *dev, u32 dspid)
+		struct rpc_pcm_config *config, struct mbox_chan *chan, u32 sync)
 {
 	struct pcm_process_open_st arg;
 	struct aml_pro_pcm_ctx *p_aml_pcm_ctx = kmalloc(sizeof(*p_aml_pcm_ctx), GFP_KERNEL);
@@ -154,7 +156,7 @@ void *pcm_process_client_open(u32 card, u32 device, u32 flags,
 	memcpy(&arg.pcm_config, config, sizeof(struct rpc_pcm_config));
 	arg.out_pcm = 0;
 
-	Mbox_invoke(dev, dspid, MBX_CMD_APROCESS_OPEN, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, MBX_CMD_APROCESS_OPEN, &arg, sizeof(arg));
 	if (!arg.out_pcm) {
 		kfree(p_aml_pcm_ctx);
 		return NULL;
@@ -164,7 +166,7 @@ void *pcm_process_client_open(u32 card, u32 device, u32 flags,
 	return p_aml_pcm_ctx;
 }
 
-int pcm_process_client_close(void        *hdl, struct device *dev, u32 dspid)
+int pcm_process_client_close(void        *hdl, struct mbox_chan *chan, u32 sync)
 {
 	struct pcm_process_close_st arg;
 	struct aml_pro_pcm_ctx *p_aml_pcm_ctx = (struct aml_pro_pcm_ctx *)hdl;
@@ -173,13 +175,13 @@ int pcm_process_client_close(void        *hdl, struct device *dev, u32 dspid)
 	arg.pcm = p_aml_pcm_ctx->pcm_srv_hdl;
 	arg.out_ret = -EINVAL;
 
-	Mbox_invoke(dev, dspid, MBX_CMD_APROCESS_CLOSE, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, MBX_CMD_APROCESS_CLOSE, &arg, sizeof(arg));
 
 	kfree(p_aml_pcm_ctx);
 	return arg.out_ret;
 }
 
-int pcm_process_client_start(void *hdl, struct device *dev, u32 dspid)
+int pcm_process_client_start(void *hdl, struct mbox_chan *chan, u32 sync)
 {
 	struct pcm_process_io_st arg;
 	struct aml_pro_pcm_ctx *p_aml_pcm_ctx = (struct aml_pro_pcm_ctx *)hdl;
@@ -188,12 +190,12 @@ int pcm_process_client_start(void *hdl, struct device *dev, u32 dspid)
 	arg.pcm = p_aml_pcm_ctx->pcm_srv_hdl;
 	arg.out_ret = -EINVAL;
 
-	Mbox_invoke(dev, dspid, MBX_CMD_APROCESS_START, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, MBX_CMD_APROCESS_START, &arg, sizeof(arg));
 
 	return arg.out_ret;
 }
 
-int pcm_process_client_stop(void *hdl, struct device *dev, u32 dspid)
+int pcm_process_client_stop(void *hdl, struct mbox_chan *chan, u32 sync)
 {
 	struct pcm_process_io_st arg;
 	struct aml_pro_pcm_ctx *p_aml_pcm_ctx = (struct aml_pro_pcm_ctx *)hdl;
@@ -202,13 +204,13 @@ int pcm_process_client_stop(void *hdl, struct device *dev, u32 dspid)
 	arg.pcm = p_aml_pcm_ctx->pcm_srv_hdl;
 	arg.out_ret = -EINVAL;
 
-	Mbox_invoke(dev, dspid, MBX_CMD_APROCESS_STOP, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, MBX_CMD_APROCESS_STOP, &arg, sizeof(arg));
 
 	return arg.out_ret;
 }
 
 int pcm_process_client_dqbuf(void *hdl, struct buf_info *buf, struct buf_info *release_buf,
-		u32 type, struct device *dev, u32 dspid)
+		u32 type, struct mbox_chan *chan, u32 sync)
 {
 	struct aml_pro_pcm_ctx *p_aml_pcm_ctx = (struct aml_pro_pcm_ctx *)hdl;
 	struct pcm_process_buf_st arg;
@@ -231,7 +233,7 @@ int pcm_process_client_dqbuf(void *hdl, struct buf_info *buf, struct buf_info *r
 	else
 		arg.release_buf_handle = 0;
 
-	Mbox_invoke(dev, dspid, CMD_APROCESS_DQBUF, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, CMD_APROCESS_DQBUF, &arg, sizeof(arg));
 
 	buf->handle = arg.buf_handle;
 	buf->phyaddr = arg.data;
@@ -244,7 +246,7 @@ int pcm_process_client_dqbuf(void *hdl, struct buf_info *buf, struct buf_info *r
 }
 
 int pcm_process_client_qbuf(void *hdl, struct buf_info *buf, u32 type,
-		struct device *dev, u32 dspid)
+		struct mbox_chan *chan, u32 sync)
 {
 	struct aml_pro_pcm_ctx *p_aml_pcm_ctx = (struct aml_pro_pcm_ctx *)hdl;
 	struct pcm_process_buf_st arg;
@@ -259,7 +261,7 @@ int pcm_process_client_qbuf(void *hdl, struct buf_info *buf, u32 type,
 	arg.count = buf->size;
 	arg.out_ret = -EINVAL;
 
-	Mbox_invoke(dev, dspid, CMD_APROCESS_QBUF, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, CMD_APROCESS_QBUF, &arg, sizeof(arg));
 
 	buf->handle = arg.buf_handle;
 	buf->phyaddr = arg.data;
@@ -272,7 +274,7 @@ int pcm_process_client_qbuf(void *hdl, struct buf_info *buf, u32 type,
 }
 
 int pcm_process_client_get_volume_gain(void *hdl, int *gain,
-		int is_out, struct device *dev, u32 dspid)
+		int is_out, struct mbox_chan *chan, u32 sync)
 {
 	struct aml_pro_pcm_ctx *p_aml_pcm_ctx = (struct aml_pro_pcm_ctx *)hdl;
 	struct pcm_process_gain_st arg;
@@ -282,7 +284,7 @@ int pcm_process_client_get_volume_gain(void *hdl, int *gain,
 	arg.is_out = is_out;
 	arg.out_ret = -EINVAL;
 
-	Mbox_invoke(dev, dspid, CMD_APROCESS_GET_GAIN, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, CMD_APROCESS_GET_GAIN, &arg, sizeof(arg));
 
 	if (!arg.out_ret)
 		*gain = arg.gain;
@@ -290,7 +292,7 @@ int pcm_process_client_get_volume_gain(void *hdl, int *gain,
 }
 
 int pcm_process_client_set_volume_gain(void *hdl, int gain,
-		int is_out, struct device *dev, u32 dspid)
+		int is_out, struct mbox_chan *chan, u32 sync)
 {
 	struct aml_pro_pcm_ctx *p_aml_pcm_ctx = (struct aml_pro_pcm_ctx *)hdl;
 	struct pcm_process_gain_st arg;
@@ -300,13 +302,13 @@ int pcm_process_client_set_volume_gain(void *hdl, int gain,
 	arg.is_out = is_out;
 	arg.out_ret = -EINVAL;
 
-	Mbox_invoke(dev, dspid, CMD_APROCESS_SET_GAIN, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, CMD_APROCESS_SET_GAIN, &arg, sizeof(arg));
 
 	return arg.out_ret;
 }
 
 void *aml_dsp_mem_allocate(phys_addr_t *phy, size_t size,
-		struct device *dev, u32 dspid)
+		struct mbox_chan *chan, u32 sync)
 {
 	struct acodec_shm_alloc_st arg;
 
@@ -314,24 +316,24 @@ void *aml_dsp_mem_allocate(phys_addr_t *phy, size_t size,
 	arg.pid = 0;
 	arg.phy = 0;
 
-	Mbox_invoke(dev, dspid, MBX_CMD_SHM_ALLOC, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, MBX_CMD_SHM_ALLOC, &arg, sizeof(arg));
 	if (!arg.phy)
 		return NULL;
 	*phy = (phys_addr_t)arg.phy;
 	return __va((phys_addr_t)arg.phy);
 }
 
-void aml_dsp_mem_free(phys_addr_t phy, struct device *dev, u32 dspid)
+void aml_dsp_mem_free(phys_addr_t phy, struct mbox_chan *chan, u32 sync)
 {
 	struct acodec_shm_free_st arg;
 
 	arg.phy = (u64)phy;
 
-	Mbox_invoke(dev, dspid, MBX_CMD_SHM_FREE, &arg, sizeof(arg));
+	Mbox_invoke(chan, sync, MBX_CMD_SHM_FREE, &arg, sizeof(arg));
 }
 
 void *audio_device_open(u32 card, u32 device, u32 flags,
-		struct rpc_pcm_config *config, struct device *dev, u32 dspid)
+		struct rpc_pcm_config *config, struct mbox_chan *chan, u32 sync)
 {
 	void *phandle = NULL;
 
@@ -339,7 +341,7 @@ void *audio_device_open(u32 card, u32 device, u32 flags,
 		config->start_threshold = 0;
 		config->silence_threshold = 0;
 		config->stop_threshold = 0;
-		phandle = pcm_process_client_open(card, device, PCM_IN, config, dev, dspid);
+		phandle = pcm_process_client_open(card, device, PCM_IN, config, chan, sync);
 		if (!phandle) {
 			pr_err("pcm client open fail\n");
 			return NULL;
@@ -348,7 +350,7 @@ void *audio_device_open(u32 card, u32 device, u32 flags,
 		config->start_threshold = 0;
 		config->silence_threshold = 0;
 		config->stop_threshold = 0;
-		phandle = pcm_process_client_open(card, device, PCM_OUT, config, dev, dspid);
+		phandle = pcm_process_client_open(card, device, PCM_OUT, config, chan, sync);
 		if (!phandle) {
 			pr_err("pcm client open fail\n");
 			return NULL;

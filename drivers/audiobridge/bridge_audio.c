@@ -40,6 +40,7 @@
 #include "bridge_common.h"
 #include "ringbuffer.h"
 #include "bridge_pcm_hal.h"
+#include <linux/amlogic/aml_mbox.h>
 
 #define DRIVER_NAME   "audio-bridge"
 #define PREFIX	"aml-audio-line,"
@@ -183,7 +184,7 @@ static int aml_bridge_calculate_ring_buffer_size(struct audio_pcm_function_t *pc
 
 	format_bytes = aml_bridge_pcm_format2bytes(pcm_function->format);
 
-	return pcm_function->channels * format_bytes * PERIOD_SIZE_MAX;
+	return pcm_function->channels * format_bytes * PERIOD_SIZE_MAX * PERIOD_COUNT;
 }
 
 static struct audio_pcm_function_t *aml_bridge_parse_of(struct device *dev,
@@ -342,6 +343,7 @@ static void bridge_control_work(struct work_struct *data)
 
 static int aml_bridge_init(struct device *dev, struct device_node *node, int idx)
 {
+	static struct mbox_chan *mbox_chan;
 	int ret = 0;
 	u32 value;
 	struct audio_pcm_bridge_t *bridge;
@@ -388,6 +390,18 @@ static int aml_bridge_init(struct device *dev, struct device_node *node, int idx
 		ret = -EINVAL;
 		goto err_init4;
 	}
+
+	if (!mbox_chan)
+		mbox_chan = aml_mbox_request_channel_byidx(dev, idx);
+	if (IS_ERR_OR_NULL(mbox_chan)) {
+		dev_err(dev, "Not find mailbox channel\n");
+		ret = -EINVAL;
+		goto err_init4;
+	}
+
+	bridge->audio_cap->mbox_chan = mbox_chan;
+	bridge->audio_play->mbox_chan = mbox_chan;
+
 	ret = of_property_read_u32(node, "isolated", &value);
 	if (ret >= 0 && value)
 		bridge->isolated_enable = true;
