@@ -303,6 +303,7 @@ struct video_dev_s {
 	u8 has_vpp2;
 	u8 vd1_vsr_safa_support;
 	u8 frm2fld_support;
+	u8 dejaggy_support;
 };
 
 struct video_layer_s;
@@ -380,6 +381,7 @@ struct vsr_safa_setting_s {
 	u32 preh_ratio; //2 bits prehor ds ratio 0:1/1 1:1/2 2:1/4 3:1/8
 	u32 prev_ratio; //2 bits prever ds ratio 0:1/1 1:1/2 2:1/4 3:1/8
 	u32 postsc_en; //1 bits postscaler en
+	bool dejaggy_en;
 };
 
 struct vsr_pi_setting_s {
@@ -721,6 +723,7 @@ struct video_device_hw_s {
 	u8 vpp_in_padding_support;
 	u8 vd1_vsr_safa_support;
 	u8 frm2fld_support;
+	u8 dejaggy_support;
 };
 
 struct amvideo_device_data_s {

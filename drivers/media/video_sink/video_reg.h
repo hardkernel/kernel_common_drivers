@@ -265,6 +265,7 @@ struct hw_vsr_safa_reg_s {
 	u32 safa_pps_cntl_scale_coef_luma;
 	u32 safa_pps_cntl_scale_coef_idx_chro;
 	u32 safa_pps_cntl_scale_coef_chro;
+	u32 safa_pps_dejaggy_ctrl;
 };
 
 extern struct hw_vd_reg_s vd_mif_reg_legacy_array[MAX_VD_LAYER_G12];
