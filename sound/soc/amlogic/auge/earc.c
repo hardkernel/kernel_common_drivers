@@ -103,13 +103,12 @@ struct earc_chipinfo {
 	unsigned int earc_spdifout_lane_mask;
 	bool rx_dmac_sync_int;
 	bool rterm_on;
-	bool no_ana_auto_cal;
+	bool ana_auto_cal;
 	bool chnum_mult_mode;
 	bool unstable_tick_sel;
 	bool rx_enable;
 	bool tx_enable;
-	bool arc_in_new;
-	bool arc_ch_sync;
+	bool rx_pll_new;
 	int arc_version;
 };
 
@@ -457,7 +456,7 @@ static void earcrx_init(bool st)
 			 st,
 			 p_earc->chipinfo->rx_dmac_sync_int,
 			 p_earc->chipinfo->rterm_on,
-			 p_earc->chipinfo->arc_in_new);
+			 p_earc->chipinfo->rx_pll_new);
 	if (st)
 		earcrx_cmdc_int_mask(p_earc->rx_top_map);
 
@@ -506,26 +505,26 @@ static void earcrx_update_attend_event(struct earc *p_earc,
 static void earcrx_pll_reset(struct earc *p_earc)
 {
 	int i = 0, count = 0;
-	bool arc_in_new = p_earc->chipinfo->arc_in_new;
+	bool rx_pll_new = p_earc->chipinfo->rx_pll_new;
 
 	earcrx_dmac_sync_int_enable(p_earc->rx_top_map, 0);
 	earcrx_pll_refresh(p_earc->rx_top_map,
 			   RST_BY_SELF,
 			   true,
-			   arc_in_new);
+			   rx_pll_new);
 	/* wait pll valid */
 	usleep_range(350, 400);
 	/* bit 31 is 1, and bit 30 is 0, then need reset pll */
 	while (earcrx_get_pll_valid(p_earc->rx_top_map) &&
 		!earcrx_get_pll_valid_auto(p_earc->rx_top_map)) {
 		/* new arc in, add check bit29, then need reset pll */
-		if (arc_in_new &&
+		if (rx_pll_new &&
 			earcrx_get_dmac_valid_auto(p_earc->rx_top_map))
 			break;
 		earcrx_pll_refresh(p_earc->rx_top_map,
 					   RST_BY_SELF,
 					   true,
-					   arc_in_new);
+					   rx_pll_new);
 		dev_info(p_earc->dev, "refresh earcrx pll, i %d\n", i++);
 		if (i >= 9) {
 			dev_info(p_earc->dev,
@@ -645,7 +644,7 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 
 			earcrx_pll_refresh(p_earc->rx_top_map,
 					   RST_BY_SELF, true,
-					   p_earc->chipinfo->arc_in_new);
+					   p_earc->chipinfo->rx_pll_new);
 		}
 
 		if (p_earc->rx_status1 & INT_EARCRX_ERR_CORRECT_C_BCHERR_INT_SET)
@@ -653,7 +652,7 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_R_PARITY_ERR) {
 			dev_info(p_earc->dev, "ARCRX_R_PARITY_ERR reset\n");
 			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true,
-							p_earc->chipinfo->arc_in_new);
+							p_earc->chipinfo->rx_pll_new);
 		}
 
 		if (p_earc->rx_status0 & INT_EARCRX_CMDC_HB_STATUS)
@@ -699,7 +698,7 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 			earcrx_dmac_sync_clr_irqs(p_earc->rx_top_map);
 			dev_info(p_earc->dev, "%s unstable tick happen\n", __func__);
 			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true,
-				p_earc->chipinfo->arc_in_new);
+				p_earc->chipinfo->rx_pll_new);
 		}
 	}
 	spin_unlock_irqrestore(&p_earc->rx_lock, flags);
@@ -1144,7 +1143,7 @@ static int earc_dai_prepare(struct snd_pcm_substream *substream,
 				 p_earc->rx_dmac_map,
 				 p_earc->chipinfo->unstable_tick_sel,
 				 p_earc->chipinfo->chnum_mult_mode,
-				 p_earc->chipinfo->arc_ch_sync);
+				 fmt.ch_num);
 		earcrx_arc_init(p_earc->rx_dmac_map);
 	}
 
@@ -1511,9 +1510,9 @@ static int earc_dai_startup(struct snd_pcm_substream *substream,
 			dev_err(p_earc->dev, "Can't enable earc clk_rx_dmac_srcpll: %d\n", ret);
 			goto err;
 		}
-		if (!p_earc->chipinfo->arc_in_new)
+		if (!p_earc->chipinfo->rx_pll_new)
 			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true,
-			p_earc->chipinfo->arc_in_new);
+			p_earc->chipinfo->rx_pll_new);
 	}
 
 	p_earc->substreams[substream->stream] = substream;
@@ -2772,6 +2771,7 @@ static const struct snd_soc_component_driver earc_component = {
 struct earc_chipinfo sm1_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V1,
 	.rx_dmac_sync_int = false,
+	.ana_auto_cal = true,
 	.rx_enable = true,
 	.tx_enable = false,
 };
@@ -2779,6 +2779,7 @@ struct earc_chipinfo sm1_earc_chipinfo = {
 struct earc_chipinfo tm2_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V1,
 	.rx_dmac_sync_int = false,
+	.ana_auto_cal = true,
 	.rx_enable = true,
 	.tx_enable = true,
 	.arc_version = TM2_ARC,
@@ -2787,6 +2788,7 @@ struct earc_chipinfo tm2_earc_chipinfo = {
 struct earc_chipinfo tm2_revb_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
 	.rx_dmac_sync_int = true,
+	.ana_auto_cal = true,
 	.rx_enable = true,
 	.tx_enable = true,
 	.arc_version = TM2_ARC,
@@ -2795,6 +2797,7 @@ struct earc_chipinfo tm2_revb_earc_chipinfo = {
 struct earc_chipinfo sc2_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
 	.rx_dmac_sync_int = true,
+	.ana_auto_cal = true,
 	.rx_enable = true,
 	.tx_enable = false,
 };
@@ -2803,12 +2806,10 @@ struct earc_chipinfo t7_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
 	.rx_dmac_sync_int = false,
 	.rterm_on = true,
-	.no_ana_auto_cal = true,
 	.chnum_mult_mode = true,
 	.unstable_tick_sel = true,
 	.rx_enable = true,
 	.tx_enable = true,
-	.arc_ch_sync = true,
 	.arc_version = T7_ARC,
 };
 
@@ -2816,7 +2817,6 @@ struct earc_chipinfo t3_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
 	.rx_dmac_sync_int = false,
 	.rterm_on = true,
-	.no_ana_auto_cal = true,
 	.chnum_mult_mode = true,
 	.unstable_tick_sel = true,
 	.rx_enable = false,
@@ -2828,7 +2828,6 @@ struct earc_chipinfo t5m_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
 	.rx_dmac_sync_int = false,
 	.rterm_on = true,
-	.no_ana_auto_cal = true,
 	.chnum_mult_mode = true,
 	.unstable_tick_sel = true,
 	.rx_enable = false,
@@ -2840,7 +2839,6 @@ struct earc_chipinfo s5_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
 	.rx_dmac_sync_int = false,
 	.rterm_on = true,
-	.no_ana_auto_cal = true,
 	.chnum_mult_mode = true,
 	.unstable_tick_sel = true,
 	.rx_enable = true,
@@ -2850,10 +2848,11 @@ struct earc_chipinfo s5_earc_chipinfo = {
 struct earc_chipinfo s7d_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
 	.rx_dmac_sync_int = true,
+	.rterm_on = true,
+	.chnum_mult_mode = true,
 	.rx_enable = true,
 	.tx_enable = false,
-	.arc_in_new = true,
-	.arc_ch_sync = true,
+	.rx_pll_new = true,
 };
 
 static const struct of_device_id earc_device_id[] = {
@@ -3040,7 +3039,7 @@ static void earc_work_func(struct work_struct *work)
 
 	/* RX */
 	if (!IS_ERR(p_earc->rx_top_map) &&
-	    !p_earc->chipinfo->no_ana_auto_cal &&
+	    p_earc->chipinfo->ana_auto_cal &&
 	    p_earc->event & EVENT_RX_ANA_AUTO_CAL) {
 		p_earc->event &= ~EVENT_RX_ANA_AUTO_CAL;
 		earcrx_ana_auto_cal(p_earc->rx_top_map);
@@ -3048,7 +3047,7 @@ static void earc_work_func(struct work_struct *work)
 
 	/* TX */
 	if (!IS_ERR(p_earc->tx_top_map) &&
-	    !p_earc->chipinfo->no_ana_auto_cal &&
+	    p_earc->chipinfo->ana_auto_cal &&
 	    p_earc->event & EVENT_TX_ANA_AUTO_CAL) {
 		p_earc->event &= ~EVENT_TX_ANA_AUTO_CAL;
 		earctx_ana_auto_cal(p_earc->tx_top_map);
