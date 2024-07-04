@@ -15099,6 +15099,17 @@ static struct video_device_hw_s s7d_dev_property = {
 	.frm2fld_support = 1,
 };
 
+static struct video_device_hw_s s6_dev_property = {
+	.vd2_independ_blend_ctrl = 0,
+	.aisr_support = 0,
+	.prevsync_support = 0,
+	.sr_in_size = 0,
+	.sr01_num = 0,
+	.vd1_vsr_safa_support = 1,
+	.frm2fld_support = 1,
+	.dejaggy_support = 1,
+};
+
 #endif
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {
@@ -15563,9 +15574,13 @@ static int amvideom_probe(struct platform_device *pdev)
 		       sizeof(struct video_device_hw_s));
 		aisr_en = 1;
 		cur_dev->power_ctrl = true;
-	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S7D_ ||
-		amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S6_) {
+	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S7D_) {
 		memcpy(&amvideo_meson_dev.dev_property, &s7d_dev_property,
+		       sizeof(struct video_device_hw_s));
+		aisr_en = 1;
+		cur_dev->power_ctrl = true;
+	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S6_) {
+		memcpy(&amvideo_meson_dev.dev_property, &s6_dev_property,
 		       sizeof(struct video_device_hw_s));
 		aisr_en = 1;
 		cur_dev->power_ctrl = true;

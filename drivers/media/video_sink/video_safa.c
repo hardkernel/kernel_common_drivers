@@ -668,13 +668,22 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 		vsize_out + (1 << 16)) / 2;
 	vsr_top->pi_safa_hsc_ini_integer = 0x1f;
 	vsr_top->pi_safa_vsc_ini_integer = 0x1f;
+	/* when safa size <= 2048 and scaler up, dejaggy_enable */
+	if (cur_dev->dejaggy_support &&
+		hsize_in <= 2048 &&
+		(hsize_out > hsize_in || vsize_out > vsize_in) &&
+		!vsr_safa->prev_en)
+		vsr_safa->dejaggy_en = true;
+	else
+		vsr_safa->dejaggy_en = false;
 	if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA) {
-		pr_info("%s:vsr top: h/vsize_in:%d,%d, h/vsize_out:%d, %d\n",
+		pr_info("%s:vsr top: h/vsize_in:%d,%d, h/vsize_out:%d, %d, dejaggy_en=%d\n",
 			__func__,
 			hsize_in,
 			vsize_in,
 			hsize_out,
-			vsize_out);
+			vsize_out,
+			vsr_safa->dejaggy_en);
 		pr_info("%s:safa pre_scaler pre_h/vsize:%d, %d\n",
 			__func__,
 			pre_hsize,
@@ -948,6 +957,9 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 		analy_en, 4, 1);
 	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 		safa_pps_top_en, 8, 1);
+	if (cur_dev->dejaggy_support)
+		rdma_wr_bits(vsr_reg->safa_pps_dejaggy_ctrl,
+			vsr_safa->dejaggy_en, 31, 1);
 }
 
 static void set_vsr_input_format(struct vsr_setting_s *vsr)

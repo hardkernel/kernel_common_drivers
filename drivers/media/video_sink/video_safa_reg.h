@@ -351,6 +351,9 @@
 //Bit  3: 2        reserved
 //Bit  1: 0     reg_dir_blend_range_en    // unsigned ,    RW, default = 1
 
+#define SAFA_PPS_DEJAGGY_CTRL        0x518a
+//Bit 31        dejaggy enable
+
 #define SAFA_PPS_HW_CTRL           0x5190
 //Bit 31:29        reserved
 //Bit 28        reg_field      // unsigned ,    RW, default = 0
