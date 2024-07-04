@@ -992,10 +992,8 @@ ssize_t frc_debug_other_if_help(struct frc_dev_s *devp, char *buf)
 
 	fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
-	len += sprintf(buf + len, "crc_read\t=%d\n", devp->frc_crc_data.frc_crc_read);
-	len += sprintf(buf + len, "crc_en\t\t=%d %d %d %d\n",
-		devp->frc_crc_data.me_wr_crc.crc_en, devp->frc_crc_data.me_rd_crc.crc_en,
-		devp->frc_crc_data.mc_wr_crc.crc_en, devp->frc_crc_data.frc_crc_pr);
+	len += sprintf(buf + len, "crc_check_frm\t=%d %d\n",
+		devp->frc_crc_data.me_check_frm, devp->frc_crc_data.mc_check_frm);
 	len += sprintf(buf + len, "freq_en\t\t=%d\n", devp->in_sts.high_freq_en);
 	len += sprintf(buf + len, "inp_adj_en\t=%d\n", devp->in_sts.inp_size_adj_en);
 	len += sprintf(buf + len, "crash_int_en\t=(check log)\n");
@@ -1051,22 +1049,15 @@ void frc_debug_other_if(struct frc_dev_s *devp, const char *buf, size_t count)
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			frc_set_axi_crash_irq(devp, val1);
 	} else if (!strcmp(parm[0], "crc_read")) {
-		if (!parm[1])
+		frc_crc_read(devp);
+	} else if (!strcmp(parm[0], "crc_check_frm")) {
+		if (!parm[2])
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
-			devp->frc_crc_data.frc_crc_read = val1;
-	} else if (!strcmp(parm[0], "crc_en")) {
-		if (!parm[4])
-			goto exit;
-		if (kstrtoint(parm[1], 10, &val1) == 0)
-			devp->frc_crc_data.me_wr_crc.crc_en = val1;
+			devp->frc_crc_data.me_check_frm = val1;
 		if (kstrtoint(parm[2], 10, &val1) == 0)
-			devp->frc_crc_data.me_rd_crc.crc_en = val1;
-		if (kstrtoint(parm[3], 10, &val1) == 0)
-			devp->frc_crc_data.mc_wr_crc.crc_en = val1;
-		if (kstrtoint(parm[4], 10, &val1) == 0)
-			devp->frc_crc_data.frc_crc_pr = val1;
-		frc_crc_enable(devp);
+			devp->frc_crc_data.mc_check_frm = val1;
+		frc_crc_check_frm(devp);
 	} else if (!strcmp(parm[0], "del_120_pth")) {
 		if (!parm[1])
 			goto exit;

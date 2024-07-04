@@ -128,8 +128,9 @@
 // frc_2024-0617 add rdma access for alg
 // frc_2024-0621 modify t3x muti flow
 // frc_2024-0626 frc cursor control debug
+// frc_2024-0704 fix frc clk latency err
 
-#define FRC_FW_VER			"2024-0704 fix frc clk latency err"
+#define FRC_FW_VER			"2024-0709 frc add crc debug"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
@@ -606,18 +607,12 @@ struct frc_csc_set_s {
 	u32 pst_offset2;
 };
 
-struct crc_parm_s {
-	u32 crc_en;
-	u32 crc_done_flag;
-	u32 crc_data_cmp[2];/*3cmp*/
-};
-
 struct frc_crc_data_s {
-	u32 frc_crc_read;
-	u32 frc_crc_pr;
-	struct crc_parm_s me_wr_crc;
-	struct crc_parm_s me_rd_crc;
-	struct crc_parm_s mc_wr_crc;
+	u8 me_check_frm;
+	u8 mc_check_frm;
+	u32 mevp_mv_crc_sum;
+	u32 mevp_logo_crc_sum;
+	u32 mc_crc_sum;
 };
 
 struct frc_dmc_cfg_s {

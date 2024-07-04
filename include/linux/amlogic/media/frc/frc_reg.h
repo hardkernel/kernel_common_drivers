@@ -1878,6 +1878,10 @@
 //Bit 31:1          reserved
 //Bit  0            ro_me_undone_flag            // unsigned , RO , default = 0  me_process undone flag
 
+#define FRC_MEVP_CRC_CHECK_FRM                     0x108a
+#define FRC_MEVP_RO_MV_CRC_SUM                     0x108b
+#define FRC_MEVP_RO_LOGO_CRC_SUM                   0x108c
+
 #define FRC_ME_EN                                  0x1100
 //Bit 31           reg_me_en                 // unsigned ,    RW, default = 0  enable me function.
 //Bit 30           reg_me_lpf_en             // unsigned ,    RW, default = 0  lpf enable for me data
@@ -1958,13 +1962,15 @@
 #define FRC_MELOGO_REGION_HWINDOW_0                0x1f13
 #define FRC_MELOGO_REGION_VWINDOW_1                0x1f14
 #define FRC_MELOGO_REGION_VWINDOW_0                0x1f15
+#define FRC_VP_TOP_CLR_STAT                        0x1ef3
 #define FRC_VP_TOP_STAT                            0x1ef7
-#define FRC_VP_TOP_CLR_STAT                        0x1ef8
 #define FRC_MELOGO_BB_BLK_ST                       0x1f02
 #define FRC_MELOGO_BB_BLK_ED                       0x1f03
 #define FRC_MC_SETTING1                            0x3000
 #define FRC_MC_SETTING2                            0x3001
 #define FRC_MC_LOSS_SLICE_SEC                      0x3905
+#define FRC_MC_CRC_CHECK_FRM                       0x3980
+#define FRC_MC_CRC_SUM                             0x3981
 #define FRC_MC_PRB_CTRL0                           0x3988
 //Bit 31:30         reserved
 //Bit 29:0          reg_mc_probe_pix          // unsigned ,RW,default=32'h40080200,{R,G,B}/{Y,U,V}

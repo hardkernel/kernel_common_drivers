@@ -1205,6 +1205,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 
 	if (frc_event)
 		pr_frc(1, "event = 0x%08x\n", frc_event);
+	pr_frc(2, "mc crc value = %x", READ_FRC_REG(0x3981));
 }
 
 void frc_state_change_finish(struct frc_dev_s *devp)

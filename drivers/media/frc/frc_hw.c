@@ -378,22 +378,6 @@ void set_frc_bypass(u32 en)
 	}
 }
 
-void frc_crc_enable(struct frc_dev_s *frc_devp)
-{
-	struct frc_crc_data_s *crc_data;
-	unsigned int en;
-
-	crc_data = &frc_devp->frc_crc_data;
-	en = crc_data->me_wr_crc.crc_en;
-	WRITE_FRC_BITS(INP_ME_WRMIF_CTRL, en, 31, 1);
-
-	en = crc_data->me_rd_crc.crc_en;
-	WRITE_FRC_BITS(INP_ME_RDMIF_CTRL, en, 31, 1);
-
-	en = crc_data->mc_wr_crc.crc_en;
-	WRITE_FRC_BITS(INP_MC_WRMIF_CTRL, en, 31, 1);
-}
-
 void frc_set_buf_num(u32 frc_fb_num)
 {
 	struct frc_fw_data_s *fw_data;
@@ -459,81 +443,27 @@ void frc_check_hw_stats(struct frc_dev_s *frc_devp, u8 checkflag)
 	}
 }
 
-void frc_me_crc_read(struct frc_dev_s *frc_devp)
+void frc_crc_check_frm(struct frc_dev_s *frc_devp)
 {
 	struct frc_crc_data_s *crc_data;
-	u32 val;
 
 	crc_data = &frc_devp->frc_crc_data;
-	if (crc_data->frc_crc_read) {
-		val = READ_FRC_REG(INP_ME_WRMIF);
-		crc_data->me_wr_crc.crc_done_flag = val & 0x1;
-		if (crc_data->me_wr_crc.crc_en)
-			crc_data->me_wr_crc.crc_data_cmp[0] = READ_FRC_REG(INP_ME_WRMIF_CRC1);
-		else
-			crc_data->me_wr_crc.crc_data_cmp[0] = 0;
-
-		val = READ_FRC_REG(INP_ME_RDMIF);
-		crc_data->me_rd_crc.crc_done_flag = val & 0x1;
-
-		if (crc_data->me_rd_crc.crc_en) {
-			crc_data->me_rd_crc.crc_data_cmp[0] = READ_FRC_REG(INP_ME_RDMIF_CRC1);
-			crc_data->me_rd_crc.crc_data_cmp[1] = READ_FRC_REG(INP_ME_RDMIF_CRC2);
-		} else {
-			crc_data->me_rd_crc.crc_data_cmp[0] = 0;
-			crc_data->me_rd_crc.crc_data_cmp[1] = 0;
-		}
-		if (crc_data->frc_crc_pr) {
-			if (crc_data->me_wr_crc.crc_en && crc_data->me_rd_crc.crc_en)
-				pr_frc(0,
-					"invs_cnt = %d, mewr_done_flag = %d, mewr_cmp1 = 0x%x, merd_done_flag = %d, merd_cmp1 = 0x%x, merd_cmp2 = 0x%x\n",
-					frc_devp->in_sts.vs_cnt,
-					crc_data->me_wr_crc.crc_done_flag,
-					crc_data->me_wr_crc.crc_data_cmp[0],
-					crc_data->me_rd_crc.crc_done_flag,
-					crc_data->me_rd_crc.crc_data_cmp[0],
-					crc_data->me_rd_crc.crc_data_cmp[1]);
-			else if (crc_data->me_wr_crc.crc_en)
-				pr_frc(0,
-					"invs_cnt = %d, mewr_done_flag = %d, mewr_cmp1 = 0x%x\n",
-					frc_devp->in_sts.vs_cnt,
-					crc_data->me_wr_crc.crc_done_flag,
-					crc_data->me_wr_crc.crc_data_cmp[0]);
-			else if (crc_data->me_rd_crc.crc_en)
-				pr_frc(0,
-					"invs_cnt = %d, merd_done_flag = %d, merd_cmp1 = 0x%x, merd_cmp2 = 0x%x\n",
-					frc_devp->in_sts.vs_cnt,
-					crc_data->me_rd_crc.crc_done_flag,
-					crc_data->me_rd_crc.crc_data_cmp[0],
-					crc_data->me_rd_crc.crc_data_cmp[1]);
-		}
-	}
+	WRITE_FRC_REG(FRC_MEVP_CRC_CHECK_FRM, crc_data->me_check_frm);
+	WRITE_FRC_REG(FRC_MC_CRC_CHECK_FRM, crc_data->mc_check_frm);
 }
 
-void frc_mc_crc_read(struct frc_dev_s *frc_devp)
+void frc_crc_read(struct frc_dev_s *frc_devp)
 {
 	struct frc_crc_data_s *crc_data;
-	u32 val;
 
 	crc_data = &frc_devp->frc_crc_data;
-	if (crc_data->frc_crc_read) {
-		val = READ_FRC_REG(INP_MC_WRMIF);
-		crc_data->mc_wr_crc.crc_done_flag = val & 0x1;
-		if (crc_data->mc_wr_crc.crc_en) {
-			crc_data->mc_wr_crc.crc_data_cmp[0] = READ_FRC_REG(INP_MC_WRMIF_CRC1);
-			crc_data->mc_wr_crc.crc_data_cmp[1] = READ_FRC_REG(INP_MC_WRMIF_CRC2);
-		} else {
-			crc_data->mc_wr_crc.crc_data_cmp[0] = 0;
-			crc_data->mc_wr_crc.crc_data_cmp[1] = 0;
-		}
-		if (crc_data->frc_crc_pr && crc_data->mc_wr_crc.crc_en)
-			pr_frc(0,
-			"outvs_cnt = %d, mcwr_done_flag = %d, mcwr_cmp1 = 0x%x, mcwr_cmp2 = 0x%x\n",
-				frc_devp->out_sts.vs_cnt,
-				crc_data->mc_wr_crc.crc_done_flag,
-				crc_data->mc_wr_crc.crc_data_cmp[0],
-				crc_data->mc_wr_crc.crc_data_cmp[1]);
-	}
+	crc_data->mevp_mv_crc_sum = READ_FRC_REG(FRC_MEVP_RO_MV_CRC_SUM);
+	crc_data->mevp_logo_crc_sum = READ_FRC_REG(FRC_MEVP_RO_LOGO_CRC_SUM);
+	crc_data->mc_crc_sum = READ_FRC_REG(FRC_MC_CRC_SUM);
+	PR_FRC("mv_crc = 0x%8x\tlogo_crc = 0x%8x\tmc_crc = 0x%8x\n",
+		crc_data->mevp_mv_crc_sum,
+		crc_data->mevp_logo_crc_sum,
+		crc_data->mc_crc_sum);
 }
 
 void inp_undone_read(struct frc_dev_s *frc_devp)
