@@ -606,32 +606,6 @@
 		vm_id = <0>;
 	};
 
-	aml_cams {
-		compatible = "amlogic, cams_prober-s6";
-		status = "okay";
-
-		// using cm_mclk_0 24M
-		clocks = <&clkc CLKID_MCLK0>;
-		clock-names = "mclk0";
-
-		cam_0{
-			cam_name = "ov5640";
-			front_back = <0>;
-			camera-i2c-bus = <&i2c5>;
-			//camvdd-gpios = <&gpio GPIOA_13 GPIO_ACTIVE_HIGH>; // no needed.
-			gpio_pwdn-gpios = <&gpio GPIOX_5 GPIO_ACTIVE_HIGH>;
-			gpio_rst-gpios = <&gpio GPIOX_4 GPIO_ACTIVE_HIGH>;
-			mirror_flip = <1>;
-			vertical_flip = <1>;
-			spread_spectrum = <0>;
-			bt_path = "csi";
-			interface = "mipi";
-			clk_channel = "a";
-			bt_path_count = <1>;
-			status = "okay";
-		};
-	};
-
 	amvdec_csi {
 		compatible = "amlogic, amvdec_csi-s6";
 		status = "okay";
@@ -1074,9 +1048,27 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c5_pins3>;
 	clock-frequency = <100000>;
-	ov5640@3c {
-		compatible = "ov5640";
-		reg = <0x3c>;
+
+	amlsens_0: sensor0@1a {
+		compatible = "amlogic, sensor";
+		index = <1>;
+		reg = <0x1a>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		// using cm_mclk_0 24M
+		clocks = <&clkc CLKID_MCLK0>;
+		clock-names = "mclk0";
+
+		pwdn-gpios = <&gpio GPIOX_5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio GPIOX_4 GPIO_ACTIVE_HIGH>;
+
+		port {
+			amlsens_0_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				link-frequencies = /bits/ 64 <222750000>;
+			};
+		};
 	};
 };
 

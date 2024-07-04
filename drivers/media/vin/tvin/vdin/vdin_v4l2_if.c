@@ -1283,6 +1283,7 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 
 	/* mipi-csi donot support state_machine */
 	if (devp->parm.port == TVIN_PORT_MIPI) {
+		devp->parm.info.status = TVIN_SIG_STATUS_STABLE;
 		if (devp->frontend && devp->frontend->sm_ops &&
 			devp->frontend->sm_ops->get_fmt)
 			devp->parm.info.fmt =
@@ -2097,7 +2098,7 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *devp)
 
 	if (devp->parm.port == TVIN_PORT_MIPI) {
 		//vdin_cap_param.frame_rate = 30;
-		vdin_cap_param.cfmt = TVIN_YUV422;
+		vdin_cap_param.cfmt = TVIN_YUV444;
 		//vdin_cap_param.bt_path = BT_PATH_CSI2;
 		vdin_cap_param.hsync_phase = 1;
 		vdin_cap_param.vsync_phase = 1;

@@ -12,8 +12,10 @@
 #include "../tvin_frontend.h"
 #include "../tvin_global.h"
 
+#define PRINT_DEBUG_INFO 1
+
 #ifdef PRINT_DEBUG_INFO
-#define DPRINT(...)     //printk(__VA_ARGS__)
+#define DPRINT(...)     pr_info(__VA_ARGS__)
 #else
 #define DPRINT(...)
 #endif

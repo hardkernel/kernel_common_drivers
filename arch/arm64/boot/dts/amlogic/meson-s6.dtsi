@@ -1692,6 +1692,7 @@
 		version  = <0x20220120>;
 		/* fe_ports refer to tvin.h */
 		fe_ports = <0x00001001   /* CVBS1 */
+			0x00010000   /* MIPI */
 			0x00004000   /* HDMI0 */
 			0x00004001   /* HDMI1 */
 			0x00004002>; /* HDMI2 */

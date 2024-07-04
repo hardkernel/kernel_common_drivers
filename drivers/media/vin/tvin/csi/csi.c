@@ -41,22 +41,35 @@ static dev_t amcsi_devno;
 static struct class *amcsi_clsp;
 static struct csi_chip_info_s g_csi_chip_info;
 
+static struct sensor_info g_sensor_info;
+
+void update_sensor_info(struct sensor_info info)
+{
+	g_sensor_info = info;
+	DPRINT("csi: %s, sensor w %d h %d bps %d M nlanes %d\n",
+			__func__, g_sensor_info.width, g_sensor_info.height,
+			g_sensor_info.bps_m, g_sensor_info.nlanes);
+}
+EXPORT_SYMBOL(update_sensor_info);
+
 static void init_csi_dec_parameter(struct amcsi_dev_s *devp)
 {
 	enum tvin_sig_fmt_e fmt;
 	const struct tvin_format_s *fmt_info_p;
 
-	pr_info("%s,Enter\n", __func__);
+	if (g_sensor_info.width == 1920 && g_sensor_info.height == 1080)
+		devp->para.fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
+	else
+		DPRINT("%s, %d TBD\n", __func__, __LINE__);
 	fmt = devp->para.fmt;
-	fmt_info_p =
-	(struct tvin_format_s *)tvin_get_fmt_info(fmt);
-	devp->para.v_active    = 1080;
-	devp->para.h_active    = 1920;
+	fmt_info_p = (struct tvin_format_s *)tvin_get_fmt_info(fmt);
+	devp->para.v_active    = g_sensor_info.height;
+	devp->para.h_active    = g_sensor_info.width;
 	devp->para.hsync_phase = 0;
 	devp->para.vsync_phase = 0;
 	devp->para.hs_bp       = 0;
 	devp->para.vs_bp       = 0;
-	devp->para.csi_hw_info.lanes = 2;
+	devp->para.csi_hw_info.lanes = g_sensor_info.nlanes;
 }
 
 static void reset_btcsi_module(void)
@@ -72,8 +85,6 @@ static void reinit_csi_dec(struct amcsi_dev_s *devp)
 static void start_amvdec_csi(struct amcsi_dev_s *devp)
 {
 	enum tvin_port_e port =  devp->para.port;
-
-	pr_info("%s,Enter\n", __func__);
 
 	if (devp->dec_status & TVIN_AMCSI_RUNNING) {
 		pr_info("%s csi have started already.\n",
@@ -335,12 +346,17 @@ static int amcsi_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		container_of(fe, struct amcsi_dev_s, frontend);
 	struct vdin_parm_s *parm = fe->private_data;
 
+	if (!parm) {
+		DPRINT("[mipi..]%s:invalid port param %d.\n", __func__, port);
+		return -1;
+	}
+
 	if (port != TVIN_PORT_MIPI) {
 		DPRINT("[mipi..]%s:invalid port %d.\n", __func__, port);
 		return -1;
 	}
 
-	if (!memcpy(&csi_devp->para, parm,
+	if (parm && !memcpy(&csi_devp->para, parm,
 		sizeof(struct vdin_parm_s))) {
 		DPRINT("[mipi..]%s memcpy error.\n", __func__);
 		return -1;
@@ -354,6 +370,8 @@ static int amcsi_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		&parm->csi_hw_info, sizeof(struct csi_parm_s));
 	csi_devp->csi_parm.skip_frames = parm->skip_count;
 
+	csi_devp->csi_parm.settle = g_sensor_info.bps_m;
+	csi_devp->csi_parm.lanes = g_sensor_info.nlanes;
 	csi_devp->reset = 0;
 	csi_devp->reset_count = 0;
 
@@ -397,9 +415,10 @@ static enum tvin_sig_fmt_e amcsi_get_fmt(struct tvin_frontend_s *fe,
 {
 	enum tvin_sig_fmt_e fmt = TVIN_SIG_FMT_NULL;
 
-	//todo:get fmt from sensor
-	fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
-
+	if (g_sensor_info.width == 1920 && g_sensor_info.height == 1080)
+		fmt = TVIN_SIG_FMT_HDMI_1920X1080P_30HZ;
+	else
+		DPRINT("%s, %d TBD\n", __func__, __LINE__);
 	return fmt;
 }
 
