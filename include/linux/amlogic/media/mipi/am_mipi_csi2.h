@@ -143,6 +143,15 @@ struct am_csi2_ops_s {
 	int data_num;
 };
 
+struct sensor_info {
+	int width;
+	int height;
+	int bps_m;
+	int nlanes;
+};
+
+void update_sensor_info(struct sensor_info info);
+
 #define MIPI_DEBUG
 #ifdef MIPI_DEBUG
 #define mipi_dbg(fmt, args...) pr_info(fmt, ## args)
