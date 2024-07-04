@@ -70,6 +70,7 @@ struct sy602x_priv {
 	u32 dap_ram_update;
 	struct mutex dap_ram_lock; /* device lock */
 	struct gpio_desc *reset_pin_desc;
+	bool mute;
 };
 
 static struct sy602x_priv *sy602x_priv_data;
@@ -184,6 +185,48 @@ static int sy602x_reg_switch_put(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 
+static int sy602x_mute_info(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->access =
+	    (SNDRV_CTL_ELEM_ACCESS_TLV_READ | SNDRV_CTL_ELEM_ACCESS_READWRITE);
+	uinfo->count = 1;
+
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
+static int sy602x_mute_locked_put(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct sy602x_priv *sy602x = snd_soc_component_get_drvdata(component);
+	unsigned int val;
+
+	sy602x->mute = ucontrol->value.integer.value[0];
+	val = (sy602x->mute) ? SY602X_SOFT_MUTE_ALL : 0;
+
+	snd_soc_component_update_bits(component,
+			SY602X_SOFT_MUTE, SY602X_SOFT_MUTE_ALL, val);
+
+	return 0;
+}
+
+static int sy602x_mute_locked_get(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct sy602x_priv *sy602x = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = sy602x->mute;
+
+	return 0;
+}
+
 #define SY602X_REG_SWITCH(xname, xreg, xmask, xon_value, xoff_value) \
 { \
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
@@ -206,6 +249,13 @@ static const DECLARE_TLV_DB_SCALE(sy602x_vol_tlv_m, -12750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(sy602x_vol_tlv,          -7950, 50, 1);
 
 static const struct snd_kcontrol_new sy602x_snd_controls[] = {
+	{
+		 .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		 .name = "Master Playback Switch",
+		 .info = sy602x_mute_info,
+		 .get = sy602x_mute_locked_get,
+		 .put = sy602x_mute_locked_put,
+	},
 	SOC_SINGLE_TLV("Master Playback Volume",
 		SY602X_MAS_VOL, 0, 255, 0, sy602x_vol_tlv_m),
 	SOC_SINGLE_TLV("Ch1 Playback Volume",
@@ -213,8 +263,6 @@ static const struct snd_kcontrol_new sy602x_snd_controls[] = {
 	SOC_SINGLE_TLV("Ch2 Playback Volume",
 		SY602X_CH2_VOL, 0, 255, 0, sy602x_vol_tlv),
 	// switch
-	SOC_SINGLE("Master Playback Switch", SY602X_SOFT_MUTE,
-		SY602X_SOFT_MUTE_MASTER_SHIFT, 1, 1),
 	SOC_SINGLE("Ch1 Playback Switch", SY602X_SOFT_MUTE,
 		SY602X_SOFT_MUTE_CH1_SHIFT, 1, 1),
 	SOC_SINGLE("Ch2 Playback Switch", SY602X_SOFT_MUTE,
@@ -316,17 +364,22 @@ static int sy602x_hw_params(struct snd_pcm_substream *substream,
 
 static int sy602x_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 {
+	struct snd_soc_component *component = dai->component;
+	struct sy602x_priv *sy602x = snd_soc_component_get_drvdata(component);
 	unsigned int val;
 
-	struct sy602x_priv *sy602x;
-	struct snd_soc_component *component = dai->component;
-
-	sy602x = snd_soc_component_get_drvdata(component);
 
 	val = (mute) ? SY602X_SOFT_MUTE_ALL : 0;
 
-	return (snd_soc_component_update_bits(component,
-			SY602X_SOFT_MUTE, SY602X_SOFT_MUTE_ALL, val));
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (!mute && sy602x->mute)
+			return 0;
+
+		snd_soc_component_update_bits(component,
+			SY602X_SOFT_MUTE, SY602X_SOFT_MUTE_ALL, val);
+	}
+
+	return 0;
 }
 
 static const struct snd_soc_dai_ops sy602x_dai_ops = {
