@@ -468,12 +468,14 @@ static long dmabuf_manage_export(unsigned long args)
 	}
 	fd = dma_buf_fd(dbuf, fd_flags);
 	if (fd < 0) {
-		pr_error("dma_buf_fd failed\n");
+		pr_error("dma_buf_fd failed, ret:%d, dbuf:%px, file:%px\n",
+				fd, dbuf, dbuf->file);
 		goto error_fd;
 	}
 	return fd;
 error_fd:
 	dma_buf_put(dbuf);
+	return fd;
 error_export:
 error_copy:
 	kfree(block);
@@ -646,12 +648,14 @@ static long dmabuf_manage_export_dmabuf(unsigned long args)
 	}
 	fd = dma_buf_fd(dbuf, fd_flags);
 	if (fd < 0) {
-		pr_error("dma_buf_fd failed\n");
+		pr_error("dma_buf_fd failed, ret:%d, dbuf:%px, file:%px\n",
+				fd, dbuf, dbuf->file);
 		goto error_fd;
 	}
 	return fd;
 error_fd:
 	dma_buf_put(dbuf);
+	return fd;
 error_alloc_object:
 	kfree(block->priv);
 	kfree(block);
