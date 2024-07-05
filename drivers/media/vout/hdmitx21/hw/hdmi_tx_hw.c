@@ -612,7 +612,7 @@ static bool soc_freshrate_limited(const struct hdmi_timing *timing, u32 vsync)
 }
 
 /* VIC is supported by SOC/IP level */
-static int hdmitx_validate_mode(struct hdmitx_hw_common *tx_hw, u32 vic)
+static int hdmitx_validate_mode(struct hdmitx_hw_common *tx_hw, u32 vic, u32 max_refreshrate)
 {
 	int ret = 0;
 	const struct hdmi_timing *timing;
@@ -632,20 +632,16 @@ static int hdmitx_validate_mode(struct hdmitx_hw_common *tx_hw, u32 vic)
 	case MESON_CPU_ID_S5:
 		/* for S5, the MAX capabilities are 8K60, and 4k120, and below */
 		ret = (soc_resolution_limited(timing, 4320) && soc_freshrate_limited(timing, 60)) ||
-		       (soc_resolution_limited(timing, 2160) && soc_freshrate_limited(timing, 120));
+		       (soc_resolution_limited(timing, 2160) &&
+			   soc_freshrate_limited(timing, max_refreshrate));
 		break;
 	case MESON_CPU_ID_S1A:
 		ret = soc_resolution_limited(timing, 1080) && soc_freshrate_limited(timing, 60);
 		break;
-	case MESON_CPU_ID_S7D:
-		ret = (soc_resolution_limited(timing, 2160) && soc_freshrate_limited(timing, 60)) ||
-		       (soc_resolution_limited(timing, 1080) && soc_freshrate_limited(timing, 120));
-		break;
-	case MESON_CPU_ID_S7:
-	case MESON_CPU_ID_T7:
-	case MESON_CPU_ID_S6:
 	default:
-		ret = soc_resolution_limited(timing, 2160) && soc_freshrate_limited(timing, 60);
+		ret = (soc_resolution_limited(timing, 2160) && soc_freshrate_limited(timing, 60)) ||
+		       (soc_resolution_limited(timing, 1080) &&
+			   soc_freshrate_limited(timing, max_refreshrate));
 		break;
 	}
 	return (ret == 1) ? 0 : -EINVAL;

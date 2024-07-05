@@ -627,7 +627,7 @@ bool hdmitx_uboot_audio_en(void)
 		return false;
 }
 
-static int hdmitx_validate_mode(struct hdmitx_hw_common *tx_hw, u32 vic)
+static int hdmitx_validate_mode(struct hdmitx_hw_common *tx_hw, u32 vic, u32 max_refreshrate)
 {
 	int i = 0;
 	/*tx20 supported vics*/

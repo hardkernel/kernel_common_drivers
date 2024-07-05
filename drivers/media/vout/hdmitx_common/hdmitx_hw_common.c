@@ -35,9 +35,10 @@ int hdmitx_hw_get_state(struct hdmitx_hw_common *tx_hw,
 	return tx_hw->getstate(tx_hw, cmd, arg);
 }
 
-int hdmitx_hw_validate_mode(struct hdmitx_hw_common *tx_hw, u32 vic)
+int hdmitx_hw_validate_mode(struct hdmitx_hw_common *tx_hw, u32 vic,
+	u32 max_refreshrate)
 {
-	return tx_hw->validatemode(tx_hw, vic);
+	return tx_hw->validatemode(tx_hw, vic, max_refreshrate);
 }
 
 /* calculate clk_ratio/tmds_scramble/frl/dsc */
