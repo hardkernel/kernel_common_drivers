@@ -14636,6 +14636,10 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 			pre_scaler[i].pre_vscaler_ntap = PRE_VSCALER_4TAP;
 		else
 			pre_scaler[i].pre_vscaler_ntap = PRE_VSCALER_2TAP;
+		if (glayer_info[i].vsr_safa_support) {
+			pre_scaler[i].pre_hscaler_ntap = PRE_HSCALER_2TAP;
+			pre_scaler[i].pre_vscaler_ntap = PRE_VSCALER_2TAP;
+		}
 		pre_scaler[i].pre_hscaler_rate = 1;
 		pre_scaler[i].pre_vscaler_rate = 1;
 		pre_scaler[i].pre_hscaler_coef_set = 0;
