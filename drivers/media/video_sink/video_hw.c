@@ -14063,6 +14063,9 @@ static int _video_hw_init(void)
 	} else if (video_is_meson_s7d_cpu()) {
 		/* todo: s7d vpu arb */
 		s7d_vsr_default_init();
+	} else if (video_is_meson_s6_cpu()) {
+		/* set vd2 scaler fifo max */
+		WRITE_VCBUS_REG(VD2_SCO_FIFO_CTRL, 0xffff0800);
 	}
 	vd_set_go_field_default();
 	return 0;
@@ -14159,6 +14162,9 @@ int video_hw_init(void)
 	} else if (video_is_meson_s7d_cpu()) {
 		/* todo: s7d vpu arb */
 		s7d_vsr_default_init();
+	} else if (video_is_meson_s6_cpu()) {
+		/* set vd2 scaler fifo max */
+		WRITE_VCBUS_REG(VD2_SCO_FIFO_CTRL, 0xffff0800);
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	secure_register(VIDEO_MODULE, 0, video_secure_op, vpp_secure_cb);
