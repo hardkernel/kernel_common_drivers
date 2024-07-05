@@ -846,6 +846,9 @@
 			tx_delay = <17>;
 			src_clk_rate = <1152000000>;
 			cap-mmc-crypto;
+			no-prescan-powerup;
+			full-pwr-cycle;
+			post-power-on-delay-ms = <1>;
 		//	nwr_cnt = <0>;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};

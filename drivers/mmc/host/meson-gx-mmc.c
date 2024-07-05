@@ -197,6 +197,16 @@ int amlogic_of_parse(struct mmc_host *host)
 		mmc->sd_clk_sample = true;
 	else
 		mmc->sd_clk_sample = false;
+
+	if (device_property_read_bool(dev, "wait-while-busy"))
+		host->caps |= MMC_CAP_WAIT_WHILE_BUSY;
+
+	if (device_property_read_bool(dev, "no-prescan-powerup"))
+		host->caps2 |= MMC_CAP2_NO_PRESCAN_POWERUP;
+
+	if (device_property_read_bool(dev, "full-pwr-cycle"))
+		host->caps2 |= MMC_CAP2_FULL_PWR_CYCLE;
+
 	/* Get the wifi model that needs to be optimized */
 	if (device_property_read_u32(dev, "vendor-id", &mmc->vendor_id) < 0)
 		mmc->vendor_id = 0;
