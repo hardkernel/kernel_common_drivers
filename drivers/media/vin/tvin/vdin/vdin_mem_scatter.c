@@ -59,6 +59,10 @@ int sct_print_ctl;
 module_param(sct_print_ctl, int, 0664);
 MODULE_PARM_DESC(sct_print_ctl, "sct_print_ctl");
 
+int sct_cache_size = 192;
+module_param(sct_cache_size, int, 0664);
+MODULE_PARM_DESC(sct_cache_size, "sct_cache_size");
+
 static u64 cur_to_usecs(void)/*2019*/
 {
 	u64 cur = sched_clock();
@@ -268,7 +272,7 @@ void vdin_sct_free(struct vf_pool *p, int index)
 int vdin_sct_init(struct vdin_dev_s *devp)
 {
 	int tvp_flag = 0;
-	int buf_size = 64;
+	int buf_size = sct_cache_size;
 	unsigned int need_cache_size;
 	struct vdin_msct_top_s *psct;
 

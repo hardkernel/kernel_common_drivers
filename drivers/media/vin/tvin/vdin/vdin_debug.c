@@ -3817,6 +3817,15 @@ start_chk:
 			pr_info("hconv_mode(%d):0x%x\n\n", devp->index,
 				devp->debug.hconv_mode);
 		}
+	} else if (!strcmp(parm[0], "set_buf_num")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			devp->frame_buff_num = val;
+			devp->frame_buff_num_bak = val;
+			pr_info("vdin%d,buffer num:(%d)\n\n", devp->index,
+				devp->frame_buff_num);
+		}
 	}
 #endif
 	else if (!strcmp(parm[0], "state")) {
