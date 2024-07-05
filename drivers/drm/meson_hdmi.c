@@ -1237,13 +1237,8 @@ void meson_hdmitx_update(struct drm_connector_state *new_state,
 
 	mute_op = new_hdmitx_state->avmute ? SET_AVMUTE : CLR_AVMUTE;
 
-	if (new_hdmitx_state->avmute != old_hdmitx_state->avmute) {
-		if (new_hdmitx_state->avmute) {
-			hdmitx_common_avmute_locked(tx_comm, mute_op, AVMUTE_PATH_DRM);
-		} else {
-			hdmitx_common_avmute_locked(tx_comm, mute_op, AVMUTE_PATH_DRM);
-		}
-	}
+	if (new_hdmitx_state->avmute != old_hdmitx_state->avmute)
+		hdmitx_common_avmute_locked(tx_comm, mute_op, AVMUTE_PATH_DRM);
 
 	if (new_hdmitx_state->allm_mode != old_hdmitx_state->allm_mode)
 		hdmitx_common_set_allm_mode(tx_comm,

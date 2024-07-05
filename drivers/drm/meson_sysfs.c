@@ -1004,7 +1004,7 @@ static ssize_t crtc_mode_store(struct file *filp, struct kobject *kobj,
 {
 	int found, num_modes, ret = 0;
 	char mode_name[DRM_DISPLAY_MODE_LEN];
-	struct drm_display_mode *mode;
+	struct drm_display_mode *mode = NULL;
 	struct drm_connector *connector;
 	struct drm_modeset_acquire_ctx *ctx;
 	struct drm_crtc *crtc;
