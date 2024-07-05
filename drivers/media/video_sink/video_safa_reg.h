@@ -353,6 +353,10 @@
 
 #define SAFA_PPS_DEJAGGY_CTRL        0x518a
 //Bit 31        dejaggy enable
+#define S6_SAFA_PPS_BOT_VSC_INIT                 0x5195
+//Bit 31:21        reserved
+//Bit 20:16        reg_vsc_bot_ini_integer   // signed ,      RW, default = -1
+//Bit 15: 0        reg_vsc_bot_ini_phase     // unsigned ,    RW, default = 0
 
 #define SAFA_PPS_HW_CTRL           0x5190
 //Bit 31:29        reserved
