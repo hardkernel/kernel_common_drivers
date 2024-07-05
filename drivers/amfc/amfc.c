@@ -1155,7 +1155,6 @@ static int __init amfc_probe(struct platform_device *pdev)
 	unsigned int tmp;
 	struct resource *res;
 	struct device_node *node;
-	unsigned int clk = 0;
 
 	amfc = devm_kzalloc(&pdev->dev, sizeof(*amfc), GFP_KERNEL);
 	if (!amfc)
