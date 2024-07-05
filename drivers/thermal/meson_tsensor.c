@@ -27,6 +27,8 @@
 #include "thermal_hwmon.h"
 #include "cpucore_cooling.h"
 #include <linux/reset.h>
+#include <linux/amlogic/gki_module.h>
+
 
 /*r1p1 thermal sensor version*/
 #define R1P1_TS_CFG_REG1	(0x1 * 4)
@@ -524,6 +526,19 @@ static void r1p1_tsensor_update_irqs(struct meson_tsensor_data *data)
 	writel(con, data->base_c + R1P1_TS_CFG_REG1);
 }
 
+static int g_tsensor_debug_enable;
+
+static int get_tsensor_debug_enable(char *str)
+{
+	if (kstrtoint(str, 0, &g_tsensor_debug_enable)) {
+		pr_err("tsensor_debug: bad arg:%s\n", str);
+		g_tsensor_debug_enable = 0;
+		return -EINVAL;
+	}
+	return 0;
+}
+__setup("tsensor_debug=", get_tsensor_debug_enable);
+
 static int meson_get_temp(void *p, int *temp)
 {
 	struct meson_tsensor_data *data = p;
@@ -534,7 +549,8 @@ static int meson_get_temp(void *p, int *temp)
 	mutex_lock(&data->lock);
 	*temp = code_to_temp(data, data->tsensor_read(data));
 	mutex_unlock(&data->lock);
-
+	if (g_tsensor_debug_enable)
+		pr_info("[%s %d]-temp[id:%d]:%d\n", __func__, __LINE__, data->id, *temp);
 	return 0;
 }
 
