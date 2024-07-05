@@ -86,6 +86,14 @@ static unsigned int g_preh_rate  = 0xff;
 module_param(g_preh_rate, uint, 0664);
 MODULE_PARM_DESC(g_preh_rate, "g_preh_rate");
 
+static unsigned int g_prev_en = 0xff;
+module_param(g_prev_en, uint, 0664);
+MODULE_PARM_DESC(g_prev_en, "g_prev_en");
+
+static unsigned int g_prev_rate  = 0xff;
+module_param(g_prev_rate, uint, 0664);
+MODULE_PARM_DESC(g_prev_rate, "g_prev_rate");
+
 static unsigned int g_axi_rps_ratio  = 0xff;
 module_param(g_axi_rps_ratio, uint, 0664);
 MODULE_PARM_DESC(g_axi_rps_ratio, "g_axi_rps_ratio");
@@ -588,7 +596,7 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 	u32 hsize_out = vsr->vsr_top.hsize_out;
 	u32 vsize_out = vsr->vsr_top.vsize_out;
 	u32 out_pi_xsize, out_pi_ysize;
-	u32 pre_hsize, pre_vsize;
+	u32 pre_hsize = 0, pre_vsize = 0;
 	u32 pi_scl_rate;
 	u32 ratio = 2, ret;
 
@@ -633,6 +641,10 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 		hsize_in : (vsr_safa->preh_ratio == 1) ? ((hsize_in + 1) >> 1) :
 		vsr_safa->preh_ratio == 2 ? ((hsize_in + 3) >> 2) :
 		((hsize_in + 7) >> 3) : hsize_in;
+	pre_vsize  = vsr_safa->prev_en ? (vsr_safa->prev_ratio == 0) ?
+		vsize_in : (vsr_safa->prev_ratio == 1) ? ((vsize_in + 1) >> 1) :
+		(vsr_safa->prev_ratio == 2) ? ((vsize_in + 3) >> 2) :
+		((vsize_in + 7) >> 3) : vsize_in;
 
 	ret = safa_speed_up_handle(vsr);
 	if (ret)
@@ -649,11 +661,16 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 			vsr_safa->preh_ratio == 2 ? ((hsize_in + 3) >> 2) :
 			((hsize_in + 7) >> 3) : hsize_in;
 	}
+	if (g_prev_rate != 0xff)
+		vsr_safa->prev_ratio = g_prev_rate;
+	if (g_prev_en != 0xff) {
+		vsr_safa->prev_en = g_prev_en;
+		pre_vsize  = vsr_safa->prev_en ? (vsr_safa->prev_ratio == 0) ?
+			vsize_in : (vsr_safa->prev_ratio == 1) ? ((vsize_in + 1) >> 1) :
+			(vsr_safa->prev_ratio == 2) ? ((vsize_in + 3) >> 2) :
+			((vsize_in + 7) >> 3) : vsize_in;
+	}
 
-	pre_vsize  = vsr_safa->prev_en ? (vsr_safa->prev_ratio == 0) ?
-		vsize_in : (vsr_safa->prev_ratio == 1) ? ((vsize_in + 1) >> 1) :
-		(vsr_safa->prev_ratio == 2) ? ((vsize_in + 3) >> 2) :
-		((vsize_in + 7) >> 3) : vsize_in;
 	vsr_safa->pre_hsize = pre_hsize;
 	vsr_safa->pre_vsize = pre_vsize;
 	vsr_top->pi_safa_hsc_integer_part = pre_hsize / hsize_out;
