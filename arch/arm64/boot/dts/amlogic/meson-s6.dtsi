@@ -174,7 +174,9 @@
 			      0 186 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "amfc0", "amfc1";
 		power-domains=<&pwrdm PDID_S6_AMFC>;
-		clk = <666>;
+		clocks = <&clkc CLKID_AMFC>;
+		assigned-clocks = <&clkc CLKID_AMFC>;
+		assigned-clock-rates = <666666666>;
 	};
 
 	secmon:secmon {
