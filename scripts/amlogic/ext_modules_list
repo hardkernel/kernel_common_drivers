@@ -7,4 +7,5 @@ EXTRA_CLOSED_SOURCE_MODULE_LIST=(
 	cuva_hdr_alg.ko
 	*_fe.ko
 	frc*.ko
+	gdc*.ko
 )
