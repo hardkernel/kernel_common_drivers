@@ -47,6 +47,14 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 	struct aud_para aud_param;
 	unsigned int l_src = 0;
 
+	pr_info("%s  get_hdmitx_audio_src(rtd->card):%d  spdif_id:%d\n", __func__,
+		get_hdmitx_audio_src(rtd->card), spdif_id);
+	/* switch TDM/mat to TDM/pcm, need to inform hdmitx to do prepare/reset action. */
+	if (get_hdmitx_audio_src(rtd->card) == spdif_id) {
+		/* to call hdmitx_audio_notify_callback of hdmitx_audio.c */
+		notify_hdmitx_to_prepare();
+	}
+
 	memset(&aud_param, 0, sizeof(aud_param));
 
 	bit_depth = snd_pcm_format_width(runtime->format);
