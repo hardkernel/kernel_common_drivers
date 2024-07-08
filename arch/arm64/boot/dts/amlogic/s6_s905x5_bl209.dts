@@ -956,33 +956,30 @@
 		regulator-always-on;
 	};
 
-	vcc5v_reg: gpio-regulator@vcc5v_reg {
+	vcc5v_reg: fixed@vcc5v_reg {
 		vin-supply = <&vddao_5v_reg>;
-		compatible = "regulator-gpio";
+		compatible = "regulator-fixed";
 		regulator-name = "VCC5V";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		pinctrl-names = "default";
-		// GPIOH_7(Down) Output H/L= Enable/Disable VCC3V3
+		// GPIOH_7(Down) Output H/L= Enable/Disable 5V
 		gpio = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
-		gpios-states = <1>;
-		states = <5000000 1 0 0>;
+		enable-active-high;
 		startup-delay-us = <7000>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
-	vcc3v3_reg: gpio-regulator@vcc3v3_reg {
+	vcc3v3_reg: fixed@vcc3v3_reg {
 		vin-supply = <&vdd3v3_ao_reg>;
-		compatible = "regulator-gpio";
+		compatible = "regulator-fixed";
 		regulator-name = "VCC3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		pinctrl-names = "default";
 		// GPIOF_2(Down) Output L/H= Enable/Disable VCC3V3
 		gpio = <&gpio GPIOF_2 GPIO_ACTIVE_HIGH>;
-		gpios-states = <0>;
-		states = <3300000 0 0 1>;
 		startup-delay-us = <7000>;
 		regulator-boot-on;
 		regulator-always-on;
@@ -1028,18 +1025,15 @@
 		regulator-always-on;
 	};
 
-	sd_3v3_reg: gpio-regulator@sd_3v3_reg {
-		compatible = "regulator-gpio";
+	sd_3v3_reg: fixed@sd_3v3_reg {
+		compatible = "regulator-fixed";
 		regulator-name = "3V3_CARD";
 		vin-supply = <&vdd3v3_ao_reg>;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio GPIOA_11 GPIO_ACTIVE_HIGH>;
 		// GPIOA_11(Down) Output L/H= Enable/Disable SD_3V3
-		gpios-states = <0>;
-		states = <3300000 0 0 1>;
+		gpio = <&gpio GPIOA_11 GPIO_ACTIVE_HIGH>;
 		startup-delay-us = <7000>;
-		enable-active-low;
 		regulator-boot-on;
 		//regulator-always-on;
 	};
