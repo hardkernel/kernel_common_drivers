@@ -3545,6 +3545,9 @@ static ssize_t debug_store(struct class *class,
 	case 6:
 		codec_mm_clear_alloc_infos();
 		break;
+	case 7:
+		codec_mm_scatter_owner_dump();
+		break;
 	case 10:
 		codec_mm_keeper_free_all_keep(1);
 		break;
