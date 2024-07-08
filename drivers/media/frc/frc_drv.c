@@ -1070,6 +1070,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->vlock_flag = 1;
 	devp->dbg_mvrd_mode = 8;
 	devp->dbg_mute_disable = 1;
+	devp->dbg_freq_disable = 1;
 	devp->test2 = 1;
 	/*input sts initial*/
 	devp->in_sts.have_vf_cnt = 0;

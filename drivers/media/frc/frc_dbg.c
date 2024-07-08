@@ -1017,6 +1017,7 @@ ssize_t frc_debug_other_if_help(struct frc_dev_s *devp, char *buf)
 	len += sprintf(buf + len, "motion_ctrl\t=%d, read reg =0x%4x\n",
 			fw_data->frc_top_type.motion_ctrl, fw_data->reg_val[0].addr);
 	len += sprintf(buf + len, "task_run\t=%d\n", devp->task_run_method);
+	len += sprintf(buf + len, "freq_dis\t=%d\n", devp->dbg_freq_disable);
 	return len;
 }
 
@@ -1177,6 +1178,11 @@ void frc_debug_other_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			if (val1 >= 0 && val1 < 4)
 				devp->in_sts.t3x_adj_mcdw_hv = val1;
 		}
+	} else if (!strcmp(parm[0], "freq_dis")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->dbg_freq_disable = val1;
 	}
 exit:
 	kfree(buf_orig);

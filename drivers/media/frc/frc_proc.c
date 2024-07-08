@@ -63,7 +63,7 @@ int frc_disable_cnt = 1;
 module_param(frc_disable_cnt, int, 0664);
 MODULE_PARM_DESC(frc_disable_cnt, "frc disable counter");
 
-int frc_re_cfg_cnt;/*need bigger than frc_disable_cnt 3, 15*/
+int frc_re_cfg_cnt = 3;/*need bigger than frc_disable_cnt 3, 15*/
 module_param(frc_re_cfg_cnt, int, 0664);
 MODULE_PARM_DESC(frc_re_cfg_cnt, "frc reconfig counter");
 
@@ -940,9 +940,13 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 			if (devp->in_sts.have_vf_cnt++ >=
 				(frc_enable_cnt + (is_osd_window ? WINDOW_DELAY_CNT : 0))) {
 				devp->in_sts.vf_sts = cur_sig_in;
-				//if (FRC_EVENT_VF_IS_GAME)
 				sts_change |= FRC_EVENT_VF_CHG_TO_HAVE;
 				devp->in_sts.have_vf_cnt = 0;
+				// if (devp->clk_state != FRC_CLOCK_NOR &&
+				// devp->clk_state != FRC_CLOCK_XXX2NOR) {
+				// devp->clk_state = FRC_CLOCK_XXX2NOR;
+				// schedule_work(&devp->frc_clk_work);
+				// }
 				pr_frc(1, "FRC_EVENT_VF_CHG_TO_HAVE\n");
 			}
 		} else {
@@ -1111,7 +1115,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 			devp->in_sts.st_flag =
 				devp->in_sts.st_flag & (~FRC_FLAG_INSIZE_ERR);
 		}
-
+		get_vout_info(devp);
 		if (devp->out_sts.out_framerate == FRC_VD_FPS_144 ||
 			devp->out_sts.out_framerate == FRC_VD_FPS_288) {
 			if ((devp->in_sts.st_flag & FRC_FLAG_LIMIT_FREQ) !=
@@ -1173,7 +1177,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					in_size >> 16,
 					in_size & 0xFFFF);
 			}
-			no_input = true;
+			no_input = devp->dbg_freq_disable;
 		} else {
 			devp->in_sts.st_flag =
 				devp->in_sts.st_flag & (~FRC_FLAG_HIGH_FREQ);
@@ -1196,20 +1200,21 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 		}
 	}
 
-	/*secure mode*/
+	/* secure mode chg
+	 * bug, frc on sec to no_sec or no_sec to sec
+	 */
 	if (devp->in_sts.secure_mode != devp->buf.secured &&
-		devp->buf.cma_mem_alloced) {
-		if (devp->in_sts.secure_mode == 0 &&
-			devp->buf.secured == 1) {
-			no_input = true;
-			frc_re_cfg_cnt = 0;  // need reopen instantly
-		}
-		// pr_frc(0, "sec chg _______\n");
-		// schedule_work(&devp->frc_secure_work);
-		// pr_frc(2, "frc_re_cfg_cnt:%d pre_secure_mode:%d\n",
-		// frc_re_cfg_cnt, devp->buf.secured);
-	} else {
-		frc_re_cfg_cnt = FRC_RE_CFG_CNT;
+		devp->buf.cma_mem_alloced && devp->frc_sts.state == FRC_STATE_ENABLE) {
+		no_input = true;
+		schedule_work(&devp->frc_secure_work);
+		pr_frc(2, "secure chg reopen\n");
+	}
+
+	if (!no_input &&  devp->frc_sts.auto_ctrl &&
+		devp->clk_state != FRC_CLOCK_NOR &&
+		devp->clk_state != FRC_CLOCK_XXX2NOR) {
+		devp->clk_state = FRC_CLOCK_XXX2NOR;
+		schedule_work(&devp->frc_clk_work);
 	}
 
 	if (no_input && (devp->control_0 & BIT_0) && get_chip_type() == ID_T5M)
@@ -1243,7 +1248,6 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 
 	if (frc_event)
 		pr_frc(1, "event = 0x%08x\n", frc_event);
-	pr_frc(2, "mc crc value = %x", READ_FRC_REG(0x3981));
 }
 
 void frc_state_change_finish(struct frc_dev_s *devp)
@@ -1510,14 +1514,16 @@ void frc_state_handle(struct frc_dev_s *devp)
 	if (state_changed) {
 		if (new_state == FRC_STATE_DISABLE) {
 			if (devp->frc_sts.frame_cnt == 0) {
-				schedule_work(&devp->frc_secure_work);
+				// schedule_work(&devp->frc_secure_work);
 				frc_frame_forcebuf_enable(0);
-				// devp->frc_fw_pause = 1;
 				set_frc_enable(OFF);
 				frc_clr_badedit_effect_before_enable();
 				devp->frc_sts.frame_cnt++;
+			} else if (devp->frc_sts.frame_cnt == 1) {
+				devp->frc_sts.frame_cnt++;
 			} else {
 				devp->frc_sts.frame_cnt = 0;
+				schedule_work(&devp->frc_secure_work);
 				pr_frc(log, "stat_chg %s -> %s done\n",
 					frc_state_ary[cur_state],
 					frc_state_ary[new_state]);
@@ -1526,19 +1532,21 @@ void frc_state_handle(struct frc_dev_s *devp)
 		} else if (new_state == FRC_STATE_BYPASS) {
 			//first frame set enable off
 			if (devp->frc_sts.frame_cnt == 0) {
-				schedule_work(&devp->frc_secure_work);
+				// schedule_work(&devp->frc_secure_work);
 				frc_frame_forcebuf_enable(0);
-				// devp->frc_fw_pause = 1;
 				set_frc_enable(OFF);
 				frc_clr_badedit_effect_before_enable();
 				devp->frc_sts.frame_cnt++;
-			} else {
+			} else if (devp->frc_sts.frame_cnt == 1) {
 				//second frame set bypass on
 				set_frc_bypass(ON);
+				devp->frc_sts.frame_cnt++;
+			} else {
 				devp->frc_sts.frame_cnt = 0;
+				schedule_work(&devp->frc_secure_work);
 				pr_frc(log, "stat_chg %s->%s done\n",
-				       frc_state_ary[cur_state],
-				       frc_state_ary[new_state]);
+						frc_state_ary[cur_state],
+						frc_state_ary[new_state]);
 				frc_state_change_finish(devp);
 			}
 		} else {
@@ -1872,16 +1880,17 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 	if (state_changed) {
 		if (new_state == FRC_STATE_DISABLE) {
 			if (devp->frc_sts.frame_cnt == 0) {
-				schedule_work(&devp->frc_secure_work);
 				frc_frame_forcebuf_enable(0);
-				//devp->frc_fw_pause = 1;
 				set_frc_enable(OFF);
 				frc_clr_badedit_effect_before_enable();
 				devp->st_change = 2;
 				devp->frc_sts.frame_cnt++;
-			} else {
-				devp->frc_sts.frame_cnt = 0;
+			} else  if (devp->frc_sts.frame_cnt == 1) {
 				devp->st_change = 0;
+				devp->frc_sts.frame_cnt++;
+			} else {
+				schedule_work(&devp->frc_secure_work);
+				devp->frc_sts.frame_cnt = 0;
 				pr_frc(log, "stat_chg %s -> %s done\n",
 					frc_state_ary[cur_state],
 					frc_state_ary[new_state]);
@@ -1890,20 +1899,19 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 		} else if (new_state == FRC_STATE_BYPASS) {
 			//first frame set enable off
 			if (devp->frc_sts.frame_cnt == 0) {
-				schedule_work(&devp->frc_secure_work);
-				frc_frame_forcebuf_enable(0);
-				//devp->frc_fw_pause = 1;
-				set_frc_enable(OFF);
-//				devp->need_bypass = 1;
-				set_frc_bypass(ON);
-				frc_clr_badedit_effect_before_enable();
 				devp->st_change = 2;
 				devp->frc_sts.frame_cnt++;
 			} else if (devp->frc_sts.frame_cnt == 1) {
+				frc_frame_forcebuf_enable(0);
+				//devp->frc_fw_pause = 1;
+				set_frc_enable(OFF);
+				set_frc_bypass(ON);
+				frc_clr_badedit_effect_before_enable();
 				devp->st_change = 0;
-				devp->need_bypass = 0;
 				devp->frc_sts.frame_cnt++;
 			} else {
+				schedule_work(&devp->frc_secure_work);
+				devp->need_bypass = 0;
 				devp->frc_sts.frame_cnt = 0;
 				pr_frc(log, "stat_chg %s->%s done\n",
 				       frc_state_ary[cur_state],
