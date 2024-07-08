@@ -1125,10 +1125,6 @@
 	};
 }; /* end of periphs_pinctrl */
 
-&audio_data {
-	status = "disabled";
-};
-
 &usb_phy20 {
 	status = "okay";
 	portnum = <1>;
