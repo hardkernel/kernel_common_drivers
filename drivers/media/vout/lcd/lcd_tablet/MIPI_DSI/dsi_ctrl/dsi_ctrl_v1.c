@@ -639,15 +639,15 @@ static int dsi_write_long_packet(struct aml_lcd_drv_s *pdrv, struct dsi_cmd_req_
 static void dsi0_DT_sink_shut_down(struct aml_lcd_drv_s *pdrv)
 {
 	dsi_host_setb(pdrv, MIPI_DSI_TOP_CNTL, 1, 2, 1);
-	mdelay(20); /* wait for vsync trigger */
+	lcd_delay_ms(20); /* wait for vsync trigger */
 }
 
 static void dsi0_DT_sink_turn_on(struct aml_lcd_drv_s *pdrv)
 {
 	dsi_host_setb(pdrv, MIPI_DSI_TOP_CNTL, 1, 2, 1);
-	mdelay(20); /* wait for vsync trigger */
+	lcd_delay_ms(20); /* wait for vsync trigger */
 	dsi_host_setb(pdrv, MIPI_DSI_TOP_CNTL, 0, 2, 1);
-	mdelay(20); /* wait for vsync trigger */
+	lcd_delay_ms(20); /* wait for vsync trigger */
 }
 
 static void mipi_dsi_non_burst_packet_config(struct lcd_config_s *pconf)

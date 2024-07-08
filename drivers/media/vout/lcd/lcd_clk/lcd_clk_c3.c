@@ -50,9 +50,9 @@ set_pll_retry_c3:
 	lcd_ana_write(ANACTRL_GP0PLL_CTRL5, 0x3927200a);
 	lcd_ana_setb(ANACTRL_GP0PLL_CTRL0, 3, 28, 2);
 	lcd_ana_setb(ANACTRL_GP0PLL_CTRL0, 0, 29, 1);
-	udelay(20);
+	lcd_delay_us(20);
 	lcd_ana_write(ANACTRL_GP0PLL_CTRL2, 0x00023001);
-	udelay(20);
+	lcd_delay_us(20);
 
 	ret = lcd_pll_wait_lock(ANACTRL_GP0PLL_STS, 31);
 	if (ret) {

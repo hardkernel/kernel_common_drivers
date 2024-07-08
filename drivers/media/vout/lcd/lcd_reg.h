@@ -1776,6 +1776,17 @@
 #define VPU_DMA_RDMIF7_BADR3  0x2777
 #define VPU_LUT_DMA_INTR_SEL  0x2717
 /***************************************************/
+#define ANACTRL_DSIPLL_CTRL0       0x00f0
+#define ANACTRL_DSIPLL_CTRL1       0x00f1
+#define ANACTRL_DSIPLL_CTRL2       0x00f2
+#define ANACTRL_DSIPLL_CTRL3       0x00f3
+#define ANACTRL_DSIPLL_STS         0x00f4
+#define ANACTRL_MIPIDSI_CTRL0_S6   0x00f5
+#define ANACTRL_MIPIDSI_CTRL1_S6   0x00f6
+#define CLKCTRL_VIID_CLK_DIV_S6    0x0033
+#define CLKCTRL_VIID_CLK_CTRL_S6   0x0034
+#define CLKCTRL_VID_CLK_CTRL2_S6   0x0031
+#define CLKCTRL_DSI_PLL_CLK_DIV_S6 0x0031
 
 /* ***********************************************
  * register access api

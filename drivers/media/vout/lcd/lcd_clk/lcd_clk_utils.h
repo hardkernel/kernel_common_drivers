@@ -55,7 +55,7 @@ enum clktree_type {
 
 void lcd_clktree_bind(struct aml_lcd_drv_s *pdrv, unsigned char status);
 void lcd_clktree_gate_switch(struct aml_lcd_drv_s *pdrv, unsigned char status);
-
+unsigned char lcd_dsi_generate_DSI_PLL_s6_model(struct aml_lcd_drv_s *pdrv);
 /* ****************************************************
  * lcd clk chip init help func
  * ****************************************************
@@ -75,6 +75,7 @@ void lcd_clk_config_chip_init_t5d(struct aml_lcd_drv_s *pdrv, struct lcd_clk_con
 void lcd_clk_config_chip_init_txhd2(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf);
 void lcd_clk_config_chip_init_t5w(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf);
 void lcd_clk_config_chip_init_t3x(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf);
+void lcd_clk_config_chip_init_s6(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf);
 
 /* ****************************************************
  * lcd clk prbs func

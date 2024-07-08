@@ -1368,6 +1368,21 @@ static int lcd_reg_print_mipi_phy_analog_ANACTRL(struct aml_lcd_drv_s *pdrv, cha
 	return len;
 }
 
+static int lcd_reg_print_mipi_phy_analog_s6(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int n, len = 0;
+	struct reg_name_set_s phy_analog_reg_sets[] = {
+		{ANACTRL_MIPIDSI_CTRL0_S6, "ANACTRL_MIPIDSI_CTRL0"},
+		{ANACTRL_MIPIDSI_CTRL1_S6, "ANACTRL_MIPIDSI_CTRL1"},
+	};
+
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n, "\nmipi_dsi phy analog regs:\n");
+	len += str_add_reg_sets(pdrv, buf, len + offset, LCD_REG_DBG_ANA_BUS, 0,
+			phy_analog_reg_sets, ARRAY_SIZE(phy_analog_reg_sets));
+	return len;
+}
+
 static int lcd_reg_clk_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
 	struct lcd_debug_info_s *lcd_debug_info;
@@ -4407,6 +4422,34 @@ static ssize_t lcd_mipi_mode_debug_store(struct device *dev, struct device_attri
 	return count;
 }
 
+static ssize_t lcd_mipi_dphy_debug_store(struct device *dev, struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	unsigned int temp;
+
+	if ((pdrv->status & LCD_STATUS_IF_ON) == 0) {
+		LCDERR("lcd is disabled\n");
+		return count;
+	}
+
+	temp = (buf[0] == 'H') ? 0x10 : 0x00; //HS or LP
+	if (buf[3] == 'H') //HIGH
+		temp |= 0x0;
+	if (buf[3] == 'L') //LOW
+		temp |= 0x1;
+	if (buf[3] == 'P' && buf[7] == '7') //PRBS7
+		temp |= 0x2;
+	if (buf[3] == 'P' && buf[7] == '1' && buf[8] == '3') //PRBS13
+		temp |= 0x3;
+	if (buf[3] == 'P' && buf[7] == '1' && buf[8] == '5') //PRBS15
+		temp |= 0x4;
+
+	lcd_dsi_dphy_test(pdrv, temp);
+
+	return count;
+}
+
 static ssize_t lcd_edp_debug_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -4681,6 +4724,7 @@ static struct device_attribute lcd_debug_attrs_mipi[] = {
 	__ATTR(mpread,  0644, lcd_mipi_read_debug_show,  lcd_mipi_read_debug_store),
 	__ATTR(mpstate, 0444, lcd_mipi_state_debug_show, NULL),
 	__ATTR(mpmode,  0200, NULL,                      lcd_mipi_mode_debug_store),
+	__ATTR(mpdphy,  0200, NULL,                      lcd_mipi_dphy_debug_store),
 	__ATTR(null,    0644, NULL,                      NULL)
 };
 
@@ -5150,6 +5194,30 @@ static struct lcd_debug_info_s lcd_debug_info_txhd2 = {
 	.reg_dump_phy = lcd_reg_print_phy_analog_HHI,
 };
 
+static struct lcd_debug_info_s lcd_debug_info_s6 = {
+	.reg_pll_table = lcd_reg_dump_pll_s6,
+	.reg_clk_table = lcd_reg_dump_clk_s6,
+	.reg_clk_hiu_table = NULL,
+	.reg_clk_combo_dphy_table = NULL,
+	.reg_encl_table = lcd_reg_dump_encl_dft,
+	.reg_pinmux_table = NULL,
+
+	.reg_dump_lvds   = NULL,
+	.reg_dump_vbyone = NULL,
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
+	.reg_dump_rgb    = NULL,
+	.reg_dump_bt     = NULL,
+	.reg_dump_mipi   = lcd_reg_print_mipi,
+	.reg_dump_edp    = NULL,
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_TV
+	.reg_dump_mlvds  = NULL,
+	.reg_dump_p2p    = NULL,
+#endif
+
+	.reg_dump_phy = lcd_reg_print_mipi_phy_analog_s6,
+};
+
 int lcd_debug_probe(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_debug_info_s *lcd_debug_info;
@@ -5209,6 +5277,9 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_CHIP_TXHD2:
 		lcd_debug_info = &lcd_debug_info_txhd2;
+		break;
+	case LCD_CHIP_S6:
+		lcd_debug_info = &lcd_debug_info_s6;
 		break;
 	default:
 		lcd_debug_info = NULL;

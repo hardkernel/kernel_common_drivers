@@ -344,10 +344,45 @@ static int generate_pll_1od_setting(struct lcd_clk_config_s *cconf, unsigned lon
 	return done;
 }
 
+static int generate_pll_0od_setting(struct lcd_clk_config_s *cconf, unsigned long long pll_fout)
+{
+	struct lcd_clk_data_s *data = cconf->data;
+	unsigned int m, n;
+	unsigned long long pll_fvco, temp;
+	unsigned int pll_frac;
+
+	if (pll_fout > data->pll_out_fmax || pll_fout < data->pll_out_fmin)
+		return 0;
+
+	pll_fvco = pll_fout;
+	if (pll_fvco < data->pll_vco_fmin || pll_fvco > data->pll_vco_fmax)
+		return 0;
+
+	cconf->pll_fout = pll_fout;
+	cconf->pll_fvco = pll_fvco;
+
+	n = 1;
+	m = lcd_do_div(pll_fvco, cconf->fin);
+	temp = cconf->fin;
+	temp *= m;
+	temp = pll_fvco - temp;
+	pll_frac = lcd_do_div((temp * data->pll_frac_range * 10), cconf->fin) + 5;
+	pll_frac /= 10;
+	cconf->pll_m = m;
+	cconf->pll_n = n;
+	cconf->pll_frac = pll_frac;
+	if (lcd_debug_print_flag & LCD_DBG_PR_CLK)
+		LCDPR("pll_m=%d, pll_n=%d, pll_frac=0x%x\n", m, n, pll_frac);
+
+	return 1;
+}
+
 static int pll_od_setting_generate(struct lcd_clk_config_s *cconf, unsigned long long pll_fout)
 {
 	if (cconf->data->od_cnt == 3)
 		return generate_pll_3od_setting(cconf, pll_fout);
+	else if (cconf->data->od_cnt == 0)
+		return generate_pll_0od_setting(cconf, pll_fout);
 	else
 		return generate_pll_1od_setting(cconf, pll_fout);
 }
@@ -1268,8 +1303,14 @@ void lcd_clk_generate_dft(struct aml_lcd_drv_s *pdrv)
 		break;
 #ifdef CONFIG_AMLOGIC_LCD_TABLET
 	case LCD_MIPI:
-		done = lcd_clk_generate_DSI_1PLL(pdrv);
-		break;
+		if (pdrv->data->chip_type == LCD_CHIP_S6) {
+			done = lcd_dsi_generate_DSI_PLL_s6_model(pdrv);
+			if (done)
+				done = pll_od_setting_generate(cconf, cconf->pll_fout);
+		} else {
+			done = lcd_clk_generate_DSI_1PLL(pdrv);
+			// common DSI PLL model already had pll_od_setting_generate
+		}		break;
 	case LCD_EDP:
 		done = lcd_clk_generate_DP_1PLL(pdrv);
 		break;

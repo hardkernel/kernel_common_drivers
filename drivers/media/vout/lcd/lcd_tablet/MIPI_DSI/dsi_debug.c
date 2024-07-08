@@ -13,6 +13,7 @@
 #include "../../lcd_common.h"
 #include "./dsi_common.h"
 #include "./dsi_ctrl/dsi_ctrl.h"
+#include "../../lcd_reg.h"
 
 char *dsi_op_mode_table[] = {
 	"Video",
@@ -157,10 +158,12 @@ static void dsi_table_print(u8 *dsi_table, u16 n_max)
 		if (dsi_table[i] == LCD_EXT_CMD_TYPE_GPIO ||
 		    dsi_table[i] == LCD_EXT_CMD_TYPE_DELAY) {
 			for (j = 0; j < n; j++)
-				len += snprintf(_str, 255 - len, "%d, ", dsi_table[i + 2 + j]);
+				len += snprintf(_str + len, 255 - len,
+					"%d, ", dsi_table[i + 2 + j]);
 		} else {
 			for (j = 0; j < n; j++)
-				len += snprintf(_str, 255 - len, "0x%02x, ", dsi_table[i + 2 + j]);
+				len += snprintf(_str + len, 255 - len,
+					"0x%02x, ", dsi_table[i + 2 + j]);
 		}
 
 		pr_info("%s\n", _str);
@@ -237,4 +240,35 @@ u8 lcd_dsi_read(struct aml_lcd_drv_s *pdrv, u8 *payload, u8 *rd_data, u8 rd_byte
 	pr_info("%s\n", string);
 	kfree(string);
 	return dsi_back_len;
+}
+
+void lcd_dsi_dphy_test(struct aml_lcd_drv_s *pdrv, unsigned char test_item)
+{
+	switch (test_item) {
+	case 0x10: // HS HIGH
+		dsi_phy_write(pdrv, MIPI_DSI_TEST_CTRL0, 0x0a600000);
+		dsi_phy_write(pdrv, MIPI_DSI_TEST_CTRL1, 0x000003ff);
+		break;
+	case 0x11: //HS LOW
+		dsi_phy_write(pdrv, MIPI_DSI_TEST_CTRL0, 0x08600000);
+		dsi_phy_write(pdrv, MIPI_DSI_TEST_CTRL1, 0x000003ff);
+		break;
+	case 0x12: //HS PRBS7
+		dsi_phy_write(pdrv, MIPI_DSI_TEST_CTRL0, 0x0c600000);
+		dsi_phy_write(pdrv, MIPI_DSI_TEST_CTRL1, 0x008003ff);
+		break;
+	case 0x13: //HS PRBS11
+	case 0x14: //HS PRBS15
+	case 0x00: //LP HIGH
+	case 0x01: //LP LOW
+		break;
+	case 0x02: //LP PRBS7
+		dsi_phy_write(pdrv, MIPI_DSI_TEST_CTRL0, 0x0c200000);
+		dsi_phy_write(pdrv, MIPI_DSI_TEST_CTRL1, 0x008ffc00);
+		break;
+	case 0x03: //LP PRBS11
+	case 0x04: //LP PRBS15
+	default: //LP PRBS15
+		break;
+	}
 }
