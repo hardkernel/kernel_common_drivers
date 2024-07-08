@@ -1384,23 +1384,11 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len,
 					pchan->mem_phy + pchan->r_offset :
 					pchan->mem + pchan->r_offset);
 			pchan->r_offset += data_len;
+			pchan->r_offset = pchan->r_offset % pchan->mem_size;
 		} else {
 			unsigned int part1_len = 0;
 
 			part1_len = pchan->mem_size - pchan->r_offset;
-			if (part1_len == 0) {
-				data_len = min(w_offset, buf_len);
-				pchan->r_offset = 0;
-				if (!is_secure)
-					dma_sync_single_for_cpu(aml_get_device(),
-							(dma_addr_t)
-							(pchan->mem_phy +
-							 pchan->r_offset),
-							data_len,
-							DMA_FROM_DEVICE);
-				pchan->r_offset += data_len;
-				return data_len;
-			}
 			data_len = min(part1_len, buf_len);
 			*pread = (char *)(is_secure ?
 					pchan->mem_phy + pchan->r_offset :
