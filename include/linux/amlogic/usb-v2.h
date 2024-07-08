@@ -488,12 +488,15 @@ struct aml_usb3_phy {
 	void __iomem	*cfg_reg;
 	void __iomem	*ctrl_reg;
 	void __iomem	*reset_reg;
+	void __iomem	*trim_reg;
 	phys_addr_t cfg_reg_phy;
 	phys_addr_t ctrl_reg_phy;
 	phys_addr_t reset_reg_phy;
+	phys_addr_t trim_reg_phy;
 	resource_size_t cfg_reg_size;
 	resource_size_t ctrl_reg_size;
 	resource_size_t reset_reg_size;
+	resource_size_t trim_reg_size;
 	u32 reset_level_shift;
 	u8 portnum;
 	u8 phy_id;
