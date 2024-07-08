@@ -1174,7 +1174,7 @@ static int fill_cam_dev(struct device_node *p_node,
 		if (ret < 0)
 			pr_info("aml_cam_init cam_vdd request failed\n");
 		else
-			gpio_direction_output(cam_dev->cam_vdd, 0);
+			gpio_direction_output(cam_dev->cam_vdd, 1);
 	} else {
 		pr_info("%s: failed to map gpio_cam_vdd !\n", cam_dev->name);
 	}

@@ -618,6 +618,7 @@
 			cam_name = "ov5640";
 			front_back = <0>;
 			camera-i2c-bus = <&i2c5>;
+			//camvdd-gpios = <&gpio GPIOA_13 GPIO_ACTIVE_HIGH>; // no needed.
 			gpio_pwdn-gpios = <&gpio GPIOX_5 GPIO_ACTIVE_HIGH>;
 			gpio_rst-gpios = <&gpio GPIOX_4 GPIO_ACTIVE_HIGH>;
 			mirror_flip = <1>;
