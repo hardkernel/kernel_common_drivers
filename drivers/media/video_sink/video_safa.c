@@ -689,7 +689,8 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 	if (cur_dev->dejaggy_support &&
 		hsize_in <= 2048 &&
 		(hsize_out > hsize_in || vsize_out > vsize_in) &&
-		!vsr_safa->prev_en)
+		!vsr_safa->prev_en &&
+		vsr_top->is_interlaced)
 		vsr_safa->dejaggy_en = true;
 	else
 		vsr_safa->dejaggy_en = false;
