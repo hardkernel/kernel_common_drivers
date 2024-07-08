@@ -790,8 +790,9 @@
 			compatible = "amlogic, amlogic-usb3-phy";
 			status = "disable";
 			reg = <0x0 0xfe358080 0x0 0x20		/* phy3 cfg base */
-					0X0 0xfe002000 0X0 0x100	/* reset base */
-					0X0 0xfe35a000 0X0 0x184>;	/* phy3 ctrl base */
+					0x0 0xfe002000 0x0 0x100	/* reset base */
+					0x0 0xfe35a000 0x0 0x184	/* phy3 ctrl base */
+					0x0 0xfe01034c 0x0 0x4>;	/* phy3 trim base */
 			usb3-phy-reset-bit = /bits/ 8 <3>;
 			usb3-apb-reset-bit = /bits/ 8 <2>;
 			usb3-controller-reset-bit = /bits/ 8 <5>;

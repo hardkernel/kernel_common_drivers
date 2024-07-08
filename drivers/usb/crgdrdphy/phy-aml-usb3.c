@@ -52,7 +52,20 @@ static inline phys_addr_t aml_usb3_phy_virt_to_phy(struct aml_usb3_phy *phy,
 	if (reg >= phy->reset_reg && reg < phy->reset_reg + phy->reset_reg_size)
 		return phy->reset_reg_phy + (phys_addr_t)reg - (phys_addr_t)phy->reset_reg;
 
+	if (reg >= phy->trim_reg && reg < phy->trim_reg + phy->trim_reg_size)
+		return phy->trim_reg_phy + (phys_addr_t)reg - (phys_addr_t)phy->trim_reg;
+
 	return (phys_addr_t)(-1);
+}
+
+static inline unsigned int aml_usb3_phy_read_reg32(struct aml_usb3_phy *phy, void __iomem *reg)
+{
+	phys_addr_t pa = aml_usb3_phy_virt_to_phy(phy, reg);
+	u32 val = readl(reg);
+
+	dev_dbg(phy->dev, "read: %pa, 0x%x.\n", &pa, val);
+
+	return val;
 }
 
 static inline void aml_usb3_phy_modify_reg32(struct aml_usb3_phy *phy,
@@ -154,9 +167,6 @@ static int aml_usb3_phy_pll_init_v0(struct aml_usb3_phy *phy)
 #define IS_PLL_LOCKED(x) (((x) & PLL_LOCKED_MASK) == PLL_LOCKED_MASK)
 	int plldone_i;
 
-	/* Tx output impedance. */
-	aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x16c, 0x7f << 24, 0x10 << 24);
-
 	if (phy->pll_sw_cfg) {
 		/* Enable sw configure upcrx_igen_en & upcrx_ldo_en. */
 		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x20, 0x3 << 14, 0x3 << 14);
@@ -236,6 +246,28 @@ static int aml_usb3_phy_pll_init(struct aml_usb3_phy *phy)
 	return aml_usb3_phy_pll_init_v0(phy);
 }
 
+static void aml_usb3_phy_trim(struct aml_usb3_phy *phy)
+{
+	u32 raw = aml_usb3_phy_read_reg32(phy, phy->trim_reg);
+	u32 val = 0;
+
+	/* tx termination impedance. */
+	if (raw & BIT(5))
+		val = raw & 0x1f;
+	else
+		val = 0x10;
+
+	aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x16c, 0xff << 24, val << 24);
+
+	/* rx termination impedance. */
+	if (raw & BIT(10))
+		val = (raw & 0x3c0) >> 6;
+	else
+		val = 0x7;
+
+	aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x4, 0xf << 4, val << 4);
+}
+
 static int aml_usb3_phy_init(struct usb_phy *p)
 {
 	struct aml_usb3_phy *phy = phy_to_amlusb3phy(p);
@@ -258,6 +290,7 @@ static int aml_usb3_phy_init(struct usb_phy *p)
 	if (ret)
 		goto cleanup;
 
+	aml_usb3_phy_trim(phy);
 	aml_usb3_phy_post_reset(phy);
 
 	aml_usb3_phy_set_hw_on(phy, true);
@@ -307,6 +340,7 @@ static int aml_usb3_phy_probe(struct platform_device *pdev)
 	void __iomem *cfg_reg = NULL;
 	void __iomem *reset_reg = NULL;
 	void __iomem *ctrl_reg = NULL;
+	void __iomem *trim_reg = NULL;
 	u8 phy_id = 0;
 	u32 reset_level_shift = 0;
 	u8 usb3_apb_reset_bit = 0;
@@ -361,6 +395,17 @@ static int aml_usb3_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(ctrl_reg))
 		return PTR_ERR(ctrl_reg);
 
+	reg_res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
+	if (!reg_res)
+		dev_err(dev, "This usb phy has no trim reg?\n");
+
+	phy->trim_reg_phy = reg_res->start;
+	phy->trim_reg_size = resource_size(reg_res);
+
+	trim_reg = devm_ioremap(dev, reg_res->start, resource_size(reg_res));
+	if (IS_ERR(ctrl_reg))
+		return PTR_ERR(ctrl_reg);
+
 	phy_off = of_property_read_bool(dev->of_node, "off");
 
 	pll_sw_cfg = of_property_read_bool(dev->of_node, "pll-sw-cfg");
@@ -404,6 +449,8 @@ static int aml_usb3_phy_probe(struct platform_device *pdev)
 			&phy->reset_reg_phy, reset_reg, &phy->reset_reg_size);
 	dev_dbg(&pdev->dev, "USB3 phy probe:ctrl_phy:%pa, iomap ctrl_reg:%px, s:%pa\n",
 			&phy->ctrl_reg_phy, ctrl_reg, &phy->ctrl_reg_size);
+	dev_dbg(&pdev->dev, "USB3 phy probe:trim_phy:%pa, iomap trim_reg:%px, s:%pa\n",
+			&phy->trim_reg_phy, trim_reg, &phy->trim_reg_size);
 	dev_dbg(&pdev->dev, "USB3 phy_off:%d, pll_sw_cfg:%d, phy_id:%d, num_clk:%d\n"
 						 "reset_level_shift:0x%x, usb3-apb-reset-bit:%d\n"
 						 "usb3-phy-reset-bit:%d, usb3-controller-reset-bit:%d\n",
@@ -415,6 +462,7 @@ no_port:
 	phy->dev = dev;
 	phy->cfg_reg = cfg_reg;
 	phy->ctrl_reg = ctrl_reg;
+	phy->trim_reg = trim_reg;
 	phy->portnum = portnum;
 	phy->phy.dev = phy->dev;
 	phy->phy.label = "aml-usb3phy";
