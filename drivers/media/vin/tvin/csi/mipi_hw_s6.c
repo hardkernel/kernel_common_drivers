@@ -10,6 +10,8 @@
 #include <linux/errno.h>
 #include <linux/io.h>
 
+#include <linux/amlogic/efuse.h>
+
 #include "csi_reg.h"
 #include "csi.h"
 
@@ -39,6 +41,10 @@ static inline u32 WRITE_CBUS_REG_BITS(void __iomem *base, u32 reg_offset,
 void powerup_csi_analog_s6(struct csi_adapt *adap_dev)
 {
 	void __iomem *base_addr;
+	u32 data32 = 0x0;
+	u32 squlech_mode = 0x0;  // bit 4; CTRL1_REG
+	u32 csi_finetune_value = 0b111; // bit 19:16; CTRL1_REG
+	u32 csi_efuse = 0x0; // bit 4:0; if bit 4 is 1. use bit [3:0];
 
 	// no need power domain operation.
 	// power domain always on
@@ -52,9 +58,22 @@ void powerup_csi_analog_s6(struct csi_adapt *adap_dev)
 
 	WRITE_CBUS_REG(base_addr, ANACTRL_MIPICSI_CTRL0_S6, 0x2733f022);
 	if (adap_dev->squlech_mode == 0) // disable squlech bit 4 is 1;
-		WRITE_CBUS_REG(base_addr, ANACTRL_MIPICSI_CTRL1_S6, 0x00070010);
+		squlech_mode = 0x1;
 	else // enable squlech. default value.
-		WRITE_CBUS_REG(base_addr, ANACTRL_MIPICSI_CTRL1_S6, 0x00070000);
+		squlech_mode = 0x0;
+
+	csi_efuse = efuse_amlogic_cali_item_read(EFUSE_CALI_SUBITEM_CSI);
+	if (csi_efuse >= 0) {
+		// valid csi_efuse; use it.
+		csi_finetune_value = csi_efuse & 0b1111;
+		pr_info("%s: aphy fine tune value %d\n", __func__, csi_finetune_value);
+	}
+
+	data32 |= (csi_finetune_value << 16);
+	data32 |= (squlech_mode << 4);
+
+	WRITE_CBUS_REG(base_addr, ANACTRL_MIPICSI_CTRL1_S6, data32);
+
 	WRITE_CBUS_REG(base_addr, ANACTRL_MIPICSI_CTRL2_S6, 0x00004203);
 	WRITE_CBUS_REG(base_addr, ANACTRL_MIPICSI_CTRL3_S6, 0x00000000);
 	WRITE_CBUS_REG_BITS(base_addr, ANACTRL_CSIPLL_CTRL3_S6, 1, 30, 1);
