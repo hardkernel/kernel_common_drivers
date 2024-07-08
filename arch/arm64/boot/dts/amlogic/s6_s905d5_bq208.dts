@@ -187,7 +187,14 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x13400000>;
+			/*
+			 * Scenario: CTS P010 case
+			 * Total size: 548M
+			 * Note:
+			 *  setting to 496M if scatter_alloc_mode is 0.
+			 *  setting to 444M if scatter_alloc_mode is 1.
+			 */
+			size = <0x0 0x1bc00000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 			linux,contiguous-region;
@@ -268,6 +275,12 @@
 		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
 		dev_name = "codec_mm";
 		status = "okay";
+		/*
+		 * scatter_alloc_mode: the mode of scatter memory allocation
+		 * 0: default mode, alloc from system and cma
+		 * 1: only alloc from system
+		 */
+		scatter_alloc_mode = <1>;
 	};
 	encmem_rev {
 		compatible = "encmem_rev";
