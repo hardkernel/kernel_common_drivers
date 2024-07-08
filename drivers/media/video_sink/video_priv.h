@@ -361,6 +361,7 @@ struct mif_pos_s {
 };
 
 struct vsr_top_setting_s {
+	bool is_interlaced;
 	u32 vskip_cnt;
 	u32 hsize_in; //13 bits source pic hsize
 	u32 vsize_in; //13 bits source pic vsize

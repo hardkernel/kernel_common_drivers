@@ -188,7 +188,7 @@ struct vpp_frame_par_s {
 	u32 clk_in_pps;
 
 	bool nocomp;
-
+	bool is_interlaced;
 	u8 sr0_position;
 	u8 sr1_position;
 	u8 sr_core_support;

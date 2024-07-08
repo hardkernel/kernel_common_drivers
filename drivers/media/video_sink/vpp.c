@@ -5639,8 +5639,12 @@ RERTY:
 	}
 	/* fro interlace:the height from vdin & decoder afbc will be half */
 	/* fro interlace:non-afbc is really interlaced */
-	if (vf->type & VIDTYPE_INTERLACE)
+	if (vf->type & VIDTYPE_INTERLACE) {
 		vpp_flags = VPP_FLAG_INTERLACE_IN;
+		next_frame_par->is_interlaced = true;
+	} else {
+		next_frame_par->is_interlaced = false;
+	}
 
 	if (vf->ratio_control & DISP_RATIO_PORTRAIT_MODE)
 		vpp_flags |= VPP_FLAG_PORTRAIT_MODE;
