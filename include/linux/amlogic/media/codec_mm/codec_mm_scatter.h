@@ -16,6 +16,7 @@
 
 /* config_alloc_flags bitmask */
 #define SC_ALLOC_SYS_DMA32  BIT(0)
+#define SC_OWEN_NAME_LEN 8
 
 #define PAGE_INDEX(page) ((page) >> PAGE_SHIFT)
 
@@ -33,6 +34,13 @@ struct codec_mm_scatter {
 	/* mutex lock */
 	struct mutex mutex;
 	struct list_head list;	/*hold list. */
+};
+
+struct codec_mm_scatter_owner {
+	char owner_name[SC_OWEN_NAME_LEN];
+	u32 owner_id;
+	u32 cache_keep_size;
+	struct list_head owner_list;
 };
 
 enum e_mmu_free_status {
@@ -105,5 +113,10 @@ int codec_mm_alloc_sys_size(void);
 int codec_mm_scatter_alloc_flags_config(int is_tvp, int sc_alloc_flags);
 
 int codec_mm_scatter_alloc_flag_get(void);
+
+int codec_mm_scatter_owner_register(char *owner_name,
+		int keep_size, int is_tvp);
+int codec_mm_scatter_owner_unregister(int owner_id,
+		int is_tvp);
 
 #endif

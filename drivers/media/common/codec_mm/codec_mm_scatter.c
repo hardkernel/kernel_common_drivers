@@ -239,11 +239,14 @@ struct codec_mm_scatter_mgt {
 	bool cache_allocating;
 	/* spin lock */
 	spinlock_t list_lock;
+	/* owner list spin lock*/
+	spinlock_t owner_list_lock;
 	/* mutex lock */
 	struct mutex monitor_lock;
 	struct completion complete;
 	struct list_head free_list;	/*slot */
 	struct list_head scatter_list;	/*scatter list */
+	struct list_head user_list;	/*scatter user list */
 	struct codec_mm_scatter *scmap[MAX_SC_LIST];/*used for valid check. */
 	int expected_slot_sid[2];
 	struct codec_mm_scatter *try_free_cache_sc;
@@ -2778,6 +2781,105 @@ int codec_mm_scatter_size(int is_tvp)
 }
 EXPORT_SYMBOL(codec_mm_scatter_size);
 
+static void codec_mm_scatter_update_owner_config
+		(struct codec_mm_scatter_mgt *smgt)
+{
+	struct codec_mm_scatter_owner *owner, *tmp;
+	int max_keep_size = 0;
+
+	if (!list_empty(&smgt->user_list))
+		list_for_each_entry_safe(owner, tmp, &smgt->user_list, owner_list)
+			max_keep_size = MAX(max_keep_size, owner->cache_keep_size);
+	if (max_keep_size)
+		g_scatter.keep_size_PAGE = max_keep_size >> PAGE_SHIFT;
+	else
+		g_scatter.keep_size_PAGE = is_2k_platform() ?
+			4 * SZ_1M >> PAGE_SHIFT : 20 * SZ_1M >> PAGE_SHIFT;
+}
+
+int codec_mm_scatter_owner_register(char *owner_name,
+		int keep_size_M, int is_tvp)
+{
+	static u64 owner_id;
+	struct codec_mm_scatter_mgt *smgt;
+	struct codec_mm_scatter_owner *owner = NULL;
+	size_t len;
+
+	owner = kzalloc(sizeof(*owner), GFP_KERNEL);
+	if (!owner)
+		return -ENOMEM;
+
+	smgt = codec_mm_get_scatter_mgt(is_tvp);
+	len = strlen(owner_name);
+	memcpy(owner->owner_name, owner_name, MAX(len, SC_OWEN_NAME_LEN));
+	owner->cache_keep_size = keep_size_M * SZ_1M;
+	INIT_LIST_HEAD(&owner->owner_list);
+
+	spin_lock(&smgt->owner_list_lock);
+	owner->owner_id = owner_id++;
+	list_add(&owner->owner_list, &smgt->user_list);
+	codec_mm_scatter_update_owner_config(smgt);
+	spin_unlock(&smgt->owner_list_lock);
+
+	INFO_LOG("[%s]new owner[%d]:%px, keep size:%d/%d", __func__,
+			owner->owner_id, owner, owner->cache_keep_size, smgt->keep_size_PAGE);
+
+	return owner->owner_id;
+}
+EXPORT_SYMBOL(codec_mm_scatter_owner_register);
+
+int codec_mm_scatter_owner_unregister(int owner_id,
+		int is_tvp)
+{
+	struct codec_mm_scatter_owner *owner, *tmp;
+	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt(is_tvp);
+
+	spin_lock(&smgt->owner_list_lock);
+	if (!list_empty(&smgt->user_list))
+		list_for_each_entry_safe(owner, tmp, &smgt->user_list, owner_list) {
+			if (owner_id == owner->owner_id) {
+				list_del(&owner->owner_list);
+				kfree(owner);
+				codec_mm_scatter_update_owner_config(smgt);
+				spin_unlock(&smgt->owner_list_lock);
+				return 0;
+			}
+		}
+	spin_unlock(&smgt->owner_list_lock);
+
+	ERR_LOG("not found %d owner in %s owner list\n",
+			owner_id, is_tvp ? "tvp" : "normal");
+	return -EINVAL;
+}
+EXPORT_SYMBOL(codec_mm_scatter_owner_unregister);
+
+void codec_mm_scatter_owner_dump(void)
+{
+	struct codec_mm_scatter_owner *owner, *tmp;
+	struct codec_mm_scatter_mgt *smgt;
+
+	smgt = codec_mm_get_scatter_mgt(0);
+	if (!list_empty(&smgt->user_list)) {
+		INFO_LOG("start dump normal scatter owner:\n");
+		list_for_each_entry_safe(owner, tmp, &smgt->user_list, owner_list)
+			INFO_LOG("[%d]%s, keep size:%d\n", owner->owner_id,
+				owner->owner_name, owner->cache_keep_size);
+	} else {
+		INFO_LOG("normal scatter owner list empty.\n");
+	}
+
+	smgt = codec_mm_get_scatter_mgt(1);
+	if (!list_empty(&smgt->user_list)) {
+		INFO_LOG("start dump secure scatter owner:\n");
+		list_for_each_entry_safe(owner, tmp, &smgt->user_list, owner_list)
+			INFO_LOG("[%d]%s keep size:%d\n", owner->owner_id,
+				owner->owner_name, owner->cache_keep_size);
+	} else {
+		INFO_LOG("secure scatter owner list empty.\n");
+	}
+}
+EXPORT_SYMBOL(codec_mm_scatter_owner_dump);
+
 int codec_mm_scatter_mgt_delay_free_switch(int on, int delay_ms,
 					   int wait_size_M, int is_tvp)
 {
@@ -3237,6 +3339,7 @@ static int codec_mm_scatter_mgt_alloc_in(struct codec_mm_scatter_mgt **psmgt)
 	}
 	memset(smgt, 0, sizeof(struct codec_mm_scatter_mgt));
 	spin_lock_init(&smgt->list_lock);
+	spin_lock_init(&smgt->owner_list_lock);
 	smgt->tag = SMGT_IDENTIFY_TAG;
 	smgt->alloced_page_num = 0;
 	smgt->try_alloc_in_cma_page_cnt = (8 * 1024 * 1024) / PAGE_SIZE;
@@ -3265,6 +3368,7 @@ static int codec_mm_scatter_mgt_alloc_in(struct codec_mm_scatter_mgt **psmgt)
 	init_completion(&smgt->complete);
 	INIT_LIST_HEAD(&smgt->free_list);
 	INIT_LIST_HEAD(&smgt->scatter_list);
+	INIT_LIST_HEAD(&smgt->user_list);
 	mutex_init(&smgt->monitor_lock);
 
 	INIT_DELAYED_WORK(&smgt->dealy_work,

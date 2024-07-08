@@ -70,6 +70,14 @@ void *vdin_mmu_box_alloc_box(const char *name,
 	box->exp_sc_list.sc = NULL;
 	box->exp_sc_list.index = -1;
 	INIT_LIST_HEAD(&box->exp_sc_list.sc_list);
+	box->owner_id =
+		codec_mm_scatter_owner_register(SCATTER_OWNER_NAME,
+			SCATTER_KEEP_SIZE, box->tvp_mode);
+	if (box->owner_id < 0) {
+		pr_err("vdin box register fail, ret:%d\n", box->owner_id);
+		kfree(box);
+		return NULL;
+	}
 
 	mutex_init(&box->mutex);
 	INIT_LIST_HEAD(&box->list);
@@ -265,6 +273,7 @@ int vdin_mmu_box_free(void *handle)
 		box->exp_num--;
 	}
 
+	codec_mm_scatter_owner_unregister(box->owner_id, box->tvp_mode);
 	codec_mm_scatter_mgt_delay_free_switch(0, 0, 0, box->tvp_mode);
 
 	mutex_unlock(&box->mutex);

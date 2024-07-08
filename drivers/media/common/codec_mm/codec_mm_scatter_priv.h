@@ -59,4 +59,5 @@ void codec_mm_clear_alloc_infos(void);
 
 int codec_mm_scatter_get_reserved_size(void);
 
+void codec_mm_scatter_owner_dump(void);
 #endif
