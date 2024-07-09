@@ -2324,7 +2324,9 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 static void register_osd_status_cb_func(void)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	register_osd_status_cb(get_osd_status_callback);
+#endif
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION

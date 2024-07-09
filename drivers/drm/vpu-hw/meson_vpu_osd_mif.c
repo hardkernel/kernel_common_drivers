@@ -395,8 +395,6 @@ static struct osd_mif_reg_s s6_osd_mif_reg[HW_OSD_MIF_NUM] = {
  * Internal function to query information for a given format. See
  * meson_drm_format_info() for the public API.
  */
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
-
 static const struct meson_drm_format_info base_formats[] = {
 	{ .format = DRM_FORMAT_XRGB8888,
 		.hw_blkmode = BLOCK_MODE_32BIT,
@@ -461,6 +459,12 @@ static const struct meson_drm_format_info base_formats[] = {
 	{ .format = DRM_FORMAT_INVALID },
 };
 
+static const struct meson_drm_format_info *formats_of_g12[] = {
+	base_formats,
+	NULL,
+};
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static const struct meson_drm_format_info t3x_formats[] = {
 	{ .format = DRM_FORMAT_ABGR4444,
 		.hw_blkmode = BLOCK_MODE_16BIT,
@@ -483,11 +487,6 @@ static const struct meson_drm_format_info t3x_formats[] = {
 		.hw_colormat = COLOR_MATRIX_565_T3X,
 		.alpha_replace = 0 },
 	{ .format = DRM_FORMAT_INVALID },
-};
-
-static const struct meson_drm_format_info *formats_of_g12[] = {
-	base_formats,
-	NULL,
 };
 
 static const struct meson_drm_format_info *formats_of_t3x[] = {
@@ -654,9 +653,11 @@ const struct meson_drm_format_info *meson_drm_format_info(struct meson_vpu_block
 {
 	const struct meson_drm_format_info *info;
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
 	if (afbc_en)
 		info = __meson_drm_afbc_format_info(format);
 	else
+#endif
 		info = __meson_drm_format_info(vblk, format);
 	WARN_ON(!info);
 	return info;
@@ -989,6 +990,7 @@ static void osd_color_config(struct meson_vpu_block *vblk,
 	struct meson_vpu_osd *osd = to_osd_block(vblk);
 
 	if (osd->format_swap) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		/*
 		 * color_expand_mode is 1 for 16-bit pixel format, expand each color component
 		 * to 8bits by padding right-most bits with left-most bits
@@ -1010,6 +1012,7 @@ static void osd_color_config(struct meson_vpu_block *vblk,
 			reg_ops->rdma_write_reg(reg->viu_osd_normal_swap, 0x1230);
 			reg_ops->rdma_write_reg_bits(reg->viu_osd_fifo_ctrl_stat, 1, 30, 1);
 		}
+#endif
 	} else {
 		blk_mode = meson_drm_format_hw_blkmode(vblk, pixel_format, afbc_en);
 		color = meson_drm_format_hw_colormat(vblk, pixel_format, afbc_en);
@@ -1977,7 +1980,6 @@ struct meson_vpu_block_ops s1a_osd_ops = {
 	.fini = osd_hw_fini,
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 struct meson_vpu_block_ops osd_ops = {
 	.check_state = osd_check_state,
 	.update_state = osd_set_state,
@@ -1988,6 +1990,7 @@ struct meson_vpu_block_ops osd_ops = {
 	.fini = osd_hw_fini,
 };
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 struct meson_vpu_block_ops g12b_osd_ops = {
 	.check_state = osd_check_state,
 	.update_state = osd_set_state,
