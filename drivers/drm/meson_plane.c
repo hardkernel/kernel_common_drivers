@@ -28,7 +28,7 @@
 #include "meson_gem.h"
 #include "meson_logo.h"
 
-static int force_gfcd_mode = 1;
+static int force_gfcd_mode;
 module_param(force_gfcd_mode, int, 0664);
 MODULE_PARM_DESC(force_gfcd_mode, "force_gfcd_mode");
 
