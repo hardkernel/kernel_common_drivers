@@ -1126,6 +1126,7 @@ set_rst_reg:
 		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
 
 		usleep_range(10, 20);
+		flag = 0;
 	}
 
 	return 0;
