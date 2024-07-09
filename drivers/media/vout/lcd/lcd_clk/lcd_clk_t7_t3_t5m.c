@@ -1151,7 +1151,7 @@ static void lcd_prbs_set_pll_vx1_t3(struct aml_lcd_drv_s *pdrv)
 	int cnt = 0, ret;
 
 	pll_stts = ANACTRL_TCON_PLL0_STS;
-	reg_vid_pll_div = COMBO_DPHY_VID_PLL0_DIV;
+	reg_vid_pll_div = ANACTRL_VID_PLL_CLK_DIV;
 	reg_vid2_clk_ctrl = CLKCTRL_VIID_CLK0_CTRL;
 
 lcd_prbs_retry_pll_vx1_t3:
@@ -1216,7 +1216,7 @@ static void lcd_prbs_set_pll_lvds_t3(struct aml_lcd_drv_s *pdrv)
 	int cnt = 0, ret;
 
 	pll_stts = ANACTRL_TCON_PLL0_STS;
-	reg_vid_pll_div = COMBO_DPHY_VID_PLL0_DIV;
+	reg_vid_pll_div = ANACTRL_VID_PLL_CLK_DIV;
 	reg_vid2_clk_ctrl = CLKCTRL_VIID_CLK0_CTRL;
 
 lcd_prbs_retry_pll_lvds_t3:
@@ -1354,6 +1354,7 @@ static void lcd_clk_prbs_test_t3(struct aml_lcd_drv_s *pdrv,
 	fifo_msr_id = cconf->data->fifo_clk_msr_id;
 
 	timeout = (ms > 1000) ? 1000 : ms;
+	LCDPR("[%d]: ms:%d, mode_flag:0x%x, timeout:%d\n", pdrv->index, ms, mode_flag, timeout);
 
 	for (i = 0; i < LCD_PRBS_MODE_MAX; i++) {
 		if ((mode_flag & (1 << i)) == 0)
