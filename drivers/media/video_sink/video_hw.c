@@ -9713,6 +9713,8 @@ static bool is_vframe_changed
 	    (new_vf->flag & VFRAME_FLAG_FIX_TUNNEL) ||
 	    (cur_vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) !=
 	    (new_vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) ||
+	    (cur_vf->type_ext & VIDTYPE_EXT_HIGH_BANDWIDTH) !=
+	    (new_vf->type_ext & VIDTYPE_EXT_HIGH_BANDWIDTH) ||
 	     cur_vf->bufWidth != new_vf->bufWidth ||
 	     cur_vf->width != new_vf->width ||
 	     cur_vf->height != new_vf->height ||
