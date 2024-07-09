@@ -1738,8 +1738,8 @@ static int vpp_set_filters_internal
 	bool skip_policy_check = true;
 	u32 vskip_step;
 	s32 video_layer_global_offset_x, video_layer_global_offset_y;
-	u32 video_source_crop_top, video_source_crop_left;
-	u32 video_source_crop_bottom, video_source_crop_right;
+	s32 video_source_crop_top, video_source_crop_left;
+	s32 video_source_crop_bottom, video_source_crop_right;
 	u32 vpp_zoom_ratio, nonlinear_factor, nonlinear_t_factor;
 	u32 speed_check_width, speed_check_height;
 	s32 video_layer_top, video_layer_left;
@@ -1754,8 +1754,8 @@ static int vpp_set_filters_internal
 	s32 vpp_zoom_center_x, vpp_zoom_center_y;
 	u32 crop_ratio = 1;
 	u32 crop_left, crop_right, crop_top, crop_bottom;
-	u32 src_crop_top = 0, src_crop_left = 0;
-	u32 src_crop_right = 0, src_crop_bottom = 0;
+	s32 src_crop_top = 0, src_crop_left = 0;
+	s32 src_crop_right = 0, src_crop_bottom = 0;
 	u32 sar_width = 0, sar_height = 0;
 	bool ext_sar = false;
 	bool no_compress = false;
@@ -1834,6 +1834,14 @@ static int vpp_set_filters_internal
 		video_source_crop_right = input->crop_right;
 		video_source_crop_top = input->crop_top;
 		video_source_crop_bottom = input->crop_bottom;
+		if (video_source_crop_left < 0)
+			video_source_crop_left = 0;
+		if (video_source_crop_right < 0)
+			video_source_crop_right = 0;
+		if (video_source_crop_top < 0)
+			video_source_crop_top = 0;
+		if (video_source_crop_bottom < 0)
+			video_source_crop_bottom = 0;
 
 		if (is_src_crop_valid(vf->src_crop)) {
 			if (cur_super_debug)
@@ -5010,8 +5018,8 @@ static int vpp_set_filters_no_scaler_internal
 	bool skip_policy_check = true;
 	u32 vskip_step;
 	s32 video_layer_global_offset_x, video_layer_global_offset_y;
-	u32 video_source_crop_top, video_source_crop_left;
-	u32 video_source_crop_bottom, video_source_crop_right;
+	s32 video_source_crop_top, video_source_crop_left;
+	s32 video_source_crop_bottom, video_source_crop_right;
 	s32 video_layer_top, video_layer_left;
 	s32 video_layer_width, video_layer_height;
 #ifdef TV_REVERSE
@@ -5057,6 +5065,14 @@ static int vpp_set_filters_no_scaler_internal
 		video_source_crop_top = input->crop_top;
 		video_source_crop_bottom = input->crop_bottom;
 	}
+	if (video_source_crop_left < 0)
+		video_source_crop_left = 0;
+	if (video_source_crop_right < 0)
+		video_source_crop_right = 0;
+	if (video_source_crop_top < 0)
+		video_source_crop_top = 0;
+	if (video_source_crop_bottom < 0)
+		video_source_crop_bottom = 0;
 
 	next_frame_par->vscale_skip_count = 0;
 	next_frame_par->hscale_skip_count = 0;
