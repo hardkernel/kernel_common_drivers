@@ -76,13 +76,13 @@ bool is_vpp2(u8 layer_id)
 	return false;
 }
 
-int is_in_vsync_isr_viu2(void)
+int is_in_vsync_isr_viu2(u8 cur_cpuid)
 {
 	return 0;
 }
 EXPORT_SYMBOL(is_in_vsync_isr_viu2);
 
-int is_in_vsync_isr_viu3(void)
+int is_in_vsync_isr_viu3(u8 cur_cpuid)
 {
 	return 0;
 }

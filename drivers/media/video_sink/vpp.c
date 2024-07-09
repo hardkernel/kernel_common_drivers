@@ -965,6 +965,7 @@ static bool is_4k2k144hz_out(const struct vinfo_s *vinfo)
 		return false;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static u32 is_video_output_window_overlap(void)
 {
 	struct video_layer_s *layer = NULL;
@@ -1042,9 +1043,11 @@ static bool is_video_input_4k(u8 layer_id)
 		is_4k_input = true;
 	return is_4k_input;
 }
+#endif
 
 static bool is_vskip_adj_need(u8 layer_id)
 {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct video_layer_s *layer = NULL;
 	struct vpp_frame_par_s *next_frame_par = NULL;
 
@@ -1085,6 +1088,7 @@ static bool is_vskip_adj_need(u8 layer_id)
 			}
 		}
 	}
+#endif
 	return false;
 }
 
@@ -1158,10 +1162,12 @@ static int vpp_process_speed_check
 			sync_duration_num =
 				sync_duration_num * 10 / frc_ratio;
 	} else {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if ((frc_enable || (slice_num == 2 &&
 			video_is_meson_t3x_cpu())) && layer_id == 0)
 			sync_duration_num = vinfo->sync_duration_num * 10 / frc_ratio;
 		else
+#endif
 			sync_duration_num = vinfo->sync_duration_num;
 		sync_duration_den = vinfo->sync_duration_den;
 	}
@@ -4224,6 +4230,7 @@ static void vpp_set_super_scaler
 		next_frame_par->supsc0_hori_ratio = 0;
 		next_frame_par->supsc0_vert_ratio = 0;
 	}
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* for t3x 2 slice mode */
 	if (video_is_meson_t3x_cpu() &&
 		slice_num == 2 &&
@@ -4240,7 +4247,7 @@ static void vpp_set_super_scaler
 		next_frame_par->supsc1_hori_ratio = 1;
 		next_frame_par->supsc1_vert_ratio = 1;
 	}
-
+#endif
 	if (cur_dev->aisr_enable) {
 		next_frame_par->supsc1_enable = 1;
 		next_frame_par->supsc1_hori_ratio = 1;

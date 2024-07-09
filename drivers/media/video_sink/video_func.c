@@ -3873,12 +3873,12 @@ static void force_switch_slice(void)
 
 bool force_switch_to_2slice(void)
 {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	const struct vinfo_s *vinfo = get_current_vinfo();
 	u32 slice_num;
 
 	if (!video_is_meson_t3x_cpu())
 		return false;
-
 	if (vinfo && (vinfo->width > 1920 && vinfo->height > 1080 &&
 		(vinfo->sync_duration_num /
 		vinfo->sync_duration_den > 60))) {
@@ -3903,6 +3903,7 @@ bool force_switch_to_2slice(void)
 			return true;
 		}
 	}
+#endif
 	return false;
 }
 #endif
