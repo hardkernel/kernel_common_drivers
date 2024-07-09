@@ -917,11 +917,11 @@
 					"pcie_tl_clk";
 			/* amlogic pcie phy pll */
 			aml_phy_pll_version = <1>;
-			pll_setting_number = <16>;
+			pll_setting_number = <17>;
 			/* <reg_offset vlaue> */
 			phy_pll_setting_1 = <0x0000 0x03e855e9>;
 			phy_pll_setting_2 = <0x0004 0x0009e085>;
-			phy_pll_setting_3 = <0x0014 0x000b9788>;
+			phy_pll_setting_3 = <0x0014 0x00099788>;
 			phy_pll_setting_4 = <0x0018 0x0>;
 			phy_pll_setting_5 = <0x0018 0x0>;
 			phy_pll_setting_6 = <0x0000 0x03e855ed>;
@@ -935,11 +935,12 @@
 			phy_pll_setting_13 = <0x0010 0x00002050>;/* reset_13=1 */
 			phy_pll_setting_14 = <0x0010 0x00006050>;/* reset_14=1 */
 			phy_pll_setting_15 = <0x000C 0x384ba320>;/* lock_start=1 */
+			phy_pll_setting_16 = <0x0014 0x000b9788>;
 			/* open ssc 5000 ppm
 			 * phy_pll_setting_17 = <0x0008 0x4800007d>;
 			 * phy_pll_setting_18 = <0x0010 0x2150e050>;
 			 */
-			phy_pll_setting_16 = <0x017c 0x3000000 >;
+			phy_pll_setting_17 = <0x017c 0x3000000 >;
 
 			/*reset-gpio-type
 			 *0:Shared pad(no reset)
