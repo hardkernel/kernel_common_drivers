@@ -460,6 +460,26 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 			}
 			break;
 /* #endif */
+		case REG_TYPE_OSD_SHARPNESS:
+			if (mask == 0xffffffff) {
+				if (pq_reg_wr_rdma)
+					VSYNC_WRITE_VPP_REG_EX_VPP_SEL(addr, val, 0, vpp_index);
+				else
+					WRITE_VPP_REG(addr, val);
+			} else {
+				if (pq_reg_wr_rdma) {
+					temp = READ_VPP_REG(addr);
+					VSYNC_WRITE_VPP_REG_EX_VPP_SEL(addr,
+						(temp & (~mask)) |
+						(val & mask), 0, vpp_index);
+				} else {
+					temp = READ_VPP_REG(addr);
+					WRITE_VPP_REG(addr,
+						(temp & (~mask)) |
+						(val & mask));
+				}
+			}
+			break;
 		default:
 			break;
 		}
@@ -1192,6 +1212,15 @@ static int amvecm_regmap_info(struct am_regs_s *p)
 			break;
 		case REG_TYPE_VCBUS:
 			pr_info("%s:%-3d vcbus: 0x%-4x=0x%-8x (%-5u)=(%-10u)",
+				__func__, i, p->am_reg[i].addr,
+				(p->am_reg[i].val & p->am_reg[i].mask),
+				p->am_reg[i].addr,
+				(p->am_reg[i].val & p->am_reg[i].mask));
+			pr_info(" mask=%-8x(%u)\n",	p->am_reg[i].mask,
+				p->am_reg[i].mask);
+			break;
+		case REG_TYPE_OSD_SHARPNESS:
+			pr_info("%s:%-3d osd: 0x%-4x=0x%-8x (%-5u)=(%-10u)",
 				__func__, i, p->am_reg[i].addr,
 				(p->am_reg[i].val & p->am_reg[i].mask),
 				p->am_reg[i].addr,
