@@ -1650,7 +1650,10 @@ int amlogic_pcie_set_phy_pll(struct amlogic_pcie *amlogic)
 static int amlogic_pcie_init_port_for_aml_phy(struct amlogic_pcie *amlogic)
 {
 	struct device *dev = amlogic->dev;
-	u32 val;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct resource *efuse_res;
+	void __iomem *efuse_base = NULL;
+	u32 val, tmp;
 	int ret = 0, i;
 
 	ret = amlogic_pcie_set_reset_for_aml_phy(amlogic);
@@ -1671,8 +1674,48 @@ static int amlogic_pcie_init_port_for_aml_phy(struct amlogic_pcie *amlogic)
 	/* tx rtem odt */
 	writel(0x3a98, amlogic->phy_base + SAMPLE_3RD_TIME);
 
-	/* tx deemph */
-	writel(0x4010, amlogic->phy_base + UPCTX_CTRL_REG);
+	/* RX and TX trim */
+	efuse_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pci-efuse");
+	efuse_base = devm_ioremap(dev, efuse_res->start, resource_size(efuse_res));
+	if (IS_ERR(efuse_base)) {
+		dev_err(dev, "failed to request efuse_base\n");
+		return PTR_ERR(efuse_base);
+	}
+
+	if (efuse_base) {
+		tmp = readl(efuse_base);
+		dev_dbg(dev, "tx trim = 0x%x\n", (unsigned int)(tmp & GENMASK(5, 0)));
+		dev_dbg(dev, "rx trim = 0x%x\n", (unsigned int)((tmp & GENMASK(10, 6)) >> 6));
+		/* TX trim */
+		if (tmp & BIT(5)) {
+			val = readl(amlogic->phy_base + UPCTX_CTRL_REG);
+			val &= ~GENMASK(7, 0);
+			val |= (tmp & GENMASK(4, 0));
+			writel(val, amlogic->phy_base + UPCTX_CTRL_REG);
+		} else {
+			val = readl(amlogic->phy_base + UPCTX_CTRL_REG);
+			val &= ~GENMASK(7, 0);
+			val |= 0x10;
+			writel(val, amlogic->phy_base + UPCTX_CTRL_REG);
+		}
+
+		/* RX trim */
+		if (tmp & BIT(10)) {
+			for (i = 0; i < 5; i++) {
+				val = readl(amlogic->phy_base + REG_DCHA_AFE_LPBK_REG + i * 4);
+				val &= ~GENMASK(7, 4);
+				val |= (((tmp & GENMASK(9, 6)) >> 6) << 4);
+				writel(val, amlogic->phy_base + REG_DCHA_AFE_LPBK_REG + i * 4);
+			}
+		} else {
+			for (i = 0; i < 5; i++) {
+				val = readl(amlogic->phy_base + REG_DCHA_AFE_LPBK_REG + i * 4);
+				val &= ~GENMASK(7, 4);
+				val |= (0x7 << 4);
+				writel(val, amlogic->phy_base + REG_DCHA_AFE_LPBK_REG + i * 4);
+			}
+		}
+	}
 
 	/* set phy pll */
 	if (of_property_read_bool(dev_of_node(dev), "phy_pll_setting_1")) {

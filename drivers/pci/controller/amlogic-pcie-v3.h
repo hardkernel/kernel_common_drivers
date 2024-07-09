@@ -124,6 +124,7 @@
 /* amlogic phy V1 register offset */
 #define UPCTX_CTRL_REG				(0x0012 << 2)
 #define UPCRX_DR_REG1				(0x0015 << 2)
+#define REG_DCHA_AFE_LPBK_REG			(0x001e << 2)
 #define REG_DCHD_EQ_LPBK_REG			(0x0032 << 2)
 #define REG_DCHD_EQ_GEN1_REG			(0x0033 << 2)
 #define REG_DCHD_EQ_GEN2_REG			(0x0034 << 2)
