@@ -14158,10 +14158,10 @@ static struct class_attribute amvecm_class_attrs[] = {
 		amvecm_ble_whe_dbg_show,
 		amvecm_ble_whe_dbg_store),
 	__ATTR(slt_dbg, 0644, amvecm_slt_debug_show, amvecm_slt_debug_store),
-#endif
 	__ATTR(vl_lock_st, 0644,
 		amvecm_slt_vl_lock_st_show,
 		amvecm_slt_vl_lock_st_store),
+#endif
 	__ATTR_NULL
 };
 
