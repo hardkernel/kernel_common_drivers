@@ -4847,6 +4847,10 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_sysfs_common_create(dev, &hdev->tx_comm, &hdev->tx_hw.base);
 	hdev->hdmi_init = 1;
 
+	/* enable analog frequency division by default on S6 */
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6)
+		hdev->tx_hw.s7_clk_config = 1;
+
 	return r;
 }
 
