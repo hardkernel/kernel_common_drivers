@@ -102,7 +102,7 @@ static void meson_parse_gfcd_config(struct drm_device *dev,
 		struct meson_of_conf *conf)
 {
 	u8 enable;
-	int ret;
+	int ret, temp;
 
 	ret = of_property_read_u8(dev->dev->of_node, "gfcd_afbc_enable", &enable);
 	if (ret)
@@ -122,7 +122,16 @@ static void meson_parse_gfcd_config(struct drm_device *dev,
 			conf->gfcd_mask = 2;
 			conf->drm_policy_mask = 0;
 		}
+	} else {
+		ret = of_property_read_u32(dev->dev->of_node, "gfcd_mask_for_driver", &temp);
+		if (!ret)
+			conf->gfcd_mask = temp;
+
+		ret = of_property_read_u32(dev->dev->of_node, "gfcd_mask_for_upper", &temp);
+		if (!ret)
+			conf->drm_policy_mask |= temp;
 	}
+
 	DRM_DEBUG("gfcd_mask:%d drm_policy_mask:%lld\n",
 		conf->gfcd_mask, conf->drm_policy_mask);
 }
