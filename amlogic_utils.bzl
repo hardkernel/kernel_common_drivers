@@ -23,6 +23,8 @@ load("//build/kernel/kleaf/impl:gki_artifacts.bzl", "gki_artifacts", "gki_artifa
 load("//build/kernel/kleaf:print_debug.bzl", "print_debug")
 load("@kernel_toolchain_info//:dict.bzl", "BRANCH", "common_kernel_package")
 
+load("//common:common_drivers/project/project.bzl", "FAST_BUILD")
+
 # Always collect_unstripped_modules for common kernels.
 _COLLECT_UNSTRIPPED_MODULES = True
 
@@ -88,8 +90,8 @@ def define_common_amlogic(
         module_outs = module_outs,
         build_config = build_config,
         # Enable mixed build.
-        base_kernel = ":kernel_aarch64_download_or_build",
-        kmi_symbol_list = kmi_symbol_list,
+        base_kernel = ":kernel_aarch64" if FAST_BUILD else ":kernel_aarch64_download_or_build",
+        kmi_symbol_list = None if FAST_BUILD else kmi_symbol_list,
         collect_unstripped_modules = _COLLECT_UNSTRIPPED_MODULES,
         strip_modules = True,
         make_goals = make_goals,
@@ -103,9 +105,9 @@ def define_common_amlogic(
     kernel_abi(
         name = name + "_abi",
         kernel_build = name,
-        define_abi_targets = define_abi_targets,
+        define_abi_targets = False if FAST_BUILD else define_abi_targets,
         kernel_modules = _kernel_modules,
-        kmi_symbol_list_add_only = kmi_symbol_list_add_only,
+        kmi_symbol_list_add_only = False if FAST_BUILD else kmi_symbol_list_add_only,
         module_grouping = module_grouping,
         unstripped_modules_archive = unstripped_modules_archive,
     )
@@ -142,9 +144,19 @@ def define_common_amlogic(
         name + "_merged_kernel_uapi_headers",
     ]
 
+    fast_build_dist_targets = [
+        name,
+        # name + "_images",
+        name + "_modules_install",
+        # Mixed build: Additional GKI artifacts.
+        # ":kernel_aarch64_download_or_build",
+        # ":kernel_aarch64_additional_artifacts_download_or_build",
+        # name + "_merged_kernel_uapi_headers",
+    ]
+
     copy_to_dist_dir(
         name = name + "_dist",
-        data = dist_targets,
+        data = fast_build_dist_targets if FAST_BUILD else dist_targets,
         dist_dir = dist_dir,
         flat = True,
         log = "info",
