@@ -104,6 +104,10 @@ int amblt_debug_file_remove(struct amblt_drv_s *amblt_drv);
 int amblt_function_enable(struct amblt_drv_s *amblt_drv);
 int amblt_function_disable(struct amblt_drv_s *amblt_drv);
 
+int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
+u32 VSYNC_RD_MPEG_REG(u32 adr);
+int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
+
 /********************regs************************/
 #define LCD_OLED_SIZE                              0x14ec
 #define LDC_REG_INPUT_STAT_NUM                     0x14ef

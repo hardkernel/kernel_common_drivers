@@ -34,10 +34,41 @@
 
 unsigned int amblt_debug_print;
 
+atomic_t amblt_inirq_flag = ATOMIC_INIT(0);
+u8 amblt_isr_cpuid;
+
+int is_in_amblt_vsync_isr(u8 cur_cpuid)
+{
+	if (amblt_isr_cpuid != cur_cpuid)
+		return 0;
+	if (atomic_read(&amblt_inirq_flag) > 0)
+		return 1;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(is_in_amblt_vsync_isr);
+
+// for rdma write/read
+static void amblt_wr_reg_bits(unsigned int addr, unsigned int val,
+				    unsigned int start, unsigned int len)
+{
+	unsigned int data;
+
+	data = VSYNC_RD_MPEG_REG(addr);
+	data = (data & (~(((1 << len) - 1) << start))) |
+		((val & ((1 << len) - 1)) << start);
+	VSYNC_WR_MPEG_REG(addr, data);
+}
+
+static void amblt_wr_reg(unsigned int addr, unsigned int val)
+{
+	VSYNC_WR_MPEG_REG(addr, val);
+}
+
 static void vpu_lut_dma_clr_fcnt(struct vpu_lut_dma_wr_s *lut_dma)
 {
-	lcd_vcbus_write(VPU_DMA_WRMIF_SEL, (0xff0 + lut_dma->wr_sel));
-	lcd_vcbus_setb(VPU_DMA_WRMIF0_CTRL + lut_dma->offset, 1, 30, 1);
+	amblt_wr_reg(VPU_DMA_WRMIF_SEL, (0xff0 + lut_dma->wr_sel));
+	amblt_wr_reg_bits(VPU_DMA_WRMIF0_CTRL + lut_dma->offset, 1, 30, 1);
 }
 
 static void set_vpu_lut_dma_mif_wr(struct vpu_lut_dma_wr_s *lut_dma, int flag)
@@ -56,17 +87,17 @@ static void set_vpu_lut_dma_mif_wr(struct vpu_lut_dma_wr_s *lut_dma, int flag)
 		//Bit 1     lut_wr_cnt_sel    // unsigned ,    RW , default = 0
 		//Bit 0     lut_wr_reg_sel    // unsigned ,    RW , default = 0,
 				// 0: sel lut0,1,2,...,7 1:sel lut8,9,...,15
-		lcd_vcbus_write(VPU_DMA_WRMIF_SEL, (0xff0 + lut_dma->wr_sel));
-		lcd_vcbus_write(VPU_DMA_WRMIF0_CTRL + ofst,
+		amblt_wr_reg(VPU_DMA_WRMIF_SEL, (0xff0 + lut_dma->wr_sel));
+		amblt_wr_reg(VPU_DMA_WRMIF0_CTRL + ofst,
 					((lut_dma->addr_mode & 0x3) << 28) |
 					((lut_dma->rpt_num & 0xff)  << 18) |
 					(1 << 16) | //chn_enable
 					(lut_dma->stride & 0x1fff));
-		lcd_vcbus_write(VPU_DMA_WRMIF0_BADR0 + (ofst << 1), lut_dma->baddr0);
-		lcd_vcbus_write(VPU_DMA_WRMIF0_BADR1 + (ofst << 1), lut_dma->baddr1);
+		amblt_wr_reg(VPU_DMA_WRMIF0_BADR0 + (ofst << 1), lut_dma->baddr0);
+		amblt_wr_reg(VPU_DMA_WRMIF0_BADR1 + (ofst << 1), lut_dma->baddr1);
 	} else {
-		lcd_vcbus_write(VPU_DMA_WRMIF_SEL, (0xff0 + lut_dma->wr_sel));
-		lcd_vcbus_setb(VPU_DMA_WRMIF0_CTRL + ofst, 0, 16, 1); //chn_disable
+		amblt_wr_reg(VPU_DMA_WRMIF_SEL, (0xff0 + lut_dma->wr_sel));
+		amblt_wr_reg_bits(VPU_DMA_WRMIF0_CTRL + ofst, 0, 16, 1); //chn_disable
 	}
 }
 
@@ -81,7 +112,7 @@ static void amblt_hw_ctrl(struct amblt_drv_s *amblt_drv)
 		lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM, amblt_drv->zone_v, 8, 5);  //y num
 		lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM, 1, 15, 1);  //reverse vs pol
 		lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM, 1, 21, 1);  //reverse vs pol
-		lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM, 1, 16, 1); //en
+		amblt_wr_reg_bits(LDC_REG_INPUT_STAT_NUM, 1, 16, 1); //en
 		//AMBLTPR("LDC_REG_INPUT_STAT_NUM 0x%04x = 0x%08x\n",
 		//	LDC_REG_INPUT_STAT_NUM, lcd_vcbus_read(LDC_REG_INPUT_STAT_NUM));
 		amblt_drv->state |= AMBLT_STATE_EN;
@@ -91,7 +122,7 @@ static void amblt_hw_ctrl(struct amblt_drv_s *amblt_drv)
 		}
 	} else {
 		amblt_drv->state &= ~AMBLT_STATE_EN;
-		lcd_vcbus_setb(LDC_REG_INPUT_STAT_NUM, 0, 16, 1);
+		amblt_wr_reg_bits(LDC_REG_INPUT_STAT_NUM, 0, 16, 1);
 		set_vpu_lut_dma_mif_wr(&amblt_drv->lut_dma, 0);
 		if (amblt_debug_print)
 			AMBLTPR("ambilight disabled\n");
@@ -171,9 +202,11 @@ static irqreturn_t amblt_vsync_isr(int irq, void *data)
 	struct amblt_drv_s *amblt_drv = (struct amblt_drv_s *)data;
 	unsigned int state;
 
+	amblt_isr_cpuid = smp_processor_id();
 	if (!amblt_drv)
 		return IRQ_HANDLED;
 
+	atomic_set(&amblt_inirq_flag, 1);
 	state = amblt_drv->state & AMBLT_STATE_EN;
 	if (amblt_drv->en != state) {
 		amblt_hw_ctrl(amblt_drv);
@@ -182,6 +215,8 @@ static irqreturn_t amblt_vsync_isr(int irq, void *data)
 
 	if (state)
 		amblt_data_refersh(amblt_drv);
+
+	atomic_set(&amblt_inirq_flag, 0);
 
 	return IRQ_HANDLED;
 }

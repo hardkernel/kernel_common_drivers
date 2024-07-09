@@ -71,6 +71,9 @@ bool get_lowlatency_mode(void);
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 int is_in_ldim_vsync_isr(u8 cur_cpuid);
 #endif
+#ifdef CONFIG_AMLOGIC_AMBILIGHT
+int is_in_amblt_vsync_isr(u8 cur_cpuid);
+#endif
 void set_rdma_channel_enable(u8 rdma_en);
 unsigned int rdma_hw_done_bit(void);
 

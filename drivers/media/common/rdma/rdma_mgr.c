@@ -1382,22 +1382,19 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 
 	if (ins->rdma_table_size == 0)
 		return -1;
+	if ((get_rdma_handle(VSYNC_RDMA) == handle) &&
+		(cur_cpuid != rdma_done_cpuid ||
+		(!is_in_vsync_isr(cur_cpuid) &&
 #ifdef CONFIG_AMLOGIC_BL_LDIM
-	if ((get_rdma_handle(VSYNC_RDMA) == handle) &&
-		(cur_cpuid != rdma_done_cpuid ||
-		(!is_in_vsync_isr(cur_cpuid) &&
-		!is_in_pre_vsync_isr(cur_cpuid) &&
-		!is_in_vsync_isr_viu2(cur_cpuid) &&
-		!is_in_vsync_isr_viu3(cur_cpuid) &&
-		!is_in_ldim_vsync_isr(cur_cpuid)))) {
-#else
-	if ((get_rdma_handle(VSYNC_RDMA) == handle) &&
-		(cur_cpuid != rdma_done_cpuid ||
-		(!is_in_vsync_isr(cur_cpuid) &&
-		!is_in_pre_vsync_isr(cur_cpuid) &&
-		!is_in_vsync_isr_viu2(cur_cpuid) &&
-		!is_in_vsync_isr_viu3(cur_cpuid)))) {
+		!is_in_ldim_vsync_isr(cur_cpuid) &&
 #endif
+#ifdef CONFIG_AMLOGIC_AMBILIGHT
+		!is_in_amblt_vsync_isr(cur_cpuid) &&
+#endif
+		!is_in_pre_vsync_isr(cur_cpuid) &&
+		!is_in_vsync_isr_viu2(cur_cpuid) &&
+		!is_in_vsync_isr_viu3(cur_cpuid)
+		))) {
 		dump_stack();
 		pr_info("rdma_write(%d)(%s) %d(%x)<=%x\n",
 			handle, current->comm, ins->rdma_item_count, adr, val);
