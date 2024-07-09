@@ -10,7 +10,7 @@ echo "Base Kernel parm: LTO=${LTO} GKI_CONFIG=${GKI_CONFIG} ANDROID_PROJECT=${AN
 
 DEFCONFIG=amlogic_gki_defconfig
 function pre_defconfig_cmds() {
-	KCONFIG_DEFCONFIG=${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/arm64/configs/${DEFCONFIG}
+	KCONFIG_DEFCONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}
 	local temp_file=`mktemp /tmp/config.XXXXXXXXXXXX`
 
 	if [[ ${GKI_CONFIG} == gki_20 ]]; then

@@ -111,8 +111,12 @@ build_part_of_kernel
 
 if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BAZEL} == 1 ]]; then
 	args=$@
-	[[ -z ${PREBUILT_GKI} ]] && args="${args} --lto=${LTO}"
-	[[ -z ${GKI_CONFIG} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode"
+	if [[ -n ${FAST_BUILD} ]]; then
+		args="${args} --config=fast --lto=none"
+	else
+		[[ -z ${PREBUILT_GKI} ]] && args="${args} --lto=${LTO}"
+	fi
+	[[ -z ${GKI_CONFIG} ||  -n ${FAST_BUILD} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode"
 
 	PROJECT_DIR=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/project
 	[[ -d ${PROJECT_DIR} ]] || mkdir -p ${PROJECT_DIR}
@@ -180,6 +184,8 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	sed -i "/UPGRADE_PROJECT/d" ${PROJECT_DIR}/project.bzl
 	echo "UPGRADE_PROJECT = \"${UPGRADE_PROJECT}\"" >> ${PROJECT_DIR}/project.bzl
 
+	echo "FAST_BUILD = \"${FAST_BUILD}\""		>> ${PROJECT_DIR}/project.bzl
+
 	[[ -f ${PROJECT_DIR}/dtb.bzl ]] || touch ${PROJECT_DIR}/dtb.bzl
 	echo "# SPDX-License-Identifier: GPL-2.0" 	>  ${PROJECT_DIR}/dtb.bzl
 	echo 						>> ${PROJECT_DIR}/dtb.bzl
@@ -212,13 +218,13 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		fi
 		${GOOGLE_BAZEL_BUILD_COMMAND_LINE}
 	elif [[ "${ABI}" -eq "1" ]]; then
-		tools/bazel run //common:amlogic_abi_update_symbol_list --sandbox_debug --verbose_failures ${args}
-		tools/bazel run //common:kernel_aarch64_abi_dist --sandbox_debug --verbose_failures ${args}
+		tools/bazel run //common:amlogic_abi_update_symbol_list --verbose_failures ${args}
+		tools/bazel run //common:kernel_aarch64_abi_dist --verbose_failures ${args}
 		exit
 	elif [[ -n ${PREBUILT_GKI} ]]; then
-		tools/bazel run --use_prebuilt_gki=${PREBUILT_GKI} //common:amlogic_dist --sandbox_debug --verbose_failures ${args}
+		tools/bazel run --use_prebuilt_gki=${PREBUILT_GKI} //common:amlogic_dist --verbose_failures ${args}
 	else
-		tools/bazel run //common:amlogic_dist --sandbox_debug --verbose_failures ${args}
+		tools/bazel run //common:amlogic_dist --verbose_failures ${args}
 	fi
 	set +x
 
@@ -308,6 +314,6 @@ check_undefined_symbol
 
 abi_symbol_list_detect
 
-if [[ ${ARCH} = "arm64" ]]; then
+if [[ ${ARCH} = "arm64" && -z ${FAST_BUILD} ]]; then
 	generate_lzma_format_image
 fi
