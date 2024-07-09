@@ -2810,7 +2810,8 @@ RESTART:
 			if (((cur_dev->display_module != S5_DISPLAY_MODULE &&
 				   (vf->width >= 4096 &&
 			      (!(vf->type & VIDTYPE_COMPRESS)))) ||
-			     (vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH)) &&
+			     (vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) ||
+			     (vf->type_ext & VIDTYPE_EXT_HIGH_BANDWIDTH)) &&
 			    next_frame_par->vscale_skip_count == 0) {
 				next_frame_par->vscale_skip_count =
 				skip_policy & 0xf;
@@ -5532,7 +5533,8 @@ RESTART:
 		} else if (skip_policy & 0x80) {
 			if (((vf->width >= 4096 &&
 			      (!(vf->type & VIDTYPE_COMPRESS))) ||
-			    (vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH)) &&
+			    (vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) ||
+			    (vf->type_ext & VIDTYPE_EXT_HIGH_BANDWIDTH)) &&
 			next_frame_par->vscale_skip_count == 0) {
 				next_frame_par->vscale_skip_count =
 				skip_policy & 0xf;
