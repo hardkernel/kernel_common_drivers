@@ -122,6 +122,7 @@
 	(((((val) >> 18)) & GENMASK(4, 0)) == (state))
 
 /* amlogic phy V1 register offset */
+#define UPCTX_CONT1_REG2			(0x000e << 2)
 #define UPCTX_CTRL_REG				(0x0012 << 2)
 #define UPCRX_DR_REG1				(0x0015 << 2)
 #define REG_DCHA_AFE_LPBK_REG			(0x001e << 2)
