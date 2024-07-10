@@ -104,6 +104,7 @@ extern struct aml_efuse_cmd efuse_cmd;
 extern void __iomem *sharemem_input_base;
 extern void __iomem *sharemem_output_base;
 extern unsigned int efuse_obj_cmd_status;
+extern unsigned int efuse_cali_item_read;
 
 ssize_t efuse_get_max(void);
 ssize_t efuse_read_usr(char *buf, size_t count, loff_t *ppos);
