@@ -1675,6 +1675,10 @@ static int amlogic_pcie_init_port_for_aml_phy(struct amlogic_pcie *amlogic)
 	/* tx rtem odt */
 	writel(0x3a98, amlogic->phy_base + SAMPLE_3RD_TIME);
 
+	/* Improved TX signal quality */
+	for (i = 0; i < 3; i++)
+		writel(0x54da54da, amlogic->phy_base + UPCTX_CONT1_REG2 + i * 4);
+
 	/* RX and TX trim */
 	efuse_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pci-efuse");
 	efuse_base = devm_ioremap(dev, efuse_res->start, resource_size(efuse_res));
