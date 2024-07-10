@@ -175,11 +175,10 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x1C800000>;
+			size = <0xD000000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x00000000 0x40000000>;
+			alloc-ranges = <0x30000000 0x10000000>;
 			linux,contiguous-region;
-			status = "disabled";
 		};
 
 		/*di CMA pool */
@@ -381,7 +380,7 @@
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
 		dev_name = "codec_mm";
-		status = "disabled";
+		status = "okay";
 	};
 
 	ionvideo {

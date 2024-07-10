@@ -1688,7 +1688,7 @@
 
 	meson_uvm {
 		compatible = "amlogic, meson_uvm";
-		status = "disabled";
+		status = "okay";
 	};
 
 	meson_videotunnel{
@@ -1822,13 +1822,13 @@
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
 		dev_name = "mesonstream";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vdec {
 		compatible = "amlogic, vdec-pm-pd";
 		dev_name = "vdec.0";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 3 1
 			0 23 1
 			0 32 1
@@ -1843,42 +1843,32 @@
 			"mailbox_1",
 			"mailbox_2",
 			"parser_b";
-		power-domains = <&pwrdm PDID_T5M_DOS_HEVC>,
-			<&pwrdm PDID_T5M_DOS_GE2D_WRAP>,
-			<&pwrdm PDID_T5M_DOS_GE2D_WRAP>,
-			<&pwrdm PDID_T5M_DOS_GE2D_WRAP>;
+		power-domains = <&pwrdm PDID_T6D_DOS_HEVC>,
+			<&pwrdm PDID_T6D_DOS_HEVC>;
 		power-domain-names = "pwrc-hevc",
-			"pwrc-hevc-b",
-			"pwrc-hcodec",
-			"pwrc-vdec";
+			"pwrc-dummy";
 	};
 
 	vcodec_dec {
 		compatible = "amlogic, vcodec-dec";
 		dev_name = "aml-vcodec-dec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vcodec_dos_dev: vcodec_dos_dev {
-		compatible = "amlogic, cpu-major-id-t5m";
+		compatible = "amlogic, cpu-major-id-t6d";
 		dev_name = "vcodec_dos_dev";
-		status = "disabled";
+		status = "okay";
 		reg = <0xfe320000 0x10000>,
 			<0xfe036000 0x2000>;
 		reg-names = "dosbus",
 			"dmcbus";
-		//clocks = <&clkc CLKID_SYS_DOS
-		//	&clkc CLKID_VDEC
-		//	&clkc CLKID_HCODEC
-		//	&clkc CLKID_HEVCB>;
+		clocks = <&clkc CLKID_SYS_DOS
+			&clkc CLKID_HEVCB>;
 		clock-names = "vdec",
-			"clk_vdec_mux",
-			"clk_hcodec_mux",
 			"clk_hevc_mux";
-		//assigned-clock-parents = <&clkc CLKID_VDEC_0>,
-		//	<&clkc CLKID_HEVCB_0>;
-		//assigned-clocks = <&clkc CLKID_VDEC>,
-		//	<&clkc CLKID_HEVCB>;
+		assigned-clock-parents = <&clkc CLKID_HEVCB_0>;
+		assigned-clocks = <&clkc CLKID_HEVCB>;
 	};
 
 	meson-amvideom {
