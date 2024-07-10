@@ -49,6 +49,9 @@
  ************************************************/
 #define DIM_HAVE_HDR	(1)
 
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+#define	CONFIG_AMLOGIC_MEDIA_THERMAL1	(1)
+#endif
 /************************************************
  * function:decontour use detect border
  *	char aml_ldim_get_bbd_state(void) in
@@ -165,6 +168,9 @@
 #define VFMT_IS_EOS(vftype) ((vftype) & VIDTYPE_V4L_EOS)
 
 #define IS_NV21_12(vftype) ((vftype) & (VIDTYPE_VIU_NV12 | VIDTYPE_VIU_NV21))
+
+#define IS_PRE_LOCAL(vftype) (((vftype) & (VIDTYPE_PRE_INTERLACE | VIDTYPE_DI_PW)) == \
+				VIDTYPE_PRE_INTERLACE)
 
 #define VFMT_MASK_ALL		(VIDTYPE_TYPEMASK	|	\
 				 VIDTYPE_VIU_NV12	|	\
@@ -364,7 +370,7 @@ struct di_buf_s {
 	unsigned int is_bypass_mem : 1;
 	unsigned int en_hf	: 1; //only flg post buffer
 	unsigned int hf_done	: 1; //
-	unsigned int rev1	: 1;
+	unsigned int is_plink : 1;
 
 	unsigned int rev2	: 16;
 	struct dsub_bufv_s	c;
@@ -382,6 +388,9 @@ struct di_buf_s {
 	bool hf_irq;
 	bool dw_have;
 	bool flg_dummy;
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL1
+	bool bit_8_flag;
+#endif
 };
 
 #define RDMA_DET3D_IRQ			0x20
@@ -404,7 +413,7 @@ struct di_buf_s {
 
 #define QUEUE_LOCAL_FREE		0
 #define QUEUE_RECYCLE			1	/* 5 */
-#define QUEUE_DISPLAY			2	/* 6 */
+#define QUEUE_DISPLAY			2	/* for post-link display queue */
 #define QUEUE_TMP			3	/* 7 */
 #define QUEUE_POST_DOING		4	/* 8 */
 
@@ -507,6 +516,7 @@ struct di_dev_s {
 	struct vpu_dev_s *dim_vpu_pd_vd1;
 	struct vpu_dev_s *dim_vpu_pd_post;
 	bool is_crc_ic;
+	unsigned int sub_v;
 #ifdef DIM_TB_DETECT
 	//unsigned int tb_detect;
 	unsigned int tb_detect_period;
@@ -724,7 +734,7 @@ struct di_buf_pool_s {
 	unsigned int size;
 };
 
-unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int channel);
+unsigned char dim_is_bypass(struct vframe_s *vf_in, unsigned int channel);
 //bool dim_bypass_first_frame(unsigned int ch);
 
 int di_cnt_buf(int width, int height, int prog_flag, int mc_mm,
@@ -743,6 +753,8 @@ struct di_buf_s *dim_get_recovery_log_di_buf(void);
 unsigned long dim_get_reg_unreg_timeout_cnt(void);
 struct vframe_s **dim_get_vframe_in(unsigned int ch);
 int dim_check_recycle_buf(unsigned int channel);
+void recycle_vframe_type_post(struct di_buf_s *di_buf,
+				     unsigned int channel);
 
 int dim_seq_file_module_para_di(struct seq_file *seq);
 int dim_seq_file_module_para_hw(struct seq_file *seq);
@@ -797,11 +809,11 @@ void dim_uninit_buf(unsigned int disable_mirror, unsigned int channel);
 int dim_process_post_vframe(unsigned int channel);
 unsigned char dim_check_di_buf(struct di_buf_s *di_buf, int reason,
 			       unsigned int channel);
-int dim_do_post_wr_fun(void *arg, vframe_t *disp_vf);
+int dim_do_post_wr_fun(void *arg, struct vframe_s *disp_vf);
 int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		     unsigned int zoom_end_x_lines,
 		     unsigned int zoom_start_y_lines,
-		     unsigned int zoom_end_y_lines, vframe_t *disp_vf);
+		     unsigned int zoom_end_y_lines, struct vframe_s *disp_vf);
 void dim_post_de_done_buf_config(unsigned int channel);
 void dim_recycle_post_back(unsigned int channel);
 void recycle_post_ready_local(struct di_buf_s *di_buf,
@@ -851,10 +863,19 @@ void di_unlock_irq(void);
 int dump_state_flag_get(void);
 int di_get_kpi_frame_num(void);
 
+void config_canvas_idx(struct di_buf_s *di_buf, int nr_canvas_idx,
+			      int mtn_canvas_idx);
+void config_mcvec_canvas_idx(struct di_buf_s *di_buf,
+				    int mcvec_canvas_idx);
+void set_post_mcinfo(struct mcinfo_pre_s *curr_field_mcinfo);
+void top_bot_config(struct di_buf_s *di_buf);
+
 /*--------------------------*/
 extern int pre_run_flag;
 extern unsigned int dbg_first_cnt_pre;
 extern spinlock_t plist_lock;
+extern spinlock_t lock_pvpp;
+extern unsigned int pldn_dly;
 
 void dim_dbg_pre_cnt(unsigned int channel, char *item);
 
@@ -876,7 +897,10 @@ void dbg_h_w(unsigned int ch, unsigned int nub);
 void di_set_default(unsigned int ch);
 //bool dim_dbg_is_cnt(void);
 bool pre_dbg_is_run(void);
-irqreturn_t dpvpp_irq(int irq, void *dev_instance);
+irqreturn_t dpvpp_pre_irq(int irq, void *dev_instance);
+irqreturn_t dpvpp_post_irq(int irq, void *dev_instance);
+void di_cnt_cvs_nv21(unsigned int mode,
+		unsigned int *h, unsigned int *v, unsigned int ch);
 
 /*---------------------*/
 const struct afd_ops_s *dim_afds(void);

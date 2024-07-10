@@ -21,6 +21,9 @@
 #include "video_reg_s5.h"
 #include "video_priv.h"
 
+extern u32 frc_mute_frames;
+extern u32 frc_muted_frames;
+
 #define DEBUG_VD_PROC     BIT(0)
 #define DEBUG_VPP_POST    BIT(1)
 #define DEBUG_AISR        BIT(2)
@@ -100,6 +103,7 @@ struct vd_proc_sr_s {
 	u32 sr_support;
 	u32 core_v_enable_width_max;
 	u32 core_v_disable_width_max;
+	bool sr_force_disable;
 };
 
 struct vd_proc_hwin_s {
@@ -209,10 +213,13 @@ struct vd_proc_mosaic_s {
 struct vd_proc_slice_info_s {
 	/* vd1 Real input size to each slice */
 	/* with overlap */
+	u32 vd1_slice_din_hsize_amdv[SLICE_NUM];
 	u32 vd1_slice_din_hsize[SLICE_NUM];
 	u32 vd1_slice_din_vsize[SLICE_NUM];
 	u32 vd1_slice_x_st[SLICE_NUM];
 	u32 vd1_slice_x_end[SLICE_NUM];
+	u32 vd1_slice_x_st_amdv_out[SLICE_NUM];
+	u32 vd1_slice_x_end_amdv_out[SLICE_NUM];
 };
 
 struct vd_proc_preblend_info_s {
@@ -231,12 +238,14 @@ struct vd_proc_vd2_info_s {
 	u32 vd2_dout_x_start;
 	u32 vd2_dout_y_start;
 	u32 crop_left;
+	bool no_compress;
 };
 
 struct vd_proc_vd1_info_s {
 	u32 slice_num;
 	u32 vd1_work_mode;
 	u32 vd1_slices_dout_dpsel;
+	u32 vd1_overlap_hsize_amdvin;
 	u32 vd1_overlap_hsize;
 	/* whole frame in hsize */
 	u32 vd1_src_din_hsize[SLICE_NUM];
@@ -254,6 +263,9 @@ struct vd_proc_vd1_info_s {
 	u32 vd1_whole_hsize;
 	u32 vd1_whole_vsize;
 	u32 crop_left;
+	u32 slice_out_calc;
+	u32 h_no_scale[SLICE_NUM];
+	bool no_compress;
 };
 
 struct vd2_proc_s {
@@ -418,7 +430,13 @@ void save_pps_data(int slice, u32 vd_vsc_phase_ctrl_val);
 u32 get_pps_data(int slice);
 u32 get_vpu_venc_error_status(void);
 void clear_vpu_venc_error(void);
-void update_frc_in_size(struct video_layer_s *layer);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+void vpu_set_frc_bypass(struct video_layer_s *layer);
+void update_frc_in_size_s5(struct video_layer_s *layer);
+#endif
+
 void vd1_set_go_field_s5(void);
 u32 get_vd1s1_vd2_prebld_en(u32 layer_id);
+void vd_3mux3_set(u8 vpp_index);
 #endif

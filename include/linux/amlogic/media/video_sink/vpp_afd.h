@@ -15,6 +15,24 @@ enum E_AFD_RESULT {
 	AFD_RESULT_MAX = 0xff,
 };
 
+enum E_AFD_CROP_T {
+	AFD_CROP_INVALID = 0,
+	AFD_CROP_SYSFS = 1,
+	AFD_CROP_DB = 2,
+	AFD_CROP_MAX = 3
+};
+
+enum E_AFD_SOURCE_TYPE_T {
+	AFD_SOURCE_TYPE_OTHERS = 0,
+	AFD_SOURCE_TYPE_TUNER,
+	AFD_SOURCE_TYPE_CVBS,
+	AFD_SOURCE_TYPE_COMP,
+	AFD_SOURCE_TYPE_HDMI,
+	AFD_SOURCE_TYPE_PPMGR,
+	AFD_SOURCE_TYPE_OSD,
+	AFD_SOURCE_TYPE_HWC,
+};
+
 struct ar_fraction_s {
 	int numerator;
 	int denominator;
@@ -41,6 +59,10 @@ struct afd_in_param {
 	unsigned int video_h;
 	unsigned int screen_w;
 	unsigned int screen_h;
+	enum E_AFD_SOURCE_TYPE_T source_type;
+	enum E_AFD_CROP_T crop_type;
+	u32 afd_info;
+	struct crop_rect_s src_crop;
 	struct pos_rect_s disp_info;
 	struct ar_fraction_s video_ar;
 	struct ar_fraction_s screen_ar;

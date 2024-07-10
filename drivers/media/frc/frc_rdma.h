@@ -4,9 +4,16 @@
  */
 #include <linux/amlogic/media/frc/frc_reg.h>
 
+// 2024-0110 frc rdma version 1.1.1.011024_beta
+
+#define FRC_RDMA_VER			"add rdma read version 1.1.2.040124"
+
 #define RDMA_NUM        8
+#define RDMA_CHANNEL    5
 #define RDMA_NUM_T3X    16
-#define REG_TEST_NUM 32
+#define REG_TEST_NUM    16
+
+#define MAX_TRACE_NUM   16
 
 #ifndef PAGE_SIZE
 # define PAGE_SIZE 4096
@@ -79,24 +86,48 @@ struct rdma_regadr_s {
 	u32 irq_status_bitpos;
 };
 
-extern int frc_test;
+struct frc_rdma_s {
+	u8 rdma_en;
+	u8 rdma_alg_en;
+	u8 buf_alloced;
+	u8 reserved;
+
+	struct frc_rdma_info *rdma_info_dbg;
+	struct frc_rdma_info *rdma_info[RDMA_CHANNEL];
+};
+
+extern u32 rdma_trace_num;
+extern u32 rdma_trace_reg[MAX_TRACE_NUM];
 
 void frc_rdma_alloc_buf(struct frc_dev_s *devp);
 void frc_rdma_release_buf(void);
-int frc_rdma_process(u32 val);
-irqreturn_t frc_rdma_isr(int irq, void *dev_id);
+void frc_read_table(struct frc_rdma_s *frc_rdma);
+void frc_rdma_status(void);
 void frc_rdma_table_config(u32 addr, u32 val);
 int frc_rdma_config(int handle, u32 trigger_type);
-
 int frc_rdma_init(void);
-struct frc_rdma_info *frc_get_rdma_info(void);
-struct frc_rdma_info *frc_get_rdma_info_2(void);
+void frc_rdma_exit(void);
+struct frc_rdma_s *get_frc_rdma(void);
 int frc_auto_test(int val, int val2);
-void frc_rdma_speed_test(int num);
+int is_rdma_enable(void);
 void frc_rdma_reg_list(void);
-int frc_rdma_test_write(u32 handle, u32 addr, u32 val, u32 start, u32 len);
+
+ssize_t frc_rdma_trace_enable_show(const struct class *cla,
+	const struct class_attribute *attr, char *buf);
+ssize_t frc_rdma_trace_enable_stroe(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count);
+ssize_t frc_rdma_trace_reg_show(const struct class *cla,
+	const struct class_attribute *attr, char *buf);
+ssize_t frc_rdma_trace_reg_stroe(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count);
+
+irqreturn_t frc_rdma_isr(int irq, void *dev_id);
 int FRC_RDMA_VSYNC_WR_REG(u32 addr, u32 val);
 int FRC_RDMA_VSYNC_WR_BITS(u32 addr, u32 val, u32 start, u32 len);
 int FRC_RDMA_VSYNC_REG_UPDATE(u32 addr, u32 val, u32 mask);
-
-int is_rdma_enable(void);
+int _frc_rdma_wr_reg_in(u32 addr, u32 val);
+int _frc_rdma_wr_reg_out(u32 addr, u32 val);
+int _frc_rdma_rd_reg(u32 addr);
+void frc_rdma_rd_table_init(struct frc_dev_s *devp);

@@ -34,19 +34,19 @@ void bs_ct_tbl(void)
 }
 
 /* color tune and blue stretch set */
-void lut3d_set_api(void)
+void lut3d_set_api(int vpp_index)
 {
 	struct ct_func_s *ct_f = get_ct_func();
 
 	bls_set();
 	if (!ct_f->cl_par->en || !ct_f->ct) {
 		pr_info("%s: ct_en = %d, ct = %p\n", __func__, ct_f->cl_par->en, ct_f->ct);
-		lut3d_update(0);
+		lut3d_update(0, vpp_index);
 	} else {
 		pr_info("%s: ct_en = %d, ct = %p\n", __func__, ct_f->cl_par->en, ct_f->ct);
 		bs_ct_tbl();
 		ct_process();
-		lut3d_update(plut_out);
+		lut3d_update(plut_out, vpp_index);
 	}
 }
 

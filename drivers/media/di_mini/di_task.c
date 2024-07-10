@@ -34,7 +34,7 @@
 static void task_wakeup(struct di_task *tsk);
 
 unsigned int di_dbg_task_flg;	/*debug only*/
-__module_param_named(di_dbg_task_flg, di_dbg_task_flg, uint, 0664);
+module_param_named(di_dbg_task_flg, di_dbg_task_flg, uint, 0664);
 
 bool task_send_cmd(unsigned int cmd)
 {

@@ -179,7 +179,7 @@ void dpre_clear(void)
 }
 
 static unsigned int dim_pre_tm_thd = 40;
-__module_param_named(dim_pre_tm_thd, dim_pre_tm_thd, uint, 0664);
+module_param_named(dim_pre_tm_thd, dim_pre_tm_thd, uint, 0664);
 
 void dpre_init(void)
 {/*reg:*/

@@ -66,6 +66,16 @@ enum pw_state_e {
 	PW_MAX,
 };
 
+enum vsr_pq_cfg_e {
+	DEFAULT_PARAM = 0,
+	RES_480P,
+	RES_480I,
+	RES_720P,
+	RES_720I,
+	RES_1080P,
+	RES_1080I,
+};
+
 extern unsigned int gamma_loadprotect_en;
 extern struct ve_hist_s video_ve_hist;
 void ve_hist_gamma_reset(void);
@@ -101,7 +111,8 @@ extern u16 gamma_data_b[257];
 void vpp_get_lcd_gamma_table(u32 rgb_mask);
 void vpp_get_lcd_gamma_table_sub(void);
 
-void ve_on_vs(struct vframe_s *vf);
+void ve_on_vs(struct vframe_s *vf, int vpp_index, struct vpp_hist_param_s *vp);
+void dnlp_en_update(int vpp_index);
 
 void ve_set_bext(struct ve_bext_s *p);
 void ve_set_dnlp(struct ve_dnlp_s *p);
@@ -120,13 +131,13 @@ void ve_dnlp_ctrl_vsync(int enable);
 
 int vpp_get_encl_viu_mux(void);
 int vpp_get_vout_viu_mux(void);
-void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write);
-void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write);
+void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write, int vpp_index);
+void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write, int vpp_index);
 void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask, int viu_sel);
 void amve_write_gamma_table(u16 *data, u32 rgb_mask);
 void amve_write_gamma_table_sub(u16 *data, u32 rgb_mask);
 void vpp_set_rgb_ogo_sub(struct tcon_rgb_ogo_s *p);
-void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p);
+void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p, int vpp_index);
 void vpp_phase_lock_on_vs(unsigned int cycle,
 			  unsigned int stamp,
 			  bool lock50,
@@ -136,7 +147,7 @@ void vpp_phase_lock_on_vs(unsigned int cycle,
 void ve_frame_size_patch(unsigned int width, unsigned int height);
 /* #endif */
 void ve_dnlp_latch_process(void);
-void ve_lcd_gamma_process(void);
+void ve_lcd_gamma_process(int vpp_index);
 void lvds_freq_process(void);
 void ve_dnlp_param_update(void);
 void ve_new_dnlp_param_update(void);
@@ -144,14 +155,12 @@ void ve_lc_curve_update(void);
 void ve_lc_latch_process(void);
 void ve_ogo_param_update(void);
 void ve_ogo_param_update_sub(void);
-void am_set_regmap(struct am_regs_s *p);
-void sharpness_process(struct vframe_s *vf);
 void amvecm_bricon_process(signed int bri_val,
 			   signed int cont_val,
-			   struct vframe_s *vf);
+			   struct vframe_s *vf, int vpp_index);
 void amvecm_color_process(signed int sat_val,
 			  signed int hue_val,
-			  struct vframe_s *vf);
+			  struct vframe_s *vf, int vpp_index);
 void amvecm_3d_black_process(void);
 void amvecm_3d_sync_process(void);
 extern unsigned int vecm_latch_flag;
@@ -165,41 +174,37 @@ extern unsigned int sync_3d_out_inv;
 extern unsigned int sync_3d_black_color;
 extern unsigned int sync_3d_sync_to_vbo;
 
+extern int fmeter_slt;
 extern int fmeter_en;
 extern int cur_sr_level;
 extern int pre_fmeter_level, cur_fmeter_level, fmeter_flag;
 void amve_fmeter_init(int enable);
-void amve_fmetersize_config(u32 sr0_w, u32 sr0_h, u32 sr1_w, u32 sr1_h);
+void amve_fmetersize_config(u32 sr0_w, u32 sr0_h,
+	u32 sr1_w, u32 sr1_h, int vpp_index);
 
 /* #if defined(CONFIG_ARCH_MESON2) */
 /* unsigned long long ve_get_vs_cnt(void); */
 /* #endif */
 extern int video_rgb_ogo_xvy_mtx;
-extern int video_rgb_ogo_mode_sw;
-extern unsigned int contrast_adj_sel;
-extern int overscan_timing;
-extern int overscan_screen_mode;
-extern int overscan_disable;
 
 #define GAMMA_SIZE 256
 
 extern unsigned int dnlp_sel;
-extern int amve_bringup_debug;
-
 void ve_dnlp_load_reg(void);
 
 /*gxlx sr adaptive setting*/
 void amve_sharpness_adaptive_setting(struct vframe_s *vf,
 				     unsigned int sps_h_en,
-				     unsigned int sps_v_en);
-void amve_sharpness_init(void);
+				     unsigned int sps_v_en,
+				     int vpp_index);
+void amve_sharpness_init(int vpp_index);
 extern struct am_regs_s sr1reg_sd_scale;
 extern struct am_regs_s sr1reg_hd_scale;
 extern struct am_regs_s sr1reg_cvbs;
 extern struct am_regs_s sr1reg_hv_noscale;
 void amvecm_fresh_overscan(struct vframe_s *vf);
 void amvecm_reset_overscan(void);
-void ve_hist_gamma_tgt(struct vframe_s *vf);
+void ve_hist_gamma_tgt(struct vframe_s *vf, struct vpp_hist_param_s *vp);
 int vpp_set_lut3d(int bfromkey,
 		  int keyindex,
 		  unsigned int p3dlut_in[][3],
@@ -218,27 +223,35 @@ void dump_plut3d_reg_table(void);
 
 void amvecm_gamma_init(bool en);
 void set_gamma_regs(int en, int sel);
+void set_viu2_gamma_regs(int en, int sel);
 void amvecm_wb_enable(int enable);
 void amvecm_wb_enable_sub(int enable);
-int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md);
+int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md, int vpp_index);
 unsigned int skip_pq_ctrl_load(struct am_reg_s *p);
-void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb);
+void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb, int vpp_index);
 void lcd_gamma_api(unsigned int index,
 	u16 *r_data, u16 *g_data, u16 *b_data,
-	enum wr_md_e wr_mod, enum rw_md_e rw_mod);
+	enum wr_md_e wr_mod, enum rw_md_e rw_mod, int vpp_index);
 void vpp_pst_hist_sta_config(int en,
 	enum pst_hist_mod mod,
 	enum pst_hist_pos pos,
 	struct vinfo_s *vinfo);
 void vpp_pst_hist_sta_read(unsigned int *hist);
-void eye_proc(int mtx_ep[][4], int mtx_on);
-void set_vpp_enh_clk(struct vframe_s *vf, struct vframe_s *rpt_vf);
-void lut3d_update(unsigned int p3dlut_in[][3]);
-extern int amve_debug;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-extern int dnlp_en_2;
+void eye_proc(int mtx_ep[][4], int mtx_on, int vpp_index);
+void set_vpp_enh_clk(struct vframe_s *vf, struct vframe_s *rpt_vf, int vpp_index);
+void lut3d_update(unsigned int p3dlut_in[][3], int vpp_index);
+void s7d_sharpness_init(void);
+void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg, enum wr_md_e mode, int vpp_index);
+void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg, enum wr_md_e mode, int vpp_index);
+void pi_pq_config(enum vsr_pq_cfg_e vsr_cfg, enum wr_md_e mode, int vpp_index);
+void amve_sharpness_sub_ctrl(unsigned int sel, unsigned int enable);
+void amve_vsr_config_update(struct vframe_s *vf, int vpp_index);
+
 extern int dnlp_en_dsw;
-#endif
+void set_sharpness_gain(int sr0_gain, int sr1_gain);
+void sharpness_gain_update(int vpp_index);
+void osd_sharpness_init(void);
+void osd_sharpness_ctrl(unsigned int sel, unsigned int enable);
 
 #endif
 

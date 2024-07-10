@@ -92,6 +92,7 @@ enum mtx_en_e {
 enum output_format_e {
 	UNKNOWN_FMT = 0,
 	BT709,
+	BT709_HDR,
 	BT2020,
 	BT2020_PQ,
 	BT2020_PQ_DYNAMIC,
@@ -169,6 +170,7 @@ extern uint cur_csc_type[VD_PATH_MAX];
 
 int get_hdr_policy(void);
 int get_primary_policy(void);
+void set_hdr_policy(int policy);
 void set_cur_hdr_policy(uint policy);
 enum output_format_e get_force_output(void);
 void set_force_output(enum output_format_e output);
@@ -211,6 +213,10 @@ int get_video_mute(void);
 
 void get_cur_vd_signal_type(enum vd_path_e vd_path);
 enum color_primary_e get_color_primary(void);
+
+unsigned int get_cur_vd_ext_signal_type(enum vd_path_e vd_path);
+enum vpp_matrix_ext_csc_e get_ext_csc_type(void);
+
 /*hdr*/
 /*#define DBG_BUF_SIZE (1024)*/
 
@@ -312,6 +318,7 @@ extern int customer_hdr_clipping;
 /* api to get sink capability */
 uint32_t sink_dv_support(const struct vinfo_s *vinfo);
 uint32_t sink_hdr_support(const struct vinfo_s *vinfo);
+uint32_t sink_hdr_support_ori_cap(const struct vinfo_s *vinfo);
 
 extern uint gamut_conv_enable;
 void force_toggle(void);
@@ -322,5 +329,7 @@ int get_s5_slice_mode(void);
 #define VD1_4SLICE							4
 
 void pkt_delay_flag_init(void);
+
+void get_source_csc_info(int vpp_index, int *source_type, int *csc_type);
 #endif /* AM_CSC_H */
 

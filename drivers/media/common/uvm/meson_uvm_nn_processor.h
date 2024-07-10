@@ -50,4 +50,5 @@ int attach_nn_hook_mod_info(int shared_fd,
 		char *buf, struct uvm_hook_mod_info *mod_info);
 int nn_mod_setinfo(void *arg, char *buf);
 int nn_mod_getinfo(void *arg, char *buf);
+bool get_uvm_open_nn(void);
 

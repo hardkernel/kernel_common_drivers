@@ -51,341 +51,442 @@
 #include "frc_proc.h"
 #include "frc_memc_dbg.h"
 
-ssize_t frc_bbd_final_line_param_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+ssize_t frc_bbd_ctrl_param_show(const struct class *class,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data;
 	ssize_t len = 0;
 
 	fw_data = (struct frc_fw_data_s *)devp->fw_data;
-	len =  fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_BBD_FINAL_LINE, buf);
+	if (fw_data && fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_BBD_FINAL_LINE, buf);
 	return len;
 }
 
-ssize_t frc_bbd_final_line_param_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+ssize_t frc_bbd_ctrl_param_store(const struct class *class,
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
 {
 	char *buf_orig;
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_BBD_FINAL_LINE, buf_orig, count);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data,
+			MEMC_DBG_BBD_FINAL_LINE, buf_orig, count);
 	kfree(buf_orig);
 	return count;
 }
 
 ssize_t frc_vp_ctrl_param_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr,
+	char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	ssize_t len = 0;
 
-	len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_VP_CTRL, buf);
+	if (fw_data && fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_VP_CTRL, buf);
 	return len;
 }
 
 ssize_t frc_vp_ctrl_param_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
 {
 	char *buf_orig;
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_VP_CTRL, buf_orig, count);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_VP_CTRL, buf_orig, count);
 	kfree(buf_orig);
 	return count;
 }
 
 ssize_t frc_logo_ctrl_param_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr,
+	char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	ssize_t len = 0;
 
-	len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_LOGO_CTRL, buf);
+	if (fw_data && fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_LOGO_CTRL, buf);
 	return len;
 }
 
 ssize_t frc_logo_ctrl_param_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
 {
 	char *buf_orig;
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_LOGO_CTRL, buf_orig, count);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_LOGO_CTRL, buf_orig, count);
 	kfree(buf_orig);
 	return count;
 }
 
 ssize_t frc_iplogo_ctrl_param_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr,
+	char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	ssize_t len = 0;
 
-	len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_IPLOGO_CTRL, buf);
+	if (fw_data && fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_IPLOGO_CTRL, buf);
 	return len;
 }
 
 ssize_t frc_iplogo_ctrl_param_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
 {
 	char *buf_orig;
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_IPLOGO_CTRL, buf_orig, count);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_IPLOGO_CTRL, buf_orig, count);
 	kfree(buf_orig);
 	return count;
 }
 
 ssize_t frc_melogo_ctrl_param_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr,
+	char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	ssize_t len = 0;
 
-	len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_MELOGO_CTRL, buf);
+	if (fw_data && fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_MELOGO_CTRL, buf);
 	return len;
 }
 
 ssize_t frc_melogo_ctrl_param_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
 {
 	char *buf_orig;
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_MELOGO_CTRL, buf_orig, count);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_MELOGO_CTRL, buf_orig, count);
 	kfree(buf_orig);
 	return count;
 }
 
 ssize_t frc_scene_chg_detect_param_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr,
+	char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	ssize_t len = 0;
 
-	len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_SCENE_CHG_DETECT, buf);
+	if (fw_data && fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_SCENE_CHG_DETECT, buf);
 	return len;
 }
 
-ssize_t frc_sence_chg_detect_param_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+ssize_t frc_scene_chg_detect_param_store(const struct class *class,
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
 {
 	char *buf_orig;
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_SCENE_CHG_DETECT, buf_orig, count);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data,
+			MEMC_DBG_SCENE_CHG_DETECT, buf_orig, count);
 	kfree(buf_orig);
 	return count;
 }
 
 ssize_t frc_fb_ctrl_param_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr,
+	char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	ssize_t len = 0;
 
-	len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_FB_CTRL, buf);
+	if (fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_FB_CTRL, buf);
 	return len;
 }
 
 ssize_t frc_fb_ctrl_param_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
 {
 	char *buf_orig;
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_FB_CTRL, buf_orig, count);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_FB_CTRL, buf_orig, count);
 	kfree(buf_orig);
 	return count;
 }
 
 ssize_t frc_me_ctrl_param_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr,
+	char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	ssize_t len = 0;
 
-	len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_ME_CTRL, buf);
+	if (fw_data && fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_ME_CTRL, buf);
 	return len;
 }
 
 ssize_t frc_me_ctrl_param_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
 {
 	char *buf_orig;
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_ME_CTRL, buf_orig, count);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_ME_CTRL, buf_orig, count);
 	kfree(buf_orig);
 	return count;
 }
 
 ssize_t frc_search_rang_param_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr,
+	char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	ssize_t len = 0;
 
-	len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_SEARCH_RANG, buf);
+	if (fw_data && fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_SEARCH_RANG, buf);
 	return len;
 }
 
 ssize_t frc_search_rang_param_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
 {
 	char *buf_orig;
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_SEARCH_RANG, buf_orig, count);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_SEARCH_RANG, buf_orig, count);
 	kfree(buf_orig);
 	return count;
 }
 
-ssize_t frc_pixel_lpf_param_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+ssize_t frc_mc_ctrl_param_show(const struct class *class,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	ssize_t len = 0;
 
-	len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_PIXEL_LPF, buf);
+	if (fw_data && fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_PIXEL_LPF, buf);
 	return len;
 }
 
-ssize_t frc_pixel_lpf_param_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+ssize_t frc_mc_ctrl_param_store(const struct class *class,
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
 {
 	char *buf_orig;
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_PIXEL_LPF, buf_orig, count);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_PIXEL_LPF, buf_orig, count);
 	kfree(buf_orig);
 	return count;
 }
 
 ssize_t frc_me_rule_param_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr,
+	char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	ssize_t len = 0;
 
-	len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_ME_RULE, buf);
+	if (fw_data && fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_ME_RULE, buf);
 	return len;
 }
 
 ssize_t frc_me_rule_param_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
 {
 	char *buf_orig;
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_ME_RULE, buf_orig, count);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_ME_RULE, buf_orig, count);
 	kfree(buf_orig);
 	return count;
 }
 
 ssize_t frc_film_ctrl_param_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr,
+	char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	ssize_t len = 0;
 
-	len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_FILM_CTRL, buf);
+	if (fw_data && fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_FILM_CTRL, buf);
 	return len;
 }
 
 ssize_t frc_film_ctrl_param_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
 {
 	char *buf_orig;
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_FILM_CTRL, buf_orig, count);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_FILM_CTRL, buf_orig, count);
 	kfree(buf_orig);
 	return count;
 }
 
 ssize_t frc_glb_ctrl_param_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+	const struct class_attribute *attr,
+	char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	ssize_t len = 0;
 
-	len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_GLB_CTRL, buf);
+	if (fw_data && fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_GLB_CTRL, buf);
 	return len;
 }
 
 ssize_t frc_glb_ctrl_param_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
 {
 	char *buf_orig;
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
-	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_GLB_CTRL, buf_orig, count);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data,
+			MEMC_DBG_GLB_CTRL, buf_orig, count);
+	kfree(buf_orig);
+	return count;
+}
+
+ssize_t frc_bad_edit_ctrl_param_show(const struct class *class,
+	const struct class_attribute *attr,
+	char *buf)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
+	ssize_t len = 0;
+
+	if (fw_data && fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_BAD_EDIT_CTRL, buf);
+	return len;
+}
+
+ssize_t frc_bad_edit_ctrl_param_store(const struct class *class,
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	char *buf_orig;
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_BAD_EDIT_CTRL, buf_orig, count);
+	kfree(buf_orig);
+	return count;
+}
+
+ssize_t frc_region_fb_ctrl_param_show(const struct class *class,
+	const struct class_attribute *attr,
+	char *buf)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
+	ssize_t len = 0;
+
+	if (fw_data && fw_data->frc_alg_dbg_show)
+		len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_REGION_FB_CTRL, buf);
+	return len;
+}
+
+ssize_t frc_region_fb_ctrl_param_store(const struct class *class,
+	const struct class_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	char *buf_orig;
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (fw_data && fw_data->frc_alg_dbg_stor)
+		count = fw_data->frc_alg_dbg_stor(fw_data,
+			MEMC_DBG_REGION_FB_CTRL, buf_orig, count);
 	kfree(buf_orig);
 	return count;
 }

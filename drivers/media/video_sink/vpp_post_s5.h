@@ -21,7 +21,6 @@
 #include "video_reg_s5.h"
 #include <linux/amlogic/media/video_sink/video.h>
 
-extern u32 g_vpp1_bypass_slice1;
 /* VPP POST input src: 3VD, 2 OSD */
 /* S5 only VD1, VD2 */
 #define VPP_POST_VD_NUM   3
@@ -248,7 +247,6 @@ struct vpp_post_reg_s {
 extern u32 g_post_slice_num;
 extern u32 g_vpp1_bypass_slice1;
 extern u32 g_post_overlap_size;
-
 int get_vpp_slice_num(const struct vinfo_s *info);
 int vpp_post_param_set(struct vpp_post_input_s *vpp_input,
 	struct vpp0_post_s *vpp_post);

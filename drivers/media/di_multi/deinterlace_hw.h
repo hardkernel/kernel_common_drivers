@@ -326,7 +326,8 @@ struct DI_MIF_S {
 
 	/**/
 	enum DI_MIF0_ID	mif_index; /* */
-	char *name;
+	//char *name;
+	unsigned int bit8_flag;
 };
 
 struct DI_SIM_MIF_S {
@@ -380,6 +381,8 @@ struct DI_SIM_MIF_S {
 	unsigned short blend_en;		//20220126
 	unsigned short vecrd_offset;	//20220126
 	enum DI_MIFS_ID	mif_index; /* */
+	unsigned int nr_wr_mif_8bit;
+	bool di_wr_bit8_flag;
 };
 
 struct DI_MC_MIF_s {
@@ -590,7 +593,7 @@ void dimh_enable_mc_di_post(struct DI_MC_MIF_s *di_mcvecrd_mif,
 void dimh_en_mc_di_post_g12(struct DI_MC_MIF_s *di_mcvecrd_mif,
 			    int urgent, bool reverse, int invert_mv);
 
-void dimh_disable_post_deinterlace_2(void);
+void dimh_disable_post_deinterlace_2(bool link);
 void dimh_initial_di_post_2(int hsize_post, int vsize_post,
 			    int hold_line, bool write_en);
 void dimh_enable_di_post_2(struct DI_MIF_S *di_buf0_mif,
@@ -769,6 +772,7 @@ struct dsub_vf_s {
 	enum vframe_signal_fmt_e fmt;
 	u32 sei_magic_code;
 	void *mem_handle;	/* di use this for struct dim_mm_blk_s */
+	u32 duration;
 };
 
 /* use this to replace vframe_s in di */
@@ -828,8 +832,10 @@ struct dim_hw_opsv_s {
 	void (*pst_mif_sw)(bool on, enum DI_MIF0_SEL sel);
 	void (*pst_mif_rst)(enum DI_MIF0_SEL sel);
 	void (*pst_mif_rev)(bool rev, enum DI_MIF0_SEL sel);
-	void (*pst_dbg_contr)(void);
-	void (*pst_set_flow)(unsigned int post_wr_en, enum EDI_POST_FLOW step);
+	void (*pst_dbg_contr)(const struct reg_acc *op_in);
+	void (*pst_set_flow)(unsigned int post_wr_en,
+				enum EDI_POST_FLOW step,
+				const struct reg_acc *op_in);
 	void (*pst_bit_mode_cfg)(unsigned char if0,
 				 unsigned char if1,
 				 unsigned char if2,

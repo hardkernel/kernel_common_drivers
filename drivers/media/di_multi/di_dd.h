@@ -252,7 +252,7 @@ struct dis_s {
 	struct c_name_s ower;
 };
 
-/* for dim_dvs_prevpp_s->dd_dvs */
+/* for dim_dvs_pvpp_s->dd_dvs */
 struct plink_dv_s {
 	struct c_cfg_blki_s blki_hd_plink;
 	struct c_cfg_blki_s blki_ud_plink;
@@ -511,7 +511,6 @@ void dimn_que_int(struct dimn_qs_cls_s	*pq,
 		  struct dimn_qs_cfg_s *cfg);
 
 unsigned char power_of_2(unsigned int a);
-bool timer_cnt(unsigned long *ptimer, unsigned int hs_nub);
 int dpvpp_show_que(struct seq_file *s,
 		   struct dimn_qs_cls_s *que, unsigned char level);
 #endif

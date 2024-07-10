@@ -9,7 +9,7 @@
 /*#define V2_4_3*/
 
 /*  driver version */
-#define DRIVER_VER "202301020"
+#define DRIVER_VER "20240205"
 
 #include <linux/types.h>
 #include "amdv_pq_config.h"
@@ -108,7 +108,14 @@
 #define DEBUG_AUTOMATICALLY_PYRAMID 0x800
 #define DEBUG_FORCE_BYPASS_TOP2 0x1000
 #define HDMI_ONLY_UPDATE_HIST_FOR_NEW_FRAME 0x2000 /*case5351 5356*/
+#define FORCE_ONE_SLICE 0x4000 /*case5011b 5055a 5055b*/
+#define DEBUG_IGNORE_IOCTL 0x8000
 
+#define MAX_CFG_SIZE (1024 * 10)
+#define MAX_BIN_SIZE (1024 * 150)
+
+#define HLG_MIN 1310
+#define HLG_MAX 262144000
 
 enum core1_switch_type {
 	NO_SWITCH = 0,
@@ -198,6 +205,12 @@ enum dv_type_enum {
 	DV_TYPE_DOVI = 0,
 	DV_TYPE_ATSC = 1,
 	DV_TYPE_DVB  = 2
+};
+
+enum cfg_cap {
+	CFG_NONE = 0,
+	CFG_ENABLE_PRECISION,
+	CFG_ENABLE_L1L4,
 };
 
 struct dm_reg_ipcore2 {
@@ -603,6 +616,7 @@ struct dv_inst_s {
 	char *vsem_if;
 	int vsem_if_size;
 	enum input_mode_enum input_mode;
+	u32 err_parse_cnt;
 };
 
 /*hw5 video info*/
@@ -650,6 +664,7 @@ struct core_inst_s {
 	u32 run_mode_count;
 	u32 core_disp_hsize;
 	u32 core_disp_vsize;
+	u32 py_level;
 };
 
 struct tv_input_info_s {
@@ -657,7 +672,13 @@ struct tv_input_info_s {
 	s32 content_fps;
 	s32 gd_rf_adjust;
 	s32 tid;
-	s32 debug_buf[497];
+	u8 content_type;
+	u8 white_point;
+	u8 L11_byte2;
+	u8 L11_byte3;
+	int enable_debug;
+	int enable_hlg_src_max_set;
+	s32 debug_buf[494];
 };
 
 /* top1 output L1/L4*/
@@ -675,6 +696,12 @@ struct top1_stats_info {
 	bool enable;
 };
 
+struct backlight_info {
+	u32 value;
+	bool set_flag;
+};
+
+#define MAX_BL_COUNT 30
 #define PREFIX_SEI_NUT_NAL 39
 #define SUFFIX_SEI_NUT_NAL 40
 #define SEI_ITU_T_T35 4
@@ -721,13 +748,9 @@ enum cpu_id_e {
 	_CPU_MAJOR_ID_T5M,
 	_CPU_MAJOR_ID_S5,
 	_CPU_MAJOR_ID_T3X,
+	_CPU_MAJOR_ID_S7D,
+	_CPU_MAJOR_ID_S6,
 	_CPU_MAJOR_ID_UNKNOWN,
-};
-
-enum phy_level {
-	SIX_LEVEL = 0,
-	SEVEN_LEVEL = 1,
-	NO_LEVEL  = 2
 };
 
 enum top2_source {
@@ -784,7 +807,7 @@ extern uint amdv_mask;
 extern bool dolby_vision_on;
 extern bool amdv_core1_on;
 extern u32 amdv_core1_on_cnt;
-extern u32 amdv_core2_on_cnt;
+extern u32 amdv_core2_on_cnt[2];
 extern uint amdv_on_count;
 extern struct dv_core1_inst_s dv_core1[NUM_IPCORE1];
 extern uint amdv_run_mode;
@@ -806,13 +829,14 @@ extern u32 dolby_vision_ll_policy;
 extern u32 last_dolby_vision_ll_policy;
 extern bool amdv_setting_video_flag;
 extern u32 bl_delay_cnt;
-extern u32 tv_backlight;
+extern struct backlight_info tv_backlight[MAX_BL_COUNT];
 extern bool tv_backlight_changed;
 extern bool tv_backlight_force_update;
 extern u32 crc_count;
 extern u32 setting_update_count;
 extern void *pq_config_fake;
 extern void *pq_config_dvp_fake;
+extern void *pq_config_dvp_fake_top1;
 extern struct dv_inst_s dv_inst[NUM_INST];
 extern int hdmi_path_id;
 extern u32 dv_cert_graphic_width;
@@ -884,6 +908,7 @@ extern struct core_inst_s top1_info;
 extern struct core_inst_s top2_info;
 extern struct tv_hw5_setting_s *tv_hw5_setting;
 extern struct tv_hw5_setting_s *invalid_hw5_setting;
+extern struct tv_hw5_setting_s *last_tv_hw5_setting;
 extern u32 hw5_reg_from_file;
 extern u32 test_dv;
 extern struct video_inst_s top1_v_info;/*video info*/
@@ -891,7 +916,6 @@ extern struct video_inst_s top2_v_info;/*video info*/
 extern struct top1_pyramid_addr py_addr[PYRAMID_BUF_CNT];
 extern u8 py_wr_id;
 extern u8 py_rd_id;
-extern u32 py_level;
 extern struct dolby5_top1_md_hist dv5_md_hist;
 extern int force_top1_enable;
 extern u32 fix_data;
@@ -904,7 +928,7 @@ extern u32 num_downsamplers;
 extern u32 force_sdr10;
 extern u32 need_pps;
 extern u32 trace_amdv_isr;
-extern u32 output_4k240hz;
+extern u32 force_top1_vskip;
 extern int pyramid_read_urgent;
 extern bool py_enabled;
 extern bool l1l4_enabled;
@@ -917,6 +941,38 @@ extern char *cfg_data;
 extern char *bin_data;
 extern int cfg_size;
 extern int bin_size;
+extern u32 vpp_vsync_id;
+extern int force_vsync_id;
+extern bool force_bypass_precision;
+extern bool force_bypass_pd_level0;
+extern bool force_bypass_precision_once;
+extern bool miss_top1_and_bypass_pr_once;
+extern bool update_top2_control_path_flag;
+extern bool disable_detunnel;
+extern u32 top1_scale;
+extern bool enable_top1_scale;
+extern bool wait_first_frame_top1;
+extern const char level_str[4][10];
+extern bool update_top2_cfg;
+extern u32 last_top2_ro5;
+extern u32 last_top2_ro4;
+extern u32 last_top2_ro3;
+extern u32 last_top2_ro2;
+extern u32 last_top2_ro1;
+extern u32 last_top2_ro0;
+extern u32 last_top1_ro6;
+extern u32 last_top1_ro5;
+extern u32 last_top1_ro4;
+extern u32 last_top1_ro3;
+extern u32 last_top1_ro2;
+extern u32 last_top1_ro1;
+extern u32 last_top1_ro0;
+extern u32 enable_ro_check;
+extern bool force_core2c_on;
+extern bool bypass_detunnel;
+extern u32 lightsense_test_mode;
+extern u32 hlg_max;
+extern u32 hlg_min;
 /************/
 
 #define pr_dv_dbg(fmt, args...)\
@@ -1049,6 +1105,8 @@ struct dv5_top1_vd_info {
 
 	u32 plane;
 	u32 blk_mode;
+	u32 linear_mode;
+	u32 burst_len;
 	ulong canvasaddr[3];
 	ulong compHeadAddr;
 	ulong compBodyAddr;
@@ -1154,6 +1212,8 @@ bool is_amdv_stb_mode(void);
 bool is_aml_s5(void);
 bool is_aml_t3x(void);
 bool is_aml_hw5(void);
+bool is_aml_s7d(void);
+bool is_aml_s6(void);
 
 u32 VSYNC_RD_DV_REG(u32 adr);
 int VSYNC_WR_DV_REG(u32 adr, u32 val);
@@ -1191,7 +1251,7 @@ void set_bypass_all_vpp_pq(int flag);
 void update_dma_buf(void);
 void set_dovi_setting_update_flag(bool flag);
 void set_vsync_count(int val);
-void set_force_reset_core2(bool flag);
+void set_force_reset_core2(bool flag, enum OSD_INDEX index);
 void set_amdv_wait_on(void);
 void clear_dolby_vision_wait(void);
 void set_frame_count(int val);
@@ -1200,6 +1260,7 @@ void reset_dv_param(void);
 void update_stb_core_setting_flag(int flag);
 u32 get_graphic_width(u32 index);
 u32 get_graphic_height(u32 index);
+bool get_core2_enable_info(u32 index);
 bool need_send_emp_meta(const struct vinfo_s *vinfo);
 void convert_hdmi_metadata(uint32_t *md);
 bool get_core1a_core1b_switch(void);
@@ -1271,7 +1332,8 @@ int tv_top_set(u64 *top1_reg,
 			     bool hdr10,
 			     bool reset,
 			     bool toggle,
-			     bool pr_done);
+			     bool pr_done,
+			     u32 level);
 void dolby5_bypass_ctrl(unsigned int en);
 int load_reg_and_lut_file(char *fw_name, void **dst_buf);
 void read_txt_to_buf(char *reg_txt, void *reg_buf, int reg_num, bool is_reg);
@@ -1299,8 +1361,11 @@ int parse_sei_and_meta_ext_hw5(struct vframe_s *vf,
 					 char *comp_buf,
 					 int id);
 void update_top1_onoff(struct vframe_s *vf);
-bool get_top1_onoff(void);
+u32 get_top1_onoff(void);
 void fixed_buf_config(void);
 bool is_dv_unique_drm(struct vframe_s *vf);
 void dump_top1_frame(int force_w, int force_h);
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+int frc_get_video_latency_for_gd1(void);
+#endif
 #endif

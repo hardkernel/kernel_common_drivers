@@ -42,6 +42,14 @@ static struct aml_vrr_drv_s *vrr_drv_active_sel(void)
 	return vdrv;
 }
 
+struct aml_vrr_drv_s *aml_vrr_drv_active_sel(void)
+{
+	struct aml_vrr_drv_s *vdrv = NULL;
+
+	vdrv = vrr_drv_active_sel();
+	return vdrv;
+}
+
 static void vrr_drv_state_active_update(int index)
 {
 	struct aml_vrr_drv_s *vdrv = NULL;
@@ -130,7 +138,7 @@ int aml_vrr_state(void)
 	if (!vdrv_active)
 		return 0;
 
-	if (vdrv_active->state & VRR_STATE_EN)
+	if (vdrv_active->enable)
 		ret = 1;
 	else
 		ret = 0;
@@ -223,6 +231,7 @@ static int aml_vrr_switch_notify_callback(struct notifier_block *block,
 		if (vdrv_active) {
 			vdrv_active->line_dly = vdata->line_dly;
 			vdrv_active->policy = vdata->vrr_policy;
+			vrr_dly_new = vdata->line_dly;
 		}
 		aml_vrr_func_en(1);
 		break;

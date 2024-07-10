@@ -10,6 +10,9 @@
 
 ccflags-y += -I.
 
+DI_CHANNEL_NUM_1?=0
+DI_CHANNEL_NUM_2?=0
+
 #CFLAGS_dim.o := -I$(src)
 ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/deinterlace.o
@@ -34,6 +37,8 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_decontou
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_mmu_box.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_mem_scatter.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_plink_api.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_prelink.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_postlink.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_interface.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/set_hdr2_v0_di.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/dolby_sys.o
@@ -48,4 +53,6 @@ ccflags-y += -I$(src)/di_multi/
 ccflags-y += -I$(src)/di_multi/sc2
 ccflags-y += -I$(COMMON_DRIVERS_DIR)/drivers/media/di_local/
 ccflags-y += -DCOMMON_DRIVERS_DIR=$(COMMON_DRIVERS_DIR)
+ccflags-y += "-DCONFIG_DI_CHANNEL_NUM_1=$(DI_CHANNEL_NUM_1)"
+ccflags-y += "-DCONFIG_DI_CHANNEL_NUM_2=$(DI_CHANNEL_NUM_2)"
 endif

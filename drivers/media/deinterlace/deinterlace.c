@@ -112,7 +112,7 @@ static int mpeg2vdin_flag;
 static int mpeg2vdin_en;
 #endif
 
-//static int queue_print_flag = -1;
+static int queue_print_flag = -1;
 static int di_reg_unreg_cnt = 1000;
 static bool overturn;
 static bool check_start_drop_prog;
@@ -125,8 +125,8 @@ static struct mutex di_event_mutex;
 static atomic_t di_flag_unreg;	//ary 2019-05-27
 static atomic_t di_trig_free_mem;
 
-unsigned int di_force_bit_mode = 10;
-__module_param(di_force_bit_mode, uint, 0664);
+static unsigned int di_force_bit_mode = 10;
+module_param(di_force_bit_mode, uint, 0664);
 MODULE_PARM_DESC(di_force_bit_mode, "force DI bit mode to 8 or 10 bit");
 
 static bool full_422_pack;
@@ -3284,9 +3284,9 @@ config_di_wr_mif(struct DI_SIM_MIF_s *di_nrwr_mif,
 	}
 }
 
-unsigned int force_prog = 1;
-__module_param_named(force_prog, force_prog, bool, 0664);
+static bool force_prog = true;
 
+module_param_named(force_prog, force_prog, bool, 0664);
 static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 {
 	if (di_buf == NULL)
@@ -3674,11 +3674,11 @@ static void top_bot_config(struct di_buf_s *di_buf)
 
 static bool pulldown_enable = true;
 
-unsigned int combing_fix_en = 1;
-__module_param_named(combing_fix_en, combing_fix_en, bool, 0664);
+static bool combing_fix_en = true;
+module_param_named(combing_fix_en, combing_fix_en, bool, 0664);
 
-int cur_lev = 2;
-__module_param_named(combing_cur_lev, cur_lev, int, 0444);
+static int cur_lev = 2;
+module_param_named(combing_cur_lev, cur_lev, int, 0444);
 
 static void pre_de_done_buf_config(void)
 {
@@ -4034,20 +4034,20 @@ static void pre_inp_canvas_config(struct vframe_s *vf)
 }
 #endif
 static int pps_dstw;
-__module_param_named(pps_dstw, pps_dstw, int, 0644);
+module_param_named(pps_dstw, pps_dstw, int, 0644);
 static int pps_dsth;
-__module_param_named(pps_dsth, pps_dsth, int, 0644);
+module_param_named(pps_dsth, pps_dsth, int, 0644);
 static bool pps_en;
-__module_param_named(pps_en, pps_en, bool, 0644);
+module_param_named(pps_en, pps_en, bool, 0644);
 static unsigned int pps_position = 1;
-__module_param_named(pps_position, pps_position, uint, 0644);
+module_param_named(pps_position, pps_position, uint, 0644);
 static unsigned int pre_enable_mask = 3;/*bit0:ma bit1:mc*/
-__module_param_named(pre_enable_mask, pre_enable_mask, uint, 0644);
+module_param_named(pre_enable_mask, pre_enable_mask, uint, 0644);
 
 static bool pre_hsc_down_en;
-__module_param_named(pre_hsc_down_en, pre_hsc_down_en, bool, 0644);
+module_param_named(pre_hsc_down_en, pre_hsc_down_en, bool, 0644);
 static int pre_hsc_down_width = 480;
-__module_param_named(pre_hsc_down_width, pre_hsc_down_width, int, 0644);
+module_param_named(pre_hsc_down_width, pre_hsc_down_width, int, 0644);
 
 u32 di_request_afbc(u32 onoff)
 {
@@ -4939,7 +4939,7 @@ static void set3d_view(enum tvin_trans_fmt trans_fmt, struct vframe_s *vf)
  * }
  */
 static unsigned int det3d_frame_cnt = 50;
-__module_param_named(det3d_frame_cnt, det3d_frame_cnt, uint, 0644);
+module_param_named(det3d_frame_cnt, det3d_frame_cnt, uint, 0644);
 static void det3d_irq(void)
 {
 	unsigned int data32 = 0, likely_val = 0;
@@ -4995,11 +4995,11 @@ static void det3d_irq(void)
 #endif
 
 static bool calc_mcinfo_en = 1;
-__module_param(calc_mcinfo_en, bool, 0664);
+module_param(calc_mcinfo_en, bool, 0664);
 MODULE_PARM_DESC(calc_mcinfo_en, "/n get mcinfo for post /n");
 
 static unsigned int colcfd_thr = 128;
-__module_param(colcfd_thr, uint, 0664);
+module_param(colcfd_thr, uint, 0664);
 MODULE_PARM_DESC(colcfd_thr, "/n threshold for cfd/n");
 
 unsigned int ro_mcdi_col_cfd[26];
@@ -5424,17 +5424,17 @@ static void get_vscale_skip_count(unsigned int par)
 static unsigned int pldn_dly = 1;
 
 static unsigned int post_blend;
-__module_param(post_blend, uint, 0664);
+module_param(post_blend, uint, 0664);
 MODULE_PARM_DESC(post_blend, "/n show blend mode/n");
 static unsigned int post_ei;
-__module_param(post_ei, uint, 0664);
+module_param(post_ei, uint, 0664);
 MODULE_PARM_DESC(post_ei, "/n show blend mode/n");
 
 static unsigned int post_cnt;
-__module_param(post_cnt, uint, 0664);
+module_param(post_cnt, uint, 0664);
 MODULE_PARM_DESC(post_cnt, "/n show blend mode/n");
 static bool post_refresh;
-__module_param_named(post_refresh, post_refresh, bool, 0644);
+module_param_named(post_refresh, post_refresh, bool, 0644);
 unsigned int di_last_display;
 
 static int
@@ -7072,7 +7072,7 @@ static bool need_bypass(struct vframe_s *vf)
 }
 
 static bool nrds_en;
-__module_param_named(nrds_en, nrds_en, bool, 0644);
+module_param_named(nrds_en, nrds_en, bool, 0644);
 
 static void di_reg_process_irq(void)
 {
@@ -9160,108 +9160,108 @@ void __exit di_module_exit(void)
 	platform_driver_unregister(&di_driver);
 }
 
-__module_param_named(bypass_all, bypass_all, int, 0664);
-__module_param_named(bypass_3d, bypass_3d, int, 0664);
-__module_param_named(bypass_trick_mode, bypass_trick_mode, int, 0664);
-__module_param_named(di_invert_top_bot, invert_top_bot, int, 0664);
-__module_param_named(skip_top_bot, skip_top_bot, int, 0664);
-__module_param_named(force_width, force_width, int, 0664);
-__module_param_named(force_height, force_height, int, 0664);
-__module_param_named(prog_proc_config, prog_proc_config, int, 0664);
-__module_param_named(start_frame_drop_count, start_frame_drop_count, int, 0664);
+module_param_named(bypass_all, bypass_all, int, 0664);
+module_param_named(bypass_3d, bypass_3d, int, 0664);
+module_param_named(bypass_trick_mode, bypass_trick_mode, int, 0664);
+module_param_named(di_invert_top_bot, invert_top_bot, int, 0664);
+module_param_named(skip_top_bot, skip_top_bot, int, 0664);
+module_param_named(force_width, force_width, int, 0664);
+module_param_named(force_height, force_height, int, 0664);
+module_param_named(prog_proc_config, prog_proc_config, int, 0664);
+module_param_named(start_frame_drop_count, start_frame_drop_count, int, 0664);
 #ifdef SUPPORT_START_FRAME_HOLD
-__module_param_named(start_frame_hold_count, start_frame_hold_count, int, 0664);
+module_param_named(start_frame_hold_count, start_frame_hold_count, int, 0664);
 #endif
-__module_param_named(same_field_top_count, same_field_top_count,
+module_param_named(same_field_top_count, same_field_top_count,
 	long, 0664);
-__module_param_named(same_field_bot_count, same_field_bot_count,
+module_param_named(same_field_bot_count, same_field_bot_count,
 	long, 0664);
 MODULE_PARM_DESC(di_log_flag, "\n di log flag\n");
-__module_param(di_log_flag, int, 0664);
+module_param(di_log_flag, int, 0664);
 
 MODULE_PARM_DESC(di_debug_flag, "\n di debug flag\n");
-__module_param(di_debug_flag, int, 0664);
+module_param(di_debug_flag, int, 0664);
 
 MODULE_PARM_DESC(buf_state_log_threshold, "\n buf_state_log_threshold\n");
-__module_param(buf_state_log_threshold, int, 0664);
+module_param(buf_state_log_threshold, int, 0664);
 
 MODULE_PARM_DESC(bypass_state, "\n bypass_state\n");
-__module_param(bypass_state, uint, 0664);
+module_param(bypass_state, uint, 0664);
 
 MODULE_PARM_DESC(di_vscale_skip_enable, "\n di_vscale_skip_enable\n");
-__module_param(di_vscale_skip_enable, uint, 0664);
+module_param(di_vscale_skip_enable, uint, 0664);
 
 MODULE_PARM_DESC(di_vscale_skip_count, "\n di_vscale_skip_count\n");
-__module_param(di_vscale_skip_count, int, 0664);
+module_param(di_vscale_skip_count, int, 0664);
 
 MODULE_PARM_DESC(di_vscale_skip_count_real, "\n di_vscale_skip_count_real\n");
-__module_param(di_vscale_skip_count_real, int, 0664);
+module_param(di_vscale_skip_count_real, int, 0664);
 
-__module_param_named(vpp_3d_mode, vpp_3d_mode, int, 0664);
+module_param_named(vpp_3d_mode, vpp_3d_mode, int, 0664);
 #ifdef DET3D
 MODULE_PARM_DESC(det3d_en, "\n det3d_enable\n");
-__module_param(det3d_en, bool, 0664);
+module_param(det3d_en, bool, 0664);
 MODULE_PARM_DESC(det3d_mode, "\n det3d_mode\n");
-__module_param(det3d_mode, uint, 0664);
+module_param(det3d_mode, uint, 0664);
 #endif
 
 MODULE_PARM_DESC(post_hold_line, "\n post_hold_line\n");
-__module_param(post_hold_line, uint, 0664);
+module_param(post_hold_line, uint, 0664);
 
 MODULE_PARM_DESC(post_urgent, "\n post_urgent\n");
-__module_param(post_urgent, uint, 0664);
+module_param(post_urgent, uint, 0664);
 
 MODULE_PARM_DESC(di_printk_flag, "\n di_printk_flag\n");
-__module_param(di_printk_flag, uint, 0664);
+module_param(di_printk_flag, uint, 0664);
 
 MODULE_PARM_DESC(force_recovery, "\n force_recovery\n");
-__module_param(force_recovery, uint, 0664);
+module_param(force_recovery, uint, 0664);
 
-__module_param_named(force_recovery_count, force_recovery_count, uint, 0664);
-__module_param_named(pre_process_time, pre_process_time, uint, 0664);
-__module_param_named(bypass_post, bypass_post, uint, 0664);
-__module_param_named(post_wr_en, post_wr_en, bool, 0664);
-__module_param_named(post_wr_support, post_wr_support, uint, 0664);
-__module_param_named(bypass_post_state, bypass_post_state, uint, 0664);
+module_param_named(force_recovery_count, force_recovery_count, uint, 0664);
+module_param_named(pre_process_time, pre_process_time, uint, 0664);
+module_param_named(bypass_post, bypass_post, uint, 0664);
+module_param_named(post_wr_en, post_wr_en, bool, 0664);
+module_param_named(post_wr_support, post_wr_support, uint, 0664);
+module_param_named(bypass_post_state, bypass_post_state, uint, 0664);
 /* n debug for progress interlace mixed source */
-__module_param_named(use_2_interlace_buff, use_2_interlace_buff, int, 0664);
-__module_param_named(debug_blend_mode, debug_blend_mode, int, 0664);
+module_param_named(use_2_interlace_buff, use_2_interlace_buff, int, 0664);
+module_param_named(debug_blend_mode, debug_blend_mode, int, 0664);
 MODULE_PARM_DESC(debug_blend_mode, "\n force post blend mode\n");
-__module_param_named(nr10bit_support, nr10bit_support, uint, 0664);
-__module_param_named(di_stop_reg_flag, di_stop_reg_flag, uint, 0664);
-__module_param(di_dbg_mask, uint, 0664);
+module_param_named(nr10bit_support, nr10bit_support, uint, 0664);
+module_param_named(di_stop_reg_flag, di_stop_reg_flag, uint, 0664);
+module_param(di_dbg_mask, uint, 0664);
 MODULE_PARM_DESC(di_dbg_mask, "\n di_dbg_mask\n");
-__module_param(nr_done_check_cnt, uint, 0664);
+module_param(nr_done_check_cnt, uint, 0664);
 MODULE_PARM_DESC(nr_done_check_cnt, "\n nr_done_check_cnt\n");
-__module_param_array(di_stop_reg_addr, uint, &num_di_stop_reg_addr,
+module_param_array(di_stop_reg_addr, uint, &num_di_stop_reg_addr,
 	0664);
-__module_param_named(mcpre_en, mcpre_en, bool, 0664);
-__module_param_named(check_start_drop_prog, check_start_drop_prog, bool, 0664);
-__module_param_named(overturn, overturn, bool, 0664);
-__module_param_named(queue_print_flag, queue_print_flag, int, 0664);
-__module_param_named(full_422_pack, full_422_pack, bool, 0644);
-__module_param_named(cma_print, cma_print, bool, 0644);
-__module_param_named(pulldown_enable, pulldown_enable, bool, 0644);
+module_param_named(mcpre_en, mcpre_en, bool, 0664);
+module_param_named(check_start_drop_prog, check_start_drop_prog, bool, 0664);
+module_param_named(overturn, overturn, bool, 0664);
+module_param_named(queue_print_flag, queue_print_flag, int, 0664);
+module_param_named(full_422_pack, full_422_pack, bool, 0644);
+module_param_named(cma_print, cma_print, bool, 0644);
+module_param_named(pulldown_enable, pulldown_enable, bool, 0644);
 #ifdef DEBUG_SUPPORT
 #ifdef RUN_DI_PROCESS_IN_IRQ
-__module_param_named(input2pre, input2pre, uint, 0664);
-__module_param_named(input2pre_buf_miss_count, input2pre_buf_miss_count,
+module_param_named(input2pre, input2pre, uint, 0664);
+module_param_named(input2pre_buf_miss_count, input2pre_buf_miss_count,
 	uint, 0664);
-__module_param_named(input2pre_proc_miss_count, input2pre_proc_miss_count,
+module_param_named(input2pre_proc_miss_count, input2pre_proc_miss_count,
 	uint, 0664);
-__module_param_named(input2pre_miss_policy, input2pre_miss_policy, uint, 0664);
-__module_param_named(input2pre_throw_count, input2pre_throw_count, uint, 0664);
+module_param_named(input2pre_miss_policy, input2pre_miss_policy, uint, 0664);
+module_param_named(input2pre_throw_count, input2pre_throw_count, uint, 0664);
 #endif
 #ifdef SUPPORT_MPEG_TO_VDIN
-__module_param_named(mpeg2vdin_en, mpeg2vdin_en, int, 0664);
-__module_param_named(mpeg2vdin_flag, mpeg2vdin_flag, int, 0664);
+module_param_named(mpeg2vdin_en, mpeg2vdin_en, int, 0664);
+module_param_named(mpeg2vdin_flag, mpeg2vdin_flag, int, 0664);
 #endif
-__module_param_named(di_pre_rdma_enable, di_pre_rdma_enable, uint, 0664);
-__module_param_named(pldn_dly, pldn_dly, uint, 0644);
-__module_param_named(pldn_dly1, pldn_dly1, uint, 0644);
-__module_param_named(di_reg_unreg_cnt, di_reg_unreg_cnt, int, 0664);
-__module_param_named(bypass_pre, bypass_pre, int, 0664);
-__module_param_named(di_frame_count, frame_count, int, 0664);
+module_param_named(di_pre_rdma_enable, di_pre_rdma_enable, uint, 0664);
+module_param_named(pldn_dly, pldn_dly, uint, 0644);
+module_param_named(pldn_dly1, pldn_dly1, uint, 0644);
+module_param_named(di_reg_unreg_cnt, di_reg_unreg_cnt, int, 0664);
+module_param_named(bypass_pre, bypass_pre, int, 0664);
+module_param_named(di_frame_count, frame_count, int, 0664);
 #endif
 //MODULE_DESCRIPTION("AMLOGIC DEINTERLACE driver");
 //MODULE_LICENSE("GPL");

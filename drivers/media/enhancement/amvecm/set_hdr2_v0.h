@@ -110,6 +110,7 @@ enum mtx_csc_e {
 	MATRIX_BT2020YUV_BT2020RGB = 0x40,
 	MATRIX_BT2020RGB_709RGB,
 	MATRIX_BT2020RGB_CUSRGB,
+	MATRIX_RGB_BT2020YUV
 };
 
 void mtx_setting(enum vpp_matrix_e mtx_sel,

@@ -11,7 +11,7 @@
 #define VRRLOCK_SUPPORT_HDMI BIT(0)
 #define VRRLOCK_SUPPORT_CVBS BIT(1)
 
-#define FRAME_LOCK_POLICY_VERSION  "20220315-01"
+#define FRAME_LOCK_POLICY_VERSION  "20231218 fix vrr line delay issue"
 
 #define FRAMELOCK_INVALID    0
 #define FRAMELOCK_VLOCK      1
@@ -68,11 +68,11 @@ extern unsigned int vlock_en;
 
 u32 vlock_get_vlock_sts(void);
 
-ssize_t frame_lock_debug_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count);
-ssize_t frame_lock_debug_show(const struct class *class,
-			const struct class_attribute *attr, char *buf);
+ssize_t frame_lock_debug_store(const struct class *cla,
+			  const struct class_attribute *attr,
+		const char *buf, size_t count);
+ssize_t frame_lock_debug_show(const struct class *cla,
+			 const struct class_attribute *attr, char *buf);
 int flock_vrr_nfy_callback(struct notifier_block *block, unsigned long cmd,
 			  void *para);
 void frame_lock_vrr_off_done_init(void);

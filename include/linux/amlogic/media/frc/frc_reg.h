@@ -1861,6 +1861,11 @@
 #define FRC_NR_MISC                                0x0800
 //Bit 31: 0        reg_nr_misc               // unsigned ,    RW, default = 0  register
 
+#define FRC_ARB_UGT_RD_BASIC                       0x0974
+//Bit 7: 0         module_urg+arb_ugt_basic  // unsigned ,    RW, default = 0x55
+#define FRC_ARB_UGT_WR_BASIC                       0x0994
+//Bit 3: 0         module_urg+arb_ugt_basic  // unsigned ,    RW, default = 5
+
 #define FRC_MEVP_CTRL0                             0x1080
 //Bit 31            reg_mevp_clr_me_undone_flag  //unsigned  , RW, default = 0 ,me_process undone flag clear, write pulse
 //Bit 30:4          reserved
@@ -1872,6 +1877,10 @@
 #define FRC_MEVP_RO_STAT0                          0x1088
 //Bit 31:1          reserved
 //Bit  0            ro_me_undone_flag            // unsigned , RO , default = 0  me_process undone flag
+
+#define FRC_MEVP_CRC_CHECK_FRM                     0x108a
+#define FRC_MEVP_RO_MV_CRC_SUM                     0x108b
+#define FRC_MEVP_RO_LOGO_CRC_SUM                   0x108c
 
 #define FRC_ME_EN                                  0x1100
 //Bit 31           reg_me_en                 // unsigned ,    RW, default = 0  enable me function.
@@ -1953,13 +1962,18 @@
 #define FRC_MELOGO_REGION_HWINDOW_0                0x1f13
 #define FRC_MELOGO_REGION_VWINDOW_1                0x1f14
 #define FRC_MELOGO_REGION_VWINDOW_0                0x1f15
+#define FRC_VP_TOP_CLR_STAT                        0x1ef3
 #define FRC_VP_TOP_STAT                            0x1ef7
-#define FRC_VP_TOP_CLR_STAT                        0x1ef8
 #define FRC_MELOGO_BB_BLK_ST                       0x1f02
 #define FRC_MELOGO_BB_BLK_ED                       0x1f03
 #define FRC_MC_SETTING1                            0x3000
 #define FRC_MC_SETTING2                            0x3001
 #define FRC_MC_LOSS_SLICE_SEC                      0x3905
+#define FRC_MC_CRC_CHECK_FRM                       0x3980
+#define FRC_MC_CRC_SUM                             0x3981
+#define FRC_MC_PRB_CTRL0                           0x3988
+//Bit 31:30         reserved
+//Bit 29:0          reg_mc_probe_pix          // unsigned ,RW,default=32'h40080200,{R,G,B}/{Y,U,V}
 #define FRC_MC_PRB_CTRL1                           0x3989
 //Bit 31            reserved
 //Bit 30            reg_mc_probe_en           // unsigned ,    RW, default = 0    reg_mc_probe_en
@@ -2166,6 +2180,15 @@
  //Bit	7: 6	    reserved
  //Bit	5: 0	    reg_mc_7_flag_line_width  // unsigned ,    RW, default = 4	7 flag line width
 
+#define FRC_MC_MVRD_CTRL                           0x3901
+//Bit 31:9       reserved
+//Bit 8          reg_mc_mv_in_sel    // unsigned,RW,default = 1,1:mv from ddr 0:mv from mevp ports
+//Bit 7 :1       reserved
+//Bit 0          reg_mvrd_mode          // unsigned,RW, default = 0,
+					//only active when reg_mc_mv_in_sel == 1,
+					//1:always read mv from ddr
+					//0:ead mv when mvwr_cnt > mvrd_cnt
+
 #define FRC_MC_SW_RESETS                           0x3904
 //Bit 31:16      reserved
 //Bit 15: 0      reg_mc_sw_resets                 // unsigned ,    RW, default = 0,
@@ -2188,6 +2211,12 @@
 //Bit 2             reg_mcp_byp_en            // unsigned ,    RW, default = 0
 //Bit 1             reg_mc_byp_ctrl           // unsigned ,    RW, default = 0
 //Bit 0             reg_mc_bypass_en          // unsigned ,    RW, default = 0
+#define FRC_RO_MC_PROBE                            0x3991
+//Bit 31:30         reserved
+//Bit 29: 0         ro_mc_probe               // unsigned ,   RW, default = 0  ro_frc_stat0, yuv422
+#define FRC_RO_MC_PROBE_CSC                        0x3993
+//Bit 31:30         reserved
+//Bit 29: 0         ro_mc_probe_csc               // unsigned ,   RW, default = 0  ro_frc_stat5, rgb
 #define FRC_RO_MC_STAT                             0x3994
 //Bit 31:29         reserved
 //Bit 28:16         ro_undone_vcnt               // unsigned ,   RO, default = 0  ro_undone_vcnt
@@ -2291,7 +2320,7 @@
 //                                      1=ABH read request burst size 24;
 //                                      2=ABH read request burst size 32;
 //                                      3=ABH read request burst size 48.
-// Bit     1 RW ctrl_sw_reset. 1=Reset RDMA logics except register.
+// Bit     1 RW ctrl_sw_reset. 1=Reset RDMA logic except register.
 // Bit     0 RW ctrl_free_clk_enable. 0=Default, Enable clock gating. 1=No clock gating, enable free clock.
 #define FRC_RDMA_CTRL                              0x3b14
 // Read only.
@@ -2930,12 +2959,16 @@ extern int fw_idx;
 /******************************************************************************/
 inline void WRITE_FRC_REG(unsigned int reg, unsigned int val);
 inline void WRITE_FRC_REG_BY_CPU(unsigned int reg, unsigned int val);
+inline void FRC_RDMA_WR_REG_IN(unsigned int reg, unsigned int val);
+inline void FRC_RDMA_WR_REG_OUT(unsigned int reg, unsigned int val);
+inline void FRC_RDMA_WR_REG_IN_ALG(unsigned int reg, unsigned int val);
+inline void FRC_RDMA_WR_REG_OUT_ALG(unsigned int reg, unsigned int val);
+inline int FRC_RDMA_RD_REG(unsigned int reg);
 
 inline void WRITE_FRC_BITS(unsigned int reg, unsigned int value,
     unsigned int start, unsigned int len);
 inline void UPDATE_FRC_REG_BITS(unsigned int reg, unsigned int value, unsigned int mask);
 // #define UPDATE_FRC_REG_BITS(addr, val, mask) FRC_RDMA_VSYNC_REG_UPDATE(addr, val, mask)
-inline void UPDATE_FRC_REG_BITS_1(unsigned int reg, unsigned int value, unsigned int mask);
 inline int is_rdma_enable(void);
 
 inline int READ_FRC_REG(unsigned int reg);

@@ -92,6 +92,7 @@
 
 unsigned int debug_common_flag;
 unsigned int aisr_size_threshold = 50;
+
 u32 is_crop_left_odd(struct vpp_frame_par_s *frame_par)
 {
 	int crop_left_odd;
@@ -265,9 +266,8 @@ void vframe_canvas_set(struct canvas_config_s *config,
 bool is_layer_aisr_supported(struct video_layer_s *layer)
 {
 	/* only vd1 has aisr for t3 */
-	if (!cur_dev->aisr_support)
-		return false;
-	if (!layer || layer->layer_id != 0)
+	if (!cur_dev->aisr_support ||
+		!layer || layer->layer_id != 0)
 		return false;
 	else
 		return true;
@@ -512,8 +512,12 @@ static void dump_pps_reg(void)
 	u32 reg_addr, reg_val = 0;
 
 	for (i = 0; i < cur_dev->max_vd_layers; i++) {
-		if (!glayer_info[i].pps_support)
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (cur_dev->vd1_vsr_safa_support && i == 0) {
+			dump_vd_vsr_safa_reg();
 			continue;
+		}
+#endif
 		pr_info("vd%d pps regs:\n", i);
 		reg_addr = vd_layer[i].pps_reg.vd_vsc_region12_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
@@ -644,33 +648,33 @@ static void dump_vout_blend_reg(void)
 	if (cur_dev->display_module != C3_DISPLAY_MODULE)
 		return;
 	pr_info("vout blend reg:\n");
-	reg_addr = cur_dev->vout_blend_reg.vpu_vout_blend_ctrl;
+	reg_addr = VPU_VOUT_BLEND_CTRL;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_BLEND_CTRL[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
-	reg_addr = cur_dev->vout_blend_reg.vpu_vout_blend_dumdata;
+	reg_addr = VPU_VOUT_BLEND_DUMDATA;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_BLEND_DUMDATA[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
-	reg_addr = cur_dev->vout_blend_reg.vpu_vout_blend_size;
+	reg_addr = VPU_VOUT_BLEND_SIZE;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_BLEND_SIZE[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
 
-	reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src0_hpos;
+	reg_addr = VPU_VOUT_BLD_SRC0_HPOS;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_BLD_SRC0_HPOS[0x%x](vd1) = 0x%X\n",
 		   reg_addr, reg_val);
-	reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src0_vpos;
+	reg_addr = VPU_VOUT_BLD_SRC0_VPOS;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_BLD_SRC0_VPOS[0x%x](vd1) = 0x%X\n",
 		   reg_addr, reg_val);
 
-	reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src1_hpos;
+	reg_addr = VPU_VOUT_BLD_SRC1_HPOS;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_BLD_SRC1_HPOS[0x%x](osd) = 0x%X\n",
 		   reg_addr, reg_val);
-	reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src1_vpos;
+	reg_addr = VPU_VOUT_BLD_SRC1_VPOS;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_BLD_SRC1_VPOS[0x%x](osd) = 0x%X\n",
 		   reg_addr, reg_val);
@@ -700,7 +704,6 @@ static void dump_vout_blend_reg(void)
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("VPU_VOUT_VLK_CTRL[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
-
 }
 
 static void dump_fgrain_reg(void)
@@ -730,6 +733,9 @@ static void dump_fgrain_reg(void)
 static void dump_aisr_reg(void)
 {
 	u32 reg_addr, reg_val = 0;
+
+	if (cur_dev->vd1_vsr_safa_support)
+		return;
 
 	pr_info("aisr reshape regs:\n");
 	reg_addr = aisr_reshape_reg.aisr_reshape_ctrl0;
@@ -1258,8 +1264,8 @@ static void dump_vppx_blend_reg(void)
 }
 
 ssize_t reg_dump_store(const struct class *cla,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				 const struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -1276,7 +1282,6 @@ ssize_t reg_dump_store(const struct class *cla,
 			dump_vpp_post_reg();
 		} else if (cur_dev->display_module == C3_DISPLAY_MODULE) {
 			dump_mif_reg();
-			dump_pps_reg();
 			dump_vout_blend_reg();
 		} else {
 			dump_mif_reg();
@@ -1296,9 +1301,9 @@ ssize_t reg_dump_store(const struct class *cla,
 }
 
 #else
-ssize_t reg_dump_store(const struct class *cla,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+ssize_t reg_dump_store(struct class *cla,
+				 struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -1310,26 +1315,10 @@ ssize_t reg_dump_store(const struct class *cla,
 	}
 
 	if (res) {
-		if (cur_dev->display_module == S5_DISPLAY_MODULE) {
-			dump_s5_vd_proc_regs();
-			dump_vpp_post_reg();
-		} else if (cur_dev->display_module == C3_DISPLAY_MODULE) {
-			dump_mif_reg();
-			dump_pps_reg();
-			dump_vout_blend_reg();
-		} else {
-			dump_mif_reg();
-			dump_afbc_reg();
-			dump_pps_reg();
-			dump_vpp_blend_reg();
-			dump_vppx_blend_reg();
-			dump_vpp_path_size_reg();
-			dump_vpp_misc_reg();
-			dump_zorder_reg();
-			dump_fgrain_reg();
-			if (cur_dev->aisr_support)
-				dump_aisr_reg();
-		}
+		dump_mif_reg();
+		dump_afbc_reg();
+		dump_pps_reg();
+		dump_vpp_blend_reg();
 	}
 	return count;
 }
@@ -1341,11 +1330,32 @@ bool frc_n2m_worked(void)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 		/* frc_get_n2m_setting 1 : n2m is 1:1; 2 :n2m is 1:2 */
+		/* 3: n2m is 1:2.5*/
 		/* frc_is_on() 1: means frc really worked */
-		if ((frc_get_n2m_setting() == 2) && frc_is_on())
+		if ((frc_get_n2m_setting() >= 2) && frc_is_on())
 			ret = true;
 #endif
 	return ret;
+}
+
+u32 frc_get_n2m_ratio(void)
+{
+	u32 ratio = 10;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+	int ret = 0;
+
+	ret = frc_get_n2m_setting();
+	switch (ret) {
+	case 2:
+		ratio = 20;
+		break;
+	case 3:
+		ratio = 25;
+		break;
+	}
+#endif
+	return ratio;
 }
 
 bool frc_n2m_1st_frame_worked(struct video_layer_s *layer)
@@ -1396,16 +1406,8 @@ bool check_aisr_need_disable(struct video_layer_s *layer)
 	struct disp_info_s *disp_layer = &glayer_info[layer->layer_id];
 	const struct vinfo_s *info = NULL;
 
-	//n2m :not check slice num
-	if ((frc_get_n2m_setting() != 2) &&
-		layer->slice_num >= 2) {
-		if (debug_common_flag & DEBUG_FLAG_COMMON_AISR)
-			pr_info("%s:n2m=%d slice_num(%d)\n",
-				__func__,
-				frc_get_n2m_setting(),
-				layer->slice_num);
-		return false;
-	}
+	if (layer->slice_num >= 2)
+		return true;
 	info = get_current_vinfo();
 	if (info) {
 		layer_width = disp_layer->layer_width;
@@ -1413,9 +1415,9 @@ bool check_aisr_need_disable(struct video_layer_s *layer)
 		/* 1/4 full screen aisr disabled */
 		if (layer_width < info->width * aisr_size_threshold / 100 &&
 			layer_height < info->height * aisr_size_threshold / 100)
-			ret = false;
-		else
 			ret = true;
+		else
+			ret = false;
 		if (debug_common_flag & DEBUG_FLAG_COMMON_AISR)
 			pr_info("%s:ret=%d width(%d, %d), height(%d,%d)\n",
 				__func__,

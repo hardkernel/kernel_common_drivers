@@ -50,9 +50,12 @@ void DIM_DI_WR_REG_BITS(unsigned int adr, unsigned int val,
 			unsigned int start, unsigned int len);
 void DIM_VSYNC_WR_MPEG_REG(unsigned int addr, unsigned int val);
 unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
-			       unsigned int val,
-			       unsigned int start,
-			       unsigned int len);
+			unsigned int val,
+			unsigned int start,
+			unsigned int len);
+unsigned int DIM_VSC_RD_MPG_BT(unsigned int addr,
+			unsigned int start,
+			unsigned int len);
 
 #define HHI_VPU_CLKB_CNTL	0x83
 
@@ -136,6 +139,7 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define DI_RDARB_LIMT0_L1C1				0x205c
 #define DI_WRARB_UGT_L1C1				0x205d
 #define DI_WRARB_AXIWR_PROT				0x205e
+#define DI_ARB_AXIRD0_PROT				0x205f
 
 #ifdef MARK_SC2 /* ary move to di_reg_v2.h */
 #define DI_PRE_GL_CTRL					0x20ab
@@ -774,12 +778,11 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
  * Bit 27:24,   reg_NM_calc_length	  Length mode of the Noise
  * measurement sample number for statistics.
  *		0:  256 samples;    1: 512 samples;    2: 1024 samples;
- * ¡­X: 2^(8+x) samples
- * Bit 23:20,   reg_NM_inc_step	      Loop filter input gain increase step.
- * Bit 19:16,   reg_NM_dec_step	      Loop filter input gain decrease step.
- * Bit 15:8,	   reg_NM_YHPmot_thrd	  Luma channel HP portion motion
+ * Bit 23:20,   reg_NM_inc_step              Loop filter input gain increase step.
+ * Bit 19:16,   reg_NM_dec_step              Loop filter input gain decrease step.
+ * Bit 15:8,      reg_NM_YHPmot_thrd     Luma channel HP portion motion
  * for condition of pixels included in Luma Noise measurement.
- * Bit 7:0,	   reg_NM_CHPmot_thrd	  Chroma channel HP portion motion
+ * Bit 7:0,       reg_NM_CHPmot_thrd     Chroma channel HP portion motion
  * for condition of pixels included in Chroma Noise measurement.
  */
 #define NR2_MET_NM_YCTRL                  ((0x1746)) /* << 2) + 0xd0100000) */
@@ -1739,6 +1742,8 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 		/* 0xd01082a8 */
 
 #endif	/*ary move to di_reg_v2.h end*/
+
+#define DI_PD_GRAD_CTRL                  0x17e0
 
 /* dnr  Base Addr: 0xd0100000 */
 #define DNR_CTRL                         ((0x2d00))

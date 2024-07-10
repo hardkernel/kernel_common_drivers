@@ -186,20 +186,20 @@ static const struct reg_acc di_normal_regset = {
  * bit[1]: p -> need proce p use 2 i buf
  * bit[2]: mode
  ************************************/
-u32 afbc_cfg;// =  BITS_EAFBC_CFG_4K;
+static u32 afbc_cfg;// =  BITS_EAFBC_CFG_4K;
 /************************************
  * base function:
  *	0x3:	afbcd x  1
  *	0x07:	afbcd x 2 + afbce x 1
  *	0x101:
  ************************************/
-__module_param_named(afbc_cfg, afbc_cfg, uint, 0664);
+module_param_named(afbc_cfg, afbc_cfg, uint, 0664);
 
 #ifdef DBG_AFBC
 static u32 afbc_cfg_vf;
-__module_param_named(afbc_cfg_vf, afbc_cfg_vf, uint, 0664);
+module_param_named(afbc_cfg_vf, afbc_cfg_vf, uint, 0664);
 static u32 afbc_cfg_bt;
-__module_param_named(afbc_cfg_bt, afbc_cfg_bt, uint, 0664);
+module_param_named(afbc_cfg_bt, afbc_cfg_bt, uint, 0664);
 #endif
 static struct afbcd_ctr_s *di_get_afd_ctr(void);
 
@@ -1514,7 +1514,7 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 		//afbc_cfg = BITS_EAFBC_CFG_4K;
 		afbc_cfg = 0;
 		memcpy(&pafd_ctr->fb, &cafbc_v5_sc2, sizeof(pafd_ctr->fb));
-		if (DIM_IS_IC(S4))
+		if (DIM_IS_IC(S4) || DIM_IS_IC(S7D))
 			pafd_ctr->fb.mode = AFBC_WK_IN;//JUST 1afbc D
 		else
 			pafd_ctr->fb.mode = AFBC_WK_P;
@@ -3410,20 +3410,33 @@ void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link)
 
 	if (!DIM_IS_IC(T5DB))
 		return;
-	if (vpp_link && afbc_is_supported_for_plink()) {
-		if (get_vd1_vd2_mux()) {
-			PR_WARN("%s: vd1_vd2_mux 1\n", __func__);
-			set_vd1_vd2_mux(0);
+	if (afbc_is_supported_for_plink()) {
+		dbg_reg("afbc_is_supported_for_plink\n");
+		if (vpp_link) {
+			dbg_reg("vpp_link true\n");
+			if (get_vd1_vd2_mux()) {
+				PR_WARN("%s: vd1_vd2_mux 1\n", __func__);
+				set_vd1_vd2_mux(0);
+			}
+			en = 1;
+		} else {
+			en = 0;
 		}
-		en = 1;
-	} else if (!vpp_link && afbc_is_supported()) {
-		if (!get_vd1_vd2_mux()) {
-			PR_WARN("%s: vd1_vd2_mux 0\n", __func__);
-			set_vd1_vd2_mux(1);
+	} else {
+		dbg_reg("no support\n");
+		if (afbc_is_supported()) {
+			dbg_reg("afbc support\n");
+			if (!get_vd1_vd2_mux()) {
+				PR_WARN("%s: vd1_vd2_mux 0\n", __func__);
+				set_vd1_vd2_mux(1);
+			}
+			en = 2;
+		} else {
+			en = 0;
 		}
-		en = 2;
 	}
 	if (en) {
+		dbg_reg("en: %d\n", en);
 		PR_INF("t5dvb afbcd on\n");
 		/* afbcd is shared */
 		if (DIM_IS_IC_TXHD2) {
@@ -3435,9 +3448,11 @@ void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link)
 				op->wr(VD1_AFBCD0_MISC_CTRL, 0x401200);
 			}
 		} else {
-			val = op->rd(VD1_AFBCD0_MISC_CTRL);
-			val |= (DI_BIT1 | DI_BIT10 | DI_BIT12 | DI_BIT22);
-			op->wr(VD1_AFBCD0_MISC_CTRL, val);
+			if (en == 2) {
+				val = op->rd(VD1_AFBCD0_MISC_CTRL);
+				val |= (DI_BIT1 | DI_BIT10 | DI_BIT12 | DI_BIT22);
+				op->wr(VD1_AFBCD0_MISC_CTRL, val);
+			}
 		}
 		dbg_reg("%s:t5d vb on\n 0x%x,0x%x\n",
 			__func__,
@@ -4266,7 +4281,7 @@ static void afbc_check_chg_level_dvfm(struct dvfm_s *vf,
 }
 
 /* copy from enable_afbc_input_local */
-static u32 enable_afbc_input_local_dvfm(struct dim_prevpp_ds_s *ds,
+static u32 enable_afbc_input_local_dvfm(struct dim_pvpp_ds_s *ds,
 				   struct dvfm_s *vf, enum EAFBC_DEC dec,
 				   struct AFBCD_CFG_S *cfg,
 				   struct di_win_s *win,
@@ -4869,7 +4884,7 @@ static void afbce_update_level1_dvfm(struct dvfm_s *vf,
 	vf_set_for_com_dvf(vf);
 
 	//head addr of compressed data
-	if (DIM_IS_IC_EF(T7) || DIM_IS_IC(S4)) {
+	if (DIM_IS_IC_EF(T7) || DIM_IS_IC(S4) || DIM_IS_IC(S7D)) {
 		op->wr(reg[EAFBCE_HEAD_BADDR], vf->vfs.compHeadAddr >> 4);
 		op->wr(reg[EAFBCE_MMU_RMIF_CTRL4], vf->afbct_adr >> 4);
 
@@ -4893,7 +4908,7 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 	struct dvfm_s *mem_vf2, *inp_vf2, *chan2_vf;
 	struct AFBCD_CFG_S cfg;
 	struct AFBCD_CFG_S *pcfg;
-	struct dim_prevpp_ds_s *ds;
+	struct dim_pvpp_ds_s *ds;
 	struct dimn_dvfm_s *ndvfm;
 	struct dvfm_s *nr_vf;
 	struct di_win_s *win_in, *win_mem;
@@ -4903,7 +4918,7 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 		return false;
 	if (!ds_in || !nvfm_in || !op_in)
 		return false;
-	ds = (struct dim_prevpp_ds_s *)ds_in;
+	ds = (struct dim_pvpp_ds_s *)ds_in;
 	ndvfm = (struct dimn_dvfm_s *)nvfm_in;
 
 	//inp_vf2 = inp_vf;
@@ -5124,7 +5139,7 @@ static void afbc_pre_check_dvfm(void *ds_in, void *vfm) /* struct dimn_dvfm_s */
 	union afbc_blk_s	*en_cfg_pre;
 //	struct di_ch_s *pch;
 	struct dimn_dvfm_s *nvfm;
-	struct dim_prevpp_ds_s *ds;
+	struct dim_pvpp_ds_s *ds;
 
 	if (!ds_in	||
 	    !vfm	||
@@ -5133,7 +5148,7 @@ static void afbc_pre_check_dvfm(void *ds_in, void *vfm) /* struct dimn_dvfm_s */
 
 //	cfg = di_afdp->top_cfg_pre;
 	nvfm = (struct dimn_dvfm_s *)vfm;
-	ds	= (struct dim_prevpp_ds_s *)ds_in;
+	ds	= (struct dim_pvpp_ds_s *)ds_in;
 	pctr = di_get_afd_ctr();
 
 	pctr->en_sgn.d8 = nvfm->c.afbc_sgn_cfg.d8;
@@ -5492,7 +5507,7 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 	       ((hblksize_out & 0x1fff) << 16) |
 	       ((vblksize_out & 0x1fff) << 0)
 	);
-	if (DIM_IS_IC_EF(T7) || DIM_IS_IC(S4))
+	if (DIM_IS_IC_EF(T7) || DIM_IS_IC(S4) || DIM_IS_IC(S7D))
 		op->wr(reg[EAFBCE_HEAD_BADDR], cfg->head_baddr >> 4);
 	else
 	/*head addr of compressed data*/
@@ -5561,7 +5576,7 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 	/*4k addr have used in every frame;*/
 	/*cur_mmu_used += Rd(DI_AFBCE_MMU_NUM);*/
 
-	if (DIM_IS_IC_EF(T7) || DIM_IS_IC(S4))
+	if (DIM_IS_IC_EF(T7) || DIM_IS_IC(S4) || DIM_IS_IC(S7D))
 		op->wr(reg[EAFBCE_MMU_RMIF_CTRL4], cfg->mmu_info_baddr >> 4);
 	else
 		op->wr(reg[EAFBCE_MMU_RMIF_CTRL4], cfg->mmu_info_baddr);
@@ -5852,7 +5867,7 @@ static void afbce_update_level1(struct vframe_s *vf,
 	vf_set_for_com(di_buf);
 
 	//head addr of compressed data
-	if (DIM_IS_IC_EF(T7) || DIM_IS_IC(S4)) {
+	if (DIM_IS_IC_EF(T7) || DIM_IS_IC(S4) || DIM_IS_IC(S7D)) {
 		op->wr(reg[EAFBCE_HEAD_BADDR], di_buf->afbc_adr >> 4);
 		op->wr(reg[EAFBCE_MMU_RMIF_CTRL4], di_buf->afbct_adr >> 4);
 

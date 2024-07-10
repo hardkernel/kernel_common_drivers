@@ -200,8 +200,7 @@ static void set_di_inp_mif(struct DI_MIF_S *mif, const struct reg_acc *op)
 	/* General register */
 	/* ---------------------- */
 	reset_on_gofield = 1;/* default enable according to vlsi */
-	//if (dim_is_pre_link_l())
-	//	hold_line = 0;
+
 	tm = (reset_on_gofield	<< 29)	|
 		(urgent		<< 28)	| /* chroma urgent bit */
 		(urgent		<< 27)	| /* luma urgent bit. */
@@ -453,8 +452,6 @@ static void set_di_mem_mif(struct DI_MIF_S *mif, const struct reg_acc *op)
 	/* General register */
 	/* ---------------------- */
 	reset_on_gofield = 1;/* default enable according to vlsi */
-	//if (dim_is_pre_link_l())
-	//	       hold_line = 0;
 
 	op->wr(DI_MEM_GEN_REG,
 		(reset_on_gofield << 29)    | /* reset on go field */

@@ -97,9 +97,9 @@ static void dpvpph_pre_frame_reset_g12(bool pvpp_link,
 static void dpvpp_patch_first_buffer(struct dimn_itf_s *itf);
 static unsigned int dpvpp_create_instance_id(unsigned int ch);
 static unsigned int dpvpp_dbg_force_dech;
-__module_param_named(dpvpp_dbg_force_dech, dpvpp_dbg_force_dech, uint, 0664);
+module_param_named(dpvpp_dbg_force_dech, dpvpp_dbg_force_dech, uint, 0664);
 static unsigned int dpvpp_dbg_force_decv;
-__module_param_named(dpvpp_dbg_force_decv, dpvpp_dbg_force_decv, uint, 0664);
+module_param_named(dpvpp_dbg_force_decv, dpvpp_dbg_force_decv, uint, 0664);
 
 /* refor to enum EPVPP_BUF_CFG_T */
 const char *const name_buf_cfg[] = {
@@ -165,7 +165,7 @@ bool timer_cnt(unsigned long *ptimer, unsigned int hs_nub)
  * bit [29]: force pre-vpp link on;
  **********************************************/
 static unsigned int tst_pre_vpp;
-__module_param_named(tst_pre_vpp, tst_pre_vpp, uint, 0664);
+module_param_named(tst_pre_vpp, tst_pre_vpp, uint, 0664);
 
 #define dbg_plink(level, fmt, args ...)		\
 	do {						\
@@ -344,11 +344,11 @@ static void ext_vpp_disable_prelink_notify(bool async)
 #ifndef VPP_LINK_USED_FUNC
 	u64 ustime, udiff;
 
-	dbg_plink1("ext:%s:begin\n", "di_disable_prelink_notify");
+	dbg_plink1("ext:%s:begin\n", "di_disable_plink_notify");
 	ustime = cur_to_usecs();
-	di_disable_prelink_notify(async);
+	di_disable_plink_notify(async);
 	udiff = cur_to_usecs() - ustime;
-	dbg_plink1("ext:%s:%dus:%d\n", "di_disable_prelink_notify",
+	dbg_plink1("ext:%s:%dus:%d\n", "di_disable_plink_notify",
 	       (unsigned int)udiff, async);
 #else
 	PR_WARN("dbg:%s:no this function\n", __func__);
@@ -359,7 +359,7 @@ static void ext_vpp_prelink_state_changed_notify(void)
 {
 #ifndef VPP_LINK_USED_FUNC
 	dbg_plink1("ext:prelink notify:begin\n");
-	di_prelink_state_changed_notify();
+	di_plink_state_changed_notify();
 	dbg_plink1("ext:prelink notify\n");
 #else
 	PR_WARN("dbg:%s:no this function\n", __func__);
@@ -370,7 +370,7 @@ static void ext_vpp_prelink_state_changed_notify(void)
 static void ext_vpp_prelink_real_sw(bool sw, bool wait)
 {
 #ifndef VPP_LINK_USED_FUNC
-	di_prelink_force_dmc_priority(sw, wait);
+	di_plink_force_dmc_priority(sw, wait, false);
 #else
 	PR_WARN("dbg:%s:no this function\n", __func__);
 #endif
@@ -8750,7 +8750,7 @@ int dpvpp_check_vf(struct vframe_s *vfm)
 #endif
 }
 
-int dpvpp_check_di_act(void)
+int dpvpp_check_di_act(bool interlace)
 {
 	return EPVPP_ERROR_DI_NOT_REG;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -8769,7 +8769,7 @@ int dpvpp_check_di_act(void)
 #endif
 }
 
-int dpvpp_sw(bool on)
+int dpvpp_sw(bool on, bool interlace)
 {
 	return 0;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT

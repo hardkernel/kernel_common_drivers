@@ -146,8 +146,5 @@ int calcp1(int sx, int sy, int tgtL, int calcmaxl,
 int hdr10_plus_ootf_gen(int panel_lumin,
 			int force_source_lumin,
 			struct hdr10pgen_param_s *hdr10pgen_param);
-extern unsigned int hdr10_plus_printk;
-extern unsigned int force_ref_peak;
-
 #endif /* AM_HDR10_PLUS_OOTF_H */
 #endif

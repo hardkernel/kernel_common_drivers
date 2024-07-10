@@ -88,9 +88,9 @@ static inline struct vframe_s *common_vf_get(struct video_recv_s *ins)
 
 	if (vf) {
 		if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
-			pr_info("%s:vf=%p, omx_index=%d, vf->type=0x%x, vf->flag=0x%x,canvas adr:0x%lx, canvas0:%x, pnum:%d, afbc:0x%lx-0x%lx\n",
-				__func__,
-				vf, vf->omx_index, vf->type, vf->flag,
+			pr_info("%s:recv_name=%s, vf=%p(%px), omx_index=%d, vf->type=0x%x, vf->flag=0x%x,canvas adr:0x%lx, canvas0:%x, pnum:%d, afbc:0x%lx-0x%lx\n",
+				__func__, ins->recv_name,
+				vf, vf, vf->omx_index, vf->type, vf->flag,
 				vf->canvas0_config[0].phy_addr, vf->canvas0Addr, vf->plane_num,
 				vf->compHeadAddr, vf->compBodyAddr);
 		vpp_trace_vframe("common_vf_get",
@@ -144,9 +144,9 @@ static inline void common_vf_put(struct video_recv_s *ins,
 			ins->vpp_id, vsync_cnt[ins->vpp_id]);
 		vf_put(vf, ins->recv_name);
 		if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
-			pr_info("%s:vf=%p, omx_index=%d, vf->type=0x%x, vf->flag=0x%x,canvas adr:0x%lx, canvas0:%x, pnum:%d, afbc:0x%lx-0x%lx\n",
-				__func__,
-				vf, vf->omx_index, vf->type, vf->flag,
+			pr_info("%s:recv_name=%s, vf=%p(%px), omx_index=%d, vf->type=0x%x, vf->flag=0x%x,canvas adr:0x%lx, canvas0:%x, pnum:%d, afbc:0x%lx-0x%lx\n",
+				__func__, ins->recv_name,
+				vf, vf, vf->omx_index, vf->type, vf->flag,
 				vf->canvas0_config[0].phy_addr, vf->canvas0Addr, vf->plane_num,
 				vf->compHeadAddr, vf->compBodyAddr);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -156,12 +156,6 @@ static inline void common_vf_put(struct video_recv_s *ins,
 #endif
 		ins->notify_flag |= VIDEO_NOTIFY_PROVIDER_PUT;
 	}
-}
-
-static void init_receiver_buffer_q(struct video_recv_s *ins)
-{
-	INIT_KFIFO(ins->put_q);
-	kfifo_reset(&ins->put_q);
 }
 
 /* TODO: need add keep frame function */
@@ -207,12 +201,14 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	ins->buf_to_put_num = 0;
 	for (i = 0; i < DISPBUF_TO_PUT_MAX; i++)
 		ins->buf_to_put[i] = NULL;
-	init_receiver_buffer_q(ins);
 	ins->rdma_buf = NULL;
 	ins->original_vf = NULL;
 	ins->switch_vf = false;
 	ins->last_switch_state = false;
 	ins->frame_count = 0;
+	ins->save_vf_en = false;
+	ins->save_vf = NULL;
+	ins->toggle_vf = NULL;
 	if (!strcmp(ins->recv_name, "video_render.0"))
 		clear_vsync_2to1_info();
 
@@ -233,7 +229,8 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 			ins->local_buf.uvm_vf = NULL;
 			ins->local_buf_ext.ratio_control = ins->local_buf.ratio_control;
 		} else if (ins->cur_buf->vf_ext &&
-			is_pre_link_source(ins->cur_buf)) {
+			is_plink_source(ins->cur_buf) &&
+			!HAS_DI_LOCAL_BUF(ins->cur_buf->di_flag)) {
 			u32 tmp_rc;
 			struct vframe_s *tmp;
 
@@ -241,8 +238,8 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 				tmp = ins->cur_buf->uvm_vf;
 			else
 				tmp = (struct vframe_s *)ins->cur_buf->vf_ext;
-			if (debug_flag & DEBUG_FLAG_PRELINK)
-				pr_info("common_vf_unreg: prelink: cur_buf:%px vf_ext:%px uvm_vf:%px final_vf:%px flag:%x\n",
+			if (debug_flag & DEBUG_FLAG_PLINK)
+				pr_info("common_vf_unreg: #1 plink: cur_buf:%px vf_ext:%px uvm_vf:%px final_vf:%px flag:%x\n",
 					ins->cur_buf, ins->cur_buf->vf_ext,
 					ins->cur_buf->uvm_vf, tmp,
 					ins->cur_buf->flag);
@@ -254,7 +251,8 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 			ins->local_buf.vf_ext = NULL;
 			ins->local_buf.uvm_vf = NULL;
 		} else if (IS_DI_POST(ins->cur_buf->type) &&
-			(ins->cur_buf->vf_ext || ins->cur_buf->uvm_vf)) {
+			(ins->cur_buf->vf_ext || ins->cur_buf->uvm_vf) &&
+			!HAS_DI_LOCAL_BUF(ins->cur_buf->di_flag)) {
 			u32 tmp_rc;
 			struct vframe_s *tmp;
 
@@ -262,8 +260,8 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 				tmp = ins->cur_buf->uvm_vf;
 			else
 				tmp = (struct vframe_s *)ins->cur_buf->vf_ext;
-			if (debug_flag & DEBUG_FLAG_PRELINK)
-				pr_info("common_vf_unreg: pre/post link: cur_buf:%px vf_ext:%px uvm_vf:%px final_vf:%px flag:%x\n",
+			if (debug_flag & DEBUG_FLAG_PLINK)
+				pr_info("common_vf_unreg: #2 plink: cur_buf:%px vf_ext:%px uvm_vf:%px final_vf:%px flag:%x\n",
 					ins->cur_buf, ins->cur_buf->vf_ext,
 					ins->cur_buf->uvm_vf, tmp,
 					ins->cur_buf->flag);
@@ -403,7 +401,6 @@ static void common_vf_light_unreg_provider(struct video_recv_s *ins)
 	ins->buf_to_put_num = 0;
 	for (i = 0; i < DISPBUF_TO_PUT_MAX; i++)
 		ins->buf_to_put[i] = NULL;
-	init_receiver_buffer_q(ins);
 	ins->rdma_buf = NULL;
 
 	if (ins->cur_buf) {
@@ -518,20 +515,6 @@ static bool is_vsync_vppx_rdma_enable(u8 vpp_index)
 	return enable;
 }
 
-void put_receiver_buffer_q(struct video_recv_s *ins)
-{
-	struct vframe_s *vf = NULL;
-
-	while (kfifo_len(&ins->put_q) > 0) {
-		if (kfifo_get(&ins->put_q, &vf)) {
-			if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
-				pr_info("%s, put vf=0x%p\n",
-					__func__, vf);
-			common_vf_put(ins, vf);
-		}
-	}
-}
-
 static void common_toggle_frame(struct video_recv_s *ins,
 				struct vframe_s *vf)
 {
@@ -557,10 +540,10 @@ static void common_toggle_frame(struct video_recv_s *ins,
 					    ins->original_vf;
 					ins->buf_to_put_num++;
 				} else {
-					kfifo_put(&ins->put_q, ins->original_vf);
+					common_vf_put(ins, ins->original_vf);
 				}
 			} else {
-				kfifo_put(&ins->put_q, ins->original_vf);
+				common_vf_put(ins, ins->original_vf);
 			}
 		} else {
 			for (i = 0; i < ins->buf_to_put_num; i++) {
@@ -600,7 +583,6 @@ static s32 recv_common_early_process(struct video_recv_s *ins, u32 op)
 
 	/* not over vsync */
 	if (!op) {
-		put_receiver_buffer_q(ins);
 		for (i = 0; i < ins->buf_to_put_num; i++) {
 			if (ins->buf_to_put[i]) {
 				ins->buf_to_put[i]->rendered = true;
@@ -714,14 +696,54 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 			}
 #endif
 			vf = common_vf_get(ins);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			if (get_top1_onoff() == 3) {
+				if (ins->save_vf_en && ins->save_vf) {
+					/* need toggle */
+					ins->toggle_vf = ins->save_vf;
+					ins->save_vf = vf;
+					vf = ins->toggle_vf;
+				} else {
+					/* save frame, not toggle */
+					ins->save_vf = vf;
+					ins->toggle_vf = NULL;
+					vf = NULL;
+					ins->save_vf_en = true;
+				}
+				if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL) {
+					pr_info("%s: save_vf_en=%d,vf=%p(%d),save_vf=%p(%d),toggle_vf=%p(%d)\n",
+						__func__,
+						ins->save_vf_en, vf,
+						vf ? vf->omx_index : 0,
+						ins->save_vf ? ins->save_vf : NULL,
+						ins->save_vf ? ins->save_vf->omx_index : 0,
+						ins->toggle_vf ? ins->toggle_vf : NULL,
+						ins->toggle_vf ? ins->toggle_vf->omx_index : 0);
+				}
+			} else {
+				ins->toggle_vf = vf;
+				if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+					pr_info("put save_vf=%p(%d),toggle_vf=%p(%d)\n",
+						ins->save_vf ? ins->save_vf : NULL,
+						ins->save_vf ? ins->save_vf->omx_index : 0,
+						vf,
+						vf ? vf->omx_index : 0);
+				if (ins->save_vf) {
+					common_vf_put(ins, ins->save_vf);
+					ins->save_vf = NULL;
+				}
+				ins->save_vf_en = false;
+			}
+			vf = ins->toggle_vf;
+#endif
 			if (vf) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 				amvecm_process(path_id, ins, vf);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 				/*top1 enable, need check one more frame*/
-				if (is_amdv_enable() && get_top1_onoff()) {/*todo*/
-					vf_top1 = common_vf_peek(ins);
+				if (get_top1_onoff() ==  3) {/*todo*/
+					vf_top1 = ins->save_vf;//common_vf_peek(ins);
 					/*wait next new Fn+1 for top1, proc top2 Fn + top1 Fn+1*/
 					/*if no new frame, proc top2 Fn + repeat Top1 Fn*/
 					if (!vf_top1 &&
@@ -752,9 +774,14 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 
 				if (glayer_info[0].display_path_id ==
 				    ins->path_id || is_multi_dv_mode()) {
-					if (!get_top1_onoff() || !vf_top1) {/*no top1*/
+					if (get_top1_onoff() == 0) {/*no top1*/
 						dv_toggle_frame(vf, vd_path, true);
-					} else if (vf_top1) {/*top1 next + top2 cur*/
+					} else if (get_top1_onoff() == 1) {
+						/*top1 enabled but no need get frame in advance*/
+						vf_top1 = vf;
+						amdv_parse_metadata_hw5_top1(vf_top1);
+						dv_toggle_frame(vf, VD1_PATH, true);
+					} else if (get_top1_onoff() == 3) {/*top1 next + top2 cur*/
 						amdv_parse_metadata_hw5_top1(vf_top1);
 						dv_toggle_frame(vf, vd_path, true);
 					}
@@ -769,7 +796,7 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 		} else {
 			vf = common_vf_get(ins);
 			if (vf)
-				kfifo_put(&ins->put_q, vf);
+				common_vf_put(ins, vf);
 		}
 		drop_count++;
 		vf = common_vf_peek(ins);

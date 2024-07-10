@@ -47,11 +47,16 @@
 #include <linux/string.h>
 #include <linux/compat.h>
 #include <linux/of_device.h>
+#include <linux/clk-provider.h>
 
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 /*dma_get_cma_size_int_byte*/
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
+
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+#include <linux/amlogic/media_cooling.h>
+#endif
 
 #include "deinterlace_dbg.h"
 #include "deinterlace.h"
@@ -68,8 +73,11 @@
 
 #include "register.h"
 #include "nr_downscale.h"
-#include "../deinterlace/deinterlace_dbg.h"
 
+#include "di_pre.h"
+#include "di_post.h"
+#include "di_prc.h"
+#include "di_reg_v3.h"
 
 static di_dev_t *di_pdev;
 
@@ -206,7 +214,8 @@ bool mm_codec_alloc(const char *owner, size_t count,
 		istvp = true;
 		flags |= CODEC_MM_FLAGS_TVP;
 	} else {
-		flags |= CODEC_MM_FLAGS_RESERVED | CODEC_MM_FLAGS_CPU;
+		flags |= CODEC_MM_FLAGS_RESERVED | CODEC_MM_FLAGS_CMA |
+				CODEC_MM_FLAGS_CPU;
 	}
 	#endif
 	if (cma_mode == 4 && !istvp)
@@ -1729,6 +1738,44 @@ bool mem_cfg_2local(struct di_ch_s *pch)
 	return true;
 }
 
+bool mem_cfg_2pstlink(struct di_ch_s *pch)
+{
+	struct di_buf_s *di_buf = NULL;
+	unsigned int ch;
+	unsigned int err_cnt = 0;
+	unsigned int cnt;
+	unsigned int length_pst;
+
+	ch = pch->ch_id;
+	length_pst = di_que_list_count(ch, QUE_PST_NO_BUF);
+	/* post-link */
+	cnt = 0;
+	while (length_pst) {
+		/* cfg mem */
+		di_buf = di_que_out_to_di_buf(ch, QUE_PST_NO_BUF);
+		if (!di_buf) {
+			PR_ERR("%s:no pst_no_buf[%d]\n", __func__, cnt);
+			err_cnt++;
+			break;
+		}
+		di_buf->blk_buf = NULL;
+		di_buf->adr_start = 0;
+		di_buf->buf_is_i = 0;
+		di_buf->flg_null = 0;
+		//dim_buf_set_addr(ch, di_buf);
+		di_buf->flg_nr = 0;
+		di_buf->flg_nv21 = 0;
+		di_buf->jiff = jiffies;
+		di_que_in(ch, QUE_POST_FREE, di_buf);
+		cnt++;
+		length_pst--;
+	}
+	pch->sts_mem_2_pst = cnt;
+	if (err_cnt)
+		return false;
+	return true;
+}
+
 bool mem_cfg_2pst(struct di_ch_s *pch)
 {
 	struct buf_que_s *pbf_mem;
@@ -1746,7 +1793,6 @@ bool mem_cfg_2pst(struct di_ch_s *pch)
 	pbf_mem = &pch->mem_qb;
 
 	length_pst = qbufp_count(pbf_mem, QBF_MEM_Q_GET_PST);
-
 	/* post */
 	cnt = 0;
 	while (length_pst) {
@@ -2018,46 +2064,52 @@ bool mem_cfg(struct di_ch_s *pch)
 
 	/* post */
 	cnt = 0;
-	while (length_pst) {
-		if (!qbufp_out(pbf_mem, QBF_MEM_Q_GET_PST, &q_buf)) {
-			PR_ERR("%s:pst:%d\n", __func__, cnt);
-			err_cnt++;
-			break;
-		}
+	if (dimp_get(edi_mp_post_wr_en) &&
+	    dimp_get(edi_mp_post_wr_support)) {
+		while (length_pst) {
+			if (!qbufp_out(pbf_mem, QBF_MEM_Q_GET_PST, &q_buf)) {
+				PR_ERR("%s:pst:%d\n", __func__, cnt);
+				err_cnt++;
+				break;
+			}
 
-		/* cfg mem */
-		di_buf = di_que_out_to_di_buf(ch, QUE_PST_NO_BUF);
-		if (!di_buf) {
-			qbufp_in(pbf_mem, QBF_MEM_Q_GET_PST, q_buf);
-			PR_ERR("%s:no pst_no_buf[%d]\n", __func__, cnt);
-			err_cnt++;
-			break;
-		}
-		blk_buf = (struct dim_mm_blk_s *)q_buf.qbc;
-		di_buf->blk_buf = blk_buf;
-		//di_buf->nr_adr = blk_buf->mem_start;
-		//di_buf->afbc_adr = blk_buf->mem_start;
-		//di_buf->afbct_adr = blk_buf->mem_start;
-		di_buf->adr_start = blk_buf->mem_start;
-		di_buf->buf_is_i = 0;
-		di_buf->flg_null = 0;
-		dim_buf_set_addr(ch, di_buf);
-		di_buf->flg_nr = 0;
-		di_buf->flg_nv21 = 0;
-		di_buf->jiff = jiffies;
-		dim_print("nv21 clear %s:%px:\n", __func__, di_buf);
+			/* cfg mem */
+			di_buf = di_que_out_to_di_buf(ch, QUE_PST_NO_BUF);
+			if (!di_buf) {
+				qbufp_in(pbf_mem, QBF_MEM_Q_GET_PST, q_buf);
+				PR_ERR("%s:no pst_no_buf[%d]\n", __func__, cnt);
+				err_cnt++;
+				break;
+			}
+			blk_buf = (struct dim_mm_blk_s *)q_buf.qbc;
+			di_buf->blk_buf = blk_buf;
+			//di_buf->nr_adr = blk_buf->mem_start;
+			//di_buf->afbc_adr = blk_buf->mem_start;
+			//di_buf->afbct_adr = blk_buf->mem_start;
+			di_buf->adr_start = blk_buf->mem_start;
+			di_buf->buf_is_i = 0;
+			di_buf->flg_null = 0;
+			dim_buf_set_addr(ch, di_buf);
+			di_buf->flg_nr = 0;
+			di_buf->flg_nv21 = 0;
+			di_buf->jiff = jiffies;
+			dim_print("nv21 clear %s:%px:\n", __func__, di_buf);
 
-		/*  to in used */
-		qbufp_in(pbf_mem, QBF_MEM_Q_IN_USED, q_buf);
-		//di_que_in(ch, QUE_POST_FREE, di_buf);
-		if (dim_blk_tvp_is_out(blk_buf)) /* new interface */
-			di_que_in(ch, QUE_PST_NO_BUF_WAIT, di_buf);
-		else if (dim_blk_tvp_is_sct(blk_buf))
-			di_que_in(ch, QUE_PST_NO_BUF_WAIT, di_buf);
-		else
-			di_que_in(ch, QUE_POST_FREE, di_buf);
-		cnt++;
-		length_pst--;
+			/*  to in used */
+			qbufp_in(pbf_mem, QBF_MEM_Q_IN_USED, q_buf);
+			//di_que_in(ch, QUE_POST_FREE, di_buf);
+			if (dim_blk_tvp_is_out(blk_buf)) /* new interface */
+				di_que_in(ch, QUE_PST_NO_BUF_WAIT, di_buf);
+			else if (dim_blk_tvp_is_sct(blk_buf))
+				di_que_in(ch, QUE_PST_NO_BUF_WAIT, di_buf);
+			else
+				di_que_in(ch, QUE_POST_FREE, di_buf);
+			cnt++;
+			length_pst--;
+		}
+	} else {
+		if (!mem_cfg_2pstlink(pch))
+			err_cnt++;
 	}
 	dbg_mem2("%s: pst[%d]\n", __func__, cnt);
 
@@ -2068,7 +2120,7 @@ bool mem_cfg(struct di_ch_s *pch)
 
 #ifdef AFBC_DBG
 static unsigned int sleep_cnt;
-__module_param(sleep_cnt, uint, 0664);
+module_param(sleep_cnt, uint, 0664);
 MODULE_PARM_DESC(sleep_cnt, "debug sleep_cnt");
 #endif
 
@@ -2190,57 +2242,62 @@ bool mem_cfg_realloc(struct di_ch_s *pch) /*temp for re-alloc mem*/
 	/* post */
 	cnt = 0;
 	length = qbufp_count(pbf_mem, QBF_MEM_Q_GET_PST);
-	while (length) {
-		if (!qbufp_out(pbf_mem, QBF_MEM_Q_GET_PST, &q_buf)) {
-			PR_ERR("%s:local:%d\n", __func__, cnt);
-			break;
-		}
+	if (dimp_get(edi_mp_post_wr_en) &&
+	    dimp_get(edi_mp_post_wr_support)) {
+		while (length) {
+			if (!qbufp_out(pbf_mem, QBF_MEM_Q_GET_PST, &q_buf)) {
+				PR_ERR("%s:local:%d\n", __func__, cnt);
+				break;
+			}
 
-		/* cfg mem */
-		di_buf = di_que_out_to_di_buf(ch, QUE_PST_NO_BUF);
-		if (!di_buf) {
-			qbufp_in(pbf_mem, QBF_MEM_Q_GET_PST, q_buf);
-			PR_ERR("%s:local no pst_no_buf[%d]\n", __func__, cnt);
-			err_cnt++;
-			break;
+			/* cfg mem */
+			di_buf = di_que_out_to_di_buf(ch, QUE_PST_NO_BUF);
+			if (!di_buf) {
+				qbufp_in(pbf_mem, QBF_MEM_Q_GET_PST, q_buf);
+				PR_ERR("%s:local no pst_no_buf[%d]\n", __func__, cnt);
+				err_cnt++;
+				break;
+			}
+			blk_buf = (struct dim_mm_blk_s *)q_buf.qbc;
+			di_buf->blk_buf = blk_buf;
+			//di_buf->nr_adr = blk_buf->mem_start;
+			//di_buf->afbc_adr = blk_buf->mem_start;
+			//di_buf->afbct_adr = blk_buf->mem_start;
+			di_buf->adr_start	= blk_buf->mem_start;
+			di_buf->buf_is_i = 0;
+			di_buf->flg_null = 0;
+			//crash: msleep(200);
+			dbg_mem2("cfg:buf t[%d]ind[%d]:blk[%d][0x%lx]\n",
+				 di_buf->type,
+				 di_buf->index,
+				 blk_buf->header.index,
+				 blk_buf->mem_start);
+			dim_buf_set_addr(ch, di_buf);
+			di_buf->jiff = jiffies;
+#ifdef AFBC_DBG
+			if (sleep_cnt)
+				msleep(sleep_cnt);// a ok :
+#endif
+			di_buf->flg_nr = 0;
+			di_buf->flg_nv21 = 0;
+			dim_print("nv21 clear %s:%px:\n", __func__, di_buf);
+			//msleep(200);// a ok :
+			//PR_INF("sleep100ms");
+			/*	to in used */
+			qbufp_in(pbf_mem, QBF_MEM_Q_IN_USED, q_buf);
+			//di_que_in(ch, QUE_POST_FREE, di_buf);
+			if (blk_buf->flg.b.typ == EDIM_BLK_TYP_PSCT)
+				di_que_in(ch, QUE_PST_NO_BUF_WAIT, di_buf);
+			else
+				di_que_in(ch, QUE_POST_FREE, di_buf);
+			cnt++;
+			length--;
 		}
-		blk_buf = (struct dim_mm_blk_s *)q_buf.qbc;
-		di_buf->blk_buf = blk_buf;
-		//di_buf->nr_adr = blk_buf->mem_start;
-		//di_buf->afbc_adr = blk_buf->mem_start;
-		//di_buf->afbct_adr = blk_buf->mem_start;
-		di_buf->adr_start	= blk_buf->mem_start;
-		di_buf->buf_is_i = 0;
-		di_buf->flg_null = 0;
-		//crash: msleep(200);
-		dbg_mem2("cfg:buf t[%d]ind[%d]:blk[%d][0x%lx]\n",
-			 di_buf->type,
-			 di_buf->index,
-			 blk_buf->header.index,
-			 blk_buf->mem_start);
-		dim_buf_set_addr(ch, di_buf);
-		di_buf->jiff = jiffies;
-		#ifdef AFBC_DBG
-		if (sleep_cnt)
-			msleep(sleep_cnt);// a ok :
-		#endif
-		di_buf->flg_nr = 0;
-		di_buf->flg_nv21 = 0;
-		dim_print("nv21 clear %s:%px:\n", __func__, di_buf);
-		//msleep(200);// a ok :
-		//PR_INF("sleep100ms");
-		/*  to in used */
-		qbufp_in(pbf_mem, QBF_MEM_Q_IN_USED, q_buf);
-		//di_que_in(ch, QUE_POST_FREE, di_buf);
-		if (blk_buf->flg.b.typ == EDIM_BLK_TYP_PSCT)
-			di_que_in(ch, QUE_PST_NO_BUF_WAIT, di_buf);
-		else
-			di_que_in(ch, QUE_POST_FREE, di_buf);
-		cnt++;
-		length--;
+	} else {
+		if (!mem_cfg_2pstlink(pch))
+			err_cnt++;
 	}
 	dbg_mem2("%s: cfg ok [%d]\n", __func__, cnt);
-
 	if (err_cnt)
 		return false;
 	return true;
@@ -2638,6 +2695,57 @@ unsigned int mem_release_free(struct di_ch_s *pch)
 	return rls_pst;
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+
+struct media_cooling_device *cool_device;
+
+void register_media_cooling(void)
+{
+	struct thermal_cooling_device *ret = 0;
+
+	if (!cfgg(TEMP_CONTROL))
+		return;
+	cool_device = kzalloc(sizeof(*cool_device), GFP_KERNEL);
+	if  (!cool_device) {
+		PR_ERR("%s fail to register cool_device memory.\n", __func__);
+		return;
+	}
+	ret = media_cooling_register(cool_device);
+	if (!ret) {
+		PR_ERR("%s: failed to allocate major number\n", __func__);
+		goto fail_media_cooling_register;
+	}
+	cool_device->maxstep =	2;
+	cool_device->set_media_cooling_state = set_bitmode_from_state;
+
+fail_media_cooling_register:
+	kfree(cool_device);
+	cool_device = NULL;
+}
+
+void unregister_media_cooling(void)
+{
+	if (!cfgg(TEMP_CONTROL))
+		return;
+	kfree(cool_device);
+	cool_device = NULL;
+}
+
+int set_bitmode_from_state(int state)
+{
+	if (!cfgg(TEMP_CONTROL))
+		return 0;
+	if (state == 0) {
+		dimp_set(edi_mp_force_422_8bit, 0);
+		dim_print("bit_mode :10");
+	}
+	if (state == 1 || state == 2) {
+		dimp_set(edi_mp_force_422_8bit, 1);
+		dim_print("bit_mode :8");
+	}
+	return 1;
+}
+#endif
 /********************************************/
 /* post afbc table */
 
@@ -3686,6 +3794,11 @@ static const struct di_meson_data  data_sm1 = {
 	.ic_id	= DI_IC_ID_SM1,
 };
 
+static const struct di_meson_data  data_tl1 = {
+	.name = "dim_tl1",
+	.ic_id	= DI_IC_ID_TL1,
+};
+
 static const struct di_meson_data  data_tm2_vb = {
 	.name = "dim_tm2_vb",
 	.ic_id	= DI_IC_ID_TM2B,
@@ -3700,7 +3813,8 @@ static const struct di_meson_data  data_sc2 = {
 static const struct di_meson_data  data_t5 = {
 	.name = "dim_t5",
 	.ic_id	= DI_IC_ID_T5,
-	.support = IC_SUPPORT_PRE_VPP_LINK
+	.support = IC_SUPPORT_PRE_VPP_LINK |
+		   IC_SUPPORT_DECONTOUR
 };
 
 static const struct di_meson_data  data_t7 = {
@@ -3717,7 +3831,8 @@ static const struct di_meson_data  data_t5d_va = {
 static const struct di_meson_data  data_t5d_vb = {
 	.name = "dim_t5d_vb", //note: this is vb
 	.ic_id	= DI_IC_ID_T5DB,
-	.support = IC_SUPPORT_PRE_VPP_LINK
+	.support = IC_SUPPORT_PRE_VPP_LINK |
+			IC_SUPPORT_POST_VPP_LINK
 };
 #endif
 
@@ -3751,6 +3866,12 @@ static const struct di_meson_data  data_t3x = {
 		   IC_SUPPORT_HDR	|
 		   IC_SUPPORT_DW
 };
+
+static const struct di_meson_data  data_s7d = {
+	.name = "dim_s7d",
+	.ic_id	= DI_IC_ID_S7D,
+};
+
 #endif
 
 /* #ifdef CONFIG_USE_OF */
@@ -3763,6 +3884,8 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 		.data = &data_g12b,
 	}, {	.compatible = "amlogic, dim-sm1",
 		.data = &data_sm1,
+	}, {	.compatible = "amlogic, dim-tl1",
+		.data = &data_tl1,
 	}, {	.compatible = "amlogic, dim-tm2vb",
 		.data = &data_tm2_vb,
 	}, {	.compatible = "amlogic, dim-sc2",
@@ -3786,6 +3909,8 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 		.data = &data_s5,
 	}, {	.compatible = "amlogic, dim-t3x",
 		.data = &data_t3x,
+	}, {	.compatible = "amlogic, dim-s7d",
+		.data = &data_s7d,
 #endif
 	}, {}
 };
@@ -3834,7 +3959,7 @@ static int dim_probe(struct platform_device *pdev)
 		PR_ERR("%s: failed to create class\n", __func__);
 		goto fail_class_create;
 	}
-	di_attr_create(di_pdev->pclss);
+
 	di_devp = di_pdev;
 	/* *********new********* */
 	di_pdev->data_l = NULL;
@@ -3859,6 +3984,7 @@ static int dim_probe(struct platform_device *pdev)
 	di_devp->devt = MKDEV(MAJOR(di_devp->devno), 0);
 	di_devp->dev = device_create(di_devp->pclss, &pdev->dev,
 				     di_devp->devt, di_devp, "di%d", 0);
+
 	if (!di_devp->dev) {
 		pr_error("device_create create error\n");
 		goto fail_cdev_add;
@@ -3931,10 +4057,19 @@ static int dim_probe(struct platform_device *pdev)
 
 	//di_pr_info("%s allocate rdma channel %d.\n", __func__,
 	//	   di_devp->rdma_handle);
+	if (DIM_IS_IC(S7D))
+		dimp_set(edi_mp_clock_low_ratio, 18000000);
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 		dim_get_vpu_clkb(&pdev->dev, di_devp);
 		#ifdef CLK_TREE_SUPPORT
 		clk_prepare_enable(di_devp->vpu_clkb);
+		if (DIM_IS_IC(S7D)) {
+			if (dimp_get(edi_mp_clock_low_ratio)) {
+				clk_set_rate(di_devp->vpu_clkb,
+					dimp_get(edi_mp_clock_low_ratio));
+			}
+		}
 		dbg_mem("vpu clkb =%ld.\n", clk_get_rate(di_devp->vpu_clkb));
 		#else
 		aml_write_hiubus(HHI_VPU_CLKB_CNTL, 0x1000100);
@@ -3958,6 +4093,10 @@ static int dim_probe(struct platform_device *pdev)
 		dimp_set(edi_mp_nr10bit_support, 0);/*nr10bit_support = 0;*/
 	else	/*nr10bit_support = di_devp->nr10bit_support;*/
 		dimp_set(edi_mp_nr10bit_support, di_devp->nr10bit_support);
+
+	if (!di_devp->post_wr_support)
+		cfgs(PRE_NUB, MAX_LOCAL_BUF_NUM_REAL - 2);
+	dbg_mem("%s: pre_nub:%d\n", __func__, cfgg(PRE_NUB));
 #ifdef DIM_EN_UD_USED
 	di_pdev->local_meta_size =
 			LOCAL_META_BUFF_SIZE * DI_CHANNEL_NUB *
@@ -3987,14 +4126,15 @@ static int dim_probe(struct platform_device *pdev)
 	device_create_file(di_devp->dev, &dev_attr_frame_format);
 	device_create_file(di_devp->dev, &dev_attr_tvp_region);
 	device_create_file(di_devp->dev, &dev_attr_kpi_frame_num);
-
 	dim_vpu_dev_register(di_devp);
 
 	//set ic version need before PQ init
 	dil_set_diff_ver_flag(1);
 	dil_set_cpuver_flag(get_datal()->mdata->ic_id);
-	if (DIM_IS_IC(SC2) || DIM_IS_IC(S4) || DIM_IS_IC_EF(T7))
+	if (DIM_IS_IC(SC2) || DIM_IS_IC(S4) || DIM_IS_IC_EF(T7) || DIM_IS_IC_EF(S7D))
 		di_devp->is_crc_ic = true;
+	if (DIM_IS_IC(T5DB) && cfgg(SUB_V))
+		di_devp->sub_v = cfgg(SUB_V);
 	dip_init_pq_ops();
 
 	if (dim_get_canvas()) {
@@ -4014,7 +4154,7 @@ static int dim_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, di_devp->pre_irq, &dim_irq,
 			       IRQF_SHARED,
 			       "pre_di", (void *)"pre_di");
-	if (di_devp->post_wr_support) {
+	if (di_devp->post_irq > 0) {
 		ret = devm_request_irq(&pdev->dev, di_devp->post_irq,
 				       &dim_post_irq,
 				       IRQF_SHARED, "post_di",
@@ -4054,7 +4194,10 @@ static int dim_probe(struct platform_device *pdev)
 	dim_debugfs_init();	/*2018-07-18 add debugfs*/
 
 	dimh_patch_post_update_mc_sw(DI_MC_SW_IC, true);
-
+	init_di_arb_urgent();
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	register_media_cooling();
+#endif
 	PR_INF("%s:ok\n", __func__);
 	return ret;
 
@@ -4152,6 +4295,10 @@ static int dim_remove(struct platform_device *pdev)
 	di_pdev->local_ud_addr = NULL;
 	kfree(di_pdev);
 	di_pdev = NULL;
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+
+	unregister_media_cooling();
+#endif
 	PR_INF("%s:finish\n", __func__);
 	return 0;
 }
@@ -4173,13 +4320,15 @@ static void dim_shutdown(struct platform_device *pdev)
 
 	if (!is_meson_txlx_cpu())
 		diext_clk_b_sw(false);
-	if (!DIM_IS_IC(T5) && !DIM_IS_IC(T5DB) && !DIM_IS_IC(T5D))
-		clk_disable_unprepare(di_devp->vpu_clk_mux);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 #ifdef CLK_TREE_SUPPORT
 		clk_disable_unprepare(di_devp->vpu_clkb);
 #endif
 	}
+	if (!DIM_IS_IC(T5) && !DIM_IS_IC(T5DB) && !DIM_IS_IC(T5D) &&
+		__clk_is_enabled(di_devp->vpu_clk_mux))
+		clk_disable_unprepare(di_devp->vpu_clk_mux);
+
 
 	PR_INF("%s.\n", __func__);
 }
@@ -4194,12 +4343,163 @@ static void di_clear_for_suspend(struct di_dev_s *di_devp)
 	pr_info("%s end\n", __func__);
 }
 
+static unsigned int reg_rst[10];
+
+static int di_freeze(struct device *dev)
+{
+	unsigned int ch;
+	unsigned int i;
+	unsigned int ready_count = 0;
+	unsigned int sleep_count = 0;
+	struct di_ch_s *pch;
+	struct di_dev_s *di_devp = NULL;
+
+	di_devp = dev_get_drvdata(dev);
+
+	if (DIM_IS_ICS(T5W)) {
+		reg_rst[0] = RD(DI_TOP_PRE_CTRL);
+		reg_rst[1] = RD(DI_TOP_POST_CTRL);
+		reg_rst[2] = RD(DI_ARB_CTRL);
+		reg_rst[3] = RD(DI_TOP_CTRL);
+		reg_rst[4] = RD(DI_ARB_AXIRD0_PROT);
+		reg_rst[5] = RD(DI_SUB_RDARB_UGT);
+		reg_rst[6] = RD(DI_SUB_ARB_DBG_CTRL);
+		reg_rst[7] = RD(DI_SUB_ARB_DBG_STAT);
+		reg_rst[8] = RD(DI_SUB_RDARB_LIMT0);
+		reg_rst[9] = RD(DI_SUB_WRARB_UGT);
+	}
+
+	di_devp->flags |= DI_SUSPEND_FLAG;
+
+	/*set clkb to low ratio*/
+	if (DIM_IS_IC(T5)	||
+	   DIM_IS_IC(T5DB)	||
+	   DIM_IS_IC(T5D)	||
+	   DIM_IS_IC(T3)	||
+	   DIM_IS_IC(T3X)) {
+#ifdef CLK_TREE_SUPPORT
+		if (dimp_get(edi_mp_clock_low_ratio)) {
+			clk_set_rate(di_devp->vpu_clkb,
+				dimp_get(edi_mp_clock_low_ratio));
+			}
+#endif
+	}
+
+	di_clear_for_suspend(di_devp);
+	if (!is_meson_txlx_cpu())
+		diext_clk_b_sw(false);
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXHD)) {
+		while (ready_count != DI_CHANNEL_NUB && sleep_count < 20) {
+			ready_count = 0;
+			usleep_range(500, 501);
+			for (i = 0; i < DI_CHANNEL_NUB; i++) {
+				pch = get_chdata(i);
+				ch = pch->ch_id;
+				if (dpre_can_exit(ch) && dpst_can_exit(ch) &&
+					dct_can_exit(ch))
+					ready_count++;
+			}
+			sleep_count++;
+		}
+		if (ready_count == DI_CHANNEL_NUB)
+			clk_disable_unprepare(di_devp->vpu_clkb);
+		else
+			return -1;
+	}
+	return 0;
+}
+
+static int di_thaw(struct device *dev)
+{
+	struct di_dev_s *di_devp = NULL;
+
+	di_devp = dev_get_drvdata(dev);
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXHD)) {
+		clk_prepare_enable(di_devp->vpu_clkb);
+		clk_set_rate(di_devp->vpu_clkb, dimp_get(edi_mp_clock_low_ratio));
+		PR_INF("vpu clkb =%ld.\n", clk_get_rate(di_devp->vpu_clkb));
+	}
+	if (DIM_IS_ICS(T5W)) {
+		WR(DI_TOP_PRE_CTRL, reg_rst[0]);
+		WR(DI_TOP_POST_CTRL, reg_rst[1]);
+		WR(DI_ARB_CTRL, reg_rst[2]);
+		WR(DI_TOP_CTRL, reg_rst[3]);
+		WR(DI_ARB_AXIRD0_PROT, reg_rst[4]);
+		WR(DI_SUB_RDARB_UGT, reg_rst[5]);
+		WR(DI_SUB_ARB_DBG_CTRL, reg_rst[6]);
+		WR(DI_SUB_ARB_DBG_STAT, reg_rst[7]);
+		WR(DI_SUB_RDARB_LIMT0, reg_rst[8]);
+		WR(DI_SUB_WRARB_UGT, reg_rst[9]);
+	}
+	dimh_hw_init(dimp_get(edi_mp_pulldown_enable),
+			     dimp_get(edi_mp_mcpre_en));
+	di_devp->flags &= ~DI_SUSPEND_FLAG;
+
+	/************/
+	PR_INF("%s finish\n", __func__);
+	return 0;
+}
+
+static int di_restore(struct device *dev)
+{
+	struct di_dev_s *di_devp = NULL;
+
+	di_devp = dev_get_drvdata(dev);
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXHD)) {
+		clk_prepare_enable(di_devp->vpu_clkb);
+		clk_set_rate(di_devp->vpu_clkb, dimp_get(edi_mp_clock_low_ratio));
+		PR_INF("vpu clkb =%ld.\n", clk_get_rate(di_devp->vpu_clkb));
+	}
+	if (DIM_IS_ICS(T5W)) {
+		WR(DI_TOP_PRE_CTRL, reg_rst[0]);
+		WR(DI_TOP_POST_CTRL, reg_rst[1]);
+		WR(DI_ARB_CTRL, reg_rst[2]);
+		WR(DI_TOP_CTRL, reg_rst[3]);
+		WR(DI_ARB_AXIRD0_PROT, reg_rst[4]);
+		WR(DI_SUB_RDARB_UGT, reg_rst[5]);
+		WR(DI_SUB_ARB_DBG_CTRL, reg_rst[6]);
+		WR(DI_SUB_ARB_DBG_STAT, reg_rst[7]);
+		WR(DI_SUB_RDARB_LIMT0, reg_rst[8]);
+		WR(DI_SUB_WRARB_UGT, reg_rst[9]);
+	}
+	dimh_hw_init(dimp_get(edi_mp_pulldown_enable),
+			     dimp_get(edi_mp_mcpre_en));
+	di_devp->flags &= ~DI_SUSPEND_FLAG;
+
+	/************/
+	PR_INF("%s finish\n", __func__);
+	return 0;
+}
+
 /* must called after lcd */
+static unsigned int reg_rst[10];
 static int di_suspend(struct device *dev)
 {
 	struct di_dev_s *di_devp = NULL;
 
 	di_devp = dev_get_drvdata(dev);
+	unsigned int ch;
+	unsigned int i;
+	unsigned int ready_count = 0;
+	unsigned int sleep_count = 0;
+	struct di_ch_s *pch;
+
+	if (DIM_IS_ICS(T5W) || DIM_IS_IC(S7D)) {
+		reg_rst[0] = RD(DI_TOP_PRE_CTRL);
+		reg_rst[1] = RD(DI_TOP_POST_CTRL);
+		reg_rst[2] = RD(DI_ARB_CTRL);
+		reg_rst[3] = RD(DI_TOP_CTRL);
+		reg_rst[4] = RD(DI_ARB_AXIRD0_PROT);
+		reg_rst[5] = RD(DI_SUB_RDARB_UGT);
+		reg_rst[6] = RD(DI_SUB_ARB_DBG_CTRL);
+		reg_rst[7] = RD(DI_SUB_ARB_DBG_STAT);
+		reg_rst[8] = RD(DI_SUB_RDARB_LIMT0);
+		reg_rst[9] = RD(DI_SUB_WRARB_UGT);
+	}
+
 	di_devp->flags |= DI_SUSPEND_FLAG;
 
 	/*set clkb to low ratio*/
@@ -4207,7 +4507,8 @@ static int di_suspend(struct device *dev)
 		   DIM_IS_IC(T5DB)	||
 		   DIM_IS_IC(T5D)	||
 		   DIM_IS_IC(T3)	||
-		   DIM_IS_IC(T3X)) {
+		   DIM_IS_IC(T3X)	||
+		   DIM_IS_IC(S7D)) {
 	#ifdef CLK_TREE_SUPPORT
 			if (dimp_get(edi_mp_clock_low_ratio)) {
 				clk_set_rate(di_devp->vpu_clkb,
@@ -4220,9 +4521,26 @@ static int di_suspend(struct device *dev)
 
 	if (!is_meson_txlx_cpu())
 		diext_clk_b_sw(false);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXHD))
-		clk_disable_unprepare(di_devp->vpu_clkb);
-	PR_INF("%s\n", __func__);
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXHD)) {
+		while (ready_count != DI_CHANNEL_NUB && sleep_count < 20) {
+			ready_count = 0;
+			usleep_range(500, 1000);
+			for (i = 0; i < DI_CHANNEL_NUB; i++) {
+				pch = get_chdata(i);
+				ch = pch->ch_id;
+				if (dpre_can_exit(ch) && dpst_can_exit(ch) &&
+					dct_can_exit(ch))
+					ready_count++;
+			}
+			sleep_count++;
+		}
+		if (ready_count == DI_CHANNEL_NUB)
+			clk_disable_unprepare(di_devp->vpu_clkb);
+		else
+			return -1;
+	}
+	PR_INF("%s finish\n", __func__);
 	return 0;
 }
 
@@ -4234,8 +4552,26 @@ static int di_resume(struct device *dev)
 	PR_INF("%s\n", __func__);
 	di_devp = dev_get_drvdata(dev);
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXHD)) {
 		clk_prepare_enable(di_devp->vpu_clkb);
+		clk_set_rate(di_devp->vpu_clkb, dimp_get(edi_mp_clock_low_ratio));
+		PR_INF("vpu clkb =%ld.\n", clk_get_rate(di_devp->vpu_clkb));
+	}
+	if (DIM_IS_ICS(T5W) || DIM_IS_IC(S7D)) {
+		WR(DI_TOP_PRE_CTRL, reg_rst[0]);
+		WR(DI_TOP_POST_CTRL, reg_rst[1]);
+		WR(DI_ARB_CTRL, reg_rst[2]);
+		WR(DI_TOP_CTRL, reg_rst[3]);
+		WR(DI_ARB_AXIRD0_PROT, reg_rst[4]);
+		WR(DI_SUB_RDARB_UGT, reg_rst[5]);
+		WR(DI_SUB_ARB_DBG_CTRL, reg_rst[6]);
+		WR(DI_SUB_ARB_DBG_STAT, reg_rst[7]);
+		WR(DI_SUB_RDARB_LIMT0, reg_rst[8]);
+		WR(DI_SUB_WRARB_UGT, reg_rst[9]);
+	}
+
+	dimh_hw_init(dimp_get(edi_mp_pulldown_enable),
+		dimp_get(edi_mp_mcpre_en));
 
 	di_devp->flags &= ~DI_SUSPEND_FLAG;
 
@@ -4247,6 +4583,9 @@ static int di_resume(struct device *dev)
 static const struct dev_pm_ops di_pm_ops = {
 	.suspend_late = di_suspend,
 	.resume_early = di_resume,
+	.freeze = di_freeze,
+	.restore = di_restore,
+	.thaw = di_thaw,
 };
 #endif
 

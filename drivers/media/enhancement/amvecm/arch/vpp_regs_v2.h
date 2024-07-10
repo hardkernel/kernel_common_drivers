@@ -770,6 +770,24 @@
 
 #define VPP_SRSHARP0_PK_NR_EN                     0x5027
 #define VPP_SRSHARP1_PK_NR_EN                     0x5227
+#define VPP_SRSHARP0_PK_FINALGAIN_HP_BP           0x5022
+#define VPP_SRSHARP1_PK_FINALGAIN_HP_BP           0x5222
+#define VPP_SRSHARP0_HCTI_FLT_CLP_DC              0x502e
+#define VPP_SRSHARP0_HLTI_FLT_CLP_DC              0x5034
+#define VPP_SRSHARP0_VLTI_FLT_CON_CLP             0x503a
+#define VPP_SRSHARP0_VCTI_FLT_CON_CLP             0x503f
+#define VPP_SRSHARP1_HCTI_FLT_CLP_DC              0x522e
+#define VPP_SRSHARP1_HLTI_FLT_CLP_DC              0x5234
+#define VPP_SRSHARP1_VLTI_FLT_CON_CLP             0x523a
+#define VPP_SRSHARP1_VCTI_FLT_CON_CLP             0x523f
+#define VPP_SRSHARP0_SR3_DRTLPF_EN                0x5066
+#define VPP_SRSHARP1_SR3_DRTLPF_EN                0x5266
+#define VPP_SRSHARP0_DB_FLT_CTRL                  0x5077
+#define VPP_SRSHARP1_DB_FLT_CTRL                  0x5277
+#define VPP_SRSHARP0_DEJ_CTRL                     0x5064
+#define VPP_SRSHARP1_DEJ_CTRL                     0x5264
+#define VPP_SRSHARP0_SR3_DERING_CTRL              0x506b
+#define VPP_SRSHARP1_SR3_DERING_CTRL              0x526b
 
 #define VPP_SR2_SHARP_PROC_1R                     0x5257
 #define VPP_SR2_SHARP_PROC_1R_S1                  0x7757

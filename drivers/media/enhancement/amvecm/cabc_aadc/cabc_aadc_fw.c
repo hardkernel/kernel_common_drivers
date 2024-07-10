@@ -31,7 +31,7 @@
 #include "../amve.h"
 
 static int pr_cabc_aad;
-__module_param(pr_cabc_aad, int, 0664);
+module_param(pr_cabc_aad, int, 0664);
 MODULE_PARM_DESC(pr_cabc_aad, "\n pr_cabc_aad\n");
 
 #define pr_cabc_aad_dbg(fmt, args...)\

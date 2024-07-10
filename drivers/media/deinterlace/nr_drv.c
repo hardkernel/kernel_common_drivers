@@ -35,31 +35,31 @@
 
 static DNR_PRM_t dnr_param;
 static struct NR_PARM_s nr_param;
-unsigned int dnr_pr;
-__module_param(dnr_pr, bool, 0644);
+static bool dnr_pr;
+module_param(dnr_pr, bool, 0644);
 MODULE_PARM_DESC(dnr_pr, "/n print dnr debug information /n");
 
-unsigned int dnr_dm_en;
-__module_param(dnr_dm_en, bool, 0644);
+static bool dnr_dm_en;
+module_param(dnr_dm_en, bool, 0644);
 MODULE_PARM_DESC(dnr_dm_en, "/n dnr dm enable debug /n");
 
-unsigned int dnr_en = 1;
-__module_param_named(dnr_en, dnr_en, bool, 0644);
+static bool dnr_en = true;
+module_param_named(dnr_en, dnr_en, bool, 0644);
 
-unsigned int nr2_en = 0x1;
-__module_param_named(nr2_en, nr2_en, uint, 0644);
+static unsigned int nr2_en = 0x1;
+module_param_named(nr2_en, nr2_en, uint, 0644);
 
-unsigned int dynamic_dm_chk = 1;
-__module_param_named(dynamic_dm_chk, dynamic_dm_chk, bool, 0644);
+static bool dynamic_dm_chk = true;
+module_param_named(dynamic_dm_chk, dynamic_dm_chk, bool, 0644);
 
-unsigned int autonr_en = 0x1;
-__module_param_named(autonr_en, autonr_en, uint, 0644);
+static unsigned int autonr_en = 0x1;
+module_param_named(autonr_en, autonr_en, uint, 0644);
 
-unsigned int nr4ne_en;
-__module_param_named(nr4ne_en, nr4ne_en, bool, 0644);
+static bool nr4ne_en;
+module_param_named(nr4ne_en, nr4ne_en, bool, 0644);
 
-unsigned int nr_ctrl_reg;
-__module_param_named(nr_ctrl_reg, nr_ctrl_reg, bool, 0644);
+static bool nr_ctrl_reg;
+module_param_named(nr_ctrl_reg, nr_ctrl_reg, bool, 0644);
 
 bool nr_demo_flag;
 
@@ -421,6 +421,11 @@ static void nr4_config_op(struct NR4_PARM_s *nr4_parm_p,
 		op->wr(NR4_MCNR_LUMACUR_CAL_PRAM, 0);
 		Wr(NR4_MCNR_MV_CTRL_REG, 0x2408);
 	} //add for crc @2k22-0102
+	if (IS_IC(dil_get_cpuver_flag(), T5DB) && dim_ic_sub() == 1) {
+		op->wr(NR4_MCNR_LUMAPRE_CAL_PRAM, 0x01039177);
+		op->wr(NR4_MCNR_MV_CTRL_REG, 0x00002098);
+		op->wr(NR4_MCNR_AC2NORM_LUT1, 0x0a060403);
+	}
 	/* noise meter */
 	op->wr(NR4_NM_X_CFG, (val << 16) | (width - val - 1));
 	op->wr(NR4_NM_Y_CFG, (val << 16) | (height - val - 1));
@@ -528,13 +533,13 @@ static void nr2_config_op(unsigned short width, unsigned short height,
 }
 
 static bool cue_en = true;
-__module_param_named(cue_en, cue_en, bool, 0664);
+module_param_named(cue_en, cue_en, bool, 0664);
 /********************************************
  * debug cue_en
  ********************************************/
 static bool cue_en_last;
 static bool cue_en_force_disable;
-__module_param_named(cue_en_force_disable, cue_en_force_disable, bool, 0664);
+module_param_named(cue_en_force_disable, cue_en_force_disable, bool, 0664);
 
 /*
  * workaround for nframe count
@@ -1358,13 +1363,13 @@ static void dnr_process_op(struct DNR_PARM_s *pdnrprm,
 }
 
 static bool invert_cue_phase;
-__module_param_named(invert_cue_phase, invert_cue_phase, bool, 0644);
+module_param_named(invert_cue_phase, invert_cue_phase, bool, 0644);
 
 static unsigned int cue_pr_cnt;
-__module_param_named(cue_pr_cnt, cue_pr_cnt, uint, 0644);
+module_param_named(cue_pr_cnt, cue_pr_cnt, uint, 0644);
 
 static bool cue_glb_mot_check_en = true;
-__module_param_named(cue_glb_mot_check_en, cue_glb_mot_check_en, bool, 0644);
+module_param_named(cue_glb_mot_check_en, cue_glb_mot_check_en, bool, 0644);
 
 /* confirm with vlsi-liuyanling, cue_process_irq is no use */
 /* when CUE disable					*/
@@ -1462,7 +1467,7 @@ void cue_int_op(struct vframe_s *vf, const struct reg_acc *op)
 }
 
 static bool glb_fieldck_en = true;
-__module_param_named(glb_fieldck_en, glb_fieldck_en, bool, 0644);
+module_param_named(glb_fieldck_en, glb_fieldck_en, bool, 0644);
 
 /* confirm with vlsi-liuyanling, cue_process_irq is no use */
 /* when CUE disable					*/

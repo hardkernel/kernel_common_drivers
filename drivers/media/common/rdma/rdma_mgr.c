@@ -58,6 +58,7 @@ int rdma_mgr_irq_request;
 int rdma_reset_trigger_flag[RDMA_NUM];
 
 struct reset_control *rdma_rst;
+static u8 rdma_done_cpuid;
 static int debug_flag;
 /* burst size 0=16; 1=24; 2=32; 3=48.*/
 static int ctrl_ahb_rd_burst_size = 3;
@@ -84,10 +85,10 @@ ulong rdma_config_us[RDMA_NUM];
 int enc_num_configed[RDMA_NUM] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 MODULE_PARM_DESC(g_vsync_rdma_item_count, "\n g_vsync_rdma_item_count\n");
-__module_param(g_vsync_rdma_item_count, uint, 0664);
+module_param(g_vsync_rdma_item_count, uint, 0664);
 
 MODULE_PARM_DESC(g_vsync_rdma_item_count_max, "\n g_vsync_rdma_item_count_max\n");
-__module_param(g_vsync_rdma_item_count_max, uint, 0664);
+module_param(g_vsync_rdma_item_count_max, uint, 0664);
 
 struct rdma_irq_reg_s {
 	u32 reg;
@@ -691,6 +692,7 @@ irqreturn_t rdma_mgr_isr(int irq, void *dev_id)
 	int i;
 	u32 read_val;
 
+	rdma_done_cpuid = smp_processor_id();
 	if (debug_flag & 0x10)
 		return IRQ_HANDLED;
 	rdma_isr_count++;
@@ -1352,42 +1354,41 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 	struct rdma_device_info *info = &rdma_info;
 	struct rdma_instance_s *ins = &info->rdma_ins[handle];
 	int j = 0;
+	u8 cur_cpuid = smp_processor_id();
 
 	if (ins->rdma_table_size == 0)
 		return -1;
 #ifdef CONFIG_AMLOGIC_BL_LDIM
-	if (!is_video_process_in_thread() &&
-		(((smp_processor_id() == 0) &&
-		!is_in_vsync_isr() &&
-		!is_in_pre_vsync_isr() &&
-		!is_in_vsync_isr_viu2() &&
-		!is_in_vsync_isr_viu3() &&
-		!is_in_ldim_vsync_isr()) || (smp_processor_id() != 0)) &&
-		get_rdma_handle(VSYNC_RDMA) == handle) {
+	if ((get_rdma_handle(VSYNC_RDMA) == handle) &&
+		(cur_cpuid != rdma_done_cpuid ||
+		(!is_in_vsync_isr(cur_cpuid) &&
+		!is_in_pre_vsync_isr(cur_cpuid) &&
+		!is_in_vsync_isr_viu2(cur_cpuid) &&
+		!is_in_vsync_isr_viu3(cur_cpuid) &&
+		!is_in_ldim_vsync_isr(cur_cpuid)))) {
 #else
-	if (!is_video_process_in_thread() &&
-		(((smp_processor_id() == 0) &&
-		!is_in_vsync_isr() &&
-		!is_in_pre_vsync_isr() &&
-		!is_in_vsync_isr_viu2() &&
-		!is_in_vsync_isr_viu3()) || (smp_processor_id() != 0)) &&
-		get_rdma_handle(VSYNC_RDMA) == handle) {
+	if ((get_rdma_handle(VSYNC_RDMA) == handle) &&
+		(cur_cpuid != rdma_done_cpuid ||
+		(!is_in_vsync_isr(cur_cpuid) &&
+		!is_in_pre_vsync_isr(cur_cpuid) &&
+		!is_in_vsync_isr_viu2(cur_cpuid) &&
+		!is_in_vsync_isr_viu3(cur_cpuid)))) {
 #endif
 		dump_stack();
-		pr_info("rdma_write(%d) %d(%x)<=%x\n",
-			handle, ins->rdma_item_count, adr, val);
+		pr_info("rdma_write(%d)(%s) %d(%x)<=%x\n",
+			handle, current->comm, ins->rdma_item_count, adr, val);
 	}
 
 	if (adr == 0) {
-		pr_info("rdma_write(%d) write zero addr = %x, count:%d\n",
-			handle, val, ins->rdma_item_count);
+		pr_info("rdma_write(%d)(%s) write zero addr = %x, count:%d\n",
+			handle, current->comm, val, ins->rdma_item_count);
 		dump_stack();
 	}
 	if (debug_flag & 1 ||
 		(rdma_trace_enable &&
 		rdma_trace_channel == handle))
-		pr_info("rdma_write(%d) %d(%x)<=%x\n",
-			handle, ins->rdma_item_count, adr, val);
+		pr_info("rdma_write(%d)(%s) %d(%x)<=%x\n",
+			handle, current->comm, ins->rdma_item_count, adr, val);
 	if (rdma_check_conflict(handle, adr, NULL))
 		rdma_update_conflict(adr, val);
 
@@ -1399,10 +1400,10 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 	} else {
 		int i;
 
-			pr_info("%s(%d, %x, %x ,%d) buf overflow, ins->rdma_item_count=%d\n",
-				__func__, rdma_watchdog_count[handle],
-				handle, adr, val,
-				ins->rdma_item_count);
+		pr_info("%s(%s)(%d, %x, %x ,%d) buf overflow, ins->rdma_item_count=%d\n",
+			__func__, current->comm, rdma_watchdog_count[handle],
+			handle, adr, val,
+			ins->rdma_item_count);
 		for (i = 0; i < ins->rdma_item_count; i++)
 			WRITE_VCBUS_REG(ins->reg_buf[i << 1],
 					ins->reg_buf[(i << 1) + 1]);
@@ -1415,9 +1416,9 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 	if (rdma_trace_enable) {
 		for (j = 0; j < rdma_trace_num; j++) {
 			if (adr == rdma_trace_reg[j]) {
-				pr_info("(%s) handle %d, %04x=0x%08x (%d), cur_val:0x%x\n",
+				pr_info("(%s) handle %d(%s), %04x=0x%08x (%d), cur_val:0x%x\n",
 					__func__,
-					handle, adr,
+					handle, current->comm, adr,
 					val,
 					ins->rdma_item_count,
 					READ_VCBUS_REG(adr));
@@ -1482,9 +1483,9 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 	for (j = 0; j < rdma_trace_num; j++) {
 		if (adr == rdma_trace_reg[j]) {
 			if (read_from == 3)
-				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from conflict table(%d %d %d), cur_val:0x%x\n",
+				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from conflict table(%d %d %d), cur_val:0x%x\n",
 					__func__,
-					handle, adr,
+					handle, current->comm, adr,
 					read_val,
 					write_val,
 					ins->rdma_write_count,
@@ -1492,9 +1493,9 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 					match ? i : ins->rdma_write_count,
 					READ_VCBUS_REG(adr));
 			else if (read_from == 2)
-				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from write table(%d %d %d), cur_val:0x%x\n",
+				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from write table(%d %d %d), cur_val:0x%x\n",
 					__func__,
-					handle, adr,
+					handle, current->comm, adr,
 					read_val,
 					write_val,
 					ins->rdma_write_count,
@@ -1502,9 +1503,9 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 					match ? i : ins->rdma_write_count,
 					READ_VCBUS_REG(adr));
 			else if (read_from == 1)
-				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from item table(%d %d %d), cur_val:0x%x\n",
+				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from item table(%d %d %d), cur_val:0x%x\n",
 					__func__,
-					handle, adr,
+					handle, current->comm, adr,
 					read_val,
 					write_val,
 					ins->rdma_item_count,
@@ -1512,23 +1513,24 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 					match ? i : ins->rdma_item_count,
 					READ_VCBUS_REG(adr));
 			else
-				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from real reg, cur_val:0x%x\n",
+				pr_info("(%s) handle %d(%s), %04x=0x%08x->0x%08x from real reg, cur_val:0x%x\n",
 					__func__,
-					handle, adr,
+					handle, current->comm, adr,
 					read_val,
 					write_val,
 					READ_VCBUS_REG(adr));
 		}
 	}
 	if (match) {
+		if (debug_flag & 1 ||
+			(rdma_trace_enable &&
+			rdma_trace_channel == handle))
+			pr_info("rdma_write_bits(%d)(%s) %d(%x)<=%x\n",
+				handle, current->comm, ins->rdma_item_count,
+				adr, val);
 		ins->reg_buf[(i << 1) + 1] = write_val;
 		return 0;
 	}
-	if (debug_flag & 1 ||
-		(rdma_trace_enable &&
-		rdma_trace_channel == handle))
-		pr_info("rdma_write(%d) %d(%x)<=%x\n",
-			handle, ins->rdma_item_count, adr, val);
 
 	rdma_write_reg(handle, adr, write_val);
 	return 0;

@@ -974,4 +974,36 @@
 #define VPU_INTF_CTRL                       0x270a//32'hff809c28
 
 #define SA_CTRL                                 0x3f00
+
+/*after OSD blend matrix */
+#define BLEND_D0_MATRIX_COEF00_01                0x6100
+#define BLEND_D0_MATRIX_COEF02_10                0x6101
+#define BLEND_D0_MATRIX_COEF11_12                0x6102
+#define BLEND_D0_MATRIX_COEF20_21                0x6103
+#define BLEND_D0_MATRIX_COEF22                   0x6104
+#define BLEND_D0_MATRIX_COEF30_31                0x6105
+#define BLEND_D0_MATRIX_COEF32_40                0x6106
+#define BLEND_D0_MATRIX_COEF41_42                0x6107
+#define BLEND_D0_MATRIX_OFFSET0_1                0x6108
+#define BLEND_D0_MATRIX_OFFSET2                  0x6109
+#define BLEND_D0_MATRIX_PRE_OFFSET0_1            0x610a
+#define BLEND_D0_MATRIX_PRE_OFFSET2              0x610b
+#define BLEND_D0_MATRIX_CLIP                     0x6118
+#define BLEND_D0_MATRIX_EN_CTRL                  0x6139
+
+#define BLEND_D1_MATRIX_COEF00_01                0x6120
+#define BLEND_D1_MATRIX_COEF02_10                0x6121
+#define BLEND_D1_MATRIX_COEF11_12                0x6122
+#define BLEND_D1_MATRIX_COEF20_21                0x6123
+#define BLEND_D1_MATRIX_COEF22                   0x6124
+#define BLEND_D1_MATRIX_COEF30_31                0x6125
+#define BLEND_D1_MATRIX_COEF32_40                0x6126
+#define BLEND_D1_MATRIX_COEF41_42                0x6127
+#define BLEND_D1_MATRIX_OFFSET0_1                0x6128
+#define BLEND_D1_MATRIX_OFFSET2                  0x6129
+#define BLEND_D1_MATRIX_PRE_OFFSET0_1            0x612a
+#define BLEND_D1_MATRIX_PRE_OFFSET2              0x612b
+#define BLEND_D1_MATRIX_CLIP                     0x6138
+#define BLEND_D1_MATRIX_EN_CTRL                  0x6159
+
 #endif

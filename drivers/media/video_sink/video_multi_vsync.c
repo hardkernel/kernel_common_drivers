@@ -60,6 +60,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include "video_receiver.h"
 
 #ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+struct video_layer_s vd_layer_vpp[2];
 bool is_vpp0(u8 layer_id)
 {
 	return true;
@@ -90,6 +91,8 @@ EXPORT_SYMBOL(is_in_vsync_isr_viu3);
 struct video_layer_s vd_layer_vpp[2];
 atomic_t video_inirq_flag_vpp[2] = {ATOMIC_INIT(0), ATOMIC_INIT(0)};
 atomic_t video_unreg_flag_vpp[2] = {ATOMIC_INIT(0), ATOMIC_INIT(0)};
+u8 viu2_isr_cpuid;
+u8 viu3_isr_cpuid;
 
 static int vsync_enter_line_max_vpp[2];
 static int vsync_exit_line_max_vpp[2];
@@ -99,6 +102,7 @@ static char old_vmode_vpp[2][32];
 static char new_vmode_vpp[2][32];
 
 unsigned int debug_flag1;
+
 bool is_vpp0(u8 layer_id)
 {
 	if (vd_layer[layer_id].vpp_index == VPP0)
@@ -212,9 +216,6 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 	s32 vout_type;
 	struct vframe_s *path0_new_frame = NULL;
 	struct vframe_s *new_frame = NULL;
-#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
-	struct vpp_frame_par_s *frame_par = NULL;
-#endif
 	u32 cur_blackout = 0;
 	static s32 cur_vd_path_id = VFM_PATH_INVALID;
 	int axis[4];
@@ -223,7 +224,7 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 	s32 vd_path_id = 0;
 	struct path_id_s path_id;
 
-	path_id.vd1_path_id = vd_path_id;
+	path_id.vd1_path_id = 0xffff;
 	path_id.vd2_path_id = 0xffff;
 	path_id.vd3_path_id = 0xffff;
 
@@ -242,6 +243,20 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 	layer_id = vd_layer_vpp[vpp_id].layer_id;
 	vd_path_id = glayer_info[layer_id].display_path_id;
 
+	switch (layer_id) {
+	case 0:
+		path_id.vd1_path_id = vd_path_id;
+		break;
+	case 1:
+		path_id.vd2_path_id = vd_path_id;
+		break;
+	case 2:
+		path_id.vd3_path_id = vd_path_id;
+		break;
+	default:
+		pr_info("wrong layer_id:%d, vd_path_id:%d\n",
+			layer_id, vd_path_id);
+	}
 	if (cur_vd_path_id == 0xff)
 		cur_vd_path_id = vd_path_id;
 
@@ -406,6 +421,8 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 	vd_layer_vpp[vpp_id].keep_frame_id = 0xff;
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+	struct vpp_frame_par_s *frame_par = NULL;
+
 	if (vd_layer_vpp[vpp_id].next_frame_par)
 		frame_par = vd_layer_vpp[vpp_id].next_frame_par;
 	else
@@ -480,6 +497,7 @@ irqreturn_t vsync_isr_viu2(int irq, void *dev_id)
 	irqreturn_t ret;
 	const struct vinfo_s *info = NULL;
 
+	viu2_isr_cpuid = smp_processor_id();
 	atomic_set(&video_inirq_flag_vpp[0], 1);
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	info = get_current_vinfo2();
@@ -494,6 +512,7 @@ irqreturn_t vsync_isr_viu3(int irq, void *dev_id)
 	irqreturn_t ret;
 	const struct vinfo_s *info = NULL;
 
+	viu3_isr_cpuid = smp_processor_id();
 	atomic_set(&video_inirq_flag_vpp[1], 1);
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
 	info = get_current_vinfo3();
@@ -503,8 +522,10 @@ irqreturn_t vsync_isr_viu3(int irq, void *dev_id)
 	return ret;
 }
 
-int is_in_vsync_isr_viu2(void)
+int is_in_vsync_isr_viu2(u8 cur_cpuid)
 {
+	if (viu2_isr_cpuid != cur_cpuid)
+		return 0;
 	if (atomic_read(&video_inirq_flag_vpp[0]) > 0)
 		return 1;
 	else
@@ -512,8 +533,10 @@ int is_in_vsync_isr_viu2(void)
 }
 EXPORT_SYMBOL(is_in_vsync_isr_viu2);
 
-int is_in_vsync_isr_viu3(void)
+int is_in_vsync_isr_viu3(u8 cur_cpuid)
 {
+	if (viu3_isr_cpuid != cur_cpuid)
+		return 0;
 	if (atomic_read(&video_inirq_flag_vpp[1]) > 0)
 		return 1;
 	else

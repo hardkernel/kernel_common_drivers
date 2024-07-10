@@ -49,7 +49,15 @@ struct vframe_s;
 #define AV1_SEI 0x14000000 /*for both dv and hdr10plus*/
 #define HDR10P 0x02000000
 
+enum py_level {
+	PY_SIX_LEVEL = 0,
+	PY_SEVEN_LEVEL = 1,
+	PY_NO_LEVEL  = 2,
+	PY_LEVEL_INVALID = 3
+};
+
 extern unsigned int debug_dolby;
+extern struct apo_value_s apo_value;
 
 struct dynamic_cfg_s {
 	int update_flag;
@@ -145,11 +153,19 @@ enum OSD_INDEX {
 	OSD_MAX_INDEX = 4
 };
 
+struct apo_value_s {
+	u8 content_type;
+	u8 white_point;
+	u8 L11_byte2;
+	u8 L11_byte3;
+};
+
 void enable_amdv(int enable);
 bool is_amdv_enable(void);
 bool is_amdv_on(void);
 bool is_amdv_video_on(void);
 bool is_amdv_graphic_on(void);
+bool is_amdv_graphic_on_osd3(void);
 bool for_amdv_certification(void);
 void set_amdv_mode(int mode);
 int get_amdv_mode(void);
@@ -200,13 +216,14 @@ void update_graphic_width_height(unsigned int width,
 	unsigned int height, enum OSD_INDEX index);
 int get_amdv_policy(void);
 void set_amdv_policy(int policy);
+int get_amdv_ll_policy(void);
 int get_amdv_src_format(enum vd_path_e vd_path);
 bool is_amdv_el_disable(void);
 bool is_dovi_dual_layer_frame(struct vframe_s *vf);
 void amdv_set_provider(char *prov_name, enum vd_path_e vd_layer);
 int amdv_check_mvc(struct vframe_s *vf);
 bool for_amdv_video_effect(void);
-int get_amdv_hdr_policy(void);
+int get_amdv_hdr_policy(struct vframe_s *vf);
 int get_dv_support_info(void);
 void dv_vf_light_reg_provider(void);
 void dv_vf_light_unreg_provider(void);
@@ -231,14 +248,17 @@ void dv_inst_unmap(int inst);
 bool is_hdmi_ll_as_hdr10(void);
 bool is_multi_dv_mode(void);
 bool support_multi_core1(void);
+bool support_8k_amdv(void);
 bool is_aml_hw5(void);
 void print_dv_ro(void);
-bool get_top1_onoff(void);
+u32 get_top1_onoff(void);
 int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 			 struct vframe_s *vf_top2, u32 display_size,
 			 u8 toggle_mode, u8 pps_state);
 int amdv_parse_metadata_hw5_top1(struct vframe_s *vf);
 bool get_idk_need_pps(void);
+int get_amdv_apo_enable(void);
+void set_amdv_apo_enable(bool enable);
 
 #define AMDV_UPDATE_OSD_MODE 0x00000001
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION

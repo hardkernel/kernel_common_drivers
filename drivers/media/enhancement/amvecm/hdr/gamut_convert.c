@@ -27,9 +27,10 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include "gamut_convert.h"
+#include "../amcsc.h"
 
 unsigned int gmt_print;
-__module_param(gmt_print, uint, 0664);
+module_param(gmt_print, uint, 0664);
 MODULE_PARM_DESC(gmt_print, "print gamut");
 
 /* gamma=2.200000 lumin=500 boost=0.075000 */
@@ -373,11 +374,11 @@ static u32 std_bt709_white_point[2] = {
 };
 
 uint force_primary;
-__module_param(force_primary, uint, 0664);
+module_param(force_primary, uint, 0664);
 MODULE_PARM_DESC(force_primary, "\n force_primary\n");
 
 uint force_matrix;
-__module_param(force_matrix, uint, 0664);
+module_param(force_matrix, uint, 0664);
 MODULE_PARM_DESC(force_matrix, "\n force_matrix\n");
 
 u32 force_matrix_primary[3][3] = {
@@ -393,7 +394,7 @@ u32 force_src_primary[8] = {
 	0.131 * NORM + 0.5, 0.046 * NORM + 0.5,	/* B */
 	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
 };
-__module_param_array(force_src_primary, uint, &num_force_primary, 0664);
+module_param_array(force_src_primary, uint, &num_force_primary, 0664);
 MODULE_PARM_DESC(force_src_primary, "\n force_src_primary\n");
 
 u32 force_dst_primary[8] = {
@@ -402,7 +403,7 @@ u32 force_dst_primary[8] = {
 	0.15 * NORM + 0.5, 0.06 * NORM + 0.5,	/* B */
 	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
 };
-__module_param_array(force_dst_primary, uint, &num_force_primary, 0664);
+module_param_array(force_dst_primary, uint, &num_force_primary, 0664);
 MODULE_PARM_DESC(force_dst_primary, "\n force_src_primary\n");
 int gamut_convert_process(struct vinfo_s *vinfo,
 			  enum hdr_type_e *source_type,
@@ -427,7 +428,9 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 				src_prmy[i][j] = std_bt709_prmy[(i + 2) % 3][j];
 				src_prmy[3][j] = std_bt709_white_point[j];
 			}
-	} else if ((source_type[vd_path] == HDRTYPE_HDR10) ||
+		pr_gmt("src_primary: SDR_BT709 case\n");
+	} else if (((source_type[vd_path] == HDRTYPE_HDR10) ||
+		(source_type[vd_path] == HDRTYPE_HDR10_709)) ||
 		(source_type[vd_path] == HDRTYPE_HLG) ||
 		(source_type[vd_path] == HDRTYPE_PRIMESL) ||
 		(source_type[vd_path] == HDRTYPE_HDR10PLUS)) {
@@ -441,14 +444,27 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 						std_p3_white_point
 						[j];
 				}
+			pr_gmt("src_primary: HDR_P3 case\n");
 		} else {
-			for (i = 0; i < 3; i++)
-				for (j = 0; j < 2; j++) {
-					src_prmy[i][j] =
-						std_bt2020_prmy[(i + 2) % 3][j];
-					src_prmy[3][j] =
-						std_bt2020_white_point[j];
-				}
+			if (source_type[vd_path] == HDRTYPE_HDR10_709) {
+				for (i = 0; i < 3; i++)
+					for (j = 0; j < 2; j++) {
+						src_prmy[i][j] =
+							std_bt709_prmy[(i + 2) % 3][j];
+						src_prmy[3][j] =
+							std_bt709_white_point[j];
+					}
+				pr_gmt("src_primary: HDR10_BT709 case\n");
+			} else {
+				for (i = 0; i < 3; i++)
+					for (j = 0; j < 2; j++)
+						src_prmy[i][j] = std_bt2020_prmy[(i + 2) % 3][j];
+
+				for (j = 0; j < 2; j++)
+					src_prmy[3][j] = std_bt2020_white_point[j];
+
+				pr_gmt("src_primary: HDR10_BT2020 case\n");
+			}
 		}
 	} else if (source_type[vd_path] == HDRTYPE_SDR2020) {
 		for (i = 0; i < 3; i++)
@@ -524,6 +540,32 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 			}
 		}
 	}
+
+	return 0;
+}
+
+int gamut_convert(s64 *s_prmy,
+			  s64 *d_prmy,
+			  struct matrix_s *mtx,
+			  int mtx_depth)
+{
+	int i, j;
+	s64 out[3][3];
+	s64 src_prmy[4][2];
+	s64 dest_prmy[4][2];
+
+	/*default 11bit*/
+	if (mtx_depth == 0)
+		mtx_depth = 11;
+
+	for (i = 0; i < 4; i++)
+		for (j = 0; j < 2; j++) {
+			src_prmy[i][j] = s_prmy[i * 2 + j];
+			dest_prmy[i][j] = d_prmy[i * 2 + j];
+		}
+
+	gamut_proc(src_prmy, dest_prmy, out, NORM, BL);
+	cal_mtx_seting(out, BL, BL, mtx, mtx_depth);
 
 	return 0;
 }

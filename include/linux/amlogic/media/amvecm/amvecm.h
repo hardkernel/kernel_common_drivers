@@ -32,18 +32,6 @@
 #include <drm/drmP.h>
 #include <uapi/amlogic/amvecm_ext.h>
 
-#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-bool is_amdv_enable(void);
-bool is_amdv_on(void);
-bool is_amdv_stb_mode(void);
-bool for_amdv_certification(void);
-int is_amdv_frame(struct vframe_s *vf);
-void amdv_set_toggle_flag(int flag);
-int get_dv_support_info(void);
-bool support_multi_core1(void);
-bool is_hdmi_ll_as_hdr10(void);
-#endif
-
 #ifndef MAX
 #define MAX(a, b) ({ \
 	typeof(a) _a = a; \
@@ -111,6 +99,8 @@ bool is_hdmi_ll_as_hdr10(void);
  *#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
  *#define VPP_VADJ1_EN                (1 << 0)
  */
+#define FLAG_RESUME_RECOVERY        BIT(21)
+#define SHARPNESS_GAIN_UPDATE       BIT(20)
 #define FLAG_GAMMA_TABLE_EN_SUB     BIT(19)
 #define FLAG_GAMMA_TABLE_DIS_SUB    BIT(18)
 #define FLAG_GAMMA_TABLE_R_SUB      BIT(17)
@@ -233,6 +223,8 @@ enum rw_md_e {
 	WR_MOD
 };
 
+struct vpp_hist_param_s *get_vpp_hist(void);
+
 struct ve_pq_table_s {
 	unsigned int src_timing;
 	unsigned int value1;
@@ -329,7 +321,6 @@ struct ve_pq_overscan_s {
 
 extern struct ve_pq_overscan_s overscan_table[TIMING_MAX];
 
-extern unsigned int vpp_new_frame;
 /*3D LUT IOCTL command list*/
 struct table_3dlut_s {
 	unsigned int data[17 * 17 * 17][3];
@@ -360,8 +351,11 @@ enum chip_type {
 	chip_t3x,
 	chip_txhd2,
 	chip_s1a,
+	chip_s7,
 	chip_a4,
-	chip_sc2
+	chip_sc2,
+	chip_s7d,
+	chip_s6
 };
 
 enum chip_cls_e {
@@ -420,7 +414,8 @@ enum vpp_index_e {
 	VPP_TOP0 = 0,
 	VPP_TOP1 = 1,
 	VPP_TOP2 = 2,
-	VPP_TOP_MAX_S = 3
+	VPP_PRE_VS = 3,
+	VPP_TOP_MAX_S = 4
 };
 
 enum vpp_slice_e {
@@ -450,12 +445,12 @@ struct vdj_parm_s {
 };
 
 extern signed int vd1_brightness, vd1_contrast;
-extern int gamma_en;
+extern bool gamma_en;
 extern unsigned int atv_source_flg;
 extern enum hdr_type_e hdr_source_type;
 extern unsigned int pd_detect_en;
-extern int wb_en;
-extern struct pq_ctrl_s pq_cfg;
+extern bool wb_en;
+extern struct pq_ctrl_s pq_cfg_cur;
 
 extern struct pq_ctrl_s pq_cfg;
 extern struct pq_ctrl_s dv_cfg_bypass;
@@ -477,6 +472,8 @@ extern enum chip_cls_e chip_cls_id;
 
 extern enum output_format_e output_format;
 
+extern unsigned int osd_pic_en;
+
 int amvecm_on_vs(struct vframe_s *display_vf,
 		 struct vframe_s *toggle_vf,
 		 int flags,
@@ -488,18 +485,18 @@ int amvecm_on_vs(struct vframe_s *display_vf,
 		 unsigned int cm_in_h,
 		 enum vd_path_e vd_path,
 		 enum vpp_index_e vpp_index);
-void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf);
-void pc_mode_process(void);
-void pq_user_latch_process(void);
+void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf, u32 vpp_index);
+void pc_mode_process(int vpp_index);
+void pq_user_latch_process(int vpp_index);
 void vlock_process(struct vframe_s *vf,
 		   struct vpp_frame_par_s *cur_video_sts);
 void frame_lock_process(struct vframe_s *vf,
-		   struct vpp_frame_par_s *cur_video_sts);
+		   struct vpp_frame_par_s *cur_video_sts, u16 line);
 int frc_input_handle(struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts);
 void get_hdr_process_name(int id, char *name, char *output_fmt);
 
 void vpp_vd_adj1_saturation_hue(signed int sat_val,
-				signed int hue_val, struct vframe_s *vf);
+				signed int hue_val, struct vframe_s *vf, int vpp_index);
 void amvecm_sharpness_enable(int sel);
 int metadata_read_u32(uint32_t *value);
 int metadata_wait(struct vframe_s *vf);
@@ -528,7 +525,7 @@ bool di_api_mov_sel(unsigned int mode,
 enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path,
 	enum vpp_index_e vpp_index);
 
-int amvecm_set_saturation_hue(int mab, enum wr_md_e mode);
+int amvecm_set_saturation_hue(int mab, enum wr_md_e mode, int vpp_index);
 void amvecm_saturation_hue_update(int offset_val);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
@@ -556,6 +553,7 @@ extern struct single_scene_s detected_scenes[SCENE_MAX];
 extern int freerun_en;
 u32 hdr_set(u32 module_sel, u32 hdr_process_select, enum vpp_index_e vpp_index);
 int vinfo_lcd_support(void);
+int vinfo_hdmi_out_fmt(void);
 int dv_pq_ctl(enum dv_pq_ctl_e ctl);
 int cm_force_update_flag(void);
 int get_lum_ave(void);
@@ -605,19 +603,51 @@ struct gamma_data_s *get_gm_data(void);
 void bs_ct_latch(void);
 int pkt_adv_chip(void);
 extern unsigned int ai_color_enable;
-extern int debug_amvecm;
-extern unsigned int vecm_latch_flag;
-extern unsigned int pq_load_en;
-extern unsigned int probe_ok;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-extern unsigned int sr1_index;
-extern int mtx_sel_dbg;
-extern unsigned int fmeter_debug;
-extern unsigned int fmeter_count;
+
+int register_osd_status_cb(int (*get_osd_enable_status)(u32 index));
+void resume_recovery_process(int vpp_index);
+extern uint demo_pk_sr_final_pgains;
+extern uint demo_pk_sr_final_ngains;
+extern uint reg_pk_dir_final_gain;
+extern uint reg_pk_cir_final_gain;
+extern uint reg_pk_final_pgain;
+extern uint reg_pk_final_ngain;
+extern uint reg_pk_nor_rsft_mode;
+extern int hsize_in;
+extern int vsize_in;
+
+void amve_safa_demo_ctrl(unsigned int enable);
+void osd_sharpness_size_ctrl(void);
+void osd_sharpness_demo_ctrl(void);
+
+#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+bool is_amdv_enable(void);
+bool is_amdv_on(void);
+bool is_amdv_stb_mode(void);
+bool for_amdv_certification(void);
+int is_amdv_frame(struct vframe_s *vf);
+void amdv_set_toggle_flag(int flag);
+int get_dv_support_info(void);
+bool support_multi_core1(void);
+bool is_hdmi_ll_as_hdr10(void);
+int get_amdv_src_format(enum vd_path_e vd_path);
 #endif
-extern unsigned int debug_game_mode_1;
-extern unsigned int hdr_output_mode;
-extern unsigned int data_path;
+
+enum vpp_matrix_ext_csc_e {
+	VPP_MATRIX_EXT_NULL = 0,
+	VPP_MATRIX_SMPTE_ST_170,
+	VPP_MATRIX_BT_709,
+	VPP_MATRIX_XVYCC_601,
+	VPP_MATRIX_XVYCC_709,
+	VPP_MATRIX_SYCC_601,
+	VPP_MATRIX_OPYCC_601,
+	VPP_MATRIX_OP_RGB,
+	VPP_MATRIX_BT_2020_YCC,
+	VPP_MATRIX_BT_2020_RGBORYCC,
+	VPP_MATRIX_SMPTE_ST_2113_P3D65RGB,
+	VPP_MATRIX_SMPTE_ST_2113_P3DCIRGB,
+	VPP_MATRIX_BT_2100,
+};
 
 #endif /* AMVECM_H */
 

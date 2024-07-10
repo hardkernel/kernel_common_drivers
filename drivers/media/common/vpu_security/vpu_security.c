@@ -110,6 +110,25 @@ static struct vpu_sec_reg_s reg_v4[] = {
 	{S5_VIU_VD4_MISC,    1, 4, 1}, /* 12. 02.1 vd1 slice 3 */
 };
 
+static struct vpu_sec_reg_s reg_v5[] = {
+	{VIU_DATA_SEC,       1, 0, 1}, /* 00. OSD1 */
+	{VIU_DATA_SEC,       1, 1, 1}, /* 01. OSD2 */
+	{VIU_DATA_SEC,       1, 2, 1}, /* 02. VD1 */
+	{VIU_DATA_SEC,       1, 3, 1}, /* 03. VD2 */
+	{VIU_DATA_SEC,       1, 4, 1}, /* 04. OSD3 */
+	{VIU_DATA_SEC,       1, 5, 1}, /* 05. VD AFBC, not used */
+	{VIU_DATA_SEC,       1, 6, 1}, /* 06. DV */
+	{VIU_DATA_SEC,       1, 7, 1}, /* 07. OSD AFBC */
+	{VIU_DATA_SEC,       1, 8, 1}, /* 08. VPP_TOP */
+	{0,                  1, 0, 1}, /* 09. OSD4, not used */
+	{0,                  1, 0, 1}, /* 10. VD3, not used */
+	{0,                  1, 0, 1}, /* 11. VPP_TOP1, not used */
+	{0,                  1, 0, 1}, /* 12. VPP_TOP2, not used */
+	{VPU_LUT_DMA_SEC_IN, 1, 0, 1}, /* 13. VD1 FG */
+	{VPU_LUT_DMA_SEC_IN, 1, 1, 1}, /* 14. VD2 FG */
+	{VPU_LUT_DMA_SEC_IN, 1, 2, 1}  /* 15. DI FG */
+};
+
 static struct sec_dev_data_s vpu_security_sc2 = {
 	.version = VPU_SEC_V1,
 };
@@ -130,6 +149,10 @@ static struct sec_dev_data_s vpu_security_t3 = {
 
 static struct sec_dev_data_s vpu_security_s5 = {
 	.version = VPU_SEC_V4,
+};
+
+static struct sec_dev_data_s vpu_security_s7 = {
+	.version = VPU_SEC_V5,
 };
 #endif
 
@@ -156,6 +179,10 @@ static const struct of_device_id vpu_security_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-s5, vpu_security",
 		.data = &vpu_security_s5,
+	},
+	{
+		.compatible = "amlogic, meson-s7, vpu_security",
+		.data = &vpu_security_s7,
 	},
 #endif
 	{}
@@ -243,6 +270,9 @@ static void secure_reg_update(struct vpu_secure_ins *ins,
 		} else if (version == VPU_SEC_V4) {
 			reg_size = ARRAY_SIZE(reg_v4);
 			reg_item = &reg_v4[0];
+		} else if (version == VPU_SEC_V5) {
+			reg_size = ARRAY_SIZE(reg_v5);
+			reg_item = &reg_v5[0];
 		}
 
 		/* work through the array and write bit(s) */
@@ -282,117 +312,122 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 	struct vpu_sec_bit_s change;
 
 	version = vpu_secure_version();
-	if (is_vpu_secure_support()) {
-		switch (module) {
-		case OSD_MODULE:
-			if ((secure_src & OSD1_INPUT_SECURE) ||
-			    (secure_src & OSD2_INPUT_SECURE) ||
-			    (secure_src & OSD3_INPUT_SECURE) ||
-			    (secure_src & OSD4_INPUT_SECURE) ||
-			    (secure_src & MALI_AFBCD_SECURE)) {
-				/* for T7 revA */
-				if (is_meson_t7_cpu() && is_meson_rev_a() &&
-				    (secure_src & (OSD1_INPUT_SECURE |
-						   OSD2_INPUT_SECURE)))
-					secure_src |= OSD4_INPUT_SECURE;
+	if (!is_vpu_secure_support())
+		return 0;
+	switch (module) {
+	case OSD_MODULE:
+		if ((secure_src & OSD1_INPUT_SECURE) ||
+		    (secure_src & OSD2_INPUT_SECURE) ||
+		    (secure_src & OSD3_INPUT_SECURE) ||
+		    (secure_src & OSD4_INPUT_SECURE) ||
+		    (secure_src & MALI_AFBCD_SECURE)) {
+			/* for T7 revA */
+			if (is_meson_t7_cpu() && is_meson_rev_a() &&
+			    (secure_src & (OSD1_INPUT_SECURE |
+					   OSD2_INPUT_SECURE)))
+				secure_src |= OSD4_INPUT_SECURE;
 
-				/* OSD module secure */
-				osd_secure[vpp_index] = secure_src;
-				value = osd_secure[vpp_index] |
-					video_secure[vpp_index];
-				ins->secure_enable = 1;
-				ins->secure_status = value;
-				osd_secure_en[vpp_index] = 1;
-			} else {
-				/* OSD none secure */
-				osd_secure[vpp_index] = secure_src;
-				value = osd_secure[vpp_index] |
-					video_secure[vpp_index];
-				ins->secure_enable = 0;
-				ins->secure_status = value;
-				osd_secure_en[vpp_index] = 0;
-			}
-			break;
-		case VIDEO_MODULE:
-			if ((secure_src & DV_INPUT_SECURE) ||
-			    (secure_src & AFBCD_INPUT_SECURE) ||
-			    (secure_src & VD3_INPUT_SECURE) ||
-			    (secure_src & VD2_INPUT_SECURE) ||
-			    (secure_src & VD1_INPUT_SECURE)) {
-				/* video module secure */
-				video_secure[vpp_index] = secure_src;
-				value = video_secure[vpp_index] |
-					osd_secure[vpp_index];
-				if (version == VPU_SEC_V4) {
-					u32 temp;
+			/* OSD module secure */
+			osd_secure[vpp_index] = secure_src;
+			value = osd_secure[vpp_index] |
+				video_secure[vpp_index];
+			ins->secure_enable = 1;
+			ins->secure_status = value;
+			osd_secure_en[vpp_index] = 1;
+		} else {
+			/* OSD none secure */
+			osd_secure[vpp_index] = secure_src;
+			value = osd_secure[vpp_index] |
+				video_secure[vpp_index];
+			ins->secure_enable = 0;
+			ins->secure_status = value;
+			osd_secure_en[vpp_index] = 0;
+		}
+		break;
+	case VIDEO_MODULE:
+		if ((secure_src & VD2_FGRAIN_SECURE) ||
+		    (secure_src & VD1_FGRAIN_SECURE) ||
+		    (secure_src & DV_INPUT_SECURE) ||
+		    (secure_src & AFBCD_INPUT_SECURE) ||
+		    (secure_src & VD3_INPUT_SECURE) ||
+		    (secure_src & VD2_INPUT_SECURE) ||
+		    (secure_src & VD1_INPUT_SECURE)) {
+			/* video module secure */
+			video_secure[vpp_index] = secure_src;
+			value = video_secure[vpp_index] |
+				osd_secure[vpp_index];
+			if (version == VPU_SEC_V4) {
+				u32 temp;
 
-					if (value & VD1_INPUT_SECURE) {
+				if (value & VD1_INPUT_SECURE) {
+					if (is_meson_t3x_cpu())
+						temp = VD1_SLICE1_SECURE;
+					else
 						temp = VD1_SLICE1_SECURE |
 							VD1_SLICE2_SECURE |
 							VD1_SLICE3_SECURE;
-						value |= temp;
-					}
+					value |= temp;
 				}
-				ins->secure_enable = 1;
-				ins->secure_status = value;
-				video_secure_en[vpp_index] = 1;
-			} else {
-				/* video module secure */
-				video_secure[vpp_index] = secure_src;
-				value = video_secure[vpp_index] |
-					osd_secure[vpp_index];
-				ins->secure_enable = 0;
-				ins->secure_status = value;
-				video_secure_en[vpp_index] = 0;
 			}
-			break;
-		case DI_MODULE:
-			break;
-		case VDIN_MODULE:
-			break;
-		default:
-			break;
+			ins->secure_enable = 1;
+			ins->secure_status = value;
+			video_secure_en[vpp_index] = 1;
+		} else {
+			/* video module secure */
+			video_secure[vpp_index] = secure_src;
+			value = video_secure[vpp_index] |
+				osd_secure[vpp_index];
+			ins->secure_enable = 0;
+			ins->secure_status = value;
+			video_secure_en[vpp_index] = 0;
 		}
+		break;
+	case DI_MODULE:
+		break;
+	case VDIN_MODULE:
+		break;
+	default:
+		break;
+	}
 
-		if (version < VPU_SEC_V4) {
-			vpp_top_en = osd_secure_en[vpp_index] ||
-				     video_secure_en[vpp_index];
-			if (vpp_index == 0) {
-				if (vpp_top_en)
-					value |= VPP_OUTPUT_SECURE;
-				else
-					value &= ~VPP_OUTPUT_SECURE;
-			}
-			if (vpp_index == 1) {
-				if (vpp_top_en)
-					value |= VPP1_OUTPUT_SECURE;
-				else
-					value &= ~VPP1_OUTPUT_SECURE;
-			}
-			if (vpp_index == 2) {
-				if (vpp_top_en)
-					value |= VPP2_OUTPUT_SECURE;
-				else
-					value &= ~VPP2_OUTPUT_SECURE;
-			}
+	if (version < VPU_SEC_V4 || version == VPU_SEC_V5) {
+		vpp_top_en = osd_secure_en[vpp_index] ||
+			     video_secure_en[vpp_index];
+		if (vpp_index == 0) {
+			if (vpp_top_en)
+				value |= VPP_OUTPUT_SECURE;
+			else
+				value &= ~VPP_OUTPUT_SECURE;
 		}
-		/* debug value setting */
-		if (debug_value)
-			value = debug_value;
+		if (vpp_index == 1) {
+			if (vpp_top_en)
+				value |= VPP1_OUTPUT_SECURE;
+			else
+				value &= ~VPP1_OUTPUT_SECURE;
+		}
+		if (vpp_index == 2) {
+			if (vpp_top_en)
+				value |= VPP2_OUTPUT_SECURE;
+			else
+				value &= ~VPP2_OUTPUT_SECURE;
+		}
+	}
+	/* debug value setting */
+	if (debug_value)
+		value = debug_value;
 
-		if (module == OSD_MODULE ||
-			module == VIDEO_MODULE ||
-			module == DI_MODULE) {
-			if (value_save[vpp_index] != value) {
-				/* record changed bit and current val */
-				change.bit_changed =
-						value ^ value_save[vpp_index];
-				change.current_val = value;
-				secure_reg_update(ins, &change, vpp_index);
-				secure_update = 1;
-			}
-			value_save[vpp_index] = value;
+	if (module == OSD_MODULE ||
+		module == VIDEO_MODULE ||
+		module == DI_MODULE) {
+		if (value_save[vpp_index] != value) {
+			/* record changed bit and current val */
+			change.bit_changed =
+					value ^ value_save[vpp_index];
+			change.current_val = value;
+			secure_reg_update(ins, &change, vpp_index);
+			secure_update = 1;
 		}
+		value_save[vpp_index] = value;
 	}
 
 	if (log_level >= 2)
@@ -492,9 +527,8 @@ int secure_config(enum secure_module_e module, int secure_src, u32 vpp_index)
 }
 EXPORT_SYMBOL(secure_config);
 
-static ssize_t vpu_security_info_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vpu_security_info_show(const struct class *cla,
+				      const struct class_attribute *attr, char *buf)
 {
 	struct vpu_security_device_info *info = &vpu_security_info;
 
@@ -502,16 +536,15 @@ static ssize_t vpu_security_info_show(const struct class *class,
 		info->mismatch_cnt);
 }
 
-static ssize_t log_level_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t log_level_show(const struct class *cla,
+			      const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 40, "%d\n", log_level);
 }
 
-static ssize_t log_level_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t log_level_store(const struct class *cla,
+			       const struct class_attribute *attr,
+			       const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -522,9 +555,8 @@ static ssize_t log_level_store(const struct class *class,
 	return count;
 }
 
-static ssize_t debug_value_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t debug_value_show(const struct class *cla,
+			      const struct class_attribute *attr, char *buf)
 {
 	ssize_t len = 0;
 
@@ -542,13 +574,16 @@ static ssize_t debug_value_show(const struct class *class,
 	len += sprintf(buf + len, "bit10. VD3\n");
 	len += sprintf(buf + len, "bit11. VPP_TOP1\n");
 	len += sprintf(buf + len, "bit12. VPP_TOP2\n");
+	len += sprintf(buf + len, "bit13. VD1_FGRAIN\n");
+	len += sprintf(buf + len, "bit14. VD2_FGRAIN\n");
+	len += sprintf(buf + len, "bit15. DI_FGRAIN\n");
 
 	return len;
 }
 
-static ssize_t debug_value_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t debug_value_store(const struct class *cla,
+			       const struct class_attribute *attr,
+			       const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;

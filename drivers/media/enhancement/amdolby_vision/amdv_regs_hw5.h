@@ -256,7 +256,7 @@
 //Bit 13:12     cntl_burst_len1                 //unsigned, RW, default=2
 //Bit 11:10     cntl_dbg_mode                   //unsigned, RW, default=0
 //Bit 9:8       cntl_bits_mode                  //unsigned, RW, default=0
-//Bit 7         reserved
+//Bit 7         cntl_bit16_mode                 //1:420 p010, default=0
 //Bit 6:4       cntl_blk_len                    //unsigned, RW, default=3
 //Bit 3         reserved
 //Bit 2:1       cntl_burst_len0                 //unsigned, RW, default=2
@@ -756,4 +756,7 @@
 #define T3X_VD1_BLEND_SRC_CTRL     0x1d0d
 #define T3X_VENC_CRC               0x278c /*venc CRC*/
 #define VPU_RDARB_UGT_L2C1         0x27c2
+/* VPU_WRARB_UGT_L2C1 0x27c3 bit[1:0]vdin urgent, bit[9:8]di urgent, bit[17:16]dv urgent*/
+#define VPU_WRARB_UGT_L2C1         0x27c3
+
 #endif

@@ -19,8 +19,8 @@
 #include "../set_hdr2_v0.h"
 #include "../s5_set_hdr2_v0.h"
 
-int pr_tmo_en;
-__module_param(pr_tmo_en, int, 0664);
+static int pr_tmo_en;
+module_param(pr_tmo_en, int, 0664);
 MODULE_PARM_DESC(pr_tmo_en, "\n pr_tmo_en\n");
 
 #define pr_tmo_dbg(fmt, args...)\

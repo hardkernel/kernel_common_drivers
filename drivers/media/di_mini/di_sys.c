@@ -2064,7 +2064,7 @@ bool mem_cfg(struct di_ch_s *pch)
 
 #ifdef AFBC_DBG
 static unsigned int sleep_cnt;
-__module_param(sleep_cnt, uint, 0664);
+module_param(sleep_cnt, uint, 0664);
 MODULE_PARM_DESC(sleep_cnt, "debug sleep_cnt");
 #endif
 
@@ -3727,7 +3727,7 @@ static int dim_probe(struct platform_device *pdev)
 		goto fail_alloc_cdev_region;
 	}
 	dbg_reg("%s: major %d\n", __func__, MAJOR(di_pdev->devno));
-	di_pdev->pclss = class_create(CLASS_NAME);
+	di_pdev->pclss = class_create(THIS_MODULE, CLASS_NAME);
 	if (IS_ERR(di_pdev->pclss)) {
 		ret = PTR_ERR(di_pdev->pclss);
 		PR_ERR("%s: failed to create class\n", __func__);

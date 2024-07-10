@@ -22,6 +22,8 @@
 #include "film_vof_soft.h"
 #include "../deinterlace.h"
 #include "../register.h"
+static int test_cnt = 1024;
+module_param_named(test_cnt, test_cnt, int, 0664);
 
 static int DIweavedetec(struct sFlmSftPar *pPar, int nDif01);
 /* Software parameters (registers) */
@@ -87,12 +89,13 @@ UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar)
 	pPar->flm22_mcdi_min_th = 0;
 
 	pPar->flm22_max_th = 80;
+#ifdef DI_NEW_PQ_V1
 	pPar->flm22_glb_ratio = 24;
 	pPar->flm22_mcdi_dcnt_th = 30;
 	pPar->flm22_diff02_add_th = 15000;
 	pPar->flm22_pd12chk_mode = 1;
 	pPar->flm22_diff01_ratio = 6;
-
+#endif
 	return 0;
 }
 
@@ -112,11 +115,11 @@ UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar)
  */
 
 unsigned int pr_pd;
-__module_param(pr_pd, uint, 0644);
+module_param(pr_pd, uint, 0644);
 MODULE_PARM_DESC(pr_pd, "/n printk /n");
 
 bool prt_flg;
-__module_param(prt_flg, bool, 0644);
+module_param(prt_flg, bool, 0644);
 MODULE_PARM_DESC(prt_flg, "/n prt_flg /n");
 
 char debug_str[512];
@@ -124,156 +127,156 @@ char debug_str[512];
 /* if flmxx level > flmxx_first_num */
 /* flmxx first: even when 2-2 3-2 detected */
 /* unsigned int flmxx_first_num = 50; */
-/* __module_param(flmxx_first_num, uint, 0644); */
+/* module_param(flmxx_first_num, uint, 0644); */
 /* MODULE_PARM_DESC(flmxx_first_num, */
 /* "/n flmxx first: even when 2-2 3-2 detected /n"); */
 
 /* if flmxx level > flmxx_maybe_num */
 /* mabye flmxx: when 2-2 3-2 not detected */
 unsigned int flmxx_maybe_num = 15;
-__module_param(flmxx_maybe_num, uint, 0644);
+module_param(flmxx_maybe_num, uint, 0644);
 MODULE_PARM_DESC(flmxx_maybe_num,
 "/n mabye flmxx: when 2-2 3-2 not detected /n");
 
 int flm32_mim_frms = 6;
-__module_param(flm32_mim_frms, int, 0644);
+module_param(flm32_mim_frms, int, 0644);
 MODULE_PARM_DESC(flm32_mim_frms, "flm32_mim_frms");
 
 int flm22_dif01a_flag = 1;
-__module_param(flm22_dif01a_flag, int, 0644);
+module_param(flm22_dif01a_flag, int, 0644);
 MODULE_PARM_DESC(flm22_dif01a_flag, "flm22_dif01a_flag");
 
 int flm22_mim_frms = 60;
-__module_param(flm22_mim_frms, int, 0644);
+module_param(flm22_mim_frms, int, 0644);
 MODULE_PARM_DESC(flm22_mim_frms, "flm22_mim_frms");
 
 int flm22_mim_smfrms = 40;
-__module_param(flm22_mim_smfrms, int, 0644);
+module_param(flm22_mim_smfrms, int, 0644);
 MODULE_PARM_DESC(flm22_mim_smfrms, "flm22_mim_smfrms");
 
 int flm32_f2fdif_min0 = 11;
-__module_param(flm32_f2fdif_min0, int, 0644);
+module_param(flm32_f2fdif_min0, int, 0644);
 MODULE_PARM_DESC(flm32_f2fdif_min0, "flm32_f2fdif_min0");
 
 int flm32_f2fdif_min1 = 11;
-__module_param(flm32_f2fdif_min1, int, 0644);
+module_param(flm32_f2fdif_min1, int, 0644);
 MODULE_PARM_DESC(flm32_f2fdif_min1, "flm32_f2fdif_min1");
 
 int flm32_chk1_rtn = 25;
-__module_param(flm32_chk1_rtn, int, 0644);
+module_param(flm32_chk1_rtn, int, 0644);
 MODULE_PARM_DESC(flm32_chk1_rtn, "flm32_chk1_rtn");
 
 int flm32_ck13_rtn = 8;
-__module_param(flm32_ck13_rtn, int, 0644);
+module_param(flm32_ck13_rtn, int, 0644);
 MODULE_PARM_DESC(flm32_ck13_rtn, "flm32_ck13_rtn");
 
 int flm32_chk2_rtn = 16;
-__module_param(flm32_chk2_rtn, int, 0644);
+module_param(flm32_chk2_rtn, int, 0644);
 MODULE_PARM_DESC(flm32_chk2_rtn, "flm32_chk2_rtn");
 
 int flm32_chk3_rtn = 16;
-__module_param(flm32_chk3_rtn, int, 0644);
+module_param(flm32_chk3_rtn, int, 0644);
 MODULE_PARM_DESC(flm32_chk3_rtn, "flm32_chk3_rtn");
 
 int flm32_dif02_ratio = 8;
-__module_param(flm32_dif02_ratio, int, 0644);
+module_param(flm32_dif02_ratio, int, 0644);
 MODULE_PARM_DESC(flm32_dif02_ratio, "flm32_dif02_ratio");
 
 int flm22_chk20_sml = 6;
-__module_param(flm22_chk20_sml, int, 0644);
+module_param(flm22_chk20_sml, int, 0644);
 MODULE_PARM_DESC(flm22_chk20_sml, "flm22_chk20_sml");
 
 int flm22_chk21_sml = 6;
-__module_param(flm22_chk21_sml, int, 0644);
+module_param(flm22_chk21_sml, int, 0644);
 MODULE_PARM_DESC(flm22_chk21_sml, "flm22_chk21_sml");
 
 int flm22_chk21_sm2 = 10;
-__module_param(flm22_chk21_sm2, int, 0644);
+module_param(flm22_chk21_sm2, int, 0644);
 MODULE_PARM_DESC(flm22_chk21_sm2, "flm22_chk21_sm2");
 
 int flm22_lavg_sft = 4;
-__module_param(flm22_lavg_sft, int, 0644);
+module_param(flm22_lavg_sft, int, 0644);
 MODULE_PARM_DESC(flm22_lavg_sft, "flm22_lavg_sft");
 
 int flm22_lavg_lg = 24;
-__module_param(flm22_lavg_lg, int, 0644);
+module_param(flm22_lavg_lg, int, 0644);
 MODULE_PARM_DESC(flm22_lavg_lg, "flm22_lavg_lg");
 
 /* dif02 < (size >> sft) => static */
 int flm22_stl_sft = 7; /*10*/
-__module_param(flm22_stl_sft, int, 0644);
+module_param(flm22_stl_sft, int, 0644);
 MODULE_PARM_DESC(flm22_stl_sft, "flm22_stl_sft");
 
 int flm22_chk5_avg = 50;
-__module_param(flm22_chk5_avg, int, 0644);
+module_param(flm22_chk5_avg, int, 0644);
 MODULE_PARM_DESC(flm22_chk5_avg, "flm22_chk5_avg");
 
 int flm22_chk6_max = 20;
-__module_param(flm22_chk6_max, int, 0644);
+module_param(flm22_chk6_max, int, 0644);
 MODULE_PARM_DESC(flm22_chk6_max, "flm22_chk6_max");
 
 int flm22_anti_chk1 = 61;
-__module_param(flm22_anti_chk1, int, 0644);
+module_param(flm22_anti_chk1, int, 0644);
 MODULE_PARM_DESC(flm22_anti_chk1, "flm22_anti_chk1");
 
 int flm22_anti_chk3 = 140;
-__module_param(flm22_anti_chk3, int, 0644);
+module_param(flm22_anti_chk3, int, 0644);
 MODULE_PARM_DESC(flm22_anti_chk3, "flm22_anti_chk3");
 
 int flm22_anti_chk4 = 128;
-__module_param(flm22_anti_chk4, int, 0644);
+module_param(flm22_anti_chk4, int, 0644);
 MODULE_PARM_DESC(flm22_anti_chk4, "flm22_anti_chk4");
 
 int flm22_anti_ck140 = 32;
-__module_param(flm22_anti_ck140, int, 0644);
+module_param(flm22_anti_ck140, int, 0644);
 MODULE_PARM_DESC(flm22_anti_ck140, "flm22_anti_ck140");
 
 int flm22_anti_ck141 = 80;
-__module_param(flm22_anti_ck141, int, 0644);
+module_param(flm22_anti_ck141, int, 0644);
 MODULE_PARM_DESC(flm22_anti_ck141, "flm22_anti_ck141");
 
 int flm22_frmdif_max = 50;
-__module_param(flm22_frmdif_max, int, 0644);
+module_param(flm22_frmdif_max, int, 0644);
 MODULE_PARM_DESC(flm22_frmdif_max, "flm22_frmdif_max");
 
 int flm22_flddif_max = 100;
-__module_param(flm22_flddif_max, int, 0644);
+module_param(flm22_flddif_max, int, 0644);
 MODULE_PARM_DESC(flm22_flddif_max, "flm22_flddif_max");
 
 int flm22_minus_cntmax = 2;
-__module_param(flm22_minus_cntmax, int, 0644);
+module_param(flm22_minus_cntmax, int, 0644);
 MODULE_PARM_DESC(flm22_minus_cntmax, "flm22_minus_cntmax");
 
 static int flagdif01chk = 1;
-__module_param(flagdif01chk,  int, 0644);
+module_param(flagdif01chk,  int, 0644);
 MODULE_PARM_DESC(flagdif01chk, "flagdif01chk");
 
 static int dif01_ratio = 10;
-__module_param(dif01_ratio,  int, 0644);
+module_param(dif01_ratio,  int, 0644);
 MODULE_PARM_DESC(dif01_ratio, "dif01_ratio");
 
 static int nflagch4_ratio = 1;
-__module_param(nflagch4_ratio,  int, 0644);
+module_param(nflagch4_ratio,  int, 0644);
 MODULE_PARM_DESC(nflagch4_ratio, "nflagch4_ratio");
 
 static int nflagch5_ratio = 2;
-__module_param(nflagch5_ratio,  int, 0644);
+module_param(nflagch5_ratio,  int, 0644);
 MODULE_PARM_DESC(nflagch5_ratio, "nflagch5_ratio");
 
 static int nflagch4_th;
-__module_param(nflagch4_th,  int, 0644);
+module_param(nflagch4_th,  int, 0644);
 MODULE_PARM_DESC(nflagch4_th, "nflagch4_th");
 
 static int nflagch5_th = 1;
-__module_param(nflagch5_th,  int, 0644);
+module_param(nflagch5_th,  int, 0644);
 MODULE_PARM_DESC(nflagch5_th, "nflagch5_th");
 
 static int dif02_flag = 1;
-__module_param(dif02_flag,  int, 0644);
+module_param(dif02_flag,  int, 0644);
 MODULE_PARM_DESC(dif02_flag, "dif02_flag");
 
 static int dif02_ratio = 20;
-__module_param(dif02_ratio,  int, 0644);
+module_param(dif02_ratio,  int, 0644);
 MODULE_PARM_DESC(dif02_ratio, "dif02_ratio");
 
 static int pd22224_th = 24;
@@ -494,22 +497,68 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	}
 
 	//abc,racing,girl,hqv
-	if (IS_IC(dil_get_cpuver_flag(), T5DB)	||
-		IS_IC_EF(dil_get_cpuver_flag(), T3)) {
+#ifdef DI_NEW_PQ_V1
+	if ((IS_IC_EF(dil_get_cpuver_flag(), T3) &&
+		 !IS_IC(dil_get_cpuver_flag(), S5) &&
+		 !IS_IC(dil_get_cpuver_flag(), S7D))) {
 		if (pPar->flm22_pd12chk_mode == 0)
-			pd22_diff12_chk = ((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) < (max_dif02 + pPar->flm22_diff02_add_th) && (abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) > (max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) * pPar->flm22_diff01_ratio / 16)) &&
-				abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < pPar->flm22_diff01_th * 3 && (max(pd22_cnt_pre, pd22_cnt_cur) > max(0, pd22_cnt_th - pPar->flm22_mcdi_dcnt_th) || max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) <  (max_dif02 - pPar->flm22_diff02_add_th)) && abs(pre_fld_motnum - glb_field_mot_num) < min(pre_fld_motnum, glb_field_mot_num) * pPar->flm22_glb_ratio / 8) ||
-				(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 && abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
+			pd22_diff12_chk =
+				((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) <
+				(max_dif02 + pPar->flm22_diff02_add_th) &&
+				(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) >
+				(max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) *
+				pPar->flm22_diff01_ratio / 16)) &&
+				abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
+				pPar->flm22_diff01_th * 3 &&
+				(max(pd22_cnt_pre, pd22_cnt_cur) >
+				max(0, pd22_cnt_th - pPar->flm22_mcdi_dcnt_th) ||
+				max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) <
+				(max_dif02 - pPar->flm22_diff02_add_th)) &&
+				abs(pre_fld_motnum - glb_field_mot_num) <
+				min(pre_fld_motnum, glb_field_mot_num) *
+				pPar->flm22_glb_ratio / 8) ||
+				(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 &&
+				abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
+				nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
 		else
-			pd22_diff12_chk = ((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) < (max_dif02 + pPar->flm22_diff02_add_th) && (abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) > (max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) * pPar->flm22_diff01_ratio / 16)) &&
-				abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < pPar->flm22_diff01_th * 3 && max(pd22_cnt_pre, pd22_cnt_cur) > max(0, pd22_cnt_th - pPar->flm22_mcdi_dcnt_th) && abs(pre_fld_motnum - glb_field_mot_num) < min(pre_fld_motnum, glb_field_mot_num) * pPar->flm22_glb_ratio / 8) ||
-				(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 && abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
+			pd22_diff12_chk =
+				((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) <
+				(max_dif02 + pPar->flm22_diff02_add_th) &&
+				(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) >
+				(max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) *
+				pPar->flm22_diff01_ratio / 16)) &&
+				abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
+				pPar->flm22_diff01_th * 3 &&
+				max(pd22_cnt_pre, pd22_cnt_cur) >
+				max(0, pd22_cnt_th - pPar->flm22_mcdi_dcnt_th) &&
+				abs(pre_fld_motnum - glb_field_mot_num) <
+				min(pre_fld_motnum, glb_field_mot_num) *
+				pPar->flm22_glb_ratio / 8) ||
+				(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 &&
+				abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
+				nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
 	} else {
-		pd22_diff12_chk = ((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) < max_dif02 && (abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) > max_dif02 / 2) &&
-		abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < pPar->flm22_diff01_th * 3 && abs(pre_fld_motnum - glb_field_mot_num) < 10000) ||
-		(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 && abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
+		pd22_diff12_chk =
+			((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) < max_dif02 &&
+			(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) > max_dif02 / 2) &&
+			abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
+			pPar->flm22_diff01_th * 3 &&
+			abs(pre_fld_motnum - glb_field_mot_num) < 10000) ||
+			(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 &&
+			abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
+			nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
 	}
-
+#else
+		pd22_diff12_chk =
+			((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) < max_dif02 &&
+			(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) > max_dif02 / 2) &&
+			abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
+			pPar->flm22_diff01_th * 3 &&
+			abs(pre_fld_motnum - glb_field_mot_num) < 10000) ||
+			(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 &&
+			abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) <
+			nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
+#endif
 	if ((pPar->quit_th_en >> 7) & 0x1) //for CVBS_rollingpaper
 		pd22_diff12_chk = 1;
 	/* --------------------------------------------------------- */
@@ -735,14 +784,6 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		 *rFlmPstMod = 0;
 		nS1 = 0;
 	}
-	if (flm22_force) {
-		*rFlmSltPre = nDIF01[HISDIFNUM-1] > nDIF01[HISDIFNUM-2] ? 1 : 0;
-		/* Post-processing: film mode,00: global combing,
-		 * 01: 2-2 film, 10: 2-3 film, 11:-others
-		 */
-		*rFlmPstMod = 1;
-		nS1 = 300; /*increase flm22_force level from vlsi-yanling*///test
-	}
 	dif01_flag_pre = dif01_flag;
 	flm22_dif01_th = min(flm22_th, 1 << 14);
 	dif01_flag =  (nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2])
@@ -795,6 +836,8 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	if (max_dif02 / (nDIF02[HISDIFNUM - 1] + 1) > flm22_dif02_ratio) {
 		if (pd22224_dif02_flag == 0 && nDIF02[HISDIFNUM - 1]
 			< (1 << (pd_dif02_sel + 1))) {
+			if (pd22224_mcdi_cnt == 10 && nDIF02[HISDIFNUM - 1] > test_cnt)
+				pd22224_cnt = ((pd22224_cnt - 10) > 0) ? (pd22224_cnt - 10) : 0;
 			if ((pd22224_cnt < pd22224_th && nDIF02[HISDIFNUM - 1]
 				< (1 << pd_dif02_sel)) || pd22224_dif02_reset)
 				pd22224_mcdi_cnt = 0;
@@ -806,7 +849,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		pd22224_dif02_flag = 0;
 		if (pd22224_mcdi_flag || pd_dif01_flag ||
 			(nDIF02[HISDIFNUM - 1] < (1 << (pd_dif02_sel - 1)) &&
-			pd22224_cnt > pd22224_th)) {
+			pd22224_cnt > pd22224_th && max_dif02 > (1 << pd_dif02_sel))) {
 			pd22224_cnt = pd22224_cnt < 255 ? pd22224_cnt + 1 : 255;
 			if (pRDat.enter_cnt[0] < pPar->enter_th)
 				pRDat.enter_cnt[0] = pRDat.enter_cnt[0] < 255 ? pRDat.enter_cnt[0] + 1 : 255;
@@ -824,9 +867,9 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		if (pr_pd)
 			pr_info("max_dif02 = %d, pd22_pre_cur_dif = %d\n",
 				max_dif02, pd22_pre_cur_dif);
-		if (max_dif02 / (nDIF02[HISDIFNUM - 1] + 1) >
-			flm22_dif02_ratio ||
-			nDIF02[HISDIFNUM - 1] < (1 << (pd_dif02_sel - 2)))
+		if (max_dif02 / (nDIF02[HISDIFNUM - 1] + 1) > flm22_dif02_ratio ||
+			(nDIF02[HISDIFNUM - 1] < (1 << (pd_dif02_sel - 2)) &&
+			max_dif02 > (1 << pd_dif02_sel)))
 			pd22224_cnt = pd22224_cnt < 255 ? pd22224_cnt + 1 : 255;
 		else if (pd22224_cnt > pd22224_quit_dif02_th &&
 			pd22_pre_cur_dif > pd22_cnt_th)
@@ -945,6 +988,15 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		else
 			stop_flag = 1;
 	}
+
+	if (((flm22_force >> 4) & 0x1) == 1 && (flm22_force & 0xF) < 12) {
+		*rFlmSltPre = nDIF01[HISDIFNUM - 1] > nDIF01[HISDIFNUM - 2] ? 1 : 0;
+		*rFlmPstMod = (flm22_force & 0xF);
+		nS1 = 300;
+	}
+	if (pr_pd)
+		pr_info("flm22_force = %d, rFlmPstMod = %d, nS1 = %d\n",
+			flm22_force, *rFlmPstMod, nS1);
 	if (pr_pd) {
 		pr_info("pd22224_cnt = %d, pd22224_th = %d, pd22224_mcdi_cnt = %d, pd22224_mcdi_flag = %d, pd22224_dif02_flag = %d, pd_dif01_flag = %d\n",
 			pd22224_cnt, pd22224_th, pd22224_mcdi_cnt,

@@ -24,7 +24,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2023/0410: for t5x vlock bringup"
+#define VLOCK_VER "Ref.2024/0222: adaptive for vlock 100/120hz phase"
 
 #define VLOCK_REG_NUM					33
 #define VLOCK_ALL_LOCK_CNT				400
@@ -353,12 +353,18 @@ void vlock_set_en(bool en);
 void vlock_set_phase(struct stvlock_sig_sts *vlock, u32 percent);
 void vlock_set_phase_en(struct stvlock_sig_sts *vlock, u32 en);
 int lcd_set_ss(unsigned int level, unsigned int freq, unsigned int mode);
-ssize_t vlock_debug_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count);
-ssize_t vlock_debug_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf);
+ssize_t vlock_debug_store(const struct class *cla,
+			  const struct class_attribute *attr,
+			  const char *buf, size_t count);
+ssize_t vlock_debug_show(const struct class *cla,
+			 const struct class_attribute *attr, char *buf);
+ssize_t vlock_slt_lock_st_show(const struct class *cla,
+	 const struct class_attribute *attr, char *buf);
+
+ssize_t vlock_slt_lock_st_store(const struct class *cla,
+			  const struct class_attribute *attr,
+		const char *buf, size_t count);
+
 //void vlock_clk_config(struct device *dev);
 int frc_is_on(void);
 bool vlock_get_phlock_flag(void);

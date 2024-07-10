@@ -286,8 +286,8 @@ int pvpp_display(struct vframe_s *vfm,
 {
 	int ret = -1;
 
-	if (dil_api && dil_api->pre_vpp_link_display) {
-		ret = dil_api->pre_vpp_link_display(vfm, in_para, out_para);
+	if (dil_api && dil_api->pvpp_link_display) {
+		ret = dil_api->pvpp_link_display(vfm, in_para, out_para);
 		return ret;
 	}
 	PR_ERR("%s:not attach\n", __func__);
@@ -297,26 +297,26 @@ EXPORT_SYMBOL(pvpp_display);
 
 int pvpp_check_vf(struct vframe_s *vfm)
 {
-	if (dil_api && dil_api->pre_vpp_link_check_vf)
-		return dil_api->pre_vpp_link_check_vf(vfm);
+	if (dil_api && dil_api->pvpp_link_check_vf)
+		return dil_api->pvpp_link_check_vf(vfm);
 	PR_ERR("%s:not attach\n", __func__);
 	return -1;
 }
 EXPORT_SYMBOL(pvpp_check_vf);
 
-int pvpp_check_act(void)
+int pvpp_check_act(bool interlace)
 {
-	if (dil_api && dil_api->pre_vpp_link_check_act)
-		return dil_api->pre_vpp_link_check_act();
+	if (dil_api && dil_api->pvpp_link_check_act)
+		return dil_api->pvpp_link_check_act(interlace);
 	PR_ERR("%s:not attach\n", __func__);
 	return -1;
 }
 EXPORT_SYMBOL(pvpp_check_act);
 
-int pvpp_sw(bool on)
+int pvpp_sw(bool on, bool interlace)
 {
-	if (dil_api && dil_api->pre_vpp_link_sw)
-		return dil_api->pre_vpp_link_sw(on);
+	if (dil_api && dil_api->pvpp_link_sw)
+		return dil_api->pvpp_link_sw(on, interlace);
 	PR_ERR("%s:not attach\n", __func__);
 	return -1;
 }
@@ -324,8 +324,8 @@ EXPORT_SYMBOL(pvpp_sw);
 
 u32 di_api_get_plink_instance_id(void)
 {
-	if (dil_api && dil_api->pre_vpp_get_ins_id)
-		return dil_api->pre_vpp_get_ins_id();
+	if (dil_api && dil_api->pvpp_get_ins_id)
+		return dil_api->pvpp_get_ins_id();
 	PR_ERR("%s:not attach\n", __func__);
 	return 0;
 }

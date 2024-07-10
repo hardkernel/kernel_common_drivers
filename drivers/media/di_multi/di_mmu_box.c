@@ -5,6 +5,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mm.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -14,8 +15,8 @@
 #include <linux/kfifo.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
-#include <linux/platform_device.h>
 #include <linux/amlogic/media/codec_mm/codec_mm_scatter.h>
+#include <linux/platform_device.h>
 
 #define PR_ERR(fmt, args ...)		pr_err("dim:err:" fmt, ##args)
 
@@ -24,7 +25,7 @@ struct di_mmu_box {//decoder_mmu_box
 	const char *name;
 	int channel_id;
 	int tvp_mode;
-	int box_ref_cnt;
+	//int box_ref_cnt;
 	struct mutex mutex;	/* for box */
 	struct list_head list;
 	struct codec_mm_scatter *sc_list[1];
@@ -33,6 +34,7 @@ struct di_mmu_box {//decoder_mmu_box
 #define MAX_KEEP_FRAME 4
 #define START_KEEP_ID 0x9
 #define MAX_KEEP_ID    (INT_MAX - 1)
+#define DDR_8G_SIZE	(0x200000000)//1024 * 1024 * 1024 * 8)
 struct di_mmu_box_mgr {//decoder_mmu_box_mgr
 	int num;
 	struct mutex mutex; /* for mgr */
@@ -70,56 +72,6 @@ static int di_mmu_box_mgr_del_box(struct di_mmu_box *box)
 	return 0;
 }
 
-//ary no use now: decoder_xxx, and add 'e' after valid
-bool di_mmu_box_valid_check(void *box)
-{
-	struct di_mmu_box_mgr *mgr = get_decoder_mmu_box_mgr();
-	struct di_mmu_box *mmu_box = NULL;
-	bool is_valid = false;
-
-	mutex_lock(&mgr->mutex);
-	list_for_each_entry(mmu_box, &mgr->box_list, list) {
-		if (mmu_box && mmu_box == box) {
-			is_valid = true;
-			break;
-		}
-	}
-	mutex_unlock(&mgr->mutex);
-
-	return is_valid;
-}
-
-//ary EXPORT_SYMBOL(decoder_mmu_box_valid_check);
-
-//decoder_mmu_try_to_release_box
-//ary no use now
-void di_mmu_try_to_release_box(void *handle)
-{
-	struct di_mmu_box *box = handle;
-	bool is_keep = false;
-	int i;
-
-	if (!box || box->box_ref_cnt)
-		return;
-
-	mutex_lock(&box->mutex);
-	for (i = 0; i < box->max_sc_num; i++) {
-		if (box->sc_list[i]) {
-			is_keep = true;
-			break;
-		}
-	}
-	mutex_unlock(&box->mutex);
-
-	if (!is_keep) {
-		di_mmu_box_mgr_del_box(box);
-			codec_mm_scatter_mgt_delay_free_switch
-				(0, 0, 0, box->tvp_mode);
-		kfree(box);
-	}
-}
-
-//ary EXPORT_SYMBOL(decoder_mmu_try_to_release_box);
 //decoder_mmu_box_sc_check
 int di_mmu_box_sc_check(void *handle, int is_tvp)
 {
@@ -185,6 +137,10 @@ int di_mmu_box_alloc_idx(void *handle, int idx, int num_pages,
 			box, idx);
 		return -1;
 	}
+
+	//if (get_num_physpages() >= DDR_8G_SIZE / PAGE_SIZE)//for 8g
+	//	codec_mm_scatter_alloc_flags_config(0, SC_ALLOC_SYS_DMA32);
+
 	mutex_lock(&box->mutex);
 	sc = box->sc_list[idx];
 	if (sc) {
@@ -192,7 +148,7 @@ int di_mmu_box_alloc_idx(void *handle, int idx, int num_pages,
 			ret = codec_mm_scatter_alloc_want_pages(sc,
 				num_pages);
 		} else {
-			box->box_ref_cnt--;
+			//box->box_ref_cnt--;
 			codec_mm_scatter_dec_owner_user(sc, 0);
 			box->sc_list[idx] = NULL;
 			sc = NULL;
@@ -208,7 +164,7 @@ int di_mmu_box_alloc_idx(void *handle, int idx, int num_pages,
 			return -1;
 		}
 		box->sc_list[idx] = sc;
-		box->box_ref_cnt++;
+		//box->box_ref_cnt++;
 	}
 
 	for (i = 0; i < num_pages; i++)
@@ -261,13 +217,12 @@ int di_mmu_box_free_idx(void *handle, int idx)
 	if (sc && sc->page_cnt > 0) {
 		codec_mm_scatter_dec_owner_user(sc, 0);
 		box->sc_list[idx] = NULL;
-		box->box_ref_cnt--;
+		//box->box_ref_cnt--;
 	}
+
+	//if (sc && box->box_ref_cnt == 0)
+		//codec_mm_scatter_mgt_delay_free_switch(0, 0, 0, box->tvp_mode);
 	mutex_unlock(&box->mutex);
-
-	if (sc && box->box_ref_cnt == 0)
-		codec_mm_scatter_mgt_delay_free_switch(0, 0, 0, box->tvp_mode);
-
 	return 0;
 }
 
@@ -289,11 +244,17 @@ int di_mmu_box_free(void *handle)
 		if (sc) {
 			codec_mm_scatter_dec_owner_user(sc, 0);
 			box->sc_list[i] = NULL;
+			///box->box_ref_cnt--;
 		}
 	}
+	//if (free_cache && (box->box_ref_cnt == 0)) {
+		//codec_mm_scatter_mgt_delay_free_switch(0, 0, 0, box->tvp_mode);
+	//}
+	codec_mm_scatter_mgt_delay_free_switch(0, 0, 0, box->tvp_mode);
+
 	mutex_unlock(&box->mutex);
 	di_mmu_box_mgr_del_box(box);
-		codec_mm_scatter_mgt_delay_free_switch(0, 0, 0, box->tvp_mode);
+	//codec_mm_scatter_mgt_delay_free_switch(0, 0, 0, box->tvp_mode);
 	kfree(box);
 	return 0;
 }
@@ -411,9 +372,9 @@ int di_mmu_box_dump_all(void *buf, int size)
 
 #ifdef TMP_NO_USED //ary
 
-static ssize_t box_dump_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t
+box_dump_show(struct class *class,
+		       struct class_attribute *attr, char *buf)
 {
 	ssize_t ret = 0;
 

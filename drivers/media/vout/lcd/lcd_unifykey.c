@@ -179,6 +179,29 @@ lcd_unifykey_check_err:
 	return -1;
 }
 
+int lcd_unifykey_get_size(char *key_name, int *len)
+{
+	int key_len;
+	int ret;
+
+	key_len = 0;
+	ret = lcd_unifykey_check(key_name);
+	if (ret < 0)
+		return -1;
+	ret = key_unify_size(get_ukdev(), key_name, &key_len);
+	if (ret < 0)
+		return -1;
+	if (key_len == 0) {
+		LCDUKEYERR("%s: %s size 0!\n", __func__, key_name);
+		return -1;
+	}
+	*len = key_len;
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDUKEY("%s: %s size: 0x%x\n", __func__, key_name, *len);
+
+	return 0;
+}
+
 static int lcd_unifykey_check_tcon(char *key_name)
 {
 	unsigned int key_exist, keypermit, key_len, data_size;
@@ -496,11 +519,13 @@ int lcd_unifykey_check(char *key_name)
 	return -1;
 }
 
-int lcd_unifykey_get(char *key_name, unsigned char *buf, int *len)
+int lcd_unifykey_get_size(char *key_name, int *len)
 {
 	LCDUKEYERR("Don't support unifykey\n");
 	return -1;
 }
+
+int lcd_unifykey_get_size(char *key_name, int *len)
 
 int lcd_unifykey_get_tcon(char *key_name, unsigned char *buf, int *len)
 {

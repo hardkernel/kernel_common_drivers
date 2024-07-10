@@ -28,6 +28,7 @@
 #include "di_reg_v3.h"
 #include "di_hw_v3.h"
 #include "di_reg_v2.h"
+#include "reg_decontour_t3.h"
 
 #include "register.h"
 #include "register_nr4.h"
@@ -40,7 +41,7 @@
 
 /* ary */
 static u32 sc2_dbg;
-__module_param_named(sc2_dbg, sc2_dbg, uint, 0664);
+module_param_named(sc2_dbg, sc2_dbg, uint, 0664);
 
 /********************
  * BIT0: enable pre irq
@@ -48,10 +49,10 @@ __module_param_named(sc2_dbg, sc2_dbg, uint, 0664);
  ********************/
 
 static u32 sc2_dbg_cnt_pre;
-__module_param_named(sc2_dbg_cnt_pre, sc2_dbg_cnt_pre, uint, 0664);
+module_param_named(sc2_dbg_cnt_pre, sc2_dbg_cnt_pre, uint, 0664);
 
 static u32 sc2_dbg_cnt_pst;
-__module_param_named(sc2_dbg_cnt_pst, sc2_dbg_cnt_pst, uint, 0664);
+module_param_named(sc2_dbg_cnt_pst, sc2_dbg_cnt_pst, uint, 0664);
 
 void sc2_dbg_set(unsigned int val)
 {
@@ -93,7 +94,7 @@ bool sc2_dbg_is_en_pst_irq(void)
 
 /*dbg setting: */
 static u32 sc2_reg_mask;
-__module_param_named(sc2_reg_mask, sc2_reg_mask, uint, 0664);
+module_param_named(sc2_reg_mask, sc2_reg_mask, uint, 0664);
 /* */
 
 bool is_mask(unsigned int cmd)
@@ -619,7 +620,7 @@ void di_mcmif_linear_rd_cfg(struct DI_MC_MIF_s *mif,
 			unsigned int BADDR)
 {
 	unsigned int stride;
-	const struct reg_acc *op = &di_pre_regset;
+	const struct reg_acc *op = &di_pst_regset;
 
 	dbg_ic("%s:\n", __func__);
 	//di_mif1_stride(mif, &stride);
@@ -2983,7 +2984,7 @@ bool dim_aisr_test(struct DI_SIM_MIF_S *mif, bool sel)
 }
 
 static unsigned int dim_hf_dbg;
-__module_param_named(dim_hf_dbg, dim_hf_dbg, uint, 0644);
+module_param_named(dim_hf_dbg, dim_hf_dbg, uint, 0644);
 
 /* from t3 */
 /* ucode: aisr_pre_cfg */
@@ -3735,7 +3736,7 @@ static void set_di_post(struct DI_PST_S *ptcfg, const struct reg_acc *opin)
 	const struct reg_acc *op;
 
 	if (!opin)
-		op = &di_pre_regset;
+		op = &di_pst_regset;
 	else
 		op = opin;
 
@@ -4793,7 +4794,7 @@ void set_di_memcpy_rot(struct mem_cpy_s *cfg)
 		/* post_frm_sel   =top_post_ctrl[3];//0:viu  1:internal */
 		(1		<< 30));
 
-	if ((DIM_IS_IC_EF(T7) || DIM_IS_IC(S4)) &&
+	if ((DIM_IS_IC_EF(T7) || DIM_IS_IC(S4) || DIM_IS_IC(S7D)) &&
 	    (!IS_ERR_OR_NULL(in_afbcd))) {
 		/*coverity[var_deref_op] in_afbcd has been judged*/
 		if (in_afbcd->index == EAFBC_DEC_IF0) {
@@ -4955,7 +4956,7 @@ void set_di_memcpy(struct mem_cpy_s *cfg)
 		(0		<< 20)	|
 		/* post_frm_sel   =top_post_ctrl[3];//0:viu  1:internal*/
 		(1		<< 30));
-	if ((DIM_IS_IC_EF(T7) || DIM_IS_IC(S4)) &&
+	if ((DIM_IS_IC_EF(T7) || DIM_IS_IC(S4) || DIM_IS_IC(S7D)) &&
 	    (!IS_ERR_OR_NULL(in_afbcd))) {
 		/*
 		 * IIS_ERR_OR_NULL() is a function to determine
@@ -5071,7 +5072,6 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 		chroma0_rpt_loop_end = 0;
 		luma0_rpt_loop_pat = 0x80;
 		chroma0_rpt_loop_pat = 0x00;
-		op->wr(off + reg[MIF_LUMA_FIFO_SIZE], 0xC0);
 	} else {
 		chro_rpt_lastl_ctrl = 0;
 		luma0_rpt_loop_start = 0;
@@ -5080,13 +5080,6 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 		chroma0_rpt_loop_end = 0;
 		luma0_rpt_loop_pat = 0x00;
 		chroma0_rpt_loop_pat = 0x00;
-		op->wr(off + reg[MIF_LUMA_FIFO_SIZE], 0xC0);
-	}
-
-	if (DIM_IS_ICS(T5W) || DIM_IS_ICS_T5M) {
-		//axi bus fifo from feijun.fan for t5w
-		op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, 0x80);
-		op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, 0x80);
 	}
 
 	bytes_per_pixel = (mif->set_separate_en) ?
@@ -5354,13 +5347,36 @@ static void hw_init_v3(void)
 	const struct reg_acc *op = &di_pre_regset;
 	unsigned int path_sel;
 
-	if (DIM_IS_IC_EF(TXL)) {
-		/* vpp fifo max size on txl :128*3=384[0x180] */
-		/* di fifo max size on txl :96*3=288[0x120] */
-		fifo_size_vpp = 0x180;
+	fifo_size_vpp = 0x180;
+
+	if (is_meson_txl_cpu()	||
+	    is_meson_txlx_cpu()	||
+	    is_meson_gxlx_cpu()	||
+	    is_meson_txhd_cpu()	||
+	    is_meson_g12a_cpu()	||
+	    is_meson_g12b_cpu()	||
+	    is_meson_sm1_cpu()	||
+	    is_meson_tl1_cpu()	||
+	    is_meson_tm2_cpu()) {
 		fifo_size_di = 0x120;
+	} else if (DIM_IS_IC_TXHD2) {
+		fifo_size_di = 0x80;
+	} else if (DIM_IS_IC(T5)	||
+		DIM_IS_IC(T5DB)	||
+		DIM_IS_IC(T5D)) {
+		fifo_size_di = 0xc0;
+	} else if (DIM_IS_IC_EF(SC2)) {
+		if (DIM_IS_ICS(T5W) || DIM_IS_ICS_T5M)
+			fifo_size_di = 0x80;
+		else
+			fifo_size_di = 0x100;
 	}
 
+	if (DIM_IS_ICS_T5M) {
+		op->bwr(VIUB_GCLK_CTRL3, 0x3f, 16, 6);
+		op->wr(REG_DCTR_T3_GCLK_CTRL0, 0xc0);
+		op->wr(REG_DCTR_T3_GCLK_CTRL1, 0x3c0000);
+	}
 	if (DIM_IS_IC_EF(SC2)) {
 		/*pre*/
 		op->wr(DI_SC2_INP_LUMA_FIFO_SIZE, fifo_size_di);
@@ -5368,18 +5384,10 @@ static void hw_init_v3(void)
 		op->wr(DI_SC2_CHAN2_LUMA_FIFO_SIZE, fifo_size_di);
 
 		/*post*/
-		//op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, fifo_size_di);
+		op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, fifo_size_di);
 		op->wr(DI_SC2_IF1_LUMA_FIFO_SIZE, fifo_size_di);
-		//op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, fifo_size_di);
+		op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, fifo_size_di);
 
-		if (DIM_IS_ICS(T5W) || DIM_IS_ICS_T5M) {
-			//axi bus fifo from feijun.fan for t5w
-			op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, 0x80);
-			op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, 0x80);
-		} else {
-			op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, fifo_size_di);
-			op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, fifo_size_di);
-		}
 
 		path_sel = 1;
 		op->bwr(DI_TOP_PRE_CTRL, (path_sel & 0x3), 0, 2);
@@ -5483,7 +5491,7 @@ static void di_pre_data_mif_ctrl_v3(bool enable, const struct reg_acc *op_in,
 /*below for post */
 static void post_mif_sw_v3(bool on, enum DI_MIF0_SEL sel)
 {
-	const struct reg_acc *op = &di_pre_regset;
+	const struct reg_acc *op = &di_pst_regset;
 
 	if (DIM_IS_IC_BF(SC2)) {
 		PR_ERR("%s:\n", __func__);
@@ -5498,8 +5506,13 @@ static void post_mif_sw_v3(bool on, enum DI_MIF0_SEL sel)
 		if (sel & DI_MIF0_SEL_IF2)
 			op->bwr(DI_SC2_IF2_GEN_REG, 1, 0, 1);
 
-		if ((sel & DI_MIF0_SEL_PST_ALL) == DI_MIF0_SEL_PST_ALL)
-			op->bwr(DI_POST_CTRL, 1, 4, 1); /*di_wr_bk_en*/
+		if ((sel & DI_MIF0_SEL_PST_ALL) == DI_MIF0_SEL_PST_ALL) {
+			if (dimp_get(edi_mp_post_wr_en) &&
+			    dimp_get(edi_mp_post_wr_support))
+				op->bwr(DI_POST_CTRL, 1, 4, 1); /*di_wr_bk_en*/
+			else
+				op->bwr(DI_POST_CTRL, 0, 4, 1);
+		}
 	} else {
 		if (sel & DI_MIF0_SEL_IF0)
 			op->bwr(DI_SC2_IF0_GEN_REG, 0, 0, 1);
@@ -5516,7 +5529,7 @@ static void post_mif_sw_v3(bool on, enum DI_MIF0_SEL sel)
 
 static void post_mif_rst_v3(enum DI_MIF0_SEL sel)
 {
-	const struct reg_acc *op = &di_pre_regset;
+	const struct reg_acc *op = &di_pst_regset;
 
 	if (DIM_IS_IC_BF(SC2)) {
 		PR_ERR("%s:\n", __func__);
@@ -5535,7 +5548,7 @@ static void post_mif_rst_v3(enum DI_MIF0_SEL sel)
 
 static void post_mif_rev_v3(bool rev, enum DI_MIF0_SEL sel)
 {
-	const struct reg_acc *op = &di_pre_regset;
+	const struct reg_acc *op = &di_pst_regset;
 
 	if (DIM_IS_IC_BF(SC2)) {
 		PR_ERR("%s:\n", __func__);
@@ -5579,7 +5592,7 @@ static void pst_mif_update_canvasid_v3(struct DI_MIF_S *mif,
 	const struct reg_acc *op;
 
 	if (!opin)
-		op = &di_pre_regset;
+		op = &di_pst_regset;
 	else
 		op = opin;
 
@@ -5629,7 +5642,7 @@ static void post_bit_mode_cfg_v3(unsigned char if0,
 				 unsigned char if2,
 				 unsigned char post_wr)
 {
-	const struct reg_acc *op = &di_pre_regset;
+	const struct reg_acc *op = &di_pst_regset;
 
 	if (DIM_IS_IC_BF(SC2)) {
 		PR_ERR("%s:\n", __func__);
@@ -5982,14 +5995,17 @@ void config_di_mif_v3(struct DI_MIF_S *di_mif,
 	}
 }
 
-static void post_dbg_contr_v3(void)
+static void post_dbg_contr_v3(const struct reg_acc *op_in)
 {
-	const struct reg_acc *op = &di_pre_regset;
+	const struct reg_acc *op = &di_pst_regset;
 
 	if (DIM_IS_IC_BF(SC2)) {
 		PR_ERR("%s:\n", __func__);
 		return;
 	}
+
+	if (op_in)
+		op = op_in;
 	/* bit [11:10]:cntl_dbg_mode*/
 	op->bwr(DI_SC2_IF0_GEN_REG3, 1, 11, 1);
 	op->bwr(DI_SC2_IF1_GEN_REG3, 1, 11, 1);
@@ -5997,10 +6013,10 @@ static void post_dbg_contr_v3(void)
 }
 
 static void di_post_set_flow_v3(unsigned int post_wr_en,
-				enum EDI_POST_FLOW step)
+		enum EDI_POST_FLOW step, const struct reg_acc *op_in)
 {
 	unsigned int val;
-	const struct reg_acc *op = &di_pre_regset;
+	const struct reg_acc *op = &di_pst_regset;
 
 	if (DIM_IS_IC_BF(SC2)) {
 		PR_ERR("%s:\n", __func__);
@@ -6009,6 +6025,9 @@ static void di_post_set_flow_v3(unsigned int post_wr_en,
 
 	if (!post_wr_en)
 		return;
+
+	if (op_in)
+		op = op_in;
 
 	switch (step) {
 	case EDI_POST_FLOW_STEP1_STOP:
@@ -6101,7 +6120,7 @@ static void hpre_gl_thd_v3(void)
 
 static void hpost_gl_thd_v3(unsigned int hold_line)
 {
-	const struct reg_acc *op = &di_pre_regset;
+	const struct reg_acc *op = &di_pst_regset;
 
 	if (DIM_IS_IC_BF(SC2)) {
 		PR_ERR("%s:\n", __func__);
@@ -6128,6 +6147,7 @@ void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg, const struct reg_acc *op_in)
 	val &= ~((3	<< 0)	|
 		(7	<< 4)	|
 		(7	<< 7)	| /* bit[9:7] */
+		(1  << 10)	| /* bit[10] */
 		(7	<< 12)	| /* bit[14:12] */
 		(7	<< 16)	| /* bit[18:16] */
 		(1	<< 19)	| /* bit[19] */
@@ -6254,6 +6274,8 @@ void dim_secure_pre_en(unsigned char ch)
 				 1, 8, 1);// HF secure Polarity
 		#endif
 		}
+		if (IS_IC_SUPPORT(DECONTOUR))
+			DIM_DI_WR_REG_BITS(DI_VPU_SECURE_REG, 0x1, 8, 1);
 		get_datal()->is_secure_pre = 2;
 		//dbg_mem2("%s:tvp3 pre SECURE:%d\n", __func__, ch);
 	} else {
@@ -6271,6 +6293,8 @@ void dim_secure_pre_en(unsigned char ch)
 				 0, 8, 1);// HF secure Polarity
 		#endif
 		}
+		if (IS_IC_SUPPORT(DECONTOUR))
+			DIM_DI_WR_REG_BITS(DI_VPU_SECURE_REG, 0x0, 8, 1);
 		get_datal()->is_secure_pre = 1;
 		//dbg_mem2("%s:tvp3 pre NOSECURE:%d\n", __func__, ch);
 	}
@@ -6327,10 +6351,14 @@ void dim_secure_sw_post(unsigned char ch)
 		dim_secure_pst_en(ch);
 }
 
-void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg)
+void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg,
+		const struct reg_acc *op_in)
 {
-	const struct reg_acc *op = &di_pre_regset;
+	const struct reg_acc *op = &di_pst_regset;
 	unsigned int val;
+
+	if (op_in)
+		op = op_in;
 
 	if (is_mask(SC2_REG_MSK_nr)) {
 		PR_INF("%s:\n", __func__);

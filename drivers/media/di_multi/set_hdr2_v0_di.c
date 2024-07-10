@@ -871,6 +871,7 @@ void dim_hdr_prob(void)
 	hdr = (struct di_hdr_s *)get_datal()->hw_hdr;
 	if (hdr) {
 		vfree(hdr);
+		/*coverity[var_deref_mode]*/
 		hdr = NULL;
 		PR_INF("%s:hdr is not null, clear\n", __func__);
 	}

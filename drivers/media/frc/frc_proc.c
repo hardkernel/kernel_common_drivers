@@ -50,15 +50,30 @@
 #include "frc_proc.h"
 #include "frc_hw.h"
 #include "frc_rdma.h"
+#include "frc_dbg.h"
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 #include <linux/amlogic/aml_iotrace.h>
 #endif
 
 int frc_enable_cnt = 1;
+module_param(frc_enable_cnt, int, 0664);
+MODULE_PARM_DESC(frc_enable_cnt, "frc enable counter");
+
 int frc_disable_cnt = 1;
-int frc_re_cfg_cnt = 3;/*need bigger than frc_disable_cnt 3, 15*/
+module_param(frc_disable_cnt, int, 0664);
+MODULE_PARM_DESC(frc_disable_cnt, "frc disable counter");
+
+int frc_re_cfg_cnt;/*need bigger than frc_disable_cnt 3, 15*/
+module_param(frc_re_cfg_cnt, int, 0664);
+MODULE_PARM_DESC(frc_re_cfg_cnt, "frc reconfig counter");
+
+int sec_flag;
+module_param(sec_flag, int, 0664);
+MODULE_PARM_DESC(sec_flag, "frc debug flag");
 
 u32 secure_tee_handle;
+
+static int char_flash_check;
 
 void frc_fw_initial(struct frc_dev_s *devp)
 {
@@ -67,12 +82,14 @@ void frc_fw_initial(struct frc_dev_s *devp)
 
 	devp->in_sts.vs_cnt = 0;
 	devp->in_sts.vs_tsk_cnt = 0;
+	devp->in_sts.lost_tsk_cnt = 0;
 	devp->in_sts.vs_timestamp = sched_clock();
 	devp->in_sts.vf_repeat_cnt = 0;
 	devp->in_sts.vf_null_cnt = 0;
 
 	devp->out_sts.vs_cnt = 0;
 	devp->out_sts.vs_tsk_cnt = 0;
+	devp->out_sts.lost_tsk_cnt = 0;
 	devp->out_sts.vs_timestamp = sched_clock();
 	devp->in_sts.vf = NULL;
 	// devp->frc_sts.vs_cnt = 0;
@@ -85,18 +102,41 @@ void frc_fw_initial(struct frc_dev_s *devp)
 	devp->little_win = 0;
 }
 
+static void frc_mute_config(void)
+{
+	struct frc_dev_s *devp;
+
+	devp = get_frc_devp();
+	/*if not receive vpu mute information, frc doesn't open mute function*/
+	if (devp->in_sts.in_hsize < WIDTH_2K ||
+		devp->in_sts.in_vsize < HEIGHT_1K ||
+		!get_video_mute())
+		devp->in_sts.enable_mute_flag = 0;
+	else
+		devp->in_sts.enable_mute_flag = 1;
+
+	if (devp->in_sts.duration > 4005)
+		devp->in_sts.mute_vsync_cnt = 45;
+	else if (devp->in_sts.duration > 1605)
+		devp->in_sts.mute_vsync_cnt = 15;
+	else
+		devp->in_sts.mute_vsync_cnt = 55;
+
+	pr_frc(2, "enable_mute_flag = %d,mute_vsync_cnt = %d\n",
+	devp->in_sts.enable_mute_flag, devp->in_sts.mute_vsync_cnt);
+}
+
 void frc_hw_initial(struct frc_dev_s *devp)
 {
 	frc_fw_initial(devp);
 	frc_mtx_set(devp);
+	frc_rdma_rd_table_init(devp);
 	frc_top_init(devp);
 	t3x_verB_set_cfg(0, devp);
 	frc_input_size_align_check(devp);
+	if (devp->test2)
+		frc_mute_config();
 	frc_pattern_dbg_ctrl(devp);
-	//if (devp->ud_dbg.res2_dbg_en == 1)
-		// frc_memc_120hz_patch(devp);
-	//else
-		// frc_memc_120hz_patch_1(devp);
 	return;
 }
 
@@ -211,40 +251,102 @@ void frc_isr_print_zero(struct frc_dev_s *devp)
 	devp->in_sts.vs_timestamp = 0;
 	devp->in_sts.vs_cnt = 0;
 	devp->in_sts.vs_tsk_cnt = 0;
+	devp->in_sts.lost_tsk_cnt = 0;
 
 	devp->out_sts.vs_duration = 0;
 	devp->out_sts.vs_timestamp = 0;
 	devp->out_sts.vs_cnt = 0;
 	devp->out_sts.vs_tsk_cnt = 0;
+	devp->out_sts.lost_tsk_cnt = 0;
+
 	devp->frc_sts.vs_cnt = 0;
 	devp->frc_sts.video_mute_cnt = 0;
+	devp->frc_sts.vs_data_cnt = 0;
+	WRITE_FRC_REG_BY_CPU(0x6d, 0x0);
+	WRITE_FRC_REG_BY_CPU(0x6e, 0x0);
 
 	devp->frc_sts.changed_flag = 0;
+	devp->ud_dbg.align_dbg_en = 0;
+}
+
+void frc_rd_reg_by_drv(struct frc_dev_s *devp)
+{
+	u8 i, en;
+	u16 log = 7;
+	struct frc_fw_data_s *fw_data;
+
+	en = devp->timer_dbg.timer_en;
+	fw_data = (struct frc_fw_data_s *)devp->fw_data;
+
+	if (!en && devp->timer_dbg.timer_level)
+		log = devp->timer_dbg.timer_level;
+
+	for (i = 0; i < RD_REG_MAX; i++) {
+		if (!fw_data->reg_val[i].addr || fw_data->reg_val[i].addr > 0x3fff)
+			break;
+		fw_data->reg_val[i].val = READ_FRC_REG(fw_data->reg_val[i].addr);
+//		pr_frc(600, "reg:%04x val0x%08x %10d\n",
+//			fw_data->reg_val[i].addr,
+//			fw_data->reg_val[i].val,
+//			fw_data->reg_val[i].val);
+	}
 }
 
 irqreturn_t frc_input_isr(int irq, void *dev_id)
 {
+	struct frc_fw_data_s *pfw_data;
 	struct frc_dev_s *devp = (struct frc_dev_s *)dev_id;
 
 	u64 timestamp = sched_clock();
+
 
 	if (!devp->probe_ok || !devp->power_on_flag)
 		return IRQ_HANDLED;
 	if (devp->clk_state == FRC_CLOCK_OFF)
 		return IRQ_HANDLED;
 
+	if (devp->in_sts.vs_cnt - devp->in_sts.vs_tsk_cnt >
+			devp->in_sts.lost_tsk_cnt) {
+		devp->in_sts.lost_tsk_cnt =
+				devp->in_sts.vs_cnt - devp->in_sts.vs_tsk_cnt;
+		pr_frc(2, "in_isr_task was missing\n");
+	}
 	devp->in_sts.vs_cnt++;
+
 	/*update vs time*/
 	timestamp = div64_u64(timestamp, 1000);
 	devp->in_sts.vs_duration = timestamp - devp->in_sts.vs_timestamp;
 	devp->in_sts.vs_timestamp = timestamp;
 
-	// t3x_verB_set_cfg(1);
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	if (!pfw_data)
+		return IRQ_HANDLED;
+	if (pfw_data->frc_top_type.motion_ctrl == RD_MOTION_BY_INP_ISR)
+		frc_rd_reg_by_drv(devp);
+
 	inp_undone_read(devp);
 	if (devp->dbg_reg_monitor_i)
 		frc_in_reg_monitor(devp);
+	if (devp->in_sts.vs_cnt == devp->dbg_mvrd_mode)
+		if ((READ_FRC_REG(FRC_MC_MVRD_CTRL) & BIT_0) == BIT_0)
+			WRITE_FRC_REG_BY_CPU(FRC_MC_MVRD_CTRL, 0x100);
 
-	tasklet_schedule(&devp->input_tasklet);
+	if (devp->task_run_method == MEMC_RUN_IN_IRQ) {
+		if (!devp->frc_fw_pause) {
+			timestamp = sched_clock();
+			if (pfw_data->memc_in_irq_handler)
+				pfw_data->memc_in_irq_handler(pfw_data);
+			if (devp->ud_dbg.inud_time_en)
+				frc_in_task_print(sched_clock() - timestamp);
+		}
+	}
+	if (devp->in_sts.hi_en)
+		tasklet_hi_schedule(&devp->input_tasklet);
+	else
+		tasklet_schedule(&devp->input_tasklet);
+
+	FRC_RDMA_WR_REG_IN(FRC_REG_TOP_RESERVE13, devp->in_sts.vs_cnt);
+	frc_rdma_config(1, 0);
 
 	return IRQ_HANDLED;
 }
@@ -255,29 +357,27 @@ void frc_input_tasklet_pro(unsigned long arg)
 	struct frc_fw_data_s *pfw_data;
 	u64 timestamp;
 
+	if (!devp->probe_ok || !devp->power_on_flag)
+		return;
+	if (devp->clk_state == FRC_CLOCK_OFF)
+		return;
+
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	if (!pfw_data)
 		return;
-	if (!devp->probe_ok)
-		return;
-	if (!devp->power_on_flag) {
-		// devp->power_off_flag++;
-		return;
-	}
-	if (devp->clk_state == FRC_CLOCK_OFF)
-		return;
+
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 	iotrace_misc_record_write(RECORD_TYPE_FRC_INPUT_IN, 0, 0, 0);
 #endif
 	devp->in_sts.vs_tsk_cnt++;
-	if (!devp->frc_fw_pause) {
-		timestamp = sched_clock();
-		if (pfw_data->memc_in_irq_handler)
-			pfw_data->memc_in_irq_handler(pfw_data);
-		// if (!devp->power_on_flag)
-		// devp->power_off_flag++;
-		if (devp->ud_dbg.inud_time_en)
-			frc_in_task_print(sched_clock() - timestamp);
+	if (devp->task_run_method == MEMC_RUN_IN_TASK) {
+		if (!devp->frc_fw_pause) {
+			timestamp = sched_clock();
+			if (pfw_data->memc_in_irq_handler)
+				pfw_data->memc_in_irq_handler(pfw_data);
+			if (devp->ud_dbg.inud_time_en)
+				frc_in_task_print(sched_clock() - timestamp);
+		}
 	}
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 	iotrace_misc_record_write(RECORD_TYPE_FRC_INPUT_OUT, 0, 0, 0);
@@ -287,33 +387,66 @@ void frc_input_tasklet_pro(unsigned long arg)
 irqreturn_t frc_output_isr(int irq, void *dev_id)
 {
 	struct frc_dev_s *devp = (struct frc_dev_s *)dev_id;
+	struct frc_fw_data_s *pfw_data;
+	u32 tmpreg_value;
+	u64 timestamp = sched_clock();
+
 	if (!devp->probe_ok || !devp->power_on_flag)
 		return IRQ_HANDLED;
 	if (devp->clk_state == FRC_CLOCK_OFF)
 		return IRQ_HANDLED;
 
-	u64 timestamp = sched_clock();
-	// struct frc_rdma_info *frc_rdma = frc_get_rdma_info();
-
+	if (devp->out_sts.vs_cnt - devp->out_sts.vs_tsk_cnt >
+			devp->out_sts.lost_tsk_cnt) {
+		devp->out_sts.lost_tsk_cnt =
+			devp->out_sts.vs_cnt - devp->out_sts.vs_tsk_cnt;
+		pr_frc(2, "out_isr_task was missing\n");
+	}
 	devp->out_sts.vs_cnt++;
 	/*update vs time*/
 	timestamp = div64_u64(timestamp, 1000);
 	devp->out_sts.vs_duration = timestamp - devp->out_sts.vs_timestamp;
 	devp->out_sts.vs_timestamp = timestamp;
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	if (!pfw_data)
+		return IRQ_HANDLED;
 
+	if (devp->in_sts.vs_cnt == 1) {
+		tmpreg_value = READ_FRC_REG(FRC_REG_OUT_FID);
+		if ((tmpreg_value  >> 8 & 0xFFF) != 0) {
+			PR_ERR("output buf error! 0x113:0x%8X, 0x102:0x%8X, ctl_7:0x%8X\n",
+				tmpreg_value,
+				READ_FRC_REG(FRC_REG_PAT_POINTER),
+				READ_FRC_REG(FRC_REG_TOP_CTRL7));
+		}
+	}
 	me_undone_read(devp);
 	mc_undone_read(devp);
 	vp_undone_read(devp);
-
+	if (devp->task_run_method == MEMC_RUN_IN_IRQ) {
+		if (!devp->frc_fw_pause) {
+			timestamp = sched_clock();
+			if (pfw_data->memc_out_irq_handler)
+				pfw_data->memc_out_irq_handler(pfw_data);
+			if (pfw_data->frc_fw_ctrl_if)
+				pfw_data->frc_fw_ctrl_if(pfw_data);
+			if (devp->ud_dbg.outud_time_en)
+				frc_out_task_print(sched_clock() - timestamp);
+		}
+	}
 	get_vout_info(devp);
 
 	if (devp->dbg_reg_monitor_o)
 		frc_out_reg_monitor(devp);
-	tasklet_schedule(&devp->output_tasklet);
+	if (devp->out_sts.hi_en)
+		tasklet_hi_schedule(&devp->output_tasklet);
+	else
+		tasklet_schedule(&devp->output_tasklet);
 
 	// frc_rdma->rdma_item_count = 0;
 	// rdma trigger 0 manual, 1-7 auto path
-	frc_rdma_config(0, 0);
+	FRC_RDMA_WR_REG_OUT(FRC_REG_TOP_RESERVE14, devp->out_sts.vs_cnt);
+	frc_rdma_config(2, 0);
 
 	if (devp->ud_dbg.pr_dbg)
 		frc_debug_print(devp);
@@ -341,17 +474,26 @@ void frc_output_tasklet_pro(unsigned long arg)
 	iotrace_misc_record_write(RECORD_TYPE_FRC_OUTPUT_IN, 0, 0, 0);
 #endif
 	devp->out_sts.vs_tsk_cnt++;
-	if (!devp->frc_fw_pause) {
-		timestamp = sched_clock();
-		if (pfw_data->memc_out_irq_handler)
-			pfw_data->memc_out_irq_handler(pfw_data);
-		if (pfw_data->frc_fw_ctrl_if)
-			pfw_data->frc_fw_ctrl_if(pfw_data);
-		// if (!devp->power_on_flag)
-		// devp->power_off_flag++;
-		if (devp->ud_dbg.outud_time_en)
-			frc_out_task_print(sched_clock() - timestamp);
+	if (devp->in_sts.enable_mute_flag == 1 &&
+		// devp->frc_sts.vs_data_cnt == devp->in_sts.mute_vsync_cnt) {
+		devp->out_sts.vs_cnt == devp->in_sts.mute_vsync_cnt) {
+		frc_set_output_pattern(0); // unmute
+		pr_frc(1, "%s: unmute after enable wait %d(%d) frames",
+			__func__, devp->out_sts.vs_cnt,
+			devp->frc_sts.vs_data_cnt);
 	}
+	if (devp->task_run_method == MEMC_RUN_IN_TASK) {
+		if (!devp->frc_fw_pause) {
+			timestamp = sched_clock();
+			if (pfw_data->memc_out_irq_handler)
+				pfw_data->memc_out_irq_handler(pfw_data);
+			if (pfw_data->frc_fw_ctrl_if)
+				pfw_data->frc_fw_ctrl_if(pfw_data);
+			if (devp->ud_dbg.outud_time_en)
+				frc_out_task_print(sched_clock() - timestamp);
+		}
+	}
+	frc_dbg_frame_show(devp);
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 	iotrace_misc_record_write(RECORD_TYPE_FRC_OUTPUT_OUT, 0, 0, 0);
 #endif
@@ -429,20 +571,72 @@ void frc_change_to_state(enum frc_state_e state)
 	}
 }
 
-static int frc_osd_window_en(struct st_frc_in_sts *cur_in_sts)
+static bool frc_osd_window_en(struct st_frc_in_sts *cur_in_sts)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	if (get_chip_type() != ID_T3X)
-		return 0;
+		return false;
 
-	if ((cur_in_sts->in_hsize < 1500 && cur_in_sts->in_hsize > 900) ||
-		(cur_in_sts->in_vsize < 900 && cur_in_sts->in_vsize > 500))
-		return 1;
+	if ((cur_in_sts->in_hsize < HSIZE_MAX_4K && cur_in_sts->in_hsize > HSIZE_MIN_4K) ||
+		(cur_in_sts->in_vsize < VSIZE_MAX_2K && cur_in_sts->in_vsize > VSIZE_MIN_2K))
+		return true;
 	else if ((devp->out_sts.vout_width == WIDTH_2K && devp->out_sts.vout_height == HEIGHT_1K) &&
-			((cur_in_sts->in_hsize < 680 && cur_in_sts->in_hsize > 470) ||
-			(cur_in_sts->in_vsize < 390 && cur_in_sts->in_vsize > 260)))
-		return 1;
-	return 0;
+		((cur_in_sts->in_hsize < HSIZE_MAX_2K && cur_in_sts->in_hsize > HSIZE_MIN_2K) ||
+		(cur_in_sts->in_vsize < VSIZE_MAX_1K && cur_in_sts->in_vsize > VSIZE_MIN_1K)))
+		return true;
+
+	return false;
+}
+
+static void frc_fast_disable_process(void)
+{
+	struct frc_dev_s *devp;
+
+	devp = get_frc_devp();
+	devp->in_sts.vf_sts = 0;
+	devp->in_sts.no_vf_cnt = 0;
+	devp->in_sts.have_vf_cnt = 0;
+	devp->frc_sts.out_put_mode_changed = FRC_EVENT_VF_CHG_IN_SIZE;
+
+	set_frc_enable(false);
+	frc_change_to_state(FRC_STATE_BYPASS);
+	devp->st_change = 0;
+	devp->next_frame = 1;
+	set_frc_bypass(true);
+	frc_clr_badedit_effect_before_enable();
+	frc_state_change_finish(devp);
+	pr_frc(2, "0x3217 = %x  0x35 = %x\n", vpu_reg_read(0x3217),
+		READ_FRC_REG(FRC_REG_OUT_INT_FLAG));
+}
+
+static void frc_disable_deal_diff_win(void)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+
+	if (devp->out_sts.out_framerate > 60 &&
+		(devp->st_change == 1 || devp->st_change == 2)) {
+		return;
+	} else if (devp->frc_sts.state == FRC_STATE_ENABLE ||
+		devp->frc_sts.new_state == FRC_STATE_ENABLE) {
+		pr_frc(2, "start disable frc\n");
+		frc_fast_disable_process();
+	}
+}
+
+static void frc_disable_deal_n2m_change(void)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+
+	if (devp->in_sts.vc_set_n2m_change &&
+		(devp->frc_sts.state == FRC_STATE_ENABLE ||
+		devp->frc_sts.new_state == FRC_STATE_ENABLE)) {
+		pr_frc(2, "n2m change, start disable frc\n");
+		set_frc_enable(false);
+		set_frc_bypass(true);
+		// frc_change_to_state(FRC_STATE_DISABLE);
+		frc_change_to_state(FRC_STATE_BYPASS);
+		frc_state_change_finish(devp);
+	}
 }
 
 const char * const frc_state_ary[] = {
@@ -499,8 +693,12 @@ int frc_update_in_sts(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts,
 			frc_in_sts->in_hsize = cur_video_sts->frc_h_size;
 			frc_in_sts->in_vsize = cur_video_sts->frc_v_size;
 		}
-
 	}
+//	if (devp->frc_sts.vs_cnt < 100)
+//		pr_frc(2, "vs_cnt %d: get in size(%d,%d) vd_sr_out(%d,%d)\n",
+//			devp->frc_sts.vs_cnt,
+//			frc_in_sts->in_hsize, frc_in_sts->in_vsize,
+//			cur_video_sts->frc_h_size, cur_video_sts->frc_v_size);
 
 	if (frc_in_sts->frc_hd_start_lines != cur_video_sts->VPP_hd_start_lines_ ||
 		frc_in_sts->frc_hd_end_lines != cur_video_sts->VPP_hd_end_lines_) {
@@ -518,12 +716,6 @@ int frc_update_in_sts(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts,
 		frc_in_sts->frc_vsc_startp = cur_video_sts->VPP_vsc_startp;
 		frc_in_sts->frc_hsc_startp = cur_video_sts->VPP_hsc_startp;
 	}
-
-	pr_frc(4, "in size(%d,%d) vd_sr_out(%d,%d)\n",
-		frc_in_sts->in_hsize, frc_in_sts->in_vsize,
-		// cur_video_sts->nnhf_input_w, cur_video_sts->nnhf_input_h);
-		cur_video_sts->frc_h_size, cur_video_sts->frc_v_size);
-
 	return 0;
 }
 
@@ -535,7 +727,7 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	//enum frc_state_e cur_state = devp->frc_sts.state;
 	u32 cur_sig_in;
 	u32 tmpvalue;
-	int is_osd_window;
+	bool is_osd_window;
 	struct frc_fw_data_s *pfw_data;
 	struct frc_top_type_s *frc_top;
 	struct vinfo_s *vinfo = get_current_vinfo();
@@ -552,17 +744,42 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	devp->in_sts.source_type = cur_in_sts->source_type;
 	devp->in_sts.frc_vsc_startp = cur_in_sts->frc_vsc_startp;
 	devp->in_sts.frc_hsc_startp = cur_in_sts->frc_hsc_startp;
-	devp->in_sts.vf_index =	cur_in_sts->vf_index;
+	devp->in_sts.vf_index = cur_in_sts->vf_index;
+	devp->in_sts.vf = cur_in_sts->vf;
 	frc_top->inp_padding_xofst = devp->in_sts.frc_hsc_startp;
 	frc_top->inp_padding_yofst = devp->in_sts.frc_vsc_startp;
+	if (cur_in_sts->vf && cur_in_sts->vf->vc_private &&
+		devp->in_sts.vc_set_n2m_mode != cur_in_sts->vf->vc_private->frc_operation_mode) {
+		devp->in_sts.vc_set_n2m_mode = cur_in_sts->vf->vc_private->frc_operation_mode;
+		devp->in_sts.vc_set_n2m_change = 1;
+		pr_frc(2, "ready to change n2m[%d]\n", devp->in_sts.vc_set_n2m_mode);
+		frc_disable_deal_n2m_change();
+	} else {
+		devp->in_sts.vc_set_n2m_change = 0;
+	}
+
+	if (devp->next_frame == 1) {
+		devp->need_bypass = 0;
+		devp->next_frame++;
+		pr_frc(2, "0x3217 = %x  0x35 = %x\n", vpu_reg_read(0x3217),
+		READ_FRC_REG(FRC_REG_OUT_INT_FLAG));
+	} else if (devp->next_frame == 2) {
+		devp->next_frame = 0;
+		pr_frc(2, "0x3217 = %x  0x35 = %x\n", vpu_reg_read(0x3217),
+		READ_FRC_REG(FRC_REG_OUT_INT_FLAG));
+	}
 
 	/* check h size change */
 	devp->in_sts.size_chged = 0;
+	devp->in_sts.t3x_proc_size_chg = 0;
 	if (devp->in_sts.in_hsize != cur_in_sts->in_hsize) {
 		pr_frc(1, "hsize change (%d - %d)\n",
 			devp->in_sts.in_hsize, cur_in_sts->in_hsize);
 		devp->in_sts.in_hsize = cur_in_sts->in_hsize;
-		if (devp->frc_sts.state == FRC_STATE_ENABLE && get_chip_type() >= ID_T5M) {
+		devp->in_sts.t3x_proc_size_chg = 1;
+		if (get_chip_type() == ID_T3X) {
+			frc_disable_deal_diff_win();
+		} else if (devp->frc_sts.state == FRC_STATE_ENABLE && get_chip_type() == ID_T5M) {
 			pr_frc(2, "%s start disable frc", __func__);
 			set_frc_enable(false);
 			set_frc_bypass(true);
@@ -589,7 +806,10 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 		pr_frc(1, "vsize change (%d - %d)\n",
 			devp->in_sts.in_vsize, cur_in_sts->in_vsize);
 		devp->in_sts.in_vsize = cur_in_sts->in_vsize;
-		if (devp->frc_sts.state == FRC_STATE_ENABLE && get_chip_type() >= ID_T5M) {
+		devp->in_sts.t3x_proc_size_chg = 1;
+		if (get_chip_type() == ID_T3X && cur_in_sts->vf_sts) {
+			frc_disable_deal_diff_win();
+		} else if (devp->frc_sts.state == FRC_STATE_ENABLE && get_chip_type() == ID_T5M) {
 			pr_frc(2, "%s start disable frc", __func__);
 			set_frc_enable(false);
 			set_frc_bypass(true);
@@ -665,13 +885,17 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 			devp->frc_sts.re_config);
 		if (devp->frc_sts.out_put_mode_changed ==
 			FRC_EVENT_VF_CHG_IN_SIZE) {
-			devp->frc_sts.re_cfg_cnt = 15;
+			devp->frc_sts.re_cfg_cnt = 5;
 		} else if (devp->frc_sts.out_put_mode_changed ==
 			FRC_EVENT_VOUT_CHG) {
-			devp->frc_sts.re_cfg_cnt = 3;
-			pr_frc(1, "out_chg-w(%d->%d)-h(%d->%d)\n",
+			if (devp->out_sts.vout_width != vinfo->width ||
+				devp->out_sts.vout_height != vinfo->height)
+				devp->frc_sts.re_cfg_cnt = 3;
+			pr_frc(1, "out_chg-w(%d->%d)-h(%d->%d)-d(%d->%d)\n",
 				devp->out_sts.vout_width, vinfo->width,
-				devp->out_sts.vout_height, vinfo->height);
+				devp->out_sts.vout_height, vinfo->height,
+				devp->out_sts.out_framerate,
+				(vinfo->sync_duration_num * 100 / vinfo->sync_duration_den) / 100);
 			if (devp->out_sts.vout_width == vinfo->width &&
 				devp->out_sts.vout_height == vinfo->height &&
 				devp->frc_sts.state == FRC_STATE_ENABLE &&
@@ -714,7 +938,7 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	case VFRAME_NO:
 		if (cur_sig_in == VFRAME_HAVE) {
 			if (devp->in_sts.have_vf_cnt++ >=
-				(frc_enable_cnt + (is_osd_window ? 200 : 0))) {
+				(frc_enable_cnt + (is_osd_window ? WINDOW_DELAY_CNT : 0))) {
 				devp->in_sts.vf_sts = cur_sig_in;
 				//if (FRC_EVENT_VF_IS_GAME)
 				sts_change |= FRC_EVENT_VF_CHG_TO_HAVE;
@@ -754,8 +978,8 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	/* even attach , mode change */
 	if (devp->frc_sts.auto_ctrl && sts_change) {
 		if (sts_change & FRC_EVENT_VF_CHG_TO_NO)
-			frc_change_to_state(FRC_STATE_DISABLE);
-			//frc_change_to_state(FRC_STATE_BYPASS);
+			//frc_change_to_state(FRC_STATE_DISABLE);
+			frc_change_to_state(FRC_STATE_BYPASS);
 		else if (sts_change & FRC_EVENT_VF_CHG_TO_HAVE)
 			frc_change_to_state(FRC_STATE_ENABLE);
 	}
@@ -773,7 +997,9 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					struct vpp_frame_par_s *cur_video_sts)
 {
 	struct st_frc_in_sts cur_in_sts;
+	struct frc_fw_data_s *pfw_data;
 	u32 no_input = false, vd_en_flag;// vd_regval;
+	u32 in_size = 0;
 	enum efrc_event frc_event = FRC_EVENT_NO_EVENT;
 
 	if (!devp)
@@ -782,6 +1008,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	if (!devp->probe_ok || !devp->power_on_flag)
 		return;
 
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	frc_in_sts_init(&cur_in_sts);
 	vd_en_flag = get_video_enabled(0);
 	// vd_regval = vpu_reg_read(0x1dfb);
@@ -790,7 +1017,10 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	if (!vf || !cur_video_sts || vd_en_flag == 0) {
 		devp->in_sts.vf_null_cnt++;
 		no_input = true;
-	} //else if ((vd_regval & (BIT_0 | BIT_8)) == 0) {
+	} else {
+		in_size = (cur_video_sts->nnhf_input_w << 16) + cur_video_sts->nnhf_input_h;
+	}
+	//} else if ((vd_regval & (BIT_0 | BIT_8)) == 0) {
 		//devp->in_sts.vf_null_cnt++;
 		//no_input = true;
 	//}
@@ -802,7 +1032,9 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 						FRC_FLAG_GAME_MODE) {
 				devp->in_sts.st_flag =
 				devp->in_sts.st_flag | FRC_FLAG_GAME_MODE;
-				pr_frc(1, "video = game_mode");
+				pr_frc(1, "video = game_mode size(%d,%d)\n",
+					in_size >> 16,
+					in_size & 0xFFFF);
 			}
 			no_input = true;
 		} else if ((vf->flag & VFRAME_FLAG_PC_MODE)  ==
@@ -811,7 +1043,9 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 						FRC_FLAG_PC_MODE) {
 				devp->in_sts.st_flag =
 					devp->in_sts.st_flag | FRC_FLAG_PC_MODE;
-				pr_frc(1, "video = pc_mode");
+				pr_frc(1, "video = pc_mode size(%d,%d)\n",
+					in_size >> 16,
+					in_size & 0xFFFF);
 			}
 			no_input = true;
 		} else if ((vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) ==
@@ -820,7 +1054,9 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 						FRC_FLAG_HIGH_BW) {
 				devp->in_sts.st_flag =
 					devp->in_sts.st_flag | FRC_FLAG_HIGH_BW;
-				pr_frc(1, "video = high_bw");
+				pr_frc(1, "video = high_bw size(%d,%d)\n",
+					in_size >> 16,
+					in_size & 0xFFFF);
 			}
 			no_input = true;
 		} else {
@@ -836,7 +1072,9 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 						FRC_FLAG_PIC_MODE) {
 				devp->in_sts.st_flag =
 				devp->in_sts.st_flag | FRC_FLAG_PIC_MODE;
-				pr_frc(1, "video = pic_mode");
+				pr_frc(1, "video = pic_mode size(%d,%d)\n",
+					in_size >> 16,
+					in_size & 0xFFFF);
 			}
 			no_input = true;
 		} else {
@@ -844,29 +1082,18 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 				devp->in_sts.st_flag & (~FRC_FLAG_PIC_MODE);
 		}
 
-		if (vf->height < FRC_V_LIMIT || vf->width < FRC_H_LIMIT) {
-			if ((devp->in_sts.st_flag & FRC_FLAG_LIMIT_SIZE) !=
-						FRC_FLAG_LIMIT_SIZE) {
-				devp->in_sts.st_flag =
-				devp->in_sts.st_flag | FRC_FLAG_LIMIT_SIZE;
-				pr_frc(1, "video = limit_size");
-			}
-			no_input = true;
-		} else {
-			devp->in_sts.st_flag =
-				devp->in_sts.st_flag & (~FRC_FLAG_LIMIT_SIZE);
-		}
-
 		if (!cur_video_sts) {
 			pr_frc(1, "vpp_frame_par_s is NULL");
 			no_input = true;
-		} else if (cur_video_sts->frc_h_size == 0 ||
-				cur_video_sts->frc_v_size == 0) {
+		} else if (cur_video_sts->frc_h_size < FRC_H_LIMIT ||
+				cur_video_sts->frc_v_size < FRC_V_LIMIT) {
 			if ((devp->in_sts.st_flag & FRC_FLAG_INSIZE_ERR) !=
 						FRC_FLAG_INSIZE_ERR) {
 				devp->in_sts.st_flag =
 				devp->in_sts.st_flag | FRC_FLAG_INSIZE_ERR;
-				pr_frc(1, "video = err_insize");
+				pr_frc(1, "video = err_insize size(%d,%d)\n",
+					in_size >> 16,
+					in_size & 0xFFFF);
 			}
 			no_input = true;
 		} else if (cur_video_sts->frc_h_size > 3840 + 8 ||
@@ -875,7 +1102,9 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 						FRC_FLAG_INSIZE_ERR) {
 				devp->in_sts.st_flag =
 				devp->in_sts.st_flag | FRC_FLAG_INSIZE_ERR;
-				pr_frc(1, "video = err_insize");
+				pr_frc(1, "video = err_insize size(%d,%d)\n",
+					in_size >> 16,
+					in_size & 0xFFFF);
 			}
 			no_input = true;
 		} else {
@@ -889,7 +1118,9 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 						FRC_FLAG_LIMIT_FREQ) {
 				devp->in_sts.st_flag =
 				devp->in_sts.st_flag | FRC_FLAG_LIMIT_FREQ;
-				pr_frc(1, "video = limit_freq");
+				pr_frc(1, "video = limit_freq size(%d,%d)\n",
+					in_size >> 16,
+					in_size & 0xFFFF);
 			}
 			no_input = true;
 		} else {
@@ -905,7 +1136,9 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 				pr_frc(1, "video = video mute");
 			}
 			devp->frc_sts.video_mute_cnt++;
-			no_input = true;
+			if (devp->out_sts.out_framerate < 70)
+				no_input = devp->dbg_mute_disable;
+			pr_frc(1, "video_mute_cnt = %d", devp->frc_sts.video_mute_cnt);
 		} else {
 			devp->in_sts.st_flag =
 				devp->in_sts.st_flag & (~FRC_FLAG_MUTE_ST);
@@ -936,7 +1169,9 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 						FRC_FLAG_HIGH_FREQ) {
 				devp->in_sts.st_flag =
 					devp->in_sts.st_flag | FRC_FLAG_HIGH_FREQ;
-				pr_frc(1, "high freq\n");
+				pr_frc(1, "high freq size(%d,%d)\n",
+					in_size >> 16,
+					in_size & 0xFFFF);
 			}
 			no_input = true;
 		} else {
@@ -949,7 +1184,9 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 						FRC_FLAG_ZERO_FREQ) {
 				devp->in_sts.st_flag =
 					devp->in_sts.st_flag | FRC_FLAG_ZERO_FREQ;
-				pr_frc(1, "zero freq\n");
+				pr_frc(1, "zero freq size(%d,%d)\n",
+					in_size >> 16,
+					in_size & 0xFFFF);
 			}
 			if (vf->duration <= 1500)
 				no_input = true;
@@ -966,20 +1203,39 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 			devp->buf.secured == 1) {
 			no_input = true;
 			frc_re_cfg_cnt = 0;  // need reopen instantly
-		} else {
-			schedule_work(&devp->frc_secure_work);
 		}
-		pr_frc(2, "frc_re_cfg_cnt:%d pre_secure_mode:%d\n",
-			frc_re_cfg_cnt, devp->buf.secured);
+		// pr_frc(0, "sec chg _______\n");
+		// schedule_work(&devp->frc_secure_work);
+		// pr_frc(2, "frc_re_cfg_cnt:%d pre_secure_mode:%d\n",
+		// frc_re_cfg_cnt, devp->buf.secured);
 	} else {
 		frc_re_cfg_cnt = FRC_RE_CFG_CNT;
 	}
+
+	if (no_input && (devp->control_0 & BIT_0) && get_chip_type() == ID_T5M)
+		devp->auto_n2m = 2;
+	else if ((devp->control_0 & BIT_1) && get_chip_type() == ID_T5M)
+		pfw_data->frc_fw_alg_ctrl.frc_algctrl_u8param4 = 0;
+	else if ((devp->control_0 & BIT_2) && get_chip_type() == ID_T5M)
+		devp->auto_n2m = 1;
+
+	if (frc_set_n2m_from_vc(vf) == -1)
+		no_input = true;
 
 	if (devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND)
 		cur_in_sts.vf_sts = true;
 	else
 		cur_in_sts.vf_sts = no_input ? false : true;
 
+	if (cur_in_sts.vf_sts) {
+		devp->frc_sts.vs_data_cnt++;
+		frc_rd_reg_by_drv(devp);
+		if (devp->frc_sts.vs_data_cnt < 50)
+			pr_frc(2, "vpp vsync (data) idx =%d, 0x1a1c =0x%x, 0x3f01 =0x%x\n",
+				devp->frc_sts.vs_data_cnt,
+				vpu_reg_read(devp->vpu_byp_frc_reg_addr),
+				READ_FRC_REG(0x3f01));
+	}
 	frc_update_in_sts(devp, &cur_in_sts, vf, cur_video_sts);
 
 	/* check input is change */
@@ -987,6 +1243,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 
 	if (frc_event)
 		pr_frc(1, "event = 0x%08x\n", frc_event);
+	pr_frc(2, "mc crc value = %x", READ_FRC_REG(0x3981));
 }
 
 void frc_state_change_finish(struct frc_dev_s *devp)
@@ -1075,7 +1332,7 @@ void frc_mm_secure_set(struct frc_dev_s *devp)
 				tee_protect_mem_by_type(TEE_MEM_TYPE_FRC, addr_start,
 							addr_size, &secure_tee_handle);
 				frc_force_secure(true);
-				pr_frc(1, "%s handl:%d addr_start:0x%lx addr_size:0x%x\n",
+				pr_frc(2, "%s handl:%d addr_start:0x%lx addr_size:0x%x\n",
 					__func__, secure_tee_handle,
 					(ulong)addr_start, addr_size);
 			}
@@ -1093,139 +1350,6 @@ void frc_mm_secure_set(struct frc_dev_s *devp)
 	}
 }
 
-void frc_state_handle_old(struct frc_dev_s *devp)
-{
-	enum frc_state_e cur_state;
-	enum frc_state_e new_state;
-	struct frc_fw_data_s *pfw_data;
-	u32 state_changed = 0;
-	u32 frame_cnt = 0;
-	u32 log = 1;
-
-	cur_state = devp->frc_sts.state;
-	new_state = devp->frc_sts.new_state;
-	frame_cnt = devp->frc_sts.frame_cnt;
-	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
-	if (cur_state != new_state) {
-		state_changed = 1;
-		pr_frc(log, "sm state_changed (%d->%d) cnt:%d\n", cur_state, new_state,
-			devp->frc_sts.frame_cnt);
-	}
-	switch (cur_state) {
-	case FRC_STATE_DISABLE:
-		if (state_changed) {
-			if (new_state == FRC_STATE_BYPASS) {
-				set_frc_bypass(ON);
-				schedule_work(&devp->frc_secure_work);
-				devp->frc_sts.frame_cnt = 0;
-				pr_frc(log, "sm state change %s -> %s\n",
-				       frc_state_ary[cur_state], frc_state_ary[new_state]);
-				frc_state_change_finish(devp);
-			} else if (new_state == FRC_STATE_ENABLE) {
-				if (devp->frc_sts.frame_cnt == 0) {
-					set_frc_clk_disable(devp, 0);
-					schedule_work(&devp->frc_secure_work);
-					frc_hw_initial(devp);
-					//first : set bypass off
-					set_frc_bypass(OFF);
-					if (pfw_data->frc_input_cfg)
-						pfw_data->frc_input_cfg(devp->fw_data);
-					//second: set frc enable on
-					set_frc_enable(ON);
-					devp->frc_fw_pause = 0;
-					pr_frc(log, "sm state change %s -> %s\n",
-						frc_state_ary[cur_state], frc_state_ary[new_state]);
-					devp->frc_sts.frame_cnt = 0;
-					frc_state_change_finish(devp);
-				} else {
-					devp->frc_sts.frame_cnt++;
-				}
-			} else {
-				pr_frc(0, "err new state %d\n", new_state);
-			}
-		}
-		break;
-	case FRC_STATE_ENABLE:
-		if (state_changed) {
-			if (new_state == FRC_STATE_DISABLE) {
-				if (devp->frc_sts.frame_cnt == 0) {
-					schedule_work(&devp->frc_secure_work);
-					set_frc_enable(OFF);
-					devp->frc_sts.frame_cnt++;
-				} else {
-					devp->frc_sts.frame_cnt = 0;
-					pr_frc(log, "sm state change %s -> %s\n",
-						frc_state_ary[cur_state],
-						frc_state_ary[new_state]);
-					frc_state_change_finish(devp);
-				}
-			} else if (new_state == FRC_STATE_BYPASS) {
-				//first frame set enable off
-				if (devp->frc_sts.frame_cnt == 0) {
-					schedule_work(&devp->frc_secure_work);
-					set_frc_enable(OFF);
-					devp->frc_fw_pause = 1;
-					//set_frc_bypass(OFF);
-					devp->frc_sts.frame_cnt++;
-				} else {
-					//second frame set bypass on
-					set_frc_bypass(ON);
-					devp->frc_sts.frame_cnt = 0;
-					set_frc_clk_disable(devp, 1);
-					pr_frc(log, "sm state change %s -> %s\n",
-					       frc_state_ary[cur_state], frc_state_ary[new_state]);
-					frc_state_change_finish(devp);
-				}
-			} else {
-				pr_frc(0, "err new state %d\n", new_state);
-			}
-		}
-		break;
-
-	case FRC_STATE_BYPASS:
-		if (state_changed) {
-			if (new_state == FRC_STATE_DISABLE) {
-				set_frc_clk_disable(devp, 0);
-				set_frc_bypass(OFF);
-				set_frc_enable(OFF);
-				devp->frc_sts.frame_cnt = 0;
-				pr_frc(log, "sm state change %s -> %s\n",
-				       frc_state_ary[cur_state], frc_state_ary[new_state]);
-				frc_state_change_finish(devp);
-			} else if (new_state == FRC_STATE_ENABLE) {
-				if (devp->frc_sts.frame_cnt == 0) {
-					set_frc_clk_disable(devp, 0);
-					schedule_work(&devp->frc_secure_work);
-					//first frame set bypass off
-					set_frc_bypass(OFF);
-					//set_frc_enable(OFF);
-					devp->frc_sts.frame_cnt++;
-				} else if (devp->frc_sts.frame_cnt == 1) {
-					frc_hw_initial(devp);
-					//second frame set enable on
-					if (pfw_data->frc_input_cfg)
-						pfw_data->frc_input_cfg(devp->fw_data);
-					set_frc_enable(ON);
-					devp->frc_fw_pause = 0;
-					devp->frc_sts.frame_cnt = 0;
-					pr_frc(log, "sm state change %s -> %s\n",
-					       frc_state_ary[cur_state], frc_state_ary[new_state]);
-					frc_state_change_finish(devp);
-				} else {
-					devp->frc_sts.frame_cnt++;
-				}
-			} else {
-				pr_frc(0, "err new state %d\n", new_state);
-			}
-		}
-		break;
-
-	default:
-		pr_frc(0, "err state %d\n", cur_state);
-		break;
-	}
-}
-
 void frc_state_handle(struct frc_dev_s *devp)
 {
 	enum frc_state_e cur_state;
@@ -1233,218 +1357,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 	struct frc_fw_data_s *pfw_data;
 	u32 state_changed = 0;
 	u32 frame_cnt = 0;
-	static u8 forceidx;
-	static u8 framedelay;
-	u8 frc_input_fid = 0;
-	u32 log = 1;
-
-	cur_state = devp->frc_sts.state;
-	new_state = devp->frc_sts.new_state;
-	frame_cnt = devp->frc_sts.frame_cnt;
-	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
-	if (cur_state != new_state) {
-		state_changed = 1;
-		pr_frc(log, "stat_chg(%d->%d) frm_cnt:%d\n", cur_state,
-			new_state, frame_cnt);
-	}
-
-	switch (cur_state) {
-	case FRC_STATE_DISABLE:
-	if (state_changed) {
-		if (new_state == FRC_STATE_BYPASS) {
-			set_frc_bypass(ON);
-			schedule_work(&devp->frc_secure_work);
-			devp->frc_sts.frame_cnt = 0;
-			pr_frc(log, "stat_chg %s -> %s done\n",
-					frc_state_ary[cur_state],
-					frc_state_ary[new_state]);
-			frc_state_change_finish(devp);
-		} else if (new_state == FRC_STATE_ENABLE) {
-			if (devp->frc_sts.frame_cnt == 0) {
-				if (devp->clk_state != FRC_CLOCK_NOR &&
-					devp->clk_state != FRC_CLOCK_MIN2NOR) {
-					devp->clk_state = FRC_CLOCK_MIN2NOR;
-					schedule_work(&devp->frc_clk_work);
-				} else if (devp->clk_state == FRC_CLOCK_NOR &&
-					devp->buf.cma_mem_alloced) {
-					schedule_work(&devp->frc_secure_work);
-					// clk_set_rate(devp->clk_frc, 667000000);
-					get_vout_info(devp);
-					frc_hw_initial(devp);
-					//first : set bypass off
-					set_frc_bypass(OFF);
-					frc_get_film_base_vf(devp);
-					if (pfw_data->frc_input_cfg)
-						pfw_data->frc_input_cfg(devp->fw_data);
-					//second: set frc enable on
-					set_frc_enable(ON);
-					framedelay =
-					(READ_FRC_REG(FRC_REG_TOP_CTRL9) >> 24) & 0xF;
-					pr_frc(log, "frc_frm_dly %d\n",
-							framedelay);
-					devp->frc_sts.frame_cnt++;
-				}
-			} else if (devp->frc_sts.frame_cnt == framedelay + 1) {
-				forceidx = frc_frame_forcebuf_enable(1);
-				frc_frame_forcebuf_count(forceidx);
-				pr_frc(log, "d-e_freeze idx:%d, frm:%d\n",
-					forceidx, devp->frc_sts.frame_cnt);
-				devp->frc_sts.frame_cnt++;
-			} else if (devp->frc_sts.frame_cnt > framedelay + 1 &&
-						devp->frc_sts.frame_cnt <
-						framedelay * 2 + 1) {
-				frc_frame_forcebuf_count(forceidx);
-				frc_input_fid =
-				READ_FRC_REG(FRC_REG_PAT_POINTER) >> 4 & 0xF;
-				pr_frc(log, "d-e_freeze readidx:%d, frm:%d\n",
-					frc_input_fid, devp->frc_sts.frame_cnt);
-				devp->frc_sts.frame_cnt++;
-			} else if (devp->frc_sts.frame_cnt ==
-						framedelay * 2 + 1) {
-				frc_frame_forcebuf_enable(0);
-				frc_state_change_finish(devp);
-				pr_frc(log, "d-e_stat_chg %s -> %s done\n",
-					frc_state_ary[cur_state],
-					frc_state_ary[new_state]);
-				devp->frc_sts.frame_cnt = 0;
-			} else if (devp->frc_sts.frame_cnt < framedelay + 1) {
-				devp->frc_sts.frame_cnt++;
-			}
-		} else {
-			pr_frc(0, "err new state %d\n", new_state);
-		}
-	}
-	break;
-	case FRC_STATE_ENABLE:
-	if (state_changed) {
-		if (new_state == FRC_STATE_DISABLE) {
-			if (devp->frc_sts.frame_cnt == 0) {
-				schedule_work(&devp->frc_secure_work);
-				frc_frame_forcebuf_enable(0);
-				set_frc_enable(OFF);
-				devp->frc_sts.frame_cnt++;
-			} else {
-				devp->frc_sts.frame_cnt = 0;
-				pr_frc(log, "stat_chg %s -> %s done\n",
-					frc_state_ary[cur_state],
-					frc_state_ary[new_state]);
-				frc_state_change_finish(devp);
-			}
-		} else if (new_state == FRC_STATE_BYPASS) {
-			//first frame set enable off
-			if (devp->frc_sts.frame_cnt == 0) {
-				schedule_work(&devp->frc_secure_work);
-				frc_frame_forcebuf_enable(0);
-				set_frc_enable(OFF);
-				//set_frc_bypass(OFF);
-				devp->frc_sts.frame_cnt++;
-			} else {
-				//second frame set bypass on
-				set_frc_bypass(ON);
-				devp->frc_sts.frame_cnt = 0;
-				pr_frc(log, "stat_chg %s -> %s done\n",
-				       frc_state_ary[cur_state],
-				       frc_state_ary[new_state]);
-				frc_state_change_finish(devp);
-			}
-		} else {
-			pr_frc(0, "err new state %d\n", new_state);
-		}
-	}
-	break;
-	case FRC_STATE_BYPASS:
-	if (state_changed) {
-		if (new_state == FRC_STATE_DISABLE) {
-			if (devp->frc_sts.frame_cnt == 0) {
-				//clk_set_rate(devp->clk_frc, 667000000);
-				if (devp->clk_state != FRC_CLOCK_NOR &&
-					devp->clk_state != FRC_CLOCK_OFF2NOR)  {
-					devp->clk_state = FRC_CLOCK_OFF2NOR;
-					schedule_work(&devp->frc_clk_work);
-				} else if (devp->clk_state == FRC_CLOCK_NOR) {
-					devp->frc_sts.frame_cnt++;
-				}
-			} else {
-				set_frc_bypass(OFF);
-				set_frc_enable(OFF);
-				devp->frc_sts.frame_cnt = 0;
-				pr_frc(log, "stat_chg %s -> %s done\n",
-				frc_state_ary[cur_state],
-				frc_state_ary[new_state]);
-				frc_state_change_finish(devp);
-			}
-		} else if (new_state == FRC_STATE_ENABLE) {
-			if (devp->frc_sts.frame_cnt == 0) {
-				//clk_set_rate(devp->clk_frc, 667000000);
-				if (devp->clk_state != FRC_CLOCK_NOR &&
-					devp->clk_state != FRC_CLOCK_OFF2NOR)  {
-					devp->clk_state = FRC_CLOCK_OFF2NOR;
-					schedule_work(&devp->frc_clk_work);
-				} else if (devp->clk_state == FRC_CLOCK_NOR &&
-					devp->buf.cma_mem_alloced) {
-					//first frame set bypass off
-					schedule_work(&devp->frc_secure_work);
-					get_vout_info(devp);
-					frc_hw_initial(devp);
-					set_frc_bypass(OFF);
-					frc_get_film_base_vf(devp);
-					devp->frc_sts.frame_cnt++;
-				}
-			} else if (devp->frc_sts.frame_cnt == 1) {
-				//second frame set enable on
-				if (pfw_data->frc_input_cfg)
-					pfw_data->frc_input_cfg(devp->fw_data);
-				set_frc_enable(ON);
-				framedelay =
-				(READ_FRC_REG(FRC_REG_TOP_CTRL9) >> 24) & 0xF;
-				pr_frc(log, "frc_frm_dly %d\n",
-							framedelay);
-				devp->frc_sts.frame_cnt++;
-			} else if (devp->frc_sts.frame_cnt == framedelay + 2) {
-				forceidx = frc_frame_forcebuf_enable(1);
-				frc_frame_forcebuf_count(forceidx);
-				pr_frc(log, "b-e_freeze idx:%d, frm:%d\n",
-					forceidx, devp->frc_sts.frame_cnt);
-				devp->frc_sts.frame_cnt++;
-			} else if (devp->frc_sts.frame_cnt > framedelay + 2 &&
-					devp->frc_sts.frame_cnt <
-					 framedelay * 2 + 2) {
-				frc_frame_forcebuf_count(forceidx);
-				frc_input_fid =
-				READ_FRC_REG(FRC_REG_PAT_POINTER) >> 4 & 0xF;
-				pr_frc(log, "b-e_freeze readidx %d, frm:%d\n",
-					frc_input_fid, devp->frc_sts.frame_cnt);
-				devp->frc_sts.frame_cnt++;
-			} else if (devp->frc_sts.frame_cnt ==
-					framedelay * 2 + 2) {
-				frc_frame_forcebuf_enable(0);
-				frc_state_change_finish(devp);
-				pr_frc(log, "b-e stat_chg %s -> %s done",
-						frc_state_ary[cur_state],
-						frc_state_ary[new_state]);
-				devp->frc_sts.frame_cnt = 0;
-			} else if (devp->frc_sts.frame_cnt < framedelay + 2) {
-				devp->frc_sts.frame_cnt++;
-			}
-		} else {
-			pr_frc(0, "err new state %d\n", new_state);
-		}
-	}
-	break;
-
-	default:
-		pr_frc(0, "err state %d\n", cur_state);
-		break;
-	}
-}
-
-void frc_state_handle_new(struct frc_dev_s *devp)
-{
-	enum frc_state_e cur_state;
-	enum frc_state_e new_state;
-	struct frc_fw_data_s *pfw_data;
-	u32 state_changed = 0;
-	u32 frame_cnt = 0;
+	u32 vframe_idx = 0;
 	static u8 forceidx;
 	static u8 bypasscnt;
 	static u8 freezecnt;
@@ -1459,16 +1372,30 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 	frame_cnt = devp->frc_sts.frame_cnt;
 	chg_flag = devp->ud_dbg.res2_time_en;
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	vframe_idx = devp->in_sts.vf_index;
+
 	if (cur_state != new_state) {
 		state_changed = 1;
 		pr_frc(log, "stat_chg(%d->%d), frm_cnt:%d\n", cur_state,
 			new_state, frame_cnt);
 		if (chg_flag < 0x1F && frame_cnt < 20 &&
 					devp->clk_state == FRC_CLOCK_NOR)
-			pr_frc(log, "rd_frm:%d, reg_0x102:0x%08X, reg_0x113:0x%08X\n",
+			pr_frc(log, "frm:%d,reg_0x102:0x%8X,0x113:0x%8X,0x146:0x%8X,0x147:0x%8X\n",
 				frame_cnt,
 				READ_FRC_REG(FRC_REG_PAT_POINTER),
-				READ_FRC_REG(FRC_REG_OUT_FID));
+				READ_FRC_REG(FRC_REG_OUT_FID),
+				READ_FRC_REG(FRC_REG_FWD_PHS),
+				READ_FRC_REG(FRC_REG_FWD_FID));
+		pr_frc(log, "in_cnt:%X,out_cnt:%X,DBG1:0x%08X,DBG2:0x%08X,DBG3:0x%08X\n",
+			READ_FRC_REG(0x6d),
+			READ_FRC_REG(0x6e),
+			READ_FRC_REG(FRC_REG_INP_HS_DBG1),
+			READ_FRC_REG(FRC_REG_INP_HS_DBG2),
+			READ_FRC_REG(FRC_REG_INP_HS_DBG3));
+		pr_frc(log, "%s chk INP_MCDW_CTRL=0x%x, MCDW_CTRL=0x%x\n",
+			__func__,
+			READ_FRC_REG(FRC_INP_MCDW_CTRL),
+			READ_FRC_REG(FRC_MCDW_PATH_CTRL));
 	}
 	switch (cur_state) {
 	case FRC_STATE_DISABLE:
@@ -1481,12 +1408,6 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 					frc_state_ary[cur_state],
 					frc_state_ary[new_state]);
 			frc_state_change_finish(devp);
-			//if (devp->clk_state != FRC_CLOCK_OFF &&
-			//	devp->clk_state != FRC_CLOCK_MIN &&
-			//	devp->clk_state != FRC_CLOCK_NOR2XXX) {
-			//	devp->clk_state = FRC_CLOCK_NOR2XXX;
-			//	schedule_work(&devp->frc_clk_work);
-			//}
 			off2on_cnt = 0;
 		} else if (new_state == FRC_STATE_ENABLE) {
 			if (devp->frc_sts.frame_cnt == 0) {
@@ -1497,25 +1418,26 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 				} else if (devp->clk_state == FRC_CLOCK_NOR &&
 					devp->buf.cma_mem_alloced) {
 					// frc_mm_secure_set(devp);
+//					frc_clr_badedit_effect_before_enable();
 					schedule_work(&devp->frc_secure_work);
 					get_vout_info(devp);
 					frc_hw_initial(devp);
 					//first : set bypass off
 					set_frc_bypass(OFF);
 					read0x60 = READ_FRC_REG(FRC_REG_TOP_RESERVE0) & 0xFF;
-					bypasscnt = (read0x60 & 0xf0) >> 4;
+					bypasscnt = (read0x60 & 0xfff0) >> 4;
 					freezecnt = read0x60 & 0x0f;
-					frc_get_film_base_vf(devp);
-					if (freezecnt < (pfw_data->frc_top_type.vfp & 0x0f))
-						freezecnt = pfw_data->frc_top_type.vfp & 0x0f;
-					else
-						pfw_data->frc_top_type.vfp |= (freezecnt & 0x0f);
+					// frc_get_film_base_vf(devp);
+					// if (freezecnt < (pfw_data->frc_top_type.vfp & 0x0f))
+					//	freezecnt = pfw_data->frc_top_type.vfp & 0x0f;
+					// else
+					//	pfw_data->frc_top_type.vfp |= (freezecnt & 0x0f);
 					if (pfw_data->frc_input_cfg)
 						pfw_data->frc_input_cfg(devp->fw_data);
 					//second: set frc enable on
 					frc_memc_clr_vbuffer(devp, 1);
 					set_frc_enable(ON);
-					devp->frc_fw_pause = 0;
+					// devp->frc_fw_pause = 0;
 					pr_frc(log, "frc_bypass_cnt:%d,freeze_cnt:%d\n",
 							bypasscnt, freezecnt);
 					devp->frc_sts.frame_cnt++;
@@ -1524,8 +1446,11 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 			} else if (devp->frc_sts.frame_cnt < bypasscnt) {
 				devp->frc_sts.frame_cnt++;
 				off2on_cnt++;
+				if (devp->frc_sts.frame_cnt == bypasscnt && is_rdma_enable())
+					t3x_verB_set_cfg(1, devp);
 			} else if (devp->frc_sts.frame_cnt == bypasscnt) {
-				t3x_verB_set_cfg(1, devp);
+				if (!is_rdma_enable())
+					t3x_verB_set_cfg(1, devp);
 				devp->frc_sts.frame_cnt++;
 				off2on_cnt++;
 			} else if (devp->frc_sts.frame_cnt == bypasscnt + 1) {
@@ -1587,8 +1512,9 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 			if (devp->frc_sts.frame_cnt == 0) {
 				schedule_work(&devp->frc_secure_work);
 				frc_frame_forcebuf_enable(0);
-				devp->frc_fw_pause = 1;
+				// devp->frc_fw_pause = 1;
 				set_frc_enable(OFF);
+				frc_clr_badedit_effect_before_enable();
 				devp->frc_sts.frame_cnt++;
 			} else {
 				devp->frc_sts.frame_cnt = 0;
@@ -1602,8 +1528,9 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 			if (devp->frc_sts.frame_cnt == 0) {
 				schedule_work(&devp->frc_secure_work);
 				frc_frame_forcebuf_enable(0);
-				devp->frc_fw_pause = 1;
+				// devp->frc_fw_pause = 1;
 				set_frc_enable(OFF);
+				frc_clr_badedit_effect_before_enable();
 				devp->frc_sts.frame_cnt++;
 			} else {
 				//second frame set bypass on
@@ -1613,12 +1540,6 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 				       frc_state_ary[cur_state],
 				       frc_state_ary[new_state]);
 				frc_state_change_finish(devp);
-				//if (devp->clk_state != FRC_CLOCK_OFF &&
-				//	devp->clk_state != FRC_CLOCK_MIN &&
-				//	devp->clk_state != FRC_CLOCK_NOR2XXX) {
-				//	devp->clk_state = FRC_CLOCK_NOR2XXX;
-				//	schedule_work(&devp->frc_clk_work);
-				//}
 			}
 		} else {
 			pr_frc(0, "err new state %d\n", new_state);
@@ -1638,7 +1559,7 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 				}
 			} else {
 				set_frc_bypass(OFF);
-				devp->frc_fw_pause = 1;
+				// devp->frc_fw_pause = 1;
 				set_frc_enable(OFF);
 				devp->frc_sts.frame_cnt = 0;
 				pr_frc(log, "stat_chg %s -> %s done\n",
@@ -1655,6 +1576,7 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 				} else if (devp->clk_state == FRC_CLOCK_NOR &&
 					devp->buf.cma_mem_alloced) {
 					//first frame set bypass off
+//					frc_clr_badedit_effect_before_enable();
 					schedule_work(&devp->frc_secure_work);
 					frc_memc_clr_vbuffer(devp, 1);
 					get_vout_info(devp);
@@ -1666,16 +1588,16 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 			} else if (devp->frc_sts.frame_cnt == 1) {
 				//second frame set enable on
 				read0x60 = READ_FRC_REG(FRC_REG_TOP_RESERVE0) & 0xFF;
-				bypasscnt = (read0x60 & 0xf0) >> 4;
+				bypasscnt = (read0x60 & 0xfff0) >> 4;
 				freezecnt = read0x60 & 0x0f;
-				frc_get_film_base_vf(devp);
-				if (freezecnt < (pfw_data->frc_top_type.vfp & 0x0f))
-					freezecnt = pfw_data->frc_top_type.vfp & 0x0f;
-				else
-					pfw_data->frc_top_type.vfp |= (freezecnt & 0x0f);
+				// frc_get_film_base_vf(devp);
+				// if (freezecnt < (pfw_data->frc_top_type.vfp & 0x0f))
+				//	freezecnt = pfw_data->frc_top_type.vfp & 0x0f;
+				// else
+				//	pfw_data->frc_top_type.vfp |= (freezecnt & 0x0f);
 				if (pfw_data->frc_input_cfg)
 					pfw_data->frc_input_cfg(devp->fw_data);
-				devp->frc_fw_pause = 0;
+				// devp->frc_fw_pause = 0;
 				set_frc_enable(ON);
 				pr_frc(log, "frc_bypass_cnt:%d,freeze_cnt:%d",
 						bypasscnt, freezecnt);
@@ -1686,8 +1608,399 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 					devp->frc_sts.frame_cnt);
 				devp->frc_sts.frame_cnt++;
 				off2on_cnt++;
+				if (devp->frc_sts.frame_cnt > bypasscnt && is_rdma_enable())
+					t3x_verB_set_cfg(1, devp);
 			} else if (devp->frc_sts.frame_cnt == bypasscnt + 1) {
-				t3x_verB_set_cfg(1, devp);
+				if (!is_rdma_enable())
+					t3x_verB_set_cfg(1, devp);
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+			} else if (devp->frc_sts.frame_cnt == bypasscnt + 2) {
+				// frc_memc_120hz_patch_3(devp);
+				forceidx = frc_frame_forcebuf_enable(1);
+				frc_frame_forcebuf_count(forceidx);
+				if (chg_flag == 0)
+					frc_memc_120hz_patch_2(devp);
+				pr_frc(log, "b-e_freeze start, rd_idx:%d, frm:%d, chg:%d\n",
+					forceidx, devp->frc_sts.frame_cnt, chg_flag);
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+			} else if (devp->frc_sts.frame_cnt > bypasscnt + 2 &&
+					devp->frc_sts.frame_cnt <
+					 bypasscnt + freezecnt + 2) {
+				frc_frame_forcebuf_count(forceidx);
+				if (devp->frc_sts.frame_cnt == chg_flag + bypasscnt + 2)
+					frc_memc_120hz_patch_2(devp);
+				frc_input_fid =
+				READ_FRC_REG(FRC_REG_PAT_POINTER) >> 4 & 0xF;
+				pr_frc(log, "b-e_freezing readidx %d, frm: %d, chg:%d\n",
+					frc_input_fid, devp->frc_sts.frame_cnt, chg_flag);
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+			} else if (devp->frc_sts.frame_cnt ==
+					bypasscnt + freezecnt + 2) {
+				frc_frame_forcebuf_enable(0);
+				frc_memc_120hz_patch_3(devp);
+				frc_memc_clr_vbuffer(devp, 0);
+				pr_frc(log, "b-e_freezed to open, frm:%d\n",
+					devp->frc_sts.frame_cnt);
+				// frc_state_change_finish(devp);
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+			} else if (frc_check_film_mode(devp) != 0 || devp->frc_sts.frame_cnt > 29) {
+				pr_frc(log, "b-e_stat_chg %s -> %s[%d] done, used frm:%d[%d]\n",
+						frc_state_ary[cur_state],
+						frc_state_ary[new_state],
+						frc_check_film_mode(devp),
+						off2on_cnt,
+						devp->frc_sts.frame_cnt);
+				frc_state_change_finish(devp);
+				off2on_cnt = 0;
+			} else if (devp->frc_sts.frame_cnt > bypasscnt + freezecnt + 2 &&
+					  (frc_check_film_mode(devp) == 0)) {
+				pr_frc(log, "b-e_detecting film[%d], frm: %d\n",
+						frc_check_film_mode(devp),
+						devp->frc_sts.frame_cnt);
+				off2on_cnt++;
+				devp->frc_sts.frame_cnt++;
+			}
+		} else {
+			pr_frc(0, "err new state %d\n", new_state);
+		}
+	}
+	break;
+
+	default:
+		pr_frc(0, "err state %d\n", cur_state);
+		break;
+	}
+}
+
+void frc_state_handle_new(struct frc_dev_s *devp)
+{
+	enum frc_state_e cur_state;
+	enum frc_state_e new_state;
+	struct frc_fw_data_s *pfw_data;
+	u32 state_changed = 0;
+	u32 frame_cnt = 0;
+	u32 vframe_idx = 0;
+	static u8 forceidx;
+	static u8 bypasscnt;
+	static u8 freezecnt;
+	static u8 off2on_cnt;
+	u8 frc_input_fid = 0;
+	u32 read0x60 = 0;
+	u8 chg_flag = 0;
+	u8 log = 1;
+
+	u32 tmp_frm_size;
+	enum chip_id chip;
+	struct frc_top_type_s *frc_top;
+
+	chip = get_chip_type();
+
+	cur_state = devp->frc_sts.state;
+	new_state = devp->frc_sts.new_state;
+	frame_cnt = devp->frc_sts.frame_cnt;
+	chg_flag = devp->ud_dbg.res2_time_en;
+	vframe_idx = devp->in_sts.vf_index;
+	// reg_0x113 = READ_FRC_REG(FRC_REG_OUT_FID);
+
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	frc_top = &pfw_data->frc_top_type;
+	if (cur_state != new_state) {
+		state_changed = 1;
+		pr_frc(log, "stat_chg(%d->%d), frm_cnt:%d, vd_frm:%d\n", cur_state,
+			new_state, frame_cnt, vframe_idx);
+		if (chg_flag < 0x1F && frame_cnt < 30 &&
+					devp->clk_state == FRC_CLOCK_NOR) {
+			pr_frc(log, "frm:%d,reg_0x102:0x%8X,0x113:0x%8X,0x146:0x%8X,0x147:0x%8X\n",
+				frame_cnt,
+				READ_FRC_REG(FRC_REG_PAT_POINTER),
+				READ_FRC_REG(FRC_REG_OUT_FID),
+				READ_FRC_REG(FRC_REG_FWD_PHS),
+				READ_FRC_REG(FRC_REG_FWD_FID));
+			pr_frc(2, "0x3217 = %x  0x1d21 = %x  0x3218 = %x  0x35 = %x\n",
+				vpu_reg_read(0x3217), vpu_reg_read(0x1d21),
+				vpu_reg_read(0x3218), READ_FRC_REG(FRC_REG_OUT_INT_FLAG));
+			pr_frc(2, "0x3f05 = %x\n", READ_FRC_REG(FRC_FRAME_SIZE));
+			pr_frc(2, "%s chk INP_MCDW=0x%x,MCDW_CTRL=0x%x, SRCH_RNG_MODE=%x\n",
+				__func__,
+				READ_FRC_REG(FRC_INP_MCDW_CTRL),
+				READ_FRC_REG(FRC_MCDW_PATH_CTRL),
+				READ_FRC_REG(FRC_SRCH_RNG_MODE)
+				);
+		}
+	}
+	switch (cur_state) {
+	case FRC_STATE_DISABLE:
+	if (state_changed) {
+		if (new_state == FRC_STATE_BYPASS) {
+			if (devp->frc_sts.frame_cnt == 0) {
+				schedule_work(&devp->frc_secure_work);
+				devp->frc_sts.frame_cnt = 0;
+				/*notify vpu bypass frc   default:0  bypass_frc:1 not_bypass_frc:2*/
+//				devp->need_bypass = 1;
+				set_frc_bypass(ON);
+				devp->frc_sts.frame_cnt++;
+			} else {
+				devp->need_bypass = 0;
+				pr_frc(log, "stat_chg %s -> %s done\n",
+					frc_state_ary[cur_state],
+					frc_state_ary[new_state]);
+				frc_state_change_finish(devp);
+				off2on_cnt = 0;
+			}
+		} else if (new_state == FRC_STATE_ENABLE) {
+			if (devp->frc_sts.frame_cnt == 0) {
+				if (devp->clk_state != FRC_CLOCK_NOR &&
+					devp->clk_state != FRC_CLOCK_XXX2NOR) {
+					devp->clk_state = FRC_CLOCK_XXX2NOR;
+					schedule_work(&devp->frc_clk_work);
+				} else if (devp->clk_state == FRC_CLOCK_NOR &&
+					devp->buf.cma_mem_alloced) {
+					devp->frc_sts.frame_cnt++;
+//					devp->need_bypass = 2;
+//					frc_clr_badedit_effect_before_enable();
+				}
+				off2on_cnt++;
+			} else if (devp->frc_sts.frame_cnt == 1) {
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+				// frc_mm_secure_set(devp);
+				schedule_work(&devp->frc_secure_work);
+				get_vout_info(devp);
+				frc_hw_initial(devp);
+				//first : set bypass off
+				read0x60 = READ_FRC_REG(FRC_REG_TOP_RESERVE0) & 0xFFFF;
+				bypasscnt = (read0x60 & 0xfff0) >> 4;
+				freezecnt = read0x60 & 0xf;
+				//frc_get_film_base_vf(devp);
+				if (pfw_data->frc_input_cfg)
+					pfw_data->frc_input_cfg(devp->fw_data);
+				//second: set frc enable on
+				frc_memc_clr_vbuffer(devp, 1);
+				frc_win_align_set(devp, 1);
+				frc_win_size_align();
+				set_frc_enable(ON);
+				// devp->frc_fw_pause = 0;
+				pr_frc(log, "frc_bypass_cnt:%d,freeze_cnt:%d\n",
+						bypasscnt, freezecnt);
+				devp->st_change = 1;
+//				devp->need_bypass = 0;
+			} else if (devp->frc_sts.frame_cnt == 2) {
+				if (devp->in_sts.t3x_proc_size_chg) {
+					frc_input_init(devp, frc_top);
+					tmp_frm_size = frc_top->hsize;
+					tmp_frm_size |= (frc_top->vsize) << 16;
+					FRC_RDMA_WR_REG_IN(FRC_FRAME_SIZE, tmp_frm_size);
+				}
+				devp->st_change = 3;
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+			} else if (devp->frc_sts.frame_cnt == 3) {
+				pr_frc(2, "post 0x3f05 = %x\n", READ_FRC_REG(FRC_FRAME_SIZE));
+
+				if (pfw_data->frc_input_cfg && devp->in_sts.t3x_proc_size_chg)
+					pfw_data->frc_input_cfg(devp->fw_data);
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+			} else if (devp->frc_sts.frame_cnt < bypasscnt) {
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+				if (devp->frc_sts.frame_cnt == bypasscnt && is_rdma_enable())
+					t3x_verB_set_cfg(1, devp);
+			} else if (devp->frc_sts.frame_cnt == bypasscnt) {
+				if (!is_rdma_enable())
+					t3x_verB_set_cfg(1, devp);
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+			} else if (devp->frc_sts.frame_cnt == bypasscnt + 1) {
+				forceidx = frc_frame_forcebuf_enable(1);
+				frc_frame_forcebuf_count(forceidx);
+				if (chg_flag == 0)
+					frc_memc_120hz_patch_2(devp);
+				pr_frc(log, "d-e_freeze idx:%d, frm:%d, chg:%d\n",
+					forceidx, devp->frc_sts.frame_cnt, chg_flag);
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+			} else if (devp->frc_sts.frame_cnt > bypasscnt + 1 &&
+						devp->frc_sts.frame_cnt <
+						freezecnt + bypasscnt + 1) {
+				frc_frame_forcebuf_count(forceidx);
+				if (devp->frc_sts.frame_cnt == chg_flag + bypasscnt + 1)
+					frc_memc_120hz_patch_2(devp);
+				frc_input_fid =
+				READ_FRC_REG(FRC_REG_PAT_POINTER) >> 4 & 0xF;
+				pr_frc(log, "d-e_freezing readidx:%d, frm:%d, chg:%d\n",
+					frc_input_fid, devp->frc_sts.frame_cnt, chg_flag);
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+			} else if (devp->frc_sts.frame_cnt ==
+						freezecnt + bypasscnt + 1) {
+				frc_frame_forcebuf_enable(0);
+				frc_memc_120hz_patch_3(devp);
+				frc_memc_clr_vbuffer(devp, 0);
+				pr_frc(log, "d-e_freezed to open, frm:%d\n",
+					devp->frc_sts.frame_cnt);
+				// frc_state_change_finish(devp);
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+			} else if (frc_check_film_mode(devp) != 0 || off2on_cnt > 29) {
+				pr_frc(log, "d-e_stat_chg %s -> %s[%d] done, used_frm:%d[%d]\n",
+						frc_state_ary[cur_state],
+						frc_state_ary[new_state],
+						frc_check_film_mode(devp),
+						off2on_cnt,
+						devp->frc_sts.frame_cnt);
+				frc_state_change_finish(devp);
+				off2on_cnt = 0;
+			} else if (devp->frc_sts.frame_cnt > bypasscnt + freezecnt + 1 &&
+					 (frc_check_film_mode(devp) == 0)) {
+				pr_frc(log, "d-e_detecting film[%d], frm: %d\n",
+						frc_check_film_mode(devp),
+						devp->frc_sts.frame_cnt);
+				off2on_cnt++;
+				devp->frc_sts.frame_cnt++;
+			}
+		} else {
+			pr_frc(0, "err new state %d\n", new_state);
+		}
+	}
+	break;
+	case FRC_STATE_ENABLE:
+	if (state_changed) {
+		if (new_state == FRC_STATE_DISABLE) {
+			if (devp->frc_sts.frame_cnt == 0) {
+				schedule_work(&devp->frc_secure_work);
+				frc_frame_forcebuf_enable(0);
+				//devp->frc_fw_pause = 1;
+				set_frc_enable(OFF);
+				frc_clr_badedit_effect_before_enable();
+				devp->st_change = 2;
+				devp->frc_sts.frame_cnt++;
+			} else {
+				devp->frc_sts.frame_cnt = 0;
+				devp->st_change = 0;
+				pr_frc(log, "stat_chg %s -> %s done\n",
+					frc_state_ary[cur_state],
+					frc_state_ary[new_state]);
+				frc_state_change_finish(devp);
+			}
+		} else if (new_state == FRC_STATE_BYPASS) {
+			//first frame set enable off
+			if (devp->frc_sts.frame_cnt == 0) {
+				schedule_work(&devp->frc_secure_work);
+				frc_frame_forcebuf_enable(0);
+				//devp->frc_fw_pause = 1;
+				set_frc_enable(OFF);
+//				devp->need_bypass = 1;
+				set_frc_bypass(ON);
+				frc_clr_badedit_effect_before_enable();
+				devp->st_change = 2;
+				devp->frc_sts.frame_cnt++;
+			} else if (devp->frc_sts.frame_cnt == 1) {
+				devp->st_change = 0;
+				devp->need_bypass = 0;
+				devp->frc_sts.frame_cnt++;
+			} else {
+				devp->frc_sts.frame_cnt = 0;
+				pr_frc(log, "stat_chg %s->%s done\n",
+				       frc_state_ary[cur_state],
+				       frc_state_ary[new_state]);
+				frc_state_change_finish(devp);
+			}
+		} else {
+			pr_frc(0, "err new state %d\n", new_state);
+		}
+	}
+	break;
+	case FRC_STATE_BYPASS:
+	if (state_changed) {
+		if (new_state == FRC_STATE_DISABLE) {
+			if (devp->frc_sts.frame_cnt == 0) {
+				if (devp->clk_state != FRC_CLOCK_NOR &&
+					devp->clk_state != FRC_CLOCK_XXX2NOR)  {
+					devp->clk_state = FRC_CLOCK_XXX2NOR;
+					schedule_work(&devp->frc_clk_work);
+				} else if (devp->clk_state == FRC_CLOCK_NOR) {
+					devp->frc_sts.frame_cnt++;
+				}
+			} else {
+				set_frc_bypass(OFF);
+				//devp->frc_fw_pause = 1;
+				set_frc_enable(OFF);
+				devp->frc_sts.frame_cnt = 0;
+				pr_frc(log, "stat_chg %s -> %s done\n",
+				frc_state_ary[cur_state],
+				frc_state_ary[new_state]);
+				frc_state_change_finish(devp);
+			}
+		} else if (new_state == FRC_STATE_ENABLE) {
+			if (devp->frc_sts.frame_cnt == 0) {
+				if (devp->clk_state != FRC_CLOCK_NOR &&
+					devp->clk_state != FRC_CLOCK_XXX2NOR)  {
+					devp->clk_state = FRC_CLOCK_XXX2NOR;
+					schedule_work(&devp->frc_clk_work);
+				} else if (devp->clk_state == FRC_CLOCK_NOR &&
+					devp->buf.cma_mem_alloced) {
+					//first frame set bypass off
+					set_frc_bypass(OFF);
+					devp->frc_sts.frame_cnt++;
+					// frc_clr_badedit_effect_before_enable();
+				}
+				off2on_cnt++;
+			} else if (devp->frc_sts.frame_cnt == 1) {
+				schedule_work(&devp->frc_secure_work);
+				frc_memc_clr_vbuffer(devp, 1);
+				get_vout_info(devp);
+				frc_hw_initial(devp);
+				//second frame set enable on
+				read0x60 = READ_FRC_REG(FRC_REG_TOP_RESERVE0) & 0xFFFF;
+				bypasscnt = (read0x60 & 0xfff0) >> 4;
+				freezecnt = read0x60 & 0x0f;
+				//frc_get_film_base_vf(devp);
+				if (pfw_data->frc_input_cfg)
+					pfw_data->frc_input_cfg(devp->fw_data);
+				//devp->frc_fw_pause = 0;
+				if (devp->out_sts.out_framerate > 90) {
+					frc_win_align_set(devp, 1);
+					frc_win_size_align();
+				}
+				set_frc_enable(ON);
+				devp->st_change = 1;
+				devp->need_bypass = 0;
+				pr_frc(log, "frc_bypass_cnt:%d,freeze_cnt:%d",
+						bypasscnt, freezecnt);
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+			} else if (devp->frc_sts.frame_cnt == 2) {
+				if (devp->in_sts.t3x_proc_size_chg) {
+					frc_input_init(devp, frc_top);
+					tmp_frm_size = frc_top->hsize;
+					tmp_frm_size |= (frc_top->vsize) << 16;
+					FRC_RDMA_WR_REG_IN(FRC_FRAME_SIZE, tmp_frm_size);
+					pr_frc(log, "t3x_proc_size:(%d,%d)",
+						frc_top->hsize, frc_top->vsize);
+				}
+				devp->st_change = 3;
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+			} else if (devp->frc_sts.frame_cnt == 3) {
+				if (pfw_data->frc_input_cfg && devp->in_sts.t3x_proc_size_chg)
+					pfw_data->frc_input_cfg(devp->fw_data);
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+			} else if (devp->frc_sts.frame_cnt < bypasscnt + 1) {
+				pr_frc(log, "b-e_bypassing frm:%d\n",
+					devp->frc_sts.frame_cnt);
+				devp->frc_sts.frame_cnt++;
+				off2on_cnt++;
+				if (devp->frc_sts.frame_cnt > bypasscnt && is_rdma_enable())
+					t3x_verB_set_cfg(1, devp);
+			} else if (devp->frc_sts.frame_cnt == bypasscnt + 1) {
+				if (!is_rdma_enable())
+					t3x_verB_set_cfg(1, devp);
 				devp->frc_sts.frame_cnt++;
 				off2on_cnt++;
 			} else if (devp->frc_sts.frame_cnt == bypasscnt + 2) {
@@ -1756,17 +2069,15 @@ int frc_memc_set_level(u8 level)
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *pfw_data;
 
-	if (!devp)
-		return 0;
-	if (!devp->probe_ok)
-		return 0;
-	if (!devp->fw_data)
+	if (!devp || !devp->probe_ok || !devp->fw_data)
 		return 0;
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	pr_frc(1, "set_memc_level:%d\n", level);
-	pfw_data->frc_top_type.frc_memc_level = level;
-	if (pfw_data->frc_memc_level)
-		pfw_data->frc_memc_level(pfw_data);
+	if (level != pfw_data->frc_top_type.frc_memc_level) {
+		pfw_data->frc_top_type.frc_memc_level = level;
+		if (pfw_data->frc_memc_level)
+			pfw_data->frc_memc_level(pfw_data);
+	}
 	return 1;
 }
 
@@ -1774,17 +2085,23 @@ int frc_fpp_memc_set_level(u8 level, u8 num)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *pfw_data;
+	int flag = 0;
 
 	if (!devp || !devp->probe_ok || !devp->fw_data)
 		return 0;
-	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
-	pfw_data->frc_top_type.frc_memc_level = level;
-	pfw_data->frc_top_type.frc_memc_level_1 = num;
 	pr_frc(1, "fpp_set_memc_level:%d[%d]\n", level, num);
-	if (pfw_data->frc_memc_level)
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	if (level != pfw_data->frc_top_type.frc_memc_level) {
+		pfw_data->frc_top_type.frc_memc_level = level;
+		flag = 1;
+	}
+	if (num != pfw_data->frc_top_type.frc_memc_level_1) {
+		pfw_data->frc_top_type.frc_memc_level_1 = num;
+		flag = 1;
+	}
+	if (pfw_data->frc_memc_level && flag)
 		pfw_data->frc_memc_level(pfw_data);
 	return 1;
-
 }
 
 int frc_lge_memc_set_level(struct v4l2_ext_memc_motion_comp_info comp_info)
@@ -1882,6 +2199,24 @@ void frc_lge_memc_init(void)
 	frc_change_to_state(FRC_STATE_ENABLE);
 	// devp->frc_sts.re_config = true;
 	pr_frc(0, "frc lge memc init done\n");
+}
+
+int frc_memc_set_deblur(u8 level)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	// struct frc_fw_alg_ctrl_s *pfrc_fw_alg_ctrl;
+	struct frc_fw_data_s *pfw_data;
+
+	if (!devp || !devp->probe_ok || !devp->fw_data)
+		return 0;
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	pr_frc(1, "set_deblur_level:%d\n", level);
+	if (level != pfw_data->frc_top_type.frc_deblur_level) {
+		pfw_data->frc_top_type.frc_deblur_level = level;
+		if (pfw_data->frc_memc_level)
+			pfw_data->frc_memc_level(pfw_data);
+	}
+	return 1;
 }
 
 int frc_memc_set_demo(u8 setdemo)
@@ -2049,7 +2384,7 @@ void frc_char_flash_check(void)
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *pfw_data;
 	static u16 match_count;
-	int char_flash_check;
+	// int char_flash_check;
 	int temp, temp2;
 
 	if (!devp || !devp->probe_ok || !devp->fw_data)
@@ -2121,6 +2456,13 @@ void frc_chk_vd_sts_chg(struct frc_dev_s *devp, struct vframe_s *vf)
 		pr_frc(1, "input change %d. (1:tvin)\n", frc_is_tvin_s);
 	}
 
+	// close pps optimize in tvin
+	if (devp->in_sts.frc_is_tvin && char_flash_check) {
+		char_flash_check = 0;
+		devp->in_sts.high_freq_flash = char_flash_check;
+		notify_frc_signal_to_amvideo(&char_flash_check);
+	}
+
 	if (vf->vc_private) {
 		if (vf->vc_private->flag & VC_FLAG_FIRST_FRAME)
 			devp->in_sts.frc_source_chg = true;
@@ -2149,7 +2491,7 @@ void frc_chk_vd_sts_chg(struct frc_dev_s *devp, struct vframe_s *vf)
 	// every vframe detect frame rate
 	frc_check_vf_rate(vf->duration, devp);
 
-	if (devp->in_sts.frc_is_tvin) {
+	if (devp->in_sts.frc_is_tvin) { // hdmi source
 		if (vf->duration == 4000 || vf->duration == 4004)
 			vlock_locked = vlock_get_vlock_flag();
 		else
@@ -2180,6 +2522,129 @@ u16 frc_check_film_mode(struct frc_dev_s *frc_devp)
 	return (u16)(frc_top->film_mode);
 }
 
+void frc_check_secure_mode(struct vframe_s *vf, struct frc_dev_s *devp)
+{
+	u32 temp;
+	enum chip_id chip;
+	static int secure_mode;
+
+	chip = get_chip_type();
+
+	if (chip == ID_T3) {
+		if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) ==
+			VFRAME_FLAG_VIDEO_SECURE)
+			devp->in_sts.secure_mode = true;
+		else
+			devp->in_sts.secure_mode = false;
+	} else if (chip == ID_T5M || chip == ID_T3X) {
+		if (!sec_flag) {
+			temp = READ_FRC_REG(FRC_RO_FRM_SEC_STAT);
+			temp = (temp >> 16) & 0xf; // 1: input frame is security
+			if (temp)
+				devp->in_sts.secure_mode = true;
+			else
+				devp->in_sts.secure_mode = false;
+		} else {
+			if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) ==
+				VFRAME_FLAG_VIDEO_SECURE)
+				devp->in_sts.secure_mode = true;
+			else
+				devp->in_sts.secure_mode = false;
+		}
+	}
+
+	if (secure_mode != devp->in_sts.secure_mode) {
+		pr_frc(0, "frc secure sts:%d, sec_flag:%d, chip:%d\n",
+			devp->in_sts.secure_mode, sec_flag, chip);
+		secure_mode = devp->in_sts.secure_mode;
+	}
+}
+
+void frc_win_align_set(struct frc_dev_s *devp, u8 align_set)
+{
+	if (!devp)
+		return;
+	if (align_set == devp->ud_dbg.align_dbg_en)
+		return;
+
+	devp->ud_dbg.align_dbg_en = align_set;
+
+	if (devp->ud_dbg.align_dbg_en == FRC_WIN_ALIGN_AUTO) { //auto
+		regdata_inpholdctl_0002 = READ_FRC_REG(FRC_INP_HOLD_CTRL);
+		frc_config_reg_value(BIT_20, BIT_20, &regdata_inpholdctl_0002);
+		WRITE_FRC_REG_BY_CPU(FRC_INP_HOLD_CTRL, regdata_inpholdctl_0002);
+		WRITE_FRC_BITS(FRC_TOP_MISC_CTRL, 1, 0, 1);
+		WRITE_FRC_BITS(FRC_REG_TOP_CTRL25, 0, 31, 1);
+	} else if (devp->ud_dbg.align_dbg_en == FRC_WIN_ALIGN_MANU) { // manual
+		regdata_inpholdctl_0002 = READ_FRC_REG(FRC_INP_HOLD_CTRL);
+		frc_config_reg_value(BIT_20, BIT_20, &regdata_inpholdctl_0002);
+		WRITE_FRC_REG_BY_CPU(FRC_INP_HOLD_CTRL, regdata_inpholdctl_0002);
+		WRITE_FRC_BITS(FRC_TOP_MISC_CTRL, 0, 0, 1);
+		WRITE_FRC_BITS(FRC_REG_TOP_CTRL25, 1, 31, 1);
+	} else if (devp->ud_dbg.align_dbg_en == FRC_WIN_ALIGN_DGB1) { // debug
+		regdata_inpholdctl_0002 = READ_FRC_REG(FRC_INP_HOLD_CTRL);
+		frc_config_reg_value(BIT_20, BIT_20, &regdata_inpholdctl_0002);
+		WRITE_FRC_REG_BY_CPU(FRC_INP_HOLD_CTRL, regdata_inpholdctl_0002);
+	}
+	pr_frc(2, "0x2 = %x  0x50 = %x  0x26 = %x\n", READ_FRC_REG(FRC_INP_HOLD_CTRL),
+			READ_FRC_REG(FRC_TOP_MISC_CTRL), READ_FRC_REG(FRC_REG_TOP_CTRL25));
+}
+
+void frc_win_size_align(void)
+{
+	u32 tmp_frm_size;
+	u32 tmp_proc_size;
+	u32 shift_bits = 0x1f;
+	u32 mask_bits = ~shift_bits;
+	u32 tmp_ofst_value;
+	enum chip_id chip;
+	struct frc_dev_s *devp;
+	struct frc_top_type_s *frc_top;
+	struct frc_fw_data_s *pfw_data;
+
+	chip = get_chip_type();
+	devp = get_frc_devp();
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	frc_top = &pfw_data->frc_top_type;
+
+	if (devp->ud_dbg.align_dbg_en == FRC_WIN_ALIGN_AUTO) {
+		if (chip == ID_T3X && devp->in_out_ratio == FRC_RATIO_1_2) {
+			tmp_frm_size = (frc_top->hsize + shift_bits) & mask_bits;
+			tmp_frm_size |= (frc_top->vsize) << 16;
+		} else {
+			tmp_frm_size = frc_top->hsize;
+			tmp_frm_size |= (frc_top->vsize) << 16;
+		}
+		tmp_proc_size = devp->out_sts.vout_width;
+		tmp_proc_size |= (devp->out_sts.vout_height) << 16;
+
+		tmp_ofst_value = 0;
+
+		WRITE_FRC_REG_BY_CPU(FRC_FRAME_SIZE, tmp_frm_size);
+		WRITE_FRC_REG_BY_CPU(FRC_PROC_SIZE, tmp_proc_size);
+		if (chip != ID_T3)
+			WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL27, tmp_ofst_value);
+	} else if (devp->ud_dbg.align_dbg_en == FRC_WIN_ALIGN_MANU) {
+		tmp_proc_size = (devp->in_sts.in_hsize + shift_bits) & mask_bits;
+		tmp_proc_size |= ((devp->in_sts.in_vsize + 0xF) & 0xFFFFFFF0) << 16;
+//		tmp_proc_size |= devp->in_sts.in_vsize << 16;
+
+		tmp_ofst_value = 0;
+
+		if (chip == ID_T3X)
+			tmp_ofst_value |= 0 << 13;
+		else if (devp->in_sts.in_hsize & shift_bits)
+			tmp_ofst_value |= (((frc_top->hsize & shift_bits) ^ shift_bits) + 1) << 13;
+		else
+			tmp_ofst_value |= 0 << 13;
+		WRITE_FRC_REG_BY_CPU(FRC_PROC_SIZE, tmp_proc_size);
+		if (chip != ID_T3)
+			WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL27, tmp_ofst_value);
+		pr_frc(2, "0x51 = %x  0x28 = %x\n", READ_FRC_REG(FRC_PROC_SIZE),
+				READ_FRC_REG(FRC_REG_TOP_CTRL27));
+	}
+}
+
 void frc_input_size_align_check(struct frc_dev_s *devp)
 {
 	u8 reg_win_en;
@@ -2189,7 +2654,7 @@ void frc_input_size_align_check(struct frc_dev_s *devp)
 	u16 in_hsize = 0;
 
 	/*only for T5M*/
-	if (get_chip_type() == ID_T3 || devp->in_sts.frc_seamless_en)
+	if (get_chip_type() != ID_T5M || devp->in_sts.frc_seamless_en)
 		return;
 
 	reg_win_en = (READ_FRC_REG(FRC_INP_HOLD_CTRL) >> 20) & 0x1; // bit:20
@@ -2397,8 +2862,8 @@ void set_frc_demo_window(u8 demo_num)
 			WRITE_FRC_BITS(FRC_REG_MC_DEBUG1, 0xf, 17, 4);
 			WRITE_FRC_BITS(FRC_MC_DEMO_WINDOW, 0xf, 0, 5);
 		}
-		pr_frc(0, "FRC_REG_MC_DEBUG1 value = 0x%x\n", READ_FRC_REG(FRC_REG_MC_DEBUG1));
-		pr_frc(0, "FRC_MC_DEMO_WINDOW value = 0x%x\n", READ_FRC_REG(FRC_MC_DEMO_WINDOW));
+		pr_frc(2, "FRC_REG_MC_DEBUG1 value = 0x%x\n", READ_FRC_REG(FRC_REG_MC_DEBUG1));
+		pr_frc(2, "FRC_MC_DEMO_WINDOW value = 0x%x\n", READ_FRC_REG(FRC_MC_DEMO_WINDOW));
 	}
 }
 
@@ -2415,8 +2880,10 @@ void frc_boot_timestamp_check(struct frc_dev_s *devp)
 	timestamp = div64_u64(timestamp, 1000000000); // sec
 	if (timestamp > FRC_BOOT_TIMESTAMP &&
 		devp->in_sts.boot_timestamp_en) {
-		if (devp->in_sts.auto_ctrl_reserved)
+		if (devp->in_sts.auto_ctrl_reserved) {
 			devp->frc_sts.auto_ctrl = true;
+			frc_change_to_state(FRC_STATE_ENABLE);
+		}
 		devp->in_sts.boot_check_finished = 1;
 		pr_frc(0, "boot check finished, auto-ctrl:%d\n",
 			devp->in_sts.auto_ctrl_reserved);

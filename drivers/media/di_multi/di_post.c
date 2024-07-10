@@ -137,7 +137,7 @@ bool dpst_step_check(void)
 bool dpst_step_set(void)
 {
 	struct di_buf_s *di_buf = NULL;
-	vframe_t *vf_p = NULL;
+	struct vframe_s *vf_p = NULL;
 	struct di_post_stru_s *ppost;
 	struct di_hpst_s  *pst = get_hw_pst();
 	unsigned int ch;
@@ -158,8 +158,10 @@ bool dpst_step_set(void)
 	vf_p = di_buf->vframe;
 
 	pch = get_chdata(ch);
-	dim_print("%s:pr_index=%d\n", __func__, di_buf->process_fun_index);
-	if (di_buf->process_fun_index) {	/*not bypass?*/
+	dim_print("%s: di_buf %px pr_index=%d\n",
+		__func__, di_buf, di_buf->process_fun_index);
+	if (pch->link_mode == EPVPP_API_MODE_NONE &&
+	    di_buf->process_fun_index) { /*not bypass?*/
 
 		ppost->post_wr_cnt++;
 		ppost->process_doing = true;
@@ -196,17 +198,35 @@ bool dpst_step_wait_int(void)
 	unsigned int ch;
 	struct di_post_stru_s *ppost;
 	bool reflesh = false;
+	struct di_ch_s *pch;
+	struct di_buf_s *di_buf = NULL;
 	//ary 2020-12-07 ulong flags = 0;
 
 	ch = pst->curr_ch;
-
+	pch = get_chdata(ch);
+	ppost = get_post_stru(ch);
 	dim_print("%s:ch[%d],done_flg[%d]\n", __func__,
 		  pst->curr_ch, pst->flg_int_done);
 	if (pst->flg_int_done) {
 		/*finish to count timer*/
 		di_tout_contr(EDI_TOUT_CONTR_FINISH, &pst->tout);
 		//ary 2020-12-07 spin_lock_irqsave(&plist_lock, flags);
-		dim_post_de_done_buf_config(ch);
+		if (pch->link_mode == EPVPP_API_MODE_POST) {
+			di_buf = ppost->cur_post_buf;
+			di_buf->is_lastp = 0;
+			if (dpvpp_ops(EPVPP_API_MODE_POST) &&
+				dpvpp_is_allowed(EPVPP_API_MODE_POST) &&
+				dpvpp_is_insert(EPVPP_API_MODE_POST)) {
+				dpvpp_ops(EPVPP_API_MODE_POST)->post((void *)ppost->cur_post_buf);
+			} else {
+				PR_WARN("ch[%d]:post link but no ops! di_buf=%px\n", ch,
+					ppost->cur_post_buf);
+				recycle_vframe_type_post(ppost->cur_post_buf, ch);
+			}
+			ppost->cur_post_buf = NULL;
+		} else {
+			dim_post_de_done_buf_config(ch);
+		}
 		//ary 2020-12-07 spin_unlock_irqrestore(&plist_lock, flags);
 		pst->flg_int_done = false;
 		/*state*/

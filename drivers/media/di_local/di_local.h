@@ -43,20 +43,20 @@ struct di_ext_ops {
 	int (*new_release_keep_buf)(struct di_buffer *buffer);
 	int (*new_get_output_buffer_num)(int index);
 	int (*new_get_input_buffer_num)(int index);
-	int (*pre_vpp_link_display)(struct vframe_s *vfm,
+	int (*pvpp_link_display)(struct vframe_s *vfm,
 				    struct pvpp_dis_para_in_s *in_para, void *out_para);
-	int (*pre_vpp_link_check_vf)(struct vframe_s *vfm);
-	int (*pre_vpp_link_check_act)(void);
-	int (*pre_vpp_link_sw)(bool on);
-	u32 (*pre_vpp_get_ins_id)(void);
+	int (*pvpp_link_check_vf)(struct vframe_s *vfm);
+	int (*pvpp_link_check_act)(bool interlace);
+	int (*pvpp_link_sw)(bool on, bool interlace);
+	u32 (*pvpp_get_ins_id)(void);
 	bool (*config_crc_ic)(void);
 	unsigned int (*dim_ic_sub)(void);
 	int (*s_bypass_ch)(int index, bool on);
 	unsigned int (*get_vpu_clkb_ext)(void);
 	bool (*is_pre_link)(void);
 	bool (*is_post_link)(void);
-	bool (*get_vfm_info)(struct afbcd_info *vfm_info);
 	int (*set_buffer_num)(unsigned int post, unsigned int pre);
+	bool (*get_vfm_info)(struct afbcd_info *vfm_info);
 };
 
 #endif	/*__DI_LOCAL_H__*/

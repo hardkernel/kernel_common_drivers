@@ -75,16 +75,16 @@ static int has_unused_pool(void)
 	return -1;
 }
 
-static ssize_t log_level_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t log_level_show(struct class *cla,
+			      struct class_attribute *attr,
+			      char *buf)
 {
 	return snprintf(buf, 40, "%d\n", dummy_video_log_level);
 }
 
-static ssize_t log_level_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t log_level_store(struct class *cla,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;

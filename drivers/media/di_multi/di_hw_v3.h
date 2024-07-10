@@ -261,7 +261,7 @@ enum SC2_REG_MSK {
 
 bool is_mask(unsigned int cmd);
 void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg, const struct reg_acc *op_in);
-void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg);
+void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg,	const struct reg_acc *op_in);
 void dim_sc2_4k_set(unsigned int mode_4k, const struct reg_acc *op_in);
 void dim_sc2_afbce_rst(unsigned int ec_nub, const struct reg_acc *op);
 //20220126 void afbce_sw(enum EAFBC_ENC enc, bool on);//tmp

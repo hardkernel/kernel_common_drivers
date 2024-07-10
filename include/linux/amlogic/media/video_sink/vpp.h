@@ -110,6 +110,8 @@ struct vppfilter_mode_s {
 	u32 vpp_hsc_start_phase_step;
 	bool vpp_pre_vsc_en;
 	bool vpp_pre_hsc_en;
+	u32 vpp_pre_vsc_ratio;
+	u32 vpp_pre_hsc_ratio;
 	u32 vpp_vert_filter;
 	u32 vpp_horz_filter;
 	const u32 *vpp_vert_chroma_coeff;
@@ -186,7 +188,7 @@ struct vpp_frame_par_s {
 	u32 clk_in_pps;
 
 	bool nocomp;
-
+	bool is_interlaced;
 	u8 sr0_position;
 	u8 sr1_position;
 	u8 sr_core_support;
@@ -228,6 +230,10 @@ struct disp_info_s {
 	u32 crop_left;
 	u32 crop_bottom;
 	u32 crop_right;
+	u32 crop_top_save;
+	u32 crop_left_save;
+	u32 crop_bottom_save;
+	u32 crop_right_save;
 	s32 global_offset_x;
 	s32 global_offset_y;
 	u32 speed_check_width;
@@ -250,10 +256,12 @@ struct disp_info_s {
 	bool lut_dma_support;
 	bool dv_support;
 	bool alpha_support;
+	bool vsr_safa_support;
 	u32 mirror;
 	u32 src_width_max;
 	u32 src_height_max;
 	u32 slice_num;
+	u32 op_flag;
 	bool ver_coef_adjust;
 	bool afd_enable;
 	struct crop_rect_s afd_crop;
@@ -276,6 +284,8 @@ enum select_scaler_path_e {
 	/* t5d only have core1, support below tow mode */
 	PPS_POSTBLEND_CORE1,
 	PPS_CORE1_CM,
+	VSR_AFTER_VE = 11,
+	VSR_BEFORE_VE,
 	SCALER_PATH_MAX,
 };
 

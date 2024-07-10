@@ -29,13 +29,14 @@
 #include "../dnlp_cal.h"
 #include "../cm2_adj.h"
 #include "../reg_helper.h"
+#include "../amve.h"
 
 unsigned int aipq_debug;
-__module_param(aipq_debug, uint, 0664);
+module_param(aipq_debug, uint, 0664);
 MODULE_PARM_DESC(aipq_debug, "\n aipq_debug\n");
 
 unsigned int aipq_smooth_dbg;
-__module_param(aipq_smooth_dbg, uint, 0664);
+module_param(aipq_smooth_dbg, uint, 0664);
 MODULE_PARM_DESC(aipq_smooth_dbg, "\n aipq_smooth_dbg\n");
 
 unsigned int aipq_en =
@@ -46,15 +47,15 @@ unsigned int aipq_en =
 	(1 << SATURATION_SCENE) |
 	(1 << DYNAMIC_CONTRAST_SCENE) |
 	(1 << NOISE_SCENE);
-__module_param(aipq_en, uint, 0664);
+module_param(aipq_en, uint, 0664);
 MODULE_PARM_DESC(aipq_en, "\n aipq_en\n");
 
 int aipq_bld_rs = 1;
-__module_param(aipq_bld_rs, uint, 0664);
+module_param(aipq_bld_rs, uint, 0664);
 MODULE_PARM_DESC(aipq_bld_rs, "\n aipq_bld_rs\n");
 
 int slower_coef = 1024;
-__module_param(slower_coef, uint, 0664);
+module_param(slower_coef, uint, 0664);
 MODULE_PARM_DESC(slower_coef, "\n slower_coef\n");
 
 #define pr_aipq_dbg(fmt, args...)\
@@ -194,8 +195,8 @@ int blue_scene_process(int offset, int enable)
 	if (reg_val != base_val + offset) {
 		if (aipq_smooth_dbg)
 			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d, slower_num: %d\n",
-						__func__, bld_offset, base_val, reg_val,
-						offset, bld_rs, slower_num);
+				__func__, bld_offset, base_val, reg_val,
+				offset, bld_rs, slower_num);
 	}
 
 	if (slower_num >= 1024)
@@ -287,8 +288,8 @@ int green_scene_process(int offset, int enable)
 	if (reg_val != base_val + offset) {
 		if (aipq_smooth_dbg)
 			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d, slower_num: %d\n",
-						__func__, bld_offset, base_val, reg_val,
-						offset, bld_rs, slower_num);
+				__func__, bld_offset, base_val, reg_val,
+				offset, bld_rs, slower_num);
 	}
 
 	if (slower_num >= 1024)
@@ -356,12 +357,8 @@ int peaking_scene_process(int offset, int enable)
 	adap_param->satur_param.offset = offset;
 
 	if (!enable || !(aipq_en & (1 << PEAKING_SCENE))) {
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_FINALGAIN_HP_BP,
-			base_val[0] << 8 | base_val[1],
-			0, 16);
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_FINALGAIN_HP_BP,
-			base_val[2] << 8 | base_val[3],
-			0, 16);
+		set_sharpness_gain(base_val[0] << 8 | base_val[1],
+			base_val[2] << 8 | base_val[3]);
 		first_frame = 1;
 		return 0;
 	}
@@ -424,12 +421,8 @@ int peaking_scene_process(int offset, int enable)
 		}
 	}
 
-	VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_FINALGAIN_HP_BP,
-				 reg_val[0] << 8 | reg_val[1],
-				 0, 16);
-	VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_FINALGAIN_HP_BP,
-				 reg_val[2] << 8 | reg_val[3],
-				 0, 16);
+	set_sharpness_gain(reg_val[0] << 8 | reg_val[1],
+		reg_val[2] << 8 | reg_val[3]);
 
 	return 0;
 }
@@ -457,6 +450,13 @@ int contrast_scene_process(int offset, int enable)
 	}
 
 	bld_offset = smooth_process(base_val, reg_val, offset, bld_rs);
+
+	if (reg_val != base_val + offset) {
+		if (aipq_smooth_dbg)
+			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d\n",
+				__func__, bld_offset, base_val, reg_val,
+				offset, bld_rs);
+	}
 
 	if (bld_offset == 0) {
 		if (aipq_debug) {
@@ -532,8 +532,8 @@ int skintone_scene_process(int offset, int enable)
 	if (reg_val != base_val + offset) {
 		if (aipq_smooth_dbg)
 			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d, slower_num: %d\n",
-						__func__, bld_offset, base_val, reg_val,
-						offset, bld_rs, slower_num);
+				__func__, bld_offset, base_val, reg_val,
+				offset, bld_rs, slower_num);
 	}
 
 	if (slower_num >= 1024)
@@ -619,8 +619,8 @@ int saturation_scene_process(int offset, int enable)
 	if (reg_val != base_val + offset) {
 		if (aipq_smooth_dbg)
 			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d, slower_num: %d\n",
-						__func__, bld_offset, base_val, reg_val,
-						offset, bld_rs, slower_num);
+				__func__, bld_offset, base_val, reg_val,
+				offset, bld_rs, slower_num);
 	}
 
 	if (slower_num >= 1024)

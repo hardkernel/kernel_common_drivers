@@ -18,9 +18,9 @@
 
 #include <linux/kernel.h>
 #include <linux/err.h>
+#include <linux/of.h>
 #include <linux/seq_file.h>
 #include <linux/arm-smccc.h>
-#include <linux/of.h>
 
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "deinterlace.h"
@@ -48,7 +48,7 @@
 
 //#include "../deinterlace/di_pqa.h"
 bool di_forc_pq_load_later = true;
-__module_param(di_forc_pq_load_later, bool, 0664);
+module_param(di_forc_pq_load_later, bool, 0664);
 MODULE_PARM_DESC(di_forc_pq_load_later, "debug pq");
 
 bool dim_dbg_is_force_later(void)
@@ -57,7 +57,7 @@ bool dim_dbg_is_force_later(void)
 }
 
 unsigned int di_dbg = DBG_M_EVENT/*|DBG_M_IC|DBG_M_MEM2|DBG_M_RESET_PRE*/;
-__module_param(di_dbg, uint, 0664);
+module_param(di_dbg, uint, 0664);
 MODULE_PARM_DESC(di_dbg, "debug print");
 
 /************************************************
@@ -65,11 +65,11 @@ MODULE_PARM_DESC(di_dbg, "debug print");
  *	[0] bypass_all_p
  ***********************************************/
 #ifdef TEST_DISABLE_BYPASS_P
-unsigned int dim_cfg;
+static unsigned int dim_cfg;
 #else
-unsigned int dim_cfg = 1;
+static unsigned int dim_cfg = 1;
 #endif
-__module_param_named(dim_cfg, dim_cfg, uint, 0664);
+module_param_named(dim_cfg, dim_cfg, uint, 0664);
 
 bool dim_dbg_cfg_post_byapss(void)
 {
@@ -85,7 +85,7 @@ bool dim_dbg_cfg_disable_arb(void)
 	return false;
 }
 static unsigned int dim_dbg_dec21;
-__module_param_named(dim_dbg_dec21, dim_dbg_dec21, uint, 0644);
+module_param_named(dim_dbg_dec21, dim_dbg_dec21, uint, 0644);
 unsigned int dim_get_dbg_dec21(void)
 {
 	return dim_dbg_dec21;
@@ -198,11 +198,19 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_TMODE_1]  = {"tmode1",
 			EDI_CFG_TMODE_1,
-			2,
+#if _DI_CHANNEL_NUM_1 > 0
+			0,
+#else
+			DI_CHANNEL_NUB - 2,
+#endif
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_TMODE_2]  = {"tmode2",
 			EDI_CFG_TMODE_2,
+#if _DI_CHANNEL_NUM_1 > 0
+			1,
+#else
 			2,
+#endif
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_TMODE_3]  = {"tmode3",
 			EDI_CFG_TMODE_3,
@@ -272,6 +280,7 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 	[EDI_CFG_EN_PRE_LINK]  = {"prelink_en",
 			/* 0:disable;	*/
 			/* 1:enable */
+			/* bit 1: for 4k snr mode only support T5M/T3 */
 			EDI_CFG_EN_PRE_LINK,
 #ifdef TMP_EN_PLINK
 			1,
@@ -292,11 +301,28 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_TB,
 			0,
 			K_DI_CFG_T_FLG_DTS},
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL1
+	[EDI_CFG_TEMP_CONTROL]  = {"temp_control",
+			EDI_CFG_TEMP_CONTROL,
+			0,
+			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_422_8bit]  = {"422_8bit",
+			EDI_CFG_422_8bit,
+			0,
+			K_DI_CFG_T_FLG_DTS},
+#endif
 	[EDI_CFG_PRE_NUB]  = {"pre_nub",
 			/* 0:not config pre nub;*/
 			EDI_CFG_PRE_NUB,
-			5,
+			MAX_LOCAL_BUF_NUM,
 			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_EN_POST_LINK]  = {"postlink_en",
+			/* 0:disable;	*/
+			/* 1:enable */
+			EDI_CFG_EN_POST_LINK,
+			0,
+			K_DI_CFG_T_FLG_DTS},
+
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
 			K_DI_CFG_T_FLG_NONE},
 
@@ -402,7 +428,8 @@ void di_cfg_top_dts(void)
 	    (DIM_IS_IC_BF(TM2)	||
 	     DIM_IS_IC(T5D)	||
 	     DIM_IS_IC(T5DB)	||
-	     DIM_IS_IC(S4))) {
+	     DIM_IS_IC(S4)	||
+	     DIM_IS_IC(S7D))) {
 		cfgs(4K, 0);
 		PR_WARN("not support 4k\n");
 	}
@@ -410,7 +437,7 @@ void di_cfg_top_dts(void)
 		cfgs(LINEAR, 1);
 		dbg_reg("from t7 linear mode\n");
 	}
-	if (DIM_IS_IC(S4) &&
+	if ((DIM_IS_IC(S4) || DIM_IS_IC(S7D)) &&
 	    (cfgg(POUT_FMT) == 3	||
 	     cfgg(POUT_FMT) == 0x0b)) {
 		cfgs(POUT_FMT, 0);
@@ -463,11 +490,21 @@ void di_cfg_top_dts(void)
 	if (cfgg(EN_PRE_LINK) && !IS_IC_SUPPORT(PRE_VPP_LINK))
 		PR_WARN("not support pre_vpp link?\n");
 
+	if (cfgg(EN_POST_LINK) && !IS_IC_SUPPORT(POST_VPP_LINK))
+		PR_WARN("not support post_vpp link?\n");
+
 	/* tb */
 	if (cfgg(TB) && !IS_IC_SUPPORT(TB)) {
 		PR_WARN("TB not support\n");
 		cfgs(TB, 0);
 	}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL1
+	if (cfgg(422_8bit))
+		dimp_set(edi_mp_force_422_8bit, 1);
+	else
+		dimp_set(edi_mp_force_422_8bit, 0);
+#endif
 
 #ifdef TMP_EN_PLINK
 	//disable p-only:
@@ -480,6 +517,8 @@ void di_cfg_top_dts(void)
 		cfgs(T5DB_AFBCD_EN, 0);
 	}
 #endif
+	if (cfgg(EN_PRE_LINK) == 3 && !DIM_IS_IC(T3))
+		PR_WARN("pre link is 3 for %d\n", get_datal()->mdata->ic_id);
 }
 
 static void di_cfgt_show_item_one(struct seq_file *s, unsigned int index)
@@ -922,6 +961,8 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 				edi_mp_tb_dump, 0},//1400
 	[edi_mp_prelink_hold_line]	= {"pre_hold_line:ushort:8",
 				edi_mp_prelink_hold_line, 8},
+	[edi_mp_force_422_8bit]	= {"force_422_8bit:8",
+				edi_mp_force_422_8bit, -1},
 	[EDI_MP_SUB_DI_E]  = {"di end-------",
 				EDI_MP_SUB_DI_E, 0},
 	/**************************************/
@@ -1147,7 +1188,7 @@ void di_mp_uit_set(enum EDI_MP_UI_T idx, int val)
 
 #ifdef DBG_POST_SETTING
 static unsigned int dim_dbg_post;
-__module_param_named(dim_dbg_post, dim_dbg_post, uint, 0664);
+module_param_named(dim_dbg_post, dim_dbg_post, uint, 0664);
 
 bool dim_dbg_post_crash_check(unsigned int bit_mask)
 {
@@ -1170,14 +1211,14 @@ bool dim_dbg_post_crash_check(unsigned int bit_mask)
 /************************************************
  * asked by pq tune
  ************************************************/
-unsigned int dimpulldown_enable = 1;
-__module_param_named(dimpulldown_enable, dimpulldown_enable, bool, 0664);
+static bool dimpulldown_enable = true;
+module_param_named(dimpulldown_enable, dimpulldown_enable, bool, 0664);
 
-unsigned int dimmcpre_en = 1;
-__module_param_named(dimmcpre_en, dimmcpre_en, bool, 0664);
+static bool dimmcpre_en = true;
+module_param_named(dimmcpre_en, dimmcpre_en, bool, 0664);
 
-unsigned int dimmcen_mode = 1;
-__module_param_named(dimmcen_mode, dimmcen_mode, uint, 0664);
+static unsigned int dimmcen_mode = 1;
+module_param_named(dimmcen_mode, dimmcen_mode, uint, 0664);
 /************************************************/
 
 void dim_mp_update_reg(void)
@@ -1428,7 +1469,7 @@ void dim_sumx_set(struct di_ch_s *pch)
 	psumx->b_pst_ready	= ndrd_cnt(pch);//di_que_list_count(ch, QUE_POST_READY);
 	psumx->b_recyc		= list_count(ch, QUEUE_RECYCLE);
 	psumx->b_display	= ndis_cnt(pch, QBF_NDIS_Q_DISPLAY);
-	//list_count(ch, QUEUE_DISPLAY);
+	psumx->b_pst_link	= list_count(ch, QUEUE_DISPLAY);
 	psumx->b_nin		= nins_cnt(pch, QBF_NINS_Q_CHECK);
 	psumx->b_dct_in		= nins_cnt(pch, QBF_NINS_Q_DCT);
 	psumx->b_in_free	= di_que_list_count(ch, QUE_IN_FREE);
@@ -1463,6 +1504,7 @@ void dim_sumx_set(struct di_ch_s *pch)
 		return;
 	ATRACE_COUNTER("dim_sum_pst_free", psumx->b_pst_free);
 	ATRACE_COUNTER("dim_sum_display", psumx->b_display);
+	ATRACE_COUNTER("dim_sum_pst_link", psumx->b_pst_link);
 	ATRACE_COUNTER("dim_sum_nin", psumx->b_nin);
 	ATRACE_COUNTER("dim_sum_dctin", psumx->b_dct_in);
 }
@@ -1672,9 +1714,6 @@ void dip_chst_process_ch(void)
 			//move dim_sumx_set(ch);
 			//dbg_nins_check_id(pch);
 //			tst_release(pch);
-#ifdef SC2_NEW_FLOW
-			ins_in_vf(pch);
-#endif
 			break;
 		case EDI_TOP_STATE_BYPASS:
 			if (dip_itf_is_ins_exbuf(pch)) {
@@ -1697,12 +1736,22 @@ void dip_chst_process_ch(void)
 			}
 			break;
 		case EDI_TOP_STATE_PREVPP_LINK:
-			if (dpvpp_ops()		&&
-			    dpvpp_is_allowed()	&&
-				dpvpp_is_insert()) {
+			if (dpvpp_ops(pch->link_mode) &&
+			    dpvpp_is_allowed(pch->link_mode) &&
+				dpvpp_is_insert(pch->link_mode)) {
 				dip_itf_vf_op_polling(pch);
-				dpvpp_ops()->parser(NULL);
+				dpvpp_ops(pch->link_mode)->post(NULL);
 			}
+			break;
+		case EDI_TOP_STATE_PSTVPP_LINK:
+			if (dpvpp_ops(pch->link_mode) &&
+			    dpvpp_is_allowed(pch->link_mode) &&
+				dpvpp_is_insert(pch->link_mode)) {
+				dip_itf_vf_op_polling(pch);
+				dpvpp_ops(pch->link_mode)->post(NULL);
+			}
+			dip_itf_back_input(pch);
+			//dim_post_keep_back_recycle(pch);
 			break;
 		default:
 			break;
@@ -1722,6 +1771,7 @@ void dip_sum_post_ch(void)
 		chst = dip_chst_get(ch);
 		switch (chst) {
 		case EDI_TOP_STATE_READY:
+		case EDI_TOP_STATE_PSTVPP_LINK:
 			dim_sumx_set(pch);
 			bclr(&pch->self_trig_mask, 30);
 			break;
@@ -1906,6 +1956,7 @@ bool dim_process_reg(struct di_ch_s *pch)
 	case EDI_TOP_STATE_READY:
 	case EDI_TOP_STATE_BYPASS:
 	case EDI_TOP_STATE_PREVPP_LINK:
+	case EDI_TOP_STATE_PSTVPP_LINK:
 		PR_WARN("have reg\n");
 		ret = true;
 		break;
@@ -1963,6 +2014,14 @@ bool dim_process_unreg(struct di_ch_s *pch)
 	case EDI_TOP_STATE_BYPASS:
 		/*from bypass complet to unreg*/
 		//move di_vframe_unreg(ch);
+		if (pch->itf.p_vpp_link) {
+			PR_INF("ch[%d]:unreg1,bypass:for link mode:%d\n", ch, pch->link_mode);
+			if (pch->itf.p_itf)
+				dpvpp_destroy_internal(pch->itf.p_itf);
+			pch->itf.p_vpp_link = false;
+			pch->itf.p_itf = NULL;
+			pch->link_mode = EPVPP_API_MODE_NONE;
+		}
 		di_unreg_variable(ch);
 
 		set_reg_flag(ch, false);
@@ -1980,8 +2039,9 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		break;
 	case EDI_TOP_STATE_PREVPP_LINK:
 		dpvpp_destroy_internal(pch->itf.p_itf);
-		pch->itf.pre_vpp_link = false;
+		pch->itf.p_vpp_link = false;
 		pch->itf.p_itf = NULL;
+		pch->link_mode = EPVPP_API_MODE_NONE;
 		set_reg_flag(ch, false);
 		set_reg_setting(ch, false);	//??
 		if ((!get_reg_flag_all()) &&
@@ -1995,11 +2055,33 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 		ret = true;
 		break;
+	case EDI_TOP_STATE_PSTVPP_LINK:
+		/*trig unreg*/
+		dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP1);
+		//task_send_cmd(LCMD1(ECMD_UNREG, ch));
+		/*debug only di_dbg = di_dbg|DBG_M_TSK;*/
+
+		/*wait*/
+		ppre->unreg_req_flag_cnt = 0;
+		chst2 = dip_chst_get(ch);
+
+		/*debug only di_dbg = di_dbg & (~DBG_M_TSK);*/
+		dbg_reg("%s:ch[%d] post-link end\n", __func__, ch);
+		task_delay(100);
+		break;
 	case EDI_TOP_STATE_IDLE:
 		PR_WARN("have unreg\n");
 		ret = true;
 		break;
 	case EDI_TOP_STATE_REG_STEP2:
+		if (pch->itf.p_vpp_link) {
+			PR_INF("ch[%d]:unreg2,step2:for link mode:%d\n", ch, pch->link_mode);
+			if (pch->itf.p_itf)
+				dpvpp_destroy_internal(pch->itf.p_itf);
+			pch->itf.p_vpp_link = false;
+			pch->itf.p_itf = NULL;
+			pch->link_mode = EPVPP_API_MODE_NONE;
+		}
 		di_unreg_variable(ch);
 		set_reg_flag(ch, false);
 		set_reg_setting(ch, false);
@@ -2027,7 +2109,8 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		ret = true;
 		break;
 	case EDI_TOP_STATE_UNREG_STEP1:
-		if (dpre_can_exit(ch) && dpst_can_exit(ch)) {
+		if (dpre_can_exit(ch) && dpst_can_exit(ch) &&
+			dct_can_exit(ch)) {
 			dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP2);
 			set_reg_flag(ch, false);
 			set_reg_setting(ch, false);
@@ -2035,6 +2118,14 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		}
 		break;
 	case EDI_TOP_STATE_UNREG_STEP2:
+		if (pch->itf.p_vpp_link) {
+			PR_INF("ch[%d]:unreg3,step2:for link mode:%d\n", ch, pch->link_mode);
+			if (pch->itf.p_itf)
+				dpvpp_destroy_internal(pch->itf.p_itf);
+			pch->itf.p_vpp_link = false;
+			pch->itf.p_itf = NULL;
+			pch->link_mode = EPVPP_API_MODE_NONE;
+		}
 		di_unreg_variable(ch);
 		if ((!get_reg_flag_all()) &&
 		    (!get_reg_setting_all())) {
@@ -2074,6 +2165,8 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 	unsigned int ch = pch->ch_id;
 	struct di_pre_stru_s *ppre = get_pre_stru(ch);
 	bool reflesh = true;
+	enum EPVPP_API_MODE link_mode = EPVPP_API_MODE_NONE;
+	bool i_ret = false;
 //	struct di_mng_s *pbm = get_bufmng();
 //	ulong flags = 0;
 
@@ -2113,22 +2206,35 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			reflesh = true;
 			break;
 		}
-		/* check pre-vpp link or not */
-		if (dpvpp_try_reg(pch, vframe)) {
-			dip_chst_set(ch, EDI_TOP_STATE_PREVPP_LINK);
-			pch->itf.pre_vpp_link = true;
-			if (!get_reg_flag_all()) {
-				/*first channel reg*/
-				dpre_init();
-				dpost_init();
-				//get_dim_de_devp()->nrds_enable = 0;
-				//nrds cause pre-vpp link crash
-				di_reg_setting(ch, vframe);
-				get_datal()->pre_vpp_set = false;
+		/* check pre/post-vpp link or not */
+		if (pch->itf.flg_s4dw && pch->s4dw)
+			link_mode = EPVPP_API_MODE_NONE;
+		else if (IS_I_SRC(vframe->type))
+			link_mode = EPVPP_API_MODE_POST;
+		else
+			link_mode = EPVPP_API_MODE_PRE;
+		i_ret = dpvpp_try_reg(pch, vframe, link_mode);
+		if (i_ret) {
+			if (link_mode == EPVPP_API_MODE_PRE) {
+				dip_chst_set(ch, EDI_TOP_STATE_PREVPP_LINK);
+				pch->itf.p_vpp_link = true;
+				if (!get_reg_flag_all()) {
+					/*first channel reg*/
+					dpre_init();
+					dpost_init();
+					//get_dim_de_devp()->nrds_enable = 0;
+					//nrds cause pre-vpp link crash
+					di_reg_setting(ch, vframe);
+					get_datal()->pre_vpp_set = false;
+				}
+				set_reg_flag(ch, true);
+				//reflesh = true;
+				break;
 			}
-			set_reg_flag(ch, true);
-			//reflesh = true;
-			break;
+			if (link_mode == EPVPP_API_MODE_POST) {
+				pch->itf.p_vpp_link = true;
+				//set_reg_flag(ch, true);
+			}
 		}
 		if (pch->itf.flg_s4dw && pch->s4dw)
 			pch->s4dw->reg_variable(pch, vframe);
@@ -2169,15 +2275,14 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 		reflesh = true;
 		break;
 	case EDI_TOP_STATE_REG_STEP2:/**/
-
 		pch = get_chdata(ch);
-#ifdef	SC2_NEW_FLOW
-		if (memn_get(pch)) {
-#else
-		//if (mem_cfg(pch)) {
 		mem_cfg_pre(pch);
 		mem_cfg_2local(pch);
-		mem_cfg_2pst(pch);
+		if (pch->link_mode == EPVPP_API_MODE_POST ||
+		    !(dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support)))
+			mem_cfg_2pstlink(pch);
+		else
+			mem_cfg_2pst(pch);
 		PR_INF("ch[%d]:reg:mem cfg[%d][%d][%d]\n",
 		       pch->ch_id,
 		       pch->sts_mem_pre_cfg,
@@ -2187,7 +2292,6 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 		    di_i_dat_check(pch)	/*	&&*/
 		    /*mem_alloc_check(pch)*/) {
 			//mem_cfg(pch);
-#endif
 			//mem_cfg_realloc_wait(pch);
 			//sct_mng_working(pch);
 			//sct_alloc_in_poling(pch->ch_id);
@@ -2205,20 +2309,22 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 				}
 			}
 			dbg_timer(ch, EDBG_TIMER_READY);
-			dip_chst_set(ch, EDI_TOP_STATE_READY);
+			if (pch->link_mode == EPVPP_API_MODE_POST)
+				dip_chst_set(ch, EDI_TOP_STATE_PSTVPP_LINK);
+			else
+				dip_chst_set(ch, EDI_TOP_STATE_READY);
 			set_reg_flag(ch, true);
 		} else {
 			dbg_tst("s2_wait\n");
 		}
-
 		break;
 	case EDI_TOP_STATE_READY:
-
 		break;
 	case EDI_TOP_STATE_BYPASS:
 	case EDI_TOP_STATE_UNREG_STEP1:
 	case EDI_TOP_STATE_UNREG_STEP2:
 	case EDI_TOP_STATE_PREVPP_LINK:
+	case EDI_TOP_STATE_PSTVPP_LINK:
 		/*do nothing;*/
 		break;
 	}
@@ -2468,12 +2574,6 @@ bool di_tout_contr(enum EDI_TOUT_CONTR cmd, struct di_time_out_s *tout)
 	return ret;
 }
 
-const unsigned int di_ch2mask_table[DI_CHANNEL_MAX] = {
-	DI_BIT0,
-	DI_BIT1,
-	DI_BIT2,
-	DI_BIT3,
-};
 
 /****************************************
  *bit control
@@ -3014,7 +3114,8 @@ static enum EDPST_MODE dim_cnt_mode(struct di_ch_s *pch)
 	if (dim_cfg_nv21()) {
 		mode = EDPST_MODE_NV21_8BIT;
 	} else {
-		if (dimp_get(edi_mp_nr10bit_support)) {
+		if (dimp_get(edi_mp_nr10bit_support) &&
+			dimp_get(edi_mp_force_422_8bit) != 1) {
 			if (dimp_get(edi_mp_full_422_pack))
 				mode = EDPST_MODE_422_10BIT_PACK;
 			else
@@ -3194,6 +3295,10 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		dimp_set(edi_mp_prog_proc_config, 0x23);
 		dimp_set(edi_mp_use_2_interlace_buff, 1);
 	}
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL1
+	pch->record_10bit_flag = 1;
+	pch->record_8bit_flag = 1;
+#endif
 	pch->src_type = vframe->source_type;
 	if ((vframe->flag & VFRAME_FLAG_DI_P_ONLY) || bget(&dim_cfg, 1))
 		ponly_enable = true;
@@ -3263,15 +3368,28 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		mm->cfg.fix_buf = 0;
 
 	pre_nub = cfgg(PRE_NUB);
-		if ((pre_nub) && pre_nub <= MAX_LOCAL_BUF_NUM)
-			mm->cfg.num_local = pre_nub;
+	if (dimp_get(edi_mp_post_wr_en) &&
+	    dimp_get(edi_mp_post_wr_support)) {
+		if (pre_nub > MAX_LOCAL_BUF_NUM)
+			pre_nub = MAX_LOCAL_BUF_NUM;
+	}
+	if (pre_nub && pre_nub <= MAX_LOCAL_BUF_NUM_REAL - 2)
+		mm->cfg.num_local = pre_nub;
+	else if (mm->cfg.num_local > MAX_LOCAL_BUF_NUM_REAL - 2)
+		mm->cfg.num_local = MAX_LOCAL_BUF_NUM_REAL - 2;
 
 	if (pch->ponly)
 		mm->cfg.num_local = 0;
 
-	post_nub = cfggch(pch, POST_NUB);
-	if ((post_nub) && post_nub <= POST_BUF_NUM)
-		mm->cfg.num_post = post_nub;
+	if (dimp_get(edi_mp_post_wr_en) &&
+	    dimp_get(edi_mp_post_wr_support)) {
+		post_nub = cfggch(pch, POST_NUB);
+		if (post_nub && post_nub <= POST_BUF_NUM)
+			mm->cfg.num_post = post_nub;
+	} else {
+		mm->cfg.num_post = 0;
+		post_nub = 0;
+	}
 
 	PR_INF("%s:ch[%d]:fix_buf:%d;ponly <%d,%d> post_nub=%d\n",
 	       "value reg",
@@ -3865,7 +3983,8 @@ bool nins_dct_2_done(struct di_ch_s *pch, struct dim_nins_s *nins)
 
 	ret = qbuf_in(pbufq, QBF_NINS_Q_CHECK, nins->header.index);
 	ATRACE_COUNTER("dim_dct", 0);
-
+	if (ret)
+		task_send_ready(32);
 	return ret;
 }
 
@@ -4291,7 +4410,6 @@ bool ndis_move_keep2idle(struct di_ch_s *pch, struct dim_ndis_s *ndis)
 
 #ifdef MARK_HIS //no used
 /* */
-panjianxiong
 void ndis_back2_idle(struct di_ch_s *pch)
 {
 	struct buf_que_s *pbufq;
@@ -5079,7 +5197,10 @@ static bool ndis_fill_ready_bypass(struct di_ch_s *pch, struct di_buf_s *di_buf)
 		//di_buf->queue_index = -1;
 		//di_que_in(pch->ch_id, QUE_POST_BACK, di_buf);
 		di_buf_clear(pch, di_buf);
-		di_que_in(pch->ch_id, QUE_PST_NO_BUF, di_buf);
+		if (dimp_get(edi_mp_post_wr_en) && dimp_get(edi_mp_post_wr_support))
+			di_que_in(pch->ch_id, QUE_PST_NO_BUF, di_buf);
+		else
+			di_que_in(pch->ch_id, QUE_POST_FREE, di_buf);
 		queue_in(pch->ch_id, ibuf, QUEUE_RECYCLE);
 
 		/* to ready buffer */
@@ -5555,16 +5676,16 @@ unsigned int dim_int_tab(struct device *dev,
 	return crc;
 }
 
-int dim_slt_mode;
-__module_param_named(dim_slt_mode, dim_slt_mode, bool, 0664);
+static bool dim_slt_mode;
+module_param_named(dim_slt_mode, dim_slt_mode, bool, 0664);
 
 bool dim_is_slt_mode(void)
 {
 	return dim_slt_mode;
 }
 
-int dim_post_num;
-__module_param_named(dim_post_num, dim_post_num, int, 0664);
+static int dim_post_num;
+module_param_named(dim_post_num, dim_post_num, int, 0664);
 
 unsigned int dim_get_post_num(void)
 {
@@ -5602,6 +5723,16 @@ bool dim_config_crc_icl(void)
 		return 0;
 	else
 		return de_devp->is_crc_ic;
+}
+
+unsigned int dim_is_ic_sub(void)
+{
+	struct di_dev_s  *de_devp = get_dim_de_devp();
+
+	if (IS_ERR_OR_NULL(de_devp))
+		return 0;
+	else
+		return de_devp->sub_v;
 }
 
 /************************************************
@@ -5921,6 +6052,7 @@ bool vf_2_subvf(struct dsub_vf_s *vfms, struct vframe_s *vfm)
 	vfms->sig_fmt		= vfm->sig_fmt;
 	vfms->fmt		= vfm->src_fmt.fmt;
 	vfms->sei_magic_code		= vfm->src_fmt.sei_magic_code;
+	vfms->duration		= vfm->duration;
 	return true;
 }
 
@@ -5955,6 +6087,7 @@ bool vf_from_subvf(struct vframe_s *vfm, struct dsub_vf_s *vfms)
 	vfm->sig_fmt		= vfms->sig_fmt;
 	vfm->src_fmt.fmt		= vfms->fmt;
 	vfm->src_fmt.sei_magic_code		= vfms->sei_magic_code;
+	vfm->duration = vfms->duration;
 	return true;
 }
 
@@ -6801,6 +6934,7 @@ bool dim_check_exit_process(void)
 		chst = dip_chst_get(ch);
 		switch (chst) {
 		case EDI_TOP_STATE_READY:
+		case EDI_TOP_STATE_PSTVPP_LINK:
 			ppre = get_pre_stru(ch);
 			ppost = get_post_stru(ch);
 			if (ppre->pre_de_process_flag ||
@@ -8023,7 +8157,7 @@ void dim_post_copy_update(struct di_ch_s *pch,
 	dbg_afbce_update_level1(di_buf->vframe, &di_pre_regset, EAFBC_ENC1);
 	pst->pst_tst_use	= 1;
 	pst->flg_int_done	= false;
-	opl1()->pst_set_flow(1, EDI_POST_FLOW_STEP4_CP_START);
+	opl1()->pst_set_flow(1, EDI_POST_FLOW_STEP4_CP_START, NULL);
 }
 
 void dbg_cp_4k(struct di_ch_s *pch, unsigned int mode)
@@ -8715,7 +8849,7 @@ void dbg_pip_func(struct di_ch_s *pch, unsigned int mode)
 #endif
 
 static unsigned int dbg_trig_eos;
-__module_param_named(dbg_trig_eos, dbg_trig_eos, uint, 0664);
+module_param_named(dbg_trig_eos, dbg_trig_eos, uint, 0664);
 
 bool dbg_is_trig_eos(unsigned int ch)
 {

@@ -73,31 +73,31 @@ static struct amprime_sl_dev_s amprime_sl_dev;
 static struct prime_t prime_sl_setting;
 
 static u32 prime_sl_enable = ENABLE;
-__module_param(prime_sl_enable, uint, 0664);
+module_param(prime_sl_enable, uint, 0664);
 MODULE_PARM_DESC(prime_sl_enable, "\n prime_sl_enable\n");
 
 static u32 prime_sl_running;
-__module_param(prime_sl_running, uint, 0444);
+module_param(prime_sl_running, uint, 0444);
 MODULE_PARM_DESC(prime_sl_running, "\n prime_sl_running\n");
 
 static u32 prime_sl_probe;
-__module_param(prime_sl_probe, uint, 0664);
+module_param(prime_sl_probe, uint, 0664);
 MODULE_PARM_DESC(prime_sl_probe, "\n prime_sl_probe\n");
 
 static u32 prime_sl_display_brightness = 150;
-__module_param(prime_sl_display_brightness, uint, 0664);
+module_param(prime_sl_display_brightness, uint, 0664);
 MODULE_PARM_DESC(prime_sl_display_brightness, "\n prime_sl_display_brightness\n");
 
 static u32 prime_sl_output_mode = PRIME_SL_DISPLAY_OETF_PQ;
-__module_param(prime_sl_output_mode, uint, 0664);
+module_param(prime_sl_output_mode, uint, 0664);
 MODULE_PARM_DESC(prime_sl_output_mode, "\n prime_sl_output_mode\n");
 
 static u32 prime_sl_debug;
-__module_param(prime_sl_debug, uint, 0664);
+module_param(prime_sl_debug, uint, 0664);
 MODULE_PARM_DESC(prime_sl_debug, "\n prime_sl_debug\n");
 
 static u32 prime_sl_mode;
-__module_param(prime_sl_mode, uint, 0664);
+module_param(prime_sl_mode, uint, 0664);
 MODULE_PARM_DESC(prime_sl_mode, "\n prime_sl_mode\n");
 
 static const int shadow_gain[201] = {
@@ -1182,8 +1182,8 @@ static void dbg_metadata(struct sl_hdr_metadata *pmetadata)
 		pmetadata->sdr_display_min_luminance);
 }
 
-static ssize_t amprime_sl_debug_store(const struct class *class,
-			const struct class_attribute *attr,
+static ssize_t amprime_sl_debug_store(struct class *cla,
+			struct class_attribute *attr,
 			const char *buf, size_t count)
 {
 	if (!buf)
@@ -1305,7 +1305,8 @@ static int amprime_sl_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto fail_alloc_region;
 
-	devp->clsp = class_create(AMPRIME_SL_CLASS_NAME);
+	devp->clsp = class_create(THIS_MODULE,
+		AMPRIME_SL_CLASS_NAME);
 	if (IS_ERR(devp->clsp)) {
 		ret = PTR_ERR(devp->clsp);
 		goto fail_create_class;

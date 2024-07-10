@@ -70,8 +70,9 @@
 #define DISP_RATIO_FORCECONFIG          0x80000000
 #define DISP_RATIO_FORCE_NORMALWIDE     0x40000000
 #define DISP_RATIO_FORCE_FULL_STRETCH   0x20000000
-#define DISP_RATIO_ADAPTED_PICMODE   0x10000000
-#define DISP_RATIO_INFOFRAME_AVAIL   0x08000000
+#define DISP_RATIO_ADAPTED_PICMODE      0x10000000
+#define DISP_RATIO_INFOFRAME_AVAIL      0x08000000
+#define DISP_RATIO_PARSE_BY_AFD         0x04000000
 #define DISP_RATIO_CTRL_MASK            0x00000003
 #define DISP_RATIO_NO_KEEPRATIO         0x00000000
 #define DISP_RATIO_KEEPRATIO            0x00000001
@@ -135,10 +136,6 @@
 
 #define AIPQ_FLAG_VERSION_1	      0x1   /*1 or 0, is old mode, t3/t3x/s5 HARDWARE do AIPQ*/
 #define AIPQ_FLAG_VERSION_2	      0x2   /*new mode, GPU do AIPQ*/
-#define AIPQ_FLAG_SCENE_CHANGE	      0x10
-#define AIPQ_FLAG_NN_NOT_DONE	      0x20
-#define AIPQ_FLAG_NN_DONE	      0x40
-#define AIPQ_FLAG_FIRST_VFRAME    0x80
 
 /* need check folllowing bits when toggle frame, to trigger property change */
 /* add more bits which indicates display attr change in vf->flag */
@@ -163,21 +160,6 @@ struct vframe_hist_s {
 	unsigned char luma_max;
 	unsigned char luma_min;
 	unsigned short gamma[64];
-	unsigned int vpp_luma_sum;	/*vpp hist info */
-	unsigned int vpp_chroma_sum;
-	unsigned int vpp_pixel_sum;
-	unsigned int vpp_height;
-	unsigned int vpp_width;
-	unsigned char vpp_luma_max;
-	unsigned char vpp_luma_min;
-	unsigned short vpp_gamma[64];
-	unsigned short vpp_dark_hist[64];
-	unsigned int vpp_hue_gamma[32];
-	unsigned int vpp_sat_gamma[32];
-
-#ifdef AML_LOCAL_DIMMING
-	unsigned int ldim_max[100];
-#endif
 } /*vframe_hist_t */;
 
 struct tvin_hdr10p_data_s {
@@ -382,6 +364,8 @@ struct vframe_src_fmt_s {
 	int dv_id;
 	bool pr_done;/*mark pyramid status*/
 	bool hdmi_new_frame;
+	u32 py_level;
+	u32 downsamplers;
 };
 
 enum pic_mode_provider_e {
@@ -629,6 +613,12 @@ struct vf_lossycomp_param_s {
 	u32 ofset_burst4_en;
 };
 
+enum vdin_channel_id_e {
+	CHANNEL_VDIN0 = 0,
+	CHANNEL_VDIN1,
+	CHANNEL_VDIN_MAX,
+};
+
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
@@ -729,8 +719,10 @@ struct vframe_s {
 	/* vframe properties */
 	struct vframe_prop_s prop;
 	struct list_head list;
-/* pixel aspect ratio */
+	/* pixel aspect ratio */
 	enum pixel_aspect_ratio_e pixel_ratio;
+	//bit0~3 afd; bit4-7 pic aspect ratio
+	u32 afd_info;
 	u64 ready_jiffies64;	/* ready from decode on  jiffies_64 */
 	long long ready_clock[5];/*ns*/
 	long long ready_clock_hist[2];/*ns*/
@@ -845,6 +837,10 @@ struct vframe_s {
 	struct vframe_s *uvm_vf;
 	struct vf_lossycomp_param_s vf_lossycomp_param;
 	struct src_crop_s src_crop;
+	/*vdin.0:0  vdin.2:1*/
+	enum vdin_channel_id_e vdin_channel_id;
+	/*decoder real used size*/
+	u32 scatter_mem_size;
 } /*vframe_t */;
 
 #define VC_FLAG_AI_SR		0x1
@@ -854,9 +850,20 @@ struct vframe_s {
 #define VC_FLAG_AI_FACE		0x10
 #define VC_FLAG_AI_COLOR	0x20
 
+enum frc_operation_mode_e {
+	VC_FRC_FLAG_NOP = 0,
+	VC_FRC_FLAG_BYPASS,
+	VC_FRC_FLAG_1_1,
+	VC_FRC_FLAG_1_2,
+	VC_FRC_FLAG_2_5,
+	VC_FRC_FLAG_5_6,
+	VC_FRC_FLAG_5_12,
+};
+
 struct video_composer_private {
 	u32 index;
 	u32 flag; /*if  & VC_FLAG_AI_SR, and VPP will get AI_SR_out*/
+	enum frc_operation_mode_e frc_operation_mode;
 	struct vf_nn_sr_t *srout_data;
 	struct vframe_s *src_vf;
 	u32 last_disp_count; /*last frame disp vsync count*/

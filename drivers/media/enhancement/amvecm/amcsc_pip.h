@@ -22,7 +22,8 @@
 int hdr_policy_process(struct vinfo_s *vinfo,
 		       enum hdr_type_e *source_format,
 		       enum vd_path_e vd_path,
-		       enum vpp_index_e vpp_index);
+		       enum vpp_index_e vpp_index,
+		       struct vframe_s *vf);
 void hdmi_packet_process(int signal_change_flag,
 			 struct vinfo_s *vinfo,
 			 struct vframe_master_display_colour_s *p,
@@ -38,7 +39,6 @@ void video_post_process(struct vframe_s *vf,
 			enum vd_path_e vd_path,
 			struct vframe_master_display_colour_s *master_info,
 			enum hdr_type_e *source_type, enum vpp_index_e vpp_index);
-extern uint slice_set;
-
+void output_color_fmt_convert(int vpp_index);
 #endif
 #endif

@@ -264,7 +264,7 @@ struct vframe_qos_s {
 	int max_mv;
 	int min_mv;
 	int avg_mv;
-	int decode_buffer; //For padding currently
+	int decode_buffer;//For padding currently
 } /*vframe_qos */;
 
 struct av_info_t {
@@ -356,7 +356,7 @@ struct vdec_info {
 	unsigned int b_lost_frames;
 	unsigned int b_concealed_frames;
 	);
-	char endipb_line[];
+	char endipb_line[0];
 };
 
 struct am_io_param {
@@ -496,6 +496,7 @@ struct vframe_counter_s {
 	};
 	__u32 offset;
 	__u32 ratio_control;
+
 	);
 
 	__u32 vf_type;
@@ -513,6 +514,7 @@ struct vframe_counter_s {
 	unsigned int b_decoded_frames;
 	unsigned int b_lost_frames;
 	unsigned int b_concealed_frames;
+
 	);
 	unsigned int av_resynch_counter;
 };

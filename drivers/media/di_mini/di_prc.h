@@ -587,8 +587,8 @@ bool dim_get_overturn(void);
 int dim_pre_vpp_link_display(struct vframe_s *vfm,
 			  struct pvpp_dis_para_in_s *in_para, void *out_para);
 int dpvpp_check_vf(struct vframe_s *vfm);
-int dpvpp_check_di_act(void);
-int dpvpp_sw(bool on);
+int dpvpp_check_di_act(bool interlace);
+int dpvpp_sw(bool on, bool interlace);
 unsigned int dpvpp_get_ins_id(void);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 enum DI_ERRORTYPE dpvpp_fill_output_buffer(struct dimn_itf_s *itf,

@@ -175,7 +175,7 @@ void ins_2_doing(struct di_ch_s *pch, bool bypass, struct di_buf_s *pstdi_buf)
  **************************************/
 
 static unsigned int new_int;
-__module_param_named(new_int, new_int, uint, 0664);
+module_param_named(new_int, new_int, uint, 0664);
 
 bool dim_dbg_new_int(unsigned int id)
 {

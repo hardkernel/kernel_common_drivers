@@ -30,52 +30,52 @@
 
 #define NUM_CM_14_COLOR_MAX cm_14_ecm2colormode_max
 
-//static uint lpf_coef_matrix_param = NUM_MATRIX_PARAM;
+static uint lpf_coef_matrix_param = NUM_MATRIX_PARAM;
 static uint lpf_coef[NUM_MATRIX_PARAM] = {
 	0, 16, 32, 32, 32, 16, 0
 };
 
-//static uint color_key_pts_matrix_param = NUM_COLOR_MAX;
+static uint color_key_pts_matrix_param = NUM_COLOR_MAX;
 static uint color_key_pts[NUM_COLOR_MAX] = {
 	5, 9, 12, 15, 17, 19, 23, 25, 29
 };
 
-//static uint color_start_param = NUM_COLOR_MAX;
+static uint color_start_param = NUM_COLOR_MAX;
 static uint color_start[NUM_COLOR_MAX] = {
 	1, 7, 11, 14, 16, 18, 23, 25, 29
 };
 
-//static uint color_end_param = NUM_COLOR_MAX;
+static uint color_end_param = NUM_COLOR_MAX;
 static uint color_end[NUM_COLOR_MAX] = {
 	6, 10, 13, 15, 17, 22, 24, 28, 32
 };
 
-//static uint cm_14_color_key_pts_matrix_param = NUM_CM_14_COLOR_MAX;
+static uint cm_14_color_key_pts_matrix_param = NUM_CM_14_COLOR_MAX;
 static uint cm_14_color_key_pts[NUM_CM_14_COLOR_MAX] = {
 	2, 4, 7, 9, 11, 13, 14, 16, 18, 20, 22, 25, 28, 30
 };
 
-//static uint cm_14_color_start_param = NUM_CM_14_COLOR_MAX;
+static uint cm_14_color_start_param = NUM_CM_14_COLOR_MAX;
 static uint cm_14_color_start[NUM_CM_14_COLOR_MAX] = {
 	1, 3, 6, 8, 10, 12, 14, 15, 17, 20, 22, 25, 28, 30
 };
 
-//static uint cm_14_color_end_param = NUM_CM_14_COLOR_MAX;
+static uint cm_14_color_end_param = NUM_CM_14_COLOR_MAX;
 static uint cm_14_color_end[NUM_CM_14_COLOR_MAX] = {
 	2, 5, 7, 9, 11, 13, 14, 16, 19, 21, 24, 27, 29, 32
 };
 
-//static uint smth_coef_hue_matrix_param = NUM_SMTH_PARAM;
+static uint smth_coef_hue_matrix_param = NUM_SMTH_PARAM;
 static uint smth_coef_hue[NUM_SMTH_PARAM] = {
 	0, 20, 40, 80, 110, 128, 110, 80, 40, 20, 0
 };
 
-//static uint smth_coef_luma_matrix_param = NUM_SMTH_PARAM;
+static uint smth_coef_luma_matrix_param = NUM_SMTH_PARAM;
 static uint smth_coef_luma[NUM_SMTH_PARAM] = {
 	40, 100, 105, 110, 115, 120, 115, 110, 85, 60, 40
 };
 
-//static uint smth_coef_sat_matrix_param = NUM_SMTH_PARAM;
+static uint smth_coef_sat_matrix_param = NUM_SMTH_PARAM;
 static uint smth_coef_sat[NUM_SMTH_PARAM] = {
 	40, 60, 85, 105, 115, 120, 115, 105, 85, 60, 30
 };
@@ -93,43 +93,43 @@ static char def_luma_via_hue[32];
 
 //static char def_14_color_sat_via_hs[3][32];
 
-__module_param_array(lpf_coef, uint,
+module_param_array(lpf_coef, uint,
 		   &lpf_coef_matrix_param, 0664);
 MODULE_PARM_DESC(lpf_coef, "\n lpf_coef\n");
 
-__module_param_array(color_key_pts, uint,
+module_param_array(color_key_pts, uint,
 		   &color_key_pts_matrix_param, 0664);
 MODULE_PARM_DESC(color_key_pts, "\n color_key_pts\n");
 
-__module_param_array(color_start, uint,
+module_param_array(color_start, uint,
 		   &color_start_param, 0664);
 MODULE_PARM_DESC(color_start, "\n color_start\n");
 
-__module_param_array(color_end, uint,
+module_param_array(color_end, uint,
 		   &color_end_param, 0664);
 MODULE_PARM_DESC(color_end, "\n color_end\n");
 
-__module_param_array(cm_14_color_key_pts, uint,
+module_param_array(cm_14_color_key_pts, uint,
 		   &cm_14_color_key_pts_matrix_param, 0664);
 MODULE_PARM_DESC(cm_14_color_key_pts, "\n cm_14_color_key_pts\n");
 
-__module_param_array(cm_14_color_start, uint,
+module_param_array(cm_14_color_start, uint,
 		   &cm_14_color_start_param, 0664);
 MODULE_PARM_DESC(cm_14_color_start, "\n 14 color_start\n");
 
-__module_param_array(cm_14_color_end, uint,
+module_param_array(cm_14_color_end, uint,
 		   &cm_14_color_end_param, 0664);
 MODULE_PARM_DESC(cm_14_color_end, "\n 14 color_end\n");
 
-__module_param_array(smth_coef_hue, uint,
+module_param_array(smth_coef_hue, uint,
 		   &smth_coef_hue_matrix_param, 0664);
 MODULE_PARM_DESC(smth_coef_hue_matrix_param, "\n smth_coef_hue\n");
 
-__module_param_array(smth_coef_luma, uint,
+module_param_array(smth_coef_luma, uint,
 		   &smth_coef_luma_matrix_param, 0664);
 MODULE_PARM_DESC(smth_coef_luma_matrix_param, "\n smth_coef_luma\n");
 
-__module_param_array(smth_coef_sat, uint,
+module_param_array(smth_coef_sat, uint,
 		   &smth_coef_sat_matrix_param, 0664);
 MODULE_PARM_DESC(smth_coef_sat_matrix_param, "\n smth_coef_sat\n");
 

@@ -73,15 +73,18 @@ int frc_input_handle(struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts)
 	devp->vs_timestamp = timestamp;
 	// frc_vpp_vs_ir_chk_film(devp);
 	/*vframe change detect and video state detects*/
-	frc_boot_timestamp_check(devp);
+//	frc_boot_timestamp_check(devp);
+	frc_isr_print_zero(devp);
 	frc_input_vframe_handle(devp, vf, cur_video_sts);
 
-	frc_isr_print_zero(devp);
+//	frc_isr_print_zero(devp);
 
 	/*frc work mode handle*/
 	// frc_state_handle_old(devp);
-	// frc_state_handle(devp);
-	frc_state_handle_new(devp);
+	if (get_chip_type() == ID_T3X)
+		frc_state_handle_new(devp);
+	else
+		frc_state_handle(devp);
 
 	return 0;
 }
@@ -110,6 +113,89 @@ int frc_set_mode(enum frc_state_e state)
  * get current frc video latency
  * return: ms
  */
+int frc_get_video_latency_for_gd(void)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *fw_data;
+	struct frc_top_type_s *frc_top;
+
+	// u32 out_frm_dly_num;
+	struct vinfo_s *vinfo = get_current_vinfo();
+	u32 vout_hz = 0;
+	int delay_time = -1;   /*ms*/
+
+	// delay_time = out_frm_dly_num;
+	if (!devp || !vinfo)
+		return -1;
+
+	fw_data = (struct frc_fw_data_s *)devp->fw_data;
+	frc_top = &fw_data->frc_top_type;
+
+	if (vinfo && vinfo->sync_duration_den != 0)
+		vout_hz = vinfo->sync_duration_num / vinfo->sync_duration_den;
+
+	if (devp->frc_sts.auto_ctrl == 1) {
+		if (devp->in_sts.frc_vf_rate == 0)
+			return -1;
+		else if (frc_top->film_mode == 0)
+			delay_time =  35 * 100 / devp->in_sts.frc_vf_rate;
+		else if (frc_top->film_mode != 0) // 30hz or 25hz
+			delay_time =  35 * 100 / devp->in_sts.frc_vf_rate;
+		else
+			delay_time = -2;
+	} else {
+		delay_time = -1;
+	}
+	return delay_time;
+}
+EXPORT_SYMBOL(frc_get_video_latency_for_gd);
+
+/*
+ * get current frc video latency 1
+ * return: out vsync num
+ */
+int frc_get_video_latency_for_gd1(void)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *fw_data;
+	struct frc_top_type_s *frc_top;
+	// u32 out_frm_dly_num;
+	struct vinfo_s *vinfo = get_current_vinfo();
+	u32 vout_hz = 0;
+
+	int delay_time = -1;   /*ms*/
+	int delay_vsync_num = 0;
+
+	if (!devp || !vinfo)
+		return -1;
+
+	fw_data = (struct frc_fw_data_s *)devp->fw_data;
+	frc_top = &fw_data->frc_top_type;
+
+	if (vinfo && vinfo->sync_duration_den != 0)
+		vout_hz = vinfo->sync_duration_num / vinfo->sync_duration_den;
+
+	if (devp->frc_sts.auto_ctrl == 1) {
+		if (devp->in_sts.frc_vf_rate == 0)
+			return -1;
+		else if (frc_top->film_mode == 0)
+			delay_time =  35 * 100 / devp->in_sts.frc_vf_rate;
+		else if (frc_top->film_mode != 0) // 30hz or 25hz
+			delay_time =  35 * 100 / devp->in_sts.frc_vf_rate;
+		else
+			delay_time = -2;
+	} else {
+		return -1;
+	}
+
+	if (delay_time > 0)
+		delay_vsync_num = delay_time * vout_hz / 1000;
+	else
+		delay_vsync_num = -2;
+	return delay_vsync_num;
+}
+EXPORT_SYMBOL(frc_get_video_latency_for_gd1);
+
 int frc_get_video_latency(void)
 {
 	struct frc_dev_s *devp = get_frc_devp();
@@ -235,10 +321,52 @@ int frc_get_n2m_setting(void)
 		return 1;
 	else if (devp->in_out_ratio == FRC_RATIO_1_2)
 		return 2;
+	else if  (devp->in_out_ratio == FRC_RATIO_2_5)
+		return 3;
+	else if  (devp->in_out_ratio == FRC_RATIO_5_6)
+		return 4;
+	else if  (devp->in_out_ratio == FRC_RATIO_5_12)
+		return 5;
 	else
 		return 0;
 }
 EXPORT_SYMBOL(frc_get_n2m_setting);
+
+int frc_ready_to_switch(void)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+
+	if (!devp)
+		return 0;
+	if (!devp->probe_ok)
+		return 0;
+	if (devp->st_change == 1)
+		return 1;
+	else if (devp->st_change == 2)
+		return 2;
+	else if (devp->st_change == 3)
+		return 3;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(frc_ready_to_switch);
+
+int frc_bypass_signal(void)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+
+	if (!devp)
+		return 0;
+	if (!devp->probe_ok)
+		return 0;
+	if (devp->need_bypass == 1)
+		return 1;
+	else if (devp->need_bypass == 2)
+		return 2;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(frc_bypass_signal);
 
 int frc_get_memc_size(u16 *hsize, u16 *vsize)
 {

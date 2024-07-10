@@ -225,31 +225,47 @@ struct hw_aisr_reshape_reg_s {
 	u32 aisr_sr1_nn_post_top;
 };
 
-struct hw_vd_csc_reg_s {
-	u32 vout_vd1_csc_coef00_01;
-	u32 vout_vd1_csc_coef02_10;
-	u32 vout_vd1_csc_coef11_12;
-	u32 vout_vd1_csc_coef20_21;
-	u32 vout_vd1_csc_coef22;
-	u32 vout_vd1_csc_coef13_14;
-	u32 vout_vd1_csc_coef23_24;
-	u32 vout_vd1_csc_coef15_25;
-	u32 vout_vd1_csc_clip;
-	u32 vout_vd1_csc_offset0_1;
-	u32 vout_vd1_csc_offset2;
-	u32 vout_vd1_csc_pre_offset0_1;
-	u32 vout_vd1_csc_pre_offset2;
-	u32 vout_vd1_csc_en_ctrl;
-};
-
-struct hw_vout_blend_reg_s {
-	u32 vpu_vout_blend_ctrl;
-	u32 vpu_vout_blend_dumdata;
-	u32 vpu_vout_blend_size;
-	u32 vpu_vout_bld_src0_hpos;
-	u32 vpu_vout_bld_src0_vpos;
-	u32 vpu_vout_bld_src1_hpos;
-	u32 vpu_vout_bld_src1_vpos;
+struct hw_vsr_safa_reg_s {
+	/* top */
+	u32 vpp_vsr_top_c42c44_mode;
+	u32 vpp_vsr_top_misc;
+	/* pi */
+	u32 vpp_pi_en_mode;
+	u32 vpp_pi_misc;
+	u32 vpp_pi_dict_num;
+	u32 vpp_pi_win_ofst;
+	u32 vpp_pi_in_hsc_part;
+	u32 vpp_pi_in_hsc_ini;
+	u32 vpp_pi_in_vsc_part;
+	u32 vpp_pi_in_vsc_ini;
+	u32 vpp_pi_hf_hsc_part;
+	u32 vpp_pi_hf_hsc_ini;
+	u32 vpp_pi_hf_vsc_part;
+	u32 vpp_pi_hf_vsc_ini;
+	/* safa */
+	u32 safa_pps_sr_422_en;
+	u32 safa_pps_pre_scale;
+	u32 safa_pps_pre_hscale_coef_y1;
+	u32 safa_pps_pre_hscale_coef_y0;
+	u32 safa_pps_pre_hscale_coef_c1;
+	u32 safa_pps_pre_hscale_coef_c0;
+	u32 safa_pps_pre_vscale_coef;
+	u32 safa_pps_hw_ctrl;
+	u32 safa_pps_interp_en_mode;
+	u32 safa_pps_yuv_sharpen_en;
+	u32 safa_pps_dir_en_mode;
+	u32 safa_pps_sr_alp_info;
+	u32 safa_pps_pi_info;
+	u32 safa_pps_hsc_start_phase_step;
+	u32 safa_pps_vsc_start_phase_step;
+	u32 safa_pps_vsc_init;
+	u32 safa_pps_hsc_init;
+	u32 safa_pps_sc_misc;
+	u32 safa_pps_cntl_scale_coef_idx_luma;
+	u32 safa_pps_cntl_scale_coef_luma;
+	u32 safa_pps_cntl_scale_coef_idx_chro;
+	u32 safa_pps_cntl_scale_coef_chro;
+	u32 safa_pps_dejaggy_ctrl;
 };
 
 extern struct hw_vd_reg_s vd_mif_reg_legacy_array[MAX_VD_LAYER_G12];
@@ -275,13 +291,8 @@ extern struct hw_vppx_blend_reg_s vppx_blend_reg_array[MAX_VPP_NUM - 1];
 
 extern struct hw_vd_reg_s vd_mif_reg_c3_array[MAX_VD_LAYER_C3];
 extern struct hw_vd_linear_reg_s vd_mif_linear_reg_c3_array[MAX_VD_LAYER_C3];
-extern struct hw_vd_csc_reg_s vd_csc_c3_reg[MAX_VD_LAYER_C3];
-extern struct hw_vout_blend_reg_s vout_blend_c3_reg;
 
-extern struct hw_vd_reg_s vd_mif_reg_a4_array[MAX_VD_LAYER_C3];
-extern struct hw_vd_linear_reg_s vd_mif_linear_reg_a4_array[MAX_VD_LAYER_C3];
-extern struct hw_pps_reg_s pps_reg_a4_array[MAX_VD_LAYER_C3];
-extern struct hw_vd_csc_reg_s vd_csc_a4_reg[MAX_VD_LAYER_C3];
-extern struct hw_vout_blend_reg_s vout_blend_a4_reg;
 extern struct hw_aisr_reshape_reg_s aisr_reshape_reg;
+extern struct hw_vsr_safa_reg_s vsr_safa_reg;
+extern struct hw_vsr_safa_reg_s s6_vsr_safa_reg;
 #endif

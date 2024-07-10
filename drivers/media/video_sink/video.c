@@ -123,6 +123,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include <linux/amlogic/media/amprime_sl/prime_sl.h>
 #endif
 #include <linux/amlogic/media/video_processor/video_pp_common.h>
+#include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
 
 #include <linux/math64.h>
 #include "video_receiver.h"
@@ -175,6 +176,7 @@ static struct device *amvideo_poll_dev;
 static const char video_dev_id[] = "amvideo-dev";
 static struct amvideo_device_data_s amvideo_meson_dev;
 static struct dentry *video_debugfs_root;
+static struct video_save_s video_save;
 
 static int video_vsync = -ENXIO;
 static int video_vsync_viu2 = -ENXIO;
@@ -404,8 +406,7 @@ static u8 enable_hdmi_delay_normal_check = 1;
 #define HDMI_DELAY_NORMAL_CHECK_COUNT 300
 #define HDMI_VIDEO_MIN_DELAY 3
 
-/*bit0~1 for vd1, bit2~3 for vd2*/
-static u32 force_skip_cnt;
+static u32 force_skip_cnt[MAX_VD_LAYERS] = {0xff, 0xff, 0xff};
 /* wait queue for poll */
 static wait_queue_head_t amvideo_trick_wait;
 static u32 vpts_ref;
@@ -423,7 +424,7 @@ static int vpts_chase_pts_diff;
 static u32 step_enable;
 static u32 step_flag;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-static unsigned int vsync_rdma_line_max;
+static u32 vsync_rdma_line_max;
 #endif
 static u32 vpts_remainder;
 static int enable_video_discontinue_report = 1;
@@ -560,6 +561,8 @@ u32 force_blackout;
 u32 pip_frame_count[MAX_VD_LAYERS];
 u32 pip_loop;
 u32 pip2_loop;
+u32 status_save_reg[20];
+u32 status_save_val[20];
 struct vframe_s *cur_dispbuf[MAX_VD_LAYERS];
 struct vframe_s *cur_dispbuf2;
 //static struct vframe_s *cur_dispbuf3;
@@ -571,7 +574,7 @@ bool need_disable_vd[MAX_VD_LAYER];
 struct video_recv_s *gvideo_recv[3] = {NULL, NULL, NULL};
 struct video_recv_s *gvideo_recv_vpp[2] = {NULL, NULL};
 /*seek values on.video_define.h*/
-unsigned int debug_flag;
+u32 debug_flag;
 
 int vdec_out_size_threshold_8k = 7;
 int vpp_in_size_threshold_8k = 7;
@@ -581,6 +584,7 @@ int vpp_in_size_threshold_4k = 9;
 /* for vd1 vsync 2to1 */
 u32 vsync_count_start;
 u32 new_frame_cnt;
+
 u32 new_frame_count;
 u32 vd1_vd2_mux_dts;
 u32 osd_vpp_misc;
@@ -625,11 +629,14 @@ u32 reverse;
 u32  video_mirror;
 bool vd1_vd2_mux;
 bool aisr_en;
+bool vsr_top_en;
+u32 vsr_debug_mode;
 bool video_suspend;
 u32 video_suspend_cycle;
 int log_out;
 u64 vsync_cnt[VPP_MAX] = {0, 0, 0};
-
+u8 vsync_isr_cpuid;
+u8 prevsync_isr_cpuid;
 #ifdef CONFIG_PM
 struct video_pm_state_s {
 	int event;
@@ -673,7 +680,7 @@ char file_name[512];
 /* 3d related */
 static unsigned int framepacking_width = 1920;
 static unsigned int framepacking_height = 2205;
-static unsigned int pause_one_3d_fl_frame;
+static u32 pause_one_3d_fl_frame;
 u32 framepacking_support;
 u32 g_framepacking_support;
 unsigned int framepacking_blank = 45;
@@ -683,12 +690,11 @@ unsigned int process_3d_type;
 int toggle_3d_fa_frame = 1;
 /*the pause_one_3d_fl_frame is for close*/
 /*the A/B register switch in every sync at pause mode. */
+
 /*debug info control for skip & repeate vframe case*/
 static unsigned int video_dbg_vf;
-//static int vd_cnt = MAX_VD_LAYER;
 unsigned int video_get_vf_cnt[MAX_VD_LAYER];
 unsigned int video_drop_vf_cnt[MAX_VD_LAYER];
-
 static unsigned int disable_dv_drop;
 static u32 vdin_frame_skip_cnt;
 static u32 vdin_err_crc_cnt;
@@ -1023,6 +1029,9 @@ static void video_vf_unreg_provider(void)
 	videopeek = 0;
 	nopostvideostart = false;
 	hold_property_changed = 0;
+	video_save.save_vf_en = false;
+	video_save.save_vf = NULL;
+	video_save.toggle_vf = NULL;
 
 	atomic_inc(&video_unreg_flag);
 	while (atomic_read(&video_inirq_flag) > 0)
@@ -1068,7 +1077,8 @@ static void video_vf_unreg_provider(void)
 			vf_local[0].uvm_vf = NULL;
 			vf_local_ext[0].ratio_control = vf_local[0].ratio_control;
 		} else if (cur_dispbuf[0]->vf_ext &&
-			is_pre_link_source(cur_dispbuf[0])) {
+			is_plink_source(cur_dispbuf[0]) &&
+			!HAS_DI_LOCAL_BUF(cur_dispbuf[0]->di_flag)) {
 			u32 tmp_rc;
 			struct vframe_s *tmp;
 
@@ -1076,8 +1086,8 @@ static void video_vf_unreg_provider(void)
 				tmp = cur_dispbuf[0]->uvm_vf;
 			else
 				tmp = (struct vframe_s *)cur_dispbuf[0]->vf_ext;
-			if (debug_flag & DEBUG_FLAG_PRELINK)
-				pr_info("video_unreg: prelink: cur_dispbuf:%px vf_ext:%px uvm_vf:%px flag:%x\n",
+			if (debug_flag & DEBUG_FLAG_PLINK)
+				pr_info("video_unreg: #1 plink: cur_dispbuf:%px vf_ext:%px uvm_vf:%px flag:%x\n",
 					cur_dispbuf[0], cur_dispbuf[0]->vf_ext,
 					cur_dispbuf[0]->uvm_vf, cur_dispbuf[0]->flag);
 			tmp_rc = cur_dispbuf[0]->ratio_control;
@@ -1088,7 +1098,8 @@ static void video_vf_unreg_provider(void)
 			vf_local[0].vf_ext = NULL;
 			vf_local[0].uvm_vf = NULL;
 		} else if (IS_DI_POST(cur_dispbuf[0]->type) &&
-			(cur_dispbuf[0]->vf_ext || cur_dispbuf[0]->uvm_vf)) {
+			(cur_dispbuf[0]->vf_ext || cur_dispbuf[0]->uvm_vf) &&
+			!HAS_DI_LOCAL_BUF(cur_dispbuf[0]->di_flag)) {
 			u32 tmp_rc;
 			struct vframe_s *tmp;
 
@@ -1096,8 +1107,8 @@ static void video_vf_unreg_provider(void)
 				tmp = cur_dispbuf[0]->uvm_vf;
 			else
 				tmp = (struct vframe_s *)cur_dispbuf[0]->vf_ext;
-			if (debug_flag & DEBUG_FLAG_PRELINK)
-				pr_info("video_unreg: pre/post link: cur_dispbuf:%px vf_ext:%px uvm_vf:%px flag:%x\n",
+			if (debug_flag & DEBUG_FLAG_PLINK)
+				pr_info("video_unreg: #2 plink: cur_dispbuf:%px vf_ext:%px uvm_vf:%px flag:%x\n",
 					cur_dispbuf[0], cur_dispbuf[0]->vf_ext,
 					cur_dispbuf[0]->uvm_vf, cur_dispbuf[0]->flag);
 			tmp_rc = cur_dispbuf[0]->ratio_control;
@@ -1327,7 +1338,8 @@ static void video_vf_light_unreg_provider(int need_keep_frame)
 			vf_local[0].uvm_vf = NULL;
 			vf_local_ext[0].ratio_control = vf_local[0].ratio_control;
 		} else if (cur_dispbuf[0]->vf_ext &&
-			is_pre_link_source(cur_dispbuf[0])) {
+			is_plink_source(cur_dispbuf[0]) &&
+			!HAS_DI_LOCAL_BUF(cur_dispbuf[0]->di_flag)) {
 			u32 tmp_rc;
 			struct vframe_s *tmp;
 
@@ -1335,8 +1347,8 @@ static void video_vf_light_unreg_provider(int need_keep_frame)
 				tmp = cur_dispbuf[0]->uvm_vf;
 			else
 				tmp = (struct vframe_s *)cur_dispbuf[0]->vf_ext;
-			if (debug_flag & DEBUG_FLAG_PRELINK)
-				pr_info("%s: prelink: cur_dispbuf:%px vf_ext:%px uvm_vf:%px flag:%x\n",
+			if (debug_flag & DEBUG_FLAG_PLINK)
+				pr_info("%s: #1 plink: cur_dispbuf:%px vf_ext:%px uvm_vf:%px flag:%x\n",
 					__func__,
 					cur_dispbuf[0], cur_dispbuf[0]->vf_ext,
 					cur_dispbuf[0]->uvm_vf, cur_dispbuf[0]->flag);
@@ -1348,7 +1360,8 @@ static void video_vf_light_unreg_provider(int need_keep_frame)
 			vf_local[0].vf_ext = NULL;
 			vf_local[0].uvm_vf = NULL;
 		} else if (IS_DI_POST(cur_dispbuf[0]->type) &&
-			(cur_dispbuf[0]->vf_ext || cur_dispbuf[0]->uvm_vf)) {
+			(cur_dispbuf[0]->vf_ext || cur_dispbuf[0]->uvm_vf) &&
+			!HAS_DI_LOCAL_BUF(cur_dispbuf[0]->di_flag)) {
 			u32 tmp_rc;
 			struct vframe_s *tmp;
 
@@ -1356,8 +1369,8 @@ static void video_vf_light_unreg_provider(int need_keep_frame)
 				tmp = cur_dispbuf[0]->uvm_vf;
 			else
 				tmp = (struct vframe_s *)cur_dispbuf[0]->vf_ext;
-			if (debug_flag & DEBUG_FLAG_PRELINK)
-				pr_info("%s: pre/post link: cur_dispbuf:%px vf_ext:%px uvm_vf:%px flag:%x\n",
+			if (debug_flag & DEBUG_FLAG_PLINK)
+				pr_info("%s: #2 plink: cur_dispbuf:%px vf_ext:%px uvm_vf:%px flag:%x\n",
 					__func__,
 					cur_dispbuf[0], cur_dispbuf[0]->vf_ext,
 					cur_dispbuf[0]->uvm_vf, cur_dispbuf[0]->flag);
@@ -2386,7 +2399,7 @@ static void set_omx_pts(u32 *p)
 	if (set_from_hwc == 0 && omx_run &&
 	    frame_num <= 2 && not_reset == 0 &&
 	    omx_pts_set_from_hwc_count > 0) {
-		pr_info("reset omx_run to 0.\n");
+		pr_info("reset omx_run to false.\n");
 		omx_run = 0;
 	}
 	if (set_from_hwc == 1) {
@@ -2421,7 +2434,7 @@ static void set_omx_pts(u32 *p)
 				dovi_drop_frame_num = frame_num;
 
 				if (disable_dv_drop) {
-					omx_run = 1;
+					omx_run = true;
 					dovi_drop_flag = false;
 					dovi_drop_frame_num = 0;
 					omx_drop_done = 1;
@@ -3197,10 +3210,6 @@ void pts_process(void)
 			videosync_pcrscr_update(vsync_pts_inc_scale,
 						vsync_pts_inc_scale_base);
 #endif
-#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
-			videoqueue_pcrscr_update(vsync_pts_inc_scale,
-						vsync_pts_inc_scale_base);
-#endif
 
 		} else if (vsync_slow_factor > 1000) {
 			u32 inc = (vsync_slow_factor / 1000)
@@ -3436,12 +3445,12 @@ static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 		u32 vpts = timestamp_vpts_get();
 		u32 apts = timestamp_apts_get();
 
-		pr_info("%s pts:%d.%06d pcr:%d.%06d vpts:%d.%06d apts:%d.%06d\n",
+		pr_info("%s pts:%d.%06d pcr:%d.%06d vpts:%d.%06d apts:%d.%06d disp:%d\n",
 			__func__, (vf->pts) / 90000,
 			((vf->pts) % 90000) * 1000 / 90, (pcr) / 90000,
 			((pcr) % 90000) * 1000 / 90, (vpts) / 90000,
 			((vpts) % 90000) * 1000 / 90, (apts) / 90000,
-			((apts) % 90000) * 1000 / 90);
+			((apts) % 90000) * 1000 / 90, vf->index_disp);
 	}
 
 	if (trickmode_i || trickmode_fffb)
@@ -3686,6 +3695,43 @@ static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 	return cur_dispbuf[0];
 }
 
+static struct vframe_s *save_toggle_frame(struct vframe_s *vf)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (get_top1_onoff() == 3) {
+		if (video_save.save_vf_en && video_save.save_vf) {
+			/* need toggle */
+			video_save.toggle_vf = video_save.save_vf;
+			video_save.save_vf = vf;
+			vf = video_save.toggle_vf;
+		} else {
+			/* save frame, not toggle */
+			video_save.save_vf = vf;
+			video_save.toggle_vf = NULL;
+			vf = NULL;
+			video_save.save_vf_en = true;
+		}
+		if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+			pr_info("%s: save_vf_en=%d, vf=%p, save_vf=%p, toggle_vf=%p\n",
+				__func__,
+				video_save.save_vf_en, vf,
+				video_save.save_vf ?
+				video_save.save_vf : NULL,
+				video_save.toggle_vf ?
+				video_save.toggle_vf : NULL);
+	} else {
+		video_save.toggle_vf = vf;
+		if (video_save.save_vf) {
+			if (!amvideo_vf_put(video_save.save_vf))
+				video_save.save_vf = NULL;
+		}
+		video_save.save_vf_en = false;
+	}
+	vf = video_save.toggle_vf;
+#endif
+	return vf;
+}
+
 struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 {
 	struct vframe_s *path0_new_frame = NULL;
@@ -3703,7 +3749,6 @@ struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 
 	toggle_cnt = 0;
 
-	over_field = false;
 	if (!cur_dispbuf[0] || cur_dispbuf[0] == &vf_local[0]) {
 		vf = amvideo_vf_peek();
 		if (vf) {
@@ -3944,7 +3989,7 @@ struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 				break; // not render err crc frame
 			}
 			/*top1 enable, need check one more frame*/
-			if (is_amdv_enable() && get_top1_onoff()) {/*todo*/
+			if (is_amdv_enable() && get_top1_onoff() == 3) {/*todo*/
 				vf_top1 = amvideo_vf_peek();
 				/*wait next new Fn+1 for top1, proc top2 Fn + top1 Fn+1*/
 				/*if no new frame, proc top2 Fn + repeat Top1 Fn cur vsync*/
@@ -3972,9 +4017,14 @@ struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 			if (vd_path_id[0] == VFM_PATH_AMVIDEO ||
 			    vd_path_id[0] == VFM_PATH_DEF ||
 				vd_path_id[0] == VFM_PATH_AUTO) {
-				if (!get_top1_onoff() || !vf_top1) {/*no top1*/
+				if (get_top1_onoff() == 0 || !vf_top1) {/*no top1*/
 					dv_new_vf = dv_toggle_frame(vf, VD1_PATH, true);
-				} else if (vf_top1) {/*top1 + top2*/
+				} else if (get_top1_onoff() == 1) {
+				/*top1 enabled but no need get frame in advance*/
+					vf_top1 = vf;
+					amdv_parse_metadata_hw5_top1(vf_top1);
+					dv_new_vf = dv_toggle_frame(vf, VD1_PATH, true);
+				} else if (get_top1_onoff() == 3) {/*top1 + top2*/
 					amdv_parse_metadata_hw5_top1(vf_top1);
 					dv_new_vf = dv_toggle_frame(vf, VD1_PATH, true);
 				}
@@ -4090,6 +4140,7 @@ struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 							       __LINE__);
 						break;
 					}
+					vf = save_toggle_frame(vf);
 					path0_new_frame = vsync_toggle_frame(vf, __LINE__);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 					if (vd_path_id[0] == VFM_PATH_AMVIDEO ||
@@ -4097,9 +4148,8 @@ struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 					    vd_path_id[0] == VFM_PATH_AUTO)
 						dv_new_vf =
 						dv_toggle_frame(vf, VD1_PATH, true);
-					/*coverity[Unused value]*/
 					if (hold_video) {
-						/*coverity[value_overwrite]*/
+						/*coverity[Event value_over_write]*/
 						dv_new_vf = NULL;
 					}
 #endif
@@ -4177,6 +4227,7 @@ void hdmi_in_delay_maxmin_old(struct vframe_s *vf)
 	struct vinfo_s *video_info;
 	u64 memc_delay = 0;
 	int vdin_keep_count = VDIN_KEEP_COUNT;
+	u32 sync_count_pre = 0;
 
 	if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
 		vf->source_type != VFRAME_SOURCE_TYPE_CVBS &&
@@ -4223,8 +4274,14 @@ void hdmi_in_delay_maxmin_old(struct vframe_s *vf)
 	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
 		pr_info("%s: vdin:count=%d vsync=%lld, di:count=%d vsync=%lld.\n",
 			__func__, vdin_keep_count, vdin_vsync, di_keep_count, vpp_vsync);
-	hdmin_delay_min = (vdin_keep_count + di_keep_count) * vdin_vsync
-			+ vpp_vsync * 2;
+
+	sync_count_pre = vdin_keep_count + di_keep_count;
+	if (sync_count_pre < 2) {
+		if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+			pr_info("%s: pre delay need at least 2 vsync.\n", __func__);
+		sync_count_pre = 2;
+	}
+	hdmin_delay_min = sync_count_pre * vdin_vsync + vpp_vsync * 2;
 	hdmin_delay_min_ms = div64_u64(hdmin_delay_min, 1000);
 	hdmin_delay_min_ms += memc_delay;
 
@@ -4260,6 +4317,9 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	u64 ext_delay = 0;
 	u32 vdin_buf_count = 0;
 	u32 dv_flag = 0;
+	bool di_backend_en = false;
+	int display_path_count = DIS_PATH_DELAY_COUNT;
+	u32 sync_count_pre = 0;
 
 	if (!tvin_delay_mode)
 		return;
@@ -4288,6 +4348,13 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 	vdin_keep_count += get_vdin_add_delay_num();
 #endif
+	di_backend_en = get_di_proc_enable();
+	if (di_backend_en) {
+		vdin_keep_count += 1;
+		di_keep_count = 0;
+		if (vf->type_original & VIDTYPE_INTERLACE)
+			display_path_count += 1;
+	}
 
 	vdin_vsync = vf->duration;
 	vdin_vsync = vdin_vsync * 1000;
@@ -4316,8 +4383,14 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	 *if no di: count = (1 + 0) * vdin_vsync + 2* vpp_vsync;
 	 *vdin vsync before vpp vsync about 7ms
 	 */
-	hdmin_delay_min = (vdin_keep_count + di_keep_count) * vdin_vsync +
-		DIS_PATH_DELAY_COUNT * vpp_vsync + ext_delay;
+	sync_count_pre = vdin_keep_count + di_keep_count;
+	if (sync_count_pre < 2) {
+		if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+			pr_info("%s: pre delay need at least 2 vsync.\n", __func__);
+		sync_count_pre = 2;
+	}
+	hdmin_delay_min = sync_count_pre * vdin_vsync +
+		display_path_count * vpp_vsync + ext_delay;
 	hdmin_delay_min_ms = div64_u64(hdmin_delay_min, 1000);
 	hdmin_delay_min_ms += memc_delay;
 
@@ -4343,13 +4416,12 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 		vdin_buf_count = VDIN_BUF_COUNT;
 	}
 #endif
-	if (di_has_vdin_vf || !do_di) {
-		vdin_count = vdin_buf_count - 3 - DIS_PATH_DELAY_COUNT - 1;
-		vpp_count = DIS_PATH_DELAY_COUNT + 1;
+	if (di_has_vdin_vf || !do_di || di_backend_en) {
+		vdin_count = vdin_buf_count - 3 - display_path_count - 1;
+		vpp_count = display_path_count + 1;
 	} else {
-		vdin_count = DI_MAX_OUT_COUNT - 2 +
-			vdin_buf_count - 2 - di_keep_count;
-		vpp_count = DIS_PATH_DELAY_COUNT + 1;
+		vdin_count = DI_MAX_OUT_COUNT - 2 + vdin_buf_count - 2 - di_keep_count;
+		vpp_count = display_path_count + 1;
 	}
 	hdmin_delay_max = vdin_count * vdin_vsync + vpp_count * vpp_vsync;
 	hdmin_delay_max_ms = div64_u64(hdmin_delay_max, 1000);
@@ -4358,6 +4430,9 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG) {
 		pr_info("%s: di_has_vdin_vf=%d, do_di =%d.\n", __func__, di_has_vdin_vf, do_di);
 		pr_info("%s: range(%d, %d).\n", __func__, hdmin_delay_min_ms, hdmin_delay_max_ms);
+		pr_info("%s: vdin_keep_count=%d, di_keep_count=%d, display_path_count=%d.\n",
+			__func__, vdin_keep_count, di_keep_count, display_path_count);
+		pr_info("%s: vdin_count=%d, vpp_count=%d.\n", __func__, vdin_count, vpp_count);
 	}
 }
 
@@ -4377,10 +4452,14 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 	int vdin_keep_count = VDIN_KEEP_COUNT;
 	u64 ext_delay = 0;
 	u32 vdin_buf_count = 0;
+	bool di_backend_en = false;
+	int display_path_count = DIS_PATH_DELAY_COUNT;
+	u32 sync_count_pre = 0;
 
 	if (!tvin_info->is_dv && tvin_info->width <= 3840 &&
 		tvin_info->cfmt == TVIN_YUV422) {
 		do_di = true;
+		/* TODO: if need add post link check */
 		if ((tvin_info->width > 1920 && tvin_info->width <= 3840) || dim_get_pre_link())
 			di_has_vdin_vf = true;
 		if (tvin_info->scan_mode == TVIN_SCAN_MODE_INTERLACED)
@@ -4394,6 +4473,13 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 	vdin_keep_count += get_vdin_add_delay_num();
 #endif
+	di_backend_en = get_di_proc_enable();
+	if (di_backend_en) {
+		vdin_keep_count += 1;
+		di_keep_count = 0;
+		if (tvin_info->scan_mode == TVIN_SCAN_MODE_INTERLACED)
+			display_path_count += 1;
+	}
 
 	vdin_vsync = div64_u64(1000 * 1000, tvin_info->fps);
 
@@ -4418,8 +4504,14 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 	 *if no di: count = (1 + 0) * vdin_vsync + 2* vpp_vsync;
 	 *vdin vsync before vpp vsync about 7ms
 	 */
-	hdmin_delay_min = (vdin_keep_count + di_keep_count) * vdin_vsync +
-		DIS_PATH_DELAY_COUNT * vpp_vsync + ext_delay;
+	sync_count_pre = vdin_keep_count + di_keep_count;
+	if (sync_count_pre < 2) {
+		if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+			pr_info("%s: pre delay need at least 2 vsync.\n", __func__);
+		sync_count_pre = 2;
+	}
+	hdmin_delay_min = sync_count_pre * vdin_vsync +
+		display_path_count * vpp_vsync + ext_delay;
 	hdmin_delay_min_ms = div64_u64(hdmin_delay_min, 1000);
 	hdmin_delay_min_ms += memc_delay;
 
@@ -4437,18 +4529,22 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 	 *di keep 1/2 buf, 8/7 left
 	 *count = (7 + 8/7) * vdin_vsync+ 3 * vpp_vsync;
 	 */
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VIN
 	vdin_buf_count = get_vdin_buffer_num();
 	if (vdin_buf_count <= 0) {
 		pr_info("%s:Get count failed, use default value.\n", __func__);
 		vdin_buf_count = VDIN_BUF_COUNT;
 	}
-	if (di_has_vdin_vf || !do_di) {
-		vdin_count = vdin_buf_count - 3 - DIS_PATH_DELAY_COUNT - 1;
-		vpp_count = DIS_PATH_DELAY_COUNT + 1;
+#else
+	vdin_buf_count = VDIN_BUF_COUNT;
+#endif
+	if (di_has_vdin_vf || !do_di || di_backend_en) {
+		vdin_count = vdin_buf_count - 3 - display_path_count - 1;
+		vpp_count = display_path_count + 1;
 	} else {
-		vdin_count = DI_MAX_OUT_COUNT - 2 +
-			vdin_buf_count - 2 - di_keep_count;
-		vpp_count = DIS_PATH_DELAY_COUNT + 1;
+		vdin_count = DI_MAX_OUT_COUNT - 2 + vdin_buf_count - 2 - di_keep_count;
+		vpp_count = display_path_count + 1;
 	}
 	hdmin_delay_max = vdin_count * vdin_vsync + vpp_count * vpp_vsync;
 	hdmin_delay_max_ms = div64_u64(hdmin_delay_max, 1000);
@@ -4463,6 +4559,9 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG) {
 		pr_info("%s: di_has_vdin_vf=%d, do_di =%d.\n", __func__, di_has_vdin_vf, do_di);
 		pr_info("%s: range(%d, %d).\n", __func__, hdmin_delay_min_ms, hdmin_delay_max_ms);
+		pr_info("%s: vdin_keep_count=%d, di_keep_count=%d, display_path_count=%d.\n",
+			__func__, vdin_keep_count, di_keep_count, display_path_count);
+		pr_info("%s: vdin_count=%d, vpp_count=%d.\n", __func__, vdin_count, vpp_count);
 	}
 }
 
@@ -4738,7 +4837,7 @@ static int dump_reg_show(struct seq_file *s, void *what)
 			reg_addr += 1;
 		}
 		seq_puts(s, "\nvd1 csc registers:\n");
-		reg_addr = vd_layer[0].vd_csc_reg.vout_vd1_csc_coef00_01;
+		reg_addr = VOUT_VD1_CSC_COEF00_01;
 		count = 14;
 		for (i = 0; i < count; i++) {
 			reg_val = READ_VCBUS_REG(reg_addr);
@@ -4747,7 +4846,7 @@ static int dump_reg_show(struct seq_file *s, void *what)
 			reg_addr += 1;
 		}
 		seq_puts(s, "\nvout blend registers:\n");
-		reg_addr = cur_dev->vout_blend_reg.vpu_vout_blend_ctrl;
+		reg_addr = VPU_VOUT_BLEND_CTRL;
 		count = 3;
 		for (i = 0; i < count; i++) {
 			reg_val = READ_VCBUS_REG(reg_addr);
@@ -4755,7 +4854,7 @@ static int dump_reg_show(struct seq_file *s, void *what)
 				   reg_addr, reg_val);
 			reg_addr += 1;
 		}
-		reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src0_hpos;
+		reg_addr = VPU_VOUT_BLD_SRC0_HPOS;
 		count = 2;
 		for (i = 0; i < count; i++) {
 			reg_val = READ_VCBUS_REG(reg_addr);
@@ -4763,7 +4862,7 @@ static int dump_reg_show(struct seq_file *s, void *what)
 				   reg_addr, reg_val);
 			reg_addr += 1;
 		}
-		reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src1_hpos;
+		reg_addr = VPU_VOUT_BLD_SRC1_HPOS;
 		count = 2;
 		for (i = 0; i < count; i++) {
 			reg_val = READ_VCBUS_REG(reg_addr);
@@ -5261,14 +5360,16 @@ void set_vsync_pts_inc_mode(int inc)
 }
 EXPORT_SYMBOL(set_vsync_pts_inc_mode);
 
-u32 get_force_skip_cnt(enum vd_path_e path)
+bool get_force_skip_cnt(u8 layer_id,
+	u32 *vskip_cnt, u32 *hskip_cnt)
 {
-	if (path == VD1_PATH)
-		return (force_skip_cnt & 3);
-	else if (path == VD2_PATH)
-		return ((force_skip_cnt >> 2) & 3);
-	else
-		return 0;
+	if (force_skip_cnt[layer_id] != 0xff) {
+		*vskip_cnt = force_skip_cnt[layer_id] & 0xff;
+		*hskip_cnt = (force_skip_cnt[layer_id] & 0x100) >> 8;
+		return true;
+	} else {
+		return false;
+	}
 }
 
 #ifdef FIQ_VSYNC
@@ -5277,16 +5378,17 @@ void vsync_fisr_in(void)
 static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 {
+	vsync_isr_cpuid = smp_processor_id();
 	if (video_suspend && video_suspend_cycle >= 1) {
 		if (log_out)
 			if (debug_flag & DEBUG_FLAG_BASIC_INFO)
 				pr_info("video suspend, vsync exit\n");
 		log_out = 0;
+		check_video_mute();
 		return IRQ_HANDLED;
 	}
 	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)
 		return IRQ_HANDLED;
-
 	post_vsync_process();
 	return IRQ_HANDLED;
 }
@@ -5331,6 +5433,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 static irqreturn_t vsync_pre_vsync_isr(int irq, void *dev_id)
 {
+	prevsync_isr_cpuid = smp_processor_id();
 	if (video_suspend && video_suspend_cycle >= 1) {
 		if (log_out)
 			if (debug_flag & DEBUG_FLAG_BASIC_INFO)
@@ -5346,7 +5449,8 @@ static irqreturn_t vsync_pre_vsync_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static unsigned int printk_frame_done;
+static u32 printk_frame_done;
+
 static irqreturn_t mosaic_frame_done_isr(int irq, void *dev_id)
 {
 
@@ -5640,6 +5744,38 @@ static s32 clear_vframe_dovi_md_info(struct vframe_s *vf)
 	return 0;
 }
 
+static enum vframe_signal_fmt_e get_sfmt_from_signal_type(struct vframe_s *vf)
+{
+	if (!vf)
+		return VFRAME_SIGNAL_FMT_INVALID;
+
+	/* invalid src fmt case */
+	if (vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE) {
+		if ((signal_transfer_characteristic == 14 ||
+			 signal_transfer_characteristic == 18) &&
+			signal_color_primaries == 9) {
+			if (signal_cuva)
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_CUVA_HLG;
+			else
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HLG;
+		} else if ((signal_transfer_characteristic == 16) &&
+				 ((signal_color_primaries == 9) ||
+				  (signal_color_primaries == 2))) {
+			if (signal_cuva)
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_CUVA_HDR;
+			else
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
+		} else {
+			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_SDR;
+		}
+	}
+
+	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+		pr_info("[%s]  %d\n", __func__, vf->src_fmt.fmt);
+
+	return vf->src_fmt.fmt;
+}
+
 s32 update_vframe_src_fmt(struct vframe_s *vf,
 				   void *sei, u32 size, bool dual_layer,
 				   char *prov_name, char *recv_name)
@@ -5661,9 +5797,13 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 	vf->src_fmt.sei_ptr = sei;
 	vf->src_fmt.sei_size = size;
 	vf->src_fmt.dual_layer = false;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	vf->src_fmt.pr_done = false;
+	vf->src_fmt.py_level = PY_NO_LEVEL;
+	vf->src_fmt.downsamplers = 2;
+#endif
 	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME) {
-		pr_info("===update vf %p, sei %p, size %d, dual_layer %d play_id = %d ===\n",
+		pr_info("===update vf %px, sei %px,size %d,dual_layer %d,play_id=%d ===\n",
 			vf, sei, size, dual_layer,
 			vf->src_fmt.play_id);
 		if (sei && size > 15) {
@@ -5704,7 +5844,7 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 #if PARSE_MD_IN_ADVANCE
 			if (vf->src_fmt.md_buf && vf->src_fmt.comp_buf) {
 				if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
-					pr_info("parse vf %p, sei %p, size %d, md_buf %p\n",
+					pr_info("parse vf %px, sei %px, size %d, md_buf %px\n",
 						vf, sei, size, vf->src_fmt.md_buf);
 				ret = parse_sei_and_meta_ext
 					(vf, sei, size,
@@ -5807,25 +5947,8 @@ enum vframe_signal_fmt_e get_vframe_src_fmt(struct vframe_s *vf)
 		return VFRAME_SIGNAL_FMT_INVALID;
 
 	/* invalid src fmt case */
-	if (vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE) {
-		if ((signal_transfer_characteristic == 14 ||
-			 signal_transfer_characteristic == 18) &&
-			signal_color_primaries == 9) {
-			if (signal_cuva)
-				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_CUVA_HLG;
-			else
-				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HLG;
-		} else if ((signal_transfer_characteristic == 16) &&
-				 ((signal_color_primaries == 9) ||
-				  (signal_color_primaries == 2))) {
-			if (signal_cuva)
-				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_CUVA_HDR;
-			else
-				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
-		} else {
-			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_SDR;
-		}
-	}
+	if (vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE)
+		return VFRAME_SIGNAL_FMT_INVALID;
 
 	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
 		pr_info("[%s]  %d\n", __func__, vf->src_fmt.fmt);
@@ -6020,8 +6143,10 @@ int get_output_pcrscr_info(s32 *inc, u32 *base)
 }
 EXPORT_SYMBOL(get_output_pcrscr_info);
 
-int is_in_vsync_isr(void)
+int is_in_vsync_isr(u8 cur_cpuid)
 {
+	if (vsync_isr_cpuid != cur_cpuid)
+		return 0;
 	if (atomic_read(&video_inirq_flag) > 0)
 		return 1;
 	else
@@ -6029,8 +6154,10 @@ int is_in_vsync_isr(void)
 }
 EXPORT_SYMBOL(is_in_vsync_isr);
 
-int is_in_pre_vsync_isr(void)
+int is_in_pre_vsync_isr(u8 cur_cpuid)
 {
+	if (prevsync_isr_cpuid != cur_cpuid)
+		return 0;
 	if (atomic_read(&video_prevsync_inirq_flag) > 0)
 		return 1;
 	else
@@ -6364,10 +6491,15 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		{
 			int crop[4];
 
-			if (copy_from_user(crop, argp, sizeof(crop)) == 0)
+			if (copy_from_user(crop, argp, sizeof(crop)) == 0) {
+				layer->crop_top_save = crop[0];
+				layer->crop_left_save = crop[1];
+				layer->crop_bottom_save = crop[2];
+				layer->crop_right_save = crop[3];
 				_set_video_crop(layer, crop);
-			else
+			} else {
 				ret = -EFAULT;
+			}
 		}
 		break;
 
@@ -6934,8 +7066,13 @@ static void set_video_crop(struct disp_info_s *layer,
 {
 	int parsed[4];
 
-	if (likely(parse_para(para, 4, parsed) == 4))
+	if (likely(parse_para(para, 4, parsed) == 4)) {
+		layer->crop_top_save = parsed[0];
+		layer->crop_left_save = parsed[1];
+		layer->crop_bottom_save = parsed[2];
+		layer->crop_right_save = parsed[3];
 		_set_video_crop(layer, parsed);
+	}
 	amlog_mask
 		(LOG_MASK_SYSFS,
 		"video crop=>x0:%d,y0:%d,x1:%d,y1:%d\n ",
@@ -7056,9 +7193,9 @@ static int is_interlaced(struct vinfo_s *vinfo)
 		return 0;
 }
 
-static ssize_t video_3d_scale_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_3d_scale_store(const struct class *cla,
+				    const struct class_attribute *attr,
+				    const char *buf, size_t count)
 {
 #ifdef TV_3D_FUNCTION_OPEN
 	u32 enable;
@@ -7079,16 +7216,16 @@ static ssize_t video_3d_scale_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_sr_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_sr_show(const struct class *cla,
+			     const struct class_attribute *attr,
+			     char *buf)
 {
 	return sprintf(buf, "super_scaler:%d\n", super_scaler);
 }
 
-static ssize_t video_sr_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_sr_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	int parsed[1];
 
@@ -7104,9 +7241,30 @@ static ssize_t video_sr_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t video_crop_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_safa_dir_interp_show(const struct class *cla,
+			     const struct class_attribute *attr,
+			     char *buf)
+{
+	return sprintf(buf, "safa_dir_interp_en:%d\n", safa_dir_interp_en);
+}
+
+static ssize_t video_safa_dir_interp_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int parsed[1];
+
+	if (likely(parse_para(buf, 1, parsed) == 1)) {
+		if (safa_dir_interp_en != (parsed[0] & 0x1)) {
+			safa_dir_interp_en = parsed[0] & 0x1;
+			vd_layer[0].property_changed = true;
+		}
+	}
+	return strnlen(buf, count);
+}
+
+static ssize_t video_crop_show(const struct class *cla, const struct class_attribute *attr,
+			       char *buf)
 {
 	u32 t, l, b, r;
 	struct disp_info_s *layer = &glayer_info[0];
@@ -7118,9 +7276,9 @@ static ssize_t video_crop_show(const struct class *class,
 	return snprintf(buf, 40, "%d %d %d %d\n", t, l, b, r);
 }
 
-static ssize_t video_crop_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_crop_store(const struct class *cla,
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	struct disp_info_s *layer = &glayer_info[0];
 
@@ -7133,9 +7291,8 @@ static ssize_t video_crop_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t real_axis_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t real_axis_show(const struct class *cla, const struct class_attribute *attr,
+			       char *buf)
 {
 	int x_start, y_start, x_end, y_end;
 	ssize_t len = 0;
@@ -7154,9 +7311,9 @@ static ssize_t real_axis_show(const struct class *class,
 	return snprintf(buf, 40, "%d %d %d %d\n", x_start, y_start, x_end, y_end);
 }
 
-static ssize_t video_axis_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_axis_show(const struct class *cla,
+			       const struct class_attribute *attr,
+			       char *buf)
 {
 	int x, y, w, h;
 	struct disp_info_s *layer = &glayer_info[0];
@@ -7168,9 +7325,9 @@ static ssize_t video_axis_show(const struct class *class,
 	return snprintf(buf, 40, "%d %d %d %d\n", x, y, x + w - 1, y + h - 1);
 }
 
-static ssize_t video_axis_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_axis_store(const struct class *cla,
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	struct disp_info_s *layer = &glayer_info[0];
 
@@ -7183,9 +7340,9 @@ static ssize_t video_axis_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t video_global_offset_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_global_offset_show(const struct class *cla,
+					const struct class_attribute *attr,
+					char *buf)
 {
 	int x, y;
 	struct disp_info_s *layer = &glayer_info[0];
@@ -7196,9 +7353,9 @@ static ssize_t video_global_offset_show(const struct class *class,
 	return snprintf(buf, 40, "%d %d\n", x, y);
 }
 
-static ssize_t video_global_offset_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_global_offset_store(const struct class *cla,
+					 const struct class_attribute *attr,
+					 const char *buf, size_t count)
 {
 	int parsed[2];
 	struct disp_info_s *layer = &glayer_info[0];
@@ -7220,9 +7377,9 @@ static ssize_t video_global_offset_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_zoom_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_zoom_show(const struct class *cla,
+			       const struct class_attribute *attr,
+			       char *buf)
 {
 	u32 r;
 	struct disp_info_s *layer = &glayer_info[0];
@@ -7232,9 +7389,9 @@ static ssize_t video_zoom_show(const struct class *class,
 	return snprintf(buf, 40, "%d\n", r);
 }
 
-static ssize_t video_zoom_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_zoom_store(const struct class *cla,
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	unsigned long r;
 	int ret = 0;
@@ -7252,9 +7409,8 @@ static ssize_t video_zoom_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_screen_mode_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_screen_mode_show(const struct class *cla,
+				      const struct class_attribute *attr, char *buf)
 {
 	struct disp_info_s *layer = &glayer_info[0];
 	static const char * const wide_str[] = {
@@ -7274,9 +7430,9 @@ static ssize_t video_screen_mode_show(const struct class *class,
 	}
 }
 
-static ssize_t video_screen_mode_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_screen_mode_store(const struct class *cla,
+				       const struct class_attribute *attr,
+				       const char *buf, size_t count)
 {
 	unsigned long mode;
 	int ret = 0;
@@ -7298,16 +7454,16 @@ static ssize_t video_screen_mode_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_blackout_policy_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_blackout_policy_show(const struct class *cla,
+					  const struct class_attribute *attr,
+					  char *buf)
 {
 	return sprintf(buf, "%d\n", blackout[0]);
 }
 
-static ssize_t video_blackout_policy_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_blackout_policy_store(const struct class *cla,
+					   const struct class_attribute *attr,
+					   const char *buf, size_t count)
 {
 	int r;
 
@@ -7321,16 +7477,16 @@ static ssize_t video_blackout_policy_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_seek_flag_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_seek_flag_show(const struct class *cla,
+				    const struct class_attribute *attr,
+				    char *buf)
 {
 	return sprintf(buf, "%d\n", video_seek_flag);
 }
 
-static ssize_t video_seek_flag_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_seek_flag_store(const struct class *cla,
+				     const struct class_attribute *attr,
+				     const char *buf, size_t count)
 {
 	int r;
 
@@ -7341,10 +7497,22 @@ static ssize_t video_seek_flag_store(const struct class *class,
 	return count;
 }
 
+static ssize_t video_max_src_show(const struct class *cla,
+			       const struct class_attribute *attr,
+			       char *buf)
+{
+	int src_width, src_height;
+	struct disp_info_s *layer = &glayer_info[0];
+
+	src_width = layer->src_width_max;
+	src_height = layer->src_height_max;
+	return snprintf(buf, 40, "%d %d\n", src_width, src_height);
+}
+
 #ifdef PTS_TRACE_DEBUG
-static ssize_t pts_trace_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pts_trace_show(const struct class *cla,
+			      const struct class_attribute *attr,
+			      char *buf)
 {
 	return sprintf(buf, "%d %d %d %d %d %d %d %d\n"
 				"%d %d %d %d %d %d %d %d\n"
@@ -7369,9 +7537,8 @@ static ssize_t pts_trace_show(const struct class *class,
 }
 #endif
 
-static ssize_t video_brightness_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_brightness_show(const struct class *cla,
+				     const struct class_attribute *attr, char *buf)
 {
 	s32 val = 0;
 
@@ -7384,9 +7551,9 @@ static ssize_t video_brightness_show(const struct class *class,
 	return sprintf(buf, "%d\n", val);
 }
 
-static ssize_t video_brightness_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_brightness_store(const struct class *cla,
+				      const struct class_attribute *attr,
+				      const char *buf, size_t count)
 {
 	int r;
 	int val;
@@ -7412,9 +7579,8 @@ static ssize_t video_brightness_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_contrast_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_contrast_show(const struct class *cla,
+				   const struct class_attribute *attr, char *buf)
 {
 	int val = 0;
 
@@ -7424,9 +7590,9 @@ static ssize_t video_contrast_show(const struct class *class,
 	return sprintf(buf, "%d\n", val);
 }
 
-static ssize_t video_contrast_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_contrast_store(const struct class *cla,
+				    const struct class_attribute *attr,
+				    const char *buf, size_t count)
 {
 	int r;
 	int val;
@@ -7443,9 +7609,8 @@ static ssize_t video_contrast_store(const struct class *class,
 	return count;
 }
 
-static ssize_t vpp_brightness_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vpp_brightness_show(const struct class *cla,
+				   const struct class_attribute *attr, char *buf)
 {
 	s32 val = 0;
 
@@ -7458,9 +7623,9 @@ static ssize_t vpp_brightness_show(const struct class *class,
 	return sprintf(buf, "%d\n", val);
 }
 
-static ssize_t vpp_brightness_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpp_brightness_store(const struct class *cla,
+				    const struct class_attribute *attr,
+				    const char *buf, size_t count)
 {
 	int r;
 	int val;
@@ -7485,9 +7650,9 @@ static ssize_t vpp_brightness_store(const struct class *class,
 	return count;
 }
 
-static ssize_t vpp_contrast_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vpp_contrast_show(const struct class *cla,
+				 const struct class_attribute *attr,
+				 char *buf)
 {
 	int val = 0;
 
@@ -7497,9 +7662,10 @@ static ssize_t vpp_contrast_show(const struct class *class,
 	return sprintf(buf, "%d\n", val);
 }
 
-static ssize_t vpp_contrast_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpp_contrast_store(const struct class *cla,
+				  const struct class_attribute *attr,
+				  const char *buf,
+				  size_t count)
 {
 	int r;
 	int val;
@@ -7517,9 +7683,8 @@ static ssize_t vpp_contrast_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_saturation_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_saturation_show(const struct class *cla,
+				     const struct class_attribute *attr, char *buf)
 {
 	int val = 0;
 
@@ -7529,9 +7694,9 @@ static ssize_t video_saturation_show(const struct class *class,
 	return sprintf(buf, "%d\n", val);
 }
 
-static ssize_t video_saturation_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_saturation_store(const struct class *cla,
+				      const struct class_attribute *attr,
+				      const char *buf, size_t count)
 {
 	int r;
 	int val;
@@ -7547,9 +7712,8 @@ static ssize_t video_saturation_store(const struct class *class,
 	return count;
 }
 
-static ssize_t vpp_saturation_hue_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vpp_saturation_hue_show(const struct class *cla,
+				       const struct class_attribute *attr, char *buf)
 {
 	int val = 0;
 
@@ -7558,9 +7722,9 @@ static ssize_t vpp_saturation_hue_show(const struct class *class,
 	return sprintf(buf, "0x%x\n", val);
 }
 
-static ssize_t vpp_saturation_hue_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpp_saturation_hue_store(const struct class *cla,
+					const struct class_attribute *attr,
+					const char *buf, size_t count)
 {
 	int r;
 	s32 mab = 0;
@@ -7593,9 +7757,9 @@ static ssize_t vpp_saturation_hue_store(const struct class *class,
 /* [23:16] Y */
 /* [15: 8] Cb */
 /* [ 7: 0] Cr */
-static ssize_t video_test_screen_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_test_screen_show(const struct class *cla,
+				      const struct class_attribute *attr,
+				      char *buf)
 {
 	return sprintf(buf, "0x%x\n", test_screen);
 }
@@ -7604,32 +7768,33 @@ static ssize_t video_test_screen_show(const struct class *class,
 /* [23:16] Y */
 /* [15: 8] Cb */
 /* [ 7: 0] Cr */
-static ssize_t video_background_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_background_show(const struct class *cla,
+				      const struct class_attribute *attr,
+				      char *buf)
 {
 	return sprintf(buf, "channel_bg(0x%x) no_channel_bg(0x%x)\n",
 		       vd_layer[0].video_en_bg_color,
 		       vd_layer[0].video_dis_bg_color);
 }
 
-static ssize_t video_rgb_screen_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_rgb_screen_show(const struct class *cla,
+				     const struct class_attribute *attr,
+				     char *buf)
 {
 	return sprintf(buf, "0x%x\n", rgb_screen);
 }
 
-static ssize_t enable_hdmi_delay_check_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t enable_hdmi_delay_check_show(const struct class *cla,
+				      const struct class_attribute *attr,
+					  char *buf)
 {
 	return sprintf(buf, "%d\n", enable_hdmi_delay_normal_check);
 }
 
-static ssize_t enable_hdmi_delay_check_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t enable_hdmi_delay_check_store(const struct class *cla,
+				      const struct class_attribute *attr,
+				      const char *buf,
+					  size_t count)
 {
 	int r;
 	int value;
@@ -7642,9 +7807,9 @@ static ssize_t enable_hdmi_delay_check_store(const struct class *class,
 	return count;
 }
 
-static ssize_t hdmi_delay_debug_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t hdmi_delay_debug_show(const struct class *cla,
+				      const struct class_attribute *attr,
+					  char *buf)
 {
 	return sprintf(buf, "%d\n", hdmin_delay_count_debug);
 }
@@ -7824,9 +7989,9 @@ static u32 rgb2yuv(u32 rgb)
 	return  (y << 16) | (u << 8) | v;
 }
 
-static ssize_t video_test_screen_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_test_screen_store(const struct class *cla,
+				       const struct class_attribute *attr,
+				       const char *buf, size_t count)
 {
 	int r;
 	unsigned int data = 0x0;
@@ -7859,6 +8024,18 @@ static ssize_t video_test_screen_store(const struct class *class,
 			else
 				WRITE_VCBUS_REG
 				(VPP_POST_BLEND_BLEND_DUMMY_DATA,
+				 test_screen & 0x00ffffff);
+		} else {
+			struct vpp_post_blend_reg_s *vpp_reg = &vpp_post_reg.vpp_post_blend_reg;
+
+			if (is_amdv_enable() &&
+			    is_amdv_stb_mode())
+				WRITE_VCBUS_REG
+				(vpp_reg->vpp_post_blend_blend_dummy_data,
+				 0x00008080);
+			else
+				WRITE_VCBUS_REG
+				(vpp_reg->vpp_post_blend_blend_dummy_data,
 				 test_screen & 0x00ffffff);
 		}
 	}
@@ -7898,9 +8075,9 @@ static ssize_t video_test_screen_store(const struct class *class,
 /* [23:16] Y */
 /* [15: 8] Cb */
 /* [ 7: 0] Cr */
-static ssize_t video_background_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_background_store(const struct class *cla,
+				       const struct class_attribute *attr,
+				       const char *buf, size_t count)
 {
 	int parsed[2];
 
@@ -7917,9 +8094,9 @@ static ssize_t video_background_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_rgb_screen_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_rgb_screen_store(const struct class *cla,
+				      const struct class_attribute *attr,
+				      const char *buf, size_t count)
 {
 	int r;
 	u32 yuv_eight;
@@ -7968,6 +8145,17 @@ static ssize_t video_rgb_screen_store(const struct class *class,
 				WRITE_VCBUS_REG(VPP2_BLEND_BLEND_DUMMY_DATA,
 					yuv_eight & 0x00ffffff);
 			}
+		} else {
+			struct vpp_post_blend_reg_s *vpp_reg = &vpp_post_reg.vpp_post_blend_reg;
+			struct vpp1_post_blend_reg_s *vpp1_reg = &vpp_post_reg.vpp1_post_blend_reg;
+
+			WRITE_VCBUS_REG
+				(vpp_reg->vpp_post_blend_blend_dummy_data,
+				yuv_eight & 0x00ffffff);
+			if (amvideo_meson_dev.has_vpp1) {
+				WRITE_VCBUS_REG(vpp1_reg->vpp_post_blend_blend_dummy_data,
+					yuv_eight & 0x00ffffff);
+			}
 		}
 	} else if (is_meson_gxtvbb_cpu()) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -7987,9 +8175,9 @@ static ssize_t video_rgb_screen_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_nonlinear_factor_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_nonlinear_factor_show(const struct class *cla,
+					   const struct class_attribute *attr,
+					   char *buf)
 {
 	u32 factor;
 	struct disp_info_s *layer = &glayer_info[0];
@@ -7999,9 +8187,9 @@ static ssize_t video_nonlinear_factor_show(const struct class *class,
 	return sprintf(buf, "%d\n", factor);
 }
 
-static ssize_t video_nonlinear_factor_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_nonlinear_factor_store(const struct class *cla,
+					    const struct class_attribute *attr,
+					    const char *buf, size_t count)
 {
 	int r;
 	u32 factor;
@@ -8017,9 +8205,9 @@ static ssize_t video_nonlinear_factor_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_nonlinear_t_factor_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_nonlinear_t_factor_show(const struct class *cla,
+					   const struct class_attribute *attr,
+					   char *buf)
 {
 	u32 factor;
 	struct disp_info_s *layer = &glayer_info[0];
@@ -8029,9 +8217,9 @@ static ssize_t video_nonlinear_t_factor_show(const struct class *class,
 	return sprintf(buf, "%d\n", factor);
 }
 
-static ssize_t video_nonlinear_t_factor_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_nonlinear_t_factor_store(const struct class *cla,
+					    const struct class_attribute *attr,
+					    const char *buf, size_t count)
 {
 	int r;
 	u32 factor;
@@ -8047,9 +8235,8 @@ static ssize_t video_nonlinear_t_factor_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_mute_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_mute_show(const struct class *cla,
+				  const struct class_attribute *attr, char *buf)
 {
 	ssize_t ret = 0;
 
@@ -8057,9 +8244,9 @@ static ssize_t video_mute_show(const struct class *class,
 	return ret;
 }
 
-static ssize_t video_mute_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_mute_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
 	int r, val, ret;
 
@@ -8085,17 +8272,16 @@ static ssize_t video_mute_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_disable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_disable_show(const struct class *cla,
+				  const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n",
 		vd_layer[0].disable_video);
 }
 
-static ssize_t video_disable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_disable_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
 	int r;
 	int val;
@@ -8335,16 +8521,17 @@ free2:
 		return ret;
 }
 
-static ssize_t video_global_output_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_global_output_show(const struct class *cla,
+					const struct class_attribute *attr,
+					char *buf)
 {
 	return sprintf(buf, "%d\n", vd_layer[0].global_output);
 }
 
-static ssize_t video_global_output_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_global_output_store(const struct class *cla,
+					 const struct class_attribute *attr,
+					 const char *buf,
+					 size_t count)
 {
 	int r;
 
@@ -8394,16 +8581,16 @@ static ssize_t omx_pts_interval_lower_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_hold_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_hold_show(const struct class *cla,
+			       const struct class_attribute *attr,
+			       char *buf)
 {
 	return sprintf(buf, "%d\n", hold_video);
 }
 
-static ssize_t video_hold_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_hold_store(const struct class *cla,
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	int r;
 	int value;
@@ -8429,16 +8616,15 @@ static ssize_t video_hold_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_freerun_mode_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_freerun_mode_show(const struct class *cla,
+				       const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", freerun_mode);
 }
 
-static ssize_t video_freerun_mode_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_freerun_mode_store(const struct class *cla,
+					const struct class_attribute *attr,
+					const char *buf, size_t count)
 {
 	int r;
 
@@ -8452,9 +8638,8 @@ static ssize_t video_freerun_mode_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_speed_check_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_speed_check_show(const struct class *cla,
+				      const struct class_attribute *attr, char *buf)
 {
 	u32 h, w;
 	struct disp_info_s *layer = &glayer_info[0];
@@ -8465,17 +8650,17 @@ static ssize_t video_speed_check_show(const struct class *class,
 	return snprintf(buf, 40, "%d %d\n", h, w);
 }
 
-static ssize_t video_speed_check_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_speed_check_store(const struct class *cla,
+				       const struct class_attribute *attr,
+				       const char *buf, size_t count)
 {
 	set_video_speed_check(buf);
 	return strnlen(buf, count);
 }
 
-static ssize_t threedim_mode_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t len)
+static ssize_t threedim_mode_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf, size_t len)
 {
 #if defined(TV_3D_FUNCTION_OPEN) && defined(CONFIG_AMLOGIC_MEDIA_TVIN)
 	u32 type;
@@ -8511,9 +8696,8 @@ static ssize_t threedim_mode_store(const struct class *class,
 	return len;
 }
 
-static ssize_t threedim_mode_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t threedim_mode_show(const struct class *cla,
+				  const struct class_attribute *attr, char *buf)
 {
 #ifdef TV_3D_FUNCTION_OPEN
 	return sprintf(buf, "process type 0x%x,trans fmt %u.\n",
@@ -8523,9 +8707,8 @@ static ssize_t threedim_mode_show(const struct class *class,
 #endif
 }
 
-static ssize_t frame_addr_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t frame_addr_show(const struct class *cla, const struct class_attribute *attr,
+			       char *buf)
 {
 	struct canvas_s canvas;
 	u32 addr[3];
@@ -8550,15 +8733,16 @@ static ssize_t frame_addr_show(const struct class *class,
 }
 
 static ssize_t hdmin_delay_start_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				      const struct class_attribute *attr,
+				      char *buf)
 {
 	return sprintf(buf, "%d\n", hdmin_delay_start);
 }
 
 static ssize_t hdmin_delay_start_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				       const struct class_attribute *attr,
+				       const char *buf,
+				       size_t count)
 {
 	int r;
 	int value;
@@ -8578,15 +8762,16 @@ static ssize_t hdmin_delay_start_store(const struct class *class,
 }
 
 static ssize_t hdmin_delay_min_ms_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				      const struct class_attribute *attr,
+				      char *buf)
 {
 	return sprintf(buf, "%d\n", hdmin_delay_min_ms);
 }
 
 static ssize_t hdmin_delay_min_ms_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				       const struct class_attribute *attr,
+				       const char *buf,
+				       size_t count)
 {
 	int r;
 	int value;
@@ -8600,15 +8785,16 @@ static ssize_t hdmin_delay_min_ms_store(const struct class *class,
 }
 
 static ssize_t hdmin_delay_max_ms_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				      const struct class_attribute *attr,
+				      char *buf)
 {
 	return sprintf(buf, "%d\n", hdmin_delay_max_ms);
 }
 
 static ssize_t hdmin_delay_max_ms_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				       const struct class_attribute *attr,
+				       const char *buf,
+				       size_t count)
 {
 	int r;
 	int value;
@@ -8622,16 +8808,17 @@ static ssize_t hdmin_delay_max_ms_store(const struct class *class,
 }
 
 static ssize_t hdmin_delay_duration_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+					 const struct class_attribute *attr,
+					 char *buf)
 {
 	return sprintf(buf, "%d\n", last_required_total_delay);
 }
 
 /*set video total delay*/
 static ssize_t hdmin_delay_duration_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+					  const struct class_attribute *attr,
+					  const char *buf,
+					  size_t count)
 {
 	int r;
 	int value;
@@ -8656,22 +8843,21 @@ static ssize_t hdmin_delay_duration_store(const struct class *class,
 }
 
 static ssize_t vframe_walk_delay_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				      const struct class_attribute *attr,
+				      char *buf)
 {
 	return sprintf(buf, "%d\n", vframe_walk_delay);
 }
 
 static ssize_t last_required_total_delay_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				      const struct class_attribute *attr,
+				      char *buf)
 {
 	return sprintf(buf, "%d\n", last_required_total_delay);
 }
 
-static ssize_t frame_canvas_width_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t frame_canvas_width_show(const struct class *cla,
+				       const struct class_attribute *attr, char *buf)
 {
 	struct vframe_s *dispbuf = NULL;
 	struct canvas_s canvas;
@@ -8695,9 +8881,9 @@ static ssize_t frame_canvas_width_show(const struct class *class,
 	return sprintf(buf, "NA\n");
 }
 
-static ssize_t frame_canvas_height_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t frame_canvas_height_show(const struct class *cla,
+					const struct class_attribute *attr,
+					char *buf)
 {
 	struct vframe_s *dispbuf = NULL;
 	struct canvas_s canvas;
@@ -8721,9 +8907,9 @@ static ssize_t frame_canvas_height_show(const struct class *class,
 	return sprintf(buf, "NA\n");
 }
 
-static ssize_t frame_width_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t frame_width_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
 {
 	struct vframe_s *dispbuf = NULL;
 
@@ -8745,9 +8931,8 @@ static ssize_t frame_width_show(const struct class *class,
 	return sprintf(buf, "NA\n");
 }
 
-static ssize_t frame_height_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t frame_height_show(const struct class *cla,
+				 const struct class_attribute *attr, char *buf)
 {
 	struct vframe_s *dispbuf = NULL;
 
@@ -8769,9 +8954,8 @@ static ssize_t frame_height_show(const struct class *class,
 	return sprintf(buf, "NA\n");
 }
 
-static ssize_t frame_format_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t frame_format_show(const struct class *cla,
+				 const struct class_attribute *attr, char *buf)
 {
 	struct vframe_s *dispbuf = NULL;
 	ssize_t ret = 0;
@@ -8796,9 +8980,8 @@ static ssize_t frame_format_show(const struct class *class,
 	return sprintf(buf, "NA\n");
 }
 
-static ssize_t frame_original_format_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t frame_original_format_show(const struct class *cla,
+				 const struct class_attribute *attr, char *buf)
 {
 	struct vframe_s *dispbuf = NULL;
 	ssize_t ret = 0;
@@ -8823,9 +9006,9 @@ static ssize_t frame_original_format_show(const struct class *class,
 	return sprintf(buf, "NA\n");
 }
 
-static ssize_t frame_aspect_ratio_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t frame_aspect_ratio_show(const struct class *cla,
+				       const struct class_attribute *attr,
+				       char *buf)
 {
 	struct vframe_s *dispbuf = NULL;
 
@@ -8846,9 +9029,8 @@ static ssize_t frame_aspect_ratio_show(const struct class *class,
 	return sprintf(buf, "NA\n");
 }
 
-static ssize_t frame_rate_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t frame_rate_show(const struct class *cla, const struct class_attribute *attr,
+			       char *buf)
 {
 	u32 cnt = frame_count - last_frame_count;
 	u32 time = jiffies;
@@ -8883,9 +9065,8 @@ static ssize_t frame_rate_show(const struct class *class,
 	return ret;
 }
 
-static ssize_t vframe_states_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vframe_states_show(const struct class *cla,
+				  const struct class_attribute *attr, char *buf)
 {
 	int ret = 0;
 	struct vframe_states states;
@@ -9033,9 +9214,8 @@ static ssize_t vframe_states_show(const struct class *class,
 }
 
 #ifdef CONFIG_AM_VOUT
-static ssize_t device_resolution_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t device_resolution_show(const struct class *cla,
+				      const struct class_attribute *attr, char *buf)
 {
 	const struct vinfo_s *info = get_current_vinfo();
 
@@ -9046,16 +9226,15 @@ static ssize_t device_resolution_show(const struct class *class,
 }
 #endif
 
-static ssize_t video_filename_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_filename_show(const struct class *cla,
+				   const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", file_name);
 }
 
-static ssize_t video_filename_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_filename_store(const struct class *cla,
+				    const struct class_attribute *attr,
+				    const char *buf, size_t count)
 {
 	size_t r;
 
@@ -9073,9 +9252,8 @@ static ssize_t video_filename_store(const struct class *class,
 	return r;
 }
 
-static ssize_t video_debugflags_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_debugflags_show(const struct class *cla,
+				     const struct class_attribute *attr, char *buf)
 {
 	int len = 0;
 
@@ -9086,9 +9264,9 @@ static ssize_t video_debugflags_show(const struct class *class,
 	return len;
 }
 
-static ssize_t video_debugflags_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_debugflags_store(const struct class *cla,
+				      const struct class_attribute *attr,
+				      const char *buf, size_t count)
 {
 	int r;
 	int value = -1;
@@ -9118,17 +9296,16 @@ static ssize_t video_debugflags_store(const struct class *class,
 	return count;
 }
 
-static ssize_t trickmode_duration_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t trickmode_duration_show(const struct class *cla,
+				       const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "trickmode frame duration %d\n",
 		       trickmode_duration / 9000);
 }
 
-static ssize_t trickmode_duration_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t trickmode_duration_store(const struct class *cla,
+					const struct class_attribute *attr,
+					const char *buf, size_t count)
 {
 	int r;
 	u32 s_value;
@@ -9142,9 +9319,9 @@ static ssize_t trickmode_duration_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_vsync_pts_inc_upint_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_vsync_pts_inc_upint_show(const struct class *cla,
+					      const struct class_attribute *attr,
+					      char *buf)
 {
 	if (vsync_pts_inc_upint)
 		return sprintf(buf,
@@ -9156,9 +9333,9 @@ static ssize_t video_vsync_pts_inc_upint_show(const struct class *class,
 		return sprintf(buf, "%d\n", vsync_pts_inc_upint);
 }
 
-static ssize_t video_vsync_pts_inc_upint_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_vsync_pts_inc_upint_store(const struct class *cla,
+					       const struct class_attribute *attr,
+					       const char *buf, size_t count)
 {
 	int r;
 
@@ -9172,17 +9349,17 @@ static ssize_t video_vsync_pts_inc_upint_store(const struct class *class,
 	return count;
 }
 
-static ssize_t slowsync_repeat_enable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t slowsync_repeat_enable_show(const struct class *cla,
+					   const struct class_attribute *attr,
+					   char *buf)
 {
 	return sprintf(buf, "slowsync repeate enable = %d\n",
 		       slowsync_repeat_enable);
 }
 
-static ssize_t slowsync_repeat_enable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t slowsync_repeat_enable_store(const struct class *cla,
+					    const struct class_attribute *attr,
+					    const char *buf, size_t count)
 {
 	int r;
 
@@ -9196,16 +9373,16 @@ static ssize_t slowsync_repeat_enable_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_vsync_slow_factor_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_vsync_slow_factor_show(const struct class *cla,
+					    const struct class_attribute *attr,
+					    char *buf)
 {
 	return sprintf(buf, "%d\n", vsync_slow_factor);
 }
 
-static ssize_t video_vsync_slow_factor_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_vsync_slow_factor_store(const struct class *cla,
+					     const struct class_attribute *attr,
+					     const char *buf, size_t count)
 {
 	int r;
 
@@ -9219,9 +9396,9 @@ static ssize_t video_vsync_slow_factor_store(const struct class *class,
 	return count;
 }
 
-static ssize_t vframe_ready_cnt_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vframe_ready_cnt_show(const struct class *cla,
+				     const struct class_attribute *attr,
+				     char *buf)
 {
 	int ret;
 	struct vframe_states states;
@@ -9233,9 +9410,9 @@ static ssize_t vframe_ready_cnt_show(const struct class *class,
 		states.buf_avail_num : 0);
 }
 
-static ssize_t fps_info_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t fps_info_show(const struct class *cla,
+			     const struct class_attribute *attr,
+			     char *buf)
 {
 	u32 cnt = frame_count - last_frame_count;
 	u32 time = jiffies;
@@ -9258,25 +9435,25 @@ static ssize_t fps_info_show(const struct class *class,
 		       input_fps, output_fps, input_fps - output_fps);
 }
 
-static ssize_t video_layer1_state_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_layer1_state_show(const struct class *cla,
+				       const struct class_attribute *attr,
+				       char *buf)
 {
 	return sprintf(buf, "%d\n", vd_layer[0].enabled);
 }
 
-static ssize_t video_angle_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_angle_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
 {
 	struct disp_info_s *layer = &glayer_info[0];
 
 	return snprintf(buf, 40, "%d\n", layer->angle);
 }
 
-static ssize_t video_angle_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_angle_store(const struct class *cla,
+				 const struct class_attribute *attr, const char *buf,
+				 size_t count)
 {
 	int r;
 	u32 s_value;
@@ -9289,16 +9466,16 @@ static ssize_t video_angle_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t show_first_frame_nosync_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t show_first_frame_nosync_show(const struct class *cla,
+					    const struct class_attribute *attr,
+					    char *buf)
 {
 	return sprintf(buf, "%d\n", show_first_frame_nosync ? 1 : 0);
 }
 
-static ssize_t show_first_frame_nosync_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t show_first_frame_nosync_store(const struct class *cla,
+					     const struct class_attribute *attr,
+					     const char *buf, size_t count)
 {
 	int r;
 	int value;
@@ -9315,9 +9492,9 @@ static ssize_t show_first_frame_nosync_store(const struct class *class,
 	return count;
 }
 
-static ssize_t show_first_picture_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t show_first_picture_store(const struct class *cla,
+					const struct class_attribute *attr,
+					const char *buf, size_t count)
 {
 	int r;
 	int value;
@@ -9334,9 +9511,9 @@ static ssize_t show_first_picture_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_free_keep_buffer_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_free_keep_buffer_store(const struct class *cla,
+					    const struct class_attribute *attr,
+					    const char *buf, size_t count)
 {
 	int r;
 	int val;
@@ -9352,9 +9529,9 @@ static ssize_t video_free_keep_buffer_store(const struct class *class,
 	return count;
 }
 
-static ssize_t free_cma_buffer_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t free_cma_buffer_store(const struct class *cla,
+				     const struct class_attribute *attr,
+				     const char *buf, size_t count)
 {
 	int r;
 	int val;
@@ -9373,9 +9550,9 @@ static ssize_t free_cma_buffer_store(const struct class *class,
 	return count;
 }
 
-static ssize_t pic_mode_info_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pic_mode_info_show(const struct class *cla,
+				  const struct class_attribute *attr,
+				  char *buf)
 {
 	int ret = 0;
 	struct vframe_s *dispbuf = NULL;
@@ -9410,9 +9587,9 @@ static ssize_t pic_mode_info_show(const struct class *class,
 	return sprintf(buf, "NA\n");
 }
 
-static ssize_t src_fmt_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t src_fmt_show(const struct class *cla,
+			    const struct class_attribute *attr,
+			    char *buf)
 {
 	int ret = 0;
 	struct vframe_s *dispbuf = NULL;
@@ -9474,9 +9651,8 @@ src_fmt_end:
 	return ret;
 }
 
-static ssize_t process_fmt_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t process_fmt_show
+	(const struct class *cla, const struct class_attribute *attr, char *buf)
 {
 	int ret = 0;
 	struct vframe_s *dispbuf = NULL;
@@ -9492,6 +9668,8 @@ static ssize_t process_fmt_show(const struct class *class,
 	dispbuf = get_dispbuf(0);
 	if (dispbuf) {
 		fmt = get_vframe_src_fmt(dispbuf);
+		if (fmt == VFRAME_SIGNAL_FMT_INVALID)
+			fmt = get_sfmt_from_signal_type(dispbuf);
 		if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
 		    fmt < VFRAME_SIGNAL_FMT_MAX)
 			ret += sprintf(buf + ret, "vd1: src_fmt = %s; ",
@@ -9547,6 +9725,8 @@ static ssize_t process_fmt_show(const struct class *class,
 	dispbuf = get_dispbuf(1);
 	if (dispbuf) {
 		fmt = get_vframe_src_fmt(dispbuf);
+		if (fmt == VFRAME_SIGNAL_FMT_INVALID)
+			fmt = get_sfmt_from_signal_type(dispbuf);
 		if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
 		    fmt < VFRAME_SIGNAL_FMT_MAX)
 			ret += sprintf(buf + ret, "vd2: src_fmt = %s; ",
@@ -9606,6 +9786,8 @@ static ssize_t process_fmt_show(const struct class *class,
 	dispbuf = get_dispbuf(2);
 	if (dispbuf) {
 		fmt = get_vframe_src_fmt(dispbuf);
+		if (fmt == VFRAME_SIGNAL_FMT_INVALID)
+			fmt = get_sfmt_from_signal_type(dispbuf);
 		if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
 		    fmt < VFRAME_SIGNAL_FMT_MAX)
 			ret += sprintf(buf + ret, "vd3: src_fmt = %s; ",
@@ -9651,9 +9833,8 @@ show_end:
 	return ret;
 }
 
-static ssize_t cur_aipq_sp_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t cur_aipq_sp_show(const struct class *cla,
+			const struct class_attribute *attr, char *buf)
 {
 	ssize_t count = 0;
 
@@ -9682,8 +9863,8 @@ static ssize_t cur_aipq_sp_show(const struct class *class,
 }
 
 static ssize_t video_inuse_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				const struct class_attribute *attr,
+				char *buf)
 {
 	size_t r;
 
@@ -9701,8 +9882,9 @@ static ssize_t video_inuse_show(const struct class *class,
 }
 
 static ssize_t video_inuse_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+				 const struct class_attribute *attr,
+				 const char *buf,
+				 size_t count)
 {
 	size_t r;
 	int val;
@@ -9718,18 +9900,19 @@ static ssize_t video_inuse_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_zorder_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_zorder_show(const struct class *cla,
+				 const struct class_attribute *attr,
+				 char *buf)
 {
 	struct disp_info_s *layer = &glayer_info[0];
 
 	return sprintf(buf, "%d\n", layer->zorder);
 }
 
-static ssize_t video_zorder_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_zorder_store(const struct class *cla,
+				  const struct class_attribute *attr,
+				  const char *buf,
+				  size_t count)
 {
 	int zorder;
 	int ret = 0;
@@ -9746,18 +9929,19 @@ static ssize_t video_zorder_store(const struct class *class,
 	return count;
 }
 
-static ssize_t black_threshold_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t black_threshold_show(const struct class *cla,
+				    const struct class_attribute *attr,
+				    char *buf)
 {
 	return sprintf(buf, "width: %d, height: %d\n",
 		black_threshold_width,
 		black_threshold_height);
 }
 
-static ssize_t black_threshold_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t black_threshold_store(const struct class *cla,
+				     const struct class_attribute *attr,
+				     const char *buf,
+				     size_t count)
 {
 	int parsed[2];
 
@@ -9768,16 +9952,16 @@ static ssize_t black_threshold_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t get_di_count_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t get_di_count_show(const struct class *cla,
+				 const struct class_attribute *attr,
+				 char *buf)
 {
 	return sprintf(buf, "%d\n", get_di_count);
 }
 
-static ssize_t get_di_count_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t get_di_count_store(const struct class *cla,
+				  const struct class_attribute *attr,
+				  const char *buf, size_t count)
 {
 	int r;
 
@@ -9788,16 +9972,16 @@ static ssize_t get_di_count_store(const struct class *class,
 	return count;
 }
 
-static ssize_t put_di_count_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t put_di_count_show(const struct class *cla,
+				 const struct class_attribute *attr,
+				 char *buf)
 {
 	return sprintf(buf, "%d\n", put_di_count);
 }
 
-static ssize_t put_di_count_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t put_di_count_store(const struct class *cla,
+				  const struct class_attribute *attr,
+				  const char *buf, size_t count)
 {
 	int r;
 
@@ -9808,16 +9992,16 @@ static ssize_t put_di_count_store(const struct class *class,
 	return count;
 }
 
-static ssize_t di_release_count_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t di_release_count_show(const struct class *cla,
+				     const struct class_attribute *attr,
+				     char *buf)
 {
 	return sprintf(buf, "%d\n", di_release_count);
 }
 
-static ssize_t di_release_count_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t di_release_count_store(const struct class *cla,
+				      const struct class_attribute *attr,
+				      const char *buf, size_t count)
 {
 	int r;
 
@@ -9828,9 +10012,9 @@ static ssize_t di_release_count_store(const struct class *class,
 	return count;
 }
 
-static ssize_t limited_win_ratio_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t limited_win_ratio_show(const struct class *cla,
+				     const struct class_attribute *attr,
+				     char *buf)
 {
 	int limited_win_ratio = 0;
 
@@ -9892,9 +10076,9 @@ static int alloc_hist_test_buffer(u32 size)
 	return ret;
 }
 
-static ssize_t hist_test_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t hist_test_show(const struct class *cla,
+			      const struct class_attribute *attr,
+			      char *buf)
 {
 #define VI_HIST_MAX_MIN (0x2e03)
 #define VI_HIST_SPL_VAL (0x2e04)
@@ -9930,9 +10114,10 @@ static ssize_t hist_test_show(const struct class *class,
 	return len;
 }
 
-static ssize_t hist_test_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t hist_test_store(const struct class *cla,
+			       const struct class_attribute *attr,
+			       const char *buf,
+			       size_t count)
 {
 #define VI_HIST_CTRL (0x2e00)
 #define VI_HIST_H_START_END (0x2e01)
@@ -10074,16 +10259,16 @@ static ssize_t hist_test_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t videopip_blackout_policy_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip_blackout_policy_show(const struct class *cla,
+					     const struct class_attribute *attr,
+					     char *buf)
 {
 	return sprintf(buf, "%d\n", blackout[1]);
 }
 
-static ssize_t videopip_blackout_policy_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip_blackout_policy_store(const struct class *cla,
+					      const struct class_attribute *attr,
+					      const char *buf, size_t count)
 {
 	int r;
 
@@ -10094,16 +10279,16 @@ static ssize_t videopip_blackout_policy_store(const struct class *class,
 	return count;
 }
 
-static ssize_t videopip2_blackout_policy_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip2_blackout_policy_show(const struct class *cla,
+					     const struct class_attribute *attr,
+					     char *buf)
 {
 	return sprintf(buf, "%d\n", blackout[2]);
 }
 
-static ssize_t videopip2_blackout_policy_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip2_blackout_policy_store(const struct class *cla,
+					      const struct class_attribute *attr,
+					      const char *buf, size_t count)
 {
 	int r;
 
@@ -10114,9 +10299,9 @@ static ssize_t videopip2_blackout_policy_store(const struct class *class,
 	return count;
 }
 
-static ssize_t videopip_axis_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip_axis_show(const struct class *cla,
+				  const struct class_attribute *attr,
+				  char *buf)
 {
 	int x0, y0, x1, y1;
 	struct disp_info_s *layer = &glayer_info[1];
@@ -10128,9 +10313,10 @@ static ssize_t videopip_axis_show(const struct class *class,
 	return snprintf(buf, 40, "%d %d %d %d\n", x0, y0, x1, y1);
 }
 
-static ssize_t videopip_axis_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip_axis_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf,
+				   size_t count)
 {
 	struct disp_info_s *layer = &glayer_info[1];
 
@@ -10143,9 +10329,9 @@ static ssize_t videopip_axis_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t videopip2_axis_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip2_axis_show(const struct class *cla,
+				  const struct class_attribute *attr,
+				  char *buf)
 {
 	int x0, y0, x1, y1;
 	struct disp_info_s *layer = &glayer_info[2];
@@ -10157,9 +10343,10 @@ static ssize_t videopip2_axis_show(const struct class *class,
 	return snprintf(buf, 40, "%d %d %d %d\n", x0, y0, x1, y1);
 }
 
-static ssize_t videopip2_axis_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip2_axis_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf,
+				   size_t count)
 {
 	struct disp_info_s *layer = &glayer_info[2];
 
@@ -10172,9 +10359,9 @@ static ssize_t videopip2_axis_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t videopip_crop_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip_crop_show(const struct class *cla,
+				  const struct class_attribute *attr,
+				  char *buf)
 {
 	u32 t, l, b, r;
 	struct disp_info_s *layer = &glayer_info[1];
@@ -10186,9 +10373,10 @@ static ssize_t videopip_crop_show(const struct class *class,
 	return snprintf(buf, 40, "%d %d %d %d\n", t, l, b, r);
 }
 
-static ssize_t videopip_crop_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip_crop_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf,
+				   size_t count)
 {
 	struct disp_info_s *layer = &glayer_info[1];
 
@@ -10201,9 +10389,9 @@ static ssize_t videopip_crop_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t videopip2_crop_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip2_crop_show(const struct class *cla,
+				  const struct class_attribute *attr,
+				  char *buf)
 {
 	u32 t, l, b, r;
 	struct disp_info_s *layer = &glayer_info[2];
@@ -10215,9 +10403,10 @@ static ssize_t videopip2_crop_show(const struct class *class,
 	return snprintf(buf, 40, "%d %d %d %d\n", t, l, b, r);
 }
 
-static ssize_t videopip2_crop_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip2_crop_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf,
+				   size_t count)
 {
 	struct disp_info_s *layer = &glayer_info[2];
 
@@ -10230,16 +10419,16 @@ static ssize_t videopip2_crop_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t videopip_disable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip_disable_show(const struct class *cla,
+				     const struct class_attribute *attr,
+				     char *buf)
 {
 	return sprintf(buf, "%d\n", vd_layer[1].disable_video);
 }
 
-static ssize_t videopip_disable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip_disable_store(const struct class *cla,
+				      const struct class_attribute *attr,
+				      const char *buf, size_t count)
 {
 	int r;
 	int val;
@@ -10257,16 +10446,16 @@ static ssize_t videopip_disable_store(const struct class *class,
 	return count;
 }
 
-static ssize_t videopip2_disable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip2_disable_show(const struct class *cla,
+				     const struct class_attribute *attr,
+				     char *buf)
 {
 	return sprintf(buf, "%d\n", vd_layer[2].disable_video);
 }
 
-static ssize_t videopip2_disable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip2_disable_store(const struct class *cla,
+				      const struct class_attribute *attr,
+				      const char *buf, size_t count)
 {
 	int r;
 	int val;
@@ -10284,9 +10473,9 @@ static ssize_t videopip2_disable_store(const struct class *class,
 	return count;
 }
 
-static ssize_t videopip_screen_mode_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip_screen_mode_show(const struct class *cla,
+					 const struct class_attribute *attr,
+					 char *buf)
 {
 	struct disp_info_s *layer = &glayer_info[1];
 	static const char * const wide_str[] = {
@@ -10305,9 +10494,9 @@ static ssize_t videopip_screen_mode_show(const struct class *class,
 		return 0;
 }
 
-static ssize_t videopip_screen_mode_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip_screen_mode_store(const struct class *cla,
+					  const struct class_attribute *attr,
+					  const char *buf, size_t count)
 {
 	unsigned long mode;
 	int ret = 0;
@@ -10320,14 +10509,27 @@ static ssize_t videopip_screen_mode_store(const struct class *class,
 	if (mode < VIDEO_WIDEOPTION_MAX &&
 	    mode != layer->wide_mode) {
 		layer->wide_mode = mode;
-		vd_layer[1].property_changed = true;
+		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+			pr_info("video_screen_mode sysfs:%d->%ld %s\n",
+				layer->wide_mode, mode, current->comm);
+		if (layer->layer_id == 1) {
+			if (vd_layer[1].vpp_index == VPP0)
+				vd_layer[1].property_changed = true;
+			else
+				update_vppx_property(layer->layer_id);
+		} else if (layer->layer_id == 2) {
+			if (vd_layer[2].vpp_index == VPP0)
+				vd_layer[2].property_changed = true;
+			else
+				update_vppx_property(layer->layer_id);
+		}
 	}
 	return count;
 }
 
-static ssize_t videopip2_screen_mode_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip2_screen_mode_show(const struct class *cla,
+					 const struct class_attribute *attr,
+					 char *buf)
 {
 	struct disp_info_s *layer = &glayer_info[2];
 	static const char * const wide_str[] = {
@@ -10346,9 +10548,9 @@ static ssize_t videopip2_screen_mode_show(const struct class *class,
 		return 0;
 }
 
-static ssize_t videopip2_screen_mode_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip2_screen_mode_store(const struct class *cla,
+					  const struct class_attribute *attr,
+					  const char *buf, size_t count)
 {
 	unsigned long mode;
 	int ret = 0;
@@ -10361,21 +10563,34 @@ static ssize_t videopip2_screen_mode_store(const struct class *class,
 	if (mode < VIDEO_WIDEOPTION_MAX &&
 	    mode != layer->wide_mode) {
 		layer->wide_mode = mode;
-		vd_layer[2].property_changed = true;
+		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+			pr_info("video_screen_mode sysfs:%d->%ld %s\n",
+				layer->wide_mode, mode, current->comm);
+		if (layer->layer_id == 1) {
+			if (vd_layer[1].vpp_index == VPP0)
+				vd_layer[1].property_changed = true;
+			else
+				update_vppx_property(layer->layer_id);
+		} else if (layer->layer_id == 2) {
+			if (vd_layer[2].vpp_index == VPP0)
+				vd_layer[2].property_changed = true;
+			else
+				update_vppx_property(layer->layer_id);
+		}
 	}
 	return count;
 }
 
-static ssize_t videopip_loop_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip_loop_show(const struct class *cla,
+				  const struct class_attribute *attr,
+				  char *buf)
 {
 	return sprintf(buf, "%d\n", pip_loop);
 }
 
-static ssize_t videopip_loop_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip_loop_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
 	int r;
 	u32 val;
@@ -10388,16 +10603,16 @@ static ssize_t videopip_loop_store(const struct class *class,
 	return count;
 }
 
-static ssize_t videopip2_loop_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip2_loop_show(const struct class *cla,
+				  const struct class_attribute *attr,
+				  char *buf)
 {
 	return sprintf(buf, "%d\n", pip2_loop);
 }
 
-static ssize_t videopip2_loop_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip2_loop_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
 	int r;
 	u32 val;
@@ -10410,17 +10625,17 @@ static ssize_t videopip2_loop_store(const struct class *class,
 	return count;
 }
 
-static ssize_t videopip_global_output_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip_global_output_show(const struct class *cla,
+					   const struct class_attribute *attr,
+					   char *buf)
 {
 	return sprintf(buf, "%d\n",
 		vd_layer[1].global_output);
 }
 
-static ssize_t videopip_global_output_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip_global_output_store(const struct class *cla,
+					    const struct class_attribute *attr,
+					    const char *buf, size_t count)
 {
 	int r;
 
@@ -10432,17 +10647,17 @@ static ssize_t videopip_global_output_store(const struct class *class,
 	return count;
 }
 
-static ssize_t videopip2_global_output_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip2_global_output_show(const struct class *cla,
+					   const struct class_attribute *attr,
+					   char *buf)
 {
 	return sprintf(buf, "%d\n",
 		vd_layer[2].global_output);
 }
 
-static ssize_t videopip2_global_output_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip2_global_output_store(const struct class *cla,
+					    const struct class_attribute *attr,
+					    const char *buf, size_t count)
 {
 	int r;
 
@@ -10454,18 +10669,18 @@ static ssize_t videopip2_global_output_store(const struct class *class,
 	return count;
 }
 
-static ssize_t videopip_zorder_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip_zorder_show(const struct class *cla,
+				    const struct class_attribute *attr,
+				    char *buf)
 {
 	struct disp_info_s *layer = &glayer_info[1];
 
 	return sprintf(buf, "%d\n", layer->zorder);
 }
 
-static ssize_t videopip_zorder_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip_zorder_store(const struct class *cla,
+				     const struct class_attribute *attr,
+				     const char *buf, size_t count)
 {
 	int zorder;
 	int ret = 0;
@@ -10482,18 +10697,18 @@ static ssize_t videopip_zorder_store(const struct class *class,
 	return count;
 }
 
-static ssize_t videopip2_zorder_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip2_zorder_show(const struct class *cla,
+				    const struct class_attribute *attr,
+				    char *buf)
 {
 	struct disp_info_s *layer = &glayer_info[2];
 
 	return sprintf(buf, "%d\n", layer->zorder);
 }
 
-static ssize_t videopip2_zorder_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t videopip2_zorder_store(const struct class *cla,
+				     const struct class_attribute *attr,
+				     const char *buf, size_t count)
 {
 	int zorder;
 	int ret = 0;
@@ -10508,6 +10723,30 @@ static ssize_t videopip2_zorder_store(const struct class *class,
 		vd_layer[2].property_changed = true;
 	}
 	return count;
+}
+
+static ssize_t videopip_max_src_show(const struct class *cla,
+			       const struct class_attribute *attr,
+			       char *buf)
+{
+	int src_width, src_height;
+	struct disp_info_s *layer = &glayer_info[1];
+
+	src_width = layer->src_width_max;
+	src_height = layer->src_height_max;
+	return snprintf(buf, 40, "%d %d\n", src_width, src_height);
+}
+
+static ssize_t videopip2_max_src_show(const struct class *cla,
+			       const struct class_attribute *attr,
+			       char *buf)
+{
+	int src_width, src_height;
+	struct disp_info_s *layer = &glayer_info[2];
+
+	src_width = layer->src_width_max;
+	src_height = layer->src_height_max;
+	return snprintf(buf, 40, "%d %d\n", src_width, src_height);
 }
 
 static ssize_t aisr_state_show(char *buf)
@@ -10608,6 +10847,10 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 		dw = afbc && _cur_frame_par->nocomp;
 		len += sprintf(buf + len, "afbc:%d double_write:%d.\n",
 			       afbc, dw);
+		len += sprintf(buf + len, "di pre_link:%d post_link:%d.\n",
+			IS_DI_PRELINK(dispbuf->di_flag), IS_DI_PSTLINK(dispbuf->di_flag));
+		len += sprintf(buf + len, "cur vf type:0x%x. flag: 0x%x\n",
+			dispbuf->type, dispbuf->flag);
 	}
 	vpp_filter = &_cur_frame_par->vpp_filter;
 	len += sprintf(buf + len,
@@ -10706,8 +10949,8 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 	if (layer_info) {
 		len += sprintf(buf + len, "mirror: %d\n",
 			layer_info->mirror);
-		len += sprintf(buf + len, "reverse: %d\n",
-			layer_info->reverse);
+		len += sprintf(buf + len, "reverse: %s\n",
+			layer_info->reverse ? "true" : "false");
 		if (layer_info->afd_enable) {
 			len += sprintf(buf + len, "afd: enable\n");
 			len += sprintf(buf + len, "afd_pos: %d %d %d %d\n",
@@ -10723,21 +10966,48 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 		} else {
 			len += sprintf(buf + len, "afd: disable\n");
 		}
+		if (layer_info->vsr_safa_support) {
+			struct vsr_setting_s *vsr;
+
+			vsr = &_vd_layer->sc_setting.vsr;
+			len += sprintf(buf + len,
+				"vsr top 422_en:%d, h/vsize_in %d,%d, h/vsize_out:%d,%d\n",
+				vsr->vsr_top.input_422_en,
+				vsr->vsr_top.hsize_in,
+				vsr->vsr_top.vsize_in,
+				vsr->vsr_top.hsize_out,
+				vsr->vsr_top.vsize_out);
+			len += sprintf(buf + len, "safa preh/v_en %d,%d, h/v ratio:%d, %d\n",
+				vsr->vsr_safa.preh_en,
+				vsr->vsr_safa.prev_en,
+				vsr->vsr_safa.preh_ratio,
+				vsr->vsr_safa.prev_ratio);
+			len += sprintf(buf + len, "safa pre_h/vsize %d,%d, postsc_en:%d\n",
+				vsr->vsr_safa.pre_hsize,
+				vsr->vsr_safa.pre_vsize,
+				vsr->vsr_safa.postsc_en);
+			len += sprintf(buf + len, "pi en:%d, h/vsize_in %d,%d, h/vsize_out:%d %d\n",
+				vsr->vsr_pi.pi_en,
+				vsr->vsr_pi.hsize_in,
+				vsr->vsr_pi.vsize_in,
+				vsr->vsr_pi.hsize_out,
+				vsr->vsr_pi.vsize_out);
+		}
 	}
 	return len;
 }
 
-static ssize_t performance_debug_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t performance_debug_show(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return sprintf(buf, "performance_debug: %d\n",
 		performance_debug);
 }
 
-static ssize_t performance_debug_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t performance_debug_store(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int ret;
 	u32 enable;
@@ -10749,9 +11019,9 @@ static ssize_t performance_debug_store(const struct class *class,
 	return count;
 }
 
-static ssize_t over_field_state_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t over_field_state_show(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	u32 cur_state = OVER_FIELD_NORMAL;
 	u32 cur_over_field_wrong_cnt = 0;
@@ -10765,9 +11035,9 @@ static ssize_t over_field_state_show(const struct class *class,
 		over_field_case1_cnt, over_field_case2_cnt);
 }
 
-static ssize_t over_field_state_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t over_field_state_store(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int ret;
 	u32 val;
@@ -10785,61 +11055,64 @@ static ssize_t over_field_state_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_force_skip_cnt_show(const struct class *class,
+static ssize_t video_force_skip_cnt_show(const struct class *cla,
 			const struct class_attribute *attr,
-			char *buf)
+			       char *buf)
 {
-	return sprintf(buf, "force_skip_cnt:%d, bit0~1 for vd1, bit2~3 for vd2\n",
-		       force_skip_cnt);
+	return sprintf(buf, "force_skip_cnt:0x%x, 0x%x, 0x%x(bit8: hskip, bit0-7: vskip)\n",
+		       force_skip_cnt[0],
+		       force_skip_cnt[1],
+		       force_skip_cnt[2]);
 }
 
-static ssize_t video_force_skip_cnt_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_force_skip_cnt_store(const struct class *cla,
+		const struct class_attribute *attr,
+		const char *buf, size_t count)
 {
-	unsigned long cnt;
-	int ret = 0;
+	int parsed[2];
+	u32 index;
 
-	ret = kstrtoul(buf, 0, (unsigned long *)&cnt);
-	if (ret < 0)
-		return -EINVAL;
-
-	force_skip_cnt = cnt;
-
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		if (parsed[0] < MAX_VD_LAYER) {
+			index = parsed[0];
+			force_skip_cnt[index] = parsed[1];
+			vd_layer[index].property_changed = true;
+		}
+	}
 	return count;
 }
 
-static ssize_t video_state_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_state_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
 {
 	return vdx_state_show(VD1_PATH, buf);
 }
 
-static ssize_t videopip_state_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip_state_show(const struct class *cla,
+				   const struct class_attribute *attr,
+				   char *buf)
 {
 	return vdx_state_show(VD2_PATH, buf);
 }
 
-static ssize_t videopip2_state_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t videopip2_state_show(const struct class *cla,
+				   const struct class_attribute *attr,
+				   char *buf)
 {
 	return vdx_state_show(VD3_PATH, buf);
 }
 
-static ssize_t video_vd_proc_state_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_vd_proc_state_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
 {
 	return video_vd_proc_state_dump(buf);
 }
 
-static ssize_t path_select_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t path_select_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
 {
 	return snprintf(buf, 40, "vd1: %d vd2: %d, vd3: %d\n",
 		glayer_info[0].display_path_id,
@@ -10847,9 +11120,9 @@ static ssize_t path_select_show(const struct class *class,
 		glayer_info[2].display_path_id);
 }
 
-static ssize_t path_select_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t path_select_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	int parsed[3];
 
@@ -10883,18 +11156,20 @@ static ssize_t path_select_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t vpp_crc_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vpp_crc_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return snprintf(buf, 64, "vpp_crc_en: %d vpp_crc_result: %x\n\n",
 		vpp_crc_en,
 		vpp_crc_result);
 }
 
-static ssize_t vpp_crc_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpp_crc_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int ret;
 
@@ -10904,9 +11179,10 @@ static ssize_t vpp_crc_store(const struct class *class,
 	return count;
 }
 
-static ssize_t vpp_crc_viu2_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vpp_crc_viu2_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	int vpp_crc_viu2_result = 0;
 
@@ -10917,9 +11193,10 @@ static ssize_t vpp_crc_viu2_show(const struct class *class,
 		vpp_crc_viu2_result);
 }
 
-static ssize_t vpp_crc_viu2_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpp_crc_viu2_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int ret;
 
@@ -10931,9 +11208,10 @@ static ssize_t vpp_crc_viu2_store(const struct class *class,
 	return count;
 }
 
-static ssize_t film_grain_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t film_grain_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return snprintf(buf, 40, "fgrain_enable vd1: %d vd2: %d vd3: %d\n",
 		glayer_info[0].fgrain_enable,
@@ -10941,9 +11219,10 @@ static ssize_t film_grain_show(const struct class *class,
 		glayer_info[2].fgrain_enable);
 }
 
-static ssize_t film_grain_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t film_grain_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int parsed[3];
 
@@ -10957,9 +11236,10 @@ static ssize_t film_grain_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t film_grain_support_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t film_grain_support_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return snprintf(buf, 40, "%d\n",
 		((glayer_info[2].fgrain_support ? 1 : 0) << 2) |
@@ -10967,15 +11247,16 @@ static ssize_t film_grain_support_show(const struct class *class,
 		((glayer_info[0].fgrain_support ? 1 : 0) << 0));
 }
 
-static ssize_t pip_alpha_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pip_alpha_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int i = 0;
 	int param_num;
 	int parsed[66];
 	int layer_id, win_num, win_en = 0;
-	static struct pip_alpha_scpxn_s alpha_win;
+	struct pip_alpha_scpxn_s alpha_win;
 
 	if (likely(parse_para(buf, 2, parsed) >= 2)) {
 		layer_id = parsed[0];
@@ -10992,6 +11273,7 @@ static ssize_t pip_alpha_store(const struct class *class,
 			pr_info("layer_id=%d, win_num=%d, win_en=%d\n",
 				layer_id, win_num, win_en);
 			vd_layer[layer_id].alpha_win_en = win_en;
+			/*coverity[uninit_use_in_call]*/
 			memcpy(&vd_layer[layer_id].alpha_win, &alpha_win,
 				sizeof(struct pip_alpha_scpxn_s));
 			vd_layer[0].property_changed = true;
@@ -11004,9 +11286,8 @@ static ssize_t pip_alpha_store(const struct class *class,
 /*
  * default setting scenes is 23
  */
-static ssize_t pq_default_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pq_default_show(const struct class *cla,
+			       const struct class_attribute *attr, char *buf)
 {
 	ssize_t count;
 	int i = 0;
@@ -11021,9 +11302,9 @@ static ssize_t pq_default_show(const struct class *class,
 	return count;
 }
 
-static ssize_t pq_default_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pq_default_store(const struct class *cla,
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	int i = 0;
 	int parsed[SCENES_VALUE];
@@ -11044,9 +11325,9 @@ static ssize_t pq_default_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t pq_data_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pq_data_store(const struct class *cla,
+			     const struct class_attribute *attr,
+			     const char *buf, size_t count)
 
 {
 	int parsed[4] = {0, 0, 0, 0};
@@ -11085,9 +11366,9 @@ static ssize_t pq_data_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t aipq_dbg_data_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t aipq_dbg_data_show(const struct class *cla,
+					const struct class_attribute *attr,
+					char *buf)
 {
 	ssize_t len = 0;
 	char *stemp = NULL;
@@ -11113,9 +11394,9 @@ static ssize_t aipq_dbg_data_show(const struct class *class,
 	return len;
 }
 
-static ssize_t aipq_dbg_data_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t aipq_dbg_data_store(const struct class *cla,
+			     const struct class_attribute *attr,
+			     const char *buf, size_t count)
 {
 	int i, j;
 	char *buf_orig, *parm[8] = {NULL};
@@ -11163,17 +11444,17 @@ free_buf:
 	return -EINVAL;
 }
 
-static ssize_t hscaler_8tap_enable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t hscaler_8tap_enable_show(const struct class *cla,
+					const struct class_attribute *attr,
+					char *buf)
 {
 	return snprintf(buf, 64, "hscaler_8tap_en: %d\n\n",
 		hscaler_8tap_enable[0]);
 }
 
-static ssize_t hscaler_8tap_enable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t hscaler_8tap_enable_store(const struct class *cla,
+					 const struct class_attribute *attr,
+					 const char *buf, size_t count)
 {
 	int ret;
 	int hscaler_8tap_en;
@@ -11190,17 +11471,19 @@ static ssize_t hscaler_8tap_enable_store(const struct class *class,
 	return count;
 }
 
-static ssize_t pip_hscaler_8tap_enable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pip_hscaler_8tap_enable_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return snprintf(buf, 64, "pip hscaler_8tap_en: %d\n\n",
 		hscaler_8tap_enable[1]);
 }
 
-static ssize_t pip_hscaler_8tap_enable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pip_hscaler_8tap_enable_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int ret;
 	int hscaler_8tap_en;
@@ -11222,17 +11505,19 @@ static ssize_t pip_hscaler_8tap_enable_store(const struct class *class,
 	return count;
 }
 
-static ssize_t pip2_hscaler_8tap_enable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pip2_hscaler_8tap_enable_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return snprintf(buf, 64, "pip2_hscaler_8tap_en: %d\n\n",
 		hscaler_8tap_enable[2]);
 }
 
-static ssize_t pip2_hscaler_8tap_enable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pip2_hscaler_8tap_enable_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int ret;
 	int hscaler_8tap_en;
@@ -11254,9 +11539,10 @@ static ssize_t pip2_hscaler_8tap_enable_store(const struct class *class,
 	return count;
 }
 
-static ssize_t pre_hscaler_ntap_enable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pre_hscaler_ntap_enable_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	int i;
 
@@ -11273,9 +11559,10 @@ static ssize_t pre_hscaler_ntap_enable_show(const struct class *class,
 	return 0;
 }
 
-static ssize_t pre_hscaler_ntap_enable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pre_hscaler_ntap_enable_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int parsed[2];
 	int layer_id = 0, pre_hscaler_ntap_en = 0;
@@ -11298,9 +11585,10 @@ static ssize_t pre_hscaler_ntap_enable_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t pre_hscaler_ntap_set_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pre_hscaler_ntap_set_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return snprintf(buf, 256, "pre_hscaler_ntap: vd1:%d, vd2:%d, vd3:%d\n",
 		pre_scaler[0].pre_hscaler_ntap,
@@ -11308,14 +11596,15 @@ static ssize_t pre_hscaler_ntap_set_show(const struct class *class,
 		pre_scaler[2].pre_hscaler_ntap);
 }
 
-static ssize_t cur_ai_scenes_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t cur_ai_scenes_show(const struct class *cla,
+				  const struct class_attribute *attr, char *buf)
 {
 	ssize_t count;
 	int i = 0;
 
 	if (!vd_layer[0].dispbuf)
+		return 0;
+	if (!vd_layer[0].dispbuf->ai_pq_enable)
 		return 0;
 
 	if (nn_scenes_value[0].maxprob == 0)
@@ -11335,9 +11624,8 @@ static ssize_t cur_ai_scenes_show(const struct class *class,
 	return count;
 }
 
-static ssize_t cur_ai_face_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t cur_ai_face_show(const struct class *cla,
+		const struct class_attribute *attr, char *buf)
 {
 	ssize_t count = 0;
 	int i = 0, j = 0;
@@ -11412,9 +11700,10 @@ static ssize_t cur_ai_face_show(const struct class *class,
 	return count;
 }
 
-static ssize_t pre_hscaler_ntap_set_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pre_hscaler_ntap_set_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int parsed[2];
 	int layer_id = 0;
@@ -11447,9 +11736,10 @@ static ssize_t pre_hscaler_ntap_set_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t pre_vscaler_ntap_enable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pre_vscaler_ntap_enable_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	int i;
 
@@ -11466,9 +11756,10 @@ static ssize_t pre_vscaler_ntap_enable_show(const struct class *class,
 	return 0;
 }
 
-static ssize_t pre_vscaler_ntap_enable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pre_vscaler_ntap_enable_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int parsed[2];
 	int layer_id = 0, pre_vscaler_ntap_en = 0;
@@ -11491,9 +11782,10 @@ static ssize_t pre_vscaler_ntap_enable_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t pre_vscaler_ntap_set_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pre_vscaler_ntap_set_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return snprintf(buf, 256, "pre_vscaler_ntap: vd1:%d, vd2:%d, vd3:%d\n",
 		pre_scaler[0].pre_vscaler_ntap,
@@ -11501,9 +11793,10 @@ static ssize_t pre_vscaler_ntap_set_show(const struct class *class,
 		pre_scaler[2].pre_vscaler_ntap);
 }
 
-static ssize_t pre_vscaler_ntap_set_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pre_vscaler_ntap_set_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int parsed[2];
 	int layer_id = 0;
@@ -11528,9 +11821,10 @@ static ssize_t pre_vscaler_ntap_set_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t pre_hscaler_rate_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pre_hscaler_rate_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return snprintf(buf, 256, "pre_hscaler_rate: vd1:%d, vd2:%d, vd3:%d\n",
 		pre_scaler[0].pre_hscaler_rate,
@@ -11538,9 +11832,10 @@ static ssize_t pre_hscaler_rate_show(const struct class *class,
 		pre_scaler[2].pre_hscaler_rate);
 }
 
-static ssize_t pre_hscaler_rate_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pre_hscaler_rate_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int parsed[2];
 	int layer_id = 0;
@@ -11564,9 +11859,10 @@ static ssize_t pre_hscaler_rate_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t pre_vscaler_rate_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pre_vscaler_rate_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return snprintf(buf, 256, "pre_vscaler_rate: vd1:%d, vd2:%d, vd3:%d\n",
 		pre_scaler[0].pre_vscaler_rate,
@@ -11574,9 +11870,10 @@ static ssize_t pre_vscaler_rate_show(const struct class *class,
 		pre_scaler[2].pre_vscaler_rate);
 }
 
-static ssize_t pre_vscaler_rate_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pre_vscaler_rate_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int parsed[2];
 	int layer_id = 0;
@@ -11598,9 +11895,10 @@ static ssize_t pre_vscaler_rate_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t pre_hscaler_coef_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pre_hscaler_coef_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return snprintf(buf, 256,
 		"pre_hscaler_coef: vd1:%x,%x,%x,%x, vd2:%x,%x,%x,%x, vd3:%x,%x,%x,%x\n",
@@ -11618,9 +11916,10 @@ static ssize_t pre_hscaler_coef_show(const struct class *class,
 		pre_scaler[2].pre_hscaler_coef[3]);
 }
 
-static ssize_t pre_hscaler_coef_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pre_hscaler_coef_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int parsed[5];
 	int layer_id = 0;
@@ -11641,9 +11940,10 @@ static ssize_t pre_hscaler_coef_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t pre_vscaler_coef_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pre_vscaler_coef_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return snprintf(buf, 256,
 		"pre_vscaler_coef: vd1:%x,%x,%x,%x, vd2:%x,%x,%x,%x, vd3:%x,%x,%x,%x\n",
@@ -11661,9 +11961,10 @@ static ssize_t pre_vscaler_coef_show(const struct class *class,
 		pre_scaler[2].pre_vscaler_coef[3]);
 }
 
-static ssize_t pre_vscaler_coef_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pre_vscaler_coef_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int parsed[5];
 	int layer_id = 0;
@@ -11684,9 +11985,10 @@ static ssize_t pre_vscaler_coef_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t force_pre_scaler_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t force_pre_scaler_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return snprintf(buf, 256, "force_pre_scaler: vd1:%d, vd2:%d, vd3:%d\n",
 		pre_scaler[0].force_pre_scaler,
@@ -11694,9 +11996,10 @@ static ssize_t force_pre_scaler_show(const struct class *class,
 		pre_scaler[2].force_pre_scaler);
 }
 
-static ssize_t force_pre_scaler_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t force_pre_scaler_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int parsed[2];
 	int layer_id = 0;
@@ -11714,16 +12017,18 @@ static ssize_t force_pre_scaler_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t force_switch_vf_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t force_switch_vf_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return sprintf(buf, "%d\n", force_switch_vf_mode);
 }
 
-static ssize_t force_switch_vf_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t force_switch_vf_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int ret;
 	int force;
@@ -11744,9 +12049,10 @@ static ssize_t force_switch_vf_store(const struct class *class,
 	return count;
 }
 
-static ssize_t force_property_change_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t force_property_change_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int ret;
 	int force;
@@ -11765,9 +12071,10 @@ static ssize_t force_property_change_store(const struct class *class,
 	return count;
 }
 
-static ssize_t probe_en_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t probe_en_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int ret;
 	int probe_en;
@@ -11780,16 +12087,16 @@ static ssize_t probe_en_store(const struct class *class,
 	return count;
 }
 
-static ssize_t mirror_axis_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t mirror_axis_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
 {
 	return snprintf(buf, 40, "%d (1: H_MIRROR 2: V_MIRROR)\n", video_mirror);
 }
 
-static ssize_t mirror_axis_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t mirror_axis_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -11805,9 +12112,9 @@ static ssize_t mirror_axis_store(const struct class *class,
 	return count;
 }
 
-static ssize_t pps_coefs_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pps_coefs_store(const struct class *cla,
+				    const struct class_attribute *attr,
+				    const char *buf, size_t count)
 {
 	int parsed[3];
 	int layer_id = 0, bit9_mode = 0, coef_type = 0;
@@ -11822,9 +12129,9 @@ static ssize_t pps_coefs_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t load_pps_coefs_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t load_pps_coefs_store(const struct class *cla,
+				const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -11838,9 +12145,8 @@ static ssize_t load_pps_coefs_store(const struct class *class,
 	return count;
 }
 
-static ssize_t primary_src_fmt_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t primary_src_fmt_show(const struct class *cla,
+		const struct class_attribute *attr, char *buf)
 {
 	int ret = 0;
 	enum vframe_signal_fmt_e fmt;
@@ -11854,9 +12160,8 @@ static ssize_t primary_src_fmt_show(const struct class *class,
 	return ret;
 }
 
-static ssize_t status_changed_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t status_changed_show(const struct class *cla,
+		const struct class_attribute *attr, char *buf)
 {
 	u32 status = 0;
 
@@ -11864,9 +12169,10 @@ static ssize_t status_changed_show(const struct class *class,
 	return sprintf(buf, "0x%x\n", status);
 }
 
-static ssize_t vd_attach_vpp_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vd_attach_vpp_show
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf)
 {
 	return snprintf(buf, 256, "vpp_index: vd1:%d, vd2:%d, vd3:%d\n",
 		vd_layer[0].vpp_index,
@@ -11874,9 +12180,10 @@ static ssize_t vd_attach_vpp_show(const struct class *class,
 		vd_layer[2].vpp_index);
 }
 
-static ssize_t vd_attach_vpp_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vd_attach_vpp_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
 {
 	int parsed[2];
 	int layer_id = 0;
@@ -11900,9 +12207,8 @@ static ssize_t vd_attach_vpp_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t force_disable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t force_disable_show(const struct class *cla,
+		const struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "force_disable: %d %d %d\n",
 		vd_layer[0].force_disable ? 1 : 0,
@@ -11910,16 +12216,16 @@ static ssize_t force_disable_show(const struct class *class,
 		vd_layer[2].force_disable ? 1 : 0);
 }
 
-static ssize_t vd1_vd2_mux_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vd1_vd2_mux_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
 {
 	return snprintf(buf, 40, "vd1_vd2_mux:%d(for t5d revb)\n", vd1_vd2_mux);
 }
 
-static ssize_t vd1_vd2_mux_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vd1_vd2_mux_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -11938,16 +12244,16 @@ static ssize_t vd1_vd2_mux_store(const struct class *class,
 	return count;
 }
 
-static ssize_t aisr_en_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t aisr_en_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
 {
 	return snprintf(buf, 40, "aisr en:%d\n", aisr_en);
 }
 
-static ssize_t aisr_en_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t aisr_en_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -11960,13 +12266,15 @@ static ssize_t aisr_en_store(const struct class *class,
 	if (res != aisr_en) {
 		aisr_en = res;
 		aisr_sr1_nn_enable_sync(aisr_en);
+		if (cur_dev->vd1_vsr_safa_support)
+			vd_layer[0].property_changed = true;
 	}
 	return count;
 }
 
-static ssize_t reshape_output_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t reshape_output_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -11980,23 +12288,22 @@ static ssize_t reshape_output_store(const struct class *class,
 	return count;
 }
 
-static ssize_t pps_auto_calc_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pps_auto_calc_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
 {
 	return snprintf(buf, 40, "aisr pps_auto_calc:%d\n", cur_dev->pps_auto_calc);
 }
 
-static ssize_t ai_pq_disable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t ai_pq_disable_show(const struct class *cla,
+				  const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "for_tool:%d\n", ai_pq_disable);
 }
 
-static ssize_t ai_pq_disable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t ai_pq_disable_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
 	long tmp;
 
@@ -12010,16 +12317,15 @@ static ssize_t ai_pq_disable_store(const struct class *class,
 	return count;
 }
 
-static ssize_t ai_pq_debug_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t ai_pq_debug_show(const struct class *cla,
+				const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "for_tool:%d\n", ai_pq_debug);
 }
 
-static ssize_t ai_pq_debug_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t ai_pq_debug_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	long tmp;
 
@@ -12033,16 +12339,15 @@ static ssize_t ai_pq_debug_store(const struct class *class,
 	return count;
 }
 
-static ssize_t ai_pq_value_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t ai_pq_value_show(const struct class *cla,
+				const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "for_tool:%d\n", ai_pq_value);
 }
 
-static ssize_t ai_pq_value_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t ai_pq_value_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	long tmp;
 
@@ -12056,16 +12361,15 @@ static ssize_t ai_pq_value_store(const struct class *class,
 	return count;
 }
 
-static ssize_t ai_pq_policy_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t ai_pq_policy_show(const struct class *cla,
+				 const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "for_tool:%d\n", ai_pq_policy);
 }
 
-static ssize_t ai_pq_policy_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t ai_pq_policy_store(const struct class *cla,
+				  const struct class_attribute *attr,
+				  const char *buf, size_t count)
 {
 	long tmp;
 
@@ -12080,16 +12384,15 @@ static ssize_t ai_pq_policy_store(const struct class *class,
 }
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
-static ssize_t det_stb_cnt_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t det_stb_cnt_show(const struct class *cla,
+				const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "det_stb_cnt: %d\n", det_stb_cnt);
 }
 
-static ssize_t det_stb_cnt_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t det_stb_cnt_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	long tmp;
 
@@ -12103,16 +12406,15 @@ static ssize_t det_stb_cnt_store(const struct class *class,
 	return count;
 }
 
-static ssize_t det_unstb_cnt_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t det_unstb_cnt_show(const struct class *cla,
+				  const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "det_unstb_cnt: %d\n", det_unstb_cnt);
 }
 
-static ssize_t det_unstb_cnt_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t det_unstb_cnt_store(const struct class *cla,
+				   const struct class_attribute *attr,
+				   const char *buf, size_t count)
 {
 	long tmp;
 
@@ -12126,16 +12428,15 @@ static ssize_t det_unstb_cnt_store(const struct class *class,
 	return count;
 }
 
-static ssize_t tolrnc_cnt_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t tolrnc_cnt_show(const struct class *cla,
+			       const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "tolrnc_cnt: %d\n", tolrnc_cnt);
 }
 
-static ssize_t tolrnc_cnt_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t tolrnc_cnt_store(const struct class *cla,
+				const struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	long tmp;
 
@@ -12149,16 +12450,15 @@ static ssize_t tolrnc_cnt_store(const struct class *class,
 	return count;
 }
 
-static ssize_t timer_filter_en_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t timer_filter_en_show(const struct class *cla,
+				    const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "timer_filter_en: %d\n", timer_filter_en);
 }
 
-static ssize_t timer_filter_en_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t timer_filter_en_store(const struct class *cla,
+				     const struct class_attribute *attr,
+				     const char *buf, size_t count)
 {
 	long tmp;
 
@@ -12172,16 +12472,15 @@ static ssize_t timer_filter_en_store(const struct class *class,
 	return count;
 }
 
-static ssize_t aipq_set_policy_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t aipq_set_policy_show(const struct class *cla,
+				    const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "aipq_set_policy: %d\n", aipq_set_policy);
 }
 
-static ssize_t aipq_set_policy_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t aipq_set_policy_store(const struct class *cla,
+				     const struct class_attribute *attr,
+				     const char *buf, size_t count)
 {
 	long tmp;
 
@@ -12195,16 +12494,15 @@ static ssize_t aipq_set_policy_store(const struct class *class,
 	return count;
 }
 
-static ssize_t color_th_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t color_th_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "color_th: %d\n", color_th);
 }
 
-static ssize_t color_th_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t color_th_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	long tmp;
 
@@ -12218,16 +12516,52 @@ static ssize_t color_th_store(const struct class *class,
 	return count;
 }
 
-static ssize_t aisr_demo_en_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t aisr_demo_type_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 40, "SAFA:%d PI:%d SHARPNESS:%d\n",
+		aisr_demo_types[SAFA], aisr_demo_types[PI], aisr_demo_types[SHARPNESS]);
+}
+
+static ssize_t aisr_demo_type_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int parsed[3];
+	int res[3] = {1, 1, 1};
+
+	if (!cur_dev->aisr_demo_en || !cur_dev->vd1_vsr_safa_support) {
+		pr_err("aisr demo en: %d cur_dev->vd1_vsr_safa_support = %d\n",
+			cur_dev->aisr_demo_en, cur_dev->vd1_vsr_safa_support);
+		return -EINVAL;
+	}
+	if (likely(parse_para(buf, 3, parsed) == 3)) {
+		res[0] = parsed[0];
+		res[1] = parsed[1];
+		res[2] = parsed[2];
+	} else {
+		pr_err("para error!\n");
+	}
+	if (aisr_demo_types[SAFA] != res[0] ||
+		aisr_demo_types[PI] != res[1] ||
+		aisr_demo_types[SHARPNESS] != res[2]) {
+		aisr_demo_types[SAFA] = res[0];
+		aisr_demo_types[PI] = res[1];
+		aisr_demo_types[SHARPNESS] = res[2];
+		vd_layer[0].property_changed = true;
+	}
+	return count;
+}
+
+static ssize_t aisr_demo_en_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "aisr_demo_en: %d\n", cur_dev->aisr_demo_en);
 }
 
-static ssize_t aisr_demo_en_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t aisr_demo_en_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	int ret;
 	int res;
@@ -12239,13 +12573,13 @@ static ssize_t aisr_demo_en_store(const struct class *class,
 	}
 	if (res != cur_dev->aisr_demo_en) {
 		cur_dev->aisr_demo_en = res;
+		vd_layer[0].property_changed = true;
 	}
 	return count;
 }
 
-static ssize_t aisr_demo_axis_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t aisr_demo_axis_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "aisr_demo_axis: %d,%d,%d,%d\n",
 		cur_dev->aisr_demo_xstart,
@@ -12254,9 +12588,9 @@ static ssize_t aisr_demo_axis_show(const struct class *class,
 		cur_dev->aisr_demo_yend);
 }
 
-static ssize_t aisr_demo_axis_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t aisr_demo_axis_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	int parsed[4];
 
@@ -12275,16 +12609,15 @@ static ssize_t aisr_demo_axis_store(const struct class *class,
 	return count;
 }
 
-static ssize_t power_ctrl_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t power_ctrl_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "power_ctrl: %d\n", cur_dev->power_ctrl);
 }
 
-static ssize_t power_ctrl_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t power_ctrl_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	int ret;
 	int res;
@@ -12325,8 +12658,8 @@ static ssize_t power_ctrl_store(const struct class *class,
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 static ssize_t frc_delay_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+				      const struct class_attribute *attr,
+				      char *buf)
 {
 	u32 frc_delay = 0;
 
@@ -12335,10 +12668,10 @@ static ssize_t frc_delay_show(const struct class *class,
 }
 #endif
 
-static ssize_t vpu_module_urgent_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vpu_module_urgent_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	if (video_is_meson_t3_cpu()) {
 		get_vpu_urgent_info_t3();
 	} else if (video_is_meson_t7_cpu()) {
@@ -12358,9 +12691,11 @@ static ssize_t vpu_module_urgent_show(const struct class *class,
 		pr_info("vpp_arb0: vd1, vd2, dolby0\n");
 		pr_info("vpp_arb1: osd1, osd2, osd3, mali-afbc\n");
 	}
+#endif
 	return 0;
 }
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static const char vpu_module_urgent_help_t3[] = "Usage:\n"
 "  echo module_id low_level(0-7) high_level(0-7)> /sys/class/video/urgent_set\n"
 "  FRC0_R: 0\n"
@@ -12403,11 +12738,13 @@ static const char vpu_module_urgent_help_t5m[] = "Usage:\n"
 "  TCON_P1: 5\n"
 "  DCNTR_GRID: 4\n"
 "  TCON_P2: 6\n\n";
+#endif
 
 static ssize_t vpu_module_urgent_set(const struct class *class,
 			const struct class_attribute *attr,
 			const char *buf, size_t count)
 {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	int parsed[3];
 	int ret = -1;
 
@@ -12434,21 +12771,21 @@ static ssize_t vpu_module_urgent_set(const struct class *class,
 		else if (video_is_meson_t5m_cpu())
 			pr_info("%s", vpu_module_urgent_help_t5m);
 	}
+#endif
 	return count;
 }
 
-static ssize_t video_threshold_8k_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_threshold_8k_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "vdec_out_size_threshold_8k:%d,vpp_in_size_threshold_8k:%d\n",
 		vdec_out_size_threshold_8k,
 		vpp_in_size_threshold_8k);
 }
 
-static ssize_t video_threshold_8k_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_threshold_8k_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	int parsed[2];
 
@@ -12459,18 +12796,17 @@ static ssize_t video_threshold_8k_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_threshold_4k_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_threshold_4k_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "vdec_out_size_threshold_4k:%d,vpp_in_size_threshold_4k:%d\n",
 		vdec_out_size_threshold_4k,
 		vpp_in_size_threshold_4k);
 }
 
-static ssize_t video_threshold_4k_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_threshold_4k_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	int parsed[2];
 
@@ -12481,9 +12817,8 @@ static ssize_t video_threshold_4k_store(const struct class *class,
 	return count;
 }
 
-static ssize_t video_test_pattern_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t video_test_pattern_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	bool vdx_test_pattern_on[MAX_VD_LAYER];
 	int vdx_color[MAX_VD_LAYER];
@@ -12500,9 +12835,9 @@ static ssize_t video_test_pattern_show(const struct class *class,
 		vdx_color[2]);
 }
 
-static ssize_t video_test_pattern_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t video_test_pattern_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	int parsed[3];
 	u32 index;
@@ -12516,9 +12851,8 @@ static ssize_t video_test_pattern_store(const struct class *class,
 	return count;
 }
 
-static ssize_t postblend_test_pattern_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t postblend_test_pattern_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	bool postblend_test_pattern_on;
 	u32 postblend_color;
@@ -12530,9 +12864,9 @@ static ssize_t postblend_test_pattern_show(const struct class *class,
 		postblend_color);
 }
 
-static ssize_t postblend_test_pattern_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t postblend_test_pattern_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	int parsed[2];
 
@@ -12541,16 +12875,15 @@ static ssize_t postblend_test_pattern_store(const struct class *class,
 	return count;
 }
 
-static ssize_t tvin_source_type_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t tvin_source_type_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "tvin_source_type:%d\n", tvin_source_type);
 }
 
-static ssize_t tvin_source_type_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t tvin_source_type_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	long tmp;
 
@@ -12565,17 +12898,16 @@ static ssize_t tvin_source_type_store(const struct class *class,
 	return count;
 }
 
-static ssize_t bypass_module_s5_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t bypass_module_s5_show(const struct class *cla,
+			     const struct class_attribute *attr, char *buf)
 {
 	return snprintf(buf, 80, "bypass module:0x%x(bit0: dv, bit1: hdr, bit2: detunnel)\n",
 		get_module_bypass_s5());
 }
 
-static ssize_t bypass_module_s5_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t bypass_module_s5_store(const struct class *cla,
+			      const struct class_attribute *attr,
+			      const char *buf, size_t count)
 {
 	int ret, res;
 
@@ -12589,9 +12921,9 @@ static ssize_t bypass_module_s5_store(const struct class *class,
 	return count;
 }
 
-static ssize_t set_post_matrix_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t set_post_matrix_show(const struct class *cla,
+					   const struct class_attribute *attr,
+					   char *buf)
 {
 	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
 		pr_info("Usage:\n");
@@ -12608,23 +12940,14 @@ static ssize_t set_post_matrix_show(const struct class *class,
 		pr_info("BIT4: 0 INPUT\n");
 		pr_info("BIT4: 1 OUTPUT\n");
 		pr_info("current setting: %d\n", probe_id | probe_output);
-	} else if (cur_dev->display_module == C3_DISPLAY_MODULE) {
-		pr_info("Usage:\n");
-		pr_info("echo port > /sys/class/amvecm/matrix_set\n");
-		pr_info("0 : VD1_PROBE\n");
-		pr_info("1 : VD1SC_PROBE\n");
-		pr_info("2 : OSD1_PROBE\n");
-		pr_info("3 : OSD1SC_PROBE\n");
-		pr_info("4 : VOUT_BLD_PROBE\n");
-		pr_info("5 : GAINOFF_PROBE\n");
-		pr_info("current setting: %d\n", probe_id);
 	}
+
 	return 0;
 }
 
-static ssize_t set_post_matrix_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t set_post_matrix_store(const struct class *cla,
+					    const struct class_attribute *attr,
+					    const char *buf, size_t count)
 {
 	int val = 0;
 	u32 output = false;
@@ -12654,17 +12977,13 @@ static ssize_t set_post_matrix_store(const struct class *class,
 			return 0;
 		}
 		pr_info("VPP_MATRIX_CTRL is set\n");
-	} else if (cur_dev->display_module == C3_DISPLAY_MODULE) {
-		probe_id = val;
-		set_probe_ctrl_a4(val);
-		pr_info("VPP_MATRIX_CTRL is set\n");
 	}
 	return strnlen(buf, count);
 }
 
-static ssize_t post_matrix_pos_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t post_matrix_pos_show(const struct class *cla,
+					   const struct class_attribute *attr,
+					   char *buf)
 {
 	int val = 0;
 
@@ -12673,17 +12992,15 @@ static ssize_t post_matrix_pos_show(const struct class *class,
 
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		val = get_probe_pos_s5(probe_id);
-	else if (cur_dev->display_module == C3_DISPLAY_MODULE)
-		val = get_probe_pos_a4(probe_id);
 	pr_info("current position: %d %d\n",
 		(val >> 16) & 0x1fff,
 			(val >> 0) & 0x1fff);
 	return 0;
 }
 
-static ssize_t post_matrix_pos_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t post_matrix_pos_store(const struct class *cla,
+					    const struct class_attribute *attr,
+					    const char *buf, size_t count)
 {
 	int val_x, val_y;
 	int parsed[2];
@@ -12693,15 +13010,13 @@ static ssize_t post_matrix_pos_store(const struct class *class,
 		val_y = parsed[1] & 0x1fff;
 		if (cur_dev->display_module == S5_DISPLAY_MODULE)
 			set_probe_pos_s5(val_x, val_y, probe_id, probe_output);
-		else if (cur_dev->display_module == C3_DISPLAY_MODULE)
-			set_probe_pos_a4(val_x, val_y);
 	}
 	return strnlen(buf, count);
 }
 
-static ssize_t post_matrix_data_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t post_matrix_data_show(const struct class *cla,
+					    const struct class_attribute *attr,
+					    char *buf)
 {
 	int len = 0, val1 = 0, val2 = 0;
 	u8 bit_depth = 10;
@@ -12721,34 +13036,27 @@ static ssize_t post_matrix_data_show(const struct class *class,
 			"VPP_MATRIX_PROBE_COLOR %d, %d, %d\n",
 			((val2 & 0xf) << 8) | ((val1 >> 24) & 0xff),
 			(val1 >> 12) & 0xfff, val1 & 0xfff);
-	} else if (cur_dev->display_module == C3_DISPLAY_MODULE) {
-		/* 10bit */
-		val1 = get_probe_data_a4();
-		len += sprintf(buf + len,
-		"VPP_MATRIX_PROBE_COLOR %d, %d, %d\n",
-		((val1 >> 20) & 0x3ff),
-		(val1 >> 10) & 0x3ff, val1 & 0x3ff);
 	}
 	return len;
 }
 
-static ssize_t post_matrix_data_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t post_matrix_data_store(const struct class *cla,
+					     const struct class_attribute *attr,
+					     const char *buf, size_t count)
 {
 	return 0;
 }
 
-static ssize_t pre_vsync_enable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t pre_vsync_enable_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
 {
 	return snprintf(buf, 40, "pre_vsync_enable:%d\n", cur_dev->pre_vsync_enable);
 }
 
-static ssize_t pre_vsync_enable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t pre_vsync_enable_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -12762,18 +13070,18 @@ static ssize_t pre_vsync_enable_store(const struct class *class,
 	return count;
 }
 
-static ssize_t mosaic_axis_pic_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t mosaic_axis_pic_show(const struct class *cla,
+		const struct class_attribute *attr,
+		char *buf)
 {
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		get_mosaic_axis();
 	return 0;
 }
 
-static ssize_t mosaic_axis_pic_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t mosaic_axis_pic_store(const struct class *cla,
+		const struct class_attribute *attr,
+		const char *buf, size_t count)
 {
 	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
 		int parsed[5];
@@ -12790,9 +13098,8 @@ static ssize_t mosaic_axis_pic_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t aisr_info_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t aisr_info_show(const struct class *cla,
+		const struct class_attribute *attr, char *buf)
 {
 	ssize_t len = 0;
 	struct vpp_frame_par_s *_cur_frame_par = NULL;
@@ -12811,16 +13118,41 @@ static ssize_t aisr_info_show(const struct class *class,
 			_cur_frame_par->nnhf_input_h);
 }
 
-static ssize_t vsync_2to1_enable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t slice_out_hsize_show(const struct class *cla,
+		const struct class_attribute *attr,
+		char *buf)
+{
+	int p[4];
+
+	get_slice_out_hsize_debug(&p[0], &p[1], &p[2], &p[3]);
+
+	return snprintf(buf, 40, "%d %d %d %d\n", p[0], p[1], p[2], p[3]);
+}
+
+static ssize_t slice_out_hsize_store(const struct class *cla,
+		const struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	int p[4];
+
+	if (likely(parse_para(buf, 4, p) == 4))
+		set_slice_out_hsize_debug(p[0], p[1], p[2], p[3]);
+	else
+		pr_info("%s: err\n", __func__);
+
+	return strnlen(buf, count);
+}
+
+static ssize_t vsync_2to1_enable_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
 {
 	return snprintf(buf, 40, "vsync_2to1_enable:%d\n", cur_dev->vsync_2to1_enable);
 }
 
-static ssize_t vsync_2to1_enable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vsync_2to1_enable_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -12835,9 +13167,9 @@ static ssize_t vsync_2to1_enable_store(const struct class *class,
 	return count;
 }
 
-static ssize_t vpp_in_padding_enable_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vpp_in_padding_enable_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
 {
 	int padding_enable, h_padding, v_padding;
 
@@ -12847,9 +13179,9 @@ static ssize_t vpp_in_padding_enable_show(const struct class *class,
 		h_padding, v_padding);
 }
 
-static ssize_t vpp_in_padding_enable_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpp_in_padding_enable_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	int parsed[3];
 
@@ -12865,9 +13197,8 @@ static ssize_t vpp_in_padding_enable_store(const struct class *class,
 	return strnlen(buf, count);
 }
 
-static ssize_t vpu_venc_status_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t vpu_venc_status_show(const struct class *cla,
+		const struct class_attribute *attr, char *buf)
 {
 	u32 status;
 
@@ -12876,9 +13207,9 @@ static ssize_t vpu_venc_status_show(const struct class *class,
 	return snprintf(buf, 40, "vpu_venc_status:%x\n", status);
 }
 
-static ssize_t vpu_venc_status_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+static ssize_t vpu_venc_status_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
 {
 	int res = 0;
 	int ret = 0;
@@ -12890,6 +13221,65 @@ static ssize_t vpu_venc_status_store(const struct class *class,
 	}
 	if (res)
 		clear_vpu_venc_error();
+	return count;
+}
+
+static ssize_t vsr_top_en_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, 40, "vsr_top_en:%d\n", vsr_top_en);
+}
+
+static ssize_t vsr_top_en_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	if (res != vsr_top_en) {
+		vsr_top_en = res;
+		if (cur_dev->vd1_vsr_safa_support)
+			vd_layer[0].property_changed = true;
+	}
+	return count;
+}
+
+static ssize_t vsr_debug_mode_show(const struct class *cla,
+				const struct class_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, 40, "vsr_debug_mode:%d\n", vsr_debug_mode);
+}
+
+static ssize_t vsr_debug_mode_store(const struct class *cla,
+				 const struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	if (res != vsr_debug_mode) {
+		vsr_debug_mode = res;
+		if (cur_dev->vd1_vsr_safa_support) {
+			vd_layer[0].property_changed = true;
+			vd_layer[1].property_changed = true;
+			vd_layer[2].property_changed = true;
+			vd_layer_vpp[0].property_changed = true;
+			vd_layer_vpp[1].property_changed = true;
+		}
+	}
 	return count;
 }
 
@@ -12910,6 +13300,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0644,
 	       video_sr_show,
 	       video_sr_store),
+	__ATTR(safa_dir_interp_en,
+	       0644,
+	       video_safa_dir_interp_show,
+	       video_safa_dir_interp_store),
 	__ATTR(global_offset,
 	       0644,
 	       video_global_offset_show,
@@ -13391,6 +13785,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       aisr_demo_en_show,
 	       aisr_demo_en_store),
+	__ATTR(aisr_demo_type,
+	       0664,
+	       aisr_demo_type_show,
+	       aisr_demo_type_store),
 	__ATTR(aisr_demo_axis,
 	       0664,
 	       aisr_demo_axis_show,
@@ -13463,6 +13861,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 		mosaic_axis_pic_show,
 		mosaic_axis_pic_store),
 	__ATTR_RO(cur_ai_face),
+	__ATTR_RW(slice_out_hsize),
 	__ATTR(vsync_2to1_enable, 0664,
 		vsync_2to1_enable_show,
 		vsync_2to1_enable_store),
@@ -13472,6 +13871,23 @@ static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(vpu_venc_status, 0664,
 		vpu_venc_status_show,
 		vpu_venc_status_store),
+	__ATTR(video_max_src, 0664,
+		video_max_src_show,
+		NULL),
+	__ATTR(videopip_max_src, 0664,
+		videopip_max_src_show,
+		NULL),
+	__ATTR(videopip2_max_src, 0664,
+		videopip2_max_src_show,
+		NULL),
+	__ATTR(vsr_top,
+		0664,
+		vsr_top_en_show,
+		vsr_top_en_store),
+	__ATTR(vsr_debug_mode,
+		0664,
+		vsr_debug_mode_show,
+		vsr_debug_mode_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
@@ -13521,7 +13937,7 @@ static int video_attr_create(void)
 	}
 
 	/* create amvideo_poll class attr files */
-	for (i = 0; i < ARRAY_SIZE(amvideo_poll_class_attrs); i++) {
+	for (i = 0; amvideo_poll_class_attrs[i].attr.name; i++) {
 		if (class_create_file(amvideo_poll_class,
 				      &amvideo_poll_class_attrs[i])) {
 			pr_err("create amvideo_poll attribute %s fail\n",
@@ -13817,6 +14233,8 @@ static struct mconfig video_configs[] = {
 	MC_PU32("omx_info", &omx_info),
 	MC_PI32("omx_need_drop_frame_num", &omx_need_drop_frame_num),
 	MC_PU32("omx_drop_done", &omx_drop_done),
+	MC_PI32("omx_pts_interval_upper", &omx_pts_interval_upper),
+	MC_PI32("omx_pts_interval_lower", &omx_pts_interval_lower),
 	MC_PU32("bypass_pps", &bypass_pps),
 	MC_PU32("process_3d_type", &process_3d_type),
 	MC_PU32("omx_pts", &omx_pts),
@@ -13840,13 +14258,14 @@ static void video_early_suspend(struct early_suspend *h)
 	safe_switch_videolayer(0, false, false);
 	safe_switch_videolayer(1, false, false);
 	safe_switch_videolayer(2, false, false);
-	di_disable_prelink_notify(0);
+	di_disable_plink_notify(0);
 	video_suspend = true;
 	pr_info("%s ok\n", __func__);
 }
 
 static void video_late_resume(struct early_suspend *h)
 {
+	video_resume_hw_recovery();
 	video_suspend_cycle = 0;
 	video_suspend = false;
 	log_out = 1;
@@ -13859,6 +14278,7 @@ static struct early_suspend video_early_suspend_handler = {
 };
 #endif
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct amvideo_device_data_s amvideo = {
 	.cpu_type = MESON_CPU_MAJOR_ID_COMPATIBLE,
 	.sr_reg_offt = 0xff,
@@ -14373,6 +14793,7 @@ static struct amvideo_device_data_s amvideo_t5w = {
 	.has_vpp2 = 0,
 	.is_tv_panel = 1,
 };
+#endif
 
 static struct amvideo_device_data_s amvideo_c3 = {
 	.cpu_type = MESON_CPU_MAJOR_ID_C3_,
@@ -14427,59 +14848,7 @@ static struct amvideo_device_data_s amvideo_c3 = {
 	.is_tv_panel = 1,
 };
 
-static struct amvideo_device_data_s amvideo_a4 = {
-	.cpu_type = MESON_CPU_MAJOR_ID_A4_,
-	.sr_reg_offt = 0x1e00,
-	.sr_reg_offt2 = 0x1f80,
-	.layer_support[0] = 1,
-	.layer_support[1] = 0,
-	.layer_support[2] = 0,
-	.afbc_support[0] = 0,
-	.afbc_support[1] = 0,
-	.afbc_support[2] = 0,
-	.pps_support[0] = 1,
-	.pps_support[1] = 0,
-	.pps_support[2] = 0,
-	.alpha_support[0] = 0,
-	.alpha_support[1] = 0,
-	.alpha_support[2] = 0,
-	.dv_support = 0,
-	.sr0_support = 0,
-	.sr1_support = 0,
-	.core_v_disable_width_max[0] = 2048,
-	.core_v_disable_width_max[1] = 4096,
-	.core_v_enable_width_max[0] = 1024,
-	.core_v_enable_width_max[1] = 2048,
-	.supscl_path = CORE0_PPS_CORE1,
-	.fgrain_support[0] = 0,
-	.fgrain_support[1] = 0,
-	.fgrain_support[2] = 0,
-	.has_hscaler_8tap[0] = 0,
-	.has_hscaler_8tap[1] = 0,
-	.has_hscaler_8tap[2] = 0,
-	.has_pre_hscaler_ntap[0] = 0,
-	.has_pre_hscaler_ntap[1] = 0,
-	.has_pre_hscaler_ntap[2] = 0,
-	.has_pre_vscaler_ntap[0] = 0,
-	.has_pre_vscaler_ntap[1] = 0,
-	.has_pre_vscaler_ntap[2] = 0,
-	.src_width_max[0] = 4096,
-	.src_width_max[1] = 2048,
-	.src_width_max[2] = 4096,
-	.src_height_max[0] = 2160,
-	.src_height_max[1] = 1088,
-	.src_height_max[2] = 2160,
-	.ofifo_size = 0x1000,
-	.afbc_conv_lbuf_len[0] = 0x100,
-	.afbc_conv_lbuf_len[1] = 0x80,
-	.mif_linear = 1,
-	.display_module = C3_DISPLAY_MODULE,
-	.max_vd_layers = 1,
-	.has_vpp1 = 0,
-	.has_vpp2 = 0,
-	.is_tv_panel = 1,
-};
-
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct amvideo_device_data_s amvideo_s5 = {
 	.cpu_type = MESON_CPU_MAJOR_ID_S5_,
 	.sr_reg_offt = 0x1e00,
@@ -14528,7 +14897,7 @@ static struct amvideo_device_data_s amvideo_s5 = {
 	.mif_linear = 1,
 	.display_module = S5_DISPLAY_MODULE,
 	.max_vd_layers = 2,
-	.has_vpp1 = 1,
+	.has_vpp1 = 0,
 	.has_vpp2 = 0,
 	.is_tv_panel = 0,
 };
@@ -14739,6 +15108,161 @@ static struct amvideo_device_data_s amvideo_s1a = {
 	.is_tv_panel = 0,
 };
 
+static struct amvideo_device_data_s amvideo_s7 = {
+	.cpu_type = MESON_CPU_MAJOR_ID_S7_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 1,
+	.layer_support[2] = 0,
+	.afbc_support[0] = 1,
+	.afbc_support[1] = 1,
+	.afbc_support[2] = 0,
+	.pps_support[0] = 1,
+	.pps_support[1] = 1,
+	.pps_support[2] = 0,
+	.alpha_support[0] = 1,
+	.alpha_support[1] = 1,
+	.alpha_support[2] = 0,
+	.dv_support = 0,
+	.sr0_support = 1,
+	.sr1_support = 0,
+	.core_v_disable_width_max[0] = 4096,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 2048,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = CORE0_BEFORE_PPS,
+	.fgrain_support[0] = 1,
+	.fgrain_support[1] = 0,
+	.fgrain_support[2] = 0,
+	.has_hscaler_8tap[0] = 1,
+	.has_hscaler_8tap[1] = 1,
+	.has_hscaler_8tap[2] = 0,
+	.has_pre_hscaler_ntap[0] = 1,
+	.has_pre_hscaler_ntap[1] = 1,
+	.has_pre_hscaler_ntap[2] = 0,
+	.has_pre_vscaler_ntap[0] = 1,
+	.has_pre_vscaler_ntap[1] = 1,
+	.has_pre_vscaler_ntap[2] = 0,
+	.src_width_max[0] = 4096,
+	.src_width_max[1] = 2048,
+	.src_width_max[2] = 2048,
+	.src_height_max[0] = 2160,
+	.src_height_max[1] = 1080,
+	.src_height_max[2] = 1080,
+	.ofifo_size = 0x1000,
+	.afbc_conv_lbuf_len[0] = 0x100,
+	.afbc_conv_lbuf_len[1] = 0x80,
+	.mif_linear = 1,
+	.display_module = 0,
+	.max_vd_layers = 2,
+	.is_tv_panel = 0,
+};
+
+static struct amvideo_device_data_s amvideo_s7d = {
+	.cpu_type = MESON_CPU_MAJOR_ID_S7D_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 1,
+	.layer_support[2] = 0,
+	.afbc_support[0] = 1,
+	.afbc_support[1] = 1,
+	.afbc_support[2] = 0,
+	.pps_support[0] = 1,
+	.pps_support[1] = 1,
+	.pps_support[2] = 0,
+	.alpha_support[0] = 1,
+	.alpha_support[1] = 1,
+	.alpha_support[2] = 0,
+	.dv_support = 1,
+	.sr0_support = 0,
+	.sr1_support = 0,
+	.core_v_disable_width_max[0] = 4096,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 2048,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = VSR_BEFORE_VE,
+	.fgrain_support[0] = 1,
+	.fgrain_support[1] = 0,
+	.fgrain_support[2] = 0,
+	.has_hscaler_8tap[0] = 1,
+	.has_hscaler_8tap[1] = 1,
+	.has_hscaler_8tap[2] = 0,
+	.has_pre_hscaler_ntap[0] = 1,
+	.has_pre_hscaler_ntap[1] = 1,
+	.has_pre_hscaler_ntap[2] = 0,
+	.has_pre_vscaler_ntap[0] = 1,
+	.has_pre_vscaler_ntap[1] = 1,
+	.has_pre_vscaler_ntap[2] = 0,
+	.src_width_max[0] = 4096,
+	.src_width_max[1] = 2048,
+	.src_width_max[2] = 2048,
+	.src_height_max[0] = 2160,
+	.src_height_max[1] = 1080,
+	.src_height_max[2] = 1080,
+	.ofifo_size = 0x1000,
+	.afbc_conv_lbuf_len[0] = 0x100,
+	.afbc_conv_lbuf_len[1] = 0x80,
+	.mif_linear = 1,
+	.display_module = 0,
+	.max_vd_layers = 2,
+	.is_tv_panel = 0,
+};
+
+static struct amvideo_device_data_s amvideo_s6 = {
+	.cpu_type = MESON_CPU_MAJOR_ID_S6_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 1,
+	.layer_support[2] = 0,
+	.afbc_support[0] = 1,
+	.afbc_support[1] = 1,
+	.afbc_support[2] = 0,
+	.pps_support[0] = 1,
+	.pps_support[1] = 1,
+	.pps_support[2] = 0,
+	.alpha_support[0] = 1,
+	.alpha_support[1] = 1,
+	.alpha_support[2] = 0,
+	.dv_support = 0,
+	.sr0_support = 0,
+	.sr1_support = 0,
+	.core_v_disable_width_max[0] = 4096,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 2048,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = VSR_BEFORE_VE,
+	.fgrain_support[0] = 1,
+	.fgrain_support[1] = 1,
+	.fgrain_support[2] = 0,
+	.has_hscaler_8tap[0] = 1,
+	.has_hscaler_8tap[1] = 1,
+	.has_hscaler_8tap[2] = 0,
+	.has_pre_hscaler_ntap[0] = 1,
+	.has_pre_hscaler_ntap[1] = 1,
+	.has_pre_hscaler_ntap[2] = 0,
+	.has_pre_vscaler_ntap[0] = 1,
+	.has_pre_vscaler_ntap[1] = 1,
+	.has_pre_vscaler_ntap[2] = 0,
+	.src_width_max[0] = 4096,
+	.src_width_max[1] = 4096,
+	.src_width_max[2] = 2048,
+	.src_height_max[0] = 2160,
+	.src_height_max[1] = 2160,
+	.src_height_max[2] = 1080,
+	.ofifo_size = 0x1000,
+	.afbc_conv_lbuf_len[0] = 0x100,
+	.afbc_conv_lbuf_len[1] = 0x100,
+	.mif_linear = 1,
+	.display_module = 0,
+	.max_vd_layers = 2,
+	.is_tv_panel = 0,
+};
+
+#endif
+
 static struct video_device_hw_s legcy_dev_property = {
 	.vd2_independ_blend_ctrl = 0,
 	.aisr_support = 0,
@@ -14747,6 +15271,7 @@ static struct video_device_hw_s legcy_dev_property = {
 	.sr01_num = 1,
 };
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct video_device_hw_s t3_dev_property = {
 	.vd2_independ_blend_ctrl = 1,
 	.aisr_support = 1,
@@ -14765,6 +15290,7 @@ static struct video_device_hw_s t5w_dev_property = {
 	.sr_in_size = 1,
 	.sr01_num = 1,
 };
+#endif
 
 static struct video_device_hw_s c3_dev_property = {
 	.vd2_independ_blend_ctrl = 0,
@@ -14775,6 +15301,7 @@ static struct video_device_hw_s c3_dev_property = {
 	.sr01_num = 1,
 };
 
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 static struct video_device_hw_s s5_dev_property = {
 	.vd2_independ_blend_ctrl = 1,
 	.aisr_support = 1,
@@ -14810,7 +15337,31 @@ static struct video_device_hw_s t3x_dev_property = {
 	.vpp_in_padding_support = 1,
 };
 
+static struct video_device_hw_s s7d_dev_property = {
+	.vd2_independ_blend_ctrl = 0,
+	.aisr_support = 0,
+	.prevsync_support = 0,
+	.sr_in_size = 0,
+	.sr01_num = 0,
+	.vd1_vsr_safa_support = 1,
+	.frm2fld_support = 1,
+};
+
+static struct video_device_hw_s s6_dev_property = {
+	.vd2_independ_blend_ctrl = 0,
+	.aisr_support = 0,
+	.prevsync_support = 0,
+	.sr_in_size = 0,
+	.sr01_num = 0,
+	.vd1_vsr_safa_support = 1,
+	.frm2fld_support = 1,
+	.dejaggy_support = 1,
+};
+
+#endif
+
 static const struct of_device_id amlogic_amvideom_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic, amvideom",
 		.data = &amvideo,
@@ -14851,14 +15402,12 @@ static const struct of_device_id amlogic_amvideom_dt_match[] = {
 		.compatible = "amlogic, amvideom-t5w",
 		.data = &amvideo_t5w,
 	},
+#endif
 	{
 		.compatible = "amlogic, amvideom-c3",
 		.data = &amvideo_c3,
 	},
-	{
-		.compatible = "amlogic, amvideom-a4",
-		.data = &amvideo_a4,
-	},
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	{
 		.compatible = "amlogic, amvideom-s5",
 		.data = &amvideo_s5,
@@ -14879,6 +15428,19 @@ static const struct of_device_id amlogic_amvideom_dt_match[] = {
 		.compatible = "amlogic, amvideom-s1a",
 		.data = &amvideo_s1a,
 	},
+	{
+		.compatible = "amlogic, amvideom-s7",
+		.data = &amvideo_s7,
+	},
+	{
+		.compatible = "amlogic, amvideom-s7d",
+		.data = &amvideo_s7d,
+	},
+	{
+		.compatible = "amlogic, amvideom-s6",
+		.data = &amvideo_s6,
+	},
+#endif
 	{}
 };
 
@@ -14954,15 +15516,6 @@ bool video_is_meson_c3_cpu(void)
 		return false;
 }
 
-bool video_is_meson_a4_cpu(void)
-{
-	if (amvideo_meson_dev.cpu_type ==
-		MESON_CPU_MAJOR_ID_A4_)
-		return true;
-	else
-		return false;
-}
-
 bool video_is_meson_t5w_cpu(void)
 {
 	if (amvideo_meson_dev.cpu_type ==
@@ -15012,6 +15565,33 @@ bool video_is_meson_s1a_cpu(void)
 {
 	if (amvideo_meson_dev.cpu_type ==
 		MESON_CPU_MAJOR_ID_S1A_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_meson_s7_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_S7_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_meson_s7d_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_S7D_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_meson_s6_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_S6_)
 		return true;
 	else
 		return false;
@@ -15203,6 +15783,7 @@ static int amvideom_probe(struct platform_device *pdev)
 		}
 	}
 	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_T3_) {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 		memcpy(&amvideo_meson_dev.dev_property, &t3_dev_property,
 		       sizeof(struct video_device_hw_s));
 		aisr_en = 1;
@@ -15222,10 +15803,11 @@ static int amvideom_probe(struct platform_device *pdev)
 		memcpy(&amvideo_meson_dev.dev_property, &t5w_dev_property,
 		       sizeof(struct video_device_hw_s));
 		cur_dev->power_ctrl = true;
-	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_C3_ ||
-			amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_A4_) {
+#endif
+	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_C3_) {
 		memcpy(&amvideo_meson_dev.dev_property, &c3_dev_property,
 			   sizeof(struct video_device_hw_s));
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S5_) {
 		memcpy(&amvideo_meson_dev.dev_property, &s5_dev_property,
 		       sizeof(struct video_device_hw_s));
@@ -15234,11 +15816,23 @@ static int amvideom_probe(struct platform_device *pdev)
 	}  else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_T5M_) {
 		memcpy(&amvideo_meson_dev.dev_property, &t5m_dev_property,
 		       sizeof(struct video_device_hw_s));
+		cur_dev->power_ctrl = true;
 	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_T3X_) {
 		memcpy(&amvideo_meson_dev.dev_property, &t3x_dev_property,
 		       sizeof(struct video_device_hw_s));
 		aisr_en = 1;
 		cur_dev->power_ctrl = true;
+	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S7D_) {
+		memcpy(&amvideo_meson_dev.dev_property, &s7d_dev_property,
+		       sizeof(struct video_device_hw_s));
+		aisr_en = 1;
+		cur_dev->power_ctrl = true;
+	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S6_) {
+		memcpy(&amvideo_meson_dev.dev_property, &s6_dev_property,
+		       sizeof(struct video_device_hw_s));
+		aisr_en = 1;
+		cur_dev->power_ctrl = true;
+#endif
 	} else {
 		memcpy(&amvideo_meson_dev.dev_property, &legcy_dev_property,
 		       sizeof(struct video_device_hw_s));
@@ -15251,6 +15845,11 @@ static int amvideom_probe(struct platform_device *pdev)
 	if (vdtemp < 0)
 		vd1_vd2_mux_dts = 0;
 	set_rdma_func_handler();
+
+	prop = of_get_property(pdev->dev.of_node, "display_device_cnt", NULL);
+	if (prop)
+		display_device_cnt = of_read_ulong(prop, 1);
+	amvideo_meson_dev.display_device_cnt = display_device_cnt;
 	if (amvideo_meson_dev.display_module == S5_DISPLAY_MODULE) {
 		video_early_init_s5(&amvideo_meson_dev);
 		video_hw_init_s5();
@@ -15258,9 +15857,6 @@ static int amvideom_probe(struct platform_device *pdev)
 		video_early_init(&amvideo_meson_dev);
 		video_hw_init();
 	}
-	prop = of_get_property(pdev->dev.of_node, "display_device_cnt", NULL);
-	if (prop)
-		display_device_cnt = of_read_ulong(prop, 1);
 	prop = of_get_property(pdev->dev.of_node, "vpp2_layer_count", NULL);
 	if (prop && display_device_cnt >= 3) {
 		int layer_count;
@@ -15272,6 +15868,8 @@ static int amvideom_probe(struct platform_device *pdev)
 			vd_layer[2].vpp_index = VPP2;
 			vd_layer_vpp[1].vpp_index = VPP2;
 			vd_layer_vpp[1].layer_id = 2;
+			if (video_is_meson_t7_cpu())
+				vppx_vdx_mux_set();
 		}
 	}
 	prop = of_get_property(pdev->dev.of_node, "vpp1_layer_count", NULL);
@@ -15285,6 +15883,8 @@ static int amvideom_probe(struct platform_device *pdev)
 			vd_layer[1].vpp_index = VPP1;
 			vd_layer_vpp[0].vpp_index = VPP1;
 			vd_layer_vpp[0].layer_id = 1;
+			if (video_is_meson_t3x_cpu())
+				vd_3mux3_set(VPP1);
 		}
 	}
 
@@ -15397,11 +15997,47 @@ static int amvideom_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int amvideo_freeze(struct device *dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(status_save_reg); i++) {
+		if (!status_save_reg[i])
+			break;
+		status_save_val[i] = READ_VCBUS_REG(status_save_reg[i]);
+	}
+	return 0;
+}
+
+static int amvideo_thaw(struct device *dev)
+{
+	return 0;
+}
+
+static int amvideo_restore(struct device *dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(status_save_reg); i++) {
+		if (!status_save_reg[i])
+			break;
+		WRITE_VCBUS_REG(status_save_reg[i], status_save_val[i]);
+	}
+	return 0;
+}
+
+static const struct dev_pm_ops amvideo_pm_ops = {
+	.freeze = amvideo_freeze,
+	.thaw = amvideo_thaw,
+	.restore = amvideo_restore,
+};
+
 static struct platform_driver amvideom_driver = {
 	.probe = amvideom_probe,
 	.remove = amvideom_remove,
 	.driver = {
 		.name = "amvideom",
+		.pm = &amvideo_pm_ops,
 		.of_match_table = amlogic_amvideom_dt_match,
 	},
 };
@@ -15668,6 +16304,7 @@ struct video_module_debug_s debug_video[51] = {
 	{"osd_vpp2_bld_ctrl", &osd_vpp2_bld_ctrl, 1, 1},
 	{"debug_flag1", &debug_flag1, 1, 0},
 };
+
 //MODULE_DESCRIPTION("AMLOGIC video output driver");
 //MODULE_LICENSE("GPL");
 //MODULE_AUTHOR("Tim Yao <timyao@amlogic.com>");

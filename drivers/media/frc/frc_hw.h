@@ -11,6 +11,16 @@
 #define HEIGHT_1K 1080
 #define WIDTH_2K  1920
 
+#define VSIZE_MAX_2K  900
+#define VSIZE_MIN_2K  500
+#define VSIZE_MAX_1K  390
+#define VSIZE_MIN_1K  260
+
+#define HSIZE_MAX_4K  1500
+#define HSIZE_MIN_4K  900
+#define HSIZE_MAX_2K  680
+#define HSIZE_MIN_2K  470
+
 #define  HME_ME_OFFSET 0x100
 
 //#define HME_MVX_BIT		10	//include sign bit for HME@960x540
@@ -51,9 +61,18 @@
 #define FORCE_MC_PHASE             0x08000000
 #define FORCE_INPUT_BUFIDX         0x10000000
 
-#define FRAME_RATE_CNT      16
+#define FRAME_RATE_CNT      17
 #define FRC_DBG_DUMP_TABLE_NUM       18
-#define FRC_PARAM_NUM       8
+
+enum frc_arb_ugt {
+	ARB_UGT_R0 = 0,
+	ARB_UGT_R1 = 1,
+	ARB_UGT_R2 = 2,
+	ARB_UGT_R3 = 3,
+	ARB_UGT_W0 = 4,
+	ARB_UGT_W1 = 5,
+	ARB_UGT_WR = 6,
+};
 
 extern void __iomem *frc_clk_base;
 extern void __iomem *vpu_base;
@@ -82,9 +101,8 @@ void recfg_memc_mif_base_addr(u32 base_ofst);
 void frc_internal_initial(struct frc_dev_s *frc_devp);
 void frc_dump_reg_tab(void);
 void frc_mtx_set(struct frc_dev_s *frc_devp);
-void frc_crc_enable(struct frc_dev_s *frc_devp);
-void frc_me_crc_read(struct frc_dev_s *frc_devp);
-void frc_mc_crc_read(struct frc_dev_s *frc_devp);
+void frc_crc_check_frm(struct frc_dev_s *frc_devp);
+void frc_crc_read(struct frc_dev_s *frc_devp);
 void me_undone_read(struct frc_dev_s *frc_devp);
 void mc_undone_read(struct frc_dev_s *frc_devp);
 void frc_dump_fixed_table(void);
@@ -97,6 +115,7 @@ void frc_frame_forcebuf_count(u8 forceidx);
 void inp_undone_read(struct frc_dev_s *frc_devp);
 void vp_undone_read(struct frc_dev_s *frc_devp);
 u32 vpu_reg_read(u32 addr);
+void vpu_reg_write(u32 addr, u32 value);
 void frc_check_hw_stats(struct frc_dev_s *frc_devp, u8 checkflag);
 u16 frc_check_vf_rate(u16 duration, struct frc_dev_s *frc_devp);
 void frc_get_film_base_vf(struct frc_dev_s *frc_devp);
@@ -106,10 +125,11 @@ void frc_set_val_from_reg(void);
 /* pat: 1-red,2-green,3-blue,4-white,5-black */
 void frc_set_input_pattern(u8 enpat);
 void frc_set_output_pattern(u8 enpat);
-void frc_set_urgent_cfg(u8 ch, u8 level);
+void frc_set_arb_ugt_cfg(enum frc_arb_ugt ch, u8 urgent, u8 level);
 void frc_input_init(struct frc_dev_s *frc_devp,
 	struct frc_top_type_s *frc_top);
 void frc_set_n2m(u8 ratio_value);
+int frc_set_n2m_from_vc(struct vframe_s *vf);
 void frc_set_axi_crash_irq(struct frc_dev_s *frc_devp, u8 enable);
 int get_chip_type(void);
 void frc_set_h2v2(u32 enable);
@@ -130,4 +150,7 @@ void t3x_revB_patch_apply(void);
 void t3x_verB_set_cfg(u8 flag, struct frc_dev_s *frc_devp);
 void frc_pattern_dbg_ctrl(struct frc_dev_s *devp);
 void t3x_verB_60hz_patch(void);
+void frc_clr_badedit_effect_before_enable(void);
+void frc_probe_dbg_proc(struct frc_dev_s *devp);
+
 #endif

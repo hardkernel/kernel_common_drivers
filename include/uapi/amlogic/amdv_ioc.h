@@ -64,6 +64,20 @@ struct dv_config_data_s {
 	};
 };
 
+struct dv_user_cfg_s {
+	unsigned int cfg_size;
+	union {
+		void *cfg_data;
+		long long cfg_table;
+	};
+};
+
+struct light_sensor_s {
+	int flag;
+	__u32 t_frontLux;
+	__u32 t_rearLum;
+};
+
 #define DV_M 'D'
 
 /* get Number of Picture Mode */
@@ -107,6 +121,18 @@ struct dv_config_data_s {
 
 /* set Amlogic_cfg.txt and dv_config.bin data */
 #define DV_IOC_SET_DV_CONFIG_DATA _IOW((DV_M), 0xd, struct dv_config_data_s)
+
+/* set end-user calibration cfg.txt data */
+#define DV_IOC_SET_DV_USER_CFG _IOW((DV_M), 0xe, struct dv_user_cfg_s)
+
+/*set light sense flag(1:enable 0:disable), t_frontLux*/
+#define DV_IOC_SET_DV_LIGHT_SENSE _IOW((DV_M), 0xf, struct light_sensor_s)
+
+/*get precision detail cap for current mode(1:support 0:not support)*/
+#define DV_IOC_GET_DV_PRECISION_DETAIL_SUPPORT _IOR((DV_M), 0x10, int)
+
+/*set precision detail for current mode (1: bypass, 0: not bypass*/
+#define DV_IOC_SET_DV_PRECISION_DETAIL_BYPASS _IOW((DV_M), 0x11, int)
 
 #endif
 

@@ -118,17 +118,20 @@ extern int *lc_hist;/*12*8*17*/
 extern struct ve_lc_curve_parm_s lc_curve_parm_load;
 extern struct lc_alg_param_s lc_alg_parm;
 extern struct lc_curve_tune_param_s lc_tune_curve;
-extern int lc_rdma_mode;
+extern int lc_skip_iir;
+extern int lc_bitdepth;
 
 void lc_init(int bitdepth);
 void lc_process(struct vframe_s *vf,
 		unsigned int sps_h_en,
 		unsigned int sps_v_en,
 		unsigned int sps_w_in,
-		unsigned int sps_h_in);
+		unsigned int sps_h_in,
+		int vpp_index,
+		struct vpp_hist_param_s *vp);
 void lc_free(void);
 void lc_read_region(int blk_vnum, int blk_hnum, int slice);
-void lc_disable(int rdma_mode);
+void lc_disable(int rdma_mode, int vpp_index);
 bool lc_curve_ctrl_reg_set_flag(unsigned int addr);
 void lc_prt_curve(void);
 

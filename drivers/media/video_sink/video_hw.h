@@ -28,9 +28,7 @@ void int_vpu_delay_work(void);
 void vd1_set_go_field(void);
 void get_video_mute_info(void);
 int set_video_mute_info(u32 owner, bool on);
-void set_probe_ctrl_a4(u8 probe_id);
-u32 get_probe_pos_a4(u8 probe_id);
-void set_probe_pos_a4(u32 val_x, u32 val_y);
-u32 get_probe_data_a4(void);
-
+void check_video_mute(void);
+bool get_video_mute_val(u32 owner);
+void vppx_vdx_mux_set(void);
 #endif

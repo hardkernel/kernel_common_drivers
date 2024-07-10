@@ -600,7 +600,7 @@ static void  di_ori_event_set_fcc(unsigned int channel)
 /************************************/
 struct vframe_s *di_vf_l_get(unsigned int channel)
 {
-	vframe_t *vframe_ret = NULL;
+	struct vframe_s *vframe_ret = NULL;
 //	struct di_buf_s *di_buf = NULL;
 	struct di_ch_s *pch;
 
@@ -886,6 +886,7 @@ int di_vf_l_states(struct vframe_states *states, unsigned int channel)
 	if (dimp_get(edi_mp_di_dbg_mask) & 0x1) {
 		di_pr_info("di-pre-ready-num:%d\n", psumx->b_pre_ready);
 		di_pr_info("di-display-num:%d\n", psumx->b_display);
+		di_pr_info("di-pst-link-num:%d\n", psumx->b_pst_link);
 	}
 	return 0;
 }
@@ -1221,8 +1222,8 @@ static struct vframe_s *di_vf_peek(void *arg)
 
 	if (di_is_pause(ch))
 		return NULL;
-	if (pch->itf.pre_vpp_link && dpvpp_vf_ops())
-		return dpvpp_vf_ops()->peek(pch->itf.p_itf);
+	if (pch->itf.p_vpp_link && dpvpp_vf_ops(pch->link_mode))
+		return dpvpp_vf_ops(pch->link_mode)->peek(pch->itf.p_itf);
 	if (is_bypss2_complete(ch)) {
 		vfm = dim_nbypass_peek(pch);
 		if (vfm)
@@ -1249,8 +1250,8 @@ static struct vframe_s *di_vf_get(void *arg)
 		return NULL;
 
 	di_pause_step_done(ch);
-	if (pch->itf.pre_vpp_link && dpvpp_vf_ops())
-		return dpvpp_vf_ops()->get(pch->itf.p_itf);
+	if (pch->itf.p_vpp_link && dpvpp_vf_ops(pch->link_mode))
+		return dpvpp_vf_ops(pch->link_mode)->get(pch->itf.p_itf);
 
 	/*pvfm = get_dev_vframe(ch);*/
 
@@ -1291,8 +1292,8 @@ static void di_vf_put(struct vframe_s *vf, void *arg)
 		return;
 	}
 
-	if (pch->itf.pre_vpp_link && dpvpp_vf_ops()) {
-		dpvpp_vf_ops()->put(vf, pch->itf.p_itf);
+	if (pch->itf.p_vpp_link && dpvpp_vf_ops(pch->link_mode)) {
+		dpvpp_vf_ops(pch->link_mode)->put(vf, pch->itf.p_itf);
 		return;
 	}
 	if (is_bypss2_complete(ch)) {
@@ -1325,8 +1326,8 @@ static int di_vf_states(struct vframe_states *states, void *arg)
 	if (!states)
 		return -1;
 	pch = get_chdata(ch);
-	if (pch->itf.pre_vpp_link && dpvpp_vf_ops()) {
-		dpvpp_vf_ops()->vf_states(states, pch->itf.p_itf);
+	if (pch->itf.p_vpp_link && dpvpp_vf_ops(pch->link_mode)) {
+		dpvpp_vf_ops(pch->link_mode)->vf_states(states, pch->itf.p_itf);
 		return 0;
 	}
 

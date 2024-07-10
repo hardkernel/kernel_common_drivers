@@ -24,18 +24,18 @@
 
 #ifndef ABS
 #define ABS(a)	({ \
-			int _a = (int)a;\
+			typeof(a) _a = (a);\
 			((_a) > 0 ? (_a) : -(_a));\
 		})
 #endif // ABS
 
 #ifndef DIV
 #define DIV(a, b) ({ \
-			int _a = (int)a; \
-			int _b = (int)b; \
+			typeof(a) _a = (a); \
+			typeof(b) _b = (b); \
 			_b == 0 ? 0 : _a / _b; \
 		})
-#endif
+#endif // DIV
 
 #define BIT_0		0x00000001
 #define BIT_1		0x00000002
@@ -75,6 +75,12 @@
 #define FRC_DS_14	2
 
 #define FRC_ALG_VER_SIZE     64
+
+#define RD_REG_MAX   50
+#define RD_MOTION_BY_MEMC_KO   0
+#define RD_MOTION_BY_VPU_ISR   1
+#define RD_MOTION_BY_INP_ISR   2
+#define RD_MOTION_BY_RDMA_IN   3
 
 enum dbg_level {
 	dbg_frc = 0,
@@ -122,7 +128,9 @@ enum efrc_memc_dbg_type {
 	MEMC_DBG_PIXEL_LPF        = 0x0A,
 	MEMC_DBG_ME_RULE          = 0x0B,
 	MEMC_DBG_FILM_CTRL        = 0x0C,
-	MEMC_DBG_GLB_CTRL	  = 0x0D,
+	MEMC_DBG_GLB_CTRL         = 0x0D,
+	MEMC_DBG_BAD_EDIT_CTRL    = 0x0E,
+	MEMC_DBG_REGION_FB_CTRL   = 0x0F,
 };
 
 //-----------------------------------------------------------frc top cfg
@@ -167,6 +175,11 @@ struct frc_holdline_s {
 	u32 reg_mc_dly_vofst0;//fixed
 };
 
+struct frc_reg_val {
+	u32 addr;
+	u32 val;
+};
+
 struct frc_top_type_s {
 	/*input*/
 	u16       hsize;
@@ -187,7 +200,7 @@ struct frc_top_type_s {
 	u8        chip;   // 1:T3, 2:T5M
 	u16       other_set1;
 	u8        rdma_en; //1:rdma 0:cpu interrupt access reg
-	u8        rdma_reserved1;
+	u8        motion_ctrl;  // for frc motion ctrl
 	u8        rdma_reserved2;
 	u8        rdma_reserved3;
 	u32       frc_prot_mode;//0:memc prefetch acorrding mode frame 1:memc prefetch 1 frame
@@ -204,8 +217,8 @@ struct frc_top_type_s {
 	u8  frc_out_frm_rate;  // = frc_other_reserved;
 	u8  frc_in_frm_rate;
 	u16 video_duration;
-	u16 frc_reserved;
-
+	u8  frc_deblur_level;
+	u8  frc_reserved;
 };
 
 struct frc_fw_alg_ctrl_s {
@@ -232,6 +245,7 @@ struct frc_fw_data_s {
 	struct frc_top_type_s frc_top_type;
 	struct frc_holdline_s holdline_parm;
 	struct frc_fw_alg_ctrl_s  frc_fw_alg_ctrl;
+	struct frc_reg_val reg_val[RD_REG_MAX];
 
 	void (*frc_input_cfg)(struct frc_fw_data_s *fw_data);
 	void (*frc_memc_level)(struct frc_fw_data_s *fw_data);
@@ -251,6 +265,8 @@ void config_phs_regs(enum frc_ratio_mode_type frc_ratio_mode,
 	enum en_drv_film_mode film_mode);
 int frc_drv_get_1st_frm(void);
 int frc_get_n2m_setting(void);
+int frc_ready_to_switch(void);
+int frc_bypass_signal(void);
 int frc_is_on(void);
 int frc_get_memc_size(u16 *hsize, u16 *vsize);
 

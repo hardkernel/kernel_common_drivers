@@ -32,7 +32,7 @@
 #include "am_hdr10_tmo_fw.h"
 
 unsigned int hdr10_tm_dbg;
-__module_param(hdr10_tm_dbg, uint, 0664);
+module_param(hdr10_tm_dbg, uint, 0664);
 MODULE_PARM_DESC(hdr10_tm_dbg, "HDR10 tone mapping dbg\n");
 
 #define pr_hdr_tm(fmt, args...)\
@@ -42,17 +42,17 @@ MODULE_PARM_DESC(hdr10_tm_dbg, "HDR10 tone mapping dbg\n");
 	} while (0)
 
 unsigned int panell = 400;
-__module_param(panell, uint, 0664);
+module_param(panell, uint, 0664);
 MODULE_PARM_DESC(panell, "display panel luminance\n");
 
-unsigned int hdr10_tm_sel = 2; /*1 old algorithm, 2 hdr_tmo algorithm  default 2*/
-__module_param(hdr10_tm_sel, uint, 0664);
+static unsigned int hdr10_tm_sel = 2; /*1 old algorithm, 2 hdr_tmo algorithm  default 2*/
+module_param(hdr10_tm_sel, uint, 0664);
 MODULE_PARM_DESC(hdr10_tm_sel, "hdr10_tm_sel\n");
 
 #define KNEE_POINT 2
-//static unsigned int kp = KNEE_POINT;
+static unsigned int kp = KNEE_POINT;
 static unsigned int knee_point[KNEE_POINT] = {0, 0};
-__module_param_array(knee_point, uint, &kp, 0664);
+module_param_array(knee_point, uint, &kp, 0664);
 MODULE_PARM_DESC(knee_point, "\n knee point xy\n");
 
 /*u32 ebz_p[MAX_BEIZER_ORDER] = {
@@ -64,11 +64,11 @@ MODULE_PARM_DESC(knee_point, "\n knee point xy\n");
 /*time domain filter, avoid flicker*/
 /*scene change th: 2/3 scene diff*/
 u32 sc_th = 682;
-__module_param(sc_th, uint, 0664);
+module_param(sc_th, uint, 0664);
 MODULE_PARM_DESC(sc_th, "scene change th\n");
 
 u32 hdr_tm_iir = 1;
-__module_param(hdr_tm_iir, uint, 0664);
+module_param(hdr_tm_iir, uint, 0664);
 MODULE_PARM_DESC(hdr_tm_iir, "HDR_TM_IIR\n");
 
 int is_hdr_tmo_support(void)

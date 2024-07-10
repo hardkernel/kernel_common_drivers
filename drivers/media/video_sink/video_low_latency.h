@@ -43,12 +43,12 @@ extern bool over_field;
 extern bool dvel_status;
 #endif
 
-ssize_t lowlatency_states_store(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count);
-ssize_t lowlatency_states_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf);
+ssize_t lowlatency_states_store(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count);
+ssize_t lowlatency_states_show(const struct class *cla,
+	const struct class_attribute *attr,
+	char *buf);
 bool tvin_vf_is_keeped(struct vframe_s *vf);
 void _set_video_mirror(struct disp_info_s *layer, int mirror);
 void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int line);
@@ -56,7 +56,8 @@ int dvel_swap_frame(struct vframe_s *vf);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 void vf_pq_process(struct vframe_s *vf,
 		   struct ai_scenes_pq *vpp_scenes,
-		   int *pq_debug);
+		   int *pq_debug,
+		   unsigned int vpp_new_frame);
 #endif
 #endif
 /*VIDEO_LOW_LATENCTY_HH*/

@@ -32,6 +32,7 @@
 #endif
 #include "arch/vpp_regs.h"
 #include "amve.h"
+#include "amcm.h"
 #include "reg_helper.h"
 #include "pattern_detection.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AFE
@@ -39,6 +40,7 @@
 #include "pattern_detection_face_settings.h"
 #include "pattern_detection_corn_settings.h"
 #endif
+#include <uapi/amlogic/amvecm_ext.h>
 
 #define PATTERN_INDEX_MAX    PATTERN_MULTICAST
 
@@ -57,7 +59,7 @@ uint pattern_mask = PATTERN_MASK(PATTERN_75COLORBAR) |
 					PATTERN_MASK(PATTERN_GREEN_CORN) |
 					PATTERN_MASK(PATTERN_MULTICAST);
 
-//static uint pattern_param = PATTERN_PARAM_COUNT;
+static uint pattern_param = PATTERN_PARAM_COUNT;
 
 static uint pattern0_param_info[PATTERN_PARAM_COUNT] = {
 	5, 100, 830, 30, 110, 0x70000, 0xd0000, 0x158000,
@@ -95,15 +97,15 @@ static uint pattern3_param_info[PATTERN_PARAM_COUNT] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 
-__module_param_array(pattern0_param_info, uint,
+module_param_array(pattern0_param_info, uint,
 		   &pattern_param, 0664);
 MODULE_PARM_DESC(pattern0_param_info, "\n pattern0_param_info\n");
 
-__module_param_array(pattern1_param_info, uint,
+module_param_array(pattern1_param_info, uint,
 		   &pattern_param, 0664);
 MODULE_PARM_DESC(pattern1_param_info, "\n pattern1_param_info\n");
 
-__module_param_array(pattern2_param_info, uint,
+module_param_array(pattern2_param_info, uint,
 		   &pattern_param, 0664);
 MODULE_PARM_DESC(pattern2_param_info, "\n pattern2_param_info\n");
 
@@ -324,7 +326,7 @@ static void setting_set_regmap(int index)
 
 	if (vpp_set) {
 		regs = (struct am_regs_s *)(&vpp_set[index]);
-		am_set_regmap(regs);
+		am_set_regmap(regs, 0);
 	}
 
 	pr_pattern_detect_dbg("leave\n");
@@ -348,6 +350,7 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 	int bin56, bin1718, bin2122;
 	int peak_hue_bin_sum4 = 0;
 	int peak_hue_bin_sum5 = 0;
+	struct vpp_hist_param_s *p = get_vpp_hist();
 
 	tolerance_zero = pattern_list[pattern_index].pattern_param[0];
 	tolerance_hue = pattern_list[pattern_index].pattern_param[1];
@@ -385,7 +388,7 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 
 	/* check cm2 hue/sat hist */
 	for (i = 0; i <= 31; i++) {
-		hue_hist[i] = vf->prop.hist.vpp_hue_gamma[i];
+		hue_hist[i] = p->vpp_hue_gamma[i];
 		hist_total += hue_hist[i];
 	}
 	hist_total = hist_total / 1000;
@@ -394,7 +397,7 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 		pr_pattern_detect_dbg("read hue_hist[%d]=%d, origin=%d\n",
 				      i,
 				      (int)hue_hist[i],
-				      vf->prop.hist.vpp_hue_gamma[i]);
+				      p->vpp_hue_gamma[i]);
 	}
 
 	/*
@@ -444,7 +447,7 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 	/* check high 4 bin sum of dnlp histogram */
 	y_hist_total = 0;
 	for (i = 60; i <= 63; i++)
-		y_hist_total += vf->prop.hist.vpp_gamma[i];
+		y_hist_total += p->vpp_gamma[i];
 	pr_pattern_detect_dbg("high 4 luma bin sum=%d\n",
 			      y_hist_total);
 
@@ -663,6 +666,7 @@ static int face_hist_checker(struct vframe_s *vf)
 	int i, hist_total = 0;
 	int skin_tone_hue_bin_sum = 0;
 	int tolerance_face;
+	struct vpp_hist_param_s *p = get_vpp_hist();
 
 	tolerance_face = pattern_list[pattern_index].pattern_param[0];
 
@@ -677,7 +681,7 @@ static int face_hist_checker(struct vframe_s *vf)
 
 	/* check cm2 hue hist */
 	for (i = 0; i <= 31; i++) {
-		hue_hist[i] = vf->prop.hist.vpp_hue_gamma[i];
+		hue_hist[i] = p->vpp_hue_gamma[i];
 		hist_total += hue_hist[i];
 	}
 	hist_total = hist_total / 1000;
@@ -686,7 +690,7 @@ static int face_hist_checker(struct vframe_s *vf)
 		pr_pattern_detect_dbg("read hue_hist[%d]=%d, origin=%d\n",
 				      i,
 				      (int)hue_hist[i],
-				      vf->prop.hist.vpp_hue_gamma[i]);
+				      p->vpp_hue_gamma[i]);
 	}
 
 	/*
@@ -789,6 +793,7 @@ static int corn_hist_checker(struct vframe_s *vf)
 	int tolerance_hue, tolerance_sat, tolerance_sum;
 	int hue_offset = 0; /* for pal default */
 	int sat_offset = 0; /* for pal default */
+	struct vpp_hist_param_s *p = get_vpp_hist();
 
 	tolerance_hue = pattern_list[pattern_index].pattern_param[24];
 	tolerance_sat = pattern_list[pattern_index].pattern_param[25];
@@ -810,8 +815,8 @@ static int corn_hist_checker(struct vframe_s *vf)
 
 	/* check cm2 hue hist */
 	for (i = 0; i <= 31; i++) {
-		hue_hist[i] = vf->prop.hist.vpp_hue_gamma[i];
-		sat_hist[i] = vf->prop.hist.vpp_sat_gamma[i];
+		hue_hist[i] = p->vpp_hue_gamma[i];
+		sat_hist[i] = p->vpp_sat_gamma[i];
 		hist_total += hue_hist[i];
 		hist_sat_total += sat_hist[i];
 	}
@@ -823,7 +828,7 @@ static int corn_hist_checker(struct vframe_s *vf)
 		pr_pattern_detect_dbg("read hue_hist[%d]=%d, origin=%d\n",
 				      i,
 				      (int)hue_hist[i],
-				      vf->prop.hist.vpp_hue_gamma[i]);
+				      p->vpp_hue_gamma[i]);
 	}
 
 	for (i = 0; i <= 31; i++) {
@@ -831,7 +836,7 @@ static int corn_hist_checker(struct vframe_s *vf)
 		pr_pattern_detect_dbg("read sat_hist[%d]=%d, origin=%d\n",
 				      i,
 				      (int)sat_hist[i],
-				      vf->prop.hist.vpp_sat_gamma[i]);
+				      p->vpp_sat_gamma[i]);
 	}
 
 	/*
@@ -968,6 +973,7 @@ static int multicast_color_checker(struct vframe_s *vf)
 	int hue_flg = 0;
 	int i;
 	int height, width, di_size;
+	struct vpp_hist_param_s *p = get_vpp_hist();
 
 	if (!(vf->di_pulldown & 0x8))
 		return flag;
@@ -978,8 +984,8 @@ static int multicast_color_checker(struct vframe_s *vf)
 	di_size = height * width / 2;
 
 	for (i = 0; i < 32; i++) {
-		sat_hist[i] = vf->prop.hist.vpp_sat_gamma[i];
-		hue_hist[i] = vf->prop.hist.vpp_hue_gamma[i];
+		sat_hist[i] = p->vpp_sat_gamma[i];
+		hue_hist[i] = p->vpp_hue_gamma[i];
 		total_sat_hist += sat_hist[i];
 		total_hue_hist += hue_hist[i];
 	}

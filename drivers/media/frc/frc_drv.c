@@ -53,6 +53,7 @@
 #include <linux/amlogic/media/frc/frc_reg.h>
 #include <linux/amlogic/media/frc/frc_common.h>
 #include <linux/amlogic/power_domain.h>
+#include <linux/amlogic/media/resource_mgr/resourcemanage.h>
 #if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
 #include <linux/amlogic/dmc_dev_access.h>
 #endif
@@ -66,6 +67,8 @@
 #include <linux/cma.h>
 #include <linux/genalloc.h>
 #include <linux/dma-mapping.h>
+#include <linux/timer.h>
+#include <linux/hrtimer.h>
 
 #include "frc_drv.h"
 #include "frc_proc.h"
@@ -97,11 +100,15 @@ const struct frm_dly_dat_s chip_frc_frame_dly[3][4] = {
 	},
 };
 
+struct hrtimer frc_hi_timer;  // timer
+
 // static struct frc_dev_s *frc_dev; // for SWPL-53056:KASAN: use-after-free
 static struct frc_dev_s frc_dev;
 
 int frc_dbg_en;
-
+EXPORT_SYMBOL(frc_dbg_en);
+module_param(frc_dbg_en, int, 0664);
+MODULE_PARM_DESC(frc_dbg_en, "frc debug level");
 struct platform_device *runtime_frc_dev;
 
 struct frc_dev_s *get_frc_devp(void)
@@ -137,22 +144,29 @@ static struct class_attribute frc_class_attrs[] = {
 	__ATTR(rdma, 0644, frc_rdma_show, frc_rdma_store),
 	__ATTR(param, 0644, frc_param_show, frc_param_store),
 	__ATTR(other, 0644, frc_other_show, frc_other_store),
-	__ATTR(final_line_param, 0644, frc_bbd_final_line_param_show,
-		frc_bbd_final_line_param_store),
+	__ATTR(bbd_ctrl_param, 0644, frc_bbd_ctrl_param_show, frc_bbd_ctrl_param_store),
 	__ATTR(vp_ctrl_param, 0644, frc_vp_ctrl_param_show, frc_vp_ctrl_param_store),
 	__ATTR(logo_ctrl_param, 0644, frc_logo_ctrl_param_show, frc_logo_ctrl_param_store),
 	__ATTR(iplogo_ctrl_param, 0644, frc_iplogo_ctrl_param_show, frc_iplogo_ctrl_param_store),
 	__ATTR(melogo_ctrl_param, 0644, frc_melogo_ctrl_param_show, frc_melogo_ctrl_param_store),
-	__ATTR(sence_chg_detect_param, 0644, frc_scene_chg_detect_param_show,
-		frc_sence_chg_detect_param_store),
+	__ATTR(scene_chg_detect_param, 0644, frc_scene_chg_detect_param_show,
+		frc_scene_chg_detect_param_store),
 	__ATTR(fb_ctrl_param, 0644, frc_fb_ctrl_param_show, frc_fb_ctrl_param_store),
 	__ATTR(me_ctrl_param, 0644, frc_me_ctrl_param_show, frc_me_ctrl_param_store),
 	__ATTR(search_rang_param, 0644, frc_search_rang_param_show, frc_search_rang_param_store),
-	__ATTR(pixel_lpf_param, 0644, frc_pixel_lpf_param_show, frc_pixel_lpf_param_store),
+	__ATTR(mc_ctrl_param, 0644, frc_mc_ctrl_param_show, frc_mc_ctrl_param_store),
 	__ATTR(me_rule_param, 0644, frc_me_rule_param_show, frc_me_rule_param_store),
 	__ATTR(film_ctrl_param, 0644, frc_film_ctrl_param_show, frc_film_ctrl_param_store),
 	__ATTR(glb_ctrl_param, 0644, frc_glb_ctrl_param_show, frc_glb_ctrl_param_store),
-
+	__ATTR(bad_edit_ctrl_param, 0644, frc_bad_edit_ctrl_param_show,
+			frc_bad_edit_ctrl_param_store),
+	__ATTR(region_fb_ctrl_param, 0644, frc_region_fb_ctrl_param_show,
+			frc_region_fb_ctrl_param_store),
+	__ATTR(trace_enable, 0664,
+			frc_rdma_trace_enable_show, frc_rdma_trace_enable_stroe),
+	__ATTR(trace_reg, 0664,
+			frc_rdma_trace_reg_show, frc_rdma_trace_reg_stroe),
+	__ATTR(probe, 0664, frc_probe_dbg_show, frc_probe_dbg_store),
 	__ATTR_NULL
 };
 
@@ -228,12 +242,12 @@ static long frc_ioctl(struct file *file,
 			ret = -EFAULT;
 		break;
 
-	case FRC_IOC_SET_INPUT_VS_RATE:
+	case FRC_IOC_SET_DEBLUR_LEVEL:
 		if (copy_from_user(&data, argp, sizeof(u32))) {
 			ret = -EFAULT;
 			break;
 		}
-		pr_frc(1, "SET_INPUT_VS_RATE:%d\n", data);
+		frc_memc_set_deblur(data);
 		break;
 
 	case FRC_IOC_SET_MEMC_ON_OFF:
@@ -245,15 +259,17 @@ static long frc_ioctl(struct file *file,
 		pr_frc(1, "set memc_autoctrl:%d boot_timestamp_en%d boot_check%d\n",
 		data, devp->in_sts.boot_timestamp_en, devp->in_sts.boot_check_finished);
 		if (data) {
-			if (devp->in_sts.boot_timestamp_en &&
-				!devp->in_sts.boot_check_finished) {
-				devp->in_sts.auto_ctrl_reserved = 1;
-				devp->frc_sts.auto_ctrl = false;
-				frc_change_to_state(FRC_STATE_DISABLE);
-				pr_frc(1, "set memc_autoctrl-1:%d\n", data);
-			} else if (!devp->frc_sts.auto_ctrl) {
+//			if (devp->in_sts.boot_timestamp_en &&
+//				!devp->in_sts.boot_check_finished) {
+//				devp->in_sts.auto_ctrl_reserved = 1;
+//				devp->frc_sts.auto_ctrl = false;
+//				frc_change_to_state(FRC_STATE_DISABLE);
+//				pr_frc(1, "set memc_autoctrl-1:%d\n", data);
+//			} else if (!devp->frc_sts.auto_ctrl) {
+			if (!devp->frc_sts.auto_ctrl) {
 				devp->frc_sts.auto_ctrl = true;
-				devp->frc_sts.re_config = true;
+//				devp->frc_sts.re_config = true;
+				frc_change_to_state(FRC_STATE_ENABLE);
 				pr_frc(1, "set memc_autoctrl-2:%d\n", data);
 			}
 		} else {
@@ -450,7 +466,7 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 #define K_MEMC_CLK_DIS
 
 	if (devp->power_on_flag == onoff) {
-		pr_frc(0, "warning: same pw state\n");
+		// pr_frc(0, "warning: same pw state\n");
 		return;
 	}
 	if (!onoff) {
@@ -459,6 +475,7 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 		set_frc_enable(false);
 		set_frc_bypass(true);
 		frc_state_change_finish(devp);
+		set_frc_clk_disable(devp, 1);
 		devp->power_on_flag = false;
 	}
 
@@ -469,11 +486,18 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 			pwr_ctrl_psci_smc(PDID_T3_FRCME, PWR_ON);
 			pwr_ctrl_psci_smc(PDID_T3_FRCMC, PWR_ON);
 #endif
+			devp->power_on_flag = true;
+			if (devp->clk_me || devp->clk_frc) {
+				set_frc_clk_disable(devp, 0);
+			} else {
+				devp->clk_frc = clk_get(&devp->pdev->dev, "clk_frc");
+				devp->clk_me = clk_get(&devp->pdev->dev, "clk_me");
+				frc_clk_init(devp);
+			}
 			// alloc frc buf according to status of alloced
 			if (!devp->buf.cma_mem_alloced) {
 				frc_buf_alloc(devp);
 			}
-			devp->power_on_flag = true;
 			frc_init_config(devp);
 			frc_buf_config(devp);
 			frc_internal_initial(devp);
@@ -493,9 +517,17 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 #ifdef K_MEMC_CLK_DIS
 			pwr_ctrl_psci_smc(PDID_T5M_FRC_TOP, PWR_ON);
 #endif
+			devp->power_on_flag = true;
+			pr_frc(0, "%s clk set\n", __func__);
+			if (devp->clk_me || devp->clk_frc) {
+				set_frc_clk_disable(devp, 0);
+			} else {
+				devp->clk_frc = clk_get(&devp->pdev->dev, "clk_frc");
+				devp->clk_me = clk_get(&devp->pdev->dev, "clk_me");
+				frc_clk_init(devp);
+			}
 			if (!devp->buf.cma_mem_alloced)
 				frc_buf_alloc(devp);
-			devp->power_on_flag = true;
 			frc_init_config(devp);
 			frc_buf_config(devp);
 			frc_internal_initial(devp);
@@ -508,16 +540,23 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 
 #endif
 		}
-		pr_frc(2, "t5m power domain power %d\n", onoff);
+		pr_frc(2, "t5m power domain power. %d\n", onoff);
 
 	} else if (chip == ID_T3X) {
 		if (onoff) {
 #ifdef K_MEMC_CLK_DIS
 			pwr_ctrl_psci_smc(PDID_T3X_FRC_TOP, PWR_ON);
 #endif
+			devp->power_on_flag = true;
+			if (devp->clk_me || devp->clk_frc) {
+				set_frc_clk_disable(devp, 0);
+			} else {
+				devp->clk_frc = clk_get(&devp->pdev->dev, "clk_frc");
+				devp->clk_me = clk_get(&devp->pdev->dev, "clk_me");
+				frc_clk_init(devp);
+			}
 			if (!devp->buf.cma_mem_alloced)
 				frc_buf_alloc(devp);
-			devp->power_on_flag = true;
 			set_frc_clk_disable(devp, 0);
 			frc_init_config(devp);
 			frc_buf_config(devp);
@@ -529,7 +568,6 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 			set_frc_clk_disable(devp, 1);
 #ifdef K_MEMC_CLK_DIS
 			pwr_ctrl_psci_smc(PDID_T3X_FRC_TOP, PWR_OFF);
-
 #endif
 		}
 		pr_frc(2, "t3x power domain power %d\n", onoff);
@@ -555,11 +593,11 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 	of_node = pdev->dev.of_node;
 	of_id = of_match_device(frc_dts_match, &pdev->dev);
 	if (of_id) {
-		PR_FRC("%s\n", of_id->compatible);
+		// PR_FRC("%s\n", of_id->compatible);
 		frc_data = frc_devp->data;
 		pfw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 		frc_data->match_data = of_id->data;
-		PR_FRC("chip id:%d\n", frc_data->match_data->chip);
+		PR_FRC("%s\tchip id:%d\n", of_id->compatible, frc_data->match_data->chip);
 		pfw_data->frc_top_type.chip = (u8)frc_data->match_data->chip;
 	}
 
@@ -581,7 +619,7 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 	/*get irq number from dts*/
 	frc_devp->in_irq = of_irq_get_byname(of_node, "irq_frc_in");
 	snprintf(frc_devp->in_irq_name, sizeof(frc_devp->in_irq_name), "frc_input_irq");
-	PR_FRC("%s=%d\n", frc_devp->in_irq_name, frc_devp->in_irq);
+//	PR_FRC("%s=%d\n", frc_devp->in_irq_name, frc_devp->in_irq);
 	if (frc_devp->in_irq > 0) {
 		ret = request_irq(frc_devp->in_irq, frc_input_isr, IRQF_SHARED,
 				  frc_devp->in_irq_name, (void *)frc_devp);
@@ -593,7 +631,7 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 
 	frc_devp->out_irq = of_irq_get_byname(of_node, "irq_frc_out");
 	snprintf(frc_devp->out_irq_name, sizeof(frc_devp->out_irq_name), "frc_out_irq");
-	PR_FRC("%s=%d\n", frc_devp->out_irq_name, frc_devp->out_irq);
+	//	PR_FRC("%s=%d\n", frc_devp->out_irq_name, frc_devp->out_irq);
 	if (frc_devp->out_irq > 0) {
 		ret = request_irq(frc_devp->out_irq, frc_output_isr, IRQF_SHARED,
 				  frc_devp->out_irq_name, (void *)frc_devp);
@@ -606,7 +644,7 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 	frc_devp->axi_crash_irq = of_irq_get_byname(of_node, "irq_axi_crash");
 	snprintf(frc_devp->axi_crash_irq_name,
 			sizeof(frc_devp->axi_crash_irq_name), "axi_crash_irq");
-	PR_FRC("%s=%d\n", frc_devp->axi_crash_irq_name, frc_devp->axi_crash_irq);
+	//	PR_FRC("%s=%d\n", frc_devp->axi_crash_irq_name, frc_devp->axi_crash_irq);
 	if (frc_devp->axi_crash_irq > 0) {
 		ret = request_irq(frc_devp->axi_crash_irq, frc_axi_crash_isr, IRQF_SHARED,
 				  frc_devp->axi_crash_irq_name, (void *)frc_devp);
@@ -617,20 +655,22 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 	} else {
 		PR_ERR("axi_crash irq is not enabled\n");
 	}
-
 	frc_devp->rdma_irq = of_irq_get_byname(of_node, "irq_frc_rdma");
 	snprintf(frc_devp->rdma_irq_name, sizeof(frc_devp->rdma_irq_name), "frc_rdma_irq");
-	PR_FRC("%s=%d\n", frc_devp->rdma_irq_name, frc_devp->rdma_irq);
-// #ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
+	PR_FRC("%s=%d\t%s=%d\t%s=%d\t%s=%d\n", frc_devp->in_irq_name, frc_devp->in_irq,
+			frc_devp->out_irq_name, frc_devp->out_irq,
+			frc_devp->axi_crash_irq_name, frc_devp->axi_crash_irq,
+			frc_devp->rdma_irq_name, frc_devp->rdma_irq);
+	// #ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
 	if (frc_devp->rdma_irq > 0) {
 		ret = request_irq(frc_devp->rdma_irq, frc_rdma_isr, IRQF_SHARED,
-				  frc_devp->rdma_irq_name, (void *)frc_devp);
+				frc_devp->rdma_irq_name, (void *)frc_devp);
 		if (ret)
 			PR_ERR("request rdma irq fail\n");
 		else
 			disable_irq(frc_devp->rdma_irq);
 	}
-// #endif
+	// #endif
 	/*register map*/
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "frc_reg");
 	if (res) {
@@ -642,14 +682,11 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 		} else {
 			frc_devp->reg = (void *)base;
 			frc_base = frc_devp->reg;
-			pr_frc(0, "frc reg base 0x%lx -> 0x%lx, map size:0x%lx\n",
-			       (ulong)res->start, (ulong)frc_base, (ulong)(res->end - res->start));
 		}
 	} else {
 		frc_devp->reg = NULL;
 		frc_base = NULL;
 	}
-
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "frc_clk_reg");
 	if (res) {
 		base = devm_ioremap(&pdev->dev, res->start, res->end - res->start);
@@ -660,9 +697,6 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 		} else {
 			frc_devp->clk_reg = (void *)base;
 			frc_clk_base = frc_devp->clk_reg;
-			pr_frc(0, "clk reg base 0x%lx -> 0x%lx, map size:0x%lx\n",
-			       (ulong)res->start, (ulong)frc_clk_base,
-			       (ulong)(res->end - res->start));
 		}
 	} else {
 		frc_devp->clk_reg = NULL;
@@ -679,8 +713,6 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 		} else {
 			frc_devp->vpu_reg = (void *)base;
 			vpu_base = frc_devp->vpu_reg;
-			pr_frc(0, "vpu reg base 0x%lx -> 0x%lx, map size:0x%lx\n",
-			       (ulong)res->start, (ulong)vpu_base, (ulong)(res->end - res->start));
 		}
 	} else {
 		frc_devp->vpu_reg = NULL;
@@ -692,9 +724,9 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 	if (ret) {
 		pr_frc(0, "cma resource undefined !\n");
 		frc_devp->buf.cma_mem_size = 0;
+	} else {
+		frc_devp->buf.cma_mem_size = dma_get_cma_size_int_byte(&pdev->dev);
 	}
-	frc_devp->buf.cma_mem_size = dma_get_cma_size_int_byte(&pdev->dev);
-	pr_frc(0, "cma_mem_size=0x%x\n", frc_devp->buf.cma_mem_size);
 
 	frc_devp->clk_frc = clk_get(&pdev->dev, "clk_frc");
 	frc_devp->clk_me = clk_get(&pdev->dev, "clk_me");
@@ -747,12 +779,15 @@ int frc_vd_notify_callback(struct notifier_block *block, unsigned long cmd, void
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct vd_info_s *info;
+	enum chip_id chip = get_chip_type();
 	u32 flags;
 
 	if (!devp)
 		return -1;
 	if (devp->clk_state == FRC_CLOCK_OFF)
 		return -1;
+	if (chip == ID_T3X)
+		return 0;
 
 	info = (struct vd_info_s *)para;
 	flags = info->flags;
@@ -765,14 +800,12 @@ int frc_vd_notify_callback(struct notifier_block *block, unsigned long cmd, void
 			== VIDEO_SIZE_CHANGE_EVENT) &&
 			devp->probe_ok && (!devp->in_sts.frc_seamless_en ||
 			(devp->in_sts.frc_seamless_en && devp->in_sts.frc_is_tvin))) {
-			if (devp->frc_sts.state == FRC_STATE_ENABLE) {
 				pr_frc(0, "%s start disable frc", __func__);
 				set_frc_enable(false);
 				set_frc_bypass(true);
-				frc_change_to_state(FRC_STATE_DISABLE);
-				//frc_change_to_state(FRC_STATE_BYPASS);
+				// frc_change_to_state(FRC_STATE_DISABLE);
+				frc_change_to_state(FRC_STATE_BYPASS);
 				frc_state_change_finish(devp);
-			}
 			if (devp->frc_sts.frame_cnt != 0) {
 				devp->frc_sts.frame_cnt = 0;
 				pr_frc(1, "%s reset frm_cnt\n", __func__);
@@ -1013,7 +1046,6 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	struct frc_fw_data_s *fw_data;
 	u32 i;
 
-	pr_frc(0, "%s\n", __func__);
 	if (!devp)
 		return;
 
@@ -1031,15 +1063,18 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->frc_sts.re_cfg_cnt = 0;
 	devp->frc_sts.out_put_mode_changed = false;
 	devp->frc_sts.re_config = false;
-	devp->in_sts.vf_sts = 0;/*initial to no*/
 	devp->dbg_force_en = 0;
-	devp->auto_n2m = 1;
+
 	devp->other1_flag = 0;
-	devp->other2_flag = 25;  // 16;
+	devp->other2_flag = 0;  // 25, 16;
 	devp->vlock_flag = 1;
+	devp->dbg_mvrd_mode = 8;
+	devp->dbg_mute_disable = 1;
+	devp->test2 = 1;
 	/*input sts initial*/
 	devp->in_sts.have_vf_cnt = 0;
 	devp->in_sts.no_vf_cnt = 0;
+	devp->in_sts.vf_sts = 0;/*initial to no*/
 
 	devp->dbg_in_out_ratio = FRC_RATIO_1_1;
 	// devp->dbg_in_out_ratio = FRC_RATIO_2_5;
@@ -1055,8 +1090,6 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	}
 	devp->dbg_buf_len = 0;
 	devp->prot_mode = true;
-	devp->use_pre_vsync = PRE_VSYNC_120HZ;
-
 	devp->in_out_ratio = FRC_RATIO_1_1;
 	// devp->in_out_ratio = FRC_RATIO_2_5;
 	// devp->in_out_ratio = FRC_RATIO_1_2;
@@ -1064,6 +1097,16 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->film_mode = EN_DRV_VIDEO;
 	devp->film_mode_det = 0;
 
+	devp->pat_dbg.pat_en = 1;
+
+	// test init
+	devp->in_sts.t3x_adj_mcdw_hv = 2;
+
+	// ctrl high-priority tasklet
+	devp->in_sts.hi_en = 0;
+	devp->out_sts.hi_en = 0;
+	devp->task_run_method = MEMC_RUN_IN_IRQ;
+	// devp->task_run_method = MEMC_ALG_PASS;
 	fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	fw_data->holdline_parm.me_hold_line = 4;
 	fw_data->holdline_parm.mc_hold_line = 1;
@@ -1071,8 +1114,9 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	fw_data->holdline_parm.reg_post_dly_vofst = 0;/*fixed*/
 	fw_data->holdline_parm.reg_mc_dly_vofst0 = 1;/*fixed*/
 
-	fw_data->frc_top_type.frc_fb_num = FRC_TOTAL_BUF_NUM;
-
+	fw_data->frc_top_type.motion_ctrl = RD_MOTION_BY_VPU_ISR;
+	for (i = 0; i < RD_REG_MAX; i++)
+		fw_data->reg_val[i].addr = 0x0;
 	if (fw_data->frc_top_type.chip != 0)
 		memcpy(&devp->frm_dly_set[0],
 			&chip_frc_frame_dly[fw_data->frc_top_type.chip - 1][0],
@@ -1096,8 +1140,26 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	/*used for force in/out size for frc process*/
 	memset(&devp->force_size, 0, sizeof(struct frc_force_size_s));
 	devp->ud_dbg.res2_dbg_en = 3;  // t3x_revB test
-	if (get_chip_type() == ID_T3X)
+	devp->ud_dbg.align_dbg_en = 0;  // t3x_revB test
+
+	if (get_chip_type() == ID_T3X) {
 		devp->in_sts.boot_timestamp_en = 1;
+		devp->vpu_byp_frc_reg_addr = VIU_FRC_MISC;
+		devp->auto_n2m = 1;
+		devp->use_pre_vsync = PRE_VSYNC_120HZ;
+	} else if (get_chip_type() == ID_T5M) {
+		devp->vpu_byp_frc_reg_addr = VPU_FRC_TOP_CTRL;
+		devp->auto_n2m = 1;
+		devp->use_pre_vsync = PRE_VSYNC_120HZ;
+	} else if (get_chip_type() == ID_T3) {
+		devp->vpu_byp_frc_reg_addr = VPU_FRC_TOP_CTRL;
+		devp->auto_n2m = 0;
+		devp->use_pre_vsync = PRE_VSYNC_NONE;
+	} else {
+		devp->vpu_byp_frc_reg_addr = VPU_FRC_TOP_CTRL;
+		devp->auto_n2m = 0;
+		devp->use_pre_vsync = PRE_VSYNC_NONE;
+	}
 }
 
 void get_vout_info(struct frc_dev_s *frc_devp)
@@ -1146,14 +1208,12 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 					set_vsync_2to1_mode(0);
 					set_pre_vsync_mode(0);
 				}
-
 			}
 		}
 		pr_frc(1, "vout:w-%d,h-%d,rate-%d\n",
 				frc_devp->out_sts.vout_width,
 				frc_devp->out_sts.vout_height,
 				frc_devp->out_sts.out_framerate);
-
 	}
 }
 
@@ -1185,7 +1245,7 @@ static int frc_probe(struct platform_device *pdev)
 	//	PR_ERR("%s: frc_dev kzalloc memory failed\n", __func__);
 	//	goto fail_alloc_dev;
 	// }
-	pr_frc(0, "%s, frc probe start\n", __func__);
+	// pr_frc(0, "%s, frc probe start\n", __func__);
 	memset(frc_devp, 0, (sizeof(struct frc_dev_s)));
 
 	frc_devp->data = NULL;
@@ -1205,7 +1265,7 @@ static int frc_probe(struct platform_device *pdev)
 		PR_ERR("%s: frc_dev->fw_data fail\n", __func__);
 		goto fail_alloc_fw_data_fail;
 	}
-	PR_FRC("%s fw_data st size:%d", __func__, sizeof_frc_fw_data_struct());
+	// PR_FRC("%s fw_data st size:%d", __func__, sizeof_frc_fw_data_struct());
 
 	ret = alloc_chrdev_region(&frc_devp->devno, 0, FRC_DEVNO, FRC_NAME);
 	if (ret < 0) {
@@ -1244,7 +1304,11 @@ static int frc_probe(struct platform_device *pdev)
 
 	frc_data = (struct frc_data_s *)frc_devp->data;
 	// fw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
-	frc_dts_parse(frc_devp);
+	if (frc_dts_parse(frc_devp)) {
+		PR_ERR("dts parse error\n");
+		goto fail_dev_create;
+	}
+
 	// if (ret < 0)  // fixed CID 139501
 	//	goto fail_dev_create;
 	tasklet_init(&frc_devp->input_tasklet, frc_input_tasklet_pro, (unsigned long)frc_devp);
@@ -1252,6 +1316,8 @@ static int frc_probe(struct platform_device *pdev)
 	/*register a notify*/
 	vout_register_client(&frc_notifier_nb);
 	vd_signal_register_client(&frc_notifier_vb);
+	if (frc_data->match_data->chip == ID_T5M)
+		resman_register_debug_callback(FRC_TITLE, set_frc_config);
 
 	/*driver internal data initial*/
 	frc_drv_initial(frc_devp);
@@ -1306,7 +1372,7 @@ static int frc_probe(struct platform_device *pdev)
 #if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
 	frc_dmc_notifier();
 #endif
-	PR_FRC("%s probe st:%d", __func__, frc_devp->probe_ok);
+//	PR_FRC("%s probe st:%d", __func__, frc_devp->probe_ok);
 	return ret;
 fail_dev_create:
 	cdev_del(&frc_devp->cdev);
@@ -1508,7 +1574,7 @@ static int frc_runtime_resume(struct device *dev)
 	devp = get_frc_devp();
 	if (!devp)
 		return -1;
-	PR_FRC("call %s\n", __func__);
+	// PR_FRC("call %s\n", __func__);
 	frc_power_domain_ctrl(devp, 1);
 	if (!devp->power_on_flag)
 		devp->power_on_flag = true;
@@ -1551,11 +1617,13 @@ int __init frc_init(void)
 		PR_ERR("failed to register frc driver module\n");
 		return -ENODEV;
 	}
+	hrtimer_init(&frc_hi_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	return 0;
 }
 
 void __exit frc_exit(void)
 {
 	platform_driver_unregister(&frc_driver);
+	hrtimer_cancel(&frc_hi_timer);
 	PR_FRC("%s:module exit\n", __func__);
 }

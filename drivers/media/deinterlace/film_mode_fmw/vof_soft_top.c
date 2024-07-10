@@ -22,47 +22,47 @@
 #include "film_vof_soft.h"
 
 int cmb32_blw_wnd = 180; /*192 */
-__module_param(cmb32_blw_wnd, int, 0644);
+module_param(cmb32_blw_wnd, int, 0644);
 MODULE_PARM_DESC(cmb32_blw_wnd, "cmb32_blw_wnd");
 
 static int cmb32_wnd_ext = 12;/*suggest from vlsi-yanling*/
-__module_param(cmb32_wnd_ext, int, 0644);
+module_param(cmb32_wnd_ext, int, 0644);
 MODULE_PARM_DESC(cmb32_wnd_ext, "cmb32_wnd_ext");
 
 int cmb32_wnd_tol = 4;
-__module_param(cmb32_wnd_tol, int, 0644);
+module_param(cmb32_wnd_tol, int, 0644);
 MODULE_PARM_DESC(cmb32_wnd_tol, "cmb32_wnd_tol");
 
 int cmb32_frm_nocmb = 40;
-__module_param(cmb32_frm_nocmb, int, 0644);
+module_param(cmb32_frm_nocmb, int, 0644);
 MODULE_PARM_DESC(cmb32_frm_nocmb, "cmb32_frm_nocmb");
 
 int cmb32_min02_sft = 7;
-__module_param(cmb32_min02_sft, int, 0644);
+module_param(cmb32_min02_sft, int, 0644);
 MODULE_PARM_DESC(cmb32_min02_sft, "cmb32_min02_sft");
 
 int cmb32_cmb_tol = 10;
-__module_param(cmb32_cmb_tol, int, 0644);
+module_param(cmb32_cmb_tol, int, 0644);
 MODULE_PARM_DESC(cmb32_cmb_tol, "cmb32_cmb_tol");
 
 int cmb32_avg_dff = 48; /* if avg dif32 > dff>>4 */
-__module_param(cmb32_avg_dff, int, 0644);
+module_param(cmb32_avg_dff, int, 0644);
 MODULE_PARM_DESC(cmb32_avg_dff, "cmb32_avg_dff");
 
 int cmb32_smfrm_num = 4;
-__module_param(cmb32_smfrm_num, int, 0644);
+module_param(cmb32_smfrm_num, int, 0644);
 MODULE_PARM_DESC(cmb32_smfrm_num, "cmb32_smfrm_num");
 
 int cmb32_nocmb_num = 20;
-__module_param(cmb32_nocmb_num, int, 0644);
+module_param(cmb32_nocmb_num, int, 0644);
 MODULE_PARM_DESC(cmb32_nocmb_num, "cmb32_nocmb_num");
 
 int cmb22_gcmb_rnum = 8;
-__module_param(cmb22_gcmb_rnum, int, 0644);
+module_param(cmb22_gcmb_rnum, int, 0644);
 MODULE_PARM_DESC(cmb22_gcmb_rnum, "cmb22_gcmb_rnum");
 
 int flmxx_cal_lcmb = 1;
-__module_param(flmxx_cal_lcmb, int, 0644);
+module_param(flmxx_cal_lcmb, int, 0644);
 MODULE_PARM_DESC(flmxx_cal_lcmb, "flmxx_cal_lcmb");
 
 /* 15: 8-7 */
@@ -74,8 +74,8 @@ MODULE_PARM_DESC(flmxx_cal_lcmb, "flmxx_cal_lcmb");
 /* 10: 3-2-3-2 */
 /* row * flmxx_no_cmb >> 6 */
 static unsigned int flmxx_no_cmb[7] = {8, 32, 8, 8, 8, 32, 32};
-//static unsigned int flmxx_nn_cmb = 7;
-__module_param_array(flmxx_no_cmb, uint, &flmxx_nn_cmb, 0664);
+static unsigned int flmxx_nn_cmb = 7;
+module_param_array(flmxx_no_cmb, uint, &flmxx_nn_cmb, 0664);
 
 /* Get 1-Row combing information, 1bit */
 /* iHSCMB[9]; 9x32=288 */

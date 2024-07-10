@@ -38,7 +38,8 @@
 #define CUVA_HDR_SOURCE      8
 #define CUVA_HLG_SOURCE      9
 #define SDR_BT2020_SOURCE      10
-#define MAX_SOURCE      11
+#define HDR10_709_SOURCE      11
+#define MAX_SOURCE      12
 
 #define FREESYNC_DYNAMIC_GAMMA_NUM 10
 #define FREESYNC_DYNAMIC_GAMMA_CHANNEL 3
@@ -86,11 +87,16 @@ struct vpp_hist_param_s {
 	unsigned int vpp_hist_pow;
 	unsigned int vpp_luma_sum;
 	unsigned int vpp_pixel_sum;
-	unsigned short vpp_histgram[DNLP_VPP_HIST_BIN_NUM];
+	unsigned int vpp_chroma_sum;
+	unsigned int vpp_height;
+	unsigned int vpp_width;
+	unsigned char vpp_luma_max;
+	unsigned char vpp_luma_min;
 	unsigned short vpp_dark_hist[DNLP_VPP_HIST_BIN_NUM];
 	unsigned int hdr_histgram[HDR_HIST_BIN_NUM];
-	unsigned int hue_histgram[HUE_HIST_BIN_NUM];
-	unsigned int sat_histgram[SAT_HIST_BIN_NUM];
+	unsigned short vpp_gamma[DNLP_VPP_HIST_BIN_NUM];
+	unsigned int vpp_hue_gamma[HUE_HIST_BIN_NUM];
+	unsigned int vpp_sat_gamma[SAT_HIST_BIN_NUM];
 };
 
 struct vframe_content_light_level_ss {
@@ -257,7 +263,8 @@ enum hdr_type_e {
 	HDRTYPE_CUVA_HDR = CUVA_HDR_SOURCE,
 	HDRTYPE_CUVA_HLG = CUVA_HLG_SOURCE,
 	HDRTYPE_PRIMESL = PRIMESL_SOURCE,
-	HDRTYPE_SDR2020 = SDR_BT2020_SOURCE
+	HDRTYPE_SDR2020 = SDR_BT2020_SOURCE,
+	HDRTYPE_HDR10_709 = HDR10_709_SOURCE
 };
 
 enum dest_hdr_type_e {
@@ -386,7 +393,12 @@ enum vpp_matrix_e {
 	POST2_MTX = 0x2,
 	POST_MTX = 0x4,
 	VPP1_POST2_MTX = 0x8,
-	VPP2_POST2_MTX = 0x10
+	VPP2_POST2_MTX = 0x10,
+	OSD_MTX = 0x20,
+	VPP_OSD1_MTX = 0x40,
+	VPP_OSD2_MTX = 0x41,
+	OSD_BLEDN_D0_MTX = 0x80,
+	OSD_BLEDN_D1_MTX = 0x81
 };
 
 struct matrix_coef_s {
@@ -576,6 +588,37 @@ struct ve_ble_whe_param_s {
 	int brt_slp;
 };
 
+struct db_aicolor_param_s {
+	int reg_sat_s_gain_en;
+	int reg_sat_l_gain_en;
+	int reg_sat_adj_a;
+	int reg_sat_prt;
+	int reg_sat_prt_p;
+	int reg_sat_prt_th;
+
+	int reg_zero;
+	int reg_sat_adj;
+	int reg_sat_shift;
+	int reg_skin_th;
+	int reg_skin_shift;
+	int reg_skin_adj;
+
+	int reg_hue_left1;
+	int reg_hue_right1;
+	int reg_hue_adj1;
+	int reg_hue_shift1;
+
+	int reg_hue_left2;
+	int reg_hue_right2;
+	int reg_hue_adj2;
+	int reg_hue_shift2;
+
+	int reg_hue_left3;
+	int reg_hue_right3;
+	int reg_hue_adj3;
+	int reg_hue_shift3;
+};
+
 #define AMVECM_IOC_G_HIST_AVG			_IOW(_VE_CM, 0x22, struct ve_hist_s)
 #define AMVECM_IOC_VE_DNLP_EN			_IO(_VE_CM, 0x23)
 #define AMVECM_IOC_VE_DNLP_DIS			_IO(_VE_CM, 0x24)
@@ -665,7 +708,9 @@ struct ve_ble_whe_param_s {
 #define AMVECM_IOC_GAMMA_TABLE_R_SUB _IOW(_VE_CM, 0x88, struct tcon_gamma_table_s)
 #define AMVECM_IOC_GAMMA_TABLE_G_SUB _IOW(_VE_CM, 0x89, struct tcon_gamma_table_s)
 #define AMVECM_IOC_GAMMA_TABLE_B_SUB _IOW(_VE_CM, 0x8a, struct tcon_gamma_table_s)
-#define AMVECM_IOC_AI_COLOR_EN			_IO(_VE_CM, 0x8b)
 
+#define AMVECM_IOC_AI_COLOR_EN      _IO(_VE_CM, 0x8b)
+#define AMVECM_IOC_S_AI_COLOR_PARAM _IOW(_VE_CM, 0x8c, struct db_aicolor_param_s)
+#define AMVECM_IOC_S_SDR2HDR_CTRL   _IO(_VE_CM, 0x8d)
 
 #endif
