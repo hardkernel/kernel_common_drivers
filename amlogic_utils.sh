@@ -365,12 +365,18 @@ function mod_probe() {
 	local dep_file=$1
 	local ko=$2
 	local install_sh=$3
+
+	if [[ ${loaded_modules[$ko]} ]]; then
+		return
+	fi
+
 	local loop
-	for loop in `grep "^${ko}:" ${dep_file} | sed 's/.*://'`; do
-		[[ `grep "^${loop}" ${install_sh}` ]] && continue
-		mod_probe ${dep_file} ${loop} ${install_sh}
-		echo insmod ${loop} >> ${install_sh}
+	for loop in $(grep "^${ko}:" $dep_file | sed 's/.*://'); do
+		mod_probe $dep_file $loop $install_sh
 	done
+
+	echo insmod $ko >> $install_sh
+	loaded_modules[$ko]=1
 }
 
 function create_install_and_order_filles() {
@@ -388,11 +394,10 @@ function create_install_and_order_filles() {
 	[[ -f ${modules_order_file}.tmp ]] && rm -f ${modules_order_file}.tmp
 	touch ${modules_order_file}.tmp
 
+	declare -A loaded_modules
 	for loop in `cat ${modules_dep_file} | sed 's/:.*//'`; do
 		echo ${loop} >> ${modules_order_file}.tmp
-		[[ `grep "^${loop}" ${install_file}.tmp` ]] && continue
 		mod_probe ${modules_dep_file} ${loop} ${install_file}.tmp
-		echo insmod ${loop} >> ${install_file}.tmp
 	done
 
 	cat ${install_file}.tmp  | awk ' {
@@ -577,13 +582,13 @@ function adjust_sequence_modules_loading() {
 		done
 	fi
 
-	cat modules.dep.temp | cut -d ':' -f 2 > modules.dep.temp1
+	cat modules.dep.temp | cut -d ':' -f 2 > modules.dep.temp0
 	delete_modules=(${delete_soc_module[@]} ${delete_clk_soc_modules[@]} ${delete_pinctrl_soc_modules[@]} ${delete_type_modules[@]} ${black_modules[@]} ${GKI_MODULES_LOAD_BLACK_LIST[@]})
 	for module in ${delete_modules[@]}; do
 		if [[ ! -f $module ]]; then
 			continue
 		fi
-		match=`sed -n "/${module}/=" modules.dep.temp1`
+		match=`sed -n "/${module}/=" modules.dep.temp0`
 		for match in ${match[@]}; do
 			match_count=(${match_count[@]} $match)
 		done
@@ -606,9 +611,9 @@ function adjust_sequence_modules_loading() {
 		done
 		rm -f ${module}
 	done
-	rm -f modules.dep.temp1
-	touch modules.dep.temp1
+	rm -f modules.dep.temp0
 
+	touch modules.dep.temp1
 	for module in ${RAMDISK_MODULES_LOAD_LIST[@]}; do
 		echo RAMDISK_MODULES_LOAD_LIST: $module
 		sed -n "/${module}:/p" modules.dep.temp
