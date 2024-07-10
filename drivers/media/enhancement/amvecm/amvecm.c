@@ -4402,16 +4402,18 @@ static long amvecm_ioctl(struct file *file,
 			ret = -EFAULT;
 			pr_amvecm_dbg("sdr_hdr_ctrl copy from user fail.\n");
 		} else {
-			if (!sdr_hdr_ctrl) {
-				set_hdr_policy(0);
-				set_force_output(UNKNOWN_FMT);
-			} else {
-				set_hdr_policy(2);
-				set_force_output(BT2020_PQ);
+			if (chip_cls_id == TV_CHIP) {
+				if (!sdr_hdr_ctrl) {
+					hdr_policy = 0;
+					set_force_output(UNKNOWN_FMT);
+				} else {
+					hdr_policy = 2;
+					set_force_output(BT2020_PQ);
+				}
+				force_toggle();
+				pr_amvecm_dbg("AMVECM_IOC_S_SDR2HDR_CTRL sdr_hdr_ctrl = %d\n",
+					sdr_hdr_ctrl);
 			}
-			force_toggle();
-			pr_amvecm_dbg("AMVECM_IOC_S_SDR2HDR_CTRL sdr_hdr_ctrl = %d\n",
-				sdr_hdr_ctrl);
 		}
 		break;
 	case AMVECM_IOC_G_CHIP_TYPE:

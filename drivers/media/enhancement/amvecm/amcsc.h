@@ -321,6 +321,8 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo);
 uint32_t sink_hdr_support_ori_cap(const struct vinfo_s *vinfo);
 
 extern uint gamut_conv_enable;
+extern uint hdr_policy;
+
 void force_toggle(void);
 int get_s5_slice_mode(void);
 
