@@ -339,7 +339,7 @@ export -f extra_cmds
 function bazel_extra_cmds() {
 	modules_install
 
-	if [[ -n ${FAST_BUILD} ]]; then
+	if [[ -z ${ANDROID_PROJECT} && -n ${FAST_BUILD} ]]; then
 		return
 	fi
 
@@ -563,7 +563,7 @@ function adjust_sequence_modules_loading() {
 	if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" == "arm64" ]]; then
 		gki_modules_temp_file=`mktemp /tmp/config.XXXXXXXXXXXX`
 		if [[ ${BAZEL} == "1" ]]; then
-			if [[ -n ${FAST_BUILD} ]]; then
+			if [[ -z ${ANDROID_PROJECT} && -n ${FAST_BUILD} ]]; then
 				cp ${BAZEL_OUT}/kernel_aarch64_all_module_names/kernel_aarch64_modules ${gki_modules_temp_file}
 			else
 				cp ${DIST_DIR}/system_dlkm.modules.load ${gki_modules_temp_file}
@@ -793,13 +793,18 @@ function modules_install() {
 		BAZEL_OUT=${ROOT_DIR}/bazel-out/k8-fastbuild/bin/common
 		if [[ -n ${FAST_BUILD} ]]; then
 			kernel_release=`cat ${BAZEL_OUT}/kernel_aarch64/include/config/kernel.release`
-			mkdir -p ${OUT_AMLOGIC_DIR}/fast_build/amlogic
-			tar -zxf ${BAZEL_OUT}/amlogic/modules_staging_dir_self.tar.gz -C ${OUT_AMLOGIC_DIR}/fast_build/amlogic
-			cp ${BAZEL_OUT}/amlogic_kbuild_mixed_tree/System.map ${OUT_AMLOGIC_DIR}/fast_build/amlogic
-			pushd ${OUT_AMLOGIC_DIR}/fast_build/amlogic
-			depmod -e -F System.map -b . ${kernel_release}
-			cp ${OUT_AMLOGIC_DIR}/fast_build/amlogic/lib/modules/${kernel_release}/modules.order ${DIST_DIR}/modules.load
-			popd
+			if [[ -z ${ANDROID_PROJECT} ]]; then
+				mkdir -p ${OUT_AMLOGIC_DIR}/fast_build/amlogic
+				tar -zxf ${BAZEL_OUT}/amlogic/modules_staging_dir_self.tar.gz -C ${OUT_AMLOGIC_DIR}/fast_build/amlogic
+				cp ${BAZEL_OUT}/amlogic_kbuild_mixed_tree/System.map ${OUT_AMLOGIC_DIR}/fast_build/amlogic
+				pushd ${OUT_AMLOGIC_DIR}/fast_build/amlogic
+				depmod -e -F System.map -b . ${kernel_release}
+				cp ${OUT_AMLOGIC_DIR}/fast_build/amlogic/lib/modules/${kernel_release}/modules.order ${DIST_DIR}/modules.load
+				popd
+			else
+				cp ${BAZEL_OUT}/amlogic_modules_install/staging/lib/modules/${kernel_release}/modules.dep ${DIST_DIR}/modules.load
+				sed -i "s/:.*//g" ${DIST_DIR}/modules.load
+			fi
 		fi
 		while read module
 		do
@@ -808,7 +813,7 @@ function modules_install() {
 				if [[ -f ${DIST_DIR}/${module_name} ]]; then
 					cp ${DIST_DIR}/${module_name} ${OUT_AMLOGIC_DIR}/modules
 				else
-					if [[ -n ${FAST_BUILD} ]]; then
+					if [[ -z ${ANDROID_PROJECT} && -n ${FAST_BUILD} ]]; then
 						module_f=
 						for module_l in `find ${BAZEL_OUT}/kernel_aarch64 -name ${module_name}`; do
 							if [[ ${module_l} =~ ${module#*/} ]]; then
@@ -844,7 +849,7 @@ function modules_install() {
 			fi
 		done < ${DIST_DIR}/modules.load
 
-		if [[ -n ${FAST_BUILD} ]]; then
+		if [[ -z ${ANDROID_PROJECT} && -n ${FAST_BUILD} ]]; then
 			dep_file=${OUT_AMLOGIC_DIR}/fast_build/amlogic/lib/modules/${kernel_release}/modules.dep
 		else
 			dep_file=`find ${BAZEL_OUT}/amlogic_modules_install -name *.dep | grep "amlogic"`

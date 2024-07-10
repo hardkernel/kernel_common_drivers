@@ -129,7 +129,7 @@ def define_common_amlogic(
         name = name + "_images",
         build_dtbo = True,
         dtbo_srcs = [":" + name + "/" + e for e in dtbo_srcs],
-        build_initramfs = True,
+        build_initramfs = False if FAST_BUILD else True,
         kernel_build = name,
         kernel_modules_install = name + "_modules_install",
     )
@@ -144,7 +144,7 @@ def define_common_amlogic(
         name + "_merged_kernel_uapi_headers",
     ]
 
-    fast_build_dist_targets = [
+    fast_fatload_build_dist_targets = [
         name,
         # name + "_images",
         name + "_modules_install",
@@ -154,9 +154,25 @@ def define_common_amlogic(
         # name + "_merged_kernel_uapi_headers",
     ]
 
+    fast_android_build_dist_targets = [
+        name,
+        name + "_images",
+        name + "_modules_install",
+        # Mixed build: Additional GKI artifacts.
+        # ":kernel_aarch64_download_or_build",
+        ":kernel_aarch64_additional_artifacts",
+        # name + "_merged_kernel_uapi_headers",
+    ]
+
+    targets = dist_targets
+    if FAST_BUILD == "fatload":
+        targets = fast_fatload_build_dist_targets
+    if FAST_BUILD == "android":
+        targets = fast_android_build_dist_targets
+
     copy_to_dist_dir(
         name = name + "_dist",
-        data = fast_build_dist_targets if FAST_BUILD else dist_targets,
+        data = targets,
         dist_dir = dist_dir,
         flat = True,
         log = "info",
