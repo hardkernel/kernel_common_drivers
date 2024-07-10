@@ -65,6 +65,8 @@ static unsigned int freesync_pb6_data_pre;
 
 u8 freesync_ld_ctrl;
 
+static unsigned int lfc_support;
+
 struct vrr_sig_sts frame_sts = {
 	.vrr_support = false,
 	.vrr_lfc_mode = false,
@@ -466,8 +468,13 @@ int frame_lock_frame_rate_check(struct vframe_s *vf, struct vinfo_s *vinfo)
 
 	if (frame_lock_lfc_mode_check() && frame_lock_lfc_rate_check(vf, vinfo)) {
 		frame_sts.vrr_frame_outof_range_cnt = 0;
-		frame_sts.vrr_lfc_mode = true;
-		ret =  true;
+		if (lfc_support) {
+			frame_sts.vrr_lfc_mode = true;
+			ret =  true;
+		} else {
+			frame_sts.vrr_lfc_mode = false;
+			ret =  false;
+		}
 	} else {
 		if (frame_sts.vrr_frame_cur >= frame_sts.vrr_frame_out_fps_min &&
 			frame_sts.vrr_frame_cur <= frame_sts.vrr_frame_out_fps_max) {
@@ -900,7 +907,12 @@ ssize_t frame_lock_debug_store(struct class *cla,
 			return -EINVAL;
 		freesync_ld_ctrl = val;
 		frame_lock_local_dimming_ctrl(freesync_ld_ctrl);
-		pr_info("\n frame_lock_debug = %d\n", frame_lock_debug);
+		pr_info("\n freesync_ld_ctrl = %d\n", freesync_ld_ctrl);
+	} else if (!strncmp(parm[0], "lfc_support", 11)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		lfc_support = val;
+		pr_info("\n lfc_support = %d\n", lfc_support);
 	} else {
 		pr_info("\n frame lock debug cmd invalid\n");
 	}
