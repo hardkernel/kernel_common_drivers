@@ -809,6 +809,12 @@ static int am_hdmitx_connector_atomic_get_property
 	} else if (property == am_hdmi->ready_prop) {
 		*val = hdmitx_common_get_ready_state(tx_comm);
 		return 0;
+	} else if (property == am_hdmi->type_prop) {
+		*val = am_hdmi->hdmi_type;
+		return 0;
+	} else if (property == am_hdmi->edid_valid_prop) {
+		*val = hdmitx_common_get_edid_valid_state(tx_comm);
+		return 0;
 	}
 
 	return -EINVAL;
@@ -2192,6 +2198,20 @@ static void meson_hdmitx_init_hdr_priority_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_hdmitx_init_edid_valid_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "edid_valid");
+	if (prop) {
+		am_hdmi->edid_valid_prop = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to init edid_valid property\n");
+	}
+}
+
 static void meson_hdmitx_hpd_cb(void *data)
 {
 	struct am_hdmi_tx *am_hdmi = (struct am_hdmi_tx *)data;
@@ -2350,6 +2370,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_allm_property(drm, am_hdmi);
 	meson_hdmitx_init_hdr_priority_property(drm, am_hdmi);
 	meson_hdmitx_init_ready_property(drm, am_hdmi);
+	meson_hdmitx_init_edid_valid_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;

@@ -75,6 +75,14 @@ struct am_hdmi_tx {
 	struct drm_property *contenttype_cap_prop;
 	struct drm_property *allm_prop;
 	struct drm_property *ready_prop;
+	struct drm_property *type_prop;
+	/*
+	 * Whether the current edid is valid
+	 * 0:edid is invalid
+	 * 1:edid is valid
+	 */
+	struct drm_property *edid_valid_prop;
+	int hdmi_type;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;
