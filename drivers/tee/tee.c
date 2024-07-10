@@ -138,6 +138,9 @@ static int disable_flag;
 #define TVP_CMD_CHECK_IN_MEM            2
 #define TVP_CMD_CHECK_OUT_MEM           3
 #define TVP_CMD_REGISTER_MEM            4
+#define TVP_CMD_SECTBL_MEM_MAP          5
+#define TVP_CMD_SECTBL_GET_INFO         6
+#define TVP_CMD_SECTBL_SECMEM_SET       7
 
 #define PTA_TVP_UUID UUID_INIT(0x1a658fe8, 0x894e, 0x4403, \
 			0xae, 0xa6, 0x5a, 0xe6, 0x91, 0xe8, 0xa3, 0x5f)
@@ -923,6 +926,149 @@ int tee_vp9_prob_free(u32 prob_addr)
 	return res.a0;
 }
 EXPORT_SYMBOL(tee_vp9_prob_free);
+
+u32 tee_sectbl_mem_map(phys_addr_t tbl0_sta, size_t tbl0_size, u32 tbl0_blk_size,
+		phys_addr_t tbl1_sta, size_t tbl1_size,	u32 tbl1_blk_size)
+{
+	int ret = 0;
+	struct tee_context *ctx = NULL;
+	struct tee_shm *shm_pool = NULL;
+	uuid_t uuid = PTA_TVP_UUID;
+	struct tee_param param[TEE_PARAM_NUM] = { 0 };
+	struct tee_sectbl_info *sectbl_info = NULL;
+
+	ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
+	if (IS_ERR(ctx)) {
+		pr_err("%s open context failed\n", __func__);
+		return -ENODEV;
+	}
+
+	shm_pool = tee_shm_alloc_kernel_buf(ctx, sizeof(struct tee_sectbl_info));
+	if (IS_ERR(shm_pool)) {
+		pr_err("%s tee_shm_alloc failed\n", __func__);
+		ret = -ENOMEM;
+		goto out;
+	}
+	sectbl_info = tee_shm_get_va(shm_pool, 0);
+	if (IS_ERR(sectbl_info)) {
+		pr_err("%s tee_shm_get_va failed\n", __func__);
+		ret = -EBUSY;
+		goto out;
+	}
+	sectbl_info->tbl0_sta = tbl0_sta;
+	sectbl_info->tbl0_size = tbl0_size;
+	sectbl_info->tbl0_blk_size = tbl0_blk_size;
+	sectbl_info->tbl1_sta = tbl1_sta;
+	sectbl_info->tbl1_size = tbl1_size;
+	sectbl_info->tbl1_blk_size = tbl1_blk_size;
+
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT;
+	param[0].u.memref.shm = shm_pool;
+	param[0].u.memref.size = sizeof(struct tee_sectbl_info);
+	param[0].u.memref.shm_offs = 0;
+
+	ret = tee_pta_invoke_cmd(ctx, uuid, TVP_CMD_SECTBL_MEM_MAP, param);
+	if (ret)
+		pr_err("%s invoke sectbl mem map command failed\n", __func__);
+
+out:
+	if (shm_pool)
+		tee_shm_free(shm_pool);
+
+	tee_client_close_context(ctx);
+
+	return ret;
+}
+EXPORT_SYMBOL(tee_sectbl_mem_map);
+
+u32 tee_sectbl_get_info(struct tee_sectbl_info *sectbl_info)
+{
+	int ret = 0;
+	struct tee_context *ctx = NULL;
+	struct tee_shm *shm_pool = NULL;
+	uuid_t uuid = PTA_TVP_UUID;
+	struct tee_param param[TEE_PARAM_NUM] = { 0 };
+	struct tee_sectbl_info *tbl_info = NULL;
+
+	if (!sectbl_info) {
+		pr_err("%s sectbl_info NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
+	if (IS_ERR(ctx)) {
+		pr_err("%s open context failed\n", __func__);
+		return -ENODEV;
+	}
+
+	shm_pool = tee_shm_alloc_kernel_buf(ctx, sizeof(struct tee_sectbl_info));
+	if (IS_ERR(shm_pool)) {
+		pr_err("%s tee_shm_alloc failed\n", __func__);
+		ret = -ENOMEM;
+		goto out;
+	}
+	tbl_info = tee_shm_get_va(shm_pool, 0);
+	if (IS_ERR(tbl_info)) {
+		pr_err("%s tee_shm_get_va failed\n", __func__);
+		ret = -EBUSY;
+		goto out;
+	}
+
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT;
+	param[0].u.memref.shm = shm_pool;
+	param[0].u.memref.size = sizeof(struct tee_sectbl_info);
+	param[0].u.memref.shm_offs = 0;
+
+	ret = tee_pta_invoke_cmd(ctx, uuid, TVP_CMD_SECTBL_GET_INFO, param);
+	if (ret) {
+		pr_err("%s invoke sectbl get info command failed\n", __func__);
+		goto out;
+	}
+
+	memcpy(sectbl_info, tbl_info, sizeof(struct tee_sectbl_info));
+
+out:
+	if (shm_pool)
+		tee_shm_free(shm_pool);
+
+	tee_client_close_context(ctx);
+
+	return ret;
+}
+EXPORT_SYMBOL(tee_sectbl_get_info);
+
+u32 tee_sectbl_secmem_set(phys_addr_t start, size_t size, u32 secure)
+{
+	int ret = 0;
+	uuid_t uuid = PTA_TVP_UUID;
+	struct tee_param param[TEE_PARAM_NUM] = { 0 };
+	struct tee_context *ctx = NULL;
+
+	ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
+	if (IS_ERR(ctx)) {
+		pr_err("%s open context failed\n", __func__);
+		return -ENODEV;
+	}
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[0].u.value.a = start & 0xffffffff;
+	param[0].u.value.b = (sizeof(phys_addr_t) == sizeof(u32)) ? 0 : start >> 32;
+
+	param[1].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[1].u.value.a = size & 0xffffffff;
+	param[1].u.value.b = (sizeof(size_t) == sizeof(u32)) ? 0 : size >> 32;
+
+	param[2].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[2].u.value.a = (u64)secure;
+
+	ret = tee_pta_invoke_cmd(ctx, uuid, TVP_CMD_SECTBL_SECMEM_SET, param);
+	if (ret)
+		pr_err("%s invoke sectbl set command failed\n", __func__);
+
+	tee_client_close_context(ctx);
+
+	return ret;
+}
+EXPORT_SYMBOL(tee_sectbl_secmem_set);
 
 int tee_create_sysfs(void)
 {
