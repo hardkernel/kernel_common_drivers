@@ -676,6 +676,21 @@ const struct mvrr_const_st *qms_const[] = {
 	NULL,
 };
 
+/* if rate is a multiple of 6, then reduce 0.1% */
+/* A Video Timing with a vertical frequency that is an integer multiple of
+ * 6.00 Hz (e.g., 24.00 or 120.00 Hz) is considered to be the same as a
+ * Video Timing with the equivalent detailed timing information but where the
+ * vertical frequency is adjusted by a factor of 1000/1001 (e.g., 24/1.001
+ * or 120/1.001).
+ */
+static u32 reduce_0p1_percent(u32 value)
+{
+	/* the max value is 120000, so multiply with 1000 won't overflow */
+	if (value % 6 == 0)
+		return value * 1000 / 1001;
+	return value;
+}
+
 /* debug only, should be positive value. if it is N, then vysnc_handler
  * will handle N frames, then it will be 0, and vysnc_handler is pending
  * value 1 is only for single steps, and -1 will work as normally.
@@ -1077,6 +1092,11 @@ ssize_t _vrr_cap_show(struct device *dev,
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 	struct vrr_device_s *vrr = &hdev->hdmitx_vrr_dev;
+#ifndef HDMI_NO_VERBOSE_INFO
+	struct drm_vrr_mode_group *groups;
+	int i;
+	int j;
+#endif
 
 	pos += snprintf(buf + pos, PAGE_SIZE,
 			"neg_mvrr: %d\n", prxcap->neg_mvrr);
@@ -1095,9 +1115,9 @@ ssize_t _vrr_cap_show(struct device *dev,
 	pos += snprintf(buf + pos, PAGE_SIZE,
 			"mdelta: %d\n", prxcap->mdelta);
 	pos += snprintf(buf + pos, PAGE_SIZE,
-			"RX_CAP vrr_max: %d\n", prxcap->vrr_max);
+			"vrr_max: %d\n", prxcap->vrr_max);
 	pos += snprintf(buf + pos, PAGE_SIZE,
-			"RX_CAP vrr_min: %d\n", prxcap->vrr_min);
+			"vrr_min: %d\n", prxcap->vrr_min);
 	pos += snprintf(buf + pos, PAGE_SIZE,
 			"vrr.vfreq_max: %d\n", vrr->vfreq_max);
 	pos += snprintf(buf + pos, PAGE_SIZE,
@@ -1106,6 +1126,35 @@ ssize_t _vrr_cap_show(struct device *dev,
 			"vrr.vline_max: %d\n", vrr->vline_max);
 	pos += snprintf(buf + pos, PAGE_SIZE,
 			"vrr.vline_min: %d\n", vrr->vline_min);
+
+#ifndef HDMI_NO_VERBOSE_INFO
+	/* check the VRR range group */
+	groups = kcalloc(MAX_VRR_MODE_GROUP, sizeof(*groups), GFP_KERNEL);
+	if (!groups) {
+		HDMITX_DEBUG("%s alloc fail\n", __func__);
+		return pos;
+	}
+	memset(groups, 0, MAX_VRR_MODE_GROUP * sizeof(*groups));
+	drm_hdmitx_get_vrr_mode_group(groups, MAX_VRR_MODE_GROUP);
+	for (i = 0; i < MAX_VRR_MODE_GROUP; i++) {
+		if (!groups[i].brr_vic)
+			continue;
+		pos += snprintf(buf + pos, PAGE_SIZE, "VRR Group%d\n", i);
+		pos += snprintf(buf + pos, PAGE_SIZE, "  brr vic %d\n", groups[i].brr_vic);
+		for (j = 0; j < MAX_QMS_GROUP_NUM; j++) {
+			const struct hdmi_timing *timing;
+
+			if (!groups[i].qms_vic_lists[j])
+				continue;
+			timing = hdmitx_mode_vic_to_hdmi_timing(groups[i].qms_vic_lists[j]);
+			pos += snprintf(buf + pos, PAGE_SIZE, "    [%d] %s %d\n",
+				j,
+				timing->sname ? timing->sname : timing->name,
+				groups[i].qms_vic_lists[j]);
+		}
+	}
+	kfree(groups);
+#endif
 	return pos;
 }
 
@@ -1195,13 +1244,13 @@ static void calc_vrr_range(struct rx_cap *prxcap, struct drm_vrr_mode_group *gro
 		group->game_vrr_max = prxcap->vrr_max;
 		break;
 	case 0x10:
-		group->vrr_min = 48000 / 1001 * 100;
+		group->vrr_min = reduce_0p1_percent(4800);
 		group->vrr_max = 60 * 100;
 		group->game_vrr_min = 0;
 		group->game_vrr_max = 0;
 		break;
 	case 0x14:
-		group->vrr_min = 48000 / 1001 * 100;
+		group->vrr_min = reduce_0p1_percent(4800);
 		group->vrr_max = brr_vfreq;
 		group->game_vrr_min = 0;
 		group->game_vrr_max = 0;
@@ -1231,37 +1280,37 @@ static void calc_vrr_range(struct rx_cap *prxcap, struct drm_vrr_mode_group *gro
 		group->game_vrr_max = prxcap->vrr_max * 100;
 		break;
 	case 0x18:
-		group->vrr_min = 24000 / 1001 * 100;
+		group->vrr_min = reduce_0p1_percent(2400);
 		group->vrr_max = 60 * 100;
 		group->game_vrr_min = 0;
 		group->game_vrr_max = 0;
 		break;
 	case 0x1c:
-		group->vrr_min = 24000 / 1001 * 100;
+		group->vrr_min = reduce_0p1_percent(2400);
 		group->vrr_max = brr_vfreq;
 		group->game_vrr_min = 0;
 		group->game_vrr_max = 0;
 		break;
 	case 0x1a:
-		group->vrr_min = 24000 / 1001 * 100;
+		group->vrr_min = reduce_0p1_percent(2400);
 		group->vrr_max = 60 * 100;
 		group->game_vrr_min = prxcap->vrr_min * 100;
 		group->game_vrr_max = brr_vfreq;
 		break;
 	case 0x1e:
-		group->vrr_min = 24000 / 1001 * 100;
+		group->vrr_min = reduce_0p1_percent(2400);
 		group->vrr_max = brr_vfreq;
 		group->game_vrr_min = prxcap->vrr_min * 100;
 		group->game_vrr_max = brr_vfreq;
 		break;
 	case 0x1b:
-		group->vrr_min = 24000 / 1001 * 100;
+		group->vrr_min = reduce_0p1_percent(2400);
 		group->vrr_max = 60 * 100;
 		group->game_vrr_min = prxcap->vrr_min * 100;
 		group->game_vrr_max = prxcap->vrr_max * 100;
 		break;
 	case 0x1f:
-		group->vrr_min = 24000 / 1001 * 100;
+		group->vrr_min = reduce_0p1_percent(2400);
 		group->vrr_max = prxcap->vrr_max * 100;
 		group->game_vrr_min = prxcap->vrr_min * 100;
 		group->game_vrr_max = prxcap->vrr_max * 100;
@@ -1314,8 +1363,8 @@ static void add_brr_vic_lists(struct drm_vrr_mode_group *group)
 			continue;
 		if (vic_timing->v_pict != brr_timing->v_pict)
 			continue;
-		vsync = vic_timing->v_freq / 10 * 1000 / 1001;
-		if (vsync >= group->vrr_min &&
+		vsync = vic_timing->v_freq / 10;
+		if (vsync >= reduce_0p1_percent(group->vrr_min) &&
 			(vic_timing->v_freq / 10) <= group->vrr_max) {
 			if (i > MAX_QMS_GROUP_NUM) {
 				HDMITX_INFO("qms vic list number over %d\n", MAX_QMS_GROUP_NUM);
@@ -1424,7 +1473,7 @@ static void updata_vinfo_sync_duration(struct vinfo_s *vinfo,
 			vinfo->sync_duration_den = 100;
 		}
 	} else {
-		vinfo->sync_duration_num = rate * 1000 / 1001;
+		vinfo->sync_duration_num = reduce_0p1_percent(rate);
 		vinfo->sync_duration_den = 100;
 	}
 	vinfo->brr_duration = brr_rate;
@@ -1508,7 +1557,7 @@ int hdmitx_set_fr_hint(int rate, void *data)
 			case 4800:
 			case 6000:
 			case 12000:
-				para.duration = rate * 1000 / 1001;
+				para.duration = reduce_0p1_percent(rate);
 				break;
 			default:
 				break;
@@ -1568,8 +1617,8 @@ void hdmitx_register_vrr(struct hdmitx_dev *hdev)
 	if (!vinfo || vinfo->mode != VMODE_HDMI)
 		return;
 	vrr->output_src = VRR_OUTPUT_ENCP;
-	vrr->vfreq_max = prxcap->vrr_min;
-	vrr->vfreq_min = prxcap->vrr_max;
+	vrr->vfreq_max = prxcap->vrr_max;
+	vrr->vfreq_min = prxcap->vrr_min;
 	vrr->vline_max =
 		vinfo->vtotal * (prxcap->vrr_max / prxcap->vrr_min);
 	if (prxcap->vrr_max == 0)
