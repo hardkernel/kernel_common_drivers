@@ -1894,15 +1894,21 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 
 		if (vid_cmpr_top->src_vf) {
 			type = vid_cmpr_top->src_vf->type;
-			if (type & VIDTYPE_TYPEMASK) {
-				/* interlace source */
+			vicp_print(VICP_INFO, "%s: type=0x%x.\n", __func__, type);
+			if ((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP) {
 				is_interlace = true;
 				vid_cmpr_rmif.src_field_mode = 1;
-				if ((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP)
-					vid_cmpr_rmif.output_field_num = 0;
-				else
-					vid_cmpr_rmif.output_field_num = 1;
+				vid_cmpr_rmif.output_field_num = 0;
+			} else if ((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_BOTTOM) {
+				is_interlace = true;
+				vid_cmpr_rmif.src_field_mode = 1;
+				vid_cmpr_rmif.output_field_num = 1;
+			} else {
+				is_interlace = false;
+				vid_cmpr_rmif.src_field_mode = 0;
+				vid_cmpr_rmif.output_field_num = 1;
 			}
+
 		}
 
 		vid_cmpr_rmif.stride_y = vid_cmpr_top->canvas_width[0];
@@ -2284,7 +2290,10 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 	else
 		vid_cmpr_top->out_shrk_en = 1;
 	vid_cmpr_top->out_shrk_mode = data_config->data_option.shrink_mode;
-	vid_cmpr_top->skip_mode = data_config->data_option.skip_mode;
+	if (vid_cmpr_top->src_hsize < 1920)
+		vid_cmpr_top->skip_mode = VICP_SKIP_MODE_OFF;
+	else
+		vid_cmpr_top->skip_mode = data_config->data_option.skip_mode;
 
 	rotation = data_config->data_option.rotation_mode;
 	if (rotation == VICP_ROTATION_90) {
