@@ -170,7 +170,7 @@ void set21_s6_htxpll_clk_out(const u32 clk, u32 div)
 void set21_phy_by_mode_s6(u32 mode)
 {
 	struct arm_smccc_res res;
-	u32 rterm = 0; /* this will get from efuse */
+	u8 rterm = 0; /* this will get from efuse */
 
 	switch (mode) {
 	case HDMI_PHYPARA_6G: /* 5.94/4.5/3.7Gbps */
@@ -196,7 +196,7 @@ void set21_phy_by_mode_s6(u32 mode)
 
 	/* write Rterm */
 	arm_smccc_smc(HDCPTX_IOOPR, HDMITX_GET_RTERM, 0, 0, 0, 0, 0, 0, &res);
-	rterm = (unsigned int)((res.a0) & 0xffffffff);
+	rterm = (u8)((res.a0) & 0xff);
 	/* default value when efuse invalid, 0xff indicate efuse invalid */
 	if (rterm != 0xff) {
 		HDMITX_INFO("%s[%d] rterm = %d\n", __func__, __LINE__, rterm);
