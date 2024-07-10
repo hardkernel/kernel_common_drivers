@@ -303,6 +303,10 @@ if [[ -n ${RM_KERNEL_BUILD_VAR_FILE} ]]; then
 	rm -f ${KERNEL_BUILD_VAR_FILE}
 fi
 
+if [[ ${ARCH} = "arm64" && -z ${FAST_BUILD} ]]; then
+	generate_lzma_format_image
+fi
+
 rename_external_module_name
 
 rebuild_rootfs ${ARCH}
@@ -313,6 +317,4 @@ check_undefined_symbol
 
 abi_symbol_list_detect
 
-if [[ ${ARCH} = "arm64" && -z ${FAST_BUILD} ]]; then
-	generate_lzma_format_image
-fi
+wait

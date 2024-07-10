@@ -29,13 +29,13 @@ function am_patch()
 {
 	local patch=$1
 	local dir=$2
+	local compare_id=$3
 	local change_id=`grep 'Change-Id' $patch | head -n1 | awk '{print $2}'`
 
 	# echo ${patch} ${dir}
 	if [ -d "${dir}" ]; then
 		cd ${dir};
-		git log -n 400 | grep ${change_id} 1>/dev/null 2>&1;
-		if [ $? -ne 0 ]; then
+		if [[ ! "${compare_id[@]}" =~ "${change_id}" ]]; then
 			# echo "###patch ${patch##*/}###      "
 			git am -q ${patch} 1>/dev/null 2>&1;
 			if [ $? != 0 ]; then
@@ -62,7 +62,8 @@ function auto_patch()
 		local dir_name=${dir_name1%/*};       #echo dir_name $dir_name
 		local dir=${common_path}/$dir_name;   #echo $dir
 
-		am_patch ${file} ${dir}
+		local compare_change_id=$(cd ${dir} && git log -n 400 |grep "Change-Id:" | awk '{print $2}')
+		am_patch ${file} ${dir} "${compare_change_id[@]}"
 	done
 }
 
@@ -70,20 +71,26 @@ function traverse_patch_dir()
 {
 	# git am common and common_driver patches
 	echo "Auto Patch Start"
-	for file in `ls ${PATCHES_PATH}/common`; do
-		# echo file=$file
-		if [ -d ${PATCHES_PATH}/common/${file} ]; then
-			for patch in `find ${PATCHES_PATH}/common/${file} -name "*.patch" | sort`; do
-				am_patch ${patch} ${KERNEL_DIR}
+	{
+		local common_change_id=$(cd ${KERNEL_DIR} && git log -n 400 |grep "Change-Id:" | awk '{print $2}')
+		for file in `ls ${PATCHES_PATH}/common`; do
+			# echo file=$file
+			if [ -d ${PATCHES_PATH}/common/${file} ]; then
+				for patch in `find ${PATCHES_PATH}/common/${file} -name "*.patch" | sort`; do
+					am_patch ${patch} ${KERNEL_DIR} "${common_change_id[@]}"
+				done
+			fi
+		done
+	} &
+
+	{
+		local common_drivers_change_id=$(cd ${KERNEL_DIR}/${COMMON_DRIVERS_DIR} && git log -n 400 |grep "Change-Id:" | awk '{print $2}')
+		if [[ -d ${PATCHES_PATH}/common_drivers ]]; then
+			for patch in `find ${PATCHES_PATH}/common_drivers -name "*.patch" | sort`; do
+				am_patch ${patch} ${KERNEL_DIR}/${COMMON_DRIVERS_DIR} "${common_drivers_change_id[@]}"
 			done
 		fi
-	done
-
-	if [[ -d ${PATCHES_PATH}/common_drivers ]]; then
-		for patch in `find ${PATCHES_PATH}/common_drivers -name "*.patch" | sort`; do
-			am_patch ${patch} ${KERNEL_DIR}/${COMMON_DRIVERS_DIR}
-		done
-	fi
+	} &
 
 	for file in `ls ${PATCHES_PATH}`; do
 		[[ "${file}" == "common" || "${file}" == "common_drivers" ]] && continue
@@ -94,6 +101,7 @@ function traverse_patch_dir()
 		fi
 	done
 
+	wait
 	echo
 	echo "Patch Finish: ${common_path}"
 }
@@ -113,7 +121,8 @@ function handle_lunch_patch()
 		local dir_name=${dir_name1%/*}
 		local dir=${common_path}/$dir_name
 
-		am_patch ${file} ${dir}
+		local compare_change_id=$(cd ${dir} && git log -n 400 |grep "Change-Id:" | awk '{print $2}')
+		am_patch ${file} ${dir} ${compare_change_id}
 	done < ${PATCHES_PATH}/lunch_patches.txt
 
 	echo
