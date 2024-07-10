@@ -28,20 +28,91 @@ struct lcd_tcon_dma_info_s {
 	struct list_head list;
 };
 
-static struct  list_head *lcd_tcon_dma_list_head;
-static atomic_t lcd_tcon_dma_ref = ATOMIC_INIT(0);
-
-int lcd_tcon_get_dma_ref(void)
+int tcon_lut_dma_get_frame_cnt(struct aml_lcd_drv_s *pdrv)
 {
-	return atomic_read(&lcd_tcon_dma_ref);
+	return lcd_vcbus_getb(VPU_DMA_RDMIF7_CTRL, 28, 2);
 }
 
-void lcd_tcon_set_dma_ref(int i)
+void tcon_lut_dma_start(struct aml_lcd_drv_s *pdrv)
 {
-	atomic_set(&lcd_tcon_dma_ref, i);
+	lcd_tcon_setb(pdrv, 0x207, 1, 31, 1); //enable dma clk
+	lcd_tcon_setb(pdrv, 0x367, 1, 0, 14); // triger delay
+	lcd_tcon_setb(pdrv, 0x367, 1, 16, 1); // enable tcon intr
 }
 
-static void lcd_tcon_dma_update_add(phys_addr_t paddr, unsigned int size)
+void tcon_lut_dma_stop(struct aml_lcd_drv_s *pdrv)
+{
+	lcd_tcon_setb(pdrv, 0x367, 0, 16, 1); // disable tcon intr
+}
+
+void tcon_lut_dma_init_t5m(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops)
+{
+	ops->status = 0;
+	ops->addr_list = NULL;
+	lcd_vcbus_write(VPU_LUT_DMA_INTR_SEL, 0);//0:sel tcon 1:sel venc2
+}
+
+void tcon_lut_dma_init_t3x(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops)
+{
+	ops->status = 0;
+	ops->addr_list = NULL;
+	lcd_vcbus_write(VPU_TOP_MISC, 1);
+}
+
+void tcon_lut_dma_deinit(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops)
+{
+	struct lcd_tcon_dma_info_s *info;
+	struct list_head *list_temp;
+
+	if (!pdrv || !ops)
+		return;
+
+	lcd_tcon_setb(pdrv, 0x367, 0, 16, 1); // disable tcon intr
+	lcd_tcon_setb(pdrv, 0x207, 0, 31, 1); //disable dma clk
+
+	while (ops->addr_list) {
+		info = list_entry(ops->addr_list, struct lcd_tcon_dma_info_s, list);
+
+		if (ops->addr_list->next != ops->addr_list) {
+			list_temp = ops->addr_list->next;
+			list_del(ops->addr_list);
+			ops->addr_list = list_temp;
+		} else {
+			ops->addr_list = NULL;
+		}
+		kfree(info);
+	}
+	ops->status = 0;
+}
+
+/*
+ * must check addr and size before called
+ * paddr: 16bytes aligned
+ * size: 16bytes aligned
+ */
+void tcon_lut_dma_mif_set(struct aml_lcd_drv_s *pdrv, phys_addr_t paddr, unsigned int size)
+{
+	unsigned int cmd_cnt = 0;
+
+	cmd_cnt = size >> 4;
+	lcd_vcbus_write(VPU_DMA_RDMIF7_BADR0, paddr >> 4);
+	lcd_vcbus_write(VPU_DMA_RDMIF7_BADR1, paddr >> 4);
+	lcd_vcbus_write(VPU_DMA_RDMIF7_BADR2, paddr >> 4);
+	lcd_vcbus_write(VPU_DMA_RDMIF7_BADR3, paddr >> 4);
+	//reset index to 0
+	lcd_vcbus_write(VPU_DMA_RDMIF7_CTRL,
+					1 << 30 | //clr_fcnt reset cnt to //reg_rd7_frm_ini
+					0 << 27 | //lut_frm_cnt_ctl cnt range: 0-[0~3] 1-[0~1]
+					0 << 26 | //frm_froce force to frm_ini
+					0 << 24 | //frm_ini
+					2 << 16 | //sel intr from 2=encl/tcon 1=viu1
+					0 << 14 | //lut_reg_swap_64bit
+					0 << 13 | //lut_reg_little_endian
+					cmd_cnt);//lut_reg_stride
+}
+
+static void lcd_tcon_dma_addr_add(struct lcd_tcon_dma_ops_s *ops,
+		phys_addr_t paddr, unsigned int size)
 {
 	struct lcd_tcon_dma_info_s *dma_info;
 
@@ -51,102 +122,49 @@ static void lcd_tcon_dma_update_add(phys_addr_t paddr, unsigned int size)
 
 	dma_info->paddr = paddr;
 	dma_info->size = size;
-	if (lcd_tcon_dma_list_head) {
-		list_add_tail(&dma_info->list, lcd_tcon_dma_list_head);
+	if (ops->addr_list) {
+		list_add_tail(&dma_info->list, ops->addr_list);
 	} else {
 		dma_info->list.prev = &dma_info->list;
 		dma_info->list.next = &dma_info->list;
-		lcd_tcon_dma_list_head = &dma_info->list;
+		ops->addr_list = &dma_info->list;
 	}
-
-	if (atomic_read(&lcd_tcon_dma_ref) < 0)
-		atomic_set(&lcd_tcon_dma_ref, 0);
-	atomic_inc(&lcd_tcon_dma_ref);
 }
 
-void lcd_tcon_lut_dma_update(struct aml_lcd_drv_s *pdrv)
+void lcd_tcon_lut_dma_update(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops)
 {
-	struct lcd_tcon_config_s *tcon = get_lcd_tcon_config();
 	struct lcd_tcon_dma_info_s *dma_info;
 	struct list_head *list_temp;
-	int lut_dma_ref = 0;
 
-	if (!tcon || !tcon->lut_dma_mif_set || !tcon->lut_dma_enable || !tcon->lut_dma_disable)
+	if (!ops || !ops->mif_set || !ops->start || !ops->stop || !ops->get_frame_cnt)
 		return;
 
-	lut_dma_ref = lcd_tcon_get_dma_ref();
-	if (lut_dma_ref > 0) {
-		tcon->lut_dma_disable(pdrv);
+	if (ops->status) {
+		if (ops->get_frame_cnt(pdrv)) {
+			ops->stop(pdrv);
+			ops->status = 0;
+		} else {
+			return;//enabled but not trans finish
+		}
+	}
 
-	if (!lcd_tcon_dma_list_head)
+	if (!ops->addr_list)
 		return;
 
-	dma_info = list_entry(lcd_tcon_dma_list_head, struct lcd_tcon_dma_info_s, list);
-	tcon->lut_dma_mif_set(dma_info->paddr, dma_info->size);
-	tcon->lut_dma_enable(pdrv);
+	dma_info = list_entry(ops->addr_list, struct lcd_tcon_dma_info_s, list);
+	ops->mif_set(pdrv, dma_info->paddr, dma_info->size);
 
-	if (lcd_tcon_dma_list_head->next != lcd_tcon_dma_list_head) {
-		list_temp = lcd_tcon_dma_list_head->next;
-		__list_del(lcd_tcon_dma_list_head->prev, lcd_tcon_dma_list_head->next);
-		lcd_tcon_dma_list_head = list_temp;
+	ops->start(pdrv);
+	ops->status = 1;
+
+	if (ops->addr_list->next != ops->addr_list) {
+		list_temp = ops->addr_list->next;
+		list_del(ops->addr_list);
+		ops->addr_list = list_temp;
 	} else {
-		lcd_tcon_dma_list_head = NULL;
+		ops->addr_list = NULL;
 	}
-		if (lcd_debug_print_flag & LCD_DBG_PR_ISR)
-			LCDPR("%s,  dma_info: paddr:0x%llx, size:0x%x\n", __func__,
-				(unsigned long long)dma_info->paddr, dma_info->size);
 	kfree(dma_info);
-
-	atomic_dec(&lcd_tcon_dma_ref);
-	} else if (lut_dma_ref == 0) {
-		tcon->lut_dma_disable(pdrv);
-		lcd_tcon_set_dma_ref(-1);
-	}
-}
-
-/*
- * must check addr and size before called
- * paddr: 16bytes aligned
- * size: 16bytes aligned
- */
-void lcd_tcon_lut_dma_mif_set_t5m(phys_addr_t paddr, unsigned int size)
-{
-	unsigned int cmd_cnt = 0;
-
-	/* 128 bits per cmd */
-	cmd_cnt = size >> 4;
-	lcd_vcbus_write(VPU_DMA_RDMIF7_BADR0, paddr >> 4);
-	lcd_vcbus_write(VPU_DMA_RDMIF7_BADR1, paddr >> 4);
-	lcd_vcbus_write(VPU_DMA_RDMIF7_BADR2, paddr >> 4);
-	lcd_vcbus_write(VPU_DMA_RDMIF7_BADR3, paddr >> 4);
-	//reset index to 0
-	lcd_vcbus_write(VPU_DMA_RDMIF7_CTRL,
-					0 << 27 | //lut_frm_cnt_clr
-					0 << 26 | //lut_clr_fcnt
-					1 << 24 | //lut_frm_cnt
-					2 << 16 | //sel intr from 2=encl/tcon 1=viu1
-					0 << 14 | //lut_reg_swap_64bit
-					0 << 13 | //lut_reg_little_endian
-					cmd_cnt);//lut_reg_stride
-	lcd_vcbus_write(VPU_LUT_DMA_INTR_SEL, 0);//0:sel tcon 1:sel venc2
-}
-
-void lcd_tcon_lut_dma_enable_t5m(struct aml_lcd_drv_s *pdrv)
-{
-	if (!pdrv)
-		return;
-
-	lcd_tcon_setb(pdrv, 0x367, 1, 16, 1); // enale tcon intr
-	lcd_tcon_setb(pdrv, 0x207, 1, 31, 1); //enable dma clk
-}
-
-void lcd_tcon_lut_dma_disable_t5m(struct aml_lcd_drv_s *pdrv)
-{
-	if (!pdrv)
-		return;
-
-	lcd_tcon_setb(pdrv, 0x367, 0, 16, 1); // disable tcon intr
-	lcd_tcon_setb(pdrv, 0x207, 0, 31, 1); //disable dma
 }
 
 static void lcd_tcon_core_reg_pre_od(struct lcd_tcon_config_s *tcon_conf,
@@ -670,13 +688,13 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv, unsigned char *da
 	unsigned short block_ctrl_flag;
 	unsigned char exe_in_isr = 0, exe_ignore = 0;
 	unsigned int part_start_offset, part_offset;
+	struct lcd_tcon_dma_ops_s *dma_ops = NULL;
 	int ret;
 
-	if (!tcon_local)
+	if (!tcon_local || !tcon_conf)
 		return -1;
 
-	if (tcon_conf)
-		reg_base = tcon_conf->core_reg_start;
+	reg_base = tcon_conf->core_reg_start;
 
 	block_header = (struct lcd_tcon_data_block_header_s *)data_buf;
 	p = data_buf + block_header->header_size;
@@ -1050,7 +1068,11 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv, unsigned char *da
 			if (!paddr || paddr & 0xf || data_part.dma->dma_data_size & 0xf)
 				break;
 
-			lcd_tcon_dma_update_add(paddr, data_part.dma->dma_data_size);
+			dma_ops = tcon_conf->lut_dma_ops;
+			if (!dma_ops)
+				break;
+
+			lcd_tcon_dma_addr_add(dma_ops, paddr, data_part.dma->dma_data_size);
 			if (exe_ignore) {
 				if ((lcd_debug_print_flag & LCD_DBG_PR_ADV))
 					LCDPR("%s part[%d] ignored\n", __func__, step);
@@ -1501,6 +1523,9 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 		}
 	}
 
+	if (tcon_conf->lut_dma_ops && tcon_conf->lut_dma_ops->init)
+		tcon_conf->lut_dma_ops->init(pdrv, tcon_conf->lut_dma_ops);
+
 	/* step 3: tcon data set */
 	local_time[1] = sched_clock();
 	if (mm_table->version > 0 && mm_table->version < 0xff)
@@ -1526,8 +1551,15 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned long long local_time[2];
+	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
 
 	local_time[0] = sched_clock();
+
+	if (!tcon_conf)
+		return 0;
+
+	if (tcon_conf->lut_dma_ops && tcon_conf->lut_dma_ops->deinit)
+		tcon_conf->lut_dma_ops->deinit(pdrv, tcon_conf->lut_dma_ops);
 
 	/* disable unit(reg_func_enable) timing signal */
 	lcd_tcon_write(pdrv, 0x30e, 0);

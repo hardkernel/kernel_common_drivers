@@ -1540,9 +1540,6 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 
 	local_time[0] = sched_clock();
 
-	if (lcd_tcon_conf->lut_dma_update)
-		lcd_tcon_conf->lut_dma_update(pdrv);
-
 	if (tcon_mm_table.version > 0 && tcon_mm_table.version < 0xff) {
 		if (tcon_mm_table.multi_lut_update) {
 			spin_lock_irqsave(&tcon_local_cfg.multi_list_lock, flags);
@@ -1550,6 +1547,9 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 			spin_unlock_irqrestore(&tcon_local_cfg.multi_list_lock, flags);
 		}
 	}
+
+	if (lcd_tcon_conf->lut_dma_ops && lcd_tcon_conf->lut_dma_ops->update)
+		lcd_tcon_conf->lut_dma_ops->update(pdrv, lcd_tcon_conf->lut_dma_ops);
 
 	if (tcon_pdf->vs_handler)
 		tcon_pdf->vs_handler(tcon_pdf);
@@ -3030,6 +3030,9 @@ static int lcd_tcon_get_config(struct aml_lcd_drv_s *pdrv)
 
 	lcd_tcon_dccd_flow_check(pdrv);
 
+	if (lcd_tcon_conf->lut_dma_ops && lcd_tcon_conf->lut_dma_ops->init)
+		lcd_tcon_conf->lut_dma_ops->init(pdrv, lcd_tcon_conf->lut_dma_ops);
+
 	lrm_resource_device_finish("lcd_tcon");
 
 	return 0;
@@ -3083,6 +3086,30 @@ static struct lcd_tcon_axi_mem_cfg_s axi_mem_cfg_tbl_txhd2[] = {
 	{ TCON_AXI_MEM_TYPE_DEMURA, 0x00100000, 0x19b, 0 },  /* 1M */
 };
 
+static struct lcd_tcon_dma_ops_s lcd_tcon_dma_ops_t5m = {
+	.status = 0,
+	.addr_list = NULL,
+	.get_frame_cnt = tcon_lut_dma_get_frame_cnt,
+	.start = tcon_lut_dma_start,
+	.stop = tcon_lut_dma_stop,
+	.mif_set = tcon_lut_dma_mif_set,
+	.init = tcon_lut_dma_init_t5m,
+	.deinit = tcon_lut_dma_deinit,
+	.update = lcd_tcon_lut_dma_update,
+};
+
+static struct lcd_tcon_dma_ops_s lcd_tcon_dma_ops_t3x = {
+	.status = 0,
+	.addr_list = NULL,
+	.get_frame_cnt = tcon_lut_dma_get_frame_cnt,
+	.start = tcon_lut_dma_start,
+	.stop = tcon_lut_dma_stop,
+	.mif_set = tcon_lut_dma_mif_set,
+	.init = tcon_lut_dma_init_t3x,
+	.deinit = tcon_lut_dma_deinit,
+	.update = lcd_tcon_lut_dma_update,
+};
+
 static struct lcd_tcon_config_s tcon_data_tl1 = {
 	.tcon_valid = 0,
 
@@ -3124,7 +3151,7 @@ static struct lcd_tcon_config_s tcon_data_tl1 = {
 	.tcon_top_init = lcd_tcon_top_set_tl1,
 	.tcon_enable = lcd_tcon_enable_tl1,
 	.tcon_disable = lcd_tcon_disable_tl1,
-	.lut_dma_update = NULL,
+	.lut_dma_ops = NULL,
 	.tcon_check = NULL,
 };
 
@@ -3171,7 +3198,7 @@ static struct lcd_tcon_config_s tcon_data_t5 = {
 	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
-	.lut_dma_update = NULL,
+	.lut_dma_ops = NULL,
 	.tcon_check = lcd_tcon_setting_check_t5,
 };
 
@@ -3214,7 +3241,7 @@ static struct lcd_tcon_config_s tcon_data_t5d = {
 	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
-	.lut_dma_update = NULL,
+	.lut_dma_ops = NULL,
 	.tcon_check = lcd_tcon_setting_check_t5d,
 };
 
@@ -3261,7 +3288,7 @@ static struct lcd_tcon_config_s tcon_data_t3 = {
 	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
-	.lut_dma_update = NULL,
+	.lut_dma_ops = NULL,
 	.tcon_check = lcd_tcon_setting_check_t5,
 };
 
@@ -3301,6 +3328,7 @@ static struct lcd_tcon_config_s tcon_data_t5m = {
 
 	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_t5),
 	.axi_mem_cfg_tbl = axi_mem_cfg_tbl_t5,
+	.lut_dma_ops = &lcd_tcon_dma_ops_t5m,
 
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
@@ -3308,10 +3336,6 @@ static struct lcd_tcon_config_s tcon_data_t5m = {
 	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
-	.lut_dma_update = lcd_tcon_lut_dma_update,
-	.lut_dma_mif_set = lcd_tcon_lut_dma_mif_set_t5m,
-	.lut_dma_enable = lcd_tcon_lut_dma_enable_t5m,
-	.lut_dma_disable = lcd_tcon_lut_dma_disable_t5m,
 	.tcon_check = lcd_tcon_setting_check_t5,
 };
 static struct lcd_tcon_config_s tcon_data_t5w = {
@@ -3357,7 +3381,7 @@ static struct lcd_tcon_config_s tcon_data_t5w = {
 	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
-	.lut_dma_update = NULL,
+	.lut_dma_ops = NULL,
 	.tcon_check = lcd_tcon_setting_check_t5,
 };
 
@@ -3397,6 +3421,7 @@ static struct lcd_tcon_config_s tcon_data_t3x = {
 
 	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_t3x),
 	.axi_mem_cfg_tbl = (axi_mem_cfg_tbl_t3x),
+	.lut_dma_ops = &lcd_tcon_dma_ops_t3x,
 
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
@@ -3404,7 +3429,6 @@ static struct lcd_tcon_config_s tcon_data_t3x = {
 	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
-	.lut_dma_update = NULL,
 	.tcon_check = lcd_tcon_setting_check_t5,
 };
 
@@ -3447,7 +3471,7 @@ static struct lcd_tcon_config_s tcon_data_txhd2 = {
 	.tcon_top_init = lcd_tcon_top_set_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
-	.lut_dma_update = NULL,
+	.lut_dma_ops = NULL,
 	.tcon_check = lcd_tcon_setting_check_t5d,
 };
 

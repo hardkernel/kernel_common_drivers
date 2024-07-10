@@ -1775,6 +1775,7 @@
 #define VPU_DMA_RDMIF7_BADR2  0x2776
 #define VPU_DMA_RDMIF7_BADR3  0x2777
 #define VPU_LUT_DMA_INTR_SEL  0x2717
+#define VPU_TOP_MISC          0x2709 //t3x
 /***************************************************/
 #define ANACTRL_DSIPLL_CTRL0       0x00f0
 #define ANACTRL_DSIPLL_CTRL1       0x00f1

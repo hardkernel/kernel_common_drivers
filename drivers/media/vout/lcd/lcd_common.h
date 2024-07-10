@@ -72,7 +72,8 @@
 /* 20240620: optimize tcon multi data set flow */
 /* 20240704: lcd tcon support user info */
 /* 20240710: add support for S6 */
-#define LCD_DRV_VERSION    "20240710"
+/* 20240712: lcd tcon lut dma flow optimize */
+#define LCD_DRV_VERSION    "20240712"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;

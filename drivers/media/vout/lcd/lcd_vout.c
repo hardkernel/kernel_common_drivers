@@ -1459,6 +1459,11 @@ static int lcd_io_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+__weak long lcd_test_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned long arg)
+{
+	return 0;
+}
+
 static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	void __user *argp;
@@ -1485,6 +1490,12 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	      pdrv->index, __func__, _IOC_DIR(cmd), mcd_nr);
 
 	argp = (void __user *)arg;
+
+	if (mcd_nr >= 0xf0 && mcd_nr <= 0xff) {
+		ret = lcd_test_ioctl_handler(pdrv, mcd_nr, arg);
+		goto lcd_ioctl_end;
+	}
+
 	switch (mcd_nr) {
 	case LCD_IOC_NR_GET_HDR_INFO:
 		if (copy_to_user(argp, opt_info, sizeof(struct lcd_optical_info_s)))
@@ -1682,6 +1693,7 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 
+lcd_ioctl_end:
 	return ret;
 }
 
