@@ -1381,7 +1381,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 			dev->dummy_vf1.vf_ud_param.magic_code = 0;
 			dev->dummy_vf1.src_fmt.sei_magic_code = 0;
 
-			if (dim_get_post_link()) {
+			if (dim_get_post_link() || dim_get_pre_link()) {
 				dev->dummy_vf1.type &= ~0x2;
 			} else {
 				dev->dummy_vf1.type &= ~VIDTYPE_TYPEMASK;
