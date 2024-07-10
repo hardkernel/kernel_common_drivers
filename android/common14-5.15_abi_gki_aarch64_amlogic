@@ -91,3 +91,8 @@
   irq_chip_enable_parent
   irq_domain_free_irqs_common
   irq_domain_xlate_onecell
+
+ # some customers may need
+  i2c_smbus_write_byte
+  devm_fwnode_pwm_get
+  led_set_brightness
