@@ -216,8 +216,14 @@
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1920x1080x4x6+3840x2160x4x3+3840x2160x4x4(whiteboard)round up 4M align */
-			size = <0x0 0x12c00000>;
+			/* primary display: (2160p RGBA afbc) * 3 = 105M
+			 * secondary display: (1080p RGBA afbc) * 6 = 54M
+			 * white board: (2160p RGBA afbc) * 3 = 105M
+			 * virtual display: (2160p RGB) * 4 + (2160p RGBA) * 3
+			 *	= 96 + 96 = 192M (for vdin and output buffer)
+			 * total: 105 + 54 + 105 + 192 = 456M
+			 */
+			size = <0x0 0x1c800000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -239,7 +245,7 @@
 			/* normally,3840x2160 yuv420 8bit and 4 buffers
 			 * 3840x2160x1.5x4 = 48 M
 			 */
-			size = <0x0 0x3000000>;
+			size = <0x0 0x9000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
