@@ -40,6 +40,7 @@ unsigned int efuse_pattern_size;
 void __iomem *sharemem_input_base;
 void __iomem *sharemem_output_base;
 unsigned int efuse_obj_cmd_status;
+unsigned int efuse_cali_item_read;
 
 #define  DEFINE_EFUSEKEY_SHOW_ATTR(keyname)	\
 	static ssize_t  keyname##_show(struct class *cla, \
@@ -1278,6 +1279,10 @@ static int efuse_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(np, "efuse_obj_cmd_status", &efuse_obj_cmd_status);
 	if (ret)
 		efuse_obj_cmd_status = 0;
+
+	ret = of_property_read_u32(np, "efuse_cali_item_read", &efuse_cali_item_read);
+	if (ret)
+		efuse_cali_item_read = 0;
 
 	reg_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!IS_ERR_OR_NULL(reg_mem)) {

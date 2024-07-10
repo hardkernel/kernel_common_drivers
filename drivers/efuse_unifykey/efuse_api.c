@@ -106,9 +106,12 @@ int efuse_amlogic_cali_item_read(unsigned int item)
 {
 	struct arm_smccc_res res;
 
+	if (efuse_cali_item_read != 1)
+		return -EINVAL;
+
 	/* range check */
 	if (item < EFUSE_CALI_SUBITEM_WHOBURN ||
-		item > EFUSE_CALI_SUBITEM_BC)
+		item > EFUSE_CALI_SUBITEM_MAX)
 		return -EINVAL;
 
 	meson_sm_mutex_lock();
