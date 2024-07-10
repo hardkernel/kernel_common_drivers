@@ -172,6 +172,20 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		echo 						>> ${PROJECT_DIR}/project.bzl
 		echo "KCONFIG_EXT_SRCS = [" 			>> ${PROJECT_DIR}/project.bzl
 		echo "]" 					>> ${PROJECT_DIR}/project.bzl
+
+		echo 						>> ${PROJECT_DIR}/project.bzl
+		if [[ -n ${FAST_BUILD} ]]; then
+			echo "FAST_BUILD = \"fatload\""		>> ${PROJECT_DIR}/project.bzl
+		else
+			echo "FAST_BUILD = \"\""		>> ${PROJECT_DIR}/project.bzl
+		fi
+	else
+		echo 						>> ${PROJECT_DIR}/project.bzl
+		if [[ -n ${FAST_BUILD} ]]; then
+			echo "FAST_BUILD = \"android\""		>> ${PROJECT_DIR}/project.bzl
+		else
+			echo "FAST_BUILD = \"\""		>> ${PROJECT_DIR}/project.bzl
+		fi
 	fi
 
 	echo 						>> ${PROJECT_DIR}/project.bzl
@@ -183,8 +197,6 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 
 	sed -i "/UPGRADE_PROJECT/d" ${PROJECT_DIR}/project.bzl
 	echo "UPGRADE_PROJECT = \"${UPGRADE_PROJECT}\"" >> ${PROJECT_DIR}/project.bzl
-
-	echo "FAST_BUILD = \"${FAST_BUILD}\""		>> ${PROJECT_DIR}/project.bzl
 
 	[[ -f ${PROJECT_DIR}/dtb.bzl ]] || touch ${PROJECT_DIR}/dtb.bzl
 	echo "# SPDX-License-Identifier: GPL-2.0" 	>  ${PROJECT_DIR}/dtb.bzl
