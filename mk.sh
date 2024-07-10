@@ -283,6 +283,7 @@ else
 				build_android_32bit $@
 			else
 				clear_files_compressed_with_lzma_in_last_build
+				export BUILD_13_515_FOR_64BIT=1
 				${ROOT_DIR}/${BUILD_DIR}/build.sh "$@"
 			fi
 		fi

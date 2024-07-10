@@ -137,6 +137,10 @@ if [[ `grep "CONFIG_AMLOGIC_IN_KERNEL_MODULES=n" ${ROOT_DIR}/${FRAGMENT_CONFIG}`
 	"
 fi
 
+if [[ ${BUILD_13_515_FOR_64BIT} == 1 ]]; then
+	BUILD_SYSTEM_DLKM=1
+fi
+
 if [[ ${IN_BUILD_GKI_10} == 1 ]]; then
 	BUILD_SYSTEM_DLKM=1
 	EXT_MODULES=
