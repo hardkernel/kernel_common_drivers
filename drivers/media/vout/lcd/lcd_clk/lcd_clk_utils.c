@@ -1304,9 +1304,13 @@ void lcd_clk_generate_dft(struct aml_lcd_drv_s *pdrv)
 #ifdef CONFIG_AMLOGIC_LCD_TABLET
 	case LCD_MIPI:
 		if (pdrv->data->chip_type == LCD_CHIP_S6) {
+#ifndef CONFIG_AMLOGIC_C3_REMOVE
 			done = lcd_dsi_generate_DSI_PLL_s6_model(pdrv);
 			if (done)
 				done = pll_od_setting_generate(cconf, cconf->pll_fout);
+#else
+			done = 0;
+#endif
 		} else {
 			done = lcd_clk_generate_DSI_1PLL(pdrv);
 			// common DSI PLL model already had pll_od_setting_generate
