@@ -40,6 +40,20 @@
 /* TEE error codes */
 #define TEEC_SUCCESS                                       0x00000000
 
+struct tee_sectbl_info {
+	u32 tbl0_en;
+	u64 tbl0_sta;
+	u64 tbl0_size;
+	u32 tbl0_blk_size;
+	u32 tbl1_en;
+	u64 tbl1_sta;
+	u64 tbl1_size;
+	u32 tbl1_blk_size;
+	u32 tbl1_offset;
+	u32 secure_bits;
+	u32 sectbl_crc;
+};
+
 bool tee_enabled(void);
 
 int is_secload_get(void);
@@ -83,6 +97,13 @@ void tee_unprotect_tvp_mem(u32 handle);
 
 u32 tee_protect_mem_by_type(u32 type,
 		phys_addr_t start, size_t size, u32 *handle);
+
+u32 tee_sectbl_mem_map(phys_addr_t tbl0_sta, size_t tbl0_size,	u32 tbl0_blk_size,
+		phys_addr_t tbl1_sta, size_t tbl1_size,	u32 tbl1_blk_size);
+
+u32 tee_sectbl_get_info(struct tee_sectbl_info *sectbl_info);
+
+u32 tee_sectbl_secmem_set(phys_addr_t start, size_t size, u32 secure);
 
 #endif /* __TEE_H__ */
 
