@@ -3552,6 +3552,8 @@ static int earc_platform_probe(struct platform_device *pdev)
 		INIT_DELAYED_WORK(&p_earc->rx_stable_work, rx_stable_work_func);
 		INIT_DELAYED_WORK(&p_earc->rx_pll_detect_work, rx_pll_detect_work_func);
 		INIT_DELAYED_WORK(&p_earc->hdmitx_5v_work, hdmitx_5v_work_func);
+		if (!p_earc->chipinfo->ana_auto_cal)
+			earcrx_efuse_trim_set(p_earc->rx_top_map);
 	}
 	dev_err(dev, "registered eARC platform\n");
 
