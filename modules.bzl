@@ -57,6 +57,8 @@ AMLOGIC_COMMON_MODULES = [
     "//common_drivers/drivers/aml_tee:optee",
     "common_drivers/drivers/aml_tee/tee.ko",
     "//common_drivers/drivers/aml_tee:tee",
+    "common_drivers/drivers/aml_watermark/aml_watermark.ko",
+    "//common_drivers/drivers/aml_watermark:aml_watermark",
     "common_drivers/drivers/char/hw_random/amlogic-rng.ko",
     "//common_drivers/drivers/char/hw_random:amlogic-rng",
     "common_drivers/drivers/clk/meson/amlogic-clk.ko",
