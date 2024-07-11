@@ -251,7 +251,7 @@ static const DECLARE_TLV_DB_SCALE(sy602x_vol_tlv,          -7950, 50, 1);
 static const struct snd_kcontrol_new sy602x_snd_controls[] = {
 	{
 		 .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		 .name = "Master Playback Switch",
+		 .name = "Master Volume Mute",
 		 .info = sy602x_mute_info,
 		 .get = sy602x_mute_locked_get,
 		 .put = sy602x_mute_locked_put,
@@ -263,6 +263,8 @@ static const struct snd_kcontrol_new sy602x_snd_controls[] = {
 	SOC_SINGLE_TLV("Ch2 Playback Volume",
 		SY602X_CH2_VOL, 0, 255, 0, sy602x_vol_tlv),
 	// switch
+	SOC_SINGLE("Master Playback Switch", SY602X_SOFT_MUTE,
+		SY602X_SOFT_MUTE_MASTER_SHIFT, 1, 1),
 	SOC_SINGLE("Ch1 Playback Switch", SY602X_SOFT_MUTE,
 		SY602X_SOFT_MUTE_CH1_SHIFT, 1, 1),
 	SOC_SINGLE("Ch2 Playback Switch", SY602X_SOFT_MUTE,
