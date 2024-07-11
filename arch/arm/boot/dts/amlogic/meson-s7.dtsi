@@ -213,6 +213,13 @@
 		method = "smc";
 	};
 
+	aml_watermark {
+		compatible = "amlogic,watermark";
+		soc-name = "s7";
+		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>; //=viu-vsync
+		interrupt-names = "wm-vsync";
+	};
+
 	cma_shrinker: cma_shrinker {
 		compatible = "amlogic, cma-shrinker";
 		status = "disabled";
