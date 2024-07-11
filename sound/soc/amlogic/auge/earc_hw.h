@@ -339,4 +339,6 @@ void earctx_dmac_hold_bus_and_mute(struct regmap *dmac_map, bool enable);
 void earctx_dmac_force_mode(struct regmap *dmac_map, bool enable);
 int earcrx_get_sample_rate(struct regmap *dmac_map);
 void earcrx_err_correction_force_mode(struct regmap *dmac_map, bool enable);
+void earcrx_efuse_trim_set(struct regmap *rx_top_map);
+
 #endif

@@ -3279,6 +3279,8 @@ static int earc_platform_probe(struct platform_device *pdev)
 		if (earcrx_cmdc_get_attended_type(p_earc->rx_cmdc_map) == ATNDTYP_EARC)
 			earcrx_cmdc_set_cds(p_earc->rx_cmdc_map, p_earc->rx_cds_data);
 		INIT_DELAYED_WORK(&p_earc->rx_stable_work, rx_stable_work_func);
+		if (!p_earc->chipinfo->ana_auto_cal)
+			earcrx_efuse_trim_set(p_earc->rx_top_map);
 	}
 	dev_err(dev, "registered eARC platform\n");
 

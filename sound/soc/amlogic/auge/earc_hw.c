@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <sound/asoundef.h>
+#include <linux/amlogic/efuse.h>
 
 #include "earc_hw.h"
 
@@ -131,15 +132,13 @@ void earcrx_cmdc_init(struct regmap *top_map, bool en, bool rx_dmac_sync_int,
 	bool rterm_on, bool rx_pll_new)
 {
 	if (rterm_on) {
-		mmio_write(top_map, EARCRX_ANA_CTRL0,
-			   0x10 << 25 | /* earcrx_cmdcrx_reftrim */
-			   0x10  << 20 | /* earcrx_idr_trim */
-			   0x10 << 15 | /* earcrx_rterm_trim */
-			   0x4  << 12 | /* earcrx_cmdctx_ack_hystrim */
-			   0x10 << 7  | /* earcrx_cmdctx_ack_reftrim */
-			   0x1  << 4  | /* earcrx_cmdcrx_rcfilter_sel */
-			   0x4  << 0    /* earcrx_cmdcrx_hystrim */
-			  );
+		mmio_update_bits(top_map, EARCRX_ANA_CTRL0,
+				 0x7  << 12 | /* earcrx_cmdctx_ack_hystrim */
+				 0x3  << 4  | /* earcrx_cmdcrx_rcfilter_sel */
+				 0x7  << 0,   /* earcrx_cmdcrx_hystrim */
+				 0x4  << 12 |
+				 0x1  << 4  |
+				 0x4  << 0);
 		mmio_write(top_map, EARCRX_ANA_CTRL1,
 				 0x1 << 11 | 0x1 << 10 | 0x8 << 4 | 0x8 << 0);
 		if (rx_pll_new)
@@ -2028,4 +2027,29 @@ void earcrx_err_correction_force_mode(struct regmap *dmac_map, bool enable)
 
 	/* EARCRX_ERR_CORRECT_CTRL0 force mode enable */
 	mmio_update_bits(dmac_map, EARCRX_ERR_CORRECT_CTRL0, 0x3, val);
+}
+
+void earcrx_efuse_trim_set(struct regmap *rx_top_map)
+{
+	unsigned int val = efuse_amlogic_cali_item_read(EFUSE_CALI_SUBITEM_EARCRX);
+
+	if (val >= 0 && val <= 0x1f) {
+		pr_info("%s:trim value %d\n", __func__, val);
+		/* suggest by vlsi and hw team, efuse value + 4 */
+		val += 4;
+		if (val > 0x1f)
+			val = 0x1f;
+	} else {
+		val = 0x10; /* default trim is 0x10 */
+	}
+
+	mmio_update_bits(rx_top_map, EARCRX_ANA_CTRL0,
+		0x1f << 25 | /* earcrx_cmdcrx_reftrim */
+		0x1f << 20 | /* earcrx_idr_trim */
+		0x1f << 15 | /* earcrx_rterm_trim */
+		0x1f << 7,   /* earcrx_cmdctx_ack_reftrim */
+		val  << 25 |
+		val  << 20 |
+		val  << 15 |
+		val  << 7);
 }
