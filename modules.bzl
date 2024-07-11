@@ -26,6 +26,7 @@ AMLOGIC_COMMON_MODULES = [
     "arch/arm64/crypto/sha1-ce.ko",
     "common_drivers/drivers/aml_tee/optee/optee.ko",
     "common_drivers/drivers/aml_tee/tee.ko",
+    "common_drivers/drivers/aml_watermark/aml_watermark.ko",
     "common_drivers/drivers/char/hw_random/amlogic-rng.ko",
     "common_drivers/drivers/clk/meson/amlogic-aoclk-g12a.ko",
     "common_drivers/drivers/clk/meson/amlogic-aoclk-soc-t5w.ko",
