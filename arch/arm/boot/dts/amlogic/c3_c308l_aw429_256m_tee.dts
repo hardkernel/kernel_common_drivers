@@ -16,3 +16,7 @@
 		status = "okay";
 	};
 };
+
+&secmon_reserved {
+	reg = <0x0F700000 0x900000>;
+};

@@ -12,6 +12,7 @@ dtb-y += c3_c302x_aw409_256m.dtb
 dtb-y += c3_c302x_aw409_256m_tee.dtb
 dtb-y += c3_c302x_aw409-emmc_256m.dtb
 dtb-y += c3_c308l_aw429_256m.dtb
+dtb-y += c3_c308l_aw429_256m_tee.dtb
 dtb-y += c3_c302x_aw409_128m.dtb
 dtb-y += c3_c302x_aw409_128m_spinor.dtb
 dtb-y += c3_c302x_aw409_256m_spinor.dtb
