@@ -85,12 +85,14 @@
 		};
 
 		ion_cma_reserved:linux,ion-dev {
+			status = "disabled";
 			compatible = "shared-dma-pool";
 			reusable;
 			size = <0x0>;
 			alignment = <0x400000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
+			status = "disabled";
 			compatible = "shared-dma-pool";
 			reusable;
 			size = <0x0>;
@@ -103,11 +105,12 @@
 			 * fbdev: 2 * (number of /dev/fbx device) buffers
 			 * wayland-drm: 4 buffers for wayland compositor
 			 */
-			size = <0x2400000>;
+			size = <0xc00000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x10000000 0x10000000>;
+			//alloc-ranges = <0x10000000 0x10000000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
+			status = "disabled";
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 720p STB androidU size 24M */
@@ -117,6 +120,7 @@
 		};
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
+			status = "disabled";
 			compatible = "shared-dma-pool";
 			reusable;
 			/* buffer_size = 3621952(yuv422 8bit)
@@ -133,6 +137,7 @@
 
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
+			status = "disabled";
 			compatible = "shared-dma-pool";
 			size = <0x0>;
 		};
@@ -140,15 +145,16 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* Two-channel 1080i HEVC secure playback requires at least 168MB */
-			size = <0xA800000>;
+			/* DTV 1080I secure playback */
+			size = <0x9000000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x10000000 0x10000000>;
+			//alloc-ranges = <0x10000000 0x10000000>;
 		};
 
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
+			status = "disabled";
 			compatible = "amlogic, codec-mm-reserved";
 			size = <0x0>;
 			alignment = <0x100000>;
@@ -158,9 +164,9 @@
 		secure_vdec_reserved:linux,secure_vdec_reserved {
 			compatible = "amlogic, secure-vdec-reserved";
 			no-map;
-			size = <0x400000>;
+			size = <0x300000>;
 			alignment = <0x100000>;
-			alloc-ranges = <0x10000000 0x10000000>;
+			//alloc-ranges = <0x10000000 0x10000000>;
 		};
 		/*  vdin0 CMA pool */
 		//vdin0_cma_reserved:linux,vdin0_cma {
@@ -176,12 +182,11 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 1280x720 yuv420 8bit (nv21) and 4 buffers
-			 * 1280x720x1.5x4 = 8 M
+			/* up to 1920x1080 yuv420 8bit and 4 buffers
+			 * 1920x1080x1.5x4 / (1024*1024)= 2073600 * 6 / (1024*1024) ≈ 11.865 MB
 			 */
-			size = <0x00000000>;
+			size = <0xc00000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x10000000>;
 		};
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
@@ -190,7 +195,7 @@
 			size = <0x400000>;
 			alignment = <0x400000>;
 			linux,cma-default;
-			alloc-ranges = <0x10000000 0x10000000>;
+			//alloc-ranges = <0x10000000 0x10000000>;
 		};
 	};
 
