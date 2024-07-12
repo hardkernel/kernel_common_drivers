@@ -143,6 +143,10 @@ static u32 parse_reason(const char *cmd)
 		else if (strcmp(cmd, "fastboot") == 0)
 			reboot_reason = MESON_FASTBOOT_REBOOT;
 		else if (strcmp(cmd, "bootloader") == 0 ||
+			strcmp(cmd, "apexd-failed") == 0 ||
+			strcmp(cmd, "boringssl-self-check-failed") == 0 ||
+			strcmp(cmd, "bpfloader-failed") == 0 ||
+			strcmp(cmd, "vold-failed") == 0 ||
 			strcmp(cmd, "dm-verity device corrupted") == 0)
 			reboot_reason = MESON_BOOTLOADER_REBOOT;
 		else if (strcmp(cmd, "rpmbp") == 0)
