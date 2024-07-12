@@ -6804,35 +6804,54 @@ void rx_mute_dual_video_rdma(int vdin0_mute, int vdin1_mute)
 {
 	struct vframe_s *dispbuf0 = NULL;
 	struct vframe_s *dispbuf1 = NULL;
+	static int vdin0_use_layer; /* bit0:VD1 bit1:VD2 */
+	static int vdin1_use_layer; /* bit0:VD1 bit1:VD2 */
 
 	dispbuf0 = get_dispbuf(0);
 	dispbuf1 = get_dispbuf(1);
+
 	if (vdin0_mute == E_RX_MUTE) {
 		if (dispbuf0 && dispbuf0->vdin_channel_id == CHANNEL_VDIN0 &&
-			vf_source_from_vdin(dispbuf0))
+			vf_source_from_vdin(dispbuf0)) {
 			video_mute_array[HDMI_RX_MUTE_SET] = true;
-		else if (dispbuf1 && dispbuf1->vdin_channel_id == CHANNEL_VDIN0 &&
-			vf_source_from_vdin(dispbuf1))
+			vdin0_use_layer |= BIT(0);
+		}
+		if (dispbuf1 && dispbuf1->vdin_channel_id == CHANNEL_VDIN0 &&
+			vf_source_from_vdin(dispbuf1)) {
 			videopip_mute_on = true;
+			vdin0_use_layer |= BIT(1);
+		}
 	} else if (vdin0_mute == E_RX_UNMUTE) {
-		if (dispbuf0 && dispbuf0->vdin_channel_id == CHANNEL_VDIN0)
+		if (vdin0_use_layer & BIT(0)) {
 			video_mute_array[HDMI_RX_MUTE_SET] = false;
-		else if (dispbuf1 && dispbuf1->vdin_channel_id == CHANNEL_VDIN0)
+			vdin0_use_layer &= ~BIT(0);
+		}
+		if (vdin0_use_layer & BIT(1)) {
 			videopip_mute_on = false;
+			vdin0_use_layer &= ~BIT(1);
+		}
 	}
 
 	if (vdin1_mute == E_RX_MUTE) {
 		if (dispbuf0 && dispbuf0->vdin_channel_id == CHANNEL_VDIN1 &&
-			vf_source_from_vdin(dispbuf0))
+			vf_source_from_vdin(dispbuf0)) {
 			video_mute_array[HDMI_RX_MUTE_SET] = true;
-		else if (dispbuf1 && dispbuf1->vdin_channel_id == CHANNEL_VDIN1 &&
-			vf_source_from_vdin(dispbuf1))
+			vdin1_use_layer |= BIT(0);
+		}
+		if (dispbuf1 && dispbuf1->vdin_channel_id == CHANNEL_VDIN1 &&
+			vf_source_from_vdin(dispbuf1)) {
 			videopip_mute_on = true;
+			vdin1_use_layer |= BIT(1);
+		}
 	} else if (vdin1_mute == E_RX_UNMUTE) {
-		if (dispbuf0 && dispbuf0->vdin_channel_id == CHANNEL_VDIN1)
+		if (vdin1_use_layer & BIT(0)) {
 			video_mute_array[HDMI_RX_MUTE_SET] = false;
-		else if (dispbuf1 && dispbuf1->vdin_channel_id == CHANNEL_VDIN1)
+			vdin1_use_layer &= ~BIT(0);
+		}
+		if (vdin1_use_layer & BIT(1)) {
 			videopip_mute_on = false;
+			vdin1_use_layer &= ~BIT(1);
+		}
 	}
 }
 EXPORT_SYMBOL(rx_mute_dual_video_rdma);
@@ -6841,35 +6860,53 @@ void rx_mute_dual_video_vcbus(int vdin0_mute, int vdin1_mute)
 {
 	struct vframe_s *dispbuf0 = NULL;
 	struct vframe_s *dispbuf1 = NULL;
+	static int vdin0_use_layer; /* bit0:VD1 bit1:VD2 */
+	static int vdin1_use_layer; /* bit0:VD1 bit1:VD2 */
 
 	dispbuf0 = get_dispbuf(0);
 	dispbuf1 = get_dispbuf(1);
 	if (vdin0_mute == E_RX_MUTE) {
 		if (dispbuf0 && dispbuf0->vdin_channel_id == CHANNEL_VDIN0 &&
-			vf_source_from_vdin(dispbuf0))
+			vf_source_from_vdin(dispbuf0)) {
 			rx_mute_vpp(0);
-		else if (dispbuf1 && dispbuf1->vdin_channel_id == CHANNEL_VDIN0 &&
-			vf_source_from_vdin(dispbuf1))
+			vdin0_use_layer |= BIT(0);
+		}
+		if (dispbuf1 && dispbuf1->vdin_channel_id == CHANNEL_VDIN0 &&
+			vf_source_from_vdin(dispbuf1)) {
 			rx_mute_videopip();
+			vdin0_use_layer |= BIT(1);
+		}
 	} else if (vdin0_mute == E_RX_UNMUTE) {
-		if (dispbuf0 && dispbuf0->vdin_channel_id == CHANNEL_VDIN0)
+		if (vdin0_use_layer & BIT(0)) {
 			video_mute_array[HDMI_RX_MUTE_SET] = false;
-		else if (dispbuf1 && dispbuf1->vdin_channel_id == CHANNEL_VDIN0)
+			vdin0_use_layer &= ~BIT(0);
+		}
+		if (vdin0_use_layer & BIT(1)) {
 			videopip_mute_on = false;
+			vdin0_use_layer &= ~BIT(1);
+		}
 	}
 
 	if (vdin1_mute == E_RX_MUTE) {
 		if (dispbuf0 && dispbuf0->vdin_channel_id == CHANNEL_VDIN1 &&
-			vf_source_from_vdin(dispbuf0))
+			vf_source_from_vdin(dispbuf0)) {
 			rx_mute_vpp(0);
-		else if (dispbuf1 && dispbuf1->vdin_channel_id == CHANNEL_VDIN1 &&
-			vf_source_from_vdin(dispbuf1))
+			vdin1_use_layer |= BIT(0);
+		}
+		if (dispbuf1 && dispbuf1->vdin_channel_id == CHANNEL_VDIN1 &&
+			vf_source_from_vdin(dispbuf1)) {
 			rx_mute_videopip();
+			vdin1_use_layer |= BIT(1);
+		}
 	} else if (vdin1_mute == E_RX_UNMUTE) {
-		if (dispbuf0 && dispbuf0->vdin_channel_id == CHANNEL_VDIN1)
+		if (vdin1_use_layer & BIT(0)) {
 			video_mute_array[HDMI_RX_MUTE_SET] = false;
-		else if (dispbuf1 && dispbuf1->vdin_channel_id == CHANNEL_VDIN1)
+			vdin1_use_layer &= ~BIT(0);
+		}
+		if (vdin1_use_layer & BIT(1)) {
 			videopip_mute_on = false;
+			vdin1_use_layer &= ~BIT(1);
+		}
 	}
 }
 EXPORT_SYMBOL(rx_mute_dual_video_vcbus);
