@@ -209,8 +209,8 @@ extern int frc_dbg_en;
 
 #define FRC_HVSIZE_ALIGN_SIZE		16
 
-#define FRC_V_LIMIT			144
-#define FRC_H_LIMIT			128
+#define FRC_V_LIMIT			385
+#define FRC_H_LIMIT			385
 
 #define FRC_DISABLE_H_SIZE		1440
 #define FRC_DISABLE_V_SIZE		810
