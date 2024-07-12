@@ -848,7 +848,7 @@
 		startup-delay-us = <7000>;
 		enable-active-high;
 		regulator-boot-on;
-		regulator-always-on;
+		//regulator-always-on;
 	};
 
 	vddq_reg: fixed@vddq_reg {
@@ -950,7 +950,8 @@
 		#sound-dai-cells = <0>;
 		reg = <0x2a>;
 		status = "okay";
-		reset_pin = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
+		vcc5v-supply = <&vcc5v_reg>;
+		reset_pin-gpios = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
 	};
 
 	aw9523: aw9523_led@5b {

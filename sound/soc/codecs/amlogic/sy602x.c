@@ -45,6 +45,9 @@
 #include <linux/gpio.h>
 
 #include "sy602x.h"
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+#include <linux/amlogic/pm.h>
+#endif
 
 #define DAP_RAM_ITEM_SIZE           (1 + 20) // address(1 byte) + data(20 byte)
 #define DAP_RAM_ITEM_ALL           (BIT(DAP_RAM_ITEM_NUM) - 1)
@@ -71,6 +74,11 @@ struct sy602x_priv {
 	struct mutex dap_ram_lock; /* device lock */
 	struct gpio_desc *reset_pin_desc;
 	bool mute;
+	struct regulator *regulator_vcc5v;
+	int regulator_vcc5v_used;
+	int master_vol;
+	int left_vol;
+	int right_vol;
 };
 
 static struct sy602x_priv *sy602x_priv_data;
@@ -209,9 +217,17 @@ static int sy602x_mute_locked_put(struct snd_kcontrol *kcontrol,
 
 	sy602x->mute = ucontrol->value.integer.value[0];
 	val = (sy602x->mute) ? SY602X_SOFT_MUTE_ALL : 0;
-
-	snd_soc_component_update_bits(component,
+	if (sy602x->mute) {
+		snd_soc_component_update_bits(component,
 			SY602X_SOFT_MUTE, SY602X_SOFT_MUTE_ALL, val);
+		snd_soc_component_update_bits(component,
+			SY602X_PWM_CTRL, 1 << 4, 1 << 4);
+	} else {
+		snd_soc_component_update_bits(component,
+			SY602X_PWM_CTRL, 1 << 4, 0 << 4);
+		snd_soc_component_update_bits(component,
+			SY602X_SOFT_MUTE, SY602X_SOFT_MUTE_ALL, val);
+	}
 
 	return 0;
 }
@@ -306,7 +322,7 @@ static int sy602x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 
 	sy602x = snd_soc_component_get_drvdata(component);
-	sy602x_priv_data->component = component;
+
 
 	switch (sy602x->format & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
@@ -384,42 +400,7 @@ static int sy602x_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 	return 0;
 }
 
-static const struct snd_soc_dai_ops sy602x_dai_ops = {
-	.set_fmt		= sy602x_set_dai_fmt,
-	.hw_params		= sy602x_hw_params,
-	.mute_stream	= sy602x_mute_stream,
-};
-
-static struct snd_soc_dai_driver sy602x_dai = {
-	.name		= "sy602x-hifi",
-	.playback	= {
-		.stream_name	= "Playback",
-		.channels_min	= 1,
-		.channels_max	= 2,
-		.rates			= (SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100
-				| SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000),
-		.formats		= (SNDRV_PCM_FMTBIT_S16_LE
-				| SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE),
-	},
-	.ops	= &sy602x_dai_ops,
-};
-
-/*
- *   ___         _          ___      _
- *  / __|___  __| |___ __  |   \ _ _(_)_ _____ _ _
- * | (__/ _ \/ _` / -_) _| | |) | '_| \ V / -_) '_|
- *  \___\___/\__,_\___\__| |___/|_| |_|\_/\___|_|
- *
- */
-
-static void sy602x_remove(struct snd_soc_component *component)
-{
-	struct sy602x_priv *sy602x;
-
-	sy602x = snd_soc_component_get_drvdata(component);
-}
-
-static int sy602x_probe(struct snd_soc_component *component)
+static int sy602x_init(struct snd_soc_component *component)
 {
 	struct sy602x_priv *sy602x;
 	int ret;
@@ -467,9 +448,171 @@ static int sy602x_probe(struct snd_soc_component *component)
 	return ret;
 }
 
+int sy602x_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	int ret = 0;
+	struct device *dev = dai->dev;
+
+	if (!IS_ERR(sy602x_priv_data->regulator_vcc5v)) {
+		if (!sy602x_priv_data->regulator_vcc5v_used) {
+			ret = regulator_enable(sy602x_priv_data->regulator_vcc5v);
+			if (ret) {
+				dev_err(dev,
+					"%s:regulator_vcc5v enable failed:%d\n", __func__, ret);
+				sy602x_priv_data->regulator_vcc5v_used = 0;
+			} else {
+				sy602x_priv_data->regulator_vcc5v_used = 1;
+			}
+		}
+	}
+	if (!IS_ERR(sy602x_priv_data->reset_pin_desc))
+		gpiod_direction_output(sy602x_priv_data->reset_pin_desc,
+		GPIOF_OUT_INIT_HIGH);
+	sy602x_init(sy602x_priv_data->component);
+	snd_soc_component_write(sy602x_priv_data->component,
+		SY602X_MAS_VOL, sy602x_priv_data->master_vol);
+	snd_soc_component_write(sy602x_priv_data->component,
+		SY602X_CH1_VOL, sy602x_priv_data->left_vol);
+	snd_soc_component_write(sy602x_priv_data->component,
+		SY602X_CH2_VOL, sy602x_priv_data->right_vol);
+	snd_soc_component_update_bits(sy602x_priv_data->component,
+			SY602X_SOFT_MUTE, SY602X_SOFT_MUTE_ALL,
+			(sy602x_priv_data->mute) ? SY602X_SOFT_MUTE_ALL : 0);
+	return 0;
+}
+
+void sy602x_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	int ret = 0;
+	struct device *dev = dai->dev;
+
+	if (!IS_ERR(sy602x_priv_data->reset_pin_desc))
+		gpiod_direction_output(sy602x_priv_data->reset_pin_desc,
+		GPIOF_OUT_INIT_LOW);
+	if (!IS_ERR(sy602x_priv_data->regulator_vcc5v)) {
+		if (sy602x_priv_data->regulator_vcc5v_used) {
+			ret = regulator_disable(sy602x_priv_data->regulator_vcc5v);
+			if (ret)
+				dev_err(dev,
+					"%s:regulator_vcc5v disable failed: %d\n", __func__, ret);
+			else
+				sy602x_priv_data->regulator_vcc5v_used = 0;
+		}
+	}
+	sy602x_priv_data->master_vol =
+		snd_soc_component_read(sy602x_priv_data->component, SY602X_MAS_VOL);
+	sy602x_priv_data->left_vol =
+		snd_soc_component_read(sy602x_priv_data->component, SY602X_CH1_VOL);
+	sy602x_priv_data->right_vol =
+		snd_soc_component_read(sy602x_priv_data->component, SY602X_CH2_VOL);
+}
+
+static const struct snd_soc_dai_ops sy602x_dai_ops = {
+	.set_fmt		= sy602x_set_dai_fmt,
+	.hw_params		= sy602x_hw_params,
+	.mute_stream	= sy602x_mute_stream,
+	.startup        = sy602x_startup,
+	.shutdown       = sy602x_shutdown,
+};
+
+static struct snd_soc_dai_driver sy602x_dai = {
+	.name		= "sy602x-hifi",
+	.playback	= {
+		.stream_name	= "Playback",
+		.channels_min	= 1,
+		.channels_max	= 2,
+		.rates			= (SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100
+				| SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000),
+		.formats		= (SNDRV_PCM_FMTBIT_S16_LE
+				| SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE),
+	},
+	.ops	= &sy602x_dai_ops,
+};
+
+/*
+ *   ___         _          ___      _
+ *  / __|___  __| |___ __  |   \ _ _(_)_ _____ _ _
+ * | (__/ _ \/ _` / -_) _| | |) | '_| \ V / -_) '_|
+ *  \___\___/\__,_\___\__| |___/|_| |_|\_/\___|_|
+ *
+ */
+
+static void sy602x_remove(struct snd_soc_component *component)
+{
+	struct sy602x_priv *sy602x;
+
+	sy602x = snd_soc_component_get_drvdata(component);
+}
+
+static int sy602x_probe(struct snd_soc_component *component)
+{
+	sy602x_priv_data->component = component;
+	sy602x_init(component);
+	return 0;
+}
+
+static int sy602x_suspend(struct snd_soc_component *component)
+{
+	struct sy602x_priv *sy602x;
+	int ret = 0;
+
+	sy602x = snd_soc_component_get_drvdata(component);
+	if (!IS_ERR(sy602x_priv_data->reset_pin_desc))
+		gpiod_direction_output(sy602x_priv_data->reset_pin_desc,
+		GPIOF_OUT_INIT_LOW);
+	if (!IS_ERR(sy602x_priv_data->regulator_vcc5v)) {
+		if (sy602x_priv_data->regulator_vcc5v_used) {
+			ret = regulator_disable(sy602x_priv_data->regulator_vcc5v);
+			if (ret)
+				dev_err(component->dev,
+					"%s:regulator_vcc5v disable failed: %d\n", __func__, ret);
+			else
+				sy602x_priv_data->regulator_vcc5v_used = 0;
+		}
+	}
+	sy602x->master_vol = snd_soc_component_read(component, SY602X_MAS_VOL);
+	sy602x->left_vol = snd_soc_component_read(component, SY602X_CH1_VOL);
+	sy602x->right_vol = snd_soc_component_read(component, SY602X_CH2_VOL);
+	return 0;
+}
+
+static int sy602x_resume(struct snd_soc_component *component)
+{
+	struct sy602x_priv *sy602x;
+	int ret = 0;
+
+	sy602x = snd_soc_component_get_drvdata(component);
+	if (!IS_ERR(sy602x_priv_data->regulator_vcc5v)) {
+		if (!sy602x_priv_data->regulator_vcc5v_used) {
+			ret = regulator_enable(sy602x_priv_data->regulator_vcc5v);
+			if (ret) {
+				dev_err(component->dev,
+					"%s:regulator_vcc5v enable failed:%d\n", __func__, ret);
+				sy602x_priv_data->regulator_vcc5v_used = 0;
+			} else {
+				sy602x_priv_data->regulator_vcc5v_used = 1;
+			}
+		}
+	}
+
+	if (!IS_ERR(sy602x_priv_data->reset_pin_desc))
+		gpiod_direction_output(sy602x_priv_data->reset_pin_desc,
+		GPIOF_OUT_INIT_HIGH);
+	sy602x_init(component);
+	snd_soc_component_write(component, SY602X_MAS_VOL, sy602x->master_vol);
+	snd_soc_component_write(component, SY602X_CH1_VOL, sy602x->left_vol);
+	snd_soc_component_write(component, SY602X_CH2_VOL, sy602x->right_vol);
+	snd_soc_component_update_bits(component,
+			SY602X_SOFT_MUTE, SY602X_SOFT_MUTE_ALL,
+			(sy602x->mute) ? SY602X_SOFT_MUTE_ALL : 0);
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_codec_dev_sy602x = {
 	.probe = sy602x_probe,
 	.remove = sy602x_remove,
+	.suspend = sy602x_suspend,
+	.resume = sy602x_resume,
 	.controls = sy602x_snd_controls,
 	.num_controls = ARRAY_SIZE(sy602x_snd_controls),
 };
@@ -613,6 +756,64 @@ static struct regmap_config sy602x_regmap_config = {
 	.reg_write = sy602x_reg_write,
 };
 
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+static void sy602x_early_suspend(struct early_suspend *h)
+{
+#ifdef DEBUG_CONTROL_BY_APP
+	int ret = 0;
+	struct device *dev = h->param;
+
+	if (!IS_ERR(sy602x_priv_data->reset_pin_desc))
+		gpiod_direction_output(sy602x_priv_data->reset_pin_desc,
+		GPIOF_OUT_INIT_LOW);
+	if (!IS_ERR(sy602x_priv_data->regulator_vcc5v)) {
+		ret = regulator_disable(sy602x_priv_data->regulator_vcc5v);
+		if (ret)
+			dev_err(dev, "%s:regulator_vcc5v disable failed: %d\n", __func__, ret);
+	}
+	sy602x_priv_data->master_vol =
+		snd_soc_component_read(sy602x_priv_data->component, SY602X_MAS_VOL);
+	sy602x_priv_data->left_vol =
+		snd_soc_component_read(sy602x_priv_data->component, SY602X_CH1_VOL);
+	sy602x_priv_data->right_vol =
+		snd_soc_component_read(sy602x_priv_data->component, SY602X_CH2_VOL);
+#endif
+}
+
+static void sy602x_early_resume(struct early_suspend *h)
+{
+#ifdef DEBUG_CONTROL_BY_APP
+	int ret = 0;
+	struct device *dev = h->param;
+
+	if (!IS_ERR(sy602x_priv_data->regulator_vcc5v)) {
+		ret = regulator_enable(sy602x_priv_data->regulator_vcc5v);
+		if (ret)
+			dev_err(dev, "%s:regulator_vcc5v enable failed:%d\n", __func__, ret);
+	}
+	if (!IS_ERR(sy602x_priv_data->reset_pin_desc))
+		gpiod_direction_output(sy602x_priv_data->reset_pin_desc,
+		GPIOF_OUT_INIT_HIGH);
+	sy602x_init(sy602x_priv_data->component);
+	snd_soc_component_write(sy602x_priv_data->component,
+		SY602X_MAS_VOL, sy602x_priv_data->master_vol);
+	snd_soc_component_write(sy602x_priv_data->component,
+		SY602X_CH1_VOL, sy602x_priv_data->left_vol);
+	snd_soc_component_write(sy602x_priv_data->component,
+		SY602X_CH2_VOL, sy602x_priv_data->right_vol);
+	snd_soc_component_update_bits(sy602x_priv_data->component,
+			SY602X_SOFT_MUTE, SY602X_SOFT_MUTE_ALL,
+			(sy602x_priv_data->mute) ? SY602X_SOFT_MUTE_ALL : 0);
+#endif
+}
+
+static struct early_suspend sy602x_early_suspend_handler = {
+	.suspend = sy602x_early_suspend,
+	.resume  = sy602x_early_resume,
+};
+
+#endif
+
 static int sy602x_i2c_probe(struct i2c_client *i2c,
 			const struct i2c_device_id *id)
 {
@@ -632,6 +833,27 @@ static int sy602x_i2c_probe(struct i2c_client *i2c,
 			"high" : "low");
 	}
 
+	sy602x_priv_data->regulator_vcc5v = devm_regulator_get(&i2c->dev, "vcc5v");
+	ret = PTR_ERR_OR_ZERO(sy602x_priv_data->regulator_vcc5v);
+	if (ret) {
+		if (ret == -EPROBE_DEFER) {
+			dev_err(&i2c->dev, "regulator vcc5v not ready, retry\n");
+			return ret;
+		}
+		dev_err(&i2c->dev, "failed in regulator vcc5v %ld\n",
+			PTR_ERR(sy602x_priv_data->regulator_vcc5v));
+		sy602x_priv_data->regulator_vcc5v = NULL;
+	} else {
+		ret = regulator_enable(sy602x_priv_data->regulator_vcc5v);
+		if (ret) {
+			dev_err(&i2c->dev,
+			"regulator vcc5v enable failed:   %d\n", ret);
+			sy602x_priv_data->regulator_vcc5v = NULL;
+		} else {
+			sy602x_priv_data->regulator_vcc5v_used = 1;
+		}
+	}
+
 	sy602x_priv_data->regmap = devm_regmap_init(&i2c->dev, NULL, i2c, &sy602x_regmap_config);
 
 	if (IS_ERR(sy602x_priv_data->regmap)) {
@@ -644,6 +866,10 @@ static int sy602x_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_component(&i2c->dev,
 				&soc_codec_dev_sy602x, &sy602x_dai, 1);
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	sy602x_early_suspend_handler.param = &i2c->dev;
+	register_early_suspend(&sy602x_early_suspend_handler);
+#endif
 
 	return ret;
 }
