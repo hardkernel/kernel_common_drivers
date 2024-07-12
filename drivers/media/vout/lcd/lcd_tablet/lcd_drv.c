@@ -263,7 +263,7 @@ void lcd_tablet_driver_disable(struct aml_lcd_drv_s *pdrv)
 		lcd_vbyone_dphy_set(pdrv, 0);
 		break;
 	case LCD_MIPI:
-		lcd_dsi_tx_ctrl(pdrv, 1);
+		lcd_dsi_tx_ctrl(pdrv, 0);
 		lcd_phy_set(pdrv, LCD_PHY_OFF);
 		lcd_mipi_dphy_set(pdrv, 0);
 		break;

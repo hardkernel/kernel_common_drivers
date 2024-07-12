@@ -96,9 +96,9 @@ struct lcd_clk_data_s {
 	unsigned int ss_str_m_max;
 
 	unsigned char vclk_sel;
-	int enc_clk_msr_id;
-	int fifo_clk_msr_id;
-	int tcon_clk_msr_id;
+	unsigned int enc_clk_msr_id;
+	unsigned int fifo_clk_msr_id;
+	unsigned int tcon_clk_msr_id;
 
 	void (*clktree_set)(struct aml_lcd_drv_s *pdrv);
 	unsigned char clktree_index[6];

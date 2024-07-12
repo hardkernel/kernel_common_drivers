@@ -1445,7 +1445,7 @@
 	vclk_serve: vclk_serve {
 		compatible = "amlogic, vclk_serve";
 		status = "okay";
-		reg = <0x0 0xfe008000 0x0 0x300    /* ana reg */
+		reg = <0x0 0xfe008000 0x0 0x400    /* ana reg */
 			0x0 0xfe000000 0x0 0x4a0>; /* clk reg */
 	};
 

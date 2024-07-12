@@ -1118,6 +1118,11 @@ static void lcd_config_init(struct aml_lcd_drv_s *pdrv)
 	lcd_tablet_config_post_update(pdrv);
 	lcd_vmode_init(pdrv);
 	lcd_dft_timing_update_vinfo(pdrv);
+
+	if (pdrv->config.basic.lcd_type == LCD_MIPI) {
+		lcd_dsi_if_bind(pdrv);
+		lcd_dsi_post_config_load(pdrv);
+	}
 }
 
 /* **************************************************

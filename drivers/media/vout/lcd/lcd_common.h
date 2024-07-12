@@ -300,6 +300,8 @@ void lcd_dsi_tx_ctrl(struct aml_lcd_drv_s *pdrv, unsigned char en);
 unsigned long long lcd_dsi_get_min_bitrate(struct aml_lcd_drv_s *pdrv);
 /* @lcd_debug.c */
 void lcd_dsi_info_print(struct lcd_config_s *pconf);
+void lcd_dsi_post_config_load(struct aml_lcd_drv_s *pdrv);
+void lcd_dsi_if_bind(struct aml_lcd_drv_s *pdrv);
 void lcd_dsi_set_operation_mode(struct aml_lcd_drv_s *pdrv, unsigned char op_mode);
 void lcd_dsi_dphy_test(struct aml_lcd_drv_s *pdrv, unsigned char test_item);
 void lcd_dsi_write_cmd(struct aml_lcd_drv_s *pdrv, unsigned char *payload);

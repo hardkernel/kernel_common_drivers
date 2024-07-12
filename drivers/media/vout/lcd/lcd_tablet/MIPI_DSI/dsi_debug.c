@@ -196,6 +196,11 @@ void lcd_dsi_info_print(struct lcd_config_s *pconf)
 	dsi_extern_init_table_print(&pconf->control.mipi_cfg, 1);
 }
 
+void lcd_dsi_post_config_load(struct aml_lcd_drv_s *pdrv)
+{
+	dsi_config_post(pdrv);
+}
+
 void lcd_dsi_set_operation_mode(struct aml_lcd_drv_s *pdrv, u8 op_mode)
 {
 	dsi_op_mode_switch(pdrv, op_mode);

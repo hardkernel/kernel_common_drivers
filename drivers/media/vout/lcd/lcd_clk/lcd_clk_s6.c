@@ -301,6 +301,74 @@ static void lcd_pll_ss_enable(struct aml_lcd_drv_s *pdrv, int status)
 	lcd_ana_write(ANACTRL_DSIPLL_CTRL3, pll_ctrl3);
 }
 
+static void lcd_prbs_test_s6(struct aml_lcd_drv_s *pdrv, unsigned int ms,
+			    unsigned int mode_flag)
+{
+	struct lcd_clk_config_s *cconf;
+	unsigned int val, timeout;
+	unsigned int cnt = 0;
+	unsigned int clk_err_cnt = 0;
+	unsigned long lcd_encl_clk_check_std, lcd_byte_clk_check_std;
+	int j, ret;
+
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf)
+		return;
+
+	cconf->pll_m = 0x68; //2496MHz
+	cconf->pll_od1_sel = 0; //analog div 0
+	cconf->pll_frac = 0;
+	cconf->div_sel = CLK_DIV_SEL_3;
+	cconf->xd = 2;
+	lcd_encl_clk_check_std = 416000000;
+	lcd_byte_clk_check_std = 312000000;
+
+	cconf->data->vclk_crt_set(pdrv);
+	cconf->data->clk_set(pdrv);
+
+	lcd_ana_write(ANACTRL_MIPIDSI_CTRL0_S6, 0x393b2c55);
+	lcd_ana_write(ANACTRL_MIPIDSI_CTRL1_S6, 0xc134061f);
+	lcd_delay_us(20);
+	lcd_ana_write(ANACTRL_MIPIDSI_CTRL1_S6, 0xe134061f);
+	lcd_delay_us(20);
+	lcd_ana_write(ANACTRL_MIPIDSI_CTRL0_S6, 0x393bcc55);
+
+	timeout = (ms > 1000) ? 1000 : ms;
+
+	lcd_delay_us(1000);
+
+	while (cnt++ < timeout) {
+		lcd_delay_us(10);
+		ret = 1;
+		for (j = 0; j < 20; j++) {
+			lcd_delay_us(5);
+			val = dsi_phy_getb(pdrv, MIPI_DSI_TEST_CTRL0, 28, 4);
+			if (val == 0x0f) {
+				ret = 0;
+				break;
+			}
+		}
+		if (ret) {
+			LCDERR("[%d]: prbs check error, val:0x%x, cnt:%d\n", pdrv->index, val, cnt);
+			break;
+		}
+
+		if (lcd_prbs_clk_check(lcd_encl_clk_check_std, cconf->data->enc_clk_msr_id,
+				       lcd_byte_clk_check_std, cconf->data->fifo_clk_msr_id, cnt))
+			clk_err_cnt++;
+		else
+			clk_err_cnt = 0;
+		if (clk_err_cnt >= 10) {
+			LCDERR("[%d]: prbs check error (clkmsr), cnt:%d\n", pdrv->index, cnt);
+			ret = 1;
+			break;
+		}
+	}
+
+	LCDPR("\n[[%d]: lcd prbs result]:\n", pdrv->index);
+	LCDPR("  MIPI-DSI prbs performed: 1, error: %d\n", ret);
+}
+
 static struct lcd_clk_data_s lcd_clk_data_s6 = {
 	.pll_od_fb = 0,
 	.pll_m_max = 511,
@@ -326,7 +394,7 @@ static struct lcd_clk_data_s lcd_clk_data_s6 = {
 
 	.vclk_sel = 3, //dsi_pll_clk
 	.enc_clk_msr_id = 53,
-	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
+	.fifo_clk_msr_id = 71,
 	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
 
 	.div_sel_max = CLK_DIV_SEL_15,
@@ -359,7 +427,7 @@ static struct lcd_clk_data_s lcd_clk_data_s6 = {
 	.clk_disable = lcd_clk_disable_s6,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = NULL,
-	.prbs_test = NULL,
+	.prbs_test = lcd_prbs_test_s6,
 };
 
 void lcd_clk_config_chip_init_s6(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf)

@@ -852,7 +852,8 @@ static void mipi_dsi_phy_config(struct dsi_dphy_s *dphy, u32 dsi_ui)
 		dphy->hs_exit += 1;
 
 	//t_req_max = 105 + (12 * t_ui) / 100;
-	t_req_min = ((8 * t_ui) > (60 * 100 + 4 * t_ui)) ? (8 * t_ui) : (60 * 100 + 4 * t_ui);
+	//t_req_min = ((8 * t_ui) > (60 * 100 + 4 * t_ui)) ? (8 * t_ui) : (60 * 100 + 4 * t_ui);
+	t_req_min = 80 * 100 + 10 * t_ui;
 	//val = (t_req_max + t_req_min) / 2;
 	dphy->hs_trail = t_req_min / temp;
 	if ((dphy->hs_trail * temp) < t_req_min)
@@ -899,9 +900,9 @@ static void mipi_dsi_phy_config(struct dsi_dphy_s *dphy, u32 dsi_ui)
 }
 
 /* bit_rate is confirm by clk_genrate, so internal clk config must after that */
-static void mipi_dsi_config_post(struct lcd_config_s *pconf)
+static void mipi_dsi_config_post(struct aml_lcd_drv_s *pdrv)
 {
-	struct dsi_config_s *dconf = &pconf->control.mipi_cfg;
+	struct dsi_config_s *dconf = &pdrv->config.control.mipi_cfg;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDPR("%s:\n"
@@ -909,15 +910,16 @@ static void mipi_dsi_config_post(struct lcd_config_s *pconf)
 			"  bit_rate    = %10lluHz\n"
 			"  lanebyteclk = %10uHz\n"
 			"  PCLK_period/lanebyteclk_period = (num=%u/den=%u)\n",
-			__func__, pconf->timing.act_timing.pixel_clk, pconf->timing.bit_rate,
+			__func__, pdrv->config.timing.act_timing.pixel_clk,
+			pdrv->config.timing.bit_rate,
 			dconf->lane_byte_clk, dconf->factor_numerator, dconf->factor_denominator);
 	}
 
 	if (dconf->operation_mode_display == OPERATION_VIDEO_MODE)
-		mipi_dsi_vid_mode_config(pconf);
+		mipi_dsi_vid_mode_config(&pdrv->config);
 
 	/* phy config */
-	mipi_dsi_phy_config(&dconf->dphy, pconf->timing.bit_rate);
+	mipi_dsi_phy_config(&dconf->dphy, pdrv->config.timing.bit_rate);
 }
 
 //static void mipi_dsi_init_t7(u32 drv_idx)
@@ -972,7 +974,7 @@ static void dsi_host_on_pre(struct aml_lcd_drv_s *pdrv)
 	lcd_venc_enable(pdrv, 0);
 	lcd_delay_us(100);
 
-	mipi_dsi_config_post(&pdrv->config);
+	mipi_dsi_config_post(pdrv);
 
 	startup_mipi_dsi_host(pdrv);
 
@@ -1057,10 +1059,11 @@ static void dsi_host_off_post(struct aml_lcd_drv_s *pdrv)
 }
 
 struct dsi_ctrl_s dsi_ctrl_v1 = {
-	.tx_ready = dsi_host_on_pre,
-	.disp_on  = dsi_host_on_post,
-	.disp_off = dsi_host_off_pre,
-	.tx_close = dsi_host_off_post,
+	.tx_ready    = dsi_host_on_pre,
+	.disp_on     = dsi_host_on_post,
+	.disp_off    = dsi_host_off_pre,
+	.tx_close    = dsi_host_off_post,
+	.config_post = mipi_dsi_config_post,
 
 	.fr_change_pre = NULL,
 	.fr_change_post = NULL,

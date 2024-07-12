@@ -705,7 +705,7 @@
 			basic_setting = <1200 1920 1366 1951 8 135 216>;
 			/*hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol*/
 			lcd_timing = <1 32 0 1 14 0>;
-			clk_attr = <2 0 1 165000000>;
+			clk_attr = <2 0 1 162569000>;
 			/* <lane, bit_rate, /, mode_init, mode_disp, video_mode, clk_hs, />*/
 			mipi_attr = <4 995 0 1 0 2 1 0>;
 			/* dsi_init: data_type, num, data... */

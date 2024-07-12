@@ -28,6 +28,8 @@ struct dsi_ctrl_s {
 	void (*disp_off)(struct aml_lcd_drv_s *pdrv);
 	/* DSI host&phy reset/powerdown */
 	void (*tx_close)(struct aml_lcd_drv_s *pdrv);
+	/* reload all para at first boot */
+	void (*config_post)(struct aml_lcd_drv_s *pdrv);
 
 	void (*fr_change_pre)(struct aml_lcd_drv_s *pdrv, u16 fr100);
 	void (*fr_change_post)(struct aml_lcd_drv_s *pdrv);
@@ -55,6 +57,7 @@ void dsi_tx_ready(struct aml_lcd_drv_s *pdrv);
 void dsi_disp_on(struct aml_lcd_drv_s *pdrv);
 void dsi_disp_off(struct aml_lcd_drv_s *pdrv);
 void dsi_tx_close(struct aml_lcd_drv_s *pdrv);
+void dsi_config_post(struct aml_lcd_drv_s *pdrv);
 
 void dsi_fr_change_pre(struct aml_lcd_drv_s *pdrv, u16 fr100);
 void dsi_fr_change_post(struct aml_lcd_drv_s *pdrv);
@@ -77,6 +80,5 @@ void dsi_host_reset(struct aml_lcd_drv_s *pdrv);
 
 struct dsi_ctrl_s *dsi_bind_v1(struct aml_lcd_drv_s *pdrv);
 struct dsi_ctrl_s *dsi_bind_v2(struct aml_lcd_drv_s *pdrv);
-void lcd_dsi_if_bind(struct aml_lcd_drv_s *pdrv);
 
 #endif
