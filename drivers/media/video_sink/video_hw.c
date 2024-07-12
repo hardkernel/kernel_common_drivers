@@ -13863,7 +13863,7 @@ static void video_hw_init_c3(void)
 
 static void vd_set_go_field_default(void)
 {
-	if (cur_dev->prevsync_support) {
+	if (cur_dev->prevsync_support || video_is_meson_t3_cpu()) {
 		/* vd2, vd3 always used post go field if connect to vpp0*/
 		if (vd_layer[1].vpp_index == VPP0)
 			WRITE_VCBUS_REG_BITS(PATH_START_SEL, 3, 4, 2);
