@@ -114,6 +114,9 @@
 #define MAX_CFG_SIZE (1024 * 10)
 #define MAX_BIN_SIZE (1024 * 150)
 
+#define HLG_MIN 1310
+#define HLG_MAX 262144000
+
 enum core1_switch_type {
 	NO_SWITCH = 0,
 	SWITCH_BEFORE_DVCORE_1,
@@ -667,7 +670,8 @@ struct tv_input_info_s {
 	u8 L11_byte2;
 	u8 L11_byte3;
 	int enable_debug;
-	s32 debug_buf[495];
+	int enable_hlg_src_max_set;
+	s32 debug_buf[494];
 };
 
 /* top1 output L1/L4*/
@@ -934,6 +938,8 @@ extern int force_vsync_id;
 extern bool top1_enable_changed;
 extern bool force_bypass_precision;
 extern bool force_core2c_on;
+extern u32 hlg_max;
+extern u32 hlg_min;
 
 /************/
 

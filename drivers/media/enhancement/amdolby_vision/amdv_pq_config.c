@@ -1478,6 +1478,9 @@ void restore_dv_pq_setting(enum pq_reset_e pq_reset)
 			bin_to_cfg[0].tdc.t_primaries[5];
 	}
 
+	hlg_max = HLG_MAX;
+	hlg_min = HLG_MIN;
+
 	update_cp_cfg();
 	if (debug_dolby & 0x200)
 		pr_info("reset pq %d\n", pq_reset);
@@ -2720,6 +2723,8 @@ int get_dv_pq_info(char *buf)
 	"echo saturation value   > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo darkdetail value   > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo lightsense value   > /sys/class/amdolby_vision/dv_pq_info;\n"
+	"echo hlg_min value      > /sys/class/amdolby_vision/dv_pq_info;\n"
+	"echo hlg_max value      > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo all v1 v2 v3 v4 v5 > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo reset value        > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"\n"
@@ -2728,6 +2733,8 @@ int get_dv_pq_info(char *buf)
 	"contrast     range: [-256, 256]\n"
 	"colorshift   range: [-256, 256]\n"
 	"saturation   range: [-256, 256]\n"
+	"hlg_min         range: [0, 262144]\n"
+	"hlg_max         range: [100*262144, 4000*262144]\n"
 	"darkdetail   range: [0, 1]\n"
 	"lightsense   range: [0, 1]\n"
 	"reset            0: reset pict mode/all pq for all pict mode]\n"
@@ -2793,6 +2800,12 @@ int get_dv_pq_info(char *buf)
 	pos += sprintf(buf + pos,
 		       "current lightsense:        [%d]\n",
 		       cfg_info[cur_pic_mode].light_sense);
+	pos += sprintf(buf + pos,
+		       "current hlg_max:           [%d]\n",
+		       hlg_max);
+	pos += sprintf(buf + pos,
+		       "current hlg_min:           [%d]\n",
+		       hlg_min);
 
 	if (dv_user_cfg_flag) {
 		pos += sprintf(buf + pos,
@@ -2970,6 +2983,24 @@ int set_dv_pq_info(const char *buf, size_t count)
 		if (val != cfg_info[cur_pic_mode].light_sense) {
 			set_update_cfg(true);
 			cfg_info[cur_pic_mode].light_sense = val;
+		}
+	} else if (!strcmp(parm[0], "hlg_max")) {
+		if (kstrtoint(parm[1], 10, &val) != 0)
+			goto ERR;
+		if (debug_dolby & 0x200)
+			pr_info("[DV]: set hlg_max %d\n", val);
+		if (val != hlg_max) {
+			hlg_max = val;
+			set_update_cfg(true);
+		}
+	} else if (!strcmp(parm[0], "hlg_min")) {
+		if (kstrtoint(parm[1], 10, &val) != 0)
+			goto ERR;
+		if (debug_dolby & 0x200)
+			pr_info("[DV]: set hlg_min %d\n", val);
+		if (val != hlg_min) {
+			hlg_min = val;
+			set_update_cfg(true);
 		}
 	} else {
 		pr_info("unsupport cmd\n");
