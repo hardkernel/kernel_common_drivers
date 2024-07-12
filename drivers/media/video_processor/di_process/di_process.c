@@ -819,6 +819,7 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 	struct file_private_data *private_data = NULL;
 	bool dropped = false;
 	bool di_bypass = false;
+	struct vframe_s *dec_vf = NULL;
 
 	if (!buf) {
 		pr_err("%s: di_buffer is NULL\n", __func__);
@@ -899,6 +900,15 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 
 	private_data->vf = *buf->vf;
 	private_data->vf_p = (struct vframe_s *)buf;
+
+	if (buf->vf->type & (VIDTYPE_DI_PW | VIDTYPE_COMPRESS)) {
+		dec_vf = get_vf_from_file(dev, buf->caller_mng.src_file);
+		private_data->vf_ext = *dec_vf;
+		private_data->vf_ext_p = dec_vf;
+		private_data->vf.vf_ext = &private_data->vf_ext;
+		private_data->vf.flag |= VFRAME_FLAG_DOUBLE_FRAM;
+	}
+
 	if (di_bypass)
 		private_data->flag = V4LVIDEO_FLAG_DI_BYPASS;
 	else
