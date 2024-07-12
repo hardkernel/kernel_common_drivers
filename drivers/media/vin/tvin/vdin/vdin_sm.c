@@ -443,7 +443,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 
 		if (devp->pre_prop.fps != devp->prop.fps &&
 		    IS_HDMI_SRC(devp->parm.port)) {
-			if (devp->sg_chg_fps_cnt > 4) {
+			if (devp->sg_chg_fps_cnt > 8) {
 				devp->sg_chg_fps_cnt = 0;
 				signal_chg |= TVIN_SIG_CHG_VS_FRQ;
 				pr_info("%s fps chg:(%d->%d)\n", __func__,
