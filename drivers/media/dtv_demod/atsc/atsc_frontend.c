@@ -247,9 +247,12 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 	demod->atsc_mode = c->modulation;
 	demod->last_qam_mode = QAM_MODE_NUM;
 
+	tuner_set_params(fe);
+
 	if (c->modulation > QAM_AUTO) {
 		if (fe->ops.tuner_ops.get_if_frequency)
 			fe->ops.tuner_ops.get_if_frequency(fe, tuner_freq);
+
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			/* bit0~3: AGC bandwidth select */
 			atsc_write_reg_v4(ATSC_DEMOD_REG_0X58, 0x528220d);
@@ -270,13 +273,7 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 				atsc_write_reg_bits_v4(ATSC_AGC_REG_0X40,
 					atsc_agc_target ? atsc_agc_target : agc_target, 0, 8);
 			}
-		}
-	}
 
-	tuner_set_params(fe);
-
-	if (c->modulation > QAM_AUTO) {
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			val_0x6a.bits = atsc_read_reg_v4(ATSC_DEMOD_REG_0X6A);
 			val_0x6a.b.peak_thd = 0x6;//Let CCFO Quality over 6
 			atsc_write_reg_v4(ATSC_DEMOD_REG_0X6A, val_0x6a.bits);

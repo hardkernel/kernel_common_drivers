@@ -171,6 +171,7 @@
 /*  V3.5.044 fix atsc VBS to NTSC N+1 aci and R.1 test */
 /*  V3.5.045 fix low probability missing 8vsb channel */
 /*  V3.5.046 optimize dvb-c auto qam for T3 T5D */
+/*  V3.5.047 fix lock fail when switch to atsc */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -187,8 +188,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.046"
-#define DTVDEMOD_VER	"2024/07/10: optimize dvb-c auto qam for T3 T5D"
+#define AMLDTVDEMOD_VER "V3.5.047"
+#define DTVDEMOD_VER	"2024/07/12: fix lock fail when switch to atsc"
 #define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
