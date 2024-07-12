@@ -560,11 +560,8 @@ static u32 safa_speed_up_handle(struct vsr_setting_s *vsr)
 				__func__,
 				input_time, display_time);
 
-	if (input_time >= display_time) {
-		pr_info("ng, input_time=%d, display_time=%d\n",
-			input_time, display_time);
+	if (input_time >= display_time)
 		performance_hit = true;
-	}
 
 	if (performance_hit) {
 		if (vsr_safa->preh_en &&
@@ -607,7 +604,8 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 			ratio = 4;
 		if (ratio < 2 && vsr->vsr_top.vsr_en) {
 			vsr_pi->pi_en = 0;
-			pr_info("%s: the ratio is too small, disable PI\n", __func__);
+			if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
+				pr_info("%s: the ratio is too small, disable PI\n", __func__);
 		}
 	}
 
@@ -694,6 +692,10 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 		vsr_safa->dejaggy_en = true;
 	else
 		vsr_safa->dejaggy_en = false;
+	if (hsize_out <= 45)
+		vsr_top->sharpness_en = false;
+	else
+		vsr_top->sharpness_en = true;
 	if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA) {
 		pr_info("%s:vsr top: h/vsize_in:%d,%d, h/vsize_out:%d, %d, dejaggy_en=%d\n",
 			__func__,
@@ -1068,7 +1070,7 @@ static void set_vd1_frm2fld_en(struct vsr_setting_s *vsr)
 	}
 }
 
-static void sharpness_and_dir_interp_enable(void)
+static void sharpness_and_dir_interp_enable(struct vsr_setting_s *vsr)
 {
 	u8 vpp_index = VPP0;
 	struct hw_vsr_safa_reg_s *vsr_reg;
@@ -1077,7 +1079,7 @@ static void sharpness_and_dir_interp_enable(void)
 	vsr_reg = &vd_layer[0].vsr_safa_reg;
 	rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
 		safa_dir_interp_en, 25, 1);
-	if (super_scaler)
+	if (super_scaler && vsr->vsr_top.sharpness_en)
 		rdma_wr_bits(VPP_SR_EN, 1, 0, 1);
 	else
 		rdma_wr_bits(VPP_SR_EN, 0, 0, 1);
@@ -1088,12 +1090,12 @@ void set_vsr_scaler(struct vsr_setting_s *vsr)
 	set_vsr_input_size(vsr);
 	set_vsr_input_format(vsr);
 	set_vd1_frm2fld_en(vsr);
-	sharpness_and_dir_interp_enable();
 	if (vsr->vsr_top.vsr_en) {
 		set_cfg_pi_safa(vsr);
 		set_vsr_pi(vsr);
 		set_safa_pps(vsr);
 	}
+	sharpness_and_dir_interp_enable(vsr);
 }
 
 #ifdef lut_data_load
