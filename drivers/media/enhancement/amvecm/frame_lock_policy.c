@@ -597,7 +597,7 @@ u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vfr
 			if (vrr_skip_frame_cnt != 0)
 				vrr_skip_frame_cnt--;
 			else
-				vrr_skip_frame_cnt = 5;
+				vrr_skip_frame_cnt = 15;
 			ret = FRAMELOCK_VLOCK;
 		}
 	} else {
