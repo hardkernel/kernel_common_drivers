@@ -4,21 +4,30 @@
  */
 
 #include <linux/cma.h>
+#include <linux/debugfs.h>
+#include <linux/device.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-heap.h>
 #include <linux/dma-map-ops.h>
 #include <linux/err.h>
 #include <linux/highmem.h>
 #include <linux/io.h>
+#include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h>
 
 struct meson_cma_heap {
 	struct dma_heap *heap;
 	struct cma *cma;
+	struct mutex lock;/* protect size account */
+	struct device *device;
+	u64 num_of_buffers;
+	u64 num_of_alloc_bytes;
+	u64 num_of_free_bytes;
 };
 
 struct meson_cma_heap_buffer {
@@ -42,6 +51,8 @@ struct meson_dma_heap_attachment {
 	bool mapped;
 	bool uncached;
 };
+
+static struct dma_heap_device *dma_heap_dev;
 
 static int meson_cma_heap_attach(struct dma_buf *dmabuf,
 			   struct dma_buf_attachment *attachment)
@@ -258,14 +269,38 @@ static int meson_cma_heap_zero_buffer(struct meson_cma_heap_buffer *buffer)
 
 static void meson_cma_heap_dma_buf_release(struct dma_buf *dmabuf)
 {
+	struct dma_heap_device *hdev = dma_heap_dev;
 	struct meson_cma_heap_buffer *buffer = dmabuf->priv;
 	struct meson_cma_heap *meson_cma_heap = buffer->heap;
+	const char *heap_name = dma_heap_get_name(meson_cma_heap->heap);
 
 	if (buffer->vmap_cnt > 0) {
 		WARN(1, "%s: buffer still mapped in the kernel\n", __func__);
 		vunmap(buffer->vaddr);
 		buffer->vaddr = NULL;
 	}
+
+	mutex_lock(&meson_cma_heap->lock);
+	meson_cma_heap->num_of_buffers--;
+	meson_cma_heap->num_of_alloc_bytes -= dmabuf->size;
+	if (strstr(heap_name, "heap-gfx")) {
+		meson_cma_heap->num_of_free_bytes =
+			hdev->total_heap_gfx_size - meson_cma_heap->num_of_alloc_bytes;
+		hdev->heap_gfx_num_of_buffers = meson_cma_heap->num_of_buffers;
+		hdev->heap_gfx_num_of_alloc_bytes = meson_cma_heap->num_of_alloc_bytes;
+		hdev->heap_gfx_num_of_free_bytes = meson_cma_heap->num_of_free_bytes;
+	}
+	if (strstr(heap_name, "heap-fb")) {
+		meson_cma_heap->num_of_free_bytes =
+			hdev->total_heap_fb_size - meson_cma_heap->num_of_alloc_bytes;
+		hdev->heap_fb_num_of_buffers = meson_cma_heap->num_of_buffers;
+		hdev->heap_fb_num_of_alloc_bytes = meson_cma_heap->num_of_alloc_bytes;
+		hdev->heap_fb_num_of_free_bytes = meson_cma_heap->num_of_free_bytes;
+	}
+	pr_debug("dmaheap: release name %s num %llu alloc %llu free %llu\n",
+		heap_name, meson_cma_heap->num_of_buffers,
+		meson_cma_heap->num_of_alloc_bytes, meson_cma_heap->num_of_free_bytes);
+	mutex_unlock(&meson_cma_heap->lock);
 
 	meson_cma_heap_zero_buffer(buffer);
 	sg_free_table(&buffer->sg_table);
@@ -295,6 +330,7 @@ static struct dma_buf *meson_cma_heap_allocate(struct dma_heap *heap,
 					 unsigned long heap_flags)
 {
 	struct meson_cma_heap *meson_cma_heap = dma_heap_get_drvdata(heap);
+	struct dma_heap_device *hdev = dma_heap_dev;
 	struct meson_cma_heap_buffer *buffer;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	size_t size = PAGE_ALIGN(len);
@@ -395,6 +431,28 @@ static struct dma_buf *meson_cma_heap_allocate(struct dma_heap *heap,
 						DMA_BIDIRECTIONAL, 0);
 	}
 
+	mutex_lock(&meson_cma_heap->lock);
+	meson_cma_heap->num_of_buffers++;
+	meson_cma_heap->num_of_alloc_bytes += len;
+	if (strstr(exp_info.exp_name, "heap-gfx")) {
+		meson_cma_heap->num_of_free_bytes =
+			hdev->total_heap_gfx_size - meson_cma_heap->num_of_alloc_bytes;
+		hdev->heap_gfx_num_of_buffers = meson_cma_heap->num_of_buffers;
+		hdev->heap_gfx_num_of_alloc_bytes = meson_cma_heap->num_of_alloc_bytes;
+		hdev->heap_gfx_num_of_free_bytes = meson_cma_heap->num_of_free_bytes;
+	}
+	if (strstr(exp_info.exp_name, "heap-fb")) {
+		meson_cma_heap->num_of_free_bytes =
+			hdev->total_heap_fb_size - meson_cma_heap->num_of_alloc_bytes;
+		hdev->heap_fb_num_of_buffers = meson_cma_heap->num_of_buffers;
+		hdev->heap_fb_num_of_alloc_bytes = meson_cma_heap->num_of_alloc_bytes;
+		hdev->heap_fb_num_of_free_bytes = meson_cma_heap->num_of_free_bytes;
+	}
+	pr_debug("dmaheap: allocate name %s num %llu alloc %llu free %llu\n",
+		exp_info.exp_name, meson_cma_heap->num_of_buffers,
+		meson_cma_heap->num_of_alloc_bytes, meson_cma_heap->num_of_free_bytes);
+	mutex_unlock(&meson_cma_heap->lock);
+
 	return dmabuf;
 
 free_pages:
@@ -412,10 +470,137 @@ static const struct dma_heap_ops meson_cma_heap_ops = {
 	.allocate = meson_cma_heap_allocate,
 };
 
+static int meson_cma_heap_get_info(struct meson_cma_heap_info *info_data)
+{
+	struct dma_heap_device *hdev = dma_heap_dev;
+	int ret = -EINVAL;
+
+	if (strstr(info_data->heap_name, "heap-gfx")) {
+		info_data->num_of_buffers = hdev->heap_gfx_num_of_buffers;
+		info_data->num_of_alloc_bytes = hdev->heap_gfx_num_of_alloc_bytes;
+		info_data->num_of_free_bytes = hdev->heap_gfx_num_of_free_bytes;
+		ret = 0;
+	} else if (strstr(info_data->heap_name, "heap-fb")) {
+		info_data->num_of_buffers = hdev->heap_fb_num_of_buffers;
+		info_data->num_of_alloc_bytes = hdev->heap_fb_num_of_alloc_bytes;
+		info_data->num_of_free_bytes = hdev->heap_fb_num_of_free_bytes;
+		ret = 0;
+	} else {
+		info_data->num_of_buffers = 0;
+		info_data->num_of_alloc_bytes = 0;
+		info_data->num_of_free_bytes = 0;
+	}
+
+	return ret;
+}
+
+static long meson_cma_heap_ioctl(struct file *file,
+				unsigned int cmd, unsigned long arg)
+{
+	int ret = 0;
+	union meson_cma_heap_ioctl_arg data;
+
+	if (_IOC_SIZE(cmd) > sizeof(data))
+		return -EINVAL;
+
+	if (copy_from_user(&data, (void __user *)arg, _IOC_SIZE(cmd)))
+		return -EFAULT;
+
+	switch (cmd) {
+	case MESON_CMA_HEAP_IOC_GET_INFO:
+		ret = meson_cma_heap_get_info(&data.info_data);
+		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
+			return -EFAULT;
+		break;
+	default:
+		return -ENOTTY;
+	}
+
+	return ret;
+}
+
+static const struct file_operations meson_cma_heap_fops = {
+	.owner          = THIS_MODULE,
+	.unlocked_ioctl = meson_cma_heap_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl   = meson_cma_heap_ioctl,
+#endif
+};
+
+#if DMAHEAP_CLASS
+static ssize_t num_of_buffers_show(struct device *dev,
+			struct device_attribute *attr, char * const buf)
+{
+	struct dma_heap_device *hdev = dma_heap_dev;
+
+	if (strstr(kobject_name(&dev->kobj), "heap-gfx"))
+		return sprintf(buf, "%zu\n", hdev->heap_gfx_num_of_buffers);
+	else if (strstr(kobject_name(&dev->kobj), "heap-fb"))
+		return sprintf(buf, "%zu\n", hdev->heap_fb_num_of_buffers);
+	else
+		return 0;
+}
+
+static ssize_t num_of_alloc_bytes_show(struct device *dev,
+			struct device_attribute *attr, char * const buf)
+{
+	struct dma_heap_device *hdev = dma_heap_dev;
+
+	if (strstr(kobject_name(&dev->kobj), "heap-gfx"))
+		return sprintf(buf, "%zu\n", hdev->heap_gfx_num_of_alloc_bytes);
+	else if (strstr(kobject_name(&dev->kobj), "heap-fb"))
+		return sprintf(buf, "%zu\n", hdev->heap_fb_num_of_alloc_bytes);
+	else
+		return 0;
+}
+
+static ssize_t num_of_free_bytes_show(struct device *dev,
+			struct device_attribute *attr, char * const buf)
+{
+	struct dma_heap_device *hdev = dma_heap_dev;
+
+	if (strstr(kobject_name(&dev->kobj), "heap-gfx"))
+		return sprintf(buf, "%zu\n", hdev->heap_gfx_num_of_free_bytes);
+	else if (strstr(kobject_name(&dev->kobj), "heap-fb"))
+		return sprintf(buf, "%zu\n", hdev->heap_fb_num_of_free_bytes);
+	else
+		return 0;
+}
+
+static DEVICE_ATTR_RO(num_of_buffers);
+static DEVICE_ATTR_RO(num_of_alloc_bytes);
+static DEVICE_ATTR_RO(num_of_free_bytes);
+
+static struct attribute *heap_gfx_attrs[] = {
+	&dev_attr_num_of_buffers.attr,
+	&dev_attr_num_of_alloc_bytes.attr,
+	&dev_attr_num_of_free_bytes.attr,
+	NULL
+};
+
+static struct attribute *heap_fb_attrs[] = {
+	&dev_attr_num_of_buffers.attr,
+	&dev_attr_num_of_alloc_bytes.attr,
+	&dev_attr_num_of_free_bytes.attr,
+	NULL
+};
+
+static const struct attribute_group heap_gfx_attr_group = {
+	.attrs = heap_gfx_attrs,
+};
+
+static const struct attribute_group heap_fb_attr_group = {
+	.attrs = heap_fb_attrs,
+};
+#endif
+
 static int __add_meson_cma_heap(struct cma *cma, void *data)
 {
 	struct meson_cma_heap *meson_cma_heap;
 	struct dma_heap_export_info exp_info;
+	struct dma_heap_device *dev = dma_heap_dev;
+	struct dentry *heap_root;
+	int ret;
 
 	meson_cma_heap = kzalloc(sizeof(*meson_cma_heap), GFP_KERNEL);
 	if (!meson_cma_heap)
@@ -428,11 +613,46 @@ static int __add_meson_cma_heap(struct cma *cma, void *data)
 
 	meson_cma_heap->heap = dma_heap_add(&exp_info);
 	if (IS_ERR(meson_cma_heap->heap)) {
-		int ret = PTR_ERR(meson_cma_heap->heap);
-
+		ret = PTR_ERR(meson_cma_heap->heap);
 		kfree(meson_cma_heap);
 		return ret;
 	}
+
+	mutex_init(&meson_cma_heap->lock);
+	meson_cma_heap->device = dma_heap_get_dev(meson_cma_heap->heap);
+	/* Create debug device */
+	meson_cma_heap->num_of_buffers = 0;
+	meson_cma_heap->num_of_alloc_bytes = 0;
+	meson_cma_heap->num_of_free_bytes = 0;
+
+	heap_root = debugfs_create_dir(exp_info.name, dev->debug_root);
+	debugfs_create_u64("num_of_buffers",
+			   0444, heap_root,
+			   &meson_cma_heap->num_of_buffers);
+	debugfs_create_u64("num_of_alloc_bytes",
+			   0444, heap_root,
+			   &meson_cma_heap->num_of_alloc_bytes);
+	debugfs_create_u64("num_of_free_bytes",
+			   0444, heap_root,
+			   &meson_cma_heap->num_of_free_bytes);
+
+#if DMAHEAP_CLASS
+	if (strstr(exp_info.name, "heap-gfx")) {
+		ret = sysfs_create_group(&meson_cma_heap->device->kobj, &heap_gfx_attr_group);
+		if (ret) {
+			pr_err("dmaheap: failed to create heap-gfx group.\n");
+			sysfs_remove_group(&meson_cma_heap->device->kobj, &heap_gfx_attr_group);
+		}
+	}
+	if (strstr(exp_info.name, "heap-fb")) {
+		ret = sysfs_create_group(&meson_cma_heap->device->kobj, &heap_fb_attr_group);
+		if (ret) {
+			pr_err("dmaheap: failed to create heap-fb group.\n");
+			sysfs_remove_group(&meson_cma_heap->device->kobj, &heap_fb_attr_group);
+		}
+	}
+#endif
+
 	dma_coerce_mask_and_coherent(dma_heap_get_dev(meson_cma_heap->heap),
 		DMA_BIT_MASK(64));
 	mb(); /* make sure we only set allocate after dma_mask is set */
@@ -442,18 +662,50 @@ static int __add_meson_cma_heap(struct cma *cma, void *data)
 
 static int meson_cma_scan(struct cma *cma, void *data)
 {
+	struct dma_heap_device *hdev = dma_heap_dev;
 	const char *cma_name = cma_get_name(cma);
+	unsigned long cma_size = cma_get_size(cma);
 
 	if (strstr(cma_name, "heap-gfx") ||
 		strstr(cma_name, "heap-fb")) {
 		__add_meson_cma_heap(cma, NULL);
-		pr_info("dmaheap: find %s\n", cma_name);
+		pr_info("dmaheap: find %s size %lu\n", cma_name, cma_size);
 	}
+
+	if (strstr(cma_name, "heap-gfx")) {
+		hdev->total_heap_gfx_size = cma_size;
+		hdev->heap_gfx_num_of_free_bytes = hdev->total_heap_gfx_size;
+	}
+	if (strstr(cma_name, "heap-fb")) {
+		hdev->total_heap_fb_size = cma_size;
+		hdev->heap_fb_num_of_free_bytes = hdev->total_heap_fb_size;
+	}
+
 	return 0;
 }
 
 int add_meson_cma_heap(void)
 {
+	struct dma_heap_device *dma_dev;
+	int ret;
+
+	dma_dev = kzalloc(sizeof(*dma_dev), GFP_KERNEL);
+	if (!dma_dev)
+		return -ENOMEM;
+
+	dma_dev->dev.minor = MISC_DYNAMIC_MINOR;
+	dma_dev->dev.name = "dmaheap";
+	dma_dev->dev.fops = &meson_cma_heap_fops;
+	dma_dev->dev.parent = NULL;
+	ret = misc_register(&dma_dev->dev);
+	if (ret) {
+		pr_err("dmaheap: failed to register misc device.\n");
+		kfree(dma_dev);
+		return ret;
+	}
+
+	dma_dev->debug_root = debugfs_create_dir("dma_heap", NULL);
+	dma_heap_dev = dma_dev;
 	cma_for_each_area(meson_cma_scan, NULL);
 	return 0;
 }
