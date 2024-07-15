@@ -37,6 +37,7 @@
 #include "../lcd_common.h"
 #include <linux/sched/clock.h>
 
+static bool lcd_legacy_panel_disp_mode;
 // in detailed timing
 //unsigned char fixed_type;
 //unsigned int fixed_val_set[8];
@@ -224,8 +225,15 @@ static void lcd_act_timing_update_vinfo(struct aml_lcd_drv_s *pdrv)
 
 	memset(pdrv->output_name, 0, sizeof(pdrv->output_name));
 
-	str_add_vmode(pdrv->output_name, 0,
-		ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
+	if (lcd_legacy_panel_disp_mode) {
+		if (pdrv->index)
+			sprintf(pdrv->output_name, "panel%u", pdrv->index);
+		else
+			sprintf(pdrv->output_name, "panel");
+	} else {
+		str_add_vmode(pdrv->output_name, 0,
+			ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
+	}
 
 	pdrv->vinfo.width = ptiming->h_active;
 	pdrv->vinfo.height = ptiming->v_active;
@@ -284,8 +292,15 @@ static void lcd_dft_timing_update_vinfo(struct aml_lcd_drv_s *pdrv)
 
 	memset(pdrv->output_name, 0, sizeof(pdrv->output_name));
 
-	str_add_vmode(pdrv->output_name, 0,
-		ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
+	if (lcd_legacy_panel_disp_mode) {
+		if (pdrv->index)
+			sprintf(pdrv->output_name, "panel%u", pdrv->index);
+		else
+			sprintf(pdrv->output_name, "panel");
+	} else {
+		str_add_vmode(pdrv->output_name, 0,
+			ptiming->h_active, ptiming->v_active, ptiming->frame_rate);
+	}
 
 	pdrv->vinfo.name = pdrv->output_name;
 	pdrv->vinfo.mode = VMODE_LCD;
@@ -322,6 +337,7 @@ static int lcd_tablet_outputmode_check(struct aml_lcd_drv_s *pdrv, char *mode)
 	if (pdrv->index)
 		lagecy_name[5] = '0' + pdrv->index;
 	if (strcmp(mode, lagecy_name) == 0) {
+		lcd_legacy_panel_disp_mode = 1;
 		temp_list->info->duration_index = 0;
 		if (pdrv->vmode_mgr.cur_vmode_info != temp_list->info)
 			pdrv->vmode_mgr.next_vmode_info = temp_list->info;
@@ -676,6 +692,14 @@ static int lcd_vout_get_disp_cap(char *buf, void *data)
 
 	if (!pdrv)
 		return 0;
+
+	if (lcd_legacy_panel_disp_mode) {
+		if (pdrv->index)
+			ret = sprintf(buf, "panel%u\n", pdrv->index);
+		else
+			ret = sprintf(buf, "panel\n");
+		return ret;
+	}
 
 	temp_list = pdrv->vmode_mgr.vmode_list_header;
 	while (temp_list) {
@@ -1096,6 +1120,9 @@ static void lcd_vmode_init(struct aml_lcd_drv_s *pdrv)
 	mode = kstrdup(init_mode, GFP_KERNEL);
 	if (!mode)
 		return;
+
+	if (strncmp(init_mode, "panel", 5) == 0)
+		lcd_legacy_panel_disp_mode = 1;
 
 	lcd_tablet_add_all_vmode(pdrv);
 	LCDPR("[%d]: %s: mode: %s\n", pdrv->index, __func__, mode);
