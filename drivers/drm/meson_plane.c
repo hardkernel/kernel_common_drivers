@@ -374,29 +374,33 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 	if (state->plane) {
 		amp = to_am_osd_plane(state->plane);
 
-		if (amp->reset_src_x)
-			plane_info->src_x = amp->reset_src_x;
-		if (amp->reset_src_y)
-			plane_info->src_y = amp->reset_src_y;
-		if (amp->reset_src_w)
-			plane_info->src_w = amp->reset_src_w;
-		if (amp->reset_src_h)
-			plane_info->src_h = amp->reset_src_h;
-		if (amp->reset_src_x || amp->reset_src_y || amp->reset_src_w || amp->reset_src_h)
+		if (amp->adjust_src.x1)
+			plane_info->src_x = amp->adjust_src.x1;
+		if (amp->adjust_src.y1)
+			plane_info->src_y = amp->adjust_src.y1;
+		if (amp->adjust_src.x2)
+			plane_info->src_w = amp->adjust_src.x2;
+		if (amp->adjust_src.y2)
+			plane_info->src_h = amp->adjust_src.y2;
+		if (amp->adjust_src.x1 || amp->adjust_src.y1 || amp->adjust_src.x2 ||
+			amp->adjust_src.y2)
 			DRM_DEBUG("resize original src: src_x=%d, src_y=%d, src_w=%d, src_h=%d\n",
-			amp->reset_src_x, amp->reset_src_y, amp->reset_src_w, amp->reset_src_h);
+			amp->adjust_src.x1, amp->adjust_src.y1, amp->adjust_src.x2,
+			amp->adjust_src.y2);
 
-		if (amp->reset_dst_x)
-			plane_info->dst_x = amp->reset_dst_x;
-		if (amp->reset_dst_y)
-			plane_info->dst_y = amp->reset_dst_y;
-		if (amp->reset_dst_w)
-			plane_info->dst_w = amp->reset_dst_w;
-		if (amp->reset_dst_h)
-			plane_info->dst_h = amp->reset_dst_h;
-		if (amp->reset_dst_x || amp->reset_dst_y || amp->reset_dst_w || amp->reset_dst_h)
+		if (amp->adjust_dst.x1)
+			plane_info->dst_x = amp->adjust_dst.x1;
+		if (amp->adjust_dst.y1)
+			plane_info->dst_y = amp->adjust_dst.y1;
+		if (amp->adjust_dst.x2)
+			plane_info->dst_w = amp->adjust_dst.x2;
+		if (amp->adjust_dst.y2)
+			plane_info->dst_h = amp->adjust_dst.y2;
+		if (amp->adjust_dst.x1 || amp->adjust_dst.y1 || amp->adjust_dst.x2 ||
+			amp->adjust_dst.y2)
 			DRM_DEBUG("resize original dst: dst_x=%d, dst_y=%d, dst_w=%d, dst_h=%d\n",
-			amp->reset_dst_x, amp->reset_dst_y, amp->reset_dst_w, amp->reset_dst_h);
+			amp->adjust_dst.x1, amp->adjust_dst.y1, amp->adjust_dst.x2,
+			amp->adjust_dst.y2);
 
 		if (plane_info->rotation != amp->osd_reverse)
 			plane_info->rotation = amp->osd_reverse;
@@ -494,6 +498,7 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_crtc_state *crtc_state;
 	struct drm_display_mode *mode;
+	struct am_video_plane *avp;
 
 	if (crtc) {
 		crtc_state = drm_atomic_get_crtc_state(atomic_state, crtc);
@@ -515,6 +520,38 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 	plane_info->dst_y = state->crtc_y;
 	plane_info->dst_w = state->crtc_w;
 	plane_info->dst_h = state->crtc_h;
+
+	if (state->plane) {
+		avp = to_am_video_plane(state->plane);
+		if (avp->adjust_src.x1)
+			plane_info->src_x = avp->adjust_src.x1;
+		if (avp->adjust_src.y1)
+			plane_info->src_y = avp->adjust_src.y1;
+		if (avp->adjust_src.x2)
+			plane_info->src_w = avp->adjust_src.x2;
+		if (avp->adjust_src.y2)
+			plane_info->src_h = avp->adjust_src.y2;
+		if (avp->adjust_src.x1 || avp->adjust_src.y1 || avp->adjust_src.x2 ||
+			avp->adjust_src.y2)
+			DRM_DEBUG("resize original src: src_x=%d, src_y=%d, src_w=%d, src_h=%d\n",
+			avp->adjust_src.x1, avp->adjust_src.y1, avp->adjust_src.x2,
+			avp->adjust_src.y2);
+
+		if (avp->adjust_dst.x1)
+			plane_info->dst_x = avp->adjust_dst.x1;
+		if (avp->adjust_dst.y1)
+			plane_info->dst_y = avp->adjust_dst.y1;
+		if (avp->adjust_dst.x2)
+			plane_info->dst_w = avp->adjust_dst.x2;
+		if (avp->adjust_dst.y2)
+			plane_info->dst_h = avp->adjust_dst.y2;
+		if (avp->adjust_dst.x1 || avp->adjust_dst.y1 || avp->adjust_dst.x2 ||
+			avp->adjust_dst.y2)
+			DRM_DEBUG("resize original dst: dst_x=%d, dst_y=%d, dst_w=%d, dst_h=%d\n",
+			avp->adjust_dst.x1, avp->adjust_dst.y1, avp->adjust_dst.x2,
+			avp->adjust_dst.y2);
+	}
+
 	/*negative position process*/
 	if (state->crtc_x < 0) {
 		dst_w = state->crtc_w + state->crtc_x;

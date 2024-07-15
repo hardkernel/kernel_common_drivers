@@ -395,7 +395,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_video_state *mvvs = to_video_state(state);
 	struct video_display_frame_info_t vf_info;
 	struct vframe_s *vf = NULL, *dec_vf = NULL, *vfp = NULL;
-	u32 pixel_format, src_h, byte_stride, pic_w, pic_h;
+	u32 pixel_format, src_h, byte_stride, pic_w, pic_h, fb_h;
 	u32 recal_src_w, recal_src_h;
 	u64 phy_addr, phy_addr2 = 0;
 
@@ -408,6 +408,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 
 	src_h = mvvs->src_h;
 	byte_stride = mvvs->byte_stride;
+	fb_h = mvvs->fb_h;
 	phy_addr = mvvs->phy_addr[0];
 	pixel_format = mvvs->pixel_format;
 	MESON_DRM_BLOCK("%s %d-%d-%llx", __func__, src_h, pixel_format, phy_addr);
@@ -547,7 +548,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			if (pixel_format == DRM_FORMAT_NV12 ||
 			    pixel_format == DRM_FORMAT_NV21) {
 				if (!mvvs->phy_addr[1])
-					vf_info.phy_addr[1] = phy_addr + byte_stride * src_h;
+					vf_info.phy_addr[1] = phy_addr + byte_stride * fb_h;
 				else
 					vf_info.phy_addr[1] = mvvs->phy_addr[1];
 			}
@@ -577,7 +578,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			if (pixel_format == DRM_FORMAT_NV12 ||
 			    pixel_format == DRM_FORMAT_NV21) {
 				if (!mvvs->phy_addr[1])
-					phy_addr2 = phy_addr + byte_stride * src_h;
+					phy_addr2 = phy_addr + byte_stride * fb_h;
 				else
 					phy_addr2 = mvvs->phy_addr[1];
 			}

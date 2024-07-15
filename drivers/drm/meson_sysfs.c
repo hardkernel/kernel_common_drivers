@@ -23,6 +23,10 @@ static const char osd1_group_name[] = "osd1";
 static const char osd2_group_name[] = "osd2";
 static const char osd3_group_name[] = "osd3";
 int osd_index[MESON_MAX_OSDS] = {0, 1, 2, 3};
+static const char video0_group_name[] = "video0";
+static const char video1_group_name[] = "video1";
+static const char video2_group_name[] = "video2";
+int video_index[MESON_MAX_VIDEOS] = {0, 1, 2};
 static const char crtc0_group_name[] = "crtc0";
 static const char crtc1_group_name[] = "crtc1";
 static const char crtc2_group_name[] = "crtc2";
@@ -658,10 +662,10 @@ static ssize_t osd_resize_src_store(struct file *filp, struct kobject *kobj,
 	if (kstrtouint(parm[3], 10, &src_h) < 0)
 		return -EINVAL;
 
-	priv->osd_planes[osd_index]->reset_src_x = src_x;
-	priv->osd_planes[osd_index]->reset_src_y = src_y;
-	priv->osd_planes[osd_index]->reset_src_w = src_w;
-	priv->osd_planes[osd_index]->reset_src_h = src_h;
+	priv->osd_planes[osd_index]->adjust_src.x1 = src_x;
+	priv->osd_planes[osd_index]->adjust_src.y1 = src_y;
+	priv->osd_planes[osd_index]->adjust_src.x2 = src_w;
+	priv->osd_planes[osd_index]->adjust_src.y2 = src_h;
 
 	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
 	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
@@ -746,10 +750,10 @@ static ssize_t osd_resize_dst_store(struct file *filp, struct kobject *kobj,
 	if (kstrtouint(parm[3], 10, &dst_h) < 0)
 		return -EINVAL;
 
-	priv->osd_planes[osd_index]->reset_dst_x = dst_x;
-	priv->osd_planes[osd_index]->reset_dst_y = dst_y;
-	priv->osd_planes[osd_index]->reset_dst_w = dst_w;
-	priv->osd_planes[osd_index]->reset_dst_h = dst_h;
+	priv->osd_planes[osd_index]->adjust_dst.x1 = dst_x;
+	priv->osd_planes[osd_index]->adjust_dst.y1 = dst_y;
+	priv->osd_planes[osd_index]->adjust_dst.x2 = dst_w;
+	priv->osd_planes[osd_index]->adjust_dst.y2 = dst_h;
 
 	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
 	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
@@ -1293,6 +1297,182 @@ static ssize_t crtc_rdma_table_switch_store(struct file *filp,
 	return count;
 }
 
+static ssize_t video_resize_src_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	struct meson_drm *priv;
+	int video_index = *(int *)attr->private;
+	int pos = 0;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (off > 0)
+		return 0;
+
+	priv = minor->dev->dev_private;
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo src_x src_y src_w src_h > resize_source to enable video-%d resize src\n",
+		video_index);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 0 0 0 0 > resize_source to disable video-%d resize src\n", video_index);
+
+	return pos;
+}
+
+static ssize_t video_resize_src_store(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	int video_index = *(int *)attr->private;
+	struct meson_drm *priv;
+	unsigned int src_x, src_y, src_w, src_h;
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_atomic_state *state;
+	char dst_buf[64];
+	char *bufp, *parm[8] = {NULL};
+	int err;
+	int lens = strlen(buf);
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (lens > sizeof(dst_buf) - 1)
+		return -EINVAL;
+
+	memcpy(dst_buf, buf, lens);
+
+	dst_buf[lens] = '\0';
+	bufp = dst_buf;
+	parse_param(bufp, (char **)&parm);
+
+	priv = minor->dev->dev_private;
+	state = ERR_PTR(-EINVAL);
+
+	if (!(parm[0] && parm[1] && parm[2] && parm[3])) {
+		DRM_INFO("%s, parameters is incorrect.\n", __func__);
+		return -EINVAL;
+	}
+	if (kstrtouint(parm[0], 10, &src_x) < 0)
+		return -EINVAL;
+	if (kstrtouint(parm[1], 10, &src_y) < 0)
+		return -EINVAL;
+	if (kstrtouint(parm[2], 10, &src_w) < 0)
+		return -EINVAL;
+	if (kstrtouint(parm[3], 10, &src_h) < 0)
+		return -EINVAL;
+
+	priv->video_planes[video_index]->adjust_src.x1 = src_x;
+	priv->video_planes[video_index]->adjust_src.y1 = src_y;
+	priv->video_planes[video_index]->adjust_src.x2 = src_w;
+	priv->video_planes[video_index]->adjust_src.y2 = src_h;
+
+	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
+	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
+	if (IS_ERR(state))
+		return -EFAULT;
+	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
+	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
+	if (IS_ERR(state))
+		return -EFAULT;
+	drm_atomic_state_put(state);
+
+	return count;
+}
+
+static ssize_t video_resize_dst_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	struct meson_drm *priv;
+	int video_index = *(int *)attr->private;
+	int pos = 0;
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (off > 0)
+		return 0;
+
+	priv = minor->dev->dev_private;
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo dst_x dst_y dst_w dst_h > resize_destination to enable video-%d resize dst\n",
+		video_index);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"echo 0 0 0 0 > resize_destination to disable video-%d resize dst\n", video_index);
+
+	return pos;
+}
+
+static ssize_t video_resize_dst_store(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_minor *minor = dev_get_drvdata(dev);
+	int video_index = *(int *)attr->private;
+	struct meson_drm *priv;
+	unsigned int dst_x, dst_y, dst_w, dst_h;
+	struct drm_modeset_acquire_ctx ctx;
+	struct drm_atomic_state *state;
+	char dst_buf[64];
+	char *bufp, *parm[8] = {NULL};
+	int err;
+	int lens = strlen(buf);
+
+	if (!minor || !minor->dev)
+		return -EINVAL;
+
+	if (lens > sizeof(dst_buf) - 1)
+		return -EINVAL;
+
+	memcpy(dst_buf, buf, lens);
+
+	dst_buf[lens] = '\0';
+	bufp = dst_buf;
+	parse_param(bufp, (char **)&parm);
+
+	priv = minor->dev->dev_private;
+	state = ERR_PTR(-EINVAL);
+
+	if (!(parm[0] && parm[1] && parm[2] && parm[3])) {
+		DRM_INFO("%s, parameters is incorrect.\n", __func__);
+		return -EINVAL;
+	}
+	if (kstrtouint(parm[0], 10, &dst_x) < 0)
+		return -EINVAL;
+	if (kstrtouint(parm[1], 10, &dst_y) < 0)
+		return -EINVAL;
+	if (kstrtouint(parm[2], 10, &dst_w) < 0)
+		return -EINVAL;
+	if (kstrtouint(parm[3], 10, &dst_h) < 0)
+		return -EINVAL;
+
+	priv->video_planes[video_index]->adjust_dst.x1 = dst_x;
+	priv->video_planes[video_index]->adjust_dst.y1 = dst_y;
+	priv->video_planes[video_index]->adjust_dst.x2 = dst_w;
+	priv->video_planes[video_index]->adjust_dst.y2 = dst_h;
+
+	DRM_MODESET_LOCK_ALL_BEGIN(minor->dev, ctx, 0, err);
+	state = drm_atomic_helper_duplicate_state(minor->dev, &ctx);
+	if (IS_ERR(state))
+		return -EFAULT;
+	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
+	DRM_MODESET_LOCK_ALL_END(minor->dev, ctx, err);
+	if (IS_ERR(state))
+		return -EFAULT;
+	drm_atomic_state_put(state);
+
+	return count;
+}
+
 static struct bin_attribute osd0_attr[] = {
 	{
 		.attr.name = "osd_reverse",
@@ -1581,6 +1761,75 @@ static struct bin_attribute *osd3_bin_attrs[] = {
 	NULL,
 };
 
+static struct bin_attribute video0_attr[] = {
+	{
+		.attr.name = "resize_source",
+		.attr.mode = 0664,
+		.private = &video_index[0],
+		.read = video_resize_src_show,
+		.write = video_resize_src_store,
+	},
+	{
+		.attr.name = "resize_destination",
+		.attr.mode = 0664,
+		.private = &video_index[0],
+		.read = video_resize_dst_show,
+		.write = video_resize_dst_store,
+	},
+};
+
+static struct bin_attribute *video0_bin_attrs[] = {
+	&video0_attr[0],
+	&video0_attr[1],
+	NULL,
+};
+
+static struct bin_attribute video1_attr[] = {
+	{
+		.attr.name = "resize_source",
+		.attr.mode = 0664,
+		.private = &video_index[1],
+		.read = video_resize_src_show,
+		.write = video_resize_src_store,
+	},
+	{
+		.attr.name = "resize_destination",
+		.attr.mode = 0664,
+		.private = &video_index[1],
+		.read = video_resize_dst_show,
+		.write = video_resize_dst_store,
+	},
+};
+
+static struct bin_attribute *video1_bin_attrs[] = {
+	&video1_attr[0],
+	&video1_attr[1],
+	NULL,
+};
+
+static struct bin_attribute video2_attr[] = {
+	{
+		.attr.name = "resize_source",
+		.attr.mode = 0664,
+		.private = &video_index[2],
+		.read = video_resize_src_show,
+		.write = video_resize_src_store,
+	},
+	{
+		.attr.name = "resize_destination",
+		.attr.mode = 0664,
+		.private = &video_index[2],
+		.read = video_resize_dst_show,
+		.write = video_resize_dst_store,
+	},
+};
+
+static struct bin_attribute *video2_bin_attrs[] = {
+	&video2_attr[0],
+	&video2_attr[1],
+	NULL,
+};
+
 static const struct attribute_group osd_attr_group[MESON_MAX_OSDS] = {
 	{
 		.name = osd0_group_name,
@@ -1597,6 +1846,21 @@ static const struct attribute_group osd_attr_group[MESON_MAX_OSDS] = {
 	{
 		.name = osd3_group_name,
 		.bin_attrs = osd3_bin_attrs,
+	},
+};
+
+static const struct attribute_group video_attr_group[MESON_MAX_VIDEOS] = {
+	{
+		.name = video0_group_name,
+		.bin_attrs = video0_bin_attrs,
+	},
+	{
+		.name = video1_group_name,
+		.bin_attrs = video1_bin_attrs,
+	},
+	{
+		.name = video2_group_name,
+		.bin_attrs = video2_bin_attrs,
 	},
 };
 
@@ -1760,6 +2024,11 @@ int meson_drm_sysfs_register(struct drm_device *drm_dev)
 			continue;
 		rc = sysfs_create_group(&dev->kobj, &osd_attr_group[i]);
 	}
+	for (i = 0; i < MESON_MAX_VIDEOS; i++) {
+		if (!priv->pipeline->video[i])
+			continue;
+		rc = sysfs_create_group(&dev->kobj, &video_attr_group[i]);
+	}
 	for (i = 0; i < MESON_MAX_POSTBLEND; i++) {
 		if (!priv->pipeline->postblends[i])
 			continue;
@@ -1783,6 +2052,11 @@ void meson_drm_sysfs_unregister(struct drm_device *drm_dev)
 		if (!priv->pipeline->osds[i])
 			continue;
 		sysfs_remove_group(&dev->kobj, &osd_attr_group[i]);
+	}
+	for (i = 0; i < MESON_MAX_VIDEOS; i++) {
+		if (!priv->pipeline->video[i])
+			continue;
+		sysfs_remove_group(&dev->kobj, &video_attr_group[i]);
 	}
 	for (i = 0; i < MESON_MAX_POSTBLEND; i++) {
 		if (!priv->pipeline->postblends[i])

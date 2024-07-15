@@ -11,6 +11,7 @@
 #include <drm/drm_plane.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_rect.h>
 #include <uapi/amlogic/drm/meson_drm.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/meson_uvm_core.h>
@@ -78,14 +79,8 @@ struct am_osd_plane {
 
 	/* sysfs debug*/
 	u16 pixel_blend_debug;
-	int reset_src_x;
-	int reset_src_y;
-	int reset_src_w;
-	int reset_src_h;
-	int reset_dst_x;
-	int reset_dst_y;
-	int reset_dst_w;
-	int reset_dst_h;
+	struct drm_rect adjust_src;
+	struct drm_rect adjust_dst;
 };
 
 struct am_video_plane {
@@ -102,6 +97,8 @@ struct am_video_plane {
 	spinlock_t lock; //used for video plane dma_fence
 	u32 vfm_mode;
 	/*video exted*/
+	struct drm_rect adjust_src;
+	struct drm_rect adjust_dst;
 };
 
 struct meson_video_plane_fence_info {
