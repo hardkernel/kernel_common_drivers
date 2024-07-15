@@ -2793,10 +2793,8 @@ void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu()) {
-		//vdin_set_canvas_id_s5(devp, rdma_enable, vfe);
 		return;
 	} else if (is_meson_t3x_cpu()) {
-		//vdin_set_canvas_id_t3x(devp, rdma_enable, vfe);
 		return;
 	}
 #endif
@@ -2837,33 +2835,26 @@ void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 #endif
 		wr_bits(devp->addr_offset, VDIN_WR_CTRL, canvas_id,
 			WR_CANVAS_BIT, WR_CANVAS_WID);
-
-		if (devp->pause_dec || devp->debug.pause_mif_dec)
-			wr_bits(devp->addr_offset, VDIN_WR_CTRL, 0,
-				WR_REQ_EN_BIT, WR_REQ_EN_WID);
-		else
-			wr_bits(devp->addr_offset, VDIN_WR_CTRL, 1,
-				WR_REQ_EN_BIT, WR_REQ_EN_WID);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	}
 #endif
 }
 
-void vdin_pause_mif_write(struct vdin_dev_s *devp, unsigned int rdma_enable)
+void vdin_pause_mif_write(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t3x_cpu()) {
-		vdin_pause_mif_write_t3x(devp, rdma_enable);
+		vdin_pause_mif_write_t3x(devp, rdma_enable, pause_en);
 		return;
 	}
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable)
 		rdma_write_reg_bits(devp->rdma_handle, VDIN_WR_CTRL + devp->addr_offset,
-				    0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
+			!pause_en, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 	else
 #endif
-		wr_bits(devp->addr_offset, VDIN_WR_CTRL, 0,
+		wr_bits(devp->addr_offset, VDIN_WR_CTRL, !pause_en,
 			WR_REQ_EN_BIT, WR_REQ_EN_WID);
 }
 

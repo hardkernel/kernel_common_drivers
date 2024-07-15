@@ -721,21 +721,21 @@ void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 	}
 }
 
-void vdin_pause_afbce_write(struct vdin_dev_s *devp, unsigned int rdma_enable)
+void vdin_pause_afbce_write(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t3x_cpu()) {
-		vdin_pause_afbce_write_t3x(devp, rdma_enable);
+		vdin_pause_afbce_write_t3x(devp, rdma_enable, pause_en);
 		return;
 	}
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable)
-		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 0,
+		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, !pause_en,
 				    AFBCE_EN_BIT, AFBCE_EN_WID);
 	else
-		W_VCBUS_BIT(AFBCE_ENABLE, 0, AFBCE_EN_BIT, AFBCE_EN_WID);
+		W_VCBUS_BIT(AFBCE_ENABLE, !pause_en, AFBCE_EN_BIT, AFBCE_EN_WID);
 #endif
 	vdin_afbce_clear_write_down_flag(devp);
 }

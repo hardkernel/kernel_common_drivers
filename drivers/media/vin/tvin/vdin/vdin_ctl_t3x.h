@@ -231,7 +231,7 @@ void vdin_scramble_setting_t3x(struct vdin_dev_s *devp, unsigned int on_off);
 void vdin_get_duration_by_fps(struct vdin_dev_s *devp);
 void vdin_set_to_vpp_parm(struct vdin_dev_s *devp);
 void vdin_dmc_ctrl(struct vdin_dev_s *devp, bool on_off);
-void vdin_pause_mif_write_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable);
+void vdin_pause_mif_write_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en);
 bool vdin_check_is_spd_data(struct vdin_dev_s *devp);
 void vdin_sw_reset_t3x(struct vdin_dev_s *devp);
 void vdin_bist_t3x(struct vdin_dev_s *devp, unsigned int mode);

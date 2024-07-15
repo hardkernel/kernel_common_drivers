@@ -1289,6 +1289,7 @@ void vdin_game_mode_chg(struct vdin_dev_s *devp,
 void vdin_frame_lock_check(struct vdin_dev_s *devp, int state);
 void vdin_v4l2_init(struct vdin_dev_s *devp, struct platform_device *pl_dev);
 void vdin_pause_hw_write(struct vdin_dev_s *devp, bool rdma_en);
+void vdin_resume_hw_write(struct vdin_dev_s *devp, bool rdma_en);
 void vdin_reg_dmc_notifier(unsigned int index);
 void vdin_unreg_dmc_notifier(unsigned int index);
 #endif /* __TVIN_VDIN_DRV_H */

@@ -357,7 +357,7 @@ void vdin_dv_desc_to_4448bit(struct vdin_dev_s *devp,
 void vdin_get_duration_by_fps(struct vdin_dev_s *devp);
 void vdin_set_to_vpp_parm(struct vdin_dev_s *devp);
 void vdin_dmc_ctrl(struct vdin_dev_s *devp, bool on_off);
-void vdin_pause_mif_write(struct vdin_dev_s *devp, unsigned int rdma_enable);
+void vdin_pause_mif_write(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en);
 bool vdin_check_is_spd_data(struct vdin_dev_s *devp);
 bool vdin_check_freesync_state_chg(struct vdin_dev_s *devp);
 bool vdin_is_vrr_state_chg(struct vdin_dev_s *devp);

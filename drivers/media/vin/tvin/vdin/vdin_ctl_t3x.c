@@ -2072,20 +2072,20 @@ void vdin_set_canvas_id_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable,
 #endif
 }
 
-void vdin_pause_mif_write_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable)
+void vdin_pause_mif_write_t3x(struct vdin_dev_s *devp, unsigned int rdma_enable, bool pause_en)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable) {
 		rdma_write_reg_bits(devp->rdma_handle,
-			VDIN0_CORE_CTRL + devp->addr_offset, 0, 6, 1);
+			VDIN0_CORE_CTRL + devp->addr_offset, !pause_en, 6, 1);
 		rdma_write_reg_bits(devp->rdma_handle, VDIN0_WRMIF_CTRL + devp->addr_offset,
-			0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
+			!pause_en, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 	}
 	else
 #endif
 	{
-		wr_bits(devp->addr_offset, VDIN0_CORE_CTRL, 0, 6, 1);
-		wr_bits(devp->addr_offset, VDIN0_WRMIF_CTRL, 0,
+		wr_bits(devp->addr_offset, VDIN0_CORE_CTRL, !pause_en, 6, 1);
+		wr_bits(devp->addr_offset, VDIN0_WRMIF_CTRL, !pause_en,
 			WR_REQ_EN_BIT, WR_REQ_EN_WID);
 	}
 }

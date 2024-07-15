@@ -2770,7 +2770,7 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 		md = VDIN_VF_RECYCLE;
 
 	/*force recycle one frame*/
-	if (devp->frame_cnt <= devp->vdin_drop_num ||
+	if (devp->frame_cnt < devp->vdin_drop_num ||
 		devp->vdin_irq_flag) {
 		if (vfe)
 			receiver_vf_put(&vfe->vf, devp->vfp);
@@ -2937,13 +2937,22 @@ void vdin_frame_write_ctrl_set(struct vdin_dev_s *devp,
 
 void vdin_pause_hw_write(struct vdin_dev_s *devp, bool rdma_en)
 {
-	vdin_pause_mif_write(devp, rdma_en);
+	vdin_pause_mif_write(devp, rdma_en, true);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (devp->afbce_mode == 1 || devp->double_wr)
-		vdin_pause_afbce_write(devp, rdma_en);
+		vdin_pause_afbce_write(devp, rdma_en, true);
 #endif
-	devp->chg_drop_frame_cnt = 2; //2 is drop abnormal frame
+}
+
+void vdin_resume_hw_write(struct vdin_dev_s *devp, bool rdma_en)
+{
+	vdin_pause_mif_write(devp, rdma_en, false);
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (devp->afbce_mode == 1 || devp->double_wr)
+		vdin_pause_afbce_write(devp, rdma_en, false);
+#endif
 }
 
 static inline void vdin_dynamic_switch_vrr(struct vdin_dev_s *devp)
@@ -3360,9 +3369,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 						  VDIN_FLAG_RDMA_ENABLE),
 						  devp->curr_wr_vfe);
 #endif
-		devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_WR_FE;
-		vdin_drop_frame_info(devp, "no wr vfe");
-		goto irq_handled;
+		/* enable write ddr */
+		vdin_resume_hw_write(devp, 0);
 	}
 
 	/* use RDMA and not game mode */
@@ -3942,16 +3950,22 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	if (!devp->curr_wr_vfe) {
 		devp->curr_wr_vfe = provider_vf_get(devp->vfp);
 
+		devp->stamp = stamp;
+
 		if (devp->curr_wr_vfe) {
 			devp->curr_wr_vfe->vf.ready_jiffies64 = jiffies_64;
 			devp->curr_wr_vfe->vf.ready_clock[0] = sched_clock();
+			/* enable write ddr */
+			vdin_resume_hw_write(devp, 0);
+			/*save the first field stamp*/
+			if (vdin_dbg_en)
+				pr_info("vdin%d devp->curr_wr_vfe is config.\n",
+					devp->index);
+		} else {
+			devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_WR_FE;
+			vdin_drop_frame_info(devp, "no wr vfe");
+			goto irq_handled;
 		}
-
-		/*save the first field stamp*/
-		devp->stamp = stamp;
-		devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_WR_FE;
-		vdin_drop_frame_info(devp, "no wr vfe");
-		goto irq_handled;
 	}
 
 	if (devp->parm.port == TVIN_PORT_VIU1 ||
@@ -4029,6 +4043,9 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 			recycle_tmp_vfs(devp->vfp);
 			tmp_vf_put(curr_wr_vfe, devp->vfp);
 			curr_wr_vfe = NULL;
+			if (vdin_dbg_en)
+				pr_info("vdin%d:%s curr_wr_vfe is null.\n",
+					devp->index, __func__);
 		/*function of capture end,the reserved is the best*/
 		} else if (ret == TVIN_BUF_RECYCLE_TMP) {
 			tmp_to_rd(devp->vfp);
@@ -4088,6 +4105,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	vdin_slt_test(devp);
 
 irq_handled:
+	vdin_dbg_access_reg(devp, 1);
 	devp->vdin_irq_flag = 0;
 	spin_unlock_irqrestore(&devp->isr_lock, flags);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
