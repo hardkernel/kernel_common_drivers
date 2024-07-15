@@ -1155,7 +1155,7 @@ static int host_platform_probe(struct platform_device *pdev)
 	host_data->host = host;
 	platform_set_drvdata(pdev, host);
 
-	if (host->host_dsp->pm_support_ffv) {
+	if (strstr(host_data->name, "dsp") && host->host_dsp->pm_support_ffv) {
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 		register_host_early_suspend_handler(host);
 #endif
