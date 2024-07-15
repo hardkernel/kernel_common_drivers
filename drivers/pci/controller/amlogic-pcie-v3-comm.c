@@ -1918,10 +1918,20 @@ void amlogic_pcie_deinit_phys(struct amlogic_pcie *amlogic)
 		val &= ~(BIT(amlogic->amlphy_rst_bit) |
 			 BIT(amlogic->pcie_a_rst_bit) |
 			 BIT(amlogic->apb_rst_bit) |
-			 BIT(amlogic->u3p2_phy_apb_rst_bit) |
 			 BIT(amlogic->pcie_pipe_bit) |
 			 (amlogic->pcie_rst_mask << amlogic->pcie_rst_bit));
 		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
+
+		writel(0x0, amlogic->phy_base + UPCTX_CONT0_REG2);
+		writel(0x0, amlogic->phy_base + UPCTX_CONT1_REG2);
+		writel(0x0, amlogic->phy_base + UPCTX_DR_REG0);
+		writel(0x0, amlogic->phy_base + UPCRX_DR_REG0);
+		writel(0x0, amlogic->phy_base + UPCRX_DR_REG1);
+		writel(0x0, amlogic->phy_base + REG_MISC_GEN1_REG);
+		writel(0x0, amlogic->phy_base + REG_DCHA_AFE_GEN1_REG);
+		writel(0x0, amlogic->phy_base + REG_DCHA_DFE_GEN1_REG);
+		writel(0x0, amlogic->phy_base + REG_DCHD_CDR_GEN1_REG);
+		writel(0x0, amlogic->phy_base + REG_DCHD_EQ_GEN1_REG);
 		break;
 	case M31_COMBPHY:
 		dev_dbg(dev, " pcie deinit M31_COMBPHY\n");
