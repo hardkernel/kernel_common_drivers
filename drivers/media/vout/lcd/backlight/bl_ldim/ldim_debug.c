@@ -619,7 +619,8 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			"fw_sel                = %d\n"
 			"fw_flag               = %d\n"
 			"ldim_irq_cnt          = %d\n"
-			"duty_update_flag      = %d\n\n",
+			"duty_update_flag      = %d\n"
+			"hw_on_delay           = %d\n\n",
 			ldim_drv->state,
 			ldim_drv->init_on_flag, ldim_drv->func_en,
 			ldim_drv->fw->conf->remap_en, ldim_drv->demo_mode,
@@ -631,7 +632,8 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			ldim_drv->fw->fw_sel,
 			ldim_drv->fw->flag,
 			ldim_drv->irq_cnt,
-			ldim_drv->duty_update_flag);
+			ldim_drv->duty_update_flag,
+			ldim_drv->dev_drv->hw_on_delay);
 		aml_ldim_rmem_info();
 	} else if (!strcmp(parm[0], "print")) {
 		if (parm[1]) {
@@ -699,6 +701,13 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			fw->fw_alg_para_print(fw);
 		else
 			pr_info("ldim_fw para_print is null\n");
+	} else if (!strcmp(parm[0], "hw_on_delay")) {
+		if (parm[1]) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				goto ldim_attr_store_err;
+			ldim_drv->dev_drv->hw_on_delay = val1;
+		}
+		pr_info("hw_on_delay = %d\n", ldim_drv->dev_drv->hw_on_delay);
 	} else {
 		pr_info("invalid cmd!!!\n");
 	}

@@ -1555,6 +1555,16 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 		ldim_gpio_set(dev_drv, dev_drv->lamp_err_gpio, BL_GPIO_INPUT);
 	}
 
+	temp = (*(p + LCD_UKEY_LDIM_DEV_ON_DELAY) |
+			((*(p + LCD_UKEY_LDIM_DEV_ON_DELAY + 1)) << 8));
+	dev_drv->hw_on_delay = temp;
+	LDIMPR("hw_on_delay: %d ms\n", dev_drv->hw_on_delay);
+
+	temp = (*(p + LCD_UKEY_LDIM_DEV_OFF_DELAY) |
+			((*(p + LCD_UKEY_LDIM_DEV_OFF_DELAY + 1)) << 8));
+	dev_drv->hw_off_delay = temp;
+	LDIMPR("hw_off_delay: %d ms\n", dev_drv->hw_off_delay);
+
 	dev_drv->write_check = *(p + LCD_UKEY_LDIM_DEV_WRITE_CHECK);
 
 	dev_drv->dim_max =
