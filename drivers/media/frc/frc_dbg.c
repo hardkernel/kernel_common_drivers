@@ -276,6 +276,8 @@ void frc_status(struct frc_dev_s *devp)
 				devp->in_sts.duration);
 	pr_frc(0, "vpu_int vs_duration= %dus timestamp= %ld\n",
 			devp->vs_duration, (ulong)devp->vs_timestamp);
+	pr_frc(0, "vpu_vd hsize= %d, vsize= %d\n",
+			devp->in_sts.vd_h_size, devp->in_sts.vd_v_size);
 	pr_frc(0, "frc_in vs_duration= %dus timestamp= %ld\n",
 	       devp->in_sts.vs_duration, (ulong)devp->in_sts.vs_timestamp);
 	pr_frc(0, "frc_in isr vs_cnt= %d, vs_tsk_cnt:%d, vd_mute cnt:%d\n",
@@ -1183,6 +1185,13 @@ void frc_debug_other_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			devp->dbg_freq_disable = val1;
+	} else if (!strcmp(parm[0], "disable_size")) {
+		if (!parm[2])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->disable_h_size = (val1 > 3840) ? 3840 : val1;
+		if (kstrtoint(parm[2], 10, &val1) == 0)
+			devp->disable_v_size = (val1 > 2160) ? 2160 : val1;
 	}
 exit:
 	kfree(buf_orig);

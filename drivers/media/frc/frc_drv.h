@@ -205,6 +205,9 @@ extern int frc_dbg_en;
 #define FRC_V_LIMIT			144
 #define FRC_H_LIMIT			128
 
+#define FRC_DISABLE_H_SIZE		1440
+#define FRC_DISABLE_V_SIZE		810
+
 /*bit number config*/
 #define FRC_MC_BITS_NUM			10
 #define FRC_ME_BITS_NUM			8
@@ -249,6 +252,8 @@ extern int frc_dbg_en;
 #define FRC_VD_FPS_120   120
 #define FRC_VD_FPS_100   100
 #define FRC_VD_FPS_144   144
+#define FRC_VD_FPS_200   200
+#define FRC_VD_FPS_240   240
 #define FRC_VD_FPS_288   288
 
 // ddr shift bits
@@ -552,6 +557,9 @@ struct st_frc_in_sts {
 	u8 frm_en;
 	u8 t3x_proc_size_chg;
 	u8 t3x_adj_mcdw_hv; // lower than FHD：0x2，v/2
+
+	u16 vd_h_size;
+	u16 vd_v_size;
 };
 
 struct st_frc_out_sts {
@@ -799,6 +807,9 @@ struct frc_dev_s {
 	u32 film_mode_det;/*0: hw detect, 1: sw detect*/
 	u32 auto_n2m;
 	u32 out_line;/*ctl mc out line for user*/
+
+	u16 disable_h_size;
+	u16 disable_v_size;
 
 	u32 vpu_byp_frc_reg_addr;
 

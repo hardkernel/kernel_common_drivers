@@ -253,6 +253,9 @@ void frc_isr_print_zero(struct frc_dev_s *devp)
 	devp->in_sts.vs_tsk_cnt = 0;
 	devp->in_sts.lost_tsk_cnt = 0;
 
+	devp->in_sts.vd_h_size = 0;
+	devp->in_sts.vd_v_size = 0;
+
 	devp->out_sts.vs_duration = 0;
 	devp->out_sts.vs_timestamp = 0;
 	devp->out_sts.vs_cnt = 0;
@@ -746,6 +749,9 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	devp->in_sts.frc_hsc_startp = cur_in_sts->frc_hsc_startp;
 	devp->in_sts.vf_index = cur_in_sts->vf_index;
 	devp->in_sts.vf = cur_in_sts->vf;
+	devp->in_sts.vd_h_size = cur_in_sts->vd_h_size;
+	devp->in_sts.vd_v_size = cur_in_sts->vd_v_size;
+
 	frc_top->inp_padding_xofst = devp->in_sts.frc_hsc_startp;
 	frc_top->inp_padding_yofst = devp->in_sts.frc_vsc_startp;
 	if (cur_in_sts->vf && cur_in_sts->vf->vc_private &&
@@ -1023,6 +1029,8 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 		no_input = true;
 	} else {
 		in_size = (cur_video_sts->nnhf_input_w << 16) + cur_video_sts->nnhf_input_h;
+		cur_in_sts.vd_h_size = cur_video_sts->nnhf_input_w;
+		cur_in_sts.vd_v_size = cur_video_sts->nnhf_input_h;
 	}
 	//} else if ((vd_regval & (BIT_0 | BIT_8)) == 0) {
 		//devp->in_sts.vf_null_cnt++;
@@ -1111,10 +1119,22 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					in_size & 0xFFFF);
 			}
 			no_input = true;
+		}  else if (cur_video_sts->frc_h_size <= devp->disable_h_size &&
+				cur_video_sts->frc_v_size <= devp->disable_h_size) {
+			if ((devp->in_sts.st_flag & FRC_FLAG_INSIZE_ERR) !=
+						FRC_FLAG_INSIZE_ERR) {
+				devp->in_sts.st_flag =
+				devp->in_sts.st_flag | FRC_FLAG_INSIZE_ERR;
+				pr_frc(1, "video = err_insize size(%d,%d)\n",
+					in_size >> 16,
+					in_size & 0xFFFF);
+			}
+			no_input = true;
 		} else {
 			devp->in_sts.st_flag =
 				devp->in_sts.st_flag & (~FRC_FLAG_INSIZE_ERR);
 		}
+
 		get_vout_info(devp);
 		if (devp->out_sts.out_framerate == FRC_VD_FPS_144 ||
 			devp->out_sts.out_framerate == FRC_VD_FPS_288) {
@@ -1167,8 +1187,11 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 				frc_set_seamless_proc(0); // tvin close seamless
 		}
 
-		if (devp->in_sts.frc_vf_rate == FRC_VD_FPS_100 ||
-			devp->in_sts.frc_vf_rate == FRC_VD_FPS_120) {
+		if (((devp->in_sts.frc_vf_rate == FRC_VD_FPS_100 ||
+			devp->in_sts.frc_vf_rate == FRC_VD_FPS_120) &&
+			devp->out_sts.out_framerate <= FRC_VD_FPS_120) ||
+			devp->in_sts.frc_vf_rate == FRC_VD_FPS_200 ||
+			devp->in_sts.frc_vf_rate == FRC_VD_FPS_240) {
 			if ((devp->in_sts.st_flag & FRC_FLAG_HIGH_FREQ) !=
 						FRC_FLAG_HIGH_FREQ) {
 				devp->in_sts.st_flag =
