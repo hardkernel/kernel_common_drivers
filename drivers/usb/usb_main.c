@@ -53,7 +53,7 @@ static int __init usb_main_init(void)
 	call_sub_init(amlogic_new_usb3_v2_driver_init);	//usb3v2phy/amlogic_usb3_v2_phy.ko
 	call_sub_init(amlogic_usb2_m31_drv_init);	//crgdrdphy/
 	call_sub_init(amlogic_usb3_m31_drv_init);	//crgdrdphy/
-	call_sub_init(aml_usb3_drv_init);
+	call_sub_init(aml_usb3_phy_drv_init);
 
 	call_sub_init(aml_xhci_hcd_init);
 	call_sub_init(aml_xhci_plat_init);
