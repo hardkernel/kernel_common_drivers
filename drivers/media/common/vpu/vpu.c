@@ -2997,6 +2997,7 @@ static int vpu_probe(struct platform_device *pdev)
 	set_vpu_clk(vpu_conf.clk_level);
 	mutex_unlock(&vpu_clk_mutex);
 	if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_S6 ||
 		vpu_conf.data->chip_type == VPU_CHIP_S7 ||
 		vpu_conf.data->chip_type == VPU_CHIP_S7D ||
 		vpu_conf.data->chip_type == VPU_CHIP_TXHD2)

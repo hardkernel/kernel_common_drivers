@@ -1507,7 +1507,8 @@ void init_di_arb_urgent(void)
 int init_arb_urgent_table(void)
 {
 	int i;
-	if (vpu_conf.data->chip_type == VPU_CHIP_T7) {
+	if (vpu_conf.data->chip_type == VPU_CHIP_T7 ||
+		vpu_conf.data->chip_type == VPU_CHIP_S6) {
 		vpu_rdarb_vpu0_2_level1_tables = vpu_rdarb_vpu0_2_level1_t7;
 		vpu_rdarb_vpu0_2_level2_tables = vpu_rdarb_vpu0_2_level2_t7;
 		vpu_rdarb_vpu1_tables = vpu_rdarb_vpu1_t7;
