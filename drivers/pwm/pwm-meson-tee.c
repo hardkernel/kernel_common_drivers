@@ -42,41 +42,10 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/arm-smccc.h>
+#include <linux/amlogic/pwm-meson-tee.h>
 #include <linux/amlogic/secure_pwm_i2c.h>
 
-enum sec_pwm {
-	SECID_PWM_ENABLE = 0,
-	SECID_PWM_DISABLE,
-	SECID_PWM_CONSTANT_EN,
-	SECID_PWM_CONSTANT_DIS,
-};
-
-#define REG_PWM			0x0
-#define PWM_LOW_MASK		GENMASK(15, 0)
-#define PWM_HIGH_MASK		GENMASK(31, 16)
-#define PWM_MISC_REG		0x8
-#define MISC_EN			BIT(0)
-#define MISC_CONSTANT		BIT(28)
-#define MESON_NUM_PWMS		1
-
-struct meson_pwm_tee_channel {
-	unsigned long rate;
-	unsigned int hi;
-	unsigned int lo;
-	struct clk *clk;
-};
-
-struct meson_pwm_tee {
-	struct pwm_chip chip;
-	struct meson_pwm_tee_channel channels[MESON_NUM_PWMS];
-	void __iomem *base;
-	u32 tee_id;
-	/*
-	 * Protects register (write) access to the PWM_MISC_REG register
-	 * that is shared between the two PWMs.
-	 */
-	spinlock_t lock;
-};
+#define TEE_RW_NODE				1
 
 static inline struct meson_pwm_tee *to_meson_pwm_tee(struct pwm_chip *chip)
 {
@@ -90,6 +59,10 @@ static int meson_pwm_tee_request(struct pwm_chip *chip, struct pwm_device *pwm)
 	struct device *dev = chip->dev;
 	int err;
 
+#ifdef DOUBLE_CHAN_COMPAT
+		if (pwm->hwpwm != CHANNEL_MAIN)
+			return 0;
+#endif
 	err = clk_prepare_enable(channel->clk);
 	if (err < 0) {
 		dev_err(dev, "failed to enable clock %s: %d\n",
@@ -104,27 +77,33 @@ static void meson_pwm_tee_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct meson_pwm_tee *meson = to_meson_pwm_tee(chip);
 	struct meson_pwm_tee_channel *channel = &meson->channels[pwm->hwpwm];
-
+#ifdef DOUBLE_CHAN_COMPAT
+		if (pwm->hwpwm != CHANNEL_MAIN)
+			return;
+#endif
 	clk_disable_unprepare(channel->clk);
 }
 
 static int pwm_constant_enable_tee(struct meson_pwm_tee *meson, struct pwm_device *pwm)
 {
 	struct arm_smccc_res res;
+	struct meson_pwm_tee_channel *channel = &meson->channels[pwm->hwpwm];
 
 	arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
-				 SECID_PWM_CONSTANT_EN, 0, 0, 0, 0, &res);
+				 SECID_PWM_CONSTANT_EN, FIELD_PREP(PWM_HIGH_MASK, channel->hi) |
+		FIELD_PREP(PWM_LOW_MASK, channel->lo), 0, 0, 0, &res);
 
 	return 0;
 }
 
 static int pwm_constant_disable_tee(struct meson_pwm_tee *meson, struct pwm_device *pwm)
 {
-	// struct arm_smccc_res res;
+	struct arm_smccc_res res;
+	struct meson_pwm_tee_channel *channel = &meson->channels[pwm->hwpwm];
 
-	/*for secure,pwm should not be disabled*/
-	// arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
-	// SECID_PWM_CONSTANT_DIS, 0, 0, 0, 0, &res);
+	arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
+			SECID_PWM_CONSTANT_DIS, FIELD_PREP(PWM_HIGH_MASK, channel->hi) |
+		FIELD_PREP(PWM_LOW_MASK, channel->lo), 0, 0, 0, &res);
 
 	return 0;
 }
@@ -133,7 +112,7 @@ static int meson_pwm_tee_calc(struct meson_pwm_tee *meson, struct pwm_device *pw
 			  const struct pwm_state *state)
 {
 	struct meson_pwm_tee_channel *channel = &meson->channels[pwm->hwpwm];
-	unsigned int cnt, duty_cnt;
+	unsigned int cnt, duty_cnt, pre_div;
 	unsigned long fin_freq;
 	u64 duty, period;
 
@@ -148,7 +127,7 @@ static int meson_pwm_tee_calc(struct meson_pwm_tee *meson, struct pwm_device *pw
 	 */
 	if (state->polarity == PWM_POLARITY_INVERSED)
 		duty = period - duty;
-
+	/*when tee is locked, clk rate fixed and should not be changed*/
 	fin_freq = clk_get_rate(channel->clk);
 	if (fin_freq == 0) {
 		dev_err(meson->chip.dev, "invalid source clock frequency\n");
@@ -156,7 +135,14 @@ static int meson_pwm_tee_calc(struct meson_pwm_tee *meson, struct pwm_device *pw
 	}
 
 	dev_dbg(meson->chip.dev, "fin_freq: %lu Hz\n", fin_freq);
-
+	pre_div = DIV64_U64_ROUND_CLOSEST(fin_freq * (u64)period, NSEC_PER_SEC * 0xffffLL);
+	if (pre_div > 0) {
+		/*In tee environment, clock should not be changed,
+		 *so we need change clock manually
+		 */
+		dev_err(meson->chip.dev, "should slow pwm clock freq on uboot or via kernel dts(if have access)\n");
+		return -EINVAL;
+	}
 	cnt = DIV64_U64_ROUND_CLOSEST(fin_freq * period, NSEC_PER_SEC);
 	if (cnt > 0xffff) {
 		dev_err(meson->chip.dev, "unable to get period cnt\n");
@@ -181,10 +167,6 @@ static int meson_pwm_tee_calc(struct meson_pwm_tee *meson, struct pwm_device *pw
 		channel->hi = duty_cnt - 1;
 		channel->lo = cnt - duty_cnt - 1;
 	}
-	if (duty == period || duty == 0)
-		pwm_constant_enable_tee(meson, pwm);
-	else
-		pwm_constant_disable_tee(meson, pwm);
 	channel->rate = fin_freq;
 
 	return 0;
@@ -193,25 +175,55 @@ static int meson_pwm_tee_calc(struct meson_pwm_tee *meson, struct pwm_device *pw
 static void meson_pwm_tee_enable(struct meson_pwm_tee *meson, struct pwm_device *pwm)
 {
 	struct meson_pwm_tee_channel *channel = &meson->channels[pwm->hwpwm];
-	int err;
 	u32 value;
 	struct arm_smccc_res res;
 
-	err = clk_set_rate(channel->clk, channel->rate);
-	if (err)
-		dev_err(meson->chip.dev, "setting clock rate failed\n");
+	/*when tee is locked, clk rate fixed and should not be changed*/
+	// err = clk_set_rate(channel->clk, channel->rate);
+	// if (err)
+	// dev_err(meson->chip.dev, "setting clock rate failed\n");
 	value = FIELD_PREP(PWM_HIGH_MASK, channel->hi) |
 		FIELD_PREP(PWM_LOW_MASK, channel->lo);
+#ifdef DOUBLE_CHAN_COMPAT
+	switch (pwm->hwpwm) {
+	case CHANNEL_MAIN:
+		arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
+				 SECID_PWM_ENABLE_MAIN, value, 0, 0, 0, &res);
+		break;
+	case CHANNEL_SUB:
+		arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
+				 SECID_PWM_ENABLE_SUB, value, 0, 0, 0, &res);
+		break;
+	default:
+		break;
+	}
+#else
 	arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
-				 SECID_PWM_ENABLE, value, 0, 0, 0, &res);
+				 SECID_PWM_ENABLE_MAIN, value, 0, 0, 0, &res);
+#endif
 }
 
 static void meson_pwm_tee_disable(struct meson_pwm_tee *meson, struct pwm_device *pwm)
 {
 	struct arm_smccc_res res;
 
+#ifdef DOUBLE_CHAN_COMPAT
+	switch (pwm->hwpwm) {
+	case CHANNEL_MAIN:
+		arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
+				 SECID_PWM_DISABLE_MAIN,  0, 0, 0, 0, &res);
+		break;
+	case CHANNEL_SUB:
+		arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
+				 SECID_PWM_DISABLE_SUB,  0, 0, 0, 0, &res);
+		break;
+	default:
+		break;
+	}
+#else
 	arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
-				 SECID_PWM_DISABLE, 0, 0, 0, 0, &res);
+				 SECID_PWM_DISABLE_MIAN, 0, 0, 0, 0, &res);
+#endif
 }
 
 static int meson_pwm_tee_apply(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -249,6 +261,10 @@ static int meson_pwm_tee_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			return err;
 
 		meson_pwm_tee_enable(meson, pwm);
+		if (state->duty_cycle == state->period || state->duty_cycle == 0)
+			pwm_constant_enable_tee(meson, pwm);
+		else
+			pwm_constant_disable_tee(meson, pwm);
 	}
 
 	return 0;
@@ -279,6 +295,10 @@ static void meson_pwm_tee_get_state(struct pwm_chip *chip, struct pwm_device *pw
 	u32 value;
 	bool constant_enabled;
 
+#ifdef DOUBLE_CHAN_COMPAT
+		if (pwm->hwpwm != 0)
+			return;
+#endif
 	if (!state)
 		return;
 
@@ -338,20 +358,17 @@ MODULE_DEVICE_TABLE(of, meson_pwm_tee_matches);
 static int meson_pwm_tee_init_channels(struct meson_pwm_tee *meson)
 {
 	struct device *dev = meson->chip.dev;
-	unsigned int i;
 	char name[255];
-	struct meson_pwm_tee_channel *channel;
 
-	for (i = 0; i < meson->chip.npwm; i++) {
-		channel = &meson->channels[i];
-		snprintf(name, sizeof(name), "clkin%u", i);
-		channel->clk = devm_clk_get(dev, name);
-		if (IS_ERR(channel->clk)) {
-			dev_err(meson->chip.dev, "can't get device clock\n");
-			return PTR_ERR(channel->clk);
-		}
+	snprintf(name, sizeof(name), "clkin%u", 0);
+	meson->channels[CHANNEL_MAIN].clk = devm_clk_get(dev, name);
+	if (IS_ERR(meson->channels[CHANNEL_MAIN].clk)) {
+		dev_err(meson->chip.dev, "can't get device clock\n");
+		return PTR_ERR(meson->channels[CHANNEL_MAIN].clk);
 	}
-
+#ifdef DOUBLE_CHAN_COMPAT
+	meson->channels[CHANNEL_SUB].clk = meson->channels[CHANNEL_MAIN].clk;
+#endif
 	return 0;
 }
 
@@ -381,7 +398,7 @@ static int meson_pwm_tee_probe(struct platform_device *pdev)
 	spin_lock_init(&meson->lock);
 	meson->chip.dev = &pdev->dev;
 	meson->chip.ops = &meson_pwm_tee_ops;
-	meson->chip.npwm = MESON_NUM_PWMS;
+	meson->chip.npwm = MESON_NUM_PWMS_TEE;
 
 	err = meson_pwm_tee_init_channels(meson);
 	if (err < 0)
@@ -392,6 +409,10 @@ static int meson_pwm_tee_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register PWM chip: %d\n", err);
 		return err;
 	}
+	platform_set_drvdata(pdev, meson);
+#ifdef DOUBLE_CHAN_COMPAT
+	meson_pwm_sysfs_init(&pdev->dev, TEE_RW_NODE);
+#endif
 
 	return 0;
 }

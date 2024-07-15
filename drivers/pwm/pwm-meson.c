@@ -185,6 +185,8 @@ static struct meson_pwm_channel_data {
 };
 #endif //CONFIG_AMLOGIC_MODIFY
 
+#define NORMAL_RW_NODE		0
+
 #ifdef CONFIG_AMLOGIC_MODIFY
 struct meson_pwm *to_meson_pwm(struct pwm_chip *chip)
 #else
@@ -1119,7 +1121,7 @@ static int meson_pwm_probe(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_MODIFY
 	/*for constant,blinks functions*/
 	if (meson->data->double_channel)
-		meson_pwm_sysfs_init(&pdev->dev);
+		meson_pwm_sysfs_init(&pdev->dev, NORMAL_RW_NODE);
 #endif
 
 	return 0;

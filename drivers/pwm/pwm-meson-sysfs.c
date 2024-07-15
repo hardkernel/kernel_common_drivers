@@ -12,6 +12,9 @@
 #include <linux/slab.h>
 #include <linux/pwm.h>
 #include <linux/amlogic/pwm-meson.h>
+#include <linux/amlogic/pwm-meson-tee.h>
+#include <linux/amlogic/secure_pwm_i2c.h>
+#include <linux/arm-smccc.h>
 
 /**
  * pwm_constant_enable()
@@ -152,20 +155,73 @@ int pwm_set_times(struct meson_pwm *meson,
 }
 EXPORT_SYMBOL_GPL(pwm_set_times);
 
+/**
+ * pwm_set_times_tee() - set PWM times output toggling
+ *		     set pwm a1 and pwm a2 timer together
+ *		     and pwm a1 should be set first
+ * @chip: aml_pwm_chip struct
+ * @index: pwm channel to choose,like PWM_A or PWM_B,range from 1 to 15
+ * @value: blink times to set,range from 1 to 255
+ */
+int pwm_set_times_tee(struct meson_pwm_tee *meson,
+		  unsigned int index, unsigned int value)
+{
+	struct arm_smccc_res res;
+
+	if (value > 255) {
+		dev_err(meson->chip.dev,
+			"index or value is not within the scope!\n");
+		return -EINVAL;
+	}
+
+	switch (index) {
+	case 0:
+		arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
+				 SECID_PWM_TIMES_MAIN, value, 0, 0, 0, &res);
+		break;
+	case 1:
+		arm_smccc_smc(SECURE_PWM_I2C, SECID_PWM, meson->tee_id,
+				 SECID_PWM_TIMES_SUB, value, 0, 0, 0, &res);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pwm_set_times_tee);
+
 static ssize_t times_show(struct device *child,
 			  struct device_attribute *attr, char *buf)
 {
-	struct meson_pwm *meson =
-		(struct meson_pwm *)dev_get_drvdata(child);
-	return sprintf(buf, "%d\n", meson->variant.times);
+	struct meson_pwm *meson = NULL;
+	struct meson_pwm_tee *meson_tee = NULL;
+	const char *comp_str;
+	int ret;
+
+	ret = of_property_read_string(child->of_node, "compatible", &comp_str);
+	if (ret) {
+		sprintf(buf, "can not get pwm driver type\n");
+		return 0;
+	}
+	if (!strcmp(comp_str, PWM_MESON_TEE_DRV_CMP)) {
+		meson_tee = (struct meson_pwm_tee *)dev_get_drvdata(child);
+		sprintf(buf, "%d\n", meson_tee->variant.times);
+	} else {
+		meson = (struct meson_pwm *)dev_get_drvdata(child);
+		sprintf(buf, "%d\n", meson->variant.times);
+	}
+
+	return 0;
 }
 
 static ssize_t times_store(struct device *child,
 			   struct device_attribute *attr,
 			   const char *buf, size_t size)
 {
-	struct meson_pwm *meson =
-		(struct meson_pwm *)dev_get_drvdata(child);
+	struct meson_pwm *meson = NULL;
+	struct meson_pwm_tee *meson_tee = NULL;
+	const char *comp_str;
 	int val, ret, id, res;
 
 	res = sscanf(buf, "%d %d", &val, &id);
@@ -174,9 +230,20 @@ static ssize_t times_store(struct device *child,
 			"Can't parse pwm id and value,usage:[value index]\n");
 		return -EINVAL;
 	}
-	ret = pwm_set_times(meson, id, val);
-	meson->variant.times = val;
-
+	ret = of_property_read_string(child->of_node, "compatible", &comp_str);
+	if (ret) {
+		dev_err(child, "can not get pwm driver type\n");
+		return 0;
+	}
+	if (!strcmp(comp_str, PWM_MESON_TEE_DRV_CMP)) {
+		meson_tee = (struct meson_pwm_tee *)dev_get_drvdata(child);
+		ret = pwm_set_times_tee(meson_tee, id, val);
+		meson_tee->variant.times = val;
+	} else {
+		meson = (struct meson_pwm *)dev_get_drvdata(child);
+		ret = pwm_set_times(meson, id, val);
+		meson->variant.times = val;
+	}
 	return ret ? : size;
 }
 
@@ -365,14 +432,21 @@ static struct attribute *pwm_attrs[] = {
 		NULL,
 };
 
+static struct attribute *pwm_attrs_tee[] = {
+		&dev_attr_times.attr,
+		NULL,
+};
+
 static struct attribute_group pwm_attr_group = {
 		.attrs = pwm_attrs,
 };
 
-int meson_pwm_sysfs_init(struct device *dev)
+int meson_pwm_sysfs_init(struct device *dev, bool tee_pwm)
 {
 	int retval;
 
+	if (tee_pwm)
+		pwm_attr_group.attrs = pwm_attrs_tee;
 	retval = sysfs_create_group(&dev->kobj, &pwm_attr_group);
 	if (retval) {
 		dev_err(dev,
