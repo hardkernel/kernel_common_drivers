@@ -3704,7 +3704,7 @@
 
 	mbox_fifo: mbox_fifo@0xfe006000 {
 		status = "okay";
-		compatible = "amlogic, t3-mbox-fifo";
+		compatible = "amlogic, t3x-mbox-fifo";
 		reg = <0x0 0xfe006000 0x0 0x1000>,  /* mbox wr fifo */
 		      <0x0 0xfe00719c 0x0 0x80>,    /* mbox set reg */
 		      <0x0 0xfe00721c 0x0 0x80>,    /* mbox clr reg */
