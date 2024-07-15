@@ -5330,9 +5330,9 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_rx_hdcp_cap = drm_hdmitx_get_rx_hdcp_cap,
 	.register_hdcp_notify = drm_hdmitx_register_hdcp_notify,
 	.get_dw_hdcp_topo_info = drm_hdmitx_get_hdcp_topo_info,
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	.get_vrr_cap = drm_hdmitx_get_vrr_cap,
 	.get_vrr_mode_group = drm_hdmitx_get_vrr_mode_group,
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	.set_vframe_rate_hint = hdmitx_set_fr_hint,
 #endif
 };
