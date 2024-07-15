@@ -157,7 +157,7 @@ struct meson_pwm {
 };
 
 /*the functions only use for meson pwm driver*/
-int meson_pwm_sysfs_init(struct device *dev);
+int meson_pwm_sysfs_init(struct device *dev, bool tee_pwm);
 void meson_pwm_sysfs_exit(struct device *dev);
 
 /*the functions use for special function in meson pwm driver*/
