@@ -1,4 +1,4 @@
-From 4f2c66b4c847d0af4db5c006a9faaa930c55f483 Mon Sep 17 00:00:00 2001
+From 6667ff8961c23f7137ffbeb49951c51798511a8c Mon Sep 17 00:00:00 2001
 From: Tao Zeng <tao.zeng@amlogic.com>
 Date: Wed, 26 Jan 2022 16:04:08 +0800
 Subject: [PATCH] mm: porting CMA optimization from 5.4 [1/2]
@@ -46,7 +46,7 @@ Change-Id: Ib82b898a596eba62e1aa1cb13719eab41f03ae58
  15 files changed, 418 insertions(+)
 
 diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 4b61541853ea..f028deeec940 100644
+index 4b61541853ea1..f028deeec9407 100644
 --- a/arch/arm/mm/dma-mapping.c
 +++ b/arch/arm/mm/dma-mapping.c
 @@ -709,6 +709,10 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
@@ -61,7 +61,7 @@ index 4b61541853ea..f028deeec940 100644
  		buf->allocator = &cma_allocator;
  	else if (is_coherent)
 diff --git a/block/bdev.c b/block/bdev.c
-index b8599a408884..56ba78489e71 100644
+index b8599a4088843..56ba78489e71e 100644
 --- a/block/bdev.c
 +++ b/block/bdev.c
 @@ -486,7 +486,11 @@ struct block_device *bdev_alloc(struct gendisk *disk, u8 partno)
@@ -77,7 +77,7 @@ index b8599a408884..56ba78489e71 100644
  	bdev = I_BDEV(inode);
  	mutex_init(&bdev->bd_fsfreeze_mutex);
 diff --git a/drivers/usb/host/xhci.c b/drivers/usb/host/xhci.c
-index 7e1a5b8477f2..97adc6c18971 100644
+index 7e1a5b8477f26..97adc6c18971c 100644
 --- a/drivers/usb/host/xhci.c
 +++ b/drivers/usb/host/xhci.c
 @@ -2072,7 +2072,11 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
@@ -93,7 +93,7 @@ index 7e1a5b8477f2..97adc6c18971 100644
  				__func__, ep->desc.bEndpointAddress);
  		return -ENOMEM;
 diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index b86ae05b4282..5723bfd6f2a7 100644
+index b86ae05b4282a..5723bfd6f2a7d 100644
 --- a/include/linux/gfp.h
 +++ b/include/linux/gfp.h
 @@ -65,12 +65,19 @@ struct vm_area_struct;
@@ -139,7 +139,7 @@ index b86ae05b4282..5723bfd6f2a7 100644
  /**
   * DOC: Useful GFP flag combinations
 diff --git a/mm/cma.c b/mm/cma.c
-index f7f60890d6d9..43d5c50c7c2b 100644
+index 10f16986c64f2..e11bf7d4fbe7c 100644
 --- a/mm/cma.c
 +++ b/mm/cma.c
 @@ -41,6 +41,16 @@
@@ -297,7 +297,7 @@ index f7f60890d6d9..43d5c50c7c2b 100644
  	trace_cma_release(cma->name, pfn, pages, count);
  
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 5569d284b4e0..08e2ae0e2765 100644
+index 2d05f1a97c1af..6713fb45659de 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
 @@ -27,6 +27,9 @@
@@ -521,7 +521,7 @@ index 5569d284b4e0..08e2ae0e2765 100644
  	count_compact_events(COMPACTFREE_SCANNED, cc->total_free_scanned);
  
 diff --git a/mm/internal.h b/mm/internal.h
-index 6c09fdac62da..2d1e76dc3e2f 100644
+index 6c09fdac62da3..2d1e76dc3e2fd 100644
 --- a/mm/internal.h
 +++ b/mm/internal.h
 @@ -608,6 +608,9 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
@@ -535,7 +535,7 @@ index 6c09fdac62da..2d1e76dc3e2f 100644
  enum ttu_flags;
  struct tlbflush_unmap_batch;
 diff --git a/mm/ksm.c b/mm/ksm.c
-index 255bd4888d60..f9b263775a3d 100644
+index 255bd4888d609..f9b263775a3df 100644
 --- a/mm/ksm.c
 +++ b/mm/ksm.c
 @@ -2125,6 +2125,17 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
@@ -557,10 +557,10 @@ index 255bd4888d60..f9b263775a3d 100644
  		bool split;
  
 diff --git a/mm/memory.c b/mm/memory.c
-index 3b10c2ea7231..f4d18e05d6f6 100644
+index aae597f559899..0b14e86ee68c0 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -3182,13 +3182,25 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
+@@ -3183,13 +3183,25 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
  	}
  
  	if (is_zero_pfn(pte_pfn(vmf->orig_pte))) {
@@ -586,7 +586,7 @@ index 3b10c2ea7231..f4d18e05d6f6 100644
  		if (!new_page)
  			goto out;
  
-@@ -4912,6 +4924,12 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
+@@ -4939,6 +4951,12 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
  	p4d_t *p4d;
  	vm_fault_t ret;
  
@@ -600,7 +600,7 @@ index 3b10c2ea7231..f4d18e05d6f6 100644
  	if (flags & FAULT_FLAG_SPECULATIVE) {
  		pgd_t pgdval;
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 6ed8c744f091..052d6440f0a3 100644
+index 030529c744816..c89a3271fa9a6 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
 @@ -50,6 +50,10 @@
@@ -614,7 +614,7 @@ index 6ed8c744f091..052d6440f0a3 100644
  
  #include <asm/tlbflush.h>
  
-@@ -293,6 +297,9 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
+@@ -296,6 +300,9 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
  	pte_t pte;
  	swp_entry_t entry;
  	struct page *page;
@@ -624,7 +624,7 @@ index 6ed8c744f091..052d6440f0a3 100644
  
  	spin_lock(ptl);
  	pte = *ptep;
-@@ -304,6 +311,17 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
+@@ -307,6 +314,17 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
  		goto out;
  
  	page = pfn_swap_entry_to_page(entry);
@@ -642,7 +642,7 @@ index 6ed8c744f091..052d6440f0a3 100644
  	page = compound_head(page);
  
  	/*
-@@ -318,6 +336,10 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
+@@ -321,6 +339,10 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
  	return;
  out:
  	pte_unmap_unlock(ptep, ptl);
@@ -653,7 +653,7 @@ index 6ed8c744f091..052d6440f0a3 100644
  }
  
  void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
-@@ -389,6 +411,11 @@ int migrate_page_move_mapping(struct address_space *mapping,
+@@ -392,6 +414,11 @@ int migrate_page_move_mapping(struct address_space *mapping,
  
  	if (!mapping) {
  		/* Anonymous page without mapping */
@@ -665,7 +665,7 @@ index 6ed8c744f091..052d6440f0a3 100644
  		if (page_count(page) != expected_count)
  			return -EAGAIN;
  
-@@ -407,11 +434,19 @@ int migrate_page_move_mapping(struct address_space *mapping,
+@@ -410,11 +437,19 @@ int migrate_page_move_mapping(struct address_space *mapping,
  	xas_lock_irq(&xas);
  	if (page_count(page) != expected_count || xas_load(&xas) != page) {
  		xas_unlock_irq(&xas);
@@ -685,7 +685,7 @@ index 6ed8c744f091..052d6440f0a3 100644
  		return -EAGAIN;
  	}
  
-@@ -1528,6 +1563,9 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+@@ -1533,6 +1568,9 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
  
  				/* Hugetlb migration is unsupported */
  				nr_failed++;
@@ -695,7 +695,7 @@ index 6ed8c744f091..052d6440f0a3 100644
  				break;
  			case -ENOMEM:
  				/*
-@@ -1546,6 +1584,9 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+@@ -1551,6 +1589,9 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
  					goto out;
  				}
  				nr_failed++;
@@ -705,7 +705,7 @@ index 6ed8c744f091..052d6440f0a3 100644
  				goto out;
  			case -EAGAIN:
  				if (is_thp) {
-@@ -1575,6 +1616,9 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+@@ -1580,6 +1621,9 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
  					break;
  				}
  				nr_failed++;
@@ -716,7 +716,7 @@ index 6ed8c744f091..052d6440f0a3 100644
  			}
  		}
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4556353ed7a2..fad705671604 100644
+index e52aafa96869c..ae261c0c3ac01 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -85,6 +85,10 @@
@@ -728,9 +728,9 @@ index 4556353ed7a2..fad705671604 100644
 +#endif
 +
  EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_alloc);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_free);
  
- /* Free Page Internal flags: for internal, non-pcp variants of free_pages(). */
-@@ -3167,6 +3171,18 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
+@@ -3168,6 +3172,18 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
  {
  	struct page *page;
  
@@ -749,7 +749,7 @@ index 4556353ed7a2..fad705671604 100644
  retry:
  	page = __rmqueue_smallest(zone, order, migratetype);
  
-@@ -3179,6 +3195,31 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
+@@ -3180,6 +3196,31 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
  	return page;
  }
  
@@ -781,7 +781,7 @@ index 4556353ed7a2..fad705671604 100644
  #ifdef CONFIG_CMA
  static struct page *__rmqueue_cma(struct zone *zone, unsigned int order,
  				  int migratetype,
-@@ -3889,6 +3930,12 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
+@@ -3890,6 +3931,12 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
  {
  	struct page *page = NULL;
  	struct list_head *list = NULL;
@@ -794,7 +794,7 @@ index 4556353ed7a2..fad705671604 100644
  
  	do {
  		/* First try to get CMA pages */
-@@ -3906,6 +3953,48 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
+@@ -3907,6 +3954,48 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
  		}
  
  		page = list_first_entry(list, struct page, pcp_list);
@@ -843,7 +843,7 @@ index 4556353ed7a2..fad705671604 100644
  		list_del(&page->pcp_list);
  		pcp->count -= 1 << order;
  	} while (check_new_pcp(page));
-@@ -3961,6 +4050,12 @@ struct page *rmqueue(struct zone *preferred_zone,
+@@ -3962,6 +4051,12 @@ struct page *rmqueue(struct zone *preferred_zone,
  			int migratetype)
  {
  	struct page *page;
@@ -856,7 +856,7 @@ index 4556353ed7a2..fad705671604 100644
  
  	if (likely(pcp_allowed_order(order))) {
  		page = rmqueue_pcplist(preferred_zone, zone, order,
-@@ -4120,6 +4215,9 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+@@ -4121,6 +4216,9 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
  			min -= min / 4;
  	}
  
@@ -866,7 +866,7 @@ index 4556353ed7a2..fad705671604 100644
  	/*
  	 * Check watermarks for an order-0 allocation request. If these
  	 * are not met, then a high-order request also cannot go ahead
-@@ -5672,6 +5770,10 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
+@@ -5673,6 +5771,10 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
  	gfp_t alloc_gfp; /* The gfp_t that was actually used for allocation */
  	struct alloc_context ac = { };
  
@@ -878,7 +878,7 @@ index 4556353ed7a2..fad705671604 100644
  	/*
  	 * There are several places where we assume that the order value is sane
 diff --git a/mm/readahead.c b/mm/readahead.c
-index 4d06d4be07ea..fe41d689eb24 100644
+index 5b15b871492ee..f1ecdda1a46f4 100644
 --- a/mm/readahead.c
 +++ b/mm/readahead.c
 @@ -202,6 +202,11 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
@@ -894,7 +894,7 @@ index 4d06d4be07ea..fe41d689eb24 100644
  	/*
  	 * Preallocate as many pages as we will need.
 diff --git a/mm/shmem.c b/mm/shmem.c
-index ee17f91ec537..aae2e5796ab1 100644
+index ee17f91ec5373..aae2e5796ab1e 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
 @@ -1523,7 +1523,11 @@ static struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
@@ -936,7 +936,7 @@ index ee17f91ec537..aae2e5796ab1 100644
  
  	return page;
 diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 122a37cbc081..816b746cb0d8 100644
+index 122a37cbc081f..816b746cb0d89 100644
 --- a/mm/swap_state.c
 +++ b/mm/swap_state.c
 @@ -456,7 +456,11 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
@@ -952,7 +952,7 @@ index 122a37cbc081..816b746cb0d8 100644
  			return NULL;
  
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 08aadc1f03eb..3f2523533e88 100644
+index 08aadc1f03ebe..3f2523533e886 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -74,6 +74,10 @@
