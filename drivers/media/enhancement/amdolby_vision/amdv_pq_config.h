@@ -343,6 +343,8 @@ extern struct target_config_dvp def_tgt_dvp_cfg;
 extern bool pic_mode_changed;
 extern u32 variable_fps[VARIABLE_FPS_COUNT];
 extern bool dv_user_cfg_flag;
+extern unsigned int panel_max_lumin;
+extern unsigned int force_hdr_tonemapping;
 
 void restore_dv_pq_setting(enum pq_reset_e pq_reset);
 bool load_dv_pq_config_data(char *bin_path, char *txt_path);

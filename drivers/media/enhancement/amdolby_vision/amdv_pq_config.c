@@ -35,7 +35,7 @@ static u8 current_vsvdb[7];
 
 #define MAX_PARAM   8
 
-static unsigned int panel_max_lumin = 350;
+unsigned int panel_max_lumin = 350;
 
 struct pq_config *bin_to_cfg;
 struct pq_config_dvp *bin_to_cfg_dvp;
@@ -99,8 +99,8 @@ static int use_inter_pq;
 
 #define MAX_LINE_SIZE 1536
 
-static unsigned int force_hdr_tonemapping;
-module_param(force_hdr_tonemapping, uint, 0664);
+unsigned int force_hdr_tonemapping;
+__module_param(force_hdr_tonemapping, uint, 0664);
 MODULE_PARM_DESC(force_hdr_tonemapping, "\n force_hdr_tonemapping\n");
 
 static u32 last_front_lux;

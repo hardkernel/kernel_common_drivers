@@ -973,6 +973,13 @@ extern bool bypass_detunnel;
 extern u32 lightsense_test_mode;
 extern u32 hlg_max;
 extern u32 hlg_min;
+extern unsigned int bypass_core1a_composer;
+extern unsigned int bypass_core1b_composer;
+extern unsigned int core1_bypass;
+extern unsigned int vtotal_add;
+extern unsigned int g_vtiming;
+extern uint debug_rdmif;
+
 /************/
 
 #define pr_dv_dbg(fmt, args...)\

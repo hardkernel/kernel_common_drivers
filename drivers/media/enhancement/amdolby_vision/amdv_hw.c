@@ -46,7 +46,7 @@ static bool stb_core2_const_flag;
 static unsigned int copy_core1a_to_core1b;
 
 static unsigned int htotal_add = 0x140;
-static unsigned int vtotal_add = 0x40;
+unsigned int vtotal_add = 0x40;
 static unsigned int vsize_add;
 static unsigned int vwidth = 0x8;
 static unsigned int hwidth = 0x8;
@@ -60,7 +60,7 @@ static unsigned int g_vwidth = 0x18;
 static unsigned int g_hwidth = 0x10;
 static unsigned int g_vpotch = 0x10;
 static unsigned int g_hpotch = 0x10;
-static unsigned int core1_bypass;
+unsigned int core1_bypass;
 /*core reg must be set at first time. bit0 is for core2, bit1 is for core3*/
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static u32 first_reseted;
@@ -68,7 +68,7 @@ static u32 first_reseted;
 /* for core2 timing setup tuning */
 /* g_vtotal_add << 24 | g_vsize_add << 16 */
 /* | g_vwidth << 8 | g_vpotch */
-static unsigned int g_vtiming;
+unsigned int g_vtiming;
 static unsigned int dma_start_line = 0x400;
 int debug_dma_start_line;
 bool disable_aoi;
@@ -110,8 +110,8 @@ u32 force_update_reg;
 
 /* update all core */
 static u32 stb_core_setting_update_flag = CP_FLAG_CHANGE_ALL;
-static unsigned int bypass_core1a_composer;
-static unsigned int bypass_core1b_composer;
+unsigned int bypass_core1a_composer;
+unsigned int bypass_core1b_composer;
 static int operate_mode;
 bool force_bypass_from_prebld_to_vadj1;/* t3/t5w, 1d93 bit0 -> 1d26 bit8*/
 
@@ -6377,30 +6377,31 @@ int register_osd_func(int (*get_osd_enable_status)(u32 index))
 	return 0;
 }
 EXPORT_SYMBOL(register_osd_func);
-module_param(core1_bypass, uint, 0664);
+
+__module_param(core1_bypass, uint, 0664);
 MODULE_PARM_DESC(core1_bypass, "\n core1_bypass\n");
 
-module_param(vtotal_add, uint, 0664);
+__module_param(vtotal_add, uint, 0664);
 MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
 
-module_param(vpotch, uint, 0444);
+__module_param(vpotch, uint, 0444);
 MODULE_PARM_DESC(vpotch, "\n vpotch\n");
 
-module_param(g_vtiming, uint, 0664);
+__module_param(g_vtiming, uint, 0664);
 MODULE_PARM_DESC(g_vtiming, "\n g_vtiming\n");
 
-module_param(dma_start_line, uint, 0664);
+__module_param(dma_start_line, uint, 0664);
 MODULE_PARM_DESC(dma_start_line, "\n dma_start_line\n");
 
-module_param(dv_ll_output_mode, uint, 0664);
+__module_param(dv_ll_output_mode, uint, 0664);
 MODULE_PARM_DESC(dv_ll_output_mode, "\n dv_ll_output_mode\n");
 
 module_param(force_update_reg, uint, 0664);
 MODULE_PARM_DESC(force_update_reg, "\n force_update_reg\n");
 
-module_param(bypass_core1a_composer, uint, 0664);
+__module_param(bypass_core1a_composer, uint, 0664);
 MODULE_PARM_DESC(bypass_core1a_composer, "\n bypass_core1a_composer\n");
 
-module_param(bypass_core1b_composer, uint, 0664);
+__module_param(bypass_core1b_composer, uint, 0664);
 MODULE_PARM_DESC(bypass_core1b_composer, "\n bypass_core1b_composer\n");
 

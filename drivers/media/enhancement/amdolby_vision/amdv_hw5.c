@@ -114,7 +114,7 @@ MODULE_PARM_DESC(fix_data, "\n fix_data\n");
 /*bit4-7: cntl_color_map*/
 /*bit8-19: rdmif_stride*/
 uint debug_rdmif;
-module_param(debug_rdmif, uint, 0664);
+__module_param(debug_rdmif, uint, 0664);
 MODULE_PARM_DESC(debug_rdmif, "\n debug_rdmif\n");
 
 /*bit 0~3 vsync id, bit4 flag, 0x10=>force id=0*/
