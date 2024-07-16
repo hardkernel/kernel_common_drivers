@@ -325,6 +325,8 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		if (device_property_read_bool(tmpdev, "quirk-broken-port-ped"))
 			xhci->quirks |= XHCI_BROKEN_PORT_PED;
 #if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+		if (device_property_read_bool(tmpdev, "resume_stuck_warm_reset"))
+			xhci->quirks |= XHCI_MISSING_CAS;
 		if (device_property_read_bool(tmpdev, "xhci-crg-host")) {
 			xhci->quirks |= XHCI_DISABLE_IDT;
 			xhci->meson_quirks |= XHCI_CRG_HOST;
@@ -447,10 +449,10 @@ static int xhci_plat_remove(struct platform_device *dev)
 
 	usb_remove_hcd(shared_hcd);
 	xhci->shared_hcd = NULL;
-	usb_phy_shutdown(hcd->usb_phy);
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(shared_hcd);
+	usb_phy_shutdown(hcd->usb_phy);
 
 	clk_disable_unprepare(clk);
 	clk_disable_unprepare(reg_clk);

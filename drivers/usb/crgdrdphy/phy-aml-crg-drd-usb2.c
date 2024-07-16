@@ -265,10 +265,11 @@ static void set_usb_pll_v3(struct amlogic_usb_v2 *phy, void __iomem *phy_reg_bas
 #define USB2_PLL_LOCK_EN_BIT	24
 #define USB2_PLL_DONE		31
 #define USB2_REG_CFG_DIS	27
-/* usb2_squelch_trim: reg32_03[3:0] (MSB->LSB) default 0b0111
+/* S7D/S6
+ * usb2_squelch_trim: reg32_03[3:0] (MSB->LSB) default 0b0111
  * usb2_disc_trim: reg32_03[6:4] (MSB->LSB) default 0b000
  */
-#define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0_v3 0x3e
+#define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0_v3 0x39
 	u32 retry = 5;
 	int plldone_i;
 	u32 pll_val;
@@ -350,6 +351,40 @@ static void amlogic_crg_drd_usb2_set_vbus_power
 				   phy->vbus_power_pin, is_power_on);
 }
 
+static void amlogic_crg_drd_usb2_set_controller_power
+		(struct amlogic_usb_v2 *phy, bool on)
+{
+	u32 val;
+	u32 temp = 0;
+	size_t mask = 0;
+
+	if (!phy->pm_controller)
+		return;
+
+	mask = (size_t)phy->reset_regs & 0xf;
+
+	val = readl((void __iomem		*)
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
+
+	if (phy->usb_reset_bit != -1U)
+		temp |= BIT(phy->usb_reset_bit);
+	if (phy->usb_comb_reset_bit != -1U)
+		temp |= BIT(phy->usb_comb_reset_bit);
+
+	if (on)
+		val |= temp;
+	else
+		val &= ~temp;
+
+	writel(val, (void __iomem	*)
+			((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
+
+	val = readl((void __iomem		*)
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
+
+	temp = 0;
+}
+
 static int amlogic_crg_drd_usb2_init(struct usb_phy *x)
 {
 	int i, j, cnt;
@@ -371,6 +406,8 @@ static int amlogic_crg_drd_usb2_init(struct usb_phy *x)
 		if (phy->phy.flags == AML_USB2_PHY_ENABLE)
 			clk_prepare_enable(phy->clk);
 	}
+
+	amlogic_crg_drd_usb2_set_controller_power(phy, true);
 
 	for (i = 0; i < portnum; i++)
 		temp = temp | (1 << phy->phy_reset_level_bit[i]);
@@ -464,6 +501,8 @@ int amlogic_crg_device_usb2_init(u32 phy_id)
 		if (phy->phy.flags == AML_USB2_PHY_ENABLE)
 			clk_prepare_enable(phy->clk);
 	}
+
+	amlogic_crg_drd_usb2_set_controller_power(phy, true);
 
 	for (i = 0; i < portnum; i++)
 		temp = temp | (1 << phy->phy_reset_level_bit[i]);
@@ -560,6 +599,8 @@ int amlogic_crg_device_usb2_shutdown(u32 phy_id)
 	writel((val & (~temp)), (void __iomem	*)
 		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 
+	amlogic_crg_drd_usb2_set_controller_power(phy, false);
+
 	if (phy->suspend_flag  == 0)
 		if (phy->phy.flags == AML_USB2_PHY_ENABLE)
 			clk_disable_unprepare(phy->clk);
@@ -588,6 +629,8 @@ static void amlogic_crg_drd_usb2phy_shutdown(struct usb_phy *x)
 		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 	writel((val & (~temp)), (void __iomem	*)
 		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
+
+	amlogic_crg_drd_usb2_set_controller_power(phy, false);
 
 	if (phy->suspend_flag  == 0)
 		if (phy->phy.flags == AML_USB2_PHY_ENABLE)
@@ -621,7 +664,8 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 	u32 pll_disconnect_enhance;
 	u32 pll_ver;
 	u32 phy_reset_level_bit[USB_PHY_MAX_NUMBER] = {-1};
-	u32 usb_reset_bit = 2;
+	u32 usb_reset_bit = -1U;
+	u32 usb_comb_reset_bit = -1U;
 	u32 otg_phy_index = 1;
 	u32 phy_id = 0;
 	u32 val;
@@ -629,6 +673,7 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 	const char *gpio_name = NULL;
 	int gpio_vbus_power_pin = -1;
 	struct gpio_desc *usb_gd = NULL;
+	bool pm_controller = false;
 
 	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
 	if (gpio_name) {
@@ -748,18 +793,18 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 	prop = of_get_property(dev->of_node, "usb-reset-bit", NULL);
 	if (prop)
 		usb_reset_bit = of_read_ulong(prop, 1);
-	else
-		usb_reset_bit = 2;
+
+	prop = of_get_property(dev->of_node, "usb-comb-reset-bit", NULL);
+	if (prop)
+		usb_comb_reset_bit = of_read_ulong(prop, 1);
+
+	pm_controller = of_property_read_bool(dev->of_node, "pm-controller");
 
 	retval = of_property_read_u32(dev->of_node,
 		"pll-setting-1", &pll_setting[0]);
-	if (retval < 0)
-		return -EINVAL;
 
 	retval = of_property_read_u32(dev->of_node,
 		"pll-setting-2", &pll_setting[1]);
-	if (retval < 0)
-		return -EINVAL;
 
 	retval = of_property_read_u32(dev->of_node,
 		"pll-setting-3", &pll_setting[2]);
@@ -818,6 +863,8 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 	phy->otg_phy_index = otg_phy_index;
 	phy->reset_level = reset_level;
 	phy->usb_reset_bit = usb_reset_bit;
+	phy->usb_comb_reset_bit = usb_comb_reset_bit;
+	phy->pm_controller = pm_controller;
 	phy->usb_phy_trim_reg = usb_phy_trim_reg;
 	phy->phy_id = phy_id;
 	phy->vbus_power_pin = gpio_vbus_power_pin;
