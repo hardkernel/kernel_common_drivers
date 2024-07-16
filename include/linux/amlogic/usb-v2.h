@@ -500,14 +500,21 @@ struct aml_usb3_phy {
 	u32 reset_level_shift;
 	u8 portnum;
 	u8 phy_id;
+	/* Reset static regs to default.
+	 * Edge trigger/level reset.
+	 */
 	u8 usb3_apb_reset_bit;
+	/* Reset dynamic regs to default.
+	 * Level  reset.
+	 */
 	u8 usb3_phy_reset_bit;
 	u8 usb3_controller_reset_bit;
-	u8 controller_reset_shift;
-	u8 reset_level_bit;
+
 	u8 num_clk;
+	u32 ic_ver;
 	bool off;
 	bool pll_sw_cfg;
+	bool suspend;
 };
 
 #define	phy_to_amlusb3phy(p)	container_of((p), struct aml_usb3_phy, phy)

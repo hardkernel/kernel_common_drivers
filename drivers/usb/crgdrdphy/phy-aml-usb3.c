@@ -16,16 +16,19 @@
 #include <linux/amlogic/usb-v2.h>
 #include <linux/of_gpio.h>
 #include <linux/amlogic/usbtype.h>
+#include <linux/amlogic/cpu_version.h>
 #include "../phy/phy-aml-new-usb-v2.h"
 
 static unsigned char aml_usb3_phy_clk_name[11];
 
-#ifdef AML_USB3PHY_DBG
-#define au3p_dbg(dev, fmt, args...) \
-	dev_err(dev, fmt, ## args)
-#else
-#define au3p_dbg(dev, fmt, args...)
-#endif
+static bool aml_usb_phy3_dbg;
+module_param(aml_usb_phy3_dbg, bool, 0644);
+
+#define au3p_dbg(dev, fmt, args...)	\
+do {								\
+	if (aml_usb_phy3_dbg)			\
+		dev_err(dev, fmt, ## args);	\
+} while (0)
 
 static inline bool aml_usb3_phy_is_exist(struct aml_usb3_phy *phy)
 {
@@ -121,44 +124,75 @@ static int aml_usb3_phy_set_clk(struct aml_usb3_phy *phy, bool on)
 	return ret;
 }
 
+static void aml_usb3_phy_set_power_off_quirks(struct aml_usb3_phy *phy)
+{
+	switch (phy->ic_ver) {
+	case MESON_CPU_MAJOR_ID_S6:
+		aml_usb3_phy_modify_reg32(phy, phy->reset_reg + phy->reset_level_shift,
+							BIT(phy->usb3_apb_reset_bit),
+							BIT(phy->usb3_apb_reset_bit));
+		au3p_dbg(phy->dev, "ic_ver:0x%x, set power quirks entered.", phy->ic_ver);
+		/*  The ctrl reg default value is power consuming. */
+		aml_usb3_phy_write_reg32(phy, 0x71, phy->ctrl_reg + 0x4);
+		aml_usb3_phy_write_reg32(phy, 0x0, phy->ctrl_reg + 0x8);
+		aml_usb3_phy_write_reg32(phy, 0x0, phy->ctrl_reg + 0x10);
+		aml_usb3_phy_write_reg32(phy, 0x0, phy->ctrl_reg + 0x14);
+		break;
+	default:
+		break;
+	}
+}
+
 /* RESET_reg, write each bit to 1 can reset related module, the reset will auto-cover to 0 by HW.
  * RESETn_module(low active) = (~RESET_reg & RESET_LEVEL) | RESET_MASK.
  */
 static inline void aml_usb3_phy_pre_reset(struct aml_usb3_phy *phy)
 {
-	if (phy->pll_sw_cfg)
-		return;
-
-	/* Only apb reset bit resets all phy parameters. */
 	aml_usb3_phy_write_reg32(phy, BIT(phy->usb3_apb_reset_bit), phy->reset_reg);
+	aml_usb3_phy_write_reg32(phy, BIT(phy->usb3_phy_reset_bit), phy->reset_reg);
 
-	usleep_range(100, 200);
-}
-
-static inline void aml_usb3_phy_post_reset(struct aml_usb3_phy *phy)
-{
-	if (phy->pll_sw_cfg)
-		aml_usb3_phy_write_reg32(phy, BIT(phy->usb3_phy_reset_bit), phy->reset_reg);
-	else
-		aml_usb3_phy_write_reg32(phy, BIT(phy->usb3_phy_reset_bit) |
-			BIT(phy->usb3_controller_reset_bit), phy->reset_reg);
-
-	usleep_range(100, 200);
+	/* Reset usb3_phy_reset_bit triggers pll cfg. Wait for it. */
+	usleep_range(320, 400);
 }
 
 static void aml_usb3_phy_set_power(struct aml_usb3_phy *phy, bool on)
 {
 	/* The vbus power is controlled by the companion usb2 phy. */
 	if (on) {
+		/* Make sure reset is not held. */
 		aml_usb3_phy_modify_reg32(phy, phy->reset_reg + phy->reset_level_shift,
 				BIT(phy->usb3_apb_reset_bit) | BIT(phy->usb3_phy_reset_bit),
 				BIT(phy->usb3_apb_reset_bit) | BIT(phy->usb3_phy_reset_bit));
+		/* The u3phy power is comprised of dynamic part & static part.
+		 * and controlled by the reg values. Reset phy to default.
+		 * Make sure reset is done here even if previous step have already
+		 * done it.
+		 */
+		aml_usb3_phy_pre_reset(phy);
 	} else {
-		/* Don't touch any bit else. */
+		/* Hold reset to power off. */
 		aml_usb3_phy_modify_reg32(phy, phy->reset_reg + phy->reset_level_shift,
-							BIT(phy->usb3_phy_reset_bit), 0);
+				BIT(phy->usb3_apb_reset_bit) | BIT(phy->usb3_phy_reset_bit), 0);
+		aml_usb3_phy_set_power_off_quirks(phy);
+		usleep_range(100, 200);
 	}
-	usleep_range(100, 200);
+}
+
+static inline void aml_usb3_phy_post_reset(struct aml_usb3_phy *phy)
+{
+	/* The usb3_phy_reset_bit triggers HW pll cfg. */
+	if (phy->pll_sw_cfg) {
+		aml_usb3_phy_write_reg32(phy, BIT(phy->usb3_controller_reset_bit),
+					phy->reset_reg);
+		usleep_range(100, 200);
+	} else {
+		aml_usb3_phy_write_reg32(phy, BIT(phy->usb3_phy_reset_bit),
+					phy->reset_reg);
+		/* HW do the rest pll settings. */
+		usleep_range(320, 400);
+		aml_usb3_phy_write_reg32(phy, BIT(phy->usb3_controller_reset_bit),
+			phy->reset_reg);
+	}
 }
 
 static int aml_usb3_phy_pll_init_v0(struct aml_usb3_phy *phy)
@@ -179,6 +213,11 @@ static int aml_usb3_phy_pll_init_v0(struct aml_usb3_phy *phy)
 	int plldone_i;
 
 	if (phy->pll_sw_cfg) {
+		/* The speed-drop usb devices TX maybe unstable at insertion, leading to CDR KI
+		 * overload. Delay freq tracking start point by modifying fr_en delay 1us->300us.
+		 * Training timer change fr_en delay 1us->300us (unit: 41.668ns).
+		 */
+		aml_usb3_phy_write_reg32(phy, 0x1C20, phy->ctrl_reg + 0x9C);
 		/* Enable sw configure upcrx_igen_en & upcrx_ldo_en. */
 		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x20, 0x3 << 14, 0x3 << 14);
 		/* Enable upcrx_igen_en & upcrx_ldo_en. */
@@ -203,9 +242,10 @@ static int aml_usb3_phy_pll_init_v0(struct aml_usb3_phy *phy)
 		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
 						BIT(U3P2PLL0_LOCK_EN), BIT(U3P2PLL0_LOCK_EN));
 		usleep_range(160, 170);
+		/* Off unused usb3phy digital 100M clk: U3P2PLL_HCSL_LDO_EN_TM -> 0. */
 		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
 					BIT(U3P2PLL_HCSL_LDO_EN_TM) | BIT(U3P2PLL_HCSL_DREN0_TM),
-						BIT(U3P2PLL_HCSL_LDO_EN_TM));
+					0);
 		usleep_range(20, 30);
 		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
 						BIT(U3P2PLL1_BIAS_EN), BIT(U3P2PLL1_BIAS_EN));
@@ -219,6 +259,8 @@ static int aml_usb3_phy_pll_init_v0(struct aml_usb3_phy *phy)
 		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
 						BIT(U3P2PLL1_LOCK_START), BIT(U3P2PLL1_LOCK_START));
 	} else {
+		/* Training timer change fr_en delay 1us->300us (unit: 41.668ns). */
+		aml_usb3_phy_write_reg32(phy, 0x1C20, phy->ctrl_reg + 0x9C);
 		/* Enable sw configure upcrx_igen_en & upcrx_ldo_en. */
 		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x20, 0x3 << 14, 0x3 << 14);
 		/* Enable upcrx_igen_en & upcrx_ldo_en. */
@@ -230,12 +272,10 @@ static int aml_usb3_phy_pll_init_v0(struct aml_usb3_phy *phy)
 		aml_usb3_phy_write_reg32(phy, 0x081C1C23, phy->ctrl_reg + 0x38);
 		aml_usb3_phy_write_reg32(phy, 0x1435DC92, phy->ctrl_reg + 0x3C);
 		aml_usb3_phy_write_reg32(phy, 0x00000000, phy->ctrl_reg + 0x40);
-		/* enable u3p2pll_hcsl_ldo_en & u3p2pll_hcsl_dren0 */
+		/* Off unused usb3phy digital 100M clk: U3P2PLL_HCSL_LDO_EN_TM -> 0. */
 		aml_usb3_phy_modify_reg32(phy, phy->ctrl_reg + 0x44,
 					BIT(U3P2PLL_HCSL_LDO_EN_TM) | BIT(U3P2PLL_HCSL_DREN0_TM),
-					BIT(U3P2PLL_HCSL_LDO_EN_TM));
-		/* HW do the rest. */
-		usleep_range(320, 400);
+					0);
 	}
 
 	for (plldone_i = 5; plldone_i > 0; plldone_i--) {
@@ -312,7 +352,6 @@ static int aml_usb3_phy_init(struct usb_phy *p)
 		goto exit;
 
 	aml_usb3_phy_set_power(phy, true);
-	aml_usb3_phy_pre_reset(phy);
 
 	ret = aml_usb3_phy_pll_init(phy);
 	if (ret)
@@ -351,10 +390,12 @@ static void aml_usb3_phy_shutdown(struct usb_phy *p)
 	if (!aml_usb3_phy_is_hw_on(phy))
 		return;
 
-	aml_usb3_phy_set_clk(phy, false);
 	aml_usb3_phy_set_power(phy, false);
-
+	aml_usb3_phy_set_clk(phy, false);
 	aml_usb3_phy_set_hw_on(phy, false);
+
+	au3p_dbg(phy->dev, "reset level final: 0x%x.\n",
+				readl(phy->reset_reg + phy->reset_level_shift));
 }
 
 static int aml_usb3_phy_probe(struct platform_device *pdev)
@@ -375,6 +416,7 @@ static int aml_usb3_phy_probe(struct platform_device *pdev)
 	u8 usb3_phy_reset_bit = 0;
 	u8 usb3_controller_reset_bit = 0;
 	u8 num_clk = 0;
+	u32 ic_ver = get_cpu_type();
 	int ret, i;
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
@@ -510,6 +552,7 @@ no_port:
 	phy->off = phy_off;
 	phy->pll_sw_cfg = pll_sw_cfg;
 	phy->num_clk = num_clk;
+	phy->ic_ver = ic_ver;
 
 	/* Sync state to hw off. */
 	if (aml_usb3_phy_is_exist(phy))

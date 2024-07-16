@@ -755,17 +755,18 @@
 			reg = <0x0 0xfe348000 0x0 0x10 /* phy_base */
 					0x0 0xfe002000 0x0 0x100 /* reset_base */
 					0x0 0xfe34c000 0x0 0x60>; /* phy_cfg_base(s) */
-			pll-setting-1 = <0x244a0030>;
-			pll-setting-2 = <0x03200022>;
+			pll-setting-4 = <0x7e18>;
 			pll-setting-5 = <0x7>;
 			pll-version = <3>;
 			phy0-reset-level-bit = <9>;
 			usb-reset-bit = <7>;
+			usb-comb-reset-bit = <8>;
 			reset-level = <0x40>;
 			usb-phy-trim-reg = <0xfe010330>;
 			phy-id = <0>;
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
+			pm-controller;
 		};
 
 		usb_phy21: usbphy21@fe358000 {
@@ -774,17 +775,18 @@
 			reg = <0x0 0xfe358000 0x0 0x10 /* phy_base */
 					0x0 0xfe002000 0x0 0x100 /* reset_base */
 					0x0 0xfe35c000 0x0 0x60>; /* phy_cfg_base(s) */
-			pll-setting-1 = <0x244a0030>;
-			pll-setting-2 = <0x03200022>;
+			pll-setting-4 = <0x7e18>;
 			pll-setting-5 = <0x7>;
 			pll-version = <3>;
 			phy0-reset-level-bit = <4>;
 			usb-reset-bit = <5>;
+			usb-comb-reset-bit = <6>;
 			reset-level = <0x40>;
 			usb-phy-trim-reg = <0xfe010330>;
 			phy-id = <1>;
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
+			pm-controller;
 		};
 
 		usb_phy30: usbphy30@fe348080 {

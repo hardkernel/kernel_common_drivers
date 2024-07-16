@@ -301,6 +301,12 @@ static int crg_host_init(struct crg_drd *crg)
 	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-eproto");
 	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-016");
 
+	/* Some quirky devices take >2s to turn on Rterm and begin polling.
+	 * this leads to wait_for_connected timeout when resuming.
+	 */
+	if (crg->usb3_phy && crg->usb3_phy->label && !strcmp(crg->usb3_phy->label, "aml-usb3phy"))
+		props[prop_idx++] = PROPERTY_ENTRY_BOOL("resume_stuck_warm_reset");
+
 	if (prop_idx) {
 		ret = device_create_managed_software_node(&xhci->dev, props, NULL);
 		if (ret) {
@@ -492,8 +498,9 @@ static void crg_shutdown(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 
-	crg_core_exit(crg);
 	crg_host_exit(crg);
+	/* wait for unregister. */
+	crg_core_exit(crg);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
