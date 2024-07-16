@@ -899,7 +899,7 @@
 
 	lcd1 {
 		compatible = "amlogic, lcd-t3";
-		status = "okay";
+		status = "disable";
 		index = <1>;
 		mode = "tablet";
 		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
