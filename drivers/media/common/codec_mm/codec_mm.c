@@ -65,37 +65,12 @@ unsigned char get_meson_cpu_version(int level)
 #include <linux/amlogic/tee.h>
 #else
 #define TEE_MEM_TYPE_STREAM_INPUT	0x4
-u32 tee_protect_tvp_mem(u32 start, u32 size,
-			u32 *handle)
+u32 tee_protect_tvp_mem(phys_addr_t start, size_t size, u32 *handle)
 {
 	return 0xFFFFFFFF;
 }
 
-int tee_check_in_mem(u32 pa, u32 size)
-{
-	pr_info("no tee config\n");
-	return (-1);
-}
-
 void tee_unprotect_tvp_mem(u32 handle)
-{
-}
-
-int tee_check_out_mem(u32 pa, u32 size)
-{
-	pr_info("no tee config\n");
-	return (-1);
-}
-
-u32 tee_protect_mem_by_type(u32 type,
-		u32 start, u32 size,
-		u32 *handle)
-{
-	pr_info("no tee config\n");
-	return (-1);
-}
-
-void tee_unprotect_mem(u32 handle)
 {
 }
 
@@ -956,6 +931,13 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 		(mem->page_count <= mgt->alloc_from_sys_pages_max);
 
 	int can_from_tvp = (mem->flags & CODEC_MM_FLAGS_TVP);
+
+	if (can_from_res) {
+		if (mem->flags & CODEC_MM_FLAGS_RESERVED)
+			dma_coerce_mask_and_coherent(mgt->dev, DMA_BIT_MASK(64));
+		else
+			can_from_res = 0;
+	}
 
 	if (can_from_tvp) {
 		can_from_sys = 0;
@@ -1835,13 +1817,13 @@ static int codec_mm_tvp_pool_protect(struct extpool_mgt_s *tvp_pool)
 	for (i = 0; i < tvp_pool->slot_num; i++) {
 		if (tvp_pool->mm[i]->tvp_handle == -1) {
 			ret = tee_protect_tvp_mem
-				((uint32_t)tvp_pool->mm[i]->phy_addr,
-				(uint32_t)tvp_pool->mm[i]->buffer_size,
+				(tvp_pool->mm[i]->phy_addr,
+				tvp_pool->mm[i]->buffer_size,
 				&tvp_pool->mm[i]->tvp_handle);
-			pr_info("protect tvp %d %d ret %d %x %x\n",
+			pr_info("protect tvp %d %d ret %d %lx %x\n",
 				i, tvp_pool->mm[i]->tvp_handle, ret,
-				(unsigned int)tvp_pool->mm[i]->phy_addr,
-				(unsigned int)tvp_pool->mm[i]->buffer_size);
+				tvp_pool->mm[i]->phy_addr,
+				tvp_pool->mm[i]->buffer_size);
 			if (ret)
 				break;
 		} else {
@@ -4591,6 +4573,9 @@ static int secure_vdec_reserved_init(struct reserved_mem *rmem,
 		pr_err("protect vdec failed addr %llx %llx ret is %x\n",
 			(u64)rmem->base, (u64)rmem->size, ret);
 	}
+
+	sec_vdec_addr = rmem->base;
+	sec_vdec_size = rmem->size;
 
 	return ret;
 }

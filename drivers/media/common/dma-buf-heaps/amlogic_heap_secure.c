@@ -178,13 +178,14 @@ static void meson_secure_heap_vunmap(struct dma_buf *dmabuf, struct dma_buf_map 
 static void meson_secure_heap_dma_buf_release(struct dma_buf *dmabuf)
 {
 	struct secure_heap_buffer *buffer = dmabuf->priv;
-	struct sg_table *table = &buffer->sg_table;
-	phys_addr_t paddr = PFN_PHYS(page_to_pfn(sg_page(table->sgl)));
+	phys_addr_t paddr = 0;
 
 	if (!buffer)
 		return;
+
+	paddr = PFN_PHYS(page_to_pfn(sg_page(buffer->sg_table.sgl)));
 	gen_pool_free(meson_secure_heap->pool, paddr, buffer->len);
-	sg_free_table(table);
+	sg_free_table(&buffer->sg_table);
 
 	kfree(buffer);
 }

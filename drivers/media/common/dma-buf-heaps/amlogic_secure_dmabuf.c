@@ -47,143 +47,47 @@ struct secure_block_info {
 	__u32 id_low;
 	__u32 paddr;
 	__u32 psize;
-	__u32 unused1;
-	__u32 unused2;
-	__u32 unused3;
-	__u32 unused4;
+	__u64 handle_extend;
+	__u64 paddr_extend;
 };
 
 struct secure_heap_buffer {
-	struct dma_heap *heap;
-	struct list_head attachments;
-	//lock for buffer access
 	struct mutex lock;
-	unsigned long len;
 	struct sg_table sg_table;
-	int vmap_cnt;
-	void *vaddr;
-	//struct deferred_freelist_item deferred_free;
-	bool uncached;
-	//used for mmap to get phyaddr
 	struct secure_block_info *block;
 	struct page *block_page;
-	struct dma_buf *buf;
 };
-
-struct dma_heap_attachment {
-	struct device *dev;
-	struct sg_table *table;
-	struct list_head list;
-	bool mapped;
-	bool uncached;
-};
-
-static struct sg_table *dup_sg_table(struct sg_table *table)
-{
-	struct sg_table *new_table;
-	int ret, i;
-	struct scatterlist *sg, *new_sg;
-
-	new_table = kzalloc(sizeof(*new_table), GFP_KERNEL);
-	if (!new_table)
-		return ERR_PTR(-ENOMEM);
-
-	ret = sg_alloc_table(new_table, table->orig_nents, GFP_KERNEL);
-	if (ret) {
-		kfree(new_table);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	new_sg = new_table->sgl;
-	for_each_sgtable_sg(table, sg, i) {
-		sg_set_page(new_sg, sg_page(sg), sg->length, sg->offset);
-		new_sg = sg_next(new_sg);
-	}
-
-	return new_table;
-}
 
 static int secure_heap_attach(struct dma_buf *dmabuf,
 				struct dma_buf_attachment *attachment)
 {
-	struct secure_heap_buffer *buffer = dmabuf->priv;
-	struct dma_heap_attachment *a;
-	struct sg_table *table;
-
 	pr_enter();
-	a = kzalloc(sizeof(*a), GFP_KERNEL);
-	if (!a)
-		return -ENOMEM;
-
-	table = dup_sg_table(&buffer->sg_table);
-	if (IS_ERR(table)) {
-		kfree(a);
-		return -ENOMEM;
-	}
-
-	a->table = table;
-	a->dev = attachment->dev;
-	INIT_LIST_HEAD(&a->list);
-	a->mapped = false;
-	a->uncached = buffer->uncached;
-	attachment->priv = a;
-
-	mutex_lock(&buffer->lock);
-	list_add(&a->list, &buffer->attachments);
-	mutex_unlock(&buffer->lock);
-
+	attachment->priv = dmabuf->priv;
 	return 0;
 }
 
 static void secure_heap_detach(struct dma_buf *dmabuf,
 				struct dma_buf_attachment *attachment)
 {
-	struct secure_heap_buffer *buffer = dmabuf->priv;
-	struct dma_heap_attachment *a = attachment->priv;
-
 	pr_enter();
-	mutex_lock(&buffer->lock);
-	list_del(&a->list);
-	mutex_unlock(&buffer->lock);
-
-	sg_free_table(a->table);
-	kfree(a->table);
-	kfree(a);
+	attachment->priv = NULL;
 }
 
 static struct sg_table *secure_heap_map_dma_buf
 					(struct dma_buf_attachment *attachment,
 					enum dma_data_direction direction)
 {
-	struct dma_heap_attachment *a = attachment->priv;
-	struct sg_table *table = a->table;
-	int attr = 0;
-	int ret;
+	struct secure_heap_buffer *buffer = attachment->priv;
 
-	pr_enter();
-	if (a->uncached)
-		attr = DMA_ATTR_SKIP_CPU_SYNC;
-
-	ret = dma_map_sgtable(attachment->dev, table, direction, attr);
-	if (ret)
-		return ERR_PTR(ret);
-
-	a->mapped = true;
-	return table;
+	return &buffer->sg_table;
 }
 
 static void secure_heap_unmap_dma_buf(struct dma_buf_attachment *attachment,
 					struct sg_table *table,
 					enum dma_data_direction direction)
 {
-	struct dma_heap_attachment *a = attachment->priv;
-	int attr = 0;
-
 	pr_enter();
-	if (a->uncached)
-		attr = DMA_ATTR_SKIP_CPU_SYNC;
-	a->mapped = false;
-	dma_unmap_sgtable(attachment->dev, table, direction, attr);
+	return;
 }
 
 static int secure_heap_dma_buf_begin_cpu_access
@@ -199,11 +103,6 @@ static int secure_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 {
 	pr_enter();
 	return 0;
-}
-
-static inline u32 secure_align_up2n(u32 size, u32 alg2n)
-{
-	return ((size + (1 << alg2n) - 1) & (~((1 << alg2n) - 1)));
 }
 
 static int secure_heap_mmap(struct dma_buf *dmabuf,
@@ -225,11 +124,33 @@ static int secure_heap_mmap(struct dma_buf *dmabuf,
 	if (block->version >= SECURE_HEAP_USER_TA_VERSION) {
 		switch (block->state) {
 		case AML_SECURE_DMABUF_HEAP_SETTING_PHYADDR:
-			sg_set_page(buffer->sg_table.sgl, pfn_to_page(PFN_DOWN(block->paddr)),
-				PAGE_ALIGN(block->psize), 0);
-			block->paddr = 0;
-			block->psize = 0;
-			block->state = 0;
+			if (block->version > SECURE_HEAP_USER_TA_VERSION) {
+				sg_set_page(buffer->sg_table.sgl,
+					pfn_to_page(PFN_DOWN(block->paddr_extend)),
+					PAGE_ALIGN(block->psize), 0);
+				buffer->sg_table.sgl->dma_address = block->paddr_extend;
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+				buffer->sg_table.sgl->dma_length = PAGE_ALIGN(block->size);
+#else
+				buffer->sg_table.sgl->length = PAGE_ALIGN(block->size);
+#endif
+				block->paddr_extend = 0;
+				block->psize = 0;
+				block->state = 0;
+			} else {
+				sg_set_page(buffer->sg_table.sgl,
+					pfn_to_page(PFN_DOWN(block->paddr)),
+					PAGE_ALIGN(block->psize), 0);
+				buffer->sg_table.sgl->dma_address = block->paddr;
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+				buffer->sg_table.sgl->dma_length = PAGE_ALIGN(block->size);
+#else
+				buffer->sg_table.sgl->length = PAGE_ALIGN(block->size);
+#endif
+				block->paddr = 0;
+				block->psize = 0;
+				block->state = 0;
+			}
 		default:
 			break;
 		}
@@ -258,6 +179,7 @@ static void secure_heap_dma_buf_release(struct dma_buf *dmabuf)
 {
 	struct secure_heap_buffer *buffer = dmabuf->priv;
 	struct secure_block_info *block = NULL;
+	u64 handle = 0;
 
 	pr_enter();
 	if (!buffer)
@@ -268,15 +190,22 @@ static void secure_heap_dma_buf_release(struct dma_buf *dmabuf)
 	mutex_lock(&buffer->lock);
 	block = buffer->block;
 	if (block) {
+		if (block->version > SECURE_HEAP_USER_TA_VERSION)
+			handle = block->handle_extend;
+		else
+			handle = block->handle;
+
 		if (dmabuf_manage_secure_block_free(block->id_high, block->id_low,
-			block->handle, block->size, block->version))
-			pr_err("Secure vdec block free error please fix it");
+			handle, block->size, block->version))
+			pr_error("Secure vdec block free error please fix it");
 	}
 	sg_free_table(&buffer->sg_table);
 	if (buffer->block_page)
 		free_reserved_page(buffer->block_page);
-	else if (buffer->block)
+
+	if (buffer->block)
 		free_pages((unsigned long)buffer->block, 0);
+
 	mutex_unlock(&buffer->lock);
 	kfree(buffer);
 }
@@ -314,11 +243,7 @@ static struct dma_buf *secure_heap_do_allocate(struct dma_heap *heap,
 	if (!buffer)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&buffer->attachments);
 	mutex_init(&buffer->lock);
-	buffer->heap = heap;
-	buffer->len = len;
-	buffer->uncached = uncached;
 
 	block = (struct secure_block_info *)get_zeroed_page(GFP_KERNEL);
 	if (!block)
@@ -340,16 +265,23 @@ static struct dma_buf *secure_heap_do_allocate(struct dma_heap *heap,
 		block->version))
 		goto free_tables;
 
-	block->handle = dmabuf_manage_secure_block_alloc(block->id_high,
-		block->id_low, len, block->version);
-	if (!block->handle)
-		goto free_tables;
+	if (block->version > SECURE_HEAP_USER_TA_VERSION) {
+		block->handle_extend = dmabuf_manage_secure_block_alloc(block->id_high,
+			block->id_low, len, block->version);
+		if (!block->handle_extend)
+			goto free_tables;
+	} else {
+		block->handle = (u32)dmabuf_manage_secure_block_alloc(block->id_high,
+			block->id_low, len, block->version);
+		if (!block->handle)
+			goto free_tables;
+	}
 
 	block->size = len;
 	/* create the dmabuf */
 	exp_info.exp_name = dma_heap_get_name(heap);
 	exp_info.ops = &secure_heap_buf_ops;
-	exp_info.size = buffer->len;
+	exp_info.size = len;
 	exp_info.flags = fd_flags;
 	exp_info.priv = buffer;
 
@@ -359,7 +291,6 @@ static struct dma_buf *secure_heap_do_allocate(struct dma_heap *heap,
 		goto free_tables;
 	}
 
-	buffer->buf = dmabuf;
 	buffer->block = block;
 	return dmabuf;
 
@@ -409,12 +340,7 @@ int __init amlogic_system_secure_dma_buf_init(void)
 	if (IS_ERR(secure_heap))
 		return PTR_ERR(secure_heap);
 
-	dma_coerce_mask_and_coherent(dma_heap_get_dev(secure_heap),
-		DMA_BIT_MASK(32));
-	mb(); /* make sure we only set allocate after dma_mask is set */
 	secure_heap_ops.allocate = secure_uncached_heap_allocate;
-
-	pr_info("secure dmaheap:enter %s\n", __func__);
 	return 0;
 }
 
