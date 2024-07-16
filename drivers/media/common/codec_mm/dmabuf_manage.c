@@ -23,12 +23,6 @@
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
 #include <linux/amlogic/tee_drv.h>
 #endif
-#include <uapi/linux/dvb/aml_dmx_ext.h>
-#ifdef CONFIG_AMLOGIC_DVB_COMPAT
-#include <media/aml_demux_ext.h>
-#endif
-#include "dmxdev.h"
-#include "demux.h"
 
 #if IS_BUILTIN(CONFIG_AMLOGIC_MEDIA_MODULE)
 #include <linux/amlogic/aml_cma.h>
@@ -37,12 +31,7 @@
 static int dmabuf_manage_debug = 1;
 module_param(dmabuf_manage_debug, int, 0644);
 
-#if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
-static u32 secure_heap_version = SECURE_HEAP_USER_TA_VERSION;
-#else
-static u32 secure_heap_version;
-#endif
-
+static u32 dmabuf_manage_version;
 static u32 secure_vdec_config = 0x7C;
 
 #define  DEVICE_NAME "secmem"
@@ -72,7 +61,12 @@ static u32 secure_vdec_config = 0x7C;
 #define TA_SECMEM_V2_CMD_MEM_FREE					258
 #define TA_SECMEM_V2_CMD_CLOSE						266
 
-#define TA_SECMEM_V2_SHM_SIZE						4096
+#define TA_SECMEM_V3_CMD_INIT						3049
+#define TA_SECMEM_V3_CMD_MEM_CREATE					3002
+#define TA_SECMEM_V3_CMD_MEM_FREE					3009
+#define TA_SECMEM_V3_CMD_CLOSE						3017
+
+#define TA_SECMEM_SHM_SIZE							4096
 #define TEE_CMD_PARAM_NUM							4
 #define PARAM_ALIGN									32
 
@@ -87,7 +81,7 @@ struct kdmabuf_attachment {
 
 struct block_node {
 	struct list_head node;
-	u32 addr;
+	u64 addr;
 	u32 size;
 };
 
@@ -97,7 +91,6 @@ struct secure_pool_info {
 	u32 version;
 	u32 id_high;
 	u32 id_low;
-	u32 protect_handle;
 	u32 block_size;
 	u32 channel_register;
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
@@ -106,20 +99,10 @@ struct secure_pool_info {
 #endif
 };
 
-typedef int (*decode_info)(struct dmx_demux *demux, void *info);
 static long dmabuf_manage_release_channel(u32 id_high, u32 id_low);
 static int dmabuf_manage_release_dmabufheap_resource(struct secure_pool_info *release_pool);
 
-struct dmx_filter_info {
-	struct list_head list;
-	__u32 token;
-	__u32 filter_fd;
-	struct dmx_demux *demux;
-	decode_info decode_info_func;
-};
-
 static struct list_head pool_list;
-static struct list_head dmx_filter_list;
 static int dev_no;
 static struct device *dmabuf_manage_dev;
 static DEFINE_MUTEX(g_secure_pool_mutex);
@@ -133,6 +116,9 @@ enum TEE_CMD_PARAMTYPE {
 	TEE_CMD_PARAMTYPE_VOID,
 };
 
+#pragma pack(push)
+#pragma pack(4)
+
 struct tee_cmdparam {
 	u32 type;
 	union {
@@ -140,9 +126,12 @@ struct tee_cmdparam {
 			u32 buflen;
 			u32 pbuf;
 		} buf;
-		u32 u32_value; /* type == TEE_CMD_PARAMTYPE_UINT32 */
+		u32 u32_value;
+		u64 u64_value;
 	} param;
 };
+
+#pragma pack(pop)
 
 static int dmabuf_manage_tee_pack_u32(char *shm_data, const u32 num, u32 *poff)
 {
@@ -153,7 +142,7 @@ static int dmabuf_manage_tee_pack_u32(char *shm_data, const u32 num, u32 *poff)
 		return -1;
 
 	off = *poff;
-	if (off > TA_SECMEM_V2_SHM_SIZE - sizeof(struct tee_cmdparam))
+	if (off > TA_SECMEM_SHM_SIZE - sizeof(struct tee_cmdparam))
 		return -1;
 
 	p.type = TEE_CMD_PARAMTYPE_UINT32;
@@ -173,7 +162,7 @@ static int dmabuf_manage_tee_unpack_u32(const char *shm, u32 *num, u32 *poff)
 		return -1;
 
 	off = *poff;
-	if (off > TA_SECMEM_V2_SHM_SIZE - sizeof(struct tee_cmdparam))
+	if (off > TA_SECMEM_SHM_SIZE - sizeof(struct tee_cmdparam))
 		return -1;
 
 	memcpy((void *)&p, (void *)(shm + off), sizeof(struct tee_cmdparam));
@@ -187,21 +176,71 @@ static int dmabuf_manage_tee_unpack_u32(const char *shm, u32 *num, u32 *poff)
 
 	return 0;
 }
+
+static int dmabuf_manage_tee_pack_u64(char *shm_data, const u64 num, u32 *poff)
+{
+	struct tee_cmdparam p;
+	u32 off = 0;
+
+	if (!shm_data || !poff)
+		return -1;
+
+	off = *poff;
+	if (off > TA_SECMEM_SHM_SIZE - sizeof(struct tee_cmdparam))
+		return -1;
+
+	p.type = TEE_CMD_PARAMTYPE_UINT64;
+	p.param.u64_value = num;
+	memcpy((void *)(shm_data + off), &p, sizeof(struct tee_cmdparam));
+	*poff = (off + sizeof(struct tee_cmdparam) + PARAM_ALIGN) & ~(PARAM_ALIGN - 1);
+
+	return 0;
+}
+
+static int dmabuf_manage_tee_unpack_u64(const char *shm, u64 *num, u32 *poff)
+{
+	struct tee_cmdparam p;
+	u32 off = 0;
+
+	if (!shm || !poff || !num)
+		return -1;
+
+	off = *poff;
+	if (off > TA_SECMEM_SHM_SIZE - sizeof(struct tee_cmdparam))
+		return -1;
+
+	memcpy((void *)&p, (void *)(shm + off), sizeof(struct tee_cmdparam));
+	if (p.type != TEE_CMD_PARAMTYPE_UINT64) {
+		pr_error("error param type %d", p.type);
+		return -1;
+	}
+
+	*num = p.param.u64_value;
+	*poff = (off + sizeof(struct tee_cmdparam) + PARAM_ALIGN) & ~(PARAM_ALIGN - 1);
+
+	return 0;
+}
 #endif
 
 static int dmabuf_manage_attach(struct dma_buf *dbuf, struct dma_buf_attachment *attachment)
 {
-	struct kdmabuf_attachment *attach;
+	struct kdmabuf_attachment *attach = NULL;
 	struct dmabuf_manage_block *block = dbuf->priv;
-	struct sg_table *sgt;
-	struct page *page;
-	phys_addr_t phys = block->paddr;
-	int ret;
-	int sgnum = 1;
-	struct dmabuf_dmx_sec_es_data *es = NULL;
-	int len = 0;
+	struct sg_table *sgt = NULL;
+	struct page *page = NULL;
+	phys_addr_t phys = 0;
+	size_t block_size = 0;
+	int ret = 0;
 
 	pr_enter();
+	if (block->extend) {
+		phys = block->extend_paddr;
+		block_size = block->extend_size;
+	} else {
+		phys = block->paddr;
+		block_size = block->size;
+	}
+
 	attach = (struct kdmabuf_attachment *)
 		kzalloc(sizeof(*attach), GFP_KERNEL);
 	if (!attach) {
@@ -209,38 +248,20 @@ static int dmabuf_manage_attach(struct dma_buf *dbuf, struct dma_buf_attachment 
 		goto error;
 	}
 
-	if (block->type == DMA_BUF_TYPE_DMX_ES) {
-		es = (struct dmabuf_dmx_sec_es_data *)block->priv;
-		if (es->data_end < es->data_start)
-			sgnum = 2;
-	}
 	sgt = &attach->sgt;
-	ret = sg_alloc_table(sgt, sgnum, GFP_KERNEL);
+	ret = sg_alloc_table(sgt, 1, GFP_KERNEL);
 	if (ret) {
 		pr_error("No memory for sgtable");
 		goto error_alloc;
 	}
-	if (sgnum == 2) {
-		len = PAGE_ALIGN(es->buf_end - es->data_start);
-		if (block->paddr != es->data_start) {
-			pr_error("Invalid buffer info %x %x",
-				block->paddr, es->data_start);
-			goto error_attach;
-		}
-		page = phys_to_page(phys);
-		sg_set_page(sgt->sgl, page, len, 0);
-		len = PAGE_ALIGN(es->data_end - es->buf_start);
-		page = phys_to_page(es->buf_start);
-		sg_set_page(sg_next(sgt->sgl), page, len, 0);
-	} else {
-		page = phys_to_page(phys);
-		sg_set_page(sgt->sgl, page, PAGE_ALIGN(block->size), 0);
-	}
+
+	page = phys_to_page(phys);
+	sg_set_page(sgt->sgl, page, PAGE_ALIGN(block_size), 0);
+
 	attach->dma_dir = DMA_NONE;
 	attachment->priv = attach;
 	return 0;
-error_attach:
-	sg_free_table(sgt);
+
 error_alloc:
 	kfree(attach);
 error:
@@ -271,6 +292,16 @@ static struct sg_table *dmabuf_manage_map_dma_buf(struct dma_buf_attachment *att
 	struct mutex *lock = &attachment->dmabuf->lock;
 #endif
 	struct sg_table *sgt;
+	size_t block_size = 0;
+	phys_addr_t phys = 0;
+
+	if (block->extend) {
+		phys = block->extend_paddr;
+		block_size = block->extend_size;
+	} else {
+		phys = block->paddr;
+		block_size = block->size;
+	}
 
 	pr_enter();
 #if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
@@ -283,14 +314,12 @@ static struct sg_table *dmabuf_manage_map_dma_buf(struct dma_buf_attachment *att
 #endif
 		return sgt;
 	}
-	sgt->sgl->dma_address = block->paddr;
+	sgt->sgl->dma_address = phys;
 #ifdef CONFIG_NEED_SG_DMA_LENGTH
-	sgt->sgl->dma_length = PAGE_ALIGN(block->size);
+	sgt->sgl->dma_length = PAGE_ALIGN(block_size);
 #else
-	sgt->sgl->length = PAGE_ALIGN(block->size);
+	sgt->sgl->length = PAGE_ALIGN(block_size);
 #endif
-	pr_dbg("nents %d, %x, %d, %d\n", sgt->nents, block->paddr,
-			sg_dma_len(sgt->sgl), block->size);
 	attach->dma_dir = dma_dir;
 #if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	mutex_unlock(lock);
@@ -308,36 +337,18 @@ static void dmabuf_manage_unmap_dma_buf(struct dma_buf_attachment *attachment,
 static void dmabuf_manage_buf_release(struct dma_buf *dbuf)
 {
 	struct dmabuf_manage_block *block = NULL;
-	struct dmabuf_dmx_sec_es_data *es = NULL;
-	struct dmx_filter_info *node = NULL;
 	struct secure_vdec_channel *channel = NULL;
-	struct list_head *pos = NULL, *tmp = NULL;
-	int found = 0;
-	struct decoder_mem_info rp_info;
 
 	pr_enter();
 	block = (struct dmabuf_manage_block *)dbuf->priv;
-	if (block && block->priv && block->type == DMA_BUF_TYPE_DMX_ES) {
-		es = (struct dmabuf_dmx_sec_es_data *)block->priv;
-		list_for_each_safe(pos, tmp, &dmx_filter_list) {
-			node = list_entry(pos, struct dmx_filter_info, list);
-			if (node && node->token == es->token) {
-				found = 1;
-				break;
-			}
+	if (block && block->type == DMA_BUF_TYPE_DMABUF) {
+		if (block->extend) {
+			if (block->extend_flags & DMABUF_ALLOC_FROM_CMA)
+				codec_mm_free_for_dma("dmabuf", block->extend_paddr);
+		} else {
+			if (block->flags & DMABUF_ALLOC_FROM_CMA)
+				codec_mm_free_for_dma("dmabuf", block->paddr);
 		}
-		if (found) {
-			if (es->buf_rp == 0)
-				es->buf_rp = es->data_end;
-			if (es->buf_rp >= es->buf_start && es->buf_rp <= es->buf_end &&
-				node->demux && node->decode_info_func) {
-				rp_info.rp_phy = es->buf_rp;
-				node->decode_info_func(node->demux, &rp_info);
-			}
-		}
-	} else if (block && block->type == DMA_BUF_TYPE_DMABUF) {
-		if (block->flags & DMABUF_ALLOC_FROM_CMA)
-			codec_mm_free_for_dma("dmabuf", block->paddr);
 	} else if (block && block->priv &&
 		block->type == DMA_BUF_TYPE_SECURE_VDEC) {
 		channel = (struct secure_vdec_channel *)block->priv;
@@ -345,7 +356,6 @@ static void dmabuf_manage_buf_release(struct dma_buf *dbuf)
 	}
 
 	if (block) {
-		pr_dbg("dma release handle:%x\n", block->handle);
 		kfree(block->priv);
 		kfree(block);
 	}
@@ -353,55 +363,23 @@ static void dmabuf_manage_buf_release(struct dma_buf *dbuf)
 
 static int dmabuf_manage_mmap(struct dma_buf *dbuf, struct vm_area_struct *vma)
 {
-	struct dmabuf_manage_block *block;
-	struct dmabuf_dmx_sec_es_data *es;
-	unsigned long addr = vma->vm_start;
-	int len = 0;
-	int ret = -EFAULT;
+	struct dmabuf_manage_block *block = NULL;
+	phys_addr_t paddr = 0;
+	unsigned long paddr_size = 0;
 
 	pr_enter();
 	block = (struct dmabuf_manage_block *)dbuf->priv;
-	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-	if (block->type == DMA_BUF_TYPE_DMX_ES) {
-		es = (struct dmabuf_dmx_sec_es_data *)block->priv;
-		if (es->data_end >= es->data_start) {
-			len = PAGE_ALIGN(es->data_end - es->data_start);
-			if (block->paddr != es->data_start) {
-				pr_error("Invalid buffer info %x %x",
-					block->paddr, es->data_start);
-				goto error;
-			}
-			ret = remap_pfn_range(vma, addr,
-					page_to_pfn(phys_to_page(block->paddr)),
-					len, vma->vm_page_prot);
-		} else {
-			len = PAGE_ALIGN(es->buf_end - es->data_start);
-			if (block->paddr != es->data_start) {
-				pr_error("Invalid buffer info %x %x",
-					block->paddr, es->data_start);
-				goto error;
-			}
-			ret = remap_pfn_range(vma, addr,
-					page_to_pfn(phys_to_page(block->paddr)),
-					len, vma->vm_page_prot);
-			if (ret) {
-				pr_error("remap failed %d", ret);
-				goto error;
-			}
-			addr += len;
-			if (addr >= vma->vm_end)
-				return ret;
-			len = PAGE_ALIGN(es->data_end - es->buf_start);
-			ret = remap_pfn_range(vma, addr,
-					page_to_pfn(phys_to_page(es->buf_start)),
-					len, vma->vm_page_prot);
-		}
+	if (block->extend) {
+		paddr = block->extend_paddr;
+		paddr_size = block->extend_size;
 	} else {
-		ret = remap_pfn_range(vma, vma->vm_start, page_to_pfn(phys_to_page(block->paddr)),
-			block->size, vma->vm_page_prot);
+		paddr = block->paddr;
+		paddr_size = block->size;
 	}
-error:
-	return ret;
+
+	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	return remap_pfn_range(vma, vma->vm_start, page_to_pfn(phys_to_page(paddr)),
+		paddr_size, vma->vm_page_prot);
 }
 
 static struct dma_buf_ops dmabuf_manage_ops = {
@@ -425,10 +403,11 @@ static struct dma_buf *get_dmabuf(struct dmabuf_manage_block *block,
 	struct dma_buf *dbuf;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 
-	pr_dbg("export handle:%x, paddr:%x, size:%x\n",
-		block->handle, block->paddr, block->size);
 	exp_info.ops = &dmabuf_manage_ops;
-	exp_info.size = block->size;
+	if (block->extend)
+		exp_info.size = block->extend_size;
+	else
+		exp_info.size = block->size;
 	exp_info.flags = flags;
 	exp_info.priv = (void *)block;
 	exp_info.exp_name = "dmabuf_manage";
@@ -439,13 +418,14 @@ static struct dma_buf *get_dmabuf(struct dmabuf_manage_block *block,
 	return dbuf;
 }
 
-static long dmabuf_manage_export(unsigned long args)
+static long dmabuf_manage_export(unsigned long args, int extend)
 {
 	int ret;
 	struct dmabuf_manage_block *block;
 	struct dma_buf *dbuf;
 	int fd;
 	int fd_flags = O_CLOEXEC;
+	struct secmem_extend_block extend_block;
 
 	pr_enter();
 	block = (struct dmabuf_manage_block *)
@@ -454,11 +434,24 @@ static long dmabuf_manage_export(unsigned long args)
 		pr_error("kmalloc failed\n");
 		goto error_alloc_object;
 	}
-	ret = copy_from_user((void *)block, (void __user *)args,
-				sizeof(struct secmem_block));
-	if (ret) {
-		pr_error("copy_from_user failed\n");
-		goto error_copy;
+	block->extend = extend;
+	if (extend) {
+		ret = copy_from_user((void *)&extend_block, (void __user *)args,
+			sizeof(struct secmem_extend_block));
+		if (ret) {
+			pr_error("copy_from_user failed\n");
+			goto error_copy;
+		}
+		block->extend_paddr = extend_block.paddr;
+		block->extend_size = extend_block.size;
+		block->extend_handle = extend_block.handle;
+	} else {
+		ret = copy_from_user((void *)block, (void __user *)args,
+			sizeof(struct secmem_block));
+		if (ret) {
+			pr_error("copy_from_user failed\n");
+			goto error_copy;
+		}
 	}
 	block->type = DMA_BUF_TYPE_SECMEM;
 	dbuf = get_dmabuf(block, fd_flags);
@@ -503,7 +496,10 @@ static long dmabuf_manage_get_handle(unsigned long args)
 		goto error_get;
 	}
 	block = dbuf->priv;
-	res = (long)(block->handle & (0xffffffff));
+	if (block->extend)
+		res = block->handle;
+	else
+		res = (long)(block->handle & (0xffffffff));
 	dma_buf_put(dbuf);
 error_get:
 error_copy:
@@ -530,7 +526,10 @@ static long dmabuf_manage_get_phyaddr(unsigned long args)
 		goto error_get;
 	}
 	block = dbuf->priv;
-	res = (long)(block->paddr & (0xffffffff));
+	if (block->extend)
+		res = block->paddr;
+	else
+		res = (long)(block->paddr & (0xffffffff));
 	dma_buf_put(dbuf);
 error_get:
 error_copy:
@@ -546,6 +545,7 @@ static long dmabuf_manage_import(unsigned long args)
 	struct dma_buf_attachment *attach;
 	struct sg_table *sgt;
 	dma_addr_t paddr;
+	struct dmabuf_manage_block *block;
 
 	pr_enter();
 	ret = copy_from_user((void *)&fd, (void __user *)args, sizeof(fd));
@@ -569,7 +569,11 @@ static long dmabuf_manage_import(unsigned long args)
 		goto error_map;
 	}
 	paddr = sg_dma_address(sgt->sgl);
-	res = (long)(paddr & (0xffffffff));
+	block = dbuf->priv;
+	if (block->extend)
+		res = paddr;
+	else
+		res = (long)(paddr & (0xffffffff));
 	dma_buf_unmap_attachment(attach, sgt, DMA_FROM_DEVICE);
 error_map:
 	dma_buf_detach(dbuf, attach);
@@ -583,9 +587,8 @@ error_copy:
 static long dmabuf_manage_export_dmabuf(unsigned long args)
 {
 	long res = -EFAULT;
-	struct dmabuf_manage_buffer info;
 	struct dmabuf_manage_block *block;
-	struct dmabuf_dmx_sec_es_data *dmxes;
+	struct dmabuf_manage_buffer info;
 	struct dmabuf_videodec_es_data *vdecdata;
 	struct dma_buf *dbuf;
 	int fd = -1;
@@ -609,16 +612,6 @@ static long dmabuf_manage_export_dmabuf(unsigned long args)
 	switch (info.type) {
 	case DMA_BUF_TYPE_SECMEM:
 		fd_flags = O_CLOEXEC;
-		break;
-	case DMA_BUF_TYPE_DMX_ES:
-		fd_flags = O_CLOEXEC;
-		dmxes = kzalloc(sizeof(*dmxes), GFP_KERNEL);
-		if (!dmxes) {
-			pr_error("kmalloc failed\n");
-			goto error_alloc_object;
-		}
-		memcpy(dmxes, &info.buffer.dmxes, sizeof(*dmxes));
-		block->priv = dmxes;
 		break;
 	case DMA_BUF_TYPE_DMABUF:
 		fd_flags = O_RDWR | O_CLOEXEC;
@@ -663,6 +656,77 @@ error_copy:
 	return res;
 }
 
+static long dmabuf_manage_extend_export_dmabuf(unsigned long args)
+{
+	long res = -EFAULT;
+	struct dmabuf_manage_block *block;
+	struct dmabuf_manage_extend_buffer info;
+	struct dmabuf_videodec_es_data *vdecdata;
+	struct dma_buf *dbuf;
+	int fd = -1;
+	int fd_flags = O_CLOEXEC;
+
+	pr_enter();
+	res = copy_from_user((void *)&info, (void __user *)args, sizeof(info));
+	if (res) {
+		pr_error("copy_from_user failed\n");
+		goto error_copy;
+	}
+	if (info.type == DMA_BUF_TYPE_INVALID) {
+		pr_error("unknown dma buf type\n");
+		goto error_copy;
+	}
+	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	if (!block) {
+		pr_error("kmalloc failed\n");
+		goto error_copy;
+	}
+	switch (info.type) {
+	case DMA_BUF_TYPE_SECMEM:
+		fd_flags = O_CLOEXEC;
+		break;
+	case DMA_BUF_TYPE_DMABUF:
+		fd_flags = O_RDWR | O_CLOEXEC;
+		break;
+	case DMA_BUF_TYPE_VIDEODEC_ES:
+		fd_flags = O_RDWR | O_CLOEXEC;
+		vdecdata = kzalloc(sizeof(*vdecdata), GFP_KERNEL);
+		if (!vdecdata) {
+			pr_error("kmalloc failed\n");
+			goto error_alloc_object;
+		}
+		memcpy(vdecdata, &info.buffer.vdecdata, sizeof(*vdecdata));
+		block->priv = vdecdata;
+		break;
+	default:
+		block->priv = NULL;
+		break;
+	}
+	block->extend = 1;
+	block->extend_paddr = info.paddr;
+	block->extend_size = PAGE_ALIGN(info.size);
+	block->extend_handle = info.handle;
+	block->type = info.type;
+	dbuf = get_dmabuf(block, fd_flags);
+	if (!dbuf) {
+		pr_error("get_dmabuf failed\n");
+		goto error_alloc_object;
+	}
+	fd = dma_buf_fd(dbuf, fd_flags);
+	if (fd < 0) {
+		pr_error("dma_buf_fd failed\n");
+		goto error_fd;
+	}
+	return fd;
+error_fd:
+	dma_buf_put(dbuf);
+error_alloc_object:
+	kfree(block->priv);
+	kfree(block);
+error_copy:
+	return res;
+}
+
 static long dmabuf_manage_get_dmabufinfo(unsigned long args)
 {
 	struct dmabuf_manage_buffer info;
@@ -687,10 +751,6 @@ static long dmabuf_manage_get_dmabufinfo(unsigned long args)
 		info.size = block->size;
 		info.handle = block->handle;
 		switch (info.type) {
-		case DMA_BUF_TYPE_DMX_ES:
-			memcpy(&info.buffer.dmxes, block->priv,
-				sizeof(struct dmabuf_dmx_sec_es_data));
-			break;
 		case DMA_BUF_TYPE_VIDEODEC_ES:
 			memcpy(&info.buffer.vdecdata, block->priv,
 				sizeof(struct dmabuf_videodec_es_data));
@@ -711,84 +771,46 @@ error:
 	return -EFAULT;
 }
 
-static long dmabuf_manage_set_filterfd(unsigned long args)
+static long dmabuf_manage_extend_get_dmabufinfo(unsigned long args)
 {
-	struct filter_info info;
-	struct dmx_filter_info *node = NULL;
-	struct list_head *pos, *tmp;
-	int found = 0;
-	struct dmx_demux *demux = NULL;
-	decode_info decode_info_func = NULL;
-#ifdef CONFIG_AMLOGIC_DVB_COMPAT
-	struct fd f;
-	struct dmxdev_filter *dmxdevfilter = NULL;
-	struct dmxdev *dmxdev = NULL;
-	struct dmx_demux_ext *demux_ext = NULL;
-#endif
+	struct dmabuf_manage_extend_buffer info;
+	struct dmabuf_manage_block *block;
+	struct dma_buf *dbuf;
+
 	pr_enter();
 	if (copy_from_user((void *)&info, (void __user *)args, sizeof(info))) {
 		pr_error("copy_from_user failed\n");
 		goto error;
 	}
-	if (list_empty(&dmx_filter_list)) {
-		if (info.release) {
-			pr_error("No filter info setting\n");
+	if (info.type == DMA_BUF_TYPE_INVALID)
+		goto error;
+	dbuf = dma_buf_get(info.fd);
+	if (IS_ERR(dbuf))
+		goto error;
+	if (dbuf->priv && dbuf->ops == &dmabuf_manage_ops) {
+		block = dbuf->priv;
+		if (block->type != info.type)
 			goto error;
-		} else {
-			node = kzalloc(sizeof(*node), GFP_KERNEL);
-			if (!node)
-				goto error;
-			list_add_tail(&node->list, &dmx_filter_list);
+		info.paddr = block->extend_paddr;
+		info.size = block->extend_size;
+		info.handle = block->extend_handle;
+		switch (info.type) {
+		case DMA_BUF_TYPE_VIDEODEC_ES:
+			memcpy(&info.buffer.vdecdata, block->priv,
+				sizeof(struct dmabuf_videodec_es_data));
+			break;
+		default:
+			break;
 		}
-	} else {
-		list_for_each_safe(pos, tmp, &dmx_filter_list) {
-			node = list_entry(pos, struct dmx_filter_info, list);
-			if (node->token == info.token && node->filter_fd == info.filter_fd) {
-				found = 1;
-				break;
-			}
-		}
-		if (info.release) {
-			if (!found) {
-				pr_error("No filter info setting\n");
-				goto error;
-			} else {
-				list_del(&node->list);
-				kfree(node);
-				node = NULL;
-			}
-		} else {
-			if (!found) {
-				node = kzalloc(sizeof(*node), GFP_KERNEL);
-				if (!node)
-					goto error;
-				list_add_tail(&node->list, &dmx_filter_list);
-			}
+		if (copy_to_user((void __user *)args, &info, sizeof(info))) {
+			pr_error("error copy to use space");
+			goto error_fd;
 		}
 	}
-	if (node) {
-		node->token = info.token;
-		node->filter_fd = info.filter_fd;
-#ifdef CONFIG_AMLOGIC_DVB_COMPAT
-		f = fdget(node->filter_fd);
-		if (f.file && f.file->private_data) {
-			dmxdevfilter = f.file->private_data;
-			if (dmxdevfilter)
-				dmxdev = dmxdevfilter->dev;
-		}
-		if (dmxdev && dmxdev->demux) {
-			demux = dmxdev->demux;
-			demux_ext = container_of(demux, struct dmx_demux_ext, dmx);
-			decode_info_func = demux_ext->decode_info;
-		} else {
-			pr_error("Invalid filter fd\n");
-		}
-		fdput(f);
-#endif
-		node->demux = demux;
-		node->decode_info_func = decode_info_func;
-	}
+	dma_buf_put(dbuf);
 	return 0;
+error_fd:
+	dma_buf_put(dbuf);
 error:
 	return -EFAULT;
 }
@@ -818,10 +840,62 @@ static int dmabuf_manage_alloc_dmabuf(unsigned long args)
 		PAGE_SHIFT, CODEC_MM_FLAGS_DMA);
 	if (block->paddr <= 0)
 		goto error_alloc_object;
+
 	block->size = PAGE_ALIGN(info.size);
 	block->handle = info.handle;
 	block->type = info.type;
 	block->flags |= DMABUF_ALLOC_FROM_CMA;
+	dbuf = get_dmabuf(block, fd_flags);
+	if (!dbuf) {
+		pr_error("get_dmabuf failed\n");
+		goto error_alloc;
+	}
+	res = dma_buf_fd(dbuf, fd_flags);
+	if (res < 0) {
+		pr_error("dma_buf_fd failed\n");
+		goto error_fd;
+	}
+	return res;
+error_fd:
+	dma_buf_put(dbuf);
+error_alloc:
+	codec_mm_free_for_dma("dmabuf", block->paddr);
+error_alloc_object:
+	kfree(block);
+error_copy:
+	return -EFAULT;
+}
+
+static int dmabuf_manage_extend_alloc_dmabuf(unsigned long args)
+{
+	int res = -EFAULT;
+	struct dmabuf_manage_extend_buffer info;
+	int fd_flags = O_RDWR | O_CLOEXEC;
+	struct dmabuf_manage_block *block;
+	struct dma_buf *dbuf;
+
+	pr_enter();
+	res = copy_from_user((void *)&info, (void __user *)args, sizeof(info));
+	if (res)
+		goto error_copy;
+	if (info.size <= 0 || info.size % 4096 != 0) {
+		pr_error("Invalid size isn't 4K align");
+		goto error_copy;
+	}
+	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	if (!block) {
+		pr_error("kmalloc failed\n");
+		goto error_copy;
+	}
+	block->extend = 1;
+	block->extend_paddr = codec_mm_alloc_for_dma("dmabuf", info.size / PAGE_SIZE,
+		PAGE_SHIFT, CODEC_MM_FLAGS_DMA);
+	if (block->extend_paddr <= 0)
+		goto error_alloc_object;
+	block->extend_size = PAGE_ALIGN(info.size);
+	block->extend_handle = info.handle;
+	block->type = info.type;
+	block->extend_flags |= DMABUF_ALLOC_FROM_CMA;
 	dbuf = get_dmabuf(block, fd_flags);
 	if (!dbuf) {
 		pr_error("get_dmabuf failed\n");
@@ -878,9 +952,6 @@ void *dmabuf_manage_get_info(struct dma_buf *dbuf, unsigned int type)
 		switch (block->type) {
 		case DMA_BUF_TYPE_SECMEM:
 			buf = block;
-			break;
-		case DMA_BUF_TYPE_DMX_ES:
-			buf = block->priv;
 			break;
 		case DMA_BUF_TYPE_DMABUF:
 			buf = block;
@@ -1036,6 +1107,120 @@ error:
 	return res;
 }
 
+static int dmabuf_manage_secure_v3_init(struct secure_pool_info *pool, u32 flags)
+{
+	int res = 0;
+	u32 in_len = 0;
+	u64 config = 0;
+	u64 tvp_flag = flags & 0x0F;
+	u64 decoder_flag = (flags >> 4) & 0x0F;
+	u64 vd_index = (flags >> 9) & 0x0F;
+	char *shm_data = NULL;
+	struct tee_param param[TEE_CMD_PARAM_NUM] = { 0 };
+	struct tee_ioctl_invoke_arg inv_arg = { 0 };
+
+	if (!pool || !g_secmem_context)
+		return -1;
+
+	if (!pool->shm_pool)
+		return -1;
+
+	config = secure_vdec_config;
+	if ((decoder_flag & 0x3) == 0x3)
+		config |= 0x400000;
+
+	if ((decoder_flag & 0x8) == 0x8)
+		config |= 0x2;
+
+	if (tvp_flag == 0x2)
+		config |= 0x100;
+
+	config |= (vd_index << 11);
+	config |= 0x10000;
+
+	shm_data = tee_shm_get_va(pool->shm_pool, 0);
+	if (IS_ERR(shm_data)) {
+		pr_error("%s tee_shm_get_va failed\n", __func__);
+		res = -EBUSY;
+		goto error;
+	}
+
+	res = dmabuf_manage_tee_pack_u32(shm_data, TA_SECMEM_V3_CMD_INIT, &in_len);
+	if (res) {
+		pr_error("%s pass tee parameter failed\n", __func__);
+		res = -EFAULT;
+		goto error;
+	}
+
+	res = dmabuf_manage_tee_pack_u64(shm_data, 1, &in_len);
+	if (res) {
+		pr_error("%s pass tee parameter failed\n", __func__);
+		res = -EFAULT;
+		goto error;
+	}
+
+	res = dmabuf_manage_tee_pack_u64(shm_data, config, &in_len);
+	if (res) {
+		pr_error("%s pass tee parameter failed\n", __func__);
+		res = -EFAULT;
+		goto error;
+	}
+
+	res = dmabuf_manage_tee_pack_u64(shm_data, 0, &in_len);
+	if (res) {
+		pr_error("%s pass tee parameter failed\n", __func__);
+		res = -EFAULT;
+		goto error;
+	}
+
+	res = dmabuf_manage_tee_pack_u64(shm_data, 0, &in_len);
+	if (res) {
+		pr_error("%s pass tee parameter failed\n", __func__);
+		res = -EFAULT;
+		goto error;
+	}
+
+	res = dmabuf_manage_tee_pack_u32(shm_data, pool->version, &in_len);
+	if (res) {
+		pr_error("%s pass tee parameter failed\n", __func__);
+		res = -EFAULT;
+		goto error;
+	}
+
+	res = dmabuf_manage_tee_pack_u32(shm_data, pool->id_high, &in_len);
+	if (res) {
+		pr_error("%s pass tee parameter failed\n", __func__);
+		res = -EFAULT;
+		goto error;
+	}
+
+	res = dmabuf_manage_tee_pack_u32(shm_data, pool->id_low, &in_len);
+	if (res) {
+		pr_error("%s pass tee parameter failed\n", __func__);
+		res = -EFAULT;
+		goto error;
+	}
+
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT;
+	param[0].u.memref.shm = pool->shm_pool;
+	param[0].u.memref.size = in_len;
+	param[0].u.memref.shm_offs = 0;
+	param[3].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT;
+
+	inv_arg.func = TA_SECMEM_V3_CMD_INIT;
+	inv_arg.session = pool->secmem_session.session;
+	inv_arg.num_params = TEE_CMD_PARAM_NUM;
+	res = tee_client_invoke_func(g_secmem_context, &inv_arg, param);
+	if (res < 0 || inv_arg.ret != TEEC_SUCCESS) {
+		pr_error("%s invoke func failed, res %d, res 0x%x,origin = 0x%x\n",
+			__func__, res, inv_arg.ret, inv_arg.ret_origin);
+		res = inv_arg.ret;
+	}
+
+error:
+	return res;
+}
+
 static int dmabuf_manage_secmem_pool_init(u32 id_high, u32 id_low, u32 block_size, u32 version)
 {
 	int res = 1;
@@ -1045,7 +1230,7 @@ static int dmabuf_manage_secmem_pool_init(u32 id_high, u32 id_low, u32 block_siz
 	unsigned int codec_flags = 0;
 	unsigned int vd_index = 1;
 
-	if (version != SECURE_HEAP_USER_TA_VERSION)
+	if (version < SECURE_HEAP_USER_TA_VERSION)
 		goto error;
 
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
@@ -1087,15 +1272,20 @@ static int dmabuf_manage_secmem_pool_init(u32 id_high, u32 id_low, u32 block_siz
 	}
 
 	pool->shm_pool = tee_shm_alloc_kernel_buf(g_secmem_context,
-		TA_SECMEM_V2_SHM_SIZE);
+		TA_SECMEM_SHM_SIZE);
 	if (IS_ERR(pool->shm_pool)) {
 		pr_error("%s tee_shm_alloc failed\n", __func__);
 		res = -ENOMEM;
 		goto error_alloc_shm;
 	}
 
-	res = dmabuf_manage_secure_v2_init(pool,
-		tvp_set | (codec_flags << 4) | (vd_index << 9));
+	if (version > SECURE_HEAP_USER_TA_VERSION)
+		res = dmabuf_manage_secure_v3_init(pool,
+			tvp_set | (codec_flags << 4) | (vd_index << 9));
+	else
+		res = dmabuf_manage_secure_v2_init(pool,
+			tvp_set | (codec_flags << 4) | (vd_index << 9));
+
 	if (res) {
 		pr_error("%s secure v2 init failed\n", __func__);
 		goto error_open_session;
@@ -1121,6 +1311,7 @@ static void dmabuf_manage_destroy_secmem_pool(struct secure_pool_info *pool)
 	char *shm_data = NULL;
 	struct tee_param param[TEE_CMD_PARAM_NUM] = { 0 };
 	struct tee_ioctl_invoke_arg inv_arg = { 0 };
+	u32 tee_command = TA_SECMEM_V2_CMD_CLOSE;
 
 	if (!pool)
 		return;
@@ -1133,7 +1324,10 @@ static void dmabuf_manage_destroy_secmem_pool(struct secure_pool_info *pool)
 				return;
 			}
 
-			res = dmabuf_manage_tee_pack_u32(shm_data, TA_SECMEM_V2_CMD_CLOSE, &in_len);
+			if (pool->version > SECURE_HEAP_USER_TA_VERSION)
+				tee_command = TA_SECMEM_V3_CMD_CLOSE;
+
+			res = dmabuf_manage_tee_pack_u32(shm_data, tee_command, &in_len);
 			if (res) {
 				pr_error("%s pass tee parameter failed\n", __func__);
 				return;
@@ -1145,7 +1339,7 @@ static void dmabuf_manage_destroy_secmem_pool(struct secure_pool_info *pool)
 			param[0].u.memref.shm_offs = 0;
 			param[3].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT;
 
-			inv_arg.func = TA_SECMEM_V2_CMD_CLOSE;
+			inv_arg.func = tee_command;
 			inv_arg.session = pool->secmem_session.session;
 			inv_arg.num_params = TEE_CMD_PARAM_NUM;
 			res = tee_client_invoke_func(g_secmem_context, &inv_arg, param);
@@ -1167,7 +1361,6 @@ static void dmabuf_manage_destroy_secmem_pool(struct secure_pool_info *pool)
 	}
 }
 #endif
-
 
 int dmabuf_manage_secure_pool_create(u32 id_high, u32 id_low, u32 block_size,
 	u32 version)
@@ -1225,7 +1418,6 @@ static long dmabuf_manage_register_channel(unsigned long args)
 			goto error_alloc_object;
 		}
 
-		block->handle = pool->protect_handle;
 		block->size = pool->block_size;
 		block->type = DMA_BUF_TYPE_SECURE_VDEC;
 		block->priv = (void *)channel;
@@ -1290,10 +1482,9 @@ static void dmabuf_manage_dump_secure_pool(struct secure_pool_info *pool)
 
 	if (pool) {
 		s = snprintf(pbuf, size - tsize,
-			"Pool Ver %d %d Id %d %d Block %x %x\n",
+			"Pool Ver %d %d Id %d %d Block size %x\n",
 			pool->version, pool->channel_register,
-			pool->id_high, pool->id_low, pool->protect_handle,
-			pool->block_size);
+			pool->id_high, pool->id_low, pool->block_size);
 		tsize += s;
 		pbuf += s;
 
@@ -1302,7 +1493,7 @@ static void dmabuf_manage_dump_secure_pool(struct secure_pool_info *pool)
 				block = list_entry(pos, struct block_node, node);
 				if (block) {
 					s = snprintf(pbuf, size - tsize,
-						"Block %x addr %x size %x\n", block_count,
+						"Block Count %x addr %llx size %x\n", block_count,
 						block->addr, block->size);
 					tsize += s;
 					pbuf += s;
@@ -1316,7 +1507,7 @@ static void dmabuf_manage_dump_secure_pool(struct secure_pool_info *pool)
 }
 
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
-static int dmabuf_manage_secmem_block_alloc(struct secure_pool_info *pool, u32 size, u32 *handle)
+static int dmabuf_manage_secmem_block_alloc(struct secure_pool_info *pool, u32 size, u64 *handle)
 {
 	int res = 0;
 	u32 in_len = 0;
@@ -1324,6 +1515,7 @@ static int dmabuf_manage_secmem_block_alloc(struct secure_pool_info *pool, u32 s
 	char *shm_data = NULL;
 	struct tee_param param[TEE_CMD_PARAM_NUM] = { 0 };
 	struct tee_ioctl_invoke_arg inv_arg = { 0 };
+	u32 tee_command = TA_SECMEM_V2_CMD_MEM_CREATE;
 
 	if (!pool || !g_secmem_context || !handle)
 		return -1;
@@ -1338,7 +1530,10 @@ static int dmabuf_manage_secmem_block_alloc(struct secure_pool_info *pool, u32 s
 		goto error;
 	}
 
-	res = dmabuf_manage_tee_pack_u32(shm_data, TA_SECMEM_V2_CMD_MEM_CREATE, &in_len);
+	if (pool->version > SECURE_HEAP_USER_TA_VERSION)
+		tee_command = TA_SECMEM_V3_CMD_MEM_CREATE;
+
+	res = dmabuf_manage_tee_pack_u32(shm_data, tee_command, &in_len);
 	if (res) {
 		pr_error("%s pass tee parameter failed\n", __func__);
 		res = -EFAULT;
@@ -1351,7 +1546,7 @@ static int dmabuf_manage_secmem_block_alloc(struct secure_pool_info *pool, u32 s
 	param[0].u.memref.shm_offs = 0;
 	param[3].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT;
 
-	inv_arg.func = TA_SECMEM_V2_CMD_MEM_CREATE;
+	inv_arg.func = tee_command;
 	inv_arg.session = pool->secmem_session.session;
 	inv_arg.num_params = TEE_CMD_PARAM_NUM;
 	res = tee_client_invoke_func(g_secmem_context, &inv_arg, param);
@@ -1362,19 +1557,23 @@ static int dmabuf_manage_secmem_block_alloc(struct secure_pool_info *pool, u32 s
 		goto error;
 	}
 
-	res = dmabuf_manage_tee_unpack_u32(shm_data, handle, &out_off);
+	if (pool->version > SECURE_HEAP_USER_TA_VERSION)
+		res = dmabuf_manage_tee_unpack_u64(shm_data, handle, &out_off);
+	else
+		res = dmabuf_manage_tee_unpack_u32(shm_data, (u32 *)handle, &out_off);
 
 error:
 	return res;
 }
 
-static int dmabuf_manage_secmem_block_free(struct secure_pool_info *pool, u32 handle)
+static int dmabuf_manage_secmem_block_free(struct secure_pool_info *pool, u64 handle)
 {
 	int res = 0;
 	u32 in_len = 0;
 	char *shm_data = NULL;
 	struct tee_param param[TEE_CMD_PARAM_NUM] = { 0 };
 	struct tee_ioctl_invoke_arg inv_arg = { 0 };
+	u32 tee_command = TA_SECMEM_V2_CMD_MEM_FREE;
 
 	if (!pool || !g_secmem_context)
 		return -1;
@@ -1389,14 +1588,20 @@ static int dmabuf_manage_secmem_block_free(struct secure_pool_info *pool, u32 ha
 		goto error;
 	}
 
-	res = dmabuf_manage_tee_pack_u32(shm_data, TA_SECMEM_V2_CMD_MEM_FREE, &in_len);
+	if (pool->version > SECURE_HEAP_USER_TA_VERSION)
+		tee_command = TA_SECMEM_V3_CMD_MEM_FREE;
+
+	res = dmabuf_manage_tee_pack_u32(shm_data, tee_command, &in_len);
 	if (res) {
 		pr_error("%s pass tee parameter failed\n", __func__);
 		res = -EFAULT;
 		goto error;
 	}
 
-	res = dmabuf_manage_tee_pack_u32(shm_data, handle, &in_len);
+	if (pool->version > SECURE_HEAP_USER_TA_VERSION)
+		res = dmabuf_manage_tee_pack_u64(shm_data, handle, &in_len);
+	else
+		res = dmabuf_manage_tee_pack_u32(shm_data, (u32)handle, &in_len);
 	if (res) {
 		pr_error("%s pass tee parameter failed\n", __func__);
 		res = -EFAULT;
@@ -1409,7 +1614,7 @@ static int dmabuf_manage_secmem_block_free(struct secure_pool_info *pool, u32 ha
 	param[0].u.memref.shm_offs = 0;
 	param[3].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT;
 
-	inv_arg.func = TA_SECMEM_V2_CMD_MEM_FREE;
+	inv_arg.func = tee_command;
 	inv_arg.session = pool->secmem_session.session;
 	inv_arg.num_params = TEE_CMD_PARAM_NUM;
 	res = tee_client_invoke_func(g_secmem_context, &inv_arg, param);
@@ -1449,18 +1654,18 @@ static int dmabuf_manage_release_dmabufheap_resource(struct secure_pool_info *po
 	return 0;
 }
 
-phys_addr_t dmabuf_manage_secure_block_alloc(u32 id_high, u32 id_low, u32 size,
+u64 dmabuf_manage_secure_block_alloc(u32 id_high, u32 id_low, u32 size,
 	u32 version)
 {
 	struct secure_pool_info *pool = NULL;
-	phys_addr_t addr = 0;
+	u64 addr = 0;
 	struct block_node *block = NULL;
 
 	mutex_lock(&g_secure_pool_mutex);
 	pool = dmabuf_manage_get_secure_vdec_pool(id_high, id_low);
 	if (pool) {
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
-		dmabuf_manage_secmem_block_alloc(pool, size, (u32 *)&addr);
+		dmabuf_manage_secmem_block_alloc(pool, size, &addr);
 #endif
 
 		if (addr) {
@@ -1484,7 +1689,7 @@ phys_addr_t dmabuf_manage_secure_block_alloc(u32 id_high, u32 id_low, u32 size,
 }
 
 int dmabuf_manage_secure_block_free(u32 id_high, u32 id_low,
-	phys_addr_t addr, u32 size, u32 version)
+	u64 addr, u32 size, u32 version)
 {
 	struct secure_pool_info *pool = NULL;
 	struct list_head *pos = NULL;
@@ -1497,7 +1702,7 @@ int dmabuf_manage_secure_block_free(u32 id_high, u32 id_low,
 	if (pool) {
 		if (addr && size > 0) {
 #if IS_ENABLED(CONFIG_AMLOGIC_OPTEE)
-			if (version == SECURE_HEAP_USER_TA_VERSION)
+			if (version > SECURE_HEAP_USER_TA_VERSION)
 				dmabuf_manage_secmem_block_free(pool, addr);
 #endif
 
@@ -1521,9 +1726,37 @@ int dmabuf_manage_secure_block_free(u32 id_high, u32 id_low,
 	return 0;
 }
 
+static u32 dmabuf_manage_secure_negotiated_version(void)
+{
+	u32 version = SECURE_HEAP_USER_TA_VERSION;
+	u64 addr = codec_mm_secure_vdec_max_addr();
+
+	if (dmabuf_manage_version >= AML_DMA_BUF_MANAGER_VERSION)
+		return SECURE_HEAP_USER_TA_VERSION_EXTEND;
+
+	if (addr & 0xFFFFFFFF00000000UL)
+		return SECURE_HEAP_USER_TA_VERSION_EXTEND;
+
+	return version;
+}
+
+static u32 dmabuf_manage_negotiated_version(void)
+{
+	u32 version = AML_DMA_BUF_MANAGER_VERSION;
+	u64 addr = codec_mm_managed_max_addr();
+
+	if (dmabuf_manage_version >= AML_DMA_BUF_MANAGER_VERSION)
+		return version;
+
+	if (addr & 0xFFFFFFFF00000000UL)
+		return version;
+
+	return 1;
+}
+
 int dmabuf_manage_get_secure_heap_version(void)
 {
-	return secure_heap_version;
+	return dmabuf_manage_secure_negotiated_version();
 }
 
 static int dmabuf_manage_open(struct inode *inodep, struct file *filep)
@@ -1560,7 +1793,7 @@ static long dmabuf_manage_ioctl(struct file *filep, unsigned int cmd,
 	pr_inf("cmd %x\n", cmd);
 	switch (cmd) {
 	case DMABUF_MANAGE_EXPORT_DMA:
-		ret = dmabuf_manage_export(args);
+		ret = dmabuf_manage_export(args, 0);
 		break;
 	case DMABUF_MANAGE_GET_HANDLE:
 		ret = dmabuf_manage_get_handle(args);
@@ -1575,19 +1808,44 @@ static long dmabuf_manage_ioctl(struct file *filep, unsigned int cmd,
 		ret = dmabuf_manage_register_channel(args);
 		break;
 	case DMABUF_MANAGE_VERSION:
-		ret = AML_DMA_BUF_MANAGER_VERSION;
+	case DMABUF_MANAGE_V_VERSION:
+		ret = dmabuf_manage_negotiated_version();
 		break;
 	case DMABUF_MANAGE_EXPORT_DMABUF:
+	case DMABUF_MANAGE_V_EXPORT_DMABUF:
 		ret = dmabuf_manage_export_dmabuf(args);
 		break;
 	case DMABUF_MANAGE_GET_DMABUFINFO:
+	case DMABUF_MANAGE_V_GET_DMABUFINFO:
 		ret = dmabuf_manage_get_dmabufinfo(args);
 		break;
-	case DMABUF_MANAGE_SET_FILTERFD:
-		ret = dmabuf_manage_set_filterfd(args);
-		break;
 	case DMABUF_MANAGE_ALLOCDMABUF:
+	case DMABUF_MANAGE_V_ALLOCDMABUF:
 		ret = dmabuf_manage_alloc_dmabuf(args);
+		break;
+	case DMABUF_MANAGE_EXTEND_EXPORT_DMA:
+		ret = dmabuf_manage_export(args, 1);
+		break;
+	case DMABUF_MANAGE_EXTEND_GET_HANDLE:
+		ret = dmabuf_manage_get_handle(args);
+		break;
+	case DMABUF_MANAGE_EXTEND_GET_PHYADDR:
+		ret = dmabuf_manage_get_phyaddr(args);
+		break;
+	case DMABUF_MANAGE_EXTEND_IMPORT_DMA:
+		ret = dmabuf_manage_import(args);
+		break;
+	case DMABUF_MANAGE_EXTEND_REGISTER_CHANNEL:
+		ret = dmabuf_manage_register_channel(args);
+		break;
+	case DMABUF_MANAGE_EXTEND_EXPORT_DMABUF:
+		ret = dmabuf_manage_extend_export_dmabuf(args);
+		break;
+	case DMABUF_MANAGE_EXTEND_GET_DMABUFINFO:
+		ret = dmabuf_manage_extend_get_dmabufinfo(args);
+		break;
+	case DMABUF_MANAGE_EXTEND_ALLOCDMABUF:
+		ret = dmabuf_manage_extend_alloc_dmabuf(args);
 		break;
 	default:
 		break;
@@ -1664,7 +1922,7 @@ static ssize_t dmabuf_manage_config_store(struct class *class,
 
 static struct mconfig dmabuf_manage_configs[] = {
 	MC_PI32("secure_vdec_config", &secure_vdec_config),
-	MC_PI32("secure_heap_version", &secure_heap_version)
+	MC_PI32("dmabuf_manage_version", &dmabuf_manage_version)
 };
 
 static CLASS_ATTR_RO(dmabuf_manage_dump);
@@ -1707,7 +1965,6 @@ int __init dmabuf_manage_init(void)
 		goto error_create;
 	}
 	REG_PATH_CONFIGS(CONFIG_PATH, dmabuf_manage_configs);
-	INIT_LIST_HEAD(&dmx_filter_list);
 	INIT_LIST_HEAD(&pool_list);
 	pr_dbg("init done\n");
 	return 0;

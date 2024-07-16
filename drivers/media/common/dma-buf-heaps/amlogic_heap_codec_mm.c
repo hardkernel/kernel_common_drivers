@@ -120,15 +120,18 @@ static struct sg_table *codec_mm_heap_map_dma_buf
 {
 	struct dma_heap_attachment *a = attachment->priv;
 	struct sg_table *table = a->table;
+	struct codec_mm_heap_buffer *buffer = attachment->dmabuf->priv;
 	int attr = 0;
 	int ret;
 
 	if (a->uncached)
 		attr = DMA_ATTR_SKIP_CPU_SYNC;
 
-	ret = dma_map_sgtable(attachment->dev, table, direction, attr);
-	if (ret)
-		return ERR_PTR(ret);
+	if (!(buffer->heap_flags & DMABUF_FLAG_EXTEND_PROTECTED)) {
+		ret = dma_map_sgtable(attachment->dev, table, direction, attr);
+		if (ret)
+			return ERR_PTR(ret);
+	}
 
 	a->mapped = true;
 	return table;
@@ -139,7 +142,11 @@ static void codec_mm_heap_unmap_dma_buf(struct dma_buf_attachment *attachment,
 				      enum dma_data_direction direction)
 {
 	struct dma_heap_attachment *a = attachment->priv;
+	struct codec_mm_heap_buffer *buffer = attachment->dmabuf->priv;
 	int attr = 0;
+
+	if (buffer->heap_flags & DMABUF_FLAG_EXTEND_PROTECTED)
+		return;
 
 	if (a->uncached)
 		attr = DMA_ATTR_SKIP_CPU_SYNC;
@@ -153,6 +160,9 @@ static int codec_mm_heap_dma_buf_begin_cpu_access
 {
 	struct codec_mm_heap_buffer *buffer = dmabuf->priv;
 	struct dma_heap_attachment *a;
+
+	if (buffer->heap_flags & DMABUF_FLAG_EXTEND_PROTECTED)
+		return 0;
 
 	mutex_lock(&buffer->lock);
 
@@ -176,6 +186,9 @@ static int codec_mm_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 {
 	struct codec_mm_heap_buffer *buffer = dmabuf->priv;
 	struct dma_heap_attachment *a;
+
+	if (buffer->heap_flags & DMABUF_FLAG_EXTEND_PROTECTED)
+		return 0;
 
 	mutex_lock(&buffer->lock);
 
@@ -203,6 +216,9 @@ static int codec_mm_heap_mmap(struct dma_buf *dmabuf,
 	unsigned long addr = vma->vm_start;
 	struct sg_page_iter piter;
 	int ret;
+
+	if (buffer->heap_flags & DMABUF_FLAG_EXTEND_PROTECTED)
+		return 0;
 
 	if (buffer->uncached)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
@@ -232,7 +248,10 @@ static void *codec_mm_heap_do_vmap(struct codec_mm_heap_buffer *buffer)
 	void *vaddr;
 
 	if (!pages)
-		return ERR_PTR(-ENOMEM);
+		goto free_pages;
+
+	if (buffer->heap_flags & DMABUF_FLAG_EXTEND_PROTECTED)
+		goto free_pages;
 
 	if (buffer->uncached)
 		pgprot = pgprot_writecombine(PAGE_KERNEL);
@@ -249,6 +268,12 @@ static void *codec_mm_heap_do_vmap(struct codec_mm_heap_buffer *buffer)
 		return ERR_PTR(-ENOMEM);
 
 	return vaddr;
+
+free_pages:
+	if (pages)
+		vfree(pages);
+	return ERR_PTR(-ENOMEM);
+
 }
 
 static int codec_mm_heap_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
@@ -256,6 +281,9 @@ static int codec_mm_heap_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 	struct codec_mm_heap_buffer *buffer = dmabuf->priv;
 	void *vaddr;
 	int ret = 0;
+
+	if (buffer->heap_flags & DMABUF_FLAG_EXTEND_PROTECTED)
+		return 0;
 
 	mutex_lock(&buffer->lock);
 	if (buffer->vmap_cnt) {
@@ -283,6 +311,9 @@ static void codec_mm_heap_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map
 {
 	struct codec_mm_heap_buffer *buffer = dmabuf->priv;
 
+	if (buffer->heap_flags & DMABUF_FLAG_EXTEND_PROTECTED)
+		return;
+
 	mutex_lock(&buffer->lock);
 	if (!--buffer->vmap_cnt) {
 		vunmap(buffer->vaddr);
@@ -299,6 +330,9 @@ static int codec_mm_heap_zero_buffer(struct codec_mm_heap_buffer *buffer)
 	struct page *p;
 	void *vaddr;
 	int ret = 0;
+
+	if (buffer->heap_flags & DMABUF_FLAG_EXTEND_PROTECTED)
+		return 0;
 
 	for_each_sgtable_page(sgt, &piter, 0) {
 		p = sg_page_iter_page(&piter);
@@ -388,6 +422,15 @@ static struct dma_buf *codec_mm_heap_do_allocate(struct dma_heap *heap,
 		goto free_tables;
 
 	sg_set_page(table->sgl, pfn_to_page(PFN_DOWN(paddr)), len, 0);
+
+	if (heap_flags & DMABUF_FLAG_EXTEND_PROTECTED) {
+		table->sgl->dma_address = paddr;
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+		table->sgl->dma_length = PAGE_ALIGN(len);
+#else
+		table->sgl->length = PAGE_ALIGN(len);
+#endif
+	}
 	/* create the dmabuf */
 	exp_info.exp_name = dma_heap_get_name(heap);
 	exp_info.ops = &codec_mm_heap_buf_ops;
@@ -406,8 +449,10 @@ static struct dma_buf *codec_mm_heap_do_allocate(struct dma_heap *heap,
 	 * unmap it now so we don't get corruption later on.
 	 */
 	if (buffer->uncached && (!(heap_flags & DMABUF_FLAG_EXTEND_PROTECTED))) {
-		dma_map_sgtable(dma_heap_get_dev(heap), table,
+		ret = dma_map_sgtable(dma_heap_get_dev(heap), table,
 						DMA_BIDIRECTIONAL, 0);
+		if (ret)
+			goto free_tables;
 		dma_unmap_sgtable(dma_heap_get_dev(heap), table,
 						DMA_BIDIRECTIONAL, 0);
 	}
@@ -475,6 +520,7 @@ int __init amlogic_codec_mm_dma_buf_init(void)
 		return PTR_ERR(codec_mm_heap);
 	dma_coerce_mask_and_coherent(dma_heap_get_dev(codec_mm_heap),
 		DMA_BIT_MASK(64));
+
 	mb(); /* make sure we only set allocate after dma_mask is set */
 
 	exp_info.name = CODECMM_CACHED_HEAP_NAME;
