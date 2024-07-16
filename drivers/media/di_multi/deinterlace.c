@@ -11486,6 +11486,7 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 	struct di_dev_s *de_devp = get_dim_de_devp();
 	struct di_ch_s *pch;
 	struct div2_mm_s *mm;
+	bool bypass_dct = false;
 
 #ifdef HIS_CODE
 	if (pre_run_flag != DI_RUN_FLAG_RUN &&
@@ -11560,7 +11561,16 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 		if (dim_afds())
 			dim_afds()->reg_val(pch);
 		check_tvp_state(pch);
-		if (get_datal()->dct_op)
+
+#ifdef CONFIG_AMLOGIC_DI_PROCESS
+		/*if dts not enable 4k, should not alloc dct buf*/
+		if (!cfgg(4K) &&
+			get_di_proc_enable() &&
+			(vframe->width > 1920 || vframe->compWidth > 1920))
+			bypass_dct = true;
+#endif
+
+		if (get_datal()->dct_op && !bypass_dct)
 			get_datal()->dct_op->reg(pch);
 
 		/*
