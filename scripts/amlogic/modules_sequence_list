@@ -21,6 +21,7 @@ RAMDISK_MODULES_LOAD_LIST=(
 	amlogic-power
 	amlogic-cpufreq
 	amlogic-efuse-unifykey
+	amlogic-thermal.ko
 	amlogic-mmc
 	amlogic-i2c.ko
 	amlogic-spi.ko
@@ -40,7 +41,6 @@ RAMDISK_MODULES_LOAD_LIST=(
 	aml_media.ko
 	amlogic-camera.ko
 	amlogic-rtc-virtual.ko
-	amlogic-thermal.ko
 	amlogic-usb.ko
 	amlogic-irblaster.ko
 	amlogic-inphy.ko
