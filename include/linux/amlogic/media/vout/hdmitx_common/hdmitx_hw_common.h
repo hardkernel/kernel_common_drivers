@@ -280,7 +280,7 @@ struct hdmitx_hw_common {
 	int (*getstate)(struct hdmitx_hw_common *tx_hw, u32 cmd, u32 arg);
 
 	/*validate if vic is supported by hw ip/phy*/
-	int (*validatemode)(struct hdmitx_hw_common *tx_hw, u32 vic);
+	int (*validatemode)(struct hdmitx_hw_common *tx_hw, u32 vic, u32 max_refreshrate);
 	/*calc formatpara hw info config*/
 	int (*calc_format_para)(struct hdmitx_hw_common *tx_hw, struct hdmi_format_para *para);
 
@@ -318,7 +318,7 @@ int hdmitx_hw_cntl(struct hdmitx_hw_common *tx_hw,
 int hdmitx_hw_get_state(struct hdmitx_hw_common *tx_hw,
 	u32 cmd, u32 arg);
 int hdmitx_hw_validate_mode(struct hdmitx_hw_common *tx_hw,
-	u32 vic);
+	u32 vic, u32 max_refreshrate);
 int hdmitx_hw_calc_format_para(struct hdmitx_hw_common *tx_hw,
 	struct hdmi_format_para *para);
 int hdmitx_hw_set_packet(struct hdmitx_hw_common *tx_hw,
