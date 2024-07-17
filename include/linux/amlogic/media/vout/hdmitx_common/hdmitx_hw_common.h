@@ -101,6 +101,7 @@
 #define MISC_CLK_DIV_RST        (CMD_MISC_OFFSET + 0x20)
 #define MISC_HPD_IRQ_TOP_HALF   (CMD_MISC_OFFSET + 0x21)
 #define MISC_HDMI_CLKS_CTRL		(CMD_MISC_OFFSET + 0X22)
+#define MISC_VALIDATE_HDCP14_KEY	(CMD_MISC_OFFSET + 0x23)
 
 /***********************************************************************
  *                          Get State //getstate

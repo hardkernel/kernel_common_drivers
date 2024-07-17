@@ -83,6 +83,8 @@ unsigned int rx_hdcp2_ver;
 //static unsigned int hdcp_ctl_lvl;
 
 #define TEE_HDCP_IOC_START _IOW('P', 0, int)
+#define TEE_HDCP_IOC_VALIDATE_KEY _IOWR('P', 0x1, int)
+
 #define to_hdmitx21_dev(x)	container_of(x, struct hdmitx_dev, tx_comm)
 
 static struct class *hdmitx_class;
@@ -5246,6 +5248,25 @@ static void drm_hdmitx_register_hdcp_notify(struct connector_hdcp_cb *cb)
 	HDMITX_DEBUG("%s\n", __func__);
 }
 
+static int drm_hdmitx_validate_hdcp_key(int hdcp_mode)
+{
+	int ret = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (hdcp_mode == 2) {
+		/* consider hdcp2.2 key always valid if key length match */
+		if (get_hdcp2_lstore())
+			ret = 1;
+	} else if (hdcp_mode == 1) {
+		if (get_hdcp1_lstore()) {
+			ret = hdmitx_hw_cntl_misc(hdev->tx_comm.tx_hw,
+				MISC_VALIDATE_HDCP14_KEY, 0);
+		}
+	}
+
+	return ret;
+}
+
 static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_hdmi_hdr_status = hdmi_hdr_status_to_drm,
 
@@ -5296,6 +5317,9 @@ static long hdcp_comm_ioctl(struct file *file,
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	u8 hdcp_key_store = 0;
 	void *cb_data = hdev->drm_hdcp.drm_hdcp_cb.data;
+	int key_valid;
+	int hdcp_key = 0;
+	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
 	case TEE_HDCP_IOC_START:
@@ -5328,6 +5352,25 @@ static long hdcp_comm_ioctl(struct file *file,
 				hdmitx21_enable_hdcp(hdev);
 			}
 		}
+		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+		break;
+	case TEE_HDCP_IOC_VALIDATE_KEY:
+		mutex_lock(&hdev->tx_comm.hdmimode_mutex);
+		if (copy_from_user(&hdcp_key, argp, _IOC_SIZE(cmd))) {
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+			return -EINVAL;
+		}
+		/* 14/1: hdcp1.4 key, 22/2: hdcp2.2 key */
+		if (hdcp_key == 14 || hdcp_key == 1)
+			key_valid = drm_hdmitx_validate_hdcp_key(0x1);
+		else if (hdcp_key == 22 || hdcp_key == 2)
+			key_valid = drm_hdmitx_validate_hdcp_key(0x2);
+		else
+			key_valid = 0;
+		HDMITX_INFO("%ul key valid:%d\n", arg, key_valid);
+		rtn_val = copy_to_user((void __user *)arg, (void *)&key_valid, sizeof(key_valid));
+		if (rtn_val != 0)
+			rtn_val = -EFAULT;
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		break;
 	default:
