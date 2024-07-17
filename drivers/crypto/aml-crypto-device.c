@@ -885,7 +885,9 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
-	if (!err) {
+	if (err & DMA_STATUS_KEY_ERROR) {
+		dev_err(dev, "Error returned by DMA(%0x8x)\n", err);
+	} else {
 		if (crypto_dd->dma->dma_bus64)
 			wait_owner_bit((void *)&dsc_64[s + i]);
 		else
@@ -1223,7 +1225,9 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 		while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 			;
-		if (!err) {
+		if (err & DMA_STATUS_KEY_ERROR) {
+			dev_err(dev, "Error returned by DMA(%0x8x)\n", err);
+		} else {
 			if (crypto_dd->dma->dma_bus64)
 				wait_owner_bit(&dsc_64[s]);
 			else
@@ -1296,7 +1300,9 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
-	if (!err) {
+	if (err & DMA_STATUS_KEY_ERROR) {
+		dev_err(dev, "Error returned by DMA(%0x8x)\n", err);
+	} else {
 		if (crypto_dd->dma->dma_bus64)
 			wait_owner_bit(&dsc_64[0]);
 		else
@@ -1551,7 +1557,9 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 		while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 			;
-		if (!err) {
+		if (err & DMA_STATUS_KEY_ERROR) {
+			dev_err(dev, "Error returned by DMA(%0x8x)\n", err);
+		} else {
 			if (crypto_dd->dma->dma_bus64)
 				wait_owner_bit(&dsc_64[s]);
 			else
@@ -1633,7 +1641,9 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
-	if (!err) {
+	if (err & DMA_STATUS_KEY_ERROR) {
+		dev_err(dev, "Error returned by DMA(%0x8x)\n", err);
+	} else {
 		if (crypto_dd->dma->dma_bus64)
 			wait_owner_bit(&dsc_64[0]);
 		else
@@ -1905,7 +1915,9 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 		while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 			;
-		if (!err) {
+		if (err & DMA_STATUS_KEY_ERROR) {
+			dev_err(dev, "Error returned by DMA(%0x8x)\n", err);
+		} else {
 			if (crypto_dd->dma->dma_bus64)
 				wait_owner_bit(&dsc_64[s]);
 			else
@@ -1987,7 +1999,9 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 #if USE_BUSY_POLLING
 	while ((err = aml_read_crypto_reg(crypto_dd->status)) == 0)
 		;
-	if (!err) {
+	if (err & DMA_STATUS_KEY_ERROR) {
+		dev_err(dev, "Error returned by DMA(%0x8x)\n", err);
+	} else {
 		if (crypto_dd->dma->dma_bus64)
 			wait_owner_bit(&dsc_64[0]);
 		else

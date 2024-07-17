@@ -1028,7 +1028,7 @@ static int aml_shake_squeeze_dma(struct ahash_request *req)
 	aml_dma_debug(dd->descriptor, 1, "end squeeze", dd->thread, dd->status,
 			 dd->dma->dma_bus64);
 #endif
-	return 0;
+	return err;
 }
 
 static int aml_shake_finish(struct ahash_request *req)

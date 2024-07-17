@@ -175,9 +175,10 @@ static int aml_dma_queue_manage(void *data)
 }
 #endif
 
-static int aml_dma_set_dma_mode(struct device *dev, uint32_t mode)
+static int aml_dma_set_dma_mode(struct aml_dma_dev *dd, uint32_t mode)
 {
 	int err = -1;
+	struct device *dev = dd->dev;
 	/* 40 bits are reserved for dsc addr in thread register */
 	u32 coherent_mask_bits;
 
@@ -186,7 +187,7 @@ static int aml_dma_set_dma_mode(struct device *dev, uint32_t mode)
 		goto out;
 	}
 	err = aml_dma_call_smc(CRYPTO_CMD, CRYPTO_CMD_CRYPTO_DMA_SET_BUS64,
-			       TXLX_DMA_T0, mode);
+			       dd->thread, mode);
 	if (err) {
 		dev_err(dev, "failed to set thread 0 to %u bits\n", mode);
 		goto out;
@@ -229,6 +230,7 @@ static int aml_dma_probe(struct platform_device *pdev)
 	dma_dd->thread = priv_data->thread;
 	dma_dd->status = priv_data->status;
 	dma_dd->link_mode = priv_data->link_mode;
+	dma_dd->dev = dev;
 	res_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_base) {
 		dev_err(dev, "error to get normal IORESOURCE_MEM.\n");
@@ -243,9 +245,9 @@ static int aml_dma_probe(struct platform_device *pdev)
 
 	of_property_read_u8(pdev->dev.of_node, "dma_bus64", &dma_dd->dma_bus64);
 	if (dma_dd->dma_bus64)
-		err = aml_dma_set_dma_mode(dev, 64);
+		err = aml_dma_set_dma_mode(dma_dd, 64);
 	else
-		err = aml_dma_set_dma_mode(dev, 32);
+		err = aml_dma_set_dma_mode(dma_dd, 32);
 	if (err)
 		goto dma_err;
 

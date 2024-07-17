@@ -191,13 +191,13 @@ void aml_dma_link_debug(void *descriptor, dma_addr_t dma_dsc,
 }
 EXPORT_SYMBOL_GPL(aml_dma_link_debug);
 
-u8 aml_dma_do_hw_crypto(struct aml_dma_dev *dd,
-			  void *descriptor,
-			  u32 dsc_len,
-			  dma_addr_t dsc_addr,
-			  u8 polling, u8 dma_flags)
+u32 aml_dma_do_hw_crypto(struct aml_dma_dev *dd,
+			 void *descriptor,
+			 u32 dsc_len,
+			 dma_addr_t dsc_addr,
+			 u8 polling, u8 dma_flags)
 {
-	u8 status = 0;
+	u32 status = 0;
 	struct dma_dsc *dsc = descriptor;
 	struct dma_dsc_64 *dsc_64 = descriptor;
 
@@ -208,17 +208,22 @@ u8 aml_dma_do_hw_crypto(struct aml_dma_dev *dd,
 		while (aml_read_crypto_reg(dd->status) == 0)
 			;
 		status = aml_read_crypto_reg(dd->status);
-		if (dd->dma_bus64) {
-			WARN_ON(!(dsc_64[dsc_len - 1].dsc_cfg.b.eoc == 1));
-			if (dsc_64[dsc_len - 1].dsc_cfg.b.eoc == 1) {
-				while (dsc_64[dsc_len - 1].dsc_cfg.b.owner)
-					cpu_relax();
-			}
+		if (status & DMA_STATUS_KEY_ERROR) {
+			/* If error occurs, report it and don't wait owner bit */
+			pr_err("Error returned by DMA(0x%8x)\n", status);
 		} else {
-			WARN_ON(!(dsc[dsc_len - 1].dsc_cfg.b.eoc == 1));
-			if (dsc[dsc_len - 1].dsc_cfg.b.eoc == 1) {
-				while (dsc[dsc_len - 1].dsc_cfg.b.owner)
-					cpu_relax();
+			if (dd->dma_bus64) {
+				WARN_ON(!(dsc_64[dsc_len - 1].dsc_cfg.b.eoc == 1));
+				if (dsc_64[dsc_len - 1].dsc_cfg.b.eoc == 1) {
+					while (dsc_64[dsc_len - 1].dsc_cfg.b.owner)
+						cpu_relax();
+				}
+			} else {
+				WARN_ON(!(dsc[dsc_len - 1].dsc_cfg.b.eoc == 1));
+				if (dsc[dsc_len - 1].dsc_cfg.b.eoc == 1) {
+					while (dsc[dsc_len - 1].dsc_cfg.b.owner)
+						cpu_relax();
+				}
 			}
 		}
 		aml_write_crypto_reg(dd, dd->status, 0xff);
