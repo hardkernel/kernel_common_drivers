@@ -1602,7 +1602,7 @@ static enum hdmi_tf_type hdmitx21_get_cur_hdr_st(void)
 {
 	int ret;
 	u8 body[31] = {0};
-	enum hdmi_tf_type mytype = HDMI_NONE;
+	enum hdmi_tf_type tf_type = HDMI_NONE;
 	enum hdmi_eotf type = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
 	union hdmi_infoframe info;
 	struct hdmi_drm_infoframe *drm = &info.drm;
@@ -1616,11 +1616,16 @@ static enum hdmi_tf_type hdmitx21_get_cur_hdr_st(void)
 			type = drm->eotf;
 	}
 	if (type == HDMI_EOTF_SMPTE_ST2084)
-		mytype = HDMI_HDR_SMPTE_2084;
-	if (type == HDMI_EOTF_BT_2100_HLG)
-		mytype = HDMI_HDR_HLG;
-
-	return mytype;
+		tf_type = HDMI_HDR_SMPTE_2084;
+	else if (type == HDMI_EOTF_BT_2100_HLG)
+		tf_type = HDMI_HDR_HLG;
+	else if (type == HDMI_EOTF_TRADITIONAL_GAMMA_SDR)
+		tf_type = HDMI_HDR_SDR;
+	else if (type == HDMI_EOTF_TRADITIONAL_GAMMA_HDR)
+		tf_type = HDMI_HDR_HDR;
+	else
+		tf_type = HDMI_HDR_TYPE;
+	return tf_type;
 }
 
 /* used for DV VSIF/HDR10+/CUVA check

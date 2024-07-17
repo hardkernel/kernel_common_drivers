@@ -131,7 +131,13 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 			hdmi_set_vend_spec_infofram(hdev, 0);
 		else
 			;
+		/* if TV support traditional SDR, then enable hdr.sdr packet by default */
+		if (hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0x1) {
+			struct master_display_info_s data = {0};
 
+			data.features = 0x00010100;
+			hdev->tx_comm.vdev->fresh_tx_hdr_pkt(&data);
+		}
 		if (hdev->tx_comm.allm_mode) {
 			hdmitx_common_setup_vsif_packet(&hdev->tx_comm, VT_ALLM, 1, NULL);
 			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_CT_MODE, SET_CT_OFF);
@@ -139,9 +145,9 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_CT_MODE,
 				hdev->tx_comm.ct_mode | hdev->tx_comm.it_content << 4);
 		}
+		hdmitx_set_spd_info(hdev);
 		ret = 0;
 	}
-	hdmitx_set_spd_info(hdev);
 
 	return ret;
 }
