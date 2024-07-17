@@ -190,6 +190,7 @@ struct aml_dma_dev {
 	struct crypto_queue	queue;
 	spinlock_t queue_lock; /* spinlock for queue */
 	u8 dma_bus64;
+	struct device *dev;
 };
 
 u32 swap_ulong32(u32 val);
@@ -199,11 +200,11 @@ void aml_dma_debug(void *dsc, u32 nents, const char *msg,
 		   u32 thread, u32 status, u8 dma_bus64);
 void aml_dma_link_debug(void *descriptor, dma_addr_t dma_dsc,
 			u32 nents, const char *msg, u8 dma_bus64);
-u8 aml_dma_do_hw_crypto(struct aml_dma_dev *dd,
-			  void *dsc,
-			  u32 dsc_len,
-			  dma_addr_t dsc_addr,
-			  u8 polling, u8 dma_flags);
+u32 aml_dma_do_hw_crypto(struct aml_dma_dev *dd,
+			 void *dsc,
+			 u32 dsc_len,
+			 dma_addr_t dsc_addr,
+			 u8 polling, u8 dma_flags);
 
 noinline int aml_dma_call_smc(u64 func_id, u64 arg0, u64 arg1, u64 arg2);
 

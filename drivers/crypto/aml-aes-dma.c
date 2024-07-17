@@ -603,7 +603,7 @@ static int aml_aes_crypt_dma(struct aml_aes_dev *dd, void *descriptor,
 #else
 	dd->flags |= AES_FLAGS_DMA;
 	status = aml_dma_do_hw_crypto(dd->dma, descriptor, nents, dd->dma_descript_tab,
-			     1, DMA_FLAG_AES_IN_USE);
+				      1, DMA_FLAG_AES_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR)
 		dd->flags |= AES_FLAGS_ERROR;
 	aml_dma_debug(descriptor, nents, "end aes", dd->thread, dd->status, dd->dma->dma_bus64);
