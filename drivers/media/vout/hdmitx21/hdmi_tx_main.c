@@ -832,31 +832,45 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	unsigned long flags = 0;
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 	u32 save_last_hdr_mode;
+	enum hdmi_hdr_transfer hdr_transfer_feature = T_UNKNOWN;
+	enum hdmi_hdr_color hdr_color_feature = C_UNKNOWN;
+	unsigned int colormetry = 0;
 
 	HDMITX_DEBUG_PACKET("%s[%d]\n", __func__, __LINE__);
-	if (data)
+
+	if (data) {
 		memcpy(&drm_config_data, data,
 		       sizeof(struct master_display_info_s));
-	else
-		memset(&drm_config_data, 0,
-		       sizeof(struct master_display_info_s));
-
+		hdr_transfer_feature = (data->features >> 8) & 0xff;
+		hdr_color_feature = (data->features >> 16) & 0xff;
+		colormetry = (data->features >> 30) & 0x1;
+	} else {
+		memset(&drm_config_data, 0, sizeof(struct master_display_info_s));
+	}
 	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
 
 	/* if ready is 0, only can clear pkt */
 	if (hdev->tx_comm.ready == 0 && data) {
-		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
-		return;
+		if (hdr_transfer_feature != T_BT709 ||
+			hdr_color_feature != C_BT709) {
+			spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
+			return;
+		}
 	}
 
 	/*
 	 * if currently output 8bit, and EDID don't
 	 * support Y422, and config_csc_en is 0, switch to SDR output
 	 */
-	if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B) {
-		if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
+	if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B && !hdev->tx_comm.hdr_8bit_en) {
+		if (hdr_color_feature == C_BT709 &&
+			hdr_transfer_feature == T_BT709) {
+			/* for 8bit mode, also send hdr.sdr packet, not return here */
+			HDMITX_DEBUG_PACKET("%s: send hdr.sdr pkt\n", __func__);
+		} else if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
 			hdev->hdr_transfer_feature = T_BT709;
 			hdev->hdr_color_feature = C_BT709;
+			hdev->colormetry = 0;
 			schedule_work(&hdev->work_hdr);
 			hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
 					HDMITX_HDR_MODE_SDR);
@@ -880,18 +894,12 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	 *	 1:bt709 0xe:bt2020-10 0x10:smpte-st-2084 0x12:hlg(TODO)
 	 */
 	if (data) {
-		if ((hdev->hdr_transfer_feature !=
-			((data->features >> 8) & 0xff)) ||
-			(hdev->hdr_color_feature !=
-			((data->features >> 16) & 0xff)) ||
-			(hdev->colormetry !=
-			((data->features >> 30) & 0x1))) {
-			hdev->hdr_transfer_feature =
-				(data->features >> 8) & 0xff;
-			hdev->hdr_color_feature =
-				(data->features >> 16) & 0xff;
-			hdev->colormetry =
-				(data->features >> 30) & 0x1;
+		if (hdev->hdr_transfer_feature != hdr_transfer_feature ||
+			hdev->hdr_color_feature != hdr_color_feature ||
+			hdev->colormetry != colormetry) {
+			hdev->hdr_transfer_feature = hdr_transfer_feature;
+			hdev->hdr_color_feature = hdr_color_feature;
+			hdev->colormetry = colormetry;
 			HDMITX_INFO("%s: tf=%d, cf=%d, colormetry=%d\n",
 				__func__,
 				hdev->hdr_transfer_feature,
@@ -945,6 +953,19 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 			hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
 						HDMITX_HDR_MODE_SDR);
 			drm_db[0] = 0;
+		} else if (hdev->tx_comm.ready == 0) {
+			/*
+			 * only for hdr.sdr packet send after mode setting,
+			 * for sync purpose, should not use work queue,
+			 * no uevent/trace for such case
+			 */
+			HDMITX_INFO("%s: hdr.sdr pkt sent\n", __func__);
+			hdev->colormetry = 0;
+			hdmi_avi_infoframe_config(CONF_AVI_BT2020, 0);
+			hdmi_drm_infoframe_init(&hdev->infoframes.drm.drm);
+			hdmi_drm_infoframe_set(&hdev->infoframes.drm.drm);
+			spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
+			return;
 		}
 		/* back to previous cs */
 		/*
@@ -1086,6 +1107,11 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		}
 		schedule_work(&hdev->work_hdr);
 	}
+	/* if 8bit hdr mode is enabled, no need small mode switch to y422,12bit */
+	if (hdev->tx_comm.hdr_8bit_en) {
+		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
+		return;
+	}
 	if (hdev->tx_comm.hdmi_current_hdr_mode == 1 ||
 		hdev->tx_comm.hdmi_current_hdr_mode == 2 ||
 		hdev->tx_comm.hdmi_current_hdr_mode == 3) {
@@ -1198,9 +1224,12 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			__func__, type, tunnel_mode, signal_sdr);
 	}
 
-	/* if DRM/HDR packet is enabled, disable it */
+	/* if DRM/HDR packet is enabled but next will output DV, then disable it */
 	hdr_type = hdmitx_hw_get_hdr_st(&hdev->tx_hw.base);
-	if (hdr_type != HDMI_NONE) {
+	if (hdr_type != HDMI_NONE &&
+		(type == EOTF_T_DV_AHEAD ||
+		type == EOTF_T_DOLBYVISION ||
+		type == EOTF_T_LL_MODE)) {
 		hdev->hdr_transfer_feature = T_BT709;
 		hdev->hdr_color_feature = C_BT709;
 		hdev->colormetry = 0;
@@ -1302,6 +1331,13 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 				hdmi_avi_infoframe_config(CONF_AVI_YQ01, YCC_RANGE_LIM);
 				/* BT709 */
 				hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);
+
+				/* if TV support traditional SDR, then recover hdr.sdr packet */
+				/* if (hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0x1) { */
+				/* HDMITX_DEBUG_PACKET("%s: recover hdr.sdr pkt\n", __func__); */
+				/* hdmi_drm_infoframe_init(&hdev->infoframes.drm.drm); */
+				/* hdmi_drm_infoframe_set(&hdev->infoframes.drm.drm); */
+				/* } */
 				/* re-enable forced game mode if selected by the user */
 				if (hdev->ll_user_set_mode == HDMI_LL_MODE_ENABLE) {
 					HDMITX_INFO("DV H14b VSIF OFF,re-enable force game mode\n");
@@ -1481,6 +1517,13 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 				hdmi_avi_infoframe_config(CONF_AVI_YQ01, YCC_RANGE_LIM);
 				/* BT709 */
 				hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);
+
+				/* if TV support traditional SDR, then recover hdr.sdr packet */
+				/* if (hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0x1) { */
+				/* HDMITX_DEBUG_PACKET("%s: recover hdr.sdr pkt\n", __func__); */
+				/* hdmi_drm_infoframe_init(&hdev->infoframes.drm.drm); */
+				/* hdmi_drm_infoframe_set(&hdev->infoframes.drm.drm); */
+				/* } */
 				hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
 							HDMITX_HDR_MODE_SDR);
 				/* re-enable forced game mode if selected by the user */
