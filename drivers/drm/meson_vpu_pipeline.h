@@ -127,6 +127,8 @@ struct meson_vpu_block_ops {
 			struct meson_vpu_block_state *old_state);
 	void (*dump_register)(struct drm_printer *p, struct meson_vpu_block *vblk);
 	void (*init)(struct meson_vpu_block *vblk);
+	void (*init_register)(struct meson_vpu_block *vblk,
+			struct meson_vpu_block_state *state);
 	void (*fini)(struct meson_vpu_block *vblk);
 };
 
@@ -732,6 +734,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *pipeline,
 			struct drm_atomic_state *old_state);
 void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline);
 void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline);
+void vpu_pipeline_register_init(struct meson_vpu_pipeline *pipeline);
 
 int vpu_pipeline_read_scanout_pos(struct meson_vpu_pipeline *pipeline,
 			int *vpos, int *hpos, int crtc_index);

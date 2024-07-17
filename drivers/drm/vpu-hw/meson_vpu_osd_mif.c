@@ -1100,56 +1100,6 @@ void osd_mali_unpack_enable(struct meson_vpu_block *vblk,
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_mali_unpack_ctrl, flag, 31, 1);
 }
 
-void osd_ctrl_init(struct meson_vpu_block *vblk, struct rdma_reg_ops *reg_ops,
-		   struct osd_mif_reg_s *reg)
-{
-	/*Need config follow crtc index.*/
-	u8 holdline = VIU1_DEFAULT_HOLD_LINE;
-	u8 fifo_val = 0x20;
-	u32 osd_cfg_sync_en = 0;
-
-	/* S7 and t5w are platforms with low-power consumption, so resuming will
-	 * cause osd_cfg_sync_en bit of viu_osd_ctrl_stat to reset to be 1, not initial 0
-	 * anymore.Other previous platforms would not reset and always keep it to be initial 0.
-	 * Currently, 0 is configured anyway to fix it.
-	 * TODO: reset callback for each block is needed for more complicated reset cases.
-	 */
-	osd_cfg_sync_en = meson_drm_read_reg(reg->viu_osd_ctrl_stat) & 0x80000000;
-	osd_cfg_sync_en = osd_cfg_sync_en >> 31;
-	if (osd_cfg_sync_en == 1) {
-		reg_ops->rdma_write_reg_bits(reg->viu_osd_ctrl_stat, 0, 31, 1);
-		MESON_DRM_BLOCK("fixed reset of osd_cfg_sync_en in mif [%d].\n", vblk->index);
-	}
-
-	if (vblk->init_done)
-		return;
-
-	reg_ops->rdma_write_reg(reg->viu_osd_fifo_ctrl_stat,
-			    (1 << 31) | /*BURSET_LEN_SEL[2]*/
-			    (0 << 30) | /*no swap*/
-			    (0 << 29) | /*div swap*/
-			    (2 << 24) | /*Fifo_lim 5bits*/
-			    (2 << 22) | /*Fifo_ctrl 2bits*/
-			    (fifo_val << 12) | /*FIFO_DEPATH_VAL 7bits*/
-			    (1 << 10) | /*BURSET_LEN_SEL[1:0]*/
-			    (holdline << 5) | /*hold fifo lines 5bits*/
-			    (0 << 4) | /*CLEAR_ERR*/
-			    (0 << 3) | /*fifo_sync_rst*/
-			    (0 << 1) | /*ENDIAN:no conversion*/
-			    (1 << 0)/*urgent enable*/);
-	reg_ops->rdma_write_reg(reg->viu_osd_ctrl_stat,
-			    (0 << 31) | /*osd_cfg_sync_en*/
-			    (0 << 30) | /*Enable free_clk*/
-			    (0x100 << 12) | /*global alpha*/
-			    (0 << 11) | /*TEST_RD_EN*/
-			    (0 << 2) | /*osd_mem_mode 0:canvas_addr*/
-			    (0 << 1) | /*premult_en*/
-			    (0 << 0)/*OSD_BLK_ENABLE*/);
-	reg_ops->rdma_write_reg(reg->viu_osd_tcolor_ag3, 0);
-
-	vblk->init_done = 1;
-}
-
 static void osd_color_config(struct meson_vpu_block *vblk,
 			     struct rdma_reg_ops *reg_ops,
 			     struct osd_mif_reg_s *reg,
@@ -1537,7 +1487,8 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	if (old_state)
 		old_mvos = to_osd_state(old_state);
 
-	osd_ctrl_init(vblk, reg_ops, reg);
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
 
 	if (priv->vpu_data && priv->vpu_data->has_gfcd) {
 		process_unit = mvos->process_unit;
@@ -1796,6 +1747,54 @@ void *osd_secure_op[VPP_TOP_MAX] = {meson_vpu_write_reg_bits,
 		meson_vpu1_write_reg_bits, meson_vpu2_write_reg_bits};
 #endif
 
+static void osd_register_init(struct meson_vpu_block *vblk,
+	struct meson_vpu_block_state *state)
+{
+	struct meson_vpu_osd *osd;
+	struct rdma_reg_ops *reg_ops;
+	struct osd_mif_reg_s *reg;
+	/*Need config follow crtc index.*/
+	u8 holdline = VIU1_DEFAULT_HOLD_LINE;
+	u8 fifo_val = 0x20;
+
+	if (vblk->init_done)
+		return;
+
+	reg_ops = state->sub->reg_ops;
+	osd = to_osd_block(vblk);
+	reg = osd->reg;
+	if (!reg) {
+		MESON_DRM_BLOCK("set_state break for NULL OSD mixer reg.\n");
+		return;
+	}
+
+	reg_ops->rdma_write_reg(reg->viu_osd_fifo_ctrl_stat,
+			    (1 << 31) | /*BURSET_LEN_SEL[2]*/
+			    (0 << 30) | /*no swap*/
+			    (0 << 29) | /*div swap*/
+			    (2 << 24) | /*Fifo_lim 5bits*/
+			    (2 << 22) | /*Fifo_ctrl 2bits*/
+			    (fifo_val << 12) | /*FIFO_DEPATH_VAL 7bits*/
+			    (1 << 10) | /*BURSET_LEN_SEL[1:0]*/
+			    (holdline << 5) | /*hold fifo lines 5bits*/
+			    (0 << 4) | /*CLEAR_ERR*/
+			    (0 << 3) | /*fifo_sync_rst*/
+			    (0 << 1) | /*ENDIAN:no conversion*/
+			    (1 << 0)/*urgent enable*/);
+	reg_ops->rdma_write_reg(reg->viu_osd_ctrl_stat,
+			    (0 << 31) | /*osd_cfg_sync_en*/
+			    (0 << 30) | /*Enable free_clk*/
+			    (0x100 << 12) | /*global alpha*/
+			    (0 << 11) | /*TEST_RD_EN*/
+			    (0 << 2) | /*osd_mem_mode 0:canvas_addr*/
+			    (0 << 1) | /*premult_en*/
+			    (0 << 0)/*OSD_BLK_ENABLE*/);
+	reg_ops->rdma_write_reg(reg->viu_osd_tcolor_ag3, 0);
+
+	vblk->init_done = 1;
+	MESON_DRM_BLOCK("register_init vblk:%d.\n", vblk->index);
+}
+
 static void osd_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_pipeline *pipeline;
@@ -1989,7 +1988,7 @@ static void s5_osd_hw_init(struct meson_vpu_block *vblk)
 	}
 
 	osd->reg = &s5_osd_mif_reg[vblk->index];
-	osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
+	//osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = LINEAR_MIF;
 
 	original_swap_t3x =
@@ -2091,6 +2090,7 @@ struct meson_vpu_block_ops osd_ops = {
 	.disable = osd_hw_disable,
 	.dump_register = osd_dump_register,
 	.init = osd_hw_init,
+	.init_register = osd_register_init,
 	.fini = osd_hw_fini,
 };
 
@@ -2103,6 +2103,7 @@ struct meson_vpu_block_ops g12b_osd_ops = {
 	.disable = osd_hw_disable,
 	.dump_register = osd_dump_register,
 	.init = g12b_osd_hw_init,
+	.init_register = osd_register_init,
 	.fini = osd_hw_fini,
 };
 
@@ -2113,6 +2114,7 @@ struct meson_vpu_block_ops t7_osd_ops = {
 	.disable = osd_hw_disable,
 	.dump_register = osd_dump_register,
 	.init = t7_osd_hw_init,
+	.init_register = osd_register_init,
 	.fini = osd_hw_fini,
 };
 
@@ -2123,6 +2125,7 @@ struct meson_vpu_block_ops s5_osd_ops = {
 	.disable = osd_hw_disable,
 	.dump_register = osd_dump_register,
 	.init = s5_osd_hw_init,
+	.init_register = osd_register_init,
 	.fini = osd_hw_fini,
 };
 
@@ -2133,6 +2136,7 @@ struct meson_vpu_block_ops s7d_osd_ops = {
 	.disable = osd_hw_disable,
 	.dump_register = osd_dump_register,
 	.init = s7d_osd_hw_init,
+	.init_register = osd_register_init,
 	.fini = osd_hw_fini,
 };
 
@@ -2143,6 +2147,7 @@ struct meson_vpu_block_ops s6_osd_ops = {
 	.disable = osd_hw_disable,
 	.dump_register = osd_dump_register,
 	.init = s6_osd_hw_init,
+	.init_register = osd_register_init,
 	.fini = osd_hw_fini,
 };
 #endif

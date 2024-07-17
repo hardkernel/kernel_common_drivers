@@ -302,6 +302,9 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 	crtc_index = vblk->index;
 	amc = vblk->pipeline->priv->crtcs[crtc_index];
 
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
+
 	MESON_DRM_BLOCK("%s set_state called.\n", postblend->base.name);
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
 
@@ -362,6 +365,9 @@ static void txhd2_postblend_set_state(struct meson_vpu_block *vblk,
 
 	crtc_index = vblk->index;
 	amc = vblk->pipeline->priv->crtcs[crtc_index];
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
 
 	MESON_DRM_BLOCK("%s set_state called.\n", postblend->base.name);
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
@@ -448,11 +454,11 @@ static void t7_postblend_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_pipeline *pipeline = postblend->base.pipeline;
 	struct postblend_reg_s *reg = postblend->reg;
 	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
-	u32 *crtcmask_osd;
-
 	crtc_index = vblk->index;
 	amc = vblk->pipeline->priv->crtcs[crtc_index];
-	crtcmask_osd = amc->priv->of_conf.crtcmask_osd;
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
 
 	MESON_DRM_BLOCK("%s set_state called.\n", postblend->base.name);
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
@@ -464,14 +470,6 @@ static void t7_postblend_set_state(struct meson_vpu_block *vblk,
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	secure_config(OSD_MODULE, mvps->sec_src, crtc_index);
 #endif
-
-	if (!vblk->init_done) {
-		if (!postblend->postblend_path_mask)
-			fix_vpu_clk2_default_regs(vblk, reg_ops, crtc_index,
-						  crtcmask_osd);
-
-		vblk->init_done = 1;
-	}
 
 	if (crtc_index == 0) {
 		vpp_osd1_blend_scope_set(vblk, reg_ops, reg, scope);
@@ -538,7 +536,6 @@ static void t7_postblend_set_state(struct meson_vpu_block *vblk,
 			osd_vpp2_bld_ctrl = val | osd_vpp_bld_ctrl_update_mask;
 		else
 			MESON_DRM_BLOCK("invalid crtc index\n");
-
 		drm_postblend_notify_amvideo();
 
 		if (bld_src2_sel == 2) {
@@ -579,6 +576,9 @@ static void s5_postblend_set_state(struct meson_vpu_block *vblk,
 	crtc_index = vblk->index;
 	amc = vblk->pipeline->priv->crtcs[crtc_index];
 	meson_crtc_state = to_am_meson_crtc_state(amc->base.state);
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
 
 	MESON_DRM_BLOCK("%s set_state called.\n", postblend->base.name);
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
@@ -633,6 +633,9 @@ static void t3x_postblend_set_state(struct meson_vpu_block *vblk,
 	crtc_index = vblk->index;
 	amc = vblk->pipeline->priv->crtcs[crtc_index];
 	meson_crtc_state = to_am_meson_crtc_state(amc->base.state);
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
 
 	MESON_DRM_BLOCK("%s set_state called.\n", postblend->base.name);
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
@@ -1207,17 +1210,30 @@ static void postblend_hw_init(struct meson_vpu_block *vblk)
 }
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static void txhd2_postblend_hw_init(struct meson_vpu_block *vblk)
+static void txhd2_postblend_register_init(struct meson_vpu_block *vblk,
+	struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
 
-	postblend->reg = &postblend_reg;
+	if (vblk->init_done)
+		return;
 
 	vpp_osd2_postblend_mux_set(vblk, vblk->pipeline->subs[0].reg_ops,
 					  postblend->reg, VPP_NULL);
 	vpp_osd1_preblend_mux_set(vblk, vblk->pipeline->subs[0].reg_ops,
 							  postblend->reg, VPP_NULL);
 	osd1_blend_premult_set(vblk, vblk->pipeline->subs[0].reg_ops, postblend->reg);
+
+	vblk->init_done = 1;
+	MESON_DRM_BLOCK("%s register_init called.\n", postblend->base.name);
+}
+
+static void txhd2_postblend_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+
+	postblend->reg = &postblend_reg;
+
 	MESON_DRM_BLOCK("%s hw_init called.\n", postblend->base.name);
 }
 
@@ -1227,6 +1243,29 @@ static void s7_postblend_hw_init(struct meson_vpu_block *vblk)
 
 	postblend->reg = &postblend_reg;
 	DRM_DEBUG("%s hw_init called.\n", postblend->base.name);
+}
+
+static void t7_postblend_register_init(struct meson_vpu_block *vblk,
+				struct meson_vpu_block_state *state)
+{
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+	struct am_meson_crtc *amc;
+	int crtc_index = crtc_index = vblk->index;
+	u32 *crtcmask_osd;
+
+	if (vblk->init_done)
+		return;
+
+	amc = vblk->pipeline->priv->crtcs[crtc_index];
+	crtcmask_osd = amc->priv->of_conf.crtcmask_osd;
+
+	if (!postblend->postblend_path_mask)
+		fix_vpu_clk2_default_regs(vblk, reg_ops, crtc_index,
+					  crtcmask_osd);
+
+	vblk->init_done = 1;
+	MESON_DRM_BLOCK("%s register_init called.\n", postblend->base.name);
 }
 
 static void t7_postblend_hw_init(struct meson_vpu_block *vblk)
@@ -1239,13 +1278,36 @@ static void t7_postblend_hw_init(struct meson_vpu_block *vblk)
 	MESON_DRM_BLOCK("%s hw_init called.\n", postblend->base.name);
 }
 
+static void t3_postblend_register_init(struct meson_vpu_block *vblk,
+	struct meson_vpu_block_state *state)
+{
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+	int crtc_index = crtc_index = vblk->index;
+	struct am_meson_crtc *amc;
+	u32 *crtcmask_osd = NULL;
+
+	if (vblk->init_done)
+		return;
+
+	amc = vblk->pipeline->priv->crtcs[crtc_index];
+	crtcmask_osd = amc->priv->of_conf.crtcmask_osd;
+
+	independ_path_default_regs(vblk, vblk->pipeline->subs[0].reg_ops);
+	if (!postblend->postblend_path_mask)
+		fix_vpu_clk2_default_regs(vblk, reg_ops, crtc_index,
+					  crtcmask_osd);
+
+	vblk->init_done = 1;
+	MESON_DRM_BLOCK("%s register_init called.\n", postblend->base.name);
+}
+
 static void t3_postblend_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
 
 	postblend->reg = &postblend_reg;
 
-	independ_path_default_regs(vblk, vblk->pipeline->subs[0].reg_ops);
 	/*t3 t5w t5m paht crtl flag*/
 	postblend->postblend_path_mask = true;
 	MESON_DRM_BLOCK("%s hw_init called.\n", postblend->base.name);
@@ -1260,6 +1322,24 @@ static void s5_postblend_hw_init(struct meson_vpu_block *vblk)
 
 	reg_ops->rdma_write_reg_bits(VPP_INTF_OSD3_CTRL, 0, 1, 1);
 	reg_ops->rdma_write_reg(VPP_MISC_T3X, 0);
+}
+
+static void t3x_postblend_register_init(struct meson_vpu_block *vblk,
+				struct meson_vpu_block_state *state)
+{
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+	int crtc_index = vblk->index;
+
+	if (vblk->init_done)
+		return;
+
+	if (crtc_index == 1)
+		reg_ops->rdma_write_reg_bits(VPP_INTF_OSD3_CTRL, 0, 1, 1);
+	reg_ops->rdma_write_reg(VPP_MISC_T3X, 0);
+
+	vblk->init_done = 1;
+	MESON_DRM_BLOCK("%s register_init called.\n", postblend->base.name);
 }
 
 static void t3x_postblend_hw_init(struct meson_vpu_block *vblk)
@@ -1322,6 +1402,7 @@ struct meson_vpu_block_ops t7_postblend_ops = {
 	.disable = postblend_hw_disable,
 	.dump_register = t7_postblend_dump_register,
 	.init = t7_postblend_hw_init,
+	.init_register = t7_postblend_register_init,
 };
 
 struct meson_vpu_block_ops t3_postblend_ops = {
@@ -1331,6 +1412,7 @@ struct meson_vpu_block_ops t3_postblend_ops = {
 	.disable = postblend_hw_disable,
 	.dump_register = postblend_dump_register,
 	.init = t3_postblend_hw_init,
+	.init_register = t3_postblend_register_init,
 };
 
 struct meson_vpu_block_ops s5_postblend_ops = {
@@ -1349,6 +1431,7 @@ struct meson_vpu_block_ops t3x_postblend_ops = {
 	.disable = s5_postblend_hw_disable,
 	.dump_register = postblend_dump_register,
 	.init = t3x_postblend_hw_init,
+	.init_register = t3x_postblend_register_init,
 };
 
 struct meson_vpu_block_ops txhd2_postblend_ops = {
@@ -1358,6 +1441,7 @@ struct meson_vpu_block_ops txhd2_postblend_ops = {
 	.disable = txhd2_postblend_hw_disable,
 	.dump_register = postblend_dump_register,
 	.init = txhd2_postblend_hw_init,
+	.init_register = txhd2_postblend_register_init,
 };
 
 struct meson_vpu_block_ops s6_postblend_ops = {

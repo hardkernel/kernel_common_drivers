@@ -692,6 +692,7 @@ static int am_meson_drm_pm_suspend(struct device *dev)
 		DRM_INFO("%s: drm_atomic_helper_suspend fail\n", __func__);
 		return PTR_ERR(priv->state);
 	}
+
 	DRM_INFO("%s: done\n", __func__);
 	return 0;
 }
@@ -712,9 +713,16 @@ static int am_meson_drm_pm_resume(struct device *dev)
 		return 0;
 	}
 
+	/*
+         *for save power consumption, suspend will turn off vpu power, we need to
+	 *do block register init again.
+	 */
+	vpu_pipeline_register_init(priv->pipeline);
+
 	drm_atomic_helper_resume(drm, priv->state);
 	am_meson_drm_fb_resume(drm);
 	drm_kms_helper_poll_enable(drm);
+
 	DRM_INFO("%s: done\n", __func__);
 	return 0;
 }

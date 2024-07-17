@@ -898,6 +898,9 @@ static void osdblend_set_state(struct meson_vpu_block *vblk,
 		return;
 	}
 
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
+
 	if (pipeline_state->pipeline->osd_version <= OSD_V5) {
 		mvobs->input_mask |= 5;
 		for (i = 0; i < MAX_DIN_NUM; i++) {
@@ -957,6 +960,9 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 		MESON_DRM_BLOCK("pipeline_state is NULL!!\n");
 		return;
 	}
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
 
 	mvsps = &mvps->sub_states[0];
 
@@ -1144,6 +1150,9 @@ static void t3x_osdblend_set_state(struct meson_vpu_block *vblk,
 		MESON_DRM_BLOCK("pipeline_state is NULL!!\n");
 		return;
 	}
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
 
 	mvsps = &mvps->sub_states[state->sub->index];
 
@@ -1334,6 +1343,9 @@ static void txhd2_osdblend_set_state(struct meson_vpu_block *vblk,
 				     struct meson_vpu_block_state *old_state)
 {
 	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
 	/*osd path dout alpha divider, default = 0*/
 	reg_ops->rdma_write_reg_bits(VIU_OSD_BLEND_CTRL, 0, 0, 1);
 	reg_ops->rdma_write_reg_bits(VIU_OSD_BLEND_CTRL1, 0, 0, 1);
@@ -1361,6 +1373,9 @@ static void s7d_osdblend_set_state(struct meson_vpu_block *vblk,
 		MESON_DRM_BLOCK("pipeline_state is NULL!!\n");
 		return;
 	}
+
+	if (vblk->ops->init_register)
+		vblk->ops->init_register(vblk, state);
 
 	if (pipeline_state->pipeline->osd_version <= OSD_V5) {
 		mvobs->input_mask |= 5;
@@ -1515,13 +1530,15 @@ static void osdblend_dump_register(struct drm_printer *p,
 		reg_addr, value);
 }
 
-static void osdblend_hw_init(struct meson_vpu_block *vblk)
+static void osdblend_register_init(struct meson_vpu_block *vblk,
+		struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
 	struct osd_dummy_data_s dummy_data = {0x80, 0x80, 0x80};
 	struct rdma_reg_ops *reg_ops = vblk->pipeline->subs[0].reg_ops;
 
-	osdblend->reg = &osdblend_reg;
+	if (vblk->init_done)
+		return;
 
 	/*dummy data/alpha config*/
 	osd_blend_dummy_data_set(vblk, reg_ops, osdblend->reg, dummy_data);
@@ -1529,6 +1546,16 @@ static void osdblend_hw_init(struct meson_vpu_block *vblk)
 
 	/*reset blend ctrl hold line*/
 	reg_ops->rdma_write_reg_bits(osdblend->reg->viu_osd_blend_ctrl, 0, 29, 3);
+
+	vblk->init_done = 1;
+	MESON_DRM_BLOCK("%s register_init called.\n", osdblend->base.name);
+}
+
+static void osdblend_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
+
+	osdblend->reg = &osdblend_reg;
 
 	MESON_DRM_BLOCK("%s hw_init called.\n", osdblend->base.name);
 }
@@ -1539,13 +1566,15 @@ static void txhd2_osdblend_hw_init(struct meson_vpu_block *vblk)
 	MESON_DRM_BLOCK("%s hw_init called.\n", vblk->name);
 }
 
-static void s5_osdblend_hw_init(struct meson_vpu_block *vblk)
+static void s5_osdblend_register_init(struct meson_vpu_block *vblk,
+		struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
 	struct osd_dummy_data_s dummy_data = {0x80, 0x80, 0x80};
 	struct rdma_reg_ops *reg_ops = vblk->pipeline->subs[0].reg_ops;
 
-	osdblend->reg = &osdblend_s5_reg;
+	if (vblk->init_done)
+		return;
 
 	/*dummy data/alpha config*/
 	osd_blend_dummy_data_set(vblk, reg_ops, osdblend->reg, dummy_data);
@@ -1554,19 +1583,28 @@ static void s5_osdblend_hw_init(struct meson_vpu_block *vblk)
 	/*reset blend ctrl hold line*/
 	reg_ops->rdma_write_reg_bits(osdblend->reg->viu_osd_blend_ctrl, 4, 29, 3);
 
+	vblk->init_done = 1;
+	MESON_DRM_BLOCK("%s register_init called.\n", osdblend->base.name);
+}
+
+static void s5_osdblend_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
+
+	osdblend->reg = &osdblend_s5_reg;
+
 	MESON_DRM_BLOCK("%s hw_init called.\n", osdblend->base.name);
 }
 
-static void s7d_osdblend_hw_init(struct meson_vpu_block *vblk)
+static void s7d_osdblend_register_init(struct meson_vpu_block *vblk,
+		struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
-	struct meson_drm *priv = vblk->pipeline->priv;
 	struct osd_dummy_data_s dummy_data = {0x80, 0x80, 0x80};
 	struct rdma_reg_ops *reg_ops = vblk->pipeline->subs[0].reg_ops;
 
-	osdblend->reg = &osdblend_reg;
-	osdblend->gfcd_global_alpha_policy =
-		!!(priv->of_conf.gfcd_mask & BIT(GFCD_GLOBAL_ALPHA));
+	if (vblk->init_done)
+		return;
 
 	/*dummy data/alpha config*/
 	osd_blend_dummy_data_set(vblk, reg_ops, osdblend->reg, dummy_data);
@@ -1581,6 +1619,19 @@ static void s7d_osdblend_hw_init(struct meson_vpu_block *vblk)
 	/*reset blend ctrl hold line*/
 	reg_ops->rdma_write_reg_bits(osdblend->reg->viu_osd_blend_ctrl, 0, 29, 3);
 
+	vblk->init_done = 1;
+	MESON_DRM_BLOCK("%s register_init called.\n", osdblend->base.name);
+}
+
+static void s7d_osdblend_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
+	struct meson_drm *priv = vblk->pipeline->priv;
+
+	osdblend->reg = &osdblend_reg;
+	osdblend->gfcd_global_alpha_policy =
+		!!(priv->of_conf.gfcd_mask & BIT(GFCD_GLOBAL_ALPHA));
+
 	MESON_DRM_BLOCK("%s hw_init called.\n", osdblend->base.name);
 }
 
@@ -1593,6 +1644,7 @@ struct meson_vpu_block_ops osdblend_ops = {
 	.disable = osdblend_hw_disable,
 	.dump_register = osdblend_dump_register,
 	.init = osdblend_hw_init,
+	.init_register = osdblend_register_init,
 };
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -1612,6 +1664,7 @@ struct meson_vpu_block_ops s5_osdblend_ops = {
 	.disable = osdblend_hw_disable,
 	.dump_register = osdblend_dump_register,
 	.init = s5_osdblend_hw_init,
+	.init_register = s5_osdblend_register_init,
 };
 
 struct meson_vpu_block_ops t3x_osdblend_ops = {
@@ -1621,6 +1674,7 @@ struct meson_vpu_block_ops t3x_osdblend_ops = {
 	.disable = osdblend_hw_disable,
 	.dump_register = osdblend_dump_register,
 	.init = s5_osdblend_hw_init,
+	.init_register = s5_osdblend_register_init,
 };
 
 struct meson_vpu_block_ops s7d_osdblend_ops = {
@@ -1630,6 +1684,7 @@ struct meson_vpu_block_ops s7d_osdblend_ops = {
 	.disable = osdblend_hw_disable,
 	.dump_register = osdblend_dump_register,
 	.init = s7d_osdblend_hw_init,
+	.init_register = s7d_osdblend_register_init,
 };
 
 #endif
