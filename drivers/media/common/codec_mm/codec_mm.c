@@ -296,8 +296,8 @@ int cma_mmu_op(struct page *page, int count, bool set)
 static void dump_mem_infos(struct seq_file *m);
 
 static int dump_free_mem_infos(void *buf, int size);
-static int __init secure_vdec_res_setup(struct reserved_mem *rmem);
-static int __init codec_mm_res_setup(struct reserved_mem *rmem);
+static int secure_vdec_res_setup(struct reserved_mem *rmem);
+static int codec_mm_res_setup(struct reserved_mem *rmem);
 
 static inline u32 codec_mm_align_up2n(u32 addr, u32 alg2n)
 {
@@ -4293,7 +4293,7 @@ static const struct reserved_mem_ops codec_mm_rmem_vdec_ops = {
 	.device_init = codec_mm_reserved_init,
 };
 
-static int __init codec_mm_res_setup(struct reserved_mem *rmem)
+static int codec_mm_res_setup(struct reserved_mem *rmem)
 {
 	rmem->ops = &codec_mm_rmem_vdec_ops;
 	pr_debug("vdec: reserved mem setup\n");
@@ -4329,7 +4329,7 @@ static const struct reserved_mem_ops secure_vdec_rmem_ops = {
 	.device_init = secure_vdec_reserved_init,
 };
 
-static int __init secure_vdec_res_setup(struct reserved_mem *rmem)
+static int secure_vdec_res_setup(struct reserved_mem *rmem)
 {
 	rmem->ops = &secure_vdec_rmem_ops;
 
