@@ -5,15 +5,15 @@
 
 /dts-v1/;
 
-#include "meson-s4.dtsi"
-#include "mesons4_drm.dtsi"
+#include "meson-s4d.dtsi"
+#include "mesons4d_drm.dtsi"
 #include "partition_normal_linux.dtsi"
 #include <dt-bindings/input/input.h>
 #include "meson-ir-map-linux.dtsi"
 
 / {
-	amlogic-dt-id = "s4_s905y4_ap222";
-	compatible = "s4_s905y4_ap222";
+	amlogic-dt-id = "s4d_s905y4_ap222";
+	compatible = "s4d_s905y4_ap222";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -181,10 +181,10 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* up to 720p yuv420 8bit and 4 buffers
-			 * 1280x720x1.5x4 = 8 M
+			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x00800000>;
+			size = <0x01400000>;
 			alignment = <0x400000>;
 		};
 
@@ -204,9 +204,9 @@
 		status = "okay";
 	};
 	amdolby_vision {
-		compatible = "amlogic, dolby_vision_sc2";
+		compatible = "amlogic, dolby_vision_s4d";
 		dev_name = "aml_amdolby_vision_driver";
-		status = "disabled";
+		status = "okay";
 		tv_mode = <0>;/*1:enable ;0:disable*/
 	};
 
@@ -367,17 +367,18 @@
 	};
 
 	aml_dtv_demod {
-		compatible = "amlogic, ddemod-s4";
+		compatible = "amlogic, ddemod-s4d";
 		dev_name = "aml_dtv_demod";
 		status = "okay";
 		/* diseqc_name = "sgm_41286"; */
-		pinctrl-names="if_agc_pins", "if_agc2_pins";
+		pinctrl-names="if_agc_pins", "if_agc2_pins", "rf_agc_pins";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
 		pinctrl-1=<&dtvdemod_if_agc2_pins>;
-		/* pinctrl-2=<&diseqc_out>; */
+		pinctrl-2=<&dtvdemod_rf_agc_pins>;
+		/* pinctrl-1=<&diseqc_out>; */
 		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
 		/* lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>; */
-		/* interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>; */
+		/* interrupts = <GIC_SPI 221 IRQ_TYPE_EDGE_RISING>; */
 		/* interrupt-names = "demod_isr"; */
 
 		power-domains = <&pwrdm PDID_S4_DEMOD>;
@@ -852,38 +853,6 @@
 	status = "okay";
 };
 
-&CPU0 {
-	multi_tables_available;
-	operating-points-v2 = <&s905y4_opp_table0>,
-		<&s905y4_opp_table1>,
-		<&s905y4_opp_table2>,
-		<&s905y4_opp_table3>;
-};
-
-&CPU1 {
-	multi_tables_available;
-	operating-points-v2 = <&s905y4_opp_table0>,
-		<&s905y4_opp_table1>,
-		<&s905y4_opp_table2>,
-		<&s905y4_opp_table3>;
-};
-
-&CPU2 {
-	multi_tables_available;
-	operating-points-v2 = <&s905y4_opp_table0>,
-		<&s905y4_opp_table1>,
-		<&s905y4_opp_table2>,
-		<&s905y4_opp_table3>;
-};
-
-&CPU3 {
-	multi_tables_available;
-	operating-points-v2 = <&s905y4_opp_table0>,
-		<&s905y4_opp_table1>,
-		<&s905y4_opp_table2>,
-		<&s905y4_opp_table3>;
-};
-
 &audiobus {
 	tdma: tdm@0 {
 		compatible = "amlogic, t5-snd-tdma";
@@ -1098,7 +1067,7 @@
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1
 			&clkc CLKID_HIFI_PLL
-			&clkaudio CLKID_AUDIO_MCLK_A>;
+			&clkaudio CLKID_AUDIO_MCLK_B>;
 		clock-names = "pdm_gate",
 			"pdm_sysclk_srcpll",
 			"pdm_dclk_srcpll",
@@ -1152,8 +1121,8 @@
 			&clkc CLKID_MPLL3
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1
-			&clkc CLKID_MPLL0
-			&clkaudio CLKID_AUDIO_MCLK_A>;
+			&clkc CLKID_MPLL3
+			&clkaudio CLKID_AUDIO_MCLK_B>;
 		clock-names = "pdm_gate",
 			"pdm_sysclk_srcpll",
 			"pdm_dclk_srcpll",
@@ -1550,7 +1519,7 @@
 &vdin0 {
 	/*compatible = "amlogic, vdin-sc2";*/
 	/*memory-region = <&vdin0_cma_reserved>;*/
-	/*status = "disabled";*/
+	status = "okay";
 	/* up to 1920x1080 yuv422 8bit and 5 buffers
 	 * 1920x1080x2x5 = 20 M
 	 */
@@ -1568,7 +1537,7 @@
 &vdin1 {
 	/*compatible = "amlogic, vdin-sc2";*/
 	memory-region = <&vdin1_cma_reserved>;
-	/*status = "disabled";*/
+	status = "okay";
 	/*vdin write mem color depth support:
 	 *bit0:support 8bit
 	 *bit1:support 9bit
