@@ -10090,6 +10090,12 @@ int dim_process_post_vframe(unsigned int channel)
 			if (!tmp_buf[1]->di_buf_post) {
 				struct di_buf_s *di_buf_post = NULL;
 
+				if (di_que_is_empty(channel, QUE_POST_FREE)) {
+					dbg_bypass("%s:bypass: no post_free, no di_buf_post\n",
+						__func__);
+					return 0;
+				}
+
 				di_buf_post =
 					di_que_out_to_di_buf(channel, QUE_POST_FREE);
 
