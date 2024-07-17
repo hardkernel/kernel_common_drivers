@@ -1276,7 +1276,7 @@ static s32 aucpu_init_try(struct platform_device *pdev)
 		pctx->aucpu_reg.base =
 			(ulong)ioremap(res->start,
 			resource_size(res));
-		pctx->aucpu_reg.size = res->end - res->start;
+		pctx->aucpu_reg.size = resource_size(res);
 
 		aucpu_pr(LOG_DEBUG,
 			 "aucpu base address get from platfor");
