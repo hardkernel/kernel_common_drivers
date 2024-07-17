@@ -1623,6 +1623,8 @@ static void set_di_inp_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 		/*MTN MCVEC mif y direction flip will black screen*/
 		if (di_reverse && cfgg(EN_POST_LINK))
 			DIM_RDMA_WR_BITS(DI_INP_GEN_REG2, 3, 2, 2);
+		else
+			DIM_RDMA_WR_BITS(DI_INP_GEN_REG2, 0, 2, 2);
 	}
 	if (mif->set_separate_en == 2) {
 		/* Enable NV12 Display */

@@ -4059,12 +4059,12 @@ static void video_composer_task(struct composer_dev *dev)
 			| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
 		//mirror frame
 		if (frame_transform == VC_TRANSFORM_FLIP_H) {
-			if (vf->flag | VFRAME_FLAG_MIRROR_H)
+			if (vf->flag & VFRAME_FLAG_MIRROR_H)
 				vf->flag &= ~VFRAME_FLAG_MIRROR_H;
 			else
 				vf->flag |= VFRAME_FLAG_MIRROR_H;
 		} else if (frame_transform == VC_TRANSFORM_FLIP_V) {
-			if (vf->flag | VFRAME_FLAG_MIRROR_V)
+			if (vf->flag & VFRAME_FLAG_MIRROR_V)
 				vf->flag &= ~VFRAME_FLAG_MIRROR_V;
 			else
 				vf->flag |= VFRAME_FLAG_MIRROR_V;
