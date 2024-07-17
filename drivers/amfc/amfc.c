@@ -1194,7 +1194,7 @@ static int __init amfc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res)
-		amfc->io_base = ioremap(res->start, res->end - res->start);
+		amfc->io_base = ioremap(res->start, resource_size(res));
 	if (!amfc->io_base) {
 		pr_err("map io base failed:%px\n", res);
 		r = -EIO;
@@ -1202,7 +1202,7 @@ static int __init amfc_probe(struct platform_device *pdev)
 	}
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res)
-		amfc->clk_base = ioremap(res->start, res->end - res->start);
+		amfc->clk_base = ioremap(res->start, resource_size(res));
 	if (!amfc->clk_base) {
 		pr_err("map clk base failed:%px\n", res);
 		r = -EIO;

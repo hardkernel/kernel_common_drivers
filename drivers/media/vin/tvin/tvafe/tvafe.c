@@ -2068,7 +2068,7 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 		sys_clk_reg_base = ATV_DMD_SYS_CLK_CNTL;
 	else
 		sys_clk_reg_base = s_tvafe_data->atv_dmd_sys_clk;
-	ana_addr = ioremap(sys_clk_reg_base, 0x5);
+	ana_addr = ioremap(sys_clk_reg_base, 0x4);
 	if (!ana_addr) {
 		tvafe_pr_err("ana ioremap failure\n");
 		kfree(tdevp);
