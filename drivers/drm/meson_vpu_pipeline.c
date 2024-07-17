@@ -381,6 +381,11 @@ static int populate_vpu_pipeline(struct device_node *vpu_block_node,
 	return 0;
 }
 
+void VPU_PIPELINE_RESET_INIT_DONE(struct meson_vpu_block *mvb)
+{
+	mvb->init_done = 0;
+}
+
 void VPU_PIPELINE_HW_INIT(struct meson_vpu_block *mvb)
 {
 	if (mvb->ops->init)
@@ -555,6 +560,44 @@ int vpu_pipeline_check(struct meson_vpu_pipeline *pipeline,
 	DRM_DEBUG("check done--num_plane=%d.\n", mvps->num_plane);
 
 	return ret;
+}
+
+void vpu_pipeline_resume_init(struct meson_vpu_pipeline *pipeline)
+{
+	int i;
+
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (pipeline->osds[i])
+			VPU_PIPELINE_RESET_INIT_DONE(&pipeline->osds[i]->base);
+	}
+
+	for (i = 0; i < pipeline->num_video; i++)
+		VPU_PIPELINE_RESET_INIT_DONE(&pipeline->video[i]->base);
+
+	for (i = 0; i < pipeline->num_afbc_osds; i++)
+		VPU_PIPELINE_RESET_INIT_DONE(&pipeline->afbc_osds[i]->base);
+
+	for (i = 0; i < MESON_MAX_SCALERS; i++) {
+		if (pipeline->scalers[i])
+			VPU_PIPELINE_RESET_INIT_DONE(&pipeline->scalers[i]->base);
+	}
+
+	VPU_PIPELINE_RESET_INIT_DONE(&pipeline->osdblend->base);
+
+	for (i = 0; i < MESON_MAX_HDRS; i++)
+		if (pipeline->hdrs[i])
+			VPU_PIPELINE_RESET_INIT_DONE(&pipeline->hdrs[i]->base);
+
+	for (i = 0; i < pipeline->num_postblend; i++)
+		VPU_PIPELINE_RESET_INIT_DONE(&pipeline->postblends[i]->base);
+
+	if (pipeline->slice2ppc)
+		VPU_PIPELINE_RESET_INIT_DONE(&pipeline->slice2ppc->base);
+
+	for (i = 0; i < pipeline->num_gfcd; i++) {
+		if (pipeline->gfcd[i])
+			VPU_PIPELINE_RESET_INIT_DONE(&pipeline->gfcd[i]->base);
+	}
 }
 
 void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline)
