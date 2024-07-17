@@ -430,6 +430,17 @@ static struct sg_table *am_meson_gem_create_sg_table(struct drm_gem_object *obj)
 	return NULL;
 }
 
+static void am_meson_gem_destroy_sg_table(struct sg_table *sgt)
+{
+	if (!sgt) {
+		DRM_ERROR("sgt is NULL!\n");
+		return;
+	}
+
+	sg_free_table(sgt);
+	kfree(sgt);
+}
+
 static struct dma_buf *meson_gem_prime_export(struct drm_gem_object *obj,
 					      int flags)
 {
@@ -470,11 +481,8 @@ static struct dma_buf *meson_gem_prime_export(struct drm_gem_object *obj,
 			dmabuf_bind_uvm_alloc(dmabuf, &info);
 			drm_gem_object_get(obj);
 
-			if (meson_gem_obj->is_afbc ||
-			    meson_gem_obj->is_secure) {
-				sg_free_table(info.sgt);
-				vfree(info.sgt);
-			}
+			if (meson_gem_obj->is_afbc || meson_gem_obj->is_secure)
+				am_meson_gem_destroy_sg_table(info.sgt);
 		}
 
 		return dmabuf;
