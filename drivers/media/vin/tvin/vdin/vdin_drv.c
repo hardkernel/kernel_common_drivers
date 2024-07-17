@@ -5414,11 +5414,12 @@ static int vdin_mmap(struct file *file, struct vm_area_struct *vma)
 
 	if ((vma->vm_end - vma->vm_start + off) > len)
 		return -EINVAL;
-	vm_flags_set(vma, VM_IO | VM_DONTEXPAND | VM_DONTDUMP);
+
 	off += start;
 	vma->vm_pgoff = off >> PAGE_SHIFT;
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vm_flags_set(vma, VM_IO | VM_DONTEXPAND | VM_DONTDUMP);
 
 	size = vma->vm_end - vma->vm_start;
 	pfn  = off >> PAGE_SHIFT;

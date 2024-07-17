@@ -2110,6 +2110,7 @@
 		 */
 		/*cma_size = <16>;*/
 		interrupts = <0 210 1>;
+		interrupt-names = "vsync_int";
 		rdma-irq = <2>;
 		/*clocks = <&clkc CLKID_VPU_CLKB_GATE>,
 		 *	<&clkc CLKID_VPU_CLKB_TMP_MUX>;
@@ -2139,6 +2140,7 @@
 		reserve-iomap = "true";
 		flag_cma = <0>;/*1:share with codec_mm;0:cma alone*/
 		interrupts = <0 212 1>;
+		interrupt-names = "vsync_int";
 		rdma-irq = <4>;
 		/*clocks = <&clock CLK_FPLL_DIV5>,
 		 *	<&clock CLK_VDIN_MEAS_CLK>;
