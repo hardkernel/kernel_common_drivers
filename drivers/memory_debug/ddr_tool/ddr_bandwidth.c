@@ -1477,7 +1477,7 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	for (i = 0; i < aml_db->dmc_number; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, io_idx);
 		if (res) {
-			base = ioremap(res->start, res->end - res->start);
+			base = ioremap(res->start, resource_size(res));
 			switch (i) {
 			case 0:
 				aml_db->ddr_reg1 = base;
@@ -1509,7 +1509,7 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 		if (dmc_pll_is_sec(aml_db)) {
 			aml_db->pll_reg = (void *)res->start;
 		} else {
-			base = ioremap(res->start, res->end - res->start);
+			base = ioremap(res->start, resource_size(res));
 			aml_db->pll_reg = (void *)base;
 		}
 	} else {

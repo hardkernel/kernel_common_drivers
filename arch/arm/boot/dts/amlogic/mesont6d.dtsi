@@ -270,7 +270,6 @@
 		status = "okay";
 		reg = <0xfe036000 0x400
 		       0xfe0368a4 0x4>;
-		freq_reg = <0xfe0348a4>;
 		interrupts = <0 136 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ddr_bandwidth";
 	};

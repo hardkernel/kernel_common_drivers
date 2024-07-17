@@ -1651,7 +1651,7 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (res) {
 			dmc_mon->mon_comm[i].io_base = res->start;
-			dmc_mon->mon_comm[i].io_mem = ioremap(res->start, res->end - res->start);
+			dmc_mon->mon_comm[i].io_mem = ioremap(res->start, resource_size(res));
 		}
 	}
 
