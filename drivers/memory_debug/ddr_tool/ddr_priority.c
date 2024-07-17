@@ -1967,6 +1967,7 @@ int __init ddr_find_port_priority(int cpu_type, struct ddr_priority **desc)
 	case DMC_TYPE_GXLX3:
 		*desc = ddr_priority_gxlx3;
 		desc_size = ARRAY_SIZE(ddr_priority_gxlx3);
+		break;
 	case DMC_TYPE_T6D:
 		*desc = ddr_priority_t6d;
 		desc_size = ARRAY_SIZE(ddr_priority_t6d);

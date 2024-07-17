@@ -852,6 +852,7 @@ int __init dmc_find_port_sub(int cpu_type, struct vpu_sub_desc **desc)
 	case DMC_TYPE_S6:
 		*desc = vpu_sub_desc_s6;
 		desc_size = ARRAY_SIZE(vpu_sub_desc_s6);
+		break;
 	case DMC_TYPE_T6D:
 		*desc = vpu_sub_desc_t6d;
 		desc_size = ARRAY_SIZE(vpu_sub_desc_t6d);

@@ -267,7 +267,7 @@
 
 	ddr_bandwidth {
 		compatible = "amlogic,ddr-bandwidth-t6d";
-		status = "disabled";
+		status = "okay";
 		reg = <0xfe036000 0x400
 		       0xfe0368a4 0x4>;
 		freq_reg = <0xfe0348a4>;
