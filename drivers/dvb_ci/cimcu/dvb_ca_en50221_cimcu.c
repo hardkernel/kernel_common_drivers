@@ -2,7 +2,6 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/list.h>
@@ -17,7 +16,6 @@
 
 #include "dvb_ringbuffer.h"
 #include "../aml_ci_bus.h"
-
 #include "dvb_ca_en50221_cimcu.h"
 
 #define READ_LPDU_PKT
@@ -31,6 +29,11 @@ static int dvb_ca_en50221_usleep = 800;
 
 module_param_named(cammcu_usleep, dvb_ca_en50221_usleep, int, 0644);
 MODULE_PARM_DESC(cammcu_usleep, "enable sleep");
+
+static int force_wakeup = 1;
+
+module_param_named(force_wakeup, force_wakeup, int, 0644);
+MODULE_PARM_DESC(force_wakeup, "force wakeup, if set to 1, use force wakeup");
 
 static int dvb_ca_ciplus_enable;
 module_param_named(ciplus_enable, dvb_ca_ciplus_enable, int, 0644);
@@ -1309,7 +1312,7 @@ static int dvb_ca_en50221_thread(void *data)
 			if (ca->pub->get_slot_wakeup(ca->pub, 0) == 0)
 				usleep_range(dvb_ca_en50221_usleep, dvb_ca_en50221_usleep + 100);
 		}
-		ca->wakeup = 0;
+		ca->wakeup = force_wakeup;
 
 		/* go through all the slots processing them */
 		for (slot = 0; slot < ca->slot_count; slot++) {
@@ -1446,6 +1449,7 @@ static int dvb_ca_en50221_io_do_ioctl(struct file *file,
 	int slot;
 	u8 info = 0x80;
 	int start;
+	u8 speedup = 0;
 
 	if (mutex_lock_interruptible(&ca->ioctl_mutex)) {
 		dprintk("ci lock interrupt error\r\n");
@@ -1491,6 +1495,19 @@ static int dvb_ca_en50221_io_do_ioctl(struct file *file,
 		caps->slot_type = CA_CI_LINK;
 		caps->descr_num = 0;
 		caps->descr_type = 0;
+		break;
+	}
+
+	case CA_SPEED_UP: {
+		if (copy_from_user(&speedup, (void __user *)parg, 1)) {
+			dprintk("ioctl speedup failed");
+			break;
+		}
+		if (speedup)
+			force_wakeup = 1;
+		else
+			force_wakeup = 0;
+		dprintk("ioctl set speedup %d", speedup);
 		break;
 	}
 
@@ -2095,6 +2112,8 @@ int dvb_ca_en50221_cimcu_init(struct dvb_adapter *dvb_adapter,
 		goto exit;
 	}
 	kref_init(&ca->refcount);
+	force_wakeup = 0;
+
 	ca->pub = pubca;
 	ca->flags = flags;
 	ca->slot_count = slot_count;
