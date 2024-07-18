@@ -1582,6 +1582,11 @@
 	tdmout_index = <1>;
 };
 
+&pdma {
+		pinctrl-names = "pdm_pins";
+		pinctrl-0 = <&pdmin>;
+};
+
 &amlvecm {
 	compatible = "amlogic, vecm-s6";
 	dev_name = "aml_vecm";

@@ -391,8 +391,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				prefix-names = "AMP";
-				sound-dai = <&sy602x_54>;
+				prefix-names = "AMP", "AMP1";
+				sound-dai = <&tas5707_1b &tas5707_1d &dummy_codec>;
 			};
 		};
 
@@ -1137,17 +1137,24 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c0_pins4>;
 	clock-frequency = <300000>; /* default 100k */
-	sy602x_54: sy602x_54@2a {
-		compatible = "silergy,sy602x";
+	tas5707_1b: tas5707_1b@1b {
+		compatible = "ti,tas5707";
 		#sound-dai-cells = <0>;
-		reg = <0x2a>;
+		reg = <0x1b>;
 		status = "okay";
-		reset_pin-gpios = <&gpio GPIOD_5 GPIO_ACTIVE_HIGH>;
+		reset_pin = <&gpio GPIOF_2 0>;
+	};
+	tas5707_1d: tas5707_1d@1d {
+		compatible = "ti,tas5707";
+		#sound-dai-cells = <0>;
+		reg = <0x1d>;
+		status = "okay";
+		//reset_pin = <&gpio GPIOF_2 0>;
 	};
 	aw9523: aw9523_led@5b {
 		compatible = "amlogic,aw9523b_led";
 		reg = <0x5b>;
-		status = "okay";
+		status = "disabled";
 		//reset-gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
 		platform = <10>;
 
@@ -1225,7 +1232,7 @@
 }; /* end of periphs_pinctrl */
 
 &audio_data {
-	status = "disabled";
+	status = "okay";
 };
 
 &usb_phy20 {

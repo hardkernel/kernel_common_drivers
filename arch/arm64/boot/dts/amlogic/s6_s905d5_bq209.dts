@@ -391,8 +391,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				prefix-names = "AMP";
-				sound-dai = <&dummy_codec>;
+				prefix-names = "AMP", "AMP1";
+				sound-dai = <&tas5707_1b &tas5707_1d &dummy_codec>;
 			};
 		};
 
@@ -1066,6 +1066,7 @@
 
 	sd_3v3_reg: fixed@sd_3v3_reg {
 		compatible = "regulator-fixed";
+		status = "okay";
 		regulator-name = "3V3_CARD";
 		vin-supply = <&vdd3v3_ao_reg>;
 		regulator-min-microvolt = <3300000>;
@@ -1080,6 +1081,7 @@
 
 	vddio_c_p: gpio-regulator@vddio_c_p {
 		compatible = "regulator-gpio";
+		status = "okay";
 		regulator-name = "VDDIO_C_P";
 		vin-supply = <&vdd3v3_ao_reg>;
 		regulator-min-microvolt = <1800000>;
@@ -1190,7 +1192,7 @@
 }; /* end of periphs_pinctrl */
 
 &audio_data {
-	status = "disabled";
+	status = "okay";
 };
 
 &usb_phy20 {
