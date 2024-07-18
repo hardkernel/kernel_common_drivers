@@ -8,7 +8,7 @@
 			compatible = "android,firmware";
 			vbmeta {
 				compatible = "android,vbmeta";
-				parts = "vbmeta,boot,oem,vbmeta_system";
+				parts = "vbmeta,boot";
 				by_name_prefix="/dev/block";
 			};
 		};
