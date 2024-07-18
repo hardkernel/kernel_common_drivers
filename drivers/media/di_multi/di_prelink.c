@@ -2280,6 +2280,10 @@ static void count_4k(struct dimn_itf_s *itf, struct dvfm_s *vf)
 			itf->c.m_mode_n = ds->m_mode_n_hd;
 	}
 
+	if (dimp_get(edi_mp_di_debug_flag) & 0x100000) {
+		itf->c.m_mode_n = EPVPP_MEM_T_NONE;
+	}
+
 	if (mode_back != itf->c.m_mode_n) {
 		dbg_plink1("ch[%d]:mode:%d->%d\n",
 			itf->bind_ch, mode_back, itf->c.m_mode_n);
