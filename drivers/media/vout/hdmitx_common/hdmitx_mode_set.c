@@ -8,7 +8,11 @@
 #include <linux/printk.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_edid.h>
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 #include <linux/amlogic/media/amvecm/amvecm.h>
+#endif
+
 #include "hdmitx_log.h"
 #include "hdmitx_check_valid.h"
 
@@ -49,12 +53,14 @@ void hdrinfo_to_vinfo(struct hdr_info *hdrinfo, struct hdmitx_common *tx_comm)
 {
 	memcpy(hdrinfo, &tx_comm->rxcap.hdr_info, sizeof(struct hdr_info));
 	hdrinfo->colorimetry_support = tx_comm->rxcap.colorimetry_data;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 	/* HDR10plus is only supported by OTT when is_hdr10plus_enable is true */
 	if (!is_hdr10plus_enable()) {
 		hdrinfo->hdr10plus_info.ieeeoui = 0;
 		hdrinfo->hdr10plus_info.length = 0;
 		hdrinfo->hdr10plus_info.application_version = 0;
 	}
+#endif
 }
 
 void rxlatency_to_vinfo(struct hdmitx_common *tx_comm)
@@ -463,8 +469,10 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 		hdmitx_common_edid_clear(tx_comm);
 
 	/* step4: HW: clear packets */
-	if (pkt_clear)
+	if (pkt_clear) {
+		HDMITX_INFO("%s: clear hdmitx pkt\n", __func__);
 		tx_comm->ctrl_ops->clear_pkt(tx_hw_base);
+	}
 
 	/* step5: reset hdcp */
 	if (hdcp_reset)
