@@ -1073,6 +1073,7 @@
 
 		pwdn-gpios = <&gpio GPIOX_5 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio GPIOX_4 GPIO_ACTIVE_HIGH>;
+		camvdd-gpios = <&gpio GPIOA_13 GPIO_ACTIVE_HIGH>;
 
 		port {
 			amlsens_0_ep: endpoint {
