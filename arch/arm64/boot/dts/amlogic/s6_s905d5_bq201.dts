@@ -391,8 +391,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				prefix-names = "AMP";
-				sound-dai = <&sy602x_54>;
+				prefix-names = "AMP", "AMP1";
+				sound-dai = <&tas5707_1b &tas5707_1d &dummy_codec>;
 			};
 		};
 
@@ -1094,17 +1094,24 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c0_pins4>;
 	clock-frequency = <300000>; /* default 100k */
-	sy602x_54: sy602x_54@2a {
-		compatible = "silergy,sy602x";
+	tas5707_1b: tas5707_1b@1b {
+		compatible = "ti,tas5707";
 		#sound-dai-cells = <0>;
-		reg = <0x2a>;
+		reg = <0x1b>;
 		status = "okay";
-		reset_pin-gpios = <&gpio GPIOD_5 GPIO_ACTIVE_HIGH>;
+		reset_pin = <&gpio GPIOF_2 0>;
+	};
+	tas5707_1d: tas5707_1d@1d {
+		compatible = "ti,tas5707";
+		#sound-dai-cells = <0>;
+		reg = <0x1d>;
+		status = "okay";
+		//reset_pin = <&gpio GPIOF_2 0>;
 	};
 	aw9523: aw9523_led@5b {
 		compatible = "amlogic,aw9523b_led";
 		reg = <0x5b>;
-		status = "okay";
+		status = "disabled";
 		//reset-gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
 		platform = <10>;
 
@@ -1174,7 +1181,7 @@
 }; /* end of periphs_pinctrl */
 
 &audio_data {
-	status = "disabled";
+	status = "okay";
 };
 
 &usb_phy20 {
@@ -1538,4 +1545,72 @@
 &amlogic_codec {
 	tocodec_inout = <1>;
 	tdmout_index = <1>;
+};
+
+&pdma {
+	/*on the board use sd card*/
+	//pinctrl-names = "pdm_pins";
+	//pinctrl-0 = <&pdminc_pins>;
+};
+
+&tdmc {
+	clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+				&clkc CLKID_HIFI0_PLL
+				&clkc CLKID_HIFI1_PLL
+				&clkaudio CLKID_AUDIO_MCLK_PAD1>;
+	clock-names = "mclk", "clk_srcpll", "clk_src_cd", "mclk_pad";
+	pinctrl-names = "tdm_pins";
+	pinctrl-0 = <&i2s_gpio_a_pins_1
+		&tdm_d4_pins
+		&tdm_d5_pins
+		&tdmc_clk_pins
+		&mclk2_pins>;
+};
+
+&spdifa {
+		pinctrl-names = "spdif_pins", "spdif_pins_mute";
+		pinctrl-0 = <&spdif_out_a_h4_pins>;
+		pinctrl-1 = <&spdif_out_a_h4_mute_pins>;
+};
+
+&pinctrl_audio {
+	tdm_d4_pins: tdm_d4_pin {
+		mux {
+			groups = "tdm_d2";
+			function = "tdmoutc_lane0";
+		};
+	};
+
+	tdm_d5_pins: tdm_d5_pin {
+		mux {
+			groups = "tdm_d2";
+			function = "tdmoutc_lane1";
+		};
+	};
+
+	tdmc_clk_pins: tdmc_clk_pin {
+		mux {
+			groups = "tdm_sclk2", "tdm_lrclk2";
+			function = "tdm_clk_outc";
+		};
+	};
+};
+
+&periphs_pinctrl {
+	i2s_gpio_a_pins_1: i2s_gpio_a_1 {
+		mux { /* GPIOA_6 GPIOA_7 GPIOA_2 GPIOA_3 */
+			groups = "tdm_fs2_a",
+				"tdm_sclk2_a",
+				"tdm_d4_a",
+				"tdm_d5_a";
+			function = "tdm";
+		};
+	};
+
+	mclk2_pins: mclk_2 {
+		mux { /* GPIOA_8 */
+			groups = "mclk_2_a";
+			function = "mclk";
+		};
+	};
 };

@@ -231,8 +231,6 @@
 			"dclk_srcpll",
 			"pdm_dclk",
 			"pdm_sysclk";
-		pinctrl-names = "pdm_pins";
-		pinctrl-0 = <&pdmin>;
 		train_sample_count = <10>;
 		lane-mask-in = <0 0 0 1>;
 		src-clk-freq = <491520000>;
@@ -528,6 +526,17 @@
 		mux { /* GPIOA9  GPIOA10*/
 			groups = "pdm_dclk_a9",
 				"pdm_din3_a";
+			function = "pdm";
+		};
+	};
+
+	pdminc_pins: pdminc_pin{
+		mux { /* GPIOC_0  GPIOC_1 GPIOC_2 GPIOC_3 GPIOC_4*/
+			groups = "pdm_din0_c",
+				"pdm_din1_c",
+				"pdm_din2_c",
+				"pdm_din3_c",
+				"pdm_dclk_c";
 			function = "pdm";
 		};
 	};

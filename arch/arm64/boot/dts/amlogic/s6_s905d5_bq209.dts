@@ -391,8 +391,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				prefix-names = "AMP";
-				sound-dai = <&dummy_codec>;
+				prefix-names = "AMP", "AMP1";
+				sound-dai = <&tas5707_1b &tas5707_1d &dummy_codec>;
 			};
 		};
 
@@ -1022,6 +1022,7 @@
 
 	sd_3v3_reg: fixed@sd_3v3_reg {
 		compatible = "regulator-fixed";
+		status = "okay";
 		regulator-name = "3V3_CARD";
 		vin-supply = <&vdd3v3_ao_reg>;
 		regulator-min-microvolt = <3300000>;
@@ -1036,6 +1037,7 @@
 
 	vddio_c_p: gpio-regulator@vddio_c_p {
 		compatible = "regulator-gpio";
+		status = "okay";
 		regulator-name = "VDDIO_C_P";
 		vin-supply = <&vdd3v3_ao_reg>;
 		regulator-min-microvolt = <1800000>;
@@ -1101,16 +1103,29 @@
 	clock-frequency = <300000>; /* default 100k */
 };
 
+&i2c0 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c0_pins4>;
+	clock-frequency = <300000>; /* default 100k */
+	tas5707_1b: tas5707_1b@1b {
+		compatible = "ti,tas5707";
+		#sound-dai-cells = <0>;
+		reg = <0x1b>;
+		status = "okay";
+		reset_pin = <&gpio GPIOF_2 0>;
+	};
+	tas5707_1d: tas5707_1d@1d {
+		compatible = "ti,tas5707";
+		#sound-dai-cells = <0>;
+		reg = <0x1d>;
+		status = "okay";
+		//reset_pin = <&gpio GPIOF_2 0>;
+	};
+};
+
 &vddcpu0 {
 	status = "okay";
-};
-
-&tdmc {
-
-};
-
-&spdifa {
-
 };
 
 &periphs_pinctrl {
@@ -1126,7 +1141,7 @@
 }; /* end of periphs_pinctrl */
 
 &audio_data {
-	status = "disabled";
+	status = "okay";
 };
 
 &usb_phy20 {
@@ -1490,4 +1505,71 @@
 &amlogic_codec {
 	tocodec_inout = <1>;
 	tdmout_index = <1>;
+};
+
+&pdma {
+	//pinctrl-names = "pdm_pins";
+	//pinctrl-0 = <&pdminc_pins>;
+};
+
+&tdmc {
+	clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+				&clkc CLKID_HIFI0_PLL
+				&clkc CLKID_HIFI1_PLL
+				&clkaudio CLKID_AUDIO_MCLK_PAD1>;
+	clock-names = "mclk", "clk_srcpll", "clk_src_cd", "mclk_pad";
+	pinctrl-names = "tdm_pins";
+	pinctrl-0 = <&i2s_gpio_a_pins_1
+		&tdm_d4_pins
+		&tdm_d5_pins
+		&tdmc_clk_pins
+		&mclk2_pins>;
+};
+
+&spdifa {
+		pinctrl-names = "spdif_pins", "spdif_pins_mute";
+		pinctrl-0 = <&spdif_out_a_h4_pins>;
+		pinctrl-1 = <&spdif_out_a_h4_mute_pins>;
+};
+
+&pinctrl_audio {
+	tdm_d4_pins: tdm_d4_pin {
+		mux {
+			groups = "tdm_d2";
+			function = "tdmoutc_lane0";
+		};
+	};
+
+	tdm_d5_pins: tdm_d5_pin {
+		mux {
+			groups = "tdm_d2";
+			function = "tdmoutc_lane1";
+		};
+	};
+
+	tdmc_clk_pins: tdmc_clk_pin {
+		mux {
+			groups = "tdm_sclk2", "tdm_lrclk2";
+			function = "tdm_clk_outc";
+		};
+	};
+};
+
+&periphs_pinctrl {
+	i2s_gpio_a_pins_1: i2s_gpio_a_1 {
+		mux { /* GPIOA_6 GPIOA_7 GPIOA_2 GPIOA_3 */
+			groups = "tdm_fs2_a",
+				"tdm_sclk2_a",
+				"tdm_d4_a",
+				"tdm_d5_a";
+			function = "tdm";
+		};
+	};
+
+	mclk2_pins: mclk_2 {
+		mux { /* GPIOA_8 */
+			groups = "mclk_2_a";
+			function = "mclk";
+		};
+	};
 };
