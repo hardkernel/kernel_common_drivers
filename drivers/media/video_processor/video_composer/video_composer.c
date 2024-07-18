@@ -2937,6 +2937,8 @@ static void vframe_composer(struct composer_dev *dev)
 		src_vf = NULL;
 	}
 
+	src_vf = common_para.input_para.vframe;
+
 	for (i = 0; i < count; i++) {
 		if (!input_vf[i] || out_axis[i].width == 0 || out_axis[i].height == 0) {
 			vc_print(dev->index, PRINT_AIFACE, "invalid aiface param.\n");
@@ -3185,7 +3187,7 @@ static void vframe_composer(struct composer_dev *dev)
 			dewarp_src_h = vframe_info_cur->buffer_h;
 		}
 
-		if (is_src_crop_valid(src_vf->src_crop)) {
+		if (src_vf && is_src_crop_valid(src_vf->src_crop)) {
 			dewarp_crop_top =
 				MAX(vframe_info_cur->crop_y, src_vf->src_crop.top);
 			dewarp_crop_left =
