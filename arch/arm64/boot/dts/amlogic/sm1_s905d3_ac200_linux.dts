@@ -367,20 +367,12 @@
 		clocks = <&clkc CLKID_24M_CLK_GATE>;
 		clock-names = "g12a_24m";
 		cam_0{
+			status = "okay";
 			cam_name = "ov5640";
-			front_back = <0>;
 			camera-i2c-bus = <&i2c2>;
 			camvdd-gpios = <&gpio GPIOZ_5 GPIO_ACTIVE_HIGH>;
 			gpio_pwdn-gpios = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
 			gpio_rst-gpios = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
-			mirror_flip = <1>;
-			vertical_flip = <1>;
-			spread_spectrum = <0>;
-			bt_path = "csi";
-			interface = "mipi";
-			clk_channel = "a";
-			bt_path_count = <1>;
-			status = "okay";
 		};
 	};
 

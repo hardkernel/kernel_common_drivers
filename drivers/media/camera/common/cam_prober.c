@@ -36,16 +36,8 @@
 #include <linux/clk.h>
 #include <linux/errno.h>
 
-#define CONFIG_ARCH_MESON8
-
-static struct platform_device *cam_pdev;
-static struct clk *cam_clk;
-static unsigned int bt_path_count;
-
-static unsigned int camera0_pwdn_pin;
-static unsigned int camera0_rst_pin;
-static unsigned int camera1_pwdn_pin;
-static unsigned int camera1_rst_pin;
+#include "cam_probe.h"
+#include "cam_probe_s6.h"
 
 static struct aml_cam_info_s *temp_cam;
 
@@ -197,9 +189,6 @@ static int aml_i2c_put_word_add8(struct i2c_adapter *adapter,
 		return -1;
 	return 0;
 }
-
-extern struct i2c_client *
-i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info);
 
 #ifdef CONFIG_AMLOGIC_VIDEO_CAPTURE_GC0307
 int gc0307_v4l2_probe(struct i2c_adapter *adapter)
@@ -941,8 +930,6 @@ static const struct aml_cam_dev_info_s *get_cam_info_by_name(const char *name)
 	/*pr_info("cam_devs num is %d\n", ARRAY_SIZE(cam_devs));*/
 	for (i = 0; i < ARRAY_SIZE(cam_devs); i++) {
 		if (!strcmp(name, cam_devs[i].name)) {
-			pr_info("camera dev %s found\n", cam_devs[i].name);
-			pr_info("camera i2c addr: 0x%x\n", cam_devs[i].addr);
 			return &cam_devs[i];
 		}
 	}
@@ -999,162 +986,61 @@ static const struct res_item res_item_array[] = {
 
 };
 
-static enum resolution_size get_res_size(const char *res_str)
-{
-	enum resolution_size ret = SIZE_NULL;
-	const struct res_item *item;
-	int i;
-
-	if (!res_str)
-		return SIZE_NULL;
-	for (i = 0; i < ARRAY_SIZE(res_item_array); i++) {
-		item = &res_item_array[i];
-		if (!strcmp(item->name, res_str)) {
-			ret = item->size;
-			return ret;
-		}
-	}
-
-	return ret;
-}
-
-static inline void GXBB_cam_enable_clk(void)
-{
-	struct clk *clk;
-
-	clk = clk_get(&cam_pdev->dev, "clk_camera_24");
-	if (IS_ERR(clk)) {
-		pr_info("cannot get camera m-clock\n");
-		clk = NULL;
-	} else {
-		cam_clk = clk;
-		clk_prepare_enable(clk);
-	}
-}
-
-static inline void GXBB_cam_disable_clk(int spread_spectrum)
-{
-	if (cam_clk) {
-		clk_disable_unprepare(cam_clk);
-		clk_put(cam_clk);
-	}
-}
-
-static inline void GX12_cam_enable_clk(void)
+static inline void GX12_cam_enable_clk(struct aml_cam_info_s *cam_dev)
 {
 	struct clk *clk;
 	unsigned long clk_rate;
+	struct platform_device *pdev = cam_dev->cam_plat_dev;
 
-	clk = devm_clk_get(&cam_pdev->dev, "g12a_24m");
+	clk = devm_clk_get(&pdev->dev, "g12a_24m");
 	if (IS_ERR(clk)) {
-		pr_info("cannot get camera m-clock\n");
+		pr_err("cannot get camera m-clock\n");
 		clk = NULL;
 	} else {
-		cam_clk = clk;
+		cam_dev->mclk = clk;
 		clk_set_rate(clk, 24000000);
 		clk_prepare_enable(clk);
 		clk_rate = clk_get_rate(clk);
 	}
 }
 
-static inline void GX12_cam_disable_clk(int spread_spectrum)
+static inline void GX12_cam_disable_clk(struct aml_cam_info_s *cam_dev)
 {
-	if (cam_clk) {
-		clk_disable_unprepare(cam_clk);
-		devm_clk_put(&cam_pdev->dev, cam_clk);
-		pr_info("Success disable mclk\n");
+	struct platform_device *pdev = cam_dev->cam_plat_dev;
+
+	if (cam_dev->mclk) {
+		clk_disable_unprepare(cam_dev->mclk);
+		devm_clk_put(&pdev->dev, cam_dev->mclk);
+		cam_dev->mclk = NULL;
 	}
 }
-
-static inline void cam_enable_clk(int clk, int spread_spectrum)
-{
-	pr_err("camera mclk enable failed, unsupport chip\n");
-}
-
-static inline void cam_disable_clk(int spread_spectrum)
-{
-	pr_err("camera mclk disable failed, unsupport chip\n");
-}
-
-/*static struct platform_device *cam_pdev;*/
 
 void aml_cam_init(struct aml_cam_info_s *cam_dev)
 {
-	/*select XTAL as camera clock*/
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
-		GXBB_cam_enable_clk();
-	else
-#endif
-	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_G12A) ||
-		(get_cpu_type() == MESON_CPU_MAJOR_ID_G12B) ||
-		(is_meson_sm1_cpu()))
-		GX12_cam_enable_clk();
-	else
-		cam_enable_clk(cam_dev->mclk, cam_dev->spread_spectrum);
-
-	/*coding style need: msleep < 20ms can sleep for up to 20ms*/
-	msleep(20);
-	/*set camera power enable*/
-	if (!cam_dev->front_back) {
-		cam_dev->pwdn_pin = camera0_pwdn_pin;
-		cam_dev->rst_pin = camera0_rst_pin;
-	} else {
-		cam_dev->pwdn_pin = camera1_pwdn_pin;
-		cam_dev->rst_pin = camera1_rst_pin;
-	}
-
-	gpio_direction_output(cam_dev->pwdn_pin, cam_dev->pwdn_act);
-
-	msleep(20);
-
-	gpio_direction_output(cam_dev->pwdn_pin, !(cam_dev->pwdn_act));
-
-	msleep(20);
-
-	gpio_direction_output(cam_dev->rst_pin, 0);
-
-	msleep(20);
-
+	gpio_direction_output(cam_dev->pwdn_pin, 0);
 	gpio_direction_output(cam_dev->rst_pin, 1);
 
-	msleep(20);
+	if (get_cam_type(cam_dev) == CAM_ON_S6_S905D5) {
+		cam_enable_clk_s6(cam_dev);
+	} else {
+		// default to sm1
+		GX12_cam_enable_clk(cam_dev);
+	}
 
-	pr_info("aml_cams: %s init OK\n", cam_dev->name);
+	usleep_range(10000, 15000);
 }
 
 void aml_cam_uninit(struct aml_cam_info_s *cam_dev)
 {
-	int ret;
+	if (get_cam_type(cam_dev) == CAM_ON_S6_S905D5) {
+		cam_disable_clk_s6(cam_dev);
+	} else {
+		// default to sm1
+		GX12_cam_disable_clk(cam_dev);
+	}
 
-	pr_info("aml_cams: %s uninit.\n", cam_dev->name);
-	/*set camera power disable*/
-	/*coding style need: msleep < 20ms can sleep for up to 20ms*/
-	/*msleep(20);*/
-
-	ret = gpio_direction_output(cam_dev->pwdn_pin, cam_dev->pwdn_act);
-	if (ret < 0)
-		pr_info("%s pwdn_pin output pwdn_act failed\n", __func__);
-
-	msleep(20);
-
-	ret = gpio_direction_output(cam_dev->rst_pin, 0);
-	if (ret < 0)
-		pr_info("%s rst_pin output rst_pin failed\n", __func__);
-
-	msleep(20);
-
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXBB)
-		GXBB_cam_disable_clk(cam_dev->spread_spectrum);
-	else
-#endif
-	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_G12A) ||
-		(get_cpu_type() == MESON_CPU_MAJOR_ID_G12B) ||
-		(is_meson_sm1_cpu()))
-		GX12_cam_disable_clk(cam_dev->spread_spectrum);
-	else
-		cam_disable_clk(cam_dev->spread_spectrum);
+	gpio_direction_output(cam_dev->pwdn_pin, 1);
+	gpio_direction_output(cam_dev->rst_pin, 0);
 }
 
 void aml_cam_flash(struct aml_cam_info_s *cam_dev, int is_on)
@@ -1191,123 +1077,88 @@ static struct list_head cam_head = LIST_HEAD_INIT(cam_head);
 
 #define DEBUG_DUMP_CAM_INFO
 
-static int fill_csi_dev(struct device_node *p_node,
-			struct aml_cam_info_s *cam_dev)
+static void set_cam_common_info(struct aml_cam_info_s *cam_dev)
 {
-	const char *str;
-	int ret = 0;
-
-	ret = of_property_read_string(p_node, "clk_channel", &str);
-	if (ret) {
-		pr_info("failed to read clock channel, \"a or b\"\n");
-		cam_dev->clk_channel = CLK_CHANNEL_A;
-	} else {
-		pr_info("clock channel:clk %s\n", str);
-		if (strncmp("a", str, 1) == 0)
-			cam_dev->clk_channel = CLK_CHANNEL_A;
-		else
-			cam_dev->clk_channel = CLK_CHANNEL_B;
-	}
-
-	return ret;
+	cam_dev->spread_spectrum = 0;
+	cam_dev->bt_path = BT_PATH_CSI2;
+	cam_dev->bt_path_count = 1;
+	cam_dev->m_flip = 1;
+	cam_dev->v_flip = 1;
+	cam_dev->mclk_freq = 24000;
+	cam_dev->vcm_mode = 0;
+	cam_dev->interface = CAM_MIPI;
+	cam_dev->bayer_fmt = TVIN_GBRG;
+	cam_dev->clk_channel = CLK_CHANNEL_A;
 }
 
-static int fill_cam_dev(struct device_node *p_node,
-			struct aml_cam_info_s *cam_dev)
+static int parse_power(struct device_node *p_node, struct aml_cam_info_s *cam_dev)
 {
-	const char *str;
-	int ret = 0;
-	const struct aml_cam_dev_info_s *cam_info = NULL;
-	struct device_node *adapter_node = NULL;
-	struct i2c_adapter *adapter = NULL;
-	unsigned int mclk = 0;
-	unsigned int vcm_mode = 0;
-
-	if (!p_node || !cam_dev)
-		return -1;
-
-	ret = of_property_read_u32(p_node, "front_back", &cam_dev->front_back);
-	if (ret) {
-		pr_info("get camera name failed!\n");
-		goto err_out;
-	}
-
-	ret = of_property_read_string(p_node, "cam_name", &cam_dev->name);
-	if (ret) {
-		pr_info("get camera name failed!\n");
-		goto err_out;
-	}
+	int ret;
 
 	cam_dev->cam_vdd = of_get_named_gpio(p_node, "camvdd-gpios", 0);
-	pr_info("cam_dev->cam_vdd = %d\n", cam_dev->cam_vdd);
-	if (cam_dev->cam_vdd > 0) {
+	if (gpio_is_valid(cam_dev->cam_vdd)) {
 		ret = gpio_request(cam_dev->cam_vdd, "camera");
 		if (ret < 0)
 			pr_info("aml_cam_init cam_vdd request failed\n");
 		else
 			gpio_direction_output(cam_dev->cam_vdd, 0);
 	} else {
-		pr_info("%s: failed to map gpio_cam_vdd !\n", cam_dev->name);
-	}
-	cam_dev->pwdn_pin = of_get_named_gpio(p_node, "gpio_pwdn-gpios", 0);
-	if (cam_dev->pwdn_pin == 0) {
-		pr_info("%s: failed to map gpio_pwdn !\n", cam_dev->name);
-		goto err_out;
+		pr_err("%s: failed to map gpio_cam_vdd !\n", cam_dev->name);
 	}
 
+	// pwdn gpio
+	cam_dev->pwdn_pin = of_get_named_gpio(p_node, "gpio_pwdn-gpios", 0);
+	if (!gpio_is_valid(cam_dev->pwdn_pin)) {
+		pr_err("%s: failed to map gpio_pwdn !\n", cam_dev->name);
+		return -1;
+	}
 	ret = gpio_request(cam_dev->pwdn_pin, "camera");
 	if (ret < 0)
-		pr_info("aml_cam_init pwdn_pin request failed\n");
+		pr_err("aml_cam_init pwdn_pin request failed\n");
 
-	if (!cam_dev->front_back)
-		camera0_pwdn_pin = cam_dev->pwdn_pin;
-	else
-		camera1_pwdn_pin = cam_dev->pwdn_pin;
-
+	// reset gpio
 	cam_dev->rst_pin = of_get_named_gpio(p_node, "gpio_rst-gpios", 0);
-	if (cam_dev->rst_pin == 0) {
-		pr_info("%s: failed to map gpio_rst !\n", cam_dev->name);
-		goto err_out;
+	if (!gpio_is_valid(cam_dev->rst_pin)) {
+		pr_err("%s: failed to map gpio_rst !\n", cam_dev->name);
+		return -1;
 	}
 	ret = gpio_request(cam_dev->rst_pin, "camera");
 	if (ret < 0)
-		pr_info("aml_cam_init rst_pin request failed\n");
+		pr_err("aml_cam_init rst_pin request failed\n");
 
-	if (!cam_dev->front_back)
-		camera0_rst_pin = cam_dev->rst_pin;
-	else
-		camera1_rst_pin = cam_dev->rst_pin;
+	return 0;
+}
 
-	cam_info = get_cam_info_by_name(cam_dev->name);
-	if (!cam_info) {
-		pr_info("camera %s is not support\n", cam_dev->name);
-		ret = -1;
+static int fill_cam_dev(struct device_node *p_node,
+			struct aml_cam_info_s *cam_dev)
+{
+	int ret = 0;
+	const struct aml_cam_dev_info_s *cam_info = NULL;
+	struct device_node *adapter_node = NULL;
+	struct i2c_adapter *adapter = NULL;
+
+	if (!p_node || !cam_dev)
+		return -1;
+
+	// must cam_name
+	ret = of_property_read_string(p_node, "cam_name", &cam_dev->name);
+	if (ret) {
+		pr_err("get camera name failed!\n");
 		goto err_out;
 	}
 
-	of_property_read_u32(p_node, "spread_spectrum",
-		&cam_dev->spread_spectrum);
-
-	ret = of_property_read_string(p_node, "bt_path", &str);
-	if (ret) {
-		pr_info("failed to read bt_path\n");
-		cam_dev->bt_path = BT_PATH_GPIO;
-	} else {
-		pr_info("bt_path :%d\n", cam_dev->bt_path);
-		if (strncmp("csi", str, 3) == 0)
-			cam_dev->bt_path = BT_PATH_CSI2;
-		else if (strncmp("gpio_b", str, 6) == 0)
-			cam_dev->bt_path = BT_PATH_GPIO_B;
-		else
-			cam_dev->bt_path = BT_PATH_GPIO;
+	// match driver module.
+	cam_info = get_cam_info_by_name(cam_dev->name);
+	if (!cam_info) {
+		pr_err("camera %s is not support\n", cam_dev->name);
+		ret = -1;
+		goto err_out;
 	}
-	of_property_read_u32(p_node, "bt_path_count", &cam_dev->bt_path_count);
-	bt_path_count = cam_dev->bt_path_count;
+	set_cam_common_info(cam_dev);
 
 	cam_dev->pwdn_act = cam_info->pwdn;
 	cam_dev->i2c_addr = cam_info->addr;
-	pr_info("camera addr: 0x%x\n", cam_dev->i2c_addr);
-	pr_info("camera i2c bus: %d\n", cam_dev->i2c_bus_num);
+	cam_dev->max_cap_size = cam_info->max_cap_size;
 
 	adapter_node = of_parse_phandle(p_node, "camera-i2c-bus", 0);
 	if (adapter_node) {
@@ -1315,15 +1166,21 @@ static int fill_cam_dev(struct device_node *p_node,
 		of_node_put(adapter_node);
 		if (!adapter) {
 			pr_err("%s, failed parse camera-i2c-bus\n",
-			   __func__);
+				__func__);
 			return -1;
 		}
 	}
 
 	if (adapter && cam_info->probe_func) {
+		ret = parse_power(p_node, cam_dev);
+		if (ret < 0) {
+			pr_err("%s, failed get camera-i2c-bus node\n", __func__);
+			ret = -1;
+			goto err_out;
+		}
 		aml_cam_init(cam_dev);
 		if (cam_info->probe_func(adapter) != 1) {
-			pr_info("camera %s not on board\n", cam_dev->name);
+			pr_err("camera %s not on board\n", cam_dev->name);
 			ret = -1;
 			aml_cam_uninit(cam_dev);
 			goto err_out;
@@ -1335,131 +1192,18 @@ static int fill_cam_dev(struct device_node *p_node,
 		goto err_out;
 	}
 
-	of_property_read_u32(p_node, "mirror_flip", &cam_dev->m_flip);
-	of_property_read_u32(p_node, "vertical_flip", &cam_dev->v_flip);
-	of_property_read_u32(p_node, "vdin_path", &cam_dev->vdin_path);
-
-	ret = of_property_read_string(p_node, "max_cap_size", &str);
-	if (ret) {
-		pr_info("failed to read max_cap_size\n");
-	} else {
-		pr_info("max_cap_size :%s\n", str);
-		cam_dev->max_cap_size = get_res_size(str);
-	}
-	if (cam_dev->max_cap_size == SIZE_NULL)
-		cam_dev->max_cap_size = cam_info->max_cap_size;
-
-	ret = of_property_read_u32(p_node, "mclk", &mclk);
-	if (ret)
-		cam_dev->mclk = 24000;
-	else
-		cam_dev->mclk = mclk;
-
-	ret = of_property_read_u32(p_node, "vcm_mode", &vcm_mode);
-	if (ret)
-		cam_dev->vcm_mode = 0;
-	else
-		cam_dev->vcm_mode = vcm_mode;
-	pr_info("vcm mode is %d\n", cam_dev->vcm_mode);
-
-	ret = of_property_read_u32(p_node, "flash_support",
-				   &cam_dev->flash_support);
-	if (cam_dev->flash_support) {
-		of_property_read_u32(p_node, "flash_ctrl_level",
-				     &cam_dev->flash_ctrl_level);
-		ret = of_property_read_string(p_node, "flash_ctrl_pin", &str);
-		if (ret) {
-			pr_info("%s: failed to get flash_ctrl_pin!\n",
-			cam_dev->name);
-			cam_dev->flash_support = 0;
-		} else {
-			cam_dev->flash_ctrl_pin = of_get_named_gpio(p_node,
-			    "flash_ctrl_pin", 0);
-			if (cam_dev->flash_ctrl_pin == 0) {
-				pr_info("%s: failed to map flash_ctrl_pin !\n",
-			    cam_dev->name);
-				cam_dev->flash_support = 0;
-				cam_dev->flash_ctrl_level = 0;
-			}
-			ret = gpio_request(cam_dev->flash_ctrl_pin, "camera");
-			if (ret < 0)
-				pr_info("camera flash_ctrl_pin request failed\n");
-		}
-	}
-
-	ret = of_property_read_u32(p_node, "torch_support",
-				   &cam_dev->torch_support);
-	if (cam_dev->torch_support) {
-		of_property_read_u32(p_node, "torch_ctrl_level",
-				     &cam_dev->torch_ctrl_level);
-		ret = of_property_read_string(p_node, "torch_ctrl_pin", &str);
-		if (ret) {
-			pr_info("%s: failed to get torch_ctrl_pin!\n",
-			    cam_dev->name);
-			cam_dev->torch_support = 0;
-		} else {
-			cam_dev->torch_ctrl_pin = of_get_named_gpio(p_node,
-			   "torch_ctrl_level", 0);
-			ret = gpio_request(cam_dev->torch_ctrl_pin, "camera");
-			if (ret < 0)
-				pr_info("camera torch_ctrl_pin request failed\n");
-		}
-	}
-
-	ret = of_property_read_string(p_node, "interface", &str);
-	if (ret) {
-		pr_info("failed to read camera interface \"mipi or dvp\"\n");
-		cam_dev->interface = CAM_DVP;
-	} else {
-		pr_info("camera interface:%s\n", str);
-		if (strncmp("dvp", str, 1) == 0)
-			cam_dev->interface = CAM_DVP;
-		else
-			cam_dev->interface = CAM_MIPI;
-	}
-	if (cam_dev->interface == CAM_MIPI) {
-		ret = fill_csi_dev(p_node, cam_dev);
-		if (ret < 0)
-			goto err_out;
-	}
-
-	ret = of_property_read_string(p_node, "bayer_fmt", &str);
-	if (ret) {
-		pr_info("failed to read camera bayer fmt\n");
-		cam_dev->bayer_fmt = TVIN_GBRG;
-	} else {
-		pr_info("color format:%s\n", str);
-		if (strncmp("BGGR", str, 4) == 0)
-			cam_dev->bayer_fmt = TVIN_BGGR;
-		else if (strncmp("RGGB", str, 4) == 0)
-			cam_dev->bayer_fmt = TVIN_RGGB;
-		else if (strncmp("GBRG", str, 4) == 0)
-			cam_dev->bayer_fmt = TVIN_GBRG;
-		else if (strncmp("GRBG", str, 4) == 0)
-			cam_dev->bayer_fmt = TVIN_GRBG;
-		else
-			cam_dev->bayer_fmt = TVIN_GBRG;
-	}
-
-	ret = of_property_read_string(p_node, "config_path", &cam_dev->config);
-	if (ret)
-		pr_info("failed to read config_file path\n");
-	else
-		pr_info("config path :%s\n", cam_dev->config);
-
 #ifdef DEBUG_DUMP_CAM_INFO
 	pr_info("=======cam %s info=======\n"
-	       "i2c_bus_num: %d\n"
-	       "pwdn_act: %d\n"
-	       "front_back: %d\n"
-	       "m_flip: %d\n"
-	       "v_flip: %d\n"
-	       "i2c_addr: 0x%x\n"
-	       "config path:%s\n"
-	       "bt_path:%d\n",
-	       cam_dev->name, cam_dev->i2c_bus_num, cam_dev->pwdn_act,
-	       cam_dev->front_back, cam_dev->m_flip, cam_dev->v_flip,
-	       cam_dev->i2c_addr, cam_dev->config, cam_dev->bt_path);
+		"i2c_bus_num: %d\n"
+		"pwdn_act: %d\n"
+		"front_back: %d\n"
+		"m_flip: %d\n"
+		"v_flip: %d\n"
+		"i2c_addr: 0x%x\n"
+		"bt_path:%d\n",
+		cam_dev->name, cam_dev->i2c_bus_num, cam_dev->pwdn_act,
+		cam_dev->front_back, cam_dev->m_flip, cam_dev->v_flip,
+		cam_dev->i2c_addr, cam_dev->bt_path);
 #endif /* DEBUG_DUMP_CAM_INFO */
 
 	ret = 0;
@@ -1616,9 +1360,8 @@ static int do_write_work(char argn, char **argv)
 
 static struct class *cam_clsp;
 
-static ssize_t show_help(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t show_help(const struct class *class, const struct class_attribute *attr,
+			 char *buf)
 {
 	ssize_t size = 0;
 
@@ -1630,8 +1373,8 @@ static ssize_t show_help(const struct class *class,
 }
 
 static ssize_t store_i2c_debug(const struct class *class,
-			const struct class_attribute *attr,
-			const char *buf, size_t count)
+	const struct class_attribute *attr, const char *buf,
+		size_t count)
 {
 	int argn;
 	char *buf_work, *p, *para;
@@ -1672,9 +1415,8 @@ end:
 
 static LIST_HEAD(info_head);
 
-static ssize_t cam_info_show(const struct class *class,
-			const struct class_attribute *attr,
-			char *buf)
+static ssize_t cam_info_show(const struct class *class, const struct class_attribute *attr,
+	char *buf)
 {
 	struct list_head *p;
 	struct aml_cam_info_s *cam_info = NULL;
@@ -1682,7 +1424,7 @@ static ssize_t cam_info_show(const struct class *class,
 
 	if (!list_empty(&info_head)) {
 		count += sprintf(&buf[count],
-	    "name\t\tversion\t\t\t\tface_dir\t"
+		"name\t\tversion\t\t\t\tface_dir\t"
 			 "i2c_addr\n");
 		list_for_each(p, &info_head) {
 			cam_info = list_entry(p, struct aml_cam_info_s,
@@ -1728,51 +1470,83 @@ int aml_cam_info_unreg(struct aml_cam_info_s *cam_info)
 	return ret;
 }
 
+static unsigned int cam_on_sm1 = CAM_ON_SM1_S905D3;
+static unsigned int cam_on_s6 = CAM_ON_S6_S905D5;
+
+static const struct of_device_id cams_prober_dt_match[] = {
+	{
+		.compatible = "amlogic, cams_prober",
+		.data = &cam_on_sm1,
+	},
+	{
+		.compatible = "amlogic, cams_prober-s6",
+		.data = &cam_on_s6,
+	}, {},
+};
+
 static int aml_cams_probe(struct platform_device *pdev)
 {
 	struct device_node *cams_node = pdev->dev.of_node;
 	struct device_node *child;
-	//struct i2c_board_info board_info;
-	struct i2c_adapter *adapter = NULL;
-	struct device_node *adapter_node = NULL;
+
 	struct timeval camera_start;
 	struct timeval camera_end;
 	int i;
+	int cam_matched_driver = 0;
 	unsigned long time_use = 0;
+	int cam_type = CAM_ON_SM1_S905D3;
+
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		unsigned int *matched_data;
+
+		match = of_match_node(cams_prober_dt_match, pdev->dev.of_node);
+		if (match) {
+			matched_data = (unsigned int *)match->data;
+			if (matched_data) {
+				cam_type = *matched_data;
+			} else {
+				pr_err("%s data NOT match\n", __func__);
+				return -ENODEV;
+			}
+		} else {
+			pr_err("%s NOT match\n", __func__);
+			return -ENODEV;
+		}
+	}
 
 	temp_cam = kzalloc(sizeof(*temp_cam), GFP_KERNEL);
 	if (!temp_cam)
 		return -ENOMEM;
 
-	cam_pdev = pdev;
 	do_gettimeofday(&camera_start);
 	for_each_child_of_node(cams_node, child) {
 		memset(temp_cam, 0, sizeof(*temp_cam));
 
-		if (fill_cam_dev(child, temp_cam))
-			continue;
+		// keep this assignment first.
+		// other initialization may depends on chip info.
+		temp_cam->cam_type = cam_type;
+		temp_cam->cam_plat_dev = pdev;
 
-		adapter_node = of_parse_phandle(child, "camera-i2c-bus", 0);
-		if (adapter_node) {
-			adapter = of_get_i2c_adapter_by_node(adapter_node);
-			of_node_put(adapter_node);
-			if (!adapter) {
-				pr_err("%s, failed parse camera-i2c-bus\n",
-				   __func__);
-				return -1;
-			}
-		} else {
-			pr_err("adapter node is NULL.\n");
-			return -1;
+		if (fill_cam_dev(child, temp_cam) == 0) {
+			cam_matched_driver = 1;
+			break;
 		}
-		pr_info("new i2c device\n");
 	}
+
+	if (cam_matched_driver == 0) {
+		pr_err("can not match any cam driver.\n");
+		goto free_out;
+	}
+
 	do_gettimeofday(&camera_end);
 	time_use = (camera_end.tv_sec - camera_start.tv_sec) * 1000 +
 		(camera_end.tv_usec - camera_start.tv_usec) / 1000;
-	pr_info("camera probe cost time = %ldms\n", time_use);
+	pr_info("aml probe finish, matched %s camera, probe cost time = %ldms\n",
+		temp_cam->name, time_use);
 
-	pr_info("aml probe finish\n");
+	platform_set_drvdata(pdev, temp_cam);
+
 	cam_clsp = class_create("aml_camera");
 	for (i = 0; aml_cam_attrs[i].attr.name; i++) {
 		if (class_create_file(cam_clsp, &aml_cam_attrs[i]) < 0)
@@ -1780,18 +1554,25 @@ static int aml_cams_probe(struct platform_device *pdev)
 	}
 
 	return 0;
+free_out:
+	kfree(temp_cam);
+	return -1;
 }
 
 static int aml_cams_remove(struct platform_device *pdev)
 {
-	if (camera0_pwdn_pin != 0)
-		gpio_free(camera0_pwdn_pin);
-	if (camera0_rst_pin != 0)
-		gpio_free(camera0_rst_pin);
-	if (camera1_pwdn_pin != 0)
-		gpio_free(camera1_pwdn_pin);
-	if (camera1_rst_pin != 0)
-		gpio_free(camera1_rst_pin);
+	struct aml_cam_info_s *cam_dev;
+
+	cam_dev = (struct aml_cam_info_s *)platform_get_drvdata(pdev);
+
+	if (gpio_is_valid(cam_dev->pwdn_pin))
+		gpio_free(cam_dev->pwdn_pin);
+
+	if (gpio_is_valid(cam_dev->rst_pin))
+		gpio_free(cam_dev->rst_pin);
+
+	if (gpio_is_valid(cam_dev->cam_vdd))
+		gpio_free(cam_dev->cam_vdd);
 
 	kfree(temp_cam);
 	temp_cam = NULL;
@@ -1799,35 +1580,31 @@ static int aml_cams_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id cams_prober_dt_match[] = {{
-		.compatible =
-		"amlogic, cams_prober",
-	}, {},
-};
-
 static struct platform_driver aml_cams_prober_driver = {
-	.probe = aml_cams_probe, .remove = aml_cams_remove, .driver = {
-		.name =
-		"aml_cams_prober", .owner = THIS_MODULE, .of_match_table =
-		cams_prober_dt_match,
+	.probe = aml_cams_probe,
+	.remove = aml_cams_remove,
+	.driver = {
+		.name = "aml_cams_prober",
+		.owner = THIS_MODULE,
+		.of_match_table = cams_prober_dt_match,
 	},
 };
 
 int __init aml_cams_prober_init(void)
 {
+	vm_init_module();
+
 	if (platform_driver_register(&aml_cams_prober_driver)) {
 		pr_err("aml_cams_probre_driver register failed\n");
 		return -ENODEV;
 	}
 	flashlight_init();
-	vm_init_module();
 
 	return 0;
 }
 
 static void __exit aml_cams_prober_exit(void)
 {
-	bt_path_count = 0;
 	platform_driver_unregister(&aml_cams_prober_driver);
 	flashlight_exit();
 	vm_remove_module();
