@@ -14733,7 +14733,8 @@ static int aml_lcd_gamma_notifier(struct notifier_block *nb,
 	 */
 	gm_par_idx = param[1];
 
-	if (gm_par_idx >= FREESYNC_DYNAMIC_GAMMA_NUM) {
+	if (gm_par_idx >= FREESYNC_DYNAMIC_GAMMA_NUM &&
+		gm_par_idx != 0xff) {
 		pr_amvecm_dbg("%s: %d\n", __func__, __LINE__);
 		return NOTIFY_DONE;
 	}
