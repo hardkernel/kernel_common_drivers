@@ -525,7 +525,7 @@ static unsigned int frame_lock_check_input_hz(struct vframe_s *vf)
 	else if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI &&
 		 (vrrlock_support & VRRLOCK_SUP_MODE)) {
 		if (duration != 0)
-			ret_hz = (96000 + 150) / duration;
+			ret_hz = (96000 + duration / 2) / duration;
 	} else if (vf->source_type == VFRAME_SOURCE_TYPE_CVBS &&
 	   (vrrlock_support & VRRLOCK_SUPPORT_CVBS)) {
 		ret_hz = 0;
