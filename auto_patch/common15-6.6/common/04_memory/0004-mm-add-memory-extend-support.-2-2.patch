@@ -1,4 +1,4 @@
-From b5ec88775ab9e6e1bd8f7b320cc28955821c3284 Mon Sep 17 00:00:00 2001
+From 8597d5903455a6f7e99a6ee8aadb17a5744d3b32 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Wed, 20 Dec 2023 14:27:52 +0800
 Subject: [PATCH] mm: add memory extend support. [2/2]
@@ -32,7 +32,7 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  drivers/of/of_reserved_mem.c   | 15 +++++++
  fs/dcache.c                    |  4 ++
  fs/inode.c                     |  4 ++
- include/linux/android_kabi.h   |  5 ++-
+ include/linux/android_kabi.h   |  6 +++
  include/linux/android_vendor.h | 10 +++++
  include/linux/mmzone.h         | 13 +++++-
  include/linux/printk.h         |  4 ++
@@ -44,11 +44,11 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  mm/kasan/common.c              |  7 ++++
  mm/page_alloc.c                | 72 ++++++++++++++++++++++++++++++++++
  mm/show_mem.c                  | 12 ++++++
- mm/slab_common.c               | 65 ++++++++++++++++++++++++++++++
+ mm/slab_common.c               | 67 ++++++++++++++++++++++++++++++-
  mm/slub.c                      | 12 ++++++
  mm/usercopy.c                  |  4 ++
  mm/vmscan.c                    | 17 ++++++++
- 21 files changed, 285 insertions(+), 2 deletions(-)
+ 21 files changed, 288 insertions(+), 2 deletions(-)
 
 diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
 index ceb368d33bf4..bc236bc302b5 100644
@@ -141,7 +141,7 @@ index 1d2d65882647..a8abc1b34c00 100644
  		}
  	}
 diff --git a/fs/dcache.c b/fs/dcache.c
-index 9ae808fba517..46edf0e7f89c 100644
+index b670518f8040..0765ca0fc81d 100644
 --- a/fs/dcache.c
 +++ b/fs/dcache.c
 @@ -3265,7 +3265,11 @@ void d_tmpfile(struct file *file, struct inode *inode)
@@ -157,10 +157,10 @@ index 9ae808fba517..46edf0e7f89c 100644
  {
  	if (!str)
 diff --git a/fs/inode.c b/fs/inode.c
-index ae1a6410b53d..e934e1d05924 100644
+index 5876f3ed510b..d006ac99a15b 100644
 --- a/fs/inode.c
 +++ b/fs/inode.c
-@@ -2276,7 +2276,11 @@ static void __wait_on_freeing_inode(struct inode *inode)
+@@ -2287,7 +2287,11 @@ static void __wait_on_freeing_inode(struct inode *inode)
  	spin_lock(&inode_hash_lock);
  }
  
@@ -173,26 +173,29 @@ index ae1a6410b53d..e934e1d05924 100644
  {
  	if (!str)
 diff --git a/include/linux/android_kabi.h b/include/linux/android_kabi.h
-index f6dd7f00b386..ee6b29e8d796 100644
+index 876f36ac7eab..a0d8873c4853 100644
 --- a/include/linux/android_kabi.h
 +++ b/include/linux/android_kabi.h
-@@ -83,12 +83,15 @@
-  *   number: the "number" of the padding variable in the structure.  Start with
-  *   1 and go up.
+@@ -93,6 +93,11 @@
+  *   Same as ANDROID_BACKPORT_RESERVE but allocates an array with the specified
+  *   size in bytes.
   */
 +#ifdef CONFIG_AMLOGIC_MEMORY_OPT
 +#define ANDROID_KABI_RESERVE(number)
++#define ANDROID_BACKPORT_RESERVE(number)
++#define ANDROID_BACKPORT_RESERVE_ARRAY(number, bytes)
 +#else
  #ifdef CONFIG_ANDROID_KABI_RESERVE
- #define ANDROID_KABI_RESERVE(number)	_ANDROID_KABI_RESERVE(number)
- #else
- #define ANDROID_KABI_RESERVE(number)
+ #define ANDROID_KABI_RESERVE(number)			_ANDROID_KABI_RESERVE(number)
+ #define ANDROID_BACKPORT_RESERVE(number)		_ANDROID_BACKPORT_RESERVE(number)
+@@ -102,6 +107,7 @@
+ #define ANDROID_BACKPORT_RESERVE(number)
+ #define ANDROID_BACKPORT_RESERVE_ARRAY(number, bytes)
  #endif
--
-+#endif /* CONFIG_AMLOGIC_OPT */
++#endif
+ 
  
  /*
-  * Macros to use _after_ the ABI is frozen
 diff --git a/include/linux/android_vendor.h b/include/linux/android_vendor.h
 index af3014ccc82e..f5bce42c8d0d 100644
 --- a/include/linux/android_vendor.h
@@ -221,10 +224,10 @@ index af3014ccc82e..f5bce42c8d0d 100644
  
  #endif /* _ANDROID_VENDOR_H */
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 21b5c2b3ca92..a5524a96e357 100644
+index 591d2e923dc7..04c64a3d08d6 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -112,7 +112,18 @@ extern int page_group_by_mobility_disabled;
+@@ -121,7 +121,18 @@ extern int page_group_by_mobility_disabled;
  struct free_area {
  	struct list_head	free_list[MIGRATE_TYPES];
  	unsigned long		nr_free;
@@ -293,10 +296,10 @@ index 31ceb0e469f7..5d3493ff5feb 100644
  EXPORT_SYMBOL(init_task);
  
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 3947122d618b..5e1bae15bb27 100644
+index 516f5d09e379..a87151d0544b 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
-@@ -80,7 +80,9 @@ obj-$(CONFIG_UTS_NS) += utsname.o
+@@ -85,7 +85,9 @@ obj-$(CONFIG_UTS_NS) += utsname.o
  obj-$(CONFIG_USER_NS) += user_namespace.o
  obj-$(CONFIG_PID_NS) += pid_namespace.o
  obj-$(CONFIG_IKCONFIG) += configs.o
@@ -419,10 +422,10 @@ index 256930da578a..69fa54752585 100644
  		     KASAN_PAGE_REDZONE, false);
  
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 83d45d211d41..fbeddfd29b9e 100644
+index 01efdefb2e7b..bd0389ff85ad 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -67,6 +67,9 @@
+@@ -77,6 +77,9 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(mm_page_free);
  #ifdef CONFIG_AMLOGIC_CMA
  #include <linux/amlogic/aml_cma.h>
  #endif
@@ -432,7 +435,7 @@ index 83d45d211d41..fbeddfd29b9e 100644
  
  /* Free Page Internal flags: for internal, non-pcp variants of free_pages(). */
  typedef int __bitwise fpi_t;
-@@ -695,6 +698,10 @@ static inline void add_to_free_list(struct page *page, struct zone *zone,
+@@ -754,6 +757,10 @@ static inline void add_to_free_list(struct page *page, struct zone *zone,
  
  	list_add(&page->buddy_list, &area->free_list[migratetype]);
  	area->nr_free++;
@@ -443,7 +446,7 @@ index 83d45d211d41..fbeddfd29b9e 100644
  }
  
  /* Used for pages not on another list */
-@@ -705,6 +712,10 @@ static inline void add_to_free_list_tail(struct page *page, struct zone *zone,
+@@ -764,6 +771,10 @@ static inline void add_to_free_list_tail(struct page *page, struct zone *zone,
  
  	list_add_tail(&page->buddy_list, &area->free_list[migratetype]);
  	area->nr_free++;
@@ -454,7 +457,7 @@ index 83d45d211d41..fbeddfd29b9e 100644
  }
  
  /*
-@@ -718,6 +729,10 @@ static inline void move_to_free_list(struct page *page, struct zone *zone,
+@@ -777,6 +788,10 @@ static inline void move_to_free_list(struct page *page, struct zone *zone,
  	struct free_area *area = &zone->free_area[order];
  
  	list_move_tail(&page->buddy_list, &area->free_list[migratetype]);
@@ -465,7 +468,7 @@ index 83d45d211d41..fbeddfd29b9e 100644
  }
  
  static inline void del_page_from_free_list(struct page *page, struct zone *zone,
-@@ -731,6 +746,9 @@ static inline void del_page_from_free_list(struct page *page, struct zone *zone,
+@@ -790,6 +805,9 @@ static inline void del_page_from_free_list(struct page *page, struct zone *zone,
  	__ClearPageBuddy(page);
  	set_page_private(page, 0);
  	zone->free_area[order].nr_free--;
@@ -475,9 +478,9 @@ index 83d45d211d41..fbeddfd29b9e 100644
  }
  
  static inline struct page *get_page_from_free_area(struct free_area *area,
-@@ -858,7 +876,15 @@ static inline void __free_one_page(struct page *page,
- 	else if (is_shuffle_order(order))
- 		to_tail = shuffle_pick_tail();
+@@ -922,7 +940,15 @@ static inline void __free_one_page(struct page *page,
+ 	else if (order + 1 >= max_order)
+ 		to_tail = false;
  	else
 +	#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && defined(CONFIG_KASAN)
 +		/*
@@ -491,7 +494,7 @@ index 83d45d211d41..fbeddfd29b9e 100644
  
  	if (to_tail)
  		add_to_free_list_tail(page, zone, order, migratetype);
-@@ -2439,7 +2465,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
+@@ -2530,7 +2556,15 @@ static void free_unref_page_commit(struct zone *zone, struct per_cpu_pages *pcp,
  
  	__count_vm_events(PGFREE, 1 << order);
  	pindex = order_to_pindex(migratetype, order);
@@ -507,7 +510,7 @@ index 83d45d211d41..fbeddfd29b9e 100644
  	pcp->count += 1 << order;
  
  	/*
-@@ -4553,6 +4587,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
+@@ -4776,6 +4810,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
  	 */
  	alloc_flags |= alloc_flags_nofragment(ac.preferred_zoneref->zone, gfp);
  
@@ -517,7 +520,7 @@ index 83d45d211d41..fbeddfd29b9e 100644
  	/* First allocation attempt */
  	page = get_page_from_freelist(alloc_gfp, order, alloc_flags, &ac);
  	if (likely(page))
-@@ -6700,6 +6737,41 @@ bool put_page_back_buddy(struct page *page)
+@@ -6924,6 +6961,41 @@ bool put_page_back_buddy(struct page *page)
  }
  #endif
  
@@ -560,20 +563,20 @@ index 83d45d211d41..fbeddfd29b9e 100644
  bool has_managed_dma(void)
  {
 diff --git a/mm/show_mem.c b/mm/show_mem.c
-index 4b888b18bdde..abb4896037f8 100644
+index 7d32c9030fb8..d2c802c0e091 100644
 --- a/mm/show_mem.c
 +++ b/mm/show_mem.c
-@@ -357,6 +357,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
- 		unsigned int order;
- 		unsigned long nr[MAX_ORDER + 1], flags, total = 0;
- 		unsigned char types[MAX_ORDER + 1];
-+	#ifdef CONFIG_AMLOGIC_MEMORY_STAT
-+		unsigned long free_mt[MIGRATE_TYPES] = {0};
-+	#endif
+@@ -197,6 +197,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
+ 	int cpu, nid;
+ 	struct zone *zone;
+ 	pg_data_t *pgdat;
++#ifdef CONFIG_AMLOGIC_MEMORY_STAT
++	unsigned long free_mt[MIGRATE_TYPES] = {0};
++#endif
  
+ 	for_each_populated_zone(zone) {
  		if (zone_idx(zone) > max_zone_idx)
- 			continue;
-@@ -375,6 +378,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
+@@ -381,6 +384,9 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
  
  			types[order] = 0;
  			for (type = 0; type < MIGRATE_TYPES; type++) {
@@ -583,7 +586,7 @@ index 4b888b18bdde..abb4896037f8 100644
  				if (!free_area_empty(area, type))
  					types[order] |= 1 << type;
  			}
-@@ -387,6 +393,12 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
+@@ -393,6 +399,12 @@ static void show_free_areas(unsigned int filter, nodemask_t *nodemask, int max_z
  				show_migration_types(types[order]);
  		}
  		printk(KERN_CONT "= %lukB\n", K(total));
@@ -597,7 +600,7 @@ index 4b888b18bdde..abb4896037f8 100644
  
  	for_each_online_node(nid) {
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index c4600e2e757a..bd6eeb404329 100644
+index 83ee052392a7..89ffb46095c6 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
 @@ -31,6 +31,10 @@
@@ -623,7 +626,7 @@ index c4600e2e757a..bd6eeb404329 100644
  
  static int __init setup_slab_nomerge(char *str)
  {
-@@ -1068,7 +1076,13 @@ void kfree(const void *object)
+@@ -1073,7 +1081,13 @@ void kfree(const void *object)
  
  	folio = virt_to_folio(object);
  	if (unlikely(!folio_test_slab(folio))) {
@@ -637,7 +640,7 @@ index c4600e2e757a..bd6eeb404329 100644
  		return;
  	}
  
-@@ -1093,6 +1107,9 @@ EXPORT_SYMBOL(kfree);
+@@ -1098,6 +1112,9 @@ EXPORT_SYMBOL(kfree);
  size_t __ksize(const void *object)
  {
  	struct folio *folio;
@@ -647,7 +650,7 @@ index c4600e2e757a..bd6eeb404329 100644
  
  	if (unlikely(object == ZERO_SIZE_PTR))
  		return 0;
-@@ -1100,10 +1117,21 @@ size_t __ksize(const void *object)
+@@ -1105,10 +1122,21 @@ size_t __ksize(const void *object)
  	folio = virt_to_folio(object);
  
  	if (unlikely(!folio_test_slab(folio))) {
@@ -669,7 +672,7 @@ index c4600e2e757a..bd6eeb404329 100644
  		return folio_size(folio);
  	}
  
-@@ -1166,11 +1194,23 @@ static void *__kmalloc_large_node(size_t size, gfp_t flags, int node)
+@@ -1171,11 +1199,23 @@ static void *__kmalloc_large_node(size_t size, gfp_t flags, int node)
  		flags = kmalloc_fix_flags(flags);
  
  	flags |= __GFP_COMP;
@@ -693,7 +696,7 @@ index c4600e2e757a..bd6eeb404329 100644
  	}
  
  	trace_android_vh_kmalloc_large_alloced(page, order, flags);
-@@ -1263,12 +1303,21 @@ static void print_slabinfo_header(struct seq_file *m)
+@@ -1268,12 +1308,21 @@ static void print_slabinfo_header(struct seq_file *m)
  #else
  	seq_puts(m, "slabinfo - version: 2.1\n");
  #endif
@@ -703,7 +706,7 @@ index c4600e2e757a..bd6eeb404329 100644
 +	seq_puts(m, "<objsize> <objperslab> <pagesperslab>");
 +#else
  	seq_puts(m, "# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab>");
-+#endif /* CONFIG_AMLOGIC_MEMORY_EXTEND */
++#endif
  	seq_puts(m, " : tunables <limit> <batchcount> <sharedfactor>");
  	seq_puts(m, " : slabdata <active_slabs> <num_slabs> <sharedavail>");
  #ifdef CONFIG_DEBUG_SLAB
@@ -713,17 +716,18 @@ index c4600e2e757a..bd6eeb404329 100644
 +#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 +	seq_puts(m, " : <total bytes> <reclaim>");
  #endif
+ 	trace_android_vh_print_slabinfo_header(m);
  	seq_putc(m, '\n');
- }
-@@ -1292,18 +1341,34 @@ static void slab_stop(struct seq_file *m, void *p)
+@@ -1298,18 +1347,34 @@ static void slab_stop(struct seq_file *m, void *p)
  static void cache_show(struct kmem_cache *s, struct seq_file *m)
  {
  	struct slabinfo sinfo;
+-
 +#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 +	char name[32];
 +	long total;
 +#endif
- 
++ 
  	memset(&sinfo, 0, sizeof(sinfo));
  	get_slabinfo(s, &sinfo);
  
@@ -736,7 +740,7 @@ index c4600e2e757a..bd6eeb404329 100644
  	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
  		   s->name, sinfo.active_objs, sinfo.num_objs, s->size,
  		   sinfo.objects_per_slab, (1 << sinfo.cache_order));
-+#endif /* CONFIG_AMLOGIC_MEMORY_EXTEND */
++#endif
  
  	seq_printf(m, " : tunables %4u %4u %4u",
  		   sinfo.limit, sinfo.batchcount, sinfo.shared);
@@ -748,10 +752,10 @@ index c4600e2e757a..bd6eeb404329 100644
 +		(s->flags & SLAB_RECLAIM_ACCOUNT) ? "S_R" : "S_U");
 +#endif
  	slabinfo_show_stats(m, s);
+ 	trace_android_vh_cache_show(m, &sinfo, s);
  	seq_putc(m, '\n');
- }
 diff --git a/mm/slub.c b/mm/slub.c
-index 14781fff1068..196d3740a2e6 100644
+index b813dea7e0a7..72864508357b 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
 @@ -48,6 +48,9 @@
@@ -764,7 +768,7 @@ index 14781fff1068..196d3740a2e6 100644
  /*
   * Lock order:
   *   1. slab_mutex (Global Mutex)
-@@ -3888,7 +3891,12 @@ int build_detached_freelist(struct kmem_cache *s, size_t size,
+@@ -3894,7 +3897,12 @@ int build_detached_freelist(struct kmem_cache *s, size_t size,
  	if (!s) {
  		/* Handle kalloc'ed objects */
  		if (unlikely(!folio_test_slab(folio))) {
@@ -777,7 +781,7 @@ index 14781fff1068..196d3740a2e6 100644
  			df->slab = NULL;
  			return size;
  		}
-@@ -4158,6 +4166,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
+@@ -4164,6 +4172,9 @@ static inline unsigned int calc_slab_order(unsigned int size,
  
  static inline int calculate_order(unsigned int size)
  {
@@ -787,7 +791,7 @@ index 14781fff1068..196d3740a2e6 100644
  	unsigned int order;
  	unsigned int min_objects;
  	unsigned int max_objects;
-@@ -4219,6 +4230,7 @@ static inline int calculate_order(unsigned int size)
+@@ -4225,6 +4236,7 @@ static inline int calculate_order(unsigned int size)
  	if (order <= MAX_ORDER)
  		return order;
  	return -ENOSYS;
@@ -811,10 +815,10 @@ index 83c164aba6e0..98f84510f34c 100644
  		if (n > folio_size(folio) - offset)
  			usercopy_abort("page alloc", NULL, to_user, offset, n);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e5cf1c3f5e52..0eaa325bde30 100644
+index e168cff06706..9735c572c18f 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1718,6 +1718,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
+@@ -1728,6 +1728,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
  	return !data_race(folio_swap_flags(folio) & SWP_FS_OPS);
  }
  
@@ -832,7 +836,7 @@ index e5cf1c3f5e52..0eaa325bde30 100644
  /*
   * shrink_folio_list() returns the number of reclaimed pages
   */
-@@ -1763,7 +1774,11 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1775,7 +1786,11 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		if (unlikely(!folio_evictable(folio)))
  			goto activate_locked;
  
@@ -844,7 +848,7 @@ index e5cf1c3f5e52..0eaa325bde30 100644
  			goto keep_locked;
  
  		/* folio_update_gen() tried to promote this page? */
-@@ -2498,8 +2513,10 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
+@@ -2541,8 +2556,10 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
  	 * won't get blocked by normal direct-reclaimers, forming a circular
  	 * deadlock.
  	 */
@@ -856,5 +860,5 @@ index e5cf1c3f5e52..0eaa325bde30 100644
  	too_many = isolated > inactive;
  
 -- 
-2.42.0
+2.45.2
 

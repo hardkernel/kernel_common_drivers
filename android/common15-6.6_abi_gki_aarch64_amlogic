@@ -8,3 +8,4 @@
 
 # mali_kbase.ko
   __warn_flushing_systemwide_wq
+  __contpte_try_unfold

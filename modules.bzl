@@ -124,7 +124,6 @@ AMLOGIC_COMMON_MODULES = [
     "drivers/net/pcs/pcs_xpcs.ko",
     "drivers/regulator/gpio-regulator.ko",
     "drivers/regulator/pwm-regulator.ko",
-    "fs/ntfs3/ntfs3.ko",
     "net/mac80211/mac80211.ko",
     "net/wireless/cfg80211.ko",
 ]

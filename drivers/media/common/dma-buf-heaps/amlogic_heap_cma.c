@@ -292,8 +292,8 @@ static const struct dma_buf_ops meson_cma_heap_buf_ops = {
 
 static struct dma_buf *meson_cma_heap_allocate(struct dma_heap *heap,
 					 unsigned long len,
-					 unsigned long fd_flags,
-					 unsigned long heap_flags)
+					 u32 fd_flags,
+					 u64 heap_flags)
 {
 	struct meson_cma_heap *meson_cma_heap = dma_heap_get_drvdata(heap);
 	struct meson_cma_heap_buffer *buffer;

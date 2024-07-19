@@ -1,4 +1,4 @@
-From 923d3b3118df2e32403bc7e843c8ecb905c450dc Mon Sep 17 00:00:00 2001
+From d036fee9cb9f63e3fc9e87e14073385109dae76e Mon Sep 17 00:00:00 2001
 From: "qinglin.li" <qinglin.li@amlogic.com>
 Date: Tue, 7 May 2024 17:21:21 +0800
 Subject: [PATCH] tool: bring up androidu with common15-6.6 [1/1]
@@ -17,32 +17,14 @@ local
 Change-Id: Ic6d01b03ec10389f9888aff5f8571f6c7cb2ef13
 Signed-off-by: qinglin.li <qinglin.li@amlogic.com>
 ---
- acloud/linux-x86/{Android.bp => Android_bp}                      | 0
- atest/linux-x86/{Android.bp => Android_bp}                       | 0
- atest/smoke_test_data/instrumentation/{Android.bp => Android_bp} | 0
- atest/smoke_test_data/native/{Android.bp => Android_bp}          | 0
- 4 files changed, 0 insertions(+), 0 deletions(-)
+ acloud/linux-x86/{Android.bp => Android_bp} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)
  rename acloud/linux-x86/{Android.bp => Android_bp} (100%)
- rename atest/linux-x86/{Android.bp => Android_bp} (100%)
- rename atest/smoke_test_data/instrumentation/{Android.bp => Android_bp} (100%)
- rename atest/smoke_test_data/native/{Android.bp => Android_bp} (100%)
 
 diff --git a/acloud/linux-x86/Android.bp b/acloud/linux-x86/Android_bp
 similarity index 100%
 rename from acloud/linux-x86/Android.bp
 rename to acloud/linux-x86/Android_bp
-diff --git a/atest/linux-x86/Android.bp b/atest/linux-x86/Android_bp
-similarity index 100%
-rename from atest/linux-x86/Android.bp
-rename to atest/linux-x86/Android_bp
-diff --git a/atest/smoke_test_data/instrumentation/Android.bp b/atest/smoke_test_data/instrumentation/Android_bp
-similarity index 100%
-rename from atest/smoke_test_data/instrumentation/Android.bp
-rename to atest/smoke_test_data/instrumentation/Android_bp
-diff --git a/atest/smoke_test_data/native/Android.bp b/atest/smoke_test_data/native/Android_bp
-similarity index 100%
-rename from atest/smoke_test_data/native/Android.bp
-rename to atest/smoke_test_data/native/Android_bp
 -- 
-2.42.0
+2.45.2
 

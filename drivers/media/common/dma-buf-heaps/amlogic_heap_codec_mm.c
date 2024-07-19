@@ -427,8 +427,8 @@ free_buffer:
 static struct dma_buf *codec_mm_heap_allocate
 						(struct dma_heap *heap,
 						unsigned long len,
-						unsigned long fd_flags,
-						unsigned long heap_flags)
+						u32 fd_flags,
+						u64 heap_flags)
 {
 	if (!strcmp(dma_heap_get_name(heap), CODECMM_SECURE_HEAP_NAME))
 		heap_flags |= DMABUF_FLAG_EXTEND_PROTECTED;
@@ -443,8 +443,8 @@ static struct dma_buf *codec_mm_heap_allocate
 static struct dma_buf *codec_mm_heap_not_initialized
 						(struct dma_heap *heap,
 						unsigned long len,
-						unsigned long fd_flags,
-						unsigned long heap_flags)
+						u32 fd_flags,
+						u64 heap_flags)
 {
 	return ERR_PTR(-EBUSY);
 }

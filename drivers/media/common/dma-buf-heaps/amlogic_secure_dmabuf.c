@@ -378,8 +378,8 @@ free_buffer:
 static struct dma_buf *secure_uncached_heap_allocate
 						(struct dma_heap *heap,
 						unsigned long len,
-						unsigned long fd_flags,
-						unsigned long heap_flags)
+						u32 fd_flags,
+						u64 heap_flags)
 {
 	pr_enter();
 	return secure_heap_do_allocate(heap, len, fd_flags, heap_flags, true);
@@ -388,8 +388,8 @@ static struct dma_buf *secure_uncached_heap_allocate
 static struct dma_buf *secure_uncached_heap_not_initialized
 						(struct dma_heap *heap,
 						unsigned long len,
-						unsigned long fd_flags,
-						unsigned long heap_flags)
+						u32 fd_flags,
+						u64 heap_flags)
 {
 	pr_enter();
 	return ERR_PTR(-EBUSY);

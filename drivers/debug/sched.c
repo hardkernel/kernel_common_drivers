@@ -139,7 +139,7 @@ static void aml_select_rt_nice(void *data, struct task_struct *p,
 	if (!curr)
 		goto out_unlock;
 
-	if (task_may_not_preempt(curr, prev_cpu) || rt_task(curr)) {
+	if (rt_task(curr)) {
 		test = 1;
 	} else if (curr->prio <= sched_rt_nice_prio) {
 		if (curr->se.depth == 1 &&
