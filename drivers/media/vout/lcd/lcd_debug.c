@@ -1300,7 +1300,7 @@ static int lcd_reg_print_dphy_txhd2(struct aml_lcd_drv_s *pdrv, char *buf, int o
 
 static int lcd_reg_print_phy_analog_HHI(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
-	unsigned char reg_cnt;
+	unsigned char reg_cnt, bus = LCD_REG_DBG_ANA_BUS;
 	int n, len = 0;
 	struct reg_name_set_s phy_analog_reg_sets[] = {
 		{HHI_DIF_CSI_PHY_CNTL1,  "PHY_CNTL1"},
@@ -1324,13 +1324,15 @@ static int lcd_reg_print_phy_analog_HHI(struct aml_lcd_drv_s *pdrv, char *buf, i
 		reg_cnt = 14;
 		len += lcd_reg_print_dphy_txhd2(pdrv, (buf + len), (len + offset));
 	} else {
+		if (pdrv->data->chip_type == LCD_CHIP_TL1)
+			bus = LCD_REG_DBG_HHI_BUS;
 		reg_cnt = ARRAY_SIZE(phy_analog_reg_sets);
 		len += lcd_reg_print_dphy(pdrv, (buf + len), (len + offset));
 	}
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n, "\nphy analog regs:\n");
-	len += str_add_reg_sets(pdrv, buf + len, len + offset, LCD_REG_DBG_HHI_BUS, 0,
+	len += str_add_reg_sets(pdrv, buf + len, len + offset, bus, 0,
 			phy_analog_reg_sets, ARRAY_SIZE(phy_analog_reg_sets));
 
 	return len;
