@@ -334,7 +334,7 @@ void amdv_core_reset(enum core_type type)
 		if (is_aml_txlx())
 			VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 9);
 		else if (is_aml_tm2() || is_aml_t7() ||
-			 is_aml_t3() || is_aml_t5w())
+			 is_aml_t3() || is_aml_t5w() || is_aml_t5m())
 			VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 1);
 		VSYNC_WR_DV_REG(VIU_SW_RESET, 0);
 		break;
@@ -488,11 +488,15 @@ int tv_dv_core1_set(u64 *dma_data,
 	if (is_aml_t3() || is_aml_t5w() || is_aml_t5m()) {
 		VSYNC_WR_DV_REG_BITS(VPP_TOP_VTRL, 0, 0, 1); //AMDV TV select
 		//T3 enable tvcore clk
-		if (!dolby_vision_on) {/*enable once*/
+		if (!dolby_vision_on || !amdv_core1_on) {/*enable once*/
 			vpu_module_clk_enable(0, DV_TVCORE, 1);
 			vpu_module_clk_enable(0, DV_TVCORE, 0);
 		}
 	}
+	if (debug_dolby & 8)
+		pr_dv_dbg("%s: reset %d, bl_enable %d, amdv_core1_on %d\n",
+				 __func__, reset, bl_enable, amdv_core1_on);
+
 	adjust_vpotch_tv();
 	if (is_aml_tm2() || is_aml_t7() ||
 	    is_aml_t3() || is_aml_t5w() || is_aml_t5m()) {
@@ -662,30 +666,39 @@ int tv_dv_core1_set(u64 *dma_data,
 	if (amdv_run_mode != 0xff) {
 		run_mode = amdv_run_mode;
 	} else {
-		if (debug_dolby & 8)
-			pr_dv_dbg("%s: amdv_on_count %d\n",
-				     __func__, amdv_on_count);
 		run_mode = tv_run_mode(vsize, hdmi, hdr10, el_41_mode);
-		if (runmode_cnt < amdv_run_mode_delay) {
-			run_mode = (run_mode & 0xfffffffc) | 1;
-			set_video_mute(AML_DOLBY_MUTE_SET, 1);
-			is_muted = 1;
-			start_render = 0;
-		} else if (runmode_cnt ==
-			amdv_run_mode_delay) {
-			set_video_mute(AML_DOLBY_MUTE_SET, 1);
-			is_muted = 1;
-			start_render = 0;
-		} else {
-			if (start_render == 0) {
-				set_video_mute(AML_DOLBY_MUTE_SET, 0);
-				is_muted = 0;
+		if (debug_dolby & 8)
+			pr_dv_dbg("%s: amdv_on_count %d, run_mode 0x%llx\n",
+				     __func__, amdv_on_count, run_mode);
+		if (bl_enable) {
+			if (runmode_cnt < amdv_run_mode_delay) {
+				run_mode = (run_mode & 0xfffffffc) | 1;
+				set_video_mute(AML_DOLBY_MUTE_SET, 1);
+				is_muted = 1;
+				start_render = 0;
+			} else if (runmode_cnt ==
+				amdv_run_mode_delay) {
+				set_video_mute(AML_DOLBY_MUTE_SET, 1);
+				is_muted = 1;
+				start_render = 0;
+			} else {
+				if (start_render == 0) {
+					set_video_mute(AML_DOLBY_MUTE_SET, 0);
+					is_muted = 0;
+				}
+				start_render = 1;
 			}
-			start_render = 1;
 		}
 	}
-	tv_dovi_setting->core1_reg_lut[1] =
-		0x0000000100000000 | run_mode;
+	if (load_fixed_tv_setting) {
+		core1_reg_lut[1] = 0x0000000100000000 | run_mode;
+		copy_fixed_setting();
+		if (amdv_on_count < 4)
+			reset = true;
+	} else {
+		tv_dovi_setting->core1_reg_lut[1] =
+			0x0000000100000000 | run_mode;
+	}
 
 	handle_aoi(hsize, vsize);
 	set_dovi_setting_update_flag(true);
@@ -4317,9 +4330,13 @@ void enable_amdv_v1(int enable)
 						amdv_setting_video_flag) {
 						/*enable tv core*/
 						/* T3 is not the same as T7 */
-						VSYNC_WR_DV_REG_BITS
-							(VIU_VD1_PATH_CTRL,
-							0, 16, 1);
+
+						/*VSYNC_WR_DV_REG_BITS */
+						/*	(VIU_VD1_PATH_CTRL, */
+						/*	0, 16, 1); */
+						VSYNC_WR_DV_REG(VIU_VD1_PATH_CTRL,
+							VSYNC_RD_DV_REG
+							(VIU_VD1_PATH_CTRL) & (~(1 << 16)));
 						/*vd1 to tvcore*/
 						VSYNC_WR_DV_REG_BITS
 							(AMDV_PATH_SWAP_CTRL1,
@@ -5000,9 +5017,12 @@ void enable_amdv_v1(int enable)
 							(VPP_VD1_DSC_CTRL,
 							 0, 4, 1);
 					else
-						VSYNC_WR_DV_REG_BITS
-							(VIU_VD1_PATH_CTRL,
-							 0, 16, 1);
+						/*VSYNC_WR_DV_REG_BITS*/
+						/*	(VIU_VD1_PATH_CTRL,*/
+						/*	 0, 16, 1);*/
+						VSYNC_WR_DV_REG(VIU_VD1_PATH_CTRL,
+							VSYNC_RD_DV_REG
+							(VIU_VD1_PATH_CTRL) & (~(1 << 16)));
 					/*vd1 to tvcore*/
 					VSYNC_WR_DV_REG_BITS
 						(AMDV_PATH_SWAP_CTRL1,

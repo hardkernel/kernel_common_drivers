@@ -910,6 +910,7 @@ extern struct tv_hw5_setting_s *tv_hw5_setting;
 extern struct tv_hw5_setting_s *invalid_hw5_setting;
 extern struct tv_hw5_setting_s *last_tv_hw5_setting;
 extern u32 hw5_reg_from_file;
+extern bool load_fixed_tv_setting;
 extern u32 test_dv;
 extern struct video_inst_s top1_v_info;/*video info*/
 extern struct video_inst_s top2_v_info;/*video info*/
@@ -973,6 +974,7 @@ extern bool bypass_detunnel;
 extern u32 lightsense_test_mode;
 extern u32 hlg_max;
 extern u32 hlg_min;
+extern u64 *core1_reg_lut;
 /************/
 
 #define pr_dv_dbg(fmt, args...)\
@@ -1339,6 +1341,7 @@ void dolby5_bypass_ctrl(unsigned int en);
 int load_reg_and_lut_file(char *fw_name, void **dst_buf);
 void read_txt_to_buf(char *reg_txt, void *reg_buf, int reg_num, bool is_reg);
 void read_top1_pic_to_buf(char *reg_txt, void *buf, int num, bool flag_64bit);
+void read_tv1614_reg_lut_to_buf(char *reg_txt, void *reg_buf, int reg_num);
 int dma_lut_init(void);
 void dma_lut_uninit(void);
 int dma_lut_write(void);
@@ -1366,6 +1369,7 @@ u32 get_top1_onoff(void);
 void fixed_buf_config(void);
 bool is_dv_unique_drm(struct vframe_s *vf);
 void dump_top1_frame(int force_w, int force_h);
+void copy_fixed_setting(void);
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 int frc_get_video_latency_for_gd1(void);
 #endif

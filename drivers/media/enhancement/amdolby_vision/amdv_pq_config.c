@@ -1374,6 +1374,8 @@ void update_cp_cfg(void)
 		return;
 	}
 
+	if (!pq_config_fake)
+		return;
 	memcpy(pq_config_fake,
 	       &bin_to_cfg[cur_pic_mode],
 	       sizeof(struct pq_config));
@@ -3856,6 +3858,43 @@ void read_top1_pic_to_buf(char *reg_txt, void *buf, int num, bool flag_64bit)
 			if (reg_count < 5)
 				pr_info("reg_count %d: value %x\n", reg_count, value);
 			if (reg_count >= num)
+				break;
+		}
+	}
+	pr_info("read file, count: %d\n", reg_count);
+}
+
+void read_tv1614_reg_lut_to_buf(char *reg_txt, void *reg_buf, int reg_num)
+{
+	char *ptr_line;
+	int reg_count = 0;
+	int ret = 0;
+	bool eof_flag = false;
+	u64 *p_buf = (u64 *)reg_buf;
+
+	u64 value;
+	u64 value2;
+
+	if (!reg_txt || !reg_buf)
+		return;
+
+	while (!eof_flag) {
+		eof_flag = read_one_line(&reg_txt, (char *)&cur_line);
+		ptr_line = cur_line;
+		if (debug_dolby & 0x200)
+			pr_dv_dbg("eof_flag %d, ptr_line: %s\n", eof_flag, ptr_line);
+		if (eof_flag && (strlen(cur_line) == 0))
+			break;
+
+		ret = sscanf(ptr_line, "0x%016llx, 0x%016llx,", &value, &value2);
+		if (ret == 2) {
+			p_buf[reg_count] = value;
+			p_buf[reg_count + 1] = value2;
+			reg_count += 2;
+			if (debug_dolby & 0x200)
+				pr_dv_dbg("reg_count %d: value %llx %llx\n",
+						  reg_count, value, value2);
+			if (reg_count >= reg_num)
 				break;
 		}
 	}

@@ -3938,6 +3938,15 @@ void get_cur_vd_size(struct vframe_s *vf)
 int get_primaries_type(struct vframe_master_display_colour_s *p_mdc)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	pr_csc(1, "hdr source info %d,%x,%x,%x,%x,%x,%x,%d,%x,%x\n",
+			p_mdc->present_flag,
+			p_mdc->primaries[0][0], p_mdc->primaries[0][1],
+			p_mdc->primaries[1][0], p_mdc->primaries[1][1],
+			p_mdc->primaries[2][0], p_mdc->primaries[2][1],
+			p_mdc->content_light_level.present_flag,
+			p_mdc->content_light_level.max_content,
+			p_mdc->content_light_level.max_pic_average);
+
 	if (!p_mdc->present_flag)
 		return 0;
 
