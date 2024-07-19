@@ -1171,10 +1171,14 @@ static int fill_cam_dev(struct device_node *p_node,
 	pr_info("cam_dev->cam_vdd = %d\n", cam_dev->cam_vdd);
 	if (gpio_is_valid(cam_dev->cam_vdd)) {
 		ret = gpio_request(cam_dev->cam_vdd, "camera");
-		if (ret < 0)
+		if (ret < 0) {
 			pr_info("aml_cam_init cam_vdd request failed\n");
-		else
-			gpio_direction_output(cam_dev->cam_vdd, 1);
+		} else {
+			if (get_cam_type(cam_dev) == CAM_ON_S6_S905D5)
+				gpio_direction_output(cam_dev->cam_vdd, 1);
+			else
+				gpio_direction_output(cam_dev->cam_vdd, 0);
+		}
 	} else {
 		pr_info("%s: failed to map gpio_cam_vdd !\n", cam_dev->name);
 	}

@@ -54,6 +54,7 @@
 #include <linux/media-bus-format.h>
 
 #include <linux/amlogic/media/camera/aml_cam_info.h>
+#include <linux/amlogic/media/mipi/am_mipi_csi2.h>
 #include <linux/amlogic/media/camera/vmapi.h>
 #include "common/plat_ctrl.h"
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
@@ -784,12 +785,17 @@ static void ov5640_stop_thread(struct ov5640_dev_t *dev)
 static int ov5640_set_fmt(void *ov5640_dev, struct v4l2_format *fmt)
 {
 	struct ov5640_dev_t *dev = ov5640_dev;
+	struct sensor_info info;
+	struct resolution_param *prev_resolution;
 
-	pr_debug("ov5640 set fmt.");
-	if (fmt->fmt.pix.width > 640)
-		set_resolution_param(dev, &prev_resolutions[0]); // 1920x1080 sensor setting
-	else
-		set_resolution_param(dev, &prev_resolutions[1]); // 640x480 sensor setting
+	pr_debug("ov5640 set fmt.\n");
+	prev_resolution = fmt->fmt.pix.width > 640 ? &prev_resolutions[0] : &prev_resolutions[1];
+	info.width = prev_resolution->frmsize.width;
+	info.height = prev_resolution->frmsize.height;
+	info.bps_m = prev_resolution->bps;
+	info.nlanes = prev_resolution->lanes;
+	update_sensor_info(info);
+	set_resolution_param(dev, prev_resolution);
 	return 0;
 }
 
