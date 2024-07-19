@@ -404,6 +404,8 @@
 			    "ddrfw-region";
 		reg = <0x0 0xfe380000 0x0 0x114>, /*host base address*/
 		      <0x0 0x0 0x0 0x800000>; /*host ddrfw region [offset size]*/
+		assigned-clocks = <&scmi_clk CLKID_GP2_PLL>;
+		assigned-clock-rates = <1002000000>;
 		clocks = <&clkc CLKID_DSPA>;
 		clock-names = "dspa_clk";
 		//pm-support = <1>; /*host support suspend/resume*/
@@ -411,7 +413,7 @@
 		power-domain-names = "dspa";
 		mboxes = <&mbox_fifo S6_REE2DSPA_DSP>;
 		//logbuff-polling-ms = <50>;
-		clkfreq-khz = <1000000>;
+		clkfreq-khz = <1002000>;
 	};
 
 	shmem@50f7e00 {

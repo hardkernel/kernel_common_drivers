@@ -875,9 +875,12 @@
 		      <0x0 0x0 0x0 0x800000>; /*host ddrfw region [offset size]*/
 		clocks = <&clkc CLKID_DSPA_CLK>;
 		clock-names = "dspa_clk";
+		/* bit0: pm_support_suspend
+		 * bit1: pm_support_always_on
+		 * bit2: pm_support_pwrctrl
+		 * bit3: pm_support_ffv
+		 */
 		pm-support = /bits/ 8 <0>;
-		pm-support-ffv = /bits/ 8 <0>;
-		pwrctrl-support = /bits/ 8 <0>;
 		power-domains = <&pwrdm PDID_SC2_DSP>;
 		mboxes = <&mbox_fifo SC2_REE2DSPA_HOST>,
 			 <&mbox_fifo SC2_DSPA2REE_HOST>;

@@ -416,7 +416,12 @@
 		      <0x0 0x800000>; /*host ddrfw region [offset size]*/
 		clocks = <&clkc CLKID_DSPA>;
 		clock-names = "dspa_clk";
-		pm-support = <1>; /*host support suspend/resume*/
+		/* bit0: pm_support_suspend
+		 * bit1: pm_support_always_on
+		 * bit2: pm_support_pwrctrl
+		 * bit3: pm_support_ffv
+		 */
+		pm-support = /bits/ 8 <0x2>;
 		power-domains = <&pwrdm PDID_T3_DSPA>;
 		power-domain-names = "dspa";
 		mboxes = <&mbox_fifo T3_REE2DSPA_DSP>;

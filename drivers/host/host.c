@@ -453,8 +453,8 @@ static void host_early_suspend(struct early_suspend *h)
 	if (pm_runtime_suspended(host->dev))
 		return;
 
-	if (pm_runtime_active(host->dev) && host->pm_support) {
-		if (host->host_dsp->pwrctrl_support) {
+	if (pm_runtime_active(host->dev) && host->host_dsp->pm_support_suspend) {
+		if (host->host_dsp->pm_support_pwrctrl) {
 			host->host_dsp->pwrctrl_access_en = 1;
 			host_psci_smc(host, SMC_SUBID_HIFI_DSP_PWRCTRL);
 		}
@@ -479,7 +479,7 @@ static void host_late_resume(struct early_suspend *h)
 	if (pm_runtime_suspended(host->dev))
 		return;
 
-	if (pm_runtime_active(host->dev) && host->pm_support) {
+	if (pm_runtime_active(host->dev) && host->host_dsp->pm_support_suspend) {
 		pr_debug("late resume: AP send resume cmd to dsp...\n");
 		strncpy(message, "RESUME_WITH_FFV", sizeof(message));
 		aml_mbox_transfer_data(host->mbox_chan_to_dev,
@@ -490,7 +490,7 @@ static void host_late_resume(struct early_suspend *h)
 				       sizeof(message),
 				       MBOX_SYNC);
 
-		if (host->host_dsp->pwrctrl_support) {
+		if (host->host_dsp->pm_support_pwrctrl) {
 			host->host_dsp->pwrctrl_access_en = 0;
 			host_psci_smc(host, SMC_SUBID_HIFI_DSP_PWRCTRL);
 		}
@@ -519,8 +519,8 @@ static int host_suspend(struct device *dev)
 		return 0;
 #endif
 
-	if (pm_runtime_active(dev) && host->pm_support && strstr(host->host_data->name, "dsp")) {
-		if (host->host_dsp->pwrctrl_support) {
+	if (pm_runtime_active(dev) && host->host_dsp->pm_support_suspend) {
+		if (host->host_dsp->pm_support_pwrctrl) {
 			host->host_dsp->pwrctrl_access_en = 1;
 			host_psci_smc(host, SMC_SUBID_HIFI_DSP_PWRCTRL);
 		}
@@ -536,7 +536,8 @@ static int host_suspend(struct device *dev)
 				       MBOX_SYNC);
 		/*clk = 24 M*/
 		clk_set_rate(host->clk, SUSPEND_CLK_FREQ);
-	}
+	} else if (!host->host_dsp->pm_support_always_on)
+		clk_disable_unprepare(host->clk);
 
 	return 0;
 }
@@ -559,7 +560,7 @@ static int host_resume(struct device *dev)
 #endif
 	}
 
-	if (pm_runtime_active(dev) && host->pm_support && strstr(host->host_data->name, "dsp")) {
+	if (pm_runtime_active(dev) && host->host_dsp->pm_support_suspend) {
 		pr_debug("AP send resume cmd to dsp...\n");
 		/*clk = Max M*/
 		clk_set_rate(host->clk, (unsigned long)host->clk_rate * 1000);
@@ -572,11 +573,12 @@ static int host_resume(struct device *dev)
 				       sizeof(message),
 				       MBOX_SYNC);
 
-		if (host->host_dsp->pwrctrl_support) {
+		if (host->host_dsp->pm_support_pwrctrl) {
 			host->host_dsp->pwrctrl_access_en = 0;
 			host_psci_smc(host, SMC_SUBID_HIFI_DSP_PWRCTRL);
 		}
-	}
+	} else if (!host->host_dsp->pm_support_always_on)
+		clk_prepare_enable(host->clk);
 
 	return 0;
 }
@@ -1051,13 +1053,10 @@ static int host_parse_devtree(struct platform_device *pdev, struct host_module *
 		dev_err(dev, "Not find pm-support\n");
 
 	if (host->pm_support) {
-		if (of_property_read_u8(dev->of_node, "pwrctrl-support",
-					&host->host_dsp->pwrctrl_support))
-			dev_err(dev, "Not find pwrctrl-support\n");
-
-		if (of_property_read_u8(dev->of_node, "pm-support-ffv",
-					&host->host_dsp->pm_support_ffv))
-			dev_err(dev, "Not find pm-support-ffv\n");
+		host->host_dsp->pm_support_suspend = PM_SUPPORT_DSP_SUSPEND(host->pm_support);
+		host->host_dsp->pm_support_always_on = PM_SUPPORT_DSP_ALWAYS_ON(host->pm_support);
+		host->host_dsp->pm_support_pwrctrl = PM_SUPPORT_DSP_PWRCTRL(host->pm_support);
+		host->host_dsp->pm_support_ffv = PM_SUPPORT_DSP_FFV(host->pm_support);
 	}
 
 	/* mbox channel request */
@@ -1146,7 +1145,7 @@ static int host_platform_probe(struct platform_device *pdev)
 	host_data->host = host;
 	platform_set_drvdata(pdev, host);
 
-	if (host->pm_support && host->host_dsp->pm_support_ffv) {
+	if (host->host_dsp->pm_support_ffv) {
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 		register_host_early_suspend_handler(host);
 #endif

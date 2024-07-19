@@ -31,6 +31,18 @@
 #define MBX_CMD_VAD_AWE_WAKEUP		0x62
 #define DSP_VAD_WAKUP_ARM		0x5555AAAA
 
+/* pm support function
+ *
+ * bit0: pm_support_suspend
+ * bit1: pm_support_always_on
+ * bit2: pm_support_pwrctrl
+ * bit3: pm_support_ffv
+ */
+#define PM_SUPPORT_DSP_SUSPEND(pm_support)	((pm_support) & 0x1)
+#define PM_SUPPORT_DSP_ALWAYS_ON(pm_support)	(((pm_support) & 0x2) >> 1)
+#define PM_SUPPORT_DSP_PWRCTRL(pm_support)	(((pm_support) & 0x4) >> 2)
+#define PM_SUPPORT_DSP_FFV(pm_support)		(((pm_support) & 0x8) >> 3)
+
 struct host_module;
 struct dsp_info_t;
 struct host_data;
@@ -118,20 +130,24 @@ struct host_mfh {
 };
 
 /** struct host_dsp, the struct of host dsp
- * @mbox_buf：        dsp mbox_buf struct
- * @shminfo：         dsp dsp_shm_info_t struct
- * @usrinfo:          dsp dsp_info_t struct
- * @pwrctrl_support:  If support dsp pwrctrl access
- * @pwrctrl_access_en:Dsp pwrctrl access enable
- * @pm_support_ffv:   If support dsp far field voice
- * @input_device:     input_device for ffv to wakeup screen
+ * @mbox_buf：           dsp mbox_buf struct
+ * @shminfo：            dsp dsp_shm_info_t struct
+ * @usrinfo:             dsp dsp_info_t struct
+ * @pm_support_suspend:  dsp support suspend/resume
+ * @pm_support_always_on:dsp work when arm suspend
+ * @pm_support_pwrctrl:  If support dsp pwrctrl access
+ * @pwrctrl_access_en:   Dsp pwrctrl access enable
+ * @pm_support_ffv:      If support dsp far field voice
+ * @input_device:        input_device for ffv to wakeup screen
  */
 
 struct host_dsp {
 	struct mbox_buf mbox_buf;
 	struct dsp_shm_info_t shminfo;
 	struct dsp_info_t *usrinfo;
-	u8 pwrctrl_support;
+	u8 pm_support_suspend;
+	u8 pm_support_always_on;
+	u8 pm_support_pwrctrl;
 	u8 pwrctrl_access_en;
 	u8 pm_support_ffv;
 	struct input_dev *input_device;
@@ -163,7 +179,7 @@ struct host_dsp {
  * @pm_support:                 If support power management
  * @mbox_chan_to_dev:           Mbox channel from host to dev
  * @mbox_chan_from_dev:         Mbox channel from dev to host
- * @init_mbox_chan              Mbox channel for dev init
+ * @init_mbox_chan:             Mbox channel for dev init
  * @misc:                       Misc device
  * @hostid:                     Host id
  * @fname0:                     Host firmware name0
