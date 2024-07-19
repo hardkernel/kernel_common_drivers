@@ -131,8 +131,12 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.dbg_vs_cnt = 0,
 	.irq_cnt = 0,
 	.pwm_vs_irq_cnt = 0,
+	.pwm_vs_irq_err_cnt = 0,
+	.pwm_vs_irq_time_pre = 0,
 	.arithmetic_time = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	.xfer_time = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	.fw_time = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	.time_msr_en = 0,
 	.level_curve = {{0, 100}, {1024, 1024}, {2048, 2048}, {3072, 3072}, {4095, 4095}},
 
 	.data = NULL,
@@ -474,7 +478,7 @@ void ldim_vs_brightness(void)
 
 static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 {
-	unsigned long long local_time[3];
+	unsigned long long local_time[5];
 	unsigned long flags;
 	unsigned char frm_cnt;
 	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(0);
@@ -486,7 +490,8 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 	if (ldim_driver.init_on_flag == 0)
 		return IRQ_HANDLED;
 
-	local_time[0] = sched_clock();
+	if (ldim_driver.time_msr_en)
+		local_time[0] = sched_clock();
 
 	ldim_driver.irq_cnt++;
 	if (ldim_driver.irq_cnt > 0xfffffff)
@@ -507,6 +512,12 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 	if (ldim_dev.data->vs_arithmetic)
 		ldim_dev.data->vs_arithmetic(&ldim_driver);
 
+	if (ldim_driver.time_msr_en) {
+		local_time[3] = sched_clock();
+		local_time[4] = local_time[3] - local_time[0];
+		ldim_time_sort_save(ldim_driver.fw_time, local_time[4]);
+	}
+
 	if (ldim_driver.dev_drv && ldim_driver.dev_drv->spi_sync == SPI_DMA_TRIG)
 		ldim_vs_brightness();
 
@@ -515,12 +526,14 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 	spin_unlock_irqrestore(&ldim_isr_lock, flags);
 	atomic_set(&ldim_inirq_flag, 0);
 
-	local_time[1] = sched_clock();
-	local_time[2] = local_time[1] - local_time[0];
-	ldim_time_sort_save(ldim_driver.arithmetic_time, local_time[2]);
-	if (ldim_debug_print & LDIM_DBG_PR_VSYNC_ISR)
-		LDIMPR("%s irq_cnt=%d, frm_cnt=%d time: %lld : %lld\n",
-		__func__, ldim_driver.irq_cnt, frm_cnt, local_time[0], local_time[2]);
+	if (ldim_driver.time_msr_en) {
+		local_time[1] = sched_clock();
+		local_time[2] = local_time[1] - local_time[0];
+		ldim_time_sort_save(ldim_driver.arithmetic_time, local_time[2]);
+		if (ldim_debug_print & LDIM_DBG_PR_VSYNC_ISR)
+			LDIMPR("%s irq_cnt=%d, frm_cnt=%d time: %lld : %lld : %lld\n", __func__,
+			ldim_driver.irq_cnt, frm_cnt, local_time[0], local_time[4], local_time[2]);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -528,7 +541,7 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 static irqreturn_t ldim_pwm_vs_isr(int irq, void *dev_id)
 {
 	unsigned long flags;
-	unsigned long long local_time[3];
+	unsigned long long local_time, diff;
 
 	if (ldim_driver.valid_flag == 0)
 		return IRQ_HANDLED;
@@ -536,7 +549,16 @@ static irqreturn_t ldim_pwm_vs_isr(int irq, void *dev_id)
 	if (ldim_driver.init_on_flag == 0)
 		return IRQ_HANDLED;
 
-	local_time[0] = sched_clock();
+	local_time = sched_clock();
+	diff = local_time - ldim_driver.pwm_vs_irq_time_pre;
+	ldim_driver.pwm_vs_irq_time_pre = local_time;
+
+	if (ldim_driver.dev_drv &&
+		ldim_driver.dev_drv->ldim_pwm_config.pwm_port == BL_PWM_VS &&
+		diff < 3000000) {
+		ldim_driver.pwm_vs_irq_err_cnt++;
+		return IRQ_HANDLED;
+	}
 
 	ldim_driver.pwm_vs_irq_cnt++;
 	if (ldim_driver.pwm_vs_irq_cnt > 0xfffffff)
@@ -548,12 +570,6 @@ static irqreturn_t ldim_pwm_vs_isr(int irq, void *dev_id)
 		ldim_vs_brightness();
 
 	spin_unlock_irqrestore(&ldim_pwm_vs_isr_lock, flags);
-
-	local_time[1] = sched_clock();
-	local_time[2] = local_time[1] - local_time[0];
-	if (ldim_debug_print & LDIM_DBG_PR_PWM_VS_ISR)
-		LDIMPR("%s pwm_vs_irq_cnt=%d, time: %lld : %lld\n",
-		__func__, ldim_driver.pwm_vs_irq_cnt, local_time[0], local_time[2]);
 
 	return IRQ_HANDLED;
 }
@@ -626,7 +642,8 @@ static void ldim_on_vs_brightness(void)
 	if (ldim_driver.func_bypass)
 		return;
 
-	local_time[0] = sched_clock();
+	if (ldim_driver.time_msr_en)
+		local_time[0] = sched_clock();
 
 	size = ldim_driver.conf->seg_row * ldim_driver.conf->seg_col;
 
@@ -654,9 +671,11 @@ static void ldim_on_vs_brightness(void)
 
 	ldim_dev_smr(update_flag, size);
 
-	local_time[1] = sched_clock();
-	local_time[2] = local_time[1] - local_time[0];
-	ldim_time_sort_save(ldim_driver.xfer_time, local_time[2]);
+	if (ldim_driver.time_msr_en) {
+		local_time[1] = sched_clock();
+		local_time[2] = local_time[1] - local_time[0];
+		ldim_time_sort_save(ldim_driver.xfer_time, local_time[2]);
+	}
 }
 
 /* ******************************************************

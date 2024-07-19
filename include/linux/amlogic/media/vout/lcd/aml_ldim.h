@@ -176,8 +176,12 @@ struct aml_ldim_driver_s {
 	unsigned int dbg_vs_cnt;
 	unsigned int irq_cnt;
 	unsigned int pwm_vs_irq_cnt;
+	unsigned int pwm_vs_irq_err_cnt;
+	unsigned long long pwm_vs_irq_time_pre;
 	unsigned long long arithmetic_time[10];
 	unsigned long long xfer_time[10];
+	unsigned long long fw_time[10];
+	unsigned char time_msr_en;
 	unsigned int level_curve[5][2];
 
 	struct ldim_drv_data_s *data;

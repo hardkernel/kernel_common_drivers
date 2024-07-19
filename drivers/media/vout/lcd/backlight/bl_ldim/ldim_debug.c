@@ -978,7 +978,7 @@ static ssize_t ldim_debug_store(struct class *class, struct class_attribute *att
 	size_t ret = 0;
 	unsigned int seg_size;
 	unsigned int i, j;
-	unsigned int temp, val;
+	unsigned int temp, val, sidx, eidx;
 	char *ps, *token;
 	char **parm = NULL;
 	char str[3] = {' ', '\n', '\0'};
@@ -1037,7 +1037,39 @@ static ssize_t ldim_debug_store(struct class *class, struct class_attribute *att
 			ldim_drv->test_bl_en = 0;
 			goto ldim_debug_store_end;
 		}
-		if (parm[3]) {
+		if (!strcmp(parm[1], "row")) {
+			if (!parm[3])
+				goto ldim_debug_store_err;
+			if (kstrtouint(parm[2], 0, &temp) < 0)
+				goto ldim_debug_store_err;
+			if (kstrtouint(parm[3], 0, &val) < 0)
+				goto ldim_debug_store_err;
+			if (temp > ldim_drv->conf->seg_row - 1)
+				goto ldim_debug_store_err;
+			sidx = temp * ldim_drv->conf->seg_col;
+			eidx = (temp + 1) * ldim_drv->conf->seg_col;
+			for (i = sidx; i < eidx; i++)
+				ldim_drv->test_matrix[i] = val;
+			goto ldim_debug_store_end;
+		}
+		if (!strcmp(parm[1], "col")) {
+			if (!parm[3])
+				goto ldim_debug_store_err;
+			if (kstrtouint(parm[2], 0, &temp) < 0)
+				goto ldim_debug_store_err;
+			if (kstrtouint(parm[3], 0, &val) < 0)
+				goto ldim_debug_store_err;
+			if (temp > ldim_drv->conf->seg_col - 1)
+				goto ldim_debug_store_err;
+			for (i = 0; i < ldim_drv->conf->seg_row; i++) {
+				sidx = temp + i * ldim_drv->conf->seg_col;
+				ldim_drv->test_matrix[sidx] = val;
+			}
+			goto ldim_debug_store_end;
+		}
+		if (!strcmp(parm[1], "one")) {
+			if (!parm[3])
+				goto ldim_debug_store_err;
 			if (kstrtouint(parm[2], 0, &temp) < 0)
 				goto ldim_debug_store_err;
 			if (kstrtouint(parm[3], 0, &val) < 0)
@@ -1045,11 +1077,16 @@ static ssize_t ldim_debug_store(struct class *class, struct class_attribute *att
 			if (temp >= seg_size)
 				goto ldim_debug_store_err;
 			ldim_drv->test_matrix[temp] = val;
-		} else if (parm[2]) {
+			goto ldim_debug_store_end;
+		}
+		if (!strcmp(parm[1], "all")) {
+			if (!parm[2])
+				goto ldim_debug_store_err;
 			if (kstrtouint(parm[2], 0, &val) < 0)
 				goto ldim_debug_store_err;
 			for (i = 0; i < seg_size; i++)
 				ldim_drv->test_matrix[i] = val;
+			goto ldim_debug_store_end;
 		}
 	} else if (!strcmp(parm[0], "bypass")) {
 		if (!parm[1])
@@ -1079,16 +1116,27 @@ static ssize_t ldim_debug_store(struct class *class, struct class_attribute *att
 		}
 		pr_info("ldim_debug_print = %d\n", ldim_debug_print);
 	} else if (!strcmp(parm[0], "time")) {
-		if (!strcmp(parm[1], "clr")) {
-			for (i = 0; i < 10; i++) {
-				ldim_drv->arithmetic_time[0] = 0;
-				ldim_drv->xfer_time[0] = 0;
+		if (parm[1]) {
+			if (!strcmp(parm[1], "clr")) {
+				for (i = 0; i < 10; i++) {
+					ldim_drv->arithmetic_time[i] = 0;
+					ldim_drv->xfer_time[i] = 0;
+					ldim_drv->fw_time[i] = 0;
+					ldim_drv->pwm_vs_irq_err_cnt = 0;
+				}
+			} else if (!strcmp(parm[1], "en")) {
+				ldim_drv->time_msr_en = 1;
+			} else if (!strcmp(parm[1], "dis")) {
+				ldim_drv->time_msr_en = 0;
 			}
 		}
 		pr_info("arithmetic_time:\n");
 		ldim_time_print(ldim_drv->arithmetic_time);
 		pr_info("xfer_time:\n");
 		ldim_time_print(ldim_drv->xfer_time);
+		pr_info("fw_time:\n");
+		ldim_time_print(ldim_drv->fw_time);
+		pr_info("pwm_vs_irq_err_cnt: %d\n", ldim_drv->pwm_vs_irq_err_cnt);
 	} else if (!strcmp(parm[0], "fw_iparam")) {
 		if (!fw->iparam)
 			goto ldim_debug_store_err;
