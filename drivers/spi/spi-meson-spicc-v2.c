@@ -288,7 +288,6 @@ static int meson_spicc_config(struct spicc_device *spicc,
 		return -EINVAL;
 	}
 
-	spicc_set_speed(spicc, spi->max_speed_hz);
 	spicc->bytes_per_word = spi->bits_per_word >> 3;
 	spicc->cfg_start.b.block_size = spicc->bytes_per_word & 0x7;
 	spicc->cfg_spi.b.ss = spi->chip_select;
@@ -817,6 +816,7 @@ static int dirspi_async(struct spi_device *spi,
 	int ret;
 	unsigned long ms = spicc_xfer_time_max(spicc, len);
 
+	spicc_set_speed(spicc, spi->max_speed_hz);
 	ret = meson_spicc_config(spicc, spi);
 	if (ret)
 		return ret;
