@@ -373,4 +373,5 @@ int vlock_sync_frc_vporch(struct stvlock_frc_param frc_param);
 void vlock_set_sts_by_frame_lock(bool en);
 //void vlock_clk_config(struct device *dev);
 void vlock_reg_config(struct device *dev);
+unsigned int vlock_low_latency(unsigned int time, int flag);
 #endif

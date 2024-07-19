@@ -3740,6 +3740,43 @@ int vlock_notify_callback(struct notifier_block *block, unsigned long cmd,
 	return 0;
 }
 
+unsigned int vlock_low_latency(unsigned int time, int flag)
+{
+	unsigned int low_latency = 0;
+	enum vlock_enc_num_e enc_mux = VLOCK_ENC0;
+	struct stvlock_sig_sts *pvlock;
+	struct vinfo_s *vinfo = NULL;
+
+	vinfo = get_current_vinfo();
+	enc_mux = get_cur_enc_mode();
+	pvlock = vlock_tab[enc_mux];
+#ifdef VLOCK_DEBUG_ENC_IDX
+	pvlock = vlock_tab[VLOCK_DEBUG_ENC_IDX];
+#endif
+
+	if (!vinfo || !pvlock)
+		return 0;
+
+	if (pvlock->output_hz == pvlock->input_hz) {
+		if (flag >= 60)
+			low_latency = (pvlock->phlock_percent * time) / 100;
+		else
+			low_latency = (pvlock->phlock_percent * time) / 100 + time;
+	} else if (pvlock->output_hz == pvlock->input_hz * 2) {
+		if (flag >= 60)
+			low_latency = (pvlock->phlock_percent * time * 2) / 100 + time;
+		else
+			low_latency = (pvlock->phlock_percent * time) / 100 + time * 2;
+	} else if (pvlock->output_hz == pvlock->input_hz * 4) {
+		low_latency = (pvlock->phlock_percent * time * 4) / 100 + time * 4;
+	}
+
+	if (vlock_debug & VLOCK_DEBUG_INFO)
+		pr_info("%s vlock_latency:%d\n", __func__, low_latency);
+
+	return low_latency;
+}
+
 int phlock_phase_config(char *str)
 {
 	unsigned char *ptr = str;

@@ -67,6 +67,8 @@ u8 freesync_ld_ctrl;
 
 static unsigned int lfc_support;
 
+static int lock_flag;
+
 struct vrr_sig_sts frame_sts = {
 	.vrr_support = false,
 	.vrr_lfc_mode = false,
@@ -100,7 +102,7 @@ void frame_lock_set_vrr_support_flag(bool support_flag)
 
 void frame_lock_param_config(struct device_node *node)
 {
-	unsigned int val;
+	unsigned int val = 0;
 	int ret;
 
 	ret = of_property_read_u32(node, "vrr_priority", &val);
@@ -609,6 +611,68 @@ u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vfr
 	return ret;
 }
 
+unsigned int vrr_low_latency(unsigned int time, int flag)
+{
+	unsigned int low_latency = 0;
+	struct vrr_notifier_data_s vdata;
+	struct vinfo_s *vinfo = NULL;
+
+	vinfo = get_current_vinfo();
+	memset(&vdata, 0, sizeof(struct vrr_notifier_data_s));
+
+	if (!vinfo)
+		return 0;
+
+	if (frame_sts.vrr_lfc_mode) {
+		if (flag >= 10)
+			low_latency = (vdata.line_dly / vinfo->vtotal) * time + time;
+		else
+			low_latency = (vdata.line_dly / vinfo->vtotal) * time + time * 2;
+	} else {
+		if (flag >= 10)
+			low_latency = (vdata.line_dly / vinfo->vtotal) * time;
+		else
+			low_latency = (vdata.line_dly / vinfo->vtotal) * time + time;
+	}
+
+	if (frame_lock_debug & VRR_POLICY_VARIANCE_FLAG)
+		framelock_pr_info("%s vrr_latency:%d lfc:%d line:%d vtotal:%d\n",
+			__func__, low_latency, frame_sts.vrr_lfc_mode,
+			vdata.line_dly, vinfo->vtotal);
+
+	return low_latency;
+}
+
+unsigned int game_mode_low_latency(void)
+{
+	unsigned int low_latency = 0;
+	unsigned int out_time = 0;
+	struct vinfo_s *vinfo = NULL;
+
+	vinfo = get_current_vinfo();
+	if (!vinfo)
+		return 0;
+
+	out_time = 1000000 / (vinfo->sync_duration_num / vinfo->sync_duration_den);
+
+	if ((vlock_get_phlock_flag() && vlock_get_vlock_flag()) ||
+		frame_lock_vrr_lock_status())
+		lock_flag++;
+	else
+		lock_flag = 0;
+
+	if (frame_sts.vrr_frame_lock_type == FRAMELOCK_VRRLOCK)
+		low_latency = vrr_low_latency(out_time, lock_flag);
+	else if (frame_sts.vrr_frame_lock_type == FRAMELOCK_VLOCK)
+		low_latency = vlock_low_latency(out_time, lock_flag);
+
+	if (frame_lock_debug & VRR_POLICY_VARIANCE_FLAG)
+		framelock_pr_info("%s low_latency:%d flag:%d out_time:%d\n",
+			__func__, low_latency, lock_flag, out_time);
+
+	return low_latency;
+}
+
 void vrrlock_process(struct vframe_s *vf,
 		   struct vpp_frame_par_s *cur_video_sts, u16 line)
 {
@@ -616,7 +680,7 @@ void vrrlock_process(struct vframe_s *vf,
 	u32 cur_frame_rate = frame_sts.vrr_frame_cur;
 	struct vrr_notifier_data_s vdata;
 	struct vinfo_s *vinfo = NULL;
-	int state;
+	int state = 0;
 	unsigned int ret_hz = 0;
 	unsigned int duration = 0;
 
@@ -793,6 +857,7 @@ void frame_lock_process(struct vframe_s *vf,
 	}
 
 	frame_lock_parse_spd_data(vf);
+	game_mode_low_latency();
 
 	frame_sts.vrr_frame_pre_sts = frame_sts.vrr_frame_lock_type;
 	frame_sts.vrr_policy_pre = frame_sts.vrr_policy;
