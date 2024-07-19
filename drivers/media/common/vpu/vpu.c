@@ -41,8 +41,6 @@
 
 int vpu_debug_print_flag;
 unsigned int vpu_print_level;
-MODULE_PARM_DESC(vpu_print_level, "\n vpu_print_level\n");
-module_param(vpu_print_level, uint, 0664);
 static spinlock_t vpu_mem_lock;
 static spinlock_t vpu_clk_gate_lock;
 
@@ -174,51 +172,55 @@ static unsigned int vpu_vmod_clk_get(unsigned int vmod)
 static int vpu_vmod_clk_request(unsigned int vclk, unsigned int vmod)
 {
 	int ret = 0;
-#ifdef CONFIG_VPU_DYNAMIC_ADJ
+#ifdef CONFIG_AMLOGIC_VPU_DYNAMIC_ADJ
 	unsigned int clk_level;
 
-	ret = vpu_chip_valid_check();
-	if (ret)
-		return -1;
-	if (vmod >= VPU_MOD_MAX) {
-		VPUERR("%s: invalid vmod: %d\n", __func__, vmod);
-		return -1;
-	}
-	if (!vpu_conf.clk_vmod) {
-		VPUERR("%s: clk_vmod is null\n", __func__);
-		return -1;
-	}
+	if (vpu_conf.data->chip_type == VPU_CHIP_T5M) {
+		ret = vpu_chip_valid_check();
+		if (ret)
+			return -1;
+		if (vmod >= VPU_MOD_MAX) {
+			VPUERR("%s: invalid vmod: %d\n", __func__, vmod);
+			return -1;
+		}
+		if (!vpu_conf.clk_vmod) {
+			VPUERR("%s: clk_vmod is null\n", __func__);
+			return -1;
+		}
 
-	mutex_lock(&vpu_clk_mutex);
+		mutex_lock(&vpu_clk_mutex);
 
-	if (vclk >= 100) /* regard as vpu_clk */
-		clk_level = get_vpu_clk_level(vclk);
-	else /* regard as clk_level */
-		clk_level = vclk;
+		if (vclk >= 100) /* regard as vpu_clk */
+			clk_level = get_vpu_clk_level_from_venc(vclk);
+		else /* regard as clk_level */
+			clk_level = vclk;
 
-	if (clk_level >= vpu_conf.data->clk_level_max) {
-		VPUERR("%s: set clk is out of supported\n", __func__);
-		mutex_unlock(&vpu_clk_mutex);
-		return -1;
-	}
+		if (clk_level >= vpu_conf.data->clk_level_max) {
+			VPUERR("%s: set clk is out of supported\n", __func__);
+			mutex_unlock(&vpu_clk_mutex);
+			return -1;
+		}
 
-	vpu_conf.clk_vmod[vmod] = clk_level;
-	if (vpu_debug_print_flag) {
-		VPUPR("%s: %s %uHz\n",
-		      __func__,
-		      vpu_mod_table[vmod],
-		      vpu_conf.data->clk_table[clk_level].freq);
-		dump_stack();
-	}
+		vpu_conf.clk_vmod[vmod] = clk_level;
+		if (vpu_debug_print_flag) {
+			VPUPR("%s: %s %uHz\n",
+			      __func__,
+			      vpu_mod_table[vmod],
+			      vpu_conf.data->clk_table[clk_level].freq);
+			dump_stack();
+		}
 
-	clk_level = get_vpu_clk_level_max_vmod();
-	if (clk_level != vpu_conf.clk_level) {
+		clk_level = get_vpu_clk_level_max_vmod();
+		VPUPR("%s clk_level:%d vpu_conf.clk_level:%d\n", __func__,
+			clk_level, vpu_conf.clk_level);
+		if (clk_level != vpu_conf.clk_level) {
 		//mutex_lock(&vpu_clk_mutex);
-		set_vpu_clk(clk_level);
+			set_vpu_clk(clk_level);
 		//mutex_unlock(&vpu_clk_mutex);
-	}
+		}
 
-	mutex_unlock(&vpu_clk_mutex);
+		mutex_unlock(&vpu_clk_mutex);
+	}
 #endif
 	return ret;
 }
@@ -226,7 +228,7 @@ static int vpu_vmod_clk_request(unsigned int vclk, unsigned int vmod)
 static int vpu_vmod_clk_release(unsigned int vmod)
 {
 	int ret = 0;
-#ifdef CONFIG_VPU_DYNAMIC_ADJ
+#ifdef CONFIG_AMLOGIC_VPU_DYNAMIC_ADJ
 	unsigned int clk_level;
 
 	ret = vpu_chip_valid_check();
@@ -1579,7 +1581,7 @@ static ssize_t vpu_debug_info(struct class *class,
 	len += sprintf(buf + len, "  0x%02x:      0x%08x\n",
 			PWRCTRL_FOCRST0, vpu_pwrctrl_read(PWRCTRL_FOCRST0));
 
-#ifdef CONFIG_VPU_DYNAMIC_ADJ
+#ifdef CONFIG_AMLOGIC_VPU_DYNAMIC_ADJ
 	if (vpu_conf.clk_vmod) {
 		len += sprintf(buf + len, "\nclk_vmod:\n");
 		for (i = 0; i < VPU_MOD_MAX; i++) {
@@ -1792,6 +1794,12 @@ static int get_vpu_config(struct platform_device *pdev)
 	}
 	VPUPR("load vpu_clk: %uHz(%u)\n",
 	      vpu_conf.data->clk_table[val].freq, vpu_conf.clk_level);
+
+	ret = of_property_read_u32(vpu_np, "overclock_sel", &val);
+	if (!ret) {
+		vpu_conf.overclock_sel = val;
+		VPUPR("vpu overclock_sel:%d\n", vpu_conf.overclock_sel);
+	}
 
 	ret = of_property_read_u32(vpu_np, "debug_print", &val);
 	if (ret) {

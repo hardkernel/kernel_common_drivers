@@ -17,6 +17,7 @@
 #include <linux/amlogic/media/vpu/vpu.h>
 #include "vpu_reg.h"
 #include "vpu.h"
+#include <linux/amlogic/gki_module.h>
 
 unsigned int get_vpu_clk_level_max_vmod(void)
 {
@@ -45,6 +46,42 @@ static unsigned int get_vpu_clk_level(unsigned int video_clk)
 			break;
 	}
 	clk_level = i;
+
+	return clk_level;
+}
+
+unsigned int get_vpu_clk_level_from_venc(unsigned int venc_clk)
+{
+	unsigned int clk_level = 0;
+
+	/*
+	 * vpu_overclock means whether hardware support vpu overclock
+	 * overclock_sel means whether software enable vpu overclock
+	 * 0: force disable 1: force enable 2: adaptable
+	 */
+	if (vpu_conf.data->chip_type == VPU_CHIP_T5M) {
+		if (vpu_conf.overclock_sel == 0) {
+			clk_level = 8;
+		} else if (vpu_conf.overclock_sel == 1) {
+			clk_level = 11;
+		} else if (vpu_conf.overclock_sel == 2) {
+			if (venc_clk <= 700000000) {
+				clk_level = 8;
+			} else if (venc_clk > 700000000 && venc_clk < 800000000) {
+				if (vpu_conf.vpu_overclock) {
+					clk_level = 11;
+				} else {
+					clk_level = 8;
+					VPUPR("do not support vpu overclock\n");
+				}
+			} else {
+				VPUERR("%s unknown video_clk:%d\n", __func__, venc_clk);
+				return -1;
+			}
+		} else {
+			VPUERR("%s unknown overclock_sel:%d\n", __func__, vpu_conf.overclock_sel);
+		}
+	}
 
 	return clk_level;
 }
@@ -93,6 +130,17 @@ static unsigned int get_vpu_clk_mux_id(void)
 
 	return mux_id;
 }
+
+static int get_vpu_overclock(char *str)
+{
+	int ret;
+
+	ret = kstrtoint(str, 0, &vpu_conf.vpu_overclock);
+	VPUPR("vpu_overclock=%d\n", vpu_conf.vpu_overclock);
+	return 0;
+}
+
+__setup("vpu_overclock=", get_vpu_overclock);
 
 unsigned int vpu_clk_get(void)
 {

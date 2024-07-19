@@ -1281,6 +1281,8 @@
 					"vpu_clk1",
 					"vpu_clk",
 					"gp_pll";
+			overclock_sel = <2>;
+			/* 0: force disable 1:force enable 2: adaptable */
 			clk_level = <8>;
 			/* 0: 24.0M  1: 100.0M    2: 166.7M    3: 200.0M    4: 250.0M */
 			/* 5: 333.3M    6: 400.0M    7: 500.0M    8: 666.7M */
