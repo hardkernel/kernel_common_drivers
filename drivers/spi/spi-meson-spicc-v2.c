@@ -278,6 +278,53 @@ static inline unsigned long spicc_xfer_time_max(struct spicc_device *spicc,
 	return ms;
 }
 
+static int meson_spicc_config(struct spicc_device *spicc,
+			      struct spi_device *spi)
+{
+	struct  spicc_controller_data *cdata;
+
+	if (!spi->bits_per_word || spi->bits_per_word % 8) {
+		spicc_err("invalid wordlen %d\n", spi->bits_per_word);
+		return -EINVAL;
+	}
+
+	spicc_set_speed(spicc, spi->max_speed_hz);
+	spicc->bytes_per_word = spi->bits_per_word >> 3;
+	spicc->cfg_start.b.block_size = spicc->bytes_per_word & 0x7;
+	spicc->cfg_spi.b.ss = spi->chip_select;
+
+	spicc->cfg_bus.b.cpol = !!(spi->mode & SPI_CPOL);
+	spicc->cfg_bus.b.cpha = !!(spi->mode & SPI_CPHA);
+	spicc->cfg_bus.b.little_endian_en = !!(spi->mode & SPI_LSB_FIRST);
+	spicc->cfg_bus.b.half_duplex_en = !!(spi->mode & SPI_3WIRE);
+
+	cdata = (struct spicc_controller_data *)spi->controller_data;
+	if (cdata && cdata->timing_en) {
+		/* SCLK * N */
+		spicc->cfg_bus.b.ss_leading_gap = cdata->ss_leading_gap;
+		/* 2.75us + SCLK * 9 * N */
+		spicc->config_ss_trailing_gap = cdata->ss_trailing_gap;
+		/* 4bit signed, SCLK * N */
+		spicc->cfg_bus.b.tx_tuning = cdata->tx_tuning;
+		spicc->cfg_bus.b.rx_tuning = cdata->rx_tuning;
+		spicc->cfg_bus.b.dummy_ctl = cdata->dummy_ctl;
+	} else if (spi_controller_is_slave(spicc->controller)) {
+		spicc->cfg_bus.b.ss_leading_gap = 0;
+		spicc->config_ss_trailing_gap = 0;
+		spicc->cfg_bus.b.tx_tuning = 15; /* -1 SCLK */
+		spicc->cfg_bus.b.rx_tuning = 0;
+		spicc->cfg_bus.b.dummy_ctl = 0;
+	} else {
+		spicc->cfg_bus.b.ss_leading_gap = 5;
+		spicc->config_ss_trailing_gap = 1;
+		spicc->cfg_bus.b.tx_tuning = 0;
+		spicc->cfg_bus.b.rx_tuning = 7; /* 7 SCLK */
+		spicc->cfg_bus.b.dummy_ctl = 0;
+	}
+
+	return 0;
+}
+
 static bool meson_spicc_can_dma(struct spi_controller *ctlr,
 				struct spi_device *spi,
 				struct spi_transfer *xfer)
@@ -666,65 +713,22 @@ static int meson_spicc_transfer_one_message(struct spi_controller *ctlr,
 static int meson_spicc_prepare_message(struct spi_controller *ctlr,
 				       struct spi_message *message)
 {
-	//struct spicc_device *spicc = spi_controller_get_devdata(ctlr);
-	//struct spi_device *spi = message->spi;
+	struct spicc_device *spicc = spi_controller_get_devdata(ctlr);
 
-	return 0;
+	return meson_spicc_config(spicc, message->spi);
 }
 
 static int meson_spicc_unprepare_transfer(struct spi_controller *ctlr)
 {
-	//struct spicc_device *spicc = spi_controller_get_devdata(ctlr);
-
 	return 0;
 }
 
 static int meson_spicc_setup(struct spi_device *spi)
 {
-	struct spicc_device *spicc;
+#ifdef MESON_SPICC_HW_IF
 	struct  spicc_controller_data *cdata;
 
-	spicc = spi_controller_get_devdata(spi->controller);
-	if (!spi->bits_per_word || spi->bits_per_word % 8) {
-		spicc_err("invalid wordlen %d\n", spi->bits_per_word);
-		return -EINVAL;
-	}
-
-	spicc_set_speed(spicc, spi->max_speed_hz);
-	spicc->bytes_per_word = spi->bits_per_word >> 3;
-	spicc->cfg_start.b.block_size = spicc->bytes_per_word & 0x7;
-	spicc->cfg_spi.b.ss = spi->chip_select;
-
-	spicc->cfg_bus.b.cpol = !!(spi->mode & SPI_CPOL);
-	spicc->cfg_bus.b.cpha = !!(spi->mode & SPI_CPHA);
-	spicc->cfg_bus.b.little_endian_en = !!(spi->mode & SPI_LSB_FIRST);
-	spicc->cfg_bus.b.half_duplex_en = !!(spi->mode & SPI_3WIRE);
-
 	cdata = (struct spicc_controller_data *)spi->controller_data;
-	if (cdata && cdata->timing_en) {
-		/* SCLK * N */
-		spicc->cfg_bus.b.ss_leading_gap = cdata->ss_leading_gap;
-		/* 2.75us + SCLK * 9 * N */
-		spicc->config_ss_trailing_gap = cdata->ss_trailing_gap;
-		/* 4bit signed, SCLK * N */
-		spicc->cfg_bus.b.tx_tuning = cdata->tx_tuning;
-		spicc->cfg_bus.b.rx_tuning = cdata->rx_tuning;
-		spicc->cfg_bus.b.dummy_ctl = cdata->dummy_ctl;
-	} else if (spi_controller_is_slave(spicc->controller)) {
-		spicc->cfg_bus.b.ss_leading_gap = 0;
-		spicc->config_ss_trailing_gap = 0;
-		spicc->cfg_bus.b.tx_tuning = 15; /* -1 SCLK */
-		spicc->cfg_bus.b.rx_tuning = 0;
-		spicc->cfg_bus.b.dummy_ctl = 0;
-	} else {
-		spicc->cfg_bus.b.ss_leading_gap = 5;
-		spicc->config_ss_trailing_gap = 1;
-		spicc->cfg_bus.b.tx_tuning = 0;
-		spicc->cfg_bus.b.rx_tuning = 7; /* 7 SCLK */
-		spicc->cfg_bus.b.dummy_ctl = 0;
-	}
-
-#ifdef MESON_SPICC_HW_IF
 	if (cdata) {
 		cdata->dirspi_start = dirspi_start;
 		cdata->dirspi_stop = dirspi_stop;
@@ -732,8 +736,6 @@ static int meson_spicc_setup(struct spi_device *spi)
 		cdata->dirspi_sync = dirspi_sync;
 	}
 #endif
-
-	spicc_dbg("set mode 0x%x\n", spi->mode);
 
 	return 0;
 }
@@ -812,8 +814,12 @@ static int dirspi_async(struct spi_device *spi,
 	struct spicc_device *spicc = spi_controller_get_devdata(spi->controller);
 	struct device *dev = spicc->controller->dev.parent;
 	dma_addr_t tx_dma = 0, rx_dma = 0;
-	int ret = -EINVAL;
+	int ret;
 	unsigned long ms = spicc_xfer_time_max(spicc, len);
+
+	ret = meson_spicc_config(spicc, spi);
+	if (ret)
+		return ret;
 
 	if (tx_buf) {
 		tx_dma = dma_map_single(dev, (void *)tx_buf, len, DMA_TO_DEVICE);
