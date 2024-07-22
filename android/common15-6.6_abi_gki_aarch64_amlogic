@@ -1,0 +1,4 @@
+#aml_drm.ko
+  ww_mutex_lock
+  ww_mutex_unlock
+  dma_resv_reserve_fences

@@ -335,6 +335,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	u32 pixel_format, src_h, byte_stride, pic_w, pic_h;
 	u32 recal_src_w, recal_src_h;
 	u64 phy_addr, phy_addr2 = 0;
+	int ret;
 
 	MESON_DRM_BLOCK("%s", __func__);
 
@@ -428,9 +429,16 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			vf_info.reserved[0] = 0;
 			vf_info.phy_addr[0] = mvvs->phy_addr[0];
 			vf_info.phy_addr[1] = mvvs->phy_addr[1];
-//KV_TODO: modify
-			dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
+
+			dma_resv_lock(vf_info.dmabuf->resv, NULL);
+
+			ret = dma_resv_reserve_fences(vf_info.dmabuf->resv, 1);
+			if (!ret)
+				dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
 					      DMA_RESV_USAGE_READ);
+
+			dma_resv_unlock(vf_info.dmabuf->resv);
+
 			MESON_DRM_FENCE("dmabuf(%px), release_fence(%px)\n",
 				vf_info.dmabuf, vf_info.release_fence);
 			MESON_DRM_BLOCK("vf-info crop:%u, %u, %u, %u, pic:%u, %u\n",
@@ -467,9 +475,15 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			vf_info.phy_addr[0] = mvvs->phy_addr[0];
 			vf_info.phy_addr[1] = mvvs->phy_addr[1];
 			vf_info.reserved[0] = video_type_get(pixel_format);
-//KV_TODO: modify
-			dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
-					   DMA_RESV_USAGE_READ);
+
+			dma_resv_lock(vf_info.dmabuf->resv, NULL);
+
+			ret = dma_resv_reserve_fences(vf_info.dmabuf->resv, 1);
+			if (!ret)
+				dma_resv_add_fence(vf_info.dmabuf->resv, vf_info.release_fence,
+							DMA_RESV_USAGE_READ);
+
+			dma_resv_unlock(vf_info.dmabuf->resv);
 #ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
 			video_display_setframe(vblk->index, &vf_info, 0);
 #endif
@@ -540,6 +554,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	if (!video->vfm_mode && video->fence && vf && !mvvs->repeat_frame)
 		bind_video_fence_vframe(video, video->fence,
 				mvvs->plane_index, vf);
+
 	MESON_DRM_BLOCK("plane_index=%d,HW-video=%d, byte_stride=%d\n",
 		  mvvs->plane_index, vblk->index, byte_stride);
 	MESON_DRM_BLOCK("phy_addr=0x%pa,phy_addr2=0x%pa, repeat_frame=%d\n",
