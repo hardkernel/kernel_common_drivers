@@ -715,7 +715,8 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 
 	if (plink_dct) /* for plink */
 		flg_q = qbuf_in(pbufq, QBF_NINS_Q_DCT, bindex);
-	else if (get_datal()->dct_op && get_datal()->dct_op->is_en(pch))
+	else if (get_datal()->dct_op && ((dim_is_slt_mode() && pch->in_cnt != 1) ||
+		get_datal()->dct_op->is_en(pch)))
 		flg_q = qbuf_in(pbufq, QBF_NINS_Q_DCT, bindex);
 	else
 		flg_q = qbuf_in(pbufq, QBF_NINS_Q_CHECK, bindex);

@@ -5236,8 +5236,10 @@ static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 	struct dim_ndis_s *dis;
 	struct di_buffer *buffer;
 
+	dbg_post_ref("%s [0x%x]\n", __func__, di_buf->datacrc);
 	//dis = ndisq_peek(pch, QBF_NDIS_Q_IDLE);
 	dis = ndis_move(pch, QBF_NDIS_Q_IDLE, QBF_NDIS_Q_USED);
+	dbg_post_ref("%s [0x%x]\n", __func__, di_buf->datacrc);
 	if (!dis) {
 		PR_ERR("%s:no idle\n", __func__);
 		return false;
@@ -5331,6 +5333,7 @@ bool ndis_fill_ready(struct di_ch_s *pch, struct di_buf_s *di_buf)
 	struct dim_itf_s *itf;
 	struct dev_vfm_s *pvfmc;
 
+	dbg_post_ref("%s [0x%x]\n", __func__, di_buf->datacrc);
 	ret = ndis_fill_ready_bypass(pch, di_buf);
 
 	if (!ret)
@@ -5722,7 +5725,6 @@ void dim_slt_init(void)
 	dimp_set(edi_mp_pq_load_dbg, 1);
 	cfgs(KEEP_CLEAR_AUTO, 2);
 
-	di_decontour_disable(true);
 	PR_INF("%s:\n", __func__);
 }
 

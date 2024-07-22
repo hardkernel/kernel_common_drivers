@@ -91,6 +91,7 @@
 
 #define USED_LOCAL_BUF_MAX			3
 #define BYPASS_GET_MAX_BUF_NUM			9//4
+#define MAX_CRC_COUNT_NUM			(10)
 
 /* buffer management related */
 #define MAX_IN_BUF_NUM				(15)	/*change 4 to 8*/
@@ -517,6 +518,9 @@ struct di_dev_s {
 	struct vpu_dev_s *dim_vpu_pd_post;
 	bool is_crc_ic;
 	unsigned int sub_v;
+	unsigned int di_pre_nrcrc[MAX_CRC_COUNT_NUM];
+	unsigned int getcrccount;
+	unsigned int setcrccount;
 #ifdef DIM_TB_DETECT
 	//unsigned int tb_detect;
 	unsigned int tb_detect_period;

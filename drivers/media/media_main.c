@@ -126,6 +126,7 @@ static int __init media_main_init(void)
 	call_sub_init(dil_init);
 	call_sub_init(di_module_init);
 	call_sub_init(dim_module_init);
+	call_sub_init(di_v4l_init);
 	call_sub_init(cec_init);
 #ifdef CONFIG_AMLOGIC_MEDIA_GDC
 	call_sub_init(gdc_driver_init);
