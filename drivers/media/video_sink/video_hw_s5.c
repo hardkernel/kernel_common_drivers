@@ -12092,6 +12092,7 @@ void set_video_slice_policy(struct video_layer_s *layer,
 		/* check output */
 		/* output: (4k-8k], input <= 4k */
 		if ((vinfo->width > 4096 && vinfo->height > 2160)) {
+			slice_num = 1;
 			pi_en = 1;
 		/* 4k 120hz */
 		} else if (vinfo->width > 1920 && vinfo->height > 1080 &&
