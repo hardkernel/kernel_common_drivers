@@ -3538,6 +3538,15 @@ start_chk:
 		}
 		pr_info("bypass_pc_mode:%d pc_mode:%d\n",
 			devp->debug.bypass_pc_mode, vdin_pc_mode);
+	} else if (!strcmp(parm[0], "v4l2_buff_area")) {
+		/*
+		 * 0: codec_mm_cma area
+		 * 1: CMA reserved area
+		 * 2: vdin1_cma area
+		 */
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+			devp->debug.v4l2_buff_area = temp;
+		pr_info("v4l2_buff_area: %d\n", devp->debug.v4l2_buff_area);
 	} else if (!strcmp(parm[0], "vrr_mode")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			devp->vrr_mode = temp;
