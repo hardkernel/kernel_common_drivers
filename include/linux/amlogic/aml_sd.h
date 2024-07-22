@@ -37,8 +37,8 @@
 
 /* flag is "@ML" */
 #define TUNED_FLAG            0x004C4D40
-/* version is "V1" */
-#define TUNED_VERSION         0x00003156
+/* version is "V3" */
+#define TUNED_VERSION         0x00003356
 /* magic is 0x00487e44 */
 #define TUNED_MAGIC           0x00487e44
 
@@ -138,6 +138,7 @@ struct aml_tuning_para {
 	unsigned int busmode;
 	unsigned int update;
 	int temperature;
+	long long clk;
 	long long checksum;
 
 };
