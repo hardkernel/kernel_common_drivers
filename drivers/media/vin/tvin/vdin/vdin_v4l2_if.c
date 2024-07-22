@@ -1607,9 +1607,12 @@ static int vdin_vb2ops_queue_setup(struct vb2_queue *vq,
 		sizes[i] = devp->v4l2_fmt.fmt.pix_mp.plane_fmt[i].sizeimage;
 		dprintk(1, "plane %d, size %x\n", i, sizes[i]);
 		//if (devp->index == 0)
+		if (devp->debug.v4l2_buff_area == 0)
 			alloc_devs[i] = v4l_get_dev_from_codec_mm();/* codec_mm_cma area */
-			//alloc_devs[i] = &devp->this_pdev->dev;/* vdin0_cma area */
-			//alloc_devs[i] = &devp->dev;/* CMA reserved area */
+		else if (devp->debug.v4l2_buff_area == 1)
+			alloc_devs[i] = &devp->this_pdev->dev;/* vdin0_cma area */
+		else if (devp->debug.v4l2_buff_area == 2)
+			alloc_devs[i] = devp->dev;/* CMA reserved area */
 		//else
 			//alloc_devs[i] = &devp->this_pdev->dev;/* vdin1_cma area */
 	}
@@ -1873,7 +1876,7 @@ static int vdin_v4l2_queue_init(struct vdin_dev_s *devp,
 	 * Since this driver can only do 32-bit DMA we must make sure that
 	 * the vb2 core will allocate the buffers in 32-bit DMA memory.
 	 */
-	que->gfp_flags = GFP_DMA32;
+	que->gfp_flags = GFP_KERNEL;
 
 	ret = vb2_queue_init(que);
 	if (ret < 0)
@@ -1970,17 +1973,17 @@ int vdin_v4l2_probe(struct platform_device *pl_dev,
 	}
 
 	pl_dev->dev.dma_mask = &pl_dev->dev.coherent_dma_mask;
-	if (dma_set_coherent_mask(&pl_dev->dev, 0xffffffff) < 0)
+	if (dma_set_coherent_mask(&pl_dev->dev, DMA_BIT_MASK(36)) < 0)
 		dprintk(0, "dev set_coherent_mask fail\n");
 
-	if (dma_set_mask(&pl_dev->dev, 0xffffffff) < 0)
+	if (dma_set_mask(&pl_dev->dev, DMA_BIT_MASK(36)) < 0)
 		dprintk(0, "set dma mask fail\n");
 
 	video_dev->dev.dma_mask = &video_dev->dev.coherent_dma_mask;
-	if (dma_set_coherent_mask(&video_dev->dev, 0xffffffff) < 0)
+	if (dma_set_coherent_mask(&video_dev->dev, DMA_BIT_MASK(36)) < 0)
 		dprintk(0, "dev set_coherent_mask fail\n");
 
-	if (dma_set_mask(&video_dev->dev, 0xffffffff) < 0)
+	if (dma_set_mask(&video_dev->dev, DMA_BIT_MASK(36)) < 0)
 		dprintk(0, "set dma mask fail\n");
 
 	/*device node need attach device tree vdin dts tree*/

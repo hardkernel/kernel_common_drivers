@@ -147,8 +147,9 @@
 /* 20230529: bringup for txhd2 */
 /* 20230608: vdin not clear ratio_control value */
 /* 20230720: set vdin urgent for txhd2 */
+/* 20240730: Change the vdin address access range to greater than 4GB, starting from s6 */
 
-#define VDIN_VER "2023/07/20"
+#define VDIN_VER "2024/07/30"
 
 //#define T3X_PXP_BRINGUP
 //#define VDIN_BRINGUP_NO_VF
@@ -617,6 +618,7 @@ struct vdin_debug_s {
 	unsigned int dbg_dw_h;
 	unsigned int dbg_dw_v;
 	unsigned int dbg_dw_dfmt;
+	unsigned int v4l2_buff_area;
 };
 
 struct vdin_dv_s {

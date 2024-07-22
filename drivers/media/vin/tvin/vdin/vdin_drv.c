@@ -6318,14 +6318,6 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		goto fail_create_dev_file;
 	}
 
-	/* vd1, vdin loop back use rev memory
-	 * v4l2 use rev memory
-	 */
-	if (devp->hw_core == VDIN_HW_CORE_LITE) {
-		ret = of_reserved_mem_device_init(&pdev->dev);
-		if (ret)
-			pr_info("vdin[%d] memory resource undefined!!\n", devp->index);
-	}
 	/*got the dt match data*/
 	of_id = of_match_device(vdin_dt_match, &pdev->dev);
 	if (!of_id) {
@@ -6369,19 +6361,28 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		devp->mem_size = mem_end - mem_start + 1;
 	}
 
+	/* vd1, vdin loop back use rev memory
+	 * v4l2 use rev memory
+	 */
+	if (!(devp->cma_config_flag & MEM_ALLOC_FROM_CODEC)) {
+		ret = of_reserved_mem_device_init(&pdev->dev);
+		if (ret)
+			pr_info("vdin[%d] memory resource undefined!!\n", devp->index);
+	}
+
 	pr_info("vdin(%d) dma mask\n", devp->index);
 	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
-	if (dma_set_coherent_mask(&pdev->dev, 0xffffffff) < 0)
+	if (dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(36)) < 0)
 		pr_info("dev set_coherent_mask fail\n");
 
-	if (dma_set_mask(&pdev->dev, 0xffffffff) < 0)
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(36)) < 0)
 		pr_info("set dma mask fail\n");
 
 	devp->dev->dma_mask = &devp->dev->coherent_dma_mask;
-	if (dma_set_coherent_mask(devp->dev, 0xffffffff) < 0)
+	if (dma_set_coherent_mask(devp->dev, DMA_BIT_MASK(36)) < 0)
 		pr_info("dev set_coherent_mask fail\n");
 
-	if (dma_set_mask(devp->dev, 0xffffffff) < 0)
+	if (dma_set_mask(devp->dev, DMA_BIT_MASK(36)) < 0)
 		pr_info("set dma mask fail\n");
 
 	ret = vdin_get_irq_from_dts(pdev, devp);

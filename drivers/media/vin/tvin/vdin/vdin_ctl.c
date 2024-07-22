@@ -2692,7 +2692,7 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 {
 	u32 stride_luma, stride_chroma = 0;
 	u32 hsize;
-	u32 phy_addr_luma = 0, phy_addr_chroma = 0;
+	unsigned long phy_addr_luma = 0, phy_addr_chroma = 0;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu()) {
@@ -2746,7 +2746,7 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 				       stride_chroma);
 		}
 	} else {
-		pr_info("%s,phy_addr_luma:%#x,stride_luma:%d\n",
+		pr_info("%s,phy_addr_luma:0x%lx,stride_luma:%d\n",
 			__func__, phy_addr_luma, stride_luma);
 		wr(devp->addr_offset, VDIN_WR_BADDR_LUMA, phy_addr_luma >> 4);
 		wr(devp->addr_offset, VDIN_WR_STRIDE_LUMA, stride_luma);
@@ -2761,7 +2761,7 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 
 	if (devp->debug.dbg_print_cntl & VDIN_ADDRESS_DBG &&
 	    devp->irq_cnt < VDIN_DBG_PRINT_CNT)
-		pr_info("%s %#x:%#x(%#x) %#x:%#x(%#x) %#x:%#x(%#x) %#x:%#x(%#x) %#x:%#x\n",
+		pr_info("%s %#x:%#x(0x%lx) %#x:%#x(%#x) %#x:%#x(0x%lx) %#x:%#x(%#x) %#x:%#x\n",
 			__func__, VDIN_WR_BADDR_LUMA, rd(devp->addr_offset, VDIN_WR_BADDR_LUMA),
 			phy_addr_luma,
 			VDIN_WR_STRIDE_LUMA, rd(devp->addr_offset, VDIN_WR_STRIDE_LUMA),
