@@ -15,8 +15,8 @@
 #include "meson_print.h"
 
 /*****drm reg access by rdma*****/
-/*one item need two u32 = 8byte,total 512 item is enough for vpu*/
-#define MESON_VPU_RDMA_TABLE_SIZE (512 * 8)
+/*one item need two u32 = 8byte,total 512+1536 item is enough for vpu*/
+#define MESON_VPU_RDMA_TABLE_SIZE (2048 * 8)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 #define RDMA_COUNT 3

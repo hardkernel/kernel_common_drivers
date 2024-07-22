@@ -253,6 +253,7 @@ bool get_idk_need_pps(void);
 int get_amdv_apo_enable(void);
 void set_amdv_apo_enable(bool enable);
 
+u32 *get_core2_lut(void);
 #define AMDV_UPDATE_OSD_MODE 0x00000001
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 int amdv_notifier_call_chain(unsigned long val, void *v);

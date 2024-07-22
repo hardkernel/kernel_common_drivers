@@ -11885,6 +11885,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 			}
 			amdv_set_toggle_flag(1);
 		}
+		force_toggle_once = false;
 		need_update_cfg = false;
 	}
 
@@ -15439,14 +15440,14 @@ static ssize_t amdolby_vision_debug_store
 			return -EINVAL;
 		force_core2c_on = val;
 		pr_info("force_core2c_on %d\n", force_core2c_on);
-	} else if (!strcmp(parm[0], "force_toggle_once")) {
-		force_toggle_once = true;
-		pr_info("set force_toggle_once\n");
 	} else if (!strcmp(parm[0], "force_toggle_each_vsync")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
 		force_toggle_each_vsync = val;
 		pr_info("force_toggle_each_vsync %d\n", force_toggle_each_vsync);
+	} else if (!strcmp(parm[0], "force_toggle_once")) {
+		force_toggle_once = true;
+		pr_info("set force_toggle_once\n");
 	} else {
 		pr_info("unsupport cmd\n");
 	}

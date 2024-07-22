@@ -800,6 +800,7 @@ extern struct meson_vpu_block_ops t3x_postblend_ops;
 extern struct meson_vpu_block_ops s5_osd_ops;
 extern struct meson_vpu_block_ops s5_afbc_ops;
 extern struct meson_vpu_block_ops s5_scaler_ops;
+extern struct meson_vpu_block_ops s5_hdr_ops;
 extern struct meson_vpu_block_ops s5_osdblend_ops;
 extern struct meson_vpu_block_ops s5_postblend_ops;
 extern struct meson_vpu_block_ops slice2ppc_ops;
