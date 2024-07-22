@@ -12189,8 +12189,12 @@ void set_video_slice_policy(struct video_layer_s *layer,
 			if (vd1s1_vd2_prebld_en != last_vd1s1_vd2_prebld_en)
 				vd_layer[0].property_changed = true;
 			last_vd1s1_vd2_prebld_en = vd1s1_vd2_prebld_en;
+			if (get_video_mute_val(VPP_INTERNAL))
+				set_video_mute_info(VPP_INTERNAL, false);
 		} else {
 			slice_num = 1;
+			if (get_video_mute_val(VPP_INTERNAL))
+				set_video_mute_info(VPP_INTERNAL, false);
 		}
 slice_calc_exit:
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
