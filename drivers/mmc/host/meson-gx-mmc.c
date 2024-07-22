@@ -43,6 +43,7 @@
 #include <trace/hooks/mmc.h>
 #include <linux/moduleparam.h>
 #include <linux/amlogic/gki_module.h>
+#include <linux/thermal.h>
 
 #include "meson-cqhci.h"
 
@@ -2640,6 +2641,21 @@ static void aml_set_tuning_para(struct mmc_host *mmc)
 	}
 }
 
+static int thermal_get_temp_by_name(const char *name)
+{
+	struct thermal_zone_device *tz;
+	int temperature = 0;
+	int ret;
+
+	tz = thermal_zone_get_zone_by_name(name);
+	if (!tz)
+		return -1;
+	ret = thermal_zone_get_temp(tz, &temperature);
+	if (ret)
+		return -1;
+	return temperature;
+}
+
 /*save parameter on mmc_host pdata*/
 static void aml_save_tuning_para(struct mmc_host *mmc)
 {
@@ -2667,9 +2683,43 @@ static void aml_save_tuning_para(struct mmc_host *mmc)
 	host->para.hs4[temp_index].flag = TUNED_FLAG;
 	host->para.magic = TUNED_MAGIC; /*E~K\0*/
 	host->para.version = TUNED_VERSION;
+	host->para.clk = mmc->actual_clock;
 
 	checksum = _para_checksum_calc(para);
 	host->para.checksum = checksum;
+}
+
+/*write tuning para on emmc, the offset is 0x14400*/
+static int amlmmc_write_tuning_para(struct mmc_card *card,
+					unsigned int dev_addr)
+{
+	unsigned int size;
+	struct mmc_host *mmc = card->host;
+	struct meson_host *host = mmc_priv(mmc);
+	struct aml_tuning_para *parameter = &host->para;
+	unsigned int *buf;
+	int para_size;
+	int blocks;
+
+	if (host->save_para == 0 || parameter->update == 0)
+		return 0;
+
+	parameter->update = 0;
+	para_size = sizeof(struct aml_tuning_para);
+	blocks = (para_size - 1)  / 512 + 1;
+	size = blocks << card->csd.read_blkbits;
+	buf = kmalloc(size, GFP_KERNEL);
+	memset(buf, 0, size);
+	memcpy(buf, parameter, sizeof(struct aml_tuning_para));
+
+	mmc_claim_host(card->host);
+	aml_disable_mmc_cqe(card);
+	mmc_transfer(card, dev_addr, blocks, buf, 1);
+	aml_enable_mmc_cqe(card);
+	mmc_release_host(card->host);
+
+	kfree(buf);
+	return 0;
 }
 
 /*
@@ -2690,17 +2740,21 @@ static int aml_para_is_exist(struct mmc_host *mmc)
 	long long checksum;
 	struct meson_host *host = mmc_priv(mmc);
 	struct aml_tuning_para *para = &host->para;
-	int i;
+	int i, trynum = 0;
 
 	if (host->save_para == 0)
 		return 0;
 
 	para->update = 1;
-	temperature = -1;
-
-	if (temperature == -1) {
-		para->update = 0;
-		pr_info("get temperature failed\n");
+	while (trynum < 100) {
+		temperature = thermal_get_temp_by_name("soc_thermal");
+		if (temperature > 0)
+			break;
+		trynum++;
+		mdelay(5);
+	}
+	if (trynum == 100) {
+		pr_info("get temperature failed, trynum:%d\n", trynum);
 		return 0;
 	}
 	pr_info("current temperature is %d\n", temperature);
@@ -2711,6 +2765,11 @@ static int aml_para_is_exist(struct mmc_host *mmc)
 	checksum = _para_checksum_calc(para);
 	if (checksum != para->checksum) {
 		pr_info("warning: checksum is not match\n");
+		return 0;
+	}
+
+	if (mmc->actual_clock != para->clk) {
+		pr_info("warning: clk is not match\n");
 		return 0;
 	}
 
@@ -3854,6 +3913,7 @@ static const struct mmc_host_ops meson_mmc_ops = {
 	.start_signal_voltage_switch = meson_mmc_voltage_switch,
 	.hs400_enhanced_strobe = meson_mmc_enhance_strobe,
 	.init_card      = sdio_get_card,
+	.hs400_prepare_ddr = aml_read_tuning_para,
 };
 
 static int mmc_clktest_show(struct seq_file *s, void *data)
@@ -4010,6 +4070,7 @@ void add_dtbkey(struct work_struct *work)
 		amlmmc_dtb_init(mmc->card, &ret);
 		if (ret)
 			pr_err("%s:%d,amlmmc_dtb_init fail\n", __func__, __LINE__);
+		amlmmc_write_tuning_para(mmc->card, MMC_TUNING_OFFSET);
 	} else {
 		schedule_delayed_work(&host->dtbkey, 50);
 	}
