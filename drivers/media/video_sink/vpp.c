@@ -2564,6 +2564,9 @@ RESTART:
 	}
 
 	if (no_compress) {
+		u32 pi_enable_pre, pi_enable_adj;
+
+		pi_enable_pre = get_pi_enabled(input->layer_id);
 		if ((vpp_flags & VPP_FLAG_MORE_LOG) &&
 		    input->afbc_support && cur_super_debug)
 			pr_info
@@ -2572,6 +2575,7 @@ RESTART:
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		adjust_video_slice_policy(input->layer_id, vf, no_compress);
 #endif
+		pi_enable_adj = get_pi_enabled(input->layer_id);
 		/* for VIDTYPE_COMPRESS, check if we can use double write
 		 * buffer when primary frame can not be scaled.
 		 */
@@ -2591,6 +2595,15 @@ RESTART:
 		next_frame_par->vscale_skip_count = 0;
 		if (vf->width && vf->compWidth)
 			crop_ratio = vf->compWidth / vf->width;
+		/* double write case switch from pi_enalbe 0-> 1 */
+		if (pi_enable_adj && !pi_enable_pre) {
+			width_out >>= 1;
+			height_out >>= 1;
+			video_layer_width >>= 1;
+			video_layer_height >>= 1;
+			video_layer_left >>= 1;
+			video_layer_top >>= 1;
+		}
 		goto RESTART_ALL;
 	} else {
 		if (vf->type_original & VIDTYPE_COMPRESS &&
