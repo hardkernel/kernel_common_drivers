@@ -130,10 +130,10 @@ static void s5_hdr_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_hdr *hdr = to_hdr_block(vblk);
 	struct meson_vpu_pipeline *pipeline = hdr->base.pipeline;
 	//struct hdr_reg_s *reg = hdr->reg;
-	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
 	struct meson_vpu_pipeline_state *mvps, *old_mvps;
 	u32 hsize, vsize;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
 	u32 *p_core2_lut = NULL;
 	u32 lut_count = 256 * 5;
 	u32 i;
