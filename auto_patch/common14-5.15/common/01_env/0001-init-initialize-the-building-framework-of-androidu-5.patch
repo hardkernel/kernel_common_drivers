@@ -1,4 +1,4 @@
-From e5dc2882c61203dbc04ca314e8de9acfd139c2d7 Mon Sep 17 00:00:00 2001
+From c969b19f907991d80a6f7621d79d74d652a7f735 Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Thu, 2 Feb 2023 15:49:10 +0800
 Subject: [PATCH] init: initialize the building framework of androidu-5.15 for
@@ -47,7 +47,7 @@ index 265959544978..0bbfe4cd37fc 100644
 +# amlogic drivers
 +/common_drivers/
 diff --git a/Makefile b/Makefile
-index 4bed31517741..342b8306ac72 100644
+index 4bed31517741..9f816e1d5ae5 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -438,6 +438,14 @@ ifneq ($(SRCARCH),$(SUBARCH))
@@ -58,7 +58,7 @@ index 4bed31517741..342b8306ac72 100644
 +# config cannot be used here to mark AMLOGIC modifications
 +# If these three variables are not set externally, set their default values
 +export COMMON_DRIVERS_DIR ?= common_drivers
-+dtstree ?= $(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/boot/dts/amlogic
++dtstree ?= $(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/boot/dts/
 +export DTC_INCLUDE ?= $(srctree)/$(COMMON_DRIVERS_DIR)/include
 +# endif
 +
@@ -391,7 +391,7 @@ index 000000000000..a364fbe60a84
 +exit $out;
 diff --git a/scripts/amlogic/merge_pre_check.pl b/scripts/amlogic/merge_pre_check.pl
 new file mode 100755
-index 000000000000..b2c9a1df0f17
+index 000000000000..a7ac27020c6e
 --- /dev/null
 +++ b/scripts/amlogic/merge_pre_check.pl
 @@ -0,0 +1,429 @@
