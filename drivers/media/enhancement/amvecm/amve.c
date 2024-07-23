@@ -6098,6 +6098,5 @@ void amve_lc_elc_ctrl(unsigned int enable)
 		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET0_1, 0, 0);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET2, 0, 0);
 	}
-	force_toggle();
 }
 
