@@ -851,12 +851,17 @@ unsigned int vrr_check_frame_rate_min_hz(void)
 	return vrr_min;
 }
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 unsigned int vrr_instead_vlock(void)
 {
-	return vrr_priority;
+	unsigned int ret = 0;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	ret = vrr_priority;
+#endif
+
+	return ret;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 ssize_t frame_lock_debug_store(struct class *cla,
 			  struct class_attribute *attr,
 		const char *buf, size_t count)
