@@ -3144,8 +3144,12 @@ static int dv_core3_set
 			VPU_MEM_POWER_DOWN)
 			dv_mem_power_on(VPU_DOLBY_CORE3);
 	}
-
-	VSYNC_WR_DV_REG(CORE3_CLKGATE_CTRL, 0);
+	/*s6 has clk_gating function, but its logical is unreasonable, lead to crc is not matched*/
+	/*bit5: 0->enable clk gate, 1->disable clk gate*/
+	if (is_aml_s6())
+		VSYNC_WR_DV_REG(CORE3_CLKGATE_CTRL, 0x20);
+	else
+		VSYNC_WR_DV_REG(CORE3_CLKGATE_CTRL, 0);
 	VSYNC_WR_DV_REG(CORE3_SWAP_CTRL1,
 			((hsize + htotal_add) << 16)
 			| (vsize + vtotal_add + vsize_add + vsize_hold * 2));
