@@ -1009,7 +1009,7 @@ static int lcd_resume(void *data)
 void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int cnt_idx, lcd_type = pdrv->config.basic.lcd_type;
-	char *connector_name_list[4] = {"LVDS", "VBYONE", "MIPI", "EDP"};
+	char *connector_name_list[5] = {"LVDS", "VBYONE", "MIPI", "EDP", "LCD"};
 	char *curr_vout_connector;
 
 	if (lcd_type == LCD_LVDS || lcd_type == LCD_MLVDS)
@@ -1021,7 +1021,7 @@ void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 	else if (lcd_type == LCD_EDP)
 		cnt_idx = 3;
 	else
-		return;
+		cnt_idx = 4;
 
 	pdrv->vout_server = kzalloc(sizeof(*pdrv->vout_server), GFP_KERNEL);
 	if (!pdrv->vout_server)
