@@ -3471,7 +3471,8 @@ void vdin_set_all_regs(struct vdin_dev_s *devp)
 
 	/* for t7 vdin2 write meta data */
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (devp->dtdata->hw_ver == VDIN_HW_T7 && devp->index == 0) {
+	if (devp->dtdata->hw_ver == VDIN_HW_T7 && devp->index == 0 &&
+		devp->dv.dv_mem_allocated) {
 		vdin_wrmif2_initial(devp);
 		vdin_wrmif2_addr_update(devp);
 		vdin_wrmif2_enable(devp, 0, 0);
@@ -5325,8 +5326,6 @@ void vdin_dolby_addr_alloc(struct vdin_dev_s *devp, unsigned int size)
 	unsigned int index;
 	/*int highmem_flag;*/
 	unsigned int one_buf_size = dolby_size_byte;
-
-	dolby_size_byte = one_buf_size;
 
 	if (devp->dtdata->hw_ver == VDIN_HW_T7)
 		devp->dv.dv_dma_size = (unsigned long)one_buf_size * size + K_DV_META_RAW_BUFF0;

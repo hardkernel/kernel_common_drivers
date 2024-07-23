@@ -46,6 +46,9 @@ void vdin_wrmif2_enable(struct vdin_dev_s *devp, u32 en, unsigned int rdma_enabl
 	if (devp->dtdata->hw_ver != VDIN_HW_T7 || devp->index)
 		return;
 
+	if (devp->dv.dv_mem_allocated == 0 && en)
+		return;
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable) {
@@ -189,6 +192,9 @@ irqreturn_t vdin_wrmif2_dv_meta_wr_done_isr(int irq, void *dev_id)
 	if (devp->dtdata->hw_ver != VDIN_HW_T7 ||
 	    !(devp->flags & VDIN_FLAG_ISR_EN))
 		return sts;
+
+	if (devp->dv.dv_mem_allocated == 0)
+		return IRQ_NONE;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	src_dv_meta_vaddr = devp->dv.meta_data_raw_v_buffer0;
