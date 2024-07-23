@@ -13365,6 +13365,9 @@ static int amdolby_vision_process_v2_stb
 					!dv_core1[i].core1_on &&
 					(dv_core1[i].run_mode_count == 0);
 			}
+		} else {
+			for (i = 0; i < NUM_IPCORE1; i++)
+				reset_flag[i] = (video_status[i] > 0) ? true : false;
 		}
 		if (((dv_core1[0].core1_disp_hsize & 0xffff) &&
 		    (dv_core1[0].core1_disp_vsize & 0xffff)) ||
@@ -14984,6 +14987,7 @@ void amdv_crc_clear(int flag)
 	crc_count = 0;
 	crc_bypass_count = 0;
 	setting_update_count = 0;
+	crc_read_delay = 0;
 	if (multi_dv_mode) {
 		for (i = 0; i < NUM_INST; i++)
 			dv_inst[i].frame_count = 0;
