@@ -3608,7 +3608,7 @@ static void afbc_sw(bool on)
 			afbc_sw_sc2(on);
 
 		pafd_ctr->b.en = on;
-		pr_info("di:%s:%d\n", __func__, on);
+		dbg_reg("di:%s:%d\n", __func__, on);
 	}
 }
 

@@ -742,7 +742,7 @@ static void decontour_init(struct di_ch_s *pch)
 		       "dct disable", pch->ch_id, cnt_ch, nub_ch);
 		return;
 	}
-	PR_INF("%s:ch[%d]\n", "dct", pch->ch_id);
+	dbg_reg("%s:ch[%d]\n", "dct", pch->ch_id);
 	dct->src_cnt = cnt_ch;
 	/***********************/
 	dct->statusx[pch->ch_id] |= DCT_PRE_LS_ACT;
@@ -858,7 +858,7 @@ static void decontour_uninit(struct di_ch_s *pch)
 	dct->src_cnt--;
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_ACT);
 
-	PR_INF("ch[%d]decontour:uninit: curr_nins:%px pre-link:%d,%d\n",
+	dbg_reg("ch[%d]decontour:uninit: curr_nins:%px pre-link:%d,%d\n",
 		pch->ch_id, dct->curr_nins, pre_link, dct->state);
 	if (dct->curr_nins) {
 		PR_WARN("%s:ch[%d]:state:%d sdt_mode:%d\n",

@@ -550,7 +550,7 @@ int new_create_instance(struct di_init_parm parm)
 	//cfg_ch_set(pch);
 	mutex_unlock(&pch->itf.lock_reg);
 	PR_INF("%s:ch[%d],tmode[%d]\n", "ins:create", ch, itf->tmode);
-	PR_INF("\tout:0x%x\n", itf->u.dinst.parm.output_format);
+	dbg_reg("\tout:0x%x\n", itf->u.dinst.parm.output_format);
 	return ch;
 }
 

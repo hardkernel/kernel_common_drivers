@@ -454,13 +454,13 @@ void dbg_timer(unsigned int ch, enum EDBG_TIMER item)
 	case EDBG_TIMER_REG_E:
 		udiff = pch->dbg_data.ms_dbg[EDBG_TIMER_REG_E] -
 			pch->dbg_data.ms_dbg[EDBG_TIMER_REG_B];
-		dbg_ev("reg:use[%llu]ms\n", udiff);
+		dbg_reg("reg:use[%llu]ms\n", udiff);
 		break;
 	case EDBG_TIMER_UNREG_E:
 
 		udiff = pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_E] -
 			pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_B];
-		dbg_ev("unreg:use[%llu]ms\n", udiff);
+		dbg_reg("unreg:use[%llu]ms\n", udiff);
 		//dbg_ev("\tb[%llu]:e[%llu]\n",
 		 //      pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_B],
 		 //      pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_E]);
@@ -468,12 +468,12 @@ void dbg_timer(unsigned int ch, enum EDBG_TIMER item)
 	case EDBG_TIMER_SEC_PRE_E:
 		udiff = pch->dbg_data.ms_dbg[EDBG_TIMER_SEC_PRE_E] -
 			pch->dbg_data.ms_dbg[EDBG_TIMER_SEC_PRE_B];
-		dbg_ev("pre_sec:use[%llu]ms\n", udiff);
+		dbg_reg("pre_sec:use[%llu]ms\n", udiff);
 		break;
 	case EDBG_TIMER_SEC_PST_E:
 		udiff = pch->dbg_data.ms_dbg[EDBG_TIMER_SEC_PST_E] -
 			pch->dbg_data.ms_dbg[EDBG_TIMER_SEC_PST_B];
-		dbg_ev("pst_sec:use[%llu]ms\n", udiff);
+		dbg_reg("pst_sec:use[%llu]ms\n", udiff);
 		break;
 	default:
 		break;

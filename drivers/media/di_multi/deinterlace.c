@@ -2099,7 +2099,7 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 		mm->cfg.pbuf_flg.b.tvp = 0;
 	}
 
-	dbg_ev("%s1:tvp:%d\n", __func__, mm->cfg.pbuf_flg.b.tvp);
+	dbg_reg("%s1:tvp:%d\n", __func__, mm->cfg.pbuf_flg.b.tvp);
 	if (dim_afds() && dim_afds()->cnt_info_size &&
 	    (dim_afds()->is_sts(EAFBC_MEMI_NEED) || cfgg(FIX_BUF))) {
 		afbc_info_size = dim_afds()->cnt_info_size(width,
@@ -2298,7 +2298,7 @@ void di_cnt_pst_afbct(struct di_ch_s *pch)
 		dim_afds()->cnt_tab_size(tsize);
 
 	mm->cfg.nub_pafbct	= mm->cfg.num_post;//DIM_PAT_NUB - 1;
-	PR_INF("%s:cfg post nub:%d\n", __func__, mm->cfg.num_post);
+	dbg_mem2("%s:cfg post nub:%d\n", __func__, mm->cfg.num_post);
 	mm->cfg.size_pafbct_all = afbc_tab_size * mm->cfg.nub_pafbct;
 	mm->cfg.size_pafbct_one = afbc_tab_size;
 
@@ -11387,7 +11387,7 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 	struct di_dev_s *de_devp = get_dim_de_devp();
 	unsigned int x, y;
 
-	PR_INF("%s:ch[%d]:for first ch reg:\n", __func__, channel);
+	dbg_reg("%s:ch[%d]:for first ch reg:\n", __func__, channel);
 
 	if (get_hw_reg_flg()) {
 		PR_ERR("%s:have setting?do nothing\n", __func__);

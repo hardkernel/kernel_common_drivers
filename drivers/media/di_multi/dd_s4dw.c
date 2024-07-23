@@ -1343,7 +1343,7 @@ static unsigned char s4dw_pre_buf_config(struct di_ch_s *pch)
 	if (change_type) {
 		sgn = di_vframe_2_sgn(vframe);
 		ppre->sgn_lv = sgn;
-		PR_INF("%s:ch[%d]:%ums %dth source change:\n",
+		dbg_dbg("%s:ch[%d]:%ums %dth source change:\n",
 		       "pre cfg",
 		       channel,
 		       jiffies_to_msecs(jiffies_64),

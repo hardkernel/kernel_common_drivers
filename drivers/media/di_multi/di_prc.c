@@ -5806,7 +5806,7 @@ bool di_hf_t_try_alloc(struct di_ch_s *pch)
 
 	get_datal()->hf_busy = true;
 	get_datal()->hf_owner = pch->ch_id;
-	PR_INF("hf:a:ch[%d]:alloc:ok\n", pch->ch_id);
+	dbg_reg("hf:a:ch[%d]:alloc:ok\n", pch->ch_id);
 	return true;
 }
 
@@ -5827,7 +5827,7 @@ void di_hf_t_release(struct di_ch_s *pch)
 		get_datal()->hf_src_cnt--;
 		pch->en_hf_buf = false;
 	}
-	PR_INF("hf:r:ch[%d]:cnt[%d]\n",
+	dbg_reg("hf:r:ch[%d]:cnt[%d]\n",
 		pch->ch_id,
 		get_datal()->hf_src_cnt);
 }
@@ -6880,7 +6880,7 @@ void di_q_unreg(struct di_ch_s *pch)
 	/* mem */
 	cnt = kfifo_len(&pch->fifo32[EDIM_QID_LMEM]);
 	if (cnt) {
-		PR_WARN("%s:mem nub:%d\n", __func__, cnt);
+		dbg_reg("%s:mem nub:%d\n", __func__, cnt);
 		kfifo_reset(&pch->fifo32[EDIM_QID_LMEM]);
 	}
 }
