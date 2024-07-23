@@ -126,7 +126,6 @@ struct meson_drm {
 	wait_queue_head_t wq_shut_ctrl;
 	bool shutdown_on;
 	bool compat_mode;
-	bool logo_show_done;
 	bool recovery_mode;
 	bool recovery_dst_ctrl;
 	u32 osd_occupied_index;
@@ -140,6 +139,7 @@ struct meson_drm {
 
 	u32 creat_rdma_table;
 	ktime_t start;
+	struct drm_mode_set logo_set[MESON_MAX_CRTC];
 };
 
 /*component bind functions*/

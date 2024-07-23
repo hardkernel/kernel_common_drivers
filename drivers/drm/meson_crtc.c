@@ -158,7 +158,6 @@ static void meson_crtc_destroy_state(struct drm_crtc *crtc,
 static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct am_meson_crtc_state *new_state, *cur_state;
-	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
 
 	cur_state = to_am_meson_crtc_state(crtc->state);
 
@@ -190,10 +189,8 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->crtc_bgcolor = cur_state->crtc_bgcolor;
 
 	/*reset dynamic info.*/
-	if (amcrtc->priv->logo_show_done)
-		new_state->uboot_mode_init = 0;
-	else
-		new_state->uboot_mode_init = cur_state->uboot_mode_init;
+
+	new_state->uboot_mode_init = 0;
 
 	return &new_state->base;
 }
