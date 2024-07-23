@@ -905,7 +905,7 @@
 
 &usb_phy21 {
 	portnum = <1>;
-	status = "okay";
+	status = "disabled";
 };
 
 &usb_phy30 {
@@ -913,7 +913,7 @@
 };
 
 &usb_phy31 {
-	status = "okay";
+	status = "disabled";
 };
 
 &crg_otg {
@@ -930,7 +930,7 @@
 };
 
 &crg {
-	status = "okay";
+	status = "disabled";
 };
 
 /* SDIO */
@@ -962,7 +962,7 @@
 
 /* SD card */
 &sd_emmc_b {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&sdcard_pins>;
 	pinctrl-1 = <&sdcard_clk_gate_pins>;
 	pinctrl-2 = <&sd_1bit_pins>;
@@ -1116,16 +1116,28 @@
 &ethmac {
 	pinctrl-0 = <&eth_led_pins>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
 	keep-alive = <1>;
 };
 
+&eth_phy {
+	status = "disabled";
+};
+
+&internal_ephy {
+	status = "disabled";
+};
+
 &ir {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
+};
+
+&amlogic_codec {
+	status = "disabled";
 };
 
 &spicc0 {
@@ -1166,7 +1178,15 @@
 };
 
 &drm_amcvbsout {
-	status = "okay";
+	status = "disabled";
+};
+
+&cvbsout {
+	status = "disabled";
+};
+
+&vdac {
+	status = "disabled";
 };
 
 /*if you want to use vdin just modify status to "ok"*/

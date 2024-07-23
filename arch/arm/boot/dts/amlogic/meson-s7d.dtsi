@@ -1386,7 +1386,7 @@
 			0xfe000000 0xc00>; /* clk reg */
 	};
 
-	vdac {
+	vdac: vdac {
 		compatible = "amlogic, vdac-s7D";
 		status = "okay";
 	};
