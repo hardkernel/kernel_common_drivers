@@ -414,17 +414,11 @@ static int am_meson_logo_init_fb(struct drm_device *dev,
 static int am_meson_update_output_state(struct drm_atomic_state *state,
 					struct drm_mode_set *set)
 {
-	struct drm_device *dev = set->crtc->dev;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state;
 	struct drm_connector *connector;
 	struct drm_connector_state *new_conn_state;
 	int ret, i;
-
-	ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
-			       state->acquire_ctx);
-	if (ret)
-		return ret;
 
 	/* First disable all connectors on the target crtc. */
 	ret = drm_atomic_add_affected_connectors(state, set->crtc);
@@ -521,10 +515,7 @@ static int _am_meson_occupy_plane_config(struct drm_atomic_state *state,
 	return 0;
 }
 
-/*similar with __drm_atomic_helper_set_config,
- *TODO:sync with __drm_atomic_helper_set_config
- */
-int __am_meson_drm_set_config(struct drm_mode_set *set,
+static int am_meson_drm_set_config(struct drm_mode_set *set,
 			      struct drm_atomic_state *state, int idx)
 {
 	struct drm_crtc_state *crtc_state;
@@ -654,44 +645,17 @@ commit:
 	return 0;
 }
 
-/*copy from drm_atomic_helper_set_config,
- *TODO:sync with drm_atomic_helper_set_config
- */
-static int am_meson_drm_set_config(struct drm_mode_set *set,
-				   struct drm_modeset_acquire_ctx *ctx, int idx)
-{
-	struct drm_atomic_state *state;
-	struct drm_crtc *crtc = set->crtc;
-	int ret = 0;
-
-	state = drm_atomic_state_alloc(crtc->dev);
-	if (!state)
-		return -ENOMEM;
-
-	state->acquire_ctx = ctx;
-	ret = __am_meson_drm_set_config(set, state, idx);
-	if (ret != 0)
-		goto fail;
-
-	ret = drm_atomic_commit(state);
-
-fail:
-	drm_atomic_state_put(state);
-	return ret;
-}
-
 static void am_meson_load_logo(struct drm_device *dev,
-	struct drm_framebuffer *fb, int idx)
+	struct drm_framebuffer *fb, struct drm_atomic_state *state, int idx)
 {
-	struct drm_mode_set set;
 	struct drm_display_mode *mode;
 	struct drm_connector **connector_set;
 	struct drm_connector *connector;
-	struct drm_modeset_acquire_ctx *ctx;
 	struct meson_drm *private = dev->dev_private;
 	struct am_meson_fb *meson_fb;
 	char *connector_type = NULL;
 	u32 found, num_modes;
+	int ret = 0;
 
 	DRM_DEBUG("%s idx[%d]\n", __func__, idx);
 
@@ -735,7 +699,6 @@ static void am_meson_load_logo(struct drm_device *dev,
 	meson_fb = to_am_meson_fb(fb);
 	/*init all connector and found matched uboot mode.*/
 	found = 0;
-	mutex_lock(&dev->mode_config.mutex);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		/*connector->name is same as connector_type char*/
@@ -745,9 +708,17 @@ static void am_meson_load_logo(struct drm_device *dev,
 			continue;
 		}
 
+		if (drm_modeset_is_locked(&dev->mode_config.connection_mutex))
+			drm_modeset_unlock(&dev->mode_config.connection_mutex);
 		num_modes = connector->funcs->fill_modes(connector,
 							 dev->mode_config.max_width,
 							 dev->mode_config.max_height);
+		if (!drm_modeset_is_locked(&dev->mode_config.connection_mutex))
+			ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
+				state->acquire_ctx);
+
+		if (ret)
+			DRM_ERROR("enter %s, drm_modeset_lock ret %d.\n", __func__, ret);
 
 		if (num_modes) {
 			list_for_each_entry(mode, &connector->modes, head) {
@@ -763,7 +734,6 @@ static void am_meson_load_logo(struct drm_device *dev,
 		DRM_DEBUG("Connector[%d] status[%d]\n",
 			connector->connector_type, connector->status);
 	}
-	mutex_unlock(&dev->mode_config.mutex);
 
 	if (found) {
 		DRM_INFO("Found Connector[%d] mode[%s]\n",
@@ -785,20 +755,18 @@ static void am_meson_load_logo(struct drm_device *dev,
 	DRM_DEBUG("mode flag %x\n", mode->flags);
 
 	connector_set[0] = connector;
-	set.crtc = &private->crtcs[idx]->base;
-	set.x = 0;
-	set.y = 0;
-	set.mode = mode;
-	set.crtc->mode = *mode;
-	set.connectors = connector_set;
-	set.num_connectors = 1;
-	set.fb = &meson_fb->base;
+	private->logo_set[idx].crtc = &private->crtcs[idx]->base;
+	private->logo_set[idx].x = 0;
+	private->logo_set[idx].y = 0;
+	private->logo_set[idx].mode = mode;
+	private->logo_set[idx].crtc->mode = *mode;
+	private->logo_set[idx].connectors = connector_set;
+	private->logo_set[idx].num_connectors = 1;
+	private->logo_set[idx].fb = fb;
 
-	drm_modeset_lock_all(dev);
-	ctx = dev->mode_config.acquire_ctx;
-	if (am_meson_drm_set_config(&set, ctx, meson_fb->logo->panel_index))
+	if (am_meson_drm_set_config(&private->logo_set[idx],
+		state, meson_fb->logo->panel_index))
 		DRM_INFO("[%s]am_meson_drm_set_config fail\n", __func__);
-	drm_modeset_unlock_all(dev);
 
 	vfree(connector_set);
 }
@@ -820,6 +788,7 @@ void am_meson_logo_init(struct drm_device *dev)
 	struct drm_framebuffer *fb;
 	struct meson_drm *private = dev->dev_private;
 	struct platform_device *pdev = to_platform_device(private->dev);
+	struct drm_atomic_state *state;
 #ifdef CONFIG_CMA
 	struct reserved_mem *rmem = NULL;
 	struct device_node *np, *mem_node;
@@ -939,31 +908,46 @@ void am_meson_logo_init(struct drm_device *dev)
 	mode_cmd.width = logo.width;
 	mode_cmd.height = logo.height;
 	mode_cmd.modifier[0] = DRM_FORMAT_MOD_LINEAR;
-	/*ToDo*/
 	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * logo.bpp, 32) / 8;
 	fb = am_meson_fb_alloc(dev, &mode_cmd, NULL);
 	if (IS_ERR_OR_NULL(fb)) {
 		DRM_ERROR("drm fb allocate failed\n");
-		private->logo_show_done = true;
 		return;
 	}
 
-	/*Todo: the condition may need change according to the boot args*/
-	if (strmode && !strcmp("4", strmode))
+	if (strmode && !strcmp("4", strmode)) {
 		DRM_INFO("current is strmode\n");
-	else
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	} else {
+		drm_modeset_lock_all(dev);
+		state = drm_atomic_state_alloc(dev);
+		if (!state) {
+			drm_modeset_unlock_all(dev);
+			drm_framebuffer_put(fb);
+			DRM_ERROR("drm atomic state allocate failed\n");
+			return;
+		}
+		state->acquire_ctx = dev->mode_config.acquire_ctx;
+
 		for (i = 0; i < private->num_crtcs; i++)
-#endif
-			am_meson_load_logo(dev, fb, i);
+			am_meson_load_logo(dev, fb, state, i);
+
+		ret = drm_atomic_commit(state);
+
+		if (ret != 0) {
+			drm_atomic_state_put(state);
+			DRM_ERROR("failed to commit state\n");
+			drm_modeset_unlock_all(dev);
+			drm_framebuffer_put(fb);
+			return;
+		}
+		drm_atomic_state_put(state);
+		drm_modeset_unlock_all(dev);
+	}
 
 	if (drm_framebuffer_read_refcount(fb) > 1)
 		drm_framebuffer_put(fb);
 
 	DRM_DEBUG("drm_fb[id:%d,ref:%d]\n", fb->base.id, kref_read(&fb->base.refcount));
-
-	private->logo_show_done = true;
-
 	DRM_DEBUG("%s end[%d]\n", __func__, __LINE__);
 }
 
