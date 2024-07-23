@@ -699,7 +699,7 @@
 				mdio-parent-bus = <&mdio0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				phy_pll_mode = <3>;
+			//	phy_pll_mode = <3>;
 				phy_mode = <6>;
 				tx_amp_src = <0xFE010330>;
 				led_setting = <0x42>;
@@ -717,22 +717,24 @@
 						reset-deassert-us = <50000>;
 						reset-gpios = <&gpio GPIOZ_15 (GPIO_ACTIVE_LOW |
 									GPIO_OPEN_DRAIN)>;
+						realtek,clkout-disable;
+						realtek,aldps-enable;
 					};
 				};
 
-				int_mdio: mdio@1 {
-					reg = <1>;
-					#address-cells = <1>;
-					#size-cells = <0>;
+//				int_mdio: mdio@1 {
+//					reg = <1>;
+//					#address-cells = <1>;
+//					#size-cells = <0>;
 
-					internal_ephy: ethernet_phy@8 {
-						compatible = "ethernet-phy-id0180.3301",
-							     "ethernet-phy-ieee802.3-c22";
-						interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
-						reg = <8>;
-						max-speed = <100>;
-					};
-				};
+//					internal_ephy: ethernet_phy@8 {
+//						compatible = "ethernet-phy-id0180.3301",
+//							     "ethernet-phy-ieee802.3-c22";
+//						interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+//						reg = <8>;
+//						max-speed = <100>;
+//					};
+//				};
 			};
 
 			reset: reset-controller@2000 {
