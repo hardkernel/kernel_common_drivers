@@ -209,8 +209,20 @@ static void amlogic_saradc_start_sample(struct amlogic_saradc_priv *priv)
 	reinit_completion(&priv->sample_done);
 
 	regmap_update_bits(priv->regmap, SARADC_REG0,
+			   SARADC_REG0_ADC_EN,
+			   SARADC_REG0_ADC_EN);
+
+	usleep_range(20, 30);
+
+	regmap_update_bits(priv->regmap, SARADC_REG0,
 			   SARADC_REG0_SAMPLE_START,
 			   SARADC_REG0_SAMPLE_START);
+}
+
+static void amlogic_saradc_stop_sample(struct amlogic_saradc_priv *priv)
+{
+	regmap_update_bits(priv->regmap, SARADC_REG0,
+			   SARADC_REG0_ADC_EN, 0);
 }
 
 static int amlogic_saradc_get_sample(struct iio_dev *indio_dev,
@@ -233,10 +245,10 @@ static int amlogic_saradc_get_sample(struct iio_dev *indio_dev,
 
 	amlogic_saradc_clear_fifo(priv);
 
-	/* Start sample */
+	/* Sample */
 	amlogic_saradc_start_sample(priv);
-
 	ret = amlogic_saradc_read_fifo(priv, &raw);
+	amlogic_saradc_stop_sample(priv);
 	if (ret)
 		goto fail;
 
@@ -437,10 +449,6 @@ static int amlogic_saradc_hw_enable(struct iio_dev *indio_dev)
 	usleep_range(5, 10);
 
 	regmap_update_bits(priv->regmap, SARADC_REG0,
-			   SARADC_REG0_ADC_EN,
-			   SARADC_REG0_ADC_EN);
-
-	regmap_update_bits(priv->regmap, SARADC_REG0,
 			   SARADC_REG0_SAMPLING_ENABLE,
 			   SARADC_REG0_SAMPLING_ENABLE);
 
@@ -487,9 +495,6 @@ static int amlogic_saradc_hw_disable(struct iio_dev *indio_dev)
 
 	regmap_update_bits(priv->regmap, SARADC_REG0,
 			   SARADC_REG0_SAMPLING_ENABLE, 0);
-
-	regmap_update_bits(priv->regmap, SARADC_REG0,
-			   SARADC_REG0_ADC_EN, 0);
 
 	clk_disable_unprepare(priv->clk_gate);
 	clk_disable_unprepare(priv->clk_core);
