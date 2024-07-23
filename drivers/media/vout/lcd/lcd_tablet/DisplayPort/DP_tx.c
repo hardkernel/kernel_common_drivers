@@ -433,5 +433,5 @@ static int dptx1_boot_ctrl_setup(char *str)
 	return 1;
 }
 
-__setup("dptx0=", dptx0_boot_ctrl_setup);
-__setup("dptx1=", dptx1_boot_ctrl_setup);
+__setup("dptx0_ctrl=", dptx0_boot_ctrl_setup);
+__setup("dptx1_ctrl=", dptx1_boot_ctrl_setup);

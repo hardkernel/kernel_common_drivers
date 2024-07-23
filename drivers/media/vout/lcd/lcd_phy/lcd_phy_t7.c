@@ -205,6 +205,23 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_t7 = {
 
 struct lcd_phy_ctrl_s *lcd_phy_config_init_t7(struct lcd_data_s *pdata)
 {
+	char *curr_vout_connector;
 	phy_ctrl_p = &lcd_phy_ctrl_t7;
+
+#ifdef CONFIG_AMLOGIC_VOUT_SERVE
+	curr_vout_connector = get_uboot_connector0_type();
+	if (!strncmp("DP-", curr_vout_connector, 3))
+		phy_ctrl_p->lane_lock_total |= 1 << 17;
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	curr_vout_connector = get_uboot_connector1_type();
+	if (!strncmp("DP-", curr_vout_connector, 3))
+		phy_ctrl_p->lane_lock_total |= 1 << 17;
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	curr_vout_connector = get_uboot_connector2_type();
+	if (!strncmp("DP-", curr_vout_connector, 3))
+		phy_ctrl_p->lane_lock_total |= 1 << 17;
+#endif
 	return phy_ctrl_p;
 }

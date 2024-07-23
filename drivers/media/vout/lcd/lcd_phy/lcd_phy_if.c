@@ -313,8 +313,8 @@ int lcd_phy_config_init(struct lcd_data_s *pdata)
 	default:
 		break;
 	}
-	if (lcd_phy_ctrl)
-		lcd_phy_ctrl->lane_lock_total = 0;
+	//if (lcd_phy_ctrl)
+	//	lcd_phy_ctrl->lane_lock_total = 0;
 
 	return 0;
 }
