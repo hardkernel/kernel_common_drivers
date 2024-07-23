@@ -2879,8 +2879,7 @@
 	status = "okay";
 	operating-points-v2 = <&gpu_opp_table>;
 	reg =   <0x0 0xFD000000 0x0 0x800000>, /*mali APB bus base address*/
-		<0x0 0xFE002000 0x0 0x01000>, /*reset register*/
-		<0x0 0xFF000000 0x0 0x01000>; /*aobus TODO update*/
+		<0x0 0xFE002000 0x0 0x01000>; /*reset register*/
 
 	interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,

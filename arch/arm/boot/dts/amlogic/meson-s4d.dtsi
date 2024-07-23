@@ -2982,8 +2982,8 @@
 &gpu{
 	reg =   <0xFE400000 0x04000>, /*mali APB bus base address*/
 		<0xFE002000 0x01000>, /*reset register*/
-		<0xFF800000 0x01000>, /*aobus TODO update*/
-		<0xFF63c000 0x01000>, /*hiubus for clk cntl*/
+		<0x0 0x0>, /*aobus TODO update*/
+		<0xFE000000 0x01000>, /*hiubus for clk cntl*/
 		<0xFE002000 0x01000>; /*reset register*/
 
 	interrupts = <0 144 4>, <0 145 4>, <0 146 4>;
