@@ -45,6 +45,7 @@ enum mua_debug_mask {
 #define MUA_ERROR       BIT(MUA_DEBUG_LEVEL_ERROR)
 #define MUA_INFO        BIT(MUA_DEBUG_LEVEL_INFO)
 #define MUA_DBG         BIT(MUA_DEBUG_LEVEL_DBG)
+#define MAX_PIPE_LINE   10
 
 struct mua_buffer {
 	struct uvm_buf_obj base;
@@ -68,6 +69,10 @@ struct mua_buffer {
 struct mua_device {
 	struct miscdevice dev;
 	struct rb_root root;
+	struct dma_buf *dummy_dmabuf[MAX_PIPE_LINE];
+	u32 dummy_dmabuf_w[MAX_PIPE_LINE];
+	u32 dummy_dmabuf_h[MAX_PIPE_LINE];
+	struct kref dummy_dmabuf_ref[MAX_PIPE_LINE];
 
 	struct mutex buffer_lock; /* dev mutex */
 	int pid;
@@ -120,6 +125,15 @@ struct uvm_hook_data {
 	char data_buf[META_DATA_SIZE + 1];
 };
 
+struct uvm_decoder_para {
+	u32 slot_id;
+	u32 width;
+	u32 height;
+	u32 w_align;
+	u32 h_align;
+	u32 size;
+};
+
 union uvm_ioctl_arg {
 	struct uvm_alloc_data alloc_data;
 	struct uvm_pid_data pid_data;
@@ -128,6 +142,7 @@ union uvm_ioctl_arg {
 	struct uvm_usage_data usage_data;
 	struct uvm_meta_data meta_data;
 	struct uvm_hook_data hook_data;
+	struct uvm_decoder_para decode_para;
 };
 
 #define UVM_IOC_MAGIC 'U'
@@ -155,6 +170,10 @@ union uvm_ioctl_arg {
 				struct uvm_usage_data)
 #define UVM_IOC_GET_VIDEO_INFO _IOWR(UVM_IOC_MAGIC, 11, \
 				struct uvm_fd_info)
+#define UVM_IOC_SET_DECODER_PARA _IOWR(UVM_IOC_MAGIC, 12, \
+				struct uvm_decoder_para)
+#define UVM_IOC_GET_DECODER_PARA _IOWR(UVM_IOC_MAGIC, 13, \
+				struct uvm_decoder_para)
 
 size_t mua_calc_real_dmabuf_size(struct mua_buffer *buffer);
 int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf, void *vaddr);

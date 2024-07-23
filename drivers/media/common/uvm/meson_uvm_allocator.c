@@ -32,8 +32,9 @@
 #include "linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h"
 #include "meson_uvm_aicolor_processor.h"
 #include "meson_uvm_buffer_info.h"
+#include "meson_uvm_lcevc_processor.h"
 
-static struct mua_device *mdev;
+static struct mua_device *mua_dev;
 
 static int enable_screencap;
 __module_param_named(enable_screencap, enable_screencap, int, 0664);
@@ -49,6 +50,119 @@ module_param_named(force_skip_fill, force_skip_fill, int, 0664);
 		if (mua_debug_level & (level))     \
 			pr_info("MUA: " fmt, ## arg); \
 	} while (0)
+
+#define UVM_DECODER_NODE_NUM 32
+#define UVM_DECODER_PARA_NUM 6 // (sizeof(struct uvm_decoder_para) / sizeof(uint32_t))
+static int uvm_decoder_para_num = UVM_DECODER_PARA_NUM * UVM_DECODER_NODE_NUM;
+/*
+ * The values in the array represent width and height respectively.
+ * If the first value is 0, the second value represents size.
+ * If both values are 0, it means that the node has been released.
+ */
+static int decoder_para[UVM_DECODER_PARA_NUM * UVM_DECODER_NODE_NUM] = { 0 };
+module_param_array(decoder_para, uint, &uvm_decoder_para_num, 0644);
+
+static void mua_dummy_buffer_init(void)
+{
+	int i;
+
+	for (i = 0; i < MAX_PIPE_LINE; i++) {
+		mua_dev->dummy_dmabuf[i] = NULL;
+		mua_dev->dummy_dmabuf_w[i] = 0;
+		mua_dev->dummy_dmabuf_h[i] = 0;
+	}
+}
+
+static struct dma_buf *mua_dummy_buffer_get(u32 width, u32 height)
+{
+	int i;
+	struct dma_buf *dmabuf = NULL;
+
+	for (i = 0; i < MAX_PIPE_LINE; i++) {
+		if (mua_dev->dummy_dmabuf[i] &&
+		    mua_dev->dummy_dmabuf_w[i] == width &&
+		    mua_dev->dummy_dmabuf_h[i] == height) {
+			dmabuf = mua_dev->dummy_dmabuf[i];
+			kref_get(&mua_dev->dummy_dmabuf_ref[i]);
+			break;
+		}
+	}
+	return dmabuf;
+}
+
+static int mua_dummy_buffer_exit(struct dma_buf *dmabuf)
+{
+	int i, ret;
+
+	ret = 0;
+	for (i = 0; i < MAX_PIPE_LINE; i++) {
+		if (mua_dev->dummy_dmabuf[i] &&
+		    mua_dev->dummy_dmabuf[i] == dmabuf) {
+			ret = 1;
+			break;
+		}
+	}
+	return ret;
+}
+
+static int mua_dummy_buffer_insert(struct dma_buf *dmabuf,
+				   u32 width, u32 height)
+{
+	int i, ret;
+
+	ret = 0;
+	for (i = 0; i < MAX_PIPE_LINE; i++) {
+		if (!mua_dev->dummy_dmabuf[i]) {
+			mua_dev->dummy_dmabuf[i] = dmabuf;
+			mua_dev->dummy_dmabuf_w[i] = width;
+			mua_dev->dummy_dmabuf_h[i] = height;
+			kref_init(&mua_dev->dummy_dmabuf_ref[i]);
+			ret = 1;
+			break;
+		}
+	}
+	MUA_PRINTK(MUA_INFO, "%s: dmabuf(%p) done ret:%d.\n",
+		   __func__, dmabuf, ret);
+	return ret;
+}
+
+static void mua_dummy_buffer_del(struct kref *kref)
+{
+	int i;
+
+	for (i = 0; i < MAX_PIPE_LINE; i++) {
+		if (mua_dev->dummy_dmabuf[i] &&
+		    &mua_dev->dummy_dmabuf_ref[i] == kref) {
+			dma_buf_put(mua_dev->dummy_dmabuf[i]);
+			mua_dev->dummy_dmabuf[i] = NULL;
+			mua_dev->dummy_dmabuf_w[i] = 0;
+			mua_dev->dummy_dmabuf_h[i] = 0;
+			break;
+		}
+	}
+	MUA_PRINTK(MUA_INFO, "%s release index %d\n", __func__, i);
+}
+
+static void mua_dummy_buffer_put(struct dma_buf *dmabuf)
+{
+	int i;
+
+	for (i = 0; i < MAX_PIPE_LINE; i++) {
+		if (mua_dev->dummy_dmabuf[i] &&
+		    mua_dev->dummy_dmabuf[i] == dmabuf) {
+			kref_put(&mua_dev->dummy_dmabuf_ref[i],
+				 mua_dummy_buffer_del);
+			break;
+		}
+	}
+	if (i < MAX_PIPE_LINE)
+		MUA_PRINTK(MUA_INFO, "%s dummy_dmabuf_ref[%d] %u\n",
+			   __func__, i,
+			   kref_read(&mua_dev->dummy_dmabuf_ref[i]));
+	else
+		MUA_PRINTK(MUA_INFO, "%s,%d: no match dmabuf\n",
+			   __func__, __LINE__);
+}
 
 static bool mua_is_valid_dmabuf(int fd)
 {
@@ -93,7 +207,10 @@ static void mua_handle_free(struct uvm_buf_obj *obj)
 
 	while (buf_cnt < 2 && ibuffer[buf_cnt] && idmabuf[buf_cnt]) {
 		MUA_PRINTK(MUA_INFO, "%s free idmabuf[%d]\n", __func__, buf_cnt);
-		dma_buf_put(idmabuf[buf_cnt]);
+		if (buf_cnt == 1 && mua_dummy_buffer_exit(idmabuf[buf_cnt]))
+			mua_dummy_buffer_put(idmabuf[buf_cnt]);
+		else
+			dma_buf_put(idmabuf[buf_cnt]);
 		buf_cnt++;
 	}
 
@@ -123,13 +240,14 @@ int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dmabuf, vo
 
 size_t mua_calc_real_dmabuf_size(struct mua_buffer *buffer)
 {
-	size_t size = 0;
+	if (!buffer)
+		return 0;
+
 	int align = buffer->align;
 	int byte_stride = buffer->byte_stride;
 	int height = ALIGN(buffer->height, align);
+	size_t size = byte_stride * height * 3 / 2;
 
-	if (buffer)
-		size = byte_stride * height * 3 / 2;
 	if (realloc_size > 0)
 		size = realloc_size;
 	MUA_PRINTK(MUA_INFO, "%s. align=%d byte_stride=%d height=%d size:%zu\n",
@@ -163,10 +281,10 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		__func__, dmabuf, scalar, buffer->width, buffer->height);
 	memset(&info, 0, sizeof(info));
 
-	MUA_PRINTK(MUA_INFO, "%s, current->tgid:%d mdev->pid:%d buffer->commit_display:%d.\n",
-		__func__, current->tgid, mdev->pid, buffer->commit_display);
+	MUA_PRINTK(MUA_INFO, "%s, current->tgid:%d mua_dev->pid:%d buffer->commit_display:%d.\n",
+		__func__, current->tgid, mua_dev->pid, buffer->commit_display);
 
-	if (!enable_screencap && current->tgid == mdev->pid &&
+	if (!enable_screencap && current->tgid == mua_dev->pid &&
 	    buffer->commit_display) {
 		MUA_PRINTK(MUA_DBG, "gpu_realloc: screen cap should not access the uvm buffer.\n");
 		skip_fill_buf = true;
@@ -200,6 +318,11 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	if (pre_size != new_size && buffer->idmabuf[1]) {
 		dma_buf_put(buffer->idmabuf[1]);
 		buffer->idmabuf[1] = NULL;
+	}
+
+	if (skip_fill_buf && !buffer->idmabuf[1]) {
+		idmabuf = mua_dummy_buffer_get(buffer->width, buffer->height);
+		buffer->idmabuf[1] = idmabuf;
 	}
 
 	if (!buffer->idmabuf[1]) {
@@ -236,6 +359,9 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 
 			info.sgt = src_sgt;
 			dmabuf_bind_uvm_delay_alloc(dmabuf, &info);
+			if (skip_fill_buf)
+				mua_dummy_buffer_insert(idmabuf, buffer->width,
+							buffer->height);
 		}
 	} else {
 		idmabuf = buffer->idmabuf[1];
@@ -344,7 +470,7 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 
 	MUA_PRINTK(MUA_INFO, "%p, %d.\n", __func__, __LINE__);
 
-	if (!enable_screencap && current->tgid == mdev->pid &&
+	if (!enable_screencap && current->tgid == mua_dev->pid &&
 	    buffer->commit_display) {
 		MUA_PRINTK(MUA_ERROR, "delay_alloc: skip delay alloc.\n");
 		return -ENODEV;
@@ -458,7 +584,7 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 	memset(&info, 0, sizeof(info));
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	buffer->size = alloc_buf_size;
-	buffer->dev = mdev;
+	buffer->dev = mua_dev;
 	buffer->byte_stride = data->byte_stride;
 	buffer->width = data->width;
 	buffer->height = data->height;
@@ -597,6 +723,7 @@ static int mua_get_meta_data(int fd, ulong arg)
 	}
 
 	meta.fd = fd;
+	meta.type = vfp->type;
 	meta.size = vfp->meta_data_size;
 	if (!vfp->meta_data_buf) {
 		MUA_PRINTK(MUA_ERROR, "vfp->meta_data_buf is NULL.\n");
@@ -650,7 +777,11 @@ static int mua_attach(int fd, int type, char *buf)
 		if (ret)
 			return -EINVAL;
 		break;
-
+	case PROCESS_LCEVC:
+		ret = attach_lcevc_hook_mod_info(fd, buf, &info);
+		if (ret)
+			return -EINVAL;
+		break;
 	default:
 		MUA_PRINTK(MUA_DBG, "mod_type is not valid.\n");
 	}
@@ -711,6 +842,44 @@ static int mua_detach(int fd, int type)
 
 	dma_buf_put(dmabuf);
 
+	return ret;
+}
+
+static int mua_set_decoder_para(struct uvm_decoder_para *para)
+{
+	int ret = 0;
+	struct uvm_decoder_para *node;
+
+	if (para->slot_id >= UVM_DECODER_NODE_NUM) {
+		MUA_PRINTK(MUA_ERROR, "%s: slot_id = %u is invalid!\n", __func__, para->slot_id);
+		return -EINVAL;
+	}
+
+	node = (struct uvm_decoder_para *)decoder_para + para->slot_id;
+	*node = *para;
+
+	MUA_PRINTK(MUA_INFO, "%s: set for slot %u. w*h(%u*%u) align_w*h(%u*%u) size(%u)\n",
+		__func__, para->slot_id, para->width, para->height,
+		para->w_align, para->h_align, para->size);
+	return ret;
+}
+
+static int mua_get_decoder_para(struct uvm_decoder_para *para)
+{
+	int ret = 0;
+	struct uvm_decoder_para *node;
+
+	if (para->slot_id >= UVM_DECODER_NODE_NUM) {
+		MUA_PRINTK(MUA_ERROR, "%s: slot_id = %u is invalid!\n", __func__, para->slot_id);
+		return -EINVAL;
+	}
+
+	node = (struct uvm_decoder_para *)decoder_para + para->slot_id;
+	*para = *node;
+
+	MUA_PRINTK(MUA_INFO, "%s: get for slot %u. w*h(%u*%u) align_w*h(%u*%u) size(%u)\n",
+		__func__, para->slot_id, para->width, para->height,
+		para->w_align, para->h_align, para->size);
 	return ret;
 }
 
@@ -905,6 +1074,14 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
 			return -EFAULT;
 		break;
+	case UVM_IOC_SET_DECODER_PARA:
+		ret = mua_set_decoder_para(&data.decode_para);
+		break;
+	case UVM_IOC_GET_DECODER_PARA:
+		ret = mua_get_decoder_para(&data.decode_para);
+		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
+			return -EFAULT;
+		break;
 	default:
 		return -ENOTTY;
 	}
@@ -940,21 +1117,22 @@ static const struct file_operations mua_fops = {
 
 static int mua_probe(struct platform_device *pdev)
 {
-	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
-	if (!mdev)
+	mua_dev = kzalloc(sizeof(*mua_dev), GFP_KERNEL);
+	if (!mua_dev)
 		return -ENOMEM;
 
-	mdev->dev.minor = MISC_DYNAMIC_MINOR;
-	mdev->dev.name = "uvm";
-	mdev->dev.fops = &mua_fops;
-	mutex_init(&mdev->buffer_lock);
+	mua_dev->dev.minor = MISC_DYNAMIC_MINOR;
+	mua_dev->dev.name = "uvm";
+	mua_dev->dev.fops = &mua_fops;
+	mutex_init(&mua_dev->buffer_lock);
+	mua_dummy_buffer_init();
 
-	return misc_register(&mdev->dev);
+	return misc_register(&mua_dev->dev);
 }
 
 static int mua_remove(struct platform_device *pdev)
 {
-	misc_deregister(&mdev->dev);
+	misc_deregister(&mua_dev->dev);
 	return 0;
 }
 
