@@ -741,9 +741,14 @@ static int meson8b_suspend(struct device *dev)
 		ret = stmmac_suspend(dev);
 		without_reset = 1;
 	} else {
-		set_wol_notify_bl31(false);
-		set_wol_notify_bl30(dwmac, false);
-
+		if (support_gpio_wol == 0 && internal_phy == 2) {
+			pr_info("wzh pull exphy reset\n");
+			set_wol_notify_bl31(false);
+			set_wol_notify_bl30(dwmac, 2);
+		} else {
+			set_wol_notify_bl31(false);
+			set_wol_notify_bl30(dwmac, false);
+		}
 		ret = stmmac_suspend(dev);
 		if (internal_phy != 2) {
 			if (dwmac->data->suspend)
