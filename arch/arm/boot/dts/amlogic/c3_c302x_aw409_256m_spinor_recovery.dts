@@ -9,8 +9,8 @@
 #include "meson-c3_skt-panel.dtsi"
 
 / {
-	amlogic-dt-id = "c3_c302x_aw409-128m";
-	compatible = "c3_c302x_aw409-128m";
+	amlogic-dt-id = "c3_c302x_aw409-256m";
+	compatible = "c3_c302x_aw409-256m";
 
 	aliases {
 		serial0 = &uart_B;
@@ -35,7 +35,7 @@
 
 	memory@0 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x8000000>;
+		linux,usable-memory = <0x0 0x10000000>;
 	};
 
 	reserved-memory {
@@ -45,10 +45,10 @@
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			no-map;
-			size = <0x100000>;
+			size = <0x900000>;
 			alignment = <0x100000>;
-			//alloc-ranges = <0x07C00000 0x8000000>;
-			reg = <0x07F00000 0x100000>;
+			//alloc-ranges =  <0x05000000 0x8000000>;
+			reg = <0x0F700000 0x900000>;
 		};
 		nna_cma_reserved: linux,nna_cma {
 			compatible = "shared-dma-pool";
@@ -120,33 +120,33 @@
 			smc-size = <0x1000>;
 			misc-size = <0x1000>;
 		};
-		linux,cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x400000>;
-			alignment = <0x400000>;
-			alloc-ranges = <0x07000000 0x7800000>;
-			linux,cma-default;
-		};
 
 		pmz_cma_a1_reserved:anonymous {
 			compatible = "shared-dma-pool";
 			//reusable;
-			no-map;
-			size = <0x4400000>;
+			size = <0x8000000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x3000000 0x7400000>;
+			alloc-ranges = <0x8000000 0x10000000>;
+			no-map;
 			status = "disabled";
 		};
 
 		pmz_cma_a2_reserved:anonymous_ext{
 			compatible = "shared-dma-pool";
 			//reusable;
-			no-map;
 			size = <0x1000000>;
-			alignment = <0x400000>;
+			alignment = <0x100000>;
+			no-map;
 			status = "disabled";
-			//alloc-ranges = <0x0 0x7B00000>;
+		};
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x400000>;
+			alignment = <0x400000>;
+			alloc-ranges = <0x05000000 0x7E00000>;
+			linux,cma-default;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -1029,7 +1029,7 @@
 	pinctrl-1 = <&sdcard_clk_gate_pins>;
 	pinctrl-2 = <&sd_1bit_pins>;
 	pinctrl-3 = <&sdcard_pins_sleep>;
-	//pinctrl-3 = <&b_uart_pins1
+//	pinctrl-3 = <&b_uart_pins1
 //		     &sdcard_clk_gate_pins &ao_to_sd_uart_pins>;
 //	pinctrl-4 = <&b_uart_pins1
 //		     &sd_1bit_pins &ao_to_sd_uart_pins>;
@@ -1043,7 +1043,7 @@
 			"clk-gate",
 			"sd_1bit_pins",
 			 "sleep";
-//			"sd_clk_cmd_uart_pins";
+			//"sd_clk_cmd_uart_pins";
 //			"sd_1bit_uart_pins",
 //			"sd_to_ao_uart_pins",
 //			"ao_to_sd_uart_pins",
@@ -1102,7 +1102,7 @@
 	logo_addr = "0xe800000";
 	/* display_device_cnt = <2>; */ /* for dual screen upport */
 	mem_alloc = <1>;
-	pxp_mode = <1>; /** 0:normal mode 1:pxp mode */
+	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
 &mtd_nand {
@@ -1161,9 +1161,17 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spifc_pins>;
+	spi-nor@0 {
+		compatible = "spi-nor";
+		status = "okay";
+		reg = <0>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <83000000>;
+	};
 	spi-nand@0 {
 		compatible = "spi-nand";
-		status = "okay";
+		status = "disabled";
 		reg = <0>;
 		spi-max-frequency = <83000000>;
 		spi-tx-bus-width = <4>;

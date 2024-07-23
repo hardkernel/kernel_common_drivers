@@ -56,7 +56,7 @@
 			alignment = <0x400000>;
 			reusable;
 			//no-map;
-			status = "okay";
+			status = "disabled";
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -71,6 +71,7 @@
 
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
+			status = "disabled";
 			reusable;
 			size = <0x3000000>;
 			alignment = <0x400000>;
@@ -78,7 +79,7 @@
 
 		rtos_reserved:linux,rtos_reserved {
 			compatible = "amlogic, aml_rtos_memory";
-			status = "okay";
+			status = "disabled";
 			reg = <0x09000000 0x06000000>;
 			no-map;
 		};
@@ -136,6 +137,7 @@
 
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
+			status = "disabled";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
 			size = <0x2400000>;
@@ -148,6 +150,7 @@
 			compatible = "amlogic, codec-mm-reserved";
 			size = <0x0>;
 			alignment = <0x100000>;
+			status = "disabled";
 			//no-map;
 		};
 		jpegenc_cma_reserved:linux,jpegenc_cma {

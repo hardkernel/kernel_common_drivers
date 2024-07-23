@@ -9,8 +9,8 @@
 #include "meson-c3_skt-panel.dtsi"
 
 / {
-	amlogic-dt-id = "c3_c302x_aw409-128m";
-	compatible = "c3_c302x_aw409-128m";
+	amlogic-dt-id = "c3_c302x_aw409-256m";
+	compatible = "c3_c302x_aw409-256m";
 
 	aliases {
 		serial0 = &uart_B;
@@ -35,7 +35,7 @@
 
 	memory@0 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x8000000>;
+		linux,usable-memory = <0x0 0x10000000>;
 	};
 
 	reserved-memory {
@@ -45,10 +45,10 @@
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			no-map;
-			size = <0x100000>;
+			size = <0x900000>;
 			alignment = <0x100000>;
-			//alloc-ranges = <0x07C00000 0x8000000>;
-			reg = <0x07F00000 0x100000>;
+			//alloc-ranges =  <0x05000000 0x8000000>;
+			reg = <0x0F700000 0x900000>;
 		};
 		nna_cma_reserved: linux,nna_cma {
 			compatible = "shared-dma-pool";
@@ -77,6 +77,25 @@
 			size = <0x400000>;
 			alignment = <0x400000>;
 			status = "disabled";
+		};
+
+		autocap_reserved:linux,autocap_reserved {
+			compatible = "amlogic, aml_autocap_memory";
+			status = "okay";
+			size = <0xB00000>;
+			alloc-ranges = <0x4700000 0xB00000>;
+			venc_bsb_addr = <0x5000000>;
+			venc_bsb_size = <0x200000>;
+		};
+
+		pmz_cma_a2_reserved:anonymous_ext{
+			compatible = "shared-dma-pool";
+			//reusable;
+			no-map;
+			size = <0x1700000>;
+			alignment = <0x100000>;
+			status = "okay";
+			alloc-ranges = <0x3000000 0x1700000>;
 		};
 
 		rtos_reserved:linux,rtos_reserved {
@@ -120,6 +139,16 @@
 			smc-size = <0x1000>;
 			misc-size = <0x1000>;
 		};
+		pmz_cma_a1_reserved:anonymous {
+			compatible = "shared-dma-pool";
+			//reusable;
+			no-map;
+			size = <0x08000000>;
+			alignment = <0x100000>;
+			alloc-ranges = <0x8000000 0x8000000>;
+			status = "disabled";
+		};
+
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -127,26 +156,6 @@
 			alignment = <0x400000>;
 			alloc-ranges = <0x07000000 0x7800000>;
 			linux,cma-default;
-		};
-
-		pmz_cma_a1_reserved:anonymous {
-			compatible = "shared-dma-pool";
-			//reusable;
-			no-map;
-			size = <0x4400000>;
-			alignment = <0x400000>;
-			alloc-ranges = <0x3000000 0x7400000>;
-			status = "disabled";
-		};
-
-		pmz_cma_a2_reserved:anonymous_ext{
-			compatible = "shared-dma-pool";
-			//reusable;
-			no-map;
-			size = <0x1000000>;
-			alignment = <0x400000>;
-			status = "disabled";
-			//alloc-ranges = <0x0 0x7B00000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -206,16 +215,16 @@
 			  3300000 0>;
 	};
 
-	pmz_a1_dev {
-		compatible = "amlogic, pmz_dev";
-		memory-region = <&pmz_cma_a1_reserved>;
-		pmz-allocator = "priv";
-		status = "disabled";
-	};
-
 	pmz_a2_dev {
 		compatible = "amlogic, pmz_dev";
 		memory-region = <&pmz_cma_a2_reserved>;
+		pmz-allocator = "priv";
+		//status = "disabled";
+	};
+
+	pmz_a1_dev {
+		compatible = "amlogic, pmz_dev";
+		memory-region = <&pmz_cma_a1_reserved>;
 		pmz-allocator = "priv";
 		status = "disabled";
 	};
@@ -236,7 +245,7 @@
 
 	acodec:acodec {
 		#sound-dai-cells = <0>;
-		compatible = "amlogic, t3_acodec";
+		compatible = "amlogic, c3_acodec";
 		status = "okay";
 		reg = <0xFE01A000 0x20>;
 		tdmout_index = <0>;
@@ -244,7 +253,6 @@
 		dat0_ch_sel = <0>;
 		reset-names = "acodec";
 		resets = <&reset RESET_ACODEC>;
-		diff_input = <1>;
 		//power-domains = <&pwrdm PDID_CX_ACODEC>;
 	};
 
@@ -566,17 +574,11 @@
 };
 
 &cpu0 {
-	operating-points-v2 = <&cpu_opp_table0_qfn>,
-			<&cpu_opp_table1_qfn>,
-			<&cpu_opp_table2_qfn>,
-			<&cpu_opp_table3_qfn>;
+	operating-points-v2 = <&cpu_opp_table0_qfn>;
 };
 
 &cpu1 {
-	operating-points-v2 = <&cpu_opp_table0_qfn>,
-			<&cpu_opp_table1_qfn>,
-			<&cpu_opp_table2_qfn>,
-			<&cpu_opp_table3_qfn>;
+	operating-points-v2 = <&cpu_opp_table0_qfn>;
 };
 
 /* Audio Related start */
@@ -956,6 +958,11 @@
 	status = "okay";
 };
 
+&uart_D {
+	status = "okay";
+	pinctrl-0 = <&c_uart_pins3>;
+};
+
 &crg_udc_2 {
 	status = "okay";
 };
@@ -1070,16 +1077,20 @@
 	pinctrl-names = "default", "clk-gate";
 	bus-width = <4>;
 	cap-sd-highspeed;
-	sd-uhs-sdr104;
+	//sd-uhs-sdr104;
 	non-removable;
-	max-frequency = <200000000>;
+	max-frequency = <50000000>;
 	disable-wp;
 	cap-sdio-irq;
 	keep-power-in-suspend;
 };
 
+&mbd_audio {
+	/delete-property/ hp_mute-gpios;
+};
+
 &pwm_ef {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm_e_pins1>;
 };
@@ -1088,6 +1099,8 @@
 	status = "okay";
 	interrupt-gpios = <&gpio  GPIOX_13  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
+	wifi_static_buf = <1>;
+	/delete-property/ pwm_config;
 };
 
 &aml_bt {
@@ -1096,7 +1109,7 @@
 };
 
 &fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1000000>;
 	logo_addr = "0xe800000";
@@ -1161,9 +1174,17 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spifc_pins>;
+	spi-nor@0 {
+		compatible = "spi-nor";
+		status = "okay";
+		reg = <0>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <83000000>;
+	};
 	spi-nand@0 {
 		compatible = "spi-nand";
-		status = "okay";
+		status = "disabled";
 		reg = <0>;
 		spi-max-frequency = <83000000>;
 		spi-tx-bus-width = <4>;
@@ -1195,23 +1216,27 @@
 			};
 			logo{
 				offset=<0x0 0x0>;
-				size=<0x0 0x200000>;
+				size=<0x0 0x100000>;
 			};
 			misc{
 				offset=<0x0 0x0>;
-				size=<0x0 0x200000>;
+				size=<0x0 0x100000>;
 			};
 			recovery{
 				offset=<0x0 0x0>;
-				size=<0x0 0x1000000>;
+				size=<0x0 0x800000>;
 			};
 			boot{
 				offset=<0x0 0x0>;
-				size=<0x0 0x1000000>;
+				size=<0x0 0xA00000>;
 			};
 			system{
 				offset=<0x0 0x0>;
-				size=<0x0 0x8000000>;
+				size=<0x0 0xA00000>;
+			};
+			vendor{
+				offset=<0x0 0x0>;
+				size=<0x0 0x3600000>;
 			};
 			data{
 				offset=<0xffffffff 0xffffffff>;
@@ -1253,7 +1278,7 @@
 };
 
 &ethmac {
-	status = "okay";
+	status = "disabled";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
 };
@@ -1269,10 +1294,10 @@
 	//cs-gpios = <&gpio GPIOA_14 0>;
 };
 
-&freertos {
+&lcd {
 	status = "disabled";
 };
 
-&lcd {
-	status = "disabled";
+&freertos {
+	status = "okay";
 };
