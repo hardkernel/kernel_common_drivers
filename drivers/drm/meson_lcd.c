@@ -576,7 +576,7 @@ int meson_panel_dev_unbind(struct drm_device *drm,
 int am_meson_lcd_get_vrr_range(struct drm_connector *connector,
 			struct drm_vrr_mode_group *groups, int max_group)
 {
-	int ret, modes_cnt;
+	int ret, modes_cnt, i;
 	struct meson_panel *am_lcd = connector_to_meson_panel(connector);
 	struct meson_panel_dev *panel_dev = am_lcd->panel_dev;
 
@@ -587,6 +587,11 @@ int am_meson_lcd_get_vrr_range(struct drm_connector *connector,
 	if (ret) {
 		DRM_ERROR("get vrr error or not support qms\n");
 		return 0;
+	}
+
+	for (i = 0; i < modes_cnt; i++) {
+		groups[i].vrr_min /= VRR_DIV;
+		groups[i].vrr_max /= VRR_DIV;
 	}
 
 	return modes_cnt;
