@@ -9136,6 +9136,8 @@ void vpp1_blend_update(u32 vpp_index)
 
 	if (force_vpp_blend_update) {
 		force_flush = true;
+		if (!videox_off_req)
+			videox_off_req = blend_en_status_save ? 0 : 1;
 		force_vpp_blend_update = false;
 	}
 	layer_id = vd_layer_vpp[0].layer_id;
@@ -9296,6 +9298,8 @@ void vpp2_blend_update(u32 vpp_index)
 
 	if (force_vpp_blend_update) {
 		force_flush = true;
+		if (!videox_off_req)
+			videox_off_req = blend_en_status_save ? 0 : 1;
 		force_vpp_blend_update = false;
 	}
 	layer_id = vd_layer_vpp[1].layer_id;
