@@ -3,8 +3,8 @@
 enter_path=$(pwd)
 auto_patch_path=$(dirname $(readlink -f "$0"))
 common_driver_path=$(dirname $(dirname $0))
-COMMON_DRIVERS_DIR=${common_driver_path##*/}
-common_kernel_path=$(readlink -f $(dirname $common_driver_path))
+COMMON_DRIVERS_DIR=${common_driver_path#*/}
+common_kernel_path=$(readlink -f $(dirname $common_driver_path))${COMMON_DIR:-/common}
 KERNEL_DIR=${common_kernel_path##*/}
 common_path=$(dirname $common_kernel_path)
 cd ${common_path}

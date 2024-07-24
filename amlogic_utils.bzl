@@ -67,7 +67,7 @@ def define_common_amlogic(
     """
 
     if build_config == None:
-        build_config = "common_drivers/build.config.amlogic.bazel"
+        build_config = ":build.config.amlogic.bazel"
 
     if kmi_symbol_list == None:
         kmi_symbol_list = "//common:android/abi_gki_aarch64_amlogic" if define_abi_targets else None
@@ -85,18 +85,19 @@ def define_common_amlogic(
     kernel_build(
         name = name,
         outs = outs,
-        srcs = [":common_kernel_sources"] + kconfig_ext_srcs,
+        srcs = [":amlogic_sources"] + kconfig_ext_srcs,
         # List of in-tree kernel modules.
         module_outs = module_outs,
         build_config = build_config,
         # Enable mixed build.
-        base_kernel = ":kernel_aarch64_download_or_build",
+        base_kernel = "//common:kernel_aarch64_download_or_build",
         kmi_symbol_list = kmi_symbol_list,
         collect_unstripped_modules = _COLLECT_UNSTRIPPED_MODULES,
         strip_modules = True,
         make_goals = make_goals,
 	kconfig_ext = kconfig_ext,
-    )
+        visibility = ["//visibility:public"],
+	)
 
     # enable ABI Monitoring
     # based on the instructions here:
@@ -139,8 +140,8 @@ def define_common_amlogic(
         name + "_images",
         name + "_modules_install",
         # Mixed build: Additional GKI artifacts.
-        ":kernel_aarch64",
-        ":kernel_aarch64_additional_artifacts",
+        "//common:kernel_aarch64",
+        "//common:kernel_aarch64_additional_artifacts",
         name + "_merged_kernel_uapi_headers",
     ]
 

@@ -9,4 +9,4 @@ ROOT_DIR=`pwd`
 ARCH=arm64
 DEFCONFIG=meson64_a64_smarthome_defconfig
 
-source ${ROOT_DIR}/common/common_drivers/scripts/amlogic/mk_smarthome_common.sh $@
+source ${ROOT_DIR}/common_drivers/scripts/amlogic/mk_smarthome_common.sh $@

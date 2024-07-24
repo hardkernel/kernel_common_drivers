@@ -1,0 +1,36 @@
+exports_files(["build.config.amlogic.fragment.bazel"])
+exports_files(["build.config.amlogic.bazel"])
+exports_files(["Kconfig.ext"])
+exports_files(["project/build.config.project"])
+exports_files(["build.config.amlogic"])
+exports_files(["project/build.config.gki10"])
+
+filegroup(
+    name = "common_drivers_sources",
+    srcs = glob(
+        [
+            "**",
+        ],
+        exclude = [
+            "BUILD.bazel",
+            "*.bzl",
+            ".git/**",
+            "customer/**",
+            "rootfs_base.cpio.gz.uboot",
+        ],
+    ),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "amlogic_sources",
+    srcs = [
+        ":common_drivers_sources",
+        "//common:kernel_aarch64_sources",
+    ],
+)
+
+COMMON_DRIVERS_DIR = "common_drivers"
+load("//common_drivers:amlogic.bzl", "define_amlogic")
+define_amlogic()
+

@@ -1,0 +1,56 @@
+From 9228ae63b6ad0ad2672614107b7177f2726a9a05 Mon Sep 17 00:00:00 2001
+From: Dezhen Wang <dezhen.wang@amlogic.com>
+Date: Wed, 16 Oct 2024 07:55:18 +0000
+Subject: [PATCH] scripts: 6.12 mv common_drivers to up dir [1/1]
+
+PD#SWPL-188894
+
+Problem:
+common_drivers dir is not normal position. move it out of common dir.
+
+Solution:
+move it out of common dir
+
+Verify:
+local
+
+Change-Id: I482020ad71132d132c9c3002a74a10e7b7c57898
+Signed-off-by: Dezhen Wang <dezhen.wang@amlogic.com>
+---
+ kleaf/impl/kernel_build.bzl | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/kleaf/impl/kernel_build.bzl b/kleaf/impl/kernel_build.bzl
+index b5c0c1c1..2d37d2df 100644
+--- a/kleaf/impl/kernel_build.bzl
++++ b/kleaf/impl/kernel_build.bzl
+@@ -1130,7 +1130,7 @@ def _get_grab_intree_modules_step(ctx, has_any_modules, modules_staging_dir, rul
+     if has_any_modules:
+         tools.append(ctx.executable._search_and_cp_output)
+         grab_intree_modules_cmd = """
+-            {search_and_cp_output} --srcdir {modules_staging_dir}/lib/modules/*/kernel --dstdir {ruledir} {all_module_names}
++            {search_and_cp_output} --srcdir {modules_staging_dir}/lib/modules/*/kernel --srcdir {modules_staging_dir}/lib/modules/*/ --dstdir {ruledir} {all_module_names}
+         """.format(
+             search_and_cp_output = ctx.executable._search_and_cp_output.path,
+             modules_staging_dir = modules_staging_dir,
+@@ -1172,7 +1172,7 @@ def _get_grab_unstripped_modules_step(ctx, has_any_modules, all_module_basenames
+             inputs.append(all_module_basenames_file)
+             grab_unstripped_intree_modules_cmd = """
+                 mkdir -p {unstripped_dir}
+-                {search_and_cp_output} --srcdir ${{OUT_DIR}} --dstdir {unstripped_dir} $(cat {all_module_basenames_file})
++                {search_and_cp_output} --srcdir ${{OUT_DIR}} --srcdir ${{OUT_DIR}}/.. --dstdir {unstripped_dir} $(cat {all_module_basenames_file})
+             """.format(
+                 search_and_cp_output = ctx.executable._search_and_cp_output.path,
+                 unstripped_dir = unstripped_dir.path,
+@@ -1576,7 +1576,7 @@ def _build_main_action(
+                        --transform "s,^/,,"                             \
+                        --null -T -
+          # Grab outputs. If unable to find from OUT_DIR, look at KBUILD_MIXED_TREE as well.
+-           {search_and_cp_output} --srcdir ${{OUT_DIR}} {kbuild_mixed_tree_arg} {dtstree_arg} --dstdir {ruledir} {all_output_names_minus_modules}
++           {search_and_cp_output} --srcdir ${{OUT_DIR}} {kbuild_mixed_tree_arg} {dtstree_arg}/.. --dstdir {ruledir} {all_output_names_minus_modules}
+          # Archive modules_staging_dir
+            tar czf {modules_staging_archive_self} -C {modules_staging_dir} .
+          # Grab *.symtypes
+-- 
+2.46.0
+

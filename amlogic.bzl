@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 
-load("//common:common_drivers/amlogic_utils.bzl", "define_common_amlogic")
-load("//common:common_drivers/modules.bzl", "AMLOGIC_MODULES")
-load("//common:common_drivers/project/project.bzl", "EXT_MODULES_ANDROID", "GKI_CONFIG", "KCONFIG_EXT_SRCS")
-load("//common:common_drivers/project/dtb.bzl", "AMLOGIC_DTBS")
+load("//common_drivers:amlogic_utils.bzl", "define_common_amlogic")
+load("//common_drivers:modules.bzl", "AMLOGIC_MODULES")
+load("//common_drivers:project/project.bzl", "EXT_MODULES_ANDROID", "GKI_CONFIG", "KCONFIG_EXT_SRCS")
+load("//common_drivers:project/dtb.bzl", "AMLOGIC_DTBS")
 
 #KV_TODO: modify
 _AMLOGIC_DTBOS = [
@@ -26,10 +26,10 @@ def define_amlogic():
         define_abi_targets = False,
         kmi_symbol_list = None,
         kmi_symbol_list_add_only = False,
-        build_config = "common_drivers/build.config.amlogic.bazel",
+        build_config = ":build.config.amlogic.bazel",
         module_outs = _AMLOGIC_MODULES,
         ext_modules = _EXT_MODULES,
         module_grouping = False,
-        kconfig_ext = "common_drivers/Kconfig.ext",
+        kconfig_ext = ":Kconfig.ext",
         kconfig_ext_srcs = KCONFIG_EXT_SRCS,
     )

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
-load("//common:common_drivers/project/project.bzl", "EXTRA_ANDROID_MODULE", "GKI_CONFIG", "UPGRADE_PROJECT")
-load("//common:common_drivers/project/project.bzl", "MODULES_OUT_REMOVE", "MODULES_OUT_ADD")
+load("//common_drivers:project/project.bzl", "EXTRA_ANDROID_MODULE", "GKI_CONFIG", "UPGRADE_PROJECT")
+load("//common_drivers:project/project.bzl", "MODULES_OUT_REMOVE", "MODULES_OUT_ADD")
 
 OEM_PROJECT_MODULES = [
 

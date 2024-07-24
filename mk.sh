@@ -114,6 +114,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	args="$@ --config=fast --noincompatible_sandbox_hermetic_tmp"
 	[[ -z ${PREBUILT_GKI} ]] && args="${args} --lto=${LTO}"
 	[[ -z ${GKI_CONFIG} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode"
+	[[ -d ${ROOT_DIR}/common_drivers ]] && args="${args} --config=common_drivers_on_top"
 
 	PROJECT_DIR=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/project
 	[[ -d ${PROJECT_DIR} ]] || mkdir -p ${PROJECT_DIR}
@@ -198,7 +199,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	echo "]"					>> ${PROJECT_DIR}/dtb.bzl
 
 	if [[ "${GKI_CONFIG}" != "gki_20" || -n ${KASAN} || -z ${ANDROID_PROJECT} || -n ${FATLOAD} ]]; then
-		args="${args} --gki_build_config_fragment=//common:common_drivers/build.config.amlogic.fragment.bazel"
+		args="${args} --gki_build_config_fragment=//common_drivers:build.config.amlogic.fragment.bazel"
 	fi
 
 	if [[ ${GKI_CONFIG} != gki_20 || -n ${KASAN} || -n ${CHECK_GKI_20} ]]; then
@@ -216,7 +217,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	if [[ -n ${GOOGLE_BAZEL_BUILD_COMMAND_LINE} ]]; then
 		if [[${GOOGLE_BAZEL_BUILD_COMMAND_LINE} =~ "--kasan" ]]; then
 			GOOGLE_BAZEL_BUILD_COMMAND_LINE="${GOOGLE_BAZEL_BUILD_COMMAND_LINE} \
-								--gki_build_config_fragment=//common:common_drivers/build.config.amlogic.fragment.bazel \
+								--gki_build_config_fragment=//common_drivers:build.config.amlogic.fragment.bazel \
 								--allow_undeclared_modules"
 		fi
 		${GOOGLE_BAZEL_BUILD_COMMAND_LINE}
@@ -225,9 +226,9 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		tools/bazel run //common:kernel_aarch64_abi_dist ${args}
 		exit
 	elif [[ -n ${PREBUILT_GKI} ]]; then
-		tools/bazel run --use_prebuilt_gki=${PREBUILT_GKI} //common:amlogic_dist ${args}
+		tools/bazel run --use_prebuilt_gki=${PREBUILT_GKI} //common_drivers:amlogic_dist ${args}
 	else
-		tools/bazel run //common:amlogic_dist ${args}
+		tools/bazel run //common_drivers:amlogic_dist ${args}
 	fi
 	set +x
 

@@ -10,4 +10,4 @@ ARCH=arm64
 DEFCONFIG=meson64_a64_smarthome_defconfig
 CC_CLANG=1
 
-source ${ROOT_DIR}/common/common_drivers/scripts/amlogic/mk_smarthome_common.sh $@
+source ${ROOT_DIR}/common_drivers/scripts/amlogic/mk_smarthome_common.sh $@

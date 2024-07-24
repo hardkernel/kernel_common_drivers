@@ -14,7 +14,7 @@ if [[ "${OPTION_PARAM}" =~ "--c3_debug" ]]; then
 	DEBUG=1
 	OPTION_PARAM=${OPTION_PARAM//--c3_debug/}
 	DEFCONFIG=meson64_a32_C3_mini_merge_defconfig
-	CONFIG_DIR=${ROOT_DIR}/common/common_drivers/arch/${ARCH}/configs
+	CONFIG_DIR=${ROOT_DIR}/common_drivers/arch/${ARCH}/configs
 	KCONFIG_CONFIG=${CONFIG_DIR}/${DEFCONFIG} ${ROOT_DIR}/common/scripts/kconfig/merge_config.sh -m -r \
 		${CONFIG_DIR}/meson64_a32_C3_mini_defconfig \
 		${CONFIG_DIR}/C3_debug_defconfig
@@ -23,7 +23,7 @@ else
 	DEFCONFIG=meson64_a32_C3_mini_defconfig
 fi
 
-source ${ROOT_DIR}/common/common_drivers/scripts/amlogic/mk_smarthome_common.sh ${OPTION_PARAM}
+source ${ROOT_DIR}/common_drivers/scripts/amlogic/mk_smarthome_common.sh ${OPTION_PARAM}
 
 if [[ "${DEBUG}" == "1" ]]; then
 	rm -f ${CONFIG_DIR}/${DEFCONFIG}*
