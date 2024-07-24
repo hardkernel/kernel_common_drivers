@@ -79,18 +79,16 @@ static bool enable_db_reg = true;
 module_param(enable_db_reg, bool, 0644);
 MODULE_PARM_DESC(enable_db_reg, "enable/disable tvafe load reg");
 
-int top_init_en;
-
 /*0: atv playmode*/
 /*1: atv search mode*/
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
-static bool tvafe_mode;
+static bool tvafe_mode;//no use
 #endif
 /*tvconfig snow config*/
 static bool snow_cfg;
 /*1: snow function on;*/
 /*0: off snow function*/
-bool tvafe_snow_function_flag;
+bool tvafe_snow_function_flag;//TODO YL
 
 /*1: tvafe clk enabled;*/
 /*0: tvafe clk disabled*/
@@ -98,7 +96,7 @@ bool tvafe_snow_function_flag;
 bool tvafe_clk_status;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
-/*opened port,1:av1, 2:av2, 0:none av*/
+/*opened port,1:av1, 2:av2, 0:none 0x80: suspend*/
 unsigned int avport_opened;
 /*0:in, 1:out, 2:unknown*/
 unsigned int av1_plugin_state = 2;
@@ -162,7 +160,7 @@ static struct tvafe_user_param_s tvafe_user_param = {
 	 * bit[1]: auto hs
 	 * bit[0]: auto cdto
 	 */
-	.auto_adj_en = 0x3e,
+	.auto_adj_en = 0x30,//0x3e,
 	.vline_chk_cnt = 100, /* 100*10ms */
 	.hline_chk_cnt = 300, /* 300*10ms */
 	.low_amp_level = 0,
@@ -968,14 +966,12 @@ static bool white_pattern_reset_pag(enum tvin_port_e port,
 	if (IS_TVAFE_AVIN_SRC(port)) {
 		if (port == TVIN_PORT_CVBS1) {
 			if (av1_plugin_state == 1) {
-				top_init_en = 1;
 				return true;
 			}
 		}
 
 		if (port == TVIN_PORT_CVBS2) {
 			if (av2_plugin_state == 1) {
-				top_init_en = 1;
 				return true;
 			}
 		}
@@ -986,7 +982,6 @@ static bool white_pattern_reset_pag(enum tvin_port_e port,
 			white_pattern_pga_reset(port);
 			tvafe_pr_info("av1:%u av2:%u\n", av1_plugin_state,
 				      av2_plugin_state);
-			top_init_en = 0;
 			return true;
 		}
 	}
@@ -1150,6 +1145,31 @@ static void tvafe_cutwindow_update(struct tvafe_info_s *tvafe,
 	unsigned int hs_adj_val = 0;
 	unsigned int vs_adj_val = 0;
 	unsigned int i;
+	enum tvin_sig_fmt_e fmt = get_tvafe_signal_fmt();
+
+	if (fmt < TVIN_SIG_FMT_CVBS_NTSC_M ||
+		fmt >= TVIN_SIG_FMT_CVBS_MAX) {
+		prop->hs = 0;
+		prop->he = 0;
+		prop->vs = 0;
+		prop->ve = 0;
+	} else if (fmt == TVIN_SIG_FMT_CVBS_NTSC_M ||
+		fmt == TVIN_SIG_FMT_CVBS_NTSC_443 ||
+		fmt == TVIN_SIG_FMT_CVBS_PAL_60 ||
+		fmt == TVIN_SIG_FMT_CVBS_PAL_M) {
+		prop->hs = 5;
+		prop->he = 5;
+		prop->vs = 0;
+		prop->ve = 0;
+	} else {
+		prop->hs = 9;
+		prop->he = 9;
+		prop->vs = 0;
+		prop->ve = 0;
+	}
+
+	if ((user_param->auto_adj_en & (TVAFE_AUTO_VS | TVAFE_AUTO_HS)) == 0)
+		return;
 
 	if (user_param->cutwin_test_en & 0x8) {
 		vs_adj_val = user_param->cutwin_test_vcut;
@@ -1272,10 +1292,10 @@ static void tvafe_get_sig_property(struct tvin_frontend_s *fe,
 	prop->fps = tvafe_fmt_fps_table[index];
 
 #ifdef TVAFE_CVD2_AUTO_DE_ENABLE
-	if (devp->flags & TVAFE_FLAG_DEV_STARTED) {
+	//if (devp->flags & TVAFE_FLAG_DEV_STARTED) {
 		if (IS_TVAFE_SRC(port))
 			tvafe_cutwindow_update(tvafe, prop);
-	}
+	//}
 #endif
 	prop->color_fmt_range = TVIN_YUV_LIMIT;
 	prop->aspect_ratio = tvafe->aspect_ratio;
@@ -2217,7 +2237,9 @@ static int tvafe_drv_suspend(struct platform_device *pdev,
 		tvafe_pr_info("suspend module, close afe port first\n");
 		/* tdevp->flags &= (~TVAFE_FLAG_DEV_OPENED); */
 		/*del_timer_sync(&tdevp->timer);*/
-
+		tdevp->flags &= (~TVAFE_FLAG_DEV_STARTED);
+		tdevp->flags &= (~TVAFE_FLAG_DEV_OPENED);
+		avport_opened = 0x80; //suspend
 		/**set cvd2 reset to high**/
 		tvafe_cvd2_hold_rst();
 		/**disable av out**/
@@ -2247,6 +2269,7 @@ static int tvafe_drv_resume(struct platform_device *pdev)
 #endif
 	tvafe_enable_module(true);
 	tdevp->flags &= (~TVAFE_POWERDOWN_IN_IDLE);
+	avport_opened = 0; //resume
 	tvafe_clk_status = false;
 	tvafe_pr_info("resume module\n");
 	return 0;
@@ -2271,6 +2294,7 @@ static void tvafe_drv_shutdown(struct platform_device *pdev)
 
 	tvafe = &tdevp->tvafe;
 	mutex_lock(&tdevp->afe_mutex);
+	avport_opened = 0x80;
 	/* close afe port first */
 	if (tdevp->flags & TVAFE_FLAG_DEV_OPENED) {
 		tdevp->flags &= (~TVAFE_FLAG_DEV_OPENED);

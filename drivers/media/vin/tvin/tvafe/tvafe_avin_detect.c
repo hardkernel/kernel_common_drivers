@@ -1214,12 +1214,14 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 		tvafe_pr_info("tvin av_dev or meson_data is NULL\n");
 		return;
 	}
+	if (avport_opened == 0x80)
+		return;
 
 	avin_detect_param = &av_dev->avin_detect_param;
 	if (meson_data->detect_version == DETECTED_GPIO_VERSION) {
-		if (avport_opened == 0) {
+		if ((avport_opened & 0x03) == 0) {
 			detect_sts = tvafe_avin_detect();
-		} else {
+		} else if (avport_opened & 0x03) {
 			if (detect_start)
 				detect_sts = tvafe_avin_detect();
 			else if (!sm_print_nosig)
@@ -1227,7 +1229,6 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 			else if (av1_plugin_state == 0)
 				goto TIMER;
 		}
-
 		if (!detect_sts)
 			goto TIMER;
 	}
@@ -1284,7 +1285,7 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 					tvafe_pr_info("avin[1].status IN.\n");
 				/*port opened and plug in,enable clamp*/
 				/*sync tip close*/
-					if (avport_opened == TVAFE_PORT_AV2) {
+					if ((avport_opened & 0x03) == TVAFE_PORT_AV2) {
 						tvafe_cha2_SYNCTIP_close_config();
 						W_APB_BIT(TVFE_CLAMP_INTF, 1,
 							CLAMP_EN_BIT, CLAMP_EN_WID);
@@ -1296,10 +1297,10 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 		} else {
 			avin_detect_param->s_irq_out_counter1_time++;
 			if ((av_dev->function_select & AVIN_FUNCTION_WHITE0) &&
-			    tvafe_clk_status && avport_opened == TVAFE_PORT_AV2 &&
+			    tvafe_clk_status && (avport_opened & 0x03) == TVAFE_PORT_AV2 &&
 			    !R_APB_BIT(CVD2_STATUS_REGISTER1, NO_SIGNAL_BIT, NO_SIGNAL_WID))
 				avin_detect_param->s_irq_out_counter1_time = 0;
-			if (avport_opened == TVAFE_PORT_AV2 &&
+			if ((avport_opened & 0x03) == TVAFE_PORT_AV2 &&
 			    (avin_detect_debug_print & AVIN_SIGNAL_DBG))
 				tvafe_pr_info("0x3a:0x%x\n", R_APB_REG(CVD2_STATUS_REGISTER1));
 			if (avin_detect_param->s_irq_out_counter1_time >=
@@ -1312,7 +1313,7 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 					av2_plugin_state = 1;
 					tvafe_pr_info("avin[1].status OUT.\n");
 				/*port opened but plug out,need disable clamp*/
-					if (avport_opened == TVAFE_PORT_AV2) {
+					if ((avport_opened & 0x03) == TVAFE_PORT_AV2) {
 						W_APB_BIT(TVFE_CLAMP_INTF, 0,
 							  CLAMP_EN_BIT, CLAMP_EN_WID);
 						tvafe_cha2_detect_restart_config();
@@ -1340,7 +1341,7 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 				tvafe_pr_info("avin[0].status IN.\n");
 				/*port opened and plug in then enable clamp*/
 				/*sync tip close*/
-				if (avport_opened == TVAFE_PORT_AV1) {
+				if ((avport_opened & 0x03) == TVAFE_PORT_AV1) {
 					W_APB_BIT(TVFE_CLAMP_INTF, 1,
 						  CLAMP_EN_BIT, CLAMP_EN_WID);
 					tvafe_cha1_SYNCTIP_close_config();
@@ -1351,10 +1352,10 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 	} else {
 		avin_detect_param->s_irq_out_counter0_time++;
 		if ((av_dev->function_select & AVIN_FUNCTION_WHITE0) &&
-		    tvafe_clk_status && avport_opened == TVAFE_PORT_AV1 &&
+		    tvafe_clk_status && (avport_opened & 0x03) == TVAFE_PORT_AV1 &&
 		    !R_APB_BIT(CVD2_STATUS_REGISTER1, NO_SIGNAL_BIT, NO_SIGNAL_WID))
 			avin_detect_param->s_irq_out_counter0_time = 0;
-		if (avport_opened == TVAFE_PORT_AV1 &&
+		if ((avport_opened & 0x03) == TVAFE_PORT_AV1 &&
 		    (avin_detect_debug_print & AVIN_SIGNAL_DBG))
 			tvafe_pr_info("0x3a:0x%x\n", R_APB_REG(CVD2_STATUS_REGISTER1));
 		if (avin_detect_param->s_irq_out_counter0_time >=
@@ -1372,7 +1373,7 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 				/*the EN_SYNC_TIP need be set to "1"*/
 				/*to sense the plug in operation*/
 				/*port opened but plug out,need disable clamp*/
-				if (avport_opened == TVAFE_PORT_AV1) {
+				if ((avport_opened & 0x03) == TVAFE_PORT_AV1) {
 					W_APB_BIT(TVFE_CLAMP_INTF, 0,
 						  CLAMP_EN_BIT, CLAMP_EN_WID);
 					tvafe_cha1_detect_restart_config();
@@ -1692,7 +1693,7 @@ struct meson_avin_data txhd2_data = {
 	.irq1_cntl = CVBS_IRQ1_CNTL,
 	.irq0_cnt  = CVBS_IRQ0_COUNTER,
 	.irq1_cnt  = CVBS_IRQ1_COUNTER,
-	.dc_level_adj = 2,
+	.dc_level_adj = 3,
 	.vdc_level = 3,
 	.comp_level_adj = 3,
 	.irq_filter = 1,

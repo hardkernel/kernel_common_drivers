@@ -171,8 +171,8 @@ static unsigned int vs_adj_th_level02 = 0x12;
 static unsigned int vs_adj_th_level03 = 0x20;
 /*-3.5hz*/
 static unsigned int vs_adj_th_level04 = 0x28;
-static unsigned int cvd_2e = 0x8c;
-static unsigned int ntscm_cvd_2e = 0x82;
+static unsigned int cvd_2e = 0x84;//0x8c;
+static unsigned int ntscm_cvd_2e = 0x7a;//0x82;
 static unsigned int cvd_2e_l1 = 0x5c;
 static unsigned int acd_128 = 0x14;
 static unsigned int acd_128_l1 = 0x1f;
@@ -411,9 +411,7 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 	}
 
 	/*setting for snow*/
-	if (tvafe_get_snow_cfg() &&
-		(tvafe_cpu_type() == TVAFE_CPU_TYPE_TL1 ||
-		tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2)) {
+	if (tvafe_get_snow_cfg()) {//TODO YL
 		W_APB_BIT(CVD2_OUTPUT_CONTROL, 3, 5, 2);
 		if (devp->flags & TVAFE_FLAG_DEV_SNOW_FLAG)
 			W_APB_REG(ACD_REG_6C, 0x90300000);
@@ -3244,9 +3242,7 @@ void tvafe_cvd2_hold_rst(void)
 void tvafe_snow_config(unsigned int on_off)
 {
 	/*setting for snow*/
-	if (tvafe_get_snow_cfg() &&
-		(tvafe_cpu_type() == TVAFE_CPU_TYPE_TL1 ||
-		tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2)) {
+	if (tvafe_get_snow_cfg()) {
 		W_APB_BIT(CVD2_OUTPUT_CONTROL, 3, 5, 2);
 		if (on_off) {
 			W_APB_REG(ACD_REG_6C, 0x90300000);
@@ -3256,15 +3252,14 @@ void tvafe_snow_config(unsigned int on_off)
 			W_APB_REG(ACD_REG_A6, 0x2);
 		}
 	}
-
-	if (tvafe_snow_function_flag == 0 ||
-		tvafe_cpu_type() == TVAFE_CPU_TYPE_TL1 ||
-		tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2)
-		return;
-	if (on_off)
-		W_APB_BIT(CVD2_OUTPUT_CONTROL, 3, BLUE_MODE_BIT, BLUE_MODE_WID);
-	else
-		W_APB_BIT(CVD2_OUTPUT_CONTROL, 0, BLUE_MODE_BIT, BLUE_MODE_WID);
+	//if (tvafe_snow_function_flag == 0 ||
+		//tvafe_cpu_type() == TVAFE_CPU_TYPE_TL1 ||
+		//tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2)
+	//always true
+	//if (on_off)//no use
+		//W_APB_BIT(CVD2_OUTPUT_CONTROL, 3, BLUE_MODE_BIT, BLUE_MODE_WID);
+	//else
+		//W_APB_BIT(CVD2_OUTPUT_CONTROL, 0, BLUE_MODE_BIT, BLUE_MODE_WID);
 }
 
 void tvafe_snow_config_clamp(unsigned int on_off)
