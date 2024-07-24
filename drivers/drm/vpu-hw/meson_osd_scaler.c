@@ -1056,9 +1056,11 @@ static void scaler_set_state(struct meson_vpu_block *vblk,
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
 	/*todo:move afbc start to afbc block.*/
 	if (pipeline->osd_version < OSD_V7) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if (is_meson_s6_cpu() && vblk->index == 2)
 			s6_viu2_arm_fbc_start(mvps, state->sub->reg_ops);
 		else
+#endif
 			arm_fbc_start(mvps, state->sub->reg_ops);
 	}
 

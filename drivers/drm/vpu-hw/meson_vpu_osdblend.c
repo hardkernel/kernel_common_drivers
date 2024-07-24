@@ -394,6 +394,7 @@ static void osdblend_hw_update(struct meson_vpu_block *vblk,
 			    mvobs->input_height[OSD_SUB_BLEND1]);
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static void s7d_osdblend_hw_update(struct meson_vpu_block *vblk,
 			       struct rdma_reg_ops *reg_ops,
 			       struct osdblend_reg_s *reg,
@@ -441,6 +442,7 @@ static void s7d_osdblend_hw_update(struct meson_vpu_block *vblk,
 			    mvobs->input_width[OSD_SUB_BLEND1],
 			    mvobs->input_height[OSD_SUB_BLEND1]);
 }
+#endif
 
 static int osdblend_check_state(struct meson_vpu_block *vblk,
 				struct meson_vpu_block_state *state,
