@@ -27,6 +27,10 @@
 #define FBIOGET_DISPLAY_MODE             0x4580
 
 #define MAX_VRR_MODE_GROUP 12
+#define MAX_VRR_GROUP_VIC_NUM 96
+#define MAX_QMS_GROUP_NUM 8
+#define VRR_DIV 100
+
 /* 40 bpp RGB */
 #define DRM_FORMAT_ABGR10101010	fourcc_code('A', 'B', '4', '0')
 		/* [39:0] A:B:G:R 10:10:10:10 little endian */
@@ -59,9 +63,23 @@ struct drm_meson_fbdev_rect {
 	__u32 mask;
 };
 
-#define MAX_QMS_GROUP_NUM 8
-
 struct drm_vrr_mode_group {
+	__u32 brr_vic;
+	__u32 width;
+	__u32 height;
+	__u32 vrr_min;
+	__u32 vrr_max;
+	__u32 brr;
+	char modename[DRM_DISPLAY_MODE_LEN];
+};
+
+struct drm_vrr_mode_groups {
+	__u32 conn_id;
+	__u32 num;
+	struct drm_vrr_mode_group groups[MAX_VRR_MODE_GROUP];
+};
+
+struct hdmitx_vrr_mode_group {
 	__u32 brr_vic; /* brr vic for hdmitx */
 	__u32 width;
 	__u32 height;
@@ -78,12 +96,6 @@ struct drm_vrr_mode_group {
 	__u32 brr;
 	char modename[DRM_DISPLAY_MODE_LEN];
 	__u32 reserv[16];
-};
-
-struct drm_vrr_mode_groups {
-	__u32 conn_id;
-	__u32 num;
-	struct drm_vrr_mode_group groups[MAX_VRR_MODE_GROUP];
 };
 
 /**

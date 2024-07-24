@@ -332,23 +332,133 @@ static int meson_hdmitx_decide_color_attr
 	return 0;
 }
 
-int meson_hdmitx_get_modes(struct drm_connector *connector)
+static int meson_hdmitx_mode_probed_add(int count, int *vics, struct drm_connector *connector)
 {
-	u32 vrr_cap;
-	struct edid *edid;
-	int *vics;
-	int count = 0, i = 0, j = 0, k = 0;
-	int ret;
 	struct drm_display_mode *mode, *pref_mode = NULL;
 	struct drm_hdmitx_timing_para para;
 	struct am_hdmi_tx *am_hdmitx = connector_to_am_hdmi(connector);
-	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
-	char *strp = NULL;
+	bool pref_flag;
 	struct meson_drm *priv;
 	struct meson_of_conf *conf;
-	bool pref_flag;
-	struct drm_vrr_mode_group *groups;
-	struct drm_vrr_mode_group *group;
+	char *strp = NULL;
+	int i;
+	int ret;
+
+	if (!am_hdmitx) {
+		DRM_ERROR("am_hdmitx is NULL!\n");
+		return -EINVAL;
+	}
+
+	priv = am_hdmitx->base.drm_priv;
+	conf = &priv->of_conf;
+
+	for (i = 0; i < count; i++) {
+		ret = hdmitx_common_get_timing_para(vics[i], &para);
+		if (ret < 0) {
+			DRM_ERROR("Get hdmi para by vic [%d] failed.\n", vics[i]);
+			continue;
+		}
+
+		mode = drm_mode_create(connector->dev);
+		if (!mode) {
+			DRM_ERROR("drm mode create failed.\n");
+			continue;
+		}
+
+		strncpy(mode->name, para.name, DRM_DISPLAY_MODE_LEN);
+		mode->name[DRM_DISPLAY_MODE_LEN - 1] = '\0';
+		/* remove _4x3 suffix, in case misunderstand */
+		strp = strstr(mode->name, "_4x3");
+		if (strp)
+			*strp = '\0';
+
+		mode->type = DRM_MODE_TYPE_DRIVER;
+		mode->clock = para.pixel_freq;
+
+		mode->hdisplay = para.h_active;
+		mode->hsync_start = para.h_active + para.h_front;
+		mode->hsync_end = para.h_active + para.h_front + para.h_sync;
+
+		mode->htotal = para.h_total;
+		/* for 480i/576i, horizontal timing is repeated */
+		if (para.pix_repeat_factor == 1) {
+			mode->hdisplay >>= 1;
+			mode->hsync_start >>= 1;
+			mode->hsync_end >>= 1;
+			mode->htotal >>= 1;
+			mode->clock >>= 1;
+		}
+
+		mode->hskew = 0;
+		mode->flags |= para.h_pol ?
+			DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
+
+		mode->vdisplay = para.v_active;
+		mode->vsync_start = para.v_active + para.v_front;
+		mode->vsync_end = para.v_active + para.v_front + para.v_sync;
+		mode->vtotal = para.v_total;
+		mode->vscan = 0;
+		mode->flags |= para.v_pol ?
+			DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
+
+		if (!para.pi_mode)
+			mode->flags |= DRM_MODE_FLAG_INTERLACE;
+
+		/*for recovery ui*/
+		if (hdmitx_set_smaller_pref) {
+			/*
+			 * select 1080P mode with hightest refresh rate first,
+			 * if not find then select 720p mode as pref mode
+			 */
+			if (conf->pref_mode && (!strcmp(conf->pref_mode, "2160p"))) {
+				pref_flag = (!(mode->flags & DRM_MODE_FLAG_INTERLACE)) &&
+				((mode->hdisplay == 3840 && mode->vdisplay == 2160) ||
+				(mode->hdisplay == 1920 && mode->vdisplay == 1080) ||
+				(mode->hdisplay == 1280 && mode->vdisplay == 720));
+				DRM_DEBUG("mode_name is %s, pref_flag = %d\n",
+					conf->pref_mode, pref_flag);
+			} else {
+				pref_flag = (!(mode->flags & DRM_MODE_FLAG_INTERLACE)) &&
+				((mode->hdisplay == 1920 && mode->vdisplay == 1080) ||
+				(mode->hdisplay == 1280 && mode->vdisplay == 720));
+				DRM_DEBUG("mode_name is %s, pref_flag = %d\n",
+				conf->pref_mode, pref_flag);
+			}
+			if (pref_flag) {
+				if (!pref_mode)
+					pref_mode = mode;
+				else if (pref_mode->hdisplay < mode->hdisplay)
+					pref_mode = mode;
+				else if (pref_mode->hdisplay == mode->hdisplay &&
+					(drm_mode_vrefresh(pref_mode) < drm_mode_vrefresh(mode)))
+					pref_mode = mode;
+			}
+		}
+
+		drm_mode_probed_add(connector, mode);
+
+		DRM_DEBUG("add mode [%s]\n", mode->name);
+	}
+
+	if (pref_mode)
+		pref_mode->type |= DRM_MODE_TYPE_PREFERRED;
+
+	return ret;
+}
+
+int meson_hdmitx_get_modes(struct drm_connector *connector)
+{
+	u32 vrr_cap = 0;
+	struct edid *edid;
+	int *vics;
+	int count = 0, count1 = 0, i = 0, j = 0;
+	struct drm_display_mode *mode;
+	struct am_hdmi_tx *am_hdmitx = connector_to_am_hdmi(connector);
+	struct hdmitx_common *tx_comm = am_hdmi_info.hdmitx_dev->hdmitx_common;
+	struct hdmitx_vrr_mode_group *groups;
+	struct hdmitx_vrr_mode_group *group;
+	int *vrr_list;
+	int *tmp;
 	int num_group = 0;
 
 	if (!am_hdmitx) {
@@ -356,17 +466,22 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 		return count;
 	}
 
-	priv = am_hdmitx->base.drm_priv;
-	conf = &priv->of_conf;
-
 	edid = (struct edid *)hdmitx_get_raw_edid(tx_comm);
 
 	am_hdmitx->sequence_id = hdmitx_get_hpd_hw_sequence_id(tx_comm);
 
 	drm_connector_update_edid_property(connector, edid);
 
+	vrr_list = kcalloc(MAX_VRR_GROUP_VIC_NUM, sizeof(int),  GFP_KERNEL);
+	tmp = kcalloc(MAX_VRR_GROUP_VIC_NUM, sizeof(int),  GFP_KERNEL);
 	groups = kcalloc(MAX_VRR_MODE_GROUP, sizeof(*groups), GFP_KERNEL);
-	if (groups && am_hdmi_info.hdmitx_dev->get_vrr_mode_group)
+
+	if (!groups || !tmp || !vrr_list) {
+		DRM_ERROR("%s alloc fail\n", __func__);
+		goto end;
+	}
+
+	if (am_hdmi_info.hdmitx_dev->get_vrr_mode_group)
 		num_group = am_hdmi_info.hdmitx_dev->get_vrr_mode_group(groups,
 							  MAX_VRR_MODE_GROUP);
 
@@ -381,129 +496,46 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	/*add modes from hdmitx instead of edid*/
 	count = hdmitx_common_get_vic_list(&vics);
 
-	for (i = 0; i < count; i++) {
-		int vic_list[8] = {HDMI_0_UNKNOWN};
-		int count_list = 0;
+	if (vrr_cap && count) {
+		int src = 0, dst = 0;
 
-		if (vrr_cap) {
-			for (j = 0; j < num_group; j++) {
-				group = &groups[j];
-				if (group->brr_vic == vics[i] && group->vrr_max / 100 >= 60) {
-					for (k = 0; k < ARRAY_SIZE(group->qms_vic_lists); k++) {
-						vic_list[k] = group->qms_vic_lists[k];
-						DRM_DEBUG("%s__%d__%d__%zd\n", __func__,
-						__LINE__, vic_list[k],
-						ARRAY_SIZE(group->qms_vic_lists));
-						count_list++;
-					}
-				}
+		for (i = 0; i < num_group; i++) {
+			group = &groups[i];
+			for (j = 0; j < ARRAY_SIZE(group->qms_vic_lists); j++) {
+				tmp[count1] = group->qms_vic_lists[j];
+				DRM_DEBUG("%s__%d__%d__%zd\n", __func__,
+				__LINE__, tmp[count1],
+				ARRAY_SIZE(group->qms_vic_lists));
+				count1++;
 			}
 		}
 
-		if (count_list == 0) {
-			vic_list[0] = vics[i];
-			count_list = 1;
-		}
+		/*remove duplicate vics array variables*/
+		while (src  < count1) {
+			bool exist = false;
 
-		for (k = 0; k < count_list; k++) {
-			ret = hdmitx_common_get_timing_para(vic_list[k], &para);
-			if (ret < 0) {
-				DRM_ERROR("Get hdmi para by vic [%d] failed.\n", vic_list[k]);
-				continue;
-			}
-
-			mode = drm_mode_create(connector->dev);
-			if (!mode) {
-				DRM_ERROR("drm mode create failed.\n");
-				continue;
-			}
-
-			strncpy(mode->name, para.name, DRM_DISPLAY_MODE_LEN);
-			mode->name[DRM_DISPLAY_MODE_LEN - 1] = '\0';
-			/* remove _4x3 suffix, in case misunderstand */
-			strp = strstr(mode->name, "_4x3");
-			if (strp)
-				*strp = '\0';
-
-			mode->type = DRM_MODE_TYPE_DRIVER;
-			mode->clock = para.pixel_freq;
-
-			mode->hdisplay = para.h_active;
-			mode->hsync_start = para.h_active + para.h_front;
-			mode->hsync_end = para.h_active + para.h_front + para.h_sync;
-
-			mode->htotal = para.h_total;
-			/* for 480i/576i, horizontal timing is repeated */
-			if (para.pix_repeat_factor == 1) {
-				mode->hdisplay >>= 1;
-				mode->hsync_start >>= 1;
-				mode->hsync_end >>= 1;
-				mode->htotal >>= 1;
-				mode->clock >>= 1;
-			}
-
-			mode->hskew = 0;
-			mode->flags |= para.h_pol ?
-				DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
-
-			mode->vdisplay = para.v_active;
-			mode->vsync_start = para.v_active + para.v_front;
-			mode->vsync_end = para.v_active + para.v_front + para.v_sync;
-			mode->vtotal = para.v_total;
-			mode->vscan = 0;
-			mode->flags |= para.v_pol ?
-				DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
-
-			if (!para.pi_mode)
-				mode->flags |= DRM_MODE_FLAG_INTERLACE;
-
-			/*for recovery ui*/
-			if (hdmitx_set_smaller_pref) {
-				/*
-				 * select 1080P mode with hightest refresh rate first,
-				 * if not find then select 720p mode as pref mode
-				 */
-				if (conf->pref_mode && (!strcmp(conf->pref_mode, "2160p"))) {
-					pref_flag = (!(mode->flags & DRM_MODE_FLAG_INTERLACE)) &&
-					((mode->hdisplay == 3840 && mode->vdisplay == 2160) ||
-					(mode->hdisplay == 1920 && mode->vdisplay == 1080) ||
-					(mode->hdisplay == 1280 && mode->vdisplay == 720));
-					DRM_DEBUG("mode_name is %s, pref_flag = %d\n",
-						conf->pref_mode, pref_flag);
-				} else {
-					pref_flag = (!(mode->flags & DRM_MODE_FLAG_INTERLACE)) &&
-					((mode->hdisplay == 1920 && mode->vdisplay == 1080) ||
-					(mode->hdisplay == 1280 && mode->vdisplay == 720));
-					DRM_DEBUG("mode_name is %s, pref_flag = %d\n",
-						conf->pref_mode, pref_flag);
-				}
-				if (pref_flag) {
-					if (!pref_mode)
-						pref_mode = mode;
-					else if (pref_mode->hdisplay < mode->hdisplay)
-						pref_mode = mode;
-					else if (pref_mode->hdisplay == mode->hdisplay &&
-						(drm_mode_vrefresh(pref_mode) < drm_mode_vrefresh(mode)))
-						pref_mode = mode;
+			for (i = 0; i < count; i++) {
+				if (tmp[src] == vics[i]) {
+					src++;
+					exist = true;
+					break;
 				}
 			}
 
-			drm_mode_probed_add(connector, mode);
-
-			DRM_DEBUG("add mode [%s]\n", mode->name);
+			if (!exist)
+				vrr_list[dst++] = tmp[src++];
 		}
+
+		count1 = dst;
 	}
 
 	if (count) {
-		if (pref_mode)
-			pref_mode->type |= DRM_MODE_TYPE_PREFERRED;
-
+		meson_hdmitx_mode_probed_add(count, vics, connector);
 		kfree(vics);
-	} else {
-		DRM_ERROR("get vic_list from hdmitx dev return 0.\n");
 	}
 
-	kfree(groups);
+	if (count1)
+		meson_hdmitx_mode_probed_add(count1, vrr_list, connector);
 
 	/*TODO:add dummy mode temp.*/
 	if (am_hdmitx->base.drm_priv->dummyl_from_hdmitx) {
@@ -520,7 +552,12 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	connector->display_info.monitor_range.max_vfreq = am_hdmi_info.max_vfreq;
 	connector->display_info.monitor_range.min_vfreq = am_hdmi_info.min_vfreq;
 
-	return count;
+end:
+	kfree(vrr_list);
+	kfree(tmp);
+	kfree(groups);
+
+	return count + count1;
 }
 
 /*   drm_display_mode	     :		 hdmi_format_para
@@ -1509,9 +1546,9 @@ static void meson_hdmitx_cal_brr(struct am_hdmi_tx *hdmitx,
 {
 	int i, ret, vic, brr = 60;
 	int num_group;
-	struct drm_vrr_mode_group *group;
+	struct hdmitx_vrr_mode_group *group;
 	struct drm_hdmitx_timing_para para;
-	struct drm_vrr_mode_group *groups;
+	struct hdmitx_vrr_mode_group *groups;
 
 	groups = kcalloc(MAX_VRR_MODE_GROUP, sizeof(*groups), GFP_KERNEL);
 	if (!groups) {
@@ -2427,17 +2464,33 @@ int am_meson_mode_testattr_ioctl(struct drm_device *dev,
 int am_meson_hdmi_get_vrr_range(struct drm_device *dev,
 			void *data, struct drm_file *file_priv)
 {
-	int num_group = 0;
+	int i, num_group = 0;
+	struct hdmitx_vrr_mode_group *hdmi_groups;
 	struct drm_vrr_mode_groups *groups = data;
 
-	num_group = am_hdmi_info.hdmitx_dev->get_vrr_mode_group(groups->groups,
+	hdmi_groups = kcalloc(MAX_VRR_MODE_GROUP, sizeof(*hdmi_groups), GFP_KERNEL);
+	if (!hdmi_groups)
+		return -ENOMEM;
+
+	num_group = am_hdmi_info.hdmitx_dev->get_vrr_mode_group(hdmi_groups,
 							   MAX_VRR_MODE_GROUP);
 	if (!num_group) {
 		DRM_ERROR("get vrr error or not support qms\n");
+		kfree(hdmi_groups);
 		return -EINVAL;
 	}
 
+	for (i = 0; i < num_group; i++) {
+		groups->groups[i].brr_vic = hdmi_groups[i].brr_vic;
+		groups->groups[i].brr = hdmi_groups[i].brr;
+		groups->groups[i].width = hdmi_groups[i].width;
+		groups->groups[i].height = hdmi_groups[i].height;
+		groups->groups[i].vrr_min = hdmi_groups[i].vrr_min / VRR_DIV;
+		groups->groups[i].vrr_max = hdmi_groups[i].vrr_max / VRR_DIV;
+		memcpy(groups->groups[i].modename, hdmi_groups[i].modename, DRM_DISPLAY_MODE_LEN);
+	}
 	groups->num = num_group;
 
+	kfree(hdmi_groups);
 	return num_group;
 }
