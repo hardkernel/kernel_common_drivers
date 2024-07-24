@@ -131,6 +131,9 @@ static int register_cool_dev(struct platform_device *pdev,
 	case COOL_DEV_TYPE_DDR:
 		if (get_ddr_type_from_reg(pdev) == DDR_TYPE1 && !strcmp(child->name, "ddr_cool"))
 			break;
+		if (get_ddr_type_from_reg(pdev) == DDR_TYPE2 &&
+			!strcmp(child->name, "ddr_cool_20nm"))
+			break;
 
 		node = of_find_node_by_name(NULL, node_name);
 		if (!node) {
