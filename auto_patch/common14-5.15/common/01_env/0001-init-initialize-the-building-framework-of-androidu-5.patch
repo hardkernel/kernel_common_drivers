@@ -1,4 +1,4 @@
-From e5dc2882c61203dbc04ca314e8de9acfd139c2d7 Mon Sep 17 00:00:00 2001
+From 23650f4fc7e9f836e866149a20f33a1da15c6ed1 Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Thu, 2 Feb 2023 15:49:10 +0800
 Subject: [PATCH] init: initialize the building framework of androidu-5.15 for
@@ -19,7 +19,7 @@ Change-Id: Icfbc29709af1545b802ed7794808a2ab560ed08a
 Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
 ---
  .gitignore                                |   3 +
- Makefile                                  |  26 ++
+ Makefile                                  |  42 ++-
  drivers/Kconfig                           |  61 +++
  scripts/amlogic/licence_check.pl          | 153 ++++++++
  scripts/amlogic/licence_pre.pl            |  53 +++
@@ -28,7 +28,7 @@ Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
  scripts/amlogic/pre-commit-common_drivers |  24 ++
  scripts/checkpatch.pl                     | 158 ++++----
  scripts/kconfig/Makefile                  |   9 +-
- 10 files changed, 860 insertions(+), 80 deletions(-)
+ 10 files changed, 874 insertions(+), 82 deletions(-)
  create mode 100755 scripts/amlogic/licence_check.pl
  create mode 100755 scripts/amlogic/licence_pre.pl
  create mode 100755 scripts/amlogic/merge_pre_check.pl
@@ -47,7 +47,7 @@ index 265959544978..0bbfe4cd37fc 100644
 +# amlogic drivers
 +/common_drivers/
 diff --git a/Makefile b/Makefile
-index 4bed31517741..342b8306ac72 100644
+index 4bed31517741..890980411350 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -438,6 +438,14 @@ ifneq ($(SRCARCH),$(SUBARCH))
@@ -58,7 +58,7 @@ index 4bed31517741..342b8306ac72 100644
 +# config cannot be used here to mark AMLOGIC modifications
 +# If these three variables are not set externally, set their default values
 +export COMMON_DRIVERS_DIR ?= common_drivers
-+dtstree ?= $(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/boot/dts/amlogic
++dtstree ?= $(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/boot/dts/
 +export DTC_INCLUDE ?= $(srctree)/$(COMMON_DRIVERS_DIR)/include
 +# endif
 +
@@ -101,6 +101,31 @@ index 4bed31517741..342b8306ac72 100644
  
  ifeq ($(KBUILD_EXTMOD),)
  core-y			+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/
+@@ -1483,10 +1509,22 @@ endif
+ ifneq ($(dtstree),)
+ 
+ %.dtb: include/config/kernel.release scripts_dtc
+-	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@
++ifdef CONFIG_AMLOGIC_DRIVER
++	$(if $(wildcard $(srctree)/$(dtstree)/amlogic/$(addsuffix .dts,$(basename $@))),\
++		$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/amlogic/$@,\
++		$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@)
++else
++	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@)
++endif
+ 
+ %.dtbo: include/config/kernel.release scripts_dtc
+-	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@
++ifdef CONFIG_AMLOGIC_DRIVER
++	$(if $(wildcard $(srctree)/$(dtstree)/amlogic/$(addsuffix .dts,$(basename $@))),\
++		$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/amlogic/$@,\
++		$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@)
++else
++	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@)
++endif
+ 
+ PHONY += dtbs dtbs_install dtbs_check
+ dtbs: include/config/kernel.release scripts_dtc
 diff --git a/drivers/Kconfig b/drivers/Kconfig
 index 67f44716797e..b45de86239e1 100644
 --- a/drivers/Kconfig
@@ -391,7 +416,7 @@ index 000000000000..a364fbe60a84
 +exit $out;
 diff --git a/scripts/amlogic/merge_pre_check.pl b/scripts/amlogic/merge_pre_check.pl
 new file mode 100755
-index 000000000000..b2c9a1df0f17
+index 000000000000..a7ac27020c6e
 --- /dev/null
 +++ b/scripts/amlogic/merge_pre_check.pl
 @@ -0,0 +1,429 @@
