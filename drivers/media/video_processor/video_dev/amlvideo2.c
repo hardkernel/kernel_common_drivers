@@ -1362,6 +1362,8 @@ int amlvideo2_ge2d_interlace_two_canvasaddr_process(struct vframe_s *vf,
 	ge2d_config->src_key.key_mode = 0;
 	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config->src_para.format = get_input_format(vf);
+	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+		ge2d_config->src_para.format |= GE2D_LITTLE_ENDIAN;
 	ge2d_config->src_para.fill_color_en = 0;
 	ge2d_config->src_para.fill_mode = 0;
 	ge2d_config->src_para.x_rev = 0;
@@ -1751,6 +1753,8 @@ int amlvideo2_ge2d_interlace_two_canvasaddr_process(struct vframe_s *vf,
 	ge2d_config->src_key.key_mode = 0;
 	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config->src_para.format = get_input_format(vf);
+	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+		ge2d_config->src_para.format |= GE2D_LITTLE_ENDIAN;
 	ge2d_config->src_para.fill_color_en = 0;
 	ge2d_config->src_para.fill_mode = 0;
 	ge2d_config->src_para.x_rev = 0;
@@ -2180,6 +2184,8 @@ int amlvideo2_ge2d_interlace_vdindata_process(struct vframe_s *vf,
 	ge2d_config->src_key.key_mode = 0;
 	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config->src_para.format = get_interlace_input_format(vf, output);
+	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+		ge2d_config->src_para.format |= GE2D_LITTLE_ENDIAN;
 	ge2d_config->src_para.fill_color_en = 0;
 	ge2d_config->src_para.fill_mode = 0;
 	ge2d_config->src_para.x_rev = 0;
@@ -2622,6 +2628,8 @@ int amlvideo2_ge2d_interlace_one_canvasaddr_process(struct vframe_s *vf,
 	ge2d_config->src_key.key_mode = 0;
 	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config->src_para.format = get_input_format_no_interlace(vf);
+	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+		ge2d_config->src_para.format |= GE2D_LITTLE_ENDIAN;
 	ge2d_config->src_para.fill_color_en = 0;
 	ge2d_config->src_para.fill_mode = 0;
 	ge2d_config->src_para.x_rev = 0;
@@ -3060,6 +3068,8 @@ int amlvideo2_ge2d_interlace_dtv_process(struct vframe_s *vf,
 	ge2d_config->src_key.key_mode = 0;
 	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config->src_para.format = get_interlace_input_format(vf, output);
+	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+		ge2d_config->src_para.format |= GE2D_LITTLE_ENDIAN;
 	ge2d_config->src_para.fill_color_en = 0;
 	ge2d_config->src_para.fill_mode = 0;
 	ge2d_config->src_para.x_rev = 0;
@@ -3765,6 +3775,8 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 	ge2d_config->src_key.key_mode = 0;
 	ge2d_config->src_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config->src_para.format = get_input_format(vf);
+	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+		ge2d_config->src_para.format |= GE2D_LITTLE_ENDIAN;
 	ge2d_config->src_para.fill_color_en = 0;
 	ge2d_config->src_para.fill_mode = 0;
 	ge2d_config->src_para.x_rev = 0;
@@ -5848,10 +5860,12 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 			return 0;
 		}
 
-		ret = vops->stop_tvin_service(node->vdin_device_num);
-		if (ret < 0) {
-			pr_err("%s amlvideo2 vdin stop failed\n", __func__);
-			return 0;
+		if (node->aml2_dev->node_id == 1) {
+			ret = vops->stop_tvin_service(node->vdin_device_num);
+			if (ret < 0) {
+				pr_err("%s amlvideo2 vdin stop failed\n", __func__);
+				return 0;
+			}
 		}
 #endif
 	}
