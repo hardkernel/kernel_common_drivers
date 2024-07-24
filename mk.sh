@@ -203,7 +203,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	echo 						>> ${PROJECT_DIR}/dtb.bzl
 
 	echo "AMLOGIC_DTBS = ["				>> ${PROJECT_DIR}/dtb.bzl
-	grep -rn -E 'dtbo-y|dtb-y' ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/${ARCH}/boot/dts/*/Makefile | awk -F 'Makefile| |=+' '{print "    \"" $NF "\","}' >> ${PROJECT_DIR}/dtb.bzl
+	cat  ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/${ARCH}/boot/dts/amlogic/Makefile | grep -n "dtb" | cut -d "=" -f 2 | sed 's/[[:space:]][[:space:]]*/ /g' | sed 's/^[ ]*//' | sed 's/[ ]*$//' | sed '/^#/d;/^$/d' | sed 's/^/    "/' | sed 's/$/",/' >> ${PROJECT_DIR}/dtb.bzl
 	echo "]"					>> ${PROJECT_DIR}/dtb.bzl
 
 	if [[ "${GKI_CONFIG}" != "gki_20" || -n ${KASAN} || -z ${ANDROID_PROJECT} ]]; then
