@@ -2984,16 +2984,34 @@ static void set_emmc_cmd_sample(struct mmc_host *mmc, char mode)
 static void aml_emmc_hs400_v5(struct mmc_host *mmc)
 {
 	struct meson_host *host = mmc_priv(mmc);
-	u32 cmd_size = 0;
+	u32 cmd_size = 0, cmd_min = EMMC_CMD_WIN_FULL_SIZE;
+	u32 temp[CMD_TUNING_RETRIES] = {0};
+	int index = -1, i;
 
 	mmc->retune_crc_disable = true;
 	set_emmc_nwr_clks(mmc);
 	if (!host->sd_clk_sample) {
-		cmd_size = set_emmc_cmd_delay(mmc, 1);
-		if (cmd_size == EMMC_CMD_WIN_FULL_SIZE) {
-			set_emmc_cmd_sample(mmc, EMMC_CMD_FALLING_SML);
+		for (i = 0; i < CMD_TUNING_RETRIES; i++) {
+			if (i < 3)
+				set_emmc_cmd_sample(mmc, EMMC_CMD_RISING_SML);
+			else
+				set_emmc_cmd_sample(mmc, EMMC_CMD_FALLING_SML);
+
 			cmd_size = set_emmc_cmd_delay(mmc, 1);
-			pr_debug(">>>cmd_size:%u\n", cmd_size);
+			if (cmd_size < EMMC_CMD_WIN_MAX_SIZE)
+				break;
+			if (cmd_min > cmd_size) {
+				cmd_min = cmd_size;
+				index = i;
+				temp[i] = readl(host->regs + SD_EMMC_DELAY2);
+			}
+		}
+		if (i == CMD_TUNING_RETRIES && index != -1) {
+			if (index < 3)
+				set_emmc_cmd_sample(mmc, EMMC_CMD_RISING_SML);
+			else
+				set_emmc_cmd_sample(mmc, EMMC_CMD_FALLING_SML);
+			writel(temp[index], host->regs + SD_EMMC_DELAY2);
 		}
 	} else {
 		set_emmc_cmd_sample(mmc, EMMC_CMD_SD_CLK_SML);

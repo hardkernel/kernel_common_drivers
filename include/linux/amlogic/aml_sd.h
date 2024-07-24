@@ -562,6 +562,7 @@ void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
 #define SD_EMMC_FIXED_ADJ_HS200
 #define EMMC_CMD_WIN_MAX_SIZE	50
 #define EMMC_CMD_WIN_FULL_SIZE	64
+#define CMD_TUNING_RETRIES 6
 
 #define DBG_COMMON        BIT(0)
 #define DBG_HS200         BIT(1)
