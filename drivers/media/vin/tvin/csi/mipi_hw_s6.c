@@ -63,7 +63,7 @@ void powerup_csi_analog_s6(struct csi_adapt *adap_dev)
 		squlech_mode = 0x0;
 
 	csi_efuse = efuse_amlogic_cali_item_read(EFUSE_CALI_SUBITEM_CSI);
-	if (csi_efuse >= 0) {
+	if ((csi_efuse & 0b1111) >= 8 && (csi_efuse & 0b1111) <= 12) {
 		// valid csi_efuse; use it.
 		csi_finetune_value = csi_efuse & 0b1111;
 		pr_info("%s: aphy fine tune value %d\n", __func__, csi_finetune_value);
