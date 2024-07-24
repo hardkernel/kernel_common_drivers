@@ -387,6 +387,9 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->drm_policy_property) {
 		*val = meson_crtc->priv->of_conf.drm_policy_mask;
 		return 0;
+	} else if (property == meson_crtc->nonblock_by_vblank_property) {
+		*val = crtc_state->nonblock_by_vblank;
+		return 0;
 	}
 
 	return ret;
@@ -424,6 +427,9 @@ static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
 		return 0;
 	} else if (property == meson_crtc->brr_update_property) {
 		crtc_state->brr_update = val;
+		return 0;
+	} else if (property == meson_crtc->nonblock_by_vblank_property) {
+		crtc_state->nonblock_by_vblank = val;
 		return 0;
 	}
 
@@ -1200,6 +1206,20 @@ static void meson_crtc_init_drm_policy_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_crtc_init_nonblock_by_vblank_property(struct drm_device *drm_dev,
+						  struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "nonblock_by_vblank");
+	if (prop) {
+		amcrtc->nonblock_by_vblank_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to nonblock by vblank property\n");
+	}
+}
+
 struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 {
 	struct am_meson_crtc *amcrtc;
@@ -1276,6 +1296,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	meson_crtc_init_hdr_conversion_cap_property(priv->drm, amcrtc);
 	meson_crtc_init_hdr_conversion_ctrl_property(priv->drm, amcrtc);
 	meson_crtc_init_drm_policy_property(priv->drm, amcrtc);
+	meson_crtc_init_nonblock_by_vblank_property(priv->drm, amcrtc);
 	amcrtc->pipeline = pipeline;
 	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
 	priv->crtcs[priv->num_crtcs++] = amcrtc;

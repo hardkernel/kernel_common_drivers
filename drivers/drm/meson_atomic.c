@@ -182,6 +182,22 @@ static void meson_drm_atomic_helper_wait_for_dependencies(struct drm_atomic_stat
 	}
 }
 
+static int get_nonblock_by_vblank_flag(struct drm_atomic_state *old_state)
+{
+	struct am_meson_crtc_state *meson_crtc_state;
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	int i, ret = 0;
+
+	for_each_new_crtc_in_state(old_state, crtc, crtc_state, i) {
+		meson_crtc_state = to_am_meson_crtc_state(crtc_state);
+
+		ret |= meson_crtc_state->nonblock_by_vblank;
+	}
+
+	return ret;
+}
+
 static void meson_commit_tail(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
@@ -208,8 +224,8 @@ static void meson_commit_tail(struct drm_atomic_state *old_state)
 
 	drm_atomic_helper_wait_for_fences(dev, old_state, false);
 
-	meson_drm_atomic_helper_wait_for_dependencies(old_state);
-
+	if (!get_nonblock_by_vblank_flag(old_state))
+		meson_drm_atomic_helper_wait_for_dependencies(old_state);
 	/*
 	 * We cannot safely access new_crtc_state after
 	 * drm_atomic_helper_commit_hw_done() so figure out which crtc's have
@@ -568,7 +584,9 @@ int meson_atomic_commit(struct drm_device *dev,
 		work_item->commit_flag = nonblock;
 		kthread_init_work(&work_item->kthread_work, meson_commit_work);
 		worker = &priv->commit_thread[crtc_index].worker;
-		kthread_queue_work(worker, &work_item->kthread_work);
+		if (!kthread_queue_work(worker, &work_item->kthread_work))
+			DRM_DEBUG_ATOMIC("atomic state:%p line:%d queuework fail!\n",
+			state, __LINE__);
 	} else {
 		meson_commit_reenter_inc(priv, crtc_index, BLOCK_MODE);
 		meson_commit_tail(state);
@@ -665,7 +683,7 @@ void meson_atomic_helper_commit_tail_rpm(struct drm_atomic_state *old_state)
 
 	drm_atomic_helper_commit_hw_done(old_state);
 
-	if (!priv->disable_video_plane)
+	if (!priv->disable_video_plane && !get_nonblock_by_vblank_flag(old_state))
 		meson_drm_atomic_helper_wait_for_vblanks(dev, old_state);
 	priv->disable_video_plane = 0;
 

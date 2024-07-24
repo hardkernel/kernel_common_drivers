@@ -78,6 +78,8 @@ struct am_meson_crtc_state {
 	u32 valid_brr;
 	/*brr mode string*/
 	char brr_mode[DRM_DISPLAY_MODE_LEN];
+	/*for nonblock commit, one commit do not wait flip done for preceding commits*/
+	bool nonblock_by_vblank;
 
 	int prev_vrefresh;
 	int prev_height;
@@ -111,6 +113,7 @@ struct am_meson_crtc {
 	struct drm_property *hdr_conversion_ctrl_property;
 	struct drm_property *hdr_conversion_cap_property;
 	struct drm_property *drm_policy_property;
+	struct drm_property *nonblock_by_vblank_property;
 
 	/*debug*/
 	int dump_enable;
