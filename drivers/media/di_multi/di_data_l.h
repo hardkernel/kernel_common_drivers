@@ -801,6 +801,8 @@ struct di_task {
 	spinlock_t     lock_cmd2[DI_CHANNEL_NUB]; /*spinlock*/
 	bool flg_cmd2[DI_CHANNEL_NUB];
 	unsigned int err_cmd_cnt;
+	bool shut_down_flag;
+	struct completion task_done;
 };
 
 struct dim_fcmd_s {

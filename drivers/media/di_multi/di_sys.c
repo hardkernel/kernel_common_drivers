@@ -4316,9 +4316,17 @@ static void dim_shutdown(struct platform_device *pdev)
 {
 	struct di_dev_s *di_devp = NULL;
 	int i;
+	int time_left = 0;
 
+	struct di_task *tsk = get_task();
 	di_devp = platform_get_drvdata(pdev);
+	tsk->shut_down_flag = 1;
+	task_send_ready(34);
 
+	time_left = wait_for_completion_timeout(&tsk->task_done,
+						msecs_to_jiffies(500));
+	if (!time_left)
+		PR_ERR("shut down:wait timeout\n");
 	for (i = 0; i < DI_CHANNEL_NUB; i++)
 		set_init_flag(i, false);
 

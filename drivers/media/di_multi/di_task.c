@@ -326,6 +326,8 @@ restart:
 		if (try_to_freeze())
 			goto restart;
 
+		if (tsk->shut_down_flag)
+			break;
 		if (down_interruptible(&tsk->sem))
 			break;
 
@@ -346,6 +348,7 @@ restart:
 		task_self_trig();
 	}
 
+	complete(&tsk->task_done);
 	tsk->thread = NULL;
 	if (kthread_should_stop())
 		tsk->exit = 1;
@@ -429,6 +432,7 @@ int task_start(void)
 		PR_ERR("%s:can't get kfifo\n", __func__);
 		return -1;
 	}
+	init_completion(&tsk->task_done);
 	tsk->flg_cmd = true;
 
 	for (i = 0; i < DI_CHANNEL_NUB; i++) {

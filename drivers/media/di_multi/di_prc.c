@@ -1883,6 +1883,7 @@ bool dim_api_unreg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
 	struct di_mng_s *pbm = get_bufmng();
 	bool ret = false;
 	unsigned int cnt;
+	struct di_task *tsk = get_task();
 
 	if (!pch) {
 		//PR_ERR("%s:no pch\n", __func__);
@@ -1900,7 +1901,7 @@ bool dim_api_unreg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
 	task_send_ready(6);
 
 	cnt = 0; /* 500us x 10 = 5ms */
-	while (atomic_read(&pbm->trig_unreg[ch]) && cnt < 10) {
+	while (atomic_read(&pbm->trig_unreg[ch]) && cnt < 10 && !tsk->shut_down_flag) {
 		usleep_range(500, 501);
 		cnt++;
 	}
@@ -1908,7 +1909,7 @@ bool dim_api_unreg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
 	task_send_ready(7);
 
 	cnt = 0; /* 3ms x 2000 = 6s */
-	while (atomic_read(&pbm->trig_unreg[ch]) && cnt < 2000) {
+	while (atomic_read(&pbm->trig_unreg[ch]) && cnt < 2000  && !tsk->shut_down_flag) {
 		usleep_range(3000, 3001);
 		cnt++;
 	}
