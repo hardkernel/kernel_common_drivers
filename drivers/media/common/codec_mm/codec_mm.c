@@ -4107,7 +4107,6 @@ int __nocfi get_mte_sync_tags_hook_kprobe(void *data)
 	mutex_unlock(&lock);
 	cma_release(cma, page, cma->count);
 
-	init_alloc_page_boost_task();
 	return 0;
 }
 #endif
@@ -4196,6 +4195,8 @@ static int codec_mm_probe(struct platform_device *pdev)
 				  "trigger", codec_mm_trigger,
 				  CONFIG_FOR_RW | CONFIG_FOR_T);
 	codec_state_register(&mgt->cs, &codec_mm_cs_ops);
+
+	init_alloc_page_boost_task();
 #if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
 	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
 	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK)
