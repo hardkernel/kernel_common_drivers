@@ -831,6 +831,7 @@
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
 			dma-64bit-support = <1>;
+			in-nak-rty = <0x5>;
 		};
 
 		crg_udc: crgudc@0xfe340000 {
@@ -858,6 +859,7 @@
 			clocks = <&clkc CLKID_SYS_USB>;
 			clock-names = "crg_general";
 			dma-64bit-support = <1>;
+			in-nak-rty = <0x5>;
 		};
 
 		dolby_fw: dolby_fw {
