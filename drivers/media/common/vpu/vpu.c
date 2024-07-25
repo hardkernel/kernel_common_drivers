@@ -22,6 +22,7 @@
 #endif
 #include <linux/string.h>
 #include <linux/ctype.h>
+#include <linux/syscore_ops.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include "vpu_reg.h"
 #include "vpu.h"
@@ -2954,6 +2955,33 @@ static struct early_suspend vpu_early_suspend_handler = {
 };
 #endif
 
+#ifndef CONFIG_DEV_OPS
+static void vpu_syscore_shutdown(void)
+{
+	if (!IS_ERR_OR_NULL(vpu_conf.vpu_clk) &&
+		__clk_is_enabled(vpu_conf.vpu_clk))
+		clk_disable_unprepare(vpu_conf.vpu_clk);
+
+	if (!IS_ERR_OR_NULL(vpu_conf.vpu_intr))
+		clk_disable_unprepare(vpu_conf.vpu_intr);
+	pr_info("vpu shutdown\n");
+}
+
+static struct syscore_ops vpu_syscore_ops = {
+	.shutdown = vpu_syscore_shutdown,
+};
+#else
+static void vpu_shutdown(struct platform_device *pdev)
+{
+	if (!IS_ERR_OR_NULL(vpu_conf.vpu_clk) &&
+		__clk_is_enabled(vpu_conf.vpu_clk))
+		clk_disable_unprepare(vpu_conf.vpu_clk);
+
+	if (!IS_ERR_OR_NULL(vpu_conf.vpu_intr))
+		clk_disable_unprepare(vpu_conf.vpu_intr);
+}
+#endif
+
 static int vpu_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
@@ -3011,7 +3039,9 @@ static int vpu_probe(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&vpu_early_suspend_handler);
 #endif
-
+#ifndef CONFIG_DEV_OPS
+	register_syscore_ops(&vpu_syscore_ops);
+#endif
 	VPUPR("%s OK\n", __func__);
 	return 0;
 }
@@ -3029,16 +3059,6 @@ static int vpu_remove(struct platform_device *pdev)
 	vpu_conf.clk_vmod = NULL;
 
 	return 0;
-}
-
-static void vpu_shutdown(struct platform_device *pdev)
-{
-	if (!IS_ERR_OR_NULL(vpu_conf.vpu_clk) &&
-		__clk_is_enabled(vpu_conf.vpu_clk))
-		clk_disable_unprepare(vpu_conf.vpu_clk);
-
-	if (!IS_ERR_OR_NULL(vpu_conf.vpu_intr))
-		clk_disable_unprepare(vpu_conf.vpu_intr);
 }
 
 #ifdef CONFIG_PM
@@ -3178,8 +3198,10 @@ static struct platform_driver vpu_driver = {
 		.of_match_table = of_match_ptr(vpu_of_table),
 	},
 	.probe = vpu_probe,
-	.remove = vpu_remove,
+#ifdef CONFIG_DEV_OPS
 	.shutdown = vpu_shutdown,
+#endif
+	.remove = vpu_remove,
 };
 
 int __init vpu_init(void)
