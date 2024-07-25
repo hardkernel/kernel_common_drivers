@@ -1683,7 +1683,7 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 
 static
 int meson_encoder_vrr_change(struct drm_encoder *encoder,
-			     struct drm_atomic_state *state, int status)
+			     struct drm_atomic_state *state)
 {
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
@@ -1748,9 +1748,7 @@ int meson_encoder_vrr_change(struct drm_encoder *encoder,
 		}
 	}
 
-	if (meson_crtc_state->seamless)
-		DRM_INFO("[%s], vrr, skip encoder %s\n", __func__,
-			 status == 1 ? "enable" : "disable");
+	DRM_INFO("[%s], seamless is %d\n", __func__, meson_crtc_state->seamless);
 	return meson_crtc_state->seamless;
 }
 
@@ -1830,7 +1828,7 @@ void meson_hdmitx_encoder_atomic_disable(struct drm_encoder *encoder,
 	struct am_meson_crtc_state *meson_crtc_state =
 		to_am_meson_crtc_state(encoder->crtc->state);
 
-	if (meson_encoder_vrr_change(encoder, state, 0))
+	if (meson_crtc_state->seamless)
 		return;
 
 	DRM_INFO("[%s]\n", __func__);
@@ -1879,6 +1877,8 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 		meson_hdmitx_cal_brr(&am_hdmi_info, meson_crtc_state, adj_mode);
 		modename = meson_crtc_state->brr_mode;
 	}
+
+	meson_encoder_vrr_change(encoder, conn_state->state);
 
 	if (!am_hdmi_info.android_path ||
 		(crtc_state->vrr_enabled && !meson_crtc_state->attr_changed &&

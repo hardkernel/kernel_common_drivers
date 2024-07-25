@@ -327,6 +327,50 @@ static void meson_panel_cal_brr(struct meson_panel *am_lcd,
 	}
 }
 
+static
+int meson_encoder_vrr_change(struct drm_encoder *encoder,
+			     struct drm_atomic_state *state)
+{
+	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *new_state, *old_state;
+	struct drm_display_mode *new_mode, *old_mode;
+	struct am_meson_crtc_state *meson_crtc_state;
+
+	connector = drm_atomic_get_new_connector_for_encoder(state, encoder);
+	if (!connector)
+		return 0;
+
+	conn_state = drm_atomic_get_new_connector_state(state, connector);
+	if (!conn_state)
+		return 0;
+
+	crtc = conn_state->crtc;
+	new_state = drm_atomic_get_new_crtc_state(state, crtc);
+	old_state = drm_atomic_get_old_crtc_state(state, crtc);
+
+	if (!new_state || !old_state) {
+		DRM_INFO("%s crtc state is NULL!\n", __func__);
+		return 0;
+	}
+	new_mode = &new_state->adjusted_mode;
+	old_mode = &old_state->adjusted_mode;
+	meson_crtc_state = to_am_meson_crtc_state(new_state);
+
+	if (new_state->vrr_enabled &&
+		new_mode->hdisplay == old_mode->hdisplay &&
+		new_mode->vdisplay == old_mode->vdisplay &&
+		!(new_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
+		meson_crtc_state->seamless = true;
+	} else {
+		meson_crtc_state->seamless = false;
+	}
+
+	DRM_INFO("[%s], seamless is %d\n", __func__, meson_crtc_state->seamless);
+	return meson_crtc_state->seamless;
+}
+
 static int meson_panel_encoder_atomic_check(struct drm_encoder *encoder,
 				       struct drm_crtc_state *crtc_state,
 				struct drm_connector_state *conn_state)
@@ -338,6 +382,8 @@ static int meson_panel_encoder_atomic_check(struct drm_encoder *encoder,
 
 	if (crtc_state->vrr_enabled || meson_crtc_state->uboot_mode_init)
 		meson_panel_cal_brr(am_lcd, meson_crtc_state, adj_mode);
+
+	meson_encoder_vrr_change(encoder, conn_state->state);
 	DRM_DEBUG("[%s]-[%d] called\n", __func__, __LINE__);
 	return 0;
 }
