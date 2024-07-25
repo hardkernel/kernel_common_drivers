@@ -596,62 +596,6 @@ static bool am_meson_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-static int meson_crtc_seamless_change(struct drm_crtc *crtc, struct drm_atomic_state *state)
-{
-	char *brr_name;
-	struct drm_crtc_state *new_state, *old_state;
-	struct drm_display_mode *new_mode, *old_mode;
-	struct am_meson_crtc_state *meson_crtc_state, *old_crtc_state;
-
-	new_state = drm_atomic_get_new_crtc_state(state, crtc);
-	old_state = drm_atomic_get_old_crtc_state(state, crtc);
-
-	if (!new_state || !old_state) {
-		DRM_INFO("%s crtc state is NULL!\n", __func__);
-		return 0;
-	}
-	new_mode = &new_state->adjusted_mode;
-	old_mode = &old_state->adjusted_mode;
-	meson_crtc_state = to_am_meson_crtc_state(new_state);
-	old_crtc_state = to_am_meson_crtc_state(old_state);
-
-	if (new_mode->hdisplay != old_mode->hdisplay ||
-		new_mode->vdisplay != old_mode->vdisplay ||
-		meson_crtc_state->attr_changed ||
-		meson_crtc_state->brr_update ||
-		(new_mode->flags & DRM_MODE_FLAG_INTERLACE))
-		return meson_crtc_state->seamless;
-
-	if (new_state->vrr_enabled) {
-		if (old_state->vrr_enabled) {
-			/*qms->qms*/
-			meson_crtc_state->seamless = true;
-		} else {
-			/*allm -> qms, new vrr_enable 1，brr_update 0*/
-			brr_name = meson_crtc_state->brr_mode;
-			if (!strcmp(old_mode->name, brr_name))
-				meson_crtc_state->seamless = true;
-			else
-				meson_crtc_state->seamless = false;
-		}
-	} else {
-		if (old_state->vrr_enabled) {
-			/*qms->allm*/
-			brr_name = old_crtc_state->brr_mode;
-			if (!strcmp(old_mode->name, brr_name) &&
-				!strcmp(new_mode->name, brr_name))
-				meson_crtc_state->seamless = true;
-			else
-				meson_crtc_state->seamless = false;
-		} else {
-			/*none qms-> none qms*/
-			meson_crtc_state->seamless = false;
-		}
-	}
-
-	return meson_crtc_state->seamless;
-}
-
 static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 					struct drm_atomic_state *old_atomic_state)
 {
@@ -813,7 +757,7 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 		crtc->state->event = NULL;
 	}
 
-	if (meson_crtc_seamless_change(crtc, old_atomic_state)) {
+	if (meson_crtc_state->seamless) {
 		DRM_INFO("skip set vmode to null\n");
 		return;
 	}
