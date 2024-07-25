@@ -7,6 +7,7 @@
 #ifndef _DVBCA_EXT_H_
 #define _DVBCA_EXT_H_
 
+#define CA_SPEED_UP       _IO('o', 136)
 #define CA_SET_START      _IO('o', 137)
 #define CA_GET_START      _IOR('o', 138, uint8_t)
 
