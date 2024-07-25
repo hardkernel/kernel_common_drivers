@@ -2756,8 +2756,6 @@ unsigned int dpvpp_is_bypass_dvfm_postlink(struct dvfm_s *dvfm)
 		return EPVPP_BYPASS_REASON_DV_PATH;
 	if (dvfm->vfs.flag & VFRAME_FLAG_GAME_MODE)
 		return EPVPP_BYPASS_REASON_GAME_MODE;
-	if (dvfm->vfs.duration < 1600 && dvfm->vfs.duration != 0)
-		return EPVPP_BYPASS_REASON_120HZ;
 	return 0;
 }
 
