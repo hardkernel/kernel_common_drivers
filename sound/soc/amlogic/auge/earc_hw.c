@@ -486,6 +486,17 @@ unsigned int earcrx_get_cs_mute(struct regmap *dmac_map)
 		IEC_CS_MUTE_MASK);
 }
 
+void earcrx_spdifin_mute(struct regmap *dmac_map, bool mute)
+{
+	unsigned int mute_mask = 0x3 << 6;
+	unsigned int mute_val = 0;
+
+	if (mute)
+		mute_val = mute_mask;
+
+	mmio_update_bits(dmac_map, EARCRX_SPDIFIN_CTRL0, mute_mask, mute_val);
+}
+
 static unsigned int ecc_syndrome(unsigned int val1, unsigned int val2)
 {
 	val1 &= ~0x5555;

@@ -682,7 +682,8 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 						0x3,
 						0x0);
 				}
-				dev_info(p_earc->dev, "ARCRX_C_CH_STATUS_CHANGE\n");
+				earcrx_spdifin_mute(p_earc->rx_dmac_map, mute);
+				dev_info(p_earc->dev, "ARCRX_C_CH_STATUS_CHANGE, mute %d\n", mute);
 			}
 		}
 		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_I_SAMPLE_MODE_CHANGE)
