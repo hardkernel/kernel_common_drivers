@@ -244,12 +244,11 @@ static int aml_dma_probe(struct platform_device *pdev)
 	}
 
 	of_property_read_u8(pdev->dev.of_node, "dma_bus64", &dma_dd->dma_bus64);
-	if (dma_dd->dma_bus64)
+	if (dma_dd->dma_bus64) {
 		err = aml_dma_set_dma_mode(dma_dd, 64);
-	else
-		err = aml_dma_set_dma_mode(dma_dd, 32);
-	if (err)
-		goto dma_err;
+		if (err)
+			goto dma_err;
+	}
 
 	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	dma_dd->irq = res_irq->start;
