@@ -571,7 +571,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		"viu_sel: %d, isr_cnt: %d, resume_type: %d\n"
 		"fr_auto_flag: 0x%x, fr_mode: %d, fr_duration: %d, frame_rate: %d\n"
 		"fr_auto_policy(global): %d, fr_auto_cus: 0x%x, custom_pinmux: %d\n"
-		"mute_state: %d, test_flag: 0x%x\n"
+		"mute_state: %d(real %d), test_flag: 0x%x\n"
 		"key_valid: %d, config_load: %d\n",
 		pdrv->index, LCD_DRV_VERSION,
 		pdrv->config_check_glb, pconf->basic.config_check, pdrv->config_check_en,
@@ -581,7 +581,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		pconf->fr_auto_flag, pdrv->fr_mode, pdrv->fr_duration,
 		pconf->timing.act_timing.frame_rate,
 		pdrv->fr_auto_policy, pconf->fr_auto_cus, pconf->custom_pinmux,
-		mute_state, pdrv->test_flag,
+		pdrv->mute_state, mute_state, pdrv->test_flag,
 		pdrv->key_valid, pdrv->config_load);
 
 	n = lcd_debug_info_len(len + offset);
@@ -3379,54 +3379,70 @@ static ssize_t lcd_debug_print_store(struct device *dev, struct device_attribute
 	return count;
 }
 
-static ssize_t lcd_debug_unmute_count_show(struct device *dev,
+static ssize_t lcd_debug_unmute_cnt_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 
-	return sprintf(buf, "get unmute count test: %d\n", pdrv->unmute_count_test);
+	return sprintf(buf, "unmute_cnt_test: %d, unmute_cnt_added: %d, unmute_cnt: %d\n",
+		pdrv->unmute_cnt_test, pdrv->unmute_cnt_added, pdrv->unmute_cnt);
 }
 
-static ssize_t lcd_debug_unmute_count_store(struct device *dev, struct device_attribute *attr,
+static ssize_t lcd_debug_unmute_cnt_store(struct device *dev, struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
-	int ret = 0;
 	unsigned int temp = 0;
+	int ret = 0;
 
-	ret = kstrtouint(buf, 16, &temp);
-	if (ret) {
-		pr_info("invalid data\n");
-		return -EINVAL;
+	switch (buf[0]) {
+	case 'a':
+		ret = sscanf(buf, "add %d", &temp);
+		if (ret != 1)
+			goto lcd_debug_unmute_cnt_store_err;
+		/*unmute_cnt_added take effect only once, will auto clean in next unmute*/
+		pdrv->unmute_cnt_added = (unsigned char)temp;
+		LCDPR("set unmute_cnt_added: %d\n", pdrv->unmute_cnt_added);
+		break;
+	default:
+		ret = kstrtouint(buf, 10, &temp);
+		if (ret)
+			goto lcd_debug_unmute_cnt_store_err;
+		pdrv->unmute_cnt_test = (unsigned char)temp;
+		LCDPR("set unmute_cnt_test: 0x%x\n", pdrv->unmute_cnt_test);
+		break;
 	}
-	pdrv->unmute_count_test = (unsigned char)temp;
-	LCDPR("set unmute count: 0x%x\n", pdrv->unmute_count_test);
 
 	return count;
+
+lcd_debug_unmute_cnt_store_err:
+	pr_info("invalid data\n");
+	return -EINVAL;
 }
 
-static ssize_t lcd_debug_mute_count_show(struct device *dev,
+static ssize_t lcd_debug_mute_cnt_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 
-	return sprintf(buf, "get mute count test: %d\n", pdrv->mute_count_test);
+	return sprintf(buf, "mute_cnt_test: %d, mute_cnt: %d\n",
+		pdrv->mute_cnt_test, pdrv->mute_cnt);
 }
 
-static ssize_t lcd_debug_mute_count_store(struct device *dev, struct device_attribute *attr,
+static ssize_t lcd_debug_mute_cnt_store(struct device *dev, struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
-	int ret = 0;
 	unsigned int temp = 0;
+	int ret = 0;
 
-	ret = kstrtouint(buf, 16, &temp);
+	ret = kstrtouint(buf, 10, &temp);
 	if (ret) {
 		pr_info("invalid data\n");
 		return -EINVAL;
 	}
-	pdrv->mute_count_test = (unsigned char)temp;
-	LCDPR("set mute count: 0x%x\n", pdrv->mute_count_test);
+	pdrv->mute_cnt_test = (unsigned char)temp;
+	LCDPR("set mute_cnt_test: %d\n", pdrv->mute_cnt_test);
 
 	return count;
 }
@@ -4682,8 +4698,8 @@ static struct device_attribute lcd_debug_attrs[] = {
 	__ATTR(clk,         0644, lcd_debug_clk_show, lcd_debug_clk_store),
 	__ATTR(test,        0644, lcd_debug_test_show, lcd_debug_test_store),
 	__ATTR(mute,        0644, lcd_debug_mute_show, lcd_debug_mute_store),
-	__ATTR(mute_count,  0644, lcd_debug_mute_count_show, lcd_debug_mute_count_store),
-	__ATTR(unmute_count,  0644, lcd_debug_unmute_count_show, lcd_debug_unmute_count_store),
+	__ATTR(mute_count,  0644, lcd_debug_mute_cnt_show, lcd_debug_mute_cnt_store),
+	__ATTR(unmute_count,  0644, lcd_debug_unmute_cnt_show, lcd_debug_unmute_cnt_store),
 	__ATTR(prbs,        0644, lcd_debug_prbs_show, lcd_debug_prbs_store),
 	__ATTR(reg,         0200, NULL, lcd_debug_reg_store),
 	__ATTR(vlock,       0444, lcd_debug_vlock_show, NULL),

@@ -529,12 +529,20 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv)
 	if (!(pdrv->status & LCD_STATUS_POWER))
 		return;
 
-	if (pdrv->config.cus_ctrl.timing_switch_flag == LCD_VMODE_SWITCH_MIN) {
+	switch (pdrv->config.cus_ctrl.timing_switch_flag) {
+	case LCD_VMODE_SWITCH_MIN:
 		event_off = LCD_EVENT_UFR_SWITCH_OFF;
 		event_on = LCD_EVENT_UFR_SWITCH_ON;
-	} else {
+		break;
+	case LCD_VMODE_SWITCH_LIMIT:
 		event_off = LCD_EVENT_UFR_IF_POWER_OFF;
 		event_on = LCD_EVENT_UFR_IF_POWER_ON;
+		break;
+	case LCD_VMODE_SWITCH_FULL:
+	default:
+		event_off = LCD_EVENT_POWER_OFF;
+		event_on = LCD_EVENT_POWER_ON;
+		break;
 	}
 
 	local_time[0] = sched_clock();
@@ -557,7 +565,8 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv)
 	if (pdrv->status & LCD_STATUS_POWER) {
 		/* include lcd_vout_mutex */
 		aml_lcd_notifier_call_chain(event_on, (void *)pdrv);
-		if (event_on == LCD_EVENT_UFR_IF_POWER_ON)
+		if (event_on == LCD_EVENT_UFR_IF_POWER_ON ||
+		    event_on == LCD_EVENT_POWER_ON)
 			lcd_if_enable_retry(pdrv);
 	}
 	local_time[3] = sched_clock();

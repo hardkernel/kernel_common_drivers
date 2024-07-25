@@ -74,20 +74,6 @@ static unsigned int lcd_venc_get_max_lint_cnt(struct aml_lcd_drv_s *pdrv)
 	return line_cnt;
 }
 
-static void lcd_venc_gamma_check_en(struct aml_lcd_drv_s *pdrv)
-{
-	unsigned int reg, offset;
-
-	offset = pdrv->data->offset_venc_data[pdrv->index];
-	reg = LCD_GAMMA_CNTL_PORT0_T3X + offset;
-
-	if (lcd_vcbus_getb(reg, 0, 1))
-		pdrv->gamma_en_flag = 1;
-	else
-		pdrv->gamma_en_flag = 0;
-	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, pdrv->gamma_en_flag);
-}
-
 static void lcd_venc_gamma_debug_test_en(struct aml_lcd_drv_s *pdrv, int flag)
 {
 	unsigned int reg, offset;
@@ -96,18 +82,14 @@ static void lcd_venc_gamma_debug_test_en(struct aml_lcd_drv_s *pdrv, int flag)
 	reg = LCD_GAMMA_CNTL_PORT0_T3X + offset;
 
 	if (flag) {
-		if (pdrv->gamma_en_flag) {
-			if (lcd_vcbus_getb(reg, 0, 1) == 0) {
-				lcd_vcbus_setb(reg, 1, 0, 1);
-				LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, flag);
-			}
+		if (lcd_vcbus_getb(reg, 0, 1) == 0) {
+			lcd_vcbus_setb(reg, 1, 0, 1);
+			LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, flag);
 		}
 	} else {
-		if (pdrv->gamma_en_flag) {
-			if (lcd_vcbus_getb(reg, 0, 1)) {
-				lcd_vcbus_setb(reg, 0, 0, 1);
-				LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, flag);
-			}
+		if (lcd_vcbus_getb(reg, 0, 1)) {
+			lcd_vcbus_setb(reg, 0, 0, 1);
+			LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, flag);
 		}
 	}
 }
@@ -138,12 +120,12 @@ struct lcd_enc_test_t lcd_enc_tst[] = {
 	{"9-X icon",    4, 0x200, 0x200,  0x200,   1,      0,        0},  /* 4 */
 };
 
-static void lcd_venc_pattern(struct aml_lcd_drv_s *pdrv, unsigned int num)
+static int lcd_venc_bist_set(struct aml_lcd_drv_s *pdrv, unsigned int num)
 {
 	unsigned int hstart, vstart, width, offset, height, ppc, step;
 
 	if (num >= LCD_ENC_TST_NUM_MAX)
-		return;
+		return -1;
 
 	offset = pdrv->data->offset_venc[pdrv->index];
 	ppc = pdrv->config.timing.ppc;
@@ -179,20 +161,8 @@ static void lcd_venc_pattern(struct aml_lcd_drv_s *pdrv, unsigned int num)
 	/* 1: rgb to rgb   0: yuv to rgb) */
 	lcd_vcbus_setb(ENCL_VIDEO_MODE_T3X + offset, lcd_enc_tst[num].rgb_in, 16,  1);
 
-	if (num > 0) {
-		LCDPR("[%d]: show test pattern: %s\n",
-		      pdrv->index, lcd_enc_tst[num].name);
-	}
-}
-
-static int lcd_venc_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num)
-{
 	if (num > 0)
-		lcd_venc_gamma_debug_test_en(pdrv, 0);
-	else
-		lcd_venc_gamma_debug_test_en(pdrv, 1);
-
-	lcd_venc_pattern(pdrv, num);
+		LCDPR("[%d]: show test pattern: %s\n", pdrv->index, lcd_enc_tst[num].name);
 
 	return 0;
 }
@@ -208,7 +178,6 @@ static void lcd_venc_gamma_init(struct aml_lcd_drv_s *pdrv)
 	data[0] = index;
 	data[1] = 0xff; //default gamma lut
 	aml_lcd_atomic_notifier_call_chain(LCD_EVENT_GAMMA_UPDATE, (void *)data);
-	lcd_venc_gamma_check_en(pdrv);
 }
 
 static void lcd_venc_set_timing(struct aml_lcd_drv_s *pdrv)
@@ -353,7 +322,7 @@ static void lcd_venc_set(struct aml_lcd_drv_s *pdrv)
 	aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, (void *)pdrv);
 
 	//restore test pattern
-	lcd_venc_pattern(pdrv, pdrv->test_state);
+	lcd_venc_bist_set(pdrv, pdrv->test_state);
 
 	if (pdrv->index == 0) {
 		reg_data  = lcd_vcbus_read(ENCL_VIDEO_HAVON_PX_RNG);
@@ -487,9 +456,9 @@ static void lcd_venc_enable_ctrl(struct aml_lcd_drv_s *pdrv, int flag)
 static void lcd_venc_mute_set(struct aml_lcd_drv_s *pdrv, unsigned char flag)
 {
 	if (flag)
-		lcd_venc_debug_test(pdrv, 8);
+		lcd_venc_bist_set(pdrv, 8);
 	else
-		lcd_venc_debug_test(pdrv, 0);
+		lcd_venc_bist_set(pdrv, 0);
 }
 
 static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
@@ -510,8 +479,6 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 	pconf->timing.act_timing.h_period = size * ppc;
 	size = lcd_vcbus_getb(ENCL_VIDEO_MAX_CNT + offset, 0, 16) + 1;
 	pconf->timing.act_timing.v_period = size;
-
-	lcd_venc_gamma_check_en(pdrv);
 
 	init_state = lcd_vcbus_read(ENCL_VIDEO_EN_T3X + offset);
 	return init_state;
@@ -575,7 +542,7 @@ int lcd_venc_op_init_t3x(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_
 	venc_op->wait_vsync = lcd_venc_wait_vsync;
 	venc_op->get_max_lcnt = lcd_venc_get_max_lint_cnt;
 	venc_op->gamma_test_en = lcd_venc_gamma_debug_test_en;
-	venc_op->venc_debug_test = lcd_venc_debug_test;
+	venc_op->venc_debug_test = lcd_venc_bist_set;
 	venc_op->venc_set_timing = lcd_venc_set_timing;
 	venc_op->venc_set = lcd_venc_set;
 	venc_op->venc_change = lcd_venc_change_timing;

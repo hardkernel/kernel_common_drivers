@@ -120,7 +120,6 @@ void lcd_tablet_driver_init_pre(struct aml_lcd_drv_s *pdrv)
 
 	lcd_set_clk(pdrv);
 	lcd_set_venc(pdrv);
-	pdrv->mute_state = 1;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s finished\n", pdrv->index, __func__);

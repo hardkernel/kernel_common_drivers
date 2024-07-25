@@ -106,6 +106,7 @@ void lcd_screen_restore(struct aml_lcd_drv_s *pdrv)
 	if (pdrv->viu_sel == 1) {
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 		set_output_mute(false);
+		pdrv->mute_state = 0;
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 #endif
 	}
@@ -116,6 +117,7 @@ void lcd_screen_black(struct aml_lcd_drv_s *pdrv)
 	if (pdrv->viu_sel == 1) {
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 		set_output_mute(true);
+		pdrv->mute_state = 1;
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 #endif
 	}

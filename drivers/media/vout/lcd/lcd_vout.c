@@ -614,18 +614,17 @@ static void lcd_ufr_switch_mode_off(struct aml_lcd_drv_s *pdrv)
 	lcd_screen_black(pdrv);
 	reinit_completion(&pdrv->vsync_done);
 	spin_lock_irqsave(&pdrv->isr_lock, flags);
-	if (pdrv->mute_count_test)
-		pdrv->mute_count = pdrv->mute_count_test;
+	if (pdrv->mute_cnt_test)
+		pdrv->mute_wait_cnt = pdrv->mute_cnt_test;
 	else
-		pdrv->mute_count = 3;
+		pdrv->mute_wait_cnt = pdrv->mute_cnt;
 	pdrv->mute_flag = 1;
 	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+	LCDPR("[%d]: %s: mute_wait_cnt: %d\n", pdrv->index, __func__, pdrv->mute_wait_cnt);
 	//wait for mute apply
 	ret = wait_for_completion_timeout(&pdrv->vsync_done, msecs_to_jiffies(500));
-	if (!ret) {
-		LCDERR("[%d]: %s: wait_for_completion_timeout\n",
-			pdrv->index, __func__);
-	}
+	if (!ret)
+		LCDERR("[%d]: %s: wait_completion timeout\n", pdrv->index, __func__);
 	local_time[1] = sched_clock();
 	pdrv->proc_time.mute_time = local_time[1] - local_time[0];
 
@@ -704,14 +703,10 @@ static void lcd_ufr_power_if_on(struct aml_lcd_drv_s *pdrv)
 {
 	mutex_lock(&lcd_vout_mutex);
 	if (!(pdrv->status & LCD_STATUS_IF_ON)) {
-		if (lcd_cus_ctrl_timing_is_valid(pdrv)) {
-			if (pdrv->config.cus_ctrl.timing_switch_flag == LCD_VMODE_SWITCH_FULL)
-				lcd_power_ctrl(pdrv, 1);
-			else if (pdrv->config.cus_ctrl.timing_switch_flag == LCD_VMODE_SWITCH_LIMIT)
-				lcd_ufr_power_ctrl(pdrv, 1);
-		} else {
+		if (lcd_cus_ctrl_timing_is_valid(pdrv))
+			lcd_ufr_power_ctrl(pdrv, 1);
+		else
 			lcd_power_ctrl(pdrv, 1);
-		}
 		pdrv->status |= LCD_STATUS_IF_ON;
 	}
 	pdrv->config.change_flag = 0;
@@ -724,14 +719,10 @@ static void lcd_ufr_power_if_off(struct aml_lcd_drv_s *pdrv)
 	mutex_lock(&lcd_vout_mutex);
 	if (pdrv->status & LCD_STATUS_IF_ON) {
 		pdrv->status &= ~LCD_STATUS_IF_ON;
-		if (lcd_cus_ctrl_timing_is_valid(pdrv)) {
-			if (pdrv->config.cus_ctrl.timing_switch_flag == LCD_VMODE_SWITCH_FULL)
-				lcd_power_ctrl(pdrv, 0);
-			else if (pdrv->config.cus_ctrl.timing_switch_flag == LCD_VMODE_SWITCH_LIMIT)
-				lcd_ufr_power_ctrl(pdrv, 0);
-		} else {
+		if (lcd_cus_ctrl_timing_is_valid(pdrv))
+			lcd_ufr_power_ctrl(pdrv, 0);
+		else
 			lcd_power_ctrl(pdrv, 0);
-		}
 	}
 	mutex_unlock(&lcd_vout_mutex);
 }
@@ -809,15 +800,18 @@ static void lcd_screen_restore_work(struct work_struct *work)
 	mutex_lock(&lcd_power_mutex);
 	reinit_completion(&pdrv->vsync_done);
 	spin_lock_irqsave(&pdrv->isr_lock, flags);
-	if (pdrv->unmute_count_test)
-		pdrv->mute_count = pdrv->unmute_count_test;
+	if (pdrv->unmute_cnt_test)
+		pdrv->mute_wait_cnt = pdrv->unmute_cnt_test;
 	else
-		pdrv->mute_count = 4;
+		pdrv->mute_wait_cnt = pdrv->unmute_cnt + pdrv->unmute_cnt_added;
+	/*unmute_cnt_added take effect only once, auto clean here*/
+	pdrv->unmute_cnt_added = 0;
 	pdrv->mute_flag = 1;
 	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+	LCDPR("[%d]: %s: unmute_wait_cnt: %d\n", pdrv->index, __func__, pdrv->mute_wait_cnt);
 	ret = wait_for_completion_timeout(&pdrv->vsync_done, msecs_to_jiffies(500));
 	if (!ret)
-		LCDPR("vmode switch: wait_for_completion_timeout\n");
+		LCDERR("[%d]: %s: wait_completion timeout\n", pdrv->index, __func__);
 	lcd_screen_restore(pdrv);
 	mutex_unlock(&lcd_power_mutex);
 	local_time[1] = sched_clock();
@@ -917,9 +911,9 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 
 	spin_lock_irqsave(&pdrv->isr_lock, flags);
 	if (pdrv->mute_flag) {
-		if (pdrv->mute_count > 0) {
-			pdrv->mute_count--;
-		} else if (pdrv->mute_count == 0) {
+		if (pdrv->mute_wait_cnt > 0) {
+			pdrv->mute_wait_cnt--;
+		} else if (pdrv->mute_wait_cnt == 0) {
 			complete(&pdrv->vsync_done);
 			pdrv->mute_flag = 0;
 		}
@@ -2135,9 +2129,12 @@ static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
 
 	pdrv->mute_state = 0;
 	pdrv->mute_flag = 0;
-	pdrv->mute_count = 0;
-	pdrv->mute_count_test = 0;
-	pdrv->unmute_count_test = 0;
+	pdrv->mute_wait_cnt = 0;
+	pdrv->mute_cnt = 3;
+	pdrv->unmute_cnt = 4;
+	pdrv->mute_cnt_test = 0;
+	pdrv->unmute_cnt_test = 0;
+	pdrv->unmute_cnt_added = 0;
 	pdrv->tcon_isr_bypass = 0;
 	pdrv->fr_mode = 0;
 	pdrv->viu_sel = LCD_VIU_SEL_NONE;
