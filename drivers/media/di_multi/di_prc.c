@@ -3868,6 +3868,8 @@ struct dim_nins_s *nins_dct_get_bypass(struct di_ch_s *pch)
 	qbuf_in(pbufq, QBF_NINS_Q_CHECK, index);
 	ATRACE_COUNTER("dim_dct", 0);
 	//qbuf_dbg_checkid(pbufq, 2);
+	if (ret)
+		task_send_ready(33);
 
 	return ins;
 }

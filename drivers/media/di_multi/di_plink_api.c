@@ -2036,6 +2036,7 @@ static bool dpvpp_unreg_val(struct dimn_itf_s *itf)
 	}
 	if (flg_disable && atomic_read(&hw->link_on_bydi)) {
 		dpvpp_link_sw_by_di(false);
+		ext_vpp_prelink_real_sw(false, true);
 		dpvpp_reg_link_sw(false); //block;
 	}
 	dbg_plink2("%s:step 1\n", __func__);
@@ -4765,7 +4766,7 @@ static int dpvpp_reg_link_sw(bool vpp_disable_async)
 			PR_INF("wait for bypass\n");
 			return 0;
 		}
-		if (!sw_done)
+		if (!sw_done && !ton_di)
 			ext_vpp_prelink_real_sw(false, true);
 		atomic_set(&hw->link_sts, 0);//on
 		get_datal()->pre_vpp_active = false;/* interface */
