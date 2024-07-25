@@ -75,6 +75,7 @@ struct vicp_device_data_s {
 };
 
 struct vicp_clock_config_s {
+	int enable;
 	int clk_count;
 	struct clk *clk_gate;
 	int gate_rate;

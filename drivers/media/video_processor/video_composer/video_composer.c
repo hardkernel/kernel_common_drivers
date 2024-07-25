@@ -221,7 +221,7 @@ static void vd_dump_vf(struct vframe_s *vf)
 #endif
 }
 
-static int vd_vframe_afbc_soft_decode(struct vframe_s *vf, int flag)
+int vd_vframe_afbc_soft_decode(struct vframe_s *vf, int flag)
 {
 	int ret, i, j, y_size, free_cnt;
 	short *planes[4];
@@ -2570,7 +2570,6 @@ static void vframe_composer(struct composer_dev *dev)
 		return;
 
 	choose_composer_device(dev, received_frames_tmp);
-
 	is_tvp = received_frames_tmp->is_tvp;
 	temp_file = received_frames_tmp->file_vf[0];
 #ifdef CONFIG_AMLOGIC_UVM_CORE
@@ -3685,8 +3684,11 @@ static bool detect_composer_usage(struct composer_dev *dev,
 			frame_transform == VC_TRANSFORM_FLIP_V_ROT_90) {
 			*need_composer_ptr = true;
 			dev->need_rotate = true;
+		} else {
+			dev->need_rotate = false;
 		}
 	} else {
+		dev->need_rotate = false;
 		if (check_mosaic_22(dev, received_frames)) {
 			*need_composer_ptr = false;
 			*mosaic_22_ptr = true;

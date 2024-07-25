@@ -32,6 +32,7 @@
 #include "vicp_log.h"
 #include "vicp_reg.h"
 #include "vicp_hardware.h"
+#include "vicp_module.h"
 #include "vicp_process.h"
 
 #define ZOOM_BITS       20
@@ -42,11 +43,6 @@ struct completion vicp_rdma_done;
 static int rdma_done_count;
 static ulong rdma_buf_phy_addr;
 static int current_dump_flag;
-static u32 last_input_w, last_input_h, last_input_fmt, last_input_bit_depth;
-static u32 last_fbcinput_en;
-static u32 last_output_w, last_output_h, last_output_fbcfmt, last_output_miffmt;
-static u32 last_fbcoutput_en, last_mifoutput_en;
-static u32 last_output_begin_v, last_output_begin_h, last_output_end_v, last_output_end_h;
 static struct vicp_device_data_s vicp_dev;
 static u32 dump_reg_start, dump_reg_end;
 
@@ -1616,6 +1612,24 @@ static void set_vid_cmpr_security(bool sec_en)
 	return set_security_enable(dma_sec, mmu_sec, input_sec);
 }
 
+static void set_vid_cmpr_crc(int rotation_en)
+{
+	struct vicp_crc_reg_t crc_reg;
+
+	memset(&crc_reg, 0, sizeof(struct vicp_crc_reg_t));
+
+	if (rotation_en) {
+		crc_reg.crc_check_en = 3;
+		crc_reg.crc_start = 3;
+		crc_reg.crc_sec_sel = 0;
+	} else {
+		crc_reg.crc_check_en = 1;
+		crc_reg.crc_start = 1;
+		crc_reg.crc_sec_sel = 0;
+	}
+
+	return set_crc_control(crc_reg);
+}
 static void dump_yuv(int flag, struct vframe_s *vframe)
 {
 #ifdef CONFIG_AMLOGIC_ENABLE_VIDEO_PIPELINE_DUMP_DATA
@@ -2042,6 +2056,50 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 	set_top_holdline();
 }
 
+int vicp_crc0_check(int check_val)
+{
+	int reg_val = 0;
+
+	reg_val = read_vicp_reg(VID_CMPR_CRC0_OUT);
+	vicp_print(VICP_INFO, "%s: reg_val0 is 0x%x.\n", __func__, reg_val);
+	if (reg_val != check_val)
+		return 1;
+	else
+		return 0;
+}
+
+int vicp_crc1_check(int chroma_en, int chroma_check, int lumma_check)
+{
+	int reg_val = 0;
+	int check_val = 3;
+	int ret = 0;
+
+	if (chroma_en == 0) {
+		reg_val = read_vicp_reg(VID_CMPR_CRC1_0_OUT);
+		vicp_print(VICP_INFO, "%s: reg_val1 is 0x%x.\n", __func__, reg_val);
+		if (reg_val != lumma_check)
+			check_val &= ~(1 << 1);
+	} else if (chroma_en == 1) {
+		reg_val = read_vicp_reg(VID_CMPR_CRC1_1_OUT);
+		vicp_print(VICP_INFO, "%s: reg_val2 is 0x%x.\n", __func__, reg_val);
+		if (reg_val != chroma_check)
+			check_val &= ~(1 << 2);
+	} else {
+		vicp_print(VICP_ERROR, "%s: invalid config.\n", __func__);
+		check_val = 0;
+	}
+
+	if ((check_val & 3) != 3) {
+		pr_info("%s failed: check_val = 0x%x.\n", __func__, check_val);
+		ret = 1;
+	} else {
+		pr_info("%s success.\n", __func__);
+		ret = 0;
+	}
+
+	return ret;
+}
+
 void vicp_device_init(struct vicp_device_data_s device)
 {
 	vicp_dev = device;
@@ -2366,7 +2424,6 @@ int vicp_process_task(struct vid_cmpr_top_s *vid_cmpr_top)
 	int i = 0;
 	u8 *temp_addr;
 	int buffer_size;
-	bool is_need_update_all = false;
 
 	vicp_print(VICP_INFO, "enter %s, rdma_en is %d.\n", __func__, vid_cmpr_top->rdma_enable);
 	if (IS_ERR_OR_NULL(vid_cmpr_top)) {
@@ -2390,6 +2447,7 @@ int vicp_process_task(struct vid_cmpr_top_s *vid_cmpr_top)
 		set_vid_cmpr_all_param(vid_cmpr_top);
 		set_module_start(1);
 		set_afbce_start(1);
+		set_vid_cmpr_crc(vid_cmpr_top->out_rot_en);
 		vicp_rdma_end(get_current_vicp_rdma_buf());
 		if (vid_cmpr_top->src_num + 1 == vid_cmpr_top->src_count) {
 			init_completion(&vicp_rdma_done);
@@ -2430,50 +2488,6 @@ int vicp_process_task(struct vid_cmpr_top_s *vid_cmpr_top)
 			rdma_buf_phy_addr = 0;
 		}
 	} else {
-		if (last_input_w != vid_cmpr_top->src_hsize ||
-			last_input_h != vid_cmpr_top->src_vsize ||
-			last_input_fmt != vid_cmpr_top->src_fmt_mode ||
-			last_input_bit_depth != vid_cmpr_top->src_compbits ||
-			last_fbcinput_en != vid_cmpr_top->src_compress ||
-			last_output_w != vid_cmpr_top->out_hsize_bgnd ||
-			last_output_h != vid_cmpr_top->out_vsize_bgnd ||
-			last_output_miffmt != vid_cmpr_top->wrmif_fmt_mode ||
-			last_output_fbcfmt != vid_cmpr_top->out_reg_format_mode ||
-			last_fbcoutput_en != vid_cmpr_top->out_afbce_enable ||
-			last_mifoutput_en != vid_cmpr_top->wrmif_en ||
-			last_output_begin_v != vid_cmpr_top->out_win_bgn_v ||
-			last_output_end_v != vid_cmpr_top->out_win_end_v ||
-			last_output_begin_h != vid_cmpr_top->out_win_bgn_h ||
-			last_output_end_h != vid_cmpr_top->out_win_end_h) {
-			is_need_update_all = true;
-			last_input_w = vid_cmpr_top->src_hsize;
-			last_input_h = vid_cmpr_top->src_vsize;
-			last_input_fmt = vid_cmpr_top->src_fmt_mode;
-			last_input_bit_depth = vid_cmpr_top->src_compbits;
-			last_fbcinput_en = vid_cmpr_top->src_compress;
-			last_output_w = vid_cmpr_top->out_hsize_bgnd;
-			last_output_h = vid_cmpr_top->out_vsize_bgnd;
-			last_output_miffmt = vid_cmpr_top->wrmif_fmt_mode;
-			last_output_fbcfmt = vid_cmpr_top->out_reg_format_mode;
-			last_fbcoutput_en = vid_cmpr_top->out_afbce_enable;
-			last_mifoutput_en = vid_cmpr_top->wrmif_en;
-			last_output_begin_v = vid_cmpr_top->out_win_bgn_v;
-			last_output_end_v = vid_cmpr_top->out_win_end_v;
-			last_output_begin_h = vid_cmpr_top->out_win_bgn_h;
-			last_output_end_h = vid_cmpr_top->out_win_end_h;
-		}
-
-		if (suspend_flag) {
-			vicp_print(VICP_INFO, "%s: load after suspend..\n", __func__);
-			is_need_update_all = true;
-			suspend_flag = 0;
-		}
-
-		if (debug_reg_en) {
-			vicp_print(VICP_INFO, "%s: reg debug enable.\n", __func__);
-			is_need_update_all = false;
-		}
-
 		if (print_flag & VICP_INFO) {
 			pr_info("vicp: ##########basic param##########\n");
 			pr_info("vicp: input: w:%d, h:%d, fmt:%d, bitdepth:%d, src_compress:%d.\n",
@@ -2505,12 +2519,13 @@ int vicp_process_task(struct vid_cmpr_top_s *vid_cmpr_top)
 		set_afbce_path_enable(1);
 		set_module_enable(1);
 		set_module_reset();
-		if (is_need_update_all)
+		if (!debug_reg_en)
 			set_vid_cmpr_all_param(vid_cmpr_top);
 		else
 			set_vid_cmpr_basic_param(vid_cmpr_top);
 		set_module_start(1);
 		set_afbce_start(1);
+		set_vid_cmpr_crc(vid_cmpr_top->out_rot_en);
 		time = wait_for_completion_timeout(&vicp_proc_done, msecs_to_jiffies(200));
 		if (!time) {
 			vicp_print(VICP_ERROR, "vicp_task wait isr timeout\n");
@@ -2553,6 +2568,8 @@ int  vicp_process(struct vicp_data_config_s *data_config)
 		return -1;
 	}
 
+	vicp_runtime_pwr(1);
+
 	memset(&vid_cmpr_top, 0, sizeof(struct vid_cmpr_top_s));
 	ret = vicp_process_config(data_config, &vid_cmpr_top);
 	if (ret < 0) {
@@ -2567,6 +2584,7 @@ int  vicp_process(struct vicp_data_config_s *data_config)
 
 	vicp_process_reset();
 	mutex_unlock(&vicp_mutex);
+	vicp_runtime_pwr(0);
 
 	return  0;
 }

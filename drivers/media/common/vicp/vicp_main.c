@@ -34,6 +34,7 @@
 #include <linux/reset.h>
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-heap.h>
@@ -53,20 +54,13 @@
 #include "vicp_process.h"
 #include "vicp_test.h"
 #include "vicp_hardware.h"
+#include "vicp_module.h"
 
-#define VICP_DEVICE_NAME "vicp"
 void __iomem *vicp_reg_map;
 
 u32 print_flag;
-static u32 demo_enable;
-u32 input_width = 1920;
-u32 input_height = 1080;
-u32 output_width = 3840;
-u32 output_height = 2160;
-u32 input_color_format = 2;    /*0:yuv444 1:yuv422 2:yuv420*/
-u32 output_color_format;
-u32 input_color_dep = 8;
-u32 output_color_dep = 8;
+u32 demo_enable;
+static int demo_result;
 u32 dump_yuv_flag;
 u32 scaler_en = 1;
 u32 hdr_en = 1;
@@ -78,23 +72,10 @@ struct output_axis_s axis;
 u32 rdma_en;
 u32 debug_rdma_en;
 u32 debug_reg_en;
-u32 suspend_flag;
 u32 enhance_sec_en;
 
 struct mutex vicp_mutex; /*used to avoid user space call at the same time*/
 struct vicp_hdr_data_s *vicp_hdr;
-
-struct vicp_device_s {
-	char name[20];
-	atomic_t open_count;
-	int major;
-	unsigned int dbg_enable;
-	struct class *cla;
-	struct device *dev;
-	struct vicp_clock_config_s clock_cfg;
-};
-
-static struct vicp_device_s vicp_device;
 
 static ssize_t print_flag_show(struct class *class,
 		struct class_attribute *attr, char *buf)
@@ -219,7 +200,18 @@ static ssize_t reg_store(struct class *class,
 static ssize_t demo_enable_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "current demo_enable is %d.\n", demo_enable);
+	ssize_t count = 0;
+
+	count = sprintf(buf, "current demo_enable is %d.\n", demo_enable);
+
+	if (demo_result == -1)
+		count += sprintf(buf + count, "vicp test result: failed.\n");
+	else if (demo_result == 0)
+		count += sprintf(buf + count, "vicp test not complete.\n");
+	else
+		count += sprintf(buf + count, "vicp test result: success.\n");
+
+	return count;
 }
 
 static ssize_t demo_enable_store(struct class *class,
@@ -238,209 +230,10 @@ static ssize_t demo_enable_store(struct class *class,
 	else
 		demo_enable = 0;
 
+	demo_result = 0;
 	if (demo_enable)
-		vicp_test();
+		demo_result = vicp_test();
 
-	return count;
-}
-
-static ssize_t input_width_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current input_width is %d.\n", input_width);
-}
-
-static ssize_t input_width_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		input_width = val;
-	else
-		input_width = 0;
-
-	pr_info("set input_width to %d.\n", input_width);
-	return count;
-}
-
-static ssize_t input_height_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current input_height is %d.\n", input_height);
-}
-
-static ssize_t input_height_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		input_height = val;
-	else
-		input_height = 0;
-
-	pr_info("set input_height to %d.\n", input_height);
-	return count;
-}
-
-static ssize_t output_width_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current output_width is %d.\n", output_width);
-}
-
-static ssize_t output_width_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		output_width = val;
-	else
-		output_width = 0;
-
-	pr_info("set output_width to %d.\n", output_width);
-	return count;
-}
-
-static ssize_t output_height_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current output_height is %d.\n", output_height);
-}
-
-static ssize_t output_height_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		output_height = val;
-	else
-		output_height = 0;
-
-	pr_info("set output_height to %d.\n", output_height);
-	return count;
-}
-
-static ssize_t input_color_format_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current input_color_format is %d.\n", input_color_format);
-}
-
-static ssize_t input_color_format_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		input_color_format = val;
-	else
-		input_color_format = 0;
-
-	pr_info("set input_color_format to %d.\n", input_color_format);
-	return count;
-}
-
-static ssize_t output_color_format_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current output_color_format is %d.\n", output_color_format);
-}
-
-static ssize_t output_color_format_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		output_color_format = val;
-	else
-		output_color_format = 0;
-
-	pr_info("set output_color_format to %d.\n", output_color_format);
-	return count;
-}
-
-static ssize_t input_color_dep_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current input_color_dep is %d.\n", input_color_dep);
-}
-
-static ssize_t input_color_dep_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		input_color_dep = val;
-	else
-		input_color_dep = 0;
-
-	pr_info("set input_color_dep to %d.\n", input_color_dep);
-	return count;
-}
-
-static ssize_t output_color_dep_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current output_color_dep is %d.\n", output_color_dep);
-}
-
-static ssize_t output_color_dep_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		output_color_dep = val;
-	else
-		output_color_dep = 0;
-
-	pr_info("set output_color_dep to %d.\n", output_color_dep);
 	return count;
 }
 
@@ -768,14 +561,6 @@ static ssize_t enhance_sec_en_store(struct class *class,
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RW(reg);
 static CLASS_ATTR_RW(demo_enable);
-static CLASS_ATTR_RW(input_color_format);
-static CLASS_ATTR_RW(output_color_format);
-static CLASS_ATTR_RW(input_color_dep);
-static CLASS_ATTR_RW(output_color_dep);
-static CLASS_ATTR_RW(input_width);
-static CLASS_ATTR_RW(input_height);
-static CLASS_ATTR_RW(output_width);
-static CLASS_ATTR_RW(output_height);
 static CLASS_ATTR_RW(dump_yuv_flag);
 static CLASS_ATTR_RW(scaler_en);
 static CLASS_ATTR_RW(hdr_en);
@@ -793,14 +578,6 @@ static struct attribute *vicp_class_attrs[] = {
 	&class_attr_print_flag.attr,
 	&class_attr_reg.attr,
 	&class_attr_demo_enable.attr,
-	&class_attr_input_width.attr,
-	&class_attr_input_height.attr,
-	&class_attr_output_width.attr,
-	&class_attr_output_height.attr,
-	&class_attr_input_color_format.attr,
-	&class_attr_output_color_format.attr,
-	&class_attr_input_color_dep.attr,
-	&class_attr_output_color_dep.attr,
 	&class_attr_dump_yuv_flag.attr,
 	&class_attr_scaler_en.attr,
 	&class_attr_hdr_en.attr,
@@ -821,95 +598,6 @@ static struct class vicp_class = {
 	.name = VICP_DEVICE_NAME,
 	.class_groups = vicp_class_groups,
 };
-
-static unsigned long get_buf_phy_addr(u32 buf_fd)
-{
-	struct dma_buf *dbuf = NULL;
-	unsigned long phy_addr = 0;
-	struct sg_table *table = NULL;
-	struct page *page = NULL;
-	struct dma_buf_attachment *attach = NULL;
-
-	dbuf = dma_buf_get(buf_fd);
-	if (IS_ERR_OR_NULL(dbuf)) {
-		pr_err("%s: get phyaddr failed: fd is %d.\n", __func__, buf_fd);
-		return -EINVAL;
-	}
-
-	attach = dma_buf_attach(dbuf, vicp_device.dev);
-	if (IS_ERR_OR_NULL(attach)) {
-		dma_buf_put(dbuf);
-		pr_err("%s: attach err\n", __func__);
-		return -EINVAL;
-	}
-
-	table = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
-	if (IS_ERR_OR_NULL(table)) {
-		pr_err("%s: get table failed.\n", __func__);
-		dma_buf_detach(dbuf, attach);
-		return -EINVAL;
-	}
-
-	page = sg_page(table->sgl);
-	phy_addr = PFN_PHYS(page_to_pfn(page));
-	dma_buf_unmap_attachment(attach, table, DMA_BIDIRECTIONAL);
-	dma_buf_detach(dbuf, attach);
-	dma_buf_put(dbuf);
-
-	return phy_addr;
-}
-
-static int config_vicp_param(struct vicp_data_info_s *vicp_data_info,
-	struct vicp_data_config_s *data_config)
-{
-
-	if (IS_ERR_OR_NULL(vicp_data_info) || IS_ERR_OR_NULL(data_config)) {
-		pr_err("%s: NULL param, please check.\n", __func__);
-		return -1;
-	}
-
-	data_config->input_data.is_vframe = false;
-	data_config->input_data.data_dma.buf_addr = get_buf_phy_addr(vicp_data_info->src_buf_fd);
-	data_config->input_data.data_dma.buf_stride_w = vicp_data_info->src_buf_alisg_w;
-	data_config->input_data.data_dma.buf_stride_h = vicp_data_info->src_buf_alisg_h;
-	data_config->input_data.data_dma.color_format = vicp_data_info->src_color_fmt;
-	data_config->input_data.data_dma.color_depth = vicp_data_info->src_color_depth;
-	data_config->input_data.data_dma.data_width = vicp_data_info->src_data_w;
-	data_config->input_data.data_dma.data_height = vicp_data_info->src_data_h;
-	data_config->input_data.data_dma.plane_count = 2;
-	data_config->input_data.data_dma.endian = vicp_data_info->src_endian;
-	data_config->input_data.data_dma.need_swap_cbcr = vicp_data_info->src_swap_cbcr;
-
-	data_config->output_data.fbc_out_en = false;
-	data_config->output_data.mif_out_en = true;
-	data_config->output_data.mif_color_fmt = vicp_data_info->dst_color_fmt;
-	data_config->output_data.mif_color_dep = vicp_data_info->dst_color_depth;
-	data_config->output_data.phy_addr[0] = get_buf_phy_addr(vicp_data_info->dst_buf_fd);
-	data_config->output_data.stride[0] = vicp_data_info->dst_buf_w;
-	data_config->output_data.width = vicp_data_info->dst_buf_w;
-	data_config->output_data.height = vicp_data_info->dst_buf_h;
-	data_config->output_data.endian = vicp_data_info->dst_endian;
-	data_config->output_data.need_swap_cbcr = vicp_data_info->dst_swap_cbcr;
-	data_config->output_data.out_sig_fmt = VFRAME_SIGNAL_FMT_SDR;
-
-	data_config->data_option.crop_info.left = vicp_data_info->crop_x;
-	data_config->data_option.crop_info.top = vicp_data_info->crop_y;
-	data_config->data_option.crop_info.width = vicp_data_info->crop_w;
-	data_config->data_option.crop_info.height = vicp_data_info->crop_h;
-	data_config->data_option.output_axis.left = vicp_data_info->output_x;
-	data_config->data_option.output_axis.top = vicp_data_info->output_y;
-	data_config->data_option.output_axis.width = vicp_data_info->output_w;
-	data_config->data_option.output_axis.height = vicp_data_info->output_h;
-	data_config->data_option.rotation_mode = vicp_data_info->rotation_mode;
-	data_config->data_option.rdma_enable = vicp_data_info->rdma_enable;
-	data_config->data_option.security_enable = vicp_data_info->security_enable;
-	data_config->data_option.shrink_mode = vicp_data_info->shrink_mode;
-	data_config->data_option.skip_mode = vicp_data_info->skip_mode;
-	data_config->data_option.input_source_count = vicp_data_info->input_source_count;
-	data_config->data_option.input_source_number = vicp_data_info->input_source_number;
-
-	return 0;
-}
 
 static int vicp_open(struct inode *inode, struct file *file)
 {
@@ -1014,54 +702,6 @@ static const struct of_device_id vicp_dt_match[] = {
 	{},
 };
 
-static int init_vicp_device(void)
-{
-	int  ret = 0;
-
-	strcpy(vicp_device.name, VICP_DEVICE_NAME);
-	ret = register_chrdev(0, vicp_device.name, &vicp_fops);
-	if (ret <= 0) {
-		pr_err("register vicp device error\n");
-		return  ret;
-	}
-	vicp_device.major = ret;
-	vicp_device.dbg_enable = 0;
-	ret = class_register(&vicp_class);
-	if (ret < 0) {
-		pr_err("error create vicp class\n");
-		return ret;
-	}
-	vicp_device.cla = &vicp_class;
-	vicp_device.dev = device_create(vicp_device.cla,
-					NULL,
-					MKDEV(vicp_device.major, 0),
-					NULL,
-					vicp_device.name);
-	if (IS_ERR_OR_NULL(vicp_device.dev)) {
-		pr_err("create vicp device error\n");
-		class_unregister(vicp_device.cla);
-		return -1;
-	}
-
-	vicp_device.dev->coherent_dma_mask = DMA_BIT_MASK(64);
-	vicp_device.dev->dma_mask = &vicp_device.dev->coherent_dma_mask;
-
-	return ret;
-}
-
-static int uninit_vicp_device(void)
-{
-	if (!vicp_device.cla)
-		return 0;
-
-	if (vicp_device.dev)
-		device_destroy(vicp_device.cla, MKDEV(vicp_device.major, 0));
-	class_unregister(vicp_device.cla);
-	unregister_chrdev(vicp_device.major, vicp_device.name);
-
-	return  0;
-}
-
 static void vicp_param_init(struct vicp_device_data_s device_data)
 {
 	mutex_init(&vicp_mutex);
@@ -1079,74 +719,43 @@ static void vicp_param_uninit(void)
 	vicp_hdr_remove(vicp_hdr);
 }
 
-static int vicp_clock_config(int is_enable)
-{
-	int ret = 0;
-	struct vicp_clock_config_s config;
-
-	config = vicp_device.clock_cfg;
-	if (config.clk_count < 0) {
-		pr_err("count clock-names err.\n");
-		return -1;
-	}
-
-	if (is_enable) {
-		if (IS_ERR_OR_NULL(config.clk_gate)) {
-			pr_err("vicp gate clock is null.\n");
-			ret = -1;
-		} else {
-			clk_set_rate(config.clk_gate, config.gate_rate);
-			clk_prepare_enable(config.clk_gate);
-			pr_debug("vicp gate clock is %luMHZ.\n",
-				clk_get_rate(config.clk_gate) / 1000000);
-			ret = 0;
-		}
-
-		if (IS_ERR_OR_NULL(config.clk_vapb0)) {
-			pr_err("vicp vapb0 clock is null.\n");
-			ret = -1;
-		} else {
-			clk_set_rate(config.clk_vapb0, config.vapb0_rate);
-			clk_prepare_enable(config.clk_vapb0);
-			pr_debug("vicp vapb0 clock is %luMHZ.\n",
-				clk_get_rate(config.clk_vapb0) / 1000000);
-			ret = 0;
-		}
-	} else {
-		if (IS_ERR_OR_NULL(config.clk_gate)) {
-			pr_err("vicp gate clock is null.\n");
-			ret = -1;
-		} else {
-			clk_disable_unprepare(config.clk_gate);
-			pr_debug("disable vicp gate clock.\n");
-			ret = 0;
-		}
-
-		if (IS_ERR_OR_NULL(config.clk_vapb0)) {
-			pr_err("vicp vapb0 clock is null.\n");
-			ret = -1;
-		} else {
-			clk_disable_unprepare(config.clk_vapb0);
-			pr_debug("disable vicp vapb0 clock.\n");
-			ret = 0;
-		}
-	}
-
-	return ret;
-}
-
 static int vicp_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	int irq = 0;
+	struct device *dev;
 	struct resource res;
 	int clk_cnt = 0;
 	struct clk *clk_gate = NULL;
 	struct clk *clk_vapb0 = NULL;
+	struct vicp_device_s vicp_device;
 	struct vicp_device_data_s *vicp_meson;
 
-	init_vicp_device();
+	ret = class_register(&vicp_class);
+	if (ret < 0) {
+		pr_err("create vicp class error.\n");
+		return ret;
+	}
 
+	ret = register_chrdev(VICP_MAJOR, VICP_DEVICE_NAME, &vicp_fops);
+	if (ret < 0) {
+		pr_err("register vicp device error.\n");
+		goto error;
+	}
+
+	dev = device_create(&vicp_class,
+			NULL,
+			MKDEV(VICP_MAJOR, 0),
+			NULL,
+			VICP_DEVICE_NAME);
+	if (IS_ERR_OR_NULL(dev)) {
+		pr_err("create vicp  device error.\n");
+		ret = PTR_ERR(dev);
+		return ret;
+	}
+
+	dev->coherent_dma_mask = DMA_BIT_MASK(64);
+	dev->dma_mask = &dev->coherent_dma_mask;
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
 
@@ -1235,16 +844,19 @@ static int vicp_probe(struct platform_device *pdev)
 		goto error;
 	}
 
+	strscpy(vicp_device.name, VICP_DEVICE_NAME, sizeof(VICP_DEVICE_NAME));
+	vicp_device.major = VICP_MAJOR;
+	vicp_device.dbg_enable = 0;
+	vicp_device.pdev = pdev;
+	vicp_device.cla = &vicp_class;
+	vicp_device.dev = dev;
+	vicp_device.clock_cfg.enable = 0;
 	vicp_device.clock_cfg.clk_count = clk_cnt;
 	vicp_device.clock_cfg.clk_gate = clk_gate;
 	vicp_device.clock_cfg.gate_rate = vicp_meson->rate;
 	vicp_device.clock_cfg.clk_vapb0 = clk_vapb0;
 	vicp_device.clock_cfg.vapb0_rate = vicp_meson->rate;
-	ret = vicp_clock_config(1);
-	if (ret < 0) {
-		ret = -EINVAL;
-		goto error;
-	}
+	vicp_dev_init(vicp_device);
 
 	ret = of_address_to_resource(pdev->dev.of_node, 0, &res);
 	if (ret == 0) {
@@ -1267,11 +879,7 @@ static int vicp_probe(struct platform_device *pdev)
 	if (ret < 0)
 		pr_debug("reserved mem is not used.\n");
 
-	pm_runtime_enable(&pdev->dev);
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0)
-		pr_err("runtime get power error.\n");
-
+	vicp_pwr_init(&pdev->dev);
 	vicp_param_init(*vicp_meson);
 	return 0;
 error:
@@ -1283,9 +891,11 @@ error:
 static int vicp_remove(struct platform_device *pdev)
 {
 	vicp_param_uninit();
-	pm_runtime_put_sync(&pdev->dev);
-	uninit_vicp_device();
+	vicp_pwr_remove(&pdev->dev);
 	vicp_clock_config(0);
+	device_destroy(&vicp_class, MKDEV(VICP_MAJOR, 0));
+	unregister_chrdev(VICP_MAJOR, VICP_DEVICE_NAME);
+	class_unregister(&vicp_class);
 
 	return 0;
 }
@@ -1308,7 +918,6 @@ static int vicp_resume(struct platform_device *pdev)
 static int vicp_pm_suspend(struct device *dev)
 {
 	vicp_clock_config(0);
-	suspend_flag = 1;
 
 	return 0;
 }

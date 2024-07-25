@@ -404,6 +404,13 @@ struct vicp_afbce_format_reg_s {
 	u32 compbits_c;              //default = 10  chroma bitwidth
 	u32 compbits_y;
 };
+
+struct vicp_crc_reg_t {
+	u32 crc_sec_sel;
+	u32 crc_start;
+	u32 crc_check_en;
+};
+
 /* ***********************************************************************.*/
 /* ************************* function definitions ************************.*/
 /* ***********************************************************************.*/
@@ -510,6 +517,7 @@ void set_scaler_misc(struct vicp_scaler_misc_reg_s scaler_misc_reg);
 void set_rdma_start(u32 input_count);
 void set_rdma_flag(u32 is_enable);
 void set_security_enable(u32 dma_en, u32 mmu_en, u32 input_en);
+void set_crc_control(struct vicp_crc_reg_t crc_reg);
 void set_fgrain_control(struct vicp_fgrain_ctrl_reg_s fgrain_ctrl_reg);
 void set_fgrain_window_h(u32 begain, u32 end);
 void set_fgrain_window_v(u32 begain, u32 end);
