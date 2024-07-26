@@ -12114,7 +12114,7 @@ void set_video_slice_policy(struct video_layer_s *layer,
 				/* if vd1 mute internal by frc, unmute it */
 				if (get_video_mute_val(VPP_INTERNAL))
 					set_video_mute_info(VPP_INTERNAL, false);
-			} else {
+			} else if (video_is_meson_t3x_cpu()) {
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 				/* 4k120hz and frc_n2m_worked && aisr enable 1 slice */
 				/*frc_switch_flag : 0 or 2 force 2 slice valid*/
@@ -12143,8 +12143,10 @@ void set_video_slice_policy(struct video_layer_s *layer,
 				/* special call for frc mute */
 				check_video_mute();
 #else
-				layer->slice_num = 2;
+				slice_num = 2;
 #endif
+			} else if (video_is_meson_s5_cpu()) {
+				slice_num = 2;
 			}
 			if (debug_common_flag & DEBUG_FLAG_COMMON_AMDV)
 				pr_info("%s:dv on=%d\n", __func__, is_amdv_on());
