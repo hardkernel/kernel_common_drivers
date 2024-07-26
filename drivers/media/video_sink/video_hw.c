@@ -13199,7 +13199,7 @@ void aisr_demo_axis_set(struct video_layer_s *layer)
 				aisr_demo_types[SAFA] ? 1 : 0, 8, 1);
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(SAFA_PPS_DEBUG_DEMO_EN,
-				0, 0, 1);
+				aisr_demo_win, 0, 1);
 			cur_dev->rdma_func[vpp_index].rdma_wr
 				(SAFA_PPS_DEBUG_DEMO_WND_COEF_1,
 				(new_aisr_demo_yend << 16) |
@@ -13216,7 +13216,7 @@ void aisr_demo_axis_set(struct video_layer_s *layer)
 				aisr_demo_types[PI] ? 1 : 0, 4, 1);
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(VPP_PI_DEBUG_DEMO_WND_EN,
-				0, 0, 1);
+				aisr_demo_win, 0, 1);
 			cur_dev->rdma_func[vpp_index].rdma_wr
 				(VPP_PI_DEBUG_DEMO_WND_COEF_1,
 				(new_aisr_demo_yend << 16) |
@@ -13233,7 +13233,7 @@ void aisr_demo_axis_set(struct video_layer_s *layer)
 				aisr_demo_types[SHARPNESS] ? 1 : 0, 4, 1);
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(VPP_SR_DEBUG_DEMO_WND_EN,
-				0, 0, 1);
+				aisr_demo_win, 0, 1);
 			cur_dev->rdma_func[vpp_index].rdma_wr
 				(VPP_SR_DEBUG_DEMO_WND_COEF_1,
 				(new_aisr_demo_yend << 16) |
