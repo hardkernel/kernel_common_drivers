@@ -11980,7 +11980,8 @@ void set_video_slice_policy(struct video_layer_s *layer,
 					layer->property_changed = true;
 					layer->aisr_mif_setting.aisr_enable = 0;
 				}
-			} else {
+			} else if (video_is_meson_t3x_cpu()) {
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
 				/* 4k120hz and frc_n2m_worked && aisr enable 1 slice */
 				if (frc_n2m_is_stable(layer)) {
 					if (is_aisr_enable(layer)) {
@@ -11997,6 +11998,11 @@ void set_video_slice_policy(struct video_layer_s *layer,
 						layer->aisr_mif_setting.aisr_enable = 0;
 					}
 				}
+#else
+				slice_num = 2;
+#endif
+			} else if (video_is_meson_s5_cpu()) {
+				slice_num = 2;
 			}
 			if (debug_common_flag & DEBUG_FLAG_COMMON_AMDV)
 				pr_info("%s:dv on=%d\n", __func__, is_amdv_on());
