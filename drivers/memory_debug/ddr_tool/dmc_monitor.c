@@ -425,7 +425,7 @@ void show_violation_mem_printk(char *title, void *data)
 		virt_addr_valid(mon_comm->port.name) ? mon_comm->port.name : mon_comm->port.id,
 		virt_addr_valid(mon_comm->sub.name) ? mon_comm->sub.name : mon_comm->sub.id,
 		mon_comm->page_flags,
-		mon_comm->page_flags & PAGE_FLAGS_CHECK_AT_FREE ? 1 : 0,
+		mon_comm->page_flags & PAGE_FLAGS_CHECK_AT_FREE ? 0 : 1,
 		test_bit(PG_slab, &mon_comm->page_flags),
 		test_bit(PG_lru, &mon_comm->page_flags),
 		(void *)dmc_unpack_ip(&mon_comm->trace),
