@@ -6064,6 +6064,9 @@ void osd_sharpness_demo_ctrl(void)
 
 void amve_lc_elc_ctrl(unsigned int enable)
 {
+	if (flag_lc_evc == enable)
+		return;
+
 	if (enable) {
 		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_POST2_MATRIX_EN_CTRL, 1, 0);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_POST2_MATRIX_COEF00_01, lc_evc[0], 0);
