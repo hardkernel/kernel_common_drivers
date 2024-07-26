@@ -1365,7 +1365,10 @@ static void s7d_osdblend_set_state(struct meson_vpu_block *vblk,
 	osdblend_layer_set(vblk, state->sub->reg_ops,
 			   reg, osdblend, pipeline_state);
 	#else
-	s7d_osdblend_hw_update(vblk, state->sub->reg_ops, reg, mvobs);
+	if (osdblend->gfcd_global_alpha_policy)
+		s7d_osdblend_hw_update(vblk, state->sub->reg_ops, reg, mvobs);
+	else
+		osdblend_hw_update(vblk, state->sub->reg_ops, reg, mvobs);
 	#endif
 	/*osd dv core size same with blend0 size*/
 	if (vblk->pipeline->osd_version >= OSD_V1)
