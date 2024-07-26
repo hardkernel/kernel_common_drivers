@@ -639,6 +639,7 @@ u32 vsr_debug_mode;
 bool video_suspend;
 u32 video_suspend_cycle;
 int log_out;
+int aisr_demo_win = 1;
 u64 vsync_cnt[VPP_MAX] = {0, 0, 0};
 u8 vsync_isr_cpuid;
 u8 prevsync_isr_cpuid;
@@ -12343,6 +12344,31 @@ static ssize_t aisr_demo_en_store(struct class *cla,
 	return count;
 }
 
+static ssize_t aisr_demo_win_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "aisr_demo_win: %d\n", aisr_demo_win);
+}
+
+static ssize_t aisr_demo_win_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int ret;
+	int res;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	if (res != aisr_demo_win) {
+		aisr_demo_win = res;
+		vd_layer[0].property_changed = true;
+	}
+	return count;
+}
+
 static ssize_t aisr_demo_axis_show(struct class *cla,
 			     struct class_attribute *attr, char *buf)
 {
@@ -13545,6 +13571,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       aisr_demo_axis_show,
 	       aisr_demo_axis_store),
+	__ATTR(aisr_demo_win,
+	       0664,
+	       aisr_demo_win_show,
+	       aisr_demo_win_store),
 	__ATTR(power_ctrl,
 	       0664,
 	       power_ctrl_show,
