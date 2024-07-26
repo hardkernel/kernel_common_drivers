@@ -2133,17 +2133,9 @@ int vdin_afbce_compression_ratio_monitor(struct vdin_dev_s *devp, struct vf_entr
 	if (src_size1)
 		ratio1 = dst_frame_size * 100 / src_size1;
 
-	if (devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444 ||
-		devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB ||
-		devp->format_convert == VDIN_FORMAT_CONVERT_YUV_GBR ||
-		devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG ||
-		devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB ||
-		devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444)
+	if (vdin_is_convert_to_444(devp->format_convert))
 		src_size2 = devp->h_active * devp->v_active * 3 * devp->source_bitdepth / 8;
-	else if (devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV12 ||
-			 devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV21 ||
-			 devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV12 ||
-			 devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV21)
+	else if (vdin_is_convert_to_nv21(devp->format_convert))
 		src_size2 =
 			devp->h_active * devp->v_active * 3 / 2 * devp->source_bitdepth / 8;
 	else

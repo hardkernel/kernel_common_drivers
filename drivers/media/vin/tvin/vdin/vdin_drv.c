@@ -875,14 +875,14 @@ static void vdin_handle_game_mode_chg(struct vdin_dev_s *devp)
 static void vdin_vf_init(struct vdin_dev_s *devp)
 {
 	int i = 0;
-	unsigned int chroma_id, addr, index;
+	unsigned int chroma_id = 0, addr = 0, index = 0;
 	struct vf_entry *master, *slave;
 	struct vframe_s *vf;
 	struct vf_pool *p = devp->vfp;
 	enum tvin_scan_mode_e	scan_mode;
 	unsigned int chroma_size = 0;
 	unsigned int luma_size = 0;
-	ulong phy_c_addr;
+	ulong phy_c_addr = 0;
 
 	index = devp->index;
 	/* const struct tvin_format_s *fmt_info = tvin_get_fmt_info(fmt); */
@@ -936,8 +936,10 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		case VDIN_FORMAT_CONVERT_RGB_NV21:
 			chroma_size = devp->canvas_w * devp->canvas_h / 2;
 			luma_size = devp->canvas_w * devp->canvas_h;
-			chroma_id = (vdin_canvas_ids[index][(vf->index << 1) + 1]) << 8;
-			addr = vdin_canvas_ids[index][vf->index << 1] | chroma_id;
+			if (!devp->baddr_en) {
+				chroma_id = (vdin_canvas_ids[index][(vf->index << 1) + 1]) << 8;
+				addr = vdin_canvas_ids[index][vf->index << 1] | chroma_id;
+			}
 			vf->plane_num = 2;
 			break;
 		default:
@@ -6447,6 +6449,10 @@ static void vdin_get_dts_config(struct vdin_dev_s *devp,
 	/* txhd2 keystone,0:vppout;1:postblend */
 	devp->dts_config.keystone_sel = 0;
 	devp->set_canvas_manual = 0;
+	if (devp->dtdata->hw_ver < VDIN_HW_T7)
+		devp->baddr_en = false;
+	else
+		devp->baddr_en = true;
 }
 
 static int vdin_drv_probe(struct platform_device *pdev)

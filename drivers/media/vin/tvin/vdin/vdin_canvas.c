@@ -323,9 +323,14 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 			devp->dtdata->hw_ver == VDIN_HW_S4D)
 			canvas_num = vdin_get_canvas_num(devp);
 		/* screencap case:end */
-		canvas_num = canvas_num / 2;
-		canvas_step = 2;
-		devp->canvas_w = h_active;
+		if (!devp->baddr_en) {
+			canvas_step = 2;
+			canvas_num = canvas_num / 2;
+		}
+		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH)
+			devp->canvas_w = (h_active * 3) / 2;
+		else
+			devp->canvas_w = h_active;
 		break;
 	case VDIN_FORMAT_CONVERT_YUV_YUV422:
 	case VDIN_FORMAT_CONVERT_RGB_YUV422:
@@ -387,6 +392,8 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 		devp->index, devp->format_convert, devp->source_bitdepth,
 		devp->double_wr, devp->full_pack);
 #endif
+	if (devp->baddr_en)
+		return;
 	for (i = 0; i < devp->canvas_max_num; i++) {
 		devp->vf_mem_start[i] =
 			roundup(devp->vf_mem_start[i], devp->canvas_align);
@@ -596,12 +603,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		h_size = max_buf_width;
 		v_size = max_buf_height;
 	}
-	if (devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444 ||
-	    devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB ||
-	    devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444 ||
-	    devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB ||
-	    devp->format_convert == VDIN_FORMAT_CONVERT_YUV_GBR ||
-	    devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG) {
+	if (vdin_is_convert_to_444(devp->format_convert)) {
 		/* 4k is not support 10 bit mode in order to save memory
 		 * up to 4k 444 8bit mode
 		 */
@@ -615,14 +617,14 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				devp->canvas_align);
 			devp->canvas_align_w = h_size / VDIN_YUV444_8BIT_PER_PIXEL_BYTE;
 		}
-	} else if ((devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV12) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV21) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV12) ||
-		(devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV21)) {
-		h_size = roundup(h_size, devp->canvas_align);
+	} else if (vdin_is_convert_to_nv21(devp->format_convert)) {
+		/* nv21/nv12 only t3x have 8/10/12 bit mode */
+		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH)
+			h_size = roundup((h_size * 3) / 2, devp->canvas_align);
+		else
+			h_size = roundup(h_size, devp->canvas_align);
 		devp->canvas_align_w = h_size;
 		/*todo change with canvas alloc!!*/
-		/* nv21/nv12 only have 8bit mode */
 	} else {
 		/* 422 mode, 4k up to 444 8bit mode,
 		 * other up to 10 bit mode
@@ -681,8 +683,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	if (devp->afbce_valid)
 		mem_size += 1024 * 1658;
 
-	if (devp->format_convert >= VDIN_FORMAT_CONVERT_YUV_NV12 &&
-	    devp->format_convert <= VDIN_FORMAT_CONVERT_RGB_NV21)
+	if (vdin_is_convert_to_nv21(devp->format_convert))
 		mem_size = (mem_size * 3) / 2;
 	devp->vf_mem_size = PAGE_ALIGN(mem_size)/* + dolby_size_byte*/;
 	devp->vf_mem_size = roundup(devp->vf_mem_size, PAGE_SIZE);

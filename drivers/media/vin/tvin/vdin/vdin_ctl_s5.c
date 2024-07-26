@@ -3405,6 +3405,9 @@ void vdin_set_bitdepth_s5(struct vdin_dev_s *devp)
 		if (vdin_is_convert_to_444(devp->format_convert) &&
 		    vdin_is_4k(devp)) {
 			bit_dep = VDIN_COLOR_DEEPS_8BIT;
+		} else if (vdin_is_convert_to_nv21(devp->format_convert)) {
+			/*For chips other than T3X, when NV21 is output, source_bitdepth is 8*/
+			bit_dep = VDIN_COLOR_DEEPS_8BIT;
 		} else if (devp->prop.colordepth == VDIN_COLOR_DEEPS_8BIT) {
 			/* hdmi YUV422, 8 or 10 bit valid is unknown*/
 			/* so need vdin 10bit to frame buffer*/
@@ -3615,49 +3618,6 @@ void vdin_force_gofiled_s5(struct vdin_dev_s *devp)
 
 	wr_bits(offset, VDIN_COM_CTRL0, 1, 28, 1);
 	wr_bits(offset, VDIN_COM_CTRL0, 0, 28, 1);
-}
-
-bool vdin_is_convert_to_444_s5(u32 format_convert)
-{
-	if (format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444 ||
-	    format_convert == VDIN_FORMAT_CONVERT_YUV_RGB ||
-	    format_convert == VDIN_FORMAT_CONVERT_YUV_GBR ||
-	    format_convert == VDIN_FORMAT_CONVERT_YUV_BRG ||
-	    format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444 ||
-	    format_convert == VDIN_FORMAT_CONVERT_RGB_RGB)
-		return true;
-	else
-		return false;
-}
-
-bool vdin_is_convert_to_422_s5(u32 format_convert)
-{
-	if (format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422 ||
-	    format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422 ||
-	    format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422 ||
-	    format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)
-		return true;
-	else
-		return false;
-}
-
-bool vdin_is_convert_to_nv21_s5(u32 format_convert)
-{
-	if (format_convert == VDIN_FORMAT_CONVERT_YUV_NV12 ||
-	    format_convert == VDIN_FORMAT_CONVERT_YUV_NV21 ||
-	    format_convert == VDIN_FORMAT_CONVERT_RGB_NV12 ||
-	    format_convert == VDIN_FORMAT_CONVERT_RGB_NV21)
-		return true;
-	else
-		return false;
-}
-
-bool vdin_is_4k_s5(struct vdin_dev_s *devp)
-{
-	if (devp->h_active >= 3800 && devp->v_active >= 2100)
-		return true;
-	else
-		return false;
 }
 
 bool vdin_is_hdr_signal_in_s5(struct vdin_dev_s *devp)

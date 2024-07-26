@@ -4979,6 +4979,9 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 				bit_dep = VDIN_COLOR_DEEPS_10BIT;
 			else
 				bit_dep = VDIN_COLOR_DEEPS_8BIT;
+		} else if (vdin_is_convert_to_nv21(devp->format_convert)) {
+			/*For chips other than T3X, when NV21 is output, source_bitdepth is 8*/
+			bit_dep = VDIN_COLOR_DEEPS_8BIT;
 		} else if (devp->prop.colordepth == VDIN_COLOR_DEEPS_8BIT) {
 			/* hdmi YUV422, 8 or 10 bit valid is unknown*/
 			/* so need vdin 10bit to frame buffer*/

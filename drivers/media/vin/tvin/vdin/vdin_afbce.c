@@ -394,16 +394,10 @@ void vdin_afbce_config(struct vdin_dev_s *devp)
 		reg_fmt444_rgb_en = 1;
 
 	reg_fmt444_comb = vdin_chk_is_comb_mode(devp);
-	if (vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_NV12 ||
-	    vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_NV21 ||
-	    vdin_out_fmt == VDIN_FORMAT_CONVERT_RGB_NV12 ||
-	    vdin_out_fmt == VDIN_FORMAT_CONVERT_RGB_NV21) {
+	if (vdin_is_convert_to_nv21(devp->format_convert)) {
 		reg_format_mode = 2;/*420*/
 	    bits_num = 12;
-	} else if ((vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_YUV422) ||
-		(vdin_out_fmt == VDIN_FORMAT_CONVERT_RGB_YUV422) ||
-		(vdin_out_fmt == VDIN_FORMAT_CONVERT_GBR_YUV422) ||
-		(vdin_out_fmt == VDIN_FORMAT_CONVERT_BRG_YUV422)) {
+	} else if (vdin_is_convert_to_422(devp->format_convert)) {
 		reg_format_mode = 1;/*422*/
 	    bits_num = 16;
 	} else {

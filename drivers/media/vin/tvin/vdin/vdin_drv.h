@@ -1097,6 +1097,7 @@ struct vdin_dev_s {
 	bool v_skip_en;
 	bool dv_is_not_std;
 	bool bypass_tunnel;
+	bool baddr_en;/*0-use canvas;1-use phy addr*/
 	unsigned int ignore_frames;
 	/*use frame rate to cal duration*/
 	unsigned int use_frame_rate;
