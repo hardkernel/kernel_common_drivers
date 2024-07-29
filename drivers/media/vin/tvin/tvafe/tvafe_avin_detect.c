@@ -1698,6 +1698,25 @@ struct meson_avin_data txhd2_data = {
 	.irq_filter = 1,
 };
 
+struct meson_avin_data t6d_data = {
+	.cpu_id = AVIN_CPU_TYPE_T6D,
+	.name = "meson-t6d-avin-detect",
+
+	.detect_version = DETECTED_IRQ_VERSION,
+	.detect_cntl = ANACTRL_CVBS_DETECT_CNTL,
+	.irq0_cntl = IRQCTRL_CVBS_IRQ0_CNTL,
+	.irq1_cntl = IRQCTRL_CVBS_IRQ1_CNTL,
+	.irq0_cnt  = IRQCTRL_CVBS_IRQ0_COUNTER,
+	.irq1_cnt  = IRQCTRL_CVBS_IRQ1_COUNTER,
+	.dc_level_adj = 2,
+	.vdc_level = 3,
+	.comp_level_adj = 3,
+	.irq_filter = 1,
+	//.dc_level_adj = 4,
+	//.vdc_level = 0,
+	//.comp_level_adj = 3,
+};
+
 static const struct of_device_id tvafe_avin_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{	.compatible = "amlogic, tvafe_avin_detect",
@@ -1729,6 +1748,9 @@ static const struct of_device_id tvafe_avin_dt_match[] = {
 	},
 	{	.compatible = "amlogic, txhd2_tvafe_avin_detect",
 		.data = &txhd2_data,
+	},
+	{	.compatible = "amlogic, t6d_tvafe_avin_detect",
+		.data = &t6d_data,
 	},
 	{},
 };

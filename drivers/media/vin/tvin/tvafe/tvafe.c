@@ -1825,6 +1825,15 @@ static struct meson_tvafe_data meson_txhd2_tvafe_data = {
 	.atv_dmd_sys_clk = HHI_ANA_CLK_BASE,
 };
 
+static struct meson_tvafe_data meson_t6d_tvafe_data = {
+	.cpu_id = TVAFE_CPU_TYPE_T6D,
+	.name = "meson-t6d-tvafe",
+
+	.cvbs_pq_conf = NULL,
+	.rf_pq_conf = NULL,
+	.atv_dmd_sys_clk = ATV_DMD_SYS_CLK_CNTL,
+};
+
 static const struct of_device_id meson_tvafe_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -1859,6 +1868,10 @@ static const struct of_device_id meson_tvafe_dt_match[] = {
 	}, {
 		.compatible = "amlogic, tvafe-txhd2",
 		.data		= &meson_txhd2_tvafe_data,
+	},
+	{
+		.compatible = "amlogic, tvafe-t6d",
+		.data		= &meson_t6d_tvafe_data,
 	},
 	{}
 };
@@ -2064,7 +2077,8 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	    (tvafe_cpu_type() == TVAFE_CPU_TYPE_T5W))
 		sys_clk_reg_base = HHI_ANA_CLK_BASE;
 	else if (tvafe_cpu_type() == TVAFE_CPU_TYPE_T3 ||
-		 tvafe_cpu_type() == TVAFE_CPU_TYPE_T5M)
+		 tvafe_cpu_type() == TVAFE_CPU_TYPE_T5M ||
+		 tvafe_cpu_type() == TVAFE_CPU_TYPE_T6D)
 		sys_clk_reg_base = ATV_DMD_SYS_CLK_CNTL;
 	else
 		sys_clk_reg_base = s_tvafe_data->atv_dmd_sys_clk;

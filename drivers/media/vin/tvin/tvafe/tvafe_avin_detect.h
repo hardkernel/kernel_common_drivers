@@ -186,6 +186,7 @@ enum avin_cpu_type {
 	AVIN_CPU_TYPE_T5M   = 9,
 	AVIN_CPU_TYPE_T3X   = 10,
 	AVIN_CPU_TYPE_TXHD2   = 11,
+	AVIN_CPU_TYPE_T6D   = 12,
 	AVIN_CPU_TYPE_MAX,
 };
 
