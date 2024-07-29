@@ -6,6 +6,64 @@
 #ifndef __AML_IOTRACE_H
 #define __AML_IOTRACE_H
 
+#include <linux/preempt.h>
+
+/*
+ * We resue the preemption counter unsed bits for iotrace counter.
+ *
+ * Now preemption counter bitmask meaning:
+ * - bit 0-7   preemption count
+ * - bit 8-15  softirq count
+ * - bit 16-19 hardirq count
+ * - bit 20-23 nmi count
+ *
+ * Use 4 bits for iotrace counter:
+ * - bit 24-27 iotrace count
+ */
+#define PREEMPT_IOTRACE_BITS 4
+#define PREEMPT_IOTRACE_SHIFT (NMI_SHIFT + NMI_BITS)
+#define PREEMPT_IOTRACE_MASK (__IRQ_MASK(PREEMPT_IOTRACE_BITS) << PREEMPT_IOTRACE_SHIFT)
+#define PREEMPT_IOTRACE_OFFSET (1UL << PREEMPT_IOTRACE_SHIFT)
+
+#define iotrace_count() (preempt_count() & PREEMPT_IOTRACE_MASK)
+
+/*
+ * We calls preempt_iotrace_enter() at the start of iotrace begin hook,
+ * and calls preempt_iotrace_exit() at the end of iotrace post hook.
+ *
+ * At the beginning of iotrace function initialization:
+ *
+ * - Begin hook cannot do preempt_count operation before post hook have registered.
+ *   Or we may got a bad preempt_count and caused kernel exception.
+ *
+ * - Attention, we must be very careful in post hook, and we must have a very
+ *   clear understanding of what have done in begin hook. Whether preempt_iotrace_enter()
+ *   executed or not, whether pstore_io_save() executed and percpu irqflag have
+ *   valid data.
+ *
+ * To archive this goal:
+ * - We use <ramoops_ftrace_en> to ensure begin/post hooks called in pairs.
+ *   We register begin/post hooks first then set <ramoops_ftrace_en> to 1,
+ *   and in hooks must return directly before <ramoops_ftrace_en> becomes to 1.
+ *
+ * - Set <ramoops_ftrace_en> to 1 may happened between a register begin/post
+ *   hooks, this means begin hooks may saw ramoops_ftrace_en=0 but post hook was 1.
+ *   So in post hook, we must check iotrace_count() first to decide whether
+ *   begin hook exceuted or not.
+ *
+ * - In post hook, pstore_io_save() will restore percpu irqflag where saved in
+ *   begin hook, we must ensure this percpu irqflag is valid, or will caused
+ *   bad CPU status and then undefined instruction exception. We also use <ramoops_ftrace_en>
+ *   to ensure this data valid.
+ *
+ * - If only register post hook first and then begin hook without ramoops_ftrace_en
+ *   restriction, we can't enusre percpu irqflag is valid. Because in begin hook
+ *   pstore_io_save() may haven't saved irqflag when saw ramoops_ftrace_en=0, but
+ *   in post hook pstore_io_save() may tried to rstore irqflag when saw ramoops_ftrace_en=1.
+ */
+#define preempt_iotrace_enter() preempt_count_add(PREEMPT_IOTRACE_OFFSET)
+#define preempt_iotrace_exit() preempt_count_sub(PREEMPT_IOTRACE_OFFSET)
+
 extern int ramoops_io_stack;
 extern int ramoops_io_skip;
 extern int ramoops_ftrace_en;
