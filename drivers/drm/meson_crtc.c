@@ -172,9 +172,9 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->hdr_conversion_ctrl = cur_state->hdr_conversion_ctrl;
 	new_state->attr_changed = false;
 	new_state->brr_update = false;
-	new_state->brr = cur_state->brr;
+	new_state->brr = 0;
 	new_state->seamless = false;
-	strncpy(new_state->brr_mode, cur_state->brr_mode, DRM_DISPLAY_MODE_LEN);
+	memset(new_state->brr_mode, 0, DRM_DISPLAY_MODE_LEN);
 	new_state->crtc_bgcolor_flag = cur_state->crtc_bgcolor_flag;
 	new_state->crtc_bgcolor = cur_state->crtc_bgcolor;
 
