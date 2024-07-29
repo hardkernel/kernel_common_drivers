@@ -1981,6 +1981,9 @@ int aml_xhci_bus_resume(struct usb_hcd *hcd)
 	u32 temp, portsc;
 	struct aml_xhci_hub *rhub;
 	struct aml_xhci_port **ports;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	int val;
+#endif
 
 	rhub = aml_xhci_get_rhub(hcd);
 	ports = rhub->ports;
@@ -2067,7 +2070,15 @@ int aml_xhci_bus_resume(struct usb_hcd *hcd)
 			aml_xhci_warn(xhci, "port %d-%d resume PLC timeout\n",
 				hcd->self.busnum, port_index + 1);
 			spin_unlock_irqrestore(&xhci->lock, flags);
-			aml_xhci_resume(xhci, 0);
+			val = aml_xhci_resume(xhci, 0);
+			if (val) {
+				aml_xhci_warn(xhci, "### failed val is %d\n", val);
+				return 0;
+			}
+			rhub = aml_xhci_get_rhub(hcd);
+			ports = rhub->ports;
+			max_ports = rhub->num_ports;
+			bus_state = &rhub->bus_state;
 			spin_lock_irqsave(&xhci->lock, flags);
 			continue;
 		}
