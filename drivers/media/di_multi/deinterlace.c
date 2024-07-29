@@ -11382,12 +11382,8 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 		}
 
 #ifdef DIM_TB_DETECT
-		if (cfgg(TB)) {
-			dim_tb_ext_cmd(vframe, 0,
-				channel, ECMD_TB_REG);
-		} else {
-			//de_devp->nrds_enable = 0;
-		}
+		dim_tb_ext_cmd(vframe, 0,
+			channel, ECMD_TB_REG);
 #endif
 
 		de_devp->pps_enable = dimp_get(edi_mp_pps_en);
