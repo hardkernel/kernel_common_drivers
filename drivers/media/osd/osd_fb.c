@@ -2094,7 +2094,8 @@ static int osd_release(struct fb_info *info, int arg)
 		 */
 		if ((osd_meson_dev.has_viu2 || osd_meson_dev.has_new_viu2) &&
 		    fbdev->fb_index == osd_meson_dev.viu2_index &&
-		    osd_hw.display_dev_cnt < 2)
+		    osd_hw.display_dev_cnt < 2 &&
+		    osd_hw.powered[fbdev->fb_index] == 1)
 			clk_disable_unprepare(osd_meson_dev.vpu_clkc);
 		osd_hw.powered[fbdev->fb_index] = 0;
 	}
