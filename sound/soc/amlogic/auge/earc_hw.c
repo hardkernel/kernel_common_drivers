@@ -1969,6 +1969,18 @@ u8 earcrx_cmdc_get_rx_stat_bits(struct regmap *cmdc_map)
 	return stat_bits;
 }
 
+u8 earcrx_cmdc_get_tx_stat_bits(struct regmap *cmdc_map)
+{
+	u8 stat_bits;
+
+	earcrx_cmdc_get_reg(cmdc_map,
+			    STAT_CTRL_DEV_ID,
+			    EARCTX_STAT_REG,
+			    &stat_bits,
+			    1);
+	return stat_bits;
+}
+
 void earctx_cmdc_earc_mode(struct regmap *cmdc_map, bool enable)
 {
 	if (enable) {
