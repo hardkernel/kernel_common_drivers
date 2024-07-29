@@ -211,6 +211,15 @@ static int adc_32m_pll_config(struct tvin_adc_dev *devp)
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x313af140);
 		usleep_range(20, 25);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x021a4605);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x000100c0);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x02301325);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_2, 0x07091051);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x100100c0);
+		usleep_range(20, 25);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x500100c0);
+		usleep_range(20, 25);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x700100c0);
 	} else
 #endif
 	if (devp->plat_data->chip_id >= ADC_CHIP_T5) {
@@ -276,6 +285,15 @@ static int adc_24m_pll_config(struct tvin_adc_dev *devp)
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x31ee410e);
 		usleep_range(20, 25);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x021a4605);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x000100b4);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x02301325);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_2, 0x07011c00);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x100100b4);
+		usleep_range(20, 25);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x500100b4);
+		usleep_range(20, 25);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x700100b4);
 #endif
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT_C1A
 	} else {
@@ -335,6 +353,15 @@ static int adc_dpll_dvbt_config(struct tvin_adc_dev *devp)
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x312a5168);
 		usleep_range(20, 25);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x021a4605);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x000100b4);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x02301325);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_2, 0x07051010);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x100100b4);
+		usleep_range(20, 25);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x500100b4);
+		usleep_range(20, 25);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x700100b4);
 	} else {
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x200504b4);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x300504b4);
@@ -409,6 +436,15 @@ static int adc_dpll_dvbs_config(struct tvin_adc_dev *devp,
 		adc_wr_hiu(pll_addr->adc_pll_cntl_5, 0x3927a000);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_6, 0x56540000);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x10070487);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x000100b4);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x02301325);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_2, 0x07010340);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x100100b4);
+		usleep_range(20, 25);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x500100b4);
+		usleep_range(20, 25);
+		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x700100b4);
 	} else {
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x20050487);
 		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x30050487);
@@ -446,6 +482,11 @@ static int adc_dadc_atv_cntl_config(struct tvin_adc_dev *devp)
 		adc_wr_hiu(adc_addr->s2_dadc_cntl_2, 0x00000582);
 		adc_wr_hiu(adc_addr->dadc_cntl_4, 0x0);
 		adc_wr_hiu(adc_addr->dadc_cntl, 0x0030307c);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_hiu(adc_addr->vdac_cntl_0, 0x00010880);
+		adc_wr_hiu(adc_addr->s2_dadc_cntl_2, 0x00000580);
+		adc_wr_hiu(adc_addr->dadc_cntl_4, 0x00000501);
+		adc_wr_hiu(adc_addr->dadc_cntl, 0x07070518);
 	} else
 #endif
 	if (devp->plat_data->chip_id >= ADC_CHIP_T5) {
@@ -468,6 +509,9 @@ static int adc_dadc_atv_cntl_config(struct tvin_adc_dev *devp)
 		else
 			adc_wr_hiu(adc_addr->dadc_cntl_2, 0x00003480);
 		adc_wr_hiu(adc_addr->dadc_cntl_3, 0x08300b83);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_hiu(adc_addr->dadc_cntl_2, 0x00000401);
+		adc_wr_hiu(adc_addr->dadc_cntl_3, 0x00101007);
 	}
 #endif
 	return 0;
@@ -494,6 +538,11 @@ static int adc_dadc_av_cntl_config(struct tvin_adc_dev *devp)
 		adc_wr_hiu(adc_addr->s2_dadc_cntl_2, 0x00000582);
 		adc_wr_hiu(adc_addr->dadc_cntl_4, 0x0);
 		adc_wr_hiu(adc_addr->dadc_cntl, 0x0030307c);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_hiu(adc_addr->vdac_cntl_0, 0x00010880);
+		adc_wr_hiu(adc_addr->s2_dadc_cntl_2, 0x00000580);
+		adc_wr_hiu(adc_addr->dadc_cntl_4, 0x00000501);
+		adc_wr_hiu(adc_addr->dadc_cntl, 0x0707518);
 	} else
 #endif
 	if (devp->plat_data->chip_id >= ADC_CHIP_T5D) {
@@ -516,6 +565,9 @@ static int adc_dadc_av_cntl_config(struct tvin_adc_dev *devp)
 		else
 			adc_wr_hiu(adc_addr->dadc_cntl_2, 0x00003400);
 		adc_wr_hiu(adc_addr->dadc_cntl_3, 0x08300b83);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_hiu(adc_addr->dadc_cntl_2, 0x00000400);
+		adc_wr_hiu(adc_addr->dadc_cntl_3, 0x00101007);
 	}
 #endif
 	return 0;
@@ -543,6 +595,11 @@ static int adc_dadc_other_dtv_cntl_config(struct tvin_adc_dev *devp)
 	} else if (devp->plat_data->chip_id == ADC_CHIP_T5M ||
 		   devp->plat_data->chip_id == ADC_CHIP_T3X) {
 		adc_wr_hiu(adc_addr->dadc_cntl, 0x0030307c);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_hiu(adc_addr->vdac_cntl_0, 0x00010880);
+		adc_wr_hiu(adc_addr->s2_dadc_cntl_2, 0x00000580);
+		adc_wr_hiu(adc_addr->dadc_cntl_4, 0x00000501);
+		adc_wr_hiu(adc_addr->dadc_cntl, 0x07070518);
 	} else {
 		adc_wr_hiu(adc_addr->dadc_cntl, 0x00303044);
 	}
@@ -555,6 +612,9 @@ static int adc_dadc_other_dtv_cntl_config(struct tvin_adc_dev *devp)
 
 		adc_wr_hiu(adc_addr->dadc_cntl_3, 0x08300b83);
 		adc_wr_hiu(adc_addr->dadc_cntl_4, 0x0);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_hiu(adc_addr->dadc_cntl_2, 0x00000401);
+		adc_wr_hiu(adc_addr->dadc_cntl_3, 0x00101007);
 #endif
 	}
 	return 0;
@@ -583,6 +643,8 @@ static int adc_dadc_dvbs_cntl_config(struct tvin_adc_dev *devp)
 	} else if (devp->plat_data->chip_id == ADC_CHIP_T5M ||
 		   devp->plat_data->chip_id == ADC_CHIP_T3X) {
 		adc_wr_hiu(adc_addr->dadc_cntl, 0x0030307c);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_hiu(adc_addr->vdac_cntl_0, 0x800);
 	} else {
 		adc_wr_hiu(adc_addr->dadc_cntl, 0x0030303c);
 	}
@@ -600,6 +662,9 @@ static int adc_dadc_dvbs_cntl_config(struct tvin_adc_dev *devp)
 		adc_wr_hiu(adc_addr->dadc_cntl_4, 0x0);
 		/* only for debug to clkmsr(id:149) */
 		/* adc_wr_hiu(adc_addr->dadc_cntl_3, 0x08300b8f); */
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_hiu(adc_addr->s2_dadc_cntl, 0x41109007);
+		adc_wr_hiu(adc_addr->s2_dadc_cntl_2, 0x580);
 #endif
 	}
 	return 0;
@@ -624,6 +689,11 @@ static int adc_dadc_dvbt_cntl_config(struct tvin_adc_dev *devp)
 	} else if (devp->plat_data->chip_id == ADC_CHIP_T5M ||
 		   devp->plat_data->chip_id == ADC_CHIP_T3X) {
 		adc_wr_hiu(adc_addr->dadc_cntl, 0x0030307c);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_hiu(adc_addr->vdac_cntl_0, 0x00010880);
+		adc_wr_hiu(adc_addr->s2_dadc_cntl_2, 0x00000580);
+		adc_wr_hiu(adc_addr->dadc_cntl_4, 0x00000501);
+		adc_wr_hiu(adc_addr->dadc_cntl, 0x07070518);
 	} else
 #endif
 	{
@@ -640,6 +710,9 @@ static int adc_dadc_dvbt_cntl_config(struct tvin_adc_dev *devp)
 		/* bit[1:0] adc en/dis, 00:dis, 11:en */
 		adc_wr_hiu(adc_addr->dadc_cntl_3, 0x08300b93);
 		adc_wr_hiu(adc_addr->dadc_cntl_4, 0xc00);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_hiu(adc_addr->dadc_cntl_2, 0x00000401);
+		adc_wr_hiu(adc_addr->dadc_cntl_3, 0x00101013);
 	}
 #endif
 	return 0;
@@ -675,6 +748,10 @@ static void adc_av_filter_config(struct tvin_adc_dev *devp)
 		adc_wr_afe(AFE_VAFE_CTRL0, 0x00490710);
 		adc_wr_afe(AFE_VAFE_CTRL1, 0x110e);
 		adc_wr_afe(AFE_VAFE_CTRL2, 0x1fe20fd3);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_afe(AFE_VAFE_CTRL0, 0x00890730);
+		adc_wr_afe(AFE_VAFE_CTRL1, 0x0000110e);
+		adc_wr_afe(AFE_VAFE_CTRL2, 0x04250de7);
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		adc_wr_afe(AFE_VAFE_CTRL0, 0x00490710);
 		adc_wr_afe(AFE_VAFE_CTRL1, 0x0000110e);
@@ -699,6 +776,10 @@ static void adc_atv_filter_config(struct tvin_adc_dev *devp)
 		adc_wr_afe(AFE_VAFE_CTRL0, 0x00490710);
 		adc_wr_afe(AFE_VAFE_CTRL1, 0x100e);
 		adc_wr_afe(AFE_VAFE_CTRL2, 0x1fc09fd0);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_afe(AFE_VAFE_CTRL0, 0x000e0f1f);
+		adc_wr_afe(AFE_VAFE_CTRL1, 0);
+		adc_wr_afe(AFE_VAFE_CTRL2, 0);
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		adc_wr_afe(AFE_VAFE_CTRL0, 0x000d0710);
 		adc_wr_afe(AFE_VAFE_CTRL1, 0x3000);
@@ -724,6 +805,10 @@ static void adc_other_dtv_filter_config(struct tvin_adc_dev *devp)
 		adc_wr_afe(AFE_VAFE_CTRL0, 0x00490710);
 		adc_wr_afe(AFE_VAFE_CTRL1, 0x100e);
 		adc_wr_afe(AFE_VAFE_CTRL2, 0x1fc09fd0);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_afe(AFE_VAFE_CTRL0, 0x000e0f1f);
+		adc_wr_afe(AFE_VAFE_CTRL1, 0);
+		adc_wr_afe(AFE_VAFE_CTRL2, 0);
 	} else {
 		adc_wr_afe(AFE_VAFE_CTRL0, 0x000d0710);
 		adc_wr_afe(AFE_VAFE_CTRL1, 0x3000);
@@ -741,6 +826,10 @@ static void adc_dvb_filter_config(struct tvin_adc_dev *devp)
 		adc_wr_afe(AFE_VAFE_CTRL0, 0x00490710);
 		adc_wr_afe(AFE_VAFE_CTRL1, 0x100e);
 		adc_wr_afe(AFE_VAFE_CTRL2, 0x1fc09fd0);
+	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
+		adc_wr_afe(AFE_VAFE_CTRL0, 0x000e0f1f);
+		adc_wr_afe(AFE_VAFE_CTRL1, 0);
+		adc_wr_afe(AFE_VAFE_CTRL2, 0);
 	} else {
 		adc_wr_afe(AFE_VAFE_CTRL0, 0x00050710);
 		adc_wr_afe(AFE_VAFE_CTRL1, 0x3000);
@@ -792,6 +881,7 @@ void adc_set_ddemod_default(struct dfe_adcpll_para *adcpll_para)
 		case ADC_CHIP_T3X:
 		case ADC_CHIP_TXHD2:
 		case ADC_CHIP_S1A:
+		case ADC_CHIP_T6D:
 			switch (delsys) {
 			case SYS_DVBT:
 			case SYS_DVBT2:
@@ -801,7 +891,8 @@ void adc_set_ddemod_default(struct dfe_adcpll_para *adcpll_para)
 
 			case SYS_DVBS:
 			case SYS_DVBS2:
-				adc_dvb_filter_config(devp);
+				if (devp->plat_data->chip_id != ADC_CHIP_T6D)
+					adc_dvb_filter_config(devp);
 				adc_dadc_dvbs_cntl_config(devp);
 				break;
 
@@ -810,8 +901,8 @@ void adc_set_ddemod_default(struct dfe_adcpll_para *adcpll_para)
 				adc_dadc_other_dtv_cntl_config(devp);
 				break;
 			}
-
-			adc_wr_hiu(adc_addr->s2_dadc_cntl_2, 0x00000582);
+			if (devp->plat_data->chip_id != ADC_CHIP_T6D)
+				adc_wr_hiu(adc_addr->s2_dadc_cntl_2, 0x00000582);
 
 			break;
 
@@ -1098,7 +1189,8 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 				usleep_range(100, 101);
 				adc_pll_lock_cnt++;
 				if (devp->plat_data->chip_id == ADC_CHIP_T5M ||
-				    devp->plat_data->chip_id == ADC_CHIP_T3X)
+				    devp->plat_data->chip_id == ADC_CHIP_T3X ||
+				    devp->plat_data->chip_id == ADC_CHIP_T6D)
 					adc_pll_sts = adc_rd_hiu_bits(ANACTRL_ADC_PLL_STS, 31, 1);
 				else if (devp->plat_data->chip_id == ADC_CHIP_T3)
 					adc_pll_sts = adc_rd_hiu_bits(pll_addr->adc_pll_cntl_7, 31, 1);
@@ -1141,7 +1233,8 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 				usleep_range(100, 101);
 				adc_pll_lock_cnt++;
 				if (devp->plat_data->chip_id == ADC_CHIP_T5M ||
-				    devp->plat_data->chip_id == ADC_CHIP_T3X)
+				    devp->plat_data->chip_id == ADC_CHIP_T3X ||
+				    devp->plat_data->chip_id == ADC_CHIP_T6D)
 					adc_pll_sts = adc_rd_hiu_bits(ANACTRL_ADC_PLL_STS, 31, 1);
 				else if (devp->plat_data->chip_id == ADC_CHIP_T3)
 					adc_pll_sts = adc_rd_hiu_bits(pll_addr->adc_pll_cntl_7, 31, 1);
@@ -1190,6 +1283,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 				case ADC_CHIP_T3X:
 				case ADC_CHIP_TXHD2:
 				case ADC_CHIP_S1A:
+				case ADC_CHIP_T6D:
 					adc_set_dtvdemod_pll_by_delsys(devp, p_dtv_para);
 					break;
 
@@ -1201,7 +1295,8 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 				usleep_range(100, 101);
 				adc_pll_lock_cnt++;
 				if (devp->plat_data->chip_id == ADC_CHIP_T5M ||
-				    devp->plat_data->chip_id == ADC_CHIP_T3X)
+				    devp->plat_data->chip_id == ADC_CHIP_T3X ||
+				    devp->plat_data->chip_id == ADC_CHIP_T6D)
 					adc_pll_sts = adc_rd_hiu_bits(ANACTRL_ADC_PLL_STS, 31, 1);
 				else if (devp->plat_data->chip_id == ADC_CHIP_T3) {
 					adc_pll_sts = adc_rd_hiu_bits(pll_addr->adc_pll_cntl_7, 31, 1);
@@ -1314,6 +1409,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 #endif
 			/*is_meson_gxtvbb_cpu()*/
 			if (devp->plat_data->chip_id <= ADC_CHIP_T3X) {
+				//t6d no need
 				adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x8a2a2110);/*reset*/
 				adc_wr_hiu(HHI_ADC_PLL_CNTL,  p_dtv_para->adcpllctl);
 				adc_wr_hiu(HHI_DEMOD_CLK_CNTL, p_dtv_para->demodctl);
@@ -1923,6 +2019,13 @@ static const struct adc_platform_data_s adc_data_s1a = {
 	.is_tv_chip = false,
 };
 
+static const struct adc_platform_data_s adc_data_t6d = {
+	ADC_ADDR_T3,
+	ADC_PLL_ADDR_T3,
+	.chip_id = ADC_CHIP_T6D,
+	.is_tv_chip = true,
+};
+
 static const struct of_device_id adc_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -1986,6 +2089,10 @@ static const struct of_device_id adc_dt_match[] = {
 	{
 		.compatible = "amlogic, adc-txhd2",
 		.data = &adc_data_txhd2,
+	},
+	{
+		.compatible = "amlogic, adc-t6d",
+		.data = &adc_data_t6d,
 	},
 #endif
 	{

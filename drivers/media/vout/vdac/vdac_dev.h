@@ -45,7 +45,8 @@
 /* 20220419:adjust cvbsout clk delay */
 /* 20230426:add vdac control node */
 /* 20230325:t3x bringup */
-#define VDAC_VER "20240429: optimize power consumption for s7/s7d"
+/* 20240729:t6d bringup */
+#define VDAC_VER "20240729: t6d bringup"
 
 enum vdac_cpu_type {
 	VDAC_CPU_G12AB = 0,
@@ -65,6 +66,7 @@ enum vdac_cpu_type {
 	VDAC_CPU_S1A,
 	VDAC_CPU_S7,
 	VDAC_CPU_S7D,
+	VDAC_CPU_T6D,
 	VDAC_CPU_MAX,
 };
 

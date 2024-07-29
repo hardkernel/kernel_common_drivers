@@ -373,14 +373,6 @@
 		#hwlock-cells = <1>;
 	};
 
-	adc: adc {
-		compatible = "amlogic, adc-t3";
-		status = "disabled";
-		reg = <0xfe072000 0x2000/* afe reg base */
-			0xfe008000 0x2000/* ana base */
-			>;
-	};
-
 	jtag {
 		compatible = "amlogic, jtag";
 		status = "disabled";
@@ -1512,14 +1504,14 @@
 	};
 
 	vdac: vdac {
-		compatible = "amlogic, vdac-t5m";
-		status = "disabled";
+		compatible = "amlogic, vdac-t6d";
+		status = "okay";
 		cdac_disable = <0>;
 	};
 
 	adc: adc {
-		compatible = "amlogic, adc-t5m";
-		status = "disabled";
+		compatible = "amlogic, adc-t6d";
+		status = "okay";
 		reg = <0xfe072000 0x2000/* afe reg base */
 			0xfe008000 0x2000/* hiu base */
 		>;

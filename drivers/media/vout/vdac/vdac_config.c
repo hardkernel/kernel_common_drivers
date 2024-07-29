@@ -98,6 +98,13 @@ static struct meson_vdac_ctrl_s vdac_ctrl_enable_t5m[] = {
 	{VDAC_REG_MAX, 0, 0, 0},
 };
 
+static struct meson_vdac_ctrl_s vdac_ctrl_enable_t6d[] = {
+	{ANACTRL_VDAC_CTRL1, 1, 7, 1}, /* cdac_en */
+	{ANACTRL_VDAC_CTRL1, 1, 18, 1}, /* cdac_data_reg_en */
+	{ANACTRL_VDAC_CTRL1, 0x230, 8, 10}, /* cdac_data_reg */
+	{VDAC_REG_MAX, 0, 0, 0},
+};
+
 /* ********************************************************* */
 static struct meson_vdac_data meson_g12ab_vdac_data = {
 	.cpu_id = VDAC_CPU_G12AB,
@@ -314,6 +321,21 @@ static struct meson_vdac_data meson_s7d_vdac_data = {
 	.bypass_cfg_cntl0 = 0x00010A82, //vlsi suggestion value
 	.cvbsout_cfg_cntl0 = 0x00010A82, //vlsi suggestion value
 };
+
+static struct meson_vdac_data meson_t6d_vdac_data = {
+	.cpu_id = VDAC_CPU_T6D,
+	.name = "meson-t6d-vdac",
+
+	.reg_cntl0 = ANACTRL_VDAC_CTRL0,
+	.reg_cntl1 = ANACTRL_VDAC_CTRL1,
+	.reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK_CTRL2,
+	.reg_vid2_clk_div = CLKCTRL_VIID_CLK_DIV,
+	.ctrl_table = vdac_ctrl_enable_t6d,
+	.cdac_disable = 1,
+	.bypass_cfg_cntl0 = 0x00409982, //vlsi suggestion value
+	.cvbsout_cfg_cntl0 = 0x00419a82, //vlsi suggestion value
+};
+
 #endif
 
 const struct of_device_id meson_vdac_dt_match[] = {
@@ -387,6 +409,10 @@ const struct of_device_id meson_vdac_dt_match[] = {
 	{
 		.compatible = "amlogic, vdac-s7d",
 		.data = &meson_s7d_vdac_data,
+	},
+	{
+		.compatible = "amlogic, vdac-t6d",
+		.data		= &meson_t6d_vdac_data,
 	},
 #endif
 	{}

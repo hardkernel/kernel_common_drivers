@@ -150,6 +150,7 @@ enum adc_chip_ver {
 	ADC_CHIP_T3X,
 	ADC_CHIP_TXHD2,
 	ADC_CHIP_S1A,
+	ADC_CHIP_T6D,
 };
 
 struct adc_reg_phy {
