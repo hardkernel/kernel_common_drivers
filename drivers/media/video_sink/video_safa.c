@@ -697,13 +697,14 @@ static void set_cfg_pi_safa(struct vsr_setting_s *vsr)
 	else
 		vsr_top->sharpness_en = true;
 	if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA) {
-		pr_info("%s:vsr top: h/vsize_in:%d,%d, h/vsize_out:%d, %d, dejaggy_en=%d\n",
+		pr_info("%s:vsr top: h/vsize_in:%d,%d, h/vsize_out:%d, %d, dejaggy_en=%d, is_interlaced=%d\n",
 			__func__,
 			hsize_in,
 			vsize_in,
 			hsize_out,
 			vsize_out,
-			vsr_safa->dejaggy_en);
+			vsr_safa->dejaggy_en,
+			vsr_top->is_interlaced);
 		pr_info("%s:safa pre_scaler pre_h/vsize:%d, %d\n",
 			__func__,
 			pre_hsize,
