@@ -214,8 +214,8 @@ static struct vframe_s *get_vf_from_file(struct di_process_dev *dev,
 			vf->type,
 			vf->flag);
 		dmabuf_put_vframe((struct dma_buf *)(file_vf->private_data));
-		if (vf->omx_index == 0 && vf->index_disp != 0)
-			vf->omx_index = vf->index_disp;
+		if (vf->frame_index == 0 && vf->index_disp != 0)
+			vf->frame_index = vf->index_disp;
 	} else if (is_v4l_vf) {
 		dp_print(dev->index, PRINT_MORE, "vf is from v4lvideo\n");
 		file_private_data = dp_get_file_private(dev, file_vf);
@@ -498,14 +498,14 @@ static int check_dropped(struct di_process_dev *dev, struct uvm_di_mgr_t *uvm_di
 		dev->last_dec_type = buf_mgr->dec_type;
 		dev->last_instance_id = buf_mgr->instance_id;
 		dev->last_buf_mgr_reset_id = buf_mgr->reset_id;
-		dev->last_frame_index = vf->omx_index;
+		dev->last_frame_index = vf->frame_index;
 	} else {
-		index_diff = vf->omx_index - dev->last_frame_index;
+		index_diff = vf->frame_index - dev->last_frame_index;
 
 		dev->last_dec_type = buf_mgr->dec_type;
 		dev->last_instance_id = buf_mgr->instance_id;
 		dev->last_buf_mgr_reset_id = buf_mgr->reset_id;
-		dev->last_frame_index = vf->omx_index;
+		dev->last_frame_index = vf->frame_index;
 		return index_diff - 1;
 	}
 	return 0;
@@ -550,8 +550,8 @@ static int queue_input_to_di(struct di_process_dev *dev, struct vframe_s *vf,
 	total_empty_count++;
 
 	dp_print(dev->index, PRINT_OTHER,
-		"di_empty_input_buffer omx_index=%d, empty_count = %lld, %d\n",
-		vf->omx_index, dev->empty_count, total_empty_count);
+		"di_empty_input_buffer frame_index=%d, empty_count = %lld, %d\n",
+		vf->frame_index, dev->empty_count, total_empty_count);
 
 	return 0;
 }
@@ -800,8 +800,8 @@ enum DI_ERRORTYPE dp_empty_input_done(struct di_buffer *buf)
 	total_empty_done_count++;
 
 	dp_print(dev->index, PRINT_OTHER,
-		  "%s: omx_index=%d, empty_done_count=%lld, total_empty_done_count=%d\n",
-		  __func__, buf->vf->omx_index,
+		  "%s: frame_index=%d, empty_done_count=%lld, total_empty_done_count=%d\n",
+		  __func__, buf->vf->frame_index,
 		  dev->empty_done_count,
 		  total_empty_done_count);
 
@@ -872,8 +872,8 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 	}
 
 	dp_print(dev->index, PRINT_OTHER,
-		  "%s: omx_index=%d, flag=%x, fill_done_count =%lld, %d\n",
-		  __func__, buf->vf->omx_index, buf->flag,
+		  "%s: frame_index=%d, flag=%x, fill_done_count =%lld, %d\n",
+		  __func__, buf->vf->frame_index, buf->flag,
 		  dev->fill_done_count,
 		  total_fill_done_count);
 
@@ -1110,7 +1110,7 @@ static int di_process_uninit(struct di_process_dev *dev)
 		buf = &dev->di_input[i];
 		if (buf->caller_mng.queued) {
 			dp_print(dev->index, PRINT_OTHER,
-				  "%s omx_index=%d\n", __func__, buf->vf->omx_index);
+				  "%s frame_index=%d\n", __func__, buf->vf->frame_index);
 			dropped = buf->caller_mng.dropped;
 			if (!dropped) {
 				ret = di_processed_checkin(buf->caller_mng.src_file);
@@ -1230,7 +1230,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	struct file_private_data *private_data = NULL;
 	int ret;
 	u32 is_repeat = false;
-	u32 omx_index = 0;
+	u32 frame_index = 0;
 	u32 max_width_new = 0, max_width_last = 0;
 	bool ip_switch = false, tvp_switch = false;
 	bool need_do_dummy = false;
@@ -1265,8 +1265,8 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		frame_info->transform = di_force_rotate;
 
 	dp_print(dev->index, PRINT_OTHER,
-		"%s: len =%d, fd=%d, omx_index=%d, file_vf=%px, file_count=%ld\n",
-		__func__, kfifo_len(&dev->receive_q), frame_info->in_fd, vf->omx_index,
+		"%s: len =%d, fd=%d, frame_index=%d, file_vf=%px, file_count=%ld\n",
+		__func__, kfifo_len(&dev->receive_q), frame_info->in_fd, vf->frame_index,
 		 file_vf, file_count(file_vf));
 
 	if (check_vf_compression_ratio(dev, vf)) {
@@ -1274,7 +1274,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		frame_info->out_fd = -1;
 		frame_info->out_fence_fd = -1;
 		frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
-		frame_info->omx_index = vf->omx_index;
+		frame_info->frame_index = vf->frame_index;
 		frame_info->need_bypass = true;
 		dp_put_file(dev, file_vf);
 		return 0;
@@ -1305,7 +1305,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		frame_info->out_fd = -1;
 		frame_info->out_fence_fd = -1;
 		frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
-		frame_info->omx_index = vf->omx_index;
+		frame_info->frame_index = vf->frame_index;
 		frame_info->need_bypass = true;
 		dev->last_file = file_vf;
 
@@ -1364,8 +1364,8 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		frame_info->is_tvp = false;
 
 	dp_print(dev->index, PRINT_OTHER,
-		"omx_index=%d,type=0x%x,flag=0x%x,compWidth=%d,compHeight=%d,width=%d,height=%d.\n",
-		vf->omx_index, vf->type, vf->flag, vf->compWidth, vf->compHeight, vf->width,
+		"frame_index=%d,type=0x%x,flag=0x%x,compWidth=%d,compHeight=%d,width=%d,height=%d.\n",
+		vf->frame_index, vf->type, vf->flag, vf->compWidth, vf->compHeight, vf->width,
 		vf->height);
 
 	/*1080p->1080i; 4k->1080i*/
@@ -1389,7 +1389,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		dev->q_dummy_frame_done = false;
 	}
 
-	omx_index = vf->omx_index;
+	frame_index = vf->frame_index;
 	dev->last_vf = *vf;
 
 	if (!dev->first_out) {
@@ -1399,7 +1399,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 			frame_info->out_fd = -1;
 			frame_info->out_fence_fd = -1;
 			frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
-			frame_info->omx_index = vf->omx_index;
+			frame_info->frame_index = vf->frame_index;
 			frame_info->need_bypass = true;
 			dev->last_file = file_vf;
 
@@ -1467,7 +1467,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		frame_info->out_fd = -1;
 		frame_info->out_fence_fd = -1;
 		frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
-		frame_info->omx_index = vf->omx_index;
+		frame_info->frame_index = vf->frame_index;
 		frame_info->need_bypass = true;
 		dev->last_file = file_vf;
 
@@ -1481,7 +1481,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 			frame_info->out_fd = -1;
 			frame_info->out_fence_fd = -1;
 			frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
-			frame_info->omx_index = vf->omx_index;
+			frame_info->frame_index = vf->frame_index;
 			frame_info->need_bypass = true;
 			dev->last_file = file_vf;
 
@@ -1506,10 +1506,10 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 
 		//private_data->vf = *vf;
 		private_data->vf_p = NULL;
-		private_data->vf.omx_index = vf->omx_index;
+		private_data->vf.frame_index = vf->frame_index;
 		private_data->vf.index_disp = vf->index_disp;
 		private_data->file = file_vf;
-		omx_index = vf->omx_index;
+		frame_index = vf->frame_index;
 
 		out_fence_fd = dp_timeline_create_fence(dev);
 
@@ -1541,7 +1541,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	frame_info->out_fd = out_fd;
 	frame_info->is_repeat = is_repeat;
 	frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
-	frame_info->omx_index = omx_index;
+	frame_info->frame_index = frame_index;
 
 	dp_print(dev->index, PRINT_OTHER,
 		"%s done: dmabuf =%px, dmabuf->file=%px, out_fd=%d, out_fence_fd =%d, is_i=%d\n",
@@ -1564,7 +1564,7 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 	struct file_private_data *private_data = NULL;
 	struct dma_buf *dmabuf;
 	struct vframe_s *vf;
-	int omx_index = -1;
+	int frame_index = -1;
 
 	dp_print(dev->index, PRINT_OTHER, "%s: fd = %d\n", __func__, fd);
 
@@ -1610,7 +1610,7 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 					"%s: has dec vf, but vf/file is null vf=%px.\n",
 					__func__, vf);
 			private_data->file = NULL;
-			omx_index = di_p->vf->omx_index;
+			frame_index = di_p->vf->frame_index;
 		}
 		queue_outbuf_to_di(dev, di_p);
 	} else if (private_data->flag & V4LVIDEO_FLAG_DI_BYPASS) {
@@ -1621,7 +1621,7 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 			"%s: bypss need put file=%px.\n",
 			__func__, private_data->file);
 		if (vf && private_data->file) {
-			omx_index = vf->omx_index;
+			frame_index = vf->frame_index;
 			dp_put_file(dev, private_data->file);
 		} else {
 			dp_print(dev->index, PRINT_ERROR,
@@ -1631,8 +1631,8 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 		private_data->file = NULL;
 	}
 
-	dp_print(dev->index, PRINT_OTHER, "%s: di_buffer =%px, omx_index=%d.\n",
-		__func__, di_p, omx_index);
+	dp_print(dev->index, PRINT_OTHER, "%s: di_buffer =%px, frame_index=%d.\n",
+		__func__, di_p, frame_index);
 	private_data->vf_p = NULL;
 	private_data->is_keep = false;
 	dmabuf = (struct dma_buf *)file_vf->private_data;

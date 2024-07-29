@@ -49,6 +49,7 @@
 #include "../../gdc/inc/api/gdc_api.h"
 #include "../common/video_pp_common.h"
 #include "../../common/uvm/meson_uvm_lcevc_processor.h"
+#include <linux/amlogic/media/media_proxy/AmlVideoUserdata.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 #include <linux/amlogic/media/di/di_interface.h>
 #include <linux/amlogic/media/di/di.h>
@@ -78,7 +79,7 @@ static int transform = -1;
 static unsigned int vidc_debug;
 static unsigned int vidc_pattern_debug;
 static int last_index[MAX_VD_LAYERS][MXA_LAYER_COUNT];
-static int last_omx_index;
+static int last_frame_index;
 static u32 print_flag;
 static u32 full_axis = 1;
 static u32 print_close;
@@ -986,24 +987,25 @@ static struct vf_nn_sr_t *vc_get_hfout_data(struct composer_dev *dev,
 }
 
 static struct vf_aiface_t *vc_get_aiface_info(struct composer_dev *dev,
-						struct file *file_vf, int omx_index)
+						struct file *file_vf, int frame_index)
 {
 	struct vf_aiface_t *aiface_info;
 	struct uvm_hook_mod *uhmod;
 
 	if (!file_vf) {
-		vc_print(dev->index, PRINT_ERROR, "NULL param: omx_index=%d.\n", omx_index);
+		vc_print(dev->index, PRINT_ERROR, "NULL param: frame_index=%d.\n", frame_index);
 
 		return NULL;
 	}
 	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data), PROCESS_AIFACE);
 	if (!uhmod) {
-		vc_print(dev->index, PRINT_OTHER, "NULL uhmod: omx_index=%d\n", omx_index);
+		vc_print(dev->index, PRINT_OTHER, "NULL uhmod: frame_index=%d\n", frame_index);
 		return NULL;
 	}
 
 	if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
-		vc_print(dev->index, PRINT_ERROR, "invalid uhmod param:omx_index=%d\n", omx_index);
+		vc_print(dev->index, PRINT_ERROR, "invalid uhmod param:frame_index=%d\n",
+			frame_index);
 		return NULL;
 	}
 	aiface_info = uhmod->arg;
@@ -1125,9 +1127,9 @@ static void display_q_uninit(struct composer_dev *dev)
 			    & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS && !is_mosaic_22) {
 				repeat_count = dis_vf->repeat_count;
 				vc_print(dev->index, PRINT_FENCE,
-					 "vc: unit repeat_count=%d, omx_index=%d\n",
+					 "vc: unit repeat_count=%d, frame_index=%d\n",
 					 repeat_count,
-					 dis_vf->omx_index);
+					 dis_vf->frame_index);
 				for (i = 0; i <= repeat_count; i++) {
 					fput(dis_vf->file_vf);
 					total_put_count++;
@@ -1149,8 +1151,8 @@ static void display_q_uninit(struct composer_dev *dev)
 			} else if (!(dis_vf->flag
 				     & VFRAME_FLAG_VIDEO_COMPOSER)) {
 				vc_print(dev->index, PRINT_ERROR,
-					 "vc: unit display_q flag is null, omx_index=%d\n",
-					 dis_vf->omx_index);
+					 "vc: unit display_q flag is null, frame_index=%d\n",
+					 dis_vf->frame_index);
 			}
 		}
 	}
@@ -1291,17 +1293,17 @@ struct vframe_s *videocomposer_vf_peek(void *op_arg)
 					return vf;
 				} else if (nn_status == NN_WAIT_DOING) {
 					vc_print(dev->index, PRINT_FENCE | PRINT_NN,
-						"peek: nn wait doing, nn_index =%d, omx_index=%d, nn_status=%d,srout_data=%px\n",
+						"peek: nn wait doing, nn_index =%d, frame_index=%d, nn_status=%d,srout_data=%px\n",
 						vf->vc_private->srout_data->nn_index,
-						vf->omx_index,
+						vf->frame_index,
 						vf->vc_private->srout_data->nn_status,
 						vf->vc_private->srout_data);
 					return NULL;
 				} else if (nn_status == NN_DISPLAYED) {
 					vc_print(dev->index, PRINT_ERROR,
-						"peek: nn_status err, nn_index =%d, omx_index=%d, nn_status=%d\n",
+						"peek: nn_status err, nn_index =%d, frame_index=%d, nn_status=%d\n",
 						vf->vc_private->srout_data->nn_index,
-						vf->omx_index,
+						vf->frame_index,
 						vf->vc_private->srout_data->nn_status);
 					return vf;
 				}
@@ -1346,17 +1348,17 @@ struct vframe_s *videocomposer_vf_peek(void *op_arg)
 				if (nn_used_time < (nn_need_time - nn_margin_time))
 					canbe_peek = false;
 				vc_print(dev->index, PRINT_FENCE | PRINT_NN,
-					"peek: nn not done, nn_index = %d, omx_index = %d, nn_status = %d, nn_used_time = %lld, canbe_peek = %d.\n",
+					"peek: nn not done, nn_index = %d, frame_index = %d, nn_status = %d, nn_used_time = %lld, canbe_peek = %d.\n",
 					vf->vc_private->srout_data->nn_index,
-					vf->omx_index,
+					vf->frame_index,
 					vf->vc_private->srout_data->nn_status,
 					nn_used_time,
 					canbe_peek);
 				if (!canbe_peek) {
 					vc_print(dev->index, PRINT_FENCE | PRINT_NN,
-					"peek:fail: nn not done, nn_index =%d, omx_index=%d, nn_status=%d, nn_used_time=%lld canbe_peek=%d\n",
+					"peek:fail: nn not done, nn_index =%d, frame_index=%d, nn_status=%d, nn_used_time=%lld canbe_peek=%d\n",
 						vf->vc_private->srout_data->nn_index,
-						vf->omx_index,
+						vf->frame_index,
 						vf->vc_private->srout_data->nn_status,
 						nn_used_time,
 						canbe_peek);
@@ -1377,20 +1379,20 @@ struct vframe_s *videocomposer_vf_peek(void *op_arg)
 					return vf;
 				} else if (nn_status == NN_WAIT_DOING) {
 					vc_print(dev->index, PRINT_FENCE | PRINT_NN,
-						"peek: aicolor wait doing, omx_index=%d, aicolor_status=%d\n",
-						vf->omx_index,
+						"peek: aicolor wait doing, frame_index=%d, aicolor_status=%d\n",
+						vf->frame_index,
 						vf->vc_private->aicolor_info->nn_status);
 					return NULL;
 				} else if (nn_status == NN_START_DOING) {
 					vc_print(dev->index, PRINT_FENCE | PRINT_NN,
-						"peek: aicolor start doing, omx_index=%d, aicolor_status=%d\n",
-						vf->omx_index,
+						"peek: aicolor start doing, frame_index=%d, aicolor_status=%d\n",
+						vf->frame_index,
 						vf->vc_private->aicolor_info->nn_status);
 					return NULL;
 				} else if (nn_status == NN_DISPLAYED) {
 					vc_print(dev->index, PRINT_ERROR,
-						"peek: aicolor_status err, omx_index=%d, aicolor_status=%d\n",
-						vf->omx_index,
+						"peek: aicolor_status err, frame_index=%d, aicolor_status=%d\n",
+						vf->frame_index,
 						vf->vc_private->aicolor_info->nn_status);
 					return vf;
 				}
@@ -1406,22 +1408,22 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 {
 	struct composer_dev *dev = (struct composer_dev *)op_arg;
 	int repeat_count;
-	int omx_index;
+	int frame_index;
 	int index_disp;
 	bool rendered;
 	bool is_composer;
 	bool is_mosaic_22;
 	int i;
 	struct file *file_vf[4] = {NULL};
-	int src_omx_index[4] = {0};
-	int dst_omx_index[4] = {0};
+	int src_frame_index[4] = {0};
+	int dst_frame_index[4] = {0};
 	struct vd_prepare_s *vd_prepare;
 
 	if (!vf)
 		return;
 
 	repeat_count = vf->repeat_count;
-	omx_index = vf->omx_index;
+	frame_index = vf->frame_index;
 	index_disp = vf->index_disp;
 	rendered = vf->rendered;
 	is_composer = vf->flag & VFRAME_FLAG_COMPOSER_DONE;
@@ -1441,8 +1443,8 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 			vf->vc_private->aicolor_info->nn_status = NN_DISPLAYED;
 	}
 	vc_print(dev->index, PRINT_FENCE,
-		 "put: repeat_count =%d, omx_index=%d, index_disp=%x\n",
-		 repeat_count, omx_index, index_disp);
+		 "put: repeat_count =%d, frame_index=%d, index_disp=%x\n",
+		 repeat_count, frame_index, index_disp);
 	if (!is_composer && !is_mosaic_22) {
 		if (vf->vc_private) {
 			vc_private_q_recycle(dev, vf->vc_private);
@@ -1465,8 +1467,8 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 		}
 
 		file_vf[0] = vd_prepare->src_frame->file_vf;
-		src_omx_index[0] = vd_prepare->src_frame->omx_index;
-		dst_omx_index[0] = vd_prepare->dst_frame.omx_index;
+		src_frame_index[0] = vd_prepare->src_frame->frame_index;
+		dst_frame_index[0] = vd_prepare->dst_frame.frame_index;
 		vd_prepare_data_q_put(dev, vd_prepare);
 		if (vf->type_ext & VIDTYPE_EXT_LCEVC) {
 			vc_print(dev->index, PRINT_OTHER, "put enhance vf:%px\n", vf->enhance_vf);
@@ -1487,8 +1489,8 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 			}
 
 			file_vf[i] = vf->vc_private->mosaic_vf[i]->file_vf;
-			src_omx_index[i] = vf->vc_private->mosaic_src_vf[i]->omx_index,
-			src_omx_index[i] = vf->vc_private->mosaic_dst_vf[i].omx_index;
+			src_frame_index[i] = vf->vc_private->mosaic_src_vf[i]->frame_index,
+			src_frame_index[i] = vf->vc_private->mosaic_dst_vf[i].frame_index;
 		}
 
 		if (vf->vc_private) {
@@ -1525,8 +1527,8 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 				vc_print(dev->index, PRINT_ERROR,
 					"%s error:src_index=%d,dst_index=%d.\n",
 					__func__,
-					src_omx_index[0],
-					dst_omx_index[0]);
+					src_frame_index[0],
+					dst_frame_index[0]);
 			}
 		}
 
@@ -1541,8 +1543,8 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 					"%s error: i=%d,src_index=%d,dst_index=%d.\n",
 					__func__,
 					i,
-					src_omx_index[i],
-					dst_omx_index[i]);
+					src_frame_index[i],
+					dst_frame_index[i]);
 			}
 		}
 	} else {
@@ -1830,8 +1832,8 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 					"di vf err: file_vf=%px, dmabuf=%px, uhmod=%px, vf=%px\n",
 					file_vf, dmabuf, uhmod, vf);
 				vc_print(dev->index, PRINT_ERROR,
-					"di_vf=%px, dma_di_vf=%px, omx_index=%d\n",
-					di_vf, dma_di_vf, vf->omx_index);
+					"di_vf=%px, dma_di_vf=%px, frame_index=%d\n",
+					di_vf, dma_di_vf, vf->frame_index);
 				di_vf = NULL;
 			}
 		}
@@ -1859,8 +1861,8 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 				vf = di_vf;
 			}
 		}
-		if (vf->omx_index == 0 && vf->index_disp != 0)
-			vf->omx_index = vf->index_disp;
+		if (vf->frame_index == 0 && vf->index_disp != 0)
+			vf->frame_index = vf->index_disp;
 
 		if (dma_has_di_vf)
 			uvm_put_hook_mod(dmabuf, VF_PROCESS_DI);
@@ -2084,7 +2086,7 @@ static void check_vicp_ship_mode(struct composer_dev *dev, struct frames_info_t 
 }
 
 static void video_wait_aiface_ready(struct composer_dev *dev,
-				struct vf_aiface_t *aiface_info, int omx_index)
+				struct vf_aiface_t *aiface_info, int frame_index)
 {
 	int wait_count = 0;
 
@@ -2095,37 +2097,37 @@ static void video_wait_aiface_ready(struct composer_dev *dev,
 			usleep_range(2000, 2100);
 			wait_count++;
 			vc_print(dev->index, PRINT_PATTERN | PRINT_AIFACE,
-				"aiface wait count %d, omx_index=%d, nn_status=%d\n",
-				wait_count, omx_index, aiface_info->nn_status);
+				"aiface wait count %d, frame_index=%d, nn_status=%d\n",
+				wait_count, frame_index, aiface_info->nn_status);
 		} else {
 			break;
 		}
 	}
 	vc_print(dev->index, PRINT_PATTERN | PRINT_AIFACE,
-		 "aiface wait %dms, omx_index=%d, nn_status=%d\n",
-		 2 * wait_count, omx_index, aiface_info->nn_status);
+		 "aiface wait %dms, frame_index=%d, nn_status=%d\n",
+		 2 * wait_count, frame_index, aiface_info->nn_status);
 }
 
 static struct vf_aiface_t *aiface_info_adjust(struct composer_dev *dev, struct file *file_vf,
-	int omx_index, int display_x, int display_y, int display_w, int display_h)
+	int frame_index, int display_x, int display_y, int display_w, int display_h)
 {
 	struct vf_aiface_t *aiface_info = NULL;
 	struct face_value_t face_value_tmp;
 	int nn_width, nn_height, count = 0;
 	int i = 0;
 
-	aiface_info = vc_get_aiface_info(dev, file_vf, omx_index);
+	aiface_info = vc_get_aiface_info(dev, file_vf, frame_index);
 	if (aiface_info) {
 		nn_width = aiface_info->nn_frame_width;
 		nn_height = aiface_info->nn_frame_height;
-		video_wait_aiface_ready(dev, aiface_info, omx_index);
+		video_wait_aiface_ready(dev, aiface_info, frame_index);
 		if (aiface_info->nn_status == NN_DONE) {
 			memset(&face_value_tmp, 0, sizeof(struct face_value_t));
 			count = aiface_info->aiface_value_count;
 			for (i = 0; i < count; i++) {
 				vc_print(dev->index, PRINT_AIFACE,
-					"src: omx_index=%d, x=%d, y=%d, w=%d, h=%d, score=%d.\n",
-					omx_index,
+					"src: frame_index=%d, x=%d, y=%d, w=%d, h=%d, score=%d.\n",
+					frame_index,
 					aiface_info->face_value[i].x,
 					aiface_info->face_value[i].y,
 					aiface_info->face_value[i].w,
@@ -2143,8 +2145,8 @@ static struct vf_aiface_t *aiface_info_adjust(struct composer_dev *dev, struct f
 
 				aiface_info->face_value[i] = face_value_tmp;
 				vc_print(dev->index, PRINT_AIFACE,
-					"dst: omx_index=%d, x=%d, y=%d, w=%d, h=%d, score=%d.\n",
-					omx_index,
+					"dst: frame_index=%d, x=%d, y=%d, w=%d, h=%d, score=%d.\n",
+					frame_index,
 					aiface_info->face_value[i].x,
 					aiface_info->face_value[i].y,
 					aiface_info->face_value[i].w,
@@ -2155,8 +2157,8 @@ static struct vf_aiface_t *aiface_info_adjust(struct composer_dev *dev, struct f
 			aiface_info->nn_status = NN_DISPLAYED;
 		} else {
 			vc_print(dev->index, PRINT_AIFACE,
-				"%s: omx_index=%d, aiface not ready.\n",
-				__func__, omx_index);
+				"%s: frame_index=%d, aiface not ready.\n",
+				__func__, frame_index);
 		}
 	} else {
 		//vc_print(dev->index, PRINT_ERROR, "%s: get aiface info failed.\n", __func__);
@@ -2967,15 +2969,15 @@ static void vframe_composer(struct composer_dev *dev)
 
 		aiface_info_temp = aiface_info_adjust(dev,
 						received_frames->file_vf[vf_dev[i]],
-						input_vf[i]->omx_index,
+						input_vf[i]->frame_index,
 						out_axis[i].left,
 						out_axis[i].top,
 						out_axis[i].width,
 						out_axis[i].height);
 		if (aiface_info_temp) {
 			vc_print(dev->index, PRINT_AIFACE,
-				"omx_index = %d, aiface_value_count = %d.\n",
-				input_vf[i]->omx_index, aiface_info_temp->aiface_value_count);
+				"frame_index = %d, aiface_value_count = %d.\n",
+				input_vf[i]->frame_index, aiface_info_temp->aiface_value_count);
 			if (!dev->aiface_buf) {
 				size = sizeof(struct vf_aiface_t) * MAX_FACE_COUNT_PER_FRAME;
 				dev->aiface_buf = vmalloc(size);
@@ -3308,7 +3310,7 @@ static void vframe_composer(struct composer_dev *dev)
 static void empty_ready_queue(struct composer_dev *dev)
 {
 	int repeat_count;
-	int omx_index;
+	int frame_index;
 	bool is_composer;
 	int i;
 	struct file *file_vf;
@@ -3322,12 +3324,12 @@ static void empty_ready_queue(struct composer_dev *dev)
 			if (!vf)
 				break;
 			repeat_count = vf->repeat_count;
-			omx_index = vf->omx_index;
+			frame_index = vf->frame_index;
 			is_composer = vf->flag & VFRAME_FLAG_COMPOSER_DONE;
 			file_vf = vf->file_vf;
 			vc_print(dev->index, PRINT_OTHER,
-				 "empty: repeat_count =%d, omx_index=%d\n",
-				 repeat_count, omx_index);
+				 "empty: repeat_count =%d, frame_index=%d\n",
+				 repeat_count, frame_index);
 			video_timeline_increase(dev, repeat_count + 1);
 			if (!is_composer) {
 				for (i = 0; i <= repeat_count; i++) {
@@ -3903,7 +3905,7 @@ static int config_ai_param(struct composer_dev *dev,
 
 	aiface_info = aiface_info_adjust(dev,
 					file_vf,
-					vf->omx_index,
+					vf->frame_index,
 					frame_info->dst_x,
 					frame_info->dst_y,
 					frame_info->dst_w,
@@ -3912,8 +3914,8 @@ static int config_ai_param(struct composer_dev *dev,
 		vf->vc_private->aiface_info = aiface_info;
 		vf->vc_private->flag |= VC_FLAG_AI_FACE;
 		vc_print(dev->index, PRINT_AIFACE,
-			"omx_index = %d, aiface_value_count = %d.\n",
-			vf->omx_index, aiface_info->aiface_value_count);
+			"frame_index = %d, aiface_value_count = %d.\n",
+			vf->frame_index, aiface_info->aiface_value_count);
 	}
 
 	aicolor_info = vc_get_aicolor_info(dev, file_vf);
@@ -4233,9 +4235,9 @@ static void video_composer_task(struct composer_dev *dev)
 		if (is_repeat_vf) {
 			vf->repeat_count++;
 			vc_print(dev->index, PRINT_FENCE,
-				 "repeat =%d, omx_index=%d\n",
+				 "repeat =%d, frame_index=%d\n",
 				 vf->repeat_count,
-				 vf->omx_index);
+				 vf->frame_index);
 		} else {
 			if (is_dec_vf || is_v4l_vf) {
 				vf->vc_private = vc_private_q_pop(dev);
@@ -4289,11 +4291,12 @@ static void video_composer_task(struct composer_dev *dev)
 				vf->type &= (~VIDTYPE_INTERLACE_BOTTOM);
 				vf->type |= VIDTYPE_INTERLACE_TOP;
 				vc_print(dev->index, PRINT_OTHER,
-					"vc put bottom to top, vf->omx_index=%d\n", vf->omx_index);
+					"vc put bottom to top, vf->frame_index=%d\n",
+					vf->frame_index);
 			}
 
 			vc_print(dev->index, PRINT_FENCE,
-				"task: push to ready list: omx_index=%d\n", vf->omx_index);
+				"task: push to ready list: frame_index=%d\n", vf->frame_index);
 			video_display_push_ready(dev, vf);
 			if (!kfifo_put(&dev->ready_q,
 				       (const struct vframe_s *)vf))
@@ -4798,21 +4801,21 @@ static void set_frames_info(struct composer_dev *dev,
 				__func__, vf, vf->vf_ext, div_u64(vf->timestamp, 1000000000));
 
 			if (((reset_drop >> dev->index) & 1) ||
-			    last_index[dev->index][j] > vf->omx_index) {
-				dev->received_new_count = vf->omx_index;
-				dev->received_count = vf->omx_index;
+			    last_index[dev->index][j] > vf->frame_index) {
+				dev->received_new_count = vf->frame_index;
+				dev->received_count = vf->frame_index;
 				vpp_drop_count = 0;
 				reset_drop ^= 1 << dev->index;
 				vc_print(dev->index, PRINT_PATTERN, "drop cnt reset!!\n");
 			}
 
-			if (last_index[dev->index][j] != vf->omx_index) {
+			if (last_index[dev->index][j] != vf->frame_index) {
 				dev->received_new_count++;
-				last_index[dev->index][j] = vf->omx_index;
+				last_index[dev->index][j] = vf->frame_index;
 			}
 
 			if (dev->index == 0) {
-				drop_cnt = vf->omx_index + 1
+				drop_cnt = vf->frame_index + 1
 					    - dev->received_new_count;
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
 				if (drop_cnt == 0)
@@ -4825,13 +4828,13 @@ static void set_frames_info(struct composer_dev *dev,
 #endif
 				receive_new_count = dev->received_new_count;
 				receive_count = dev->received_count + 1;
-				last_omx_index = vf->omx_index;
+				last_frame_index = vf->frame_index;
 			} else if (dev->index == 1) {
-				drop_cnt_pip = vf->omx_index + 1
+				drop_cnt_pip = vf->frame_index + 1
 						- dev->received_new_count;
 				receive_new_count_pip = dev->received_new_count;
 				receive_count_pip = dev->received_count + 1;
-				last_omx_index = vf->omx_index;
+				last_frame_index = vf->frame_index;
 			}
 
 			if (!is_tvp) {
@@ -4842,20 +4845,20 @@ static void set_frames_info(struct composer_dev *dev,
 				vf->source_type == VFRAME_SOURCE_TYPE_CVBS)
 				tv_fence_creat_count++;
 			vc_print(dev->index, PRINT_FENCE | PRINT_PATTERN,
-				 "received_cnt=%lld,new_cnt=%lld,i=%d,z=%d,omx_index=%d, fence_fd=%d, fc_no=%d, index_disp=%d,pts=%lld,vf=%px\n",
+				 "received_cnt=%lld,new_cnt=%lld,i=%d,z=%d,frame_index=%d, fence_fd=%d, fc_no=%d, index_disp=%d,pts=%lld,vf=%px\n",
 				 dev->received_count + 1,
 				 dev->received_new_count,
 				 i,
 				 frames_info->frame_info[j].zorder,
-				 vf->omx_index,
+				 vf->frame_index,
 				 fence_fd,
 				 dev->cur_streamline_val,
 				 vf->index_disp,
 				 vf->pts_us64,
 				 vf);
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
-			ATRACE_COUNTER("video_composer_sf_omx_index", vf->omx_index);
-			ATRACE_COUNTER("video_composer_sf_omx_index", 0);
+			ATRACE_COUNTER("video_composer_sf_frame_index", vf->frame_index);
+			ATRACE_COUNTER("video_composer_sf_frame_index", 0);
 			ATRACE_COUNTER("video_composer_sf_timestamp",
 				div_u64(vf->timestamp, 1000000000));
 			ATRACE_COUNTER("video_composer_sf_timestamp", 0);
@@ -4938,7 +4941,7 @@ static int video_composer_init(struct composer_dev *dev)
 		for (j = 0; j < MXA_LAYER_COUNT; j++)
 			last_index[i][j] = -1;
 	}
-	last_omx_index = -1;
+	last_frame_index = -1;
 	disable_video_layer(dev, 2);
 	video_set_global_output(dev->index, 1);
 
@@ -5716,9 +5719,9 @@ static ssize_t drop_cnt_show(struct class *class,
 			     struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf,
-		"rec_cnt: %d, omx_index: %d, valid_cnt: %d, player_drop_cnt: %d, vpp_drop_cnt: %d, total_drop_cnt: %d\n",
+		"rec_cnt: %d, frame_index: %d, valid_cnt: %d, player_drop_cnt: %d, vpp_drop_cnt: %d, total_drop_cnt: %d\n",
 		receive_count,
-		last_omx_index,
+		last_frame_index,
 		receive_new_count,
 		drop_cnt,
 		vpp_drop_count,
@@ -5730,9 +5733,9 @@ static ssize_t drop_cnt_pip_show(struct class *class,
 				 char *buf)
 {
 	return sprintf(buf,
-		"pip_cnt:%d,omx_index:%d,valid_cnt_pip:%d,drop_cnt_pip:%d\n",
+		"pip_cnt:%d,frame_index:%d,valid_cnt_pip:%d,drop_cnt_pip:%d\n",
 		receive_count_pip,
-		last_omx_index,
+		last_frame_index,
 		receive_new_count_pip,
 		drop_cnt_pip);
 }
@@ -6298,6 +6301,20 @@ static struct attribute *video_composer_class_attrs[] = {
 
 ATTRIBUTE_GROUPS(video_composer_class);
 
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+struct mediaproxy_info_t mediaproxy_display_info[] = {
+	{
+		.k_producer_name = "video_composer0"
+	},
+	{
+		.k_producer_name = "video_composer1"
+	},
+	{
+		.k_producer_name = "video_composer2"
+	},
+};
+#endif
+
 static struct class video_composer_class = {
 	.name = "video_composer",
 	.class_groups = video_composer_class_groups,
@@ -6344,6 +6361,14 @@ static int video_composer_probe(struct platform_device *pdev)
 		st->class_dev = device_create(&video_composer_class, NULL,
 					      MKDEV(VIDEO_COMPOSER_MAJOR, i),
 					      NULL, ports[i].name);
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+		if (!mediaproxy_display_info[i].k_producer_session) {
+			media_proxy_produce_init(&mediaproxy_display_info[i].k_producer_session,
+				mediaproxy_display_info[i].k_producer_name,
+				MEDIA_VIDEO_METRICS_FRAME_TOGGLE_INFO |
+				MEDIA_VIDEO_METRICS_FRAME_SIGNAFENCE_INFO);
+		}
+#endif
 	}
 	pr_debug("%s num=%d\n", __func__, video_composer_instance_num);
 	return ret;
@@ -6393,6 +6418,15 @@ int __init video_composer_module_init(void)
 
 void __exit video_composer_module_exit(void)
 {
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+	int i;
+
+	for (i = 0; i < video_composer_instance_num; i++) {
+		if (mediaproxy_display_info[i].k_producer_session)
+			media_proxy_produce_deinit(mediaproxy_display_info[i].k_producer_session);
+	}
+#endif
+
 	platform_driver_unregister(&video_composer_driver);
 }
 

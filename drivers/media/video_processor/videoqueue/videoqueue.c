@@ -443,7 +443,7 @@ static int videoqueue_put_vf(struct video_queue_dev *dev, struct file *vf_file)
 #endif
 		vf = private_data->vf_p;
 		if (vf) {
-			vq_print(dev->inst, P_OTHER, "put: omx_index=%d\n", vf->omx_index);
+			vq_print(dev->inst, P_OTHER, "put: frame_index=%d\n", vf->frame_index);
 			dev->total_put_count++;
 			if (vf->type & VIDTYPE_DI_PW)
 				dev->di_put_count++;
@@ -745,7 +745,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 
 	if (!dev->game_mode) {
 		vq_print(dev->inst, P_SYNC,
-			"omx_index=%d, pts=%lld, pcr=%lld, pcr_margin=%lld.\n",
+			"frame_index=%d, pts=%lld, pcr=%lld, pcr_margin=%lld.\n",
 			dev->frame_num, pts, dev->pcr_time, pcr_margin);
 		if (pts + pcr_margin <= dev->pcr_time) {
 			vq_print(dev->inst, P_SYNC, "need update.\n");
@@ -785,15 +785,15 @@ static int do_file_thread(struct video_queue_dev *dev)
 	if (vf->type & VIDTYPE_DI_PW)
 		dev->di_get_count++;
 
-	vf->omx_index = dev->frame_num++;
+	vf->frame_index = dev->frame_num++;
 
 	if (dev->dump_index != dev->dump_index_last) {
 		dev->dump_index_last = dev->dump_index;
 		dump_vf(dev->inst, vf);
 		dump_hf(dev->inst, vf);
 	}
-	vq_print(dev->inst, P_OTHER, "get: omx_index=%d, buf_avail_num=%d,delay=%lld",
-		vf->omx_index, states.buf_avail_num, dev->vframe_get_delay);
+	vq_print(dev->inst, P_OTHER, "get: frame_index=%d, buf_avail_num=%d,delay=%lld",
+		vf->frame_index, states.buf_avail_num, dev->vframe_get_delay);
 	private_data->vf = *vf;
 	private_data->vf_p = vf;
 	if (dev->game_mode) {
@@ -806,9 +806,9 @@ static int do_file_thread(struct video_queue_dev *dev)
 	v4lvideo_import_sei_data(vf, &private_data->vf, dev->provider_name);
 #endif
 
-	vsync_diff = display_vsync_no - vf->omx_index;
-	vq_print(dev->inst, P_SYNC, "omx_index=%d, dis_vsync=%d, diff=%d\n",
-		vf->omx_index, display_vsync_no, vsync_diff);
+	vsync_diff = display_vsync_no - vf->frame_index;
+	vq_print(dev->inst, P_SYNC, "frame_index=%d, dis_vsync=%d, diff=%d\n",
+		vf->frame_index, display_vsync_no, vsync_diff);
 
 	if (dev->di_backend_en) {
 		ret = buf_mgr_dq_checkin(dev->dp_buf_mgr, ready_file);
@@ -832,7 +832,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 		dev->total_put_count++;
 		if (vf->type & VIDTYPE_DI_PW)
 			dev->di_put_count++;
-		vq_print(dev->inst, P_OTHER, "put: omx_index=%d\n", vf->omx_index);
+		vq_print(dev->inst, P_OTHER, "put: frame_index=%d\n", vf->frame_index);
 
 		ret = vf_put(vf, dev->vf_receiver_name);
 		if (ret) {
@@ -856,7 +856,8 @@ static int do_file_thread(struct video_queue_dev *dev)
 	}
 
 	dev->queue_count++;
-	vq_print(dev->inst, P_OTHER, "q_buf: omx_index=%d, file=%px\n", vf->omx_index, ready_file);
+	vq_print(dev->inst, P_OTHER, "q_buf: frame_index=%d, file=%px\n",
+		vf->frame_index, ready_file);
 	while (1) {
 		if (dev->queue_count <= FILE_CNT - UNDEQUEU_COUNT)
 			break;
@@ -907,7 +908,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 
 	while (dev->sync_need_drop && dev->sync_need_drop_count) {
 		videoqueue_drop_vf(dev);
-		vq_print(dev->inst, P_AVSYNC, "drop omx_index=%d\n", dev->frame_num - 1);
+		vq_print(dev->inst, P_AVSYNC, "drop frame_index=%d\n", dev->frame_num - 1);
 		dev->sync_need_drop_count--;
 	}
 

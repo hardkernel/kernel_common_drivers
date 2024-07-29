@@ -27,7 +27,7 @@ struct uvm_aiface_info {
 	s32 nn_input_frame_height;
 	s32 nn_input_frame_format;
 	s32 nn_status;
-	s32 omx_index;
+	s32 frame_index;
 	void *dma_buf_addr;
 };
 

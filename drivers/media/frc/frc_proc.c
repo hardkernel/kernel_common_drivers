@@ -665,7 +665,7 @@ int frc_update_in_sts(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts,
 	frc_in_sts->signal_type = vf->signal_type;
 	frc_in_sts->source_type = vf->source_type;
 	frc_in_sts->vf = vf;
-	frc_in_sts->vf_index = vf->omx_index;
+	frc_in_sts->vf_index = vf->frame_index;
 
 	if (frc_in_sts->duration > 0 && devp->in_out_ratio != FRC_RATIO_1_1) {
 		pfw_data->frc_top_type.frc_in_frm_rate =

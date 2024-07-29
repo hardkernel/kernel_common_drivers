@@ -162,8 +162,9 @@ int attach_lcevc_hook_mod_info(int shared_fd,
 	if (vf) {
 		vf->type_ext |= VIDTYPE_EXT_LCEVC;
 		lcevc_print(LCEVC_LOG_DEBUG,
-			"%s add VIDTYPE_EXT_LCEVC for vf=%px, omx_index=%d, timestamp=%llu, y_addr=%lx\n",
-			__func__, vf, vf->omx_index, vf->timestamp, vf->canvas0_config[0].phy_addr);
+			"%s add TYPE_LCEVC for vf=%px, frame_index=%d, timestamp=%llu, y_addr=%lx\n",
+			__func__, vf, vf->frame_index,
+			vf->timestamp, vf->canvas0_config[0].phy_addr);
 	} else {
 		lcevc_print(LCEVC_LOG_ERROR,
 			"%s: vf is NULL\n", __func__);

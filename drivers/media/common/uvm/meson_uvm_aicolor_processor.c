@@ -435,13 +435,13 @@ int attach_aicolor_hook_mod_info(int shared_fd,
 		dmabuf_last = dmabuf;
 	}
 	if (vf)
-		aicolor_info->omx_index = vf->omx_index;
+		aicolor_info->frame_index = vf->frame_index;
 	else
-		aicolor_info->omx_index = -1;
+		aicolor_info->frame_index = -1;
 
 	if (aicolor_info->need_do_aicolor)
-		aicolor_print(PRINT_OTHER, "nn_aicolor=%px, omx_index=%d\n",
-			nn_aicolor, aicolor_info->omx_index);
+		aicolor_print(PRINT_OTHER, "nn_aicolor=%px, frame_index=%d\n",
+			nn_aicolor, aicolor_info->frame_index);
 
 	if (attached)
 		return 0;
@@ -471,8 +471,8 @@ int aicolor_setinfo(void *arg, char *buf)
 		for (i = 0; i < AI_COLOR_COUNT; i++) {
 			vf_aicolor->color_value[i] = aicolor_info->color_value[i];
 			aicolor_print(PRINT_OTHER,
-				"NN_DONE: omx_index=%d: i=%d: value=%d.\n",
-				aicolor_info->omx_index,
+				"NN_DONE: frame_index=%d: i=%d: value=%d.\n",
+				aicolor_info->frame_index,
 				i,
 				vf_aicolor->color_value[i]);
 		}
@@ -481,8 +481,8 @@ int aicolor_setinfo(void *arg, char *buf)
 	/*this must at the last line of this function*/
 	vf_aicolor->nn_status = aicolor_info->nn_status;
 
-	aicolor_print(PRINT_OTHER, "%s: omx_index=%d, status=%d\n",
-		__func__, aicolor_info->omx_index, aicolor_info->nn_status);
+	aicolor_print(PRINT_OTHER, "%s: frame_index=%d, status=%d\n",
+		__func__, aicolor_info->frame_index, aicolor_info->nn_status);
 	return 0;
 }
 
@@ -617,7 +617,7 @@ int aicolor_getinfo(void *arg, char *buf)
 		memset(&output, 0, sizeof(struct ge2d_output_t));
 		output.width = aicolor_info->nn_input_frame_width;
 		output.height = aicolor_info->nn_input_frame_height;
-		aicolor_info->omx_index = vf->omx_index;
+		aicolor_info->frame_index = vf->frame_index;
 		aicolor_info->ge2d_out_phy_addr = (ulong)phy_addr;
 
 		output.format = GE2D_FORMAT_S24_BGR;

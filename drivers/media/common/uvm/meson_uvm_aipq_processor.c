@@ -123,7 +123,7 @@ int aipq_vf_set_value(struct uvm_aipq_info *aipq_info, bool enable_aipq)
 		else if (aipq_info->nn_do_aipq_type == NN_USE_GPU)
 			vf->aipq_flag |= AIPQ_FLAG_VERSION_2;
 		aipq_print(PRINT_OTHER, "%s: omx->index: %d, vf: %px, vf_ext: %px.\n",
-			__func__, vf->omx_index, vf, vf->vf_ext);
+			__func__, vf->frame_index, vf, vf->vf_ext);
 
 		vf->ai_pq_enable = enable_aipq;
 		di_flag = vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME;
@@ -143,7 +143,7 @@ int aipq_vf_set_value(struct uvm_aipq_info *aipq_info, bool enable_aipq)
 			if (!(dma_has_di_vf && vf->vf_ext == dma_di_vf)) {
 				aipq_print(PRINT_ERROR,
 					"di vf err:dmabuf=%px,uhmod=%px,vf=%px,vf_ext=%px,dma_di_vf=%px,index=%d\n",
-					dmabuf, uhmod, vf, vf->vf_ext, dma_di_vf, vf->omx_index);
+					dmabuf, uhmod, vf, vf->vf_ext, dma_di_vf, vf->frame_index);
 				di_flag = 0;
 			}
 		}
@@ -239,8 +239,8 @@ struct vframe_s *aipq_get_dw_vf(struct uvm_aipq_info *aipq_info)
 				__func__, dma_has_di_vf, dma_di_vf);
 			if (!(dma_has_di_vf && di_vf == dma_di_vf)) {
 				aipq_print(PRINT_ERROR,
-					"di vf err: dmabuf=%px, uhmod=%px, vf=%px, di_vf=%px, dma_di_vf=%px, omx_index=%d\n",
-					dmabuf, uhmod, vf, di_vf, dma_di_vf, vf->omx_index);
+					"di vf err: dmabuf=%px, uhmod=%px, vf=%px, di_vf=%px, dma_di_vf=%px, frame_index=%d\n",
+					dmabuf, uhmod, vf, di_vf, dma_di_vf, vf->frame_index);
 				di_vf = NULL;
 			}
 		}
@@ -284,7 +284,7 @@ struct vframe_s *aipq_get_dw_vf(struct uvm_aipq_info *aipq_info)
 		return NULL;
 	}
 	aipq_print(PRINT_OTHER, "%s: omx->index: %d, vf: %px, vf_ext: %px.\n",
-		__func__, vf->omx_index, vf, vf->vf_ext);
+		__func__, vf->frame_index, vf, vf->vf_ext);
 	dma_buf_put(dmabuf);
 	return vf;
 }
@@ -815,7 +815,7 @@ int aipq_getinfo(void *arg, char *buf)
 			aipq_print(PRINT_ERROR, "ge2d output RGB24 err\n");
 			return -EINVAL;
 		}
-		aipq_info->omx_index = vf->omx_index;
+		aipq_info->frame_index = vf->frame_index;
 		do_gettimeofday(&end_time);
 		cost_time = (1000000 * (end_time.tv_sec - begin_time.tv_sec)
 			+ (end_time.tv_usec - begin_time.tv_usec)) / 1000;

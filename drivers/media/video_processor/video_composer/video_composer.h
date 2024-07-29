@@ -310,6 +310,11 @@ struct capability_info_t {
 	u32 reserved[10];
 };
 
+struct mediaproxy_info_t {
+	void *k_producer_session;
+	char k_producer_name[32];
+};
+
 #define VIDEO_COMPOSER_IOC_MAGIC  'V'
 #define VIDEO_COMPOSER_IOCTL_SET_FRAMES		\
 	_IOW(VIDEO_COMPOSER_IOC_MAGIC, 0x00, struct frames_info_t)
@@ -337,5 +342,11 @@ void debug_vc_print_flag(const char *module, int debug_flags);
 void debug_vc_transform(const char *module, int debug_flags);
 void debug_vc_force_composer(const char *module, int debug_flags);
 void debug_vc_get_count(const char *module, int debug_flags);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_PROXY
+int media_proxy_produce_deinit(void *handle);
+int media_proxy_produce_init(void **handle, char *modulename, u32 msg_type);
+int notify_msg_to_mediaproxy(void *handle, int num, void *data);
+#endif
 
 #endif /* VIDEO_COMPOSER_H */

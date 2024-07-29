@@ -64,7 +64,7 @@ struct frame_info_t {
 	u32 is_repeat;
 	u32 out_fence_fd;
 	u32 is_i;
-	u32 omx_index;
+	u32 frame_index;
 	u32 need_bypass;
 	u32 is_tvp;
 	u32 transform;

@@ -47,7 +47,7 @@ struct vframe_tb_s {
 	u32 width;
 	u32 height;
 	u32 type;
-	u32 omx_index;
+	u32 frame_index;
 };
 
 int dim_tb_buffer_init(unsigned int ch);

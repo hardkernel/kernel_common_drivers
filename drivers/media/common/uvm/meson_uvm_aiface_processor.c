@@ -412,13 +412,13 @@ int attach_aiface_hook_mod_info(int shared_fd,
 	aiface_info->dma_buf_addr = dmabuf;
 
 	if (vf)
-		aiface_info->omx_index = vf->omx_index;
+		aiface_info->frame_index = vf->frame_index;
 	else
-		aiface_info->omx_index = -1;
+		aiface_info->frame_index = -1;
 
 	if (enable_aiface)
-		aiface_print(PRINT_OTHER, "nn_aiface=%px, omx_index=%d\n",
-			nn_aiface, aiface_info->omx_index);
+		aiface_print(PRINT_OTHER, "nn_aiface=%px, frame_index=%d\n",
+			nn_aiface, aiface_info->frame_index);
 
 	if (attached)
 		return 0;
@@ -457,8 +457,8 @@ int aiface_setinfo(void *arg, char *buf)
 			vf_aiface->face_value[i].h = aiface_info->face_value[i].h;
 			vf_aiface->face_value[i].score = aiface_info->face_value[i].score;
 			aiface_print(PRINT_OTHER,
-				"NN_DONE: omx_index=%d: i=%d: x=%d, y=%d, w=%d, h=%d, score=%d\n",
-				aiface_info->omx_index,
+				"NN_DONE: frame_index=%d: i=%d: x=%d, y=%d, w=%d, h=%d, score=%d\n",
+				aiface_info->frame_index,
 				i,
 				vf_aiface->face_value[i].x,
 				vf_aiface->face_value[i].y,
@@ -476,8 +476,8 @@ int aiface_setinfo(void *arg, char *buf)
 	vf_aiface->nn_frame_height =  aiface_info->nn_input_frame_height;
 	vf_aiface->nn_status = aiface_info->nn_status;
 
-	aiface_print(PRINT_OTHER, "%s: omx_index=%d, status=%d\n",
-		__func__, aiface_info->omx_index, aiface_info->nn_status);
+	aiface_print(PRINT_OTHER, "%s: frame_index=%d, status=%d\n",
+		__func__, aiface_info->frame_index, aiface_info->nn_status);
 	return 0;
 }
 
@@ -614,11 +614,11 @@ int aiface_getinfo(void *arg, char *buf)
 		memset(&output, 0, sizeof(struct ge2d_output_t));
 		output.width = aiface_info->nn_input_frame_width;
 		output.height = aiface_info->nn_input_frame_height;
-		aiface_info->omx_index = vf->omx_index;
+		aiface_info->frame_index = vf->frame_index;
 		aiface_info->buf_phy_addr = (ulong)phy_addr;
 		aiface_print(PRINT_OTHER,
-			"output.width=%d, output.height=%d, addr=%lld, aiface_fd=%d, omx_index=%d\n",
-			output.width, output.height, (ulong)phy_addr, aiface_fd, vf->omx_index);
+			"output.width=%d, output.height=%d, addr=%lld, aiface_fd=%d, frame_index=%d\n",
+			output.width, output.height, (ulong)phy_addr, aiface_fd, vf->frame_index);
 
 		if (aiface_info->nn_input_frame_format == 1)
 			output.format = GE2D_FORMAT_S24_BGR;

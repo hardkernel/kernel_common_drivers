@@ -3081,7 +3081,7 @@ int frc_set_n2m_from_vc(struct vframe_s *vf)
 	if (!vf) {
 		return -1;
 	} else if (!vf->vc_private) {
-		PR_FRC("omx_index = %d   vf->vc_private is NULL\n", vf->omx_index);
+		PR_FRC("frame_index = %d   vf->vc_private is NULL\n", vf->frame_index);
 		return -1;
 	}
 

@@ -783,7 +783,7 @@ int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	seq_printf(seq, "%-15s:0x%px\n", "addr", pvfm);
 	seq_printf(seq, "%-15s:%d\n", "index", pvfm->index);
 	seq_printf(seq, "%-15s:%d\n", "index_disp", pvfm->index_disp);
-	seq_printf(seq, "%-15s:%d\n", "omx_index", pvfm->omx_index);
+	seq_printf(seq, "%-15s:%d\n", "frame_index", pvfm->frame_index);
 	seq_printf(seq, "%-15s:0x%x\n", "type", pvfm->type);
 	seq_printf(seq, "%-15s:0x%x\n", "type_backup", pvfm->type_backup);
 	seq_printf(seq, "%-15s:0x%x\n", "type_original", pvfm->type_original);
@@ -942,7 +942,7 @@ int print_vframe(struct vframe_s *pvfm)
 	PR_INF("%-15s:0x%px\n", "addr", pvfm);
 	PR_INF("%-15s:%d\n", "index", pvfm->index);
 	PR_INF("%-15s:%d\n", "index_disp", pvfm->index_disp);
-	PR_INF("%-15s:%d\n", "omx_index", pvfm->omx_index);
+	PR_INF("%-15s:%d\n", "frame_index", pvfm->frame_index);
 	PR_INF("%-15s:0x%x\n", "type", pvfm->type);
 	PR_INF("%-15s:0x%x\n", "type_backup", pvfm->type_backup);
 	PR_INF("%-15s:0x%x\n", "type_original", pvfm->type_original);

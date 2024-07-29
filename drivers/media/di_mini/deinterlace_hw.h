@@ -234,7 +234,7 @@ struct dim_fmt_s {
 	unsigned int src_type;	/*copy*/
 	unsigned int trans_fmt; /*copy*/
 	unsigned int sig_fmt;	/*copy*//*use for mtn*/
-	unsigned int omx_index; /*copy omx_index or other */
+	unsigned int frame_index; /*copy frame_index or other */
 	u64	time_get;	/* debug only */
 };
 
