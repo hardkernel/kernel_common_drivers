@@ -556,6 +556,7 @@ static const struct meson_vpu_data vpu_s6_data = {
 	.video_ops = &video_ops,
 	.osd_formats = &osd_formats_s7d,
 	.video_formats = &video_formats,
+	.policy = s7d_policy,
 	.has_gfcd = 1,
 };
 #endif
