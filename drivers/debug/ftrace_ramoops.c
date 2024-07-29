@@ -431,35 +431,47 @@ static DEFINE_PER_CPU(unsigned long, irqflag);
 static void __nocfi rwmmio_write_hook(void *data, unsigned long caller_addr,
 		u64 val, u8 width, volatile void __iomem *addr)
 {
-	unsigned int cpu = get_cpu();
+	if (!ramoops_ftrace_en)
+		return;
 
-	pstore_ftrace_io_wr((unsigned long)addr, val, per_cpu(irqflag, cpu));
+	preempt_iotrace_enter();
+	pstore_ftrace_io_wr((unsigned long)addr, val, per_cpu(irqflag, raw_smp_processor_id()));
 }
 
 static void __nocfi rwmmio_post_write_hook(void *data, unsigned long caller_addr,
 		u64 val, u8 width, volatile void __iomem *addr)
 {
-	unsigned int cpu = raw_smp_processor_id();
+	if (!ramoops_ftrace_en)
+		return;
 
-	pstore_ftrace_io_wr_end((unsigned long)addr, val, per_cpu(irqflag, cpu));
-	put_cpu();
+	if (unlikely(!iotrace_count()))
+		return;
+
+	pstore_ftrace_io_wr_end((unsigned long)addr, val, per_cpu(irqflag, raw_smp_processor_id()));
+	preempt_iotrace_exit();
 }
 
 static void __nocfi rwmmio_read_hook(void *data, unsigned long caller_addr,
 		u8 width, const volatile void __iomem *addr)
 {
-	unsigned int cpu = get_cpu();
+	if (!ramoops_ftrace_en)
+		return;
 
-	pstore_ftrace_io_rd((unsigned long)addr, per_cpu(irqflag, cpu));
+	preempt_iotrace_enter();
+	pstore_ftrace_io_rd((unsigned long)addr, per_cpu(irqflag, raw_smp_processor_id()));
 }
 
 static void __nocfi rwmmio_post_read_hook(void *data, unsigned long caller_addr,
 		u64 val, u8 width, const volatile void __iomem *addr)
 {
-	unsigned int cpu = raw_smp_processor_id();
+	if (!ramoops_ftrace_en)
+		return;
 
-	pstore_ftrace_io_rd_end((unsigned long)addr, val, per_cpu(irqflag, cpu));
-	put_cpu();
+	if (unlikely(!iotrace_count()))
+		return;
+
+	pstore_ftrace_io_rd_end((unsigned long)addr, val, per_cpu(irqflag, raw_smp_processor_id()));
+	preempt_iotrace_exit();
 }
 #endif
 
