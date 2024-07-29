@@ -4006,14 +4006,14 @@ static int dim_probe(struct platform_device *pdev)
 
 	//di_pr_info("%s allocate rdma channel %d.\n", __func__,
 	//	   di_devp->rdma_handle);
-	if (DIM_IS_IC(S7D))
+	if (DIM_IS_IC(S7D) || DIM_IS_IC(S5))
 		dimp_set(edi_mp_clock_low_ratio, 18000000);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 		dim_get_vpu_clkb(&pdev->dev, di_devp);
 		#ifdef CLK_TREE_SUPPORT
 		clk_prepare_enable(di_devp->vpu_clkb);
-		if (DIM_IS_IC(S7D)) {
+		if (DIM_IS_IC(S7D) || DIM_IS_IC(S5)) {
 			if (dimp_get(edi_mp_clock_low_ratio)) {
 				clk_set_rate(di_devp->vpu_clkb,
 					dimp_get(edi_mp_clock_low_ratio));
@@ -4320,7 +4320,8 @@ static int di_suspend(struct device *dev)
 		   DIM_IS_IC(T5D)	||
 		   DIM_IS_IC(T3)	||
 		   DIM_IS_IC(T3X)	||
-		   DIM_IS_IC(S7D)) {
+		   DIM_IS_IC(S7D)	||
+		   DIM_IS_IC(S5)) {
 	#ifdef CLK_TREE_SUPPORT
 			if (dimp_get(edi_mp_clock_low_ratio)) {
 				clk_set_rate(di_devp->vpu_clkb,
