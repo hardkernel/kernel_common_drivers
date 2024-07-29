@@ -592,6 +592,12 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 	}
 
 	if (lcd_fr_is_fixed(pdrv)) {
+		if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0) {
+			//workaround for drm resume
+			aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, (void *)pdrv);
+			pdrv->status |= LCD_STATUS_PREPARE;
+		}
+		pdrv->status |= LCD_STATUS_VMODE_ACTIVE;
 		LCDPR("[%d]: fixed timing, exit vmode change\n", pdrv->index);
 		return -1;
 	}
