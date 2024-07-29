@@ -1497,6 +1497,8 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		private_data->file = file_vf;
 		omx_index = vf->omx_index;
 
+		out_fence_fd = dp_timeline_create_fence(dev);
+
 		if (!kfifo_put(&dev->file_wait_q, dmabuf))
 			dp_print(dev->index, PRINT_ERROR, "put file_wait fail\n");
 
@@ -1510,8 +1512,6 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 			dp_print(dev->index, PRINT_ERROR, "put ready fail\n");
 
 		wake_up_interruptible(&dev->wq);
-
-		out_fence_fd = dp_timeline_create_fence(dev);
 	}
 
 	frame_info->out_fence_fd = out_fence_fd;
