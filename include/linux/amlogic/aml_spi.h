@@ -13,6 +13,7 @@ enum {
 };
 
 struct spicc_controller_data {
+	unsigned	use_dirspi:1;
 	unsigned	ccxfer_en:1;
 	unsigned	timing_en:1;
 	unsigned	ss_leading_gap:4;
