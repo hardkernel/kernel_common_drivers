@@ -706,7 +706,7 @@ static int lcd_info_adv_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		len += snprintf((buf + len), n, "%s: debug_info is null\n", __func__);
 		return len;
 	}
-	lcd_debug_info->interface_print(pdrv, (buf + len), (len + offset));
+	len += lcd_debug_info->interface_print(pdrv, (buf + len), (len + offset));
 
 	/* phy_attr */
 	switch (pdrv->config.basic.lcd_type) {
