@@ -48,6 +48,10 @@
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #endif
 
+#ifdef CONFIG_AMLOGIC_HDMITX
+#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
+#endif
+
 #define DRV_NAME "EARC"
 
 #define EARCRX_DEFAULT_LATENCY 100
@@ -225,6 +229,7 @@ struct earc {
 	bool stream_stable;
 	struct delayed_work rx_stable_work;
 	struct work_struct earctx_reg_init_work;
+	u8 bit_status_check;
 };
 
 static struct earc *s_earc;
@@ -620,6 +625,7 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 	if (p_earc->rx_status0 & INT_EARCRX_CMDC_EARC) {
 		u8 latency = EARCRX_DEFAULT_LATENCY;
 
+		p_earc->bit_status_check = 0x81;
 		earcrx_cmdc_set_latency(p_earc->rx_cmdc_map, &latency);
 		earcrx_cmdc_set_cds(p_earc->rx_cmdc_map, p_earc->rx_cds_data);
 		earcrx_update_attend_event(p_earc,
@@ -631,8 +637,23 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 	if (p_earc->rx_status0 & INT_EARCRX_CMDC_LOSTHB)
 		dev_info(p_earc->dev, "EARCRX_CMDC_LOSTHB\n");
 
-	if (p_earc->rx_status0 & INT_EARCRX_CMDC_STATUS_CH)
-		dev_info(p_earc->dev, "EARCRX_CMDC_STATUS_CH\n");
+	if (p_earc->rx_status0 & INT_EARCRX_CMDC_STATUS_CH) {
+		if (p_earc->rx_status0 & INT_EARCRX_CMDC_HB_STATUS) {
+			u8 status = earcrx_cmdc_get_tx_stat_bits(p_earc->rx_cmdc_map);
+
+			/* bit 1: HDMI_HPD, bit 7: EARC_VALID */
+			#ifdef CONFIG_AMLOGIC_HDMITX
+			if (status == 0x81 && p_earc->bit_status_check == 0x80) {
+				hdmitx_ext_plugin_handler();
+				dev_info(p_earc->dev, "hdmitx ext plugin handler\n");
+			}
+			#endif
+
+			p_earc->bit_status_check = status;
+		}
+
+		dev_dbg(p_earc->dev, "EARCRX_CMDC_STATUS_CH\n");
+	}
 
 	spin_lock_irqsave(&p_earc->rx_lock, flags);
 	if (p_earc->rx_dmac_clk_on) {
@@ -655,8 +676,6 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 							p_earc->chipinfo->rx_pll_new);
 		}
 
-		if (p_earc->rx_status0 & INT_EARCRX_CMDC_HB_STATUS)
-			dev_dbg(p_earc->dev, "EARCRX_CMDC_HB_STATUS\n");
 		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_C_CHST_MUTE_CLR) {
 			mmio_update_bits(p_earc->rx_dmac_map, EARCRX_ERR_CORRECT_CTRL0,
 				0x3,
