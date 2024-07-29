@@ -764,6 +764,7 @@ void rx_pkt_initial(u8 port)
 	memset(&rx_pkt[i].mpegs_info, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt[i].ntscvbi_info, 0, sizeof(struct pd_infoframe_s));
 	if (!(rxpktsts[port].pkt_op_flag & PKT_OP_DRM)) {
+		rx[port].drm_dv_flag = DV_NULL;
 		rx_pkt_clr_attach_drm(port);
 		memset(&rx_pkt[i].drm_info, 0, sizeof(struct pd_infoframe_s));
 		tvin_update_vdin_prop(rx_get_port_type(port), PKT_TYPE_INFOFRAME_DRM);
@@ -1340,6 +1341,80 @@ bool rx_chk_drm_valid(u8 port)
 	if (!flag && (log_level & PACKET_LOG))
 		rx_pr("invalid drm pkt\n");
 	return flag;
+}
+
+/* refer to dolby version unique drm spec Table-6 */
+bool rx_is_dv_unique_drm(struct drm_infoframe_st *drm_pkt)
+{
+	bool ret = true;
+	int index_r, index_g, index_b;
+	int primaries_x[3], primaries_y[3];
+
+	if (drm_pkt->des_u.tp1.eotf != EOTF_SMPTE_ST_2048 || drm_pkt->des_u.tp1.meta_des_id)
+		return false;
+
+	if (drm_pkt->des_u.tp1.dis_pri_x0 > drm_pkt->des_u.tp1.dis_pri_x1 &&
+		drm_pkt->des_u.tp1.dis_pri_x0 > drm_pkt->des_u.tp1.dis_pri_x2)
+		index_r = 0;
+	else if (drm_pkt->des_u.tp1.dis_pri_x1 > drm_pkt->des_u.tp1.dis_pri_x2)
+		index_r = 1;
+	else
+		index_r = 2;
+
+	if (drm_pkt->des_u.tp1.dis_pri_y0 > drm_pkt->des_u.tp1.dis_pri_y1 &&
+		drm_pkt->des_u.tp1.dis_pri_y0 > drm_pkt->des_u.tp1.dis_pri_y2)
+		index_g = 0;
+	else if (drm_pkt->des_u.tp1.dis_pri_y1 > drm_pkt->des_u.tp1.dis_pri_y2)
+		index_g = 1;
+	else
+		index_g = 2;
+
+	if (index_r == 0 && index_g == 1)
+		index_b = 2;
+	else if (index_r == 0 && index_g == 2)
+		index_b = 1;
+	else if (index_r == 1 && index_g == 0)
+		index_b = 2;
+	else if (index_r == 1 && index_g == 2)
+		index_b = 0;
+	else if (index_r == 2 && index_g == 0)
+		index_b = 1;
+	else
+		index_b = 0;
+
+	primaries_x[0] = drm_pkt->des_u.tp1.dis_pri_x0;
+	primaries_x[1] = drm_pkt->des_u.tp1.dis_pri_x1;
+	primaries_x[2] = drm_pkt->des_u.tp1.dis_pri_x2;
+	primaries_y[0] = drm_pkt->des_u.tp1.dis_pri_y0;
+	primaries_y[1] = drm_pkt->des_u.tp1.dis_pri_y1;
+	primaries_y[2] = drm_pkt->des_u.tp1.dis_pri_y2;
+
+	if (drm_pkt->des_u.tp1.max_dislum == 0)
+		ret = false;
+	else if ((primaries_x[index_r] & 0xFFFE) != 0x8A26)
+		ret = false;
+	else if ((primaries_y[index_r] & 0xFFFE) != 0x3976)
+		ret = false;
+	else if ((primaries_x[index_g] & 0xFFFE) != 0x2108)
+		ret = false;
+	else if ((primaries_y[index_g] & 0xFFFE) != 0x9B7E)
+		ret = false;
+	else if ((primaries_x[index_b] & 0xFFFE) != 0x19FA)
+		ret = false;
+	else if ((primaries_y[index_b] & 0xFFFE) != 0x0846)
+		ret = false;
+	else if ((drm_pkt->des_u.tp1.white_points_x & 0xFE) != 0xEE)
+		ret = false;
+	else if ((drm_pkt->des_u.tp1.white_points_y & 0xFE) != 0x30)
+		ret = false;
+	else if ((drm_pkt->des_u.tp1.max_light_lvl & 0x00FE) != 0xFE)
+		ret = false;
+	else if ((drm_pkt->des_u.tp1.max_fa_light_lvl & 0x00FE) != 0xAA)
+		ret = false;
+	else
+		ret = true;
+
+	return ret;
 }
 
 /*  version2.86 ieee-0x00d046, length 0x1B

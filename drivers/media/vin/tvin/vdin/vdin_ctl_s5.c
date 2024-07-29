@@ -2286,7 +2286,7 @@ void vdin_set_bitdepth_s5(struct vdin_dev_s *devp)
 		 * change default to 10bit for 8in8out detail maybe lost
 		 */
 		if (vdin_is_convert_to_444(devp->format_convert) &&
-		    vdin_is_4k(devp)) {
+		    vdin_is_4k(devp) && !vdin_is_dolby_signal_in(devp)) {
 			bit_dep = VDIN_COLOR_DEEPS_8BIT;
 		} else if (vdin_is_convert_to_nv21(devp->format_convert)) {
 			/*For chips other than T3X, when NV21 is output, source_bitdepth is 8*/

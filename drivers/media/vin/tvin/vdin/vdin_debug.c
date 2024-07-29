@@ -1239,7 +1239,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 				devp->afbce_info->frame_body_size);
 		}
 	}
-	pr_info("dolby_input :  %d\n", devp->dv.dolby_input);
+	pr_info("dolby_input : %d,unique:%d\n", devp->dv.dolby_input,
+		devp->prop.dv_unique_drm_flag);
 	/*if (devp->cma_config_en != 1 || !(devp->cma_config_flag & 0x100))*/
 	/*	pr_info("dolby_mem_start = %ld, dolby_mem_size = %d\n",*/
 	/*		(devp->mem_start +*/
@@ -3843,10 +3844,10 @@ start_chk:
 	} else if (!strcmp(parm[0], "bypass_tunnel")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			if (temp)
-				devp->bypass_tunnel = true;
+				devp->debug.force_bypass_tunnel = true;
 			else
-				devp->bypass_tunnel = false;
-			pr_info("bypass_tunnel:%d\n", devp->bypass_tunnel);
+				devp->debug.force_bypass_tunnel = false;
+			pr_info("force_bypass_tunnel:%d\n", devp->debug.force_bypass_tunnel);
 		}
 	} else if (!strcmp(parm[0], "bypass_filter_vsync")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0))

@@ -1214,7 +1214,10 @@ static void vdin_start_param_init(struct vdin_dev_s *devp)
 		memset(&devp->dv_hw5, 0, sizeof(devp->dv_hw5));
 
 	devp->afbce_flag = devp->dts_config.afbce_flag_cfg;
-	devp->bypass_tunnel = false;
+	if (devp->debug.force_bypass_tunnel)
+		devp->bypass_tunnel = true;
+	else
+		devp->bypass_tunnel = false;
 	devp->debug.slt_test.vf_check_result = false;
 	devp->debug.slt_test.vf_pass_cnt = 0;
 
@@ -3568,7 +3571,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		prop->pre_he = prop->he;
 		devp->cut_window_cfg = 0;
 	}
-	if (devp->auto_cut_window_en == 1)
+	if (devp->auto_cut_window_en && !vdin_is_afbce_enabled(devp))
 		curr_wr_vf->width = devp->h_active;
 
 	dec_ops = devp->frontend->dec_ops;

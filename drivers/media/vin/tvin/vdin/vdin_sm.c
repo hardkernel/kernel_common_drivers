@@ -554,7 +554,7 @@ void vdin_auto_de_handler(struct vdin_dev_s *devp)
 		return;
 	prop = &devp->prop;
 	sm_ops = devp->frontend->sm_ops;
-	if ((devp->flags & VDIN_FLAG_DEC_STARTED) &&
+	if ((devp->flags & VDIN_FLAG_DEC_STARTED) && !vdin_is_afbce_enabled(devp) &&
 	    sm_ops->get_sig_property && !devp->cut_window_cfg) {
 		sm_ops->get_sig_property(devp->frontend, prop, devp->port_type);
 		cur_vs = prop->vs;
@@ -733,9 +733,10 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp, enum tvin_sm_status_e
 	}
 
 	if (sm_debug_enable & VDIN_SM_LOG_L_4)
-		pr_info("[sm.%d]dv:%d, hdr state:%d eotf:%d flag:%#x, vrr state:%d type:%#x\n",
+		pr_info("[sm.%d]dv:%d, hdr state:%d %d,eotf:%d flag:%#x,vrr state:%d type:%#x\n",
 			devp->index,
 			devp->prop.dolby_vision, devp->prop.hdr_info.hdr_state,
+			devp->prop.dv_unique_drm_flag,
 			devp->prop.hdr_info.hdr_data.eotf, devp->prop.vdin_hdr_flag,
 			devp->prop.vdin_vrr_flag, signal_type);
 
@@ -1199,7 +1200,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 				sm_print_fmt_chg = 1;
 			}
 		}
-		/* dynamic adjust cut window for atv test */
+		/* dynamic adjust cut window */
 		vdin_auto_de_handler(devp);
 
 		if (IS_TVAFE_SRC(port) && sm_ops->get_sig_property) {

@@ -1212,7 +1212,8 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop, u8 port)
 		last_vsi_state = rx[port].vs_info_details.vsi_state;
 	}
 	//if (rx[port].pre.colorspace != E_COLOR_YUV420)
-	prop->dolby_vision = rx[port].vs_info_details.dolby_vision_flag;
+	prop->dolby_vision = rx[port].vs_info_details.dolby_vision_flag |
+		rx[port].drm_dv_flag;
 	if (log_level & PACKET_LOG && rx[port].new_emp_pkt)
 		rx_pr("vsi_state:0x%x\n", rx[port].vs_info_details.vsi_state);
 
@@ -1595,6 +1596,13 @@ void hdmirx_get_hdr_info(struct tvin_frontend_s *fe, struct tvin_sig_property_s 
 
 	drm_pkt = (struct drm_infoframe_st *)&rx_pkt[port].drm_info;
 	if (rx_pkt_chk_attach_drm(port) && rx_chk_drm_valid(port)) {
+		if (rx_is_dv_unique_drm(drm_pkt)) {
+			prop->dv_unique_drm_flag = true;
+			rx[port].drm_dv_flag = DV_UNIQUE_DRM;
+			memcpy(prop->hdr_info.hdr_data.rawdata, (u8 *)drm_pkt, 3);
+			memcpy(prop->hdr_info.hdr_data.rawdata + 3, (u8 *)drm_pkt + 4, 28);
+			return;
+		}
 		rx_reset_pkt_cnt(PKT_TYPE_INFOFRAME_DRM, port);
 		prop->hdr_info.hdr_data.length = drm_pkt->length;
 		prop->hdr_info.hdr_data.eotf = drm_pkt->des_u.tp1.eotf;
@@ -1713,9 +1721,9 @@ void hdmirx_get_sig_prop(struct tvin_frontend_s *fe,
 			prop->latency.allm_mode, prop->latency.cn_type,
 			prop->latency.it_content, prop->hw_vic, prop->avi_colorimetry,
 			prop->avi_ext_colorimetry, prop->latency.fmm_flag);
-		rx_pr("hdr-eotf:0x%x, gaming-vrr:0x%x, qms-vrr:0x%x\n",
-			prop->hdr_info.hdr_data.eotf, prop->vtem_data.vrr_en,
-			prop->vtem_data.qms_en);
+		rx_pr("hdr-eotf:0x%x, dv-tb49:0x%x, gaming-vrr:0x%x, qms-vrr:0x%x\n",
+			prop->hdr_info.hdr_data.eotf, prop->dv_unique_drm_flag,
+			prop->vtem_data.vrr_en, prop->vtem_data.qms_en);
 	}
 }
 

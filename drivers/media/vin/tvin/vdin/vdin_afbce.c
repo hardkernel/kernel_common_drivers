@@ -59,11 +59,6 @@
 #include "vdin_afbce.h"
 #include "vdin_mem_scatter.h"
 
-bool vdin_is_afbce_enabled(struct vdin_dev_s *devp)
-{
-	return (devp->afbce_mode == 1 || devp->double_wr);
-}
-
 /* fixed config mif by default */
 void vdin_mif_config_init(struct vdin_dev_s *devp)
 {
@@ -246,6 +241,9 @@ bool vdin_chk_is_comb_mode(struct vdin_dev_s *devp)
 	enum vdin_format_convert_e vdin_out_fmt;
 	int reg_fmt444_rgb_en = false;
 	int reg_fmt444_comb = false;
+
+	if (devp->dtdata->hw_ver == VDIN_HW_T3X) /* No comb mode on t3x */
+		return false;
 
 	vdin_out_fmt = devp->format_convert;
 	if (vdin_out_fmt == VDIN_FORMAT_CONVERT_YUV_RGB ||

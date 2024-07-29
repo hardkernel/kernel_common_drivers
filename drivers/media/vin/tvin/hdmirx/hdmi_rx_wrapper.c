@@ -1045,6 +1045,7 @@ static int rx_cor_irq_handler(u8 port)
 		if (rx_get_bits(intr_2, INTR2_BIT0_AVI))
 			rx[port].irq_flag |= IRQ_AVI_CHG_FLAG;
 		if (rx_get_bits(intr_2, INTR2_BIT4_UNREC)) {
+			rx[port].drm_dv_flag = DV_NULL;
 			rx_pkt_clr_attach_drm(port);
 			memset(&rx_pkt[port].drm_info, 0, sizeof(struct pd_infoframe_s));
 			rx_pkt_handler(PKT_BUFF_SET_DRM, port);

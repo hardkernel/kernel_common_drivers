@@ -2836,7 +2836,7 @@ void vdin_set_bitdepth_t3x(struct vdin_dev_s *devp)
 		 * change default to 10bit for 8in8out detail maybe lost
 		 */
 		if (vdin_is_convert_to_444(devp->format_convert) &&
-		    vdin_is_4k(devp)) {
+		    vdin_is_4k(devp) && !vdin_is_dolby_signal_in(devp)) {
 			bit_dep = VDIN_COLOR_DEEPS_8BIT;
 		} else if (devp->prop.colordepth == VDIN_COLOR_DEEPS_8BIT) {
 			/* hdmi YUV422, 8 or 10 bit valid is unknown*/
@@ -3156,7 +3156,7 @@ void vdin_dv_tunnel_set_t3x(struct vdin_dev_s *devp)
 	}
 
 	/* h shrink on*/
-	if (devp->h_shrink_out < devp->h_active) {
+	if (devp->h_shrink_out < devp->h_active && !devp->bypass_tunnel) {
 		/*hw verify:de-tunnel 444 to 422 12bit*/
 		vdin_descramble_setting_t3x(devp, true);
 		/*vdin de tunnel and tunnel for vdin scaling*/

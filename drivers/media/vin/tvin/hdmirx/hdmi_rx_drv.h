@@ -139,7 +139,8 @@
 /* 2024.01.08 support to get AVI info */
 /* 2024.02.05 Fix t5d accessing illegal addresses */
 /* 2024.03.04 fix kernel panic on T7C without hdmirx */
-#define RX_VER1 "ver.2024/03/04"
+/* 2024.08.29 support dolbyvision unique drm source-led */
+#define RX_VER1 "ver.2024/08/29"
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 
@@ -983,6 +984,7 @@ struct rx_s {
 	struct rx_dsc_pps_data_s dsc_pps_data;
 	bool vsif_fmm_flag;
 	bool avi_fmm_flag;
+	u8 drm_dv_flag;
 	struct dv_info_s emp_dv_info;
 	struct cvtem_info_s cvtem_info;
 	u8 emp_vid_idx;

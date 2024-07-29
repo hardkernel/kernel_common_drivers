@@ -5207,7 +5207,7 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 		 * change default to 10bit for 8in8out detail maybe lost
 		 */
 		if (vdin_is_convert_to_444(devp->format_convert) &&
-		    vdin_is_4k(devp)) {
+		    vdin_is_4k(devp) && !vdin_is_dolby_signal_in(devp)) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3) &&
 			    devp->index && devp->set_canvas_manual &&
 			    devp->prop.colordepth == VDIN_COLOR_DEEPS_10BIT)
@@ -6429,7 +6429,7 @@ void vdin_dv_tunnel_set(struct vdin_dev_s *devp)
 	}
 
 	/* h shrink on*/
-	if (devp->h_shrink_out < devp->h_active) {
+	if (devp->h_shrink_out < devp->h_active && !devp->bypass_tunnel) {
 		/*hw verify:de-tunnel 444 to 422 12bit*/
 		vdin_dv_de_tunnel_to_44410bit(devp, true);
 		/*vdin de tunnel and tunnel for vdin scaling*/
@@ -6489,6 +6489,7 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 		req->dv_enhance_exist = 0;
 		/* TODO: need change the low latency flag when LL mode */
 		req->low_latency = p->low_latency;
+		req->is_dv_unique_drm = devp->prop.dv_unique_drm_flag;
 		memcpy(&req->dv_vsif,
 			&p->dv_vsif, sizeof(struct tvin_dv_vsif_s));
 		if (req->bot_flag)
@@ -6788,7 +6789,7 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 	memcpy(&devp->dv.dv_vsif_raw, &devp->prop.dv_vsif_raw,
 		sizeof(struct tvin_dv_vsif_raw_s));
 	vf->vsif.addr = &devp->dv.dv_vsif_raw;
-	if (devp->dv.dv_flag)
+	if (devp->dv.dv_flag && !devp->prop.dv_unique_drm_flag)
 		vf->vsif.size = sizeof(struct tvin_dv_vsif_raw_s);
 	else
 		vf->vsif.size = 0;
@@ -6797,7 +6798,7 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 	/* hdr drm data */
 	memcpy(devp->hdr.rawdata, devp->prop.hdr_info.hdr_data.rawdata, sizeof(devp->hdr.rawdata));
 	vf->drm_if.addr = &devp->hdr.rawdata;
-	if (devp->prop.vdin_hdr_flag)
+	if (devp->prop.vdin_hdr_flag || devp->prop.dv_unique_drm_flag)
 		vf->drm_if.size = sizeof(devp->hdr.rawdata);
 	else
 		vf->drm_if.size = 0;
@@ -7996,4 +7997,12 @@ unsigned int vdin_get_rx_avi_colorimetry(struct vdin_dev_s *devp, unsigned int c
 		(colorimetry & (~0xF00));
 
 	return colorimetry;
+}
+
+bool vdin_is_afbce_enabled(struct vdin_dev_s *devp)
+{
+	if (devp->afbce_mode == 1 || devp->double_wr)
+		return true;
+
+	return false;
 }

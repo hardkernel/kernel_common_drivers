@@ -637,6 +637,7 @@ struct vdin_debug_s {
 	bool pause_mif_dec;
 	bool pause_afbce_dec;
 	bool bypass_filter_vsync;
+	bool force_bypass_tunnel;
 	unsigned int sar_width;
 	unsigned int sar_height;
 	unsigned int ratio_control;
@@ -1032,6 +1033,7 @@ struct vdin_dev_s {
 	unsigned int output_color_depth;
 	/* cut window config */
 	bool cut_window_cfg;
+	/* only supported when mif output */
 	bool auto_cut_window_en;
 	/*
 	 *0:vdin out limit range
