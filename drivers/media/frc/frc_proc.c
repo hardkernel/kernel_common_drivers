@@ -1216,7 +1216,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					in_size & 0xFFFF);
 			}
 			if (vf->duration <= 1500)
-				no_input = true;
+				no_input = devp->dbg_dur0_disable;
 		} else {
 			devp->in_sts.st_flag =
 				devp->in_sts.st_flag & (~FRC_FLAG_ZERO_FREQ);

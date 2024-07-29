@@ -131,8 +131,9 @@
 // frc_20240704 fix frc clk latency err
 // frc_20240709 frc add crc debug
 // frc_2024-0708 frc adaptive n2m in t5m
+// frc_20240711 fix secure mode close frc abnormal
 
-#define FRC_FW_VER			"2024-0711 fix secure mode close frc abnormal"
+#define FRC_FW_VER			"2024-0729 open frc when slt test"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
@@ -792,6 +793,7 @@ struct frc_dev_s {
 	u32 dbg_vf_monitor;
 	u16 dbg_mvrd_mode;
 	u16 dbg_mute_disable;
+	u16 dbg_dur0_disable;
 	u8  little_win;
 	u8  vlock_flag;
 	u8  use_pre_vsync; /* bit_0:120hz_enable , bit_1: 60hz enable */

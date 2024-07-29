@@ -1192,6 +1192,11 @@ void frc_debug_other_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			devp->disable_h_size = (val1 > 3840) ? 3840 : val1;
 		if (kstrtoint(parm[2], 10, &val1) == 0)
 			devp->disable_v_size = (val1 > 2160) ? 2160 : val1;
+	} else if (!strcmp(parm[0], "dur_dis")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->dbg_dur0_disable = val1;
 	}
 exit:
 	kfree(buf_orig);
