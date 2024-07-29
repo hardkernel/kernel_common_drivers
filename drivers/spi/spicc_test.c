@@ -157,6 +157,7 @@ ssize_t testdev_dump(struct test_device *testdev, char *buf)
 	len += snprintf(buf + len, PAGE_SIZE, "speed: %d\n", spi->max_speed_hz);
 	len += snprintf(buf + len, PAGE_SIZE, "mode: 0x%x\n", spi->mode);
 	len += snprintf(buf + len, PAGE_SIZE, "bw: %d\n", spi->bits_per_word);
+	len += snprintf(buf + len, PAGE_SIZE, "use_dirspi: %d\n", cdata->use_dirspi);
 	len += snprintf(buf + len, PAGE_SIZE, "ccxfer_en: %d\n", cdata->ccxfer_en);
 	len += snprintf(buf + len, PAGE_SIZE, "timing_en: %d\n", cdata->timing_en);
 	len += snprintf(buf + len, PAGE_SIZE, "ss_leading_gap: %d\n", cdata->ss_leading_gap);
@@ -267,6 +268,8 @@ int testdev_setup(struct test_device *testdev, int argc, char *argv[])
 		spi->bits_per_word = v;
 
 	cdata = (struct spicc_controller_data *)spi->controller_data;
+	if (!spicc_getopt(argc, argv, "use_dirspi", &v, NULL, 10))
+		cdata->use_dirspi = v;
 	if (!spicc_getopt(argc, argv, "ccxfer_en", &v, NULL, 10))
 		cdata->ccxfer_en = v;
 	if (!spicc_getopt(argc, argv, "timing_en", &v, NULL, 10))

@@ -48,6 +48,7 @@ struct bl_gpio_s ldim_gpio[BL_GPIO_NUM_MAX] = {
 };
 
 static struct spicc_controller_data ldim_spi_controller_data = {
+	.use_dirspi = 1,
 	.ccxfer_en = 0,
 	.timing_en = 1,
 	.ss_leading_gap = 1,

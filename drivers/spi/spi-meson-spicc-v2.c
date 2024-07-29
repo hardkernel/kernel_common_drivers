@@ -180,6 +180,7 @@ struct spicc_device {
 	struct completion		completion;
 	u32				status;
 	u32			speed_hz;
+	u32				actual_speed_hz;
 	u32			bytes_per_word;
 	union spicc_cfg_spi		cfg_spi;
 	union spicc_cfg_start		cfg_start;
@@ -257,7 +258,9 @@ static int spicc_set_speed(struct spicc_device *spicc, uint speed_hz)
 	div = FIELD_GET(SPICC_CLK_DIV_MASK,
 			spicc_readl(spicc, SPICC_REG_CFG_BUS));
 	spicc->cfg_bus.b.clk_div = div;
-	spicc_dbg("set speed %luHz, div=%d\n", clk_get_rate(spicc->sclk), div);
+	spicc->actual_speed_hz = clk_get_rate(spicc->sclk);
+	spicc_dbg("desired speed %luHz, actual speed %luHz, div=%d\n",
+		  speed_hz, spicc->actual_speed_hz, div);
 
 	return 0;
 }
@@ -266,13 +269,11 @@ static inline unsigned long spicc_xfer_time_max(struct spicc_device *spicc,
 						int len)
 {
 	unsigned long ms;
-	unsigned long clk_rate;
 
-	clk_rate = clk_get_rate(spicc->sclk);
-	if (!clk_rate)
+	if (!spicc->actual_speed_hz)
 		return 0;
 
-	ms = (8 * len) / (clk_rate / 1000);
+	ms = (8 * len) / (spicc->actual_speed_hz / 1000);
 	ms += ms + 20; /* some tolerance */
 
 	return ms;
@@ -725,14 +726,18 @@ static int meson_spicc_unprepare_transfer(struct spi_controller *ctlr)
 static int meson_spicc_setup(struct spi_device *spi)
 {
 #ifdef MESON_SPICC_HW_IF
+	struct spicc_device *spicc;
 	struct  spicc_controller_data *cdata;
 
+	spicc = spi_controller_get_devdata(spi->controller);
 	cdata = (struct spicc_controller_data *)spi->controller_data;
 	if (cdata) {
 		cdata->dirspi_start = dirspi_start;
 		cdata->dirspi_stop = dirspi_stop;
 		cdata->dirspi_async = dirspi_async;
 		cdata->dirspi_sync = dirspi_sync;
+		if (cdata->use_dirspi)
+			spicc_set_speed(spicc, spi->max_speed_hz);
 	}
 #endif
 
@@ -816,7 +821,6 @@ static int dirspi_async(struct spi_device *spi,
 	int ret;
 	unsigned long ms = spicc_xfer_time_max(spicc, len);
 
-	spicc_set_speed(spicc, spi->max_speed_hz);
 	ret = meson_spicc_config(spicc, spi);
 	if (ret)
 		return ret;
