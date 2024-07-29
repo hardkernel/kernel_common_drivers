@@ -1182,6 +1182,14 @@
 	status = "okay";
 };
 
+&tdma {
+	pinctrl-names = "tdm_pins";
+	pinctrl-0 = <&bt_pcm_gpio_x_pins
+		&tdm_d1_pins
+		&tdm_d0_pins
+		&tdma_clk_pins>;
+};
+
 &tdmc {
 	pinctrl-names = "tdm_pins";
 	pinctrl-0 = <&i2s_gpio_d_pins_1
