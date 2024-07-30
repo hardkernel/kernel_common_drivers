@@ -15927,6 +15927,56 @@ static int amvideo_restore(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int video_pm_cb(struct notifier_block *notifier,
+			      unsigned long pm_event,
+			      void *unused)
+{
+	pr_info("%s called. pm_event:%lu.\n", __func__, pm_event);
+
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+		video_suspend = false;
+		break;
+	case PM_POST_HIBERNATION:
+		break;
+	case PM_SUSPEND_PREPARE:
+		break;
+	case PM_POST_SUSPEND:
+	case PM_RESTORE_PREPARE:
+	case PM_POST_RESTORE:
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block video_pm_nb = {
+	.notifier_call = video_pm_cb,
+};
+
+static int video_pm_notifier_register(void)
+{
+	return register_pm_notifier(&video_pm_nb);
+}
+
+static int video_pm_notifier_unregister(void)
+{
+	return unregister_pm_notifier(&video_pm_nb);
+}
+#else
+static int video_pm_notifier_register(void)
+{
+	return 0;
+}
+
+static int video_pm_notifier_unregister(void)
+{
+	return 0;
+}
+
+#endif
+
 static const struct dev_pm_ops amvideo_pm_ops = {
 	.freeze = amvideo_freeze,
 	.thaw = amvideo_thaw,
@@ -16082,6 +16132,7 @@ int __init video_init(void)
 
 	REG_PATH_CONFIGS("media.video", video_configs);
 	video_debugfs_init();
+	video_pm_notifier_register();
 	return 0;
  err5:
 	device_destroy(amvideo_class, MKDEV(AMVIDEO_MAJOR, 0));
@@ -16102,7 +16153,7 @@ int __init video_init(void)
 #endif
 	amvideo_unregister_client(&amvideo_notifier);
 	platform_driver_unregister(&amvideom_driver);
-
+	video_pm_notifier_unregister();
 	return r;
 }
 
@@ -16150,6 +16201,7 @@ void __exit video_exit(void)
 	class_unregister(amvideo_class);
 	class_unregister(amvideo_poll_class);
 	amvideo_unregister_client(&amvideo_notifier);
+	video_pm_notifier_unregister();
 }
 
 MODULE_PARM_DESC(debug_flag, "\n debug_flag\n");
