@@ -8,7 +8,11 @@
 #include "meson-s6.dtsi"
 #include "mesons6_drm.dtsi"
 #include "mesons6_audio.dtsi"
-#include "firmware_ab.dtsi"
+#include "mesons6_BQ20X_panel.dtsi"
+#include "partition_normal_linux.dtsi"
+#include <dt-bindings/input/input.h>
+#include "meson-ir-map-linux.dtsi"
+
 / {
 	amlogic-dt-id = "s6_s905d5_bq201-8g";
 	compatible = "s6_s905d5_bq201";
@@ -115,15 +119,13 @@
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 4k STB androidU size 320M */
-			size = <0x0 0x14000000>;
+			size = <0x0 0x2400000>;
 			alignment = <0x0 0x400000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 4k STB androidU size 212M */
-			size = <0x0 0xd400000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
 		dmaheap_secure_reserved:heap-secure {
@@ -187,13 +189,6 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/*
-			 * Scenario: CTS P010 case
-			 * Total size: 548M
-			 * Note:
-			 *  setting to 496M if scatter_alloc_mode is 0.
-			 *  setting to 444M if scatter_alloc_mode is 1.
-			 */
 			size = <0x0 0x1bc00000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -382,8 +377,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				prefix-names = "AMP";
-				sound-dai = <&sy602x_54>;
+				prefix-names = "AMP", "AMP1";
+				sound-dai = <&tas5707_1b &tas5707_1d &dummy_codec>;
 			};
 		};
 
@@ -648,68 +643,6 @@
 		/*0: 709/601  1: bt2020*/
 		tx_op_color_primary = <0>;
 	};
-
-	thermal-zones {
-		pll_thermal: pll_thermal {
-			polling-delay = <1000>;
-			polling-delay-passive = <100>;
-			sustainable-power = <1160>;
-			thermal-sensors = <&p_tsensor 0>;
-			trips {
-				pswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				pcontrol: trip-point@1 {
-					temperature = <95000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				pcritical: trip-point@2 {
-					temperature = <105000>;
-					hysteresis = <1000>;
-					type = "critical";
-				};
-			};
-		};
-		soc_thermal: soc_thermal {
-			polling-delay = <1000>;
-			polling-delay-passive = <100>;
-			sustainable-power = <1160>;
-			thermal-sensors = <&c_tsensor 1>;
-			trips {
-				cswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				control: trip-point@1 {
-					temperature = <95000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				ccritical: trip-point@2 {
-					temperature = <105000>;
-					hysteresis = <1000>;
-					type = "critical";
-				};
-			};
-
-			cooling-maps {
-				cpufreq_cooling_map {
-					trip = <&control>;
-					cooling-device = <&CPU0 0 6>;
-					contribution = <1024>;
-				};
-				gpufreq_cooling_map {
-					trip = <&control>;
-					cooling-device = <&gpu 0 3>;
-					contribution = <1024>;
-				};
-			};
-		};
-	};/*thermal zone end*/
 
 	multi-di {
 		compatible = "amlogic, dim-s7d";
@@ -1138,17 +1071,24 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c0_pins4>;
 	clock-frequency = <300000>; /* default 100k */
-	sy602x_54: sy602x_54@2a {
-		compatible = "silergy,sy602x";
+	tas5707_1b: tas5707_1b@1b {
+		compatible = "ti,tas5707";
 		#sound-dai-cells = <0>;
-		reg = <0x2a>;
+		reg = <0x1b>;
 		status = "okay";
-		reset_pin-gpios = <&gpio GPIOD_5 GPIO_ACTIVE_HIGH>;
+		reset_pin = <&gpio GPIOF_2 0>;
+	};
+	tas5707_1d: tas5707_1d@1d {
+		compatible = "ti,tas5707";
+		#sound-dai-cells = <0>;
+		reg = <0x1d>;
+		status = "okay";
+		//reset_pin = <&gpio GPIOF_2 0>;
 	};
 	aw9523: aw9523_led@5b {
 		compatible = "amlogic,aw9523b_led";
 		reg = <0x5b>;
-		status = "okay";
+		status = "disabled";
 		//reset-gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
 		platform = <10>;
 
@@ -1218,7 +1158,7 @@
 }; /* end of periphs_pinctrl */
 
 &audio_data {
-	status = "disabled";
+	status = "okay";
 };
 
 &usb_phy20 {
@@ -1470,6 +1410,8 @@
 	status = "okay";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
+	/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
+	map = <&custom_maps_linux>;
 };
 
 &spicc0 {
@@ -1507,6 +1449,8 @@
 
 &amhdmitx {
 	status = "okay";
+	/* hdcp ctrl 0:sysctrl, 1: drv, 2: linux app */
+	hdcp_ctl_lvl = <1>;
 };
 
 &drm_amhdmitx {

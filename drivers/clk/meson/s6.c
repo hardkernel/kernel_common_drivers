@@ -18,17 +18,17 @@
 #include "s6.h"
 #include <dt-bindings/clock/s6-clkc.h>
 
-static const struct pll_params_table gp0_pll_vco_table[] = {
+static const struct pll_params_table gp0_pll_table[] = {
 	PLL_PARAMS_v4(192, 0, 1), /* DCO = 2304M OD = 2 PLL = 1152M */
-	{ /* sentinel */  }
+	{ /* sentinel */ }
 };
 
-static const struct reg_sequence gp0_pll_vco_init_regs[] = {
-	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x01010000 },
-	{ .reg = ANACTRL_GP0PLL_CTRL1,	.def = 0x11480000 },
-	{ .reg = ANACTRL_GP0PLL_CTRL2,	.def = 0x1215b010 },
-	{ .reg = ANACTRL_GP0PLL_CTRL3,	.def = 0x20008010 },
-	{ .reg = ANACTRL_GP0PLL_CTRL4,	.def = 0x00001000 }
+static const struct reg_sequence gp0_pll_init_regs[] = {
+	{ .reg = ANACTRL_GP0PLL_CTRL0, .def = 0x01010000 },
+	{ .reg = ANACTRL_GP0PLL_CTRL1, .def = 0x11480000 },
+	{ .reg = ANACTRL_GP0PLL_CTRL2, .def = 0x1215b010 },
+	{ .reg = ANACTRL_GP0PLL_CTRL3, .def = 0x20008010 },
+	{ .reg = ANACTRL_GP0PLL_CTRL4, .def = 0x00001000 }
 };
 
 static struct clk_regmap gp0_pll = {
@@ -73,10 +73,11 @@ static struct clk_regmap gp0_pll = {
 			.shift   = 29,
 			.width   = 1,
 		},
-		.table = gp0_pll_vco_table,
-		.init_regs = gp0_pll_vco_init_regs,
-		.init_count = ARRAY_SIZE(gp0_pll_vco_init_regs),
-		.flags = CLK_MESON_PLL_POWER_OF_TWO | CLK_MESON_PLL_RSTN |
+		.table = gp0_pll_table,
+		.init_regs = gp0_pll_init_regs,
+		.init_count = ARRAY_SIZE(gp0_pll_init_regs),
+		.flags = CLK_MESON_PLL_POWER_OF_TWO |
+			 CLK_MESON_PLL_RSTN |
 			 CLK_MESON_PLL_FIXED_EN0P5 |
 			 CLK_MESON_PLL_IGNORE_INIT,
 	},
@@ -90,14 +91,14 @@ static struct clk_regmap gp0_pll = {
 	},
 };
 
-static const struct pll_params_table hifi_pll_vco_table[] = {
+static const struct pll_params_table hifi_pll_table[] = {
 	PLL_PARAMS_v4(150, 0, 0), /* DCO = 1800M OD = 0 PLL = 1800M */
 	PLL_PARAMS_v4(150, 0, 2), /* DCO = 1800M OD = 4 PLL = 450M */
 	PLL_PARAMS_v4(163, 0, 2), /* DCO = 1956M OD = 4 PLL = 489M */
-	{ /* sentinel */  }
+	{ /* sentinel */ }
 };
 
-static const struct reg_sequence hifi_pll_vco_init_regs[] = {
+static const struct reg_sequence hifi_pll_init_regs[] = {
 	{ .reg = ANACTRL_HIFI0PLL_CTRL0, .def = 0x01010000 },
 	{ .reg = ANACTRL_HIFI0PLL_CTRL1, .def = 0x11480000 },
 	{ .reg = ANACTRL_HIFI0PLL_CTRL2, .def = 0x121db010 },
@@ -147,14 +148,15 @@ static struct clk_regmap hifi_pll = {
 			.shift   = 29,
 			.width   = 1,
 		},
+		.table = hifi_pll_table,
+		.init_regs = hifi_pll_init_regs,
+		.init_count = ARRAY_SIZE(hifi_pll_init_regs),
 		.flags = CLK_MESON_PLL_ROUND_CLOSEST |
 			 CLK_MESON_PLL_POWER_OF_TWO |
 			 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
-			 CLK_MESON_PLL_FIXED_EN0P5 | CLK_MESON_PLL_RSTN |
+			 CLK_MESON_PLL_FIXED_EN0P5 |
+			 CLK_MESON_PLL_RSTN |
 			 CLK_MESON_PLL_IGNORE_INIT,
-		.table = hifi_pll_vco_table,
-		.init_regs = hifi_pll_vco_init_regs,
-		.init_count = ARRAY_SIZE(hifi_pll_vco_init_regs),
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "hifi_pll",
@@ -166,14 +168,14 @@ static struct clk_regmap hifi_pll = {
 	},
 };
 
-static const struct pll_params_table hifi1_pll_vco_table[] = {
+static const struct pll_params_table hifi1_pll_table[] = {
 	PLL_PARAMS_v4(150, 0, 0), /* DCO = 1800M OD = 0 PLL = 1800M */
 	PLL_PARAMS_v4(150, 0, 2), /* DCO = 1800M OD = 4 PLL = 450M */
 	PLL_PARAMS_v4(163, 0, 2), /* DCO = 1956M OD = 4 PLL = 489M */
-	{ /* sentinel */  }
+	{ /* sentinel */ }
 };
 
-static const struct reg_sequence hifi1_pll_vco_init_regs[] = {
+static const struct reg_sequence hifi1_pll_init_regs[] = {
 	{ .reg = ANACTRL_HIFI1PLL_CTRL0, .def = 0x01010000 },
 	{ .reg = ANACTRL_HIFI1PLL_CTRL1, .def = 0x11480000 },
 	{ .reg = ANACTRL_HIFI1PLL_CTRL2, .def = 0x121db010 },
@@ -223,13 +225,15 @@ static struct clk_regmap hifi1_pll = {
 			.shift   = 29,
 			.width   = 1,
 		},
+		.table = hifi1_pll_table,
+		.init_regs = hifi1_pll_init_regs,
+		.init_count = ARRAY_SIZE(hifi1_pll_init_regs),
 		.flags = CLK_MESON_PLL_ROUND_CLOSEST |
 			 CLK_MESON_PLL_POWER_OF_TWO |
 			 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
-			 CLK_MESON_PLL_FIXED_EN0P5 | CLK_MESON_PLL_RSTN,
-		.table = hifi1_pll_vco_table,
-		.init_regs = hifi1_pll_vco_init_regs,
-		.init_count = ARRAY_SIZE(hifi1_pll_vco_init_regs),
+			 CLK_MESON_PLL_FIXED_EN0P5 |
+			 CLK_MESON_PLL_RSTN |
+			 CLK_MESON_PLL_IGNORE_INIT,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "hifi1_pll",
@@ -241,216 +245,20 @@ static struct clk_regmap hifi1_pll = {
 	},
 };
 
-static struct clk_fixed_factor fclk50m_div = {
-	.mult = 1,
-	.div = 40,
-	.hw.init = &(struct clk_init_data) {
-		.name = "fclk50m_div",
-		.ops = &clk_fixed_factor_ops,
-		.parent_data = &(const struct clk_parent_data) {
-			.fw_name = "fixed_pll",
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_regmap fclk50m = {
-	.data = &(struct clk_regmap_gate_data) {
-		.offset = ANACTRL_FIXPLL_CTRL1,
-		.bit_idx = 4,
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "fclk50m",
-		.ops = &clk_regmap_gate_ro_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&fclk50m_div.hw,
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_fixed_factor fclk_div2_div = {
-	.mult = 1,
-	.div = 2,
-	.hw.init = &(struct clk_init_data) {
-		.name = "fclk_div2_div",
-		.ops = &clk_fixed_factor_ops,
-		.parent_data = &(const struct clk_parent_data) {
-			.fw_name = "fixed_pll",
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_regmap fclk_div2 = {
-	.data = &(struct clk_regmap_gate_data) {
-		.offset = ANACTRL_FIXPLL_CTRL1,
-		.bit_idx = 20,
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "fclk_div2",
-		.ops = &clk_regmap_gate_ro_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&fclk_div2_div.hw,
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_fixed_factor fclk_div2p5_div = {
-	.mult = 2,
-	.div = 5,
-	.hw.init = &(struct clk_init_data) {
-		.name = "fclk_div2p5_div",
-		.ops = &clk_fixed_factor_ops,
-		.parent_data = &(const struct clk_parent_data) {
-			.fw_name = "fixed_pll",
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_regmap fclk_div2p5 = {
-	.data = &(struct clk_regmap_gate_data) {
-		.offset = ANACTRL_FIXPLL_CTRL1,
-		.bit_idx = 8,
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "fclk_div2p5",
-		.ops = &clk_regmap_gate_ro_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&fclk_div2p5_div.hw,
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_fixed_factor fclk_div3_div = {
-	.mult = 1,
-	.div = 3,
-	.hw.init = &(struct clk_init_data) {
-		.name = "fclk_div3_div",
-		.ops = &clk_fixed_factor_ops,
-		.parent_data = &(const struct clk_parent_data) {
-			.fw_name = "fixed_pll",
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_regmap fclk_div3 = {
-	.data = &(struct clk_regmap_gate_data) {
-		.offset = ANACTRL_FIXPLL_CTRL1,
-		.bit_idx = 16,
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "fclk_div3",
-		.ops = &clk_regmap_gate_ro_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&fclk_div3_div.hw,
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_fixed_factor fclk_div4_div = {
-	.mult = 1,
-	.div = 4,
-	.hw.init = &(struct clk_init_data) {
-		.name = "fclk_div4_div",
-		.ops = &clk_fixed_factor_ops,
-		.parent_data = &(const struct clk_parent_data) {
-			.fw_name = "fixed_pll",
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_regmap fclk_div4 = {
-	.data = &(struct clk_regmap_gate_data) {
-		.offset = ANACTRL_FIXPLL_CTRL1,
-		.bit_idx = 17,
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "fclk_div4",
-		.ops = &clk_regmap_gate_ro_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&fclk_div4_div.hw,
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_fixed_factor fclk_div5_div = {
-	.mult = 1,
-	.div = 5,
-	.hw.init = &(struct clk_init_data) {
-		.name = "fclk_div5_div",
-		.ops = &clk_fixed_factor_ops,
-		.parent_data = &(const struct clk_parent_data) {
-			.fw_name = "fixed_pll",
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_regmap fclk_div5 = {
-	.data = &(struct clk_regmap_gate_data) {
-		.offset = ANACTRL_FIXPLL_CTRL1,
-		.bit_idx = 18,
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "fclk_div5",
-		.ops = &clk_regmap_gate_ro_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&fclk_div5_div.hw,
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_fixed_factor fclk_div7_div = {
-	.mult = 1,
-	.div = 7,
-	.hw.init = &(struct clk_init_data) {
-		.name = "fclk_div7_div",
-		.ops = &clk_fixed_factor_ops,
-		.parent_data = &(const struct clk_parent_data) {
-			.fw_name = "fixed_pll",
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_regmap fclk_div7 = {
-	.data = &(struct clk_regmap_gate_data) {
-		.offset = ANACTRL_FIXPLL_CTRL1,
-		.bit_idx = 19,
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "fclk_div7",
-		.ops = &clk_regmap_gate_ro_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&fclk_div7_div.hw,
-		},
-		.num_parents = 1,
-	},
-};
-
-static const struct pll_params_table mclk_pll_params_table[] = {
+static const struct pll_params_table mclk_pll_table[] = {
 	PLL_PARAMS_v4(198, 0, 1), /* VCO = 2376M, CLK_OUT = 1188M */
 	PLL_PARAMS_v4(200, 0, 1), /* VCO = 2400M, CLK_OUT = 1200M */
-	{ /* sentinel */  },
+	{ /* sentinel */ }
 };
 
 static const struct reg_sequence mclk_pll_init_regs[] = {
-	{ .reg = ANACTRL_CSIPLL_CTRL1,	.def = 0x20627000 },
-	{ .reg = ANACTRL_CSIPLL_CTRL2,	.def = 0x60000201 },
-	{ .reg = ANACTRL_CSIPLL_CTRL3,	.def = 0x03180260 }
+	{ .reg = ANACTRL_CSIPLL_CTRL1, .def = 0x20627000 },
+	{ .reg = ANACTRL_CSIPLL_CTRL2, .def = 0x60000201 },
+	{ .reg = ANACTRL_CSIPLL_CTRL3, .def = 0x03180260 }
 };
 
 static struct clk_regmap mclk_pll = {
-	.data = &(struct meson_clk_pll_data){
+	.data = &(struct meson_clk_pll_data) {
 		.en = {
 			.reg_off = ANACTRL_CSIPLL_CTRL0,
 			.shift   = 28,
@@ -486,11 +294,12 @@ static struct clk_regmap mclk_pll = {
 			.shift   = 29,
 			.width   = 1,
 		},
-		.flags = CLK_MESON_PLL_POWER_OF_TWO | CLK_MESON_PLL_FIXED_EN0P5 |
-			 CLK_MESON_PLL_RSTN,
-		.table = mclk_pll_params_table,
+		.table = mclk_pll_table,
 		.init_regs = mclk_pll_init_regs,
 		.init_count = ARRAY_SIZE(mclk_pll_init_regs),
+		.flags = CLK_MESON_PLL_POWER_OF_TWO |
+			 CLK_MESON_PLL_FIXED_EN0P5 |
+			 CLK_MESON_PLL_RSTN,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "mclk_pll",
@@ -503,13 +312,13 @@ static struct clk_regmap mclk_pll = {
 };
 
 static struct clk_regmap mclk_pll_clk = {
-	.data = &(struct clk_regmap_div_data){
+	.data = &(struct clk_regmap_div_data) {
 		.offset = ANACTRL_CSIPLL_CTRL1,
 		.shift = 3,
 		.width = 5,
 		.flags = CLK_DIVIDER_MAX_AT_ZERO,
 	},
-	.hw.init = &(struct clk_init_data){
+	.hw.init = &(struct clk_init_data) {
 		.name = "mclk_pll_clk",
 		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
@@ -521,7 +330,7 @@ static struct clk_regmap mclk_pll_clk = {
 };
 
 static struct clk_regmap mclk0_div = {
-	.data = &(struct clk_regmap_gate_data){
+	.data = &(struct clk_regmap_gate_data) {
 		.offset = ANACTRL_CSIPLL_CTRL3,
 		.bit_idx = 10,
 	},
@@ -551,7 +360,7 @@ static struct clk_fixed_factor mclk0_div2 = {
 };
 
 static struct clk_regmap mclk0 = {
-	.data = &(struct clk_regmap_gate_data){
+	.data = &(struct clk_regmap_gate_data) {
 		.offset = ANACTRL_CSIPLL_CTRL3,
 		.bit_idx = 11,
 	},
@@ -563,6 +372,202 @@ static struct clk_regmap mclk0 = {
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_fixed_factor fclk50m_div = {
+	.mult = 1,
+	.div = 40,
+	.hw.init = &(struct clk_init_data) {
+		.name = "fclk50m_div",
+		.ops = &clk_fixed_factor_ops,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "fixed_pll"
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap fclk50m = {
+	.data = &(struct clk_regmap_gate_data) {
+		.offset = ANACTRL_FIXPLL_CTRL1,
+		.bit_idx = 4,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "fclk50m",
+		.ops = &clk_regmap_gate_ro_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&fclk50m_div.hw,
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_fixed_factor fclk_div2_div = {
+	.mult = 1,
+	.div = 2,
+	.hw.init = &(struct clk_init_data) {
+		.name = "fclk_div2_div",
+		.ops = &clk_fixed_factor_ops,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "fixed_pll"
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap fclk_div2 = {
+	.data = &(struct clk_regmap_gate_data) {
+		.offset = ANACTRL_FIXPLL_CTRL1,
+		.bit_idx = 20,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "fclk_div2",
+		.ops = &clk_regmap_gate_ro_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&fclk_div2_div.hw,
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_fixed_factor fclk_div2p5_div = {
+	.mult = 2,
+	.div = 5,
+	.hw.init = &(struct clk_init_data) {
+		.name = "fclk_div2p5_div",
+		.ops = &clk_fixed_factor_ops,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "fixed_pll"
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap fclk_div2p5 = {
+	.data = &(struct clk_regmap_gate_data) {
+		.offset = ANACTRL_FIXPLL_CTRL1,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "fclk_div2p5",
+		.ops = &clk_regmap_gate_ro_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&fclk_div2p5_div.hw,
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_fixed_factor fclk_div3_div = {
+	.mult = 1,
+	.div = 3,
+	.hw.init = &(struct clk_init_data) {
+		.name = "fclk_div3_div",
+		.ops = &clk_fixed_factor_ops,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "fixed_pll"
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap fclk_div3 = {
+	.data = &(struct clk_regmap_gate_data) {
+		.offset = ANACTRL_FIXPLL_CTRL1,
+		.bit_idx = 16,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "fclk_div3",
+		.ops = &clk_regmap_gate_ro_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&fclk_div3_div.hw,
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_fixed_factor fclk_div4_div = {
+	.mult = 1,
+	.div = 4,
+	.hw.init = &(struct clk_init_data) {
+		.name = "fclk_div4_div",
+		.ops = &clk_fixed_factor_ops,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "fixed_pll"
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap fclk_div4 = {
+	.data = &(struct clk_regmap_gate_data) {
+		.offset = ANACTRL_FIXPLL_CTRL1,
+		.bit_idx = 17,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "fclk_div4",
+		.ops = &clk_regmap_gate_ro_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&fclk_div4_div.hw,
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_fixed_factor fclk_div5_div = {
+	.mult = 1,
+	.div = 5,
+	.hw.init = &(struct clk_init_data) {
+		.name = "fclk_div5_div",
+		.ops = &clk_fixed_factor_ops,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "fixed_pll"
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap fclk_div5 = {
+	.data = &(struct clk_regmap_gate_data) {
+		.offset = ANACTRL_FIXPLL_CTRL1,
+		.bit_idx = 18,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "fclk_div5",
+		.ops = &clk_regmap_gate_ro_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&fclk_div5_div.hw,
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_fixed_factor fclk_div7_div = {
+	.mult = 1,
+	.div = 7,
+	.hw.init = &(struct clk_init_data) {
+		.name = "fclk_div7_div",
+		.ops = &clk_fixed_factor_ops,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "fixed_pll"
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap fclk_div7 = {
+	.data = &(struct clk_regmap_gate_data) {
+		.offset = ANACTRL_FIXPLL_CTRL1,
+		.bit_idx = 19,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "fclk_div7",
+		.ops = &clk_regmap_gate_ro_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&fclk_div7_div.hw,
+		},
+		.num_parents = 1,
 	},
 };
 
@@ -641,6 +646,7 @@ static struct clk_regmap rtc_dual_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = rtc_dual_parent_data,
 		.num_parents = ARRAY_SIZE(rtc_dual_parent_data),
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -656,6 +662,7 @@ static struct clk_regmap rtc_dual = {
 			&rtc_dual_mux.hw,
 		},
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -675,11 +682,8 @@ static struct clk_regmap rtc_clk = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = rtc_clk_parent_data,
 		.num_parents = ARRAY_SIZE(rtc_clk_parent_data),
+		.flags = CLK_SET_RATE_PARENT,
 	},
-};
-
-static const struct clk_parent_data clk_24m_in_parent_data[] = {
-	{ .fw_name = "xtal" }
 };
 
 static struct clk_regmap clk_24m_in = {
@@ -690,7 +694,9 @@ static struct clk_regmap clk_24m_in = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "clk_24m_in",
 		.ops = &clk_regmap_gate_ops,
-		.parent_data = clk_24m_in_parent_data,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
 		.num_parents = 1,
 	},
 };
@@ -705,23 +711,25 @@ static struct clk_fixed_factor clk_12m_div = {
 			&clk_24m_in.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
+static const struct clk_parent_data clk_12m_parent_data[] = {
+	{ .hw = &clk_24m_in.hw },
+	{ .hw = &clk_12m_div.hw }
+};
+
 static struct clk_regmap clk_12m = {
-	.data = &(struct clk_regmap_gate_data) {
+	.data = &(struct clk_regmap_mux_data) {
 		.offset = CLKCTRL_CLK12_24_CTRL,
-		.bit_idx = 10,
+		.mask = 0x1,
+		.shift = 10,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "clk_12m",
-		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&clk_12m_div.hw,
-		},
-		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = clk_12m_parent_data,
+		.num_parents = ARRAY_SIZE(clk_12m_parent_data),
 	},
 };
 
@@ -779,10 +787,6 @@ static struct clk_regmap sar_adc = {
 	},
 };
 
-static const struct clk_parent_data cecb_dual_clkin_parent_data[] = {
-	{ .fw_name = "xtal" }
-};
-
 static struct clk_regmap cecb_dual_clkin = {
 	.data = &(struct clk_regmap_gate_data) {
 		.offset = CLKCTRL_CECB_CTRL0,
@@ -791,7 +795,9 @@ static struct clk_regmap cecb_dual_clkin = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "cecb_dual_clkin",
 		.ops = &clk_regmap_gate_ops,
-		.parent_data = cecb_dual_clkin_parent_data,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
 		.num_parents = 1,
 	},
 };
@@ -826,7 +832,7 @@ static struct clk_regmap cecb_dual_div = {
 		.dual = {
 			.reg_off = CLKCTRL_CECB_CTRL0,
 			.shift   = 28,
-			.width   = 1,
+			.width   = 2,
 		},
 		.table = cecb_dual_div_table,
 	},
@@ -1029,7 +1035,7 @@ static const struct clk_parent_data video_src_01_parent_data[] = {
 	{ .hw = &fclk_div7.hw }
 };
 
-static struct clk_regmap video_src0_mux = {
+static struct clk_regmap video_src0_in_mux = {
 	.data = &(struct clk_regmap_mux_data) {
 		.offset = CLKCTRL_VID_CLK_CTRL,
 		.mask = 0x7,
@@ -1037,26 +1043,27 @@ static struct clk_regmap video_src0_mux = {
 		.table = video_src_01_parent_table,
 	},
 	.hw.init = &(struct clk_init_data) {
-		.name = "video_src0_mux",
+		.name = "video_src0_in_mux",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = video_src_01_parent_data,
 		.num_parents = ARRAY_SIZE(video_src_01_parent_data),
 	},
 };
 
-static struct clk_regmap video_src0_input = {
+static struct clk_regmap video_src0_in = {
 	.data = &(struct clk_regmap_gate_data) {
 		.offset = CLKCTRL_VID_CLK_DIV,
 		.bit_idx = 16,
 	},
 	.hw.init = &(struct clk_init_data) {
-		.name = "video_src0_input",
+		.name = "video_src0_in",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&video_src0_mux.hw,
+			&video_src0_in_mux.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1070,9 +1077,10 @@ static struct clk_regmap video_src0_div = {
 		.name = "video_src0_div",
 		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&video_src0_input.hw,
+			&video_src0_in.hw,
 		},
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1088,11 +1096,12 @@ static struct clk_regmap video_src0 = {
 			&video_src0_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_IGNORE_UNUSED,
 	},
 };
 
-static struct clk_regmap video_src1_mux = {
+static struct clk_regmap video_src1_in_mux = {
 	.data = &(struct clk_regmap_mux_data) {
 		.offset = CLKCTRL_VIID_CLK_CTRL,
 		.mask = 0x7,
@@ -1100,26 +1109,27 @@ static struct clk_regmap video_src1_mux = {
 		.table = video_src_01_parent_table,
 	},
 	.hw.init = &(struct clk_init_data) {
-		.name = "video_src1_mux",
+		.name = "video_src1_in_mux",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = video_src_01_parent_data,
 		.num_parents = ARRAY_SIZE(video_src_01_parent_data),
 	},
 };
 
-static struct clk_regmap video_src1_input = {
+static struct clk_regmap video_src1_in = {
 	.data = &(struct clk_regmap_gate_data) {
 		.offset = CLKCTRL_VIID_CLK_DIV,
 		.bit_idx = 16,
 	},
 	.hw.init = &(struct clk_init_data) {
-		.name = "video_src1_input",
+		.name = "video_src1_in",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&video_src1_mux.hw,
+			&video_src1_in_mux.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1133,9 +1143,10 @@ static struct clk_regmap video_src1_div = {
 		.name = "video_src1_div",
 		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&video_src1_input.hw,
+			&video_src1_in.hw,
 		},
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1151,7 +1162,8 @@ static struct clk_regmap video_src1 = {
 			&video_src1_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1167,7 +1179,7 @@ static struct clk_regmap video0_div1 = {
 			&video_src0.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1183,7 +1195,7 @@ static struct clk_regmap video0_div2_gate = {
 			&video_src0.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1212,7 +1224,7 @@ static struct clk_regmap video0_div4_gate = {
 			&video_src0.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1241,7 +1253,7 @@ static struct clk_regmap video0_div6_gate = {
 			&video_src0.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1270,7 +1282,7 @@ static struct clk_regmap video0_div12_gate = {
 			&video_src0.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1299,7 +1311,7 @@ static struct clk_regmap video2_div1 = {
 			&video_src1.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1315,7 +1327,7 @@ static struct clk_regmap video2_div2_gate = {
 			&video_src1.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1344,7 +1356,7 @@ static struct clk_regmap video2_div4_gate = {
 			&video_src1.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1373,7 +1385,7 @@ static struct clk_regmap video2_div6_gate = {
 			&video_src1.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1402,7 +1414,7 @@ static struct clk_regmap video2_div12_gate = {
 			&video_src1.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1419,7 +1431,7 @@ static struct clk_fixed_factor video2_div12 = {
 	},
 };
 
-static const struct clk_parent_data lcd_an_mux_parent_data[] = {
+static const struct clk_parent_data lcd_an_parent_data[] = {
 	{ .hw = &video0_div6.hw },
 	{ .hw = &video0_div12.hw }
 };
@@ -1433,8 +1445,8 @@ static struct clk_regmap lcd_an_mux = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "lcd_an_mux",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = lcd_an_mux_parent_data,
-		.num_parents = ARRAY_SIZE(lcd_an_mux_parent_data),
+		.parent_data = lcd_an_parent_data,
+		.num_parents = ARRAY_SIZE(lcd_an_parent_data),
 	},
 };
 
@@ -1486,8 +1498,8 @@ static struct clk_regmap lcd_an_ph3 = {
 	},
 };
 
-static u32 enci_parent_table[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
-static const struct clk_parent_data enci_parent_data[] = {
+static u32 hdmitx_parent_table[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
+static const struct clk_parent_data hdmitx_parent_data[] = {
 	{ .hw = &video0_div1.hw },
 	{ .hw = &video0_div2.hw },
 	{ .hw = &video0_div4.hw },
@@ -1505,13 +1517,13 @@ static struct clk_regmap enci_mux = {
 		.offset = CLKCTRL_VID_CLK_DIV,
 		.mask = 0xf,
 		.shift = 28,
-		.table = enci_parent_table,
+		.table = hdmitx_parent_table,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "enci_mux",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = enci_parent_data,
-		.num_parents = ARRAY_SIZE(enci_parent_data),
+		.parent_data = hdmitx_parent_data,
+		.num_parents = ARRAY_SIZE(hdmitx_parent_data),
 	},
 };
 
@@ -1531,32 +1543,18 @@ static struct clk_regmap enci = {
 	},
 };
 
-static u32 encp_parent_table[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
-static const struct clk_parent_data encp_parent_data[] = {
-	{ .hw = &video0_div1.hw },
-	{ .hw = &video0_div2.hw },
-	{ .hw = &video0_div4.hw },
-	{ .hw = &video0_div6.hw },
-	{ .hw = &video0_div12.hw },
-	{ .hw = &video2_div1.hw },
-	{ .hw = &video2_div2.hw },
-	{ .hw = &video2_div4.hw },
-	{ .hw = &video2_div6.hw },
-	{ .hw = &video2_div12.hw }
-};
-
 static struct clk_regmap encp_mux = {
 	.data = &(struct clk_regmap_mux_data) {
 		.offset = CLKCTRL_VID_CLK_DIV,
 		.mask = 0xf,
 		.shift = 24,
-		.table = encp_parent_table,
+		.table = hdmitx_parent_table,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "encp_mux",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = encp_parent_data,
-		.num_parents = ARRAY_SIZE(encp_parent_data),
+		.parent_data = hdmitx_parent_data,
+		.num_parents = ARRAY_SIZE(hdmitx_parent_data),
 	},
 };
 
@@ -1576,32 +1574,18 @@ static struct clk_regmap encp = {
 	},
 };
 
-static u32 encl_parent_table[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
-static const struct clk_parent_data encl_parent_data[] = {
-	{ .hw = &video0_div1.hw },
-	{ .hw = &video0_div2.hw },
-	{ .hw = &video0_div4.hw },
-	{ .hw = &video0_div6.hw },
-	{ .hw = &video0_div12.hw },
-	{ .hw = &video2_div1.hw },
-	{ .hw = &video2_div2.hw },
-	{ .hw = &video2_div4.hw },
-	{ .hw = &video2_div6.hw },
-	{ .hw = &video2_div12.hw }
-};
-
 static struct clk_regmap encl_mux = {
 	.data = &(struct clk_regmap_mux_data) {
 		.offset = CLKCTRL_VIID_CLK_DIV,
 		.mask = 0xf,
 		.shift = 12,
-		.table = encl_parent_table,
+		.table = hdmitx_parent_table,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "encl_mux",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = encl_parent_data,
-		.num_parents = ARRAY_SIZE(encl_parent_data),
+		.parent_data = hdmitx_parent_data,
+		.num_parents = ARRAY_SIZE(hdmitx_parent_data),
 	},
 };
 
@@ -1621,32 +1605,18 @@ static struct clk_regmap encl = {
 	},
 };
 
-static u32 vdac_parent_table[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
-static const struct clk_parent_data vdac_parent_data[] = {
-	{ .hw = &video0_div1.hw },
-	{ .hw = &video0_div2.hw },
-	{ .hw = &video0_div4.hw },
-	{ .hw = &video0_div6.hw },
-	{ .hw = &video0_div12.hw },
-	{ .hw = &video2_div1.hw },
-	{ .hw = &video2_div2.hw },
-	{ .hw = &video2_div4.hw },
-	{ .hw = &video2_div6.hw },
-	{ .hw = &video2_div12.hw }
-};
-
 static struct clk_regmap vdac_mux = {
 	.data = &(struct clk_regmap_mux_data) {
 		.offset = CLKCTRL_VIID_CLK_DIV,
 		.mask = 0xf,
 		.shift = 28,
-		.table = vdac_parent_table,
+		.table = hdmitx_parent_table,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "vdac_mux",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = vdac_parent_data,
-		.num_parents = ARRAY_SIZE(vdac_parent_data),
+		.parent_data = hdmitx_parent_data,
+		.num_parents = ARRAY_SIZE(hdmitx_parent_data),
 	},
 };
 
@@ -1666,32 +1636,18 @@ static struct clk_regmap vdac = {
 	},
 };
 
-static u32 hdmitx_pixel_parent_table[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
-static const struct clk_parent_data hdmitx_pixel_parent_data[] = {
-	{ .hw = &video0_div1.hw },
-	{ .hw = &video0_div2.hw },
-	{ .hw = &video0_div4.hw },
-	{ .hw = &video0_div6.hw },
-	{ .hw = &video0_div12.hw },
-	{ .hw = &video2_div1.hw },
-	{ .hw = &video2_div2.hw },
-	{ .hw = &video2_div4.hw },
-	{ .hw = &video2_div6.hw },
-	{ .hw = &video2_div12.hw }
-};
-
 static struct clk_regmap hdmitx_pixel_mux = {
 	.data = &(struct clk_regmap_mux_data) {
 		.offset = CLKCTRL_HDMI_CLK_CTRL,
 		.mask = 0xf,
 		.shift = 16,
-		.table = hdmitx_pixel_parent_table,
+		.table = hdmitx_parent_table,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "hdmitx_pixel_mux",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = hdmitx_pixel_parent_data,
-		.num_parents = ARRAY_SIZE(hdmitx_pixel_parent_data),
+		.parent_data = hdmitx_parent_data,
+		.num_parents = ARRAY_SIZE(hdmitx_parent_data),
 	},
 };
 
@@ -1711,32 +1667,18 @@ static struct clk_regmap hdmitx_pixel = {
 	},
 };
 
-static u32 hdmitx_fe_parent_table[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
-static const struct clk_parent_data hdmitx_fe_parent_data[] = {
-	{ .hw = &video0_div1.hw },
-	{ .hw = &video0_div2.hw },
-	{ .hw = &video0_div4.hw },
-	{ .hw = &video0_div6.hw },
-	{ .hw = &video0_div12.hw },
-	{ .hw = &video2_div1.hw },
-	{ .hw = &video2_div2.hw },
-	{ .hw = &video2_div4.hw },
-	{ .hw = &video2_div6.hw },
-	{ .hw = &video2_div12.hw }
-};
-
 static struct clk_regmap hdmitx_fe_mux = {
 	.data = &(struct clk_regmap_mux_data) {
 		.offset = CLKCTRL_HDMI_CLK_CTRL,
 		.mask = 0xf,
 		.shift = 20,
-		.table = hdmitx_fe_parent_table,
+		.table = hdmitx_parent_table,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "hdmitx_fe_mux",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = hdmitx_fe_parent_data,
-		.num_parents = ARRAY_SIZE(hdmitx_fe_parent_data),
+		.parent_data = hdmitx_parent_data,
+		.num_parents = ARRAY_SIZE(hdmitx_parent_data),
 	},
 };
 
@@ -1810,7 +1752,8 @@ static struct clk_regmap mali_0 = {
 			&mali_0_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -1857,7 +1800,8 @@ static struct clk_regmap mali_1 = {
 			&mali_1_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -1877,7 +1821,8 @@ static struct clk_regmap mali = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = mali_parent_data,
 		.num_parents = ARRAY_SIZE(mali_parent_data),
-		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -1935,7 +1880,8 @@ static struct clk_regmap mali_stack_0 = {
 			&mali_stack_0_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -1982,7 +1928,8 @@ static struct clk_regmap mali_stack_1 = {
 			&mali_stack_1_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -2002,7 +1949,8 @@ static struct clk_regmap mali_stack = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = mali_stack_parent_data,
 		.num_parents = ARRAY_SIZE(mali_stack_parent_data),
-		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -2060,7 +2008,8 @@ static struct clk_regmap vdec_0 = {
 			&vdec_0_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -2107,7 +2056,8 @@ static struct clk_regmap vdec_1 = {
 			&vdec_1_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -2127,7 +2077,8 @@ static struct clk_regmap vdec = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = vdec_parent_data,
 		.num_parents = ARRAY_SIZE(vdec_parent_data),
-		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -2185,7 +2136,8 @@ static struct clk_regmap hevcf_0 = {
 			&hevcf_0_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -2232,7 +2184,8 @@ static struct clk_regmap hevcf_1 = {
 			&hevcf_1_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -2252,7 +2205,8 @@ static struct clk_regmap hevcf = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = hevcf_parent_data,
 		.num_parents = ARRAY_SIZE(hevcf_parent_data),
-		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -2311,7 +2265,8 @@ static struct clk_regmap vpu_0 = {
 			&vpu_0_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -2359,7 +2314,8 @@ static struct clk_regmap vpu_1 = {
 			&vpu_1_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -2379,17 +2335,8 @@ static struct clk_regmap vpu = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = vpu_parent_data,
 		.num_parents = ARRAY_SIZE(vpu_parent_data),
-		/*
-		 * The vpu driver manages "vpu", "vpu_0" and "vpu_1" clocks to
-		 * ensure clock quality (clock continuity /glitch), and does
-		 * not use the existing features in CCF.
-		 *
-		 * Therefore, add the flag "CLK_SET_RATE_NO_REPARENT" to
-		 * prevent switching to another clock channel when
-		 * clk_set_rate() is called and the clock output quality is
-		 * affected.
-		 */
-		.flags = CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -2460,7 +2407,6 @@ static struct clk_regmap vpu_clkb_div = {
 			&vpu_clkb_tmp.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2535,7 +2481,8 @@ static struct clk_regmap vpu_clkc_0 = {
 			&vpu_clkc_0_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -2583,7 +2530,8 @@ static struct clk_regmap vpu_clkc_1 = {
 			&vpu_clkc_1_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -2603,7 +2551,8 @@ static struct clk_regmap vpu_clkc = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = vpu_clkc_parent_data,
 		.num_parents = ARRAY_SIZE(vpu_clkc_parent_data),
-		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -2662,7 +2611,8 @@ static struct clk_regmap vapb_0 = {
 			&vapb_0_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -2710,7 +2660,8 @@ static struct clk_regmap vapb_1 = {
 			&vapb_1_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -2730,7 +2681,8 @@ static struct clk_regmap vapb = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = vapb_parent_data,
 		.num_parents = ARRAY_SIZE(vapb_parent_data),
-		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -4251,7 +4203,8 @@ static struct clk_regmap mipi_csi_phy_0 = {
 			&mipi_csi_phy_0_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -4298,7 +4251,8 @@ static struct clk_regmap mipi_csi_phy_1 = {
 			&mipi_csi_phy_1_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -4318,7 +4272,8 @@ static struct clk_regmap mipi_csi_phy = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = mipi_csi_phy_parent_data,
 		.num_parents = ARRAY_SIZE(mipi_csi_phy_parent_data),
-		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -4609,7 +4564,8 @@ static struct clk_regmap dspa_0 = {
 			&dspa_0_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -4656,7 +4612,8 @@ static struct clk_regmap dspa_1 = {
 			&dspa_1_div.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_SET_RATE_GATE,
 	},
 };
 
@@ -4676,7 +4633,8 @@ static struct clk_regmap dspa = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = dspa_parent_data,
 		.num_parents = ARRAY_SIZE(dspa_parent_data),
-		.flags = CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE,
+		.flags = CLK_SET_RATE_PARENT |
+			 CLK_OPS_PARENT_ENABLE,
 	},
 };
 
@@ -4796,8 +4754,8 @@ static struct clk_regmap usb_250m = {
 	},
 };
 
-static u32 gen_parent_table[] = { 0, 1, 5, 6, 7, 8, 9, 19, 20, 21, 22, 23, 24,
-				  29 };
+static u32 gen_parent_table[] = { 0, 1, 5, 6, 7, 8, 9, 19, 20, 21, 22, 23,
+				 24, 29 };
 static const struct clk_parent_data gen_parent_data[] = {
 	{ .fw_name = "xtal" },
 	{ .hw = &rtc_clk.hw },
@@ -4873,7 +4831,7 @@ struct clk_regmap _name = {                                           \
 		.name = #_name,                                       \
 		.ops = &clk_regmap_gate_ops,                          \
 		.parent_data = &(const struct clk_parent_data) {      \
-			.fw_name = "sys_clk",                         \
+			.fw_name = "sys_clk"                          \
 		},                                                    \
 		.num_parents = 1,                                     \
 		.flags = CLK_IGNORE_UNUSED,                           \
@@ -4890,7 +4848,7 @@ struct clk_regmap _name = {                                           \
 		.name = #_name,                                       \
 		.ops = &clk_regmap_gate_ops,                          \
 		.parent_hws = (const struct clk_hw *[]) {             \
-			&(_parent_hw),                                \
+			&(_parent_hw)                                 \
 		},                                                    \
 		.num_parents = 1,                                     \
 		.flags = CLK_IGNORE_UNUSED,                           \
@@ -4907,7 +4865,7 @@ struct clk_regmap _name = {                                           \
 		.name = #_name,                                       \
 		.ops = &clk_regmap_gate_ops,                          \
 		.parent_data = &(const struct clk_parent_data) {      \
-			.fw_name = "axi_clk",                         \
+			.fw_name = "axi_clk"                          \
 		},                                                    \
 		.num_parents = 1,                                     \
 		.flags = CLK_IGNORE_UNUSED,                           \
@@ -4918,10 +4876,11 @@ MESON_CLK_GATE_SYS_CLK(sys_am_axi, CLKCTRL_SYS_CLK_EN0_REG0, 0);
 MESON_CLK_GATE_SYS_CLK(sys_dos, CLKCTRL_SYS_CLK_EN0_REG0, 1);
 MESON_CLK_GATE_SYS_CLK(sys_vc9000e, CLKCTRL_SYS_CLK_EN0_REG0, 2);
 MESON_CLK_GATE_SYS_CLK(sys_mipi_dsi, CLKCTRL_SYS_CLK_EN0_REG0, 3);
-MESON_CLK_GATE_SYS_CLK(sys_ethphy, CLKCTRL_SYS_CLK_EN0_REG0, 4);
+MESON_CLK_GATE_SYS_CLK(sys_eth_phy, CLKCTRL_SYS_CLK_EN0_REG0, 4);
 MESON_CLK_GATE_SYS_CLK(sys_amfc, CLKCTRL_SYS_CLK_EN0_REG0, 5);
 MESON_CLK_GATE_SYS_CLK(sys_mali, CLKCTRL_SYS_CLK_EN0_REG0, 6);
 MESON_CLK_GATE_SYS_CLK(sys_nna, CLKCTRL_SYS_CLK_EN0_REG0, 7);
+MESON_CLK_GATE_SYS_CLK(sys_eth_mac, CLKCTRL_SYS_CLK_EN0_REG0, 8);
 MESON_CLK_GATE_SYS_CLK(sys_aocpu, CLKCTRL_SYS_CLK_EN0_REG0, 13);
 MESON_CLK_GATE_SYS_CLK(sys_aucpu, CLKCTRL_SYS_CLK_EN0_REG0, 14);
 MESON_CLK_GATE_SYS_CLK(sys_cec, CLKCTRL_SYS_CLK_EN0_REG0, 16);
@@ -4940,13 +4899,15 @@ MESON_CLK_GATE_SYS_CLK(sys_uart_b, CLKCTRL_SYS_CLK_EN0_REG1, 6);
 MESON_CLK_GATE_SYS_CLK(sys_uart_c, CLKCTRL_SYS_CLK_EN0_REG1, 7);
 MESON_CLK_GATE_SYS_CLK(sys_uart_d, CLKCTRL_SYS_CLK_EN0_REG1, 8);
 MESON_CLK_GATE_SYS_CLK(sys_uart_e, CLKCTRL_SYS_CLK_EN0_REG1, 9);
+MESON_CLK_GATE_SYS_CLK(sys_ts_core, CLKCTRL_SYS_CLK_EN0_REG1, 15);
 MESON_CLK_GATE_SYS_CLK(sys_ts_pll, CLKCTRL_SYS_CLK_EN0_REG1, 16);
 MESON_CLK_GATE_SYS_CLK(sys_csi_dig_clkin, CLKCTRL_SYS_CLK_EN0_REG1, 18);
 MESON_CLK_GATE_SYS_CLK(sys_ge2d, CLKCTRL_SYS_CLK_EN0_REG1, 20);
 MESON_CLK_GATE_SYS_CLK(sys_spicc0, CLKCTRL_SYS_CLK_EN0_REG1, 21);
-MESON_CLK_GATE_SYS_CLK(sys_pcie, CLKCTRL_SYS_CLK_EN0_REG1, 24);
-MESON_CLK_GATE_SYS_CLK(sys_usb, CLKCTRL_SYS_CLK_EN0_REG1, 26);
+MESON_CLK_GATE_SYS_CLK(sys_usb3drd, CLKCTRL_SYS_CLK_EN0_REG1, 25);
+MESON_CLK_GATE_SYS_CLK(sys_usb2drd, CLKCTRL_SYS_CLK_EN0_REG1, 26);
 MESON_CLK_GATE_SYS_CLK(sys_pcie_phy, CLKCTRL_SYS_CLK_EN0_REG1, 27);
+MESON_CLK_GATE_SYS_CLK(sys_pcie_mac, CLKCTRL_SYS_CLK_EN0_REG1, 28);
 MESON_CLK_GATE_SYS_CLK(sys_i2c_m_a, CLKCTRL_SYS_CLK_EN0_REG1, 30);
 MESON_CLK_GATE_HW(sys_i2c_m_b, CLKCTRL_SYS_CLK_EN0_REG1, 31, sys_i2c_m_a.hw);
 MESON_CLK_GATE_HW(sys_i2c_m_c, CLKCTRL_SYS_CLK_EN0_REG2, 0, sys_i2c_m_a.hw);
@@ -4977,7 +4938,6 @@ MESON_CLK_GATE_HW(sys_pwm_d, CLKCTRL_SYS_CLK_EN0_REG3, 4, sys_pwm_a.hw);
 MESON_CLK_GATE_HW(sys_pwm_c, CLKCTRL_SYS_CLK_EN0_REG3, 5, sys_pwm_a.hw);
 MESON_CLK_GATE_HW(sys_pwm_b, CLKCTRL_SYS_CLK_EN0_REG3, 6, sys_pwm_a.hw);
 MESON_CLK_GATE_SYS_CLK(sys_pwm_a, CLKCTRL_SYS_CLK_EN0_REG3, 7);
-
 MESON_CLK_GATE_AXI_CLK(axi_ao_nic, CLKCTRL_AXI_CLK_EN0, 0);
 MESON_CLK_GATE_AXI_CLK(axi_dev0_mmc, CLKCTRL_AXI_CLK_EN0, 1);
 MESON_CLK_GATE_AXI_CLK(axi_cpu_sram, CLKCTRL_AXI_CLK_EN0, 2);
@@ -4986,17 +4946,17 @@ static struct clk_regmap *const pll_regmaps[] = {
 	&gp0_pll,
 	&hifi_pll,
 	&hifi1_pll,
+	&mclk_pll,
+	&mclk_pll_clk,
+	&mclk0_div,
+	&mclk0,
 	&fclk50m,
 	&fclk_div2,
 	&fclk_div2p5,
 	&fclk_div3,
 	&fclk_div4,
 	&fclk_div5,
-	&fclk_div7,
-	&mclk_pll,
-	&mclk_pll_clk,
-	&mclk0_div,
-	&mclk0
+	&fclk_div7
 };
 
 static struct clk_regmap *const clk_regmaps[] = {
@@ -5022,12 +4982,12 @@ static struct clk_regmap *const clk_regmaps[] = {
 	&cdac_mux,
 	&cdac_div,
 	&cdac,
-	&video_src0_mux,
-	&video_src0_input,
+	&video_src0_in_mux,
+	&video_src0_in,
 	&video_src0_div,
 	&video_src0,
-	&video_src1_mux,
-	&video_src1_input,
+	&video_src1_in_mux,
+	&video_src1_in,
 	&video_src1_div,
 	&video_src1,
 	&video0_div1,
@@ -5228,10 +5188,11 @@ static struct clk_regmap *const clk_regmaps[] = {
 	&sys_dos,
 	&sys_vc9000e,
 	&sys_mipi_dsi,
-	&sys_ethphy,
+	&sys_eth_phy,
 	&sys_amfc,
 	&sys_mali,
 	&sys_nna,
+	&sys_eth_mac,
 	&sys_aocpu,
 	&sys_aucpu,
 	&sys_cec,
@@ -5250,13 +5211,15 @@ static struct clk_regmap *const clk_regmaps[] = {
 	&sys_uart_c,
 	&sys_uart_d,
 	&sys_uart_e,
+	&sys_ts_core,
 	&sys_ts_pll,
 	&sys_csi_dig_clkin,
 	&sys_ge2d,
 	&sys_spicc0,
-	&sys_pcie,
-	&sys_usb,
+	&sys_usb3drd,
+	&sys_usb2drd,
 	&sys_pcie_phy,
+	&sys_pcie_mac,
 	&sys_i2c_m_a,
 	&sys_i2c_m_b,
 	&sys_i2c_m_c,
@@ -5293,8 +5256,13 @@ static struct clk_regmap *const clk_regmaps[] = {
 static struct clk_hw_onecell_data hw_onecell_data = {
 	.hws = {
 		[CLKID_GP0_PLL]               = &gp0_pll.hw,
-		[CLKID_HIFI0_PLL]             = &hifi_pll.hw,
+		[CLKID_HIFI_PLL]              = &hifi_pll.hw,
 		[CLKID_HIFI1_PLL]             = &hifi1_pll.hw,
+		[CLKID_MCLK_PLL]              = &mclk_pll.hw,
+		[CLKID_MCLK_PLL_CLK]          = &mclk_pll_clk.hw,
+		[CLKID_MCLK0_DIV]             = &mclk0_div.hw,
+		[CLKID_MCLK0_DIV2]            = &mclk0_div2.hw,
+		[CLKID_MCLK0]                 = &mclk0.hw,
 		[CLKID_FCLK50M_DIV]           = &fclk50m_div.hw,
 		[CLKID_FCLK50M]               = &fclk50m.hw,
 		[CLKID_FCLK_DIV2_DIV]         = &fclk_div2_div.hw,
@@ -5309,11 +5277,6 @@ static struct clk_hw_onecell_data hw_onecell_data = {
 		[CLKID_FCLK_DIV5]             = &fclk_div5.hw,
 		[CLKID_FCLK_DIV7_DIV]         = &fclk_div7_div.hw,
 		[CLKID_FCLK_DIV7]             = &fclk_div7.hw,
-		[CLKID_MCLK_PLL]              = &mclk_pll.hw,
-		[CLKID_MCLK_PLL_CLK]          = &mclk_pll_clk.hw,
-		[CLKID_MCLK0_DIV]             = &mclk0_div.hw,
-		[CLKID_MCLK0_DIV2]            = &mclk0_div2.hw,
-		[CLKID_MCLK0]                 = &mclk0.hw,
 		[CLKID_RTC_DUAL_CLKIN]        = &rtc_dual_clkin.hw,
 		[CLKID_RTC_DUAL_DIV]          = &rtc_dual_div.hw,
 		[CLKID_RTC_DUAL_MUX]          = &rtc_dual_mux.hw,
@@ -5337,12 +5300,12 @@ static struct clk_hw_onecell_data hw_onecell_data = {
 		[CLKID_CDAC_MUX]              = &cdac_mux.hw,
 		[CLKID_CDAC_DIV]              = &cdac_div.hw,
 		[CLKID_CDAC]                  = &cdac.hw,
-		[CLKID_VIDEO_SRC0_MUX]        = &video_src0_mux.hw,
-		[CLKID_VIDEO_SRC0_INPUT]      = &video_src0_input.hw,
+		[CLKID_VIDEO_SRC0_IN_MUX]     = &video_src0_in_mux.hw,
+		[CLKID_VIDEO_SRC0_IN]         = &video_src0_in.hw,
 		[CLKID_VIDEO_SRC0_DIV]        = &video_src0_div.hw,
 		[CLKID_VIDEO_SRC0]            = &video_src0.hw,
-		[CLKID_VIDEO_SRC1_MUX]        = &video_src1_mux.hw,
-		[CLKID_VIDEO_SRC1_INPUT]      = &video_src1_input.hw,
+		[CLKID_VIDEO_SRC1_IN_MUX]     = &video_src1_in_mux.hw,
+		[CLKID_VIDEO_SRC1_IN]         = &video_src1_in.hw,
 		[CLKID_VIDEO_SRC1_DIV]        = &video_src1_div.hw,
 		[CLKID_VIDEO_SRC1]            = &video_src1.hw,
 		[CLKID_VIDEO0_DIV1]           = &video0_div1.hw,
@@ -5552,10 +5515,11 @@ static struct clk_hw_onecell_data hw_onecell_data = {
 		[CLKID_SYS_DOS]               = &sys_dos.hw,
 		[CLKID_SYS_VC9000E]           = &sys_vc9000e.hw,
 		[CLKID_SYS_MIPI_DSI]          = &sys_mipi_dsi.hw,
-		[CLKID_SYS_ETHPHY]            = &sys_ethphy.hw,
+		[CLKID_SYS_ETH_PHY]           = &sys_eth_phy.hw,
 		[CLKID_SYS_AMFC]              = &sys_amfc.hw,
 		[CLKID_SYS_MALI]              = &sys_mali.hw,
 		[CLKID_SYS_NNA]               = &sys_nna.hw,
+		[CLKID_SYS_ETH_MAC]           = &sys_eth_mac.hw,
 		[CLKID_SYS_AOCPU]             = &sys_aocpu.hw,
 		[CLKID_SYS_AUCPU]             = &sys_aucpu.hw,
 		[CLKID_SYS_CEC]               = &sys_cec.hw,
@@ -5574,13 +5538,15 @@ static struct clk_hw_onecell_data hw_onecell_data = {
 		[CLKID_SYS_UART_C]            = &sys_uart_c.hw,
 		[CLKID_SYS_UART_D]            = &sys_uart_d.hw,
 		[CLKID_SYS_UART_E]            = &sys_uart_e.hw,
+		[CLKID_SYS_TS_CORE]           = &sys_ts_core.hw,
 		[CLKID_SYS_TS_PLL]            = &sys_ts_pll.hw,
 		[CLKID_SYS_CSI_DIG_CLKIN]     = &sys_csi_dig_clkin.hw,
 		[CLKID_SYS_GE2D]              = &sys_ge2d.hw,
 		[CLKID_SYS_SPICC0]            = &sys_spicc0.hw,
-		[CLKID_SYS_PCIE]              = &sys_pcie.hw,
-		[CLKID_SYS_USB]               = &sys_usb.hw,
+		[CLKID_SYS_USB3DRD]           = &sys_usb3drd.hw,
+		[CLKID_SYS_USB2DRD]           = &sys_usb2drd.hw,
 		[CLKID_SYS_PCIE_PHY]          = &sys_pcie_phy.hw,
+		[CLKID_SYS_PCIE_MAC]          = &sys_pcie_mac.hw,
 		[CLKID_SYS_I2C_M_A]           = &sys_i2c_m_a.hw,
 		[CLKID_SYS_I2C_M_B]           = &sys_i2c_m_b.hw,
 		[CLKID_SYS_I2C_M_C]           = &sys_i2c_m_c.hw,
@@ -5629,7 +5595,7 @@ static int meson_s6_probe(struct platform_device *pdev)
 	hw_onecell_data = of_device_get_match_data(&pdev->dev);
 	if (!hw_onecell_data)
 		return -EINVAL;
-	pr_info("");
+
 	clk = devm_clk_get(dev, "xtal");
 	if (IS_ERR(clk)) {
 		pr_err("%s: clock source xtal not found\n", dev_name(&pdev->dev));
@@ -5637,13 +5603,13 @@ static int meson_s6_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_AMLOGIC_CLK_DEBUG
-		ret = devm_clk_hw_register_clkdev(dev, __clk_get_hw(clk),
-						  NULL,
-						  __clk_get_name(clk));
-		if (ret < 0) {
-			dev_err(dev, "Failed to clkdev register: %d\n", ret);
-			return ret;
-		}
+	ret = devm_clk_hw_register_clkdev(dev, __clk_get_hw(clk),
+					  NULL,
+					  __clk_get_name(clk));
+	if (ret < 0) {
+		dev_err(dev, "Failed to clkdev register: %d\n", ret);
+		return ret;
+	}
 #endif
 
 	basic_map = meson_clk_regmap_resource(pdev, dev, 0);
@@ -5669,10 +5635,6 @@ static int meson_s6_probe(struct platform_device *pdev)
 		/* array might be sparse */
 		if (!hw_onecell_data->hws[i])
 			continue;
-
-		//dev_err(dev, "register %d  %s\n", i,
-		//		hw_onecell_data->hws[i]->init->name);
-
 		ret = devm_clk_hw_register(dev, hw_onecell_data->hws[i]);
 		if (ret) {
 			dev_err(dev, "Clock registration failed\n");
@@ -5706,10 +5668,9 @@ static struct platform_driver s6_driver = {
 	.probe		= meson_s6_probe,
 	.driver		= {
 		.name	= "s6-clkc",
-		.of_match_table = clkc_match_table,
+		.of_match_table	= clkc_match_table,
 	},
 };
 
 builtin_platform_driver(s6_driver);
-
 MODULE_LICENSE("GPL v2");
