@@ -149,6 +149,7 @@ struct meson_aw9523 {
 	struct meson_aw9523_io *io;
 	struct meson_aw9523_colors *colors;
 	int led_counts;
+	int led_suspend_enable;
 };
 
 struct meson_aw9523 *aw9523;
@@ -402,7 +403,10 @@ static int aw9523_parse_dt(struct device *dev, struct meson_aw9523 *aw9523,
 		}
 		gpio_direction_output(aw9523->reset_gpio, 1);
 	}
-
+	if (of_property_read_bool(np, "led-suspend-enable"))
+		aw9523->led_suspend_enable = 1;
+	else
+		aw9523->led_suspend_enable = 0;
 	return 0;
 }
 
@@ -793,6 +797,8 @@ static void aw9523b_early_suspend(struct early_suspend *h)
 {
 	unsigned char color_data[AW9523_MAX_IO] = { 0 };
 
+	if (!aw9523->led_suspend_enable)
+		return;
 	aw9523_i2c_writes(aw9523->i2c, REG_DIM00, AW9523_MAX_IO, color_data);
 	pr_debug("Tiger]aw9523b early suspend\n");
 }
@@ -801,6 +807,8 @@ static void aw9523b_late_resume(struct early_suspend *h)
 {
 	unsigned char color_data[AW9523_MAX_IO] = { 0 };
 
+	if (!aw9523->led_suspend_enable)
+		return;
 	memset(color_data, 0x00, AW9523_MAX_IO);
 	aw9523_i2c_writes(aw9523->i2c, REG_DIM00, AW9523_MAX_IO, color_data);
 	pr_debug("Tiger]aw9523b early resume\n");
