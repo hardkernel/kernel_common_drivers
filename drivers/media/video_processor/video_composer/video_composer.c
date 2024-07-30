@@ -3797,6 +3797,7 @@ static void video_composer_task(struct composer_dev *dev)
 			vf_ext->crop[2] = vf->crop[2];
 			vf_ext->crop[3] = vf->crop[3];
 			vf_ext->zorder = vf->zorder;
+			vf_ext->dec_set_screen_mode = vf->dec_set_screen_mode;
 			vf_ext->flag |= VFRAME_FLAG_VIDEO_COMPOSER
 				| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
 		}

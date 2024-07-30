@@ -5439,6 +5439,8 @@ RERTY:
 
 	process_3d_type = local_input.proc_3d_type;
 	wide_mode = local_input.wide_mode;
+	if (vf->dec_set_screen_mode == VIDEO_OPTION_NORMAL)
+		wide_mode = VIDEO_WIDEOPTION_NORMAL;
 
 	next_frame_par->VPP_post_blend_vd_v_start_ = 0;
 	next_frame_par->VPP_post_blend_vd_h_start_ = 0;
@@ -5461,9 +5463,9 @@ RERTY:
 	update_vd_src_info(input->layer_id,
 		src_width, src_height, vf->compWidth, vf->compHeight);
 	if (super_debug)
-		pr_info("vf->compWidth=%d, vf->compHeight=%d, vf->width=%d, vf->height=%d\n",
+		pr_info("vf->compWidth=%d, vf->compHeight=%d, vf->width=%d, vf->height=%d, dec_set_screen_mode=%d\n",
 			vf->compWidth, vf->compHeight,
-			vf->width, vf->height);
+			vf->width, vf->height, vf->dec_set_screen_mode);
 #if defined(TV_3D_FUNCTION_OPEN) && defined(CONFIG_AMLOGIC_MEDIA_TVIN)
 	/*
 	 *check 3d mode change in display buffer or 3d type
