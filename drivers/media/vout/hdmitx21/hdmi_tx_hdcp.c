@@ -62,7 +62,8 @@ unsigned long en_fake_rcv_id;
 /* avmute and wait a few ms for TV to take effect */
 unsigned long avmute_ms = 30;
 
-/* for debug purpose, clear video mute and
+/*
+ * for debug purpose, clear video mute and
  * wait a few ms before clear avmute
  */
 unsigned long vid_mute_ms = 30;
@@ -78,7 +79,8 @@ static void hdcptx_reset(struct hdcp_t *p_hdcp);
 static void bksv_get_ds_list(struct hdcp_t *p_hdcp);
 static void get_ds_rcv_id(struct hdcp_t *p_hdcp);
 static void hdcp_update_csm(struct hdcp_t *p_hdcp);
-/* case1: upstream side update stream type
+/*
+ * case1: upstream side update stream type
  * case2: hdmitx itself update stream type
  * when hdmirx-hdmitx passthrough enabled,
  * the sequence of two cases is not certain,
@@ -90,7 +92,8 @@ static void hdcp_update_csm(struct hdcp_t *p_hdcp);
  */
 static DEFINE_MUTEX(stream_type_mutex);
 /* hdcp stop & start should be mutexed */
-/* TODO: if need to removed, as most hdcp
+/*
+ * TODO: if need to removed, as most hdcp
  * operations mutexed by hdmimode_mutex?
  */
 static DEFINE_MUTEX(hdcp_mutex);
@@ -101,7 +104,8 @@ static DEFINE_MUTEX(hdcp_mutex);
 			HDMITX_INFO("hdcptx: " fmt, ## arg); \
 	} while (0)
 
-/* for hdcp repeater, downstream auth should be controlled
+/*
+ * for hdcp repeater, downstream auth should be controlled
  * (started) by upstream side, and should not started
  * until upstream request, otherwise will cause most
  * of the cts items fail. for example:
@@ -145,9 +149,10 @@ void hdcp_mode_set(unsigned int mode)
 	hdcp_schedule_work(&p_hdcp->timer_hdcp_start, 1, 0);
 }
 
-void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev) //s7 todo
+void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 {
-	/* lstore: 0 by default, 0x11/0x12 for debug usage
+	/*
+	 * lstore: 0 by default, 0x11/0x12 for debug usage
 	 * 0: enable hdcp mode based on stored key and downstream hdcp cap
 	 * priority: hdcp2.x > hdcp1.x
 	 * 0x12: force hdcp2.x
@@ -163,7 +168,7 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev) //s7 todo
 
 	if (hdev->lstore == 0) {
 		if (get_hdcp2_lstore() && hdev->dw_hdcp22_cap) {
-			// enable hdcp gate
+			/* enable hdcp gate */
 			hdmitx21_ctrl_hdcp_gate(2, true);
 			hdev->tx_comm.hdcp_mode = 2;
 			rx_hdcp2_ver = 1;
@@ -221,7 +226,8 @@ static void hdcp_cancel_works(struct hdcp_t *p_hdcp)
 
 	if (!p_hdcp)
 		return;
-	/* two note points:
+	/*
+	 * two note points:
 	 * 1.wait hdcp work stop finish in case there's asynchronous problem:
 	 * for example: hdcp work stop is called, and then hdcp HW is disabled
 	 * if the hdcp work is not canceled is sync mode, it may be queued again
@@ -234,7 +240,8 @@ static void hdcp_cancel_works(struct hdcp_t *p_hdcp)
 	 */
 	do {
 		hdcp_work_scheduling = false;
-		/* if work is pending in the queue, it means that it can be canceled
+		/*
+		 * if work is pending in the queue, it means that it can be canceled
 		 * cleanly and won't schedule other works, otherwise there may be
 		 * two cases: 1. work is now under scheduling, 2.work is not queued
 		 * but there's no kernel API to get whether it's case 1 or 2
@@ -259,7 +266,8 @@ static void hdcp_cancel_works(struct hdcp_t *p_hdcp)
 	} while (--stop_work_max > 0 && hdcp_work_scheduling);
 }
 
-/* when disable signal, should also disable hdcp
+/*
+ * when disable signal, should also disable hdcp
  * there're below cases need to disable hdcp:
  * 1.suspend, 2.before switch mode, 3.plug out
  * note disable hdcp mode should mutex with EDID
@@ -325,7 +333,8 @@ static void hdcp_topology_update(struct hdcp_t *p_hdcp)
 			u8 topoval;
 
 			topoval = hdcptx2_topology_get();
-			/* should only add depth/count for repeater itself
+			/*
+			 * should only add depth/count for repeater itself
 			 * when propagate topology information to upstream side.
 			 */
 			topo->rp_depth = hdcptx2_rpt_depth_get();
@@ -360,7 +369,8 @@ static void hdcp_topology_update(struct hdcp_t *p_hdcp)
 				HDCP1X_MAX_TX_DEV_RPT : HDCP1X_MAX_TX_DEV_SRC;
 
 			hdcptx1_bstatus_get(bstatus);
-			/* for 3C-II-06/07, the maximum cascade and device count actually
+			/*
+			 * for 3C-II-06/07, the maximum cascade and device count actually
 			 * not exceed the maximum, if we add depth/count for repeater itself
 			 * here, it will exceed the maximum by wrong and will retry hdcp
 			 * auth as topology error, hdcp1.4 repeater CTS 3C-II-06/07 will fail
@@ -575,7 +585,8 @@ static void assemble_ds_ksv_lists(struct hdcp_t *p_hdcp)
 		ds_count = ds_bstatus[0] & 0x7F;
 		ds_depth = ds_bstatus[1] & 0x07;
 		hdcptx1_get_ds_ksvlists(&p_hdcp->p_ksv_next, ds_count);
-		/* include the bksv of downstream repeater, add to the
+		/*
+		 * include the bksv of downstream repeater, add to the
 		 * ksv list which will report to upstream
 		 */
 		bksv_get_ds_list(p_hdcp);
@@ -637,7 +648,8 @@ static void hdcp_rpt_ready_process(struct hdcp_t *p_hdcp, bool ksv_read_status)
 		if (is_topology_correct(p_hdcp)) {
 			assemble_ds_ksv_lists(p_hdcp);
 			if (p_hdcp->hdcp_type == HDCP_VER_HDCP2X) {
-				/* if no hdcp1.x or hdcp2.0 legacy devices
+				/*
+				 * if no hdcp1.x or hdcp2.0 legacy devices
 				 * downstream, then topo 1
 				 */
 				mutex_lock(&stream_type_mutex);
@@ -651,7 +663,8 @@ static void hdcp_rpt_ready_process(struct hdcp_t *p_hdcp, bool ksv_read_status)
 					/* } */
 				} else {
 					set_hdcp2_topo(0);
-					/* customer special process: if 4k output && downstream
+					/*
+					 * customer special process: if 4k output && downstream
 					 * contain non-hdcp2.2 device, then set stream type 1.
 					 * it will cause NTS fail.
 					 */
@@ -708,12 +721,14 @@ static void hdcp_notify_rpt_info(struct work_struct *work)
 	struct hdcp_topo_t *topo = &p_hdcp->hdcp_topology;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	/* note: need calculate the topo info for hdcp repeater
+	/*
+	 * note: need calculate the topo info for hdcp repeater
 	 * here instead of in hdcp_topology_update()
 	 */
 	if (p_hdcp->hdcp_type == HDCP_VER_HDCP2X) {
 		if (p_hdcp->ds_repeater) {
-			/* include the count/depth of downstream repeater itself.
+			/*
+			 * include the count/depth of downstream repeater itself.
 			 * the rcvid list of downstream repeater will be added to notify
 			 * list in assemble_ds_ksv_lists()
 			 */
@@ -735,7 +750,8 @@ static void hdcp_notify_rpt_info(struct work_struct *work)
 		if (p_hdcp->ds_repeater) {
 			u8 max_devices = hdev->tx_hw.base.hdcp_repeater_en ?
 				HDCP1X_MAX_TX_DEV_RPT : HDCP1X_MAX_TX_DEV_SRC;
-			/* include the count/depth of downstream repeater itself.
+			/*
+			 * include the count/depth of downstream repeater itself.
 			 * the bksv of downstream repeater will be added to notify
 			 * list in assemble_ds_ksv_lists()
 			 */
@@ -769,7 +785,8 @@ static void hdcp_notify_rpt_info(struct work_struct *work)
 	hdcp_topo.max_devs_exceeded = p_hdcp->hdcp_topology.max_devs_exceed;
 	hdcp_topo.hdcp1_dev_ds = p_hdcp->hdcp_topology.ds_hdcp1x_dev;
 	hdcp_topo.hdcp2_dev_ds = p_hdcp->hdcp_topology.ds_hdcp2x_dev;
-	ksv_bytes = hdcp_topo.dev_cnt * 5; //p_hdcp->p_ksv_next - p_hdcp->p_ksv_lists;
+	/* p_hdcp->p_ksv_next - p_hdcp->p_ksv_lists */
+	ksv_bytes = hdcp_topo.dev_cnt * 5;
 	ksv_bytes = ksv_bytes > ARRAY_SIZE(hdcp_topo.ksv_list) ?
 		ARRAY_SIZE(hdcp_topo.ksv_list) : ksv_bytes;
 	memcpy(hdcp_topo.ksv_list, p_hdcp->p_ksv_lists, ksv_bytes);
@@ -814,7 +831,8 @@ static void hdcp_req_reauth_whandler(struct work_struct *work)
 		return;
 	}
 	/* firstly need to disable current hdcp auth */
-	/* set avmute, wait for sink side action, and then
+	/*
+	 * set avmute, wait for sink side action, and then
 	 * stop hdcp, at last clear avmute. to prevent TV
 	 * display abnormal when detect signal from encryption
 	 * to un-encryption.
@@ -827,7 +845,7 @@ static void hdcp_req_reauth_whandler(struct work_struct *work)
 		msleep_interruptible(avmute_ms);
 		hdmitx21_disable_hdcp(hdev);
 		hdmitx21_video_mute_op(1, VIDEO_MUTE_PATH_3);
-		//msleep_interruptible(vid_mute_ms);
+		/* msleep_interruptible(vid_mute_ms); */
 		hdmitx_common_avmute_locked(&hdev->tx_comm, CLR_AVMUTE, AVMUTE_PATH_2);
 	} else if (hdcp_reauth_dbg == 4) {
 		if (hdev->tx_comm.hdcp_mode) {
@@ -895,7 +913,8 @@ static void hdcp_stream_mute_whandler(struct work_struct *work)
 	hdmitx21_audio_mute_op(!p_hdcp->stream_mute, AUDIO_MUTE_PATH_3);
 }
 
-/* note that if hdcp is not enabled currently,
+/*
+ * note that if hdcp is not enabled currently,
  * (as hdcp disabled somehow, e.g hdmirx request
  * re-auth, but hdmitx suddenly disconnected),
  * should exit the propagate this time, just save
@@ -955,7 +974,8 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 		}
 		/* if downstream connect repeater, then propagate stream id to downstream */
 		cur_content_type = p_hdcp->csm_message.streamid_type & 0x00FF;
-		/* if current stream type not consistent with upstream,
+		/*
+		 * if current stream type not consistent with upstream,
 		 * re-auth with new stream type notified by upstream,
 		 * hdcp re-auth version is req_reauth_ver
 		 */
@@ -998,7 +1018,8 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 			return;
 		}
 
-		/* when switch from hdmirx channel to hdmitx home
+		/*
+		 * when switch from hdmirx channel to hdmitx home
 		 * need to start hdcp auth if it's not enabled
 		 */
 		if (hdmitx21_get_hdcp_mode() == 0) {
@@ -1016,14 +1037,16 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 			return;
 		}
-		/* decide stream type to be sent according to
+		/*
+		 * decide stream type to be sent according to
 		 * downstream topology & current hdmitx mode
 		 */
 		if (p_hdcp->hdcp_topology.ds_hdcp1x_dev == 0 &&
 			p_hdcp->hdcp_topology.ds_hdcp2x_dev == 0) {
 			cur_content_type = 1;
 		} else {
-			/* customer special process: if 4k output && downstream
+			/*
+			 * customer special process: if 4k output && downstream
 			 * contain non-hdcp2.2 device, then set stream type 1.
 			 * it will cause NTS fail.
 			 */
@@ -1033,7 +1056,8 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 			cur_content_type = 0;
 		}
 
-		/* if current stream type not consistent with
+		/*
+		 * if current stream type not consistent with
 		 * that to be sent, then send new stream management
 		 */
 		if ((p_hdcp->csm_message.streamid_type & 0xFF) != cur_content_type) {
@@ -1092,7 +1116,8 @@ static void hdmitx_propagate_stream_type(struct work_struct *work)
 			return;
 		}
 		cur_content_type = p_hdcp->csm_message.streamid_type & 0x00FF;
-		/* if current stream type not consistent with upstream,
+		/*
+		 * if current stream type not consistent with upstream,
 		 * re-auth with new stream type notified by upstream,
 		 */
 		if (upstream_type != cur_content_type) {
@@ -1133,7 +1158,8 @@ u8 hdmitx_reauth_request(u8 hdcp_version)
 			hdcp_version != 2)
 			return 0;
 
-		/* unmute for stream type:
+		/*
+		 * unmute for stream type:
 		 * there're some special source devices, firstly do
 		 * hdcp2.2 auth with hdmirx side and stream type 1,
 		 * if hdmitx side connect hdcp1.4 TV, will do
@@ -1168,7 +1194,8 @@ u8 hdmitx_reauth_request(u8 hdcp_version)
 			schedule_delayed_work(&p_hdcp->stream_mute_wk, 0);
 			pr_hdcp_info(L_2, "non-block stream to downstream as upstream type = 0\n");
 		}
-		/* streamtype_dbg:
+		/*
+		 * streamtype_dbg:
 		 * 0: if ds is hdcp22 repeater, then propagate stream type
 		 * 1: force to not re-auth, for debug
 		 */
@@ -1187,7 +1214,8 @@ u8 hdmitx_reauth_request(u8 hdcp_version)
 	} else if (update_scene == UPSTREAM_ACTIVE) {
 		/* almost the same as that of STREAMTYPE_UPDATE */
 		upstream_type = hdcp_version & 0xF;
-		/* case1: hdmirx channel->home->back to hdmirx channel:
+		/*
+		 * case1: hdmirx channel->home->back to hdmirx channel:
 		 * hdmirx will notify without request reauth
 		 * if previous stream type is 1 and downstream contains
 		 * non-hdcp2.2 compliance devices, then mute again
@@ -1205,7 +1233,8 @@ u8 hdmitx_reauth_request(u8 hdcp_version)
 				pr_hdcp_info(L_1, "[2]block stream to downstream as upstream type = 1\n");
 			}
 		} else {
-			/* no need, UPSTREAM_INACTIVE/UPSTREAM_ACTIVE should be in pair
+			/*
+			 * no need, UPSTREAM_INACTIVE/UPSTREAM_ACTIVE should be in pair
 			 * except enter hdmirx input the first time(upstream_type = 0).
 			 * and it's already unmute when notify UPSTREAM_INACTIVE
 			 */
@@ -1227,9 +1256,12 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 	u16 prime_ri;
 	u8 bcaps_status;
 
-	hdcp1xauthintst = int_reg[0]; // 0x63d
-	hdcp1xcoppst = hdcptx1_copp_status_get(); // 0x629
-	prime_ri = hdcptx1_get_prime_ri(); // 0x222 0x223
+	/* 0x63d */
+	hdcp1xauthintst = int_reg[0];
+	/* 0x629 */
+	hdcp1xcoppst = hdcptx1_copp_status_get();
+	/* 0x222 0x223 */
+	prime_ri = hdcptx1_get_prime_ri();
 	pr_hdcp_info(L_2, "%s[%d] hdcp1xauthintst 0x%x hdcp1xcoppst 0x%x Ri 0x%x\n",
 			__func__, __LINE__, hdcp1xauthintst, hdcp1xcoppst, prime_ri);
 	if ((hdcp1xauthintst & BIT_TPI_INTR_ST0_BKSV_ERR) ||
@@ -1276,7 +1308,8 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 			if (p_hdcp->rpt_ready) {
 				p_hdcp->update_topo_state = false;
 				update_hdcp_state(p_hdcp, HDCP_STAT_SUCCESS);
-				/* ds is repeater case
+				/*
+				 * ds is repeater case
 				 * if set upstream READY for ksv list even V' invalid,
 				 * it will fail hdcp1.4 repeater CTS 3C-II-05.
 				 * only can notify upstream to set READY after
@@ -1347,7 +1380,8 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 				p_hdcp->update_topo_state = false;
 				update_hdcp_state(p_hdcp, HDCP_STAT_SUCCESS);
 			}
-			/* ds is repeater case, 1.only can notify upstream to set READY
+			/*
+			 * ds is repeater case, 1.only can notify upstream to set READY
 			 * after second part succeed, otherwise 3C-II-05 will fail;
 			 * 2.but for 1.4 repeater 3B-01b:Regular procedure With Repeater
 			 * - DEVICE_COUNT=0, second part comes first before ksv fifo
@@ -1400,11 +1434,16 @@ const char *msg2_info[] = {
 static void hdcp2x_process_intr(u8 int_reg[])
 {
 	int i;
-	u8 cp2tx_intr0_st = int_reg[0]; // 0x803 auth status
-	u8 cp2tx_intr1_st = int_reg[1];  // 0x804 msg status
-	u8 cp2tx_intr2_st = int_reg[2];  // 0x805
-	u8 cp2tx_intr3_st = int_reg[3];  // 0x806
-	u8 cp2tx_state = hdcp2x_get_state_st(); // 0x80d
+	/* 0x803 auth status */
+	u8 cp2tx_intr0_st = int_reg[0];
+	/* 0x804 msg status */
+	u8 cp2tx_intr1_st = int_reg[1];
+	/* 0x805 */
+	u8 cp2tx_intr2_st = int_reg[2];
+	/* 0x806 */
+	u8 cp2tx_intr3_st = int_reg[3];
+	/* 0x80d */
+	u8 cp2tx_state = hdcp2x_get_state_st();
 	static int smng_times;
 
 	pr_hdcp_info(L_2, "%s[%d] 0x%x 0x%x 0x%x 0x%x 0x%x\n", __func__, __LINE__,
@@ -1414,7 +1453,7 @@ static void hdcp2x_process_intr(u8 int_reg[])
 		/* intr0 bit7 and bit0 needs to be 1, then start smng xfer */
 		/* otherwise the 1B-09 will fail */
 		/* if csm already update by upstream, don't transfer once more */
-		//mutex_lock(&stream_type_mutex);
+		/* mutex_lock(&stream_type_mutex); */
 		if ((cp2tx_intr0_st & BIT_CP2TX_INTR0_POLL_INTERVAL) &&
 			p_hdcp->ds_repeater &&
 			!p_hdcp->csm_updated) {
@@ -1422,7 +1461,7 @@ static void hdcp2x_process_intr(u8 int_reg[])
 			hdcp_update_csm(p_hdcp);
 			hdcptx2_rpt_smng_xfer_start();
 		}
-		//mutex_unlock(&stream_type_mutex);
+		/* mutex_unlock(&stream_type_mutex); */
 		if (hdcptx2_auth_status()) {
 			if (!hdcptx_query_ds_repeater(p_hdcp)) {
 				hdcp_authenticated_handle(p_hdcp);
@@ -1448,7 +1487,8 @@ static void hdcp2x_process_intr(u8 int_reg[])
 	}
 	if (cp2tx_intr0_st & BIT_CP2TX_INTR0_REAUTH_REQ) {
 		pr_hdcp_info(L_1, "hdcptx2: reauth req from ds device\n");
-		/* need to re-init flag, so that to send stream type
+		/*
+		 * need to re-init flag, so that to send stream type
 		 * management message after re-auth done
 		 */
 		p_hdcp->csm_msg_sent = false;
@@ -1475,20 +1515,22 @@ static void hdcp2x_process_intr(u8 int_reg[])
 		/* ds is repeater case */
 		schedule_delayed_work(&p_hdcp->ksv_notify_wk, msecs_to_jiffies(notify_delay_ms));
 	}
-	if (cp2tx_intr1_st & BIT(2)) //BIT__HDCP2X_INTR0__AKE_SEND
+	/* BIT__HDCP2X_INTR0__AKE_SEND */
+	if (cp2tx_intr1_st & BIT(2))
 		p_hdcp->reauth_ignored = true;
-	if (cp2tx_intr1_st & BIT(5)) //BIT__HDCP2X_INTR0__RPTR_SMNG_TRANS_DONE
+	/* BIT__HDCP2X_INTR0__RPTR_SMNG_TRANS_DONE */
+	if (cp2tx_intr1_st & BIT(5))
 		update_hdcp_state(p_hdcp, HDCP_STAT_SUCCESS);
-	if (cp2tx_intr1_st & BIT(6)) //BIT__HDCP2X_INTR0__CERT_RECV
+	/* BIT__HDCP2X_INTR0__CERT_RECV */
+	if (cp2tx_intr1_st & BIT(6))
 		p_hdcp->reauth_ignored = false;
 
-	if (cp2tx_intr1_st & BIT(3)) { //BIT__HDCP2X_INTR0__SKE_SEND
+	/* BIT__HDCP2X_INTR0__SKE_SEND */
+	if (cp2tx_intr1_st & BIT(3)) {
 		p_hdcp->reauth_ignored = false;
 		smng_times = 0;
 		if (hdcptx_query_ds_repeater(p_hdcp)) {
-			/*
-			 * down stream is a hdcp2.2 repeater
-			 */
+			/* down stream is a hdcp2.2 repeater */
 			p_hdcp->ds_repeater = true;
 			p_hdcp->ds_auth = true;
 			hdcptx_encryption_update(p_hdcp, true);
@@ -1505,7 +1547,8 @@ static void hdcp2x_process_intr(u8 int_reg[])
 		;
 	if (cp2tx_intr0_st & BIT(3)) {
 		if (p_hdcp->cont_smng_method == 0) {
-			/* Samsung Frame TV can't handle single RepeaterAuth_Stream_Manage message
+			/*
+			 * Samsung Frame TV can't handle single RepeaterAuth_Stream_Manage message
 			 * ( with content stream type different with previous stream type), and will
 			 * cause M' hash fail.
 			 * CTS will fail when retry directly, so send the smng times, the max times
@@ -1647,7 +1690,8 @@ static bool ddc_check_busy(struct hdcp_t *p_hdcp)
 static void hdcp2x_auth_stop(struct hdcp_t *p_hdcp)
 {
 	hdcp_stop_work(&p_hdcp->timer_ddc_check_nak);
-	/* should always stop auth, otherwise the hw DDC may be
+	/*
+	 * should always stop auth, otherwise the hw DDC may be
 	 * free currently but will transact later,
 	 * if do AON_CYP_CTL bit3 reset(DDC Master) during
 	 * DDC transaction may pull SCL low.
@@ -1705,7 +1749,8 @@ static void hdcp_update_csm(struct hdcp_t *p_hdcp)
 
 static void hdcptx_reset(struct hdcp_t *p_hdcp)
 {
-	p_hdcp->ds_repeater = false; /*!< attached is a repeater or not */
+	/*!< attached is a repeater or not */
+	p_hdcp->ds_repeater = false;
 	p_hdcp->update_topology = false;
 	p_hdcp->update_topo_state = false;
 	p_hdcp->rpt_ready = false;
@@ -1757,7 +1802,8 @@ static bool hdcp_schedule_work(struct hdcp_work *work, u32 delay_ms, u32 period_
 		return queue_delayed_work(p_hdcp->hdcp_wq, &work->dwork, period_ms);
 }
 
-/* return true if work was pending and canceled, false otherwise
+/*
+ * return true if work was pending and canceled, false otherwise
  * can't use cancel_delayed_work_sync in hdcptx_reset, as it may
  * lead to dead wait, for example: hdcp_check_update_whandler will
  * call hdcptx_reset(and then will call hdcp_stop_work), as a result
@@ -1984,7 +2030,8 @@ static int hdmitx21_get_hdcp_auth_rlt(struct hdmitx_dev *hdev)
 		return 0;
 }
 
-#define HDCP_AUTH_TIMEOUT (40) /* 40*200ms = 8s */
+/* 40*200ms = 8s */
+#define HDCP_AUTH_TIMEOUT (40)
 
 static void hdmitx21_hdcp_result_cb(struct hdmitx_dev *hdev, int auth)
 {
@@ -2023,7 +2070,8 @@ static int  hdmitx21_hdcp_stat_monitor(void *data)
 	while (hdev->hpd_event != 0xff) {
 		hdmi21_authenticated = hdmitx21_get_hdcp_auth_rlt(hdev);
 		if (auth_stat != hdmi21_authenticated) {
-			/* below is only for customer hdcp re-auth filter
+			/*
+			 * below is only for customer hdcp re-auth filter
 			 * no need on ref-board
 			 */
 			/* if (hdmi21_authenticated == 0 && hdcp_reauth_req) { */
@@ -2067,7 +2115,8 @@ static int  hdmitx21_hdcp_stat_monitor(void *data)
 				}
 			}
 			hdmitx21_hdcp_status(hdmi21_authenticated);
-			/* clear mute after auth pass: for re-auth.
+			/*
+			 * clear mute after auth pass: for re-auth.
 			 * note there's hdcp fail filter in bl31, so
 			 * below action can't be done
 			 */

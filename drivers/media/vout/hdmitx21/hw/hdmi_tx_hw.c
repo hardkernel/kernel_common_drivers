@@ -374,14 +374,15 @@ void hdmitx21_sys_reset(void)
 	}
 }
 
-/* use PLL/phy state
+/*
+ * use PLL/phy state
  * note that PHY_CTRL0 may be enabled for bandgap in plugin top half,
  * so should not use bangap setting bits for uboot state decision
  */
 static bool hdmitx21_uboot_already_display(void)
 {
-//	if (hdev->pxp_mode)
-//		return 0;
+/*	if (hdev->pxp_mode) */
+/*		return 0; */
 
 	if (hd21_read_reg(ANACTRL_HDMIPHY_CTRL0))
 		return 1;
@@ -484,7 +485,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 {
 	u32 data32;
 
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S5) {//s7/s7d todo
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S5) {
 		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 7, 0, 3);
 		hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, 1, 20, 1);
 		hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, 1, 12, 1);
@@ -505,7 +506,8 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 		#ifdef CONFIG_AMLOGIC_DSC
 		hdev->dsc_en = get_dsc_en();
 		#endif
-		audio_mute_op(1); /* enable audio default */
+		/* enable audio default */
+		audio_mute_op(1);
 		return;
 	}
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_T7) {
@@ -661,7 +663,7 @@ static int hdmitx21_calc_formatpara(struct hdmitx_hw_common *tx_hw,
 	para->tmds_clk = hdmitx_calc_tmds_clk(para->timing.pixel_freq,
 		para->cs, para->cd);
 
-	if (para->tmds_clk > 340000) { // TODO, if tmds_clk = 1180000, then ??
+	if (para->tmds_clk > 340000) {
 		para->scrambler_en = 1;
 		para->tmds_clk_div40 = 1;
 	} else {
@@ -870,9 +872,9 @@ static void set_hdmi_tx_pixel_div(u32 div)
 	}
 }
 
-/* RG [27:24] ENCP_CLK_SEL no need for S5? S5 use RE[15:12] as div
+/*
+ * RG [27:24] ENCP_CLK_SEL no need for S5? S5 use RE[15:12] as div
  * RA bit[19]: CLK_EN0
- * todo
  */
 static void set_encp_div(u32 div)
 {
@@ -880,9 +882,9 @@ static void set_encp_div(u32 div)
 	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 1, 19, 1);
 }
 
-/* RD bit[2] ENCP CLK GATE, but for clk tree of S5,
+/*
+ * RD bit[2] ENCP CLK GATE, but for clk tree of S5,
  * RD bit[3] is for gate of ENC, not bit[2].
- * todo
  */
 static void hdmitx_enable_encp_clk(void)
 {
@@ -929,7 +931,7 @@ static void _hdmitx21_set_clk(void)
 	set_hdmi_tx_pixel_div(1);
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S1A ||
 		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
-		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D || //s7 todo
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D ||
 		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6)
 		set_encp_div(0);
 	else
@@ -1939,8 +1941,7 @@ static void audio_mute_op(bool flag)
 }
 
 struct aud_para hdmi21aud_config_data;
-static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw,
-			      struct aud_para *audio_param)
+static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw, struct aud_para *audio_param)
 {
 	u32 data32;
 	bool hbr_audio = false;
@@ -1954,8 +1955,7 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw,
 	aud_output_i2s_ch = audio_param->aud_output_i2s_ch;
 	HDMITX_INFO("set audio\n");
 	mutex_lock(&aud_mutex);
-	memcpy(&hdmi21aud_config_data,
-			   audio_param, sizeof(struct aud_para));
+	memcpy(&hdmi21aud_config_data, audio_param, sizeof(struct aud_para));
 	hdmitx21_set_reg_bits(AIP_RST_IVCTX, 1, 0, 1);
 	if (audio_param->type == CT_MAT || audio_param->type == CT_DTS_HD_MA) {
 		hbr_audio = true;
@@ -1971,20 +1971,22 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw,
 	HDMITX_INFO("audio_param->chs = %d\n", audio_param->chs);
 	hdmitx21_set_reg_bits(SPDIF_SSMPL2_IVCTX, 0, 5, 1);
 
-	/* aud_mclk_sel: Select to use which clock for ACR measurement.
-	 * 0= Use i2s_mclk; 1=Use spdif_clk.
+	/*
+	 * aud_mclk_sel: Select to use which clock for ACR measurement.
+	 * 0 = Use i2s_mclk;
+	 * 1 = Use spdif_clk.
 	 */
 	hdmitx21_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1 - audio_param->aud_src_if, 13, 1);
 
 	HDMITX_INFO("aud_src_if = %d\n", audio_param->aud_src_if);
 
-	// config I2S
-	//---------------
-	//some common register config,why config this value ?? TODO
-	hdmitx21_wr_reg(AIP_HDMI2MHL_IVCTX, 0x00); //AIP
-	hdmitx21_wr_reg(PKT_FILTER_0_IVCTX, 0x02); //PKT FILTER
-	hdmitx21_wr_reg(ASRC_IVCTX, 0x00); //ASRC
-	hdmitx21_wr_reg(VP_INPUT_SYNC_ADJUST_CONFIG_IVCTX, 0x01); //vp__
+	/*
+	 * config I2S
+	 */
+	hdmitx21_wr_reg(AIP_HDMI2MHL_IVCTX, 0x00);
+	hdmitx21_wr_reg(PKT_FILTER_0_IVCTX, 0x02);
+	hdmitx21_wr_reg(ASRC_IVCTX, 0x00);
+	hdmitx21_wr_reg(VP_INPUT_SYNC_ADJUST_CONFIG_IVCTX, 0x01);
 
 	data32 = 0;
 	if (hbr_audio) {
@@ -1992,7 +1994,6 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw,
 		data32 = (0 << 1);
 	} else if (audio_param->aud_src_if == 1) {
 		unsigned char mask = GET_OUTCHN_MSK(aud_output_i2s_ch);
-
 		/* multi-channel lpcm use layout 1 */
 		if (audio_param->type == CT_PCM && audio_param->chs >= 2)
 			data32 = (1 << 1);
@@ -2007,16 +2008,28 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw,
 	} else {
 		data32 = (0 << 1);
 	}
-	//AUDP_TXCTRL : [1] layout; [7] aud_mute_en
+	/* AUDP_TXCTRL : [1] layout; [7] aud_mute_en */
 	data32 |= (1 << 7);
 	hdmitx21_wr_reg(AUDP_TXCTRL_IVCTX, data32 & 0xff);
 
 	set_aud_acr_pkt(audio_param);
-	//FREQ 00:mclk=128*Fs;01:mclk=256*Fs;10:mclk=384*Fs;11:mclk=512*Fs;...
+	/*
+	 * FREQ
+	 *  00:mclk=128*Fs;
+	 *  01:mclk=256*Fs;
+	 *  10:mclk=384*Fs;
+	 *  11:mclk=512*Fs;
+	 */
 	hdmitx21_wr_reg(FREQ_SVAL_IVCTX, 0);
 
-	// [7:6] reg_tpi_spdif_sample_size: 0=Refer to stream header; 1=16-bit; 2=20-bit; 3=24-bit
-	// [  4] reg_tpi_aud_mute
+	/*
+	 * [7:6] reg_tpi_spdif_sample_size:
+	 *  0=Refer to stream header;
+	 *  1=16-bit;
+	 *  2=20-bit;
+	 *  3=24-bit
+	 * [  4] reg_tpi_aud_mute
+	 */
 	data32 = 0;
 	data32 |= (3 << 6);
 	data32 |= (0 << 4);
@@ -2034,47 +2047,47 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw,
 			[8] = 3,
 		};
 
-		hdmitx21_wr_reg(I2S_IN_MAP_IVCTX, 0xE4); //I2S_IN_MAP
+		hdmitx21_wr_reg(I2S_IN_MAP_IVCTX, 0xE4);
 		if (mask) {
 			for (j = 0; j < 4; j++) {
 				if (mask & (1 << j)) {
 					hdmitx21_set_reg_bits(I2S_IN_MAP_IVCTX,
-						map[1 << j], i << 1, 2);
+							map[1 << j], i << 1, 2);
 					i++;
 				}
 			}
 		}
 
-		hdmitx21_wr_reg(I2S_IN_CTRL_IVCTX, 0x20); //I2S_IN_CTRL [5] reg_cbit_order TODO
-		hdmitx21_wr_reg(I2S_IN_SIZE_IVCTX, 0x0b); //I2S_IN_SIZE
-		/* channel status: for i2s hbr/pcm
+		hdmitx21_wr_reg(I2S_IN_CTRL_IVCTX, 0x20);
+		hdmitx21_wr_reg(I2S_IN_SIZE_IVCTX, 0x0b);
+		/*
+		 * channel status: for i2s hbr/pcm
 		 * actually audio module only notify 4 bytes
 		 */
-		hdmitx21_wr_reg(I2S_CHST0_IVCTX, audio_param->status[0]); //I2S_CHST0
-		hdmitx21_wr_reg(I2S_CHST1_IVCTX, audio_param->status[1]); //I2S_CHST1
-		hdmitx21_wr_reg(I2S_CHST2_IVCTX, audio_param->status[2]); //I2S_CHST2
-		hdmitx21_wr_reg(I2S_CHST3_IVCTX, audio_param->status[3]); //I2S_CHST3
-		hdmitx21_wr_reg(I2S_CHST4_IVCTX, audio_param->status[4]); //I2S_CHST4
-		/* hardcode: test that it works well for i2s pcm 2~8ch */
-		/* hdmitx21_wr_reg(I2S_CHST0_IVCTX, 0x15); //I2S_CHST0 */
-		/* hdmitx21_wr_reg(I2S_CHST1_IVCTX, 0x55); //I2S_CHST1 */
-		/* hdmitx21_wr_reg(I2S_CHST2_IVCTX, 0xfa); //I2S_CHST2 */
-		/* hdmitx21_wr_reg(I2S_CHST3_IVCTX, 0x32); //I2S_CHST3 */
-		/* hdmitx21_wr_reg(I2S_CHST4_IVCTX, 0x2b); //I2S_CHST4 */
+		hdmitx21_wr_reg(I2S_CHST0_IVCTX, audio_param->status[0]);
+		hdmitx21_wr_reg(I2S_CHST1_IVCTX, audio_param->status[1]);
+		hdmitx21_wr_reg(I2S_CHST2_IVCTX, audio_param->status[2]);
+		hdmitx21_wr_reg(I2S_CHST3_IVCTX, audio_param->status[3]);
+		hdmitx21_wr_reg(I2S_CHST4_IVCTX, audio_param->status[4]);
 	}
 	data32 = 0;
-	data32 |= (0 << 6); //[  6] i2s2dsd_en
-	data32 |= (0 << 0); //[5:0] aud_err_thresh
+	/*
+	 * [  6] i2s2dsd_en
+	 * [5:0] aud_err_thresh
+	 */
+	data32 |= (0 << 6);
+	data32 |= (0 << 0);
 	hdmitx21_wr_reg(SPDIF_ERTH_IVCTX, data32);
 
-	//[7:4] I2S_EN SD0~SD3
-	//[  3] DSD_EN
-	//[  2] HBRA_EN
-	//[  1] SPID_EN  Enable later in test.c, otherwise initial junk data will be sent
-	//[ 0] PKT_EN
+	/*
+	 * [7:4] I2S_EN SD0~SD3
+	 * [  3] DSD_EN
+	 * [  2] HBRA_EN
+	 * [  1] SPID_EN  Enable later in test.c, otherwise initial junk data will be sent
+	 * [  0] PKT_EN
+	 */
 	data32 = 0;
 	if (audio_param->aud_src_if == 1) {
-		/* TODO: other channel num(4/6ch) */
 		if (audio_param->chs == 2 - 1) {
 			i2s_line_mask = 1;
 		} else if (audio_param->chs == 4 - 1) {
@@ -2094,12 +2107,12 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw,
 		data32 |= (hbr_audio << 2);
 		data32 |= (0 << 1);
 		data32 |= (0 << 0);
-		hdmitx21_wr_reg(AUD_MODE_IVCTX, data32);  //AUD_MODE
+		hdmitx21_wr_reg(AUD_MODE_IVCTX, data32);
 	} else {
-		hdmitx21_wr_reg(AUD_MODE_IVCTX, 0x2);  //AUD_MODE
+		hdmitx21_wr_reg(AUD_MODE_IVCTX, 0x2);
 	}
 
-	hdmitx21_wr_reg(AUD_EN_IVCTX, 0x03);           //AUD_EN
+	hdmitx21_wr_reg(AUD_EN_IVCTX, 0x03);
 
 	set_aud_info_pkt(audio_param);
 	if (audio_param->fifo_rst)
@@ -2952,8 +2965,10 @@ static void hdmitx21_vp_conf(unsigned char color_depth, unsigned char output_col
 	u32 data32 = 0;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	//For S1A and later chips, delete the vp core hardware and move the yuv to rgb
-	// function to vpu_hdmi_if block
+	/*
+	 * For S1A and later chips, delete the vp core hardware and move the yuv to rgb
+	 * function to vpu_hdmi_if block
+	 */
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S5 ||
 		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_T7) {
 		if (output_color_format == HDMI_COLORSPACE_RGB) {
@@ -3285,7 +3300,7 @@ static enum hdmi_vic get_vic_from_pkt(void)
 
 	if (!hdev)
 		return vic;
-	//todo vesa mode
+	/* TODO: VESA mode */
 	vic = hdmitx21_rd_reg(TPI_AVI_BYTE4_IVCTX) & 0xff;
 	if (vic == HDMI_0_UNKNOWN)
 		vic = _get_vic_from_vsif(hdev);
@@ -3309,7 +3324,7 @@ static enum hdmi_colorspace get_cs_from_pkt(void)
 
 	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
 	if (ret < 0)
-		HDMITX_INFO("hdmitx21: parsing AVI failed %d\n", ret);
+		HDMITX_ERROR("hdmitx21: parsing AVI failed %d\n", ret);
 	else
 		cs = avi->colorspace;
 
@@ -3333,7 +3348,7 @@ static enum hdmi_color_depth get_cd_from_pkt(void)
 
 	ret = hdmi_avi_infoframe_unpack_renew(avi, body, sizeof(body));
 	if (ret < 0) {
-		HDMITX_INFO("hdmitx21: parsing AVI failed %d\n", ret);
+		HDMITX_ERROR("hdmitx21: parsing AVI failed %d\n", ret);
 	} else {
 		cs = avi->colorspace;
 		cd = _get_colordepth();
@@ -3483,23 +3498,19 @@ static int hdmi_move_hdr_pkt(bool flag)
  * color_depth: Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit.
  * input_color_format: 0=RGB444; 1=YCbCr422; 2=YCbCr444; 3=YCbCr420.
  * input_color_range: 0=limited; 1=full.
+ * output_color_range: 0=limited; 1=full.
  * output_color_format: 0=RGB444; 1=YCbCr422; 2=YCbCr444; 3=YCbCr420
  */
-
 static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 {
 	struct hdmi_format_para *para = &hdev->tx_comm.fmt_para;
-	u8 color_depth = COLORDEPTH_24B; // Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit.
-	// Pixel format: 0=RGB444; 1=YCbCr422; 2=YCbCr444; 3=YCbCr420.
+	u8 color_depth = COLORDEPTH_24B;
 	u8 input_color_format = HDMI_COLORSPACE_YUV444;
-	u8 input_color_range = HDMI_QUANTIZATION_RANGE_LIMITED; // Pixel range: 0=limited; 1=full.
-	// Pixel format: 0=RGB444; 1=YCbCr422; 2=YCbCr444; 3=YCbCr420.
+	u8 input_color_range = HDMI_QUANTIZATION_RANGE_LIMITED;
 	u8 output_color_format = HDMI_COLORSPACE_YUV444;
-	u8 output_color_range = HDMI_QUANTIZATION_RANGE_LIMITED; // Pixel range: 0=limited; 1=full.
-	u32 active_pixels = 1920; // Number of active pixels per line
-	u32 active_lines = 1080; // Number of active lines per field
-	// 0=I2S 2-channel; 1=I2S 4 x 2-channel; 2=channel 0/1, 4/5 valid.
-	// 2=audio sample packet; 7=one bit audio; 8=DST audio packet; 9=HBR audio packet.
+	u8 output_color_range = HDMI_QUANTIZATION_RANGE_LIMITED;
+	u32 active_pixels = 1920;
+	u32 active_lines = 1080;
 	u32 data32;
 	u8 data8;
 	u8 csc_en;
@@ -3516,18 +3527,18 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 		dp_color_depth = COLORDEPTH_24B;
 	HDMITX_INFO("configure hdmitx21\n");
 	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, 0);
-	/*tmds_clk_div40 & scrambler_en already calculate in building format_para*/
+	/* tmds_clk_div40 & scrambler_en already calculate in building format_para */
 	if (hdev->pxp_mode)
-		hdmitx_set_div40(0);//todo
+		hdmitx_set_div40(0);
 	else
 		hdmitx_set_div40(para->tmds_clk_div40);
-	//--------------------------------------------------------------------------
-	// Glitch-filter HPD and RxSense
-	//--------------------------------------------------------------------------
-	// [31:28] rxsense_glitch_width: Filter out glitch width <= hpd_glitch_width
-	// [27:16] rxsense_valid_width: Filter out signal stable width <= hpd_valid_width*1024
-	// [15:12] hpd_glitch_width: Filter out glitch width <= hpd_glitch_width
-	// [11: 0] hpd_valid_width: Filter out signal stable width <= hpd_valid_width*1024
+	/*
+	 * Glitch-filter HPD and RxSense
+	 * [31:28] rxsense_glitch_width: Filter out glitch width <= hpd_glitch_width
+	 * [27:16] rxsense_valid_width: Filter out signal stable width <= hpd_valid_width*1024
+	 * [15:12] hpd_glitch_width: Filter out glitch width <= hpd_glitch_width
+	 * [11: 0] hpd_valid_width: Filter out signal stable width <= hpd_valid_width*1024
+	 */
 	data32 = 0;
 	data32 |= (8 << 28);
 	data32 |= (0 << 16);
@@ -3535,31 +3546,34 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	data32 |= (0 << 0);
 	hdmitx21_wr_reg(HDMITX_TOP_HPD_FILTER,    data32);
 
-	//-------------
-	//config video
-	//-------------
+	/*
+	 * config video
+	 * [1:0]color depth.
+	 *  00:8bpp;
+	 *  01:10bpp;
+	 *  10:12bpp;
+	 *  11:16bpp
+	 * [7]  deep color enable bit
+	 */
 	data8 = 0;
-	data8 |= (dp_color_depth & 0x03); // [1:0]color depth. 00:8bpp;01:10bpp;10:12bpp;11:16bpp
-	data8 |= (((dp_color_depth != 4) ? 1 : 0) << 7);  // [7]  deep color enable bit
+	data8 |= (dp_color_depth & 0x03);
+	data8 |= (((dp_color_depth != 4) ? 1 : 0) << 7);
 	data8 |= (hdev->frl_rate ? 1 : 0) << 3;
 	data8 |= (hdev->frl_rate ? 1 : 0) << 4;
 	hdmitx21_wr_reg(P2T_CTRL_IVCTX, data8);
 	data32 = 0;
-	data32 |= (1 << 5);  // [  5] reg_hdmi2_on
-	data32 |= (para->scrambler_en & 0x01 << 0);  // [ 0] scrambler_en.
+	/* [  5] reg_hdmi2_on */
+	data32 |= (1 << 5);
+	data32 |= (para->scrambler_en & 0x01 << 0);
 	hdmitx21_wr_reg(SCRCTL_IVCTX, data32 & 0xff);
 	hdmitx21_set_reg_bits(FRL_LINK_RATE_CONFIG_IVCTX, hdev->frl_rate, 0, 4);
 
-	hdmitx21_wr_reg(SW_RST_IVCTX, 0); // default value
+	hdmitx21_wr_reg(SW_RST_IVCTX, 0);
 	hdmitx21_wr_reg(CLK_DIV_CNTRL_IVCTX, hdev->frl_rate ? 0 : 1);
-	//hdmitx21_wr_reg(H21TXSB_PKT_PRD_IVCTX, 0x1);
-	//hdmitx21_wr_reg(HOST_CTRL2_IVCTX, 0x80); //INT active high
 	hdmitx21_wr_reg(CLKPWD_IVCTX, 0xf4);
 	hdmitx21_wr_reg(SOC_FUNC_SEL_IVCTX, 0x01);
-	//hdmitx21_wr_reg(SYS_MISC_IVCTX, 0x00); config same with default
-	//hdmitx21_wr_reg(DIPT_CNTL_IVCTX, 0x06); config same with default
-	hdmitx21_wr_reg(TEST_TXCTRL_IVCTX, 0x02); //[1] enable hdmi
-	//hdmitx21_wr_reg(TX_ZONE_CTL4_IVCTX, 0x04); config same with default
+	/* [1] enable hdmi */
+	hdmitx21_wr_reg(TEST_TXCTRL_IVCTX, 0x02);
 	hdmitx21_wr_reg(CLKRATIO_IVCTX, 0x8a);
 
 	//---------------
@@ -3682,14 +3696,15 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 		hdmitx21_set_reg_bits(TPI_SC_IVCTX, 1, 0, 1);
 	else
 		hdmitx21_set_reg_bits(TPI_SC_IVCTX, 0, 0, 1);
-	/* On Huawei TVs, HDR will cause a flickering screen,
+	/*
+	 * On Huawei TVs, HDR will cause a flickering screen,
 	 * and HDR PKT needs to be moved behind VSYNC on S7 or S7D
 	 */
 	if (hdmitx_find_hdr_pkt_delay_to_vsync(hdev->tx_comm.EDID_buf))
 		hdmi_move_hdr_pkt(true);
 	else
 		hdmi_move_hdr_pkt(false);
-} /* config_hdmi21_tx */
+}
 
 static void hdmitx_csc_config(u8 input_color_format,
 			      u8 output_color_format,
@@ -3732,7 +3747,8 @@ static void hdmitx_csc_config(u8 input_color_format,
 			(color_depth == COLORDEPTH_36B) ? 0x63a6 :
 			(color_depth == COLORDEPTH_48B) ? 0x63a6 : 0x7e3b;
 		csc_scale = 1;
-	} else { /* input_color_format == HDMI_COLORSPACE_RGB */
+	} else {
+		/* input_color_format == HDMI_COLORSPACE_RGB */
 		csc_coeff_a1 = 0x2591;
 		csc_coeff_a2 = 0x1322;
 		csc_coeff_a3 = 0x074b;
@@ -3770,8 +3786,10 @@ static void hdmitx_csc_config(u8 input_color_format,
 	}
 
 	data32 = 0;
-	data32 |= (color_depth << 4);  /* [7:4] csc_color_depth */
-	data32 |= (csc_scale << 0);  /* [1:0] cscscale */
+	/* [7:4] csc_color_depth */
+	data32 |= (color_depth << 4);
+	/* [1:0] cscscale */
+	data32 |= (csc_scale << 0);
 
 	/* set csc in video path */
 	/* set rgb_ycc indicator */
@@ -3790,7 +3808,7 @@ static void hdmitx_csc_config(u8 input_color_format,
 		rgb_ycc_indicator = 0x2;
 		break;
 	}
-}   /* hdmitx_csc_config */
+}
 
 static void hdmitx_set_hw(struct hdmitx_dev *hdev)
 {
@@ -3802,7 +3820,8 @@ static void hdmitx_set_hw(struct hdmitx_dev *hdev)
 	config_hdmi21_tx(hdev);
 }
 
-/* For the ENCP_VIDEO_MAX_LNCNT, it will always start as 0
+/*
+ * For the ENCP_VIDEO_MAX_LNCNT, it will always start as 0
  * when set this register, here will minus 1
  * and get the value, here will plus 1
  */
@@ -3997,7 +4016,6 @@ static void pkt_send_position_change(u32 enable_mask, u8 mov_val)
 	}
 }
 
-//for test
 void hdmitx21_write_dhdr_sram(void)
 {
 	u8 data8;
@@ -4007,7 +4025,6 @@ void hdmitx21_write_dhdr_sram(void)
 	hdmitx21_wr_reg(D_HDR_INSERT_PAYLOAD_0_IVCTX, 0xff); //payload [7:0] ==> pb6 length lsb
 	hdmitx21_wr_reg(D_HDR_GEN_CTL_IVCTX, 1); //mux src path
 	hdmitx21_wr_reg(D_HDR_MEM_READ_EN_IVCTX, 1); //open x_fifo debug path
-	//write
 	HDMITX_DEBUG("write start\n");
 
 	hdmitx21_wr_reg(D_HDR_INSERT_CTRL_IVCTX, 1); //open register write enable
@@ -4346,11 +4363,8 @@ int hdmitx21_pkt_dump(struct hdmitx_dev *hdmitx_device, char *buf, int len)
 	}
 	pos += snprintf(buf + pos, len - pos, "\n");
 
-	//todo
-	//vendor
-	//vendor2
-
-	//AUDIO PKT
+	/* TODO: vendor vendor2 */
+	/* AUDIO PKT */
 	infoframe = &hdev->infoframes.aud;
 	audio = &infoframe->audio;
 	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_AUDIO, body);

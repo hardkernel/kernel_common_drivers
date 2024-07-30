@@ -113,7 +113,8 @@ int hdmitx_common_build_format_para(struct hdmitx_common *tx_comm,
 EXPORT_SYMBOL(hdmitx_common_build_format_para);
 
 /* similar as valid_mode_store(), but with additional lock */
-/* validation step:
+/*
+ * validation step:
  * step1, check if mode related VIC is supported in EDID
  * step2, check if VIC is supported by SOC hdmitx
  * step3, build format with mode/attr and check if it's
@@ -194,7 +195,8 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 		para->vic = hdmitx_hw_get_state(tx_hw, STAT_VIDEO_VIC, 0);
 		para->cs = hdmitx_hw_get_state(tx_hw, STAT_VIDEO_CS, 0);
 		para->cd = hdmitx_hw_get_state(tx_hw, STAT_VIDEO_CD, 0);
-		/* when STD DV has already output in uboot, the real cs is rgb
+		/*
+		 * when STD DV has already output in uboot, the real cs is rgb
 		 * but hdmi CSC actually uses the Y444. So here needs to reassign
 		 * the para->cs as YUV444
 		 */
@@ -204,7 +206,8 @@ int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 				para->cs = HDMI_COLORSPACE_YUV444;
 		}
 
-		/* when already output in uboot, use uboot fmt_attr to update cs cd
+		/*
+		 * when already output in uboot, use uboot fmt_attr to update cs cd
 		 * if dsc is enabled, as cd from HW register is 8bit under dsc
 		 */
 		if (hdmitx_hw_get_state(tx_hw, STAT_TX_DSC_EN, 0)) {
@@ -302,7 +305,8 @@ int hdmitx_get_attr(struct hdmitx_common *tx_comm, char attr[16])
 }
 EXPORT_SYMBOL(hdmitx_get_attr);
 
-/* hdr_priority definition:
+/*
+ * hdr_priority definition:
  *   strategy1: bit[3:0]
  *       0: original cap
  *       1: disable DV cap
@@ -538,25 +542,26 @@ int hdmitx_common_parse_vic_in_edid(struct hdmitx_common *tx_comm, const char *m
 
 	if (!tx_comm || !mode)
 		return HDMI_0_UNKNOWN;
-	/*parse by name to find default mode*/
+	/* parse by name to find default mode */
 	timing = hdmitx_mode_match_timing_name(mode);
 	if (!timing || timing->vic == HDMI_0_UNKNOWN)
 		return HDMI_0_UNKNOWN;
 
 	prefer_vic = hdmitx_get_prefer_vic(tx_comm, timing->vic);
 
-	/*check if vic supported by rx, except:480i 480p 576i 576p*/
+	/* check if vic supported by rx, except:480i 480p 576i 576p */
 	if (prefer_vic != HDMI_0_UNKNOWN &&
 		hdmitx_edid_validate_mode(&tx_comm->rxcap, prefer_vic) == false)
 		prefer_vic = HDMI_0_UNKNOWN;
 
-	/* Dont call hdmitx_common_check_valid_para_of_vic anymore.
+	/*
+	 * Dont call hdmitx_common_check_valid_para_of_vic anymore.
 	 * This function used to parse user passed mode name which should already
 	 * checked by hdmitx_common_check_valid_para_of_vic().
 	 */
 
 	if (prefer_vic == HDMI_0_UNKNOWN)
-		HDMITX_ERROR("%s: parse mode %s vic %d\n", __func__, mode, prefer_vic);
+		HDMITX_DEBUG("parse mode %s not find vic %d in edid\n", mode, prefer_vic);
 
 	return prefer_vic;
 }
@@ -565,13 +570,14 @@ EXPORT_SYMBOL(hdmitx_common_parse_vic_in_edid);
 int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_uevent)
 {
 	if (!tx_comm->suspend_flag) {
-		/*notify to userspace by uevent*/
+		/* notify to userspace by uevent */
 		hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
 					HDMITX_HPD_EVENT, tx_comm->hpd_state, force_uevent);
 		hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
 					HDMITX_AUDIO_EVENT, tx_comm->hpd_state, force_uevent);
 	} else {
-		/* under early suspend, only update uevent state, not
+		/*
+		 * under early suspend, only update uevent state, not
 		 * post to system, in case 1.old android system will
 		 * set hdmi mode, 2.audio server and audio_hal will
 		 * start run, increase power consumption
@@ -582,7 +588,8 @@ int hdmitx_common_notify_hpd_status(struct hdmitx_common *tx_comm, bool force_ue
 			HDMITX_AUDIO_EVENT, tx_comm->hpd_state);
 	}
 
-	/* always notify to other driver module: CEC/RX
+	/*
+	 * always notify to other driver module: CEC/RX
 	 * CEC/RX side will decide to update HPD/EDID or
 	 * not by product type
 	 */
@@ -744,7 +751,8 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 	}
 	hdmitx_edid_buffer_clear(tx_comm->EDID_buf, sizeof(tx_comm->EDID_buf));
 
-	hdmitx_hw_cntl_misc(tx_hw_base, MISC_I2C_RESET, 0); /* reset i2c before edid read */
+	/* reset i2c before edid read */
+	hdmitx_hw_cntl_misc(tx_hw_base, MISC_I2C_RESET, 0);
 	hdmitx_hw_cntl_ddc(tx_hw_base, DDC_RESET_EDID, 0);
 	hdmitx_hw_cntl_ddc(tx_hw_base, DDC_PIN_MUX_OP, PIN_MUX);
 	/* start reading edid first time */
@@ -787,7 +795,8 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 
 	spin_unlock_irqrestore(&tx_comm->edid_spinlock, flags);
 
-	/* notify phy addr to rx/cec:
+	/*
+	 * notify phy addr to rx/cec:
 	 * rx/cec currently do not use the phy addr of below
 	 * two interfaces, just keep for safety
 	 */
@@ -804,7 +813,7 @@ int hdmitx_common_get_edid(struct hdmitx_common *tx_comm)
 	return 0;
 }
 
-/*only for first time plugout */
+/* only for first time plugout */
 bool is_tv_changed(char *cur_edid_chksum, char *boot_param_edid_chksum)
 {
 	char invalidchecksum[11] = {
@@ -1032,7 +1041,8 @@ enum frl_rate_enum hdmitx_select_frl_rate(u8 *dsc_en, u8 dsc_policy, enum hdmi_v
 				cs == HDMI_COLORSPACE_RGB)
 				frl_rate = FRL_6G3L;
 			else
-				frl_rate = FRL_3G3L; //for 422/420
+				/* for 422/420 */
+				frl_rate = FRL_3G3L;
 		} else {
 			*dsc_en = 0;
 		}
@@ -1091,7 +1101,8 @@ enum frl_rate_enum hdmitx_select_frl_rate(u8 *dsc_en, u8 dsc_policy, enum hdmi_v
 			if (cs == HDMI_COLORSPACE_YUV444 ||
 				cs == HDMI_COLORSPACE_RGB)
 				frl_rate = FRL_6G3L;
-			else /* for 422/420, note: previously spec FRL_3G3L can't work */
+			else
+				/* for 422/420, note: previously spec FRL_3G3L can't work */
 				frl_rate = FRL_3G3L;
 		} else {
 			*dsc_en = 0;
@@ -1174,7 +1185,7 @@ void get_hdmi_efuse(struct hdmitx_common *tx_comm)
 				}
 			}
 		} else {
-			pr_err("Error getting %s: %d\n", efuse_field_name, rc);
+			HDMITX_INFO("warn getting %s: %d\n", efuse_field_name, rc);
 		}
 	}
 }
@@ -1221,7 +1232,8 @@ bool hdmitx_edid_only_support_sd(struct rx_cap *prxcap)
 }
 
 #ifdef CONFIG_AMLOGIC_DSC
-/* get the needed frl rate, refer to 2.1 spec table 7-37/38,
+/*
+ * get the needed frl rate, refer to 2.1 spec table 7-37/38,
  * actually it may also need to check bpp
  */
 enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode)
@@ -1254,14 +1266,16 @@ enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode)
 
 	case DSC_RGB_7680X4320_60HZ:
 	case DSC_YUV444_7680X4320_60HZ:
-		/* 6G4L is spec recommended, but actually it can't
+		/*
+		 * 6G4L is spec recommended, but actually it can't
 		 * work on board, need to work under 8G4L
 		 */
 		frl_rate = FRL_6G4L;
 		break;
 	case DSC_YUV422_7680X4320_60HZ:
 	case DSC_YUV420_7680X4320_60HZ:
-		/* 6G3L is spec recommended, but actually it can't
+		/*
+		 * 6G3L is spec recommended, but actually it can't
 		 * work on board, need to work under 6G4L
 		 */
 		frl_rate = FRL_6G3L;
@@ -1276,28 +1290,33 @@ enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode)
 		frl_rate = FRL_6G3L;
 		break;
 
-	case DSC_YUV444_7680X4320_30HZ: /* bpp = 12 */
-	case DSC_RGB_7680X4320_30HZ: /* bpp = 12 */
+	/* bpp = 12 */
+	case DSC_YUV444_7680X4320_30HZ:
+	case DSC_RGB_7680X4320_30HZ:
 		frl_rate = FRL_6G3L;
 		break;
-	case DSC_YUV422_7680X4320_30HZ: /* bpp = 7.375 */
-	case DSC_YUV420_7680X4320_30HZ: /* bpp = 7.375 */
-		/* 3G3L is spec recommended, but actually it can't
+	/* bpp = 7.375 */
+	case DSC_YUV422_7680X4320_30HZ:
+	case DSC_YUV420_7680X4320_30HZ:
+		/*
+		 * 3G3L is spec recommended, but actually it can't
 		 * work on board, need to work under 6G3L
 		 */
 		frl_rate = FRL_3G3L;
 		break;
 
-	case DSC_YUV444_7680X4320_25HZ: /* bpp = 12 */
-	case DSC_RGB_7680X4320_25HZ: /* bpp = 12 */
-	case DSC_YUV444_7680X4320_24HZ: /* bpp = 12 */
-	case DSC_RGB_7680X4320_24HZ: /* bpp = 12 */
+	/* bpp = 12 */
+	case DSC_YUV444_7680X4320_25HZ:
+	case DSC_RGB_7680X4320_25HZ:
+	case DSC_YUV444_7680X4320_24HZ:
+	case DSC_RGB_7680X4320_24HZ:
 		frl_rate = FRL_6G3L;
 		break;
-	case DSC_YUV422_7680X4320_25HZ: /* bpp = 7.6875 */
-	case DSC_YUV420_7680X4320_25HZ: /* bpp = 7.6875 */
-	case DSC_YUV422_7680X4320_24HZ: /* bpp = 7.6875 */
-	case DSC_YUV420_7680X4320_24HZ: /* bpp = 7.6875 */
+	/* bpp = 7.6875 */
+	case DSC_YUV422_7680X4320_25HZ:
+	case DSC_YUV420_7680X4320_25HZ:
+	case DSC_YUV422_7680X4320_24HZ:
+	case DSC_YUV420_7680X4320_24HZ:
 		frl_rate = FRL_3G3L;
 		break;
 	case DSC_ENCODE_MAX:

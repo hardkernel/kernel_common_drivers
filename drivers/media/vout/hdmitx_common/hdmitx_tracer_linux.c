@@ -16,7 +16,7 @@ struct hdmitx_tracer {
 	int hdr10plus_event;
 	struct kfifo log_fifo;
 	struct hdmitx_event_mgr *eventmgr;
-	/*to trigger userspace read fifo logs.*/
+	/* to trigger userspace read fifo logs */
 	struct work_struct uevent_work;
 };
 
@@ -158,8 +158,10 @@ int hdmitx_tracer_write_event(struct hdmitx_tracer *tracer,
 	const char *log_str;
 	int ret = 0;
 
-	// Found, skip duplicate logging.
-	// For example, UEvent spamming of HDCP support (b/220687552).
+	/*
+	 * Found, skip duplicate logging
+	 * For example, UEvent spamming of HDCP support (b/220687552)
+	 */
 	if (event == tracer->previous_event)
 		return 0;
 	tracer->previous_event = event;
@@ -169,17 +171,16 @@ int hdmitx_tracer_write_event(struct hdmitx_tracer *tracer,
 		return 0;
 
 	if (event & HDMITX_HDMI_ERROR_MASK)
-		HDMITX_INFO("Record HDMI error: %s\n", hdmitx_event_to_str(event));
+		HDMITX_ERROR("Record HDMI error: %s\n", hdmitx_event_to_str(event));
 
 	log_str = hdmitx_event_to_str(event);
 	ret = kfifo_in(&tracer->log_fifo, log_str, strlen(log_str));
-	if (!ret) {
-		HDMITX_ERROR("%s fifo error %d reset it\n", __func__, ret);
+	if (!ret)
 		kfifo_reset(&tracer->log_fifo);
-	} else {
+	else
 		tracer->hdr10plus_event = tracer->previous_event;
-	}
-	/*after write trace, trigger uevent to save trace log.*/
+
+	/* after write trace, trigger uevent to save trace log */
 	schedule_work(&tracer->uevent_work);
 
 	return ret;

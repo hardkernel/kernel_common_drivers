@@ -126,7 +126,8 @@ static bool set_hpll_hclk_v1(unsigned int m, unsigned int frac_val)
 	HDMITX_INFO("HPLLv1: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL0));
 
 	ret = (((hd_read_reg(P_HHI_HDMI_PLL_CNTL0) >> 30) & 0x3) == 0x3);
-	return ret; /* return hpll locked status */
+	/* return hpll locked status */
+	return ret;
 }
 
 static bool set_hpll_hclk_v2(unsigned int m, unsigned int frac_val)
@@ -146,7 +147,8 @@ static bool set_hpll_hclk_v2(unsigned int m, unsigned int frac_val)
 	HDMITX_INFO("HPLLv2: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL0));
 
 	ret = (((hd_read_reg(P_HHI_HDMI_PLL_CNTL0) >> 30) & 0x3) == 0x3);
-	return ret; /* return hpll locked status */
+	/* return hpll locked status */
+	return ret;
 }
 
 static bool set_hpll_hclk_v3(unsigned int m, unsigned int frac_val)
@@ -166,7 +168,8 @@ static bool set_hpll_hclk_v3(unsigned int m, unsigned int frac_val)
 	HDMITX_INFO("HPLLv3: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL0));
 
 	ret = (((hd_read_reg(P_HHI_HDMI_PLL_CNTL0) >> 30) & 0x3) == 0x3);
-	return ret; /* return hpll locked status */
+	/* return hpll locked status */
+	return ret;
 }
 
 static inline int is_dongle_mode(struct hdmitx_dev *hdev)
@@ -246,7 +249,8 @@ void set_g12a_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL0, 0x3b0004e9);
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL1, 0x0000aaab);
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL2, 0x00000000);
-		hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x0a691c00);/*test*/
+		/* test */
+		hd_write_reg(P_HHI_HDMI_PLL_CNTL3, 0x0a691c00);
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL4, 0x33771290);
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL5, 0x39270000);
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL6, 0x50540000);
@@ -492,7 +496,7 @@ void set_g12a_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		HDMITX_INFO("HPLL: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL0));
 		break;
 	default:
-		HDMITX_INFO("error hpll clk: %d\n", clk);
+		HDMITX_ERROR("error hpll clk: %d\n", clk);
 		break;
 	}
 }
@@ -605,7 +609,8 @@ void set_hpll_sspll_g12a(enum hdmi_vic vic)
 	case HDMI_5_1920x1080i60_16x9:
 	case HDMI_20_1920x1080i50_16x9:
 		hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL0, 1, 29, 1);
-		/* bit[22:20] hdmi_dpll_fref_sel
+		/*
+		 * bit[22:20] hdmi_dpll_fref_sel
 		 * bit[8] hdmi_dpll_ssc_en
 		 * bit[7:4] hdmi_dpll_ssc_dep_sel
 		 */
@@ -662,7 +667,8 @@ int hdmitx_ddc_hw_op_g12a(enum ddc_op cmd)
 		pinctrl_select_state(hdev->pdev->pins->p, hdev->pinctrl_i2c);
 		break;
 	case DDC_INIT_DISABLE_PULL_UP_DN:
-		/* For s4/sc2/g12 chips, the pins of DDC is OD(open drain),
+		/*
+		 * For s4/sc2/g12 chips, the pins of DDC is OD(open drain),
 		 * there is no need to configure the internal pull up or down.
 		 * Just left blank here
 		 */
@@ -676,32 +682,38 @@ int hdmitx_ddc_hw_op_g12a(enum ddc_op cmd)
 void set_phy_by_mode_g12(unsigned int mode)
 {
 	switch (mode) {
-	case HDMI_PHYPARA_6G: /* 5.94Gbps */
+	/* 5.94Gbps */
+	case HDMI_PHYPARA_6G:
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x0000080b);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x37eb76d4);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
 		break;
-	case HDMI_PHYPARA_4p5G: /* 4.5Gbps*/
+	/* 4.5Gbps*/
+	case HDMI_PHYPARA_4p5G:
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x0000080b);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x37eb65d4);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
 		break;
-	case HDMI_PHYPARA_3p7G: /* 3.7Gbps */
+	/* 3.7Gbps */
+	case HDMI_PHYPARA_3p7G:
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x0000080b);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x37eb65c4);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
 		break;
-	case HDMI_PHYPARA_3G: /* 2.97Gbps */
+	/* 2.97Gbps */
+	case HDMI_PHYPARA_3G:
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x00000003);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33eb6272);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
 		break;
-	case HDMI_PHYPARA_270M: /* SD format, 480p/576p, 270Mbps */
+	/* SD format, 480p/576p, 270Mbps */
+	case HDMI_PHYPARA_270M:
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x00000003);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33eb5252);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2ab0ff3b);
 		break;
-	case HDMI_PHYPARA_DEF: /* less than 2.97G */
+	/* less than 2.97G */
+	case HDMI_PHYPARA_DEF:
 	default:
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL5, 0x00000003);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33eb4262);

@@ -51,15 +51,15 @@ void hdmitx21_read_edid(u8 *_rx_edid)
 	u8 *rx_edid = _rx_edid;
 
 	if (0) {
-		//DDC_DELAY_CNT_IVCTX, config scl fre 100k
+		/* DDC_DELAY_CNT_IVCTX, config scl fre 100k */
 		hdmitx21_wr_reg(DDC_DELAY_CNT_IVCTX, 0x3e);
-		//DDC_ST_STOP_DELAY_0, for stop to start timing debug config, 4.7us
+		/* DDC_ST_STOP_DELAY_0, for stop to start timing debug config, 4.7us */
 		hdmitx21_wr_reg(DDC_ST_STOP_DELAY_0, 0x69);
-		//DDC_SCL_DUTY_MODE_ADDR, bit1 open st_stop counter
+		/* DDC_SCL_DUTY_MODE_ADDR, bit1 open st_stop counter */
 		hdmitx21_wr_reg(DDC_SCL_DUTY_MODE_ADDR,
 			hdmitx21_rd_reg(DDC_SCL_DUTY_MODE_ADDR) | 0x2);
 	}
-	// Read complete EDID data sequentially
+	/* Read complete EDID data sequentially */
 	while (blk_idx < (1 + ext_block_num)) {
 		hdmitx_ddcm_read(blk_idx >> 1, DDC_EDID_ADDR, (blk_idx * 128) & 0xff,
 			&rx_edid[blk_idx * 128], 128);
@@ -72,11 +72,12 @@ void hdmitx21_read_edid(u8 *_rx_edid)
 		if (ext_block_num > 7) {
 			HDMITX_INFO("edid extension block number:");
 			HDMITX_INFO(" %d, reset to MAX 7\n", ext_block_num);
-			ext_block_num = 7; /* Max extended block */
+			/* Max extended block */
+			ext_block_num = 7;
 		}
 		blk_idx++;
 	}
-} /* hdmi20_tx_read_edid */
+}
 
 void hdmi_ddc_error_reset(void)
 {
@@ -131,7 +132,8 @@ static u8 ddc_tx_busy_check(void)
 static bool ddc_wait_free(void)
 {
 	u8 val;
-	u8 tmo1 = 5; /* unit: ms */
+	/* unit: ms */
+	u8 tmo1 = 5;
 	u8 tmo2 = 2;
 
 	while (tmo2--) {
@@ -234,7 +236,8 @@ static enum ddc_err_t _hdmitx_ddcm_read_(u8 seg_index,
 			break;
 
 		if (!ddc_wait_free()) {
-			/* need to clr DDC_STALL_REQ, otherwise
+			/*
+			 * need to clr DDC_STALL_REQ, otherwise
 			 * DDC will always be occupied by SCDC
 			 */
 			ddc_tx_scdc_clr(val);
@@ -348,26 +351,27 @@ enum ddc_err_t hdmitx_ddc_read_1byte(u8 slave_addr, u8 reg_addr, u8 *p_buf)
 	hdmitx21_wr_reg(DDC_DIN_CNT1_IVCTX, 1);
 	hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, 0x00);
 	hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x02);
-	// Wait until I2C done
+	/* Wait until I2C done */
 	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 1 << 4, ~(1 << 4), HZ / 100);
 	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 0 << 4, ~(1 << 4), HZ / 100);
 	p_buf[0]  = hdmitx21_rd_reg(DDC_DATA_AON_IVCTX);
 
 	return DDC_ERR_NONE;
-} /* hdmi20_tx_read_edid */
+}
 
 bool is_rx_hdcp2ver(void)
 {
 	u8 cap_val = 0;
 	bool ret = false;
 
-	/* it easily read fails under FRL mode as FRL ddc bus stall operation,
+	/*
+	 * it easily read fails under FRL mode as FRL ddc bus stall operation,
 	 * so use hdmitx_ddcm_read() method instead
 	 */
 	/* hdmitx_ddc_read_1byte(DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION, &cap_val); */
 	ret = hdmitx_ddcm_read(0, DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION, &cap_val, 1);
 	if (ret)
-		HDMITX_INFO("hdmitx: ddc read hdcp version failed\n");
+		HDMITX_ERROR("hdmitx: ddc read hdcp version failed\n");
 
 	return cap_val == 0x04;
 }
