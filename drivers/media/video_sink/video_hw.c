@@ -109,6 +109,7 @@ struct video_layer_s vd_layer[MAX_VD_LAYER];
 struct disp_info_s glayer_info[MAX_VD_LAYER];
 struct vpu_venc_regs_s venc_regs[VPP_NUM];
 static bool video_mute_array[MAX_VIDEO_MUTE_OWNER];
+static bool video_mute_rgb[MAX_VIDEO_MUTE_OWNER]; /* 0:yuv 1:rgb */
 
 struct video_dev_s video_dev;
 struct video_dev_s *cur_dev = &video_dev;
@@ -6753,14 +6754,18 @@ void rx_mute_vpp(u8 port_type)
 	if (port_type)
 		return;
 	black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
+	video_mute_rgb[HDMI_RX_MUTE_SET] = 0;
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T7) ||
 		cur_dev->display_module == OLD_DISPLAY_MODULE) {
 		/* vd1 hdr core after vd1 clip */
 		if (vd_layer[0].dispbuf)
-			if (vd_layer[0].dispbuf->type & VIDTYPE_RGB_444)
+			if (vd_layer[0].dispbuf->type & VIDTYPE_RGB_444) {
 				black_val = (0x0 << 20) | (0x0 << 10) | 0x0; /* RGB */
+				video_mute_rgb[HDMI_RX_MUTE_SET] = 1;
+			}
 	}
-	pr_info("call %s to mute video\n", __func__);
+	pr_info("call %s to mute video, rgb:%d\n", __func__,
+		video_mute_rgb[HDMI_RX_MUTE_SET]);
 	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
 		rx_mute_vpp_s5(black_val);
 	} else {
@@ -6823,6 +6828,20 @@ static void check_video_mute_state(void)
 	for (i = 0; i < MAX_VIDEO_MUTE_OWNER; i++) {
 		if (video_mute_array[i]) {
 			video_mute_on = true;
+			if (vd_layer[0].dispbuf) {
+				int cur_mute_rgb = 0, next_mute_rgb = 0;
+
+				cur_mute_rgb = video_mute_rgb[i];
+				next_mute_rgb =
+					vd_layer[0].dispbuf->type & VIDTYPE_RGB_444;
+
+				/* if the color space changes
+				 * reset video_mute_status to trigger the mute again
+				 */
+				if (next_mute_rgb != cur_mute_rgb)
+					video_mute_status = VIDEO_MUTE_OFF;
+				video_mute_rgb[i] = next_mute_rgb;
+			}
 			return;
 		}
 	}
