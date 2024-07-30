@@ -693,7 +693,7 @@
 				compatible = "amlogic,g12a-mdio-mux";
 				reg = <0x0 0x360000 0x0 0xa4>;
 
-				clocks = <&clkc CLKID_SYS_ETHPHY>,
+				clocks = <&clkc CLKID_SYS_ETH_PHY>,
 					 <&xtal>,
 					 <&clkc CLKID_FCLK50M>;
 				clock-names = "pclk", "clkin0", "clkin1";
@@ -765,7 +765,7 @@
 			reset-level = <0x40>;
 			usb-phy-trim-reg = <0xfe010330>;
 			phy-id = <0>;
-			clocks = <&clkc CLKID_SYS_USB>;
+			clocks = <&clkc CLKID_SYS_USB2DRD>;
 			clock-names = "crg_general";
 			pm-controller;
 		};
@@ -785,7 +785,7 @@
 			reset-level = <0x40>;
 			usb-phy-trim-reg = <0xfe010330>;
 			phy-id = <1>;
-			clocks = <&clkc CLKID_SYS_USB>;
+			clocks = <&clkc CLKID_SYS_USB3DRD>;
 			clock-names = "crg_general";
 			pm-controller;
 		};
@@ -807,7 +807,7 @@
 			usb3-controller-reset-bit = /bits/ 8 <5>;
 			reset-level-shift = <0x40>;
 			phy-id = /bits/ 8 <1>;
-			clocks = <&clkc CLKID_SYS_USB>,
+			clocks = <&clkc CLKID_SYS_USB3DRD>,
 						<&clkc CLKID_USB_250M>;
 			clock-names = "u3p_clk_0",
 							"u3p_clk_1";
@@ -832,7 +832,7 @@
 			reg = <0x0 0xfe340000 0x0 0x8000>;
 			interrupts = <GIC_SPI 131 IRQ_TYPE_EDGE_RISING>;
 			usb-phy = <&usb_phy20>, <&usb_phy30>;
-			clocks = <&clkc CLKID_SYS_USB>;
+			clocks = <&clkc CLKID_SYS_USB2DRD>;
 			clock-names = "crg_general";
 			dma-64bit-support = <1>;
 			in-nak-rty = <0x5>;
@@ -847,7 +847,7 @@
 			port-speed = <3>; /* 0~3: unknown, low, full, high */
 			phy-reg = <0xfe348000>; /* phy2 base*/
 			phy-reg-size = <0x10>;
-			clocks = <&clkc CLKID_SYS_USB>;
+			clocks = <&clkc CLKID_SYS_USB2DRD>;
 			clock-names = "usb_general";
 			phy-id = <0>;
 			version = <1>; /* 1: forbid vbus detect */
@@ -860,7 +860,7 @@
 			reg = <0x0 0xfe350000 0x0 0x8000>;
 			interrupts = <0 130 IRQ_TYPE_EDGE_RISING>;
 			usb-phy = <&usb_phy21>, <&usb_phy31>;
-			clocks = <&clkc CLKID_SYS_USB>;
+			clocks = <&clkc CLKID_SYS_USB3DRD>;
 			clock-names = "crg_general";
 			dma-64bit-support = <1>;
 			in-nak-rty = <0x5>;
@@ -923,7 +923,7 @@
 			 * pinctrl-0 = <&pcieck_pins>;
 			 */
 
-			clocks = <&clkc CLKID_SYS_PCIE>,
+			clocks = <&clkc CLKID_SYS_PCIE_MAC>,
 				 <&clkc CLKID_SYS_PCIE_PHY>,
 				 <&clkc CLKID_PCIE_TL>;
 			clock-names = "pcie",
@@ -1064,7 +1064,7 @@
 			      <0x0 0xfe364000 0x0 0x8>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			clocks = <&clkc CLKID_SYS_ETHPHY>,
+			clocks = <&clkc CLKID_SYS_ETH_MAC>,
 				 <&clkc CLKID_FCLK_DIV2>,
 				 <&clkc CLKID_FCLK50M>;
 			clock-names = "stmmaceth", "clkin0", "clkin1";
