@@ -79,7 +79,12 @@ struct phylink {
 
 #ifdef CONFIG_PM_SLEEP
 extern unsigned int wol_switch_from_user;
+extern unsigned int mdns_switch_from_user;
+extern unsigned int support_gpio_wol;
+extern unsigned int exphy_mdns_wkup;
 #endif
+extern unsigned int internal_phy;
+
 extern unsigned int tx_amp_bl2;
 extern unsigned int voltage_phy;
 //#endif
