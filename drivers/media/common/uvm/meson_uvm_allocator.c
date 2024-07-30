@@ -687,6 +687,12 @@ static int mua_set_commit_display(int fd, int commit_display)
 	}
 
 	obj = dmabuf_get_uvm_buf_obj(dmabuf);
+	if (IS_ERR_OR_NULL(obj)) {
+		dma_buf_put(dmabuf);
+		MUA_PRINTK(MUA_ERROR, "%s: invalid obj dmabuf\n", __func__);
+		return -EINVAL;
+	}
+
 	buffer = container_of(obj, struct mua_buffer, base);
 	buffer->commit_display = commit_display;
 
@@ -908,6 +914,10 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case UVM_IOC_ATTACH:
+		fd = data.hook_data.shared_fd;
+		if (!mua_is_valid_dmabuf(fd))
+			return -EINVAL;
+
 		MUA_PRINTK(MUA_INFO, "mua_ioctl_attach: shared_fd=%d, mode_type=%d\n",
 			data.hook_data.shared_fd,
 			data.hook_data.mode_type);
@@ -918,10 +928,15 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			MUA_PRINTK(MUA_INFO, "mua_attach fail.\n");
 			return -EINVAL;
 		}
+
 		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
 			return -EFAULT;
 		break;
 	case UVM_IOC_DETACH:
+		fd = data.hook_data.shared_fd;
+		if (!mua_is_valid_dmabuf(fd))
+			return -EINVAL;
+
 		MUA_PRINTK(MUA_INFO, "mua_ioctl_detach: shared_fd=%d, mode_type=%d\n",
 			data.hook_data.shared_fd,
 			data.hook_data.mode_type);
@@ -936,6 +951,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		fd = data.hook_data.shared_fd;
 		if (!mua_is_valid_dmabuf(fd))
 			return -EINVAL;
+
 		dmabuf = dma_buf_get(fd);
 		ret = meson_uvm_getinfo(dmabuf,
 						data.hook_data.mode_type,
@@ -945,6 +961,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			MUA_PRINTK(MUA_INFO, "meson_uvm_getinfo fail.\n");
 			return -EINVAL;
 		}
+
 		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
 			return -EFAULT;
 		break;
@@ -952,6 +969,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		fd = data.hook_data.shared_fd;
 		if (!mua_is_valid_dmabuf(fd))
 			return -EINVAL;
+
 		dmabuf = dma_buf_get(fd);
 		ret = meson_uvm_setinfo(dmabuf,
 						data.hook_data.mode_type,
@@ -999,10 +1017,8 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 
 		data.alloc_data.fd = fd;
-
 		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
 			return -EFAULT;
-
 		break;
 	case UVM_IOC_SET_PID:
 		pid = data.pid_data.pid;
@@ -1013,8 +1029,10 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case UVM_IOC_SET_FD:
 		fd = data.fd_data.fd;
-		ret = mua_set_commit_display(fd, data.fd_data.data);
+		if (!mua_is_valid_dmabuf(fd))
+			return -EINVAL;
 
+		ret = mua_set_commit_display(fd, data.fd_data.data);
 		if (ret < 0) {
 			MUA_PRINTK(MUA_ERROR, "invalid dmabuf fd.\n");
 			return -EINVAL;
@@ -1024,6 +1042,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		fd = data.usage_data.fd;
 		if (!mua_is_valid_dmabuf(fd))
 			return -EINVAL;
+
 		dmabuf = dma_buf_get(fd);
 		usage = data.usage_data.uvm_data_usage;
 		ret = meson_uvm_set_usage(dmabuf, usage);
@@ -1037,6 +1056,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		fd = data.usage_data.fd;
 		if (!mua_is_valid_dmabuf(fd))
 			return -EINVAL;
+
 		dmabuf = dma_buf_get(fd);
 		ret = meson_uvm_get_usage(dmabuf, &usage);
 		dma_buf_put(dmabuf);
@@ -1044,11 +1064,16 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			MUA_PRINTK(MUA_INFO, "meson_uvm_get_usage fail.\n");
 			return -EINVAL;
 		}
+
 		data.usage_data.uvm_data_usage = usage;
 		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
 			return -EFAULT;
 		break;
 	case UVM_IOC_GET_METADATA:
+		fd = data.meta_data.fd;
+		if (!mua_is_valid_dmabuf(fd))
+			return -EINVAL;
+
 		MUA_PRINTK(MUA_DBG, "%s LINE:%d.\n", __func__, __LINE__);
 		ret = mua_get_meta_data(data.meta_data.fd, arg);
 		if (ret < 0) {
@@ -1072,7 +1097,6 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		data.fd_info.type = videotype;
 		data.fd_info.timestamp = timestamp;
-
 		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
 			return -EFAULT;
 		break;
