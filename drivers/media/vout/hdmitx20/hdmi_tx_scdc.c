@@ -9,7 +9,8 @@
 
 void scdc_config(struct hdmitx_dev *hdev)
 {
-	/* from hdmi2.1/2.0 spec chapter 10.4, prior to accessing
+	/*
+	 * from hdmi2.1/2.0 spec chapter 10.4, prior to accessing
 	 * the SCDC, source devices shall verify that the attached
 	 * sink Device incorporates a valid HF-VSDB in the E-EDID
 	 * in which the SCDC Present bit is set (=1). Source
@@ -20,7 +21,8 @@ void scdc_config(struct hdmitx_dev *hdev)
 	 * send 1:40 tmds bit clk ratio when output >3.4Gbps signal
 	 * to cover such non-standard TV.
 	 */
-	/* if change to > 3.4Gbps mode, or change from > 3.4Gbps
+	/*
+	 * if change to > 3.4Gbps mode, or change from > 3.4Gbps
 	 * to < 3.4Gbps mode, need to forcely update clk ratio
 	 */
 	if (hdev->tx_comm.fmt_para.tmds_clk_div40)
@@ -60,7 +62,7 @@ static int scdc_ced_cnt(struct hdmitx_dev *hdev)
 
 	/* Do checksum */
 	if (chksum != 0)
-		HDMITX_INFO("ced check sum error\n");
+		HDMITX_ERROR("ced check sum error\n");
 	if (ced->ch0_cnt)
 		HDMITX_INFO("ced: ch0_cnt = %d %s\n", ced->ch0_cnt,
 			ced->ch0_valid ? "" : "invalid");

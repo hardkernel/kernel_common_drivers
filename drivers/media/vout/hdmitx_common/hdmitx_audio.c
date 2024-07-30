@@ -462,7 +462,8 @@ static const struct hdmi_audio_fs_ncts *all_aud_paras[] = {
 	NULL,
 };
 
-/* note: param tmds_clk is actually pixel_clk
+/*
+ * note: param tmds_clk is actually pixel_clk
  * for 8bit mode, use param cd for ACR_N of
  * deep color mode
  */
@@ -743,7 +744,8 @@ static struct size_map aud_size_map_ss[] = {
 	{16,	SS_16BITS},
 	{20,	SS_20BITS},
 	{24,	SS_24BITS},
-	{32,	SS_24BITS}, /* for hdmitx, max is 24bits */
+	/* for hdmitx, max is 24bits */
+	{32,	SS_24BITS},
 };
 
 static enum hdmi_audio_sampsize aud_size_map(u32 bits)
@@ -763,11 +765,11 @@ static bool hdmitx_set_i2s_mask(struct aud_para *tx_aud_param, char ch_num, char
 
 	if (!(ch_num == 2 || ch_num == 4 ||
 	      ch_num == 6 || ch_num == 8)) {
-		HDMITX_INFO("err chn setting, must be 2, 4, 6 or 8, Rst as def\n");
+		HDMITX_ERROR("audio chn setting, must be 2, 4, 6 or 8, Rst as def\n");
 		return 0;
 	}
 	if (ch_msk == 0) {
-		HDMITX_INFO("err chn msk, must larger than 0\n");
+		HDMITX_ERROR("audio chn msk, must larger than 0\n");
 		return 0;
 	}
 	update_flag = (ch_num << 4) + ch_msk;

@@ -215,7 +215,7 @@ int hdmitx_save_edid_file(unsigned char *rawedid, char *path)
 
 	filp = filp_open(path, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR(filp)) {
-		HDMITX_INFO("[%s] failed to open/create file: |%s|\n",
+		HDMITX_ERROR("[%s] failed to open/create file: |%s|\n",
 			__func__, path);
 		goto PROCESS_END;
 	}
@@ -717,7 +717,8 @@ static ssize_t phy_store(struct device *dev,
 	global_tx_hw->tmds_phy_op = TMDS_PHY_NONE;
 	unsigned int mute_us;
 	int cnt = 0;
-	/* special WHALEY WTV55K1J TV, need to wait for > 3 frames
+	/*
+	 * special WHALEY WTV55K1J TV, need to wait for > 3 frames
 	 * after phy disable and before set new mode
 	 */
 	int delay_frame = 5;
@@ -726,7 +727,8 @@ static ssize_t phy_store(struct device *dev,
 	mute_us = hdmitx_get_frame_duration();
 	if (strncmp(buf, "0", 1) == 0) {
 		global_tx_hw->tmds_phy_op = TMDS_PHY_DISABLE;
-		/* It is necessary to finish disable phy during the vsync interrupt
+		/*
+		 * It is necessary to finish disable phy during the vsync interrupt
 		 * before performing other actions. If the vsync interrupt does not come,
 		 * there is a 3-frame timeout mechanism.
 		 */
@@ -734,7 +736,7 @@ static ssize_t phy_store(struct device *dev,
 			usleep_range(mute_us, mute_us + 10);
 			cnt++;
 			if (cnt > 3) {
-				HDMITX_ERROR("not have vsync intr, manually turn off phy\n");
+				HDMITX_INFO("not have vsync intr, manually turn off phy\n");
 				hdmitx_hw_cntl_misc(global_tx_hw,
 					MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 				global_tx_hw->tmds_phy_op = TMDS_PHY_NONE;
@@ -835,8 +837,9 @@ static ssize_t contenttype_mode_store(struct device *dev,
 
 static DEVICE_ATTR_RW(contenttype_mode);
 
-/* sync with hdmitx_common_get_vic_list() */
-/* step1, only select VIC which is supported in EDID
+/*
+ * sync with hdmitx_common_get_vic_list()
+ * step1, only select VIC which is supported in EDID
  * step2, check if VIC is supported by SOC hdmitx
  * step3, build format with basic mode/attr and check
  * if it's supported by EDID/hdmitx_cap
@@ -858,7 +861,7 @@ static ssize_t disp_cap_show(struct device *dev,
 	memset(edid_vics, 0, vic_len * sizeof(int));
 
 	/* step1: only select VIC which is supported in EDID */
-	/*copy edid vic list*/
+	/* copy edid vic list */
 	if (prxcap->VIC_count > 0)
 		memcpy(edid_vics, prxcap->VIC, sizeof(int) * prxcap->VIC_count);
 	for (i = 0; i < VESA_MAX_TIMING && prxcap->vesa_timing[i]; i++)
@@ -879,21 +882,22 @@ static ssize_t disp_cap_show(struct device *dev,
 
 		timing = hdmitx_mode_vic_to_hdmi_timing(vic);
 		if (!timing) {
-			// HDMITX_ERROR("%s: unsupport vic [%d]\n", __func__, vic);
+			/* HDMITX_ERROR("%s: unsupport vic [%d]\n", __func__, vic); */
 			continue;
 		}
 
 		/* step2, check if VIC is supported by SOC hdmitx */
 		if (hdmitx_common_validate_vic(global_tx_common, vic) != 0) {
-			// HDMITX_ERROR("%s: vic[%d] over range.\n", __func__, vic);
+			/* HDMITX_ERROR("%s: vic[%d] over range.\n", __func__, vic); */
 			continue;
 		}
 
-		/* step3, build format with basic mode/attr and check
+		/*
+		 * step3, build format with basic mode/attr and check
 		 * if it's supported by EDID/hdmitx_cap
 		 */
 		if (hdmitx_common_check_valid_para_of_vic(global_tx_common, vic) != 0) {
-			//HDMITX_ERROR("%s: vic[%d] check fmt attr failed.\n", __func__, vic);
+			/* HDMITX_ERROR("%s: vic[%d] check fmt attr failed.\n", __func__, vic); */
 			continue;
 		}
 
@@ -1039,11 +1043,11 @@ static bool pre_process_str(const char *name, char *mode, char *attr)
 		if (search_pos)
 			break;
 	}
-	/*no cs parsed, return error.*/
+	/* no cs parsed, return error */
 	if (!search_pos)
 		return false;
 
-	/*search remaining color_formats, if have more than one cs string, return error.*/
+	/* search remaining color_formats, if have more than one cs string, return error */
 	i++;
 	for (; i < 4 ; i++) {
 		if (strstr(search_pos, color_format[i]))

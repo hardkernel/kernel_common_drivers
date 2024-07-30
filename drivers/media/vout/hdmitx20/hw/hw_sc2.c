@@ -82,7 +82,8 @@ static bool set_hpll_hclk_v1(unsigned int m, unsigned int frac_val)
 	WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
 
 	ret = (((hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0) >> 30) & 0x3) == 0x3);
-	return ret; /* return hpll locked status */
+	/* return hpll locked status */
+	return ret;
 }
 
 static bool set_hpll_hclk_v2(unsigned int m, unsigned int frac_val)
@@ -101,7 +102,8 @@ static bool set_hpll_hclk_v2(unsigned int m, unsigned int frac_val)
 	WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
 
 	ret = (((hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0) >> 30) & 0x3) == 0x3);
-	return ret; /* return hpll locked status */
+	/* return hpll locked status */
+	return ret;
 }
 
 static bool set_hpll_hclk_v3(unsigned int m, unsigned int frac_val)
@@ -120,7 +122,8 @@ static bool set_hpll_hclk_v3(unsigned int m, unsigned int frac_val)
 	WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
 
 	ret = (((hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0) >> 30) & 0x3) == 0x3);
-	return ret; /* return hpll locked status */
+	/* return hpll locked status */
+	return ret;
 }
 
 void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
@@ -408,7 +411,7 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		HDMITX_DEBUG("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
 		break;
 	default:
-		HDMITX_INFO("error hpll clk: %d\n", clk);
+		HDMITX_ERROR("error hpll clk: %d\n", clk);
 		break;
 	}
 }
@@ -478,7 +481,8 @@ void set_phy_by_mode_sc2(unsigned int mode)
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	switch (mode) {
-	case HDMI_PHYPARA_6G: /* 5.94/4.5/3.7Gbps */
+	/* 5.94/4.5/3.7Gbps */
+	case HDMI_PHYPARA_6G:
 	case HDMI_PHYPARA_4p5G:
 	case HDMI_PHYPARA_3p7G:
 		hd_write_reg(P_ANACTRL_HDMIPHY_CTRL5, 0x0000080b);
@@ -488,12 +492,14 @@ void set_phy_by_mode_sc2(unsigned int mode)
 		if (mode == HDMI_PHYPARA_6G && hdev->hdmi_rext == 1300)
 			hd_write_reg(P_ANACTRL_HDMIPHY_CTRL0, 0x37eb6584);
 		break;
-	case HDMI_PHYPARA_3G: /* 2.97Gbps */
+	/* 2.97Gbps */
+	case HDMI_PHYPARA_3G:
 		hd_write_reg(P_ANACTRL_HDMIPHY_CTRL5, 0x00000003);
 		hd_write_reg(P_ANACTRL_HDMIPHY_CTRL0, 0x33eb42a2);
 		hd_write_reg(P_ANACTRL_HDMIPHY_CTRL3, 0x2ab0ff3b);
 		break;
-	case HDMI_PHYPARA_270M: /* 1.485Gbps, and below */
+	/* 1.485Gbps, and below */
+	case HDMI_PHYPARA_270M:
 	case HDMI_PHYPARA_DEF:
 	default:
 		hd_write_reg(P_ANACTRL_HDMIPHY_CTRL5, 0x00000003);
@@ -506,10 +512,14 @@ void set_phy_by_mode_sc2(unsigned int mode)
 void hdmitx_sys_reset_sc2(void)
 {
 	/* Refer to SC2-system-Registers.docx */
-	hd_write_reg(P_RESETCTRL_RESET0, 1 << 29); /* hdmi_tx */
-	hd_write_reg(P_RESETCTRL_RESET0, 1 << 22); /* hdmitxphy */
-	hd_write_reg(P_RESETCTRL_RESET0, 1 << 19); /* vid_pll_div */
-	hd_write_reg(P_RESETCTRL_RESET0, 1 << 16); /* hdmitx_apb */
+	/* hdmi_tx */
+	hd_write_reg(P_RESETCTRL_RESET0, 1 << 29);
+	/* hdmitxphy */
+	hd_write_reg(P_RESETCTRL_RESET0, 1 << 22);
+	/* vid_pll_div */
+	hd_write_reg(P_RESETCTRL_RESET0, 1 << 19);
+	/* hdmitx_apb */
+	hd_write_reg(P_RESETCTRL_RESET0, 1 << 16);
 }
 
 void set_hpll_sspll_sc2(enum hdmi_vic vic)
@@ -524,7 +534,8 @@ void set_hpll_sspll_sc2(enum hdmi_vic vic)
 	case HDMI_5_1920x1080i60_16x9:
 	case HDMI_20_1920x1080i50_16x9:
 		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL0, 1, 29, 1);
-		/* bit[22:20] hdmi_dpll_fref_sel
+		/*
+		 * bit[22:20] hdmi_dpll_fref_sel
 		 * bit[8] hdmi_dpll_ssc_en
 		 * bit[7:4] hdmi_dpll_ssc_dep_sel
 		 */
