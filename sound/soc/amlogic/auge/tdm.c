@@ -445,16 +445,22 @@ static int aml_set_tdm_mclk_1(struct aml_tdm *p_tdm,
 	char *clk_name;
 
 	clk_name = (char *)__clk_get_name(p_tdm->clk);
-	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll"))
-		if (p_tdm->syssrc_clk_rate)
+	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
+		if (p_tdm->syssrc_clk_rate &&
+			p_tdm->syssrc_clk_rate % p_tdm->setting.standard_sysclk == 0) {
 			mpll_freq = p_tdm->syssrc_clk_rate;
-		else
-			mpll_freq = 1806336 * 1000;
-	else
+		} else {
+			if (p_tdm->setting.standard_sysclk % 8000 == 0)
+				mpll_freq = MPLL_HBR_FIXED_FREQ;
+			else if (p_tdm->setting.standard_sysclk % 11025 == 0)
+				mpll_freq = MPLL_CD_FIXED_FREQ;
+			else
+				mpll_freq = 1806336 * 1000;
+		}
+	} else {
 		mpll_freq = freq * ratio;
-
+	}
 	pr_debug("%s:set mpll_freq: %d\n", __func__, mpll_freq);
-
 	if (mpll_freq != p_tdm->last_mpll_freq) {
 		clk_set_rate(p_tdm->clk, mpll_freq);
 		p_tdm->last_mpll_freq = mpll_freq;
