@@ -1066,7 +1066,10 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->dbg_force_en = 0;
 
 	devp->other1_flag = 0;
-	devp->other2_flag = 0;  // 25, 16;
+	if (get_chip_type() == ID_T5M)
+		devp->other2_flag = 2;
+	else
+		devp->other2_flag = 0;  // 25, 16;
 	devp->vlock_flag = 1;
 	devp->dbg_mvrd_mode = 8;
 	devp->dbg_mute_disable = 1;

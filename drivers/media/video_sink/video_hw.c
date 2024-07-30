@@ -9662,6 +9662,24 @@ static bool is_sr_phase_changed(void)
 	return changed;
 }
 
+static bool is_frc_changed(void)
+{
+	bool changed = false;
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+	static int n2m_worked_pre, n2m_ratio_pre;
+	int n2m_worked = 0, n2m_ratio = 0;
+
+	n2m_worked = frc_n2m_worked();
+	n2m_ratio  = frc_get_n2m_ratio();
+	if (n2m_worked != n2m_worked_pre || n2m_ratio != n2m_ratio_pre)
+		changed = true;
+	n2m_worked_pre = n2m_worked;
+	n2m_ratio_pre = n2m_ratio;
+#endif
+
+	return changed;
+}
+
 int get_layer_display_canvas(u8 layer_id)
 {
 	int ret = -1;
@@ -10783,6 +10801,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	bool enable_layer = false;
 	bool frame_changed;
 	bool sr_phase_changed = false;
+	bool frc_changed = false;
 	struct disp_info_s *layer_info = NULL;
 	int ret = vppfilter_success;
 	bool is_mvc = false;
@@ -10943,9 +10962,11 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		(layer_id,
 		layer->dispbuf, vf);
 	sr_phase_changed = is_sr_phase_changed();
+	frc_changed = is_frc_changed();
+
 	/* enable new config on the new frames */
 	if (first_picture || force_toggle || frame_changed ||
-	    sr_phase_changed || aisr_update) {
+	    sr_phase_changed || aisr_update || frc_changed) {
 		u32 op_flag = OP_VPP_MORE_LOG | swap_op_flag;
 
 		if (layer->next_frame_par == layer->cur_frame_par)
