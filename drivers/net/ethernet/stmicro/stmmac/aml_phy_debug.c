@@ -735,16 +735,28 @@ static ssize_t linkspeed_show(struct class *class,
 	return ret;
 }
 
+unsigned int internal_phy;
+EXPORT_SYMBOL_GPL(internal_phy);
 #ifdef CONFIG_PM_SLEEP
 unsigned int wol_switch_from_user;
 EXPORT_SYMBOL_GPL(wol_switch_from_user);
+unsigned int mdns_switch_from_user;
+EXPORT_SYMBOL_GPL(mdns_switch_from_user);
+unsigned int support_gpio_wol;
+EXPORT_SYMBOL_GPL(support_gpio_wol);
+unsigned int exphy_mdns_wkup;
+EXPORT_SYMBOL_GPL(exphy_mdns_wkup);
+
 static ssize_t wol_show(struct class *class,
 	struct class_attribute *attr, char *buf)
 {
 	if (!c_phy_dev)
 		return 0;
 
-	return sprintf(buf, "0x%x\n", wol_switch_from_user);
+	if (internal_phy != 2)
+		return sprintf(buf, "inphy wol 0x%x\n", wol_switch_from_user);
+	else
+		return sprintf(buf, "exphy wol 0x%x\n", support_gpio_wol);
 }
 
 static ssize_t wol_store(struct class *class,
@@ -757,7 +769,10 @@ static ssize_t wol_store(struct class *class,
 		return 0;
 
 	r = kstrtoint(buf, 16, &tmp);
-	wol_switch_from_user = tmp;
+	if (internal_phy != 2)
+		wol_switch_from_user = tmp;
+	else
+		support_gpio_wol = tmp;
 
 	return count;
 }

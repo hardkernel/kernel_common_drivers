@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
+#include <linux/amlogic/aml_phy_debug.h>
 #endif
 
 #define RTL821x_PHYSR				0x11
@@ -336,10 +337,6 @@ static int rtl8211c_config_init(struct phy_device *phydev)
 			    CTL1000_ENABLE_MASTER | CTL1000_AS_MASTER);
 }
 
-#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-unsigned int support_gpio_wol;
-EXPORT_SYMBOL_GPL(support_gpio_wol);
-#endif
 static int rtl8211f_config_init(struct phy_device *phydev)
 {
 	struct rtl821x_priv *priv = phydev->priv;
@@ -419,22 +416,6 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 		return ret;
 	}
 
-#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
-	if (support_gpio_wol) {
-		/* config mac address for wol*/
-		if (phydev->attached_dev) {
-			phy_write(phydev, RTL821x_PAGE_SELECT, 0xd8c);
-			phy_write(phydev, 0x10, phydev->attached_dev->dev_addr[0] |
-						(phydev->attached_dev->dev_addr[1] << 8));
-			phy_write(phydev, 0x11, phydev->attached_dev->dev_addr[2] |
-						(phydev->attached_dev->dev_addr[3] << 8));
-			phy_write(phydev, 0x12, phydev->attached_dev->dev_addr[4] |
-						(phydev->attached_dev->dev_addr[5] << 8));
-		} else {
-			pr_info("set wol mac failed\n");
-		}
-	}
-#endif
 //	return genphy_soft_reset(phydev);
 	return 0;
 }
@@ -446,10 +427,48 @@ int rtl8211f_suspend(struct phy_device *phydev)
 
 	if (support_gpio_wol) {
 		mutex_lock(&phydev->lock);
-		phy_write(phydev, RTL821x_PAGE_SELECT, 0xd8a);
-		/*set magic packet for wol*/
-		phy_write(phydev, 0x10, 0x1000);
-		phy_write(phydev, 0x11, 0x9fff);
+		/* config mac address for wol*/
+		if (phydev->attached_dev) {
+			phy_write(phydev, RTL821x_PAGE_SELECT, 0xd8c);
+			if (exphy_mdns_wkup) {
+				/*multicast: 01:00:5e:00:00:fb*/
+				phy_write(phydev, 0x10, 0x0001);
+				phy_write(phydev, 0x11, 0x005e);
+				phy_write(phydev, 0x12, 0xfb00);
+			} else {
+				phy_write(phydev, 0x10, phydev->attached_dev->dev_addr[0] |
+						(phydev->attached_dev->dev_addr[1] << 8));
+				phy_write(phydev, 0x11, phydev->attached_dev->dev_addr[2] |
+						(phydev->attached_dev->dev_addr[3] << 8));
+				phy_write(phydev, 0x12, phydev->attached_dev->dev_addr[4] |
+						(phydev->attached_dev->dev_addr[5] << 8));
+			}
+		}
+
+		if (exphy_mdns_wkup) {
+			/*set mask event0 for wol*/
+			phy_write(phydev, RTL821x_PAGE_SELECT, 0xd8a);
+			phy_write(phydev, 0x11, 0x9fff);
+			phy_write(phydev, 0x10, 0x0001);
+			phy_write(phydev, RTL821x_PAGE_SELECT, 0xd80);
+			phy_write(phydev, 0x10, 0x0000);
+			phy_write(phydev, 0x11, 0x0080);
+			phy_write(phydev, 0x12, 0x103c);
+			phy_write(phydev, 0x13, 0x0000);
+			phy_write(phydev, 0x14, 0x0000);
+			phy_write(phydev, 0x15, 0x0000);
+			phy_write(phydev, 0x16, 0x0000);
+			phy_write(phydev, 0x17, 0x0000);
+			phy_write(phydev, RTL821x_PAGE_SELECT, 0xd88);
+			phy_write(phydev, 0x10, 0xe442);
+			/*pad isolation*/
+			phy_write(phydev, RTL821x_PAGE_SELECT, 0xd8a);
+		} else {
+			phy_write(phydev, RTL821x_PAGE_SELECT, 0xd8a);
+			/*set magic packet for wol*/
+			phy_write(phydev, 0x10, 0x1000);
+			phy_write(phydev, 0x11, 0x9fff);
+		}
 		/*pad isolation*/
 		value = phy_read(phydev, 0x13);
 		phy_write(phydev, 0x13, value | (0x1 << 15));
