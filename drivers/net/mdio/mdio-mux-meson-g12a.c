@@ -334,11 +334,11 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 					tx_R = (efuse_get_tmp & 0xf00000) >> 20;
 					rx_R = (efuse_get_tmp & 0x0f0000) >> 16;
 					writel(((tx_R << 28) | (rx_R << 20))
-						| (0x0a000000),
+						| (0x05000000),
 						priv->regs + ETH_PLL_CTL3);
 				} else {
 					pr_debug("no efuse setting use default\n");
-					writel(0xaa800000, priv->regs + ETH_PLL_CTL3);
+					writel(0xa5800000, priv->regs + ETH_PLL_CTL3);
 				}
 				writel(0x4001, priv->regs + ETH_PLL_CTL6);
 				writel(0x20000000, priv->regs + ETH_PLL_CTL5);
