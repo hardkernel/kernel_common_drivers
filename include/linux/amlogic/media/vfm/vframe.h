@@ -592,6 +592,11 @@ struct vf_lcevc_t {
 	u32 len;
 };
 
+enum dec_set_screen_mode_t {
+	INVALID = 0,
+	VIDEO_OPTION_NORMAL = 1,
+};
+
 #define VF_UD_MAX_SIZE 5120 /* 5K size */
 #define UD_MAGIC_CODE 0x55445020 /* UDP */
 #define is_ud_param_valid(ud) ((ud.magic_code) == UD_MAGIC_CODE)
@@ -851,6 +856,8 @@ struct vframe_s {
 	u32 scatter_mem_size;
 	struct vf_lcevc_t scaler_coeff;
 	u32 frame_irq_cnt;
+	/*decoder set screen mode, vpp using this 1st priority*/
+	enum dec_set_screen_mode_t dec_set_screen_mode;
 } /*vframe_t */;
 
 #define VC_FLAG_AI_SR		0x1
