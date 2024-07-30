@@ -320,6 +320,7 @@ unsigned long			posix_acl_from_xattr_t;
 struct ksymbol {
 	const char *name;
 	void *data;
+	unsigned int name_len;
 };
 
 #define KSYM_FUN(sym)			\
@@ -512,7 +513,9 @@ static int fill_symbol(char *line, struct ksymbol *sym)
 		} else
 			finish = 0;
 
-		len = strlen(sym->name);
+		if (!sym->name_len)
+			sym->name_len = strlen(sym->name);
+		len = sym->name_len;
 		if (!strncmp(line + 19, sym->name, len)) {
 			if (line[19 + len + 1]) {	// not terminate
 				sym++;
@@ -586,7 +589,7 @@ static int fill_module_symbols(struct proc_node *node, struct ksymbol *sym)
 	while (1) {
 		s->count = 0;
 		s->size  = sizeof(line_buf);
-		memset(line_buf, 0, sizeof(line_buf));
+		//memset(line_buf, 0, sizeof(line_buf));
 		ret = s->op->show(s, NULL);
 		if (ret < 0) {
 			pr_info("read fail:%d\n", ret);
