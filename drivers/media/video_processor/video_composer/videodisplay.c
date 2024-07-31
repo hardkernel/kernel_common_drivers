@@ -779,6 +779,8 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 			if (vsync_index + 1 >= vsync_count[dev->index])
 				return NULL;
 		}
+		if (vf->flag & VFRAME_FLAG_GAME_MODE)
+			return vf;
 
 		input_fps = vf->duration * 15;
 		get_output_pcrscr_info(&output_pts_inc_scale, &output_pts_inc_scale_base);

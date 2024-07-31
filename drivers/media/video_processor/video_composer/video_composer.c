@@ -4327,7 +4327,8 @@ static void video_composer_task(struct composer_dev *dev)
 			dev->vframe_dump_flag = dump_vframe;
 		}
 		atomic_set(&received_frames->on_use, false);
-		if (use_low_latency && dev->index == 0)
+		if ((use_low_latency || (is_dec_vf && vf->flag & VFRAME_FLAG_GAME_MODE)) &&
+			dev->index == 0)
 			proc_lowlatency_frame(0);
 	} else if (do_mosaic_22) {
 		vframe_do_mosaic_22(dev);
