@@ -1,4 +1,4 @@
-From 8597d5903455a6f7e99a6ee8aadb17a5744d3b32 Mon Sep 17 00:00:00 2001
+From e2c8490b6291175db772aee6c2fe4894ce5e97f9 Mon Sep 17 00:00:00 2001
 From: Jianxiong Pan <jianxiong.pan@amlogic.com>
 Date: Wed, 20 Dec 2023 14:27:52 +0800
 Subject: [PATCH] mm: add memory extend support. [2/2]
@@ -47,8 +47,8 @@ Signed-off-by: Jianxiong Pan <jianxiong.pan@amlogic.com>
  mm/slab_common.c               | 67 ++++++++++++++++++++++++++++++-
  mm/slub.c                      | 12 ++++++
  mm/usercopy.c                  |  4 ++
- mm/vmscan.c                    | 17 ++++++++
- 21 files changed, 288 insertions(+), 2 deletions(-)
+ mm/vmscan.c                    | 26 +++++++++++-
+ 21 files changed, 296 insertions(+), 3 deletions(-)
 
 diff --git a/arch/arm64/include/asm/cache.h b/arch/arm64/include/asm/cache.h
 index ceb368d33bf4..bc236bc302b5 100644
@@ -815,10 +815,22 @@ index 83c164aba6e0..98f84510f34c 100644
  		if (n > folio_size(folio) - offset)
  			usercopy_abort("page alloc", NULL, to_user, offset, n);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e168cff06706..9735c572c18f 100644
+index e168cff06706..4a6e96ee9f05 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1728,6 +1728,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
+@@ -1548,9 +1548,11 @@ static enum folio_references folio_check_references(struct folio *folio,
+ 	unsigned long vm_flags;
+ 	int ret = 0;
+ 
++#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
+ 	trace_android_vh_page_should_be_protected(folio, sc->nr_scanned,
+ 		sc->priority, &sc->android_vendor_data1, &ret);
++#endif
+ #endif
+ 	trace_android_vh_check_folio_look_around_ref(folio, &ret);
+ 	if (ret)
+@@ -1728,6 +1730,17 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
  	return !data_race(folio_swap_flags(folio) & SWP_FS_OPS);
  }
  
@@ -836,7 +848,7 @@ index e168cff06706..9735c572c18f 100644
  /*
   * shrink_folio_list() returns the number of reclaimed pages
   */
-@@ -1775,7 +1786,11 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
+@@ -1775,7 +1788,11 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
  		if (unlikely(!folio_evictable(folio)))
  			goto activate_locked;
  
@@ -848,7 +860,7 @@ index e168cff06706..9735c572c18f 100644
  			goto keep_locked;
  
  		/* folio_update_gen() tried to promote this page? */
-@@ -2541,8 +2556,10 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
+@@ -2541,8 +2558,10 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
  	 * won't get blocked by normal direct-reclaimers, forming a circular
  	 * deadlock.
  	 */
@@ -859,6 +871,44 @@ index e168cff06706..9735c572c18f 100644
  
  	too_many = isolated > inactive;
  
+@@ -2811,10 +2830,11 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 				folio_unlock(folio);
+ 			}
+ 		}
+-
++#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
+ 		trace_android_vh_page_should_be_protected(folio, sc->nr_scanned,
+ 			sc->priority, &sc->android_vendor_data1, &should_protect);
++#endif
+ #endif
+ 		if (unlikely(should_protect)) {
+ 			nr_rotated += folio_nr_pages(folio);
+@@ -6604,9 +6624,11 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+ 	if (can_reclaim_anon_pages(NULL, pgdat->node_id, sc))
+ 		inactive_lru_pages += node_page_state(pgdat, NR_INACTIVE_ANON);
+ 
++#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
+ 	trace_android_vh_should_continue_reclaim(&sc->android_vendor_data1,
+ 		&sc->nr_to_reclaim, &sc->nr_reclaimed, &continue_reclaim);
++#endif
+ #endif
+ 	if (!continue_reclaim)
+ 		return false;
+@@ -6967,10 +6989,12 @@ static void modify_scan_control(struct scan_control *sc)
+ {
+ 	bool file_is_tiny = false, may_writepage = true;
+ 
++#ifndef CONFIG_AMLOGIC_MEMORY_OPT
+ #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
+ 	trace_android_vh_modify_scan_control(&sc->android_vendor_data1,
+ 		&sc->nr_to_reclaim, sc->target_mem_cgroup, &file_is_tiny,
+ 		&may_writepage);
++#endif
+ #endif
+ 
+ 	if (file_is_tiny)
 -- 
 2.45.2
 
