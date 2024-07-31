@@ -1507,6 +1507,25 @@
 	status = "okay";
 	logo_addr = "0x2fc00000";
 
+	connectors_dev: port@1 {
+		drm_to_lcd0: endpoint@2 {
+			reg = <2>;
+			remote-endpoint = <&lcd0_to_drm>;
+		};
+	};
+};
+
+&lcd {
+	ports {
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			lcd0_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd0>;
+			};
+		};
+	};
 };
 
 &drm_subsystem {
