@@ -1208,7 +1208,8 @@ static void lcd_extern_config_update_dynamic_size(struct lcd_extern_driver_s *ed
 		if ((i + 2 + size) > max_len)
 			break;
 
-		if (type == LCD_EXT_CMD_TYPE_GPIO) {
+		if (type == LCD_EXT_CMD_TYPE_GPIO ||
+		    type == LCD_EXT_CMD_TYPE_WAIT_GPIO) {
 			if (size >= 2) {
 				/* gpio probe */
 				index = table[i + 2];
@@ -1216,11 +1217,12 @@ static void lcd_extern_config_update_dynamic_size(struct lcd_extern_driver_s *ed
 			}
 		} else if (type == LCD_EXT_CMD_TYPE_MULTI_CMD ||
 			   type == LCD_EXT_CMD_TYPE_MULTI_DFT_CMD) {
-			next_cmd = table[i + 2];
-			if (next_cmd == LCD_EXT_CMD_TYPE_GPIO) {
+			next_cmd = table[i + 3];
+			if (next_cmd == LCD_EXT_CMD_TYPE_GPIO ||
+			    next_cmd == LCD_EXT_CMD_TYPE_WAIT_GPIO) {
 				if (size >= 3) {
 					/* gpio probe */
-					index = table[i + 3];
+					index = table[i + 4];
 					lcd_extern_gpio_probe(edrv, index);
 				}
 			}
