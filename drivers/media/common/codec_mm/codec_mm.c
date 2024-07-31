@@ -222,7 +222,7 @@ int cma_mmu_op(struct page *page, int count, bool set)
 		if (set)
 			aml_set_pte_at(mm, addr, pte, mk_pte(page, PAGE_KERNEL));
 		else
-			pte_clear(mm, addr, pte);
+			__pte_clear(mm, addr, pte);
 		pte_unmap(pte);
 	#ifdef CONFIG_ARM
 		pr_debug("%s, add:%lx, pgd:%p %x, pmd:%p %x, pte:%p %x\n",
