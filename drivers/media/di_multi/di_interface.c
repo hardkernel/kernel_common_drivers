@@ -905,8 +905,10 @@ int new_release_keep_buf(struct di_buffer *buffer)
 int set_buffer_num(unsigned int post, unsigned int pre)
 {
 	dbg_reg("%s:%d,%d\n", __func__, post, pre);
-	if (post)
+	if (post) {
 		cfgs(POST_NUB, post);
+		dim_set_postnum(post);
+	}
 	if (pre)
 		cfgs(PRE_NUB, pre);
 	return 0;

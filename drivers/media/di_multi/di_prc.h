@@ -472,6 +472,8 @@ void dim_slt_init(void);
 bool dim_is_slt_mode(void);
 unsigned int dim_get_post_num(void);
 void dim_set_post_num(struct di_ch_s *pch, unsigned int data);
+void dim_set_postnum(unsigned int num);
+void dip_prob_sct(struct di_ch_s *pch);
 unsigned int dim_int_tab(struct device *dev,
 				 struct afbce_map_s *pcfg);
 void di_decontour_disable(bool on);

@@ -3282,6 +3282,8 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 	/*pre*/
 	memset(ppre, 0, sizeof(struct di_pre_stru_s));
 
+	dip_prob_sct(pch);
+
 	/* bypass state */
 	dim_bypass_st_clear(pch);
 	if (pch->itf.op_cfg_ch_set)
@@ -5711,6 +5713,11 @@ unsigned int dim_get_post_num(void)
 	return dim_post_num;
 }
 
+void dim_set_postnum(unsigned int num)
+{
+	dim_post_num = num;
+}
+
 void dim_set_post_num(struct di_ch_s *pch, unsigned int data)
 {
 	if (data)
@@ -6611,6 +6618,12 @@ void dip_exit(void)
 	#endif
 }
 
+void dip_prob_sct(struct di_ch_s *pch)
+{
+	bufq_sct_int(pch);
+	sct_prob(pch);
+}
+
 void dip_prob_ch(void)
 {
 	unsigned int ch;
@@ -6618,8 +6631,8 @@ void dip_prob_ch(void)
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
 		pch = get_chdata(ch);
-		bufq_sct_int(pch);
-		sct_prob(pch);
+		//bufq_sct_int(pch);
+		//sct_prob(pch);
 
 		/**/
 		bufq_nin_int(pch);
