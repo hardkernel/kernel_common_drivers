@@ -2,6 +2,20 @@
 /*
  *opyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
+#include <linux/bitfield.h>
+#include <linux/bitops.h>
+#include <linux/err.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_platform.h>
+#include <linux/pci.h>
+#include <linux/pci-ats.h>
+#include <linux/platform_device.h>
+#include <linux/of_reserved_mem.h>
+#include <linux/arm-smccc.h>
+#include <linux/amlogic/tee.h>
+
 #include <linux/dma-mapping.h>
 #include <linux/dma-direct.h>
 #include <linux/spinlock.h>
@@ -36,7 +50,9 @@ enum dma_sync_target {
 			((val) & ((align) - 1)))
 
 /* default to 32MB */
-#define AML_IO_TLB_DEFAULT_SIZE (64UL << 20)
+/* #define AML_IO_TLB_DEFAULT_SIZE (64UL << 20) */
+#define AML_IO_TLB_ATOMIC_SIZE (4UL << 20)
+size_t default_size;
 
 /*
  * Maximum allowable number of contiguous slabs to map,
@@ -442,13 +458,17 @@ static struct device *aml_dma_dev;
  * Statically reserve bounce buffer space and initialize bounce buffer data
  * structures for the software IO TLB used to implement the DMA API.
  */
-void  pcie_swiotlb_init(struct device *dma_dev)
+void pcie_swiotlb_init(struct device *dma_dev)
 {
-	size_t default_size = AML_IO_TLB_DEFAULT_SIZE;
+	/* size_t default_size = AML_IO_TLB_DEFAULT_SIZE; */
 	unsigned char *vstart;
 	unsigned long bytes;
 	dma_addr_t paddr = 0;
 
+	if (!default_size) {
+		pr_err("swiotlb size init zero.\n");
+		return;
+	}
 	if (!io_tlb_nslabs) {
 		io_tlb_nslabs = (default_size >> IO_TLB_SHIFT);
 		io_tlb_nslabs = ALIGN(io_tlb_nslabs, IO_TLB_SEGSIZE);
@@ -807,3 +827,108 @@ const struct dma_map_ops aml_pcie_dma_ops = {
 	.get_required_mask	= dma_direct_get_required_mask,
 };
 
+static struct reserved_mem *g_rmem1;
+
+static int aml_smmu_device_probe(struct platform_device *pdev)
+{
+	int ret;
+	struct device *dev = &pdev->dev;
+	struct reserved_mem *rmem = NULL;
+	struct device_node *mem_node;
+	u32 handle;
+
+	ret = of_reserved_mem_device_init(dev);
+	if (ret) {
+		dev_err(dev, "reserve memory init fail:%d\n", ret);
+		return ret;
+	}
+
+	mem_node = of_parse_phandle(dev->of_node, "memory-region", 0);
+	if (!mem_node) {
+		dev_err(dev, "parse memory region failed.\n");
+		return -1;
+	}
+	rmem = of_reserved_mem_lookup(mem_node);
+	of_node_put(mem_node);
+	if (rmem) {
+		dev_info(dev, "tee protect memory: %lu MiB at 0x%lx\n",
+			(unsigned long)rmem->size / SZ_1M, (unsigned long)rmem->base);
+		ret = tee_protect_mem_by_type(TEE_MEM_TYPE_PCIE,
+				rmem->base, rmem->size, &handle);
+		if (ret) {
+			dev_err(dev, "pcie tee mem protect fail: 0x%x\n", ret);
+			return -1;
+		}
+	} else {
+		dev_err(dev, "Can't get reserve memory region\n");
+		return -1;
+	}
+
+	g_rmem1 = rmem;
+	default_size = rmem->size - AML_IO_TLB_ATOMIC_SIZE;
+	pcie_swiotlb_init(dev);
+	aml_dma_atomic_pool_init(dev);
+
+	return 0;
+}
+
+static int aml_smmu_device_remove(struct platform_device *pdev)
+{
+	return 0;
+}
+
+#if CONFIG_PM_SLEEP
+static int aml_smmu_device_resume_noirq(struct device *dev)
+{
+	int ret = 0;
+	u32 handle;
+
+	if (g_rmem1) {
+		dev_info(dev, "tee protect memory: %lu MiB at 0x%lx\n",
+			(unsigned long)g_rmem1->size / SZ_1M, (unsigned long)g_rmem1->base);
+		ret = tee_protect_mem_by_type(TEE_MEM_TYPE_PCIE,
+						  g_rmem1->base, g_rmem1->size, &handle);
+		if (ret) {
+			dev_err(dev, "pcie tee mem protect fail: 0x%x\n", ret);
+			return -1;
+			}
+	} else {
+		dev_err(dev, "Can't get reserve memory region\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops aml_smmu_pm_ops = {
+	.restore_noirq = aml_smmu_device_resume_noirq,
+};
+#endif
+
+static const struct of_device_id aml_smmu_of_match[] = {
+	{ .compatible = "amlogic,smmu", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, aml_smmu_of_match);
+
+static struct platform_driver aml_smmu_driver = {
+	.driver	= {
+		.name			= "aml_smmu",
+		.of_match_table		= of_match_ptr(aml_smmu_of_match),
+		.suppress_bind_attrs	= true,
+#if CONFIG_PM_SLEEP
+		.pm = &aml_smmu_pm_ops,
+#endif
+	},
+	.probe	= aml_smmu_device_probe,
+	.remove	= aml_smmu_device_remove,
+};
+
+//module_platform_driver(aml_smmu_driver);
+static int __init aml_smmu_init(void)
+{
+	return platform_driver_register(&aml_smmu_driver);
+}
+late_initcall(aml_smmu_init);
+
+MODULE_LICENSE("GPL v2");

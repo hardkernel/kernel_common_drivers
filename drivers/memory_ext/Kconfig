@@ -4,8 +4,8 @@ menuconfig AMLOGIC_MEMORY_EXTEND
 	bool "AMLOGIC memory extend support"
 	depends on AMLOGIC_DRIVER
 	depends on AMLOGIC_BREAK_GKI_20
-	select SWIOTLB if !AMLOGIC_MEMORY_OPT
-	select DMA_RESTRICTED_POOL if !AMLOGIC_MEMORY_OPT
+	select SWIOTLB if !AMLOGIC_ZAPPER_CUT
+	select DMA_RESTRICTED_POOL if !AMLOGIC_ZAPPER_CUT
 	default n
 	help
 		Amlogic memory extend is drivers which extend for memory management
@@ -169,6 +169,8 @@ config AMLOGIC_PIN_LOCKED_FILE_V2
 config AMLOGIC_PCIE_DMA_OPS
 	tristate "Amlogic PCIE dma_ops"
 	depends on AMLOGIC_MEMORY_EXTEND
+	select DMA_DIRECT_REMAP
+	select SWIOTLB
 	default n
 	help
 		custom a dma_ops to limit the memory for PCIE device
