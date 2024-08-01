@@ -454,13 +454,8 @@ static void host_early_suspend(struct early_suspend *h)
 		return;
 
 	if (pm_runtime_active(host->dev) && host->host_dsp->pm_support_suspend) {
-		if (host->host_dsp->pm_support_pwrctrl) {
-			host->host_dsp->pwrctrl_access_en = 1;
-			host_psci_smc(host, SMC_SUBID_HIFI_DSP_PWRCTRL);
-		}
-
 		pr_debug("early suspend: AP send suspend cmd to dsp...\n");
-		strncpy(message, "HIFISUSPEND_WITH_FFV", sizeof(message));
+		strncpy(message, "HIFI_EARLY_SUSPEND_WITH_FFV", sizeof(message));
 		aml_mbox_transfer_data(host->mbox_chan_to_dev,
 				       MBOX_CMD_HIFI4SUSPEND,
 				       message,
@@ -481,7 +476,7 @@ static void host_late_resume(struct early_suspend *h)
 
 	if (pm_runtime_active(host->dev) && host->host_dsp->pm_support_suspend) {
 		pr_debug("late resume: AP send resume cmd to dsp...\n");
-		strncpy(message, "RESUME_WITH_FFV", sizeof(message));
+		strncpy(message, "HIFI_LATE_RESUME_WITH_FFV", sizeof(message));
 		aml_mbox_transfer_data(host->mbox_chan_to_dev,
 				       MBOX_CMD_HIFI4RESUME,
 				       message,
@@ -489,11 +484,6 @@ static void host_late_resume(struct early_suspend *h)
 				       message,
 				       sizeof(message),
 				       MBOX_SYNC);
-
-		if (host->host_dsp->pm_support_pwrctrl) {
-			host->host_dsp->pwrctrl_access_en = 0;
-			host_psci_smc(host, SMC_SUBID_HIFI_DSP_PWRCTRL);
-		}
 	}
 }
 
@@ -514,11 +504,6 @@ static int host_suspend(struct device *dev)
 	if (pm_runtime_suspended(dev))
 		return 0;
 
-	if (host->host_dsp->pm_support_ffv)
-#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-		return 0;
-#endif
-
 	if (pm_runtime_active(dev) && host->host_dsp->pm_support_suspend) {
 		if (host->host_dsp->pm_support_pwrctrl) {
 			host->host_dsp->pwrctrl_access_en = 1;
@@ -526,7 +511,7 @@ static int host_suspend(struct device *dev)
 		}
 
 		pr_debug("AP send suspend cmd to dsp...\n");
-		strncpy(message, "MBOX_CMD_HIFI4SUSPEND", sizeof(message));
+		strncpy(message, "HIFI_DEEP_SLEEP", sizeof(message));
 		aml_mbox_transfer_data(host->mbox_chan_to_dev,
 				       MBOX_CMD_HIFI4SUSPEND,
 				       message,
@@ -534,8 +519,11 @@ static int host_suspend(struct device *dev)
 				       message,
 				       sizeof(message),
 				       MBOX_SYNC);
-		/*clk = 24 M*/
-		clk_set_rate(host->clk, SUSPEND_CLK_FREQ);
+
+		if (!host->host_dsp->pm_support_ffv) {
+			/*clk = 24 M*/
+			clk_set_rate(host->clk, SUSPEND_CLK_FREQ);
+		}
 	} else if (!host->host_dsp->pm_support_always_on)
 		clk_disable_unprepare(host->clk);
 
@@ -550,21 +538,19 @@ static int host_resume(struct device *dev)
 	if (pm_runtime_suspended(dev))
 		return 0;
 
-	if (host->host_dsp->pm_support_ffv) {
-		if (get_resume_method() == VAD_WAKEUP) {
-			pr_info("input event: vad wakeup in deep sleep\n");
-			host_dsp_vad_report(host);
-		}
-#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-		return 0;
-#endif
-	}
-
 	if (pm_runtime_active(dev) && host->host_dsp->pm_support_suspend) {
 		pr_debug("AP send resume cmd to dsp...\n");
-		/*clk = Max M*/
-		clk_set_rate(host->clk, (unsigned long)host->clk_rate * 1000);
-		strncpy(message, "MBOX_CMD_HIFI4RESUME", sizeof(message));
+		if (host->host_dsp->pm_support_ffv) {
+			if (get_resume_method() == VAD_WAKEUP) {
+				pr_info("input event: vad wakeup in deep sleep\n");
+				host_dsp_vad_report(host);
+			}
+		} else {
+			/*clk = Max M*/
+			clk_set_rate(host->clk, (unsigned long)host->clk_rate * 1000);
+		}
+
+		strncpy(message, "HIFI_RESUME", sizeof(message));
 		aml_mbox_transfer_data(host->mbox_chan_to_dev,
 				       MBOX_CMD_HIFI4RESUME,
 				       message,
