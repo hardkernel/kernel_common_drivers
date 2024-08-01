@@ -369,7 +369,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x2x5  =20 M */
-			size = <0x1400000>;
+			size = <0x0c00000>;
 			alignment = <0x400000>;
 		};
 	};
