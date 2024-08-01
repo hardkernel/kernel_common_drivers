@@ -1435,6 +1435,8 @@
 	phy-mode = "rgmii";
 	phy-handle = <&external_phy>;
 	amlogic,tx-delay-ns = <2>;
+	mac_wol = <1>;
+	mdns_wkup = <1>;
 };
 
 /*inphy setting*/
