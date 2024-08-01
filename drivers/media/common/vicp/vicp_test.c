@@ -30,7 +30,6 @@ int create_rgb24_colorbar(int width, int height, int bar_count)
 	int barnum, barwidth;
 	char filename[100] = {0};
 	struct file *fp = NULL;
-	mm_segment_t fs;
 	loff_t pos;
 	int i = 0, j = 0, offset = 0;
 	int size = 0;
@@ -49,10 +48,6 @@ int create_rgb24_colorbar(int width, int height, int bar_count)
 		pr_info("%s: open file failed.\n", __func__);
 		return -1;
 	}
-
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-	pos = fp->f_pos;
 
 	size = width * height * 3;
 	data = vmalloc(size);
@@ -116,10 +111,9 @@ int create_rgb24_colorbar(int width, int height, int bar_count)
 		}
 	}
 
-	vfs_write(fp, data, size, &pos);
+	pos = fp->f_pos;
+	kernel_write(fp, data, size, &pos);
 	fp->f_pos = pos;
-	vfs_fsync(fp, 0);
-	set_fs(fs);
 	filp_close(fp, NULL);
 	vfree(data);
 #endif
@@ -151,7 +145,6 @@ int rgb24_to_yuv420p(char *yuv_file, char *rgb_file, int width, int height)
 	struct file *rgb_fp = NULL;
 	struct file *yuv_fp = NULL;
 	loff_t pos = 0;
-	mm_segment_t old_fs;
 
 	if (!yuv_file || !rgb_file) {
 		pr_info("%s: param is NULL !!!!!!", __func__);
@@ -165,15 +158,12 @@ int rgb24_to_yuv420p(char *yuv_file, char *rgb_file, int width, int height)
 		return -1;
 	}
 
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
 	rgb_size = width * height * 3;
 	yuv_size = width * height * 3 / 2;
 	rgb_buf = vmalloc(rgb_size);
 	yuv_buf = vmalloc(yuv_size);
 
-	count = vfs_read(rgb_fp, rgb_buf, rgb_size, &pos);
+	count = kernel_read(rgb_fp, rgb_buf, rgb_size, &pos);
 	pr_info("read count = %u\n", count);
 
 	ptr_y = yuv_buf;
@@ -206,7 +196,7 @@ int rgb24_to_yuv420p(char *yuv_file, char *rgb_file, int width, int height)
 	}
 
 	pos = 0;
-	count = vfs_write(yuv_fp, yuv_buf, yuv_size, &pos);
+	count = kernel_write(yuv_fp, yuv_buf, yuv_size, &pos);
 	pr_info("write count = %u\n", count);
 
 	filp_close(rgb_fp, NULL);
@@ -214,8 +204,6 @@ int rgb24_to_yuv420p(char *yuv_file, char *rgb_file, int width, int height)
 
 	vfree(rgb_buf);
 	vfree(yuv_buf);
-
-	set_fs(old_fs);
 #endif
 	return 0;
 }
@@ -233,7 +221,6 @@ int rgb24_to_nv12(char *nv12_file, char *rgb_file, int width, int height)
 	struct file *rgb_fp = NULL;
 	struct file *yuv_fp = NULL;
 	loff_t pos = 0;
-	mm_segment_t old_fs;
 
 	if (!nv12_file || !rgb_file) {
 		pr_info("%s: param is NULL !!!!!!", __func__);
@@ -247,15 +234,12 @@ int rgb24_to_nv12(char *nv12_file, char *rgb_file, int width, int height)
 		return -1;
 	}
 
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
 	rgb_size = width * height * 3;
 	yuv_size = width * height * 3 / 2;
 	rgb_buf = vmalloc(rgb_size);
 	yuv_buf = vmalloc(yuv_size);
 
-	count = vfs_read(rgb_fp, rgb_buf, rgb_size, &pos);
+	count = kernel_read(rgb_fp, rgb_buf, rgb_size, &pos);
 	pr_info("read count = %u\n", count);
 
 	ptr_y = yuv_buf;
@@ -281,7 +265,7 @@ int rgb24_to_nv12(char *nv12_file, char *rgb_file, int width, int height)
 	}
 
 	pos = 0;
-	count = vfs_write(yuv_fp, yuv_buf, yuv_size, &pos);
+	count = kernel_write(yuv_fp, yuv_buf, yuv_size, &pos);
 	pr_info("write count = %u\n", count);
 
 	filp_close(rgb_fp, NULL);
@@ -289,8 +273,6 @@ int rgb24_to_nv12(char *nv12_file, char *rgb_file, int width, int height)
 
 	vfree(rgb_buf);
 	vfree(yuv_buf);
-
-	set_fs(old_fs);
 #endif
 	return 0;
 }
@@ -300,7 +282,6 @@ int create_nv12_colorbar_file(int width, int height, int bar_count)
 #ifdef CONFIG_AMLOGIC_ENABLE_VIDEO_PIPELINE_DUMP_DATA
 
 	struct file *fp = NULL;
-	mm_segment_t fs;
 	loff_t pos;
 	unsigned char *data = NULL;
 	unsigned char *data_y = NULL;
@@ -336,10 +317,6 @@ int create_nv12_colorbar_file(int width, int height, int bar_count)
 		data_uv = NULL;
 		return -1;
 	}
-
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-	pos = fp->f_pos;
 
 	for (j = 0; j < height; j++) {
 		for (i = 0; i < width; i++) {
@@ -413,10 +390,9 @@ int create_nv12_colorbar_file(int width, int height, int bar_count)
 		}
 	}
 
-	vfs_write(fp, data, size, &pos);
+	pos = fp->f_pos;
+	kernel_write(fp, data, size, &pos);
 	fp->f_pos = pos;
-	vfs_fsync(fp, 0);
-	set_fs(fs);
 	filp_close(fp, NULL);
 	vfree(data);
 #endif
@@ -534,7 +510,6 @@ static void dump_test_yuv(int flag, int width, int height, ulong addr, int num)
 	char name_buf[32];
 	int data_size;
 	u8 *data_addr;
-	mm_segment_t fs;
 	loff_t pos;
 
 	//use flag to distinguish src and dst vframe
@@ -563,17 +538,13 @@ static void dump_test_yuv(int flag, int width, int height, ulong addr, int num)
 		return;
 	}
 
-	fs = get_fs();
-	set_fs(KERNEL_DS);
 	pos = fp->f_pos;
-	vfs_write(fp, data_addr, data_size, &pos);
+	kernel_write(fp, data_addr, data_size, &pos);
 	fp->f_pos = pos;
-	vfs_fsync(fp, 0);
 	vicp_print(VICP_INFO, "%s: write %u size.\n", __func__, data_size);
 
 	codec_mm_dma_flush(data_addr, data_size, DMA_TO_DEVICE);
 	codec_mm_unmap_phyaddr(data_addr);
-	set_fs(fs);
 	filp_close(fp, NULL);
 #endif
 }
