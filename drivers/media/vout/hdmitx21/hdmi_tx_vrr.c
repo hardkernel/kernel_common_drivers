@@ -16,6 +16,7 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/math64.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/amlogic/media/vout/vinfo.h>
@@ -697,8 +698,11 @@ const struct mvrr_const_st *qms_const[] = {
 	NULL,
 };
 
-/* if rate is a multiple of 6, then reduce 0.1% */
-/* A Video Timing with a vertical frequency that is an integer multiple of
+static int _vrr_groups_show_(int pos, char *buf);
+
+/*
+ * if rate is a multiple of 6, then reduce 0.1%
+ * A Video Timing with a vertical frequency that is an integer multiple of
  * 6.00 Hz (e.g., 24.00 or 120.00 Hz) is considered to be the same as a
  * Video Timing with the equivalent detailed timing information but where the
  * vertical frequency is adjusted by a factor of 1000/1001 (e.g., 24/1.001
@@ -708,11 +712,12 @@ static u32 reduce_0p1_percent(u32 value)
 {
 	/* the max value is 120000, so multiply with 1000 won't overflow */
 	if (value % 6 == 0)
-		return value * 1000 / 1001;
+		return DIV_ROUND_CLOSEST_ULL(mul_u32_u32(value, 1000), 1001);
 	return value;
 }
 
-/* debug only, should be positive value. if it is N, then vysnc_handler
+/*
+ * debug only, should be positive value. if it is N, then vysnc_handler
  * will handle N frames, then it will be 0, and vysnc_handler is pending
  * value 1 is only for single steps, and -1 will work as normally.
  */
@@ -768,7 +773,8 @@ const static struct mvrr_const_val *search_vrrconf_mconst(enum hdmi_vic brr_vic,
 	return *table_val;
 }
 
-/* vrr_para will be used in this file, and the member vrr_params may
+/*
+ * vrr_para will be used in this file, and the member vrr_params may
  * be changed at any time. So it should be set by hdmitx_set_vrr_para()
  * from set_vframe_rate_hint() call and use hdmitx_get_vrr_params() to
  * get current configure
@@ -857,14 +863,16 @@ int hdmitx_dump_vrr_status(struct seq_file *s, void *p)
 	return 0;
 }
 
-static struct vrr_conf_para vrr_para_tmp;
-static bool is_vrrconf_changed(struct vrr_conf_para *cur)
+static bool is_vrrconf_changed(struct vrr_conf_para *cur,
+	struct vrr_conf_para *vrr_para_tmp)
 {
+	if (!cur || !vrr_para_tmp)
+		return 0;
+
 	/* compare the local variable tmp, update if different */
-	if (memcmp(&vrr_para_tmp, cur, sizeof(vrr_para_tmp))) {
-		hdmitx_get_vrr_params(&vrr_para_tmp);
+	if (memcmp(vrr_para_tmp, cur, sizeof(*vrr_para_tmp)))
 		return 1;
-	}
+
 	return 0;
 }
 
@@ -1113,11 +1121,6 @@ ssize_t _vrr_cap_show(struct device *dev,
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 	struct vrr_device_s *vrr = &hdev->hdmitx_vrr_dev;
-#ifndef HDMI_NO_VERBOSE_INFO
-	struct drm_vrr_mode_group *groups;
-	int i;
-	int j;
-#endif
 
 	pos += snprintf(buf + pos, PAGE_SIZE,
 			"neg_mvrr: %d\n", prxcap->neg_mvrr);
@@ -1147,20 +1150,30 @@ ssize_t _vrr_cap_show(struct device *dev,
 			"vrr.vline_max: %d\n", vrr->vline_max);
 	pos += snprintf(buf + pos, PAGE_SIZE,
 			"vrr.vline_min: %d\n", vrr->vline_min);
+	pos += _vrr_groups_show_(pos, buf);
+	return pos;
+}
 
+static int _vrr_groups_show_(int _pos, char *buf)
+{
 #ifndef HDMI_NO_VERBOSE_INFO
+	struct drm_vrr_mode_group *groups;
+	int i;
+	int j;
+	int pos = 0;
+
 	/* check the VRR range group */
 	groups = kcalloc(MAX_VRR_MODE_GROUP, sizeof(*groups), GFP_KERNEL);
 	if (!groups) {
 		HDMITX_DEBUG("%s alloc fail\n", __func__);
-		return pos;
+		return 0;
 	}
 	memset(groups, 0, MAX_VRR_MODE_GROUP * sizeof(*groups));
 	drm_hdmitx_get_vrr_mode_group(groups, MAX_VRR_MODE_GROUP);
 	for (i = 0; i < MAX_VRR_MODE_GROUP; i++) {
 		if (!groups[i].brr_vic)
 			continue;
-		pos += snprintf(buf + pos, PAGE_SIZE, "VRR Group%d\n", i);
+		pos += snprintf(buf + _pos, PAGE_SIZE, "VRR Group%d\n", i);
 		pos += snprintf(buf + pos, PAGE_SIZE, "  brr vic %d\n", groups[i].brr_vic);
 		for (j = 0; j < MAX_QMS_GROUP_NUM; j++) {
 			const struct hdmi_timing *timing;
@@ -1168,6 +1181,8 @@ ssize_t _vrr_cap_show(struct device *dev,
 			if (!groups[i].qms_vic_lists[j])
 				continue;
 			timing = hdmitx_mode_vic_to_hdmi_timing(groups[i].qms_vic_lists[j]);
+			if (!timing)
+				continue;
 			pos += snprintf(buf + pos, PAGE_SIZE, "    [%d] %s %d\n",
 				j,
 				timing->sname ? timing->sname : timing->name,
@@ -1175,8 +1190,10 @@ ssize_t _vrr_cap_show(struct device *dev,
 		}
 	}
 	kfree(groups);
-#endif
 	return pos;
+#else
+	return 0;
+#endif
 }
 
 static const enum hdmi_vic brr_list[] = {
@@ -1527,7 +1544,7 @@ int hdmitx_set_fr_hint(int rate, void *data)
 		/* When disable VRR, here must clear vrr_para_tmp.
 		 * So when enter VRR next time, vrr packet will be updated again
 		 */
-		memset(&vrr_para_tmp, 0, sizeof(vrr_para_tmp));
+		memset(&vrr_para.vrr_para_tmp, 0, sizeof(vrr_para.vrr_para_tmp));
 		if (hdev->vrr_mode == T_VRR_QMS || hdev->vrr_mode == T_VRR_GAME)
 			hdmi_vrr_disable_emp_packet(&vrr_para);
 		HDMITX_INFO("disable VRR/EMP packet\n");
@@ -1696,7 +1713,8 @@ irqreturn_t hdmitx_vrr_vsync_handler(struct hdmitx_dev *hdev)
 		vrr_dbg_vframe--;
 
 	/* if configuration changed then init local vrr variables */
-	if (is_vrrconf_changed(&vrr->conf_params)) {
+	if (is_vrrconf_changed(&vrr->conf_params, &vrr->vrr_para_tmp)) {
+		hdmitx_get_vrr_params(&vrr->vrr_para_tmp);
 		m_const = 0;
 		vrr_init_para(vrr);
 	}

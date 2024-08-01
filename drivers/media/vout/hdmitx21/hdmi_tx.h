@@ -219,6 +219,8 @@ struct tx_vrr_params {
 	/* the member conf_params is critical and may change at anytime */
 	spinlock_t lock;
 	struct vrr_conf_para conf_params;
+	/* vrr_para_tmp is used for saving conf_params if conf_params is updated */
+	struct vrr_conf_para vrr_para_tmp;
 	const struct mvrr_const_val *mconst_val; /* for qms */
 	struct mvrr_const_val game_val; /* for game */
 	struct emp_packet_st emp_vrr_pkt;
