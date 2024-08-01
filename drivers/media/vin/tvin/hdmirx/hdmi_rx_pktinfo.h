@@ -1043,7 +1043,6 @@ struct st_pkt_test_buff {
 extern struct packet_info_s rx_pkt[4];
 extern u32 rx_vsif_type[4];
 extern u32 rx_emp_type[4];
-extern u32 rx_spd_type[4];
 /*extern bool hdr_enable;*/
 bool rx_chk_avi_valid(u8 port);
 void rx_pkt_status(u8 port);
@@ -1061,7 +1060,7 @@ void rx_get_vsi_info(u8 port);
 void rx_pkt_get_audif_ex(void *pktinfo);
 /*please ignore checksum byte*/
 void rx_pkt_get_avi_ex(void *pktinfo, u8 port);
-void rx_pkt_get_drm_ex(void *pktinfo);
+void rx_pkt_get_drm_ex(void *pktinfo, u8 port);
 void rx_pkt_get_acr_ex(void *pktinfo);
 void rx_pkt_get_gmd_ex(void *pktinfo);
 void rx_pkt_get_ntscvbi_ex(void *pktinfo);

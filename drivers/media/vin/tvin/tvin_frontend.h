@@ -63,8 +63,10 @@ struct tvin_state_machine_ops_s {
 	void (*get_sig_property)(struct tvin_frontend_s *fe,
 				 struct tvin_sig_property_s *prop,
 				 enum tvin_port_type_e port_type);
-	void (*get_sig_property2)(struct tvin_frontend_s *fe,
-				 struct tvin_sig_property_s *prop);
+	void (*get_spd_info)(struct tvin_frontend_s *fe,
+				 struct tvin_sig_property_s *prop, enum tvin_port_type_e port_type);
+	void (*get_hdr_info)(struct tvin_frontend_s *fe,
+				 struct tvin_sig_property_s *prop, enum tvin_port_type_e port_type);
 	void (*vga_set_param)(struct tvafe_vga_parm_s *vga_parm,
 			      struct tvin_frontend_s *fe);
 	void (*vga_get_param)(struct tvafe_vga_parm_s *vga_parm,
@@ -95,6 +97,12 @@ struct tvin_frontend_s {
 	struct list_head list;
 };
 
+enum hdmi_pkt_type_e {
+	PKT_TYPE_SPD = 0x83,
+	PKT_TYPE_DRM = 0x87,
+	PKT_TYPE_OTHER,
+};
+
 #define VDIN_FRONTEND_IDX	0x10
 #if IS_ENABLED(CONFIG_AMLOGIC_TVIN_USE_DEBUG_FILE)
 int tvin_df_write(struct debug_file *df, void *buf,
@@ -110,7 +118,7 @@ struct tvin_decoder_ops_s *tvin_get_fe_ops(enum tvin_port_e port, int index);
 struct tvin_state_machine_ops_s *tvin_get_sm_ops(enum tvin_port_e port,
 						 int index);
 void tvin_notify_vdin_skip_frame(unsigned int drop_num,  enum tvin_port_type_e port_type);
-void tvin_update_vdin_prop(u8 port_type);
+void tvin_update_vdin_prop(u8 port_type, u8 pkt_type);
 bool tvin_get_game_mode_status(u8 port_type);
 void viuin_select_loopback_path(void);
 void viuin_clear_loopback_path(void);

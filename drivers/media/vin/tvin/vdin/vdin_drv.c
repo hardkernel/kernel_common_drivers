@@ -262,7 +262,7 @@ EXPORT_SYMBOL(get_vdin_buffer_num);
  *	true: state change
  *	false: state not change
  */
-void tvin_update_vdin_prop(u8 port_type)
+void tvin_update_vdin_prop(u8 port_type, u8 pkt_type)
 {
 	struct tvin_state_machine_ops_s *sm_ops;
 	struct vframe_s *update_wr_vf = NULL;
@@ -275,9 +275,7 @@ void tvin_update_vdin_prop(u8 port_type)
 		devp = vdin_devp[1];
 	else
 		return;
-	if (!devp || !devp->frontend ||
-	    !devp->frontend->sm_ops ||
-	    !(devp->flags & VDIN_FLAG_ISR_EN))
+	if (!devp || !devp->frontend || !devp->frontend->sm_ops)
 		return;
 
 	if (devp->debug.bypass_update_prop)
@@ -286,7 +284,17 @@ void tvin_update_vdin_prop(u8 port_type)
 	sm_ops = devp->frontend->sm_ops;
 
 	spin_lock_irqsave(&devp->isr_lock, flags);
-	sm_ops->get_sig_property(devp->frontend, &devp->prop, devp->port_type);
+	switch (pkt_type) {
+	case PKT_TYPE_SPD:
+		sm_ops->get_spd_info(devp->frontend, &devp->prop, devp->port_type);
+		break;
+	case PKT_TYPE_DRM:
+		sm_ops->get_hdr_info(devp->frontend, &devp->prop, devp->port_type);
+		break;
+	default:
+		sm_ops->get_sig_property(devp->frontend, &devp->prop, devp->port_type);
+		break;
+	}
 	if (vdin_package_done_check_state(devp)) {
 		if (devp->game_mode)
 			vdin_pause_hw_write(devp, 0);

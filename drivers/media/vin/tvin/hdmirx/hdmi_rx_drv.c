@@ -1356,10 +1356,13 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop, u8 port)
 	}
 }
 
-void hdmirx_get_spd_info(struct tvin_sig_property_s *prop, u8 port)//todo)
+void hdmirx_get_spd_info(struct tvin_frontend_s *fe,
+				 struct tvin_sig_property_s *prop, enum tvin_port_type_e port_type)
 {
-	memcpy(&prop->spd_data, &rx_pkt[port].spd_info,
-		sizeof(struct tvin_spd_data_s));
+	u8 port;
+
+	port = rx_get_port_from_type(port_type);
+	memcpy(&prop->spd_data, &rx_pkt[port].spd_info, sizeof(struct tvin_spd_data_s));
 
 }
 
@@ -1559,9 +1562,11 @@ void rx_update_sig_info(u8 port)
 /*
  * hdmirx_get_hdr_info - get hdr info
  */
-void hdmirx_get_hdr_info(struct tvin_sig_property_s *prop, u8 port)
+void hdmirx_get_hdr_info(struct tvin_frontend_s *fe, struct tvin_sig_property_s *prop,
+	enum tvin_port_type_e port_type)
 {
 	struct drm_infoframe_st *drm_pkt;
+	u8 port = rx_get_port_from_type(port_type);
 
 	drm_pkt = (struct drm_infoframe_st *)&rx_pkt[port].drm_info;
 	if (rx_pkt_chk_attach_drm(port) && rx_chk_drm_valid(port)) {
@@ -1660,9 +1665,7 @@ void hdmirx_get_sig_prop(struct tvin_frontend_s *fe,
 	hdmirx_get_color_fmt(prop, cur_port);
 	hdmirx_get_repetition_info(prop, cur_port);
 	hdmirx_set_timing_info(prop, cur_port);
-	hdmirx_get_hdr_info(prop, cur_port);
 	hdmirx_get_vsi_info(prop, cur_port);
-	hdmirx_get_spd_info(prop, cur_port);
 	hdmirx_get_pps_info(prop, cur_port);
 	hdmirx_get_latency_info(prop, cur_port);
 	hdmirx_get_emp_dv_info(prop, cur_port);
@@ -1688,40 +1691,6 @@ void hdmirx_get_sig_prop(struct tvin_frontend_s *fe,
 		rx_pr("hdr-eotf:0x%x, gaming-vrr:0x%x, qms-vrr:0x%x\n",
 			prop->hdr_info.hdr_data.eotf, prop->vtem_data.vrr_en,
 			prop->vtem_data.qms_en);
-	}
-}
-
-void hdmirx_get_sig_prop2(struct tvin_frontend_s *fe,
-			     struct tvin_sig_property_s *prop)
-{
-	hdmirx_get_dvi_info(prop, rx_info.sub_port);
-	hdmirx_get_colordepth(prop, rx_info.sub_port);
-	hdmirx_get_fps_info(prop, rx_info.sub_port);
-	hdmirx_get_color_fmt(prop, rx_info.sub_port);
-	hdmirx_get_repetition_info(prop, rx_info.sub_port);
-	hdmirx_set_timing_info(prop, rx_info.sub_port);
-	hdmirx_get_hdr_info(prop, rx_info.sub_port);
-	hdmirx_get_vsi_info(prop, rx_info.sub_port);
-	hdmirx_get_spd_info(prop, rx_info.sub_port);
-	hdmirx_get_latency_info(prop, rx_info.sub_port);
-	hdmirx_get_emp_dv_info(prop, rx_info.sub_port);
-	hdmirx_get_vtem_info(prop, rx_info.sub_port);
-	hdmirx_get_sbtm_info(prop, rx_info.sub_port);
-	hdmirx_get_cuva_emds_info(prop, rx_info.sub_port);
-	hdmirx_get_active_aspect_ratio(prop, rx_info.sub_port);
-	hdmirx_get_hdcp_sts(prop, rx_info.sub_port);
-	hdmirx_get_hw_vic(prop, rx_info.sub_port);
-	hdmirx_get_avi_ext_colorimetry(prop, rx_info.sub_port);
-	prop->skip_vf_num = vdin_drop_frame_cnt;
-	if (log_level & SIG_PROP_LOG) {
-		rx_pr("dvi:%#x,color[%d,%#x,%#x,%#x],fps:%d,spd[%#x,%#x]\n",
-			prop->dvi_info, prop->colordepth, prop->color_format, prop->dest_cfmt,
-			prop->color_fmt_range, prop->fps,
-			prop->spd_data.data[5], prop->spd_data.data[7]);
-		rx_pr("lat:[%#x,%#x,%#x],vic:%d,avi_c:%d,avi_ec:%d\n",
-			prop->latency.allm_mode, prop->latency.cn_type,
-			prop->latency.it_content, prop->hw_vic, prop->avi_colorimetry,
-			prop->avi_ext_colorimetry);
 	}
 }
 
@@ -1789,7 +1758,8 @@ static struct tvin_state_machine_ops_s hdmirx_sm_ops = {
 	.adc_cal          = NULL,
 	.pll_lock         = NULL,
 	.get_sig_property  = hdmirx_get_sig_prop,
-	.get_sig_property2 = hdmirx_get_sig_prop2,
+	.get_spd_info      = hdmirx_get_spd_info,
+	.get_hdr_info      = hdmirx_get_hdr_info,
 	.vga_set_param    = NULL,
 	.vga_get_param    = NULL,
 	.check_frame_skip = hdmirx_check_frame_skip,

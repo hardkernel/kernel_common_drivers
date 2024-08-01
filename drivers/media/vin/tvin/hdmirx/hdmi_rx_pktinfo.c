@@ -32,7 +32,6 @@ static struct rxpkt_st rxpktsts[E_PORT_NUM];
 struct packet_info_s rx_pkt[E_PORT_NUM];
 u32 rx_vsif_type[E_PORT_NUM];
 u32 rx_emp_type[E_PORT_NUM];
-u32 rx_spd_type[E_PORT_NUM];
 u32 next_tfr[14] = {0, 23976, 24000, 25000, 29970, 30000, 47952, 48000, 50000, 59940, 60000,
 	100000, 119880, 120000};
 
@@ -637,7 +636,7 @@ void rx_pkt_dump(enum pkt_type_e typeid, u8 port)
 		rx_pktdump_raw(&prx->drm_info);
 		rx_pktdump_drm(&prx->drm_info);
 		rx_pr("-------->ex register set >>\n");
-		rx_pkt_get_drm_ex(&pktdata);
+		rx_pkt_get_drm_ex(&pktdata, port);
 		rx_pktdump_drm(&pktdata);
 		break;
 	/*other pkt*/
@@ -743,7 +742,6 @@ void rx_pkt_initial(u8 port)
 	rx[i].emp_dv_info.flag = false;
 	rx[i].emp_cuva_info.flag = false;
 	rx[i].vsif_fmm_flag = false;
-	rx_pkt_clr_attach_drm(port);
 
 	if (!emp_info_p) {
 		rx_pr("%s emp info null\n", __func__);
@@ -755,11 +753,19 @@ void rx_pkt_initial(u8 port)
 	while (j < VSI_TYPE_MAX)
 		memset(&rx_pkt[i].multi_vs_info[j++], 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt[i].avi_info, 0, sizeof(struct pd_infoframe_s));
-	memset(&rx_pkt[i].spd_info, 0, sizeof(struct pd_infoframe_s));
+	if (!(rxpktsts[port].pkt_op_flag & PKT_OP_SPD))
+		memset(&rx_pkt[i].spd_info, 0, sizeof(struct pd_infoframe_s));
+	else
+		rxpktsts[port].pkt_op_flag &= ~PKT_OP_SPD;
 	//memset(&rx_pkt[i].aud_pktinfo, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt[i].mpegs_info, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt[i].ntscvbi_info, 0, sizeof(struct pd_infoframe_s));
-	memset(&rx_pkt[i].drm_info, 0, sizeof(struct pd_infoframe_s));
+	if (!(rxpktsts[port].pkt_op_flag & PKT_OP_DRM)) {
+		rx_pkt_clr_attach_drm(port);
+		memset(&rx_pkt[i].drm_info, 0, sizeof(struct pd_infoframe_s));
+	} else {
+		rxpktsts[port].pkt_op_flag &= ~PKT_OP_DRM;
+	}
 	memset(&rx_pkt[i].emp_info, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt[i].acr_info, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt[i].gcp_info, 0, sizeof(struct pd_infoframe_s));
@@ -1136,7 +1142,7 @@ void rx_pkt_get_gcp_ex(void *pktinfo)
 	pkt->sbpkt.def_phase = ((gcpavmute >> 12) & 0x01);
 }
 
-void rx_pkt_get_drm_ex(void *pktinfo)
+void rx_pkt_get_drm_ex(void *pktinfo, u8 port)
 {
 	struct drm_infoframe_st *drmpkt = pktinfo;
 
@@ -1146,7 +1152,45 @@ void rx_pkt_get_drm_ex(void *pktinfo)
 	}
 
 	drmpkt->pkttype = PKT_TYPE_INFOFRAME_DRM;
-	if (rx_info.chip_id != CHIP_ID_TXHD) {
+	if (rx_info.chip_id >= CHIP_ID_T7 && rx_info.chip_id <= CHIP_ID_T3X) {
+		drmpkt->version = hdmirx_rd_cor(RX_UNREC_BYTE2_DP2_IVCRX, port);
+		drmpkt->length = hdmirx_rd_cor(RX_UNREC_BYTE3_DP2_IVCRX, port);
+		drmpkt->des_u.payload[0] =
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE7_DP2_IVCRX, port) << 24) |
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE6_DP2_IVCRX, port) << 16) |
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE5_DP2_IVCRX, port) << 8) |
+			hdmirx_rd_cor(RX_UNREC_BYTE4_DP2_IVCRX, port);
+		drmpkt->des_u.payload[1] =
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE11_DP2_IVCRX, port) << 24) |
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE10_DP2_IVCRX, port) << 16) |
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE9_DP2_IVCRX, port) << 8) |
+			hdmirx_rd_cor(RX_UNREC_BYTE8_DP2_IVCRX, port);
+		drmpkt->des_u.payload[2] =
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE15_DP2_IVCRX, port) << 24) |
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE14_DP2_IVCRX, port) << 16) |
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE13_DP2_IVCRX, port) << 8) |
+			hdmirx_rd_cor(RX_UNREC_BYTE12_DP2_IVCRX, port);
+		drmpkt->des_u.payload[3] =
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE19_DP2_IVCRX, port) << 24) |
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE18_DP2_IVCRX, port) << 16) |
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE17_DP2_IVCRX, port) << 8) |
+			hdmirx_rd_cor(RX_UNREC_BYTE16_DP2_IVCRX, port);
+		drmpkt->des_u.payload[4] =
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE23_DP2_IVCRX, port) << 24) |
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE22_DP2_IVCRX, port) << 16) |
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE21_DP2_IVCRX, port) << 8) |
+			hdmirx_rd_cor(RX_UNREC_BYTE20_DP2_IVCRX, port);
+		drmpkt->des_u.payload[5] =
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE27_DP2_IVCRX, port) << 24) |
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE26_DP2_IVCRX, port) << 16) |
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE25_DP2_IVCRX, port) << 8) |
+			hdmirx_rd_cor(RX_UNREC_BYTE24_DP2_IVCRX, port);
+		drmpkt->des_u.payload[6] =
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE31_DP2_IVCRX, port) << 24) |
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE30_DP2_IVCRX, port) << 16) |
+			((u32)hdmirx_rd_cor(RX_UNREC_BYTE29_DP2_IVCRX, port) << 8) |
+			hdmirx_rd_cor(RX_UNREC_BYTE28_DP2_IVCRX, port);
+	} else if (rx_info.chip_id != CHIP_ID_TXHD) {
 		drmpkt->length = (hdmirx_rd_dwc(DWC_PDEC_DRM_HB) >> 8);
 		drmpkt->version = hdmirx_rd_dwc(DWC_PDEC_DRM_HB);
 
@@ -1834,7 +1878,7 @@ void rx_pkt_check_content(u8 port)
 			       sizeof(struct pd_infoframe_s));
 		}
 
-		rx_pkt_get_drm_ex(&pktdata);
+		rx_pkt_get_drm_ex(&pktdata, port);
 		if (memcmp((char *)&pre_pkt->ex_drm,
 			   (char *)&pktdata,
 			   sizeof(struct pd_infoframe_s)) != 0) {
@@ -2245,8 +2289,7 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src, u8 port)
 	} else if (pkt_int_src == PKT_BUFF_SET_DRM) {
 		rxpktsts[port].pkt_attach_drm++;
 		rxpktsts[port].pkt_op_flag |= PKT_OP_DRM;
-		rx_pkt_get_drm_ex(&prx->drm_info);
-		rxpktsts[port].pkt_op_flag &= ~PKT_OP_DRM;
+		rx_pkt_get_drm_ex(&prx->drm_info, port);
 		rxpktsts[port].pkt_cnt_drm_ex++;
 	} else if (pkt_int_src == PKT_BUFF_SET_GMD) {
 		rxpktsts[port].pkt_op_flag |= PKT_OP_GMD;
@@ -2351,7 +2394,6 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src, u8 port)
 	} else if (pkt_int_src == PKT_BUFF_SET_SPD) {
 		rxpktsts[port].pkt_op_flag |= PKT_OP_SPD;
 		rx_pkt_get_spd_ex(&prx->spd_info, port);
-		rxpktsts[port].pkt_op_flag &= ~PKT_OP_SPD;
 		rxpktsts[port].pkt_cnt_spd++;
 		rxpktsts[port].pkt_spd_updated = 1;
 	}

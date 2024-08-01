@@ -1596,7 +1596,11 @@ void rx_set_irq_21(u8 enable, u8 port)
 	hdmirx_wr_cor(HDCP2X_RX_ECC_INTR_MASK, data8, port);
 
 	data8 = 0;
-	data8 |= 0 << 4; /* intr_new_unrec en */
+	/* intr_new_unrec en */
+	if (disable_hdr)
+		data8 |= 0 << 4;
+	else
+		data8 |= val_all << 4;
 	data8 |= 0 << 2; /* intr_new_aud */
 	data8 |= val_all << 1; /* intr_spd */
 	data8 |= val_all << 0; /* intr_avi */
@@ -2228,9 +2232,9 @@ int packet_init_t7(u8 port)
 	//hdmirx_wr_cor(VSI_ID2_DP3_IVCRX, 0x84, port);
 	//hdmirx_wr_cor(VSI_ID3_DP3_IVCRX, 0x90, port);
 
-	/* use unrec to store hf-vsif */
-	//hdmirx_wr_cor(RX_UNREC_CTRL_DP2_IVCRX, 1, port);
-	//hdmirx_wr_cor(RX_UNREC_DEC_DP2_IVCRX, PKT_TYPE_INFOFRAME_VSI, port);
+	/* use unrec to store DRM */
+	hdmirx_wr_cor(RX_UNREC_CTRL_DP2_IVCRX, 1, port);
+	hdmirx_wr_cor(RX_UNREC_DEC_DP2_IVCRX, PKT_TYPE_INFOFRAME_DRM, port);
 
 	/* get data 0x11c0-11de */
 
@@ -6803,15 +6807,6 @@ void rx_emp_to_ddr_init(u8 port)
 		}
 		/* enable store EMP pkt type */
 		data32 = 0;
-		if (disable_hdr)
-			data32 |= 0 << 22; /* ddr_store_drm */
-		else
-			data32 |= 1 << 22;/* ddr_store_drm */
-		/* ddr_store_aif */
-		//if (rx_info.chip_id == CHIP_ID_T7)
-			//data32 |= 1 << 19;
-		//else
-			//data32 |= 0 << 19;
 		data32 |= 0 << 19;//aif
 		data32 |= 0 << 18;/* ddr_store_spd */
 		data32 |= 1 << 16;/* ddr_store_vsi */
@@ -6879,15 +6874,6 @@ void rx_emp1_to_ddr_init(u8 port)
 		}
 		/* enable store EMP pkt type */
 		data32 = 0;
-		if (disable_hdr)
-			data32 |= 0 << 22; /* ddr_store_drm */
-		else
-			data32 |= 1 << 22;/* ddr_store_drm */
-		/* ddr_store_aif */
-		if (rx_info.chip_id == CHIP_ID_T7)
-			data32 |= 1 << 19;
-		else
-			data32 |= 0 << 19;
 		data32 |= 0 << 18;/* ddr_store_spd */
 		data32 |= 1 << 16;/* ddr_store_vsi */
 		data32 |= 1 << 15;/* ddr_store_emp */
