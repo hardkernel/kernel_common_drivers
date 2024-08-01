@@ -1,0 +1,38 @@
+From b67e31486b7aac7f501088900a1abdeeb60c5ac9 Mon Sep 17 00:00:00 2001
+From: "qinglin.li" <qinglin.li@amlogic.com>
+Date: Thu, 1 Aug 2024 14:30:09 +0800
+Subject: [PATCH] build: fix date format due to build failed [1/1]
+
+PD#SWPL-179932
+
+Problem:
+date format due to build failed
+
+Solution:
+fix date format due to build failed
+
+Verify:
+local
+
+Change-Id: I8ec2bc7c060da91ae9a3fdc55ffb5dfe2192497c
+Signed-off-by: qinglin.li <qinglin.li@amlogic.com>
+---
+ build_utils.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/build_utils.sh b/build_utils.sh
+index 3b48cbe8..2f80aa6e 100644
+--- a/build_utils.sh
++++ b/build_utils.sh
+@@ -711,7 +711,7 @@ function build_gki_boot_images() {
+   # overwritten by the Android platform build to include an accurate SPL.
+   # Note, the certified GKI release builds will not include the SPL
+   # property.
+-  local spl_month=$((($(date +'%m') + 3) % 12))
++  local spl_month=$(((10#$(date +'%m') + 3) % 12))
+   local spl_year="$(date +'%Y')"
+   if [ $((${spl_month} % 3)) -gt 0 ]; then
+     # Round up to the next quarterly platform release (QPR) month
+-- 
+2.42.0
+
