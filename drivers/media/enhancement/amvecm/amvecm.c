@@ -9933,6 +9933,8 @@ void suspend_ve(void)
 
 	if (chip_type_id == chip_s7d)
 		length_mtx = RECOVERY_REG_MTX_MAX * 4;
+	else if (chip_type_id == chip_t7)
+		length_mtx = RECOVERY_REG_MTX_MAX * 2 + 1;
 	else if (chip_cls_id == TV_CHIP)
 		length_mtx = RECOVERY_REG_MTX_MAX * 2;
 	else
@@ -9988,10 +9990,16 @@ void suspend_ve(void)
 		reg = VPP_OSD2_MATRIX_COEF00_01;
 		for (i = mtx_start_idx + 42; i < mtx_start_idx + 56; i++)
 			reg_ve_list[i].addr = reg + i - 42 - mtx_start_idx;
-	} else if (chip_cls_id == TV_CHIP) {
+	} else if (chip_type_id == chip_t7 ||
+		       chip_cls_id == TV_CHIP) {
 		reg = VPP_POST2_MATRIX_COEF00_01;
 		for (i = mtx_start_idx + 14; i < mtx_start_idx + 28; i++)
 			reg_ve_list[i].addr = reg + i - 14 - mtx_start_idx;
+	}
+
+	if (chip_type_id == chip_t7) {
+		reg = OSD1_HDR2_CTRL;
+		reg_ve_list[length - 1].addr = reg;
 	}
 
 	for (i = 0; i < length; i++) {
@@ -10233,12 +10241,34 @@ void suspend_lc(void)
 	pr_amvecm_dbg("amvecm: suspend lc\n");
 }
 
+void resume_mtx_t7(void)
+{
+	unsigned int start_idx;
+
+	if (!pq_cfg.black_ext_en &&
+		!pq_cfg.chroma_cor_en)
+		start_idx = RECOVERY_REG_MTX_MAX;
+	else
+		start_idx = RECOVERY_REG_MTX_MAX + RECOVERY_REG_VE_MAX;
+
+	amregs_store.length = RECOVERY_REG_MTX_MAX;
+	if (!(memcpy(amregs_store.am_reg, reg_ve_list + start_idx,
+		RECOVERY_REG_MTX_MAX * sizeof(struct am_reg_s))))
+		return;
+
+	am_set_regmap(&amregs_store, 0);
+
+	pr_info("amvecm: resume post2 mtx\n");
+}
+
 void resume_ve(void)
 {
 	unsigned int length, length_mtx;
 
 	if (chip_type_id == chip_s7d)
 		length_mtx = RECOVERY_REG_MTX_MAX * 4;
+	else if (chip_type_id == chip_t7)
+		length_mtx = RECOVERY_REG_MTX_MAX * 2 + 1;
 	else if (chip_cls_id == TV_CHIP)
 		length_mtx = RECOVERY_REG_MTX_MAX * 2;
 	else
@@ -15148,6 +15178,9 @@ static int amvecm_drv_resume(struct device *dev)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
 		vlock_clk_resume();
 
+	if (chip_type_id == chip_t7)
+		resume_mtx_t7();
+
 	if (chip_type_id == chip_t5w ||
 		chip_type_id == chip_t7 ||
 		chip_type_id == chip_s7 ||
@@ -15216,6 +15249,9 @@ static int amvecm_drv_restore(struct device *dev)
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
 		vlock_clk_resume();
+
+	if (chip_type_id == chip_t7)
+		resume_mtx_t7();
 
 	if (chip_type_id == chip_t5w ||
 		chip_type_id == chip_t7 ||
