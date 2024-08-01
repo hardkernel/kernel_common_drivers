@@ -238,13 +238,6 @@
 			linux,cma-default;
 			alloc-ranges = <0x0 0x30000000>;
 		};
-		vm0_cma_reserved:linux,vm0_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x2000000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
-		};
 
 		pcie_dma_ops_mm:linux,pcie_dma_ops {
 			compatible = "shared-dma-pool";
@@ -596,14 +589,6 @@
 		status = "okay";
 		amlvideo2_id = <1>;
 		cma_mode = <1>;
-	};
-
-	vm0 {
-		compatible = "amlogic, vm";
-		memory-region = <&vm0_cma_reserved>;
-		dev_name = "vm0";
-		status = "okay";
-		vm_id = <0>;
 	};
 
 	amvdec_csi {
