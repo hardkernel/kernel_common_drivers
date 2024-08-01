@@ -219,8 +219,8 @@ static bool need_calc_slice_out_size(u32 dst_w, u32 slice, u32 *hsize)
 	u32 ret = false, factor = 100;
 	u32 slice0_sr_in_max_w = 0, slice1_sr_in_max_w = 0;
 	u32 slice0_sr_out_max_w = 0, slice1_sr_out_max_w = 0;
-	u32 slice0_hsize = SIZE_ALIG32(dst_w) / 2 * factor;
-	u32 slice1_hsize = (dst_w - SIZE_ALIG32(dst_w) / 2) * factor;
+	u32 slice0_hsize = SIZE_ALIG16(dst_w) / 2 * factor;
+	u32 slice1_hsize = (dst_w - SIZE_ALIG16(dst_w) / 2) * factor;
 	u32 src_w = vd_proc->vd_proc_vd1_info.vd1_src_din_hsize[0];
 	u32 overlap = vd_proc->vd_proc_vd1_info.vd1_overlap_hsize;
 	u32 margin = 32 * factor;
@@ -270,7 +270,7 @@ static bool need_calc_slice_out_size(u32 dst_w, u32 slice, u32 *hsize)
 	if (slice1_hsize > slice1_sr_out_max_w) {
 		slice0_hsize += slice1_hsize - slice1_sr_out_max_w;
 		slice0_hsize /= factor;
-		slice0_hsize = SIZE_ALIG16(slice0_hsize);
+		slice0_hsize = SIZE_ALIG8(slice0_hsize);
 		slice0_sr_out_max_w = slice0_sr_in_max_w * 2;
 		/* check slice0 sr limit */
 		if (slice0_hsize > slice0_sr_out_max_w ||
@@ -312,14 +312,22 @@ static inline u32 slice_out_hsize(u32 slice,
 		hsize = frm_hsize;
 		break;
 	case 2:
-		if (cur_dev->sr01_num == 1 &&
-		    need_calc_slice_out_size(frm_hsize, slice, &hsize))
-			return hsize;
-		if (slice == slice_num - 1)
-			hsize = frm_hsize - SIZE_ALIG16(frm_hsize) *
-				(slice_num - 1) / slice_num;
-		else
-			hsize = SIZE_ALIG16(frm_hsize) / slice_num;
+		if (video_is_meson_s5_cpu()) {
+			if (cur_dev->sr01_num == 1 &&
+			    need_calc_slice_out_size(frm_hsize, slice, &hsize))
+				return hsize;
+			if (slice == slice_num - 1)
+				hsize = frm_hsize - SIZE_ALIG16(frm_hsize) *
+					(slice_num - 1) / slice_num;
+			else
+				hsize = SIZE_ALIG16(frm_hsize) / slice_num;
+		} else {
+			if (slice == slice_num - 1)
+				hsize = frm_hsize - SIZE_ALIG32(frm_hsize) *
+					(slice_num - 1) / slice_num;
+			else
+				hsize = SIZE_ALIG32(frm_hsize) / slice_num;
+		}
 		break;
 	case 4:
 		if (slice == slice_num - 1)
