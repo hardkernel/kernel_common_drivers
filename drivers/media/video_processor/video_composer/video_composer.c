@@ -3723,6 +3723,10 @@ static bool detect_composer_usage(struct composer_dev *dev,
 	}
 
 	if (dev->output_duration >= 240 && dev->vinfo_w > 1920 && !*need_composer_ptr) {
+		if (vf && (vf->flag & VFRAME_FLAG_GAME_MODE)) {
+			vc_print(dev->index, PRINT_OTHER, "game mode no need force composer.\n");
+			return true;
+		}
 		vc_print(dev->index, PRINT_AXIS, "fps > 240, need composer.\n");
 		if (is_dec_vf || is_v4l_vf) {
 			vc_print(dev->index, PRINT_OTHER,
