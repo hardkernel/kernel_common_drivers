@@ -123,3 +123,5 @@ dtb-y += s7d_s905x5m_bm209.dtb
 dtb-y += t5m_t963d4_ay301_1.5g.dtb
 dtb-y += t5m_t963d4_ay301_2g.dtb
 dtb-y += t6d_pxp.dtb
+dtb-y += t6d_t950d5_br309.dtb
+dtb-y += t6d_t950d5_br301.dtb
