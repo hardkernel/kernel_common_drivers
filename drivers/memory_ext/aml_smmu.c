@@ -48,6 +48,8 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/set_memory.h>
+#include <linux/seq_file.h>
+#include <linux/proc_fs.h>
 
 #include "arm-smmu-v3.h"
 
@@ -328,6 +330,7 @@ static unsigned long io_tlb_nslabs;
  * The number of used IO TLB block
  */
 static unsigned long io_tlb_used;
+static unsigned long max_used_slots;
 
 /*
  * This is a free list describing the number of free entries available from
@@ -495,6 +498,8 @@ not_found:
 	return (phys_addr_t)DMA_MAPPING_ERROR;
 found:
 	io_tlb_used += nslots;
+	if (io_tlb_used > max_used_slots)
+		max_used_slots = io_tlb_used;
 	spin_unlock_irqrestore(&io_tlb_lock, flags);
 
 	/*
@@ -1373,10 +1378,40 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 	return aml_smmu_set_bus_ops(&aml_smmu_ops);
 }
 
+static int d_smmu_show(struct seq_file *m, void *arg)
+{
+	char *buf = kzalloc(256, GFP_KERNEL);
+
+	if (!buf)
+		return -1;
+
+	/* update only once */
+	sprintf(buf, "total %lu (slots), used %lu (slots), max: %lu\n",
+			io_tlb_nslabs, io_tlb_used, max_used_slots);
+	seq_printf(m, "%s\n", buf);
+
+	kfree(buf);
+
+	return 0;
+}
+
+static int d_smmu_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, d_smmu_show, NULL);
+}
+
+static const struct proc_ops d_smmu_ops = {
+	.proc_open	= d_smmu_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+};
+
 static int __nocfi aml_smmu_device_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device *dev = &pdev->dev;
+	struct proc_dir_entry *d_smmu;
 
 	if (dev->of_node) {
 		ret = aml_smmu_device_dt_probe(pdev, NULL);
@@ -1389,6 +1424,12 @@ static int __nocfi aml_smmu_device_probe(struct platform_device *pdev)
 	}
 
 	kthread_run(aml_smmu_symbol_init, (void *)pdev, "AML_CMA_TASK");
+
+	d_smmu = proc_create("smmu_debug", 0444, NULL, &d_smmu_ops);
+	if (IS_ERR_OR_NULL(d_smmu)) {
+		pr_err("%s, create proc failed\n", __func__);
+		return -1;
+	}
 
 	return 0;
 }
