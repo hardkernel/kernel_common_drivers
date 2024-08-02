@@ -73,10 +73,7 @@
 		crtcmask_of_osd = <0 0 1>; /* indicate the crtc mask of osd plane */
 		gamma_ctl = <0>; /*0:skip gamma init 1:gamma init*/
 		pxp_mode = <0>;
-		gfcd_afbc_enable = /bits/ 8  <1>;
-		/*bit0:gfcd odd size bit1:gfcd global alpha*/
-		gfcd_mask_for_driver = <1>;
-		gfcd_mask_for_upper = <1>;
+		gfcd_enable = /bits/ 8  <0>;
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {
