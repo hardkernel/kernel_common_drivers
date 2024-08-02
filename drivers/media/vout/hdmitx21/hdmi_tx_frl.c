@@ -12,6 +12,7 @@
 
 /* unit: ms, refer to HDMI2.1 Page 107 */
 #define MAX_LINKTRAINING_TIME (HZ / 5)  // 200ms
+#define MAX_FRL_START_TIME (HZ / 3)  // 333ms
 #define FRL_TX_TASK_INTERVAL 40
 
 ulong g_flt_1; /* record the start time of FLT_UPDATE as 1 */
@@ -213,7 +214,7 @@ static bool frl_start_query(struct frl_train_t *p)
 }
 
 /* clear the DS FLT_UPDATE flag */
-static void clrear_flt_update(struct frl_train_t *p)
+static void clear_flt_update(struct frl_train_t *p)
 {
 	p->update_flags |= FLT_UPDATE;
 	scdc_tx_update_flags_set(p->update_flags);
@@ -455,6 +456,8 @@ tx_lts_3:
 			u16 ltp0123;
 			static u16 ltp_pre;
 
+			if (!p->flt_running)
+				return;
 			/* waits for FLT_update flag, poll every 2 ms or less */
 			if (!query_flt_update(p))
 				continue;
@@ -489,7 +492,7 @@ tx_lts_3:
 			if (ltp_pre != ltp0123)
 				ltp_pre = ltp0123;
 			/* clear the FLT_update within 10 ms */
-			clrear_flt_update(p);
+			clear_flt_update(p);
 			HDMITX_INFO("LTS:3 LTP=0x%04x  cost %ld ms\n", ltp0123,
 				(g_flt_1_e - g_flt_1 + 3) / 4);
 		}
@@ -521,7 +524,7 @@ tx_lts_4:
 			/* set new FRL_Rate  and number of Lanes */
 			scdc_tx_frl_cfg1_set((p->max_ffe_level << 4) | p->frl_rate);
 
-			clrear_flt_update(p);
+			clear_flt_update(p);
 			HDMITX_INFO("LTS:4 cost %ld ms\n", (g_flt_1_e - g_flt_1 + 3) / 4);
 			p->flt_tx_state = FLT_TX_LTS_3;
 		}
@@ -539,7 +542,7 @@ tx_lts_4:
 			frl_tx_pattern_stop();
 			p->frl_rate = FRL_NONE;
 			scdc_tx_frl_cfg1_set(FRL_NONE);
-			clrear_flt_update(p);
+			clear_flt_update(p);
 			HDMITX_INFO("LTS:L cost %ld ms\n", (g_flt_1_e - g_flt_1 + 3) / 4);
 			frl_tx_callback(FRL_EVENT_LEGACY);
 			/* disable hdcp if fallback to legacy mode */
@@ -567,7 +570,7 @@ tx_lts_p1:
 		start_frl_transmission(p, true);
 		fifo_flow_enable_intrs(1);
 		frl_tx_pattern_stop();
-		clrear_flt_update(p);
+		clear_flt_update(p);
 		HDMITX_INFO("LTS:P cost %ld ms\n", (g_flt_1_e - g_flt_1 + 3) / 4);
 		p->flt_tx_state = FLT_TX_LTS_P2;
 		goto tx_lts_p2;
@@ -578,15 +581,27 @@ tx_lts_p2:
 		HDMITX_INFO("FRL: %s\n", flt_tx_string[FLT_TX_LTS_P2]);
 		/* STEP2 poll Update Flags every 2 ms or less */
 		/* wait FRL_start = 1, then transmit active normal A/V, and packets */
-		if (frl_start_query(p)) {
-			/* starts FRL operation */
-			start_frl_transmission(p, false);
-			clear_frl_start(p);
-			frl_tx_callback(FRL_EVENT_VIDEO | FRL_EVENT_PASSED);
-			p->flt_tx_state = FLT_TX_LTS_P3;
+		frl_tmo = jiffies + MAX_FRL_START_TIME;
+		while (!(b_time_out = time_after(jiffies, frl_tmo))) {
+			if (!p->flt_running)
+				return;
+			if (frl_start_query(p)) {
+				/* starts FRL operation */
+				start_frl_transmission(p, false);
+				clear_frl_start(p);
+				frl_tx_callback(FRL_EVENT_VIDEO | FRL_EVENT_PASSED);
+				p->flt_tx_state = FLT_TX_LTS_P3;
+				goto tx_lts_p3;
+			} else if (query_flt_update(p)) {
+				stop_frl_transmission(p);
+				clear_flt_update(p);
+				p->flt_tx_state = FLT_TX_LTS_3;
+				break;
+			}
 		}
-		goto tx_lts_p3;
-
+		if (b_time_out)
+			HDMITX_ERROR("FRL: query frl_start time out %d ms\n", MAX_FRL_START_TIME);
+		break;
 	case FLT_TX_LTS_P3:
 tx_lts_p3:
 		if (!p->flt_running)
@@ -595,7 +610,7 @@ tx_lts_p3:
 		/* if FLT_update = 1, stop FRL transmission, goto LTS:3 */
 		if (query_flt_update(p)) {
 			stop_frl_transmission(p);
-			clrear_flt_update(p);
+			clear_flt_update(p);
 			frl_tx_callback(FRL_EVENT_STOP);
 			p->flt_tx_state = FLT_TX_LTS_3;
 			break;
