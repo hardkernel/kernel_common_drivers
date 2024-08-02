@@ -735,7 +735,7 @@ static int meson_plane_get_fb_info(struct drm_plane *plane,
 			plane_info->process_unit = GFCD_AFRC;
 		} else {
 			if (drv->vpu_data && drv->vpu_data->has_gfcd && force_gfcd_mode &&
-					(drv->of_conf.gfcd_afbc_enable ||
+					(drv->of_conf.gfcd_enable ||
 					plane_info->pixel_format == DRM_FORMAT_ABGR10101010)) {
 				plane_info->process_unit = GFCD_AFBC;
 			} else {
@@ -757,6 +757,11 @@ static int meson_plane_get_fb_info(struct drm_plane *plane,
 				plane_info->afbc_inter_format |= SUPER_BLOCK_ASPECT;
 		}
 	}
+
+	if (!drv->of_conf.gfcd_enable &&
+			(plane_info->process_unit == GFCD_AFBC ||
+			plane_info->process_unit == GFCD_AFRC))
+		DRM_DEBUG("gfcd enable config mismatched with real frame, need to check dts!");
 
 	DRM_DEBUG("flags:%d pixel_format:%d,modifier=%llu\n",
 		  fb->flags, fb->format->format, fb->modifier);

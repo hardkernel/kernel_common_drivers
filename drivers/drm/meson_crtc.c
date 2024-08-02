@@ -463,8 +463,8 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tdrm_policy_mask=%llu\n", priv->of_conf.drm_policy_mask);
 
 	if (priv->vpu_data && priv->vpu_data->has_gfcd) {
-		drm_printf(p, "\t\tgfcd_afbc_enable=%u\n",
-			priv->of_conf.gfcd_afbc_enable);
+		drm_printf(p, "\t\tgfcd_enable=%u\n",
+			priv->of_conf.gfcd_enable);
 		drm_printf(p, "\t\tgfcd_mask=%u\n",
 			priv->of_conf.gfcd_mask);
 		drm_printf(p, "\t\tosdblend_input_width_offset=%u\n",
