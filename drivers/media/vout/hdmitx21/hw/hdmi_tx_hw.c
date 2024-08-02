@@ -3230,6 +3230,8 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			fifo_flow_enable_intrs(1);
 		}
 		if (argv == TMDS_PHY_DISABLE) {
+			frl_tx_stop();
+			hdmitx_set_frl_rate_none(hdev);
 			fifo_flow_enable_intrs(0);
 			hdmi_phy_suspend();
 		}

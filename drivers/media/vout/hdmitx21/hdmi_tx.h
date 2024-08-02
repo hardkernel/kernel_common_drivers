@@ -557,6 +557,8 @@ bool frl_check_full_bw(enum hdmi_colorspace cs, enum hdmi_color_depth cd, u32 pi
 	u32 h_active, enum frl_rate_enum frl_rate, u32 *tri_bytes);
 void fifo_flow_enable_intrs(bool en);
 void hdmitx_soft_reset(u32 bits);
+void hdmitx_set_frl_rate_none(struct hdmitx_dev *hdev);
+
 /* dsc related */
 #ifdef CONFIG_AMLOGIC_DSC
 irqreturn_t hdmitx_emp_vsync_handler(struct hdmitx_dev *hdev);
