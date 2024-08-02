@@ -10,8 +10,8 @@
 #include "mesont6d_pxp-panel.dtsi"
 
 / {
-	amlogic-dt-id = "t6d_t950d5_br309";
-	compatible = "t6d_t950d5_br309";
+	amlogic-dt-id = "t6d_t950d5_br301-1g";
+	compatible = "t6d_t950d5_br301-1g";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
 	#size-cells = <1>;
