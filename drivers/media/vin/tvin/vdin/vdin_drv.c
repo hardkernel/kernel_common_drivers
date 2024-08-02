@@ -971,7 +971,7 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 					devp->v4l2_fmt.fmt.pix_mp.num_planes == 2)
 					phy_c_addr = devp->vf_mem_c_start[i];
 				else
-					phy_c_addr = (u32)(devp->vf_mem_start[i] + luma_size);
+					phy_c_addr = devp->vf_mem_start[i] + luma_size;
 				vf->canvas0_config[1].phy_addr = phy_c_addr;
 				vf->canvas0_config[1].width = devp->canvas_w;
 				vf->canvas0_config[1].height =
