@@ -1612,6 +1612,9 @@ int aml_xhci_endpoint_init(struct aml_xhci_hcd *xhci,
 	unsigned int mult;
 	unsigned int avg_trb_len;
 	unsigned int err_count = 0;
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	int i = 0, j = 0;
+#endif
 
 	ep_index = aml_xhci_get_endpoint_index(&ep->desc);
 	ep_ctx = aml_xhci_get_ep_ctx(xhci, virt_dev->in_ctx, ep_index);
@@ -1690,6 +1693,21 @@ int aml_xhci_endpoint_init(struct aml_xhci_hcd *xhci,
 		if (endpoint_type == BULK_IN_EP) {
 			max_burst = 0;
 			aml_xhci_warn(xhci, "##### crg set max_burst 0\n");
+		}
+	}
+#endif
+
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	if (udev->speed == USB_SPEED_SUPER && endpoint_type == BULK_IN_EP) {
+		for (i = 0; i < udev->descriptor.bNumConfigurations; i++) {
+			for (j = 0; j < udev->config[i].desc.bNumInterfaces; j++) {
+				if (udev->config[i].intf_cache[j]->altsetting->desc.bInterfaceClass
+					== USB_CLASS_VIDEO) {
+					max_burst = 0;
+					aml_xhci_warn(xhci, "##### crg set max_burst 0\n");
+					break;
+				}
+			}
 		}
 	}
 #endif
