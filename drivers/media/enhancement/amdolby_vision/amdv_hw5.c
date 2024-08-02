@@ -1723,7 +1723,8 @@ int tv_top2_set(u64 *reg_data,
 			vd1_slice0_vsize_amdv = vd_proc_info->slice[0].vsize;
 		}
 	}
-	if ((test_dv & DEBUG_5065_RGB_BUG) &&
+	/*TB49 and IDK include RGB cases*/
+	if ((dv_unique_drm || (test_dv & DEBUG_5065_RGB_BUG)) &&
 		tv_hw5_setting->top2.color_format == CP_RGB &&
 		tv_hw5_setting->top2_reg[23] == 0x00000058000002c0)
 		tv_hw5_setting->top2_reg[23] = 0x00000058000002c1;/*bit0 change from yuv to rgb*/
@@ -1766,8 +1767,8 @@ int tv_top2_set(u64 *reg_data,
 		if (hdmi)
 			VSYNC_WR_DV_REG(VPU_DOLBY_WRAP_DTNL, (hsize << 18) | 0x2c2d0);
 
-		if (hdmi && !hdr10 && !dv_unique_drm && !disable_detunnel) {
-			/*hdmi DV STD and DV LL:  need detunnel*/
+		if (hdmi && !hdr10 && !disable_detunnel && !bypass_detunnel) {
+			/*hdmi STD, LL and Unique_422/420_12bit DV: need detunnel*/
 			if (slice_num == 2)
 				VSYNC_WR_DV_REG_BITS(VPU_DOLBY_WRAP_IRQ, 3, 19, 2);
 			else

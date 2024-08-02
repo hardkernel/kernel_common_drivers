@@ -7555,7 +7555,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 	u32 h = 0xffff;
 	int meta_flag_bl = 1;
 	int meta_flag_el = 1;
-	int src_chroma_format = 0;
+	int src_chroma_format = 0; /* 0:CF_P420, 1:CF_UYVY, 2:CF_P444, 3:CF_I444*/
 	int src_bdp = 12;
 	bool video_frame = false;
 	int i;
@@ -7667,6 +7667,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 		req.aux_size = 0;
 		req.dv_enhance_exist = 0;
 		req.low_latency = 0;
+		req.is_dv_unique_drm = 0;
 		vf_notify_provider_by_name("dv_vdin",
 					   VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
 					   (void *)&req);
@@ -7774,11 +7775,12 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 			}
 		}
 		if ((debug_dolby & 1) && (dv_vsem || vsem_if_size))
-			pr_dv_dbg("vdin get %s:%d,md:%p %d,ll:%d,bit %x,type %x %x\n",
-				dv_vsem ? "vsem" : "vsif",
+			pr_dv_dbg("vdin get %s:%d,md:%p %d,ll:%d, unique:%d, bit %x,type %x %x\n",
+				dv_vsem ? "vsem" : dv_unique_drm ? "drm" : "vsif",
 				dv_vsem ? vsem_size : vsem_if_size,
 				req.aux_buf, req.aux_size,
 				req.low_latency,
+				req.is_dv_unique_drm,
 				vf->bitdepth, vf->source_type, vf->type);
 
 		/*check vsem_if_buf */
@@ -7826,11 +7828,33 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 				       req.aux_buf, req.aux_size);
 			}
 			src_format = FORMAT_DOVI;
+		} else if (dv_unique_drm) {
+			if (vf->type & VIDTYPE_VIU_444) {
+				if (vf->type_ext & VIDTYPE_EXT_BYPASS_DETUNNEL)
+					src_chroma_format = 3;
+				else
+					src_chroma_format = 1;
+			}
+			if (vf->bitdepth & BITDEPTH_Y8) {
+				if (vf->type_ext & VIDTYPE_EXT_BYPASS_DETUNNEL)
+					src_bdp = 8;
+				else
+					src_bdp = 12;
+			} else if (vf->bitdepth & BITDEPTH_Y10) {
+				src_bdp = 10;
+			}
+			src_format = FORMAT_DOVI_LL;
+			req.aux_size = 0;
+			req.aux_buf = NULL;
 		} else {
 			if (toggle_mode == 2)
 				src_format =  tv_dovi_setting->src_format;
 			if (vf->type & VIDTYPE_VIU_422)
 				src_chroma_format = 1;
+			else if (vf->type & VIDTYPE_VIU_444)
+				src_chroma_format = 3;
+			else
+				src_chroma_format = 0;
 			p_mdc =	&vf->prop.master_display_colour;
 			if (is_hdr10_frame(vf) || force_hdmin_fmt == 1) {
 				src_format = FORMAT_HDR10;
@@ -7842,9 +7866,9 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 				src_bdp = 12;
 			}
 			if (is_aml_tm2_tvmode() || is_aml_t7_tvmode() ||
-			    is_aml_t3_tvmode() ||
-			    is_aml_t5w() ||
-			    is_aml_t5m()) {
+				is_aml_t3_tvmode() ||
+				is_aml_t5w() ||
+				is_aml_t5m()) {
 				if (src_format != FORMAT_DOVI &&
 					(is_hlg_frame(vf) || force_hdmin_fmt == 2)) {
 					src_format = FORMAT_HLG;
@@ -12053,11 +12077,12 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 		last_vf = vf;
 	}
 
-	if (vf && (debug_dolby & 0x8)) {
+	if (vf) {
 		disable_detunnel = (vf->type_ext & VIDTYPE_EXT_BYPASS_DETUNNEL) ? true : false;
-		pr_dv_dbg("%s: vf %p(index %d), mode %d, core1_on %d, disable_detunnel %d\n",
-			     __func__, vf, vf->frame_index,
-			     dolby_vision_mode, amdv_core1_on, disable_detunnel);
+		if (debug_dolby & 8)
+			pr_dv_dbg("%s: vf %p(index %d), mode %d, core1_on %d, type %x, type_ext %x, flag %x\n",
+				__func__, vf, vf->frame_index, dolby_vision_mode, amdv_core1_on,
+				vf->type, vf->type_ext, vf->flag);
 	}
 
 	if (dolby_vision_flags & FLAG_TOGGLE_FRAME) {
