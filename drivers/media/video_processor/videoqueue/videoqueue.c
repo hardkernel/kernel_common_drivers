@@ -823,6 +823,12 @@ static int do_file_thread(struct video_queue_dev *dev)
 		else
 			vq_print(dev->inst, P_OTHER, "no consumer\n");
 
+		if (dev->di_backend_en) {
+			ret = buf_mgr_q_checkin(dev->dp_buf_mgr, ready_file);
+			if (ret)
+				vq_print(dev->inst, P_ERROR, "q_checkin fail.\n");
+		}
+
 		dev->total_put_count++;
 		if (vf->type & VIDTYPE_DI_PW)
 			dev->di_put_count++;
