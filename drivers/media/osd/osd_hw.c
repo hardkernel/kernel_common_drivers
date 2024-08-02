@@ -7441,6 +7441,7 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 	osd_hw.buffer_alloc[index] = 1;
 	osd_hw.enable[index] = layer_map->enable;
 	if (osd_hw.enable[index] == 0) {
+		osd_hw.osd_afbcd[index].enable = 0;
 		osd_log_dbg(MODULE_BASE, "osd%d: blanked\n", index);
 		return;
 	}
