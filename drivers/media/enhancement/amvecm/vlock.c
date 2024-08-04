@@ -74,18 +74,9 @@ static unsigned int vlock_intput_type;
  * change from 4 to 3,for 4 may cause shake issue for 60.3hz input
  */
 static signed int vlock_line_limit = 2;
-
 static signed int vlock_enc_maxtune_line_num = 12;
-module_param(vlock_enc_maxtune_line_num, uint, 0664);
-MODULE_PARM_DESC(vlock_enc_maxtune_line_num, "\n vlock_enc_maxtune_line_num\n");
-
 static signed int vlock_enc_maxtune_pixel_num = 10;
-module_param(vlock_enc_maxtune_pixel_num, uint, 0664);
-MODULE_PARM_DESC(vlock_enc_maxtune_pixel_num, "\n vlock_enc_maxtune_pixel_num\n");
-
 static signed int vlock_oa_num = 10;
-module_param(vlock_oa_num, uint, 0664);
-MODULE_PARM_DESC(vlock_oa_num, "\n vlock_oa_num\n");
 
 static unsigned int vlock_enc_adj_limit;
 /* 0x3009 default setting for 2 line(1080p-output) is 0x8000 */
@@ -154,26 +145,22 @@ bool vlock_is_working(int enc_mux)
 	} while (0)
 
 /*static unsigned int hhi_pll_reg_vlock_ctl;*/
-module_param(vlock_log_size, uint, 0664);
-MODULE_PARM_DESC(vlock_log_size, "\n vlock_log_size\n");
-module_param(vlock_log_cnt, uint, 0664);
-MODULE_PARM_DESC(vlock_log_cnt, "\n vlock_log_cnt\n");
-module_param(vlock_log_delta_frac, uint, 0664);
-MODULE_PARM_DESC(vlock_log_delta_frac, "\n vlock_log_delta_frac\n");
-module_param(vlock_log_delta_m, uint, 0664);
-MODULE_PARM_DESC(vlock_log_delta_m, "\n vlock_log_delta_m\n");
-module_param(vlock_log_delta_en, uint, 0664);
-MODULE_PARM_DESC(vlock_log_delta_en, "\n vlock_log_delta_en\n");
-
-module_param(vlock_log_delta_ivcnt, uint, 0664);
-MODULE_PARM_DESC(vlock_log_delta_ivcnt, "\n vlock_log_delta_ivcnt\n");
-
-module_param(vlock_log_delta_ovcnt, uint, 0664);
-MODULE_PARM_DESC(vlock_log_delta_ovcnt, "\n vlock_log_delta_ovcnt\n");
-
-module_param(vlock_log_delta_vcnt, uint, 0664);
-MODULE_PARM_DESC(vlock_log_delta_vcnt, "\n vlock_log_delta_vcnt\n");
-
+//module_param(vlock_log_size, uint, 0664);
+//MODULE_PARM_DESC(vlock_log_size, "\n vlock_log_size\n");
+//module_param(vlock_log_cnt, uint, 0664);
+//MODULE_PARM_DESC(vlock_log_cnt, "\n vlock_log_cnt\n");
+//module_param(vlock_log_delta_frac, uint, 0664);
+//MODULE_PARM_DESC(vlock_log_delta_frac, "\n vlock_log_delta_frac\n");
+//module_param(vlock_log_delta_m, uint, 0664);
+//MODULE_PARM_DESC(vlock_log_delta_m, "\n vlock_log_delta_m\n");
+//module_param(vlock_log_delta_en, uint, 0664);
+//MODULE_PARM_DESC(vlock_log_delta_en, "\n vlock_log_delta_en\n");
+//module_param(vlock_log_delta_ivcnt, uint, 0664);
+//MODULE_PARM_DESC(vlock_log_delta_ivcnt, "\n vlock_log_delta_ivcnt\n");
+//module_param(vlock_log_delta_ovcnt, uint, 0664);
+//MODULE_PARM_DESC(vlock_log_delta_ovcnt, "\n vlock_log_delta_ovcnt\n");
+//module_param(vlock_log_delta_vcnt, uint, 0664);
+//MODULE_PARM_DESC(vlock_log_delta_vcnt, "\n vlock_log_delta_vcnt\n");
 //static unsigned int vlock_frac;
 //module_param(vlock_frac, uint, 0664);
 //MODULE_PARM_DESC(vlock_frac, "\n vlock_frac\n");
@@ -182,12 +169,11 @@ MODULE_PARM_DESC(vlock_log_delta_vcnt, "\n vlock_log_delta_vcnt\n");
 //MODULE_PARM_DESC(vlock_frac_delta, "\n vlock_frac_delta\n");
 
 static unsigned int vlock_latch_en_cnt = 20;
-module_param(vlock_latch_en_cnt, uint, 0664);
-MODULE_PARM_DESC(vlock_latch_en_cnt, "\n vlock_latch_en_cnt\n");
+//MODULE_PARM_DESC(vlock_latch_en_cnt, "\n vlock_latch_en_cnt\n");
 
 u32 vlock_tune_sync_on = 1;
-module_param(vlock_tune_sync_on, uint, 0664);
-MODULE_PARM_DESC(vlock_tune_sync_on, "\n vlock_tune_sync_on\n");
+//module_param(vlock_tune_sync_on, uint, 0664);
+//MODULE_PARM_DESC(vlock_tune_sync_on, "\n vlock_tune_sync_on\n");
 
 static unsigned int vlock_log_en;
 struct vlock_log_s **vlock_log;
@@ -3917,6 +3903,71 @@ ssize_t vlock_debug_store(const struct class *cla,
 			return -EINVAL;
 		temp_val = val;
 		sel = VLOCK_DEBUG;
+	} else if (!strncmp(parm[0], "vlock_enc_maxtune_line_num", 26)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_ENC_MAXTUNE_LINE_NUM;
+	} else if (!strncmp(parm[0], "vlock_enc_maxtune_pixel_num", 27)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_ENC_MAXTUNE_PIXEL_NUM;
+	} else if (!strncmp(parm[0], "vlock_oa_num", 12)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_OA_NUM;
+	} else if (!strncmp(parm[0], "vlock_log_size", 14)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_LOG_SIZE;
+	} else if (!strncmp(parm[0], "vlock_log_cnt", 13)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_LOG_CNT;
+	} else if (!strncmp(parm[0], "vlock_log_delta_frac", 20)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_LOG_DELTA_FRAC;
+	} else if (!strncmp(parm[0], "vlock_log_delta_m", 17)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_LOG_DELTA_M;
+	} else if (!strncmp(parm[0], "vlock_log_delta_en", 18)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_LOG_DELTA_EN;
+	} else if (!strncmp(parm[0], "vlock_log_delta_ivcnt", 21)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_LOG_DELTA_IVCNT;
+	} else if (!strncmp(parm[0], "vlock_log_delta_ovcnt", 21)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_LOG_DELTA_OVCNT;
+	} else if (!strncmp(parm[0], "vlock_log_delta_vcnt", 20)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_LOG_DELTA_VCNT;
+	} else if (!strncmp(parm[0], "vlock_latch_en_cnt", 18)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_LATCH_EN_CNT;
+	} else if (!strncmp(parm[0], "vlock_tune_sync_on", 18)) {
+		if (kstrtol(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		temp_val = val;
+		sel = VLOCK_TUNE_SYNC_ON;
 	} else if (!strncmp(parm[0], "vlock_dynamic_adjust", 20)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			return -EINVAL;
