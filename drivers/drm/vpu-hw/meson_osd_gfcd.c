@@ -62,14 +62,6 @@ static int gfcd_check_state(struct meson_vpu_block *vblk,
 	return 0;
 }
 
-/*gfcd global alpha setting, osd1:bit[28:20] osd2:bit[19:11]*/
-static void gfcd_global_alpha_set(struct meson_vpu_block *vblk,
-			  struct rdma_reg_ops *reg_ops,
-			  struct gfcd_reg_s *reg, u32 index, u32 val)
-{
-	reg_ops->rdma_write_reg_bits(VIU_OSD_BLEND_DUMMY_ALPHA, val, 20 - index * 9, 9);
-}
-
 static void gfcd_set_state(struct meson_vpu_block *vblk,
 				struct meson_vpu_block_state *state,
 				struct meson_vpu_block_state *old_state)
@@ -85,7 +77,6 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 	u64 header_addr;
 	bool reverse_x, reverse_y, is_afrc, alpha_div_en = 0, gfcd_en = 0;
 	u8 tile_mode, blk_mode = 0, alpha_replace = 0;
-	u32 global_alpha = 256; /*range 0~256*/
 	int i;
 
 	gfcd = to_gfcd_block(vblk);
@@ -119,16 +110,6 @@ static void gfcd_set_state(struct meson_vpu_block *vblk,
 			if (plane_info->pixel_blend == DRM_MODE_BLEND_PREMULTI &&
 				!gfcd_format_is_rgbx(plane_info->pixel_format))
 				alpha_div_en = 1;
-
-			/*drm alaph 16bit, amlogic alpha 8bit*/
-			global_alpha = plane_info->global_alpha >> 8;
-			if (global_alpha == 0xff)
-				global_alpha = 0x100;
-
-			/*global alpha1*/
-			//NEED FIX: if zorder change
-			if (gfcd->gfcd_global_alpha_policy)
-				gfcd_global_alpha_set(vblk, reg_ops, reg, i, global_alpha);
 
 			/*reverse config*/
 			reg_ops->rdma_write_reg_bits(reg->gfcd_mif_mode_sel, reverse_x, 5, 1);
@@ -295,13 +276,9 @@ static void gfcd_dump_register(struct drm_printer *p,
 static void gfcd_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_gfcd *gfcd = to_gfcd_block(vblk);
-	struct meson_vpu_pipeline *pipeline;
 
 	gfcd->reg = &gfcd_reg[0];
 	gfcd->num_surface = 2;
-	pipeline = gfcd->base.pipeline;
-	gfcd->gfcd_global_alpha_policy =
-		!!(pipeline->priv->of_conf.gfcd_mask & BIT(GFCD_GLOBAL_ALPHA));
 
 	DRM_DEBUG("%s hw init.\n", vblk->name);
 }

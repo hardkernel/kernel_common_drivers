@@ -334,6 +334,51 @@ void s7d_osdblend_premult_config(struct meson_vpu_block *vblk,
 	osd_blend_dout1_div_config(vblk, reg_ops, reg);
 }
 
+struct osd_global_alpha_s {
+	u32 offset;
+	u32 mask;
+};
+
+struct osd_global_alpha_s osd_global_alpha[] = {
+	{20, 0x1ff00000},
+	{11, 0x000ff800},
+	{0, 0},
+	{0, 0},
+};
+
+/*global alpha setting, osd1:bit[28:20] osd2:bit[19:11]*/
+void s7d_osdblend_global_alpha_set(struct meson_vpu_block *vblk,
+			  struct rdma_reg_ops *reg_ops,
+			  struct meson_vpu_pipeline_state *mvps)
+{
+	u32 val, global_alpha, core2_val;
+	int i;
+
+	val = meson_drm_read_reg(VIU_OSD_BLEND_DUMMY_ALPHA);
+	MESON_DRM_BLOCK("dummy alpha read val=0x%x", val);
+
+	/*
+	 *recovery the dummy alpha value.
+	 *core2_val is osdblend core2 dummy alpha value,
+	 *val = (((val & (0x7fff800)) << 2) | core2_val) is used to shift left 2bits
+	 *for the read value of dummy alpha, 0x7fff800 means just core0(bit11~19) and
+	 *core1(bit20~28) will be shifted, finally, the val will matched with real value.
+	 */
+	core2_val = val & 0x1ff;
+	val = (((val & (0x7fff800)) << 2) | core2_val);
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (mvps->plane_info[i].enable) {
+			global_alpha = mvps->plane_info[i].global_alpha >> 8;
+			if (global_alpha == 0xff)
+				global_alpha = 0x100;
+
+			val &= (~osd_global_alpha[i].mask);
+			val |= (global_alpha << osd_global_alpha[i].offset);
+		}
+	}
+	reg_ops->rdma_write_reg(VIU_OSD_BLEND_DUMMY_ALPHA, val);
+}
+
 enum osd_channel_e osd2channel(u8 osd_index)
 {
 	u8 din_channel_seq[MAX_DIN_NUM] = {OSD_CHANNEL1, OSD_CHANNEL2,
@@ -1380,10 +1425,12 @@ static void s7d_osdblend_set_state(struct meson_vpu_block *vblk,
 	osdblend_layer_set(vblk, state->sub->reg_ops,
 			   reg, osdblend, pipeline_state);
 	#else
-	if (osdblend->gfcd_global_alpha_policy)
+	if (osdblend->gfcd_global_alpha_policy) {
+		s7d_osdblend_global_alpha_set(vblk, state->sub->reg_ops, pipeline_state);
 		s7d_osdblend_hw_update(vblk, state->sub->reg_ops, reg, mvobs);
-	else
+	} else {
 		osdblend_hw_update(vblk, state->sub->reg_ops, reg, mvobs);
+	}
 	#endif
 	/*osd dv core size same with blend0 size*/
 	if (vblk->pipeline->osd_version >= OSD_V1)
@@ -1577,7 +1624,7 @@ static void s7d_osdblend_register_init(struct meson_vpu_block *vblk,
 	 * core2 still is dummy alpha
 	 */
 	if (osdblend->gfcd_global_alpha_policy)
-		reg_ops->rdma_write_reg(osdblend->reg->viu_osd_blend_dummy_alpha, 0x10080000);
+		meson_drm_write_reg(osdblend->reg->viu_osd_blend_dummy_alpha, 0x10080000);
 
 	/*reset blend ctrl hold line*/
 	reg_ops->rdma_write_reg_bits(osdblend->reg->viu_osd_blend_ctrl, 0, 29, 3);
