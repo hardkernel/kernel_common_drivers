@@ -49,6 +49,8 @@
 #define TEEC_SUCCESS                        0x00000000
 #define TEEC_ERROR_BAD_STATE                0xFFFF0007
 
+#define TRYING_TIMES                        200
+
 struct wm_dev_s {
 	dev_t dev_id;
 	struct cdev cdev;
@@ -102,6 +104,9 @@ static struct wm_plugin_ctx_s g_ngwm_plugin = { 0, 0 };
 static bool g_drv_inited;
 
 static spinlock_t g_wm_lock;
+
+static u32 g_vxwm_trying_times;
+static u32 g_ngwm_trying_times;
 
 static u32 get_horz_res(void)
 {
@@ -273,13 +278,21 @@ static void try_to_flush_vxwm(void)
 		if (res.a0 == TEEC_SUCCESS)
 			update_vxwm_plugin();
 	}
+
 	if (is_vxwm_mode_changed()) {
+		g_vxwm_trying_times = TRYING_TIMES;
+		update_vxwm_mode();
+	}
+
+	if (g_vxwm_trying_times > 0) {
 		memset(&res, 0, sizeof(struct arm_smccc_res));
 		arm_smccc_smc(OPTEE_SMC_FLUSH_WM, SMC_TYPE_VXWM_MODE_CHANGED,
 				0, 0, 0, 0, 0, 0, &res);
 		DEBUG("res.a0 = 0x%08X", res.a0);
-		if (res.a0 == TEEC_SUCCESS)
-			update_vxwm_mode();
+		if (res.a0 == TEEC_SUCCESS) {
+			DEBUG("g_vxwm_trying_times = %d", g_vxwm_trying_times);
+			g_vxwm_trying_times--;
+		}
 	}
 }
 
@@ -294,13 +307,20 @@ static void try_to_flush_ngwm(void)
 		if (res.a0 == TEEC_SUCCESS)
 			update_ngwm_plugin();
 	}
+
 	if (is_ngwm_mode_changed()) {
+		g_ngwm_trying_times = TRYING_TIMES;
+		update_ngwm_mode();
+	}
+	if (g_ngwm_trying_times > 0) {
 		memset(&res, 0, sizeof(struct arm_smccc_res));
 		arm_smccc_smc(OPTEE_SMC_FLUSH_WM, SMC_TYPE_NGWM_MODE_CHANGED,
 				0, 0, 0, 0, 0, 0, &res);
 		DEBUG("res.a0 = 0x%08X", res.a0);
-		if (res.a0 == TEEC_SUCCESS)
-			update_ngwm_mode();
+		if (res.a0 == TEEC_SUCCESS) {
+			DEBUG("g_ngwm_trying_times = %d", g_ngwm_trying_times);
+			g_ngwm_trying_times--;
+		}
 	}
 }
 
