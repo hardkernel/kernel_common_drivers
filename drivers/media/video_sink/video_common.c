@@ -1330,7 +1330,7 @@ bool frc_n2m_worked(void)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 		/* frc_get_n2m_setting 1 : n2m is 1:1; 2 :n2m is 1:2 */
-		/* 3: n2m is 1:2.5*/
+		/* 3: n2m is 1:2.5; 4: n2m is 1:4; 5: n2m is 1:5 */
 		/* frc_is_on() 1: means frc really worked */
 		if ((frc_get_n2m_setting() >= 2) && frc_is_on())
 			ret = true;
@@ -1340,6 +1340,7 @@ bool frc_n2m_worked(void)
 
 u32 frc_get_n2m_ratio(void)
 {
+	/* FRC_RATIO_1_1 */
 	u32 ratio = 10;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
@@ -1348,10 +1349,20 @@ u32 frc_get_n2m_ratio(void)
 	ret = frc_get_n2m_setting();
 	switch (ret) {
 	case 2:
+		/* FRC_RATIO_1_2 */
 		ratio = 20;
 		break;
 	case 3:
+		/* FRC_RATIO_2_5 */
 		ratio = 25;
+		break;
+	case 4:
+		/* FRC_RATIO_1_4 */
+		ratio = 40;
+		break;
+	case 5:
+		/* FRC_RATIO_1_5 */
+		ratio = 50;
 		break;
 	}
 #endif
