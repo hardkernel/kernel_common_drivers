@@ -119,6 +119,7 @@ static u32 force_comp_w;
 static u32 force_comp_h;
 static u32 lossy_compress_rate;//0: 100% copress; 1: 67% compress; 2: 83% compress
 static u32 enable_frc_pattern;
+static struct composer_dev *dev_array[MAX_VD_LAYERS];
 
 u32 vd_pulldown_level = 2;
 u32 vd_max_hold_count = 300;
@@ -4745,7 +4746,6 @@ static void set_frames_info(struct composer_dev *dev,
 			frames_info->frame_info[j].transform = transform;
 	}
 
-	dev->received_frames[i].frames_info = *frames_info;
 	dev->received_frames[i].frames_num = dev->received_count;
 	dev->received_frames[i].time_us64 = time_us64;
 
@@ -4814,6 +4814,8 @@ static void set_frames_info(struct composer_dev *dev,
 			vc_print(dev->index, PRINT_FENCE, "%s: vf:%px, vf_ext:%px,timestamp:%lld\n",
 				__func__, vf, vf->vf_ext, div_u64(vf->timestamp, 1000000000));
 
+			memcpy(frames_info->frame_info[j].reserved1, &vf, sizeof(vf));
+
 			if (((reset_drop >> dev->index) & 1) ||
 			    last_index[dev->index][j] > vf->frame_index) {
 				dev->received_new_count = vf->frame_index;
@@ -4881,6 +4883,7 @@ static void set_frames_info(struct composer_dev *dev,
 			vc_print(dev->index, PRINT_ERROR, "unsupport type.\n");
 		}
 	}
+	dev->received_frames[i].frames_info = *frames_info;
 	dev->received_frames[i].is_tvp = is_tvp;
 	atomic_set(&dev->received_frames[i].on_use, true);
 	dev->received_count++;
@@ -4952,6 +4955,7 @@ static int video_composer_init(struct composer_dev *dev)
 	dev->kfifo_need_initialize = true;
 	dev->fence_wait_time_total = 0;
 	dev->fence_wait_count = 0;
+	dev_array[dev->index] = dev;
 	init_completion(&dev->task_done);
 	for (i = 0; i < MAX_VD_LAYERS; i++) {
 		for (j = 0; j < MXA_LAYER_COUNT; j++)
@@ -5025,6 +5029,7 @@ static int video_composer_uninit(struct composer_dev *dev)
 				- dev->fence_release_count);
 	dev->is_sideband = false;
 	dev->need_empty_ready = false;
+	dev_array[dev->index] = NULL;
 	video_display_para_reset(dev->index);
 
 	if (dev->aiface_buf) {
@@ -6206,6 +6211,132 @@ static ssize_t enable_frc_pattern_store(struct class *cla,
 	return count;
 }
 
+static ssize_t buffer_status_show(struct class *cla, struct class_attribute *attr,
+	char *buf)
+{
+	int i, j;
+	int len = 0;
+	int ret = 0;
+	ssize_t count = 0;
+	int buffer_count = 0;
+	struct received_frames_t *frames[8];
+	struct vframe_s *buffer[8];
+
+	for (i = 0; i < MAX_VD_LAYERS; i++) {
+		if (!dev_array[i])
+			continue;
+		count += sprintf(buf + count, "layer[%d]:  vinfo: %d * %d\n", i,
+			dev_array[i]->vinfo_w, dev_array[i]->vinfo_h);
+		count += sprintf(buf + count, "----------------------------\n");
+		len = kfifo_len(&dev_array[i]->receive_q);
+		ret = kfifo_out_peek(&dev_array[i]->receive_q, frames, len);
+		if (ret != len) {
+			pr_err("Failed to peek data from kfifo\n");
+			return count;
+		}
+		for (j = 0; j < len; j++) {
+			memcpy(&buffer[j], frames[j]->frames_info.frame_info[0].reserved1,
+				sizeof(buffer[0]));
+			if (buffer[j] && (buffer[j]->type & VIDTYPE_DI_PW ||
+				buffer[j]->di_flag & DI_FLAG_DI_PVPPLINK))
+				buffer_count++;
+		}
+		count += sprintf(buf + count, "di hold buffer count:%d\n", buffer_count);
+		buffer_count = 0;
+		for (j = 0; j < len; j++) {
+			if (buffer[j] && (buffer[j]->type & VIDTYPE_DI_PW ||
+				buffer[j]->di_flag & DI_FLAG_DI_PVPPLINK)) {
+				if (buffer[j]->vf_ext)
+					buffer[j] = buffer[j]->vf_ext;
+				count += sprintf(buf + count,
+					"\t(receive_q)frame_index: %d\n",
+					buffer[j]->frame_index);
+				count += sprintf(buf + count, "\t\ttimestamp:%llu\n",
+					(unsigned long long)buffer[j]->timestamp);
+				count += sprintf(buf + count,
+					"\t\ty_addr: 0x%lx  uv_addr:0x%lx  width: %d height:%d\n",
+					buffer[j]->canvas0_config[0].phy_addr,
+					buffer[j]->canvas0_config[1].phy_addr,
+					buffer[j]->width,
+					buffer[j]->height);
+				buffer[j] = NULL;
+			} else {
+				buffer_count++;
+			}
+		}
+		count += sprintf(buf + count, "\nvc hold buffer count: %d\n",
+			buffer_count + kfifo_len(&dev_array[i]->ready_q));
+		buffer_count = 0;
+		for (j = 0; j < len; j++) {
+			if (buffer[j]) {
+				count += sprintf(buf + count,
+					"\t%d:(receive_q)frame_index: %d\n",
+					buffer_count, buffer[j]->frame_index);
+				count += sprintf(buf + count, "\t\ttimestamp:%llu\n",
+					(unsigned long long)buffer[j]->timestamp);
+				count += sprintf(buf + count,
+					"\t\ty_addr: 0x%lx  uv_addr:0x%lx  width: %d height:%d\n",
+					buffer[j]->canvas0_config[0].phy_addr,
+					buffer[j]->canvas0_config[1].phy_addr,
+					buffer[j]->width,
+					buffer[j]->height);
+				buffer_count++;
+			}
+		}
+
+		len = kfifo_len(&dev_array[i]->ready_q);
+		ret = kfifo_out_peek(&dev_array[i]->ready_q, buffer, len);
+		if (ret != len) {
+			pr_err("Failed to peek data from kfifo\n");
+			return count;
+		}
+		for (j = 0; j < len; j++) {
+			if (buffer[j] && buffer[j]->vf_ext && (buffer[j]->type & VIDTYPE_DI_PW ||
+				buffer[j]->di_flag & DI_FLAG_DI_PVPPLINK))
+				buffer[j] = buffer[j]->vf_ext;
+			count += sprintf(buf + count,
+				"\t%d:(ready_q)frame_index: %d\n",
+				buffer_count + j, buffer[j]->frame_index);
+			count += sprintf(buf + count, "\t\ttimestamp:%llu\n",
+				(unsigned long long)buffer[j]->timestamp);
+			count += sprintf(buf + count,
+				"\t\ty_addr: 0x%lx  uv_addr:0x%lx  width: %d height:%d\n",
+				buffer[j]->canvas0_config[0].phy_addr,
+				buffer[j]->canvas0_config[1].phy_addr,
+				buffer[j]->width,
+				buffer[j]->height);
+		}
+		len = kfifo_len(&dev_array[i]->display_q);
+		ret = kfifo_out_peek(&dev_array[i]->display_q, buffer, len);
+		if (ret != len) {
+			pr_err("Failed to peek data from kfifo\n");
+			return count;
+		}
+		count += sprintf(buf + count, "\nvpp hold buffer count:%d\n", len);
+		for (j = 0; j < len; j++) {
+			if (buffer[j] && buffer[j]->vf_ext && (buffer[j]->type & VIDTYPE_DI_PW ||
+				buffer[j]->di_flag & DI_FLAG_DI_PVPPLINK))
+				buffer[j] = buffer[j]->vf_ext;
+
+			count += sprintf(buf + count,
+				"\t%d:(display_q)frame_index: %d\n",
+				j, buffer[j]->frame_index);
+			count += sprintf(buf + count, "\t\ttimestamp:%llu\n",
+				(unsigned long long)buffer[j]->timestamp);
+			count += sprintf(buf + count,
+				"\t\ty_addr: 0x%lx  uv_addr:0x%lx  width: %d height:%d\n",
+				buffer[j]->canvas0_config[0].phy_addr,
+				buffer[j]->canvas0_config[1].phy_addr,
+				buffer[j]->width,
+				buffer[j]->height);
+		}
+		count += sprintf(buf + count, "\nfree_q(internal buffer):%d\n",
+			kfifo_len(&dev_array[i]->free_q));
+	}
+	count += sprintf(buf + count, "\n");
+	return count;
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -6256,7 +6387,7 @@ static CLASS_ATTR_RW(vd_test_fps);
 static CLASS_ATTR_RW(dewarp_load_flag);
 static CLASS_ATTR_RW(lossy_compress_rate);
 static CLASS_ATTR_RW(enable_frc_pattern);
-
+static CLASS_ATTR_RO(buffer_status);
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -6309,6 +6440,7 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_dewarp_load_flag.attr,
 	&class_attr_lossy_compress_rate.attr,
 	&class_attr_enable_frc_pattern.attr,
+	&class_attr_buffer_status.attr,
 	NULL
 };
 
