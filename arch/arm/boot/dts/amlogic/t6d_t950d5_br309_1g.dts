@@ -50,9 +50,9 @@
 			status = "disabled";
 		};
 
-		ramoops@0x07400000 {
+		ramoops@0x06300000 {
 			compatible = "ramoops";
-			reg = <0x07400000 0x00100000>;
+			reg = <0x06300000 0x00100000>;
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
@@ -81,7 +81,7 @@
 			compatible = "shared-dma-pool";
 			no-map;
 			alignment = <0x00100000>;
-			reg = <0x05000000 0x01B00000>;
+			reg = <0x05000000 0x01300000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -210,10 +210,8 @@
 		secure_vdec_reserved:linux,secure_vdec_reserved {
 			compatible = "amlogic, secure-vdec-reserved";
 			no-map;
-			size = <0x1000000>;
+			size = <0x400000>;
 			alignment = <0x100000>;
-			alloc-ranges = <0x00000000 0x1d400000>;
-			status = "disabled";
 		};
 
 		frc_cma_reserved:linux,frc_cma {
