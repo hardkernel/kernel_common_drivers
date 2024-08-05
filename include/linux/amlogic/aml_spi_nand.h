@@ -21,6 +21,7 @@
 #define SPI_NAND_NBITS		2
 
 extern const struct spinand_manufacturer dosilicon_spinand_manufacturer;
+extern const struct spinand_manufacturer foresee_spinand_manufacturer;
 
 enum info_page_mode {
 	NORMAL_INFO_P = 0,
