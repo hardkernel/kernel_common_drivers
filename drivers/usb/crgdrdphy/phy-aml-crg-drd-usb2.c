@@ -26,7 +26,6 @@ char name_crg[32];
 
 #define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT_5_0 0x3f
 #define PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0 0x7f
-#define BIT_U(x) (1U << (x))
 
 static void usb_set_calibration_trim
 	(void __iomem *reg, struct amlogic_usb_v2 *phy)
@@ -282,34 +281,34 @@ static void set_usb_pll_v3(struct amlogic_usb_v2 *phy, void __iomem *phy_reg_bas
 	u32 def_val = 0x549540;
 	void __iomem *pll_cfg = phy_reg_base + 0x40;
 
-	pll_val = readl(phy_reg_base);
+	pll_val = readl(pll_cfg);
 	/*Enable PLL Control*/
-	pll_val |= BIT_U(USB2_MPPLL_EN_CTRL_BIT);
+	pll_val |= BIT(USB2_MPPLL_EN_CTRL_BIT);
 	writel(pll_val, pll_cfg);
 	usleep_range(10, 20);
 
 	while (retry--) {
 		/* Reset Register value */
-		pll_val = def_val | BIT_U(USB2_MPPLL_EN_CTRL_BIT);
+		pll_val = def_val | BIT(USB2_MPPLL_EN_CTRL_BIT);
 		writel(pll_val, pll_cfg);
 		usleep_range(10, 20);
 		/* assert usb_pll_bias_en */
-		pll_val |= BIT_U(USBPLL_BIAS_EN_BIT);
+		pll_val |= BIT(USBPLL_BIAS_EN_BIT);
 		writel(pll_val, pll_cfg);
 		/* delay 20μs */
 		usleep_range(20, 30);
 		/* assert usb_pll_rstn */
-		pll_val |= BIT_U(USB2_PLL_RSTN_BIT);
+		pll_val |= BIT(USB2_PLL_RSTN_BIT);
 		writel(pll_val, pll_cfg);
 		/* delay 20μs */
 		usleep_range(20, 30);
 		/* assert usb_pll_lock_en */
-		pll_val |= BIT_U(USB2_PLL_LOCK_EN_BIT);
+		pll_val |= BIT(USB2_PLL_LOCK_EN_BIT);
 		writel(pll_val, pll_cfg);
 		/* check lock bit */
 		for (plldone_i = 5; plldone_i > 0; plldone_i--) {
 			usleep_range(20, 30);
-			if (readl(pll_cfg) & BIT_U(USB2_PLL_DONE))
+			if (readl(pll_cfg) & BIT(USB2_PLL_DONE))
 				goto okay;
 		}
 		dev_dbg(phy->dev, "usb2 pll not locked, retry. val: 0x%08x\n", readl(pll_cfg));
@@ -324,7 +323,7 @@ okay:
 	 */
 	writel(PHY_CRG_DRD_TUNING_DISCONNECT_THRESHOLD_BIT6_0_v3, phy_reg_base + 0xC);
 	/* The USB2_REG_CFG_DIS is not used but default set. Clear it.*/
-	writel(readl(phy_reg_base + 0x38) & ~BIT_U(USB2_REG_CFG_DIS), phy_reg_base + 0x38);
+	writel(readl(phy_reg_base + 0x38) & ~BIT(USB2_REG_CFG_DIS), phy_reg_base + 0x38);
 
 	/* edgedrv cali for signal quality. */
 	writel(phy->pll_setting[3], phy_reg_base + 0x50);

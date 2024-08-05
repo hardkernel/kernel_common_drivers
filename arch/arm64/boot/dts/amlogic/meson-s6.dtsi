@@ -837,7 +837,7 @@
 			in-nak-rty = <0x5>;
 		};
 
-		crg_udc: crgudc@0xfe340000 {
+		crg_udc: crgudc@fe340000 {
 			compatible = "amlogic, crg_udc";
 			status = "disable";
 			controller-type = <1>; /* 1: aml phy 4: m31 phy */
