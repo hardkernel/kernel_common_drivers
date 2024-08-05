@@ -742,6 +742,7 @@ void rx_pkt_initial(u8 port)
 	rx[i].emp_dv_info.flag = false;
 	rx[i].emp_cuva_info.flag = false;
 	rx[i].vsif_fmm_flag = false;
+	rx[i].avi_fmm_flag = false;
 
 	if (!emp_info_p) {
 		rx_pr("%s emp info null\n", __func__);
@@ -1519,6 +1520,12 @@ void rx_get_vsi_info(u8 port)
 	/* pkt->ieee = 0; */
 	/* memset(&rx_pkt.vs_info, 0, sizeof(struct pd_infoframe_s)); */
 	rxpktsts[port].pkt_op_flag &= ~PKT_OP_VSI;
+}
+
+void rx_get_avi_info(u8 port)
+{
+	if (rx[port].cur.it_content && rx[port].cur.cn_type == CINEMA)
+		rx[port].avi_fmm_flag = true;
 }
 
 void rx_pkt_buffclear(enum pkt_type_e pkt_type, u8 port)

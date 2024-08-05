@@ -69,6 +69,7 @@
 //2024.04.24 remove esd hpd
 //2024.07.04 optimize pcs reset flow
 //2024.07.10 correct 12g aud div
+//2024.08.15 add avi filmmaker flag
 #define RX_VER0 "ver.2024/07/10"
 
 
@@ -975,6 +976,7 @@ struct rx_s {
 	struct cuva_emds_s emp_cuva_info;
 	struct rx_dsc_pps_data_s dsc_pps_data;
 	bool vsif_fmm_flag;
+	bool avi_fmm_flag;
 	struct dv_info_s emp_dv_info;
 	struct cvtem_info_s cvtem_info;
 	u8 emp_vid_idx;

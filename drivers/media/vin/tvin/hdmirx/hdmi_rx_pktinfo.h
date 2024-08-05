@@ -1076,7 +1076,7 @@ void rx_pkt_clr_updated_spd(u8 port);
 void rx_pkt_clr_attach_drm(u8 port);
 u32 rx_pkt_chk_busy_vsi(u8 port);
 u32 rx_pkt_chk_busy_drm(u8 port);
-void rx_get_avi_info(struct avi_infoframe_st *st_pkt);
+void rx_get_avi_info(u8 port);
 void rx_get_em_info(u8 port);
 void rx_get_aif_info(u8 port);
 void rx_check_pkt_flag(u8 port);

@@ -1526,7 +1526,7 @@ void hdmirx_get_fmm_info(struct tvin_sig_property_s *prop, u8 port)
 	 * 1) AVI InfoFrame it_content:Byte3(bit7)-1 & content_type:Byte5(bit4-5):2
 	 * 2) Vendor Specific InfoFrame 0x1ABBFB & content_type:0x01 & content_subtype:0x0
 	 */
-	if ((rx[port].cur.it_content && rx[port].cur.cn_type == 0x2)) {
+	if (rx[port].avi_fmm_flag) {
 		prop->filmmaker.fmm_flag = true;
 		prop->filmmaker.it_content = rx[port].cur.it_content;
 		prop->filmmaker.cn_type = rx[port].cur.cn_type;
@@ -1555,6 +1555,7 @@ void rx_update_sig_info(u8 port)
 	//rx_check_pkt_flag(port);
 	rx_get_vsi_info(port);
 	rx_get_em_info(port);
+	rx_get_avi_info(port);
 	//rx_get_aif_info(port);
 	rx_set_sig_info();
 }

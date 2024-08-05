@@ -6900,6 +6900,7 @@ void dump_video_status(u8 port)
 	rx_pr("dv ll = %d\n", rx[port].vs_info_details.low_latency);
 	rx_pr("cuva hdr = %d\n", rx[port].vs_info_details.cuva_hdr);
 	rx_pr("VSIF_filmmaker = %d\n", rx[port].vs_info_details.filmmaker);
+	rx_pr("AVI_filmmaker = %d\n", rx[port].avi_fmm_flag);
 	rx_pr("iMax = %d\n", rx[port].vs_info_details.imax);
 	//rx_pr("VTEM = %d\n", rx[port_idx].vrr_en);
 	rx_pr("DRM = %d\n", rx_pkt_chk_attach_drm(port));
