@@ -1905,24 +1905,20 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 			vdin0_devp->prop.hdcp_sts = 0;
 			devp->matrix_pattern_mode = 0;
 		}
-		pr_info("vdin0 port:0x%x, flag:0x%x, hdcp sts:%d matrix:%d\n",
-		       vdin0_devp->parm.port, vdin0_devp->flags,
-		       vdin0_devp->prop.hdcp_sts, devp->matrix_pattern_mode);
+		if (vdin_dbg_en)
+			pr_info("vdin0 port:0x%x, flag:0x%x, hdcp sts:%d matrix:%d\n",
+			       vdin0_devp->parm.port, vdin0_devp->flags,
+			       vdin0_devp->prop.hdcp_sts, devp->matrix_pattern_mode);
 	}
 
 	mutex_lock(&devp->fe_lock);
 	vdin_loopback_parm_adjust(devp, para);
 	fmt = devp->parm.info.fmt;
-
-	pr_info("[%s]port:0x%x, cfmt:%d;dfmt:%d;dest_h_active:%d;",
-		__func__, para->port, para->cfmt,
-		para->dfmt, para->dest_h_active);
-	pr_info("dest_vactive:%d;frame_rate:%d;h_active:%d,",
-		para->dest_v_active, para->frame_rate,
-		para->h_active);
-	pr_info("v_active:%d;scan_mode:%d,fmt:%#x**\n",
-		para->v_active, para->scan_mode, fmt);
-
+	pr_info("[%s]port:0x%x,fmt:%d %d %d;active:%dx%d,%dx%d;fr:%d;sm:%d\n",
+		__func__, para->port, para->cfmt, fmt,
+		para->dfmt, para->dest_h_active, para->dest_v_active,
+		para->h_active, para->v_active,
+		para->frame_rate, para->scan_mode);
 	if (devp->hw_core == VDIN_HW_CORE_LITE) {
 		devp->parm.reserved |= para->reserved;
 
@@ -1941,9 +1937,9 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 			devp->flags |= VDIN_FLAG_FORCE_RECYCLE;
 		else
 			devp->flags &= ~VDIN_FLAG_FORCE_RECYCLE;
-
-		pr_info("vdin1 add reserved = 0x%lx\n", para->reserved);
-		pr_info("vdin1 all reserved = 0x%x\n", devp->parm.reserved);
+		if (vdin_dbg_en)
+			pr_info("vdin1 add reserved = 0x%lx;all reserved = 0x%x\n",
+				para->reserved, devp->parm.reserved);
 	}
 
 	devp->start_time = jiffies_to_msecs(jiffies);
@@ -2086,6 +2082,11 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		mutex_unlock(&devp->fe_lock);
 		return -1;
 	}
+	/* enable ddr writing */
+	if (devp->hw_core == VDIN_HW_CORE_LITE) {
+		vdin_resume_hw_write(devp, 0);
+		usleep_range(4000, 5000);
+	}
 
 	devp->flags |= VDIN_FLAG_DEC_OPENED;
 	devp->flags |= VDIN_FLAG_DEC_STARTED;
@@ -2123,17 +2124,17 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		}
 
 		if (!(devp->flags & VDIN_FLAG_ISR_EN)) {
-			/*enable irq */
-			enable_irq(devp->irq);
-			devp->flags |= VDIN_FLAG_ISR_EN;
 			vdin_calculate_isr_interval_value(devp); //init pre cur us value
 			if (vdin_dbg_en)
 				pr_info("vdin.%d enable irq %d\n", devp->index,
 					devp->irq);
+			devp->flags |= VDIN_FLAG_ISR_EN;
+			/*enable irq */
+			enable_irq(devp->irq);
 		}
 	}
-
-	pr_info("vdin%d %s flags=0x%x\n", devp->index, __func__, devp->flags);
+	if (vdin_dbg_en)
+		pr_info("vdin%d %s flags=0x%x\n", devp->index, __func__, devp->flags);
 	mutex_unlock(&devp->fe_lock);
 	return 0;
 }

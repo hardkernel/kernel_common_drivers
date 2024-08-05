@@ -465,8 +465,9 @@ int vdin_mem_init(struct vdin_dev_s *devp)
 	      devp->index || !is_afbce ||
 	    !(devp->cma_config_flag & MEM_ALLOC_CODEC_SCT)) {
 		devp->mem_type = VDIN_MEM_TYPE_CONTINUOUS;
-		pr_info("%s,vdin%d do not use scatter memory;is_afbce:%d,cma_flag:%#x\n",
-			__func__, devp->index, is_afbce, devp->cma_config_flag);
+		if (vdin_dbg_en)
+			pr_info("%s,vdin%d do not use scatter memory;is_afbce:%d,cma_flag:%#x\n",
+				__func__, devp->index, is_afbce, devp->cma_config_flag);
 		return 0;
 	}
 	pr_info("%s vdin%d use scatter memory\n", __func__, devp->index);

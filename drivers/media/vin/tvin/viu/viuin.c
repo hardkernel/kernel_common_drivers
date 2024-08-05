@@ -677,9 +677,7 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		pr_info("[viuin..]%s memcpy error.\n", __func__);
 		return -1;
 	}
-	/*open the venc to vdin path*/
-	pr_info("viu1_sel_venc: %d\n", rd_bits_viu(VPU_VIU_VENC_MUX_CTRL, 0, 2));
-	pr_info("viu2_sel_venc: %d\n", rd_bits_viu(VPU_VIU_VENC_MUX_CTRL, 2, 2));
+
 	switch (rd_bits_viu(VPU_VIU_VENC_MUX_CTRL, 0, 2)) {
 	case 0: /* ENCL */
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))

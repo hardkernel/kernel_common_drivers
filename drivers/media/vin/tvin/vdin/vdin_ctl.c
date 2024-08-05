@@ -2759,8 +2759,9 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 				       stride_chroma);
 		}
 	} else {
-		pr_info("%s,phy_addr_luma:0x%lx,stride_luma:%d\n",
-			__func__, phy_addr_luma, stride_luma);
+		if (vdin_dbg_en)
+			pr_info("%s,phy_addr_luma:0x%lx,stride_luma:%d\n",
+				__func__, phy_addr_luma, stride_luma);
 		wr(devp->addr_offset, VDIN_WR_BADDR_LUMA, phy_addr_luma >> 4);
 		wr(devp->addr_offset, VDIN_WR_STRIDE_LUMA, stride_luma);
 

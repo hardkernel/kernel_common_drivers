@@ -5067,9 +5067,9 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct v4l2_fh *vfh = file->private_data;
 	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct vb2_queue *vb2_q = &fh->vb2_q;
-
-	pr_info("amlvideo2 s_fmt_1 %d * %d\n",
-		f->fmt.pix.width, f->fmt.pix.height);
+	if (amlvideo2_dbg_en)
+		pr_info("amlvideo2 s_fmt_1 %d * %d\n",
+			f->fmt.pix.width, f->fmt.pix.height);
 
 	f->fmt.pix.width = (f->fmt.pix.width + (CANVAS_WIDTH_ALIGN - 1)) &
 				(~(CANVAS_WIDTH_ALIGN - 1));
@@ -5091,7 +5091,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		ret = -EBUSY;
 		goto out;
 	}
-
 	pr_info("amlvideo2 s_fmt_2 %d * %d\n",
 		f->fmt.pix.width, f->fmt.pix.height);
 
@@ -5191,7 +5190,8 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	ret = vb2_ioctl_reqbufs(file, priv, reqbufs);
 	if (ret < 0)
 		pr_err("vb2_ioctl_reqbufs fail\n");
-	pr_info("%s reqbufs end\n", __func__);
+	if (amlvideo2_dbg_en)
+		pr_info("%s reqbufs end\n", __func__);
 	return ret;
 }
 
@@ -5219,7 +5219,8 @@ static int vidioc_querybuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	} else {
 		p->reserved = 0;
 	}
-	pr_info("%s querybuf\n", __func__);
+	if (amlvideo2_dbg_en)
+		pr_info("%s querybuf\n", __func__);
 	return ret;
 }
 
