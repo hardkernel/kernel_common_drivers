@@ -866,9 +866,11 @@ static struct file_system_type erofs_fs_type = {
 };
 MODULE_ALIAS_FS("erofs");
 
+static void __exit erofs_module_exit(void);
 static void do_symbol_fix(void *data, async_cookie_t cookie)
 {
 	unsigned int *fixed;
+	int err;
 
 	fixed = (unsigned int *)data;
 	*fixed = 0;
@@ -877,6 +879,11 @@ static void do_symbol_fix(void *data, async_cookie_t cookie)
 		return;
 	}
 	*fixed = 1;
+	err = z_erofs_init_zip_subsystem();
+	if (err) {
+		pr_emerg("%s, subsystem failed\n", __func__);
+		erofs_module_exit();
+	}
 }
 
 static int __init erofs_module_init(void)
@@ -911,9 +918,6 @@ static int __init erofs_module_init(void)
 		goto lzma_err;
 
 	erofs_pcpubuf_init();
-	err = z_erofs_init_zip_subsystem();
-	if (err)
-		goto zip_err;
 
 	err = register_filesystem(&erofs_fs_type);
 	if (err)
@@ -923,7 +927,6 @@ static int __init erofs_module_init(void)
 
 sysfs_err:
 	z_erofs_exit_zip_subsystem();
-zip_err:
 	z_erofs_lzma_exit();
 lzma_err:
 	erofs_exit_shrinker();
