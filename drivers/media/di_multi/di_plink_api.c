@@ -3137,8 +3137,6 @@ static unsigned int dpvpp_bypass_check_prelink(struct vframe_s *vfm, bool first)
 	dbg_dbg("vfm_type:0x%x", vfm->type);
 	if (vfm->type & DIM_BYPASS_VF_TYPE)
 		reason = EPVPP_BYPASS_REASON_TYPE;
-	if (vfm->flag & VFRAME_FLAG_GAME_MODE)
-		reason = EPVPP_BYPASS_REASON_GAME_MODE;
 	if (vfm->flag & VFRAME_FLAG_HIGH_BANDWIDTH)
 		reason = EPVPP_BYPASS_REASON_HIGH_BANDWIDTH;
 	if (VFMT_IS_I(vfm->type))
@@ -3173,6 +3171,8 @@ static unsigned int dpvpp_bypass_check_prelink(struct vframe_s *vfm, bool first)
 			reason = EPVPP_BYPASS_REASON_SIZE_S;
 		if (vfm->duration < 1600 && vfm->duration != 0)
 			reason = EPVPP_BYPASS_REASON_120HZ;
+		if (vfm->flag & VFRAME_FLAG_GAME_MODE)
+			reason = EPVPP_BYPASS_REASON_GAME_MODE;
 	}
 	/* If vframe is EOS, information below maybe invalid */
 	if (VFMT_IS_EOS(vfm->type))
@@ -3187,8 +3187,6 @@ static unsigned int dpvpp_bypass_check_postlink(struct vframe_s *vfm, bool first
 	dbg_dbg("vfm_type:0x%x", vfm->type);
 	if (vfm->type & DIM_BYPASS_VF_TYPE)
 		reason = EPVPP_BYPASS_REASON_TYPE;
-	if (vfm->flag & VFRAME_FLAG_GAME_MODE)
-		reason = EPVPP_BYPASS_REASON_GAME_MODE;
 	if (vfm->flag & VFRAME_FLAG_HIGH_BANDWIDTH)
 		reason = EPVPP_BYPASS_REASON_HIGH_BANDWIDTH;
 
@@ -3224,6 +3222,8 @@ static unsigned int dpvpp_bypass_check_postlink(struct vframe_s *vfm, bool first
 			reason = EPVPP_BYPASS_REASON_SIZE_S;
 		if (vfm->duration < 1600 && vfm->duration != 0)
 			reason = EPVPP_BYPASS_REASON_120HZ;
+		if (vfm->flag & VFRAME_FLAG_GAME_MODE)
+			reason = EPVPP_BYPASS_REASON_GAME_MODE;
 	}
 	if (VFMT_IS_EOS(vfm->type))
 		reason = EPVPP_BYPASS_REASON_EOS;
