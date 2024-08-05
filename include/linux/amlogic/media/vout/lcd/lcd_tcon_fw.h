@@ -21,6 +21,7 @@ enum tcon_fw_chip_e {
 	TCON_CHIP_T5M,	 /* 6 */
 	TCON_CHIP_T3X,	 /* 7 */
 	TCON_CHIP_TXHD2, /* 8 */
+	TCON_CHIP_T6D,   /* 9 */
 	TCON_CHIP_MAX,
 };
 

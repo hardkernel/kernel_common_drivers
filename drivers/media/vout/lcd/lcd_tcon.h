@@ -298,6 +298,10 @@ void lcd_tcon_fw_base_timing_update(struct aml_lcd_drv_s *pdrv);
 #define LCD_TCON_TABLE_LEN_TXHD2          0x1670 /* 0x59c*4 */
 #define LCD_TCON_AXI_BANK_TXHD2           2
 
+/* T6D */
+#define LCD_TCON_TABLE_LEN_T6D            0x1668 /* 0x59a*4 */
+#define LCD_TCON_AXI_BANK_T6D             2
+
 /* **********************************
  * tcon api
  * **********************************
@@ -329,6 +333,7 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_top_set_tl1(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_top_set_t5(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_top_set_t6d(struct aml_lcd_drv_s *pdrv);
 
 int lcd_tcon_init_setting_check(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming,
 		unsigned char *core_reg_table);

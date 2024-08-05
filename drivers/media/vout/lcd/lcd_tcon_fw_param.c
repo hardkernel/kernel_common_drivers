@@ -285,6 +285,9 @@ void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *t
 	case LCD_CHIP_TXHD2:
 		lcd_tcon_fw.config->chip_type = TCON_CHIP_TXHD2;
 		break;
+	case LCD_CHIP_T6D:
+		lcd_tcon_fw.config->chip_type = TCON_CHIP_T6D;
+		break;
 	default:
 		break;
 	}

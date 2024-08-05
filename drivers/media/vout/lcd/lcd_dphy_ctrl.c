@@ -839,6 +839,15 @@ void lcd_mlvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 						0, 16, 12);
 		}
 		break;
+	case LCD_CHIP_T6D:
+		if (on_off) {
+			lcd_ana_write(ANACTRL_LVDS_TX_PHY_CNTL1, 0xc3000000);
+			// lane_swap_set
+			lcd_lane_map_set(pdrv);
+		} else {
+			lcd_ana_write(ANACTRL_LVDS_TX_PHY_CNTL1, 0);
+		}
+		break;
 	default:
 		if (on_off) {
 			/* fifo_clk_sel[7:6]: 0=div6, 1=div 7, 2=div8, 3=div10 */

@@ -4,6 +4,13 @@
  */
 
 / {
+	lcd_resman {
+		compatible = "amlogic, lcd-resman";
+		status = "okay";
+		memory-region = <&lcd_cma_reserved>;
+		memory-region-names = "lcd_cma_reserved";
+	};
+
 	lcd:lcd {
 		compatible = "amlogic, lcd-t6d";
 		status = "okay";
@@ -17,6 +24,9 @@
 			0xfe002000 0xa0>;      /* reset */
 		interrupts = <0 197 1>;
 		interrupt-names = "vsync";
+		pinctrl-names = "tcon_mlvds","tcon_mlvds_off";
+		pinctrl-0 = <&lcd_tcon_mlvds_pins>;
+		pinctrl-1 = <&lcd_tcon_mlvds_off_pins>;
 
 		/* power type:(0=cpu_gpio, 2=signal, 3=extern, 0xff=ending) */
 		/* power index:(gpios_index, or extern_index, 0xff=invalid) */
@@ -30,6 +40,13 @@
 		 */
 		lcd_cpu-gpios = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
 		lcd_cpu_gpio_names = "GPIOH_7";
+
+		config_check_glb = <1>;
+		display_timing_req_min = <1  /*alert_level: 0:disable, 1:warning, 2:fatal error*/
+			45   /*hsw+hbp*/
+			0    /*hfp, 0 for no need*/
+			20   /*vsw+vbp*/
+			15>; /*vfp*/
 
 		lvds_0{
 			model_name = "1080p-vfreq";
@@ -70,6 +87,47 @@
 				0 0 0 500   /*panel power*/
 				0xff 0 0 0>; /*ending*/
 			backlight_index = <0xff>;
+		};
+	};
+
+	lcd_extern {
+		compatible = "amlogic, lcd_extern";
+		status = "okay";
+		index = <0>;
+		key_valid = <1>;
+		i2c_bus = "i2c_bus_2";
+
+		extern_0 {
+			index = <0>;
+			extern_name = "ext_default";
+			status = "okay";
+			type = <0>; /*0=i2c, 1=spi, 2=mipi*/
+			i2c_address = <0x33>; /*7bit i2c_addr*/
+			i2c_address2 = <0xff>;
+			cmd_size = <0xff>; /*dynamic cmd_size*/
+
+			/* init on/off:
+			 *  fixed cmd_size: (type, value...);
+			 *                  cmd_size include all data.
+			 *  dynamic cmd_size: (type, cmd_size, value...);
+			 *                    cmd_size include value.
+			 */
+			/* type: 0x00=cmd with delay(bit[3:0]=1 for address2),
+			 *       0xc0=cmd(bit[3:0]=1 for address2),
+			 *       0xf0=gpio,
+			 *       0xfd=delay,
+			 *       0xff=ending
+			 */
+			/* value: i2c or spi cmd, or gpio index & level */
+			/* delay: unit ms */
+			init_on = <
+				0xc0 43 0x00
+					0x48 0x19 0xa4 0x00 0x00 0x23 0xfc 0x66 0xfb 0x2b 0x28 0x00
+					0x10 0x10 0x07 0x07 0x3e 0xc3 0xd3 0x33 0xa2 0xde 0x2b 0x02
+					0x3d 0x21 0xa1 0xbf 0x1a 0x71 0x33 0x0f 0xd0 0xa1 0x01 0x70
+					0x0e 0x1a 0x11 0xb5 0xcd 0xf9
+				0xff 0>; /*ending*/
+			init_off = <0xff 0>; /*ending*/
 		};
 	};
 };
