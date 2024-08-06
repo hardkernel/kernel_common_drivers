@@ -149,7 +149,7 @@ struct meson_aw9523 {
 	struct meson_aw9523_io *io;
 	struct meson_aw9523_colors *colors;
 	int led_counts;
-	int led_suspend_enable;
+	int ignore_led_suspend;
 };
 
 struct meson_aw9523 *aw9523;
@@ -267,6 +267,24 @@ static void meson_aw9523_set_colors(unsigned int *colors, unsigned int counts)
 		color->blue = colors[i] & 0xff;
 		color->green = (colors[i] >> 8) & 0xff;
 		color->red = (colors[i] >> 16) & 0xff;
+		color_data[io->b_io] = color->blue;
+		color_data[io->g_io] = color->green;
+		color_data[io->r_io] = color->red;
+	}
+
+	aw9523_i2c_writes(aw9523->i2c, REG_DIM00, AW9523_MAX_IO, color_data);
+}
+
+static void meson_aw9523_set_colors_again(struct meson_aw9523 *aw9523)
+{
+	struct meson_aw9523_colors *color;
+	struct meson_aw9523_io *io;
+	unsigned char color_data[AW9523_MAX_IO];
+	unsigned int i;
+
+	for (i = 0; i < aw9523->led_counts; i++) {
+		io = &aw9523->io[i];
+		color = &aw9523->colors[i];
 		color_data[io->b_io] = color->blue;
 		color_data[io->g_io] = color->green;
 		color_data[io->r_io] = color->red;
@@ -403,10 +421,10 @@ static int aw9523_parse_dt(struct device *dev, struct meson_aw9523 *aw9523,
 		}
 		gpio_direction_output(aw9523->reset_gpio, 1);
 	}
-	if (of_property_read_bool(np, "led-suspend-enable"))
-		aw9523->led_suspend_enable = 1;
+	if (of_property_read_bool(np, "ignore-led-suspend"))
+		aw9523->ignore_led_suspend = 1;
 	else
-		aw9523->led_suspend_enable = 0;
+		aw9523->ignore_led_suspend = 0;
 	return 0;
 }
 
@@ -728,7 +746,7 @@ static ssize_t led3_show(struct device *dev, struct device_attribute *attr, char
 
 static int meson_aw9523_set_singlecolors(u32 ledid, u32 led_color)
 {
-	struct meson_aw9523_colors color;
+	struct meson_aw9523_colors *color;
 	struct meson_aw9523_io *io;
 
 	if (ledid > 3) {
@@ -736,12 +754,13 @@ static int meson_aw9523_set_singlecolors(u32 ledid, u32 led_color)
 		return 0;
 	}
 	io = &aw9523->io[ledid];
-	color.blue = led_color & 0xff;
-	color.green = (led_color >> 8) & 0xff;
-	color.red = (led_color >> 16) & 0xff;
-	aw9523_i2c_write(aw9523, io->r_io + REGISTER_OFFSET, color.red);
-	aw9523_i2c_write(aw9523, io->g_io + REGISTER_OFFSET, color.green);
-	aw9523_i2c_write(aw9523, io->b_io + REGISTER_OFFSET, color.blue);
+	color = &aw9523->colors[ledid];
+	color->blue = led_color & 0xff;
+	color->green = (led_color >> 8) & 0xff;
+	color->red = (led_color >> 16) & 0xff;
+	aw9523_i2c_write(aw9523, io->r_io + REGISTER_OFFSET, color->red);
+	aw9523_i2c_write(aw9523, io->g_io + REGISTER_OFFSET, color->green);
+	aw9523_i2c_write(aw9523, io->b_io + REGISTER_OFFSET, color->blue);
 
 	return 0;
 }
@@ -791,31 +810,28 @@ static struct attribute_group aw9523_attribute_group = {
 	.attrs = aw9523_attributes
 };
 
-/*[SEI-Tiger.Hu-2020/05/15]add for aw9523b early suspend & resume { */
-#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-static void aw9523b_early_suspend(struct early_suspend *h)
+static int meson_aw9523_suspend(struct device *dev)
 {
 	unsigned char color_data[AW9523_MAX_IO] = { 0 };
 
-	if (!aw9523->led_suspend_enable)
-		return;
+	if (aw9523->ignore_led_suspend)
+		return 0;
 	aw9523_i2c_writes(aw9523->i2c, REG_DIM00, AW9523_MAX_IO, color_data);
-	pr_debug("Tiger]aw9523b early suspend\n");
+	pr_debug("Tiger]aw9523b suspend\n");
+
+	return 0;
 }
 
-static void aw9523b_late_resume(struct early_suspend *h)
+static int meson_aw9523_resume(struct device *dev)
 {
-	unsigned char color_data[AW9523_MAX_IO] = { 0 };
 
-	if (!aw9523->led_suspend_enable)
-		return;
-	memset(color_data, 0x00, AW9523_MAX_IO);
-	aw9523_i2c_writes(aw9523->i2c, REG_DIM00, AW9523_MAX_IO, color_data);
-	pr_debug("Tiger]aw9523b early resume\n");
+	if (aw9523->ignore_led_suspend)
+		return 0;
+	meson_aw9523_set_colors_again(aw9523);
+	pr_debug("Tiger]aw9523b resume\n");
+
+	return 0;
 }
-
-static struct early_suspend aw9523b_early_suspend_handler;
-#endif
 
 static int aw9523_parse_led_cdev(struct meson_aw9523 *aw9523,
 				   struct device_node *np)
@@ -937,15 +953,6 @@ static int aw9523_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
 		return -ENOMEM;
 	}
 	queue_work(aw9523->leds_wq, &aw9523->leds_work);
-/*[SEI-Tiger.Hu-2020/05/15]add for aw9523b early suspend&resume */
-#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-	aw9523b_early_suspend_handler.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 10;
-	aw9523b_early_suspend_handler.suspend = aw9523b_early_suspend;
-	aw9523b_early_suspend_handler.resume = aw9523b_late_resume;
-	aw9523b_early_suspend_handler.param = aw9523;
-	register_early_suspend(&aw9523b_early_suspend_handler);
-#endif
-/*[SEI-Tiger.Hu-2020/05/15]add for aw9523b early suspend&resume  */
 	init_leds_data();
 
 	return 0;
@@ -958,9 +965,6 @@ err_id:
 static int aw9523_i2c_remove(struct i2c_client *i2c)
 {
 	struct meson_aw9523 *aw9523 = i2c_get_clientdata(i2c);
-#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-	unregister_early_suspend(&aw9523b_early_suspend_handler);
-#endif
 	sysfs_remove_group(&aw9523->cdev.dev->kobj,
 			&aw9523_attribute_group);
 	led_classdev_unregister(&aw9523->cdev);
@@ -982,12 +986,15 @@ static const struct of_device_id aw9523_dt_match[] = {
 	{ },
 };
 
+static SIMPLE_DEV_PM_OPS(meson_aw9523_pm, meson_aw9523_suspend, meson_aw9523_resume);
+
 static struct i2c_driver meson_aw9523_driver = {
 	.driver = {
 		.name = AW9523_I2C_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(aw9523_dt_match),
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+		.pm = &meson_aw9523_pm,
 	},
 	.probe = aw9523_i2c_probe,
 	.remove = aw9523_i2c_remove,
