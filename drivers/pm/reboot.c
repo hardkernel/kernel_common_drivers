@@ -25,6 +25,7 @@
 #include <linux/panic_notifier.h>
 #include <linux/syscore_ops.h>
 #include <linux/cpu.h>
+#include <linux/suspend.h>
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
 #include <linux/amlogic/gki_module.h>
@@ -34,6 +35,7 @@ static void __iomem *reboot_reason_vaddr;
 static u32 psci_function_id_restart;
 static u32 psci_function_id_poweroff;
 static char *kernel_panic;
+static int hib_enable;
 /* Represents if it can support reboot reason extension - */
 /* which can support up to 128 kind of reboot reasons */
 static bool support_reboot_reason_ext;
@@ -294,13 +296,16 @@ static void disable_non_bootcpu_shutdown(void)
 	if (!cpu_online(primary))
 		primary = cpumask_first(cpu_online_mask);
 
+	if (hib_enable)
+		cpu_hotplug_enable();
+
 	cpu_hotplug_enable();
 
 	for_each_online_cpu(cpu) {
 		if (cpu == primary)
 			continue;
 
-		error = remove_cpu(cpu);
+		error = cpu_subsys.offline(get_cpu_device(cpu));
 		if (error) {
 			pr_err("Error taking CPU%d down: %d\n", cpu, error);
 			break;
@@ -314,6 +319,57 @@ static void disable_non_bootcpu_shutdown(void)
 
 	cpu_hotplug_disable();
 }
+
+#ifdef CONFIG_PM
+static int reboot_pm_cb(struct notifier_block *notifier,
+			      unsigned long pm_event,
+			      void *unused)
+{
+	pr_info("%s called. pm_event:%lu.\n", __func__, pm_event);
+
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+		hib_enable = 1;
+		break;
+	case PM_POST_HIBERNATION:
+		hib_enable = 0;
+		break;
+	case PM_SUSPEND_PREPARE:
+		break;
+	case PM_POST_SUSPEND:
+	case PM_RESTORE_PREPARE:
+	case PM_POST_RESTORE:
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block reboot_pm_nb = {
+	.notifier_call = reboot_pm_cb,
+};
+
+static int reboot_pm_notifier_register(void)
+{
+	return register_pm_notifier(&reboot_pm_nb);
+}
+
+static int reboot_pm_notifier_unregister(void)
+{
+	return unregister_pm_notifier(&reboot_pm_nb);
+}
+#else
+static int reboot_pm_notifier_register(void)
+{
+	return 0;
+}
+
+static int reboot_pm_notifier_unregister(void)
+{
+	return 0;
+}
+
+#endif
 
 static struct syscore_ops disable_non_bootcpu_syscore_ops = {
 	.shutdown		= disable_non_bootcpu_shutdown,
@@ -406,10 +462,12 @@ static struct platform_driver aml_restart_driver = {
 
 int __init reboot_init(void)
 {
+	reboot_pm_notifier_register();
 	return platform_driver_register(&aml_restart_driver);
 }
 
 void __exit reboot_exit(void)
 {
+	reboot_pm_notifier_unregister();
 	platform_driver_unregister(&aml_restart_driver);
 }
