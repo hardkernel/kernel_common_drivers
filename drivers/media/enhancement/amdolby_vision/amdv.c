@@ -2392,57 +2392,124 @@ void amdv_clear_buf(u8 dv_id)
 	spin_unlock_irqrestore(&amdv_lock, flags);
 }
 
-void amdv_create_inst(void)
+int amdv_create_inst(void)
 {
 	int i;
+	struct pq_config *pq_cfg;
+	struct pq_config_dvp *pq_cfg_dvp;
 
+	if (!is_aml_tvmode()) {
+		for (i = 0; i < NUM_INST; i++) {
+			dv_inst[i].md_buf[0] = vmalloc(MD_BUF_SIZE);
+			if (dv_inst[i].md_buf[0])
+				memset(dv_inst[0].md_buf[0], 0, MD_BUF_SIZE);
+			else
+				goto fail_create;
+			dv_inst[i].comp_buf[0] = vmalloc(COMP_BUF_SIZE);
+			if (dv_inst[i].comp_buf[0])
+				memset(dv_inst[i].comp_buf[0], 0, COMP_BUF_SIZE);
+			else
+				goto fail_create;
+			dv_inst[i].md_buf[1] = vmalloc(MD_BUF_SIZE);
+			if (dv_inst[i].md_buf[1])
+				memset(dv_inst[0].md_buf[1], 0, MD_BUF_SIZE);
+			else
+				goto fail_create;
+			dv_inst[i].comp_buf[1] = vmalloc(COMP_BUF_SIZE);
+			if (dv_inst[i].comp_buf[1])
+				memset(dv_inst[i].comp_buf[1], 0, COMP_BUF_SIZE);
+			else
+				goto fail_create;
+			dv_inst[i].current_id = 0;
+			dv_inst[i].metadata_parser = NULL;
+			dv_inst[i].layer_id = VD_PATH_MAX;
+			dv_inst[i].mapped = false;
+		}
+
+		for (i = 0; i < NUM_IPCORE1; i++) {
+			dv_core1[i].core1_disp_hsize = 0;
+			dv_core1[i].core1_disp_vsize = 0;
+			dv_core1[i].amdv_setting_video_flag = false;
+			dv_core1[i].core1_on = false;
+			dv_core1[i].core1_on_cnt = 0;
+			dv_core1[i].run_mode_count = 0;
+		}
+		graphic_md_buf = vmalloc(MD_BUF_SIZE);
+		if (graphic_md_buf)
+			memset(graphic_md_buf, 0, MD_BUF_SIZE);
+		else
+			goto fail_create;
+	} else {
+		if (is_aml_hw5()) {
+			top1_info.core_disp_hsize = 0;
+			top1_info.core_disp_vsize = 0;
+			top1_info.amdv_setting_video_flag = false;
+			top1_info.core_on = false;
+			top1_info.core_on_cnt = 0;
+			top1_info.run_mode_count = 0;
+			top2_info.core_disp_hsize = 0;
+			top2_info.core_disp_vsize = 0;
+			top2_info.amdv_setting_video_flag = false;
+			top2_info.core_on = false;
+			top2_info.core_on_cnt = 0;
+			top2_info.run_mode_count = 0;
+
+			pq_cfg_dvp = vmalloc(sizeof(*pq_cfg_dvp));
+			if (pq_cfg_dvp)
+				pq_config_dvp_fake = (struct pq_config *)pq_cfg_dvp;
+			else
+				goto fail_create;
+			pq_cfg_dvp = vmalloc(sizeof(*pq_cfg_dvp));
+			if (pq_cfg_dvp)
+				pq_config_dvp_fake_top1 = (struct pq_config *)pq_cfg_dvp;
+			else
+				goto fail_create;
+		} else {
+			pq_cfg = vmalloc(sizeof(*pq_cfg));
+			if (pq_cfg)
+				pq_config_fake = (struct pq_config *)pq_cfg;
+			else
+				goto fail_create;
+		}
+	}
+	return 0;
+fail_create:
+	pr_dv_error("amdolby_vision create inst error.\n");
 	for (i = 0; i < NUM_INST; i++) {
-		dv_inst[i].md_buf[0] = vmalloc(MD_BUF_SIZE);
-		if (dv_inst[i].md_buf[0])
-			memset(dv_inst[0].md_buf[0], 0, MD_BUF_SIZE);
-		dv_inst[i].comp_buf[0] = vmalloc(COMP_BUF_SIZE);
-		if (dv_inst[i].comp_buf[0])
-			memset(dv_inst[i].comp_buf[0], 0, COMP_BUF_SIZE);
-
-		dv_inst[i].md_buf[1] = vmalloc(MD_BUF_SIZE);
-		if (dv_inst[i].md_buf[1])
-			memset(dv_inst[0].md_buf[1], 0, MD_BUF_SIZE);
-		dv_inst[i].comp_buf[1] = vmalloc(COMP_BUF_SIZE);
-		if (dv_inst[i].comp_buf[1])
-			memset(dv_inst[i].comp_buf[1], 0, COMP_BUF_SIZE);
-
-		dv_inst[i].current_id = 0;
-		dv_inst[i].metadata_parser = NULL;
-		dv_inst[i].layer_id = VD_PATH_MAX;
-		dv_inst[i].mapped = false;
+		if (dv_inst[i].md_buf[0]) {
+			vfree(dv_inst[i].md_buf[0]);
+			dv_inst[i].md_buf[0] = NULL;
+		}
+		if (dv_inst[i].comp_buf[0]) {
+			vfree(dv_inst[i].comp_buf[0]);
+			dv_inst[i].comp_buf[0] = NULL;
+		}
+		if (dv_inst[i].md_buf[1]) {
+			vfree(dv_inst[i].md_buf[1]);
+			dv_inst[i].md_buf[1] = NULL;
+		}
+		if (dv_inst[i].comp_buf[1]) {
+			vfree(dv_inst[i].comp_buf[1]);
+			dv_inst[i].comp_buf[1] = NULL;
+		}
 	}
-
-	for (i = 0; i < NUM_IPCORE1; i++) {
-		dv_core1[i].core1_disp_hsize = 0;
-		dv_core1[i].core1_disp_vsize = 0;
-		dv_core1[i].amdv_setting_video_flag = false;
-		dv_core1[i].core1_on = false;
-		dv_core1[i].core1_on_cnt = 0;
-		dv_core1[i].run_mode_count = 0;
+	if (graphic_md_buf) {
+		vfree(graphic_md_buf);
+		graphic_md_buf = NULL;
 	}
-	if (is_aml_hw5()) {
-		top1_info.core_disp_hsize = 0;
-		top1_info.core_disp_vsize = 0;
-		top1_info.amdv_setting_video_flag = false;
-		top1_info.core_on = false;
-		top1_info.core_on_cnt = 0;
-		top1_info.run_mode_count = 0;
-		top2_info.core_disp_hsize = 0;
-		top2_info.core_disp_vsize = 0;
-		top2_info.amdv_setting_video_flag = false;
-		top2_info.core_on = false;
-		top2_info.core_on_cnt = 0;
-		top2_info.run_mode_count = 0;
+	if (pq_config_dvp_fake) {
+		vfree(pq_config_dvp_fake);
+		pq_config_dvp_fake = NULL;
 	}
-
-	graphic_md_buf = vmalloc(MD_BUF_SIZE);
-	if (graphic_md_buf)
-		memset(graphic_md_buf, 0, MD_BUF_SIZE);
+	if (pq_config_dvp_fake_top1) {
+		vfree(pq_config_dvp_fake_top1);
+		pq_config_dvp_fake_top1 = NULL;
+	}
+	if (pq_config_fake) {
+		vfree(pq_config_fake);
+		pq_config_fake = NULL;
+	}
+	return -1;
 }
 
 static DEFINE_MUTEX(dv_inst_lock);
@@ -14459,8 +14526,6 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 	int ret = -1;
 	unsigned int reg_clk;
 	unsigned int reg_value;
-	struct pq_config *pq_cfg;
-	struct pq_config_dvp *pq_cfg_dvp;
 	const struct vinfo_s *vinfo = get_current_vinfo();
 	unsigned int ko_info_len = 0;
 	int i;
@@ -14546,14 +14611,8 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 			}
 			p_funcs_tv = func;
 			if (is_aml_tvmode()) {
-				pq_cfg = vmalloc(sizeof(*pq_cfg));
-				if (!pq_cfg)
-					return -ENOMEM;
-				pq_config_fake = (struct pq_config *)pq_cfg;
 				tv_dovi_setting = vmalloc(sizeof(*tv_dovi_setting));
 				if (!tv_dovi_setting) {
-					vfree(pq_config_fake);
-					pq_config_fake = NULL;
 					p_funcs_tv = NULL;
 					return -ENOMEM;
 				}
@@ -14561,8 +14620,6 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 
 				tv_input_info =	vmalloc(sizeof(*tv_input_info));
 				if (!tv_input_info) {
-					vfree(pq_config_fake);
-					pq_config_fake = NULL;
 					p_funcs_tv = NULL;
 					vfree(tv_dovi_setting);
 					tv_dovi_setting = NULL;
@@ -14668,34 +14725,13 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 				}
 			}
 			p_funcs_tv = func;
-			pq_cfg_dvp = vmalloc(sizeof(*pq_cfg_dvp));
-			if (!pq_cfg_dvp)
-				return -ENOMEM;
-			pq_config_dvp_fake =
-				(struct pq_config *)pq_cfg_dvp;
-			pq_cfg_dvp = vmalloc(sizeof(*pq_cfg_dvp));
-			if (!pq_cfg_dvp) {
-				vfree(pq_config_dvp_fake);
-				pq_config_dvp_fake = NULL;
-				return -ENOMEM;
-			}
-			pq_config_dvp_fake_top1 =
-				(struct pq_config *)pq_cfg_dvp;
 			tv_hw5_setting = vmalloc(sizeof(*tv_hw5_setting));
 			if (!tv_hw5_setting) {
-				vfree(pq_config_dvp_fake);
-				pq_config_dvp_fake = NULL;
-				vfree(pq_config_dvp_fake_top1);
-				pq_config_dvp_fake_top1 = NULL;
 				p_funcs_tv = NULL;
 				return -ENOMEM;
 			}
 			invalid_hw5_setting = vmalloc(sizeof(*invalid_hw5_setting));
 			if (!invalid_hw5_setting) {
-				vfree(pq_config_dvp_fake);
-				pq_config_dvp_fake = NULL;
-				vfree(pq_config_dvp_fake_top1);
-				pq_config_dvp_fake_top1 = NULL;
 				vfree(tv_hw5_setting);
 				tv_hw5_setting = NULL;
 				p_funcs_tv = NULL;
@@ -14703,10 +14739,6 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 			}
 			last_tv_hw5_setting = vmalloc(sizeof(*last_tv_hw5_setting));
 			if (!last_tv_hw5_setting) {
-				vfree(pq_config_dvp_fake);
-				pq_config_dvp_fake = NULL;
-				vfree(pq_config_dvp_fake_top1);
-				pq_config_dvp_fake_top1 = NULL;
 				vfree(tv_hw5_setting);
 				tv_hw5_setting = NULL;
 				vfree(invalid_hw5_setting);
@@ -14725,10 +14757,6 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 
 			tv_input_info =	vmalloc(sizeof(*tv_input_info));
 			if (!tv_input_info) {
-				vfree(pq_config_dvp_fake);
-				pq_config_dvp_fake = NULL;
-				vfree(pq_config_dvp_fake_top1);
-				pq_config_dvp_fake_top1 = NULL;
 				p_funcs_tv = NULL;
 				vfree(tv_hw5_setting);
 				tv_hw5_setting = NULL;
@@ -14756,10 +14784,6 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 			if (tv_hw5_setting->top1_ext) {
 				memset(tv_hw5_setting->top1_ext, 0, EXT_DM_SIZE);
 			} else {
-				vfree(pq_config_dvp_fake);
-				pq_config_dvp_fake = NULL;
-				vfree(pq_config_dvp_fake_top1);
-				pq_config_dvp_fake_top1 = NULL;
 				p_funcs_tv = NULL;
 				vfree(tv_hw5_setting);
 				tv_hw5_setting = NULL;
@@ -14769,10 +14793,6 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 			if (tv_hw5_setting->top2_ext) {
 				memset(tv_hw5_setting->top2_ext, 0, EXT_DM_SIZE);
 			} else {
-				vfree(pq_config_dvp_fake);
-				pq_config_dvp_fake = NULL;
-				vfree(pq_config_dvp_fake_top1);
-				pq_config_dvp_fake_top1 = NULL;
 				p_funcs_tv = NULL;
 				vfree(tv_hw5_setting->top1_ext);
 				vfree(tv_hw5_setting);
@@ -14902,13 +14922,13 @@ int unregister_dv_functions(void)
 			tv_input_info = NULL;
 		}
 		if (is_aml_hw5()) {
-			if (pq_config_dvp_fake) {
-				vfree(pq_config_dvp_fake);
-				pq_config_fake = NULL;
+			if (tv_hw5_setting && tv_hw5_setting->top1_ext) {
+				vfree(tv_hw5_setting->top1_ext);
+				tv_hw5_setting->top1_ext = NULL;
 			}
-			if (pq_config_dvp_fake_top1) {
-				vfree((pq_config_dvp_fake_top1));
-				pq_config_fake = NULL;
+			if (tv_hw5_setting && tv_hw5_setting->top2_ext) {
+				vfree(tv_hw5_setting->top2_ext);
+				tv_hw5_setting->top2_ext = NULL;
 			}
 			if (tv_hw5_setting) {
 				vfree(tv_hw5_setting);
@@ -14918,23 +14938,28 @@ int unregister_dv_functions(void)
 				vfree(invalid_hw5_setting);
 				invalid_hw5_setting = NULL;
 			}
-			if (bin_to_cfg_dvp) {
-				vfree(bin_to_cfg_dvp);
-				bin_to_cfg_dvp = NULL;
+			for (i = 0; i < 2; i++) {
+				if (top1_v_info.md_buf[i]) {
+					vfree(top1_v_info.md_buf[i]);
+					top1_v_info.md_buf[i] = NULL;
+				}
+				if (top1_v_info.comp_buf[i]) {
+					vfree(top1_v_info.comp_buf[i]);
+					top1_v_info.comp_buf[i] = NULL;
+				}
+				if (top2_v_info.md_buf[i]) {
+					vfree(top2_v_info.md_buf[i]);
+					top2_v_info.md_buf[i] = NULL;
+				}
+				if (top2_v_info.comp_buf[i]) {
+					vfree(top2_v_info.comp_buf[i]);
+					top2_v_info.comp_buf[i] = NULL;
+				}
 			}
 		} else {
-			if (pq_config_fake) {
-				vfree(pq_config_fake);
-				pq_config_fake = NULL;
-			}
 			if (tv_dovi_setting) {
 				vfree(tv_dovi_setting);
 				tv_dovi_setting = NULL;
-			}
-
-			if (bin_to_cfg) {
-				vfree(bin_to_cfg);
-				bin_to_cfg = NULL;
 			}
 		}
 		if (ko_info) {
@@ -17868,13 +17893,16 @@ static int amdolby_vision_probe(struct platform_device *pdev)
 			pr_dv_dbg("viu vsync irq: %d\n", int_viu1_dolby);
 			ret = request_irq(int_viu1_dolby, amdv_isr, IRQF_SHARED,
 					  "viu1_dolby_int", (void *)"amdolby_vision");
-			if (ret)
+			if (ret) {
 				pr_info("request in irq fail\n");
+				goto fail_add_cdev;
+			}
 		}
 	}
 	amdv_addr();
 	amdv_init_receiver(pdev);
-	amdv_create_inst();
+	if (amdv_create_inst())
+		goto fail_add_cdev;
 	init_waitqueue_head(&devp->dv_queue);
 	pr_dv_dbg("%s: ok\n", __func__);
 	amdv_check_enable();
@@ -17940,34 +17968,6 @@ static int __exit amdolby_vision_remove(struct platform_device *pdev)
 		vfree(vsem_md_buf);
 		vsem_md_buf = NULL;
 	}
-
-	for (i = 0; i < NUM_INST; i++) {
-		if (dv_inst[i].metadata_parser) {
-			if (p_funcs_stb && p_funcs_stb->multi_mp_release)
-				p_funcs_stb->multi_mp_release
-					(&dv_inst[i].metadata_parser);
-			else if (p_funcs_tv && p_funcs_tv->multi_mp_release)
-				p_funcs_tv->multi_mp_release
-					(&dv_inst[i].metadata_parser);
-			dv_inst[i].metadata_parser = NULL;
-		}
-		if (dv_inst[i].md_buf[0]) {
-			vfree(dv_inst[i].md_buf[0]);
-			dv_inst[i].md_buf[0] = NULL;
-		}
-		if (dv_inst[i].comp_buf[0]) {
-			vfree(dv_inst[i].comp_buf[0]);
-			dv_inst[i].comp_buf[0] = NULL;
-		}
-		if (dv_inst[i].md_buf[1]) {
-			vfree(dv_inst[i].md_buf[1]);
-			dv_inst[i].md_buf[1] = NULL;
-		}
-		if (dv_inst[i].comp_buf[1]) {
-			vfree(dv_inst[i].comp_buf[1]);
-			dv_inst[i].comp_buf[1] = NULL;
-		}
-	}
 	if (is_aml_hw5()) {
 		if (top1_v_info.metadata_parser) {
 			if (p_funcs_tv && p_funcs_tv->multi_mp_release)
@@ -18006,6 +18006,66 @@ static int __exit amdolby_vision_remove(struct platform_device *pdev)
 		if (tv_hw5_setting && tv_hw5_setting->top2_ext) {
 			vfree(tv_hw5_setting->top2_ext);
 			tv_hw5_setting->top2_ext = NULL;
+		}
+		if (bin_to_cfg_dvp) {
+			vfree(bin_to_cfg_dvp);
+			bin_to_cfg_dvp = NULL;
+		}
+		if (pq_config_dvp_fake) {
+			vfree(pq_config_dvp_fake);
+			pq_config_dvp_fake = NULL;
+		}
+		if (pq_config_dvp_fake_top1) {
+			vfree((pq_config_dvp_fake_top1));
+			pq_config_dvp_fake_top1 = NULL;
+		}
+	} else {
+		if (multi_dv_mode) {
+			for (i = 0; i < NUM_INST; i++) {
+				if (dv_inst[i].metadata_parser) {
+					if (p_funcs_stb && p_funcs_stb->multi_mp_release)
+						p_funcs_stb->multi_mp_release
+							(&dv_inst[i].metadata_parser);
+					else if (p_funcs_tv && p_funcs_tv->multi_mp_release)
+						p_funcs_tv->multi_mp_release
+							(&dv_inst[i].metadata_parser);
+					dv_inst[i].metadata_parser = NULL;
+				}
+				if (dv_inst[i].md_buf[0]) {
+					vfree(dv_inst[i].md_buf[0]);
+					dv_inst[i].md_buf[0] = NULL;
+				}
+				if (dv_inst[i].comp_buf[0]) {
+					vfree(dv_inst[i].comp_buf[0]);
+					dv_inst[i].comp_buf[0] = NULL;
+				}
+				if (dv_inst[i].md_buf[1]) {
+					vfree(dv_inst[i].md_buf[1]);
+					dv_inst[i].md_buf[1] = NULL;
+				}
+				if (dv_inst[i].comp_buf[1]) {
+					vfree(dv_inst[i].comp_buf[1]);
+					dv_inst[i].comp_buf[1] = NULL;
+				}
+			}
+		} else {
+			if (metadata_parser) {
+				if (p_funcs_stb && p_funcs_stb->metadata_parser_release)
+					p_funcs_stb->metadata_parser_release();
+				else if (p_funcs_tv && p_funcs_tv->metadata_parser_release)
+					p_funcs_tv->metadata_parser_release();
+				metadata_parser = NULL;
+			}
+		}
+		if (is_aml_tvmode()) {
+			if (bin_to_cfg) {
+				vfree(bin_to_cfg);
+				bin_to_cfg = NULL;
+			}
+			if (pq_config_fake) {
+				vfree(pq_config_fake);
+				pq_config_fake = NULL;
+			}
 		}
 	}
 
