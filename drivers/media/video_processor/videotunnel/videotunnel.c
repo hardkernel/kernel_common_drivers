@@ -349,7 +349,7 @@ static const struct file_operations debug_limit_fops = {
 	.write = vt_debug_limit_write,
 };
 
-static void vt_instance_destroy(struct kref *kref)
+static void vt_instance_destroy_lock(struct kref *kref)
 {
 	struct vt_instance *instance =
 		container_of(kref, struct vt_instance, ref);
@@ -358,8 +358,6 @@ static void vt_instance_destroy(struct kref *kref)
 	struct vt_cmd *vcmd = NULL;
 	int i;
 
-	mutex_lock(&debugfs_mutex);
-	mutex_lock(&dev->instance_lock);
 	rb_erase(&instance->node, &dev->instances);
 	if (idr_find(&dev->instance_idr, instance->id))
 		idr_remove(&dev->instance_idr, instance->id);
@@ -415,8 +413,6 @@ static void vt_instance_destroy(struct kref *kref)
 		 instance->id, instance->fcount);
 
 	kfree(instance);
-	mutex_unlock(&dev->instance_lock);
-	mutex_unlock(&debugfs_mutex);
 }
 
 static void vt_instance_get(struct vt_instance *instance)
@@ -426,10 +422,19 @@ static void vt_instance_get(struct vt_instance *instance)
 
 static int vt_instance_put(struct vt_instance *instance)
 {
+	int ret = 0;
 	if (!instance)
 		return -ENOENT;
 
-	return kref_put(&instance->ref, vt_instance_destroy);
+	struct vt_dev *dev = instance->dev;
+
+	mutex_lock(&debugfs_mutex);
+	mutex_lock(&dev->instance_lock);
+	ret = kref_put(&instance->ref, vt_instance_destroy_lock);
+	mutex_unlock(&dev->instance_lock);
+	mutex_unlock(&debugfs_mutex);
+
+	return ret;
 }
 
 static struct vt_instance *vt_instance_create_lock(struct vt_dev *dev)
