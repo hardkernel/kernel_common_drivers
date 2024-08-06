@@ -526,6 +526,18 @@
 //Bit  2           reg_postsc_en             // unsigned ,    RW, default = 0  ,reg_postsc_en
 //Bit  1           reg_size_mux              // unsigned ,    RW, default = 0  ,hsize sel
 //Bit  0           reg_prevsc_outside_en     // unsigned ,    RW, default = 1  ,video1 scale out enable
+#define T6D_SAFA_PPS_DEJAGGY_CTRL                      0x5191
+//Bit 31           reg_dejaggy_en            // unsigned ,    RW, default = 0
+//Bit 30           reg_dejaggy_dps_en_0      // unsigned ,    RW, default = 0
+//Bit 29           reg_dejaggy_dps_en_1      // unsigned ,    RW, default = 0
+//Bit 28           reg_dejaggy_sameside_mode // unsigned ,    RW, default = 0
+//Bit 27:25        reserved
+//Bit 24           reg_dejaggy_sameside_prtct // unsigned ,    RW, default = 0
+//Bit 23:16        reserved
+//Bit 15:12        reg_dejaggy_procluma_alpha_1 // unsigned ,    RW, default = 15
+//Bit 11: 8        reg_dejaggy_procluma_alpha_0 // unsigned ,    RW, default = 15
+//Bit  7: 4        reg_dejaggy_procchrm_alpha_1 // unsigned ,    RW, default = 15
+//Bit  3: 0        reg_dejaggy_procchrm_alpha_0 // unsigned ,    RW, default = 15
 #define T6D_SAFA_PPS_CNTL_SCALE_COEF_IDX_LUMA          0x5192
 //Bit 31:15        reserved
 //Bit 14           reg_index_inc_luma        // unsigned ,    RW, default = 0  ,index increment, if bit9 == 1  then (0: index increase 1, 1: index increase 2) else (index increase 2)

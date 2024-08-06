@@ -1056,13 +1056,13 @@ struct hw_vsr_safa_reg_s s6_vsr_safa_reg = {
 	SAFA_PPS_VSC_START_PHASE_STEP,
 	SAFA_PPS_VSC_INIT,
 	SAFA_PPS_HSC_INIT,
+	S6_SAFA_PPS_BOT_VSC_INIT,
 	SAFA_PPS_SC_MISC,
 	S6_SAFA_PPS_CNTL_SCALE_COEF_IDX_LUMA,
 	S6_SAFA_PPS_CNTL_SCALE_COEF_LUMA,
 	S6_SAFA_PPS_CNTL_SCALE_COEF_IDX_CHRO,
 	S6_SAFA_PPS_CNTL_SCALE_COEF_CHRO,
 	SAFA_PPS_DEJAGGY_CTRL,
-	S6_SAFA_PPS_BOT_VSC_INIT,
 };
 
 struct hw_vsr_safa_reg_s vsr_safa_reg_t6d = {
@@ -1105,6 +1105,7 @@ struct hw_vsr_safa_reg_s vsr_safa_reg_t6d = {
 	T6D_SAFA_PPS_CNTL_SCALE_COEF_LUMA,
 	T6D_SAFA_PPS_CNTL_SCALE_COEF_IDX_CHRO,
 	T6D_SAFA_PPS_CNTL_SCALE_COEF_CHRO,
+	T6D_SAFA_PPS_DEJAGGY_CTRL,
 };
 
 struct hw_vsr_safa_nonlinear_reg_s vsr_safa_nonlinear_reg = {

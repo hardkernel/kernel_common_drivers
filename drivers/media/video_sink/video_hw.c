@@ -14717,6 +14717,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	cur_dev->frm2fld_support =
 		p_amvideo->dev_property.frm2fld_support;
 	cur_dev->dejaggy_support = p_amvideo->dev_property.dejaggy_support;
+	cur_dev->vsr_nonlinear_support = p_amvideo->dev_property.vsr_nonlinear_support;
 	if (cur_dev->aisr_support)
 		cur_dev->pps_auto_calc = 1;
 	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
