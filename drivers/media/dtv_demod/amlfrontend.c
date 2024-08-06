@@ -693,7 +693,6 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 	}
 
 	demod->inited = false;
-	demod->suspended = true;
 	demod->freq = 0;
 
 	return 0;
@@ -1989,11 +1988,13 @@ static int aml_dtvdm_init(struct dvb_frontend *fe)
 
 	mutex_lock(&devp->lock);
 
-	demod->suspended = false;
-	demod->last_delsys = SYS_UNDEFINED;
-	fe->ops.info.type = 0xFF; /* undefined */
+	if (demod->suspended) {
+		demod->suspended = false;
+		demod->last_delsys = SYS_UNDEFINED;
+		fe->ops.info.type = 0xFF; /* undefined */
 
-	PR_INFO("%s [id %d] OK\n", __func__, demod->id);
+		PR_INFO("%s [id %d] OK\n", __func__, demod->id);
+	}
 
 	mutex_unlock(&devp->lock);
 
@@ -2008,14 +2009,18 @@ static int aml_dtvdm_sleep(struct dvb_frontend *fe)
 
 	mutex_lock(&devp->lock);
 
-	delsys = demod->last_delsys;
+	if (!demod->suspended) {
+		delsys = demod->last_delsys;
 
-	if (get_dtvpll_init_flag()) {
-		if (delsys != SYS_UNDEFINED)
-			delsys_exit(demod, delsys, SYS_UNDEFINED);
+		if (get_dtvpll_init_flag()) {
+			if (delsys != SYS_UNDEFINED)
+				delsys_exit(demod, delsys, SYS_UNDEFINED);
+		}
+
+		demod->suspended = true;
+
+		PR_INFO("%s [id %d] OK\n", __func__, demod->id);
 	}
-
-	PR_INFO("%s [id %d] OK\n", __func__, demod->id);
 
 	mutex_unlock(&devp->lock);
 
@@ -3130,7 +3135,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 #endif
 	demod->last_lock = -1;
 	demod->inited = false;
-	demod->suspended = true;
+	demod->suspended = false;
 	demod->freq = 0;
 	demod->plp_id = 0xfff;
 
@@ -3143,6 +3148,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 
 	demod->priv = devp;
 	demod->frontend.demodulator_priv = demod;
+	demod->frontend.ops.info.type = 0xFF;
 	demod->last_delsys = SYS_UNDEFINED;
 
 	switch (ic_version) {
