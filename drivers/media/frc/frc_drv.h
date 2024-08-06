@@ -132,8 +132,9 @@
 // frc_20240709 frc add crc debug
 // frc_2024-0708 frc adaptive n2m in t5m
 // frc_20240711 fix secure mode close frc abnormal
+// frc_20240729 open frc when slt test
 
-#define FRC_FW_VER			"2024-0729 open frc when slt test"
+#define FRC_FW_VER			"2024-0814 clr CTRL7 before frc enable"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1

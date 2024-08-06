@@ -417,9 +417,9 @@ irqreturn_t frc_output_isr(int irq, void *dev_id)
 	if (devp->in_sts.vs_cnt == 1) {
 		tmpreg_value = READ_FRC_REG(FRC_REG_OUT_FID);
 		if ((tmpreg_value  >> 8 & 0xFFF) != 0) {
-			PR_ERR("output buf error! 0x113:0x%8X, 0x102:0x%8X, ctl_7:0x%8X\n",
+			PR_ERR("output buf error! 0x113:0x%8X, 0x3f01:0x%8X, ctl_7:0x%8X\n",
 				tmpreg_value,
-				READ_FRC_REG(FRC_REG_PAT_POINTER),
+				READ_FRC_REG(FRC_TOP_CTRL),
 				READ_FRC_REG(FRC_REG_TOP_CTRL7));
 		}
 	}

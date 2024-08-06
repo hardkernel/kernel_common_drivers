@@ -320,12 +320,12 @@ void set_frc_enable(u32 en)
 	frc_config_reg_value(en, BIT_0, &regdata_topctl_3f01);
 	WRITE_FRC_REG_BY_CPU(FRC_TOP_CTRL, regdata_topctl_3f01);
 	if (en == 1) {
+		if (READ_FRC_REG(FRC_REG_TOP_CTRL7) & 0xFFFFFFFF) {
+			PR_FRC("CTRL7 error\n");
+			regdata_top_ctl_0007 = 0;
+			WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL7, regdata_top_ctl_0007);
+		}
 		if (chip == ID_T3X) {
-			if (READ_FRC_REG(FRC_REG_TOP_CTRL7) & 0xFFFFFFFF) {
-				PR_ERR("CTRL7 error\n");
-				regdata_top_ctl_0007 = 0;
-				WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL7, regdata_top_ctl_0007);
-			}
 			WRITE_FRC_REG_BY_CPU(FRC_AUTO_RST_SEL, 0x3c);
 			WRITE_FRC_REG_BY_CPU(FRC_SYNC_SW_RESETS, 0x3c);
 			WRITE_FRC_REG_BY_CPU(FRC_SYNC_SW_RESETS, 0);
