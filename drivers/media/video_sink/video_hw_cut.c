@@ -8732,6 +8732,8 @@ void video_secure_set(u8 vpp_index)
 	int i;
 	u32 secure_src = 0;
 	u32 secure_enable = 0;
+	u32 video_enable = 0;
+	static bool disable_update = true;
 	struct video_layer_s *layer = NULL;
 
 	for (i = 0; i < MAX_VD_LAYERS; i++) {
@@ -8756,8 +8758,18 @@ void video_secure_set(u8 vpp_index)
 			else if (layer->layer_id == 2)
 				secure_src |= VD3_INPUT_SECURE;
 		}
+		video_enable |= layer->enabled;
 	}
-	secure_config(VIDEO_MODULE, secure_src, vpp_index);
+	if (video_enable) {
+		secure_config(VIDEO_MODULE, secure_src, vpp_index);
+		disable_update = true;
+	} else {
+		if (disable_update) {
+			secure_config(VIDEO_MODULE, secure_src, vpp_index);
+			disable_update = false;
+		}
+	}
+
 #endif
 }
 
