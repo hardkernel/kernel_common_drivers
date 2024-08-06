@@ -2767,9 +2767,10 @@ RESTART:
 		filter->vpp_horz_coeff =
 			filter_table[filter->vpp_horz_filter];
 	}
-
-	pre_scaler[input->layer_id].pre_vscaler_rate = 0;
-	filter->vpp_pre_vsc_ratio = 0;
+	if (cur_dev->vd1_vsr_safa_support) {
+		pre_scaler[input->layer_id].pre_vscaler_rate = 0;
+		filter->vpp_pre_vsc_ratio = 0;
+	}
 	/*pre hsc&vsc in pps for scaler down*/
 	if (cur_dev->vd1_vsr_safa_support &&
 		((filter->vpp_vsc_start_phase_step >= 0x2000000 &&
@@ -2809,9 +2810,10 @@ RESTART:
 	} else {
 		filter->vpp_pre_vsc_en = 0;
 	}
-
-	pre_scaler[input->layer_id].pre_hscaler_rate = 0;
-	filter->vpp_pre_hsc_ratio = 0;
+	if (cur_dev->vd1_vsr_safa_support) {
+		pre_scaler[input->layer_id].pre_hscaler_rate = 0;
+		filter->vpp_pre_hsc_ratio = 0;
+	}
 	if (cur_dev->vd1_vsr_safa_support &&
 		((filter->vpp_hsc_start_phase_step >= 0x2000000 &&
 		pre_scaler_en) ||
