@@ -478,6 +478,8 @@ struct rx_aml_phy {
 	int hyper_gain_en;
 	int eye_height_min;
 	int buf_gain;
+	/* bit[3:0]:pll bw,bit[4:7]:phy bw, bit'8 enable bit */
+	u32 force_bw;
 };
 
 struct rx_aml_phy_21 {

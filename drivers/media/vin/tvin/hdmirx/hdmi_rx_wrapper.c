@@ -331,6 +331,7 @@ void hdmirx_phy_var_init(void)
 			rx_info.aml_phy_21.pre_int_en = 0x0;
 		}
 	}
+	rx_info.aml_phy.force_bw = 0x0;
 }
 
 void hdmirx_fsm_var_init(void)
@@ -3851,6 +3852,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(rx_info.aml_phy_21.pre_int, i++);
 	pr_var(rx_info.aml_phy_21.pre_int_en, i++);
 	pr_var(rx_info.aml_phy_21.rterm_dbg_lvl, i++);
+	pr_var(rx_info.aml_phy.force_bw, i++);
 	pr_var(tuning_cnt, i++);
 	pr_var(frl_scrambler_en, i++);
 	pr_var(ext_cnt, i++);
@@ -4503,6 +4505,9 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy_21.rterm_dbg_lvl),
 		&rx_info.aml_phy_21.rterm_dbg_lvl, value))
 		return pr_var(rx_info.aml_phy_21.rterm_dbg_lvl, index);
+	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy.force_bw),
+		&rx_info.aml_phy.force_bw, value))
+		return pr_var(rx_info.aml_phy.force_bw, index);
 	return 0;
 }
 

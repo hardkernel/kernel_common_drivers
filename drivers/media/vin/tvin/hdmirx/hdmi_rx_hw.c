@@ -6293,7 +6293,7 @@ u32 aml_cable_clk_band(u32 cable_clk, u32 clk_rate)
 	if (rx_info.chip_id >= CHIP_ID_T5M) {
 		if (cab_clk < (37 * MHz))
 			bw = PHY_BW_0;
-		else if (cab_clk < (75 * MHz))
+		else if (cab_clk < (74.625 * MHz))
 			bw = PHY_BW_1;
 		else if (cab_clk < (115 * MHz))
 			bw = PHY_BW_2;
@@ -6310,7 +6310,7 @@ u32 aml_cable_clk_band(u32 cable_clk, u32 clk_rate)
 	} else {
 		if (cab_clk < (45 * MHz))
 			bw = PHY_BW_0;
-		else if (cab_clk < (77 * MHz))
+		else if (cab_clk < (74.625 * MHz))
 			bw = PHY_BW_1;
 		else if (cab_clk < (155 * MHz))
 			bw = PHY_BW_2;
@@ -6323,6 +6323,8 @@ u32 aml_cable_clk_band(u32 cable_clk, u32 clk_rate)
 		else
 			bw = PHY_BW_2;
 	}
+	if (rx_info.aml_phy.force_bw & 0x100)
+		bw = (rx_info.aml_phy.force_bw >> 4) & 0xf;
 	return bw;
 }
 
@@ -6338,7 +6340,7 @@ u32 aml_phy_pll_band(u32 cable_clk, u32 clk_rate)
 	if (rx_info.chip_id >= CHIP_ID_T5M) {
 		if (cab_clk < (37 * MHz))
 			bw = PLL_BW_0;
-		else if (cab_clk < (75 * MHz))
+		else if (cab_clk < (74.625 * MHz))
 			bw = PLL_BW_1;
 		else if (cab_clk < (150 * MHz))
 			bw = PLL_BW_2;
@@ -6352,7 +6354,7 @@ u32 aml_phy_pll_band(u32 cable_clk, u32 clk_rate)
 		if (cab_clk < (35 * MHz))
 			bw = PLL_BW_0;
 		//CVT 1280X720 is 77M
-		else if (cab_clk < (75 * MHz))
+		else if (cab_clk < (74.625 * MHz))
 			bw = PLL_BW_1;
 		else if (cab_clk < (155 * MHz))
 			bw = PLL_BW_2;
@@ -6363,6 +6365,8 @@ u32 aml_phy_pll_band(u32 cable_clk, u32 clk_rate)
 		else
 			bw = PLL_BW_2;
 	}
+	if (rx_info.aml_phy.force_bw & 0x100)
+		bw = rx_info.aml_phy.force_bw & 0xf;
 	return bw;
 }
 
