@@ -912,7 +912,7 @@ u32 hdmitx_get_frl_bandwidth(const enum frl_rate_enum rate)
 	};
 
 	if (rate > FRL_12G4L)
-		return 0;
+		return frl_bandwidth[FRL_12G4L];
 	return frl_bandwidth[rate];
 }
 
