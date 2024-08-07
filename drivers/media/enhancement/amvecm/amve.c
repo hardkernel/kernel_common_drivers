@@ -3104,10 +3104,16 @@ void sharpness_gain_update(int vpp_index)
 {
 	if (vecm_latch_flag2 & SHARPNESS_GAIN_UPDATE) {
 		if (chip_type_id != chip_t3x) {
-			VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_FINALGAIN_HP_BP,
-				sr_gain[0], 0, 16);
-			VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_FINALGAIN_HP_BP,
-				sr_gain[0], 0, 16);
+			if (chip_type_id == chip_s6 ||
+				chip_type_id == chip_s7d) {
+				VSYNC_WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN,
+					sr_gain[0], 0, 16);
+			} else {
+				VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_FINALGAIN_HP_BP,
+					sr_gain[0], 0, 16);
+				VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_FINALGAIN_HP_BP,
+					sr_gain[0], 0, 16);
+			}
 		} else {
 			ve_sharpness_gain_set(sr_gain[0], sr_gain[1],
 				WR_DMA, vpp_index);
