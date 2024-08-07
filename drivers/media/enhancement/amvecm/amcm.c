@@ -395,6 +395,10 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 							sr_addr_offset,
 							p->am_reg[i].val);
 				}
+
+				if (chip_type_id == chip_s6 ||
+					chip_type_id == chip_s7d)
+					aipq_base_peaking_param(addr, mask, val);
 #endif
 			} else {
 				if (addr == VPP_MISC)
