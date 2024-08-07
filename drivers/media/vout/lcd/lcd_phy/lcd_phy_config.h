@@ -43,6 +43,7 @@ struct lcd_phy_ctrl_s *lcd_phy_config_init_tl1(struct aml_lcd_drv_s *pdrv);
 struct lcd_phy_ctrl_s *lcd_phy_config_init_t3x(struct aml_lcd_drv_s *pdrv);
 struct lcd_phy_ctrl_s *lcd_phy_config_init_txhd2(struct aml_lcd_drv_s *pdrv);
 struct lcd_phy_ctrl_s *lcd_phy_config_init_s6(struct aml_lcd_drv_s *pdrv);
+struct lcd_phy_ctrl_s *lcd_phy_config_init_t6d(struct aml_lcd_drv_s *pdrv);
 unsigned int lcd_phy_vswing_level_to_value_dft(struct aml_lcd_drv_s *pdrv, unsigned int level);
 unsigned int lcd_phy_preem_level_to_value_dft(struct aml_lcd_drv_s *pdrv, unsigned int level);
 unsigned int lcd_phy_amp_dft(struct aml_lcd_drv_s *pdrv);

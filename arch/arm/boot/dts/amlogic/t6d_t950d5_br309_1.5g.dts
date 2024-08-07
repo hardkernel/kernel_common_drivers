@@ -8,7 +8,7 @@
 #include "mesont6d.dtsi"
 #include "mesont6d_drm.dtsi"
 #include "firmware_ab.dtsi"
-#include "mesont6d_pxp-panel.dtsi"
+#include "mesont6d-panel.dtsi"
 
 / {
 	amlogic-dt-id = "t6d_t950d5_br309-1.5g";
