@@ -37,13 +37,14 @@ def define_common_amlogic(
         make_goals = None,
         define_abi_targets = None,
         kmi_symbol_list = None,
+        additional_kmi_symbol_lists = None,
         kmi_symbol_list_add_only = None,
         module_grouping = None,
         unstripped_modules_archive = None,
         dist_dir = None,
         ext_modules = None,
-	kconfig_ext = None,
-	kconfig_ext_srcs = None):
+        kconfig_ext = None,
+        kconfig_ext_srcs = None):
     """Define target for amlogic.
 
     Note: This is a mixed build.
@@ -96,6 +97,7 @@ def define_common_amlogic(
         # pre_defconfig_fragments = ["arch/arm64/configs/amlogic_gki.fragment"],
         # check_defconfig = "disabled",
         kmi_symbol_list = kmi_symbol_list,
+        additional_kmi_symbol_lists = additional_kmi_symbol_lists,
         collect_unstripped_modules = _COLLECT_UNSTRIPPED_MODULES,
         strip_modules = True,
         make_goals = make_goals,

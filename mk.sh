@@ -133,18 +133,18 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		echo "# SPDX-License-Identifier: GPL-2.0" 	>  ${PROJECT_DIR}/build.config.project
 		echo 						>> ${PROJECT_DIR}/build.config.project
 	fi
-	echo "FATLOAD=${FATLOAD}" 		>>  ${PROJECT_DIR}/build.config.project
+	echo "FATLOAD=${FATLOAD}" 				>>  ${PROJECT_DIR}/build.config.project
 
 	[[ -f ${PROJECT_DIR}/build.config.gki10 ]] || touch ${PROJECT_DIR}/build.config.gki10
-	echo "# SPDX-License-Identifier: GPL-2.0" 	>  ${PROJECT_DIR}/build.config.gki10
-	echo 						>> ${PROJECT_DIR}/build.config.gki10
-	echo "GKI_CONFIG=${GKI_CONFIG}"			>> ${PROJECT_DIR}/build.config.gki10
-	echo "ANDROID_PROJECT=${ANDROID_PROJECT}"	>> ${PROJECT_DIR}/build.config.gki10
-	echo "COMMON_DRIVERS_DIR=${COMMON_DRIVERS_DIR}" >> ${PROJECT_DIR}/build.config.gki10
-	echo "UPGRADE_PROJECT=${UPGRADE_PROJECT}"	>> ${PROJECT_DIR}/build.config.gki10
-	echo "DEV_CONFIGS=\"${DEV_CONFIGS}\""		>> ${PROJECT_DIR}/build.config.gki10
-	echo "KASAN=${KASAN}"				>> ${PROJECT_DIR}/build.config.gki10
-	echo "CHECK_GKI_20=${CHECK_GKI_20}"		>> ${PROJECT_DIR}/build.config.gki10
+	echo "# SPDX-License-Identifier: GPL-2.0" 		>  ${PROJECT_DIR}/build.config.gki10
+	echo 							>> ${PROJECT_DIR}/build.config.gki10
+	echo "GKI_CONFIG=${GKI_CONFIG}"				>> ${PROJECT_DIR}/build.config.gki10
+	echo "ANDROID_PROJECT=${ANDROID_PROJECT}"		>> ${PROJECT_DIR}/build.config.gki10
+	echo "COMMON_DRIVERS_DIR=${COMMON_DRIVERS_DIR}" 	>> ${PROJECT_DIR}/build.config.gki10
+	echo "UPGRADE_PROJECT=${UPGRADE_PROJECT}"		>> ${PROJECT_DIR}/build.config.gki10
+	echo "DEV_CONFIGS=\"${DEV_CONFIGS}\""			>> ${PROJECT_DIR}/build.config.gki10
+	echo "KASAN=${KASAN}"					>> ${PROJECT_DIR}/build.config.gki10
+	echo "CHECK_GKI_20=${CHECK_GKI_20}"			>> ${PROJECT_DIR}/build.config.gki10
 
 	if [[ -z ${ANDROID_PROJECT} ]]; then
 		[[ -f ${PROJECT_DIR}/Kconfig.ext_modules ]] && rm -rf ${PROJECT_DIR}/Kconfig.ext_modules
@@ -162,7 +162,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		echo "]" 					>> ${PROJECT_DIR}/project.bzl
 
 		echo 						>> ${PROJECT_DIR}/project.bzl
-		echo "MODULES_OUT_REMOVE = [" 		>> ${PROJECT_DIR}/project.bzl
+		echo "MODULES_OUT_REMOVE = [" 			>> ${PROJECT_DIR}/project.bzl
 		echo "]" 					>> ${PROJECT_DIR}/project.bzl
 
 		echo 						>> ${PROJECT_DIR}/project.bzl
@@ -174,9 +174,13 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		echo "]" 					>> ${PROJECT_DIR}/project.bzl
 	fi
 
-	echo 						>> ${PROJECT_DIR}/project.bzl
+	echo 							>> ${PROJECT_DIR}/project.bzl
+	sed -i "/FULL_KERNEL_VERSION/d" ${PROJECT_DIR}/project.bzl
+	echo "FULL_KERNEL_VERSION = \"${FULL_KERNEL_VERSION}\"" >> ${PROJECT_DIR}/project.bzl
+
+	echo 							>> ${PROJECT_DIR}/project.bzl
 	sed -i "/ANDROID_PROJECT/d" ${PROJECT_DIR}/project.bzl
-	echo "ANDROID_PROJECT = \"${ANDROID_PROJECT}\"" >> ${PROJECT_DIR}/project.bzl
+	echo "ANDROID_PROJECT = \"${ANDROID_PROJECT}\"" 	>> ${PROJECT_DIR}/project.bzl
 
 	sed -i "/ANDROID_MODULE/d" ${PROJECT_DIR}/project.bzl
 	if [[ -n ${ANDROID_PROJECT} && -z ${FATLOAD} ]]; then
@@ -186,24 +190,24 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	fi
 
 	sed -i "/GKI_CONFIG/d" ${PROJECT_DIR}/project.bzl
-	echo "GKI_CONFIG = \"${GKI_CONFIG}\""		>> ${PROJECT_DIR}/project.bzl
+	echo "GKI_CONFIG = \"${GKI_CONFIG}\""			>> ${PROJECT_DIR}/project.bzl
 
 	sed -i "/UPGRADE_PROJECT/d" ${PROJECT_DIR}/project.bzl
-	echo "UPGRADE_PROJECT = \"${UPGRADE_PROJECT}\"" >> ${PROJECT_DIR}/project.bzl
+	echo "UPGRADE_PROJECT = \"${UPGRADE_PROJECT}\"" 	>> ${PROJECT_DIR}/project.bzl
 
-	echo "DTBO_DEVICETREE = ["			>> ${PROJECT_DIR}/project.bzl
+	echo "DTBO_DEVICETREE = ["				>> ${PROJECT_DIR}/project.bzl
 	if [[ -n ${DTBO_DEVICETREE} ]]; then
-		echo "    \"${DTBO_DEVICETREE}\","	>> ${PROJECT_DIR}/project.bzl
+		echo "    \"${DTBO_DEVICETREE}\","		>> ${PROJECT_DIR}/project.bzl
 	fi
-	echo "]"					>> ${PROJECT_DIR}/project.bzl
+	echo "]"						>> ${PROJECT_DIR}/project.bzl
 
 	[[ -f ${PROJECT_DIR}/dtb.bzl ]] || touch ${PROJECT_DIR}/dtb.bzl
-	echo "# SPDX-License-Identifier: GPL-2.0" 	>  ${PROJECT_DIR}/dtb.bzl
-	echo 						>> ${PROJECT_DIR}/dtb.bzl
+	echo "# SPDX-License-Identifier: GPL-2.0" 		>  ${PROJECT_DIR}/dtb.bzl
+	echo 							>> ${PROJECT_DIR}/dtb.bzl
 
-	echo "AMLOGIC_DTBS = ["				>> ${PROJECT_DIR}/dtb.bzl
+	echo "AMLOGIC_DTBS = ["					>> ${PROJECT_DIR}/dtb.bzl
 	cat  ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/${ARCH}/boot/dts/amlogic/Makefile | grep -n "dtb" | cut -d "=" -f 2 | sed 's/[[:space:]][[:space:]]*/ /g' | sed 's/^[ ]*//' | sed 's/[ ]*$//' | sed '/^#/d;/^$/d' | sed 's/^/    "/' | sed 's/$/",/' | uniq >> ${PROJECT_DIR}/dtb.bzl
-	echo "]"					>> ${PROJECT_DIR}/dtb.bzl
+	echo "]"						>> ${PROJECT_DIR}/dtb.bzl
 
 	if [[ "${GKI_CONFIG}" != "gki_20" || -n ${KASAN} || -z ${ANDROID_PROJECT} || -n ${FATLOAD} ]]; then
 		args="${args} --gki_build_config_fragment=//common_drivers:amlogic_build_config_fragment"
