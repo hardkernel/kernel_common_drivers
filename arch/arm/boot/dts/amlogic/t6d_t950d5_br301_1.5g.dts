@@ -72,7 +72,7 @@
 			irq-size = <0x1000>;
 			smc-size = <0x1000>;
 			misc-size = <0x1000>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		secmon_reserved:linux,secmon {
