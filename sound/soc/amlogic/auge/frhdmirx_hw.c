@@ -327,6 +327,15 @@ void arc_earc_source_select(int src)
 					audiobus_update_bits(EE_AUDIO_SPDIFOUT_MUX,
 							0x1 << 1, 0 << 1);
 			}
+			if (version == T6D_ARC) {
+				/*arc connect spdifa default for hardware*/
+				if (src == SPDIFA_TO_HDMIRX)
+					audiobus_update_bits(EE_AUDIO_SPDIFOUT_MUX,
+							0x0 << 1, 0 << 1);
+				if (src == SPDIFB_TO_HDMIRX)
+					audiobus_update_bits(EE_AUDIO_SPDIFOUT_MUX,
+							0x1 << 1, 1 << 1);
+			}
 #endif
 		}
 	} else {

@@ -79,6 +79,16 @@ config AMLOGIC_SND_CODEC_TL1_ACODEC
 	  AML tl1 acodec,
 	  this codec is internal
 
+config AMLOGIC_SND_CODEC_T6D_ACODEC
+	tristate "Amlogic Audio t6D acodec"
+	depends on AMLOGIC_SND_SOC_CODECS
+	default n
+	help
+	  Amlogic Audio codec,
+	  AML t6d acodec,
+	  AML t6d acodec,
+	  this codec is internal
+
 config AMLOGIC_SND_CODEC_A1_ACODEC
 	tristate "Amlogic Audio A1 acodec"
 	depends on AMLOGIC_SND_SOC_CODECS
@@ -254,5 +264,4 @@ config AMLOGIC_SND_SOC_CS42528
 	  Select this if your CS425X8 is connected via an I2C bus.
 	  Enable Support for Cirrus Logic CS42528 CODEC.
 	  Select this if your CS42528 is connected via an I2C bus.
-
 #endif #AMLOGIC_SND_SOC_CODECS

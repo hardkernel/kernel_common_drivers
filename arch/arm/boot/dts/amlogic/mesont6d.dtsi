@@ -8,7 +8,6 @@
 #include <dt-bindings/reset/amlogic,meson-t6d-reset.h>
 #include <dt-bindings/clock/t6d-clkc.h>
 #include <dt-bindings/clock/t6d-scmi-clkc.h>
-#include <dt-bindings/clock/amlogic,t3-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-t6d-gpio.h>
 #include <dt-bindings/power/t5m-pd.h>
@@ -730,12 +729,6 @@
 		};
 	};
 
-	dolby_fw: dolby_fw {
-		compatible = "amlogic, dolby_fw";
-		mem_size = <0x100000>;
-		status = "okay";
-	};
-
 	shmem@50f7e00 {
 		compatible = "mmio-sram";
 		reg = <0x50f7e00 0x100>;
@@ -1196,13 +1189,6 @@
 			no-sdio;
 			//resets = <&reset RESET_SD_EMMC_B>;
 		};
-
-		dummy_codec:dummy{
-			#sound-dai-cells = <0>;
-			compatible = "amlogic, aml_dummy_codec";
-			status = "disabled";
-		};
-
 		video_composer {
 			compatible = "amlogic, video_composer";
 			dev_name = "video_composer";
@@ -1214,99 +1200,6 @@
 			dev_name = "di_process";
 			status = "okay";
 		};
-
-		acodec:codec {
-			#sound-dai-cells = <0>;
-			compatible = "amlogic, t5w_acodec";
-			status = "disabled";
-			reg = <0xfe01a000 0x1c>;
-			tdmout_index = <1>;
-			tdmin_index = <1>;
-			dat0_ch_sel = <2>;
-			lane_offset = <4>;
-			reset-names = "acodec";
-			resets = <&reset RESET_ACODEC>;
-		};
-
-		audio_data: audio_data {
-			compatible = "amlogic, audio_data";
-			mem_in_base_cmd = <0x82000020>;
-			query_licence_cmd = <0x82000050>;
-			status = "disabled";
-		};
-
-		amaudio: amaudio {
-			compatible = "amlogic, amaudio";
-			reg = <0xfe440000 0x10000>;
-			reg-names = "otp_tee_base";
-			status = "disabled";
-		};
-
-		audiobus: audiobus@0xFE330000 {
-			compatible = "amlogic, audio-controller", "simple-bus";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			reg = <0xFE330000 0x3000>;
-			ranges = <0x0 0xFE330000 0x3000>;
-			chip_id = <0x41>;
-			clkaudio:audio_clocks {
-				compatible = "amlogic, t5m-audio-clocks";
-				#clock-cells = <1>;
-				reg = <0x0 0xb0>;
-			};
-			ddr_manager {
-				compatible =
-					"amlogic, t5-audio-ddr-manager";
-				interrupts = <
-					GIC_SPI 32 IRQ_TYPE_EDGE_RISING
-					GIC_SPI 33 IRQ_TYPE_EDGE_RISING
-					GIC_SPI 34 IRQ_TYPE_EDGE_RISING
-					GIC_SPI 45 IRQ_TYPE_EDGE_RISING
-					GIC_SPI 36 IRQ_TYPE_EDGE_RISING
-					GIC_SPI 37 IRQ_TYPE_EDGE_RISING
-					GIC_SPI 38 IRQ_TYPE_EDGE_RISING
-					GIC_SPI 46 IRQ_TYPE_EDGE_RISING
-				>;
-				interrupt-names =
-					"toddr_a", "toddr_b", "toddr_c",
-					"toddr_d",
-					"frddr_a", "frddr_b", "frddr_c",
-					"frddr_d";
-			};
-			pcpd_monitor_a: pcpd_monitor@0 {
-				compatible = "amlogic, pcpda_monitor";
-				/*regbase:0xFE330000 + 0x3b0 << 2*/
-				/*size 0x28 byte*/
-				reg =<0xec0 0x28>;
-				reg-names = "pcpd_reg";
-				interrupts = <GIC_SPI 149
-					IRQ_TYPE_EDGE_RISING>;
-				interrupt-names = "irq_pcpd";
-				status = "disabled";
-			};
-			pcpd_monitor_b: pcpd_monitor@1 {
-				compatible = "amlogic, pcpdb_monitor";
-				reg =<0xf00 0x28>;
-				reg-names = "pcpd_reg";
-				interrupts = <GIC_SPI 148
-					IRQ_TYPE_EDGE_RISING>;
-				interrupt-names = "irq_pcpd";
-				status = "disabled";
-			};
-
-			pinctrl_audio: pinctrl {
-				compatible = "amlogic, audio-pinctrl";
-			};
-
-			extn:extn {
-				compatible = "amlogic, t5m-snd-extn";
-				#sound-dai-cells = <0>;
-				interrupts = <GIC_SPI 42 IRQ_TYPE_EDGE_RISING>;
-				interrupt-names = "irq_frhdmirx";
-				status = "disabled";
-			};
-		};/* end of audiobus*/
-
 		vpu: vpu {
 			compatible = "amlogic, vpu-t6d";
 			status = "okay";
@@ -1458,85 +1351,6 @@
 				status = "disabled";
 			};
 		};
-
-		/* eARC */
-		audio_earc: bus@fe333000 {
-			compatible = "simple-bus";
-			reg = <0xfe333000 0x1000>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0x0 0x0 0x0 0xfe333000 0x0 0x1000>;
-			earc: earc@0 {
-				compatible = "amlogic, t5m-snd-earc";
-				#sound-dai-cells = <0>;
-
-				status = "disabled";
-
-				reg =<0x0 0x400>,
-					<0x400 0x200>,
-					<0x600 0x200>;
-				reg-names = "tx_cmdc",
-						"tx_dmac",
-						"tx_top";
-				clocks = < &clkaudio CLKID_EARCTX_CMDC
-						&clkaudio CLKID_EARCTX_DMAC
-						&clkc CLKID_FCLK_DIV4
-						&clkc CLKID_HIFI_PLL
-						&clkc CLKID_HIFI_PLL
-						>;
-				clock-names =
-						"tx_cmdc",
-						"tx_dmac",
-						"tx_cmdc_srcpll",
-						"tx_dmac_srcpll",
-						"clk_src_cd";
-
-				interrupts = <
-						GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names ="earc_tx";
-			};
-		};
-
-		//hdmirx arc
-		hdmirx_arc {
-			compatible = "amlogic, hdmirx-arc-iomap";
-			reg = <0xfe39c000 0x3>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0x0 0x0 0x0 0xfe39c000 0x0 0x3>;
-			reg-names = "hdmirx-arc";
-		};
-
-		/* Sound iomap */
-		aml_snd_iomap {
-			compatible = "amlogic, snd-iomap";
-			status = "disabled";
-			#address-cells=<1>;
-			#size-cells=<1>;
-			ranges;
-			pdm_bus {
-				reg = <0xFE331000 0x400>;
-			};
-			audiobus_base {
-				reg = <0xFE330000 0x1000>;
-			};
-			audiolocker_base {
-				reg = <0xFE331400 0x400>;
-			};
-			eqdrc_base {
-				reg = <0xFE332000 0x1000>;
-			};
-			vad_base {
-				reg = <0xFE331800 0x400>;
-			};
-			resampleA_base {
-				reg = <0xFE331c00 0x104>;
-			};
-			resampleB_base {
-				reg = <0xFE334000 0x104>;
-			};
-		};
-
 	};
 	aml_bt: aml_bt {
 		compatible = "amlogic, aml-bt";
@@ -2399,44 +2213,6 @@
 		};
 	};
 
-	pdmin: pdmin {
-		mux { /* GPIOH_19, GPIOH_18 */
-			groups = "pdm_dclk_h19",
-				"pdm_din0_h18",
-				"pdm_din1_h14";
-			function = "pdm";
-		};
-	};
-
-	spdif_out_a_z19_pins: spdifout_a {
-		mux { /* GPIOZ_19 */
-			groups = "spdif_out_a_z19";
-			function = "spdif_out_a";
-		};
-	};
-
-	spdifout_z19_mute: spdifout_a_mute {
-		mux { /* GPIOZ-19*/
-			groups = "GPIOZ_19";
-			function = "gpio_periphs";
-			output-low;
-		};
-	};
-
-	mclk_1_h_pins: mclk_1_h_pin {
-		mux { /* GPIOH_14 */
-			groups = "mclk_1_h";
-			function = "mclk";
-		};
-	};
-
-	spdifin_m29_pins: spdifin {
-		mux { /* GPIOM_29 */
-			groups = "spdif_in_m";
-			function = "spdif_in";
-		};
-	};
-
 	/* sdemmc portB */
 	sd_clk_cmd_pins:sd_clk_cmd_pins {
 		mux {
@@ -2875,28 +2651,6 @@
 			groups = "ir_in_a";
 			function = "ir";
 			bias-disable;
-		};
-	};
-
-	spdifout_z: spdifout_z {
-		mux { /* GPIOZ_19 */
-			groups = "spdif_out_z19";
-			function = "spdif_out";
-		};
-	};
-
-	spdifout_z_mute: spdifout_z_mute {
-		 mux { /* GPIOZ_19 */
-			groups = "GPIOZ_19";
-			function = "gpio_periphs";
-			output-low;
-		};
-	};
-
-	mclk_1_pins: mclk_1_pin {
-	     mux { /* GPIOH_14 */
-			groups = "mclk_1_h";
-			function = "mclk";
 		};
 	};
 

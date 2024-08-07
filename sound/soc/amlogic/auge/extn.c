@@ -1186,6 +1186,13 @@ struct extn_chipinfo txhd2_extn_chipinfo = {
 	.PAO_channel_sync = false,
 	.frhdmirx_version = T7_FRHDMIRX,
 };
+
+struct extn_chipinfo t6d_extn_chipinfo = {
+	.arc_version	= T6D_ARC,
+	.PAO_channel_sync = false,
+	.frhdmirx_version = T7_FRHDMIRX,
+};
+
 #endif
 
 static const struct of_device_id extn_device_id[] = {
@@ -1214,6 +1221,10 @@ static const struct of_device_id extn_device_id[] = {
 	{
 		.compatible = "amlogic, txhd2-snd-extn",
 		.data       = &txhd2_extn_chipinfo,
+	},
+	{
+		.compatible = "amlogic, t6d-snd-extn",
+		.data       = &t6d_extn_chipinfo,
 	},
 #endif
 	{}

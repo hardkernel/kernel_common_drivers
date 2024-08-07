@@ -32,6 +32,12 @@ obj-$(CONFIG_AMLOGIC_SND_CODEC_TL1_ACODEC) += $(MODULE_NAME_TL1).o
 CFLAGS_aml_codec_tl1_acodec.o += $(PR_FMT_DEFINE_TL1)
 $(MODULE_NAME_TL1)-y += aml_codec_tl1_acodec.o
 
+MODULE_NAME_T6D = amlogic-snd-codec-t6d
+PR_FMT_T6D = $(subst amlogic-,,$(MODULE_NAME_T6D))
+PR_FMT_DEFINE_T6D = "-Dpr_fmt(fmt)= \"[$(PR_FMT_T6D)]: \" fmt"
+obj-$(CONFIG_AMLOGIC_SND_CODEC_T6D_ACODEC) += $(MODULE_NAME_T6D).o
+CFLAGS_aml_codec_t6d_acodec.o += $(PR_FMT_DEFINE_T6D)
+$(MODULE_NAME_T6D)-y += aml_codec_t6d_acodec.o
 
 #Third part codecs
 MODULE_NAME_AD82584F = amlogic-snd-codec-ad82584f
