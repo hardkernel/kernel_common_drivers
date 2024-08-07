@@ -945,7 +945,7 @@
 
 	atv-demod {
 		compatible = "amlogic, atv-demod";
-		status = "disabled";
+		status = "okay";
 		btsc_sap_mode = <1>;
 		interrupts = <0 94 1>;
 		pinctrl-names="atvdemod_agc_pins";
@@ -958,10 +958,10 @@
 	};
 
 	aml_dtv_demod {
-		compatible = "amlogic, ddemod-t5m";
+		compatible = "amlogic, ddemod-t6d";
 		dev_name = "aml_dtv_demod";
-		status = "disabled";
-		diseqc_name = "sgm_41286";
+		status = "okay";
+		diseqc_name = "TMI8037";
 		pinctrl-names="if_agc_pins", "diseqc_out", "rf_agc_pins";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
 		pinctrl-1=<&diseqc_out>;
@@ -971,12 +971,12 @@
 		lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>;
 		interrupts = <GIC_SPI 87 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "demod_isr";
-		power-domains = <&pwrdm PDID_T5M_DEMOD>;
+		power-domains = <&pwrdm PDID_T6D_DEMOD>;
 		clocks = <&clkc CLKID_DEMOD_32K>;
 		clock-names = "demod_32k";
-		reg = <0xfe360000 0x10000	//dtv demod base
+		reg = <0xfe310000 0x10000	//dtv demod base
 			   0xfe000000 0x2000	//hiu reg base
-			   0xff800000 0x1000	//io_aobus_base
+			   0xff800000 0x40000	//io_aobus_base
 			   0xfe002000 0x2000>;	//reset
 
 		spectrum = <1>;
@@ -986,7 +986,7 @@
 	dvb-extern {
 		compatible = "amlogic, dvb-extern";
 		dev_name = "dvb-extern";
-		status = "disabled";
+		status = "okay";
 
 		fe_num = <1>;
 		fe0_demod = "internal";
@@ -1371,7 +1371,7 @@
 };
 
 &i2c0 {
-	status = "disabled";
+	status = "okay";
 	clock-frequency = <300000>;
 	pinctrl-names="default";
 	pinctrl-0=<&i2c0_pins1>;

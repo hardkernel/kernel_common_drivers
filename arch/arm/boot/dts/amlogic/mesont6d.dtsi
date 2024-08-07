@@ -2895,7 +2895,7 @@
 	atvdemod_agc_pins: atvdemod_agc_pins {
 		mux {
 			groups = "atv_if_agc_z6";
-			function = "atv";
+			function = "atv_if_agc";
 		};
 	};
 
