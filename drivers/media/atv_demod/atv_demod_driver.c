@@ -74,7 +74,8 @@
 /* 2024/03/15 --- V3.09 --- Fix afc value sync. */
 /* 2024/03/28 --- V3.10 --- remove more print logs. */
 /* 2024/06/25 --- V3.11 --- Revert "Fix pal bg gde filter and peaking", cause vbi abnormality. */
-#define AMLATVDEMOD_VER "V3.11"
+/* 2024/08/09 --- V4.00 --- t6d bringup */
+#define AMLATVDEMOD_VER "V4.00"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
@@ -679,7 +680,7 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 	} else
 #endif
 	if (is_meson_t3_cpu() || is_meson_t5m_cpu() ||
-		is_meson_t3x_cpu()) {
+		is_meson_t3x_cpu() || is_meson_t6d_cpu()) {
 		dev->audio_reg_base = ioremap(round_down(0xfe33074c, 0x3), 4);
 
 		//pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
