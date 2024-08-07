@@ -110,7 +110,7 @@ adjust_config_action
 build_part_of_kernel
 
 if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BAZEL} == 1 ]]; then
-	args=$@
+	args="$@ --config=stamp"
 	if [[ -n ${FAST_BUILD} ]]; then
 		args="${args} --config=fast --lto=none"
 	else
@@ -120,14 +120,6 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 
 	PROJECT_DIR=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/project
 	[[ -d ${PROJECT_DIR} ]] || mkdir -p ${PROJECT_DIR}
-
-	pushd ${ROOT_DIR}/${KERNEL_DIR}
-	git checkout android/abi_gki_aarch64_amlogic
-	cat ${COMMON_DRIVERS_DIR}/android/${FULL_KERNEL_VERSION}_abi_gki_aarch64_amlogic >> android/abi_gki_aarch64_amlogic
-	cat ${COMMON_DRIVERS_DIR}/android/${FULL_KERNEL_VERSION}_abi_gki_aarch64_amlogic.10 >> android/abi_gki_aarch64_amlogic
-	cat ${COMMON_DRIVERS_DIR}/android/${FULL_KERNEL_VERSION}_abi_gki_aarch64_amlogic.debug >> android/abi_gki_aarch64_amlogic
-	cat ${COMMON_DRIVERS_DIR}/android/${FULL_KERNEL_VERSION}_abi_gki_aarch64_amlogic.illegal >> android/abi_gki_aarch64_amlogic
-	popd
 
 	if [[ ! -f ${PROJECT_DIR}/build.config.project ]]; then
 		touch ${PROJECT_DIR}/build.config.project
@@ -187,6 +179,10 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 			echo "FAST_BUILD = \"\""		>> ${PROJECT_DIR}/project.bzl
 		fi
 	fi
+
+	echo 						>> ${PROJECT_DIR}/project.bzl
+	sed -i "/FULL_KERNEL_VERSION/d" ${PROJECT_DIR}/project.bzl
+	echo "FULL_KERNEL_VERSION = \"${FULL_KERNEL_VERSION}\"" >> ${PROJECT_DIR}/project.bzl
 
 	echo 						>> ${PROJECT_DIR}/project.bzl
 	sed -i "/ANDROID_PROJECT/d" ${PROJECT_DIR}/project.bzl
