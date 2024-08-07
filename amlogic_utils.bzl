@@ -37,6 +37,7 @@ def define_common_amlogic(
         make_goals = None,
         define_abi_targets = None,
         kmi_symbol_list = None,
+	additional_kmi_symbol_lists = None,
         kmi_symbol_list_add_only = None,
         module_grouping = None,
         unstripped_modules_archive = None,
@@ -92,6 +93,7 @@ def define_common_amlogic(
         # Enable mixed build.
         base_kernel = ":kernel_aarch64" if FAST_BUILD else ":kernel_aarch64_download_or_build",
         kmi_symbol_list = None if FAST_BUILD else kmi_symbol_list,
+	additional_kmi_symbol_lists = None if FAST_BUILD else additional_kmi_symbol_lists,
         collect_unstripped_modules = _COLLECT_UNSTRIPPED_MODULES,
         strip_modules = True,
         make_goals = make_goals,
