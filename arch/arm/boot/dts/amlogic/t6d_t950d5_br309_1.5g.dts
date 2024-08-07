@@ -272,93 +272,93 @@
 		pool_size = <0x400000>;
 	};
 
-//	vdd4_2v5_reg: fixedregulator@vdd4_2v5 {
-//		compatible = "regulator-fixed";
-//		vin-supply = <&vddao3v3_reg>;
-//		regulator-name = "DDR4_2.5V";
-//		regulator-min-microvolt = <2500000>;
-//		regulator-max-microvolt = <2500000>;
-//		regulator-boot-on;
-//		regulator-always-on;
-//	};
-//
-//	vddio3v3_reg: fixedregulator@vddio3v3 {
-//		vin-supply = <&vddao3v3_reg>;
-//		compatible = "regulator-fixed";
-//		regulator-name = "VDDIO_3.3V";
-//		regulator-min-microvolt = <3300000>;
-//		regulator-max-microvolt = <3300000>;
-//		pinctrl-names = "default";
-//		gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
-//		startup-delay-us = <70000>;
-//		enable-active-high;
-//		regulator-boot-on;
-//		regulator-always-on;
-//	};
-//
-//	vddio1v8_reg: fixedregulator@vddio1v8 {
-//		vin-supply = <&vddao3v3_reg>;
-//		compatible = "regulator-fixed";
-//		regulator-name = "VDDAO_1.8V";
-//		regulator-min-microvolt = <1800000>;
-//		regulator-max-microvolt = <1800000>;
-//		regulator-boot-on;
-//		regulator-always-on;
-//	};
-//
-//	vddio_m_reg: fixedregulator@vddio_m {
-//		vin-supply = <&vddio3v3_reg>;
-//		compatible = "regulator-fixed";
-//		regulator-name = "VDDIO_M";
-//		regulator-min-microvolt = <3300000>;
-//		regulator-max-microvolt = <3300000>;
-//		regulator-boot-on;
-//		regulator-always-on;
-//	};
-//
-//	afe1v8_reg: fixedregulator@afe1v8 {
-//		vin-supply = <&vddao3v3_reg>;
-//		compatible = "regulator-fixed";
-//		regulator-name = "AFE_1.8V";
-//		regulator-min-microvolt = <1800000>;
-//		regulator-max-microvolt = <1800000>;
-//		regulator-boot-on;
-//		regulator-always-on;
-//	};
-//
-//	afe3v3_reg: fixedregulator@afe3v3 {
-//		vin-supply = <&vddao3v3_reg>;
-//		compatible = "regulator-fixed";
-//		regulator-name = "AFE_3.3V";
-//		regulator-min-microvolt = <3300000>;
-//		regulator-max-microvolt = <3300000>;
-//		pinctrl-names = "default";
-//		gpio = <&gpio GPIOD_4 GPIO_ACTIVE_HIGH>;
-//		startup-delay-us = <70000>;
-//		enable-active-high;
-//		regulator-boot-on;
-//		regulator-always-on;
-//	};
-//
-//	enet1v8_reg: fixedregulator@enet1v8 {
-//		vin-supply = <&afe3v3_reg>;
-//		compatible = "regulator-fixed";
-//		regulator-name = "ENET1_1.8V";
-//		regulator-min-microvolt = <1800000>;
-//		regulator-max-microvolt = <1800000>;
-//		regulator-boot-on;
-//		regulator-always-on;
-//	};
-//
-//	dmic3v3_reg: fixedregulator@dmic3v3 {
-//		vin-supply = <&vddao3v3_reg>;
-//		compatible = "regulator-fixed";
-//		regulator-name = "DMIC_3.3V";
-//		regulator-min-microvolt = <3300000>;
-//		regulator-max-microvolt = <3300000>;
-//		regulator-boot-on;
-//		regulator-always-on;
-//	};
+	vdd4_2v5_reg: fixed@vdd4_2v5_reg {
+		compatible = "regulator-fixed";
+		vin-supply = <&vddao3v3_reg>;
+		regulator-name = "DDR4_2V5";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vcc3v3_reg: fixed@vcc3v3_reg {
+		vin-supply = <&vddao3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		pinctrl-names = "default";
+		gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <7000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddao1v8_reg: fixed@vddao1v8_reg {
+		vin-supply = <&vddao3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDAO_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdd18_boot_reg: fixed@vdd18_boot_reg {
+		vin-supply = <&vcc3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDD18_BOOT";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	avdd1v8_reg: fixed@avdd1v8_reg {
+		vin-supply = <&vddao3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "AVDD1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vdd3v3_reg: fixed@vdd3v3_reg {
+		vin-supply = <&vddao3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		pinctrl-names = "default";
+		gpio = <&gpio GPIOD_4 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <7000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	enet3v3_reg: fixed@enet3v3_reg {
+		vin-supply = <&vdd3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "AVDD33_ENET";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	wifi_5v_reg: fixed@wifi_5v_reg {
+		compatible = "regulator-fixed";
+		vin-supply = <&vcc5v_reg>;
+		regulator-name = "WIFI_5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
 
 	codec_mm {
 		compatible = "amlogic, codec, mm";

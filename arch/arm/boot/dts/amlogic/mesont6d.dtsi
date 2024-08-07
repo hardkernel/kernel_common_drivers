@@ -300,61 +300,61 @@
 		pinctrl-0=<&jtag_a_pins>;
 	};
 
-//	vbat: fixedregulator@vbat {
-//		compatible = "regulator-fixed";
-//		regulator-name = "12V";
-//		regulator-min-microvolt = <12000000>;
-//		regulator-max-microvolt = <12000000>;
-//		regulator-boot-on;
-//		regulator-always-on;
-//	};
+	vbat: fixed@vbat {
+		compatible = "regulator-fixed";
+		regulator-name = "12V";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
 
-//	vcc5v_reg: fixedregulator@vcc5v {
-//		vin-supply = <&vbat>;
-//		compatible = "regulator-fixed";
-//		regulator-name = "5V/VCC_5V";
-//		regulator-min-microvolt = <5000000>;
-//		regulator-max-microvolt = <5000000>;
-//		gpio = <&gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
-//		startup-delay-us = <70000>;
-//		enable-active-high;
-//		regulator-boot-on;
-//		regulator-always-on;
-//	};
-//
-//	usb_5v_reg: fixedregulator@usb_5v{
-//		compatible = "regulator-fixed";
-//		vin-supply = <&vcc5v_reg>;
-//		regulator-name = "USB_5V";
-//		regulator-min-microvolt = <5000000>;
-//		regulator-max-microvolt = <5000000>;
-//		regulator-boot-on;
-//		regulator-always-on;
-//	};
-//
-//	vddq_reg: fixedregulator@vddq {
-//		compatible = "regulator-fixed";
-//		vin-supply = <&vbat>;
-//		regulator-name = "VDDQ";
-//		regulator-min-microvolt = <1220000>;
-//		regulator-max-microvolt = <1220000>;
-//		pinctrl-names = "default";
-//		gpio = <&gpio GPIOD_4 GPIO_ACTIVE_HIGH>;
-//		startup-delay-us = <70000>;
-//		enable-active-high;
-//		regulator-boot-on;
-//		regulator-always-on;
-//	};
-//
-//	vddao3v3_reg: fixedregulator@vddao3v3 {
-//		vin-supply = <&vbat>;
-//		compatible = "regulator-fixed";
-//		regulator-name = "VDDAO_3.3V";
-//		regulator-min-microvolt = <3300000>;
-//		regulator-max-microvolt = <3300000>;
-//		regulator-boot-on;
-//		regulator-always-on;
-//	};
+	vcc5v_reg: fixed@vcc5v_reg {
+		vin-supply = <&vbat>;
+		compatible = "regulator-fixed";
+		regulator-name = "5V/VCC_5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <7000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	usb_5v_reg: fixed@usb_5v_reg {
+		compatible = "regulator-fixed";
+		vin-supply = <&vcc5v_reg>;
+		regulator-name = "USB_5V/OTG_VCC5V,USBBC_PWR";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddq_reg: fixed@vddq_reg {
+		compatible = "regulator-fixed";
+		vin-supply = <&vbat>;
+		regulator-name = "VDDQ";
+		regulator-min-microvolt = <1220000>;
+		regulator-max-microvolt = <1220000>;
+		pinctrl-names = "default";
+		gpio = <&gpio GPIOD_4 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <7000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddao3v3_reg: fixed@vddao3v3_reg {
+		vin-supply = <&vbat>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDAO_3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
 
 	vddcpu0: pwm_b-regulator {
 		compatible = "pwm-regulator";
