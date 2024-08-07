@@ -1148,6 +1148,8 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->disable_h_size = FRC_DISABLE_H_SIZE;
 	devp->disable_v_size = FRC_DISABLE_V_SIZE;
 
+	devp->in_sts.high_freq_en = 1; //pps ajd default open
+
 	if (get_chip_type() == ID_T3X) {
 		devp->in_sts.boot_timestamp_en = 1;
 		devp->vpu_byp_frc_reg_addr = VIU_FRC_MISC;

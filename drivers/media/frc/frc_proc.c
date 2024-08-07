@@ -74,6 +74,7 @@ MODULE_PARM_DESC(sec_flag, "frc debug flag");
 u32 secure_tee_handle;
 
 static int char_flash_check;
+static int notify_frc_signal_to_amvideo(int *char_flash_check);
 
 void frc_fw_initial(struct frc_dev_s *devp)
 {
@@ -1231,6 +1232,15 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 		no_input = true;
 		schedule_work(&devp->frc_secure_work);
 		pr_frc(2, "secure chg reopen\n");
+	}
+
+	/*
+	 * bug, close char-flash(pps adjust) when no_input is true
+	 */
+	if (devp->frc_sts.state != FRC_STATE_ENABLE && char_flash_check) {
+		char_flash_check = 0;
+		devp->in_sts.high_freq_flash = char_flash_check;
+		notify_frc_signal_to_amvideo(&char_flash_check);
 	}
 
 	if (!no_input &&  devp->frc_sts.auto_ctrl &&
@@ -2420,7 +2430,7 @@ void frc_char_flash_check(void)
 
 	if (!devp || !devp->probe_ok || !devp->fw_data)
 		return;
-	if (devp->in_sts.high_freq_en) {
+	if (!devp->in_sts.high_freq_en) {
 		if (devp->in_sts.high_freq_flash) {
 			char_flash_check = 0;
 			devp->in_sts.high_freq_flash = char_flash_check;

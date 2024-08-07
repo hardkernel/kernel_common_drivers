@@ -130,13 +130,14 @@
 // frc_20240626 frc cursor control debug
 // frc_20240704 fix frc clk latency err
 // frc_20240709 frc add crc debug
-// frc_2024-0708 frc adaptive n2m in t5m
+// frc_20240708 frc adaptive n2m in t5m
 // frc_20240711 fix secure mode close frc abnormal
 // frc_20240729 open frc when slt test
 // frc_20240814 clr CTRL7 before frc enable
 // frc_20240815 frc handles NULL pointer call
+// frc_20240819 t5m dlg modify n2m to 1:1
 
-#define FRC_FW_VER			"2024-0819 t5m dlg modify n2m to 1:1"
+#define FRC_FW_VER			"2024-0902 fix pps adjust abnormal (need test)"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
