@@ -2713,6 +2713,26 @@ static void vframe_composer(struct composer_dev *dev)
 			vc_print(dev->index, PRINT_ERROR, "vframe_info_cur NULL\n");
 			return;
 		}
+
+		vc_print(dev->index, PRINT_AXIS,
+			 "=========frame info:==========\n");
+		vc_print(dev->index, PRINT_AXIS,
+			 "frame aixs x,y,w,h: %d %d %d %d\n",
+			 vframe_info_cur->dst_x, vframe_info_cur->dst_y,
+			 vframe_info_cur->dst_w, vframe_info_cur->dst_h);
+		vc_print(dev->index, PRINT_AXIS,
+			 "frame crop t,l,b,r: %d %d %d %d\n",
+			 vframe_info_cur->crop_y, vframe_info_cur->crop_x,
+			 vframe_info_cur->crop_h, vframe_info_cur->crop_w);
+		vc_print(dev->index, PRINT_AXIS,
+			 "frame buffer Width X Height: %d X %d\n",
+			 vframe_info_cur->buffer_w, vframe_info_cur->buffer_h);
+		vc_print(dev->index, PRINT_AXIS,
+			 "frame buffer stride Width X Height: %d X %d\n",
+			 vframe_info_cur->reserved[0], vframe_info_cur->reserved[1]);
+		vc_print(dev->index, PRINT_AXIS,
+			 "===============================\n");
+
 		detect_vf_type(vframe_info_cur, file_vf, &is_dec_vf, &is_v4l_vf);
 		if (vframe_info_cur->source_type == SOURCE_DTV_FIX_TUNNEL)
 			is_fixtunnel = true;
@@ -2816,8 +2836,8 @@ static void vframe_composer(struct composer_dev *dev)
 					addr,
 					vframe_info_cur->buffer_w,
 					vframe_info_cur->buffer_h,
-					vframe_info_cur->reserved[0],
-					vframe_info_cur->reserved[1],
+					vframe_info_cur->buffer_w,
+					vframe_info_cur->buffer_h,
 					1,
 					VICP_COLOR_FORMAT_YUV420,
 					8,
