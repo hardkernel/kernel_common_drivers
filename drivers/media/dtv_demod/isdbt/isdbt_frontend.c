@@ -360,10 +360,14 @@ int dvbt_isdbt_init(struct aml_dtvdemod *demod)
 	demod->demod_status.adc_freq = sys.adc_clk;
 	demod->demod_status.clk_freq = sys.demod_clk;
 
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D)
-		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x507);
-	else
+	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+		if (devp->data->hw_ver == DTVDEMOD_HW_T6D)
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+		else
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x507);
+	} else {
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+	}
 
 	ret = demod_set_sys(demod, &sys);
 

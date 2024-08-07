@@ -1256,7 +1256,7 @@ int dtvdemod_dvbs2_init(struct aml_dtvdemod *demod)
 	demod->auto_flags_trig = 0;
 	demod->last_status = 0;
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_S1A) {
+	if (devp->data->hw_ver == DTVDEMOD_HW_S1A || devp->data->hw_ver == DTVDEMOD_HW_T6D) {
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 	} else {

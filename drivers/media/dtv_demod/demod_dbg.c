@@ -143,6 +143,10 @@ static void get_chip_name(struct amldtvdemod_device_s *devp, char *str)
 		strscpy(str, "S1A", 4);
 		break;
 
+	case DTVDEMOD_HW_T6D:
+		strscpy(str, "T6D", 4);
+		break;
+
 	default:
 		strscpy(str, "UNKNOWN", 8);
 		break;

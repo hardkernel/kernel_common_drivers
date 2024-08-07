@@ -555,7 +555,11 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 		dtvdemod_ddr_reg_write(0x44, dtvdemod_ddr_reg_read(0x44) | 0x00000020);
 		dtvdemod_ddr_reg_write(0x54, dtvdemod_ddr_reg_read(0x54) | 0x00000020);
 		break;
-
+	case DTVDEMOD_HW_T6D:
+		dtvdemod_ddr_reg_write(0x44, dtvdemod_ddr_reg_read(0x44) & 0xffffffdf);
+		usleep_range(8000, 9000);
+		dtvdemod_ddr_reg_write(0x44, dtvdemod_ddr_reg_read(0x44) | 0x00000020);
+		break;
 	default:
 		break;
 	}

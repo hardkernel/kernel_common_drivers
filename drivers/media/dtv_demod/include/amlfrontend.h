@@ -177,6 +177,7 @@
 /*  V3.5.050 fix sfc device lock dvbc 256qam failed*/
 /*  V3.5.051 fix init and sleep flow and state */
 /*  V3.5.052 calibrate the j83b sensitivity value */
+/*  V3.6.000 T6D bringup */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -193,8 +194,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.052"
-#define DTVDEMOD_VER	"2024/08/19: calibrate the j83b sensitivity value"
+#define AMLDTVDEMOD_VER "V3.6.000"
+#define DTVDEMOD_VER	"2024/08/13: T6D bringup"
 #define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -324,7 +325,8 @@ enum dtv_demod_hw_ver_e {
 	DTVDEMOD_HW_T5M,
 	DTVDEMOD_HW_T3X,
 	DTVDEMOD_HW_TXHD2,
-	DTVDEMOD_HW_S1A
+	DTVDEMOD_HW_S1A,
+	DTVDEMOD_HW_T6D
 };
 
 struct ddemod_dig_clk_addr {

@@ -814,8 +814,13 @@ unsigned int dvbt_init(struct aml_dtvdemod *demod)
 	demod->demod_status.clk_freq = sys.demod_clk;
 	demod->last_status = 0;
 
-	dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x704);
-	dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+	if (devp->data->hw_ver == DTVDEMOD_HW_T6D) {
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+	} else {
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x704);
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+	}
 
 	ret = demod_set_sys(demod, &sys);
 
@@ -843,8 +848,13 @@ unsigned int dtvdemod_dvbt2_init(struct aml_dtvdemod *demod)
 	demod->demod_status.clk_freq = sys.demod_clk;
 	demod->last_status = 0;
 
-	dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x704);
-	dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+	if (devp->data->hw_ver == DTVDEMOD_HW_T6D) {
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x700);
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+	} else {
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x704);
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+	}
 
 	ret = demod_set_sys(demod, &sys);
 
