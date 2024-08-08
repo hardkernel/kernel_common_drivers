@@ -709,10 +709,15 @@ unsigned int adp_set_mtn_ctrl10(unsigned int diff, unsigned int dlvel,
 		(frame_diff_avg > small_local_mtn1))
 		rst = combing_very_motion_setting[9];
 	else if (dlvel == 0) {
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
-			rst = 0x01010101;
-		else
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+			if (IS_IC(dil_get_cpuver_flag(), T5DB) ||
+				IS_IC(dil_get_cpuver_flag(), T6D))
+				rst = 0x02020404;
+			else
+				rst = 0x01010101;
+		} else {
 			rst = combing_pure_still_setting[9];
+		}
 	} else if (dlvel == 1)
 		rst = combing_very_motion_setting[9];
 	else {
