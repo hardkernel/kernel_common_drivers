@@ -1957,11 +1957,11 @@
 
 	cpu_tsensor: cpu_tsensor@fe022000 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
+		status = "okay";
 		reg = <0xfe022000 0x50>;
 		tsensor_id = <1>;
 		cal_type = <0x11>;
-		cal_coeff = <324 424 3159 9411>;
+		cal_coeff = <296 396 2757 8526>;
 		rtemp = <120000>;
 		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK>;
@@ -1973,11 +1973,11 @@
 
 	top_tsensor: top_tsensor@fe01c000 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
+		status = "okay";
 		reg = <0xfe01c000 0x50>;
 		tsensor_id = <2>;
 		cal_type = <0x11>;
-		cal_coeff = <324 424 3159 9411>;
+		cal_coeff = <296 396 2757 8526>;
 		rtemp = <120000>;
 		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK>;
@@ -2088,6 +2088,7 @@
 				};
 			};
 		};
+
 		top_thermal: top_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
