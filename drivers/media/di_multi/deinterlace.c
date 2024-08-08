@@ -12166,6 +12166,22 @@ unsigned int dim_get_vpu_clk_ext(void)
 	return get_dim_de_devp()->clkb_max_rate;
 }
 
+void dim_set_vpu_clk_ext(unsigned long clkrate)
+{
+	struct di_dev_s  *de_devp = get_dim_de_devp();
+
+	if (IS_ERR_OR_NULL(de_devp))
+		PR_ERR("%s:not reg\n", __func__);
+	#ifdef CLK_TREE_SUPPORT
+	get_dim_de_devp()->clkb_max_rate = clkrate;
+	if (get_reg_flag_all()) {
+		clk_set_rate(de_devp->vpu_clkb,
+			clkrate);
+		dbg_reg("%s clkrate:%lx\n", __func__, clkrate);
+	}
+	#endif
+}
+
 bool dim_pre_link_state(void)
 {
 	struct di_dev_s  *de_devp = get_dim_de_devp();

@@ -792,6 +792,7 @@ void dim_rdma_exit(void);
 void dim_set_di_flag(void);
 void dim_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev);
 unsigned int dim_get_vpu_clk_ext(void);
+void dim_set_vpu_clk_ext(unsigned long clkrate);
 bool dim_pre_link_state(void);
 bool dim_post_link_state(void);
 bool dim_get_vfm_info(struct afbcd_info *vfm_info);

@@ -53,6 +53,7 @@ struct di_ext_ops {
 	unsigned int (*dim_ic_sub)(void);
 	int (*s_bypass_ch)(int index, bool on);
 	unsigned int (*get_vpu_clkb_ext)(void);
+	void (*set_vpu_clkb_ext)(unsigned long clkrate);
 	bool (*is_pre_link)(void);
 	bool (*is_post_link)(void);
 	int (*set_buffer_num)(unsigned int post, unsigned int pre);
