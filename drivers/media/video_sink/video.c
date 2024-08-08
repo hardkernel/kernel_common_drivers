@@ -5441,6 +5441,17 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 {
 	irqreturn_t ret;
 
+	if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC) {
+		struct timeval t;
+		static ulong last_time;
+		ulong cur_time;
+
+		do_gettimeofday(&t);
+		cur_time = t.tv_sec * 1000000 + t.tv_usec;
+		pr_info("vsync interval:%ldms\n", cur_time - last_time);
+		last_time = cur_time;
+	}
+
 	if (get_lowlatency_mode())
 		put_buffer_proc();
 	lowlatency_vsync_count++;
@@ -5468,6 +5479,17 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 static irqreturn_t vsync_pre_vsync_isr(int irq, void *dev_id)
 {
+	if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC) {
+		struct timeval t;
+		static ulong last_time;
+		ulong cur_time;
+
+		do_gettimeofday(&t);
+		cur_time = t.tv_sec * 1000000 + t.tv_usec;
+		pr_info("pre vsync interval:%ldms\n", cur_time - last_time);
+		last_time = cur_time;
+	}
+
 	prevsync_isr_cpuid = smp_processor_id();
 	if (video_suspend && video_suspend_cycle >= 1) {
 		if (log_out)

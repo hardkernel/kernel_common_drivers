@@ -24,6 +24,10 @@
 #include <linux/ctype.h>
 #include <linux/syscore_ops.h>
 #include <linux/amlogic/media/vpu/vpu.h>
+#include <linux/amlogic/media/frame_provider/tvin/tvin.h>
+#include <linux/amlogic/media/video_sink/video_signal_notify.h>
+#include <linux/amlogic/media/vfm/vframe.h>
+#include <linux/amlogic/media/di/di.h>
 #include "vpu_reg.h"
 #include "vpu.h"
 #include "vpu_ctrl.h"
@@ -169,6 +173,19 @@ static unsigned int vpu_vmod_clk_get(unsigned int vmod)
 	return vpu_clk;
 }
 
+#if !defined(CONFIG_AMLOGIC_MEDIA_DEINTERLACE)
+void dim_set_vpuclkb_ext(unsigned long clkrate)
+{
+}
+#endif
+
+#if !defined(CONFIG_AMLOGIC_MEDIA_VDIN)
+unsigned int get_vdin_status(bool stop_en);
+{
+	return 0;
+}
+#endif
+
 static int vpu_vmod_clk_request(unsigned int vclk, unsigned int vmod)
 {
 	int ret = 0;
@@ -195,8 +212,9 @@ static int vpu_vmod_clk_request(unsigned int vclk, unsigned int vmod)
 		else /* regard as clk_level */
 			clk_level = vclk;
 
-		if (clk_level >= vpu_conf.data->clk_level_max) {
-			VPUERR("%s: set clk is out of supported\n", __func__);
+		if (clk_level >= vpu_conf.data->clk_level_max || !clk_level) {
+			VPUERR("%s: set clk(%d) is out of supported\n",
+			       __func__, clk_level);
 			mutex_unlock(&vpu_clk_mutex);
 			return -1;
 		}
@@ -211,12 +229,31 @@ static int vpu_vmod_clk_request(unsigned int vclk, unsigned int vmod)
 		}
 
 		clk_level = get_vpu_clk_level_max_vmod();
-		VPUPR("%s clk_level:%d vpu_conf.clk_level:%d\n", __func__,
-			clk_level, vpu_conf.clk_level);
+		VPUPR("%s clk_level:%d vpu_conf.clk_level:%d vclk:%d\n",
+		      __func__, clk_level, vpu_conf.clk_level, vclk);
 		if (clk_level != vpu_conf.clk_level) {
-		//mutex_lock(&vpu_clk_mutex);
-			set_vpu_clk(clk_level);
-		//mutex_unlock(&vpu_clk_mutex);
+			struct vpu_clk_info_s vpu_clk_info;
+			int vdin_status;
+			unsigned long new_freq;
+
+			new_freq = get_vpu_clk_freq(clk_level);
+			vpu_clk_info.new_freq = new_freq;
+			if (new_freq == 768000000) {
+				vd_signal_notifier_call_chain(VIDEO_VPU_CLK_CHANGED,
+							      &vpu_clk_info);
+				dim_set_vpuclkb_ext(500000000);
+				/* vdin_status 0:idle 1:vdin 0 worked 2:vdin1 worked */
+				vdin_status = get_vdin_status(1);
+				if (vdin_status || vpu_debug_print_flag)
+					VPUPR("%s, vdin_status:%d\n",
+					      __func__, vdin_status);
+				set_vpu_clk(clk_level);
+			} else if (new_freq == 666666667) {
+				set_vpu_clk(clk_level);
+				dim_set_vpuclkb_ext(666666667);
+				vd_signal_notifier_call_chain(VIDEO_VPU_CLK_CHANGED,
+							      &vpu_clk_info);
+			}
 		}
 
 		mutex_unlock(&vpu_clk_mutex);

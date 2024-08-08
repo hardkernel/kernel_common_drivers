@@ -190,6 +190,7 @@ extern int vpu_reg_table_c3[];
 
 int vpu_chip_valid_check(void);
 
+unsigned long get_vpu_clk_freq(unsigned int clk_level);
 unsigned int get_vpu_clk_level_max_vmod(void);
 unsigned int get_vpu_clk_level_from_venc(unsigned int venc_clk);
 int vpu_clk_apply_dft(unsigned int clk_level);

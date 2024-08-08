@@ -11,6 +11,7 @@
 #define VIDEO_SIGNAL_TYPE_CHANGED   0x0001
 #define VIDEO_SECURE_TYPE_CHANGED   0x0002
 #define VIDEO_INFO_CHANGED          0x0003
+#define VIDEO_VPU_CLK_CHANGED       0x0004
 
 /* video info event flags */
 #define VIDEO_INFO_CHANGE_NONE      0x0000
@@ -31,12 +32,17 @@ struct vd_signal_info_s {
 	enum vd_format_e signal_type;
 	enum vd_format_e vd1_signal_type;
 	enum vd_format_e vd2_signal_type;
-	u32 reversed;
+	u32 reserved;
 };
 
 struct vd_info_s {
 	u32 flags;
-	u32 reversed;
+	u32 reserved;
+};
+
+struct vpu_clk_info_s {
+	ulong new_freq;
+	ulong reserved;
 };
 
 int vd_signal_register_client(struct notifier_block *nb);

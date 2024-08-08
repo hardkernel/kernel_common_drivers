@@ -50,6 +50,16 @@ static unsigned int get_vpu_clk_level(unsigned int video_clk)
 	return clk_level;
 }
 
+unsigned long get_vpu_clk_freq(unsigned int clk_level)
+{
+	unsigned int freq = 0;
+
+	if (clk_level < vpu_conf.data->clk_level_max)
+		freq = vpu_conf.data->clk_table[clk_level].freq;
+
+	return freq;
+}
+
 unsigned int get_vpu_clk_level_from_venc(unsigned int venc_clk)
 {
 	unsigned int clk_level = 0;
@@ -76,7 +86,6 @@ unsigned int get_vpu_clk_level_from_venc(unsigned int venc_clk)
 				}
 			} else {
 				VPUERR("%s unknown video_clk:%d\n", __func__, venc_clk);
-				return -1;
 			}
 		} else {
 			VPUERR("%s unknown overclock_sel:%d\n", __func__, vpu_conf.overclock_sel);
