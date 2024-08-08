@@ -1400,6 +1400,7 @@ void dimh_enable_mc_di_pre(struct DI_MC_MIF_s *di_mcinford_mif,
 void dimh_en_mc_di_post_g12(struct DI_MC_MIF_s *mcvecrd_mif,
 			    int urgent, bool reverse, int invert_mv)
 {
+#ifdef __HIS_CODE__	//T6D
 	unsigned int end_x;
 
 	if (mcvecrd_mif->linear) {
@@ -1427,6 +1428,16 @@ void dimh_en_mc_di_post_g12(struct DI_MC_MIF_s *mcvecrd_mif,
 			      mcvecrd_mif->start_y	|
 			      mcvecrd_mif->end_y << 16);
 	DIM_VSC_WR_MPG_BT(MCVECRD_CTRL2, urgent, 16, 1);
+
+#else
+	mcvecrd_mif->urgent = urgent ? 1 : 0;
+	mcvecrd_mif->reverse =  reverse;
+
+	if (opl1() && opl1()->mc_vecrd_mif_set)
+		opl1()->mc_vecrd_mif_set(mcvecrd_mif, NULL);
+	else
+		dimh_mc_vecrd_mif_set(mcvecrd_mif, NULL);
+#endif
 	DIM_VSC_WR_MPG_BT(MCDI_MC_CRTL, mcvecrd_mif->vecrd_offset, 12, 3);
 	if (mcvecrd_mif->blend_en) {
 		DIM_VSC_WR_MPG_BT(MCDI_MC_CRTL,
@@ -2952,18 +2963,28 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 		if (!di_ddr_en)
 			DIM_VSC_WR_MPG_BT(VD1_IF0_GEN_REG, 0, 0, 1);
 		if (mc_enable) {
-			if (di_mcvecrd_mif->linear)
-				di_mcmif_linear_rd_cfg(di_mcvecrd_mif,
+			if (di_mcvecrd_mif->linear) {
+				if (DIM_IS_IC_EF(T6D))
+					DIM_VSYNC_WR_MPEG_REG(T6D_MCVECRD_BADDR,
+						di_mcvecrd_mif->addr >> 4);
+				else
+					di_mcmif_linear_rd_cfg(di_mcvecrd_mif,
 						      MCVECRD_CTRL1,
 						      MCVECRD_CTRL2,
-						      MCVECRD_BADDR);
-			else
+						      MCVECRD_BADDR, op);
+			} else {
 				DIM_VSC_WR_MPG_BT(MCVECRD_CTRL1,
 						  di_mcvecrd_mif->canvas_num, 16, 8);
+			}
 		}
 		/*motion for current display field.*/
 		if (blend_mtn_en) {
-			if (di_mtnprd_mif->linear)
+			if (DIM_IS_IC_EF(T6D))
+				di_mif1_linear_rd_cfg(di_mtnprd_mif,
+						      T6D_MTNRD_CTRL1,
+						      T6D_MTNRD_CTRL2,
+						      T6D_MTNRD_BADDR);
+			else if (di_mtnprd_mif->linear)
 				di_mif1_linear_rd_cfg(di_mtnprd_mif,
 						      MTNRD_CTRL1,
 						      MTNRD_CTRL2,
@@ -3277,12 +3298,23 @@ void dimh_enable_di_post_2(struct DI_MIF_S		   *di_buf0_mif,
 				       di_vpp_en, hold_line, vskip_cnt);
 	}
 	/* motion for current display field. */
+	dim_print("01:\n");
+#ifdef __HIS_CODE__
 	if (di_mtnprd_mif->linear && opl1()->post_mtnrd_mif_set)
-		opl1()->post_mtnrd_mif_set(di_mtnprd_mif);
+		opl1()->post_mtnrd_mif_set(di_mtnprd_mif, op);
 	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		set_post_mtnrd_mif_g12(di_mtnprd_mif);
 	else
 		set_post_mtnrd_mif(di_mtnprd_mif, urgent);
+#else
+	if (opl1() && opl1()->post_mtnrd_mif_set) //from sc2
+		opl1()->post_mtnrd_mif_set(di_mtnprd_mif, op);
+	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+		set_post_mtnrd_mif_g12(di_mtnprd_mif);
+	else
+		set_post_mtnrd_mif(di_mtnprd_mif, urgent);
+#endif
+
 	if (di_ddr_en || di_vpp_en) {
 		#ifdef DIM_OUT_NV21 /* NO_NV21 */
 		if (DIM_IS_IC_EF(SC2)) {
@@ -3462,7 +3494,7 @@ void dimh_enable_di_post_afbc(struct pst_cfg_afbc_s *cfg)
 
 	/* motion for current display field. */
 	if (cfg->di_mtnprd_mif->linear && opl1()->post_mtnrd_mif_set)
-		opl1()->post_mtnrd_mif_set(cfg->di_mtnprd_mif);
+		opl1()->post_mtnrd_mif_set(cfg->di_mtnprd_mif, &di_pst_regset);
 	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		set_post_mtnrd_mif_g12(cfg->di_mtnprd_mif);
 	else
@@ -3829,7 +3861,9 @@ void dim_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag,
 	mc_pre_flag = dimp_get(edi_mp_if2_disable) ? 1 : mc_pre_flag;
 	if (reverse) {
 		if (DIM_IS_IC_EF(SC2)) {
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+			if (DIM_IS_IC_EF(T6D)) {
+				DIM_VSC_WR_MPG_BT(T6D_MTNRD_CTRL1, 3, 4, 2);
+			} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 				DIM_VSC_WR_MPG_BT(MTNRD_CTRL1, 3, 4, 2);
 			} else {
 				opl1()->pst_mif_rev(true, DI_MIF0_SEL_VD1_IF0);
@@ -3844,7 +3878,10 @@ void dim_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag,
 					    DI_MIF0_SEL_PST_ALL	|
 					    DI_MIF0_SEL_VD2_IF0);
 		} else {
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+			if (DIM_IS_IC_EF(T6D)) {
+				DIM_VSC_WR_MPG_BT(DI_IF0_GEN_REG2, 3, 2, 2);
+				DIM_VSC_WR_MPG_BT(T6D_MTNRD_CTRL1, 3, 4, 2);
+			} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 				DIM_VSC_WR_MPG_BT(DI_IF0_GEN_REG2, 3, 2, 2);
 				DIM_VSC_WR_MPG_BT(MTNRD_CTRL1, 3, 4, 2);
 			} else {
@@ -3900,7 +3937,9 @@ void dim_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag,
 		}
 	} else {
 		if (DIM_IS_IC_EF(SC2)) {
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+			if (DIM_IS_IC_EF(T6D)) {
+				DIM_VSC_WR_MPG_BT(T6D_MTNRD_CTRL1, 0, 4, 2);
+			} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 				//DIM_VSC_WR_MPG_BT(DI_IF0_GEN_REG2, 0, 2, 2);
 				DIM_VSC_WR_MPG_BT(MTNRD_CTRL1, 0, 4, 2);
 			} else {
@@ -3918,7 +3957,10 @@ void dim_post_read_reverse_irq(bool reverse, unsigned char mc_pre_flag,
 		} else {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 				DIM_VSC_WR_MPG_BT(DI_IF0_GEN_REG2, 0, 2, 2);
-				DIM_VSC_WR_MPG_BT(MTNRD_CTRL1, 0, 4, 2);
+				if (DIM_IS_IC_EF(T6D))
+					DIM_VSC_WR_MPG_BT(T6D_MTNRD_CTRL1, 0, 4, 2);
+				else
+					DIM_VSC_WR_MPG_BT(MTNRD_CTRL1, 0, 4, 2);
 			} else {
 				DIM_VSC_WR_MPG_BT(VD1_IF0_GEN_REG2, 0, 2, 4);
 				DIM_VSC_WR_MPG_BT(DI_MTNRD_CTRL, 0, 17, 4);
@@ -4350,12 +4392,12 @@ static bool di_pre_idle(void)
 {
 	bool ret = false;
 
-	if (DIM_IS_IC_EF(S5) && !DIM_IS_IC(S7D)) {
+	if (DIM_IS_IC_EF(S5) && !DIM_IS_IC(S7D) && !DIM_IS_IC(T6D)) {
 		if ((DIM_RDMA_RD(DI_ARB_DBG_STAT_L1C1) &
 			PRE_ID_MASK_S5) == PRE_ID_MASK_S5)
 			ret = true;
 	} else if ((DIM_IS_IC_EF(T3) || DIM_IS_IC(T5D) || DIM_IS_IC(T5DB) ||
-	    DIM_IS_IC(T5)) && !DIM_IS_IC(S7D)) {
+	    DIM_IS_IC(T5) || DIM_IS_IC(T6D)) && !DIM_IS_IC(S7D)) {
 		if ((DIM_RDMA_RD(DI_ARB_DBG_STAT_L1C1) &
 			PRE_ID_MASK_T5) == PRE_ID_MASK_T5)
 			ret = true;
@@ -4833,7 +4875,9 @@ void dimh_enable_di_pre_mif(bool en, bool mc_enable)
 		return;
 	atomic_set(&mif_flag, 1);
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+	if (DIM_IS_IC_EF(T6D)) {
+		dimh_enable_di_pre_mif_t6d(en, mc_enable);
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		if (mc_enable)
 			mc_pre_mif_ctrl_g12(en);
 		ma_pre_mif_ctrl_g12(en);
@@ -5445,7 +5489,7 @@ void dbg_mif_reg(struct seq_file *s, enum DI_MIF0_ID eidx)
 	const unsigned int *reg;
 	const struct reg_acc *op = &di_pre_regset;
 
-	if (opl1()/*DIM_IS_IC_EF(SC2)*/) {
+	if (opl1()/*DIM_IS_IC_EF(SC2)*/ && opl1()->reg_mif_tab[eidx]) {
 		reg = opl1()->reg_mif_tab[eidx];
 		seq_printf(s, "dump reg:%s\n", dim_get_mif_id_name(eidx));
 

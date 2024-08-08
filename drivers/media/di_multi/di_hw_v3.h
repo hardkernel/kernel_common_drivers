@@ -208,6 +208,8 @@ struct di_hw_ops_info_s {
 extern const struct dim_hw_opsv_s dim_ops_l1_v3;
 extern const struct dim_hw_opsv_s dim_ops_l1_v4;
 extern const struct dim_hw_opsv_s dim_ops_l1_v5;
+extern const struct dim_hw_opsv_s dim_ops_l1_v6_t6d;
+
 const struct dim_hw_opsv_s  *opl1_v2(void);
 
 struct hw_ops_s {
@@ -267,10 +269,18 @@ void dim_sc2_afbce_rst(unsigned int ec_nub, const struct reg_acc *op);
 //20220126 void afbce_sw(enum EAFBC_ENC enc, bool on);//tmp
 unsigned int afbce_read_used(enum EAFBC_ENC enc);//tmp
 
+void dimh_mc_vecrd_mif_set(struct DI_MC_MIF_s *mcvecrd_mif,
+				const struct reg_acc *op_in);
+
 void hpre_gl_read(void);
 void cvsi_cfg(struct dim_cvsi_s	*pcvsi);
 void dim_secure_sw_pre(unsigned char ch);
 void dim_secure_sw_post(unsigned char ch);
 const unsigned int *mif_reg_get_v3(void);
+void dimh_mc_vecrd_mif_set_g12(struct DI_MC_MIF_s *mcvecrd_mif,
+			const struct reg_acc *op_in);
+void dimh_enable_di_pre_mif_t6d(bool en, bool mc_enable);
+void dim_pre_frame_reset_t6d(unsigned char madi_en,
+			     unsigned char mcdi_en);
 
 #endif /* __DI_HW_V3_H__ */

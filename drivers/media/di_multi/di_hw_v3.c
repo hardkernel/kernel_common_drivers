@@ -617,11 +617,14 @@ void di_mif1_linear_wr_cfgds(unsigned long addr, unsigned int STRIDE,
 void di_mcmif_linear_rd_cfg(struct DI_MC_MIF_s *mif,
 			unsigned int CTRL1,
 			unsigned int CTRL2,
-			unsigned int BADDR)
+			unsigned int BADDR,
+			const struct reg_acc *op_in)
 {
 	unsigned int stride;
 	const struct reg_acc *op = &di_pst_regset;
 
+	if (op_in)
+		op = op_in;
 	dbg_ic("%s:\n", __func__);
 	//di_mif1_stride(mif, &stride);
 	di_mif1_stride2(mif->per_bits, mif->size_x, &stride);
@@ -652,6 +655,7 @@ static void di_mcmif_linear_wr_cfg(struct DI_MC_MIF_s *mif,
 	dbg_ic("\treg[0x%x] = 0x%x\n", BADDR, op->rd(BADDR));
 }
 
+#ifdef __HIS_CODE__
 //set_ma_pre_mif_g12
 static void set_ma_pre_mif_t7(void *pre,
 			       unsigned short urgent)
@@ -723,9 +727,11 @@ static void set_ma_pre_mif_t7(void *pre,
 			 (contwr_mif->end_x - contwr_mif->start_x), 16, 13);
 	di_mif1_linear_wr_cfg(contwr_mif, CONTWR_STRIDE, CONTWR_BADDR);
 }
-
+#endif
+#ifdef __HIS_CODE__
 //set_post_mtnrd_mif_g12
-static void set_post_mtnrd_mif_t7(struct DI_SIM_MIF_S *mtnprd_mif)
+static void set_post_mtnrd_mif_t7(struct DI_SIM_MIF_S *mtnprd_mif,
+					const struct reg_acc *op)
 {
 	dbg_ic("%s:", __func__);
 	DIM_VSYNC_WR_MPEG_REG(MTNRD_SCOPE_X,
@@ -733,18 +739,20 @@ static void set_post_mtnrd_mif_t7(struct DI_SIM_MIF_S *mtnprd_mif)
 			      (mtnprd_mif->start_x));
 	DIM_VSYNC_WR_MPEG_REG(MTNRD_SCOPE_Y,
 			      (mtnprd_mif->end_y << 16) |
-			      (mtnprd_mif->start_y));
+				      (mtnprd_mif->start_y));
 	//DIM_VSC_WR_MPG_BT(MTNRD_CTRL1, mtnprd_mif->canvas_num, 16, 8);
 	DIM_VSC_WR_MPG_BT(MTNRD_CTRL1, 0, 0, 3);
 	di_mif1_linear_rd_cfg(mtnprd_mif, MTNRD_CTRL1, MTNRD_CTRL2, MTNRD_BADDR);
 }
-
+#endif
 //dimh_enable_mc_di_pre_g12
 static void pre_enable_mc_t7(struct DI_MC_MIF_s *mcinford_mif,
 			       struct DI_MC_MIF_s *mcinfowr_mif,
 			       struct DI_MC_MIF_s *mcvecwr_mif,
 			       unsigned char mcdi_en)
 {
+	const struct reg_acc *op = &di_pre_regset;
+
 	dbg_ic("%s:", __func__);
 	DIM_RDMA_WR_BITS(MCDI_MOTINEN, (mcdi_en ? 3 : 0), 0, 2);
 
@@ -775,7 +783,7 @@ static void pre_enable_mc_t7(struct DI_MC_MIF_s *mcinford_mif,
 	di_mcmif_linear_rd_cfg(mcinford_mif,
 			      MCINFRD_CTRL1,
 			      MCINFRD_CTRL2,
-			      MCINFRD_BADDR);
+			      MCINFRD_BADDR, op);
 
 	DIM_RDMA_WR_BITS(MCVECWR_X, mcvecwr_mif->size_x, 0, 13);
 	DIM_RDMA_WR_BITS(MCVECWR_Y, mcvecwr_mif->size_y, 0, 13);
@@ -5021,6 +5029,7 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	const struct reg_acc *op;
 	int nrpt_phase0_en = 1;
 	unsigned int burst_len = 2;
+	unsigned int bits, bit16_mode; //
 
 	if (!opin)
 		op = &di_pre_regset;
@@ -5085,11 +5094,32 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	bytes_per_pixel = (mif->set_separate_en) ?
 		0 : ((mif->video_mode == 2) ? 2 : 1);
 
-	bytes_per_pixel = mif->bit_mode == 3 ? 1 : bytes_per_pixel;
+	if (!mif->bits_ext) //T6D add
+		bytes_per_pixel = mif->bit_mode == 3 ? 1 : bytes_per_pixel;
 	// 10bit full pack or not
 
 	demux_mode = (mif->set_separate_en == 0) ?
 			((mif->video_mode == 1) ? 0 :  1) : 0;
+
+	if (mif->bits_ext) {
+		bits = 0;
+	} else if (mif->bit_mode == 1) {
+		if (!mif->video_mode)
+			bits = 3;
+		else
+			bits = 1;
+	} else {
+		bits = mif->bit_mode;
+	}
+
+	//bit16_mode = (mif->bits_mode == 4) ? 1:0 ;
+	//ary note	mif->bits_mode	bit16_mode
+	//				4				1
+	//				other			0
+	if (mif->bits_ext)
+		bit16_mode = 1;
+	else
+		bit16_mode = 0;
 
 	// ----------------------
 	// General register
@@ -5117,7 +5147,8 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 			mif->block_mode << 18 |
 			burst_len << 14	  |	//2 << 1 |    // use bst4
 			burst_len << 12	  |	//2 << 1 |    // use bst4
-		       mif->bit_mode << 8 |    // bits_mode
+			bits << 8 |    // bits_mode   mif->bit_mode
+			bit16_mode << 7 |	// for p010s
 		       3 << 4		  |    // block length
 		       burst_len << 1	  |	//2 << 1 |    // use bst4
 		       mif->reg_swap << 0);   //64 bit swap
@@ -5377,7 +5408,17 @@ static void hw_init_v3(void)
 		op->wr(REG_DCTR_T3_GCLK_CTRL0, 0xc0);
 		op->wr(REG_DCTR_T3_GCLK_CTRL1, 0x3c0000);
 	}
-	if (DIM_IS_IC_EF(SC2)) {
+	if (DIM_IS_IC_EF(T6D)) {	//tmp
+		/*pre*/
+		op->wr(DI_SC2_INP_LUMA_FIFO_SIZE, 0x120);
+		op->wr(DI_SC2_MEM_LUMA_FIFO_SIZE, 0xc0);
+		op->wr(DI_SC2_CHAN2_LUMA_FIFO_SIZE, 0xc0);
+
+		/*post*/
+		op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, 0x80);
+		op->wr(DI_SC2_IF1_LUMA_FIFO_SIZE, 0xc0);
+		op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, 0x80);
+	} else if (DIM_IS_IC_EF(SC2)) {
 		/*pre*/
 		op->wr(DI_SC2_INP_LUMA_FIFO_SIZE, fifo_size_di);
 		op->wr(DI_SC2_MEM_LUMA_FIFO_SIZE, fifo_size_di);
@@ -6410,6 +6451,883 @@ void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg,
 	}
 }
 
+/******************************************************/
+/* add T6D */
+/******************************************************/
+#define DIM_IM_SW5_REG_V5_NUB (7)
+#define DIM_IM_SR_REG_V4_NUB (6)	//need change to V2
+
+/* small mif write */
+/* ref to reg_mif_sw_v2*/
+enum EIRN_SW_INDEX_V2 {
+	EIRN_SW2_BADDR,
+	EIRN_SW2_STRIDE,
+	EIRN_SW2_X,
+	EIRN_SW2_Y,
+	EIRN_SW2_CTRL,
+	EIRN_SW2_CAN_SIZE,
+	EIRN_SW2_NUB,
+};
+
+/* small mif write */
+enum EIRN_SW5_INDEX_V6 {
+	EIRN_SW6_CTRL1,
+	EIRN_SW6_CTRL2,
+	EIRN_SW6_CTRL3,
+	EIRN_SW6_CTRL4,
+	EIRN_SW6_SCOPE_X,
+	EIRN_SW6_SCOPE_Y,
+	EIRN_SW6_RO_STAT,
+	EIRN_SW6_NUB,
+};
+
+/* must keep same order with : reg_mif_sr_v2, reg_mif_sr_v6*/
+enum EIRN_SR_INDEX_V2 {
+	EIRN_SR2_CTRL1,
+	EIRN_SR2_CTRL2,
+	EIRN_SR2_SCOPE_X,
+	EIRN_SR2_SCOPE_Y,
+	EIRN_SR2_RO_STAT,
+	EIRN_SR2_BADDR,
+	EIRN_SR2_NUB,
+};
+
+/* keep order with reg_wrmif_v6 */
+enum DI_WRMIF_INDEX_V6 { // for T6D
+	EIRN_BW6_CTRL0,
+	EIRN_BW6_CTRL1,
+	EIRN_BW6_LUMA_CTRL0,
+	EIRN_BW6_LUMA_BADDR,
+	EIRN_BW6_LUMA_X,
+	EIRN_BW6_LUMA_Y,
+	EIRN_BW6_LUMA_CTRL1,
+	EIRN_BW6_CHRM_CTRL0,
+	EIRN_BW6_CHRM_BADDR,
+	EIRN_BW6_CHRM_X,
+	EIRN_BW6_CHRM_Y,
+	EIRN_BW6_CHRM_CTRL1,
+	EIRN_BW6_RGBA_CTRL,
+	EIRN_BW6_NUB,
+};
+
+/* ref to DI_WRMIF_INDEX_V6 */
+static const unsigned int reg_wrmif_v6
+	[EDI_MIFS_NUB][DIM_WRMIF_SET_V6_NUB] = {
+	[EDI_MIFSM_NR] = {
+		NR_WMIF_CTRL0,
+		NR_WMIF_CTRL1,
+		NR_WMIF_LUMA_CTRL0,
+		NR_WMIF_LUMA_BADDR,
+		NR_WMIF_LUMA_X,
+		NR_WMIF_LUMA_Y,
+		NR_WMIF_LUMA_CTRL1,
+		NR_WMIF_CHRM_CTRL0,
+		NR_WMIF_CHRM_BADDR,
+		NR_WMIF_CHRM_X,
+		NR_WMIF_CHRM_Y,
+		NR_WMIF_CHRM_CTRL1,
+		NR_WRMIF_RGBA_CTRL,
+	},
+	[EDI_MIFSM_WR] = {
+		DI_WMIF_CTRL0,
+		DI_WMIF_CTRL1,
+		DI_WMIF_LUMA_CTRL0,
+		DI_WMIF_LUMA_BADDR,
+		DI_WMIF_LUMA_X,
+		DI_WMIF_LUMA_Y,
+		DI_WMIF_LUMA_CTRL1,
+		DI_WMIF_CHRM_CTRL0,
+		DI_WMIF_CHRM_BADDR,
+		DI_WMIF_CHRM_X,
+		DI_WMIF_CHRM_Y,
+		DI_WMIF_CHRM_CTRL1,
+		DI_WRMIF_RGBA_CTRL,
+	},
+};
+
+static const unsigned int reg_mif_sw_v5
+	[DIM_IM_SW_NUB][DIM_IM_SW5_REG_V5_NUB] = {
+	[EIM_SW_CONT] = {
+		T6D_CONTWMIF_CTRL1,
+		T6D_CONTWMIF_CTRL2,
+		T6D_CONTWMIF_CTRL3,
+		T6D_CONTWMIF_CTRL4,
+		T6D_CONTWMIF_SCOPE_X,
+		T6D_CONTWMIF_SCOPE_Y,
+		T6D_CONTWMIF_RO_STAT,
+	},
+
+	[EIM_SW_MTN] = {
+		T6D_MTNWMIF_CTRL1,
+		T6D_MTNWMIF_CTRL2,
+		T6D_MTNWMIF_CTRL3,
+		T6D_MTNWMIF_CTRL4,
+		T6D_MTNWMIF_SCOPE_X,
+		T6D_MTNWMIF_SCOPE_Y,
+		T6D_MTNWMIF_RO_STAT,
+
+	},
+	[EIM_SW_MCVEC] = {
+		T6D_MCVECWMIF_CTRL1,
+		T6D_MCVECWMIF_CTRL2,
+		T6D_MCVECWMIF_CTRL3,
+		T6D_MCVECWMIF_CTRL4,
+		T6D_MCVECWMIF_SCOPE_X,
+		T6D_MCVECWMIF_SCOPE_Y,
+		T6D_MCVECWMIF_RO_STAT,
+	},
+	[EIM_SW_MCINF] = {
+		T6D_MCINFWMIF_CTRL1,
+		T6D_MCINFWMIF_CTRL2,
+		T6D_MCINFWMIF_CTRL3,
+		T6D_MCINFWMIF_CTRL4,
+		T6D_MCINFWMIF_SCOPE_X,
+		T6D_MCINFWMIF_SCOPE_Y,
+		T6D_MCINFWMIF_RO_STAT,
+	},
+};
+
+/* must keep same order with EIRN_SR_INDEX_V2 */
+//not: this is from v2 not v4
+static const unsigned int reg_mif_sr_v2
+	[DIM_IM_SR_NUB][DIM_IM_SR_REG_V4_NUB] = {
+	[EIM_SR_CONT] = {
+		CONTRD_CTRL1,
+		CONTRD_CTRL2,
+		CONTRD_SCOPE_X,
+		CONTRD_SCOPE_Y,
+		CONTRD_RO_STAT,
+		CONTRD_BADDR,
+	},
+	[EIM_SR_CONT2] = {
+		CONT2RD_CTRL1,
+		CONT2RD_CTRL2,
+		CONT2RD_SCOPE_X,
+		CONT2RD_SCOPE_Y,
+		CONT2RD_RO_STAT,
+		CONT2RD_BADDR,
+	},
+	[EIM_SR_MTN] = {
+		MTNRD_CTRL1,
+		MTNRD_CTRL2,
+		MTNRD_SCOPE_X,
+		MTNRD_SCOPE_Y,
+		MTNRD_RO_STAT,
+		MTNRD_BADDR,
+
+	},
+	[EIM_SR_MCVEC] = {
+		MCVECRD_CTRL1,
+		MCVECRD_CTRL2,
+		MCVECRD_SCOPE_X,
+		MCVECRD_SCOPE_Y,
+		MCVECRD_RO_STAT,
+		MCVECRD_BADDR,
+	},
+	[EIM_SR_MCINF] = {
+		MCINFRD_CTRL1,
+		MCINFRD_CTRL2,
+		MCINFRD_SCOPE_X,
+		MCINFRD_SCOPE_Y,
+		MCINFRD_RO_STAT,
+		MCINFRD_BADDR,
+	},
+};
+
+/* must keep same order with EIRN_SR_INDEX_V2 */
+static const unsigned int reg_mif_sr_v6
+	[DIM_IM_SR_NUB][DIM_IM_SR_REG_V4_NUB] = {
+	[EIM_SR_CONT] = {
+		T6D_CONTRD_CTRL1,
+		T6D_CONTRD_CTRL2,
+		T6D_CONTRD_SCOPE_X,
+		T6D_CONTRD_SCOPE_Y,
+		T6D_CONTRD_RO_STAT,
+		T6D_CONTRD_BADDR,
+	},
+	[EIM_SR_CONT2] = {
+		T6D_CONT2RD_CTRL1,
+		T6D_CONT2RD_CTRL2,
+		T6D_CONT2RD_SCOPE_X,
+		T6D_CONT2RD_SCOPE_Y,
+		T6D_CONT2RD_RO_STAT,
+		T6D_CONT2RD_BADDR,
+	},
+	[EIM_SR_MTN] = {
+		T6D_MTNRD_CTRL1,
+		T6D_MTNRD_CTRL2,
+		T6D_MTNRD_SCOPE_X,
+		T6D_MTNRD_SCOPE_Y,
+		T6D_MTNRD_RO_STAT,
+		T6D_MTNRD_BADDR,
+
+	},
+	[EIM_SR_MCVEC] = {
+		T6D_MCVECRD_CTRL1,
+		T6D_MCVECRD_CTRL2,
+		T6D_MCVECRD_SCOPE_X,
+		T6D_MCVECRD_SCOPE_Y,
+		T6D_MCVECRD_RO_STAT,
+		T6D_MCVECRD_BADDR,
+	},
+	[EIM_SR_MCINF] = {
+		T6D_MCINFRD_CTRL1,
+		T6D_MCINFRD_CTRL2,
+		T6D_MCINFRD_SCOPE_X,
+		T6D_MCINFRD_SCOPE_Y,
+		T6D_MCINFRD_RO_STAT,
+		T6D_MCINFRD_BADDR,
+	},
+};
+
+/* ref to EIRN_SW_INDEX_V2 */
+static const unsigned int reg_mif_sw_v2
+	[DIM_IM_SW_NUB][EIRN_SW2_NUB] = {
+	[EIM_SW_CONT] = {
+		CONTWR_BADDR,
+		CONTWR_STRIDE,
+		CONTWR_X,
+		CONTWR_Y,
+		CONTWR_CTRL,
+		CONTWR_CAN_SIZE,
+	},
+
+	[EIM_SW_MTN] = {
+		MTNWR_BADDR,
+		MTNWR_STRIDE,
+		MTNWR_X,
+		MTNWR_Y,
+		MTNWR_CTRL,
+		MTNWR_CAN_SIZE,
+	},
+	[EIM_SW_MCVEC] = {
+		MCVECWR_BADDR,
+		MCVECWR_STRIDE,
+		MCVECWR_X,
+		MCVECWR_Y,
+		MCVECWR_CTRL,
+		MCVECWR_CAN_SIZE,
+	},
+	[EIM_SW_MCINF] = {
+		MCINFWR_BADDR,
+		MCINFWR_STRIDE,
+		MCINFWR_X,
+		MCINFWR_Y,
+		MCINFWR_CTRL,
+		MCINFWR_CAN_SIZE,
+	},
+};
+
+const unsigned int *gmif_sr_b_addr(enum EDI_IM_SR rs_mif_idx)
+{
+	if (rs_mif_idx > EIM_SR_MCINF) {
+		PR_ERR("%s:overflow:idx:%d\n", __func__, rs_mif_idx);
+		return NULL;
+	}
+	if (DIM_IS_IC_EF(T6D))
+		return &reg_mif_sr_v6[rs_mif_idx][0];
+	return &reg_mif_sr_v2[rs_mif_idx][0];
+}
+
+unsigned int gmif_sr_addr(enum EDI_IM_SR rs_mif_idx,
+			  enum EIRN_SR_INDEX_V2 reg_idex)
+{
+	if (rs_mif_idx > EIM_SR_MCINF ||
+		reg_idex >= EIRN_SR2_NUB) {
+		PR_ERR("%s:overflow:idx:%d reg:%d\n", __func__,
+				rs_mif_idx, reg_idex);
+		return 0; //tmp maybe change to a safety register
+	}
+	if (DIM_IS_IC_EF(T6D))
+		return reg_mif_sr_v6[rs_mif_idx][reg_idex];
+	return reg_mif_sr_v2[rs_mif_idx][reg_idex];
+}
+
+const unsigned int *gmif_sw_b_addr_v6(enum EDI_IM_SW mif_idx)
+{
+	if (mif_idx > EIM_SW_MCINF) {
+		PR_ERR("%s:overflow:idx:%d\n", __func__, mif_idx);
+		return NULL;
+	}
+	return &reg_mif_sw_v5[mif_idx][0];
+}
+
+const unsigned int *gmif_sw_b_addr_v2(enum EDI_IM_SW mif_idx)
+{
+	if (mif_idx > EIM_SW_MCINF) {
+		PR_ERR("%s:overflow:idx:%d\n", __func__, mif_idx);
+		return NULL;
+	}
+	return &reg_mif_sw_v2[mif_idx][0];
+}
+
+/* copy from di_mif1_linear_wr_cfg */
+static void di_mif1_linear_wr_cfg_t6d(struct DI_SIM_MIF_S *mif,
+			   unsigned int CTRL3,
+			   unsigned int BADDR)
+{
+	unsigned int stride;
+	const struct reg_acc *op = &di_pre_regset;
+
+	//di_mif1_stride(mif, &stride);
+	di_mif1_stride2(mif->per_bits, (mif->end_x - mif->start_x + 1),
+			&stride);
+//	op->wr(STRIDE, (0 << 31) | stride);//stride
+	op->bwr(CTRL3, 1, 16, 1);//linear_mode
+	op->bwr(CTRL3, stride, 0, 13);//stride
+
+	op->wr(BADDR, mif->addr >> 4);//base_addr
+	dbg_ic("\tstride[%d],per_bits[%d]\n", stride, mif->per_bits);
+	dbg_ic("\treg[0x%x] = 0x%x\n", CTRL3, op->rd(CTRL3));
+	dbg_ic("\treg[0x%x] = 0x%x\n", BADDR, op->rd(BADDR));
+}
+
+/* copy from di_mcmif_linear_wr_cfg */
+static void di_mcmif_linear_wr_cfg_t6d(struct DI_MC_MIF_s *mif,
+			   unsigned int CTRL3,
+			   unsigned int BADDR)
+{
+	unsigned int stride;
+	const struct reg_acc *op = &di_pre_regset;
+
+	//di_mif1_stride(mif, &stride);
+	di_mif1_stride2(mif->per_bits, mif->size_x, &stride);
+//	op->wr(STRIDE, (0 << 31) | stride);//stride
+	op->bwr(CTRL3, 1, 16, 1);//linear_mode
+	op->bwr(CTRL3, stride, 0, 13);//stride
+
+	op->wr(BADDR, mif->addr >> 4);//base_addr
+	dbg_ic("\tstride[%d],per_bits[%d]\n", stride, mif->per_bits);
+	dbg_ic("\treg[0x%x] = 0x%x\n", CTRL3, op->rd(CTRL3));
+	dbg_ic("\treg[0x%x] = 0x%x\n", BADDR, op->rd(BADDR));
+}
+
+//if contrprd / contp2rd sw?
+static void set_rs_mif(struct DI_SIM_MIF_S   *mif,
+			enum EDI_IM_SR rs_mif_idx,
+			const struct reg_acc *op)
+{
+	const unsigned int *reg;
+
+	dim_print("%s:%d\n", __func__, rs_mif_idx);
+	reg = gmif_sr_b_addr(rs_mif_idx);
+	dim_print("addr:0x%x\n", reg[EIRN_SR2_SCOPE_X]);
+	//CONTRD_SCOPE_X
+	op->wr(reg[EIRN_SR2_SCOPE_X], mif->start_x  |
+				(mif->end_x << 16));
+	//CONTRD_SCOPE_Y
+	op->wr(reg[EIRN_SR2_SCOPE_Y], mif->start_y  |
+				(mif->end_y << 16));
+	//CONTRD_CTRL1
+	op->bwr(reg[EIRN_SR2_CTRL1],	2 << 8 |
+					0 << 6 |
+					0 << 0,	0, 10);
+	if (mif->linear)
+		di_mif1_linear_rd_cfg(mif, reg[EIRN_SR2_CTRL1],
+				  reg[EIRN_SR2_CTRL2],	//CONTRD_CTRL2
+				  reg[EIRN_SR2_BADDR]);	//CONTRD_BADDR
+	else
+		op->bwr(reg[EIRN_SR2_CTRL1], mif->canvas_num, 16, 8);
+}
+
+static void set_ws_mif_v2(struct DI_SIM_MIF_S   *w_mif,
+			enum EDI_IM_SW mif_idx,
+			const struct reg_acc *op)
+{
+	const unsigned int *reg;
+
+	reg = gmif_sw_b_addr_v2(mif_idx);
+	// motion write mif
+	//MTNWR_X
+	op->wr(reg[EIRN_SW2_X], (2 << 30)			|
+					(w_mif->start_x << 16)	|
+					(w_mif->end_x));
+	//MTNWR_Y
+	op->wr(reg[EIRN_SW2_Y], (w_mif->start_y << 16)	|
+					(w_mif->end_y));
+	//MTNWR_CAN_SIZE
+	op->wr(reg[EIRN_SW2_CAN_SIZE], ((w_mif->end_x - w_mif->start_x) << 16) |
+					(w_mif->end_y - w_mif->start_y));
+
+	if (w_mif->linear)
+		di_mif1_linear_wr_cfg(w_mif,
+			reg[EIRN_SW2_STRIDE], reg[EIRN_SW2_BADDR]);
+	else
+		op->bwr(reg[EIRN_SW2_CTRL], w_mif->canvas_num, 0, 8);
+}
+
+static void set_ws_mif_v6(struct DI_SIM_MIF_S   *w_mif,
+			enum EDI_IM_SW mif_idx,
+			const struct reg_acc *op)
+{
+	const unsigned int *reg;
+
+	reg = gmif_sw_b_addr_v6(mif_idx);
+//
+	//T6D_MTNWMIF_SCOPE_X
+	op->wr(reg[EIRN_SW6_SCOPE_X], 2 << 30 |
+					w_mif->end_x << 16 |
+					w_mif->start_x);
+	//T6D_MTNWMIF_SCOPE_Y
+	op->wr(reg[EIRN_SW6_SCOPE_Y],
+		w_mif->end_y << 16 |
+		w_mif->start_y);
+	//T6D_MTNWMIF_CTRL1
+	op->wr(reg[EIRN_SW6_CTRL1], 2 << 8 | // burst_len = 2
+				0 << 6 | // little endian
+				0 << 0);// pack mode 4bit -> 128
+	//T6D_MTNWMIF_CTRL3 T6D_MTNWMIF_CTRL4
+	di_mif1_linear_wr_cfg_t6d(w_mif, reg[EIRN_SW6_CTRL3],
+				reg[EIRN_SW6_CTRL4]);
+}
+
+static void set_ma_pre_mif_v6(struct DI_SIM_MIF_S   *contp2rd_mif,
+			struct DI_SIM_MIF_S   *contprd_mif,
+			struct DI_SIM_MIF_S   *contwr_mif,
+			struct DI_SIM_MIF_S   *mtnwr_mif,
+			const struct reg_acc *op)
+{
+	mtnwr_mif->per_bits	= 4;
+	contp2rd_mif->per_bits	= 4;
+	contprd_mif->per_bits	= 4;
+	contwr_mif->per_bits	= 4;
+
+	set_rs_mif(contprd_mif, EIM_SR_CONT, op);
+	set_rs_mif(contp2rd_mif, EIM_SR_CONT2, op);
+	if (DIM_IS_IC_EF(T6D)) {
+		set_ws_mif_v6(mtnwr_mif, EIM_SW_MTN, op);
+		set_ws_mif_v6(contwr_mif, EIM_SW_CONT, op);
+	} else {
+		set_ws_mif_v2(mtnwr_mif, EIM_SW_MTN, op);
+		set_ws_mif_v2(contwr_mif, EIM_SW_CONT, op);
+	}
+}
+
+//set_ma_pre_mif_g12
+static void set_ma_pre_mif_t7(void *pre,
+			       unsigned short urgent)
+{
+	struct DI_SIM_MIF_S *mtnwr_mif;
+	struct DI_SIM_MIF_S *contprd_mif;
+	struct DI_SIM_MIF_S *contp2rd_mif;
+	struct DI_SIM_MIF_S *contwr_mif;
+	const struct reg_acc *op = &di_pre_regset;
+	struct di_pre_stru_s *ppre = (struct di_pre_stru_s *)pre;
+
+	mtnwr_mif	= &ppre->di_mtnwr_mif;
+	contp2rd_mif	= &ppre->di_contp2rd_mif;
+	contprd_mif	= &ppre->di_contprd_mif;
+	contwr_mif	= &ppre->di_contwr_mif;
+
+	set_ma_pre_mif_v6(contprd_mif, contp2rd_mif, contwr_mif,
+					 mtnwr_mif, op);
+}
+
+// copy from pre_enable_mc_t7
+static void pre_enable_mc_t6d(struct DI_MC_MIF_s *mcinford_mif,
+			       struct DI_MC_MIF_s *mcinfowr_mif,
+			       struct DI_MC_MIF_s *mcvecwr_mif,
+			       unsigned char mcdi_en)
+{
+	const struct reg_acc *op = &di_pst_regset;
+
+	DIM_RDMA_WR_BITS(MCDI_MOTINEN, (mcdi_en ? 3 : 0), 0, 2);
+
+	if (is_meson_g12a_cpu()	||
+	    is_meson_g12b_cpu()	||
+	    is_meson_sm1_cpu()) {
+		DIM_RDMA_WR(MCDI_CTRL_MODE, (mcdi_en ? 0x1bfef7ff : 0));
+	} else if (DIM_IS_IC_EF(SC2)) {//from vlsi yanling
+		if (mcdi_en) {
+			DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0xf7ff, 0, 16);
+			DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0xdff, 17, 15);
+		} else {
+			DIM_RDMA_WR(MCDI_CTRL_MODE, 0);
+		}
+	} else {
+		DIM_RDMA_WR(MCDI_CTRL_MODE, (mcdi_en ? 0x1bfff7ff : 0));
+	}
+
+	mcinford_mif->per_bits	= 16;
+	mcinfowr_mif->per_bits	= 16;
+	mcvecwr_mif->per_bits	= 16;
+	DIM_RDMA_WR_BITS(DI_PRE_CTRL, (mcdi_en ? 3 : 0), 16, 2);
+
+	DIM_RDMA_WR_BITS(T6D_MCINFRD_SCOPE_X, mcinford_mif->size_x, 16, 13);
+	DIM_RDMA_WR_BITS(T6D_MCINFRD_SCOPE_Y, mcinford_mif->size_y, 16, 13);
+	//DIM_RDMA_WR_BITS(MCINFRD_CTRL1, mcinford_mif->canvas_num, 16, 8);
+	DIM_RDMA_WR_BITS(T6D_MCINFRD_CTRL1, 2, 0, 3);
+	di_mcmif_linear_rd_cfg(mcinford_mif, T6D_MCINFRD_CTRL1,
+			      T6D_MCINFRD_CTRL2,
+			      T6D_MCINFRD_BADDR, op);
+
+	DIM_RDMA_WR(T6D_MCVECWMIF_SCOPE_X, (mcvecwr_mif->size_x) << 16);
+	DIM_RDMA_WR(T6D_MCVECWMIF_SCOPE_Y, (mcvecwr_mif->size_y) << 16);
+	DIM_RDMA_WR(T6D_MCVECWMIF_CTRL1, 2 << 8 | // burst_len = 2
+					0 << 6 | // little endian
+					2 << 0);// pack mode 16bit -> 128
+	di_mcmif_linear_wr_cfg_t6d(mcvecwr_mif,
+				T6D_MCVECWMIF_CTRL3, T6D_MCVECWMIF_CTRL4);
+
+	//mc infor wr:
+
+	DIM_RDMA_WR(T6D_MCINFWMIF_SCOPE_X, (mcinfowr_mif->size_x) << 16);
+	DIM_RDMA_WR(T6D_MCINFWMIF_SCOPE_Y, (mcinfowr_mif->size_y) << 16);
+	DIM_RDMA_WR(T6D_MCINFWMIF_CTRL1, 2 << 8 | // burst_len = 2
+					0 << 6 | // little endian
+					2 << 0);// pack mode 16bit -> 128
+	di_mcmif_linear_wr_cfg_t6d(mcinfowr_mif,
+				T6D_MCINFWMIF_CTRL3, T6D_MCINFWMIF_CTRL4);
+}
+
+/* call in dimh_enable_di_pre_mif */
+void dimh_enable_di_pre_mif_t6d(bool en, bool mc_enable)
+{
+	//there is no mif en for t6d:
+
+	if (!en)
+		DIM_RDMA_WR_BITS(DI_PRE_CTRL, 0, 25, 1);/* disable cont rd */
+}
+
+/* as reset_pre_simple_rd_mif_g12 */
+static void reset_pre_simple_rd_mif_t6d(unsigned char madi_en,
+					unsigned char mcdi_en)
+{
+	unsigned int reg_val = 0;
+
+	if (madi_en || mcdi_en) {
+		DIM_RDMA_WR_BITS(T6D_CONTRD_CTRL2, 1, 31, 1);
+		DIM_RDMA_WR_BITS(T6D_CONT2RD_CTRL2, 1, 31, 1);
+		DIM_RDMA_WR_BITS(T6D_MCINFRD_CTRL2, 1, 31, 1);
+		reg_val = DIM_RDMA_RD(DI_PRE_CTRL);
+		if (madi_en)
+			reg_val |= (1 << 25);
+
+		/* enable cont rd&mcinfo rd, manual start */
+		DIM_RDMA_WR(DI_PRE_CTRL, reg_val);
+		DIM_RDMA_WR_BITS(T6D_CONTRD_CTRL2, 0, 31, 1);
+		DIM_RDMA_WR_BITS(T6D_CONT2RD_CTRL2, 0, 31, 1);
+		DIM_RDMA_WR_BITS(T6D_MCINFRD_CTRL2, 0, 31, 1);
+	}
+}
+
+/* as dim_pre_frame_reset_g12  */
+void dim_pre_frame_reset_t6d(unsigned char madi_en,
+			     unsigned char mcdi_en)
+{
+	reset_pre_simple_rd_mif_t6d(madi_en, mcdi_en);
+
+	/* reset simple mif which framereset not cover */
+	DIM_RDMA_WR_BITS(T6D_CONTWMIF_CTRL2, 1, 30, 1);
+	DIM_RDMA_WR_BITS(T6D_MTNWMIF_CTRL2, 1, 30, 1);
+	DIM_RDMA_WR_BITS(T6D_MCVECWMIF_CTRL2, 1, 30, 1);
+	DIM_RDMA_WR_BITS(T6D_MCINFWMIF_CTRL2, 1, 30, 1);
+
+	DIM_RDMA_WR_BITS(T6D_CONTWMIF_CTRL2, 0, 30, 1);
+	DIM_RDMA_WR_BITS(T6D_MTNWMIF_CTRL2, 0, 30, 1);
+	DIM_RDMA_WR_BITS(T6D_MCVECWMIF_CTRL2, 0, 30, 1);
+	DIM_RDMA_WR_BITS(T6D_MCINFWMIF_CTRL2, 0, 30, 1);
+
+	opl1()->pre_gl_sw(false);
+	opl1()->pre_gl_sw(true);
+}
+
+/*2024-05-10*/
+unsigned int uint_up_bits(unsigned int val_ori, unsigned int value,
+			    unsigned int start, unsigned int len)
+{
+	unsigned int mask = 0;
+	unsigned int val = 0;
+	unsigned int tmp;
+
+	if ((len + start) > 32) {
+		PR_ERR("%s:0x%x,0x%x,%d,%d\n", "up_bits",
+			val_ori, val, start, len);
+		return val;
+	}
+
+	mask = ((1 << (len)) - 1) << (start);
+	val = (value) << (start);
+	tmp = val_ori & (~mask);
+	tmp |= val & mask;
+	return tmp;
+}
+
+//debug only:
+static unsigned int dim_nr_h;
+module_param_named(dim_nr_h, dim_nr_h, uint, 0664);
+static unsigned int dim_nr_v;
+module_param_named(dim_nr_v, dim_nr_v, uint, 0664);
+static unsigned int dim_bitmode;
+module_param_named(dim_bitmode, dim_bitmode, uint, 0664);
+
+static unsigned int dim_dbg_mode;
+module_param_named(dim_dbg_mode, dim_bitmode, uint, 0664);
+
+/* as set_wrmif_simple_v3*/
+static void set_wrmif_t6d(struct DI_SIM_MIF_S *mif,
+				const struct reg_acc *ops,
+				enum EDI_MIFSM mifsel)
+{
+	const struct reg_acc *op  = &di_pre_regset;
+	const unsigned int *reg;
+
+//in cfg_mif
+	unsigned int chrm_ybgn;
+	unsigned int chrm_yend;
+	unsigned int chrm_xbgn;
+	unsigned int chrm_xend;
+
+	unsigned int luma_hsize;
+	unsigned int chrm_hsize;
+
+	unsigned int ctrl = 0;
+
+	unsigned int ybits = 0, cbits = 0;
+	unsigned int ysize = 0, csize = 0;
+	//
+	unsigned int ystride;
+	unsigned int cstride;
+	unsigned int field_mode;
+	unsigned int separate; //420 or 422@2plane
+	unsigned int uv_swap;
+	unsigned int y_swap;
+	unsigned int fmt_t;
+	unsigned int bubble;
+
+	unsigned int value_o, value;
+//cfg_mif interface:
+	unsigned int ybaddr = (unsigned int)(mif->addr >> 4);
+	unsigned int cbaddr = (unsigned int)(mif->addr1 >> 4);
+	unsigned int ybgn   = mif->start_y;
+	unsigned int yend   = mif->end_y;
+	unsigned int xbgn   = mif->start_x;
+	unsigned int xend   = mif->end_x;
+	unsigned int bits; //0:8bit 1:10bit 2:12bit 3:16bit
+	unsigned int fmt; //0:444 1:422 2:420 3:rgba
+	//0:odd line 1:even line 2:all line
+	unsigned int vmode;
+	//0:no drop 1:drop odd line 2:drop even line	// 0 //need check
+	unsigned int ldrop = mif->drop;
+	//bit0: xrev bit1:yrev
+	unsigned int rev_x = mif->rev_x, rev_y = mif->rev_y;
+	//0: big endian 1:little endian	// 0
+	unsigned int endian = mif->l_endian;
+	unsigned int swap64 = mif->reg_swap;			// 0
+	unsigned int tunnel = mif->descramble; //descramble	// 0
+	unsigned int eol_sel = 0;			// 0 //fix 0 tmp
+	unsigned int bit_mode = mif->bit_mode;
+//------------------------------
+	if (mifsel == EDI_MIFSM_WR) {
+		if (dim_nr_h)
+			xend = dim_nr_h - 1;
+		if (dim_nr_v)
+			yend = dim_nr_v - 1;
+
+		if (dim_nr_h || dim_nr_v)
+			dim_print("vskip:%d,%d\n", xend, yend);
+	}
+
+	if (mifsel == EDI_MIFSM_NR && (dim_bitmode & 0x80)) {
+		bit_mode = dim_bitmode & 0xf;
+		dim_print("%s:bit:%d\n", "pre", bit_mode);
+	}
+	if (mifsel == EDI_MIFSM_WR && (dim_bitmode & 0x8000)) {
+		bit_mode = (dim_bitmode >> 8) & 0xf;
+		dim_print("%s:bit:%d\n", "pst", bit_mode);
+	}
+
+//------------------------------
+	reg = &reg_wrmif_v6[mifsel][0];
+	if (ops)
+		op = ops;
+	bits =	(bit_mode == 4) ? 3 : ((bit_mode == 0) ? 0 : 1);
+	//422 10bit
+	fmt  =  bit_mode == 3 ? (mif->set_separate_en == 0 ? 3 : 2) :
+		(mif->set_separate_en == 0 ?
+			(mif->video_mode == 1 ? 1 : 0) : 2); //two canvas
+	vmode =   mif->set_separate_en == 0 ? 2 :
+			(mif->video_mode == 1 ? 2 : 0);
+
+	chrm_ybgn = fmt == 2 && vmode <  2 ? ybgn >> 1 : ybgn;
+	chrm_yend = fmt == 2 && vmode < 2 ? yend >> 1 : yend;
+	chrm_xbgn = fmt == 2 ? xbgn >> 1 : xbgn;
+	chrm_xend = fmt == 2 ? xend >> 1 : xend;
+
+	luma_hsize = mif->buf_hsize;//xend-xbgn+1;
+	//chrm_xend-chrm_xbgn+1;
+	chrm_hsize = fmt == 2 ? mif->buf_hsize >> 1 : mif->buf_hsize;
+
+	ctrl = ((fmt & 0x3) << 4) |  (bits & 0x3);
+
+	dim_print("bits:%d,%d,%d\n", bit_mode,
+		mif->set_separate_en, mif->video_mode);
+
+	if (dim_dbg_mode)	//debug only
+		ctrl = dim_dbg_mode;
+
+	switch (ctrl) {
+	case 0x00:	//444@8bit
+		ysize = luma_hsize;
+		ybits = 24;
+		break;
+	case 0x01:	//444@10bit
+		ysize = luma_hsize;
+		ybits = 32;
+		break;
+	case 0x10:	//422@8bit
+		ysize = luma_hsize;
+		ybits = 16;
+		break;
+	case 0x11:	//422@10bit bubble
+		ysize = luma_hsize;
+		ybits = 24;
+		break;
+	case 0x12:	//422@12bit(10bit@12bit)
+		ysize = luma_hsize;
+		ybits = 24;
+		break;
+	case 0x31:	//422@10bit(10bit@10bit)
+		ysize = luma_hsize;
+		ybits = 20;
+		break;
+	case 0x33:	//422@16bit(10bit@16bit)
+		ysize = luma_hsize;
+		ybits = 32;
+		break;
+	case 0x20:	//420@8bit
+		ysize = luma_hsize;
+		ybits = 8;
+		csize = chrm_hsize;
+		cbits = 16;
+		break;
+	case 0x21: //420@10bit nobubble
+		ysize = luma_hsize;
+		ybits = 10;
+		csize = chrm_hsize;
+		cbits = 20;
+		break;
+	case 0x22: //420@12bit
+		ysize = luma_hsize;
+		ybits = 12;
+		csize = chrm_hsize;
+		cbits = 24;
+		break;
+	case 0x23:	//420@16bit(10bit@16bit, p010)
+		ysize = luma_hsize;
+		ybits = 16;
+		csize = chrm_hsize;
+		cbits = 32;
+		break;
+	default:
+		break;
+	}
+
+	ystride = ((ysize * ybits + 127) / 128 + 3) / 4 * 4;
+	cstride = ((csize * cbits + 127) / 128 + 3) / 4 * 4;
+
+	field_mode = (ldrop == 1) ? 2 : (ldrop == 2 ? 3 : 0);
+
+	separate = fmt == 2 || (fmt == 1 && vmode > 2); //420 or 422@2plane
+	//uv_swap is only care rev_x
+	uv_swap =  ((fmt == 2) && (rev_x ^  (!(endian == 1)))) ? 1 : 0;
+	y_swap = ((fmt == 2) && (bits == 1) && (endian == 1)) ? 1 : 0;
+	fmt_t = (fmt == 3) ? 1 : fmt;
+	bubble = (fmt == 1) ? 1 : 0;
+
+	op->wr(reg[EIRN_BW6_LUMA_BADDR], ybaddr);
+	op->wr(reg[EIRN_BW6_CHRM_BADDR], cbaddr);
+	op->wr(reg[EIRN_BW6_LUMA_CTRL1], ystride);
+	op->wr(reg[EIRN_BW6_CHRM_CTRL1], cstride);
+	//
+	value_o = op->rd(reg[EIRN_BW6_CTRL0]);
+	value = uint_up_bits(value_o, eol_sel, 12, 1);
+	value = uint_up_bits(value, field_mode, 13, 2);
+	op->wr(reg[EIRN_BW6_CTRL0], value);
+
+	value_o = op->rd(reg[EIRN_BW6_CTRL1]);
+	value = value_o;
+	value = uint_up_bits(value, bits & 0x3, 28, 2);
+	value = uint_up_bits(value, fmt_t & 0x3, 26, 2);
+	value = uint_up_bits(value, separate, 25, 1);
+	value = uint_up_bits(value, vmode & 0x3, 22, 2);
+	value = uint_up_bits(value, tunnel & 0x7ffff, 0, 19);
+	value = uint_up_bits(value, uv_swap, 24, 1);
+	value = uint_up_bits(value, y_swap, 30, 1);
+	value = uint_up_bits(value, bubble, 31, 1);
+
+	op->wr(reg[EIRN_BW6_CTRL1], value);
+
+	value_o = op->rd(reg[EIRN_BW6_LUMA_CTRL0]);
+	value = value_o;
+	value = uint_up_bits(value, swap64, 25, 1);
+	value = uint_up_bits(value, endian, 24, 1);
+	//bit22: x_rev; bit 23: y_rev
+	value = uint_up_bits(value, rev_x, 22, 1);
+	value = uint_up_bits(value, rev_y, 23, 1);
+	op->wr(reg[EIRN_BW6_LUMA_CTRL0], value);
+
+	value_o = op->rd(reg[EIRN_BW6_CHRM_CTRL0]);
+	value = value_o;
+	value = uint_up_bits(value, swap64, 25, 1);
+	value = uint_up_bits(value, endian, 24, 1);
+	value = uint_up_bits(value, rev_x, 22, 1); //bit 22: x_rev; bit 23: y_rev;
+	value = uint_up_bits(value, rev_y, 23, 1);
+	op->wr(reg[EIRN_BW6_CHRM_CTRL0], value);
+
+	op->wr(reg[EIRN_BW6_LUMA_X], (xend << 16) | xbgn);
+	op->wr(reg[EIRN_BW6_LUMA_Y], (yend << 16) | ybgn);
+	op->wr(reg[EIRN_BW6_CHRM_X], (chrm_xend << 16) | chrm_xbgn);
+	op->wr(reg[EIRN_BW6_CHRM_Y], (chrm_yend << 16) | chrm_ybgn);
+}
+
+//static
+void dimh_mc_vecrd_mif_set(struct DI_MC_MIF_s *mcvecrd_mif,
+				const struct reg_acc *op_in)
+{
+	unsigned int end_x;
+	const struct reg_acc *op = &di_pst_regset;
+	const unsigned int *reg;
+
+	if (op_in)
+		op = op_in;
+
+	reg = gmif_sr_b_addr(EIM_SR_MCVEC);
+	if (mcvecrd_mif->linear) {
+		op->wr(reg[EIRN_SR2_CTRL1],
+				      2 << 8 | //burst len = 2
+				      0 << 6 | //little endian //ary ??bit and revers?
+				      2 << 0);//pack mode
+		di_mcmif_linear_rd_cfg(mcvecrd_mif,
+				      reg[EIRN_SR2_CTRL1],
+				      reg[EIRN_SR2_CTRL2],
+				      reg[EIRN_SR2_BADDR], op);
+	} else {
+		op->wr(reg[EIRN_SR2_CTRL1],
+				      mcvecrd_mif->canvas_num << 16	|
+				      2 << 8				|
+				      (mcvecrd_mif->reverse ? 3 : 0) << 4		|
+				      2);
+	}
+	end_x = mcvecrd_mif->size_x + mcvecrd_mif->start_x;
+	op->wr(reg[EIRN_SR2_SCOPE_X],
+			      mcvecrd_mif->start_x	|
+			      end_x << 16);
+	op->wr(reg[EIRN_SR2_SCOPE_Y],
+			      (mcvecrd_mif->reverse ? 1 : 0) << 30	|
+			      mcvecrd_mif->start_y	|
+			      mcvecrd_mif->end_y << 16);
+	op->bwr(reg[EIRN_SR2_CTRL2], mcvecrd_mif->urgent, 16, 1);
+}
+
+//set_post_mtnrd_mif_g12
+static void set_post_mtnrd_mif_v2(struct DI_SIM_MIF_S *mtnprd_mif,
+					const struct reg_acc *op)
+{
+	set_rs_mif(mtnprd_mif, EIM_SR_MTN, op);
+}
+
+/******************************************************/
 const struct dim_hw_opsv_s dim_ops_l1_v3 = {
 	.info = {
 		.name = "l1_sc2",
@@ -6440,6 +7358,8 @@ const struct dim_hw_opsv_s dim_ops_l1_v3 = {
 	.wr_rst_protect	= NULL,
 	.aisr_pre	= NULL,
 	.aisr_disable	= NULL,
+	.post_mtnrd_mif_set = set_post_mtnrd_mif_v2,
+	.mc_vecrd_mif_set = dimh_mc_vecrd_mif_set,//2024-06-07
 	.hw_init	= hw_init_v3,
 	.pre_hold_block_txlx = NULL,
 	.pre_cfg_mif	= config_di_mif_v3,
@@ -6490,8 +7410,9 @@ const struct dim_hw_opsv_s dim_ops_l1_v4 = { //for t7
 	.shrk_set	= set_shrk_ch,
 	.shrk_disable	= set_shrk_disable,
 	.pre_ma_mif_set	= set_ma_pre_mif_t7,
-	.post_mtnrd_mif_set = set_post_mtnrd_mif_t7,
+	.post_mtnrd_mif_set = set_post_mtnrd_mif_v2,
 	.pre_enable_mc	= pre_enable_mc_t7,
+	.mc_vecrd_mif_set = dimh_mc_vecrd_mif_set,	//2024-06-07
 	.aisr_pre	= dim_aisr_pre_cfg,
 	.aisr_disable	= dim_aisr_disable,
 	.wrmif_trig	= NULL,
@@ -6552,8 +7473,9 @@ const struct dim_hw_opsv_s dim_ops_l1_v5 = { //for t3x
 	.shrk_set	= set_shrk_ch,
 	.shrk_disable	= set_shrk_disable,
 	.pre_ma_mif_set	= set_ma_pre_mif_t7,
-	.post_mtnrd_mif_set = set_post_mtnrd_mif_t7,
+	.post_mtnrd_mif_set = set_post_mtnrd_mif_v2,
 	.pre_enable_mc	= pre_enable_mc_t7,
+	.mc_vecrd_mif_set = dimh_mc_vecrd_mif_set,	//2024-06-07
 	.aisr_pre	= dim_aisr_pre_cfg,
 	.aisr_disable	= dim_aisr_disable,
 	.wrmif_trig	= NULL,
@@ -6584,6 +7506,56 @@ const struct dim_hw_opsv_s dim_ops_l1_v5 = { //for t3x
 		[EDI_MIFSM_WR] = &reg_wrmif_v4[EDI_MIFSM_WR][0],
 	},
 	.reg_mif_wr_bits_tab = &reg_bits_wr[0],
+	.rtab_contr_bits_tab = &rtab_sc2_contr_bits_tab[0],
+};
+
+const struct dim_hw_opsv_s dim_ops_l1_v6_t6d = { //for t6d
+	.info = {
+		.name = "l1_t6d",
+		.update = "2024-05-06",
+		.main_version	= 6,
+		.sub_version	= 1,
+	},
+	.pre_mif_set = set_di_mif_v3, //set_di_mif_v5_t6d, //
+	.mif_rd_update_addr = set_di_mif_v3_addr_only,
+	.set_wrmif_pp = set_wrmif_simple_pp,
+	.wrmif_update_addr = set_wrmif_simple_pp_addr_only,
+	.pst_mif_set = set_di_mif_v3,//set_di_mif_v5_t6d, //
+	.pst_mif_update_csv	= pst_mif_update_canvasid_v3,
+	.pre_mif_sw	= di_pre_data_mif_ctrl_v3,
+	.pst_mif_sw	= post_mif_sw_v3,
+	.pst_mif_rst	= post_mif_rst_v3,
+	.pst_mif_rev	= post_mif_rev_v3,
+	.pst_dbg_contr	= post_dbg_contr_v3,
+	.pst_set_flow	= di_post_set_flow_v3,
+	.pst_bit_mode_cfg	= post_bit_mode_cfg_v3,
+	.wr_cfg_mif	= wr_mif_cfg_v3,
+	.wr_cfg_mif_dvfm = wr_mif_cfg_by_dvfm, /* new from dw*/
+	.wrmif_set	= set_wrmif_t6d,//set_wrmif_simple_v3,
+	.wrmif_sw_buf	= NULL,
+	.shrk_set	= set_shrk_ch,
+	.shrk_disable	= set_shrk_disable,
+	.pre_ma_mif_set	= set_ma_pre_mif_t7,
+	.post_mtnrd_mif_set = set_post_mtnrd_mif_v2,
+	.pre_enable_mc	= pre_enable_mc_t6d,
+	.mc_vecrd_mif_set = dimh_mc_vecrd_mif_set,//dimh_mc_vecrd_mif_set_t6d,	//2024-06-07
+	.aisr_pre	= dim_aisr_pre_cfg,
+	.aisr_disable	= dim_aisr_disable,
+	.wrmif_trig	= NULL,
+	.wr_rst_protect	= NULL,
+	.hw_init	= hw_init_v3,
+	.pre_hold_block_txlx = NULL,
+	.pre_cfg_mif	= config_di_mif_v3,
+	.dbg_reg_pre_mif_print	= dbg_reg_pre_mif_print_v3,
+	.dbg_reg_pst_mif_print	= dbg_reg_pst_mif_print_v3,
+	.dbg_reg_pre_mif_print2	= dbg_reg_pre_mif_print2_v3,
+	.dbg_reg_pst_mif_print2	= dbg_reg_pst_mif_print2_v3,
+	.dbg_reg_pre_mif_show	= dbg_reg_pre_mif_v3_show,
+	.dbg_reg_pst_mif_show	= dbg_reg_pst_mif_v3_show,
+	/*contrl*/
+	.pre_gl_sw		= hpre_gl_sw_v3,
+	.pre_gl_thd		= hpre_gl_thd_v3,
+	.pst_gl_thd	= hpost_gl_thd_v3,
 	.rtab_contr_bits_tab = &rtab_sc2_contr_bits_tab[0],
 };
 

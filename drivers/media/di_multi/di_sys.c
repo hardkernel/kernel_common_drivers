@@ -3881,6 +3881,11 @@ static const struct di_meson_data  data_s7d = {
 	.ic_id	= DI_IC_ID_S7D,
 };
 
+static const struct di_meson_data  data_t6d = {
+	.name = "dim_t6d",//t5w sub_v=1,t3 costdown
+	.ic_id	= DI_IC_ID_T6D,
+};
+
 #endif
 
 /* #ifdef CONFIG_USE_OF */
@@ -3920,6 +3925,8 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 		.data = &data_t3x,
 	}, {	.compatible = "amlogic, dim-s7d",
 		.data = &data_s7d,
+	}, {	.compatible = "amlogic, dim-t6d",
+		.data = &data_t6d,
 #endif
 	}, {}
 };
@@ -4017,7 +4024,7 @@ static int dim_probe(struct platform_device *pdev)
 	else
 		pdata->ic_sub_ver = DI_IC_REV_MAJOR;
 
-	pr_debug("name: %s:id[%d]:ver[%d]\n", pdata->mdata->name,
+	PR_INF("name: %s:id[%d]:ver[%d]\n", pdata->mdata->name,
 	       pdata->mdata->ic_id, pdata->ic_sub_ver);
 
 	ret = of_reserved_mem_device_init(&pdev->dev);

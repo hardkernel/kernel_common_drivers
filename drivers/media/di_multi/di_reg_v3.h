@@ -18,6 +18,7 @@
 
 #ifndef __DI_REG_V3_H__
 #define __DI_REG_V3_H__
+#include "./di_reg_v6_t6d.h"
 
 /**********************************************************
  * register for sc2
@@ -1020,6 +1021,33 @@
 #define AFBCDM_VD1_FGRAIN_PARAM_ADDR                   0x4878
 #define AFBCDM_VD1_FGRAIN_PARAM_DATA                   0x4879
 
+//add for t6d:is this register from SC2?
+#define AFBCDM_VD2_ENABLE 0x48c0
+#define AFBCDM_VD2_MODE  0x48c1
+#define AFBCDM_VD2_SIZE_IN 0x48c2
+#define AFBCDM_VD2_DEC_DEF_COLOR 0x48c3
+#define AFBCDM_VD2_CONV_CTRL 0x48c4
+#define AFBCDM_VD2_LBUF_DEPTH 0x48c5
+#define AFBCDM_VD2_HEAD_BADDR 0x48c6
+#define AFBCDM_VD2_BODY_BADDR 0x48c7
+#define AFBCDM_VD2_SIZE_OUT   0x48c8
+#define AFBCDM_VD2_OUT_XSCOPE 0x48c8
+#define AFBCDM_VD2_OUT_YSCOPE 0x48c9
+#define AFBCDM_VD2_STAT 0x48ca
+#define AFBCDM_VD2_VD_CFMT_CTRL 0x48cb
+#define AFBCDM_VD2_VD_CFMT_W 0x48cc
+#define AFBCDM_VD2_MIF_HOR_SCOPE  0x48cd
+#define AFBCDM_VD2_MIF_VER_SCOPE 0x48ce
+#define AFBCDM_VD2_PIXEL_HOR_SCOPE 0x48cf
+#define AFBCDM_VD2_PIXEL_VER_SCOPE 0x48d0
+#define AFBCDM_VD2_VD_CFMT_H 0x48d1
+#define AFBCDM_VD2_IQUANT_ENABLE 0x48d2
+#define AFBCDM_VD2_IQUANT_LUT_1 0x48d3
+#define AFBCDM_VD2_IQUANT_LUT_2 0x48d4
+#define AFBCDM_VD2_IQUANT_LUT_3 0x48d5
+#define AFBCDM_VD2_IQUANT_LUT_4 0x48d6
+
+//--------------------------------------
 //for t7:
 #define AFBCDM_INP_CTRL0                         0x5438
 //Bit  31:22       reserved              //

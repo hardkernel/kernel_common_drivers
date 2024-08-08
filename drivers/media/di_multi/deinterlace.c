@@ -3726,6 +3726,16 @@ void dim_pre_de_process(unsigned int channel)
 				      cvss->pre_idx[canvases_idex][3]);
 	}
 	ppre->di_nrwr_mif.is_dw = 0;
+
+	if (cfgg(LINEAR)) {
+		ppre->di_contp2rd_mif.linear = 1;
+		ppre->di_contprd_mif.linear = 1;
+		ppre->di_contwr_mif.linear = 1;
+		ppre->di_mtnwr_mif.linear = 1;
+		ppre->di_mcinford_mif.linear = 1;
+		ppre->di_mcinfowr_mif.linear = 1;
+		ppre->di_mcvecwr_mif.linear = 1;
+	}
 	if (ppre->di_wr_buf->flg_nv21) {
 		//cvss = &get_datal()->cvs;
 		//0925	cvs_nv21[0] = cvss->post_idx[1][1];
@@ -4129,7 +4139,11 @@ void dim_pre_de_process(unsigned int channel)
 	 * otherwise may cause watch dog reboot
 	 */
 	//di_lock_irqfiq_save(irq_flag2);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+	if (DIM_IS_IC_EF(T6D)) {
+		dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en));
+		dim_pre_frame_reset_t6d(ppre->madi_enable,
+					ppre->mcdi_enable);
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/* enable mc pre mif*/
 		dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en));
 		dim_pre_frame_reset_g12(ppre->madi_enable,
@@ -12024,6 +12038,7 @@ void dim_set_di_flag(void)
 	    DIM_IS_IC(T7) ||
 	    DIM_IS_IC(S5) ||
 	    DIM_IS_IC(T3) ||
+	    DIM_IS_IC(T6D)	||
 	    DIM_IS_IC(T3X))//s4/sc2 box bypass nr from brian
 		di_cfg_set(ECFG_DIM_BYPASS_P, 0);//for t5 enable p
 

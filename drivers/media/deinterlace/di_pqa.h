@@ -207,6 +207,8 @@ bool di_attach_ops_mtn(const struct mtn_op_s **ops);
 #define DI_IC_ID_S5		(0x3a)// same with t3 linear
 #define DI_IC_ID_T3X		(0x3f)
 #define DI_IC_ID_S7D		(0x42)
+#define DI_IC_ID_T6D	(0x50) // base on t3 tmp
+
 #define DI_IC_ID_DEINTERLACE		(0xFF)
 
 #define DI_IC_REV_MAJOR		(0x0)

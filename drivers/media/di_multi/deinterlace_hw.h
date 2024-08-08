@@ -43,6 +43,26 @@ enum DI_MIF0_ID {
 	DI_MIF0_ID_IF2		= 5, /* end */
 };
 
+//ary for T6D
+enum EDI_IM_SR {
+	EIM_SR_CONT,
+	EIM_SR_CONT2,
+	EIM_SR_MTN,
+	EIM_SR_MCVEC,
+	EIM_SR_MCINF
+};
+
+enum EDI_IM_SW {
+	EIM_SW_CONT,
+	EIM_SW_MTN,
+	EIM_SW_MCVEC,
+	EIM_SW_MCINF
+};
+
+#define DIM_IM_SR_NUB (5)
+#define DIM_IM_SW_NUB (4)
+//ary for T6D end
+
 enum DI_MIF0_SEL {
 	DI_MIF0_SEL_INP		= 0,
 	DI_MIF0_SEL_CHAN2	= 1,
@@ -319,6 +339,8 @@ struct DI_MIF_S {
 	unsigned int		dbg_from_dec: 1; //
 	unsigned int		in_dec	: 1; //for input
 	unsigned int	tst_not_setcontr	: 1; //debug for pre-vpp link for di
+	//bits_ext: for T6D p010 mode when this bit is 1, bit_mode is no used
+	unsigned int	bits_ext	: 1;
 	unsigned int	buf_hsize;
 	unsigned int cvs0_w;
 	unsigned int cvs1_w;
@@ -347,6 +369,7 @@ struct DI_SIM_MIF_S {
 	 *	00 : one canvas
 	 *	01 : 3 canvas(old 4:2:0).
 	 *	10: 2 canvas. (NV21).
+	 *	11: p010:420 10bit? //only from T6D
 	 */
 	unsigned int	set_separate_en	:2; /*ary add below is only for wr buf*/
 	unsigned int	tst_not_setcontr	: 1; //debug for pre-vpp link for di
@@ -372,6 +395,10 @@ struct DI_SIM_MIF_S {
 	unsigned int	rev_x		: 1;	//20220126
 	unsigned int	rev_y		: 1;	//20220126
 	unsigned int	per_bits	: 8; /* for t7 */
+	//drop: 0:no drop 1:drop odd line 2:drop even line
+	unsigned int	drop		: 2;
+	unsigned int	res4		: 6; //nothing
+	unsigned int	descramble;	//from T6D
 
 	unsigned int	buf_hsize;
 	ulong		addr; //for t7
@@ -397,6 +424,8 @@ struct DI_MC_MIF_s {
 	unsigned int	per_bits; /* for t7 */
 	ulong	addr; //for t7
 	bool linear;
+	bool urgent; //2024-05-07
+	bool reverse; //204-05-07
 };
 
 enum gate_mode_e {
@@ -442,6 +471,7 @@ enum DI_WRMIF_INDEX_V3 {
 #define DIM_WRMIF_MIF_V3_NUB		(2)
 
 #define DIM_WRMIF_SET_V3_NUB	(7)
+#define DIM_WRMIF_SET_V6_NUB	(13)
 
 /* keep order with reg_bits_wr */
 /* mif bits define */
@@ -826,6 +856,8 @@ struct dim_hw_opsv_s {
 	void (*pst_mif_set)(struct DI_MIF_S *mif,
 			    enum DI_MIF0_ID mif_index,
 			    const struct reg_acc *op);
+	void (*mc_vecrd_mif_set)(struct DI_MC_MIF_s *mcvecrd_mif,
+							const struct reg_acc *op_in); //2024-05-07
 	void (*pst_mif_update_csv)(struct DI_MIF_S *mif,
 				   enum DI_MIF0_ID mif_index,
 				   const struct reg_acc *op);
@@ -862,7 +894,8 @@ struct dim_hw_opsv_s {
 	/* for t7 */
 	void (*pre_ma_mif_set)(void *ppre,
 			       unsigned short urgent);
-	void (*post_mtnrd_mif_set)(struct DI_SIM_MIF_S *mtnprd_mif);
+	void (*post_mtnrd_mif_set)(struct DI_SIM_MIF_S *mtnprd_mif,
+							   const struct reg_acc *op);
 	void (*pre_enable_mc)(struct DI_MC_MIF_s *mcinford_mif,
 				       struct DI_MC_MIF_s *mcinfowr_mif,
 				       struct DI_MC_MIF_s *mcvecwr_mif,
@@ -1044,7 +1077,8 @@ void di_mif1_linear_rd_cfg(struct DI_SIM_MIF_S *mif,
 void di_mcmif_linear_rd_cfg(struct DI_MC_MIF_s *mif,
 			unsigned int CTRL1,
 			unsigned int CTRL2,
-			unsigned int BADDR);
+			unsigned int BADDR,
+			const struct reg_acc *op_in);
 void di_mif1_linear_wr_cfgds(unsigned long addr, unsigned int STRIDE,
 			   unsigned int BADDR);
 bool dip_is_linear(void);
