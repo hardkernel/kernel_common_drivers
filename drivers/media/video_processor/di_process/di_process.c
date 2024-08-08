@@ -740,13 +740,13 @@ int process_empty_done_buf(struct di_process_dev *dev, struct di_buffer *buf)
 				"%s: processed_checkin fail\n", __func__);
 
 		/*bypass and di vf include dec vf, need put dec file after displayed*/
-		if (!(buf->flag & DI_FLAG_BUF_BY_PASS) &&
-			!(buf->vf->flag & VFRAME_FLAG_DOUBLE_FRAM)) {
-			dp_put_file(dev, file_vf);
-		} else {
-			dp_print(dev->index, PRINT_OTHER, "bypass or double vf, not put %px\n",
+		if ((buf->flag & DI_FLAG_BUF_BY_PASS) ||
+			(buf->vf->flag & VFRAME_FLAG_DOUBLE_FRAM) ||
+			((buf->vf->type & VIDTYPE_DI_PW) && (buf->vf->type & VIDTYPE_COMPRESS)))
+			dp_print(dev->index, PRINT_OTHER, "need use decoder vf, not put %px\n",
 				file_vf);
-		}
+		else
+			dp_put_file(dev, file_vf);
 	}
 	return ret;
 }
@@ -901,12 +901,16 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 	private_data->vf = *buf->vf;
 	private_data->vf_p = (struct vframe_s *)buf;
 
-	if (buf->vf->type & (VIDTYPE_DI_PW | VIDTYPE_COMPRESS)) {
+	if ((buf->vf->type & VIDTYPE_DI_PW) && (buf->vf->type & VIDTYPE_COMPRESS)) {
 		dec_vf = get_vf_from_file(dev, buf->caller_mng.src_file);
-		private_data->vf_ext = *dec_vf;
-		private_data->vf_ext_p = dec_vf;
-		private_data->vf.vf_ext = &private_data->vf_ext;
-		private_data->vf.flag |= VFRAME_FLAG_DOUBLE_FRAM;
+		if (dec_vf) {
+			private_data->vf_ext = *dec_vf;
+			private_data->vf_ext_p = dec_vf;
+			private_data->vf.vf_ext = &private_data->vf_ext;
+			private_data->vf.flag |= VFRAME_FLAG_DOUBLE_FRAM;
+		} else {
+			dp_print(dev->index, PRINT_ERROR, "%s: decoder buf is NULL.\n", __func__);
+		}
 	}
 
 	if (di_bypass)
@@ -1594,7 +1598,9 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 			__func__, private_data->file);
 		di_p = (struct di_buffer *)(private_data->vf_p);
 		/*di vf has dec vf, need put dec file*/
-		if (di_p->vf && (di_p->vf->flag & VFRAME_FLAG_DOUBLE_FRAM)) {
+		if (di_p->vf &&
+		    ((di_p->vf->flag & VFRAME_FLAG_DOUBLE_FRAM) ||
+		    ((di_p->vf->type & VIDTYPE_DI_PW) && (di_p->vf->type & VIDTYPE_COMPRESS)))) {
 			/*decoder vf maybe free, so should not to use vf struct*/
 			vf = di_p->vf->vf_ext;
 			if (vf && private_data->file)
