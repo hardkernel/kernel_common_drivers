@@ -1705,6 +1705,7 @@
 
 &usb_phy20{
 	portnum = <1>;
+	portspeed = <0x3>;
 	status = "okay";
 };
 
