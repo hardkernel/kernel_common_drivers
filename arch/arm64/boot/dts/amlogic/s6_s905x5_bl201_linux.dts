@@ -1488,3 +1488,8 @@
 	tocodec_inout = <1>;
 	tdmout_index = <1>;
 };
+
+&pdma {
+		pinctrl-names = "pdm_pins";
+		pinctrl-0 = <&pdmin>;
+};
