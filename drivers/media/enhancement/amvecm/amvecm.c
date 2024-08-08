@@ -508,7 +508,7 @@ static int vsr_update_flag = 1;
 #define AIPQ_SINGL_DATA_LEN 3
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static struct vpp_mtx_info_s mtx_info = {
+struct vpp_mtx_info_s mtx_info = {
 	MTX_NULL,
 	{
 		{0, 0, 0},

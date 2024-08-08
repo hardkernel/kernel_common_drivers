@@ -18,6 +18,7 @@
 
 #include <drm/drmP.h>
 #include <uapi/drm/drm_mode.h>
+#include <uapi/amlogic/amvecm_ext.h>
 #include <linux/amlogic/media/utils/amstream.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include "arch/ve_regs.h"
@@ -105,7 +106,7 @@ EXPORT_SYMBOL(amvecm_drm_gamma_disable);
 int am_meson_ctm_set(u32 index, struct drm_color_ctm *ctm)
 {
 	s64 m[9];
-	int i = 0;
+	int i, j;
 
 	for (i = 0; i < 9; i++) {
 		m[i] = ctm->matrix[i];
@@ -117,28 +118,30 @@ int am_meson_ctm_set(u32 index, struct drm_color_ctm *ctm)
 		// - shift the fractional part and take the 10 significant bits.
 		m[i] = ((m[i] >> 51) & 0x1000) | ((m[i] >> 22) & 0xfff);
 	}
-	VSYNC_WRITE_VPP_REG_BITS(VPP_POST_MATRIX_EN_CTRL, 1, 0, 1);
 
-	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_COEF00_01, ((m[0] & 0xfff) << 16)
-		| (m[1] & 0xfff));
-	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_COEF02_10, ((m[2] & 0xfff) << 16)
-		| (m[3] & 0xfff));
-	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_COEF11_12, ((m[4] & 0xfff) << 16)
-		| (m[5] & 0xfff));
-	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_COEF20_21, ((m[6] & 0xfff) << 16)
-		| (m[7] & 0xfff));
-	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_COEF22, (m[8] & 0xfff));
-	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_OFFSET0_1, 0x0);
-	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_OFFSET2, 0x0);
-	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_PRE_OFFSET0_1, 0x0);
-	VSYNC_WRITE_VPP_REG(VPP_POST_MATRIX_PRE_OFFSET2, 0x0);
+	for (i = 0; i < 3; i++)
+		for (j = 0; j < 3; j++)
+			mtx_info.mtx_coef.matrix_coef[i][j] = m[3 * i + j];
+
+	mtx_info.mtx_sel = POST_MTX;
+	mtx_info.mtx_coef.pre_offset[0] = 0;
+	mtx_info.mtx_coef.pre_offset[1] = 0;
+	mtx_info.mtx_coef.pre_offset[2] = 0;
+	mtx_info.mtx_coef.post_offset[0] = 0;
+	mtx_info.mtx_coef.post_offset[1] = 0;
+	mtx_info.mtx_coef.post_offset[2] = 0;
+	mtx_info.mtx_coef.en = 1;
+	vecm_latch_flag2 |= VPP_MARTIX_UPDATE;
+
 	return 0;
 }
 EXPORT_SYMBOL(am_meson_ctm_set);
 
 int am_meson_ctm_disable(void)
 {
-	VSYNC_WRITE_VPP_REG_BITS(VPP_POST_MATRIX_EN_CTRL, 0, 0, 1);
+	mtx_info.mtx_coef.en = 0;
+	vecm_latch_flag2 |= VPP_MARTIX_UPDATE;
+
 	return 0;
 }
 EXPORT_SYMBOL(am_meson_ctm_disable);

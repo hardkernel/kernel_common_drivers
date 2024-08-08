@@ -651,5 +651,6 @@ enum vpp_matrix_ext_csc_e {
 	VPP_MATRIX_BT_2100,
 };
 
+extern struct vpp_mtx_info_s mtx_info;
 #endif /* AMVECM_H */
 
