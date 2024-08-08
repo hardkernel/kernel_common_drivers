@@ -1297,7 +1297,7 @@ int __nocfi aml_cma_alloc_range(unsigned long start, unsigned long end,
 		.nr_migratepages = 0,
 		.order = -1,
 		.zone = page_zone(pfn_to_page(start)),
-		.mode = MIGRATE_SYNC,
+		.mode = gfp_mask & __GFP_NORETRY ? MIGRATE_ASYNC : MIGRATE_SYNC,
 		.ignore_skip_hint = true,
 		.no_set_skip_hint = true,
 		.gfp_mask = current_gfp_context(gfp_mask),
@@ -1327,7 +1327,7 @@ int __nocfi aml_cma_alloc_range(unsigned long start, unsigned long end,
 				       aml_pfn_max_align_up(end), migrate_type, 0);
 #endif
 #endif
-	if (ret < 0) {
+	if (ret) {
 		cma_debug(1, NULL, "ret:%d\n", ret);
 		return ret;
 	}
@@ -1683,13 +1683,13 @@ arch_initcall(aml_cma_init);
  * @cma:   Contiguous memory region for which the allocation is performed.
  * @count: Requested number of pages.
  * @align: Requested alignment of pages (in PAGE_SIZE order).
- * @no_warn: Avoid printing message about failed allocation
+ * @gfp_mask: GFP mask to use during the cma allocation.
  *
  * This function allocates part of contiguous memory on specific
  * contiguous memory area.
  */
-struct page *aml_cma_alloc(struct cma *cma, unsigned long count,
-		       unsigned int align, bool no_warn)
+static void aml_cma_alloc(void *data, struct cma *cma, unsigned long count,
+		       unsigned int align, gfp_t gfp_mask, struct page **rpage, bool *bypass)
 {
 	unsigned long mask, offset;
 	unsigned long pfn = -1;
@@ -1704,6 +1704,12 @@ struct page *aml_cma_alloc(struct cma *cma, unsigned long count,
 	unsigned long tick = 0;
 	unsigned long long in_tick, timeout;
 	int timeout_count = 0;
+	int reset = 0;
+
+	if (!preemptible()) {
+		reset = 1;
+		preempt_enable();
+	}
 
 	in_tick = sched_clock();
 
@@ -1739,7 +1745,8 @@ struct page *aml_cma_alloc(struct cma *cma, unsigned long count,
 			if ((num_attempts < max_retries) && (ret == -EBUSY)) {
 				spin_unlock_irq(&cma->lock);
 
-				if (fatal_signal_pending(current)) {
+				if (fatal_signal_pending(current) ||
+				    (gfp_mask & __GFP_NORETRY)) {
 					ret = -EINTR;
 					break;
 				}
@@ -1772,7 +1779,7 @@ struct page *aml_cma_alloc(struct cma *cma, unsigned long count,
 		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
 		mutex_lock(&cma_mutex);
 		ret = aml_cma_alloc_range(pfn, pfn + count, MIGRATE_CMA,
-				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
+				GFP_KERNEL | (gfp_mask & __GFP_NORETRY));
 		mutex_unlock(&cma_mutex);
 		if (ret == 0) {
 			page = pfn_to_page(pfn);
@@ -1819,10 +1826,10 @@ struct page *aml_cma_alloc(struct cma *cma, unsigned long count,
 	 */
 	if (page) {
 		for (i = 0; i < count; i++)
-			page_kasan_tag_reset(page + i);
+			page_kasan_tag_reset(nth_page(page, i));
 	}
 
-	if (ret && !no_warn) {
+	if (ret && !(gfp_mask & __GFP_NOWARN)) {
 		pr_err_ratelimited("%s: %s: alloc failed, req-size: %lu pages, ret: %d\n",
 				   __func__, cma->name, count, ret);
 		//cma_debug_show_areas(cma);
@@ -1833,77 +1840,19 @@ out:
 	if (page) {
 		count_vm_event(CMA_ALLOC_SUCCESS);
 		cma_sysfs_account_success_pages(cma, count);
-	} else {
+	} else if (!(gfp_mask & __GFP_NORETRY)) {
 		count_vm_event(CMA_ALLOC_FAIL);
 		if (cma)
 			cma_sysfs_account_fail_pages(cma, count);
 	}
 	aml_cma_alloc_post_hook(&dummy, count, page, tick, ret);
 
-	return page;
+	if (reset == 1)
+		preempt_disable();
+
+	*bypass = 1;
+	*rpage = page;
 }
-
-/**
- * cma_release() - release allocated pages
- * @cma:   Contiguous memory region for which the allocation is performed.
- * @pages: Allocated pages.
- * @count: Number of allocated pages.
- *
- * This function releases memory allocated by cma_alloc().
- * It returns false when provided pages do not belong to contiguous area and
- * true otherwise.
- */
-bool aml_cma_release(struct cma *cma, const struct page *pages,
-		 unsigned long count)
-{
-	unsigned long pfn;
-
-	if (!cma || !pages)
-		return false;
-
-	pr_debug("%s(page %p, count %lu)\n", __func__, (void *)pages, count);
-
-	pfn = page_to_pfn(pages);
-
-	if (pfn < cma->base_pfn || pfn >= cma->base_pfn + cma->count)
-		return false;
-
-	VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
-
-	aml_cma_free(pfn, count, 1);
-	cma_clear_bitmap(cma, pfn, count);
-	//trace_cma_release(cma->name, pfn, pages, count);
-
-	return true;
-}
-
-static int __nocfi __kprobes cma_alloc_pre_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	//restore to origin context
-	instruction_pointer_set(regs, (unsigned long)aml_cma_alloc);
-
-	//no need continue do single-step
-	return 1;
-}
-
-struct kprobe kp_cma_alloc = {
-	.symbol_name  = "cma_alloc",
-	.pre_handler = cma_alloc_pre_handler,
-};
-
-static int __nocfi __kprobes cma_release_pre_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	//restore to origin context
-	instruction_pointer_set(regs, (unsigned long)aml_cma_release);
-
-	//no need continue do single-step
-	return 1;
-}
-
-struct kprobe kp_cma_release = {
-	.symbol_name  = "cma_release",
-	.pre_handler = cma_release_pre_handler,
-};
 
 static void *get_symbol_addr(const char *symbol_name)
 {
@@ -1971,17 +1920,9 @@ static int __nocfi common_symbol_init(void *data)
 #ifdef CONFIG_PAGE_OWNER
 	aml__dump_owner = (void (*)(const struct page *page))get_symbol_addr("__dump_page_owner");
 #endif
-	ret = register_kprobe(&kp_cma_alloc);
-	if (ret < 0) {
-		pr_err("register_kprobe:%s failed, returned %d\n",
-		       kp_cma_alloc.symbol_name, ret);
-		return 1;
-	}
-
-	ret = register_kprobe(&kp_cma_release);
-	if (ret < 0) {
-		pr_err("register_kprobe:%s failed, returned %d\n",
-		       kp_cma_release.symbol_name, ret);
+	ret = register_trace_android_vh_cma_alloc_bypass(aml_cma_alloc, NULL);
+	if (ret) {
+		pr_err("register cma alloc vendor hook failed, returned %d\n", ret);
 		return 1;
 	}
 
