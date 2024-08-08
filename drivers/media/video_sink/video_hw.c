@@ -11138,47 +11138,6 @@ static void do_vpu_delay_work(struct work_struct *work)
 
 	spin_lock_irqsave(&delay_work_lock, flags);
 
-	if (vpu_delay_work_flag & VPU_DELAYWORK_VPU_VD1_CLK) {
-		vpu_delay_work_flag &= ~VPU_DELAYWORK_VPU_VD1_CLK;
-
-		spin_unlock_irqrestore(&delay_work_lock, flags);
-		if (vpu_vd1_clk_level > 0)
-			vpu_dev_clk_request(vd1_vpu_dev, 360000000);
-		else
-			vpu_dev_clk_release(vd1_vpu_dev);
-
-		spin_lock_irqsave(&delay_work_lock, flags);
-	}
-
-	if (vpu_delay_work_flag & VPU_DELAYWORK_VPU_VD2_CLK) {
-		vpu_delay_work_flag &= ~VPU_DELAYWORK_VPU_VD2_CLK;
-
-		/* FIXME: check the right vd2 clock */
-#ifdef CHECK_LATER
-		spin_unlock_irqrestore(&delay_work_lock, flags);
-
-		if (vpu_vd2_clk_level > 0)
-			request_vpu_clk_vmod(360000000, VPU_VIU_VD2);
-		else
-			release_vpu_clk_vmod(VPU_VIU_VD2);
-
-		spin_lock_irqsave(&delay_work_lock, flags);
-#endif
-	}
-
-	if (vpu_delay_work_flag & VPU_DELAYWORK_VPU_VD3_CLK) {
-		vpu_delay_work_flag &= ~VPU_DELAYWORK_VPU_VD3_CLK;
-
-		/* FIXME: check the right vd3 clock */
-#ifdef CHECK_LATER
-		spin_unlock_irqrestore(&delay_work_lock, flags);
-		if (vpu_vd3_clk_level > 0)
-			request_vpu_clk_vmod(360000000, VPU_VIU_VD3);
-		else
-			release_vpu_clk_vmod(VPU_VIU_VD3);
-		spin_lock_irqsave(&delay_work_lock, flags);
-#endif
-	}
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		r = 0xffffffff;
 	else

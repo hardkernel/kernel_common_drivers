@@ -226,41 +226,7 @@ static int vpu_vmod_clk_request(unsigned int vclk, unsigned int vmod)
 
 static int vpu_vmod_clk_release(unsigned int vmod)
 {
-	int ret = 0;
-#ifdef CONFIG_AMLOGIC_VPU_DYNAMIC_ADJ
-	unsigned int clk_level;
-
-	ret = vpu_chip_valid_check();
-	if (ret)
-		return -1;
-	if (vmod >= VPU_MOD_MAX) {
-		VPUERR("%s: invalid vmod: %d\n", __func__, vmod);
-		return -1;
-	}
-	if (!vpu_conf.clk_vmod) {
-		VPUERR("%s: clk_vmod is null\n", __func__);
-		return -1;
-	}
-
-	mutex_lock(&vpu_clk_mutex);
-
-	clk_level = 0;
-	vpu_conf.clk_vmod[vmod] = clk_level;
-	if (vpu_debug_print_flag) {
-		VPUPR("%s: %s\n", __func__, vpu_mod_table[vmod]);
-		dump_stack();
-	}
-
-	clk_level = get_vpu_clk_level_max_vmod();
-	if (clk_level != vpu_conf.clk_level) {
-		//mutex_lock(&vpu_clk_mutex);
-		set_vpu_clk(clk_level);
-		//mutex_unlock(&vpu_clk_mutex);
-	}
-
-	mutex_unlock(&vpu_clk_mutex);
-#endif
-	return ret;
+	return 0;
 }
 
 #ifndef CONFIG_AMLOGIC_C3_REMOVE
