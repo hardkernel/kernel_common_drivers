@@ -293,23 +293,21 @@ static struct clk_regmap t6d_mpll_50m = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table t6d_gp0_pll_table[] = {
-	PLL_PARAMS(128, 1, 2), /* DCO = 3072M OD = 2 PLL = 768M */
-	PLL_PARAMS(96, 1, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
-	PLL_PARAMS(128, 1, 1), /* DCO = 3072M OD = 1 PLL = 1536M */
+	PLL_PARAMS(256, 1, 1), /* DCO = 3072M OD = 2 PLL = 1536M */
+	PLL_PARAMS(192, 1, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table t6d_gp0_pll_table[] = {
-	PLL_PARAMS(128, 1), /* DCO = 3072M OD = 2 PLL = 768M */
-	PLL_PARAMS(96, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
-	PLL_PARAMS(128, 1), /* DCO = 3072M OD = 1 PLL = 1536M */
+	PLL_PARAMS(256, 1), /* DCO = 3072M OD = 2 PLL = 1536M */
+	PLL_PARAMS(192, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
 	{ /* sentinel */  }
 };
 #endif
 
 static const struct reg_sequence t6d_gp0_init_regs[] = {
 	{ .reg = ANACTRL_GP0PLL_CTRL1,	.def = 0x09900322 },
-	{ .reg = ANACTRL_GP0PLL_CTRL2,	.def = 0x6666 },
+	{ .reg = ANACTRL_GP0PLL_CTRL2,	.def = 0x0 }, /* frac = 0 as default */
 	{ .reg = ANACTRL_GP0PLL_CTRL3,	.def = 0x6 },
 };
 
@@ -347,9 +345,15 @@ static struct clk_regmap t6d_gp0_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
+		.l_rst = {
+			.reg_off = ANACTRL_GP0PLL_CTRL0,
+			.shift   = 16,
+			.width   = 1,
+		},
 		.table = t6d_gp0_pll_table,
 		.init_regs = t6d_gp0_init_regs,
 		.init_count = ARRAY_SIZE(t6d_gp0_init_regs),
+		.flags = CLK_MESON_PLL_FIXED_EN0P5 | CLK_MESON_PLL_IGNORE_INIT,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll_dco",
@@ -379,7 +383,7 @@ static struct clk_regmap t6d_gp0_pll = {
 		.offset = ANACTRL_GP0PLL_CTRL0,
 		.shift = 9,
 		.width = 2,
-		.flags = CLK_DIVIDER_ROUND_CLOSEST,
+		.flags = CLK_DIVIDER_POWER_OF_TWO,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll",
@@ -394,15 +398,26 @@ static struct clk_regmap t6d_gp0_pll = {
 #endif
 
 static const struct reg_sequence t6d_hifi_init_regs[] = {
+	{ .reg = ANACTRL_HIFIPLL_CTRL0, .def = 0x02520000 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x09900322 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x0 }, /* frac = 0 as default */
+	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00004e20 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x6 },
 };
 
-static const struct pll_mult_range t6d_hifi_pll_mult_range = {
-	.min = 67,
-	.max = 125,
+#ifdef CONFIG_ARM
+static const struct pll_params_table hifi_pll_table[] = {
+	PLL_PARAMS(150, 1, 0), /* DCO = 1800M OD = 0 PLL = 1800M */
+	PLL_PARAMS(150, 1, 2), /* DCO = 1800M OD = 4 PLL = 450M */
+	PLL_PARAMS(163, 1, 2), /* DCO = 1944M OD = 4 PLL = 486M */
+	{ /* sentinel */  }
 };
+#else
+static const struct pll_params_table hifi_pll_table[] = {
+	PLL_PARAMS(150, 1), /* DCO = 1800M */
+	PLL_PARAMS(163, 1), /* DCO = 1944M */
+	{ /* sentinel */  }
+};
+#endif
 
 static struct clk_regmap t6d_hifi_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
@@ -421,6 +436,11 @@ static struct clk_regmap t6d_hifi_pll_dco = {
 			.shift   = 0,
 			.width   = 9,
 		},
+		.od = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL0,
+			.shift	 = 9,
+			.width	 = 2,
+		},
 		.frac = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL2,
 			.shift   = 0,
@@ -436,7 +456,12 @@ static struct clk_regmap t6d_hifi_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
-		.range = &t6d_hifi_pll_mult_range,
+		.l_rst = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL0,
+			.shift   = 16,
+			.width   = 1,
+		},
+		.table = hifi_pll_table,
 		.init_regs = t6d_hifi_init_regs,
 		.init_count = ARRAY_SIZE(t6d_hifi_init_regs),
 		.flags = CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
@@ -452,27 +477,42 @@ static struct clk_regmap t6d_hifi_pll_dco = {
 	},
 };
 
+#ifdef CONFIG_ARM
 static struct clk_regmap t6d_hifi_pll = {
-	.data = &(struct clk_regmap_div_data) {
+	.hw.init = &(struct clk_init_data){
+		.name = "hifi_pll",
+		.ops = &meson_pll_clk_no_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t6d_hifi_pll_dco.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+#else
+static struct clk_regmap t6d_hifi_pll = {
+	.data = &(struct clk_regmap_div_data){
 		.offset = ANACTRL_HIFIPLL_CTRL0,
 		.shift = 9,
 		.width = 2,
-		.flags = CLK_DIVIDER_ROUND_CLOSEST
+		.flags = CLK_DIVIDER_POWER_OF_TWO,
 	},
-	.hw.init = &(struct clk_init_data) {
+	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll",
 		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&t6d_hifi_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
+#endif
 
 static const struct reg_sequence t6d_hifi1_init_regs[] = {
+	{ .reg = ANACTRL_HIFI1PLL_CTRL0,	.def = 0x02520000 },
 	{ .reg = ANACTRL_HIFI1PLL_CTRL1,	.def = 0x09900322 },
-	{ .reg = ANACTRL_HIFI1PLL_CTRL2,	.def = 0x0 }, /* frac = 0 as default */
+	{ .reg = ANACTRL_HIFI1PLL_CTRL2,	.def = 0x00004e20 },
 	{ .reg = ANACTRL_HIFI1PLL_CTRL3,	.def = 0x6 },
 };
 
@@ -493,8 +533,13 @@ static struct clk_regmap t6d_hifi1_pll_dco = {
 			.shift   = 0,
 			.width   = 9,
 		},
+		.od = {
+			.reg_off = ANACTRL_HIFI1PLL_CTRL0,
+			.shift	 = 9,
+			.width	 = 2,
+		},
 		.frac = {
-			.reg_off = ANACTRL_HIFI1PLL_CTRL1,
+			.reg_off = ANACTRL_HIFI1PLL_CTRL2,
 			.shift   = 0,
 			.width   = 19,
 		},
@@ -508,7 +553,12 @@ static struct clk_regmap t6d_hifi1_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
-		.range = &t6d_hifi_pll_mult_range,
+		.l_rst = {
+			.reg_off = ANACTRL_HIFI1PLL_CTRL0,
+			.shift   = 16,
+			.width   = 1,
+		},
+		.table = hifi_pll_table,
 		.init_regs = t6d_hifi1_init_regs,
 		.init_count = ARRAY_SIZE(t6d_hifi1_init_regs),
 		.flags = CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
@@ -525,14 +575,27 @@ static struct clk_regmap t6d_hifi1_pll_dco = {
 	},
 };
 
+#ifdef CONFIG_ARM
 static struct clk_regmap t6d_hifi1_pll = {
-	.data = &(struct clk_regmap_div_data) {
+	.hw.init = &(struct clk_init_data){
+		.name = "hifi1_pll",
+		.ops = &meson_pll_clk_no_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t6d_hifi1_pll_dco.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+#else
+static struct clk_regmap t6d_hifi1_pll = {
+	.data = &(struct clk_regmap_div_data){
 		.offset = ANACTRL_HIFI1PLL_CTRL0,
 		.shift = 9,
 		.width = 2,
-		.flags = CLK_DIVIDER_ROUND_CLOSEST
+		.flags = CLK_DIVIDER_POWER_OF_TWO,
 	},
-	.hw.init = &(struct clk_init_data) {
+	.hw.init = &(struct clk_init_data){
 		.name = "hifi1_pll",
 		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
@@ -542,6 +605,7 @@ static struct clk_regmap t6d_hifi1_pll = {
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
+#endif
 
 /*
  *rtc 32k clock
