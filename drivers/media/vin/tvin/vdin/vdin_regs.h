@@ -833,6 +833,7 @@
 /* Bit 7, vdi9 fifo overflow */
 /* Bit 5:0, vdi9_asfifo_cnt */
 #define VDIN_COM_STATUS3         ((0x1273))/* + 0xd0100000) */
+#define VDIN_SYNC_MASK           ((0X1274))
 
 #define VDIN_DOLBY_DSC_CTRL0	0x1275
 #define VDIN_DOLBY_DSC_CTRL1	0x1276

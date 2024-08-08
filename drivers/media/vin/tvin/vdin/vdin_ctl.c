@@ -3915,6 +3915,20 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 	}
 }
 
+static void filter_unstable_vsync(struct vdin_dev_s *devp)
+{
+	unsigned int offset = devp->addr_offset;
+
+	if (devp->index || devp->debug.bypass_filter_vsync)
+		return;
+
+	wr_bits(offset, VDIN_SYNC_MASK, 1, 16, 1);/*hsync mask enable*/
+	wr_bits(offset, VDIN_SYNC_MASK, 1, 17, 1);/*vsync mask enable*/
+	wr_bits(offset, VDIN_WR_CTRL2, 1, 9, 2);/*write data ext en*/
+	wr_bits(offset, VDIN_WR_CTRL2, 7, 16, 3);/*write words limit*/
+	wr_bits(offset, VDIN_WR_CTRL, 0, 27, 1);/*eol=0*/
+}
+
 void vdin_hw_enable(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
@@ -3935,6 +3949,7 @@ void vdin_hw_enable(struct vdin_dev_s *devp)
 		VDIN_COMMON_INPUT_EN_BIT, VDIN_COMMON_INPUT_EN_WID);
 
 	vdin_clk_on_off(devp, true);
+	filter_unstable_vsync(devp);
 	/* wr(offset, VDIN_COM_GCLK_CTRL, 0x0); */
 }
 
