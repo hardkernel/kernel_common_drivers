@@ -4018,7 +4018,7 @@ static void hdmitx_process_plugin(struct hdmitx_dev *hdev, bool set_audio)
 	/* step1: SW: EDID read/parse, notify client modules */
 	hdmitx_plugin_common_work(&hdev->tx_comm);
 
-	/* TODO: need remove/optimised, keep it temporarily */
+	/* only bootup plugin will set audio mode, other plugin will not do that */
 	if (set_audio) {
 		info = hdmitx_get_current_vinfo(NULL);
 		if (info && info->mode == VMODE_HDMI)

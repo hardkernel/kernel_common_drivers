@@ -3659,11 +3659,6 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	hdmitx21_wr_reg(VP_OUTPUT_MASK_IVCTX, data8);
 
 	//---------------
-	// config I2S
-	//---------------
-	hdmitx21_set_audio(hdev, &hdev->tx_comm.cur_audio_param);
-
-	//---------------
 	// config Packet
 	//---------------
 	hdmitx21_wr_reg(VTEM_CTRL_IVCTX, 0x04); //[2] reg_vtem_ctrl
