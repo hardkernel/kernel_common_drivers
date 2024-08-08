@@ -363,8 +363,13 @@ int set_vpu_clk(unsigned int vclk)
 	}
 
 	clk = vpu_clk_get();
+	if (vpu_debug_print_flag)
+		VPUPR("%s vclk:%d cur_clk:%d clk_level:%d\n",
+		      __func__, vclk, clk, clk_level);
 	if ((clk > (vpu_conf.data->clk_table[clk_level].freq + VPU_CLK_TOLERANCE)) ||
 	    (clk < (vpu_conf.data->clk_table[clk_level].freq - VPU_CLK_TOLERANCE))) {
+		if (vpu_debug_print_flag)
+			VPUPR("%s update clk_level:%d\n", __func__, clk_level);
 		vpu_conf.clk_level = clk_level;
 		if (vpu_conf.data->clk_apply)
 			ret = vpu_conf.data->clk_apply(clk_level);
