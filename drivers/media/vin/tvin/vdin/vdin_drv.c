@@ -255,6 +255,58 @@ unsigned int get_vdin_buffer_num(void)
 }
 EXPORT_SYMBOL(get_vdin_buffer_num);
 
+unsigned int get_vdin_status(bool stop_en)
+{
+	unsigned int flags = 0;
+
+	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
+	struct vdin_dev_s *vdin_sub_devp;/* sub port for t3x */
+	struct vdin_dev_s *vdin_loopback_devp = NULL;
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (is_meson_t3x_cpu()) {
+		vdin_sub_devp = vdin_devp[1];
+		vdin_loopback_devp = vdin_devp[2];
+	} else {
+		vdin_sub_devp = NULL;
+		vdin_loopback_devp = vdin_devp[1];
+	}
+#else
+	vdin_sub_devp = NULL;
+	vdin_loopback_devp = vdin_devp[1];
+#endif
+
+	if (vdin0_devp) {
+		mutex_lock(&vdin0_devp->fe_lock);
+		if (vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)
+			flags |= (BIT0);
+		//if (stop_en)
+		//	vdin_self_stop_dec(vdin0_devp);
+		mutex_unlock(&vdin0_devp->fe_lock);
+	}
+
+	if (vdin_loopback_devp) {
+		mutex_lock(&vdin_loopback_devp->fe_lock);
+		if (vdin_loopback_devp->flags & VDIN_FLAG_DEC_STARTED)
+			flags |= (BIT1);
+		if (stop_en)
+			vdin_self_stop_dec(vdin_loopback_devp);
+		mutex_unlock(&vdin_loopback_devp->fe_lock);
+	}
+	/* The second rx input on t3x */
+	if (vdin_sub_devp) {
+		mutex_lock(&vdin_sub_devp->fe_lock);
+		if (vdin_sub_devp->flags & VDIN_FLAG_DEC_STARTED)
+			flags |= (BIT2);
+		//if (stop_en)
+		//	vdin_self_stop_dec(vdin_sub_devp);
+		mutex_unlock(&vdin_sub_devp->fe_lock);
+	}
+
+	return flags;
+}
+EXPORT_SYMBOL(get_vdin_status);
+
 /* describe:
  *	hdmirx call this function update prop when package reception done
  *	this call after vdin_isr
@@ -1827,8 +1879,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 void vdin_self_stop_dec(struct vdin_dev_s *devp)
 {
 	if (!(devp->flags & VDIN_FLAG_DEC_STARTED)) {
-		pr_info("%s(%d) decoder in state stopped flags=0x%x\n",
-			__func__, devp->index, devp->flags);
+		if (vdin_dbg_en)
+			pr_info("%s(%d) decoder in state stopped flags=0x%x\n",
+				__func__, devp->index, devp->flags);
 		return;
 	}
 
