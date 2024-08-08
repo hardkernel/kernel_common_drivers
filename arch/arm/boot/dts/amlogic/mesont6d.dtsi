@@ -1110,8 +1110,8 @@
 			reg = <0xfe078000 0x18>;
 			interrupts = <0 168 1>;
 			status = "disabled";
-			//clocks = <&xtal
-			//	&clkc CLKID_SYS_UART_A>;
+			clocks = <&xtal
+				&clkc CLKID_SYS_UART_WRAPPER>;
 			clock-names = "clk_uart",
 				"clk_gate";
 			xtal_tick_en = <2>;
@@ -1125,8 +1125,8 @@
 			reg = <0xfe078800 0x18>;
 			interrupts = <0 170 1>;
 			status = "disabled";
-			//clocks = <&xtal
-			//	&clkc CLKID_SYS_UART_C>;
+			clocks = <&xtal
+				&clkc CLKID_SYS_UART_WRAPPER>;
 			clock-names = "clk_uart",
 				"clk_gate";
 			xtal_tick_en = <2>;
@@ -3018,34 +3018,34 @@
 
 	a_uart_pins1:a_uart1 {
 		mux {
-			groups = "uart_a_tx_c",
-				"uart_a_rx_c",
-				"uart_a_cts_c",
-				"uart_a_rts_c";
+			groups = "uart_a_tx_c6",
+				 "uart_a_rx_c7",
+				 "uart_a_cts_c8",
+				 "uart_a_rts_c9";
 			function = "uart_a";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 
 	a_uart_pins2:a_uart2 {
 		mux {
-			groups = "uart_a_tx_z",
-				"uart_a_rts_z";
+			groups = "uart_a_tx_z0",
+				 "uart_a_rx_z1",
+				 "uart_a_cts_z2",
+				 "uart_a_rts_z3";
 			function = "uart_a";
-		};
-		mux1 {
-			groups = "uart_a_rx_z",
-				"uart_a_cts_z";
-			function = "uart_a";
+			drive-strength-microamp = <3000>;
 			bias-pull-up;
 		};
 	};
 
 	a_uart_pins3:a_uart3 {
 		mux {
-			groups = "uart_a_tx_m",
-				"uart_a_rx_m",
-				"uart_a_cts_m",
-				"uart_a_rts_m";
+			groups = "uart_a_tx_m0",
+				 "uart_a_rx_m1",
+				 "uart_a_cts_m2",
+				 "uart_a_rts_m3";
 			function = "uart_a";
 			drive-strength-microamp = <3000>;
 			bias-pull-up;
@@ -3054,8 +3054,8 @@
 
 	c_uart_pins1:c_uart1 {
 		mux {
-			groups = "uart_c_tx_d",
-				"uart_c_rx_d";
+			groups = "uart_c_tx_d6",
+				 "uart_c_rx_d7";
 			function = "uart_c";
 			drive-strength-microamp = <3000>;
 			bias-pull-up;
@@ -3063,30 +3063,6 @@
 	};
 
 	c_uart_pins2:c_uart2 {
-		mux {
-			groups = "uart_c_tx_p",
-				"uart_c_rx_p",
-				"uart_c_cts_p",
-				"uart_c_rts_p";
-			function = "uart_c";
-			drive-strength-microamp = <3000>;
-			bias-pull-up;
-		};
-	};
-
-	c_uart_pins3:c_uart3 {
-		mux {
-			groups = "uart_c_tx_m",
-				"uart_c_rx_m",
-				"uart_c_cts_m",
-				"uart_c_rts_m";
-			function = "uart_c";
-			drive-strength-microamp = <3000>;
-			bias-pull-up;
-		};
-	};
-
-	c_uart_pins4:c_uart4 {
 		mux {
 			groups = "uart_c_tx_h2",
 				"uart_c_rx_h3",
@@ -3098,10 +3074,12 @@
 		};
 	};
 
-	c_uart_pins5:c_uart5 {
+	c_uart_pins3:c_uart3 {
 		mux {
-			groups = "uart_c_tx_h24",
-				"uart_c_rx_h25";
+			groups = "uart_c_tx_m19",
+				"uart_c_rx_m20",
+				"uart_c_cts_m21",
+				"uart_c_rts_m22";
 			function = "uart_c";
 			drive-strength-microamp = <3000>;
 			bias-pull-up;
@@ -3115,30 +3093,6 @@
 				 "jtag_a_clk",
 				 "jtag_a_tms";
 			function = "jtag_a";
-		};
-	};
-
-	c_uart_pins5:c_uart5 {
-		mux {
-			groups = "uart_c_tx_m",
-				"uart_c_rx_m";
-			function = "uart_c";
-		};
-	};
-
-	d_uart_pins1:d_uart1 {
-		mux {
-			groups = "uart_d_tx_z",
-				"uart_d_rx_z";
-			function = "uart_d";
-		};
-	};
-
-	d_uart_pins2:d_uart2 {
-		mux {
-			groups = "uart_d_tx_m",
-				"uart_d_rx_m";
-			function = "uart_d";
 		};
 	};
 
