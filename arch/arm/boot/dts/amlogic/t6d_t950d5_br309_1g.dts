@@ -1821,7 +1821,7 @@
 };
 
 &ir {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&remote_pins>;
 };

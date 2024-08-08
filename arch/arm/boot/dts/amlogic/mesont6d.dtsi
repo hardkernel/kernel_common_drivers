@@ -1018,8 +1018,8 @@
 
 			ir: ir@8000 {
 				compatible = "amlogic, meson-ir";
-				reg = <0x84040 0xA4>,
-					<0x84000 0x20>;
+				reg = <0x84080 0xA4>,
+					<0x84000 0x58>;
 				status = "disabled";
 				protocol = <REMOTE_TYPE_NEC>;
 				interrupts = <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
@@ -2849,8 +2849,8 @@
 
 	remote_pins: remote_pin {
 		mux {
-			groups = "remote_input";
-			function = "remote_input";
+			groups = "ir_in_a";
+			function = "ir";
 			bias-disable;
 		};
 	};
