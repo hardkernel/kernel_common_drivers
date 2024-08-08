@@ -496,8 +496,11 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			vf_info.reserved[0] = 0;
 			vf_info.phy_addr[0] = mvvs->phy_addr[0];
 			vf_info.phy_addr[1] = mvvs->phy_addr[1];
-			if (vf_info.dmabuf && vf_info.dmabuf->resv)
+			if (vf_info.dmabuf && vf_info.dmabuf->resv) {
 				old_fence = dma_resv_get_excl_unlocked(vf_info.dmabuf->resv);
+				if (old_fence)
+					dma_fence_put(old_fence);
+			}
 			MESON_DRM_FENCE("dmabuf(%px), release_fence(%px-%d), old_fence=%px-%d\n",
 				vf_info.dmabuf, vf_info.release_fence,
 				vf_info.release_fence ?
