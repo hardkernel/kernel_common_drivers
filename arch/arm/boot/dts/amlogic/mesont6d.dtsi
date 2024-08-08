@@ -1035,20 +1035,21 @@
 				interrupts = <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>;
 			};
 
-			eth_phy: mdio-multiplexer@28000 {
+			eth_phy: mdio-multiplexer@380000 {
 				compatible = "amlogic,g12a-mdio-mux";
-				reg = <0x28000 0xa4>;
+				reg = <0x380000 0xa4>;
 
-				//clocks = <&clkc CLKID_SYS_ETHPHY>,
-				//	 <&xtal>,
-				//	 <&clkc CLKID_MPLL_50M>;
+				clocks = <&clkc CLKID_SYS_ETHPHY>,
+					<&xtal>,
+					<&clkc CLKID_MPLL_50M>;
 				clock-names = "pclk", "clkin0", "clkin1";
 				mdio-parent-bus = <&mdio0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				enet_type = <5>;
+				phy_pll_mode = <2>;
+				phy_mode = <4>;
 				tx_amp_src = <0xFE010330>;
-				status = "disabled";
 
 				ext_mdio: mdio@0 {
 					reg = <0>;
@@ -1064,7 +1065,7 @@
 					internal_ephy: ethernet_phy@8 {
 						compatible = "ethernet-phy-id0180.3301",
 							     "ethernet-phy-ieee802.3-c22";
-						interrupts = <GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>;
+						interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
 						reg = <8>;
 						max-speed = <100>;
 					};
@@ -1078,25 +1079,24 @@
 			};
 		};
 
-		ethmac: ethernet@fdc00000 {
+		ethmac: ethernet@388000 {
 			compatible = "amlogic,meson-axg-dwmac",
-				     "snps,dwmac-3.70a",
-				     "snps,dwmac";
-			reg = <0xfdc00000 0x10000>,
-			      <0xfe024000 0x8>;
+				     "snps,dwmac-4.00";
+			reg = <0xfe388000 0x12ec>,
+			      <0xfe384000 0x8>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			//power-domains = <&pwrdm PDID_T3_ETH>;
-			//clocks = <&clkc CLKID_SYS_ETH>,
-			//	 <&clkc CLKID_FCLK_DIV2>,
-			//	 <&clkc CLKID_MPLL_50M>;
+			clocks = <&clkc CLKID_SYS_ETHPHY>,
+				 <&clkc CLKID_FCLK_DIV2>,
+				 <&clkc CLKID_MPLL_50M>;
 			clock-names = "stmmaceth", "clkin0", "clkin1";
 			rx-fifo-depth = <4096>;
 			tx-fifo-depth = <2048>;
 			/*1:inphy; 2:exphy;*/
 			internal_phy = <1>;
-			mboxes = <&mbox_fifo T6D_REE2AO_ETH>;
-			status = "disabled";
+			analog_version = <1>;
+//			mboxes = <&mbox_fifo T6D_REE2AO_ETH>;
+		//	status = "disabled";
 
 			mdio0: mdio {
 				#address-cells = <1>;
