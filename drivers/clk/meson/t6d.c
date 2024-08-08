@@ -4021,8 +4021,8 @@ static MESON_T6D_SYS_GATE(t6d_sys_msr_clk,		CLKCTRL_SYS_CLK_EN0_REG0, 15);
 static MESON_T6D_SYS_GATE(t6d_sys_audio,		CLKCTRL_SYS_CLK_EN0_REG0, 17);
 static MESON_T6D_SYS_GATE(t6d_sys_tvfe,			CLKCTRL_SYS_CLK_EN0_REG0, 18);
 static MESON_T6D_SYS_GATE(t6d_sys_ethmac,		CLKCTRL_SYS_CLK_EN0_REG0, 19);
-static MESON_T6D_SYS_GATE(t6d_sys_phy,			CLKCTRL_SYS_CLK_EN0_REG0, 20);
-static MESON_T6D_SYS_GATE(t6d_sys_axi,			CLKCTRL_SYS_CLK_EN0_REG0, 21);
+static MESON_T6D_SYS_GATE(t6d_sys_ethphy,		CLKCTRL_SYS_CLK_EN0_REG0, 20);
+static MESON_T6D_SYS_GATE(t6d_sys_ethaxi,		CLKCTRL_SYS_CLK_EN0_REG0, 21);
 static MESON_T6D_SYS_GATE(t6d_sys_ge2d,			CLKCTRL_SYS_CLK_EN0_REG0, 31);
 static MESON_T6D_SYS_GATE(t6d_sys_i2c_monitor,		CLKCTRL_SYS_CLK_EN0_REG1, 0);
 static MESON_T6D_SYS_GATE(t6d_sys_usb_u22h,		CLKCTRL_SYS_CLK_EN0_REG1, 1);
@@ -4281,8 +4281,8 @@ static struct clk_hw_onecell_data t6d_hw_onecell_data = {
 		[CLKID_SYS_AUDIO]			= &t6d_sys_audio.hw,
 		[CLKID_SYS_TVFE]			= &t6d_sys_tvfe.hw,
 		[CLKID_SYS_ETHMAC]			= &t6d_sys_ethmac.hw,
-		[CLKID_SYS_PHY]				= &t6d_sys_phy.hw,
-		[CLKID_SYS_AXI]				= &t6d_sys_axi.hw,
+		[CLKID_SYS_ETHPHY]			= &t6d_sys_ethphy.hw,
+		[CLKID_SYS_ETHAXI]			= &t6d_sys_ethaxi.hw,
 		[CLKID_SYS_GE2D]			= &t6d_sys_ge2d.hw,
 		[CLKID_SYS_I2C_MONITOR]			= &t6d_sys_i2c_monitor.hw,
 		[CLKID_SYS_USB_U22H]			= &t6d_sys_usb_u22h.hw,
@@ -4517,8 +4517,8 @@ static struct clk_regmap *const t6d_clk_regmaps[] = {
 	&t6d_sys_audio,
 	&t6d_sys_tvfe,
 	&t6d_sys_ethmac,
-	&t6d_sys_phy,
-	&t6d_sys_axi,
+	&t6d_sys_ethphy,
+	&t6d_sys_ethaxi,
 	&t6d_sys_ge2d,
 	&t6d_sys_i2c_monitor,
 	&t6d_sys_usb_u22h,
