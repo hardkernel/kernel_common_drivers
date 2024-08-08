@@ -755,6 +755,23 @@ int vpu_dev_clk_release(struct vpu_dev_s *vpu_dev)
 EXPORT_SYMBOL(vpu_dev_clk_release);
 
 /*
+ *  Function: vpu_support_overclk
+ *      get whether hardware support vpu overclock
+ *
+ *  Returns:
+ *      int, 0 don't support overclk, 1 support overclk
+ *
+ *  Example:
+ *      ret = vpu_support_overclk();
+ *
+ */
+int vpu_support_overclk(void)
+{
+	return vpu_conf.vpu_overclock;
+}
+EXPORT_SYMBOL(vpu_support_overclk);
+
+/*
  *  Function: vpu_dev_mem_power_on
  *      switch vpu memory power down by vpu_dev
  *

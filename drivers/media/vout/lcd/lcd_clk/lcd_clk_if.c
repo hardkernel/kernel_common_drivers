@@ -489,10 +489,23 @@ void lcd_clk_change(struct aml_lcd_drv_s *pdrv)
 	}
 
 	if ((pdrv->config.timing.clk_change & LCD_CLK_PLL_CHANGE) ||
-	    (pdrv->config.timing.clk_change & LCD_CLK_PLL_RESET))
+	    (pdrv->config.timing.clk_change & LCD_CLK_PLL_RESET)) {
+#ifdef CONFIG_AMLOGIC_VPU
+		if (vpu_support_overclk() && pdrv->vmode_switch) {
+			LCDPR("[%d]: %s: vpu overclk flow\n", pdrv->index, __func__);
+			lcd_venc_enable(pdrv, 0);
+			msleep(30);
+			vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
+			msleep(30);
+			lcd_venc_enable(pdrv, 1);
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("[%d]: %s: vpu overclk flow done\n", pdrv->index, __func__);
+		}
+#endif
 		lcd_set_clk(pdrv);
-	else if (pdrv->config.timing.clk_change & LCD_CLK_FRAC_UPDATE)
+	} else if (pdrv->config.timing.clk_change & LCD_CLK_FRAC_UPDATE) {
 		lcd_update_clk_frac(pdrv);
+	}
 }
 
 int lcd_mlvds_clk_phase_set(struct aml_lcd_drv_s *pdrv)

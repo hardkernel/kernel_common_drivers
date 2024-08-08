@@ -1745,9 +1745,6 @@ static void lcd_debug_clk_change(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.std_duration = sync_duration / 100;
 	pdrv->vinfo.video_clk = pconf->timing.enc_clk;
 
-#ifdef CONFIG_AMLOGIC_VPU
-	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pconf->timing.enc_clk);
-#endif
 	lcd_clk_generate_parameter(pdrv);
 
 	if (pdrv->config.basic.lcd_type == LCD_VBYONE)
@@ -2086,9 +2083,6 @@ static void lcd_debug_change_clk_change(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.std_duration = sync_duration / 100;
 	pdrv->vinfo.video_clk = pconf->timing.enc_clk;
 
-#ifdef CONFIG_AMLOGIC_VPU
-	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
-#endif
 	lcd_clk_generate_parameter(pdrv);
 }
 

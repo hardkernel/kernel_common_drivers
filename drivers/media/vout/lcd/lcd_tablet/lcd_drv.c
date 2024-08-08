@@ -104,7 +104,6 @@ void lcd_tablet_driver_init_pre(struct aml_lcd_drv_s *pdrv)
 
 	lcd_frame_rate_change(pdrv);
 #ifdef CONFIG_AMLOGIC_VPU
-	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
 	vpu_dev_mem_power_on(pdrv->lcd_vpu_dev);
 #endif
 	lcd_clk_gate_switch(pdrv, 1);
@@ -153,10 +152,6 @@ int lcd_tablet_driver_change(struct aml_lcd_drv_s *pdrv)
 	ret = lcd_type_supported(&pdrv->config);
 	if (ret)
 		return -1;
-
-#ifdef CONFIG_AMLOGIC_VPU
-	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
-#endif
 
 	if (pdrv->status & LCD_STATUS_ENCL_ON) {
 		if (pdrv->config.basic.lcd_type == LCD_VBYONE) {

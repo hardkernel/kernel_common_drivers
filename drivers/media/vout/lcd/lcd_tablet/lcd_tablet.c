@@ -788,9 +788,6 @@ static int lcd_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->config.timing.clk_change & LCD_CLK_CHANGE) {
 		clk_change = 1; //pdrv->config.timing.clk_change will clear in lcd_clk_change
-#ifdef CONFIG_AMLOGIC_VPU
-		vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
-#endif
 		if (pdrv->config.basic.lcd_type == LCD_VBYONE)
 			lcd_vbyone_interrupt_enable(pdrv, 0);
 		lcd_clk_change(pdrv);
@@ -1252,9 +1249,6 @@ static void lcd_frame_rate_adjust(struct aml_lcd_drv_s *pdrv, int duration)
 
 	/* update interface timing */
 	lcd_frame_rate_change(pdrv);
-#ifdef CONFIG_AMLOGIC_VPU
-	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
-#endif
 
 	/* change clk parameter */
 	lcd_clk_change(pdrv);
