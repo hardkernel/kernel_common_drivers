@@ -4818,22 +4818,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	/* init HW */
 	hdmitx21_meson_init(hdev);
-	/* load fmt para from hw info */
-	hdmitx_common_init_bootup_format_para(tx_comm, &tx_comm->fmt_para);
-	/* TODO: not consider VESA mode witch HW VIC = 0 */
-	if (tx_comm->fmt_para.vic != HDMI_0_UNKNOWN)
-		hdev->tx_comm.ready = 1;
-	/*
-	 * update fmt_attr string from fmt_para, note that fmt_attr is already
-	 * set by hdmitx_common_init() with boot arg, and below is un-necessary,
-	 * and it will set attr sysfs node as empty if hdmitx not enabled under
-	 * uboot as fmt para is in reset state
-	 */
-	hdmitx_format_para_rebuild_fmtattr_str(&hdev->tx_comm.fmt_para,
-		hdev->tx_comm.fmt_attr, sizeof(hdev->tx_comm.fmt_attr));
-	/* load init hdr state for HW info */
-	hdmitx_hdr_state_init(&hdev->tx_comm);
-
 	hdmitx_vout_init(tx_comm, &hdev->tx_hw.base);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
@@ -4902,6 +4886,31 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		hdmitx_bootup_plugin_handler(hdev);
 	else
 		hdmitx_bootup_plugout_handler(hdev);
+
+	/*
+	 * When Sink-led output, the Color Space read from AVI Packet is RGB,
+	 * but the input to HDMITX is YUV444, so it is necessary to judge that
+	 * the Color Space is configured to be YUV444 when the current output
+	 * is Sink-led, this logic judgment needs to be executed after parsing
+	 * the EDID, refer to the SWPL-180597 for details
+	 *
+	 * load fmt para from hw info
+	 */
+	hdmitx_common_init_bootup_format_para(tx_comm, &tx_comm->fmt_para);
+	/* TODO: not consider VESA mode witch HW VIC = 0 */
+	if (tx_comm->fmt_para.vic != HDMI_0_UNKNOWN)
+		hdev->tx_comm.ready = 1;
+	/*
+	 * update fmt_attr string from fmt_para, note that fmt_attr is already
+	 * set by hdmitx_common_init() with boot arg, and below is un-necessary,
+	 * and it will set attr sysfs node as empty if hdmitx not enabled under
+	 * uboot as fmt para is in reset state
+	 */
+	hdmitx_format_para_rebuild_fmtattr_str(&hdev->tx_comm.fmt_para,
+		hdev->tx_comm.fmt_attr, sizeof(hdev->tx_comm.fmt_attr));
+	/* load init hdr state for HW info */
+	hdmitx_hdr_state_init(&hdev->tx_comm);
+
 	/* after unlock, now can take actions of bottom half of hpd irq */
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 	/* notify to drm hdmi */
