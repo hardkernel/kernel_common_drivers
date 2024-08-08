@@ -5388,7 +5388,7 @@ static struct osd_device_data_s osd_t6d = {
 	.has_rdma = 1,
 	.has_dolby_vision = 0,
 	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
-	.vpp_fifo_len = 0xfff,/* 2048 */
+	.vpp_fifo_len = 0x7ff,/* 2048 */
 	.dummy_data = 0x00808000,
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
@@ -5525,7 +5525,7 @@ static const struct of_device_id meson_fb_dt_match[] = {
 		.compatible = "amlogic, fb-s6",
 		.data = &osd_s6,
 	},
-	},
+	{
 		.compatible = "amlogic, fb-t6d",
 		.data = &osd_t6d,
 	},
@@ -5676,6 +5676,7 @@ static int __init osd_probe(struct platform_device *pdev)
 		       sizeof(struct osd_device_hw_s));
 	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_S6)
 		memcpy(&osd_dev_hw, &s7_dev_property,
+				sizeof(struct osd_device_hw_s));
 	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T6D)
 		memcpy(&osd_dev_hw, &t6d_dev_property,
 		       sizeof(struct osd_device_hw_s));
@@ -6133,7 +6134,6 @@ static int __init rmem_fb_setup(struct reserved_mem *rmem)
 		     (void *)rmem->base, (unsigned long)rmem->size / SZ_1M);
 	return 0;
 }
-
 RESERVEDMEM_OF_DECLARE(fb, "amlogic, fb-memory", rmem_fb_setup);
 
 #ifdef CONFIG_HIBERNATION
