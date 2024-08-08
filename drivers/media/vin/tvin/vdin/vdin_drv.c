@@ -1984,9 +1984,11 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		devp->fmt_info_p->vs_bp     = para->vs_bp;
 		devp->fmt_info_p->hs_pol    = para->hsync_phase;
 		devp->fmt_info_p->vs_pol    = para->vsync_phase;
-		if ((para->h_active * para->v_active * para->frame_rate)
-			> devp->vdin_max_pixel_clk)
-			para->h_active >>= 1;
+		/*
+		 * if ((para->h_active * para->v_active * para->frame_rate)
+		 *	> devp->vdin_max_pixel_clk)
+		 *	para->h_active >>= 1;
+		 */
 		devp->fmt_info_p->h_active  = para->h_active;
 		devp->fmt_info_p->v_active  = para->v_active;
 		if (devp->parm.port == TVIN_PORT_VIU1_VIDEO &&
