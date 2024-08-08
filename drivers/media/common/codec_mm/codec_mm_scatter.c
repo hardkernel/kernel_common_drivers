@@ -2224,11 +2224,18 @@ int codec_mm_scatter_alloc_want_pages_in(struct codec_mm_scatter_mgt *smgt,
 						     is_cache_sc(smgt, mms));
 		if (ret <= 0) {
 			codec_mm_scatter_unlock(mms);
-			ERR_LOG("can't alloc want pages %d\n", want_pages);
-			return ret;
+			ERR_LOG("%s can't alloc want pages %d\n", is_cache_sc(smgt, mms) ?
+				"Scatter cache" : "Scatter mem", want_pages);
+			return -1;
 		}
 		mms->page_cnt += ret;
 		mms->page_tail += ret;
+		if (mms->page_cnt < want_pages && !is_cache_sc(smgt, mms)) {
+			codec_mm_scatter_unlock(mms);
+			ERR_LOG("Scatter mem want pages %d but alloc %d\n", want_pages,
+				mms->page_cnt);
+			return -1;
+		}
 	}
 	ATRACE_COUNTER("mmu alloc", MMU_ALLOC_LIST_LOCK_START);
 	codec_mm_list_lock(smgt);
