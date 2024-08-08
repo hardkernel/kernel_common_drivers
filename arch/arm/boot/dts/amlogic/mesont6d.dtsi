@@ -1759,21 +1759,20 @@
 	};
 
 	multi-di {
-		compatible = "amlogic, dim-t3";
-		status = "disabled";
+		compatible = "amlogic, dim-t6d";
+		status = "okay";
 		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
 		flag_cma = <4>;	//<1>;
 		//memory-region = <&di_reserved>;
 		memory-region = <&di_cma_reserved>;
 		interrupts = <0 203 1
-				0 202 1
-				0 186 1>;
-		interrupt-names = "pre_irq", "post_irq","dct_irq";
+				0 202 1>;
+		interrupt-names = "pre_irq", "post_irq";
 		clocks = <&clkc CLKID_VPU_CLKB>,
 			<&clkc CLKID_VPU>;
 		clock-names = "vpu_clkb",
 			"vpu_mux";
-		clock-range = <334 667>;
+		clock-range = <334 400>;
 		/* buffer-size = <3621952>;(yuv422 8bit) */
 		buffer-size = <4074560>;/*yuv422 fullpack*/
 		/* reserve-iomap = "true"; */
@@ -1782,14 +1781,14 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
-		en_4k = <1>;
-		keep_dec_vf = <2>;
-		po_fmt = <6>;
+		en_4k = <0>;
+		keep_dec_vf = <0>;
+		po_fmt = <0>;
 		post_nub = <11>;
-		alloc_sct = <1>;
+		alloc_sct = <0>;
 		hf = <0>;
-		dct = <2>;
-		sub_v = <2>;//sub version for t5m
+		dct = <0>;
+		sub_v = <0>;//sub version
 		afbce_loss_en = <0>;//t5w loss mode enable for DI output
 		prelink_en = <1>;
 		ponly_mode = <1>;
