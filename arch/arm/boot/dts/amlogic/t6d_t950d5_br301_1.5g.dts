@@ -1436,13 +1436,13 @@
 };
 
 &aml_wifi{
-	status = "disabled";
+	status = "okay";
 	power_on-gpios = <&gpio   GPIOD_11  GPIO_ACTIVE_HIGH>;
 	disable-wifi-32k;
 };
 
 &aml_bt {
-	status = "disabled";
+	status = "okay";
 	bt_en-gpios = <&gpio  GPIOD_11  GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio  GPIOD_13  GPIO_ACTIVE_HIGH>;
 	power_down_disable = <1>;
