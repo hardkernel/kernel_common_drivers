@@ -352,17 +352,15 @@ static void dnr_config_op(struct DNR_PARM_s *dnr_parm_p,
 	       (((border_offset << 3) & 0x3fff) << 16) |
 	       ((cfg->height - ((border_offset << 3) + 1)) & 0x3fff));
 	op->wr(DNR_DM_CTRL, op->rd(DNR_DM_CTRL) | (1 << 11));
-	op->bwr(DNR_CTRL, cfg->linkflag ? 1 : 0, 17, 1);
-	op->bwr(DNR_CTRL, dnr_en ? 1 : 0, 16, 1);
 	/* dm for sd, hd will slower */
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
 	    IS_IC(dil_get_cpuver_flag(), T5)	||
 	    IS_IC(dil_get_cpuver_flag(), T5D)	||
 	    IS_IC(dil_get_cpuver_flag(), T5DB)	||
 	    (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)))//from vlsi feijun
-		op->wr(DNR_CTRL, 0x1df00 | (0x03 << 18)); //5 line
+		op->wr(DNR_CTRL, 0x3df00 | (0x03 << 18)); //5 line
 	else
-		op->wr(DNR_CTRL, 0x1df00);
+		op->wr(DNR_CTRL, 0x3df00);
 
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
 	    IS_IC(dil_get_cpuver_flag(), T5)	||
@@ -398,6 +396,9 @@ static void dnr_config_op(struct DNR_PARM_s *dnr_parm_p,
 		else
 			op->bwr(DNR_DM_CTRL, dnr_dm_en, 9, 1);
 	}
+	op->bwr(DNR_CTRL, dnr_en ? 1 : 0, 16, 1);
+	if (dnr_pr)
+		pr_info("reg:DNR_CTRL=%x\n", Rd(DNR_CTRL));
 }
 
 static void nr4_config_op(struct NR4_PARM_s *nr4_parm_p,
@@ -2449,7 +2450,7 @@ void nr_hw_init_op(const struct reg_acc *op)
 	    IS_IC(dil_get_cpuver_flag(), T5D)	||
 	    IS_IC(dil_get_cpuver_flag(), T5DB)	||
 	    (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)))
-		op->wr(DNR_CTRL, 0x1df00 | (0x03 << 18));//5 line
+		op->wr(DNR_CTRL, 0x3df00 | (0x03 << 18));//5 line
 	else
 		op->wr(DNR_CTRL, 0x1df00);
 	op->wr(NR3_MODE, 0x3);
