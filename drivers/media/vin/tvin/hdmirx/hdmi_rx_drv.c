@@ -1745,9 +1745,18 @@ void hdmirx_de_hactive(bool en, struct tvin_frontend_s *fe, enum tvin_port_type_
 {
 	u8 port = rx_get_port_from_type(port_type);
 
-	if (rx_info.chip_id != CHIP_ID_TXHD2)
+	if (rx_info.chip_id != CHIP_ID_TXHD2 && rx_info.chip_id != CHIP_ID_T6D)
 		return;
 	hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(30), en, port);
+}
+
+void hdmirx_de_vactive(bool en, struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
+{
+	u8 port = rx_get_port_from_type(port_type);
+
+	if (rx_info.chip_id != CHIP_ID_T6D)
+		return;
+	hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(29), en, port);
 }
 
 bool hdmirx_clr_pkts(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type)
@@ -1778,6 +1787,7 @@ static struct tvin_state_machine_ops_s hdmirx_sm_ops = {
 	.hdmi_clr_vsync	= hdmirx_clr_vsync,
 	.hdmi_reset_pcs = hdmirx_pcs_reset,
 	.hdmi_de_hactive = hdmirx_de_hactive,
+	.hdmi_de_vactive = hdmirx_de_vactive,
 	.hdmi_clr_pkts	= hdmirx_clr_pkts,
 	.hdmi_is_xbox_dev = hdmirx_is_xbox_dev, //TODO: temp patch for xbox game mode
 };

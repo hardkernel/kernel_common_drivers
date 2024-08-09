@@ -917,7 +917,8 @@
 #define VDIN_CRC_CHK_START_BIT	0
 #define VDIN_CRC_CHK_START_WID	1
 
-#define VDIN_RO_CRC	0x12ca
+#define VDIN_RO_CRC		0x12ca
+#define VDIN_WR_DONE_CTL	0x12cb
 
 /* t7 add */
 #define VDIN_WR_BADDR_LUMA	0x12cc
@@ -966,6 +967,62 @@
 #define HSK_COEF_13	0x12fd
 #define HSK_COEF_14	0x12fe
 #define HSK_COEF_15	0x12ff
+
+/* t6d newly modified begin */
+#define VDIN_WRMIF_CTRL0 0x121f
+#define T6D_EOL_SEL_BIT                     12
+#define T6D_EOL_SEL_WID                     1
+
+#define VDIN_WRMIF_CTRL1 0x1220
+//Bit 31 bubble 10bit in 12bit val = 1                  //unsigned, RW, default=0
+//Bit 30 y_swap reg_endian only 420/422_2p @10bit      //unsigned, RW, default=0
+//Bit 29:28 reg_pix_bits                //unsigned, RW, default=1 0:8bit 1:10bit 2:12bit 3:16bit
+//Bit 27:26 reg_pix_fmt                 //unsigned, RW,default=0 0:444 1:422 2:420 3:422(no bubble)
+//Bit 25    reg_pix_separate            //unsigned, RW, default=0 (422 2plane/420 val=1)
+//Bit 24    reg_uvswap                  //unsigned, RW, default=0
+//Bit 23:22 reg_vmode                   //unsigned, RW, default=2
+//Bit 21:20 reg_hmode                   //unsigned, RW, default=0
+//Bit 19    reserved
+//Bit 18:0  reg_descramble_ctrl tunnel         //unsigned, RW, default=0
+#define T6D_WRMIF_10BIT_MODE_BIT	28
+//unsigned, RW, default=1 0:8bit 1:10bit 2:12bit 3:16bit
+#define T6D_WRMIF_10BIT_MODE_WID	2
+#define VDIN_WRMIF_LUMA_CTRL0 0x1221
+#define VDIN_WRMIF_LUMA_BADDR 0x1222
+
+/* Bit   15,        reg_frm_start 1 pulse */
+#define VDIN_WRMIF_FRM_EN_CTRL 0x1227
+
+#define VDIN_WRMIF_LUMA_CTRL1 0x1257
+#define VDIN_WRMIF_CHRM_CTRL0 0x1258
+/*0:not swap 2 64bits words in 128 words, 1: swap */
+#define T6D_SWAP64_BIT                     25
+#define T6D_SWAP64_WID                     1
+/* 0 = big endian, 1 = little endian */
+#define T6D_WR_ENDIAN_BIT                     24
+#define T6D_WR_ENDIAN_WID                     1
+//bit0: xrev bit1:yrev bit[22:23]
+#define T6D_H_REVERSE_BIT                     22
+#define T6D_H_REVERSE_WID                     1
+#define T6D_V_REVERSE_BIT                     23
+#define T6D_V_REVERSE_WID                     1
+
+#define VDIN_WRMIF_RGBA_CTRL 0x1259
+
+#define VDIN_WRMIF_LUMA_X 0x12c7
+#define VDIN_WRMIF_LUMA_Y 0x12c8
+
+#define VDIN_WRMIF_CHRM_BADDR 0x12cc
+#define VDIN_WRMIF_CHRM_X 0x12cd
+#define VDIN_WRMIF_CHRM_Y 0x12ce
+/*
+ * Bit 31:16 ro_chrm_status              //unsigned, RO, default=0
+ * Bit 15:14 ro_chrm_abort               //unsigned, RO, default=0
+ * Bit 13    reserved
+ * Bit 12:0  reg_chrm_stride             //unsigned, RW, default=4096
+ */
+#define VDIN_WRMIF_CHRM_CTRL1 0x12cf
+/* t6d newly modified end */
 
 #define VDIN2_WR_CTRL			0x4101
 #define VDIN2_WR_CVS_ADDR_BIT	0

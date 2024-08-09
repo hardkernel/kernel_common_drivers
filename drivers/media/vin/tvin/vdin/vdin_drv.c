@@ -1380,7 +1380,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 #endif
 
 	/* reverse/non-reverse write buffer */
-	vdin_wr_reverse(devp->addr_offset, devp->parm.h_reverse, devp->parm.v_reverse);
+	vdin_wr_reverse(devp, devp->parm.h_reverse, devp->parm.v_reverse);
 
 #ifdef CONFIG_CMA
 	vdin_cma_malloc_mode(devp);
@@ -4429,9 +4429,9 @@ void vdin_ioctl_get_hist(struct vdin_dev_s *devp,
 	unsigned int offset = devp->addr_offset;
 	int ave;
 
-	vdin1_hist_temp->width = rd(0, VDIN_HIST_H_START_END);
-	vdin1_hist_temp->height = rd(0, VDIN_HIST_V_START_END);
-	if (is_meson_txhd2_cpu())
+	vdin1_hist_temp->width = (rd(0, VDIN_HIST_H_START_END) & 0x1fff);
+	vdin1_hist_temp->height = (rd(0, VDIN_HIST_V_START_END) & 0x1fff);
+	if (is_meson_txhd2_cpu() || devp->dtdata->hw_ver == VDIN_HW_T6D)
 		vdin1_hist_temp->sum =  rd(0, VDIN_HIST_SPL_VAL);
 	else
 		vdin1_hist_temp->sum =  rd(offset, VDIN_HIST_SPL_VAL);
@@ -6130,6 +6130,16 @@ static const struct match_data_s vdin_dt_s6 = {
 	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0x780,
 	.vdin0_max_w_h = VDIN_4K_SIZE,	.vdin1_set_hdr = true,
 };
+
+static const struct match_data_s vdin_dt_t6d = {
+	.name = "vdin-t6d",
+	.hw_ver = VDIN_HW_T6D,
+	.vdin0_en = 1,                  .vdin1_en = 1,
+	.de_tunnel_tunnel = 0, /*0,1*/  .ipt444_to_422_12bit = 0, /*0,1*/
+	.vdin0_line_buff_size = 0x780,  .vdin1_line_buff_size = 0x780,
+	.vdin0_max_w_h = VDIN_2K_SIZE,	.vdin1_set_hdr = false,
+};
+
 #endif
 
 static const struct of_device_id vdin_dt_match[] = {
@@ -6225,6 +6235,10 @@ static const struct of_device_id vdin_dt_match[] = {
 	{
 		.compatible = "amlogic, vdin-s6",
 		.data = &vdin_dt_s6,
+	},
+	{
+		.compatible = "amlogic, vdin-t6d",
+		.data = &vdin_dt_t6d,
 	},
 #endif
 	/* DO NOT remove to avoid scan error of KASAN */

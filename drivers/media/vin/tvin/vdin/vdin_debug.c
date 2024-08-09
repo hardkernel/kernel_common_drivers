@@ -2059,10 +2059,33 @@ static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 	}
 #endif
 
-	if (devp->dtdata->hw_ver >= VDIN_HW_T7) {
+	if (devp->dtdata->hw_ver >= VDIN_HW_T7 && devp->dtdata->hw_ver != VDIN_HW_T6D) {
 		for (reg = VDIN_WR_BADDR_LUMA;
 		     reg <= VDIN_WR_STRIDE_CHROMA; reg++) {
 			pr_info("0x%04x = 0x%08x\n",
+				(reg + offset), rd(offset, reg));
+		}
+	} else if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
+		for (reg = VDIN_WRMIF_CTRL0;
+		     reg <= VDIN_WRMIF_LUMA_BADDR; reg++) {
+			pr_info("0x%04x = 0x%08x (t6d cfg_wrmif)\n",
+				(reg + offset), rd(offset, reg));
+		}
+		pr_info("0x%04x = 0x%08x (t6d cfg_wrmif)\n",
+			(VDIN_WRMIF_FRM_EN_CTRL + offset), rd(offset, VDIN_WRMIF_FRM_EN_CTRL));
+		for (reg = VDIN_WRMIF_LUMA_CTRL1;
+		     reg <= VDIN_WRMIF_RGBA_CTRL; reg++) {
+			pr_info("0x%04x = 0x%08x (t6d cfg_wrmif)\n",
+				(reg + offset), rd(offset, reg));
+		}
+		for (reg = VDIN_WRMIF_LUMA_X;
+		     reg <= VDIN_WRMIF_LUMA_Y; reg++) {
+			pr_info("0x%04x = 0x%08x (t6d cfg_wrmif)\n",
+				(reg + offset), rd(offset, reg));
+		}
+		for (reg = VDIN_WRMIF_CHRM_BADDR;
+		     reg <= VDIN_WRMIF_CHRM_CTRL1; reg++) {
+			pr_info("0x%04x = 0x%08x (t6d cfg_wrmif)\n",
 				(reg + offset), rd(offset, reg));
 		}
 	}
@@ -3125,8 +3148,10 @@ start_chk:
 		if (!parm[1]) {
 			pr_err("miss parameters .\n");
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
-			devp->dbg_no_wr_check = val;
-			pr_info("dbg_no_wr_check(%d):%d\n\n", devp->index,
+			devp->dbg_no_wr_check = (val & 0xf);
+			devp->dts_config.chk_write_done_en = (val >> 0xf);
+			pr_info("dbg_no_wr_check(%d):en:%d,chk:%d\n\n", devp->index,
+				devp->dts_config.chk_write_done_en,
 				devp->dbg_no_wr_check);
 		}
 	} else if (!strcmp(parm[0], "fr_ctl")) {
@@ -3567,7 +3592,7 @@ start_chk:
 			 * 0:off 1:enable
 			 */
 			if (temp) {
-				if (devp->index) {
+				if (devp->hw_core == VDIN_HW_CORE_LITE) {
 					viuin_select_loopback_path();
 					vdin1_hw_hist_on_off(devp, TRUE);
 					devp->flags |= VDIN_FLAG_HIST_STARTED;
@@ -3625,7 +3650,7 @@ start_chk:
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0) &&
 			(kstrtouint(parm[2], 16, &val_tmp) == 0)) {
 			W_VCBUS(temp, val_tmp);
-			pr_info("write addr:%#x val:%#x(%#x)\n", temp, val_tmp, R_VCBUS(val_tmp));
+			pr_info("write addr:%#x val:%#x(%#x)\n", temp, val_tmp, R_VCBUS(temp));
 		}
 	} else if (!strcmp(parm[0], "wr_bit")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &addr) == 0) &&

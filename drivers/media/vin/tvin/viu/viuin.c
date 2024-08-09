@@ -557,7 +557,7 @@ static void viuin_set_wr_bak_ctrl(enum tvin_port_e port)
 	case TVIN_PORT_VIU1_WB0_OSD1:
 		wr_bits_viu(VPP_WR_BAK_CTRL, 3, 0, 4);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (is_meson_txhd2_cpu() && rd_bits_viu(VPP_MISC, 27, 1))
+		if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu()) && rd_bits_viu(VPP_MISC, 27, 1))
 			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
 #endif
 		break;
@@ -567,7 +567,7 @@ static void viuin_set_wr_bak_ctrl(enum tvin_port_e port)
 	case TVIN_PORT_VIU1_WB0_POST_BLEND:
 		wr_bits_viu(VPP_WR_BAK_CTRL, 5, 0, 4);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (is_meson_txhd2_cpu() && rd_bits_viu(VPP_MISC, 27, 1))
+		if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu()) && rd_bits_viu(VPP_MISC, 27, 1))
 			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
 #endif
 		break;
@@ -580,7 +580,7 @@ static void viuin_set_wr_bak_ctrl(enum tvin_port_e port)
 		 */
 		wr_bits_viu(VPP_WR_BAK_CTRL, 0xff, 16, 8);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		if (is_meson_txhd2_cpu() && rd_bits_viu(VPP_MISC, 27, 1))
+		if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu()) && rd_bits_viu(VPP_MISC, 27, 1))
 			wr_bits_viu(VPP_WR_BAK_CTRL, 1, 11, 1);
 #endif
 		break;
@@ -814,7 +814,7 @@ static void viuin_stop(struct tvin_frontend_s *fe, enum tvin_port_e port,
 	wr_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	/* txhd2 keystone path close */
-	if (is_meson_txhd2_cpu() && rd_bits_viu(VPP_WR_BAK_CTRL, 11, 1))
+	if ((is_meson_txhd2_cpu() || is_meson_t6d_cpu()) && rd_bits_viu(VPP_WR_BAK_CTRL, 11, 1))
 		wr_bits_viu(VPP_WR_BAK_CTRL, 0, 11, 1);
 #endif
 }

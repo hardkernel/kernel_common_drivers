@@ -148,8 +148,9 @@
 /* 20230608: vdin not clear ratio_control value */
 /* 20230720: set vdin urgent for txhd2 */
 /* 20240730: Change the vdin address access range to greater than 4GB, starting from s6 */
+/* 20230529: bringup for t6d */
 
-#define VDIN_VER "2024/07/30"
+#define VDIN_VER "2024/08/05"
 
 //#define T3X_PXP_BRINGUP
 //#define VDIN_BRINGUP_NO_VF
@@ -206,6 +207,7 @@ enum vdin_hw_ver_e {
 	VDIN_HW_S7,
 	VDIN_HW_S7D,
 	VDIN_HW_S6,
+	VDIN_HW_T6D,
 };
 
 /* 20230607: game mode optimize and add debug */

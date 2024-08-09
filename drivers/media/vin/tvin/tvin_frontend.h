@@ -81,6 +81,8 @@ struct tvin_state_machine_ops_s {
 	void (*hdmi_reset_pcs)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
 	void (*hdmi_de_hactive)(bool en, struct tvin_frontend_s *fe,
 		enum tvin_port_type_e port_type);
+	void (*hdmi_de_vactive)(bool en, struct tvin_frontend_s *fe,
+		enum tvin_port_type_e port_type);
 	bool (*hdmi_clr_pkts)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
 	bool (*hdmi_is_xbox_dev)(struct tvin_frontend_s *fe, enum tvin_port_type_e port_type);
 };
