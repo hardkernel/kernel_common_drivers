@@ -1553,15 +1553,15 @@
 	};
 
 	aocec: aocec {
-		compatible = "amlogic, aocec-t5m";
+		compatible = "amlogic, aocec-t6d";
 		dev_name = "aocec";
-		status = "disabled";
+		status = "okay";
 		vendor_name = "Amlogic"; /* Max Chars: 8     */
 		/* Refer to the following URL at:
 		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
 		 */
 		vendor_id = <0x000000>;
-		product_desc = "T5M"; /* Max Chars: 16    */
+		product_desc = "T6D"; /* Max Chars: 16    */
 		cec_osd_string = "AML_TV"; /* Max Chars: 14    */
 		cec_version = <5>;/*5:1.4;6:2.0*/
 		port_num = <4>;

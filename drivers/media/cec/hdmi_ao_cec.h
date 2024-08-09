@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 
-#define CEC_DRIVER_VERSION     "2023/11/17: Init cec function from register"
+#define CEC_DRIVER_VERSION     "2024/08/09: t6d cec driver bringup"
 
 #define CEC_DEV_NAME		"cec"
 
@@ -54,6 +54,7 @@ enum cec_chip_ver {
 	CEC_CHIP_S7,
 	CEC_CHIP_S7D,
 	CEC_CHIP_S6,
+	CEC_CHIP_T6D,
 };
 
 enum cecaver {
