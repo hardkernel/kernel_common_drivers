@@ -15,8 +15,6 @@
 #include "meson_ir_main.h"
 #include "meson_ir_sysfs.h"
 
-#define AML_REMOTE_NAME "amremote"
-
 static int meson_ir_open(struct inode *inode, struct file *file)
 {
 	struct meson_ir_chip *chip;
@@ -157,9 +155,8 @@ int meson_ir_cdev_init(struct meson_ir_chip *chip)
 {
 	int ret = 0;
 
-	chip->dev_name  = AML_REMOTE_NAME;
 	ret = alloc_chrdev_region(&chip->chr_devno,
-				  0, 1, AML_REMOTE_NAME);
+				  0, 1, chip->dev_name);
 	if (ret < 0) {
 		dev_err(chip->dev, "failed to allocate major number\n");
 		return ret;

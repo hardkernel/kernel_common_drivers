@@ -7,6 +7,7 @@
 #define __IR_MAIN_MESON_H__
 #include <linux/cdev.h>
 #include <linux/regmap.h>
+#include <linux/interrupt.h>
 #include "meson_ir_common.h"
 #include "meson_ir_core.h"
 
@@ -98,6 +99,7 @@ struct meson_ir_chip {
 	 */
 	struct meson_ir_contr_desc ir_contr[2];
 
+	int dev_no;
 	char *dev_name;
 	const char *keymap_name;
 
@@ -125,6 +127,7 @@ struct meson_ir_chip {
 	 *1: legacy IR
 	 */
 	unsigned char ir_work;
+	struct tasklet_struct tasklet;
 };
 
 struct meson_ir_reg_proto {
