@@ -14,7 +14,6 @@
 
 static DEFINE_MUTEX(meson_ir_raw_handler_lock);
 static LIST_HEAD(meson_ir_raw_handler_list);
-static LIST_HEAD(meson_ir_raw_client_list);
 
 #define MAX_REMOTE_EVENT_SIZE      512
 
@@ -45,8 +44,10 @@ static int meson_ir_raw_event_thread(void *data)
 
 		mutex_lock(&meson_ir_raw_handler_lock);
 		list_for_each_entry(handler, &meson_ir_raw_handler_list, list)
-			if (raw->dev->rc_type == handler->protocols)
-				handler->decode(raw->dev, ev, handler->data);
+			if (raw->dev->rc_type == handler->protocols) {
+				handler->decode(raw->dev, ev, raw->handler_data);
+				break;
+			}
 		mutex_unlock(&meson_ir_raw_handler_lock);
 	}
 
@@ -114,6 +115,8 @@ void meson_ir_raw_event_handle(struct meson_ir_dev *dev)
 int meson_ir_raw_event_register(struct meson_ir_dev *dev)
 {
 	int ret;
+	struct meson_ir_raw_handler *handler;
+	struct meson_ir_chip *chip = (struct meson_ir_chip *)dev->platform_data;
 
 	dev_info(dev->dev, "meson ir raw event register\n");
 	dev->raw = kzalloc(sizeof(*dev->raw), GFP_KERNEL);
@@ -138,9 +141,26 @@ int meson_ir_raw_event_register(struct meson_ir_dev *dev)
 		ret = PTR_ERR(dev->raw->thread);
 		goto err_alloc_thread;
 	}
+
 	mutex_lock(&meson_ir_raw_handler_lock);
-	list_add_tail(&dev->raw->list, &meson_ir_raw_client_list);
+	list_for_each_entry(handler, &meson_ir_raw_handler_list, list)
+		if (chip->protocol == handler->protocols) {
+			dev->raw->handler_data = handler->data_alloc(dev);
+			break;
+		}
 	mutex_unlock(&meson_ir_raw_handler_lock);
+
+	if (!dev->raw->handler_data) {
+		dev_err(dev->dev, "meson ir alloc handler data failed\n");
+		ret = -ENOMEM;
+		goto err_alloc_thread;
+	}
+
+	INIT_LIST_HEAD(&dev->raw_client_list);
+	mutex_lock(&dev->raw_client_lock);
+	list_add_tail(&dev->raw->list, &dev->raw_client_list);
+	mutex_unlock(&dev->raw_client_lock);
+
 	return 0;
 err_alloc_thread:
 	kfifo_free(&dev->raw->kfifo);
@@ -155,22 +175,20 @@ void meson_ir_raw_event_unregister(struct meson_ir_dev *dev)
 		return;
 
 	kthread_stop(dev->raw->thread);
-	mutex_lock(&meson_ir_raw_handler_lock);
+	mutex_lock(&dev->raw_client_lock);
+	kfree(dev->raw->handler_data);
 	list_del(&dev->raw->list);
-	mutex_unlock(&meson_ir_raw_handler_lock);
+
+	mutex_unlock(&dev->raw_client_lock);
 }
 
 int meson_ir_raw_handler_register(struct meson_ir_raw_handler *handler)
 {
-	mutex_lock(&meson_ir_raw_handler_lock);
 	list_add_tail(&handler->list, &meson_ir_raw_handler_list);
-	mutex_unlock(&meson_ir_raw_handler_lock);
 	return 0;
 }
 
 void meson_ir_raw_handler_unregister(struct meson_ir_raw_handler *handler)
 {
-	mutex_lock(&meson_ir_raw_handler_lock);
 	list_del(&handler->list);
-	mutex_unlock(&meson_ir_raw_handler_lock);
 }
