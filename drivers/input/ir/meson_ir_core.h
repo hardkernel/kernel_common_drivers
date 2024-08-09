@@ -97,6 +97,9 @@ struct meson_ir_dev {
 
 	unsigned int input_dev_num;
 	struct input_dev **input_devs;
+
+	struct mutex raw_client_lock; /*mutex for raw client list */
+	struct list_head raw_client_list;
 };
 
 struct meson_ir_raw_handle {
@@ -111,6 +114,8 @@ struct meson_ir_raw_handle {
 	unsigned long jiffies_old;
 	unsigned long repeat_time;
 	unsigned long max_frame_time;
+
+	void *handler_data;
 };
 
 struct meson_ir_map_table {
@@ -148,9 +153,9 @@ struct meson_ir_raw_handler {
 	struct list_head list;
 
 	int protocols;
-	void *data;
 	int (*decode)(struct meson_ir_dev *dev, struct meson_ir_raw_event event,
 		      void *data_dec);
+	void *(*data_alloc)(struct meson_ir_dev *dev);
 };
 
 /* macros for IR decoders */

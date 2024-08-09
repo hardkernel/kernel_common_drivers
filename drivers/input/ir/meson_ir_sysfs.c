@@ -409,22 +409,24 @@ static struct attribute *meson_ir_sysfs_attrs[] = {
 
 ATTRIBUTE_GROUPS(meson_ir_sysfs);
 
-static struct class meson_ir_class = {
-	.name		= "remote",
-	.owner		= THIS_MODULE,
-	.dev_groups = meson_ir_sysfs_groups,
-};
-
 int meson_ir_sysfs_init(struct meson_ir_chip *chip)
 {
 	struct device *dev;
 	int err;
 
-	err = class_register(&meson_ir_class);
+	chip->chr_class = kzalloc(sizeof(*chip->chr_class), GFP_KERNEL);
+	if (!chip->chr_class)
+		return -ENOMEM;
+	chip->chr_class->name = devm_kasprintf(chip->dev, GFP_KERNEL,
+					     "remote%d", chip->dev_no);
+	chip->chr_class->owner = THIS_MODULE;
+	chip->chr_class->dev_groups = meson_ir_sysfs_groups;
+
+	err = class_register(chip->chr_class);
 	if (unlikely(err))
 		return err;
 
-	dev = device_create(&meson_ir_class,  NULL, chip->chr_devno, chip,
+	dev = device_create(chip->chr_class,  NULL, chip->chr_devno, chip,
 			    chip->dev_name);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
@@ -434,7 +436,8 @@ EXPORT_SYMBOL_GPL(meson_ir_sysfs_init);
 
 void meson_ir_sysfs_exit(struct meson_ir_chip *chip)
 {
-	device_destroy(&meson_ir_class, chip->chr_devno);
-	class_unregister(&meson_ir_class);
+	device_destroy(chip->chr_class, chip->chr_devno);
+	class_unregister(chip->chr_class);
+	kfree(chip->chr_class);
 }
 EXPORT_SYMBOL_GPL(meson_ir_sysfs_exit);

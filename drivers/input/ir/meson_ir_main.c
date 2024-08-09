@@ -5,7 +5,6 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/types.h>
 #include <linux/input.h>
@@ -29,8 +28,7 @@
 #include "meson_ir_main.h"
 #include <linux/amlogic/gki_module.h>
 
-static void meson_ir_tasklet(struct tasklet_struct *t);
-DECLARE_TASKLET_DISABLED(tasklet, meson_ir_tasklet);
+static atomic_t meson_ir_dev_no = ATOMIC_INIT(-1);
 
 static int disable_ir;
 static int get_irenv(char *str)
@@ -377,7 +375,7 @@ static irqreturn_t meson_ir_interrupt(int irq, void *dev_id)
 				    &contr_status);
 			if (IR_DATA_IS_VALID(contr_status)) {
 				rc->ir_work = cnt;
-				tasklet_schedule(&tasklet);
+				tasklet_schedule(&rc->tasklet);
 				return IRQ_HANDLED;
 			}
 		}
@@ -644,7 +642,8 @@ static int meson_ir_hardware_init(struct platform_device *pdev)
 
 		ret = devm_request_irq(&pdev->dev, chip->irqno[cnt],
 				       meson_ir_interrupt,
-				       IRQF_SHARED, "meson_ir", (void *)chip);
+				       IRQF_SHARED, chip->dev_name,
+				       (void *)chip);
 		if (ret < 0) {
 			dev_err(chip->dev, "request_irq error %d\n", ret);
 			return -ENODEV;
@@ -655,13 +654,10 @@ static int meson_ir_hardware_init(struct platform_device *pdev)
 				      cpumask_of(chip->irq_cpumask));
 	}
 
-	tasklet.data = (unsigned long)chip;
-	tasklet_enable(&tasklet);
-
 	return 0;
 }
 
-static int meson_ir_input_device_init(struct device *parent, const char *name)
+static int meson_ir_input_device_init(struct device *parent)
 {
 	int ret;
 	struct meson_ir_chip *chip = dev_get_drvdata(parent);
@@ -670,6 +666,7 @@ static int meson_ir_input_device_init(struct device *parent, const char *name)
 	struct input_dev *input_device;
 	unsigned int match_cnt = 0, i;
 	struct input_id *match_id;
+	const char *name;
 
 	match_id = kcalloc(chip->custom_num, sizeof(*match_id), GFP_KERNEL);
 
@@ -703,6 +700,9 @@ static int meson_ir_input_device_init(struct device *parent, const char *name)
 		input_device = devm_input_allocate_device(chip->dev);
 		if (!input_device)
 			return -ENOMEM;
+
+		name = devm_kasprintf(parent, GFP_KERNEL, "ir_keypad%d_%d",
+				      chip->dev_no, r_dev->input_dev_num);
 
 		input_device->name = name;
 		input_device->phys = "keypad/input0";
@@ -744,6 +744,13 @@ static int meson_ir_probe(struct platform_device *pdev)
 	spin_lock_init(&dev->keylock);
 	dev->wait_next_repeat = 0;
 
+	chip->dev_no = atomic_inc_return(&meson_ir_dev_no);
+	chip->dev_name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
+					"amremote%d", chip->dev_no);
+
+	tasklet_setup(&chip->tasklet, meson_ir_tasklet);
+	chip->tasklet.data = (unsigned long)chip;
+
 	mutex_init(&chip->file_lock);
 	spin_lock_init(&chip->slock);
 	INIT_LIST_HEAD(&chip->map_tab_head);
@@ -767,7 +774,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	ret = meson_ir_input_device_init(&pdev->dev, "ir_keypad");
+	ret = meson_ir_input_device_init(&pdev->dev);
 	if (ret < 0)
 		return ret;
 
@@ -811,8 +818,7 @@ static int meson_ir_remove(struct platform_device *pdev)
 	int i;
 	struct meson_ir_chip *chip = platform_get_drvdata(pdev);
 
-	tasklet_disable(&tasklet);
-	tasklet_kill(&tasklet);
+	tasklet_kill(&chip->tasklet);
 
 	if (MULTI_IR_SOFTWARE_DECODE(chip->r_dev->rc_type))
 		meson_ir_raw_event_unregister(chip->r_dev);
@@ -832,6 +838,8 @@ static int meson_ir_remove(struct platform_device *pdev)
 	irq_set_affinity_hint(chip->irqno[0], NULL);
 	if (chip->irqno[1] >= 0)
 		irq_set_affinity_hint(chip->irqno[1], NULL);
+
+	atomic_dec_return(&meson_ir_dev_no);
 
 	return 0;
 }

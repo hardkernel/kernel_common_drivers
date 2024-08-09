@@ -201,19 +201,19 @@ static int meson_ir_xmp_decode(struct meson_ir_dev *dev,
 	return -EINVAL;
 }
 
+static void *meson_ir_xmp_data_alloc(struct meson_ir_dev *dev)
+{
+	return kzalloc(sizeof(struct xmp_dec), GFP_KERNEL);
+}
+
 static struct meson_ir_raw_handler xmp_handler = {
 	.protocols	= REMOTE_TYPE_RAW_XMP_1,
 	.decode		= meson_ir_xmp_decode,
+	.data_alloc	= meson_ir_xmp_data_alloc,
 };
 
 int meson_ir_xmp_decode_init(void)
 {
-	struct xmp_dec *xdec = kzalloc(sizeof(*xdec), GFP_KERNEL);
-
-	xmp_handler.data =  xdec;
-	if (!xmp_handler.data)
-		return -ENOMEM;
-
 	meson_ir_raw_handler_register(&xmp_handler);
 
 	return 0;
@@ -222,6 +222,4 @@ int meson_ir_xmp_decode_init(void)
 void meson_ir_xmp_decode_exit(void)
 {
 	meson_ir_raw_handler_unregister(&xmp_handler);
-	if (!xmp_handler.data)
-		kfree(xmp_handler.data);
 }
