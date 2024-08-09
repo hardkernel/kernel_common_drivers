@@ -23,7 +23,7 @@
 #include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/amlogic/page_trace.h>
-#ifdef CONFIG_AMLOGIC_CMA
+#if IS_ENABLED(CONFIG_AMLOGIC_CMA)
 #include <linux/amlogic/aml_cma.h>
 #endif
 #include <asm/stacktrace.h>
@@ -1279,14 +1279,10 @@ unsigned long pack_ip(unsigned long ip, unsigned int order, gfp_t flag)
 #endif
 
 	trace.ret_ip = (ip - text) >> 2;
-#ifdef CONFIG_AMLOGIC_CMA
 	if (flag == __GFP_NO_CMA)
 		trace.migrate_type = MIGRATE_CMA;
 	else
 		trace.migrate_type = aml_gfp_migratetype(flag);
-#else
-	trace.migrate_type = aml_gfp_migratetype(flag);
-#endif /* CONFIG_AMLOGIC_CMA */
 	trace.order = order;
 #if DEBUG_PAGE_TRACE
 	pr_debug("%s, base:%p, page:%lx, _ip:%lx, o:%d, f:%x, ip:%lx\n",

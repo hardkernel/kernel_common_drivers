@@ -425,11 +425,7 @@ static void update_cma_page_trace(struct page *page, unsigned long cnt)
 		pr_info("c a p:%lx, c:%ld, f:%ps\n",
 			page_to_pfn(page), cnt, (void *)fun);
 	for (i = 0; i < cnt; i++) {
-	#if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
 		set_page_trace(page, 0, __GFP_NO_CMA, (void *)fun);
-	#else
-		set_page_trace(page, 0, 0, (void *)fun);
-	#endif
 		page++;
 	}
 }
