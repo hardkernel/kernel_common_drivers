@@ -4059,6 +4059,130 @@ static struct clk_regmap t6d_25m_clk = {
 	},
 };
 
+static u32 t6d_amfc_mux_table[] = {0, 1, 2, 3};
+
+static const struct clk_hw *t6d_amfc_parent_hws[] = {
+	&t6d_fclk_div4.hw,
+	&t6d_fclk_div3.hw,
+	&t6d_fclk_div5.hw,
+	&t6d_fclk_div7.hw,
+};
+
+static struct clk_regmap t6d_amfc_0_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = CLKCTRL_AMFC_CLK_CTRL,
+		.mask = 0x7,
+		.shift = 9,
+		.table = t6d_amfc_mux_table
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "amfc_0_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = t6d_amfc_parent_hws,
+		.num_parents = ARRAY_SIZE(t6d_amfc_parent_hws),
+	},
+};
+
+static struct clk_regmap t6d_amfc_0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = CLKCTRL_AMFC_CLK_CTRL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "amfc_0_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t6d_amfc_0_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT
+	},
+};
+
+static struct clk_regmap t6d_amfc_0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_AMFC_CLK_CTRL,
+		.bit_idx = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "amfc_0",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t6d_amfc_0_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT
+	},
+};
+
+static struct clk_regmap t6d_amfc_1_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = CLKCTRL_AMFC_CLK_CTRL,
+		.mask = 0x7,
+		.shift = 25,
+		.table = t6d_amfc_mux_table
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "amfc_1_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = t6d_amfc_parent_hws,
+		.num_parents = ARRAY_SIZE(t6d_amfc_parent_hws),
+		.flags = CLK_SET_RATE_PARENT
+	},
+};
+
+static struct clk_regmap t6d_amfc_1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = CLKCTRL_AMFC_CLK_CTRL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "amfc_1_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t6d_amfc_1_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT
+	},
+};
+
+static struct clk_regmap t6d_amfc_1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_AMFC_CLK_CTRL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "amfc_1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t6d_amfc_1_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT
+	},
+};
+
+static struct clk_regmap t6d_amfc = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = CLKCTRL_AMFC_CLK_CTRL,
+		.mask = 1,
+		.shift = 31,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "amfc",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t6d_amfc_0.hw,
+			&t6d_amfc_1.hw
+		},
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 #define MESON_T6D_SYS_GATE(_name, _reg, _bit)				\
 struct clk_regmap _name = {						\
 	.data = &(struct clk_regmap_gate_data) {			\
@@ -4333,6 +4457,13 @@ static struct clk_hw_onecell_data t6d_hw_onecell_data = {
 		[CLKID_TSIN_1]				= &t6d_tsin_1.hw,
 		[CLKID_TSIN_SEL]			= &t6d_tsin_sel.hw,
 		[CLKID_TSIN]				= &t6d_tsin.hw,
+		[CLKID_AMFC_0_SEL]			= &t6d_amfc_0_sel.hw,
+		[CLKID_AMFC_0_DIV]			= &t6d_amfc_0_div.hw,
+		[CLKID_AMFC_0]				= &t6d_amfc_0.hw,
+		[CLKID_AMFC_1_SEL]			= &t6d_amfc_1_sel.hw,
+		[CLKID_AMFC_1_DIV]			= &t6d_amfc_1_div.hw,
+		[CLKID_AMFC_1]				= &t6d_amfc_1.hw,
+		[CLKID_AMFC]				= &t6d_amfc.hw,
 		[CLKID_GEN_SEL]				= &t6d_gen_sel.hw,
 		[CLKID_GEN_DIV]				= &t6d_gen_div.hw,
 		[CLKID_GEN]				= &t6d_gen.hw,
@@ -4539,6 +4670,13 @@ static struct clk_regmap *const t6d_clk_regmaps[] = {
 	&t6d_eth_125m,
 	&t6d_ts_clk_div,
 	&t6d_ts_clk,
+	&t6d_amfc_0_sel,
+	&t6d_amfc_0_div,
+	&t6d_amfc_0,
+	&t6d_amfc_1_sel,
+	&t6d_amfc_1_div,
+	&t6d_amfc_1,
+	&t6d_amfc,
 	&t6d_cts_tcon_pll_clk_sel,
 	&t6d_cts_tcon_pll_clk_div,
 	&t6d_cts_tcon_pll_clk,
