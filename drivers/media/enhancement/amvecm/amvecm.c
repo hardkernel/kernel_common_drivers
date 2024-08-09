@@ -3042,7 +3042,8 @@ int amvecm_on_vs(struct vframe_s *vf,
 	pr_amvecm_bringup_dbg("[on_vs] cabc_aad done.\n");
 
 	if ((chip_type_id == chip_s7d ||
-		chip_type_id == chip_s6) && vsr_update_flag)
+		chip_type_id == chip_s6 ||
+		chip_type_id == chip_t6d) && vsr_update_flag)
 		amve_vsr_config_update(vf, vpp_index);
 #endif
 	return result;
@@ -13781,17 +13782,25 @@ static void def_hdr_sdr_mode(void)
 
 void hdr_hist_config_int(void)
 {
+	unsigned int addr_offset_vd1 = 0;
+	unsigned int addr_offset_vd2 = 0;
+
+	if (chip_type_id == chip_t6d) {
+		addr_offset_vd1 = 0x2a00;
+		addr_offset_vd2 = 0x2a30;
+	}
+
 	if (chip_type_id != chip_t3x) {
-		WRITE_VPP_REG(VD1_HDR2_HIST_CTRL, 0x5510);
-		WRITE_VPP_REG(VD1_HDR2_HIST_H_START_END, 0x10000);
-		WRITE_VPP_REG(VD1_HDR2_HIST_V_START_END, 0x0);
+		WRITE_VPP_REG(VD1_HDR2_HIST_CTRL + addr_offset_vd1, 0x5510);
+		WRITE_VPP_REG(VD1_HDR2_HIST_H_START_END + addr_offset_vd1, 0x10000);
+		WRITE_VPP_REG(VD1_HDR2_HIST_V_START_END + addr_offset_vd1, 0x0);
 
 		if (get_cpu_type() != MESON_CPU_MAJOR_ID_T5 &&
 			get_cpu_type() != MESON_CPU_MAJOR_ID_T5D &&
 			chip_type_id != chip_txhd2) {
-			WRITE_VPP_REG(VD2_HDR2_HIST_CTRL, 0x5510);
-			WRITE_VPP_REG(VD2_HDR2_HIST_H_START_END, 0x10000);
-			WRITE_VPP_REG(VD2_HDR2_HIST_V_START_END, 0x0);
+			WRITE_VPP_REG(VD2_HDR2_HIST_CTRL + addr_offset_vd2, 0x5510);
+			WRITE_VPP_REG(VD2_HDR2_HIST_H_START_END + addr_offset_vd2, 0x10000);
+			WRITE_VPP_REG(VD2_HDR2_HIST_V_START_END + addr_offset_vd2, 0x0);
 
 			WRITE_VPP_REG(OSD1_HDR2_HIST_CTRL, 0x5510);
 			WRITE_VPP_REG(OSD1_HDR2_HIST_H_START_END, 0x10000);
@@ -15340,7 +15349,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 #endif
 
 	probe_ok = 1;
-	pr_debug("%s: ok\n", __func__);
+	pr_info("%s: ok\n", __func__);
 	return 0;
 
 fail_create_device:
@@ -15607,7 +15616,7 @@ int __init aml_vecm_init(void)
 {
 	/*unsigned int hiu_reg_base;*/
 
-	pr_info("%s:module init_20240611-0\n", __func__);
+	pr_info("%s:module init_20240808-0\n", __func__);
 
 	if (platform_driver_register(&aml_vecm_driver)) {
 		pr_err("failed to register bl driver module\n");

@@ -307,7 +307,8 @@ void ve_dnlp_load_reg(void)
 				else
 					dnlp_reg = SRSHARP1_DNLP2_00;
 
-				if (chip_type_id == chip_s7d || chip_type_id == chip_s6)
+				if (chip_type_id == chip_s7d || chip_type_id == chip_s6 ||
+					chip_type_id == chip_t6d)
 					dnlp_reg = VPP_DNLP_YGRID_0;
 
 				for (i = 0; i < 32; i++)
@@ -1170,7 +1171,8 @@ void ve_enable_dnlp(void)
 			if (is_meson_gxlx_cpu() || is_meson_txlx_cpu()) {
 				reg_ctrl = SRSHARP1_DNLP_EN;
 			} else if (chip_type_id == chip_s7d ||
-			chip_type_id == chip_s6) {
+			chip_type_id == chip_s6 ||
+			chip_type_id == chip_t6d) {
 				reg_ctrl = VPP_DNLP_EN_MODE;
 			} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 				if ((!vinfo_lcd_support() && chip_type_id != chip_s5) ||
@@ -1183,7 +1185,8 @@ void ve_enable_dnlp(void)
 				reg_ctrl = SRSHARP0_DNLP_EN;
 			}
 
-			if (chip_type_id != chip_s7d && chip_type_id != chip_s6)
+			if (chip_type_id != chip_s7d && chip_type_id != chip_s6 &&
+				chip_type_id != chip_t6d)
 				WRITE_VPP_REG_BITS(reg_ctrl, 1, 0, 1);
 			else
 				WRITE_VPP_REG_BITS(reg_ctrl, 1, 4, 1);
@@ -1207,7 +1210,8 @@ void ve_disable_dnlp(void)
 			if (is_meson_gxlx_cpu() || is_meson_txlx_cpu()) {
 				reg_ctrl = SRSHARP1_DNLP_EN;
 			} else if (chip_type_id == chip_s7d ||
-			chip_type_id == chip_s6) {
+			chip_type_id == chip_s6 ||
+			chip_type_id == chip_t6d) {
 				reg_ctrl = VPP_DNLP_EN_MODE;
 			} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 				if ((!vinfo_lcd_support() && chip_type_id != chip_s5) ||
@@ -1220,7 +1224,8 @@ void ve_disable_dnlp(void)
 				reg_ctrl = SRSHARP0_DNLP_EN;
 			}
 
-			if (chip_type_id != chip_s7d && chip_type_id != chip_s6)
+			if (chip_type_id != chip_s7d && chip_type_id != chip_s6 &&
+				chip_type_id != chip_t6d)
 				WRITE_VPP_REG_BITS(reg_ctrl, 0, 0, 1);
 			else
 				WRITE_VPP_REG_BITS(reg_ctrl, 0, 4, 1);
@@ -4910,6 +4915,10 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 	enum wr_md_e mode, int vpp_index)
 {
 	unsigned int data32 = 0;
+	unsigned int addr_offset = 0;
+
+	if (chip_type_id == chip_t6d)
+		addr_offset = 0x7;
 
 	switch (vsr_cfg) {
 	case RES_480P:
@@ -4917,39 +4926,47 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(SAFA_PPS_SR_422_EN, 1, 4, 1);
 			WRITE_VPP_REG_BITS(SAFA_PPS_SC_MISC, 0, 8, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 24, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 20, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 1, 8, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 0, 24, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 0, 20, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 1, 8, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 0, 0, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 0, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN + addr_offset, 0, 0, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN + addr_offset, 0, 4, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 2, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN + addr_offset, 2, 4, 2);
 /*			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 0, 2);*/
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 3, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 4, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 3, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 4, 0, 6);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 20, 8, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 15, 16, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 28, 8, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 10, 16, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 0, 4, 2);
-			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 8, 0, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN, 1, 4, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 4, 0, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 4, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 20, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 15, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 28, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset, 0, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset, 8, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN + addr_offset, 1, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset, 4, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset, 0, 4, 4);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 0, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 32, 8, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 64, 16, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 72, 24, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 64, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 56, 8, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 4, 16, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 0, 24, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F, 0, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_XERR_GAIN, 8, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_RATE, 24, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0 + addr_offset, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 32, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 64, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 72, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 64, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 56, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 4, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 0, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F
+				+ addr_offset, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_XERR_GAIN + addr_offset, 8, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_RATE + addr_offset, 24, 8, 6);
 		} else if (mode == WR_DMA) {
 			data32 = READ_VPP_REG_S5(SAFA_PPS_SR_422_EN);
 			data32 = (data32 & 0xffffffef) | (0x1 << 4);
@@ -4960,66 +4977,66 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SC_MISC,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE + addr_offset);
 			data32 = (data32 & 0xfeeffeff) |
 				(0x0 << 24) | (0x0 << 20) | (0x1 << 8);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN + addr_offset);
 			data32 = (data32 & 0xffffffee) |
 				(0x0 << 4) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN + addr_offset);
 			data32 = (data32 & 0xffffffcf) |
 				(0x2 << 4);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H + addr_offset);
 			data32 = (data32 & 0xffc0c0c0) |
 				(0xf << 16) | (0x14 << 8) | 0x3;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V + addr_offset);
 			data32 = (data32 & 0xffc0c0c0) |
 				(0xa << 16) | (0x1c << 8) | 0x4;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset);
 			data32 = (data32 & 0xffffffc0) |
 				(0x0 << 4) | 0x8;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN + addr_offset);
 			data32 = (data32 & 0xffffffef) | (0x1 << 4);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset);
 			data32 = (data32 & 0xffffff00) |
 				(0x0 << 4) | 0x4;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset,
 				data32, vpp_index);
 			data32 = (0x48 << 24) | (0x40 << 16) | (0x20 << 8) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0 + addr_offset,
 				data32, vpp_index);
 			data32 = (0x0 << 24) | (0x4 << 16) | (0x38 << 8) | 0x40;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1 + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset);
 			data32 = (data32 & 0xffffff00) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_XERR_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_XERR_GAIN + addr_offset);
 			data32 = (data32 & 0xffffffc0) | 0x8;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_XERR_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_XERR_GAIN + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_RATE);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_RATE + addr_offset);
 			data32 = (data32 & 0xffffc0ff) | (0x18 << 8);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_RATE,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_RATE + addr_offset,
 				data32, vpp_index);
 		}
 		break;
@@ -5028,39 +5045,48 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(SAFA_PPS_SR_422_EN, 1, 4, 1);
 			WRITE_VPP_REG_BITS(SAFA_PPS_SC_MISC, 0, 8, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 24, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 20, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 1, 8, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 0, 24, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 0, 20, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 1, 8, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 0, 0, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 0, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN + addr_offset, 0, 0, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN + addr_offset, 0, 4, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 2, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN + addr_offset, 2, 4, 2);
 /*			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 0, 2);*/
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 3, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 4, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 3, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 4, 0, 6);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 20, 8, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 15, 16, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 28, 8, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 10, 16, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 0, 4, 2);
-			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 8, 0, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN, 1, 4, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 4, 0, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 4, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 20, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 15, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 28, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset, 0, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset, 8, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN + addr_offset, 1, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset, 4, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset, 0, 4, 4);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 0, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 32, 8, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 64, 16, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 72, 24, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 64, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 56, 8, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 4, 16, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 0, 24, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F, 0, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_XERR_GAIN, 48, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_RATE, 36, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 32, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 64, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 72, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 64, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 56, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 4, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 0, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F
+				+ addr_offset, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_XERR_GAIN + addr_offset, 48, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_RATE + addr_offset, 36, 8, 6);
 		} else if (mode == WR_DMA) {
 			data32 = READ_VPP_REG_S5(SAFA_PPS_SR_422_EN);
 			data32 = (data32 & 0xffffffef) | (0x1 << 4);
@@ -5071,66 +5097,66 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SC_MISC,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE + addr_offset);
 			data32 = (data32 & 0xfeeffeff) |
 				(0x0 << 24) | (0x0 << 20) | (0x1 << 8);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN + addr_offset);
 			data32 = (data32 & 0xffffffee) |
 				(0x0 << 4) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN + addr_offset);
 			data32 = (data32 & 0xffffffcf) |
 				(0x2 << 4);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H + addr_offset);
 			data32 = (data32 & 0xffc0c0c0) |
 				(0xf << 16) | (0x14 << 8) | 0x3;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V + addr_offset);
 			data32 = (data32 & 0xffc0c0c0) |
 				(0xa << 16) | (0x1c << 8) | 0x4;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset);
 			data32 = (data32 & 0xffffffc0) |
 				(0x0 << 4) | 0x8;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN + addr_offset);
 			data32 = (data32 & 0xffffffef) | (0x1 << 4);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset);
 			data32 = (data32 & 0xffffff00) |
 				(0x0 << 4) | 0x4;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset,
 				data32, vpp_index);
 			data32 = (0x48 << 24) | (0x40 << 16) | (0x20 << 8) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0 + addr_offset,
 				data32, vpp_index);
 			data32 = (0x0 << 24) | (0x4 << 16) | (0x38 << 8) | 0x40;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1 + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset);
 			data32 = (data32 & 0xffffff00) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_XERR_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_XERR_GAIN + addr_offset);
 			data32 = (data32 & 0xffffffc0) | 0x30;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_XERR_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_XERR_GAIN + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_RATE);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_RATE + addr_offset);
 			data32 = (data32 & 0xffffc0ff) | (0x24 << 8);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_RATE,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_RATE + addr_offset,
 				data32, vpp_index);
 		}
 		break;
@@ -5138,40 +5164,48 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 		if (mode == WR_VCB) {
 			WRITE_VPP_REG_BITS(SAFA_PPS_SR_422_EN, 1, 4, 1);
 			WRITE_VPP_REG_BITS(SAFA_PPS_SC_MISC, 0, 8, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 1, 24, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 20, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 1, 8, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 1, 24, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 0, 20, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 1, 8, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 1, 0, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 0, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN + addr_offset, 1, 0, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN + addr_offset, 0, 4, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN + addr_offset, 1, 4, 2);
 /*			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 0, 2);*/
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 3, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 4, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 15, 8, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 10, 16, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 15, 8, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 3, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 4, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 10, 16, 6);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 0, 4, 2);
-			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 4, 0, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN, 0, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset, 0, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset, 4, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN + addr_offset, 0, 4, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 2, 0, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 4, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset, 2, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset, 0, 4, 4);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 0, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 32, 8, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 64, 16, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 72, 24, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 64, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 56, 8, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 4, 16, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 0, 24, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F, 0, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_XERR_GAIN, 8, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_RATE, 24, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0 + addr_offset, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 32, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 64, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 72, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 64, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 56, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 4, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 0, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F
+				+ addr_offset, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_XERR_GAIN + addr_offset, 8, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_RATE + addr_offset, 24, 8, 6);
 		} else if (mode == WR_DMA) {
 			data32 = READ_VPP_REG_S5(SAFA_PPS_SR_422_EN);
 			data32 = (data32 & 0xffffffef) | (0x1 << 4);
@@ -5182,66 +5216,66 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SC_MISC,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE + addr_offset);
 			data32 = (data32 & 0xfeeffeff) |
 				(0x1 << 24) | (0x0 << 20) | (0x1 << 8);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN + addr_offset);
 			data32 = (data32 & 0xffffffee) |
 				(0x0 << 4) | 0x1;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN + addr_offset);
 			data32 = (data32 & 0xffffffcf) |
 				(0x1 << 4);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H + addr_offset);
 			data32 = (data32 & 0xffc0c0c0) |
 				(0xa << 16) | (0xf << 8) | 0x3;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V + addr_offset);
 			data32 = (data32 & 0xffc0c0c0) |
 				(0xa << 16) | (0xf << 8) | 0x4;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset);
 			data32 = (data32 & 0xffffffc0) |
 				(0x0 << 4) | 0x4;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN + addr_offset);
 			data32 = (data32 & 0xffffffef) | (0x0 << 4);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset);
 			data32 = (data32 & 0xffffff00) |
 				(0x0 << 4) | 0x2;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset,
 				data32, vpp_index);
 			data32 = (0x48 << 24) | (0x40 << 16) | (0x20 << 8) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0 + addr_offset,
 				data32, vpp_index);
 			data32 = (0x0 << 24) | (0x4 << 16) | (0x38 << 8) | 0x40;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1 + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset);
 			data32 = (data32 & 0xffffff00) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_XERR_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_XERR_GAIN + addr_offset);
 			data32 = (data32 & 0xffffffc0) | 0x8;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_XERR_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_XERR_GAIN + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_RATE);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_RATE + addr_offset);
 			data32 = (data32 & 0xffffc0ff) | (0x18 << 8);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_RATE,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_RATE + addr_offset,
 				data32, vpp_index);
 		}
 		break;
@@ -5249,40 +5283,49 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 		if (mode == WR_VCB) {
 			WRITE_VPP_REG_BITS(SAFA_PPS_SR_422_EN, 1, 4, 1);
 			WRITE_VPP_REG_BITS(SAFA_PPS_SC_MISC, 0, 8, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 1, 24, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 20, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 1, 8, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 1, 24, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 0, 20, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 1, 8, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 1, 0, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 0, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN + addr_offset, 1, 0, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN + addr_offset, 0, 4, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN + addr_offset, 1, 4, 2);
 /*			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 0, 2);*/
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 3, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 4, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 15, 8, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 10, 16, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 15, 8, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 3, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 4, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 10, 16, 6);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 0, 4, 2);
-			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 4, 0, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN, 0, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset, 0, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset, 4, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN + addr_offset, 0, 4, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 2, 0, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 4, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset, 2, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset, 0, 4, 4);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 0, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 32, 8, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 64, 16, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 72, 24, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 64, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 56, 8, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 4, 16, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 0, 24, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F, 0, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_XERR_GAIN, 8, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_RATE, 24, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 32, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 64, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 72, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 64, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 56, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 4, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 0, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F
+				+ addr_offset, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_XERR_GAIN + addr_offset, 8, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_RATE + addr_offset, 24, 8, 6);
 		} else if (mode == WR_DMA) {
 			data32 = READ_VPP_REG_S5(SAFA_PPS_SR_422_EN);
 			data32 = (data32 & 0xffffffef) | (0x1 << 4);
@@ -5293,66 +5336,66 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SC_MISC,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE + addr_offset);
 			data32 = (data32 & 0xfeeffeff) |
 				(0x1 << 24) | (0x0 << 20) | (0x1 << 8);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN + addr_offset);
 			data32 = (data32 & 0xffffffee) |
 				(0x0 << 4) | 0x1;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN + addr_offset);
 			data32 = (data32 & 0xffffffcf) |
 				(0x1 << 4);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H + addr_offset);
 			data32 = (data32 & 0xffc0c0c0) |
 				(0xa << 16) | (0xf << 8) | 0x3;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V + addr_offset);
 			data32 = (data32 & 0xffc0c0c0) |
 				(0xa << 16) | (0xf << 8) | 0x4;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset);
 			data32 = (data32 & 0xffffffc0) |
 				(0x0 << 4) | 0x4;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN + addr_offset);
 			data32 = (data32 & 0xffffffef) | (0x0 << 4);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset);
 			data32 = (data32 & 0xffffff00) |
 				(0x0 << 4) | 0x2;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset,
 				data32, vpp_index);
 			data32 = (0x48 << 24) | (0x40 << 16) | (0x20 << 8) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0 + addr_offset,
 				data32, vpp_index);
 			data32 = (0x0 << 24) | (0x4 << 16) | (0x38 << 8) | 0x40;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1 + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset);
 			data32 = (data32 & 0xffffff00) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_XERR_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_XERR_GAIN + addr_offset);
 			data32 = (data32 & 0xffffffc0) | 0x8;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_XERR_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_XERR_GAIN + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_RATE);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_RATE + addr_offset);
 			data32 = (data32 & 0xffffc0ff) | (0x18 << 8);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_RATE,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_RATE + addr_offset,
 				data32, vpp_index);
 		}
 		break;
@@ -5361,41 +5404,50 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(SAFA_PPS_SR_422_EN, 1, 4, 1);
 			WRITE_VPP_REG_BITS(SAFA_PPS_SC_MISC, 0, 8, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 1, 24, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 20, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 8, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 1, 0, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 0, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 1, 24, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 0, 20, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 0, 8, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN + addr_offset, 1, 0, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN + addr_offset, 0, 4, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN + addr_offset, 1, 4, 2);
 /*			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 2, 0, 2);*/
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 3, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 4, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 3, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 4, 0, 6);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 15, 8, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 10, 16, 6);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 15, 8, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 10, 16, 6);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 1, 4, 2);
-			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 4, 0, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN, 1, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset, 1, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset, 4, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN + addr_offset, 1, 4, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 0, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 4, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset, 0, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset, 0, 4, 4);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 0, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 32, 8, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 64, 16, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 72, 24, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 64, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 56, 8, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 4, 16, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 0, 24, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F, 0, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_XERR_GAIN, 8, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_RATE, 24, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 32, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 64, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 72, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 64, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 56, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 4, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 0, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F
+				+ addr_offset, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_XERR_GAIN + addr_offset, 8, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_RATE + addr_offset, 24, 8, 6);
 		} else if (mode == WR_DMA) {
 			data32 = READ_VPP_REG_S5(SAFA_PPS_SR_422_EN);
 			data32 = (data32 & 0xffffffef) | (0x1 << 4);
@@ -5406,66 +5458,66 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SC_MISC,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE + addr_offset);
 			data32 = (data32 & 0xfeeffeff) |
 				(0x1 << 24) | (0x0 << 20) | (0x0 << 8);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN + addr_offset);
 			data32 = (data32 & 0xffffffee) |
 				(0x0 << 4) | 0x1;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN + addr_offset);
 			data32 = (data32 & 0xffffffcf) |
 				(0x1 << 4);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H + addr_offset);
 			data32 = (data32 & 0xffc0c0c0) |
 				(0xa << 16) | (0xf << 8) | 0x3;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V + addr_offset);
 			data32 = (data32 & 0xffc0c0c0) |
 				(0xa << 16) | (0xf << 8) | 0x4;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset);
 			data32 = (data32 & 0xffffffc0) |
 				(0x1 << 4) | 0x4;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN + addr_offset);
 			data32 = (data32 & 0xffffffef) | (0x1 << 4);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset);
 			data32 = (data32 & 0xffffff00) |
 				(0x0 << 4) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset,
 				data32, vpp_index);
 			data32 = (0x48 << 24) | (0x40 << 16) | (0x20 << 8) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0 + addr_offset,
 				data32, vpp_index);
 			data32 = (0x0 << 24) | (0x4 << 16) | (0x38 << 8) | 0x40;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1 + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset);
 			data32 = (data32 & 0xffffff00) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_XERR_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_XERR_GAIN + addr_offset);
 			data32 = (data32 & 0xffffffc0) | 0x8;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_XERR_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_XERR_GAIN + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_RATE);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_RATE  + addr_offset);
 			data32 = (data32 & 0xffffc0ff) | (0x18 << 8);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_RATE,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_RATE + addr_offset,
 				data32, vpp_index);
 		}
 		break;
@@ -5474,41 +5526,45 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(SAFA_PPS_SR_422_EN, 1, 4, 1);
 			WRITE_VPP_REG_BITS(SAFA_PPS_SC_MISC, 0, 8, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 1, 24, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 20, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 8, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 1, 0, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 0, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 1, 24, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 0, 20, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 0, 8, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN + addr_offset, 1, 0, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN + addr_offset, 0, 4, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN + addr_offset, 1, 4, 2);
 /*			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 2, 0, 2);*/
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 3, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 4, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 3, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 4, 0, 6);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 15, 8, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 10, 16, 6);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 15, 8, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 10, 16, 6);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 1, 4, 2);
-			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 4, 0, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN, 1, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset, 1, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset, 4, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN + addr_offset, 1, 4, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 0, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 4, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset, 0, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset, 0, 4, 4);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 0, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 32, 8, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 64, 16, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 72, 24, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 64, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 56, 8, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 4, 16, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 0, 24, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F, 0, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_XERR_GAIN, 8, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_RATE, 24, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 32, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 64, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 72, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1 + addr_offset, 64, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1 + addr_offset, 56, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1 + addr_offset, 4, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1 + addr_offset, 0, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_XERR_GAIN + addr_offset, 8, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_RATE + addr_offset, 24, 8, 6);
 		} else if (mode == WR_DMA) {
 			data32 = READ_VPP_REG_S5(SAFA_PPS_SR_422_EN);
 			data32 = (data32 & 0xffffffef) | (0x1 << 4);
@@ -5519,66 +5575,66 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SC_MISC,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE + addr_offset);
 			data32 = (data32 & 0xfeeffeff) |
 				(0x1 << 24) | (0x0 << 20) | (0x0 << 8);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN + addr_offset);
 			data32 = (data32 & 0xffffffee) |
 				(0x0 << 4) | 0x1;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN + addr_offset);
 			data32 = (data32 & 0xffffffcf) |
 				(0x1 << 4);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H + addr_offset);
 			data32 = (data32 & 0xffc0c0c0) |
 				(0xa << 16) | (0xf << 8) | 0x3;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V + addr_offset);
 			data32 = (data32 & 0xffc0c0c0) |
 				(0xa << 16) | (0xf << 8) | 0x4;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset);
 			data32 = (data32 & 0xffffffc0) |
 				(0x1 << 4) | 0x4;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN + addr_offset);
 			data32 = (data32 & 0xffffffef) | (0x1 << 4);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset);
 			data32 = (data32 & 0xffffff00) |
 				(0x0 << 4) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset,
 				data32, vpp_index);
 			data32 = (0x48 << 24) | (0x40 << 16) | (0x20 << 8) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0 + addr_offset,
 				data32, vpp_index);
 			data32 = (0x0 << 24) | (0x4 << 16) | (0x38 << 8) | 0x40;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1 + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset);
 			data32 = (data32 & 0xffffff00) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_XERR_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_XERR_GAIN + addr_offset);
 			data32 = (data32 & 0xffffffc0) | 0x8;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_XERR_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_XERR_GAIN + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_RATE);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_RATE + addr_offset);
 			data32 = (data32 & 0xffffc0ff) | (0x18 << 8);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_RATE,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_RATE + addr_offset,
 				data32, vpp_index);
 		}
 		break;
@@ -5588,38 +5644,47 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			WRITE_VPP_REG_BITS(SAFA_PPS_SR_422_EN, 0, 4, 1);
 			WRITE_VPP_REG_BITS(SAFA_PPS_SC_MISC, 0, 8, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 1, 24, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 20, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE, 0, 8, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 0, 0, 1);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN, 1, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 1, 24, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 0, 20, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_EN_MODE + addr_offset, 0, 8, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN + addr_offset, 0, 0, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_HIST_WIN + addr_offset, 1, 4, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 1, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN + addr_offset, 1, 4, 2);
 /*			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_DIF_WIN, 2, 0, 2);*/
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 17, 0, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 17, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 17, 0, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 17, 0, 6);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 15, 8, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H, 10, 16, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 15, 8, 6);
-			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_H + addr_offset, 10, 16, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 15, 8, 6);
+			WRITE_VPP_REG_BITS(SAFA_PPS_DIR_SWAP_THD_V + addr_offset, 10, 16, 6);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 1, 4, 2);
-			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN, 4, 0, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN, 0, 4, 1);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset, 1, 4, 2);
+			WRITE_VPP_REG_BITS(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset, 4, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_EN + addr_offset, 0, 4, 1);
 
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 0, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN, 0, 4, 4);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 0, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 32, 8, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 64, 16, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0, 64, 24, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 72, 0, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 64, 8, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 16, 16, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1, 8, 24, 8);
-			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset, 0, 0, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset, 0, 4, 4);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 0, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 32, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 64, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0
+				+ addr_offset, 64, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 72, 0, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 64, 8, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 16, 16, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1
+				+ addr_offset, 8, 24, 8);
+			WRITE_VPP_REG_BITS(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F
+				+ addr_offset, 0, 0, 8);
 		} else if (mode == WR_DMA) {
 			data32 = READ_VPP_REG_S5(SAFA_PPS_SR_422_EN);
 			data32 = (data32 & 0xffffffef) | (0x0 << 4);
@@ -5630,58 +5695,58 @@ void safa_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_SC_MISC,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_EN_MODE + addr_offset);
 			data32 = (data32 & 0xfeeffeff) |
 				(0x1 << 24) | (0x0 << 20) | (0x0 << 8);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_EN_MODE + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_HIST_WIN + addr_offset);
 			data32 = (data32 & 0xffffffee) |
 				(0x1 << 4) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_HIST_WIN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_DIF_WIN + addr_offset);
 			data32 = (data32 & 0xffffffcf) |
 				(0x1 << 4);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_DIF_WIN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_H + addr_offset);
 			data32 = (data32 & 0xffc0c0c0) |
 				(0xa << 16) | (0xf << 8) | 0x11;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_H + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_DIR_SWAP_THD_V + addr_offset);
 			data32 = (data32 & 0xffc0c0c0) |
 				(0xa << 16) | (0xf << 8) | 0x11;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_DIR_SWAP_THD_V + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset);
 			data32 = (data32 & 0xffffffc0) |
 				(0x1 << 4) | 0x4;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_EDGE_STR_MODE_GAIN + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_EN + addr_offset);
 			data32 = (data32 & 0xffffffef) | (0x0 << 4);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_EN + addr_offset,
 				data32, vpp_index);
 
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset);
 			data32 = (data32 & 0xffffff00) |
 				(0x0 << 4) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_FINAL_GAIN + addr_offset,
 				data32, vpp_index);
 			data32 = (0x40 << 24) | (0x40 << 16) | (0x20 << 8) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_0 + addr_offset,
 				data32, vpp_index);
 			data32 = (0x8 << 24) | (0x10 << 16) | (0x40 << 8) | 0x48;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_1 + addr_offset,
 				data32, vpp_index);
-			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F);
+			data32 = READ_VPP_REG_S5(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset);
 			data32 = (data32 & 0xffffff00) | 0x0;
-			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(SAFA_PPS_YUV_SHARPEN_GAIN_LUT_F + addr_offset,
 				data32, vpp_index);
 		}
 		break;
@@ -5692,6 +5757,8 @@ void pi_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 	enum wr_md_e mode, int vpp_index)
 {
 	unsigned int data32 = 0;
+	if (chip_type_id == chip_t6d)
+		return;
 
 	switch (vsr_cfg) {
 	case RES_480P:
@@ -5962,7 +6029,8 @@ void amve_vsr_config_update(struct vframe_s *vf, int vpp_index)
 			vf->compWidth : vf->width;
 
 	if ((chip_type_id == chip_s7d  ||
-                chip_type_id == chip_s6) &&
+		chip_type_id == chip_s6 ||
+		chip_type_id == chip_t6d) &&
 		(height_out <= 2160 &&
 		width_out <= 3840)) {
 		if (width_in <= 1024) {

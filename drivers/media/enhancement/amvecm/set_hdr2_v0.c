@@ -3004,9 +3004,13 @@ void set_hist(enum hdr_module_sel module_sel, int enable,
 	unsigned int hist_width, unsigned int hist_height)
 {
 	unsigned int hist_ctrl_port = 0;
+	unsigned int addr_offset_vd1 = 0;
+
+	if (chip_type_id == chip_t6d)
+		addr_offset_vd1 = 0x2a00;
 
 	if (module_sel == VD1_HDR)
-		hist_ctrl_port = VD1_HDR2_HIST_CTRL;
+		hist_ctrl_port = VD1_HDR2_HIST_CTRL + addr_offset_vd1;
 	else
 		return;
 
@@ -3030,6 +3034,8 @@ void get_hist(enum vd_path_e vd_path, enum hdr_hist_sel hist_sel)
 	int k = 0;
 	enum hdr_module_sel module_sel = VD1_HDR;
 	unsigned int hdr2_hist_rd;
+	unsigned int addr_offset_vd1 = 0;
+	unsigned int addr_offset_vd2 = 0;
 
 	hist_width = 0;
 	hist_height = 0;
@@ -3041,18 +3047,23 @@ void get_hist(enum vd_path_e vd_path, enum hdr_hist_sel hist_sel)
 	else if (vd_path == VD3_PATH)
 		module_sel = VD3_HDR;
 
+	if (chip_type_id == chip_t6d) {
+		addr_offset_vd1 = 0x2a00;
+		addr_offset_vd2 = 0x2a30;
+	}
+
 	if (module_sel == VD1_HDR) {
-		hist_ctrl_port = VD1_HDR2_HIST_CTRL;
+		hist_ctrl_port = VD1_HDR2_HIST_CTRL + addr_offset_vd1;
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
-			hdr2_hist_rd = VD1_HDR2_HIST_RD_2;
+			hdr2_hist_rd = VD1_HDR2_HIST_RD_2 + addr_offset_vd1;
 		else
-			hdr2_hist_rd = VD1_HDR2_HIST_CTRL + 3;
+			hdr2_hist_rd = VD1_HDR2_HIST_CTRL + 3 + addr_offset_vd1;
 	} else if (module_sel == VD2_HDR) {
-		hist_ctrl_port = VD2_HDR2_HIST_CTRL;
+		hist_ctrl_port = VD2_HDR2_HIST_CTRL + addr_offset_vd2;
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
-			hdr2_hist_rd = VD2_HDR2_HIST_RD_2;
+			hdr2_hist_rd = VD2_HDR2_HIST_RD_2 + addr_offset_vd2;
 		else
-			hdr2_hist_rd = VD2_HDR2_HIST_CTRL + 3;
+			hdr2_hist_rd = VD2_HDR2_HIST_CTRL + 3 + addr_offset_vd2;
 	} else if (module_sel == VD3_HDR) {
 		hist_ctrl_port = VD3_HDR2_HIST_CTRL;
 		hdr2_hist_rd = VD3_HDR2_HIST_RD_2;
