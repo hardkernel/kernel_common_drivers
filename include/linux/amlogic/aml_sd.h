@@ -174,6 +174,7 @@ struct meson_host {
 	dma_addr_t bounce_dma_addr;
 	struct sd_emmc_desc *descs;
 	dma_addr_t descs_dma_addr;
+	unsigned int desc_buf_size;
 	u32 *sg_descs;
 	dma_addr_t sg_descs_dma_addr;
 
@@ -414,6 +415,12 @@ void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
 #define   RESP_PN BIT(29)
 #define   RESP_DS BIT(30)
 
+#define SD_EMMC_ADDR64 0xA0
+#define   DESC_ADDR64_MASK GENMASK(7, 0)
+#define   DATA_ADDR64_MASK GENMASK(15, 8)
+#define   RESP_ADDR64_MASK GENMASK(23, 16)
+#define   BUS64 BIT(24)
+
 #define SD_EMMC_START 0x40
 #define   START_DESC_INIT BIT(0)
 #define   START_DESC_BUSY BIT(1)
@@ -574,7 +581,8 @@ void mmc_sd_update_dataline_timing(void *data, struct mmc_card *card, int *err);
 #define RESULT_UNSUP_CARD               3
 
 /* Host attributes */
-#define AML_USE_64BIT_DMA        BIT(0)
+#define AML_CQE_64BIT_DMA        BIT(0)
+#define AML_NONCQE_64BIT_DMA     BIT(1)
 
 /* Set to 1 for no timeout */
 #define SD_EMMC_CMD_NO_TIMEOUT 1

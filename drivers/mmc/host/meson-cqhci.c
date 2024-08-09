@@ -236,7 +236,7 @@ int amlogic_add_host(struct meson_host *host)
 		meson_crypto_init(cq_host);
 	}
 
-	dma64 = host->flags & AML_USE_64BIT_DMA;
+	dma64 = host->flags & AML_CQE_64BIT_DMA;
 	if (dma64)
 		cq_host->caps |= CQHCI_TASK_DESC_SZ_128;
 

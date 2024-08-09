@@ -186,8 +186,11 @@ int amlogic_of_parse(struct mmc_host *host)
 	else
 		mmc->enable_inline_crypto = false;
 
-	if (device_property_read_bool(dev, "use-64bit-dma"))
-		mmc->flags |= AML_USE_64BIT_DMA;
+	if (device_property_read_bool(dev, "aml-cqe-64bit-dma"))
+		mmc->flags |= AML_CQE_64BIT_DMA;
+
+	if (device_property_read_bool(dev, "aml-non-cqe-64bit-dma"))
+		mmc->flags |= AML_NONCQE_64BIT_DMA;
 
 	if (device_property_read_bool(dev, "auto-clock-sdio"))
 		mmc->auto_clk = true;
@@ -1624,14 +1627,14 @@ static void meson_mmc_sg_link_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 	u32 *sg_desc = host->sg_descs;
 	struct mmc_data *data = host->cmd->data;
 	struct scatterlist *sg;
-	u32 start;
-	int i = 0, j = 0, k = 0;
+	u32 start, addr64 = 0;
+	int i = 0, j = 0, k = 0, cnt = 0;
 	bool split = false;
 
 	if (data->flags & MMC_DATA_WRITE)
 		cmd_cfg |= CMD_CFG_DATA_WR;
 
-	if (data->blocks >= 1) {
+	if (data->blocks > 1) {
 		cmd_cfg |= CMD_CFG_BLOCK_MODE;
 		meson_mmc_set_blksz(mmc, data->blksz);
 	}
@@ -1652,26 +1655,46 @@ static void meson_mmc_sg_link_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 	for_each_sg(data->sg, sg, data->sg_count, i) {
 		unsigned int len = sg_dma_len(sg);
 
+		cnt = 0;
 		do {
+			//pr_info("64bit addr:%px\n", sg_dma_address(sg));
 			sg_desc[k++] = SG_VALID |
 				FIELD_PREP(SG_LENGTH_MASK, (len >= SG_LENGTH_MAX) ? 0 : len);
-			sg_desc[k++] = sg_dma_address(sg) + (split ? SG_LENGTH_MAX : 0);
+			sg_desc[k++] =
+				lower_32_bits(sg_dma_address(sg) +
+					(split ? (SG_LENGTH_MAX * cnt) : 0));
+			if (host->flags & AML_NONCQE_64BIT_DMA) {
+				sg_desc[k++] = upper_32_bits(sg_dma_address(sg));
+				sg_desc[k++] = 0;//reserved
+			}
 			if (len > SG_LENGTH_MAX) {
 				len -= SG_LENGTH_MAX;
 				split = true;
+				cnt++;
 			} else {
 				split = false;
 			}
 		} while (split);
 	}
-	sg_desc[k - 2] |= SG_EOC;
+	if (host->flags & AML_NONCQE_64BIT_DMA)
+		sg_desc[k - 4] |= SG_EOC;
+	else
+		sg_desc[k - 2] |= SG_EOC;
 
 	desc[j].cmd_cfg = cmd_cfg;
-	desc[j].cmd_cfg |= FIELD_PREP(CMD_CFG_LENGTH_MASK, data->blocks);
+	desc[j].cmd_cfg |= FIELD_PREP(CMD_CFG_LENGTH_MASK,
+		data->blocks == 1 ? sg_dma_len(data->sg) : data->blocks);
 	desc[j].cmd_cfg |= CMD_CFG_LINK;
 	desc[j].cmd_arg = host->cmd->arg;
 	desc[j].cmd_resp = 0;
-	desc[j].cmd_data = host->sg_descs_dma_addr;
+	desc[j].cmd_data = lower_32_bits(host->sg_descs_dma_addr);
+	if (host->flags & AML_NONCQE_64BIT_DMA) {
+		addr64 = readl(host->regs + SD_EMMC_ADDR64) & ~DATA_ADDR64_MASK;
+		addr64 |= FIELD_PREP(DATA_ADDR64_MASK,
+			upper_32_bits(host->sg_descs_dma_addr) & 0xff);
+		writel(addr64, host->regs + SD_EMMC_ADDR64);
+	}
+
 
 	if (mmc_op_multi(cmd->opcode) && !cmd->mrq->sbc) {
 		j++;
@@ -1690,7 +1713,13 @@ static void meson_mmc_sg_link_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 	desc[j].cmd_cfg |= CMD_CFG_END_OF_CHAIN;
 
 	dma_wmb(); /* ensure descriptor is written before kicked */
-	start = host->descs_dma_addr | START_DESC_BUSY;
+	if (host->flags & AML_NONCQE_64BIT_DMA) {
+		addr64 = readl(host->regs + SD_EMMC_ADDR64) & ~DESC_ADDR64_MASK;
+		addr64 |= FIELD_PREP(DESC_ADDR64_MASK,
+			upper_32_bits(host->descs_dma_addr) & 0xff);
+		writel(addr64, host->regs + SD_EMMC_ADDR64);
+	}
+	start = lower_32_bits(host->descs_dma_addr) | START_DESC_BUSY;
 	writel(start, host->regs + SD_EMMC_START);
 }
 
@@ -1869,7 +1898,13 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 			dma_wmb();
 		}
 
-		cmd_data = host->bounce_dma_addr & CMD_DATA_MASK;
+		if (host->flags & AML_NONCQE_64BIT_DMA) {
+			cmd_data = readl(host->regs + SD_EMMC_ADDR64) & ~DESC_ADDR64_MASK;
+			cmd_data |= FIELD_PREP(DESC_ADDR64_MASK,
+				upper_32_bits(host->bounce_dma_addr) & 0xff);
+			writel(cmd_data, host->regs + SD_EMMC_ADDR64);
+		}
+		cmd_data = lower_32_bits(host->bounce_dma_addr) & CMD_DATA_MASK;
 
 		if (host->dram_access_quirk) {
 			meson_mmc_quirk_transfer(mmc, cmd_cfg, cmd);
@@ -4297,6 +4332,12 @@ static int meson_mmc_probe(struct platform_device *pdev)
 			MMC_SRAM_DESC_BUF_OFF(host);
 
 	} else {
+		if (host->flags & AML_NONCQE_64BIT_DMA) {
+			dev_notice(host->dev, "Enable DMA access 64bit address.\n");
+			writel(BUS64, host->regs + SD_EMMC_ADDR64);
+			dma_set_mask(host->dev, DMA_BIT_MASK(36));
+			dma_set_coherent_mask(host->dev, DMA_BIT_MASK(36));
+		}
 		/* data bounce buffer */
 		host->bounce_buf_size = mmc->max_req_size;
 		host->bounce_buf =
@@ -4308,14 +4349,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 			goto err_free_irq;
 		}
 
-		host->descs = dma_alloc_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
-			      &host->descs_dma_addr, GFP_KERNEL);
-		if (!host->descs) {
-			ret = -ENOMEM;
-			goto err_bounce_buf;
-		}
-
-		if (MMC_HOST_VERSION(host) == MMC_HOST_V8 && aml_card_type_mmc(host)) {
+		if (MMC_HOST_VERSION(host) == MMC_HOST_V8) {
 			host->sg_descs = dma_alloc_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
 						&host->sg_descs_dma_addr, GFP_KERNEL);
 			if (!host->sg_descs) {
@@ -4323,6 +4357,16 @@ static int meson_mmc_probe(struct platform_device *pdev)
 				goto err_bounce_buf;
 			}
 			host->pre_dma = meson_mmc_sg_link_chain_transfer;
+			host->desc_buf_size = 64;
+		} else {
+			host->desc_buf_size = SD_EMMC_DESC_BUF_LEN;
+		}
+
+		host->descs = dma_alloc_coherent(host->dev, host->desc_buf_size,
+			      &host->descs_dma_addr, GFP_KERNEL);
+		if (!host->descs) {
+			ret = -ENOMEM;
+			goto err_bounce_buf;
 		}
 	}
 
@@ -4436,10 +4480,10 @@ static int meson_mmc_remove(struct platform_device *pdev)
 	writel(0, host->regs + SD_EMMC_IRQ_EN);
 	free_irq(host->irq, host);
 
-	dma_free_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
+	dma_free_coherent(host->dev, host->desc_buf_size,
 			  host->descs, host->descs_dma_addr);
 
-	if (MMC_HOST_VERSION(host) == MMC_HOST_V8 && aml_card_type_mmc(host))
+	if (MMC_HOST_VERSION(host) == MMC_HOST_V8)
 		dma_free_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
 			  host->sg_descs, host->sg_descs_dma_addr);
 
