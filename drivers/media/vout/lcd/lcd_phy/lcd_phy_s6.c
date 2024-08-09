@@ -31,9 +31,11 @@ static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	unsigned short CHCK_HS_driver_ability;
 	int HSTX_50R_calid_val;
 
-	if (status == 0) {
+	if (status == LCD_PHY_OFF) {
 		lcd_ana_write(ANACTRL_MIPIDSI_CTRL0_S6, 0);
 		lcd_ana_write(ANACTRL_MIPIDSI_CTRL0_S6, 0);
+		return;
+	} else if (status == LCD_PHY_LOCK_LANE) {
 		return;
 	}
 

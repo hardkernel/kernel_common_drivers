@@ -1652,7 +1652,7 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			}
 		}
 		if (pdrv->status & LCD_STATUS_IF_ON)
-			lcd_phy_set(pdrv, 1);
+			lcd_phy_set(pdrv, LCD_PHY_ON);
 		break;
 	case LCD_IOC_GET_SS:
 		ret = lcd_get_ss_num(pdrv, &ss_ctl.level, &temp, &ss_ctl.freq, &ss_ctl.mode);
@@ -1685,8 +1685,7 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	default:
-		LCDERR("[%d]: not support ioctl cmd_nr: 0x%x\n",
-		       pdrv->index, mcd_nr);
+		LCDERR("[%d]: not support ioctl cmd_nr: 0x%x\n", pdrv->index, mcd_nr);
 		ret = -EINVAL;
 		break;
 	}
