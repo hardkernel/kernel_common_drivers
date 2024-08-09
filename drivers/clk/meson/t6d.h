@@ -107,5 +107,8 @@
 #define ANACTRL_HIFI1PLL_CTRL2			(0x32 << 2)
 #define ANACTRL_HIFI1PLL_CTRL3			(0x33 << 2)
 #define ANACTRL_HIFI1PLL_STS			(0x37 << 2)
+#define ANACTRL_USBPLL_CTRL0			(0x50 << 2)
+#define ANACTRL_USBPLL_CTRL1			(0x51 << 2)
+#define ANACTRL_USBPLL_STS			(0x54 << 2)
 
 #endif /* __T6D_H */

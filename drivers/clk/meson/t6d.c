@@ -607,6 +607,86 @@ static struct clk_regmap t6d_hifi1_pll = {
 };
 #endif
 
+static const struct reg_sequence t6d_usb_pll_init_regs[] = {
+	{ .reg = ANACTRL_USBPLL_CTRL0,	.def = 0x200c0cc8 },
+	{ .reg = ANACTRL_USBPLL_CTRL1,	.def = 0x0632c800 },
+	{ .reg = ANACTRL_USBPLL_CTRL0,	.def = 0x300c0cc8, .delay_us = 20 },
+	{ .reg = ANACTRL_USBPLL_CTRL0,	.def = 0x100c0cc8, .delay_us = 20 },
+	{ .reg = ANACTRL_USBPLL_CTRL1,	.def = 0x06328800 },
+};
+
+#ifdef CONFIG_ARM64
+/* Keep a single entry table for recalc/round_rate() ops */
+static const struct pll_params_table t6d_usb_pll_table[] = {
+	PLL_PARAMS(200, 2),
+	{0, 0}
+};
+#else
+static const struct pll_params_table t6d_usb_pll_table[] = {
+	PLL_PARAMS(200, 2, 0),
+	{0, 0, 0}
+};
+#endif
+
+static struct clk_regmap t6d_usb_pll_dco = {
+	.data = &(struct meson_clk_pll_data){
+		.en = {
+			.reg_off = ANACTRL_USBPLL_CTRL0,
+			.shift   = 28,
+			.width   = 1,
+		},
+		.m = {
+			.reg_off = ANACTRL_USBPLL_CTRL0,
+			.shift   = 0,
+			.width   = 8,
+		},
+		.n = {
+			.reg_off = ANACTRL_USBPLL_CTRL0,
+			.shift   = 11,
+			.width   = 5,
+		},
+		.od = {
+			.reg_off = ANACTRL_USBPLL_CTRL0,
+			.shift	 = 9,
+			.width	 = 2,
+		},
+		.l = {
+			.reg_off = ANACTRL_USBPLL_CTRL0,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = ANACTRL_USBPLL_CTRL0,
+			.shift   = 29,
+			.width   = 1,
+		},
+		.table = t6d_usb_pll_table,
+		.init_regs = t6d_usb_pll_init_regs,
+		.init_count = ARRAY_SIZE(t6d_usb_pll_init_regs),
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "usb_pll_dco",
+		.ops = &meson_clk_pcie_pll_ops,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_fixed_factor t6d_usb_pll = {
+	.mult = 1,
+	.div = 25,
+	.hw.init = &(struct clk_init_data){
+		.name = "usb_pll",
+		.ops = &clk_fixed_factor_ops,
+		.parent_hws = (const struct clk_hw *[]) { &t6d_usb_pll_dco.hw },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+	},
+};
+
 /*
  *rtc 32k clock
  *
@@ -4183,6 +4263,177 @@ static struct clk_regmap t6d_amfc = {
 	},
 };
 
+static struct clk_regmap t6d_usb2_48m_pre_in = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_USB_CLK_CTRL0,
+		.bit_idx = 31,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "usb2_48m_pre_in",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t6d_fclk_div2.hw
+		},
+		.num_parents = 1,
+	},
+};
+
+static const struct meson_clk_dualdiv_param usb_48m_div_table[] = {
+	{
+		.n1		= 20, .m1		= 0,
+		.n2		= 21, .m2		= 5,
+		.dual		= 1,
+	},
+	{}
+};
+
+static struct clk_regmap t6d_usb2_48m_pre_div = {
+	.data = &(struct meson_clk_dualdiv_data){
+		.n1 = {
+			.reg_off = CLKCTRL_USB_CLK_CTRL0,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.n2 = {
+			.reg_off = CLKCTRL_USB_CLK_CTRL0,
+			.shift   = 12,
+			.width   = 12,
+		},
+		.m1 = {
+			.reg_off = CLKCTRL_USB_CLK_CTRL1,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.m2 = {
+			.reg_off = CLKCTRL_USB_CLK_CTRL1,
+			.shift   = 12,
+			.width   = 12,
+		},
+		.dual = {
+			.reg_off = CLKCTRL_USB_CLK_CTRL0,
+			.shift   = 28,
+			.width   = 1,
+		},
+		.table = usb_48m_div_table,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "usb2_48m_pre_div",
+		.ops = &meson_clk_dualdiv_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t6d_usb2_48m_pre_in.hw
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap t6d_usb2_48m_pre_force_sel = {
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = CLKCTRL_USB_CLK_CTRL1,
+		.mask = 0x1,
+		.shift = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "usb2_48m_pre_force_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t6d_usb2_48m_pre_div.hw,
+			&t6d_usb2_48m_pre_in.hw,
+		},
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap t6d_usb2_48m_pre = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_USB_CLK_CTRL0,
+		.bit_idx = 30,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "usb2_48m_pre",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t6d_usb2_48m_pre_force_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static const struct clk_hw *t6d_usb2_48m_clk_tmp_parent_hws[] = {
+	&t6d_gp0_pll.hw,
+	&t6d_usb_pll.hw,
+	&t6d_hifi_pll.hw,
+	&t6d_hifi1_pll.hw,
+};
+
+static struct clk_regmap t6d_usb2_48m_clk_tmp_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = CLKCTRL_USB_CLK_CTRL0,
+		.mask = 0x3,
+		.shift = 24,
+		.table = t6d_amfc_mux_table
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "usb2_48m_tmp_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = t6d_usb2_48m_clk_tmp_parent_hws,
+		.num_parents = ARRAY_SIZE(t6d_usb2_48m_clk_tmp_parent_hws),
+	},
+};
+
+static struct clk_regmap t6d_usb2_48m_clk_tmp_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = CLKCTRL_USB_CLK_CTRL0,
+		.shift = 25,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "usb2_48m_tmp_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t6d_usb2_48m_clk_tmp_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT
+	},
+};
+
+static struct clk_regmap t6d_usb2_48m_clk_tmp = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_USB_CLK_CTRL0,
+		.bit_idx = 26,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "usb2_48m_tmp",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t6d_usb2_48m_clk_tmp_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT
+	},
+};
+
+static struct clk_regmap t6d_usb2_48m_clk = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = CLKCTRL_USB_CLK_CTRL0,
+		.mask = 0x1,
+		.shift = 27,
+		.table = t6d_amfc_mux_table
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "usb2_48m_clk",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t6d_usb2_48m_clk_tmp.hw,
+			&t6d_usb2_48m_pre.hw
+		},
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT
+	},
+};
+
 #define MESON_T6D_SYS_GATE(_name, _reg, _bit)				\
 struct clk_regmap _name = {						\
 	.data = &(struct clk_regmap_gate_data) {			\
@@ -4266,6 +4517,8 @@ static struct clk_hw_onecell_data t6d_hw_onecell_data = {
 		[CLKID_HIFI_PLL]			= &t6d_hifi_pll.hw,
 		[CLKID_HIFI1_PLL_DCO]			= &t6d_hifi1_pll_dco.hw,
 		[CLKID_HIFI1_PLL]			= &t6d_hifi1_pll.hw,
+		[CLKID_USB_PLL_DCO]			= &t6d_usb_pll_dco.hw,
+		[CLKID_USB_PLL]				= &t6d_usb_pll.hw,
 		[CLKID_MPLL_50M_DIV]			= &t6d_mpll_50m_div.hw,
 		[CLKID_MPLL_50M]			= &t6d_mpll_50m.hw,
 		[CLKID_RTC_32K_CLKIN]			= &t6d_rtc_32k_clkin.hw,
@@ -4464,6 +4717,14 @@ static struct clk_hw_onecell_data t6d_hw_onecell_data = {
 		[CLKID_AMFC_1_DIV]			= &t6d_amfc_1_div.hw,
 		[CLKID_AMFC_1]				= &t6d_amfc_1.hw,
 		[CLKID_AMFC]				= &t6d_amfc.hw,
+		[CLKID_USB2_48M_PRE_IN]			= &t6d_usb2_48m_pre_in.hw,
+		[CLKID_USB2_48M_PRE_DIV]		= &t6d_usb2_48m_pre_div.hw,
+		[CLKID_USB2_48M_PRE_FORCE_SEL]		= &t6d_usb2_48m_pre_force_sel.hw,
+		[CLKID_USB2_48M_PRE]			= &t6d_usb2_48m_pre.hw,
+		[CLKID_USB2_48M_CLK_TMP_SEL]		= &t6d_usb2_48m_clk_tmp_sel.hw,
+		[CLKID_USB2_48M_CLK_TMP_DIV]		= &t6d_usb2_48m_clk_tmp_div.hw,
+		[CLKID_USB2_48M_CLK_TMP]		= &t6d_usb2_48m_clk_tmp.hw,
+		[CLKID_USB2_48M_CLK]			= &t6d_usb2_48m_clk.hw,
 		[CLKID_GEN_SEL]				= &t6d_gen_sel.hw,
 		[CLKID_GEN_DIV]				= &t6d_gen_div.hw,
 		[CLKID_GEN]				= &t6d_gen.hw,
@@ -4677,6 +4938,14 @@ static struct clk_regmap *const t6d_clk_regmaps[] = {
 	&t6d_amfc_1_div,
 	&t6d_amfc_1,
 	&t6d_amfc,
+	&t6d_usb2_48m_pre_in,
+	&t6d_usb2_48m_pre_div,
+	&t6d_usb2_48m_pre_force_sel,
+	&t6d_usb2_48m_pre,
+	&t6d_usb2_48m_clk_tmp_sel,
+	&t6d_usb2_48m_clk_tmp_div,
+	&t6d_usb2_48m_clk_tmp,
+	&t6d_usb2_48m_clk,
 	&t6d_cts_tcon_pll_clk_sel,
 	&t6d_cts_tcon_pll_clk_div,
 	&t6d_cts_tcon_pll_clk,
@@ -4769,6 +5038,7 @@ static struct clk_regmap *const t6d_pll_clk_regmaps[] = {
 	&t6d_hifi_pll,
 	&t6d_hifi1_pll_dco,
 	&t6d_hifi1_pll,
+	&t6d_usb_pll_dco,
 	&t6d_mpll_50m,
 };
 
