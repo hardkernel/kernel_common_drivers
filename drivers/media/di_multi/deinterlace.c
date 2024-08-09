@@ -3945,10 +3945,27 @@ void dim_pre_de_process(unsigned int channel)
 	if (DIM_IS_IC_EF(SC2)) {
 		sc2_pre_cfg = &get_hw_pre()->pre_top_cfg;
 		if (sc2_pre_cfg->d32 != ppre->pre_top_cfg.d32) {
+			//
+			#ifdef T6D_AFBC_TEST
+			if (DIM_IS_IC(T6D)) { //0809
+				if (sc2_pre_cfg->b.afbc_inp && !ppre->pre_top_cfg.b.afbc_inp) {
+					//on -> off:
+					t6d_afbc_top_sw_set(false, 1, 0, NULL);
+
+				} else if (!sc2_pre_cfg->b.afbc_inp &&
+					ppre->pre_top_cfg.b.afbc_inp) {
+					//off -> on:
+					t6d_afbc_top_sw_set(true, 1, 0, NULL);
+				}
+			}
+			#endif
 			sc2_pre_cfg->d32 = ppre->pre_top_cfg.d32;
 			dim_sc2_contr_pre(sc2_pre_cfg, NULL);
 			dim_sc2_4k_set(sc2_pre_cfg->b.mode_4k, NULL);
 		}
+		#ifdef T6D_AFBC_TEST
+		t6d_decoder_polling(NULL);
+		#endif
 	}
 	/*
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
@@ -10848,6 +10865,10 @@ void di_unreg_setting(bool plink)
 	//dimh_afbc_reg_sw(false);
 	if (dim_afds())
 		dim_afds()->reg_sw(false);
+	#ifdef T6D_AFBC_TEST
+	if (DIM_IS_IC(T6D))
+		t6d_afbc_top_sw_set(false, 1, 0, NULL);
+	#endif
 	dimh_hw_uninit();
 	if (is_meson_txlx_cpu()	||
 	    is_meson_txhd_cpu()	||

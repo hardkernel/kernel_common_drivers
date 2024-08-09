@@ -962,6 +962,7 @@ struct di_buf_s *dim_get_buf(unsigned int channel,
 /*#define DI_DEBUG_POST_BUF_FLOW	(1)*/
 #define OPS_LV1		(1)
 //#define TEST_DISABLE_BYPASS_P	(1)
+//#define T6D_AFBC_TEST	(1)
 
 void sc2_dbg_set(unsigned int val);
 bool sc2_dbg_is_en_pre_irq(void);

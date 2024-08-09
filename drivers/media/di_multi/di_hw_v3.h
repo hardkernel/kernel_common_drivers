@@ -282,5 +282,11 @@ void dimh_mc_vecrd_mif_set_g12(struct DI_MC_MIF_s *mcvecrd_mif,
 void dimh_enable_di_pre_mif_t6d(bool en, bool mc_enable);
 void dim_pre_frame_reset_t6d(unsigned char madi_en,
 			     unsigned char mcdi_en);
-
+#ifdef T6D_AFBC_TEST
+void t6d_afbc_top_sw_set(bool on,
+			 bool vd2,
+			 bool link,
+			 const struct reg_acc *op_in);
+void t6d_decoder_polling(const struct reg_acc *op_in);
+#endif
 #endif /* __DI_HW_V3_H__ */

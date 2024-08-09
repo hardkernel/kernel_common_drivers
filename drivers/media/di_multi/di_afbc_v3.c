@@ -532,6 +532,50 @@ static const unsigned int reg_afbc[AFBC_DEC_NUB][AFBC_REG_INDEX_NUB] = {
 
 };
 
+//for t6d:
+static const unsigned int reg_afbc_t6d[2][AFBC_REG_INDEX_NUB] = {
+	{
+		AFBCDM_VD1_ENABLE,
+		AFBCDM_VD1_MODE,	//EAFBC_MODE
+		AFBCDM_VD1_SIZE_IN,
+		AFBCDM_VD1_DEC_DEF_COLOR,
+		AFBCDM_VD1_CONV_CTRL,
+		AFBCDM_VD1_LBUF_DEPTH,
+		AFBCDM_VD1_HEAD_BADDR,
+		AFBCDM_VD1_BODY_BADDR,
+		AFBCDM_VD1_SIZE_OUT,
+		AFBCDM_VD1_OUT_YSCOPE,
+		AFBCDM_VD1_STAT,
+		AFBCDM_VD1_VD_CFMT_CTRL,
+		AFBCDM_VD1_VD_CFMT_W,
+		AFBCDM_VD1_MIF_HOR_SCOPE,
+		AFBCDM_VD1_MIF_VER_SCOPE,
+		AFBCDM_VD1_PIXEL_HOR_SCOPE,
+		AFBCDM_VD1_PIXEL_VER_SCOPE,
+		AFBCDM_VD1_VD_CFMT_H,
+	},
+	{
+		AFBCDM_VD2_ENABLE,
+		AFBCDM_VD2_MODE,	//EAFBC_MODE
+		AFBCDM_VD2_SIZE_IN,
+		AFBCDM_VD2_DEC_DEF_COLOR,
+		AFBCDM_VD2_CONV_CTRL,
+		AFBCDM_VD2_LBUF_DEPTH,
+		AFBCDM_VD2_HEAD_BADDR,
+		AFBCDM_VD2_BODY_BADDR,
+		AFBCDM_VD2_SIZE_OUT,
+		AFBCDM_VD2_OUT_YSCOPE,
+		AFBCDM_VD2_STAT,
+		AFBCDM_VD2_VD_CFMT_CTRL,
+		AFBCDM_VD2_VD_CFMT_W,
+		AFBCDM_VD2_MIF_HOR_SCOPE,
+		AFBCDM_VD2_MIF_VER_SCOPE,
+		AFBCDM_VD2_PIXEL_HOR_SCOPE,
+		AFBCDM_VD2_PIXEL_VER_SCOPE,
+		AFBCDM_VD2_VD_CFMT_H,
+	}
+};
+
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static const unsigned int reg_afbc_v5[AFBC_DEC_NUB_V5][AFBC_REG_INDEX_NUB] = {
 	[EAFBC_DEC0] = {
@@ -932,6 +976,13 @@ static const unsigned int *afbc_get_addrp(enum EAFBC_DEC eidx)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 
+	if (DIM_IS_IC(T6D)) {	//0809
+		if (eidx > 1) {
+			PR_ERR("%s:t6d idx overflow %d\n", __func__, eidx);
+			return &reg_afbc_t6d[0][0];
+		}
+		return &reg_afbc_t6d[eidx][0];
+	}
 	if (pafd_ctr->fb.ver < AFBCD_V5) {
 		//for coverity:
 		if (eidx >= AFBC_DEC_NUB) {
@@ -948,6 +999,13 @@ static const unsigned int *afbc_get_addrp(enum EAFBC_DEC eidx)
 
 	return &reg_afbc_v5[eidx][0];
 #else
+	if (DIM_IS_IC(T6D)) {
+		if (eidx > 1) {
+			PR_ERR("%s:t6d idx overflow %d\n", __func__, eidx);
+			return &reg_afbc_t6d[0][0];
+		}
+		return &reg_afbc_t6d[eidx][0];
+	}
 	//for coverity:
 	if (eidx >= AFBC_DEC_NUB) {
 		PR_ERR("%s overflow %d\n", __func__, eidx);
@@ -992,21 +1050,29 @@ static void dump_afbcd_reg(void)
 
 	pr_info("---- dump afbc EAFBC_DEC0 reg -----\n");
 	for (i = 0; i < AFBC_REG_INDEX_NUB; i++) {
-		if (pafd_ctr->fb.ver < AFBCD_V5)
-			afbc_reg = reg_afbc[EAFBC_DEC0][i];
+		if (pafd_ctr->fb.ver < AFBCD_V5) {
+			if (DIM_IS_IC(T6D))
+				afbc_reg = reg_afbc_t6d[EAFBC_DEC0][i];
+			else
+				afbc_reg = reg_afbc[EAFBC_DEC0][i];
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		else
+		} else {
 			afbc_reg = reg_afbc_v5[EAFBC_DEC0][i];
+		}
 #endif
 		pr_info("reg 0x%x val:0x%x\n", afbc_reg, reg_rd(afbc_reg));
 	}
 	pr_info("---- dump afbc EAFBC_DEC1 reg -----\n");
 	for (i = 0; i < AFBC_REG_INDEX_NUB; i++) {
-		if (pafd_ctr->fb.ver < AFBCD_V5)
-			afbc_reg = reg_afbc[EAFBC_DEC1][i];
+		if (pafd_ctr->fb.ver < AFBCD_V5) {
+			if (DIM_IS_IC(T6D))
+				afbc_reg = reg_afbc_t6d[EAFBC_DEC1][i];
+			else
+				afbc_reg = reg_afbc[EAFBC_DEC1][i];
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		else
+		} else {
 			afbc_reg = reg_afbc_v5[EAFBC_DEC1][i];
+		}
 #endif
 		pr_info("reg 0x%x val:0x%x\n", afbc_reg, reg_rd(afbc_reg));
 	}
@@ -1100,6 +1166,15 @@ const unsigned int *afbc_get_inp_base(void)
 
 	if (!pafd_ctr)
 		return NULL;
+
+	if (DIM_IS_IC(T6D)) {
+		if (pafd_ctr->fb.pre_dec > 1) {
+			PR_ERR("%s:t6d idx overflow %d\n",
+				__func__, pafd_ctr->fb.pre_dec);
+			return &reg_afbc_t6d[0][0];
+		}
+		return &reg_afbc_t6d[pafd_ctr->fb.pre_dec][0];
+	}
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (pafd_ctr->fb.ver < AFBCD_V5)
 		return &reg_afbc[pafd_ctr->fb.pre_dec][0];
@@ -1214,6 +1289,25 @@ static const struct afbc_fb_s cafbc_v4_t5dvb = {
 	.sp.b.enc_nr		= 0,
 	.sp.b.enc_wr		= 0,
 	.pre_dec = EAFBC_DEC0,
+	.mem_dec = 0,
+	.ch2_dec = 0,
+	.if0_dec = 0,
+	.if1_dec = 0,
+	.if2_dec = 0
+};
+
+/* t6d vb afbcd as t5db */
+static const struct afbc_fb_s cafbc_v4_t6d = {
+	.ver = AFBCD_V4,
+	.sp.b.inp		= 1,
+	.sp.b.mem		= 0,
+	.sp.b.chan2		= 0,
+	.sp.b.if0		= 0,
+	.sp.b.if1		= 0,
+	.sp.b.if2		= 0,
+	.sp.b.enc_nr		= 0,
+	.sp.b.enc_wr		= 0,
+	.pre_dec = EAFBC_DEC1,
 	.mem_dec = 0,
 	.ch2_dec = 0,
 	.if0_dec = 0,
@@ -1528,7 +1622,23 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 	pafd_ctr = &di_afdp->ctr;
 	pafd_ctr->en_ponly_afbcd = false;
 
-	if (IS_IC_EF(cid, SC2)) {
+	if (IS_IC(cid, T6D)) {
+#ifndef T6D_AFBC_TEST
+		if (cfgg(T5DB_AFBCD_EN))
+			afbc_cfg = 0;
+		else
+			afbc_cfg = BITS_EAFBC_CFG_DISABLE;
+
+		if (afbc_cfg && IS_IC_SUPPORT(PRE_VPP_LINK) &&
+			cfgg(EN_PRE_LINK))
+			pafd_ctr->en_ponly_afbcd = true;
+#else
+		afbc_cfg = 0;
+#endif
+
+		memcpy(&pafd_ctr->fb, &cafbc_v4_t6d, sizeof(pafd_ctr->fb));
+		pafd_ctr->fb.mode = AFBC_WK_IN;
+	} else if (IS_IC_EF(cid, SC2)) {
 		//afbc_cfg = BITS_EAFBC_CFG_4K;
 		afbc_cfg = 0;
 		memcpy(&pafd_ctr->fb, &cafbc_v5_sc2, sizeof(pafd_ctr->fb));
@@ -3305,6 +3415,13 @@ static void afbc_tm2_sw_inp(bool on, const struct reg_acc *op)
 		else
 			op->bwr(VIUB_MISC_CTRL0, 0, 16, 1);
 		return;
+	} else if (DIM_IS_IC(T6D)) {
+		//for t6d: bit 15 is afbc_inp_sel, 0:mif; 1:afbcd
+		if (on)
+			op->bwr(VIUB_MISC_CTRL0, 1, 15, 1);
+		else
+			op->bwr(VIUB_MISC_CTRL0, 0, 15, 1);
+		return;
 	}
 	if (on)
 		op->bwr(DI_AFBCE_CTRL, 0x03, 10, 2);
@@ -3315,7 +3432,7 @@ static void afbc_tm2_sw_inp(bool on, const struct reg_acc *op)
 /* only for tm2, sc2 is chang*/
 static void afbc_tm2_sw_mem(bool on, const struct reg_acc *op)
 {
-	if (DIM_IS_IC(T5DB))
+	if (DIM_IS_IC(T5DB) || DIM_IS_IC(T6D))
 		return;
 	if (!op) {
 		PR_ERR("%s:no op\n", __func__);
@@ -3722,7 +3839,7 @@ void disable_afbcd_t5dvb(void)
 	const unsigned int *reg;
 	unsigned int reg_AFBC_ENABLE;
 
-	if (!afbc_is_supported() || !DIM_IS_IC(T5DB) || cfgg(EN_PRE_LINK))
+	if (!afbc_is_supported() || !DIM_IS_IC(T5DB) || cfgg(EN_PRE_LINK) || !DIM_IS_IC(T6D))
 		return;
 	dbg_mem2("%s\n", __func__);
 	reg = afbc_get_addrp(pafd_ctr->fb.pre_dec);
@@ -3737,7 +3854,7 @@ void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link)
 	unsigned int val;
 	unsigned int en = 0;
 
-	if (!DIM_IS_IC(T5DB))
+	if (!DIM_IS_IC(T5DB) || !DIM_IS_IC(T6D))
 		return;
 	if (afbc_is_supported_for_plink()) {
 		dbg_reg("afbc_is_supported_for_plink\n");
@@ -4176,13 +4293,21 @@ void dbg_afd_reg_v3(struct seq_file *s, enum EAFBC_DEC eidx)
 	seq_printf(s, "dump reg:afd[%d]\n", eidx);
 
 	if (pafd_ctr->fb.ver < AFBCD_V5) {
+		if (DIM_IS_IC(T6D) && eidx > 1) {
+			seq_printf(s, "t6d:eidx[%d] is overflow for ver[%d]\n",
+				   eidx, pafd_ctr->fb.ver);
+			return;
+		}
 		if (eidx > EAFBC_DEC3_MEM) {
 			seq_printf(s, "eidx[%d] is overflow for ver[%d]\n",
 				   eidx, pafd_ctr->fb.ver);
 			return;
 		}
 		for (i = 0; i < AFBC_REG_INDEX_NUB; i++) {
-			addr = reg_afbc[eidx][i];
+			if (DIM_IS_IC(T6D))
+				addr = reg_afbc_t6d[eidx][i];
+			else
+				addr = reg_afbc[eidx][i];
 			seq_printf(s, "reg[0x%x]=0x%x.\n", addr, reg_rd(addr));
 		}
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT

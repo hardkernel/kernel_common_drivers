@@ -341,11 +341,12 @@ struct DI_MIF_S {
 	unsigned int	tst_not_setcontr	: 1; //debug for pre-vpp link for di
 	//bits_ext: for T6D p010 mode when this bit is 1, bit_mode is no used
 	unsigned int	bits_ext	: 1;
+	unsigned int	drop		: 2; //for t6d wr mif
 	unsigned int	buf_hsize;
 	unsigned int cvs0_w;
 	unsigned int cvs1_w;
 	unsigned int cvs2_w;
-
+	unsigned int	descramble;	//from T6D
 	/**/
 	enum DI_MIF0_ID	mif_index; /* */
 	//char *name;

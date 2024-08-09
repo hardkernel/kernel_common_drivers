@@ -7032,6 +7032,70 @@ void dim_pre_frame_reset_t6d(unsigned char madi_en,
 	opl1()->pre_gl_sw(true);
 }
 
+#ifdef T6D_AFBC_TEST
+unsigned char t6d_dbg_afbc;
+
+void t6d_afbc_top_sw_set(bool on,
+			 bool vd2,
+			 bool link,
+			 const struct reg_acc *op_in)
+{
+	const struct reg_acc *op  = &di_pre_regset;
+
+	if (op_in)
+		op = op_in;
+
+	if (on) {
+#ifdef __HIS_CODE__	//set by other function
+		if (link)
+			op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 8, 1); //need check
+		else
+			op->bwr(VD1_AFBCD0_MISC_CTRL, 0, 8, 1);
+#endif
+		if (vd2) {
+			t6d_dbg_afbc = 2;
+			//reg_vpp_2mad_en:
+			op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 9, 1);	//0x1a0a
+			op->bwr(VIU_MISC_CTRL0, 1, 1, 1);
+			op->bwr(T6D_VD2_AFBCDM_VDTOP_CTRL0, 1, 13, 1); //need check vpp?
+		} else {
+			t6d_dbg_afbc = 1;
+			//reg_vpp_2mad_en:
+			op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 9, 1);
+			op->bwr(VIU_MISC_CTRL0, 0, 1, 1);
+			op->bwr(T6D_VD1_AFBCDM_VDTOP_CTRL0, 1, 13, 1); //need check vpp?
+		}
+	} else {
+		t6d_dbg_afbc = 0;
+		//off:
+		op->bwr(VD1_AFBCD0_MISC_CTRL, 0, 9, 1);
+		op->bwr(VIU_MISC_CTRL0, 0, 1, 1);
+	}
+	dim_print("%s:%d,%d,%d, %d\n", "t6d afbc top sw", on, vd2, link, t6d_dbg_afbc);
+}
+
+void t6d_decoder_polling(const struct reg_acc *op_in)
+{
+	unsigned int tmp;
+	const struct reg_acc *op  = &di_pre_regset;
+
+	if (!t6d_dbg_afbc)
+		return;
+	if (op_in)
+		op = op_in;
+	if (t6d_dbg_afbc) {
+		tmp = op->rd(VD1_AFBCD0_MISC_CTRL);
+		dim_print("%s:val:0x%x\n", __func__, tmp);
+		if (!(tmp & DI_BIT9)) {
+			op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 9, 1);	//0x1a0a
+			PR_INF("update:0x%x, 0x%x\n",
+				VD1_AFBCD0_MISC_CTRL,
+				tmp);
+		}
+	}
+}
+
+#endif /* T6D_AFBC_TEST */
 /*2024-05-10*/
 unsigned int uint_up_bits(unsigned int val_ori, unsigned int value,
 			    unsigned int start, unsigned int len)
@@ -7281,6 +7345,236 @@ static void set_wrmif_t6d(struct DI_SIM_MIF_S *mif,
 	op->wr(reg[EIRN_BW6_CHRM_Y], (chrm_yend << 16) | chrm_ybgn);
 }
 
+static void set_wrmif_pp_t6d(struct DI_MIF_S *mif,
+				const struct reg_acc *ops,
+				enum EDI_MIFSM mifsel)
+{
+	const struct reg_acc *op  = &di_pre_regset;
+	const unsigned int *reg;
+
+//in cfg_mif
+	unsigned int chrm_ybgn;
+	unsigned int chrm_yend;
+	unsigned int chrm_xbgn;
+	unsigned int chrm_xend;
+
+	unsigned int luma_hsize;
+	unsigned int chrm_hsize;
+
+	unsigned int ctrl;
+
+	unsigned int ybits = 0, cbits = 0;
+	unsigned int ysize = 0, csize = 0;
+	//
+	unsigned int ystride;
+	unsigned int cstride;
+	unsigned int field_mode;
+	unsigned int separate; //420 or 422@2plane
+	unsigned int uv_swap;
+	unsigned int y_swap;
+	unsigned int fmt_t;
+	unsigned int bubble;
+
+	unsigned int value_o, value;
+//cfg_mif interface:
+	unsigned int ybaddr = (unsigned int)(mif->addr0 >> 4);
+	unsigned int cbaddr = (unsigned int)(mif->addr1 >> 4);
+	unsigned int ybgn   = mif->luma_y_start0;
+	unsigned int yend   = mif->luma_y_end0;
+	unsigned int xbgn   = mif->luma_x_start0;
+	unsigned int xend   = mif->luma_x_end0;
+	unsigned int bits; //0:8bit 1:10bit 2:12bit 3:16bit
+	unsigned int fmt; //0:444 1:422 2:420 3:rgba
+	//0:odd line 1:even line 2:all line
+	unsigned int vmode;
+	//0:no drop 1:drop odd line 2:drop even line	// 0 //need check
+	unsigned int ldrop = mif->drop;
+	//bit0: xrev bit1:yrev
+	unsigned int rev_x = mif->rev_x, rev_y = mif->rev_y;
+	//0: big endian 1:little endian	// 0
+	unsigned int endian = mif->l_endian;
+	unsigned int swap64 = mif->reg_swap;			// 0
+	unsigned int tunnel = mif->descramble; //descramble	// 0
+	unsigned int eol_sel = 0;			// 0 //fix 0 tmp
+	unsigned int bit_mode = mif->bit_mode;
+//------------------------------
+	if (mifsel == EDI_MIFSM_WR) {
+		if (dim_nr_h)
+			xend = dim_nr_h - 1;
+		if (dim_nr_v)
+			yend = dim_nr_v - 1;
+
+		if (dim_nr_h || dim_nr_v)
+			dim_print("vskip:%d,%d\n", xend, yend);
+	}
+
+	if (mifsel == EDI_MIFSM_NR && (dim_bitmode & 0x80)) {
+		bit_mode = dim_bitmode & 0xf;
+		dim_print("%s:bit:%d\n", "pre", bit_mode);
+	}
+	if (mifsel == EDI_MIFSM_WR && (dim_bitmode & 0x8000)) {
+		bit_mode = (dim_bitmode >> 8) & 0xf;
+		dim_print("%s:bit:%d\n", "pst", bit_mode);
+	}
+
+//------------------------------
+	reg = &reg_wrmif_v6[mifsel][0];
+	if (ops)
+		op = ops;
+	bits =	(bit_mode == 4) ? 3 : ((bit_mode == 0) ? 0 : 1);
+	//422 10bit
+	fmt  =  bit_mode == 3 ? (mif->set_separate_en == 0 ? 3 : 2) :
+		(mif->set_separate_en == 0 ?
+			(mif->video_mode == 1 ? 1 : 0) : 2); //two canvas
+	vmode =   mif->set_separate_en == 0 ? 2 :
+			(mif->video_mode == 1 ? 2 : 0);
+
+	chrm_ybgn = fmt == 2 && vmode <  2 ? ybgn >> 1 : ybgn;
+	chrm_yend = fmt == 2 && vmode < 2 ? yend >> 1 : yend;
+	chrm_xbgn = fmt == 2 ? xbgn >> 1 : xbgn;
+	chrm_xend = fmt == 2 ? xend >> 1 : xend;
+
+	luma_hsize = mif->buf_hsize;//xend-xbgn+1;
+	//chrm_xend-chrm_xbgn+1;
+	chrm_hsize = fmt == 2 ? mif->buf_hsize >> 1 : mif->buf_hsize;
+
+	ctrl = ((fmt & 0x3) << 4) |  (bits & 0x3);
+
+	dim_print("bits:%d,%d,%d\n", bit_mode,
+		mif->set_separate_en, mif->video_mode);
+
+	switch (ctrl) {
+	case 0x00:	//444@8bit
+		ysize = luma_hsize;
+		ybits = 24;
+		break;
+	case 0x01:	//444@10bit
+		ysize = luma_hsize;
+		ybits = 32;
+		break;
+	case 0x10:	//422@8bit
+		ysize = luma_hsize;
+		ybits = 16;
+		break;
+	case 0x11:	//422@10bit bubble
+		ysize = luma_hsize;
+		ybits = 24;
+		break;
+	case 0x12:	//422@12bit(10bit@12bit)
+		ysize = luma_hsize;
+		ybits = 24;
+		break;
+	case 0x31:	//422@10bit(10bit@10bit)
+		ysize = luma_hsize;
+		ybits = 20;
+		break;
+	case 0x33:	//422@16bit(10bit@16bit)
+		ysize = luma_hsize;
+		ybits = 32;
+		break;
+	case 0x20:	//420@8bit
+		ysize = luma_hsize;
+		ybits = 8;
+		csize = chrm_hsize;
+		cbits = 16;
+		break;
+	case 0x21: //420@10bit nobubble
+		ysize = luma_hsize;
+		ybits = 10;
+		csize = chrm_hsize;
+		cbits = 20;
+		break;
+	case 0x22: //420@12bit
+		ysize = luma_hsize;
+		ybits = 12;
+		csize = chrm_hsize;
+		cbits = 24;
+		break;
+	case 0x23:	//420@16bit(10bit@16bit, p010)
+		ysize = luma_hsize;
+		ybits = 16;
+		csize = chrm_hsize;
+		cbits = 32;
+		break;
+	default:
+		break;
+	}
+
+	ystride = ((ysize * ybits + 127) / 128 + 3) / 4 * 4;
+	cstride = ((csize * cbits + 127) / 128 + 3) / 4 * 4;
+
+	field_mode = (ldrop == 1) ? 2 : (ldrop == 2 ? 3 : 0);
+
+	separate = fmt == 2 || (fmt == 1 && vmode > 2); //420 or 422@2plane
+	//uv_swap is only care rev_x
+	uv_swap =  ((fmt == 2) && (rev_x ^  (!(endian == 1)))) ? 1 : 0;
+	y_swap = ((fmt == 2) && (bits == 1) && (endian == 1)) ? 1 : 0;
+	fmt_t = (fmt == 3) ? 1 : fmt;
+	bubble = (fmt == 1) ? 1 : 0;
+
+	op->wr(reg[EIRN_BW6_LUMA_BADDR], ybaddr);
+	op->wr(reg[EIRN_BW6_CHRM_BADDR], cbaddr);
+	op->wr(reg[EIRN_BW6_LUMA_CTRL1], ystride);
+	op->wr(reg[EIRN_BW6_CHRM_CTRL1], cstride);
+	//
+	value_o = op->rd(reg[EIRN_BW6_CTRL0]);
+	value = uint_up_bits(value_o, eol_sel, 12, 1);
+	value = uint_up_bits(value, field_mode, 13, 2);
+	op->wr(reg[EIRN_BW6_CTRL0], value);
+
+	value_o = op->rd(reg[EIRN_BW6_CTRL1]);
+	value = value_o;
+	value = uint_up_bits(value, bits & 0x3, 28, 2);
+	value = uint_up_bits(value, fmt_t & 0x3, 26, 2);
+	value = uint_up_bits(value, separate, 25, 1);
+	value = uint_up_bits(value, vmode & 0x3, 22, 2);
+	value = uint_up_bits(value, tunnel & 0x7ffff, 0, 19);
+	value = uint_up_bits(value, uv_swap, 24, 1);
+	value = uint_up_bits(value, y_swap, 30, 1);
+	value = uint_up_bits(value, bubble, 31, 1);
+
+	op->wr(reg[EIRN_BW6_CTRL1], value);
+
+	value_o = op->rd(reg[EIRN_BW6_LUMA_CTRL0]);
+	value = value_o;
+	value = uint_up_bits(value, swap64, 25, 1);
+	value = uint_up_bits(value, endian, 24, 1);
+	//bit22: x_rev; bit 23: y_rev
+	value = uint_up_bits(value, rev_x, 22, 1);
+	value = uint_up_bits(value, rev_y, 23, 1);
+	op->wr(reg[EIRN_BW6_LUMA_CTRL0], value);
+
+	value_o = op->rd(reg[EIRN_BW6_CHRM_CTRL0]);
+	value = value_o;
+	value = uint_up_bits(value, swap64, 25, 1);
+	value = uint_up_bits(value, endian, 24, 1);
+	value = uint_up_bits(value, rev_x, 22, 1); //bit 22: x_rev; bit 23: y_rev;
+	value = uint_up_bits(value, rev_y, 23, 1);
+	op->wr(reg[EIRN_BW6_CHRM_CTRL0], value);
+
+	op->wr(reg[EIRN_BW6_LUMA_X], (xend << 16) | xbgn);
+	op->wr(reg[EIRN_BW6_LUMA_Y], (yend << 16) | ybgn);
+	op->wr(reg[EIRN_BW6_CHRM_X], (chrm_xend << 16) | chrm_xbgn);
+	op->wr(reg[EIRN_BW6_CHRM_Y], (chrm_yend << 16) | chrm_ybgn);
+}
+
+void set_wrmif_addr_update_v6(struct DI_MIF_S *mif,
+				const struct reg_acc *ops,
+				enum EDI_MIFSM mifsel)
+{
+	const struct reg_acc *op  = &di_pre_regset;
+	const unsigned int *reg;
+
+	unsigned int ybaddr = (unsigned int)(mif->addr0 >> 4);
+	unsigned int cbaddr = (unsigned int)(mif->addr1 >> 4);
+
+	reg = &reg_wrmif_v6[mifsel][0];
+	if (ops)
+		op = ops;
+	op->wr(reg[EIRN_BW6_LUMA_BADDR], ybaddr);
+	op->wr(reg[EIRN_BW6_CHRM_BADDR], cbaddr);
+}
+
 //static
 void dimh_mc_vecrd_mif_set(struct DI_MC_MIF_s *mcvecrd_mif,
 				const struct reg_acc *op_in)
@@ -7518,8 +7812,8 @@ const struct dim_hw_opsv_s dim_ops_l1_v6_t6d = { //for t6d
 	},
 	.pre_mif_set = set_di_mif_v3, //set_di_mif_v5_t6d, //
 	.mif_rd_update_addr = set_di_mif_v3_addr_only,
-	.set_wrmif_pp = set_wrmif_simple_pp,
-	.wrmif_update_addr = set_wrmif_simple_pp_addr_only,
+	.set_wrmif_pp = set_wrmif_pp_t6d,//set_wrmif_simple_pp,
+	.wrmif_update_addr = set_wrmif_addr_update_v6, //set_wrmif_simple_pp_addr_only,
 	.pst_mif_set = set_di_mif_v3,//set_di_mif_v5_t6d, //
 	.pst_mif_update_csv	= pst_mif_update_canvasid_v3,
 	.pre_mif_sw	= di_pre_data_mif_ctrl_v3,
