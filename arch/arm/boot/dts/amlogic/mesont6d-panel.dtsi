@@ -11,7 +11,7 @@
 		pxp = <0>;
 		mode = "tv";
 		fr_auto_policy = <1>; /* 0=disable, 1=enable */
-		key_valid = <0>;
+		key_valid = <1>;
 		reg = <0xfe3b0000 0xd000   /* tcon */
 			0xfe004000 0x70        /* periphs */
 			0xfe002000 0xa0>;      /* reset */
