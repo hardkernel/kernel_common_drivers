@@ -1857,7 +1857,7 @@
 };
 
 &saradc {
-	status = "disabled";
+	status = "okay";
 };
 
 &vdac {

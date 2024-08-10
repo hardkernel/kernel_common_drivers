@@ -701,19 +701,33 @@
 		status = "disabled";
 	};
 
-	saradc: saradc@fe026000 {
-		compatible = "amlogic,meson-g12a-saradc",
-			   "amlogic,meson-saradc";
-		status = "disabled";
-		#io-channel-cells = <1>;
-		clocks = <&xtal>,
-		    //<&clkc CLKID_SYS_SAR_ADC>,
-		    <&clkc CLKID_SARADC>,
-		    <&clkc CLKID_SARADC_SEL>;
-		clock-names = "clkin", "core",
-		    "adc_clk", "adc_sel";
-		interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>;
+	saradc_common: saradc-common@fe026000 {
+		compatible = "amlogic,saradc-common";
 		reg = <0xfe026000 0x48>;
+
+		saradc: saradc {
+			compatible = "amlogic,meson-s7-saradc",
+				     "amlogic,meson-saradc";
+			status = "disabled";
+			#io-channel-cells = <1>;
+			clocks = <&xtal>,
+				 <&clkc CLKID_SYS_SARADC>,
+				 <&clkc CLKID_SARADC>,
+				 <&clkc CLKID_SARADC_SEL>;
+			clock-names = "clkin", "core", "adc_clk", "adc_sel";
+			interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>;
+		};
+
+		pdd: pdd {
+			compatible = "amlogic,pdd";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			amlogic,interrupt = <182>;
+			amlogic,digital-maps = <0x2c 26>, <0x2c 25>, <0x2c 24>;
+			amlogic,analog-maps = <0x2c 9>, <0x2c 3>, <0x2c 1>;
+			amlogic,voltage-maps = <400>, <800>, <800>, <1200>;
+			status = "okay";
+		};
 	};
 
 	dolby_fw: dolby_fw {
