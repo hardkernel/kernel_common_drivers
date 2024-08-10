@@ -1868,9 +1868,14 @@ void config_canvas_idx(struct di_buf_s *di_buf, int nr_canvas_idx,
 		}
 		if (mtn_canvas_idx >= 0) {
 			di_buf->mtn_canvas_idx = mtn_canvas_idx;
-			canvas_config(mtn_canvas_idx, di_buf->mtn_adr,
-				      di_buf->canvas_width[MTN_CANVAS],
-				      di_buf->canvas_height, 0, 0);
+			if (dimp_get(edi_mp_mtnskip))
+				canvas_config(mtn_canvas_idx, di_buf->mtn_adr,
+					      di_buf->canvas_width[MTN_CANVAS],
+					      di_buf->canvas_height / 2, 0, 0);
+			else
+				canvas_config(mtn_canvas_idx, di_buf->mtn_adr,
+					      di_buf->canvas_width[MTN_CANVAS],
+					      di_buf->canvas_height, 0, 0);
 		}
 	}
 	if (nr_canvas_idx >= 0) {
@@ -1889,9 +1894,14 @@ void config_canvas_idx_mtn(struct di_buf_s *di_buf,
 	if (di_buf->canvas_config_flag == 2) {
 		if (mtn_canvas_idx >= 0) {
 			di_buf->mtn_canvas_idx = mtn_canvas_idx;
-			canvas_config(mtn_canvas_idx, di_buf->mtn_adr,
-				      di_buf->canvas_width[MTN_CANVAS],
-				      di_buf->canvas_height, 0, 0);
+			if (dimp_get(edi_mp_mtnskip))
+				canvas_config(mtn_canvas_idx, di_buf->mtn_adr,
+					      di_buf->canvas_width[MTN_CANVAS],
+					      di_buf->canvas_height / 2, 0, 0);
+			else
+				canvas_config(mtn_canvas_idx, di_buf->mtn_adr,
+					      di_buf->canvas_width[MTN_CANVAS],
+					      di_buf->canvas_height, 0, 0);
 		}
 	}
 }
@@ -1904,9 +1914,14 @@ void config_cnt_canvas_idx(struct di_buf_s *di_buf,
 		return;
 
 	di_buf->cnt_canvas_idx = cnt_canvas_idx;
-	canvas_config(cnt_canvas_idx, di_buf->cnt_adr,
-		      di_buf->canvas_width[MTN_CANVAS],
-		      di_buf->canvas_height, 0, 0);
+	if (dimp_get(edi_mp_mtnskip))
+		canvas_config(cnt_canvas_idx, di_buf->cnt_adr,
+			      di_buf->canvas_width[MTN_CANVAS],
+			      di_buf->canvas_height / 2, 0, 0);
+	else
+		canvas_config(cnt_canvas_idx, di_buf->cnt_adr,
+			      di_buf->canvas_width[MTN_CANVAS],
+			      di_buf->canvas_height, 0, 0);
 }
 
 //static
@@ -2126,8 +2141,14 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 	    (dim_afds()->is_sts(EAFBC_MEM_NEED) || cfgg(FIX_BUF)))
 		afbc_tab_size = dim_afds()->cnt_tab_size(nr_size);
 
-	mtn_size = (mtn_width * canvas_height) * 4 / 16;
-	count_size = (mtn_width * canvas_height) * 4 / 16;
+	if (dimp_get(edi_mp_mtnskip)) {
+		mtn_size = (mtn_width / 2 * canvas_height) * 4 / 16;
+		count_size = (mtn_width / 2 * canvas_height) * 4 / 16;
+	} else {
+		//DIM_DI_WR(DI_MTNP_SKIP_CTRL, 0x0);
+		mtn_size = (mtn_width * canvas_height) * 4 / 16;
+		count_size = (mtn_width * canvas_height) * 4 / 16;
+	}
 	mv_size = (mv_width * canvas_height) / 5;
 	/*mc_size = canvas_height;*/
 	mc_size = roundup(canvas_height >> 1, canvas_align_width) << 1;

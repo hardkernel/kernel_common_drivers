@@ -41,6 +41,9 @@
 #define DI_TOP_CTRL1                               0x17d3
 #define DI_AFBCE0_HOLD_CTRL                        0x17d4
 #define DI_AFBCE1_HOLD_CTRL                        0x17d5
+#define DI_MTNP_SKIP_CTRL                          0x17d8 /* s1a & after t6d */
+#define DI_MTNP_RD_HSIZE                           0x17d7
+#define DI_MTNP_WR_HSIZE                           0x17d6
 
 /* pre nr */
 #define NRWR_DBG_AXI_CMD_CNT                       0x2090

@@ -863,7 +863,6 @@ static void set_ma_pre_mif_g12(struct DI_SIM_MIF_S *mtnwr_mif,
 			       unsigned short urgent)
 {
 	DIM_RDMA_WR_BITS(CONTRD_SCOPE_X, contprd_mif->start_x, 0, 13);
-	DIM_RDMA_WR_BITS(CONTRD_SCOPE_X, contprd_mif->end_x, 16, 13);
 	DIM_RDMA_WR_BITS(CONTRD_SCOPE_Y, contprd_mif->start_y, 0, 13);
 	DIM_RDMA_WR_BITS(CONTRD_SCOPE_Y, contprd_mif->end_y, 16, 13);
 	DIM_RDMA_WR_BITS(CONTRD_CTRL1, contp2rd_mif->canvas_num, 16, 8);
@@ -871,7 +870,6 @@ static void set_ma_pre_mif_g12(struct DI_SIM_MIF_S *mtnwr_mif,
 	DIM_RDMA_WR_BITS(CONTRD_CTRL1, 0, 0, 3);
 
 	DIM_RDMA_WR_BITS(CONT2RD_SCOPE_X, contp2rd_mif->start_x, 0, 13);
-	DIM_RDMA_WR_BITS(CONT2RD_SCOPE_X, contp2rd_mif->end_x, 16, 13);
 	DIM_RDMA_WR_BITS(CONT2RD_SCOPE_Y, contp2rd_mif->start_y, 0, 13);
 	DIM_RDMA_WR_BITS(CONT2RD_SCOPE_Y, contp2rd_mif->end_y, 16, 13);
 	DIM_RDMA_WR_BITS(CONT2RD_CTRL1, contprd_mif->canvas_num, 16, 8);
@@ -880,7 +878,6 @@ static void set_ma_pre_mif_g12(struct DI_SIM_MIF_S *mtnwr_mif,
 
 	/* current field mtn canvas index. */
 	DIM_RDMA_WR_BITS(MTNWR_X, mtnwr_mif->start_x, 16, 13);
-	DIM_RDMA_WR_BITS(MTNWR_X, mtnwr_mif->end_x, 0, 13);
 	if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_IC(T3) || DIM_IS_IC(S7D))
 		DIM_RDMA_WR_BITS(MTNWR_X, 0, 30, 2);
 	else
@@ -890,11 +887,9 @@ static void set_ma_pre_mif_g12(struct DI_SIM_MIF_S *mtnwr_mif,
 	DIM_RDMA_WR_BITS(MTNWR_CTRL, mtnwr_mif->canvas_num, 0, 8);
 	DIM_RDMA_WR_BITS(MTNWR_CAN_SIZE,
 			 (mtnwr_mif->end_y - mtnwr_mif->start_y), 0, 13);
-	DIM_RDMA_WR_BITS(MTNWR_CAN_SIZE,
-			 (mtnwr_mif->end_x - mtnwr_mif->start_x), 16, 13);
 
 	DIM_RDMA_WR_BITS(CONTWR_X, contwr_mif->start_x, 16, 13);
-	DIM_RDMA_WR_BITS(CONTWR_X, contwr_mif->end_x, 0, 13);
+
 	if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB) || DIM_IS_IC(T3) || DIM_IS_IC(S7D))
 		DIM_RDMA_WR_BITS(CONTWR_X, 0, 30, 2);
 	else
@@ -904,8 +899,34 @@ static void set_ma_pre_mif_g12(struct DI_SIM_MIF_S *mtnwr_mif,
 	DIM_RDMA_WR_BITS(CONTWR_CTRL, contwr_mif->canvas_num, 0, 8);
 	DIM_RDMA_WR_BITS(CONTWR_CAN_SIZE,
 			 (contwr_mif->end_y - contwr_mif->start_y), 0, 13);
-	DIM_RDMA_WR_BITS(CONTWR_CAN_SIZE,
-			 (contwr_mif->end_x - contwr_mif->start_x), 16, 13);
+
+	if (dimp_get(edi_mp_mtnskip) && DIM_IS_IC_EF(T6D)) {
+		DIM_RDMA_WR(DI_MTNP_SKIP_CTRL, 0x3f0f);
+		DIM_RDMA_WR(DI_MTNP_RD_HSIZE,
+			(contprd_mif->end_x + 1) + ((contprd_mif->end_x + 1) << 16));
+		DIM_RDMA_WR(DI_MTNP_WR_HSIZE,
+			(contprd_mif->end_x + 1) + ((contprd_mif->end_x + 1) << 16));
+		DIM_RDMA_WR_BITS(CONTRD_SCOPE_X, contprd_mif->end_x / 2, 16, 13);
+		DIM_RDMA_WR_BITS(CONT2RD_SCOPE_X,
+			contp2rd_mif->end_x / 2, 16, 13);
+		DIM_RDMA_WR_BITS(MTNWR_X, mtnwr_mif->end_x / 2, 0, 13);
+		DIM_RDMA_WR_BITS(MTNWR_CAN_SIZE,
+			(mtnwr_mif->end_x - mtnwr_mif->start_x) / 2, 16, 13);
+		DIM_RDMA_WR_BITS(CONTWR_X, contwr_mif->end_x / 2, 0, 13);
+		DIM_RDMA_WR_BITS(CONTWR_CAN_SIZE,
+			(contwr_mif->end_x - contwr_mif->start_x) / 2, 16, 13);
+	} else {
+		if (DIM_IS_IC_EF(T6D))
+			DIM_RDMA_WR(DI_MTNP_SKIP_CTRL, 0);
+		DIM_RDMA_WR_BITS(CONTRD_SCOPE_X, contprd_mif->end_x, 16, 13);
+		DIM_RDMA_WR_BITS(CONT2RD_SCOPE_X, contp2rd_mif->end_x, 16, 13);
+		DIM_RDMA_WR_BITS(MTNWR_X, mtnwr_mif->end_x, 0, 13);
+		DIM_RDMA_WR_BITS(MTNWR_CAN_SIZE,
+			(mtnwr_mif->end_x - mtnwr_mif->start_x), 16, 13);
+		DIM_RDMA_WR_BITS(CONTWR_X, contwr_mif->end_x, 0, 13);
+		DIM_RDMA_WR_BITS(CONTWR_CAN_SIZE,
+			contwr_mif->end_x - contwr_mif->start_x, 16, 13);
+	}
 }
 
 #ifdef HIS_CODE	/* move to di_hw_v2.c */
@@ -3216,9 +3237,14 @@ static void set_post_mtnrd_mif(struct DI_SIM_MIF_S *mtnprd_mif,
 
 static void set_post_mtnrd_mif_g12(struct DI_SIM_MIF_S *mtnprd_mif)
 {
-	DIM_VSYNC_WR_MPEG_REG(MTNRD_SCOPE_X,
-			      (mtnprd_mif->end_x << 16) |
-			      (mtnprd_mif->start_x));
+	if (dimp_get(edi_mp_mtnskip))
+		DIM_VSYNC_WR_MPEG_REG(MTNRD_SCOPE_X,
+				      ((mtnprd_mif->end_x / 2) << 16) |
+				      (mtnprd_mif->start_x / 2));
+	else
+		DIM_VSYNC_WR_MPEG_REG(MTNRD_SCOPE_X,
+				      (mtnprd_mif->end_x << 16) |
+				      (mtnprd_mif->start_x));
 	DIM_VSYNC_WR_MPEG_REG(MTNRD_SCOPE_Y,
 			      (mtnprd_mif->end_y << 16) |
 			      (mtnprd_mif->start_y));

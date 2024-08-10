@@ -962,6 +962,8 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 				edi_mp_prelink_hold_line, 8},
 	[edi_mp_force_422_8bit]	= {"force_422_8bit:8",
 				edi_mp_force_422_8bit, -1},
+	[edi_mp_mtnskip] = {"mtnskip:uint:0",
+			edi_mp_mtnskip, 0},
 	[EDI_MP_SUB_DI_E]  = {"di end-------",
 				EDI_MP_SUB_DI_E, 0},
 	/**************************************/

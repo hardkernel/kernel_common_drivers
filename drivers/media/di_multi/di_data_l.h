@@ -1133,6 +1133,7 @@ enum EDI_MP_UI_T {
 	edi_mp_tb_dump,
 	edi_mp_prelink_hold_line,
 	edi_mp_force_422_8bit,
+	edi_mp_mtnskip,
 	EDI_MP_SUB_DI_E,
 	/**************************************/
 	EDI_MP_SUB_NR_B,
