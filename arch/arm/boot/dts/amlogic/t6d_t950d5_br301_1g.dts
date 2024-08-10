@@ -764,7 +764,7 @@
 		spk_mute_sleep_time = <800>;
 
 		/* headphone insert det */
-		// aml-audio-card,hp-det-gpio = <&analog_gpio CDAC_IOUT GPIO_ACTIVE_LOW>;
+		aml-audio-card,hp-det-gpio = <&gpio_analog CDAC_IOUT GPIO_ACTIVE_LOW>;
 
 		interrupts = <GIC_SPI 149 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
@@ -1381,12 +1381,12 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins1>;
-	clock-frequency = <100000>;
-	ad82128: ad82128@36 {
+	clock-frequency = <300000>;
+	ad82128: ad82128@6c {
 		compatible = "ESMT,ad82128";
 		#sound-dai-cells = <0>;
-		//reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
-		reg = <0x36>;
+		//reset_pin-gpios = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
+		reg = <0x6c>;
 		status = "okay";
 	};
 };

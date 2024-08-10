@@ -125,7 +125,7 @@
 
 &audiobus {
 	tdma:tdm@0 {
-		compatible = "amlogic, t5-snd-tdma";
+		compatible = "amlogic, t7-snd-tdma";
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 1>;
@@ -142,7 +142,7 @@
 	};
 
 	tdmb:tdm@1 {
-		compatible = "amlogic, t5-snd-tdmb";
+		compatible = "amlogic, t7-snd-tdmb";
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
@@ -184,7 +184,7 @@
 	};
 
 	tdmc:tdm@2 {
-		compatible = "amlogic, t5-snd-tdmc";
+		compatible = "amlogic, t7-snd-tdmc";
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
@@ -507,7 +507,7 @@
 	tdmb_pin: tdmb_pins {
 		mux { /* GPIOH_15 GPIOH_16 GPIOH_17 */
 			groups = "tdm_fs1_h15",
-				"tdm_fs1_h15",
+				"tdm_sclk1_h16",
 				"tdm_d0_h17";
 			function = "tdm";
 		};
