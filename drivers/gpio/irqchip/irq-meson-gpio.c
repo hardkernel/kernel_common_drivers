@@ -297,7 +297,7 @@ static const struct meson_gpio_irq_params s6_params = {
 };
 
 static const struct meson_gpio_irq_params t6d_params = {
-	INIT_MESON_SC2_COMMON_DATA(129)
+	INIT_MESON_SC2_COMMON_DATA(131)
 };
 #endif // end of ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static const struct meson_gpio_irq_params s1a_params = {

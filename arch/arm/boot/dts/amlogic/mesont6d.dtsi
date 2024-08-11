@@ -841,6 +841,22 @@
 					<10 11 12 13 14 15 16 17 18 19 20 21>;
 			};
 
+			pinctrl_analog: pinctrl@43cc {
+				compatible = "amlogic,meson-t6d-analog-pinctrl";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges;
+
+				gpio_analog: analog-bank@43cc {
+					reg = <0x43d4 0x0004>,
+					      <0x43cc 0x0008>;
+					reg-names = "mux", "gpio";
+					gpio-controller;
+					#gpio-cells = <2>;
+					gpio-ranges = <&pinctrl_analog 0 0 2>;
+				};
+			};
+
 			spicc0: spi@50000 {
 				compatible = "amlogic,meson-s5-spicc";
 				reg = <0x50000 0x58>;

@@ -8,6 +8,52 @@
 #include "pinctrl-meson.h"
 #include "pinctrl-meson-axg-pmx.h"
 
+static const struct pinctrl_pin_desc meson_t6d_analog_pins[] = {
+	MESON_PIN(CDAC_IOUT),
+	MESON_PIN(CVBS0),
+};
+
+static struct meson_pmx_group meson_t6d_analog_groups[] __initdata = {
+	GPIO_GROUP(CDAC_IOUT),
+	GPIO_GROUP(CVBS0),
+};
+
+static const char * const gpio_analog_groups[] = {
+	"CDAC_IOUT", "CVBS0",
+};
+
+static struct meson_pmx_func meson_t6d_analog_functions[] __initdata = {
+	FUNCTION(gpio_analog),
+};
+
+static struct meson_bank meson_t6d_analog_banks[] = {
+	BANK("ANALOG", CDAC_IOUT, CVBS0, 129, 130, 0, 30, 0, 28, 1, 0, 0, 26, 0, 0),
+};
+
+static struct meson_pmx_bank meson_t6d_analog_pmx_banks[] = {
+	BANK_PMX("ANALOG", CDAC_IOUT, CVBS0, 0x000, 24),
+};
+
+static struct meson_axg_pmx_data meson_t6d_analog_pmx_banks_data = {
+	.pmx_banks	= meson_t6d_analog_pmx_banks,
+	.num_pmx_banks	= ARRAY_SIZE(meson_t6d_analog_pmx_banks),
+};
+
+static struct meson_pinctrl_data meson_t6d_analog_pinctrl_data __refdata = {
+	.name		= "analog-banks",
+	.pins		= meson_t6d_analog_pins,
+	.groups		= meson_t6d_analog_groups,
+	.funcs		= meson_t6d_analog_functions,
+	.banks		= meson_t6d_analog_banks,
+	.num_pins	= ARRAY_SIZE(meson_t6d_analog_pins),
+	.num_groups	= ARRAY_SIZE(meson_t6d_analog_groups),
+	.num_funcs	= ARRAY_SIZE(meson_t6d_analog_functions),
+	.num_banks	= ARRAY_SIZE(meson_t6d_analog_banks),
+	.pmx_ops	= &meson_axg_pmx_ops,
+	.pmx_data	= &meson_t6d_analog_pmx_banks_data,
+	.parse_dt	= meson_g12a_aobus_parse_dt_extra,
+};
+
 static const struct pinctrl_pin_desc meson_t6d_periphs_pins[] = {
 	MESON_PIN(GPIOW_0),
 	MESON_PIN(GPIOW_1),
@@ -1685,6 +1731,10 @@ static const struct of_device_id meson_t6d_pinctrl_dt_match[] = {
 	{
 		.compatible = "amlogic,meson-t6d-periphs-pinctrl",
 		.data = &meson_t6d_periphs_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson-t6d-analog-pinctrl",
+		.data = &meson_t6d_analog_pinctrl_data,
 	},
 	{ },
 };
