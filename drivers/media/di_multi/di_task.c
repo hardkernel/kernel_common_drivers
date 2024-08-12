@@ -685,9 +685,9 @@ bool mtsk_release_block(unsigned int ch, unsigned int cmd)
 	mtask_send_cmd(ch, &blk_cmd);
 	fcmd = &tsk->fcmd[ch];
 	cnt = 0;
-	while ((atomic_read(&fcmd->doing) > 0) && (cnt < 200)) {
+	while ((atomic_read(&fcmd->doing) > 0) && (cnt < 500)) {
 		/*wait 2s for finish*/
-		usleep_range(10000, 10001);
+		usleep_range(4000, 4001);
 		cnt++;
 	}
 	if (atomic_read(&fcmd->doing) > 0) {

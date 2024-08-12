@@ -11069,11 +11069,13 @@ void di_unreg_variable(unsigned int channel)
 		//dip_wq_cma_run(channel, ECMA_CMD_RELEASE);
 		//dip_wq_check_unreg(channel);
 		//mtsk_release(channel, ECMD_BLK_RELEASE_ALL);
-		if (cfgg(MEM_RELEASE_BLOCK_MODE)) {
-			mtsk_release_block(channel, ECMD_BLK_RELEASE_ALL);
-		} else {
-			blk_cmd.cmd = ECMD_BLK_RELEASE_ALL;
-			mtask_send_cmd(channel, &blk_cmd);
+		if (mm->sts.flg_alloced) {
+			if (cfgg(MEM_RELEASE_BLOCK_MODE)) {
+				mtsk_release_block(channel, ECMD_BLK_RELEASE_ALL);
+			} else {
+				blk_cmd.cmd = ECMD_BLK_RELEASE_ALL;
+				mtask_send_cmd(channel, &blk_cmd);
+			}
 		}
 //		mtsk_release_block(channel, ECMD_BLK_RELEASE_ALL);
 		mm->sts.flg_alloced = false;
