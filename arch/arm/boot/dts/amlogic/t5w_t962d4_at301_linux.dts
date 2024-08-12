@@ -229,7 +229,7 @@
 		regulator-boot-on;
 /*		pinctrl-names = "default"; */
 		gpio = <&gpio_ao GPIOD_10 GPIO_ACTIVE_HIGH>;	/* gpio d 10 */
-		startup-delay-us = <70000>;
+		startup-delay-us = <7000>;
 		enable-active-high;
 		regulator-always-on;
 	};
