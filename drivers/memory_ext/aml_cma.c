@@ -55,6 +55,7 @@
 #ifdef CONFIG_PAGE_OWNER
 #include <linux/page_owner.h>
 #endif
+#include <cma.h>
 
 /* from mm/ path */
 #include <internal.h>
@@ -113,51 +114,19 @@ unsigned long ion_cma_allocated;
 #endif
 
 #if IS_MODULE(CONFIG_AMLOGIC_CMA)
-struct dummy_cma {
-	unsigned long   base_pfn;
-	unsigned long   count;
-	unsigned long   *bitmap;
-	unsigned int order_per_bit; /* Order of pages represented by one bit */
-	spinlock_t	lock;
-#ifdef CONFIG_CMA_DEBUGFS
-	struct hlist_head mem_head;
-	spinlock_t mem_head_lock; /* for cma debugfs */
-	struct debugfs_u32_array dfs_bitmap;
-#endif
-	char name[CMA_MAX_NAME];
 #ifdef CONFIG_CMA_SYSFS
-	/* the number of CMA page successful allocations */
-	atomic64_t nr_pages_succeeded;
-	/* the number of CMA page allocation failures */
-	atomic64_t nr_pages_failed;
-	/* kobject requires dynamic object */
-	struct cma_kobject *cma_kobj;
-#endif
-};
-
-static inline unsigned long cma_bitmap_maxno(struct dummy_cma *cma)
-{
-	return cma->count >> cma->order_per_bit;
-}
-
-#ifdef CONFIG_CMA_SYSFS
-static void cma_sysfs_account_success_pages(struct dummy_cma *cma, unsigned long nr_pages)
+void cma_sysfs_account_success_pages(struct cma *cma, unsigned long nr_pages)
 {
 	atomic64_add(nr_pages, &cma->nr_pages_succeeded);
 }
 
-static void cma_sysfs_account_fail_pages(struct dummy_cma *cma, unsigned long nr_pages)
+void cma_sysfs_account_fail_pages(struct cma *cma, unsigned long nr_pages)
 {
 	atomic64_add(nr_pages, &cma->nr_pages_failed);
 }
-#else
-static inline void cma_sysfs_account_success_pages(struct dummy_cma *cma,
-						   unsigned long nr_pages) {};
-static inline void cma_sysfs_account_fail_pages(struct dummy_cma *cma,
-						unsigned long nr_pages) {};
 #endif
 
-static unsigned long cma_bitmap_aligned_mask(const struct dummy_cma *cma,
+static unsigned long cma_bitmap_aligned_mask(const struct cma *cma,
 					     unsigned int align_order)
 {
 	if (align_order <= cma->order_per_bit)
@@ -169,20 +138,20 @@ static unsigned long cma_bitmap_aligned_mask(const struct dummy_cma *cma,
  * Find the offset of the base PFN from the specified align_order.
  * The value returned is represented in order_per_bits.
  */
-static unsigned long cma_bitmap_aligned_offset(const struct dummy_cma *cma,
+static unsigned long cma_bitmap_aligned_offset(const struct cma *cma,
 					       unsigned int align_order)
 {
 	return (cma->base_pfn & ((1UL << align_order) - 1))
 		>> cma->order_per_bit;
 }
 
-static unsigned long cma_bitmap_pages_to_bits(const struct dummy_cma *cma,
+static unsigned long cma_bitmap_pages_to_bits(const struct cma *cma,
 					      unsigned long pages)
 {
 	return ALIGN(pages, 1UL << cma->order_per_bit) >> cma->order_per_bit;
 }
 
-static void cma_clear_bitmap(struct dummy_cma *cma, unsigned long pfn,
+static void cma_clear_bitmap(struct cma *cma, unsigned long pfn,
 			     unsigned long count)
 {
 	unsigned long bitmap_no, bitmap_count;
@@ -1719,7 +1688,7 @@ arch_initcall(aml_cma_init);
  * This function allocates part of contiguous memory on specific
  * contiguous memory area.
  */
-struct page *aml_cma_alloc(struct dummy_cma *cma, unsigned long count,
+struct page *aml_cma_alloc(struct cma *cma, unsigned long count,
 		       unsigned int align, bool no_warn)
 {
 	unsigned long mask, offset;
@@ -1884,7 +1853,7 @@ out:
  * It returns false when provided pages do not belong to contiguous area and
  * true otherwise.
  */
-bool aml_cma_release(struct dummy_cma *cma, const struct page *pages,
+bool aml_cma_release(struct cma *cma, const struct page *pages,
 		 unsigned long count)
 {
 	unsigned long pfn;
