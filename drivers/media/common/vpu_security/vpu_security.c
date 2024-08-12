@@ -274,6 +274,10 @@ static void secure_reg_update(struct vpu_secure_ins *ins,
 			reg_size = ARRAY_SIZE(reg_v5);
 			reg_item = &reg_v5[0];
 		}
+		if (log_level & 1)
+			pr_info("line=%d, vpu secure bit 0x%x, reg_size=0x%x, bit_changed=0x%x\n",
+				__LINE__, change->current_val, reg_size,
+				change->bit_changed);
 
 		/* work through the array and write bit(s) */
 		for (i = 0; i < reg_size; i++) {
@@ -281,8 +285,14 @@ static void secure_reg_update(struct vpu_secure_ins *ins,
 				en = BIT(i) & change->current_val;
 				reg_val = en ? reg_item[i].en :
 					  (!reg_item[i].en);
+
 				if (!reg_item[i].reg)
 					continue;
+				if (log_level & 1)
+					pr_info("line=%d, vpu secure bit 0x%x, en=%d, reg_val=0x%x, reg=0x%x\n",
+						__LINE__, change->current_val, en,
+						reg_val,
+						reg_item[i].reg);
 				ins->reg_wr_op[vpp_index](reg_item[i].reg,
 							  reg_val,
 							  reg_item[i].start,
@@ -332,7 +342,7 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			value = osd_secure[vpp_index] |
 				video_secure[vpp_index];
 			ins->secure_enable = 1;
-			ins->secure_status = value;
+
 			osd_secure_en[vpp_index] = 1;
 		} else {
 			/* OSD none secure */
@@ -340,9 +350,25 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			value = osd_secure[vpp_index] |
 				video_secure[vpp_index];
 			ins->secure_enable = 0;
-			ins->secure_status = value;
 			osd_secure_en[vpp_index] = 0;
 		}
+		if (version == VPU_SEC_V4) {
+			u32 temp;
+
+			if (value & VD1_INPUT_SECURE) {
+				if (is_meson_t3x_cpu())
+					temp = VD1_SLICE1_SECURE;
+				else
+					temp = VD1_SLICE1_SECURE |
+						VD1_SLICE2_SECURE |
+						VD1_SLICE3_SECURE;
+				value |= temp;
+				if (log_level & 4)
+					pr_info("line=%d,secure_enable=%d module=%d value=0x%x\n",
+						__LINE__, module, ins->secure_enable, value);
+				}
+		}
+		ins->secure_status = value;
 		break;
 	case VIDEO_MODULE:
 		if ((secure_src & VD2_FGRAIN_SECURE) ||
@@ -356,31 +382,33 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			video_secure[vpp_index] = secure_src;
 			value = video_secure[vpp_index] |
 				osd_secure[vpp_index];
-			if (version == VPU_SEC_V4) {
-				u32 temp;
-
-				if (value & VD1_INPUT_SECURE) {
-					if (is_meson_t3x_cpu())
-						temp = VD1_SLICE1_SECURE;
-					else
-						temp = VD1_SLICE1_SECURE |
-							VD1_SLICE2_SECURE |
-							VD1_SLICE3_SECURE;
-					value |= temp;
-				}
-			}
 			ins->secure_enable = 1;
-			ins->secure_status = value;
 			video_secure_en[vpp_index] = 1;
 		} else {
-			/* video module secure */
+			/* video module none secure */
 			video_secure[vpp_index] = secure_src;
 			value = video_secure[vpp_index] |
 				osd_secure[vpp_index];
 			ins->secure_enable = 0;
-			ins->secure_status = value;
 			video_secure_en[vpp_index] = 0;
 		}
+		if (version == VPU_SEC_V4) {
+			u32 temp;
+
+			if (value & VD1_INPUT_SECURE) {
+				if (is_meson_t3x_cpu())
+					temp = VD1_SLICE1_SECURE;
+				else
+					temp = VD1_SLICE1_SECURE |
+						VD1_SLICE2_SECURE |
+						VD1_SLICE3_SECURE;
+				value |= temp;
+				if (log_level & 4)
+					pr_info("line=%d,secure_enable=%d module=%d value=0x%x\n",
+						__LINE__, module, ins->secure_enable, value);
+				}
+		}
+		ins->secure_status = value;
 		break;
 	case DI_MODULE:
 		break;
@@ -424,14 +452,19 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			change.bit_changed =
 					value ^ value_save[vpp_index];
 			change.current_val = value;
+			if (log_level & 1)
+				pr_info("line=%d,module=%d value=0x%x, value_save=0x%x, bit_changed=0x%x\n",
+					__LINE__, module, value, value_save[vpp_index],
+					change.bit_changed);
 			secure_reg_update(ins, &change, vpp_index);
 			secure_update = 1;
 		}
 		value_save[vpp_index] = value;
 	}
 
-	if (log_level >= 2)
-		pr_info("vpu secure bit 0x%x\n", value);
+	if (log_level & 2)
+		pr_info("module=%d ,vpu secure bit 0x%x\n",
+			module, value);
 
 	secure_cfg = value_save[VPP_TOP] |
 			value_save[VPP_TOP_1] |
