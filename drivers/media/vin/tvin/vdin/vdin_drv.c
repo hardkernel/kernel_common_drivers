@@ -249,7 +249,7 @@ unsigned int get_vdin_buffer_num(void)
 	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
 
 	if (vdin0_devp)
-		return vdin0_devp->frame_buff_num;
+		return vdin0_devp->frame_buff_num_bak;
 	else
 		return 0;
 }
@@ -3017,6 +3017,10 @@ static void vdin_set_vfe_info(struct vdin_dev_s *devp, struct vf_entry *vfe)
 		vfe->vf.type_ext = VIDTYPE_EXT_VDIN_SCATTER;
 	else
 		vfe->vf.type_ext &= ~VIDTYPE_EXT_VDIN_SCATTER;
+	vfe->vf.frame_irq_cnt = devp->irq_cnt;
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
+		pr_info("vdin%d,vf:%d,frame_irq:%d,cnt:%d\n", devp->index,
+			vfe->vf.index, vfe->vf.frame_irq_cnt, devp->frame_cnt);
 }
 
 static bool vdin_is_input_valid(struct vdin_dev_s *devp)

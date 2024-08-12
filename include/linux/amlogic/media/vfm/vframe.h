@@ -850,6 +850,7 @@ struct vframe_s {
 	/*decoder real used size*/
 	u32 scatter_mem_size;
 	struct vf_lcevc_t scaler_coeff;
+	u32 frame_irq_cnt;
 } /*vframe_t */;
 
 #define VC_FLAG_AI_SR		0x1
