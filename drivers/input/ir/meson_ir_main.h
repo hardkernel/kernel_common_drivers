@@ -191,4 +191,10 @@ void meson_ir_pulses_free(struct meson_ir_chip *chip);
 
 int meson_ir_xmp_decode_init(void);
 void meson_ir_xmp_decode_exit(void);
+
+void meson_ir_common_input_report(unsigned int code, int value);
+int meson_ir_common_input_init(void);
+void meson_ir_common_input_exit(void);
+
+int meson_ir_read_dev_num(void);
 #endif

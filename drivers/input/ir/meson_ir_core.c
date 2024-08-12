@@ -41,8 +41,12 @@ static void meson_ir_do_keyup(struct meson_ir_dev *dev)
 		return;
 	}
 
-	input_report_key(input_device, dev->last_keycode, 0);
-	input_sync(input_device);
+	if (meson_ir_read_dev_num() > 1) {
+		meson_ir_common_input_report(dev->last_keycode, 0);
+	} else {
+		input_report_key(input_device, dev->last_keycode, 0);
+		input_sync(input_device);
+	}
 
 	dev->keypressed = 0;
 	dev->last_scancode = -1;
@@ -96,8 +100,12 @@ static void meson_ir_do_keydown(struct meson_ir_dev *dev, int scancode,
 			return;
 		}
 
-		input_report_key(input_device, keycode, 1);
-		input_sync(input_device);
+		if (meson_ir_read_dev_num() > 1) {
+			meson_ir_common_input_report(keycode, 1);
+		} else {
+			input_report_key(input_device, keycode, 1);
+			input_sync(input_device);
+		}
 
 		meson_ir_dbg(dev, "report key!!\n");
 	} else {
