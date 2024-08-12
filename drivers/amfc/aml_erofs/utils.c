@@ -316,6 +316,9 @@ LZ4_decompress_safe_partial_t	f_LZ4_decompress_safe_partial;
 out_of_line_wait_on_bit_lock_t	f_out_of_line_wait_on_bit_lock;
 fs_param_is_enum_t		f_fs_param_is_enum;
 unsigned long			posix_acl_from_xattr_t;
+struct file_operations		*generic_ro_fops_t;
+struct xattr_handler		*posix_acl_default_xattr_handler_t;
+struct xattr_handler		*posix_acl_access_xattr_handler_t;
 
 struct ksymbol {
 	const char *name;
@@ -341,6 +344,7 @@ struct ksymbol {
 		.data = &sym##_t,	\
 	}
 
+#ifdef CONFIG_ARM64
 static struct ksymbol module_symbols[] = {
 	KSYM_FUN(__xa_cmpxchg),
 	KSYM_FUN(fs_ftype_to_dtype),
@@ -375,10 +379,6 @@ static struct ksymbol module_symbols[] = {
 	},
 	{}
 };
-
-struct file_operations *generic_ro_fops_t;
-struct xattr_handler *posix_acl_default_xattr_handler_t;
-struct xattr_handler *posix_acl_access_xattr_handler_t;
 
 /* see struct proc_dir_entry in fs/proc/internal.h */
 struct proc_node {
@@ -649,3 +649,40 @@ int symbol_fix(void)
 
 	return 0;
 }
+#else
+/* for arm32 */
+#include <linux/crc32c.h>
+#include <linux/kthread.h>
+#include <linux/lz4.h>
+#include <linux/posix_acl_xattr.h>
+int symbol_fix(void)
+{
+	f___xa_cmpxchg                    = __xa_cmpxchg;
+	f_fs_ftype_to_dtype               = fs_ftype_to_dtype;
+	f_filemap_read                    = filemap_read;
+	f_iomap_dio_rw                    = iomap_dio_rw;
+	f_iomap_bmap                      = (iomap_bmap_t)iomap_bmap;
+	f_iomap_readahead                 = iomap_readahead;
+	f_iomap_readpage                  = iomap_readpage;
+	f_generic_file_readonly_mmap      = generic_file_readonly_mmap;
+	f_noop_direct_IO                  = noop_direct_IO;
+	f_iomap_fiemap                    = iomap_fiemap;
+	f_read_cache_page_gfp             = read_cache_page_gfp;
+	f_page_get_link                   = page_get_link;
+	f_simple_get_link                 = simple_get_link;
+	f_crc32c                          = crc32c;
+	f_add_to_page_cache_lru           = add_to_page_cache_lru;
+	f_readahead_expand                = readahead_expand;
+	f_kthread_create_worker_on_cpu    = kthread_create_worker_on_cpu;
+	f_LZ4_decompress_safe             = LZ4_decompress_safe;
+	f_LZ4_decompress_safe_partial     = LZ4_decompress_safe_partial;
+	f_out_of_line_wait_on_bit_lock    = out_of_line_wait_on_bit_lock;
+	f_fs_param_is_enum                = fs_param_is_enum;
+	posix_acl_from_xattr_t            = (unsigned long)posix_acl_from_xattr;
+	generic_ro_fops_t                 = (struct file_operations *)&generic_ro_fops;
+	posix_acl_default_xattr_handler_t = (struct xattr_handler *)&posix_acl_default_xattr_handler;
+	posix_acl_access_xattr_handler_t  = (struct xattr_handler *)&posix_acl_access_xattr_handler;
+
+	return 0;
+}
+#endif

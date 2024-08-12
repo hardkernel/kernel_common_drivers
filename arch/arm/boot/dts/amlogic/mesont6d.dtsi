@@ -264,6 +264,21 @@
 		reg = <0xff634680 0x4>;
 	};
 
+	amfc {
+		compatible = "amlogic,amfc-t6d";
+		status = "okay";
+		/* registers and clk */
+		reg = <0xfe092000 0x200
+		       0xFDFFFF6C 0x400>;
+		interrupts = <0 185 IRQ_TYPE_EDGE_RISING
+			      0 186 IRQ_TYPE_EDGE_RISING>;
+		power-domains = <&pwrdm PDID_T6D_AMFC>;
+		interrupt-names = "amfc0", "amfc1";
+		clocks = <&clkc CLKID_AMFC>;
+		assigned-clocks = <&clkc CLKID_AMFC>;
+		assigned-clock-rates = <666666666>;
+	};
+
 	ddr_bandwidth {
 		compatible = "amlogic,ddr-bandwidth-t6d";
 		status = "okay";

@@ -21,7 +21,9 @@
 #include <trace/events/aerofs.h>
 
 struct kmem_cache *erofs_inode_cachep __read_mostly;
+#ifdef CONFIG_ARM64
 static char symbol_fixed;
+#endif
 
 void _erofs_err(struct super_block *sb, const char *function,
 		const char *fmt, ...)
@@ -658,6 +660,7 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 	struct erofs_fs_context *ctx = fc->fs_private;
 	int err = 0;
 
+#ifdef CONFIG_ARM64
 	while (!symbol_fixed) {
 		msleep(20);
 		err++;
@@ -666,6 +669,7 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 			BUG();
 		}
 	}
+#endif
 
 	sb->s_magic = EROFS_SUPER_MAGIC;
 
@@ -866,6 +870,7 @@ static struct file_system_type erofs_fs_type = {
 };
 MODULE_ALIAS_FS("erofs");
 
+#ifdef CONFIG_ARM64
 static void __exit erofs_module_exit(void);
 static void do_symbol_fix(void *data, async_cookie_t cookie)
 {
@@ -885,13 +890,21 @@ static void do_symbol_fix(void *data, async_cookie_t cookie)
 		erofs_module_exit();
 	}
 }
+#endif
 
 static int __init erofs_module_init(void)
 {
 	int err;
 	struct file_system_type *old_erofs = NULL;
 
+#ifdef CONFIG_ARM64
 	async_schedule(do_symbol_fix, &symbol_fixed);
+#else
+	if (symbol_fix()) {
+		pr_emerg("%s, %d, symbol fix failed\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+#endif
 	old_erofs = get_fs_type("erofs");
 	if (old_erofs)
 		unregister_filesystem(old_erofs);
@@ -918,6 +931,11 @@ static int __init erofs_module_init(void)
 		goto lzma_err;
 
 	erofs_pcpubuf_init();
+#ifdef CONFIG_ARM
+	err = z_erofs_init_zip_subsystem();
+	if (err)
+		goto zip_err;
+#endif
 
 	err = register_filesystem(&erofs_fs_type);
 	if (err)
@@ -927,6 +945,9 @@ static int __init erofs_module_init(void)
 
 sysfs_err:
 	z_erofs_exit_zip_subsystem();
+#ifdef CONFIG_ARM
+zip_err:
+#endif
 	z_erofs_lzma_exit();
 lzma_err:
 	erofs_exit_shrinker();

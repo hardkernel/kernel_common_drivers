@@ -6,6 +6,7 @@
 #define _AMFC_H_
 
 #define AMFC_S7D				0x37
+#define AMFC_T6D				0x49
 
 #define ALGORITHM_ZSTD				1
 #define ALGORITHM_LZ4				2

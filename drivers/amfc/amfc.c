@@ -26,6 +26,9 @@
 #include <linux/clk.h>
 #include <crypto/internal/scompress.h>
 
+#ifdef CONFIG_HIGHMEM
+#include <asm/fixmap.h>
+#endif
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/kallsyms.h>
@@ -57,6 +60,14 @@ static inline int _vmalloc_or_module_addr(const void *x)
 	unsigned long addr = (unsigned long)kasan_reset_tag(x);
 
 	if (addr >= MODULES_VADDR && addr < MODULES_END)
+		return 1;
+#endif
+
+#ifdef CONFIG_HIGHMEM
+	/* special area for kmap/kmap atomic */
+	if ((unsigned long)x >= FIXADDR_START && (unsigned long)x < FIXADDR_END)
+		return 1;
+	if ((unsigned long)x >= PKMAP_ADDR(0) && (unsigned long)x < PKMAP_ADDR(LAST_PKMAP))
 		return 1;
 #endif
 	return is_vmalloc_addr(x);
@@ -401,8 +412,8 @@ int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, in
 		return -ENOMEM;
 
 	if (amfc->log > 1)
-		pr_info("%s, src:%px, dst:%px, src size:%ld, dst size:%ld\n",
-			__func__, src, dst, src_size, dst_size);
+		pr_info("%s, src:%px, dst:%px, src size:%d, dst size:%d\n",
+			__func__, src, dst, (int)src_size, (int)dst_size);
 	if (stream)
 		amfc_map_addr(dst, dst_size - AMFC_STREAM_MARGIN, DMA_FROM_DEVICE);
 	else
@@ -542,11 +553,11 @@ out:
 				;
 			if (amfc->log)
 				pr_info("decompress acl:%px, src:%px, dst:%px, src size:%5d, result size:%5d:%5d, tick:%lld\n",
-					acl, src, dst, src_size, ret,
+					acl, src, dst, (int)src_size, ret,
 					acl->result_size, amfc->dtick);
 		} else {
-			pr_err("acl:%px, decompress failed, src:%px, dst:%px, ssize:%ld, dsize:%ld, ret:%d, status:%x\n",
-				acl, src, dst, src_size, dst_size,
+			pr_err("acl:%px, decompress failed, src:%px, dst:%px, ssize:%d, dsize:%d, ret:%d, status:%x\n",
+				acl, src, dst, (int)src_size, (int)dst_size,
 				ret, amfc_hw_read(AMFC_GL_CMD1_STATUS));
 			show_regs(NULL);
 			show_acl(acl);
@@ -564,7 +575,7 @@ out:
 		amfc->total_dtick += amfc->dtick;
 		if (amfc->log)
 			pr_info("decompress acl:%px, src:%px, dst:%px, src size:%5d, result size:%5d, tick:%lld\n",
-				acl, src, dst, src_size, ret, amfc->dtick);
+				acl, src, dst, (int)src_size, ret, amfc->dtick);
 	}
 	amfc_hw_write(0x03, AMFC_GL_CMD1_IRQCLR);
 	if (need_copy)
@@ -605,8 +616,8 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
 		return -ENOMEM;
 
 	if (amfc->log > 1)
-		pr_info("%s, src:%px, dst:%px, src size:%ld, dst size:%ld\n",
-			__func__, src, dst, src_size, dst_size);
+		pr_info("%s, src:%px, dst:%px, src size:%d, dst size:%d\n",
+			__func__, src, dst, (int)src_size, (int)dst_size);
 	amfc_map_addr(src, src_size, DMA_TO_DEVICE);
 	amfc_map_addr(dst, dst_size, DMA_FROM_DEVICE);
 	spin_lock_irqsave(&amfc->com_lock, flags);
@@ -724,8 +735,8 @@ out:
 			amfc->fail_compress_cnt++;
 			amfc->fail_compress_size += src_size;
 		} else {
-			pr_err("acl:%px, compress failed, src:%px, dst:%px, ssize:%ld, dsize:%ld, ret:%d, status:%x\n",
-				acl, src, dst, src_size, dst_size,
+			pr_err("acl:%px, compress failed, src:%px, dst:%px, ssize:%d, dsize:%d, ret:%d, status:%x\n",
+				acl, src, dst, (int)src_size, (int)dst_size,
 				ret, amfc_hw_read(AMFC_GL_CMD0_STATUS));
 			show_regs(NULL);
 			show_acl(acl);
@@ -740,7 +751,7 @@ out:
 		amfc->total_ctick += amfc->ctick;
 		if (amfc->log)
 			pr_info("  compress acl:%px, src:%px, dst:%px, src size:%5d, result size:%5d, tick:%lld\n",
-				acl, src, dst, src_size, ret, amfc->ctick);
+				acl, src, dst, (int)src_size, ret, amfc->ctick);
 	}
 	amfc_hw_write(0x03, AMFC_GL_CMD0_IRQCLR);
 	spin_unlock_irqrestore(&amfc->com_lock, flags);
@@ -1308,6 +1319,10 @@ static const struct of_device_id amfc_match[] = {
 	{
 		.compatible = "amlogic,amfc-s7d",
 		.data = (void *)AMFC_S7D,
+	},
+	{
+		.compatible = "amlogic,amfc-t6d",
+		.data = (void *)AMFC_T6D,
 	},
 	{}
 };
