@@ -366,10 +366,10 @@
 		mbox-dests = <MAILBOX_AOCPU>;
 	};
 
-	hwspinlock: hwlock {
-		status = "disabled";
+	aml_hwspinlock: hwlock {
+		status = "okay";
 		compatible = "amlogic, hwspinlock";
-		syscon = <&hwspinlock_regs 0 0x4>;
+		syscon = <&aml_hwspinlock_regs 0 0x4>;
 		#hwlock-cells = <1>;
 	};
 
@@ -1112,10 +1112,10 @@
 				};
 			};
 
-			hwspinlock_regs: syscon@e2c0 {
+			aml_hwspinlock_regs: syscon@e2c0 {
 				compatible = "syscon";
 				reg = <0xe2c0 0x20>;
-				status = "disabled";
+				status = "okay";
 			};
 		};
 
