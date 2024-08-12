@@ -87,6 +87,17 @@ static bool dv_support(void)
 	return false;
 }
 
+u32 meson_crtc_mask(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+	u32 crtc_mask = 0;
+
+	drm_for_each_crtc(crtc, dev)
+		crtc_mask |= drm_crtc_mask(crtc);
+
+	return crtc_mask;
+}
+
 static void set_eotf_by_property(struct am_meson_crtc_state *state)
 {
 	if (state->crtc_eotf_by_property_flag) {

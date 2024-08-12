@@ -241,8 +241,7 @@ int meson_dummyp_dev_bind(struct drm_device *drm,
 
 	am_dummyp->drm = drm;
 	encoder = &am_dummyp->encoder;
-	/* Encoder */
-	encoder->possible_crtcs = 0x3;
+	encoder->possible_crtcs = (BIT(0) | BIT(1));
 	drm_encoder_helper_add(encoder, &meson_dummyp_encoder_helper_funcs);
 	ret = drm_encoder_init(drm, encoder, &meson_dummyp_encoder_funcs,
 			       DRM_MODE_ENCODER_VIRTUAL, "am_dummyp_encoder");

@@ -12,26 +12,6 @@
 #include "meson_drv.h"
 #include "meson_vpu_pipeline.h"
 
-static void meson_parse_crtc_masks(struct device_node *node, struct meson_of_conf *conf)
-{
-	int i, ret;
-	u32 crtc_masks[ENCODER_MAX];
-
-	ret = 0;
-	/*initialize encoders crtc_masks, it will replaced by dts*/
-	for (i = 0; i < ENCODER_MAX; i++)
-		conf->crtc_masks[i] = 1;
-
-	ret = of_property_read_u32_array(node, "crtc_masks",
-		crtc_masks, ENCODER_MAX);
-	if (ret) {
-		DRM_DEBUG("crtc_masks get fail!\n");
-	} else {
-		for (i = 0; i < ENCODER_MAX; i++)
-			conf->crtc_masks[i] = crtc_masks[i];
-	}
-}
-
 static void meson_parse_dma_mask(struct device *dev)
 {
 	int ret, vpu_dma_mask;
@@ -164,8 +144,6 @@ void meson_of_init(struct device *vpu_dev, struct drm_device *dev,
 	u32 osd_occupied_index;
 	struct meson_of_conf *conf = &priv->of_conf;
 	struct meson_vpu_pipeline *pipeline = priv->pipeline;
-
-	meson_parse_crtc_masks(dev->dev->of_node, conf);
 
 	meson_parse_dma_mask(dev->dev);
 

@@ -130,6 +130,8 @@ struct cvbs_drv_s {
 
 	/*DRM related*/
 	int drm_cvbs_id;
+	int viu_sel;
+
 	/* for external video mute */
 	bool video_mute;
 };

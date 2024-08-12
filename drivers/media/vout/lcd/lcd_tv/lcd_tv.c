@@ -1143,6 +1143,7 @@ void lcd_tv_vout_server_init(struct aml_lcd_drv_s *pdrv)
 
 	lcd_vinfo_update_default(pdrv);
 
+	pdrv->crtc_sel = BIT(0);
 	vout_register_server(pdrv->vout_server[0]);
 }
 

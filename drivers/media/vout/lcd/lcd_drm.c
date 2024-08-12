@@ -389,6 +389,7 @@ static int meson_lcd_bind(struct device *dev, struct device *master, void *data)
 
 	/*bind instance to drm*/
 	if (bound_data->connector_component_bind) {
+		drm_lcd_wrappers[index].drm_lcd_instance.base.crtc_sel = pdrv->crtc_sel;
 		drm_lcd_wrappers[index].drm_id =
 			bound_data->connector_component_bind(bound_data->drm,
 				drm_lcd_wrappers[index].drm_lcd_type,

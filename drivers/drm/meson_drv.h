@@ -45,13 +45,6 @@ struct meson_connector {
 
 #define connector_to_meson_connector(x) container_of(x, struct meson_connector, connector)
 
-enum vpu_enc_type {
-	ENCODER_HDMI = 0,
-	ENCODER_LCD,
-	ENCODER_CVBS,
-	ENCODER_MAX
-};
-
 enum atomic_mode_type {
 	BLOCK_MODE = 0,
 	NONBLOCK_MODE,
@@ -59,9 +52,6 @@ enum atomic_mode_type {
 };
 
 struct meson_of_conf {
-	/*for encoder: 0:hdmi 1:lcd 2:cvbs*/
-	u32 crtc_masks[ENCODER_MAX];
-
 	u32 vfm_mode;
 
 	u32 osd_afbc_mask;

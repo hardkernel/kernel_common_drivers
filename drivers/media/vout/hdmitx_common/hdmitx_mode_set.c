@@ -674,6 +674,7 @@ void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx
 	for (i = 0; i < 3; ++i) {
 		if (connectors[i] && is_valid_hdmi(connectors[i])) {
 			HDMITX_INFO("%s\n", server_names[i]);
+			global_tx_common->viu_sel |= BIT(i);
 			hdmitx_vout_server.name = (char *)server_names[i];
 			register_functions[i](&hdmitx_vout_server);
 			is_register = true;
@@ -683,6 +684,7 @@ void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx
 	// If no server has been registered, register the default server
 	if (!is_register) {
 		HDMITX_INFO("vout_register_server default\n");
+		global_tx_common->viu_sel = BIT(0);
 		hdmitx_vout_server.name = "hdmitx_vout_server";
 		vout_register_server(&hdmitx_vout_server);
 	}

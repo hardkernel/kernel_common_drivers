@@ -851,6 +851,7 @@ struct aml_lcd_drv_s {
 	unsigned char config_check_glb;
 	unsigned char config_check_en;
 	int fr_lock_en;
+	unsigned int crtc_sel;
 
 	struct lcd_data_s *data;
 	struct lcd_resource_s *resource;

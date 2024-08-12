@@ -146,6 +146,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv,
 	int idx);
 int meson_crtc_creat_present_fence_ioctl(struct drm_device *dev,
 			void *data, struct drm_file *file_priv);
+u32 meson_crtc_mask(struct drm_device *dev);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 int am_meson_lcd_get_vrr_range(struct drm_connector *connector,
 			struct drm_vrr_mode_group *groups, int max_group);

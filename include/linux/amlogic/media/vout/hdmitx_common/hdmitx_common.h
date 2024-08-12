@@ -178,6 +178,7 @@ struct hdmitx_common {
 	/***** VOUT related: TO move out *****/
 	struct vinfo_s hdmitx_vinfo;
 	struct vout_device_s *vdev;
+	int viu_sel;
 
 	/****** debug & log ******/
 	struct hdmitx_tracer *tx_tracer;

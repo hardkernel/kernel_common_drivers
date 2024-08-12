@@ -401,7 +401,6 @@ static const struct drm_encoder_funcs meson_panel_encoder_funcs = {
 int meson_panel_dev_bind(struct drm_device *drm,
 	int type, struct meson_connector_dev *intf)
 {
-	struct meson_drm *priv = drm->dev_private;
 	struct drm_connector *connector = NULL;
 	struct drm_encoder *encoder = NULL;
 	struct meson_panel *panel_instance = NULL;
@@ -410,6 +409,7 @@ int meson_panel_dev_bind(struct drm_device *drm,
 	int connector_type = type;
 	int encoder_type = DRM_MODE_ENCODER_LVDS;
 	int ret = 0;
+	u32 crtc_mask = 0;
 
 	DRM_INFO("[%s]-[%d] called\n", __func__, __LINE__);
 
@@ -486,8 +486,15 @@ int meson_panel_dev_bind(struct drm_device *drm,
 			__func__, type, connector_name, connector_type, encoder_type);
 	}
 
-	/* Encoder */
-	encoder->possible_crtcs = priv->of_conf.crtc_masks[ENCODER_LCD];
+	/*
+	 *Encoder possible_crtcs priority reference connector crtc_sel.
+	 */
+	crtc_mask = meson_crtc_mask(drm);
+	if (intf->crtc_sel)
+		encoder->possible_crtcs = intf->crtc_sel & crtc_mask;
+	else
+		encoder->possible_crtcs = BIT(0);
+
 	drm_encoder_helper_add(encoder, &meson_panel_encoder_helper_funcs);
 	ret = drm_encoder_init(drm, encoder, &meson_panel_encoder_funcs,
 			       encoder_type, "am_lcd_encoder");

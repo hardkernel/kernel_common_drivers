@@ -816,36 +816,45 @@ static void cvbs_init_vout(void)
 	if (!cvbs_drv->vinfo)
 		cvbs_drv->vinfo = &cvbs_info[MODE_480CVBS];
 
+	cvbs_drv->viu_sel = 0;
 	connector0_type = get_uboot_connector0_type();
 	if (strncmp("TV", connector0_type, 2) == 0) {
-		if (vout_register_server(&cvbs_vout_server))
+		if (vout_register_server(&cvbs_vout_server)) {
 			cvbs_log_err("register cvbs module server by env fail\n");
-		else
+		} else {
 			cvbs_log_info("register cvbs module server by env ok\n");
-		is_register = true;
+			is_register = true;
+			cvbs_drv->viu_sel |= BIT(0);
+		}
 	}
 
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	connector1_type = get_uboot_connector1_type();
 	if (strncmp("TV", connector1_type, 2) == 0) {
-		if (vout2_register_server(&cvbs_vout2_server))
+		if (vout2_register_server(&cvbs_vout2_server)) {
 			cvbs_log_err("register cvbs module vout2 server by env fail\n");
-		else
+		} else {
 			cvbs_log_info("register cvbs module vout2 server by env ok\n");
-		is_register = true;
+			is_register = true;
+			cvbs_drv->viu_sel |= BIT(1);
+		}
 	}
 #endif
 
 	if (!is_register) {
-		if (vout_register_server(&cvbs_vout_server))
+		if (vout_register_server(&cvbs_vout_server)) {
 			cvbs_log_err("register cvbs module server fail\n");
-		else
+		} else {
 			cvbs_log_info("register cvbs module server ok\n");
+			cvbs_drv->viu_sel |= BIT(0);
+		}
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-		if (vout2_register_server(&cvbs_vout2_server))
+		if (vout2_register_server(&cvbs_vout2_server)) {
 			cvbs_log_err("register cvbs module vout2 server fail\n");
-		else
+		} else {
 			cvbs_log_info("register cvbs module vout2 server ok\n");
+			cvbs_drv->viu_sel |= BIT(1);
+		}
 #endif
 	}
 }
@@ -2206,6 +2215,7 @@ static int meson_cvbs_bind(struct device *dev,
 	struct cvbs_drv_s *hdev = cvbs_drv;
 
 	if (bound_data->connector_component_bind) {
+		drm_cvbs_instance.base.crtc_sel = hdev->viu_sel;
 		hdev->drm_cvbs_id = bound_data->connector_component_bind
 			(bound_data->drm,
 			DRM_MODE_CONNECTOR_TV,

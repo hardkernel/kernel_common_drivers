@@ -2301,6 +2301,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 #endif
 	struct connector_hdcp_cb hdcp_cb;
 	int hdcp_ctl_lvl;
+	u32 crtc_mask = 0;
 
 	DRM_DEBUG("%s [%d]\n", __func__, __LINE__);
 	memset(&am_hdmi_info, 0, sizeof(am_hdmi_info));
@@ -2395,8 +2396,15 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 			DRM_ERROR("[%s]: alloc name failed\n", __func__);
 	}
 
-	/* Encoder */
-	encoder->possible_crtcs = priv->of_conf.crtc_masks[ENCODER_HDMI];
+	/*
+	 *Encoder possible_crtcs priority reference connector crtc_sel.
+	 */
+	crtc_mask = meson_crtc_mask(drm);
+	if (intf->crtc_sel)
+		encoder->possible_crtcs = intf->crtc_sel & crtc_mask;
+	else
+		encoder->possible_crtcs = BIT(0);
+
 	drm_encoder_helper_add(encoder, &meson_hdmitx_encoder_helper_funcs);
 	ret = drm_encoder_init(drm, encoder, &meson_hdmitx_encoder_funcs,
 			       encoder_type, "am_hdmi_encoder");

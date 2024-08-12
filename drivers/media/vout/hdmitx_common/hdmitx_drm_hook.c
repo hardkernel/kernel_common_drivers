@@ -284,6 +284,7 @@ static int meson_hdmitx_bind(struct device *dev,
 	struct meson_drm_bound_data *bound_data = data;
 
 	if (bound_data->connector_component_bind) {
+		hdmitx_drm_instance.base.crtc_sel = global_tx_base->viu_sel;
 		drm_hdmitx_id = bound_data->connector_component_bind
 			(bound_data->drm,
 			DRM_MODE_CONNECTOR_MESON_HDMIA_A + global_tx_base->enc_idx,

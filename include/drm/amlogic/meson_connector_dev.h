@@ -37,7 +37,7 @@ struct drm_hdmitx_timing_para {
 
 struct meson_connector_dev {
 	int ver;
-
+	int crtc_sel;
 	/*copy from vout_op_s*/
 	struct vinfo_s *(*get_vinfo)(void *data);
 	int (*set_vmode)(enum vmode_e vmode, void *data);
