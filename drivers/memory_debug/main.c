@@ -70,6 +70,10 @@ void free_iotrace_reserved_memory(void)
 	if (!node)
 		return;
 
+	/* Do nothing if linux,iotrace status is disabled */
+	if (!of_device_is_available(node))
+		return;
+
 	ret = of_address_to_resource(node, 0, &res);
 	if (ret)
 		return;
