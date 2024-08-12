@@ -532,8 +532,9 @@ void vdin_set_top_t3x(struct vdin_dev_s *devp, enum tvin_port_e port,
 	unsigned int vdin_data_bus_1 = VDIN_MAP_BPB;
 	unsigned int vdin_data_bus_2 = VDIN_MAP_RCR;
 
-	pr_info("%s %d:port:%#x,input_cfmt:%d\n",
-		__func__, __LINE__, port, input_cfmt);
+	if (vdin_dbg_en)
+		pr_info("%s %d:port:%#x,input_cfmt:%d\n",
+			__func__, __LINE__, port, input_cfmt);
 
 	vdi_size = (devp->h_active_org << 16) | (devp->v_active_org << 0);
 	switch (port >> 8) {
@@ -656,7 +657,8 @@ void vdin_set_top_t3x(struct vdin_dev_s *devp, enum tvin_port_e port,
 		vdin_data_bus_1 = VDIN_MAP_BPB;
 		vdin_data_bus_2 = VDIN_MAP_RCR;
 	}
-	pr_info("%s %d:vdin_mux:%d\n", __func__, __LINE__, vdin_mux);
+	if (vdin_dbg_en)
+		pr_info("%s %d:vdin_mux:%d\n", __func__, __LINE__, vdin_mux);
 
 	wr_bits(offset, VDIN0_CUTWIN_CTRL, vdin_data_bus_0, 0, 2);
 	wr_bits(offset, VDIN0_CUTWIN_CTRL, vdin_data_bus_1, 2, 2);
@@ -1487,7 +1489,8 @@ static inline void vdin_set_bbar_t3x(struct vdin_dev_s *devp,
 	//reg_blkbar_soft_rst
 	wr_bits(offset, VDIN0_BLKBAR_CTRL, 0, 4, 1);
 	wr_bits(offset, VDIN0_BLKBAR_CTRL, 1, 4, 1);
-	pr_info("%s done,vdin%d h = %d,v = %d\n", __func__, devp->index, h, v);
+	if (vdin_dbg_en)
+		pr_info("%s done,vdin%d h = %d,v = %d\n", __func__, devp->index, h, v);
 }
 
 /*et histogram window
@@ -1627,7 +1630,8 @@ static inline void vdin_set_wr_ctrl_t3x(struct vdin_dev_s *devp,
 		v = devp->v_shrink_out;
 	}
 
-	pr_info("%s,%d.h=%d,v=%d\n", __func__, __LINE__, h, v);
+	if (vdin_dbg_en)
+		pr_info("%s,%d.h=%d,v=%d\n", __func__, __LINE__, h, v);
 	switch (format_convert)	{
 	case VDIN_FORMAT_CONVERT_YUV_YUV422:
 	case VDIN_FORMAT_CONVERT_RGB_YUV422:
@@ -1991,10 +1995,10 @@ void vdin_set_frame_mif_write_addr_t3x(struct vdin_dev_s *devp,
 			   stride_chroma);
 		}
 		/* reg_dw_path_en */
-		wr_bits(devp->addr_offset, VDIN0_CORE_CTRL, reg_en, 6, 1);
+//		wr_bits(devp->addr_offset, VDIN0_CORE_CTRL, reg_en, 6, 1);
 		/* reg_wr_req_en */
-		wr_bits(devp->addr_offset, VDIN0_WRMIF_CTRL, reg_en,
-			WR_REQ_EN_BIT, WR_REQ_EN_WID);
+//		wr_bits(devp->addr_offset, VDIN0_WRMIF_CTRL, reg_en,
+//			WR_REQ_EN_BIT, WR_REQ_EN_WID);
 	}
 }
 
@@ -3877,10 +3881,12 @@ void vdin_set_dsc_config_t3x(struct vdin_dev_s *devp, bool on_off)
 		return;
 	dsc_dec_drv.pps_data = devp->prop.pps_data;
 	if (devp->prop.dsc_flag && on_off) {
-		pr_info("dsc_en\n");
+		if (vdin_dbg_en)
+			pr_info("dsc_en\n");
 		dsc_dec_en(true, &dsc_dec_drv.pps_data);
 	} else {
-		pr_info("dsc_off\n");
+		if (vdin_dbg_en)
+			pr_info("dsc_off\n");
 		dsc_dec_en(false, &dsc_dec_drv.pps_data);
 	}
 }

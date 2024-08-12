@@ -2709,12 +2709,10 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu()) {
-		vdin_set_frame_mif_write_addr_s5(devp,
-			devp->flags & VDIN_FLAG_RDMA_ENABLE, vfe);
+		vdin_set_frame_mif_write_addr_s5(devp, rdma_enable, vfe);
 		return;
 	} else if (is_meson_t3x_cpu()) {
-		vdin_set_frame_mif_write_addr_t3x(devp,
-			devp->flags & VDIN_FLAG_RDMA_ENABLE, vfe);
+		vdin_set_frame_mif_write_addr_t3x(devp, rdma_enable, vfe);
 		return;
 	}
 #endif

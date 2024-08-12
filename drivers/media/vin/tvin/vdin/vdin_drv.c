@@ -6827,10 +6827,14 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	devp->dv.dv_config = false;
 	/* Game mode 2 use one buffer by default */
 	devp->dbg_force_one_buffer = 1;
-	if (!devp->index)
+	if (!devp->index) {
 		devp->vdin_drop_num = VDIN_DROP_FRAME_NUM_DEF;
-	else
-		devp->vdin_drop_num = 1;
+	} else {
+		if (devp->dtdata->hw_ver == VDIN_HW_T3X)
+			devp->vdin_drop_num = 2;
+		else
+			devp->vdin_drop_num = 1;
+	}
 	/* Waitting for the last burst data written into ddr */
 	devp->dbg_stop_dec_delay = 10000;
 	devp->vdin_input_data_threshold = VDIN_INPUT_DATA_THRESHOLD;
