@@ -556,24 +556,22 @@ void mc_undone_read(struct frc_dev_s *frc_devp)
 		return;
 	if (!frc_devp->probe_ok || !frc_devp->power_on_flag)
 		return;
-	if (frc_devp->ud_dbg.mcud_dbg_en) {
-		val = READ_FRC_REG(FRC_RO_MC_STAT);
-		mc_ud_flag = (val >> 12) & 0x1;
-		if (mc_ud_flag != 0) {
-			frc_devp->frc_sts.mc_undone_cnt = (val >> 16) & 0xfff;
-			frc_devp->ud_dbg.mc_undone_err = 1;
-			WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 1, 21, 1);
-			WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 0, 21, 1);
-		} else {
-			frc_devp->ud_dbg.mc_undone_err = 0;
-		}
-		if (frc_devp->ud_dbg.mc_undone_err == 1)
-			PR_ERR("mc_undo_vcnt= %d, isr_cnt=(%d,%d), vd_vs_cnt=%d\n",
-				frc_devp->frc_sts.mc_undone_cnt,
-				frc_devp->in_sts.vs_cnt,
-				frc_devp->out_sts.vs_cnt,
-				frc_devp->frc_sts.vs_cnt);
+	val = READ_FRC_REG(FRC_RO_MC_STAT);
+	mc_ud_flag = (val >> 12) & 0x1;
+	if (mc_ud_flag != 0) {
+		frc_devp->frc_sts.mc_undone_cnt += (val >> 16) & 0xfff;
+		frc_devp->ud_dbg.mc_undone_err = 1;
+		WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 1, 21, 1);
+		WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 0, 21, 1);
+	} else {
+		frc_devp->ud_dbg.mc_undone_err = 0;
 	}
+	if (frc_devp->ud_dbg.mc_undone_err == 1 && frc_devp->ud_dbg.mcud_dbg_en)
+		PR_ERR("mc_undo_vcnt= %d, isr_cnt=(%d,%d), vd_vs_cnt=%d\n",
+			frc_devp->frc_sts.mc_undone_cnt,
+			frc_devp->in_sts.vs_cnt,
+			frc_devp->out_sts.vs_cnt,
+			frc_devp->frc_sts.vs_cnt);
 }
 
 void vp_undone_read(struct frc_dev_s *frc_devp)
@@ -584,23 +582,21 @@ void vp_undone_read(struct frc_dev_s *frc_devp)
 		return;
 	if (!frc_devp->probe_ok || !frc_devp->power_on_flag)
 		return;
-	if (frc_devp->ud_dbg.vpud_dbg_en) {
-		vp_ud_flag = READ_FRC_REG(FRC_VP_TOP_STAT) & 0x03;
-		if (vp_ud_flag != 0) {
-			frc_devp->frc_sts.vp_undone_cnt++;
-			frc_devp->ud_dbg.vp_undone_err = vp_ud_flag;
-			WRITE_FRC_BITS(FRC_VP_TOP_CLR_STAT, 3, 0, 2);
-			WRITE_FRC_BITS(FRC_VP_TOP_CLR_STAT, 0, 0, 2);
-		} else {
-			frc_devp->ud_dbg.vp_undone_err = 0;
-		}
-		if (frc_devp->ud_dbg.vp_undone_err != 0)
-			PR_ERR("vp_err=%x, err_cnt=%d, outvs_cnt=%d, vd_vs_cnt:%d\n",
-				frc_devp->ud_dbg.vp_undone_err,
-				frc_devp->frc_sts.vp_undone_cnt,
-				frc_devp->out_sts.vs_cnt,
-				frc_devp->frc_sts.vs_cnt);
+	vp_ud_flag = READ_FRC_REG(FRC_VP_TOP_STAT) & 0x03;
+	if (vp_ud_flag != 0) {
+		frc_devp->frc_sts.vp_undone_cnt++;
+		frc_devp->ud_dbg.vp_undone_err = vp_ud_flag;
+		WRITE_FRC_BITS(FRC_VP_TOP_CLR_STAT, 3, 0, 2);
+		WRITE_FRC_BITS(FRC_VP_TOP_CLR_STAT, 0, 0, 2);
+	} else {
+		frc_devp->ud_dbg.vp_undone_err = 0;
 	}
+	if (frc_devp->ud_dbg.vp_undone_err != 0 && frc_devp->ud_dbg.vpud_dbg_en)
+		PR_ERR("vp_err=%x, err_cnt=%d, outvs_cnt=%d, vd_vs_cnt:%d\n",
+			frc_devp->ud_dbg.vp_undone_err,
+			frc_devp->frc_sts.vp_undone_cnt,
+			frc_devp->out_sts.vs_cnt,
+			frc_devp->frc_sts.vs_cnt);
 }
 
 const char * const mtx_str[] = {
@@ -3153,11 +3149,14 @@ int get_chip_type(void)
 {
 	enum chip_id chip;
 	struct frc_dev_s *devp;
-	struct frc_data_s *frc_data;
+	struct frc_fw_data_s *pfw_data;
 
 	devp = get_frc_devp();
-	frc_data = (struct frc_data_s *)devp->data;
-	chip = frc_data->match_data->chip;
+	if (!devp || !devp->fw_data)
+		return 0;
+
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	chip = pfw_data->frc_top_type.chip;
 
 	if (chip == ID_T3)
 		return ID_T3;
