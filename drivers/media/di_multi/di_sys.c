@@ -4066,14 +4066,30 @@ static int dim_probe(struct platform_device *pdev)
 
 	//di_pr_info("%s allocate rdma channel %d.\n", __func__,
 	//	   di_devp->rdma_handle);
-	if (DIM_IS_IC(S7D) || DIM_IS_IC(S5))
+	if (is_meson_g12a_cpu()	||
+	    is_meson_g12b_cpu()	||
+	    is_meson_tl1_cpu()	||
+	    is_meson_tm2_cpu()	||
+	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5DB)	||
+	    DIM_IS_IC(T5D)	||
+	    is_meson_sm1_cpu()	||
+	    DIM_IS_IC_EF(SC2))
 		dimp_set(edi_mp_clock_low_ratio, 18000000);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 		dim_get_vpu_clkb(&pdev->dev, di_devp);
 		#ifdef CLK_TREE_SUPPORT
 		clk_prepare_enable(di_devp->vpu_clkb);
-		if (DIM_IS_IC(S7D) || DIM_IS_IC(S5)) {
+		if (is_meson_g12a_cpu()	||
+		    is_meson_g12b_cpu()	||
+		    is_meson_tl1_cpu()	||
+		    is_meson_tm2_cpu()	||
+		    DIM_IS_IC(T5)	||
+		    DIM_IS_IC(T5DB)	||
+		    DIM_IS_IC(T5D)	||
+		    is_meson_sm1_cpu()	||
+		    DIM_IS_IC_EF(SC2)) {
 			if (dimp_get(edi_mp_clock_low_ratio)) {
 				clk_set_rate(di_devp->vpu_clkb,
 					dimp_get(edi_mp_clock_low_ratio));
@@ -4389,16 +4405,20 @@ static int di_freeze(struct device *dev)
 	di_devp->flags |= DI_SUSPEND_FLAG;
 
 	/*set clkb to low ratio*/
-	if (DIM_IS_IC(T5)	||
-	   DIM_IS_IC(T5DB)	||
-	   DIM_IS_IC(T5D)	||
-	   DIM_IS_IC(T3)	||
-	   DIM_IS_IC(T3X)) {
+	if (is_meson_g12a_cpu()	||
+	    is_meson_g12b_cpu()	||
+	    is_meson_tl1_cpu()	||
+	    is_meson_tm2_cpu()	||
+	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5DB)	||
+	    DIM_IS_IC(T5D)	||
+	    is_meson_sm1_cpu()	||
+	    DIM_IS_IC_EF(SC2)) {
 #ifdef CLK_TREE_SUPPORT
 		if (dimp_get(edi_mp_clock_low_ratio)) {
 			clk_set_rate(di_devp->vpu_clkb,
 				dimp_get(edi_mp_clock_low_ratio));
-			}
+		}
 #endif
 	}
 
@@ -4520,20 +4540,22 @@ static int di_suspend(struct device *dev)
 	di_devp->flags |= DI_SUSPEND_FLAG;
 
 	/*set clkb to low ratio*/
-		if (DIM_IS_IC(T5)	||
-		   DIM_IS_IC(T5DB)	||
-		   DIM_IS_IC(T5D)	||
-		   DIM_IS_IC(T3)	||
-		   DIM_IS_IC(T3X)	||
-		   DIM_IS_IC(S7D)	||
-		   DIM_IS_IC(S5)) {
+	if (is_meson_g12a_cpu()	||
+	    is_meson_g12b_cpu()	||
+	    is_meson_tl1_cpu()	||
+	    is_meson_tm2_cpu()	||
+	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5DB)	||
+	    DIM_IS_IC(T5D)	||
+	    is_meson_sm1_cpu()	||
+	    DIM_IS_IC_EF(SC2)) {
 	#ifdef CLK_TREE_SUPPORT
-			if (dimp_get(edi_mp_clock_low_ratio)) {
-				clk_set_rate(di_devp->vpu_clkb,
-					dimp_get(edi_mp_clock_low_ratio));
-			}
-	#endif
+		if (dimp_get(edi_mp_clock_low_ratio)) {
+			clk_set_rate(di_devp->vpu_clkb,
+				dimp_get(edi_mp_clock_low_ratio));
 		}
+	#endif
+	}
 
 	di_clear_for_suspend(di_devp);
 

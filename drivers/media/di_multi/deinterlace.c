@@ -10920,18 +10920,20 @@ void di_unreg_setting(bool plink)
 	disp_frame_count = 0;/* debug only*/
 
 	/*set clkb to low ratio*/
-	if (DIM_IS_IC(T5)	||
+	if (is_meson_g12a_cpu()	||
+	    is_meson_g12b_cpu()	||
+	    is_meson_tl1_cpu()	||
+	    is_meson_tm2_cpu()	||
+	    DIM_IS_IC(T5)	||
 	    DIM_IS_IC(T5DB)	||
 	    DIM_IS_IC(T5D)	||
-	    DIM_IS_IC(T3)	||
-	    DIM_IS_IC(T3X)	||
-	    DIM_IS_IC(S7D)	||
-	    DIM_IS_IC(S5)) {
-		#ifdef CLK_TREE_SUPPORT
+	    is_meson_sm1_cpu()	||
+	    DIM_IS_IC_EF(SC2)) {
+	#ifdef CLK_TREE_SUPPORT
 		if (dimp_get(edi_mp_clock_low_ratio))
 			clk_set_rate(de_devp->vpu_clkb,
 				     dimp_get(edi_mp_clock_low_ratio));
-		#endif
+	#endif
 	}
 #ifdef VPP_LINK_NEED_CHECK
 	dimh_pst_trig_resize();
