@@ -295,7 +295,7 @@ dstmap_out:
 	ret = z_erofs_crypto_decompress_mem(rq, dst + rq->pageofs_out);
 
 	if (!dst_maptype)
-		kunmap(dst);
+		kunmap(*rq->out);
 	else if (dst_maptype == 2)
 		vm_unmap_ram(dst, nrpages_out);
 
