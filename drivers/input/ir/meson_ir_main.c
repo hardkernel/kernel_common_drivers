@@ -43,6 +43,11 @@ static int get_irenv(char *str)
 
 __setup("disable_ir=", get_irenv);
 
+int meson_ir_read_dev_num(void)
+{
+	return meson_ir_dev_no.counter + 1;
+}
+
 int meson_ir_pulses_malloc(struct meson_ir_chip *chip)
 {
 	struct meson_ir_dev *r_dev = chip->r_dev;
@@ -970,11 +975,16 @@ int __init meson_ir_driver_init(void)
 	if (ret)
 		return ret;
 
+	ret = meson_ir_common_input_init();
+	if (ret)
+		return ret;
+
 	return platform_driver_register(&meson_ir_driver);
 }
 
 void __exit meson_ir_driver_exit(void)
 {
+	meson_ir_common_input_exit();
 	meson_ir_xmp_decode_exit();
 	platform_driver_unregister(&meson_ir_driver);
 }
