@@ -227,6 +227,12 @@ static struct notifier_block aml_hdcp22_pm_notifier = {
 	.notifier_call = aml_hdcp22_pm_notify,
 };
 
+static struct meson_hdmirx_data rx_t6d_data = {
+	.chip_id = CHIP_ID_T6D,
+	.phy_ver = PHY_VER_T6D,
+	.port_num = PORT_NUM_3,
+};
+
 static struct meson_hdmirx_data rx_txhd2_data = {
 	.chip_id = CHIP_ID_TXHD2,
 	.phy_ver = PHY_VER_TXHD2,
@@ -320,6 +326,10 @@ static struct meson_hdmirx_data rx_gxtvbb_data = {
 #endif
 
 static const struct of_device_id hdmirx_dt_match[] = {
+	{
+		.compatible		= "amlogic, hdmirx_t6d",
+		.data			= &rx_t6d_data
+	},
 	{
 		.compatible		= "amlogic, hdmirx_txhd2",
 		.data			= &rx_txhd2_data
@@ -3491,6 +3501,7 @@ static int rx_get_top_irq_table(enum chip_id_e chip)
 		break;
 	case CHIP_ID_T5M:
 	case CHIP_ID_TXHD2:
+	case CHIP_ID_T6D:
 		memcpy(top_irq_tab, top_irq_mask_t5m, IRQ_TYPE_CNT * sizeof(u32));
 		break;
 	case CHIP_ID_T3X:

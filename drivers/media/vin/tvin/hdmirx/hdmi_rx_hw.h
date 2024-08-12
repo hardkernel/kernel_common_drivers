@@ -67,6 +67,9 @@
 #define ANACTL_AUD_PLL_CNTL2	(0xa1 * 4)
 #define ANACTL_AUD_PLL_CNTL3	(0xa2 * 4)
 #define ANACTL_AUD_PLL_STS		(0xa3 * 4)
+#define ANACTL_VDAC_CTRL0			(0xb0 * 4)
+#define ANACTL_VDAC_CTRL1			(0xb1 * 4)
+
 #define ANACTL_AUD_PLL4X_CNTL		(0xa4 * 4)
 #define ANACTL_AUD_PLL_CNTL0_21		(0x02ea * 4)
 #define ANACTL_AUD_PLL_CNTL1_21		(0x02eb * 4)
@@ -1302,6 +1305,8 @@
 /* add for t3x, for emp */
 #define RX_CLK_CTRL4		(0x4E << 2)
 	#define AXI_CLK_EN				_BIT(8)
+#define CLKCTRL_SYS_CLK_EN0_REG0	(0x11 << 2)
+#define CLKCTRL_SYS_CLK_EN0_REG1	(0x12 << 2)
 #define CLKCTRL_SYS_CLK_EN0_REG2	(0x13 << 2)
 
 /*t5w*/
