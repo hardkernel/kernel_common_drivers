@@ -748,13 +748,24 @@
 				status = "disabled";
 			};
 
-			ir: ir@8000 {
+			ir: ir@fe084000 {
 				compatible = "amlogic, meson-ir";
 				reg = <0x84080 0xA4>,
 					<0x84000 0x58>;
 				status = "disabled";
 				protocol = <REMOTE_TYPE_NEC>;
 				interrupts = <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
+				map = <&custom_maps>;
+				max_frame_time = <200>;
+			};
+
+			ir1: ir1@fe084180 {
+				compatible = "amlogic, meson-ir";
+				reg = <0x84200 0xA4>,
+					<0x84180 0x58>;
+				status = "disabled";
+				protocol = <REMOTE_TYPE_NEC>;
+				interrupts = <GIC_SPI 31 IRQ_TYPE_EDGE_RISING>;
 				map = <&custom_maps>;
 				max_frame_time = <200>;
 			};
@@ -2386,6 +2397,14 @@
 	remote_pins: remote_pin {
 		mux {
 			groups = "ir_in_a";
+			function = "ir";
+			bias-disable;
+		};
+	};
+
+	remote_b_pins: remote_b_pin {
+		mux {
+			groups = "ir_in_b_z18";
 			function = "ir";
 			bias-disable;
 		};

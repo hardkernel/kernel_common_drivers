@@ -1366,6 +1366,12 @@
 	pinctrl-0 = <&remote_pins>;
 };
 
+&ir1 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&remote_b_pins>;
+};
+
 &dcon_led {
 	status = "okay";
 	led_number = <1>;
