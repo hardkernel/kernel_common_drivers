@@ -21,6 +21,9 @@
 #include <dt-bindings/mailbox/t5m-mbox.h>
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
+#include <dt-bindings/leds/leds-meson.h>
+#include <dt-bindings/leds/leds-meson.h>
+
 
 / {
 	cpus:cpus {
@@ -989,6 +992,8 @@
 				compatible = "amlogic,led_unipolar_ctrl";
 				reg = <0x0 0x74000 0x0 0x88>;
 				interrupts = <GIC_SPI 30 IRQ_TYPE_EDGE_RISING>;
+				led-mode = <LED_MESON_GRB>;
+				led_number = <2>;
 				status = "disabled";
 			};
 

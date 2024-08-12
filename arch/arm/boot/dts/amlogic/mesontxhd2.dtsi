@@ -21,6 +21,8 @@
 #include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
 #include <dt-bindings/reset/amlogic,meson-txhd2-reset.h>
 #include "mesongxbb-gpu-mali450.dtsi"
+#include <dt-bindings/leds/leds-meson.h>
+
 
 / {
 	cpus:cpus {
@@ -1480,6 +1482,8 @@
 				compatible = "amlogic,led_unipolar_ctrl";
 				reg = <0x1000 0x88>;
 				interrupts = <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>;
+				led-mode = <LED_MESON_GRB>;
+				led_number = <2>;
 				status = "disabled";
 			};
 

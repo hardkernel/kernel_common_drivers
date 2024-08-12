@@ -1379,10 +1379,11 @@
 };
 
 &dcon_led {
-	status = "disabled";
-	led_number = <13>;
+	status = "okay";
+	led_number = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&dcon_led_pins1>;
+	// polarity-inversed;
 };
 
 &i2c0 {

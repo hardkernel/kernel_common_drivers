@@ -16,6 +16,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/leds.h>
 #include <linux/completion.h>
+#include <dt-bindings/leds/leds-meson.h>
 // #define M_DEBUG
 
 #ifdef M_DEBUG
@@ -56,6 +57,7 @@ enum {
 };
 
 /* Control DCON_LED RATIO fields */
+#define RATIO_FLIP_CTRL		BIT(30)
 #define RATIO_INTERRUPT_STATUS		BIT(29)
 #define RATIO_BUSY_STATUS		BIT(28)
 #define RATIO_PRE_RESETCODE		BIT(27)
@@ -78,6 +80,8 @@ struct meson_unipolar_ctrl {
 	uint led_num;
 	u8 *color_data;
 	struct completion	done;
+	bool polarity_inversed;
+	uint mode;
 };
 
 #define MESON_UNIPOLAR_CTRL_CDEV_NAME		"unipolar_led"
@@ -144,7 +148,9 @@ static void meson_unipolar_ctrl_init(struct meson_unipolar_ctrl *dcon_led)
 	/*set reset duration 0x240*1.25 = 300 us*/
 	meson_unipolar_ctrl_set_mask(dcon_led, LED_CYCLE_RATIO_RES,
 		RATIO_RESET_DURATION_MSK, 0xF0 << RATIO_RESET_DURATION_SHIFT);
-
+	if (dcon_led->polarity_inversed)
+		meson_unipolar_ctrl_set_mask(dcon_led, LED_CYCLE_RATIO_RES,
+		RATIO_FLIP_CTRL, RATIO_FLIP_CTRL);
 	/*send data with out reset*/
 	// meson_unipolar_ctrl_set_mask(dcon_led,LED_CYCLE_RATIO_RES,
 	// RATIO_RESET_DURATION_MSK, RATIO_PRE_RESETCODE);
@@ -175,14 +181,28 @@ static void meson_unipolar_ctrl_put_data_to_buffer(struct meson_unipolar_ctrl *d
 			u8 buffer_id, u8 r_data, u8 g_data, u8 b_data)
 {
 	spin_lock(&dcon_led->lock);
-	/*R G B*/
-	// dcon_led->color_data[buffer_id] = r_data;
-	// dcon_led->color_data[buffer_id + 1] = g_data;
-	// dcon_led->color_data[buffer_id + 2] = b_data;
-	/*G R B*/
-	dcon_led->color_data[buffer_id] = g_data;
-	dcon_led->color_data[buffer_id + 1] = r_data;
-	dcon_led->color_data[buffer_id + 2] = b_data;
+	switch (dcon_led->mode) {
+	case LED_MESON_RGB:
+		/*R G B*/
+		LEDCON_DBG("%s LED_MESON_RGB\n", __func__);
+		dcon_led->color_data[buffer_id] = r_data;
+		dcon_led->color_data[buffer_id + 1] = g_data;
+		dcon_led->color_data[buffer_id + 2] = b_data;
+		break;
+	case LED_MESON_GRB:
+		/*G R B*/
+		LEDCON_DBG("%s LED_MESON_GRB\n", __func__);
+		dcon_led->color_data[buffer_id] = g_data;
+		dcon_led->color_data[buffer_id + 1] = r_data;
+		dcon_led->color_data[buffer_id + 2] = b_data;
+		break;
+	default:
+		/*R G B*/
+		dcon_led->color_data[buffer_id] = r_data;
+		dcon_led->color_data[buffer_id + 1] = g_data;
+		dcon_led->color_data[buffer_id + 2] = b_data;
+		break;
+	}
 	spin_unlock(&dcon_led->lock);
 
 }
@@ -430,6 +450,13 @@ static int unipolar_ctrl_probe(struct platform_device *pdev)
 	if (dcon_led->led_num > LED_MAX_NUM) {
 		dev_err(&pdev->dev, "erro, LED num over than LED_MAX_NUM:%d\n", LED_MAX_NUM);
 		return -EINVAL;
+	}
+	if (device_property_read_bool(&pdev->dev, "polarity-inversed"))
+		dcon_led->polarity_inversed = true;
+	ret = device_property_read_u32(&pdev->dev, "led-mode", &dcon_led->mode);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failure to get led mode = %d\n", ret);
+		return ret;
 	}
 	dcon_led->color_data = devm_kzalloc(&pdev->dev,
 		dcon_led->led_num * COLOR_CHANNEL_NUM, GFP_KERNEL);
