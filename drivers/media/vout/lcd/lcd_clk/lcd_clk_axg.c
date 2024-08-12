@@ -216,34 +216,6 @@ static void lcd_pll_frac_generate_axg(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
-static int lcd_clk_config_print_axg(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
-{
-	struct lcd_clk_config_s *cconf;
-	int n, len = 0;
-
-	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf)
-		return -1;
-
-	n = lcd_debug_info_len(len + offset);
-	len += snprintf((buf + len), n,
-		"lcd clk config:\n"
-		"pll_m:        %d\n"
-		"pll_n:        %d\n"
-		"pll_frac:     0x%x\n"
-		"pll_fvco:     %lldHz\n"
-		"pll_od:       %d\n"
-		"pll_out:      %lldHz\n"
-		"xd:           %d\n"
-		"fout:         %dHz\n\n",
-		cconf->pll_m, cconf->pll_n,
-		cconf->pll_frac, cconf->pll_fvco,
-		cconf->pll_od1_sel, cconf->pll_fout,
-		cconf->xd, cconf->fout);
-
-	return len;
-}
-
 static void lcd_clk_config_init_print_axg(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
@@ -279,6 +251,61 @@ static void lcd_clk_config_init_print_axg(struct aml_lcd_drv_s *pdrv)
 		data->pll_vco_fmax, data->pll_vco_fmin,
 		data->pll_out_fmax, data->pll_out_fmin,
 		data->xd_out_fmax);
+}
+
+static int lcd_clk_config_print_axg(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	struct lcd_clk_config_s *cconf;
+	int n, len = 0;
+
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf)
+		return 0;
+
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n,
+		"lcd clk config:\n"
+		"pll_m:        %d\n"
+		"pll_n:        %d\n"
+		"pll_frac:     0x%x\n"
+		"pll_fvco:     %lldHz\n"
+		"pll_od:       %d\n"
+		"pll_out:      %lldHz\n"
+		"xd:           %d\n"
+		"fout:         %dHz\n\n",
+		cconf->pll_m, cconf->pll_n,
+		cconf->pll_frac, cconf->pll_fvco,
+		cconf->pll_od1_sel, cconf->pll_fout,
+		cconf->xd, cconf->fout);
+
+	return len;
+}
+
+static int lcd_clk_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int i = 0, n, len = 0;
+	unsigned int clk_reg_table[] = {
+		HHI_GP0_PLL_CNTL_AXG,
+		HHI_GP0_PLL_CNTL2_AXG,
+		HHI_GP0_PLL_CNTL3_AXG,
+		HHI_GP0_PLL_CNTL4_AXG,
+		HHI_GP0_PLL_CNTL5_AXG,
+		HHI_GP0_PLL_CNTL1_AXG,
+		HHI_VIID_CLK_DIV,
+		HHI_VIID_CLK_CNTL,
+		HHI_VID_CLK_CNTL2
+	};
+
+	if (!pdrv)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(clk_reg_table); i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "hiu [0x%02x] = 0x%08x\n",
+			clk_reg_table[i], lcd_hiu_read(clk_reg_table[i]));
+	}
+
+	return len;
 }
 
 static struct lcd_clk_data_s lcd_clk_data_axg = {
@@ -340,6 +367,7 @@ static struct lcd_clk_data_s lcd_clk_data_axg = {
 	.mlvds_clk_phase_set = NULL,
 	.clk_config_init_print = lcd_clk_config_init_print_axg,
 	.clk_config_print = lcd_clk_config_print_axg,
+	.clk_reg_print = lcd_clk_reg_dump,
 	.prbs_test = NULL,
 };
 

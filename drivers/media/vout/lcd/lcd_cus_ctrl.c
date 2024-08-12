@@ -34,7 +34,7 @@ int lcd_cus_ctrl_dump_info(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	int i, j, k, n, len = 0, ret, herr, verr;
 
 	n = lcd_debug_info_len(len + offset);
-	len += snprintf((buf + len), n, "\ncus_ctrl info:\n"
+	len += snprintf((buf + len), n, "cus_ctrl info:\n"
 		"ctrl_en:     0x%x\n"
 		"ctrl_cnt:    %d\n"
 		"timing_ctrl: valid:%d, active:0x%x\n",

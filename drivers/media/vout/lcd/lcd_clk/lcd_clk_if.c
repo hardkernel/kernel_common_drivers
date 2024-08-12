@@ -620,6 +620,25 @@ int lcd_clk_config_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	return len;
 }
 
+int lcd_clk_reg_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	struct lcd_clk_config_s *cconf;
+	int n, len = 0;
+
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf || !cconf->data) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "[%d]: %s: clk config is null\n",
+				pdrv->index, __func__);
+		return len;
+	}
+
+	if (cconf->data->clk_reg_print)
+		len = cconf->data->clk_reg_print(pdrv, buf, offset);
+
+	return len;
+}
+
 void aml_lcd_prbs_test(struct aml_lcd_drv_s *pdrv, unsigned int ms, unsigned int mode_flag)
 {
 	struct lcd_clk_config_s *cconf;

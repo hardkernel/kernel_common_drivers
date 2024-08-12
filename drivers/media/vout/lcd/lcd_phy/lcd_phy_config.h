@@ -23,6 +23,8 @@ struct lcd_phy_ctrl_s {
 	unsigned int (*phy_amp_dft_val)(struct aml_lcd_drv_s *pdrv);
 	unsigned int (*phy_preem_level_to_val)(struct aml_lcd_drv_s *pdrv, unsigned int level);
 	void (*phy_glb_param_dft_val)(struct aml_lcd_drv_s *pdrv);
+	int (*phy_param_get)(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy);
+	int (*phy_reg_dump)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 
 	void (*phy_set_lvds)(struct aml_lcd_drv_s *pdrv, int status);
 	void (*phy_set_vx1)(struct aml_lcd_drv_s *pdrv, int status);

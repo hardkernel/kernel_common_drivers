@@ -256,7 +256,7 @@ set_pll_retry_tl1:
 
 static void lcd_clk_set(struct aml_lcd_drv_s *pdrv)
 {
-	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
+	lcd_hiu_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
 	lcd_set_pll(pdrv);
 	lcd_set_vid_pll_div_dft(pdrv);
 }
@@ -273,45 +273,45 @@ static void lcd_set_vclk_crt(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->lcd_pxp) {
 		/* setup the XD divider value */
-		lcd_clk_setb(HHI_VIID_CLK_DIV, cconf->xd, VCLK2_XD, 8);
+		lcd_hiu_setb(HHI_VIID_CLK_DIV, cconf->xd, VCLK2_XD, 8);
 		udelay(5);
 
 		/* select vid_pll_clk */
-		lcd_clk_setb(HHI_VIID_CLK_CNTL, 7, VCLK2_CLK_IN_SEL, 3);
+		lcd_hiu_setb(HHI_VIID_CLK_CNTL, 7, VCLK2_CLK_IN_SEL, 3);
 	} else {
 		/* setup the XD divider value */
-		lcd_clk_setb(HHI_VIID_CLK_DIV, (cconf->xd - 1), VCLK2_XD, 8);
+		lcd_hiu_setb(HHI_VIID_CLK_DIV, (cconf->xd - 1), VCLK2_XD, 8);
 		udelay(5);
 
 		/* select vid_pll_clk */
-		lcd_clk_setb(HHI_VIID_CLK_CNTL, cconf->data->vclk_sel, VCLK2_CLK_IN_SEL, 3);
+		lcd_hiu_setb(HHI_VIID_CLK_CNTL, cconf->data->vclk_sel, VCLK2_CLK_IN_SEL, 3);
 	}
-	lcd_clk_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_EN, 1);
+	lcd_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_EN, 1);
 	udelay(2);
 
 	/* [15:12] encl_clk_sel, select vclk2_div1 */
-	lcd_clk_setb(HHI_VIID_CLK_DIV, 8, ENCL_CLK_SEL, 4);
+	lcd_hiu_setb(HHI_VIID_CLK_DIV, 8, ENCL_CLK_SEL, 4);
 	/* release vclk2_div_reset and enable vclk2_div */
-	lcd_clk_setb(HHI_VIID_CLK_DIV, 1, VCLK2_XD_EN, 2);
+	lcd_hiu_setb(HHI_VIID_CLK_DIV, 1, VCLK2_XD_EN, 2);
 	udelay(5);
 
-	lcd_clk_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_DIV1_EN, 1);
-	lcd_clk_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_SOFT_RST, 1);
+	lcd_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_DIV1_EN, 1);
+	lcd_hiu_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_SOFT_RST, 1);
 	usleep_range(10, 11);
-	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_SOFT_RST, 1);
+	lcd_hiu_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_SOFT_RST, 1);
 	udelay(5);
 
 	/* enable CTS_ENCL clk gate */
-	lcd_clk_setb(HHI_VID_CLK_CNTL2, 1, ENCL_GATE_VCLK, 1);
+	lcd_hiu_setb(HHI_VID_CLK_CNTL2, 1, ENCL_GATE_VCLK, 1);
 }
 
 static void lcd_clk_disable(struct aml_lcd_drv_s *pdrv)
 {
-	lcd_clk_setb(HHI_VID_CLK_CNTL2, 0, 3, 1);
+	lcd_hiu_setb(HHI_VID_CLK_CNTL2, 0, 3, 1);
 
 	/* close vclk2_div gate: 0x104b[4:0] */
-	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, 0, 5);
-	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, 19, 1);
+	lcd_hiu_setb(HHI_VIID_CLK_CNTL, 0, 0, 5);
+	lcd_hiu_setb(HHI_VIID_CLK_CNTL, 0, 19, 1);
 
 	lcd_hiu_setb(HHI_TCON_PLL_CNTL0, 0, 28, 1);  //disable
 	lcd_hiu_setb(HHI_TCON_PLL_CNTL0, 1, 29, 1);  //reset
@@ -363,6 +363,37 @@ static void lcd_set_tcon_clk_tl1(struct aml_lcd_drv_s *pdrv)
 	default:
 		break;
 	}
+}
+
+static int lcd_clk_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int i = 0, n, len = 0;
+	unsigned int *table = NULL, size = 0;
+	unsigned int clk_reg_table[] = {
+		HHI_TCON_PLL_CNTL0,
+		HHI_TCON_PLL_CNTL1,
+		HHI_TCON_PLL_CNTL2,
+		HHI_TCON_PLL_CNTL3,
+		HHI_TCON_PLL_CNTL4,
+		HHI_VID_PLL_CLK_DIV,
+		HHI_VIID_CLK_DIV,
+		HHI_VIID_CLK_CNTL,
+		HHI_VID_CLK_CNTL2,
+		HHI_TCON_CLK_CNTL
+	};
+
+	if (!pdrv)
+		return 0;
+
+	table = clk_reg_table;
+	size = ARRAY_SIZE(clk_reg_table);
+	for (i = 0; i < size; i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "hiu [0x%02x] = 0x%08x\n",
+			table[i], lcd_hiu_read(table[i]));
+	}
+
+	return len;
 }
 
 static void lcd_prbs_config_clk(struct aml_lcd_drv_s *pdrv, unsigned int lcd_prbs_mode,
@@ -574,6 +605,7 @@ static struct lcd_clk_data_s lcd_clk_data_tl1 = {
 	.mlvds_clk_phase_set = lcd_set_mlvds_clk_phase,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
+	.clk_reg_print = lcd_clk_reg_dump,
 	.prbs_test = lcd_clk_prbs_test,
 };
 #endif
@@ -642,7 +674,8 @@ static struct lcd_clk_data_s lcd_clk_data_tm2 = {
 	.mlvds_clk_phase_set = lcd_set_mlvds_clk_phase,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
-	.prbs_test = NULL,
+	.clk_reg_print = lcd_clk_reg_dump,
+	.prbs_test = lcd_clk_prbs_test,
 };
 
 void lcd_clk_config_chip_init_tl1(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf)

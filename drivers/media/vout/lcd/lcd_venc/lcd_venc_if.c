@@ -238,6 +238,24 @@ void lcd_venc_adj_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal)
 	lcd_venc_op.venc_set_vtotal(pdrv, vtotal);
 }
 
+int lcd_venc_reg_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int n, len = 0;
+
+	if (!pdrv)
+		return 0;
+	if (!lcd_venc_op.venc_reg_dump) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "%s: venc_reg_dump is null\n", __func__);
+		return len;
+	}
+
+	n = lcd_debug_info_len(len + offset);
+	len = snprintf(buf, n, "\nencl regs:\n");
+	len += lcd_venc_op.venc_reg_dump(pdrv, (buf + len), (len + offset));
+	return len;
+}
+
 int lcd_venc_probe(struct aml_lcd_drv_s *pdrv)
 {
 	int ret;

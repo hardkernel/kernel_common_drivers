@@ -531,6 +531,80 @@ static void lcd_venc_set_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal)
 	lcd_vcbus_setb(ENCL_VIDEO_MAX_CNT + offset, (vtotal - 1), 0, 16);
 }
 
+static int lcd_venc_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int i, n, len = 0;
+	unsigned int *reg_table = NULL, size_encl = 0;
+	unsigned int encl_0_reg[] = {
+		VPU_VIU_VENC_MUX_CTRL,
+		ENCL_VIDEO_EN_T3X,
+		ENCL_VIDEO_MODE_T3X,
+		ENCL_VIDEO_VSRC_CTRL,
+		ENCL_VIDEO_MAX_CNT,
+		ENCL_VIDEO_HAVON_PX_RNG,
+		ENCL_VIDEO_VAVON_LN_RNG,
+		ENCL_VIDEO_HSO_PX_RNG,
+		ENCL_VIDEO_VSO_PX_RNG,
+		ENCL_VIDEO_VSO_LN_RNG,
+		ENCL_INBUF_CNTL0_T3X,
+		ENCL_INBUF_CNTL1,
+		VPU_DISP_VIU0_CTRL,
+		LCD_GAMMA_CNTL_PORT0_T3X,
+		VPU_VENC_CTRL,
+		LCD_LCD_IF_CTRL,
+		LCD_LCD_TOP_CTRL,
+		LCD_DITH_CTRL,
+		LCD_GAMMA_10B_CTRL,
+		LCD_GAMMA_PROBE_CTRL,
+		LCD_GAMMA_PROBE_COORD,
+		LCD_GAMMA_PROBE_COLOR,
+		LCD_LCD_PORT_SWAP
+	};
+	unsigned int encl_1_reg[] = {
+		VPU_VIU_VENC_MUX_CTRL,
+		ENCL_VIDEO_EN_T3X + 0x100,
+		ENCL_VIDEO_MODE_T3X + 0x100,
+		ENCL_VIDEO_VSRC_CTRL + 0x100,
+		ENCL_VIDEO_MAX_CNT + 0x100,
+		ENCL_VIDEO_HAVON_PX_RNG + 0x100,
+		ENCL_VIDEO_VAVON_LN_RNG + 0x100,
+		ENCL_VIDEO_HSO_PX_RNG + 0x100,
+		ENCL_VIDEO_VSO_PX_RNG + 0x100,
+		ENCL_VIDEO_VSO_LN_RNG + 0x100,
+		ENCL_INBUF_CNTL0_T3X + 0x100,
+		ENCL_INBUF_CNTL1 + 0x100,
+		VPU_DISP_VIU1_CTRL,
+		LCD_GAMMA_CNTL_PORT0_T3X + 0x100,
+		VPU_VENC_CTRL + 0x600,
+		LCD_LCD_IF_CTRL + 0x600,
+		LCD_LCD_TOP_CTRL + 0x600,
+		LCD_DITH_CTRL + 0x600,
+		LCD_GAMMA_10B_CTRL + 0x600,
+		LCD_GAMMA_PROBE_CTRL + 0x600,
+		LCD_GAMMA_PROBE_COORD + 0x600,
+		LCD_GAMMA_PROBE_COLOR + 0x600,
+		LCD_LCD_PORT_SWAP + 0x600
+	};
+
+	if (!pdrv)
+		return 0;
+
+	if (pdrv->index == 1) {
+		reg_table = encl_1_reg;
+		size_encl = ARRAY_SIZE(encl_1_reg);
+	} else {
+		reg_table = encl_0_reg;
+		size_encl = ARRAY_SIZE(encl_0_reg);
+	}
+	for (i = 0; i < size_encl; i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "vcbus [0x%04x] = 0x%08x\n",
+			reg_table[i], lcd_vcbus_read(reg_table[i]));
+	}
+
+	return len;
+}
+
 int lcd_venc_op_init_t3x(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_op)
 {
 	if (!venc_op)
@@ -553,6 +627,7 @@ int lcd_venc_op_init_t3x(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_
 	venc_op->get_encl_line_cnt = lcd_venc_get_encl_line_cnt;
 	venc_op->get_encl_frm_cnt = lcd_venc_get_encl_frm_cnt;
 	venc_op->venc_set_vtotal = lcd_venc_set_vtotal;
+	venc_op->venc_reg_dump = lcd_venc_reg_dump;
 
 	return 0;
 };

@@ -532,6 +532,117 @@ static void lcd_venc_set_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal)
 	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT + offset, vtotal - 1);
 }
 
+static int lcd_venc_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int i, n, len = 0;
+	unsigned int *reg_table = NULL, size_encl = 0;
+	unsigned int encl_0_reg[] = {
+		VPU_VIU_VENC_MUX_CTRL,
+		ENCL_VIDEO_EN,
+		ENCL_VIDEO_MODE,
+		ENCL_VIDEO_MODE_ADV,
+		ENCL_VIDEO_MAX_PXCNT,
+		ENCL_VIDEO_MAX_LNCNT,
+		ENCL_VIDEO_HAVON_BEGIN,
+		ENCL_VIDEO_HAVON_END,
+		ENCL_VIDEO_VAVON_BLINE,
+		ENCL_VIDEO_VAVON_ELINE,
+		ENCL_VIDEO_HSO_BEGIN,
+		ENCL_VIDEO_HSO_END,
+		ENCL_VIDEO_VSO_BEGIN,
+		ENCL_VIDEO_VSO_END,
+		ENCL_VIDEO_VSO_BLINE,
+		ENCL_VIDEO_VSO_ELINE,
+		ENCL_VIDEO_RGBIN_CTRL,
+		ENCL_INBUF_CNTL0,
+		ENCL_INBUF_CNTL1,
+		VPU_DISP_VIU0_CTRL,
+		VPU_VENC_CTRL,
+		LCD_GAMMA_CNTL_PORT0,
+		LCD_RGB_BASE_ADDR,
+		LCD_RGB_COEFF_ADDR,
+		LCD_POL_CNTL_ADDR,
+		LCD_DITH_CNTL_ADDR
+	};
+	unsigned int encl_1_reg[] = {
+		VPU_VIU_VENC_MUX_CTRL,
+		ENCL_VIDEO_EN + 0x600,
+		ENCL_VIDEO_MODE + 0x600,
+		ENCL_VIDEO_MODE_ADV + 0x600,
+		ENCL_VIDEO_MAX_PXCNT + 0x600,
+		ENCL_VIDEO_MAX_LNCNT + 0x600,
+		ENCL_VIDEO_HAVON_BEGIN + 0x600,
+		ENCL_VIDEO_HAVON_END + 0x600,
+		ENCL_VIDEO_VAVON_BLINE + 0x600,
+		ENCL_VIDEO_VAVON_ELINE + 0x600,
+		ENCL_VIDEO_HSO_BEGIN + 0x600,
+		ENCL_VIDEO_HSO_END + 0x600,
+		ENCL_VIDEO_VSO_BEGIN + 0x600,
+		ENCL_VIDEO_VSO_END + 0x600,
+		ENCL_VIDEO_VSO_BLINE + 0x600,
+		ENCL_VIDEO_VSO_ELINE + 0x600,
+		ENCL_VIDEO_RGBIN_CTRL + 0x600,
+		ENCL_INBUF_CNTL0 + 0x600,
+		ENCL_INBUF_CNTL1 + 0x600,
+		VPU_DISP_VIU1_CTRL,
+		VPU_VENC_CTRL + 0x600,
+		LCD_GAMMA_CNTL_PORT0 + 0x100,
+		LCD_RGB_BASE_ADDR + 0x100,
+		LCD_RGB_COEFF_ADDR + 0x100,
+		LCD_POL_CNTL_ADDR + 0x100,
+		LCD_DITH_CNTL_ADDR + 0x100
+	};
+	unsigned int encl_2_reg[] = {
+		VPU_VIU_VENC_MUX_CTRL,
+		ENCL_VIDEO_EN + 0x800,
+		ENCL_VIDEO_MODE + 0x800,
+		ENCL_VIDEO_MODE_ADV + 0x800,
+		ENCL_VIDEO_MAX_PXCNT + 0x800,
+		ENCL_VIDEO_MAX_LNCNT + 0x800,
+		ENCL_VIDEO_HAVON_BEGIN + 0x800,
+		ENCL_VIDEO_HAVON_END + 0x800,
+		ENCL_VIDEO_VAVON_BLINE + 0x800,
+		ENCL_VIDEO_VAVON_ELINE + 0x800,
+		ENCL_VIDEO_HSO_BEGIN + 0x800,
+		ENCL_VIDEO_HSO_END + 0x800,
+		ENCL_VIDEO_VSO_BEGIN + 0x800,
+		ENCL_VIDEO_VSO_END + 0x800,
+		ENCL_VIDEO_VSO_BLINE + 0x800,
+		ENCL_VIDEO_VSO_ELINE + 0x800,
+		ENCL_VIDEO_RGBIN_CTRL + 0x800,
+		ENCL_INBUF_CNTL0 + 0x800,
+		ENCL_INBUF_CNTL1 + 0x800,
+		VPU_DISP_VIU2_CTRL,
+		VPU_VENC_CTRL + 0x800,
+		LCD_GAMMA_CNTL_PORT0 + 0x200,
+		LCD_RGB_BASE_ADDR + 0x200,
+		LCD_RGB_COEFF_ADDR + 0x200,
+		LCD_POL_CNTL_ADDR + 0x200,
+		LCD_DITH_CNTL_ADDR + 0x200
+	};
+
+	if (!pdrv)
+		return 0;
+
+	if (pdrv->index == 2) {
+		reg_table = encl_2_reg;
+		size_encl = ARRAY_SIZE(encl_2_reg);
+	} else if (pdrv->index == 1) {
+		reg_table = encl_1_reg;
+		size_encl = ARRAY_SIZE(encl_1_reg);
+	} else {
+		reg_table = encl_0_reg;
+		size_encl = ARRAY_SIZE(encl_0_reg);
+	}
+	for (i = 0; i < size_encl; i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "vcbus [0x%04x] = 0x%08x\n",
+			reg_table[i], lcd_vcbus_read(reg_table[i]));
+	}
+
+	return len;
+}
+
 int lcd_venc_op_init_t7(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_op)
 {
 	if (!venc_op)
@@ -551,6 +662,7 @@ int lcd_venc_op_init_t7(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_o
 	venc_op->get_encl_line_cnt = lcd_venc_get_encl_line_cnt;
 	venc_op->get_encl_frm_cnt = lcd_venc_get_encl_frm_cnt;
 	venc_op->venc_set_vtotal = lcd_venc_set_vtotal;
+	venc_op->venc_reg_dump = lcd_venc_reg_dump;
 
 	return 0;
 };

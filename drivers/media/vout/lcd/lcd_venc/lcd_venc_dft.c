@@ -24,7 +24,7 @@ static void lcd_venc_wait_vsync(struct aml_lcd_drv_s *pdrv)
 	unsigned int line_cnt, line_cnt_previous;
 	int i = 0;
 
-	if (!pdrv)
+	if (!pdrv || pdrv->lcd_pxp)
 		return;
 
 	line_cnt = 0x1fff;
@@ -400,6 +400,73 @@ static void lcd_venc_set_vtotal(struct aml_lcd_drv_s *pdrv, unsigned int vtotal)
 	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT + offset, vtotal - 1);
 }
 
+static int lcd_venc_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int i, n, len = 0;
+	unsigned int *reg_table = NULL, *reg_ctrl = NULL, size_encl = 0, size_ctrl = 0;
+	unsigned int encl_reg_dft[] = {
+		VPU_VIU_VENC_MUX_CTRL,
+		ENCL_VIDEO_EN,
+		ENCL_VIDEO_MODE,
+		ENCL_VIDEO_MODE_ADV,
+		ENCL_VIDEO_MAX_PXCNT,
+		ENCL_VIDEO_MAX_LNCNT,
+		ENCL_VIDEO_HAVON_BEGIN,
+		ENCL_VIDEO_HAVON_END,
+		ENCL_VIDEO_VAVON_BLINE,
+		ENCL_VIDEO_VAVON_ELINE,
+		ENCL_VIDEO_HSO_BEGIN,
+		ENCL_VIDEO_HSO_END,
+		ENCL_VIDEO_VSO_BEGIN,
+		ENCL_VIDEO_VSO_END,
+		ENCL_VIDEO_VSO_BLINE,
+		ENCL_VIDEO_VSO_ELINE,
+		ENCL_VIDEO_RGBIN_CTRL,
+		L_GAMMA_CNTL_PORT,
+		L_RGB_BASE_ADDR,
+		L_RGB_COEFF_ADDR,
+		L_POL_CNTL_ADDR,
+		L_DITH_CNTL_ADDR
+	};
+	static unsigned int ctrl_reg_tl1[] = {
+		ENCL_INBUF_CNTL0,
+		ENCL_INBUF_CNTL1,
+	};
+
+	switch (pdrv->data->chip_type) {
+	case LCD_CHIP_TL1:
+	case LCD_CHIP_TM2:
+	case LCD_CHIP_T5:
+	case LCD_CHIP_T5D:
+	case LCD_CHIP_TXHD2:
+		reg_table = encl_reg_dft;
+		size_encl = ARRAY_SIZE(encl_reg_dft);
+		reg_ctrl = ctrl_reg_tl1;
+		size_ctrl = ARRAY_SIZE(ctrl_reg_tl1);
+		break;
+	case LCD_CHIP_S6:
+	default:
+		reg_table = encl_reg_dft;
+		size_encl = ARRAY_SIZE(encl_reg_dft);
+		break;
+	}
+
+	for (i = 0; i < size_encl; i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "vcbus [0x%04x] = 0x%08x\n",
+			reg_table[i], lcd_vcbus_read(reg_table[i]));
+	}
+	if (reg_ctrl) {
+		for (i = 0; i < size_ctrl; i++) {
+			n = lcd_debug_info_len(len + offset);
+			len += snprintf((buf + len), n, "vcbus [0x%04x] = 0x%08x\n",
+				reg_ctrl[i], lcd_vcbus_read(reg_ctrl[i]));
+		}
+	}
+
+	return len;
+}
+
 int lcd_venc_op_init_dft(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_op)
 {
 	if (!venc_op)
@@ -419,6 +486,7 @@ int lcd_venc_op_init_dft(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_
 	venc_op->get_encl_line_cnt = lcd_venc_get_encl_line_cnt;
 	venc_op->get_encl_frm_cnt = lcd_venc_get_encl_frm_cnt;
 	venc_op->venc_set_vtotal = lcd_venc_set_vtotal;
+	venc_op->venc_reg_dump = lcd_venc_reg_dump;
 
 	INIT_WORK(&pdrv->test_check_work, lcd_test_pattern_check);
 

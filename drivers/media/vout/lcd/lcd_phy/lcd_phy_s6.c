@@ -25,6 +25,19 @@
 //1.2V setting: 0=1.11v 1=1.13v 2=1.15v 3=1.18v 4=1.21v 5=1.23v 6=1.26v 7=1.28v
 #define DSI_PHY_DATA_LP_1200mV   4
 
+static int lcd_phy_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int len = 0;
+	struct reg_name_set_s reg_table[] = {
+		{ANACTRL_MIPIDSI_CTRL0_S6, "ANACTRL_MIPIDSI_CTRL0"},
+		{ANACTRL_MIPIDSI_CTRL1_S6, "ANACTRL_MIPIDSI_CTRL1"}
+	};
+
+	len += str_add_reg_sets(pdrv, buf, offset, LCD_REG_DBG_ANA_BUS, 0,
+				reg_table, ARRAY_SIZE(reg_table));
+	return len;
+}
+
 static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
 	unsigned int mipi_dsi_ctl0, mipi_dsi_ctl1, mipi_dsi_ctl2, mipi_dsi_ctl3;
@@ -95,11 +108,16 @@ static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 }
 
 static struct lcd_phy_ctrl_s lcd_phy_ctrl_s6 = {
+	.lane_num = 5,
 	.lane_lock = 0,
 	.ctrl_bit_on = 1,
+
 	.phy_vswing_level_to_val = NULL,
 	.phy_amp_dft_val = NULL,
 	.phy_preem_level_to_val = NULL,
+	.phy_param_get = NULL,
+	.phy_reg_dump = lcd_phy_reg_dump,
+
 	.phy_set_lvds = NULL,
 	.phy_set_vx1 = NULL,
 	.phy_set_mlvds = NULL,

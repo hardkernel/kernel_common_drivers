@@ -122,6 +122,7 @@ struct lcd_clk_data_s {
 	int (*mlvds_clk_phase_set)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_config_init_print)(struct aml_lcd_drv_s *pdrv);
 	int (*clk_config_print)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
+	int (*clk_reg_print)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 	void (*prbs_test)(struct aml_lcd_drv_s *pdrv, unsigned int ms, unsigned int mode_flag);
 };
 

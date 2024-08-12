@@ -15,6 +15,20 @@
 
 static struct lcd_phy_ctrl_s *phy_ctrl_p;
 
+static int lcd_phy_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int len = 0;
+	struct reg_name_set_s reg_table[] = {
+		{HHI_MIPI_CNTL0, "HHI_MIPI_CNTL0"},
+		{HHI_MIPI_CNTL1, "HHI_MIPI_CNTL1"},
+		{HHI_MIPI_CNTL2, "HHI_MIPI_CNTL2"}
+	};
+
+	len += str_add_reg_sets(pdrv, buf, offset, LCD_REG_DBG_HHI_BUS, 0,
+				reg_table, ARRAY_SIZE(reg_table));
+	return len;
+}
+
 static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
 	unsigned int lane;
@@ -62,9 +76,13 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_axg = {
 	.lane_num = 5,
 	.ctrl_bit_on = 0,
 	.lane_lock = 0,
+
 	.phy_vswing_level_to_val = NULL,
 	.phy_amp_dft_val = NULL,
 	.phy_preem_level_to_val = NULL,
+	.phy_param_get = NULL,
+	.phy_reg_dump = lcd_phy_reg_dump,
+
 	.phy_set_lvds = NULL,
 	.phy_set_vx1 = NULL,
 	.phy_set_mlvds = NULL,

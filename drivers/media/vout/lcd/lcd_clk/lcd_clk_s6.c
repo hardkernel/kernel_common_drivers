@@ -301,6 +301,44 @@ static void lcd_pll_ss_enable(struct aml_lcd_drv_s *pdrv, int status)
 	lcd_ana_write(ANACTRL_DSIPLL_CTRL3, pll_ctrl3);
 }
 
+static int lcd_clk_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int i = 0, n, len = 0;
+	unsigned int *table = NULL, size = 0;
+	unsigned int pll_reg_table[] = {
+		ANACTRL_DSIPLL_CTRL0,
+		ANACTRL_DSIPLL_CTRL1,
+		ANACTRL_DSIPLL_CTRL2,
+		ANACTRL_DSIPLL_CTRL3,
+		ANACTRL_DSIPLL_STS
+	};
+	unsigned int clk_reg_table[] = {
+		CLKCTRL_VIID_CLK_DIV_S6,
+		CLKCTRL_VIID_CLK_CTRL_S6
+	};
+
+	if (!pdrv)
+		return 0;
+
+	table = pll_reg_table;
+	size = ARRAY_SIZE(pll_reg_table);
+	for (i = 0; i < size; i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "pll [0x%02x] = 0x%08x\n",
+			table[i], lcd_ana_read(table[i]));
+	}
+
+	table = clk_reg_table;
+	size = ARRAY_SIZE(clk_reg_table);
+	for (i = 0; i < size; i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "clk [0x%02x] = 0x%08x\n",
+			table[i], lcd_clk_read(table[i]));
+	}
+
+	return len;
+}
+
 static void lcd_prbs_test_s6(struct aml_lcd_drv_s *pdrv, unsigned int ms,
 			    unsigned int mode_flag)
 {
@@ -427,6 +465,7 @@ static struct lcd_clk_data_s lcd_clk_data_s6 = {
 	.clk_disable = lcd_clk_disable_s6,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = NULL,
+	.clk_reg_print = lcd_clk_reg_dump,
 	.prbs_test = lcd_prbs_test_s6,
 };
 

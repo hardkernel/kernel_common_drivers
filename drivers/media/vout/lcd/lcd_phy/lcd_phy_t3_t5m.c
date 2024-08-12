@@ -14,6 +14,73 @@
 #include "lcd_phy_config.h"
 
 static struct lcd_phy_ctrl_s *phy_ctrl_p;
+static unsigned int chreg_reg[6] = {
+	ANACTRL_DIF_PHY_CNTL1, ANACTRL_DIF_PHY_CNTL2,
+	ANACTRL_DIF_PHY_CNTL3, ANACTRL_DIF_PHY_CNTL4,
+	ANACTRL_DIF_PHY_CNTL6, ANACTRL_DIF_PHY_CNTL7
+};
+
+static unsigned int chdig_reg[6] = {
+	ANACTRL_DIF_PHY_CNTL8, ANACTRL_DIF_PHY_CNTL9,
+	ANACTRL_DIF_PHY_CNTL10, ANACTRL_DIF_PHY_CNTL11,
+	ANACTRL_DIF_PHY_CNTL12, ANACTRL_DIF_PHY_CNTL13
+};
+
+static int lcd_phy_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int len = 0;
+	struct reg_name_set_s reg_table[] = {
+		{ANACTRL_DIF_PHY_CNTL1,  "PHY_CNTL1"},
+		{ANACTRL_DIF_PHY_CNTL2,  "PHY_CNTL2"},
+		{ANACTRL_DIF_PHY_CNTL3,  "PHY_CNTL3"},
+		{ANACTRL_DIF_PHY_CNTL4,  "PHY_CNTL4"},
+		{ANACTRL_DIF_PHY_CNTL6,  "PHY_CNTL6"},
+		{ANACTRL_DIF_PHY_CNTL7,  "PHY_CNTL7"},
+		{ANACTRL_DIF_PHY_CNTL8,  "PHY_CNTL8"},
+		{ANACTRL_DIF_PHY_CNTL9,  "PHY_CNTL9"},
+		{ANACTRL_DIF_PHY_CNTL10, "PHY_CNTL10"},
+		{ANACTRL_DIF_PHY_CNTL11, "PHY_CNTL11"},
+		{ANACTRL_DIF_PHY_CNTL12, "PHY_CNTL12"},
+		{ANACTRL_DIF_PHY_CNTL13, "PHY_CNTL13"},
+		{ANACTRL_DIF_PHY_CNTL14, "PHY_CNTL14"},
+		{ANACTRL_DIF_PHY_CNTL15, "PHY_CNTL15"},
+		{ANACTRL_DIF_PHY_CNTL16, "PHY_CNTL16"},
+	};
+
+	len = str_add_reg_sets(pdrv, buf, offset, LCD_REG_DBG_ANA_BUS, 0,
+				reg_table, ARRAY_SIZE(reg_table));
+	return len;
+}
+
+static int lcd_phy_param_get_from_reg(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy)
+{
+	unsigned int data32, chreg, chdig, bit;
+	int i;
+
+	data32 = lcd_ana_read(ANACTRL_DIF_PHY_CNTL14);
+	phy->vswing = data32 & 0xf;
+	phy->vcm = (data32 >> 4) & 0x7df;
+	phy->ref_bias = (data32 >> 15) & 0x1;
+	phy->odt = (data32 >> 24) & 0xff;
+
+	data32 = lcd_ana_read(ANACTRL_DIF_PHY_CNTL15);
+	phy->cv_mode = (data32 >> 19) & 0x1;
+
+	data32 = lcd_ana_read(ANACTRL_DIF_PHY_CNTL16);
+	phy->ckdi = (data32 >> 12) & 0xfff;
+
+	for (i = 0; i < phy->lane_num; i++) {
+		bit = i & 0x1 ? 16 : 0;
+		chreg = lcd_ana_getb(chreg_reg[i >> 1], bit, 16);
+		chdig = lcd_ana_getb(chdig_reg[i >> 1], bit, 16);
+
+		phy->lane[i].en = ((chreg >> 7) & 0x1) ? 0 : 1;
+		phy->lane[i].preem = (chreg >> 8) & 0xff;
+		phy->lane[i].amp = (chdig >> 3) & 0x7;
+	}
+
+	return 0;
+}
 
 static void lcd_phy_common_update(struct phy_config_s *phy, unsigned int cntl14)
 {
@@ -51,17 +118,6 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, struct phy_config_s *ph
 {
 	unsigned int chreg, reg_data = 0, chdig;
 	unsigned char i, bit;
-
-	unsigned int chreg_reg[6] = {
-		ANACTRL_DIF_PHY_CNTL1, ANACTRL_DIF_PHY_CNTL2,
-		ANACTRL_DIF_PHY_CNTL3, ANACTRL_DIF_PHY_CNTL4,
-		ANACTRL_DIF_PHY_CNTL6, ANACTRL_DIF_PHY_CNTL7,
-	};
-	unsigned int chdig_reg[6] = {
-		ANACTRL_DIF_PHY_CNTL8, ANACTRL_DIF_PHY_CNTL9,
-		ANACTRL_DIF_PHY_CNTL10, ANACTRL_DIF_PHY_CNTL11,
-		ANACTRL_DIF_PHY_CNTL12, ANACTRL_DIF_PHY_CNTL13,
-	};
 
 	if (status == LCD_PHY_LOCK_LANE)
 		return;
@@ -130,6 +186,7 @@ static void lcd_lvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 		else
 			flag = lvds_flag_6lane_map0[0][bit_idx];
 	}
+	phy->valid_lane = flag;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: %d, flag=0x%04x\n", pdrv->index, __func__, status, flag);
@@ -151,6 +208,8 @@ static void lcd_vbyone_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
 		LCDPR("%s: %d\n", __func__, status);
+
+	phy->valid_lane = 0xff;
 
 	if (status) {
 		if (phy->ext_pullup)
@@ -181,6 +240,7 @@ static void lcd_mlvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	channel_sel = channel_sel << 32 | mlvds_conf->channel_sel0;
 	for (i = 0; i < 12; i++)
 		flag |= ((channel_sel >> (4 * i)) & 0xf) == 0xf ? 0 : 1 << i;
+	phy->valid_lane = flag;
 
 	if (status) {
 		cntl14 = 0xff2027e0;
@@ -209,6 +269,7 @@ static void lcd_p2p_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	channel_sel = channel_sel << 32 | p2p_conf->channel_sel0;
 	for (i = 0; i < 12; i++)
 		flag |= ((channel_sel >> (4 * i)) & 0xf) == 0xf ? 0 : 1 << i;
+	phy->valid_lane = flag;
 
 	if (status) {
 		p2p_type = p2p_conf->p2p_type & 0x1f;
@@ -255,10 +316,14 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_t3_t5m = {
 	.lane_num = 12,
 	.ctrl_bit_on = 1,
 	.lane_lock = 0,
+
 	.phy_vswing_level_to_val = lcd_phy_vswing_level_to_value_dft,
 	.phy_preem_level_to_val = lcd_phy_preem_level_to_value_dft,
 	.phy_amp_dft_val = lcd_phy_amp_t5m,
 	.phy_glb_param_dft_val = lcd_phy_glb_param_dft,
+	.phy_param_get = lcd_phy_param_get_from_reg,
+	.phy_reg_dump = lcd_phy_reg_dump,
+
 	.phy_set_lvds = lcd_lvds_phy_set,
 	.phy_set_vx1 = lcd_vbyone_phy_set,
 	.phy_set_mlvds = lcd_mlvds_phy_set,

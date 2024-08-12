@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include "lcd_phy_config.h"
+#include "../lcd_common.h"
 
 static struct lcd_phy_ctrl_s *lcd_phy_ctrl;
 
@@ -62,6 +63,93 @@ int lcd_phy_param_preset(struct aml_lcd_drv_s *pdrv)
 	}
 
 	return 0;
+}
+
+int lcd_phy_param_get(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy)
+{
+	int ret;
+
+	if (!pdrv || !phy)
+		return -1;
+	if (!lcd_phy_ctrl->phy_param_get) {
+		LCDPR("[%d]: %s: phy_param_get is null\n", pdrv->index, __func__);
+		return -1;
+	}
+
+	phy->flag = pdrv->config.phy_cfg.flag;
+	phy->lane_num = pdrv->config.phy_cfg.lane_num;
+	phy->state = pdrv->config.phy_cfg.state;
+	phy->ch_swap0 = pdrv->config.phy_cfg.ch_swap0;
+	phy->ch_swap1 = pdrv->config.phy_cfg.ch_swap1;
+	phy->vswing_level = pdrv->config.phy_cfg.vswing_level;
+	phy->ext_pullup = pdrv->config.phy_cfg.ext_pullup;
+	phy->preem_level = pdrv->config.phy_cfg.preem_level;
+	phy->weakly_pull_down = pdrv->config.phy_cfg.weakly_pull_down;
+	phy->low_common_mode = pdrv->config.phy_cfg.low_common_mode;
+	phy->valid_lane = pdrv->config.phy_cfg.valid_lane;
+	ret = lcd_phy_ctrl->phy_param_get(pdrv, phy);
+	return ret;
+}
+
+int lcd_phy_param_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	struct phy_config_s local_phy, *phy;
+	int i, len = 0, ret;
+
+	if (!pdrv)
+		return 0;
+	ret = lcd_phy_param_get(pdrv, &local_phy);
+	if (ret)
+		return 0;
+	lcd_lane_sel_get(pdrv, &local_phy);
+
+	phy = &pdrv->config.phy_cfg;
+	len = sprintf(buf,
+		"vswing  = 0x%x(0x%x)\n"
+		"odt     = 0x%x(0x%x)\n"
+		"vcm     = 0x%x(0x%x)\n"
+		"cv_mode = %d(%d)\n"
+		"ref_bias= %d(%d)\n",
+		phy->vswing, local_phy.vswing,
+		phy->odt, local_phy.odt,
+		phy->vcm, local_phy.vcm,
+		phy->cv_mode, local_phy.cv_mode,
+		phy->ref_bias, local_phy.ref_bias);
+	len += sprintf(buf + len, "  lane  en    sel       amp       preem\n");
+	for (i = 0; i < local_phy.lane_num; i++) {
+		len += sprintf(buf + len,
+			"  [%2d]: %d(%d), 0x%x(0x%x), 0x%x(0x%x), 0x%x(0x%x)\n",
+			i, phy->lane[i].en, local_phy.lane[i].en,
+			phy->lane[i].sel, local_phy.lane[i].sel,
+			phy->lane[i].amp, local_phy.lane[i].amp,
+			phy->lane[i].preem, local_phy.lane[i].preem);
+	}
+	len += sprintf(buf + len,
+		"flag=0x%x, state=%d, lane_num=%d, valid_lane=0x%x, ",
+		phy->flag, phy->state, phy->lane_num, phy->valid_lane);
+	len += sprintf(buf + len,
+		"ch_swap0=0x%x, ch_swap1=0x%x, ckdi=0x%x\n",
+		phy->ch_swap0, phy->ch_swap1, phy->ckdi);
+
+	return len;
+}
+
+int lcd_phy_analog_reg_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int n, len = 0;
+
+	if (!pdrv)
+		return 0;
+	if (!lcd_phy_ctrl->phy_reg_dump) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "%s: phy_reg_dump is null\n", __func__);
+		return len;
+	}
+
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n, "\nphy analog regs:\n");
+	len += lcd_phy_ctrl->phy_reg_dump(pdrv, (buf + len), (len + offset));
+	return len;
 }
 
 void lcd_phy_set(struct aml_lcd_drv_s *pdrv, int status)

@@ -17,9 +17,8 @@
 #include "lcd_reg.h"
 #include "lcd_common.h"
 
-static void lcd_ch_swap_to_lane_sel(struct aml_lcd_drv_s *pdrv)
+static void lcd_ch_swap_to_lane_sel(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy)
 {
-	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int sel = 0xff;
 	int i, n;
 
@@ -259,7 +258,7 @@ void lcd_lane_map_preset(struct aml_lcd_drv_s *pdrv)
 	default:
 		break;
 	}
-	lcd_ch_swap_to_lane_sel(pdrv);
+	lcd_ch_swap_to_lane_sel(pdrv, phy);
 	if (pdrv->config.basic.lcd_type == LCD_MLVDS)
 		lcd_mlvds_phy_ckdi_config(pdrv);
 
@@ -303,6 +302,49 @@ void lcd_lane_map_update(struct aml_lcd_drv_s *pdrv)
 		lcd_mlvds_phy_ckdi_config(pdrv);
 }
 
+int lcd_lane_sel_get(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy)
+{
+	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	unsigned int offset;
+
+	if (!pdrv || !phy)
+		return -1;
+
+	offset = pdrv->data->offset_venc_if[pdrv->index];
+	switch (pdrv->data->chip_type) {
+	case LCD_CHIP_TL1:
+	case LCD_CHIP_TM2:
+	case LCD_CHIP_T5:
+	case LCD_CHIP_T5D:
+	case LCD_CHIP_TXHD2:
+		phy->ch_swap0 = lcd_vcbus_read(P2P_CH_SWAP0);
+		phy->ch_swap1 = lcd_vcbus_read(P2P_CH_SWAP1);
+		lcd_ch_swap_to_lane_sel(pdrv, phy);
+		break;
+	case LCD_CHIP_T5M:
+		phy->ch_swap0 = lcd_vcbus_read(P2P_CH_SWAP0_T7);
+		phy->ch_swap1 = lcd_vcbus_read(P2P_CH_SWAP1_T7);
+		lcd_ch_swap_to_lane_sel(pdrv, phy);
+		break;
+	case LCD_CHIP_T7:
+	case LCD_CHIP_T5W:
+	case LCD_CHIP_T3:
+		phy->ch_swap0 = lcd_vcbus_read(P2P_CH_SWAP0_T7 + offset);
+		phy->ch_swap1 = lcd_vcbus_read(P2P_CH_SWAP1_T7 + offset);
+		lcd_ch_swap_to_lane_sel(pdrv, phy);
+		break;
+	case LCD_CHIP_T3X: /* reg P2P_CH_SWAP can't readback, just use phy_cfg value */
+		phy->ch_swap0 = phy_cfg->ch_swap0;
+		phy->ch_swap1 = phy_cfg->ch_swap1;
+		lcd_ch_swap_to_lane_sel(pdrv, phy);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 void lcd_lane_map_set(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int offset, channel_sel0, channel_sel1;
@@ -329,9 +371,14 @@ void lcd_lane_map_set(struct aml_lcd_drv_s *pdrv)
 	case LCD_CHIP_T7:
 	case LCD_CHIP_T5W:
 	case LCD_CHIP_T3:
-	case LCD_CHIP_T3X:
 		lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, channel_sel0);
 		lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, channel_sel1);
+		break;
+	case LCD_CHIP_T3X: /* reg P2P_CH_SWAP can't readback, so print value when write reg */
+		lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, channel_sel0);
+		lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, channel_sel1);
+		LCDPR("[%d]: %s: P2P_CH_SWAP0=0x%x, P2P_CH_SWAP1=0x%x\n",
+			pdrv->index, __func__, channel_sel0, channel_sel1);
 		break;
 	default:
 		break;
@@ -470,45 +517,7 @@ void lcd_lvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 			val_lane_sel = dual_port ? 0xaaaaa : 0x2aa;
 			len_lane_sel = dual_port ? 20 : 10;
 		}
-		break;
-	case LCD_CHIP_T3X:
-		if (pdrv->index == 0) { /* lane0~lane4 */
-			reg_dphy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0;
-			reg_dphy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1;
-			bit_data_in_lvds = 0;
-			bit_data_in_edp = 1;
-			bit_lane_sel = 0;
-			// should only t3x drv0 has dual port
-			val_lane_sel = dual_port ? 0x5550555 : 0x155;
-			len_lane_sel = dual_port ? 32 : 10;
-		} else { /* lane10~lane14 */
-			reg_dphy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL0;
-			reg_dphy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL1;
-			bit_data_in_lvds = 2;
-			bit_data_in_edp = 3;
-			bit_lane_sel = 10;
-			val_lane_sel = 0x155;
-			len_lane_sel = 10;
-		}
-		break;
-	case LCD_CHIP_T3:
-	case LCD_CHIP_T5M:
-	case LCD_CHIP_T6D:
-		reg_dphy_tx_ctrl0 = ANACTRL_LVDS_TX_PHY_CNTL0;
-		reg_dphy_tx_ctrl1 = ANACTRL_LVDS_TX_PHY_CNTL1;
-		break;
-	case LCD_CHIP_TXHD2:
-		reg_dphy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0_TXHD2;
-		reg_dphy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1_TXHD2;
-		break;
-	default:
-		reg_dphy_tx_ctrl0 = HHI_LVDS_TX_PHY_CNTL0;
-		reg_dphy_tx_ctrl1 = HHI_LVDS_TX_PHY_CNTL1;
-		break;
-	}
 
-	switch (pdrv->data->chip_type) {
-	case LCD_CHIP_T7:
 		if (on_off) {
 			// sel dphy data_in
 			if (bit_data_in_edp < 0xff)
@@ -535,10 +544,28 @@ void lcd_lvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 		}
 		break;
 	case LCD_CHIP_T3X:
+		if (pdrv->index == 0) { /* lane0~lane4 */
+			reg_dphy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0;
+			reg_dphy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1;
+			bit_data_in_lvds = 0;
+			bit_data_in_edp = 1;
+			bit_lane_sel = 0;
+			// should only t3x drv0 has dual port
+			val_lane_sel = dual_port ? 0x5550555 : 0x155;
+			len_lane_sel = dual_port ? 32 : 10;
+		} else { /* lane10~lane14 */
+			reg_dphy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL0;
+			reg_dphy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL1;
+			bit_data_in_lvds = 2;
+			bit_data_in_edp = 3;
+			bit_lane_sel = 10;
+			val_lane_sel = 0x155;
+			len_lane_sel = 10;
+		}
+
 		if (on_off) {
 			// sel dphy data_in
-			if (bit_data_in_edp < 0xff)
-				lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0, 0, bit_data_in_edp, 1);
+			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0, 0, bit_data_in_edp, 1);
 			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0, 1, bit_data_in_lvds, 1);
 			// sel dphy lane
 			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1, val_lane_sel,
@@ -566,25 +593,27 @@ void lcd_lvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 	case LCD_CHIP_T5M:
 		if (on_off) {
 			/* set fifo_clk_sel: div 7 */
-			lcd_ana_write(reg_dphy_tx_ctrl0, (1 << 6));
+			lcd_ana_write(ANACTRL_LVDS_TX_PHY_CNTL0, (1 << 6));
 			/* set cntl_ser_en:  8-channel to 1 */
-			lcd_ana_setb(reg_dphy_tx_ctrl0, 0xfff, 16, 12);
+			lcd_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL0, 0xfff, 16, 12);
 			/* pn swap */
-			lcd_ana_setb(reg_dphy_tx_ctrl0, 1, 2, 1);
+			lcd_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL0, 1, 2, 1);
 			/* decoupling fifo enable, gated clock enable */
-			lcd_ana_write(reg_dphy_tx_ctrl1, (1 << 30) | (1 << 24));
+			lcd_ana_write(ANACTRL_LVDS_TX_PHY_CNTL1, (1 << 30) | (1 << 24));
 			/* decoupling fifo write enable after fifo enable */
-			lcd_ana_setb(reg_dphy_tx_ctrl1, 1, 31, 1);
+			lcd_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL1, 1, 31, 1);
 
 			lcd_lane_map_set(pdrv);
 		} else {
 			/* disable fifo */
-			lcd_ana_setb(reg_dphy_tx_ctrl1, 0, 30, 2);
+			lcd_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL1, 0, 30, 2);
 			/* disable lane */
-			lcd_ana_setb(reg_dphy_tx_ctrl0, 0, 16, 12);
+			lcd_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL0, 0, 16, 12);
 		}
 		break;
 	case LCD_CHIP_TXHD2:
+		reg_dphy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0_TXHD2;
+		reg_dphy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1_TXHD2;
 		if (on_off) {
 			/* set fifo_clk_sel: div 7 */
 			lcd_combo_dphy_write(pdrv, reg_dphy_tx_ctrl0, (1 << 6));
@@ -602,29 +631,33 @@ void lcd_lvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 		}
 		break;
 	case LCD_CHIP_T6D:
-		lcd_ana_write(reg_dphy_tx_ctrl1, on_off ? 0xc3000000 : 0);
-		lcd_lane_map_set(pdrv);
+		if (on_off) {
+			lcd_ana_write(ANACTRL_LVDS_TX_PHY_CNTL1, 0xc3000000);
+			lcd_lane_map_set(pdrv);
+		} else {
+			lcd_ana_write(ANACTRL_LVDS_TX_PHY_CNTL1, 0);
+		}
 		break;
 	default:
 		if (on_off) {
 			/* set fifo_clk_sel: div 7 */
-			lcd_ana_write(reg_dphy_tx_ctrl0, (1 << 6));
+			lcd_ana_write(HHI_LVDS_TX_PHY_CNTL0, (1 << 6));
 			/* set cntl_ser_en:  8-channel to 1 */
-			lcd_ana_setb(reg_dphy_tx_ctrl0, 0xfff, 16, 12);
+			lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 0xfff, 16, 12);
 			/* pn swap */
-			lcd_ana_setb(reg_dphy_tx_ctrl0, 1, 2, 1);
+			lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 1, 2, 1);
 			/* decoupling fifo enable, gated clock enable */
-			lcd_ana_write(reg_dphy_tx_ctrl1,
+			lcd_ana_write(HHI_LVDS_TX_PHY_CNTL1,
 				(1 << 30) | ((phy_div - 1) << 25) | (1 << 24));
 			/* decoupling fifo write enable after fifo enable */
-			lcd_ana_setb(reg_dphy_tx_ctrl1, 1, 31, 1);
+			lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL1, 1, 31, 1);
 
 			lcd_lane_map_set(pdrv);
 		} else {
 			/* disable fifo */
-			lcd_ana_setb(reg_dphy_tx_ctrl1, 0, 30, 2);
+			lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL1, 0, 30, 2);
 			/* disable lane */
-			lcd_ana_setb(reg_dphy_tx_ctrl0, 0, 16, 12);
+			lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 0, 16, 12);
 		}
 		break;
 	}
@@ -652,6 +685,45 @@ void lcd_vbyone_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T7:
+		if (pdrv->index == 0) {
+			reg_dphy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0;
+			reg_dphy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1;
+			bit_data_in_lvds = 0;
+			bit_data_in_edp = 1;
+			bit_lane_sel = 0;
+			lane_sel = 0x5555;
+		} else { // drv1
+			reg_dphy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL0;
+			reg_dphy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL1;
+			bit_data_in_lvds = 2;
+			bit_data_in_edp = 3;
+			bit_lane_sel = 16;
+			lane_sel = 0xaaaa;
+		}
+
+		if (on_off) {
+			// sel dphy data_in
+			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0, 0, bit_data_in_edp, 1);
+			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0, 1, bit_data_in_lvds, 1);
+			// sel dphy lane
+			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1, 0x5555, bit_lane_sel, 16);
+			/* set fifo_clk_sel: div 7 */
+			lcd_combo_dphy_write(pdrv, reg_dphy_tx_ctrl0, (div_sel << 5));
+			/* set cntl_ser_en:  8-channel to 1 */
+			lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl0, 0xff, 16, 8);
+			/* decoupling fifo enable, gated clock enable */
+			lcd_combo_dphy_write(pdrv, reg_dphy_tx_ctrl1, (1 << 6) | (1 << 0));
+			/* decoupling fifo write enable after fifo enable */
+			lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl1, 1, 7, 1);
+
+			lcd_lane_map_set(pdrv);
+		} else {
+			/* disable fifo */
+			lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl1, 0, 6, 2);
+			/* disable lane */
+			lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl0, 0, 16, 16);
+		}
+		break;
 	case LCD_CHIP_T3X:
 		if (pdrv->index == 0) {
 			reg_dphy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0;
@@ -667,6 +739,33 @@ void lcd_vbyone_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 			bit_data_in_edp = 3;
 			bit_lane_sel = 16;
 			lane_sel = 0xaaaa;
+		}
+
+		if (on_off) {
+			// sel dphy data_in
+			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0, 0, bit_data_in_edp, 1);
+			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0, 1, bit_data_in_lvds, 1);
+			// sel dphy lane
+			if (pdrv->index == 0 && lane_num > 8)  // T3X 16-lane
+				lcd_combo_dphy_write(pdrv, COMBO_DPHY_CNTL1, 0x55555555);
+			else  // lane8~15 sel [1]: mux to phy0 lane8~15, [2]: mux to phy1 lane0~7
+				lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1,
+					lane_sel, bit_lane_sel, 16);
+			/* set fifo_clk_sel: div 7 */
+			lcd_combo_dphy_write(pdrv, reg_dphy_tx_ctrl0, (div_sel << 5));
+			/* set cntl_ser_en:  8-channel to 1 */
+			lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl0, 0xffff, 16, 16);
+			/* decoupling fifo enable, gated clock enable */
+			lcd_combo_dphy_write(pdrv, reg_dphy_tx_ctrl1, (1 << 6) | (1 << 0));
+			/* decoupling fifo write enable after fifo enable */
+			lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl1, 1, 7, 1);
+
+			lcd_lane_map_set(pdrv);
+		} else {
+			/* disable fifo */
+			lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl1, 0, 6, 2);
+			/* disable lane */
+			lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl0, 0, 16, 16);
 		}
 		break;
 	case LCD_CHIP_T3:
@@ -684,51 +783,7 @@ void lcd_vbyone_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 			cntl_ser_mask = 0xf;
 			bit_fifo_clk = 3;
 		}
-		break;
-	default:
-		reg_dphy_tx_ctrl0 = HHI_LVDS_TX_PHY_CNTL0;
-		reg_dphy_tx_ctrl1 = HHI_LVDS_TX_PHY_CNTL1;
-		break;
-	}
 
-	switch (pdrv->data->chip_type) {
-	case LCD_CHIP_T7:
-	case LCD_CHIP_T3X:
-		if (on_off) {
-			// sel dphy data_in
-			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0, 0, bit_data_in_edp, 1);
-			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0, 1, bit_data_in_lvds, 1);
-			// sel dphy lane
-			if (pdrv->data->chip_type == LCD_CHIP_T7)
-				lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1,
-					0x5555, bit_lane_sel, 16);
-			else if (pdrv->index == 0 && lane_num > 8)  // T3X 16-lane
-				lcd_combo_dphy_write(pdrv, COMBO_DPHY_CNTL1, 0x55555555);
-			else  // lane8~15 sel [1]: mux to phy0 lane8~15, [2]: mux to phy1 lane0~7
-				lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1,
-					lane_sel, bit_lane_sel, 16);
-			/* set fifo_clk_sel: div 7 */
-			lcd_combo_dphy_write(pdrv, reg_dphy_tx_ctrl0, (div_sel << 5));
-			/* set cntl_ser_en:  8-channel to 1 */
-			if (pdrv->data->chip_type == LCD_CHIP_T7)
-				lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl0, 0xff, 16, 8);
-			if (pdrv->data->chip_type == LCD_CHIP_T3X)
-				lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl0, 0xffff, 16, 16);
-			/* decoupling fifo enable, gated clock enable */
-			lcd_combo_dphy_write(pdrv, reg_dphy_tx_ctrl1, (1 << 6) | (1 << 0));
-			/* decoupling fifo write enable after fifo enable */
-			lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl1, 1, 7, 1);
-
-			lcd_lane_map_set(pdrv);
-		} else {
-			/* disable fifo */
-			lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl1, 0, 6, 2);
-			/* disable lane */
-			lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl0, 0, 16, 16);
-		}
-		break;
-	case LCD_CHIP_T3:
-	case LCD_CHIP_T5M:
 		if (on_off) {
 			/* set fifo_clk_sel: div 7 */
 			lcd_ana_write(reg_dphy_tx_ctrl0, (div_sel << 6));
@@ -752,23 +807,23 @@ void lcd_vbyone_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 	default:
 		if (on_off) {
 			/* set fifo_clk_sel: div 7 */
-			lcd_ana_write(reg_dphy_tx_ctrl0, (div_sel << 6));
+			lcd_ana_write(HHI_LVDS_TX_PHY_CNTL0, (div_sel << 6));
 			/* set cntl_ser_en:  8-channel to 1 */
-			lcd_ana_setb(reg_dphy_tx_ctrl0, 0xfff, 16, 12);
+			lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 0xfff, 16, 12);
 			/* pn swap */
-			lcd_ana_setb(reg_dphy_tx_ctrl0, 1, 2, 1);
+			lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 1, 2, 1);
 			/* decoupling fifo enable, gated clock enable */
-			lcd_ana_write(reg_dphy_tx_ctrl1,
+			lcd_ana_write(HHI_LVDS_TX_PHY_CNTL1,
 				(1 << 30) | ((phy_div - 1) << 25) | (1 << 24));
 			/* decoupling fifo write enable after fifo enable */
-			lcd_ana_setb(reg_dphy_tx_ctrl1, 1, 31, 1);
+			lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL1, 1, 31, 1);
 
 			lcd_lane_map_set(pdrv);
 		} else {
 			/* disable fifo */
-			lcd_ana_setb(reg_dphy_tx_ctrl1, 0, 30, 2);
+			lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL1, 0, 30, 2);
 			/* disable lane */
-			lcd_ana_setb(reg_dphy_tx_ctrl0, 0, 16, 12);
+			lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 0, 16, 12);
 		}
 		break;
 	}
@@ -969,4 +1024,156 @@ void lcd_p2p_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 		}
 		break;
 	}
+}
+
+int lcd_dphy_reg_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int len = 0;
+	struct reg_name_set_s *reg_dphy_table = NULL, *reg_ctrl_table = NULL, *reg_ch_swap = NULL;
+	unsigned int size_dphy = 0, size_ctrl = 0, size_ch_swap = 0, reg_bus, reg_offset;
+	struct reg_name_set_s ch_swap_reg_dft[] = {
+		{P2P_CH_SWAP0, "P2P_CH_SWAP0"},
+		{P2P_CH_SWAP1, "P2P_CH_SWAP1"}
+	};
+	struct reg_name_set_s ch_swap_reg_t7[] = {
+		{P2P_CH_SWAP0_T7, "P2P_CH_SWAP0"},
+		{P2P_CH_SWAP1_T7, "P2P_CH_SWAP1"}
+	};
+	struct reg_name_set_s dphy_reg_dft[] = {
+		{HHI_LVDS_TX_PHY_CNTL0, "HHI_LVDS_TX_PHY_CNTL0"},
+		{HHI_LVDS_TX_PHY_CNTL1, "HHI_LVDS_TX_PHY_CNTL1"}
+	};
+	struct reg_name_set_s dphy_ctrl_reg_t7[] = {
+		{COMBO_DPHY_CNTL0, "COMBO_DPHY_CNTL0"},
+		{COMBO_DPHY_CNTL1, "COMBO_DPHY_CNTL1"}
+	};
+	struct reg_name_set_s dphy_reg_t7[] = {
+		{COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0, "COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0"},
+		{COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1, "COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1"},
+		{COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL0, "COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL0"},
+		{COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL1, "COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL1"},
+		{COMBO_DPHY_EDP_LVDS_TX_PHY2_CNTL0, "COMBO_DPHY_EDP_LVDS_TX_PHY2_CNTL0"},
+		{COMBO_DPHY_EDP_LVDS_TX_PHY2_CNTL1, "COMBO_DPHY_EDP_LVDS_TX_PHY2_CNTL1"}
+	};
+	struct reg_name_set_s dphy_reg_t3[] = {
+		{ANACTRL_LVDS_TX_PHY_CNTL0, "ANACTRL_LVDS_TX_PHY_CNTL0"},
+		{ANACTRL_LVDS_TX_PHY_CNTL1, "ANACTRL_LVDS_TX_PHY_CNTL1"},
+		{ANACTRL_LVDS_TX_PHY_CNTL2, "ANACTRL_LVDS_TX_PHY_CNTL2"},
+		{ANACTRL_LVDS_TX_PHY_CNTL3, "ANACTRL_LVDS_TX_PHY_CNTL3"}
+	};
+	struct reg_name_set_s dphy_reg_txhd2[] = {
+		{COMBO_DPHY_CNTL0_TXHD2,                  "COMBO_DPHY_CNTL0"},
+		{COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0_TXHD2, "COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0"},
+		{COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1_TXHD2, "COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1"}
+	};
+
+	if (!pdrv)
+		return 0;
+
+	switch (pdrv->data->chip_type) {
+	case LCD_CHIP_TL1:
+	case LCD_CHIP_TM2:
+		reg_ch_swap = ch_swap_reg_dft;
+		size_ch_swap = ARRAY_SIZE(ch_swap_reg_dft);
+		reg_dphy_table = dphy_reg_dft;
+		size_dphy = ARRAY_SIZE(dphy_reg_dft);
+		reg_bus = LCD_REG_DBG_HHI_BUS;
+		break;
+	case LCD_CHIP_T5:
+	case LCD_CHIP_T5D:
+		reg_ch_swap = ch_swap_reg_dft;
+		size_ch_swap = ARRAY_SIZE(ch_swap_reg_dft);
+		reg_dphy_table = dphy_reg_dft;
+		size_dphy = ARRAY_SIZE(dphy_reg_dft);
+		reg_bus = LCD_REG_DBG_ANA_BUS;
+		break;
+	case LCD_CHIP_T5W:
+		reg_ch_swap = ch_swap_reg_t7;
+		size_ch_swap = ARRAY_SIZE(ch_swap_reg_t7);
+		reg_dphy_table = dphy_reg_dft;
+		size_dphy = ARRAY_SIZE(dphy_reg_dft);
+		reg_bus = LCD_REG_DBG_ANA_BUS;
+		break;
+	case LCD_CHIP_T7:
+		reg_ch_swap = ch_swap_reg_t7;
+		size_ch_swap = ARRAY_SIZE(ch_swap_reg_t7);
+		reg_ctrl_table = dphy_ctrl_reg_t7;
+		size_ctrl = ARRAY_SIZE(dphy_ctrl_reg_t7);
+		if (pdrv->index == 2) {
+			reg_dphy_table = &dphy_reg_t7[4];
+			size_dphy = 2;
+		} else if (pdrv->index == 1) {
+			reg_dphy_table = &dphy_reg_t7[2];
+			size_dphy = 2;
+		} else {
+			reg_dphy_table = &dphy_reg_t7[0];
+			size_dphy = 2;
+		}
+		reg_bus = LCD_REG_DBG_COMBOPHY_BUS;
+		break;
+	case LCD_CHIP_T3:
+		reg_ch_swap = ch_swap_reg_t7;
+		size_ch_swap = ARRAY_SIZE(ch_swap_reg_t7);
+		if (pdrv->index) {
+			reg_dphy_table = &dphy_reg_t3[2];
+			size_dphy = 2;
+		} else {
+			reg_dphy_table = &dphy_reg_t3[0];
+			size_dphy = 2;
+		}
+		reg_bus = LCD_REG_DBG_ANA_BUS;
+		break;
+	case LCD_CHIP_T5M:
+		reg_ch_swap = ch_swap_reg_t7;
+		size_ch_swap = ARRAY_SIZE(ch_swap_reg_t7);
+		reg_dphy_table = &dphy_reg_t3[0];
+		size_dphy = 2;
+		reg_bus = LCD_REG_DBG_ANA_BUS;
+		break;
+	case LCD_CHIP_T3X:
+		reg_ch_swap = ch_swap_reg_t7;
+		size_ch_swap = ARRAY_SIZE(ch_swap_reg_t7);
+		reg_ctrl_table = dphy_ctrl_reg_t7;
+		size_ctrl = ARRAY_SIZE(dphy_ctrl_reg_t7);
+		if (pdrv->index) {
+			reg_dphy_table = &dphy_reg_t7[2];
+			size_dphy = 2;
+		} else {
+			reg_dphy_table = &dphy_reg_t7[0];
+			size_dphy = 2;
+		}
+		reg_bus = LCD_REG_DBG_COMBOPHY_BUS;
+		break;
+	case LCD_CHIP_TXHD2:
+		reg_ch_swap = ch_swap_reg_dft;
+		size_ch_swap = ARRAY_SIZE(ch_swap_reg_dft);
+		reg_dphy_table = dphy_reg_txhd2;
+		size_dphy = ARRAY_SIZE(dphy_reg_txhd2);
+		reg_bus = LCD_REG_DBG_COMBOPHY_BUS;
+		break;
+	case LCD_CHIP_T6D:
+		reg_ch_swap = ch_swap_reg_t7;
+		size_ch_swap = ARRAY_SIZE(ch_swap_reg_t7);
+		reg_dphy_table = dphy_reg_t3;
+		size_dphy = 2;
+		reg_bus = LCD_REG_DBG_ANA_BUS;
+		break;
+	default:
+		return 0;
+	}
+
+	if (reg_ch_swap) {
+		reg_offset = pdrv->data->offset_venc_if[pdrv->index];
+		len += str_add_reg_sets(pdrv, buf + len, len + offset,
+			LCD_REG_DBG_VC_BUS, reg_offset,
+			reg_ch_swap, size_ch_swap);
+	}
+	if (reg_ctrl_table) {
+		len += str_add_reg_sets(pdrv, buf + len, len + offset, reg_bus, 0,
+			reg_ctrl_table, size_ctrl);
+	}
+	len += str_add_reg_sets(pdrv, buf + len, len + offset, reg_bus, 0,
+			reg_dphy_table, size_dphy);
+
+	return len;
 }

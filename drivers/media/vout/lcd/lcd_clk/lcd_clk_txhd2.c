@@ -392,6 +392,54 @@ static void lcd_set_tcon_clk_txhd2(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_global_reset(pdrv);
 }
 
+static int lcd_clk_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int i = 0, n, len = 0;
+	unsigned int *table = NULL, size = 0;
+	unsigned int pll_reg_table[] = {
+		HHI_TCON_PLL_CNTL0,
+		HHI_TCON_PLL_CNTL1,
+		HHI_TCON_PLL_CNTL2,
+		HHI_TCON_PLL_CNTL3,
+		HHI_TCON_PLL_CNTL4,
+		HHI_TCON_PLL_CNTL5,
+		HHI_TCON_PLL_CNTL6
+	};
+	unsigned int clk_reg_table[] = {
+		HHI_VIID_CLK_DIV,
+		HHI_VIID_CLK_CNTL,
+		HHI_VID_CLK_CNTL2,
+		HHI_TCON_CLK_CNTL,
+		HHI_MIPIDSI_PHY_CLK_CNTL
+	};
+
+	if (!pdrv)
+		return 0;
+
+	table = pll_reg_table;
+	size = ARRAY_SIZE(pll_reg_table);
+	for (i = 0; i < size; i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "pll [0x%02x] = 0x%08x\n",
+			table[i], lcd_ana_read(table[i]));
+	}
+
+	table = clk_reg_table;
+	size = ARRAY_SIZE(clk_reg_table);
+	for (i = 0; i < size; i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "clk [0x%02x] = 0x%08x\n",
+			table[i], lcd_clk_read(table[i]));
+	}
+
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n, "combo_dphy [0x%02x] = 0x%08x\n",
+		COMBO_DPHY_VID_PLL0_DIV_TXHD2,
+		lcd_combo_dphy_read(pdrv, COMBO_DPHY_VID_PLL0_DIV_TXHD2));
+
+	return len;
+}
+
 static void lcd_prbs_config_clk(struct aml_lcd_drv_s *pdrv, unsigned int lcd_prbs_mode,
 		unsigned int *encl_clk, unsigned int *fifo_clk)
 {
@@ -586,6 +634,7 @@ static struct lcd_clk_data_s lcd_clk_data_txhd2 = {
 	.mlvds_clk_phase_set = lcd_set_mlvds_clk_phase_txhd2,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
+	.clk_reg_print = lcd_clk_reg_dump,
 	.prbs_test = lcd_clk_prbs_test_txhd2,
 };
 

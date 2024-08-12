@@ -25,6 +25,7 @@ struct lcd_venc_op_s {
 	unsigned int (*get_encl_line_cnt)(struct aml_lcd_drv_s *pdrv);
 	unsigned int (*get_encl_frm_cnt)(struct aml_lcd_drv_s *pdrv);
 	void (*venc_set_vtotal)(struct aml_lcd_drv_s *pdrv, unsigned int vtotal);
+	int (*venc_reg_dump)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 };
 
 int lcd_venc_op_init_dft(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_op);
