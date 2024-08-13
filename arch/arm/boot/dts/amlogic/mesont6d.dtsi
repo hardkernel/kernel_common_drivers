@@ -2988,12 +2988,12 @@
 			       <400000000>,
 			       <0>; /* Do Nothing */
 
-	tbl =  <&dvfs400_cfg
+	tbl =  <&dvfs250_cfg
 		&dvfs400_cfg
-		&dvfs400_cfg
-		&dvfs400_cfg
-		&dvfs400_cfg
-		&dvfs400_cfg>;
+		&dvfs500_cfg
+		&dvfs666_cfg
+		&dvfs800_cfg
+		&dvfs800_cfg>;
 };
 
 #include "mesont6d_cpufreq.dtsi"
