@@ -8,3 +8,6 @@
 
 # amlogic-gpio.ko
   kstrndup
+
+# amlogic-usb.ko
+  devm_clk_bulk_get

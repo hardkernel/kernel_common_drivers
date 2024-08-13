@@ -1680,19 +1680,30 @@
 	};/*thermal zone end*/
 
 	usb_phy20: usbphy20@fe488000 {
-		compatible = "amlogic, amlogic-crg-drd-usb2";
+		compatible = "amlogic, amlogic-crg-drd-usb2-v1";
 		status = "disable";
 		reg = <0xfe488000 0x100 /* phy_base */
 				0xfe002000 0x100 /* reset_base */
 				0xfe48c000 0x60>; /* phy_cfg_bases */
 		pll-setting-5 = <0x7>;
-		pll-version = <4>;
 		phy0-reset-level-bit = <6>;
 		phy0-reg-reset-level-bit = <0>;
 		usb-reset-bit = <1>;
 		reset-level = <0x40>;
-		clocks = <&clkc CLKID_SYS_USB_U2DRD>;
-		clock-names = "crg_general";
+		clocks = <&clkc CLKID_SYS_USB_U2DRD>,
+					<&clkc CLKID_USB2_48M_PRE>,
+					<&clkc CLKID_USB2_48M_CLK>;
+		clock-names = "crg_general",
+					  "clk_soc_u2drd_48m_pre",
+					  "clk_soc_u2drd_48m";
+		/* 48m soc-digital cfg. */
+		assigned-clocks = <&clkc CLKID_USB2_48M_CLK>;
+		assigned-clock-parents = <&clkc CLKID_USB2_48M_PRE>;
+		/* 48m soc-analog cfg. */
+		//assigned-clocks = <&clkc CLKID_USB2_48M_CLK_TMP_SEL>,
+		//					<&clkc CLKID_USB2_48M_CLK>;
+		//assigned-clock-parents = <&clkc CLKID_USB_PLL>,
+		//					<&clkc CLKID_USB2_48M_CLK_TMP>;
 		phy-id = <0>;
 		usb-phy-trim-reg = <0xfe010330>;
 	};
@@ -1704,18 +1715,29 @@
 	};
 
 	usb_phy22: usbphy22@fe4a8000 {
-		compatible = "amlogic, amlogic-crg-drd-usb2";
+		compatible = "amlogic, amlogic-crg-drd-usb2-v1";
 		reg = <0xfe4a8000 0x100 /* phy_base */
 				0xfe002000 0x100 /* reset_base */
 				0xfe4ac000 0x60>; /* phy_cfg_bases */
 		pll-setting-5 = <0x7>;
-		pll-version = <4>;
 		phy0-reset-level-bit = <8>;
 		phy0-reg-reset-level-bit = <4>;
 		usb-reset-bit = <5>;
 		reset-level = <0x40>;
-		clocks = <&clkc CLKID_SYS_USB_U22H>;
-		clock-names = "crg_general";
+		clocks = <&clkc CLKID_SYS_USB_U22H>,
+					<&clkc CLKID_USB2_48M_PRE>,
+					<&clkc CLKID_USB2_48M_CLK>;
+		clock-names = "crg_general",
+					  "clk_soc_u2drd_48m_pre",
+					  "clk_soc_u2drd_48m";
+		/* 48m soc-digital cfg. */
+		assigned-clocks = <&clkc CLKID_USB2_48M_CLK>;
+		assigned-clock-parents = <&clkc CLKID_USB2_48M_PRE>;
+		/* 48m soc-analog cfg. */
+		//assigned-clocks = <&clkc CLKID_USB2_48M_CLK_TMP_SEL>,
+		//					<&clkc CLKID_USB2_48M_CLK>;
+		//assigned-clock-parents = <&clkc CLKID_USB_PLL>,
+		//					<&clkc CLKID_USB2_48M_CLK_TMP>;
 		phy-id = <2>;
 		usb-phy-trim-reg = <0xfe010330>;
 		status = "disable";
@@ -1728,13 +1750,12 @@
 	};
 
 	usb_phy21: usbphy21@fe498000 {
-		compatible = "amlogic, amlogic-crg-drd-usb2";
+		compatible = "amlogic, amlogic-crg-drd-usb2-v1";
 		status = "disable";
 		reg = <0xfe498000 0x100 /* phy_base */
 				0xfe002000 0x100 /* reset_base */
 				0xfe49c000 0x60>; /* phy_cfg_bases */
 		pll-setting-5 = <0x7>;
-		pll-version = <4>;
 		phy0-reset-level-bit = <7>;
 		phy0-reg-reset-level-bit = <2>;
 		usb-reset-bit = <3>;

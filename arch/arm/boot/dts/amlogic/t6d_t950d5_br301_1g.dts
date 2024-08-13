@@ -1282,7 +1282,15 @@
 
 &usb_phy20{
 	portnum = <1>;
-	portspeed = <0x3>;
+	/* Set portspeed to 1 & cfg clks to enable HSP mode. */
+	portspeed = <0x0>; /* 0: HS mode. 1: HSP mode */
+	/* clk src mux.
+	 * [0]: HS: normal comb clk. HSP: normal comb clk + 48m soc-digital clk.
+	 * [1~3]: 48m clk src selector for HSP mode:
+	 * phyclk/soc-digital/soc-analog.
+	 * For option 2&3, the clk cfg should be also modified in the dtsi.
+	 */
+	clk-mux = <0x0>;
 	status = "okay";
 };
 
@@ -1303,8 +1311,15 @@
 
 &usb_phy22{
 	portnum = <1>;
-	//portspeed = <0xffffffff>;
-	portspeed = <0x3>;
+	/* Set portspeed to 1 & cfg clks to enable HSP mode. */
+	portspeed = <0x0>; /* 0: HS mode. 1: HSP mode */
+	/* clk src mux.
+	 * [0]: HS: normal comb clk. HSP: normal comb clk + 48m soc-digital clk.
+	 * [1~3]: 48m clk src selector for HSP mode:
+	 * phyclk/soc-digital/soc-analog.
+	 * For option 2&3, the clk cfg should be also modified in the dtsi.
+	 */
+	clk-mux = <0x0>;
 	status = "okay";
 };
 
