@@ -20,6 +20,9 @@
 
 #include <linux/amlogic/media/mipi/am_mipi_csi2.h>
 
+#include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
+
 #include "../tvin_global.h"
 #include "../vdin/vdin_regs.h"
 #include "../vdin/vdin_drv.h"
@@ -362,8 +365,6 @@ static int amcsi_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port,
 		return -1;
 	}
 
-	init_am_mipi_csi2_clock();
-
 	csi_devp->para.port = port;
 
 	memcpy(&csi_devp->csi_parm,
@@ -374,8 +375,11 @@ static int amcsi_feopen(struct tvin_frontend_s *fe, enum tvin_port_e port,
 	csi_devp->csi_parm.lanes = g_sensor_info.nlanes;
 	csi_devp->reset = 0;
 	csi_devp->reset_count = 0;
+	if (csi_devp->dev)
+		pm_runtime_get_sync(csi_devp->dev);
 
 	cal_csi_para(csi_devp);
+	enable_am_mipi_csi2_clk();
 	am_mipi_csi2_init(csi_devp);
 	csi_devp->fe_status = CAMERA_FE_OPEN;
 	DPRINT("%s camera fe open\n", __func__);
@@ -402,6 +406,9 @@ static void amcsi_feclose(struct tvin_frontend_s *fe, enum tvin_port_type_e port
 		devp->fe_status = CAMERA_FE_CLOSE;
 	}
 	am_mipi_csi2_uninit(devp);
+	disable_am_mipi_csi2_clk();
+	if (devp->dev)
+		pm_runtime_put_sync(devp->dev);
 
 	memset(&devp->para, 0, sizeof(struct vdin_parm_s));
 }
@@ -519,6 +526,7 @@ static int amvdec_csi_probe(struct platform_device *pdev)
 	// keep this assignment first.
 	// other initialization may depends on chip info.
 	devp->csi_chip_info = &g_csi_chip_info;
+	devp->dev = &pdev->dev;
 
 	ret = csi_add_cdev(&devp->cdev, &amcsi_fops, 0);
 	if (ret != 0) {
@@ -543,6 +551,8 @@ static int amvdec_csi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, devp);
 
 	am_mipi_csi2_para_init(pdev);
+	init_am_mipi_csi2_clock();
+	pm_runtime_enable(&pdev->dev);
 
 	pr_info("amvdec_csi probe ok.\n");
 	return ret;
@@ -561,6 +571,7 @@ static int amvdec_csi_remove(struct platform_device *pdev)
 
 	tvin_unreg_frontend(&devp->frontend);
 	device_remove_file(devp->dev, &dev_attr_hw_info);
+	pm_runtime_disable(devp->dev);
 	deinit_am_mipi_csi2_clock();
 	csi_delete_device(pdev->id);
 	cdev_del(&devp->cdev);

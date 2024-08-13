@@ -15,6 +15,7 @@
 #include <linux/of_irq.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/power_domain.h>
 #include <linux/io.h>
@@ -131,23 +132,12 @@ void mipi_phy_reg_wr_and_check(s32 addr, s32 data)
 
 void init_am_mipi_csi2_clock(void)
 {
-	s32 rc = 0;
-	u32 csi_rate = 200000000;
-	u32 adapt_rate = 666666667;
-
 	g_csi.csi_clk = devm_clk_get(&g_csi.p_dev->dev,
 		"cts_csi_phy_clk_composite");
 	if (IS_ERR(g_csi.csi_clk)) {
 		pr_err("%s: cannot get clk_gate_csi !!!\n",
 			__func__);
 		g_csi.csi_clk = NULL;
-		return;
-	}
-	if (clk_set_rate(g_csi.csi_clk, csi_rate) < 0)
-		pr_err("%s :Failed to set csi rate\n", __func__);
-	rc = clk_prepare_enable(g_csi.csi_clk);
-	if (rc != 0) {
-		pr_err("Failed to enable csi clk\n");
 		return;
 	}
 
@@ -159,19 +149,47 @@ void init_am_mipi_csi2_clock(void)
 		g_csi.adapt_clk = NULL;
 		return;
 	}
-	if (clk_set_rate(g_csi.adapt_clk, adapt_rate))
-		pr_err("%s: Failed to set adapt rate\n", __func__);
-	rc = clk_prepare_enable(g_csi.adapt_clk);
-	if (rc != 0) {
-		pr_err("Failed to enable adapt clk\n");
-		return;
-	}
 }
 
+void enable_am_mipi_csi2_clk(void)
+{
+	int rtn = 0;
+	u32 csi_rate = 200000000;
+	u32 adapt_rate = 666666667;
+
+	if (!IS_ERR_OR_NULL(g_csi.csi_clk)) {
+		if (clk_set_rate(g_csi.csi_clk, csi_rate) < 0)
+			pr_err("%s :Failed to set csi rate\n", __func__);
+		if (!__clk_is_enabled(g_csi.csi_clk)) {
+			rtn = clk_prepare_enable(g_csi.csi_clk);
+			if (rtn) {
+				pr_err("Error to enable csi_clk\n");
+				return;
+			}
+		}
+	}
+	if (!IS_ERR_OR_NULL(g_csi.adapt_clk)) {
+		if (clk_set_rate(g_csi.adapt_clk, adapt_rate))
+			pr_err("%s: Failed to set adapt rate\n", __func__);
+		if (!__clk_is_enabled(g_csi.adapt_clk)) {
+			rtn = clk_prepare_enable(g_csi.adapt_clk);
+			if (rtn) {
+				pr_err("Error to enable adapt_clk\n");
+				return;
+			}
+		}
+	}
+}
 void disable_am_mipi_csi2_clk(void)
 {
-	clk_disable_unprepare(g_csi.csi_clk);
-	clk_disable_unprepare(g_csi.adapt_clk);
+	if (!IS_ERR_OR_NULL(g_csi.csi_clk)) {
+		if (__clk_is_enabled(g_csi.csi_clk))
+			clk_disable_unprepare(g_csi.csi_clk);
+	}
+	if (!IS_ERR_OR_NULL(g_csi.adapt_clk)) {
+		if (__clk_is_enabled(g_csi.adapt_clk))
+			clk_disable_unprepare(g_csi.adapt_clk);
+	}
 }
 
 void deinit_am_mipi_csi2_clock(void)
@@ -448,7 +466,6 @@ void am_mipi_csi2_uninit(struct amcsi_dev_s *csi_dev)
 	reset_am_mipi_phy(csi_dev, &g_csi);
 	reset_am_mipi_csi2_host(csi_dev, &g_csi);
 	reset_am_mipi_csi2_adapter(csi_dev, &g_csi);
-	disable_am_mipi_csi2_clk();
 	if (get_csi_chip_type(csi_dev) == CSI_ON_SM1)
 		powerdown_csi_analog_sm1(&g_csi);
 	else if (get_csi_chip_type(csi_dev) == CSI_ON_S6)

@@ -798,7 +798,7 @@ static struct sec_pm_private_domain s6_pm_domains[] __initdata = {
 	[PDID_S6_AUCPU] = POWER_DOMAIN(aucpu, PDID_S6_AUCPU,
 				DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_S6_ADAPT] = POWER_DOMAIN(adapt, PDID_S6_ADAPT,
-				DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+				DOMAIN_INIT_OFF, 0),
 };
 
 static struct sec_pm_domain_data s6_pm_domain_data __initdata = {

@@ -102,6 +102,8 @@ u32 READ_CSI_ADPT_REG_BIT(int addr,
 // phy clk & adapt clk;
 void init_am_mipi_csi2_clock(void);
 void deinit_am_mipi_csi2_clock(void);
+void enable_am_mipi_csi2_clk(void);
+void disable_am_mipi_csi2_clk(void);
 
 void am_mipi_csi2_init(struct amcsi_dev_s *csi_dev);
 void cal_csi_para(struct amcsi_dev_s *csi_dev);
