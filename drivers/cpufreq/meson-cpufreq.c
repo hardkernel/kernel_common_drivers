@@ -313,10 +313,12 @@ static int meson_regulator_set_volate(struct regulator *regulator, u32 cluster_i
 	int cur, to, vol_cnt = 0;
 	int ret = 0;
 	int temp_uv = 0;
-	struct regulator_dev *rdev = regulator->rdev;
+	struct regulator_dev *rdev = NULL;
 
-	if (cpufreq_voltage_set_skip)
+	if (PTR_ERR_OR_ZERO(regulator) || cpufreq_voltage_set_skip)
 		return ret;
+
+	rdev = regulator->rdev;
 	cur = regulator_map_voltage_iterate(rdev, old_uv, old_uv + tol_uv);
 	to = regulator_map_voltage_iterate(rdev, new_uv, new_uv + tol_uv);
 	vol_cnt = regulator_count_voltages(regulator);
