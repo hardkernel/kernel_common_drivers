@@ -23,7 +23,7 @@
 #include "aml_dvb_extern_driver.h"
 
 #define AML_DVB_EXTERN_DEVICE_NAME "aml_dvb_extern"
-#define AML_DVB_EXTERN_VERSION     "V1.21"
+#define AML_DVB_EXTERN_VERSION     "V1.22"
 
 static struct dvb_extern_device *dvb_extern_dev;
 static struct mutex dvb_extern_mutex;
@@ -81,10 +81,20 @@ static char *fe_modulation_name[] = {
 
 static void aml_dvb_extern_set_power(struct gpio_config *pin_cfg, int on)
 {
+	struct demod_ops *dtops = NULL;
+	struct dvb_demod *demod = get_dvb_demods();
+
 	if (!aml_gpio_is_valid(pin_cfg->pin)) {
 		pr_err("dvb power gpio invalid");
 
 		return;
+	}
+
+	if (!on) {
+		list_for_each_entry(dtops, &demod->list, list) {
+			if (dtops->fe && dtops->fe->ops.release)
+				dtops->fe->ops.release(dtops->fe);
+		}
 	}
 
 	/* OD pin[No output capacity], set direction output as low output. */
