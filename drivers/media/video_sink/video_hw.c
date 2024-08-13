@@ -1829,7 +1829,7 @@ static void vd1_path_select(struct video_layer_s *layer,
 					22, 1);
 		}
 		if (di_post || di_pre_link) {
-			if (video_is_meson_txhd2_cpu()) {
+			if (video_is_meson_txhd2_cpu() || video_is_meson_t6d_cpu()) {
 				/* bit10 must set to 0 */
 				/* bit9: 0: afbc0 to vd1, 1: afbc0 to di */
 				/* bit8: vd1 input is afbc, 1 vd1 input is di*/
@@ -1852,7 +1852,7 @@ static void vd1_path_select(struct video_layer_s *layer,
 					20, 2);
 			}
 		}
-		if (!di_post && !di_pre_link && video_is_meson_t6d_cpu())
+		if (video_is_meson_t6d_cpu())
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(VIU_MISC_CTRL0 + misc_off,
 			1, 16, 4);
@@ -2179,7 +2179,7 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 
 	type = vf->type;
 #ifdef ENABLE_PLINK
-	if ((video_is_meson_t5d_revb_cpu() || video_is_meson_txhd2_cpu()) &&
+	if (cur_dev->share_afbc_with_di &&
 	    !layer->vd1_vd2_mux &&
 	    !is_local_vf(vf) &&
 	    is_plink_on(layer) &&
@@ -14706,6 +14706,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	cur_dev->mif_linear = p_amvideo->mif_linear;
 	cur_dev->display_module = p_amvideo->display_module;
 	cur_dev->max_vd_layers = p_amvideo->max_vd_layers;
+	cur_dev->share_afbc_with_di = p_amvideo->share_afbc_with_di;
 	cur_dev->vd2_independ_blend_ctrl =
 		p_amvideo->dev_property.vd2_independ_blend_ctrl;
 	cur_dev->aisr_support = p_amvideo->dev_property.aisr_support;

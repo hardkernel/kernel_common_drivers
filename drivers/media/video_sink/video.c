@@ -14591,6 +14591,7 @@ static struct amvideo_device_data_s amvideo_t5d_revb = {
 	.display_module = 0,
 	.max_vd_layers = 2,
 	.is_tv_panel = 1,
+	.share_afbc_with_di = 1,
 };
 
 static struct amvideo_device_data_s amvideo_t3 = {
@@ -14960,6 +14961,7 @@ static struct amvideo_device_data_s amvideo_txhd2 = {
 	.display_module = 0,
 	.max_vd_layers = 1,
 	.is_tv_panel = 1,
+	.share_afbc_with_di = 1,
 };
 
 static struct amvideo_device_data_s amvideo_s1a = {
@@ -15217,6 +15219,7 @@ static struct amvideo_device_data_s amvideo_t6d = {
 	.has_vpp1 = 0,
 	.has_vpp2 = 0,
 	.is_tv_panel = 1,
+	.share_afbc_with_di = 1,
 };
 #endif
 

@@ -292,6 +292,7 @@ struct video_dev_s {
 	struct vpp_frame_par_s aisr_frame_parms;
 	struct rdma_fun_s rdma_func[RDMA_INTERFACE_NUM];
 	u32 sr_in_size;
+	u8 share_afbc_with_di;
 	u8 sr0_support;
 	u8 sr1_support;
 	u8 is_tv_panel;
@@ -806,6 +807,7 @@ struct amvideo_device_data_s {
 	struct video_device_hw_s dev_property;
 	u8 is_tv_panel;
 	u8 display_device_cnt;
+	u8 share_afbc_with_di;
 };
 
 struct pre_scaler_info {
