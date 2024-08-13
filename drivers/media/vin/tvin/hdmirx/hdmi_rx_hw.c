@@ -3280,6 +3280,24 @@ void hdcp22_clk_en(bool en)
 	}
 }
 
+/* hdcp access on ddc control */
+void rx_hdcp_access_on_ddc_en(bool en)
+{
+	u8 data8 = 0;
+
+	if (rx_info.chip_id <= CHIP_ID_T5D)
+		return;
+	if (en)
+		data8 = 0x3;
+	else
+		data8 = 0x0;
+	hdmirx_wr_bits_cor(RX_SYS_SWTCHC_AON_IVCRX, MSK(2, 1), data8, E_PORT0);
+	if (rx_info.chip_id == CHIP_ID_T3X) {
+		hdmirx_wr_bits_cor(RX_SYS_SWTCHC_AON_IVCRX, MSK(2, data8), 1, E_PORT1);
+		hdmirx_wr_bits_cor(RX_SYS_SWTCHC_AON_IVCRX, MSK(2, data8), 1, E_PORT2);
+		hdmirx_wr_bits_cor(RX_SYS_SWTCHC_AON_IVCRX, MSK(2, data8), 1, E_PORT3);
+	}
+}
 /*
  * hdmirx_hdcp22_esm_rst - software reset esm
  */

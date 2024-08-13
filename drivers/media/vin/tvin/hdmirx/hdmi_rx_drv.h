@@ -71,6 +71,7 @@
 //2024.07.10 correct 12g aud div
 //2024.08.15 add avi filmmaker flag
 //2024.08.28 add hdr10p licence detection
+//2024.08.30 disable hdcp when suspend
 #define RX_VER0 "ver.2024/08/28"
 
 

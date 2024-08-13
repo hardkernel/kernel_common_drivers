@@ -4350,6 +4350,8 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 	//if (!early_suspend_flag)
 //#endif
 	rx_phy_suspend();
+	/* disable hdcp access on ddc */
+	rx_hdcp_access_on_ddc_en(false);
 	/*
 	 * clk source changed under suspend mode,
 	 * div must change together.
@@ -4376,6 +4378,8 @@ static int hdmirx_resume(struct platform_device *pdev)
 //#endif
 	rx_phy_resume();
 	rx_set_suspend_edid_clk(false);
+	/* enable hdcp access on ddc */
+	rx_hdcp_access_on_ddc_en(true);
 	rx[rx_info.main_port].resume_flag = true;
 	rx[rx_info.main_port].state = FSM_HPD_LOW;
 	rx_pr("hdmirx: resume\n");

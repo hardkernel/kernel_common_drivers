@@ -3572,5 +3572,5 @@ void rx_emp_hw_enable(bool enable);
 bool rx_is_need_edid_reset(u8 port);
 
 bool rx_is_phy_power_off(u8 port);
-
+void rx_hdcp_access_on_ddc_en(bool en);
 #endif
