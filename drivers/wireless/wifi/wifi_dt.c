@@ -27,6 +27,8 @@
 #include <linux/pci.h>
 #include <linux/amlogic/aml_sd.h>
 #include <linux/printk.h>
+#include <linux/init.h>
+#include <linux/amlogic/gki_module.h>
 #ifdef CONFIG_AMLOGIC_PWM_32K
 #include <linux/pwm.h>
 #include <linux/amlogic/pwm-meson.h>
@@ -127,6 +129,8 @@ static int usb_power;
 #define BT_BIT	0
 #define WIFI_BIT	1
 static DEFINE_MUTEX(wifi_bt_mutex);
+
+static int usb2t_mode;
 
 #define WIFI_INFO(fmt, args...)	\
 	pr_info("[%s] " fmt, __func__, ##args)
@@ -830,18 +834,20 @@ static int wifi_dev_probe(struct platform_device *pdev)
 			}
 		}
 
-		ret = of_property_read_string(pdev->dev.of_node,
+		if (!usb2t_mode) {
+			ret = of_property_read_string(pdev->dev.of_node,
 					      "power_on-gpios", &value);
-		if (ret) {
-			WIFI_DEBUG("no power_on_pin");
-			plat->power_on_pin = 0;
-			plat->power_on_pin_OD = 0;
-		} else {
-			wifi_power_gpio = 1;
-			plat->power_on_pin = of_get_named_gpio_flags
+			if (ret) {
+				WIFI_DEBUG("no power_on_pin");
+				plat->power_on_pin = 0;
+				plat->power_on_pin_OD = 0;
+			} else {
+				wifi_power_gpio = 1;
+				plat->power_on_pin = of_get_named_gpio_flags
 							(pdev->dev.of_node,
 							"power_on-gpios",
 							0, NULL);
+			}
 		}
 
 		ret = of_property_read_u32(pdev->dev.of_node,
@@ -854,17 +860,20 @@ static int wifi_dev_probe(struct platform_device *pdev)
 		if (ret)
 			plat->power_on_pin_OD = 0;
 		pr_debug("wifi: power_on_pin_OD = %d;\n", plat->power_on_pin_OD);
-		ret = of_property_read_string(pdev->dev.of_node,
+
+		if (!usb2t_mode) {
+			ret = of_property_read_string(pdev->dev.of_node,
 					      "power_on_2-gpios", &value);
-		if (ret) {
-			WIFI_DEBUG("no power_on_pin2");
-			plat->power_on_pin2 = 0;
-		} else {
-			wifi_power_gpio2 = 1;
-			plat->power_on_pin2 = of_get_named_gpio_flags
+			if (ret) {
+				WIFI_DEBUG("no power_on_pin2");
+				plat->power_on_pin2 = 0;
+			} else {
+				wifi_power_gpio2 = 1;
+				plat->power_on_pin2 = of_get_named_gpio_flags
 							(pdev->dev.of_node,
 							"power_on_2-gpios",
 							0, NULL);
+			}
 		}
 
 		ret = of_property_read_string(pdev->dev.of_node,
@@ -1007,6 +1016,18 @@ static struct platform_driver wifi_plat_driver = {
 	.suspend = wifi_suspend,
 	.resume = wifi_resume,
 };
+
+static int get_usb2t_mode(char *str)
+{
+	int ret;
+
+	ret = kstrtouint(str, 10, &usb2t_mode);
+	if (ret)
+		return -EINVAL;
+	return 0;
+}
+
+__setup("usb2t_mode=", get_usb2t_mode);
 
 int __init wifi_dt_init(void)
 {
