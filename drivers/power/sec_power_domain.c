@@ -809,15 +809,15 @@ static struct sec_pm_domain_data s6_pm_domain_data __initdata = {
 
 static struct sec_pm_private_domain t6d_pm_domains[] __initdata = {
 	[PDID_T6D_AMFC] = POWER_DOMAIN(amfc, PDID_T6D_AMFC,
-					   DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+					   DOMAIN_INIT_ON, 0),
 	[PDID_T6D_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_T6D_DOS_HEVC,
-						DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+						DOMAIN_INIT_OFF, 0),
 	[PDID_T6D_GE2D] = POWER_DOMAIN(ge2d, PDID_T6D_GE2D,
-					DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+					DOMAIN_INIT_OFF, 0),
 	[PDID_T6D_VPU_HDMI] = POWER_DOMAIN(vpu, PDID_T6D_VPU_HDMI,
 					DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_T6D_DEMOD] = POWER_DOMAIN(demod, PDID_T6D_DEMOD,
-					  DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+					  DOMAIN_INIT_OFF, 0),
 };
 
 static struct sec_pm_domain_data t6d_pm_domain_data __initdata = {
