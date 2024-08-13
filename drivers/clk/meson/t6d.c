@@ -948,7 +948,7 @@ static struct clk_regmap t6d_sys_clk = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = CLKCTRL_SYS_CLK_CTRL0,
 		.mask = 0x1,
-		.shift = 31,
+		.shift = 15,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_clk",
@@ -975,7 +975,7 @@ static const struct clk_parent_data t6d_axi_clk_sel[] = {
 
 static struct clk_regmap t6d_axi_clk_0_sel = {
 	.data = &(struct clk_regmap_mux_data){
-		.offset = CLKCTRL_SYS_CLK_CTRL0,
+		.offset = CLKCTRL_AXI_CLK_CTRL0,
 		.mask = 0x7,
 		.shift = 10,
 		.table = mux_table_axi_clk_sel,
@@ -990,7 +990,7 @@ static struct clk_regmap t6d_axi_clk_0_sel = {
 
 static struct clk_regmap t6d_axi_clk_0_div = {
 	.data = &(struct clk_regmap_div_data){
-		.offset = CLKCTRL_SYS_CLK_CTRL0,
+		.offset = CLKCTRL_AXI_CLK_CTRL0,
 		.shift = 0,
 		.width = 10,
 	},
@@ -1005,7 +1005,7 @@ static struct clk_regmap t6d_axi_clk_0_div = {
 
 static struct clk_regmap t6d_axi_clk_0 = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = CLKCTRL_SYS_CLK_CTRL0,
+		.offset = CLKCTRL_AXI_CLK_CTRL0,
 		.bit_idx = 13,
 	},
 	.hw.init = &(struct clk_init_data) {
@@ -1019,7 +1019,7 @@ static struct clk_regmap t6d_axi_clk_0 = {
 
 static struct clk_regmap t6d_axi_clk_1_sel = {
 	.data = &(struct clk_regmap_mux_data){
-		.offset = CLKCTRL_SYS_CLK_CTRL0,
+		.offset = CLKCTRL_AXI_CLK_CTRL0,
 		.mask = 0x7,
 		.shift = 26,
 		.table = mux_table_axi_clk_sel,
@@ -1034,7 +1034,7 @@ static struct clk_regmap t6d_axi_clk_1_sel = {
 
 static struct clk_regmap t6d_axi_clk_1_div = {
 	.data = &(struct clk_regmap_div_data){
-		.offset = CLKCTRL_SYS_CLK_CTRL0,
+		.offset = CLKCTRL_AXI_CLK_CTRL0,
 		.shift = 16,
 		.width = 10,
 	},
@@ -1049,7 +1049,7 @@ static struct clk_regmap t6d_axi_clk_1_div = {
 
 static struct clk_regmap t6d_axi_clk_1 = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = CLKCTRL_SYS_CLK_CTRL0,
+		.offset = CLKCTRL_AXI_CLK_CTRL0,
 		.bit_idx = 29,
 	},
 	.hw.init = &(struct clk_init_data) {
@@ -1063,9 +1063,9 @@ static struct clk_regmap t6d_axi_clk_1 = {
 
 static struct clk_regmap t6d_axi_clk = {
 	.data = &(struct clk_regmap_mux_data){
-		.offset = CLKCTRL_SYS_CLK_CTRL0,
+		.offset = CLKCTRL_AXI_CLK_CTRL0,
 		.mask = 0x1,
-		.shift = 31,
+		.shift = 15,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "axi_clk",
