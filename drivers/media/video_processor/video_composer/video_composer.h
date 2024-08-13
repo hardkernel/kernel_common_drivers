@@ -299,6 +299,8 @@ struct composer_dev {
 	u64 output_duration;
 	u32 nn_mode_flag;
 	struct vf_aiface_t *aiface_buf;
+	u64 fence_wait_time_total;
+	u32 fence_wait_count;
 };
 
 struct capability_info_t {

@@ -573,7 +573,10 @@ void v4lvideo_keep_vf(struct file *file)
 		}
 		vf_p = vf_ext_p;
 	}
-
+	if (!vf_p) {
+		v4l_print(inst_id, PRINT_ERROR, "%s error: vf is NULL", __func__);
+		return;
+	}
 	if (vf_p->type & VIDTYPE_SCATTER)
 		type = MEM_TYPE_CODEC_MM_SCATTER;
 
@@ -1535,7 +1538,10 @@ struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
 			(struct file_private_data *)(file_vf->private_data);
 		return file_private_data;
 	}
-
+	if (!file_vf->private_data) {
+		pr_err("v4lvideo: private_data is null\n");
+		return NULL;
+	}
 	if (!dmabuf_is_uvm((struct dma_buf *)file_vf->private_data)) {
 		pr_err("v4lvideo: dma file private data is not uvm\n");
 		return NULL;

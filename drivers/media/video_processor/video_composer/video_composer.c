@@ -2175,6 +2175,7 @@ static int video_wait_file_fence(struct composer_dev *dev,
 	struct dma_fence *fence_obj = NULL;
 	int ret = 1;
 	u64 timestamp;
+	u64 time_cost;
 
 	if (!IS_ERR_OR_NULL(fence_file)) {
 		sync_file = (struct sync_file *)fence_file->private_data;
@@ -2201,10 +2202,21 @@ static int video_wait_file_fence(struct composer_dev *dev,
 			return 0;
 		}
 
+		time_cost = local_clock() - timestamp;
+		dev->fence_wait_time_total += time_cost;
+		dev->fence_wait_count++;
+		if (dev->fence_wait_count == 100) {
+			vc_print(dev->index, PRINT_FENCE,
+				"wait fence avg=%lldns\n",
+				div64_u64(dev->fence_wait_time_total, dev->fence_wait_count));
+				dev->fence_wait_count = 0;
+				dev->fence_wait_time_total = 0;
+		}
+
 		vc_print(dev->index, PRINT_FENCE,
 			 "wait fence, state: %d, wait cost time:%lldms\n",
 			 ret,
-			 div64_u64((local_clock() - timestamp), 1000000));
+			 div64_u64(time_cost, 1000000));
 	}
 
 	fput(fence_file);
@@ -4937,6 +4949,8 @@ static int video_composer_init(struct composer_dev *dev)
 	dev->vd_prepare_last = NULL;
 	dev->dev_choice = COMPOSER_WITH_UNINITIAL;
 	dev->kfifo_need_initialize = true;
+	dev->fence_wait_time_total = 0;
+	dev->fence_wait_count = 0;
 	init_completion(&dev->task_done);
 	for (i = 0; i < MAX_VD_LAYERS; i++) {
 		for (j = 0; j < MXA_LAYER_COUNT; j++)
