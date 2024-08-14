@@ -12050,6 +12050,18 @@ void vpp1_post_blend_update_s5(const struct vinfo_s *vinfo)
 	update_vpp_post_amdv_info(VPP1, &g_vpp_post);
 }
 
+void vd2_postblend_update(const struct vinfo_s *vinfo, u8 vpp_index)
+{
+	bool force_flush = false;
+
+	force_flush |= update_vpp_vd2_input_info(vinfo, vpp_index);
+	if (vpp_index == VPP0 && force_flush) {
+		struct vpp0_post_s *vpp0_post = &g_vpp_post.vpp0_post;
+		/* cfg vpp_blend */
+		vpp_blend_vd2_set(vpp_index, &vpp0_post->vpp_post_blend);
+	}
+}
+
 struct vd_proc_s *get_vd_proc_info(void)
 {
 	return &g_vd_proc;

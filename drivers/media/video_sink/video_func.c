@@ -5627,6 +5627,8 @@ exit:
 	/* do blend,judge really update in update_vpp_input_info for vpp_index */
 	if (!cur_dev->pre_vsync_enable)
 		vpp_blend_update(vinfo, VPP0);
+	else
+		vd2_postblend_update(vinfo, VPP0);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (cur_dev->vd1_vsr_safa_support)

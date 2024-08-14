@@ -258,4 +258,6 @@ void dump_vpp_post_reg(void);
 void vpp_clip_setting_s5(u8 vpp_index, struct clip_setting_s *setting);
 void get_vpp_in_padding_axis(u32 *enable, int *h_padding, int *v_padding);
 void set_vpp_in_padding_axis(u32 enable, int h_padding, int v_padding);
+int update_vpp_vd2_input_info(const struct vinfo_s *info, u8 vpp_index);
+int vpp_blend_vd2_set(u8 vpp_index, struct vpp_post_blend_s *vpp_post_blend);
 #endif

@@ -89,6 +89,8 @@ static int g_post_overlap_size = 32;
 module_param(g_post_overlap_size, uint, 0664);
 MODULE_PARM_DESC(g_post_overlap_size, "\n g_post_overlap_size\n");
 
+static struct vpp_post_input_s g_vpp_vd2_input;
+static struct vpp_post_input_s g_vpp_vd2_input_pre;
 static struct vpp_post_input_s g_vpp_input;
 static struct vpp_post_input_s g_vpp_input_pre;
 static struct vpp_post_input_s g_vpp1_input;
@@ -1511,6 +1513,119 @@ static int check_vpp_info_changed(struct vpp_post_input_s *vpp_input, u8 vpp_ind
 struct vpp_post_input_s *get_vpp_input_info(void)
 {
 	return &g_vpp_input;
+}
+
+static int check_vpp_vd2_info_changed(struct vpp_post_input_s *vpp_input, u8 vpp_index)
+{
+	int changed = 0;
+
+	/* check input param */
+
+	if (vpp_input->din_hsize[1] != g_vpp_vd2_input_pre.din_hsize[1] ||
+		vpp_input->din_vsize[1] != g_vpp_vd2_input_pre.din_vsize[1] ||
+		vpp_input->din_x_start[1] != g_vpp_vd2_input_pre.din_x_start[1] ||
+		vpp_input->din_y_start[1] != g_vpp_vd2_input_pre.din_y_start[1]) {
+		changed = 1;
+		if (debug_flag_s5 & DEBUG_VPP_POST)
+			pr_info("%s %d hit vpp_input vd2:new:%d, %d, %d, %d, pre: %d, %d, %d, %d\n",
+			__func__, vpp_index,
+			vpp_input->din_x_start[1],
+			vpp_input->din_y_start[1],
+			vpp_input->din_hsize[1],
+			vpp_input->din_vsize[1],
+			g_vpp_vd2_input_pre.din_x_start[1],
+			g_vpp_vd2_input_pre.din_y_start[1],
+			g_vpp_vd2_input_pre.din_hsize[1],
+			g_vpp_vd2_input_pre.din_vsize[1]);
+	}
+	memcpy(&g_vpp_vd2_input, vpp_input, sizeof(struct vpp_post_input_s));
+	memcpy(&g_vpp_vd2_input_pre, vpp_input, sizeof(struct vpp_post_input_s));
+	return changed;
+}
+
+int update_vpp_vd2_input_info(const struct vinfo_s *info, u8 vpp_index)
+{
+	int update = 0;
+	struct vd_proc_s *vd_proc;
+	struct vpp_post_input_s *vpp_input = &g_vpp_vd2_input;
+	static u32 din_hsize_pre[2] = {0};
+	static u32 din_vsize_pre[2] = {0};
+	static u32 din_x_start_pre[2] = {0};
+	static u32 din_y_start_pre[2] = {0};
+
+	vd_proc = get_vd_proc_info();
+	/* check vd2, update size when vpp_index matched */
+	if (vpp_index == vd_layer[1].vpp_index) {
+		vpp_input->din_hsize[1] = vd_proc->vd2_proc.dout_hsize;
+		vpp_input->din_vsize[1] = vd_proc->vd2_proc.dout_vsize;
+		vpp_input->din_x_start[1] = vd_proc->vd2_proc.vd2_dout_x_start;
+		vpp_input->din_y_start[1] = vd_proc->vd2_proc.vd2_dout_y_start;
+	} else {
+		vpp_input->din_hsize[1] = din_hsize_pre[1];
+		vpp_input->din_vsize[1] = din_vsize_pre[1];
+		vpp_input->din_x_start[1] = din_x_start_pre[1];
+		vpp_input->din_y_start[1] = din_y_start_pre[1];
+	}
+	din_hsize_pre[1] = vd_proc->vd2_proc.dout_hsize;
+	din_vsize_pre[1] = vd_proc->vd2_proc.dout_vsize;
+	din_x_start_pre[1] = vd_proc->vd2_proc.vd2_dout_x_start;
+	din_y_start_pre[1] = vd_proc->vd2_proc.vd2_dout_y_start;
+	update = check_vpp_vd2_info_changed(vpp_input, vpp_index);
+	return update;
+}
+
+int vpp_blend_vd2_set(u8 vpp_index, struct vpp_post_blend_s *vpp_post_blend)
+{
+	u32 padding_h_bgn = 0, padding_v_bgn = 0;
+	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
+	struct vpp_post_blend_reg_s *vpp_reg = &vpp_post_reg.vpp_post_blend_reg;
+	struct vpp_post_input_s *vpp_input = &g_vpp_vd2_input;
+
+	if (!vpp_post_blend)
+		return -1;
+
+	if (vpp_input->vpp_post_in_pad_en) {
+		if (vpp_input->right_move)
+			padding_h_bgn = vpp_input->vpp_post_in_pad_hsize;
+		if (vpp_input->down_move)
+			padding_v_bgn = vpp_input->vpp_post_in_pad_vsize;
+		/* workaround for odd padding */
+		if (vpp_input->vpp_post_in_pad_hsize & 1) {
+			if (vpp_input->right_move)
+				padding_h_bgn--;
+			else
+				padding_h_bgn++;
+			if (debug_flag_s5 & DEBUG_VPP_POST)
+				pr_info("padding_h_bgn adjust to->%d, bld_out_padding_w:%d\n",
+					padding_h_bgn,
+					vpp_post_blend->bld_out_padding_w);
+		}
+	}
+
+	vpp_post_blend->bld_din1_h_start = vpp_input->din_x_start[1] + padding_h_bgn;
+	vpp_post_blend->bld_din1_h_end = vpp_post_blend->bld_din1_h_start +
+		vpp_input->din_hsize[1] - 1;
+	vpp_post_blend->bld_din1_v_start = vpp_input->din_y_start[1] + padding_v_bgn;
+	vpp_post_blend->bld_din1_v_end = vpp_post_blend->bld_din1_v_start +
+		vpp_input->din_vsize[1] - 1;
+	vpp_post_blend->bld_din1_alpha = 0x100;
+	vpp_post_blend->bld_din1_premult_en	= 0;
+
+	rdma_wr_bits(vpp_reg->vpp_postblend_vd2_h_start_end,
+		(vpp_post_blend->bld_din1_h_start << 16) |
+		vpp_post_blend->bld_din1_h_end, 0, 32);
+	rdma_wr_bits(vpp_reg->vpp_postblend_vd2_v_start_end,
+		(vpp_post_blend->bld_din1_v_start << 16) |
+		vpp_post_blend->bld_din1_v_end, 0, 32);
+
+	if (debug_flag_s5 & DEBUG_VPP_POST)
+		pr_info("%s:bld_din1: %d, %d, %d, %d\n",
+			__func__,
+			vpp_post_blend->bld_din1_h_start,
+			vpp_post_blend->bld_din1_h_end,
+			vpp_post_blend->bld_din1_v_start,
+			vpp_post_blend->bld_din1_v_end);
+	return 0;
 }
 
 int update_vpp_input_info(const struct vinfo_s *info, u8 vpp_index)
