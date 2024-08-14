@@ -3920,6 +3920,9 @@ static void filter_unstable_vsync(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) || is_meson_s6_cpu())
+		return;
+
 	if (devp->index || devp->debug.bypass_filter_vsync)
 		return;
 
