@@ -1307,7 +1307,7 @@ static const struct afbc_fb_s cafbc_v4_t6d = {
 	.sp.b.if2		= 0,
 	.sp.b.enc_nr		= 0,
 	.sp.b.enc_wr		= 0,
-	.pre_dec = EAFBC_DEC1,
+	.pre_dec = EAFBC_DEC0,
 	.mem_dec = 0,
 	.ch2_dec = 0,
 	.if0_dec = 0,
@@ -3854,7 +3854,7 @@ void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link)
 	unsigned int val;
 	unsigned int en = 0;
 
-	if (!DIM_IS_IC(T5DB) || !DIM_IS_IC(T6D))
+	if (!DIM_IS_IC(T5DB) && !DIM_IS_IC(T6D))
 		return;
 	if (afbc_is_supported_for_plink()) {
 		dbg_reg("afbc_is_supported_for_plink\n");
@@ -3892,6 +3892,13 @@ void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link)
 			} else if (en == 2) {
 				/* afbcd is shared */
 				op->wr(VD1_AFBCD0_MISC_CTRL, 0x401200);
+			}
+		} else if (DIM_IS_IC(T6D)) {
+			if (en == 1) {
+			/*afbcd is share*/
+				op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 9, 1);	//tmp reg_vpp_2mad_en
+				op->bwr(VIU_MISC_CTRL0, 0, 1, 1);	//tmp reg_vpp_2mad_sel_m1m0
+				op->bwr(T6D_VD1_AFBCDM_VDTOP_CTRL0, 1, 13, 1);
 			}
 		} else {
 			if (en == 2) {

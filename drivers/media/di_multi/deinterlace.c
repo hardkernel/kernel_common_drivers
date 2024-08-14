@@ -11565,7 +11565,7 @@ void di_reg_setting_working(struct di_ch_s *pch,
 			    struct vframe_s *vfm)
 {
 	/****************************/
-	if (DIM_IS_IC(T5DB))
+	if (DIM_IS_IC(T5DB) || DIM_IS_IC(T6D))
 		afbcd_enable_only_t5dvb(&di_pre_regset, false);
 	//dim_afds()->reg_sw(true);
 }

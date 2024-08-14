@@ -4164,7 +4164,10 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 		/* set on*/
 		ext_vpp_plink_real_sw(true, false, false);
 		val = op->rd(VD1_AFBCD0_MISC_CTRL);
-		if (DIM_IS_IC_EF(SC2)) {
+		if (DIM_IS_IC_EF(T6D)) {
+			op->bwr(DI_TOP_CTRL, 1, 0, 1);// 1:pre link vpp  0:post link vpp
+			op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 8, 1);    //bit 8 link
+		} else if (DIM_IS_IC_EF(SC2)) {
 			/* ? */
 			op->bwr(DI_TOP_CTRL, 1, 0, 1);// 1:pre link vpp  0:post link vpp
 			op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 8, 6);            // data path
@@ -4196,7 +4199,11 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 			op->wr(DI_AFBCE0_HOLD_CTRL, 0x0);
 			op->wr(DI_AFBCE1_HOLD_CTRL, 0x0);
 		}
-		if (DIM_IS_IC_EF(SC2)) {
+		if (DIM_IS_IC(T6D)) {
+			dbg_plink1("c_sw:t6d\n");
+			op->bwr(VD1_AFBCD0_MISC_CTRL, 0, 9, 1);
+			op->bwr(VD1_AFBCD0_MISC_CTRL, 0, 8, 1);
+		} else if (DIM_IS_IC_EF(SC2)) {
 			dbg_plink1("c_sw:sc2\n");
 			op->bwr(VD1_AFBCD0_MISC_CTRL, 0, 8, 6);
 		} else {
