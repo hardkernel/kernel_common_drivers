@@ -685,7 +685,8 @@ static int aml_aes_handle_queue(struct aml_aes_dev *dd,
 	if (!err) {
 		if (dd->total % AML_AES_DMA_THRESHOLD == 0 ||
 		    (dd->flags & AES_FLAGS_CTR)) {
-			if (dd->link_mode && !disable_link_mode) {
+			if (dd->link_mode && !disable_link_mode &&
+			    dd->total < MAX_DMA_BYTE_LENGTH) {
 				err = aml_aes_crypt_dma_link_mode_start(dd);
 			} else {
 				do {

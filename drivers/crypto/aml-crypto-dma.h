@@ -13,6 +13,7 @@
 #define DMA_IRQ_MODE	(0)
 
 #define DMA_BLOCK_MODE_SIZE (512)
+#define MAX_DMA_BYTE_LENGTH (0x20000)
 
 enum GXL_DMA_REG_OFFSETS {
 	GXL_DMA_T0   = 0x00,

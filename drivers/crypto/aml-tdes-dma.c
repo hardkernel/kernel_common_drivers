@@ -655,7 +655,8 @@ static int aml_tdes_handle_queue(struct aml_tdes_dev *dd,
 
 	err = aml_tdes_write_ctrl(dd);
 	if (!err) {
-		if (dd->link_mode && !disable_link_mode) {
+		if (dd->link_mode && !disable_link_mode &&
+		    dd->total < MAX_DMA_BYTE_LENGTH) {
 			err = aml_tdes_crypt_dma_link_mode_start(dd);
 		} else {
 			do {
