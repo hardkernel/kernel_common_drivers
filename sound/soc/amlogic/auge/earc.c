@@ -103,19 +103,6 @@ enum work_event {
 	EVENT_TX_ANA_AUTO_CAL = 0x1 << 1,
 };
 
-struct earc_chipinfo {
-	unsigned int earc_spdifout_lane_mask;
-	bool rx_dmac_sync_int;
-	bool rterm_on;
-	bool ana_auto_cal;
-	bool chnum_mult_mode;
-	bool unstable_tick_sel;
-	bool rx_enable;
-	bool tx_enable;
-	bool rx_pll_new;
-	int arc_version;
-};
-
 struct earc {
 	struct aml_audio_controller *actrl;
 	struct device *dev;
@@ -418,7 +405,7 @@ static void earctx_reg_init_work_func(struct work_struct *p_work)
 	}
 
 	/* tx cmdc anlog init */
-	earctx_cmdc_init(p_earc->tx_top_map, st, p_earc->chipinfo->rterm_on);
+	earctx_cmdc_init(p_earc->tx_top_map, st, p_earc->chipinfo);
 
 	earctx_cmdc_earc_mode(p_earc->tx_cmdc_map, p_earc->tx_earc_mode);
 	earctx_cmdc_hpd_detect(p_earc->tx_top_map,
@@ -913,7 +900,7 @@ static int earc_open(struct snd_soc_component *component, struct snd_pcm_substre
 				      p_earc->tx_dmac_map,
 				      p_earc->tx_audio_coding_type,
 				      false,
-				      p_earc->chipinfo->rterm_on);
+				      p_earc->chipinfo);
 		}
 
 		p_earc->fddr = aml_audio_register_frddr(dev,
@@ -1389,7 +1376,7 @@ void aml_earctx_enable(bool enable)
 			s_earc->tx_dmac_map,
 			s_earc->tx_audio_coding_type,
 			enable,
-			s_earc->chipinfo->rterm_on);
+			s_earc->chipinfo);
 		earctx_dmac_mute(s_earc->tx_dmac_map, s_earc->tx_mute);
 		if (enable)
 			s_earc->tx_stream_state = SNDRV_PCM_STATE_RUNNING;
@@ -1417,7 +1404,7 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				      p_earc->tx_dmac_map,
 				      p_earc->tx_audio_coding_type,
 				      true,
-				      p_earc->chipinfo->rterm_on);
+				      p_earc->chipinfo);
 			earctx_dmac_mute(p_earc->tx_dmac_map, p_earc->tx_mute);
 			if (p_earc->last_tx_audio_coding_type != p_earc->tx_audio_coding_type) {
 				schedule_work(&p_earc->tx_hold_bus_work);
@@ -1448,7 +1435,7 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 					      p_earc->tx_dmac_map,
 					      p_earc->tx_audio_coding_type,
 					      false,
-					      p_earc->chipinfo->rterm_on);
+					      p_earc->chipinfo);
 			}
 			aml_frddr_enable(p_earc->fddr, false);
 			p_earc->tx_stream_state = SNDRV_PCM_STATE_DISCONNECTED;
@@ -2855,6 +2842,19 @@ struct earc_chipinfo t5m_earc_chipinfo = {
 	.arc_version = T5M_ARC,
 };
 
+struct earc_chipinfo t3x_earc_chipinfo = {
+	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
+	.rx_dmac_sync_int = false,
+	.rterm_on = true,
+	.chnum_mult_mode = true,
+	.unstable_tick_sel = true,
+	.rx_enable = false,
+	.tx_enable = true,
+	.arc_version = T5M_ARC,
+	.idr_trim_val = 0x14,
+	.dmac_slew_con = 0x3,
+};
+
 struct earc_chipinfo s5_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
 	.rx_dmac_sync_int = false,
@@ -2903,6 +2903,10 @@ static const struct of_device_id earc_device_id[] = {
 	{
 		.compatible = "amlogic, t5m-snd-earc",
 		.data = &t5m_earc_chipinfo,
+	},
+	{
+		.compatible = "amlogic, t3x-snd-earc",
+		.data = &t3x_earc_chipinfo,
 	},
 	{
 		.compatible = "amlogic, s5-snd-earc",

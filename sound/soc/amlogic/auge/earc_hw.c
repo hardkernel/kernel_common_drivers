@@ -878,7 +878,7 @@ void earctx_enable_d2a(struct regmap *top_map, int enable)
 	mmio_update_bits(top_map, EARCTX_ANA_CTRL0, 0x1 << 31, enable << 31);
 }
 
-void earctx_cmdc_init(struct regmap *top_map, bool en, bool rterm_on)
+void earctx_cmdc_init(struct regmap *top_map, bool en, struct earc_chipinfo *chipinfo)
 {
 	/* always set bit[16] = 0 from T5M for Txs */
 	mmio_update_bits(top_map,
@@ -886,19 +886,27 @@ void earctx_cmdc_init(struct regmap *top_map, bool en, bool rterm_on)
 			 0x1 << 16,
 			 0 << 16);
 	/* ana */
-	if (rterm_on)
+	if (chipinfo->rterm_on) {
+		u8 idr_trim = 0x10;
+		u8 dmac_slew = 0x4;
+
+		if (chipinfo->idr_trim_val > 0)
+			idr_trim = chipinfo->idr_trim_val;
+		if (chipinfo->dmac_slew_con > 0)
+			dmac_slew = chipinfo->dmac_slew_con;
+
 		mmio_write(top_map, EARCTX_ANA_CTRL0,
 			   en << 31   |  /* earctx_en_d2a */
 			   0x1 << 28  |  /* earctx_cmdcrx_rcfilter_sel */
 			   0x4 << 24  |  /* earctx_cmdcrx_hystrim */
-			   0x10 << 19 |  /* earctx_idr_trim */
+			   idr_trim << 19 |  /* earctx_idr_trim */
 			   0x1 << 17  |  /* earctx_rterm_on */
 			   0x10 << 12 |  /* earctx_rterm_trim */
-			   0x4 << 8   |  /* earctx_dmac_slew_con */
+			   dmac_slew << 8   |  /* earctx_dmac_slew_con */
 			   0x4 << 5   |  /* earctx_cmdctx_ack_hystrim */
 			   0x10 << 0     /* earctx_cmdctx_ack_reftrim */
 			  );
-	else
+	} else {
 		mmio_write(top_map, EARCTX_ANA_CTRL0,
 			   en << 31   |  /* earctx_en_d2a */
 			   0x1 << 28  |  /* earctx_cmdcrx_rcfilter_sel */
@@ -909,6 +917,7 @@ void earctx_cmdc_init(struct regmap *top_map, bool en, bool rterm_on)
 			   0x4 << 5   |  /* earctx_cmdctx_ack_hystrim */
 			   0x10 << 0     /* earctx_cmdctx_ack_reftrim */
 			  );
+	}
 }
 
 void earctx_cmdc_set_timeout(struct regmap *cmdc_map, int no_timeout)
@@ -1478,7 +1487,7 @@ void earctx_enable(struct regmap *top_map,
 		   struct regmap *dmac_map,
 		   enum audio_coding_types coding_type,
 		   bool enable,
-		   bool rterm_on)
+		   struct earc_chipinfo *chipinfo)
 {
 	enum attend_type type = earctx_cmdc_get_attended_type(cmdc_map);
 
@@ -1488,10 +1497,14 @@ void earctx_enable(struct regmap *top_map,
 	if (enable) {
 		int offset, mask, val;
 
-		if (rterm_on) {
+		if (chipinfo->rterm_on) {
 			offset = 19;
 			mask = 0x1f;
-			val = 0x10;
+
+			if (chipinfo->idr_trim_val > 0)
+				val = chipinfo->idr_trim_val;
+			else
+				val = 0x10;
 		} else {
 			offset = 20;
 			mask = 0xf;

@@ -233,6 +233,21 @@ enum pll_rst_src {
 	RST_BY_DMACRX, /* earcrx_dmac_rx_sqvalid */
 };
 
+struct earc_chipinfo {
+	unsigned int earc_spdifout_lane_mask;
+	bool rx_dmac_sync_int;
+	bool rterm_on;
+	bool ana_auto_cal;
+	bool chnum_mult_mode;
+	bool unstable_tick_sel;
+	bool rx_enable;
+	bool tx_enable;
+	bool rx_pll_new;
+	int arc_version;
+	u8 idr_trim_val;
+	u8 dmac_slew_con;
+};
+
 void aml_earc_auto_gain_enable(struct regmap *dmac_map, int value);
 void earctx_dmac_mute(struct regmap *dmac_map, bool is_mute);
 int earctx_get_dmac_mute(struct regmap *dmac_map);
@@ -276,7 +291,7 @@ void earcrx_enable(struct regmap *cmdc_map,
 		   struct regmap *dmac_map, bool enable);
 void earctx_cmdc_int_mask(struct regmap *top_map);
 void earctx_enable_d2a(struct regmap *top_map, int enable);
-void earctx_cmdc_init(struct regmap *top_map, bool en, bool rterm_on);
+void earctx_cmdc_init(struct regmap *top_map, bool en, struct earc_chipinfo *chipinfo);
 void earctx_cmdc_set_timeout(struct regmap *cmdc_map, int no_timeout);
 void earctx_cmdc_arc_connect(struct regmap *cmdc_map, bool init);
 void earctx_cmdc_hpd_detect(struct regmap *top_map,
@@ -313,7 +328,7 @@ void earctx_enable(struct regmap *top_map,
 		   struct regmap *dmac_map,
 		   enum audio_coding_types coding_type,
 		   bool enable,
-		   bool rterm_on);
+		   struct earc_chipinfo *chipinfo);
 bool get_earctx_enable(struct regmap *cmdc_map, struct regmap *dmac_map);
 void earcrx_cmdc_get_latency(struct regmap *cmdc_map, u8 *latency);
 void earcrx_cmdc_set_latency(struct regmap *cmdc_map, u8 *latency);
