@@ -93,7 +93,7 @@ function set_default_parameters_for_smarthome () {
 		OUTDIR=${ROOT_DIR}/out/kernel-5.15-64
 	elif [[ $ARCH == arm ]]; then
 		OUTDIR=${ROOT_DIR}/out/kernel-5.15-32
-		tool_args+=("LOADADDR=0x108000")
+		tool_args+=("LOADADDR=0x208000")
 	elif [[ $ARCH == riscv ]]; then
 		OUTDIR=${ROOT_DIR}/out/riscv-kernel-5.15-64
 	fi

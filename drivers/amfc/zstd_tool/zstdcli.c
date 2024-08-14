@@ -815,6 +815,8 @@ static size_t zstd_cctx_init(ZSTD_CCtx *cctx, const ZSTD_parameters *parameters,
         return 0;
 }
 
+static int size_append = 0;
+
 static int zstd_fragment_file_compress(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs, const char* dstFileName,
                          const char* srcFileName, const char* dictFileName,
                          int compressionLevel, ZSTD_compressionParameters comprParams)
@@ -855,6 +857,8 @@ static int zstd_fragment_file_compress(FIO_ctx_t* const fCtx, FIO_prefs_t* const
 	if (!cwksp)
 		return -1;
 	cctx = ZSTD_initStaticCCtx(cwksp, wksp_size);
+	if (size_append)
+		size_append = file_size;
 	while (file_size) {
 		if (file_size >= 4096 * 1024)
 			count = 4096 * 1024;
@@ -870,6 +874,9 @@ static int zstd_fragment_file_compress(FIO_ctx_t* const fCtx, FIO_prefs_t* const
 		fwrite(out_buff, ret, 1, out);
 		file_size -= count;
 	}
+	// append raw file size for uImage
+	if (size_append)
+		fwrite(&size_append, 4, 1, out);
 	fclose(in);
 	fclose(out);
 
@@ -1177,6 +1184,7 @@ int main(int argCount, const char* argv[])
                 case 'H':
                 case 'h': usage_advanced(programName); CLEAN_RETURN(0);
 
+                case 'a': size_append=1; argument++; break;
                      /* Compress */
                 case 'z': operation=zom_compress; argument++; break;
 
