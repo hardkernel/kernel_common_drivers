@@ -112,7 +112,7 @@ static const struct reg_default t6d_acodec_init_list[] = {
 	/*default LP/RP(headphone)	 LN/RN(lineout->spk)*/
 	/*dual output*/
 	{ACODEC_3, 0x00034422},
-	{ACODEC_4, 0x00010000},
+	{ACODEC_4, 0x00020000},
 	{ACODEC_5, 0xFBFB0033},
 	{ACODEC_6, 0x0},
 	{ACODEC_7, 0x0},
