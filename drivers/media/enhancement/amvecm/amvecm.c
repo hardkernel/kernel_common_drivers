@@ -10244,6 +10244,10 @@ void suspend_lc(void)
 void resume_mtx_t7(void)
 {
 	unsigned int start_idx;
+	int i;
+	unsigned int val = 0;
+	unsigned int addr = 0;
+	struct am_regs_s *p = &amregs_store;
 
 	if (!pq_cfg.black_ext_en &&
 		!pq_cfg.chroma_cor_en)
@@ -10251,12 +10255,23 @@ void resume_mtx_t7(void)
 	else
 		start_idx = RECOVERY_REG_MTX_MAX + RECOVERY_REG_VE_MAX;
 
-	amregs_store.length = RECOVERY_REG_MTX_MAX;
-	if (!(memcpy(amregs_store.am_reg, reg_ve_list + start_idx,
+	p->length = RECOVERY_REG_MTX_MAX;
+	if (!(memcpy(p->am_reg, reg_ve_list + start_idx,
 		RECOVERY_REG_MTX_MAX * sizeof(struct am_reg_s))))
 		return;
 
-	am_set_regmap(&amregs_store, 0);
+	for (i = 0; i < p->length; i++) {
+		/*mask == 0xffffffff*/
+		val = p->am_reg[i].val;
+		addr = p->am_reg[i].addr;
+
+		if (addr == 0) {
+			pr_amvecm_dbg("\n[%s] i=%d, val=%d, p length=%d\n",
+				__func__, i, val, p->length);
+			continue;
+		}
+		WRITE_VPP_REG(addr, val);
+	}
 
 	pr_info("amvecm: resume post2 mtx\n");
 }
