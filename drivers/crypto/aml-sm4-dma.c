@@ -778,7 +778,8 @@ static int aml_sm4_handle_queue(struct aml_sm4_dev *dd,
 	if (!err) {
 		if (dd->total % AML_SM4_DMA_THRESHOLD == 0 ||
 		    (dd->flags & SM4_FLAGS_CTR)) {
-			if (dd->link_mode && !disable_link_mode) {
+			if (dd->link_mode && !disable_link_mode &&
+			    dd->total < MAX_DMA_BYTE_LENGTH) {
 				err = aml_sm4_crypt_dma_link_mode_start(dd);
 			} else {
 				do {
