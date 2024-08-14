@@ -55,6 +55,22 @@ static unsigned char dvbtx_auto_check_times = 3;
 MODULE_PARM_DESC(dvbtx_auto_check_times, "");
 module_param(dvbtx_auto_check_times, byte, 0644);
 
+//dvb-t2
+MODULE_PARM_DESC(t2_0x2a48_delay, "");
+static unsigned int t2_0x2a48_delay = 100000;
+module_param(t2_0x2a48_delay, int, 0644);
+
+MODULE_PARM_DESC(t2_snr_threshold, "");
+static unsigned int t2_snr_threshold = 529;
+module_param(t2_snr_threshold, int, 0644);
+
+#define FIXED_SHIFT 16
+#define FIXED_ONE  0x10000 //65536
+typedef s32 fixed_t;
+
+static int iir_cnt;
+static int snr_iir;
+static bool doppler_detect;
 static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int *is_signal)
 {
 	int ilock = 0;
@@ -294,6 +310,108 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 #define CONTINUE_TIMES_LOCK 3
 #define CONTINUE_TIMES_UNLOCK 2
 #define RESET_IN_UNLOCK_TIMES 24
+static int dvbt2_optimize_doppler(struct dvb_frontend *fe)
+{
+	int ck0 = 0, max1 = 0, max2 = 0, loc1 = 0, loc2 = 0;
+	int delta_loc = 0, delta_loc1 = 0;
+	fixed_t max_th = 0, delta_max = 0;
+	int vcir = 0, loc_use1 = 0, loc_use2 = 0;
+	int loc1_th = 2, range_th = 60;
+	int loc_th = 0, loc_20u = 30;
+	int time[5] = {0};
+	fixed_t fixed_max1 = 0, fixed_max2 = 0;
+
+	dvbt_t2_wrb(0x2a48, 0x20);
+
+	time[0] = jiffies_to_msecs(jiffies);
+	usleep_range(t2_0x2a48_delay, t2_0x2a48_delay + 1);
+	time[1] = jiffies_to_msecs(jiffies);
+
+	PR_DVBT("0x2a48 is %x,one cost %d ms,\n", dvbt_t2_rdb(0x2a48), time[1] - time[0]);
+
+	for (ck0 = 0; ck0 < 1024; ck0++) {
+		dvbt_t2_wrb(0x2a4d, (char)(ck0 >> 8));
+		dvbt_t2_wrb(0x2a4c, (char)(ck0 & 0xff));
+
+		vcir = dvbt_t2_rdb(0x2a50) + (dvbt_t2_rdb(0x2a51) << 8);
+
+		if (max1 < vcir && vcir != 0) {
+			PR_DVBT("max1 is %d,vcir is %d,ck0 is %d,loc1 is %d\n",
+				max1, vcir, ck0, loc1);
+			max1 = vcir;
+			loc1 = ck0;
+		}
+	}
+
+	PR_DVBT("max1 is %d,loc1 is %d\n", max1, loc1);
+
+	if ((loc1 - range_th) < 0)
+		loc_use1 = 0;
+	else
+		loc_use1 = loc1 - range_th;
+
+	if ((loc1 + range_th) > 1024)
+		loc_use2 = 1024;
+	else
+		loc_use2 = loc1 + range_th;
+
+	PR_DVBT("loc_use1 is %d,loc_use2 is %d,range_th is %d\n", loc_use1, loc_use2, range_th);
+
+	for (ck0 = loc_use1; ck0 < loc_use2; ck0++) {
+		dvbt_t2_wrb(0x2a4d, (char)(ck0 >> 8));
+		dvbt_t2_wrb(0x2a4c, (char)(ck0 & 0xff));
+
+		//vloc = dvb_read_byte(0x2a4c) + (dvb_read_byte(0x2a4d)<<8);
+		vcir = dvbt_t2_rdb(0x2a50) + (dvbt_t2_rdb(0x2a51) << 8);
+		if (vcir != 0 && max2 < vcir  &&
+			(((loc1  + loc1_th) < ck0) || ((loc1 - loc1_th) > ck0))) {
+			PR_DVBT("max2 is %d,vcir is %d,ck0 is %d,loc2 is %d\n",
+				max2, vcir, ck0, loc2);
+			max2 = vcir;
+			loc2 = ck0;
+		}
+	}
+
+	PR_DVBT("max2 is %d,loc2 is %d,loc1_th is %d\n", max2, loc2, loc1_th);
+
+	if (loc1 > loc2)
+		delta_loc = loc1 - loc2;
+	else
+		delta_loc = loc2 - loc1;
+
+	if (delta_loc > loc_20u)
+		delta_loc1 = delta_loc - loc_20u;
+	else
+		delta_loc1 = loc_20u - delta_loc;
+
+	PR_DVBT("delta_loc is %d,delta_loc1 is %d,loc_20u is %d\n",
+		delta_loc, delta_loc1, loc_20u);
+
+	fixed_max1 = max1 * FIXED_ONE;
+	fixed_max2 = max2 * FIXED_ONE;
+	if (fixed_max1 && fixed_max2) {
+		if (max1 > max2)
+			//delta_max = max1 / max2;
+			delta_max = (fixed_max1 << FIXED_SHIFT) / fixed_max2;
+		else
+			//delta_max = max2 / max1;
+			delta_max = (fixed_max2 << FIXED_SHIFT) / fixed_max1;
+	}
+
+	max_th = 68608; //1.05 (Q16.16)
+	PR_DVBT("delta_max %d,max_th %d,delta_loc1 %d,loc_20u %d,loc_th %d\n",
+		delta_max, max_th, delta_loc1, loc_20u, loc_th);
+	if (max_th  > delta_max && (loc_th >= (delta_loc1))) {
+		PR_DVBT("t2 echo 20us 0db detected !\n");
+		dvbt_t2_wrb(0x2a48, 0x00);
+		dvbt_t2_wrb(0xdc, 0x01);
+	} else {
+		dvbt_t2_wrb(0x2a48, 0x00);
+	}
+
+	return 0;
+}
+
 //24:3Seconds
 static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, int *is_signal)
 {
@@ -310,6 +428,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 	unsigned int data_plp = 0, common_plp = 0;
 	u64_t plp_common = 0;
 	unsigned char fft_size = -1, r_0x2a1c, r_0x839;
+	long tmp;
 
 	cur_time = jiffies_to_msecs(jiffies);
 	demod->time_passed = cur_time - demod->time_start;
@@ -372,6 +491,62 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 	}
 	snr &= 0x7ff;
 	snr = snr * 30 / 64; //dBx10.
+
+	if (is_meson_t6d_cpu() && l1post) {
+		/* detect T2 echo 20us case */
+		if (doppler_detect) {
+			dvbt2_optimize_doppler(fe);
+			doppler_detect = false;
+		}
+		/* ts lock */
+		if (((dvbt_t2_rdb(0x581) & 0x80) >> 7) == 1) {
+			tmp = dvbt_t2_rdb(0x2a08) + ((dvbt_t2_rdb(0x2a09)) << 8);
+			tmp = tmp * 64;
+			if (iir_cnt <= 4) {
+				snr_iir = tmp;
+			} else if (iir_cnt > 4) {
+				snr_iir = snr_iir * (64 - 2) + tmp * (2);
+				snr_iir = snr_iir / 64;
+			}
+
+			PR_DVBT("0x2a08:%x,0x2a09:%x,tmp:%ld\n",
+				dvbt_t2_rdb(0x2a08), dvbt_t2_rdb(0x2a09), tmp);
+			PR_DVBT("1c:%x,876:%x,2745:%x,83b:%x,8c3:%x\n",
+				dvbt_t2_rdb(0x1c), dvbt_t2_rdb(0x876), dvbt_t2_rdb(0x2745),
+				dvbt_t2_rdb(0x83B), dvbt_t2_rdb(0x8c3));
+			PR_DVBT("snr_iir=%d,snr_iir=%d,iir_cnt=%d,0xdc=%x\n",
+				snr_iir, snr_iir * 3 / 64, iir_cnt, dvbt_t2_rdb(0xdc));
+
+			if ((dvbt_t2_rdb(0x1c) == 0x07) &&
+			((dvbt_t2_rdb(0x876) & 0x3c) == 0x04) &&
+			((dvbt_t2_rdb(0x83B) & 0x0f) == 0x02) &&
+			((dvbt_t2_rdb(0x8c3) & 0x0e) == 0x06) &&
+			((dvbt_t2_rdb(0x8c3) & 0x70) == 0x30) &&
+			((dvbt_t2_rdb(0x2745) & 0x07) == 0x05) &&
+			(dvbt_t2_rdb(0xdc) == 0x01) && //20us
+			((dvbt_t2_rdb(0x27ab) & 0x08) == 0x08)) {//doppler enable
+				if ((dvbt_t2_rdb(0x27ab) & 0x03) == 0x0) {//doopler detect
+					dvbt_t2_wrb(0x2a18, 0xb2);//linear interpolation 25.3db
+					dvbt_t2_wrb(0x2a1c, 0xa8);//forces the FI cutoff freq 25.3db
+				} else if ((snr_iir < (t2_snr_threshold * 64)) && (iir_cnt > 32)) {
+					dvbt_t2_wrb(0x2a18, 0xb2);//linear interpolation 25.3db
+					dvbt_t2_wrb(0x2a1c, 0xa8);//forces the FI cutoff freq 25.3db
+				} else if ((snr_iir >= (t2_snr_threshold * 64)) && (iir_cnt > 32)) {
+					dvbt_t2_wrb(0x2a1c, 0xfe);//force data/p2 cutoff freq
+					dvbt_t2_wrb(0x2a18, 0xb0);//force data/p2 cutoff freq
+				}
+				PR_DVBT("0x2a18:%x,0x2a1c:%x\n",
+					dvbt_t2_rdb(0x2a18), dvbt_t2_rdb(0x2a1c));
+			}
+			iir_cnt = iir_cnt + 1;
+		} else {
+			iir_cnt = 0;
+			snr_iir = 0;
+		}
+	} else {
+		iir_cnt = 0;
+		snr_iir = 0;
+	}
 
 	dvbt2_get_plp(&plp_num, &plp_common);
 	PR_DVBT("plp number %d, common plp: 0x%llx\n", plp_num, plp_common);
@@ -473,9 +648,11 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 
 	if (*status == 0)
 		PR_INFO("!! >> WAITT2 << !!\n");
-	else if (demod->last_status != *status)
+	else if (demod->last_status != *status) {
 		PR_INFO("!! >> %sT2 << !!, freq:%d\n", *status == FE_TIMEDOUT ? "UNLOCK" : "LOCK",
 			fe->dtv_property_cache.frequency);
+		doppler_detect = true;
+	}
 
 	demod->last_status = *status;
 

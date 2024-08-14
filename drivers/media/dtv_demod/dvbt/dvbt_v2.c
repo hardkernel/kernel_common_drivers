@@ -12,6 +12,8 @@
 #include <linux/kernel.h>
 //#include "acf_filter_coefficient.h"
 #include <linux/mutex.h>
+#include <linux/init.h>
+#include <linux/types.h>
 #include "dvbt_func.h"
 
 MODULE_PARM_DESC(dvbt2_agc_target1, "");
@@ -486,6 +488,19 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	else
 		front_write_reg(TEST_BUS, 0xc0002000);
 
+	/* should be configed when DEMOD_TOP_CFG_REG_4 is 0x0 */
+	if (is_meson_t6d_cpu()) {
+		/* t and t2 use top agc */
+		front_write_reg(DEMOD_FRONT_AFIFO_ADC, 0xc0080);
+		front_write_reg(DEMOD_FRONT_AGC_CFG1, 0x10122);
+		front_write_reg(DEMOD_FRONT_AGC_CFG2, 0x7200a06);
+		front_write_reg(DEMOD_FRONT_AGC_CFG3, 0x42190190);
+		front_write_reg(DEMOD_FRONT_AGC_CFG6, 0x1a000f0f);
+
+		PR_INFO("frontagc 0x20 %#x 0x21 %#x 0x22 %#x 0x23 %#x 0x26 %#x 0x28 %#x\n",
+				front_read_reg(0x20), front_read_reg(0x21), front_read_reg(0x22),
+				front_read_reg(0x23), front_read_reg(0x26), front_read_reg(0x28));
+	}
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
 	riscv_ctl_write_reg(0x30, 5);
 	riscv_ctl_write_reg(0x30, 4);
@@ -531,7 +546,7 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 		break;
 	}
 
-	if (is_meson_t3x_cpu())
+	if (is_meson_t3x_cpu() || is_meson_t6d_cpu())
 		dvbt_t2_wrb(0x2a04, 0xaa);
 
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
@@ -568,6 +583,7 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 	else
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+
 }
 
 void dvbt2_reset(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
@@ -599,6 +615,19 @@ void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe)
 	front_write_reg(0x22, 0x7200a06);
 	front_write_reg(0x2f, 0x0);
 	front_write_reg(TEST_BUS, 0x40001000);
+	if (is_meson_t6d_cpu()) {
+		/* t and t2 use top agc */
+		front_write_reg(DEMOD_FRONT_AFIFO_ADC, 0xc0080);
+		front_write_reg(DEMOD_FRONT_AGC_CFG1, 0x10122);
+		front_write_reg(DEMOD_FRONT_AGC_CFG2, 0x7200a06);
+		front_write_reg(DEMOD_FRONT_AGC_CFG3, 0x42190190);
+		front_write_reg(DEMOD_FRONT_AGC_CFG6, 0x2a000f0f);
+
+		PR_INFO("frontagc 0x20 %#x 0x21 %#x 0x22 %#x 0x23 %#x 0x26 %#x 0x28 %#x\n",
+				front_read_reg(0x20), front_read_reg(0x21), front_read_reg(0x22),
+				front_read_reg(0x23), front_read_reg(0x26), front_read_reg(0x28));
+	}
+
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 
 	switch (bw) {
@@ -895,6 +924,7 @@ unsigned int dvbt_set_ch(struct aml_dtvdemod *demod,
 		demod_mode = 2;
 
 	demod->bw = bw;
+
 	dvbt_reg_initial(bw, fe);
 	PR_DVBT("DVBT mode\n");
 

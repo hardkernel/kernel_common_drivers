@@ -252,7 +252,7 @@ void dvbs2_diseqc_init(void)
 	/* rx 22k tone, 125Mhz:b0, default 135Mhz:c0*/
 	//dvbs_wr_byte(DVBS_REG_DISTXF22, 0xb0); //t5d
 	/* number of bit to wait before starting the transmission */
-	if (is_meson_s1a_cpu())
+	if (is_meson_s1a_cpu() || is_meson_t6d_cpu())
 		dvbs_wr_byte(DVBS_REG_DISTIMEOCFG, 0x84 | (diseqc_out_invert << 3));
 	else
 		dvbs_wr_byte(DVBS_REG_DISTIMEOCFG, 0x84);

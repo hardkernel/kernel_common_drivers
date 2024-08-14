@@ -647,6 +647,12 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	qam_write_reg(demod, 0xb4, 0x32030);
 	qam_write_reg(demod, 0xb7, 0x3084);
 
+	if (is_meson_t6d_cpu()) {
+		//QAM impulse noise
+		qam_write_reg(demod, 0x65, 0x410c);
+		qam_write_reg(demod, 0x70, 0x9132080);
+	}
+
 	// agc gain
 	qam_write_reg(demod, 0x24, (qam_read_reg(demod, 0x24) | (1 << 17)));
 	qam_write_reg(demod, 0x60, 0x10466000);

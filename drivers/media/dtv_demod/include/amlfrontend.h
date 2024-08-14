@@ -189,6 +189,7 @@
 /*  V3.6.009 fix demod error when locking SPLP 2K T2 signal */
 /*  V3.6.010 fix dvbc fast search flow */
 /*  V3.6.011 fix dvbt2 mplp plpid switch fail*/
+/*  V3.6.012 improve T6D ATSC/QAM/DVBS/T/T2 performance*/
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -205,8 +206,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.6.011"
-#define DTVDEMOD_VER	"2024/11/13: fix dvbt2 mplp plpid switch fail"
+#define AMLDTVDEMOD_VER "V3.6.012"
+#define DTVDEMOD_VER	"2024/11/15: improve T6D ATSC/QAM/DVBS/T/T2 performance"
 #define AMLDTVDEMOD_T2_FW_VER "v0959.20241024"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

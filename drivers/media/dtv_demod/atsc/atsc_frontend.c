@@ -287,8 +287,20 @@ int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 			atsc_write_reg_v4(ATSC_EQ_REG_0XA5, 0x8c);
 			/* bit30: enable CCI */
 			atsc_write_reg_v4(ATSC_EQ_REG_0X92, 0x40000240);
-			//static echo
-			atsc_write_reg_v4(ATSC_EQ_REG_0X93, 0x90f01A0);
+			if (is_meson_t6d_cpu()) {
+				//improve C/N
+				atsc_write_reg_v4(0xde, 0x8a0a0a0c);
+				atsc_write_reg_v4(0xdf, 0x4449);
+				atsc_write_reg_v4(0xdb, 0x80a0ff40);
+				atsc_write_reg_v4(0xdd, 0x2040600);
+				//dynamic echo
+				atsc_write_reg_v4(0x8a, 0x94000008);
+				//static echo
+				atsc_write_reg_v4(ATSC_EQ_REG_0X93, 0x90f0310);
+			} else {
+				//static echo
+				atsc_write_reg_v4(ATSC_EQ_REG_0X93, 0x90f01A0);
+			}
 			/* clk recover confidence control */
 			atsc_write_reg_v4(ATSC_DEMOD_REG_0X5D, 0x14400202);
 			/* CW bin frequency */
@@ -487,6 +499,21 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 
 		goto finish;
 	}
+
+	if (((atsc_read_reg_v4(0xcf) & 0x8000000) == 0x8000000) && // detected doppler
+		((atsc_read_reg_v4(0xcf) & 0x1000000) == 0x0) && //dop_det detected awgn
+		((atsc_read_reg_v4(0xce) & 0xff) < 0x14)) {
+		if (atsc_read_reg_v4(0xde) != 0x8c0a0a0c)
+			atsc_write_reg_v4(0xde, 0x8c0a0a0c);
+		if (atsc_read_reg_v4(0xdf) != 0x9449)
+			atsc_write_reg_v4(0xdf, 0x9449);
+	} else {
+		if (atsc_read_reg_v4(0xde) != 0x8a0a0a0c)
+			atsc_write_reg_v4(0xde, 0x8a0a0a0c);
+		if (atsc_read_reg_v4(0xdf) != 0x4449)
+			atsc_write_reg_v4(0xdf, 0x4449);
+	}
+	PR_ATSC("0xde=0x%x, 0xdf=%x\n", atsc_read_reg_v4(0xde), atsc_read_reg_v4(0xdf));
 
 	atsc_check_fsm_status(demod);
 

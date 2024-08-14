@@ -2180,7 +2180,8 @@ void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 		} else if (l2a_def_val_local[reg].addr == 0x913) {
 			dvbs_wr_byte(0x913, dvbs_agc_target);
 		} else if (l2a_def_val_local[reg].addr == 0x308 &&
-			devp->data->hw_ver == DTVDEMOD_HW_S1A) {
+			(devp->data->hw_ver == DTVDEMOD_HW_S1A ||
+			devp->data->hw_ver == DTVDEMOD_HW_T6D)) {
 #ifdef AML_DEMOD_SUPPORT_DVBS
 			dvbs_wr_byte(0x308, l2a_def_val_local[reg].value |
 				(diseqc_out_invert << 3));
