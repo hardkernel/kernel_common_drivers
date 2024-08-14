@@ -132,7 +132,7 @@ int di_mmu_box_alloc_idx(void *handle, int idx, int num_pages,
 	int ret;
 	int i;
 
-	if (!box || idx < 0 || idx >= box->max_sc_num) {
+	if (!box || idx < 0) {
 		PR_ERR("can't alloc mmu box(%p),idx:%d\n",
 			box, idx);
 		return -1;
