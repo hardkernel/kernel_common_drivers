@@ -501,8 +501,6 @@ int amlogic_crg_device_usb2_init(u32 phy_id)
 			clk_prepare_enable(phy->clk);
 	}
 
-	amlogic_crg_drd_usb2_set_controller_power(phy, true);
-
 	for (i = 0; i < portnum; i++)
 		temp = temp | (1 << phy->phy_reset_level_bit[i]);
 
@@ -597,8 +595,6 @@ int amlogic_crg_device_usb2_shutdown(u32 phy_id)
 		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
 	writel((val & (~temp)), (void __iomem	*)
 		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
-
-	amlogic_crg_drd_usb2_set_controller_power(phy, false);
 
 	if (phy->suspend_flag  == 0)
 		if (phy->phy.flags == AML_USB2_PHY_ENABLE)
