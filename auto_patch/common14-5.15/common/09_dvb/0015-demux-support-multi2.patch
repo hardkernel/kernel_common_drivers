@@ -1,0 +1,92 @@
+From e1a90426b2f5a784fbd936fd8fcc07634a5580ec Mon Sep 17 00:00:00 2001
+From: "jing.li1" <jing.li1@amlogic.com>
+Date: Wed, 21 Aug 2024 10:02:36 +0800
+Subject: [PATCH] Demux: Add api for multi2 [1/2]
+
+PD#SWPL-181881
+
+Problem:
+S6 need to support multi2
+
+Solution:
+Add api for multi2
+
+Verify:
+Verified on bl201
+
+Change-Id: Ib43b94234b211ed7266d991844d0cbf74e43311f
+Signed-off-by: jing.li1 <jing.li1@amlogic.com>
+---
+ include/uapi/linux/dvb/aml_ca_ext.h | 28 +++++++++++++++++++++++++++-
+ 1 file changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/include/uapi/linux/dvb/aml_ca_ext.h b/include/uapi/linux/dvb/aml_ca_ext.h
+index b3155f46fb68f..660d03b17dbd7 100644
+--- a/include/uapi/linux/dvb/aml_ca_ext.h
++++ b/include/uapi/linux/dvb/aml_ca_ext.h
+@@ -12,6 +12,7 @@
+ #else
+ #include "ca.h"
+ #endif
++#include <linux/types.h>
+ 
+ /* amlogic define */
+ /* CW type. */
+@@ -53,7 +54,8 @@ enum ca_sc2_cmd_type {
+ 	CA_KEY,
+ 	CA_GET_STATUS,
+ 	CA_SET_SCB,
+-	CA_SET_ALGO
++	CA_SET_ALGO,
++	CA_SET_EXTEND
+ };
+ 
+ enum ca_sc2_algo_type {
+@@ -72,6 +74,7 @@ enum ca_sc2_algo_type {
+ 	CA_ALGO_ASA_LIGHT,
+ 	CA_ALGO_S17_ECB_CLR_END,
+ 	CA_ALGO_S17_ECB_CTS,
++	CA_ALGO_MULTI2,
+ 	CA_ALGO_UNKNOWN
+ };
+ 
+@@ -156,6 +159,28 @@ struct ca_sc2_algo {
+ 	enum ca_sc2_algo_type algo;
+ };
+ 
++enum ca_sc2_extend_type {
++	CA_EXTEND_MULTI2_SYSKEY
++};
++
++struct ca_multi2_params {
++	unsigned char round;
++	unsigned char syskey[32];
++};
++
++/**
++ * struct ca_sc2_extend - set extend value
++ *
++ * @ca_index:		use slot index.
++ * @type:		extend type
++ * @extend_params_ptr:	pointer to extend params
++ */
++struct ca_sc2_extend {
++	unsigned int ca_index;
++	enum ca_sc2_extend_type type;
++	__u64 extend_params_ptr;
++};
++
+ /**
+  * struct ca_sc2_descr_ex - ca extend descriptor
+  *
+@@ -169,6 +194,7 @@ struct ca_sc2_descr_ex {
+ 		struct ca_sc2_key key_params;
+ 		struct ca_sc2_scb scb_params;
+ 		struct ca_sc2_algo algo_params;
++		struct ca_sc2_extend extend_params;
+ 	} params;
+ };
+ 
+-- 
+2.43.2
+
