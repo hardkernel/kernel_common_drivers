@@ -72,6 +72,7 @@
 //2024.08.15 add avi filmmaker flag
 //2024.08.28 add hdr10p licence detection
 //2024.08.30 disable hdcp when suspend
+//2024.09.18 remove warning print
 #define RX_VER0 "ver.2024/08/28"
 
 

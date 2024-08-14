@@ -2761,8 +2761,8 @@ static ssize_t edid_select_store(struct device *dev,
 		rx[1].edid_type.cfg = (enum edid_ver_e)((tmp >> 4) & 0xF);
 		rx[2].edid_type.cfg = (enum edid_ver_e)((tmp >> 8) & 0xF);
 		rx[3].edid_type.cfg = (enum edid_ver_e)((tmp >> 12) & 0xF);
-		rx_pr("without port_map edid select for UI HDMI4~1: 0x%x, for portD~A: 0x%x\n",
-			tmp, edid_select);
+		/*rx_pr("without port_map edid select for UI HDMI4~1: 0x%x, for portD~A: 0x%x\n",*/
+			/*tmp, edid_select);*/
 		edid_type_init();
 		return count;
 	}
@@ -2794,7 +2794,7 @@ static ssize_t edid_select_store(struct device *dev,
 	edid_select |= rx[2].edid_type.cfg << (pos[2] * 4);
 	rx[3].edid_type.cfg = (enum edid_ver_e)((tmp >> 12) & 0xF);
 	edid_select |= rx[3].edid_type.cfg << (pos[3] * 4);
-	rx_pr("edid select for UI HDMI4~1: 0x%x, for portD~A: 0x%x\n", tmp, edid_select);
+	/*rx_pr("edid select for UI HDMI4~1: 0x%x, for portD~A: 0x%x\n", tmp, edid_select);*/
 	edid_type_init();
 	return count;
 }
