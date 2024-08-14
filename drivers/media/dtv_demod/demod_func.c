@@ -2334,6 +2334,9 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 			front_write_bits(AFIFO_ADC, 1, ADC_2S_COMPLEMENT_BIT,
 					 ADC_2S_COMPLEMENT_WID);
 			front_write_bits(TEST_BUS, 1, DC_ARB_EN_BIT, DC_ARB_EN_WID);
+			/* set cfg_agc_sel bit[20+0]: dtmb */
+			if (devp->data->hw_ver == DTVDEMOD_HW_T6D)
+				demod_top_write_reg(DEMOD_TOP_CFG_REG_5, 0x100000);
 		} else {
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x8);
 		}
@@ -2353,6 +2356,8 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 					 ADC_2S_COMPLEMENT_WID);
 			front_write_reg(SFIFO_OUT_LENS, 1);
 			front_write_bits(TEST_BUS, 1, DC_ARB_EN_BIT, DC_ARB_EN_WID);
+			if (devp->data->hw_ver == DTVDEMOD_HW_T6D)
+				demod_top_write_reg(DEMOD_TOP_CFG_REG_5, 0x200000);
 		}
 		break;
 
@@ -2381,6 +2386,8 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 				front_write_bits(AFIFO_ADC, nco_rate,
 					AFIFO_NCO_RATE_BIT,
 					AFIFO_NCO_RATE_WID);
+				if (devp->data->hw_ver == DTVDEMOD_HW_T6D)
+					demod_top_write_reg(DEMOD_TOP_CFG_REG_5, 0x400000);
 			}
 			front_write_bits(AFIFO_ADC, 1, ADC_2S_COMPLEMENT_BIT,
 					 ADC_2S_COMPLEMENT_WID);
@@ -2417,6 +2424,9 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 				front_write_bits(AFIFO_ADC, nco_rate, AFIFO_NCO_RATE_BIT,
 						 AFIFO_NCO_RATE_WID);
+				/* set cfg_agc_sel bit[20+3]: dvbc */
+				if (devp->data->hw_ver == DTVDEMOD_HW_T6D)
+					demod_top_write_reg(DEMOD_TOP_CFG_REG_5, 0x800000);
 			}
 
 			//for new dvbc_blind_scan mode
@@ -2435,6 +2445,8 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 
 	case SYS_DVBT:
 	case SYS_DVBT2:
+		if (devp->data->hw_ver == DTVDEMOD_HW_T6D)
+			demod_top_write_reg(DEMOD_TOP_CFG_REG_5, 0x1000000);
 		break;
 #ifdef AML_DEMOD_SUPPORT_DVBS
 	case SYS_DVBS:
@@ -2463,7 +2475,8 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 					AFIFO_NCO_RATE_WID);
 			front_write_reg(SFIFO_OUT_LENS, 0x0);
 			front_write_reg(0x22, 0x7200a06);
-
+			if (devp->data->hw_ver == DTVDEMOD_HW_T6D)
+				demod_top_write_reg(DEMOD_TOP_CFG_REG_5, 0x2000000);
 			if (devp->data->hw_ver != DTVDEMOD_HW_S4)
 				demod_top_write_reg(DEMOD_TOP_REG0, 0x0);
 		}
