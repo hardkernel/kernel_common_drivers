@@ -2821,7 +2821,7 @@ bool rx_clr_tmds_valid(u8 port)
 {
 	bool ret = false;
 
-	if (rx_info.chip_id == CHIP_ID_T3X)
+	if (rx_info.chip_id == CHIP_ID_T3X || rx_info.chip_id == CHIP_ID_T6D)
 		return ret;
 	if (rx[port].state >= FSM_SIG_STABLE) {
 		rx[port].state = FSM_WAIT_CLK_STABLE;
@@ -3807,6 +3807,9 @@ void aml_phy_offset_cal(void)
 		break;
 	case PHY_VER_TXHD2:
 		aml_phy_offset_cal_txhd2();
+		break;
+	case PHY_VER_T6D:
+		aml_phy_offset_cal_t6d();
 		break;
 	default:
 		break;
@@ -4795,7 +4798,7 @@ void rx_aud_pll_ctl(bool en, u8 port)
 				tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
 				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
 				/* AUD_CLK=N/CTS*TMDS_CLK */
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x20008000);
+				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x20000000);
 				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x60008000);
 				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL2, 0x80b);
 				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL2, 0x89b);
@@ -4807,7 +4810,7 @@ void rx_aud_pll_ctl(bool en, u8 port)
 				if (log_level & AUDIO_LOG)
 					rx_pr("aud div=%d\n",
 						rd_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3));
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x4000c000);
+				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x40004000);
 				if (log_level & AUDIO_LOG)
 					/* t3 audio pll lock bit: top reg acr_cntl_stat bit'31 */
 					rx_pr("audio pll lock:0x%x\n",

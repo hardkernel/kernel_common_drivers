@@ -483,6 +483,7 @@ struct rx_aml_phy {
 	int buf_gain;
 	/* bit[3:0]:pll bw,bit[4:7]:phy bw, bit'8 enable bit */
 	u32 force_bw;
+	int eq_sslms_en;
 };
 
 struct rx_aml_phy_21 {

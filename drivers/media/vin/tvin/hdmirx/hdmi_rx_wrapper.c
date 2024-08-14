@@ -42,6 +42,7 @@
 #include "hdmi_rx_hw_tl1.h"
 #include "hdmi_rx_hw_tm2.h"
 #include "hdmi_rx_hw_t5m.h"
+#include "hdmi_rx_hw_t6d.h"
 #include "hdmi_rx_hw_t3x.h"
 #include "hdmi_rx_hw_txhd2.h"
 
@@ -276,7 +277,7 @@ void hdmirx_phy_var_init(void)
 		rx_info.aml_phy.cdr_mode = 0;
 		rx_info.aml_phy.pre_int = 1;
 		rx_info.aml_phy.pre_int_en = 1;
-		rx_info.aml_phy.phy_bwth = 0;
+		rx_info.aml_phy.phy_bwth = 1;
 		rx_info.aml_phy.alirst_en = 0;
 		rx_info.aml_phy.tap1_byp = 1;
 		rx_info.aml_phy.eq_byp = 1;
@@ -295,7 +296,10 @@ void hdmirx_phy_var_init(void)
 		rx_info.aml_phy.vga_gain = 0x1000;
 		rx_info.aml_phy.eq_stg1 = 0x1f;
 		rx_info.aml_phy.eq_stg2 = 0x1f;
-		rx_info.aml_phy.eq_hold = 0;
+		if (rx_info.phy_ver == PHY_VER_T6D)
+			rx_info.aml_phy.eq_hold = 3;
+		else
+			rx_info.aml_phy.eq_hold = 0;
 		rx_info.aml_phy.dfe_hold  = 0;
 		rx_info.aml_phy.eye_delay = 50;
 		rx_info.aml_phy.eq_retry = 0;
@@ -3199,6 +3203,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(rx_info.aml_phy.long_bist_en, i++);
 	pr_var(rx_info.aml_phy.reset_pcs_en, i++);
 	pr_var(rx_info.aml_phy.rterm_dbg_lvl, i++);
+	pr_var(rx_info.aml_phy.eq_sslms_en, i++);
 	pr_var(rx_info.aml_phy_21.phy_bwth, i++);
 	pr_var(rx_info.aml_phy_21.vga_gain, i++);
 	pr_var(rx_info.aml_phy_21.eq_stg1, i++);
@@ -3804,6 +3809,9 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy.rterm_dbg_lvl),
 		&rx_info.aml_phy.rterm_dbg_lvl, value))
 		return pr_var(rx_info.aml_phy.rterm_dbg_lvl, index);
+	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy.eq_sslms_en),
+		&rx_info.aml_phy.eq_sslms_en, value))
+		return pr_var(rx_info.aml_phy.eq_sslms_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(tuning_cnt), &tuning_cnt, value))
 		return pr_var(tuning_cnt, index);
 	if (set_pr_var(tmpbuf, var_to_str(sig_unstable_max), &sig_unstable_max, value))
@@ -6831,6 +6839,8 @@ static void dump_phy_status(u8 port)
 		dump_aml_phy_sts_t5m();
 	else if (rx_info.phy_ver == PHY_VER_TXHD2)
 		dump_aml_phy_sts_txhd2();
+	else if (rx_info.phy_ver == PHY_VER_T6D)
+		dump_aml_phy_sts_t6d();
 	else if (rx_info.phy_ver == PHY_VER_T3X)
 		dump_aml_phy_sts_t3x(port);
 	else

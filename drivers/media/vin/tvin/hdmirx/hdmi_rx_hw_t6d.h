@@ -55,6 +55,7 @@
 	#define T6D_BYP_EN			_BIT(5)
 	#define T6D_BYP_EQ_VAL			MSK(4, 0)
 	#define T6D_EQ_MODE			MSK(2, 8)
+	#define T6D_EQ_ERR_MODE			MSK(2, 10)
 	#define T6D_STATUS_MUX_SEL		MSK(2, 22)
 #define T6D_HDMIRX20PHY_DCHA_MISC1		(0x006 << 2)
 	#define T6D_SQ_RSTN			_BIT(26)
@@ -109,6 +110,8 @@ void bubble_sort(u32 *sort_array);
 void quick_sort2_t6d(int arr[], int l, int r);
 void clk_init_cor_t6d(void);
 void rx_dig_clk_en_t6d(bool en);
+void dump_aml_phy_sts_t6d(void);
+void aml_phy_offset_cal_t6d(void);
 
 /*function declare end*/
 
