@@ -67,4 +67,12 @@ int set_all_ots_by_level(unsigned int level)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DDR_BANDWIDTH)
+void aml_get_all_channel_grant(u64 *channel_grant);
+#else
+static inline void aml_get_all_channel_grant(u64 *channel_grant)
+{
+}
+#endif
+
 #endif
