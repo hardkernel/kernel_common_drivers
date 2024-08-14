@@ -56,6 +56,8 @@ static u32 vsync_pts_inc_scale_base[MAX_VD_LAYERS];
 
 #define ROTATION_180_DEGREES BIT(2)
 
+static void vc_vf_put(struct vframe_s *vf, void *op_arg);
+
 /*if add new patten, need change dev->patten[X]*/
 enum video_refresh_pattern {
 	PATTERN_32 = 0,
@@ -926,7 +928,6 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 		enable_prelink = dim_get_pre_link();
 #endif
-
 		if (vf->vc_private) {
 			vsync_index_diff = vf->vc_private->vsync_index - dev->last_vsync_index;
 			dev->last_vsync_index = vf->vc_private->vsync_index;
@@ -988,6 +989,18 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			vf->vc_private->last_disp_count = continue_vsync_count[dev->index];
 			actual_delay_count[dev->index] = vsync_count[dev->index]
 				- vf->vc_private->vsync_index + 1;
+		}
+
+		if (vf->dec_fence_status == DEC_FENCE_SUCCESS) {
+			vc_print(dev->index, PRINT_OTHER,
+				"%s: normal vframe, frame_index:%d fence:%px\n",
+				__func__, vf->frame_index, vf->fence);
+			dma_fence_get(vf->fence);
+		} else if (vf->dec_fence_status == DEC_FENCE_ERR) {
+			vc_print(dev->index, PRINT_OTHER, "error vframe, frame_index:%d\n",
+			       vf->frame_index);
+			vc_vf_put(vf, (void *)dev);
+			return NULL;
 		}
 
 		if (dev->enable_pulldown) {

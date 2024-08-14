@@ -172,6 +172,14 @@ enum com_dev_choice {
 	COMPOSER_WITH_MAX,
 };
 
+enum vc_fence_status {
+	VC_FENCE_INVALID = 0,
+	VC_FENCE_DEC_ERR,
+	VC_FENCE_RELEASED,
+	VC_FENCE_NORMAL,
+	VC_FENCE_WAIT,
+};
+
 struct video_composer_port_s {
 	const char *name;
 	u32 index;

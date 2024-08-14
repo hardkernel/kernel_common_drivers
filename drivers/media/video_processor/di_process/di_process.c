@@ -1269,7 +1269,6 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	int out_fd;
 	int out_fence_fd;
 	struct file_private_data *private_data = NULL;
-	int ret;
 	u32 is_repeat = false;
 	u32 frame_index = 0;
 	u32 max_width_new = 0, max_width_last = 0;
@@ -1298,9 +1297,8 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	vf = get_vf_from_file(dev, file_vf);
 	if (!vf) {
 		dp_print(dev->index, PRINT_OTHER, "fd no vf, bypass\n");
-		ret = -EINVAL;
 		dp_put_file(dev, file_vf);
-		return ret;
+		return -EINVAL;
 	}
 
 	if (di_force_rotate)
@@ -1539,9 +1537,8 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		i = get_received_frame_free_index(dev);
 		if (!kfifo_get(&dev->file_free_q, &dmabuf)) {
 			dp_print(dev->index, PRINT_ERROR, "peek free dma_buf fail!!!\n");
-			ret = -EINVAL;
 			dp_put_file(dev, file_vf);
-			return ret;
+			return -EINVAL;
 		}
 
 		private_data = di_proc_get_file_private_data(dmabuf->file, true);
@@ -1592,6 +1589,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	dev->last_file = file_vf;
 	dev->last_dmabuf = dmabuf;
 	dev->last_frame_bypass = false;
+
 	return 0;
 }
 
