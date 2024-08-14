@@ -17499,7 +17499,7 @@ LOAD_END:
 
 static int amdv_drv_suspend(struct device *dev)
 {
-	if (is_aml_s7d()) {
+	if (is_aml_s7d() || is_aml_s6()) {
 		amdv_reg_list[0] = READ_VPP_DV_REG(AMDV_PATH_CTRL);
 		amdv_reg_list[1] = READ_VPP_DV_REG(AMDV_CORE1A_CLKGATE_CTRL);
 		amdv_reg_list[2] = READ_VPP_DV_REG(AMDV_CORE2A_CLKGATE_CTRL);
@@ -17511,7 +17511,7 @@ static int amdv_drv_suspend(struct device *dev)
 
 static int amdv_drv_resume(struct device *dev)
 {
-	if (is_aml_s7d()) {
+	if (is_aml_s7d() || is_aml_s6()) {
 		WRITE_VPP_DV_REG(AMDV_PATH_CTRL, amdv_reg_list[0]);
 		WRITE_VPP_DV_REG(AMDV_CORE1A_CLKGATE_CTRL, amdv_reg_list[1]);
 		WRITE_VPP_DV_REG(AMDV_CORE2A_CLKGATE_CTRL, amdv_reg_list[2]);
