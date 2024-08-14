@@ -64,37 +64,12 @@ unsigned char get_meson_cpu_version(int level)
 #include <linux/amlogic/tee.h>
 #else
 #define TEE_MEM_TYPE_STREAM_INPUT	0x4
-u32 tee_protect_tvp_mem(u32 start, u32 size,
-			u32 *handle)
+u32 tee_protect_tvp_mem(phys_addr_t start, size_t size, u32 *handle)
 {
 	return 0xFFFFFFFF;
 }
 
-int tee_check_in_mem(u32 pa, u32 size)
-{
-	pr_info("no tee config\n");
-	return (-1);
-}
-
 void tee_unprotect_tvp_mem(u32 handle)
-{
-}
-
-int tee_check_out_mem(u32 pa, u32 size)
-{
-	pr_info("no tee config\n");
-	return (-1);
-}
-
-u32 tee_protect_mem_by_type(u32 type,
-		u32 start, u32 size,
-		u32 *handle)
-{
-	pr_info("no tee config\n");
-	return (-1);
-}
-
-void tee_unprotect_mem(u32 handle)
 {
 }
 
@@ -435,6 +410,8 @@ static u32 tvp_dynamic_alloc_max_size;
 static u32 tvp_dynamic_alloc_force_small_segment;
 static u32 tvp_dynamic_alloc_force_small_segment_size;
 static u32 tvp_pool_early_release_switch;
+static u64 sec_vdec_addr;
+static u64 sec_vdec_size;
 
 #define TVP_POOL_SEGMENT_MAX_USED 4
 #define TVP_MAX_SLOT 8
@@ -876,6 +853,19 @@ int codec_mm_add_release_callback(struct codec_mm_s *mem, struct codec_mm_cb_s *
 }
 EXPORT_SYMBOL(codec_mm_add_release_callback);
 
+void codec_mm_dev_set_dma_mask(u64 bits)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	u64 cma_base, res_base;
+
+	cma_base = cma_get_base(dev_get_cma_area(mgt->dev));
+	res_base = mgt->rmem.base;
+
+	if ((cma_base & 0xFFFFFFFF00000000UL) || (res_base & 0xFFFFFFFF00000000UL))
+		dma_coerce_mask_and_coherent(mgt->dev, DMA_BIT_MASK(bits));
+}
+EXPORT_SYMBOL(codec_mm_dev_set_dma_mask);
+
 static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 {
 	int try_alloced_from_sys = 0;
@@ -903,6 +893,13 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 		(mem->page_count <= mgt->alloc_from_sys_pages_max);
 
 	int can_from_tvp = (mem->flags & CODEC_MM_FLAGS_TVP);
+
+	if (can_from_res) {
+		if (mem->flags & CODEC_MM_FLAGS_RESERVED)
+			dma_coerce_mask_and_coherent(mgt->dev, DMA_BIT_MASK(64));
+		else
+			can_from_res = 0;
+	}
 
 	if (can_from_tvp) {
 		can_from_sys = 0;
@@ -1757,13 +1754,13 @@ static int codec_mm_tvp_pool_protect(struct extpool_mgt_s *tvp_pool)
 	for (i = 0; i < tvp_pool->slot_num; i++) {
 		if (tvp_pool->mm[i]->tvp_handle == -1) {
 			ret = tee_protect_tvp_mem
-				((uint32_t)tvp_pool->mm[i]->phy_addr,
-				(uint32_t)tvp_pool->mm[i]->buffer_size,
+				(tvp_pool->mm[i]->phy_addr,
+				tvp_pool->mm[i]->buffer_size,
 				&tvp_pool->mm[i]->tvp_handle);
-			pr_info("protect tvp %d %d ret %d %x %x\n",
+			pr_info("protect tvp %d %d ret %d %lx %x\n",
 				i, tvp_pool->mm[i]->tvp_handle, ret,
-				(unsigned int)tvp_pool->mm[i]->phy_addr,
-				(unsigned int)tvp_pool->mm[i]->buffer_size);
+				tvp_pool->mm[i]->phy_addr,
+				tvp_pool->mm[i]->buffer_size);
 			if (ret)
 				break;
 		} else {
@@ -4177,6 +4174,35 @@ u32 codec_mm_get_property_from_dts(char *property_name)
 	return ret;
 }
 
+u64 codec_mm_managed_max_addr(void)
+{
+	u64 addr = 0;
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	u64 rmem_end = 0;
+	u64 cma_end = 0;
+	struct cma *cma = NULL;
+
+	if (mgt) {
+		if (mgt->rmem.size > 0)
+			rmem_end = mgt->rmem.base + mgt->rmem.size;
+
+		if (mgt->total_cma_size > 0) {
+			cma = dev_get_cma_area(mgt->dev);
+			if (cma && cma != dev_get_cma_area(NULL))
+				cma_end = cma_get_base(cma) + mgt->total_cma_size;
+		}
+
+		addr = rmem_end >= cma_end ? rmem_end : cma_end;
+	}
+
+	return addr;
+}
+
+u64 codec_mm_secure_vdec_max_addr(void)
+{
+	return  sec_vdec_addr + sec_vdec_size;
+}
+
 static int codec_mm_probe(struct platform_device *pdev)
 {
 	int r;
@@ -4199,6 +4225,7 @@ static int codec_mm_probe(struct platform_device *pdev)
 
 	pr_info("%s ok\n", __func__);
 	codec_mm_mgt_init(&pdev->dev);
+	codec_mm_dev_set_dma_mask(DMA_BIT_MASK(64));
 
 #if IS_MODULE(CONFIG_AMLOGIC_MEDIA_MODULE) && \
 	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
@@ -4322,6 +4349,9 @@ static int secure_vdec_reserved_init(struct reserved_mem *rmem,
 		pr_err("protect vdec failed addr %llx %llx ret is %x\n",
 			(u64)rmem->base, (u64)rmem->size, ret);
 	}
+
+	sec_vdec_addr = rmem->base;
+	sec_vdec_size = rmem->size;
 
 	return ret;
 }

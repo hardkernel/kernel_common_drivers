@@ -175,10 +175,16 @@ int codec_mm_alloc_cma_size(void);
 	IS_ENABLED(CONFIG_KALLSYMS_ALL) && \
 	!IS_ENABLED(CONFIG_DEBUG_SPINLOCK)
 int cma_mmu_op(struct page *page, int count, bool set);
+void codec_mm_dev_set_dma_mask(u64 bits);
+
 #else
 static inline int cma_mmu_op(struct page *page, int count, bool set)
 {
 	return 0;
 }
 #endif
+
+u64 codec_mm_managed_max_addr(void);
+u64 codec_mm_secure_vdec_max_addr(void);
+
 #endif
