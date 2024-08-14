@@ -127,6 +127,7 @@ struct amfc_cmd_list {
 	unsigned int result_size;
 };
 
+#ifndef __UNCOMPRESS_IMAGE__
 struct amfc {
 	struct device *dev;
 	void *io_base;
@@ -165,9 +166,14 @@ struct amfc {
 	unsigned int work_mode;			/* 0: irq mode, 1: poll mode  */
 	unsigned char log;
 };
+#endif
 
 int amfc_init(void);
 int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, int stream);
 int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size);
+
+#ifdef __UNCOMPRESS_IMAGE__
+void cache_clean_flush(unsigned long start, unsigned long end);
+#endif
 
 #endif

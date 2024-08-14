@@ -1313,7 +1313,7 @@ function build_part_of_kernel () {
 			if [ "${ARCH}" = "arm64" ]; then
 				(cd ${OUT_DIR} && make O=${OUT_DIR} ${TOOL_ARGS} "${MAKE_ARGS[@]}" -j$(nproc) Image)
 			elif [ "${ARCH}" = "arm" ]; then
-				(cd ${OUT_DIR} && make O=${OUT_DIR} ${TOOL_ARGS} "${MAKE_ARGS[@]}" -j$(nproc) LOADADDR=0x108000 uImage)
+				(cd ${OUT_DIR} && make O=${OUT_DIR} ${TOOL_ARGS} "${MAKE_ARGS[@]}" -j$(nproc) LOADADDR=0x208000 uImage)
 			fi
 			set +x
 		fi
@@ -1551,7 +1551,7 @@ export -f handle_input_parameters
 
 function set_default_parameters () {
 	if [ "${ARCH}" = "arm" ]; then
-		ARGS+=("LOADADDR=0x108000")
+		ARGS+=("LOADADDR=0x208000")
 	else
 		ARCH=arm64
 	fi
@@ -1872,7 +1872,7 @@ function set_default_parameters_for_32bit () {
 	export MKBOOTIMG_STAGING_DIR="${MODULES_STAGING_DIR}/mkbootimg_staging"
 	export OUT_AMLOGIC_DIR=$(readlink -m ${COMMON_OUT_DIR}/amlogic)
 
-	tool_args+=("LOADADDR=0x108000")
+	tool_args+=("LOADADDR=0x208000")
 	tool_args+=("DEPMOD=depmod")
 	tool_args+=("KCONFIG_EXT_MODULES_PREFIX=${KCONFIG_EXT_MODULES_PREFIX}")
 	tool_args+=("KCONFIG_EXT_PREFIX=${KCONFIG_EXT_PREFIX}")
