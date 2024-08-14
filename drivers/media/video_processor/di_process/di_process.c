@@ -1153,6 +1153,30 @@ static int di_process_set_tvp(struct di_process_dev *dev, bool is_tvp)
 	return 0;
 }
 
+static bool check_need_do_di(struct di_process_dev *dev, struct vframe_s *vf)
+{
+	bool need_do_di = true;
+
+	if (!dev || !vf) {
+		pr_err("%s: param is invalid.\n", __func__);
+		return need_do_di;
+	}
+
+	/*game mode no need do di*/
+	if (vf->flag & VFRAME_FLAG_GAME_MODE) {
+		dp_print(dev->index, PRINT_OTHER, "game mode,no need do di.\n");
+		need_do_di = false;
+	}
+
+	/*low latency mode no need do di*/
+	if (vf->fence) {
+		dp_print(dev->index, PRINT_OTHER, "low latency mode,no need do di.\n");
+		need_do_di = false;
+	}
+
+	return need_do_di;
+}
+
 static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t *frame_info)
 {
 	int i;
@@ -1200,6 +1224,18 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		"set_frame: len =%d, fd=%d, frame_index=%d, file_vf=%px, file_count=%ld\n",
 		 kfifo_len(&dev->receive_q), frame_info->in_fd, vf->frame_index,
 		 file_vf, file_count(file_vf));
+
+	if (!check_need_do_di(dev, vf)) {
+		frame_info->out_fd = -1;
+		frame_info->out_fence_fd = -1;
+		frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
+		frame_info->frame_index = vf->frame_index;
+		frame_info->need_bypass = true;
+		dev->last_file = file_vf;
+
+		dp_put_file(dev, file_vf);
+		return 0;
+}
 
 	/*first vf need check tvp*/
 	if (dev->last_vf.type == 0) {
@@ -1416,6 +1452,7 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 	dev->last_file = file_vf;
 	dev->last_dmabuf = dmabuf;
 	dev->last_frame_bypass = false;
+
 	return 0;
 
 error1:

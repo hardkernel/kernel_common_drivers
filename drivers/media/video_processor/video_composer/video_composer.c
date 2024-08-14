@@ -112,6 +112,8 @@ static u32 vicp_shrink_mode = 1; /*0 2x, 1 4x, 2 8x*/
 static u32 force_comp_w;
 static u32 force_comp_h;
 static u32 lossy_compress_rate;//0: 100% copress; 1: 67% compress; 2: 83% compress
+static enum vc_fence_status last_buffer_status;
+static struct vframe_s *last_normal_vf;
 
 u32 vd_pulldown_level = 2;
 u32 vd_max_hold_count = 300;
@@ -498,6 +500,91 @@ static void video_timeline_increase(struct composer_dev *dev,
 		dev->received_new_count,
 		dev->fence_creat_count,
 		dev->fence_release_count);
+}
+
+static void video_timeline_update(struct composer_dev *dev, struct vframe_s *vf)
+{
+	int normal_frame_count = 0;
+	struct vframe_s *new_display_vf;
+	enum vc_fence_status buffer_status;
+	bool rendered;
+	int repeat_count;
+
+	if (!vf)
+		return;
+
+	rendered = vf->rendered;
+	repeat_count = vf->repeat_count;
+
+	switch (vf->dec_fence_status) {
+	case DEC_FENCE_SUCCESS:
+		vc_print(dev->index, PRINT_FENCE,
+			"%s: dec fence success, ready to put dec fence:%px\n",
+			__func__, vf->fence);
+		dma_fence_put(vf->fence);
+		if (last_buffer_status == VC_FENCE_DEC_ERR)
+			buffer_status = VC_FENCE_RELEASED;
+		else if (rendered)
+			buffer_status = VC_FENCE_NORMAL;
+		else
+			buffer_status = VC_FENCE_WAIT;
+		break;
+	case DEC_FENCE_INVALID:
+		if (rendered)
+			buffer_status = VC_FENCE_NORMAL;
+		else
+			buffer_status = VC_FENCE_WAIT;
+		break;
+	case DEC_FENCE_ERR:
+		buffer_status = VC_FENCE_DEC_ERR;
+		break;
+	default:
+		buffer_status = VC_FENCE_INVALID;
+		break;
+	}
+
+	switch (buffer_status) {
+	case VC_FENCE_DEC_ERR:
+		//release the normal vf when the first error vf appears
+		if (last_normal_vf == current_display_vf) {
+			new_display_vf = NULL;
+		} else {
+			last_normal_vf = current_display_vf;
+			new_display_vf = last_normal_vf;
+		}
+		if (new_display_vf && new_display_vf->dec_fence_status == DEC_FENCE_SUCCESS) {
+			normal_frame_count = 1 + new_display_vf->repeat_count;
+			vc_print(dev->index, PRINT_OTHER,
+				"err vf, need drop frame_index:%d, count:%d",
+				new_display_vf->frame_index, normal_frame_count);
+		}
+		vc_print(dev->index, PRINT_OTHER,
+			"put: frame_index:%d error, fence released\n",
+			vf->frame_index);
+		video_timeline_increase(dev, repeat_count + normal_frame_count +
+			1 + dev->drop_frame_count);
+		dev->drop_frame_count = 0;
+		break;
+	case VC_FENCE_RELEASED:
+		vc_print(dev->index, PRINT_PERFORMANCE | PRINT_FENCE,
+			 "put: frame_index: %d, err frame already put fence\n", vf->frame_index);
+		break;
+	case VC_FENCE_NORMAL:
+		video_timeline_increase(dev, repeat_count
+					+ 1 + dev->drop_frame_count);
+		dev->drop_frame_count = 0;
+		break;
+	case VC_FENCE_WAIT:
+		dev->drop_frame_count += repeat_count + 1;
+		vc_print(dev->index, PRINT_PERFORMANCE | PRINT_FENCE,
+			 "put: drop repeat_count=%d\n", repeat_count);
+		break;
+	default:
+		vc_print(dev->index, PRINT_ERROR, "error, fence status unknown\n");
+		break;
+	}
+	last_buffer_status = buffer_status;
+
 }
 
 static int vc_init_ge2d_buffer(struct composer_dev *dev, bool is_tvp, size_t usage)
@@ -1080,6 +1167,13 @@ static void display_q_uninit(struct composer_dev *dev)
 					 "vc: unit repeat_count=%d, frame_index=%d\n",
 					 repeat_count,
 					 dis_vf->frame_index);
+				if (dis_vf->fence &&
+					dis_vf->dec_fence_status == DEC_FENCE_SUCCESS) {
+					vc_print(dev->index, PRINT_FENCE,
+						 "vc: unit put fence=%px\n",
+						 dis_vf->fence);
+					dma_fence_put(dis_vf->fence);
+				}
 				for (i = 0; i <= repeat_count; i++) {
 					fput(dis_vf->file_vf);
 					total_put_count++;
@@ -1361,7 +1455,6 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	int repeat_count;
 	int frame_index;
 	int index_disp;
-	bool rendered;
 	bool is_composer;
 	bool is_mosaic_22;
 	int i;
@@ -1376,7 +1469,6 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	repeat_count = vf->repeat_count;
 	frame_index = vf->frame_index;
 	index_disp = vf->index_disp;
-	rendered = vf->rendered;
 	is_composer = vf->flag & VFRAME_FLAG_COMPOSER_DONE;
 	is_mosaic_22 = vf->type_ext & VIDTYPE_EXT_MOSAIC_22;
 
@@ -1453,15 +1545,7 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	}
 
 	//all the vframe param used must beforce fence release
-	if (rendered) {
-		video_timeline_increase(dev, repeat_count
-					+ 1 + dev->drop_frame_count);
-		dev->drop_frame_count = 0;
-	} else {
-		dev->drop_frame_count += repeat_count + 1;
-		vc_print(dev->index, PRINT_PERFORMANCE | PRINT_FENCE,
-			 "put: drop repeat_count=%d\n", repeat_count);
-	}
+	video_timeline_update(dev, vf);
 
 	if (!is_composer && !is_mosaic_22) {
 		for (i = 0; i <= repeat_count; i++) {
@@ -3167,7 +3251,13 @@ static void video_wait_decode_fence(struct composer_dev *dev,
 			 "%s, fence %lx, state: %d, wait cost time: %lld ns\n",
 			 __func__, (ulong)fence_tmp, ret,
 			 local_clock() - timestamp);
-		vf->fence = NULL;
+		ret = dma_fence_get_status(fence_tmp);
+		if (ret > 0)
+			vf->dec_fence_status = DEC_FENCE_SUCCESS;
+		else if (ret < 0)
+			vf->dec_fence_status = DEC_FENCE_ERR;
+		else
+			vc_print(dev->index, PRINT_ERROR, "dec error, fence timeout\n");
 	} else {
 		vc_print(dev->index, PRINT_FENCE,
 			 "decoder fence is NULL\n");
@@ -3411,7 +3501,8 @@ static void video_composer_task(struct composer_dev *dev)
 					 "%s get vf is NULL\n", __func__);
 				return;
 			}
-			video_wait_decode_fence(dev, vf);
+			if (!is_repeat_vf)
+				video_wait_decode_fence(dev, vf);
 		} else if (frame_info->type == 1) {
 			if (is_dec_vf || is_v4l_vf) {
 				vf = get_vf_from_file(dev, file_vf, false);
@@ -3423,7 +3514,8 @@ static void video_composer_task(struct composer_dev *dev)
 						 __func__);
 					return;
 				}
-				video_wait_decode_fence(dev, vf);
+				if (!is_repeat_vf)
+					video_wait_decode_fence(dev, vf);
 			} else {
 				vc_print(dev->index, PRINT_OTHER,
 					 "%s dma buffer not vf\n", __func__);
@@ -3461,9 +3553,7 @@ static void video_composer_task(struct composer_dev *dev)
 				vd_prepare->src_frame->file_vf = file_vf;
 			}
 		}
-
 		vf = &vd_prepare->dst_frame;
-
 		vf->axis[0] = frame_info->dst_x;
 		vf->axis[1] = frame_info->dst_y;
 		vf->axis[2] = frame_info->dst_w + frame_info->dst_x - 1;
