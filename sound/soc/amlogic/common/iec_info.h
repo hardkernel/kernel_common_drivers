@@ -150,7 +150,7 @@ enum audio_coding_types {
 	AUDIO_CODING_TYPE_DTS_LAYOUT_B       = 19,
 	AUDIO_CODING_TYPE_DTS_HD_LAYOUT_B    = 20,
 	AUDIO_CODING_TYPE_DTS_HD_MA_LAYOUT_B = 21,
-
+	AUDIO_CODING_TYPE_PAUSE_LAYOUT_B     = 22,
 };
 
 static const char * const audio_coding_type_names[] = {
@@ -176,6 +176,7 @@ static const char * const audio_coding_type_names[] = {
 	/* 19 */ "DTS Layout B",
 	/* 20 */ "DTS-HD Layout B",
 	/* 21 */ "DTS-HD MA Layout B",
+	/* 22 */ "PAUSE Layout B",
 };
 
 /* spdif in audio format detect: LPCM or NONE-LPCM */
