@@ -1911,6 +1911,13 @@ int earcrx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
 			coding_type = AUDIO_CODING_TYPE_AC3_LAYOUT_B;
 	}
 
+	if (p_earc->bch_err) {
+		if (coding_type == AUDIO_CODING_TYPE_PAUSE)
+			coding_type = AUDIO_CODING_TYPE_AC3;
+		else if (coding_type == AUDIO_CODING_TYPE_PAUSE_LAYOUT_B)
+			coding_type = AUDIO_CODING_TYPE_AC3_LAYOUT_B;
+	}
+
 	ucontrol->value.integer.value[0] = coding_type;
 
 	return 0;
