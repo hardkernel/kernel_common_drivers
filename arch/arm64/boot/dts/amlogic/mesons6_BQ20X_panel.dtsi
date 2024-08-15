@@ -65,7 +65,8 @@
 
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
-				0 0 1 100
+				0 2 1 0
+				0 0 1 10
 				0 1 0 10
 				0 1 1 20
 				2 0 0 0
@@ -80,9 +81,11 @@
 		dsi_0{
 			model_name = "AML08012001920-02";
 			interface = "mipi";
-			basic_setting = <1200 1920 1366 1951 8 135 216>;
-			lcd_timing = <1 32 0 1 14 0>;
-			clk_attr = <2 0 1 162569000>;
+			/*h_active, v_active, h_period, v_period, color_bit, width, height*/
+			basic_setting = <1200 1920 1380 1960 8 135 216>;
+			/*hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol*/
+			lcd_timing = <50 80 0 4 20 0>;
+			clk_attr = <2 0 1 164000000>;
 			/* <lane, bit_rate, /, mode_init, mode_disp, video_mode, clk_hs, />*/
 			mipi_attr = <4 995 0 1 0 2 1 0>;
 			/* dsi_init: data_type, num, data... */
