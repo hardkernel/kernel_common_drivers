@@ -1110,6 +1110,12 @@
 		      <0x0 0x0 0x0 0x1000000>; /*host ddrfw region [offset size]*/
 		clocks = <&clkc CLKID_DSPA_SEL>;
 		clock-names = "dspa_clk";
+		/* bit0: pm_support_suspend
+		 * bit1: pm_support_always_on
+		 * bit2: pm_support_pwrctrl
+		 * bit3: pm_support_ffv
+		 */
+		pm-support = /bits/ 8 <0x2>;
 		mboxes = <&mbox_pl A1_REE2DSPA_DSP>;
 		power-domains = <&pwrdm PDID_DSP_A>;
 		clkfreq-khz = <384000>;
@@ -1127,6 +1133,12 @@
 		      <0x0 0xfe005a98 0x0 0x4>, /*host health reg*/
 		      <0x0 0x0 0x0 0x400000>; /*host ddrfw region [offset size]*/
 		clock-names = "dspb_clk";
+		/* bit0: pm_support_suspend
+		 * bit1: pm_support_always_on
+		 * bit2: pm_support_pwrctrl
+		 * bit3: pm_support_ffv
+		 */
+		pm-support = /bits/ 8 <0x2>;
 		mboxes = <&mbox_pl A1_REE2DSPB_DSP>;
 		clocks = <&clkc CLKID_DSPB_SEL>;
 		power-domains = <&pwrdm PDID_DSP_B>;
