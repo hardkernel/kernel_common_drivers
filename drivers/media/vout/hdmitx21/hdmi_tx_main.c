@@ -103,7 +103,6 @@ static int hdmitx_unhook_drm(struct device *device);
 static void tee_comm_dev_reg(struct hdmitx_dev *hdev);
 static void tee_comm_dev_unreg(struct hdmitx_dev *hdev);
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
-static void hdmitx_set_frl_rate_none(struct hdmitx_dev *hdev);
 static void hdmitx21_vid_pll_clk_check(struct hdmitx_dev *hdev);
 const char *hdmitx_mode_get_timing_name(enum hdmi_vic vic);
 /*
@@ -436,7 +435,7 @@ static void restore_mute(void)
 	}
 }
 
-static void hdmitx_set_frl_rate_none(struct hdmitx_dev *hdev)
+void hdmitx_set_frl_rate_none(struct hdmitx_dev *hdev)
 {
 	u8 data;
 
