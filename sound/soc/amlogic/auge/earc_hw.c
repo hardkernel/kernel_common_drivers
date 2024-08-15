@@ -6,8 +6,6 @@
  *
  */
 
-#define DEBUG
-
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <sound/asoundef.h>
@@ -452,7 +450,7 @@ static unsigned int earcrx_get_cs_bits(struct regmap *dmac_map,
 	cs_b = (val >> bits_offset) & mask;
 
 	if (cs_a != cs_b)
-		pr_warn("use CHANNEL A STATUS as default 0x%x, 0x%x .\n", cs_offset, mask);
+		pr_debug("use CHANNEL A STATUS as default 0x%x, 0x%x .\n", cs_offset, mask);
 
 	spin_unlock_irqrestore(&earcrx_cs_mutex, flags);
 
@@ -595,7 +593,7 @@ unsigned int earcrx_get_cs_fmt(struct regmap *dmac_map, enum attend_type type)
 					coding_type = AUDIO_CODING_TYPE_DTS_HD_MA_LAYOUT_B;
 					break;
 				default:
-					coding_type = AUDIO_CODING_TYPE_PAUSE;
+					coding_type = AUDIO_CODING_TYPE_PAUSE_LAYOUT_B;
 					break;
 				}
 			}
@@ -1151,7 +1149,7 @@ static unsigned int earctx_get_cs_bits(struct regmap *dmac_map,
 	cs_b = (val >> bits_offset) & mask;
 
 	if (cs_a != cs_b)
-		pr_warn("use CHANNEL A STATUS as default.\n");
+		pr_debug("use CHANNEL A STATUS as default.\n");
 
 	return cs_a;
 }

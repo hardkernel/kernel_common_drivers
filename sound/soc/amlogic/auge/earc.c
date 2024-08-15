@@ -217,6 +217,7 @@ struct earc {
 	struct delayed_work rx_stable_work;
 	struct work_struct earctx_reg_init_work;
 	u8 bit_status_check;
+	bool bch_err;
 };
 
 static struct earc *s_earc;
@@ -451,6 +452,8 @@ static void earcrx_init(bool st)
 			 p_earc->chipinfo->rx_pll_new);
 	if (st)
 		earcrx_cmdc_int_mask(p_earc->rx_top_map);
+	else
+		p_earc->bch_err = false;
 
 	earcrx_cmdc_arc_connect(p_earc->rx_cmdc_map, st);
 
@@ -655,8 +658,10 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 					   p_earc->chipinfo->rx_pll_new);
 		}
 
-		if (p_earc->rx_status1 & INT_EARCRX_ERR_CORRECT_C_BCHERR_INT_SET)
-			dev_info(p_earc->dev, "EARCRX_ERR_CORRECT_BCHERR\n");
+		if (p_earc->rx_status1 & INT_EARCRX_ERR_CORRECT_C_BCHERR_INT_SET) {
+			dev_dbg(p_earc->dev, "EARCRX_ERR_CORRECT_BCHERR\n");
+			p_earc->bch_err = true;
+		}
 		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_R_PARITY_ERR) {
 			dev_info(p_earc->dev, "ARCRX_R_PARITY_ERR reset\n");
 			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true,
@@ -1890,6 +1895,13 @@ int earcrx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
 	else
 		coding_type = AUDIO_CODING_TYPE_UNDEFINED;
 	spin_unlock_irqrestore(&p_earc->rx_lock, flags);
+
+	if (p_earc->bch_err) {
+		if (coding_type == AUDIO_CODING_TYPE_PAUSE)
+			coding_type = AUDIO_CODING_TYPE_AC3;
+		else if (coding_type == AUDIO_CODING_TYPE_PAUSE_LAYOUT_B)
+			coding_type = AUDIO_CODING_TYPE_AC3_LAYOUT_B;
+	}
 
 	ucontrol->value.integer.value[0] = coding_type;
 
