@@ -160,8 +160,14 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* ion_codec_mm max can alloc size 80M*/
-			size = <0xD000000>;
+			/*
+			 * Scenario: Primary + Secondary + PIP
+			 * Total size: 174M
+			 * Note:
+			 *  setting to 168M if scatter_alloc_mode is 0.
+			 *  setting to 160M if scatter_alloc_mode is 1.
+			 */
+			size = <0xa000000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x30000000 0x10000000>;
 			linux,contiguous-region;
@@ -365,6 +371,12 @@
 		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
 		dev_name = "codec_mm";
 		status = "okay";
+		/*
+		 * scatter_alloc_mode: the mode of scatter memory allocation
+		 * 0: default mode, alloc from system and cma
+		 * 1: only alloc from system
+		 */
+		scatter_alloc_mode = <1>;
 	};
 
 	ionvideo {
