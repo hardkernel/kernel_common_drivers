@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/amlogic/media/vout/lcd/lcd_extern.h>
-#include "lcd_extern.h"
+#include "../lcd_extern.h"
 
 #define LCD_EXTERN_NAME			"i2c_ANX6862_7911"
 

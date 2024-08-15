@@ -1914,6 +1914,15 @@
 };
 
 &periphs_pinctrl {
+	bl_pwm_off_pins:bl_pwm_off_pin {
+		mux {
+			groups = "GPIOF_4";
+			function = "gpio_periphs";
+			drive-strength = <3>;
+			bias-pull-up;
+		};
+	};
+
 	i2c0_pins1:i2c0_pins1 {
 		mux {
 			groups = "i2c0_sda_e",
