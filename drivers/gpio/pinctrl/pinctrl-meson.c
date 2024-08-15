@@ -1101,9 +1101,10 @@ static ssize_t drive_strength_write(struct file *file, const char __user *user_b
 		goto error;
 
 	ret = meson_pinconf_set_drive_strength(pc, pin, ds);
+error:
 	if (ret)
 		pr_info("Usage: echo gpiox_y 500/2500/3000/4000 > drive_strength\n");
-error:
+
 	kfree(value);
 	return len;
 }
@@ -1133,8 +1134,11 @@ static ssize_t bias_write(struct file *file, const char __user *user_buf,
 	else if (!strcmp(value, "bias-down"))
 		meson_pinconf_enable_bias(pc, pin, false);
 	else
-		pr_info("Usage: echo gpiox_y bias-disable/up/down > bias\n");
+		ret = -EINVAL;
 error:
+	if (ret)
+		pr_info("Usage: echo gpiox_y bias-disable/up/down > bias\n");
+
 	kfree(value);
 
 	return len;
@@ -1170,9 +1174,12 @@ static ssize_t gpio_write(struct file *file, const char __user *user_buf,
 		meson_pinconf_set_output(pc, pin, true);
 		meson_pinconf_set_drive(pc, pin, false);
 	} else {
-		pr_info("Usage: echo gpiox_y input/output-high/output-low > gpio\n");
+		ret = -EINVAL;
 	}
 error:
+	if (ret)
+		pr_info("Usage: echo gpiox_y input/output-high/output-low > gpio\n");
+
 	kfree(value);
 	return len;
 }
@@ -1245,7 +1252,7 @@ int meson_pinctrl_probe(struct platform_device *pdev)
 	}
 #ifdef CONFIG_AMLOGIC_GPIO_DEBUG
 #ifdef CONFIG_DEBUG_FS
-	debugfs_create_file("driver-strength", 0444, pc->pcdev->device_root, pc,
+	debugfs_create_file("drive-strength", 0444, pc->pcdev->device_root, pc,
 			    &drive_strength_fops);
 	debugfs_create_file("bias", 0444, pc->pcdev->device_root, pc, &bias_fops);
 	debugfs_create_file("gpio", 0444, pc->pcdev->device_root, pc, &gpio_fops);
