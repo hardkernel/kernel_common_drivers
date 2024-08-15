@@ -254,7 +254,9 @@ enum dma_sync_target {
 			((val) & ((align) - 1)))
 
 /* default to 32MB */
-#define AML_IO_TLB_DEFAULT_SIZE (64UL << 20)
+/* #define AML_IO_TLB_DEFAULT_SIZE (64UL << 20) */
+#define AML_IO_TLB_ATOMIC_SIZE (4UL << 20)
+size_t default_size;
 
 /*
  * Maximum allowable number of contiguous slabs to map,
@@ -693,11 +695,15 @@ static struct device *aml_dma_dev;
  */
 static void __nocfi pcie_swiotlb_init(struct device *dma_dev)
 {
-	size_t default_size = AML_IO_TLB_DEFAULT_SIZE;
+	/* size_t default_size = AML_IO_TLB_DEFAULT_SIZE; */
 	unsigned char *vstart;
 	unsigned long bytes;
 	dma_addr_t paddr = 0;
 
+	if (!default_size) {
+		pr_err("swiotlb size init zero.\n");
+		return;
+	}
 	if (!io_tlb_nslabs) {
 		io_tlb_nslabs = (default_size >> IO_TLB_SHIFT);
 		io_tlb_nslabs = ALIGN(io_tlb_nslabs, IO_TLB_SEGSIZE);
@@ -1366,6 +1372,7 @@ static int __nocfi aml_smmu_symbol_init(void *data)
 	}
 
 	g_rmem1 = rmem;
+	default_size = rmem->size - AML_IO_TLB_ATOMIC_SIZE;
 	pcie_swiotlb_init(dev);
 	aml_dma_atomic_pool_init(dev);
 
