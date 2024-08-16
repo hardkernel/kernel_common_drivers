@@ -1785,7 +1785,7 @@ int meson_encoder_vrr_change(struct drm_encoder *encoder,
 		}
 	}
 
-	DRM_INFO("[%s], seamless is %d\n", __func__, meson_crtc_state->seamless);
+	DRM_DEBUG("[%s], seamless is %d\n", __func__, meson_crtc_state->seamless);
 	return meson_crtc_state->seamless;
 }
 
