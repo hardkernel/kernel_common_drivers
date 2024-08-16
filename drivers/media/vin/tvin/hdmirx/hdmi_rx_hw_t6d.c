@@ -302,7 +302,7 @@ void aml_pll_bw_cfg_t6d(void)
 		hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_CDR, T6D_CDR_PI_DIV,
 			(data32 >> 10) & 0x3);
 		data32 = phy_dchd_t6d[phy_bw][1];
-		hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_EQ, T6D_BYP_EQ_VAL,
+		hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_EQ, T6D_BYP_EQ,
 			data32 & 0x1f);
 		hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_EQ, T6D_BYP_EN,
 			(data32 >> 5) & 0x1);
@@ -319,7 +319,7 @@ void aml_pll_bw_cfg_t6d(void)
 		hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHA_AFE, T6D_VGA_GAIN,
 			rx_info.aml_phy.vga_gain);
 	if (rx_info.aml_phy.eq_stg1 < 0x1f) {
-		hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_EQ, T6D_BYP_EQ_VAL,
+		hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_EQ, T6D_BYP_EQ,
 			rx_info.aml_phy.eq_stg1);
 		hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_EQ, T6D_EN_BYP_EQ, 0x1);
 	}
@@ -1109,6 +1109,7 @@ void aml_phy_switch_port_t6d(void)
 	u8 port = rx_info.main_port;
 
 	/* reset and select data port */
+	rx_i2c_mux_cfg(port);
 	data32 = hdmirx_rd_amlphy(T6D_HDMIRX20PHY_DCHA_MISC2);
 	data32 &= (~(0xf << 24));
 	data32 |= ((1 << port) << 24);

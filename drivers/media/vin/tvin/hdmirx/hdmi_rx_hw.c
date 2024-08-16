@@ -1677,6 +1677,7 @@ void rx_irq_en(u8 enable, u8 port)
 	case CHIP_ID_T3:
 	case CHIP_ID_T7:
 	case CHIP_ID_T5W:
+	case CHIP_ID_T6D:
 		hdmirx_top_irq_en(enable, port);
 		rx_set_irq_21(enable, port);
 	break;
@@ -6388,8 +6389,12 @@ u32 aml_cable_clk_band(u32 cable_clk, u32 clk_rate)
 		else
 			bw = PHY_BW_2;
 	}
-	if (rx_info.aml_phy.force_bw & 0x100)
-		bw = (rx_info.aml_phy.force_bw >> 4) & 0xf;
+	if (rx_info.aml_phy.force_bw & 0x100) {
+		if (((rx_info.aml_phy.force_bw >> 4) & 0xf) <= 0x6)
+			bw = (rx_info.aml_phy.force_bw >> 4) & 0xf;
+		else
+			bw = PHY_BW_2;
+	}
 	return bw;
 }
 
@@ -6430,8 +6435,12 @@ u32 aml_phy_pll_band(u32 cable_clk, u32 clk_rate)
 		else
 			bw = PLL_BW_2;
 	}
-	if (rx_info.aml_phy.force_bw & 0x100)
-		bw = rx_info.aml_phy.force_bw & 0xf;
+	if (rx_info.aml_phy.force_bw & 0x100) {
+		if ((rx_info.aml_phy.force_bw & 0xf) <= 0x4)
+			bw = rx_info.aml_phy.force_bw & 0xf;
+		else
+			bw = PLL_BW_2;
+	}
 	return bw;
 }
 
@@ -7679,5 +7688,24 @@ bool rx_is_edid_seg(u8 port)
 		}
 	}
 	return temp == 0x10100;
+}
+
+void rx_i2c_mux_cfg(u8 port)
+{
+	if (rx_info.chip_id != CHIP_ID_T6D)
+		return;
+	switch (port) {
+	case E_PORT0:
+		hdmirx_wr_top_common(TOP_PORT_SEL, 0x00004211);
+		break;
+	case E_PORT1:
+		hdmirx_wr_top_common(TOP_PORT_SEL, 0x00004112);
+		break;
+	case E_PORT2:
+		hdmirx_wr_top_common(TOP_PORT_SEL, 0x00001214);
+		break;
+	default:
+		break;
+	}
 }
 

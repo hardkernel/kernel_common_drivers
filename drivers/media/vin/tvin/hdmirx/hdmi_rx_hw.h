@@ -3555,6 +3555,7 @@ bool is_earc_hpd_low(void);
 void rx_mute_vpp(u8 port);
 void aml_phy_get_def_trim_value(void);
 bool rx_is_edid_seg(u8 port);
+void rx_i2c_mux_cfg(u8 port);
 
 /* t3x  */
 void hdmi_tx_rx_frl_training_main(u8 port);
