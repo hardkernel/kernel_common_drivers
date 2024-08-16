@@ -107,7 +107,7 @@ static void get_suggested_dsuopp_by_cpuopp(struct cluster_data *data,
 	if (!data->dsuclk)
 		return;
 	for (i = cnt; i > 0; i--)
-		if (cpuopp->rate > table[i - 1].cpurate)
+		if (cpuopp->rate >= table[i - 1].cpurate)
 			break;
 	i--;
 
@@ -316,6 +316,7 @@ static bool aml_setup_opptable(struct cluster_data *data)
 	int table_index = 0, i = 0, cpu;
 	u32 rate, rate1, volt;
 	char dsutable_name[20] = {0};
+	int dsuopp_len;
 
 	np = data->np;
 	data->pdvfs_enabled = of_property_read_bool(np, "pdvfs_enabled");
@@ -360,8 +361,15 @@ static bool aml_setup_opptable(struct cluster_data *data)
 	if (!data->dsuclk)
 		return true;
 
-	sprintf(dsutable_name, "dsu-opp-table%d", data->table_index);
-	data->dsu_opp_cnt = of_property_count_u32_elems(np, dsutable_name) / 3;
+	if (data->dsureg) {
+		dsuopp_len = 3;
+		sprintf(dsutable_name, "dsu-opp-table%d", data->table_index);
+	} else {
+		dsuopp_len = 2;
+		sprintf(dsutable_name, "dsu-opp-table");
+	}
+
+	data->dsu_opp_cnt = of_property_count_u32_elems(np, dsutable_name) / dsuopp_len;
 	if (data->dsu_opp_cnt <= 0)
 		goto out;
 	data->dsu_opp_table = kmalloc_array(data->dsu_opp_cnt,
@@ -372,12 +380,14 @@ static bool aml_setup_opptable(struct cluster_data *data)
 		goto out;
 	}
 	for (i = 0; i < data->dsu_opp_cnt; i++) {
-		of_property_read_u32_index(np, dsutable_name, 3 * i, &rate);
-		of_property_read_u32_index(np, dsutable_name, 3 * i + 1, &rate1);
-		of_property_read_u32_index(np, dsutable_name, 3 * i + 2, &volt);
+		of_property_read_u32_index(np, dsutable_name, dsuopp_len * i, &rate);
+		of_property_read_u32_index(np, dsutable_name, dsuopp_len * i + 1, &rate1);
 		data->dsu_opp_table[i].cpurate = rate;
 		data->dsu_opp_table[i].dsurate = rate1;
-		data->dsu_opp_table[i].dsuvolt = volt;
+		if (data->dsureg) {
+			of_property_read_u32_index(np, dsutable_name, dsuopp_len * i + 2, &volt);
+			data->dsu_opp_table[i].dsuvolt = volt;
+		}
 	}
 
 	return true;
@@ -396,10 +406,17 @@ static int opptable_show(struct seq_file *m, void *v)
 	seq_puts(m, "opp table:\n");
 	for (i = 0; i < data->opp_cnt; i++)
 		seq_printf(m, "%lu %d\n", data->opp_table[i].rate, data->opp_table[i].volt);
+	if (!data->dsuclk)
+		return 0;
 	seq_puts(m, "dsu_opp table:\n");
-	for (i = 0; i < data->dsu_opp_cnt; i++)
-		seq_printf(m, "%lu %lu %d\n", data->dsu_opp_table[i].cpurate,
-			data->dsu_opp_table[i].dsurate, data->dsu_opp_table[i].dsuvolt);
+	for (i = 0; i < data->dsu_opp_cnt; i++) {
+		if (data->dsureg)
+			seq_printf(m, "%lu %lu %d\n", data->dsu_opp_table[i].cpurate,
+				data->dsu_opp_table[i].dsurate, data->dsu_opp_table[i].dsuvolt);
+		else
+			seq_printf(m, "%lu %lu\n", data->dsu_opp_table[i].cpurate,
+				data->dsu_opp_table[i].dsurate);
+	}
 	return 0;
 }
 
