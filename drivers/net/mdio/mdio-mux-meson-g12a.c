@@ -367,14 +367,14 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 			if (phy_mode == 7) {
 				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
 				if (efuse_get_tmp >> 0x18) { /*bit24 is valid*/
-					tx_R = (efuse_get_tmp & 0xf00000) >> 20;
-					rx_R = (efuse_get_tmp & 0x0f0000) >> 16;
+					rx_R = (efuse_get_tmp & 0xf00000) >> 20;
+					tx_R = (efuse_get_tmp & 0x0f0000) >> 16;
 					writel(((tx_R << 28) | (rx_R << 20))
-						| (0x09060000),
+						| (0x0a060000),
 						priv->regs + ETH_PLL_CTL3);
 				} else {
 					pr_debug("no efuse setting use default\n");
-					writel(0xa9860000, priv->regs + ETH_PLL_CTL3);
+					writel(0xaa860000, priv->regs + ETH_PLL_CTL3);
 				}
 				writel(0x4001, priv->regs + ETH_PLL_CTL6);
 				writel(0x20000000, priv->regs + ETH_PLL_CTL5);

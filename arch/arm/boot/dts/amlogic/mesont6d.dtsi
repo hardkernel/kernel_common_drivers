@@ -838,7 +838,7 @@
 			/*1:inphy; 2:exphy;*/
 			internal_phy = <1>;
 			analog_version = <1>;
-//			mboxes = <&mbox_fifo T6D_REE2AO_ETH>;
+			mboxes = <&mbox_fifo T6D_REE2AO_ETH>;
 		//	status = "disabled";
 
 			mdio0: mdio {
