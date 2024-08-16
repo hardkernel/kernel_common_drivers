@@ -208,6 +208,9 @@ static int vlock_protect_min;
 static int vlock_manual;
 static int vlock_frc_is_on;
 
+static unsigned int vlock_game;
+static unsigned int pre_vlock_game;
+
 struct reg_map vlock_reg_maps[REG_MAP_END] = {0};
 
 struct vlk_reg_map_tab regmap_tab_tm2[] = {
@@ -3338,6 +3341,24 @@ void vlock_process(struct vframe_s *vf,
 	if (!pvlock)
 		return;
 
+	if (!vf)
+		return;
+
+	if (vf->flag & VFRAME_FLAG_GAME_MODE)
+		vlock_game = 1;
+	else
+		vlock_game = 0;
+
+	if (!vlock_game && pre_vlock_game == 1 &&
+		pvlock->input_hz == pvlock->output_hz && pvlock->output_hz == 120) {
+		vlock_set_sts_by_frame_lock(false);
+		pvlock->fsm_sts = VLOCK_STATE_NULL;
+		if (vlock_debug & VLOCK_DEBUG_INFO)
+			pr_info("%s game:%d pre_game:%d in:%d out:%d\n",
+				__func__, vlock_game, pre_vlock_game,
+				pvlock->input_hz, pvlock->output_hz);
+	}
+
 	if (probe_ok == 0 || !vlock_en || !cur_video_sts) {
 		if (vlock_debug & VLOCK_DEBUG_INFO) {
 			pr_info("%s probe_ok:%d vlock_en:%d\n",
@@ -3366,6 +3387,8 @@ void vlock_process(struct vframe_s *vf,
 			return;
 		}
 	}
+
+	pre_vlock_game = vlock_game;
 
 	if (vlock_debug & VLOCK_DEBUG_FLASH)
 		pr_info("%s: idx = %d, addr = 0x%x, org_enc_line_num = %d, pre_enc_max_line = %d\n",
