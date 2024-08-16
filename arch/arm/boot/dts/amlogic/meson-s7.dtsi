@@ -2394,6 +2394,13 @@
 		};
 	};
 
+	remote_pins_sleep: remote_pin_sleep {
+		mux {
+			groups = "GPIOD_5";
+			function = "gpio_periphs";
+		};
+	};
+
 	spicc0_pins_x: spicc0_pins_x {
 		mux {
 			groups = "spi_a_mosi_x",

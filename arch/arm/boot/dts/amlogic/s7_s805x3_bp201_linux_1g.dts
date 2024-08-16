@@ -1248,7 +1248,8 @@
 &ir {
 	status = "okay";
 	pinctrl-0 = <&remote_pins>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&remote_pins_sleep>;
+	pinctrl-names = "default", "sleep";
 	map = <&custom_maps_linux>;
 };
 
