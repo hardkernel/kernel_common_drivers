@@ -1856,8 +1856,30 @@
 		status = "okay";
 	};
 
+	efusecheck: efusecheck{
+		maincmd = <0x8200003E>;
+		checknum = <3>;
+		check0 = <&check_0>;
+		check1 = <&check_1>;
+		check2 = <&check_2>;
+		check_0:check_0{
+			checkname = "dgpk1";
+			subcmd = <0x1000>;
+		};
+		check_1:check_1{
+			checkname = "dgpk2";
+			subcmd = <0x1001>;
+		};
+		check_2:check_2{
+			checkname = "aud_id";
+			subcmd = <0x1002>;
+		};
+	};
+
 	efuse: efuse{
 		compatible = "amlogic, efuse";
+		reg=<0xfe440040 0x4>;
+		secureboot_mask = <0x00000c00>;
 		read_cmd = <0x82000030>;
 		write_cmd = <0x82000031>;
 		get_max_cmd = <0x82000033>;
@@ -1865,7 +1887,9 @@
 		mem_out_base_cmd = <0x82000021>;
 		efuse_pattern_size = <0x600>;
 		efuse_obj_cmd_status = <0x1>;
+		efuse_cali_item_read = <0x1>;
 		key = <&efusekey>;
+		check = <&efusecheck>;
 		clock-names = "efuse_clk";
 		status = "okay";
 	};
