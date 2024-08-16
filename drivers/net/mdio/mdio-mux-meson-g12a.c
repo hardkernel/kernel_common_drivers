@@ -331,8 +331,8 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 			if (phy_mode == 4) {
 				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
 				if (efuse_get_tmp >> 0x18) { /*bit24 is valid*/
-					tx_R = (efuse_get_tmp & 0xf00000) >> 20;
-					rx_R = (efuse_get_tmp & 0x0f0000) >> 16;
+					rx_R = (efuse_get_tmp & 0xf00000) >> 20;
+					tx_R = (efuse_get_tmp & 0x0f0000) >> 16;
 					writel(((tx_R << 28) | (rx_R << 20))
 						| (0x05000000),
 						priv->regs + ETH_PLL_CTL3);
@@ -348,8 +348,8 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 			if (phy_mode == 5 || phy_mode == 6) {
 				efuse_get_tmp = (readl(tx_amp_src) & 0x1ff0000);
 				if (efuse_get_tmp >> 0x18) { /*bit24 is valid*/
-					tx_R = (efuse_get_tmp & 0xf00000) >> 20;
-					rx_R = (efuse_get_tmp & 0x0f0000) >> 16;
+					rx_R = (efuse_get_tmp & 0xf00000) >> 20;
+					tx_R = (efuse_get_tmp & 0x0f0000) >> 16;
 					writel(((tx_R << 28) | (rx_R << 20))
 						| (0x05000003),
 						priv->regs + ETH_PLL_CTL3);
