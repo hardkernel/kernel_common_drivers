@@ -3937,7 +3937,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 		}
 	}
 
-	tasklet_init(&rx_tasklet, rx_tasklet_handler, (unsigned long)&rx);
+	tasklet_init(&rx_tasklet, rx_tasklet_handler, 0);
 	/* create for hot plug function */
 	eq_wq = create_singlethread_workqueue(hdevp->frontend.name);
 	INIT_DELAYED_WORK(&eq_dwork, eq_dwork_handler);

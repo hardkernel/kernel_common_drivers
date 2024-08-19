@@ -626,26 +626,18 @@ static bool video_mute_enabled(u8 port)
  */
 void rx_tasklet_handler(unsigned long arg)
 {
-	struct rx_s *prx = (struct rx_s *)arg;
-	u8 irq_flag = prx->irq_flag;
-	u8 port = E_PORT0;
+	u8 port = arg;
 
-	/* prx->irq_flag = 0; /
-	 * if (irq_flag & IRQ_PACKET_FLAG)
-	 *	rx_pkt_handler(PKT_BUFF_SET_FIFO);
-	 */
-	/*pkt overflow or underflow*/
-	if (irq_flag & IRQ_PACKET_ERR) {
-		hdmirx_packet_fifo_rst();
-		irq_flag &= ~IRQ_PACKET_ERR;
-	}
+	if (rx_info.chip_id < CHIP_ID_T7)
+		return;
 
-	if (irq_flag & IRQ_AUD_FLAG) {
-		hdmirx_audio_fifo_rst(port);
-		irq_flag &= ~IRQ_AUD_FLAG;
+	if (rx[port].irq_flag & IRQ_AVI_CHG_FLAG) {
+		if (video_mute_enabled(port) && rx_chk_avi_valid(port))
+			hdmirx_mute_vpp(true, port);
+		else
+			skip_frame(skip_frame_cnt, port, "avi-");
+		rx[port].irq_flag &= ~IRQ_AVI_CHG_FLAG;
 	}
-	prx->irq_flag = irq_flag;
-	/*irq_flag = 0;*/
 }
 
 static int rx_dwc_irq_handler(void)
@@ -873,7 +865,6 @@ static int rx_dwc_irq_handler(void)
 
 	if (rx[port].irq_flag)
 		tasklet_schedule(&rx_tasklet);
-
 	if (irq_need_clr)
 		error = 1;
 
@@ -1051,7 +1042,7 @@ static int rx_cor_irq_handler(u8 port)
 				PKT_TYPE_INFOFRAME_SPD);
 		}
 		if (rx_get_bits(intr_2, INTR2_BIT0_AVI))
-			skip_frame(skip_frame_cnt, port, "avi-");
+			rx[port].irq_flag |= IRQ_AVI_CHG_FLAG;
 		if (rx_get_bits(intr_2, INTR2_BIT4_UNREC)) {
 			rx_pkt_clr_attach_drm(port);
 			memset(&rx_pkt[port].drm_info, 0, sizeof(struct pd_infoframe_s));
@@ -1095,9 +1086,10 @@ static int rx_cor_irq_handler(u8 port)
 		//rx_pkt_handler(PKT_BUFF_SET_DRM);
 	//if (emp_handle_flag)
 		//rx_pkt_handler(PKT_BUFF_SET_EMP);
-	//if (rx[rx_info.main_port].irq_flag)
-		//tasklet_schedule(&rx_tasklet);
-
+	if (rx[port].irq_flag && port == rx_info.main_port) {
+		rx_tasklet.data = port;
+		tasklet_schedule(&rx_tasklet);
+	}
 	//if (irq_need_clr)
 		//error = 1;
 	return error;

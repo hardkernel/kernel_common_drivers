@@ -31,7 +31,8 @@
 
 /* 2024.07.02 optimize suspend flow */
 /* 2024.07.19 optimize cts flow */
-#define RX_WRAPPER_VER "ver.2024/07/19"
+/* 2024.08.22 Fix the issue of flashing green screen at the end of SDR playback */
+#define RX_WRAPPER_VER "ver.2024/08/22"
 
 struct freq_ref_s {
 	bool interlace;
@@ -80,6 +81,7 @@ enum irq_flag_e {
 	IRQ_AUD_FLAG = 0x01,
 	IRQ_PACKET_FLAG = 0x02,
 	IRQ_PACKET_ERR = 0x04,
+	IRQ_AVI_CHG_FLAG = 0x8,
 };
 
 enum hdcp22_auth_state_e {
