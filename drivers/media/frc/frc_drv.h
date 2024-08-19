@@ -134,8 +134,9 @@
 // frc_20240711 fix secure mode close frc abnormal
 // frc_20240729 open frc when slt test
 // frc_20240814 clr CTRL7 before frc enable
+// frc_20240815 frc handles NULL pointer call
 
-#define FRC_FW_VER			"2024-0815 frc handles NULL pointer call"
+#define FRC_FW_VER			"2024-0819 t5m dlg modify n2m to 1:1"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1

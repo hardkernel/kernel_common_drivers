@@ -1158,7 +1158,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	} else if (get_chip_type() == ID_T5M) {
 		devp->vpu_byp_frc_reg_addr = VPU_FRC_TOP_CTRL;
 		devp->auto_n2m = 1;
-		devp->use_pre_vsync = PRE_VSYNC_120HZ;
+		devp->use_pre_vsync = PRE_VSYNC_NONE;
 	} else if (get_chip_type() == ID_T3) {
 		devp->vpu_byp_frc_reg_addr = VPU_FRC_TOP_CTRL;
 		devp->auto_n2m = 0;
@@ -1196,14 +1196,14 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 			frc_devp->out_sts.out_framerate;
 		if (frc_devp->auto_n2m == 1) {
 			if (frc_devp->out_sts.out_framerate > 90) {
-				frc_set_n2m(FRC_RATIO_1_2);
 				if ((frc_devp->use_pre_vsync & PRE_VSYNC_120HZ) ==
 					PRE_VSYNC_120HZ) {
+					frc_set_n2m(FRC_RATIO_1_2);
 					set_vsync_2to1_mode(0);
 					set_pre_vsync_mode(1);
 				} else {
 					set_vsync_2to1_mode(1);
-					set_pre_vsync_mode(0);
+					set_pre_vsync_mode(1);
 				}
 			} else if (frc_devp->out_sts.out_framerate < 70) {
 				if ((frc_devp->use_pre_vsync & PRE_VSYNC_060HZ) ==
@@ -1214,7 +1214,7 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 				} else {
 					frc_set_n2m(FRC_RATIO_1_1);
 					set_vsync_2to1_mode(0);
-					set_pre_vsync_mode(0);
+					set_pre_vsync_mode(1);
 				}
 			}
 		}

@@ -3049,7 +3049,7 @@ void frc_set_n2m(u8 ratio_value)
 			set_pre_vsync_mode(1);
 		} else {
 			set_vsync_2to1_mode((ratio_value > 0) ? 0 : 1);
-			set_pre_vsync_mode(0);
+			set_pre_vsync_mode(1);
 		}
 		if (ratio_value == FRC_RATIO_1_1)
 			devp->ud_dbg.res2_time_en = 3;
