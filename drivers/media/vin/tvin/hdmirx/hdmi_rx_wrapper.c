@@ -316,6 +316,7 @@ void hdmirx_phy_var_init(void)
 		rx_info.aml_phy.eye_height = 5;
 		rx_info.aml_phy.hyper_gain_en = 0;
 		rx_info.aml_phy.eye_height_min = 8;
+		rx_info.aml_phy.tap0_err_check_en = 0;
 		// for t3x 2.1 phy
 		if (rx_info.phy_ver == PHY_VER_T3X && !rx_info.aml_phy.phy_debug_en) {
 			rx_info.aml_phy_21.phy_bwth = 1;
@@ -3217,6 +3218,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(frl_scrambler_en, i++);
 	pr_var(ext_cnt, i++);
 	pr_var(edid_auto_debug, i++);
+	pr_var(rx_info.aml_phy.tap0_err_check_en, i++);
 }
 
 bool str_cmp(unsigned char *buff, unsigned char *str)
@@ -3871,6 +3873,9 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy.force_bw),
 		&rx_info.aml_phy.force_bw, value))
 		return pr_var(rx_info.aml_phy.force_bw, index);
+	if (set_pr_var(tmpbuf, var_to_str(rx_info.aml_phy.tap0_err_check_en),
+		&rx_info.aml_phy.tap0_err_check_en, value))
+		return pr_var(rx_info.aml_phy.tap0_err_check_en, index);
 	return 0;
 }
 

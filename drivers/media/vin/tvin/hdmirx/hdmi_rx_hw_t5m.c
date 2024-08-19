@@ -832,10 +832,7 @@ bool is_eq1_tap0_err_t5m(void)
 	u32 tap0, tap1, tap2;
 	u32 eq_avr, tap0_avr;
 	bool ret = false;
-	u8 port = rx_info.main_port;
 
-	if (rx[port].phy.phy_bw < PHY_BW_5)
-		return ret;
 	/* get eq_boost1 val */
 	hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHD_CDR, T5M_EHM_DBG_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHD_EQ, T5M_STATUS_MUX_SEL, 0x3);
@@ -1275,11 +1272,13 @@ void aml_eq_cfg_t5m(void)
 	/* enable dfe for all frequency */
 	if (rx[port].phy.phy_bw >= PHY_BW_3)
 		aml_dfe_en_t5m();
-	if (is_eq1_tap0_err_t5m()) {
-		hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHA_AFE, T5M_LEQ_BUF_GAIN, 0x0);
-		hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHA_AFE, T5M_LEQ_POLE, 0x0);
-		if (log_level & EQ_LOG)
-			rx_pr("eq1 & tap0 err, tune eq setting\n");
+	if (rx_info.aml_phy.tap0_err_check_en && rx[port].phy.phy_bw == PHY_BW_5) {
+		if (is_eq1_tap0_err_t5m()) {
+			hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHA_AFE, T5M_LEQ_BUF_GAIN, 0x0);
+			hdmirx_wr_bits_amlphy(T5M_HDMIRX20PHY_DCHA_AFE, T5M_LEQ_POLE, 0x0);
+			if (log_level & EQ_LOG)
+				rx_pr("eq1 & tap0 err, tune eq setting\n");
+		}
 	}
 	/*enable HYPER_GAIN calibration for 6G to fix 2.0 cts HF2-1 issue*/
 	if (rx[port].phy.phy_bw >= PHY_BW_2 &&

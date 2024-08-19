@@ -481,6 +481,7 @@ struct rx_aml_phy {
 	int cdr_fr_en_auto;
 	int hyper_gain_en;
 	int eye_height_min;
+	int tap0_err_check_en;
 	int buf_gain;
 	/* bit[3:0]:pll bw,bit[4:7]:phy bw, bit'8 enable bit */
 	u32 force_bw;

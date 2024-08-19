@@ -13,6 +13,7 @@
 /* 2024.07.31 hdcp2.2 repeater enabled for t7 only */
 /* 2024.08.06 optimize phy bandwidth definition */
 /* 2024.08.22 modify hdcp_rx22 definition type */
+/* 2024.08.24 disable tap0 error checking function */
 #define RX_HW_VER "ver.2024/08/22"
 
 #define K_TEST_CHK_ERR_CNT
