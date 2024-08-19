@@ -249,6 +249,10 @@ int atv_demod_leave_mode(struct dvb_frontend *fe)
 		priv->monitor.disable(&priv->monitor);
 
 	atvdemod_uninit();
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
+		aud_demod_clk_gate(0);
+
 	if (!IS_ERR_OR_NULL(amlatvdemod_devp->agc_pin)) {
 		devm_pinctrl_put(amlatvdemod_devp->agc_pin);
 		amlatvdemod_devp->agc_pin = NULL;
@@ -261,8 +265,6 @@ int atv_demod_leave_mode(struct dvb_frontend *fe)
 	adc_set_pll_cntl(0, ADC_ATV_DEMOD, NULL);
 	adc_set_filter_ctrl(false, FILTER_ATV_DEMOD, NULL);
 #endif
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
-		aud_demod_clk_gate(0);
 
 	amlatvdemod_devp->std = 0;
 	amlatvdemod_devp->audmode = 0;
