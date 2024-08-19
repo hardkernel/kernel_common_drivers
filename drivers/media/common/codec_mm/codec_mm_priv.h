@@ -36,8 +36,6 @@
  *#endif
  */
 
-long codec_sched_setaffinity(pid_t pid, const struct cpumask *in_mask);
-
 void dma_clear_buffer(struct page *page, size_t size);
 
 u32 codec_mm_get_sc_debug_mode(void);
