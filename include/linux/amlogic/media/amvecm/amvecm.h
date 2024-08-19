@@ -623,6 +623,8 @@ void amve_safa_demo_ctrl(unsigned int enable);
 void osd_sharpness_size_ctrl(void);
 void osd_sharpness_demo_ctrl(void);
 
+bool is_hdr10plus_enable(void);
+
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 bool is_amdv_enable(void);
 bool is_amdv_on(void);

@@ -5956,6 +5956,11 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 	if (vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_DOVI)
 		clear_vframe_dovi_md_info(vf);
 
+	if (!is_hdr10plus_enable() && vf->src_fmt.fmt == VFRAME_SIGNAL_FMT_HDR10PLUS) {
+		vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
+		pr_info("[%s] system not support hdr10+, treat as hdr10\n", __func__);
+	}
+
 	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
 		pr_info("[%s]fmt: %d, vf %p, sei %p\n", __func__, vf->src_fmt.fmt,
 				vf, vf->src_fmt.sei_ptr);
