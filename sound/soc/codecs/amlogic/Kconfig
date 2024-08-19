@@ -254,6 +254,17 @@ config AMLOGIC_SND_SOC_AD82584F
 	  Enable Support for ESMT AD82584f CODEC.
 	  Select this if your AD82584F is connected via an I2C bus.
 
+config AMLOGIC_SND_SOC_AD82120B
+	tristate "ESMT AD82120B"
+	depends on AMLOGIC_SND_SOC_CODECS
+	depends on I2C
+	default n
+	help
+	  Enable Support for ESMT AD82120B CODEC.
+	  Select this if your AD82120B is connected via an I2C bus.
+	  Enable Support for ESMT AD82120B CODEC.
+	  Select this if your AD82120B is connected via an I2C bus.
+
 config AMLOGIC_SND_SOC_CS42528
 	tristate "Cirrus Logic CS42528"
 	depends on AMLOGIC_SND_SOC_CODECS

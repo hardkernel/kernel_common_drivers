@@ -533,6 +533,7 @@
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
+		avout_mute-gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
 		spk_mute-gpios = <&gpio GPIOD_9 GPIO_ACTIVE_LOW>;
 		spk_mute_sleep_time = <800>;
 
@@ -1192,12 +1193,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins1>;
 	clock-frequency = <300000>;
-	ad82128: ad82128@6c {
-		compatible = "ESMT,ad82128";
+	ad82120b: ad82120b@6c {
+		compatible = "ESMT,ad82120b";
 		#sound-dai-cells = <0>;
-		//reset_pin-gpios = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
+		reset_pin-gpios = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 		reg = <0x6c>;
-		status = "okay";
+		status = "disabled";
 	};
 };
 
