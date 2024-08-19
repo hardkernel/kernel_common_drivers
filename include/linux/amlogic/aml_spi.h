@@ -47,6 +47,7 @@ struct spicc_controller_data {
 	int (*dirspi_dma_trig_start)(struct spi_device *spi);
 	int (*dirspi_dma_trig_stop)(struct spi_device *spi);
 	int (*dirspi_dma_trig_release)(struct spi_device *spi);
+	int (*dirspi_busy_proc)(struct spi_device *spi);
 };
 
 struct spicc_transfer {

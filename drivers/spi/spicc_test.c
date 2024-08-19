@@ -526,6 +526,12 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 		dev_info(dev, "trig released!\n");
 	}
 
+	else if (cdata->dirspi_busy_proc &&
+		!spicc_getopt(argc, argv, "busy_proc", NULL, NULL, 0)) {
+		ret = cdata->dirspi_busy_proc(spi);
+		dev_info(dev, "busy proc done! (%d)\n", ret);
+	}
+
 	if (ret == -EIO)
 		dev_err(dev, "entry unsupport\n");
 

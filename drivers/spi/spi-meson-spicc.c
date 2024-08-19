@@ -282,6 +282,8 @@
 #define SPICC_ENH_STATREG	0x54
 #define SPICC_ENH_RECV_TOTAL	GENMASK(15, 0)
 #define SPICC_ENH_SEND_TOTAL	GENMASK(31, 16)
+
+#define SPICC_REGS_END		(SPICC_ENH_STATREG + 4)
 #endif
 
 #define writel_bits_relaxed(mask, val, addr) \
@@ -343,6 +345,7 @@ struct meson_spicc_device {
 	unsigned long			rx_remain;
 	unsigned int			*store_buf;
 	spinlock_t			lock; /* dirspi_xfer in interrupt */
+	struct reset_control		*rst;
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -372,6 +375,13 @@ static int dirspi_dma_trig(struct spi_device *spi,
 			   u8 src);
 static int dirspi_dma_trig_start(struct spi_device *spi);
 static int dirspi_dma_trig_stop(struct spi_device *spi);
+static int dirspi_busy_proc(struct spi_device *spi);
+
+static unsigned int meson_spicc_flags;
+module_param(meson_spicc_flags, uint, 0644);
+MODULE_PARM_DESC(meson_spicc_flags, "meson spicc flags");
+#define is_dump_before_reset()	(meson_spicc_flags & BIT(0))
+#define is_print_in_reset()	(meson_spicc_flags & BIT(1))
 
 static int xLimitRange(int val, int min, int max)
 {
@@ -704,8 +714,10 @@ static void meson_spicc_dma_irq(struct meson_spicc_device *spicc)
 			spi_finalize_current_transfer(spicc->controller);
 		} else {
 			dirspi_set_cs(spicc->spi, false);
-			if (spicc->complete)
+			if (spicc->complete) {
 				spicc->complete(spicc->context);
+				spicc->complete = NULL;
+			}
 		}
 		writel_bits_relaxed(SPICC_XCH | SPICC_SMC, 0,
 				    spicc->base + SPICC_CONREG);
@@ -871,8 +883,10 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 			spi_finalize_current_transfer(spicc->controller);
 		} else {
 			dirspi_set_cs(spicc->spi, false);
-			if (spicc->complete)
+			if (spicc->complete) {
 				spicc->complete(spicc->context);
+				spicc->complete = NULL;
+			}
 		}
 		writel_bits_relaxed(SPICC_XCH | SPICC_SMC, 0,
 				    spicc->base + SPICC_CONREG);
@@ -998,6 +1012,7 @@ static int meson_spicc_setup(struct spi_device *spi)
 		cdata->dirspi_dma_trig = dirspi_dma_trig;
 		cdata->dirspi_dma_trig_start = dirspi_dma_trig_start;
 		cdata->dirspi_dma_trig_stop = dirspi_dma_trig_stop;
+		cdata->dirspi_busy_proc = dirspi_busy_proc;
 	}
 
 	meson_spicc_hw_prepare(spicc, spi->mode, spi->chip_select);
@@ -1077,6 +1092,45 @@ static int meson_spicc_hw_init(struct meson_spicc_device *spicc)
 	return 0;
 }
 
+static inline void meson_spicc_dump(struct meson_spicc_device *spicc)
+{
+	print_hex_dump(KERN_INFO, "spicc", DUMP_PREFIX_OFFSET, 16, 4,
+		       spicc->base + SPICC_CONREG,
+		       SPICC_REGS_END - SPICC_CONREG, true);
+}
+
+static int meson_spicc_abnormal_reset(struct meson_spicc_device *spicc)
+{
+	u32 val, power_div, linear_div;
+	int ret = -ENODEV;
+
+	if (!IS_ERR_OR_NULL(spicc->rst)) {
+		power_div = readl_relaxed(spicc->base + SPICC_CONREG);
+		power_div &= SPICC_DATARATE_MASK;
+
+		linear_div = readl_relaxed(spicc->base + SPICC_ENH_CTL0);
+		linear_div &= SPICC_ENH_DATARATE_MASK | SPICC_ENH_DATARATE_EN;
+
+		reset_control_reset(spicc->rst);
+		meson_spicc_hw_init(spicc);
+
+		val = readl_relaxed(spicc->base + SPICC_CONREG);
+		val &= ~SPICC_DATARATE_MASK;
+		writel_relaxed(val | power_div, spicc->base + SPICC_CONREG);
+
+		val = readl_relaxed(spicc->base + SPICC_ENH_CTL0);
+		val &= ~(SPICC_ENH_DATARATE_MASK | SPICC_ENH_DATARATE_EN);
+		writel_relaxed(val | linear_div, spicc->base + SPICC_ENH_CTL0);
+
+		if (is_print_in_reset())
+			dev_err(&spicc->pdev->dev, "spicc reset done\n");
+
+		ret = 0;
+	}
+
+	return ret;
+}
+
 #ifdef MESON_SPICC_HW_IF
 static void dirspi_set_cs(struct spi_device *spi, bool enable)
 {
@@ -1135,11 +1189,16 @@ static int dirspi_async(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len,
 	t->len = len;
 
 	dirspi_start(spi);
+	meson_spicc_hw_prepare(spicc, spi->mode, spi->chip_select);
 	ret = meson_spicc_transfer_one(spi->controller, spi, t);
-	if (ret <= 0)
+
+	if (ret <= 0) {
 		dirspi_stop(spi);
-	if (!ret && spicc->complete)
-		spicc->complete(spicc->context);
+		if (spicc->complete) {
+			spicc->complete(spicc->context);
+			spicc->complete = NULL;
+		}
+	}
 
 	return ret;
 }
@@ -1292,6 +1351,24 @@ static int dirspi_dma_trig_stop(struct spi_device *spi)
 		dev_warn(&spicc->pdev->dev, "dma_en always on\n");
 
 	return 0;
+}
+
+static int dirspi_busy_proc(struct spi_device *spi)
+{
+	struct meson_spicc_device *spicc;
+	int ret;
+
+	spicc = spi_controller_get_devdata(spi->controller);
+	dirspi_set_cs(spi, false);
+	if (is_dump_before_reset())
+		meson_spicc_dump(spicc);
+	ret = meson_spicc_abnormal_reset(spicc);
+	if (spicc->complete) {
+		spicc->complete(spicc->context);
+		spicc->complete = NULL;
+	}
+
+	return ret;
 }
 #endif
 
@@ -1518,6 +1595,12 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	spicc->data->has_enh_intr = match->has_enh_intr;
 	spicc->data->support_dma_burst_len_1 = match->support_dma_burst_len_1;
 
+	spicc->rst = devm_reset_control_get(&pdev->dev, "spicc");
+	if (IS_ERR_OR_NULL(spicc->rst))
+		dev_warn(&pdev->dev, "no reset resource\n");
+	else
+		reset_control_reset(spicc->rst);
+
 	meson_spicc_hw_init(spicc);
 #else
 	/* Disable all IRQs */
@@ -1611,8 +1694,6 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		}
 	}
 #endif
-
-	device_reset_optional(&pdev->dev);
 
 	ctlr->num_chipselect = 4;
 	ctlr->dev.of_node = pdev->dev.of_node;

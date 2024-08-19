@@ -838,6 +838,8 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				//power-domains = <&pwrdm PDID_T3_SPICC0>;
+				reset-names = "spicc";
+				resets = <&reset RESET_SPICC_0>;
 				status = "disabled";
 			};
 
@@ -851,6 +853,8 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				//power-domains = <&pwrdm PDID_T3_SPICC1>;
+				reset-names = "spicc";
+				resets = <&reset RESET_SPICC_1>;
 				status = "disabled";
 			};
 
@@ -864,6 +868,8 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				//power-domains = <&pwrdm PDID_T3_SPICC2>;
+				reset-names = "spicc";
+				resets = <&reset RESET_SPICC_2>;
 				status = "disabled";
 			};
 
