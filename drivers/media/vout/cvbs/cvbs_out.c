@@ -807,19 +807,47 @@ static struct vout_server_s cvbs_vout2_server = {
 
 static void cvbs_init_vout(void)
 {
+	char *connector0_type;
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	char *connector1_type;
+#endif
+	bool is_register = false;
+
 	if (!cvbs_drv->vinfo)
 		cvbs_drv->vinfo = &cvbs_info[MODE_480CVBS];
 
-	if (vout_register_server(&cvbs_vout_server))
-		cvbs_log_err("register cvbs module server fail\n");
-	else
-		cvbs_log_info("register cvbs module server ok\n");
+	connector0_type = get_uboot_connector0_type();
+	if (strncmp("TV", connector0_type, 2) == 0) {
+		if (vout_register_server(&cvbs_vout_server))
+			cvbs_log_err("register cvbs module server by env fail\n");
+		else
+			cvbs_log_info("register cvbs module server by env ok\n");
+		is_register = true;
+	}
+
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	if (vout2_register_server(&cvbs_vout2_server))
-		cvbs_log_err("register cvbs module vout2 server fail\n");
-	else
-		cvbs_log_info("register cvbs module vout2 server ok\n");
+	connector1_type = get_uboot_connector1_type();
+	if (strncmp("TV", connector1_type, 2) == 0) {
+		if (vout2_register_server(&cvbs_vout2_server))
+			cvbs_log_err("register cvbs module vout2 server by env fail\n");
+		else
+			cvbs_log_info("register cvbs module vout2 server by env ok\n");
+		is_register = true;
+	}
 #endif
+
+	if (!is_register) {
+		if (vout_register_server(&cvbs_vout_server))
+			cvbs_log_err("register cvbs module server fail\n");
+		else
+			cvbs_log_info("register cvbs module server ok\n");
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+		if (vout2_register_server(&cvbs_vout2_server))
+			cvbs_log_err("register cvbs module vout2 server fail\n");
+		else
+			cvbs_log_info("register cvbs module vout2 server ok\n");
+#endif
+	}
 }
 
 static char *cvbs_out_bist_str[] = {
