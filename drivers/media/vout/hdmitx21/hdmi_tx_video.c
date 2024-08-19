@@ -50,8 +50,9 @@ static void construct_avi_packet(struct hdmitx_dev *hdev)
 	    para->timing.vic == HDMI_94_3840x2160p25_16x9 ||
 	    para->timing.vic == HDMI_93_3840x2160p24_16x9 ||
 	    para->timing.vic == HDMI_98_4096x2160p24_256x135)
-		/*HDMI Spec V1.4b P151*/
-		if (!hdev->frl_rate) /* TODO, clear under FRL */
+		/* HDMI Spec V1.4b P151 */
+		if (!hdev->frl_rate)
+			/* TODO, clear under FRL */
 			info->video_code = 0;
 	/* refer to CTA-861-H Page 69 */
 	if (info->video_code >= 128)
@@ -59,7 +60,8 @@ static void construct_avi_packet(struct hdmitx_dev *hdev)
 	info->ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
 	info->content_type = HDMI_CONTENT_TYPE_GRAPHICS;
 	info->pixel_repeat = 0;
-	if (para->timing.pi_mode == 0) { /* interlaced modes */
+	if (para->timing.pi_mode == 0) {
+		/* interlaced modes */
 		if (para->timing.h_active == 1440)
 			info->pixel_repeat = 1;
 		if (para->timing.h_active == 2880)
@@ -102,7 +104,8 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 	if (hdev->tx_hw.base.setdispmode(&hdev->tx_hw.base) >= 0) {
 		construct_avi_packet(hdev);
 
-		/* HDMI CT 7-33 DVI Sink, no HDMI VSDB nor any
+		/*
+		 * HDMI CT 7-33 DVI Sink, no HDMI VSDB nor any
 		 * other VSDB, No GB or DI expected
 		 * TMDS_MODE[hdmi_config]
 		 * 0: DVI Mode	   1: HDMI Mode
@@ -120,7 +123,8 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		    videocode == HDMI_94_3840x2160p25_16x9 ||
 		    videocode == HDMI_93_3840x2160p24_16x9 ||
 		    videocode == HDMI_98_4096x2160p24_256x135) {
-			if (!hdev->frl_rate) /* TODO */
+			if (!hdev->frl_rate)
+				/* TODO */
 				hdmi_set_vend_spec_infofram(hdev, videocode);
 		} else if ((!hdev->flag_3dfp) && (!hdev->flag_3dtb) &&
 			 (!hdev->flag_3dss))
@@ -146,8 +150,7 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 					enum hdmi_vic videocode)
 {
-	int i;
-	u8 db[28];
+	u8 db[28] = {0};
 	u8 *ven_db = &db[1];
 	u8 ven_hb[3];
 
@@ -155,22 +158,22 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 	ven_hb[1] = 0x01;
 	ven_hb[2] = 0x5;
 
-	if (videocode == 0) {	   /* For non-4kx2k mode setting */
+	/* For non-4kx2k mode setting */
+	if (videocode == 0) {
 		hdmi_vend_infoframe_rawset(NULL, NULL);
 		return;
 	}
 
+	/* For dolby */
 	if (hdev->tx_comm.rxcap.dv_info.block_flag == CORRECT &&
-		hdev->dv_src_feature == 1) {	/* For dolby */
+		hdev->dv_src_feature == 1)
 		return;
-	}
 
-	for (i = 0; i < 0x6; i++)
-		ven_db[i] = 0;
 	ven_db[0] = GET_OUI_BYTE0(HDMI_IEEE_OUI);
 	ven_db[1] = GET_OUI_BYTE1(HDMI_IEEE_OUI);
 	ven_db[2] = GET_OUI_BYTE2(HDMI_IEEE_OUI);
-	ven_db[3] = 0x00;    /* 4k x 2k  Spec P156 */
+	/* 4k x 2k  Spec P156 */
+	ven_db[3] = 0x00;
 
 	if (videocode == HDMI_95_3840x2160p30_16x9) {
 		ven_db[3] = 0x20;
@@ -192,8 +195,7 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 
 int hdmi21_set_3d(struct hdmitx_dev *hdev, int type, u32 param)
 {
-	int i;
-	u8 db[28];
+	u8 db[28] = {0};
 	u8 *ven_db = &db[1];
 	u8 ven_hb[3];
 	struct hdmi_vendor_infoframe *info;
@@ -206,8 +208,6 @@ int hdmi21_set_3d(struct hdmitx_dev *hdev, int type, u32 param)
 	if (type == T3D_DISABLE) {
 		hdmi_vend_infoframe_rawset(ven_hb, db);
 	} else {
-		for (i = 0; i < 0x6; i++)
-			ven_db[i] = 0;
 		ven_db[0] = GET_OUI_BYTE0(HDMI_IEEE_OUI);
 		ven_db[1] = GET_OUI_BYTE1(HDMI_IEEE_OUI);
 		ven_db[2] = GET_OUI_BYTE2(HDMI_IEEE_OUI);
@@ -219,8 +219,7 @@ int hdmi21_set_3d(struct hdmitx_dev *hdev, int type, u32 param)
 	return 0;
 }
 
-/* Set Source Product Descriptor InfoFrame
- */
+/* Set Source Product Descriptor InfoFrame */
 static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 {
 	u8 spd_db[28] = {0x00};
@@ -244,5 +243,5 @@ static void hdmitx_set_spd_info(struct hdmitx_dev *hdev)
 			(len > 16) ? 16 : len);
 	}
 	spd_db[24] = 0x1;
-	// TODO hdev->hwop.setinfoframe(HDMI_INFOFRAME_TYPE_SPD, SPD_HB);
+	/* TODO hdev->hwop.setinfoframe(HDMI_INFOFRAME_TYPE_SPD, SPD_HB); */
 }
