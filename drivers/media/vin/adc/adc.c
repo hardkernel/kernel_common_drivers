@@ -663,8 +663,8 @@ static int adc_dadc_dvbs_cntl_config(struct tvin_adc_dev *devp)
 		/* only for debug to clkmsr(id:149) */
 		/* adc_wr_hiu(adc_addr->dadc_cntl_3, 0x08300b8f); */
 	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
-		adc_wr_hiu(adc_addr->s2_dadc_cntl, 0x41109007);
-		adc_wr_hiu(adc_addr->s2_dadc_cntl_2, 0x580);
+		adc_wr_hiu(adc_addr->s2_dadc_cntl, 0x41109107);
+		adc_wr_hiu(adc_addr->s2_dadc_cntl_2, 0x4000580);
 #endif
 	}
 	return 0;
