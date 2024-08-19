@@ -36,6 +36,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
+#include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 #include <linux/amlogic/media/vout/lcd/lcd_extern.h>
 #endif
@@ -2232,6 +2233,7 @@ static void lcd_config_default(struct aml_lcd_drv_s *pdrv, unsigned int init_sta
 		}
 
 		switch (pdrv->boot_ctrl->init_level) {
+		case LCD_INIT_LEVEL_PREBOOT:
 		case LCD_INIT_LEVEL_NORMAL:
 			pdrv->status = (LCD_STATUS_ON | LCD_STATUS_PREPARE | LCD_STATUS_POWER);
 			break;
@@ -2836,6 +2838,7 @@ static int lcd_suspend(struct platform_device *pdev, pm_message_t state)
 		aml_lcd_notifier_call_chain(LCD_EVENT_UNPREPARE, (void *)pdrv);
 		LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
 	}
+
 	mutex_unlock(&lcd_power_mutex);
 	return 0;
 }

@@ -342,7 +342,7 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 		boot_ctrl->init_level = val & 0xf;
 		boot_ctrl->interface_state = (val >> 4) & 0x1;
 		boot_ctrl->dccd_flag = (val >> 5) & 0x1;
-		valid = (val >> 6) & 0x7f;
+		boot_ctrl->mute_flag = (val >> 6) & 0x1;
 
 		val = lcd_vcbus_read(L_STH1_HS_ADDR + 1);
 		boot_ctrl->frame_rate = val & 0x1fff;
@@ -362,6 +362,7 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 			LCDPR("\tadvanced_flag   : %d", boot_ctrl->advanced_flag);
 			LCDPR("\tcustom_pinmux   : %d", boot_ctrl->custom_pinmux);
 			LCDPR("\tdccd_flag       : %d", boot_ctrl->dccd_flag);
+			LCDPR("\tmute_flag       : %d", boot_ctrl->mute_flag);
 			LCDPR("\tppc             : %d", boot_ctrl->ppc);
 			LCDPR("\tclk_mode        : %d", boot_ctrl->clk_mode);
 			LCDPR("\tframe_rate      : %d", boot_ctrl->frame_rate);

@@ -646,7 +646,8 @@ struct lcd_config_s {
 #define LCD_INIT_LEVEL_NORMAL         0
 #define LCD_INIT_LEVEL_PWR_OFF        1
 #define LCD_INIT_LEVEL_KERNEL_ON      2
-#define LCD_INIT_LEVEL_KERNEL_OFF     3
+#define LCD_INIT_LEVEL_KERNEL_OFF     3  // reserve, not used
+#define LCD_INIT_LEVEL_PREBOOT        4  // lcd on, bl off
 
 #define LCD_VENC_1PPC                 0
 #define LCD_VENC_2PPC                 1
@@ -668,6 +669,7 @@ struct lcd_boot_ctrl_s {
 	unsigned char lcd_bits;
 	unsigned char advanced_flag;
 	unsigned char dccd_flag;
+	unsigned char mute_flag;
 	unsigned char custom_pinmux;
 	unsigned char init_level;
 	unsigned char ppc;

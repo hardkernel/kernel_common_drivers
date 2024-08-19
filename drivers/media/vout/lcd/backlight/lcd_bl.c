@@ -766,10 +766,18 @@ static inline unsigned int bl_gd_level_map(struct aml_bl_drv_s *bdrv, unsigned i
 static unsigned int aml_bl_init_level(struct aml_bl_drv_s *bdrv, unsigned int level)
 {
 	unsigned int bl_level = level;
+	struct aml_lcd_drv_s *pdrv;
+
+	pdrv = aml_lcd_get_driver(bdrv->index);
+	if (!pdrv)
+		return 0;
 
 	if (((bdrv->state & BL_STATE_LCD_ON) == 0) ||
-	    ((bdrv->state & BL_STATE_BL_POWER_ON) == 0))
+	    ((bdrv->state & BL_STATE_BL_POWER_ON) == 0)) {
+		if (pdrv->boot_ctrl->init_level == LCD_INIT_LEVEL_PREBOOT)
+			return 0;
 		bl_level = 0;
+	}
 
 	if (bl_level == 0) {
 		if (bdrv->state & BL_STATE_BL_ON)
@@ -1053,7 +1061,7 @@ static int bl_power_ctrl_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-		BLPR("[%d]: %s: %d\n", bdrv->index, __func__, temp);
+		BLPR("[%d]: %s: %d, state: 0x%x\n", bdrv->index, __func__, temp, bdrv->state);
 
 	if (temp == 0) {
 		bdrv->state &= ~BL_STATE_BL_POWER_ON;
@@ -3141,6 +3149,22 @@ static void bl_global_remove_once(void)
 #ifdef CONFIG_PM
 static int aml_bl_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	struct aml_bl_drv_s *bdrv = platform_get_drvdata(pdev);
+	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(0);
+
+	if (!bdrv) {
+		LCDERR("[%d]: %s: no bl driver\n", pdrv->index, __func__);
+		return 0;
+	}
+
+	if (pdrv->boot_ctrl->init_level == LCD_INIT_LEVEL_PREBOOT) {
+		bdrv->state = BL_STATE_BL_POWER_ON;
+		pdrv->boot_ctrl->init_level = LCD_INIT_LEVEL_NORMAL;
+	}
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+		BLPR("%s: state: 0x%x\n", __func__, bdrv->state);
+
 	return 0;
 }
 
@@ -3349,7 +3373,9 @@ static void bl_init_status_update(struct aml_bl_drv_s *bdrv)
 		return;
 
 	/* default power state on */
-	bdrv->state = BL_STATE_BL_POWER_ON;
+	if (pdrv->boot_ctrl->init_level != LCD_INIT_LEVEL_PREBOOT)
+		bdrv->state = BL_STATE_BL_POWER_ON;
+
 	switch (bdrv->bconf.method) {
 	case BL_CTRL_PWM:
 	case BL_CTRL_PWM_COMBO:
@@ -3361,13 +3387,17 @@ static void bl_init_status_update(struct aml_bl_drv_s *bdrv)
 
 	bdrv->level_brightness = bl_brightness_level_map(bdrv,
 						bdrv->bldev->props.brightness);
+	bdrv->level = bdrv->level_brightness;
 
 	/* default disable lcd & backlight */
 	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
 		return;
 
 	/* update bl status */
-	bdrv->state |= (BL_STATE_LCD_ON | BL_STATE_BL_ON);
+	if (pdrv->boot_ctrl->init_level == LCD_INIT_LEVEL_PREBOOT)
+		bdrv->state |= BL_STATE_LCD_ON;
+	else
+		bdrv->state |= (BL_STATE_LCD_ON | BL_STATE_BL_ON);
 	bdrv->on_request = 1;
 
 	mutex_lock(&bl_level_mutex);
