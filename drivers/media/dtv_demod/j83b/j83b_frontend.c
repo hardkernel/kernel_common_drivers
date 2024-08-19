@@ -203,7 +203,7 @@ int gxtv_demod_j83b_read_signal_strength(struct dvb_frontend *fe,
 	if (tuner_find_by_name(fe, "r842") ||
 		tuner_find_by_name(fe, "r836") ||
 		tuner_find_by_name(fe, "r850"))
-		*strength += 6;
+		*strength += 16;
 	else if (tuner_find_by_name(fe, "mxl661"))
 		*strength += 3;
 

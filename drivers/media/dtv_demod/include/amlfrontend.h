@@ -176,6 +176,7 @@
 /*  V3.5.049 calibrate j83b signal strength read from R842*/
 /*  V3.5.050 fix sfc device lock dvbc 256qam failed*/
 /*  V3.5.051 fix init and sleep flow and state */
+/*  V3.5.052 calibrate the j83b sensitivity value */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -192,8 +193,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V3.5.051"
-#define DTVDEMOD_VER	"2024/08/15: fix init and sleep flow and state"
+#define AMLDTVDEMOD_VER "V3.5.052"
+#define DTVDEMOD_VER	"2024/08/19: calibrate the j83b sensitivity value"
 #define AMLDTVDEMOD_T2_FW_VER "v1430.20240326"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
