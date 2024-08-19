@@ -614,10 +614,10 @@ int vpp_crc_result;
 /* viu2 vpp_crc */
 static u32 vpp_crc_viu2_en;
 /* source fmt string */
-const char *src_fmt_str[11] = {
+const char *src_fmt_str[12] = {
 	"SDR", "HDR10", "HDR10+", "HDR Prime", "HLG",
 	"Dolby Vison", "Dolby Vison Low latency", "MVC",
-	"CUVA_HDR", "CUVA_HLG", "SDR_2020"
+	"CUVA_HDR", "CUVA_HLG", "SDR_2020", "HDR10_709_SOURCE"
 };
 
 atomic_t primary_src_fmt =
@@ -11929,11 +11929,15 @@ static ssize_t primary_src_fmt_show(struct class *cla,
 	enum vframe_signal_fmt_e fmt;
 
 	fmt = (enum vframe_signal_fmt_e)atomic_read(&cur_primary_src_fmt);
-	if (fmt != VFRAME_SIGNAL_FMT_INVALID)
-		ret += sprintf(buf + ret, "src_fmt = %s\n",
-			src_fmt_str[fmt]);
-	else
-		ret += sprintf(buf + ret, "src_fmt = invalid\n");
+	if (fmt >= VFRAME_SIGNAL_FMT_MAX) {
+		pr_info("%s:fmt=%d is overflow!\n", __func__, fmt);
+	} else {
+		if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+			ret += sprintf(buf + ret, "src_fmt = %s\n",
+				src_fmt_str[fmt]);
+		else
+			ret += sprintf(buf + ret, "src_fmt = invalid\n");
+	}
 	return ret;
 }
 
