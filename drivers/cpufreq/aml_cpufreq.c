@@ -640,8 +640,11 @@ static int aml_cpufreq_probe(struct platform_device *pdev)
 		clusterdata[i].procroot = root;
 		/*setup cluster related cpus*/
 		of_property_for_each_u32(cluster_np, "cluster_cores", j) {
-			cpumask_set_cpu(j, clusterdata[i].cpus);
-			pr_info("cpu%d->cluster%d\n", j, clusterdata[i].clusterid);
+			if (cpu_present(j)) {
+				cpumask_set_cpu(j, clusterdata[i].cpus);
+				pr_info("cpu%d->cluster%d\n", j,
+					clusterdata[i].clusterid);
+			}
 		}
 
 		if (!aml_setup_clock(&clusterdata[i]))

@@ -51,21 +51,7 @@
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_CLK_DYN>,
-				<&clkc CLKID_SYS_PLL>,
-				<&clkc CLKID_DSU_CLK>,
-				<&clkc CLKID_DSU_CLK_FINAL>;
-			clock-names = "core_clk",
-				"low_freq_clk_parent",
-				"high_freq_clk_parent",
-				"dsu_clk",
-				"dsu_pre_parent";
-			operating-points-v2 = <&cpu_opp_table0>;
-			cpu-supply = <&vddcpu0>;
-			voltage-tolerance = <0>;
-			clock-latency = <50000>;
-			#cooling-cells = <2>;
+			dynamic-power-coefficient = <125>;
 		};
 
 		CPU1:cpu@1 {
@@ -74,20 +60,7 @@
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
-			//clocks = <&clkc CLKID_CPU_CLK>,
-			//	<&clkc CLKID_CPU_FCLK_P>,
-			//	<&clkc CLKID_SYS_PLL>,
-			//	<&clkc CLKID_DSU_CLK>,
-			//	<&clkc CLKID_DSU_PRE_CLK>;
-			//clock-names = "core_clk",
-			//	"low_freq_clk_parent",
-			//	"high_freq_clk_parent",
-			//	"dsu_clk",
-			//	"dsu_pre_parent";
-			operating-points-v2 = <&cpu_opp_table0>;
-			cpu-supply = <&vddcpu0>;
-			voltage-tolerance = <0>;
-			clock-latency = <50000>;
+			dynamic-power-coefficient = <125>;
 		};
 
 		CPU2:cpu@2 {
@@ -96,20 +69,7 @@
 			reg = <0x0 0x200>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
-			//clocks = <&clkc CLKID_CPU_CLK>,
-			//	<&clkc CLKID_CPU_FCLK_P>,
-			//	<&clkc CLKID_SYS_PLL>,
-			//	<&clkc CLKID_DSU_CLK>,
-			//	<&clkc CLKID_DSU_PRE_CLK>;
-			//clock-names = "core_clk",
-			//	"low_freq_clk_parent",
-			//	"high_freq_clk_parent",
-			//	"dsu_clk",
-			//	"dsu_pre_parent";
-			operating-points-v2 = <&cpu_opp_table0>;
-			cpu-supply = <&vddcpu0>;
-			voltage-tolerance = <0>;
-			clock-latency = <50000>;
+			dynamic-power-coefficient = <125>;
 		};
 
 		CPU3:cpu@3 {
@@ -118,20 +78,7 @@
 			reg = <0x0 0x300>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
-			//clocks = <&clkc CLKID_CPU_CLK>,
-			//	<&clkc CLKID_CPU_FCLK_P>,
-			//	<&clkc CLKID_SYS_PLL>,
-			//	<&clkc CLKID_DSU_CLK>,
-			//	<&clkc CLKID_DSU_PRE_CLK>;
-			//clock-names = "core_clk",
-			//	"low_freq_clk_parent",
-			//	"high_freq_clk_parent",
-			//	"dsu_clk",
-			//	"dsu_pre_parent";
-			operating-points-v2 = <&cpu_opp_table0>;
-			cpu-supply = <&vddcpu0>;
-			voltage-tolerance = <0>;
-			clock-latency = <50000>;
+			dynamic-power-coefficient = <125>;
 		};
 
 		idle-states {
@@ -2934,3 +2881,5 @@
 				   <0>; /* Do Nothing */
 
 };
+
+#include "mesonsm1_cpufreq.dtsi"
