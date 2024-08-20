@@ -759,13 +759,14 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 				/* vrr mode vinfo_std_duration not correct so separate judgment */
 				if (devp->vrr_data.vrr_mode &&
 				    devp->vdin_std_duration >= VDIN_VRR_MIN_FRAME_RATE &&
-				    devp->vout_base_fps >
-					(devp->prop.fps + VDIN_VRR_MIN_FRAME_RATE)) {
+					(devp->vin_base_fps <= 30 || devp->vout_base_fps >
+						devp->vin_base_fps * 2)) {
 					/* lcd not switch to input base fps */
 					devp->game_mode = VDIN_GAME_MODE_0;
 				} else if (devp->vrr_data.vrr_mode &&
-					devp->vdin_std_duration >= VDIN_VRR_MIN_FRAME_RATE &&
-					devp->vdin_std_duration < devp->vrr_frame_rate_min) {
+					((devp->vdin_std_duration >= VDIN_VRR_MIN_FRAME_RATE &&
+					devp->vdin_std_duration < devp->vrr_frame_rate_min) ||
+					(devp->vout_base_fps > devp->vin_base_fps))) {
 					/*1 to 2 need delay more than one vf*/
 					devp->game_mode = (VDIN_GAME_MODE_0 |
 						VDIN_GAME_MODE_1);

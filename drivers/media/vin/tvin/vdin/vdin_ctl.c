@@ -7767,6 +7767,30 @@ void vdin_bist(struct vdin_dev_s *devp, unsigned int mode)
 #endif
 }
 
+/* set base frame when vrr or freesync
+ * base on parameter:
+ * fps:	50/60/120/144/200/240/288
+ */
+static inline unsigned int vdin_set_vin_base_fr(unsigned int fps)
+{
+	//(fps <= 60) ? (fps = 60) : (fps = 120);
+	if (fps <= 50)
+		fps = 50;
+	else if (fps <= 60)
+		fps = 60;
+	else if (fps <= 120)
+		fps = 120;
+	else if (fps <= 144)
+		fps = 144;
+	else if (fps <= 200)
+		fps = 200;
+	else if (fps <= 240)
+		fps = 240;
+	else if (fps <= 288)
+		fps = 288;
+	return fps;
+}
+
 /* get base or maxmun value when vrr or freesync
  * return:
  * = 0:get correct base framerate from vrr/freesync
@@ -7781,48 +7805,35 @@ int vdin_get_base_fr(struct vdin_dev_s *devp)
 		return ret;
 
 	if (devp->prop.vtem_data.vrr_en) { /* vrr */
-		if (devp->prop.hw_vic != 0) {
+		if (devp->prop.vtem_data.base_framerate) {
+			fps = devp->prop.vtem_data.base_framerate;
+		} else if (devp->prop.hw_vic != 0) {
 		#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 			fps = hdmirx_get_base_fps(devp->prop.hw_vic);
 		#endif
-		} else if (devp->prop.vtem_data.base_framerate) {
-			fps = devp->prop.vtem_data.base_framerate;
 		} else {
 			fps = devp->parm.info.fps;
 		}
-		//(fps <= 60) ? (fps = 60) : (fps = 120);
-		if (fps <= 60)
-			fps = 60;
-		else if (fps <= 120)
-			fps = 120;
-		else if (fps <= 144)
-			fps = 144;
-		else if (fps <= 200)
-			fps = 200;
-		else if (fps <= 240)
-			fps = 240;
-		else if (fps <= 288)
-			fps = 288;
+
+		fps = vdin_set_vin_base_fr(fps);
+
+		devp->vin_base_fps = fps;
 	} else if (vdin_check_is_spd_data(devp) &&
 		(devp->prop.spd_data.data[5] >> 1 & 0x7)) { /* FreeSync */
 		/* FreeSync Maximum refresh rate (Hz) */
-		if (devp->prop.spd_data.data[7])
+		if (devp->prop.spd_data.data[7]) {
 			fps = devp->prop.spd_data.data[7];
-		else
+		} else if (devp->prop.hw_vic != 0) {
+		#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+			fps = hdmirx_get_base_fps(devp->prop.hw_vic);
+		#endif
+		} else {
 			fps = devp->parm.info.fps;
-		//(fps <= 60) ? (fps = 60) : (fps = 120);
-		if (fps <= 60)
-			fps = 60;
-		else if (fps <= 120)
-			fps = 120;
-		else if (fps <= 144)
-			fps = 144;
-		else if (fps <= 200)
-			fps = 200;
-		else if (fps <= 240)
-			fps = 240;
-		else if (fps <= 288)
-			fps = 288;
+		}
+
+		fps = vdin_set_vin_base_fr(fps);
+
+		devp->vin_base_fps = fps;
 	}
 
 	if (fps) {
@@ -7834,10 +7845,11 @@ int vdin_get_base_fr(struct vdin_dev_s *devp)
 	}
 
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_RATIO)
-		pr_info("%s vrr_en:%d,vic=%d,base_fr=%d,spd[5]:%#x,spd[7]:%#x,fps:%d,%d\n",
+		pr_info("%s vrr_en:%d,vic=%d,base_fr=%d,spd[5]:%#x,spd[7]:%#x,fps:%d,%d,%d,%d\n",
 			__func__, devp->prop.vtem_data.vrr_en, devp->prop.hw_vic,
 			devp->prop.vtem_data.base_framerate, devp->prop.spd_data.data[5],
-			devp->prop.spd_data.data[7], devp->parm.info.fps, devp->prop.fps);
+			devp->prop.spd_data.data[7], devp->parm.info.fps, devp->prop.fps,
+			devp->vin_base_fps, devp->vout_base_fps);
 
 	return ret;
 }

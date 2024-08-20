@@ -1180,6 +1180,7 @@ struct vdin_dev_s {
 	unsigned int dbg_dump_frames;
 	unsigned int dbg_stop_dec_delay;
 	unsigned int vout_base_fps; /* get vinfo out base fps value */
+	unsigned int vin_base_fps; /*get vin base fps only vrr and freesync has this value*/
 	unsigned int vinfo_std_duration; /* get vinfo out real time fps value */
 	unsigned int vdin_std_duration; /* get in real time fps value */
 	unsigned int dbg_no_swap_en:1;
