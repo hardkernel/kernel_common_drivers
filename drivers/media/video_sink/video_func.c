@@ -2570,6 +2570,9 @@ static void set_cur_line_info(u8 index)
 	cur_line_info->end2 = start;
 	cur_line_info->end3 = start;
 	cur_line_info->end4 = start;
+	cur_line_info->toggle_end = start;
+	cur_line_info->swap_end = start;
+	cur_line_info->render_end = start;
 }
 
 struct cur_line_info_t *get_cur_line_info(u8 index)
@@ -2590,7 +2593,7 @@ ulong get_enc_time_start(u8 index)
 }
 
 static inline void trace_performance(struct cur_line_info_t *cur_line_info,
-	int cur_enc_line)
+	int cur_enc_line, u8 id)
 {
 	u32 sync_duration;
 	struct vinfo_s *video_info;
@@ -2599,6 +2602,9 @@ static inline void trace_performance(struct cur_line_info_t *cur_line_info,
 	unsigned long time_use3 = 0;
 	unsigned long time_use4 = 0;
 	unsigned long time_use5 = 0;
+	unsigned long time_toggle = 0;
+	unsigned long time_swap = 0;
+	unsigned long time_render = 0;
 	int enc_line_start;
 	struct timeval end;
 	struct timeval *start;
@@ -2606,50 +2612,108 @@ static inline void trace_performance(struct cur_line_info_t *cur_line_info,
 	struct timeval *end2;
 	struct timeval *end3;
 	struct timeval *end4;
+	struct timeval *toggle_end = NULL;
+	struct timeval *swap_end = NULL;
+	struct timeval *render_end = NULL;
 
-	enc_line_start = cur_line_info->enc_line_start;
-	start = &cur_line_info->start;
-	end1 = &cur_line_info->end1;
-	end2 = &cur_line_info->end2;
-	end3 = &cur_line_info->end3;
-	end4 = &cur_line_info->end4;
+	if (id == 0) {
+		enc_line_start = cur_line_info->enc_line_start;
+		start = &cur_line_info->start;
+		end1 = &cur_line_info->end1;
+		end2 = &cur_line_info->end2;
+		end3 = &cur_line_info->end3;
+		end4 = &cur_line_info->end4;
+		toggle_end = &cur_line_info->toggle_end;
+		swap_end = &cur_line_info->swap_end;
+		render_end = &cur_line_info->render_end;
 
-	do_gettimeofday(&end);
-	time_use1 = (end1->tv_sec - start->tv_sec) * 1000000 +
-				(end1->tv_usec - start->tv_usec);
-	time_use2 = (end2->tv_sec - start->tv_sec) * 1000000 +
-				(end2->tv_usec - start->tv_usec);
-	time_use3 = (end3->tv_sec - start->tv_sec) * 1000000 +
-				(end3->tv_usec - start->tv_usec);
-	time_use4 = (end4->tv_sec - start->tv_sec) * 1000000 +
-				(end4->tv_usec - start->tv_usec);
-	time_use5 = (end.tv_sec - start->tv_sec) * 1000000 +
-				(end.tv_usec - start->tv_usec);
+		do_gettimeofday(&end);
+		time_use1 = (end1->tv_sec - start->tv_sec) * 1000000 +
+					(end1->tv_usec - start->tv_usec);
+		time_use2 = (end2->tv_sec - start->tv_sec) * 1000000 +
+					(end2->tv_usec - start->tv_usec);
+		time_use3 = (end3->tv_sec - start->tv_sec) * 1000000 +
+					(end3->tv_usec - start->tv_usec);
+		time_use4 = (end4->tv_sec - start->tv_sec) * 1000000 +
+					(end4->tv_usec - start->tv_usec);
+		time_use5 = (end.tv_sec - start->tv_sec) * 1000000 +
+					(end.tv_usec - start->tv_usec);
 
-	video_info = get_current_vinfo();
-	if (video_info && video_info->sync_duration_num)
-		sync_duration = video_info->sync_duration_den * 1000 /
-				video_info->sync_duration_num;
-	else
-		sync_duration = 16;
+		video_info = get_current_vinfo();
+		if (video_info && video_info->sync_duration_num)
+			sync_duration = video_info->sync_duration_den * 1000 /
+					video_info->sync_duration_num;
+		else
+			sync_duration = 16;
 
-	if (cur_enc_line < enc_line_start || time_use5 > sync_duration * 1000) {
-		over_field = true;
-		++over_field_case1_cnt;
-		if (performance_debug & DEBUG_FLAG_OVER_VSYNC)
-			pr_info("long vsync enc line: %4d/4%d, time %ld us\n",
-				enc_line_start, cur_enc_line, time_use5);
-	}
+		if (cur_enc_line < enc_line_start || time_use5 > sync_duration * 1000) {
+			over_field = true;
+			++over_field_case1_cnt;
+			if (performance_debug & DEBUG_FLAG_OVER_VSYNC)
+				pr_info("long vsync enc line: %4d/4%d, time %ld us\n",
+					enc_line_start, cur_enc_line, time_use5);
+		}
 
-	vpp_trace_timeinfo(time_use1, time_use2, time_use3,
-		time_use4, time_use5, sync_duration * 1000);
+		vpp_trace_timeinfo(time_use1, time_use2, time_use3,
+			time_use4, time_use5, sync_duration * 1000);
 
-	if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME) {
-		pr_info("vsync time: %ld %ld %ld %ld %ld us\n",
-			time_use1, time_use2, time_use3, time_use4, time_use5);
-		pr_info("vsync enc line: %4d/4%d, over_field %d, count %d %d\n",
-			enc_line_start, cur_enc_line,
-			over_field, over_field_case1_cnt, over_field_case2_cnt);
+		if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME) {
+			toggle_end = &cur_line_info->toggle_end;
+			swap_end = &cur_line_info->swap_end;
+			render_end = &cur_line_info->render_end;
+			time_toggle = (toggle_end->tv_sec - start->tv_sec) * 1000000 +
+						(toggle_end->tv_usec - start->tv_usec);
+			time_swap = (swap_end->tv_sec - toggle_end->tv_sec) * 1000000 +
+						(swap_end->tv_usec - toggle_end->tv_usec);
+			time_render = (render_end->tv_sec - swap_end->tv_sec) * 1000000 +
+						(render_end->tv_usec - swap_end->tv_usec);
+
+			pr_info("vsync time id=%d(post vsync): %ld %ld %ld %ld %ld us\n",
+				id,
+				time_use1, time_use2, time_use3, time_use4, time_use5);
+			pr_info("vsync time(post vsync): toggle:%ld swap:%ld render:%ld us\n",
+				time_toggle, time_swap, time_render);
+			pr_info("vsync enc line: %4d/%4d, over_field %d, count %d %d\n",
+				enc_line_start, cur_enc_line,
+				over_field, over_field_case1_cnt, over_field_case2_cnt);
+		}
+	} else {
+		if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME) {
+			enc_line_start = cur_line_info->enc_line_start;
+			start = &cur_line_info->start;
+			end1 = &cur_line_info->end1;
+			end2 = &cur_line_info->end2;
+			end3 = &cur_line_info->end3;
+			end4 = &cur_line_info->end4;
+			toggle_end = &cur_line_info->toggle_end;
+			swap_end = &cur_line_info->swap_end;
+			render_end = &cur_line_info->render_end;
+
+			do_gettimeofday(&end);
+			time_use1 = (end1->tv_sec - start->tv_sec) * 1000000 +
+						(end1->tv_usec - start->tv_usec);
+			time_use2 = (end2->tv_sec - start->tv_sec) * 1000000 +
+						(end2->tv_usec - start->tv_usec);
+			time_use3 = (end3->tv_sec - start->tv_sec) * 1000000 +
+						(end3->tv_usec - start->tv_usec);
+			time_use4 = (end4->tv_sec - start->tv_sec) * 1000000 +
+						(end4->tv_usec - start->tv_usec);
+			time_use5 = (end.tv_sec - start->tv_sec) * 1000000 +
+						(end.tv_usec - start->tv_usec);
+			time_toggle = (toggle_end->tv_sec - start->tv_sec) * 1000000 +
+						(toggle_end->tv_usec - start->tv_usec);
+			time_swap = (swap_end->tv_sec - toggle_end->tv_sec) * 1000000 +
+						(swap_end->tv_usec - toggle_end->tv_usec);
+			time_render = (render_end->tv_sec - swap_end->tv_sec) * 1000000 +
+						(render_end->tv_usec - swap_end->tv_usec);
+
+			pr_info("vsync time id=%d(pre vsync): %ld %ld %ld %ld %ld us\n",
+				id,
+				time_use1, time_use2, time_use3, time_use4, time_use5);
+			pr_info("vsync time(pre vsync): toggle:%ld swap:%ld render:%ld us\n",
+				time_toggle, time_swap, time_render);
+		}
+
 	}
 }
 
@@ -3362,6 +3426,7 @@ static struct vframe_s *do_renderx_toggle_frame
 
 	/* video_render.x toggle frame */
 	if (gvideo_recv[path_index]) {
+		gvideo_recv[path_index]->cur_line_info = get_cur_line_info(0);
 		path_new_frame =
 			gvideo_recv[path_index]->func->dequeue_frame
 				(gvideo_recv[path_index], path_id);
@@ -4562,9 +4627,10 @@ static void misc_late_proc(void)
 	if (new_frame_mask && is_vsync_rdma_enable())
 		update_over_field_states(OVER_FIELD_NEW_VF, false);
 
-	for (i = 0; i < cur_dev->max_vd_layers; i++)
+	for (i = 0; i < cur_dev->max_vd_layers; i++) {
 		if (vd_layer[i].vd_func.vd_misc_late_proc)
 			vd_layer[i].vd_func.vd_misc_late_proc(i);
+	}
 
 #if defined(PTS_LOGGING) || defined(PTS_TRACE_DEBUG)
 	pts_trace++;
@@ -4579,7 +4645,7 @@ RUN_FIRST_RDMA:
 	cur_line_info = get_cur_line_info(0);
 	vpp_trace_encline("AFTER-RDMA", cur_line_info->enc_line_start, enc_line);
 
-	trace_performance(cur_line_info, enc_line);
+	trace_performance(cur_line_info, enc_line, 0);
 
 	rdma_enable_pre = is_vsync_rdma_enable();
 	if (debug_flag & DEBUG_FLAG_PRINT_RDMA) {
@@ -5138,6 +5204,7 @@ void pre_vsync_process(void)
 	struct path_id_s path_id;
 	struct cur_line_info_t *cur_line_info = NULL;
 	int enc_line;
+	bool do_fun = false;
 
 	if (cur_dev->vsync_2to1_enable && frc_n2m_worked()) {
 #ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
@@ -5190,6 +5257,7 @@ void pre_vsync_process(void)
 	}
 
 	if (cur_pre_func->vd_toggle_frame) {
+		do_fun = true;
 		path_frame_index = cur_pre_func->path_frame_index;
 		path_new_frame[path_frame_index] =
 			cur_pre_func->vd_toggle_frame(0, 0, vd_path_id, &path_id);
@@ -5199,21 +5267,34 @@ void pre_vsync_process(void)
 		cur_vd1_path_id = VFM_PATH_INVALID;
 		vd_path_id[0] = VFM_PATH_INVALID;
 	}
+	if (do_fun && (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME))
+		do_gettimeofday(&cur_line_info->toggle_end);
+	do_fun = false;
 	if (debug_common_flag & DEBUG_FLAG_COMMON_PER_PREVSYNC)
 		dump_current_display_regs_info();
 
 	if (cur_vd1_path_id != vd_path_id[0])
 		path_switch = true;
 	/* do vd swap */
-	if (cur_pre_func->vd_swap_frame)
+	if (cur_pre_func->vd_swap_frame) {
+		do_fun  = true;
 		cur_pre_func->vd_swap_frame(0,
 						vd_path_id[0],
 						cur_vd1_path_id,
 						&path_new_frame[0]);
+	}
+	if (do_fun && (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME))
+		do_gettimeofday(&cur_line_info->swap_end);
+	do_fun = false;
 
 	/* filter setting management */
-	if (cur_pre_func->vd_render_frame)
+	if (cur_pre_func->vd_render_frame) {
+		do_fun = true;
 		cur_pre_func->vd_render_frame(&vd_layer[0], vinfo);
+	}
+	if (do_fun && (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME))
+		do_gettimeofday(&cur_line_info->render_end);
+	do_fun = false;
 	/* do blend set */
 	if (cur_dev->pre_vsync_enable)
 		vpp_blend_update(vinfo, PRE_VSYNC);
@@ -5233,6 +5314,7 @@ pre_exit_1:
 	//trace_for_pre_vsync();
 	enc_line = get_cur_enc_line();
 	vpp_trace_encline("AFTER-PRE-VSYNC-RDMA", cur_line_info->enc_line_start, enc_line);
+	trace_performance(cur_line_info, enc_line, 1);
 }
 #endif
 
@@ -5253,6 +5335,7 @@ void post_vsync_process(void)
 	struct path_id_s path_id;
 	struct cur_line_info_t *cur_line_info = NULL;
 	int enc_line;
+	bool do_fun = false;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 	iotrace_misc_record_write(RECORD_TYPE_VSYNC_IN, 0, 0, 0);
@@ -5276,6 +5359,8 @@ void post_vsync_process(void)
 	msync_vsync_update();
 #endif
 	for (i = 0; i < MAX_VD_LAYER; i++) {
+		//if (i >= 1)
+		//	set_cur_line_info(i);
 		vd_path_id[i] = glayer_info[i].display_path_id;
 		if (cur_vd_path_id[i] == 0xff)
 			cur_vd_path_id[i] = vd_path_id[i];
@@ -5320,6 +5405,7 @@ void post_vsync_process(void)
 	/* do toggle frame */
 	for (i = 0; i < cur_dev->max_vd_layers; i++) {
 		if (vd_layer[i].vd_func.vd_toggle_frame) {
+			do_fun = true;
 			path_frame_index = vd_layer[i].vd_func.path_frame_index;
 			path_new_frame[path_frame_index] =
 				vd_layer[i].vd_func.vd_toggle_frame(i, 0, vd_path_id, &path_id);
@@ -5343,6 +5429,9 @@ void post_vsync_process(void)
 			}
 		}
 	}
+	if (do_fun && (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME))
+		do_gettimeofday(&cur_line_info->toggle_end);
+	do_fun = false;
 
 	if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC)
 		dump_current_display_regs_info();
@@ -5515,10 +5604,16 @@ void post_vsync_process(void)
 
 	/* do vd swap */
 	for (i = 0; i < cur_dev->max_vd_layers; i++)
-		if (vd_layer[i].vd_func.vd_swap_frame)
+		if (vd_layer[i].vd_func.vd_swap_frame) {
+			do_fun = true;
 			vd_layer[i].vd_func.vd_swap_frame(i, vd_path_id[i],
 							cur_vd_path_id[i],
 							&path_new_frame[0]);
+	}
+	if (do_fun && (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME))
+		do_gettimeofday(&cur_line_info->swap_end);
+	do_fun = false;
+
 	if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC)
 		pr_info("(%s)VID: layer enable status: VD1:e:%d,e_save:%d,g:%d,d:%d,f:%s; VD2:e:%d,e_save:%d,g:%d,d:%d,f:%s; VD3:e:%d,e_save:%d,g:%d,d:%d,f:%s",
 			__func__,
@@ -5535,12 +5630,16 @@ void post_vsync_process(void)
 
 	/* filter setting management */
 	for (i = 0; i < cur_dev->max_vd_layers; i++) {
-		if (vd_layer[i].vd_func.vd_render_frame)
+		if (vd_layer[i].vd_func.vd_render_frame) {
+			do_fun = true;
 			ret = vd_layer[i].vd_func.vd_render_frame
 				(&vd_layer[i], vinfo);
+		}
 		if (i == 0)
 			frame_par_di_set = ret;
 	}
+	if (do_fun && (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME))
+		do_gettimeofday(&cur_line_info->render_end);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (support_multi_core1())

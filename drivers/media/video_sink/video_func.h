@@ -137,16 +137,6 @@ extern u32 new_frame_count;
 extern atomic_t vt_disable_video_done;
 extern atomic_t vt_unreg_flag;
 
-struct cur_line_info_t {
-	int enc_line_start;
-	u32 enc_num_start;
-	struct timeval start;
-	struct timeval end1;
-	struct timeval end2;
-	struct timeval end3;
-	struct timeval end4;
-};
-
 void vsync_notify(void);
 int dolby_vision_need_wait(u8 path_index);
 int pip_receiver_event_fun(int type, void *data, void *private_data);

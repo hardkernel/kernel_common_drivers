@@ -826,6 +826,19 @@ struct pre_scaler_info {
 	u32 pre_vscaler_coef_set;
 };
 
+struct cur_line_info_t {
+	int enc_line_start;
+	u32 enc_num_start;
+	struct timeval start;
+	struct timeval end1;
+	struct timeval end2;
+	struct timeval end3;
+	struct timeval end4;
+	struct timeval toggle_end;
+	struct timeval swap_end;
+	struct timeval render_end;
+};
+
 enum {
 	VD1_PROBE = 1,
 	VD2_PROBE,
@@ -1090,6 +1103,7 @@ extern bool video_suspend;
 extern u32 video_suspend_cycle;
 extern int log_out;
 extern int debug_flag;
+extern u32 performance_debug;
 extern bool bypass_pps;
 extern bool rdma_enable_pre;
 extern struct vpp_frame_par_s *cur_frame_par[MAX_VD_LAYER];

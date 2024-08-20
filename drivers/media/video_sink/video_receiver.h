@@ -68,6 +68,7 @@ struct video_recv_s {
 	s8 buf_to_put_num;
 	bool save_vf_en;
 	struct recv_func_s *func;
+	struct cur_line_info_t *cur_line_info;
 };
 
 struct video_recv_s *create_video_receiver(const char *recv_name,

@@ -613,6 +613,7 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 	int ret;
 	struct vframe_s *vf_top1 = NULL;
 #endif
+	struct cur_line_info_t *cur_line_info = NULL;
 
 	if (!ins) {
 		pr_err("%s error, empty ins\n", __func__);
@@ -624,6 +625,7 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 		ins->exited = false;
 		ins->request_exit = false;
 	}
+	cur_line_info = ins->cur_line_info;
 	vf = common_vf_peek(ins);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if ((glayer_info[0].display_path_id == ins->path_id || is_multi_dv_mode()) &&
@@ -741,6 +743,8 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 				amvecm_process(path_id, ins, vf);
 #endif
+				if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
+					do_gettimeofday(&cur_line_info->end2);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 				/*top1 enable, need check one more frame*/
 				if (get_top1_onoff() ==  3) {/*todo*/
@@ -764,6 +768,8 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 					layer_info_id = 0;
 				else if (ins->path_id == VFM_PATH_VIDEO_RENDER1)
 					layer_info_id = 1;
+				if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
+					do_gettimeofday(&cur_line_info->end3);
 
 				if (debug_flag & DEBUG_FLAG_RECEIVER_DEBUG)
 					pr_info("ins->path_id %d,%s, display_path_id %d\n",
@@ -787,6 +793,8 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 						dv_toggle_frame(vf, vd_path, true);
 					}
 				}
+				if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
+					do_gettimeofday(&cur_line_info->end4);
 				vd_layer[0].vf_top1 = vf_top1;
 				/*not drop frame or drop 3 in frame2-3*/
 				/*currently drop 2 in frame2-3,frame 2 pyramid missed*/
