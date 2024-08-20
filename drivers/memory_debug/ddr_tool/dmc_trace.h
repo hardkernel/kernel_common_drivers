@@ -17,9 +17,9 @@ unsigned long read_violation_mem(unsigned long addr, char rw);
 TRACE_EVENT(dmc_violation,
 
 	TP_PROTO(char *title, unsigned long addr, unsigned long status, char *port, char *sub,
-		 char rw, unsigned long pagetrace, unsigned long flags, unsigned long long time),
+		 char rw, unsigned long pagetrace, unsigned int order, unsigned long flags, unsigned long long time),
 
-	TP_ARGS(title, addr, status, port, sub, rw, pagetrace, flags, time),
+	TP_ARGS(title, addr, status, port, sub, rw, pagetrace, order, flags, time),
 
 	TP_STRUCT__entry(
 		__string(title, title)
@@ -29,6 +29,7 @@ TRACE_EVENT(dmc_violation,
 		__string(sub, sub)
 		__field(char, rw)
 		__field(unsigned long, page_trace)
+		__field(unsigned int, order)
 		__field(unsigned long, flags)
 		__field(unsigned long long, time)
 	),
@@ -41,21 +42,22 @@ TRACE_EVENT(dmc_violation,
 		__assign_str(sub, sub);
 		__entry->rw = rw;
 		__entry->page_trace = pagetrace;
+		__entry->order = order;
 		__entry->flags = flags;
 		__entry->time = time;
 	),
 
-	TP_printk("addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx bd:%d sb:%d lru:%d a:%ps t:%lld rw:%c%s",
+	TP_printk("addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx sb:%d lru:%d a:%ps(%d), t:%lld rw:%c%s",
 		  __entry->addr,
 		  read_violation_mem(__entry->addr, __entry->rw),
 		  __entry->status,
 		  __get_str(port),
 		  __get_str(sub),
 		  __entry->flags,
-		  __entry->flags & PAGE_FLAGS_CHECK_AT_FREE ? 0 : 1,
 		  test_bit(PG_slab, &__entry->flags),
 		  test_bit(PG_lru, &__entry->flags),
 		  (void *)__entry->page_trace,
+		  __entry->order,
 		  __entry->time,
 		  __entry->rw,
 		  __get_str(title))
