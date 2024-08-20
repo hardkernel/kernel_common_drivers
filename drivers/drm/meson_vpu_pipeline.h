@@ -483,11 +483,21 @@ struct meson_vpu_afbc_state {
 	u32 inter_format;
 };
 
+/*
+ * from s7 soc, scaler hw add alpha premulti process
+ * for input, and add alpha divide process for output
+ */
+enum alpha_proc_mode {
+	NO_ALPHA_PROC,
+	ALPHA_PROC,
+};
+
 struct meson_vpu_scaler {
 	struct meson_vpu_block base;
 	struct osd_scaler_reg_s *reg;
 	u32 linebuffer;/*base pixel*/
 	u32 bank_length;/*base line*/
+	enum alpha_proc_mode alpha_mode;
 };
 
 struct meson_vpu_scaler_state {
@@ -938,9 +948,11 @@ extern struct meson_vpu_block_ops g12b_postblend_ops;
 extern struct meson_vpu_block_ops t7_osd_ops;
 extern struct meson_vpu_block_ops t7_afbc_ops;
 extern struct meson_vpu_block_ops t7_hdr_ops;
-extern struct meson_vpu_block_ops t3_afbc_ops;
 extern struct meson_vpu_block_ops t7_postblend_ops;
+extern struct meson_vpu_block_ops t3_afbc_ops;
+extern struct meson_vpu_block_ops t3_scaler_ops;
 extern struct meson_vpu_block_ops t3_postblend_ops;
+
 
 /*
  * for s5/t3x soc with slice block
@@ -964,14 +976,20 @@ extern struct meson_vpu_block_ops s1a_osd_ops;
 extern struct meson_vpu_block_ops txhd2_osd_ops;
 extern struct meson_vpu_block_ops txhd2_osdblend_ops;
 extern struct meson_vpu_block_ops txhd2_postblend_ops;
+
+/*
+ * for t6d soc
+ */
 extern struct meson_vpu_block_ops t6d_osd_ops;
 extern struct meson_vpu_block_ops t6d_postblend_ops;
+extern struct meson_vpu_block_ops t6d_scaler_ops;
 
 /*
  * for s7 soc
  */
 extern struct meson_vpu_block_ops s7_osd_ops;
 extern struct meson_vpu_block_ops s7_afbc_ops;
+extern struct meson_vpu_block_ops s7_scaler_ops;
 extern struct meson_vpu_block_ops s7_postblend_ops;
 
 /*

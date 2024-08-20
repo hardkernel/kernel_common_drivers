@@ -23,6 +23,7 @@
 #define VPP_OSD_SCO_V_START_END                    0x1dcb
 #define VPP_OSD_SCALE_COEF_IDX                     0x1dcc
 #define VPP_OSD_SCALE_COEF                         0x1dcd
+#define VPP_OSD_SC_DIV_ALPHA                       0x1dbf
 
 /* vpp osd2 scaler */
 #define OSD2_VSC_PHASE_STEP                        0x3d00
@@ -39,6 +40,7 @@
 #define OSD2_SCO_V_START_END                       0x3d0b
 #define OSD2_SCALE_COEF_IDX                        0x3d18
 #define OSD2_SCALE_COEF                            0x3d19
+#define OSD2_SC_DIV_ALPHA                          0x3d38
 
 /* vpp osd34 scaler */
 #define OSD34_VSC_PHASE_STEP                       0x3d20
@@ -55,6 +57,7 @@
 #define OSD34_SCO_V_START_END                      0x3d2b
 #define OSD34_SCALE_COEF_IDX                       0x3d1e
 #define OSD34_SCALE_COEF                           0x3d1f
+#define OSD34_SC_DIV_ALPHA                         0x3d39
 
 /* for s6 viu2 osd scaler */
 #define VIU2_OSD_VSC_PHASE_STEP                    0x1ee0
@@ -71,6 +74,7 @@
 #define VIU2_OSD_SCO_V_START_END                   0x1eeb
 #define VIU2_OSD_SCALE_COEF_IDX                    0x1ef8
 #define VIU2_OSD_SCALE_COEF                        0x1ef9
+#define VIU2_OSD_SC_DIV_ALPHA                      0x1efa
 
 /* for t7 osd scaler */
 #define T7_VPP_OSD_VSC_PHASE_STEP                  0x5a00
@@ -87,6 +91,7 @@
 #define T7_VPP_OSD_SCO_V_START_END                 0x5a0b
 #define T7_VPP_OSD_SCALE_COEF_IDX                  0x5a0c
 #define T7_VPP_OSD_SCALE_COEF                      0x5a0d
+#define T7_VPP_OSD_SC_DIV_ALPHA                    0x5a0e
 
 #define T7_OSD2_VSC_PHASE_STEP                     0x5a40
 #define T7_OSD2_VSC_INI_PHASE                      0x5a41
@@ -102,6 +107,7 @@
 #define T7_OSD2_SCO_V_START_END                    0x5a4b
 #define T7_OSD2_SCALE_COEF_IDX                     0x5a4c
 #define T7_OSD2_SCALE_COEF                         0x5a4d
+#define T7_OSD2_SC_DIV_ALPHA                       0x5a4e
 
 #define T7_OSD34_VSC_PHASE_STEP                    0x5a80
 #define T7_OSD34_VSC_INI_PHASE                     0x5a81
@@ -117,6 +123,7 @@
 #define T7_OSD34_SCO_V_START_END                   0x5a8b
 #define T7_OSD34_SCALE_COEF_IDX                    0x5a8c
 #define T7_OSD34_SCALE_COEF                        0x5a8d
+#define T7_OSD34_SC_DIV_ALPHA                      0x5a8e
 
 #define T7_OSD4_VSC_PHASE_STEP                     0x5ac0
 #define T7_OSD4_VSC_INI_PHASE                      0x5ac1
@@ -132,6 +139,7 @@
 #define T7_OSD4_SCO_V_START_END                    0x5acb
 #define T7_OSD4_SCALE_COEF_IDX                     0x5acc
 #define T7_OSD4_SCALE_COEF                         0x5acd
+#define T7_OSD4_SC_DIV_ALPHA                       0x5ace
 
 #define OSD1_PROC_VSC_PHASE_STEP                   0x6410
 #define OSD1_PROC_VSC_INI_PHASE                    0x6411
@@ -302,6 +310,7 @@ struct osd_scaler_reg_s {
 	u32 vpp_osd_sci_wh_m1;
 	u32 vpp_osd_sco_h_start_end;
 	u32 vpp_osd_sco_v_start_end;
+	u32 vpp_osd_sc_div_alpha;
 };
 
 #endif
