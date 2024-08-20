@@ -431,6 +431,9 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 	unsigned int lo_value = 0;
 	unsigned int hi_value = 0;
 	unsigned int scb_out_shift_bits = 0;
+	unsigned int scb_as_is = 0;
+	unsigned int scb_out_for_odd = 0;
+	unsigned int scb_out_for_all_or_even = 0;
 
 	pr_dbg("%s dsc_type:%d, pid_entry:%d, sid:%d\n",
 	       __func__, dsc_type, pid_entry->id, pid_entry->sid);
@@ -454,18 +457,34 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 	    (pid_entry->algo << LO_ALGO) |
 	    ((pid_entry->pid & 0xFFF) << LO_PID_PART1);
 
-	if ((get_dmx_version() >= 6) || (get_cpu_type() == MESON_CPU_MAJOR_ID_S6))
-		scb_out_shift_bits = (pid_entry->scb_out & 0x1) ? HI_SCB_OUT_ODD : HI_SCB_OUT;
-	else
-		scb_out_shift_bits = HI_SCB_OUT;
+	/*for 5 dmx ver, scb out set dividually,
+	 *scb_out for even scb, scb_out_for_odd for odd scb
+	 *so should compatible with low version
+	 */
+	if (pid_entry->scb_as_is == 0) {
+		scb_as_is = 0;
+		scb_out_for_odd = pid_entry->scb_out;
+		scb_out_for_all_or_even = pid_entry->scb_out;
+	} else if (pid_entry->scb_as_is == 1) {
+		scb_as_is = 1;
+		scb_out_for_odd = 0;
+		scb_out_for_all_or_even = 0;
+	} else if (pid_entry->scb_as_is == 2) {
+		scb_as_is = 0;
+		scb_out_for_odd = pid_entry->scb_out & 0x3;
+		scb_out_for_all_or_even = (pid_entry->scb_out & 0xC) >> 2;
+	} else {
+		dprint_i("error scb_as_is %d\n", pid_entry->scb_as_is);
+	}
 	pr_dbg("%s scb_out_shift_bits:0x%0x\n", __func__, scb_out_shift_bits);
 
 	hi_value = ((pid_entry->pid >> 12) & 0x1) << HI_PID_PART2 |
 	    (pid_entry->sid << HI_SID) |
 	    (pid_entry->even_00_iv << HI_EVEN_00_IV) |
 	    (pid_entry->odd_iv << HI_ODD_IV) |
-	    (pid_entry->scb_as_is << HI_SCB_AS_IS) |
-	    (pid_entry->scb_out << scb_out_shift_bits) |
+	    (scb_as_is << HI_SCB_AS_IS) |
+	    (scb_out_for_all_or_even << HI_SCB_OUT) |
+	    (scb_out_for_odd << HI_SCB_OUT_ODD) |
 	    (pid_entry->scb00 << HI_SCB00) | (pid_entry->valid << HI_VALID);
 	WRITE_CBUS_REG(lo_addr, lo_value);
 	WRITE_CBUS_REG(hi_addr, hi_value);
