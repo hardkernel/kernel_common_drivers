@@ -24,6 +24,10 @@
 #include <linux/component.h>
 #include <drm/amlogic/meson_drm_bind.h>
 
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
+extern bool lcd_legacy_panel_disp_mode;
+#endif
+
 static int meson_lcd_bind(struct device *dev, struct device *master, void *data);
 static void meson_lcd_unbind(struct device *dev, struct device *master, void *data);
 
@@ -236,6 +240,22 @@ static int get_lcd_tablet_modes(struct meson_panel_dev *panel,
 		*num = 0;
 		return -ENOMEM;
 	}
+
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
+	if (lcd_legacy_panel_disp_mode) {
+		memset(nmodes[0].name, 0, DRM_DISPLAY_MODE_LEN);
+		if (pdrv->index)
+			sprintf(nmodes[0].name, "panel%d", pdrv->index);
+		else
+			sprintf(nmodes[0].name, "panel");
+
+		lcd_drm_display_mode_add(pdrv, &pdrv->config.timing.base_timing, &nmodes[0],
+			pdrv->config.timing.base_timing.frame_rate);
+		*num = 1;
+		*modes = nmodes;
+		return 0;
+	}
+#endif
 
 	temp_list = pdrv->vmode_mgr.vmode_list_header;
 	while (temp_list) {

@@ -2210,7 +2210,6 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	lcd_init_vout(pdrv);
 	lcd_fr_lock_init(pdrv);
 
-
 	/* lock pinmux as earlier as possible if lcd in on */
 	if (pdrv->status & LCD_STATUS_IF_ON) {
 		switch (pdrv->config.basic.lcd_type) {

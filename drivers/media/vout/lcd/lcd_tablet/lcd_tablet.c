@@ -37,10 +37,7 @@
 #include "../lcd_common.h"
 #include <linux/sched/clock.h>
 
-static bool lcd_legacy_panel_disp_mode;
-// in detailed timing
-//unsigned char fixed_type;
-//unsigned int fixed_val_set[8];
+bool lcd_legacy_panel_disp_mode;
 
 static struct lcd_duration_s lcd_std_fr[] = {
 	{144, 144,    1,    0},
@@ -1019,8 +1016,20 @@ void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int cnt_idx, lcd_type = pdrv->config.basic.lcd_type;
 	char *connector_name_list[5] = {"LVDS", "VBYONE", "MIPI", "EDP", "LCD"};
-	char *curr_vout_connector;
+	char *curr_vout_connector, *curr_vout_mode;
 	char lcd_connector[10];
+	char lagecy_name[8] = "panel\0\0";
+	char *init_mode;
+
+	if (pdrv->index)
+		lagecy_name[5] = '0' + pdrv->index;
+
+	init_mode = get_vout_mode_uboot();
+	if (strncmp(init_mode, "panel", 5) == 0)
+		lcd_legacy_panel_disp_mode = 1;
+	init_mode = get_vout2_mode_uboot();
+	if (strncmp(init_mode, "panel", 5) == 0)
+		lcd_legacy_panel_disp_mode = 1;
 
 	if (lcd_type == LCD_LVDS || lcd_type == LCD_MLVDS)
 		cnt_idx = 0;
@@ -1066,7 +1075,10 @@ void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	curr_vout_connector = get_uboot_connector0_type();
-	if (!strcmp(lcd_connector, curr_vout_connector)) {
+	curr_vout_mode = get_vout_mode_uboot();
+	LCDPR("%s: panel_mode:%u, mode:%s\n", __func__, lcd_legacy_panel_disp_mode, curr_vout_mode);
+	if (!strcmp(lcd_connector, curr_vout_connector) ||
+	    (lcd_legacy_panel_disp_mode && !strcmp(lagecy_name, curr_vout_mode))) {
 		pdrv->viu_sel = 1;
 		sprintf(pdrv->vout_server[0]->name, "lcd%d_vout1_server", pdrv->index);
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
@@ -1076,7 +1088,9 @@ void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	curr_vout_connector = get_uboot_connector1_type();
-	if (!strcmp(lcd_connector, curr_vout_connector)) {
+	curr_vout_mode = get_vout2_mode_uboot();
+	if (!strcmp(lcd_connector, curr_vout_connector) ||
+	    (lcd_legacy_panel_disp_mode && !strcmp(lagecy_name, curr_vout_mode))) {
 		pdrv->viu_sel = 2;
 		sprintf(pdrv->vout_server[0]->name, "lcd%d_vout2_server", pdrv->index);
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
@@ -1086,7 +1100,9 @@ void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
 	curr_vout_connector = get_uboot_connector2_type();
-	if (!strcmp(lcd_connector, curr_vout_connector)) {
+	curr_vout_mode = get_vout3_mode_uboot();
+	if (!strcmp(lcd_connector, curr_vout_connector) ||
+	    (lcd_legacy_panel_disp_mode && !strcmp(lagecy_name, curr_vout_mode))) {
 		pdrv->viu_sel = 3;
 		sprintf(pdrv->vout_server[0]->name, "lcd%d_vout3_server", pdrv->index);
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
@@ -1175,9 +1191,6 @@ static void lcd_vmode_init(struct aml_lcd_drv_s *pdrv)
 	mode = kstrdup(init_mode, GFP_KERNEL);
 	if (!mode)
 		return;
-
-	if (strncmp(init_mode, "panel", 5) == 0)
-		lcd_legacy_panel_disp_mode = 1;
 
 	lcd_tablet_add_all_vmode(pdrv);
 	LCDPR("[%d]: %s: mode: %s\n", pdrv->index, __func__, mode);
