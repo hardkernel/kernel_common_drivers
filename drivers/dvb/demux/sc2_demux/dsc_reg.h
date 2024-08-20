@@ -19,6 +19,7 @@
 #define HI_SCB_OUT          20
 #define HI_SCB00            22
 #define HI_SCB_OUT_ODD      23
+#define Reserved			25
 #define HI_VALID            31
 
 #define TSD_PID_READY		(SECURE_BASE + 0x2000)

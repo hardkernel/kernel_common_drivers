@@ -625,6 +625,12 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct file *file, struct ca_sc2
 				       __func__,
 				       d->params.scb_params.ca_scb,
 				       d->params.scb_params.ca_scb_as_is);
+				if (get_dmx_version() < 5 &&
+					d->params.scb_params.ca_scb_as_is >= 2) {
+					dprint("invalid ca_scb_as_is, not support\n");
+					ret = -1;
+					break;
+				}
 				ret = _dsc_chan_set_scb(ch,
 							d->params.scb_params.ca_scb,
 							d->params.scb_params.ca_scb_as_is);
