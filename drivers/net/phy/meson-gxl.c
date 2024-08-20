@@ -363,7 +363,7 @@ static int custom_internal_config(struct phy_device *phydev)
 	}
 	/*s7*/
 	if (voltage_phy == 4) {
-		phy_tst_write(phydev, 0x16, 0x8402);
+		phy_tst_write(phydev, 0x16, 0x8406);
 		phy_tst_write(phydev, 0x15, 0x4408);
 		pr_debug("setup voltage phy reg16 %x reg15 %x\n",
 				phy_tst_read(phydev, 0x16),
