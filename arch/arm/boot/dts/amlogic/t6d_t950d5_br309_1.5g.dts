@@ -1102,20 +1102,15 @@
 };
 
 &spicc0 {	//for TCON
-	status = "disabled"; /* default as default */
+	status = "disabled";/* disabled as default */
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
-	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
-	latency = <4>;
 };
 
 &spicc1 {	//for UWB/LocalDimm
-	status = "disabled"; /* disabled as default */
+	status = "disabled";/* disabled as default */
 	pinctrl-names = "default";
-	pinctrl-0 = <&spicc1_pins &spicc1_cs_pins>;
-	//cs-gpios = <&gpio GPIOH_22 GPIO_ACTIVE_HIGH>;
-	cs2clk-us = <2>;
-	clk2cs-us = <12>;
+	pinctrl-0 = <&spicc1_pins_z>;
 };
 
 &ir {

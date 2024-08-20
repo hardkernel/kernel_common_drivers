@@ -445,7 +445,7 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 		}
 	} else if (ccxfer_en && (xfer->tx_sg.sgl || xfer->rx_sg.sgl)) {
 		if (xfer->tx_buf) {
-			ccxfer->tx_ccsg_len = xfer->tx_sg.nents * sizeof(void *);
+			ccxfer->tx_ccsg_len = xfer->tx_sg.nents * sizeof(struct spicc_sg_link);
 			ccxfer->tx_ccsg = dma_alloc_coherent(dev,
 					ccxfer->tx_ccsg_len,
 					(dma_addr_t *)&desc->tx_paddr,
@@ -459,7 +459,7 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 		}
 
 		if (xfer->rx_buf) {
-			ccxfer->rx_ccsg_len = xfer->rx_sg.nents * sizeof(void *);
+			ccxfer->rx_ccsg_len = xfer->rx_sg.nents * sizeof(struct spicc_sg_link);
 			ccxfer->rx_ccsg = dma_alloc_coherent(dev,
 					ccxfer->rx_ccsg_len,
 					(dma_addr_t *)&desc->rx_paddr,
@@ -644,10 +644,17 @@ static int spicc_xfer_desc(struct spicc_device *spicc,
 	spicc_writel(spicc, spicc->cfg_spi.d32, SPICC_REG_CFG_SPI);
 	spicc_writel(spicc, 0, SPICC_REG_CFG_BUS);
 	spicc_writel(spicc, 0, SPICC_REG_CFG_START);
+#ifdef	CONFIG_ARCH_DMA_ADDR_T_64BIT
 	spicc_writel(spicc, (u64)paddr & 0xffffffff,
 		     SPICC_REG_DESC_LIST_L);
 	spicc_writel(spicc, ((u64)paddr >> 32) | SPICC_DESC_PENDING,
 		     SPICC_REG_DESC_LIST_H);
+#else
+	spicc_writel(spicc, paddr & 0xffffffff,
+		     SPICC_REG_DESC_LIST_L);
+	spicc_writel(spicc, SPICC_DESC_PENDING,
+		     SPICC_REG_DESC_LIST_H);
+#endif
 	ret = wait_for_completion_timeout(&spicc->completion,
 			spi_controller_is_slave(spicc->controller) ?
 			MAX_SCHEDULE_TIMEOUT : msecs_to_jiffies(ms));
@@ -709,7 +716,7 @@ static int meson_spicc_transfer_one_message(struct spi_controller *ctlr,
 {
 	struct spicc_device *spicc = spi_controller_get_devdata(ctlr);
 	struct spicc_descriptor *desc_table;
-	dma_addr_t paddr;
+	dma_addr_t paddr = 0;
 	int desc_len = 0, xfer_len = 0;
 	int ret = -EIO;
 
@@ -792,7 +799,7 @@ static int meson_spicc_slave_abort(struct spi_controller *ctlr)
 static int spicc_wait_complete(struct spicc_device *spicc, u32 flags,
 				unsigned long timeout)
 {
-	u32 sts;
+	u32 sts = 0;
 
 	timeout += jiffies;
 	while (time_before(jiffies, timeout)) {
@@ -822,8 +829,12 @@ static int spicc_wait_complete(struct spicc_device *spicc, u32 flags,
 
 static void dirspi_start(struct spi_device *spi)
 {
-	if (spi->controller->auto_runtime_pm)
-		pm_runtime_get_sync(spi->controller->dev.parent);
+	if (spi->controller->auto_runtime_pm) {
+		if (pm_runtime_get_sync(spi->controller->dev.parent) < 0) {
+			dev_err(spi->controller->dev.parent,
+				"%s: pm_runtime_get_sync fails\n", __func__);
+		}
+	}
 }
 
 static void dirspi_stop(struct spi_device *spi)
@@ -951,7 +962,7 @@ static int dirspi_dma_trig(struct spi_device *spi,
 			   u8 src)
 {
 	struct spicc_device *spicc;
-	struct  spicc_controller_data *cdata;
+	struct spicc_controller_data *cdata;
 	struct spicc_descriptor *desc;
 	int desc_num = 1;
 	struct spi_transfer xfer;
@@ -1004,10 +1015,18 @@ static int dirspi_dma_trig(struct spi_device *spi,
 	spicc_writel(spicc, spicc->cfg_spi.d32 | HW_POS, SPICC_REG_CFG_SPI);
 	spicc_writel(spicc, 0, SPICC_REG_CFG_BUS);
 	spicc_writel(spicc, 0, SPICC_REG_CFG_START);
+
+#ifdef	CONFIG_ARCH_DMA_ADDR_T_64BIT
 	spicc_writel(spicc, (u64)spicc->dirspi_desc_paddr & 0xffffffff,
 		     SPICC_REG_DESC_LIST_L);
 	spicc_writel(spicc, ((u64)spicc->dirspi_desc_paddr >> 32),
 		     SPICC_REG_DESC_LIST_H);
+#else
+	spicc_writel(spicc, spicc->dirspi_desc_paddr & 0xffffffff,
+		     SPICC_REG_DESC_LIST_L);
+	spicc_writel(spicc, 0,
+		     SPICC_REG_DESC_LIST_H);
+#endif
 
 	if (!IS_ERR_OR_NULL(spicc->trig_reg)) {
 		if (src == DMA_TRIG_VSYNC)
@@ -1046,7 +1065,11 @@ static int dirspi_dma_trig_start(struct spi_device *spi)
 		return -EIO;
 	}
 
-	spicc_sem_down_read(spicc);
+	if (!spicc_sem_down_read(spicc)) {
+		spicc_err("controller busy\n");
+		return -EBUSY;
+	}
+
 	if (!IS_ERR_OR_NULL(spicc->trig_reg))
 		writel(readl(spicc->trig_reg) | TRIG_REG_MUX_EN,
 		       spicc->trig_reg);
@@ -1076,7 +1099,7 @@ static int dirspi_dma_trig_stop(struct spi_device *spi)
 	timeout = msecs_to_jiffies(100) + jiffies;
 	while (time_before(jiffies, timeout)) {
 		sts = spicc_readl(spicc, SPICC_REG_IRQ_STS);
-		if (sts | (SPICC_DESC_CHAIN_DONE | SPICC_DESC_DONE)) {
+		if (sts & (SPICC_DESC_CHAIN_DONE | SPICC_DESC_DONE)) {
 			spicc_writel(spicc, sts, SPICC_REG_IRQ_STS);
 			break;
 		}
