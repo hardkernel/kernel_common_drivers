@@ -2272,12 +2272,8 @@ static void vdin_urgent_patch(unsigned int offset, unsigned int v,
 void vdin_urgent_patch_resume(unsigned int offset)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_meson_s5_cpu()) {
+	if (is_meson_s5_cpu() || is_meson_t3x_cpu())
 		return;
-	} else if (is_meson_t3x_cpu()) {
-		vdin_urgent_patch_resume_t3x(offset);
-		return;
-	}
 #endif
 
 	/* urgent ctr config */
@@ -2690,10 +2686,8 @@ void vdin_set_wr_mif(struct vdin_dev_s *devp)
 	static unsigned int temp_width;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_meson_s5_cpu()) {
-		vdin_set_wr_mif_s5(devp);
+	if (is_meson_s5_cpu() || is_meson_t3x_cpu())
 		return;
-	}
 #endif
 
 	height = ((rd(0, VPP_POSTBLEND_VD1_V_START_END) & 0xfff) -
@@ -3107,13 +3101,8 @@ unsigned int vdin_get_chroma_canvas_id(unsigned int offset)
 void vdin_set_crc_pulse(struct vdin_dev_s *devp)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_meson_s5_cpu()) {
-		vdin_set_crc_pulse_s5(devp);
+	if (is_meson_s5_cpu() || is_meson_t3x_cpu())
 		return;
-	} else if (is_meson_t3x_cpu()) {
-		vdin_set_crc_pulse_t3x(devp);
-		return;
-	}
 #endif
 
 	if ((!cpu_after_eq(MESON_CPU_MAJOR_ID_SM1) ||
@@ -3747,7 +3736,6 @@ void vdin_set_double_write_regs(struct vdin_dev_s *devp)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu()) {
-		vdin_set_double_write_regs_s5(devp);
 		return;
 	} else if (is_meson_t3x_cpu()) {
 		vdin_set_double_write_regs_t3x(devp);
@@ -4389,7 +4377,7 @@ void vdin_clear_vdi6_afifo_overflow_flg(unsigned int offset)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_t3x_cpu()) {
-		vdin_clear_vdi6_afifo_overflow_flg_t3x(offset);
+		return;
 	} else
 #endif
 	{
@@ -4405,10 +4393,9 @@ inline int vdin_vsync_reset_mif(int index)
 	int start_line;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_meson_s5_cpu() || is_meson_t6d_cpu())
+	if (is_meson_s5_cpu() || is_meson_t6d_cpu() ||
+		is_meson_t3x_cpu())
 		return 0;
-	else if (is_meson_t3x_cpu())
-		return vdin_vsync_reset_mif_t3x(index);
 #endif
 
 	start_line = aml_read_vcbus(VDIN_LCNT_STATUS) & 0xfff;
@@ -5485,12 +5472,9 @@ void vdin_set_mpegin(struct vdin_dev_s *devp)
 	unsigned int offset = devp->addr_offset;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_meson_t3x_cpu()) {
-		vdin_set_mpegin_t3x(devp);
+	if (is_meson_t3x_cpu() || is_meson_t6d_cpu() ||
+		is_meson_s5_cpu())
 		return;
-	} else if (is_meson_t6d_cpu()) {
-		return;
-	}
 #endif
 
 	/* set VDIN_MEAS_CLK_CNTL, select XTAL clock */
@@ -6225,7 +6209,6 @@ void vdin_dolby_config(struct vdin_dev_s *devp)
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu()) {
-		vdin_dolby_config_s5(devp);
 		return;
 	} else if (is_meson_t3x_cpu()) {
 		vdin_dolby_config_t3x(devp);
@@ -6423,7 +6406,6 @@ void vdin_dv_tunnel_set(struct vdin_dev_s *devp)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu()) {
-		vdin_dv_tunnel_set_s5(devp);
 		return;
 	} else if (is_meson_t3x_cpu()) {
 		vdin_dv_tunnel_set_t3x(devp);
@@ -7671,10 +7653,8 @@ void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int on_off, unsigne
 	unsigned int h_blank = 0xff;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	if (is_meson_s5_cpu()) {
-		vdin_set_bist_pattern_s5(devp, on_off, pat);
+	if (is_meson_s5_cpu() || is_meson_t3x_cpu())
 		return;
-	}
 #endif
 
 	if (on_off) {
@@ -7764,6 +7744,8 @@ void vdin_bist(struct vdin_dev_s *devp, unsigned int mode)
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (is_meson_s5_cpu())
 		vdin_bist_s5(devp, mode);
+	else if (is_meson_t3x_cpu())
+		vdin_bist_t3x(devp, mode);
 #endif
 }
 
