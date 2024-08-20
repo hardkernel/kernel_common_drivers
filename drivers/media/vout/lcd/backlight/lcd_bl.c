@@ -4215,6 +4215,12 @@ static struct bl_data_s bl_data_s6 = {
 	.pwm_vs_flag = 1,
 };
 
+static struct bl_data_s bl_data_t6d = {
+	.chip_type = LCD_CHIP_T6D,
+	.chip_name = "t6d",
+	.pwm_vs_flag = 1,
+};
+
 static const struct of_device_id bl_dt_match_table[] = {
 	{
 		.compatible = "amlogic, backlight-axg",
@@ -4285,6 +4291,10 @@ static const struct of_device_id bl_dt_match_table[] = {
 	{
 		.compatible = "amlogic, backlight-s6",
 		.data = &bl_data_s6,
+	},
+	{
+		.compatible = "amlogic, backlight-t6d",
+		.data = &bl_data_t6d,
 	},
 	{}
 };
