@@ -109,6 +109,12 @@
 #define DDR_PRIORITY_DEBUG		BIT(31)
 #define DDR_PRIORITY_POWER		BIT(30)
 
+enum outstanding_type {
+	OUTSTANDING_INIT = 1,
+	OUTSTANDING_SET,
+	OUTSTANDING_GET,
+};
+
 struct ddr_bandwidth;
 
 struct ddr_grant {
@@ -127,7 +133,9 @@ struct ddr_bandwidth_ops {
 	int  (*handle_irq)(struct ddr_bandwidth *db, struct ddr_grant *dg);
 	void (*bandwidth_enable)(struct ddr_bandwidth *db);
 	unsigned long (*get_freq)(struct ddr_bandwidth *db);
-#if	DDR_BANDWIDTH_DEBUG
+	int (*outstanding)(struct ddr_bandwidth *db, int bus,
+					int value, enum outstanding_type type);
+#if DDR_BANDWIDTH_DEBUG
 	int (*dump_reg)(struct ddr_bandwidth *db, char *buf);
 #endif
 };
@@ -171,6 +179,22 @@ struct ddr_increase_tool {
 	u64 t_ns;
 };
 
+struct outstanding_reg {
+	unsigned int offset;
+	unsigned int def_val;
+};
+
+struct outstanding_level {
+	char count;
+	int cur_level;
+	unsigned int *value;
+};
+
+struct ddr_outstanding {
+	struct outstanding_level levels;
+	struct outstanding_reg *regs;
+};
+
 struct ddr_bandwidth {
 	unsigned short cpu_type;
 	unsigned short real_ports;
@@ -180,6 +204,7 @@ struct ddr_bandwidth {
 	char soc_feature;		/* some special feature of it */
 	int mali_port[2];
 	int stat_flag;
+	int bus_num;
 	unsigned int ddr_priority_num;
 	unsigned int threshold;
 	unsigned int irq_num;
@@ -209,6 +234,7 @@ struct ddr_bandwidth {
 	struct ddr_bandwidth_ops *ops;
 	struct work_struct work_bandwidth;
 	struct ddr_increase_tool increase_tool;
+	struct ddr_outstanding ost;
 };
 
 extern struct ddr_bandwidth *aml_db;

@@ -27,4 +27,44 @@ static inline int unregister_dmc_dev_access_notifier(char *dev_name, struct noti
 }
 #endif
 
+/* ddr_tool: outstanding */
+#if IS_ENABLED(CONFIG_AMLOGIC_DDR_BANDWIDTH)
+int get_bus_num(void);
+int get_bus_ots_value(int bus);
+int set_bus_ots_by_value(int bus, int value);
+int set_bus_ots_by_level(int bus, unsigned int level);
+int get_ots_level(void);
+int set_all_ots_by_level(unsigned int level);
+#else
+static inline int get_bus_num(void)
+{
+	return -1;
+}
+
+static inline int get_bus_ots_value(int bus)
+{
+	return -1;
+}
+
+static inline int set_bus_ots_by_value(int bus, int value)
+{
+	return -1;
+}
+
+static inline int set_bus_ots_by_level(int bus, unsigned int level)
+{
+	return -1;
+}
+
+int get_ots_level(void)
+{
+	return -1;
+}
+
+int set_all_ots_by_level(unsigned int level)
+{
+	return -1;
+}
+#endif
+
 #endif

@@ -19,6 +19,8 @@
 #include <linux/slab.h>
 #include <linux/sched/clock.h>
 #include <linux/timer.h>
+#include <linux/amlogic/gki_module.h>
+#include <linux/amlogic/aml_ddr_tool.h>
 #include "ddr_bandwidth.h"
 #include "dmc.h"
 
@@ -36,6 +38,22 @@ static unsigned long pxp_debug_dmc_freq, pxp_debug_ddr_freq;
 static struct hrtimer ddr_hrtimer_timer;
 
 struct ddr_bandwidth *aml_db;
+
+static int init_ots_level = -1;
+static int ots_level_setup(char *str)
+{
+	int val;
+
+	if (kstrtoint(str, 10, &val)) {
+		pr_info("invalid ots_level: %s\n", str);
+		return 1;
+	}
+
+	init_ots_level = val;
+
+	return 1;
+}
+__setup("ots_level=", ots_level_setup);
 
 /* run time should be short */
 static enum hrtimer_restart  ddr_hrtimer_handler(struct hrtimer *timer)
@@ -440,6 +458,214 @@ static int dmc_port_set_byte(struct ddr_bandwidth *db, int port, int ch)
 	db->port[ch] = (db->port[ch] | (port << (i * 8)));
 	return 0;
 }
+
+int get_bus_num(void)
+{
+	return aml_db->bus_num;
+}
+EXPORT_SYMBOL(get_bus_num);
+
+int get_bus_ots_value(int bus)
+{
+	if (bus >= aml_db->bus_num)
+		return -1;
+	if (!aml_db->ops->outstanding)
+		return -1;
+
+	return aml_db->ops->outstanding(aml_db, bus, 0, OUTSTANDING_GET);
+}
+EXPORT_SYMBOL(get_bus_ots_value);
+
+int set_bus_ots_by_value(int bus, int value)
+{
+	if (bus >= aml_db->bus_num)
+		return -1;
+
+	if (!aml_db->ops->outstanding)
+		return -1;
+
+	aml_db->ops->outstanding(aml_db, bus, value, OUTSTANDING_SET);
+	return 0;
+}
+EXPORT_SYMBOL(set_bus_ots_by_value);
+
+int set_bus_ots_by_level(int bus, unsigned int level)
+{
+	unsigned int val;
+
+	if (bus >= aml_db->bus_num)
+		return -1;
+
+	if (level >= aml_db->ost.levels.count)
+		return -1;
+
+	if (!aml_db->ops->outstanding)
+		return -1;
+
+	val = aml_db->ost.levels.value[level];
+	aml_db->ops->outstanding(aml_db, bus, val, OUTSTANDING_SET);
+
+	return 0;
+}
+EXPORT_SYMBOL(set_bus_ots_by_level);
+
+int get_ots_level(void)
+{
+	return aml_db->ost.levels.cur_level;
+}
+EXPORT_SYMBOL(get_ots_level);
+
+int set_all_ots_by_level(unsigned int level)
+{
+	int i;
+
+	aml_db->ost.levels.cur_level = level;
+
+	for (i = 0; i < aml_db->bus_num; i++)
+		set_bus_ots_by_level(i, level);
+
+	return 0;
+}
+EXPORT_SYMBOL(set_all_ots_by_level);
+
+static ssize_t outstanding_display(char *buf)
+{
+	ssize_t len = 0;
+	int i, j, count;
+	char c;
+
+	/* show usage */
+	len += sprintf(buf + len, "Usage: echo <bus> <value> > ots\n");
+	len += sprintf(buf + len, "parm:\n\tbus:\tbus_num or ignore(set all bus)\n");
+	len += sprintf(buf + len, "\tvalue:\tlevel_num or reg_val or -1(default val)\n");
+
+	/* show levels list */
+	len += sprintf(buf + len, "\nOutstanding levels list: cur_level:%d\n",
+						aml_db->ost.levels.cur_level);
+	for (i = 0; i < aml_db->ost.levels.count; i++) {
+		if (i == aml_db->ost.levels.cur_level)
+			c = '>';
+		else
+			c = ' ';
+		len += sprintf(buf + len, "%c[%2d]:\t0x%08x\n", c, i, aml_db->ost.levels.value[i]);
+	}
+
+	/* show bus outstanding */
+	len += sprintf(buf + len, "\noutstanding bit[ 7: 0]: read  hold release num\t");
+	len += sprintf(buf + len, "bit[15: 8]: read  hold num\n");
+	len += sprintf(buf + len, "outstanding bit[23:16]: write hold release num\t");
+	len += sprintf(buf + len, "bit[31:24]: write hold num\n");
+	len += sprintf(buf + len, " bus\toutstanding (default)\thosts\n");
+	for (i = 0; i < aml_db->bus_num; i++) {
+		count = 0;
+		for (j = 0, c = 0; j < aml_db->real_ports; j++) {
+			if (aml_db->port_desc[j].bus == i) {
+				count++;
+				if (count == 1) {
+					len += sprintf(buf + len, " [%2d]\t0x%08x (0x%08x)\t%s",
+						i,
+						get_bus_ots_value(i),
+						aml_db->ost.regs[i].def_val,
+						aml_db->port_desc[j].port_name);
+				} else if (count == 2 || ((count - 1) % 6 == 0)) {
+					len += sprintf(buf + len, "\n\t\t\t\t%s ",
+							aml_db->port_desc[j].port_name);
+				} else {
+					len += sprintf(buf + len, "%s ",
+							aml_db->port_desc[j].port_name);
+				}
+			}
+		}
+		if (count)
+			len += sprintf(buf + len, "\n");
+	}
+	return len;
+}
+
+static ssize_t ots_show(struct class *cla,
+			 struct class_attribute *attr, char *buf)
+{
+	return outstanding_display(buf);
+}
+
+static ssize_t ots_store(struct class *cla,
+			  struct class_attribute *attr,
+			  const char *buf, size_t count)
+{
+	int bus, i;
+	long long val;
+
+	if (sscanf(buf, "%d %lli", &bus, &val) != 2) {
+		bus = -1;
+		if (kstrtoll(buf, 0, &val)) {
+			pr_info("invalid input:%s\n", buf);
+			return count;
+		}
+	}
+
+	if (bus < 0) {
+		for (i = 0; i < aml_db->bus_num; i++) {
+			if (val >= 0 && val <= aml_db->ost.levels.count) {
+				aml_db->ost.levels.cur_level = val;
+				set_bus_ots_by_level(i, val);
+			} else {
+				aml_db->ost.levels.cur_level = -1;
+				set_bus_ots_by_value(i, val);
+			}
+		}
+	} else {
+		if (val >= 0 && val <= aml_db->ost.levels.count)
+			set_bus_ots_by_level(bus, val);
+		else
+			set_bus_ots_by_value(bus, val);
+	}
+
+	return count;
+}
+static CLASS_ATTR_RW(ots);
+
+static ssize_t ots_level_show(struct class *cla,
+			 struct class_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+	int i;
+	char c;
+
+	/* show levels list */
+	len += sprintf(buf + len, "Outstanding levels list: cur_level:%d\n",
+						aml_db->ost.levels.cur_level);
+	for (i = 0; i < aml_db->ost.levels.count; i++) {
+		if (i == aml_db->ost.levels.cur_level)
+			c = '>';
+		else
+			c = ' ';
+		len += sprintf(buf + len, "%c[%2d]:\t0x%08x\n", c, i, aml_db->ost.levels.value[i]);
+	}
+
+	return len;
+}
+
+static ssize_t ots_level_store(struct class *cla,
+			  struct class_attribute *attr,
+			  const char *buf, size_t count)
+{
+	int level, val;
+
+	if (sscanf(buf, "%d %x", &level, &val) == 2) {
+		aml_db->ost.levels.value[level] = val;
+		return count;
+	}
+
+	if (kstrtouint(buf, 0, &level)) {
+		pr_info("invalid input: %s\n", buf);
+		return -EINVAL;
+	}
+
+	set_all_ots_by_level(level);
+
+	return count;
+}
+static CLASS_ATTR_RW(ots_level);
 
 static ssize_t port_store(struct class *cla,
 			  struct class_attribute *attr,
@@ -1175,6 +1401,8 @@ static struct attribute *aml_ddr_tool_attrs[] = {
 	&class_attr_usage_stat.attr,
 	&class_attr_name_of_ports.attr,
 	&class_attr_increase_tool.attr,
+	&class_attr_ots.attr,
+	&class_attr_ots_level.attr,
 #if DDR_BANDWIDTH_DEBUG
 	&class_attr_dump_reg.attr,
 	&class_attr_smc_rw.attr,
@@ -1544,6 +1772,10 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 
 	if (!aml_db->ops->config_port)
 		return -EINVAL;
+
+	aml_db->ost.levels.cur_level = init_ots_level;
+	if (aml_db->ops && aml_db->ops->outstanding)
+		aml_db->ops->outstanding(aml_db, 0, 0, OUTSTANDING_INIT);
 
 	r = class_register(&aml_ddr_class);
 	if (r)

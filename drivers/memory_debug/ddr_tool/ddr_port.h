@@ -62,6 +62,7 @@
 struct ddr_port_desc {
 	char port_name[MAX_NAME];
 	unsigned char port_id;
+	unsigned char bus;
 };
 
 struct vpu_sub_desc {
