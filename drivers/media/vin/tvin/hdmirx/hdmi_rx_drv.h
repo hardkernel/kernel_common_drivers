@@ -70,7 +70,8 @@
 //2024.07.04 optimize pcs reset flow
 //2024.07.10 correct 12g aud div
 //2024.08.15 add avi filmmaker flag
-#define RX_VER0 "ver.2024/07/10"
+//2024.08.28 add hdr10p licence detection
+#define RX_VER0 "ver.2024/08/28"
 
 
 /*print type*/
@@ -924,6 +925,7 @@ struct rx_info_s {
 	bool boot_flag;
 	bool main_port_open;
 	bool pip_on;
+	bool hdr10p_en;
 	u8 vrr_min;
 	u8 vrr_max;
 	u32 arc_port;
