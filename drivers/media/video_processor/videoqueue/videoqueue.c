@@ -827,23 +827,24 @@ static int do_file_thread(struct video_queue_dev *dev)
 			ret = buf_mgr_q_checkin(dev->dp_buf_mgr, ready_file);
 			if (ret)
 				vq_print(dev->inst, P_ERROR, "q_checkin fail.\n");
-		}
-
-		dev->total_put_count++;
-		if (vf->type & VIDTYPE_DI_PW)
-			dev->di_put_count++;
-		vq_print(dev->inst, P_OTHER, "put: frame_index=%d\n", vf->frame_index);
-
-		ret = vf_put(vf, dev->vf_receiver_name);
-		if (ret) {
-			vq_print(dev->inst, P_ERROR, "put: FAIL\n");
+		} else {
+			dev->total_put_count++;
 			if (vf->type & VIDTYPE_DI_PW)
-				dim_post_keep_cmd_release2(vf);
+				dev->di_put_count++;
+			vq_print(dev->inst, P_OTHER, "put: frame_index=%d\n", vf->frame_index);
+
+			ret = vf_put(vf, dev->vf_receiver_name);
+			if (ret) {
+				vq_print(dev->inst, P_ERROR, "put: FAIL\n");
+				if (vf->type & VIDTYPE_DI_PW)
+					dim_post_keep_cmd_release2(vf);
+			}
+			mutex_lock(&dev->mutex_file);
+			if (!kfifo_put(&dev->file_q, ready_file))
+				vq_print(dev->inst, P_ERROR, "file_q is full\n");
+			mutex_unlock(&dev->mutex_file);
 		}
-		mutex_lock(&dev->mutex_file);
-		if (!kfifo_put(&dev->file_q, ready_file))
-			vq_print(dev->inst, P_ERROR, "file_q is full\n");
-		mutex_unlock(&dev->mutex_file);
+
 		return -1;
 	}
 
