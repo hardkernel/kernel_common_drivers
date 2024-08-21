@@ -2407,20 +2407,42 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		burst_len = 1;
 	if (layer->mif_setting.block_mode)
 		burst_len = layer->mif_setting.block_mode;
-	if ((vf->bitdepth & BITDEPTH_Y10) &&
-	    !(vf->flag & VFRAME_FLAG_DI_DW) &&
-	    !frame_par->nocomp) {
-		if ((vf->type & VIDTYPE_VIU_444) ||
-		    (vf->type & VIDTYPE_RGB_444)) {
-			bit_mode = 2;
+
+	if (!frame_par->nocomp) {/*use afbc/mif data*/
+		if ((vf->bitdepth & BITDEPTH_Y10) &&
+		    !(vf->flag & VFRAME_FLAG_DI_DW)) {
+			if ((vf->type & VIDTYPE_VIU_444) ||
+			    (vf->type & VIDTYPE_RGB_444)) {
+				bit_mode = 2;
+			} else {
+				if ((vf->bitdepth & FULL_PACK_422_MODE) ||
+					(((vf->type & VIDTYPE_VIU_NV12) ||
+					(vf->type & VIDTYPE_VIU_NV21)) &&
+					(vf->bitdepth & FULL_PACK_420_MODE)))
+					bit_mode = 3;
+				else
+					bit_mode = 1;
+			}
 		} else {
-			if (vf->bitdepth & FULL_PACK_422_MODE)
-				bit_mode = 3;
-			else
-				bit_mode = 1;
+			bit_mode = 0;
 		}
-	} else {
-		bit_mode = 0;
+	} else {/*use dw data*/
+		if (vf->bitdepth_dw & BITDEPTH_Y10) {
+			if ((vf->type & VIDTYPE_VIU_444) ||
+				(vf->type & VIDTYPE_RGB_444)) {
+				bit_mode = 2;
+			} else {
+				if ((vf->bitdepth_dw & FULL_PACK_422_MODE) ||
+					(((vf->type & VIDTYPE_VIU_NV12) ||
+					(vf->type & VIDTYPE_VIU_NV21)) &&
+					(vf->bitdepth_dw & FULL_PACK_420_MODE)))
+					bit_mode = 3;
+				else
+					bit_mode = 1;
+			}
+		} else {
+			bit_mode = 0;
+		}
 	}
 
 	if (!legacy_vpp) {
@@ -3338,11 +3360,21 @@ void vd_mif_setting(struct video_layer_s *layer,
 	vc_skip = setting->vc_skip;
 
 	/* vd horizontal setting */
-	cur_dev->rdma_func[vpp_index].rdma_wr
-		(vd_mif_reg->vd_if0_luma_x0,
-		(setting->l_hs_luma << VDIF_PIC_START_BIT) |
-		(setting->l_he_luma << VDIF_PIC_END_BIT));
-
+	if (is_meson_t6d_cpu() && layer->dispbuf &&
+		((layer->dispbuf->bitdepth & BITDEPTH_Y10) &&
+		(((layer->dispbuf->type & VIDTYPE_VIU_NV12) ||
+			layer->dispbuf->type & VIDTYPE_VIU_NV21)) &&
+			(layer->dispbuf->bitdepth & FULL_PACK_420_MODE))) {
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_mif_reg->vd_if0_luma_x0,
+			((setting->l_hs_luma >> 1) << VDIF_PIC_START_BIT) |
+			(setting->l_he_luma << VDIF_PIC_END_BIT));
+	} else {
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_mif_reg->vd_if0_luma_x0,
+			(setting->l_hs_luma << VDIF_PIC_START_BIT) |
+			(setting->l_he_luma << VDIF_PIC_END_BIT));
+	}
 	cur_dev->rdma_func[vpp_index].rdma_wr
 		(vd_mif_reg->vd_if0_chroma_x0,
 		(setting->l_hs_chrm << VDIF_PIC_START_BIT) |

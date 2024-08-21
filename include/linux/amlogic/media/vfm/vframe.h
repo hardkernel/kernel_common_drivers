@@ -412,6 +412,8 @@ struct vframe_pic_mode_s {
 #define BITDEPTH_MASK (BITDEPTH_YMASK | BITDEPTH_UMASK | BITDEPTH_VMASK)
 #define BITDEPTH_SAVING_MODE	0x1
 #define FULL_PACK_422_MODE		0x2
+/* t6d support */
+#define FULL_PACK_420_MODE		0x4
 
 struct codec_mm_box_s {
 	void    *mmu_box;
