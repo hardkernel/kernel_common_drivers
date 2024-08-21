@@ -64,7 +64,15 @@
 //2023.12.12 t3x no open port limit when reboot
 //2024.01.04 fix soundless issue for 2.0 ip
 //2024.01.10 optimize eq setting for 75m~115m frequency
-#define RX_VER0 "ver.2024/01/10"
+//2024.02.21 fix t3x hbr audio clk not correct issue
+//2024.03.04 fix repeat issue
+//2024.04.24 remove esd hpd
+//2024.07.04 optimize pcs reset flow
+//2024.07.10 correct 12g aud div
+//2024.08.15 add avi filmmaker flag
+//2024.08.28 add hdr10p licence detection
+#define RX_VER0 "ver.2024/08/28"
+
 
 /*print type*/
 #define COR1_LOG	0x10000
@@ -828,6 +836,7 @@ struct rx_info_s {
 	bool main_port_open;
 	bool sub_port_open;
 	bool pip_on;
+	bool hdr10p_en;
 	u8 vrr_min;
 	u8 vrr_max;
 	u32 arc_port;
