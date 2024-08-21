@@ -1200,8 +1200,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 			}
 		}
 		/* dynamic adjust cut window for atv test */
-		if (IS_TVAFE_SRC(port))
-			vdin_auto_de_handler(devp);
+		vdin_auto_de_handler(devp);
 
 		if (IS_TVAFE_SRC(port) && sm_ops->get_sig_property) {
 			sm_ops->get_sig_property(devp->frontend, prop, devp->port_type);

@@ -1329,7 +1329,7 @@ void vdin_set_decimation(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 	unsigned int new_clk = 0;
-	bool decimation_in_frontend = false, skip_en = false;
+	bool decimation_in_frontend = false;
 	struct tvin_state_machine_ops_s *sm_ops = NULL;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -1341,7 +1341,6 @@ void vdin_set_decimation(struct vdin_dev_s *devp)
 		return;
 	}
 #endif
-
 	if (devp->prop.decimation_ratio & HDMI_DE_REPEAT_DONE_FLAG) {
 		decimation_in_frontend = true;
 		if (vdin_ctl_dbg)
@@ -1368,22 +1367,22 @@ void vdin_set_decimation(struct vdin_dev_s *devp)
 		//h skip
 		if (sm_ops->hdmi_de_hactive) {
 			if (devp->h_active > 1920) {
-				skip_en = true;
+				devp->h_skip_en = true;
 				devp->h_active = devp->h_active / 2;
 			} else {
-				skip_en = false;
+				devp->h_skip_en = false;
 			}
-			sm_ops->hdmi_de_hactive(skip_en, devp->frontend, devp->port_type);
+			sm_ops->hdmi_de_hactive(devp->h_skip_en, devp->frontend, devp->port_type);
 		}
 		//v skip for t6d only
 		if (sm_ops->hdmi_de_vactive && is_meson_t6d_cpu()) {
 			if (devp->v_active > 1080) {
-				skip_en = true;
+				devp->v_skip_en = true;
 				devp->v_active = devp->v_active / 2;
 			} else {
-				skip_en = false;
+				devp->v_skip_en = false;
 			}
-			sm_ops->hdmi_de_vactive(skip_en, devp->frontend, devp->port_type);
+			sm_ops->hdmi_de_vactive(devp->v_skip_en, devp->frontend, devp->port_type);
 		}
 	}
 
@@ -1467,7 +1466,10 @@ void vdin_set_cutwin(struct vdin_dev_s *devp, unsigned int rdma_enable)
 		return;
 	}
 #endif
-
+	if (devp->h_skip_en) {
+		devp->prop.hs = devp->prop.hs / 2;
+		devp->prop.he = devp->prop.he / 2;
+	}
 	if ((devp->prop.hs || devp->prop.he ||
 	     devp->prop.vs || devp->prop.ve) &&
 	    devp->h_active > (devp->prop.hs + devp->prop.he) &&
@@ -5068,9 +5070,11 @@ void vdin_set_hv_scale(struct vdin_dev_s *devp)
 	} else if (is_meson_t3x_cpu()) {
 		vdin_set_hv_scale_t3x(devp);
 		return;
+	} else if (is_meson_t6d_cpu()) {
+		/* No hv scaling no t6d */
+		return;
 	}
 #endif
-
 	/*backup current h v size*/
 	devp->h_active_org = devp->h_active;
 	devp->v_active_org = devp->v_active;

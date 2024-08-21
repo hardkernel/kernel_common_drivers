@@ -3568,7 +3568,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		prop->pre_he = prop->he;
 		devp->cut_window_cfg = 0;
 	}
-	if (devp->auto_cut_window_en == 1 && IS_TVAFE_SRC(devp->parm.port))
+	if (devp->auto_cut_window_en == 1)
 		curr_wr_vf->width = devp->h_active;
 
 	dec_ops = devp->frontend->dec_ops;
