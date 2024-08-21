@@ -1004,11 +1004,6 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		else
 			vf->type_ext &= ~VIDTYPE_EXT_BYPASS_DETUNNEL;
 		scan_mode = devp->fmt_info_p->scan_mode;
-		if ((scan_mode == TVIN_SCAN_MODE_INTERLACED &&
-		     (!(devp->parm.flag & TVIN_PARM_FLAG_2D_TO_3D) &&
-		     devp->parm.info.fmt != TVIN_SIG_FMT_NULL)) ||
-		     IS_TVAFE_ATV_SRC(devp->parm.port))
-			vf->height <<= 1;
 #ifndef VDIN_DYNAMIC_DURATION
 		vf->duration = devp->fmt_info_p->duration;
 #endif
@@ -1085,6 +1080,13 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 			vf->compBodyAddr = devp->afbce_info->fm_body_paddr[i];
 			vf->compWidth  = devp->h_active;
 			vf->compHeight = devp->v_active;
+		}
+		if ((scan_mode == TVIN_SCAN_MODE_INTERLACED &&
+		     (!(devp->parm.flag & TVIN_PARM_FLAG_2D_TO_3D) &&
+		     devp->parm.info.fmt != TVIN_SIG_FMT_NULL)) ||
+		     IS_TVAFE_ATV_SRC(devp->parm.port)) {
+			vf->height <<= 1;
+			vf->compHeight <<= 1;
 		}
 		/* keeper config */
 		vf->mem_handle = devp->vf_codec_mem[i];
@@ -3808,7 +3810,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	     !(devp->parm.flag & TVIN_PARM_FLAG_2D_TO_3D) &&
 	     devp->parm.info.fmt != TVIN_SIG_FMT_NULL) ||
 	    IS_TVAFE_ATV_SRC(devp->parm.port)) {
-		curr_wr_vf->height = devp->v_active << 1;
+		if (!vdin_is_afbce_enabled(devp))
+			curr_wr_vf->height = devp->v_active << 1;
 	} else {
 		if (devp->vf_mem_size_small)
 			curr_wr_vf->height = devp->v_shrink_out;
