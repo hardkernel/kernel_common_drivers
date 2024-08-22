@@ -198,7 +198,7 @@ int cma_mmu_op(struct page *page, int count, bool set)
 
 		pte = pte_offset_map(pmd, addr);
 		if (set)
-			aml_set_pte_at(mm, addr, pte, mk_pte(page, PAGE_KERNEL));
+			aml_set_pte_at(mm, addr, pte, mk_pte(page, pgprot_tagged(PAGE_KERNEL)));
 		else
 			pte_clear(mm, addr, pte);
 		pte_unmap(pte);
@@ -4026,7 +4026,7 @@ static int tvp_setup_cma_full_pagemap(unsigned long pfn, unsigned long count)
 	vma.vm_mm    = aml_init_mm;
 	vma.vm_start = addr;
 	vma.vm_end   = addr + size;
-	vma.vm_page_prot = PAGE_KERNEL;
+	vma.vm_page_prot = pgprot_tagged(PAGE_KERNEL);
 	ret = remap_pfn_range(&vma, addr, pfn,
 			      size, vma.vm_page_prot);
 	if (ret < 0)
