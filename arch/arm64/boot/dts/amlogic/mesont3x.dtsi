@@ -3037,6 +3037,7 @@
 		#thermal-sensor-cells = <1>;
 		reset-names = "ts_rst";
 		resets = <&reset RESET_TS_A55>;
+		cust_governor = "power_allocator";
 	};
 
 	gpu_tsensor: gpu_tsensor@fe094000 {
@@ -3053,6 +3054,7 @@
 		#thermal-sensor-cells = <1>;
 		reset-names = "ts_rst";
 		resets = <&reset RESET_TS_GPU>;
+		cust_governor = "power_allocator";
 	};
 
 	vpu_tsensor: vpu_tsensor@fe0a2000 {

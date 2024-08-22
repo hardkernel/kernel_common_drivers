@@ -173,6 +173,7 @@
 			clock-names = "ts_comp";
 			power-domains = <&pwrdm PDID_CX_I2C>;
 			#thermal-sensor-cells = <1>;
+			cust_governor = "power_allocator";
 		};
 
 		sd_emmc_c: emmc@fe012000 {

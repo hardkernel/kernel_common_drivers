@@ -2075,6 +2075,7 @@
 		clocks = <&clkc CLKID_TS_CLK>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
+		cust_governor = "power_allocator";
 	};
 
 	nna_tsensor: a53_tsensor@fe020000 {

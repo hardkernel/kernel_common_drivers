@@ -2397,6 +2397,7 @@
 		power-domains = <&pwrdm PDID_S5_MALI_TOP>;
 		reset-names = "ts_rst";
 		resets = <&reset RESET_TS_GPU>;
+		cust_governor = "power_allocator";
 	};
 
 	a55_tsensor: a55_tsensor@fe022000 {
@@ -2413,6 +2414,7 @@
 		#thermal-sensor-cells = <1>;
 		reset-names = "ts_rst";
 		resets = <&reset RESET_TS_A55>;
+		cust_governor = "power_allocator";
 	};
 
 	vpu_tsensor: vpu_tsensor@fe0a2000 {

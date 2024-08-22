@@ -1481,6 +1481,7 @@
 		clocks = <&clkc CLKID_TS>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
+		cust_governor = "power_allocator";
 	};
 
 	dmc_tsensor: dmc_tsensor {

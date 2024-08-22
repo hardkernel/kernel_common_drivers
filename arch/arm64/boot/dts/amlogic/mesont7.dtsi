@@ -2897,6 +2897,7 @@
 		clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
+		cust_governor = "power_allocator";
 	};
 
 	a53_tsensor: a53_tsensor@fe022000 {
@@ -2911,6 +2912,7 @@
 		clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
+		cust_governor = "power_allocator";
 	};
 
 	gpu_tsensor: gpu_tsensor@fe094000 {

@@ -369,6 +369,7 @@
 		#thermal-sensor-cells = <1>;
 		reset-names = "ts_rst";
 		resets = <&reset RESET_TS_PLL>;
+		cust_governor = "power_allocator";
 	};
 
 	meson_cooldev: meson-cooldev@0 {
