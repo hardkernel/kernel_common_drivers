@@ -213,6 +213,10 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 	struct am_reg_s *dejaggy_reg;
 	unsigned int addr_tmp = 0;
 	unsigned int sr_addr_offset = 0x2500;
+	unsigned int reg_sr = SRSHARP1_LC_TOP_CTRL;
+
+	if (chip_type_id == chip_t6d)
+		reg_sr = VPP_LC_MODE;
 
 	dejaggy_reg = sr0_dej_setting[DEJAGGY_LEVEL - 1].am_reg;
 #endif
@@ -405,7 +409,7 @@ void am_set_regmap(struct am_regs_s *p, int vpp_index)
 					break;
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-				if (addr == offset_addr(SRSHARP1_LC_TOP_CTRL)) {
+				if (addr == offset_addr(reg_sr)) {
 					if (!lc_en)
 						val = val & 0xffffffef;
 				}

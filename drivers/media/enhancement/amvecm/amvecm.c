@@ -331,7 +331,7 @@ unsigned int vecm_latch_flag2;
 module_param(vecm_latch_flag2, uint, 0664);
 MODULE_PARM_DESC(vecm_latch_flag2, "\n vecm_latch_flag2\n");
 
-unsigned int pq_load_en = 1; /*load pq table enable/disable*/
+unsigned int pq_load_en = 1;/*load pq table enable/disable*/
 module_param(pq_load_en, uint, 0664);
 MODULE_PARM_DESC(pq_load_en, "\n pq_load_en\n");
 
@@ -2955,9 +2955,8 @@ int amvecm_on_vs(struct vframe_s *vf,
 
 		if (toggle_vf && vd_path == VD1_PATH) {
 			if (chip_type_id != chip_t3x) {
-				if (chip_type_id != chip_t6d)
-					lc_process(toggle_vf, sps_h_en, sps_v_en,
-						sps_w_in, sps_h_in, vpp_index, &vpp_hist_param);
+				lc_process(toggle_vf, sps_h_en, sps_v_en,
+					sps_w_in, sps_h_in, vpp_index, &vpp_hist_param);
 			} else {
 				if ((toggle_vf->flag & VFRAME_FLAG_COMPOSER_DONE) &&
 					toggle_vf->composer_info &&
@@ -2989,9 +2988,8 @@ int amvecm_on_vs(struct vframe_s *vf,
 		/*refresh vframe*/
 		if (!toggle_vf && vf && vd_path == VD1_PATH) {
 			if (chip_type_id != chip_t3x) {
-				if (chip_type_id != chip_t6d)
-					lc_process(vf, sps_h_en, sps_v_en,
-						sps_w_in, sps_h_in, vpp_index, &vpp_hist_param);
+				lc_process(vf, sps_h_en, sps_v_en,
+					sps_w_in, sps_h_in, vpp_index, &vpp_hist_param);
 			} else {
 				if ((vf->flag & VFRAME_FLAG_COMPOSER_DONE) &&
 					vf->composer_info &&
@@ -3020,11 +3018,10 @@ int amvecm_on_vs(struct vframe_s *vf,
 			vpp_index);
 		pr_amvecm_bringup_dbg("[on_vs] matrix_process else done.\n");
 		if (vd_path == VD1_PATH) {
-			if (chip_type_id != chip_t6d) {
-				lc_process(NULL, sps_h_en, sps_v_en,
-					sps_w_in, sps_h_in, vpp_index, &vpp_hist_param);
-				pr_amvecm_bringup_dbg("[on_vs] lc_proc else done.\n");
-			}
+			lc_process(NULL, sps_h_en, sps_v_en,
+				sps_w_in, sps_h_in, vpp_index, &vpp_hist_param);
+			pr_amvecm_bringup_dbg("[on_vs] lc_proc else done.\n");
+
 			/*1080i pulldown combing workaround*/
 			amvecm_dejaggy_patch(NULL);
 			pr_amvecm_bringup_dbg("[on_vs] dejaggy_patch else done.\n");
@@ -12907,6 +12904,15 @@ static void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type, char *buf)
 	int lut_data[63] = {0};
 	char *stemp = NULL;
 	int slice_index = 0;
+	unsigned int reg_sat0 = SRSHARP1_LC_SAT_LUT_0_1;
+	unsigned int reg_sat = SRSHARP1_LC_SAT_LUT_62;
+	unsigned int adr = 16;
+
+	if (chip_type_id == chip_t6d) {
+		reg_sat0 = VPP_LC_SATUR_LUT_0;
+		reg_sat = VPP_LC_SATUR_LUT_F;
+		adr = 12;
+	}
 
 	if (chip_type_id == chip_t3x) {
 		ve_lc_rd_reg(reg_sel, data_type, buf, slice_index);
@@ -12919,15 +12925,15 @@ static void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type, char *buf)
 	switch (reg_sel) {
 	case SATUR_LUT:
 		for (i = 0; i < 31 ; i++) {
-			tmp = READ_VPP_REG(SRSHARP1_LC_SAT_LUT_0_1 + i);
-			tmp1 = (tmp >> 16) & 0xfff;
+			tmp = READ_VPP_REG(reg_sat0 + i);
+			tmp1 = (tmp >> adr) & 0xfff;
 			tmp2 = tmp & 0xfff;
 			pr_info("reg_lc_satur_lut[%d] =%4d.\n",
 				2 * i, tmp1);
 			pr_info("reg_lc_satur_lut[%d] =%4d.\n",
 				2 * i + 1, tmp2);
 		}
-		tmp = READ_VPP_REG(SRSHARP1_LC_SAT_LUT_62);
+		tmp = READ_VPP_REG(reg_sat);
 		pr_info("reg_lc_satur_lut[62] =%4d.\n",
 			tmp & 0xfff);
 		break;
@@ -13051,13 +13057,13 @@ dump_as_string:
 	switch (reg_sel) {
 	case SATUR_LUT:
 		for (i = 0; i < 31 ; i++) {
-			tmp = READ_VPP_REG(SRSHARP1_LC_SAT_LUT_0_1 + i);
-			tmp1 = (tmp >> 16) & 0xfff;
+			tmp = READ_VPP_REG(reg_sat0 + i);
+			tmp1 = (tmp >> adr) & 0xfff;
 			tmp2 = tmp & 0xfff;
 			lut_data[2 * i] = tmp1;
 			lut_data[2 * i + 1] = tmp2;
 		}
-		tmp = READ_VPP_REG(SRSHARP1_LC_SAT_LUT_62);
+		tmp = READ_VPP_REG(reg_sat);
 		lut_data[62] = tmp & 0xfff;
 		for (i = 0; i < 63 ; i++)
 			d_convert_str(lut_data[i],
@@ -13167,6 +13173,15 @@ dump_as_string:
 static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 {
 	int i, j, tmp, tmp1, tmp2;
+	unsigned int reg_sat0 = SRSHARP1_LC_SAT_LUT_0_1;
+	unsigned int reg_sat = SRSHARP1_LC_SAT_LUT_62;
+	unsigned int adr = 16;
+
+	if (chip_type_id == chip_t6d) {
+		reg_sat0 = VPP_LC_SATUR_LUT_0;
+		reg_sat = VPP_LC_SATUR_LUT_F;
+		adr = 12;
+	}
 
 	if (chip_type_id != chip_t3x) {
 		switch (reg_sel) {
@@ -13174,11 +13189,11 @@ static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 			for (i = 0; i < 31; i++) {
 				tmp1 = *(p + 2 * i);
 				tmp2 = *(p + 2 * i + 1);
-				tmp = ((tmp1 & 0xfff) << 16) | (tmp2 & 0xfff);
-				WRITE_VPP_REG(SRSHARP1_LC_SAT_LUT_0_1 + i, tmp);
+				tmp = ((tmp1 & 0xfff) << adr) | (tmp2 & 0xfff);
+				WRITE_VPP_REG(reg_sat0 + i, tmp);
 			}
 			tmp = (*(p + 62)) & 0xfff;
-			WRITE_VPP_REG(SRSHARP1_LC_SAT_LUT_62, tmp);
+			WRITE_VPP_REG(reg_sat, tmp);
 			break;
 		case YMINVAL_LMT:
 			for (i = 0; i < 6; i++) {
@@ -14006,8 +14021,7 @@ tvchip_pq_setting:
 #endif
 		cm_init_config(bitdepth);
 		/*lc init*/
-		if (chip_type_id != chip_t6d)
-			lc_init(bitdepth);
+		lc_init(bitdepth);
 
 		/*frequence meter init*/
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
