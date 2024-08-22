@@ -2277,24 +2277,30 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 				adpscl_shift[2] << 16 |
 				adpscl_alpha[2], vpp_sel);
 		} else {
-			if (chip_type_id == chip_t6d)
+			if (chip_type_id == chip_t6d) {
 				VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_CTRL,
 					adpscl_bypass[2] << 6 |
 					adpscl_bypass[1] << 5 |
 					adpscl_bypass[0] << 4 |
 					adpscl1_mode << 2 |
 					adpscl_mode, vpp_sel);
-			else
+				VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_ALPHA1,
+					adpscl_shift[0] << 28 |
+					adpscl_shift[1] << 20 |
+					adpscl_shift[2] << 16 |
+					adpscl_alpha[2], vpp_sel);
+			} else {
 				VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_CTRL,
 					adpscl_bypass[2] << 6 |
 					adpscl_bypass[1] << 5 |
 					adpscl_bypass[0] << 4 |
 					adpscl_mode, vpp_sel);
-			VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_ALPHA1,
-				adpscl_shift[0] << 28 |
-				adpscl_shift[1] << 20 |
-				adpscl_shift[2] << 16 |
-				adpscl_alpha[2], vpp_sel);
+				VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_ALPHA1,
+					adpscl_shift[0] << 24 |
+					adpscl_shift[1] << 20 |
+					adpscl_shift[2] << 16 |
+					adpscl_alpha[2], vpp_sel);
+			}
 		}
 		VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_ALPHA0,
 				    adpscl_alpha[1] << 16 | adpscl_alpha[0], vpp_sel);
