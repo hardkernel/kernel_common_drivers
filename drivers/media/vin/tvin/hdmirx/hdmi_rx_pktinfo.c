@@ -754,16 +754,19 @@ void rx_pkt_initial(u8 port)
 	while (j < VSI_TYPE_MAX)
 		memset(&rx_pkt[i].multi_vs_info[j++], 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt[i].avi_info, 0, sizeof(struct pd_infoframe_s));
-	if (!(rxpktsts[port].pkt_op_flag & PKT_OP_SPD))
+	if (!(rxpktsts[port].pkt_op_flag & PKT_OP_SPD)) {
 		memset(&rx_pkt[i].spd_info, 0, sizeof(struct pd_infoframe_s));
-	else
+		tvin_update_vdin_prop(rx_get_port_type(port), PKT_TYPE_INFOFRAME_SPD);
+	} else {
 		rxpktsts[port].pkt_op_flag &= ~PKT_OP_SPD;
+	}
 	//memset(&rx_pkt[i].aud_pktinfo, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt[i].mpegs_info, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt[i].ntscvbi_info, 0, sizeof(struct pd_infoframe_s));
 	if (!(rxpktsts[port].pkt_op_flag & PKT_OP_DRM)) {
 		rx_pkt_clr_attach_drm(port);
 		memset(&rx_pkt[i].drm_info, 0, sizeof(struct pd_infoframe_s));
+		tvin_update_vdin_prop(rx_get_port_type(port), PKT_TYPE_INFOFRAME_DRM);
 	} else {
 		rxpktsts[port].pkt_op_flag &= ~PKT_OP_DRM;
 	}
