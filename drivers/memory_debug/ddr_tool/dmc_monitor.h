@@ -213,4 +213,18 @@ static inline unsigned long dmc_get_page_trace(struct page *page)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
+void dmc_dev_access(unsigned char id, unsigned long addr, unsigned long size);
+int show_dmc_notifier_list(char *buf);
+#else
+static inline void dmc_dev_access(unsigned char id, unsigned long addr, unsigned long size)
+{
+}
+
+static inline int show_dmc_notifier_list(char *buf)
+{
+	return 0;
+}
+#endif
+
 #endif /* __DMC_MONITOR_H__ */

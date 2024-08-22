@@ -20,9 +20,7 @@
 #include <uapi/linux/sched/types.h>
 
 /* Amlogic Headers */
-#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
-#include <linux/amlogic/dmc_dev_access.h>
-#endif
+#include <linux/amlogic/aml_ddr_tool.h>
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <linux/amlogic/media/ge2d/ge2d.h>

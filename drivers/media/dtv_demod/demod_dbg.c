@@ -8,9 +8,7 @@
 #include <linux/string.h>
 #include <linux/dma-mapping.h>
 #include <linux/amlogic/aml_dtvdemod.h>
-#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
-#include <linux/amlogic/dmc_dev_access.h>
-#endif
+#include <linux/amlogic/aml_ddr_tool.h>
 
 #include "demod_func.h"
 #include "amlfrontend.h"

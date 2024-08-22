@@ -54,9 +54,7 @@
 #include <linux/amlogic/media/frc/frc_common.h>
 #include <linux/amlogic/power_domain.h>
 #include <linux/amlogic/media/resource_mgr/resourcemanage.h>
-#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
-#include <linux/amlogic/dmc_dev_access.h>
-#endif
+#include <linux/amlogic/aml_ddr_tool.h>
 #include <dt-bindings/power/t3-pd.h>
 #include <dt-bindings/power/t5m-pd.h>
 #include <dt-bindings/power/t3x-pd.h>

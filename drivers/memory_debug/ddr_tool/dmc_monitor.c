@@ -38,7 +38,7 @@
 #include <asm/module.h>
 #include <linux/mmzone.h>
 #include <trace/hooks/traps.h>
-#include <linux/amlogic/dmc_dev_access.h>
+#include <linux/amlogic/aml_ddr_tool.h>
 #include <linux/sched/cputime.h>
 #include <linux/sched/clock.h>
 #include <linux/string.h>
