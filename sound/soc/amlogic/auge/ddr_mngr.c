@@ -32,6 +32,7 @@
 #include "earc.h"
 #include "debug.h"
 #include "audio_utils.h"
+#include "mixer_hw.h"
 
 #define DRV_NAME "audio-ddr-manager"
 
@@ -1284,6 +1285,7 @@ static int unregister_frddr_l(struct device *dev, void *data)
 	from->dev = NULL;
 	from->in_use = false;
 	from->dest = 0;
+	from->mixer_exist = 0;
 	pr_info("frddrs[%d] released by device %s\n", i, dev_name(dev));
 	return 0;
 }
@@ -1365,6 +1367,12 @@ void aml_frddr_select_src(struct frddr *fr, enum frddr_dest src)
  * if used, disabled the other share frddr src, the module would
  * for current frddr, and the checked frddr
  */
+
+static int aml_get_mixer_is_exist(struct frddr *fr)
+{
+	return !!fr->mixer_exist;
+}
+
 int aml_check_sharebuffer_valid(struct frddr *fr, int ss_sel)
 {
 	int current_fifo_id = fr->fifo_id;
@@ -1381,6 +1389,131 @@ int aml_check_sharebuffer_valid(struct frddr *fr, int ss_sel)
 	}
 
 	return ret;
+}
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static void aml_aed_enable(struct frddr_attach *p_attach_aed, bool enable)
+{
+	struct frddr *fr = fetch_frddr_by_src(p_attach_aed->attach_module);
+	int aed_version = check_aed_version();
+
+	if (aed_version > VERSION1) {
+		struct aml_audio_controller *actrl = fr->actrl;
+		unsigned int reg_base = fr->reg_base;
+		unsigned int reg;
+
+		reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL2, reg_base);
+		if (enable) {
+			if (!aml_get_mixer_is_exist(fr))
+				aml_audiobus_update_bits(actrl,
+				reg, 0x1 << 3, enable << 3);
+			if (aed_version > VERSION2) {
+				aed_set_ctrl(enable, 0,
+					p_attach_aed->attach_module, 1);
+				aed_set_format(fr->msb,
+					fr->type, fr->fifo_id, 1);
+			} else {
+				aed_set_ctrl(enable, 0,
+					p_attach_aed->attach_module, 0);
+				aed_set_format(fr->msb,
+					fr->type, fr->fifo_id, 0);
+			}
+
+			if (aed_version >= VERSION4)
+				aed_reload_config();
+
+			aed_enable(enable);
+		} else {
+			aed_enable(enable);
+			if (aed_version > VERSION2) {
+				aed_set_ctrl(enable, 0,
+					p_attach_aed->attach_module, 1);
+			} else {
+				aed_set_ctrl(enable, 0,
+					p_attach_aed->attach_module, 0);
+			}
+			aml_audiobus_update_bits(actrl,
+				reg, 0x1 << 3, enable << 3);
+		}
+	} else if (aed_version == VERSION1) {
+		if (enable) {
+			/* frddr type and bit depth for AED */
+			aml_aed_format_set(fr->dest);
+		}
+		aed_src_select(enable, fr->dest, fr->fifo_id);
+	}
+}
+
+static bool aml_check_aed_module(int dst)
+{
+	bool is_module_aed = false;
+
+	if (attach_aed.enable && dst == attach_aed.attach_module)
+		is_module_aed = true;
+
+	return is_module_aed;
+}
+
+void aml_set_aed(bool enable, int aed_module)
+{
+	attach_aed.enable = enable;
+	attach_aed.attach_module = aed_module;
+}
+
+void aml_aed_top_enable(struct frddr *fr, bool enable)
+{
+	if (aml_get_mixer_is_exist(fr) && aml_check_aed_module(fr->dest))
+		mixer_eq_enable(fr, enable);
+	if (aml_check_aed_module(fr->dest))
+		aml_aed_enable(&attach_aed, enable);
+}
+
+void aml_aed_set_frddr_reserved(void)
+{
+	frddrs[DDR_A].reserved = true;
+}
+
+void get_toddr_bits_config(enum toddr_src src,
+	int bit_depth, int *msb, int *lsb)
+{
+	switch (src) {
+	case FRHDMIRX:
+		if (get_hdmirx_mode() == HDMIRX_MODE_PAO) {
+			*msb = 24 - 1;
+			*lsb = 0;
+		} else {
+			*msb = 28 - 1;
+			*lsb = 4;
+		}
+		break;
+	case SPDIFIN:
+	case EARCRX_DMAC:
+		*msb = 28 - 1;
+		*lsb = 4;
+		break;
+	default:
+		*msb = 31;
+		*lsb = 8;
+		break;
+	}
+}
+#endif
+
+int aml_frddr_mixer_set(struct frddr *fr, int exist)
+{
+	fr->mixer_exist = exist;
+	return 0;
+}
+
+int mixer_fddr_rate(struct frddr *fr, int en)
+{
+	struct aml_audio_controller *actrl = fr->actrl;
+	unsigned int reg_base = fr->reg_base;
+	unsigned int reg;
+
+	reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL0, reg_base);
+	aml_audiobus_update_bits(actrl,	reg, 1 << 2, en << 2);
+	return 0;
 }
 
 /* select dst for same source
@@ -1449,6 +1582,17 @@ static void frddr_set_sharebuffer_enable(struct frddr *fr,  int dst, int lvl, bo
 		__func__, lvl, dst);
 
 	aml_audiobus_update_bits(actrl, reg, s_m, s_v);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (aml_get_mixer_is_exist(fr)) {
+		if (lvl == 1)
+			aml_audiobus_update_bits(actrl, reg, 1 << 12, 0 << 12);
+		else if (lvl == 2)
+			aml_audiobus_update_bits(actrl, reg, 1 << 20, 0 << 20);
+		aml_audiobus_update_bits(actrl, EE_AUDIO_MIXER_CTRL4, s_m, s_v);
+	}
+	if (aml_get_mixer_is_exist(fr) && !aml_check_aed_module(dst))
+		mixer_demux_sel(dst);
+#endif
 }
 
 /*
@@ -1633,7 +1777,7 @@ void aml_frddr_enable(struct frddr *fr, bool enable)
 	struct aml_audio_controller *actrl = fr->actrl;
 	unsigned int reg_base = fr->reg_base;
 	unsigned int reg, value;
-	unsigned int reg1, value1;
+	unsigned int reg1, value1, value2 = 0;
 
 	reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL0, reg_base);
 
@@ -1643,16 +1787,24 @@ void aml_frddr_enable(struct frddr *fr, bool enable)
 	    !enable &&
 	    (value & 0x80000000))
 		aml_frddr_burst_finished(fr);
-
 	if (enable) {
 		/* before enable frddr, must disable src_sel_en */
 		reg1 = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL2, reg_base);
 		value1 = aml_audiobus_read(actrl, reg1);
+		if (aml_get_mixer_is_exist(fr))
+			value2 =  aml_audiobus_read(actrl, EE_AUDIO_MIXER_CTRL4);
 		aml_audiobus_update_bits(actrl,	reg1,
 			0x1 << 20 | 0x1 << 12 | 0x1 << 4,
 			0 << 20 | 0 << 12 | 0 << 4);
+		if (aml_get_mixer_is_exist(fr))
+			aml_audiobus_update_bits(actrl, EE_AUDIO_MIXER_CTRL4,
+			0x1 << 20 | 0x1 << 12 | 0x1 << 4,
+			0 << 20 | 0 << 12 | 0 << 4);
 	}
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (aml_get_mixer_is_exist(fr) && !aml_check_aed_module(fr->dest))
+		mixer_demux_sel(fr->dest);
+#endif
 	/* ensure disable before enable frddr */
 	aml_audiobus_update_bits(actrl,	reg, 1 << 31, enable << 31);
 
@@ -1667,6 +1819,8 @@ void aml_frddr_enable(struct frddr *fr, bool enable)
 	} else {
 		/* after enable frddr, enable src_sel_en */
 		aml_audiobus_write(actrl, reg1, value1);
+		if (aml_get_mixer_is_exist(fr))
+			aml_audiobus_write(actrl, EE_AUDIO_MIXER_CTRL4, value2);
 	}
 }
 
@@ -1684,6 +1838,13 @@ void aml_frddr_select_dst(struct frddr *fr, enum frddr_dest dst)
 		/*update frddr channel*/
 		aml_audiobus_update_bits(actrl, reg,
 			0xff << 24, (fr->channels - 1) << 24);
+		if (aml_get_mixer_is_exist(fr)) {
+			/*fddr ctrl2 src 0*/
+			aml_audiobus_update_bits(actrl, reg,
+				1 << 5, 1 << 5);
+			aml_audiobus_update_bits(actrl, EE_AUDIO_MIXER_CTRL1,
+				0xff << 16, (fr->channels - 1) << 16);
+		}
 	} else {
 		reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL0, reg_base);
 		src_sel_en = 3;
@@ -1695,9 +1856,15 @@ void aml_frddr_select_dst(struct frddr *fr, enum frddr_dest dst)
 
 	aml_audiobus_update_bits(actrl, reg, 0x7, dst & 0x7);
 
+	if (aml_get_mixer_is_exist(fr))
+		aml_audiobus_update_bits(actrl, EE_AUDIO_MIXER_CTRL4, 0x7, dst & 0x7);
 	/* same source en */
-	if (fr->chipinfo && fr->chipinfo->same_src_fn)
+	if (fr->chipinfo && fr->chipinfo->same_src_fn) {
 		aml_audiobus_update_bits(actrl, reg, 1 << src_sel_en, 1 << src_sel_en);
+		if (aml_get_mixer_is_exist(fr))
+			aml_audiobus_update_bits(actrl, EE_AUDIO_MIXER_CTRL4,
+				1 << src_sel_en, 1 << src_sel_en);
+	}
 }
 
 /* select dst for same source
@@ -1783,111 +1950,6 @@ void aml_frddr_set_format(struct frddr *fr,
 	fr->msb      = msb;
 	fr->type     = frddr_type;
 }
-
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-static void aml_aed_enable(struct frddr_attach *p_attach_aed, bool enable)
-{
-	struct frddr *fr = fetch_frddr_by_src(p_attach_aed->attach_module);
-	int aed_version = check_aed_version();
-
-	if (aed_version > VERSION1) {
-		struct aml_audio_controller *actrl = fr->actrl;
-		unsigned int reg_base = fr->reg_base;
-		unsigned int reg;
-
-		reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL2, reg_base);
-		if (enable) {
-			aml_audiobus_update_bits(actrl,
-				reg, 0x1 << 3, enable << 3);
-			if (aed_version > VERSION2) {
-				aed_set_ctrl(enable, 0,
-					p_attach_aed->attach_module, 1);
-				aed_set_format(fr->msb,
-					fr->type, fr->fifo_id, 1);
-			} else {
-				aed_set_ctrl(enable, 0,
-					p_attach_aed->attach_module, 0);
-				aed_set_format(fr->msb,
-					fr->type, fr->fifo_id, 0);
-			}
-
-			if (aed_version >= VERSION4)
-				aed_reload_config();
-
-			aed_enable(enable);
-		} else {
-			aed_enable(enable);
-			if (aed_version > VERSION2) {
-				aed_set_ctrl(enable, 0,
-					p_attach_aed->attach_module, 1);
-			} else {
-				aed_set_ctrl(enable, 0,
-					p_attach_aed->attach_module, 0);
-			}
-			aml_audiobus_update_bits(actrl,
-				reg, 0x1 << 3, enable << 3);
-		}
-	} else if (aed_version == VERSION1) {
-		if (enable) {
-			/* frddr type and bit depth for AED */
-			aml_aed_format_set(fr->dest);
-		}
-		aed_src_select(enable, fr->dest, fr->fifo_id);
-	}
-}
-
-static bool aml_check_aed_module(int dst)
-{
-	bool is_module_aed = false;
-
-	if (attach_aed.enable && dst == attach_aed.attach_module)
-		is_module_aed = true;
-
-	return is_module_aed;
-}
-
-void aml_set_aed(bool enable, int aed_module)
-{
-	attach_aed.enable = enable;
-	attach_aed.attach_module = aed_module;
-}
-
-void aml_aed_top_enable(struct frddr *fr, bool enable)
-{
-	if (aml_check_aed_module(fr->dest))
-		aml_aed_enable(&attach_aed, enable);
-}
-
-void aml_aed_set_frddr_reserved(void)
-{
-	frddrs[DDR_A].reserved = true;
-}
-
-void get_toddr_bits_config(enum toddr_src src,
-	int bit_depth, int *msb, int *lsb)
-{
-	switch (src) {
-	case FRHDMIRX:
-		if (get_hdmirx_mode() == HDMIRX_MODE_PAO) {
-			*msb = 24 - 1;
-			*lsb = 0;
-		} else {
-			*msb = 28 - 1;
-			*lsb = 4;
-		}
-		break;
-	case SPDIFIN:
-	case EARCRX_DMAC:
-		*msb = 28 - 1;
-		*lsb = 4;
-		break;
-	default:
-		*msb = 31;
-		*lsb = 8;
-		break;
-	}
-}
-#endif
 
 void aml_frddr_check(struct frddr *fr)
 {

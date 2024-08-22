@@ -28,6 +28,7 @@ int __init vad_drv_init(void);
 int __init vad_dev_init(void);
 int __init pcpd_monitor_init(void);
 int __init aud_sram_init(void);
+int __init mixer_init(void);
 
 void __exit vad_dev_exit(void);
 void __exit vad_drv_exit(void);
@@ -51,6 +52,8 @@ void __exit audio_clocks_exit(void);
 void __exit earc_exit(void);
 void __exit pcpd_monitor_exit(void);
 void __exit aud_sram_exit(void);
+void __exit mixer_exit(void);
+
 
 #if IS_ENABLED(CONFIG_AMLOGIC_AUDIO_DSP)
 int __init audiodsp_init_module(void);

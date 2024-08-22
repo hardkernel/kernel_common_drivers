@@ -51,6 +51,7 @@
 #include "audio_utils.h"
 #include "card.h"
 #include "audio_controller.h"
+#include "mixer_hw.h"
 
 #define DRV_NAME "snd_tdm"
 
@@ -151,6 +152,7 @@ struct aml_tdm {
 	int tdmout_lane_mute_status[LANE_MAX3];
 	bool earc_use_48k;
 	int ext_amp_ws_inv;
+	int mixer_en;
 };
 
 #define to_aml_tdm(x)   container_of(x, struct aml_tdm, clk_nb)
@@ -1373,6 +1375,7 @@ static int aml_tdm_open(struct snd_soc_component *component, struct snd_pcm_subs
 			dev_err(dev, "failed to claim from ddr\n");
 			goto err_ddr;
 		}
+		aml_frddr_mixer_set(p_tdm->fddr, p_tdm->mixer_en);
 	} else {
 		p_tdm->tddr = aml_audio_register_toddr(dev,
 			aml_tdm_ddr_isr, substream);
@@ -1453,6 +1456,10 @@ static int aml_tdm_prepare(struct snd_soc_component *component, struct snd_pcm_s
 				p_tdm->chipinfo->use_vadtop);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_reset(p_tdm, runtime->channels);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			if (p_tdm->mixer_en)
+				mixer_fifo_reset();
+#endif
 		}
 
 		/* current define 1ms for reference fifo delay */
@@ -1834,6 +1841,14 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 					p_tdm->id);
 			return -EINVAL;
 		}
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (p_tdm->mixer_en) {
+			mixer_format_set(runtime->channels, bit_depth,
+					tdmout_get_frddr_type(bit_depth));
+			mixer_source_set(fifo_id);
+			mixer_fddr_rate(fr, 0);
+		}
+#endif
 		aml_frddr_set_format(fr,
 			runtime->channels,
 			runtime->rate,
@@ -1959,6 +1974,10 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 			}
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_mute(p_tdm, false);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			if (p_tdm->mixer_en)
+				mixer_en(true);
+#endif
 		} else {
 			dev_dbg(substream->pcm->card->dev,
 				 "TDM[%d] Capture enable\n",
@@ -2020,6 +2039,10 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 				aml_frddr_check(p_tdm->fddr);
 
 			aml_frddr_enable(p_tdm->fddr, false);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+			if (p_tdm->mixer_en)
+				mixer_en(false);
+#endif
 		} else {
 			bool toddr_stopped = false;
 
@@ -2660,6 +2683,12 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 
 	ret = of_property_read_u32(node, "suspend-clk-off",
 			&p_tdm->suspend_clk_off);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
+	}
+
+	ret = of_property_read_u32(node, "mixer_enable",
+			&p_tdm->mixer_en);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
 	}

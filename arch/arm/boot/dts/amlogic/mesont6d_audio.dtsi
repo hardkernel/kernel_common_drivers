@@ -181,7 +181,7 @@
 		/* enable control gain */
 		ctrl_gain = <1>;
 		suspend-clk-off = <1>;
-
+		mixer_enable = <1>;
 		status = "okay";
 		src-clk-freq = <491520000>;
 		/* !!!For --TV platform-- ONLY */
@@ -508,6 +508,11 @@
 		suspend-clk-off = <1>;
 		src-clk-freq = <491520000>;
 		status = "disabled";
+	};
+	mixer: mixer@0 {
+		compatible = "amlogic, t6d-mixer";
+		#sound-dai-cells = <0>;
+		status = "okay";
 	};
 }; /* end of audiobus */
 

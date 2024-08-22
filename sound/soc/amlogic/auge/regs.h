@@ -1606,4 +1606,17 @@ struct register_table {
 #define EE_AUDIO_PCPD_MON_B_STAT0          0x3c8
 #define EE_AUDIO_PCPD_MON_B_STAT1          0x3c9
 
+/*mixer*/
+#define EE_AUDIO_MIXER_COEF0               0x185
+#define EE_AUDIO_MIXER_COEF1               0x186
+#define EE_AUDIO_MIXER_COEF2               0x187
+#define EE_AUDIO_MIXER_COEF3               0x188
+#define EE_AUDIO_MIXER_THD                 0x189
+#define EE_AUDIO_MIXER_CTRL0               0x18a
+#define EE_AUDIO_MIXER_CTRL1               0x18b
+#define EE_AUDIO_MIXER_CTRL2               0x18c
+#define EE_AUDIO_MIXER_CTRL3               0x18d
+#define EE_AUDIO_MIXER_CTRL4               0x18e
+#define EE_AUDIO_MIXER_STATUS1             0x18f
+
 #endif

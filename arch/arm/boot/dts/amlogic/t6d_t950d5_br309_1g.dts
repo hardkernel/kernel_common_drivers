@@ -717,6 +717,18 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
+		aml-audio-card,dai-link@8 {
+			mclk-fs = <256>;
+			continuous-clock;
+			suffix-name = "alsaPORT-mixer";
+			cpu {
+				sound-dai = <&mixer>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
 	};
 	/* Audio Related end */
 
