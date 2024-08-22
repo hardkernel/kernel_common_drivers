@@ -53,10 +53,10 @@
 #define IRQ_CLEAR		1
 
 #define DMC_RATELIMIT_BURST	30
-#define dmc_pr_crit(fmt, addr, val, status, port, subport, page_flags, buddy, slab, lru, trace, time, rw, title, rs)	\
+#define dmc_pr_crit(fmt, addr, val, status, port, subport, page_flags, slab, lru, trace, order, time, rw, title, rs)	\
 ({															\
 	if (__ratelimit(rs))												\
-		pr_crit(fmt, addr, val, status, port, subport, page_flags, buddy, slab, lru, trace, time, rw, title);	\
+		pr_crit(fmt, addr, val, status, port, subport, page_flags, slab, lru, trace, order, time, rw, title);	\
 })
 
 struct dmc_monitor *dmc_mon;
@@ -419,16 +419,16 @@ void show_violation_mem_printk(char *title, void *data)
 
 	static DEFINE_RATELIMIT_STATE(dmc_rs, HZ, DMC_RATELIMIT_BURST);
 
-	dmc_pr_crit(DMC_TAG " addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx bd:%d sb:%d lru:%d a:%ps t:%lld rw:%c%s\n",
+	dmc_pr_crit(DMC_TAG " addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx sb:%d lru:%d a:%ps(%d), t:%lld rw:%c%s\n",
 		mon_comm->addr, read_violation_mem(mon_comm->addr, mon_comm->rw),
 		mon_comm->status,
 		virt_addr_valid(mon_comm->port.name) ? mon_comm->port.name : mon_comm->port.id,
 		virt_addr_valid(mon_comm->sub.name) ? mon_comm->sub.name : mon_comm->sub.id,
 		mon_comm->page_flags,
-		mon_comm->page_flags & PAGE_FLAGS_CHECK_AT_FREE ? 0 : 1,
 		test_bit(PG_slab, &mon_comm->page_flags),
 		test_bit(PG_lru, &mon_comm->page_flags),
 		(void *)dmc_unpack_ip(&mon_comm->trace),
+		(&mon_comm->trace)->order,
 		mon_comm->time, mon_comm->rw, title, &dmc_rs);
 }
 
@@ -442,6 +442,7 @@ void show_violation_mem_trace_event(char *title, void *data)
 				mon_comm->status, port, sub,
 				mon_comm->rw,
 				dmc_unpack_ip(&mon_comm->trace),
+				(&mon_comm->trace)->order,
 				mon_comm->page_flags,
 				mon_comm->time);
 }
