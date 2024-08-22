@@ -144,7 +144,7 @@
 
 #define TIME_1MS 1000000
 #define EDID_MIX_MAX_SIZE 64
-#define ESM_KILL_WAIT_TIMES 250
+#define ESM_KILL_WAIT_TIMES 25
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
 #define var_to_str(var) (#var)
 

@@ -3293,7 +3293,7 @@ void hdmirx_hdcp22_esm_rst(void)
 	rx_pr("before kill\n");
 	rx_kill_esm();
 	mdelay(5);
-	if (hdcp22_kill_esm == 3 || !rx22_ver) {
+	if (!rx22_ver) {
 		rx_pr("before rst:\n");
 		/* For TL1,the sw_reset_hdcp22 bit is top reg 0x0,bit'12 */
 		if (rx_info.chip_id >= CHIP_ID_TL1)

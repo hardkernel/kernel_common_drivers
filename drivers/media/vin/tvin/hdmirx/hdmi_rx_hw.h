@@ -12,7 +12,8 @@
 /* 2024.07.22 Set colordepth to 12 when colorspace is YUV422 */
 /* 2024.07.31 hdcp2.2 repeater enabled for t7 only */
 /* 2024.08.06 optimize phy bandwidth definition */
-#define RX_HW_VER "ver.2024/08/06"
+/* 2024.08.22 modify hdcp_rx22 definition type */
+#define RX_HW_VER "ver.2024/08/22"
 
 #define K_TEST_CHK_ERR_CNT
 
@@ -3296,7 +3297,7 @@ extern char emp_buf[2][1024];
 extern char pre_emp_buf[2][1024];
 extern int hdcp22_on;
 extern int hdcp14_on;
-extern int hdcp22_kill_esm;
+extern bool hdcp22_kill_esm;
 extern bool hpd_to_esm;
 extern u32 hdcp22_reauth_enable;
 extern int i2c_err_cnt[4];
