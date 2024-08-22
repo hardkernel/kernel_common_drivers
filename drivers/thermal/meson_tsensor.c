@@ -928,6 +928,55 @@ static const struct file_operations temp_write_fops = {
 	.release = single_release,
 };
 
+static void aml_bind_previous_governor(struct thermal_zone_device *tz,
+				   const char *failed_gov_name)
+{
+	if (tz->governor && tz->governor->bind_to_tz) {
+		if (tz->governor->bind_to_tz(tz)) {
+			dev_err(&tz->device,
+				"governor %s failed to bind and the previous one (%s) failed to bind again, thermal zone %s has no governor\n",
+				failed_gov_name, tz->governor->name, tz->type);
+			tz->governor = NULL;
+		}
+	}
+}
+
+static int aml_set_governor(struct thermal_zone_device *tz, struct thermal_governor *new_gov)
+{
+	int ret = 0;
+
+	if (tz->governor && tz->governor->unbind_from_tz)
+		tz->governor->unbind_from_tz(tz);
+
+	if (new_gov && new_gov->bind_to_tz) {
+		ret = new_gov->bind_to_tz(tz);
+		if (ret) {
+			aml_bind_previous_governor(tz, new_gov->name);
+			return ret;
+		}
+	}
+
+	tz->governor = new_gov;
+
+	return ret;
+}
+
+static void aml_verify_governor(struct thermal_zone_device *tz, const char *name)
+{
+	struct thermal_governor *governor = tz->governor, *gov, *n;
+
+	if (!strncasecmp(name, governor->name, THERMAL_NAME_LENGTH))
+		return;
+	mutex_lock(&tz->lock);
+	list_for_each_entry_safe(gov, n, &governor->governor_list, governor_list) {
+		if (!strncasecmp(name, gov->name, THERMAL_NAME_LENGTH)) {
+			aml_set_governor(tz, gov);
+			break;
+		}
+	}
+	mutex_unlock(&tz->lock);
+}
+
 static int meson_tsensor_probe(struct platform_device *pdev)
 {
 	struct meson_tsensor_data *data;
@@ -936,6 +985,7 @@ static int meson_tsensor_probe(struct platform_device *pdev)
 	int ret, i;
 	char name[10] = {0};
 	struct dentry *debugfs_dir, *tsensor_drvinfo_file, *temp_write_file;
+	const char *governor_name;
 
 	pr_debug("meson ts init\n");
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
@@ -1010,7 +1060,8 @@ static int meson_tsensor_probe(struct platform_device *pdev)
 		debugfs_dir, data, &tsensor_drvinfo_fops);
 	temp_write_file = debugfs_create_file("tempwrite", S_IFREG | 0440,
 		debugfs_dir, tz, &temp_write_fops);
-
+	if (!of_property_read_string(pdev->dev.of_node, "cust_governor", &governor_name))
+		aml_verify_governor(tz, governor_name);
 out:
 	return 0;
 

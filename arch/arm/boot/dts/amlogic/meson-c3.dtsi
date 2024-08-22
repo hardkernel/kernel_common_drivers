@@ -282,6 +282,7 @@
 			clocks = <&clkc CLKID_TS>;
 			clock-names = "ts_comp";
 			#thermal-sensor-cells = <1>;
+			cust_governor = "power_allocator";
 		};
 
 		sd_emmc_c: mmc@fe08c000 {
