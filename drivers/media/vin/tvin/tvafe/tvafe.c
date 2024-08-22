@@ -37,6 +37,7 @@
 /*#include <mach/am_regs.h>*/
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/aml_atvdemod.h>
+#include <linux/arm-smccc.h>
 
 /* Local include */
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
@@ -179,6 +180,7 @@ static struct tvafe_user_param_s tvafe_user_param = {
 	.unlock_cnt_max = 3,
 
 	.avout_en = 1,
+	.macrovision = 0,
 
 	/* cutwin_test_en:
 	 * bit[3]: test_vcut
@@ -342,6 +344,20 @@ static int tvafe_work_mode(bool mode)
 	}
 
 	return 0;
+}
+
+u32 tvafe_smc_cmd_handler(u32 index, u32 value)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(TVAFE_SMC_CMD, index,
+				value, 0, 0, 0, 0, 0, &res);
+	return (u32)((res.a0) & 0xffffffff);
+}
+
+static bool tvafe_cvbs_efuse_macrov_en(void)
+{
+	return tvafe_smc_cmd_handler(TVAFE_GET_MACROV_STS, 0);
 }
 
 static int tvafe_get_v_fmt(void)
@@ -1264,6 +1280,10 @@ static void tvafe_get_sig_property(struct tvin_frontend_s *fe,
 	prop->decimation_ratio = 0;
 	prop->dvi_info = 0;
 	prop->skip_vf_num = user_param->skip_vf_num;
+	if (!user_param->macrovision || !tvafe_cvbs_efuse_macrov_en())
+		prop->macrovision_sts = 0;
+	else
+		prop->macrovision_sts = tvafe->cvd2.hw.mv_state;
 }
 
 /*
@@ -1733,6 +1753,12 @@ static void tvafe_user_parameters_config(struct device_node *of_node)
 			      tvafe_user_param.nostd_dmd_clp_step,
 			      tvafe_user_param.nostd_bypass_iir);
 	}
+	ret = of_property_read_u32(of_node, "macrovision", &val[0]);
+	if (ret == 0) {
+		tvafe_pr_info("find macrovision: 0x%x\n", val[0]);
+		tvafe_user_param.macrovision = val[0];
+	}
+
 }
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD

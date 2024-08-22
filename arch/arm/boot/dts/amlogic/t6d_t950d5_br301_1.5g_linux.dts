@@ -308,6 +308,7 @@
 		horizontal_dir1 = <148 168 166 160 148>;
 		horizontal_stp0 = <0 0 0 0 0>;
 		horizontal_stp1 = <0 0 0 0 0>;
+		macrovision = <1>;
 	};
 
 	vbi {

@@ -53,6 +53,11 @@
 #define TVAFE_PORT_AV2 0x2
 
 #define TVAFE_WSS_FUNCTION		BIT(0)
+/* smc main cmd */
+#define TVAFE_SMC_CMD	0x8200008e
+/* smc sub id */
+#define TVAFE_GET_MACROV_STS	1
+
 
 /************************************************************ */
 /* *** enum definitions ********************************************* */
@@ -126,6 +131,7 @@ struct tvafe_user_param_s {
 	unsigned int avout_en;
 	unsigned int nostd_bypass_iir;
 	unsigned int low_amp_level;
+	unsigned int macrovision;
 
 	/* debug */
 	unsigned int cutwin_test_en;

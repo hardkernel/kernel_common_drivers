@@ -7595,8 +7595,11 @@ void vdin_set_matrix_color(struct vdin_dev_s *devp)
 		return;
 	}
 #endif
-	/*vdin bist mode RGB:black*/
-	wr(offset, VDIN_MATRIX_CTRL, 0x4);
+	/*vdin bist mode RGB:black, for T6D, vdin0 use matrix0*/
+	if (is_meson_t6d_cpu() && devp->hw_core == VDIN_HW_CORE_NORMAL)
+		wr(offset, VDIN_MATRIX_CTRL, 0x0);
+	else
+		wr(offset, VDIN_MATRIX_CTRL, 0x4);
 	wr(offset, VDIN_MATRIX_COEF00_01, 0x0);
 	wr(offset, VDIN_MATRIX_COEF02_10, 0x0);
 	wr(offset, VDIN_MATRIX_COEF11_12, 0x0);
@@ -7632,7 +7635,10 @@ void vdin_set_matrix_color(struct vdin_dev_s *devp)
 	}
 
 	if (mode) {
-		wr(offset, VDIN_MATRIX_CTRL, 0x6);
+		if (is_meson_t6d_cpu() && devp->hw_core == VDIN_HW_CORE_NORMAL)
+			wr(offset, VDIN_MATRIX_CTRL, 0x1);
+		else
+			wr(offset, VDIN_MATRIX_CTRL, 0x6);
 	} else {
 		if (vdin_is_rgb_input(devp->prop.color_format))
 			vdin_set_matrix(devp);

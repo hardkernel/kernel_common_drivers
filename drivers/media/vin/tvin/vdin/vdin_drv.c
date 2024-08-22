@@ -1865,6 +1865,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->unreliable_vs_cnt_pre = 0;
 	devp->unreliable_vs_idx = 0;
 	devp->prop.hdcp_sts = 0;
+	devp->prop.macrovision_sts = 0;
 	devp->starting_chg = 0;
 	devp->vdin_stable_cnt = 0;
 	devp->game_mode = 0;
@@ -1980,28 +1981,28 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	}
 
 	if (!IS_ERR_OR_NULL(vdin0_devp)) {
-		vdin0_devp->pre_prop.hdcp_sts = vdin0_devp->prop.hdcp_sts;
 		devp->matrix_pattern_mode = 0;
 		/* check input content is protected */
 		if ((vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
 		    (vdin0_devp->flags & VDIN_FLAG_DEC_STARTED) &&
 		    !devp->set_canvas_manual) {
-			if (vdin0_devp->prop.hdcp_sts && !devp->mem_protected) {
-				pr_err("hdmi hdcp en, non-secure buffer\n");
-				devp->matrix_pattern_mode = VDIN_HDCP_PATTERN;
+			if ((vdin0_devp->prop.hdcp_sts || vdin0_devp->prop.macrovision_sts) &&
+				!devp->mem_protected) {
+				pr_err("hdmi or tvafe secure en, non-secure buffer\n");
+				devp->matrix_pattern_mode = VDIN_SECURE_PATTERN;
 			} else {
-				pr_err("non-hdcp or hdcp with secure buffer.sts:%d,flg:%d\n",
-					vdin0_devp->prop.hdcp_sts, devp->mem_protected);
+				pr_info("non-hdcp or hdcp with secure buffer.sts:%d, macrovision_sts:%d, protected:%d\n",
+					vdin0_devp->prop.hdcp_sts, vdin0_devp->prop.macrovision_sts,
+					devp->mem_protected);
 				devp->matrix_pattern_mode = 0;
 			}
 		} else {
-			vdin0_devp->prop.hdcp_sts = 0;
 			devp->matrix_pattern_mode = 0;
 		}
 		if (vdin_dbg_en)
-			pr_info("vdin0 port:0x%x, flag:0x%x, hdcp sts:%d matrix:%d\n",
-			       vdin0_devp->parm.port, vdin0_devp->flags,
-			       vdin0_devp->prop.hdcp_sts, devp->matrix_pattern_mode);
+			pr_info("vdin0 port:0x%x, flag:0x%x, hdcp sts:%d, macrovision_sts:%d, matrix:%d\n",
+			       vdin0_devp->parm.port, vdin0_devp->flags, vdin0_devp->prop.hdcp_sts,
+			       vdin0_devp->prop.macrovision_sts, devp->matrix_pattern_mode);
 	}
 
 	mutex_lock(&devp->fe_lock);
@@ -3231,7 +3232,10 @@ static void vdin_handle_secure_content(struct vdin_dev_s *devp)
 		return;
 
 	/* check input content is protected */
-	protect_mode = devp->prop.hdcp_sts ? VDIN_HDCP_PATTERN : 0;
+	if (devp->prop.hdcp_sts || devp->prop.macrovision_sts)
+		protect_mode = VDIN_SECURE_PATTERN;
+	else
+		protect_mode = 0;
 	if (protect_mode != devp->matrix_pattern_mode && !loopback_devp->mem_protected &&
 		loopback_devp->set_canvas_manual &&
 		(loopback_devp->flags & VDIN_FLAG_DEC_STARTED)) {
@@ -3957,23 +3961,27 @@ static void vdin_set_vfe_type(struct vdin_dev_s *devp, struct vf_entry *vfe)
 		vfe->vf.type_ext &= ~VIDTYPE_EXT_VDIN_HDCP;
 }
 
-/* hdcp state change,set or recovery vdin1 matrix */
-static void vdin_handle_hdcp_chg(struct vdin_dev_s *devp)
+/* hdcp or macrovision state change,set or recovery vdin1 matrix */
+static void vdin_v4l2_handle_secure_chg(struct vdin_dev_s *devp)
 {
 	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
 	unsigned int protect_mode = 0;
 
 	if (vdin0_devp) { /* May not probe vdin0 */
-		protect_mode = vdin0_devp->prop.hdcp_sts ? VDIN_HDCP_PATTERN : 0;
+		if (vdin0_devp->prop.hdcp_sts || vdin0_devp->prop.macrovision_sts)
+			protect_mode = VDIN_SECURE_PATTERN;
+		else
+			protect_mode = 0;
 		if (protect_mode != devp->matrix_pattern_mode && !devp->mem_protected &&
 			!devp->set_canvas_manual &&
 			(vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
 			(vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
 			devp->matrix_pattern_mode = protect_mode;
-			pr_debug("vdin0:hdcp chg to %d,protect_mode:%d\n",
-				vdin0_devp->prop.hdcp_sts, protect_mode);
+			pr_debug("vdin0:hdcp chg to %d, macrovision chg to %d, protect_mode:%d\n",
+				vdin0_devp->prop.hdcp_sts, vdin0_devp->prop.macrovision_sts,
+				protect_mode);
 			vdin_set_matrix(devp);
-		} else if ((devp->matrix_pattern_mode == VDIN_HDCP_PATTERN) &&
+		} else if ((devp->matrix_pattern_mode == VDIN_SECURE_PATTERN) &&
 			!(vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
 			devp->matrix_pattern_mode = 0;
 			pr_debug("set vdin1 matrix to normal\n");
@@ -4047,7 +4055,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		/* avoid null pointer oops */
 		stamp  = vdin_get_meas_v_stamp(devp);
 
-	vdin_handle_hdcp_chg(devp);
+	vdin_v4l2_handle_secure_chg(devp);
 
 	/* if win_size changed for video only */
 	if (!(devp->flags & VDIN_FLAG_V4L2_DEBUG))

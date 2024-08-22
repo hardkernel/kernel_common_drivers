@@ -952,6 +952,9 @@ static void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2)
 				(bool)((data & 0x04) >> VLOCK_BIT);
 	cvd2->hw_data[cvd2->hw_data_cur].chroma_lock =
 				(bool)((data & 0x08) >> CHROMALOCK_BIT);
+	cvd2->hw_data[cvd2->hw_data_cur].mv_state =
+				(bool)((data & 0x10) >> MV_VBI_DETECTED_BIT);
+
 	if (cvd2->hw_data[cvd2->hw_data_cur].h_lock)
 		cvd2->info.h_unlock_cnt = 0;
 	else
@@ -1165,6 +1168,13 @@ static void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2)
 	if (!cvd2->hw_data[0].chroma_lock && !cvd2->hw_data[1].chroma_lock &&
 		!cvd2->hw_data[2].chroma_lock)
 		cvd2->hw.chroma_lock = false;
+
+	if (cvd2->hw_data[0].mv_state && cvd2->hw_data[1].mv_state &&
+		cvd2->hw_data[2].mv_state)
+		cvd2->hw.mv_state = true;
+	if (!cvd2->hw_data[0].mv_state && !cvd2->hw_data[1].mv_state &&
+		!cvd2->hw_data[2].mv_state)
+		cvd2->hw.mv_state = false;
 
 	if ((cvd2->hw_data[0].pal || cvd2->hw_data[1].pal) &&
 		cvd2->hw_data[2].pal)

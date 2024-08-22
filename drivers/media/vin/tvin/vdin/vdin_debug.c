@@ -1141,6 +1141,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("color_depth_config:0x%x\n", devp->color_depth_config);
 	pr_info("matrix_pattern_mode:0x%x\n", devp->matrix_pattern_mode);
 	pr_info("hdcp_sts:0x%x\n", devp->prop.hdcp_sts);
+	pr_info("macrovision_sts:0x%x\n", devp->prop.macrovision_sts);
 	pr_info("full_pack:%d\n", devp->full_pack);
 	pr_info("force_malloc_yuv_422_to_444:%d\n", devp->force_malloc_yuv_422_to_444);
 	pr_info("color_depth_support:0x%x\n", devp->color_depth_support);

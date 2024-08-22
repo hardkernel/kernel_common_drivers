@@ -182,7 +182,7 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->noise_level:%d\n",
 		hw->noise_level);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->low_amp:%d\n", hw->low_amp);
-
+	tvafe_pr_info("tvafe_cvd2_hw_data_s->mv_state:%d\n", hw->mv_state);
 	tvafe_pr_info("tvafe_cvd2_info_s->isr_cnt:%d\n",
 		cvd2_info->isr_cnt);
 	tvafe_pr_info("tvafe_cvd2_info_s->unlock_cnt:%d\n\n",
@@ -239,6 +239,7 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("try_fmt_max_atv:%d\n", try_fmt_max_atv);
 	tvafe_pr_info("try_fmt_max_av:%d\n", try_fmt_max_av);
 	tvafe_pr_info("avout_en:%d\n", user_param->avout_en);
+	tvafe_pr_info("macrovision:%d\n", user_param->macrovision);
 	tvafe_pr_info("tvafe_function_sel:%#x\n", devp->tvafe_function_sel);
 	tvafe_pr_info("tvafe version :  %s\n", TVAFE_VER);
 }

@@ -87,6 +87,7 @@ struct tvafe_cvd2_hw_data_s {
 	bool vcrtrick;
 	bool vcrff;
 	bool vcrrew;
+	bool mv_state; /* microvision state */
 	unsigned char cordic;
 
 	unsigned char acc4xx_cnt;
