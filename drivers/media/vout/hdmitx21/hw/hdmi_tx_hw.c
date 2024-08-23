@@ -3456,8 +3456,16 @@ static void hdmi_phy_suspend(void)
 		hd21_write_reg(phy_cntl5, 0x800);
 		break;
 	case MESON_CPU_ID_S7D:
-	case MESON_CPU_ID_S6:
 		hd21_write_reg(phy_cntl3, 0xC1B);
+		hd21_write_reg(phy_cntl5, 0x0);
+		break;
+	case MESON_CPU_ID_S6:
+		/*
+		 * s6 needed to optimize power consumption at early suspend,
+		 * writing 0 to PHY_CNTL3 can optimize power consumption,
+		 * and disable tmds_clk
+		 */
+		hd21_write_reg(phy_cntl3, 0x0);
 		hd21_write_reg(phy_cntl5, 0x0);
 		break;
 	default:
