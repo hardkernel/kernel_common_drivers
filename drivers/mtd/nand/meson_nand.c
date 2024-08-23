@@ -1765,11 +1765,15 @@ meson_nfc_nand_chip_init(struct device *dev,
 		if (meson_rsv_get_block_cnt(NAND_DTB_INDEX))
 			meson_rsv_check(nfc->rsv->dtb);
 	}
-	ret = mtd_device_parse_register(mtd, meson_types, NULL, NULL, 0);
-	if (ret) {
-		dev_err(dev, "failed to register MTD device: %d\n", ret);
-		nand_cleanup(nand);
-		return ret;
+
+	if (mtd_device_parse_register(mtd, meson_types, NULL, NULL, 0) < 0) {
+		/* default_mtd_part_types to parse register */
+		mtd->name = "aml-mtd";
+		if (mtd_device_parse_register(mtd, NULL, NULL, NULL, 0)) {
+			dev_err(dev, "failed to register MTD device: %d\n", ret);
+			nand_cleanup(nand);
+			return ret;
+		}
 	}
 
 	if (aml_mtd_devnum == 0) {
