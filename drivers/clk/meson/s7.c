@@ -12,6 +12,9 @@
 #include <linux/of_address.h>
 #include <linux/clkdev.h>
 #include <linux/arm-smccc.h>
+#include <linux/pm.h>
+#include <linux/syscore_ops.h>
+#include <linux/suspend.h>
 
 #include "clk-pll.h"
 #include "clk-regmap.h"
@@ -1209,7 +1212,7 @@ static const struct clk_parent_data mali_parent_data[] = {
 };
 
 MESON_CLK_MUX_RW(mali, CLKCTRL_MALI_CLK_CTRL, 1, 31, NULL, 0,
-		 mali_parent_data, CLK_SET_RATE_PARENT);
+		 mali_parent_data, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE);
 
 /* cts_vdec_clk */
 static const struct clk_parent_data vdec_pre_parent_data[] = {
@@ -1243,7 +1246,7 @@ static const struct clk_parent_data vdec_parent_data[] = {
 };
 
 MESON_CLK_MUX_RW(vdec, CLKCTRL_VDEC3_CLK_CTRL, 0x1, 15, NULL, 0,
-		 vdec_parent_data, CLK_SET_RATE_PARENT);
+		 vdec_parent_data, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE);
 
 /* cts_hevcf_clk */
 MESON_CLK_COMPOSITE_RW(hevcf_0, CLKCTRL_VDEC2_CLK_CTRL, 0x7, 9,
@@ -1266,7 +1269,7 @@ static const struct clk_parent_data hevcf_parent_data[] = {
 };
 
 MESON_CLK_MUX_RW(hevcf, CLKCTRL_VDEC4_CLK_CTRL, 0x1, 15, NULL, 0,
-		 hevcf_parent_data, CLK_SET_RATE_PARENT);
+		 hevcf_parent_data, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE);
 
 /* cts_vpu_clk */
 static u32 vpu_pre_parent_table[] = { 0, 1, 2, 3, 4, 6, 7 };
@@ -1301,7 +1304,7 @@ static const struct clk_parent_data vpu_parent_data[] = {
 };
 
 MESON_CLK_MUX_RW(vpu, CLKCTRL_VPU_CLK_CTRL, 0x1, 31, NULL, 0,
-		 vpu_parent_data, CLK_SET_RATE_PARENT);
+		 vpu_parent_data, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE);
 
 /*cts_vpu_clkb*/
 static const struct clk_parent_data vpu_clkb_tmp_parent_data[] = {
@@ -1357,7 +1360,7 @@ static const struct clk_parent_data vpu_clkc_parent_data[] = {
 };
 
 MESON_CLK_MUX_RW(vpu_clkc, CLKCTRL_VPU_CLKC_CTRL, 0x1, 31, NULL, 0,
-		 vpu_clkc_parent_data, CLK_SET_RATE_PARENT);
+		 vpu_clkc_parent_data, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE);
 
 /*cts_vapb_clk*/
 static u32 vapb_pre_parent_table[] = { 0, 1, 2, 3, 4, 6, 7 };
@@ -1392,7 +1395,7 @@ static const struct clk_parent_data vapb_parent_data[] = {
 };
 
 MESON_CLK_MUX_RW(vapb, CLKCTRL_VAPBCLK_CTRL, 0x1, 31, NULL, 0,
-		 vapb_parent_data, CLK_SET_RATE_PARENT);
+		 vapb_parent_data, CLK_SET_RATE_PARENT | CLK_OPS_PARENT_ENABLE);
 
 MESON_CLK_GATE_RW(ge2d, CLKCTRL_VAPBCLK_CTRL, 30, 0,
 		  &vapb.hw, CLK_SET_RATE_PARENT);
@@ -2211,6 +2214,111 @@ static struct clk_regmap *const s7_pll_clk_regmaps[] = {
 	&hifi1_pll
 };
 
+static const char * const scmi_clk_name[] = {"cpu_clk", "dsu_clk", "gp1_pll",
+					     "pwm_g", "pwm_i"};
+static unsigned long scmi_clk_saved_rate[ARRAY_SIZE(scmi_clk_name)];
+/* Distinguish between std and str, syscore_ops is no need called when str */
+static int hib_enable;
+
+static int meson_s7_syscore_suspend(void)
+{
+	int ret = 0;
+
+	if (hib_enable) {
+		ret = clk_save_context();
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static void meson_s7_syscore_resume(void)
+{
+	if (hib_enable)
+		clk_restore_context();
+}
+
+static struct syscore_ops meson_s7_syscore_ops = {
+	.suspend	= meson_s7_syscore_suspend,
+	.resume		= meson_s7_syscore_resume,
+};
+
+static int meson_s7_pm_notify(struct notifier_block *notifier,
+			      unsigned long pm_event,
+			      void *unused)
+{
+	switch (pm_event) {
+	case PM_HIBERNATION_PREPARE:
+		hib_enable = 1;
+		break;
+	case PM_POST_HIBERNATION:
+		hib_enable = 0;
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block meson_s7_pm_nb = {
+	.notifier_call = meson_s7_pm_notify,
+};
+
+static int meson_s7_freeze(struct device *dev)
+{
+	struct clk *scmi_clk;
+	int i;
+
+	/*
+	 * scmi clk does not provide save_context/restore_context ops,
+	 * so saved scmi clk rate at freeze and set it back at restore.
+	 */
+	for (i = 0; i < ARRAY_SIZE(scmi_clk_name); ++i) {
+		scmi_clk = devm_clk_get(dev, scmi_clk_name[i]);
+		if (IS_ERR(scmi_clk))
+			return PTR_ERR(scmi_clk);
+		scmi_clk_saved_rate[i] = clk_get_rate(scmi_clk);
+		devm_clk_put(dev, scmi_clk);
+	}
+
+	return 0;
+}
+
+static int meson_s7_restore(struct device *dev)
+{
+	struct clk *scmi_clk;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(scmi_clk_name); ++i) {
+		scmi_clk = devm_clk_get(dev, scmi_clk_name[i]);
+		if (IS_ERR(scmi_clk))
+			return PTR_ERR(scmi_clk);
+		/*
+		 * CLK_SET_RATE_NOCACHE flag does not take effect when clk_set_rate,
+		 * setting rate will be compared with the cached rate,  actual rate cannot
+		 * be setted. before setting rate, using clk_get_rate to recalculate
+		 * the scmi clk rate and update the cache.
+		 */
+		clk_get_rate(scmi_clk);
+		clk_set_rate(scmi_clk, scmi_clk_saved_rate[i]);
+		devm_clk_put(dev, scmi_clk);
+	}
+
+	return 0;
+}
+
+/*
+ * scmi clk rate needs to be saved using clk_get_rate(), but interrupts are
+ * enabled when the scmi clk rate is fetched, and syscore_suspend() is called
+ * when interrupts are turned off, so scmi clk needs to be placed in freeze_noirq
+ * to save state.
+ */
+const struct dev_pm_ops meson_s7_pm_ops = {
+	.freeze_noirq	= meson_s7_freeze,
+	.restore_noirq	= meson_s7_restore,
+};
+
 static int meson_s7_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -2284,8 +2392,20 @@ static int meson_s7_probe(struct platform_device *pdev)
 #endif
 	}
 
-	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
+	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 					   (void *)hw_onecell_data);
+	if (ret)
+		return ret;
+
+	/* register syscore ops to save clk status at std */
+	register_syscore_ops(&meson_s7_syscore_ops);
+	/*
+	 * register pm notify, distinguish between std and str, and ensure
+	 * that syscore_ops is called only when std is used.
+	 */
+	register_pm_notifier(&meson_s7_pm_nb);
+
+	return ret;
 }
 
 static const struct of_device_id clkc_match_table[] = {
@@ -2301,6 +2421,7 @@ static struct platform_driver s7_driver = {
 	.driver		= {
 		.name	= "s7-clkc",
 		.of_match_table = clkc_match_table,
+		.pm	= &meson_s7_pm_ops,
 	},
 };
 

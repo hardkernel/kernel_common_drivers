@@ -46,6 +46,7 @@ struct clk_regmap_gate_data {
 	unsigned int	offset;
 	u8		bit_idx;
 	u8		flags;
+	int		saved_is_enabled;
 };
 
 static inline struct clk_regmap_gate_data *
@@ -73,10 +74,16 @@ struct clk_regmap_div_data {
 	unsigned int	smc_id;
 	u8		shift;
 	u8		width;
-	u8		flags;
+	u16		flags;
 	u8		secid;
 	const struct clk_div_table	*table;
+	u32		saved_divider;
 };
+
+/* gpu used pll needs to restore, and cpuclk/dsuclk used pll no need to restore.
+ * only 64-bit system validation
+ */
+#define CLK_DIVIDER_SECURE_IGNORE_RESTORE	BIT(8)
 
 static inline struct clk_regmap_div_data *
 clk_get_regmap_div_data(struct clk_regmap *clk)
@@ -109,6 +116,7 @@ struct clk_regmap_mux_data {
 	u8		flags;
 	u8		secid;
 	u8		secid_rd;
+	u8		saved_parent;
 };
 
 static inline struct clk_regmap_mux_data *

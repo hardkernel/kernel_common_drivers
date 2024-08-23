@@ -15,3 +15,7 @@
 # pagetrace.ko
   __traceiter_android_vh_oom_check_panic
   __tracepoint_android_vh_oom_check_panic
+
+# amlogic-clk.ko
+  clk_save_context
+  clk_restore_context

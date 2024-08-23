@@ -48,10 +48,30 @@ static int clk_regmap_gate_is_enabled(struct clk_hw *hw)
 	return val ? 1 : 0;
 }
 
+static int clk_regmap_gate_save_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct clk_regmap_gate_data *gate = clk_get_regmap_gate_data(clk);
+
+	gate->saved_is_enabled = clk_regmap_gate_is_enabled(hw);
+
+	return 0;
+}
+
+static void clk_regmap_gate_restore_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct clk_regmap_gate_data *gate = clk_get_regmap_gate_data(clk);
+
+	clk_regmap_gate_endisable(hw, gate->saved_is_enabled);
+}
+
 const struct clk_ops clk_regmap_gate_ops = {
 	.enable = clk_regmap_gate_enable,
 	.disable = clk_regmap_gate_disable,
 	.is_enabled = clk_regmap_gate_is_enabled,
+	.save_context = clk_regmap_gate_save_context,
+	.restore_context = clk_regmap_gate_restore_context,
 };
 EXPORT_SYMBOL_GPL(clk_regmap_gate_ops);
 
@@ -146,11 +166,51 @@ static int clk_regmap_secure_v2_div_set_rate(struct clk_hw *hw, unsigned long ra
 	return 0;
 };
 
+static int clk_regmap_div_save_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct clk_regmap_div_data *div = clk_get_regmap_div_data(clk);
+	unsigned int val;
+
+	if (!(div->flags & CLK_DIVIDER_SECURE_IGNORE_RESTORE)) {
+		regmap_read(clk->map, div->offset, &val);
+		div->saved_divider = (val >> div->shift) & clk_div_mask(div->width);
+	}
+
+	return 0;
+}
+
+static void clk_regmap_div_restore_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct clk_regmap_div_data *div = clk_get_regmap_div_data(clk);
+
+	regmap_update_bits(clk->map, div->offset,
+			   clk_div_mask(div->width) << div->shift,
+			   div->saved_divider << div->shift);
+}
+
+static void clk_regmap_div_secure_v2_restore_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct clk_regmap_div_data *div = clk_get_regmap_div_data(clk);
+	struct arm_smccc_res res;
+
+	if (!(div->flags & CLK_DIVIDER_SECURE_IGNORE_RESTORE)) {
+		/* Send the saved divider to bl31, 0x8200009A is the general clk addr */
+		arm_smccc_smc(div->smc_id, div->secid,
+				clk_div_mask(div->width) << div->shift,
+				div->saved_divider << div->shift, 0, 0, 0, 0, &res);
+	}
+}
+
 /* Would prefer clk_regmap_div_ro_ops but clashes with qcom */
 const struct clk_ops clk_regmap_secure_v2_divider_ops = {
 	.recalc_rate = clk_regmap_div_recalc_rate,
 	.round_rate = clk_regmap_div_round_rate,
 	.set_rate = clk_regmap_secure_v2_div_set_rate,
+	.save_context = clk_regmap_div_save_context,
+	.restore_context = clk_regmap_div_secure_v2_restore_context,
 };
 EXPORT_SYMBOL_GPL(clk_regmap_secure_v2_divider_ops);
 
@@ -158,6 +218,8 @@ const struct clk_ops clk_regmap_divider_ops = {
 	.recalc_rate = clk_regmap_div_recalc_rate,
 	.round_rate = clk_regmap_div_round_rate,
 	.set_rate = clk_regmap_div_set_rate,
+	.save_context = clk_regmap_div_save_context,
+	.restore_context = clk_regmap_div_restore_context,
 };
 EXPORT_SYMBOL_GPL(clk_regmap_divider_ops);
 
@@ -218,10 +280,54 @@ static int clk_regmap_mux_determine_rate(struct clk_hw *hw,
 	return clk_mux_determine_rate_flags(hw, req, mux->flags);
 }
 
+static int clk_regmap_mux_save_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct clk_regmap_mux_data *mux = clk_get_regmap_mux_data(clk);
+
+	if (!mux->smc_id)
+		mux->saved_parent = clk_regmap_mux_get_parent(hw);
+
+	return 0;
+}
+
+static void clk_regmap_mux_restore_context(struct clk_hw *hw)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct clk_regmap_mux_data *mux = clk_get_regmap_mux_data(clk);
+	struct clk_hw *now_parent_hw, *res_parent_hw;
+	u8 now_parent_id;
+	int now_parent_is_enabled, res_parent_is_enabled;
+
+	if (!mux->smc_id) {
+		now_parent_id = clk_regmap_mux_get_parent(hw);
+		if (mux->saved_parent != now_parent_id) {
+			if (clk_hw_get_flags(hw) & CLK_OPS_PARENT_ENABLE) {
+				now_parent_hw = clk_hw_get_parent_by_index(hw, now_parent_id);
+				res_parent_hw = clk_hw_get_parent_by_index(hw, mux->saved_parent);
+				now_parent_is_enabled = clk_regmap_gate_is_enabled(now_parent_hw);
+				res_parent_is_enabled = clk_regmap_gate_is_enabled(res_parent_hw);
+
+				clk_regmap_gate_enable(now_parent_hw);
+				clk_regmap_gate_enable(res_parent_hw);
+				clk_regmap_mux_set_parent(hw, mux->saved_parent);
+				if (!now_parent_is_enabled)
+					clk_regmap_gate_disable(now_parent_hw);
+				if (!res_parent_is_enabled)
+					clk_regmap_gate_disable(res_parent_hw);
+			} else {
+				clk_regmap_mux_set_parent(hw, mux->saved_parent);
+			}
+		}
+	}
+}
+
 const struct clk_ops clk_regmap_mux_ops = {
 	.get_parent = clk_regmap_mux_get_parent,
 	.set_parent = clk_regmap_mux_set_parent,
 	.determine_rate = clk_regmap_mux_determine_rate,
+	.save_context = clk_regmap_mux_save_context,
+	.restore_context = clk_regmap_mux_restore_context,
 };
 EXPORT_SYMBOL_GPL(clk_regmap_mux_ops);
 
