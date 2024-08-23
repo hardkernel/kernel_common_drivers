@@ -4939,8 +4939,9 @@ MESON_CLK_GATE_HW(sys_pwm_c, CLKCTRL_SYS_CLK_EN0_REG3, 5, sys_pwm_a.hw);
 MESON_CLK_GATE_HW(sys_pwm_b, CLKCTRL_SYS_CLK_EN0_REG3, 6, sys_pwm_a.hw);
 MESON_CLK_GATE_SYS_CLK(sys_pwm_a, CLKCTRL_SYS_CLK_EN0_REG3, 7);
 MESON_CLK_GATE_AXI_CLK(axi_ao_nic, CLKCTRL_AXI_CLK_EN0, 0);
-MESON_CLK_GATE_AXI_CLK(axi_dev0_mmc, CLKCTRL_AXI_CLK_EN0, 1);
-MESON_CLK_GATE_AXI_CLK(axi_cpu_sram, CLKCTRL_AXI_CLK_EN0, 2);
+MESON_CLK_GATE_AXI_CLK(axi_sram, CLKCTRL_AXI_CLK_EN0, 1);
+MESON_CLK_GATE_AXI_CLK(axi_dev0_mmc, CLKCTRL_AXI_CLK_EN0, 2);
+MESON_CLK_GATE_AXI_CLK(axi_cpu_sram, CLKCTRL_AXI_CLK_EN0, 4);
 
 static struct clk_regmap *const pll_regmaps[] = {
 	&gp0_pll,
@@ -5249,6 +5250,7 @@ static struct clk_regmap *const clk_regmaps[] = {
 	&sys_pwm_b,
 	&sys_pwm_a,
 	&axi_ao_nic,
+	&axi_sram,
 	&axi_dev0_mmc,
 	&axi_cpu_sram
 };
@@ -5576,6 +5578,7 @@ static struct clk_hw_onecell_data hw_onecell_data = {
 		[CLKID_SYS_PWM_B]             = &sys_pwm_b.hw,
 		[CLKID_SYS_PWM_A]             = &sys_pwm_a.hw,
 		[CLKID_AXI_AO_NIC]            = &axi_ao_nic.hw,
+		[CLKID_AXI_SRAM]              = &axi_sram.hw,
 		[CLKID_AXI_DEV0_MMC]          = &axi_dev0_mmc.hw,
 		[CLKID_AXI_CPU_SRAM]          = &axi_cpu_sram.hw,
 		[NR_CLKS]                     = NULL
@@ -5596,13 +5599,13 @@ static int meson_s6_probe(struct platform_device *pdev)
 	if (!hw_onecell_data)
 		return -EINVAL;
 
+#ifdef CONFIG_AMLOGIC_CLK_DEBUG
 	clk = devm_clk_get(dev, "xtal");
 	if (IS_ERR(clk)) {
 		pr_err("%s: clock source xtal not found\n", dev_name(&pdev->dev));
 		return PTR_ERR(clk);
 	}
 
-#ifdef CONFIG_AMLOGIC_CLK_DEBUG
 	ret = devm_clk_hw_register_clkdev(dev, __clk_get_hw(clk),
 					  NULL,
 					  __clk_get_name(clk));
@@ -5665,9 +5668,9 @@ static const struct of_device_id clkc_match_table[] = {
 };
 
 static struct platform_driver s6_driver = {
-	.probe		= meson_s6_probe,
-	.driver		= {
-		.name	= "s6-clkc",
+	.probe			= meson_s6_probe,
+	.driver			= {
+		.name		= "s6-clkc",
 		.of_match_table	= clkc_match_table,
 	},
 };

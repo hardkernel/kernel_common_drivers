@@ -327,9 +327,10 @@
 #define CLKID_SYS_PWM_B                           318
 #define CLKID_SYS_PWM_A                           319
 #define CLKID_AXI_AO_NIC                          320
-#define CLKID_AXI_DEV0_MMC                        321
-#define CLKID_AXI_CPU_SRAM                        322
+#define CLKID_AXI_SRAM                            321
+#define CLKID_AXI_DEV0_MMC                        322
+#define CLKID_AXI_CPU_SRAM                        323
 
-#define NR_CLKS                                   323
+#define NR_CLKS                                   324
 
 #endif /* __S6_CLKC_H */
