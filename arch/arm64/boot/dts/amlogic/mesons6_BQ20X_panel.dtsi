@@ -69,10 +69,13 @@
 				0 0 1 10
 				0 1 0 10
 				0 1 1 20
-				2 0 0 0
+				2 0 0 10
+				0 2 1 0
+				0 3 0 0
 				0xff 0 0 0>; /*ending*/
 			power_off_step = <
-				2 0 0 50
+				2 0 0 5
+				0 2 0 0
 				0 1 0 10
 				0 0 0 100
 				0xff 0 0 0>; /*ending*/
@@ -86,7 +89,8 @@
 			/*hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol*/
 			lcd_timing = <50 80 0 4 20 0>;
 			clk_attr = <2 0 1 164000000>;
-			/* <lane, bit_rate, /, mode_init, mode_disp, video_mode, clk_hs, />*/
+			/* <lane, bit_rate, /, mode_init(0=video,1=cmd), mode_disp(0=video,1=cmd)*/
+			/* video_mode(0=sync_pulse,1=sync_event,2=burst), clk_hs, />*/
 			mipi_attr = <4 995 0 1 0 2 1 0>;
 			/* dsi_init: data_type, num, data... */
 			dsi_init_on = <
@@ -198,9 +202,14 @@
 		dsi_1 {
 			model_name = "LX70WSK40164-V0";
 			interface = "mipi";
+			/*h_active, v_active, h_period, v_period, color_bit, width, height*/
 			basic_setting = <600 1024 940 1058 8 90 153>;
+			/*hs_width, hs_bp, hs_pol, vs_width, vs_bp, vs_pol*/
 			lcd_timing = <60 140 0 4 14 0>;
+			//<fr_adj_type clkss clk_auto_generate PixelClk>
 			clk_attr = <2 0 1 60>;
+			/* <lane, bit_rate, /, mode_init(0=video,1=cmd), mode_disp(0=video,1=cmd)*/
+			/* video_mode(0=sync_pulse,1=sync_event,2=burst), clk_hs, />*/
 			mipi_attr = <4 360 0 1 0 2 1 0>;
 			/* dsi_init: data_type, num, data... */
 			dsi_init_on = <
