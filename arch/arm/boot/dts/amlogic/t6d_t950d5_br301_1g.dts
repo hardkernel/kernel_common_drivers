@@ -130,8 +130,8 @@
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1080p TV androidT size 36M */
-			size = <0x2400000>;
+			/* 1080p TV androidT size 28M */
+			size = <0x1c00000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x00000000 0x1d400000>;
 			status = "okay";
