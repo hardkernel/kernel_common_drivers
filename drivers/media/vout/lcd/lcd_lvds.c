@@ -23,6 +23,7 @@ void lcd_lvds_enable(struct aml_lcd_drv_s *pdrv)
 	unsigned int dual_port, fifo_mode, lvds_repack, sync_pol_reverse;
 	unsigned int reg_lvds_pack_ctrl, reg_lvds_gen_ctrl;
 	unsigned int offset;
+	unsigned int lsb_first = 0;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
@@ -52,7 +53,8 @@ void lcd_lvds_enable(struct aml_lcd_drv_s *pdrv)
 	    pdrv->data->chip_type == LCD_CHIP_T3 ||
 	    pdrv->data->chip_type == LCD_CHIP_T5M ||
 	    pdrv->data->chip_type == LCD_CHIP_T5W ||
-	    pdrv->data->chip_type == LCD_CHIP_T3X) {
+	    pdrv->data->chip_type == LCD_CHIP_T3X ||
+	    pdrv->data->chip_type == LCD_CHIP_T6D) {
 		reg_lvds_pack_ctrl = LVDS_PACK_CNTL_ADDR_T7 + offset;
 		reg_lvds_gen_ctrl = LVDS_GEN_CNTL_T7 + offset;
 		lcd_vcbus_write(LVDS_SER_EN + offset, 0xfff);
@@ -60,11 +62,12 @@ void lcd_lvds_enable(struct aml_lcd_drv_s *pdrv)
 		reg_lvds_pack_ctrl = LVDS_PACK_CNTL_ADDR;
 		reg_lvds_gen_ctrl = LVDS_GEN_CNTL;
 	}
-
+	if (pdrv->data->chip_type == LCD_CHIP_T6D)
+		lsb_first = 1;
 	lcd_vcbus_write(reg_lvds_pack_ctrl,
 			(lvds_repack << 0) | // repack //[1:0]
 			(sync_pol_reverse << 3) | // reserve
-			(0 << 4) |		// lsb first
+			(lsb_first << 4) |		// lsb first
 			(pn_swap << 5) |	// pn swap
 			(dual_port << 6) |	// dual port
 			(0 << 7) |		// use tcon control
@@ -76,7 +79,8 @@ void lcd_lvds_enable(struct aml_lcd_drv_s *pdrv)
 	if (pdrv->data->chip_type == LCD_CHIP_T5M ||
 	    pdrv->data->chip_type == LCD_CHIP_T3 ||
 	    pdrv->data->chip_type == LCD_CHIP_T7 ||
-	    pdrv->data->chip_type == LCD_CHIP_T3X) {
+	    pdrv->data->chip_type == LCD_CHIP_T3X ||
+	    pdrv->data->chip_type == LCD_CHIP_T6D) {
 		lcd_vcbus_write(P2P_BIT_REV_T7 + offset, 2);
 	}
 

@@ -322,6 +322,7 @@ void lcd_lane_map_set(struct aml_lcd_drv_s *pdrv)
 		lcd_vcbus_write(P2P_CH_SWAP1, channel_sel1);
 		break;
 	case LCD_CHIP_T5M:
+	case LCD_CHIP_T6D:
 		lcd_vcbus_write(P2P_CH_SWAP0_T7, channel_sel0);
 		lcd_vcbus_write(P2P_CH_SWAP1_T7, channel_sel1);
 		break;
