@@ -259,6 +259,17 @@ static int aml_ci_get_config_from_dts(struct platform_device *pdev,
 		pr_dbg("%s: 0x%x\n", buf, value);
 		ci->raw_mode = value;
 	}
+	ci->regulator_vcc5v = NULL;
+	if (of_find_property(pdev->dev.of_node, "vcc5v-supply", NULL)) {
+		ci->regulator_vcc5v = devm_regulator_get(&pdev->dev, "vcc5v");
+		if (IS_ERR_OR_NULL(ci->regulator_vcc5v)) {
+			pr_error("failed in regulator vcc5v %ld\n",
+				PTR_ERR(ci->regulator_vcc5v));
+			ci->regulator_vcc5v = NULL;
+		} else {
+			pr_dbg("Use regulator_vcc5v\n");
+		}
+	}
 	return 0;
 }
 

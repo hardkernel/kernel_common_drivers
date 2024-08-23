@@ -9,6 +9,7 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/gpio/consumer.h>
+#include <linux/regulator/consumer.h>
 #include "aml_pcmcia.h"
 #include "aml_ci.h"
 #include "dvb_ca_en50221.h"
@@ -47,6 +48,9 @@ struct aml_ci_bus {
 	/*for raw mode used*/
 	int used;
 	int raw_mode;
+	/*use regulator to control power*/
+	struct regulator *regulator_vcc5v;
+	int regulator_vcc5v_enabled;
 };
 
 enum aml_gpio_select_e {
