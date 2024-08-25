@@ -640,6 +640,10 @@ enum vdin_channel_id_e {
 	CHANNEL_VDIN_MAX,
 };
 
+struct vf_vrr_param_s {
+	u32 vin_base_fps;
+};
+
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
@@ -869,6 +873,7 @@ struct vframe_s {
 	enum dec_set_screen_mode_t dec_set_screen_mode;
 	enum dec_fence_status_t dec_fence_status;
 	u32 decoder_instid;
+	struct vf_vrr_param_s vf_vrr_param;
 } /*vframe_t */;
 
 #define VC_FLAG_AI_SR		0x1

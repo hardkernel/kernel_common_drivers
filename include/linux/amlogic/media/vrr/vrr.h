@@ -33,6 +33,7 @@ struct vrr_device_s {
 	void *dev_data;
 	unsigned int (*lfc_switch)(void *dev_data, int fps);
 	int (*disable_cb)(void *dev_data);
+	unsigned int v_active;
 };
 
 struct vrr_notifier_data_s {
@@ -130,7 +131,8 @@ static inline int aml_vrr_atomic_notifier_call_chain(unsigned long event,
 #endif
 bool frame_lock_type_vrr_lock(void);
 unsigned int vrr_check_frame_rate_min_hz(void);
-void vrr_crop_update_delay_line(u32 line, u8 vpp_index);
+void vrr_crop_update_delay_line(u32 line, u16 axis_y,
+u16 dst_w, u16 dst_h, u16 flag);
 struct aml_vrr_drv_s *aml_vrr_drv_active_sel(void);
 unsigned int vrr_instead_vlock(void);
 

@@ -3102,6 +3102,7 @@ static void vdin_set_vfe_info(struct vdin_dev_s *devp, struct vf_entry *vfe)
 	/* debug for video latency */
 	vfe->vf.ready_jiffies64 = jiffies_64;
 	vfe->vf.ready_clock[0] = sched_clock();
+	vfe->vf.vf_vrr_param.vin_base_fps = devp->vin_base_fps;
 
 	if (devp->game_mode)
 		vfe->vf.flag |= VFRAME_FLAG_GAME_MODE;

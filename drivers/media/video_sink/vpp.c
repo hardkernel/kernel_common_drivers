@@ -58,10 +58,6 @@
 #include "video_common.h"
 #include "video_safa_reg.h"
 
-#ifdef CONFIG_AMLOGIC_MEDIA_VRR
-#include <linux/amlogic/media/vrr/vrr.h>
-#endif
-
 #define MAX_NONLINEAR_FACTOR    0x40
 #define MAX_NONLINEAR_T_FACTOR    100
 
@@ -2435,10 +2431,6 @@ RESTART:
 		next_frame_par->crop_top = crop_top;
 		next_frame_par->crop_bottom = crop_bottom;
 	}
-
-#ifdef CONFIG_AMLOGIC_MEDIA_VRR
-	vrr_crop_update_delay_line(crop_top, vpp_index);
-#endif
 
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
 		next_frame_par->VPP_vd_start_lines_ &= ~1;

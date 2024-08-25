@@ -695,14 +695,15 @@ void vrrlock_process(struct vframe_s *vf,
 	if (!vinfo)
 		return;
 
-	if ((ret_hz == 50 || ret_hz == 100) && !frame_sts.vrr_policy) {
+	if (((ret_hz == 50 || ret_hz == 100) && !frame_sts.vrr_policy) ||
+		vf->vf_vrr_param.vin_base_fps == 50 || vf->vf_vrr_param.vin_base_fps == 100) {
 		vdata.line_dly = vrr_delay_line_50hz;
 		if (frame_lock_debug & VRR_POLICY_LOCK_STATUS_DEBUG_FLAG)
 			framelock_pr_info("%s vdata.line_dly:%d\n",
 				__func__, vdata.line_dly);
 	} else {
 		if (vf->compWidth * 9 == vf->compHeight * 16)
-			vdata.line_dly = vrr_delay_line;
+			vdata.line_dly = vrr_delay_line + line;
 		else if (vinfo->height == 2160)
 			vdata.line_dly =
 			(vf->compHeight < vinfo->height &&
@@ -798,9 +799,9 @@ void vrrlock_process(struct vframe_s *vf,
 			vdata.line_dly,
 			vrr_delay_line_pre,
 			line);
-		framelock_pr_info("spd_max:%d spd_min:%d\n",
+		framelock_pr_info("spd_max:%d spd_min:%d line:%d\n",
 			freesync_vsif_data.freesync_max_fps,
-			freesync_vsif_data.freesync_min_fps);
+			freesync_vsif_data.freesync_min_fps, line);
 	}
 
 	vrr_delay_line_pre = vdata.line_dly;
