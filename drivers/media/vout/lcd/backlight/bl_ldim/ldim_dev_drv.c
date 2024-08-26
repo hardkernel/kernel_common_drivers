@@ -109,6 +109,18 @@ struct ldim_dev_driver_s ldim_dev_drv = {
 		.pwm_duty_max = 4095,
 		.pwm_duty_min = 10,
 	},
+	.boost_conf = {
+		.en = 0,
+		.mode = 0,
+		.i_l100 = 0,
+		.i_l32 = 0,
+		.kp_l100 = 0,
+		.kp_l32 = 0,
+		.i_cur = 0,
+		.kp_cur = 0,
+		.apl = 0,
+		.pre_apl = 0,
+	},
 
 	.bl_row = 1,
 	.bl_col = 1,
@@ -1247,6 +1259,32 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 	}
 	LDIMPR("spi_sync:%d, spi_line_n: %d\n", dev_drv->spi_sync, dev_drv->spi_line_n);
 
+	/*boost_conf*/
+	ret = of_property_read_u32_array(child, "boost_conf", temp, 7);
+	if (ret) {
+		LDIMERR("failed to get boost_conf\n");
+		dev_drv->boost_conf.en = 0;
+		dev_drv->boost_conf.mode = 0;
+		dev_drv->boost_conf.i_max = 0;
+		dev_drv->boost_conf.i_l100 = 0;
+		dev_drv->boost_conf.i_l32 = 0;
+		dev_drv->boost_conf.kp_l100 = 0;
+		dev_drv->boost_conf.kp_l32 = 0;
+	} else {
+		dev_drv->boost_conf.en = (unsigned char)temp[0];
+		dev_drv->boost_conf.mode = (unsigned char)temp[1];
+		dev_drv->boost_conf.i_max = (unsigned char)temp[2];
+		dev_drv->boost_conf.i_l100 = (unsigned short)temp[3];
+		dev_drv->boost_conf.i_l32 = (unsigned short)temp[4];
+		dev_drv->boost_conf.kp_l100 = (unsigned char)temp[5];
+		dev_drv->boost_conf.kp_l32 = (unsigned char)temp[6];
+	}
+	LDIMPR("boost_conf: en:%d, mode:%d, imax: %d, i_l100: %d\n"
+		"i_l32:%d, kp_l100:%d, kp_l32:%d\n",
+		dev_drv->boost_conf.en, dev_drv->boost_conf.mode,
+		dev_drv->boost_conf.i_max, dev_drv->boost_conf.i_l100, dev_drv->boost_conf.i_l32,
+		dev_drv->boost_conf.kp_l100, dev_drv->boost_conf.kp_l32);
+
 	ret = of_property_read_u32(child, "chip_count", &val);
 	if (ret)
 		dev_drv->chip_cnt = 1;
@@ -1620,6 +1658,33 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 		ldim_spi_controller_data.use_ctrl_cs = 1;
 	}
 	LDIMPR("spi_sync: %d ,spi_line_n: %d\n", dev_drv->spi_sync, dev_drv->spi_line_n);
+
+	/* boost_conf (8Byte) */
+	temp =	(*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_3) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_3 + 1)) << 8) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_3 + 2)) << 16) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_3 + 3)) << 24));
+	dev_drv->boost_conf.en = (temp >> 31) & 0x1;
+	dev_drv->boost_conf.mode = (temp >> 24) & 0x7f;
+	dev_drv->boost_conf.kp_l32 = (temp >> 8) & 0xff;
+	dev_drv->boost_conf.kp_l100 = temp & 0xff;
+	temp =	(*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_4) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_4 + 1)) << 8) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_4 + 2)) << 16) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_4 + 3)) << 24));
+	dev_drv->boost_conf.i_l100 = temp & 0xffff;
+	dev_drv->boost_conf.i_l32 = (temp >> 16) & 0xffff;
+	temp =	(*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_5) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_5 + 1)) << 8) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_5 + 2)) << 16) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_5 + 3)) << 24));
+	dev_drv->boost_conf.i_max = temp & 0xffff;
+
+	LDIMPR("boost_conf: en:%d, mode:%d, imax: %d, i_l100: %d\n"
+		"i_l32:%d, kp_l100:%d, kp_l32:%d\n",
+		dev_drv->boost_conf.en, dev_drv->boost_conf.mode,
+		dev_drv->boost_conf.i_max, dev_drv->boost_conf.i_l100, dev_drv->boost_conf.i_l32,
+		dev_drv->boost_conf.kp_l100, dev_drv->boost_conf.kp_l32);
 
 	str = (const char *)(p + LCD_UKEY_LDIM_DEV_ZONE_MAP_PATH);
 	if (strlen(str) == 0) {
@@ -2171,6 +2236,10 @@ static int ldim_dev_add_driver(struct aml_ldim_driver_s *ldim_drv)
 #ifdef CONFIG_AMLOGIC_BL_LDIM_IW7027
 		ret = ldim_dev_iw7027_probe(ldim_drv);
 #endif
+	} else if (strcmp(dev_drv->name, "iw7039") == 0) {
+#ifdef CONFIG_AMLOGIC_BL_LDIM_IW7039
+		ret = ldim_dev_iw7039_probe(ldim_drv);
+#endif
 	} else if (strcmp(dev_drv->name, "blmcu") == 0) {
 #ifdef CONFIG_AMLOGIC_BL_LDIM_BLMCU
 		ret = ldim_dev_blmcu_probe(ldim_drv);
@@ -2206,6 +2275,10 @@ static int ldim_dev_remove_driver(struct aml_ldim_driver_s *ldim_drv)
 		if (strcmp(dev_drv->name, "iw7027") == 0) {
 #ifdef CONFIG_AMLOGIC_BL_LDIM_IW7027
 			ret = ldim_dev_iw7027_remove(ldim_drv);
+#endif
+		} else if (strcmp(dev_drv->name, "iw7039") == 0) {
+#ifdef CONFIG_AMLOGIC_BL_LDIM_IW7039
+			ret = ldim_dev_iw7039_remove(ldim_drv);
 #endif
 		} else if (strcmp(dev_drv->name, "blmcu") == 0) {
 #ifdef CONFIG_AMLOGIC_BL_LDIM_BLMCU
@@ -2311,6 +2384,21 @@ static void ldim_dev_probe_func(struct work_struct *work)
 		(ulong)ldim_dev_drv.spi_tx_dma, (ulong)ldim_dev_drv.spi_rx_dma);
 	if (ldim_dev_drv.spi_sync == SPI_DMA_TRIG)
 		ldim_wr_vcbus(VPP_INT_LINE_NUM, ldim_dev_drv.spi_line_n);
+
+	if (ldim_dev_drv.boost_conf.mode) {
+		if (ldim_drv->fw && ldim_drv->fw->iparam) {
+			ldim_drv->fw->iparam[2] = ldim_dev_drv.boost_conf.mode;
+			ldim_drv->fw->iparam[3] = ldim_dev_drv.boost_conf.i_l100;
+			ldim_drv->fw->iparam[4] = ldim_dev_drv.boost_conf.i_l32;
+			ldim_drv->fw->iparam[5] = ldim_dev_drv.boost_conf.kp_l100;
+			ldim_drv->fw->iparam[6] = ldim_dev_drv.boost_conf.kp_l32;
+			ldim_drv->fw->iparam[7] = ldim_dev_drv.boost_conf.i_max;
+
+			//default enable boost
+			if (ldim_dev_drv.boost_conf.en)
+				ldim_drv->fw->fw_ctrl |= FW_CTRL_BOOST_EN;
+		}
+	}
 
 	/* init ldim function */
 	ldim_drv->init();

@@ -407,33 +407,21 @@ void ldim_vs_arithmetic(struct aml_ldim_driver_s *ldim_drv)
 
 	if (fw->fw_alg_frm)
 		fw->fw_alg_frm(fw);
-	/*fw_sel: 0:hw, 1:aml sw, 2: aml sw + cus sw*/
-	if (fw->fw_sel == 0) {
-		if (fw->fw_rmem_duty_get)
-			fw->fw_rmem_duty_get(fw);
-		memcpy(ldim_drv->local_bl_matrix, fw->bl_matrix,
-		       size * (sizeof(unsigned int)));
-	} else {
-		if (fw->fw_sel == 1 || ldim_drv->debug_ctrl & 0x01) {
-			memcpy(ldim_drv->local_bl_matrix, fw->bl_matrix,
-		       size * (sizeof(unsigned int)));
-		} else {
-			if (!cus_fw || !cus_fw->bl_matrix)
-				return;
 
-			memcpy(cus_fw->bl_matrix, fw->bl_matrix, size * (sizeof(unsigned int)));
-			if (cus_fw->fw_alg_frm)
-				cus_fw->fw_alg_frm(cus_fw, fw->stts);
-			if (fw->fw_rmem_duty_set && cus_fw->comp_en)
-				fw->fw_rmem_duty_set(cus_fw->bl_matrix);
-			if (fw->fw_pq_set && cus_fw->pq_update) {
-				fw->fw_pq_set(&fw_pq);
-				cus_fw->pq_update = 0;
-			}
-			memcpy(ldim_drv->local_bl_matrix, cus_fw->bl_matrix,
-			size * (sizeof(unsigned int)));
-		}
+	memcpy(ldim_drv->local_bl_matrix, fw->bl_matrix, size * (sizeof(unsigned int)));
+
+	if (!cus_fw || !cus_fw->bl_matrix || !cus_fw->fw_alg_frm || ldim_drv->debug_ctrl & 0x01)
+		return;
+
+	memcpy(cus_fw->bl_matrix, fw->bl_matrix, size * (sizeof(unsigned int)));
+	cus_fw->fw_alg_frm(cus_fw, fw->stts);
+	if (fw->fw_rmem_duty_set && cus_fw->comp_en)
+		fw->fw_rmem_duty_set(cus_fw->bl_matrix);
+	if (fw->fw_pq_set && cus_fw->pq_update) {
+		fw->fw_pq_set(&fw_pq);
+		cus_fw->pq_update = 0;
 	}
+	memcpy(ldim_drv->local_bl_matrix, cus_fw->bl_matrix, size * (sizeof(unsigned int)));
 }
 
 /* ******************************************************
@@ -1140,7 +1128,7 @@ static int aml_ldim_malloc(struct platform_device *pdev, struct ldim_drv_data_s 
 		fw->iparam = kcalloc(FW_IPARAM_LEN, sizeof(int), GFP_KERNEL);
 		if (!fw->iparam)
 			goto ldim_malloc_t7_err5;
-		fw->oparam = kcalloc(FW_IPARAM_LEN, sizeof(int), GFP_KERNEL);
+		fw->oparam = kcalloc(FW_IPARAM_LEN + zone_num, sizeof(int), GFP_KERNEL);
 		if (!fw->oparam)
 			goto ldim_malloc_t7_err6;
 	}

@@ -165,10 +165,12 @@ int ldim_spi_write_async(struct spi_device *spi, unsigned char *tbuf,
 	memcpy(dev_drv->spi_tx_buf, tbuf, xlen * sizeof(unsigned char));//copy duty to spi tx buf
 	ret = cdata->dirspi_async(spi, dev_drv->spi_tx_dma, dev_drv->spi_rx_dma, xlen,
 		ldim_spi_async_callback, (void *)&ldim_spi_async_busy);
-	if (ret < 0)
+	if (ret < 0) {
 		LDIMERR("%s\n", __func__);
+		return -1;
+	}
 
-	return ret;
+	return 0;
 }
 
 int ldim_spi_init_dma_trig(struct spi_device *spi)
@@ -278,6 +280,39 @@ int ldim_spi_write_dma_trig(struct spi_device *spi, unsigned char *tbuf,
 	dev_drv->dma_trig_data_ready = 1;
 
 	return 0;
+}
+
+int ldim_spi_write_xfer(struct spi_device *spi, unsigned char *tbuf, int tlen)
+{
+	struct ldim_dev_driver_s *dev_drv = dev_get_drvdata(&spi->dev);
+	struct spicc_controller_data *cdata = spi->controller_data;
+	int ret;
+
+	if (!dev_drv) {
+		LDIMERR("%s: dev_drv is null\n", __func__);
+		return -1;
+	}
+	if (ldim_spi_async_busy) {
+		if (ldim_debug_print & LDIM_DBG_PR_SPI)
+			LDIMERR("%s: spi_async_busy=%d\n", __func__, ldim_spi_async_busy);
+		return -1;
+	}
+
+	if (tlen > 16) {
+		LDIMERR("%s: tlen=%d bigger than 16\n", __func__, tlen);
+		return -1;
+	}
+
+	ldim_spi_async_busy = 1;
+
+	spi->bits_per_word = 8;
+	ret = cdata->dirspi_xfer(spi, tbuf, 0, tlen);
+	spi->bits_per_word = 64;
+	if (ret)
+		LDIMERR("%s failed\n", __func__);
+	ldim_spi_async_busy = 0;
+
+	return ret;
 }
 
 int ldim_spi_write(struct spi_device *spi, unsigned char *tbuf, int tlen)

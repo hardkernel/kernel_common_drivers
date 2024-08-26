@@ -44,6 +44,20 @@ struct ldim_config_s {
 	unsigned char dev_index;
 };
 
+struct ldim_boost_s {
+	unsigned char en;
+	unsigned char mode;
+	unsigned short i_max;
+	unsigned short i_l100;
+	unsigned short i_l32;
+	unsigned char kp_l100;
+	unsigned char kp_l32;
+	unsigned char kp_cur;
+	unsigned short i_cur;
+	unsigned int apl;
+	unsigned int pre_apl;
+};
+
 #define LDIM_DEV_NAME_MAX    30
 #define LDIM_INIT_ON_MAX     2000
 #define LDIM_INIT_OFF_MAX    100
@@ -73,7 +87,7 @@ struct ldim_dev_driver_s {
 	unsigned char fault_check;
 	unsigned char write_check;
 	unsigned char pinmux_flag;
-	unsigned char chip_cnt;
+	unsigned int chip_cnt;
 	unsigned int mcu_header;
 	unsigned int mcu_dim;
 
@@ -97,6 +111,7 @@ struct ldim_dev_driver_s {
 
 	struct bl_pwm_config_s ldim_pwm_config;
 	struct bl_pwm_config_s analog_pwm_config;
+	struct ldim_boost_s boost_conf;
 
 	struct pinctrl *pin;
 	struct device *dev;

@@ -676,6 +676,38 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			ldim_drv->brightness_bypass = 0;
 		}
 		pr_info("level_idx = %d\n", ldim_drv->level_idx);
+	} else if (!strcmp(parm[0], "boost_en")) {
+		if (parm[1]) {
+			if (!strcmp(parm[1], "r")) {
+				dbg_attr.cmd = LDIM_DBG_ATTR_CMD_RD;
+				dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
+				dbg_attr.data = ldim_drv->dev_drv->boost_conf.en;
+				goto ldim_attr_store_end;
+			}
+			if (kstrtoul(parm[1], 0, &val1) < 0)
+				goto ldim_attr_store_err;
+
+			fw->fw_ctrl &= ~FW_CTRL_BOOST_EN;
+			if (val1)
+				fw->fw_ctrl |= FW_CTRL_BOOST_EN;
+			ldim_drv->dev_drv->boost_conf.en = (unsigned char)val1;
+		}
+		pr_info("boost_en = %d\n", ldim_drv->dev_drv->boost_conf.en);
+	} else if (!strcmp(parm[0], "boost_mode")) {
+		if (parm[1]) {
+			if (!strcmp(parm[1], "r")) {
+				dbg_attr.cmd = LDIM_DBG_ATTR_CMD_RD;
+				dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
+				dbg_attr.data = ldim_drv->dev_drv->boost_conf.mode;
+				goto ldim_attr_store_end;
+			}
+			if (kstrtoul(parm[1], 0, &val1) < 0)
+				goto ldim_attr_store_err;
+
+			ldim_drv->dev_drv->boost_conf.mode = (unsigned char)val1;
+			ldim_drv->fw->iparam[2] = (unsigned char)val1;
+		}
+		pr_info("boost_mode = %d\n", ldim_drv->dev_drv->boost_conf.mode);
 	} else if (!strcmp(parm[0], "spiout_mode")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
@@ -696,6 +728,13 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			ldim_drv->valid_flag = (unsigned char)val1;
 		}
 		pr_info("valid_flag = %d\n", ldim_drv->valid_flag);
+	} else if (!strcmp(parm[0], "duty_update")) {
+		if (parm[1]) {
+			if (kstrtoul(parm[1], 0, &val1) < 0)
+				goto ldim_attr_store_err;
+			ldim_drv->duty_update_flag = (unsigned char)val1;
+		}
+		pr_info("duty_update_flag = %d\n", ldim_drv->duty_update_flag);
 	} else if (!strcmp(parm[0], "fw")) {
 		if (fw->fw_alg_para_print)
 			fw->fw_alg_para_print(fw);
@@ -1033,6 +1072,33 @@ static ssize_t ldim_debug_store(struct class *class, struct class_attribute *att
 					ldim_drv->test_matrix[j] = 0;
 				ldim_drv->test_matrix[i] = 4095;
 				lcd_delay_ms(500);
+			}
+			ldim_drv->test_bl_en = 0;
+			goto ldim_debug_store_end;
+		}
+		if (!strcmp(parm[1], "fastrun")) {
+			ldim_drv->test_bl_en = 1;
+			for (j = 0; j < seg_size; j++)
+				ldim_drv->test_matrix[j] = 0;
+			for (i = 0; i < ldim_drv->conf->seg_row; i++) {
+				sidx = i * ldim_drv->conf->seg_col;
+				eidx = (i + 1) * ldim_drv->conf->seg_col;
+				for (j = sidx; j < eidx; j++)
+					ldim_drv->test_matrix[j] = 4095;
+				lcd_delay_ms(500);
+				for (j = sidx; j < eidx; j++)
+					ldim_drv->test_matrix[j] = 0;
+			}
+			for (i = 0; i < ldim_drv->conf->seg_col; i++) {
+				for (j = 0; j < ldim_drv->conf->seg_row; j++) {
+					sidx = i + j * ldim_drv->conf->seg_col;
+					ldim_drv->test_matrix[sidx] = 4095;
+				}
+				lcd_delay_ms(500);
+				for (j = 0; j < ldim_drv->conf->seg_row; j++) {
+					sidx = i + j * ldim_drv->conf->seg_col;
+					ldim_drv->test_matrix[sidx] = 0;
+				}
 			}
 			ldim_drv->test_bl_en = 0;
 			goto ldim_debug_store_end;

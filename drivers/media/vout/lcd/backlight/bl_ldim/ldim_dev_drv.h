@@ -21,6 +21,7 @@ int ldim_spi_dma_trig_start(struct spi_device *spi);
 int ldim_spi_dma_trig_stop(struct spi_device *spi);
 int ldim_spi_write_async(struct spi_device *spi, unsigned char *tbuf,
 			 unsigned char *rbuf, int tlen, int max_len);
+int ldim_spi_write_xfer(struct spi_device *spi, unsigned char *tbuf, int tlen);
 int ldim_spi_write(struct spi_device *spi, unsigned char *tbuf, int tlen);
 int ldim_spi_read(struct spi_device *spi, unsigned char *tbuf, int wlen,
 		  unsigned char *rbuf, int rlen);
@@ -40,6 +41,9 @@ void ldim_pwm_off(struct bl_pwm_config_s *ld_pwm);
 /* ldim dev api */
 int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv);
 int ldim_dev_iw7027_remove(struct aml_ldim_driver_s *ldim_drv);
+
+int ldim_dev_iw7039_probe(struct aml_ldim_driver_s *ldim_drv);
+int ldim_dev_iw7039_remove(struct aml_ldim_driver_s *ldim_drv);
 
 int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv);
 int ldim_dev_blmcu_remove(struct aml_ldim_driver_s *ldim_drv);
