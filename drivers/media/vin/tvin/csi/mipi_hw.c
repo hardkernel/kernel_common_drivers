@@ -233,6 +233,8 @@ static int init_am_mipi_csi2_adapter(struct amcsi_dev_s *csi_dev, struct csi_ada
 
 	WRITE_CSI_ADPT_REG(CSI2_INTERRUPT_CTRL_STAT, (1 << 1));
 
+	WRITE_CSI_ADPT_REG(CSI2_ERR_STAT0, 0xffff);
+
 	/*Enable clock*/
 	data32  = 0;
 	data32 |= 0 <<  2;
