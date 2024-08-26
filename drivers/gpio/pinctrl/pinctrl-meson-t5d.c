@@ -1239,7 +1239,7 @@ static const char * const pwm_e_groups[] = {
 };
 
 static const char * const pwm_f_groups[] = {
-	"pwm_f_z", "pwm_f_h"
+	"pwm_f_z", "pwm_f_h", "pwm_f_m"
 };
 
 static const char * const pwm_vs_groups[] = {
