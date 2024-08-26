@@ -196,7 +196,10 @@ u32 rx_5v_wake_up_en;
 int vpp_mute_cnt = 6;
 int gcp_mute_cnt = 25;
 int gcp_mute_flag[4];
-u32 edid_auto_sel;
+//auto edid white list rule:
+//1.spd packet first, cec vendor id/osd name second
+//2.cec driver can't cover tx type which found by spd packet
+u32 edid_auto_sel = EDID_AUTO20; //default enable auto edid
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 static bool early_suspend_flag;
 #endif
@@ -3481,7 +3484,6 @@ static struct early_suspend hdmirx_early_suspend_handler = {
 };
 #endif
 
-#ifdef CONFIG_EDID_AUTO_UPDATE
 static void cec_update_edid(int port_id, int dev_type)
 {
 	if (port_id < rx_info.port_num && dev_type != DEV_UNKNOWN &&
@@ -3491,7 +3493,6 @@ static void cec_update_edid(int port_id, int dev_type)
 			rx_pr("cec set tx_type[%d] to %d\n", port_id, dev_type);
 	}
 }
-#endif
 
 static int rx_get_top_irq_table(enum chip_id_e chip)
 {
@@ -4058,13 +4059,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx_5v_wake_up_en = 0;
 		sprintf(boot_info[i++], "not find rx_5v_wake_up_en, soundbar by default.");
 	}
-	ret = of_property_read_u32(pdev->dev.of_node,
-		"edid_auto_sel",
-		&edid_auto_sel);
-	if (ret) {
-		edid_auto_sel = 0;
-		sprintf(boot_info[i++], "not find edid_auto_sel, default disable.");
-	}
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0)
 		rx_pr("warning: no rev cmd mem\n");
@@ -4103,10 +4097,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 		aml_vrr_atomic_notifier_register(&vrr_notify);
 	}
 #endif
-#ifdef CONFIG_EDID_AUTO_UPDATE
 	if (edid_auto_sel == EDID_AUTO20)
 		register_cec_rx_notify(cec_update_edid);
-#endif
 	input_dev = input_allocate_device();
 	if (!input_dev) {
 		rx_pr("input_allocate_device failed\n");
