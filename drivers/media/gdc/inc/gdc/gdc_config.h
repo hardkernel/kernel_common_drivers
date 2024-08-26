@@ -119,11 +119,13 @@ struct gdc_irq_data_s {
 
 extern struct gdc_manager_s gdc_manager;
 
-extern int gdc_debug_enable;
+extern int gdc_endian_debug_enable;
+extern int gdc_uvswap_debug_enable;
 extern int gdc_in_swap_endian;
 extern int gdc_out_swap_endian;
 extern int gdc_in_swap_64bit;
 extern int gdc_out_swap_64bit;
+extern int gdc_uv_swap_enable;
 
 #define GDC_DEVICE(dev_type) ((dev_type) == ARM_GDC ?             \
 			      &gdc_manager.gdc_dev->pdev->dev :   \
@@ -428,6 +430,16 @@ static inline void gdc_dataout_swap_endian_write(u32 enable, u32 core_id)
 		curr |= (enable << 8);
 		system_gdc_write_32(ISP_DWAP_CMD_SWAP, curr, core_id);
 	}
+}
+
+// args: enable (1-uv swap  0-do not uv swap)
+static inline void gdc_uv_swap_write(u32 enable, u32 core_id)
+{
+	u32 curr = system_gdc_read_32(ISP_DWAP_CMD_SWAP, core_id);
+
+	curr &= ~(1 << 7);
+	curr |= (enable << 7);
+	system_gdc_write_32(ISP_DWAP_CMD_SWAP, curr, core_id);
 }
 
 // args: enable (1-swap 64bit of 128bit  0-do not swap)

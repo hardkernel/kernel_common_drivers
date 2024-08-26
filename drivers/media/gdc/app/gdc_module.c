@@ -63,11 +63,13 @@ static struct timer_data_s timer_data[HW_TYPE];
 #endif
 
 int gdc_log_level;
-int gdc_debug_enable;
+int gdc_endian_debug_enable;
+int gdc_uvswap_debug_enable;
 int gdc_in_swap_endian;
 int gdc_out_swap_endian;
 int gdc_in_swap_64bit;
 int gdc_out_swap_64bit;
+int gdc_uv_swap_enable;
 
 struct gdc_manager_s gdc_manager;
 static int kthread_created;
@@ -1518,6 +1520,7 @@ int gdc_process_phys(struct gdc_context_s *context,
 	gdc_cmd->use_sec_mem = gs->use_sec_mem;
 	gdc_cmd->in_endian = gs->in_endian;
 	gdc_cmd->out_endian = gs->out_endian;
+	gdc_cmd->uvswap_enable = gs->uvswap_enable;
 
 	/* set config_paddr MSB val */
 	context->dma_cfg.config_cfg.paddr_8g_msb = (u64)gs->config_paddr >> 32;
@@ -2156,7 +2159,7 @@ static ssize_t debug_endian_show(struct device *device,
 					char *buf)
 {
 	return snprintf(buf, 80, "%d %d %d %d %d\n",
-			gdc_debug_enable,
+			gdc_endian_debug_enable,
 			gdc_in_swap_endian,
 			gdc_out_swap_endian,
 			gdc_in_swap_64bit,
@@ -2170,7 +2173,7 @@ static ssize_t debug_endian_store(struct device *device,
 	int parsed[5];
 
 	if (likely(parse_para(buf, 5, parsed) == 5)) {
-		gdc_debug_enable    = parsed[0];
+		gdc_endian_debug_enable    = parsed[0];
 		gdc_in_swap_endian  = parsed[1];
 		gdc_out_swap_endian = parsed[2];
 		gdc_in_swap_64bit   = parsed[3];
@@ -2183,6 +2186,33 @@ static ssize_t debug_endian_store(struct device *device,
 }
 
 static DEVICE_ATTR_RW(debug_endian);
+
+static ssize_t debug_uvswap_show(struct device *device,
+					struct device_attribute *attr,
+					char *buf)
+{
+	return snprintf(buf, 80, "%d %d\n",
+			gdc_uvswap_debug_enable,
+			gdc_uv_swap_enable);
+}
+
+static ssize_t debug_uvswap_store(struct device *device,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	int parsed[5];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		gdc_uvswap_debug_enable    = parsed[0];
+		gdc_uv_swap_enable         = parsed[1];
+	} else {
+		pr_err("wrong params\n");
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(debug_uvswap);
 
 void irq_handle_func(struct work_struct *work)
 {
@@ -2481,6 +2511,8 @@ static int gdc_platform_probe(struct platform_device *pdev)
 			   &dev_attr_config_out_path);
 	device_create_file(gdc_dev->misc_dev.this_device,
 			   &dev_attr_debug_endian);
+	device_create_file(gdc_dev->misc_dev.this_device,
+			   &dev_attr_debug_uvswap);
 
 	platform_set_drvdata(pdev, gdc_dev);
 	dev_set_drvdata(gdc_dev->misc_dev.this_device, gdc_dev);
