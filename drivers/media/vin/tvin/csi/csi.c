@@ -224,7 +224,7 @@ int amcsi_isr(struct tvin_frontend_s *fe, unsigned int hcnt, enum tvin_port_type
 		DPRINT("error state:0x%x.,status:0x%x\n",
 			frame.err, data1);
 		devp->overflow_cnt++;
-		WRITE_CSI_ADPT_REG(CSI2_ERR_STAT0, 0);
+		WRITE_CSI_ADPT_REG(CSI2_ERR_STAT0, 0xffff);
 	}
 	if (devp->overflow_cnt > 4) {
 		DPRINT("should reset mipi\n");
