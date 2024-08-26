@@ -294,10 +294,11 @@
 
 	jtag {
 		compatible = "amlogic, jtag";
-		status = "disabled";
+		status = "okay";
 		select = "disable"; /* disable/jtag_a/jtag_b */
-		pinctrl-names="jtag_a_pins";
+		pinctrl-names="jtag_a_pins", "jtag_b_pins";
 		pinctrl-0=<&jtag_a_pins>;
+		pinctrl-1=<&jtag_b_pins>;
 	};
 
 	vbat: fixed@vbat {
@@ -2651,11 +2652,37 @@
 
 	jtag_a_pins: jtag_a_pin {
 		mux {
-			groups = "jtag_a_tdi",
-				 "jtag_a_tdo",
-				 "jtag_a_clk",
-				 "jtag_a_tms";
+			groups = "jtag_a_clk_d6",
+				 "jtag_a_tms_d7",
+				 "jtag_a_tdi_d8",
+				 "jtag_a_tdo_d9";
 			function = "jtag_a";
+		};
+
+		mux-unused {
+			groups = "GPIOW_2",
+				 "GPIOW_3",
+				 "GPIOW_6",
+				 "GPIOW_7";
+			function = "gpio_periphs";
+		};
+	};
+
+	jtag_b_pins: jtag_b_pin {
+		mux {
+			groups = "jtag_a_clk_w2",
+				 "jtag_a_tms_w3",
+				 "jtag_a_tdi_w6",
+				 "jtag_a_tdo_w7";
+			function = "jtag_a";
+		};
+
+		mux-unused {
+			groups = "GPIOD_6",
+				 "GPIOD_7",
+				 "GPIOD_8",
+				 "GPIOD_9";
+			function = "gpio_periphs";
 		};
 	};
 
