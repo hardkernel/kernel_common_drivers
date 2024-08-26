@@ -1304,38 +1304,37 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			analy_en = 0;
 		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 			analy_en, 4, 1);
-
-		if (cur_dev->vsr_nonlinear_support &&
-			vsr_safa->nonlinear_4region_en) {
-			//Wr_reg_bits(SAFA_PPS_INTERP_EN_MODE,1,26,1);
-			//Wr_reg_bits(SAFA_PPS_HW_CTRL,1,19,1);
-			rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
-				1, 26, 1);
-			rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-				1, 19, 1);
-			rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region12_startp,
-				(0 << VPP_REGION1_BIT) |
-				((vsr_safa->vpp_hsc_r1 & VPP_REGION_MASK)
-				<< VPP_REGION2_BIT));
-			rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region34_startp,
-				((vsr_safa->vpp_hsc_r2 & VPP_REGION_MASK)
-				<< VPP_REGION3_BIT) |
-				((vsr_safa->vpp_hsc_r3 & VPP_REGION_MASK)
-				<< VPP_REGION4_BIT));
-			rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region4_endp,
-				vsr_safa->vpp_hsc_r3);
-			rdma_wr(vsr_reg->safa_pps_hsc_start_phase_step,
-				vsr_safa->vpp_hf_start_phase_step);
-			rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region1_phase_slop,
-				vsr_safa->vpp_hf_start_phase_slope);
-			rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region3_phase_slop,
-				vsr_safa->vpp_hf_end_phase_slope);
-		} else {
-			rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
-				0, 26, 1);
-			rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-				0, 19, 1);
-		}
+	}
+	if (cur_dev->vsr_nonlinear_support &&
+		vsr_safa->nonlinear_4region_en) {
+		//Wr_reg_bits(SAFA_PPS_INTERP_EN_MODE,1,26,1);
+		//Wr_reg_bits(SAFA_PPS_HW_CTRL,1,19,1);
+		rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
+			1, 26, 1);
+		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+			1, 19, 1);
+		rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region12_startp,
+			(0 << VPP_REGION1_BIT) |
+			((vsr_safa->vpp_hsc_r1 & VPP_REGION_MASK)
+			<< VPP_REGION2_BIT));
+		rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region34_startp,
+			((vsr_safa->vpp_hsc_r2 & VPP_REGION_MASK)
+			<< VPP_REGION3_BIT) |
+			((vsr_safa->vpp_hsc_r3 & VPP_REGION_MASK)
+			<< VPP_REGION4_BIT));
+		rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region4_endp,
+			vsr_safa->vpp_hsc_r3);
+		rdma_wr(vsr_reg->safa_pps_hsc_start_phase_step,
+			vsr_safa->vpp_hf_start_phase_step);
+		rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region1_phase_slop,
+			vsr_safa->vpp_hf_start_phase_slope);
+		rdma_wr(vsr_nonlinear_reg->safa_pps_hsc_region3_phase_slop,
+			vsr_safa->vpp_hf_end_phase_slope);
+	} else {
+		rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
+			0, 26, 1);
+		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+			0, 19, 1);
 	}
 	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 		safa_pps_top_en, 8, 1);
