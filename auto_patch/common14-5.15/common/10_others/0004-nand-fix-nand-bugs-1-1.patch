@@ -1,4 +1,4 @@
-From 3a8eaacf753be6a289424e26d023f98634c0db6a Mon Sep 17 00:00:00 2001
+From a82793ad92cce71c153524cc1e4326d3aef8c9b2 Mon Sep 17 00:00:00 2001
 From: Bichao Zheng <bichao.zheng@amlogic.com>
 Date: Thu, 20 Apr 2023 16:23:24 +0800
 Subject: [PATCH] nand: fix nand bugs [1/1]
@@ -6,32 +6,57 @@ Subject: [PATCH] nand: fix nand bugs [1/1]
 PD#SWPL-120491
 PD#SWPL-129754
 PD#SWPL-155674
+PD#SWPL-183416
 
 Problem:
 1.wrong select onfi mode
 2.erase flash error during OTA upgrade
 3.strncmp can't match full id 01h,DCh,00h,05h,04h(S34ML04G300BHI00)
 and 01h,DCh,00h,1Ah,00h(S34ML04G300TFI000)
+4.mtd_device_parse_register panic when parse_mtd_partitions return -EPROBE_DEFER
 
 Solution:
 1.get onfi mode from id table
 2.change the check way of badblock
 3.use memcmp to compare ID memory instead strncmp
+4.nvmem_unregister otp_user_nvmem/otp_factory_nvmem if them existing
 
 Verify:
 1-2:s4
 3:AT301_T962D4-K35E(1.5G) #256
+4:BR309-T950D5_SOCKET #48
 
 Change-Id: Ie747ceb95f1045c2acaaf2afb6862c9b05d36d8b
 Signed-off-by: Bichao Zheng <bichao.zheng@amlogic.com>
 Signed-off-by: zhikui.cui <zhikui.cui@amlogic.com>
 ---
+ drivers/mtd/mtdcore.c               |  7 +++++++
  drivers/mtd/nand/raw/nand_base.c    | 13 ++++++++++++-
  drivers/mtd/nand/raw/nand_bbt.c     | 12 +++++++++++-
  drivers/mtd/nand/raw/nand_timings.c |  4 ++++
  include/linux/mtd/rawnand.h         | 17 +++++++++++++++++
- 4 files changed, 44 insertions(+), 2 deletions(-)
+ 5 files changed, 51 insertions(+), 2 deletions(-)
 
+diff --git a/drivers/mtd/mtdcore.c b/drivers/mtd/mtdcore.c
+index 2a228ee32641..69fdc815d9a9 100644
+--- a/drivers/mtd/mtdcore.c
++++ b/drivers/mtd/mtdcore.c
+@@ -1008,8 +1008,15 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
+
+ out:
+ 	if (ret) {
++#if (IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND) || IS_ENABLED(CONFIG_AMLOGIC_MTD_SPI_NAND))
++		if (mtd->otp_user_nvmem)
++			nvmem_unregister(mtd->otp_user_nvmem);
++		if (mtd->otp_factory_nvmem)
++			nvmem_unregister(mtd->otp_factory_nvmem);
++#else
+ 		nvmem_unregister(mtd->otp_user_nvmem);
+ 		nvmem_unregister(mtd->otp_factory_nvmem);
++#endif
+ 	}
+
+ 	if (ret && device_is_registered(&mtd->dev))
 diff --git a/drivers/mtd/nand/raw/nand_base.c b/drivers/mtd/nand/raw/nand_base.c
 index 881e768f636f..d1a47b7bf8f9 100644
 --- a/drivers/mtd/nand/raw/nand_base.c
