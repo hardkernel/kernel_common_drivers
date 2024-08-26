@@ -4591,12 +4591,17 @@ static void free_reserved_mem(unsigned long start, unsigned long size)
 {
 	unsigned long end = PAGE_ALIGN(start + size);
 	struct page *page, *epage;
+	struct device_node *node = NULL;
 
 	pr_info("%s %d logo start_addr=%lx, end=%lx\n", __func__, __LINE__, start, end);
 	page = phys_to_page(start);
 	if (PageHighMem(page)) {
 		free_reserved_highmem(start, end);
 	} else {
+		node = of_find_node_by_path("/reserved-memory/linux,meson-fb");
+		/* Do nothing if linux,iotrace status is disabled */
+		if (!of_device_is_available(node))
+			return;
 		epage = phys_to_page(end);
 		if (!PageHighMem(epage)) {
 			aml_free_reserved_area(__va(start),
@@ -4656,6 +4661,12 @@ static void mem_free_work(struct work_struct *work)
 					     __func__, start_addr);
 #ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 #ifdef CONFIG_ARM64
+				struct device_node *node = NULL;
+
+				node = of_find_node_by_path("/reserved-memory/linux,meson-fb");
+				/* Do nothing if linux,iotrace status is disabled */
+				if (!of_device_is_available(node))
+					return;
 				r = aml_free_reserved_area(__va(start_addr),
 						       __va(end_addr),
 						       0, "fb-memory");
