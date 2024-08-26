@@ -5092,6 +5092,7 @@ static struct osd_device_hw_s t5m_dev_property = {
 	.display_type = T7_DISPLAY,
 	.has_8G_addr = 1,
 	.multi_afbc_core = 1,
+	.share_afbc_core = 1,
 	.has_multi_vpp = 1,
 	.new_blend_bypass = 1,
 	.path_ctrl_independ = 1,
