@@ -581,9 +581,11 @@ void lrm_release_unused(void)
 	lrm->size = offset;
 	if (lrm->size == 0) {
 		kfree(lrm->bootargs);
+		spin_unlock_irqrestore(&lrm->lock, flags);
 		kfree(lrm);
 		lcd_reserved_memory = NULL;
 		LRMPR("%s reserved memory no used, deinit\n", __func__);
+		return;
 	}
 
 lrm_release_unused_exit:
@@ -725,14 +727,14 @@ int lcd_reserved_memory_init(struct platform_device *pdev)
 		return 0;
 
 	np = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
-	if (!np) {
-		LRMPR("%s con't find lcd-reserved node", __func__);
+	if (!np || !of_device_is_available(np)) {
+		LRMPR("%s can't find lcd-reserved node", __func__);
 		return -ENODEV;
 	}
 
 	rmem = of_reserved_mem_lookup(np);
 	if (!rmem) {
-		LRMPR("%s con't find lcd-reserved", __func__);
+		LRMPR("%s can't find lcd-reserved", __func__);
 		return -EINVAL;
 	}
 

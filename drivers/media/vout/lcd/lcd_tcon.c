@@ -2717,7 +2717,7 @@ static int lcd_tcon_reserved_memory_init(struct aml_lcd_drv_s *pdrv)
 	}
 
 	mem_node = of_parse_phandle(pdrv->dev->of_node, "memory-region", 0);
-	if (!mem_node) {
+	if (!mem_node || !of_device_is_available(mem_node)) {
 		LCDERR("tcon get memory-region fail\n");
 		return -1;
 	}
@@ -2770,7 +2770,7 @@ static void lcd_tcon_reserved_memory_release(struct aml_lcd_drv_s *pdrv)
 		LCDPR("%s\n", __func__);
 
 	mem_node = of_parse_phandle(pdrv->dev->of_node, "memory-region", 0);
-	if (!mem_node) {
+	if (!mem_node || !of_device_is_available(mem_node)) {
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDPR("no tcon memory-region\n");
 		return;
