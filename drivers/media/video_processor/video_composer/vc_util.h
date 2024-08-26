@@ -65,6 +65,7 @@ struct composer_vf_para {
 	int dst_buf_stride;
 	int dst_endian;
 	bool is_tvp;
+	bool uvswap_enable;
 };
 
 struct pic_struct_t {
