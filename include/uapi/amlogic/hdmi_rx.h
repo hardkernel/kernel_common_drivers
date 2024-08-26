@@ -28,28 +28,36 @@ enum hdcp14_key_mode_e {
 };
 
 /* source product descriptor infoFrame  - 0x83 */
-//0x00 "unknown",
-//0x01 "Digital STB",
-//0x02 "DVD player",
-//0x03 "D-VHS",
-//0x04 "HDD Videorecorder",
-//0x05 "DVC",
-//0x06 "DSC",
-//0x07 "Video CD",
-//0x08 "Game",
-//0x09 "PC general",
-//0x0A "Blu-Ray Disc (BD)",
-//0x0B "Super Audio CD",
-//0x0C "HD DVD",
-//0x0D "PMP",
-//0x1A "FREESYNC"
+/*
+ *0x00 "unknown",
+ *0x01 "Digital STB",
+ *0x02 "DVD player",
+ *0x03 "D-VHS",
+ *0x04 "HDD Videorecorder",
+ *0x05 "DVC",
+ *0x06 "DSC",
+ *0x07 "Video CD",
+ *0x08 "Game",
+ *0x09 "PC general",
+ *0x0A "Blu-Ray Disc (BD)",
+ *0x0B "Super Audio CD",
+ *0x0C "HD DVD",
+ *0x0D "PMP",
+ *0x1A "FREESYNC"
+ */
 struct spd_infoframe_st {
 	unsigned char pkttype;
 	unsigned char version;
 	unsigned char length;
-	//u8 rsd;  //note: T3 has not this byte. T5 has it.
+	/*
+	 * u8 rsd;
+	 * note: T3 has not this byte. T5 has it.
+	 */
 	unsigned char checksum;
-	//u8 ieee_oui[3]; //data[1:3]
+	/*
+	 * u8 ieee_oui[3];
+	 * data[1:3]
+	 */
 	union meta_u {
 		struct freesync_st {
 			/*PB1-3*/
@@ -60,10 +68,10 @@ struct spd_infoframe_st {
 			unsigned char supported:1;
 			unsigned char enabled:1;
 			unsigned char active:1;
-			//u8 cs_active:1;
+			/* u8 cs_active:1; */
 			unsigned char rsvd2:5;
-			//u8 ld_disable:1;
-			//u8 rsvd3:3;
+			/* u8 ld_disable:1; */
+			/* u8 rsvd3:3; */
 			unsigned char min_frame_rate;
 			unsigned char max_frame_rate;
 			/*pb9-pb27*/

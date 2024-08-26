@@ -7,16 +7,16 @@
 #define __FRC_H__
 
 enum frc_fpp_state_e {
-	FPP_MEMC_OFF = 0,    // MEMC OFF
-	FPP_MEMC_LOW,        // MEMC LOW, default level9
-	FPP_MEMC_MID,        // MEMC MID, default level10
-	FPP_MEMC_HIGH,       // MEMC HIGH, default level10 and fullback
-	FPP_MEMC_CUSTOME,    // Retain customization
-	FPP_MEMC_24PFILM,    // 24P Film mode, 32 Pulldown out 48fps
+	FPP_MEMC_OFF = 0,    /* MEMC OFF */
+	FPP_MEMC_LOW,        /* MEMC LOW, default level9 */
+	FPP_MEMC_MID,        /* MEMC MID, default level10 */
+	FPP_MEMC_HIGH,       /* MEMC HIGH, default level10 and fullback */
+	FPP_MEMC_CUSTOME,    /* Retain customization */
+	FPP_MEMC_24PFILM,    /* 24P Film mode, 32 Pulldown out 48fps */
 	FPP_MEMC_MAX,
 };
 
-// MEMC Type Definition
+/* MEMC Type Definition */
 enum v4l2_ext_memc_type_old {
 	V4L2_EXT_MEMC_TYPE_OFF = 0,
 	V4L2_EXT_MEMC_TYPE_LOW,
@@ -30,7 +30,7 @@ enum v4l2_ext_memc_type {
 	V4L2_EXT_MEMC_OFF          = V4L2_EXT_MEMC_TYPE_OFF,
 	V4L2_EXT_MEMC_CINEMA_CLEAR = V4L2_EXT_MEMC_TYPE_MEDIUM,
 	V4L2_EXT_MEMC_NATURAL      = V4L2_EXT_MEMC_TYPE_LOW,
-	V4L2_EXT_MEMC_SMOOTH       = V4L2_EXT_MEMC_TYPE_HIGH, //
+	V4L2_EXT_MEMC_SMOOTH       = V4L2_EXT_MEMC_TYPE_HIGH,
 	V4L2_EXT_MEMC_USER         = V4L2_EXT_MEMC_TYPE_USER,
 	V4L2_EXT_MEMC_PULLDOWN_55  = V4L2_EXT_MEMC_TYPE_55_PULLDOWN
 };
@@ -41,7 +41,7 @@ struct v4l2_ext_memc_motion_comp_info {
 	enum v4l2_ext_memc_type memc_type;
 };
 
-//==== ioctl define =============
+/* ==== ioctl define ============= */
 #define FRC_IOC_MAGIC                   'F'
 #define FRC_IOC_GET_FRC_EN      _IOR(FRC_IOC_MAGIC, 0x00, unsigned int)
 #define FRC_IOC_GET_FRC_STS     _IOR(FRC_IOC_MAGIC, 0x01, unsigned int)
