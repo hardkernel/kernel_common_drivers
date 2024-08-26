@@ -1324,26 +1324,24 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		}
 	} else {
 		if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) && !dev->di_is_tvp) {
-			dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to tvp.\n");
+			dp_print(dev->index, PRINT_ERROR, "need up layer reinit to tvp.\n");
 			tvp_switch = true;
 		} else if (!(vf->flag & VFRAME_FLAG_VIDEO_SECURE) && dev->di_is_tvp) {
-			dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to non-tvp.\n");
+			dp_print(dev->index, PRINT_ERROR, "need up layer reinit to non-tvp.\n");
 			tvp_switch = true;
 		} else {
 			tvp_switch = false;
 		}
 
-		/*need check I/P switch when vpp pre link*/
-		if (dim_get_pre_link()) {
-			if ((vf->type & VIDTYPE_INTERLACE) && !dev->cur_is_i) {
-				dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to I.\n");
-				ip_switch = true;
-			} else if (!(vf->type & VIDTYPE_INTERLACE) && dev->cur_is_i) {
-				dp_print(dev->index, PRINT_ERROR, "need uplayer reinit to P.\n");
-				ip_switch = true;
-			} else {
-				ip_switch = false;
-			}
+		/*need check I/P switch*/
+		if ((vf->type & VIDTYPE_INTERLACE) && !dev->cur_is_i) {
+			dp_print(dev->index, PRINT_ERROR, "need up layer reinit to I.\n");
+			ip_switch = true;
+		} else if (!(vf->type & VIDTYPE_INTERLACE) && dev->cur_is_i) {
+			dp_print(dev->index, PRINT_ERROR, "need up layer reinit to P.\n");
+			ip_switch = true;
+		} else {
+			ip_switch = false;
 		}
 
 		if (tvp_switch || ip_switch) {
