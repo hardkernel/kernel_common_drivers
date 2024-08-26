@@ -252,23 +252,29 @@ static void meson_panel_encoder_atomic_enable(struct drm_encoder *encoder,
 		 meson_crtc_state->prev_vrefresh, vrefresh);
 
 	if (encoder->crtc->state->vrr_enabled) {
-		if (strcmp(meson_crtc_state->brr_mode, meson_old_crtc_state->brr_mode)) {
+		/*for keystone projector, switch loopback may change connector's crtc*/
+		if (strcmp(meson_crtc_state->brr_mode, meson_old_crtc_state->brr_mode) ||
+			encoder->crtc->state->connectors_changed ||
+			encoder->crtc->state->active_changed) {
 			meson_vout_notify_mode_change(amcrtc->vout_index,
 				vmode, EVENT_MODE_SET_START);
 			vout_func_set_vmode(amcrtc->vout_index, vmode);
 			meson_vout_notify_mode_change(amcrtc->vout_index,
 				vmode, EVENT_MODE_SET_FINISH);
 			meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "lcd");
-			DRM_INFO("vrr mode, use set_vmode\n");
 		}
 
 		if (vrefresh != meson_crtc_state->brr ||
-		    meson_crtc_state->prev_vrefresh != vrefresh) {
+		    meson_crtc_state->prev_vrefresh != vrefresh ||
+			encoder->crtc->state->connectors_changed ||
+			encoder->crtc->state->active_changed) {
 			lcd_frac_hint = find_frac_hint_by_fps(vrefresh);
 			vout_func_set_vframe_rate_hint(amcrtc->vout_index, lcd_frac_hint);
-			DRM_INFO("vrr mode, use set_vframe_rate_hint, %s-%s, %d-%d\n",
+			DRM_INFO("vrr mode, use set_vframe_rate_hint, %s-%s, %d-%d, %d-%d\n",
 				 meson_crtc_state->brr_mode, meson_old_crtc_state->brr_mode,
-				 meson_crtc_state->brr, lcd_frac_hint);
+				 meson_crtc_state->brr, lcd_frac_hint,
+				 encoder->crtc->state->connectors_changed,
+				 encoder->crtc->state->active_changed);
 		}
 
 		meson_crtc_state->prev_vrefresh = vrefresh;
@@ -367,7 +373,7 @@ int meson_encoder_vrr_change(struct drm_encoder *encoder,
 		meson_crtc_state->seamless = false;
 	}
 
-	DRM_INFO("[%s], seamless is %d\n", __func__, meson_crtc_state->seamless);
+	DRM_DEBUG("[%s], seamless is %d\n", __func__, meson_crtc_state->seamless);
 	return meson_crtc_state->seamless;
 }
 
@@ -379,6 +385,9 @@ static int meson_panel_encoder_atomic_check(struct drm_encoder *encoder,
 	struct drm_display_mode *adj_mode = &crtc_state->adjusted_mode;
 	struct am_meson_crtc_state *meson_crtc_state =
 		to_am_meson_crtc_state(crtc_state);
+
+	if (!crtc_state->vrr_enabled)
+		memset(meson_crtc_state->brr_mode, 0, DRM_DISPLAY_MODE_LEN);
 
 	if (crtc_state->vrr_enabled || meson_crtc_state->uboot_mode_init)
 		meson_panel_cal_brr(am_lcd, meson_crtc_state, adj_mode);
