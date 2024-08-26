@@ -386,6 +386,7 @@ static void __iomem *exit_reg;
 static suspend_state_t pm_state;
 static unsigned int resume_reason;
 static unsigned int suspend_reason;
+static unsigned int clear_suspend_reason;
 static bool is_extd_resume_reason;
 
 /*
@@ -591,9 +592,24 @@ void gx_pm_syscore_resume(void)
 	set_resume_method(get_resume_reason());
 }
 
+/*clear wakeup reason*/
+void gx_pm_syscore_shutdown(void)
+{
+	u32 val;
+
+	if (exit_reg && is_extd_resume_reason &&
+			clear_suspend_reason) {
+		val = readl_relaxed(exit_reg);
+		if ((val & clear_suspend_reason) == clear_suspend_reason)
+			val &= ~clear_suspend_reason;
+		writel_relaxed(val, exit_reg);
+	}
+}
+
 static struct syscore_ops gx_pm_syscore_ops = {
 	.suspend = gx_pm_syscore_suspend,
 	.resume	= gx_pm_syscore_resume,
+	.shutdown = gx_pm_syscore_shutdown,
 };
 
 static int __init gx_pm_init_ops(void)
@@ -616,6 +632,14 @@ static int meson_pm_probe(struct platform_device *pdev)
 		is_extd_resume_reason = true;
 	else
 		is_extd_resume_reason = false;
+
+	if (of_property_read_u32(pdev->dev.of_node, "clear_suspend_reason",
+		&clear_suspend_reason)) {
+		dev_info(&pdev->dev, "clear_suspend_reason not found, using default\n");
+		clear_suspend_reason = 0;
+	} else {
+		dev_info(&pdev->dev, "clear_suspend_reason found: 0x%x\n", clear_suspend_reason);
+	}
 
 	debug_reg = of_iomap(pdev->dev.of_node, 0);
 	if (!debug_reg)
