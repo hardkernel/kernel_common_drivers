@@ -56,7 +56,7 @@ struct ambient_cfg_s {
 };
 
 struct dv_config_data_s {
-	unsigned int file_name;  // 0:cfg 1:bin
+	unsigned int file_name;  /* 0:cfg 1:bin */
 	unsigned int file_size;
 	union {
 		void *file_data;

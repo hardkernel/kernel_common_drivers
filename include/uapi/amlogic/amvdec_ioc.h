@@ -124,7 +124,7 @@ struct am_ioctl_parm {
 struct stream_buffer_metainfo {
 	union {
 		__u32 stbuf_start;
-		__u32 stbuf_pktaddr; //stbuf_pktaddr + stbuf_pktsize = wp
+		__u32 stbuf_pktaddr; /* stbuf_pktaddr + stbuf_pktsize = wp */
 	};
 	union {
 		__u32 stbuf_size;
@@ -264,7 +264,7 @@ struct vframe_qos_s {
 	int max_mv;
 	int min_mv;
 	int avg_mv;
-	int decode_buffer;//For padding currently
+	int decode_buffer;/* For padding currently */
 } /*vframe_qos */;
 
 struct av_info_t {
@@ -488,7 +488,7 @@ struct vframe_counter_s {
 	__u32 frame_count;
 	__u32 error_frame_count;
 	__u32 drop_frame_count;
-	__u64 total_data;//this member must be 8 bytes alignment
+	__u64 total_data;  /* this member must be 8 bytes alignment */
 	union {
 		__u32 samp_cnt;
 		/* Effective in h265,vp9,avs2 multi-instance */
@@ -505,9 +505,9 @@ struct vframe_counter_s {
 	__u64 pts_us64;
 	/*mediacodec report*/
 	struct_group(ipb,
-	unsigned int i_decoded_frames; //i frames decoded
-	unsigned int i_lost_frames;//i frames can not be decoded
-	unsigned int i_concealed_frames;//i frames decoded but have some error
+	unsigned int i_decoded_frames;  /* i frames decoded */
+	unsigned int i_lost_frames;     /* i frames can not be decoded */
+	unsigned int i_concealed_frames;/* i frames decoded but have some error */
 	unsigned int p_decoded_frames;
 	unsigned int p_lost_frames;
 	unsigned int p_concealed_frames;
@@ -541,7 +541,7 @@ struct vframe_counter_s_old {
 	__u32 frame_count;
 	__u32 error_frame_count;
 	__u32 drop_frame_count;
-	__u64 total_data;//this member must be 8 bytes alignment
+	__u64 total_data;/* this member must be 8 bytes alignment */
 	union {
 		__u32 samp_cnt;
 		/* Effective in h265,vp9,avs2 multi-instance */

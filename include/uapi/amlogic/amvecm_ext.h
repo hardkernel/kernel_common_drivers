@@ -338,7 +338,7 @@ enum ecm_14_color_md {
 };
 
 struct cm_color_md {
-	enum ecm_color_type	color_type;//0: 9 color; 1: 14 color
+	enum ecm_color_type	color_type;/* 0: 9 color; 1: 14 color */
 	enum ecm2colormode	cm_9_color_md;
 	enum ecm_14_color_md cm_14_color_md;
 	int color_value;
@@ -424,42 +424,42 @@ struct pre_gamma_table_s {
 
 /*adjust for user*/
 struct hdr_tmo_sw {
-	int tmo_en;              // 0 1
-	int reg_highlight;       //u10: control overexposure level
-	int reg_hist_th;         //u7
+	int tmo_en;              /* 0 1 */
+	int reg_highlight;       /* u10: control overexposure level */
+	int reg_hist_th;         /* u7 */
 	int reg_light_th;
 	int reg_highlight_th1;
 	int reg_highlight_th2;
-	int reg_display_e;       //u10
-	int reg_middle_a;        //u7
-	int reg_middle_a_adj;    //u10
-	int reg_middle_b;        //u7
-	int reg_middle_s;        //u7
-	int reg_max_th1;          //u10
-	int reg_middle_th;          //u10
-	int reg_thold1;          //u10
-	int reg_thold2;          //u10
-	int reg_thold3;          //u10
-	int reg_thold4;          //u10
-	int reg_max_th2;          //u10
-	int reg_pnum_th;          //u16
+	int reg_display_e;       /* u10 */
+	int reg_middle_a;        /* u7 */
+	int reg_middle_a_adj;    /* u10 */
+	int reg_middle_b;        /* u7 */
+	int reg_middle_s;        /* u7 */
+	int reg_max_th1;         /* u10 */
+	int reg_middle_th;       /* u10 */
+	int reg_thold1;          /* u10 */
+	int reg_thold2;          /* u10 */
+	int reg_thold3;          /* u10 */
+	int reg_thold4;          /* u10 */
+	int reg_max_th2;         /* u10 */
+	int reg_pnum_th;         /* u16 */
 	int reg_hl0;
-	int reg_hl1;             //u7
-	int reg_hl2;             //u7
-	int reg_hl3;             //u7
-	int reg_display_adj;     //u7
+	int reg_hl1;             /* u7 */
+	int reg_hl2;             /* u7 */
+	int reg_hl3;             /* u7 */
+	int reg_display_adj;     /* u7 */
 	int reg_avg_th;
 	int reg_avg_adj;
-	int reg_low_adj;         //u7
-	int reg_high_en;         //u3
-	int reg_high_adj1;       //u7
-	int reg_high_adj2;       //u7
-	int reg_high_maxdiff;    //u7
-	int reg_high_mindiff;    //u7
+	int reg_low_adj;         /* u7 */
+	int reg_high_en;         /* u3 */
+	int reg_high_adj1;       /* u7 */
+	int reg_high_adj2;       /* u7 */
+	int reg_high_maxdiff;    /* u7 */
+	int reg_high_mindiff;    /* u7 */
 	unsigned int alpha;
-	int reg_ratio;           //u10
-	int reg_max_th3;         //s11
-	int oo_init_lut[13];        //u10
+	int reg_ratio;           /* u10 */
+	int reg_max_th3;         /* s11 */
+	int oo_init_lut[13];     /* u10 */
 };
 
 struct db_cabc_aad_param_s {
