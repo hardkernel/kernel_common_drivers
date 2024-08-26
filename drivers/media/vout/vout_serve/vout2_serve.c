@@ -300,6 +300,15 @@ static int set_vout2_mode(char *name)
 	return ret;
 }
 
+int get_vout2_mode_cap(char *buf)
+{
+	if (!get_vout2_disp_cap(buf))
+		sprintf(buf, "null\n");
+
+	return 0;
+}
+EXPORT_SYMBOL(get_vout2_mode_cap);
+
 static int set_vout2_init_mode(void)
 {
 	enum vmode_e vmode;

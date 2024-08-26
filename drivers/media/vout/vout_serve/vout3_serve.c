@@ -301,6 +301,15 @@ static int set_vout3_mode(char *name)
 	return ret;
 }
 
+int get_vout3_mode_cap(char *buf)
+{
+	if (!get_vout3_disp_cap(buf))
+		sprintf(buf, "null\n");
+
+	return 0;
+}
+EXPORT_SYMBOL(get_vout3_mode_cap);
+
 static int set_vout3_init_mode(void)
 {
 	enum vmode_e vmode;

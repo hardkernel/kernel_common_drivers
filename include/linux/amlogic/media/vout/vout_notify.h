@@ -399,6 +399,9 @@ int get_vout3_mode_uboot_state(void);
 char *get_uboot_connector0_type(void);
 
 int set_vout_mode(char *name);
+int get_vout_mode_cap(char *buf);
+int get_vout_mode2_cap(char *buf);
+int get_vout_mode3_cap(char *buf);
 void set_vout_init(enum vmode_e mode);
 void update_vout_viu(void);
 int set_vout_vmode(enum vmode_e mode);
