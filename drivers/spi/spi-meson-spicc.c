@@ -986,8 +986,6 @@ static int meson_spicc_unprepare_transfer(struct spi_controller *ctlr)
 	writel_bits_relaxed(SPICC_ENABLE, 0, spicc->base + SPICC_CONREG);
 #endif
 
-	device_reset_optional(&spicc->pdev->dev);
-
 	return 0;
 }
 
