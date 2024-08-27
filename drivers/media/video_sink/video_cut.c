@@ -3597,7 +3597,7 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 
 	if (!is_hdr10plus_enable() && vf->src_fmt.fmt == VFRAME_SIGNAL_FMT_HDR10PLUS) {
 		vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
-		pr_info("[%s] system not support hdr10+, treat as hdr10\n", __func_);
+		pr_info("[%s] system not support hdr10+, treat as hdr10\n", __func__);
 	}
 
 	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)

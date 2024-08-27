@@ -539,8 +539,6 @@ unsigned int slt_lut3d_en;
 module_param(osd_pic_en, uint, 0664);
 MODULE_PARM_DESC(osd_pic_en, "\n osd_pic_en\n");
 
-bool enable_hdr10plus;/* enable hdr10+ or not */
-
 #define COEFF_NORM(a) ((int)((((a) * 2048.0) + 1) / 2))
 #define MATRIX_5x3_COEF_SIZE 24
 
@@ -632,6 +630,8 @@ static void d_convert_str(int num,
 	}
 }
 #endif
+
+bool enable_hdr10plus;/* enable hdr10+ or not */
 
 /* vpp brightness/contrast/saturation/hue */
 int __init amvecm_load_pq_val(char *str)
@@ -15258,13 +15258,13 @@ void set_hdr_output(int out)
 	}
 }
 EXPORT_SYMBOL(set_hdr_output);
+#endif
 
 bool is_hdr10plus_enable(void)
 {
 	return enable_hdr10plus;
 }
 EXPORT_SYMBOL(is_hdr10plus_enable);
-#endif
 
 static int aml_vecm_probe(struct platform_device *pdev)
 {
