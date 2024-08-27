@@ -956,7 +956,7 @@
 			status = "okay";
 			reg =   <0xfe000000 0x100    /* clk */
 				0xfe00c000 0x70     /* pwrctrl */
-				0xff800000 0xa000>; /* vcbus */
+				0xff800000 0xf000>; /* vcbus */
 			clocks = <&clkc CLKID_VAPB_0>,
 				<&clkc CLKID_VAPB_1>,
 				<&clkc CLKID_VAPB>,
