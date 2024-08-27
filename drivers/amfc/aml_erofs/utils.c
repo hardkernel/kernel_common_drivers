@@ -332,11 +332,20 @@ struct ksymbol {
 		.data = &f_##sym,	\
 	}
 
+#ifdef CONFIG_KASAN_GENERIC
+/* When KASAN enabled cfi is disabled */
+#define KSYM_CFI(sym)			\
+	{				\
+		.name = #sym ,		\
+		.data = &f_##sym,	\
+	}
+#else
 #define KSYM_CFI(sym)			\
 	{				\
 		.name = #sym ".cfi_jt",	\
 		.data = &f_##sym,	\
 	}
+#endif
 
 #define KSYM_OBJ(sym)			\
 	{				\
@@ -608,7 +617,7 @@ static int fill_module_symbols(struct proc_node *node, struct ksymbol *sym)
 	ops->proc_release(NULL, &f);
 	if (check_sym(sym))
 		return -ENOSYS;
-	return ret;
+	return 0;
 }
 
 int symbol_fix(void)
@@ -647,7 +656,7 @@ int symbol_fix(void)
 
 	proc_remove(entry);
 
-	return 0;
+	return ret;
 }
 #else
 /* for arm32 */

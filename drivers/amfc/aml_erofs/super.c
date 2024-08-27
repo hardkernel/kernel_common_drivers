@@ -872,22 +872,23 @@ MODULE_ALIAS_FS("erofs");
 
 #ifdef CONFIG_ARM64
 static void __exit erofs_module_exit(void);
-static void do_symbol_fix(void *data, async_cookie_t cookie)
+static void __init do_symbol_fix(void *data, async_cookie_t cookie)
 {
-	unsigned int *fixed;
+	unsigned char *fixed;
 	int err;
 
-	fixed = (unsigned int *)data;
+	fixed = (unsigned char *)data;
 	*fixed = 0;
 	if (symbol_fix()) {
 		pr_emerg("%s, %d, symbol fix failed\n", __func__, __LINE__);
+		BUG();
 		return;
 	}
 	*fixed = 1;
 	err = z_erofs_init_zip_subsystem();
 	if (err) {
 		pr_emerg("%s, subsystem failed\n", __func__);
-		erofs_module_exit();
+		BUG();
 	}
 }
 #endif
