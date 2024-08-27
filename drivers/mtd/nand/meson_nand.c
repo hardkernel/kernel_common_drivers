@@ -1830,6 +1830,8 @@ static int meson_nfc_nand_chips_init(struct device *dev,
 	int ret;
 
 	for_each_child_of_node(np, nand_np) {
+		if (strcmp(nand_np->name, "nand"))
+			continue;
 		ret = meson_nfc_nand_chip_init(dev, nfc, nand_np);
 		if (ret) {
 			meson_nfc_nand_chip_cleanup(nfc);

@@ -133,9 +133,9 @@ int meson_rsv_prase_parameter_init(struct mtd_info *mtd)
 	struct device_node *part_np;
 	u32 ret = 0;
 
-	part_np = of_find_node_by_name(mtd_get_of_node(mtd), "rsv_partition");
+	part_np = of_get_child_by_name(node, "rsv_partition");
 	if (part_np) {
-		pr_debug("%s %d: init rsv from dts rsv partition\n", __func__, __LINE__);
+		pr_err("%s %d: init rsv from dts rsv partition\n", __func__, __LINE__);
 		ret = meson_rsv_prase_parameter_from_dtb(mtd, part_np);
 		of_node_put(part_np);
 		if (!ret)
