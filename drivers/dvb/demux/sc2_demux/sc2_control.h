@@ -11,7 +11,6 @@ struct dsc_pid_table {
 	int id;
 	int used;
 	int valid;
-	char multi2;
 	char scb00;
 	char scb_user;
 	char scb_out;
@@ -92,8 +91,6 @@ unsigned int dsc_get_status(int dsc_type);
 unsigned int dsc_get_ready(int dsc_type);
 void dsc_config_ready(int dsc_type);
 void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type);
-void dsc_config_multi2_round(int multi2_index, unsigned char round);
-void dsc_config_multi2_syskey(int multi2_index, unsigned char syskey[32]);
 
 /*****************************************************/
 /*****************************************************/
