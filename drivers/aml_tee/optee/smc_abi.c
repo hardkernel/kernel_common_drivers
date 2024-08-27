@@ -1605,13 +1605,52 @@ err_free_pool:
 #ifdef CONFIG_PM
 static int optee_restore(struct device *dev)
 {
+	struct optee *optee = NULL;
+	u32 sec_caps = 0;
+	u32 arg_cache_flags = 0;
+
+	optee = (struct optee *)dev_get_drvdata(dev);
+	if (!optee) {
+		pr_err("optee_restore err");
+		return -1;
+	}
+	sec_caps = optee->smc.sec_caps;
+	if (sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM) {
+		if (sec_caps & OPTEE_SMC_SEC_CAP_RPC_ARG)
+			arg_cache_flags = OPTEE_SHM_ARG_SHARED;
+		else
+			arg_cache_flags = OPTEE_SHM_ARG_ALLOC_PRIV;
+	}
+	if (sec_caps & OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM) {
+		arg_cache_flags = OPTEE_SHM_ARG_SHARED |
+				  OPTEE_SHM_ARG_ALLOC_PRIV;
+	}
+	optee_shm_arg_cache_init(optee, arg_cache_flags);
+	optee_disable_unmapped_shm_cache(optee);
+	if (!optee->rpc_param_count)
+		optee_enable_shm_cache(optee);
+
 	optee_log_init();
+
 	return 0;
 }
 
 static int optee_freeze(struct device *dev)
 {
+	struct optee *optee = NULL;
+
+	optee = (struct optee *)dev_get_drvdata(dev);
+	if (!optee) {
+		pr_err("optee_restore err");
+		return -1;
+	}
+
 	optee_log_uninit();
+
+	if (!optee->rpc_param_count)
+		optee_disable_shm_cache(optee);
+	optee_shm_arg_cache_uninit(optee);
+
 	return 0;
 }
 
