@@ -10,7 +10,6 @@
 #include <dt-bindings/clock/t6d-scmi-clkc.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-t6d-gpio.h>
-#include <dt-bindings/power/t5m-pd.h>
 #include <dt-bindings/power/t6d-pd.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
@@ -586,19 +585,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				//power-domains = <&pwrdm PDID_T3_SPICC1>;
-				status = "disabled";
-			};
-
-			spicc2: spi@54000 {
-				compatible = "amlogic,meson-s5-spicc";
-				reg = <0x54000 0x58>;
-				interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
-				//clocks = <&clkc CLKID_SYS_SPICC2>,
-				//	 <&clkc CLKID_SPICC2>;
-				clock-names = "core", "async";
-				#address-cells = <1>;
-				#size-cells = <0>;
-				//power-domains = <&pwrdm PDID_T3_SPICC2>;
 				status = "disabled";
 			};
 

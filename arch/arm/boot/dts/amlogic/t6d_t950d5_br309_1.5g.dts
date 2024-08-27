@@ -26,7 +26,6 @@
 		spi0 = &spifc;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
-		spi3 = &spicc2;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -46,7 +45,7 @@
 		/* global autoconfigured region for contiguous allocations */
 		ramdump_bl33z@00000000 {
 			reg = <0x0 0x1800000>; /* 0 ~ 24M */
-			status = "disabled";
+			status = "disabled"; /* disabled as default */
 		};
 
 		ramoops@0x06300000 {
@@ -56,13 +55,11 @@
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
 			pmsg-size = <0x20000>;
-			status = "disabled";
 		};
 
 		dmc_reserved:linux,dmc_monitor {
 			compatible = "amlogic,dmc_monitor-reserved";
 			reg = <0x0 0x0>;
-			status = "disabled";
 		};
 
 		debug_reserved:linux,iotrace {
@@ -73,7 +70,6 @@
 			irq-size = <0x1000>;
 			smc-size = <0x1000>;
 			misc-size = <0x1000>;
-			status = "okay";
 		};
 
 		secmon_reserved:linux,secmon {
@@ -206,23 +202,6 @@
 			alignment = <0x100000>;
 		};
 
-		frc_cma_reserved:linux,frc_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* frc:size need 4M alignment
-			 * 1080P 16 buffer:88Mhz (0x5800000)
-			 * 4k 16 buffer:348Mhz (0x15c00000)
-			 * 400Mhz (0x19000000)
-			 * 384Mhz (0x18000000)
-			 * 368Mhz (0x17000000)
-			 */
-			size = <0x9C00000>;
-			alignment = <0x400000>;
-			linux,contiguous-region;
-			/*alloc-ranges = <0x0 0x0 0x0 0x3f800000>;*/
-			status = "disabled";
-		};
-
 		/* POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "amlogic, ppmgr_memory";
@@ -241,15 +220,6 @@
 			status = "disabled";
 		};
 
-		/*ldc_mem_reserved:linux,ldc_mem {
-		 *	compatible = "shared-dma-pool";
-		 *	reusable;
-		 *	size = <0x0 0x400000>;
-		 *	alignment = <0x0 0x400000>;
-		 *	alloc-ranges = <0x0 0x0 0x0 0x40000000>;
-		 *};
-		 */
-
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
 			compatible = "shared-dma-pool";
@@ -260,22 +230,6 @@
 			linux,cma-default;
 			status = "disabled";
 		};
-
-		fixed_area_one:linux,area_one {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x00000000>;
-			alignment = <0x400000>;
-			alloc-ranges = <0x40000000 0x80000000>;
-			status = "disabled";
-		};
-	};
-
-	fixed_area_gpu {
-		compatible = "amlogic, fixed_area_cma";
-		status = "disabled";
-		memory-region = <&fixed_area_one>;
-		pool_size = <0x400000>;
 	};
 
 	vdd4_2v5_reg: fixed@vdd4_2v5_reg {
@@ -466,7 +420,6 @@
 	};
 
 	multi-di {
-		//status = "disabled";
 		/***************************************************
 		 * memory: default is 4
 		 *	0:use reserved;
@@ -916,28 +869,6 @@
 	};
 	/* Audio Related end */
 
-	aml_frc {
-		compatible = "amlogic, t5m_frc";
-		dev_name = "aml_frc";
-		status = "disabled";
-		frc_en = <1>;/*1:enable ;0:disable*/
-		frc_hw_pos = <0>;/*0:before postblend; 1:after postblend*/
-		interrupts = <GIC_SPI 221 IRQ_TYPE_EDGE_RISING
-				GIC_SPI 222 IRQ_TYPE_EDGE_RISING
-				GIC_SPI 218 IRQ_TYPE_EDGE_RISING
-				GIC_SPI 128 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "irq_frc_in", "irq_frc_out", "irq_axi_crash", "irq_frc_rdma";
-		memory-region = <&frc_cma_reserved>;
-		//clocks = <&clkc CLKID_FRC>, <&clkc CLKID_ME>;
-		clock-names = "clk_frc", "clk_me";
-		power-domains = <&pwrdm PDID_T5M_FRC_TOP>;
-		power-domain-names = "frc-top";
-		reg = <0xFF850000 0x30000 /*frc reg*/
-		       0xFE000000 0x300
-		       0xFF000000 0x10000>; /*frc clk reg*/
-		reg-names = "frc_reg","frc_clk_reg","vpu_reg";
-	};
-
 	atv-demod {
 		compatible = "amlogic, atv-demod";
 		status = "okay";
@@ -1050,7 +981,7 @@
 	smartcard {
 		compatible = "amlogic,smartcard-sc2";
 		dev_name = "smartcard";
-		status = "disabled";
+		status = "disabled"; /* disabled as default */
 
 		reg = <0xfe000000 0x480000>;
 		irq_trigger_type = "GPIO_IRQ_LOW";
@@ -1146,60 +1077,6 @@
 	status = "okay";
 };
 
-/* SDIO */
-//&sd_emmc_a {
-//	status = "disabled";
-//	pinctrl-0 = <&sdio_pins>;
-//	pinctrl-1 = <&sdio_clk_gate_pins>;
-//	pinctrl-names = "default", "clk-gate";
-//	#address-cells = <1>;
-//	#size-cells = <0>;
-//
-//	bus-width = <4>;
-//	cap-sd-highspeed;
-//	sd-uhs-sdr50;
-//	sd_uhs-sdr104;
-//	max-frequency = <200000000>;
-//
-//	non-removable;
-//	disable-wp;
-//
-//	//vmmc-supply = <&vddao_3v3>;
-//	//vqmmc-supply = <&vddio_ao1v8>;
-//
-//	brcmf: wifi@1 {
-//		reg = <1>;
-//		compatible = "brcm,bcm4329-fmac";
-//	};
-//};
-
-/* SD card */
-&sd_emmc_b {
-	status = "disabled";
-	pinctrl-0 = <&sd_all_pins>;
-	pinctrl-1 = <&sd_1bit_pins>;
-	pinctrl-2 = <&sd_clk_gate_pins>;
-	pinctrl-names = "sd_default",
-			"sd_1bit_pins",
-			"clk-gate";
-	bus-width = <4>;
-	cap-sd-highspeed;
-//	sd-uhs-sdr12;
-//	sd-uhs-sdr25;
-//	sd-uhs-sdr50;
-//	sd_uhs-sdr104;
-	max-frequency = <200000000>;
-
-	//non-removable;
-	disable-wp;
-//	amlogic,dram-access-quirk;
-
-	cd-gpios = <&gpio GPIOC_10 GPIO_ACTIVE_HIGH>;
-	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-	//vmmc-supply = <&vddao_3v3>;
-	//vqmmc-supply = <&emmc_1v8>;
-};
-
 &sd_emmc_c {
 	status = "okay";
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
@@ -1222,7 +1099,7 @@
 };
 
 &mtd_nand {
-	status = "disabled";
+	status = "disabled"; /* disabled as default */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -1404,7 +1281,7 @@
 };
 
 &spicc0 {	//for TCON
-	status = "disabled";
+	status = "disabled"; /* default as default */
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
 	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
@@ -1412,19 +1289,12 @@
 };
 
 &spicc1 {	//for UWB/LocalDimm
-	status = "disabled";
+	status = "disabled"; /* disabled as default */
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins &spicc1_cs_pins>;
 	//cs-gpios = <&gpio GPIOH_22 GPIO_ACTIVE_HIGH>;
 	cs2clk-us = <2>;
 	clk2cs-us = <12>;
-};
-
-&spicc2 {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spicc2_pins_c>;
-	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
 };
 
 &ir {
@@ -1507,11 +1377,6 @@
 	vlock_line_limit = <2>;
 	interrupts = <0 207 1>;
 	interrupt-names = "lc_curve";
-};
-
-&uart_A {
-	status = "disabled";
-	uart-has-rtscts;
 };
 
 &aml_wifi{
