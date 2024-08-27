@@ -1150,7 +1150,7 @@ ssize_t _vrr_cap_show(struct device *dev,
 			"vrr.vline_max: %d\n", vrr->vline_max);
 	pos += snprintf(buf + pos, PAGE_SIZE,
 			"vrr.vline_min: %d\n", vrr->vline_min);
-	pos += _vrr_groups_show_(pos, buf);
+	pos += _vrr_groups_show_(pos, buf + pos);
 	return pos;
 }
 
@@ -1175,6 +1175,8 @@ static int _vrr_groups_show_(int _pos, char *buf)
 			continue;
 		pos += snprintf(buf + _pos, PAGE_SIZE, "VRR Group%d\n", i);
 		pos += snprintf(buf + pos, PAGE_SIZE, "  brr vic %d\n", groups[i].brr_vic);
+		pos += snprintf(buf + pos, PAGE_SIZE, "vrr_min/max %d %d\n",
+			groups[i].vrr_min, groups[i].vrr_max);
 		for (j = 0; j < MAX_QMS_GROUP_NUM; j++) {
 			const struct hdmi_timing *timing;
 
@@ -1294,25 +1296,25 @@ static void calc_vrr_range(struct rx_cap *prxcap,
 		group->game_vrr_max = 0;
 		break;
 	case 0x12:
-		group->vrr_min = prxcap->vrr_min * 100;
+		group->vrr_min = reduce_0p1_percent(prxcap->vrr_min * 100);
 		group->vrr_max = 60 * 100;
 		group->game_vrr_min = prxcap->vrr_min * 100;
 		group->game_vrr_max = brr_vfreq;
 		break;
 	case 0x16:
-		group->vrr_min = prxcap->vrr_min * 100;
+		group->vrr_min = reduce_0p1_percent(prxcap->vrr_min * 100);
 		group->vrr_max = brr_vfreq;
 		group->game_vrr_min = prxcap->vrr_min * 100;
 		group->game_vrr_max = brr_vfreq;
 		break;
 	case 0x13:
-		group->vrr_min = prxcap->vrr_min * 100;
+		group->vrr_min = reduce_0p1_percent(prxcap->vrr_min * 100);
 		group->vrr_max = 60 * 100;
 		group->game_vrr_min = prxcap->vrr_min * 100;
 		group->game_vrr_max = prxcap->vrr_max * 100;
 		break;
 	case 0x17:
-		group->vrr_min = prxcap->vrr_min * 100;
+		group->vrr_min = reduce_0p1_percent(prxcap->vrr_min * 100);
 		group->vrr_max = prxcap->vrr_max * 100;
 		group->game_vrr_min = prxcap->vrr_min * 100;
 		group->game_vrr_max = prxcap->vrr_max * 100;
