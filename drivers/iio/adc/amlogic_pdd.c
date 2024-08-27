@@ -4,6 +4,8 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -51,6 +53,7 @@ enum amlogic_pdd_state {
 
 struct amlogic_pdd_priv {
 	struct regmap *regmap;
+	struct clk *clk_core;
 	struct reg_info digital[DIGITAL_MAP_MAX];
 	struct reg_info analog[ANALOG_MAP_MAX];
 	u32 *voltage;
@@ -129,6 +132,8 @@ static void amlogic_pdd_hw_enable(struct device *dev)
 	u32 byte_offs;
 	u32 bit_offs;
 
+	clk_prepare_enable(priv->clk_core);
+
 	/* Enable detection */
 	byte_offs = priv->analog[DET_EN].byte_offs;
 	bit_offs = priv->analog[DET_EN].bit_offs;
@@ -160,6 +165,8 @@ static void amlogic_pdd_hw_disable(struct device *dev)
 	byte_offs = priv->analog[DET_EN].byte_offs;
 	bit_offs = priv->analog[DET_EN].bit_offs;
 	regmap_update_bits(priv->regmap, byte_offs, BIT(bit_offs), 0);
+
+	clk_disable_unprepare(priv->clk_core);
 
 	dev_dbg(dev, "Power down detection disabled\n");
 }
@@ -436,6 +443,10 @@ static int amlogic_pdd_probe(struct platform_device *pdev)
 	if (!priv)
 		return dev_err_probe(dev, -ENOMEM, "Failed allocating memory\n");
 	dev_set_drvdata(dev, priv);
+
+	priv->clk_core = devm_clk_get(dev, "core");
+	if (IS_ERR(priv->clk_core))
+		return dev_err_probe(dev, PTR_ERR(priv->clk_core), "Failed to get core clk\n");
 
 	/* Parse DT */
 	ret = amlogic_pdd_dt_parse(dev);
