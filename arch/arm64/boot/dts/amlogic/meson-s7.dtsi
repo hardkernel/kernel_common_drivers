@@ -383,6 +383,8 @@
 			compatible = "amlogic,pdd";
 			interrupt-controller;
 			#interrupt-cells = <1>;
+			clock-names = "core";
+			clocks = <&clkc CLKID_SYS_SAR_ADC>;
 			amlogic,interrupt = <182>;
 			amlogic,digital-maps = <0x2c 26>, <0x2c 25>, <0x2c 24>;
 			amlogic,analog-maps = <0x2c 9>, <0x2c 3>, <0x2c 1>;
