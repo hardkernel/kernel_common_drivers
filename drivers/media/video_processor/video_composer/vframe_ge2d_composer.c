@@ -642,10 +642,16 @@ int config_ge2d_data(struct vframe_s *src_vf, unsigned long addr, int buf_w, int
 				data->width = vf->width;
 				data->height = vf_height;
 			} else {
+				if (crop_w > vf->compWidth)
+					crop_w = vf->compWidth;
+				if (crop_h > vf->compHeight)
+					crop_h = vf->compHeight;
 				data->position_x = crop_x * vf->width / vf->compWidth;
-				data->position_y = crop_y * vf_height / vf->compHeight;
-				data->width = crop_w * vf->width / vf->compWidth;
-				data->height = crop_h * vf_height / vf->compHeight;
+				data->position_y = crop_y * vf->width / vf->compWidth;
+				data->width =
+					crop_w * vf->width / vf->compWidth;
+				data->height =
+					crop_h * vf->width / vf->compWidth * vf_height / vf->height;
 			}
 		} else {
 			if ((crop_w > WIDTH_8K  || crop_w < 0) ||
@@ -664,6 +670,24 @@ int config_ge2d_data(struct vframe_s *src_vf, unsigned long addr, int buf_w, int
 			}
 		}
 
+		if (ge2d_com_debug & 1) {
+			VIDEOCOM_INFO("scr:vf->canvas0_config[0]: paddr=%lu width=%d height=%d\n",
+				vf->canvas0_config[0].phy_addr,
+				vf->canvas0_config[0].width,
+				vf->canvas0_config[0].height);
+			VIDEOCOM_INFO("scr:vf->canvas0_config[1]: paddr=%lu width=%d height=%d\n",
+				vf->canvas0_config[1].phy_addr,
+				vf->canvas0_config[1].width,
+				vf->canvas0_config[1].height);
+			VIDEOCOM_INFO("scr:vf->width=%d vf->height=%d vf->ComW=%d vf->ComH=%d\n",
+				vf->width,
+				vf->height,
+				vf->compWidth,
+				vf->compHeight);
+			VIDEOCOM_INFO("scr:crop %d %d %d %d\n", crop_x, crop_y, crop_w, crop_h);
+			VIDEOCOM_INFO("scr:data %d %d %d %d\n",
+				data->position_x, data->position_y, data->width, data->height);
+		}
 		if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
 			data->is_vframe = false;
 		else
@@ -888,6 +912,10 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 		para.canvas0_config[0] = scr_data->canvas0_config[0];
 		para.canvas0_config[1] = scr_data->canvas0_config[1];
 		para.canvas0_config[2] = scr_data->canvas0_config[2];
+		VIDEOCOM_INFO("canvas0:%d %d canvas1:%d %d canvas2:%d %d.\n",
+			scr_data->canvas0_config[0].width, scr_data->canvas0_config[0].height,
+			scr_data->canvas0_config[1].width, scr_data->canvas0_config[1].height,
+			scr_data->canvas0_config[2].width, scr_data->canvas0_config[2].height);
 		para.plane_num = scr_data->plane_num;
 		result = dump_data(&para, SCR_BUFFER);
 		if (result)
