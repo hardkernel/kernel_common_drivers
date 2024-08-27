@@ -1,4 +1,4 @@
-From dc0b07153192480b8dc3fc99cbfcefbfe159965d Mon Sep 17 00:00:00 2001
+From 5eb01d0e0e2ec7071ad75a50885498f875b40b71 Mon Sep 17 00:00:00 2001
 From: Tao Zeng <tao.zeng@amlogic.com>
 Date: Tue, 9 Apr 2024 12:44:27 +0800
 Subject: [PATCH] arm64: support Image.zstd target [1/1]
@@ -15,11 +15,11 @@ Change-Id: I95a4214fd19a3d6206f972ddc3f318de5b58cc4c
 Signed-off-by: Tao Zeng <tao.zeng@amlogic.com>
 ---
  BUILD.bazel              |  1 +
- arch/arm64/boot/Makefile | 12 +++++++++++-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ arch/arm64/boot/Makefile | 65 +++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 65 insertions(+), 1 deletion(-)
 
 diff --git a/BUILD.bazel b/BUILD.bazel
-index 14b3bbedd46fe..5dfc9706c3f6b 100644
+index cd38c16c8b1ff..0f5ceeeeac62e 100644
 --- a/BUILD.bazel
 +++ b/BUILD.bazel
 @@ -27,6 +27,7 @@ _GKI_AARCH64_MAKE_GOALS = [
@@ -31,7 +31,7 @@ index 14b3bbedd46fe..5dfc9706c3f6b 100644
  ]
  
 diff --git a/arch/arm64/boot/Makefile b/arch/arm64/boot/Makefile
-index ebe80faab8837..f71519746c4b4 100644
+index ebe80faab8837..9e6307a3b8013 100644
 --- a/arch/arm64/boot/Makefile
 +++ b/arch/arm64/boot/Makefile
 @@ -16,7 +16,7 @@
@@ -43,16 +43,69 @@ index ebe80faab8837..f71519746c4b4 100644
  
  $(obj)/Image: vmlinux FORCE
  	$(call if_changed,objcopy)
-@@ -27,6 +27,16 @@ $(obj)/Image.bz2: $(obj)/Image FORCE
+@@ -27,6 +27,69 @@ $(obj)/Image.bz2: $(obj)/Image FORCE
  $(obj)/Image.gz: $(obj)/Image FORCE
  	$(call if_changed,gzip)
  
-+ifdef CONFIG_AMLOGIC_AMFC
-+$(obj)/Image.zstd: $(obj)/Image FORCE
-+	$(ZSTD) -19 $< -o $@
++ifneq ($(CONFIG_AMLOGIC_AMFC), )
++#targets += Image.zstd
++
++ifeq ($(srctree),)
++srctree := $(patsubst %/,%,$(dir $(CURDIR)))
++srctree := $(patsubst %/,%,$(dir $(srctree)))
++endif
++
++zstd_src := $(srctree)/common_drivers/drivers/amfc/zstd_tool/common/debug.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/common/entropy_common.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/common/error_private.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/common/fse_decompress.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/common/pool.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/common/threading.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/common/xxhash.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/common/zstd_common.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/compress/fse_compress.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/compress/hist.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/compress/huf_compress.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/compress/zstd_compress.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/compress/zstd_compress_literals.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/compress/zstd_compress_sequences.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/compress/zstd_compress_superblock.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/compress/zstd_double_fast.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/compress/zstd_fast.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/compress/zstd_lazy.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/compress/zstd_ldm.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/compress/zstd_opt.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/compress/zstdmt_compress.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/decompress/huf_decompress.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/decompress/huf_decompress_amd64.S
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/decompress/zstd_ddict.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/decompress/zstd_decompress.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/decompress/zstd_decompress_block.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/dictBuilder/cover.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/dictBuilder/divsufsort.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/dictBuilder/fastcover.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/dictBuilder/zdict.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/legacy/zstd_v05.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/legacy/zstd_v06.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/legacy/zstd_v07.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/benchfn.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/benchzstd.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/datagen.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/dibio.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/fileio.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/timefn.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/util.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/zstdcli.c
++zstd_src += $(srctree)/common_drivers/drivers/amfc/zstd_tool/zstdcli_trace.c
++
++$(obj)/zstd:
++	$(HOSTCC) $(zstd_src) $(LDFLAGS) -o $@
++	cp -n $@ $(srctree)/
++
++$(obj)/Image.zstd: $(obj)/Image $(obj)/zstd FORCE
++	$(srctree)/zstd -19 $< -o $@
 +else
-+# use lz4 as fallback to avoid build failed
-+# Image.zstd should be only used on soc have AMFC
++#use lz4 instead
 +$(obj)/Image.zstd: $(obj)/Image FORCE
 +	$(call if_changed,lz4)
 +endif
