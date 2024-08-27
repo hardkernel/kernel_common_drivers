@@ -1498,6 +1498,8 @@
 	vout_mux: vout_mux {
 		compatible = "amlogic, vout_mux-s6";
 		status = "okay";
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
+		clock-names = "fclk_div5", "vdin_meas_clk";
 	};
 
 	dummy_venc: dummy_venc {
