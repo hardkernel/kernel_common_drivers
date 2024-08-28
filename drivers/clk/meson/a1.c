@@ -335,26 +335,27 @@ static struct clk_regmap a1_fclk_div7 = {
 	},
 };
 
-/* 614.4M */
 static const struct reg_sequence a1_hifi_init_regs[] = {
-	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x01800000 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x0f903ef9 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00001100 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x10022200 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL4,	.def = 0x00301000 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL0, .def = 0x01f19480 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL0, .def = 0x11f19480, .delay_us = 10 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL0,	.def = 0x15f11480, .delay_us = 40 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x100a1100 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL4,	.def = 0x00302000 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL0, .def = 0x01f18430 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL0, .def = 0x11f18430, .delay_us = 10 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL0,	.def = 0x15f18430 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00001140 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00001100 },
 };
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table a1_hifi_pll_params_table[] = {
-	PLL_PARAMS(128, 5, 0), /* DCO = 614.4M */
+	PLL_PARAMS(40, 2, 0), /* DCO = 491.52M */
+	PLL_PARAMS(37, 2, 0), /* DCO = 451.584M */
 };
 #else
 static const struct pll_params_table a1_hifi_pll_params_table[] = {
-	PLL_PARAMS(128, 5), /* DCO = 614.4M */
+	PLL_PARAMS(40, 2), /* DCO = 491.52M */
+	PLL_PARAMS(37, 2), /* DCO = 451.584M */
 };
 #endif
 
