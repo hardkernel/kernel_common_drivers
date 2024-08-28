@@ -82,6 +82,7 @@ struct meson_unipolar_ctrl {
 	struct completion	done;
 	bool polarity_inversed;
 	uint mode;
+	bool ignore_led_suspend;
 };
 
 #define MESON_UNIPOLAR_CTRL_CDEV_NAME		"unipolar_led"
@@ -175,6 +176,23 @@ static void meson_unipolar_ctrl_put_data(struct meson_unipolar_ctrl *dcon_led)
 		wdata = 0;
 	}
 	spin_unlock(&dcon_led->lock);
+}
+
+static void meson_unipolar_ctrl_shutdown(struct meson_unipolar_ctrl *dcon_led)
+{
+	int i;
+
+	spin_lock(&dcon_led->lock);
+	for (i = 0; i < dcon_led->led_num; i++)
+		writel(0, dcon_led->regs + LED_CTRL_DATA_BASE + i * 4);
+	spin_unlock(&dcon_led->lock);
+	meson_unipolar_ctrl_xfer(dcon_led);
+}
+
+static void meson_unipolar_ctrl_again(struct meson_unipolar_ctrl *dcon_led)
+{
+	meson_unipolar_ctrl_put_data(dcon_led);
+	meson_unipolar_ctrl_xfer(dcon_led);
 }
 
 static void meson_unipolar_ctrl_put_data_to_buffer(struct meson_unipolar_ctrl *dcon_led,
@@ -458,6 +476,10 @@ static int unipolar_ctrl_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failure to get led mode = %d\n", ret);
 		return ret;
 	}
+	if (device_property_read_bool(&pdev->dev, "ignore-led-suspend"))
+		dcon_led->ignore_led_suspend = 1;
+	else
+		dcon_led->ignore_led_suspend = 0;
 	dcon_led->color_data = devm_kzalloc(&pdev->dev,
 		dcon_led->led_num * COLOR_CHANNEL_NUM, GFP_KERNEL);
 	if (!dcon_led->color_data)
@@ -506,13 +528,44 @@ static const struct of_device_id unipolar_ctrl_table[] = {
 
 MODULE_DEVICE_TABLE(of, unipolar_ctrl_table);
 
+static int unipolar_ctrl_suspend(struct device *dev)
+{
+	struct meson_unipolar_ctrl *dcon_led = dev_get_drvdata(dev);
+
+	if (dcon_led->ignore_led_suspend)
+		return 0;
+	meson_unipolar_ctrl_shutdown(dcon_led);
+
+	return 0;
+}
+
+static int unipolar_ctrl_resume(struct device *dev)
+{
+	struct meson_unipolar_ctrl *dcon_led = dev_get_drvdata(dev);
+
+	if (dcon_led->ignore_led_suspend)
+		return 0;
+	meson_unipolar_ctrl_again(dcon_led);
+
+	return 0;
+}
+
+static void unipolar_ctrl_shutdown(struct platform_device *pdev)
+{
+	unipolar_ctrl_suspend(&pdev->dev);
+}
+
+static SIMPLE_DEV_PM_OPS(meson_led_unipolar_pm, unipolar_ctrl_suspend, unipolar_ctrl_resume);
+
 static struct platform_driver meson_led_unipolar_ctrl = {
 	.probe = unipolar_ctrl_probe,
 	.remove = unipolar_ctrl_remove,
 	.driver = {
 		.name = "meson_led_unipolar_ctrl",
 		.of_match_table = unipolar_ctrl_table,
+		.pm = &meson_led_unipolar_pm,
 	},
+	.shutdown = unipolar_ctrl_shutdown,
 };
 
 int __init led_unipolar_ctrl_init(void)
