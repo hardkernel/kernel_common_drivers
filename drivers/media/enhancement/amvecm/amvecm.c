@@ -15617,6 +15617,7 @@ static void amvecm_shutdown(struct platform_device *pdev)
 	class_destroy(devp->clsp);
 	unregister_chrdev_region(devp->devno, 1);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	vlock_clk_suspend();
 #ifdef CONFIG_AML_LCD
 	aml_lcd_notifier_unregister(&aml_lcd_gamma_nb);
 #endif
