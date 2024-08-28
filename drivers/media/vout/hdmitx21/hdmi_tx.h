@@ -113,6 +113,7 @@ void hdmi_drm_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmi_emp_infoframe_set(enum emp_type type, struct emp_packet_st *info);
 void hdmi_emp_frame_set_member(struct emp_packet_st *info,
 	enum emp_component_conf conf, u32 val);
+int hdmi_emp_infoframe_get(enum emp_type type, u8 *body);
 void hdmi_sbtm_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmitx_dhdr_send(u8 *body, int max_size);
 void hdmitx21_write_dhdr_sram(void);

@@ -1915,10 +1915,17 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 	int ret = 0;
 	bool do_valid = true;
 	char attr_str[HDMITX_ATTR_LEN_MAX];
+	u32 brr = 0, qms_en = 0;
 
 	/* do not atomic check if hpd is low*/
 	if (strstr(modename, "dummy") || !hdmitx_get_hpd_state(common))
 		return 0;
+
+	if (meson_crtc_state->uboot_mode_init == 1) {
+		hdmitx_get_qms_init_state(common, &brr, &qms_en);
+		if (brr && qms_en)
+			crtc_state->vrr_enabled = true;
+	}
 
 	if (am_hdmi_info.android_path && crtc_state->vrr_enabled &&
 		!(adj_mode->flags & DRM_MODE_FLAG_INTERLACE)) {

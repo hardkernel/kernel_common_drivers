@@ -4870,6 +4870,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	/* init power_uevent state */
 	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
+	ret = hdmitx_hw_get_state(tx_comm->tx_hw, STAT_VIDEO_QMS_INFO, 0);
+	HDMITX_INFO("qms: uboot brr %d qms_en %d\n", ret & 0xffff, ret >> 16);
 	/* reset EDID/vinfo */
 	if (!hdev->tx_comm.forced_edid) {
 		hdmitx_edid_buffer_clear(hdev->tx_comm.EDID_buf, sizeof(hdev->tx_comm.EDID_buf));
