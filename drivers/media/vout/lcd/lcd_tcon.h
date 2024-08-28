@@ -310,6 +310,8 @@ void lcd_tcon_fw_base_timing_update(struct aml_lcd_drv_s *pdrv);
 int tcon_lut_dma_get_frame_cnt(struct aml_lcd_drv_s *pdrv);
 void tcon_lut_dma_start(struct aml_lcd_drv_s *pdrv);
 void tcon_lut_dma_stop(struct aml_lcd_drv_s *pdrv);
+void tcon_lut_dma_start_t6d(struct aml_lcd_drv_s *pdrv);
+void tcon_lut_dma_stop_t6d(struct aml_lcd_drv_s *pdrv);
 void tcon_lut_dma_mif_set(struct aml_lcd_drv_s *pdrv, phys_addr_t paddr, unsigned int size);
 void tcon_lut_dma_init_t5m(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops);
 void tcon_lut_dma_init_t3x(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_dma_ops_s *ops);

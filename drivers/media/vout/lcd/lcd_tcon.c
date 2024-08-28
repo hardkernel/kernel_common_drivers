@@ -3110,6 +3110,18 @@ static struct lcd_tcon_dma_ops_s lcd_tcon_dma_ops_t3x = {
 	.update = lcd_tcon_lut_dma_update,
 };
 
+static struct lcd_tcon_dma_ops_s lcd_tcon_dma_ops_t6d = {
+	.status = 0,
+	.addr_list = NULL,
+	.get_frame_cnt = tcon_lut_dma_get_frame_cnt,
+	.start = tcon_lut_dma_start_t6d,
+	.stop = tcon_lut_dma_stop_t6d,
+	.mif_set = tcon_lut_dma_mif_set,
+	.init = tcon_lut_dma_init_t5m,
+	.deinit = tcon_lut_dma_deinit,
+	.update = lcd_tcon_lut_dma_update,
+};
+
 static struct lcd_tcon_config_s tcon_data_tl1 = {
 	.tcon_valid = 0,
 
@@ -3507,6 +3519,7 @@ static struct lcd_tcon_config_s tcon_data_t6d = {
 
 	.axi_tbl_len = ARRAY_SIZE(axi_mem_cfg_tbl_txhd2),
 	.axi_mem_cfg_tbl = axi_mem_cfg_tbl_txhd2,
+	.lut_dma_ops = &lcd_tcon_dma_ops_t6d,
 
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_init_table_pre_proc = lcd_tcon_init_table_pre_proc,
