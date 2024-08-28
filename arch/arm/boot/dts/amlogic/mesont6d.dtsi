@@ -1782,6 +1782,7 @@
 		usb-phy = <&usb_phy20>, <&usb_phy30>;
 		clocks = <&clkc CLKID_SYS_USB_U2DRD>;
 		clock-names = "crg_general";
+		rd-outstanding-tune = <0x8>;
 		in-nak-rty = <0x5>;
 	};
 
@@ -1808,6 +1809,7 @@
 		usb-phy = <&usb_phy22>, <&usb_phy32>;
 		clocks = <&clkc CLKID_SYS_USB_U22H>;
 		clock-names = "crg_general";
+		rd-outstanding-tune = <0x8>;
 		in-nak-rty = <0x5>;
 	};
 
@@ -1819,6 +1821,7 @@
 		usb-phy = <&usb_phy21>, <&usb_phy31>;
 		clocks = <&clkc CLKID_SYS_USB_U2H>;
 		clock-names = "crg_general";
+		rd-outstanding-tune = <0x8>;
 		in-nak-rty = <0x5>;
 	};
 
