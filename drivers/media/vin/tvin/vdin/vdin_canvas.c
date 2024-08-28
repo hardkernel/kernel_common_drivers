@@ -327,10 +327,14 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 			canvas_step = 2;
 			canvas_num = canvas_num / 2;
 		}
-		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH)
-			devp->canvas_w = (h_active * 3) / 2;
-		else
+		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
+			if (devp->dtdata->hw_ver == VDIN_HW_T6D)
+				devp->canvas_w = (h_active * 10) / 8;
+			else
+				devp->canvas_w = (h_active * 3) / 2;
+		} else {
 			devp->canvas_w = h_active;
+		}
 		break;
 	case VDIN_FORMAT_CONVERT_YUV_YUV422:
 	case VDIN_FORMAT_CONVERT_RGB_YUV422:
@@ -620,10 +624,14 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		}
 	} else if (vdin_is_convert_to_nv21(devp->format_convert)) {
 		/* nv21/nv12 only t3x have 8/10/12 bit mode */
-		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH)
-			h_size = roundup((h_size * 3) / 2, devp->canvas_align);
-		else
+		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH) {
+			if (devp->dtdata->hw_ver == VDIN_HW_T6D)
+				h_size = roundup((h_size * 10) / 8, devp->canvas_align);
+			else
+				h_size = roundup((h_size * 3) / 2, devp->canvas_align);
+		} else {
 			h_size = roundup(h_size, devp->canvas_align);
+		}
 		devp->canvas_align_w = h_size;
 		/*todo change with canvas alloc!!*/
 	} else {

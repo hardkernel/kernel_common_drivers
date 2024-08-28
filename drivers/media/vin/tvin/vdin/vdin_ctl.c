@@ -4019,7 +4019,7 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 #endif
 	if (devp->dtdata->hw_ver == VDIN_HW_T6D) {
 		/* for filter unstable vysnc */
-		wr_bits(offset, VDIN_WRMIF_CTRL0, 1, T6D_EOL_SEL_BIT, T6D_EOL_SEL_WID);
+		wr_bits(offset, VDIN_WRMIF_CTRL0, 0, T6D_EOL_SEL_BIT, T6D_EOL_SEL_WID);
 
 		/* write.output_hs/he write.output_ve/vs */
 		wr(offset, VDIN_WRMIF_LUMA_X, 0x00000000);
@@ -4126,9 +4126,11 @@ static void filter_unstable_vsync(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) || is_meson_s6_cpu())
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) || is_meson_s6_cpu() ||
+		is_meson_t6d_cpu())
 		return;
-
+#endif
 	if (devp->index || devp->debug.bypass_filter_vsync)
 		return;
 
@@ -5070,17 +5072,19 @@ void vdin_set_hv_scale(struct vdin_dev_s *devp)
 	} else if (is_meson_t3x_cpu()) {
 		vdin_set_hv_scale_t3x(devp);
 		return;
-	} else if (is_meson_t6d_cpu()) {
-		/* No hv scaling no t6d */
-		return;
 	}
 #endif
-	/*backup current h v size*/
-	devp->h_active_org = devp->h_active;
-	devp->v_active_org = devp->v_active;
+	/* No hv scaler and shrink on t6d vdin0 */
+	if (devp->dtdata->hw_ver == VDIN_HW_T6D &&
+		devp->hw_core == VDIN_HW_CORE_NORMAL)
+		return;
 
 	if (K_FORCE_HV_SHRINK)
 		goto set_hv_shrink;
+
+	/*backup current h v size*/
+	devp->h_active_org = devp->h_active;
+	devp->v_active_org = devp->v_active;
 
 	vdin_scaling_adjust(devp);
 
@@ -7510,14 +7514,16 @@ inline void vdin_set_source_bitdepth(struct vdin_dev_s *devp,
 		vf->bitdepth_dw = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 		break;
 	}
+
 	if (devp->full_pack == VDIN_422_FULL_PK_EN &&
-	    devp->source_bitdepth > 8 &&
-	    (devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422 ||
-	     devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422 ||
-	     devp->format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422 ||
-	     devp->format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422)) {
-		vf->bitdepth |= FULL_PACK_422_MODE;
-		vf->bitdepth_dw |= FULL_PACK_422_MODE;
+	    devp->source_bitdepth > 8) {
+		if (vdin_is_convert_to_422(devp->format_convert)) {
+			vf->bitdepth |= FULL_PACK_422_MODE;
+			vf->bitdepth_dw |= FULL_PACK_422_MODE;
+		} else if (vdin_is_convert_to_nv21(devp->format_convert)) {
+			vf->bitdepth |= FULL_PACK_420_MODE;
+			vf->bitdepth_dw |= FULL_PACK_420_MODE;
+		}
 	}
 }
 

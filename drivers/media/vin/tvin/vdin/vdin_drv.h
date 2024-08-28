@@ -397,6 +397,7 @@ enum vdin_wr_color_depth {
 	VDIN_WR_COLOR_DEPTH_FORCE_MEM_YUV422_TO_YUV444 = 0x20,
 };
 
+/* also works for 420 */
 #define VDIN_422_FULL_PK_EN			1
 #define VDIN_422_FULL_PK_DIS			0
 
