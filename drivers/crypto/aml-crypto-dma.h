@@ -154,7 +154,7 @@ struct dma_sg_dsc_64 {
 #define DMA_FLAG_SHA_IN_USE    BIT(3)
 #define DMA_FLAG_SM4_IN_USE    BIT(4)
 
-#define DMA_STATUS_KEY_ERROR   BIT(1)
+#define DMA_STATUS_KEY_ERROR   0xFFF2 /*bit 1, bit 4 - 15*/
 
 #define DMA_KEY_IV_BUF_SIZE (48)
 #define DMA_KEY_IV_BUF_SIZE_64B (64)

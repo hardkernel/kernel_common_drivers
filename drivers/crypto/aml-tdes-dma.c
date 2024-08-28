@@ -142,6 +142,9 @@ static int set_tdes_kl_key_iv(struct aml_tdes_dev *dd,
 	u32 *piv = key_iv;
 	u32 len = keylen;
 	dma_addr_t dma_addr_key;
+	u32 status = 0;
+	int err = 0;
+	u32 nents = 1;
 
 	if (!key_iv) {
 		dev_err(dev, "error allocating key_iv buffer\n");
@@ -185,20 +188,37 @@ static int set_tdes_kl_key_iv(struct aml_tdes_dev *dd,
 		dsc.dsc_cfg.b.mode = MODE_KEY;
 		dsc.dsc_cfg.b.owner = 1;
 		dsc.dsc_cfg.b.eoc = 1;
+		nents++;
 		aml_dma_dsc_writer(dd->descriptor, 1, &dsc, dd->dma->dma_bus64, 0);
 	}
+#if DMA_IRQ_MODE
 	aml_write_crypto_reg(dd->dma, dd->thread,
 			     (uintptr_t)dd->dma_descript_tab | 2);
-	aml_dma_debug(dd->descriptor, iv ? 2 : 1, __func__, dd->thread,
-			 dd->status, dd->dma->dma_bus64);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
+	status = aml_read_crypto_reg(dd->status);
+	aml_dma_debug(dd->descriptor, nents, __func__, dd->thread,
+			 dd->status, dd->dma->dma_bus64);
+	if (status & DMA_STATUS_KEY_ERROR) {
+		dev_err(dev, "hw crypto failed, status: 0x%x\n", status);
+		err = -EINVAL;
+	}
 	aml_write_crypto_reg(dd->dma, dd->status, 0xff);
+#else
+	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, nents, dd->dma_descript_tab,
+			     1, DMA_FLAG_TDES_IN_USE);
+	aml_dma_debug(dd->descriptor, nents, __func__, dd->thread,
+			 dd->status, dd->dma->dma_bus64);
+	if (status & DMA_STATUS_KEY_ERROR) {
+		dev_err(dev, "hw crypto failed, status: 0x%x\n", status);
+		err = -EINVAL;
+	}
+#endif
 	dma_unmap_single(dd->parent, dma_addr_key,
 			 DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
 
 	kfree(key_iv);
-	return 0;
+	return err;
 }
 
 static int set_tdes_key_iv(struct aml_tdes_dev *dd,
@@ -253,7 +273,7 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 		;
 	status = aml_read_crypto_reg(dd->status);
 	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dev, "hw crypto failed, status: %u\n");
+		dev_err(dev, "hw crypto failed, status: 0x%x\n", status);
 		err = -EINVAL;
 	}
 	aml_write_crypto_reg(dd->dma, dd->status, 0xff);
@@ -263,7 +283,7 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 	aml_dma_debug(dd->descriptor, 1, "end tdes keyiv", dd->thread,
 			 dd->status, dd->dma->dma_bus64);
 	if (status & DMA_STATUS_KEY_ERROR) {
-		dev_err(dev, "hw crypto failed.\n");
+		dev_err(dev, "hw crypto failed, status: 0x%x\n", status);
 		err = -EINVAL;
 	}
 #endif
