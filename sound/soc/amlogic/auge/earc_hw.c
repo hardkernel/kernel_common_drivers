@@ -366,8 +366,14 @@ void earcrx_arc_init(struct regmap *dmac_map)
 		   (mode6_timer << 8)
 		  );
 
-	mmio_write(dmac_map,
+	mmio_update_bits(dmac_map,
 		   EARCRX_SPDIFIN_CTRL0,
+		   0x1 << 31 | /* reg_work_en */
+		   0x1 << 30 | /* reg_chnum_sel */
+		   0x1 << 25 | /* reg_findpapb_en */
+		   0x1 << 24 | /* nonpcm2pcm_th enable */
+		   0xFFF << 12 |  /* reg_nonpcm2pcm_th */
+		   0x1 << 2,    /* reg_check_parity */
 		   0x1 << 31 | /* reg_work_en */
 		   0x0 << 30 | /* reg_chnum_sel */
 		   0x1 << 25 | /* reg_findpapb_en */

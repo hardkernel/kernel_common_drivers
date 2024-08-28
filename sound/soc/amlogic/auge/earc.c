@@ -159,6 +159,7 @@ struct earc {
 	/* mute in channel status */
 	bool rx_cs_mute;
 	bool tx_cs_mute;
+	bool rx_spdifin_mute;
 
 	/* Channel Allocation */
 	unsigned int tx_cs_lpcm_ca;
@@ -218,6 +219,8 @@ struct earc {
 	struct work_struct earctx_reg_init_work;
 	u8 bit_status_check;
 	bool bch_err;
+	bool rx_parity_err;
+	struct timer_list rx_parity_timer;
 };
 
 static struct earc *s_earc;
@@ -584,6 +587,33 @@ static irqreturn_t rx_handler(int irq, void *data)
 	return IRQ_WAKE_THREAD;
 }
 
+static void rx_parity_restart_timer(struct earc *p_earc, int delay)
+{
+	mod_timer(&p_earc->rx_parity_timer, jiffies + msecs_to_jiffies(delay));
+	dev_dbg(p_earc->dev, "rx_parity_timer restart, %d\n", delay);
+}
+
+static void rx_parity_stop_timer(struct earc *p_earc)
+{
+	del_timer_sync(&p_earc->rx_parity_timer);
+	p_earc->rx_parity_err = false;
+	dev_dbg(p_earc->dev, "rx_parity_timer stop\n");
+}
+
+static void rx_parity_timer_func(struct timer_list *t)
+{
+	struct earc *p_earc = from_timer(p_earc, t, rx_parity_timer);
+	bool unmute_later = p_earc->rx_cs_mute || !p_earc->stream_stable;
+
+	if (!unmute_later) {
+		earcrx_spdifin_mute(p_earc->rx_dmac_map, false);
+		p_earc->rx_spdifin_mute = false;
+	}
+	p_earc->rx_parity_err = false;
+	dev_info(p_earc->dev, "rx_parity_timer func unmute later:%d, stable %d\n",
+		unmute_later, p_earc->stream_stable);
+}
+
 static irqreturn_t earc_rx_isr(int irq, void *data)
 {
 	struct earc *p_earc = (struct earc *)data;
@@ -664,8 +694,12 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 		}
 		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_R_PARITY_ERR) {
 			dev_info(p_earc->dev, "ARCRX_R_PARITY_ERR reset\n");
+			earcrx_spdifin_mute(p_earc->rx_dmac_map, true);
+			p_earc->rx_spdifin_mute = true;
+			p_earc->rx_parity_err = true;
 			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true,
 							p_earc->chipinfo->rx_pll_new);
+			rx_parity_restart_timer(p_earc, 100);
 		}
 
 		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_C_CHST_MUTE_CLR) {
@@ -685,17 +719,28 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_C_CH_STATUS_CHANGE) {
 			int mute = earcrx_get_cs_mute(p_earc->rx_dmac_map);
 
+			if (p_earc->rx_spdifin_mute != mute) {
+				bool unmute_later = !mute &&
+					(p_earc->rx_parity_err || !p_earc->stream_stable);
+
+				if (!unmute_later) {
+					earcrx_spdifin_mute(p_earc->rx_dmac_map, mute);
+					p_earc->rx_spdifin_mute = mute;
+				}
+				dev_info(p_earc->dev, "ARCRX_C_CH_STATUS_CHANGE, unmute_later %d\n",
+					unmute_later);
+			}
 			if (p_earc->rx_cs_mute != mute) {
-				p_earc->rx_cs_mute = mute;
 				if (!mute) {
 					/* EARCRX_ERR_CORRECT_CTRL0 force mode disable */
 					mmio_update_bits(p_earc->rx_dmac_map,
 						EARCRX_ERR_CORRECT_CTRL0,
 						0x3,
 						0x0);
+
 				}
-				earcrx_spdifin_mute(p_earc->rx_dmac_map, mute);
-				dev_info(p_earc->dev, "ARCRX_C_CH_STATUS_CHANGE, mute %d\n", mute);
+				p_earc->rx_cs_mute = mute;
+				dev_info(p_earc->dev, "ARCRX_C_CH_STATUS_CHANGE, mute %d,\n", mute);
 			}
 		}
 		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_I_SAMPLE_MODE_CHANGE)
@@ -1525,6 +1570,8 @@ static int earc_dai_startup(struct snd_pcm_substream *substream,
 		if (!p_earc->chipinfo->rx_pll_new)
 			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true,
 			p_earc->chipinfo->rx_pll_new);
+
+		timer_setup(&p_earc->rx_parity_timer, rx_parity_timer_func, 0);
 	}
 
 	p_earc->substreams[substream->stream] = substream;
@@ -1566,6 +1613,8 @@ static void earc_dai_shutdown(struct snd_pcm_substream *substream,
 		}
 		if (!IS_ERR(p_earc->clk_rx_dmac_srcpll))
 			clk_disable_unprepare(p_earc->clk_rx_dmac_srcpll);
+
+		rx_parity_stop_timer(p_earc);
 	}
 
 	p_earc->substreams[substream->stream] = NULL;
@@ -1701,6 +1750,21 @@ static int earcrx_set_attend_type(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	/* only support set cmdc from idle to ARC */
+
+	return 0;
+}
+
+static int earcrx_arc_get_stable(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+
+	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map)) {
+		ucontrol->value.integer.value[0] = false;
+		return 0;
+	}
+	ucontrol->value.integer.value[0] = !p_earc->rx_parity_err;
 
 	return 0;
 }
@@ -2740,6 +2804,10 @@ static const struct snd_kcontrol_new earc_rx_controls[] = {
 			    0,
 			    arcrx_get_ui_flag,
 			    arcrx_set_ui_flag),
+	SOC_SINGLE_BOOL_EXT("eARC RX stable",
+			    0,
+			    earcrx_arc_get_stable,
+			    NULL),
 
 	/* Status channel controller */
 	SND_IEC958(SNDRV_CTL_NAME_IEC958("", CAPTURE, DEFAULT),
@@ -3094,8 +3162,16 @@ static void rx_stable_work_func(struct work_struct *p_work)
 {
 	struct earc *p_earc = container_of(to_delayed_work(p_work),
 			struct earc, rx_stable_work);
+	int mute = earcrx_get_cs_mute(p_earc->rx_dmac_map);
+	bool unmute_later = mute || p_earc->rx_parity_err;
 
 	p_earc->stream_stable = true;
+	if (!unmute_later) {
+		earcrx_spdifin_mute(p_earc->rx_dmac_map, mute);
+		p_earc->rx_spdifin_mute = mute;
+	}
+	dev_info(p_earc->dev, "earcrx stable update mute %d, stable %d\n",
+		mute, p_earc->stream_stable);
 }
 
 static int earc_platform_probe(struct platform_device *pdev)
