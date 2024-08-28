@@ -6481,7 +6481,7 @@ static void vdin_get_dts_config(struct vdin_dev_s *devp,
 	/* txhd2 keystone,0:vppout;1:postblend */
 	devp->dts_config.keystone_sel = 0;
 	devp->set_canvas_manual = 0;
-	if (devp->dtdata->hw_ver < VDIN_HW_T7)
+	if (devp->dtdata->hw_ver < VDIN_HW_T7 || devp->dtdata->hw_ver == VDIN_HW_TXHD2)
 		devp->baddr_en = false;
 	else
 		devp->baddr_en = true;
