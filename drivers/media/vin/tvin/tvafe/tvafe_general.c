@@ -580,48 +580,45 @@ void tvafe_reg_setb(void __iomem *reg, unsigned int value,
  */
 void tvafe_enable_module(bool enable)
 {
-	/* enable */
+	if (enable) {
+		/* main clk up */
+		if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_T5) {
+			tvafe_reg_setb(ana_addr, 1, VAFE_CLK_SELECT,
+				       VAFE_CLK_SELECT_WIDTH);
+			tvafe_reg_setb(ana_addr, 1, VAFE_CLK_EN,
+				       VAFE_CLK_EN_WIDTH);
+		} else if ((tvafe_cpu_type() >= TVAFE_CPU_TYPE_TL1) &&
+			  (tvafe_cpu_type() <= TVAFE_CPU_TYPE_TM2_B)) {
+			W_HIU_BIT(HHI_ATV_DMD_SYS_CLK_CNTL, 1,
+				  VAFE_CLK_SELECT, VAFE_CLK_SELECT_WIDTH);
+			W_HIU_BIT(HHI_ATV_DMD_SYS_CLK_CNTL, 1,
+				  VAFE_CLK_EN, VAFE_CLK_EN_WIDTH);
+		} else {
+			W_HIU_REG(HHI_VAFE_CLKXTALIN_CNTL, 0x100);
+			W_HIU_REG(HHI_VAFE_CLKOSCIN_CNTL, 0x100);
+			W_HIU_REG(HHI_VAFE_CLKIN_CNTL, 0x100);
+			W_HIU_REG(HHI_VAFE_CLKPI_CNTL, 0x100);
+			W_HIU_REG(HHI_TVFE_AUTOMODE_CLK_CNTL, 0x100);
+		}
 
-	/* main clk up */
-	if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_T5) {
-		tvafe_reg_setb(ana_addr, 1, VAFE_CLK_SELECT,
-			       VAFE_CLK_SELECT_WIDTH);
-		tvafe_reg_setb(ana_addr, 1, VAFE_CLK_EN,
-			       VAFE_CLK_EN_WIDTH);
-	} else if ((tvafe_cpu_type() >= TVAFE_CPU_TYPE_TL1) &&
-		  (tvafe_cpu_type() <= TVAFE_CPU_TYPE_TM2_B)) {
-		W_HIU_BIT(HHI_ATV_DMD_SYS_CLK_CNTL, 1,
-			  VAFE_CLK_SELECT, VAFE_CLK_SELECT_WIDTH);
-		W_HIU_BIT(HHI_ATV_DMD_SYS_CLK_CNTL, 1,
-			  VAFE_CLK_EN, VAFE_CLK_EN_WIDTH);
+		/* T5W add 3d comb clk */
+		if (tvafe_cpu_type() == TVAFE_CPU_TYPE_T5W) {
+			vclk_clk_reg_setb(HHI_TVFE_CLK_CNTL, 1, TVFE_CLK_GATE,
+					  TVFE_CLK_GATE_WIDTH);
+			vclk_clk_reg_setb(HHI_TVFE_CLK_CNTL, 1, TVFE_CLK_SEL,
+					  TVFE_CLK_SEL_WIDTH);
+		}
+
+		/* tvfe power up */
+		W_APB_BIT(TVFE_TOP_CTRL, 1, COMP_CLK_ENABLE_BIT, COMP_CLK_ENABLE_WID);
+		W_APB_BIT(TVFE_TOP_CTRL, 1, EDID_CLK_EN_BIT, EDID_CLK_EN_WID);
+		W_APB_BIT(TVFE_TOP_CTRL, 1, DCLK_ENABLE_BIT, DCLK_ENABLE_WID);
+		W_APB_BIT(TVFE_TOP_CTRL, 1, VAFE_MCLK_EN_BIT, VAFE_MCLK_EN_WID);
+		W_APB_BIT(TVFE_TOP_CTRL, 3, TVFE_ADC_CLK_DIV_BIT, TVFE_ADC_CLK_DIV_WID);
+
+		/*reset module*/
+		tvafe_reset_module();
 	} else {
-		W_HIU_REG(HHI_VAFE_CLKXTALIN_CNTL, 0x100);
-		W_HIU_REG(HHI_VAFE_CLKOSCIN_CNTL, 0x100);
-		W_HIU_REG(HHI_VAFE_CLKIN_CNTL, 0x100);
-		W_HIU_REG(HHI_VAFE_CLKPI_CNTL, 0x100);
-		W_HIU_REG(HHI_TVFE_AUTOMODE_CLK_CNTL, 0x100);
-	}
-
-	/* T5W add 3d comb clk */
-	if (tvafe_cpu_type() == TVAFE_CPU_TYPE_T5W) {
-		vclk_clk_reg_setb(HHI_TVFE_CLK_CNTL, 1, TVFE_CLK_GATE,
-				  TVFE_CLK_GATE_WIDTH);
-		vclk_clk_reg_setb(HHI_TVFE_CLK_CNTL, 1, TVFE_CLK_SEL,
-				  TVFE_CLK_SEL_WIDTH);
-	}
-
-	/* tvfe power up */
-	W_APB_BIT(TVFE_TOP_CTRL, 1, COMP_CLK_ENABLE_BIT, COMP_CLK_ENABLE_WID);
-	W_APB_BIT(TVFE_TOP_CTRL, 1, EDID_CLK_EN_BIT, EDID_CLK_EN_WID);
-	W_APB_BIT(TVFE_TOP_CTRL, 1, DCLK_ENABLE_BIT, DCLK_ENABLE_WID);
-	W_APB_BIT(TVFE_TOP_CTRL, 1, VAFE_MCLK_EN_BIT, VAFE_MCLK_EN_WID);
-	W_APB_BIT(TVFE_TOP_CTRL, 3, TVFE_ADC_CLK_DIV_BIT, TVFE_ADC_CLK_DIV_WID);
-
-	/*reset module*/
-	tvafe_reset_module();
-
-	/* disable */
-	if (!enable) {
 		/* tvfe power down */
 		W_APB_BIT(TVFE_TOP_CTRL, 0, COMP_CLK_ENABLE_BIT,
 				COMP_CLK_ENABLE_WID);
