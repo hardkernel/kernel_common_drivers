@@ -59,6 +59,7 @@ struct dsc_channel {
 	int pid;
 	char loop;
 	enum ca_sc2_algo_type algo;
+	struct file *file;
 	struct dsc_channel *next;
 };
 
@@ -254,7 +255,7 @@ static struct dsc_channel *_get_chan_from_list(struct aml_dsc *dsc, int id)
 	return NULL;
 }
 
-static int _dsc_chan_alloc(struct aml_dsc *dsc,
+static int _dsc_chan_alloc(struct aml_dsc *dsc, struct file *file,
 			   unsigned int pid, int algo, int dsc_type,
 			   unsigned int *ca_index, char loop)
 {
@@ -294,6 +295,7 @@ static int _dsc_chan_alloc(struct aml_dsc *dsc,
 	ch->state = DSC_STATE_READY;
 	ch->index = index;
 	ch->index00 = -1;
+	ch->file = file;
 	ch->next = NULL;
 	ch->id = global_ch_id;
 
@@ -304,7 +306,7 @@ static int _dsc_chan_alloc(struct aml_dsc *dsc,
 	return 0;
 }
 
-static void _dsc_chan_free(struct dsc_channel *ch)
+static void _dsc_chan_free(struct dsc_channel *ch, struct file *file)
 {
 	struct aml_dsc *dsc = (struct aml_dsc *)ch->dsc;
 
@@ -313,6 +315,10 @@ static void _dsc_chan_free(struct dsc_channel *ch)
 	if (ch->state == DSC_STATE_FREE)
 		return;
 
+	if (file && ch->file != file) {
+		pr_dbg("not same file, don't operate\n");
+		return;
+	}
 	_remove_chan_from_list(dsc, ch);
 
 	_free_dsc_table_index(ch->index, ch->dsc_type);
@@ -522,7 +528,7 @@ static int _dvb_dsc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
+static int handle_desc_ext(struct aml_dsc *dsc, struct file *file, struct ca_sc2_descr_ex *d)
 {
 	int ret = -EINVAL;
 
@@ -554,7 +560,7 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 				break;
 			}
 
-			ret = _dsc_chan_alloc(dsc,
+			ret = _dsc_chan_alloc(dsc, file,
 					      d->params.alloc_params.pid & 0x1FFF,
 					      d->params.alloc_params.algo + 1,
 					      d->params.alloc_params.dsc_type,
@@ -573,7 +579,7 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 			ch = _get_chan_from_list(dsc,
 						 d->params.free_params.ca_index);
 			if (ch)
-				_dsc_chan_free(ch);
+				_dsc_chan_free(ch, NULL);
 
 			ret = 0;
 		}
@@ -684,7 +690,7 @@ static int _dvb_dsc_do_ioctl(struct file *file, unsigned int cmd, void *parg)
 		}
 	case CA_SC2_SET_DESCR_EX:{
 			ret =
-			    handle_desc_ext(dsc,
+			    handle_desc_ext(dsc, file,
 					    (struct ca_sc2_descr_ex *)parg);
 			break;
 		}
@@ -775,7 +781,7 @@ static int _dvb_dsc_release(struct inode *inode, struct file *file)
 		ch = ptmp;
 		ptmp = ptmp->next;
 		if (ch)
-			_dsc_chan_free(ch);
+			_dsc_chan_free(ch, file);
 	}
 
 	mutex_unlock(&dsc->mutex);
