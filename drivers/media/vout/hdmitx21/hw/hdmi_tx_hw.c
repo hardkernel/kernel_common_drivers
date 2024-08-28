@@ -3309,6 +3309,25 @@ static enum hdmi_vic get_vic_from_pkt(void)
 	return vic;
 }
 
+static unsigned short get_qms_en_from_pkt(void)
+{
+	int ret;
+	u8 body[31];
+	unsigned int next_tfr = 0;
+	unsigned int qms_en = 0;
+
+	memset(body, 0, sizeof(body));
+	ret = hdmi_emp_infoframe_get(EMP_TYPE_VRR_QMS, body);
+	if (ret <= 0)
+		return 0;
+	qms_en = !!(body[10] & BIT(2));
+	if (qms_en)
+		next_tfr = (body[12] >> 3) & 0xf;
+	if (qms_en && next_tfr)
+		return 1;
+	return 0;
+}
+
 static enum hdmi_colorspace get_cs_from_pkt(void)
 {
 	int ret;
@@ -3363,6 +3382,8 @@ static enum hdmi_color_depth get_cd_from_pkt(void)
 static int hdmitx_get_state(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			    u32 argv)
 {
+	unsigned short tfr_en;
+	unsigned short value_brr;
 	if ((cmd & CMD_STAT_OFFSET) != CMD_STAT_OFFSET) {
 		HDMITX_ERROR(HW "state: invalid cmd 0x%x\n", cmd);
 		return -1;
@@ -3375,6 +3396,10 @@ static int hdmitx_get_state(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		return (int)get_cs_from_pkt();
 	case STAT_VIDEO_CD:
 		return (int)get_cd_from_pkt();
+	case STAT_VIDEO_QMS_INFO:
+		value_brr = (unsigned short)get_vic_from_pkt();
+		tfr_en = (unsigned short)get_qms_en_from_pkt();
+		return (tfr_en << 16) | value_brr;
 	case STAT_TX_OUTPUT:
 		return hdmitx21_uboot_already_display();
 	case STAT_TX_HDR:

@@ -110,6 +110,7 @@
 #define STAT_VIDEO_CLK			(CMD_STAT_OFFSET + 0x01)
 #define STAT_VIDEO_CS			(CMD_STAT_OFFSET + 0x02)
 #define STAT_VIDEO_CD			(CMD_STAT_OFFSET + 0x03)
+#define STAT_VIDEO_QMS_INFO		(CMD_STAT_OFFSET + 0x04)
 #define STAT_AUDIO_FORMAT		(CMD_STAT_OFFSET + 0x10)
 #define STAT_AUDIO_CHANNEL		(CMD_STAT_OFFSET + 0x11)
 #define STAT_AUDIO_CLK_STABLE	(CMD_STAT_OFFSET + 0x12)
@@ -120,7 +121,7 @@
 #define STAT_TX_HDR10P			(CMD_STAT_OFFSET + 0x23) /*hdmitx_get_cur_hdr10p_st*/
 #define STAT_TX_PHY				(CMD_STAT_OFFSET + 0x30)
 #define STAT_TX_OUTPUT			(CMD_STAT_OFFSET + 0x31) /*if hdmitx have output*/
-#define STAT_TX_DSC_EN (CMD_STAT_OFFSET + 0x32) /* if hdmitx have enable dsc */
+#define STAT_TX_DSC_EN			(CMD_STAT_OFFSET + 0x32) /* if hdmitx have enable dsc */
 
 /***********************************************************************
  *             CONFIG CONTROL //cntlconfig

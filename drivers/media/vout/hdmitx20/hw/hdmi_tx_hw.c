@@ -5978,6 +5978,7 @@ static int hdmitx_get_state(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 
 	switch (cmd) {
 	case STAT_VIDEO_VIC:
+	case STAT_VIDEO_QMS_INFO:
 		return (int)get_vic_from_pkt();
 	case STAT_VIDEO_CS:
 		return (int)get_cs_from_pkt();

@@ -34,6 +34,22 @@ void hdmitx_get_init_state(struct hdmitx_common *tx_common,
 }
 EXPORT_SYMBOL(hdmitx_get_init_state);
 
+void hdmitx_get_qms_init_state(struct hdmitx_common *tx_comm, u32 *brr, u32 *qms_en)
+{
+	struct hdmitx_hw_common *tx_hw = NULL;
+	int value;
+
+	if (!tx_comm || !brr || !qms_en)
+		return;
+
+	tx_hw = tx_comm->tx_hw;
+	value = hdmitx_hw_get_state(tx_comm->tx_hw, STAT_VIDEO_QMS_INFO, 0);
+	*brr = value & 0xffff;
+	*qms_en = value >> 16;
+	HDMITX_INFO("qms brr %d qms_en %d\n", *brr, *qms_en);
+}
+EXPORT_SYMBOL(hdmitx_get_qms_init_state);
+
 /* init hdmitx_common struct which is done only when driver probe */
 int hdmitx_common_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *hw_comm)
 {

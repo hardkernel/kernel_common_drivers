@@ -666,6 +666,19 @@ void hdmi_emp_frame_set_member(struct emp_packet_st *info,
 	}
 }
 
+int hdmi_emp_infoframe_get(enum emp_type type, u8 *body)
+{
+	int ret;
+	u16 pkt_type;
+
+	if (!body)
+		return -1;
+
+	pkt_type = (HDMI_INFOFRAME_TYPE_EMP << 8) | type;
+	ret = hdmitx_infoframe_rawget(pkt_type, (u8 *)body);
+	return ret;
+}
+
 void hdmi_spd_infoframe_set(struct hdmi_spd_infoframe *info)
 {
 	u8 body[31] = {0};

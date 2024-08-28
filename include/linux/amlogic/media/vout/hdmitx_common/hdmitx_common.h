@@ -188,6 +188,7 @@ struct hdmitx_common {
 
 void hdmitx_get_init_state(struct hdmitx_common *tx_common,
 			   struct hdmitx_common_state *state);
+void hdmitx_get_qms_init_state(struct hdmitx_common *tx_common, u32 *brr, u32 *qms_en);
 
 /*******************************hdmitx common api*******************************/
 int hdmitx_common_init(struct hdmitx_common *tx_common, struct hdmitx_hw_common *hw_comm);
