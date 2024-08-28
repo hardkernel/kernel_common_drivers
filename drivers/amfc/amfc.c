@@ -24,6 +24,8 @@
 #include <linux/dma-map-ops.h>
 #include <linux/completion.h>
 #include <linux/clk.h>
+#include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
 #include <crypto/internal/scompress.h>
 
 #ifdef CONFIG_HIGHMEM
@@ -1239,6 +1241,12 @@ static int __init amfc_probe(struct platform_device *pdev)
 	}
 	clk_prepare_enable(amfc->clk);
 	amfc->rate = clk_get_rate(amfc->clk);
+	pm_runtime_enable(amfc->dev);
+	r = pm_runtime_get(amfc->dev);
+	if (r) {
+		pr_err("get runtime pm failed:%d\n", r);
+		goto err;
+	}
 
 	init_completion(&amfc->ccomp);
 	init_completion(&amfc->dcomp);
@@ -1282,13 +1290,20 @@ err:
 
 static int amfc_suspend(struct device *dev)
 {
+	clk_disable_unprepare(amfc->clk);
 	return 0;
 }
 
 static int amfc_resume(struct device *dev)
 {
+	clk_prepare_enable(amfc->clk);
 	amfc_hw_init();
 	return 0;
+}
+
+static void amfc_shutdown(struct platform_device *pdev)
+{
+	pm_runtime_force_suspend(&pdev->dev);
 }
 
 static SIMPLE_DEV_PM_OPS(amfc_pm_ops, amfc_suspend, amfc_resume);
@@ -1334,7 +1349,8 @@ static struct platform_driver amfc_driver = {
 		.owner = THIS_MODULE,
 		.pm = &amfc_pm_ops,
 	},
-	.remove = amfc_remove,
+	.remove   = amfc_remove,
+	.shutdown = amfc_shutdown,
 };
 
 int __init amfc_init(void)
