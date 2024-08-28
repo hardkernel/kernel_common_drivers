@@ -358,6 +358,15 @@ int set_vout_mode(char *name)
 }
 EXPORT_SYMBOL(set_vout_mode);
 
+int get_vout_mode_cap(char *buf)
+{
+	if (!get_vout_disp_cap(buf))
+		sprintf(buf, "null\n");
+
+	return 0;
+}
+EXPORT_SYMBOL(get_vout_mode_cap);
+
 static int set_vout_init_mode(void)
 {
 	enum vmode_e vmode;
