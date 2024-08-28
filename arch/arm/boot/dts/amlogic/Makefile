@@ -125,5 +125,7 @@ dtb-y += t5m_t963d4_ay301_2g.dtb
 dtb-y += t6d_pxp.dtb
 dtb-y += t6d_t950d5_br309_1g.dtb
 dtb-y += t6d_t950d5_br301_1g.dtb
+dtb-y += t6d_t950d5_br301_1g_linux.dtb
 dtb-y += t6d_t950d5_br309_1.5g.dtb
 dtb-y += t6d_t950d5_br301_1.5g.dtb
+dtb-y += t6d_t950d5_br301_1.5g_linux.dtb
