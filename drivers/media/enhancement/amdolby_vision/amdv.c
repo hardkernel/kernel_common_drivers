@@ -3375,10 +3375,12 @@ bool is_hlg_frame(struct vframe_s *vf)
 
 bool vf_is_hdr10_plus(struct vframe_s *vf)
 {
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 	if (signal_transfer_characteristic == 0x30 &&
 	    (signal_color_primaries == 9 ||
 	    signal_color_primaries == 2) && is_hdr10plus_enable())
 		return true;
+#endif
 	return false;
 }
 
@@ -3401,11 +3403,13 @@ bool is_hdr10plus_frame(struct vframe_s *vf)
 		/* report hdr10 for the content hdr10+ and
 		 * sink is hdr10+ case
 		 */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 		if (signal_transfer_characteristic == 0x30 &&
 		    (is_aml_tvmode() || sink_support_hdr10_plus(vinfo)) &&
 		    (signal_color_primaries == 9 ||
 		    signal_color_primaries == 2) && is_hdr10plus_enable())
 			return true;
+#endif
 	}
 	return false;
 }
@@ -3417,10 +3421,12 @@ bool vf_is_hdr10(struct vframe_s *vf)
 	    signal_color_primaries == 2) && !signal_cuva)
 		return true;
 	/* treat hdr10+ as hdr10 when system not support hdr10+ */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 	if (signal_transfer_characteristic == 0x30 &&
 	    (signal_color_primaries == 9 ||
 	    signal_color_primaries == 2) && !is_hdr10plus_enable())
 		return true;
+#endif
 	return false;
 }
 
@@ -3446,11 +3452,13 @@ bool is_hdr10_frame(struct vframe_s *vf)
 		/* report hdr10 for the content hdr10+ and
 		 * sink is hdr10+ case
 		 */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 		if (signal_transfer_characteristic == 0x30 &&
 		    (is_aml_tvmode() || sink_support_hdr10_plus(vinfo)) &&
 		    (signal_color_primaries == 9 ||
 		    signal_color_primaries == 2) && !is_hdr10plus_enable())
 			return true;
+#endif
 	}
 	return false;
 }
