@@ -38,6 +38,7 @@
 #define LCD_VMODE_SWITCH_FULL   1
 #define LCD_VMODE_SWITCH_LIMIT  2
 #define LCD_VMODE_SWITCH_MIN    3
+#define LCD_VMODE_SWITCH_MIN_WO_TCON_RST    4
 
 struct lcd_ufr_s {
 	struct lcd_detail_timing_s timing;

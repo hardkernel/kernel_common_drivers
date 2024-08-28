@@ -530,6 +530,7 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv)
 
 	switch (pdrv->config.cus_ctrl.timing_switch_flag) {
 	case LCD_VMODE_SWITCH_MIN:
+	case LCD_VMODE_SWITCH_MIN_WO_TCON_RST:
 		event_off = LCD_EVENT_UFR_SWITCH_OFF;
 		event_on = LCD_EVENT_UFR_SWITCH_ON;
 		break;

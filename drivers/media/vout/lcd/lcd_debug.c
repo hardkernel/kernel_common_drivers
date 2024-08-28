@@ -3556,6 +3556,33 @@ static ssize_t lcd_debug_cus_ctrl_show(struct device *dev,
 	return lcd_cus_ctrl_dump_info(pdrv, buf, 0);
 }
 
+static ssize_t lcd_debug_cus_ctrl_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	unsigned int temp = 0;
+	int ret = 0;
+
+	switch (buf[0]) {
+	case 's':
+		ret = sscanf(buf, "switch %d", &temp);
+		if (ret != 1)
+			goto lcd_debug_cus_ctrl_store_err;
+		pdrv->config.cus_ctrl.timing_switch_flag_dbg = (unsigned char)temp;
+		LCDPR("set timing_switch_flag_dbg: %d\n",
+			pdrv->config.cus_ctrl.timing_switch_flag_dbg);
+		break;
+	default:
+		goto lcd_debug_cus_ctrl_store_err;
+	}
+
+	return count;
+
+lcd_debug_cus_ctrl_store_err:
+	pr_info("invalid data\n");
+	return -EINVAL;
+}
+
 static ssize_t lcd_debug_vinfo_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -5089,7 +5116,7 @@ static struct device_attribute lcd_debug_attrs[] = {
 	__ATTR(time,        0444, lcd_proc_time_show, NULL),
 	__ATTR(dump,        0644, lcd_debug_dump_show, lcd_debug_dump_store),
 	__ATTR(print,       0644, lcd_debug_print_show, lcd_debug_print_store),
-	__ATTR(cus_ctrl,    0444, lcd_debug_cus_ctrl_show, NULL),
+	__ATTR(cus_ctrl,    0644, lcd_debug_cus_ctrl_show, lcd_debug_cus_ctrl_store),
 	__ATTR(vinfo,       0444, lcd_debug_vinfo_show, NULL),
 	__ATTR(sw_vlock,    0644, lcd_debug_sw_vlock_show, lcd_debug_sw_vlock_store),
 	__ATTR(vs_msr,      0644, lcd_debug_vs_msr_show, lcd_debug_vs_msr_store)

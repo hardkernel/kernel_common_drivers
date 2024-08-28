@@ -737,9 +737,11 @@ int lcd_tcon_reload_pre(struct aml_lcd_drv_s *pdrv)
 	pdrv->status &= ~LCD_STATUS_TCON_RDY;
 	if (lcd_tcon_conf->tcon_disable)
 		lcd_tcon_conf->tcon_disable(pdrv);
-	if (lcd_tcon_conf->tcon_global_reset) {
-		lcd_tcon_conf->tcon_global_reset(pdrv);
-		LCDPR("reset tcon\n");
+	if (pdrv->config.cus_ctrl.timing_switch_flag != LCD_VMODE_SWITCH_MIN_WO_TCON_RST) {
+		if (lcd_tcon_conf->tcon_global_reset) {
+			lcd_tcon_conf->tcon_global_reset(pdrv);
+			LCDPR("reset tcon\n");
+		}
 	}
 
 	local_time[1] = sched_clock();

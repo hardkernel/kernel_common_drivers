@@ -560,6 +560,7 @@ struct cus_ctrl_config_s {
 	unsigned int active_timing_type;
 	unsigned char timing_switch_flag;
 	unsigned char timing_switch_flag_pre;
+	unsigned char timing_switch_flag_dbg;
 	unsigned char timing_ctrl_valid;
 
 	struct lcd_cus_ctrl_attr_config_s *attr_config;

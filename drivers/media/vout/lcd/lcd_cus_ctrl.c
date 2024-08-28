@@ -1265,6 +1265,15 @@ static void lcd_cus_ctrl_set_timing_switch_flag(struct aml_lcd_drv_s *pdrv, int 
 	vmode_switch_pre = pdrv->config.cus_ctrl.timing_switch_flag_pre;
 	pdrv->config.cus_ctrl.timing_switch_flag_pre = switch_flag;
 
+	if (pdrv->config.cus_ctrl.timing_switch_flag_dbg) {
+		pdrv->config.cus_ctrl.timing_switch_flag =
+			pdrv->config.cus_ctrl.timing_switch_flag_dbg;
+		LCDPR("[%d]: %s: timing_switch_flag pre: %d, cur: %d, force dbg to final: %d\n",
+			pdrv->index, __func__, vmode_switch_pre, switch_flag,
+			pdrv->config.cus_ctrl.timing_switch_flag);
+		return;
+	}
+
 	switch (vmode_switch_pre) {
 	case LCD_VMODE_SWITCH_FULL:
 		pdrv->config.cus_ctrl.timing_switch_flag = LCD_VMODE_SWITCH_FULL;
@@ -1276,6 +1285,7 @@ static void lcd_cus_ctrl_set_timing_switch_flag(struct aml_lcd_drv_s *pdrv, int 
 			pdrv->config.cus_ctrl.timing_switch_flag = LCD_VMODE_SWITCH_LIMIT;
 		break;
 	case LCD_VMODE_SWITCH_MIN:
+	case LCD_VMODE_SWITCH_MIN_WO_TCON_RST:
 		if (switch_flag == LCD_VMODE_SWITCH_FULL)
 			pdrv->config.cus_ctrl.timing_switch_flag = LCD_VMODE_SWITCH_FULL;
 		else if (switch_flag == LCD_VMODE_SWITCH_LIMIT)
