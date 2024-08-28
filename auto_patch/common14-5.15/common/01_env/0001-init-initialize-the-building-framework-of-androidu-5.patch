@@ -1,4 +1,4 @@
-From 23650f4fc7e9f836e866149a20f33a1da15c6ed1 Mon Sep 17 00:00:00 2001
+From ced98d23cc6fe4004cbe271340528543a0cb0f46 Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Thu, 2 Feb 2023 15:49:10 +0800
 Subject: [PATCH] init: initialize the building framework of androidu-5.15 for
@@ -19,7 +19,7 @@ Change-Id: Icfbc29709af1545b802ed7794808a2ab560ed08a
 Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
 ---
  .gitignore                                |   3 +
- Makefile                                  |  42 ++-
+ Makefile                                  |  43 ++-
  drivers/Kconfig                           |  61 +++
  scripts/amlogic/licence_check.pl          | 153 ++++++++
  scripts/amlogic/licence_pre.pl            |  53 +++
@@ -28,7 +28,8 @@ Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
  scripts/amlogic/pre-commit-common_drivers |  24 ++
  scripts/checkpatch.pl                     | 158 ++++----
  scripts/kconfig/Makefile                  |   9 +-
- 10 files changed, 874 insertions(+), 82 deletions(-)
+ usr/include/Makefile                      |   4 +
+ 11 files changed, 879 insertions(+), 82 deletions(-)
  create mode 100755 scripts/amlogic/licence_check.pl
  create mode 100755 scripts/amlogic/licence_pre.pl
  create mode 100755 scripts/amlogic/merge_pre_check.pl
@@ -47,7 +48,7 @@ index 265959544978..0bbfe4cd37fc 100644
 +# amlogic drivers
 +/common_drivers/
 diff --git a/Makefile b/Makefile
-index 4bed31517741..890980411350 100644
+index a4b02752f44a..32e28f343fb4 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -438,6 +438,14 @@ ifneq ($(SRCARCH),$(SUBARCH))
@@ -65,7 +66,7 @@ index 4bed31517741..890980411350 100644
  KCONFIG_CONFIG	?= .config
  export KCONFIG_CONFIG
  
-@@ -689,10 +697,25 @@ ifdef need-config
+@@ -689,10 +697,26 @@ ifdef need-config
  include include/config/auto.conf
  endif
  
@@ -78,6 +79,7 @@ index 4bed31517741..890980411350 100644
 +		-I$(srctree)/$(COMMON_DRIVERS_DIR)/include \
 +		-I$(srctree)/$(COMMON_DRIVERS_DIR)/include/uapi
 +KBUILD_CFLAGS += -Werror
++KBUILD_AFLAGS += -Wno-unused-command-line-argument
 +endif
 +
  ifeq ($(KBUILD_EXTMOD),)
@@ -91,7 +93,7 @@ index 4bed31517741..890980411350 100644
  drivers-$(CONFIG_SAMPLES) += samples/
  drivers-$(CONFIG_NET) += net/
  drivers-y	+= virt/
-@@ -1221,6 +1244,9 @@ ifeq ($(KBUILD_EXTMOD),)
+@@ -1220,6 +1244,9 @@ ifeq ($(KBUILD_EXTMOD),)
  endif
  	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)include/uapi
  	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)arch/$(SRCARCH)/include/uapi
@@ -101,7 +103,7 @@ index 4bed31517741..890980411350 100644
  
  ifeq ($(KBUILD_EXTMOD),)
  core-y			+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/
-@@ -1483,10 +1509,22 @@ endif
+@@ -1482,10 +1509,22 @@ endif
  ifneq ($(dtstree),)
  
  %.dtb: include/config/kernel.release scripts_dtc
@@ -1210,6 +1212,21 @@ index 5a215880b268..1aa948880a3d 100644
  
  configfiles=$(wildcard $(srctree)/kernel/configs/$@ $(srctree)/arch/$(SRCARCH)/configs/$@)
  
+diff --git a/usr/include/Makefile b/usr/include/Makefile
+index 6111974688a8..b4f37a52aa73 100644
+--- a/usr/include/Makefile
++++ b/usr/include/Makefile
+@@ -8,6 +8,10 @@
+ # We cannot go as far as adding -Wpedantic since it emits too many warnings.
+ UAPI_CFLAGS := -std=c90 -Wall -Werror=implicit-function-declaration
+ 
++ifdef CONFIG_AMLOGIC_DRIVER
++UAPI_CFLAGS += -Werror
++endif
++
+ # In theory, we do not care -m32 or -m64 for header compile tests.
+ # It is here just because CONFIG_CC_CAN_LINK is tested with -m32 or -m64.
+ UAPI_CFLAGS += $(filter -m32 -m64 --target=%, $(KBUILD_CFLAGS))
 -- 
-2.42.0
+2.45.2
 
