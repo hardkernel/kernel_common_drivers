@@ -5230,9 +5230,11 @@ void edid_type_update(u8 port)
 	case EDID_AUTO20:
 		if ((edid_auto_sel & rx[port].edid_type.cfg) == 0)
 			break;
-		if (rx[port].tx_type == DEV_HDMI14 && rx[port].edid_type.edid_ver != EDID_V14) {
-			rx[port].edid_type.edid_ver = EDID_V14;
-			rx[port].edid_type.need_update = true;
+		if (rx[port].tx_type == DEV_HDMI14) {
+			if (rx[port].edid_type.edid_ver != EDID_V14) {
+				rx[port].edid_type.edid_ver = EDID_V14;
+				rx[port].edid_type.need_update = true;
+			}
 		} else if (rx[port].tx_type == DEV_ABNORMAL_SCDC) {
 			if (port == rx_info.main_port) {
 				if (rx[port].edid_type.edid_ver != EDID_V20) {

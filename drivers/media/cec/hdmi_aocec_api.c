@@ -547,7 +547,12 @@ void cec_spd_info_init(void)
 		}
 	}
 	INIT_LIST_HEAD(&spd_tx_device_info.spd_info_list);
-	cec_add_spd_info(8, 0x080046, "STR-DH590");
+	//TCL white list: 0x080046/STR-DH590, tx_type:8(scdc)
+	//loki white list: 0x080046/sony BDP-S570 dvd, tx_type:4(1.4)
+	//TCL and loki has a same spd vendor id,we set tx_type
+	//to edid1.4 for fix loki issue, if TCL found this device issue
+	//we should change tv_type back to 8(scdc).
+	cec_add_spd_info(4, 0x080046, "STR-DH590");
 	cec_add_spd_info(4, 0x00a0de, "RX-V385");
 	cec_add_spd_info(4, 0x0005cd, "AVR-X1600H");
 }

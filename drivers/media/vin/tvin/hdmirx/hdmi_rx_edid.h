@@ -8,7 +8,8 @@
 
 /* 2024.07.04 do edid reset to clear segment for edid 512 by edid intr */
 //2024.07.18 fix hdmi repeater cert fail item
-#define RX_EDID_H_VER "ver.2024/07/18"
+//2024.08.28 default enable auto edid
+#define RX_EDID_H_VER "ver.2024/08/28"
 
 #define EDID_EXT_BLK_OFF	128
 #define EDID_BLK_SIZE		128
