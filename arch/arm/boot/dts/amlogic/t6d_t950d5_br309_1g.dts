@@ -46,7 +46,7 @@
 		/* global autoconfigured region for contiguous allocations */
 		ramdump_bl33z@00000000 {
 			reg = <0x0 0x1800000>; /* 0 ~ 24M */
-			status = "disabled";
+			status = "disabled"; /* disabled as default */
 		};
 
 		ramoops@0x06300000 {
@@ -93,45 +93,21 @@
 			tcon-size = <0x00402840>;
 		};
 
-		ion_cma_reserved:linux,ion-dev {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0>;
-			alignment = <0x400000>;
-			status = "disabled";
-		};
-		/* secure ion for gpu, advice size is 80M */
-		ion_secure_reserved:linux,ion-secure {
-			compatible = "amlogic, ion-secure-mem";
-			no-map;
-			size = <0x0000000>;
-			alignment = <0x400000>;
-			status = "disabled";
-		};
-		ion_fb_reserved:linux,ion-fb {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* 1920x1080x4x3 round up 4M align */
-			size = <0x0>;
-			alignment = <0x400000>;
-			status = "disabled";
-		};
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
 			size = <0x0>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x00000000 0x1d400000>;
-			status = "okay";
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
+
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1080p TV androidT size 28M */
 			size = <0x1c00000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x00000000 0x1d400000>;
-			status = "okay";
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -150,8 +126,7 @@
 			reusable;
 			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x00000000 0x1d400000>;
-			status = "okay";
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -170,66 +145,22 @@
 			linux,contiguous-region;
 		};
 
-		/*di CMA pool */
-		di_cma_reserved:linux,di_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* buffer_size = 3621952(yuv422 8bit)
-			 *  | 4736064(yuv422 10bit)
-			 *  | 4074560(yuv422 10bit full pack mode)
-			 * 10x3621952=34.6M(0x23) support 8bit
-			 * 10x4736064=45.2M(0x2e) support 12bit
-			 * 10x4074560=40M(0x28) support 10bit
-			 */
-			size = <0x000000>;
-			//size = <0x0 0x0>;
-			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x1d400000>;
-			status = "disabled";
-		};
-		/* codec shared reserved */
-		codec_mm_reserved:linux,codec_mm_reserved {
-			compatible = "amlogic, codec-mm-reserved";
-			size = <0x100000>;
-			alignment = <0x100000>;
-			//no-map;
-			status = "disabled";
-		};
-
 		secure_vdec_reserved:linux,secure_vdec_reserved {
 			compatible = "amlogic, secure-vdec-reserved";
 			no-map;
 			size = <0x400000>;
 			alignment = <0x100000>;
-		};
-
-		/* POST PROCESS MANAGER */
-		ppmgr_reserved:linux,ppmgr {
-			compatible = "amlogic, ppmgr_memory";
-			size = <0x100000>;
-			alignment = <0x100000>;
-			linux,contiguous-region;
-			status = "disabled";
-		};
-
-		picdec_cma_reserved:linux,picdec {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x100000>;
-			alignment = <0x100000>;
-			linux,contiguous-region;
-			status = "disabled";
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
 
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x800000>;
+			size = <0x400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x1d400000>;
+			alloc-ranges = <0x30000000 0x10000000>;
 			linux,cma-default;
-			status = "disabled";
 		};
 	};
 
@@ -323,7 +254,7 @@
 
 	codec_mm {
 		compatible = "amlogic, codec, mm";
-		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
+		memory-region = <&codec_mm_cma &secure_vdec_reserved>;
 		dev_name = "codec_mm";
 		status = "okay";
 		/*
@@ -333,30 +264,6 @@
 		 */
 		scatter_alloc_mode = <1>;
 	};
-
-	ionvideo {
-		compatible = "amlogic, ionvideo";
-		dev_name = "ionvideo";
-		status = "disabled";
-	};
-
-	picdec {
-		compatible = "amlogic, picdec";
-		memory-region = <&picdec_cma_reserved>;
-		dev_name = "picdec";
-		status = "disabled";
-	};
-	ppmgr {
-		compatible = "amlogic, ppmgr";
-		memory-region = <&ppmgr_reserved>;
-		status = "disabled";
-	};
-	vdetect {
-		compatible = "amlogic, vdetect";
-		dev_name = "vdetect";
-		status = "disabled";
-	};
-
 	video_queue {
 		compatible = "amlogic, video_queue";
 		dev_name = "videoqueue";
@@ -489,7 +396,7 @@
 		compatible = "amlogic,unifykey";
 		status = "okay";
 
-		unifykey-num = <24>;
+		unifykey-num = <13>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -500,21 +407,9 @@
 		unifykey-index-7 = <&keysn_7>;
 		unifykey-index-8 = <&keysn_8>;
 		unifykey-index-9 = <&keysn_9>;
-		unifykey-index-10= <&keysn_10>;
+		unifykey-index-10 = <&keysn_10>;
 		unifykey-index-11 = <&keysn_11>;
 		unifykey-index-12 = <&keysn_12>;
-		unifykey-index-13 = <&keysn_13>;
-		unifykey-index-14 = <&keysn_14>;
-		unifykey-index-15 = <&keysn_15>;
-		unifykey-index-16 = <&keysn_16>;
-		unifykey-index-17 = <&keysn_17>;
-		unifykey-index-18 = <&keysn_18>;
-		unifykey-index-19 = <&keysn_19>;
-		unifykey-index-20 = <&keysn_20>;
-		unifykey-index-21 = <&keysn_21>;
-		unifykey-index-22 = <&keysn_22>;
-		unifykey-index-23 = <&keysn_23>;
-		unifykey-index-24 = <&keysn_24>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -527,122 +422,59 @@
 			key-permit = "read","write","del";
 		};
 		keysn_2:key_2{
-			key-name = "hdcp";
-			key-device = "secure";
-			key-type  = "sha1";
-			key-permit = "read","write","del";
-		};
-		keysn_3:key_3{
 			key-name = "secure_boot_set";
 			key-device = "efuse";
 			key-permit = "write";
 		};
-		keysn_4:key_4{
+		keysn_3:key_3{
 			key-name = "mac_bt";
 			key-device = "normal";
 			key-permit = "read","write","del";
 			key-type  = "mac";
 		};
-		keysn_5:key_5{
+		keysn_4:key_4{
 			key-name = "mac_wifi";
 			key-device = "normal";
 			key-permit = "read","write","del";
 			key-type  = "mac";
 		};
-		keysn_6:key_6{
-			key-name = "hdcp2_tx";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_7:key_7{
+		keysn_5:key_5{
 			key-name = "hdcp2_rx";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
-		keysn_8:key_8{
-			key-name = "widevinekeybox";
-			key-device = "secure";
-			key-type = "sha1";
-			key-permit = "read","write","del";
-		};
-		keysn_9:key_9{
+		keysn_6:key_6{
 			key-name = "deviceid";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
-		keysn_10:key_10{
-			key-name = "hdcp22_fw_private";
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_11:key_11{
-			key-name = "hdcp22_rx_private";
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_12:key_12{
-			key-name = "hdcp22_rx_fw";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_13:key_13{
-			key-name = "hdcp14_rx";
-			key-device = "normal";
-			key-type  = "sha1";
-			key-permit = "read","write","del";
-		};
-		keysn_14:key_14{
-			key-name = "prpubkeybox";// PlayReady
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_15:key_15{
-			key-name = "prprivkeybox";// PlayReady
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_16:key_16{
+		keysn_7:key_7{
 			key-name = "lcd";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
-		keysn_17:key_17{
+		keysn_8:key_8{
 			key-name = "lcd_extern";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
-		keysn_18:key_18{
+		keysn_9:key_9{
 			key-name = "backlight";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
-		keysn_19:key_19{
+		keysn_10:key_10{
 			key-name = "lcd_tcon";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
-		keysn_20:key_20{
-			key-name = "attestationkeybox";// attestation key
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_21:key_21{
+		keysn_11:key_11{
 			key-name = "lcd_tcon_spi";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
-		keysn_22:key_22{
-			key-name = "attestationdevidbox";// attest dev id box
-			key-device = "secure";
-			key-permit = "read","write","del";
-		};
-		keysn_23:key_23{
+		keysn_12:key_12{
 			key-name = "oemkey";
-			key-device = "normal";
-			key-permit = "read","write","del";
-		};
-		keysn_24:key_24{
-			key-name = "ldim_dev";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
@@ -1015,16 +847,6 @@
 	};
 }; /* end of / */
 
-&fb {
-	status = "disabled";
-	display_size_default = <1920 1080 1920 2160 32>;
-	mem_size = <0x00800000 0x1980000 0x100000>;
-	display_device_cnt = <2>;
-	logo_addr = "0x3f800000";
-	mem_alloc = <0>;
-	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
-};
-
 &drm_vpu {
 	status = "okay";
 	logo_addr = "0x3f800000";
@@ -1282,7 +1104,7 @@
 };
 
 &spicc0 {	//for TCON
-	status = "disabled";
+	status = "disabled"; /* disabled as default */
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
 	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
@@ -1305,7 +1127,7 @@
 };
 
 &ir1 {
-	status = "disabled";
+	status = "disabled"; /* disabled as default */
 	pinctrl-names = "default";
 	pinctrl-0 = <&remote_b_pins>;
 };
