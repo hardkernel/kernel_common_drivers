@@ -219,7 +219,8 @@ static int parse_meson_partitions(struct mtd_info *master,
 
 	i = 0;
 	if (!strncmp((char *)parts[i].name, NAND_BOOT_NAME,
-		     strlen((const char *)NAND_BOOT_NAME))) {
+		     strlen((const char *)NAND_BOOT_NAME)) ||
+	    !strncmp((char *)parts[i].name, "bl2", 3)) {
 		parts[i].offset = 0;
 		if (!parts[i].size)
 			parts[i].size = ((uint64_t)master->writesize * BOOT_TOTAL_PAGES);
