@@ -124,8 +124,8 @@ static int w25n02kv_ooblayout_free(struct mtd_info *mtd, int section,
 	if (section > 3)
 		return -ERANGE;
 
-	region->offset = (16 * section) + 2;
-	region->length = 14;
+	region->offset = (16 * section) + 4;
+	region->length = 12;
 
 	return 0;
 }
