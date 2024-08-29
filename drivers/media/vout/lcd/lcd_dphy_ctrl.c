@@ -586,7 +586,6 @@ void lcd_lvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off)
 		break;
 	case LCD_CHIP_TXHD2:
 		if (on_off) {
-			lcd_combo_dphy_write(pdrv, COMBO_DPHY_CNTL0_TXHD2, 0x55555);
 			/* set fifo_clk_sel: div 7 */
 			lcd_combo_dphy_write(pdrv, reg_dphy_tx_ctrl0, (1 << 6));
 			/* set cntl_ser_en:  8-channel */
