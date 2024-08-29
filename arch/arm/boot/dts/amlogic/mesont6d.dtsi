@@ -1563,6 +1563,7 @@
 		//					<&clkc CLKID_USB2_48M_CLK_TMP>;
 		phy-id = <0>;
 		usb-phy-trim-reg = <0xfe010330>;
+		pm-controller;
 	};
 
 	usb_phy30: usbphy30@fe488100 {
@@ -1598,6 +1599,7 @@
 		phy-id = <2>;
 		usb-phy-trim-reg = <0xfe010330>;
 		status = "disable";
+		pm-controller;
 	};
 
 	usb_phy32: usbphy32@fe4a8000 {
@@ -1621,6 +1623,7 @@
 		clock-names = "crg_general";
 		phy-id = <1>;
 		usb-phy-trim-reg = <0xfe010330>;
+		pm-controller;
 	};
 
 	usb_phy31: usbphy31@fe498100 {
@@ -1665,6 +1668,7 @@
 		clock-names = "usb_general";
 		phy-id = <0>;
 		version = <1>; /* forbid vbus detect */
+		suspend-scheme = <0x1>;
 	};
 
 	crg22_host: crg22@fe4a0000 {
