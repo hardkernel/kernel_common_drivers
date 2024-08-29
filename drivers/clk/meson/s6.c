@@ -232,8 +232,7 @@ static struct clk_regmap hifi1_pll = {
 			 CLK_MESON_PLL_POWER_OF_TWO |
 			 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION |
 			 CLK_MESON_PLL_FIXED_EN0P5 |
-			 CLK_MESON_PLL_RSTN |
-			 CLK_MESON_PLL_IGNORE_INIT,
+			 CLK_MESON_PLL_RSTN,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "hifi1_pll",
