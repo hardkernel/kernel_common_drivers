@@ -99,6 +99,7 @@
 			alignment = <0x400000>;
 			alloc-ranges = <0x30000000 0x10000000>;
 		};
+
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -267,6 +268,7 @@
 		dev_name = "videoqueue";
 		status = "okay";
 	};
+
 	amlvideo2_0 {
 		compatible = "amlogic, amlvideo2";
 		dev_name = "amlvideo2";

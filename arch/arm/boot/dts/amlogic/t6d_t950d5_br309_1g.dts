@@ -256,7 +256,6 @@
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &secure_vdec_reserved>;
 		dev_name = "codec_mm";
-		status = "okay";
 		/*
 		 * scatter_alloc_mode: the mode of scatter memory allocation
 		 * 0: default mode, alloc from system and cma
@@ -264,11 +263,13 @@
 		 */
 		scatter_alloc_mode = <1>;
 	};
+
 	video_queue {
 		compatible = "amlogic, video_queue";
 		dev_name = "videoqueue";
 		status = "okay";
 	};
+
 	amlvideo2_0 {
 		compatible = "amlogic, amlvideo2";
 		dev_name = "amlvideo2";

@@ -123,15 +123,6 @@
 		method = "smc";
 	};
 
-	provisionkey {
-		compatible = "amlogic, provisionkey";
-		status = "disabled";
-		key-permit-default = "write";
-		//new key not need add dts if started with KEY_PROVISION_
-		KEY_PROVISION_XXX { };
-		//test_my_added_keyname { };
-	};//End provisionkey
-
 	meson_suspend:pm {
 		compatible = "amlogic, pm";
 		device_name = "aml_pm";
@@ -156,13 +147,6 @@
 		reg = <0xFE0102D8 4>;
 		reg-names = "SYSCTRL_STICKY_REG6";
 		store_device = "data";
-		status = "disabled";
-	};
-
-	cma_shrinker: cma_shrinker {
-		compatible = "amlogic, cma-shrinker";
-		adj  = <0 100 200 250 900 950>;
-		free = <8192 12288 16384 24576 28672 32768>;
 		status = "disabled";
 	};
 
@@ -219,32 +203,6 @@
 		compatible = "amlogic,t6d-power-domain";
 		#power-domain-cells = <1>;
 		status = "okay";
-	};
-
-	galcore {
-		compatible = "amlogic, galcore";
-		dev_name = "galcore";
-		status = "disabled";
-		//clocks = <&clkc CLKID_CTS_NNA_AXI_CLK>,
-		//      <&clkc CLKID_CTS_NNA_CORE_CLK>,
-		//      <&clkc CLKID_SYS1_PLL>;
-		//clock-names = "cts_vipnanoq_axi_clk_composite",
-		//      "cts_vipnanoq_core_clk_composite",
-		//      "sys1_pll";
-		//assigned-clocks =  <&clkc CLKID_SYS1_PLL>;
-		assigned-clock-rates =  <1704000000>;
-		interrupts = <0 59 4>;
-		interrupt-names = "galcore";
-		//power-domains = <&pwrdm PDID_T3_NNA>;
-		reg = <0xfdb00000 0x40000
-		      0xfe090000 0x2000
-		      0xfe00c0a4 0x4
-		      0xfe00c0a8 0x4
-		      0xfe00c034 0x4
-		      0xfe000220 0x4>;
-		reg-names = "NN_REG","NN_SRAM","NN_MEM0",
-		      "NN_MEM1","NN_RESET","NN_CLK";
-		nn_power_version = <5>;
 	};
 
 	vrtc: rtc@0xfe010288 {
@@ -826,7 +784,6 @@
 			internal_phy = <1>;
 			analog_version = <1>;
 			mboxes = <&mbox_fifo T6D_REE2AO_ETH>;
-		//	status = "disabled";
 
 			mdio0: mdio {
 				#address-cells = <1>;
@@ -905,27 +862,6 @@
 			resets = <&reset RESET_SD_EMMC_C>;
 		};
 
-		sd_emmc_b: sd@fe08a000 {
-			compatible = "amlogic,meson-v8-mmc";
-			reg = <0xfe08a000 0x1000>,
-				<0xfe00016c 0x4>,
-				<0xfe004008 0x4>;
-			interrupts = <GIC_SPI 177 IRQ_TYPE_EDGE_RISING>;
-			status = "disabled";
-			//clocks = <&clkc CLKID_SYS_SD_EMMC_B>,
-			//	<&clkc CLKID_SD_EMMC_B_SEL>,
-			//	<&clkc CLKID_SD_EMMC_B>,
-			//	<&xtal>,
-			//	<&clkc CLKID_FCLK_DIV2>;
-			clock-names = "core", "mux0", "mux1",
-					"clkin0", "clkin1";
-			card_type = <5>;
-			//use_intf3_tuning;
-			mmc_debug_flag;
-			no-mmc;
-			no-sdio;
-			//resets = <&reset RESET_SD_EMMC_B>;
-		};
 		video_composer {
 			compatible = "amlogic, video_composer";
 			dev_name = "video_composer";
@@ -937,6 +873,7 @@
 			dev_name = "di_process";
 			status = "okay";
 		};
+
 		vpu: vpu {
 			compatible = "amlogic, vpu-t6d";
 			status = "okay";
@@ -1071,24 +1008,8 @@
 				0x0000a008>; /* WB0_POST_BLEND */
 			/* vdin v4l2 end */
 		};
-
-		amvdec_656in {
-			/*bt656 gpio conflict with i2c0*/
-			compatible = "amlogic, bt656in-t3";
-			dev_name = "amvdec_656in";
-			status = "disabled";
-			reg = <0xfe0ba000 0x7c>;
-			//clocks = <&clkc CLKID_BT656_CLK>,
-			//	<&clkc CLKID_SYS_BT656_PCLK>;
-			//clock-names = "cts_bt656_clk1",
-			//	"clk_gate_bt656_pclk1";
-			/* bt656in1, bt656in2 */
-			bt656in1 {
-				bt656_id = <1>;
-				status = "disabled";
-			};
-		};
 	};
+
 	aml_bt: aml_bt {
 		compatible = "amlogic, aml-bt";
 		status = "disabled";
@@ -1185,7 +1106,7 @@
 
 	rng {
 		compatible = "amlogic,meson-rng";
-		status = "disabled";
+		status = "disabled"; /* disabled as default */
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0xfe440788 0x0c>;
@@ -1250,15 +1171,6 @@
 		};
 	};
 
-	vrr0: vrr0 {
-		compatible = "amlogic, vrr-t5m";
-		status = "disabled";
-		index = <0>;
-		line_delay = <600>;
-		interrupts = <0 197 1>;
-		interrupt-names = "vsync";
-	};
-
 	canvas: canvas {
 		compatible = "amlogic, meson, canvas";
 		status = "okay";
@@ -1309,40 +1221,6 @@
 			    "efusebus",
 				"nocbus";
 	};
-	amvenc_avc{
-		compatible = "amlogic, amvenc_avc";
-		dev_name = "amvenc_avc";
-		status = "disabled";
-		//clocks = <&clkc CLKID_HCODEC>;
-		clock-names = "cts_hcodec_aclk";
-		interrupts = <0 93 1>;
-		interrupt-names = "mailbox_2";
-		reset-names = "hcodec_rst";
-		//resets = <&reset RESET_BRG_HCODEC_PIPL0>;
-	};
-	jpegenc{
-		compatible = "amlogic, jpegenc";
-		dev_name = "jpegenc";
-		status = "disabled";
-		//clocks = <&clkc CLKID_HCODEC>;
-		clock-names = "clk_jpeg_enc";
-		interrupts = <0 93 1>;
-		interrupt-names = "mailbox_2";
-		reset-names = "jpegenc_rst";
-		//resets = <&reset RESET_BRG_HCODEC_PIPL0>;
-	};
-
-	dmx_aucpu: aucpu {
-		compatible = "amlogic, aucpu";
-		dev_name = "aml_aucpu";
-		status = "disabled";
-		interrupts = <0 77 1>;
-		interrupt-names = "aucpu_irq";
-		#address-cells=<1>;
-		#size-cells=<1>;
-		ranges;
-		reg = <0xfe09e080 0x100>;
-	};
 
 	ge2d {
 		compatible = "amlogic, ge2d-t6d";
@@ -1365,13 +1243,6 @@
 		dev_name = "aml_vecm";
 		clocks = <&clkc CLKID_VID_LOCK>;
 		clock-names = "cts_vid_lock_clk";
-	};
-
-	amdolby_vision {
-		compatible = "amlogic, dolby_vision_t5m";
-		dev_name = "aml_amdolby_vision_driver";
-		status = "disabled";
-		tv_mode = <1>;/*1:enable ;0:disable*/
 	};
 
 	mesonstream {
@@ -1439,11 +1310,6 @@
 		status = "okay";
 		interrupts = <GIC_SPI 220 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vpu_security";
-	};
-
-	di_local {
-		compatible = "amlogic, di-local";
-		status = "disabled";
 	};
 
 	multi-di {
@@ -1910,24 +1776,6 @@
 	chosen {
 		kaslr-seed = <0x0 0x0>;
 		bootargs = "usbcore.autosuspend=-1";
-	};
-
-	aml_mkl {
-		compatible = "amlogic,aml_mkl";
-		reg = <0xfe440200 0xf0>;
-		kl_type = <1>;
-		kl_vid_type = <1>;
-		kl_offset = <0x80 0x88 0x8c 0x90>;
-		status = "disabled";
-	};
-
-	aml_kt {
-		compatible = "amlogic,aml_kt";
-		reg = <0xfe440500 0xa0>;
-		kt_offset = <0x80 0x88 0x8c 0x90 0x94 0x98 0x9c>;
-		kt_cap = <0x2407 0x6bf 0 64 0 32>;
-		kt_reserved = <0>;
-		status = "disabled";
 	};
 };
 
