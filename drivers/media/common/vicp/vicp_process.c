@@ -1833,7 +1833,8 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 		else
 			vid_cmpr_afbcd.fmt444_comb = 0;
 
-		if (!(vid_cmpr_top->src_vf->type & VIDTYPE_VIU_422))
+		if (vid_cmpr_top->src_vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+			!(vid_cmpr_top->src_vf->type & VIDTYPE_DI_PW))
 			vid_cmpr_afbcd.dos_uncomp = 1;
 		else
 			vid_cmpr_afbcd.dos_uncomp = 0;
