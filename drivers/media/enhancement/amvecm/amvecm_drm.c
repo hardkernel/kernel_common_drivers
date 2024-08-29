@@ -29,7 +29,8 @@
 void amvecm_drm_init(u32 index)
 {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	amvecm_gamma_init(1);
+	if (chip_type_id != chip_t3x)
+		amvecm_gamma_init(1);
 #endif
 }
 EXPORT_SYMBOL(amvecm_drm_init);
