@@ -37,7 +37,8 @@ struct lcd_clk_ctrl_s {
 
 #define LCD_PRBS_MODE_LVDS    BIT(0)
 #define LCD_PRBS_MODE_VX1     BIT(1)
-#define LCD_PRBS_MODE_MAX     2
+#define LCD_PRBS_MODE_FREQ    BIT(2)
+#define LCD_PRBS_MODE_MAX     3
 #define LCD_CLK_MSR_INVALID   0xffffffff
 
 struct lcd_clktree_s {
@@ -128,6 +129,7 @@ struct lcd_clk_config_s { /* unit: Hz */
 	/* IN-OUT parameters */
 	unsigned int fin;
 	unsigned int fout;
+	unsigned int prbs_mode;
 
 	/* pll parameters */
 	unsigned int pll_id;

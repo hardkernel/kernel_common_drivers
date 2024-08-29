@@ -1608,19 +1608,31 @@ static int lcd_optical_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int off
 	return len;
 }
 
-unsigned int lcd_prbs_flag = 0, lcd_prbs_performed = 0, lcd_prbs_err = 0;
+unsigned int lcd_prbs_flag = 0, lcd_prbs_freq = 0, lcd_prbs_performed = 0, lcd_prbs_err = 0;
 
 static ssize_t lcd_debug_prbs_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf,
-		       "lvds prbs performed: %d, error: %d\n"
-		       "vx1 prbs performed: %d, error: %d\n"
-		       "lcd prbs flag: %d\n",
-		       (lcd_prbs_performed & LCD_PRBS_MODE_LVDS) ? 1 : 0,
-		       (lcd_prbs_err & LCD_PRBS_MODE_LVDS) ? 1 : 0,
-		       (lcd_prbs_performed & LCD_PRBS_MODE_VX1) ? 1 : 0,
-		       (lcd_prbs_err & LCD_PRBS_MODE_VX1) ? 1 : 0,
-		       lcd_prbs_flag);
+	int len = 0;
+
+	if ((lcd_prbs_performed & LCD_PRBS_MODE_LVDS) ||
+	    (lcd_prbs_performed & LCD_PRBS_MODE_VX1)) {
+		len += sprintf(buf + len,
+			"lvds performed: %d, error: %d\n"
+			"vx1 performed: %d, error: %d\n",
+			(lcd_prbs_performed & LCD_PRBS_MODE_LVDS) ? 1 : 0,
+			(lcd_prbs_err & LCD_PRBS_MODE_LVDS) ? 1 : 0,
+			(lcd_prbs_performed & LCD_PRBS_MODE_VX1) ? 1 : 0,
+			(lcd_prbs_err & LCD_PRBS_MODE_VX1) ? 1 : 0);
+	}
+	if (lcd_prbs_performed & LCD_PRBS_MODE_FREQ) {
+		len += sprintf(buf + len, "freq %dMHz performed: %d, error: %d\n",
+		       lcd_prbs_freq,
+		       (lcd_prbs_performed & LCD_PRBS_MODE_FREQ) ? 1 : 0,
+		       (lcd_prbs_err & LCD_PRBS_MODE_FREQ) ? 1 : 0);
+	}
+	len += sprintf(buf + len, "lcd_prbs_flag: %d\n", lcd_prbs_flag);
+
+	return len;
 }
 
 static ssize_t lcd_debug_prbs_store(struct device *dev, struct device_attribute *attr,
@@ -1629,7 +1641,7 @@ static ssize_t lcd_debug_prbs_store(struct device *dev, struct device_attribute 
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	struct lcd_debug_info_s *lcd_debug_info;
 	int ret = 0;
-	unsigned int temp = 0;
+	unsigned int test_ms = 0;
 	unsigned int prbs_mode_flag;
 
 	lcd_debug_info = (struct lcd_debug_info_s *)pdrv->debug_info;
@@ -1640,7 +1652,7 @@ static ssize_t lcd_debug_prbs_store(struct device *dev, struct device_attribute 
 
 	switch (buf[0]) {
 	case 'v': /* vx1 */
-		ret = sscanf(buf, "vx1 %d", &temp);
+		ret = sscanf(buf, "vx1 %d", &test_ms);
 		if (ret) {
 			prbs_mode_flag = LCD_PRBS_MODE_VX1;
 		} else {
@@ -1649,7 +1661,7 @@ static ssize_t lcd_debug_prbs_store(struct device *dev, struct device_attribute 
 		}
 		break;
 	case 'l': /* lvds */
-		ret = sscanf(buf, "lvds %d", &temp);
+		ret = sscanf(buf, "lvds %d", &test_ms);
 		if (ret) {
 			prbs_mode_flag = LCD_PRBS_MODE_LVDS;
 		} else {
@@ -1657,9 +1669,18 @@ static ssize_t lcd_debug_prbs_store(struct device *dev, struct device_attribute 
 			return -EINVAL;
 		}
 		break;
+	case 'f':
+		ret = sscanf(buf, "freq %d %d", &lcd_prbs_freq, &test_ms);
+		if (ret == 2) {
+			prbs_mode_flag = LCD_PRBS_MODE_FREQ;
+		} else {
+			LCDERR("invalid data\n");
+			return -EINVAL;
+		}
+		break;
 	default:
 		prbs_mode_flag = LCD_PRBS_MODE_LVDS | LCD_PRBS_MODE_VX1;
-		ret = kstrtouint(buf, 10, &temp);
+		ret = kstrtouint(buf, 10, &test_ms);
 		if (ret) {
 			LCDERR("invalid data\n");
 			return -EINVAL;
@@ -1667,13 +1688,13 @@ static ssize_t lcd_debug_prbs_store(struct device *dev, struct device_attribute 
 		break;
 	}
 
-	if (temp) {
+	if (test_ms) {
 		if (lcd_prbs_flag) {
 			LCDPR("lcd prbs check is already running\n");
 			return count;
 		}
 		lcd_prbs_flag = 1;
-		aml_lcd_prbs_test(pdrv, temp, prbs_mode_flag);
+		aml_lcd_prbs_test(pdrv, test_ms, prbs_mode_flag);
 	} else {
 		if (lcd_prbs_flag == 0) {
 			LCDPR("lcd prbs check is already stopped\n");
@@ -3459,7 +3480,7 @@ static ssize_t lcd_debug_print_store(struct device *dev, struct device_attribute
 		pr_info("invalid data\n");
 		return -EINVAL;
 	}
-	lcd_debug_print_flag = (unsigned char)temp;
+	lcd_debug_print_flag = temp;
 	LCDPR("set debug print flag: 0x%x\n", lcd_debug_print_flag);
 
 	return count;

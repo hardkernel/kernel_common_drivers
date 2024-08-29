@@ -37,6 +37,8 @@ int lcd_clk_config_print_dft(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 void lcd_pll_frac_generate_dft(struct aml_lcd_drv_s *pdrv);
 void lcd_clk_config_init_print_dft(struct aml_lcd_drv_s *pdrv);
 void lcd_clk_generate_dft(struct aml_lcd_drv_s *pdrv);
+void lcd_clk_generate_prbs_clk(struct aml_lcd_drv_s *pdrv,
+		unsigned int enc_clk, unsigned long long bit_rate);
 void lcd_set_vid_pll_div_dft(struct aml_lcd_drv_s *pdrv);
 
 #define MAX_CLKTREE_GATE 6
@@ -82,7 +84,7 @@ void lcd_clk_config_chip_init_t6d(struct aml_lcd_drv_s *pdrv, struct lcd_clk_con
  * lcd clk prbs func
  * ****************************************************
  */
-extern unsigned int lcd_prbs_flag, lcd_prbs_performed, lcd_prbs_err;
+extern unsigned int lcd_prbs_flag, lcd_prbs_freq, lcd_prbs_performed, lcd_prbs_err;
 int lcd_prbs_clk_check(unsigned int encl_clk, unsigned int encl_msr_id,
 			unsigned int fifo_clk, unsigned int fifo_msr_id, unsigned int cnt);
 
