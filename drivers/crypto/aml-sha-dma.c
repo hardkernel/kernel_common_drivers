@@ -84,6 +84,7 @@ struct aml_sha_ctx {
 	/* 8 bytes bit length and 8 bytes garbage */
 	u32 is_hmac;
 	struct crypto_shash	*shash;
+	s32 kte;
 };
 
 #define AML_SHA_QUEUE_LENGTH	50
@@ -611,7 +612,9 @@ static int aml_sha_finish_hmac(struct ahash_request *req)
 		ds = SHA256_DIGEST_SIZE;
 
 	/* opad */
-	dsc.src_addr = (uintptr_t)dma_key;
+	dsc.src_addr = (tctx->kte >= 0) ?
+		(u64)(0xffffffffffffff00 | tctx->kte) :
+		(uintptr_t)dma_key;
 	dsc.tgt_addr = 0;
 	dsc.dsc_cfg.d32 = 0;
 	dsc.dsc_cfg.b.length = tctx->keylen;
@@ -775,7 +778,7 @@ static int aml_sha_state_restore(struct ahash_request *req)
 	u32 status = 0;
 	int err = 0;
 
-	if (!ctx->digcnt[0] && !ctx->digcnt[1] && !tctx->is_hmac)
+	if (!ctx->digcnt[0] && !ctx->digcnt[1])
 		return err;
 
 	dma_ctx = dma_map_single(dd->parent, ctx->hw_ctx,
@@ -816,6 +819,7 @@ static int aml_hmac_install_key(struct aml_sha_dev *dd,
 	struct dma_dsc_64 dsc;
 	void *descriptor = 0;
 	size_t dsc_sz = 0;
+	size_t dsc_cnt = 1;
 	u32 bs = 0;
 	int err = 0;
 	dma_addr_t dma_key = 0;
@@ -847,6 +851,9 @@ static int aml_hmac_install_key(struct aml_sha_dev *dd,
 	else if (ctx->flags & SHA_FLAGS_SHA256)
 		mode = MODE_SHA256;
 
+	if (tctx->kte >= 0)
+		dsc_cnt++;
+
 	dsc_sz = aml_dma_get_dsc_sz(dd->dma->dma_bus64, 0);
 
 	descriptor = dmam_alloc_coherent(dd->parent, dsc_sz,
@@ -862,10 +869,14 @@ static int aml_hmac_install_key(struct aml_sha_dev *dd,
 		goto out;
 	}
 	memcpy(key, tctx->key, tctx->keylen);
-	memset(key + tctx->keylen, 0, bs - tctx->keylen);
-	/* Do ipad */
-	for (i = 0; i < bs; i++)
-		*(u8 *)(key + i) ^= 0x36;
+
+	if (tctx->kte < 0) {
+		/* If key is NOT from kt, do software ipad */
+		memset(key + tctx->keylen, 0, bs - tctx->keylen);
+		/* Do ipad */
+		for (i = 0; i < bs; i++)
+			*(u8 *)(key + i) ^= 0x36;
+	}
 
 	hw_ctx = dmam_alloc_coherent(dd->parent, dd->hw_ctx_sz,
 				     &partial, GFP_ATOMIC | GFP_DMA);
@@ -874,29 +885,43 @@ static int aml_hmac_install_key(struct aml_sha_dev *dd,
 		goto out;
 	}
 
-	/* start first round hash */
-	dsc.src_addr = (uintptr_t)dma_key;
-	dsc.tgt_addr = (uintptr_t)partial;
+	i = 0;
+	if (tctx->kte >= 0) {
+		dsc.src_addr = (u64)(0xffffffffffffff00 | tctx->kte);
+		dsc.tgt_addr = 0;
+		dsc.dsc_cfg.d32 = 0;
+		dsc.dsc_cfg.b.length = tctx->keylen;
+		dsc.dsc_cfg.b.mode = mode;
+		dsc.dsc_cfg.b.enc_sha_only = 1;
+		dsc.dsc_cfg.b.op_mode = OP_MODE_HMAC_I;
+		dsc.dsc_cfg.b.begin = 1;
+		dsc.dsc_cfg.b.end = 0;
+		dsc.dsc_cfg.b.eoc = 0;
+		dsc.dsc_cfg.b.owner = 1;
+		aml_dma_dsc_writer(descriptor, i++, &dsc, dd->dma->dma_bus64, 0);
+	}
+	dsc.src_addr = dma_key;
+	dsc.tgt_addr = partial;
 	dsc.dsc_cfg.d32 = 0;
-	dsc.dsc_cfg.b.length = bs;
+	dsc.dsc_cfg.b.length = (tctx->kte >= 0) ? 0 : bs;
 	dsc.dsc_cfg.b.mode = mode;
 	dsc.dsc_cfg.b.enc_sha_only = 1;
 	dsc.dsc_cfg.b.op_mode = OP_MODE_SHA;
-	dsc.dsc_cfg.b.begin = 1;
+	dsc.dsc_cfg.b.begin = i ? 0 : 1;
 	dsc.dsc_cfg.b.end = 0;
 	dsc.dsc_cfg.b.eoc = 1;
 	dsc.dsc_cfg.b.owner = 1;
-	aml_dma_dsc_writer(descriptor, 0, &dsc, dd->dma->dma_bus64, 0);
+	aml_dma_dsc_writer(descriptor, i, &dsc, dd->dma->dma_bus64, 0);
 
-	aml_dma_debug(descriptor, 1, __func__, dd->thread, dd->status,
+	aml_dma_debug(descriptor, dsc_cnt, __func__, dd->thread, dd->status,
 		      dd->dma->dma_bus64);
-	status = aml_dma_do_hw_crypto(dd->dma, descriptor, 1, dma_descript_tab,
+	status = aml_dma_do_hw_crypto(dd->dma, descriptor, dsc_cnt, dma_descript_tab,
 				      USE_BUSY_POLLING, DMA_FLAG_SHA_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR) {
 		dev_err(dd->dev, "hw crypto failed, status: %u\n", status);
 		err = -EINVAL;
 	}
-	aml_dma_debug(descriptor, 1, "end hmac key", dd->thread, dd->status,
+	aml_dma_debug(descriptor, dsc_cnt, "end hmac key", dd->thread, dd->status,
 			dd->dma->dma_bus64);
 	/* Save hw state in ctx */
 	memcpy(ctx->hw_ctx, hw_ctx, dd->hw_ctx_sz);
@@ -1154,6 +1179,7 @@ int aml_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 	}
 	spin_unlock_bh(&aml_sha.lock);
 
+	tctx->kte = -1;
 	if (keylen > bs) {
 		err = aml_shash_digest(tctx->shash,
 				       crypto_shash_get_flags(tctx->shash),
@@ -1165,6 +1191,33 @@ int aml_sha_setkey(struct crypto_ahash *tfm, const u8 *key,
 		tctx->keylen = keylen;
 		memcpy(tctx->key, key, tctx->keylen);
 	}
+
+	return err;
+}
+
+int aml_sha_kl_setkey(struct crypto_ahash *tfm, const u8 *key,
+		   unsigned int keylen)
+{
+	struct aml_sha_ctx *tctx = crypto_ahash_ctx(tfm);
+	struct aml_sha_dev *dd = NULL, *tmp;
+	int err = 0;
+
+	spin_lock_bh(&aml_sha.lock);
+	if (!tctx->dd) {
+		list_for_each_entry(tmp, &aml_sha.dev_list, list) {
+			dd = tmp;
+			break;
+		}
+		tctx->dd = dd;
+	} else {
+		dd = tctx->dd;
+	}
+	spin_unlock_bh(&aml_sha.lock);
+
+	/* key[0:3] = kte */
+	tctx->kte = *(uint32_t *)&key[0];
+	WARN_ON(!(keylen == 16 || keylen == 32));
+	tctx->keylen = keylen;
 
 	return err;
 }
@@ -1387,6 +1440,90 @@ static struct ahash_alg sha_algs[] = {
 			.base	= {
 				.cra_name	  = "hmac(sha256-aml)",
 				.cra_driver_name  = "aml-hmac-sha256",
+				.cra_priority	  = 100,
+				.cra_flags	  = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_NEED_FALLBACK,
+				.cra_blocksize	  = SHA256_BLOCK_SIZE,
+				.cra_ctxsize	  = sizeof(struct aml_sha_ctx),
+				.cra_alignmask	  = 0,
+				.cra_module	  = THIS_MODULE,
+				.cra_init	  = aml_hmac_sha256_cra_init,
+				.cra_exit	  = aml_hmac_cra_exit,
+			}
+		}
+	},
+	{
+		.init		= aml_sha_init,
+		.update		= aml_sha_update,
+		.final		= aml_sha_final,
+		.finup		= aml_sha_finup,
+		.digest		= aml_sha_digest,
+		.export     = aml_sha_export,
+		.import     = aml_sha_import,
+		.setkey         = aml_sha_kl_setkey,
+		.halg = {
+			.digestsize	= SHA1_DIGEST_SIZE,
+			.statesize =
+				sizeof(struct aml_sha_reqctx) + SHA_BUFFER_LEN,
+			.base	= {
+				.cra_name	  = "hmac(sha1-kl)",
+				.cra_driver_name  = "aml-hmac-sha1-kl",
+				.cra_priority	  = 100,
+				.cra_flags	  = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_NEED_FALLBACK,
+				.cra_blocksize	  = SHA1_BLOCK_SIZE,
+				.cra_ctxsize	  = sizeof(struct aml_sha_ctx),
+				.cra_alignmask	  = 0,
+				.cra_module	  = THIS_MODULE,
+				.cra_init	  = aml_hmac_sha1_cra_init,
+				.cra_exit	  = aml_hmac_cra_exit,
+			}
+		}
+	},
+	{
+		.init		= aml_sha_init,
+		.update		= aml_sha_update,
+		.final		= aml_sha_final,
+		.finup		= aml_sha_finup,
+		.digest		= aml_sha_digest,
+		.export     = aml_sha_export,
+		.import     = aml_sha_import,
+		.setkey         = aml_sha_kl_setkey,
+		.halg = {
+			.digestsize	= SHA224_DIGEST_SIZE,
+			.statesize =
+				sizeof(struct aml_sha_reqctx) + SHA_BUFFER_LEN,
+			.base	= {
+				.cra_name	  = "hmac(sha224-kl)",
+				.cra_driver_name  = "aml-hmac-sha224-kl",
+				.cra_priority	  = 100,
+				.cra_flags	  = CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_NEED_FALLBACK,
+				.cra_blocksize	  = SHA224_BLOCK_SIZE,
+				.cra_ctxsize	  = sizeof(struct aml_sha_ctx),
+				.cra_alignmask	  = 0,
+				.cra_module	  = THIS_MODULE,
+				.cra_init	  = aml_hmac_sha224_cra_init,
+				.cra_exit	  = aml_hmac_cra_exit,
+			}
+		}
+	},
+	{
+		.init		= aml_sha_init,
+		.update		= aml_sha_update,
+		.final		= aml_sha_final,
+		.finup		= aml_sha_finup,
+		.digest		= aml_sha_digest,
+		.export     = aml_sha_export,
+		.import     = aml_sha_import,
+		.setkey         = aml_sha_kl_setkey,
+		.halg = {
+			.digestsize	= SHA256_DIGEST_SIZE,
+			.statesize =
+				sizeof(struct aml_sha_reqctx) + SHA_BUFFER_LEN,
+			.base	= {
+				.cra_name	  = "hmac(sha256-kl)",
+				.cra_driver_name  = "aml-hmac-sha256-kl",
 				.cra_priority	  = 100,
 				.cra_flags	  = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_NEED_FALLBACK,
