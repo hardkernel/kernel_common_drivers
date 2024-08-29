@@ -45,6 +45,11 @@ MODULE_PARM_DESC(dvbt_reset_per_times, "");
 static unsigned int dvbt_reset_per_times = 40;
 module_param(dvbt_reset_per_times, int, 0644);
 
+//dvb-t2
+static unsigned char dvbt2_0x2a1c = 0x90;
+MODULE_PARM_DESC(dvbt2_0x2a1c, "");
+module_param(dvbt2_0x2a1c, byte, 0644);
+
 //dvb-tx
 static unsigned char dvbtx_auto_check_times = 3;
 MODULE_PARM_DESC(dvbtx_auto_check_times, "");
@@ -304,6 +309,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 	unsigned int plp_num = 0, fef_info = 0;
 	unsigned int data_plp = 0, common_plp = 0;
 	u64_t plp_common = 0;
+	unsigned char fft_size = -1, r_0x2a1c, r_0x839;
 
 	cur_time = jiffies_to_msecs(jiffies);
 	demod->time_passed = cur_time - demod->time_start;
@@ -360,6 +366,9 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 		modu = (dvbt_t2_rdb(0x8c3) >> 4) & 0x7;
 		ldpc = dvbt_t2_rdb(0xa50);
 		l1post = (dvbt_t2_rdb(0x839) >> 3) & 0x1;
+		fft_size = dvbt_t2_rdb(0x2745) & 0x3;
+		r_0x2a1c = dvbt_t2_rdb(0x2a1c);
+		r_0x839 = dvbt_t2_rdb(0x839);
 	}
 	snr &= 0x7ff;
 	snr = snr * 30 / 64; //dBx10.
@@ -394,6 +403,10 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status, in
 	} else {
 		*is_signal = -1;
 	}
+
+	if (!demod_is_t5d_cpu(devp) && (r_0x839 & 0x8) &&
+		fft_size == 0 && plp_num <= 1 && r_0x2a1c != dvbt2_0x2a1c)
+		dvbt_t2_wrb(0x2a1c, dvbt2_0x2a1c);
 
 	if (s == 1) {
 		if (demod->last_lock >= 0 &&
