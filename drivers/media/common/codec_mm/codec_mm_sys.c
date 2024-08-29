@@ -92,7 +92,7 @@ unsigned long aml_alloc_pages_array(gfp_t gfp, unsigned long nr_pages, struct pa
 	}
 	local_irq_restore(flags);
 
-	for (cpu = 0; cpu < ALLOC_PAGE_NUM_KTHREAD; cpu++) {
+	for (cpu = 0; cpu < i; cpu++) {
 		work = &alloc_kthread_array[cpu];
 		wait_for_completion(&work->end);
 		if (work->ret) {
