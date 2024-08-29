@@ -563,7 +563,7 @@ void dim_tb_function(struct vframe_tb_s *vf, int data1, unsigned int ch)
 				pcfg->cur_invert <<
 				TB_DETECT_MASK_BIT;
 			dbg_tb("%s process mask:vf[0x%x] type=0x%x\n",
-			       __func__, vf->omx_index, vf->type);
+			       __func__, vf->frame_index, vf->type);
 			if (old_invert != pcfg->cur_invert)
 				dbg_tb
 				("%s:flag00: %d->%d, invert: %d->%d\n",

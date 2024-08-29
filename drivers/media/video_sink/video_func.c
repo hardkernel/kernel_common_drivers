@@ -1914,8 +1914,8 @@ render_exit:
 				ai_face_value.face_value[k] =
 					vd_layer[0].dispbuf->vc_private->aiface_info->face_value[k];
 				if (debug_flag & DEBUG_FLAG_AI_FACE) {
-					pr_info("vd0:omx_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d.\n",
-						vd_layer[0].dispbuf->omx_index,
+					pr_info("vd0:frame_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d.\n",
+						vd_layer[0].dispbuf->frame_index,
 						k,
 						ai_face_value.face_value[k].x,
 						ai_face_value.face_value[k].y,
@@ -1938,8 +1938,8 @@ render_exit:
 				ai_face_value.face_value[l] =
 					vd_layer[1].dispbuf->vc_private->aiface_info->face_value[k];
 				if (debug_flag & DEBUG_FLAG_AI_FACE) {
-					pr_info("vd1:omx_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d.\n",
-						vd_layer[1].dispbuf->omx_index,
+					pr_info("vd1:frame_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d.\n",
+						vd_layer[1].dispbuf->frame_index,
 						k,
 						ai_face_value.face_value[l].x,
 						ai_face_value.face_value[l].y,
@@ -5041,7 +5041,7 @@ void post_vsync_process(void)
 	}
 
 	if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC) {
-		u32 omx_index[6] = {0}, i = 0;
+		u32 frame_index[6] = {0}, i = 0;
 		u64 timestamp[6] = {0};
 		struct vframe_s *new_frame = NULL;
 
@@ -5062,15 +5062,15 @@ void post_vsync_process(void)
 		for (i = 0; i < 6; i++) {
 			new_frame = path_new_frame[i];
 			if (new_frame) {
-				omx_index[i] = new_frame->omx_index;
+				frame_index[i] = new_frame->frame_index;
 				timestamp[i] = div_u64(new_frame->timestamp,
 						       1000000000);
 			}
 		}
-		pr_info("VID(%s): new_frame omx_index:%d, %d, %d, %d, %d, %d; new_frame timestamp:%lld %lld %lld %lld %lld %lld\n",
+		pr_info("VID(%s): new_frame frame_index:%d, %d, %d, %d, %d, %d; new_frame timestamp:%lld %lld %lld %lld %lld %lld\n",
 			 __func__,
-			 omx_index[0], omx_index[1], omx_index[2], omx_index[3],
-			 omx_index[4], omx_index[5], timestamp[0], timestamp[1],
+			 frame_index[0], frame_index[1], frame_index[2], frame_index[3],
+			 frame_index[4], frame_index[5], timestamp[0], timestamp[1],
 			 timestamp[2], timestamp[3], timestamp[4], timestamp[5]
 			);
 	}
@@ -5132,7 +5132,7 @@ void post_vsync_process(void)
 	}
 
 	if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC) {
-		u32 omx_index[6] = {0}, i = 0;
+		u32 frame_index[6] = {0}, i = 0;
 		u64 timestamp[6] = {0};
 		struct vframe_s *new_frame = NULL;
 
@@ -5155,15 +5155,15 @@ void post_vsync_process(void)
 		for (i = 0; i < 6; i++) {
 			new_frame = path_new_frame[i];
 			if (new_frame) {
-				omx_index[i] = new_frame->omx_index;
+				frame_index[i] = new_frame->frame_index;
 				timestamp[i] = div_u64(new_frame->timestamp,
 						       1000000000);
 			}
 		}
-		pr_info("VID(%s): new_frame omx_index:%d, %d, %d, %d, %d, %d; new_frame timestamp:%lld %lld %lld %lld %lld %lld\n",
+		pr_info("VID(%s): new_frame frame_index:%d, %d, %d, %d, %d, %d; new_frame timestamp:%lld %lld %lld %lld %lld %lld\n",
 			 __func__,
-			 omx_index[0], omx_index[1], omx_index[2], omx_index[3],
-			 omx_index[4], omx_index[5], timestamp[0], timestamp[1],
+			 frame_index[0], frame_index[1], frame_index[2], frame_index[3],
+			 frame_index[4], frame_index[5], timestamp[0], timestamp[1],
 			 timestamp[2], timestamp[3], timestamp[4], timestamp[5]
 		);
 	}

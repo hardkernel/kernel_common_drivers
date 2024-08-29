@@ -26,7 +26,7 @@ struct uvm_aipq_info {
 	s32 dw_height;
 	s32 nn_input_frame_width;
 	s32 nn_input_frame_height;
-	s32 omx_index;
+	s32 frame_index;
 	s32 nn_do_aipq_type;
 	s32 is_sc_change;
 	s32 reserved[7];

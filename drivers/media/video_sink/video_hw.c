@@ -9752,9 +9752,9 @@ int set_layer_slice_display_canvas_s5(struct video_layer_s *layer,
 			struct canvas_s tmp;
 
 			canvas_read(cur_canvas_tbl[0], &tmp);
-			pr_info("%s %d: vf:%p, omx_index=%d, y:%02x, adr:0x%lx, canvas0Addr:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf->vf_ext:%px, line:%d\n",
+			pr_info("%s %d: vf:%p, frame_index=%d, y:%02x, adr:0x%lx, canvas0Addr:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf->vf_ext:%px, line:%d\n",
 				__func__, layer_id, vf,
-				vf->omx_index,
+				vf->frame_index,
 				cur_canvas_tbl[0], tmp.addr,
 				vf->canvas0Addr, vf->plane_num,
 				vf->type, vf->flag,
@@ -9816,8 +9816,8 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 	u8 frame_id = 0;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
-	ATRACE_COUNTER("vpp_omx_index", vf->omx_index);
-	ATRACE_COUNTER("vpp_omx_index", 0);
+	ATRACE_COUNTER("vpp_frame_index", vf->frame_index);
+	ATRACE_COUNTER("vpp_frame_index", 0);
 	ATRACE_COUNTER("vpp_timestamp",
 		       (unsigned long)div_u64(vf->timestamp, 1000000000));
 	ATRACE_COUNTER("vpp_timestamp", 0);
@@ -9984,9 +9984,9 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 		struct canvas_s tmp;
 
 		canvas_read(cur_canvas_tbl[0], &tmp);
-		pr_info("%s %d: update_mif %d: vf:%p, omx_index=%d, y:%02x, adr:0x%lx (0x%lx), canvas0:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf_ext:%px uvm_vf:%px di_flag:%x size:%d %d, vframe size:%d line:%d\n",
+		pr_info("%s %d: update_mif %d: vf:%p, frame_index=%d, y:%02x, adr:0x%lx (0x%lx), canvas0:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf_ext:%px uvm_vf:%px di_flag:%x size:%d %d, vframe size:%d line:%d\n",
 			__func__, layer_id, update_mif ? 1 : 0,
-			vf, vf->omx_index, cur_canvas_tbl[0],
+			vf, vf->frame_index, cur_canvas_tbl[0],
 			tmp.addr, vf->canvas0_config[0].phy_addr,
 			vf->canvas0Addr, vf->plane_num,
 			vf->type, vf->flag,

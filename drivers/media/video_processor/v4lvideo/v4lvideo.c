@@ -622,8 +622,8 @@ static void vf_free(struct file_private_data *file_private_data)
 	vf = &file_private_data->vf;
 	vf_p = file_private_data->vf_p;
 	flag = file_private_data->flag;
-	v4l_print(inst_id, PRINT_OTHER, "%s: type=%x, flag=%d, omx_index=%d\n",
-		__func__, vf->type, flag, vf->omx_index);
+	v4l_print(inst_id, PRINT_OTHER, "%s: type=%x, flag=%d, frame_index=%d\n",
+		__func__, vf->type, flag, vf->frame_index);
 	if (flag & V4LVIDEO_FLAG_DI_DEC) {
 		vf = &file_private_data->vf_ext;
 		vf_p = file_private_data->vf_ext_p;
@@ -636,7 +636,7 @@ static void vf_free(struct file_private_data *file_private_data)
 
 	if (vf->type & VIDTYPE_DI_PW) {
 		v4l_print(inst_id, PRINT_OTHER,
-			"free: omx_index=%d\n", vf_p->omx_index);
+			"free: frame_index=%d\n", vf_p->frame_index);
 		dim_post_keep_cmd_release2(vf_p);
 		total_release_count[inst_id]++;
 		v4l_print(inst_id, PRINT_COUNT,
@@ -1639,7 +1639,7 @@ s32 v4lvideo_import_sei_data(struct vframe_s *vf,
 		goto finish_import;
 	}
 
-	if (!strcmp(provider, "dvbldec") && dup_vf->omx_index < 2)
+	if (!strcmp(provider, "dvbldec") && dup_vf->frame_index < 2)
 		max_count = 10;
 
 	while (try_count++ < max_count) {
@@ -2031,14 +2031,14 @@ static void v4lvideo_vf_put(struct v4lvideo_dev *dev, struct vframe_s *vf)
 	if (vf->type & VIDTYPE_DI_PW)
 		is_di_pw = true;
 
-	v4l_print(dev->inst, PRINT_OTHER, "put: omx_index=%d\n", vf->omx_index);
+	v4l_print(dev->inst, PRINT_OTHER, "put: frame_index=%d\n", vf->frame_index);
 
 	if (vf_put(vf, dev->vf_receiver_name) < 0) {
 		pr_err("v4lvideo: put err!!!\n");
 		if (is_di_pw) {
 			pr_err("v4lvideo: put err, release di vf\n");
 			v4l_print(dev->inst, PRINT_OTHER,
-				"put: release omx_index=%d\n", vf->omx_index);
+				"put: release frame_index=%d\n", vf->frame_index);
 			dim_post_keep_cmd_release2(vf);
 			total_release_count[dev->inst]++;
 		}
@@ -2392,7 +2392,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	}
 
 	get_count[inst_id]++;
-	vf->omx_index = dev->frame_num;
+	vf->frame_index = dev->frame_num;
 	dev->am_parm.signal_type = vf->signal_type;
 	dev->am_parm.master_display_colour =
 			 vf->prop.master_display_colour;
@@ -2438,7 +2438,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 	if (vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
 		vf_ext = (struct vframe_s *)vf->vf_ext;
-		vf_ext->omx_index = vf->omx_index;
+		vf_ext->frame_index = vf->frame_index;
 		if (render_use_dec) {
 			file_private_data->vf = *vf_ext;
 			file_private_data->vf_p = vf_ext;
@@ -2475,7 +2475,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	file_private_data->vf.src_fmt.dv_id = dev->dv_inst;
 	if ((alloc_sei & 2) && vf)
 		pr_info("vidioc dqbuf: vf %p(index %d), type %x, md_buf %p\n",
-			vf, vf->omx_index, vf->type, file_private_data->vf.src_fmt.md_buf);
+			vf, vf->frame_index, vf->type, file_private_data->vf.src_fmt.md_buf);
 
 	v4lvideo_import_sei_data(vf,
 		&file_private_data->vf,
@@ -2550,8 +2550,8 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	//pr_err("dqbuf: frame_num=%d\n", p->sequence);
 	dq_count[inst_id]++;
 	v4l_print(dev->inst, PRINT_OTHER,
-		"v4lvideo: %s return vf:%p, omx_index:%d, v->pts_us64: %lld, out_pts %lld video_id:%d, fd=%d\n",
-		__func__, vf, vf->omx_index, vf->pts_us64, pts_us64,
+		"v4lvideo: %s return vf:%p, frame_index:%d, v->pts_us64: %lld, out_pts %lld video_id:%d, fd=%d\n",
+		__func__, vf, vf->frame_index, vf->pts_us64, pts_us64,
 		vf->vf_ud_param.ud_param.instance_id, buf->m.fd);
 
 	v4l_print(dev->inst, PRINT_OTHER, "w*h=%d, %d; %d, %d\n",

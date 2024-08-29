@@ -121,7 +121,7 @@ int aipq_vf_set_value(struct uvm_aipq_info *aipq_info, bool enable_aipq)
 		else if (aipq_info->nn_do_aipq_type == NN_USE_GPU)
 			vf->aipq_flag |= AIPQ_FLAG_VERSION_2;
 		aipq_print(PRINT_OTHER, "%s: omx->index: %d, vf: %px, vf_ext: %px.\n",
-			__func__, vf->omx_index, vf, vf->vf_ext);
+			__func__, vf->frame_index, vf, vf->vf_ext);
 
 		vf->ai_pq_enable = enable_aipq;
 		di_flag = vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME;
@@ -233,7 +233,7 @@ struct vframe_s *aipq_get_dw_vf(struct uvm_aipq_info *aipq_info)
 		return NULL;
 	}
 	aipq_print(PRINT_OTHER, "%s: omx->index: %d, vf: %px, vf_ext: %px.\n",
-		__func__, vf->omx_index, vf, vf->vf_ext);
+		__func__, vf->frame_index, vf, vf->vf_ext);
 	dma_buf_put(dmabuf);
 	return vf;
 }
@@ -683,7 +683,7 @@ int aipq_getinfo(void *arg, char *buf)
 			aipq_print(PRINT_ERROR, "ge2d err\n");
 			return -EINVAL;
 		}
-		aipq_info->omx_index = vf->omx_index;
+		aipq_info->frame_index = vf->frame_index;
 		do_gettimeofday(&end_time);
 		cost_time = (1000000 * (end_time.tv_sec - begin_time.tv_sec)
 			+ (end_time.tv_usec - begin_time.tv_usec)) / 1000;

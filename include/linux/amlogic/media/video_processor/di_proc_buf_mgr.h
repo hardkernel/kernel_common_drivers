@@ -28,7 +28,7 @@ enum dec_type_t {
 
 struct vf_ref_t {
 	int index; /*0 1 2....*/
-	int omx_index; /*for debug*/
+	int frame_index; /*for debug*/
 	struct vframe_s *vf;
 	//struct vframe_s *src_vf;
 	int ref_count; /*ref by other frame, */

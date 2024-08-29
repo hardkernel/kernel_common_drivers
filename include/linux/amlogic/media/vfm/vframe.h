@@ -625,7 +625,7 @@ struct vf_lossycomp_param_s {
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
-	u32 omx_index;
+	u32 frame_index;
 	u32 type;
 	u32 type_ext;
 	u32 type_backup;
@@ -836,6 +836,7 @@ struct vframe_s {
 	struct vframe_s *uvm_vf;
 	struct vf_lossycomp_param_s vf_lossycomp_param;
 	struct src_crop_s src_crop;
+	u32 decoder_instid;
 } /*vframe_t */;
 
 #define VC_FLAG_AI_SR		0x1

@@ -25,7 +25,7 @@ struct uvm_aicolor_info {
 	s32 nn_input_frame_width;
 	s32 nn_input_frame_height;
 	s32 nn_status;
-	s32 omx_index;
+	s32 frame_index;
 };
 
 int attach_aicolor_hook_mod_info(int shared_fd,

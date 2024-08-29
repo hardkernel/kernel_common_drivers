@@ -6904,8 +6904,8 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 	struct hw_afbc_reg_s *vd_afbc_reg;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
-	ATRACE_COUNTER("vpp_omx_index", vf->omx_index);
-	ATRACE_COUNTER("vpp_omx_index", 0);
+	ATRACE_COUNTER("vpp_frame_index", vf->frame_index);
+	ATRACE_COUNTER("vpp_frame_index", 0);
 	ATRACE_COUNTER("vpp_timestamp",
 		       (unsigned long)div_u64(vf->timestamp, 1000000000));
 	ATRACE_COUNTER("vpp_timestamp", 0);

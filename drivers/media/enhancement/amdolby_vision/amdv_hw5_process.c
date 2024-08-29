@@ -1379,7 +1379,7 @@ int amdv_parse_metadata_hw5_top1(struct vframe_s *vf)
 	}
 	if (vf && (debug_dolby & 8))
 		pr_dv_dbg("top1 parse_metadata: vf %px(index %d), mode %d\n",
-			      vf, vf->omx_index, dolby_vision_mode);
+			      vf, vf->frame_index, dolby_vision_mode);
 
 	if (dolby_vision_mode == AMDV_OUTPUT_MODE_BYPASS) {
 		if (amdv_target_mode == AMDV_OUTPUT_MODE_BYPASS)
@@ -2169,7 +2169,7 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 
 	if (vf && (debug_dolby & 8))
 		pr_dv_dbg("parse_metadata: vf %px(index %d), mode %d\n",
-			      vf, vf->omx_index, dolby_vision_mode);
+			      vf, vf->frame_index, dolby_vision_mode);
 
 	if (dolby_vision_mode == AMDV_OUTPUT_MODE_BYPASS) {
 		if (amdv_target_mode == AMDV_OUTPUT_MODE_BYPASS)
@@ -2606,7 +2606,7 @@ int amdv_wait_metadata_hw5(struct vframe_s *vf)
 
 	if (vf && (debug_dolby & 8))
 		pr_dv_dbg("wait return %d, vf %px(index %d), runcount %d\n",
-			      ret, vf, vf->omx_index, top2_info.run_mode_count);
+			      ret, vf, vf->frame_index, top2_info.run_mode_count);
 
 	return ret;
 }
@@ -2711,7 +2711,7 @@ int amdolby_vision_process_hw5_top1(struct vframe_s *vf_top1,
 
 	if (vf && (debug_dolby & 0x8))
 		pr_dv_dbg("top1_proc: vf %px(index %d),mode %d,core_on %d %d,%d %d,flag %x\n",
-				  vf, vf->omx_index, dolby_vision_mode,
+				  vf, vf->frame_index, dolby_vision_mode,
 				  top1_info.core_on, top2_info.core_on,
 				  h_size, v_size, dolby_vision_flags);
 
@@ -2799,7 +2799,7 @@ int amdolby_vision_process_hw5(struct vframe_s *vf_top1,
 
 	if (vf && (debug_dolby & 0x8))
 		pr_dv_dbg("proc:vf %px %px(index %d),mode %d,on %d %d,size %d %d,type %x\n",
-			     vf_top1, vf_top2, vf->omx_index, dolby_vision_mode,
+			     vf_top1, vf_top2, vf->frame_index, dolby_vision_mode,
 			     top1_info.core_on, top2_info.core_on,
 			     h_size, v_size, vf->type);
 	else if ((debug_dolby & 0x8))

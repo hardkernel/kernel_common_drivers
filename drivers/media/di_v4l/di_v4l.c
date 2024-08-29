@@ -269,7 +269,7 @@ uint32_t fill_output_done(struct di_buffer *buf)
 	dev->fill_done_count++;
 
 	di_v4l_print(dev->index, PRINT_OTHER,
-		  "%s: index=%d\n", __func__, buf->vf->omx_index);
+		  "%s: index=%d\n", __func__, buf->vf->frame_index);
 
 	if (dump_out)
 		dump_yuv_data(dev, buf->vf, dev->fill_done_count);

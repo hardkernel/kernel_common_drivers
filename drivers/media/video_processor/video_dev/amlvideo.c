@@ -557,7 +557,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		return -EAGAIN;
 	}
 
-	dev->vf->omx_index = dev->frame_num;
+	dev->vf->frame_index = dev->frame_num;
 	if (dev->vf->type & VIDTYPE_V4L_EOS) {
 		ret = -EAGAIN;
 		goto dqbuf_done;

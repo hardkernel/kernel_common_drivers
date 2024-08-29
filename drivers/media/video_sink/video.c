@@ -208,7 +208,7 @@ static u32 layer_cap;
 #define OMX_CONTINUOUS_DROP_LEVEL 5
 #define DEBUG_FLAG_FFPLAY	BIT(0)
 #define DEBUG_FLAG_CALC_PTS_INC	BIT(1)
-static u32 cur_omx_index;
+static u32 cur_frame_index;
 static u32 omx_pts;
 static u32 omx_pts_set_index;
 static bool omx_run;
@@ -228,7 +228,7 @@ static long long time_setomxpts;
 static long long time_setomxpts_last;
 static int omx_continuous_drop_count;
 static bool omx_continuous_drop_flag;
-static u32 cur_disp_omx_index;
+static u32 cur_disp_frame_index;
 /*----omx_info  bit0: keep_last_frame, bit1~31: unused----*/
 static u32 omx_info = 0x1;
 static DEFINE_MUTEX(omx_mutex);
@@ -1439,7 +1439,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		mutex_lock(&omx_mutex);
 		omx_continuous_drop_count = 0;
 		omx_continuous_drop_flag = false;
-		cur_disp_omx_index = 0;
+		cur_disp_frame_index = 0;
 		dovi_drop_flag = false;
 		dovi_drop_frame_num = 0;
 		mutex_unlock(&omx_mutex);
@@ -1484,7 +1484,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		omx_continusdrop_cnt = 0;
 		omx_continuous_drop_count = 0;
 		omx_continuous_drop_flag = false;
-		cur_disp_omx_index = 0;
+		cur_disp_frame_index = 0;
 		dovi_drop_flag = false;
 		dovi_drop_frame_num = 0;
 		mutex_unlock(&omx_mutex);
@@ -2116,12 +2116,12 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 			    (pts > 0xFFFFFFFF - TIME_UNIT90K)))
 				return true;
 			if (omx_secret_mode &&
-			    cur_omx_index >= next_vf->omx_index)
+			    cur_frame_index >= next_vf->frame_index)
 				return true;
 
 			return false;
 		} else if (omx_secret_mode &&
-			cur_omx_index >= next_vf->omx_index) {
+			cur_frame_index >= next_vf->frame_index) {
 			return true;
 		} else if (tsync_check_vpts_discontinuity(pts) &&
 			tsync_get_mode() == TSYNC_MODE_PCRMASTER) {
@@ -2149,12 +2149,12 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 	} else if (omx_run &&
 		omx_secret_mode &&
 		(omx_pts + omx_pts_interval_upper < next_vf->pts) &&
-		(omx_pts_set_index >= next_vf->omx_index)) {
-		pr_info("omx, omx_pts=%d omx_pts_set_index=%d pts=%d omx_index=%d\n",
+		(omx_pts_set_index >= next_vf->frame_index)) {
+		pr_info("omx, omx_pts=%d omx_pts_set_index=%d pts=%d frame_index=%d\n",
 			omx_pts,
 			omx_pts_set_index,
 			next_vf->pts,
-			next_vf->omx_index);
+			next_vf->frame_index);
 		return true;
 	}
 #endif
@@ -2345,7 +2345,7 @@ static void set_omx_pts(u32 *p)
 	unsigned int try_cnt = 0x1000;
 	bool updateomxpts;
 
-	cur_omx_index = frame_num;
+	cur_frame_index = frame_num;
 	mutex_lock(&omx_mutex);
 	if (omx_pts_set_index < frame_num)
 		omx_pts_set_index = frame_num;
@@ -2366,7 +2366,7 @@ static void set_omx_pts(u32 *p)
 		pr_info("[%s]tmp_pts:%d, set_from_hwc:%d,frame_num=%d, not_reset=%d\n",
 			__func__, tmp_pts, set_from_hwc, frame_num, not_reset);
 	if (set_from_hwc == 1) {
-		if (frame_num >= cur_disp_omx_index) {
+		if (frame_num >= cur_disp_frame_index) {
 			omx_continuous_drop_flag = false;
 			omx_continuous_drop_count = 0;
 		} else {
@@ -2397,9 +2397,9 @@ static void set_omx_pts(u32 *p)
 				struct vframe_s *vf = NULL;
 
 				vf = vf_peek(RECEIVER_NAME);
-				if (vf && vf->omx_index > 0 &&
-				    omx_pts_set_index > vf->omx_index)
-					omx_pts_set_index = vf->omx_index - 1;
+				if (vf && vf->frame_index > 0 &&
+				    omx_pts_set_index > vf->frame_index)
+					omx_pts_set_index = vf->frame_index - 1;
 			}
 		} else {
 			omx_continusdrop_cnt = 0;
@@ -2459,9 +2459,9 @@ static void set_omx_pts(u32 *p)
 			}
 #endif
 			if (vf) {
-				pr_debug("drop frame_num=%d, vf->omx_index=%d\n",
-					 frame_num, vf->omx_index);
-				if (frame_num >= vf->omx_index) {
+				pr_debug("drop frame_num=%d, vf->frame_index=%d\n",
+					 frame_num, vf->frame_index);
+				if (frame_num >= vf->frame_index) {
 					vf = vf_get(RECEIVER_NAME);
 					if (vf)
 						vf_put(vf, RECEIVER_NAME);
@@ -3036,7 +3036,7 @@ static int dolby_vision_drop_frame(void)
 
 	if (vf && (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME))
 		pr_info("drop vf %p, index %d, pts %d\n",
-			vf, vf->omx_index, vf->pts);
+			vf, vf->frame_index, vf->pts);
 
 	amdv_update_metadata(vf, VD1_PATH, true);
 	if (amvideo_vf_put(vf) < 0)
@@ -3144,12 +3144,12 @@ void frame_drop_process(void)
 				max_drop_index = omx_run ?
 				omx_need_drop_frame_num : dovi_drop_frame_num;
 
-				if (max_drop_index >= vf->omx_index) {
+				if (max_drop_index >= vf->frame_index) {
 					if (dolby_vision_drop_frame() == 1)
 						break;
 					continue;
 				} else if (omx_run &&
-					   (vf->omx_index >
+					   (vf->frame_index >
 					   omx_need_drop_frame_num)) {
 					/* all drop done*/
 					dovi_drop_flag = false;
@@ -3178,7 +3178,7 @@ void frame_drop_process(void)
 #endif
 			if (!vf)
 				break;
-			if (omx_need_drop_frame_num >= vf->omx_index) {
+			if (omx_need_drop_frame_num >= vf->frame_index) {
 				vf = amvideo_vf_get();
 				if (amvideo_vf_put(vf) < 0)
 					check_dispbuf(0, vf, true);
@@ -3679,7 +3679,7 @@ static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 	cur_dispbuf[0] = vf;
 
 	if (cur_dispbuf[0] && omx_secret_mode)
-		cur_disp_omx_index = cur_dispbuf[0]->omx_index;
+		cur_disp_frame_index = cur_dispbuf[0]->frame_index;
 
 	if (first_picture) {
 		first_frame_toggled = 1;
@@ -3826,7 +3826,7 @@ struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 	while (vf && !video_suspend) {
 		if (debug_flag & DEBUG_FLAG_OMX_DEBUG_DROP_FRAME) {
 			pr_info("next pts= %d,index %d,pcr = %d,vpts = %d\n",
-				vf->pts, vf->omx_index,
+				vf->pts, vf->frame_index,
 				timestamp_pcrscr_get(), timestamp_vpts_get());
 		}
 		if ((omx_continuous_drop_flag && omx_run)) {
@@ -3840,8 +3840,8 @@ struct vframe_s *amvideo_toggle_frame(s32 *vd_path_id)
 			} else {
 				if (debug_flag &
 					DEBUG_FLAG_OMX_DEBUG_DROP_FRAME) {
-					pr_info("drop omx_index %d, pts %d\n",
-						vf->omx_index, vf->pts);
+					pr_info("drop frame_index %d, pts %d\n",
+						vf->frame_index, vf->pts);
 				}
 				vf = vf_get(RECEIVER_NAME);
 				if (vf) {
@@ -11305,8 +11305,8 @@ static ssize_t cur_ai_face_show(struct class *cla, struct class_attribute *attr,
 			h = ai_face_value.face_value[i].h;
 			score = ai_face_value.face_value[i].score;
 			count += sprintf(buf + count,
-				"omx_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d\n",
-				vd_layer[0].dispbuf->omx_index, i, x, y, w, h, score);
+				"frame_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d\n",
+				vd_layer[0].dispbuf->frame_index, i, x, y, w, h, score);
 			i++;
 		}
 	}
@@ -11321,8 +11321,8 @@ static ssize_t cur_ai_face_show(struct class *cla, struct class_attribute *attr,
 			h = ai_face_value.face_value[j].h;
 			score = ai_face_value.face_value[j].score;
 			count += sprintf(buf + count,
-				"omx_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d\n",
-				vd_layer[1].dispbuf->omx_index, j, x, y, w, h, score);
+				"frame_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d\n",
+				vd_layer[1].dispbuf->frame_index, j, x, y, w, h, score);
 			i++;
 		}
 	}

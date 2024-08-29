@@ -175,10 +175,10 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr, int *di_flag)
 			else
 				*di_flag = 0;
 			nn_print(PRINT_OTHER,
-				"%s:phy=%llx, omx_index=%d, hf_align: %d*%d.\n",
+				"%s:phy=%llx, frame_index=%d, hf_align: %d*%d.\n",
 				__func__,
 				hf_info->phy_addr,
-				vf->omx_index,
+				vf->frame_index,
 				nn_sr->hf_align_w,
 				nn_sr->hf_align_h);
 		} else {
