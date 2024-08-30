@@ -2763,9 +2763,6 @@ bool rx_hpd_keep_low(u8 port)
 		rx[port].var.hpd_wait_cnt <= hpd_wait_21_max)
 		ret = true;
 
-	if (!rx[port].pre_5v_sts)
-		ret = false;
-
 	return ret;
 }
 
@@ -4899,7 +4896,7 @@ void rx_port0_main_state_machine(void)
 			break;
 		rx[port].var.hpd_wait_cnt++;
 		if (rx_get_cur_hpd_sts(port) == 0) {
-			if (rx_hpd_keep_low(port))
+			if (rx_hpd_keep_low(port) && rx[port].pre_5v_sts)
 				break;
 			//hdmirx_hw_config(port);//todo
 		}
@@ -5304,7 +5301,7 @@ void rx_port1_main_state_machine(void)
 			break;
 		rx[port].var.hpd_wait_cnt++;
 		if (rx_get_cur_hpd_sts(port) == 0) {
-			if (rx_hpd_keep_low(port))
+			if (rx_hpd_keep_low(port) && rx[port].pre_5v_sts)
 				break;
 			//hdmirx_hw_config(port);//todo
 		}
@@ -5713,7 +5710,7 @@ void rx_port2_main_state_machine(void)
 			break;
 		rx[port].var.hpd_wait_cnt++;
 		if (rx_get_cur_hpd_sts(port) == 0) {
-			if (rx_hpd_keep_low(port))
+			if (rx_hpd_keep_low(port) && rx[port].pre_5v_sts)
 				break;
 			//hdmirx_hw_config(port);
 		}
@@ -6202,7 +6199,7 @@ void rx_port3_main_state_machine(void)
 			break;
 		rx[port].var.hpd_wait_cnt++;
 		if (rx_get_cur_hpd_sts(port) == 0) {
-			if (rx_hpd_keep_low(port))
+			if (rx_hpd_keep_low(port) && rx[port].pre_5v_sts)
 				break;
 			//hdmirx_hw_config(port);
 		}
