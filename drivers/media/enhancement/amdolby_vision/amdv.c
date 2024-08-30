@@ -633,6 +633,7 @@ static bool update_mali_top_ctrl;
 bool multi_dv_mode;/*idk2.6 or not*/
 bool enable_multi_core1;/*enable two core1 or not*/
 static bool core1a_core1b_switch;
+static bool path_switch;
 struct m_dovi_setting_s m_dovi_setting;
 struct m_dovi_setting_s new_m_dovi_setting;
 struct m_dovi_setting_s invalid_m_dovi_setting;
@@ -3055,9 +3056,9 @@ static void dump_m_setting(struct m_dovi_setting_s *m_setting,
 			pr_info("t7_stb reg: core3 0x1d93(bit3, 1:enable) = 0x%x\n",
 				READ_VPP_DV_REG(VPP_AMDV_CTRL));
 		} else if (is_aml_s5()) {
-			pr_info("s5 reg: vd1 core1 0x2822(bit0, 1:enable) = 0x%x\n",
+			pr_info("s5 reg: vd1 dv path 0x2822(bit0, 1:enable) = 0x%x\n",
 				READ_VPP_DV_REG(VD1_S0_DV_BYPASS_CTRL));
-			pr_info("s5 reg: vd2 core1 0x3888(bit0, 1:enable) = 0x%x\n",
+			pr_info("s5 reg: vd2 dv path 0x3888(bit0, 1:enable) = 0x%x\n",
 				READ_VPP_DV_REG(VD2_DV_BYPASS_CTRL));
 			pr_info("s5 reg: core2a core2c 0x6077(bit0 bit4, 1:bypass) = 0x%x\n",
 				READ_VPP_DV_REG(OSD_DOLBY_BYPASS_EN));
@@ -3071,9 +3072,9 @@ static void dump_m_setting(struct m_dovi_setting_s *m_setting,
 				READ_VPP_DV_REG(VPP_SLICE2_DOLBY_CTRL));
 			pr_info("s5 reg: core3 S3 0x3e01(bit3, 1:enable) = 0x%x\n",
 				READ_VPP_DV_REG(VPP_SLICE3_DOLBY_CTRL));
-			pr_info("s5 swap reg: core1a 0x3300, core1b 0x0a00\n");
-			pr_info("s5 swap reg: core2a 0x0b00, core2c 0x0d00\n");
-			pr_info("s5 swap reg: core3 0x0e00,0x0f00,0x1200,0x1300\n");
+			pr_info("s5 reg: core1a 0x3300, core1b 0x0a00\n");
+			pr_info("s5 reg: core2a 0x0b00, core2c 0x0d00\n");
+			pr_info("s5 reg: core3 0x0e00,0x0f00,0x1200,0x1300\n");
 		}
 	}
 
@@ -9461,6 +9462,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 	enum input_mode_enum input_mode = IN_MODE_OTT;
 	u32 graphic_min = 50; /* 0.0001 */
 	static u32 graphic_max = 100; /* 1 */
+	static u32 last_graphic_max = 100;
 	int ret_flags = 0;
 	static int bypass_frame = -1;
 	static int last_current_format;
@@ -9507,8 +9509,11 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 		}
 
 		dv_id = vf->src_fmt.dv_id;
-		if (!dv_inst_valid(dv_id))
+		if (!dv_inst_valid(dv_id)) {
+			pr_err("[%s]err inst %d\n", __func__, dv_id);
 			dv_id = 0;
+		}
+
 	} //else {
 		//dv_id = layer_id_to_dv_id(vd_path);
 	//}
@@ -9677,7 +9682,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 					pr_dv_dbg("stb: bypass FEL\n");
 			}
 		} else if (is_amdv_stb_mode()) {
-			src_format = m_dovi_setting.input[dv_id].src_format;
+			src_format = dv_inst[dv_id].src_format;
 		}
 
 		if (src_format != FORMAT_DOVI && is_primesl_frame(vf)) {
@@ -9827,9 +9832,9 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 				dv_inst[dv_id].last_mel_mode = mel_flag;
 			}
 		} else if (meta_flag_bl && meta_flag_el) {
-			total_md_size = m_dovi_setting.input[dv_id].in_md_size;
-			total_comp_size = m_dovi_setting.input[dv_id].in_comp_size;
-			el_flag = m_dovi_setting.input[dv_id].el_flag;
+			total_md_size =  dv_inst[dv_id].last_total_md_size;
+			total_comp_size = dv_inst[dv_id].last_total_comp_size;
+			el_flag = dv_inst[dv_id].el_flag;
 			mel_flag = dv_inst[dv_id].last_mel_mode;
 			if (debug_dolby & 2)
 				pr_dv_dbg("update el_flag %d, melFlag %d\n",
@@ -10057,7 +10062,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 			}
 		} else {
 			if (toggle_mode == 2)
-				src_format = m_dovi_setting.input[dv_id].src_format;
+				src_format = dv_inst[dv_id].src_format;
 
 			if (dv_unique_drm) {
 				src_format = FORMAT_DOVI_LL;
@@ -10332,6 +10337,10 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 				graphic_max = dv_HDR10_graphics_max;
 		}
 	}
+	/*if no video, keep graphic_max same as before,to avoid lum change a lot*/
+	if (!vf)
+		graphic_max = last_graphic_max;
+	last_graphic_max = graphic_max;
 
 	if (dolby_vision_flags & FLAG_USE_SINK_MIN_MAX) {
 		if (vinfo->vout_device->dv_info->ieeeoui == 0x00d046) {
@@ -10623,7 +10632,9 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 /*vf: display on vd1, vf_2: dislpay on vd2*/
 /* ret 0: setting generated for this frame */
 /* ret -1: do nothing */
-int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
+int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2,
+					u32 display_size, u32 display_size_2,
+					struct vd_proc_info_t *vd_proc_info)
 {
 	unsigned long time_use = 0;
 	struct timeval start;
@@ -10651,6 +10662,10 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 	enum input_mode_enum input_mode = IN_MODE_OTT;
 	enum input_mode_enum cur_input_mode = IN_MODE_OTT;
 	struct vframe_s *p_vf;
+	u32 vd1_hsize;
+	u32 vd1_vsize;
+	u32 vd2_hsize;
+	u32 vd2_vsize;
 
 	if (!dolby_vision_enable || !module_installed || !p_funcs_stb)
 		return -1;
@@ -10664,7 +10679,7 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 		dv_inst[i].valid = 0;
 	/*update new_m_dovi_setting.input, choose the two inst that display on vd1/vd2*/
 	for (i = 0; i < NUM_IPCORE1; i++) {
-		if (i == 0)	{
+		if (i == 0) {/*vd1*/
 			if (!vf)
 				continue;
 			p_vf = vf;
@@ -10672,8 +10687,26 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 			inst_id_1 = vf->src_fmt.dv_id;
 			if (id != vd1_inst_id)
 				pr_dv_dbg("check id1 %d %d\n", id, vd1_inst_id);
+
+			/*video_width is set in parser_metadata,it's vframe size,not vd1 real size*/
+			if (vd_proc_info) {
+				vd1_hsize = (display_size >> 16) & 0xffff;
+				vd1_vsize = display_size & 0xffff;
+				if (debug_dolby & 0x8)
+					pr_dv_dbg("[inst%d]controlpath   vf[%px]:%dx%d,vd%d size: %dx%d %dx%d\n",
+						id + 1, p_vf,
+						dv_inst[id].video_width, dv_inst[id].video_height,
+						i + 1, vd1_hsize, vd1_vsize,
+						vd_proc_info->vd1_in_hsize,
+						vd_proc_info->vd1_in_vsize);
+				if (vd1_hsize != dv_inst[id].video_width ||
+					vd1_vsize != dv_inst[id].video_height) {
+					dv_inst[id].video_width = vd1_hsize;
+					dv_inst[id].video_height = vd1_vsize;
+				}
+			}
 		}
-		if (i == 1)	{
+		if (i == 1)	{/*vd2*/
 			if (!vf_2 || (!support_multi_core1() && !force_two_valid))
 				break;
 			p_vf = vf_2;
@@ -10681,6 +10714,24 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 			inst_id_2 = vf_2->src_fmt.dv_id;
 			if (id != vd2_inst_id)
 				pr_dv_dbg("check id2 %d %d\n", id, vd2_inst_id);
+
+			/*video_width is set in parser_metadata,it's vframe size,not vd2 real size*/
+			if (vd_proc_info) {
+				vd2_hsize = (display_size_2 >> 16) & 0xffff;
+				vd2_vsize = display_size_2 & 0xffff;
+				if (debug_dolby & 0x8)
+					pr_dv_dbg("[inst%d]controlpath vf_2[%px]:%dx%d,vd%d size: %dx%d %dx%d\n",
+						id + 1, p_vf,
+						dv_inst[id].video_width, dv_inst[id].video_height,
+						i + 1, vd2_hsize, vd2_vsize,
+						vd_proc_info->vd2_in_hsize,
+						vd_proc_info->vd2_in_vsize);
+				if (vd2_hsize != dv_inst[id].video_width ||
+					vd2_vsize != dv_inst[id].video_height) {
+					dv_inst[id].video_width = vd2_hsize;
+					dv_inst[id].video_height = vd2_vsize;
+				}
+			}
 		}
 		new_m_dovi_setting.input[i].valid = 1;
 		++valid_video_num;
@@ -12838,7 +12889,6 @@ static int amdolby_vision_process_v2_stb
 	u32 in_size_2;
 	int i;
 	int dv_id = 0;
-	bool path_switch = false;
 	enum vd_path_e vd_path = VD1_PATH;
 	enum vd_path_e vd_path_2 = VD2_PATH;
 	static bool stb_hdmi_mode;
@@ -12849,14 +12899,15 @@ static int amdolby_vision_process_v2_stb
 	bool pri_change = false;
 	static int last_hdmi_inst_id = -1;
 	bool hdmi_inst_change = false;
+	struct vd_proc_info_t *vd_proc_info;
 
 	if (vf) {
 		if (dv_inst_valid(vf->src_fmt.dv_id))
 			dv_id = vf->src_fmt.dv_id;
 		else
 			dv_id = 0;
-		//if (dv_id != vd_path)
-			//path_switch = true;
+		if (dv_id != vd_path)
+			path_switch = true;
 
 		dv_inst[dv_id].layer_id = vd_path;
 		vd1_inst_id = dv_id;
@@ -12876,8 +12927,8 @@ static int amdolby_vision_process_v2_stb
 			dv_id = vf_2->src_fmt.dv_id;
 		else
 			dv_id = 1;
-		//if (dv_id != vd_path_2)
-			//path_switch = true;
+		if (dv_id != vd_path_2)
+			path_switch = true;
 
 		dv_inst[dv_id].layer_id = vd_path_2;
 		vd2_inst_id = dv_id;
@@ -12959,14 +13010,10 @@ static int amdolby_vision_process_v2_stb
 		pri_input = force_pri_input;
 	}
 
-	if (path_switch != core1a_core1b_switch) {
-		core1a_core1b_switch = path_switch;
-		pr_dv_dbg("core1a core1b setting switched %d, vd1_inst_id %d, pri_input %d\n",
-		core1a_core1b_switch, vd1_inst_id, pri_input);
-	}
+	vd_proc_info = get_vd_proc_amdv_info();
 
 	if (update_control_path_flag) {
-		amdv_control_path(vf, vf_2);
+		amdv_control_path(vf, vf_2, display_size, display_size_2, vd_proc_info);
 		update_control_path_flag = false;
 	}
 
@@ -13028,6 +13075,7 @@ static int amdolby_vision_process_v2_stb
 		for (i = 0; i < NUM_IPCORE1; i++) {
 			if (dv_core1[i].core1_disp_hsize != h_size[i] ||
 				dv_core1[i].core1_disp_vsize != v_size[i]) {
+				need_cp = true;
 				if (debug_dolby & 1)
 					pr_dv_dbg
 					("stb update core1_%s disp size %d %d -> %d %d\n",
@@ -13068,6 +13116,10 @@ static int amdolby_vision_process_v2_stb
 					     get_hdr_module_status(VD1_PATH, VPP_TOP0)
 					     == HDR_MODULE_ON ? "on" : "off",
 					     get_video_enabled(0) ? "on" : "off");
+		}
+		if (need_cp) {
+			amdv_control_path(vf, vf_2, display_size, display_size_2, vd_proc_info);
+			need_cp = false;
 		}
 	}
 
@@ -13168,7 +13220,7 @@ static int amdolby_vision_process_v2_stb
 			need_cp = true;
 		}
 		if (need_cp)
-			amdv_control_path(vf, vf_2);
+			amdv_control_path(vf, vf_2, display_size, display_size_2, vd_proc_info);
 
 		if (vf) {
 			h_size[0] = (display_size >> 16) & 0xffff;
@@ -13275,7 +13327,8 @@ static int amdolby_vision_process_v2_stb
 				}
 			}
 			if (need_cp)
-				amdv_control_path(vf, vf_2);
+				amdv_control_path
+				(vf, vf_2, display_size, display_size_2, vd_proc_info);
 		}
 	} else {
 		/*No vd1 vf or vd1 turn off */
@@ -13310,7 +13363,8 @@ static int amdolby_vision_process_v2_stb
 			if (need_cp) {
 				pr_dv_dbg("vd1 off, reset cp\n");
 				p_funcs_stb->multi_control_path(&invalid_m_dovi_setting);
-				amdv_control_path(vf, vf_2);
+				amdv_control_path
+					(vf, vf_2, display_size, display_size_2, vd_proc_info);
 			}
 		}
 	}
@@ -17318,7 +17372,7 @@ static ssize_t amdolby_vision_inst_status_show
 			       i == 0 ? "a" : "b", dv_core1[i].amdv_setting_video_flag,
 			       dv_core1[i].core1_on);
 
-	 len += sprintf(buf + len, "core1a_core1b_switch %d\n", core1a_core1b_switch);
+	 len += sprintf(buf + len, "inst-core switch %d\n", path_switch);
 
 	return len;
 }

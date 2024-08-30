@@ -51,8 +51,9 @@ static unsigned int vsize_add;
 static unsigned int vwidth = 0x8;
 static unsigned int hwidth = 0x8;
 static unsigned int vpotch = 0x10;
+static unsigned int vpotch_core1b = 0x10;
 static unsigned int hpotch = 0x8;
-unsigned int debug_vpotch;
+unsigned int debug_vpotch = 0xFFFF;/*bit0-7 core1a or tvcore, bit8-15 core1b*/
 static unsigned int g_htotal_add = 0x40;
 static unsigned int g_vtotal_add = 0x80;
 static unsigned int g_vsize_add;
@@ -293,10 +294,15 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 		g_vwidth = 0x10;
 	}
 
-	if (debug_vpotch)
-		vpotch = debug_vpotch;
-	else
+	if (debug_vpotch != 0xFFFF) {
+		if ((debug_vpotch & 0xFF) != 0xFF)
+			vpotch = debug_vpotch & 0xFF;
+		if (((debug_vpotch >> 8) & 0xFF) != 0xFF)
+			vpotch_core1b = (debug_vpotch >> 8) & 0xFF;
+	} else {
 		vpotch = 0x10;
+		vpotch_core1b = 0x10;
+	}
 }
 
 void adjust_vpotch_tv(void)
@@ -316,7 +322,7 @@ void adjust_vpotch_tv(void)
 			else
 				dma_start_line = 0x180;
 			if (is_aml_tvmode()) {
-				if (debug_vpotch)
+				if (debug_vpotch != 0xFFFF)
 					vpotch = debug_vpotch;
 				else if (vinfo->vbp >= 30)
 					vpotch = 0x10;
@@ -975,10 +981,10 @@ static int dv_core1_set(u32 dm_count,
 	if (dolby_vision_flags & FLAG_DISABLE_COMPOSER)
 		composer_enable = 0;
 
-	if (force_update_reg & 8)
+	if (force_update_reg & 1)
 		set_lut = true;
 
-	if (force_update_reg & 1)
+	if (force_update_reg & 2)
 		reset = true;
 
 	if (amdv_on_count
@@ -1527,8 +1533,8 @@ static int dv_core1a_set(u32 dm_count,
 				(is_aml_tm2_stbmode() || is_aml_t7_stbmode()));
 	int copy_core1a_to_core1c = ((copy_core1a & 2) && is_aml_t7_stbmode());
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	int hsize_2;
-	int vsize_2;
+	int hsize_2 = 0;
+	int vsize_2 = 0;
 	struct vd_proc_info_t *vd_proc_info;
 #endif
 	static int start_render;
@@ -1558,13 +1564,13 @@ static int dv_core1a_set(u32 dm_count,
 	    (dolby_vision_flags & FLAG_DISABE_CORE_SETTING))
 		return 0;
 
-	if (force_update_reg & 0x1000)
+	if (force_update_reg & 4)
 		return 0;
 
 	if (dolby_vision_flags & FLAG_DISABLE_COMPOSER)
 		composer_enable = 0;
 
-	if (force_update_reg & 8)
+	if (force_update_reg & 2)
 		set_lut = true;
 
 	if (force_update_reg & 1)
@@ -1619,7 +1625,7 @@ static int dv_core1a_set(u32 dm_count,
 		set_lut = true;
 
 	if (debug_dolby & 2)
-		pr_dv_dbg("core1a cnt %d %d,flag %d,reset %d,size %dx%d,%x\n",
+		pr_dv_dbg("core1a cnt %d %d,flag 0x%x,reset %d,size %dx%d,%x\n",
 			     dv_core1[0].core1_on_cnt, core1a_enable,
 			     stb_core_setting_update_flag,
 			     reset, hsize, vsize, p_core1_dm_regs[0]);
@@ -1670,13 +1676,13 @@ static int dv_core1a_set(u32 dm_count,
 		VSYNC_WR_DV_REG(AMDV_CORE1B_CLKGATE_CTRL, 0);
 		/* VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL0, 0); */
 		VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL1,
-			((hsize + 0x80) << 16) | (vsize + 0x40));
+			((hsize_2 + 0x80) << 16) | (vsize_2 + 0x40));
 		VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL3,
 			(hwidth << 16) | vwidth);
 		VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL4,
 			(hpotch << 16) | vpotch);
 		VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL2,
-			(hsize << 16) | vsize);
+			(hsize_2 << 16) | vsize_2);
 		VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL5, 0xa);
 
 		VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_CTRL, 0x0);
@@ -1780,7 +1786,7 @@ static int dv_core1a_set(u32 dm_count,
 		count = lut_count;
 
 	if (is_aml_s5())
-		dma_ctrl = 0x1409;/*bit3=1 disable latch*/
+		dma_ctrl = 0x1409;/*s5 latch on by default; disable latch bit3*/
 	if (count && (set_lut || reset)) {
 		VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_CTRL, dma_ctrl);
 		if (copy_core1a_to_core1b)
@@ -2144,7 +2150,7 @@ static int dv_core1b_set(u32 dm_count,
 	    (dolby_vision_flags & FLAG_DISABE_CORE_SETTING))
 		return 0;
 
-	if (force_update_reg & 0x2000)
+	if (force_update_reg & 0x40)
 		return 0;
 
 	if (dolby_vision_flags & FLAG_DISABLE_COMPOSER)
@@ -2153,7 +2159,7 @@ static int dv_core1b_set(u32 dm_count,
 	if (force_update_reg & 0x20)
 		set_lut = true;
 
-	if (force_update_reg & 0x40)
+	if (force_update_reg & 0x10)
 		reset = true;
 
 	if ((!dolby_vision_on || reset) && core1b_enable) {
@@ -2169,15 +2175,17 @@ static int dv_core1b_set(u32 dm_count,
 		reset = true;
 		dv_core1[1].core1_on_cnt++;
 	}
-	if (debug_dolby & 2)
-		pr_dv_dbg("core1b cnt %d %d,reset %d,size %dx%d,%x\n",
-			     dv_core1[1].core1_on_cnt, core1b_enable,
-			     reset,  hsize, vsize, p_core1_dm_regs[0]);
 	//if (reset)
 		//update_core2_reg = true;
 
 	if (stb_core_setting_update_flag & CP_FLAG_CHANGE_TC)
 		set_lut = true;
+
+	if (debug_dolby & 2)
+		pr_dv_dbg("core1b cnt %d %d,flag 0x%x,reset %d,size %dx%d,%x\n",
+			     dv_core1[1].core1_on_cnt, core1b_enable,
+			     stb_core_setting_update_flag,
+			     reset,  hsize, vsize, p_core1_dm_regs[0]);
 
 	if ((core1b_enable && (amdv_mask & 1))) {
 		if (is_aml_tm2_stbmode()) {
@@ -2228,7 +2236,7 @@ static int dv_core1b_set(u32 dm_count,
 	VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL3,
 		(hwidth << 16) | vwidth);
 	VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL4,
-		(hpotch << 16) | vpotch);
+		(hpotch << 16) | vpotch_core1b);
 	VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL2,
 		(hsize << 16) | vsize);
 	VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL5, 0xa);
@@ -2286,7 +2294,7 @@ static int dv_core1b_set(u32 dm_count,
 		count = lut_count;
 
 	if (is_aml_s5())
-		dma_ctrl = 0x1401;
+		dma_ctrl = 0x1409;/*s5 latch on by default; disable latch bit3*/
 	if (count && (set_lut || reset)) {
 		VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_CTRL, dma_ctrl);
 		if (lut_endian) {
@@ -2464,7 +2472,7 @@ static int dv_core2c_set
 	    (dolby_vision_flags & FLAG_DISABE_CORE_SETTING))
 		return 0;
 
-	if (force_update_reg & 0x2000)
+	if (force_update_reg & 0x4000)
 		return 0;
 
 	if (!dolby_vision_on || force_reset_core2[1]) {
@@ -2491,10 +2499,10 @@ static int dv_core2c_set
 		reset = true;
 	}
 
-	if (force_update_reg & 0x10)
+	if (force_update_reg & 0x2000)
 		set_lut = true;
 
-	if (force_update_reg & 2)
+	if (force_update_reg & 0x1000)
 		reset = true;
 
 	if (is_amdv_stb_mode()) {
@@ -2529,7 +2537,7 @@ static int dv_core2c_set
 				(g_vtiming & 0xff) : g_vpotch));
 	VSYNC_WR_DV_REG(AMDV_CORE2C_SWAP_CTRL5,  0xa8000000);
 
-	VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_CTRL, 0x0);
+	//VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_CTRL, 0x0);
 	VSYNC_WR_DV_REG(AMDV_CORE2C_REG_START + 2, 1);
 	if (need_skip_cvm(1))
 		bypass_flag |= 1 << 0;
@@ -2679,7 +2687,7 @@ static int dv_core2a_set
 	    (dolby_vision_flags & FLAG_DISABE_CORE_SETTING))
 		return 0;
 
-	if (force_update_reg & 0x2000)
+	if (force_update_reg & 0x400)
 		return 0;
 
 	if (!dolby_vision_on || force_reset_core2[0]) {
@@ -2689,6 +2697,8 @@ static int dv_core2a_set
 		pr_dv_dbg("reset core2a\n");
 		amdv_core2_on_cnt[0] = 0;
 	}
+	if (force_update_reg & 0x800)
+		reset = true;
 
 	if (osd_enable &&
 	    amdv_core2_on_cnt[0] < DV_CORE2_RECONFIG_CNT) {
@@ -2706,10 +2716,10 @@ static int dv_core2a_set
 		reset = true;
 	}
 
-	if (force_update_reg & 0x10)
+	if (force_update_reg & 0x200)
 		set_lut = true;
 
-	if (force_update_reg & 2)
+	if (force_update_reg & 0x100)
 		reset = true;
 
 	if (is_amdv_stb_mode()) {
@@ -2751,7 +2761,7 @@ static int dv_core2a_set
 		VSYNC_WR_DV_REG(AMDV_CORE2A_SWAP_CTRL5,  0xa8000000);
 	else
 		VSYNC_WR_DV_REG(AMDV_CORE2A_SWAP_CTRL5, 0x0);
-	VSYNC_WR_DV_REG(AMDV_CORE2A_DMA_CTRL, 0x0);
+	//VSYNC_WR_DV_REG(AMDV_CORE2A_DMA_CTRL, 0x0);
 	VSYNC_WR_DV_REG(AMDV_CORE2A_REG_START + 2, 1);
 	if (need_skip_cvm(1))
 		bypass_flag |= 1 << 0;
@@ -2789,8 +2799,9 @@ static int dv_core2a_set
 			    p_core2_lut[lut_size - 1 - i] != last_lut[lut_size - 1 - i]) {
 				set_lut = true;
 				if ((debug_dolby & 0x20000000))
-					pr_dv_dbg("core2a lut change lut[%d] %x->%x\n",
-					i, last_lut[i], p_core2_lut[i]);
+					pr_dv_dbg("core2a lut change lut[%d] %x->%x,%x->%x\n",
+					i, last_lut[i], p_core2_lut[i],
+					p_core2_lut[lut_size - 1 - i], last_lut[lut_size - 1 - i]);
 				break;
 			}
 		}
@@ -2997,7 +3008,7 @@ static int dv_core3_set
 		(dolby_vision_flags & FLAG_CERTIFICATION))
 		reset = true;
 
-	if (force_update_reg & 4)
+	if (force_update_reg & 8)
 		reset = true;
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD

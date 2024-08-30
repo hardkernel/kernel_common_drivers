@@ -544,7 +544,7 @@ struct m_dovi_setting_s {
 	u32 mode_changed;
 	enum signal_format_enum dst_format;
 
-	/*private info for each instance*/
+	/*private info for vd1 core1a + vd2 core1b*/
 	struct private_info_s input[NUM_IPCORE1 + NUM_IPCORE2];
 
 	/*only used for graphic*/
