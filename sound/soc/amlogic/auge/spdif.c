@@ -1389,6 +1389,7 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 			if (separated)
 				enable_spdif_to_hdmitx_clk(true);
 			enable_spdif_to_hdmitx_dat(false);
+			notify_hdmitx_to_prepare();
 		}
 
 		if (p_spdif->codec_type == AUD_CODEC_TYPE_TRUEHD ||
