@@ -3504,6 +3504,7 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 	hdmi_dev->hdmi_current_signal_sdr = true;
 	hdmi_dev->tx_comm.hdcp_mode = 0;
 	hdmi_dev->tx_comm.ready = 0;
+	hdmi_dev->tx_comm.hdcp_user = 1;
 	/* no RxSense by default */
 	hdmi_dev->tx_comm.rxsense_policy = 0;
 	/* enable or disable HDMITX SSPLL, enable by default */

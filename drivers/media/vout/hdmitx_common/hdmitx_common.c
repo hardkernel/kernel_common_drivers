@@ -308,6 +308,12 @@ bool hdmitx_common_get_edid_valid_state(struct hdmitx_common *tx_comm)
 }
 EXPORT_SYMBOL(hdmitx_common_get_edid_valid_state);
 
+bool hdmitx_common_get_hdcp_user_state(struct hdmitx_common *tx_comm)
+{
+	return tx_comm->hdcp_user;
+}
+EXPORT_SYMBOL(hdmitx_common_get_hdcp_user_state);
+
 int hdmitx_setup_attr(struct hdmitx_common *tx_comm, const char *buf)
 {
 	char attr[16] = {0};

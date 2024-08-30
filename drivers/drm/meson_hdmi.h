@@ -82,6 +82,12 @@ struct am_hdmi_tx {
 	 * 1:edid is valid
 	 */
 	struct drm_property *edid_valid_prop;
+	/*
+	 * HWC enable hdcp flow
+	 * 0: IVCX chip don't need: T7/S5/S6/S7/S7D/S1A
+	 * 1: SNPS chip need: SC2/S4/G12/SM1
+	 */
+	struct drm_property *hdcp_user_prop;
 	int hdmi_type;
 
 #ifdef CONFIG_CEC_NOTIFIER

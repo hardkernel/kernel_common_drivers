@@ -4268,6 +4268,7 @@ static int amhdmitx21_device_init(struct hdmitx_dev *hdev)
 	hdev->hdmi_current_signal_sdr = true;
 
 	hdev->tx_comm.ready = 0;
+	hdev->tx_comm.hdcp_user = 0;
 	/* no RxSense by default */
 	hdev->tx_comm.rxsense_policy = 0;
 	/* enable or disable HDMITX SSPLL, enable by default */

@@ -106,6 +106,11 @@ struct hdmitx_common {
 
 	/* indicate hdmitx output ready, sw/hw mode setting done */
 	bool ready;
+	/*
+	 * 1 :HWC to enable hdcp flow in SNPS chip
+	 * 0 :IVCX chip don't need
+	 */
+	bool hdcp_user;
 
 	/*if hdmitx is in early suspend.*/
 	bool suspend_flag;
@@ -274,6 +279,7 @@ u64 hdmitx_get_hpd_hw_sequence_id(struct hdmitx_common *tx_comm);
 unsigned char *hdmitx_get_raw_edid(struct hdmitx_common *tx_comm);
 bool hdmitx_common_get_ready_state(struct hdmitx_common *tx_comm);
 bool hdmitx_common_get_edid_valid_state(struct hdmitx_common *tx_comm);
+bool hdmitx_common_get_hdcp_user_state(struct hdmitx_common *tx_comm);
 
 int hdmitx_setup_attr(struct hdmitx_common *tx_comm, const char *buf);
 int hdmitx_get_attr(struct hdmitx_common *tx_comm, char attr[16]);
