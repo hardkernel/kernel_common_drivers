@@ -2406,7 +2406,7 @@ static ssize_t lcd_debug_enable_store(struct device *dev, struct device_attribut
 		mutex_lock(&lcd_power_mutex);
 		lcd_proc_time_clear(pdrv);
 		pdrv->status &= ~(LCD_STATUS_PREPARE | LCD_STATUS_POWER);
-		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)pdrv);
 		mutex_unlock(&lcd_power_mutex);
 	}
 
