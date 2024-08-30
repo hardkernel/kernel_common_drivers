@@ -1675,7 +1675,6 @@ static void osd_hw_init(struct meson_vpu_block *vblk)
 
 	meson_drm_osd_canvas_alloc(osd_canvas[vblk->index], MAX_CANVAS_NUM);
 	osd->reg = &osd_mif_reg[vblk->index];
-	//osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = CANVAS_MODE;
 	osd->viu2_hold_line = VIU2_DEFAULT_HOLD_LINE;
 	osd->infos = formats_of_g12;
@@ -1756,7 +1755,6 @@ static void g12b_osd_hw_init(struct meson_vpu_block *vblk)
 	meson_drm_osd_canvas_alloc(osd_canvas[vblk->index], MAX_CANVAS_NUM);
 
 	osd->reg = &g12b_osd_mif_reg[vblk->index];
-	//osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = CANVAS_MODE;
 	osd->viu2_hold_line = VIU2_DEFAULT_HOLD_LINE;
 	osd->infos = formats_of_g12;
@@ -1834,7 +1832,6 @@ static void t7_osd_hw_init(struct meson_vpu_block *vblk)
 	}
 
 	osd->reg = &osd_mif_reg[vblk->index];
-	//osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = LINEAR_MIF;
 	osd->viu2_hold_line = VIU2_DEFAULT_HOLD_LINE;
 	osd->infos = formats_of_g12;
@@ -1864,7 +1861,6 @@ static void t6d_osd_hw_init(struct meson_vpu_block *vblk)
 	}
 
 	osd->reg = &osd_mif_reg[vblk->index];
-	//osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = LINEAR_MIF;
 	osd->viu2_hold_line = VIU2_DEFAULT_HOLD_LINE;
 	osd->infos = formats_of_t6d;
@@ -1961,7 +1957,6 @@ static void s7d_osd_hw_init(struct meson_vpu_block *vblk)
 	}
 
 	osd->reg = &osd_mif_reg[vblk->index];
-	//osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = LINEAR_MIF;
 	osd->mali_src_en_switch = 1;
 	osd->has_gfcd = true;
@@ -1995,10 +1990,9 @@ static void s6_osd_hw_init(struct meson_vpu_block *vblk)
 	}
 
 	osd->reg = &s6_osd_mif_reg[vblk->index];
-	//osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = LINEAR_MIF;
 	osd->mali_src_en_switch = 1;
-	
+
 	osd->infos = formats_of_s1a;
 
     /* osd secure function init */
@@ -2094,6 +2088,7 @@ struct meson_vpu_block_ops t6d_osd_ops = {
 	.disable = osd_hw_disable,
 	.dump_register = osd_dump_register,
 	.init = t6d_osd_hw_init,
+	.init_register = osd_register_init,
 	.fini = osd_hw_fini,
 };
 
