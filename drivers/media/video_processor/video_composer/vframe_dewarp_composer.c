@@ -390,7 +390,7 @@ int config_dewarp_vframe(struct composer_vf_para *vframe_para,
 		vframe_para->src_buf_stride1 = vf->canvas0_config[1].width;
 		vframe_para->src_vf_angle = common_para->input_para.transform;
 		vframe_para->src_endian = vf->canvas0_config[0].endian;
-		if (vf->type & VIDTYPE_VIU_NV21)
+		if (vf->type & VIDTYPE_VIU_NV12)
 			vframe_para->uvswap_enable = 1;
 
 		vframe_para->dst_vf_width = pic_info_out->align_w;
