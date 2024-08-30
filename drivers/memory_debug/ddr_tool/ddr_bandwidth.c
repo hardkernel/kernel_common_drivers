@@ -356,7 +356,8 @@ void aml_get_all_channel_grant(u64 *channel_grant)
 			mul = aml_db->avg.avg_port[i];
 			mul *= aml_db->clock_count;
 			mul *= 1024;
-			channel_grant[i] = do_div(mul, aml_db->dmc_freq);
+			do_div(mul, aml_db->dmc_freq);
+			channel_grant[i] = mul;
 		}
 	}
 }
