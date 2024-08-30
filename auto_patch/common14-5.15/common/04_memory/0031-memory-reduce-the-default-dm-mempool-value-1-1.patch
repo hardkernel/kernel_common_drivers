@@ -1,0 +1,86 @@
+From 3d037fc44e17e0729ac056ee270d2addd0a61325 Mon Sep 17 00:00:00 2001
+From: shuide chen <shuide.chen@amlogic.com>
+Date: Fri, 30 Aug 2024 14:08:39 +0800
+Subject: [PATCH] memory: reduce the default dm mempool value [1/1]
+
+PD#SWPL-179931
+
+Problem:
+System performance is not good. we saw dm create too much mempool
+
+Solution:
+reduce the default pool size, we tested:
+Before:
+=============================================================================
+Test            Time      Assistant   Katniss   Assistant  Killed       Pass/
+Name                        Started   Latency     Latency   Other        Fail
+=============================================================================
+cuj-0MB         0.36    yes:  9.90s     0.78s       9.13s     yes  pass: 100%
+cuj-100MB       0.39    yes:  9.73s     0.95s       8.79s     yes  pass: 100%
+cuj-200MB       0.48    yes: 11.06s     1.63s       9.43s     yes  pass:  80%
+cuj-250MB       0.55    yes: 12.57s     3.07s       9.50s     yes  pass:  80%
+cuj-275MB       0.47    yes: 15.60s     6.13s       9.47s     yes  pass:  60%
+cuj-276MB       0.52    yes: 13.30s     3.69s       9.61s     yes  pass:  80%
+cuj-278MB       0.93    yes: 16.03s     6.25s       9.79s     yes  fail:  14%
+cuj-280MB       0.72    yes: 16.22s     6.58s       9.63s     yes  fail:  14%
+cuj-287MB       0.71    yes: 19.69s     9.26s      10.43s     yes  fail:   0%
+cuj-300MB       0.63    yes: 16.85s     7.14s       9.71s     yes  fail:  14%
+-----------------------------------------------------------------------------
+
+After:
+=============================================================================
+Test            Time      Assistant   Katniss   Assistant  Killed       Pass/
+Name                        Started   Latency     Latency   Other        Fail
+=============================================================================
+cuj-0MB         0.37    yes: 10.44s     0.73s       9.72s     yes  pass: 100%
+cuj-100MB       0.36    yes: 10.12s     0.74s       9.38s     yes  pass: 100%
+cuj-200MB       0.42    yes: 10.60s     1.29s       9.30s     yes  pass: 100%
+cuj-250MB       0.47    yes: 12.99s     2.21s      10.78s     yes  pass: 100%
+cuj-275MB       0.49    yes: 13.32s     3.37s       9.95s     yes  pass:  80%
+cuj-287MB       0.53    yes: 13.10s     3.62s       9.48s     yes  pass:  60%
+cuj-289MB       0.53    yes: 13.62s     3.97s       9.65s     yes  pass:  80%
+cuj-291MB       0.52    yes: 14.48s     4.72s       9.77s     yes  pass:  50%
+cuj-293MB       0.53    yes: 16.11s     5.98s      10.13s     yes  fail:  33%
+cuj-300MB       0.54    yes: 16.18s     6.02s      10.16s     yes  fail:  14%
+-----------------------------------------------------------------------------
+
+Verify:
+Locally
+
+Change-Id: I84ffb4dbbada3db142dee02f5dc2fa952bd1f3b3
+Signed-off-by: shuide chen <shuide.chen@amlogic.com>
+---
+ drivers/md/dm.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/drivers/md/dm.c b/drivers/md/dm.c
+index f7e4d8713b1d..d4d5a95764d7 100644
+--- a/drivers/md/dm.c
++++ b/drivers/md/dm.c
+@@ -109,7 +109,11 @@ EXPORT_SYMBOL_GPL(dm_bio_get_target_bio_nr);
+ #define DM_NUMA_NODE NUMA_NO_NODE
+ static int dm_numa_node = DM_NUMA_NODE;
+ 
++#ifdef CONFIG_AMLOGIC_MEMORY_OPT
++#define DEFAULT_SWAP_BIOS	(4 * 1048576 / PAGE_SIZE)
++#else
+ #define DEFAULT_SWAP_BIOS	(8 * 1048576 / PAGE_SIZE)
++#endif
+ static int swap_bios = DEFAULT_SWAP_BIOS;
+ static int get_swap_bios(void)
+ {
+@@ -136,7 +140,11 @@ struct table_device {
+ /*
+  * Bio-based DM's mempools' reserved IOs set by the user.
+  */
++#ifdef CONFIG_AMLOGIC_MEMORY_OPT
++#define RESERVED_BIO_BASED_IOS		8
++#else
+ #define RESERVED_BIO_BASED_IOS		16
++#endif
+ static unsigned reserved_bio_based_ios = RESERVED_BIO_BASED_IOS;
+ 
+ static int __dm_get_module_param_int(int *module_param, int min, int max)
+-- 
+2.42.0
+
