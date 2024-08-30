@@ -59,17 +59,25 @@ struct dsc_channel {
 	int pid;
 	char loop;
 	enum ca_sc2_algo_type algo;
+	int multi2_index;
 	struct file *file;
 	struct dsc_channel *next;
 };
 
+struct multi2_manage {
+	int ref;
+	struct ca_multi2_params multi2_params;
+};
+
 #define MAX_DSC_PID_TABLE_NUM		(64)
+#define MULTI2_SUM			(2)
 
 static struct dsc_pid_table dsc_tsn_pid_table[MAX_DSC_PID_TABLE_NUM];
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static struct dsc_pid_table dsc_tsd_pid_table[MAX_DSC_PID_TABLE_NUM];
 static struct dsc_pid_table dsc_tse_pid_table[MAX_DSC_PID_TABLE_NUM];
 #endif
+static struct multi2_manage multi2_sets[MULTI2_SUM] = {0};
 
 #define dprint_i(fmt, args...)   \
 	dprintk(LOG_ERROR, debug_dsc, fmt, ## args)
@@ -285,6 +293,7 @@ static int _dsc_chan_alloc(struct aml_dsc *dsc, struct file *file,
 	ch->pid = pid;
 	ch->dsc_type = dsc_type;
 	ch->algo = algo;
+	ch->multi2_index = -1;
 
 	index = _malloc_dsc_table_index(dsc_type, ch->sid, pid);
 	if (index == -1) {
@@ -326,6 +335,9 @@ static void _dsc_chan_free(struct dsc_channel *ch, struct file *file)
 		_free_dsc_table_index(ch->index00, ch->dsc_type);
 		ch->index00 = -1;
 	}
+
+	if (ch->multi2_index >= 0 && multi2_sets[ch->multi2_index].ref > 0)
+		multi2_sets[ch->multi2_index].ref--;
 
 	vfree(ch);
 	pr_dbg("%s exit\n", __func__);
@@ -528,6 +540,86 @@ static int _dvb_dsc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static enum ca_sc2_algo_type _transition_algo(enum ca_sc2_algo_type algo_input)
+{
+	enum ca_sc2_algo_type algo_output;
+
+	pr_dbg("%s algo_input:%d\n", __func__, algo_input);
+	switch (algo_input) {
+	case CA_ALGO_MULTI2:
+		algo_output = algo_input;
+		break;
+	default:
+		algo_output = algo_input + 1;
+		break;
+	}
+
+	pr_dbg("%s algo_output:%d\n", __func__, algo_output);
+	return algo_output;
+}
+
+static int _alloc_multi2_set(struct dsc_channel *ch, unsigned char round,
+				unsigned char syskey[32])
+{
+	struct dsc_pid_table *ptmp = NULL;
+	int i = 0;
+
+	pr_dbg("%s new round:%d syskey[0]:0x%02x syskey[31]:0x%02x\n",
+		__func__, round, syskey[0], syskey[31]);
+	for (i = 0; i < MULTI2_SUM; i++) {
+		pr_dbg("%s i:%d multi2_sets[i].ref:%d\n", __func__, i, multi2_sets[i].ref);
+		pr_dbg("%s multi2_sets[i].multi2_params.round:%d\n",
+			__func__, multi2_sets[i].multi2_params.round);
+		pr_dbg("%s multi2_sets[i].multi2_params.syskey[0]:0x%02x\n",
+			__func__, multi2_sets[i].multi2_params.syskey[0]);
+		pr_dbg("%s multi2_sets[i].multi2_params.syskey[31]:0x%02x\n",
+			__func__, multi2_sets[i].multi2_params.syskey[31]);
+		if (multi2_sets[i].ref > 0 &&
+			round == multi2_sets[i].multi2_params.round &&
+			(memcmp(syskey, multi2_sets[i].multi2_params.syskey, 32) == 0)) {
+			multi2_sets[i].ref++;
+			ch->multi2_index = i;
+			pr_dbg("%s found a multi2 set with same params, ch->multi2_index:%d\n",
+				__func__, ch->multi2_index);
+			break;
+		}
+	}
+
+	if (ch->multi2_index < 0) {
+		for (i = 0; i < MULTI2_SUM; i++) {
+			if (multi2_sets[i].ref == 0) {
+				multi2_sets[i].multi2_params.round = round;
+				memcpy(multi2_sets[i].multi2_params.syskey, syskey, 32);
+				multi2_sets[i].ref++;
+				ch->multi2_index = i;
+				pr_dbg("%s found an unused multi2 set, ch->multi2_index:%d\n",
+					__func__, ch->multi2_index);
+				break;
+			}
+		}
+	}
+
+	pr_dbg("%s ch->multi2_index:%d\n", __func__, ch->multi2_index);
+	if (ch->multi2_index < 0) {
+		dprint("%s no available multi2 set\n", __func__);
+		return -1;
+	}
+
+	ptmp = _get_dsc_pid_table(ch->index, ch->dsc_type);
+	if (!ptmp) {
+		dprint("%s _get_dsc_pid_table fail\n", __func__);
+		return -1;
+	}
+
+	ptmp->multi2 = ch->multi2_index;
+	if (ptmp->valid)
+		dsc_config_pid_table(ptmp, ch->dsc_type);
+
+	dsc_config_multi2_round(ch->multi2_index, round);
+	dsc_config_multi2_syskey(ch->multi2_index, syskey);
+	return 0;
+}
+
 static int handle_desc_ext(struct aml_dsc *dsc, struct file *file, struct ca_sc2_descr_ex *d)
 {
 	int ret = -EINVAL;
@@ -562,7 +654,7 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct file *file, struct ca_sc2
 
 			ret = _dsc_chan_alloc(dsc, file,
 					      d->params.alloc_params.pid & 0x1FFF,
-					      d->params.alloc_params.algo + 1,
+					      _transition_algo(d->params.alloc_params.algo),
 					      d->params.alloc_params.dsc_type,
 					      &d->params.alloc_params.ca_index,
 					      d->params.alloc_params.loop);
@@ -592,7 +684,7 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct file *file, struct ca_sc2
 			ch = _get_chan_from_list(dsc,
 						 d->params.key_params.ca_index);
 			if (ch) {
-				pr_dbg("%s KEY parity:%d, index:%d\n",
+				pr_dbg("%s KEY parity:%d, index:0x%0x\n",
 				       __func__,
 				       d->params.key_params.parity,
 				       d->params.key_params.key_index);
@@ -647,7 +739,35 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct file *file, struct ca_sc2
 				       __func__,
 				       d->params.algo_params.algo);
 				ret = _dsc_chan_set_algo(ch,
-						d->params.algo_params.algo + 1);
+					_transition_algo(d->params.algo_params.algo));
+			}
+		}
+		break;
+	case CA_SET_EXTEND:{
+			struct dsc_channel *ch;
+
+			ch = _get_chan_from_list(dsc, d->params.extend_params.ca_index);
+			if (ch) {
+				pr_dbg("%s type:%d\n",
+				       __func__, d->params.extend_params.type);
+				if (d->params.extend_params.type == CA_EXTEND_MULTI2_SYSKEY) {
+					struct ca_multi2_params multi2_params;
+					__u64 extend_params_addr =
+						d->params.extend_params.params_addr_high;
+					extend_params_addr = (extend_params_addr << 32) +
+						d->params.extend_params.params_addr_low;
+					ret = copy_from_user(&multi2_params,
+						(void __user *)(unsigned long)extend_params_addr,
+						sizeof(multi2_params));
+					if (ret) {
+						dprint("copy_from_user error\n");
+						ret = -EFAULT;
+						break;
+					}
+
+					ret = _alloc_multi2_set(ch, multi2_params.round,
+								multi2_params.syskey);
+				}
 			}
 		}
 		break;
@@ -906,6 +1026,9 @@ static char *get_algo_str(int algo)
 	case CA_ALGO_S17_ECB_CLR_END:
 	case CA_ALGO_S17_ECB_CTS:
 		str = "s17";
+		break;
+	case CA_ALGO_MULTI2:
+		str = "multi2";
 		break;
 	default:
 		str = "none";
