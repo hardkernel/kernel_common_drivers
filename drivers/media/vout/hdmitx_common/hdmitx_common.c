@@ -46,7 +46,8 @@ void hdmitx_get_qms_init_state(struct hdmitx_common *tx_comm, u32 *brr, u32 *qms
 	value = hdmitx_hw_get_state(tx_comm->tx_hw, STAT_VIDEO_QMS_INFO, 0);
 	*brr = value & 0xffff;
 	*qms_en = value >> 16;
-	HDMITX_INFO("qms brr %d qms_en %d\n", *brr, *qms_en);
+	if (*qms_en)
+		HDMITX_INFO("qms: brr %d qms_en %d\n", *brr, *qms_en);
 }
 EXPORT_SYMBOL(hdmitx_get_qms_init_state);
 

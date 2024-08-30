@@ -753,7 +753,7 @@ const static struct mvrr_const_val *search_vrrconf_mconst(enum hdmi_vic brr_vic,
 	const struct mvrr_const_st **table_vic = NULL;
 	const struct mvrr_const_val *const *table_val = NULL;
 
-	vrr_debug_info("%s[%d] brr_vic: %d duration: %d\n", __func__, __LINE__,
+	vrr_debug_info("qms: %s[%d] brr_vic: %d duration: %d\n", __func__, __LINE__,
 		brr_vic, duration);
 	for (table_vic = qms_const; table_vic; table_vic++) {
 		if ((*table_vic)->brr_vic == brr_vic) {
@@ -767,7 +767,7 @@ const static struct mvrr_const_val *search_vrrconf_mconst(enum hdmi_vic brr_vic,
 	}
 
 	if (!table_val)
-		vrr_debug_info("%s[%d] not find brr_vic: %d duration: %d\n",
+		vrr_debug_info("qms: %s[%d] not find brr_vic: %d duration: %d\n",
 			__func__, __LINE__, brr_vic, duration);
 
 	return *table_val;
@@ -878,7 +878,7 @@ static bool is_vrrconf_changed(struct vrr_conf_para *cur,
 
 const static u16 vsync_tfr_table[TFR_MAX] = {
 	[TFR_QMSVRR_INACTIVE] = 0,
-	[TFR_23P97] = 2397,
+	[TFR_23P97] = 2398,
 	[TFR_24] = 2400,
 	[TFR_25] = 2500,
 	[TFR_29P97] = 2997,
@@ -965,7 +965,7 @@ static void vrr_init_qms_para(struct tx_vrr_params *para)
 	}
 	para->mconst_val = search_vrrconf_mconst(brr_vic, conf->duration);
 	if (!para->mconst_val) {
-		HDMITX_INFO("use the default const_hdmi1080p60_6000\n");
+		HDMITX_INFO("qms: use the default const_hdmi1080p60_6000\n");
 		para->mconst_val = &const_hdmi1080p60_6000;
 	}
 	para->frame_cnt = 0;
@@ -1084,9 +1084,9 @@ static u16 calc_vtotal_with_mdelta(struct tx_vrr_params *vrr)
 		val = min(vtotal_cur + delta, vtotal_target);
 	else
 		val = max(vtotal_cur - delta, vtotal_target);
-	vrr_debug_info("%s[%d] vtotal_cur=%d vtotal_target=%d val=%d\n",
+	vrr_debug_info("qms: %s[%d] vtotal_cur=%d vtotal_target=%d val=%d\n",
 		__func__, __LINE__, vtotal_cur, vtotal_target, val);
-	vrr_debug_info("mdelta_limit = %d\n", delta);
+	vrr_debug_info("qms: mdelta_limit = %d\n", delta);
 	return val;
 }
 
@@ -1109,7 +1109,7 @@ static void vrr_cur_vtotal_debug(u32 frame_cnt, bool m_const, u32 vt_target)
 		m_const_pre = m_const;
 	}
 	if (trigger)
-		vrr_debug_info("[%s]FrameNo%d mcon%d vt_target/%d %s vt_cur/%d\n",
+		vrr_debug_info("qms: [%s]FrameNo%d mcon%d vt_target/%d %s vt_cur/%d\n",
 			__func__, frame_cnt, m_const, vt_target,
 			dist == 0 ? "==" : (dist == 1 ? "?=" : "!="), vt_cur);
 }
@@ -1165,7 +1165,7 @@ static int _vrr_groups_show_(int _pos, char *buf)
 	/* check the VRR range group */
 	groups = kcalloc(MAX_VRR_MODE_GROUP, sizeof(*groups), GFP_KERNEL);
 	if (!groups) {
-		HDMITX_DEBUG("%s alloc fail\n", __func__);
+		HDMITX_DEBUG("qms: %s alloc fail\n", __func__);
 		return 0;
 	}
 	memset(groups, 0, MAX_VRR_MODE_GROUP * sizeof(*groups));
@@ -1210,6 +1210,17 @@ static const enum hdmi_vic brr_list[] = {
 	HDMI_199_7680x4320p60_16x9,
 };
 
+static bool check_hpd_hw_id(struct hdmitx_dev *hdev)
+{
+	if (!hdev)
+		return 0;
+
+	if (hdev->tx_comm.qms_log_id == hdmitx_get_hpd_hw_sequence_id(&hdev->tx_comm))
+		return 0;
+	hdev->tx_comm.qms_log_id = hdmitx_get_hpd_hw_sequence_id(&hdev->tx_comm);
+	return 1;
+}
+
 u32 drm_hdmitx_get_vrr_cap(void)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -1217,9 +1228,6 @@ u32 drm_hdmitx_get_vrr_cap(void)
 	u32 vrr_cap = 0;
 
 	if (prxcap->qms || prxcap->vrr_max || prxcap->vrr_min) {
-		HDMITX_INFO("qms %d qms_tfr_min/max %d %d gaming_vrr_min/max %d %d\n",
-			prxcap->qms, prxcap->qms_tfr_min, prxcap->qms_tfr_max,
-			prxcap->vrr_min, prxcap->vrr_max);
 		vrr_cap |= prxcap->qms ? QMS_VRR_SUP : 0;
 		vrr_cap |= prxcap->vrr_min ? GAMING_VRR_SUP : 0;
 		return vrr_cap;
@@ -1360,8 +1368,8 @@ static void calc_vrr_range(struct rx_cap *prxcap,
 		group->vrr_max = 0;
 		group->game_vrr_min = 0;
 		group->game_vrr_max = 0;
-		HDMITX_DEBUG("%s invalid VRR capability\n", __func__);
-		HDMITX_DEBUG("qms %d qms_tfr_min/max %d %d vrr_min/max %d %d\n",
+		HDMITX_DEBUG("qms: %s invalid VRR capability\n", __func__);
+		HDMITX_DEBUG("qms: %d qms_tfr_min/max %d %d vrr_min/max %d %d\n",
 			qms, qms_tfr_min, qms_tfr_max, prxcap->vrr_min, prxcap->vrr_max);
 		break;
 	}
@@ -1407,7 +1415,7 @@ static void add_brr_vic_lists(struct hdmitx_vrr_mode_group *group)
 		if (vsync >= reduce_0p1_percent(group->vrr_min) &&
 			(vic_timing->v_freq / 10) <= group->vrr_max) {
 			if (i > MAX_QMS_GROUP_NUM) {
-				HDMITX_INFO("qms vic list number over %d\n", MAX_QMS_GROUP_NUM);
+				HDMITX_INFO("qms: vic list number over %d\n", MAX_QMS_GROUP_NUM);
 				continue;
 			}
 			group->qms_vic_lists[i++] = vic_timing->vic;
@@ -1415,7 +1423,7 @@ static void add_brr_vic_lists(struct hdmitx_vrr_mode_group *group)
 	}
 }
 
-static void add_vic_to_group(enum hdmi_vic vic, struct hdmitx_vrr_mode_group *group)
+static void add_vic_to_group(enum hdmi_vic vic, struct hdmitx_vrr_mode_group *group, bool log_en)
 {
 	const struct hdmi_timing *timing;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -1440,15 +1448,18 @@ static void add_vic_to_group(enum hdmi_vic vic, struct hdmitx_vrr_mode_group *gr
 	}
 	calc_vrr_range(prxcap, group, timing->v_freq / 10);
 	add_brr_vic_lists(group);
-	HDMITX_INFO("BRR VIC %d width/height %d %d QMS min/max %d %d GAME min/max %d %d\n",
-		group->brr_vic, group->width, group->height, group->vrr_min, group->vrr_max,
-		group->game_vrr_min, group->game_vrr_max);
+	if (log_en)
+		HDMITX_DEBUG("qms: brr vic %d W/H %d %d qms min/max %d %d game min/max %d %d\n",
+			group->brr_vic, group->width, group->height,
+			group->vrr_min, group->vrr_max,
+			group->game_vrr_min, group->game_vrr_max);
 	memset(str_vics, 0, sizeof(str_vics));
 	for (i = 0; i < MAX_QMS_GROUP_NUM; i++)
 		if (group->qms_vic_lists[i])
 			len += snprintf(str_vics + len, sizeof(str_vics) - len, "%d ",
 				group->qms_vic_lists[i]);
-	HDMITX_INFO("BRR/VIC group %s\n", str_vics);
+	if (prxcap->qms && log_en && str_vics[0])
+		HDMITX_INFO("qms: qms range group %s\n", str_vics);
 }
 
 int drm_hdmitx_get_vrr_mode_group(struct hdmitx_vrr_mode_group *group, int max_group)
@@ -1457,12 +1468,15 @@ int drm_hdmitx_get_vrr_mode_group(struct hdmitx_vrr_mode_group *group, int max_g
 	const struct hdmi_timing *timing;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
+	bool log_en = 0;
 
 	if (!group || max_group == 0)
 		return 0;
 	/* check RX VRR capabilities */
 	if (!drm_hdmitx_get_vrr_cap())
 		return 0;
+
+	log_en = check_hpd_hw_id(hdev);
 
 	for (i = 0, j = 0; i < ARRAY_SIZE(brr_list) && j < max_group; i++) {
 		timing = hdmitx_mode_vic_to_hdmi_timing(brr_list[i]);
@@ -1474,7 +1488,7 @@ int drm_hdmitx_get_vrr_mode_group(struct hdmitx_vrr_mode_group *group, int max_g
 		/* check both TX and RX support current vic */
 		if ((hdmitx_common_validate_vic(&hdev->tx_comm, brr_list[i]) >= 0) &&
 			is_rx_supported_vic(brr_list[i])) {
-			add_vic_to_group(brr_list[i], group + j);
+			add_vic_to_group(brr_list[i], group + j, log_en);
 			j++;
 			/* if RX support tfr_max and BRR is 120, then skip 60 */
 			if (prxcap->qms_tfr_max && timing->v_freq == 120000)
@@ -1520,7 +1534,7 @@ static void updata_vinfo_sync_duration(struct vinfo_s *vinfo,
 }
 
 /* rate: Unit *100. Example, 1080p23.976Hz, rate = 2397 */
-int hdmitx_set_fr_hint(int rate, void *data)
+int hdmitx_set_vrr_rate(int rate, void *data)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
@@ -1530,7 +1544,7 @@ int hdmitx_set_fr_hint(int rate, void *data)
 	int tmp_rate;
 	struct hdmi_format_para *fmt_para = &hdev->tx_comm.fmt_para;
 
-	vrr_debug_info("%s[%d] rate %d\n", __func__, __LINE__, rate);
+	vrr_debug_info("qms: %s[%d] rate %d\n", __func__, __LINE__, rate);
 	hdmitx_vrr_disable();
 
 	/* check current rate, should less or equal than current rate of BRR */
@@ -1550,11 +1564,11 @@ int hdmitx_set_fr_hint(int rate, void *data)
 		memset(&vrr_para.vrr_para_tmp, 0, sizeof(vrr_para.vrr_para_tmp));
 		if (hdev->vrr_mode == T_VRR_QMS || hdev->vrr_mode == T_VRR_GAME)
 			hdmi_vrr_disable_emp_packet(&vrr_para);
-		HDMITX_INFO("disable VRR/EMP packet\n");
+		HDMITX_INFO("qms: disable EMP packet\n");
 		return 0;
 	}
 	if (rate < 2397 || rate > 12000 || rate > tmp_rate) {
-		HDMITX_INFO("vrr rate over range %d [2397~%d]\n", rate, tmp_rate);
+		HDMITX_INFO("qms: vrr rate over range %d [2397~%d]\n", rate, tmp_rate);
 		return 0;
 	}
 
@@ -1572,18 +1586,18 @@ int hdmitx_set_fr_hint(int rate, void *data)
 	if (para.type == T_VRR_QMS) {
 		tfr = vsync_match_to_tfr(rate);
 		if (tfr == TFR_QMSVRR_INACTIVE || tfr == TFR_MAX) {
-			HDMITX_INFO("unsupport current rate %d\n", rate);
+			HDMITX_INFO("qms: unsupport current rate %d\n", rate);
 			return 0;
 		}
 		if (!check_qms_brr_format(para.brr_vic)) {
-			HDMITX_INFO("QMS only support BRR %s\n",
+			HDMITX_INFO("qms: only support BRR %s\n",
 				"720p60/120hz,1080p60/120hz,2160p60hz\n");
-			HDMITX_INFO("current vic %d\n", para.brr_vic);
+			HDMITX_INFO("qms: current vic %d\n", para.brr_vic);
 			para.vrr_enabled = 0;
 			return 0;
 		}
 		if (!prxcap->qms)
-			HDMITX_INFO("TODO TV not support QMS\n");
+			HDMITX_INFO("qms: rx not support qms\n");
 		/* for application, here will set the mode like below
 		 * /sys/class/amhdmitx/amhdmitx0/frac_rate_policy
 		 * /sys/class/display/fr_hint
@@ -1625,7 +1639,7 @@ int hdmitx_set_fr_hint(int rate, void *data)
 
 	hdmitx_set_vrr_para(&para);
 	hdmitx_vrr_enable();
-	vrr_debug_info("%s[%d]\n", __func__, __LINE__);
+	vrr_debug_info("qms: %s[%d]\n", __func__, __LINE__);
 
 	return 1;
 }
@@ -1635,7 +1649,6 @@ void hdmitx_unregister_vrr(struct hdmitx_dev *hdev)
 	int ret;
 
 	ret = aml_vrr_unregister_device(hdev->tx_comm.enc_idx);
-	HDMITX_INFO("%s ret = %d\n", __func__, ret);
 }
 
 static struct vinfo_s *hdmitx_get_curvinfo(void *data)
@@ -1672,7 +1685,6 @@ void hdmitx_register_vrr(struct hdmitx_dev *hdev)
 		vrr->enable = 1;
 	strncpy(vrr->name, name, VRR_NAME_LEN_MAX);
 	ret = aml_vrr_register_device(vrr, hdev->tx_comm.enc_idx);
-	HDMITX_INFO("%s ret = %d\n", __func__, ret);
 }
 
 static void hdmitx_vrr_game_handler(struct hdmitx_dev *hdev)

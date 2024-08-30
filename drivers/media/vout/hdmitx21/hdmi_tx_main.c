@@ -339,6 +339,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	 * driver still need protection in case of old android version
 	 */
 	hdev->tx_comm.suspend_flag = true;
+	hdev->tx_comm.qms_log_id = 0;
 
 	HDMITX_INFO("Early Suspend\n");
 	/* step2: clear ready status/disable phy/packets/hdcp HW */
@@ -4915,7 +4916,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	/* init power_uevent state */
 	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	ret = hdmitx_hw_get_state(tx_comm->tx_hw, STAT_VIDEO_QMS_INFO, 0);
-	HDMITX_INFO("qms: uboot brr %d qms_en %d\n", ret & 0xffff, ret >> 16);
+	if (ret >> 16)
+		HDMITX_INFO("qms: uboot brr %d qms_en %d\n", ret & 0xffff, ret >> 16);
 	/* reset EDID/vinfo */
 	if (!hdev->tx_comm.forced_edid) {
 		hdmitx_edid_buffer_clear(hdev->tx_comm.EDID_buf, sizeof(hdev->tx_comm.EDID_buf));
@@ -5431,7 +5433,7 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	.get_vrr_cap = drm_hdmitx_get_vrr_cap,
 	.get_vrr_mode_group = drm_hdmitx_get_vrr_mode_group,
-	.set_vframe_rate_hint = hdmitx_set_fr_hint,
+	.set_vframe_rate_hint = hdmitx_set_vrr_rate,
 #endif
 };
 

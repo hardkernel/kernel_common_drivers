@@ -454,7 +454,7 @@ void tx_vrr_params_init(void);
 void hdmitx_set_vrr_para(const struct vrr_conf_para *para);
 void hdmitx_vrr_set_maxlncnt(u32 max_lcnt);
 u32 hdmitx_vrr_get_maxlncnt(void);
-int hdmitx_set_fr_hint(int duration, void *data);
+int hdmitx_set_vrr_rate(int duration, void *data);
 void hdmitx_unregister_vrr(struct hdmitx_dev *hdev);
 void hdmitx_register_vrr(struct hdmitx_dev *hdev);
 ssize_t _vrr_cap_show(struct device *dev, struct device_attribute *attr,

@@ -190,6 +190,11 @@ struct hdmitx_common {
 	struct hdmitx_tracer *tx_tracer;
 	struct hdmitx_event_mgr *event_mgr;
 	struct st_debug_param debug_param;
+	/*
+	 * the qms_log_id is referred from hw_sequence_id
+	 * if value is not changed, the skip massive qms log
+	 */
+	u64 qms_log_id;
 };
 
 void hdmitx_get_init_state(struct hdmitx_common *tx_common,
