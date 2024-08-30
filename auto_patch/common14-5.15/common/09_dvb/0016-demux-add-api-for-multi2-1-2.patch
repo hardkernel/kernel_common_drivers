@@ -1,0 +1,86 @@
+From 592b613ae62e16768a39490389f60340eb48adbf Mon Sep 17 00:00:00 2001
+From: "jing.li1" <jing.li1@amlogic.com>
+Date: Fri, 30 Aug 2024 15:14:14 +0800
+Subject: [PATCH] Demux: Add api for multi2 [1/2]
+
+PD#SWPL-181881
+
+Problem:
+S6 need to support multi2
+
+Solution:
+Add api for multi2
+
+Verify:
+Verified on bl201
+
+Change-Id: I132e295efd808eed0c360ae2362dfddcdd70f56a
+Signed-off-by: jing.li1 <jing.li1@amlogic.com>
+---
+ include/uapi/linux/dvb/aml_ca_ext.h | 29 ++++++++++++++++++++++++++++-
+ 1 file changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/include/uapi/linux/dvb/aml_ca_ext.h b/include/uapi/linux/dvb/aml_ca_ext.h
+index b3155f46fb68..9940f717bd90 100644
+--- a/include/uapi/linux/dvb/aml_ca_ext.h
++++ b/include/uapi/linux/dvb/aml_ca_ext.h
+@@ -53,7 +53,8 @@ enum ca_sc2_cmd_type {
+ 	CA_KEY,
+ 	CA_GET_STATUS,
+ 	CA_SET_SCB,
+-	CA_SET_ALGO
++	CA_SET_ALGO,
++	CA_SET_EXTEND
+ };
+ 
+ enum ca_sc2_algo_type {
+@@ -72,6 +73,7 @@ enum ca_sc2_algo_type {
+ 	CA_ALGO_ASA_LIGHT,
+ 	CA_ALGO_S17_ECB_CLR_END,
+ 	CA_ALGO_S17_ECB_CTS,
++	CA_ALGO_MULTI2,
+ 	CA_ALGO_UNKNOWN
+ };
+ 
+@@ -156,6 +158,30 @@ struct ca_sc2_algo {
+ 	enum ca_sc2_algo_type algo;
+ };
+ 
++enum ca_sc2_extend_type {
++	CA_EXTEND_MULTI2_SYSKEY
++};
++
++struct ca_multi2_params {
++	unsigned char round;
++	unsigned char syskey[32];
++};
++
++/**
++ * struct ca_sc2_extend - set extend params
++ *
++ * @ca_index:		use slot index.
++ * @type:		extend type
++ * @params_addr_high:	high 32 bits of params address
++ * @params_addr_low:	low 32 bits of params address
++ */
++struct ca_sc2_extend {
++	unsigned int ca_index;
++	enum ca_sc2_extend_type type;
++	unsigned int params_addr_high;
++	unsigned int params_addr_low;
++};
++
+ /**
+  * struct ca_sc2_descr_ex - ca extend descriptor
+  *
+@@ -169,6 +195,7 @@ struct ca_sc2_descr_ex {
+ 		struct ca_sc2_key key_params;
+ 		struct ca_sc2_scb scb_params;
+ 		struct ca_sc2_algo algo_params;
++		struct ca_sc2_extend extend_params;
+ 	} params;
+ };
+ 
+-- 
+2.43.2
+

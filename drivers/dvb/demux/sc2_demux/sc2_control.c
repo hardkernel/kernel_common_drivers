@@ -500,13 +500,44 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 	    (scb_as_is << HI_SCB_AS_IS) |
 	    (scb_out_for_all_or_even << HI_SCB_OUT) |
 	    (scb_out_for_odd << HI_SCB_OUT_ODD) |
-	    (pid_entry->scb00 << HI_SCB00) | (pid_entry->valid << HI_VALID);
+	    (pid_entry->scb00 << HI_SCB00) |
+	    (pid_entry->multi2 << HI_MULTI2) |
+	    (pid_entry->valid << HI_VALID);
 	WRITE_CBUS_REG(lo_addr, lo_value);
 	WRITE_CBUS_REG(hi_addr, hi_value);
 
 	pr_dbg("%s lo_value:0x%0x\n", __func__, lo_value);
 	pr_dbg("%s hi_value:0x%0x\n", __func__, hi_value);
 	dsc_config_ready(dsc_type);
+}
+
+void dsc_config_multi2_round(int multi2_index, unsigned char round)
+{
+	unsigned int addr = TSN_MULTI2_ROUNDS;
+	unsigned int value, mask;
+
+	pr_dbg("%s multi2_index:%d round:%d\n", __func__, multi2_index, (int)round);
+	value = READ_CBUS_REG(addr);
+	pr_dbg("%s TSN_MULTI2_ROUNDS old value:0x%0x\n", __func__, value);
+	mask = ~(0xffU << (multi2_index * 8 + 16));
+	pr_dbg("%s mask:0x%0x\n", __func__, mask);
+	value = (value & mask) | ((unsigned int)round << (multi2_index * 8 + 16));
+	pr_dbg("%s TSN_MULTI2_ROUNDS new value:0x%0x\n", __func__, value);
+	WRITE_CBUS_REG(addr, value);
+}
+
+void dsc_config_multi2_syskey(int multi2_index, unsigned char syskey[32])
+{
+	unsigned int addr = TSN_MULTI2_SYSKEY;
+	unsigned int value = 0;
+	int i = 0;
+
+	pr_dbg("%s multi2_index:%d\n", __func__, multi2_index);
+	for (i = 0; i < 32; i += 4) {
+		value = syskey[i] + (syskey[i + 1] << 8) +
+			(syskey[i + 2] << 16) + (syskey[i + 3] << 24);
+		WRITE_CBUS_REG(addr + multi2_index * 32 + i, value);
+	}
 }
 
 void rdma_config_enable(struct chan_id *pchan, int enable,
@@ -1095,6 +1126,15 @@ void sc2_dump_register(void)
 			dprint_i("pid table:%d, 0x%0x %0x\n",
 				 i, lo_data, hi_data);
 	}
+
+	data = READ_CBUS_REG(TSN_MULTI2_ROUNDS);
+	dprint_i("multi2 rounds: 0x%0x\n", data);
+
+	for (i = 0; i < 64; i += 4) {
+		data = READ_CBUS_REG(TSN_MULTI2_SYSKEY + i);
+		dprint_i("addr: 0x%0x, multi2 syskey: 0x%0x\n", i, data);
+	}
+
 	dprint_i("**************dsc tsd************\n");
 	for (i = 0; i < 64; i++) {
 		lo_addr = TSD_BASE_ADDR + i * 8;
