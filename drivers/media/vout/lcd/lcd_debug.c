@@ -4901,6 +4901,7 @@ static ssize_t lcd_phy_debug_store(struct device *dev, struct device_attribute *
 			phy_cfg->lane[op_lane].sel = set_val;
 			phy_cfg->flag |= PHY_BIT_LANE_SEL;
 			pr_info("LCD PHY set: Lane[%u]: sel=0x%x\n", op_lane, set_val);
+			lcd_lane_map_update(pdrv);
 			lcd_lane_map_set(pdrv);
 			//mlvds need set phy reg for ckdi update
 			if (pdrv->config.basic.lcd_type != LCD_MLVDS)
