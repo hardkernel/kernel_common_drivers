@@ -1019,17 +1019,23 @@ void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv)
 	char *curr_vout_connector, *curr_vout_mode;
 	char lcd_connector[10];
 	char lagecy_name[8] = "panel\0\0";
+#if (defined(CONFIG_AMLOGIC_VOUT_SERVE) || defined(CONFIG_AMLOGIC_VOUT2_SERVE))
 	char *init_mode;
+#endif
 
 	if (pdrv->index)
 		lagecy_name[5] = '0' + pdrv->index;
 
+#ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	init_mode = get_vout_mode_uboot();
 	if (strncmp(init_mode, "panel", 5) == 0)
 		lcd_legacy_panel_disp_mode = 1;
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	init_mode = get_vout2_mode_uboot();
 	if (strncmp(init_mode, "panel", 5) == 0)
 		lcd_legacy_panel_disp_mode = 1;
+#endif
 
 	if (lcd_type == LCD_LVDS || lcd_type == LCD_MLVDS)
 		cnt_idx = 0;
