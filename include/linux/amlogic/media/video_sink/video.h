@@ -421,6 +421,8 @@ struct vd_proc_info_t {
 	u32 overlap_size;
 	u32 vd1_in_hsize;
 	u32 vd1_in_vsize;
+	u32 vd2_in_hsize;
+	u32 vd2_in_vsize;
 	struct slice_info slice[VD_SLICE_NUM];
 };
 
