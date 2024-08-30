@@ -39,6 +39,7 @@
 #include <linux/delay.h>
 #include <linux/panic_notifier.h>
 #include <linux/sysrq.h>
+#include <asm/cacheflush.h>
 #if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 #include <linux/amlogic/aml_iotrace.h>
 #endif

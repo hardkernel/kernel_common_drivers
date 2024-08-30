@@ -787,7 +787,7 @@
 };
 
 &aml_wifi {
-	status = "okay";
+	status = "disabled";
 	interrupt-gpios = <&gpio       GPIOP_0       GPIO_ACTIVE_HIGH>;
 };
 

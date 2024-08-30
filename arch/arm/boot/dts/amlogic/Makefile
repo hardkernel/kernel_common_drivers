@@ -1,12 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 dtb-y += c2_c305x_af400.dtb
 dtb-y += c3_pxp.dtb
-dtb-y += a1-a113l-ad401.dtb
-dtb-y += a1-a113l-ad409.dtb
-dtb-y += a1-a113l-ad403.dtb
 dtb-y += a1-a113l-ad403-spk.dtb
-dtb-y += a1-a113l-ad40ae.dtb
-dtb-y += a1-a113l-t404.dtb
 dtb-y += c3_c308l_aw419.dtb
 dtb-y += c3_c302x_aw409_256m.dtb
 dtb-y += c3_c302x_aw409-emmc_256m.dtb
