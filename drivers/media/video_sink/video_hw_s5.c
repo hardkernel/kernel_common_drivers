@@ -6015,6 +6015,8 @@ static void update_vd_proc_amdv_info(struct vd_proc_s *vd_proc)
 	vd_proc_amdv.overlap_size = vd_proc->vd_proc_vd1_info.vd1_overlap_hsize;
 	vd_proc_amdv.vd1_in_hsize = vd_proc->vd_proc_vd1_info.vd1_src_din_hsize[0];
 	vd_proc_amdv.vd1_in_vsize = vd_proc->vd_proc_vd1_info.vd1_src_din_vsize[0];
+	vd_proc_amdv.vd2_in_hsize = vd_proc->vd_proc_vd2_info.vd2_din_hsize;
+	vd_proc_amdv.vd2_in_vsize = vd_proc->vd_proc_vd2_info.vd2_din_vsize;
 	for (i = 0; i < vd_proc->vd_proc_vd1_info.slice_num; i++) {
 		/* slice input */
 		vd_proc_amdv.slice[i].hsize_amdv =
