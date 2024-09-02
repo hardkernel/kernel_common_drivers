@@ -16,6 +16,7 @@
 #define S4_REE2AO3       (S4_AO2REE + 4)
 #define S4_REE2AO4       (S4_AO2REE + 5)
 #define S4_REE2AO5       (S4_AO2REE + 6)
+#define S4_REE2AO6       (S4_AO2REE + 7)
 
 #define S4_REE2AO_DEV    S4_REE2AO0
 #define S4_REE2AO_VRTC   S4_REE2AO1
@@ -23,6 +24,7 @@
 #define S4_REE2AO_AOCEC  S4_REE2AO3
 #define S4_REE2AO_LED    S4_REE2AO4
 #define S4_REE2AO_ETH    S4_REE2AO5
+#define S4_REE2AO_IR     S4_REE2AO6
 
 // MBOX CHANNEL ID
 #define S4_MBOX_AO2REE    2

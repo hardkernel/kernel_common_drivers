@@ -16,6 +16,7 @@
 #define S5_REE2AO3       (S5_AO2REE + 4)
 #define S5_REE2AO4       (S5_AO2REE + 5)
 #define S5_REE2AO5       (S5_AO2REE + 6)
+#define S5_REE2AO6       (S5_AO2REE + 7)
 
 #define S5_REE2AO_DEV    S5_REE2AO0
 #define S5_REE2AO_VRTC   S5_REE2AO1
@@ -23,6 +24,7 @@
 #define S5_REE2AO_AOCEC  S5_REE2AO3
 #define S5_REE2AO_LED    S5_REE2AO4
 #define S5_REE2AO_ETH    S5_REE2AO5
+#define S5_REE2AO_IR     S5_REE2AO6
 
 // MBOX CHANNEL ID
 #define S5_MBOX_AO2REE    2

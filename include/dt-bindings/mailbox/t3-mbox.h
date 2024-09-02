@@ -20,6 +20,7 @@
 #define T3_REE2AO3       (T3_AO2REE + 4)
 #define T3_REE2AO4       (T3_AO2REE + 5)
 #define T3_REE2AO5       (T3_AO2REE + 6)
+#define T3_REE2AO6       (T3_AO2REE + 7)
 
 #define T3_REE2DSPA_DEV  T3_REE2DSPA0
 #define T3_REE2DSPA_DSP  T3_REE2DSPA1
@@ -30,6 +31,7 @@
 #define T3_REE2AO_AOCEC  T3_REE2AO3
 #define T3_REE2AO_LED    T3_REE2AO4
 #define T3_REE2AO_ETH    T3_REE2AO5
+#define T3_REE2AO_IR     T3_REE2AO6
 
 // MBOX CHANNEL ID
 #define T3_MBOX_DSPA2REE  0
