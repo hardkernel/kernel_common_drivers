@@ -3425,7 +3425,8 @@ static void parse_overscan_table(unsigned int length,
 	 */
 	if (!overscan_table[0].load_flag &&
 		!overscan_table[offset].load_flag &&
-		chip_type_id != chip_t3x)
+		(chip_type_id != chip_t3x &&
+		chip_type_id != chip_t6d))
 		pq_user_latch_flag |= PQ_USER_OVERSCAN_RESET;
 
 	/*because SOURCE_TV is 0,so need to add a flg to check ATV*/
