@@ -6,6 +6,11 @@
 #ifndef __T5D_H
 #define __T5D_H
 
+int t5d_init(void);
+void t5d_exit(void);
+int t5d_aoclk_init(void);
+void t5d_aoclk_exit(void);
+
 /*
  * Clock controller register offsets
  *

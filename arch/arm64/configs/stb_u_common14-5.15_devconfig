@@ -7,7 +7,6 @@
 # CONFIG_AMLOGIC_COMMON_CLK_T5M is not set
 # CONFIG_AMLOGIC_COMMON_CLK_S5 is not set
 # CONFIG_AMLOGIC_COMMON_CLK_T5W is not set
-# CONFIG_AMLOGIC_COMMON_AO_CLK_T5W is not set
 # CONFIG_AMLOGIC_COMMON_CLK_T3X is not set
 
 # amlogic-pinctrl-soc-xxx
