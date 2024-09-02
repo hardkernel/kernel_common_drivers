@@ -20,8 +20,6 @@
 #include "clk-dualdiv.h"
 #include "a1.h"
 
-//static DEFINE_SPINLOCK(meson_clk_lock);
-
 /*
  * GATE for a1, delete the flag CLK_IGNORE_UNUSED
  * its parent clock is sys clock, the same the
@@ -330,7 +328,7 @@ static struct clk_regmap a1_fclk_div7 = {
 		.name = "fclk_div7",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&a1_fclk_div7.hw
+			&a1_fclk_div7_div.hw
 		},
 		.num_parents = 1,
 	},
@@ -2737,37 +2735,6 @@ static const struct of_device_id clkc_match_table[] = {
 	{}
 };
 
-static struct regmap_config clkc_regmap_config = {
-	.reg_bits       = 32,
-	.val_bits       = 32,
-	.reg_stride     = 4,
-};
-
-static struct regmap *a1_regmap_resource(struct device *dev, char *name)
-{
-	struct resource res;
-	void __iomem *base;
-	int i;
-	struct device_node *node = dev->of_node;
-
-	i = of_property_match_string(node, "reg-names", name);
-	if (of_address_to_resource(node, i, &res))
-		return ERR_PTR(-ENOENT);
-
-	base = devm_ioremap_resource(dev, &res);
-	if (IS_ERR(base))
-		return ERR_CAST(base);
-
-	clkc_regmap_config.max_register = resource_size(&res) - 4;
-	clkc_regmap_config.name = devm_kasprintf(dev, GFP_KERNEL,
-						 "%s-%s", node->name,
-						 name);
-	if (!clkc_regmap_config.name)
-		return ERR_PTR(-ENOMEM);
-
-	return devm_regmap_init_mmio(dev, base, &clkc_regmap_config);
-}
-
 static int a1_clkc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -2777,19 +2744,19 @@ static int a1_clkc_probe(struct platform_device *pdev)
 	int ret, i;
 
 	/* Get regmap for different clock area */
-	basic_map = a1_regmap_resource(dev, "basic");
+	basic_map = meson_clk_regmap_resource(pdev, dev, 0);
 	if (IS_ERR(basic_map)) {
 		dev_err(dev, "basic clk registers not found\n");
 		return PTR_ERR(basic_map);
 	}
 
-	pll_map = a1_regmap_resource(dev, "pll");
+	pll_map = meson_clk_regmap_resource(pdev, dev, 1);
 	if (IS_ERR(pll_map)) {
 		dev_err(dev, "pll clk registers not found\n");
 		return PTR_ERR(pll_map);
 	}
 
-	cpu_clk_map = a1_regmap_resource(dev, "cpu_clk");
+	cpu_clk_map = meson_clk_regmap_resource(pdev, dev, 2);
 	if (IS_ERR(cpu_clk_map)) {
 		dev_err(dev, "cpu clk registers not found\n");
 		return PTR_ERR(cpu_clk_map);
@@ -2810,20 +2777,22 @@ static int a1_clkc_probe(struct platform_device *pdev)
 		if (!a1_hw_onecell_data.hws[i])
 			continue;
 
-		//pr_info( "registering %d  %s\n",i,
-		//	     a1_hw_onecell_data.hws[i]->init->name);
+		dev_dbg(dev, "registering %d  %s\n", i,
+			     a1_hw_onecell_data.hws[i]->init->name);
 
 		ret = devm_clk_hw_register(dev, a1_hw_onecell_data.hws[i]);
 		if (ret) {
 			dev_err(dev, "Clock registration failed\n");
 			return ret;
 		}
+#ifdef CONFIG_AMLOGIC_CLK_DEBUG
 		ret = devm_clk_hw_register_clkdev(dev, a1_hw_onecell_data.hws[i], NULL,
 					clk_hw_get_name(a1_hw_onecell_data.hws[i]));
 		if (ret < 0) {
 			dev_err(dev, "Failed to clkdev register: %d\n", ret);
 			return ret;
 		}
+#endif
 	}
 	ret = clk_notifier_register(a1_sys_pll.hw.clk, &a1_sys_pll_nb_data.nb);
 	if (ret) {
