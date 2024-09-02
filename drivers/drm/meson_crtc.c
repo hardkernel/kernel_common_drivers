@@ -286,7 +286,8 @@ int meson_crtc_creat_present_fence_ioctl(struct drm_device *dev,
 	struct am_meson_crtc_present_fence *pre_fence;
 	struct am_meson_crtc *amcrtc;
 	struct drm_crtc *crtc;
-	struct dma_fence *fence;
+	struct dma_fence *fence = NULL;
+	struct dma_fence *fence2 = NULL;
 	struct sync_file *sync_file;
 	int fd, ret;
 
@@ -300,14 +301,15 @@ int meson_crtc_creat_present_fence_ioctl(struct drm_device *dev,
 	amcrtc = to_am_meson_crtc(crtc);
 	pre_fence = &amcrtc->present_fence;
 
-	if (pre_fence->fence) {
-		DRM_DEBUG("fence already created, return!");
-		return -EEXIST;
+	if (pre_fence->fence && dma_fence_get_rcu(pre_fence->fence)) {
+		DRM_DEBUG("reuse existing fence:%px!", pre_fence->fence);
+		fence = pre_fence->fence;
+		fence2 = fence;
+	} else {
+		fence = meson_crtc_create_fence(&pre_fence->lock);
+		if (!fence)
+			return -ENOMEM;
 	}
-
-	fence = meson_crtc_create_fence(&pre_fence->lock);
-	if (!fence)
-		return -ENOMEM;
 
 	fd = get_unused_fd_flags(O_CLOEXEC);
 	if (fd < 0) {
@@ -324,18 +326,20 @@ int meson_crtc_creat_present_fence_ioctl(struct drm_device *dev,
 
 	fd_install(fd, sync_file->file);
 	arg->fd = fd;
-	pre_fence->fd = fd;
 	pre_fence->fence = fence;
-	pre_fence->sync_file = sync_file;
-	DRM_DEBUG("%s fd=%d, fence=%px\n", __func__,
-		pre_fence->fd, pre_fence->fence);
+	DRM_DEBUG("%s add fd=%d to track fence=%px\n", __func__,
+		fd, pre_fence->fence);
+	if (fence2)
+		dma_fence_put(fence2);
 
 	return 0;
 
 err_put_fd:
 	put_unused_fd(fd);
 err_put_fence:
-	dma_fence_put(fence);
+	/* the 2nd fence */
+	if (fence2)
+		dma_fence_put(fence2);
 	return ret;
 }
 
