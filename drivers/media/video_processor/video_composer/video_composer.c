@@ -925,7 +925,7 @@ static struct file_private_data *vc_get_file_private(struct composer_dev *dev,
 #endif
 
 	if (!file_vf) {
-		pr_err("vc: get_file_private_data fail\n");
+		vc_print(dev->index, PRINT_ERROR, "get_file_private_data fail\n");
 		return NULL;
 	}
 #ifdef CONFIG_AMLOGIC_V4L_VIDEO3
@@ -3367,6 +3367,17 @@ static void video_wait_decode_fence(struct composer_dev *dev,
 		return;
 	}
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_ATRACE)
+	ATRACE_COUNTER("video_composer_wait_Dec_fence_frame_index", vf->frame_index);
+	ATRACE_COUNTER("video_composer_wait_Dec_fence_frame_index", 0);
+	ATRACE_COUNTER("video_composer_wait_Dec_fence_timestamp",
+		div_u64(vf->timestamp, 1000000000));
+	ATRACE_COUNTER("video_composer_wait_Dec_fence_timestamp", 0);
+#endif
+
+	vc_print(dev->index, PRINT_FENCE, "%s: frame_index=%d, timestamp:%lld.\n",
+		__func__, vf->frame_index, div_u64(vf->timestamp, 1000000000));
+
 	fence_tmp = vf->fence;
 	if (fence_tmp) {
 		u64 timestamp = local_clock();
@@ -4611,14 +4622,10 @@ static void set_frames_info(struct composer_dev *dev,
 
 	for (j = 0; j < frames_info->frame_count; j++) {
 		if (frames_info->frame_info[j].type == 2) {
-			vc_print(dev->index, PRINT_OTHER,
-				 "sideband:i=%d,z=%d\n",
-				 i,
-				 frames_info->disp_zorder);
 			ready_len = kfifo_len(&dev->ready_q);
 			vc_print(dev->index, PRINT_OTHER,
-				 "sideband: ready_len =%d\n",
-				 ready_len);
+				"sideband: zorder=%d, ready_len =%d\n",
+				frames_info->disp_zorder, ready_len);
 			frames_info->frame_info[j].composer_fen_fd = -1;
 			sideband_type = frames_info->frame_info[j].sideband_type;
 			axis[0] = frames_info->frame_info[j].dst_x;
@@ -4651,14 +4658,12 @@ static void set_frames_info(struct composer_dev *dev,
 				set_sideband_type(sideband_type, 0);
 			}
 		}
-		vc_print(dev->index, PRINT_ERROR,
-			 "sideband_type =%d\n", sideband_type);
+		vc_print(dev->index, PRINT_OTHER, "sideband_type =%d\n", sideband_type);
 		dev->select_path_done = true;
 	}
 	if (current_is_sideband) {
 		if (frames_info->frame_count > 1)
-			vc_print(dev->index, PRINT_ERROR,
-				 "sideband count not 1\n");
+			vc_print(dev->index, PRINT_ERROR, "sideband count not 1\n");
 		return;
 	}
 
@@ -4666,14 +4671,11 @@ static void set_frames_info(struct composer_dev *dev,
 	    dev->received_count == 0) {
 		if (dev->is_sideband && !current_is_sideband) {
 			set_vdx_blackout_policy(dev->index, 1);
-			vc_print(dev->index, PRINT_OTHER,
-				 "sideband to non\n");
+			vc_print(dev->index, PRINT_OTHER, "sideband to none sideband\n");
 		}
 		dev->is_sideband = false;
 		disable_video_layer(dev, 0);
-		sprintf(render_layer,
-			"video_render.%d",
-			dev->video_render_index);
+		sprintf(render_layer, "video_render.%d", dev->video_render_index);
 		set_video_path_select(render_layer, dev->index);
 	}
 	dev->is_sideband = false;
@@ -4702,12 +4704,13 @@ static void set_frames_info(struct composer_dev *dev,
 		if (i == FRAMES_INFO_POOL_SIZE) {
 			j++;
 			if (j > WAIT_READY_Q_TIMEOUT) {
-				pr_err("receive_q is full, wait timeout!\n");
+				vc_print(dev->index, PRINT_ERROR,
+					"receive_q is full, wait timeout!\n");
 				return;
 			}
 			usleep_range(1000 * receive_wait,
 				     1000 * (receive_wait + 1));
-			pr_err("receive_q is full!!! need wait =%d\n", j);
+			vc_print(dev->index, PRINT_ERROR, "receive_q is full, need wait =%d\n", j);
 			continue;
 		} else {
 			break;
@@ -4723,18 +4726,16 @@ static void set_frames_info(struct composer_dev *dev,
 
 		if (!IS_ERR_OR_NULL(fence_file))
 			sync_file = (struct sync_file *)fence_file->private_data;
-		else
-			vc_print(dev->index, PRINT_FENCE, "creat fence_file is NULL\n");
 
 		if (!IS_ERR_OR_NULL(sync_file))
 			fence_obj = sync_file->fence;
-		else
-			vc_print(dev->index, PRINT_FENCE, "creat sync_file is NULL\n");
 
-		if (fence_obj) {
+		if (fence_obj)
 			vc_print(dev->index, PRINT_FENCE, "creat sync_file=%px, seqno=%lld\n",
 					sync_file, fence_obj->seqno);
-		}
+		else
+			vc_print(dev->index, PRINT_FENCE, "fence file is NULL\n");
+
 		if (!IS_ERR_OR_NULL(fence_file))
 			fput(fence_file);
 	}
@@ -5043,13 +5044,10 @@ int video_composer_set_enable(struct composer_dev *dev, u32 val)
 	if (val == 0)
 		dev->composer_enabled = false;
 
-	vc_print(dev->index, PRINT_ERROR,
-		 "vc: set enable index=%d, val=%d\n",
-		 dev->index, val);
+	vc_print(dev->index, PRINT_ERROR, "set enable index=%d, val=%d\n", dev->index, val);
 
 	if (dev->enable_composer == val) {
-		pr_err("vc: set_enable repeat set dev->index =%d,val=%d\n",
-		       dev->index, val);
+		vc_print(dev->index, PRINT_ERROR, "set_enable repeat, dev index =%d\n", dev->index);
 		return ret;
 	}
 	dev->enable_composer = val;
@@ -5062,7 +5060,7 @@ int video_composer_set_enable(struct composer_dev *dev, u32 val)
 	}
 
 	if (ret != 0)
-		pr_err("vc: set failed\n");
+		vc_print(dev->index, PRINT_ERROR, "%s failed\n", __func__);
 	else
 		if (val)
 			dev->composer_enabled = true;
