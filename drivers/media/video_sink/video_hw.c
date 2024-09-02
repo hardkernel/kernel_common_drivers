@@ -2930,18 +2930,22 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 			HFORMATTER_EN |
 			(0x8 << VFORMATTER_PHASE_BIT) |
 			VFORMATTER_EN;
-		if (is_dovi_tv_on())
-			r |= HFORMATTER_REPEAT |
-				VFORMATTER_ALWAYS_RPT |
-				(0x0 << VFORMATTER_INIPHASE_BIT);
-		else if (is_amdv_on()) /* stb case */
-			r |= HFORMATTER_REPEAT |
-				VFORMATTER_RPTLINE0_EN |
-				(0xc << VFORMATTER_INIPHASE_BIT);
-		else
-			r |= HFORMATTER_RRT_PIXEL0 |
-				VFORMATTER_RPTLINE0_EN |
-				(0 << VFORMATTER_INIPHASE_BIT);
+		if (video_lcevc.vd2_vd1_shared_vf) {
+			r |= (0 << VFORMATTER_INIPHASE_BIT);
+		} else {
+			if (is_dovi_tv_on())
+				r |= HFORMATTER_REPEAT |
+					VFORMATTER_ALWAYS_RPT |
+					(0x0 << VFORMATTER_INIPHASE_BIT);
+			else if (is_amdv_on()) /* stb case */
+				r |= HFORMATTER_REPEAT |
+					VFORMATTER_RPTLINE0_EN |
+					(0xc << VFORMATTER_INIPHASE_BIT);
+			else
+				r |= HFORMATTER_RRT_PIXEL0 |
+					VFORMATTER_RPTLINE0_EN |
+					(0 << VFORMATTER_INIPHASE_BIT);
+		}
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			if ((type & VIDTYPE_VIU_444) ||
 			    (type & VIDTYPE_RGB_444)) {
