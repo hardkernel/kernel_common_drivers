@@ -31,10 +31,8 @@
 #include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 #include <linux/amlogic/media/sound/aout_notify.h>
 #include <linux/amlogic/cpu_version.h>
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
 #include <asm/div64.h>
 #include <linux/math64.h>
-#endif
 #include "ddr_mngr.h"
 #include "tdm_hw.h"
 #include "sharebuffer.h"
@@ -145,10 +143,8 @@ struct aml_tdm {
 	struct regulator *regulator_vcc5v;
 	int suspend_clk_off;
 	int tdm_in_src;
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
 	unsigned char *temp_buffer;
 	unsigned int vol_index;
-#endif
 	int tdmout_lane_mute_status[LANE_MAX3];
 	bool earc_use_48k;
 	int ext_amp_ws_inv;
@@ -698,7 +694,7 @@ int aml_tdm_hw_setting_init(struct aml_tdm *p_tdm,
 	if (ret)
 		return ret;
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	/* Must enabe channel number for VAD */
 	if (p_tdm->chipinfo->chnum_en &&
 	    stream == SNDRV_PCM_STREAM_CAPTURE &&
@@ -853,7 +849,6 @@ static int tdmout_gain_set(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
 static int tdmout_softgain_get(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
@@ -879,7 +874,6 @@ static int tdmout_softgain_set(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
-#endif
 
 static int tdmout_get_mute_enum(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -955,7 +949,7 @@ static const struct snd_kcontrol_new snd_tdm_a_controls[] = {
 				0,
 				tdmout_get_mute_enum,
 				tdmout_set_mute_enum),
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 	SOC_SINGLE_EXT("TDMOUT_A Software Gain",
 				0, 0, 100, 0,
 				tdmout_softgain_get,
@@ -1001,7 +995,7 @@ static int tdmin_src_enum_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 static const struct soc_enum hdmi_audio_type_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_type_texts),
 			audio_type_texts);
@@ -1078,7 +1072,7 @@ static const struct snd_kcontrol_new snd_tdm_b_controls[] = {
 				3, 0, 1, 0,
 				tdmout_get_lane_mute_enum,
 				tdmout_set_lane_mute_enum),
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 	SOC_SINGLE_EXT("TDMOUT_B Software Gain",
 				0, 0, 100, 0,
 				tdmout_softgain_get,
@@ -1096,6 +1090,10 @@ static const struct snd_kcontrol_new snd_tdm_c_controls[] = {
 				0,
 				tdmout_get_mute_enum,
 				tdmout_set_mute_enum),
+	SOC_SINGLE_EXT("TDMOUT_C Software Gain",
+				0, 0, 100, 0,
+				tdmout_softgain_get,
+				tdmout_softgain_set),
 };
 
 static const struct snd_kcontrol_new snd_tdm_d_controls[] = {
@@ -1110,7 +1108,7 @@ static const struct snd_kcontrol_new snd_tdm_d_controls[] = {
 				tdmout_set_mute_enum),
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 static const struct snd_kcontrol_new snd_pcpd_controls[] = {
 	SOC_SINGLE_EXT("Pc_Pd_Monitor_A Detect enable",
 				0, 0, 1, 0,
@@ -1361,7 +1359,7 @@ static int aml_tdm_open(struct snd_soc_component *component, struct snd_pcm_subs
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		bool aed_dst_status = false;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 		int dst_id = get_aed_dst();
 
 		if (dst_id == p_tdm->id && is_aed_reserve_frddr())
@@ -1421,13 +1419,11 @@ static int aml_tdm_hw_params(struct snd_soc_component *component,
 
 static int aml_tdm_hw_free(struct snd_soc_component *component, struct snd_pcm_substream *substream)
 {
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_tdm *p_tdm = runtime->private_data;
 
 	kfree(p_tdm->temp_buffer);
 	p_tdm->temp_buffer = NULL;
-#endif
 	return snd_pcm_lib_free_pages(substream);
 }
 
@@ -1456,7 +1452,7 @@ static int aml_tdm_prepare(struct snd_soc_component *component, struct snd_pcm_s
 				p_tdm->chipinfo->use_vadtop);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_reset(p_tdm, runtime->channels);
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 			if (p_tdm->mixer_en)
 				mixer_fifo_reset();
 #endif
@@ -1581,8 +1577,6 @@ static const struct snd_kcontrol_new tdm_fade_out_controls[] = {
 		       tdm_underrun_threshold_get,
 		       tdm_underrun_threshold_put),
 };
-
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
 
 #define AUDIO_VOLUME_INDEX 101
 
@@ -1719,7 +1713,6 @@ static int tdm_copy_user(struct snd_soc_component *component,
 	}
 	return ret;
 }
-#endif
 
 static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 		struct snd_pcm_substream *substream, int cmd);
@@ -1736,9 +1729,7 @@ static const struct snd_soc_component_driver aml_tdm_component = {
 	.trigger = aml_soc_tdm_trigger,
 	.pointer = aml_tdm_pointer,
 	.mmap = aml_tdm_mmap,
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
 	.copy_user = tdm_copy_user,
-#endif
 };
 
 static void set_aud_param_ch_status(struct iec958_chsts *chsts,
@@ -1841,7 +1832,7 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 					p_tdm->id);
 			return -EINVAL;
 		}
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 		if (p_tdm->mixer_en) {
 			mixer_format_set(runtime->channels, bit_depth,
 					tdmout_get_frddr_type(bit_depth));
@@ -1896,7 +1887,7 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		fmt.rate      = runtime->rate;
 		aml_toddr_select_src(to, src);
 		aml_toddr_set_format(to, &fmt);
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 		if (p_tdm->pcpd_monitor_src) {
 			struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
 
@@ -1920,7 +1911,7 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
 		    p_tdm->tdm_trigger_state == TRIGGER_START_VAD_BUF) {
 			/* VAD switch to alsa buffer */
@@ -1948,7 +1939,7 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 				 "TDM[%d] Playback enable\n",
 				 p_tdm->id);
 			/*don't change this flow*/
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 			aml_aed_top_enable(p_tdm->fddr, true);
 #endif
 			aml_tdm_enable(p_tdm->actrl,
@@ -1974,7 +1965,7 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 			}
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_mute(p_tdm, false);
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 			if (p_tdm->mixer_en)
 				mixer_en(true);
 #endif
@@ -1992,7 +1983,7 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
 		    vad_tdm_is_running(p_tdm->id) &&
 		    pm_audio_is_suspend() &&
@@ -2026,7 +2017,7 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 						p_tdm->chipinfo->gain_ver);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_mute(p_tdm, true);
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 			aml_aed_top_enable(p_tdm->fddr, false);
 #endif
 			aml_tdm_enable(p_tdm->actrl,
@@ -2039,7 +2030,7 @@ static int aml_soc_tdm_trigger(struct snd_soc_component *component,
 				aml_frddr_check(p_tdm->fddr);
 
 			aml_frddr_enable(p_tdm->fddr, false);
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 			if (p_tdm->mixer_en)
 				mixer_en(false);
 #endif
@@ -2093,7 +2084,7 @@ static int aml_dai_tdm_hw_free(struct snd_pcm_substream *substream,
 {
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	/* Disable channel number for VAD */
 	if (p_tdm->chipinfo->chnum_en &&
 	    substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
@@ -2251,7 +2242,7 @@ static int aml_dai_tdm_probe(struct snd_soc_dai *cpu_dai)
 		if (ret < 0)
 			pr_err("failed add snd tdmD controls\n");
 	}
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	if (p_tdm->pcpd_monitor_src) {
 		struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
 
@@ -2912,9 +2903,7 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 			}
 		}
 	}
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
 	p_tdm->vol_index = 100;
-#endif
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	tdm_register_early_suspend_hdr(p_tdm->id, pdev);
 #endif

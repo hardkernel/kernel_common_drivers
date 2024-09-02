@@ -114,7 +114,7 @@ struct loopback_chipinfo {
 	int orig_channel_sync;
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 static struct loopback_chipinfo g12a_loopbacka_chipinfo = {
 	.id = LOOPBACKA,
 	.chnum_en = true,
@@ -200,7 +200,7 @@ static struct loopback_chipinfo t5_loopbacka_chipinfo = {
 	.orig_channel_sync = true,
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 static struct loopback_chipinfo p1_loopbacka_chipinfo = {
 	.id = LOOPBACKA,
 	.ch_ctrl = true,
@@ -252,7 +252,7 @@ static struct loopback_chipinfo c3_loopbacka_chipinfo = {
 #endif
 
 static const struct of_device_id loopback_device_id[] = {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, snd-loopback",
@@ -304,7 +304,7 @@ static const struct of_device_id loopback_device_id[] = {
 		.compatible = "amlogic, t5-loopbacka",
 		.data = &t5_loopbacka_chipinfo,
 	},
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	{
 		.compatible = "amlogic, p1-loopbacka",
 		.data = &p1_loopbacka_chipinfo,

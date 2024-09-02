@@ -68,7 +68,7 @@ static const char * const audio_format[] = {
 	"DOLBY_AC4_ATMOS_PROMPT_ON_ATMOS",
 };
 
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 static const char * const digital_mode[] = {
 	"AML_HAL_PCM",
 	"AML_HAL_DD",
@@ -108,7 +108,7 @@ enum audio_hal_format {
 	TYPE_AC4_ATMOS_PROMPT_ON_ATMOS = 20,
 };
 
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 enum audio_digital_mode {
 	AML_HAL_PCM = 0,
 	AML_HAL_DD = 1,
@@ -179,7 +179,7 @@ struct aml_card_data {
 	enum hdmitx_src hdmitx_src;
 	int i2s_to_hdmitx_mask;
 	int ai_sort_ret;
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 	enum audio_digital_mode dgt_mod;
 	int drc_control;
 	enum audio_output_select output_sel;
@@ -242,7 +242,7 @@ static const struct soc_enum audio_hal_format_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_format),
 			audio_format);
 
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 static const struct soc_enum audio_digital_mode_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(digital_mode),
 			digital_mode);
@@ -282,7 +282,7 @@ static int aml_audio_hal_format_set_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 static int aml_audio_digital_mode_get_enum(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
@@ -499,7 +499,7 @@ static const struct snd_kcontrol_new snd_user_controls[] = {
 			aml_audio_hal_format_get_enum,
 			aml_audio_hal_format_set_enum),
 
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 	SOC_ENUM_EXT("Audio Digital Mode",
 			audio_digital_mode_enum,
 			aml_audio_digital_mode_get_enum,
@@ -1562,7 +1562,7 @@ static int aml_card_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	card_add_effects_init(&priv->snd_card);
 #endif
 	if (priv->hp_det_enable == 1 || priv->mic_det_enable == 1) {
@@ -1576,7 +1576,7 @@ static int aml_card_probe(struct platform_device *pdev)
 
 	snd_soc_add_card_controls(&priv->snd_card, snd_user_controls,
 				  ARRAY_SIZE(snd_user_controls));
-#ifdef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifdef CONFIG_AMLOGIC_AUDIO_CUT
 	priv->drc_control = 0x3; //RF mode
 #endif
 	priv->av_mute_enable = 0;

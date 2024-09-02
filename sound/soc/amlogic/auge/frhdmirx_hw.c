@@ -317,7 +317,7 @@ void arc_earc_source_select(int src)
 				hdmirx_arc_write_reg(HDMIRX_EARCTX_CNTL0, 0x14830490);
 				hdmirx_arc_write_reg(HDMIRX_EARCTX_CNTL1, 0x40011508);
 			}
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 			if (version == TXHD2_ARC) {
 				hdmirx_arc_write_reg(HDMIRX_ARC_CNTL, 0x00000046);
 				if (src == SPDIFA_TO_HDMIRX)
@@ -379,7 +379,7 @@ void arc_enable(bool enable, int version)
 			hdmirx_arc_update_reg(HDMIRX_EARCTX_CNTL0,
 				0x1 << 31, (enable ? 0x1 : 0) << 31);
 	}
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	if (version == TXHD2_ARC)
 		hdmirx_arc_update_reg(HDMIRX_ARC_CNTL,
 			0x1 << 0, (enable ? 0x1 : 0) << 0);

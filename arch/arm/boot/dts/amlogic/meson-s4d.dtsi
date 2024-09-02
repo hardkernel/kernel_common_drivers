@@ -1221,7 +1221,7 @@
 			ranges = <0x0 0xFE330000 0x3000>;
 
 			power-domains = <&pwrdm PDID_S4_AUDIO>;
-
+			chip_id = <0x3A>;
 			clkaudio: audio_clocks {
 				compatible = "amlogic, sc2-audio-clocks";
 				#clock-cells = <1>;

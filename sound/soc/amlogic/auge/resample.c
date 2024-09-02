@@ -707,7 +707,7 @@ static int new_resample_init(struct audioresample *p_resample)
 	return 0;
 }
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 static struct resample_chipinfo axg_resample_chipinfo = {
 	.num        = 1,
 	.id         = RESAMPLE_A,
@@ -829,7 +829,7 @@ static struct resample_chipinfo t5_resample_b_chipinfo = {
 };
 
 static const struct of_device_id resample_device_id[] = {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	{
 		.compatible = "amlogic, axg-resample",
 		.data = &axg_resample_chipinfo,

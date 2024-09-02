@@ -26,7 +26,7 @@ struct snd_elem_info {
 	u32 mask;
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 static unsigned int audio_inskew;
 #endif
 /* For S4 HIFI used by EMMC/audio, we need force mpll in DTV */
@@ -336,7 +336,7 @@ static int spdifout_channel_status_set(struct snd_kcontrol *kcontrol,
 	.private_value = (unsigned long)&(xenum) \
 }
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 static const char *const audio_locker_texts[] = {
 	"Disable",
 	"Enable",
@@ -493,7 +493,7 @@ static const struct snd_kcontrol_new snd_auge_controls[] = {
 	SPDIFOUT_CHSTATUS("SPDIFOUT Channel Status",
 			  spdif_channel_status_enum),
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	/* audio locker */
 	SOC_ENUM_EXT("audio locker enable",
 		     audio_locker_enum,
@@ -519,7 +519,7 @@ static const struct snd_kcontrol_new snd_auge_controls[] = {
 
 int snd_card_add_kcontrols(struct snd_soc_card *card)
 {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	int ret;
 
 	pr_debug("%s card:%p\n", __func__, card);

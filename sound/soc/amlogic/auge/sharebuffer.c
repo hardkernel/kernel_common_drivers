@@ -123,7 +123,7 @@ void sharebuffer_enable(int sel, bool enable, bool reenable)
 		/* same source with spdif a/b */
 		spdifout_enable(sel - 3, enable, reenable);
 	} else if (sel == SHAREBUFFER_EARCTX) {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 		aml_earctx_enable(enable);
 #endif
 	}
@@ -146,7 +146,7 @@ int sharebuffer_prepare(struct snd_pcm_substream *substream,
 		sharebuffer_spdifout_prepare
 		(substream, fr, samesource_sel - 3, lane_i2s, type, separated);
 	} else if (samesource_sel == SHAREBUFFER_EARCTX) {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 		sharebuffer_earctx_prepare(substream, fr, type, lane_i2s);
 		if (!aml_get_earctx_enable())
 			return 0;

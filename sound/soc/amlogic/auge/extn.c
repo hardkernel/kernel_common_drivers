@@ -1183,7 +1183,7 @@ struct extn_chipinfo t5m_extn_chipinfo = {
 	.frhdmirx_version = T7_FRHDMIRX,
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 struct extn_chipinfo txhd2_extn_chipinfo = {
 	.arc_version	= TXHD2_ARC,
 	.PAO_channel_sync = false,
@@ -1220,7 +1220,7 @@ static const struct of_device_id extn_device_id[] = {
 		.compatible = "amlogic, t5m-snd-extn",
 		.data       = &t5m_extn_chipinfo,
 	},
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_AUDIO_CUT
 	{
 		.compatible = "amlogic, txhd2-snd-extn",
 		.data       = &txhd2_extn_chipinfo,
