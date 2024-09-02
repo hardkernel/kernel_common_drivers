@@ -20,6 +20,7 @@
 #define S6_REE2AO3       (S6_AO2REE + 4)
 #define S6_REE2AO4       (S6_AO2REE + 5)
 #define S6_REE2AO5       (S6_AO2REE + 6)
+#define S6_REE2AO6       (S6_AO2REE + 7)
 
 // DEVICE TREE ID
 #define S6_REE2DSPA_DEV  S6_REE2DSPA0
@@ -31,6 +32,7 @@
 #define S6_REE2AO_AOCEC  S6_REE2AO3
 #define S6_REE2AO_ETH    S6_REE2AO4
 #define S6_REE2AO_LED    S6_REE2AO5
+#define S6_REE2AO_IR     S6_REE2AO6
 
 // MBOX CHANNEL ID
 #define S6_MBOX_DSPA2REE  0

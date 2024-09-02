@@ -416,6 +416,7 @@ struct mbox_domain t5w_mbox_domains[] = {
 	[T5W_REE2AO3]   = MBOX_DOMAIN(T5W_REE2AO3, T5W_MBOX_REE2AO, 0),
 	[T5W_REE2AO4]   = MBOX_DOMAIN(T5W_REE2AO4, T5W_MBOX_REE2AO, 0),
 	[T5W_REE2AO5]   = MBOX_DOMAIN(T5W_REE2AO5, T5W_MBOX_REE2AO, 0),
+	[T5W_REE2AO6]   = MBOX_DOMAIN(T5W_REE2AO6, T5W_MBOX_REE2AO, 0),
 };
 
 static struct mbox_domain_data t5w_mbox_domains_data __initdata = {
@@ -431,6 +432,7 @@ struct mbox_domain txhd2_mbox_domains[] = {
 	[TXHD2_REE2AO3]   = MBOX_DOMAIN(TXHD2_REE2AO3, TXHD2_MBOX_REE2AO, 0),
 	[TXHD2_REE2AO4]   = MBOX_DOMAIN(TXHD2_REE2AO4, TXHD2_MBOX_REE2AO, 0),
 	[TXHD2_REE2AO5]   = MBOX_DOMAIN(TXHD2_REE2AO5, TXHD2_MBOX_REE2AO, 0),
+	[TXHD2_REE2AO6]   = MBOX_DOMAIN(TXHD2_REE2AO6, TXHD2_MBOX_REE2AO, 0),
 };
 
 static struct mbox_domain_data txhd2_mbox_domains_data __initdata = {
