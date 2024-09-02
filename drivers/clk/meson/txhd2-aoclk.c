@@ -274,6 +274,17 @@ static struct platform_driver txhd2_aoclkc_driver = {
 	},
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+int __init txhd2_aoclk_init(void)
+{
+	return platform_driver_register(&txhd2_aoclkc_driver);
+}
+
+void __exit txhd2_aoclk_exit(void)
+{
+}
+#else
 builtin_platform_driver(txhd2_aoclkc_driver);
 
 MODULE_LICENSE("GPL v2");
+#endif

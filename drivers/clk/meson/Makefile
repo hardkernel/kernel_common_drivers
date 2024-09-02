@@ -112,17 +112,12 @@ CFLAGS_s5.o += $(PR_FMT_DEFINE_S5)
 
 T5W_MODULE_NAME = amlogic-clk-soc-t5w
 obj-$(CONFIG_AMLOGIC_COMMON_CLK_T5W) += $(T5W_MODULE_NAME).o
-$(T5W_MODULE_NAME)-y += t5w.o
+$(T5W_MODULE_NAME)-y += t5w.o t5w-aoclk.o t5w-main.o
 PR_FMT_T5W = $(subst amlogic-,,$(T5W_MODULE_NAME))
 PR_FMT_DEFINE_T5W="-Dpr_fmt(fmt)= \"[$(PR_FMT_T5W)]: \" fmt"
 CFLAGS_t5w.o += $(PR_FMT_DEFINE_T5W)
-
-T5W_AO_MODULE_NAME = amlogic-aoclk-soc-t5w
-obj-$(CONFIG_AMLOGIC_COMMON_AO_CLK_T5W) += $(T5W_AO_MODULE_NAME).o
-$(T5W_AO_MODULE_NAME)-y += t5w-aoclk.o
-PR_FMT_AO_T5W = $(subst amlogic-,,$(T5W_AO_MODULE_NAME))
-PR_FMT_DEFINE_AO_T5W="-Dpr_fmt(fmt)= \"[$(PR_FMT_AO_T5W)]: \" fmt"
-CFLAGS_t5w-aoclk.o += $(PR_FMT_DEFINE_AO_T5W)
+CFLAGS_t5w-aoclk.o += $(PR_FMT_DEFINE_T5W)
+CFLAGS_t5w-main.o += $(PR_FMT_DEFINE_T5W)
 
 T3X_MODULE_NAME = amlogic-clk-soc-t3x
 obj-$(CONFIG_AMLOGIC_COMMON_CLK_T3X) += $(T3X_MODULE_NAME).o
@@ -133,17 +128,12 @@ CFLAGS_t3x.o += $(PR_FMT_DEFINE_T3X)
 
 TXHD2_MODULE_NAME = amlogic-clk-soc-txhd2
 obj-$(CONFIG_AMLOGIC_COMMON_CLK_TXHD2) += $(TXHD2_MODULE_NAME).o
-$(TXHD2_MODULE_NAME)-y += txhd2.o
+$(TXHD2_MODULE_NAME)-y += txhd2.o txhd2-aoclk.o txhd2-main.o
 PR_FMT_TXHD2 = $(subst amlogic-,,$(TXHD2_MODULE_NAME))
 PR_FMT_DEFINE_TXHD2="-Dpr_fmt(fmt)= \"[$(PR_FMT_TXHD2)]: \" fmt"
 CFLAGS_txhd2.o += $(PR_FMT_DEFINE_TXHD2)
-
-TXHD2_AO_MODULE_NAME = amlogic-aoclk-soc-txhd2
-obj-$(CONFIG_AMLOGIC_COMMON_AO_CLK_TXHD2) += $(TXHD2_AO_MODULE_NAME).o
-$(TXHD2_AO_MODULE_NAME)-y += txhd2-aoclk.o
-PR_FMT_AO_TXHD2 = $(subst amlogic-,,$(TXHD2_AO_MODULE_NAME))
-PR_FMT_DEFINE_AO_TXHD2="-Dpr_fmt(fmt)= \"[$(PR_FMT_AO_TXHD2)]: \" fmt"
-CFLAGS_txhd2-aoclk.o += $(PR_FMT_DEFINE_AO_TXHD2)
+CFLAGS_txhd2-aoclk.o += $(PR_FMT_DEFINE_TXHD2)
+CFLAGS_txhd2-main.o += $(PR_FMT_DEFINE_TXHD2)
 
 C1_MODULE_NAME = amlogic-clk-soc-c1
 obj-$(CONFIG_AMLOGIC_COMMON_CLK_C1) += $(C1_MODULE_NAME).o
@@ -161,31 +151,21 @@ CFLAGS_s1a.o += $(PR_FMT_DEFINE_S1A)
 
 T5D_MODULE_NAME = amlogic-clk-soc-t5d
 obj-$(CONFIG_AMLOGIC_COMMON_CLK_T5D) += $(T5D_MODULE_NAME).o
-$(T5D_MODULE_NAME)-y += t5d.o
+$(T5D_MODULE_NAME)-y += t5d.o t5d-aoclk.o t5d-main.o
 PR_FMT_T5D = $(subst amlogic-,,$(T5D_MODULE_NAME))
 PR_FMT_DEFINE_T5D="-Dpr_fmt(fmt)= \"[$(PR_FMT_T5D)]: \" fmt"
 CFLAGS_t5d.o += $(PR_FMT_DEFINE_T5D)
-
-T5D_AO_MODULE_NAME = amlogic-aoclk-soc-t5d
-obj-$(CONFIG_AMLOGIC_COMMON_AO_CLK_T5D) += $(T5D_AO_MODULE_NAME).o
-$(T5D_AO_MODULE_NAME)-y += t5d-aoclk.o
-PR_FMT_AO_T5D = $(subst amlogic-,,$(T5D_AO_MODULE_NAME))
-PR_FMT_DEFINE_AO_T5D="-Dpr_fmt(fmt)= \"[$(PR_FMT_AO_T5D)]: \" fmt"
-CFLAGS_t5d-aoclk.o += $(PR_FMT_DEFINE_AO_T5D)
+CFLAGS_t5d-aoclk.o += $(PR_FMT_DEFINE_T5D)
+CFLAGS_t5d-main.o += $(PR_FMT_DEFINE_T5D)
 
 TM2_MODULE_NAME = amlogic-clk-soc-tm2
 obj-$(CONFIG_AMLOGIC_COMMON_CLK_TM2) += $(TM2_MODULE_NAME).o
-$(TM2_MODULE_NAME)-y += tm2.o
+$(TM2_MODULE_NAME)-y += tm2.o tm2-aoclk.o tm2-main.o
 PR_FMT_TM2 = $(subst amlogic-,,$(TM2_MODULE_NAME))
 PR_FMT_DEFINE_TM2="-Dpr_fmt(fmt)= \"[$(PR_FMT_TM2)]: \" fmt"
 CFLAGS_tm2.o += $(PR_FMT_DEFINE_TM2)
-
-TM2_AO_MODULE_NAME = amlogic-aoclk-soc-tm2
-obj-$(CONFIG_AMLOGIC_COMMON_AO_CLK_TM2) += $(TM2_AO_MODULE_NAME).o
-$(TM2_AO_MODULE_NAME)-y += tm2-aoclk.o
-PR_FMT_AO_TM2 = $(subst amlogic-,,$(TM2_AO_MODULE_NAME))
-PR_FMT_DEFINE_AO_TM2="-Dpr_fmt(fmt)= \"[$(PR_FMT_AO_TM2)]: \" fmt"
-CFLAGS_tm2-aoclk.o += $(PR_FMT_DEFINE_AO_TM2)
+CFLAGS_tm2-aoclk.o += $(PR_FMT_DEFINE_TM2)
+CFLAGS_tm2-main.o += $(PR_FMT_DEFINE_TM2)
 
 S7_MODULE_NAME = amlogic-clk-soc-s7
 obj-$(CONFIG_AMLOGIC_COMMON_CLK_S7) += $(S7_MODULE_NAME).o

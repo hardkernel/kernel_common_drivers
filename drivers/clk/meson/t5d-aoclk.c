@@ -274,6 +274,17 @@ static struct platform_driver t5d_aoclkc_driver = {
 	},
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+int __init t5d_aoclk_init(void)
+{
+	return platform_driver_register(&t5d_aoclkc_driver);
+}
+
+void __exit t5d_aoclk_exit(void)
+{
+}
+#else
 builtin_platform_driver(t5d_aoclkc_driver);
 
 MODULE_LICENSE("GPL v2");
+#endif

@@ -3410,6 +3410,18 @@ static struct platform_driver t5d_driver = {
 	},
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+int __init t5d_init(void)
+{
+	return platform_driver_register(&t5d_driver);
+}
+
+void __exit t5d_exit(void)
+{
+}
+
+#else
 builtin_platform_driver(t5d_driver);
 
 MODULE_LICENSE("GPL v2");
+#endif

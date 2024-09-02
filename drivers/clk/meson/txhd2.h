@@ -6,6 +6,11 @@
 #ifndef __TXHD2_H
 #define __TXHD2_H
 
+int txhd2_init(void);
+void  txhd2_exit(void);
+int txhd2_aoclk_init(void);
+void txhd2_aoclk_exit(void);
+
 /* basic clk: 0xff646000 */
 #define HHI_CHECK_CLK_RESULT                               (0x004 << 2)
 #define HHI_DEMOD_32K_CNTL0                                (0x010 << 2)

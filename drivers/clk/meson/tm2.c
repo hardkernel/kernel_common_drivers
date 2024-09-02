@@ -5338,6 +5338,18 @@ static struct platform_driver tm2_driver = {
 	},
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+int __init tm2_init(void)
+{
+	return platform_driver_register(&tm2_driver);
+}
+
+void __exit tm2_exit(void)
+{
+}
+
+#else
 builtin_platform_driver(tm2_driver);
 
 MODULE_LICENSE("GPL v2");
+#endif

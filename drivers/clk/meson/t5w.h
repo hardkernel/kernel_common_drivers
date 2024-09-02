@@ -6,6 +6,11 @@
 #ifndef __T5W_H
 #define __T5W_H
 
+int t5w_init(void);
+void t5w_exit(void);
+int t5w_aoclk_init(void);
+void t5w_aoclk_exit(void);
+
 #define		HHI_CHECK_CLK_RESULT		(0x004 << 2)
 #define		HHI_HRX_CLK_CTRL0		(0x008 << 2)
 #define		HHI_HRX_CLK_CTRL1		(0x009 << 2)

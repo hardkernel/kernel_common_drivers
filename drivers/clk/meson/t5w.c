@@ -4139,6 +4139,18 @@ static struct platform_driver t5w_driver = {
 	},
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+int __init t5w_init(void)
+{
+	return platform_driver_register(&t5w_driver);
+}
+
+void __exit t5w_exit(void)
+{
+}
+
+#else
 builtin_platform_driver(t5w_driver);
 
 MODULE_LICENSE("GPL v2");
+#endif

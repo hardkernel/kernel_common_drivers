@@ -19,6 +19,11 @@
 #ifndef __TM2_H
 #define __TM2_H
 
+int tm2_init(void);
+void  tm2_exit(void);
+int tm2_aoclk_init(void);
+void tm2_aoclk_exit(void);
+
 /*
  * Clock controller register offsets
  *
