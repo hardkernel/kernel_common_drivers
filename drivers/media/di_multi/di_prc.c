@@ -2249,7 +2249,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			di_reg_variable(ch, vframe);
 		/*di_reg_process_irq(ch);*/ /*check if bypass*/
 		set_reg_setting(ch, true);
-
+		dpost_init(ch);
 		/*?how  about bypass ?*/
 		if (ppre->bypass_flag) {
 			/* complete bypass */
@@ -2257,7 +2257,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			if (!get_reg_flag_all()) {
 				/*first channel reg*/
 				dpre_init();
-				dpost_init(ch);
+				//dpost_init(ch);
 				di_reg_setting(ch, vframe);
 				get_datal()->pre_vpp_set = false;
 			}
@@ -2268,7 +2268,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			if (!get_reg_flag_all()) {
 				/*first channel reg*/
 				dpre_init();
-				dpost_init(ch);
+				//dpost_init(ch);
 				di_reg_setting(ch, vframe);
 				get_datal()->pre_vpp_set = false;
 				di_reg_setting_working(pch, vframe);
