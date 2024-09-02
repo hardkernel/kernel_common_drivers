@@ -2419,7 +2419,7 @@ static inline void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 				22, VCONV_MODE_WID);
 		} else {
 			/* swap_cbcr */
-			wr_bits(offset, VDIN_WR_CTRL, !swap_cbcr,
+			wr_bits(offset, VDIN_WR_CTRL, swap_cbcr,
 				SWAP_CBCR_BIT, SWAP_CBCR_WID);
 			/* output even lines's cbcr */
 			wr_bits(offset, VDIN_WR_CTRL, 0,
@@ -2663,7 +2663,7 @@ void vdin_set_wr_ctrl_vsync(struct vdin_dev_s *devp,
 				20, HCONV_MODE_WID);
 			wr_bits(offset, VDIN_WRMIF_CTRL1, vconv_mode,
 				22, VCONV_MODE_WID);
-			wr_bits(offset, VDIN_WRMIF_CTRL1, swap_cbcr,
+			wr_bits(offset, VDIN_WRMIF_CTRL1, !swap_cbcr,
 				24, SWAP_CBCR_WID);
 		} else {
 			wr_bits(offset, VDIN_WR_CTRL, write_fmt,
