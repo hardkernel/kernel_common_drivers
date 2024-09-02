@@ -59,6 +59,8 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 		devp->tvafe.aspect_ratio);
 	tvafe_pr_info("tvafe_info_s->aspect_ratio_cnt:%d\n",
 		devp->tvafe.aspect_ratio_cnt);
+	tvafe_pr_info("tvafe_info_s->active_ratio:%d\n",
+		devp->tvafe.active_ratio);
 	/* tvafe_dev_s->tvin_parm_s struct info */
 	tvafe_pr_info("\n!!tvafe_dev_s->tvin_parm_s struct info:\n");
 	tvafe_pr_info("tvin_parm_s->index:%d\n", parm->index);

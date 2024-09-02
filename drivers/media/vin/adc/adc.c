@@ -747,7 +747,7 @@ static void adc_av_filter_config(struct tvin_adc_dev *devp)
 	if (devp->plat_data->chip_id == ADC_CHIP_TXHD2) {
 		adc_wr_afe(AFE_VAFE_CTRL0, 0x00490710);
 		adc_wr_afe(AFE_VAFE_CTRL1, 0x110e);
-		adc_wr_afe(AFE_VAFE_CTRL2, 0x1fe20fd3);
+		adc_wr_afe(AFE_VAFE_CTRL2, 0x1fe20f83);
 	} else if (devp->plat_data->chip_id == ADC_CHIP_T6D) {
 		adc_wr_afe(AFE_VAFE_CTRL0, 0x00890730);
 		adc_wr_afe(AFE_VAFE_CTRL1, 0x0000110e);

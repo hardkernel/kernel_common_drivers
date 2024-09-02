@@ -1121,6 +1121,11 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		tvin_aspect_ratio_str(devp->prop.aspect_ratio),
 		devp->prop.aspect_ratio,
 		devp->prop.decimation_ratio, devp->prop.dvi_info);
+	pr_info("pic_aspect_ratio = %s(%d)\n",
+		tvin_aspect_ratio_str(devp->prop.pic_aspect_ratio),
+		devp->prop.pic_aspect_ratio);
+	pr_info("afd active-video = (%d)\n",
+		devp->prop.active_ratio);
 	pr_info("[pre->cur]:hs(%d->%d),he(%d->%d),vs(%d->%d),ve(%d->%d)\n",
 		devp->prop.pre_hs, devp->prop.hs,
 		devp->prop.pre_he, devp->prop.he,
