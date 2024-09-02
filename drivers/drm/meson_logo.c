@@ -847,23 +847,21 @@ void am_meson_logo_init(struct drm_device *dev)
 	else
 		is_cma = false;
 
-	if (is_cma) {
+	if (!mem_node || !of_device_is_available(mem_node)) {
+		DRM_INFO("mem region is disabled, skip allocation!\n");
+	}  else if (is_cma) {
 		DRM_INFO("allocate cmd mem\n");
 		ret = of_reserved_mem_device_init(&gp_dev->dev);
 		if (ret != 0) {
 			DRM_ERROR("failed to init reserved memory\n");
 		} else {
 #ifdef CONFIG_CMA
-			if (mem_node) {
-				rmem = of_reserved_mem_lookup(mem_node);
-				of_node_put(mem_node);
-				if (rmem) {
-					logo.size = rmem->size;
-					DRM_DEBUG("of read %s reservememsize=0x%x, base %pa\n",
-						rmem->name, logo.size, &rmem->base);
-				}
-			} else {
-				DRM_ERROR("no memory-region\n");
+			rmem = of_reserved_mem_lookup(mem_node);
+			of_node_put(mem_node);
+			if (rmem) {
+				logo.size = rmem->size;
+				DRM_DEBUG("of read %s reservememsize=0x%x, base %pa\n",
+					rmem->name, logo.size, &rmem->base);
 			}
 
 			cma_logo = dev_get_cma_area(&gp_dev->dev);
@@ -903,31 +901,27 @@ void am_meson_logo_init(struct drm_device *dev)
 		}
 	} else {
 		DRM_INFO("allocate reserved mem\n");
-		if (mem_node) {
-			ret = parse_reserve_mem_resource(mem_node, &osd_mem_res);
+		ret = parse_reserve_mem_resource(mem_node, &osd_mem_res);
 
-			if (ret != 0) {
-				DRM_ERROR("failed to init none_cma memory\n");
-			} else {
-				logo.size = resource_size(&osd_mem_res);
-				logo.start = osd_mem_res.start;
-				DRM_INFO("of read reservememsize=0x%x--0x%x\n",
-						logo.size, (u32)logo.start);
-			}
-
-			if (logo.size > 0) {
-				logo.vaddr = memremap(logo.start, logo.size,
-						MEMREMAP_WB);
-
-				if (!logo.vaddr)
-					DRM_ERROR("allocate buffer failed\n");
-				else
-					am_meson_logo_info_update(private);
-			}
-
+		if (ret != 0) {
+			DRM_ERROR("failed to init none_cma memory\n");
 		} else {
-			DRM_ERROR("no memory-region\n");
+			logo.size = resource_size(&osd_mem_res);
+			logo.start = osd_mem_res.start;
+			DRM_INFO("of read reservememsize=0x%x--0x%x\n",
+					logo.size, (u32)logo.start);
 		}
+
+		if (logo.size > 0) {
+			logo.vaddr = memremap(logo.start, logo.size,
+					MEMREMAP_WB);
+
+			if (!logo.vaddr)
+				DRM_ERROR("allocate buffer failed\n");
+			else
+				am_meson_logo_info_update(private);
+		}
+
 	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
