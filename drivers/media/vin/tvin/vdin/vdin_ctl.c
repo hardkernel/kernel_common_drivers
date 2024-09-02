@@ -7827,6 +7827,14 @@ int vdin_get_base_fr(struct vdin_dev_s *devp)
 		fps = vdin_set_vin_base_fr(fps);
 
 		devp->vin_base_fps = fps;
+	} else {
+		if (devp->prop.hw_vic != 0) {
+		#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+			fps = hdmirx_get_base_fps(devp->prop.hw_vic);
+		#endif
+		} else {
+			fps = devp->prop.fps;
+		}
 	}
 
 	if (fps) {
