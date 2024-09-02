@@ -35,6 +35,7 @@
 #include "sc2_demux/ts_input.h"
 #include "sc2_demux/ts_clone.h"
 #include "sc2_demux/dvb_reg.h"
+#include "sc2_demux/dma_buf_manage.h"
 #include "sw_demux/swdemux_internal.h"
 #include "../aucpu/aml_aucpu.h"
 #include "aml_dsc.h"
@@ -2575,6 +2576,36 @@ static int _dmx_set_command(struct dmx_demux *dmx, void *v_info)
 	return ret;
 }
 
+static int _dmx_get_dma_buf_fd(struct dmx_demux *dmx, void *v_info)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	struct dmx_dma_buf_info *info = v_info;
+	int res = -EFAULT;
+
+	pr_dbg("%s dmx%d\n", __func__, demux->id);
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	res = dma_buf_get_fd(info, dmx);
+	mutex_unlock(demux->pmutex);
+	return res;
+}
+
+static int _dmx_get_dma_buf_info(struct dmx_demux *dmx, void *v_info)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	struct dmx_dma_buf_info *info = v_info;
+	int res = -EFAULT;
+
+	pr_dbg("%s dmx%d\n", __func__, demux->id);
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	res = dma_buf_get_info(info);
+	mutex_unlock(demux->pmutex);
+	return res;
+}
+
 static int _check_timer_cache_wakeup(void)
 {
 	if (timer_cache_clear_wake_up) {
@@ -2717,6 +2748,8 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 	pdmx->dmx_ext.remap_pid = _dmx_remap_pid;
 	pdmx->dmx_ext.decode_info = _dmx_decode_info;
 	pdmx->dmx_ext.dmx_set_command = _dmx_set_command;
+	pdmx->dmx_ext.get_dma_buf_fd = _dmx_get_dma_buf_fd;
+	pdmx->dmx_ext.get_dma_buf_info = _dmx_get_dma_buf_info;
 	pdmx->dev.filternum = (MAX_TS_FEED_NUM + MAX_SEC_FEED_NUM);
 	pdmx->dev.demux = &pdmx->dmx_ext.dmx;
 	pdmx->dev.capabilities = DMXDEV_CAP_DUPLEX;
