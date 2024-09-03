@@ -24,7 +24,7 @@
 		serial2 = &uart_C;
 		tsensor0 = &cpu_tsensor;
 		tsensor1 = &top_tsensor;
-		spi0 = &spifc;
+		spi0 = &spi_nfc;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
 		i2c0 = &i2c0;
@@ -996,6 +996,28 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		nand-ecc-maximize;
+	};
+};
+
+&spi_nfc {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spinf_pins>;
+	spi-nand@0 {
+		compatible = "spi-nand";
+		status = "disabled";
+		reg = <0>;
+		spi-max-frequency = <83000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+	spi-nor@0 {
+		compatible = "spi-nor";
+		status = "disabled";
+		reg = <0>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <83000000>;
 	};
 };
 

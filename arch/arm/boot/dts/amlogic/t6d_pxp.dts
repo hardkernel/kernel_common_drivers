@@ -23,7 +23,7 @@
 		serial2 = &uart_C;
 		tsensor0 = &cpu_tsensor;
 		tsensor1 = &top_tsensor;
-		spi0 = &spifc;
+		spi0 = &spi_nfc;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
 		i2c0 = &i2c0;

@@ -546,24 +546,6 @@
 				status = "disabled";
 			};
 
-			spifc: spi@56000 {
-				compatible = "amlogic,meson-spifc";
-				status = "disabled";
-				reg = <0x56000 0x80>;
-				clock-names = "default";
-				//clocks = <&clkc CLKID_SYS_SPIFC>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&spifc_all_pins>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				spi-nor@0 {
-					compatible = "jedec,spi-nor";
-					status = "disabled";
-					reg = <0>;
-					spi-max-frequency = <16000000>;
-				};
-			};
-
 			pwm_a: pwm@58000 {
 				compatible = "amlogic,meson-even-pwm";
 				reg = <0x58000 0x24>,
@@ -2666,19 +2648,6 @@
 				 "spi_ss0_b_z3",
 				 "spi_clk_b_z2";
 			function = "spi";
-			drive-strength-microamp = <3000>;
-		};
-	};
-
-	spifc_all_pins: spifc_all_pins {
-		mux {
-			groups = "spif_hold",
-				"spif_mo",
-				"spif_mi",
-				"spif_clk",
-				"spif_wp",
-				"spif_cs";
-			function = "spif";
 			drive-strength-microamp = <3000>;
 		};
 	};
