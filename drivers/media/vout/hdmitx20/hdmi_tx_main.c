@@ -1811,7 +1811,7 @@ static ssize_t config_store(struct device *dev,
 
 static void hdmitx20_ext_set_audio_output(bool enable)
 {
-	HDMITX_INFO("%s[%d] enable = %d\n", __func__, __LINE__, enable);
+	HDMITX_INFO("audio: enable = %d\n", enable);
 	hdmitx20_audio_mute_op(enable);
 }
 
@@ -1824,7 +1824,7 @@ static int hdmitx20_ext_get_audio_status(void)
 	val = !!(hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_GET_AUDIO_MUTE_ST, 0));
 	if (val_st != val) {
 		val_st = val;
-		HDMITX_INFO("%s[%d] val = %d\n", __func__, __LINE__, val);
+		HDMITX_INFO("audio: get val = %d\n", val);
 	}
 	return val;
 }

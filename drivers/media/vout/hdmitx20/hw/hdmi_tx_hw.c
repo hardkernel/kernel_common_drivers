@@ -2612,7 +2612,7 @@ static void set_aud_chnls(struct aud_para *audio_param)
 {
 	int i;
 
-	pr_debug(HW "set channel status\n");
+	HDMITX_INFO("audio: set channel status\n");
 	for (i = 0; i < 9; i++)
 		/* First, set all status to 0 */
 		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS0 + i, 0x00);
@@ -2770,7 +2770,7 @@ static bool set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	hdmitx_wr_reg(HDMITX_DWC_AUD_N2,
 		      (aud_n_para >> 8) & 0xff); /* AudN[15:8] */
 	hdmitx_wr_reg(HDMITX_DWC_AUD_N1, aud_n_para & 0xff); /* AudN[7:0] */
-	HDMITX_INFO("update audio N %d", aud_n_para);
+	HDMITX_INFO("audio: update audio N %d", aud_n_para);
 	return true;
 }
 
@@ -2871,7 +2871,7 @@ static void audio_mute_op(bool flag)
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 3, 1);
 	}
-	HDMITX_INFO("audio state %s\n", flag == 0 ? "AUDIO_MUTE" : "AUDIO_UNMUTE");
+	HDMITX_INFO("audio: state %s\n", flag == 0 ? "AUDIO_MUTE" : "AUDIO_UNMUTE");
 	mutex_unlock(&aud_mutex);
 }
 
@@ -2904,7 +2904,7 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw,
 	if (!hdev || !audio_param)
 		return -1;
 
-	pr_debug(HW "set audio\n");
+	HDMITX_INFO("audio: set audio\n");
 	aud_output_i2s_ch = hdev->tx_comm.cur_audio_param.aud_output_i2s_ch;
 	mutex_lock(&aud_mutex);
 	memcpy(&hdmiaud_config_data,

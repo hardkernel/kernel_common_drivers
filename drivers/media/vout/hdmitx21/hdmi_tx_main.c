@@ -705,12 +705,12 @@ void hdmitx21_audio_mute_op(u32 flag, unsigned int path)
 	hdev->tx_comm.cur_audio_param.aud_output_en = !aud_mute_path;
 
 	if (flag == 0) {
-		HDMITX_INFO("%s: AUD_MUTE path=0x%x\n", __func__, path);
+		HDMITX_INFO("audio: AUD_MUTE path=0x%x\n", path);
 		hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	} else {
 		/* unmute only if none of the paths are muted */
 		if (aud_mute_path == 0) {
-			HDMITX_INFO("%s: AUD_UNMUTE path=0x%x\n", __func__, path);
+			HDMITX_INFO("audio: AUD_UNMUTE path=0x%x\n", path);
 			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
 		}
 	}
@@ -2018,7 +2018,7 @@ static ssize_t config_store(struct device *dev,
 static void hdmitx21_ext_set_audio_output(bool enable)
 {
 	hdmitx21_audio_mute_op(enable, AUDIO_MUTE_PATH_1);
-	HDMITX_INFO("%s enable:%d\n", __func__, enable);
+	HDMITX_INFO("audio: enable:%d\n", enable);
 }
 
 static int hdmitx21_ext_get_audio_status(void)

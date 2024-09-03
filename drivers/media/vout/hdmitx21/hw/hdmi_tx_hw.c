@@ -1916,7 +1916,7 @@ static void set_aud_acr_pkt(struct aud_para *audio_param)
 	default:
 		break;
 	}
-	HDMITX_INFO("aud_n_para = %d\n", aud_n_para);
+	HDMITX_INFO("audio: aud_n_para = %d\n", aud_n_para);
 	hdmitx21_wr_reg(ACR_CTRL_IVCTX, 0x02);
 	hdmitx21_wr_reg(N_SVAL1_IVCTX, (aud_n_para >> 0) & 0xff); //N_SVAL1
 	hdmitx21_wr_reg(N_SVAL2_IVCTX, (aud_n_para >> 8) & 0xff); //N_SVAL2
@@ -1941,7 +1941,7 @@ static void audio_mute_op(bool flag)
 		hdmitx21_set_reg_bits(AUDP_TXCTRL_IVCTX, 0, 7, 1);
 		hdmitx21_set_reg_bits(TPI_AUD_CONFIG_IVCTX, 0, 4, 1);
 	}
-	HDMITX_INFO("audio state: %s\n", flag == 0 ? "AUDIO_MUTE" : "AUDIO_UNMUTE");
+	HDMITX_INFO("audio: state %s\n", flag == 0 ? "AUDIO_MUTE" : "AUDIO_UNMUTE");
 	mutex_unlock(&aud_mutex);
 }
 
@@ -1958,14 +1958,14 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw, struct aud_para *a
 		return -1;
 
 	aud_output_i2s_ch = audio_param->aud_output_i2s_ch;
-	HDMITX_INFO("set audio\n");
+	HDMITX_INFO("audio: set audio\n");
 	mutex_lock(&aud_mutex);
 	memcpy(&hdmi21aud_config_data, audio_param, sizeof(struct aud_para));
 	hdmitx21_set_reg_bits(AIP_RST_IVCTX, 1, 0, 1);
 	if (audio_param->type == CT_MAT || audio_param->type == CT_DTS_HD_MA) {
 		hbr_audio = true;
 		if (audio_param->aud_src_if != AUD_SRC_IF_I2S)
-			HDMITX_INFO("warning: hbr with non-i2s\n");
+			HDMITX_INFO("audio: warning: hbr with non-i2s\n");
 	}
 	if (audio_param->type == CT_DOLBY_D)
 		div_n = 4;
@@ -1973,7 +1973,7 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw, struct aud_para *a
 	/* audio asynchronous sample clock, for spdif */
 	hdmitx21_set_audioclk(true);
 
-	HDMITX_INFO("audio_param->chs = %d\n", audio_param->chs);
+	HDMITX_INFO("audio: audio_param->chs = %d\n", audio_param->chs);
 	hdmitx21_set_reg_bits(SPDIF_SSMPL2_IVCTX, 0, 5, 1);
 
 	/*
@@ -1983,7 +1983,7 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw, struct aud_para *a
 	 */
 	hdmitx21_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1 - audio_param->aud_src_if, 13, 1);
 
-	HDMITX_INFO("aud_src_if = %d\n", audio_param->aud_src_if);
+	HDMITX_INFO("audio: aud_src_if = %d\n", audio_param->aud_src_if);
 
 	/*
 	 * config I2S
@@ -3279,13 +3279,15 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmitx_hpd_irq_top_half_process(hdev, !!argv);
 		break;
 	case MISC_AUDIO_PREPARE:
-		//mute aud sample
+		/* mute aud sample */
 		hdmitx21_set_reg_bits(AUDP_TXCTRL_IVCTX, 1, 7, 1);
 		break;
 	case MISC_AUDIO_ACR_CTRL:
-		if (argv == 0)	//disable
+		/* disable */
+		if (argv == 0)
 			hdmitx21_set_reg_bits(ACR_CTRL_IVCTX, 0, 1, 1);
-		if (argv == 1)	//enable
+		/* enable */
+		if (argv == 1)
 			hdmitx21_set_reg_bits(ACR_CTRL_IVCTX, 1, 1, 1);
 		break;
 	case MISC_SUSFLAG:
