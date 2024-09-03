@@ -3033,6 +3033,9 @@ int amvecm_on_vs(struct vframe_s *vf,
 		vf_state = cabc_add_hist_proc(NULL, &vpp_hist_param);
 		pr_amvecm_bringup_dbg("[on_vs] cabc_add done.\n");
 	}
+
+	if (chip_type_id == chip_t3x)
+		amvecm_osd_matrix_process(vd_path, vpp_index);
 #endif
 
 	if (vd_path != VD1_PATH)
@@ -10869,6 +10872,12 @@ static ssize_t amvecm_debug_store(struct class *cla,
 	} else if (!strncmp(parm[0], "vpp_state", 9)) {
 		pr_info("amvecm driver version :  %s\n", AMVECM_VER);
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	} else if (!strncmp(parm[0], "osd_gamut", 9)) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		osd_gamut_conv_type = val;
+		pr_info("osd_gamut_type(0:off,1:bt709,2:dci-p3,3:bt2020): %d\n",
+			osd_gamut_conv_type);
 	} else if (!strncmp(parm[0], "main_path", 9)) {
 		data_path = 0;
 		pr_info("main data_path: %d\n", data_path);

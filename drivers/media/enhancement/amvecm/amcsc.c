@@ -79,6 +79,10 @@ uint gamut_conv_enable;
 module_param(gamut_conv_enable, uint, 0664);
 MODULE_PARM_DESC(gamut_conv_enable, "\n gamut_conv_enable\n");
 
+uint osd_gamut_conv_type;/*0:off, 1:bt709, 2:dci-p3, 3:bt2020*/
+module_param(osd_gamut_conv_type, uint, 0664);
+MODULE_PARM_DESC(osd_gamut_conv_type, "\n osd_gamut_conv_type\n");
+
 static uint pre_gamut_conv_en;
 #endif
 signed int vd1_contrast_offset;
@@ -10066,6 +10070,68 @@ void get_source_csc_info(int vpp_index, int *source_type, int *csc_type)
 
 	*source_type = get_source_type(VD1_PATH, vpp_index);
 	*csc_type = get_csc_type();
+}
+
+static unsigned int pre_osd_gamut_conv_type;
+void amvecm_osd_matrix_process(enum vd_path_e vd_path,
+	enum vpp_index_e vpp_index)
+{
+	enum hdr_process_sel cur_hdr_process;
+	unsigned int tmp_fp, tmp_pp;
+	struct vinfo_s *vinfo;
+	enum hdr_type_e type[VD_PATH_MAX];
+	struct matrix_s m = {
+		{0, 0, 0},
+		{
+			{0x0800, 0x0, 0x0},
+			{0x0, 0x0800, 0x0},
+			{0x0, 0x0, 0x0800},
+		},
+		{0, 0, 0},
+		1,
+	};
+
+	if (vd_path == VD1_PATH &&
+		pre_osd_gamut_conv_type != osd_gamut_conv_type) {
+		pre_osd_gamut_conv_type = osd_gamut_conv_type;
+		tmp_fp = force_primary;
+		tmp_pp = primary_policy;
+		vinfo = get_current_vinfo();
+
+		switch (osd_gamut_conv_type) {
+		case 1:
+			force_primary = 0;
+			type[0] = HDRTYPE_SDR;
+			break;
+		case 2:
+			force_primary = 0;
+			primary_policy = 1;
+			type[0] = HDRTYPE_HDR10;
+			break;
+		case 3:
+			force_primary = 0;
+			type[0] = HDRTYPE_SDR2020;
+			break;
+		case 0:
+		default:
+			force_primary = tmp_fp;
+			primary_policy = tmp_pp;
+			cur_hdr_process = hdr_func(OSD1_HDR, HDR_BYPASS | RGB_OSD,
+				vinfo, NULL, vpp_index);
+			cur_hdr_process = hdr_func(OSD3_HDR, HDR_BYPASS | RGB_OSD,
+				vinfo, NULL, vpp_index);
+			return;
+		}
+
+		gamut_convert_process(vinfo, type, vd_path,
+			&m, 11, DEST_NONE);
+		force_primary = tmp_fp;
+		primary_policy = tmp_pp;
+		cur_hdr_process = hdr_func(OSD1_HDR, HDR_BYPASS | RGB_OSD,
+			vinfo, &m, vpp_index);
+		cur_hdr_process = hdr_func(OSD3_HDR, HDR_BYPASS | RGB_OSD,
+			vinfo, &m, vpp_index);
+	}
 }
 
 #endif

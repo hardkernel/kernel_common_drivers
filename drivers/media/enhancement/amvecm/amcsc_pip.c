@@ -2906,12 +2906,13 @@ void video_post_process(struct vframe_s *vf,
 			hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 		else
 			hdr_proc(vf, VD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-		if ((vd_path == VD1_PATH &&
-		     !is_video_layer_on(VD2_PATH)) ||
-		    (vd_path == VD2_PATH &&
-		     !is_video_layer_on(VD1_PATH)) ||
-		     (vd_path == VD2_PATH &&
-		     is_vpp1(VD2_PATH))) {
+		if (!osd_gamut_conv_type &&
+			((vd_path == VD1_PATH &&
+			!is_video_layer_on(VD2_PATH)) ||
+			(vd_path == VD2_PATH &&
+			!is_video_layer_on(VD1_PATH)) ||
+			(vd_path == VD2_PATH &&
+			is_vpp1(VD2_PATH)))) {
 			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
@@ -2935,10 +2936,11 @@ void video_post_process(struct vframe_s *vf,
 			else if (vd_path == VD3_PATH)
 				hdr_proc(vf, VD3_HDR, HDR_BYPASS, vinfo, NULL,
 					vpp_index);
-			if ((vd_path == VD1_PATH &&
-			     !is_video_layer_on(VD2_PATH)) ||
-			     (vd_path == VD2_PATH &&
-			     !is_video_layer_on(VD1_PATH))) {
+			if (!osd_gamut_conv_type &&
+				((vd_path == VD1_PATH &&
+				!is_video_layer_on(VD2_PATH)) ||
+				(vd_path == VD2_PATH &&
+				!is_video_layer_on(VD1_PATH)))) {
 				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL,
 					 vpp_index);
 				hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL,
@@ -2974,10 +2976,11 @@ void video_post_process(struct vframe_s *vf,
 					gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS,
 					vinfo,
 					gamut_conv_enable ? &m : NULL, vpp_index);
-			if ((vd_path == VD1_PATH &&
-			     !is_video_layer_on(VD2_PATH)) ||
-			     (vd_path == VD2_PATH &&
-			     !is_video_layer_on(VD1_PATH))) {
+			if (!osd_gamut_conv_type &&
+				((vd_path == VD1_PATH &&
+				!is_video_layer_on(VD2_PATH)) ||
+				(vd_path == VD2_PATH &&
+				!is_video_layer_on(VD1_PATH)))) {
 				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL,
 					 vpp_index);
 				hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL,
@@ -3006,9 +3009,14 @@ void video_post_process(struct vframe_s *vf,
 					hdr_proc(vf, VD3_HDR, SDR_HDR, vinfo, &m, vpp_index);
 				if (chip_cls_id == TV_CHIP) {
 					/*for tv chip need sd2hdr function*/
-					hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-					hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-					hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+					if (!osd_gamut_conv_type) {
+						hdr_proc(vf, OSD1_HDR, HDR_BYPASS,
+							vinfo, NULL, vpp_index);
+						hdr_proc(vf, OSD2_HDR, HDR_BYPASS,
+							vinfo, NULL, vpp_index);
+						hdr_proc(vf, OSD3_HDR, HDR_BYPASS,
+							vinfo, NULL, vpp_index);
+					}
 				} else {
 					pr_csc(12, "sbtm: OSD, PROC_SDR_TO_HDR.\n");
 					sbtm_convert_process(SBTM_OSD_PROC,  vinfo, &m, 11);
@@ -3026,9 +3034,14 @@ void video_post_process(struct vframe_s *vf,
 					hdr_proc(vf, VD3_HDR, SDR_HDR, vinfo, NULL, vpp_index);
 				if (chip_cls_id == TV_CHIP) {
 					/*for tv chip need sd2hdr function*/
-					hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-					hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-					hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+					if (!osd_gamut_conv_type) {
+						hdr_proc(vf, OSD1_HDR, HDR_BYPASS,
+							vinfo, NULL, vpp_index);
+						hdr_proc(vf, OSD2_HDR, HDR_BYPASS,
+							vinfo, NULL, vpp_index);
+						hdr_proc(vf, OSD3_HDR, HDR_BYPASS,
+							vinfo, NULL, vpp_index);
+					}
 				} else {
 					hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL, vpp_index);
 					hdr_proc(vf, OSD2_HDR, SDR_HDR, vinfo, NULL, vpp_index);
@@ -3056,10 +3069,11 @@ void video_post_process(struct vframe_s *vf,
 			else if (vd_path == VD3_PATH)
 				hdr_proc(vf, VD3_HDR, SDR_AC_ENH, vinfo, NULL,
 					vpp_index);
-			if ((vd_path == VD1_PATH &&
-			     !is_video_layer_on(VD2_PATH)) ||
-			     (vd_path == VD2_PATH &&
-			     !is_video_layer_on(VD1_PATH))) {
+			if (!osd_gamut_conv_type &&
+				((vd_path == VD1_PATH &&
+				!is_video_layer_on(VD2_PATH)) ||
+				(vd_path == VD2_PATH &&
+				!is_video_layer_on(VD1_PATH)))) {
 				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL,
 					 vpp_index);
 				hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL,

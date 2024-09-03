@@ -320,6 +320,7 @@ uint32_t sink_dv_support(const struct vinfo_s *vinfo);
 uint32_t sink_hdr_support(const struct vinfo_s *vinfo);
 uint32_t sink_hdr_support_ori_cap(const struct vinfo_s *vinfo);
 
+extern uint osd_gamut_conv_type;
 extern uint gamut_conv_enable;
 extern uint hdr_policy;
 
@@ -333,5 +334,7 @@ int get_s5_slice_mode(void);
 void pkt_delay_flag_init(void);
 
 void get_source_csc_info(int vpp_index, int *source_type, int *csc_type);
+void amvecm_osd_matrix_process(enum vd_path_e vd_path,
+	enum vpp_index_e vpp_index);
 #endif /* AM_CSC_H */
 
