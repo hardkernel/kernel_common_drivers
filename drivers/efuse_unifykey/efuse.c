@@ -33,7 +33,7 @@ static struct aml_efuse_lockable_check efusecheck = {
 	.infos = NULL,
 };
 
-static struct efuse_obj_field_t efuse_field;
+struct efuse_obj_field_t efuse_field;
 
 struct aml_efuse_cmd efuse_cmd;
 unsigned int efuse_pattern_size;
@@ -1003,6 +1003,9 @@ static char *efuse_obj_err_parse(uint32_t  efuse_obj_err_status)
 	case EFUSE_OBJ_ERR_WRITE_PROTECTED:
 		err_char = "write protected";
 		break;
+	case EFUSE_OBJ_ERR_TAG:
+		err_char = "invalid encrypted data tag. check device pub key and re-encrypt";
+		break;
 	case EFUSE_OBJ_ERR_INTERNAL:
 	case EFUSE_OBJ_ERR_OTHER_INTERNAL:
 		err_char = "internal error";
@@ -1015,51 +1018,16 @@ static char *efuse_obj_err_parse(uint32_t  efuse_obj_err_status)
 	return err_char;
 }
 
-static int char2hex(char *hex, void *bin, size_t binlen)
-{
-	int i, c, n1, n2, hexlen, k;
-
-	hexlen = strnlen(hex, 64);
-	k = 0;
-	n1 = -1;
-	n2 = -1;
-	for (i = 0; i < hexlen; i++) {
-		n2 = n1;
-		c = hex[i];
-		if (c >= '0' && c <= '9') {
-			n1 = c - '0';
-		} else if (c >= 'a' && c <= 'f') {
-			n1 = c - 'a' + 10;
-		} else if (c >= 'A' && c <= 'F') {
-			n1 = c - 'A' + 10;
-		} else if (c == ' ') {
-			n1 = -1;
-			continue;
-		} else {
-			return -1;
-		}
-		if (n1 >= 0 && n2 >= 0) {
-			((u8 *)bin)[k] = (n2 << 4) | n1;
-			n1 = -1;
-			k++;
-		}
-	}
-
-	return k;
-}
+static DEFINE_MUTEX(efuse_obj_mutex);
 
 static ssize_t efuse_obj_store(struct class *cla,
 	struct class_attribute *attr, const char *buf, size_t count)
 {
 	int rc = -EINVAL;
-	char argv[3][48];
+	char argv[3][130];
 	char argc;
-	u8 buff[32];
-	u32 bufflen = sizeof(buff);
 	char *name = NULL;
 	char *data = NULL;
-	int dlen = 0;
-	u8 databuf[32] = {0};
 
 	argc = sscanf(buf, "%s %s %s", argv[0], argv[1], argv[2]);
 	if (argc < 2) {
@@ -1067,24 +1035,21 @@ static ssize_t efuse_obj_store(struct class *cla,
 		return  -EINVAL;
 	}
 
-	memset(&buff[0], 0, sizeof(buff));
+	mutex_lock(&efuse_obj_mutex);
+
 	memset(&efuse_field, 0, sizeof(efuse_field));
 
 	if (strcmp(argv[0], "get") == 0) {
 		// $0 get field
 		if (argc == 2) {
 			name = argv[1];
-			rc = efuse_obj_read(EFUSE_OBJ_EFUSE_DATA, name, buff, &bufflen);
+			rc = efuse_obj_get_data(name);
 			if (rc == EFUSE_OBJ_SUCCESS) {
-				memset(&efuse_field, 0, sizeof(efuse_field));
-				strncpy(efuse_field.name, name, sizeof(efuse_field.name) - 1);
-				memcpy(efuse_field.data, buff, bufflen);
-				efuse_field.size = bufflen;
 				rc = count;
 			} else {
 				pr_err("Error get efuse object: %s: %d\n",
 					efuse_obj_err_parse(rc), rc);
-				rc = -EINVAL;
+				rc = -rc;
 			}
 		} else {
 			pr_err("Error: too many arguments %d\n", argc);
@@ -1095,19 +1060,32 @@ static ssize_t efuse_obj_store(struct class *cla,
 		if (argc == 3) {
 			name = argv[1];
 			data = argv[2];
-			dlen = strnlen(data, 64);
-			dlen = char2hex(data, databuf, dlen);
-			if (dlen < 0) {
-				pr_err("parse data hex2bin error\n");
-				return -EINVAL;
-			}
-			rc = efuse_obj_write(EFUSE_OBJ_EFUSE_DATA, name, databuf, dlen);
+
+			rc = efuse_obj_set_data(name, data);
 			if (rc == EFUSE_OBJ_SUCCESS) {
 				rc = count;
 			} else {
 				pr_err("Error set efuse object: %s: %d\n",
 					efuse_obj_err_parse(rc), rc);
-				rc = -EINVAL;
+				rc = -rc;
+			}
+		} else {
+			pr_err("Error: too few arguments %d\n", argc);
+			rc = -EINVAL;
+		}
+	} else if (strcmp(argv[0], "set_enc") == 0) {
+		// $0 set field data
+		if (argc == 3) {
+			name = argv[1];
+			data = argv[2];
+
+			rc = efuse_obj_set_enc_data(name, data);
+			if (rc == EFUSE_OBJ_SUCCESS) {
+				rc = count;
+			} else {
+				pr_err("Error set_enc efuse object: %s: %d\n",
+					efuse_obj_err_parse(rc), rc);
+				rc = -rc;
 			}
 		} else {
 			pr_err("Error: too few arguments %d\n", argc);
@@ -1117,13 +1095,14 @@ static ssize_t efuse_obj_store(struct class *cla,
 		// $0 lock field
 		if (argc == 2) {
 			name = argv[1];
-			rc = efuse_obj_write(EFUSE_OBJ_LOCK_STATUS, name, buff, bufflen);
+
+			rc = efuse_obj_lock(name);
 			if (rc == EFUSE_OBJ_SUCCESS) {
 				rc = count;
 			} else {
 				pr_err("Error lock efuse object: %s: %d\n",
 					efuse_obj_err_parse(rc), rc);
-				rc = -EINVAL;
+				rc = -rc;
 			}
 		} else {
 			pr_err("Error: too many arguments %d\n", argc);
@@ -1133,17 +1112,14 @@ static ssize_t efuse_obj_store(struct class *cla,
 		// $0 get_lock field
 		if (argc == 2) {
 			name = argv[1];
-			rc = efuse_obj_read(EFUSE_OBJ_LOCK_STATUS, name, buff, &bufflen);
+
+			rc = efuse_obj_get_lock(name);
 			if (rc == EFUSE_OBJ_SUCCESS) {
-				memset(&efuse_field, 0, sizeof(efuse_field));
-				strncpy(efuse_field.name, name, sizeof(efuse_field.name) - 1);
-				memcpy(efuse_field.data, buff, bufflen);
-				efuse_field.size = bufflen;
 				rc = count;
 			} else {
 				pr_err("Error get_lock efuse object: %s: %d\n",
 					efuse_obj_err_parse(rc), rc);
-				rc = -EINVAL;
+				rc = -rc;
 			}
 		} else {
 			pr_err("Error: too many arguments %d\n", argc);
@@ -1154,6 +1130,8 @@ static ssize_t efuse_obj_store(struct class *cla,
 		rc = -EINVAL;
 	}
 
+	mutex_unlock(&efuse_obj_mutex);
+
 	return rc;
 }
 
@@ -1163,11 +1141,14 @@ static ssize_t efuse_obj_show(struct class *class,
 	ssize_t len = 0;
 	int i;
 
+	mutex_lock(&efuse_obj_mutex);
 	for (i = 0; i < efuse_field.size; i++)
 		len += sprintf(buf + len, "%02x%s", efuse_field.data[i],
 			((i % 16 == 15) || (i == efuse_field.size - 1) ? "\n" : " "));
 
 	memset(&efuse_field, 0, sizeof(efuse_field));
+
+	mutex_unlock(&efuse_obj_mutex);
 
 	return len;
 }
