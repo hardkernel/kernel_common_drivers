@@ -1,4 +1,4 @@
-From 051c086439db9f38120dbbbe66bb59e8cd10ec22 Mon Sep 17 00:00:00 2001
+From 2cfb5f9b6b8dd23d65073f962638df341716197f Mon Sep 17 00:00:00 2001
 From: "song.han" <song.han@amlogic.com>
 Date: Wed, 23 Feb 2022 14:20:28 +0800
 Subject: [PATCH] boottime: reduce boot time [1/1]
@@ -8,11 +8,9 @@ PD#SWPL-71744
 Problem:
 1.Jitter rng is doing 1024 rounds of tests and causing
 long initialization time.
-2.regulator driver init time too long.
 
 Solution:
 1.change jent_mod_int to delaywork to reduce boot time.
-2.fixed regulator driver use ASYNCHRONOUS probe mode.
 
 Verify:
 c2_af400
@@ -21,8 +19,7 @@ Signed-off-by: song.han <song.han@amlogic.com>
 Change-Id: I90e67854b213dd673077c72bb4830264d17f1f88
 ---
  crypto/jitterentropy-kcapi.c | 27 +++++++++++++++++++++++++++
- drivers/regulator/fixed.c    |  3 +++
- 2 files changed, 30 insertions(+)
+ 1 file changed, 27 insertions(+)
 
 diff --git a/crypto/jitterentropy-kcapi.c b/crypto/jitterentropy-kcapi.c
 index e8a4165a1874..1dcd05ea62cc 100644
@@ -69,22 +66,8 @@ index e8a4165a1874..1dcd05ea62cc 100644
  
  static void __exit jent_mod_exit(void)
  {
-diff --git a/drivers/regulator/fixed.c b/drivers/regulator/fixed.c
-index fb163458337f..e009b61422f8 100644
---- a/drivers/regulator/fixed.c
-+++ b/drivers/regulator/fixed.c
-@@ -338,6 +338,9 @@ static struct platform_driver regulator_fixed_voltage_driver = {
- 	.driver		= {
- 		.name		= "reg-fixed-voltage",
- 		.of_match_table = of_match_ptr(fixed_of_match),
-+#if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
-+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-+#endif
- 	},
- };
- 
 -- 
-2.25.1
+2.46.0
 From d6753b600d00ca82eacda354e98308db9eb96c72 Mon Sep 17 00:00:00 2001
 From: yao zhang1 <yao.zhang1@amlogic.com>
 Date: Mon, 21 Jun 2021 15:11:41 +0800
