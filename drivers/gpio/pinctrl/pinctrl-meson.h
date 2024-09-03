@@ -170,6 +170,7 @@ struct meson_pinctrl {
 #ifdef CONFIG_AMLOGIC_MODIFY
 	struct regmap *reg_vthx;
 	struct device_node *of_irq;
+	struct list_head node;
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct meson_pmx_expand_reg *mux_expand_reg;
 	unsigned int mux_expand_num;
