@@ -311,10 +311,9 @@
 				interrupts = <GIC_SPI 26 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 				clocks = <&xtal>;
+				xtal_tick_en = <1>;
 				clock-names = "clk_uart";
 				fifosize = < 64 >;
-				//pinctrl-names = "default";
-				//pinctrl-0 = <&b_uart_pins1>;
 				support-sysrq = <1>;
 			};
 
@@ -1394,14 +1393,12 @@
 	a_uart_pins:a_uart {
 		mux {
 			groups = "uart_a_tx",
-				"uart_a_rx";
+				 "uart_a_cts",
+				 "uart_a_rts",
+				 "uart_a_rx";
 			function = "uart_a";
-		};
-	mux1 {
-		groups = "uart_a_cts",
-		       "uart_a_rts";
-		function = "uart_a";
-		bias-pull-down;
+			bias-pull-up;
+			drive-strength = <3>;
 		};
 	};
 
@@ -1410,6 +1407,8 @@
 			groups = "uart_b_tx_f",
 				"uart_b_rx_f";
 			function = "uart_b";
+			bias-pull-up;
+			drive-strength = <3>;
 		};
 	};
 
@@ -1418,6 +1417,8 @@
 			groups = "uart_b_tx_x",
 				"uart_b_rx_x";
 			function = "uart_b";
+			bias-pull-up;
+			drive-strength = <3>;
 		};
 	};
 
@@ -1428,6 +1429,8 @@
 				"uart_c_cts",
 				"uart_c_rts";
 			function = "uart_c";
+			bias-pull-up;
+			drive-strength = <3>;
 		};
 	};
 
@@ -1436,6 +1439,8 @@
 			groups = "uart_c_rx_x16",
 				"uart_c_tx_x15";
 			function = "uart_c";
+			bias-pull-up;
+			drive-strength = <3>;
 		};
 	};
 
