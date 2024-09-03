@@ -922,12 +922,9 @@
 		compatible = "amlogic,tlc59116_led";
 		reg = <0x60>;
 		status = "okay";
-<<<<<<< HEAD:arch/arm64/boot/dts/amlogic/sc2_s905x4_ah212_debian.dts
-=======
 		vcc5v-supply = <&vcc5v_reg>;
 		reset_pin-gpios = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
 	};
->>>>>>> 7e53e9c214 (Audio: add the suspend/resume function for sy602x [1/1]):arch/arm64/boot/dts/amlogic/s7d_s905x5m_bm201_linux.dts
 
 		led0 {
 			default_colors = <0 0 0>;
@@ -1613,13 +1610,31 @@
 	status = "okay";
 };
 
+/*exphy setting*/
+&ext_mdio {
+	status = "okay";
+};
 &ethmac {
 	pinctrl-0 = <&eth_led_pins>;
 	pinctrl-names = "default";
 	status = "okay";
-	phy-handle = <&internal_ephy>;
-	phy-mode = "rmii";
+	phy-mode = "rgmii";
+	phy-handle = <&external_phy>;
+	amlogic,tx-delay-ns = <2>;
+	internal_phy = <2>;
+	cali_val = <0x290000>;
 };
+
+/*inphy setting*/
+//&int_mdio {
+//	status = "okay";
+//};
+//&ethmac {
+//	status = "okay";
+//	phy-handle = <&internal_ephy>;
+//	phy-mode = "rmii";
+//	internal_phy = <1>;
+//};
 
 &ir {
 	status = "okay";
