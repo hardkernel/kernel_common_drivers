@@ -58,8 +58,12 @@
 
 #include <pinctrl/core.h>
 #include <pinctrl/pinctrl-utils.h>
+#include <regmap/internal.h>
+#include <linux/kprobes.h>
+#include <linux/highmem.h>
 #include <linux/amlogic/gpiolib.h>
 #include "pinctrl-meson.h"
+#include "pinctrl-meson-axg-pmx.h"
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 #define PIN_CONFIG_VIN_THRESHOLD	(PIN_CONFIG_END + 1)
@@ -992,7 +996,114 @@ int meson_a1_parse_dt_extra(struct meson_pinctrl *pc)
 EXPORT_SYMBOL(meson_a1_parse_dt_extra);
 
 #ifdef CONFIG_AMLOGIC_GPIO_DEBUG
-#ifdef CONFIG_DEBUG_FS
+
+static LIST_HEAD(pc_list);
+static DEFINE_MUTEX(list_lock);
+
+struct regmap_mmio_context {
+	void __iomem *regs;
+	unsigned int val_bytes;
+
+	bool attached_clk;
+	struct clk *clk;
+
+	void (*reg_write)(struct regmap_mmio_context *ctx,
+			  unsigned int reg, unsigned int val);
+	unsigned int (*reg_read)(struct regmap_mmio_context *ctx,
+				unsigned int reg);
+};
+
+static int meson_axg_pmx_get_bank(struct meson_pinctrl *pc, unsigned int pin,
+				  struct meson_pmx_bank **bank)
+{
+	int i;
+	struct meson_axg_pmx_data *pmx = pc->data->pmx_data;
+
+	for (i = 0; i < pmx->num_pmx_banks; i++)
+		if (pin >= pmx->pmx_banks[i].first &&
+				pin <= pmx->pmx_banks[i].last) {
+			*bank = &pmx->pmx_banks[i];
+			return 0;
+		}
+
+	return -EINVAL;
+}
+
+static int meson_pmx_calc_reg_and_offset(struct meson_pmx_bank *bank,
+					 unsigned int pin, unsigned int *reg,
+					 unsigned int *offset)
+{
+	int shift;
+
+	shift = pin - bank->first;
+
+	*reg = bank->reg + (bank->offset + (shift << 2)) / 32;
+	*offset = (bank->offset + (shift << 2)) % 32;
+
+	return 0;
+}
+
+static __nocfi u32 vaddr_to_paddr(unsigned long vaddr)
+{
+	pgd_t *pgd;
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	unsigned long  paddr = 0;
+	struct mm_struct *local_init_mm = NULL;
+	unsigned long (*aml_syms_lookup)(const char *name);
+
+	struct kprobe kp_lookup_name = {
+		.symbol_name    = "kallsyms_lookup_name",
+	};
+
+	if (register_kprobe(&kp_lookup_name) < 0) {
+		pr_err("register_kprobe failed\n");
+		goto failed;
+	}
+
+	aml_syms_lookup = (unsigned long (*)(const char *name))kp_lookup_name.addr;
+	local_init_mm = (struct mm_struct *)aml_syms_lookup("init_mm");
+	unregister_kprobe(&kp_lookup_name);
+
+	if (IS_ERR_OR_NULL(local_init_mm))
+		goto failed;
+
+	/* table walking */
+	pgd = pgd_offset(local_init_mm, vaddr);
+	if (pgd_none(*pgd) || pgd_bad(*pgd))
+		goto failed;
+
+	p4d = p4d_offset(pgd, vaddr);
+	if (p4d_none(*p4d) || p4d_bad(*p4d))
+		goto failed;
+
+	pud = pud_offset(p4d, vaddr);
+	if (pud_none(*pud) || pud_bad(*pud))
+		goto failed;
+
+	pmd = pmd_offset(pud, vaddr);
+	if (pmd_none(*pmd) || pmd_bad(*pmd))
+		goto failed;
+
+	pte = pte_offset_map(pmd, vaddr);
+	if (pte_none(*pte))
+		goto failed;
+
+#ifdef CONFIG_ARM64
+	paddr = (vaddr & (PAGE_SIZE - 1)) | __pte_to_phys(*pte);
+#else
+	paddr = (vaddr & (PAGE_SIZE - 1)) | (pte_pfn(*pte) << PAGE_SHIFT);
+#endif
+	pte_unmap(pte);
+failed:
+	if (!paddr)
+		pr_err("find register failed\n");
+
+	return paddr;
+}
+
 static int get_pin_from_name(struct pinctrl_dev *pctldev, const char *name)
 {
 	unsigned int i, pin;
@@ -1010,200 +1121,243 @@ static int get_pin_from_name(struct pinctrl_dev *pctldev, const char *name)
 	return -EINVAL;
 }
 
-/* GPIO_TEST_N output_high */
-#define MAX_STRING_LEN	25
-static int handle_buf_param(const char __user *user_buf, size_t len,
-			    int *pin, char *value, struct meson_pinctrl *pc)
+static void *kalloc_wrap(const char *buf, size_t len)
 {
-	char *buf, *strip_buf;
-	const char *pin_name = NULL;
-	int i, ret = 0;
+	char *tbuf;
 
-	if (len > MAX_STRING_LEN)
-		return -ENOMEM;
+	tbuf = kzalloc(len, GFP_KERNEL);
+	if (!tbuf)
+		return ERR_PTR(-ENOMEM);
 
-	buf = kzalloc(len, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	strncpy(tbuf, buf, len);
 
-	ret = strncpy_from_user(buf, user_buf, len);
-	if (ret < 0)
-		goto free_buf;
+	tbuf[len - 1] = '\0';
 
-	buf[len - 1] = '\0';
-
-	/* strip leading and tailing space */
-	strip_buf = strstrip(buf);
-	if (*strip_buf == '\0') {
-		ret = -ENOMEM;
-		goto free_buf;
-	}
-
-	/* search first space between two value */
-	for (i = 0; (i < strlen(strip_buf)) && !isspace(*(strip_buf + i)); i++) {
-		if (*strip_buf == '\0') {
-			ret = -EINVAL;
-			goto free_buf;
-		}
-	}
-
-	/* change string to uppercase */
-	string_upper(strip_buf, strip_buf);
-
-	pin_name = kstrndup(strip_buf, i, GFP_KERNEL);
-	if (!pin_name) {
-		ret = -EINVAL;
-		goto free_buf;
-	}
-
-	/* search pin number by name*/
-	*pin = get_pin_from_name(pc->pcdev, pin_name);
-	if (*pin < 0) {
-		ret = -EINVAL;
-		goto free_pin;
-	}
-
-	/* get 2nd param */
-	if (i >= strlen(strip_buf)) {
-		ret = -EINVAL;
-		goto free_pin;
-	}
-
-	strip_buf = skip_spaces(strip_buf + i + 1);
-	value = strncpy(value, strip_buf, len - i);
-	ret = 0;
-
-free_pin:
-	kfree(pin_name);
-free_buf:
-	kfree(buf);
-	if (ret)
-		pr_err("input param wrong %d\n", ret);
-	return ret;
+	return tbuf;
 }
 
-static ssize_t drive_strength_write(struct file *file, const char __user *user_buf,
-				    size_t len, loff_t *ppos)
+static int split_param_and_find_pin(char *buf, char **gname, char **fname,
+				    struct meson_pinctrl **pc, int *pin)
 {
-	int pin, ds, ret = 0;
-	char *value = NULL;
-	struct seq_file *sfile = file->private_data;
-	struct meson_pinctrl *pc = sfile->private;
+	char *temp;
 
-	value = kzalloc(len, GFP_KERNEL);
+	*gname = strstrip(buf);
+	if (**gname == '\0')
+		return -EINVAL;
 
-	ret = handle_buf_param(user_buf, len, &pin, value, pc);
-	if (ret)
-		goto error;
+	for (*fname = *gname; !isspace(**fname); (*fname)++) {
+		if (**fname == '\0')
+			return  -EINVAL;
+	}
 
-	ret = kstrtouint(value, 0, &ds);
-	if (ret < 0)
-		goto error;
+	/* first param + '\0' */
+	**fname = '\0';
 
-	ret = meson_pinconf_set_drive_strength(pc, pin, ds);
-error:
-	if (ret)
-		pr_info("Usage: echo gpiox_y 500/2500/3000/4000 > drive_strength\n");
+	/* skip third and more param */
+	for (temp = *fname + 1; !isspace(*temp); temp++) {
+		if (*temp == '\0')
+			break;
+	}
 
-	kfree(value);
-	return len;
+	/* second param + '\0' */
+	*temp = '\0';
+
+	*fname = skip_spaces(*fname + 1);
+	if (**fname == '\0')
+		return -EINVAL;
+
+	string_upper(*gname, *gname);
+
+	/* search pcdev and match pin */
+	list_for_each_entry((*pc), &pc_list, node) {
+		*pin = get_pin_from_name((*pc)->pcdev, *gname);
+		if (*pin != -EINVAL)
+			break;
+	}
+
+	if (*pin == -EINVAL)
+		return *pin;
+	return 0;
 }
 
-static ssize_t bias_write(struct file *file, const char __user *user_buf,
-			  size_t len, loff_t *ppos)
+static inline int debug_set_bias(struct meson_pinctrl *pc, int pin, char *func)
 {
-	int pin, ret = 0;
-	char *value = NULL;
-	struct seq_file *sfile = file->private_data;
-	struct meson_pinctrl *pc = sfile->private;
 
-	value = kzalloc(len, GFP_KERNEL);
-
-	ret = handle_buf_param(user_buf, len, &pin, value, pc);
-	if (ret)
-		goto error;
-
-	string_lower(value, value);
-
-	if (!strcmp(value, "bias-disable"))
+	if (!strcmp(func, "bias-disable"))
 		meson_pinconf_disable_bias(pc, pin);
 
-	else if (!strcmp(value, "bias-up"))
+	else if (!strcmp(func, "bias-up"))
 		meson_pinconf_enable_bias(pc, pin, true);
 
-	else if (!strcmp(value, "bias-down"))
+	else if (!strcmp(func, "bias-down"))
 		meson_pinconf_enable_bias(pc, pin, false);
 	else
-		ret = -EINVAL;
-error:
-	if (ret)
-		pr_info("Usage: echo gpiox_y bias-disable/up/down > bias\n");
+		return -EINVAL;
 
-	kfree(value);
-
-	return len;
+	return 0;
 }
 
-static ssize_t gpio_write(struct file *file, const char __user *user_buf,
-			  size_t len, loff_t *ppos)
+static inline int debug_set_gpio(struct meson_pinctrl *pc, int pin, char *func)
 {
-	int pin, ret = 0;
-	char *value = NULL;
-	struct seq_file *sfile = file->private_data;
-	struct meson_pinctrl *pc = sfile->private;
+	if (!strcmp(func, "input")) {
+		meson_pinconf_set_output(pc, pin, false);
+	} else if (!strcmp(func, "output-high")) {
+		meson_pinconf_set_drive(pc, pin, true);
+		meson_pinconf_set_output(pc, pin, true);
 
-	value = kzalloc(len, GFP_KERNEL);
+	} else if (!strcmp(func, "output-low")) {
+		meson_pinconf_set_drive(pc, pin, false);
+		meson_pinconf_set_output(pc, pin, true);
+	} else {
+		return -EINVAL;
+	}
 
-	ret = handle_buf_param(user_buf, len, &pin, value, pc);
-	if (ret)
-		goto error;
-
-	string_lower(value, value);
-
+	/* clear pinmux */
 	pc->data->pmx_ops->gpio_request_enable(pc->pcdev, NULL, pin);
 
-	if (!strcmp(value, "input")) {
-		meson_pinconf_set_output(pc, pin, false);
+	return 0;
+}
 
-	} else if (!strcmp(value, "output-high")) {
-		meson_pinconf_set_output(pc, pin, true);
-		meson_pinconf_set_drive(pc, pin, true);
-	}
+static ssize_t debug_store(struct class *class,
+			  struct class_attribute *attr,
+			  const char *buf, size_t len)
+{
+	struct meson_pinctrl *pc = NULL;
+	char *gname = NULL;
+	char *tbuf = NULL;
+	char *func = NULL;
+	int ret = 0;
+	int pin = 0;
+	int ds = 0;
 
-	else if (!strcmp(value, "output-low")) {
-		meson_pinconf_set_output(pc, pin, true);
-		meson_pinconf_set_drive(pc, pin, false);
-	} else {
-		ret = -EINVAL;
-	}
-error:
+	tbuf = kalloc_wrap(buf, len);
+	if (IS_ERR(tbuf))
+		return -ENOMEM;
+
+	ret = split_param_and_find_pin(tbuf, &gname, &func, &pc, &pin);
 	if (ret)
-		pr_info("Usage: echo gpiox_y input/output-high/output-low > gpio\n");
+		goto exit_free_buf;
 
-	kfree(value);
+	ret = kstrtouint(func, 0, &ds);
+	if (!ret) {
+		ret = meson_pinconf_set_drive_strength(pc, pin, ds);
+		goto exit_free_buf;
+	}
+
+	if (!strncmp(func, "bias", 4)) {
+		ret = debug_set_bias(pc, pin, func);
+		goto exit_free_buf;
+	}
+
+	ret = debug_set_gpio(pc, pin, func);
+
+exit_free_buf:
+
+	kfree(tbuf);
+	return ret ? ret : len;
+}
+
+static ssize_t show_reg_store(struct class *class,
+			  struct class_attribute *attr,
+			  const char *buf, size_t len)
+{
+	char *tbuf;
+	int pin = 0;
+	unsigned int reg_ofs;
+	unsigned int bit;
+	unsigned int i;
+	unsigned int paddr;
+	void __iomem *reg;
+	struct meson_bank *bank;
+	struct meson_pmx_bank *mux_bank;
+	struct meson_pinctrl *pc = NULL;
+	struct regmap_mmio_context *ctx;
+	struct regmap_mmio_context *mux_ctx;
+	/* need to keep enum order */
+	const char *reg_list[NUM_REG] = {"pull_en", "pull", "dir", "out",
+					 "in", "ds", "vthx" };
+
+	tbuf = kalloc_wrap(buf, len);
+	if (IS_ERR(tbuf))
+		return -ENOMEM;
+
+	tbuf = strstrip(tbuf);
+
+	string_upper(tbuf, tbuf);
+
+	/* search pcdev and match pin */
+	list_for_each_entry(pc, &pc_list, node) {
+		pin = get_pin_from_name(pc->pcdev, tbuf);
+		if (pin != -EINVAL)
+			break;
+	}
+
+	if (pin == -EINVAL)
+		goto exit_free_buf;
+
+	mux_ctx = pc->reg_mux->bus_context;
+	if (meson_get_bank(pc, pin, &bank))
+		goto exit_free_buf;
+
+	if (meson_axg_pmx_get_bank(pc, pin, &mux_bank))
+		goto exit_free_buf;
+
+	ctx = pc->reg_gpio->bus_context;
+
+	meson_pmx_calc_reg_and_offset(mux_bank, pin, &reg_ofs, &bit);
+	reg = mux_ctx->regs + (reg_ofs << 2);
+	paddr = vaddr_to_paddr((unsigned long)reg);
+	if (!paddr)
+		goto exit_free_buf;
+
+	pr_info("Dump %s relative registers below:\n", tbuf);
+	pr_info("pinmux  reg: 0x%x, bit: %d-%d curbit val: 0x%lx\n", paddr, bit,
+		bit + 3, (readl(reg) & GENMASK(bit + 3, bit)) >> bit);
+
+	for (i = REG_PULLEN; i < NUM_REG; i++) {
+		if (!strcmp(reg_list[i], "ds") && !pc->reg_ds)
+			continue;
+
+		if (!strcmp(reg_list[i], "vthx") && !pc->reg_vthx)
+			continue;
+
+		meson_calc_reg_and_bit(bank, pin, i, &reg_ofs, &bit);
+		reg = ctx->regs + reg_ofs;
+		paddr = vaddr_to_paddr((unsigned long)reg);
+		if (!paddr)
+			break;
+
+		if (!strcmp(reg_list[i], "ds"))
+			pr_info("%-7s reg: 0x%x, bit: %d-%-2d curbit val: 0x%lx\n",
+			reg_list[i], paddr, bit, bit + 1,
+			(readl(reg) & GENMASK(bit + 1, bit)) >> bit);
+		else
+			pr_info("%-7s reg: 0x%x, bit: %-5d curbit val: 0x%x\n",
+			reg_list[i], paddr, bit, !!(readl(reg) & BIT(bit)));
+	}
+
+exit_free_buf:
+	kfree(tbuf);
 	return len;
 }
 
-#define DFF_FILE_OPS(p)							\
-static int p##_open(struct inode *inode, struct file *file)		\
-{									\
-	return single_open(file, NULL, inode->i_private);		\
-}									\
-									\
-static const struct file_operations p##_fops = {			\
-	.owner = THIS_MODULE,						\
-	.open = p##_open,						\
-	.write = p##_write,						\
-	.llseek = no_llseek,						\
-	.release = single_release,					\
-}
+static CLASS_ATTR_WO(debug);
+static CLASS_ATTR_WO(show_reg);
 
-DFF_FILE_OPS(gpio);
-DFF_FILE_OPS(bias);
-DFF_FILE_OPS(drive_strength);
+static struct attribute *pinctrl_class_attrs[] = {
+	&class_attr_debug.attr,
+	&class_attr_show_reg.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(pinctrl_class);
 
-#endif //end of CONFIG_DEBUG_FS
-#endif //end of CONFIG_AMLOGIC_GPIO_DEBUG
+static struct class pinctrl_class = {
+	.name =		"pinctrl",
+	.owner =	THIS_MODULE,
+	.class_groups = pinctrl_class_groups,
+};
+
+#endif
 
 int meson_pinctrl_probe(struct platform_device *pdev)
 {
@@ -1251,12 +1405,12 @@ int meson_pinctrl_probe(struct platform_device *pdev)
 		return PTR_ERR(pc->pcdev);
 	}
 #ifdef CONFIG_AMLOGIC_GPIO_DEBUG
-#ifdef CONFIG_DEBUG_FS
-	debugfs_create_file("drive-strength", 0444, pc->pcdev->device_root, pc,
-			    &drive_strength_fops);
-	debugfs_create_file("bias", 0444, pc->pcdev->device_root, pc, &bias_fops);
-	debugfs_create_file("gpio", 0444, pc->pcdev->device_root, pc, &gpio_fops);
-#endif
+	mutex_lock(&list_lock);
+	if (!pinctrl_class.p)
+		class_register(&pinctrl_class);
+	list_add_tail(&pc->node, &pc_list);
+	mutex_unlock(&list_lock);
+
 #endif
 	return meson_gpiolib_register(pc);
 }
