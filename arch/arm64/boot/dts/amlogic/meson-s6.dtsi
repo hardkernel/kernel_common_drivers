@@ -702,17 +702,18 @@
 				mdio-parent-bus = <&mdio0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-			//	phy_pll_mode = <3>;
+				phy_pll_mode = <3>;
 				phy_mode = <6>;
 				tx_amp_src = <0xFE010330>;
 				led_setting = <0x42>;
 
 				ext_mdio: mdio@0 {
+					status = "disable";
 					reg = <0>;
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "snps,dwmac-mdio";
-					external_phy: ethernet-phy@0 {
+					external_phy: ethernet_phy@0 {
 						reg = <0>;
 						max-speed = <1000>;
 
@@ -725,19 +726,20 @@
 					};
 				};
 
-//				int_mdio: mdio@1 {
-//					reg = <1>;
-//					#address-cells = <1>;
-//					#size-cells = <0>;
+				int_mdio: mdio@1 {
+					status = "disable";
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
 
-//					internal_ephy: ethernet_phy@8 {
-//						compatible = "ethernet-phy-id0180.3301",
-//							     "ethernet-phy-ieee802.3-c22";
-//						interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
-//						reg = <8>;
-//						max-speed = <100>;
-//					};
-//				};
+					internal_ephy: ethernet_phy@8 {
+						compatible = "ethernet-phy-id0180.3301",
+							     "ethernet-phy-ieee802.3-c22";
+						interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+						reg = <8>;
+						max-speed = <100>;
+					};
+				};
 			};
 
 			reset: reset-controller@2000 {
@@ -1074,8 +1076,6 @@
 			tx-fifo-depth = <2048>;
 			mboxes = <&mbox_fifo S6_REE2AO_ETH>;
 			status = "disabled";
-			internal_phy = <2>;
-			cali_val = <0x290000>;
 			mdio0: mdio {
 				#address-cells = <1>;
 				#size-cells = <0>;

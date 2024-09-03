@@ -1419,6 +1419,9 @@
 };
 
 /*exphy setting*/
+&ext_mdio {
+	status = "okay";
+};
 &ethmac {
 	pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
 	pinctrl-names = "default";
@@ -1426,14 +1429,19 @@
 	phy-mode = "rgmii";
 	phy-handle = <&external_phy>;
 	amlogic,tx-delay-ns = <2>;
+	internal_phy = <2>;
+	cali_val = <0x290000>;
 };
 
 /*inphy setting*/
+//&int_mdio {
+//	status = "okay";
+//};
 //&ethmac {
 //	status = "okay";
 //	phy-handle = <&internal_ephy>;
 //	phy-mode = "rmii";
-//      internal_phy = <1>;
+//	internal_phy = <1>;
 //};
 
 &ir {
