@@ -1248,6 +1248,7 @@ static struct device_attribute lcd_tcon_debug_attrs[] = {
 	__ATTR(reg,       0644, lcd_tcon_reg_debug_show, lcd_tcon_reg_debug_store),
 	__ATTR(tcon_fw,   0644, lcd_tcon_fw_dbg_show, lcd_tcon_fw_dbg_store),
 	__ATTR(tcon_pdf,  0644, lcd_tcon_pdf_dbg_show, lcd_tcon_pdf_dbg_store),
+	__ATTR(tcon_rdma, 0644, lcd_tcon_rdma_dbg_show, lcd_tcon_rdma_dbg_store),
 	__ATTR(tcon_info, 0444, lcd_tcon_info_dbg_show, NULL),
 };
 

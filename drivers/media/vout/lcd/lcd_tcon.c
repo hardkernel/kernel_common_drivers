@@ -46,6 +46,7 @@
 #include "lcd_tcon.h"
 #include "lcd_tcon_pdf.h"
 #include "lcd_tcon_swpdf.h"
+#include "lcd_tcon_rdma.h"
 #include <linux/amlogic/media/vout/lcd/lcd_resman.h>
 
 enum {
@@ -1558,6 +1559,8 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 	else if (pdrv->config.customer_sw_pdf)
 		lcd_swpdf_vs_handle();
 
+	lcd_tcon_rdma_vs_handler(pdrv);
+
 	if (tcon_fw->vsync_isr)
 		tcon_fw->vsync_isr(tcon_fw);
 
@@ -3018,6 +3021,8 @@ static int lcd_tcon_get_config(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_pdf_init(pdrv);
 	//lcd_swpdf_init(pdrv);
 
+	lcd_tcon_rdma_init(pdrv);
+
 	lcd_tcon_reserved_mem_data_load(pdrv);
 	pdrv->tcon_status = tcon_mm_table.lut_valid_flag;
 	tcon_mm_table.multi_lut_update = 1;
@@ -3628,6 +3633,8 @@ int lcd_tcon_remove(struct aml_lcd_drv_s *pdrv)
 	struct lcd_tcon_data_block_header_s *block_header;
 
 	lcd_tcon_debug_file_remove(&tcon_local_cfg);
+	lcd_tcon_rdma_remove(pdrv);
+	lcd_tcon_pdf_remove(pdrv);
 
 	kfree(tcon_mm_table.core_reg_table);
 	tcon_mm_table.core_reg_table = NULL;

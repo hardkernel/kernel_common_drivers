@@ -12,6 +12,7 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_tcon_hw.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_tcon_fw_param.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_tcon_debug.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_tcon_pdf.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_tcon_rdma.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_vbyone.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_lvds.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_drm.o
