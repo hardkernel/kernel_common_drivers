@@ -237,10 +237,49 @@ u32 efuse_obj_write(u32 obj_id, char *name, u8 *buff, u32 size)
 
 	memset(&efuseinfo, 0, sizeof(efuseinfo));
 	strncpy(efuseinfo.name, name, sizeof(efuseinfo.name) - 1);
-	if (size > sizeof(efuseinfo.data))
+	if (size > sizeof(efuseinfo.data)) {
+		set_cpus_allowed_ptr(current, &task_cpumask);
 		return EFUSE_OBJ_ERR_SIZE;
+	}
 	efuseinfo.size = size;
 	memcpy(efuseinfo.data, buff, efuseinfo.size);
+	ret = meson_efuse_obj_write(obj_id, (uint8_t *)&efuseinfo, sizeof(efuseinfo));
+	set_cpus_allowed_ptr(current, &task_cpumask);
+
+	return ret;
+}
+
+u32 efuse_obj_enc_write(u32 obj_id, char *name, u8 *buff, u32 size)
+{
+	u32 ret;
+	struct efuse_obj_enc_field_t efuseinfo;
+	struct cpumask task_cpumask;
+	size_t data_len;
+	const size_t IV_LEN = 12;
+	const size_t TAG_LEN = 16;
+
+	if (efuse_obj_cmd_status != 1)
+		return EFUSE_OBJ_ERR_NOT_FOUND;
+
+	cpumask_copy(&task_cpumask, current->cpus_ptr);
+	set_cpus_allowed_ptr(current, cpumask_of(0));
+
+	if (size <= IV_LEN + TAG_LEN) {
+		set_cpus_allowed_ptr(current, &task_cpumask);
+		return EFUSE_OBJ_ERR_SIZE;
+	}
+	data_len = size - IV_LEN - TAG_LEN;
+	if (data_len > sizeof(efuseinfo.data)) {
+		set_cpus_allowed_ptr(current, &task_cpumask);
+		return EFUSE_OBJ_ERR_SIZE;
+	}
+
+	memset(&efuseinfo, 0, sizeof(efuseinfo));
+	strncpy(efuseinfo.name, name, sizeof(efuseinfo.name) - 1);
+	efuseinfo.size = data_len;
+	memcpy(efuseinfo.data, buff, efuseinfo.size);
+	memcpy(efuseinfo.iv, buff + data_len, IV_LEN);
+	memcpy(efuseinfo.tag, buff + data_len + IV_LEN, TAG_LEN);
 	ret = meson_efuse_obj_write(obj_id, (uint8_t *)&efuseinfo, sizeof(efuseinfo));
 	set_cpus_allowed_ptr(current, &task_cpumask);
 
@@ -270,6 +309,144 @@ u32 efuse_obj_read(u32 obj_id, char *name, u8 *buff, u32 *size)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(efuse_obj_read);
+
+static int char2hex(char *hex, void *bin, size_t hexlen)
+{
+	int i, c, n1, n2, k;
+
+	k = 0;
+	n1 = -1;
+	n2 = -1;
+	for (i = 0; i < hexlen; i++) {
+		n2 = n1;
+		c = hex[i];
+		if (c >= '0' && c <= '9') {
+			n1 = c - '0';
+		} else if (c >= 'a' && c <= 'f') {
+			n1 = c - 'a' + 10;
+		} else if (c >= 'A' && c <= 'F') {
+			n1 = c - 'A' + 10;
+		} else if (c == ' ') {
+			n1 = -1;
+			continue;
+		} else {
+			return -1;
+		}
+		if (n1 >= 0 && n2 >= 0) {
+			((u8 *)bin)[k] = (n2 << 4) | n1;
+			n1 = -1;
+			k++;
+		}
+	}
+
+	return k;
+}
+
+static DEFINE_MUTEX(efuse_field_mutex);
+
+u32 efuse_obj_set_data(char *name, char *data)
+{
+	u32 ret;
+	int dlen = strnlen(data, 64);
+	u8 databuf[32] = {0};
+
+	dlen = char2hex(data, databuf, dlen);
+	if (dlen < 0) {
+		pr_err("parse data char2hex error\n");
+		return EFUSE_OBJ_ERR_INVALID_DATA;
+	}
+	mutex_lock(&efuse_field_mutex);
+	ret = efuse_obj_write(EFUSE_OBJ_EFUSE_DATA, name, databuf, dlen);
+	mutex_unlock(&efuse_field_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(efuse_obj_set_data);
+
+u32 efuse_obj_set_enc_data(char *name, char *data)
+{
+	u32 ret;
+	int dlen = strnlen(data, 128);
+	u8 databuf[64] = {0};
+
+	dlen = char2hex(data, databuf, dlen);
+	if (dlen < 0) {
+		pr_err("parse data char2hex error\n");
+		return EFUSE_OBJ_ERR_INVALID_DATA;
+	}
+	mutex_lock(&efuse_field_mutex);
+	ret = efuse_obj_enc_write(EFUSE_OBJ_EFUSE_ENC_DATA, name, databuf, dlen);
+	mutex_unlock(&efuse_field_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(efuse_obj_set_enc_data);
+
+u32 efuse_obj_set_license(char *name)
+{
+	u32 ret;
+	u8 databuf = 0x01;
+
+	mutex_lock(&efuse_field_mutex);
+	ret = efuse_obj_write(EFUSE_OBJ_EFUSE_DATA, name, &databuf, 1);
+	mutex_unlock(&efuse_field_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(efuse_obj_set_license);
+
+u32 efuse_obj_lock(char *name)
+{
+	u32 ret;
+	u8 databuf = 0x01;
+
+	mutex_lock(&efuse_field_mutex);
+	ret = efuse_obj_write(EFUSE_OBJ_LOCK_STATUS, name, &databuf, 1);
+	mutex_unlock(&efuse_field_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(efuse_obj_lock);
+
+u32 efuse_obj_get_data(char *name)
+{
+	u32 ret;
+	u8 buff[32];
+	u32 bufflen = sizeof(buff);
+
+	mutex_lock(&efuse_field_mutex);
+	ret = efuse_obj_read(EFUSE_OBJ_EFUSE_DATA, name, buff, &bufflen);
+	if (ret == EFUSE_OBJ_SUCCESS) {
+		memset(&efuse_field, 0, sizeof(efuse_field));
+		strncpy(efuse_field.name, name, sizeof(efuse_field.name) - 1);
+		memcpy(efuse_field.data, buff, bufflen);
+		efuse_field.size = bufflen;
+	}
+	mutex_unlock(&efuse_field_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(efuse_obj_get_data);
+
+u32 efuse_obj_get_lock(char *name)
+{
+	u32 ret;
+	u8 buff[32];
+	u32 bufflen = sizeof(buff);
+
+	mutex_lock(&efuse_field_mutex);
+	ret = efuse_obj_read(EFUSE_OBJ_LOCK_STATUS, name, buff, &bufflen);
+	if (ret == EFUSE_OBJ_SUCCESS) {
+		memset(&efuse_field, 0, sizeof(efuse_field));
+		strncpy(efuse_field.name, name, sizeof(efuse_field.name) - 1);
+		memcpy(efuse_field.data, buff, bufflen);
+		efuse_field.size = bufflen;
+	}
+	mutex_unlock(&efuse_field_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(efuse_obj_get_lock);
 
 static ssize_t meson_trustzone_efuse_get_max(struct efuse_hal_api_arg *arg)
 {

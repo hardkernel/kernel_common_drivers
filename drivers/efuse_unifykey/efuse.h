@@ -57,6 +57,8 @@ enum efuse_obj_status_e {
 	EFUSE_OBJ_ERR_ACCESS		= 200,
 	EFUSE_OBJ_ERR_WRITE_PROTECTED = 201,
 
+	EFUSE_OBJ_ERR_TAG = 220,
+
 	EFUSE_OBJ_ERR_UNKNOWN		= 300,
 	EFUSE_OBJ_ERR_INTERNAL,
 };
@@ -64,12 +66,21 @@ enum efuse_obj_status_e {
 enum efuse_obj_info_e {
 	EFUSE_OBJ_EFUSE_DATA	= 0,
 	EFUSE_OBJ_LOCK_STATUS,
+	EFUSE_OBJ_EFUSE_ENC_DATA,
 };
 
 struct efuse_obj_field_t {
 	char name[48];
 	unsigned char data[32];
 	unsigned int size;
+};
+
+struct efuse_obj_enc_field_t {
+	char name[48];
+	unsigned char data[32];
+	unsigned int size;
+	unsigned char iv[12];
+	unsigned char tag[16];
 };
 
 /* efuse HAL_API arg */
@@ -100,6 +111,7 @@ struct aml_efuse_lockable_check {
 	struct lockable_info *infos;
 };
 
+extern struct efuse_obj_field_t efuse_field;
 extern struct aml_efuse_cmd efuse_cmd;
 extern void __iomem *sharemem_input_base;
 extern void __iomem *sharemem_output_base;
@@ -112,6 +124,12 @@ ssize_t efuse_write_usr(char *buf, size_t count, loff_t *ppos);
 unsigned long efuse_amlogic_set(char *buf, size_t count);
 u32 efuse_obj_write(u32 obj_id, char *name, u8 *buff, u32 size);
 u32 efuse_obj_read(u32 obj_id, char *name, u8 *buff, u32 *size);
+uint32_t efuse_obj_set_data(char *name, char *data);
+uint32_t efuse_obj_set_enc_data(char *name, char *data);
+uint32_t efuse_obj_set_license(char *name);
+uint32_t efuse_obj_lock(char *name);
+uint32_t efuse_obj_get_data(char *name);
+uint32_t efuse_obj_get_lock(char *name);
 
 /*return: 0:is configurated, -1: don't cfg*/
 int efuse_burn_lockable_is_cfg(char *itemname);
