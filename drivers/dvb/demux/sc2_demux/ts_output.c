@@ -67,7 +67,6 @@ struct es_params_t {
 	s64 pre_time_ms;
 	u32 es_wp;
 	u32 es_header_wp;
-	u8 es_wp_has_err;
 };
 
 struct ts_out {
@@ -2134,7 +2133,7 @@ static void notify_encrypt_for_t5w(struct out_elem *pout, struct es_params_t *es
 	} else {
 		now_time_ms = ktime_to_ms(ktime_get());
 		if ((now_time_ms - es_params->pre_time_ms) >= 500) {
-			if (es_params->es_wp != SC2_bufferid_get_wp_offset(pout->pchan) &&
+			if (es_params->es_wp == SC2_bufferid_get_wp_offset(pout->pchan) &&
 				es_params->es_header_wp ==
 				SC2_bufferid_get_wp_offset(pout->pchan1)) {
 				if (pout->output_mode) {
@@ -2148,7 +2147,6 @@ static void notify_encrypt_for_t5w(struct out_elem *pout, struct es_params_t *es
 							sizeof(struct dmx_sec_es_data), 0, 0);
 						pr_dbg("notify sec mode encrypt type:%d\n",
 							pout->type);
-						es_params->es_wp_has_err = 1;
 					}
 				} else {
 					if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE) {
@@ -2161,7 +2159,6 @@ static void notify_encrypt_for_t5w(struct out_elem *pout, struct es_params_t *es
 							sizeof(struct dmx_non_sec_es_header), 0, 0);
 						pr_dbg("notify non-sec mode encrypt type:%d\n",
 							pout->type);
-						es_params->es_wp_has_err = 1;
 					}
 				}
 			} else {
@@ -2216,43 +2213,6 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 				notify_encrypt_for_t5w(pout, es_params);
 			} else {
 				es_params->pre_time_ms = -1;
-			}
-			/*first es error, jump & correct wp*/
-			if (ret == 0 && es_params->es_wp_has_err) {
-				unsigned int cur_wp = 0;
-				__u64 cur_pts = 0;
-				unsigned int time_ms = 0;
-
-				cur_pts = pcur_header[3] >> 1 & 0x1;
-				cur_pts <<= 32;
-				cur_pts |= ((__u64)pcur_header[15]) << 24
-					| ((__u64)pcur_header[14]) << 16
-					| ((__u64)pcur_header[13]) << 8
-					| ((__u64)pcur_header[12]);
-				if (cur_pts > pheader->pts)
-					time_ms = cur_pts - pheader->pts;
-				else
-					time_ms = pheader->pts - cur_pts;
-
-				pr_dbg("notify last pts:0x%lx cur pts:0x%lx, time:%d ms\n",
-					(unsigned long)pheader->pts,
-					(unsigned long)cur_pts, time_ms);
-				es_params->es_wp_has_err = 0;
-
-				/*we think it's encrypt program to clear program*/
-				if (time_ms >= 2000 * 90) {
-					cur_wp = pcur_header[7] << 24 |
-						pcur_header[6] << 16 |
-						pcur_header[5] << 8 |
-						pcur_header[4];
-					memcpy(&es_params->last_last_header,
-						&es_params->last_header, 16);
-					memcpy(&es_params->last_header, pcur_header,
-							sizeof(es_params->last_header));
-					pout->pchan->r_offset = cur_wp % pout->pchan->mem_size;
-					es_params->es_wp_has_err = 0;
-					return 0;
-				}
 			}
 		}
 		if (ret < 0) {
@@ -2923,10 +2883,8 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 		mutex_lock(&es_output_mutex);
 		add_ts_out_list(&es_out_task_tmp, ts_out_tmp);
 		mutex_unlock(&es_output_mutex);
-		if (get_dmx_version() == 4) {
-			tsout_config_save_junk(1);
+		if (get_dmx_version() == 4)
 			ts_out_tmp->es_params->pre_time_ms = -1;
-		}
 	} else {
 		add_ts_out_list(&ts_out_task_tmp, ts_out_tmp);
 	}
