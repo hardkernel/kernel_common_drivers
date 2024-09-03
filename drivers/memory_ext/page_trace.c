@@ -48,6 +48,7 @@
 #include <linux/kprobes.h>
 #include <trace/hooks/mm.h>
 #include <trace/events/kmem.h>
+#include <linux/amlogic/gki_module.h>
 #endif
 
 #ifdef CONFIG_NUMA
@@ -242,7 +243,7 @@ static inline bool page_trace_invalid(struct page_trace *trace)
 	return trace->order == IP_INVALID;
 }
 
-#if !defined(CONFIG_AMLOGIC_PAGE_TRACE_INLINE) && IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
+#if !defined(CONFIG_AMLOGIC_PAGE_TRACE_INLINE)
 static int __init early_page_trace_param(char *buf)
 {
 	if (!buf)
