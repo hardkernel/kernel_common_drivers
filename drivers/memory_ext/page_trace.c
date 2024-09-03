@@ -1823,12 +1823,6 @@ static const struct proc_ops pagetrace_proc_ops = {
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 struct page_summary *dump_sum;
 
-static char sym_dump_header[32] = "dump_header";
-
-static struct kprobe kp_dump_header = {
-	.symbol_name	= sym_dump_header,
-};
-
 static void show_page_trace2(struct zone *zone,
 		struct pagetrace_summary *pt_sum)
 {
@@ -1877,8 +1871,7 @@ static void show_page_trace2(struct zone *zone,
 	pr_info("------------------------------\n");
 }
 
-static void __kprobes dump_header_handler_post(struct kprobe *p,
-				struct pt_regs *regs, unsigned long flags)
+static void __maybe_unused oom_panic_callback(void *data, struct oom_control *oc, int *retc)
 {
 	struct zone *zone;
 	int ret, size = sizeof(struct page_summary) * SHOW_CNT;
@@ -1976,12 +1969,9 @@ static int __init page_trace_module_init(void)
 	page_trace_mem_init();
 
 	dump_sum = vzalloc(size);
-	kp_dump_header.post_handler = dump_header_handler_post;
-	ret = register_kprobe(&kp_dump_header);
-	if (ret < 0) {
-		pr_err("register_kprobe failed, returned %d\n", ret);
-		return ret;
-	}
+	ret = register_trace_android_vh_oom_check_panic(oom_panic_callback, NULL);
+	if (ret < 0)
+		pr_err("register_trace_android_vh_oom_check_page fail ret=%d\n", ret);
 #endif
 
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE) && defined(CONFIG_RANDOMIZE_BASE)
@@ -2021,9 +2011,6 @@ static void __exit page_trace_module_exit(void)
 
 	unregister_kprobe(&kp_lookup_name);
 	pr_debug("kprobe at %p unregistered\n", kp_lookup_name.addr);
-
-	unregister_kprobe(&kp_dump_header);
-	pr_debug("kprobe at %p unregistered\n", kp_dump_header.addr);
 
 	if (!trace_buffer)
 		vfree(trace_buffer);
