@@ -1345,7 +1345,7 @@
 		buffer-size = <4074560>;/*yuv422 fullpack*/
 		/* reserve-iomap = "true"; */
 		/* if enable nr10bit, set nr10bit-support to 1 */
-		post-wr-support = <1>;
+		post-wr-support = <0>;
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
@@ -1361,6 +1361,7 @@
 		prelink_en = <1>;
 		ponly_mode = <1>;
 		t5db_afbcd_en = <1>;
+		postlink_en = <1>;
 		/***************************************************
 		 * t5w t3 support 4k ,same with t7 ,no canvas,
 		 * post_nub---default is 11

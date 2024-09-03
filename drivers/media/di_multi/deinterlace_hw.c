@@ -3159,6 +3159,8 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 			DIM_VSC_WR_MPG_BT(DI_POST_GL_THD, hold_line, 16, 5);
 		hold_line = 0;
 	}
+	if (DIM_IS_IC_EF(SC2) && cfgg(EN_POST_LINK))
+		op->bwr(DI_TOP_CTRL, 0, 0, 1);// 1:pre link vpp  0:post link vpp
 
 	if (!is_meson_txlx_cpu())
 		invert_mv = 0;
@@ -3428,6 +3430,8 @@ void dimh_enable_di_post_2(struct DI_MIF_S		   *di_buf0_mif,
 			DIM_VSC_WR_MPG_BT(DI_POST_GL_THD, hold_line, 16, 5);
 		hold_line = 0;
 	}
+	if (DIM_IS_IC_EF(SC2) && cfgg(EN_POST_LINK))
+		op->bwr(DI_TOP_CTRL, 0, 0, 1);// 1:pre link vpp  0:post link VPP
 	if (DIM_IS_IC_EF(SC2))
 		DIM_VSYNC_WR_MPEG_REG(DI_POST_CTRL,
 				      (1 << 0) |

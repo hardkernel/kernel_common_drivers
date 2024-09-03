@@ -5534,6 +5534,11 @@ static void post_mif_sw_v3(bool on, enum DI_MIF0_SEL sel)
 {
 	const struct reg_acc *op = &di_pst_regset;
 
+	if (dimp_get(edi_mp_post_wr_en))
+		op = &di_pre_regset;
+	else
+		op = &di_pst_regset;
+
 	if (DIM_IS_IC_BF(SC2)) {
 		PR_ERR("%s:\n", __func__);
 		return;
@@ -6930,6 +6935,11 @@ static void pre_enable_mc_t6d(struct DI_MC_MIF_s *mcinford_mif,
 			       unsigned char mcdi_en)
 {
 	const struct reg_acc *op = &di_pst_regset;
+
+	if (dimp_get(edi_mp_post_wr_en))
+		op = &di_pre_regset;
+	else
+		op = &di_pst_regset;
 
 	DIM_RDMA_WR_BITS(MCDI_MOTINEN, (mcdi_en ? 3 : 0), 0, 2);
 
