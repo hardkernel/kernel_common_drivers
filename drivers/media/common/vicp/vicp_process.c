@@ -1974,7 +1974,7 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 	config_scaler_param(is_interlace, vid_cmpr_top, &vid_cmpr_scaler);
 	set_input_size(vid_cmpr_scaler.din_vsize, vid_cmpr_scaler.din_hsize);
 	set_vid_cmpr_scale(scaler_enable, &vid_cmpr_scaler);
-	set_output_size(vid_cmpr_top->out_vsize_in, vid_cmpr_top->out_hsize_in);
+	set_output_size(vid_cmpr_scaler.dout_vsize, vid_cmpr_scaler.dout_hsize);
 
 	if (!hdr_en)
 		vid_cmpr_top->hdr_config.hdr2_en = 0;
@@ -2059,8 +2059,8 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 		vid_cmpr_afbce.reg_format_mode = vid_cmpr_top->out_reg_format_mode;
 		vid_cmpr_afbce.reg_compbits_y = vid_cmpr_top->out_reg_compbits;
 		vid_cmpr_afbce.reg_compbits_c = vid_cmpr_top->out_reg_compbits;
-		vid_cmpr_afbce.hsize_in = vid_cmpr_top->out_hsize_in;
-		vid_cmpr_afbce.vsize_in = vid_cmpr_top->out_vsize_in;
+		vid_cmpr_afbce.hsize_in = vid_cmpr_scaler.dout_hsize;
+		vid_cmpr_afbce.vsize_in = vid_cmpr_scaler.dout_vsize;
 		vid_cmpr_afbce.hsize_bgnd = vid_cmpr_top->out_hsize_bgnd;
 		vid_cmpr_afbce.vsize_bgnd = vid_cmpr_top->out_vsize_bgnd;
 		vid_cmpr_afbce.enc_win_bgn_h = vid_cmpr_top->out_win_bgn_h;
@@ -2182,8 +2182,8 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 			vicp_print(VICP_INFO, "%s: use fbc vframe.\n", __func__);
 			input_vframe = data_config->input_data.data_vf;
 			vid_cmpr_top->src_compress = 1;
-			vid_cmpr_top->src_hsize = input_vframe->compWidth;
-			vid_cmpr_top->src_vsize = input_vframe->compHeight;
+			vid_cmpr_top->src_hsize = data_config->data_option.crop_info.width;
+			vid_cmpr_top->src_vsize = data_config->data_option.crop_info.height;
 			vid_cmpr_top->src_head_baddr = input_vframe->compHeadAddr;
 			vid_cmpr_top->src_body_baddr = input_vframe->compBodyAddr;
 
@@ -2214,8 +2214,12 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 
 			vid_cmpr_top->src_compress = 0;
 			temp_compress_param.compress_mode = LOSSY_COMPRESS_MODE_OFF;
-			vid_cmpr_top->src_hsize = input_vframe->width;
-			vid_cmpr_top->src_vsize = input_vframe->height;
+			vid_cmpr_top->src_hsize = data_config->data_option.crop_info.width;
+			vid_cmpr_top->src_vsize = data_config->data_option.crop_info.height;
+			if (is_fbc_exist) {
+				vid_cmpr_top->src_hsize = vid_cmpr_top->src_hsize >> 2;
+				vid_cmpr_top->src_vsize = vid_cmpr_top->src_vsize >> 2;
+			}
 			vid_cmpr_top->src_head_baddr = 0;
 			vid_cmpr_top->src_body_baddr = 0;
 			vid_cmpr_top->rdmif_canvas0_addr0 =
@@ -2244,10 +2248,6 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 		vid_cmpr_top->src_vf = input_vframe;
 		vid_cmpr_top->src_fmt_mode = get_input_color_format(input_vframe);
 		vid_cmpr_top->src_compbits = get_input_color_bitdepth(input_vframe, need_use_dw);
-		vid_cmpr_top->src_win_bgn_h = 0;
-		vid_cmpr_top->src_win_end_h = vid_cmpr_top->src_hsize - 1;
-		vid_cmpr_top->src_win_bgn_v = 0;
-		vid_cmpr_top->src_win_end_v = vid_cmpr_top->src_vsize - 1;
 		if (input_vframe->flag & VFRAME_FLAG_VIDEO_LINEAR)
 			vid_cmpr_top->src_endian = 1;
 		else
@@ -2284,8 +2284,8 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 		input_dma = &data_config->input_data.data_dma;
 		vid_cmpr_top->src_compress = 0;
 		temp_compress_param.compress_mode = LOSSY_COMPRESS_MODE_OFF;
-		vid_cmpr_top->src_hsize = input_dma->data_width;
-		vid_cmpr_top->src_vsize = input_dma->data_height;
+		vid_cmpr_top->src_hsize = data_config->data_option.crop_info.width;
+		vid_cmpr_top->src_vsize = data_config->data_option.crop_info.height;
 		vid_cmpr_top->src_fmt_mode = input_dma->color_format;
 		vid_cmpr_top->src_compbits = input_dma->color_depth;
 		vid_cmpr_top->rdmif_canvas0_addr0 = input_dma->buf_addr;
@@ -2311,10 +2311,6 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 			vicp_print(VICP_ERROR, "unsupport fmt %d\n", input_dma->color_format);
 		}
 
-		vid_cmpr_top->src_win_bgn_h = 0;
-		vid_cmpr_top->src_win_end_h = vid_cmpr_top->src_hsize - 1;
-		vid_cmpr_top->src_win_bgn_v = 0;
-		vid_cmpr_top->src_win_end_v = vid_cmpr_top->src_vsize - 1;
 		vid_cmpr_top->src_endian = input_dma->endian;
 		vid_cmpr_top->src_block_mode = 0;
 		vid_cmpr_top->hdr_config.hdr2_en = 0;
@@ -2322,6 +2318,12 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 		vid_cmpr_top->film_grain_en = 0;
 		vid_cmpr_top->film_lut_addr = 0;
 	}
+	vid_cmpr_top->src_win_bgn_h = data_config->data_option.crop_info.left;
+	vid_cmpr_top->src_win_end_h = data_config->data_option.crop_info.left
+		+ vid_cmpr_top->src_hsize - 1;
+	vid_cmpr_top->src_win_bgn_v = data_config->data_option.crop_info.top;
+	vid_cmpr_top->src_win_end_v = data_config->data_option.crop_info.top
+		+ vid_cmpr_top->src_vsize - 1;
 
 	vid_cmpr_top->src_lossy_compress = temp_compress_param;
 	if (!fgrain_en)

@@ -799,7 +799,7 @@ static int vc_init_vicp_buffer(struct composer_dev *dev, bool is_tvp, size_t usa
 		"%s: output_duration is %lld.\n", __func__, dev->output_duration);
 	if (dev->output_duration > 60) {
 		buf_width = 1920;
-		buf_height = 1080;
+		buf_height = dev->vinfo_h * 1920 / dev->vinfo_w;
 	}
 
 	vc_print(dev->index, PRINT_OTHER, "%s: usage: %ld\n", __func__, usage);
@@ -2820,9 +2820,9 @@ static void vframe_composer(struct composer_dev *dev)
 			 vframe_info_cur->dst_x, vframe_info_cur->dst_y,
 			 vframe_info_cur->dst_w, vframe_info_cur->dst_h);
 		vc_print(dev->index, PRINT_AXIS,
-			 "frame crop t,l,b,r: %d %d %d %d\n",
+			 "frame crop t,l,w,h: %d %d %d %d\n",
 			 vframe_info_cur->crop_y, vframe_info_cur->crop_x,
-			 vframe_info_cur->crop_h, vframe_info_cur->crop_w);
+			 vframe_info_cur->crop_w, vframe_info_cur->crop_h);
 		vc_print(dev->index, PRINT_AXIS,
 			 "frame buffer Width X Height: %d X %d\n",
 			 vframe_info_cur->buffer_w, vframe_info_cur->buffer_h);
@@ -2875,6 +2875,9 @@ static void vframe_composer(struct composer_dev *dev)
 			crop_info.width = vframe_info_cur->crop_w;
 			crop_info.height = vframe_info_cur->crop_h;
 		}
+
+		vc_print(dev->index, PRINT_AXIS, "crop_info: left %d, top %d, width %d height %d\n",
+			crop_info.left, crop_info.top, crop_info.width, crop_info.height);
 
 		dst_axis = output_axis_adjust(dev, vframe_info_cur);
 		display_axis.left = dst_axis.left * dst_buf->buf_w / dev->vinfo_w;
@@ -2996,6 +2999,7 @@ static void vframe_composer(struct composer_dev *dev)
 			data_config.data_option.output_axis.top = display_axis.top;
 			data_config.data_option.output_axis.width = display_axis.width;
 			data_config.data_option.output_axis.height = display_axis.height;
+
 			data_config.data_option.shrink_mode =
 				(enum vicp_shrink_mode_e)vicp_shrink_mode;
 			if (count > 1)
