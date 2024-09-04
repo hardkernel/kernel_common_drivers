@@ -56,12 +56,12 @@ static inline int set_bus_ots_by_level(int bus, unsigned int level)
 	return -1;
 }
 
-int get_ots_level(void)
+static inline int get_ots_level(void)
 {
 	return -1;
 }
 
-int set_all_ots_by_level(unsigned int level)
+static inline int set_all_ots_by_level(unsigned int level)
 {
 	return -1;
 }
