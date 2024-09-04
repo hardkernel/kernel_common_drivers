@@ -1592,6 +1592,7 @@
 			clocks = <&clkc CLKID_VID_LOCK>;
 			clock-names = "cts_vid_lock_clk";
 		};
+
 		amdolby_vision {
 			compatible = "amlogic, dolby_vision_t5w";
 			dev_name = "aml_amdolby_vision_driver";
