@@ -243,12 +243,18 @@ static int secmon_probe(struct platform_device *pdev)
 #endif
 	}
 
-	sharemem_in_base = ram_vmap(phy_in_base, sharemem_in_size);
+	if (!pfn_valid(__phys_to_pfn(phy_in_base)))
+		sharemem_in_base = ioremap_cache(phy_in_base, sharemem_in_size);
+	else
+		sharemem_in_base = ram_vmap(phy_in_base, sharemem_in_size);
 	if (!sharemem_in_base) {
 		pr_err("secmon share mem in buffer remap fail!\n");
 		return -ENOMEM;
 	}
-	sharemem_out_base = ram_vmap(phy_out_base, sharemem_out_size);
+	if (!pfn_valid(__phys_to_pfn(phy_out_base)))
+		sharemem_out_base = ioremap_cache(phy_out_base, sharemem_out_size);
+	else
+		sharemem_out_base = ram_vmap(phy_out_base, sharemem_out_size);
 	if (!sharemem_out_base) {
 		pr_err("secmon share mem out buffer remap fail!\n");
 		return -ENOMEM;
