@@ -858,9 +858,11 @@ static int rx_dwc_irq_handler(void)
 	if (vsi_handle_flag)
 		rx_pkt_handler(PKT_BUFF_SET_VSI, port);
 
-	if (drm_handle_flag)
+	if (drm_handle_flag) {
 		rx_pkt_handler(PKT_BUFF_SET_DRM, port);
-
+		tvin_update_vdin_prop(rx_get_port_type(port),
+				PKT_TYPE_INFOFRAME_DRM);
+	}
 	if (emp_handle_flag)
 		rx_pkt_handler(PKT_BUFF_SET_EMP, port);
 
@@ -2733,6 +2735,7 @@ void rx_cor_reset(u8 port)
 		rx_pr("%s-%d.\n", __func__, rst_lvl);
 	rx_sw_reset(rst_lvl, port);
 	rx_esm_reset(3);
+	rx_cd_override(false, port);
 	if (rx_info.chip_id >= CHIP_ID_T3X) {
 		if (port >= E_PORT2) {
 			if (rx[port].var.frl_rate) {
@@ -4605,18 +4608,13 @@ void rx_main_state_machine(void)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
+				hdmirx_config_video(port);
+				rx_get_aud_info(&rx[port].aud_info, port);
+				hdmirx_config_audio(port);
+				rx_aud_pll_ctl(1, port);
 				rx[port].state = FSM_SIG_STABLE_TO_READY;
 				rx[port].var.sig_stable_cnt = 0;
-				rx[port].skip = 0;
-				rx[port].var.mute_cnt = 0;
-				rx[port].aud_sr_stable_cnt = 0;
-				rx[port].aud_sr_unstable_cnt = 0;
-				rx[port].no_signal = false;
-				rx[port].ecc_err = 0;
-				rx[port].var.clk_chg_cnt = 0;
-				rx[port].var.sig_stable_err_cnt = 0;
-				rx[port].var.esd_phy_rst_cnt = 0;
-				rx[port].ddc_filter_en = false;
+				rx[port].var.sig_unstable_cnt = 0;
 			}
 		} else {
 			rx[port].var.sig_stable_cnt = 0;
@@ -4664,10 +4662,6 @@ void rx_main_state_machine(void)
 				rx[port].no_signal = false;
 				rx[port].ecc_err = 0;
 				rx[port].var.clk_chg_cnt = 0;
-				hdmirx_config_video(port);
-				rx_get_aud_info(&rx[port].aud_info, port);
-				hdmirx_config_audio(port);
-				rx_aud_pll_ctl(1, port);
 				hdmirx_audio_fifo_rst(port);
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
@@ -4676,9 +4670,13 @@ void rx_main_state_machine(void)
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
-			rx_irq_en(0, port);
 			rx[port].var.sig_stable_cnt = 0;
 			rx[port].var.de_stable = false;
+			if (rx[port].var.sig_unstable_cnt < sig_unstable_max) {
+				rx[port].var.sig_unstable_cnt++;
+				break;
+			}
+			rx_irq_en(0, port);
 			rx[port].state = FSM_WAIT_CLK_STABLE;
 		}
 		break;
@@ -5055,18 +5053,13 @@ void rx_port0_main_state_machine(void)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
+				hdmirx_config_video(port);
+				rx_get_aud_info(&rx[port].aud_info, port);
+				hdmirx_config_audio(port);
+				rx_aud_pll_ctl(1, port);
 				rx[port].state = FSM_SIG_STABLE_TO_READY;
 				rx[port].var.sig_stable_cnt = 0;
-				rx[port].skip = 0;
-				rx[port].var.mute_cnt = 0;
-				rx[port].aud_sr_stable_cnt = 0;
-				rx[port].aud_sr_unstable_cnt = 0;
-				rx[port].no_signal = false;
-				rx[port].ecc_err = 0;
-				rx[port].var.clk_chg_cnt = 0;
-				rx[port].var.sig_stable_err_cnt = 0;
-				rx[port].var.esd_phy_rst_cnt = 0;
-				rx[port].ddc_filter_en = false;
+				rx[port].var.sig_unstable_cnt = 0;
 			}
 		} else {
 			rx[port].var.sig_stable_cnt = 0;
@@ -5126,9 +5119,13 @@ void rx_port0_main_state_machine(void)
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
-			rx_irq_en(0, port);
 			rx[port].var.sig_stable_cnt = 0;
 			rx[port].var.de_stable = false;
+			if (rx[port].var.sig_unstable_cnt < sig_unstable_max) {
+				rx[port].var.sig_unstable_cnt++;
+				break;
+			}
+			rx_irq_en(0, port);
 			rx[port].state = FSM_WAIT_CLK_STABLE;
 		}
 		break;
@@ -5459,18 +5456,13 @@ void rx_port1_main_state_machine(void)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
+				hdmirx_config_video(port);
+				rx_get_aud_info(&rx[port].aud_info, port);
+				hdmirx_config_audio(port);
+				rx_aud_pll_ctl(1, port);
 				rx[port].state = FSM_SIG_STABLE_TO_READY;
 				rx[port].var.sig_stable_cnt = 0;
-				rx[port].skip = 0;
-				rx[port].var.mute_cnt = 0;
-				rx[port].aud_sr_stable_cnt = 0;
-				rx[port].aud_sr_unstable_cnt = 0;
-				rx[port].no_signal = false;
-				rx[port].ecc_err = 0;
-				rx[port].var.clk_chg_cnt = 0;
-				rx[port].var.sig_stable_err_cnt = 0;
-				rx[port].var.esd_phy_rst_cnt = 0;
-				rx[port].ddc_filter_en = false;
+				rx[port].var.sig_unstable_cnt = 0;
 			}
 		} else {
 			rx[port].var.sig_stable_cnt = 0;
@@ -5530,9 +5522,13 @@ void rx_port1_main_state_machine(void)
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
-			rx_irq_en(0, port);
 			rx[port].var.sig_stable_cnt = 0;
 			rx[port].var.de_stable = false;
+			if (rx[port].var.sig_unstable_cnt < sig_unstable_max) {
+				rx[port].var.sig_unstable_cnt++;
+				break;
+			}
+			rx_irq_en(0, port);
 			rx[port].state = FSM_WAIT_CLK_STABLE;
 		}
 		break;
@@ -5944,18 +5940,13 @@ void rx_port2_main_state_machine(void)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
+				hdmirx_config_video(port);
+				rx_get_aud_info(&rx[port].aud_info, port);
+				hdmirx_config_audio(port);
+				rx_aud_pll_ctl(1, port);
 				rx[port].state = FSM_SIG_STABLE_TO_READY;
 				rx[port].var.sig_stable_cnt = 0;
-				rx[port].skip = 0;
-				rx[port].var.mute_cnt = 0;
-				rx[port].aud_sr_stable_cnt = 0;
-				rx[port].aud_sr_unstable_cnt = 0;
-				rx[port].no_signal = false;
-				rx[port].ecc_err = 0;
-				rx[port].var.clk_chg_cnt = 0;
-				rx[port].var.sig_stable_err_cnt = 0;
-				rx[port].var.esd_phy_rst_cnt = 0;
-				rx[port].ddc_filter_en = false;
+				rx[port].var.sig_unstable_cnt = 0;
 			}
 		} else {
 			rx_irq_en(IRQ_EN_HDCP, port);
@@ -6016,9 +6007,13 @@ void rx_port2_main_state_machine(void)
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
-			rx_irq_en(0, port);
 			rx[port].var.sig_stable_cnt = 0;
 			rx[port].var.de_stable = false;
+			if (rx[port].var.sig_unstable_cnt < sig_unstable_max) {
+				rx[port].var.sig_unstable_cnt++;
+				break;
+			}
+			rx_irq_en(0, port);
 			rx[port].state = FSM_FRL_FLT_READY;
 		}
 		break;
@@ -6433,18 +6428,13 @@ void rx_port3_main_state_machine(void)
 					rx[port].min_time_en = true;
 				else
 					rx[port].min_time_en = false;
+				hdmirx_config_video(port);
+				rx_get_aud_info(&rx[port].aud_info, port);
+				hdmirx_config_audio(port);
+				rx_aud_pll_ctl(1, port);
 				rx[port].state = FSM_SIG_STABLE_TO_READY;
 				rx[port].var.sig_stable_cnt = 0;
-				rx[port].skip = 0;
-				rx[port].var.mute_cnt = 0;
-				rx[port].aud_sr_stable_cnt = 0;
-				rx[port].aud_sr_unstable_cnt = 0;
-				rx[port].no_signal = false;
-				rx[port].ecc_err = 0;
-				rx[port].var.clk_chg_cnt = 0;
-				rx[port].var.sig_stable_err_cnt = 0;
-				rx[port].var.esd_phy_rst_cnt = 0;
-				rx[port].ddc_filter_en = false;
+				rx[port].var.sig_unstable_cnt = 0;
 			}
 		} else {
 			rx_irq_en(IRQ_EN_HDCP, port);
@@ -6505,9 +6495,13 @@ void rx_port3_main_state_machine(void)
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
-			rx_irq_en(0, port);
 			rx[port].var.sig_stable_cnt = 0;
 			rx[port].var.de_stable = false;
+			if (rx[port].var.sig_unstable_cnt < sig_unstable_max) {
+				rx[port].var.sig_unstable_cnt++;
+				break;
+			}
+			rx_irq_en(0, port);
 			rx[port].state = FSM_FRL_FLT_READY;
 		}
 		break;

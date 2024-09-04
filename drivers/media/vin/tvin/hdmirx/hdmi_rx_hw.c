@@ -5140,6 +5140,20 @@ int rx_get_hdcp_auth_sts(u8 port)
 	return ret;
 }
 
+void rx_cd_override(bool override_en, u8 port)
+{
+	if (rx_info.chip_id <= CHIP_ID_T5D)
+		return;
+
+	if (override_en) {
+		hdmirx_wr_bits_top(TOP_VID_CNTL, MSK(3, 0), 4, port);
+		hdmirx_wr_bits_cor(VIDEO_MODE_CTRL_PWD_IVCRX, _BIT(1), 1, port);
+
+	} else {
+		hdmirx_wr_bits_top(TOP_VID_CNTL, MSK(3, 0), 0, port);
+		hdmirx_wr_bits_cor(VIDEO_MODE_CTRL_PWD_IVCRX, _BIT(1), 0, port);
+	}
+}
 void rx_get_avi_params(u8 port)
 {
 	u8 data8, data8_lo, data8_up;
@@ -5349,8 +5363,10 @@ void rx_get_de_sts(u8 port)
 		rx[port].cur.vtotal = hdmirx_rd_bits_dwc(DWC_MD_VTL, VTOT_LIN);
 		rx[port].cur.hactive = hdmirx_rd_bits_dwc(DWC_MD_HACT_PX, HACT_PIX);
 		rx[port].cur.htotal = hdmirx_rd_bits_dwc(DWC_MD_HT1, HTOT_PIX);
-		rx[port].cur.hactive = rx[port].cur.hactive * 8 / rx[port].cur.colordepth;
-		rx[port].cur.htotal = rx[port].cur.htotal * 8 / rx[port].cur.colordepth;
+		if (rx[port].cur.colorspace != E_COLOR_YUV422) {
+			rx[port].cur.hactive = rx[port].cur.hactive * 8 / rx[port].cur.colordepth;
+			rx[port].cur.htotal = rx[port].cur.htotal * 8 / rx[port].cur.colordepth;
+		}
 		if (rx[port].cur.repeat) {
 			rx[port].cur.hactive = rx[port].cur.hactive /
 				(rx[port].cur.repeat + 1);
@@ -5649,16 +5665,17 @@ void hdmirx_config_video(u8 port)
 		else//use auto de-repeat
 			hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(7), 0, port);
 	}
-	if (rx_info.chip_id >= CHIP_ID_T7) {
-		if (rx_info.chip_id == CHIP_ID_T3X && port == rx_info.main_port)
-			top_vid_fmt = hdmirx_rd_bits_top_common_1(TOP_VID_STAT, TOP_VID_FMT);
-		else
-			top_vid_fmt = hdmirx_rd_bits_top_common(TOP_VID_STAT, TOP_VID_FMT);
-		if (top_vid_fmt != rx[port].cur.colorspace)
-			rx_fmt_override(true, port);
-		else
-			rx_fmt_override(false, port);
-	}
+	if (rx_info.chip_id == CHIP_ID_T3X && port == rx_info.main_port)
+		top_vid_fmt = hdmirx_rd_bits_top_common_1(TOP_VID_STAT, TOP_VID_FMT);
+	else
+		top_vid_fmt = hdmirx_rd_bits_top_common(TOP_VID_STAT, TOP_VID_FMT);
+	if (top_vid_fmt != rx[port].cur.colorspace)
+		rx_fmt_override(true, port);
+	else
+		rx_fmt_override(false, port);
+	/* for yuv422,bypass mode */
+	if (rx[port].cur.colorspace == E_COLOR_YUV422)
+		rx_cd_override(true, port);
 	if (rx_info.chip_id >= CHIP_ID_T3X && port == rx_info.main_port) {
 		rx[port].emp_vid_idx = 1;
 		rx[port].emp_info = &rx_info.emp_buff_b;

@@ -33,7 +33,8 @@
 /* 2024.07.19 optimize cts flow */
 /* 2024.08.22 Fix the issue of flashing green screen at the end of SDR playback */
 /* 2024.08.30 fix hpd time too short */
-#define RX_WRAPPER_VER "ver.2024/08/30"
+/* 2024.09.04 optimize drm pkt handle flow in irq */
+#define RX_WRAPPER_VER "ver.2024/09/04"
 
 struct freq_ref_s {
 	bool interlace;

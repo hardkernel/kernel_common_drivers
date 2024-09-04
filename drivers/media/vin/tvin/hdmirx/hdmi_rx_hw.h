@@ -530,6 +530,7 @@
 #define DWC_HDMI_STS             (0x0BCUL)
 /** Current deep color mode */
 #define		DCM_CURRENT_MODE		MSK(4, 28)
+#define	DCM_CURRENT_MODE_UNDEC	0
 /** Deep color mode, 24 bit */
 #define		DCM_CURRENT_MODE_24b	4
 /** Deep color mode, 30 bit */
@@ -3526,6 +3527,7 @@ void rx_dig_clk_en(bool en);
 void rx_clr_scdc(u8 port);
 void scdc_dwork_handler(struct work_struct *work);
 void rx_mute_vpp(u8 port);
+void rx_cd_override(bool override_en, u8 port);
 
 /* tl1 tl2 extern */
 void dump_reg_phy_tl1_tm2(void);
