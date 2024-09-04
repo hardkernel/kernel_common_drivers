@@ -180,7 +180,7 @@ void dim_set_vpuclkb_ext(unsigned long clkrate)
 #endif
 
 #if !defined(CONFIG_AMLOGIC_MEDIA_VDIN)
-unsigned int get_vdin_status(bool stop_en);
+unsigned int get_vdin_status(bool stop_en)
 {
 	return 0;
 }
