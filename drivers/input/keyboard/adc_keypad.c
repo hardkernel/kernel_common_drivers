@@ -765,6 +765,10 @@ static void meson_adc_kp_remove(struct platform_device *pdev)
 
 static int __maybe_unused meson_adc_kp_suspend(struct device *dev)
 {
+	struct meson_adc_kp *kp = dev_get_drvdata(dev);
+
+	cancel_delayed_work_sync(&kp->work);
+
 	return 0;
 }
 
@@ -794,6 +798,9 @@ static int __maybe_unused meson_adc_kp_resume(struct device *dev)
 			}
 		}
 	}
+
+	mod_delayed_work(system_wq, &kp->work,
+			 msecs_to_jiffies(kp->poll_period));
 
 	return 0;
 }
