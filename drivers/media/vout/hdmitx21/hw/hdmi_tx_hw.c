@@ -1592,6 +1592,8 @@ static int hdmitx_set_dispmode(struct hdmitx_hw_common *tx_hw)
 		if (hdev->tx_comm.rxcap.max_frl_rate && hdev->frl_rate)
 			frl_tx_training_handler(hdev);
 #endif
+	} else {
+		fifo_flow_enable_intrs(1);
 	}
 	return 0;
 }
