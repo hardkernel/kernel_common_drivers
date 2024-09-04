@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "meson-sc2.dtsi"
+#include "hdr10plus.dtsi"
 #include "mesonsc2_drm.dtsi"
 #include "partition_mbox_ab.dtsi"
 #include <dt-bindings/input/input.h>
@@ -508,17 +509,6 @@
 		memory-region = <&ppmgr_reserved>;
 		dev_name = "ppmgr";
 		status = "okay";
-	};
-
-	amlvecm {
-		compatible = "amlogic, vecm";
-		dev_name = "aml_vecm";
-		status = "okay";
-		gamma_en = <0>;/*1:enable ;0:disable*/
-		wb_en = <0>;/*1:enable ;0:disable*/
-		cm_en = <0>;/*1:enable ;0:disable*/
-		/*0: 709/601  1: bt2020*/
-		tx_op_color_primary = <0>;
 	};
 
 	multi-di {
@@ -1880,4 +1870,15 @@
 &uart_E {
 	status = "okay";
 	uart-has-rtscts;
+};
+
+&amlvecm {
+	compatible = "amlogic, vecm";
+	dev_name = "aml_vecm";
+	status = "okay";
+	gamma_en = <0>;/*1:enable ;0:disable*/
+	wb_en = <0>;/*1:enable ;0:disable*/
+	cm_en = <0>;/*1:enable ;0:disable*/
+	/*0: 709/601  1: bt2020*/
+	tx_op_color_primary = <0>;
 };

@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "meson-s4d.dtsi"
+#include "hdr10plus.dtsi"
 #include "mesons4d_drm.dtsi"
 #include "partition_normal_linux.dtsi"
 #include <dt-bindings/input/input.h>
@@ -326,17 +327,6 @@
 		memory-region = <&ppmgr_reserved>;
 		dev_name = "ppmgr";
 		status = "okay";
-	};
-
-	amlvecm {
-		compatible = "amlogic, vecm";
-		dev_name = "aml_vecm";
-		status = "okay";
-		gamma_en = <0>;/*1:enable ;0:disable*/
-		wb_en = <0>;/*1:enable ;0:disable*/
-		cm_en = <0>;/*1:enable ;0:disable*/
-		/*0: 709/601  1: bt2020*/
-		tx_op_color_primary = <0>;
 	};
 
 	multi-di {
@@ -1584,4 +1574,15 @@
 
 &amlogic_codec {
 	status = "disabled";
+};
+
+&amlvecm {
+	compatible = "amlogic, vecm";
+	dev_name = "aml_vecm";
+	status = "okay";
+	gamma_en = <0>;/*1:enable ;0:disable*/
+	wb_en = <0>;/*1:enable ;0:disable*/
+	cm_en = <0>;/*1:enable ;0:disable*/
+	/*0: 709/601  1: bt2020*/
+	tx_op_color_primary = <0>;
 };

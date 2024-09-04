@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "mesontxhd2.dtsi"
+#include "hdr10plus.dtsi"
 #include "mesontxhd2_panel.dtsi"
 #include "mesontxhd2_drm.dtsi"
 #include "partition_mbox_normal_dynamic.dtsi"

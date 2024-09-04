@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "mesont6d.dtsi"
+#include "hdr10plus.dtsi"
 #include "mesont6d_drm.dtsi"
 #include "firmware_ab.dtsi"
 #include "mesont6d-panel.dtsi"

@@ -658,7 +658,7 @@
 		power-domain-names = "ge2d";
 	};
 
-	amlvecm {
+	amlvecm: amlvecm {
 		compatible = "amlogic, vecm-tm2-verb";
 		dev_name = "aml_vecm";
 		status = "okay";
@@ -680,7 +680,6 @@
 		vlock_line_limit = <2>;
 		interrupts = <0 56 1>;
 		interrupt-names = "vsync2";
-		enable_hdr10plus = <0>;/*1:enable ;0:disable*/
 	};
 
 	multi-di {

@@ -2082,7 +2082,7 @@
 		status = "okay";
 	};
 
-	amlvecm {
+	amlvecm: amlvecm {
 		compatible = "amlogic, vecm";
 		dev_name = "aml_vecm";
 		status = "okay";
@@ -2091,7 +2091,6 @@
 		cm_en = <0>;/*1:enable ;0:disable*/
 		/*0: 709/601  1: bt2020*/
 		tx_op_color_primary = <0>;
-		enable_hdr10plus = <0>;/*1:enable ;0:disable*/
 	};
 
 	di_process {

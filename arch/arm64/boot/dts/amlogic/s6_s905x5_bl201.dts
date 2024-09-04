@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "meson-s6.dtsi"
+#include "hdr10plus.dtsi"
 #include "mesons6_drm.dtsi"
 #include "mesons6_audio.dtsi"
 #include "firmware_ab.dtsi"
@@ -633,16 +634,6 @@
 		memory-region = <&ppmgr_reserved>;
 		dev_name = "ppmgr";
 		status = "disabled";
-	};
-
-	amlvecm {
-		compatible = "amlogic, vecm-s6";
-		dev_name = "aml_vecm";
-		status = "okay";
-		gamma_en = <0>;/*1:enable ;0:disable*/
-		wb_en = <0>;/*1:enable ;0:disable*/
-		/*0: 709/601  1: bt2020*/
-		tx_op_color_primary = <0>;
 	};
 
 	thermal-zones {
@@ -1577,4 +1568,14 @@
 &pdma {
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
+};
+
+&amlvecm {
+	compatible = "amlogic, vecm-s6";
+	dev_name = "aml_vecm";
+	status = "okay";
+	gamma_en = <0>;/*1:enable ;0:disable*/
+	wb_en = <0>;/*1:enable ;0:disable*/
+	/*0: 709/601  1: bt2020*/
+	tx_op_color_primary = <0>;
 };

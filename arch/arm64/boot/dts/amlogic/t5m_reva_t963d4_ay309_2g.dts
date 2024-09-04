@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "mesont5m_reva.dtsi"
+#include "hdr10plus.dtsi"
 #include "firmware_ab.dtsi"
 #include "mesont5m_ay301-panel.dtsi"
 #include "mesont5m_drm.dtsi"

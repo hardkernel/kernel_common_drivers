@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "meson-s1a.dtsi"
+#include "hdr10plus.dtsi"
 #include "mesons1a_drm.dtsi"
 #include <dt-bindings/input/input.h>
 
@@ -212,17 +213,6 @@
 		status = "disabled";
 		amlvideo2_id = <1>;
 		cma_mode = <1>;
-	};
-
-	amlvecm {
-		compatible = "amlogic, vecm";
-		dev_name = "aml_vecm";
-		status = "disabled";
-		gamma_en = <0>;/*1:enable ;0:disable*/
-		wb_en = <0>;/*1:enable ;0:disable*/
-		cm_en = <0>;/*1:enable ;0:disable*/
-		/*0: 709/601  1: bt2020*/
-		tx_op_color_primary = <0>;
 	};
 
 	multi-di {
@@ -1177,4 +1167,15 @@
 	status = "disabled";
 	tocodec_inout = <1>;
 	tdmout_index = <1>;
+};
+
+&amlvecm {
+	compatible = "amlogic, vecm";
+	dev_name = "aml_vecm";
+	status = "disabled";
+	gamma_en = <0>;/*1:enable ;0:disable*/
+	wb_en = <0>;/*1:enable ;0:disable*/
+	cm_en = <0>;/*1:enable ;0:disable*/
+	/*0: 709/601  1: bt2020*/
+	tx_op_color_primary = <0>;
 };
