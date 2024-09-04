@@ -2266,8 +2266,6 @@ static int aml_crypto_dev_probe(struct platform_device *pdev)
 	const struct meson_crypto_dev_data *priv_data = NULL;
 	int err = 0;
 	u8 thread = 0;
-	u8 dma_bus64 = 0;
-	u32 mode = 0;
 
 	crypto_dd = devm_kzalloc(dev, sizeof(struct aml_crypto_dev),
 				 GFP_KERNEL);
@@ -2287,15 +2285,6 @@ static int aml_crypto_dev_probe(struct platform_device *pdev)
 
 	of_property_read_u8(pdev->dev.of_node, "thread", &thread);
 
-	of_property_read_u8(pdev->dev.parent->of_node, "dma_bus64", &dma_bus64);
-	mode = dma_bus64 ? 64 : 32;
-	err = aml_dma_call_smc(CRYPTO_CMD, CRYPTO_CMD_CRYPTO_DMA_SET_BUS64,
-				thread, mode);
-	if (err) {
-		dev_err(dev, "failed to set thread %d to %u bits\n", thread, mode);
-		goto error;
-	}
-
 	priv_data = match->data;
 	crypto_dd->dev = dev;
 	crypto_dd->thread = thread;
@@ -2306,6 +2295,14 @@ static int aml_crypto_dev_probe(struct platform_device *pdev)
 	mutex_init(&crypto_dd->lock);
 	platform_set_drvdata(pdev, crypto_dd);
 
+	if (crypto_dd->dma->dma_bus64) {
+		err = aml_dma_call_smc(CRYPTO_CMD, CRYPTO_CMD_CRYPTO_DMA_SET_BUS64,
+				       thread, 64);
+		if (err) {
+			dev_err(dev, "failed to set thread %d to 64 bits\n", thread);
+			goto error;
+		}
+	}
 #if !USE_BUSY_POLLING
 	init_completion(&crypto_dd->done);
 	err = devm_request_irq(dev, crypto_dd->irq, aml_crypto_dev_irq,
