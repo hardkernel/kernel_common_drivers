@@ -209,7 +209,7 @@ static void set_dvb_ts(struct platform_device *pdev,
 	}
 
 	if (i == 3 && get_cpu_type() == MESON_CPU_MAJOR_ID_T3X)
-		demod_config_tsind_clk(0);
+		demod_config_tsin_clk(3, 0);
 
 	if (IS_ERR_OR_NULL(advb->ts[i].pinctrl))
 		pr_dbg("ts%d:pinctrl:%p Fail.\n",
@@ -228,6 +228,7 @@ static void ts_process(struct platform_device *pdev)
 	u32 value;
 	u32 data[32] = { 0 };
 	struct aml_dvb *advb = aml_get_dvb_device();
+	int cpu_type;
 
 	for (i = 0; i < FE_DEV_COUNT; i++) {
 		advb->ts[i].mode = AM_TS_DISABLE;
@@ -291,7 +292,11 @@ static void ts_process(struct platform_device *pdev)
 	if (!ret) {
 		ret = tee_demux_config_pad(0xfe0040a8, value);
 		dprint("tsinb=%d, ret:%d\n", value, ret);
-		demod_config_tsind_clk(0);
+		cpu_type = get_cpu_type();
+		if (cpu_type == MESON_CPU_MAJOR_ID_S4D)
+			demod_config_tsin_clk(3, 0);
+		else if (cpu_type == MESON_CPU_MAJOR_ID_S7D)
+			demod_config_tsin_clk(1, 0);
 	} else {
 		dprint("no tsinb setting\n");
 	}
