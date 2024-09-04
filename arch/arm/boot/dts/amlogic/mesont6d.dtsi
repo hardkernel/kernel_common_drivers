@@ -1586,6 +1586,7 @@
 		usb-phy-trim-reg = <0xfe010330>;
 		status = "disable";
 		pm-controller;
+		sw-hsp;
 	};
 
 	usb_phy32: usbphy32@fe4a8000 {
