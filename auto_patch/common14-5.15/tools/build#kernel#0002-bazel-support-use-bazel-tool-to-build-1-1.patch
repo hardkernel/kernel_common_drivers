@@ -1,4 +1,4 @@
-From d25f8c36e59cf28a6e2a769538b75d1c1a7c10fc Mon Sep 17 00:00:00 2001
+From 2854eb635ebf14a0e3b523086253c216650c3528 Mon Sep 17 00:00:00 2001
 From: Wanwei Jiang <wanwei.jiang@amlogic.com>
 Date: Thu, 30 Mar 2023 23:14:01 +0800
 Subject: [PATCH] bazel: support use bazel tool to build [1/1]
@@ -17,22 +17,25 @@ ohm
 Change-Id: I4f2f88663d2d887b9c8bb5d535ceb3cb1fa5d879
 Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
 ---
- kleaf/impl/kernel_module.bzl | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ kleaf/impl/kernel_module.bzl | 5 +++++
+ 1 file changed, 5 insertions(+)
 
 diff --git a/kleaf/impl/kernel_module.bzl b/kleaf/impl/kernel_module.bzl
-index d24210b5..45f57459 100644
+index d24210b..3860987 100644
 --- a/kleaf/impl/kernel_module.bzl
 +++ b/kleaf/impl/kernel_module.bzl
-@@ -470,7 +470,7 @@ def _kernel_module_impl(ctx):
+@@ -470,6 +470,11 @@ def _kernel_module_impl(ctx):
               # Grab *.cmd
                 {grab_cmd_cmd}
               # Move Module.symvers
--               rsync -aL ${{OUT_DIR}}/${{ext_mod_rel}}/Module.symvers {module_symvers}
-+               rsync -aL $(find ${{OUT_DIR}}/${{ext_mod_rel}} -name Module.symvers) {module_symvers}
++               touch ${{OUT_DIR}}/${{ext_mod_rel}}/ms.txt
++               for ms in `find ${{OUT_DIR}}/${{ext_mod_rel}} -type f -name Module.symvers`; do
++                   cat ${{ms}} >> ${{OUT_DIR}}/${{ext_mod_rel}}/ms.txt
++               done
++               cp ${{OUT_DIR}}/${{ext_mod_rel}}/ms.txt ${{OUT_DIR}}/${{ext_mod_rel}}/Module.symvers
+                rsync -aL ${{OUT_DIR}}/${{ext_mod_rel}}/Module.symvers {module_symvers}
               # Grab and then drop modules.order
                 {grab_modules_order_cmd}
-                {drop_modules_order_cmd}
 -- 
-2.42.0
+2.45.2
 
