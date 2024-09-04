@@ -150,7 +150,7 @@ void demod_config_tsin_invert(u8 port, u8 invert);
 void demod_config_in(u8 port, u8 wire_type);
 void demod_config_fifo(u8 port, u16 fifo_th);
 //for s4d clear clk mux, using tsinA clk
-void demod_config_tsind_clk(u8 b);
+void demod_config_tsin_clk(int port, u8 b);
 void demod_config_tsinb_clk(u8 v);
 
 /*****************************************************/
