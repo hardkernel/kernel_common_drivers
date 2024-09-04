@@ -76,6 +76,8 @@ struct meson_of_conf {
 	u32 force_slice;
 	/* for fbdev size: 0:non-afbc align 1:afbc align*/
 	u32 afbc_aligned_size;
+
+	u32 max_fb_size;
 };
 
 struct meson_drm {
@@ -126,11 +128,15 @@ struct meson_drm {
 	bool compat_mode;
 	bool logo_show_done;
 	bool recovery_mode;
+	bool recovery_dst_ctrl;
 	u32 osd_occupied_index;
 	u8 dummyl_from_hdmitx;
 	u8 remove_get_vblank_timestamp;
 
 	u32 pxp_mode;
+
+	u32 recovery_dst_w;
+	u32 recovery_dst_h;
 
 	u32 creat_rdma_table;
 	ktime_t start;
