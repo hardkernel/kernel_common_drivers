@@ -22,6 +22,8 @@
 #define MESON_USE_TEXTURE			(1ull << 17)
 #define MESON_USE_VIDEO_PLANE           (1ull << 18)
 #define MESON_USE_VIDEO_AFBC            (1ull << 19)
+#define MESON_USE_VD1			(1ull << 20)
+#define MESON_USE_VD2			(1ull << 21)
 
 #define FBIOPUT_OSD_WINDOW_AXIS          0x4513
 #define FBIOGET_DISPLAY_MODE             0x4580
@@ -155,6 +157,11 @@ struct drm_meson_plane_mute {
 	__u32 plane_mute; /* 0:umute plane, 1:mute plane */
 };
 
+struct drm_meson_connector_info {
+	char name[32];
+	char status[32];
+};
+
 /*Memory related.*/
 #define DRM_IOCTL_MESON_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + \
 		0x00, struct drm_meson_gem_create)
@@ -174,6 +181,8 @@ struct drm_meson_plane_mute {
 		0x12, struct drm_meson_plane_mute)
 #define DRM_IOCTL_MESON_GET_VRR_RANGE DRM_IOWR(DRM_COMMAND_BASE + \
 		0x13, struct drm_vrr_mode_groups)/*hdmitx related*/
+#define DRM_IOCTL_MESON_SET_CONNECTOR_FORCE DRM_IOWR(DRM_COMMAND_BASE + \
+		0x30, struct drm_meson_connector_info)
 
 /*present fence*/
 #define DRM_IOCTL_MESON_CREAT_PRESENT_FENCE	DRM_IOWR(DRM_COMMAND_BASE + \

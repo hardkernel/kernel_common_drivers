@@ -115,6 +115,7 @@
 /* txhd2 loopback register */
 #define VPP_PROJECTOR                      0x1d26
 #define VPP_OSD2_MATRIX_EN_CTRL             0x392d
+#define OSD2_HDR2_MATRIXI_EN_CTRL            0x5b3b
 
 struct postblend_reg_s {
 	u32 vpp_osd1_bld_h_scope;

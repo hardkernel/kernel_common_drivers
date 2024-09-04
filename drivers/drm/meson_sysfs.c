@@ -16,6 +16,7 @@
 #include "meson_plane.h"
 #include "meson_hdmi.h"
 #include "meson_vpu_pipeline.h"
+#include "meson_gem.h"
 
 static const char vpu_group_name[] = "vpu";
 static const char module_param_group_name[] = "module_param";
@@ -96,50 +97,6 @@ static ssize_t _name##_show(struct file *filp, struct kobject *kobj,	\
 		_AM_BIN_ATTR(_name, 0644, _name##_show, _name##_store)
 
 //EXPORT_SYMBOL_GPL(vpu_group_name);
-
-static u8 *am_meson_drm_vmap(ulong addr, u32 size, bool *bflg)
-{
-	u8 *vaddr = NULL;
-	ulong phys = addr;
-	u32 offset = phys & ~PAGE_MASK;
-	u32 npages = PAGE_ALIGN(size) / PAGE_SIZE;
-	struct page **pages = NULL;
-	pgprot_t pgprot;
-	int i;
-
-	if (!PageHighMem(phys_to_page(phys)))
-		return phys_to_virt(phys);
-
-	if (offset)
-		npages++;
-
-	pages = kcalloc(npages, sizeof(struct page *), GFP_KERNEL);
-	if (!pages)
-		return NULL;
-
-	for (i = 0; i < npages; i++) {
-		pages[i] = phys_to_page(phys);
-		phys += PAGE_SIZE;
-	}
-
-	pgprot = PAGE_KERNEL;
-
-	vaddr = vmap(pages, npages, VM_MAP, pgprot);
-	if (!vaddr) {
-		pr_err("the phy(%lx) vmap fail, size: %d\n",
-		       addr - offset, npages << PAGE_SHIFT);
-		kfree(pages);
-		return NULL;
-	}
-
-	kfree(pages);
-
-	DRM_DEBUG("map high mem pa(%lx) to va(%p), size: %d\n",
-		  addr, vaddr + offset, npages << PAGE_SHIFT);
-	*bflg = true;
-
-	return vaddr + offset;
-}
 
 static void am_meson_drm_unmap_phyaddr(u8 *vaddr)
 {
@@ -1164,17 +1121,16 @@ static ssize_t crtc_mode_store(struct file *filp, struct kobject *kobj,
 			connector->connector_type, connector->status, found);
 	}
 
-	if (found) {
-		DRM_INFO("Found Connector[%d] mode[%s]\n",
-			connector->connector_type, mode->name);
-	} else {
+	if (!found) {
 		DRM_INFO("No Found mode[%s]\n", mode_name);
-		if (!strcmp("null", mode_name)) {
+		if (!strcmp("null", mode_name))
 			drm_atomic_helper_shutdown(dev);
-			return count;
-		}
+
+		return count;
 	}
 
+	DRM_INFO("Found Connector[%d] mode[%s]\n", connector->connector_type,
+				mode->name);
 	drm_modeset_lock_all(dev);
 	ctx = dev->mode_config.acquire_ctx;
 	state = meson_drm_duplicate_state(dev, ctx, crtc, connector, mode);

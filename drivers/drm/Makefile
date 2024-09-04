@@ -48,6 +48,7 @@ $(MESON_DRM_MODULE_NAME)-y += meson_drv.o meson_plane.o \
                               vpu-hw/meson_osd_proc.o \
                               vpu-hw/meson_vpu_osdblend.o \
                               vpu-hw/meson_vpu_hdr_dv.o \
+                              vpu-hw/meson_osd_csc.o \
                               vpu-hw/meson_vpu_postblend.o \
 
 ifeq ($(CONFIG_AMLOGIC_ZAPPER_CUT),)

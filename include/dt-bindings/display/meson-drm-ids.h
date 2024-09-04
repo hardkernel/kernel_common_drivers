@@ -42,6 +42,7 @@
 #define SLICE2PPC_BLOCK 24
 
 #define BLOCK_ID_MAX 32
+#define BLEND_D0_CSC_BLOCK 25
 
 #define OSD1_PORT 0
 #define OSD2_PORT 1

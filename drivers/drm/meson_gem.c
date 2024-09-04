@@ -85,7 +85,19 @@ static int am_meson_gem_alloc_ion_buff(struct am_meson_gem_object *
 	 *check flags to set different ion heap type.
 	 *if flags is set to 0, need to use ion dma buffer.
 	 */
-	if (((flags & (MESON_USE_SCANOUT | MESON_USE_CURSOR)) != 0) || flags == 0) {
+	if (flags & MESON_USE_PROTECTED) {
+#ifdef CONFIG_AMLOGIC_HEAP_SECURE
+		heap = dma_heap_find("heap-secure");
+		if (!IS_ERR_OR_NULL(heap)) {
+			dmabuf = dma_heap_buffer_alloc(heap, meson_gem_obj->base.size,
+				O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
+			if (!IS_ERR_OR_NULL(dmabuf)) {
+				DRM_ERROR("heap-secure alloc success.\n");
+				meson_gem_obj->is_dma = true;
+			}
+		}
+#endif
+	} else if (((flags & (MESON_USE_SCANOUT | MESON_USE_CURSOR)) != 0) || flags == 0) {
 #if (defined CONFIG_AMLOGIC_HEAP_CMA) || (defined CONFIG_AMLOGIC_HEAP_CODEC_MM)
 		for (i = 0; i < 3; i++) {
 			heap = dma_heap_find(DMAHEAP[i]);
@@ -476,6 +488,8 @@ static struct dma_buf *meson_gem_prime_export(struct drm_gem_object *obj,
 
 			if (meson_gem_obj->is_secure)
 				info.flags |= BIT(UVM_SECURE_ALLOC);
+
+			info.flags |= BIT(UVM_SKIP_REALLOC);
 
 			info.obj = &meson_gem_obj->ubo;
 			info.free = am_meson_drm_gem_unref_uvm;
@@ -933,5 +947,49 @@ struct drm_gem_object *am_meson_drm_gem_prime_import(struct drm_device *dev,
 	}
 
 	return drm_gem_prime_import(dev, dmabuf);
+}
+
+u8 *am_meson_drm_vmap(ulong addr, u32 size, bool *bflg)
+{
+	u8 *vaddr = NULL;
+	ulong phys = addr;
+	u32 offset = phys & ~PAGE_MASK;
+	u32 npages = PAGE_ALIGN(size) / PAGE_SIZE;
+	struct page **pages = NULL;
+	pgprot_t pgprot;
+	int i;
+
+	if (!PageHighMem(phys_to_page(phys)))
+		return phys_to_virt(phys);
+
+	if (offset)
+		npages++;
+
+	pages = kcalloc(npages, sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		return NULL;
+
+	for (i = 0; i < npages; i++) {
+		pages[i] = phys_to_page(phys);
+		phys += PAGE_SIZE;
+	}
+
+	pgprot = PAGE_KERNEL;
+
+	vaddr = vmap(pages, npages, VM_MAP, pgprot);
+	if (!vaddr) {
+		pr_err("the phy(%lx) vmap fail, size: %d\n",
+		       addr - offset, npages << PAGE_SHIFT);
+		kfree(pages);
+		return NULL;
+	}
+
+	kfree(pages);
+
+	DRM_DEBUG("map high mem pa(%lx) to va(%p), size: %d\n",
+		  addr, vaddr + offset, npages << PAGE_SHIFT);
+	*bflg = true;
+
+	return vaddr + offset;
 }
 

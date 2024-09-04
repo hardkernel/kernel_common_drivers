@@ -22,6 +22,8 @@
 /*legacy video driver issue caused zorder problem.*/
 #define OSD_PLANE_BEGIN_ZORDER	65
 #define OSD_PLANE_END_ZORDER		128
+#define VIDEO_PLANE_BEGIN_ZORDER	0
+#define VIDEO_PLANE_END_ZORDER	255
 
 struct am_meson_plane_state {
 	struct drm_plane_state base;

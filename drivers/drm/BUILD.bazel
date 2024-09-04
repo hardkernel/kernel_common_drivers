@@ -59,6 +59,7 @@ ddk_module(
                 "vpu-hw/meson_vpu_osdblend.c",
                 "vpu-hw/meson_vpu_hdr_dv.c",
                 "vpu-hw/meson_vpu_postblend.c",
+                "vpu-hw/meson_osd_csc.c",
                 "meson_lcd.c",
             ],
         },

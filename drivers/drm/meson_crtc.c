@@ -498,8 +498,8 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tdv_support_info=%d\n", drm_get_dv_support_info());
 
 	if (priv->vpu_data && priv->vpu_data->has_gfcd) {
-		drm_printf(p, "\t\tgfcd_afbc_enable=%u\n",
-			priv->of_conf.gfcd_afbc_enable);
+		drm_printf(p, "\t\tgfcd_enable=%u\n",
+			priv->of_conf.gfcd_enable);
 		drm_printf(p, "\t\tgfcd_mask=%u\n",
 			priv->of_conf.gfcd_mask);
 		drm_printf(p, "\t\tosdblend_input_width_offset=%u\n",
@@ -1431,6 +1431,8 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	meson_crtc_init_drm_policy_property(priv->drm, amcrtc);
 	meson_crtc_init_nonblock_by_vblank_property(priv->drm, amcrtc);
 	meson_crtc_init_dv_support_info_property(priv->drm, amcrtc);
+	meson_crtc_init_vrr_type_property(priv->drm, amcrtc);
+	meson_crtc_init_game_rate_property(priv->drm, amcrtc);
 	meson_crtc_add_max_out_property(priv->drm, amcrtc);
 	meson_crtc_init_vrr_type_property(priv->drm, amcrtc);
 	meson_crtc_init_game_rate_property(priv->drm, amcrtc);

@@ -65,7 +65,7 @@ struct am_meson_logo logo;
 static struct platform_device *gp_dev;
 static unsigned long gem_mem_start, gem_mem_size;
 static struct resource osd_mem_res;
-static bool is_cma;
+bool is_cma;
 
 #ifndef CONFIG_AMLOGIC_MEDIA_FB
 static u32 drm_logo_bpp = 16;
@@ -782,6 +782,80 @@ static int parse_reserve_mem_resource(struct device_node *np,
 	return ret;
 }
 
+void am_meson_logo_cma_alloc(struct device *dev, int logo_init)
+{
+	int ret;
+#ifdef CONFIG_CMA
+	struct reserved_mem *rmem = NULL;
+	struct device_node *np, *mem_node;
+#endif
+	struct meson_drm *private = dev_get_drvdata(dev);
+
+	np = gp_dev->dev.of_node;
+	mem_node = of_parse_phandle(np, "memory-region", 0);
+
+	ret = of_reserved_mem_device_init(&gp_dev->dev);
+	if (ret != 0) {
+		DRM_ERROR("failed to init reserved memory\n");
+	} else {
+#ifdef CONFIG_CMA
+		rmem = of_reserved_mem_lookup(mem_node);
+		of_node_put(mem_node);
+		if (rmem) {
+			logo.size = rmem->size;
+			DRM_DEBUG("of read %s reservememsize=0x%x, base %pa\n",
+				rmem->name, logo.size, &rmem->base);
+		}
+
+		cma_logo = dev_get_cma_area(&gp_dev->dev);
+
+		if (cma_logo) {
+			if (logo.size > 0) {
+				logo.logo_page = cma_alloc(cma_logo,
+						ALIGN(logo.size, PAGE_SIZE) >> PAGE_SHIFT,
+						0, GFP_KERNEL);
+
+				if (!logo.logo_page)
+					DRM_ERROR("allocate buffer failed\n");
+				else if (logo_init)
+					am_meson_logo_info_update(private);
+
+				DRM_INFO(" cma_alloc from %s start page %px-%px size %x\n",
+					cma_get_name(cma_logo),
+					logo.logo_page,
+					(void *)logo.start,
+					logo.size);
+			}
+		}
+#endif
+		if (gem_mem_start && logo_init) {
+			dma_declare_coherent_memory(dev,
+							gem_mem_start,
+							gem_mem_start,
+							gem_mem_size);
+			DRM_INFO("meson drm mem_start = 0x%x, size = 0x%x\n",
+				(u32)gem_mem_start, (u32)gem_mem_size);
+		}
+	}
+}
+
+void am_meson_logo_cma_mem_reset_zero(struct am_meson_logo *logo)
+{
+	phys_addr_t logo_addr;
+	void *vir_addr;
+	bool bflg = false;
+
+	if (logo->logo_page) {
+		logo_addr = page_to_phys(logo->logo_page);
+		vir_addr = am_meson_drm_vmap(logo_addr,
+			logo->size, &bflg);
+		memset(vir_addr, 0, logo->size);
+		logo->alloc_flag = 1;
+	} else {
+		DRM_ERROR("reallocate logo cma buffer failed\n");
+	}
+}
+
 void am_meson_logo_init(struct drm_device *dev)
 {
 	struct drm_mode_fb_cmd2 mode_cmd;
@@ -790,7 +864,6 @@ void am_meson_logo_init(struct drm_device *dev)
 	struct platform_device *pdev = to_platform_device(private->dev);
 	struct drm_atomic_state *state;
 #ifdef CONFIG_CMA
-	struct reserved_mem *rmem = NULL;
 	struct device_node *np, *mem_node;
 #endif
 	u32 reverse_type, osd_index;
@@ -814,49 +887,7 @@ void am_meson_logo_init(struct drm_device *dev)
 	if (!mem_node || !of_device_is_available(mem_node)) {
 		DRM_INFO("mem region is disabled, skip allocation!\n");
 	}  else if (is_cma) {
-		ret = of_reserved_mem_device_init(&gp_dev->dev);
-		if (ret != 0) {
-			DRM_ERROR("failed to init reserved memory\n");
-		} else {
-#ifdef CONFIG_CMA
-			rmem = of_reserved_mem_lookup(mem_node);
-			of_node_put(mem_node);
-			if (rmem) {
-				logo.size = rmem->size;
-				DRM_DEBUG("of read %s reservememsize=0x%x, base %pa\n",
-					rmem->name, logo.size, &rmem->base);
-			}
-
-			cma_logo = dev_get_cma_area(&gp_dev->dev);
-
-			if (!cma_logo || !logo.size) {
-				DRM_ERROR("Invalid cma, cma_logo:%p, size:%x\n",
-						cma_logo, logo.size);
-			} else {
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
-				logo.logo_page = cma_alloc(cma_logo,
-						ALIGN(logo.size, PAGE_SIZE) >> PAGE_SHIFT,
-						0, GFP_KERNEL);
-#else
-				logo.logo_page = cma_alloc(cma_logo,
-						ALIGN(logo.size, PAGE_SIZE) >> PAGE_SHIFT,
-						0, false);
-#endif
-				if (!logo.logo_page)
-					DRM_ERROR("allocate buffer failed\n");
-				else
-					am_meson_logo_info_update(private);
-			}
-#endif
-			if (gem_mem_start) {
-				dma_declare_coherent_memory(dev->dev,
-								gem_mem_start,
-								gem_mem_start,
-								gem_mem_size);
-				DRM_INFO("meson drm mem_start = 0x%x, size = 0x%x\n",
-					(u32)gem_mem_start, (u32)gem_mem_size);
-			}
-		}
+		am_meson_logo_cma_alloc(dev->dev, 1);
 	} else {
 		ret = parse_reserve_mem_resource(mem_node, &osd_mem_res);
 

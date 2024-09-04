@@ -367,6 +367,53 @@ struct meson_plane_supported_formats video_formats = {
 	.format_num = ARRAY_SIZE(video_supported_drm_formats),
 };
 
+/*set dst based on the real hdisplay and vdisplay of the lcd's mode when recovery_dst_ctrl*/
+static void
+meson_plane_position_calc_for_recovery(struct meson_vpu_osd_layer_info *plane_info,
+			  struct drm_plane_state *state)
+{
+	struct am_osd_plane *amp;
+	struct drm_crtc *crtc = state->crtc;
+
+	if (!crtc) {
+		DRM_DEBUG("Disabling plane %d, so skip position calc",
+			 plane_info->plane_index);
+		return;
+	}
+
+	plane_info->src_x = state->src_x >> 16;
+	plane_info->src_y = state->src_y >> 16;
+	plane_info->src_w = (state->src_w >> 16) & 0xffff;
+	plane_info->src_h = (state->src_h >> 16) & 0xffff;
+
+	plane_info->dst_x = state->crtc_x;
+	plane_info->dst_y = state->crtc_y;
+	plane_info->rotation = state->rotation;
+
+	if (state->plane) {
+		amp = to_am_osd_plane(state->plane);
+
+		plane_info->dst_w = amp->drv->recovery_dst_w;
+		plane_info->dst_h = amp->drv->recovery_dst_h;
+		plane_info->hdisplay = amp->drv->recovery_dst_w;
+		plane_info->vdisplay = amp->drv->recovery_dst_h;
+
+		if (plane_info->blend_bypass != amp->osd_blend_bypass)
+			plane_info->blend_bypass = amp->osd_blend_bypass;
+		if (plane_info->read_ports != amp->osd_read_ports)
+			plane_info->read_ports = amp->osd_read_ports;
+		else
+			plane_info->read_ports = 2;
+	}
+
+	DRM_DEBUG("source: src_x=%d, src_y=%d, src_w=%d, src_h=%d\n",
+		plane_info->src_x, plane_info->src_y,
+		plane_info->src_w, plane_info->src_h);
+	DRM_DEBUG("destination: dst_x=%d, dst_y=%d, dst_w=%d, dst_h=%d\n",
+		plane_info->dst_x, plane_info->dst_y,
+		plane_info->dst_w, plane_info->dst_h);
+}
+
 static void
 meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 			  struct drm_plane_state *state,
@@ -910,7 +957,7 @@ static int meson_plane_get_fb_info(struct drm_plane *plane,
 			plane_info->process_unit = GFCD_AFRC;
 		} else {
 			if (drv->vpu_data && drv->vpu_data->has_gfcd && force_gfcd_mode &&
-					(drv->of_conf.gfcd_afbc_enable ||
+					(drv->of_conf.gfcd_enable ||
 					plane_info->pixel_format == DRM_FORMAT_ABGR10101010)) {
 				plane_info->process_unit = GFCD_AFBC;
 			} else {
@@ -932,6 +979,11 @@ static int meson_plane_get_fb_info(struct drm_plane *plane,
 				plane_info->afbc_inter_format |= SUPER_BLOCK_ASPECT;
 		}
 	}
+
+	if (!drv->of_conf.gfcd_enable &&
+			(plane_info->process_unit == GFCD_AFBC ||
+			plane_info->process_unit == GFCD_AFRC))
+		DRM_DEBUG("gfcd enable config mismatched with real frame, need to check dts!");
 
 	DRM_DEBUG("flags:%d pixel_format:%d,modifier=%llu\n",
 		  fb->flags, fb->format->format, fb->modifier);
@@ -1317,14 +1369,13 @@ static void meson_plane_destroy_state(struct drm_plane *plane,
 	kfree(meson_plane_state);
 }
 
-static void meson_plane_reset(struct drm_plane *plane)
+static void meson_osd_plane_reset(struct drm_plane *plane)
 {
 	struct am_meson_plane_state *meson_plane_state;
-	int min_zpos = OSD_PLANE_BEGIN_ZORDER;
 	int zpos = 0;
 	struct am_osd_plane *osd_plane = to_am_osd_plane(plane);
 
-	zpos = osd_plane->plane_index + min_zpos;
+	zpos = osd_plane->plane_index + OSD_PLANE_BEGIN_ZORDER;
 
 	if (plane->state) {
 		meson_plane_destroy_state(plane, plane->state);
@@ -1337,6 +1388,29 @@ static void meson_plane_reset(struct drm_plane *plane)
 
 	__drm_atomic_helper_plane_reset(plane, &meson_plane_state->base);
 	meson_plane_state->base.pixel_blend_mode = DRM_MODE_BLEND_COVERAGE;
+	/*reset zpos property unless it set by hwc*/
+	if (meson_plane_state->base.zpos == 0)
+		meson_plane_state->base.zpos = zpos;
+}
+
+static void meson_video_plane_reset(struct drm_plane *plane)
+{
+	struct am_meson_plane_state *meson_plane_state;
+	int zpos = 0;
+	struct am_video_plane *video_plane = to_am_video_plane(plane);
+
+	zpos = video_plane->plane_index + VIDEO_PLANE_BEGIN_ZORDER;
+
+	if (plane->state) {
+		meson_plane_destroy_state(plane, plane->state);
+		plane->state = NULL;
+	}
+
+	meson_plane_state = kzalloc(sizeof(*meson_plane_state), GFP_KERNEL);
+	if (!meson_plane_state)
+		return;
+
+	__drm_atomic_helper_plane_reset(plane, &meson_plane_state->base);
 	/*reset zpos property unless it set by hwc*/
 	if (meson_plane_state->base.zpos == 0)
 		meson_plane_state->base.zpos = zpos;
@@ -1597,7 +1671,7 @@ static const struct drm_plane_funcs am_osd_plane_funs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
 	.destroy		= drm_plane_cleanup,
-	.reset			= meson_plane_reset,
+	.reset			= meson_osd_plane_reset,
 	.atomic_duplicate_state = meson_plane_duplicate_state,
 	.atomic_destroy_state	= meson_plane_destroy_state,
 	.atomic_set_property = meson_plane_atomic_set_property,
@@ -1610,7 +1684,7 @@ static const struct drm_plane_funcs am_video_plane_funs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
 	.destroy		= drm_plane_cleanup,
-	.reset			= meson_plane_reset,
+	.reset			= meson_video_plane_reset,
 	.atomic_duplicate_state = meson_plane_duplicate_state,
 	.atomic_destroy_state	= meson_plane_destroy_state,
 	.atomic_set_property = meson_video_plane_atomic_set_property,
@@ -1765,7 +1839,12 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 		plane_info->palette_arry = osd_plane->receive_palette;
 
 	mvps->plane_index[osd_plane->plane_index] = osd_plane->plane_index;
-	meson_plane_position_calc(plane_info, state, mvps->pipeline);
+
+	if (drv->recovery_dst_ctrl)
+		meson_plane_position_calc_for_recovery(plane_info, state);
+	else
+		meson_plane_position_calc(plane_info, state, mvps->pipeline);
+
 	ret = meson_plane_check_size_range(plane_info);
 	if (ret < 0) {
 		plane_info->enable = 0;
@@ -2382,10 +2461,13 @@ static void meson_plane_add_max_fb_property(struct drm_device *drm_dev,
 					    struct am_osd_plane *osd_plane)
 {
 	int ret;
-	u32 size_index, max_fb_size;
+	u32 size_index = 0, max_fb_size;
 	struct drm_property *prop;
+	struct meson_drm *private = drm_dev->dev_private;
 
 	ret = of_property_read_u32(drm_dev->dev->of_node, "max_fb_size", &size_index);
+	private->of_conf.max_fb_size = size_index;
+
 	if (ret)
 		max_fb_size = meson_plane_fb_size_list[0];
 	else
@@ -2707,8 +2789,8 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 		return 0;
 	}
 
-	min_zpos = 0;
-	max_zpos = 255;
+	min_zpos = VIDEO_PLANE_BEGIN_ZORDER;
+	max_zpos = VIDEO_PLANE_END_ZORDER;
 
 	video_plane->drv = priv;
 	video_plane->plane_index = i;

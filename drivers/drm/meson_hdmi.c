@@ -282,7 +282,7 @@ static bool meson_hdmitx_test_color_attr(struct am_hdmi_tx *am_hdmi,
 				attr_list->colorformat, attr_list->bitdepth);
 			if (!hdmitx_common_validate_mode_locked(common, &comm_state, outputmode,
 					attr_str, false)) {
-				DRM_INFO("%s success [%d]+[%d]\n", __func__,
+				DRM_DEBUG("%s success [%d]+[%d]\n", __func__,
 					attr_list->colorformat,
 					attr_list->bitdepth);
 				break;
@@ -464,8 +464,8 @@ static void meson_hdmitx_convert_timing_para(int vic,
 		mode->flags |= DRM_MODE_FLAG_INTERLACE;
 }
 
-static int meson_hdmitx_mode_probed_add(int count, int *vics, struct drm_connector *connector,
-					bool edid_vic)
+static int meson_hdmitx_mode_probed_add(int count, int *vics,
+	struct drm_connector *connector, bool edid_vic)
 {
 	struct drm_display_mode *mode, *pref_mode = NULL;
 	struct am_hdmi_tx *am_hdmitx = connector_to_am_hdmi(connector);
@@ -525,7 +525,7 @@ static int meson_hdmitx_mode_probed_add(int count, int *vics, struct drm_connect
 		drm_mode_probed_add(connector, mode);
 		meson_hdmitx_add_alter_mode(connector, mode, vics[i]);
 
-		DRM_DEBUG("add mode [%s]\n", mode->name);
+		DRM_DEBUG("add mode [%s] [%d]\n", mode->name, mode->hskew);
 	}
 
 	if (pref_mode)
@@ -539,7 +539,7 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	u32 vrr_cap = 0;
 	struct edid *edid;
 	int *vics;
-	int count = 0, count1 = 0, i = 0, j = 0;
+	int count = 0, count_qms = 0, i = 0, j = 0;
 	struct drm_display_mode *mode;
 	struct am_hdmi_tx *am_hdmitx = connector_to_am_hdmi(connector);
 	struct hdmitx_common *tx_comm = to_hdmitx_common(am_hdmitx->hdmitx_dev);
@@ -593,16 +593,16 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 		for (i = 0; i < num_group; i++) {
 			group = &groups[i];
 			for (j = 0; j < ARRAY_SIZE(group->qms_vic_lists); j++) {
-				tmp[count1] = group->qms_vic_lists[j];
+				tmp[count_qms] = group->qms_vic_lists[j];
 				DRM_DEBUG("%s__%d__%d__%zd\n", __func__,
-				__LINE__, tmp[count1],
+				__LINE__, tmp[count_qms],
 				ARRAY_SIZE(group->qms_vic_lists));
-				count1++;
+				count_qms++;
 			}
 		}
 
 		/*remove duplicate vics array variables*/
-		while (src  < count1) {
+		while (src  < count_qms) {
 			bool exist = false;
 
 			for (i = 0; i < count; i++) {
@@ -617,7 +617,7 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 				vrr_list[dst++] = tmp[src++];
 		}
 
-		count1 = dst;
+		count_qms = dst;
 	}
 
 	if (count) {
@@ -625,8 +625,8 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 		kfree(vics);
 	}
 
-	if (count1)
-		meson_hdmitx_mode_probed_add(count1, vrr_list, connector, false);
+	if (count_qms)
+		meson_hdmitx_mode_probed_add(count_qms, vrr_list, connector, false);
 
 	/*TODO:add dummy mode temp.*/
 	if (am_hdmitx->base.drm_priv->dummyl_from_hdmitx) {
@@ -648,7 +648,7 @@ end:
 	kfree(tmp);
 	kfree(groups);
 
-	return count + count1;
+	return count + count_qms;
 }
 
 /*   drm_display_mode	     :		 hdmi_format_para
@@ -1020,6 +1020,8 @@ static int am_hdmitx_connector_atomic_get_property
 		to_am_hdmitx_connector_state(state);
 	struct hdmitx_color_attr *attr = &hdmitx_state->color_attr_para;
 	struct meson_hdr_static_metadata mHdrMetaDataValue;
+	struct drm_property_blob *new_metadata, *old_metadata;
+	bool replaced;
 
 	if (property == am_hdmi->update_attr_prop) {
 		*val = 0;
@@ -1089,8 +1091,21 @@ static int am_hdmitx_connector_atomic_get_property
 		return 0;
 	} else if (property == am_hdmi->static_meta_prop) {
 		get_metadata(tx_comm, &mHdrMetaDataValue);
-		hdmitx_state->metadata = drm_property_create_blob(connector->dev,
+		old_metadata = hdmitx_state->metadata;
+		new_metadata = drm_property_create_blob(connector->dev,
 			sizeof(mHdrMetaDataValue), &mHdrMetaDataValue);
+		if (IS_ERR(new_metadata)) {
+			DRM_ERROR("%s, create metadata blob fail.\n", __func__);
+			return 0;
+		}
+		replaced = drm_property_replace_blob(&hdmitx_state->metadata,
+			new_metadata);
+		if (replaced && old_metadata)
+			drm_property_blob_put(old_metadata);
+
+		if (!replaced && new_metadata)
+			drm_property_blob_put(new_metadata);
+
 		*val = (hdmitx_state->metadata) ? hdmitx_state->metadata->base.id : 0;
 		return 0;
 	} else if (property == am_hdmi->allm_cap_prop) {
@@ -1102,9 +1117,12 @@ static int am_hdmitx_connector_atomic_get_property
 	} else if (property == am_hdmi->scan_info_prop) {
 		*val = hdmitx_common_get_scan_info(tx_comm);
 		return 0;
-	}
-
+	} else {
+		DRM_ERROR("[CONNECTOR:%d:%s] unknown property [PROP:%d:%s]\n",
+				connector->base.id, connector->name,
+				property->base.id, property->name);
 	return -EINVAL;
+	}
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -1285,6 +1303,7 @@ struct drm_connector_state *meson_hdmitx_atomic_duplicate_state
 	new_state->allm_mode = cur_state->allm_mode;
 	cur_state->hcs.state_sequence_id = am_hdmi->sequence_id;
 	new_state->frac_rate_policy = cur_state->frac_rate_policy;
+	new_state->metadata = cur_state->metadata;
 	memcpy(&new_state->hcs, &cur_state->hcs, sizeof(struct hdmitx_common_state));
 
 	return &new_state->base;
@@ -1345,6 +1364,10 @@ void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 	if (groups)
 		num_group = hdmitx_common_get_vrr_mode_group(tx_comm, groups,
 							      MAX_VRR_MODE_GROUP);
+	if (!num_group) {
+		DRM_ERROR("get vrr error or not support qms\n");
+		kfree(groups);
+	}
 
 	drm_printf(p, "\tdrm hdmitx state:\n");
 	drm_printf(p, "\t\t android_path:[%d]\n", am_hdmi->android_path);
@@ -1922,7 +1945,7 @@ static void meson_hdmitx_cal_brr(struct am_hdmi_tx *am_hdmi,
 		crtc_state->valid_brr = 1;
 	}
 
-	DRM_INFO("%s, %d, %d, %s, %d\n", __func__, vic, brr, crtc_state->brr_mode,
+	DRM_DEBUG("%s, %d, %d, %s, %d\n", __func__, vic, brr, crtc_state->brr_mode,
 			 crtc_state->valid_brr);
 	crtc_state->brr = brr;
 	kfree(groups);
@@ -2287,7 +2310,7 @@ static int meson_hdmitx_encoder_autoselect_attr(struct drm_encoder *encoder,
 	if (ret < 0)
 		DRM_ERROR("format para build fail\n");
 
-	DRM_INFO("driver autoselect attr:[%s][%d][%d]\n",
+	DRM_DEBUG("driver autoselect attr:[%s][%d][%d]\n",
 		hdmitx_state->hcs.para.name, hdmitx_state->hcs.para.cs, hdmitx_state->hcs.para.cd);
 
 	return ret;

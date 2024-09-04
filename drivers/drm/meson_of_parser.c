@@ -95,38 +95,41 @@ static void meson_parse_gfcd_config(struct drm_device *dev,
 		struct meson_of_conf *conf)
 {
 	u8 enable;
-	int ret, temp;
+	int ret;
 
-	ret = of_property_read_u8(dev->dev->of_node, "gfcd_afbc_enable", &enable);
+	ret = of_property_read_u8(dev->dev->of_node, "gfcd_enable", &enable);
 	if (ret)
-		DRM_DEBUG("undefined gfcd_afbc_enable!\n");
+		DRM_DEBUG("undefined gfcd_enable!\n");
 	else
-		conf->gfcd_afbc_enable = enable;
+		conf->gfcd_enable = enable;
 
 	/*
-	 *S7D revA&B use the same config file, so we need to distinguish
-	 *according to chip ID.
+	 *S7D & S6 revA&revB use the same config file, so we need to distinguish
+	 *according to chip ID and revision.
 	 */
 	if (is_meson_s7d_cpu()) {
 		if (is_meson_rev_a()) {
-			conf->gfcd_mask = 1;
-			conf->drm_policy_mask = 3;
+			conf->gfcd_mask = BIT(GFCD_ODD_SIZE);
+			if (conf->gfcd_enable)
+				conf->drm_policy_mask =
+					(BIT(GFCD_ODD_SIZE) | BIT(GFCD_GLOBAL_ALPHA));
 		} else if (is_meson_rev_b()) {
-			conf->gfcd_mask = 2;
+			conf->gfcd_mask = BIT(GFCD_GLOBAL_ALPHA);
 			conf->drm_policy_mask = 0;
 		}
-	} else {
-		ret = of_property_read_u32(dev->dev->of_node, "gfcd_mask_for_driver", &temp);
-		if (!ret)
-			conf->gfcd_mask = temp;
-
-		ret = of_property_read_u32(dev->dev->of_node, "gfcd_mask_for_upper", &temp);
-		if (!ret)
-			conf->drm_policy_mask |= temp;
+	} else if (is_meson_s6_cpu()) {
+		if (is_meson_rev_a()) {
+			conf->gfcd_mask = BIT(GFCD_ODD_SIZE);
+			if (conf->gfcd_enable)
+				conf->drm_policy_mask = BIT(GFCD_GLOBAL_ALPHA);
+		} else if (is_meson_rev_b()) {
+			conf->gfcd_mask = BIT(GFCD_GLOBAL_ALPHA);
+			conf->drm_policy_mask = 0;
+		}
 	}
 
-	DRM_DEBUG("gfcd_mask:%d drm_policy_mask:%lld\n",
-		conf->gfcd_mask, conf->drm_policy_mask);
+	DRM_DEBUG("gfcd_enable:%d gfcd_mask:%d drm_policy_mask:%lld\n",
+		conf->gfcd_enable, conf->gfcd_mask, conf->drm_policy_mask);
 }
 
 static void am_meson_vpu_get_plane_crtc_mask(struct meson_drm *priv,
