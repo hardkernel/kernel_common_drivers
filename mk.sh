@@ -226,13 +226,13 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 		fi
 		${GOOGLE_BAZEL_BUILD_COMMAND_LINE}
 	elif [[ "${ABI}" -eq "1" ]]; then
-		tools/bazel run //common:amlogic_abi_update_symbol_list --verbose_failures ${args}
-		tools/bazel run //common:kernel_aarch64_abi_dist --verbose_failures ${args}
+		tools/bazel run //common:amlogic_abi_update_symbol_list ${args}
+		tools/bazel run //common:kernel_aarch64_abi_dist ${args}
 		exit
 	elif [[ -n ${PREBUILT_GKI} ]]; then
-		tools/bazel run --use_prebuilt_gki=${PREBUILT_GKI} //common:amlogic_dist --verbose_failures ${args}
+		tools/bazel run --use_prebuilt_gki=${PREBUILT_GKI} //common:amlogic_dist ${args}
 	else
-		tools/bazel run //common:amlogic_dist --verbose_failures ${args}
+		tools/bazel run //common:amlogic_dist ${args}
 	fi
 	set +x
 
