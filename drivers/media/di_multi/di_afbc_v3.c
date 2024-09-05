@@ -2472,8 +2472,13 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 	}
 	reg_wr(reg[EAFBC_MIF_HOR_SCOPE],
 	       (0 << 16) | ((w_aligned >> 5) - 1));
-	reg_wr(reg[EAFBC_MIF_VER_SCOPE],
-	       (0 << 16) | ((h_aligned >> 2) - 1));
+	if (((vf->type & VIDTYPE_INTERLACE) || is_src_i(vf)) &&
+	    (vf->type & VIDTYPE_VIU_422) && DIM_IS_IC(T3X))
+		reg_wr(reg[EAFBC_MIF_VER_SCOPE],
+		       (0 << 16) | ((h_aligned >> 1) - 1));
+	else
+		reg_wr(reg[EAFBC_MIF_VER_SCOPE],
+		       (0 << 16) | ((h_aligned >> 2) - 1));
 
 	reg_wr(reg[EAFBC_PIXEL_HOR_SCOPE],
 	       (0 << 16) | (vfw - 1));
