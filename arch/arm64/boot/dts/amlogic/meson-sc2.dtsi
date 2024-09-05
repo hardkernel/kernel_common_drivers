@@ -1088,12 +1088,15 @@
 			};
 
 			uart_B: serial@7a000 {
-				compatible = "amlogic,meson-uart";
+				/* compatible = "amlogic,meson-uart"; */
+				compatible = "amlogic,meson-s4-uart";
 				reg = <0x0 0x7a000 0x0 0x18>;
 				interrupts = <0 169 1>;
 				status = "okay";
-				clocks = <&xtal>;
-				clock-names = "clk_uart";
+				/* clocks = <&xtal>; */
+				/* clock-names = "clk_uart"; */
+				clocks = <&xtal>, <&xtal>, <&xtal>;
+				clock-names = "xtal", "pclk", "baud";
 				xtal_tick_en = <2>;
 				fifosize = < 64 >;
 				pinctrl-names = "default";

@@ -1,0 +1,157 @@
+From 57eb0866285140aa25c6a00a50d3c6195a7120a6 Mon Sep 17 00:00:00 2001
+From: Wanwei Jiang <wanwei.jiang@amlogic.com>
+Date: Fri, 6 Sep 2024 00:07:39 +0800
+Subject: [PATCH] tool: bring up androidu with common16-6.12 [1/1]
+
+PD#SWPL-183292
+
+Problem:
+build fail in android project
+
+Solution:
+rename Android.bp to Android_bp
+rename Android.mk to Android_mk
+
+Verify:
+local
+
+Change-Id: I1eb609b2ef5bfbbbd3c095ae77bc6c6b77e554c2
+Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
+---
+ Android.bp => Android_bp                           | 0
+ build/{Android.bp => Android_bp}                   | 0
+ r/android-4.14/{Android.bp => Android_bp}          | 0
+ r/android-4.19/{Android.bp => Android_bp}          | 0
+ r/android-5.4/{Android.bp => Android_bp}           | 0
+ s/android-4.19/{Android.bp => Android_bp}          | 0
+ s/android-5.10/{Android.bp => Android_bp}          | 0
+ s/android-5.4/{Android.bp => Android_bp}           | 0
+ t/android-5.10/{Android.bp => Android_bp}          | 0
+ t/android-5.15/{Android.bp => Android_bp}          | 0
+ tools/{Android.bp => Android_bp}                   | 0
+ u/android-5.15/{Android.bp => Android_bp}          | 0
+ u/android-6.1/{Android.bp => Android_bp}           | 0
+ v/android-6.1/{Android.bp => Android_bp}           | 0
+ v/android-6.6/{Android.bp => Android_bp}           | 0
+ w/android-6.1/{Android.bp => Android_bp}           | 0
+ w/android-6.6/{Android.bp => Android_bp}           | 0
+ w/android-6.next/{Android.bp => Android_bp}        | 0
+ xsd/approvedBuild/{Android.bp => Android_bp}       | 0
+ xsd/approvedBuild/vts/{Android.bp => Android_bp}   | 0
+ xsd/kernelLifetimes/{Android.bp => Android_bp}     | 0
+ xsd/kernelLifetimes/vts/{Android.bp => Android_bp} | 0
+ 22 files changed, 0 insertions(+), 0 deletions(-)
+ rename Android.bp => Android_bp (100%)
+ rename build/{Android.bp => Android_bp} (100%)
+ rename r/android-4.14/{Android.bp => Android_bp} (100%)
+ rename r/android-4.19/{Android.bp => Android_bp} (100%)
+ rename r/android-5.4/{Android.bp => Android_bp} (100%)
+ rename s/android-4.19/{Android.bp => Android_bp} (100%)
+ rename s/android-5.10/{Android.bp => Android_bp} (100%)
+ rename s/android-5.4/{Android.bp => Android_bp} (100%)
+ rename t/android-5.10/{Android.bp => Android_bp} (100%)
+ rename t/android-5.15/{Android.bp => Android_bp} (100%)
+ rename tools/{Android.bp => Android_bp} (100%)
+ rename u/android-5.15/{Android.bp => Android_bp} (100%)
+ rename u/android-6.1/{Android.bp => Android_bp} (100%)
+ rename v/android-6.1/{Android.bp => Android_bp} (100%)
+ rename v/android-6.6/{Android.bp => Android_bp} (100%)
+ rename w/android-6.1/{Android.bp => Android_bp} (100%)
+ rename w/android-6.6/{Android.bp => Android_bp} (100%)
+ rename w/android-6.next/{Android.bp => Android_bp} (100%)
+ rename xsd/approvedBuild/{Android.bp => Android_bp} (100%)
+ rename xsd/approvedBuild/vts/{Android.bp => Android_bp} (100%)
+ rename xsd/kernelLifetimes/{Android.bp => Android_bp} (100%)
+ rename xsd/kernelLifetimes/vts/{Android.bp => Android_bp} (100%)
+
+diff --git a/Android.bp b/Android_bp
+similarity index 100%
+rename from Android.bp
+rename to Android_bp
+diff --git a/build/Android.bp b/build/Android_bp
+similarity index 100%
+rename from build/Android.bp
+rename to build/Android_bp
+diff --git a/r/android-4.14/Android.bp b/r/android-4.14/Android_bp
+similarity index 100%
+rename from r/android-4.14/Android.bp
+rename to r/android-4.14/Android_bp
+diff --git a/r/android-4.19/Android.bp b/r/android-4.19/Android_bp
+similarity index 100%
+rename from r/android-4.19/Android.bp
+rename to r/android-4.19/Android_bp
+diff --git a/r/android-5.4/Android.bp b/r/android-5.4/Android_bp
+similarity index 100%
+rename from r/android-5.4/Android.bp
+rename to r/android-5.4/Android_bp
+diff --git a/s/android-4.19/Android.bp b/s/android-4.19/Android_bp
+similarity index 100%
+rename from s/android-4.19/Android.bp
+rename to s/android-4.19/Android_bp
+diff --git a/s/android-5.10/Android.bp b/s/android-5.10/Android_bp
+similarity index 100%
+rename from s/android-5.10/Android.bp
+rename to s/android-5.10/Android_bp
+diff --git a/s/android-5.4/Android.bp b/s/android-5.4/Android_bp
+similarity index 100%
+rename from s/android-5.4/Android.bp
+rename to s/android-5.4/Android_bp
+diff --git a/t/android-5.10/Android.bp b/t/android-5.10/Android_bp
+similarity index 100%
+rename from t/android-5.10/Android.bp
+rename to t/android-5.10/Android_bp
+diff --git a/t/android-5.15/Android.bp b/t/android-5.15/Android_bp
+similarity index 100%
+rename from t/android-5.15/Android.bp
+rename to t/android-5.15/Android_bp
+diff --git a/tools/Android.bp b/tools/Android_bp
+similarity index 100%
+rename from tools/Android.bp
+rename to tools/Android_bp
+diff --git a/u/android-5.15/Android.bp b/u/android-5.15/Android_bp
+similarity index 100%
+rename from u/android-5.15/Android.bp
+rename to u/android-5.15/Android_bp
+diff --git a/u/android-6.1/Android.bp b/u/android-6.1/Android_bp
+similarity index 100%
+rename from u/android-6.1/Android.bp
+rename to u/android-6.1/Android_bp
+diff --git a/v/android-6.1/Android.bp b/v/android-6.1/Android_bp
+similarity index 100%
+rename from v/android-6.1/Android.bp
+rename to v/android-6.1/Android_bp
+diff --git a/v/android-6.6/Android.bp b/v/android-6.6/Android_bp
+similarity index 100%
+rename from v/android-6.6/Android.bp
+rename to v/android-6.6/Android_bp
+diff --git a/w/android-6.1/Android.bp b/w/android-6.1/Android_bp
+similarity index 100%
+rename from w/android-6.1/Android.bp
+rename to w/android-6.1/Android_bp
+diff --git a/w/android-6.6/Android.bp b/w/android-6.6/Android_bp
+similarity index 100%
+rename from w/android-6.6/Android.bp
+rename to w/android-6.6/Android_bp
+diff --git a/w/android-6.next/Android.bp b/w/android-6.next/Android_bp
+similarity index 100%
+rename from w/android-6.next/Android.bp
+rename to w/android-6.next/Android_bp
+diff --git a/xsd/approvedBuild/Android.bp b/xsd/approvedBuild/Android_bp
+similarity index 100%
+rename from xsd/approvedBuild/Android.bp
+rename to xsd/approvedBuild/Android_bp
+diff --git a/xsd/approvedBuild/vts/Android.bp b/xsd/approvedBuild/vts/Android_bp
+similarity index 100%
+rename from xsd/approvedBuild/vts/Android.bp
+rename to xsd/approvedBuild/vts/Android_bp
+diff --git a/xsd/kernelLifetimes/Android.bp b/xsd/kernelLifetimes/Android_bp
+similarity index 100%
+rename from xsd/kernelLifetimes/Android.bp
+rename to xsd/kernelLifetimes/Android_bp
+diff --git a/xsd/kernelLifetimes/vts/Android.bp b/xsd/kernelLifetimes/vts/Android_bp
+similarity index 100%
+rename from xsd/kernelLifetimes/vts/Android.bp
+rename to xsd/kernelLifetimes/vts/Android_bp
+-- 
+2.42.0
+

@@ -1066,6 +1066,10 @@ function abi_symbol_list_detect () { # detect symbol information that should be 
 	file_list=("${symbol_file1} ${symbol_file2} ${symbol_file3} ${symbol_file4}")
 	for file in ${file_list}
 	do
+		if [[ ! -e ${file} ]]; then
+			continue
+		fi
+
 		local symbol_tmp=`mktemp tmp.XXXXXXXXXXXX`
 		reorganized_abi_symbol_list_file "${file}"
 

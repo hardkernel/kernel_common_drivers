@@ -1,0 +1,97 @@
+From b60b8c29be111e5242049539d16c1e02d951e001 Mon Sep 17 00:00:00 2001
+From: Wanwei Jiang <wanwei.jiang@amlogic.com>
+Date: Fri, 6 Sep 2024 00:31:54 +0800
+Subject: [PATCH] tool: bring up androidu with common16-6.12 [1/1]
+
+PD#SWPL-183292
+
+Problem:
+build fail in android project
+
+Solution:
+rename Android.bp to Android_bp
+rename Android.mk to Android_mk
+
+Verify:
+local
+
+Change-Id: Iebf53a8aba0d069e8701d988b39fffa33206c628
+Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
+---
+ Android.mk => Android_mk                                          | 0
+ sources/android/cpufeatures/{Android.mk => Android_mk}            | 0
+ sources/android/native_app_glue/{Android.mk => Android_mk}        | 0
+ sources/android/ndk_helper/{Android.mk => Android_mk}             | 0
+ sources/third_party/googletest/{Android.mk => Android_mk}         | 0
+ sources/third_party/shaderc/{Android.mk => Android_mk}            | 0
+ sources/third_party/shaderc/libshaderc/{Android.mk => Android_mk} | 0
+ .../shaderc/libshaderc_util/{Android.mk => Android_mk}            | 0
+ .../third_party/shaderc/third_party/{Android.mk => Android_mk}    | 0
+ .../shaderc/third_party/glslang/{Android.mk => Android_mk}        | 0
+ .../shaderc/third_party/spirv-tools/{Android.mk => Android_mk}    | 0
+ .../vulkan/src/build-android/jni/{Android.mk => Android_mk}       | 0
+ 12 files changed, 0 insertions(+), 0 deletions(-)
+ rename Android.mk => Android_mk (100%)
+ rename sources/android/cpufeatures/{Android.mk => Android_mk} (100%)
+ rename sources/android/native_app_glue/{Android.mk => Android_mk} (100%)
+ rename sources/android/ndk_helper/{Android.mk => Android_mk} (100%)
+ rename sources/third_party/googletest/{Android.mk => Android_mk} (100%)
+ rename sources/third_party/shaderc/{Android.mk => Android_mk} (100%)
+ rename sources/third_party/shaderc/libshaderc/{Android.mk => Android_mk} (100%)
+ rename sources/third_party/shaderc/libshaderc_util/{Android.mk => Android_mk} (100%)
+ rename sources/third_party/shaderc/third_party/{Android.mk => Android_mk} (100%)
+ rename sources/third_party/shaderc/third_party/glslang/{Android.mk => Android_mk} (100%)
+ rename sources/third_party/shaderc/third_party/spirv-tools/{Android.mk => Android_mk} (100%)
+ rename sources/third_party/vulkan/src/build-android/jni/{Android.mk => Android_mk} (100%)
+
+diff --git a/Android.mk b/Android_mk
+similarity index 100%
+rename from Android.mk
+rename to Android_mk
+diff --git a/sources/android/cpufeatures/Android.mk b/sources/android/cpufeatures/Android_mk
+similarity index 100%
+rename from sources/android/cpufeatures/Android.mk
+rename to sources/android/cpufeatures/Android_mk
+diff --git a/sources/android/native_app_glue/Android.mk b/sources/android/native_app_glue/Android_mk
+similarity index 100%
+rename from sources/android/native_app_glue/Android.mk
+rename to sources/android/native_app_glue/Android_mk
+diff --git a/sources/android/ndk_helper/Android.mk b/sources/android/ndk_helper/Android_mk
+similarity index 100%
+rename from sources/android/ndk_helper/Android.mk
+rename to sources/android/ndk_helper/Android_mk
+diff --git a/sources/third_party/googletest/Android.mk b/sources/third_party/googletest/Android_mk
+similarity index 100%
+rename from sources/third_party/googletest/Android.mk
+rename to sources/third_party/googletest/Android_mk
+diff --git a/sources/third_party/shaderc/Android.mk b/sources/third_party/shaderc/Android_mk
+similarity index 100%
+rename from sources/third_party/shaderc/Android.mk
+rename to sources/third_party/shaderc/Android_mk
+diff --git a/sources/third_party/shaderc/libshaderc/Android.mk b/sources/third_party/shaderc/libshaderc/Android_mk
+similarity index 100%
+rename from sources/third_party/shaderc/libshaderc/Android.mk
+rename to sources/third_party/shaderc/libshaderc/Android_mk
+diff --git a/sources/third_party/shaderc/libshaderc_util/Android.mk b/sources/third_party/shaderc/libshaderc_util/Android_mk
+similarity index 100%
+rename from sources/third_party/shaderc/libshaderc_util/Android.mk
+rename to sources/third_party/shaderc/libshaderc_util/Android_mk
+diff --git a/sources/third_party/shaderc/third_party/Android.mk b/sources/third_party/shaderc/third_party/Android_mk
+similarity index 100%
+rename from sources/third_party/shaderc/third_party/Android.mk
+rename to sources/third_party/shaderc/third_party/Android_mk
+diff --git a/sources/third_party/shaderc/third_party/glslang/Android.mk b/sources/third_party/shaderc/third_party/glslang/Android_mk
+similarity index 100%
+rename from sources/third_party/shaderc/third_party/glslang/Android.mk
+rename to sources/third_party/shaderc/third_party/glslang/Android_mk
+diff --git a/sources/third_party/shaderc/third_party/spirv-tools/Android.mk b/sources/third_party/shaderc/third_party/spirv-tools/Android_mk
+similarity index 100%
+rename from sources/third_party/shaderc/third_party/spirv-tools/Android.mk
+rename to sources/third_party/shaderc/third_party/spirv-tools/Android_mk
+diff --git a/sources/third_party/vulkan/src/build-android/jni/Android.mk b/sources/third_party/vulkan/src/build-android/jni/Android_mk
+similarity index 100%
+rename from sources/third_party/vulkan/src/build-android/jni/Android.mk
+rename to sources/third_party/vulkan/src/build-android/jni/Android_mk
+-- 
+2.42.0
+

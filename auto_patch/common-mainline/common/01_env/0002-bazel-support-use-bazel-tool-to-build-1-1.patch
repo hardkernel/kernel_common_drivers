@@ -1,0 +1,61 @@
+From 8669c08858a8549046506d36a1c34d8f26d09409 Mon Sep 17 00:00:00 2001
+From: Wanwei Jiang <wanwei.jiang@amlogic.com>
+Date: Fri, 17 Mar 2023 17:35:31 +0800
+Subject: [PATCH 2/3] bazel: support use bazel tool to build [1/1]
+
+PD#SWPL-112151
+
+Problem:
+support use bazel tool to build
+
+Solution:
+support use bazel tool to build
+
+Verify:
+sc2
+
+Change-Id: I96e80b97ed481f32239955748ffa52e7d40a85aa
+Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
+---
+ BUILD.bazel | 3 +++
+ modules.bzl | 6 ++++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/BUILD.bazel b/BUILD.bazel
+index 9fca950b8b20..93e764e8fb19 100644
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -2545,3 +2545,6 @@ pkg_zip(
+     out = "test_mappings.zip",
+     visibility = ["//visibility:public"],
+ )
++
++load("//common:common_drivers/amlogic.bzl", "define_amlogic")
++define_amlogic()
+diff --git a/modules.bzl b/modules.bzl
+index 058b264f3593..2c4c1b15fabd 100644
+--- a/modules.bzl
++++ b/modules.bzl
+@@ -6,6 +6,8 @@ This module contains a full list of kernel modules
+  compiled by GKI.
+ """
+ 
++load("//common:common_drivers/modules.bzl", "ALL_MODULES_REMOVE")
++
+ _COMMON_GKI_MODULES_LIST = [
+     # keep sorted
+     "drivers/block/zram/zram.ko",
+@@ -124,6 +126,10 @@ def get_gki_modules_list(arch = None):
+             arch,
+         ))
+ 
++    remove_modules_items = {module: None for module in depset(ALL_MODULES_REMOVE).to_list()}
++    gki_modules_list = [module for module in depset(gki_modules_list).to_list() if module not in remove_modules_items] \
++			if remove_modules_items else gki_modules_list
++
+     return gki_modules_list
+ 
+ _KUNIT_FRAMEWORK_MODULES = [
+-- 
+2.42.0
+

@@ -1,0 +1,31 @@
+From 04dd393a4dd36a8de04cc625bf65b1719d1d1467 Mon Sep 17 00:00:00 2001
+From: Wanwei Jiang <wanwei.jiang@amlogic.com>
+Date: Fri, 6 Sep 2024 00:19:41 +0800
+Subject: [PATCH] tool: bring up androidu with common16-6.12 [1/1]
+
+PD#SWPL-183292
+
+Problem:
+build fail in android project
+
+Solution:
+rename Android.bp to Android_bp
+rename Android.mk to Android_mk
+
+Verify:
+local
+
+Change-Id: I7cb4bbd1c069beb440810d065478cd6c65616280
+Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
+---
+ acloud/linux-x86/{Android.bp => Android_bp} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+ rename acloud/linux-x86/{Android.bp => Android_bp} (100%)
+
+diff --git a/acloud/linux-x86/Android.bp b/acloud/linux-x86/Android_bp
+similarity index 100%
+rename from acloud/linux-x86/Android.bp
+rename to acloud/linux-x86/Android_bp
+-- 
+2.42.0
+

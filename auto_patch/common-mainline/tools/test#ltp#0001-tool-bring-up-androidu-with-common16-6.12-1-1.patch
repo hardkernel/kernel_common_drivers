@@ -1,0 +1,43 @@
+From ff130bacf79ef46b108a0592d46ac5bf65f07542 Mon Sep 17 00:00:00 2001
+From: Wanwei Jiang <wanwei.jiang@amlogic.com>
+Date: Fri, 6 Sep 2024 00:52:03 +0800
+Subject: [PATCH] tool: bring up androidu with common16-6.12 [1/1]
+
+PD#SWPL-183292
+
+Problem:
+build fail in android project
+
+Solution:
+rename Android.bp to Android_bp
+rename Android.mk to Android_mk
+
+Verify:
+local
+
+Change-Id: I7847cc03e903ff40b9f26f42b92521384a8f193b
+Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
+---
+ Android.bp => Android_bp             | 0
+ android/{Android.bp => Android_bp}   | 0
+ testcases/{Android.bp => Android_bp} | 0
+ 3 files changed, 0 insertions(+), 0 deletions(-)
+ rename Android.bp => Android_bp (100%)
+ rename android/{Android.bp => Android_bp} (100%)
+ rename testcases/{Android.bp => Android_bp} (100%)
+
+diff --git a/Android.bp b/Android_bp
+similarity index 100%
+rename from Android.bp
+rename to Android_bp
+diff --git a/android/Android.bp b/android/Android_bp
+similarity index 100%
+rename from android/Android.bp
+rename to android/Android_bp
+diff --git a/testcases/Android.bp b/testcases/Android_bp
+similarity index 100%
+rename from testcases/Android.bp
+rename to testcases/Android_bp
+-- 
+2.42.0
+

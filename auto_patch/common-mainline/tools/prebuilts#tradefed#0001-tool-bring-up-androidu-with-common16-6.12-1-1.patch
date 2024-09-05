@@ -1,0 +1,49 @@
+From 02ac9276e49b309911b38962c4990791568b7082 Mon Sep 17 00:00:00 2001
+From: Wanwei Jiang <wanwei.jiang@amlogic.com>
+Date: Fri, 6 Sep 2024 00:35:34 +0800
+Subject: [PATCH] tool: bring up androidu with common16-6.12 [1/1]
+
+PD#SWPL-183292
+
+Problem:
+build fail in android project
+
+Solution:
+rename Android.bp to Android_bp
+rename Android.mk to Android_mk
+
+Verify:
+local
+
+Change-Id: Ieddec3dd314b55a934a41a1394d54474bb3611ca
+Signed-off-by: Wanwei Jiang <wanwei.jiang@amlogic.com>
+---
+ filegroups/suite/{Android.bp => Android_bp}    | 0
+ filegroups/tradefed/{Android.bp => Android_bp} | 0
+ test_harness/{Android.bp => Android_bp}        | 0
+ test_harness/{Android.mk => Android_mk}        | 0
+ 4 files changed, 0 insertions(+), 0 deletions(-)
+ rename filegroups/suite/{Android.bp => Android_bp} (100%)
+ rename filegroups/tradefed/{Android.bp => Android_bp} (100%)
+ rename test_harness/{Android.bp => Android_bp} (100%)
+ rename test_harness/{Android.mk => Android_mk} (100%)
+
+diff --git a/filegroups/suite/Android.bp b/filegroups/suite/Android_bp
+similarity index 100%
+rename from filegroups/suite/Android.bp
+rename to filegroups/suite/Android_bp
+diff --git a/filegroups/tradefed/Android.bp b/filegroups/tradefed/Android_bp
+similarity index 100%
+rename from filegroups/tradefed/Android.bp
+rename to filegroups/tradefed/Android_bp
+diff --git a/test_harness/Android.bp b/test_harness/Android_bp
+similarity index 100%
+rename from test_harness/Android.bp
+rename to test_harness/Android_bp
+diff --git a/test_harness/Android.mk b/test_harness/Android_mk
+similarity index 100%
+rename from test_harness/Android.mk
+rename to test_harness/Android_mk
+-- 
+2.42.0
+

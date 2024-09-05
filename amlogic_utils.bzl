@@ -22,7 +22,7 @@ load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 #KV_TODO: modify
 #load("//build/kernel/kleaf/impl:gki_artifacts.bzl", "gki_artifacts", "gki_artifacts_prebuilts")
 load("//build/kernel/kleaf:print_debug.bzl", "print_debug")
-load("@kernel_toolchain_info//:dict.bzl", "BRANCH")
+# load("@kernel_toolchain_info//:dict.bzl", "BRANCH")
 
 # Always collect_unstripped_modules for common kernels.
 _COLLECT_UNSTRIPPED_MODULES = True
@@ -76,7 +76,8 @@ def define_common_amlogic(
         kmi_symbol_list_add_only = True if define_abi_targets else None
 
     if dist_dir == None:
-        dist_dir = "out/{branch}/dist".format(branch = BRANCH)
+        dist_dir = "out/android-mainline/dist"
+        # dist_dir = "out/{branch}/dist".format(branch = BRANCH)
 
     # Also refer to the list of ext modules for ABI monitoring targets
     _kernel_modules = ext_modules;
