@@ -285,7 +285,8 @@ static int crg_host_init(struct crg_drd *crg)
 	}
 	if (is_meson_t7_cpu() || is_meson_t3_cpu() ||
 		is_meson_t5_cpu() || is_meson_t5d_cpu() ||
-		is_meson_s4_cpu() || is_meson_s4d_cpu())
+		is_meson_s4_cpu() || is_meson_s4d_cpu() ||
+		is_meson_s6_cpu())
 		props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-crg-host-008");
 
 	if (is_meson_s4_cpu() || is_meson_s4d_cpu())
