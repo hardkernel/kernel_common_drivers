@@ -2786,31 +2786,23 @@ void frc_frame_forcebuf_count(u8 forceidx)
 
 u16 frc_check_vf_rate(u16 duration, struct frc_dev_s *frc_devp)
 {
-	int i, getflag;
 	u16 framerate = 0;
+	u16 framerate_frac = 0;
 
 	/*duration: 1600(60fps) 1920(50fps) 3200(30fps) 3203(29.97)*/
 	/*3840(25fps) 4000(24fps) 4004(23.976fps)*/
-	i = 0;
-	getflag = 0;
-	while (i < FRAME_RATE_CNT) {
-		if (vf_rate_table[i].duration == duration) {
-			framerate = vf_rate_table[i].framerate;
-			getflag = 1;
-			break;
-		}
-		i++;
-	}
-	if (!getflag && duration > 333) {
+
+	if (duration) {
 		framerate = 96000 / duration;
-		getflag = 1;
+		framerate_frac = (96000 * 1000 / duration) % 1000;
 	}
-	if (getflag == 1 && framerate != frc_devp->in_sts.frc_vf_rate) {
-		pr_frc(2, "input vf rate changed [%d->%d, duration:%d].\n",
-			frc_devp->in_sts.frc_vf_rate, framerate,
-			duration);
+	if (framerate != frc_devp->in_sts.frc_vf_rate ||
+		framerate_frac != frc_devp->in_sts.frc_vf_rate_frac) {
+		pr_frc(2, "input vf rate changed [%d.%d->%d.%d, duration:%d].\n",
+			frc_devp->in_sts.frc_vf_rate, frc_devp->in_sts.frc_vf_rate_frac,
+			framerate, framerate_frac, duration);
 		frc_devp->in_sts.frc_vf_rate = framerate;
-		getflag = 0;
+		frc_devp->in_sts.frc_vf_rate_frac = framerate_frac;
 	}
 	return frc_devp->in_sts.frc_vf_rate;
 }

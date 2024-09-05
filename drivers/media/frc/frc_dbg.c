@@ -272,8 +272,8 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "vf_sts= %d, vf_type= 0x%x, signal_type= 0x%x, source_type= 0x%x\n",
 			devp->in_sts.vf_sts,
 			devp->in_sts.vf_type, devp->in_sts.signal_type, devp->in_sts.source_type);
-	pr_frc(0, "vf_rate= %d (duration= %d)\n", frc_check_vf_rate(devp->in_sts.duration, devp),
-				devp->in_sts.duration);
+	pr_frc(0, "vf_rate= %d.%d (duration= %d)\n", frc_check_vf_rate(devp->in_sts.duration, devp),
+				devp->in_sts.frc_vf_rate_frac, devp->in_sts.duration);
 	pr_frc(0, "vpu_int vs_duration= %dus timestamp= %ld\n",
 			devp->vs_duration, (ulong)devp->vs_timestamp);
 	pr_frc(0, "vpu_vd hsize= %d, vsize= %d\n",
@@ -294,9 +294,9 @@ void frc_status(struct frc_dev_s *devp)
 		devp->frc_sts.mc_undone_cnt, devp->frc_sts.vp_undone_cnt);
 	pr_frc(0, "frc_st vs_cnt:%d vf_repeat_cnt:%d vf_null_cnt:%d\n", devp->frc_sts.vs_cnt,
 				devp->in_sts.vf_repeat_cnt, devp->in_sts.vf_null_cnt);
-	pr_frc(0, "vout sync_duration_num= %d sync_duration_den= %d out_hz= %d\n",
+	pr_frc(0, "vout sync_duration_num= %d sync_duration_den= %d out_hz= %d.%d\n",
 			vinfo->sync_duration_num, vinfo->sync_duration_den,
-			vinfo->sync_duration_num / vinfo->sync_duration_den);
+			devp->out_sts.out_framerate, devp->out_sts.out_framerate_frac);
 	pr_frc(0, "film_mode= %d\n", frc_check_film_mode(devp));
 	pr_frc(0, "mc_fallback= %d\n", fw_data->frc_fw_alg_ctrl.frc_algctrl_u8mcfb);
 	pr_frc(0, "frm_buffer_num= %d\n", fw_data->frc_top_type.frc_fb_num);

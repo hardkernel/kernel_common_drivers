@@ -1138,6 +1138,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 
 		get_vout_info(devp);
 		if (devp->out_sts.out_framerate == FRC_VD_FPS_144 ||
+			devp->out_sts.out_framerate == FRC_VD_FPS_165 ||
 			devp->out_sts.out_framerate == FRC_VD_FPS_288) {
 			if ((devp->in_sts.st_flag & FRC_FLAG_LIMIT_FREQ) !=
 						FRC_FLAG_LIMIT_FREQ) {

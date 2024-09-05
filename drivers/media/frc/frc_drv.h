@@ -136,8 +136,9 @@
 // frc_20240814 clr CTRL7 before frc enable
 // frc_20240815 frc handles NULL pointer call
 // frc_20240819 t5m dlg modify n2m to 1:1
+// frc_20240902 fix pps adjust abnormal (need test)
 
-#define FRC_FW_VER			"2024-0902 fix pps adjust abnormal (need test)"
+#define FRC_FW_VER			"2024-0906 disable frc when out fr is 165hz"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
@@ -257,6 +258,7 @@ extern int frc_dbg_en;
 #define FRC_VD_FPS_120   120
 #define FRC_VD_FPS_100   100
 #define FRC_VD_FPS_144   144
+#define FRC_VD_FPS_165   165
 #define FRC_VD_FPS_200   200
 #define FRC_VD_FPS_240   240
 #define FRC_VD_FPS_288   288
@@ -541,6 +543,7 @@ struct st_frc_in_sts {
 	u8 frc_is_tvin;
 	u8 frc_source_chg;
 	u16 frc_vf_rate;
+	u16 frc_vf_rate_frac;
 	u32 frc_last_disp_count;
 
 	u32 frc_hd_start_lines;
@@ -569,6 +572,7 @@ struct st_frc_in_sts {
 
 struct st_frc_out_sts {
 	u16 out_framerate;
+	u16 out_framerate_frac;
 	u32 vout_height;
 	u32 vout_width;
 

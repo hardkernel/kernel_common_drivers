@@ -1186,8 +1186,9 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 		frc_devp->out_sts.vout_height = vinfo->height;
 	if (frc_devp->out_sts.vout_width != vinfo->width)
 		frc_devp->out_sts.vout_width = vinfo->width;
-	tmpframterate =
-	(vinfo->sync_duration_num * 100 / vinfo->sync_duration_den) / 100;
+	tmpframterate = vinfo->sync_duration_num / vinfo->sync_duration_den;
+	frc_devp->out_sts.out_framerate_frac =
+		(vinfo->sync_duration_num * 1000 / vinfo->sync_duration_den) % 1000;
 	if (frc_devp->out_sts.out_framerate != tmpframterate) {
 		frc_devp->out_sts.out_framerate = tmpframterate;
 		pfw_data->frc_top_type.frc_out_frm_rate =
@@ -1218,10 +1219,11 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 				}
 			}
 		}
-		pr_frc(1, "vout:w-%d,h-%d,rate-%d\n",
+		pr_frc(1, "vout:w-%d,h-%d,rate-%d.%d\n",
 				frc_devp->out_sts.vout_width,
 				frc_devp->out_sts.vout_height,
-				frc_devp->out_sts.out_framerate);
+				frc_devp->out_sts.out_framerate,
+				frc_devp->out_sts.out_framerate_frac);
 	}
 }
 
