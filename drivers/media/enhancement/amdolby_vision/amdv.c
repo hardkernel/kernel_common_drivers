@@ -1977,7 +1977,8 @@ void set_amdv_wait_on(void)
 
 void clear_dolby_vision_wait(void)
 {
-	int i;
+	int vd1_dv_id = -1;
+	int vd2_dv_id = -1;
 
 	if (debug_dolby & 2)
 		pr_info("clear amdv_wait_on\n");
@@ -1988,9 +1989,15 @@ void clear_dolby_vision_wait(void)
 		top2_v_info.amdv_wait_init = false;
 		top2_v_info.amdv_wait_count = false;
 	} else if (multi_dv_mode) {
-		for (i = 0; i < NUM_INST; i++) {
-			dv_inst[i].amdv_wait_init = false;
-			dv_inst[i].amdv_wait_count = 0;
+		vd1_dv_id = layer_id_to_dv_id(VD1_PATH);
+		vd2_dv_id = layer_id_to_dv_id(VD2_PATH);
+		if (dv_inst_valid(vd1_dv_id)) {
+			dv_inst[vd1_dv_id].amdv_wait_init = false;
+			dv_inst[vd1_dv_id].amdv_wait_count = 0;
+		}
+		if (dv_inst_valid(vd2_dv_id)) {
+			dv_inst[vd2_dv_id].amdv_wait_init = false;
+			dv_inst[vd2_dv_id].amdv_wait_count = 0;
 		}
 	} else {
 		amdv_wait_init = false;
