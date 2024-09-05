@@ -1166,7 +1166,11 @@
 };
 
 &drm_amcvbsout {
-	status = "okay";
+	status = "disabled";
+};
+
+&cvbsout {
+	status = "disabled";
 };
 
 /*if you want to use vdin just modify status to "ok"*/
