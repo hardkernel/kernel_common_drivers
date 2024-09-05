@@ -1139,6 +1139,8 @@ static const char * const mic_mute_groups[] = {
 };
 
 static const char * const nand_groups[] = {
+	"emmc_d0", "emmc_d1", "emmc_d2", "emmc_d3",
+	"emmc_d4", "emmc_d5", "emmc_d6", "emmc_d7",
 	"nand_wen_clk", "nand_ale", "nand_ren_wr", "nand_cle",
 	"nand_ce0",
 };
