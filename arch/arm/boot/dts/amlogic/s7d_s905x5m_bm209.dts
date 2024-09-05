@@ -27,7 +27,7 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
-		spi0 = &spifc;
+		spi0 = &spi_nfc;
 		spi1 = &spicc0;
 		tsensor0 = &p_tsensor;
 	};
@@ -1160,64 +1160,28 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		nand-ecc-maximize;
+	};
+};
 
-		partition@0 {
-			label = "bl2e";
-			reg = <0x0 0x00000000>;
-		};
-		partition@1 {
-			label = "bl2x";
-			reg = <0x0 0x00000000>;
-		};
-		partition@2 {
-			label = "ddrfip";
-			reg = <0x0 0x00000000>;
-		};
-		partition@3 {
-			label = "tpl";
-			reg = <0x0 0x00000000>;
-		};
-		partition@4 {
-			/* Do not modify before the factory partition */
-			label = "factory";
-			reg = <0x0 0x0800000>;
-		};
-		partition@5 {
-			label = "tee";
-			reg = <0x0 0x800000>;
-		};
-		partition@6 {
-			label = "logo";
-			reg = <0x0 0x200000>;
-		};
-		partition@7 {
-			label = "misc";
-			reg = <0x0 0x800000>;
-		};
-		partition@8 {
-			label = "recovery";
-			reg = <0x0 0x2000000>;
-		};
-		partition@9 {
-			label = "boot";
-			reg = <0x0 0x2200000>;
-		};
-		partition@10 {
-			label = "system";
-			reg = <0x0 0xE000000>;
-		};
-		partition@11 {
-			label = "vendor";
-			reg = <0x0 0x1000000>;
-		};
-		partition@12 {
-			label = "vbmeta";
-			reg = <0x0 0x0100000>;
-		};
-		partition@13 {
-			label = "data";
-			reg = <0x0 0xffffffff>;
-		};
+&spi_nfc {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spinf_pins>;
+	spi-nand@0 {
+		compatible = "spi-nand";
+		status = "disabled";
+		reg = <0>;
+		spi-max-frequency = <83000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+	spi-nor@0 {
+		compatible = "spi-nor";
+		status = "disabled";
+		reg = <0>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <83000000>;
 	};
 };
 
@@ -1244,13 +1208,6 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_z>;
-};
-
-&spifc {
-	status = "disabled";
-	spi-nor@0 {
-		status = "disabled";
-	};
 };
 
 &fb {
