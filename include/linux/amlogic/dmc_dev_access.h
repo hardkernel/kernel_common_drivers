@@ -24,4 +24,12 @@ int show_dmc_notifier_list(char *buf);
 int register_dmc_dev_access_notifier(char *dev_name, struct notifier_block *nb);
 int unregister_dmc_dev_access_notifier(char *dev_name, struct notifier_block *nb);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DDR_BANDWIDTH)
+void aml_get_all_channel_grant(u64 *channel_grant);
+#else
+static inline void aml_get_all_channel_grant(u64 *channel_grant)
+{
+}
+#endif
+
 #endif

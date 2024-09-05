@@ -354,6 +354,37 @@ unsigned int aml_get_ddr_usage(void)
 }
 EXPORT_SYMBOL(aml_get_ddr_usage);
 
+void aml_get_all_channel_grant(u64 *channel_grant)
+{
+	u64 mul = 0;
+	int i;
+	unsigned long freq = 0;
+
+	if (aml_db) {
+#if PXP_DEBUG
+		if (pxp_debug_freq) {
+			freq = pxp_debug_freq;
+		} else {
+			if (aml_db->ops && aml_db->ops->get_freq)
+				freq = aml_db->ops->get_freq(aml_db);
+		}
+#else
+		if (aml_db->ops && aml_db->ops->get_freq)
+			freq = aml_db->ops->get_freq(aml_db);
+#endif
+		if (freq) {
+			for (i = 0; i < aml_db->channels; i++) {
+				mul = aml_db->avg.avg_port[i];
+				mul *= aml_db->clock_count;
+				mul *= 1024;
+				do_div(mul, freq);
+				channel_grant[i] = mul;
+			}
+		}
+	}
+}
+EXPORT_SYMBOL(aml_get_all_channel_grant);
+
 static char *find_port_name(int id)
 {
 	int i;
