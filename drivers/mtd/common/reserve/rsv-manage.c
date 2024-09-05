@@ -74,6 +74,10 @@ int meson_rsv_prase_parameter_from_dtb(struct mtd_info *mtd,
 				goto parse_err;
 			pr_debug("%s block_cnt %u\n",
 					rsv_part->name, rsv_part->block_cnt);
+			if (of_property_read_u32(child, "size", &rsv_part->size))
+				goto parse_err;
+			pr_debug("%s size %u\n",
+					rsv_part->name, rsv_part->size);
 		} else {
 			pr_err("unrecognize rsv part\n");
 		}
