@@ -997,7 +997,6 @@ static int aml_usbcam_probe(struct usb_interface *intf, const struct usb_device_
 		intf->cur_altsetting->desc.bInterfaceSubClass == CI20_MEDIA_INTF_SUBCLASS &&
 		intf->cur_altsetting->desc.bInterfaceProtocol == CI20_MEDIA_INTF_PROTOCOL)) {
 		usbcam_dev->device_type = DEVICE_MEDIA;
-		usbcam_dbg(" CI20_MEDIA_INTF !\n");
 
 		usbcam_dev->buf_size = USBCAM_MEDIA_BUFFER_SIZE;
 		usbcam_dev->read_buf = kmalloc(usbcam_dev->buf_size, GFP_KERNEL);
@@ -1240,13 +1239,35 @@ static int aml_usbcam_post_reset(struct usb_interface *intf)
 	return 0;
 }
 
+static int aml_usbcam_suspend(struct usb_interface *intf, pm_message_t msg)
+{
+	if (!intf)
+		return 0;
+
+	dev_set_uevent_suppress(&intf->dev, true);
+
+	return 0;
+}
+
+static int aml_usbcam_resume(struct usb_interface *intf)
+{
+	if (!intf)
+		return 0;
+
+	dev_set_uevent_suppress(&intf->dev, false);
+
+	return 0;
+}
+
 static struct usb_driver aml_usbcam_driver = {
-	.name = "aml_usbcam",
-	.id_table = aml_usbcam_table,
-	.probe = aml_usbcam_probe,
-	.disconnect = aml_usbcam_disconnect,
-	.pre_reset = aml_usbcam_pre_reset,
-	.post_reset = aml_usbcam_post_reset,
+	.name		= "aml_usbcam",
+	.id_table	= aml_usbcam_table,
+	.probe		= aml_usbcam_probe,
+	.disconnect	= aml_usbcam_disconnect,
+	.pre_reset	= aml_usbcam_pre_reset,
+	.post_reset	= aml_usbcam_post_reset,
+	.suspend	= aml_usbcam_suspend,
+	.resume		= aml_usbcam_resume,
 };
 
 static int __init aml_usbcam_init(void)
