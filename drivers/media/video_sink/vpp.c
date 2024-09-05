@@ -677,10 +677,6 @@ static u32 skip_policy = 0x81;
 module_param(skip_policy, uint, 0664);
 MODULE_PARM_DESC(skip_policy, "\n skip_policy\n");
 
-static unsigned int scaler_filter_cnt_limit = 10;
-MODULE_PARM_DESC(scaler_filter_cnt_limit, "scaler_filter_cnt_limit");
-module_param(scaler_filter_cnt_limit, uint, 0664);
-
 #ifdef TV_3D_FUNCTION_OPEN
 static int force_filter_mode = 1;
 MODULE_PARM_DESC(force_filter_mode, "force_filter_mode");
@@ -3265,21 +3261,9 @@ RESTART:
 	   cur_filter->last_horz_filter != filter->vpp_horz_filter) {
 		cur_filter->last_vert_filter = filter->vpp_vert_filter;
 		cur_filter->last_horz_filter = filter->vpp_horz_filter;
-		cur_filter->scaler_filter_cnt = 0;
-	} else {
-		cur_filter->scaler_filter_cnt++;
-	}
-	if (cur_filter->scaler_filter_cnt >=
-		scaler_filter_cnt_limit &&
-		(cur_filter->cur_vert_filter !=
-		filter->vpp_vert_filter ||
-		cur_filter->cur_horz_filter !=
-		filter->vpp_horz_filter)) {
-		cur_filter->cur_vert_filter = filter->vpp_vert_filter;
-		cur_filter->cur_horz_filter = filter->vpp_horz_filter;
-		cur_filter->scaler_filter_cnt = scaler_filter_cnt_limit;
 		ret = vppfilter_success_and_changed;
 	}
+
 	if (load_pps_coef &&
 	    (force_pps_hcoef_update ||
 	    force_pps_vcoef_update)) {
@@ -3289,8 +3273,8 @@ RESTART:
 
 	/* store the debug info for legacy */
 	if (input->layer_id == 0) {
-		cur_vert_filter = cur_filter->cur_vert_filter;
-		cur_horz_filter = cur_filter->cur_horz_filter;
+		cur_vert_filter = filter->vpp_vert_filter;
+		cur_horz_filter = filter->vpp_horz_filter;
 		cur_vert_chroma_filter = vert_chroma_filter;
 		cur_skip_line =
 			next_frame_par->vscale_skip_count;
@@ -5986,7 +5970,8 @@ RERTY:
 		goto RERTY;
 	}
 
-	if (retry && ret == vppfilter_success)
+	if (retry && (ret == vppfilter_success ||
+		      ret == vppfilter_success_and_changed))
 		ret = vppfilter_success_and_switched;
 
 	/*config super scaler after set next_frame_par is calc ok for pps*/
