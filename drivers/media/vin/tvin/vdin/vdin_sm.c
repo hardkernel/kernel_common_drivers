@@ -1122,6 +1122,12 @@ void tvin_smr(struct vdin_dev_s *devp)
 						break;
 				}
 			}
+
+			if (IS_TVAFE_SRC(port) && sm_ops->get_sig_property) {
+				sm_ops->get_sig_property(devp->frontend, prop, devp->port_type);
+				devp->parm.info.fps = prop->fps;
+			}
+
 			devp->fmt_info_p = (struct tvin_format_s *)tvin_get_fmt_info(info->fmt);
 			if (IS_HDMI_SRC(port)) {
 				/* for tvstart, do not judge VDIN_FLAG_DEC_STARTED */
@@ -1203,11 +1209,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 		}
 		/* dynamic adjust cut window */
 		vdin_auto_de_handler(devp);
-
-		if (IS_TVAFE_SRC(port) && sm_ops->get_sig_property) {
-			sm_ops->get_sig_property(devp->frontend, prop, devp->port_type);
-			devp->parm.info.fps = prop->fps;
-		}
 
 		if (nosig || fmt_changed /* || !pll_lock */) {
 			++sm_p->state_cnt;
