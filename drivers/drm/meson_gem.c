@@ -84,7 +84,19 @@ static int am_meson_gem_alloc_ion_buff(struct am_meson_gem_object *
 	 *check flags to set different ion heap type.
 	 *if flags is set to 0, need to use ion dma buffer.
 	 */
-	if (((flags & (MESON_USE_SCANOUT | MESON_USE_CURSOR)) != 0) || flags == 0) {
+	if (flags & MESON_USE_PROTECTED) {
+#ifdef CONFIG_AMLOGIC_HEAP_SECURE
+		heap = dma_heap_find("heap-secure");
+		if (!IS_ERR_OR_NULL(heap)) {
+			dmabuf = dma_heap_buffer_alloc(heap, meson_gem_obj->base.size,
+				O_RDWR, DMA_HEAP_VALID_HEAP_FLAGS);
+			if (!IS_ERR_OR_NULL(dmabuf)) {
+				DRM_ERROR("heap-secure alloc success.\n");
+				meson_gem_obj->is_dma = true;
+			}
+		}
+#endif
+	} else if (((flags & (MESON_USE_SCANOUT | MESON_USE_CURSOR)) != 0) || flags == 0) {
 #if (defined CONFIG_AMLOGIC_HEAP_CMA) || (defined CONFIG_AMLOGIC_HEAP_CODEC_MM)
 		for (i = 0; i < 3; i++) {
 			heap = dma_heap_find(DMAHEAP[i]);

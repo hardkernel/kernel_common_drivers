@@ -19,6 +19,10 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/amlogic/media/dmabuf_heaps/amlogic_dmabuf_heap.h>
+#include <linux/amlogic/tee.h>
+
+/* t6d secure block_size choose 1M */
+#define ALIGN_SIZE 1048576
 
 struct meson_cma_heap {
 	struct dma_heap *heap;
@@ -273,6 +277,8 @@ static void meson_cma_heap_dma_buf_release(struct dma_buf *dmabuf)
 	struct meson_cma_heap_buffer *buffer = dmabuf->priv;
 	struct meson_cma_heap *meson_cma_heap = buffer->heap;
 	const char *heap_name = dma_heap_get_name(meson_cma_heap->heap);
+	phys_addr_t paddr_secure = PFN_PHYS(page_to_pfn(buffer->cma_pages));
+	int ret = 0;
 
 	if (buffer->vmap_cnt > 0) {
 		WARN(1, "%s: buffer still mapped in the kernel\n", __func__);
@@ -282,7 +288,7 @@ static void meson_cma_heap_dma_buf_release(struct dma_buf *dmabuf)
 
 	mutex_lock(&meson_cma_heap->lock);
 	meson_cma_heap->num_of_buffers--;
-	meson_cma_heap->num_of_alloc_bytes -= dmabuf->size;
+	meson_cma_heap->num_of_alloc_bytes -= buffer->len;
 	if (strstr(heap_name, "heap-gfx")) {
 		meson_cma_heap->num_of_free_bytes =
 			hdev->total_heap_gfx_size - meson_cma_heap->num_of_alloc_bytes;
@@ -297,10 +303,28 @@ static void meson_cma_heap_dma_buf_release(struct dma_buf *dmabuf)
 		hdev->heap_fb_num_of_alloc_bytes = meson_cma_heap->num_of_alloc_bytes;
 		hdev->heap_fb_num_of_free_bytes = meson_cma_heap->num_of_free_bytes;
 	}
+	if (strstr(heap_name, "heap-secure")) {
+		meson_cma_heap->num_of_free_bytes =
+			hdev->total_heap_secure_size - meson_cma_heap->num_of_alloc_bytes;
+		hdev->heap_secure_num_of_buffers = meson_cma_heap->num_of_buffers;
+		hdev->heap_secure_num_of_alloc_bytes = meson_cma_heap->num_of_alloc_bytes;
+		hdev->heap_secure_num_of_free_bytes = meson_cma_heap->num_of_free_bytes;
+	}
 	pr_debug("dmaheap: release name %s num %llu alloc %llu free %llu\n",
 		heap_name, meson_cma_heap->num_of_buffers,
 		meson_cma_heap->num_of_alloc_bytes, meson_cma_heap->num_of_free_bytes);
 	mutex_unlock(&meson_cma_heap->lock);
+
+	/* for tee secure protect */
+	if (strstr(heap_name, "heap-secure")) {
+		ret = tee_sectbl_secmem_set((u32)paddr_secure, (u32)buffer->len, 0);
+		if (ret)
+			pr_err("%s: remove tee protect mem fail!\n", __func__);
+		else
+			pr_debug("remove tee protect mem success.\n");
+		pr_debug("%s: success remove %s, size=%lu, paddr=%pa\n",
+			 __func__, heap_name, buffer->len, &paddr_secure);
+	}
 
 	meson_cma_heap_zero_buffer(buffer);
 	sg_free_table(&buffer->sg_table);
@@ -333,7 +357,13 @@ static struct dma_buf *meson_cma_heap_allocate(struct dma_heap *heap,
 	struct dma_heap_device *hdev = dma_heap_dev;
 	struct meson_cma_heap_buffer *buffer;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
-	size_t size = PAGE_ALIGN(len);
+	size_t size;
+
+	if (strstr(dma_heap_get_name(heap), "heap-secure"))
+		size = ALIGN(len, ALIGN_SIZE);
+	else
+		size = PAGE_ALIGN(len);
+
 	pgoff_t pagecount = size >> PAGE_SHIFT;
 	unsigned long align = get_order(size);
 	struct page *cma_pages;
@@ -341,6 +371,7 @@ static struct dma_buf *meson_cma_heap_allocate(struct dma_heap *heap,
 	struct sg_table *table;
 	int ret = -ENOMEM;
 	pgoff_t pg;
+	phys_addr_t paddr_secure;
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer)
@@ -435,9 +466,21 @@ static struct dma_buf *meson_cma_heap_allocate(struct dma_heap *heap,
 						DMA_BIDIRECTIONAL, 0);
 	}
 
+	/* for tee secure protect */
+	paddr_secure = PFN_PHYS(page_to_pfn(buffer->cma_pages));
+	if (strstr(exp_info.exp_name, "heap-secure")) {
+		ret = tee_sectbl_secmem_set((u32)paddr_secure, (u32)buffer->len, 1);
+		if (ret)
+			pr_err("%s: tee protect mem fail!\n", __func__);
+		else
+			pr_err("tee protect mem success.\n");
+		pr_err("%s: success add %s, size=%lu, paddr=%pa\n",
+			 __func__, exp_info.exp_name, buffer->len, &paddr_secure);
+	}
+
 	mutex_lock(&meson_cma_heap->lock);
 	meson_cma_heap->num_of_buffers++;
-	meson_cma_heap->num_of_alloc_bytes += len;
+	meson_cma_heap->num_of_alloc_bytes += buffer->len;
 	if (strstr(exp_info.exp_name, "heap-gfx")) {
 		meson_cma_heap->num_of_free_bytes =
 			hdev->total_heap_gfx_size - meson_cma_heap->num_of_alloc_bytes;
@@ -451,6 +494,13 @@ static struct dma_buf *meson_cma_heap_allocate(struct dma_heap *heap,
 		hdev->heap_fb_num_of_buffers = meson_cma_heap->num_of_buffers;
 		hdev->heap_fb_num_of_alloc_bytes = meson_cma_heap->num_of_alloc_bytes;
 		hdev->heap_fb_num_of_free_bytes = meson_cma_heap->num_of_free_bytes;
+	}
+	if (strstr(exp_info.exp_name, "heap-secure")) {
+		meson_cma_heap->num_of_free_bytes =
+			hdev->total_heap_secure_size - meson_cma_heap->num_of_alloc_bytes;
+		hdev->heap_secure_num_of_buffers = meson_cma_heap->num_of_buffers;
+		hdev->heap_secure_num_of_alloc_bytes = meson_cma_heap->num_of_alloc_bytes;
+		hdev->heap_secure_num_of_free_bytes = meson_cma_heap->num_of_free_bytes;
 	}
 	pr_debug("dmaheap: allocate name %s num %llu alloc %llu free %llu\n",
 		exp_info.exp_name, meson_cma_heap->num_of_buffers,
@@ -604,6 +654,8 @@ static int __add_meson_cma_heap(struct cma *cma, void *data)
 	struct dma_heap_export_info exp_info;
 	struct dma_heap_device *dev = dma_heap_dev;
 	struct dentry *heap_root;
+	phys_addr_t paddr_secure = cma_get_base(cma);
+	unsigned long secure_size = cma_get_size(cma);
 	int ret;
 
 	meson_cma_heap = kzalloc(sizeof(*meson_cma_heap), GFP_KERNEL);
@@ -620,6 +672,17 @@ static int __add_meson_cma_heap(struct cma *cma, void *data)
 		ret = PTR_ERR(meson_cma_heap->heap);
 		kfree(meson_cma_heap);
 		return ret;
+	}
+
+	if (strstr(exp_info.name, "heap-secure")) {
+		ret = tee_sectbl_mem_map(0, 0, 0,
+				(u32)paddr_secure, (u32)secure_size, ALIGN_SIZE);
+		if (ret)
+			pr_err("%s: Initialize cma heap-secure fail!\n", __func__);
+		else
+			pr_info("Initialize cma heap-secure success.\n");
+		pr_info("%s: success add %s, size=%lu, paddr=%pa\n",
+			 __func__, exp_info.name, secure_size, &paddr_secure);
 	}
 
 	mutex_init(&meson_cma_heap->lock);
@@ -671,7 +734,8 @@ static int meson_cma_scan(struct cma *cma, void *data)
 	unsigned long cma_size = cma_get_size(cma);
 
 	if (strstr(cma_name, "heap-gfx") ||
-		strstr(cma_name, "heap-fb")) {
+		strstr(cma_name, "heap-fb") ||
+		strstr(cma_name, "heap-secure")) {
 		__add_meson_cma_heap(cma, NULL);
 		pr_info("dmaheap: find %s size %lu\n", cma_name, cma_size);
 	}
@@ -683,6 +747,10 @@ static int meson_cma_scan(struct cma *cma, void *data)
 	if (strstr(cma_name, "heap-fb")) {
 		hdev->total_heap_fb_size = cma_size;
 		hdev->heap_fb_num_of_free_bytes = hdev->total_heap_fb_size;
+	}
+	if (strstr(cma_name, "heap-secure")) {
+		hdev->total_heap_secure_size = cma_size;
+		hdev->heap_secure_num_of_free_bytes = hdev->total_heap_secure_size;
 	}
 
 	return 0;

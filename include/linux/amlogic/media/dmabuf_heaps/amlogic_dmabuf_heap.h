@@ -26,12 +26,16 @@ struct dma_heap_device {
 	struct dentry *debug_root;
 	u64 total_heap_gfx_size;
 	u64 total_heap_fb_size;
+	u64 total_heap_secure_size;
 	u64 heap_gfx_num_of_buffers;
 	u64 heap_gfx_num_of_alloc_bytes;
 	u64 heap_gfx_num_of_free_bytes;
 	u64 heap_fb_num_of_buffers;
 	u64 heap_fb_num_of_alloc_bytes;
 	u64 heap_fb_num_of_free_bytes;
+	u64 heap_secure_num_of_buffers;
+	u64 heap_secure_num_of_alloc_bytes;
+	u64 heap_secure_num_of_free_bytes;
 };
 
 struct meson_cma_heap_info {

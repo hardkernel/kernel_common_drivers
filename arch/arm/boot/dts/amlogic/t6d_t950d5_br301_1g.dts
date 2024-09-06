@@ -109,6 +109,13 @@
 			alignment = <0x400000>;
 			alloc-ranges = <0x30000000 0x10000000>;
 		};
+		dmaheap_secure_reserved:heap-secure {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1080p TV secure size 56M, 1 osd layer + 3 framebuffers */
+			size = <0x0>;
+			alignment = <0x400000>;
+		};
 
 		/*  vdin0 CMA pool */
 		/*vdin0_cma_reserved:linux,vdin0_cma {*/
