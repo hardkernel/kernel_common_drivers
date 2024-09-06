@@ -139,7 +139,7 @@ EXPORT_SYMBOL(hdmitx_common_build_format_para);
  */
 int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 				       struct hdmitx_common_state *new_state,
-				       char *mode, char *attr, bool brr_valid, bool do_validate)
+				       char *mode, char *attr, bool brr_valid)
 {
 	int ret = 0;
 	struct hdmi_format_para *new_para;
@@ -164,14 +164,14 @@ int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 
 	vic = hdmitx_common_parse_vic_in_edid(tx_comm, mode);
 	if (vic == HDMI_0_UNKNOWN) {
-		HDMITX_ERROR("%s: get vic from (%s) fail\n", __func__, mode);
+		HDMITX_DEBUG("%s: get vic from (%s) fail\n", __func__, mode);
 		ret = -EINVAL;
 		goto out;
 	}
 
 	ret = hdmitx_common_validate_vic(tx_comm, vic);
 	if (ret != 0) {
-		HDMITX_ERROR("validate vic [%s,%s]-%d return error %d\n", mode, attr, vic, ret);
+		HDMITX_DEBUG("validate vic [%s,%s]-%d return error %d\n", mode, attr, vic, ret);
 		goto out;
 	}
 
@@ -181,16 +181,14 @@ int hdmitx_common_validate_mode_locked(struct hdmitx_common *tx_comm,
 		tst_para.cs, tst_para.cd, tst_para.cr);
 	if (ret != 0) {
 		hdmitx_format_para_reset(new_para);
-		HDMITX_ERROR("build formatpara [%s,%s] return error %d\n", mode, attr, ret);
+		HDMITX_DEBUG("build formatpara [%s,%s] return error %d\n", mode, attr, ret);
 		goto out;
 	}
 
-	if (do_validate) {
-		ret = hdmitx_common_validate_format_para(tx_comm, new_para);
-		if (ret)
-			HDMITX_ERROR("validate formatpara [%s,%s] return error %d\n",
-				     mode, attr, ret);
-	}
+	ret = hdmitx_common_validate_format_para(tx_comm, new_para);
+	if (ret)
+		HDMITX_DEBUG("validate formatpara [%s,%s] return error %d\n",
+			     mode, attr, ret);
 out:
 	mutex_unlock(&tx_comm->valid_mutex);
 	mutex_unlock(&tx_comm->hdmimode_mutex);
