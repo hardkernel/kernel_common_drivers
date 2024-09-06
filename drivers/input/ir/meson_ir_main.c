@@ -27,6 +27,9 @@
 #include <linux/amlogic/pm.h>
 #include "meson_ir_main.h"
 #include <linux/amlogic/gki_module.h>
+#include <linux/mailbox_controller.h>
+#include <linux/amlogic/aml_mbox.h>
+#include <linux/mailbox_client.h>
 
 static atomic_t meson_ir_dev_no = ATOMIC_INIT(-1);
 
@@ -46,6 +49,81 @@ __setup("disable_ir=", get_irenv);
 int meson_ir_read_dev_num(void)
 {
 	return meson_ir_dev_no.counter + 1;
+}
+
+int meson_ir_mbox_transfer(struct meson_ir_chip *chip, u32 *data, u32 size)
+{
+	int ret;
+
+	if (IS_ERR_OR_NULL(chip->mbox_chan))
+		return 0;
+
+	ret = aml_mbox_transfer_data(chip->mbox_chan, MBOX_CMD_SET_IR_STATE,
+				     data, size, data, size, MBOX_SYNC);
+	if (ret < 0)
+		dev_err(chip->dev, "Fail to send mbox message\n");
+
+	return ret;
+}
+
+void meson_ir_report_wakeup_event(struct meson_ir_chip *chip, u32 framecode)
+{
+	struct input_dev *input_device = NULL;
+	unsigned long flags;
+	int i = 0;
+	unsigned int keycode = 0;
+	struct ir_wakeup_tab *wt = chip->wakeup_tab;
+
+	if (IS_ERR_OR_NULL(chip->mbox_chan)) {
+		if (get_resume_method() == REMOTE_WAKEUP)
+			keycode = KEY_POWER;
+		else if (get_resume_method() == REMOTE_CUS_WAKEUP)
+			keycode = KEY_COPY;
+
+		goto input_report;
+	}
+
+	while (wt[i].frame_code) {
+		if (wt[i].frame_code == framecode)
+			break;
+		i++;
+	}
+
+	if ((wt[i].report_val == KEY_POWER && chip->r_dev->is_probed) ||
+	    wt[i].report_val == 0)
+		return;
+
+	keycode = wt[i].report_val;
+	chip->r_dev->cur_hardcode = framecode;
+	chip->r_dev->is_valid_custom(chip->r_dev);
+	input_device = meson_ir_match_input_dev(chip->r_dev, chip->cur_tab);
+input_report:
+	if (!input_device) {
+		input_device = chip->r_dev->input_devs[0];
+		dev_err(chip->dev, "Input ID not found\n");
+	}
+
+	spin_lock_irqsave(&chip->slock, flags);
+
+	input_event(input_device, EV_KEY, keycode, 1);
+	input_sync(input_device);
+	input_event(input_device, EV_KEY, keycode, 0);
+	input_sync(input_device);
+
+	spin_unlock_irqrestore(&chip->slock, flags);
+}
+
+void meson_ir_set_irq(struct meson_ir_chip *chip, int enable)
+{
+	if (enable) {
+		enable_irq(chip->irqno[0]);
+		if (chip->irqno[1] >= 0)
+			enable_irq(chip->irqno[1]);
+	} else {
+		disable_irq(chip->irqno[0]);
+		if (chip->irqno[1] >= 0)
+			disable_irq(chip->irqno[1]);
+	}
 }
 
 int meson_ir_pulses_malloc(struct meson_ir_chip *chip)
@@ -341,6 +419,9 @@ static irqreturn_t meson_ir_interrupt(int irq, void *dev_id)
 	unsigned char cnt;
 	enum raw_event_type type = RAW_SPACE;
 
+	if (!r_dev->enable)
+		return IRQ_HANDLED;
+
 	regmap_read(rc->ir_contr[MULTI_IR_ID].base, REG_REG1, &val);
 	val = (val & GENMASK(28, 16)) >> 16;
 
@@ -391,6 +472,61 @@ static irqreturn_t meson_ir_interrupt(int irq, void *dev_id)
 		}
 	}
 	return IRQ_HANDLED;
+}
+
+static int meson_ir_get_wakeup_tables(struct device_node *node,
+				      struct meson_ir_chip *chip)
+{
+	const phandle *phandle;
+	struct device_node *wakeup_maps;
+	unsigned int key_num;
+	int i = 0, ret = -1;
+	u32 data[MAX_WAKEUP_KEY + 3] = {IR_MBOX_CMD_SET_WAKEUP_LIST};
+
+	phandle = of_get_property(node, "wakeup_map", NULL);
+	if (!phandle) {
+		dev_err(chip->dev, "can't find wakeup map\n");
+		return -EINVAL;
+	}
+
+	wakeup_maps = of_find_node_by_phandle(be32_to_cpup(phandle));
+	if (!wakeup_maps) {
+		dev_err(chip->dev, "can't find device node key\n");
+		return -ENODATA;
+	}
+
+	ret = of_property_read_u32(wakeup_maps, "key_num", &key_num);
+	if (ret) {
+		dev_err(chip->dev, "please config correct wakeup key num\n");
+		return -ENODATA;
+	}
+
+	if (key_num > MAX_WAKEUP_KEY)
+		key_num = MAX_WAKEUP_KEY;
+
+	chip->wakeup_tab = devm_kzalloc(chip->dev, (key_num + 1) *
+					sizeof(*chip->wakeup_tab), GFP_KERNEL);
+	if (!chip->wakeup_tab)
+		return -ENOMEM;
+
+	ret = of_property_read_u32_array(wakeup_maps, "wakeup_key",
+					 (u32 *)chip->wakeup_tab,
+			     key_num * sizeof(*chip->wakeup_tab) / sizeof(u32));
+	if (ret) {
+		dev_err(chip->dev, "please config keymap item %d\n", ret);
+		kfree(chip->wakeup_tab);
+		return -ENODATA;
+	}
+
+	/* 3 items for cmd id, key num, ir wakeup reason */
+	data[1] = key_num;
+	for (i = 0; i < key_num; i++) {
+		data[2] |= (chip->wakeup_tab[i].ir_reason & 0x1) << i;
+		data[i + 3] = chip->wakeup_tab[i].frame_code;
+	}
+	meson_ir_mbox_transfer(chip, data, sizeof(data));
+
+	return 0;
 }
 
 static int meson_ir_get_custom_tables(struct device_node *node,
@@ -544,6 +680,10 @@ static int meson_ir_get_devtree_pdata(struct platform_device *pdev)
 
 	struct meson_ir_chip *chip = platform_get_drvdata(pdev);
 
+	chip->mbox_chan = aml_mbox_request_channel_byidx(&pdev->dev, 0);
+	if (IS_ERR_OR_NULL(chip->mbox_chan))
+		dev_err(chip->dev, "can't request mbox\n");
+
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "protocol", &chip->protocol);
 	if (ret) {
@@ -614,6 +754,8 @@ static int meson_ir_get_devtree_pdata(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	meson_ir_get_wakeup_tables(pdev->dev.of_node, chip);
+
 	return 0;
 }
 
@@ -649,10 +791,10 @@ static int meson_ir_hardware_init(struct platform_device *pdev)
 			return -ENODEV;
 		}
 
-		disable_irq(chip->irqno[cnt]);
 		irq_set_affinity_hint(chip->irqno[cnt],
 				      cpumask_of(chip->irq_cpumask));
 	}
+	meson_ir_set_irq(chip, 0);
 
 	return 0;
 }
@@ -730,7 +872,6 @@ static int meson_ir_probe(struct platform_device *pdev)
 	struct meson_ir_dev *dev;
 	struct meson_ir_chip *chip;
 	int ret;
-	int id;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(struct meson_ir_chip),
 			    GFP_KERNEL);
@@ -743,6 +884,8 @@ static int meson_ir_probe(struct platform_device *pdev)
 
 	spin_lock_init(&dev->keylock);
 	dev->wait_next_repeat = 0;
+	dev->is_probed = 1;
+	dev->enable = !disable_ir;
 
 	chip->dev_no = atomic_inc_return(&meson_ir_dev_no);
 	chip->dev_name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
@@ -793,22 +936,12 @@ static int meson_ir_probe(struct platform_device *pdev)
 	if (MULTI_IR_SOFTWARE_DECODE(dev->rc_type))
 		meson_ir_raw_event_register(dev);
 
-	if (disable_ir) {
-		for (id = 0; id < (ENABLE_LEGACY_IR(chip->protocol) ? 2 : 1); id++) {
-			regmap_update_bits(chip->ir_contr[id].base, REG_REG1,
-					BIT(15), 0);
-		}
-		dev->enable = 0;
-	} else {
-		dev->enable = 1;
-	}
-
 	dev_pm_set_wake_irq(&pdev->dev, chip->irqno[0]);
-	enable_irq(chip->irqno[0]);
-	if (chip->irqno[1] >= 0) {
+	if (chip->irqno[1] >= 0)
 		dev_pm_set_wake_irq(&pdev->dev, chip->irqno[1]);
-		enable_irq(chip->irqno[1]);
-	}
+
+	if (dev->enable)
+		meson_ir_set_irq(chip, 1);
 
 	return 0;
 }
@@ -848,7 +981,11 @@ static int meson_ir_resume(struct device *dev)
 	unsigned int val;
 	unsigned long flags;
 	unsigned char cnt;
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	unsigned int data = IR_MBOX_CMD_GET_WAKEUP_KEY;
+#endif
 
+	chip->r_dev->is_probed = 0;
 	/*resume register config*/
 	spin_lock_irqsave(&chip->slock, flags);
 	chip->set_register_config(chip, chip->protocol);
@@ -856,36 +993,19 @@ static int meson_ir_resume(struct device *dev)
 	for (cnt = 0; cnt < (ENABLE_LEGACY_IR(chip->protocol) ? 2 : 1); cnt++) {
 		regmap_read(chip->ir_contr[cnt].base, REG_STATUS, &val);
 		regmap_read(chip->ir_contr[cnt].base, REG_FRAME, &val);
-
-		if (disable_ir)
-			regmap_update_bits(chip->ir_contr[cnt].base, REG_REG1,
-					BIT(15), 0);
 	}
 	spin_unlock_irqrestore(&chip->slock, flags);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-	if (get_resume_method() == REMOTE_WAKEUP) {
-		input_event(chip->r_dev->input_devs[0], EV_KEY, KEY_POWER, 1);
-		input_sync(chip->r_dev->input_devs[0]);
-		input_event(chip->r_dev->input_devs[0], EV_KEY, KEY_POWER, 0);
-		input_sync(chip->r_dev->input_devs[0]);
-	}
-
-	if (get_resume_method() == REMOTE_CUS_WAKEUP) {
-		input_event(chip->r_dev->input_devs[0], EV_KEY, 133, 1);
-		input_sync(chip->r_dev->input_devs[0]);
-		input_event(chip->r_dev->input_devs[0], EV_KEY, 133, 0);
-		input_sync(chip->r_dev->input_devs[0]);
-	}
+		meson_ir_mbox_transfer(chip, &data, sizeof(data));
+		meson_ir_report_wakeup_event(chip, data);
 #endif
 
 	irq_set_affinity_hint(chip->irqno[0], cpumask_of(chip->irq_cpumask));
-	enable_irq(chip->irqno[0]);
-
-	if (chip->irqno[1] >= 0) {
-		irq_set_affinity_hint(chip->irqno[1], cpumask_of(chip->irq_cpumask));
-		enable_irq(chip->irqno[1]);
-	}
+	if (chip->irqno[1] >= 0)
+		irq_set_affinity_hint(chip->irqno[1],
+				      cpumask_of(chip->irq_cpumask));
+	meson_ir_set_irq(chip, 1);
 	return 0;
 }
 
@@ -893,14 +1013,17 @@ static int meson_ir_suspend(struct device *dev)
 {
 	struct meson_ir_chip *chip = dev_get_drvdata(dev);
 
-	disable_irq(chip->irqno[0]);
-	if (chip->irqno[1] >= 0)
-		disable_irq(chip->irqno[1]);
+	meson_ir_set_irq(chip, 0);
+
 	return 0;
 }
 
 static int meson_ir_freeze(struct device *dev)
 {
+	struct meson_ir_chip *chip = dev_get_drvdata(dev);
+
+	meson_ir_set_irq(chip, 0);
+
 	pinctrl_pm_select_sleep_state(dev);
 
 	return 0;
@@ -922,12 +1045,10 @@ static int meson_ir_restore(struct device *dev)
 	for (cnt = 0; cnt < (ENABLE_LEGACY_IR(chip->protocol) ? 2 : 1); cnt++) {
 		regmap_read(chip->ir_contr[cnt].base, REG_STATUS, &val);
 		regmap_read(chip->ir_contr[cnt].base, REG_FRAME, &val);
-
-		if (disable_ir)
-			regmap_update_bits(chip->ir_contr[cnt].base, REG_REG1,
-					BIT(15), 0);
 	}
 	spin_unlock_irqrestore(&chip->slock, flags);
+
+	meson_ir_set_irq(chip, 1);
 
 	return 0;
 }

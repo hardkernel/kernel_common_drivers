@@ -8,6 +8,9 @@
 
 #define REMOTE_KEY(scancode, keycode)\
 		   ((((scancode) & 0xFFFF) << 16) | ((keycode) & 0xFFFF))
+
+#define IR_NORMAL	0
+#define IR_CUSTOM	1
 /**
  *GXM GXL GXTVBB TXL platform integrated with two IR controllers.
  *1. legacy IR controller(Only support NEC and Time Measurement)

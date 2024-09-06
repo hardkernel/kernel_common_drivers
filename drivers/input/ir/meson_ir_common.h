@@ -11,6 +11,8 @@
 
 #define MAX_KEYMAP_SIZE 256
 #define CUSTOM_NAME_LEN 64
+#define MAX_WAKEUP_KEY 16
+#define IR_MBOX_BUF_SIZE (MAX_WAKEUP_KEY * 2 + 2)
 
 /*to ensure kernel and user spase use the same header file*/
 #define SHARE_DATA_VERSION "v1.1.1"
@@ -69,6 +71,12 @@ struct ir_map_tab {
  */
 struct ir_sw_decode_para {
 	unsigned int  max_frame_time;
+};
+
+struct ir_wakeup_tab {
+	__u32 frame_code;
+	__u32 ir_reason;
+	__u32 report_val;
 };
 
 /*IOCTL commands*/
