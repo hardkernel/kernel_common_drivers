@@ -2031,3 +2031,69 @@ function build_android_32bit () {
 
 }
 export -f build_android_32bit
+
+function clear_files_compressed_with_lzma_in_last_build () {
+	file_lzma="Image.lzma boot-lzma.img boot.img.lzma"
+	for remove_file in ${file_lzma}
+	do
+		file_path=`find -name $remove_file`
+		if [[ -n ${file_path} ]]; then
+			rm ${file_path}
+		fi
+	done
+}
+export -f clear_files_compressed_with_lzma_in_last_build
+
+function generate_lzma_format_image () {
+	{
+		pushd ${DIST_DIR}
+		lzma -z -k -f -9 Image
+		popd
+	} &
+
+	{
+		pushd ${DIST_DIR}
+		lzma -z -k -f -9 boot.img
+		popd
+	} &
+}
+export -f generate_lzma_format_image
+
+function build_ext_module_without_bazel {
+	if [ ${BAZEL} != 1 ];then
+		return
+	fi
+	echo "========================================================"
+	echo "build ext_modules without bazel"
+	if [ ! -f ${ROOT_DIR}/bazel-out/k8-fastbuild/bin/common_drivers/amlogic_modules_prepare/modules_prepare_outdir.tar.gz ];then
+		echo "WARNING ${ROOT_DIR}/bazel-out/k8-fastbuild/bin/common/amlogic_modules_prepare/modules_prepare_outdir.tar.gz not exit!"
+		return
+	fi
+
+	[ -d ${ROOT_DIR}/out/${BRANCH}/common/ ] && rm -rf ${ROOT_DIR}/out/${BRANCH}/common/
+	rsync -aL --include='scripts/***' --include='include/***' --include='*/' --include='*Makefile*' --exclude='*' ${ROOT_DIR}/common/ ${ROOT_DIR}/out/${BRANCH}/common/
+	local kernel_src=${ROOT_DIR}/out/${BRANCH}/common/
+
+	mkdir ${ROOT_DIR}/bazel-out/k8-fastbuild/bin/common_drivers/amlogic_modules_prepare/modules_prepare_outdir
+	tar -xzvf ${ROOT_DIR}/bazel-out/k8-fastbuild/bin/common_drivers/amlogic_modules_prepare/modules_prepare_outdir.tar.gz -C ${ROOT_DIR}/bazel-out/k8-fastbuild/bin/common_drivers/amlogic_modules_prepare/modules_prepare_outdir/ > /dev/null 2>&1
+	rsync -aL  --exclude='Makefile' --exclude='localversion' --chmod=F+w ${ROOT_DIR}/bazel-out/k8-fastbuild/bin/common_drivers/amlogic_modules_prepare/modules_prepare_outdir/ ${kernel_src}
+	rm -rf ${ROOT_DIR}/bazel-out/k8-fastbuild/bin/common_drivers/amlogic_modules_prepare/modules_prepare_outdir/
+
+	. ${ROOT_DIR}/${KERNEL_DIR}/build.config.constants
+	CROSS_COMPILE_PATH=${ROOT_DIR}/prebuilts/clang/host/linux-x86/clang-${CLANG_VERSION}/bin
+	local tool_args="CC=${CROSS_COMPILE_PATH}/clang LD=${CROSS_COMPILE_PATH}/ld.lld LLVM=1 KBUILD_MODPOST_WARN=1"
+	local ext_module
+	echo "# MODULE_BUILD_WITHOUT_BAZEL (ROOT_DIR=${ROOT_DIR})" >> ${OUT_AMLOGIC_DIR}/ext_modules/ext_modules.order
+	for ext_module in ${EXT_MODULES_ANDROID}; do
+		local ext_mod_rel=$(real_path ${ext_module} ${kernel_src})
+		make ARCH=${ARCH} ${tool_args} -C ${ext_module} M=${ext_mod_rel} KERNEL_SRC=${kernel_src} "$@"
+		find ${ext_module} -type f -name "*.ko" -exec cp {} ${OUT_AMLOGIC_DIR}/symbols/ \;
+		find ${ext_module} -type f -name "*.ko" \
+			-exec ${CROSS_COMPILE_PATH}/llvm-objcopy  --strip-debug {} \; \
+			-exec cp {} ${OUT_AMLOGIC_DIR}/ext_modules/ \;
+
+		[ -f ${ext_module}/modules.order ] && cat ${ext_module}/modules.order >> ${OUT_AMLOGIC_DIR}/ext_modules/ext_modules.order
+	done
+	echo "========================================================"
+}
+export -f build_ext_module_without_bazel
