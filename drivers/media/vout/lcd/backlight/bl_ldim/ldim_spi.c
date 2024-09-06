@@ -162,7 +162,8 @@ int ldim_spi_write_async(struct spi_device *spi, unsigned char *tbuf,
 
 	ldim_spi_async_busy_cnt = 0;
 	ldim_spi_async_busy = 1;
-	ret = cdata->dirspi_async(spi, tbuf, rbuf, xlen,
+	memcpy(dev_drv->spi_tx_buf, tbuf, xlen * sizeof(unsigned char));//copy duty to spi tx buf
+	ret = cdata->dirspi_async(spi, dev_drv->spi_tx_dma, dev_drv->spi_rx_dma, xlen,
 		ldim_spi_async_callback, (void *)&ldim_spi_async_busy);
 	if (ret < 0)
 		LDIMERR("%s\n", __func__);
@@ -174,40 +175,43 @@ int ldim_spi_init_dma_trig(struct spi_device *spi)
 {
 	struct ldim_dev_driver_s *dev_drv = dev_get_drvdata(&spi->dev);
 	struct spicc_controller_data *cdata = spi->controller_data;
-	struct device *dev = spi->controller->dev.parent;
 	int ret;
 
-	if (!dev || !cdata || !cdata->dirspi_dma_trig)
+	if (!cdata || !cdata->dirspi_dma_trig)
 		return -EIO;
 
-	dev_drv->spi_tx_buf = dma_alloc_coherent(dev, dev_drv->spi_xlen,
-		&dev_drv->spi_tx_dma, GFP_KERNEL | GFP_DMA);
-	if (!dev_drv->spi_tx_buf) {
-		LDIMERR("%s: dev_drv->spi_tx_buf is error\n", __func__);
-		goto ldim_init_dma_trig_err1;
+	if (is_spicc_capable(cdata, CAP_DMA_TRIG_VSYNC) &&
+		is_spicc_capable(cdata, CAP_TRIG_DELAY)) {
+		cdata->dma_trig_delay = dev_drv->spi_line_n * 1000 / 6;
+		ret = cdata->dirspi_dma_trig(spi, dev_drv->spi_tx_dma, dev_drv->spi_rx_dma,
+			dev_drv->spi_xlen, DMA_TRIG_VSYNC);
+	} else if (is_spicc_capable(cdata, CAP_DMA_TRIG_LINE_N)) {
+		ret = cdata->dirspi_dma_trig(spi, dev_drv->spi_tx_dma, dev_drv->spi_rx_dma,
+			dev_drv->spi_xlen, DMA_TRIG_LINE_N);
+	} else {
+		LDIMERR("%s spi dma trig error!\n", __func__);
+		ret = -1;
 	}
-	dev_drv->spi_rx_buf = NULL;
-	dev_drv->spi_rx_dma = (dma_addr_t)0;
 
-	//trig src:1 means vsync  2 line_n
-	ret = cdata->dirspi_dma_trig(spi,
-		dev_drv->spi_tx_dma, dev_drv->spi_rx_dma, dev_drv->spi_xlen, DMA_TRIG_LINE_N);
-	LDIMPR("%s tx_dma=0x%lx, rx_dma=0x%lx\n", __func__,
-		(ulong)dev_drv->spi_tx_dma, (ulong)dev_drv->spi_rx_dma);
+	dev_drv->dma_trig_init = 1;
+	LDIMPR("%s spi dma trig success!\n", __func__);
 
 	return ret;
-
-ldim_init_dma_trig_err1:
-	LDIMERR("%s, dma alloc error!", __func__);
-	return -1;
 }
 
 int ldim_spi_dma_trig_start(struct spi_device *spi)
 {
+	struct ldim_dev_driver_s *dev_drv = dev_get_drvdata(&spi->dev);
 	struct spicc_controller_data *cdata = spi->controller_data;
 	int ret;
 
-	if (!cdata || !cdata->dirspi_dma_trig_start)
+	if (!dev_drv || !cdata || !cdata->dirspi_dma_trig_start)
+		return -EIO;
+
+	if (!dev_drv->dma_trig_data_ready)
+		return -EIO;
+
+	if (!dev_drv->dma_trig_init)
 		return -EIO;
 
 	ret = cdata->dirspi_dma_trig_start(spi);
@@ -262,15 +266,16 @@ int ldim_spi_write_dma_trig(struct spi_device *spi, unsigned char *tbuf,
 
 	memcpy(dev_drv->spi_tx_buf, tbuf, xlen * sizeof(unsigned char));//copy duty to spi tx buf
 
-	if (xlen != dev_drv->spi_xlen ||
+	if (dev_drv->dma_trig_init == 0 ||
+		xlen != dev_drv->spi_xlen ||
 		spi->bits_per_word != 64) {
 		spi->bits_per_word = 64;
 		dev_drv->spi_xlen = xlen;
-		ret = cdata->dirspi_dma_trig_stop(spi);
-		ret = cdata->dirspi_dma_trig(spi, dev_drv->spi_tx_dma, dev_drv->spi_rx_dma,
-			dev_drv->spi_xlen, DMA_TRIG_LINE_N);//line_n
-		ret = cdata->dirspi_dma_trig_start(spi);
+		ret = ldim_spi_init_dma_trig(spi);
+		ret = ldim_spi_dma_trig_start(spi);
 	}
+
+	dev_drv->dma_trig_data_ready = 1;
 
 	return 0;
 }
@@ -395,6 +400,42 @@ void ldim_spi_async_busy_clear(void)
 {
 	ldim_spi_async_busy = 0;
 	ldim_spi_async_busy_cnt = 0;
+}
+
+void ldim_spi_async_busy_proc(void)
+{
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+	struct ldim_dev_driver_s *dev_drv;
+	struct spi_device *spi;
+	struct spicc_controller_data *cdata;
+
+	if (!ldim_drv) {
+		LDIMPR("%s: ldim_drv is null,return!\n", __func__);
+		return;
+	}
+
+	dev_drv = ldim_drv->dev_drv;
+	if (!dev_drv) {
+		LDIMPR("%s: dev_drv is null,return!\n", __func__);
+		return;
+	}
+
+	spi = dev_drv->spi_dev;
+	if (!spi) {
+		LDIMPR("%s: spi is null,return!\n", __func__);
+		return;
+	}
+
+	cdata = spi->controller_data;
+	if (!cdata) {
+		LDIMPR("%s: cdata is null,return!\n", __func__);
+		return;
+	}
+
+	if (ldim_spi_async_busy) {
+		if (cdata->dirspi_busy_proc)
+			cdata->dirspi_busy_proc(spi);
+	}
 }
 
 static int ldim_spi_dev_probe(struct spi_device *spi)

@@ -510,10 +510,8 @@ int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv)
 		goto ldim_dev_blmcu_probe_err1;
 	}
 
-	if (dev_drv->spi_sync == SPI_DMA_TRIG) {
-		dev_drv->spi_xlen = bl_mcu->tbuf_size;
-		ldim_spi_init_dma_trig(dev_drv->spi_dev);
-	}
+	/*set spi_xlen equal as tbuf_size*/
+	dev_drv->spi_xlen = bl_mcu->tbuf_size;
 
 	blmcu_ldim_dev_update(dev_drv);
 

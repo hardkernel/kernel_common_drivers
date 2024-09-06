@@ -211,6 +211,9 @@ struct spicc_device {
 #define spicc_err(fmt, args...) \
 	pr_info("[error]%s: " fmt, __func__, ## args)
 
+#define spicc_warn(fmt, args...) \
+	pr_info("[warn]%s: " fmt, __func__, ## args)
+
 //#define SPICC_DEBUG_EN
 #ifdef SPICC_DEBUG_EN
 #define spicc_dbg(fmt, args...) \
@@ -228,14 +231,14 @@ struct spicc_device {
 static void dirspi_start(struct spi_device *spi);
 static void dirspi_stop(struct spi_device *spi);
 static int dirspi_async(struct spi_device *spi,
-			u8 *tx_buf,
-			u8 *rx_buf,
+			dma_addr_t tx_dma,
+			dma_addr_t rx_dma,
 			int len,
 			void (*complete)(void *context),
 			void *context);
 static int dirspi_sync(struct spi_device *spi,
-			u8 *tx_buf,
-			u8 *rx_buf,
+			dma_addr_t tx_dma,
+			dma_addr_t rx_dma,
 			int len);
 static int dirspi_dma_trig(struct spi_device *spi,
 			   dma_addr_t tx_dma,
@@ -642,8 +645,6 @@ static int spicc_xfer_desc(struct spicc_device *spicc,
 	reinit_completion(&spicc->completion);
 	spicc_writel(spicc, SPICC_DESC_CHAIN_DONE, SPICC_REG_IRQ_ENABLE);
 	spicc_writel(spicc, spicc->cfg_spi.d32, SPICC_REG_CFG_SPI);
-	spicc_writel(spicc, 0, SPICC_REG_CFG_BUS);
-	spicc_writel(spicc, 0, SPICC_REG_CFG_START);
 #ifdef	CONFIG_ARCH_DMA_ADDR_T_64BIT
 	spicc_writel(spicc, (u64)paddr & 0xffffffff,
 		     SPICC_REG_DESC_LIST_L);
@@ -763,6 +764,9 @@ static int meson_spicc_setup(struct spi_device *spi)
 	spicc = spi_controller_get_devdata(spi->controller);
 	cdata = (struct spicc_controller_data *)spi->controller_data;
 	if (cdata) {
+		cdata->controller_version = CONTROLLER_SPISG;
+		cdata->controller_capabilities = CAP_DMA_TRIG_VSYNC |
+			CAP_DMA_TRIG_PWM_VS | CAP_TRIG_DELAY;
 		cdata->dirspi_start = dirspi_start;
 		cdata->dirspi_stop = dirspi_stop;
 		cdata->dirspi_async = dirspi_async;
@@ -848,15 +852,13 @@ static void dirspi_stop(struct spi_device *spi)
  * >0: if the transfer is still in progress
  */
 static int dirspi_async(struct spi_device *spi,
-			u8 *tx_buf,
-			u8 *rx_buf,
+			dma_addr_t tx_dma,
+			dma_addr_t rx_dma,
 			int len,
 			void (*complete)(void *context),
 			void *context)
 {
 	struct spicc_device *spicc = spi_controller_get_devdata(spi->controller);
-	struct device *dev = spicc->controller->dev.parent;
-	dma_addr_t tx_dma = 0, rx_dma = 0;
 	int ret;
 	unsigned long ms = spicc_xfer_time_max(spicc, len);
 
@@ -864,27 +866,17 @@ static int dirspi_async(struct spi_device *spi,
 	if (ret)
 		return ret;
 
-	if (tx_buf) {
-		tx_dma = dma_map_single(dev, (void *)tx_buf, len, DMA_TO_DEVICE);
-		ret = dma_mapping_error(dev, tx_dma);
-		if (ret)
-			goto end;
+	if (tx_dma) {
 		spicc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_MEM;
 		spicc->cfg_start.b.op_mode = SPICC_OP_MODE_WRITE;
 	} else {
-		tx_dma = 0;
 		spicc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_NONE;
 	}
 
-	if (rx_buf) {
-		rx_dma = dma_map_single(dev, (void *)rx_buf, len, DMA_FROM_DEVICE);
-		ret = dma_mapping_error(dev, rx_dma);
-		if (ret)
-			goto end;
+	if (rx_dma) {
 		spicc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_MEM;
 		spicc->cfg_start.b.op_mode = SPICC_OP_MODE_READ;
 	} else {
-		rx_dma = 0;
 		spicc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_NONE;
 	}
 
@@ -923,20 +915,15 @@ static int dirspi_async(struct spi_device *spi,
 	spicc_sem_up_write(spicc);
 
 end:
-	if (rx_dma)
-		dma_unmap_single(dev, rx_dma, len, DMA_FROM_DEVICE);
-	if (tx_dma)
-		dma_unmap_single(dev, tx_dma, len, DMA_TO_DEVICE);
-
 	return ret;
 }
 
 static int dirspi_sync(struct spi_device *spi,
-			u8 *tx_buf,
-			u8 *rx_buf,
+			dma_addr_t tx_dma,
+			dma_addr_t rx_dma,
 			int len)
 {
-	return dirspi_async(spi, tx_buf, rx_buf, len, NULL, NULL);
+	return dirspi_async(spi, tx_dma, rx_dma, len, NULL, NULL);
 }
 
 /* SYSCTRL_SPI_TRIG */
@@ -949,6 +936,92 @@ static int dirspi_sync(struct spi_device *spi,
 #define TRIG_DELAY_MIN			2
 #define TRIG_DELAY_MAX			0xFFFFF
 #define TRIG_REG_MUX_EN			BIT(31)
+
+static int spicc_dma_trig_start(struct spicc_device *spicc)
+{
+	struct device *dev = &spicc->pdev->dev;
+
+	if (spicc->dirspi_status == DIRSPI_STA_RUNNING) {
+		dev_warn(dev, "start trig in running state\n");
+		return 0;
+	}
+
+	if (spicc->dirspi_status == DIRSPI_STA_IDLE) {
+		dev_err(dev, "start trig in idle state\n");
+		return -EIO;
+	}
+
+	if (!spicc_sem_down_read(spicc)) {
+		dev_err(dev, "controller busy, start trig failed\n");
+		return -EBUSY;
+	}
+
+	if (!IS_ERR_OR_NULL(spicc->trig_reg))
+		writel(readl(spicc->trig_reg) | TRIG_REG_MUX_EN,
+		       spicc->trig_reg);
+
+	spicc->dirspi_status = DIRSPI_STA_RUNNING;
+	dev_info(dev, "start trig in ready state success\n");
+
+	return 0;
+}
+
+static int spicc_dma_trig_stop(struct spicc_device *spicc)
+{
+	struct device *dev = &spicc->pdev->dev;
+	unsigned long timeout;
+	u32 sts;
+
+	if (spicc->dirspi_status == DIRSPI_STA_IDLE) {
+		dev_warn(dev, "stop trig in idle state\n");
+		return 0;
+	}
+
+	if (spicc->dirspi_status == DIRSPI_STA_READY) {
+		dev_warn(dev, "stop trig in ready state\n");
+		return 0;
+	}
+
+	if (!IS_ERR_OR_NULL(spicc->trig_reg))
+		writel(readl(spicc->trig_reg) & ~TRIG_REG_MUX_EN,
+		       spicc->trig_reg);
+
+	timeout = msecs_to_jiffies(100) + jiffies;
+	while (time_before(jiffies, timeout)) {
+		sts = spicc_readl(spicc, SPICC_REG_IRQ_STS);
+		if (sts & (SPICC_DESC_CHAIN_DONE | SPICC_DESC_DONE)) {
+			spicc_writel(spicc, sts, SPICC_REG_IRQ_STS);
+			break;
+		}
+	}
+
+	if (time_after(jiffies, timeout))
+		dev_warn(dev, "dma busy\n");
+
+	spicc_sem_up_write(spicc);
+	spicc->dirspi_status = DIRSPI_STA_READY;
+	dev_info(dev, "stop trig in running state success\n");
+
+	return 0;
+}
+
+static int spicc_dma_trig_release(struct spicc_device *spicc)
+{
+	struct device *dev = &spicc->pdev->dev;
+
+	if (spicc->dirspi_status == DIRSPI_STA_IDLE) {
+		dev_warn(dev, "release trig in idle state\n");
+		return 0;
+	}
+
+	if (spicc->dirspi_status == DIRSPI_STA_RUNNING)
+		spicc_dma_trig_stop(spicc);
+
+	spicc->dirspi_status = DIRSPI_STA_IDLE;
+	dev_info(dev, "release trig success\n");
+
+	return 0;
+}
 
 /*
  * @tx_dma: DMA address of tx buf
@@ -963,22 +1036,21 @@ static int dirspi_dma_trig(struct spi_device *spi,
 {
 	struct spicc_device *spicc;
 	struct spicc_controller_data *cdata;
-	struct spicc_descriptor *desc;
-	int desc_num = 1;
 	struct spi_transfer xfer;
 	u32 in_sel, delay = TRIG_DELAY_MIN;
 	int ret;
 
 	cdata = (struct spicc_controller_data *)spi->controller_data;
 	spicc = spi_controller_get_devdata(spi->controller);
-	if (spicc->dirspi_status != DIRSPI_STA_IDLE) {
-		spicc_err("failed to configure trig in state %d\n",
-			  spicc->dirspi_status);
-		return -EBUSY;
+	if (!spicc->dirspi_desc) {
+		dev_err(&spicc->pdev->dev, "no descriptor for dirspi\n");
+		return -ENOMEM;
 	}
 
+	spicc_dma_trig_release(spicc);
+
 	if (!spicc_sem_down_read(spicc)) {
-		spicc_err("controller busy\n");
+		dev_err(&spicc->pdev->dev, "controller busy\n");
 		return -EBUSY;
 	}
 
@@ -988,33 +1060,17 @@ static int dirspi_dma_trig(struct spi_device *spi,
 		return ret;
 	}
 
-	/* additional descriptor to achieve a ss trailing gap */
-	if (spicc->config_ss_trailing_gap)
-		desc_num++;
-	spicc->dirspi_desc_len = sizeof(*desc) * desc_num;
-	desc = dma_alloc_coherent(spicc->controller->dev.parent,
-				  spicc->dirspi_desc_len,
-				  &spicc->dirspi_desc_paddr,
-				  GFP_KERNEL | GFP_DMA);
-	spicc->dirspi_desc = desc;
-	if (!desc) {
-		spicc_sem_up_write(spicc);
-		spicc_err("alloc desc failed\n");
-		return -ENOMEM;
-	}
-
 	memset(&xfer, 0, sizeof(xfer));
 	xfer.tx_dma = tx_dma;
 	xfer.rx_dma = rx_dma;
 	xfer.len = len;
 	xfer.bits_per_word = spi->bits_per_word;
-	spicc_config_desc_one_transfer(spicc, desc, &xfer, true, false);
-	spicc_configure_last_desc(spicc, desc);
+	spicc_config_desc_one_transfer(spicc, spicc->dirspi_desc,
+				       &xfer, true, false);
+	spicc_configure_last_desc(spicc, spicc->dirspi_desc);
 
 	spicc_writel(spicc, 0, SPICC_REG_IRQ_ENABLE);
 	spicc_writel(spicc, spicc->cfg_spi.d32 | HW_POS, SPICC_REG_CFG_SPI);
-	spicc_writel(spicc, 0, SPICC_REG_CFG_BUS);
-	spicc_writel(spicc, 0, SPICC_REG_CFG_START);
 
 #ifdef	CONFIG_ARCH_DMA_ADDR_T_64BIT
 	spicc_writel(spicc, (u64)spicc->dirspi_desc_paddr & 0xffffffff,
@@ -1050,6 +1106,7 @@ static int dirspi_dma_trig(struct spi_device *spi,
 
 	spicc_sem_up_write(spicc);
 	spicc->dirspi_status = DIRSPI_STA_READY;
+	dev_info(&spicc->pdev->dev, "init trig success\n");
 
 	return 0;
 }
@@ -1059,56 +1116,15 @@ static int dirspi_dma_trig_start(struct spi_device *spi)
 	struct spicc_device *spicc;
 
 	spicc = spi_controller_get_devdata(spi->controller);
-	if (spicc->dirspi_status != DIRSPI_STA_READY) {
-		spicc_err("failed to start trig in state %d\n",
-			  spicc->dirspi_status);
-		return -EIO;
-	}
-
-	if (!spicc_sem_down_read(spicc)) {
-		spicc_err("controller busy\n");
-		return -EBUSY;
-	}
-
-	if (!IS_ERR_OR_NULL(spicc->trig_reg))
-		writel(readl(spicc->trig_reg) | TRIG_REG_MUX_EN,
-		       spicc->trig_reg);
-
-	spicc->dirspi_status = DIRSPI_STA_RUNNING;
-
-	return 0;
+	return spicc_dma_trig_start(spicc);
 }
 
 static int dirspi_dma_trig_stop(struct spi_device *spi)
 {
 	struct spicc_device *spicc;
-	unsigned long timeout;
-	u32 sts;
 
 	spicc = spi_controller_get_devdata(spi->controller);
-	if (spicc->dirspi_status != DIRSPI_STA_RUNNING) {
-		spicc_err("failed to stop trig in state %d\n",
-			  spicc->dirspi_status);
-		return -EIO;
-	}
-
-	if (!IS_ERR_OR_NULL(spicc->trig_reg))
-		writel(readl(spicc->trig_reg) & ~TRIG_REG_MUX_EN,
-		       spicc->trig_reg);
-
-	timeout = msecs_to_jiffies(100) + jiffies;
-	while (time_before(jiffies, timeout)) {
-		sts = spicc_readl(spicc, SPICC_REG_IRQ_STS);
-		if (sts & (SPICC_DESC_CHAIN_DONE | SPICC_DESC_DONE)) {
-			spicc_writel(spicc, sts, SPICC_REG_IRQ_STS);
-			break;
-		}
-	}
-
-	spicc_sem_up_write(spicc);
-	spicc->dirspi_status = DIRSPI_STA_READY;
-
-	return 0;
+	return spicc_dma_trig_stop(spicc);
 }
 
 static int dirspi_dma_trig_release(struct spi_device *spi)
@@ -1116,20 +1132,7 @@ static int dirspi_dma_trig_release(struct spi_device *spi)
 	struct spicc_device *spicc;
 
 	spicc = spi_controller_get_devdata(spi->controller);
-	if (spicc->dirspi_status == DIRSPI_STA_IDLE)
-		return 0;
-
-	if (spicc->dirspi_status == DIRSPI_STA_RUNNING)
-		dirspi_dma_trig_stop(spi);
-
-	dma_free_coherent(spicc->controller->dev.parent,
-			spicc->dirspi_desc_len,
-			(void *)spicc->dirspi_desc,
-			spicc->dirspi_desc_paddr);
-
-	spicc->dirspi_status = DIRSPI_STA_IDLE;
-
-	return 0;
+	return spicc_dma_trig_release(spicc);
 }
 #endif	/* end of MESON_SPICC_HW_IF */
 
@@ -1291,6 +1294,17 @@ static int meson_spicc_probe(struct platform_device *pdev)
 
 	init_completion(&spicc->completion);
 
+#ifdef MESON_SPICC_HW_IF
+	/* additional descriptor to achieve a ss trailing gap */
+	spicc->dirspi_desc_len = sizeof(struct spicc_descriptor);
+	if (spicc->config_ss_trailing_gap)
+		spicc->dirspi_desc_len += sizeof(struct spicc_descriptor);
+	spicc->dirspi_desc = dma_alloc_coherent(&pdev->dev,
+					spicc->dirspi_desc_len,
+					&spicc->dirspi_desc_paddr,
+					GFP_KERNEL | GFP_DMA);
+#endif
+
 #ifdef CONFIG_SPICC_TEST
 	device_create_file(&ctlr->dev, &dev_attr_test);
 	device_create_file(&ctlr->dev, &dev_attr_testdev);
@@ -1315,6 +1329,15 @@ static int meson_spicc_remove(struct platform_device *pdev)
 	if (spicc->sys_clk)
 		clk_disable_unprepare(spicc->sys_clk);
 	clk_disable_unprepare(spicc->spi_clk);
+
+#ifdef MESON_SPICC_HW_IF
+	if (spicc->dirspi_desc)
+		dma_free_coherent(&pdev->dev,
+				  spicc->dirspi_desc_len,
+				  spicc->dirspi_desc,
+				  spicc->dirspi_desc_paddr);
+#endif
+
 #ifdef CONFIG_SPICC_TEST
 	device_remove_file(&pdev->dev, &dev_attr_test);
 	device_remove_file(&pdev->dev, &dev_attr_testdev);

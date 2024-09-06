@@ -434,6 +434,7 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 	struct spi_device *spi;
 	struct spicc_controller_data *cdata;
 	struct spi_transfer *xfer;
+	char *data_str;
 	unsigned long v;
 	unsigned long t1, t2;
 	int ret = -EIO;
@@ -457,8 +458,8 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 		!spicc_getopt(argc, argv, "dirspi_sync", NULL, NULL, 0)) {
 		xfer = testdev_get_current_xfer(testdev);
 		ret = cdata->dirspi_sync(testdev->spi,
-					 (u8 *)xfer->tx_buf,
-					 xfer->rx_buf,
+					 xfer->tx_dma,
+					 xfer->rx_dma,
 					 xfer->len);
 		if (!ret) {
 			dev_info(dev, "dirspi_sync test success\n");
@@ -530,6 +531,15 @@ int testdev_run(struct test_device *testdev, int argc, char *argv[])
 		!spicc_getopt(argc, argv, "busy_proc", NULL, NULL, 0)) {
 		ret = cdata->dirspi_busy_proc(spi);
 		dev_info(dev, "busy proc done! (%d)\n", ret);
+	}
+
+	if (!spicc_getopt(argc, argv, "update_tx_data", NULL, &data_str, 0)) {
+		xfer = testdev_get_current_xfer(testdev);
+		if (xfer) {
+			spicc_strtohex(data_str, 0, (u8 *)xfer->tx_buf, xfer->len);
+			dev_info(&spi->controller->dev, "tx data updated\n");
+		}
+		return 0;
 	}
 
 	if (ret == -EIO)

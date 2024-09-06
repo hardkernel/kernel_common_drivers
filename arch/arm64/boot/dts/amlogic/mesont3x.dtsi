@@ -5476,8 +5476,8 @@
 		mux {
 			groups = "spi1_mosi_h",
 				 "spi1_miso_h",
-				 "spi1_dq2_h",
-				 "spi1_dq3_h",
+				 //"spi1_dq2_h",
+				 //"spi1_dq3_h",
 				 "spi1_ss0_h",
 				 "spi1_clk_h";
 			function = "spi1";

@@ -978,7 +978,7 @@ int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 		goto ldim_dev_iw7027_probe_err0;
 
 	/* spi transfer buffer: header + reg_max_cnt + chip_cnt */
-	bl_iw7027->tbuf_size = 3 + IW7027_REG_MAX + dev_drv->chip_cnt;
+	bl_iw7027->tbuf_size = IW7027_REG_MAX + bl_iw7027->reg_buf_size;
 	if (bl_iw7027->dma_support) {
 		n = bl_iw7027->tbuf_size;
 		bl_iw7027->tbuf_size = ldim_spi_dma_cycle_align_byte(n);
@@ -989,18 +989,14 @@ int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 		goto ldim_dev_iw7027_probe_err1;
 
 	/* spi transfer buffer: header + reg_max_cnt + chip_cnt + dev_id_max(=chip_cnt) */
-	bl_iw7027->rbuf_size = 3 + IW7027_REG_MAX + dev_drv->chip_cnt * 2;
-	if (bl_iw7027->rbuf_size < bl_iw7027->tbuf_size) /* for dma use */
-		bl_iw7027->rbuf_size = bl_iw7027->tbuf_size;
+	bl_iw7027->rbuf_size = bl_iw7027->tbuf_size;
 	bl_iw7027->rbuf = kcalloc(bl_iw7027->rbuf_size,
 		sizeof(unsigned char), GFP_KERNEL | GFP_DMA);
 	if (!bl_iw7027->rbuf)
 		goto ldim_dev_iw7027_probe_err2;
 
-	if (dev_drv->spi_sync == SPI_DMA_TRIG) {
-		dev_drv->spi_xlen = bl_iw7027->tbuf_size;
-		ldim_spi_init_dma_trig(dev_drv->spi_dev);
-	}
+	/*set spi_xlen equal as tbuf_size*/
+	dev_drv->spi_xlen = bl_iw7027->tbuf_size;
 
 	iw7027_ldim_dev_update(dev_drv);
 

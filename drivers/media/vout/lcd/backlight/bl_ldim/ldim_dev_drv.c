@@ -73,6 +73,8 @@ struct ldim_dev_driver_s ldim_dev_drv = {
 	.index = 0xff,
 	.type = LDIM_DEV_TYPE_NORMAL,
 	.dma_support = 0,
+	.dma_trig_data_ready = 0,
+	.dma_trig_init = 0,
 	.spi_sync = SPI_DMA_TRIG,
 	.spi_line_n = 50,
 	.cs_hold_delay = 0,
@@ -2083,6 +2085,25 @@ static ssize_t ldim_dev_spi_store(struct class *class, struct class_attribute *a
 		} else {
 			LDIMERR("invalid parameters\n");
 		}
+	} else if (buf[0] == 'i') {/*init*/
+		ret = sscanf(buf, "i %d", &val);
+		if (ret == 1)
+			ldim_spi_init_dma_trig(ldim_dev_drv.spi_dev);
+		else
+			LDIMERR("invalid parameters\n");
+
+	} else if (buf[0] == 'r') {/*start*/
+		ret = sscanf(buf, "i %d", &val);
+		if (ret == 1)
+			ldim_spi_dma_trig_start(ldim_dev_drv.spi_dev);
+		else
+			LDIMERR("invalid parameters\n");
+	} else if (buf[0] == 'e') {/*stop*/
+		ret = sscanf(buf, "i %d", &val);
+		if (ret == 1)
+			ldim_spi_dma_trig_stop(ldim_dev_drv.spi_dev);
+		else
+			LDIMERR("invalid parameters\n");
 	}
 
 	return count;
@@ -2260,6 +2281,21 @@ static void ldim_dev_probe_func(struct work_struct *work)
 	ldim_pwm_pinmux_ctrl(&ldim_dev_drv, 1);
 	ldim_set_duty_pwm(&ldim_dev_drv.ldim_pwm_config);
 
+	/*dma_alloc_coherent spi_tx_buf / spi_rx_buf*/
+	ldim_dev_drv.spi_tx_buf = dma_alloc_coherent(ldim_dev_drv.spi_dev->controller->dev.parent,
+		ldim_dev_drv.spi_xlen, &ldim_dev_drv.spi_tx_dma, GFP_KERNEL | GFP_DMA);
+	if (!ldim_dev_drv.spi_tx_buf) {
+		LDIMERR("%s: ldim_dev_drv.spi_tx_buf is error\n", __func__);
+		goto ldim_dev_probe_func_fail1;
+	}
+	ldim_dev_drv.spi_rx_buf = dma_alloc_coherent(ldim_dev_drv.spi_dev->controller->dev.parent,
+		ldim_dev_drv.spi_xlen, &ldim_dev_drv.spi_rx_dma, GFP_KERNEL | GFP_DMA);
+	if (!ldim_dev_drv.spi_rx_buf) {
+		LDIMERR("%s: ldim_dev_drv.spi_rx_buf is error\n", __func__);
+		goto ldim_dev_probe_func_fail2;
+	}
+	LDIMPR("%s spi_tx_dma=0x%lx, spi_rx_dma=0x%lx\n", __func__,
+		(ulong)ldim_dev_drv.spi_tx_dma, (ulong)ldim_dev_drv.spi_rx_dma);
 	if (ldim_dev_drv.spi_sync == SPI_DMA_TRIG)
 		ldim_wr_vcbus(VPP_INT_LINE_NUM, ldim_dev_drv.spi_line_n);
 
@@ -2269,6 +2305,8 @@ static void ldim_dev_probe_func(struct work_struct *work)
 	LDIMPR("%s: ok\n", __func__);
 	return;
 
+ldim_dev_probe_func_fail2:
+	kfree(ldim_dev_drv.spi_tx_buf);
 ldim_dev_probe_func_fail1:
 	kfree(ldim_dev_drv.bl_mapping);
 ldim_dev_probe_func_fail0:

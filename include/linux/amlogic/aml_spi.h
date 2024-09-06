@@ -13,7 +13,17 @@ enum {
 	DMA_TRIG_PWM_VS,
 };
 
+#define CONTROLLER_SPICC	1
+#define CONTROLLER_SPISG	2
+
+#define CAP_DMA_TRIG_VSYNC	BIT(0)
+#define CAP_DMA_TRIG_LINE_N	BIT(1)
+#define CAP_DMA_TRIG_PWM_VS	BIT(2)
+#define CAP_TRIG_DELAY		BIT(3)
+
 struct spicc_controller_data {
+	unsigned int	controller_version;
+	unsigned int	controller_capabilities;
 	unsigned	use_dirspi:1;
 	unsigned	ccxfer_en:1;
 	unsigned	timing_en:1;
@@ -26,14 +36,14 @@ struct spicc_controller_data {
 	void (*dirspi_start)(struct spi_device *spi);
 	void (*dirspi_stop)(struct spi_device *spi);
 	int (*dirspi_async)(struct spi_device *spi,
-			    u8 *tx_buf,
-			    u8 *rx_buf,
+			    dma_addr_t tx_dma,
+			    dma_addr_t rx_dma,
 			    int len,
 			    void (*complete)(void *context),
 			    void *context);
 	int (*dirspi_sync)(struct spi_device *spi,
-			   u8 *tx_buf,
-			   u8 *rx_buf,
+			   dma_addr_t tx_dma,
+			   dma_addr_t rx_dma,
 			   int len);
 	int (*dirspi_xfer)(struct spi_device *spi,
 			   u8 *tx_buf,
@@ -49,6 +59,11 @@ struct spicc_controller_data {
 	int (*dirspi_dma_trig_release)(struct spi_device *spi);
 	int (*dirspi_busy_proc)(struct spi_device *spi);
 };
+
+static inline bool is_spicc_capable(struct spicc_controller_data *cdata, unsigned int cap_type)
+{
+	return cdata->controller_capabilities & cap_type;
+}
 
 struct spicc_transfer {
 	struct spi_transfer xfer;

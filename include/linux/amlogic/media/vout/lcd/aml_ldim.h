@@ -54,6 +54,8 @@ struct ldim_dev_driver_s {
 	unsigned char key_valid;
 	unsigned char type;
 	unsigned char dma_support;
+	unsigned char dma_trig_data_ready;
+	unsigned char dma_trig_init;
 	unsigned char spi_sync;
 	unsigned int spi_line_n;/*vpp line n irq*/
 	unsigned int spi_xlen;/*actually xfer len*/
