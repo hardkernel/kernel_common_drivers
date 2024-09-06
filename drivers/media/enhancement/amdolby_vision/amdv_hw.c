@@ -92,24 +92,6 @@ static bool update_core2_reg;/*only set core2 reg*/
 /*bit5: reset core1b reg; bit6: reset core1b lut*/
 u32 force_update_reg;
 
-#define CP_FLAG_CHANGE_CFG		0x000001
-#define CP_FLAG_CHANGE_MDS		0x000002
-#define CP_FLAG_CHANGE_MDS_CFG		0x000004
-#define CP_FLAG_CHANGE_GD		0x000010
-#define CP_FLAG_CHANGE_GD_OLD		0x000008
-#define CP_FLAG_CHANGE_AB		0x000020
-#define CP_FLAG_CHANGE_TC		0x000100
-#define CP_FLAG_CHANGE_TC_OLD		0x000010
-#define CP_FLAG_CHANGE_TC2		0x000200
-#define CP_FLAG_CHANGE_TC2_OLD		0x000020
-#define CP_FLAG_CHANGE_L2NL		0x000400
-#define CP_FLAG_CHANGE_L2NL_OLD		0x000040
-#define CP_FLAG_CHANGE_3DLUT		0x000800
-#define CP_FLAG_CHANGE_3DLUT_OLD	0x000080
-#define CP_FLAG_CONST_TC		0x100000
-#define CP_FLAG_CONST_TC2		0x200000
-#define CP_FLAG_CHANGE_ALL		0xffcfffff
-
 /* update all core */
 static u32 stb_core_setting_update_flag = CP_FLAG_CHANGE_ALL;
 static unsigned int bypass_core1a_composer;
@@ -696,7 +678,7 @@ int tv_dv_core1_set(u64 *dma_data,
 			}
 		}
 	}
-	if (load_fixed_tv_setting) {
+	if (load_fixed_setting) {
 		core1_reg_lut[1] = 0x0000000100000000 | run_mode;
 		copy_fixed_setting();
 		if (amdv_on_count < 4)
@@ -3253,7 +3235,7 @@ static int dv_core3_set
 
 	VSYNC_WR_DV_REG(CORE3_DIAG_CTRL, diag_mode);
 
-	if ((dolby_vision_flags & FLAG_CERTIFICATION) &&
+	if (((dolby_vision_flags & FLAG_CERTIFICATION) || load_fixed_setting) &&
 	    !(dolby_vision_flags & FLAG_DISABLE_CRC))
 		VSYNC_WR_DV_REG(CORE3_CRC_CTRL, 1);
 	/* enable core3 */

@@ -3901,6 +3901,177 @@ void read_tv1614_reg_lut_to_buf(char *reg_txt, void *reg_buf, int reg_num)
 	pr_info("read file, count: %d\n", reg_count);
 }
 
+/*core3_md: output dv or not. if dv output, need copy core3 md*/
+void read_stb26_reg_lut_to_buf(char *reg_txt, struct m_fixed_setting_s *setting, bool core3_md)
+{
+	char *ptr_line;
+	int reg_count = 0;
+	int ret = 0;
+	bool eof_flag = false;
+	u32 core1_dm_reg_num = 27;
+	u32 core1_comp_reg_num = 173;
+	u32 core1_dm_lut_num = 64 * 5;/*4x64x5*/
+	u32 core2_dm_reg_num = 24;
+	u32 core2_dm_lut_num = 64 * 5;/*4x64x5*/
+	u32 core3_dm_reg_num = 26;
+
+	u32 value;
+	u32 value2;
+	u32 value3;
+	u32 value4;
+
+	u32 *p_core1a_dm = &setting->core1[0].dm_reg.s_range;
+	u32 *p_core1a_comp = &setting->core1[0].comp_reg.composer_mode;
+	u32 *p_core1a_dmlut = &setting->core1[0].dm_lut.tm_lut_i[0];
+	u32 *p_core1b_dm = &setting->core1[1].dm_reg.s_range;
+	u32 *p_core1b_comp = &setting->core1[1].comp_reg.composer_mode;
+	u32 *p_core1b_dmlut = &setting->core1[1].dm_lut.tm_lut_i[0];
+	u32 *p_core2_dm = &setting->dm_reg2.s_range;
+	u32 *p_core2_lut = &setting->dm_lut2.tm_lut_i[0];
+	u32 *p_core3_dm = &setting->dm_reg3.d2c_coeff1;
+
+	if (!reg_txt || !setting)
+		return;
+
+	while (!eof_flag) {
+		eof_flag = read_one_line(&reg_txt, (char *)&cur_line);
+		ptr_line = cur_line;
+		if (debug_dolby & 0x200)
+			pr_dv_dbg("eof_flag %d, ptr_line: %s\n", eof_flag, ptr_line);
+		if (eof_flag && (strlen(cur_line) == 0))
+			break;
+
+		if (reg_count < core1_dm_reg_num) {
+			/*core1a dm reg*/
+			ret = sscanf(ptr_line, "%8x", &value);
+			if (ret != 1)
+				break;
+			*p_core1a_dm = value;
+			++p_core1a_dm;
+			reg_count += 1;
+			if (debug_dolby & 0x200)
+				pr_dv_dbg("core1a dm reg_count %d:value %8x\n", reg_count, value);
+		} else if (reg_count < core1_dm_reg_num + core1_comp_reg_num) {
+			/*core1a comp reg*/
+			ret = sscanf(ptr_line, "%8x", &value);
+			if (ret != 1)
+				break;
+			*p_core1a_comp = value;
+			++p_core1a_comp;
+			reg_count += 1;
+			if (debug_dolby & 0x200)
+				pr_dv_dbg("core1a comp reg_count %d:value %8x\n", reg_count, value);
+		} else if (reg_count < core1_dm_reg_num + core1_comp_reg_num + core1_dm_lut_num) {
+			/*core1a lut*/
+			ret = sscanf(ptr_line, "%8x, %8x, %8x, %8x",
+						&value, &value2, &value3, &value4);
+			if (ret != 4)
+				break;
+			*p_core1a_dmlut = value4;
+			++p_core1a_dmlut;
+			*p_core1a_dmlut = value3;
+			++p_core1a_dmlut;
+			*p_core1a_dmlut = value2;
+			++p_core1a_dmlut;
+			*p_core1a_dmlut = value;
+			++p_core1a_dmlut;
+			reg_count += 1;
+			if (debug_dolby & 0x200)
+				pr_dv_dbg("core1a lut reg_count %d:value %8x %8x %8x %8x\n",
+				reg_count, value, value2, value3, value4);
+		} else if (reg_count < core1_dm_reg_num + core1_comp_reg_num +
+					core1_dm_lut_num + core1_dm_reg_num) {
+			/*core1b dm reg*/
+			ret = sscanf(ptr_line, "%8x", &value);
+			if (ret != 1)
+				break;
+			*p_core1b_dm = value;
+			++p_core1b_dm;
+			reg_count += 1;
+			if (debug_dolby & 0x200)
+				pr_dv_dbg("core1b dm reg_count %d:value %8x\n", reg_count, value);
+		} else if (reg_count < core1_dm_reg_num + core1_comp_reg_num +
+					core1_dm_lut_num + core1_dm_reg_num + core1_comp_reg_num) {
+			/*core1b comp reg*/
+			ret = sscanf(ptr_line, "%8x", &value);
+			if (ret != 1)
+				break;
+			*p_core1b_comp = value;
+			++p_core1b_comp;
+			reg_count += 1;
+			if (debug_dolby & 0x200)
+				pr_dv_dbg("core1b comp reg_count %d:value %8x\n", reg_count, value);
+		} else if (reg_count < core1_dm_reg_num + core1_comp_reg_num + core1_dm_lut_num +
+					core1_dm_reg_num + core1_comp_reg_num + core1_dm_lut_num) {
+			/*core1b lut*/
+			ret = sscanf(ptr_line, "%8x, %8x, %8x, %8x",
+						&value, &value2, &value3, &value4);
+			if (ret != 4)
+				break;
+			*p_core1b_dmlut = value4;
+			++p_core1b_dmlut;
+			*p_core1b_dmlut = value3;
+			++p_core1b_dmlut;
+			*p_core1b_dmlut = value2;
+			++p_core1b_dmlut;
+			*p_core1b_dmlut = value;
+			++p_core1b_dmlut;
+			reg_count += 1;
+			if (debug_dolby & 0x200)
+				pr_dv_dbg("core1b lut reg_count %d: value %8x %8x %8x %8x\n",
+				reg_count, value, value2, value3, value4);
+		} else if (reg_count < core1_dm_reg_num + core1_comp_reg_num +
+					core1_dm_lut_num + core1_dm_reg_num + core1_comp_reg_num +
+					core1_dm_lut_num + core2_dm_reg_num) {
+			/*core2 reg*/
+			ret = sscanf(ptr_line, "%8x", &value);
+			if (ret != 1)
+				break;
+			*p_core2_dm = value;
+			++p_core2_dm;
+			reg_count += 1;
+			if (debug_dolby & 0x200)
+				pr_dv_dbg("core2 dm reg_count %d:value %x\n", reg_count, value);
+		} else if (reg_count < core1_dm_reg_num + core1_comp_reg_num +
+					core1_dm_lut_num + core1_dm_reg_num + core1_comp_reg_num +
+					core1_dm_lut_num + core2_dm_reg_num + core2_dm_lut_num) {
+			/*core2 lut*/
+			ret = sscanf(ptr_line, "%8x, %8x, %8x, %8x",
+						&value, &value2, &value3, &value4);
+			if (ret != 4)
+				break;
+			*p_core2_lut = value4;
+			++p_core2_lut;
+			*p_core2_lut = value3;
+			++p_core2_lut;
+			*p_core2_lut = value2;
+			++p_core2_lut;
+			*p_core2_lut = value;
+			++p_core2_lut;
+			reg_count += 1;
+			if (debug_dolby & 0x200)
+				pr_dv_dbg("core2 lut reg_count %d: value %8x %8x %8x %8x\n",
+				reg_count, value, value2, value3, value4);
+		} else if (reg_count < core1_dm_reg_num + core1_comp_reg_num +
+					core1_dm_lut_num + core1_dm_reg_num + core1_comp_reg_num +
+					core1_dm_lut_num + core2_dm_reg_num + core2_dm_lut_num +
+					core3_dm_reg_num) {
+			/*core3 reg*/
+			ret = sscanf(ptr_line, "%8x", &value);
+			if (ret != 1)
+				break;
+			*p_core3_dm = value;
+			++p_core3_dm;
+			reg_count += 1;
+			if (debug_dolby & 0x200)
+				pr_dv_dbg("core3 dm reg_count %d:value %x\n", reg_count, value);
+		} else {
+			break;
+		}
+	}
+	pr_info("read file, count: %d\n", reg_count);
+}
+
 module_param(panel_max_lumin, uint, 0664);
 MODULE_PARM_DESC(panel_max_lumin, "\n panel_max_lumin\n");
 

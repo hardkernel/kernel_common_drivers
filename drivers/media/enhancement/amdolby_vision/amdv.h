@@ -117,6 +117,24 @@
 #define HLG_MIN 1310
 #define HLG_MAX 262144000
 
+#define CP_FLAG_CHANGE_CFG		0x000001
+#define CP_FLAG_CHANGE_MDS		0x000002
+#define CP_FLAG_CHANGE_MDS_CFG		0x000004
+#define CP_FLAG_CHANGE_GD		0x000010
+#define CP_FLAG_CHANGE_GD_OLD		0x000008
+#define CP_FLAG_CHANGE_AB		0x000020
+#define CP_FLAG_CHANGE_TC		0x000100
+#define CP_FLAG_CHANGE_TC_OLD		0x000010
+#define CP_FLAG_CHANGE_TC2		0x000200
+#define CP_FLAG_CHANGE_TC2_OLD		0x000020
+#define CP_FLAG_CHANGE_L2NL		0x000400
+#define CP_FLAG_CHANGE_L2NL_OLD		0x000040
+#define CP_FLAG_CHANGE_3DLUT		0x000800
+#define CP_FLAG_CHANGE_3DLUT_OLD	0x000080
+#define CP_FLAG_CONST_TC		0x100000
+#define CP_FLAG_CONST_TC2		0x200000
+#define CP_FLAG_CHANGE_ALL		0xffffffff
+
 enum core1_switch_type {
 	NO_SWITCH = 0,
 	SWITCH_BEFORE_DVCORE_1,
@@ -701,6 +719,17 @@ struct backlight_info {
 	bool set_flag;
 };
 
+struct m_fixed_setting_s {
+	struct dovi_setting_video_s core1[NUM_IPCORE1];
+	struct dm_reg_ipcore2 dm_reg2;
+	struct dm_reg_ipcore3 dm_reg3;
+	struct dm_lut_ipcore dm_lut2;
+	/* for dovi output */
+	struct md_reg_ipcore3 md_reg3;
+	/* for hdr10 output */
+	struct hdr10_infoframe hdr_info;
+};
+
 #define MAX_BL_COUNT 30
 #define PREFIX_SEI_NUT_NAL 39
 #define SUFFIX_SEI_NUT_NAL 40
@@ -910,7 +939,7 @@ extern struct tv_hw5_setting_s *tv_hw5_setting;
 extern struct tv_hw5_setting_s *invalid_hw5_setting;
 extern struct tv_hw5_setting_s *last_tv_hw5_setting;
 extern u32 hw5_reg_from_file;
-extern bool load_fixed_tv_setting;
+extern bool load_fixed_setting;
 extern u32 test_dv;
 extern struct video_inst_s top1_v_info;/*video info*/
 extern struct video_inst_s top2_v_info;/*video info*/
@@ -1343,6 +1372,7 @@ int load_reg_and_lut_file(char *fw_name, void **dst_buf);
 void read_txt_to_buf(char *reg_txt, void *reg_buf, int reg_num, bool is_reg);
 void read_top1_pic_to_buf(char *reg_txt, void *buf, int num, bool flag_64bit);
 void read_tv1614_reg_lut_to_buf(char *reg_txt, void *reg_buf, int reg_num);
+void read_stb26_reg_lut_to_buf(char *reg_txt, struct m_fixed_setting_s *setting, bool core3_md);
 int dma_lut_init(void);
 void dma_lut_uninit(void);
 int dma_lut_write(void);
