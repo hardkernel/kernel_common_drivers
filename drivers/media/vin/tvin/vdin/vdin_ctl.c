@@ -4619,8 +4619,6 @@ bool vdin_check_cycle(struct vdin_dev_s *devp)
 	struct tvin_state_machine_ops_s *sm_ops = NULL;
 	u64 interval_value;
 
-	if (devp->index)
-		return ret;
 	interval_value = vdin_calculate_isr_interval_value(devp);
 	stamp = vdin_get_meas_v_stamp(devp);
 
@@ -4680,7 +4678,6 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 	const struct tvin_format_s *fmt_info = devp->fmt_info_p;
 	enum tvin_port_e port = devp->parm.port;
 	unsigned int fps;
-	int duration_diff;
 
 	curr_wr_vf = &devp->curr_wr_vfe->vf;
 	last_field_type = devp->curr_field_type;
@@ -4704,21 +4701,12 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 			curr_wr_vf->duration = devp->duration;
 		}
 
-		if (!devp->game_mode) {
-			duration_diff = curr_wr_vf->duration - devp->duration;
-			/* duration = 96000/fps */
-			if (abs(duration_diff) > VDIN_DURATION_FILTER_VALUE)
-				curr_wr_vf->duration = DIV_ROUND_CLOSEST(9600000,
-					devp->prop.frame_rate);
-		}
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
 			pr_info("vdin%d,[%d,%d] duration:%d %d,fps:%d %d,cycle:%d\n",
 				devp->index, devp->irq_cnt, devp->frame_cnt,
 				devp->duration, curr_wr_vf->duration,
 				devp->parm.info.fps, devp->prop.fps, devp->cycle);
 
-		if (devp->index)
-			curr_wr_vf->duration = devp->duration;
 	} else {
 #ifdef VDIN_DYNAMIC_DURATION
 		devp->curr_wr_vf->duration =

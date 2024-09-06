@@ -3499,9 +3499,8 @@
 		interrupts = <0 116 1>,<0 119 1>;
 		interrupt-names = "vsync_int","write_done_int";
 		rdma-irq = <0x1000000>;
-//		clocks = <&clock CLK_FPLL_DIV5>,
-//			<&clock CLK_VDIN_MEAS_CLK>;
-//		clock-names = "fclk_div5", "cts_vdin_meas_clk";
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
+		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 
 		vdin_id = <2>;
 		/* s5:export vdin id to other module or app */

@@ -1581,9 +1581,9 @@
 		/*cma_size = <16>;*/
 		interrupts = <0 210 1>;
 		rdma-irq = <2>;
-		//clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS_GATE>;
-		//clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <0>;
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
+		clock-names = "fclk_div5", "vdin_meas_clk";
 		/* vdin v4l2 */
 		v4l_support_en = <0>;
 		v4l_vd_num = <70>;
@@ -1608,6 +1608,8 @@
 		interrupts = <0 212 1>;
 		rdma-irq = <4>;
 		vdin_id = <1>;
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS>;
+		clock-names = "fclk_div5", "vdin_meas_clk";
 		/* vdin v4l2 */
 		v4l_support_en = <0>;
 		v4l_vd_num = <71>;

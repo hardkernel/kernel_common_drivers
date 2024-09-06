@@ -191,6 +191,7 @@ struct vpu_dev_s *vpu_dev_clk_gate;
 struct vpu_dev_s *vpu_dev_mem_pd_vdin0;
 struct vpu_dev_s *vpu_dev_mem_pd_vdin1;
 struct vpu_dev_s *vpu_dev_mem_pd_afbce;
+struct vdin_measure_ctl_s g_vdin_msr_ctl;
 
 static void vdin_backup_histgram(struct vframe_s *vf, struct vdin_dev_s *devp);
 
@@ -206,18 +207,6 @@ static int vdin_get_video_reverse(char *str)
 	return 0;
 }
 __setup("video_reverse=", vdin_get_video_reverse);
-
-static void vdin_timer_func(struct timer_list *t)
-{
-	/*struct vdin_dev_s *devp = (struct vdin_dev_s *)arg;*/
-	struct vdin_dev_s *devp = from_timer(devp, t, timer);
-
-	/* state machine routine */
-	tvin_smr(devp);
-	/* add timer */
-	devp->timer.expires = jiffies + VDIN_PUT_INTERVAL;
-	add_timer(&devp->timer);
-}
 
 static const struct vframe_operations_s vdin_vf_ops = {
 	.peek = vdin_vf_peek,
@@ -406,6 +395,43 @@ bool tvin_get_game_mode_status(u8 port_type)
 		return false;
 }
 EXPORT_SYMBOL(tvin_get_game_mode_status);
+
+static void vdin_timer_func(struct timer_list *t)
+{
+	/*struct vdin_dev_s *devp = (struct vdin_dev_s *)arg;*/
+	struct vdin_dev_s *devp = from_timer(devp, t, timer);
+
+	/* state machine routine */
+	tvin_smr(devp);
+	/* add timer */
+	devp->timer.expires = jiffies + VDIN_PUT_INTERVAL;
+	add_timer(&devp->timer);
+}
+
+/* vdin0/1/2 share one measure clk,if not inuse,disable it */
+static void vdin_measure_clk_ctl(struct vdin_dev_s *devp, bool on_off)
+{
+	mutex_lock(&g_vdin_msr_ctl.msr_lock);
+	if (on_off) {
+		if (!g_vdin_msr_ctl.is_clk_enabled && devp->msr_clk) {
+			clk_prepare_enable(devp->msr_clk);
+			g_vdin_msr_ctl.is_clk_enabled = true;
+			pr_info("%s(vdin%d),msr clk enabled\n", __func__, devp->index);
+		}
+		g_vdin_msr_ctl.inuse |= (1 << devp->index);
+	} else {
+		g_vdin_msr_ctl.inuse &= ~(1 << devp->index);
+	}
+	if (vdin_dbg_en)
+		pr_info("%s(vdin%d),on_off:%d,inuse=0x%x\n", __func__, devp->index,
+			on_off, g_vdin_msr_ctl.inuse);
+	if (!g_vdin_msr_ctl.inuse && devp->msr_clk) {
+		clk_disable_unprepare(devp->msr_clk);
+		g_vdin_msr_ctl.is_clk_enabled = false;
+		pr_info("%s(vdin%d), msr clk disabled\n", __func__, devp->index);
+	}
+	mutex_unlock(&g_vdin_msr_ctl.msr_lock);
+}
 
 /*
  * 1. find the corresponding frontend according to the port & save it.
@@ -1273,6 +1299,39 @@ static void vdin_start_param_init(struct vdin_dev_s *devp)
 	devp->debug.slt_test.vf_check_result = false;
 	devp->debug.slt_test.vf_pass_cnt = 0;
 
+	devp->irq_cnt = 0;
+	devp->vpu_crash_cnt = 0;
+	devp->rdma_irq_cnt = 0;
+	devp->frame_cnt = 0;
+	devp->put_frame_cnt = 0;
+	phase_lock_flag = 0;
+	devp->ignore_frames = max_ignore_frame_cnt;
+	if (devp->parm.info.fps)
+		devp->vs_time_stamp = devp->msr_clk_val / devp->parm.info.fps;
+	else
+		devp->vs_time_stamp = sched_clock();
+	devp->unreliable_vs_cnt = 0;
+	devp->unreliable_vs_cnt_pre = 0;
+	devp->unreliable_vs_idx = 0;
+	devp->drop_hdr_set_sts = 3;
+	devp->vdin_isr_drop = devp->vdin_isr_drop_num;
+	if (devp->dv.dv_flag)
+		color_range_force = COLOR_RANGE_AUTO;
+	devp->game_mode_chg = VDIN_GAME_MODE_UN_CHG;
+	devp->chg_drop_frame_cnt = 0;
+	devp->vrr_on_add_cnt = 0;
+	devp->vrr_off_add_cnt = 0;
+
+	devp->vdin_drop_ctl_cnt = 0;
+	devp->dv.allm_chg_cnt = 0;
+	devp->sg_chg_fps_cnt = 0;
+	devp->af_num = VDIN_CANVAS_MAX_CNT;
+	/* write vframe as default */
+	devp->vframe_wr_en = 1;
+	devp->vframe_wr_en_pre = 1;
+	devp->keystone_vframe_ready = 0;
+	devp->rdma_undone_cnt = 0;
+	memset(&devp->stats, 0, sizeof(devp->stats));
 	//todo:more parameter initializations will be move here
 }
 
@@ -1550,6 +1609,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	} else {
 		devp->vdin_delay_vfe2rd_list = 0;
 	}
+	vdin_measure_clk_ctl(devp, true);
 
 	if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
 	    devp->frontend &&
@@ -1587,39 +1647,6 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 			__func__);
 	}
 #endif
-	devp->irq_cnt = 0;
-	devp->vpu_crash_cnt = 0;
-	devp->rdma_irq_cnt = 0;
-	devp->frame_cnt = 0;
-	devp->put_frame_cnt = 0;
-	phase_lock_flag = 0;
-	devp->ignore_frames = max_ignore_frame_cnt;
-	if (devp->parm.info.fps)
-		devp->vs_time_stamp = devp->msr_clk_val / devp->parm.info.fps;
-	else
-		devp->vs_time_stamp = sched_clock();
-	devp->unreliable_vs_cnt = 0;
-	devp->unreliable_vs_cnt_pre = 0;
-	devp->unreliable_vs_idx = 0;
-	devp->drop_hdr_set_sts = 3;
-	devp->vdin_isr_drop = devp->vdin_isr_drop_num;
-	if (devp->dv.dv_flag)
-		color_range_force = COLOR_RANGE_AUTO;
-	devp->game_mode_chg = VDIN_GAME_MODE_UN_CHG;
-	devp->chg_drop_frame_cnt = 0;
-	devp->vrr_on_add_cnt = 0;
-	devp->vrr_off_add_cnt = 0;
-
-	devp->vdin_drop_ctl_cnt = 0;
-	devp->dv.allm_chg_cnt = 0;
-	devp->sg_chg_fps_cnt = 0;
-	devp->af_num = VDIN_CANVAS_MAX_CNT;
-	/* write vframe as default */
-	devp->vframe_wr_en = 1;
-	devp->vframe_wr_en_pre = 1;
-	devp->keystone_vframe_ready = 0;
-	devp->rdma_undone_cnt = 0;
-	memset(&devp->stats, 0, sizeof(devp->stats));
 	if (vdin_time_en)
 		pr_info("vdin.%d start time: %ums, run time:%ums.\n",
 			devp->index, jiffies_to_msecs(jiffies),
@@ -1788,6 +1815,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	vdin_set_dsc_config_t3x(devp, false);
 #endif
 	vdin_hw_close(devp);
+	vdin_measure_clk_ctl(devp, false);
 	vdin_set_default_regmap(devp);
 	/*only for vdin0*/
 	if (devp->dts_config.urgent_en && devp->hw_core == VDIN_HW_CORE_NORMAL)
@@ -2816,7 +2844,7 @@ int vdin_vs_duration_check(struct vdin_dev_s *devp)
 	}
 
 	if (!(is_meson_t7_cpu() || is_meson_t3_cpu() || is_meson_t3x_cpu() ||
-	     is_meson_t5w_cpu() || is_meson_t5m_cpu()))
+	     is_meson_t5w_cpu() || is_meson_t5m_cpu()) || (devp->hw_core == VDIN_HW_CORE_LITE))
 		ret = 0;
 
 	return ret;
@@ -3543,6 +3571,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	curr_wr_vfe = devp->curr_wr_vfe;
 	curr_wr_vf  = &curr_wr_vfe->vf;
+	vdin_calculate_duration(devp);
 
 	next_wr_vfe = provider_vf_peek(devp->vfp);
 
@@ -3763,7 +3792,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		curr_wr_vf->trans_fmt = devp->parm.info.trans_fmt;
 		vdin_set_view(devp, curr_wr_vf);
 	}
-	vdin_calculate_duration(devp);
 	/*curr_wr_vf->duration = devp->duration;*/
 
 	/* put for receiver
@@ -4102,6 +4130,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	vdin_set_vframe_prop_info(curr_wr_vf, devp);
 	vdin_backup_histgram(curr_wr_vf, devp);
 	vdin_hist_tgt(devp, curr_wr_vf);
+	vdin_calculate_duration(devp);
 
 	if (devp->frontend && devp->frontend->dec_ops) {
 		dec_ops = devp->frontend->dec_ops;
@@ -6739,6 +6768,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	/* init vdin parameters */
 	devp->flags = VDIN_FLAG_NULL;
 	mutex_init(&devp->fe_lock);
+	mutex_init(&g_vdin_msr_ctl.msr_lock);
 	spin_lock_init(&devp->isr_lock);
 	spin_lock_init(&devp->hist_lock);
 	init_completion(&devp->thd_completion);
@@ -6861,6 +6891,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 				__func__, devp->index);
 			fclk_div5 = NULL;
 			devp->msr_clk = NULL;
+			devp->msr_clk_val = 50000000;
 		} else {
 			if (!IS_ERR(fclk_div5))
 				clk_set_parent(devp->msr_clk, fclk_div5);
@@ -6871,9 +6902,6 @@ static int vdin_drv_probe(struct platform_device *pdev)
 				clk_set_rate(devp->msr_clk, 50000000);
 				devp->msr_clk_val = clk_get_rate(devp->msr_clk);
 			}
-			if (!devp->index)
-				clk_prepare_enable(devp->msr_clk);
-			devp->vdin_clk_flag = 0;
 			pr_info("%s: vdin[%d] clock is %d MHZ\n",
 				__func__, devp->index,
 				devp->msr_clk_val / 1000000);
@@ -7037,12 +7065,7 @@ static int vdin_drv_suspend(struct platform_device *pdev, pm_message_t state)
 			VDIN_SEL_BIT, VDIN_SEL_WID);
 	}
 	vdin_clk_on_off(devp, false);
-	/* vdin msr clock gate disable */
-	if (!devp->index && devp->msr_clk &&
-		devp->vdin_clk_flag) {
-		clk_disable_unprepare(devp->msr_clk);
-		devp->vdin_clk_flag = 0;
-	}
+	vdin_measure_clk_ctl(devp, false);
 
 	pr_info("%s vdin-id:%d ok.\n", __func__, devp->index);
 	return 0;
@@ -7080,19 +7103,7 @@ static int vdin_drv_resume(struct platform_device *pdev)
 			VDIN_COMMON_INPUT_EN_BIT, VDIN_COMMON_INPUT_EN_WID);
 	}
 	vdin_clk_on_off(devp, true);
-
-	/* vdin msr clock gate enable */
-	if (!devp->index && devp->msr_clk && !devp->vdin_clk_flag) {
-		clk_prepare_enable(devp->msr_clk);
-		devp->vdin_clk_flag = 1;
-	}
-
-	//if (devp->irq) {
-	//	if (!irq_can_set_affinity(devp->irq))
-	//		return -EIO;
-	//	if (cpumask_intersects(&vdin_irq_mask, cpu_online_mask))
-	//		irq_set_affinity_hint(devp->irq, &vdin_irq_mask);
-	//}
+	vdin_measure_clk_ctl(devp, true);
 
 	devp->flags &= (~VDIN_FLAG_SUSPEND);
 	pr_info("%s id:%d ok.\n", __func__, devp->index);
