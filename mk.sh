@@ -244,6 +244,7 @@ if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BA
 	source ${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/amlogic_utils.sh
 
 	bazel_extra_cmds
+	build_ext_module_without_bazel
 	if [[ -n ${COPY_DEV_CONFIGS} ]]; then
 		for config_name in ${COPY_DEV_CONFIGS}; do
 			if [[ -f ${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/arch/${ARCH}/configs/${config_name} ]]; then
