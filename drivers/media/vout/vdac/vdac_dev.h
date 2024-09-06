@@ -46,7 +46,7 @@
 /* 20230426:add vdac control node */
 /* 20230325:t3x bringup */
 /* 20240729:t6d bringup */
-#define VDAC_VER "20240729: t6d bringup"
+#define VDAC_VER "20240906: disable bandgap of sc2"
 
 enum vdac_cpu_type {
 	VDAC_CPU_G12AB = 0,

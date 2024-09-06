@@ -741,8 +741,14 @@ static void vdac_dev_disable(void)
 		reg_val = vdac_ana_reg_read(s_vdac_data->reg_cntl1);
 		reg_val &= ~BIT(7);
 		vdac_ana_reg_write(s_vdac_data->reg_cntl1, reg_val);
-		if (vdac_debug_print)
-			print_vdac_reg_value();
+	} else if (s_vdac_data->cpu_id == VDAC_CPU_SC2) {
+		/*
+		 * for sc2, sar adc has its own band gap, so cvbs out
+		 * band gap can be disabled to save power consumption
+		 */
+		reg_val = vdac_ana_reg_read(s_vdac_data->reg_cntl1);
+		reg_val |= BIT(3);
+		vdac_ana_reg_write(s_vdac_data->reg_cntl1, reg_val);
 	}
 
 	if ((pri_flag & VDAC_MODULE_MASK) == 0) {
@@ -760,9 +766,6 @@ static void vdac_dev_disable(void)
 		vdac_enable_dtv_demod(0);
 
 	mutex_unlock(&vdac_mutex);
-
-	if (vdac_debug_print)
-		print_vdac_reg_value();
 }
 
 static void vdac_dev_enable(void)
@@ -1134,6 +1137,8 @@ static int amvdac_drv_suspend(struct platform_device *pdev,
 {
 	vdac_dev_disable();
 	pr_info("%s: private_flag:0x%x\n", __func__, pri_flag);
+	if (vdac_debug_print)
+		print_vdac_reg_value();
 	return 0;
 }
 
@@ -1148,8 +1153,9 @@ static int amvdac_drv_resume(struct platform_device *pdev)
 static void amvdac_drv_shutdown(struct platform_device *pdev)
 {
 	vdac_dev_disable();
-
 	pr_info("%s: private_flag:0x%x\n", __func__, pri_flag);
+	if (vdac_debug_print)
+		print_vdac_reg_value();
 }
 
 static struct platform_driver aml_vdac_driver = {
