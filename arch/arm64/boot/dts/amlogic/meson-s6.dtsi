@@ -464,18 +464,25 @@
 		      <0x0 0x780000 0x0 0x80000>; /*host shm region [offset size]*/
 		assigned-clocks = <&scmi_clk CLKID_GP2_PLL>;
 		assigned-clock-rates = <1002000000>;
-		clocks = <&clkc CLKID_DSPA>;
-		clock-names = "dspa_clk";
+		clocks = <&clkc CLKID_DSPA>,
+			 <&clkc CLKID_HIFI_PLL>;
+		clock-names = "dspa_clk",
+			      "dspa_clk_hifi";
 		/* host dsp support bit
 		 * efuse reg OTP_LIC23 bit[24]
 		 * 1: disable
 		 * 0: enable
 		 */
 		dsp-support-bit = <0x1000000>;
-		//pm-support = <1>; /*host support suspend/resume*/
+		/* bit0: pm_support_suspend
+		 * bit1: pm_support_always_on
+		 * bit2: pm_support_ffv
+		 */
+		pm-support = /bits/ 8 <0x0>;
 		power-domains = <&pwrdm PDID_S6_DSPA>;
 		power-domain-names = "dspa";
-		mboxes = <&mbox_fifo S6_REE2DSPA_DSP>;
+		mboxes = <&mbox_fifo S6_REE2DSPA_HOST>,
+			 <&mbox_fifo S6_DSPA2REE_HOST>;
 		//logbuff-polling-ms = <50>;
 		clkfreq-khz = <1002000>;
 	};

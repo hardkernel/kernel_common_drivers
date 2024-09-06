@@ -760,7 +760,7 @@ static struct sec_pm_domain_data s7d_pm_domain_data __initdata = {
 
 static struct sec_pm_private_domain s6_pm_domains[] __initdata = {
 	[PDID_S6_DSPA] = POWER_DOMAIN(dsp, PDID_S6_DSPA,
-				DOMAIN_INIT_OFF, 0),
+				DOMAIN_INIT_ON, GENPD_FLAG_ACTIVE_WAKEUP),
 	[PDID_S6_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_S6_DOS_HEVC, DOMAIN_INIT_OFF,
 				       0),
 	[PDID_S6_DOS_VDEC] = POWER_DOMAIN(vdec, PDID_S6_DOS_VDEC,
