@@ -690,6 +690,8 @@ static unsigned int vlock_check_input_hz(struct vframe_s *vf)
 			ret_hz = 100;
 		else if (diff(ret_hz, 120) <= 1)
 			ret_hz = 120;
+		else if (diff(ret_hz, 165) <= 1)
+			ret_hz = 165;
 		else if (diff(ret_hz, 240) <= 1)
 			ret_hz = 240;
 		else if (diff(ret_hz, 288) <= 1)
@@ -729,6 +731,8 @@ static unsigned int vlock_check_output_hz(unsigned int sync_duration_num,
 		ret_hz = 120;
 	else if (tempHz == 14400)
 		ret_hz = 144;
+	else if (tempHz == 16500)
+		ret_hz = 165;
 	else if (tempHz == 24000)
 		ret_hz = 240;
 	else if (tempHz == 28800)
