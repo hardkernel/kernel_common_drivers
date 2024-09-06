@@ -1976,6 +1976,8 @@
 		protocol = <REMOTE_TYPE_NEC>;
 		interrupts = <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
 		map = <&custom_maps>;
+		wakeup_map = <&ir_wakeup_key>;
+		mboxes = <&mbox_fifo SC2_REE2AO_IR>;
 		max_frame_time = <200>;
 	};
 
