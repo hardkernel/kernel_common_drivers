@@ -203,7 +203,7 @@ static int set_tdes_kl_key_iv(struct aml_tdes_dev *dd,
 		dev_err(dev, "hw crypto failed, status: 0x%x\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->dma, dd->status, 0xff);
+	aml_write_crypto_reg(dd->dma, dd->status, 0xffff);
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, nents, dd->dma_descript_tab,
 			     1, DMA_FLAG_TDES_IN_USE);
@@ -276,7 +276,7 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 		dev_err(dev, "hw crypto failed, status: 0x%x\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->dma, dd->status, 0xff);
+	aml_write_crypto_reg(dd->dma, dd->status, 0xffff);
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, 1, dd->dma_descript_tab,
 			     1, DMA_FLAG_TDES_IN_USE);
@@ -1372,7 +1372,7 @@ static irqreturn_t aml_tdes_irq(int irq, void *dev_id)
 		    (tdes_dd->flags & TDES_FLAGS_DMA)) {
 			if (status & DMA_STATUS_KEY_ERROR)
 				tdes_dd->flags |= TDES_FLAGS_ERROR;
-			aml_write_crypto_reg(tdes_dd->dma, tdes_dd->status, 0xff);
+			aml_write_crypto_reg(tdes_dd->dma, tdes_dd->status, 0xffff);
 			tdes_dd->dma->dma_busy &= ~DMA_FLAG_TDES_IN_USE;
 			tasklet_schedule(&tdes_dd->done_task);
 			return IRQ_HANDLED;

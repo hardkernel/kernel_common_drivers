@@ -551,7 +551,7 @@ static int aml_sha3_state_restore(struct ahash_request *req)
 		dev_err(dd->dev, "hw crypto failed, status: %u\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->dma, dd->status, 0xff);
+	aml_write_crypto_reg(dd->dma, dd->status, 0xffff);
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, 1, dd->dma_descript_tab,
 					 1, DMA_FLAG_SHA_IN_USE);
@@ -947,7 +947,7 @@ static int aml_shake_squeeze_dma(struct ahash_request *req)
 		dev_err(dd->dev, "hw crypto failed, status: %u\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->dma, dd->status, 0xff);
+	aml_write_crypto_reg(dd->dma, dd->status, 0xffff);
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, 1, dd->dma_descript_tab,
 					 1, DMA_FLAG_SHA_IN_USE);
@@ -1271,7 +1271,7 @@ static irqreturn_t aml_sha3_irq(int irq, void *dev_id)
 		if (sha_dd->flags & SHA_FLAGS_DMA_ACTIVE &&
 		    (sha_dd->dma->dma_busy & DMA_FLAG_SHA_IN_USE)) {
 			sha_dd->flags |= SHA_FLAGS_OUTPUT_READY;
-			aml_write_crypto_reg(sha_dd->dma, sha_dd->status, 0xff);
+			aml_write_crypto_reg(sha_dd->dma, sha_dd->status, 0xffff);
 			sha_dd->dma->dma_busy &= ~DMA_FLAG_SHA_IN_USE;
 			tasklet_schedule(&sha_dd->done_task);
 			return IRQ_HANDLED;

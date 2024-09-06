@@ -203,7 +203,7 @@ u32 aml_dma_do_hw_crypto(struct aml_dma_dev *dd,
 
 	spin_lock_irqsave(&dd->dma_lock, dd->irq_flags);
 	dd->dma_busy |= dma_flags;
-	aml_write_crypto_reg(dd, dd->status, 0xff);
+	aml_write_crypto_reg(dd, dd->status, 0xffff);
 	aml_write_crypto_reg(dd, dd->thread, (uintptr_t)dsc_addr | 2);
 	if (polling) {
 		while (aml_read_crypto_reg(dd->status) == 0)
@@ -238,7 +238,7 @@ EXPORT_SYMBOL_GPL(aml_dma_do_hw_crypto);
 void aml_dma_finish_hw_crypto(struct aml_dma_dev *dd, u8 dma_flags)
 {
 	spin_lock_irqsave(&dd->dma_lock, dd->irq_flags);
-	aml_write_crypto_reg(dd, dd->status, 0xff);
+	aml_write_crypto_reg(dd, dd->status, 0xffff);
 	dd->dma_busy &= ~dma_flags;
 	spin_unlock_irqrestore(&dd->dma_lock, dd->irq_flags);
 }

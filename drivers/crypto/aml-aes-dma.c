@@ -208,7 +208,7 @@ static int set_aes_kl_key_iv(struct aml_aes_dev *dd, u32 *key,
 		dev_err(dev, "hw crypto failed, status: 0x%x\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->dma, dd->status, 0xff);
+	aml_write_crypto_reg(dd->dma, dd->status, 0xffff);
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, nents, dd->dma_descript_tab,
 			      1, DMA_FLAG_AES_IN_USE);
@@ -291,7 +291,7 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 		dev_err(dev, "hw crypto failed, status: 0x%x\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->dma, dd->status, 0xff);
+	aml_write_crypto_reg(dd->dma, dd->status, 0xffff);
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, 1, dd->dma_descript_tab,
 			     1, DMA_FLAG_AES_IN_USE);
@@ -1428,7 +1428,7 @@ static irqreturn_t aml_aes_irq(int irq, void *dev_id)
 		    (aes_dd->dma->dma_busy & DMA_FLAG_AES_IN_USE)) {
 			if (status & DMA_STATUS_KEY_ERROR)
 				aes_dd->flags |= AES_FLAGS_ERROR;
-			aml_write_crypto_reg(aes_dd->dma, aes_dd->status, 0xff);
+			aml_write_crypto_reg(aes_dd->dma, aes_dd->status, 0xffff);
 			aes_dd->dma->dma_busy &= ~DMA_FLAG_AES_IN_USE;
 			tasklet_schedule(&aes_dd->done_task);
 			return IRQ_HANDLED;

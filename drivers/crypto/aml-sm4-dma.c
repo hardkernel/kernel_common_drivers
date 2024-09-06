@@ -208,7 +208,7 @@ static int set_sm4_kl_key_iv(struct aml_sm4_dev *dd, u32 *key,
 		dev_err(dev, "hw crypto failed, status: 0x%x\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->dma, dd->status, 0xf);
+	aml_write_crypto_reg(dd->dma, dd->status, 0xffff);
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, nents, dd->dma_descript_tab,
 			     1, DMA_FLAG_SM4_IN_USE);
@@ -291,7 +291,7 @@ static int set_sm4_key_iv(struct aml_sm4_dev *dd, u32 *key,
 		dev_err(dev, "hw crypto failed, status: 0x%x\n", status);
 		err = -EINVAL;
 	}
-	aml_write_crypto_reg(dd->dma, dd->status, 0xf);
+	aml_write_crypto_reg(dd->dma, dd->status, 0xffff);
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dd->descriptor, 1, dd->dma_descript_tab,
 			     1, DMA_FLAG_SM4_IN_USE);
@@ -1260,7 +1260,7 @@ static irqreturn_t aml_sm4_irq(int irq, void *dev_id)
 		    (sm4_dd->dma->dma_busy & DMA_FLAG_SM4_IN_USE)) {
 			if (status & DMA_STATUS_KEY_ERROR)
 				sm4_dd->flags |= SM4_FLAGS_ERROR;
-			aml_write_crypto_reg(sm4_dd->dma, sm4_dd->status, 0xf);
+			aml_write_crypto_reg(sm4_dd->dma, sm4_dd->status, 0xffff);
 			sm4_dd->dma->dma_busy &= ~DMA_FLAG_SM4_IN_USE;
 			tasklet_schedule(&sm4_dd->done_task);
 			return IRQ_HANDLED;

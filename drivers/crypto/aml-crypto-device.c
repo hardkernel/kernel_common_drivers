@@ -183,7 +183,7 @@ static irqreturn_t aml_crypto_dev_irq(int irq, void *dev_id)
 			} else {
 				dd->err = 0;
 			}
-			aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xff);
+			aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xffff);
 			complete(&dd->done);
 			return IRQ_HANDLED;
 		} else {
@@ -863,7 +863,7 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 	} else {
 		wait_owner_bit(descriptor, s + i, crypto_dd->dma->dma_bus64);
 	}
-	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xff);
+	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xffff);
 #else
 	wait_for_completion(&crypto_dd->done);
 	err = crypto_dd->err;
@@ -1158,7 +1158,7 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 		} else {
 			wait_owner_bit(descriptor, s, crypto_dd->dma->dma_bus64);
 		}
-		aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xf);
+		aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xffff);
 #else
 		wait_for_completion(&crypto_dd->done);
 		err = crypto_dd->err;
@@ -1220,7 +1220,7 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 	} else {
 		wait_owner_bit(descriptor, 0, crypto_dd->dma->dma_bus64);
 	}
-	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xff);
+	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xffff);
 #else
 	wait_for_completion(&crypto_dd->done);
 	err = crypto_dd->err;
@@ -1432,7 +1432,7 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 		} else {
 			wait_owner_bit(descriptor, s, crypto_dd->dma->dma_bus64);
 		}
-		aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xff);
+		aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xffff);
 #else
 		wait_for_completion(&crypto_dd->done);
 		err = crypto_dd->err;
@@ -1503,7 +1503,7 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 	} else {
 		wait_owner_bit(descriptor, 0, crypto_dd->dma->dma_bus64);
 	}
-	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xff);
+	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xffff);
 #else
 	wait_for_completion(&crypto_dd->done);
 	err = crypto_dd->err;
@@ -1736,7 +1736,7 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 		} else {
 			wait_owner_bit(descriptor, s, crypto_dd->dma->dma_bus64);
 		}
-		aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xff);
+		aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xffff);
 #else
 		wait_for_completion(&crypto_dd->done);
 		err = crypto_dd->err;
@@ -1807,7 +1807,7 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 	} else {
 		wait_owner_bit(descriptor, 0, crypto_dd->dma->dma_bus64);
 	}
-	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xff);
+	aml_write_crypto_reg(crypto_dd->dma, crypto_dd->status, 0xffff);
 #else
 	wait_for_completion(&crypto_dd->done);
 	err = crypto_dd->err;
