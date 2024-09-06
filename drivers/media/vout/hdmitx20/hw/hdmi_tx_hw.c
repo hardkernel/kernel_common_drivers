@@ -2865,9 +2865,7 @@ static void audio_mute_op(bool flag)
 		else
 			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0xf, 0, 4);
 		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, !!tx_aud_param->aud_src_if, 5, 1);
-		if (tx_aud_param->fifo_rst)
-			hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_AUDIO_RESET, 1);
-		usleep_range(2000, 3000);
+		hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_AUDIO_RESET, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 3, 1);
 	}
@@ -2984,13 +2982,10 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw,
 			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0xf, 0, 4);
 		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, !!audio_param->aud_src_if, 5, 1);
 	}
-	if (audio_param->fifo_rst)
-		hdmitx_hw_cntl_misc(tx_hw, MISC_AUDIO_RESET, 1);
-	if (audio_param->aud_output_en) {
-		hdmitx_wr_reg(HDMITX_DWC_AUD_N1, hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
-		usleep_range(2000, 3000);
+	/* all audio format need fifo rset */
+	hdmitx_hw_cntl_misc(tx_hw, MISC_AUDIO_RESET, 1);
+	if (audio_param->aud_output_en)
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
-	}
 	mutex_unlock(&aud_mutex);
 
 	return 0;
@@ -5820,7 +5815,8 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, unsigned int cmd,
 		hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF0, 1, 7, 1);
 		hdmitx_wr_reg(HDMITX_DWC_AUD_N1,
 			      hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
-		udelay(1);
+		usleep_range(2000, 3000);
+		HDMITX_INFO("audio: reset audio fifo_rst\n");
 		break;
 	case MISC_AUDIO_ACR_CTRL:
 		if (argv == 0)

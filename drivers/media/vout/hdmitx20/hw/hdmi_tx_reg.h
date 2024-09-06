@@ -796,7 +796,11 @@
 #define HDMITX_DWC_AUD_CTS2                     (DWC_OFFSET_MASK + 0x3204)
 #define HDMITX_DWC_AUD_CTS3                     (DWC_OFFSET_MASK + 0x3205)
 #define HDMITX_DWC_AUD_INPUTCLKFS               (DWC_OFFSET_MASK + 0x3206)
-/* [  7] sw_audio_fifo_rst */
+/*
+ * bit7: Audio FIFOs software reset
+ * Writing 0b: no action taken
+ * Writing 1b: Resets all audio FIFOs
+ */
 #define HDMITX_DWC_AUD_SPDIF0                   (DWC_OFFSET_MASK + 0x3300)
 /* [4:0] spdif_width */
 /* [  7] setnlpcm */
