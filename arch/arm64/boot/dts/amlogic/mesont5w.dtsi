@@ -778,6 +778,8 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&remote_pins>;
 				map = <&custom_maps>;
+				wakeup_map = <&ir_wakeup_key>;
+				mboxes = <&mbox_pl T5W_REE2AO_IR>;
 				max_frame_time = <200>;
 			};
 

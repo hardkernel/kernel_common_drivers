@@ -246,4 +246,18 @@
 				REMOTE_KEY(0x0C, KEY_BLUE)>;
 		};
 	};
+
+	ir_wakeup_key: ir_wakeup_key {
+		key_num = <9>;
+			/*framecode  wakeup_reason  report_event*/
+		wakeup_key = <0xba45bd02 IR_NORMAL KEY_POWER
+			      0xef10fe01 IR_NORMAL KEY_POWER
+			      0xef10fb04 IR_NORMAL KEY_POWER
+			      0xf20dfe01 IR_NORMAL KEY_POWER
+			      0xe51afb04 IR_NORMAL KEY_POWER
+			      0xde217788 IR_NORMAL KEY_POWER
+			      0x3ac5bd02 IR_CUSTOM KEY_COPY
+			      0xb8477788 IR_NORMAL KEY_HOME
+			      0x9c637788 IR_NORMAL KEY_F17>;
+	};
 };
