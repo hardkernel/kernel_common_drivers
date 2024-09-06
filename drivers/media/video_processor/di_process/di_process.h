@@ -112,6 +112,9 @@ struct di_process_dev {
 	bool last_frame_bypass;
 	bool di_is_tvp;
 	struct vframe_s last_vf;
+	bool cur_is_i;
+	bool di_do_rotate;
+	bool di_module_bypass;
 };
 
 #define DI_PROCESS_IOC_MAGIC  'I'
