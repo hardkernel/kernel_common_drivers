@@ -845,10 +845,12 @@ enum DI_ERRORTYPE dp_fill_output_done(struct di_buffer *buf)
 
 	if (buf->flag & DI_FLAG_BUF_BY_PASS) {
 		di_bypass = true;
+		dev->di_module_bypass = true;
 		dp_print(dev->index, PRINT_OTHER, "%s: di bypass\n", __func__);
 	} else {
 		dev->fill_done_count++;
 		total_fill_done_count++;
+		dev->di_module_bypass = false;
 	}
 
 	if (!dev->first_out)
@@ -1073,6 +1075,8 @@ static int di_process_init(struct di_process_dev *dev)
 	dev->last_instance_id = 0xFFFFFFFF;
 	dev->last_buf_mgr_reset_id = 0xFFFFFFFF;
 	dev->last_frame_index = 0xFFFFFFFF;
+	dev->last_vf.type = 0;
+	dev->di_module_bypass = false;
 	dev->first_out = false;
 	dev->q_dummy_frame_done = false;
 	dev->last_frame_bypass = false;
@@ -1519,6 +1523,19 @@ static int di_process_set_frame(struct di_process_dev *dev, struct frame_info_t 
 		is_repeat = true;
 		out_fence_fd = -1;
 	} else {
+		if (dev->di_module_bypass && vf->type & VIDTYPE_INTERLACE) {
+			frame_info->out_fd = -1;
+			frame_info->out_fence_fd = -1;
+			frame_info->is_i = vf->type & VIDTYPE_INTERLACE;
+			frame_info->frame_index = vf->frame_index;
+			frame_info->need_bypass = true;
+			dev->last_file = file_vf;
+
+			dp_print(dev->index, PRINT_OTHER, "di bypass.\n");
+			dp_put_file(dev, file_vf);
+			return 0;
+		}
+
 		i = get_received_frame_free_index(dev);
 		if (!kfifo_get(&dev->file_free_q, &dmabuf)) {
 			dp_print(dev->index, PRINT_ERROR, "peek free dma_buf fail!!!\n");
