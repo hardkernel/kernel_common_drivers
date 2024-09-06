@@ -94,6 +94,8 @@ static struct thermal_zone_of_device_ops dmc_sensor_ops = {
 static int dmc_get_max_state(struct thermal_cooling_device *cdev,
 			     unsigned long *state)
 {
+	*state = 0;
+
 	return 0;
 }
 
