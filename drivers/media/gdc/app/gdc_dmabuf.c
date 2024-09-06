@@ -688,6 +688,16 @@ void gdc_dma_buffer_unmap(struct aml_dma_cfg *cfg)
 	gdc_log(LOG_DEBUG, "%s, dbuf=0x%p\n", __func__, dbuf);
 }
 
+static bool is_module_dmabuf(struct dma_buf *dmabuf)
+{
+	bool ret = false;
+
+	if (dmabuf->ops && dmabuf->ops == &gdc_dmabuf_ops)
+		ret = true;
+
+	return ret;
+}
+
 void gdc_dma_buffer_dma_flush(struct device *dev, int fd)
 {
 	struct dma_buf *dmabuf;
@@ -700,6 +710,12 @@ void gdc_dma_buffer_dma_flush(struct device *dev, int fd)
 		pr_err("dma_buf_get failed\n");
 		return;
 	}
+	if (!is_module_dmabuf(dmabuf)) {
+		gdc_log(LOG_DEBUG, "%s, dmabuf=0x%p is not allocated by this module\n",
+			__func__, dmabuf);
+		goto put;
+	}
+
 	buf_priv = dmabuf->priv;
 	buf = buf_priv->aml_buf;
 	if (!buf) {
@@ -709,6 +725,7 @@ void gdc_dma_buffer_dma_flush(struct device *dev, int fd)
 	if (buf->size > 0 && buf->dev == dev)
 		dma_sync_single_for_device(buf->dev, buf->dma_addr,
 					   buf->size, DMA_TO_DEVICE);
+put:
 	dma_buf_put(dmabuf);
 }
 
@@ -724,6 +741,12 @@ void gdc_dma_buffer_cache_flush(struct device *dev, int fd)
 		pr_err("dma_buf_get failed\n");
 		return;
 	}
+	if (!is_module_dmabuf(dmabuf)) {
+		gdc_log(LOG_DEBUG, "%s, dmabuf=0x%p is not allocated by this module\n",
+			__func__, dmabuf);
+		goto put;
+	}
+
 	buf_priv = dmabuf->priv;
 	buf = buf_priv->aml_buf;
 	if (!buf) {
@@ -733,5 +756,6 @@ void gdc_dma_buffer_cache_flush(struct device *dev, int fd)
 	if (buf->size > 0 && buf->dev == dev)
 		dma_sync_single_for_cpu(buf->dev, buf->dma_addr,
 					buf->size, DMA_FROM_DEVICE);
+put:
 	dma_buf_put(dmabuf);
 }
