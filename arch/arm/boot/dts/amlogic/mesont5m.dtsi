@@ -1994,7 +1994,7 @@
 			};
 			gpufreq_cool {
 				dyn_coeff = <358>;
-				node_name = "bifrost";
+				node_name = "valhall";
 				device_type = "gpufreq";
 			};
 			ddr0_cool {
