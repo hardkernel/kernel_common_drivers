@@ -30,6 +30,14 @@ enum IR_WORK_MODE {
 	MOUSE_MODE = 1
 };
 
+enum IR_MBOX_CMD {
+	IR_MBOX_CMD_SET_WAKEUP_LIST,
+	IR_MBOX_CMD_SET_DEBUG_LOG,
+	IR_MBOX_CMD_GET_WAKEUP_KEY,
+	IR_MBOX_CMD_SET_STATUS,
+	IR_MBOX_CMD_GET_PREBOOT_KEY
+};
+
 struct meson_ir_reg_map {
 	unsigned int reg;
 	unsigned int val;
@@ -92,6 +100,7 @@ struct meson_ir_chip {
 	struct mutex  file_lock; /*mutex for ioctl*/
 	struct list_head map_tab_head;
 	struct meson_ir_map_tab_list *cur_tab;
+	struct ir_wakeup_tab *wakeup_tab;
 	struct key_number key_num;
 	/**
 	 *multi_format IR controller register saved to ir_contr[0]
@@ -128,6 +137,7 @@ struct meson_ir_chip {
 	 */
 	unsigned char ir_work;
 	struct tasklet_struct tasklet;
+	struct mbox_chan *mbox_chan;
 };
 
 struct meson_ir_reg_proto {
@@ -188,6 +198,8 @@ struct input_dev *meson_ir_match_input_dev(struct meson_ir_dev *dev,
 					  struct meson_ir_map_tab_list *ir_map);
 int meson_ir_pulses_malloc(struct meson_ir_chip *chip);
 void meson_ir_pulses_free(struct meson_ir_chip *chip);
+int meson_ir_mbox_transfer(struct meson_ir_chip *chip, u32 *data, u32 size);
+void meson_ir_report_wakeup_event(struct meson_ir_chip *chip, u32 framecode);
 
 int meson_ir_xmp_decode_init(void);
 void meson_ir_xmp_decode_exit(void);
@@ -197,4 +209,5 @@ int meson_ir_common_input_init(void);
 void meson_ir_common_input_exit(void);
 
 int meson_ir_read_dev_num(void);
+void meson_ir_set_irq(struct meson_ir_chip *chip, int enable);
 #endif
