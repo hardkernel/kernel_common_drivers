@@ -24,6 +24,7 @@
 #include "lcd_clk_ctrl.h"
 #include "lcd_clk_utils.h"
 
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
 unsigned char lcd_dsi_generate_DSI_PLL_s6_model(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
@@ -138,6 +139,7 @@ dsi_clk_tabel_buffer_full:
 	kfree(clk_div_tb);
 	return 1;
 }
+#endif
 
 static void lcd_set_pll(struct aml_lcd_drv_s *pdrv)
 {
