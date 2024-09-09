@@ -647,9 +647,8 @@ int get_hdr_policy(void)
 		/* get current dolby_vision_mode */
 		dv_policy = get_amdv_policy();
 		dv_mode = get_amdv_target_mode();
-		if (dv_policy != AMDV_FORCE_OUTPUT_MODE ||
-		    dv_mode != AMDV_OUTPUT_MODE_BYPASS) {
-			/* use dv policy when not force bypass */
+		if (dv_mode != AMDV_OUTPUT_MODE_BYPASS) {
+			/* use dv policy when dv is not bypassed */
 			return dv_policy;
 		}
 	}
