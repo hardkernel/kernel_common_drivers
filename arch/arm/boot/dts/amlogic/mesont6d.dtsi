@@ -172,8 +172,8 @@
 		/* registers and clk */
 		reg = <0xfe092000 0x200
 		       0xFDFFFF6C 0x400>;
-		interrupts = <0 185 IRQ_TYPE_EDGE_RISING
-			      0 186 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <0 221 IRQ_TYPE_EDGE_RISING
+			      0 222 IRQ_TYPE_EDGE_RISING>;
 		power-domains = <&pwrdm PDID_T6D_AMFC>;
 		interrupt-names = "amfc0", "amfc1";
 		clocks = <&clkc CLKID_AMFC>;

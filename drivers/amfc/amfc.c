@@ -406,7 +406,7 @@ int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, in
 	unsigned int status, control;
 	unsigned long flags;
 	unsigned long timeout = ((src_size) / PAGE_SIZE) * 50 + 5000; // us
-	unsigned long tick, cur;
+	unsigned long long tick, cur;
 	int need_copy = 0;
 	void *tmp;
 
@@ -422,7 +422,10 @@ int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, in
 		amfc_map_addr(dst, dst_size, DMA_FROM_DEVICE);
 	amfc_map_addr(src, src_size, DMA_TO_DEVICE);
 
-	spin_lock_irqsave(&amfc->dec_lock, flags);
+	if (amfc->work_mode == AMFC_POLL_MODE)
+		spin_lock(&amfc->dec_lock);
+	else
+		spin_lock_irqsave(&amfc->dec_lock, flags);
 	if (((unsigned long)dst & ~PAGE_MASK) &&
 	    (dst_size + ((unsigned long)dst & ~PAGE_MASK) > PAGE_SIZE)) {
 		tmp = dst;
@@ -521,7 +524,7 @@ int amfc_decompress(void *src, void *dst, ssize_t src_size, ssize_t dst_size, in
 				break;
 			cur = sched_clock();
 			if (cur - tick >= timeout * 1000) {
-				pr_emerg("%s timeout:%ld -> %ld, %ld\n",
+				pr_emerg("%s timeout:%lld -> %lld, %ld\n",
 					 __func__, tick, cur, timeout);
 				show_regs(NULL);
 				show_acl(acl);
@@ -583,7 +586,10 @@ out:
 	if (need_copy)
 		memcpy(tmp, amfc->bounce_buffer, dst_size - AMFC_STREAM_MARGIN);
 
-	spin_unlock_irqrestore(&amfc->dec_lock, flags);
+	if (amfc->work_mode == AMFC_POLL_MODE)
+		spin_unlock(&amfc->dec_lock);
+	else
+		spin_unlock_irqrestore(&amfc->dec_lock, flags);
 	if (stream)
 		amfc_unmap_addr(dst, dst_size - AMFC_STREAM_MARGIN, DMA_FROM_DEVICE);
 	else
@@ -612,7 +618,7 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
 	unsigned int status, control;
 	unsigned long flags;
 	unsigned long timeout = ((src_size) / PAGE_SIZE) * 100 + 5000; // us
-	unsigned long tick, cur;
+	unsigned long long tick, cur;
 
 	if (!amfc || !amfc->compress)
 		return -ENOMEM;
@@ -622,7 +628,10 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
 			__func__, src, dst, (int)src_size, (int)dst_size);
 	amfc_map_addr(src, src_size, DMA_TO_DEVICE);
 	amfc_map_addr(dst, dst_size, DMA_FROM_DEVICE);
-	spin_lock_irqsave(&amfc->com_lock, flags);
+	if (amfc->work_mode == AMFC_POLL_MODE)
+		spin_lock(&amfc->com_lock);
+	else
+		spin_lock_irqsave(&amfc->com_lock, flags);
 	acl = amfc->compress;
 	/* setup command list, decompress use cmd0 */
 	memset(acl, 0, sizeof(struct amfc_cmd_list));
@@ -704,7 +713,7 @@ int amfc_compress(void *src, void *dst, ssize_t src_size, ssize_t dst_size)
 				break;
 			cur = sched_clock();
 			if (cur - tick >= timeout * 1000) {
-				pr_emerg("%s timeout:%ld -> %ld, %ld\n",
+				pr_emerg("%s timeout:%lld -> %lld, %ld\n",
 					 __func__, tick, cur, timeout);
 				show_regs(NULL);
 				show_acl(acl);
@@ -756,7 +765,10 @@ out:
 				acl, src, dst, (int)src_size, ret, amfc->ctick);
 	}
 	amfc_hw_write(0x03, AMFC_GL_CMD0_IRQCLR);
-	spin_unlock_irqrestore(&amfc->com_lock, flags);
+	if (amfc->work_mode == AMFC_POLL_MODE)
+		spin_unlock(&amfc->com_lock);
+	else
+		spin_unlock_irqrestore(&amfc->com_lock, flags);
 	amfc_unmap_addr(dst, dst_size, DMA_FROM_DEVICE);
 	amfc_unmap_addr(src, src_size, DMA_TO_DEVICE);
 	return ret;
@@ -1253,6 +1265,16 @@ static int __init amfc_probe(struct platform_device *pdev)
 	spin_lock_init(&amfc->com_lock);
 	spin_lock_init(&amfc->dec_lock);
 	amfc_hw_init();
+	/*
+	 * Test on T6D:
+	 * ZRAM  average compress time:6.7us, max:16us, decompress is faster
+	 * than compress of ZRAM. EROFS decomperss average time:18us, max:69us.
+	 * There are too many atomic envs in upper layer caller,so can't
+	 * use schedule, if with IRQ enabled when spinlock, AMFC hardware
+	 * may be interrupted by other long IRQ over 7 ~ 9 ms,
+	 * this will cause long waiting time of AMFC upper caller compared
+	 * with IRQ disabled. So finally chose spinlock with IRQ off.
+	 */
 	amfc->work_mode = AMFC_POLL_IRQ_OFF;
 #ifdef CONFIG_AMFC_DEBUG
 	amfc->log = 1;
@@ -1301,33 +1323,33 @@ static int amfc_resume(struct device *dev)
 	return 0;
 }
 
+static int amfc_remove(struct platform_device *pdev)
+{
+	int i;
+	struct amfc *tmp = amfc;
+
+	if (amfc) {
+		amfc = NULL;
+		class_destroy(&amfc_class);
+		for (i = 0; i < 4; i++) {
+			if (tmp->pages[i])
+				__free_pages(tmp->pages[i], 0);
+		}
+		vfree(tmp->bounce_buffer);
+		kfree(tmp->compress);
+		kfree(tmp->decompress);
+		devm_kfree(&pdev->dev, tmp);
+	}
+	return 0;
+}
+
 static void amfc_shutdown(struct platform_device *pdev)
 {
+	amfc_remove(pdev);
 	pm_runtime_force_suspend(&pdev->dev);
 }
 
 static SIMPLE_DEV_PM_OPS(amfc_pm_ops, amfc_suspend, amfc_resume);
-
-static int amfc_remove(struct platform_device *pdev)
-{
-	int i;
-
-	if (amfc) {
-		class_destroy(&amfc_class);
-		crypto_unregister_alg(&amfc_alg);
-		crypto_unregister_alg(&eamfc_alg);
-		for (i = 0; i < 4; i++) {
-			if (amfc->pages[i])
-				__free_pages(amfc->pages[i], 0);
-		}
-		vfree(amfc->bounce_buffer);
-		kfree(amfc->compress);
-		kfree(amfc->decompress);
-		devm_kfree(&pdev->dev, amfc);
-		amfc = NULL;
-	}
-	return 0;
-}
 
 #ifdef CONFIG_OF
 static const struct of_device_id amfc_match[] = {
