@@ -4182,12 +4182,13 @@ static ssize_t lcd_edp_edid_debug_show(struct device *dev,
 #define PHY_DEBUG_LANE_EN       7
 #define PHY_DEBUG_LANE_PREEM    8
 #define PHY_DEBUG_LANE_AMP      9
-#define PHY_DEBUG_LANE_SEL      10
-#define PHY_DEBUG_STATE         11
-#define PHY_DEBUG_LCD_IF        12
-#define PHY_DEBUG_PHY_CLK       13
-#define PHY_DEBUG_UNKNOWN       14
-#define PHY_DEBUG_ERR           15
+#define PHY_DEBUG_LANE_PHASE    10
+#define PHY_DEBUG_LANE_SEL      11
+#define PHY_DEBUG_STATE         12
+#define PHY_DEBUG_LCD_IF        13
+#define PHY_DEBUG_PHY_CLK       14
+#define PHY_DEBUG_UNKNOWN       15
+#define PHY_DEBUG_ERR           16
 static unsigned int phy_debug_type;
 
 static ssize_t lcd_phy_debug_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -4236,6 +4237,12 @@ static ssize_t lcd_phy_debug_show(struct device *dev, struct device_attribute *a
 		len = sprintf(buf, "for_tool:sel=0x%x, amp=0x%x, preem=0x%x, en=%d\n",
 			local_phy.lane[i].sel, local_phy.lane[i].amp,
 			local_phy.lane[i].preem, local_phy.lane[i].en);
+		break;
+	case PHY_DEBUG_LANE_PHASE:
+		if (local_phy.lane[i].phase_sel == 0xff)
+			len = sprintf(buf, "for_tool:x\n");
+		else
+			len = sprintf(buf, "for_tool:%x\n", local_phy.lane[i].phase_sel);
 		break;
 	case PHY_DEBUG_STATE:
 		len = sprintf(buf, "for_tool:%u\n", local_phy.state);
@@ -4337,6 +4344,29 @@ static ssize_t lcd_phy_debug_store(struct device *dev, struct device_attribute *
 			}
 			phy_cfg->flag |= PHY_BIT_LANE_PREEM;
 			pr_info("LCD PHY set: Lane[%u]: PreEm=0x%02x\n", op_lane, set_val);
+		} else if (strcmp(parm[2], "phase") == 0) {
+			phy_debug_type = ((op_lane & 0xff) << 24) | PHY_DEBUG_LANE_PHASE;
+			if (!parm[3])
+				goto lcd_phy_debug_store_end;
+			if (kstrtou32(parm[3], 16, &set_val))
+				goto lcd_phy_debug_store_err;
+			if (!lcd_phy_support_lane_phase(pdrv)) {
+				LCDERR("not support lane phase select\n");
+				goto lcd_phy_debug_store_err;
+			}
+			if (set_val != PHY_PHASE_0 &&
+					set_val != PHY_PHASE_A &&
+					set_val != PHY_PHASE_B) {
+				LCDERR("Invalid phase sel=%d\n", set_val);
+				goto lcd_phy_debug_store_err;
+			}
+			if (op_lane == 0xff) { //write all lane
+				for (i = 0; i < phy_cfg->lane_num; i++)
+					phy_cfg->lane[i].phase_sel = set_val;
+			} else {
+				phy_cfg->lane[op_lane].phase_sel = set_val;
+			}
+			pr_info("LCD PHY set: Lane[%u]: Phase=0x%02x\n", op_lane, set_val);
 		} else if (strcmp(parm[2], "sel") == 0) {
 			phy_debug_type = ((op_lane & 0xff) << 24) | PHY_DEBUG_LANE_SEL;
 			if (!parm[3])

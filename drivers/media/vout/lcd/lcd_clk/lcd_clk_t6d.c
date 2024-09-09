@@ -311,11 +311,32 @@ static void lcd_set_vclk_crt(struct aml_lcd_drv_s *pdrv)
 	lcd_clk_setb(CLKCTRL_VID_CLK0_CTRL2, 1, ENCL_GATE_VCLK, 1);
 }
 
+static int lcd_set_mlvds_clk_phase_t6d(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_config_s *pconf = &pdrv->config;
+	unsigned int val, p0, pa, pb;
+
+	val = pconf->control.mlvds_cfg.clk_phase & 0xfff;
+	p0 = val & 0xf;
+	pa = (val >> 8) & 0xf;
+	pb = (val >> 4) & 0xf;
+
+	val = ((pa << 4) | (pb << 0)) & 0xff;
+	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL2, p0,  28, 4);
+	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL3, val, 16, 8);
+
+	//set phase load sequence
+	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL3, 0, 31, 1);
+	usleep_range(5, 10);
+	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL3, 1, 31, 1);
+
+	return 0;
+}
+
 /* tcon run base clk, include register access */
 static void lcd_set_tcon_clk_t6d(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf = &pdrv->config;
-	unsigned int val, p0, pa, pb;
 
 	if (pconf->basic.lcd_type != LCD_MLVDS)
 		return;
@@ -323,21 +344,9 @@ static void lcd_set_tcon_clk_t6d(struct aml_lcd_drv_s *pdrv)
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
-	val = pconf->control.mlvds_cfg.clk_phase & 0xfff;
-	p0 = val & 0xf;
-	pa = (val >> 4) & 0xf;
-	pb = (val >> 8) & 0xf;
-
 	switch (pconf->basic.lcd_type) {
 	case LCD_MLVDS:
-		val = ((pa << 4) | (pb << 0)) & 0xff;
-		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL2, p0,  28, 4);
-		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL3, val, 16, 8);
-
-		//set phase load sequence
-		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL3, 0, 31, 1);
-		usleep_range(5, 10);
-		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL3, 1, 31, 1);
+		lcd_set_mlvds_clk_phase_t6d(pdrv);
 
 		/* tcon_clk */
 		if (pconf->timing.enc_clk >= 100000000) /* 25M */
@@ -506,6 +515,49 @@ lcd_prbs_test_err_t3:
 	lcd_prbs_flag = 0;
 }
 
+static int lcd_clk_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	int i = 0, n, len = 0;
+	unsigned int *table = NULL, size = 0;
+	unsigned int pll_reg_table[] = {
+		ANACTRL_TCON_PLL0_CNTL0,
+		ANACTRL_TCON_PLL0_CNTL1,
+		ANACTRL_TCON_PLL0_CNTL2,
+		ANACTRL_TCON_PLL0_CNTL3,
+		ANACTRL_TCON_PLL0_CNTL4,
+		ANACTRL_TCON_PLL0_STS,
+		ANACTRL_VID_PLL_CLK_DIV,
+	};
+	unsigned int clk_reg_table[] = {
+		CLKCTRL_VIID_CLK0_DIV,
+		CLKCTRL_VIID_CLK0_CTRL,
+		CLKCTRL_VID_CLK0_CTRL2,
+		CLKCTRL_HDMI_VID_PLL_CLK_DIV,
+		CLKCTRL_TCON_CLK_CNTL,
+	};
+
+	if (!pdrv)
+		return 0;
+
+	table = pll_reg_table;
+	size = ARRAY_SIZE(pll_reg_table);
+	for (i = 0; i < size; i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "pll [0x%02x] = 0x%08x\n",
+			table[i], lcd_ana_read(table[i]));
+	}
+
+	table = clk_reg_table;
+	size = ARRAY_SIZE(clk_reg_table);
+	for (i = 0; i < size; i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "clk [0x%02x] = 0x%08x\n",
+			table[i], lcd_clk_read(table[i]));
+	}
+
+	return len;
+}
+
 static void lcd_clk_disable_t6d(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
@@ -574,8 +626,10 @@ static struct lcd_clk_data_s lcd_clk_data_t6d = {
 	.vclk_crt_set = lcd_set_vclk_crt,
 	.clk_disable = lcd_clk_disable_t6d,
 	.clktree_set = lcd_set_tcon_clk_t6d,
+	.mlvds_clk_phase_set = lcd_set_mlvds_clk_phase_t6d,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
+	.clk_reg_print = lcd_clk_reg_dump,
 	.prbs_test = lcd_clk_prbs_test_t6d,
 };
 

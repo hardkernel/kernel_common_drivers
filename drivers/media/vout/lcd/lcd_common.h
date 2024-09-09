@@ -164,6 +164,7 @@ struct lcd_detail_timing_s **lcd_cus_ctrl_timing_match_get(struct aml_lcd_drv_s 
 /* lcd phy */
 unsigned int lcd_phy_vswing_level_to_value(struct aml_lcd_drv_s *pdrv, unsigned int level);
 unsigned int lcd_phy_preem_level_to_value(struct aml_lcd_drv_s *pdrv, unsigned int level);
+unsigned int lcd_phy_support_lane_phase(struct aml_lcd_drv_s *pdrv);
 int lcd_phy_param_preset(struct aml_lcd_drv_s *pdrv);
 int lcd_phy_param_get(struct aml_lcd_drv_s *pdrv, struct phy_config_s *phy);
 int lcd_phy_param_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
