@@ -2869,8 +2869,12 @@ static int hdmitx_get_connector(void)
 	char *type;
 
 	conn_types[0] = get_uboot_connector0_type();
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	conn_types[1] = get_uboot_connector1_type();
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
 	conn_types[2] = get_uboot_connector2_type();
+#endif
 	if (conn_types[0])
 		HDMITX_INFO("%s[%d] %s\n", __func__, __LINE__, conn_types[0]);
 	if (conn_types[1])

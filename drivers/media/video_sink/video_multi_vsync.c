@@ -101,7 +101,9 @@ static bool rdma_enable_vppx_pre[2];
 
 static char old_vmode_vpp[2][32];
 static char new_vmode_vpp[2][32];
-#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
+#if defined(CONFIG_AMLOGIC_VIDEOQUEUE) || \
+	defined(CONFIG_AMLOGIC_VOUT2_SERVE) || \
+	defined(CONFIG_AMLOGIC_VOUT3_SERVE)
 static u32 vppx_vsync_pts_inc_scale[2];
 static u32 vppx_vsync_pts_inc_scale_base[2] = {1, 1};
 #endif

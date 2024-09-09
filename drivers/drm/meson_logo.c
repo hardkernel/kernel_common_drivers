@@ -727,14 +727,18 @@ static void am_meson_load_logo(struct drm_device *dev,
 		connector_type = get_uboot_connector0_type();
 		DRM_DEBUG("[%s-%d]: connector_type %s\n", __func__, idx, connector_type);
 		break;
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	case 1:
 		connector_type = get_uboot_connector1_type();
 		DRM_DEBUG("[%s-%d]: connector_type %s\n", __func__, idx, connector_type);
 		break;
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
 	case 2:
 		connector_type = get_uboot_connector2_type();
 		DRM_DEBUG("[%s-%d]: connector_type %s\n", __func__, idx, connector_type);
 		break;
+#endif
 	default:
 		DRM_DEBUG("[%s]: connector_type not found\n", __func__);
 		break;

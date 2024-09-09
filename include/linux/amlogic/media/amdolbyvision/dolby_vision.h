@@ -216,7 +216,14 @@ void update_graphic_width_height(unsigned int width,
 	unsigned int height, enum OSD_INDEX index);
 int get_amdv_policy(void);
 void set_amdv_policy(int policy);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 int get_amdv_ll_policy(void);
+#else
+static inline int get_amdv_ll_policy(void)
+{
+	return 0;
+}
+#endif
 int get_amdv_src_format(enum vd_path_e vd_path, struct vframe_s *vf);
 bool is_amdv_el_disable(void);
 bool is_dovi_dual_layer_frame(struct vframe_s *vf);
