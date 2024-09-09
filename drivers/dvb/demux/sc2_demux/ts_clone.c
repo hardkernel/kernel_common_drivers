@@ -102,10 +102,16 @@ static int _ts_clone_open_output(struct demod_ts_clone_parent *node)
 {
 	struct out_elem *output;
 	int ret;
+	int sid = 0;
 
 	if (node->ts_output)
 		return 0;
-	output = ts_output_open(node->sid, 0xff, CLONE_FORMAT, 0, 0, 0);
+	sid = node->sid;
+	if (get_dvb_loop_tsn()) {
+		sid = sid >= 32 ? sid : (sid + 32);
+		pr_dbg("%s tsn out loop, sid:%d\n", __func__, sid);
+	}
+	output = ts_output_open(sid, 0xff, CLONE_FORMAT, 0, 0, 0);
 	if (!output)
 		return -1;
 
