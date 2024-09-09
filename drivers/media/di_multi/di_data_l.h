@@ -1950,7 +1950,7 @@ enum QBF_NDIS_Q_TYPE {
 	QBF_NDIS_Q_NUB,
 };
 
-#define DIM_NDIS_NUB	(18) /* buf number*/
+#define DIM_NDIS_NUB	(POST_BUF_NUM - 2) /* buf number*/
 
 struct dsub_ndis_s {
 	struct di_buf_s *di_buf;
