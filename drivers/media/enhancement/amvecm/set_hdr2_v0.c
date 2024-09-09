@@ -2188,11 +2188,11 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			(CUVA_HDR | CUVAHLG_HDR | CUVAHLG_HLG)) {
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 			adpscl_shift[1] = hdr_lut_param->adp_scal_x_shift;
-		} else if (hdr_mtx_param->p_sel == IPT_SDR) {
+		} else if (hdr_mtx_param->p_sel & IPT_SDR) {
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift  - 2;
 			adpscl_shift[1] = OO_NOR -
 			_log2((1 << OO_NOR) / ogain_lut_148) - 2;
-		} else if (hdr_mtx_param->p_sel == SDR_HDR) {
+		} else if (hdr_mtx_param->p_sel & SDR_HDR) {
 			if (chip_cls_id == TV_CHIP && module_sel == VD1_HDR) {
 				adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 				adpscl_shift[1] = OO_NOR -
@@ -2201,7 +2201,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 				adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 				adpscl_shift[1] = OO_NOR;
 			}
-		} else if (hdr_mtx_param->p_sel == HDR_HDR) {
+		} else if (hdr_mtx_param->p_sel & HDR_HDR) {
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 			adpscl_shift[1] = OO_NOR - _log2((1 << OO_NOR) / 64);
 		} else {
@@ -4456,6 +4456,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				hdr_mtx_param.mtx_cgain[i] =
 					bypass_coeff[i];
 				hdr_mtx_param.mtx_ogain[i] = bypass_coeff[i];
+
 				if (chip_type_id == chip_t3x &&
 					(module_sel == OSD1_HDR ||
 					  module_sel == OSD2_HDR ||
@@ -4466,12 +4467,20 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				} else {
 					hdr_mtx_param.mtx_out[i] = rgb2ycbcr_709[i];
 				}
+
 				if (i < 9 && !gmt_mtx)
 					hdr_mtx_param.mtx_gamut[i] =
 						gamut_bypass[i];
-				else if (i < 9 && gmt_mtx)
-					hdr_mtx_param.mtx_gamut[i] =
-						ncl_2020_709[i];
+				/*else if (i < 9 && gmt_mtx)*/
+				/*	hdr_mtx_param.mtx_gamut[i] =*/
+				/*		ncl_2020_709[i];*/
+			}
+
+			if (gmt_mtx) {
+				for (i = 0; i < 3; i++)
+					for (j = 0; j < 3; j++)
+						hdr_mtx_param.mtx_gamut[i * 3 + j] =
+						gmt_mtx->matrix[i][j];
 			}
 		} else {
 			for (i = 0; i < MTX_NUM_PARAM; i++) {
