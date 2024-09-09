@@ -1924,7 +1924,6 @@ static void set_aud_acr_pkt(struct aud_para *audio_param)
 		break;
 	}
 	HDMITX_INFO("audio: aud_n_para = %d\n", aud_n_para);
-	hdmitx21_wr_reg(ACR_CTRL_IVCTX, 0x02);
 	hdmitx21_wr_reg(N_SVAL1_IVCTX, (aud_n_para >> 0) & 0xff); //N_SVAL1
 	hdmitx21_wr_reg(N_SVAL2_IVCTX, (aud_n_para >> 8) & 0xff); //N_SVAL2
 	hdmitx21_wr_reg(N_SVAL3_IVCTX, (aud_n_para >> 16) & 0xff); //N_SVAL3
@@ -2020,8 +2019,6 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw, struct aud_para *a
 	} else {
 		data32 = (0 << 1);
 	}
-	/* AUDP_TXCTRL : [1] layout; [7] aud_mute_en */
-	data32 |= (1 << 7);
 	hdmitx21_wr_reg(AUDP_TXCTRL_IVCTX, data32 & 0xff);
 
 	set_aud_acr_pkt(audio_param);
@@ -2131,6 +2128,11 @@ static int hdmitx_set_audmode(struct hdmitx_hw_common *tx_hw, struct aud_para *a
 		hdmitx_hw_cntl_misc(tx_hw, MISC_AUDIO_RESET, 1);
 	hdmitx21_set_reg_bits(AIP_RST_IVCTX, 0, 0, 1);
 	mutex_unlock(&aud_mutex);
+	/*
+	 * audio compliance issue, for YAMAHA-TSR-700,
+	 * need delay more time 30ms when switch audio format
+	 */
+	usleep_range(30 * 1000, 30 * 1000 + 10);
 	audio_mute_op(audio_param->aud_output_en);
 	return 0;
 }
@@ -3290,12 +3292,6 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 		hdmitx21_set_reg_bits(AUDP_TXCTRL_IVCTX, 1, 7, 1);
 		break;
 	case MISC_AUDIO_ACR_CTRL:
-		/* disable */
-		if (argv == 0)
-			hdmitx21_set_reg_bits(ACR_CTRL_IVCTX, 0, 1, 1);
-		/* enable */
-		if (argv == 1)
-			hdmitx21_set_reg_bits(ACR_CTRL_IVCTX, 1, 1, 1);
 		break;
 	case MISC_SUSFLAG:
 		arm_smccc_smc(HDCPTX_IOOPR, HDCP_SET_SUS_FLAG, !!argv, 0, 0, 0, 0, 0, &res);
