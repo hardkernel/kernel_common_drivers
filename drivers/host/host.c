@@ -24,6 +24,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/of_address.h>
 #include <linux/mailbox_client.h>
+#include <linux/vmalloc.h>
 #include <linux/amlogic/aml_mbox.h>
 #include <dt-bindings/firmware/amlogic,firmware.h>
 #include "host.h"

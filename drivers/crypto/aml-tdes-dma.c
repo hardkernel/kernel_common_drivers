@@ -13,7 +13,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-
+#include <linux/of.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/errno.h>

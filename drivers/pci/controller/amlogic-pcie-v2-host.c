@@ -737,7 +737,7 @@ static int amlogic_pcie_host_init(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops amlogic_pcie_host_ops = {
-	.host_init = amlogic_pcie_host_init,
+	.init = amlogic_pcie_host_init,
 };
 
 static const struct dw_pcie_ops dw_pcie_ops = {

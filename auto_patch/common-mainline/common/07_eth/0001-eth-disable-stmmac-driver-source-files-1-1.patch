@@ -1,0 +1,48 @@
+From 64f0a2800a94391b2df9b0575ca3d14ff5f35836 Mon Sep 17 00:00:00 2001
+From: "xiangyang.yan" <xiangyang.yan@amlogic.com>
+Date: Tue, 26 Dec 2023 14:42:33 +0800
+Subject: [PATCH] eth: disable stmmac driver source files [1/1]
+
+PD#SWPL-145682
+
+Problem:
+disable stmmac driver source files
+
+Solution:
+disable stmmac driver source files
+
+Verify:
+local
+
+Change-Id: Ib84239d9e41b2ecea992c07c98486458273cdba8
+Signed-off-by: xiangyang.yan <xiangyang.yan@amlogic.com>
+---
+ drivers/net/ethernet/stmicro/Kconfig  | 2 +-
+ drivers/net/ethernet/stmicro/Makefile | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/ethernet/stmicro/Kconfig b/drivers/net/ethernet/stmicro/Kconfig
+index cc136b4c9afd..3b2e7547386d 100644
+--- a/drivers/net/ethernet/stmicro/Kconfig
++++ b/drivers/net/ethernet/stmicro/Kconfig
+@@ -18,6 +18,6 @@ config NET_VENDOR_STMICRO
+ 
+ if NET_VENDOR_STMICRO
+ 
+-source "drivers/net/ethernet/stmicro/stmmac/Kconfig"
++#source "drivers/net/ethernet/stmicro/stmmac/Kconfig"
+ 
+ endif # NET_VENDOR_STMICRO
+diff --git a/drivers/net/ethernet/stmicro/Makefile b/drivers/net/ethernet/stmicro/Makefile
+index 72fd1f6ab9b2..2f528fe62ac3 100644
+--- a/drivers/net/ethernet/stmicro/Makefile
++++ b/drivers/net/ethernet/stmicro/Makefile
+@@ -3,4 +3,4 @@
+ # Makefile for the STMicroelectronics device drivers.
+ #
+ 
+-obj-$(CONFIG_STMMAC_ETH) += stmmac/
++#obj-$(CONFIG_STMMAC_ETH) += stmmac/
+-- 
+2.42.0
+
