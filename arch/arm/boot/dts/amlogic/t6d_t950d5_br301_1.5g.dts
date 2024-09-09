@@ -4,6 +4,7 @@
  */
 
 /dts-v1/;
+
 #include "mesont6d.dtsi"
 #include "mesont6d_drm.dtsi"
 #include "firmware_ab.dtsi"
@@ -600,7 +601,7 @@
 			};
 			tdmbcodec: codec {
 				prefix-names = "AMP";
-				sound-dai = </*&ad82128*/ &acodec>;
+				sound-dai = </*&ad82120b*/ &acodec>;
 			};
 		};
 
@@ -953,6 +954,28 @@
 	};
 };
 
+&spi_nfc {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spinf_pins>;
+	spi-nand@0 {
+		compatible = "spi-nand";
+		status = "disabled";
+		reg = <0>;
+		spi-max-frequency = <83000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+	spi-nor@0 {
+		compatible = "spi-nor";
+		status = "disabled";
+		reg = <0>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <83000000>;
+	};
+};
+
 &periphs_pinctrl {
 	/*backlight*/
 	bl_pwm_vs_on_pins:bl_pwm_vs_on_pin {
@@ -1001,59 +1024,6 @@
 				function = "gpio_periphs";
 			input-enable;
 		};
-	};
-};
-
-&mtd_nand {
-	status = "disabled"; /* disabled as default */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	pinctrl-names = "nand_norb_mod","nand_cs_only";
-	pinctrl-0 = <&all_nand_pins>;
-	pinctrl-1 = <&nand_cs_pins>;
-	bl_mode = <1>;
-	fip_copies = <4>;
-	fip_size = <0x200000>;
-	ship_bad_block = <1>;
-	disa_irq_flag = <1>;
-	nand@bootloader {
-		reg = <0>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		nand-ecc-maximize;
-		partition@0 {
-			label = "bl2";
-			reg = <0x0 0x00000000>;
-		};
-	};
-	nand@normal {
-		reg = <0>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		nand-ecc-maximize;
-	};
-};
-
-&spi_nfc {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spinf_pins>;
-	spi-nand@0 {
-		compatible = "spi-nand";
-		status = "disabled";
-		reg = <0>;
-		spi-max-frequency = <83000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
-	};
-	spi-nor@0 {
-		compatible = "spi-nor";
-		status = "disabled";
-		reg = <0>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
-		spi-max-frequency = <83000000>;
 	};
 };
 
