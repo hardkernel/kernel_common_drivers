@@ -445,6 +445,10 @@ static int sy602x_init(struct snd_soc_component *component)
 	ret = sy602x_write_reg_list(component, sy602x_reg_init_seq_1,
 			ARRAY_SIZE(sy602x_reg_init_seq_1));
 
+	sy602x->master_vol = snd_soc_component_read(component, SY602X_MAS_VOL);
+	sy602x->left_vol = snd_soc_component_read(component, SY602X_CH1_VOL);
+	sy602x->right_vol = snd_soc_component_read(component, SY602X_CH2_VOL);
+
 	return ret;
 }
 
