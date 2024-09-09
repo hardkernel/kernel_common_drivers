@@ -77,7 +77,6 @@ struct am_acodec_priv {
 };
 
 enum meson_acodec_version {
-	MESON_ACODEC_ID_VERSION_S7D = 0x1,
 	MESON_ACODEC_ID_VERSION_T6D,
 };
 
@@ -91,8 +90,8 @@ enum output_pin_sel {
 
 enum output_type_sel {
 	DUAL_OUTPUT = 0x0,
-	SIGNEL_HEADPHONE,
-	SIGNEL_LINEOUT,
+	HEADPHONE_SINGLE,
+	LINEOUT_SINGLE,
 	DIFF_LINEOUT
 };
 
@@ -106,17 +105,17 @@ enum charge_cap_level {
 };
 
 static const struct reg_default t6d_acodec_init_list[] = {
-	{ACODEC_0, 0x3430bfc0},
-	{ACODEC_1, 0x50503030},
-	{ACODEC_2, 0xFBFB7400},
+	{ACODEC_0, 0x3400bff0},
+	{ACODEC_1, 0x50500909},
+	{ACODEC_2, 0xf8f87400},
 	/*default LP/RP(headphone)	 LN/RN(lineout->spk)*/
 	/*dual output*/
 	{ACODEC_3, 0x00034422},
 	{ACODEC_4, 0x00020000},
-	{ACODEC_5, 0xFBFB0033},
+	{ACODEC_5, 0xffff0033},
 	{ACODEC_6, 0x0},
 	{ACODEC_7, 0x0},
-	{ACODEC_8, 0x0},
+	{ACODEC_8, 0x14000000},
 };
 
 static struct am_acodec_chipinfo acodec_cinfo_v3 = {
@@ -184,36 +183,38 @@ static void output_path_set(struct snd_soc_component *component,
 	if (aml_acodec->chip_version == MESON_ACODEC_ID_VERSION_T6D) {
 		switch (pin) {
 		case LP_RP_EN:
-			snd_soc_component_update_bits(component, ACODEC_3, 1 << LOLP_SEL_DACL,
+			snd_soc_component_update_bits(component, ACODEC_3, 0X7 << 4,
 							1 << LOLP_SEL_DACL);
-			snd_soc_component_update_bits(component, ACODEC_3, 1 << LORP_SEL_DACR,
+			snd_soc_component_update_bits(component, ACODEC_3, 0X7 << 0,
 							1 << LORP_SEL_DACR);
 			break;
 		case LP_RN_EN:
-			snd_soc_component_update_bits(component, ACODEC_3, 1 << LOLP_SEL_DACL,
+			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 4,
 							1 << LOLP_SEL_DACL);
-			snd_soc_component_update_bits(component, ACODEC_3, 1 << LORN_SEL_DACR,
+			snd_soc_component_update_bits(component, ACODEC_3, 0X7 << 8,
 							1 << LORN_SEL_DACR);
 			break;
 		case LN_RP_EN:
 
-			snd_soc_component_update_bits(component, ACODEC_3, 1 << LOLN_SEL_DACL,
+			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 12,
 							1 << LOLN_SEL_DACL);
-			snd_soc_component_update_bits(component, ACODEC_3, 1 << LORP_SEL_DACR,
+			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 0,
 							1 << LORP_SEL_DACR);
 			break;
 		case LN_RN_EN:
-			snd_soc_component_update_bits(component, ACODEC_3, 1 << LOLN_SEL_DACL,
+			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 12,
 							1 << LOLN_SEL_DACL);
-			snd_soc_component_update_bits(component, ACODEC_3, 1 << LORN_SEL_DACR,
+			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 8,
 							1 << LORN_SEL_DACR);
 			break;
 		case LR_PN_EN:
-			 snd_soc_component_update_bits(component, ACODEC_3, 1 << LOLP_SEL_DACL,
+			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 0,
+							1 << LORP_SEL_DACR);
+			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 4,
 							1 << LOLP_SEL_DACL);
-			 snd_soc_component_update_bits(component, ACODEC_3, 1 << LOLN_SEL_DACL_INV,
+			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 12,
 							1 << LOLN_SEL_DACL_INV);
-			 snd_soc_component_update_bits(component, ACODEC_3, 1 << LORN_SEL_DACR_INV,
+			snd_soc_component_update_bits(component, ACODEC_3, 0x7 << 8,
 							1 << LORN_SEL_DACR_INV);
 			break;
 		default:
@@ -431,9 +432,9 @@ static void output_mode_set(struct snd_soc_component *component, int acodec_chip
 
 	if (aml_acodec->output_type == DUAL_OUTPUT)
 		dual_output_single_mode_set(component);
-	else if (aml_acodec->output_type == SIGNEL_HEADPHONE)
+	else if (aml_acodec->output_type == HEADPHONE_SINGLE)
 		single_mode_headphone_set(component);
-	else if (aml_acodec->output_type == SIGNEL_LINEOUT)
+	else if (aml_acodec->output_type == LINEOUT_SINGLE)
 		single_mode_lineout_set(component);
 	else if (aml_acodec->output_type == DIFF_LINEOUT)
 		diff_mode_lineout_set(component);
@@ -496,6 +497,30 @@ static int aml_dac_gain_set_enum
 
 	aml_am_acodec_dac_extra_gain_set(component, 0, value);
 
+	return 0;
+}
+
+static int aml_dac_output_mode_get_enum
+	(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct am_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.enumerated.item[0] = aml_acodec->output_type;
+	return 0;
+}
+
+static int aml_dac_output_mode_set_enum
+	(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	int value = ucontrol->value.enumerated.item[0];
+	struct am_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
+
+	aml_acodec->output_type = value;
+	am_acodec_reg_init(component);
 	return 0;
 }
 
@@ -586,11 +611,21 @@ static const char *const dac_gain_texts[] = { "0dB", "6dB", "12dB", "18dB" };
 static const char *const dac2_gain_texts[] = { "0dB", "6dB", "12dB", "18dB" };
 static const char *const DAC_Src_texts[] = {"Lane0", "Lane1", "Lane2", "Lane3"};
 
+static const char *const DAC_output_mode_texts[] = {"Dual Single", "Headphone Single",
+							"Lineout Single", "Diff Lineout"};
+
 static const struct soc_enum dac_gain_enum =
 	SOC_ENUM_SINGLE
 			(SND_SOC_NOPM, 0,
 			ARRAY_SIZE(dac_gain_texts),
 			dac_gain_texts);
+
+static const struct soc_enum dac_output_mode_enum =
+	SOC_ENUM_SINGLE
+			(SND_SOC_NOPM, 0,
+			ARRAY_SIZE(DAC_output_mode_texts),
+			DAC_output_mode_texts);
+
 static const struct soc_enum dac2_gain_enum =
 	SOC_ENUM_SINGLE
 			(SND_SOC_NOPM, 0,
@@ -628,6 +663,12 @@ static const struct snd_kcontrol_new am_acodec_snd_controls[] = {
 			aml_dac_gain_get_enum,
 			aml_dac_gain_set_enum),
 
+	SOC_ENUM_EXT
+			("DAC output mode select",
+			dac_output_mode_enum,
+			aml_dac_output_mode_get_enum,
+			aml_dac_output_mode_set_enum),
+
 	SOC_ENUM_EXT("DAC SOURCE SELECT",
 			DAC_source_sel_enum,
 			aml_DAC_source_sel_get_enum,
@@ -650,201 +691,6 @@ static const struct snd_kcontrol_new am_acodec_snd_dac2_controls[] = {
 			aml_dac2_gain_set_enum),
 };
 
-/*pgain Left Channel Input */
-static const char * const linein_left_txt[] = {
-	"None", "AIL1", "AIL2", "AIL3",
-};
-
-static SOC_ENUM_SINGLE_DECL(linein_left_enum,
-				  ACODEC_1,
-				  PGAL_IN_SEL, linein_left_txt);
-
-static const struct snd_kcontrol_new lil_mux =
-SOC_DAPM_ENUM("ROUTE_L", linein_left_enum);
-
-/*pgain right Channel Input */
-static const char * const linein_right_txt[] = {
-	"None", "AIR1", "AIR2", "AIR3",
-};
-
-static SOC_ENUM_SINGLE_DECL(linein_right_enum,
-				  ACODEC_1,
-				  PGAR_IN_SEL, linein_right_txt);
-
-static const struct snd_kcontrol_new lir_mux =
-		SOC_DAPM_ENUM("ROUTE_R", linein_right_enum);
-
-/*line out 1 Left mux */
-static const char * const out_lo1l_txt[] = {
-	"None", "LO1L_SEL_INL", "LO1L_SEL_DACL", "Reserved", "LO1L_SEL_DACR_INV"
-};
-
-static SOC_ENUM_SINGLE_DECL
-		(out_lo1l_enum, ACODEC_3,
-		LO1L_SEL_INL, out_lo1l_txt);
-
-static const struct snd_kcontrol_new lo1l_mux =
-		SOC_DAPM_ENUM("LO1L_MUX", out_lo1l_enum);
-
-/*line out 1 right mux */
-static const char * const out_lo1r_txt[] = {
-	"None", "LO1R_SEL_INR", "LO1R_SEL_DACR", "Reserved", "LO1R_SEL_DACL_INV"
-};
-
-static SOC_ENUM_SINGLE_DECL
-		(out_lo1r_enum, ACODEC_3,
-		LO1R_SEL_INR, out_lo1r_txt);
-
-static const struct snd_kcontrol_new lo1r_mux =
-		SOC_DAPM_ENUM("LO1R_MUX", out_lo1r_enum);
-
-/*line out 2 left mux */
-static const char * const out_lo2l_txt[] = {
-	"None", "LO2L_SEL_INL", "LO2L_SEL_DAC2L", "Reserved",
-	"LO2L_SEL_DAC2R_INV"
-};
-
-static SOC_ENUM_SINGLE_DECL(out_lo2l_enum, ACODEC_3,
-				  LO2L_SEL_INL, out_lo2l_txt);
-
-static const struct snd_kcontrol_new lo2l_mux =
-SOC_DAPM_ENUM("LO2L_MUX", out_lo2l_enum);
-
-/*line out 2 Right mux */
-static const char * const out_lo2r_txt[] = {
-	"None", "LO2R_SEL_INR", "LO2R_SEL_DAC2R", "Reserved",
-	"LO2R_SEL_DAC2L_INV"
-};
-
-static SOC_ENUM_SINGLE_DECL(out_lo2r_enum, ACODEC_3,
-				  LO2R_SEL_INR, out_lo2r_txt);
-
-static const struct snd_kcontrol_new lo2r_mux =
-SOC_DAPM_ENUM("LO2R_MUX", out_lo2r_enum);
-
-static const __maybe_unused struct snd_soc_dapm_widget am_acodec_dapm_widgets[] = {
-	/* Input */
-	SND_SOC_DAPM_INPUT("Linein left 1"),
-	SND_SOC_DAPM_INPUT("Linein left 2"),
-	SND_SOC_DAPM_INPUT("Linein left 3"),
-
-	SND_SOC_DAPM_INPUT("Linein right 1"),
-	SND_SOC_DAPM_INPUT("Linein right 2"),
-	SND_SOC_DAPM_INPUT("Linein right 3"),
-
-	/*PGA input */
-	SND_SOC_DAPM_PGA("PGAL_IN_EN", SND_SOC_NOPM,
-			 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PGAR_IN_EN", SND_SOC_NOPM,
-			 0, 0, NULL, 0),
-
-	/*PGA input source select */
-	SND_SOC_DAPM_MUX("Linein left switch", SND_SOC_NOPM,
-			 0, 0, &lil_mux),
-	SND_SOC_DAPM_MUX("Linein right switch", SND_SOC_NOPM,
-			 0, 0, &lir_mux),
-
-	/*ADC capture stream */
-	SND_SOC_DAPM_ADC("Left ADC", "Capture", SND_SOC_NOPM,
-			 0, 0),
-	SND_SOC_DAPM_ADC("Right ADC", "Capture", SND_SOC_NOPM,
-			 0, 0),
-
-	/*Output */
-	SND_SOC_DAPM_OUTPUT("Lineout 1 left"),
-	SND_SOC_DAPM_OUTPUT("Lineout 1 right"),
-	SND_SOC_DAPM_OUTPUT("Lineout 2 left"),
-	SND_SOC_DAPM_OUTPUT("Lineout 2 right"),
-
-	/*DAC playback stream */
-	SND_SOC_DAPM_DAC
-			("Left DAC", "Playback",
-			SND_SOC_NOPM,
-			0, 0),
-	SND_SOC_DAPM_DAC
-			("Right DAC", "Playback",
-			SND_SOC_NOPM,
-			0, 0),
-
-	/*DAC 2 playback stream */
-	SND_SOC_DAPM_DAC
-			("Left DAC2", "Playback",
-			SND_SOC_NOPM,
-			0, 0),
-	SND_SOC_DAPM_DAC
-			("Right DAC2", "Playback",
-			SND_SOC_NOPM,
-			0, 0),
-
-	/*DRV output */
-	SND_SOC_DAPM_OUT_DRV
-			("LO1L_OUT_EN", ACODEC_0,
-			LO1L_EN, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV
-			("LO1R_OUT_EN", ACODEC_0,
-			LO1R_EN, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV
-			("LO2L_OUT_EN", ACODEC_0,
-			LO2L_EN, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV
-			("LO2R_OUT_EN", ACODEC_0,
-			LO2R_EN, 0, NULL, 0),
-
-	/*MUX output source select */
-	SND_SOC_DAPM_MUX("Lineout 1 left switch", SND_SOC_NOPM,
-			 0, 0, &lo1l_mux),
-	SND_SOC_DAPM_MUX("Lineout 1 right switch", SND_SOC_NOPM,
-			 0, 0, &lo1r_mux),
-	SND_SOC_DAPM_MUX("Lineout 2 left switch", SND_SOC_NOPM,
-			 0, 0, &lo2l_mux),
-	SND_SOC_DAPM_MUX("Lineout 2 right switch", SND_SOC_NOPM,
-			 0, 0, &lo2r_mux),
-
-};
-
-static const __maybe_unused struct snd_soc_dapm_route am_acodec_dapm_routes[] = {
-/* Input path */
-	{"Linein left switch", "AIL1", "Linein left 1"},
-	{"Linein left switch", "AIL2", "Linein left 2"},
-	{"Linein left switch", "AIL3", "Linein left 3"},
-
-	{"Linein right switch", "AIR1", "Linein right 1"},
-	{"Linein right switch", "AIR2", "Linein right 2"},
-	{"Linein right switch", "AIR3", "Linein right 3"},
-
-	{"PGAL_IN_EN", NULL, "Linein left switch"},
-	{"PGAR_IN_EN", NULL, "Linein right switch"},
-
-	{"Left ADC", NULL, "PGAL_IN_EN"},
-	{"Right ADC", NULL, "PGAR_IN_EN"},
-
-/*Output path*/
-	{"Lineout 1 left switch", NULL, "Left DAC"},
-	{"Lineout 1 left switch", NULL, "Right DAC"},
-	{"Lineout 1 left switch", NULL, "PGAL_IN_EN"},
-
-	{"Lineout 1 right switch", NULL, "Right DAC"},
-	{"Lineout 1 right switch", NULL, "Left DAC"},
-	{"Lineout 1 right switch", NULL, "PGAR_IN_EN"},
-
-	{"Lineout 2 left switch", NULL, "Left DAC2"},
-	{"Lineout 2 left switch", NULL, "Right DAC2"},
-	{"Lineout 2 left switch", NULL, "PGAL_IN_EN"},
-
-	{"Lineout 2 right switch", NULL, "Right DAC2"},
-	{"Lineout 2 right switch", NULL, "Left DAC2"},
-	{"Lineout 2 right switch", NULL, "PGAR_IN_EN"},
-
-	{"LO1L_OUT_EN", NULL, "Lineout 1 left switch"},
-	{"LO1R_OUT_EN", NULL, "Lineout 1 right switch"},
-	{"LO2L_OUT_EN", NULL, "Lineout 2 left switch"},
-	{"LO2R_OUT_EN", NULL, "Lineout 2 right switch"},
-
-	{"Lineout 1 left", NULL, "LO1L_OUT_EN"},
-	{"Lineout 1 right", NULL, "LO1R_OUT_EN"},
-	{"Lineout 2 left", NULL, "LO2L_OUT_EN"},
-	{"Lineout 2 right", NULL, "LO2R_OUT_EN"},
-};
 
 static int am_acodec_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
@@ -896,11 +742,8 @@ static int am_acodec_dai_set_bias_level
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
-
 	case SND_SOC_BIAS_PREPARE:
-
 		break;
-
 	case SND_SOC_BIAS_STANDBY:
 		if (component->dapm.bias_level == SND_SOC_BIAS_OFF)
 			snd_soc_component_cache_sync(component);
@@ -1108,8 +951,9 @@ static int am_acodec_suspend(struct snd_soc_component *component)
 				t6d_acodec_init_list[i].reg);
 	}
 
-	am_acodec_dai_set_bias_level(component, SND_SOC_BIAS_OFF);
-
+	snd_soc_component_update_bits(component, ACODEC_0, 0xffff << 0, 0);
+	snd_soc_component_update_bits(component, ACODEC_8, 1 << 26, 0 << 26);
+	snd_soc_component_update_bits(component, ACODEC_8, 1 << 28, 0 << 28);
 	pr_info("%s suspend!\n", __func__);
 	return 0;
 }
@@ -1121,14 +965,13 @@ static int am_acodec_resume(struct snd_soc_component *component)
 
 	am_acodec_reset(component);
 	am_acodec_start_up(component);
-
+	am_acodec_reg_init(component);
 	if (aml_acodec) {
 		for (i = 0; i < ARRAY_SIZE(t6d_acodec_init_list); i++)
 			snd_soc_component_write(component,
 				t6d_acodec_init_list[i].reg, aml_acodec->user_setting[i]);
 	}
 
-	am_acodec_dai_set_bias_level(component, SND_SOC_BIAS_STANDBY);
 	pr_info("%s resume!\n", __func__);
 	return 0;
 }
@@ -1341,15 +1184,9 @@ static int aml_am_acodec_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node, "output_type", &aml_acodec->output_type);
 	if (ret < 0)
 		aml_acodec->output_type = DIFF_LINEOUT;
-
-	pr_info("aml_am_acodec tdmout_index %d tdmin_index %d dat0_ch_sel %d dat1_ch_sel %d\n",
-		aml_acodec->tdmout_index, aml_acodec->tdmin_index,
-		aml_acodec->dat0_ch_sel, aml_acodec->dat1_ch_sel);
-
-	pr_info("aml_am_acodec diff_output %d diff_input %d dac_extra_gain %d dac_output_invert %d lane_offset %d\n",
-		aml_acodec->diff_output, aml_acodec->diff_input, aml_acodec->dac_extra_gain,
-		aml_acodec->dac_output_invert, aml_acodec->lane_offset);
-
+	ret = of_property_read_u32(pdev->dev.of_node, "chip_version", &aml_acodec->chip_version);
+	if (ret < 0)
+		aml_acodec->chip_version = MESON_ACODEC_ID_VERSION_T6D;
 	platform_set_drvdata(pdev, aml_acodec);
 
 	ret = devm_snd_soc_register_component
@@ -1389,8 +1226,10 @@ static void aml_am_acodec_shutdown(struct platform_device *pdev)
 	if (!IS_ERR(aml_acodec->acodec_clk))
 		clk_disable_unprepare(aml_acodec->acodec_clk);
 
-	if (component)
-		am_acodec_dai_set_bias_level(component, SND_SOC_BIAS_OFF);
+	snd_soc_component_update_bits(component, ACODEC_0, 0xffff << 0, 0);
+	snd_soc_component_update_bits(component, ACODEC_8, 1 << 26, 0 << 26);
+	snd_soc_component_update_bits(component, ACODEC_8, 1 << 28, 0 << 28);
+
 }
 
 static const struct of_device_id aml_am_acodec_dt_match[] = {
