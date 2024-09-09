@@ -1998,6 +1998,7 @@
 		en_4k = <0>;
 		alloc_sct = <0>;
 		po_fmt = <0>;
+		post_nub = <21>;
 		/***************************************************
 		 * t3 support 4k ,same with t7 ,no canvas,
 		 * post_nub---default is 11
