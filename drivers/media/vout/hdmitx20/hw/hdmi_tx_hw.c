@@ -3096,13 +3096,6 @@ static int hdmitx_cntl(struct hdmitx_hw_common *tx_hw,
 	return 0;
 }
 
-static void hdmitx_print_info(struct hdmitx_dev *hdev, int HDMITX_INFO_flag)
-{
-	HDMITX_DEBUG("------------------\nHdmitx driver version: ");
-	HDMITX_DEBUG("%s\n", HDMITX_VER);
-	HDMITX_DEBUG("------------------\n");
-}
-
 #define DUMP_CVREG_SECTION(_start, _end) \
 do { \
 	typeof(_start) start = (_start); \
@@ -3402,10 +3395,6 @@ static void hdmitx_debug(struct hdmitx_hw_common *tx_hw, const char *buf)
 	} else if (strncmp(tmpbuf, "cfgreg", 6) == 0) {
 		ret = kstrtoul(tmpbuf + 6, 16, &adr);
 		ret = kstrtoul(buf + i + 1, 16, &value);
-		return;
-	} else if ((tmpbuf[0] == 'v') &&
-			   (strncmp(tmpbuf, "vsif_info", 9) != 0)) {
-		hdmitx_print_info(hdev, 1);
 		return;
 	} else if (tmpbuf[0] == 'w') {
 		unsigned long read_back = 0;

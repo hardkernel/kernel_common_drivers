@@ -28,9 +28,6 @@
 
 #define DEVICE_NAME "amhdmitx21"
 
-/* HDMITX driver version */
-#define HDMITX_VER "20220125"
-
 /************************************
  *    hdmitx device structure
  *************************************/

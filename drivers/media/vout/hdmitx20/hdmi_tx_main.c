@@ -3485,8 +3485,10 @@ void hdmitx_current_status(enum hdmitx_event_log_bits event)
 
 static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 {
-	/* there's common_driver commit id in boot up log */
-	pr_debug(SYS "Ver: %s\n", HDMITX_VER);
+	const char *hdmi_ver = NULL;
+
+	GET_HDMITX_VER(hdmi_ver);
+	HDMITX_INFO(SYS "Ver: %s\n", hdmi_ver);
 
 	hdmi_dev->hdtx_dev = NULL;
 

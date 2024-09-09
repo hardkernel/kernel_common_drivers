@@ -4245,10 +4245,13 @@ void hdmitx21_hdcp_status(int hdmi_authenticated)
 
 static int amhdmitx21_device_init(struct hdmitx_dev *hdev)
 {
+	const char *hdmi_ver = NULL;
+
 	if (!hdev)
 		return 1;
 
-	HDMITX_INFO("Ver: %s\n", HDMITX_VER);
+	GET_HDMITX_VER(hdmi_ver);
+	HDMITX_INFO("Ver: %s\n", hdmi_ver);
 
 	hdev->hdtx_dev = NULL;
 
