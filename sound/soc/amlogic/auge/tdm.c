@@ -390,6 +390,11 @@ static int aml_set_tdm_mclk_s4(struct aml_tdm *p_tdm,
 	int ret = -1;
 	bool force_mpll = is_force_mpll_clk();
 
+	if (freq == 0) {
+		dev_err(p_tdm->dev, "%s(), clk 0 err\n", __func__);
+		return 0;
+	}
+
 	pr_info("%s: force_mpll = %d, freq = %d\n", __func__, force_mpll, freq);
 	if (IS_ERR(p_tdm->clk_src_cd)) {
 		pr_err("%s: please make sure S4 DTS support 2 clk source\n", __func__);
@@ -445,6 +450,11 @@ static int aml_set_tdm_mclk_1(struct aml_tdm *p_tdm,
 	bool mpll_change = false;
 	char *clk_name;
 
+	if (freq == 0) {
+		dev_err(p_tdm->dev, "%s(), clk 0 err\n", __func__);
+		return 0;
+	}
+
 	clk_name = (char *)__clk_get_name(p_tdm->clk);
 	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll"))
 		if (p_tdm->syssrc_clk_rate)
@@ -485,6 +495,11 @@ static int aml_set_tdm_mclk_2(struct aml_tdm *p_tdm,
 	int ret = -1;
 	char *clk_name = (char *)__clk_get_name(p_tdm->clk);
 	int ratio = 0;
+
+	if (freq == 0) {
+		dev_err(p_tdm->dev, "%s(), clk 0 err\n", __func__);
+		return 0;
+	}
 
 	if (IS_ERR(p_tdm->clk_src_cd) || strcmp(clk_name, "hifi_pll")) {
 		pr_err("%s: please make sure DTS support 2 clk source\n", __func__);
