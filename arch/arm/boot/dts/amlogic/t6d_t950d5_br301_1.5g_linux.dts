@@ -1199,7 +1199,7 @@
 	osd_pic_en = <1>;/*1:enable osd picture setting;0:disable*/
 	vlock_en = <1>;/*1:enable;0:disable*/
 	vlock_mode = <0x8>;
-	vrr_priority = <1>;/*1:game mode vrr always on;0:vrr on depend on vrr signal*/
+	//vrr_priority = <1>;/*1:game mode vrr always on;0:vrr on depend on vrr signal*/
 	/*vlock work mode:
 	 *bit0:auto ENC
 	 *bit1:auto PLL
