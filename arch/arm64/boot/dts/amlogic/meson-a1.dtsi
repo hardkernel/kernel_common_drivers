@@ -836,10 +836,15 @@
 		mbox-nums = <3>;
 		mbox-names = "dsp_dev",
 			     "dspa2ree",
-			     "se_dev";
+			     "dspb_dev",
+			     "dspb2ree";
 		mboxes = <&mbox_pl A1_REE2DSPA_DEV>,
-			 <&mbox_pl A1_DSPA2REE_DEV>;
+			 <&mbox_pl A1_DSPA2REE_DEV>,
+			 <&mbox_pl A1_REE2DSPB_DEV>,
+			 <&mbox_pl A1_DSPB2REE_DEV>;
 		mbox-dests = <MAILBOX_DSP>,
+			     <MAILBOX_DSP>,
+			     <MAILBOX_DSP>,
 			     <MAILBOX_DSP>;
 	};
 
