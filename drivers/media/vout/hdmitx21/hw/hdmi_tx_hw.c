@@ -3226,6 +3226,9 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	switch (cmd) {
 	case MISC_GET_FRL_MODE:
 		return (int)get_current_frl_rate();
+	case MISC_CLR_FRL_MODE:
+		hdmitx21_set_reg_bits(FRL_LINK_RATE_CONFIG_IVCTX, 0, 0, 4);
+		break;
 	case MISC_CLK_DIV_RST:
 		/* TO confirm if only for S5 */
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
@@ -3253,11 +3256,8 @@ static int hdmitx_cntl_misc(struct hdmitx_hw_common *tx_hw, u32 cmd,
 			hdmi_phy_wakeup(hdev);
 			fifo_flow_enable_intrs(1);
 		}
+		/* This action will be executed in vsync interrupt */
 		if (argv == TMDS_PHY_DISABLE) {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-			frl_tx_stop();
-			hdmitx_set_frl_rate_none(hdev);
-#endif
 			fifo_flow_enable_intrs(0);
 			hdmi_phy_suspend();
 		}

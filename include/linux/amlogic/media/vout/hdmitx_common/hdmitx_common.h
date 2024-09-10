@@ -41,6 +41,7 @@ struct hdmitx_ctrl_ops {
 	void (*disable_hdcp)(struct hdmitx_common *tx_comm);
 	void (*clear_pkt)(struct hdmitx_hw_common *tx_hw_base);
 	void (*disable_21_work)(void);
+	void (*disable_frl_work)(void);
 };
 
 struct st_debug_param {

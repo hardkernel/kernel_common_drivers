@@ -313,6 +313,14 @@ static void hdmitx21_disable_21_work(void)
 	}
 #endif
 }
+
+static void hdmitx21_disable_frl_work(void)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	frl_tx_stop();
+	hdmitx_set_frl_rate_none(hdev);
+}
 #endif
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
@@ -393,7 +401,7 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 	hdmitx_common_avmute_locked(&hdev->tx_comm, SET_AVMUTE, AVMUTE_PATH_HDMITX);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	frl_tx_stop();
+	hdmitx21_disable_frl_work();
 #ifdef CONFIG_AMLOGIC_DSC
 	if (hdev->tx_hw.base.hdmi_tx_cap.dsc_capable) {
 		aml_dsc_enable(false);
@@ -408,7 +416,6 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 		cancel_delayed_work(&hdev->tx_comm.work_cedst);
 	hdmitx21_disable_hdcp(hdev);
 	hdmitx21_rst_stream_type(hdev->am_hdcp);
-	hdmitx_set_frl_rate_none(hdev);
 	hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 
 	return NOTIFY_OK;
@@ -452,6 +459,7 @@ void hdmitx_set_frl_rate_none(struct hdmitx_dev *hdev)
 		data = scdc_tx_update_flags_get();
 		if (data & FLT_UPDATE)
 			scdc_tx_update_flags_set(FLT_UPDATE);
+		hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_CLR_FRL_MODE, 0);
 	}
 }
 
@@ -4012,6 +4020,7 @@ static struct hdmitx_ctrl_ops tx21_ctrl_ops = {
 	.clear_pkt = hdmitx21_clear_packets,
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	.disable_21_work = hdmitx21_disable_21_work,
+	.disable_frl_work = hdmitx21_disable_frl_work,
 #endif
 };
 

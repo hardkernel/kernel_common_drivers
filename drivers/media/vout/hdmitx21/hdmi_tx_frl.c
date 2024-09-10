@@ -666,7 +666,7 @@ static bool frl_stop_work(struct frl_train_t *p)
 {
 	struct frl_work *work = &p->timer_frl_flt;
 
-	cancel_delayed_work(&work->dwork);
+	cancel_delayed_work_sync(&work->dwork);
 	HDMITX_INFO("stop %s\n", work->name);
 	return 0;
 }

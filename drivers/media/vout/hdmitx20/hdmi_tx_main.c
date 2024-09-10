@@ -3194,6 +3194,7 @@ static struct hdmitx_ctrl_ops tx20_ctrl_ops = {
 	.disable_hdcp = hdmitx20_ops_disable_hdcp,
 	.clear_pkt = hdmitx20_clear_packets,
 	.disable_21_work = NULL,
+	.disable_frl_work = NULL,
 };
 
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)

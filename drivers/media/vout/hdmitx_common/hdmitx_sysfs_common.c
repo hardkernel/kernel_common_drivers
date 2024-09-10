@@ -729,6 +729,11 @@ static ssize_t phy_store(struct device *dev,
 	HDMITX_INFO("%s %s\n", __func__, buf);
 	mute_us = hdmitx_get_frame_duration();
 	if (strncmp(buf, "0", 1) == 0) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		/* for s5 frl mode */
+		if (global_tx_common->ctrl_ops->disable_frl_work)
+			global_tx_common->ctrl_ops->disable_frl_work();
+#endif
 		global_tx_hw->tmds_phy_op = TMDS_PHY_DISABLE;
 		/*
 		 * It is necessary to finish disable phy during the vsync interrupt
