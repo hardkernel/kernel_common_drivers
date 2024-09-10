@@ -6,6 +6,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/spi/spi.h>
 #include <linux/amlogic/aml_spi.h>
+#include <linux/vmalloc.h>
 #include "spicc_test.h"
 
 static LIST_HEAD(testdev_list);
@@ -152,8 +153,8 @@ ssize_t testdev_dump(struct test_device *testdev, char *buf)
 	len = snprintf(buf, PAGE_SIZE, "hexdump: %d\n", testdev->hexdump);
 	len += snprintf(buf + len, PAGE_SIZE, "compare: %d\n", testdev->compare);
 	len += snprintf(buf + len, PAGE_SIZE, "pr_diff: %d\n", testdev->pr_diff);
-	len += snprintf(buf + len, PAGE_SIZE, "cs_gpio: %d\n", desc_to_gpio(spi->cs_gpiod));
-	len += snprintf(buf + len, PAGE_SIZE, "cs: %d\n", spi->chip_select);
+	len += snprintf(buf + len, PAGE_SIZE, "cs_gpio: %d\n", desc_to_gpio(spi->cs_gpiod[0]));
+	len += snprintf(buf + len, PAGE_SIZE, "cs: %d\n", spi->chip_select[0]);
 	len += snprintf(buf + len, PAGE_SIZE, "speed: %d\n", spi->max_speed_hz);
 	len += snprintf(buf + len, PAGE_SIZE, "mode: 0x%x\n", spi->mode);
 	len += snprintf(buf + len, PAGE_SIZE, "bw: %d\n", spi->bits_per_word);
@@ -206,7 +207,7 @@ struct test_device *testdev_new(struct device *dev, int argc, char *argv[])
 	spi->controller_data = (void *)&testdev->cdata;
 	spi->controller_state = NULL;
 	memset(spi->controller_data, 0, sizeof(struct spicc_controller_data));
-	spi->chip_select = 0;
+	spi->chip_select[0] = 0;
 	spi->max_speed_hz = 10000000;
 	spi->bits_per_word = 8;
 	spi->mode = 0;
@@ -255,9 +256,9 @@ int testdev_setup(struct test_device *testdev, int argc, char *argv[])
 	if (!spicc_getopt(argc, argv, "pr_diff", &v, NULL, 10))
 		testdev->pr_diff = !!v;
 	if (!spicc_getopt(argc, argv, "cs_gpio", &v, NULL, 10))
-		spi->cs_gpiod = (v > 0) ? gpio_to_desc(v) : NULL;
+		spi->cs_gpiod[0] = (v > 0) ? gpio_to_desc(v) : NULL;
 	if (!spicc_getopt(argc, argv, "cs", &v, NULL, 10))
-		spi->chip_select = v;
+		spi->chip_select[0] = v;
 	if (!spicc_getopt(argc, argv, "speed", &v, NULL, 10))
 		spi->max_speed_hz = v;
 	if (!spicc_getopt(argc, argv, "mode", &v, NULL, 16))
@@ -338,7 +339,7 @@ xfer_opt:
 		} else if (coherent) {
 			xfer->tx_buf = dma_alloc_coherent(dev, xfer->len,
 					&xfer->tx_dma, GFP_KERNEL | GFP_DMA);
-			testdev->msg.is_dma_mapped = true;
+			xfer->tx_sg_mapped = true;
 		} else {
 			xfer->tx_buf = kzalloc(xfer->len, GFP_KERNEL | GFP_DMA);
 		}
@@ -357,7 +358,7 @@ xfer_opt:
 		} else if (coherent) {
 			xfer->rx_buf = dma_alloc_coherent(dev, xfer->len,
 					&xfer->rx_dma, GFP_KERNEL | GFP_DMA);
-			testdev->msg.is_dma_mapped = true;
+			xfer->rx_sg_mapped = true;
 		} else {
 			xfer->rx_buf = kzalloc(xfer->len, GFP_KERNEL | GFP_DMA);
 		}
@@ -390,7 +391,7 @@ void testdev_free_xfer(struct test_device *testdev)
 		if (xfer->tx_buf) {
 			if (is_vmalloc_addr(xfer->tx_buf))
 				vfree(xfer->tx_buf);
-			else if (testdev->msg.is_dma_mapped)
+			else if (xfer->tx_sg_mapped)
 				dma_free_coherent(dev,
 						xfer->len,
 						(void *)xfer->tx_buf,
@@ -402,7 +403,7 @@ void testdev_free_xfer(struct test_device *testdev)
 		if (xfer->rx_buf) {
 			if (is_vmalloc_addr(xfer->rx_buf))
 				vfree(xfer->rx_buf);
-			else if (testdev->msg.is_dma_mapped)
+			else if (xfer->rx_sg_mapped)
 				dma_free_coherent(dev,
 						xfer->len,
 						xfer->rx_buf,
@@ -535,7 +536,7 @@ int test(struct device *dev, const char *buf)
 		goto test_end;
 	}
 
-	m.spi->cs_gpiod = (cs_gpio > 0) ? gpio_to_desc(cs_gpio) : NULL;
+	m.spi->cs_gpiod[0] = (cs_gpio > 0) ? gpio_to_desc(cs_gpio) : NULL;
 	m.spi->max_speed_hz = speed;
 	m.spi->mode = mode & 0xffff;
 	m.spi->bits_per_word = bits_per_word;

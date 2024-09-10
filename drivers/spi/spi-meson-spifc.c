@@ -75,7 +75,7 @@
  * @device:	the device structure
  */
 struct meson_spifc {
-	struct spi_master *master;
+	struct spi_controller *master;
 	struct regmap *regmap;
 	struct clk *clk;
 	struct device *dev;
@@ -244,11 +244,11 @@ static int meson_spifc_txrx(struct meson_spifc *spifc,
  * @xfer:	the current SPI transfer
  * Return:	0 on success, a negative value on error
  */
-static int meson_spifc_transfer_one(struct spi_master *master,
+static int meson_spifc_transfer_one(struct spi_controller *master,
 				    struct spi_device *spi,
 				    struct spi_transfer *xfer)
 {
-	struct meson_spifc *spifc = spi_master_get_devdata(master);
+	struct meson_spifc *spifc = spi_controller_get_devdata(master);
 	int len, done = 0, ret = 0;
 
 	meson_spifc_setup_speed(spifc, xfer->speed_hz);
@@ -286,7 +286,7 @@ static void meson_spifc_hw_init(struct meson_spifc *spifc)
 
 static int meson_spifc_probe(struct platform_device *pdev)
 {
-	struct spi_master *master;
+	struct spi_controller *master;
 	struct meson_spifc *spifc;
 	void __iomem *base;
 	unsigned int rate;
@@ -306,7 +306,7 @@ static int meson_spifc_probe(struct platform_device *pdev)
 	page_info_pre_init(boot_info, PAGE_INFO_V1);
 	platform_set_drvdata(pdev, master);
 
-	spifc = spi_master_get_devdata(master);
+	spifc = spi_controller_get_devdata(master);
 	spifc->dev = &pdev->dev;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -350,7 +350,7 @@ static int meson_spifc_probe(struct platform_device *pdev)
 	pm_runtime_set_active(spifc->dev);
 	pm_runtime_enable(spifc->dev);
 
-	ret = devm_spi_register_master(spifc->dev, master);
+	ret = devm_spi_register_controller(spifc->dev, master);
 	if (ret) {
 		dev_err(spifc->dev, "failed to register spi master\n");
 		goto out_clk;
@@ -360,14 +360,14 @@ static int meson_spifc_probe(struct platform_device *pdev)
 out_clk:
 	clk_disable_unprepare(spifc->clk);
 out_err:
-	spi_master_put(master);
+	spi_controller_put(master);
 	return ret;
 }
 
 static int meson_spifc_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = platform_get_drvdata(pdev);
-	struct meson_spifc *spifc = spi_master_get_devdata(master);
+	struct spi_controller *master = platform_get_drvdata(pdev);
+	struct meson_spifc *spifc = spi_controller_get_devdata(master);
 
 	pm_runtime_get_sync(&pdev->dev);
 	clk_disable_unprepare(spifc->clk);
@@ -379,11 +379,11 @@ static int meson_spifc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int meson_spifc_suspend(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct meson_spifc *spifc = spi_master_get_devdata(master);
+	struct spi_controller *master = dev_get_drvdata(dev);
+	struct meson_spifc *spifc = spi_controller_get_devdata(master);
 	int ret;
 
-	ret = spi_master_suspend(master);
+	ret = spi_controller_suspend(master);
 	if (ret)
 		return ret;
 
@@ -395,8 +395,8 @@ static int meson_spifc_suspend(struct device *dev)
 
 static int meson_spifc_resume(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct meson_spifc *spifc = spi_master_get_devdata(master);
+	struct spi_controller *master = dev_get_drvdata(dev);
+	struct meson_spifc *spifc = spi_controller_get_devdata(master);
 	int ret;
 
 	if (!pm_runtime_suspended(dev)) {
@@ -407,7 +407,7 @@ static int meson_spifc_resume(struct device *dev)
 
 	meson_spifc_hw_init(spifc);
 
-	ret = spi_master_resume(master);
+	ret = spi_controller_resume(master);
 	if (ret)
 		clk_disable_unprepare(spifc->clk);
 
@@ -418,8 +418,8 @@ static int meson_spifc_resume(struct device *dev)
 #ifdef CONFIG_PM
 static int meson_spifc_runtime_suspend(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct meson_spifc *spifc = spi_master_get_devdata(master);
+	struct spi_controller *master = dev_get_drvdata(dev);
+	struct meson_spifc *spifc = spi_controller_get_devdata(master);
 
 	clk_disable_unprepare(spifc->clk);
 
@@ -428,8 +428,8 @@ static int meson_spifc_runtime_suspend(struct device *dev)
 
 static int meson_spifc_runtime_resume(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct meson_spifc *spifc = spi_master_get_devdata(master);
+	struct spi_controller *master = dev_get_drvdata(dev);
+	struct meson_spifc *spifc = spi_controller_get_devdata(master);
 
 	return clk_prepare_enable(spifc->clk);
 }

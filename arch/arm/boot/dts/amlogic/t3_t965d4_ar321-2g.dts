@@ -1895,14 +1895,14 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
-	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_LOW>;
 };
 
 &spicc1 {	//for UWB/LocalDimm
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins>;
-	cs-gpios = <&gpio GPIOH_24 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio GPIOH_24 GPIO_ACTIVE_LOW>;
 	cs2clk-us = <2>;
 	clk2cs-us = <12>;
 };
@@ -1911,7 +1911,7 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc2_pins>;
-	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_LOW>;
 };
 
 &meson_suspend {

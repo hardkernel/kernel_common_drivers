@@ -553,6 +553,39 @@ static int meson_spicc_set_speed(struct meson_spicc_device *spicc, int hz)
 	return ret;
 }
 
+static u8 meson_spicc_get_ctrl_cs_line(struct spi_device *spi)
+{
+	u8 ret, idx;
+
+	for (idx = 0; idx < MESON_SPI_CS_CNT_MAX; idx++) {
+		ret = spi_get_chipselect(spi, idx);
+		if (ret != SPI_INVALID_CS)
+			return ret;
+	}
+
+	if (idx == MESON_SPI_CS_CNT_MAX)
+		ret = SPICC_DEFAULT_CS;
+
+	return ret;
+}
+
+static int meson_spicc_get_gpio_cs_num(struct spi_device *spi)
+{
+	struct spi_controller *ctlr = spi->controller;
+	struct device *dev = &ctlr->dev;
+	int nb;
+
+	nb = gpiod_count(dev, "cs");
+	if (nb < 0) {
+		/* No GPIOs at all is fine, else return the error */
+		if (nb == -ENOENT)
+			return 0;
+		return nb;
+	}
+
+	return nb;
+}
+
 static int meson_spicc_dma_map(struct meson_spicc_device *spicc,
 			       struct spi_transfer *t)
 {
@@ -693,8 +726,9 @@ static void meson_spicc_dma_irq(struct meson_spicc_device *spicc)
 		writel_relaxed(0, spicc->base + SPICC_INTREG);
 		writel_relaxed(0, spicc->base + SPICC_DMAREG);
 		writel_relaxed(0, spicc->base + SPICC_LD_CNTL0);
-		if (!spicc->is_dma_mapped)
-			meson_spicc_dma_unmap(spicc, spicc->xfer);
+
+		meson_spicc_dma_unmap(spicc, spicc->xfer);
+
 		if (spicc->xfer != &spicc->async_xfer) {
 			spi_finalize_current_transfer(spicc->controller);
 		} else {
@@ -898,7 +932,7 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 	if (((xfer->len % 8) == 0) &&
 	    (spicc->data->support_dma_burst_len_1 || xfer->len >= 16) &&
 	    (spicc->word_mode_ctrl || xfer->bits_per_word == 64) &&
-	    (spicc->is_dma_mapped || !meson_spicc_dma_map(spicc, xfer))) {
+	    (!meson_spicc_dma_map(spicc, xfer))) {
 		spicc->using_dma = 1;
 		spicc->tx_remain = xfer->len / SPICC_DMA_BYTES_PER_WORD;
 		spicc->rx_remain = spicc->tx_remain;
@@ -949,9 +983,9 @@ static int meson_spicc_prepare_message(struct spi_controller *ctlr,
 	struct spi_device *spi = message->spi;
 
 	/* Store current message */
-	spicc->is_dma_mapped = message->is_dma_mapped;
-	meson_spicc_hw_prepare(spicc, spi->mode, spi->chip_select);
+	meson_spicc_hw_prepare(spicc, spi->mode, meson_spicc_get_ctrl_cs_line(spi));
 	meson_spicc_set_width(spicc, spi->bits_per_word);
+
 	return 0;
 }
 
@@ -977,6 +1011,7 @@ static int meson_spicc_setup(struct spi_device *spi)
 #ifdef CONFIG_AMLOGIC_MODIFY
 	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
 	struct  spicc_controller_data *cdata;
+	int cs_num;
 
 	cdata = (struct spicc_controller_data *)spi->controller_data;
 	if (cdata) {
@@ -989,7 +1024,11 @@ static int meson_spicc_setup(struct spi_device *spi)
 		cdata->dirspi_dma_trig_stop = dirspi_dma_trig_stop;
 	}
 
-	meson_spicc_hw_prepare(spicc, spi->mode, spi->chip_select);
+	cs_num = meson_spicc_get_gpio_cs_num(spi);
+	if (cs_num > 0)
+		spi->cs_index_mask = GENMASK(cs_num - 1, 0);
+
+	meson_spicc_hw_prepare(spicc, spi->mode, meson_spicc_get_ctrl_cs_line(spi));
 	meson_spicc_set_width(spicc, spi->bits_per_word);
 	meson_spicc_set_speed(spicc, spi->max_speed_hz);
 #endif
@@ -1067,14 +1106,18 @@ static int meson_spicc_hw_init(struct meson_spicc_device *spicc)
 #ifdef MESON_SPICC_HW_IF
 static void dirspi_set_cs(struct spi_device *spi, bool enable)
 {
+	u8 idx;
+
 	if (spi->mode & SPI_NO_CS)
 		return;
 
 	if (spi->mode & SPI_CS_HIGH)
 		enable = !enable;
 
-	if (spi->cs_gpiod)
-		gpiod_set_value(spi->cs_gpiod, !enable);
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
+		if (spi->cs_gpiod[idx])
+			gpiod_set_value(spi->cs_gpiod[idx], !enable);
+	}
 }
 
 static void dirspi_start(struct spi_device *spi)
@@ -1164,7 +1207,7 @@ static int dirspi_dma_trig(struct spi_device *spi,
 	spicc->using_dma = 1;
 	spicc->bytes_per_word = DIV_ROUND_UP(spi->bits_per_word, 8);
 
-	meson_spicc_hw_prepare(spicc, spi->mode, spi->chip_select);
+	meson_spicc_hw_prepare(spicc, spi->mode, meson_spicc_get_ctrl_cs_line(spi));
 	meson_spicc_set_width(spicc, spi->bits_per_word);
 	meson_spicc_set_speed(spicc, spi->max_speed_hz);
 	meson_spicc_set_endian(spicc, spi->mode & SPI_LSB_FIRST);
@@ -1544,7 +1587,8 @@ static int meson_spicc_probe(struct platform_device *pdev)
 
 	device_reset_optional(&pdev->dev);
 
-	ctlr->num_chipselect = 4;
+	ctlr->num_chipselect = MESON_SPI_CS_CNT_MAX;
+	ctlr->use_gpio_descriptors = true;
 	ctlr->dev.of_node = pdev->dev.of_node;
 	ctlr->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LOOP;
 	if (spicc->data->has_endian_ctrl)
@@ -1557,7 +1601,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	ctlr->transfer_one = meson_spicc_transfer_one;
 	/* Setup max rate according to the Meson GX datasheet */
 	ctlr->max_speed_hz = spicc->data->max_speed_hz;
-	ret = devm_spi_register_master(&pdev->dev, ctlr);
+	ret = devm_spi_register_controller(&pdev->dev, ctlr);
 	if (ret) {
 		dev_err(&pdev->dev, "spi controller registration failed\n");
 		goto out_clk;

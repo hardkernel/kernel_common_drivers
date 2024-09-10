@@ -1752,7 +1752,7 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
-	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_LOW>;
 	spi-nor@0 {
 		compatible = "jedec,spi-nor";
 		status = "okay";
@@ -1765,14 +1765,14 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins>;
-	cs-gpios = <&gpio GPIOH_22 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio GPIOH_22 GPIO_ACTIVE_LOW>;
 };
 
 &spicc2 {
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc2_pins>;
-	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_LOW>;
 };
 
 &cma_shrinker {

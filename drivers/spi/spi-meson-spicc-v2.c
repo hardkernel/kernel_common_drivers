@@ -282,6 +282,7 @@ static int meson_spicc_config(struct spicc_device *spicc,
 			      struct spi_device *spi)
 {
 	struct  spicc_controller_data *cdata;
+	u8 cs, idx;
 
 	if (!spi->bits_per_word || spi->bits_per_word % 8) {
 		spicc_err("invalid wordlen %d\n", spi->bits_per_word);
@@ -290,7 +291,14 @@ static int meson_spicc_config(struct spicc_device *spicc,
 
 	spicc->bytes_per_word = spi->bits_per_word >> 3;
 	spicc->cfg_start.b.block_size = spicc->bytes_per_word & 0x7;
-	spicc->cfg_spi.b.ss = spi->chip_select;
+
+	for (idx = 0; idx < MESON_SPI_CS_CNT_MAX; idx++) {
+		cs = spi_get_chipselect(spi, idx);
+		if (cs != SPI_INVALID_CS) {
+			spicc->cfg_spi.b.ss = spi->chip_select[idx];
+			break;
+		}
+	}
 
 	spicc->cfg_bus.b.cpol = !!(spi->mode & SPI_CPOL);
 	spicc->cfg_bus.b.cpha = !!(spi->mode & SPI_CPHA);
@@ -362,7 +370,6 @@ static int nbits_to_lane[] = {
 static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 			struct spicc_descriptor *desc,
 			struct spi_transfer *xfer,
-			bool is_dma_mapped,
 			bool ccxfer_en)
 {
 	int block_size, blocks;
@@ -415,16 +422,7 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 		desc->cfg_start.b.block_num = blocks;
 	}
 
-	if (is_dma_mapped) {
-		if (xfer->tx_buf) {
-			desc->tx_paddr = xfer->tx_dma;
-			desc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_MEM;
-		}
-		if (xfer->rx_buf) {
-			desc->rx_paddr = xfer->rx_dma;
-			desc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_MEM;
-		}
-	} else if (ccxfer_en && (xfer->tx_sg.sgl || xfer->rx_sg.sgl)) {
+	if (ccxfer_en && (xfer->tx_sg.sgl || xfer->rx_sg.sgl)) {
 		if (xfer->tx_buf) {
 			ccxfer->tx_ccsg_len = xfer->tx_sg.nents * sizeof(void *);
 			ccxfer->tx_ccsg = dma_alloc_coherent(dev,
@@ -459,7 +457,7 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 			desc->cfg_start.b.rx_data_mode = SPICC_DATA_MODE_SG;
 		}
 	} else {
-		if (xfer->tx_buf) {
+		if (xfer->tx_buf && !xfer->tx_dma) {
 			xfer->tx_dma = dma_map_single(dev,
 					(void *)xfer->tx_buf,
 					xfer->len,
@@ -472,7 +470,7 @@ static int spicc_config_desc_one_transfer(struct spicc_device *spicc,
 			desc->cfg_start.b.tx_data_mode = SPICC_DATA_MODE_MEM;
 		}
 
-		if (xfer->rx_buf) {
+		if (xfer->rx_buf && !xfer->rx_dma) {
 			xfer->rx_dma = dma_map_single(dev,
 					xfer->rx_buf,
 					xfer->len,
@@ -528,7 +526,6 @@ static struct spicc_descriptor *spicc_create_desc_table
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		if (spicc_config_desc_one_transfer(spicc, desc, xfer,
-				msg->is_dma_mapped,
 				cdata ? cdata->ccxfer_en : 0))
 			return NULL;
 		desc++;
@@ -567,8 +564,6 @@ static void spicc_destroy_desc_table(struct spicc_device *spicc,
 
 	if (!desc)
 		return;
-	if (msg->is_dma_mapped)
-		goto end;
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		if (ccxfer_en && (xfer->tx_sg.sgl || xfer->rx_sg.sgl)) {
@@ -603,7 +598,6 @@ static void spicc_destroy_desc_table(struct spicc_device *spicc,
 		desc++;
 	}
 
-end:
 	dma_free_coherent(dev, desc_len, desc_table, paddr);
 }
 
@@ -1028,7 +1022,9 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	spicc->cfg_start.b.pending = 1;
 
 	device_reset_optional(&pdev->dev);
-	ctlr->num_chipselect = 4;
+	ctlr->num_chipselect = MESON_SPI_CS_CNT_MAX;
+	/* TODO: fixme ctrl does't support gpio chipselect */
+	ctlr->use_gpio_descriptors = false;
 	ctlr->dev.of_node = pdev->dev.of_node;
 	ctlr->mode_bits = SPI_CPHA | SPI_CPOL | SPI_LSB_FIRST |
 			  SPI_3WIRE | SPI_TX_QUAD | SPI_RX_QUAD;
@@ -1043,7 +1039,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	ctlr->can_dma = meson_spicc_can_dma;
 	ctlr->max_dma_len = SPICC_BLOCK_MAX;
 	dma_set_max_seg_size(&pdev->dev, SPICC_BLOCK_MAX);
-	ret = devm_spi_register_master(&pdev->dev, ctlr);
+	ret = devm_spi_register_controller(&pdev->dev, ctlr);
 	if (ret) {
 		dev_err(&pdev->dev, "spi controller registration failed\n");
 		goto out_clk;

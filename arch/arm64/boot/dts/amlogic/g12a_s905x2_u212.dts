@@ -1728,5 +1728,5 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_c>;
-	cs-gpios = <&gpio GPIOC_2 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio GPIOC_2 GPIO_ACTIVE_LOW>;
 };

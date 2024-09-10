@@ -781,5 +781,5 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_x7_10>;
-	cs-gpios = <&gpio GPIOX_9 0>;
+	cs-gpios = <&gpio GPIOX_9 GPIO_ACTIVE_LOW>;
 };

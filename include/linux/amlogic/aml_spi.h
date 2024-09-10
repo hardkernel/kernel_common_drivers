@@ -6,6 +6,10 @@
 #ifndef __AML_SPI_H_
 #define __AML_SPI_H_
 
+#define SPI_INVALID_CS		((s8)-1)
+#define MESON_SPI_CS_CNT_MAX	4
+#define SPICC_DEFAULT_CS	0
+
 enum {
 	DMA_TRIG_NORMAL = 0,
 	DMA_TRIG_VSYNC,

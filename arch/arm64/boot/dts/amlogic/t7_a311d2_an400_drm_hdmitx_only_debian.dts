@@ -1492,14 +1492,14 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc2_pins>;
-	cs-gpios = <&gpio GPIOY_3 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio GPIOY_3 GPIO_ACTIVE_LOW>;
 };
 
 &spicc3 {
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc3_pins>;
-	cs-gpios = <&gpio GPIOT_9 0>;
+	cs-gpios = <&gpio GPIOT_9 GPIO_ACTIVE_LOW>;
 	spi-nor@0 {
 		compatible = "jedec,spi-nor";
 		status = "okay";

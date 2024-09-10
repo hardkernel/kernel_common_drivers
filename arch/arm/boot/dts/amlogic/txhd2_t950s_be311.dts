@@ -974,7 +974,7 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_c>;
-	cs-gpios = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio GPIOC_7 GPIO_ACTIVE_LOW>;
 	assigned-clocks = <&clkc CLKID_SPICC0>;
 	assigned-clock-parents = <&clkc CLKID_FCLK_DIV2>;
 	assigned-clock-rates = <200000000>;

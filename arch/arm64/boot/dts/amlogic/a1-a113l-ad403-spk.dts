@@ -960,7 +960,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_led_pins_a>;
-	//cs-gpios = <&gpio GPIOA_8 0>;
+	//cs-gpios = <&gpio GPIOA_8 GPIO_ACTIVE_LOW>;
 	spidev@0 {
 		compatible = "rohm,dh2228fv";
 		status = "okay";

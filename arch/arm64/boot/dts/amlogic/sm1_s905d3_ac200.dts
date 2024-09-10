@@ -2044,14 +2044,14 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_x>;
-	cs-gpios = <&gpio GPIOX_10 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio GPIOX_10 GPIO_ACTIVE_LOW>;
 };
 
 &spicc1 {
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins>;
-	cs-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_LOW>;
 };
 
 &ir {

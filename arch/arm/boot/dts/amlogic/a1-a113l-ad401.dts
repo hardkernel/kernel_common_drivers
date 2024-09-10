@@ -882,5 +882,5 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_a>;
-	cs-gpios = <&gpio GPIOA_8 0>;
+	cs-gpios = <&gpio GPIOA_8 GPIO_ACTIVE_LOW>;
 };
