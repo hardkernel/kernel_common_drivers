@@ -2810,7 +2810,7 @@
 		};
 	};
 
-	eth_led_pins: eth {
+	eth_led_pins: eth-led {
 		mux {
 			groups = "eth_link_led",
 				 "eth_act_led";
