@@ -368,7 +368,12 @@
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				pcritical: trip-point@2 {
+				phot: trip-point@2 {
+					temperature = <55000>;
+					hysteresis = <5000>;
+					type = "hot";
+				};
+				pcritical: trip-point@3 {
 					temperature = <105000>;
 					hysteresis = <1000>;
 					type = "critical";
@@ -384,6 +389,11 @@
 				gpufreq_cooling_map {
 					trip = <&pcontrol>;
 					cooling-device = <&gpu 0 3>;
+					contribution = <1024>;
+				};
+				ddr0_cooling_map {
+					trip = <&phot>;
+					cooling-device = <&ddr_cool0 0 12>;
 					contribution = <1024>;
 				};
 			};

@@ -1473,9 +1473,23 @@
 					node_name = "bifrost";
 					device_type = "gpufreq";
 				};
+				ddr0_cool {
+					ddr_reg = <0xfe0364b4 0xfe0365b4>;
+					ddr_status = <13>;
+					ddr_bits = <0 15>,<0 15>;
+					ddr_data = <6232 6232 4985 3895 3116 2492 1947 1780
+						1558 1246 1038 890 779>;
+					gpu_data = <3116 3116 2492 1947 1558 1246 973 890
+						779 623 519 445 389>;
+					node_name = "ddr_cool0";
+					device_type = "ddr";
+				};
 			};
 			cpucore:cpucore {
 				#cooling-cells = <2>; /* min followed by max */
+			};
+			ddr_cool0:ddr_cool0 {
+				#cooling-cells = <2>;
 			};
 		};/*meson cooling devices end*/
 
