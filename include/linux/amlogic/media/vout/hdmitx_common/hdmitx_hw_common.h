@@ -102,6 +102,7 @@
 #define MISC_HPD_IRQ_TOP_HALF   (CMD_MISC_OFFSET + 0x21)
 #define MISC_HDMI_CLKS_CTRL		(CMD_MISC_OFFSET + 0X22)
 #define MISC_VALIDATE_HDCP14_KEY	(CMD_MISC_OFFSET + 0x23)
+#define MISC_CLR_FRL_MODE		(CMD_MISC_OFFSET + 0x24)
 
 /***********************************************************************
  *                          Get State //getstate
