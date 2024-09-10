@@ -889,205 +889,6 @@ static void set_vsr_pi(struct vsr_setting_s *vsr)
 		(vsr_pi->pi_en), 4, 1);
 }
 
-void set_safa_pps_s7d(struct vsr_setting_s *vsr)
-{
-	struct vsr_safa_setting_s *vsr_safa = &vsr->vsr_safa;
-	struct vsr_top_setting_s *vsr_top = &vsr->vsr_top;
-	u32 postsc_size_mux = 0, dir_info_ds_x_en = 0;
-	u32 drt_intp_en, sharp_en = 0;
-	u32 pi_vofst = 0, adp_tap_alp_mode = 0;
-	u32 beta_mode = 0;
-	u32 sr_delta_alp_mode = 0, sr_gamma_alp_mode = 0;
-	u32 pi_gamma_mode = 0, pi_max_sad_mode = 0;
-	u32 analy_en = vsr_safa->postsc_en;
-	//1 bits prehscaler en
-	u32 preh_en = vsr_safa->preh_en;
-	//1 bits prevscaler en
-	u32 prev_en = vsr_safa->prev_en;
-	//2 bits prehor ds ratio 0:1/1 1:1/2 2:1/4 3:1/8
-	u32 preh_ratio = vsr_safa->preh_ratio;
-	//2 bits prever ds ratio 0:1/1 1:1/2 2:1/4 3:1/8
-	u32 prev_ratio = vsr_safa->prev_ratio;
-	//1 bits postscaler en
-	u32 postsc_en = vsr_safa->postsc_en;
-	//1 bits 0: yuv444 pc mode 1: yuv422
-	u32 input_422_en = vsr_top->input_422_en;
-	u32 safa_pps_top_en = postsc_en | preh_en | prev_en;
-	u8 vpp_index = vsr->vpp_index;
-	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
-	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
-	struct hw_vsr_safa_reg_s *vsr_reg;
-	u32 filt_num_c = 4;
-
-	vsr_reg = &vd_layer[0].vsr_safa_reg;
-	adp_tap_alp_mode = 1;
-	beta_mode        = 1;
-	sr_delta_alp_mode = 1;
-	sr_gamma_alp_mode = 1;
-	pi_gamma_mode    = 1;
-	pi_max_sad_mode  = 1;
-
-	if (safa_pps_top_en) {
-		//postsc hsize region
-		if (vsr_safa->pre_hsize <= 1024) {
-			postsc_size_mux = 0;
-			dir_info_ds_x_en = 0;
-			drt_intp_en = 1;
-		} else if (vsr_safa->pre_hsize <= 2048) {
-			postsc_size_mux = 0;
-			dir_info_ds_x_en = 1;
-			drt_intp_en = 1;
-		} else {
-			postsc_size_mux = 1;
-			dir_info_ds_x_en = 1;
-			drt_intp_en = 0;
-			adp_tap_alp_mode = 3;
-			beta_mode = 3;
-			sr_delta_alp_mode = 3;
-			sr_gamma_alp_mode = 3;
-			pi_gamma_mode = 3;
-			pi_max_sad_mode = 3;
-		}
-
-		if (input_422_en) {
-			sharp_en = 1;
-			pi_vofst = 2;
-		} else {
-			sharp_en = 0;
-			pi_vofst = 1;
-			adp_tap_alp_mode = 3;
-			beta_mode = 3;
-			sr_delta_alp_mode = 3;
-			sr_gamma_alp_mode = 3;
-			pi_gamma_mode = 3;
-			pi_max_sad_mode = 3;
-		}
-		if (debug_common_flag & DEBUG_FLAG_COMMON_SAFA)
-			pr_info("%s:preh/v_en:%d, %d, pre_h/vsize:%d, %d, preh/v_ratio:%d, %d, postsc_en:%d\n",
-				__func__,
-				vsr_safa->preh_en,
-				vsr_safa->prev_en,
-				vsr_safa->pre_hsize,
-				vsr_safa->pre_vsize,
-				vsr_safa->preh_ratio,
-				vsr_safa->prev_ratio,
-				vsr_safa->postsc_en);
-		//postsc coef lut config
-		safa_pps_scale_set_coef(vsr,
-			vsr_reg->safa_pps_cntl_scale_coef_idx_luma,
-			vsr_reg->safa_pps_cntl_scale_coef_luma);
-		safa_pps_scale_set_coef(vsr,
-			vsr_reg->safa_pps_cntl_scale_coef_idx_chro,
-			vsr_reg->safa_pps_cntl_scale_coef_chro);
-		if (pre_scaler[0].pre_hscaler_ntap == PRE_HSCALER_2TAP ||
-			pre_scaler[0].pre_vscaler_ntap == PRE_VSCALER_2TAP)
-			filt_num_c = 2;
-		else
-			filt_num_c = 4;
-
-		//reg config
-		rdma_wr_bits(vsr_reg->safa_pps_sr_422_en,
-			input_422_en, 0, 1);
-		rdma_wr(vsr_reg->safa_pps_pre_scale,
-			(4 << 16) |
-			(filt_num_c << 12) |
-			(4 << 8) |
-			(preh_ratio << 4) |
-			(prev_ratio << 0));
-		if (pre_scaler[0].pre_hscaler_ntap == PRE_HSCALER_2TAP ||
-			pre_scaler[0].pre_vscaler_ntap == PRE_VSCALER_2TAP) {
-			rdma_wr(vsr_reg->safa_pps_pre_hscale_coef_y1,
-				(0 << 16) |
-				(0 << 0));
-			rdma_wr(vsr_reg->safa_pps_pre_hscale_coef_y0,
-				(0 << 16) |
-				(256 << 0));
-			rdma_wr(vsr_reg->safa_pps_pre_hscale_coef_c1,
-				(0 << 16) |
-				(0 << 0));
-			rdma_wr(vsr_reg->safa_pps_pre_hscale_coef_c0,
-				(0 << 16) |
-				(256 << 0));
-			rdma_wr(vsr_reg->safa_pps_pre_vscale_coef,
-				(0 << 16) |
-				(256 << 0));
-		} else {
-			rdma_wr(vsr_reg->safa_pps_pre_hscale_coef_y1,
-				(0 << 16) |
-				(0 << 0));
-			rdma_wr(vsr_reg->safa_pps_pre_hscale_coef_y0,
-				(64 << 16) |
-				(192 << 0));
-			rdma_wr(vsr_reg->safa_pps_pre_hscale_coef_c1,
-				(0 << 16) |
-				(0 << 0));
-			rdma_wr(vsr_reg->safa_pps_pre_hscale_coef_c0,
-				(64 << 16) |
-				(194 << 0));
-			rdma_wr(vsr_reg->safa_pps_pre_vscale_coef,
-				(64 << 16) |
-				(194 << 0));
-		}
-
-		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-			postsc_size_mux, 1, 1);
-		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-			pi_vofst, 9, 2);
-		rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
-			adp_tap_alp_mode, 8, 2);
-		rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
-			beta_mode, 12, 2);
-		rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
-			drt_intp_en, 24, 1);
-		rdma_wr_bits(vsr_reg->safa_pps_yuv_sharpen_en,
-			sharp_en, 4, 1);
-		rdma_wr_bits(vsr_reg->safa_pps_dir_en_mode,
-			dir_info_ds_x_en, 24, 1);
-		rdma_wr_bits(vsr_reg->safa_pps_sr_alp_info,
-			sr_delta_alp_mode, 24, 2);
-		rdma_wr_bits(vsr_reg->safa_pps_sr_alp_info,
-			sr_gamma_alp_mode, 8, 2);
-		rdma_wr_bits(vsr_reg->safa_pps_pi_info,
-			pi_gamma_mode, 20, 2);
-		rdma_wr_bits(vsr_reg->safa_pps_pi_info,
-			pi_max_sad_mode, 8, 2);
-		rdma_wr(vsr_reg->safa_pps_hsc_start_phase_step,
-			((vsr_top->pi_safa_hsc_integer_part & 0xf) << 24) |
-			((vsr_top->pi_safa_hsc_fraction_part & 0xffffff) << 0));
-		rdma_wr(vsr_reg->safa_pps_vsc_start_phase_step,
-			((vsr_top->pi_safa_vsc_integer_part & 0xf) << 24) |
-			((vsr_top->pi_safa_vsc_fraction_part & 0xffffff) << 0));
-		rdma_wr_bits(vsr_reg->safa_pps_vsc_init,
-			vsr_top->pi_safa_vsc_ini_phase, 0, 16);
-		rdma_wr_bits(vsr_reg->safa_pps_hsc_init,
-			vsr_top->pi_safa_hsc_ini_phase, 0, 16);
-		rdma_wr_bits(vsr_reg->safa_pps_vsc_init,
-			vsr_top->pi_safa_vsc_ini_integer, 16, 5);
-		rdma_wr_bits(vsr_reg->safa_pps_hsc_init,
-			vsr_top->pi_safa_hsc_ini_integer, 16, 5);
-		if (!video_is_meson_s7d_cpu())
-			rdma_wr_bits(vsr_reg->safa_pps_bot_vsc_init,
-				vsr_top->pi_safa_vsc_ini_phase, 0, 16);
-		rdma_wr_bits(vsr_reg->safa_pps_sc_misc,
-			prev_en, 4, 1);
-		rdma_wr_bits(vsr_reg->safa_pps_sc_misc,
-			preh_en, 8, 1);
-		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-			postsc_en, 2, 1);
-	}
-	//scale down disable analy_en
-	if (vsr->vsr_top.hsize_in >= vsr->vsr_top.hsize_out ||
-		vsr->vsr_top.vsize_in >= vsr->vsr_top.vsize_out)
-		analy_en = 0;
-	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-		analy_en, 4, 1);
-	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-		safa_pps_top_en, 8, 1);
-	if (cur_dev->dejaggy_support)
-		rdma_wr_bits(vsr_reg->safa_pps_dejaggy_ctrl,
-			vsr_safa->dejaggy_en, 31, 1);
-}
-
 void set_safa_pps(struct vsr_setting_s *vsr)
 {
 	struct vsr_safa_setting_s *vsr_safa = &vsr->vsr_safa;
@@ -1298,12 +1099,6 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 			preh_en, 8, 1);
 		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 			postsc_en, 2, 1);
-		//scale down disable analy_en
-		if (vsr->vsr_top.hsize_in >= vsr->vsr_top.hsize_out ||
-			vsr->vsr_top.vsize_in >= vsr->vsr_top.vsize_out)
-			analy_en = 0;
-		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-			analy_en, 4, 1);
 	}
 	if (cur_dev->vsr_nonlinear_support &&
 		vsr_safa->nonlinear_4region_en) {
@@ -1338,6 +1133,14 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 	}
 	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 		safa_pps_top_en, 8, 1);
+	//scale down or input hsize over 1024/2048 disable analy_en
+	if ((vsr->vsr_top.hsize_in > vsr->vsr_top.hsize_out ||
+		vsr->vsr_top.vsize_in > vsr->vsr_top.vsize_out) ||
+		((glayer_info[0].src_height_max == 2160 && vsr->vsr_top.hsize_in > 2048) ||
+		(glayer_info[0].src_height_max == 1088 && vsr->vsr_top.hsize_in > 1024)))
+		analy_en = 0;
+	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+		analy_en, 4, 1);
 	if (cur_dev->dejaggy_support)
 		rdma_wr_bits(vsr_reg->safa_pps_dejaggy_ctrl,
 			vsr_safa->dejaggy_en, 31, 1);
@@ -1434,12 +1237,19 @@ static void set_vd1_frm2fld_en(struct vsr_setting_s *vsr)
 static void sharpness_and_dir_interp_enable(struct vsr_setting_s *vsr)
 {
 	u8 vpp_index = VPP0;
+	int dir_interp_en = safa_dir_interp_en;
 	struct hw_vsr_safa_reg_s *vsr_reg;
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 
 	vsr_reg = &vd_layer[0].vsr_safa_reg;
+	//scale up or input size over 1024/2048 disable dir_interp_en
+	if ((vsr->vsr_top.hsize_in > vsr->vsr_top.hsize_out ||
+		vsr->vsr_top.vsize_in > vsr->vsr_top.vsize_out) ||
+		((glayer_info[0].src_height_max == 2160 && vsr->vsr_top.hsize_in > 2048) ||
+		(glayer_info[0].src_height_max == 1088 && vsr->vsr_top.hsize_in > 1024)))
+		dir_interp_en = 0;
 	rdma_wr_bits(vsr_reg->safa_pps_interp_en_mode,
-		safa_dir_interp_en, 25, 1);
+		dir_interp_en, 25, 1);
 	if (super_scaler && vsr->vsr_top.sharpness_en)
 		rdma_wr_bits(VPP_SR_EN, 1, 0, 1);
 	else
@@ -1451,18 +1261,12 @@ void set_vsr_scaler(struct vsr_setting_s *vsr)
 	set_vsr_input_size(vsr);
 	set_vsr_input_format(vsr);
 	set_vd1_frm2fld_en(vsr);
+	sharpness_and_dir_interp_enable(vsr);
 	if (vsr->vsr_top.vsr_en) {
 		set_cfg_pi_safa(vsr);
 		set_vsr_pi(vsr);
 		set_safa_pps(vsr);
-		#ifdef test
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_T6D))
-			set_safa_pps(vsr);
-		else
-			set_safa_pps_s7d(vsr);
-		#endif
 	}
-	sharpness_and_dir_interp_enable(vsr);
 }
 
 #ifdef lut_data_load
