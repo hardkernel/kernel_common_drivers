@@ -1168,11 +1168,12 @@ static int aml_am_acodec_probe(struct platform_device *pdev)
 			(pdev->dev.of_node,
 			"lane_offset",
 			&aml_acodec->lane_offset);
-	of_property_read_u32
+	ret = of_property_read_u32
 			(pdev->dev.of_node,
 			"adc_pga_gain",
 			&aml_acodec->adc_pga_gain);
-
+	if (ret < 0)
+		aml_acodec->adc_pga_gain = 9;
 	ret = of_property_read_u32(pdev->dev.of_node,
 			"charger_current_cap", &aml_acodec->charger_current_cap);
 	if (ret < 0)
