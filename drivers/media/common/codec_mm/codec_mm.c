@@ -4255,6 +4255,34 @@ static int codec_mm_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int codec_mm_restore(struct device *dev)
+{
+	int ret = 0;
+
+	if (sec_vdec_addr > 0 && sec_vdec_size > 0) {
+		ret = tee_register_mem(TEE_MEM_TYPE_STREAM_INPUT,
+				sec_vdec_addr, sec_vdec_size);
+		if (ret) {
+			pr_err("Restore secure vdec memory %llx %llx ret is %x\n",
+				(u64)sec_vdec_addr, (u64)sec_vdec_size, ret);
+		}
+	}
+
+	return ret;
+}
+
+static int codec_mm_freeze(struct device *dev)
+{
+	return 0;
+}
+
+static const struct dev_pm_ops codec_mm_pm_ops = {
+	.freeze = codec_mm_freeze,
+	.restore = codec_mm_restore,
+};
+#endif
+
 static const struct of_device_id amlogic_mem_dt_match[] = {
 	{
 			.compatible = "amlogic, codec, mm",
@@ -4269,6 +4297,9 @@ static struct platform_driver codec_mm_driver = {
 			.owner = THIS_MODULE,
 			.name = "codec_mm",
 			.of_match_table = amlogic_mem_dt_match,
+#ifdef CONFIG_PM
+			.pm = &codec_mm_pm_ops,
+#endif
 		}
 };
 
