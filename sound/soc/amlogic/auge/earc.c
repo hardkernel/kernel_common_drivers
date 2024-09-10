@@ -116,7 +116,6 @@ struct earc {
 	struct clk *clk_tx_dmac;
 	struct clk *clk_tx_cmdc_srcpll;
 	struct clk *clk_tx_dmac_srcpll;
-
 	/* for 44100hz samplerate */
 	struct clk *clk_src_cd;
 
@@ -130,39 +129,7 @@ struct earc {
 	struct toddr *tddr;
 	struct frddr *fddr;
 
-	int irq_earc_rx;
-	int irq_earc_tx;
-
-	/* audio codec type for tx */
-	enum audio_coding_types tx_audio_coding_type;
-	/* audio codec type for tx by ui kcontrol setting */
-	enum audio_coding_types ui_tx_audio_coding_type;
-	/* audio codec type for recording tx setting */
-	enum audio_coding_types last_tx_audio_coding_type;
-	/* freq for tx dmac clk */
-	int tx_dmac_freq;
-
-	/* whether dmac clock is on */
-	bool rx_dmac_clk_on;
-	spinlock_t rx_lock;  /* rx dmac clk lock */
-	spinlock_t tx_lock;  /* tx dmac clk lock */
-	bool tx_dmac_clk_on;
-
-	/* do analog auto calibration when bootup */
-	struct work_struct work;
-	enum work_event event;
-	bool rx_bootup_auto_cal;
-	bool tx_bootup_auto_cal;
-
 	struct earc_chipinfo *chipinfo;
-
-	/* mute in channel status */
-	bool rx_cs_mute;
-	bool tx_cs_mute;
-	bool rx_spdifin_mute;
-
-	/* Channel Allocation */
-	unsigned int tx_cs_lpcm_ca;
 
 	/* channel map */
 	struct snd_pcm_chmap *rx_chmap;
@@ -170,29 +137,37 @@ struct earc {
 
 	struct snd_pcm_substream *substreams[2];
 
+	/* do analog auto calibration when bootup */
+	struct work_struct work;
 	struct work_struct rx_dmac_int_work;
+	struct work_struct tx_hold_bus_work;
+	struct work_struct earctx_reg_init_work;
 	struct delayed_work tx_resume_work;
-	u8 rx_cds_data[CDS_MAX_BYTES];
-	u8 tx_cds_data[CDS_MAX_BYTES];
-	enum sharebuffer_srcs samesource_sel;
+	struct delayed_work send_uevent;
+	struct delayed_work gain_disable;
+	struct delayed_work rx_stable_work;
+
 	struct samesource_info ss_info;
-	bool earctx_on;
-	/*
-	 * The device(eARC Rx) type, our chip is eARC Tx
-	 * ATNDTYP_DISCNCT: For nothing device connected
-	 * ATNDTYP_ARC: The device(eARC Rx) is ARC device
-	 * ATNDTYP_EARC: The device(eARC Rx) is eARC device
-	 */
-	enum attend_type earctx_connected_device_type;
+
+	struct timer_list rx_parity_timer;
+
+	spinlock_t rx_lock;  /* rx dmac clk lock */
+	spinlock_t tx_lock;  /* tx dmac clk lock */
+
+	/* Channel Allocation */
+	unsigned int tx_cs_lpcm_ca;
 	unsigned int rx_status0;
 	unsigned int rx_status1;
-	bool tx_earc_mode;
-	bool tx_reset_hpd;
+	/* Standardization value by normal setting */
+	unsigned int standard_tx_dmac;
+	unsigned int standard_tx_freq;
+
+	int irq_earc_rx;
+	int irq_earc_tx;
+	/* freq for tx dmac clk */
+	int tx_dmac_freq;
 	int tx_heartbeat_state;
 	int tx_stream_state;
-	u8 tx_latency;
-	struct delayed_work send_uevent;
-	bool tx_mute;
 	int same_src_on;
 	/* ui earc/arc switch */
 	int tx_ui_flag;
@@ -200,27 +175,55 @@ struct earc {
 	int earctx_port;
 	/* get from hdmirx */
 	int earctx_5v;
-	/* Standardization value by normal setting */
-	unsigned int standard_tx_dmac;
-	unsigned int standard_tx_freq;
 	int suspend_clk_off;
-	bool resumed;
 	/* ui earc/arc rx switch */
 	int rx_ui_flag;
 	/* get from hdmitx */
 	int earcrx_5v;
-	struct work_struct tx_hold_bus_work;
-	struct delayed_work gain_disable;
 	int tx_arc_status;
 	int rx_cs_ready;
+	int rx_state;
+
+	/* audio codec type for tx */
+	enum audio_coding_types tx_audio_coding_type;
+	/* audio codec type for tx by ui kcontrol setting */
+	enum audio_coding_types ui_tx_audio_coding_type;
+	/* audio codec type for recording tx setting */
+	enum audio_coding_types last_tx_audio_coding_type;
+	enum work_event event;
+	enum sharebuffer_srcs samesource_sel;
+	/*
+	 * The device(eARC Rx) type, our chip is eARC Tx
+	 * ATNDTYP_DISCNCT: For nothing device connected
+	 * ATNDTYP_ARC: The device(eARC Rx) is ARC device
+	 * ATNDTYP_EARC: The device(eARC Rx) is eARC device
+	 */
+	enum attend_type earctx_connected_device_type;
+
+	u8 rx_cds_data[CDS_MAX_BYTES];
+	u8 tx_cds_data[CDS_MAX_BYTES];
+	u8 tx_latency;
+	u8 bit_status_check;
+	u8 rx_latency;
+
+	/* whether dmac clock is on */
+	bool rx_dmac_clk_on;
+	bool tx_dmac_clk_on;
+	bool rx_bootup_auto_cal;
+	bool tx_bootup_auto_cal;
+	/* mute in channel status */
+	bool rx_cs_mute;
+	bool tx_cs_mute;
+	bool earctx_on;
+	bool tx_earc_mode;
+	bool tx_reset_hpd;
+	bool tx_mute;
+	bool resumed;
 	/* stream ready to read the channel status and audio type */
 	bool stream_stable;
-	struct delayed_work rx_stable_work;
-	struct work_struct earctx_reg_init_work;
-	u8 bit_status_check;
 	bool bch_err;
+	bool rx_spdifin_mute;
 	bool rx_parity_err;
-	struct timer_list rx_parity_timer;
 };
 
 static struct earc *s_earc;
@@ -643,10 +646,8 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 	if (p_earc->rx_status0 & INT_EARCRX_CMDC_DISC1)
 		dev_info(p_earc->dev, "EARCRX_CMDC_DISC1\n");
 	if (p_earc->rx_status0 & INT_EARCRX_CMDC_EARC) {
-		u8 latency = EARCRX_DEFAULT_LATENCY;
-
 		p_earc->bit_status_check = 0x81;
-		earcrx_cmdc_set_latency(p_earc->rx_cmdc_map, &latency);
+		p_earc->rx_state = 0;
 		earcrx_cmdc_set_cds(p_earc->rx_cmdc_map, p_earc->rx_cds_data);
 		earcrx_update_attend_event(p_earc,
 					   true, true);
@@ -658,6 +659,19 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 		dev_info(p_earc->dev, "EARCRX_CMDC_LOSTHB\n");
 
 	if (p_earc->rx_status0 & INT_EARCRX_CMDC_STATUS_CH) {
+		int rx_state = earcrx_cmdc_get_rx_stat_bits(p_earc->rx_cmdc_map);
+
+		dev_info(p_earc->dev, "EARCRX_CMDC_STATUS_CH rx state: 0x%x, last state: 0x%x\n",
+			rx_state, p_earc->rx_state);
+
+		/*
+		 * bit 3: CAP_CHNG
+		 */
+		if (p_earc->rx_state & (0x1 << 3) && !(rx_state & (0x1 << 3)))
+			earcrx_cmdc_set_latency(p_earc->rx_cmdc_map, &p_earc->rx_latency);
+
+		p_earc->rx_state = rx_state;
+
 		if (p_earc->rx_status0 & INT_EARCRX_CMDC_HB_STATUS) {
 			u8 status = earcrx_cmdc_get_tx_stat_bits(p_earc->rx_cmdc_map);
 
@@ -1869,6 +1883,7 @@ static int earcrx_set_latency(struct snd_kcontrol *kcontrol,
 	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
 		return 0;
 
+	p_earc->rx_latency = latency;
 	state = earcrx_cmdc_get_state(p_earc->rx_cmdc_map);
 	if (state != CMDC_ST_EARC)
 		return 0;
@@ -3386,6 +3401,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_HDMITX21
 		register_earcrx_callback(earc_hdmitx_hpdst);
 #endif
+		p_earc->rx_latency = EARCRX_DEFAULT_LATENCY;
 		for (i = 0; i < sizeof(default_rx_cds) / sizeof(u8); i++)
 			p_earc->rx_cds_data[i] = default_rx_cds[i];
 		if (earcrx_cmdc_get_attended_type(p_earc->rx_cmdc_map) == ATNDTYP_EARC)
