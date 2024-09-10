@@ -30,7 +30,7 @@ struct dmabuf_manage_block {
 	__u64 paddr;
 	__u32 size;
 	__u32 handle;
-	void *priv;
+	struct dmx_dma_buf_sec_es_data dmxes;
 	void *dmx;
 };
 
@@ -41,13 +41,13 @@ module_param(dmabuf_manage_debug, int, 0644);
 static int dmabuf_manage_attach(struct dma_buf *dbuf, struct dma_buf_attachment *attachment)
 {
 	struct kdmabuf_attachment *attach;
-	struct dmabuf_manage_block *block = dbuf->priv;
+	struct dmabuf_manage_block *block = NULL;
 	struct sg_table *sgt;
 	struct page *page;
-	phys_addr_t phys = block->paddr;
+	phys_addr_t phys;
 	int ret;
 	int sgnum = 1;
-	struct dmx_dma_buf_sec_es_data *es = NULL;
+	struct dmx_dma_buf_sec_es_data *es = (struct dmx_dma_buf_sec_es_data *)dbuf->priv;
 	int len = 0;
 
 	pr_enter();
@@ -57,8 +57,8 @@ static int dmabuf_manage_attach(struct dma_buf *dbuf, struct dma_buf_attachment 
 		pr_error("kzalloc failed\n");
 		goto error;
 	}
-
-	es = (struct dmx_dma_buf_sec_es_data *)block->priv;
+	block = container_of(es, struct dmabuf_manage_block, dmxes);
+	phys = block->paddr;
 	if (es->data_end < es->data_start)
 		sgnum = 2;
 	sgt = &attach->sgt;
@@ -113,7 +113,7 @@ static struct sg_table *dmabuf_manage_map_dma_buf(struct dma_buf_attachment *att
 		enum dma_data_direction dma_dir)
 {
 	struct kdmabuf_attachment *attach = attachment->priv;
-	struct dmabuf_manage_block *block = attachment->dmabuf->priv;
+	struct dmabuf_manage_block *block = NULL;
 #if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	struct mutex *lock = &attachment->dmabuf->lock;
 #endif
@@ -131,6 +131,8 @@ static struct sg_table *dmabuf_manage_map_dma_buf(struct dma_buf_attachment *att
 #endif
 		return sgt;
 	}
+	block = container_of((struct dmx_dma_buf_sec_es_data *)attachment->dmabuf->priv,
+				struct dmabuf_manage_block, dmxes);
 	sgt->sgl->dma_address = block->paddr;
 #ifdef CONFIG_NEED_SG_DMA_LENGTH
 	sgt->sgl->dma_length = PAGE_ALIGN(block->size);
@@ -156,14 +158,13 @@ static void dmabuf_manage_unmap_dma_buf(struct dma_buf_attachment *attachment,
 static void dmabuf_manage_buf_release(struct dma_buf *dbuf)
 {
 	struct dmabuf_manage_block *block = NULL;
-	struct dmx_dma_buf_sec_es_data *es = NULL;
+	struct dmx_dma_buf_sec_es_data *es = (struct dmx_dma_buf_sec_es_data *)dbuf->priv;
 	struct decoder_mem_info rp_info;
 	struct dmx_demux *demux = NULL;
 	struct dmx_demux_ext *demux_ext = NULL;
 
 	pr_enter();
-	block = (struct dmabuf_manage_block *)dbuf->priv;
-	es = (struct dmx_dma_buf_sec_es_data *)block->priv;
+	block = container_of(es, struct dmabuf_manage_block, dmxes);
 	demux = (struct dmx_demux *)block->dmx;
 	if (es->buf_rp == 0)
 		es->buf_rp = es->data_end;
@@ -175,22 +176,20 @@ static void dmabuf_manage_buf_release(struct dma_buf *dbuf)
 	}
 
 	pr_dbg("dma release handle:%x\n", block->handle);
-	kfree(block->priv);
 	kfree(block);
 }
 
 static int dmabuf_manage_mmap(struct dma_buf *dbuf, struct vm_area_struct *vma)
 {
-	struct dmabuf_manage_block *block;
-	struct dmx_dma_buf_sec_es_data *es;
+	struct dmabuf_manage_block *block = NULL;
+	struct dmx_dma_buf_sec_es_data *es = (struct dmx_dma_buf_sec_es_data *)dbuf->priv;
 	unsigned long addr = vma->vm_start;
 	int len = 0;
 	int ret = -EFAULT;
 
 	pr_enter();
-	block = (struct dmabuf_manage_block *)dbuf->priv;
+	block = container_of(es, struct dmabuf_manage_block, dmxes);
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-	es = (struct dmx_dma_buf_sec_es_data *)block->priv;
 	if (block->paddr != es->data_start) {
 		pr_error("Invalid buffer info %llx %llx",
 			block->paddr, es->data_start);
@@ -242,11 +241,11 @@ static struct dma_buf *get_dmabuf(struct dmabuf_manage_block *block,
 	exp_info.ops = &dmabuf_manage_ops;
 	exp_info.size = block->size;
 	exp_info.flags = flags;
-	exp_info.priv = (void *)block;
+	exp_info.priv = (void *)&block->dmxes;
 	exp_info.exp_name = "dmabuf_manage";
 
 	dbuf = dma_buf_export(&exp_info);
-	if (IS_ERR(dbuf))
+	if (IS_ERR_OR_NULL(dbuf))
 		return NULL;
 	return dbuf;
 }
@@ -254,7 +253,6 @@ static struct dma_buf *get_dmabuf(struct dmabuf_manage_block *block,
 int dma_buf_get_fd(struct dmx_dma_buf_info *info, struct dmx_demux *dmx)
 {
 	struct dmabuf_manage_block *block;
-	struct dmx_dma_buf_sec_es_data *dmxes;
 	struct dma_buf *dbuf;
 	int fd = -1;
 	int fd_flags = O_CLOEXEC;
@@ -270,13 +268,7 @@ int dma_buf_get_fd(struct dmx_dma_buf_info *info, struct dmx_demux *dmx)
 		pr_error("kmalloc failed\n");
 		goto error_copy;
 	}
-	dmxes = kzalloc(sizeof(*dmxes), GFP_KERNEL);
-	if (!dmxes) {
-		pr_error("kmalloc failed\n");
-		goto error_alloc_object;
-	}
-	memcpy(dmxes, &info->dmxes, sizeof(*dmxes));
-	block->priv = dmxes;
+	memcpy(&block->dmxes, &info->dmxes, sizeof(block->dmxes));
 	block->dmx = dmx;
 	block->paddr = info->paddr;
 	block->size = PAGE_ALIGN(info->size);
@@ -292,13 +284,12 @@ int dma_buf_get_fd(struct dmx_dma_buf_info *info, struct dmx_demux *dmx)
 				fd, dbuf, dbuf->file);
 		goto error_fd;
 	}
-	pr_dbg("return fd:%d\n", fd);
+	pr_dbg("output fd:%d\n", fd);
 	info->fd = fd;
 	return 0;
 error_fd:
 	dma_buf_put(dbuf);
 error_alloc_object:
-	kfree(block->priv);
 	kfree(block);
 error_copy:
 	return -EFAULT;
@@ -306,43 +297,26 @@ error_copy:
 
 int dma_buf_get_info(struct dmx_dma_buf_info *info)
 {
-	struct dmabuf_manage_block *block;
+	struct dmabuf_manage_block *block = NULL;
 	struct dma_buf *dbuf;
 
 	pr_enter();
 	pr_dbg("input fd:%d\n", info->fd);
 	dbuf = dma_buf_get(info->fd);
-	if (IS_ERR(dbuf)) {
+	if (IS_ERR_OR_NULL(dbuf)) {
 		pr_error("dma_buf_get failed\n");
 		goto error;
 	}
 	if (dbuf->priv && dbuf->ops == &dmabuf_manage_ops) {
-		block = dbuf->priv;
+		block = container_of((struct dmx_dma_buf_sec_es_data *)dbuf->priv,
+					struct dmabuf_manage_block, dmxes);
 		info->paddr = block->paddr;
 		info->size = block->size;
 		info->handle = block->handle;
-		memcpy(&info->dmxes, block->priv, sizeof(struct dmx_dma_buf_sec_es_data));
+		memcpy(&info->dmxes, &block->dmxes, sizeof(block->dmxes));
 	}
 	dma_buf_put(dbuf);
 	return 0;
 error:
 	return -EFAULT;
 }
-
-void *dma_buf_get_sec_es_data(struct dma_buf *dbuf)
-{
-	void *buf = NULL;
-	struct dmabuf_manage_block *block;
-
-	if (!dbuf) {
-		pr_error("input dbuf error");
-		goto error;
-	}
-	if (dbuf->priv && dbuf->ops == &dmabuf_manage_ops) {
-		block = (struct dmabuf_manage_block *)dbuf->priv;
-		buf = block->priv;
-	}
-error:
-	return buf;
-}
-EXPORT_SYMBOL(dma_buf_get_sec_es_data);

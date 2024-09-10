@@ -12,6 +12,5 @@
 
 int dma_buf_get_fd(struct dmx_dma_buf_info *info, struct dmx_demux *dmx);
 int dma_buf_get_info(struct dmx_dma_buf_info *info);
-void *dma_buf_get_sec_es_data(struct dma_buf *dbuf);
 
 #endif
