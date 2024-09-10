@@ -202,8 +202,7 @@ static void secure_heap_dma_buf_release(struct dma_buf *dmabuf)
 	sg_free_table(&buffer->sg_table);
 	if (buffer->block_page)
 		free_reserved_page(buffer->block_page);
-
-	if (buffer->block)
+	else if (buffer->block)
 		free_pages((unsigned long)buffer->block, 0);
 
 	mutex_unlock(&buffer->lock);
