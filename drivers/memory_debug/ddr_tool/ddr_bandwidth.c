@@ -1791,8 +1791,8 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	aml_db->ost.levels.cur_level = init_ots_level;
-	if (aml_db->ops && aml_db->ops->outstanding)
-		aml_db->ops->outstanding(aml_db, 0, 0, OUTSTANDING_INIT);
+	if (aml_db->ops && aml_db->ops->outstanding_init)
+		aml_db->ops->outstanding_init(aml_db);
 
 	r = class_register(&aml_ddr_class);
 	if (r)

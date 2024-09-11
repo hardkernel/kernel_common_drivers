@@ -110,8 +110,7 @@
 #define DDR_PRIORITY_POWER		BIT(30)
 
 enum outstanding_type {
-	OUTSTANDING_INIT = 1,
-	OUTSTANDING_SET,
+	OUTSTANDING_SET = 1,
 	OUTSTANDING_GET,
 };
 
@@ -135,6 +134,7 @@ struct ddr_bandwidth_ops {
 	unsigned long (*get_freq)(struct ddr_bandwidth *db);
 	int (*outstanding)(struct ddr_bandwidth *db, int bus,
 					int value, enum outstanding_type type);
+	int (*outstanding_init)(struct ddr_bandwidth *db);
 #if DDR_BANDWIDTH_DEBUG
 	int (*dump_reg)(struct ddr_bandwidth *db, char *buf);
 #endif

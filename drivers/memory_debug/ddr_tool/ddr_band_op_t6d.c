@@ -230,7 +230,7 @@ static int t6d_dump_reg(struct ddr_bandwidth *db, char *buf)
 }
 #endif
 
-static int outstanding_init(struct ddr_bandwidth *db)
+static int __init outstanding_init(struct ddr_bandwidth *db)
 {
 	int i;
 	size_t count;
@@ -297,9 +297,6 @@ static int outstanding_handle(struct ddr_bandwidth *db, int bus,
 	int ret = 0;
 
 	switch (type) {
-	case OUTSTANDING_INIT:
-		ret = outstanding_init(db);
-		break;
 	case OUTSTANDING_SET:
 		ret = outstanding_set(db, bus, value);
 		break;
@@ -319,6 +316,7 @@ struct ddr_bandwidth_ops t6d_ddr_bw_ops = {
 	.get_freq         = t6d_get_dmc_freq_quick,
 	.handle_irq       = t6d_handle_irq,
 	.bandwidth_enable = t6d_dmc_bandwidth_enable,
+	.outstanding_init = outstanding_init,
 	.outstanding      = outstanding_handle,
 #if DDR_BANDWIDTH_DEBUG
 	.dump_reg         = t6d_dump_reg,
