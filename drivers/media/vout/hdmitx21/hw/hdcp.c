@@ -24,12 +24,14 @@
 #include <linux/arm-smccc.h>
 #include "common.h"
 
-static void hdcptx1_load_key(void)
+bool hdcptx1_load_key(void)
 {
 	struct arm_smccc_res res;
 
 	// hdcptx14_load_key
 	arm_smccc_smc(HDCPTX_IOOPR, HDCP14_LOADKEY, 0, 0, 0, 0, 0, 0, &res);
+
+	return res.a0 == 1;
 }
 
 bool get_hdcp1_lstore(void)
@@ -41,7 +43,7 @@ bool get_hdcp1_lstore(void)
 		return 0;
 	arm_smccc_smc(HDCPTX_IOOPR, HDCP14_KEY_READY, 0, 0, 0, 0, 0, 0, &res);
 
-	return (unsigned int)((res.a0) & 0xffffffff);
+	return res.a0 == 1;
 }
 
 bool get_hdcp2_lstore(void)
@@ -55,7 +57,7 @@ bool get_hdcp2_lstore(void)
 		return 0;
 	arm_smccc_smc(HDCPTX_IOOPR, HDCP22_KEY_READY, 0, 0, 0, 0, 0, 0, &res);
 
-	return (unsigned int)((res.a0) & 0xffffffff);
+	return res.a0 == 1;
 }
 
 bool get_hdcp1_result(void)
@@ -64,7 +66,7 @@ bool get_hdcp1_result(void)
 
 	arm_smccc_smc(HDCPTX_IOOPR, HDCP14_RESULT, 0, 0, 0, 0, 0, 0, &res);
 
-	return (unsigned int)((res.a0) & 0xffffffff);
+	return res.a0 == 1;
 }
 
 bool get_hdcp2_result(void)
@@ -77,7 +79,7 @@ bool get_hdcp2_result(void)
 
 	arm_smccc_smc(HDCPTX_IOOPR, HDCP22_RESULT, 0, 0, 0, 0, 0, 0, &res);
 
-	return (unsigned int)((res.a0) & 0xffffffff);
+	return res.a0 == 1;
 }
 
 bool get_hdcp2_topo(void)
@@ -90,7 +92,7 @@ bool get_hdcp2_topo(void)
 
 	arm_smccc_smc(HDCPTX_IOOPR, HDCP22_GET_TOPO, 0, 0, 0, 0, 0, 0, &res);
 
-	return (unsigned int)((res.a0) & 0xffffffff);
+	return res.a0 == 1;
 }
 
 void set_hdcp2_topo(u32 topo_type)
@@ -164,8 +166,6 @@ void hdcptx1_encryption_update(bool en)
 
 void hdcptx1_auth_start(void)
 {
-	hdcptx1_load_key();
-
 	hdmitx21_set_bit(LM_DDC_IVCTX, BIT_LM_DDC_SWTPIEN_B7, true);
 	hdmitx21_set_bit(TPI_COPP_DATA2_IVCTX, BIT_TPI_COPP_DATA2_CANCEL_PROT_EN, false);
 	hdmitx21_set_bit(TPI_COPP_DATA2_IVCTX,
@@ -317,7 +317,7 @@ void hdcptx2_auth_stop(void)
 			hdmitx21_set_bit(HDCP2X_CTL_0_IVCTX, BIT_HDCP2X_CTL_0_EN, false);
 			hdmitx21_set_bit(TPI_DDC_MASTER_EN_IVCTX,
 				BIT_TPI_DDC_MASTER_EN_HW_EN, true);
-			hdmitx21_wr_reg(DDC_CMD_IVCTX, BIT_DDC_CMD_DDC_CMD);
+			hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_ABORT_TRANSACTION);
 			usleep_range(2000, 3000);
 			hdmitx21_set_bit(TPI_DDC_MASTER_EN_IVCTX,
 				BIT_TPI_DDC_MASTER_EN_HW_EN, false);

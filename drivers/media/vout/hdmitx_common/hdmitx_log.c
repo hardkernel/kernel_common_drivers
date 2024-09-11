@@ -59,7 +59,7 @@ void __hdmitx_err(const char *format, ...)
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	pr_err("[" HDMITX_NAME ":] *ERROR* %pV", &vaf);
+	pr_err("[" HDMITX_NAME ":] *HDMITX_ERROR* %pV", &vaf);
 
 	va_end(args);
 }

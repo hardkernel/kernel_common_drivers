@@ -9,17 +9,18 @@
 
 void s1a_reset_div_clk(struct hdmitx_dev *hdev)
 {
-	hd21_write_reg(RESETCTRL_RESET0, 1 << 19); /* vid_pll_div */
+	/* vid_pll_div */
+	hd21_write_reg(RESETCTRL_RESET0, 1 << 19);
 }
 
 void set21_s1a_hpll_clk_out(u32 frac_rate, u32 clk)
 {
 	switch (clk) {
-	//hdmi txpll ctrl3<18> set 0
+	/* hdmi txpll ctrl3<18> set 0 */
 	case 5940000:
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x31204F7);
 		if (frac_rate)
-			hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x8148);
+			hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x8168);
 		else
 			hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x00010000);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x01000000);
@@ -488,7 +489,7 @@ void set21_s1a_hpll_clk_out(u32 frac_rate, u32 clk)
 		HDMITX_INFO("HPLL: 0x%x\n", hd21_read_reg(ANACTRL_HDMIPLL_CTRL0));
 		break;
 	default:
-		HDMITX_INFO("error hpll clk: %d\n", clk);
+		HDMITX_ERROR("error hpll clk: %d\n", clk);
 		break;
 	}
 }
@@ -496,16 +497,27 @@ void set21_s1a_hpll_clk_out(u32 frac_rate, u32 clk)
 void set21_phy_by_mode_s1a(u32 mode)
 {
 	switch (mode) {
-	case HDMI_PHYPARA_270M: /* SD format, 480p/576p, 270Mbps*/
+	/* SD format, 480p/576p, 270Mbps*/
+	case HDMI_PHYPARA_270M:
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x564);
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x9fe36263);
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x5af6fc1b);
 		break;
-	case HDMI_PHYPARA_LT3G: /* 1.485Gbps */
+	/* 1.485Gbps */
+	case HDMI_PHYPARA_LT3G:
 	default:
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x564);
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x9fe36284);
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x5af6fc1b);
 		break;
+	}
+}
+
+void hdmitx_s1a_clock_gate_ctrl(bool en)
+{
+	if (!en) {
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0, 29, 1);
+		usleep_range(49, 51);
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0, 28, 1);
 	}
 }

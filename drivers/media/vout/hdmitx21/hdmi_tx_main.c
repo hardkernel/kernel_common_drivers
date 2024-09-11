@@ -37,7 +37,7 @@
 #include <linux/reboot.h>
 #include <linux/i2c.h>
 #include <linux/miscdevice.h>
-//#include <linux/amlogic/cpu_version.h>
+/* #include <linux/amlogic/cpu_version.h> */
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
@@ -68,6 +68,7 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_audio.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_edid.h>
 #include "../hdmitx_common/hdmitx_compliance.h"
+#include "../hdmitx_common/hdmitx_check_valid.h"
 
 #ifdef CONFIG_AMLOGIC_DSC
 #include <linux/amlogic/media/vout/dsc.h>
@@ -80,9 +81,11 @@
 
 static u8 hdmi_allm_passthough_en;
 unsigned int rx_hdcp2_ver;
-//static unsigned int hdcp_ctl_lvl;
+/* static unsigned int hdcp_ctl_lvl; */
 
 #define TEE_HDCP_IOC_START _IOW('P', 0, int)
+#define TEE_HDCP_IOC_VALIDATE_KEY _IOWR('P', 0x1, int)
+
 #define to_hdmitx21_dev(x)	container_of(x, struct hdmitx_dev, tx_comm)
 
 static struct class *hdmitx_class;
@@ -101,7 +104,6 @@ static int hdmitx_unhook_drm(struct device *device);
 static void tee_comm_dev_reg(struct hdmitx_dev *hdev);
 static void tee_comm_dev_unreg(struct hdmitx_dev *hdev);
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
-static void hdmitx_set_frl_rate_none(struct hdmitx_dev *hdev);
 static void hdmitx21_vid_pll_clk_check(struct hdmitx_dev *hdev);
 const char *hdmitx_mode_get_timing_name(enum hdmi_vic vic);
 /*
@@ -139,6 +141,11 @@ static struct amhdmitx_data_s amhdmitx_data_s7d = {
 	.chip_name = "s7d",
 };
 
+static struct amhdmitx_data_s amhdmitx_data_s6 = {
+	.chip_type = MESON_CPU_ID_S6,
+	.chip_name = "s6",
+};
+
 static const struct of_device_id meson_amhdmitx_of_match[] = {
 	{
 		.compatible	 = "amlogic, amhdmitx-t7",
@@ -159,6 +166,10 @@ static const struct of_device_id meson_amhdmitx_of_match[] = {
 	{
 		.compatible	 = "amlogic, amhdmitx-s7d",
 		.data = &amhdmitx_data_s7d,
+	},
+	{
+		.compatible	 = "amlogic, amhdmitx-s6",
+		.data = &amhdmitx_data_s6,
 	},
 	{},
 };
@@ -190,7 +201,8 @@ struct vsdb_phyaddr *get_hdmitx21_phy_addr(void)
 	return &hdev->tx_comm.rxcap.vsdb_phy_addr;
 }
 
-/* for SONY-KD-55A8F TV, need to mute more frames
+/*
+ * for SONY-KD-55A8F TV, need to mute more frames
  * when switch DV(LL)->HLG
  */
 static int hdr_mute_frame = 20;
@@ -221,7 +233,8 @@ int hdmitx21_set_uevent(enum hdmitx_event type, int val)
 				type, val, false);
 }
 
-/* There are 3 callback functions for front HDR/DV/HDR10+ modules to notify
+/*
+ * There are 3 callback functions for front HDR/DV/HDR10+ modules to notify
  * hdmi drivers to send out related HDMI infoframe
  * hdmitx_set_drm_pkt() is for HDR 2084 SMPTE, HLG, etc.
  * hdmitx_set_vsif_pkt() is for DV
@@ -300,6 +313,14 @@ static void hdmitx21_disable_21_work(void)
 	}
 #endif
 }
+
+static void hdmitx21_disable_frl_work(void)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	frl_tx_stop();
+	hdmitx_set_frl_rate_none(hdev);
+}
 #endif
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
@@ -318,22 +339,21 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
 	/* step1: keep hdcp auth state before suspend */
 	hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_SUSFLAG, 1);
-	/* under suspend, driver should not respond to mode setting,
+	/*
+	 * under suspend, driver should not respond to mode setting,
 	 * as it may cause logic abnormal, most importantly,
 	 * it will enable hdcp and occupy DDC channel with high
 	 * priority, though there's protection in system control,
 	 * driver still need protection in case of old android version
 	 */
 	hdev->tx_comm.suspend_flag = true;
+	hdev->tx_comm.qms_log_id = 0;
 
 	HDMITX_INFO("Early Suspend\n");
 	/* step2: clear ready status/disable phy/packets/hdcp HW */
 	hdmitx_common_output_disable(&hdev->tx_comm,
 		true, true, true, false);
 	hdmitx21_reset_hdcp_param(&hdev->tx_comm);
-	/* TOCONFIRM: note it will disable hpll for T7/S1A */
-	hdmitx_hw_cntl(&hdev->tx_hw.base, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
-		HDMITX_EARLY_SUSPEND);
 
 	/* step3: SW: post uevent to system */
 	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_SUSPEND);
@@ -363,7 +383,11 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	hdmitx_fire_drm_hpd_cb_unlocked(&hdev->tx_comm);
 }
 
-/* Set avmute_set signal to HDMIRX */
+/*
+ * Note: HPLL is disabled when suspend/shutdown, and should
+ * not be called when reboot/early suspend, otherwise
+ * there will be no vsync for drm.
+ */
 static int hdmitx_reboot_notifier(struct notifier_block *nb,
 				  unsigned long action, void *data)
 {
@@ -377,7 +401,7 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 	hdmitx_common_avmute_locked(&hdev->tx_comm, SET_AVMUTE, AVMUTE_PATH_HDMITX);
 
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	frl_tx_stop();
+	hdmitx21_disable_frl_work();
 #ifdef CONFIG_AMLOGIC_DSC
 	if (hdev->tx_hw.base.hdmi_tx_cap.dsc_capable) {
 		aml_dsc_enable(false);
@@ -392,10 +416,7 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 		cancel_delayed_work(&hdev->tx_comm.work_cedst);
 	hdmitx21_disable_hdcp(hdev);
 	hdmitx21_rst_stream_type(hdev->am_hdcp);
-	hdmitx_set_frl_rate_none(hdev);
 	hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
-	hdmitx_hw_cntl(&hdev->tx_hw.base,
-		HDMITX_EARLY_SUSPEND_RESUME_CNTL, HDMITX_EARLY_SUSPEND);
 
 	return NOTIFY_OK;
 }
@@ -423,7 +444,7 @@ static void restore_mute(void)
 	}
 }
 
-static void hdmitx_set_frl_rate_none(struct hdmitx_dev *hdev)
+void hdmitx_set_frl_rate_none(struct hdmitx_dev *hdev)
 {
 	u8 data;
 
@@ -438,6 +459,7 @@ static void hdmitx_set_frl_rate_none(struct hdmitx_dev *hdev)
 		data = scdc_tx_update_flags_get();
 		if (data & FLT_UPDATE)
 			scdc_tx_update_flags_set(FLT_UPDATE);
+		hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_CLR_FRL_MODE, 0);
 	}
 }
 
@@ -449,7 +471,8 @@ static void hdmitx_pre_display_init(struct hdmitx_dev *hdev)
 		hdev->tx_comm.rxcap.scdc_present == 1 &&
 		/* hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_GET_FRL_MODE, 0)&& */
 		hdev->frl_rate == FRL_NONE) {
-		/* refer to LTS:L Source in FRL link training procedure:
+		/*
+		 * refer to LTS:L Source in FRL link training procedure:
 		 * for FRL->legacy TMDS mode(LTS:4->LTS:L),
 		 * or source init TMDS mode(LTS:1->LTS:L)
 		 * 1. IF (SCDC_Present = 1)
@@ -469,7 +492,8 @@ static void hdmitx_pre_display_init(struct hdmitx_dev *hdev)
 		hdev->frl_rate > FRL_NONE &&
 		hdev->frl_rate < FRL_RATE_MAX &&
 		hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_GET_FRL_MODE, 0) == FRL_NONE) {
-		/* refer to LTS:L Source in FRL link training procedure:
+		/*
+		 * refer to LTS:L Source in FRL link training procedure:
 		 * for case(LTS:L->LTS:2) switch from TMDS mode to FRL mode
 		 *
 		 * IF (Max_FRL_Rate > 0) AND (SCDC_Present = 1) AND (SCDC Sink Version != 0)
@@ -484,7 +508,8 @@ static void hdmitx_pre_display_init(struct hdmitx_dev *hdev)
 		hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	} else if (hdev->frl_rate == FRL_NONE &&
 		hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_GET_FRL_MODE, 0) == FRL_NONE) {
-		/* for cases switch between TMDS modes
+		/*
+		 * for cases switch between TMDS modes
 		 * per hdmi2.1 spec chapter 6.1.3.2, when source change
 		 * tmds_bit_clk_ratio, should follow the steps:
 		 * 1.disable tmds clk/data
@@ -493,7 +518,8 @@ static void hdmitx_pre_display_init(struct hdmitx_dev *hdev)
 		 */
 		hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	}
-	/* for cases switch between FRL modes: todo
+	/*
+	 * for cases switch between FRL modes: todo
 	 * may refer to LTS:P Source in FRL link training procedure
 	 * LTS:P->LTS:2
 	 * IF Source initiates request for retraining
@@ -552,7 +578,8 @@ static void hdmitx_start_hdcp_handler(struct work_struct *work)
 			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		} else {
 			/* for source->hdmirx->hdmitx->tv, plug on tv side */
-			/* 1.for repeater CTS, only start hdcp by upstream side
+			/*
+			 * 1.for repeater CTS, only start hdcp by upstream side
 			 * 2.however if upstream source side no signal output
 			 * or never start hdcp auth with hdmirx(such as PC),
 			 * then we add 5S timeout period, after 5S timeout,
@@ -587,7 +614,7 @@ static void hdmitx_start_hdcp_handler(struct work_struct *work)
 	is_passthrough_switch = 0;
 }
 
-/*disp_mode attr*/
+/* disp_mode attr */
 static ssize_t disp_mode_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -598,62 +625,67 @@ static ssize_t disp_mode_show(struct device *dev,
 	struct hdmi_timing *timing = &para->timing;
 	struct vinfo_s *vinfo = &hdev->tx_comm.hdmitx_vinfo;
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "cd/cs/cr: %d/%d/%d\n", para->cd,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "cd/cs/cr: %d/%d/%d\n", para->cd,
 		para->cs, para->cr);
-	pos += snprintf(buf + pos, PAGE_SIZE, "scramble/tmds_clk_div40: %d/%d\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "scramble/tmds_clk_div40: %d/%d\n",
 		para->scrambler_en, para->tmds_clk_div40);
-	pos += snprintf(buf + pos, PAGE_SIZE, "tmds_clk: %d\n", para->tmds_clk);
-	pos += snprintf(buf + pos, PAGE_SIZE, "vic: %d\n", timing->vic);
-	pos += snprintf(buf + pos, PAGE_SIZE, "name: %s\n", timing->name);
-	pos += snprintf(buf + pos, PAGE_SIZE, "enc_idx: %d\n", hdev->tx_comm.enc_idx);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "tmds_clk: %d\n", para->tmds_clk);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "vic: %d\n", timing->vic);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "name: %s\n", timing->name);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "enc_idx: %d\n", hdev->tx_comm.enc_idx);
 	if (timing->sname)
-		pos += snprintf(buf + pos, PAGE_SIZE, "sname: %s\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "sname: %s\n",
 			timing->sname);
-	pos += snprintf(buf + pos, PAGE_SIZE, "pi_mode: %c\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "pi_mode: %c\n",
 		timing->pi_mode ? 'P' : 'I');
-	pos += snprintf(buf + pos, PAGE_SIZE, "h/v_freq: %d/%d\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "h/v_freq: %d/%d\n",
 		timing->h_freq, timing->v_freq);
-	pos += snprintf(buf + pos, PAGE_SIZE, "pixel_freq: %d\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "pixel_freq: %d\n",
 		timing->pixel_freq);
-	pos += snprintf(buf + pos, PAGE_SIZE, "h_total: %d\n", timing->h_total);
-	pos += snprintf(buf + pos, PAGE_SIZE, "h_blank: %d\n", timing->h_blank);
-	pos += snprintf(buf + pos, PAGE_SIZE, "h_front: %d\n", timing->h_front);
-	pos += snprintf(buf + pos, PAGE_SIZE, "h_sync: %d\n", timing->h_sync);
-	pos += snprintf(buf + pos, PAGE_SIZE, "h_back: %d\n", timing->h_back);
-	pos += snprintf(buf + pos, PAGE_SIZE, "h_active: %d\n", timing->h_active);
-	pos += snprintf(buf + pos, PAGE_SIZE, "v_total: %d\n", timing->v_total);
-	pos += snprintf(buf + pos, PAGE_SIZE, "v_blank: %d\n", timing->v_blank);
-	pos += snprintf(buf + pos, PAGE_SIZE, "v_front: %d\n", timing->v_front);
-	pos += snprintf(buf + pos, PAGE_SIZE, "v_sync: %d\n", timing->v_sync);
-	pos += snprintf(buf + pos, PAGE_SIZE, "v_back: %d\n", timing->v_back);
-	pos += snprintf(buf + pos, PAGE_SIZE, "v_active: %d\n", timing->v_active);
-	pos += snprintf(buf + pos, PAGE_SIZE, "v_sync_ln: %d\n", timing->v_sync_ln);
-	pos += snprintf(buf + pos, PAGE_SIZE, "h/v_pol: %d/%d\n", timing->h_pol, timing->v_pol);
-	pos += snprintf(buf + pos, PAGE_SIZE, "h/v_pict: %d/%d\n", timing->h_pict, timing->v_pict);
-	pos += snprintf(buf + pos, PAGE_SIZE, "h/v_pixel: %d/%d\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "h_total: %d\n", timing->h_total);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "h_blank: %d\n", timing->h_blank);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "h_front: %d\n", timing->h_front);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "h_sync: %d\n", timing->h_sync);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "h_back: %d\n", timing->h_back);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "h_active: %d\n", timing->h_active);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "v_total: %d\n", timing->v_total);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "v_blank: %d\n", timing->v_blank);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "v_front: %d\n", timing->v_front);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "v_sync: %d\n", timing->v_sync);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "v_back: %d\n", timing->v_back);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "v_active: %d\n", timing->v_active);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "v_sync_ln: %d\n", timing->v_sync_ln);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "h/v_pol: %d/%d\n",
+		timing->h_pol, timing->v_pol);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "h/v_pict: %d/%d\n",
+		timing->h_pict, timing->v_pict);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "h/v_pixel: %d/%d\n",
 		timing->h_pixel, timing->v_pixel);
-	pos += snprintf(buf + pos, PAGE_SIZE, "name: %s\n", vinfo->name);
-	pos += snprintf(buf + pos, PAGE_SIZE, "mode: %d\n", vinfo->mode);
-	pos += snprintf(buf + pos, PAGE_SIZE, "ext_name: %s\n", vinfo->ext_name);
-	pos += snprintf(buf + pos, PAGE_SIZE, "frac: %d\n", vinfo->frac);
-	pos += snprintf(buf + pos, PAGE_SIZE, "width/height: %d/%d\n", vinfo->width, vinfo->height);
-	pos += snprintf(buf + pos, PAGE_SIZE, "field_height: %d\n", vinfo->field_height);
-	pos += snprintf(buf + pos, PAGE_SIZE, "aspect_ratio_num/den: %d/%d\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "name: %s\n", vinfo->name);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "mode: %d\n", vinfo->mode);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "ext_name: %s\n", vinfo->ext_name);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "frac: %d\n", vinfo->frac);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "width/height: %d/%d\n",
+		vinfo->width, vinfo->height);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "field_height: %d\n", vinfo->field_height);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "aspect_ratio_num/den: %d/%d\n",
 		vinfo->aspect_ratio_num, vinfo->aspect_ratio_den);
-	pos += snprintf(buf + pos, PAGE_SIZE, "screen_real_width/height: %d/%d\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "screen_real_width/height: %d/%d\n",
 		vinfo->screen_real_width, vinfo->screen_real_height);
-	pos += snprintf(buf + pos, PAGE_SIZE, "sync_duration_num/den: %d/%d\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "sync_duration_num/den: %d/%d\n",
 		vinfo->sync_duration_num, vinfo->sync_duration_den);
-	pos += snprintf(buf + pos, PAGE_SIZE, "video_clk: %d\n", vinfo->video_clk);
-	pos += snprintf(buf + pos, PAGE_SIZE, "h/vtotal: %d/%d\n", vinfo->htotal, vinfo->vtotal);
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdmichecksum:\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "brr_duration: %d\n", vinfo->brr_duration);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "video_clk: %d\n", vinfo->video_clk);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "h/vtotal: %d/%d\n",
+		vinfo->htotal, vinfo->vtotal);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdmichecksum:\n");
 	for (i = 0; i < sizeof(vinfo->hdmichecksum); i++)
-		pos += snprintf(buf + pos, PAGE_SIZE, "%02x", vinfo->hdmichecksum[i]);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "info_3d: %d\n", vinfo->info_3d);
-	pos += snprintf(buf + pos, PAGE_SIZE, "fr_adj_type: %d\n", vinfo->fr_adj_type);
-	pos += snprintf(buf + pos, PAGE_SIZE, "viu_color_fmt: %d\n", vinfo->viu_color_fmt);
-	pos += snprintf(buf + pos, PAGE_SIZE, "viu_mux: %d\n", vinfo->viu_mux);
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "%02x", vinfo->hdmichecksum[i]);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "info_3d: %d\n", vinfo->info_3d);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "fr_adj_type: %d\n", vinfo->fr_adj_type);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "viu_color_fmt: %d\n", vinfo->viu_color_fmt);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "viu_mux: %d\n", vinfo->viu_mux);
 	/* master_display_info / hdr_info / rx_latency */
 
 	return pos;
@@ -668,7 +700,7 @@ static ssize_t disp_mode_store(struct device *dev,
 
 	ret = set_disp_mode(&hdev->tx_comm, buf);
 	if (ret < 0)
-		HDMITX_INFO("%s: set mode failed\n", __func__);
+		HDMITX_ERROR("%s: set mode failed\n", __func__);
 	return count;
 }
 
@@ -686,12 +718,12 @@ void hdmitx21_audio_mute_op(u32 flag, unsigned int path)
 	hdev->tx_comm.cur_audio_param.aud_output_en = !aud_mute_path;
 
 	if (flag == 0) {
-		HDMITX_INFO("%s: AUD_MUTE path=0x%x\n", __func__, path);
+		HDMITX_INFO("audio: AUD_MUTE path=0x%x\n", path);
 		hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	} else {
 		/* unmute only if none of the paths are muted */
 		if (aud_mute_path == 0) {
-			HDMITX_INFO("%s: AUD_UNMUTE path=0x%x\n", __func__, path);
+			HDMITX_INFO("audio: AUD_UNMUTE path=0x%x\n", path);
 			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
 		}
 	}
@@ -726,15 +758,15 @@ void hdmitx21_video_mute_op(u32 flag, unsigned int path)
 /*
  *  SDR/HDR uevent
  *  1: SDR to HDR
- * 0: HDR to SDR
+ *  0: HDR to SDR
  */
 static void hdmitx_sdr_hdr_uevent(struct hdmitx_dev *hdev)
 {
 	if (hdev->tx_comm.hdmi_current_hdr_mode != 0) {
-		/* SDR -> HDR*/
+		/* SDR -> HDR */
 		hdmitx21_set_uevent(HDMITX_HDR_EVENT, 1);
 	} else if (hdev->tx_comm.hdmi_current_hdr_mode == 0) {
-		/* HDR -> SDR*/
+		/* HDR -> SDR */
 		hdmitx21_set_uevent(HDMITX_HDR_EVENT, 0);
 	}
 }
@@ -746,11 +778,8 @@ static void hdr_unmute_work_func(struct work_struct *work)
 		container_of(work, struct hdmitx_dev, work_hdr_unmute);
 
 	if (hdr_mute_frame) {
-		HDMITX_INFO("vid mute %d frames before play hdr/hlg video\n",
-			hdr_mute_frame);
 		mute_us = hdr_mute_frame * hdmitx_get_frame_duration();
 		usleep_range(mute_us, mute_us + 10);
-		HDMITX_INFO("%s: VID_UNMUTE\n", __func__);
 		hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_VIDEO_MUTE_OP, VIDEO_UNMUTE);
 	}
 }
@@ -762,18 +791,20 @@ static void hdr_work_func(struct work_struct *work)
 
 	if (hdev->hdr_transfer_feature == T_BT709 &&
 	    hdev->hdr_color_feature == C_BT709) {
-		HDMITX_INFO("%s: send zero DRM\n", __func__);
+		HDMITX_INFO("hdr: [%s]: send zero DRM pkt\n", __func__);
 		hdmi_drm_infoframe_init(info);
 		hdmi_drm_infoframe_set(info);
 		hdmi_avi_infoframe_config(CONF_AVI_BT2020, hdev->colormetry);
 
-		msleep(1500);/*delay 1.5s*/
-		/* disable DRM packets completely ONLY if hdr transfer
+		/* delay 1.5s */
+		msleep(1500);
+		/*
+		 * disable DRM packets completely ONLY if hdr transfer
 		 * feature and color feature still demand SDR.
 		 */
 		if (hdr_status_pos == 4) {
-			/* zero hdr10+ VSIF being sent - disable it */
-			HDMITX_INFO("%s: disable hdr10+ vsif\n", __func__);
+			/* zero hdr10plus VSIF being sent - disable it */
+			HDMITX_INFO("hdr: [%s]: disable hdr10plus vsif pkt\n", __func__);
 			/* hdmi_vend_infoframe_set(NULL); */
 			hdmi_vend_infoframe_rawset(NULL, NULL);
 			hdr_status_pos = 0;
@@ -785,7 +816,7 @@ static void hdr_work_func(struct work_struct *work)
 			hdev->tx_comm.hdmi_last_hdr_mode = hdev->tx_comm.hdmi_current_hdr_mode;
 			hdmitx_sdr_hdr_uevent(hdev);
 		} else {
-			HDMITX_INFO("%s: tf=%d, cf=%d\n",
+			HDMITX_INFO("hdr: [%s]: tf=%d, cf=%d\n",
 				__func__,
 				hdev->hdr_transfer_feature,
 				hdev->hdr_color_feature);
@@ -805,77 +836,91 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	enum hdmi_tf_type hdmi_hdr_status = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR, 0);
 	u8 drm_hb[3] = {0x87, 0x1, 26};
 	static u8 db[28] = {0x0};
-	u8 *drm_db = &db[1]; /* db[0] is the checksum */
+	/* db[0] is the checksum */
+	u8 *drm_db = &db[1];
 	unsigned long flags = 0;
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
+	u32 save_last_hdr_mode;
+	enum hdmi_hdr_transfer hdr_transfer_feature = T_UNKNOWN;
+	enum hdmi_hdr_color hdr_color_feature = C_UNKNOWN;
+	unsigned int colormetry = 0;
 
 	HDMITX_DEBUG_PACKET("%s[%d]\n", __func__, __LINE__);
-	if (data)
-		memcpy(&drm_config_data, data,
-		       sizeof(struct master_display_info_s));
-	else
-		memset(&drm_config_data, 0,
-		       sizeof(struct master_display_info_s));
-	if (!is_cur_hdmi_mode())
-		return;
 
-	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
-	/* if ready is 0, only can clear pkt */
-	if (hdev->tx_comm.ready == 0 && data) {
-		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
-		return;
+	if (data) {
+		memcpy(&drm_config_data, data, sizeof(struct master_display_info_s));
+		hdr_transfer_feature = (data->features >> 8) & 0xff;
+		hdr_color_feature = (data->features >> 16) & 0xff;
+		colormetry = (data->features >> 30) & 0x1;
+	} else {
+		memset(&drm_config_data, 0, sizeof(struct master_display_info_s));
 	}
 
-	/* if currently output 8bit, and EDID don't
-	 * support Y422, and config_csc_en is 0, switch to SDR output
-	 */
-	if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B) {
-		if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
-			hdev->hdr_transfer_feature = T_BT709;
-			hdev->hdr_color_feature = C_BT709;
-			schedule_work(&hdev->work_hdr);
-			hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
-					HDMITX_HDR_MODE_SDR);
+	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
+
+	/* if ready is 0, only can clear pkt */
+	if (hdev->tx_comm.ready == 0 && data) {
+		if (hdr_transfer_feature != T_BT709 ||
+			hdr_color_feature != C_BT709) {
 			spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
 			return;
 		}
 	}
+
+	/*
+	 * if currently output 8bit, and EDID don't support Y422, and config_csc_en is 0,
+	 * switch to SDR output; if hdr_8bit_en is 1, switch to HDR output
+	 */
+	if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B && !hdev->tx_comm.hdr_8bit_en) {
+		if (hdr_color_feature == C_BT709 &&
+			hdr_transfer_feature == T_BT709) {
+			/* for 8bit mode, also send hdr.sdr packet, not return here */
+			HDMITX_DEBUG_PACKET("hdr: %s: send hdr.sdr pkt\n", __func__);
+		} else if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
+			hdev->hdr_transfer_feature = T_BT709;
+			hdev->hdr_color_feature = C_BT709;
+			hdev->colormetry = 0;
+			schedule_work(&hdev->work_hdr);
+			hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer, HDMITX_HDR_MODE_SDR);
+			spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
+			return;
+		}
+	}
+
 	if (hdr_status_pos == 4) {
-		/* zero hdr10+ VSIF being sent - disable it */
-		HDMITX_INFO("%s: disable hdr10+ zero vsif\n", __func__);
+		/* zero hdr10plus VSIF being sent - disable it */
+		HDMITX_DEBUG_PACKET("hdr: [%s]: disable hdr10plus zero vsif\n", __func__);
 		/* hdmi_vend_infoframe_set(NULL); */
-		/* todo, maybe need recover hdmi1.4b_vsif when 4k*/
+		/* TODO, maybe need recover hdmi1.4b_vsif when 4k */
 		hdmi_vend_infoframe_rawset(NULL, NULL);
 		hdr_status_pos = 0;
 	}
 
 	/*
-	 *hdr_color_feature: bit 23-16: color_primaries
-	 *	1:bt709 0x9:bt2020
-	 *hdr_transfer_feature: bit 15-8: transfer_characteristic
-	 *	1:bt709 0xe:bt2020-10 0x10:smpte-st-2084 0x12:hlg(TODO)
+	 * hdr_color_feature: bit 23-16: color_primaries
+	 *	 1:bt709 0x9:bt2020
+	 * hdr_transfer_feature: bit 15-8: transfer_characteristic
+	 *	 1:bt709 0xe:bt2020-10 0x10:smpte-st-2084 0x12:hlg(TODO)
 	 */
 	if (data) {
-		if ((hdev->hdr_transfer_feature !=
-			((data->features >> 8) & 0xff)) ||
-			(hdev->hdr_color_feature !=
-			((data->features >> 16) & 0xff)) ||
-			(hdev->colormetry !=
-			((data->features >> 30) & 0x1))) {
-			hdev->hdr_transfer_feature =
-				(data->features >> 8) & 0xff;
-			hdev->hdr_color_feature =
-				(data->features >> 16) & 0xff;
-			hdev->colormetry =
-				(data->features >> 30) & 0x1;
-			HDMITX_INFO("%s: tf=%d, cf=%d, colormetry=%d\n",
+		if (hdev->hdr_transfer_feature != hdr_transfer_feature ||
+			hdev->hdr_color_feature != hdr_color_feature ||
+			hdev->colormetry != colormetry) {
+			hdev->hdr_transfer_feature = hdr_transfer_feature;
+			hdev->hdr_color_feature = hdr_color_feature;
+			hdev->colormetry = colormetry;
+			HDMITX_INFO("hdr: [%s]: tf = %d, cf = %d, colormetry = %d\n",
 				__func__,
 				hdev->hdr_transfer_feature,
 				hdev->hdr_color_feature,
 				hdev->colormetry);
+			if (hdev->hdr_transfer_feature == T_SMPTE_ST_2084 &&
+					hdev->hdr_color_feature == C_BT2020)
+				HDMITX_INFO("hdr: [%s]: SDR->HDR10\n", __func__);
+			else if (hdev->hdr_transfer_feature == T_HLG &&
+					hdev->hdr_color_feature == C_BT2020)
+				HDMITX_INFO("hdr: [%s]: SDR->HLG\n", __func__);
 		}
-	} else {
-		HDMITX_INFO("%s: disable drm pkt\n", __func__);
 	}
 
 	/* if VSIF/DV or VSIF/HDR10P packet is enabled, disable it */
@@ -887,13 +932,13 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 			hdmi_vend_infoframe_rawset(NULL, NULL);
 	}
 
-	/* hdr10+ content on a hdr10 sink case */
+	/* hdr10plus content on a hdr10 sink case */
 	if (hdev->hdr_transfer_feature == 0x30) {
 		if (hdr_info->hdr10plus_info.ieeeoui != 0x90848B ||
 		    hdr_info->hdr10plus_info.application_version != 1) {
 			hdev->hdr_transfer_feature = T_SMPTE_ST_2084;
-			HDMITX_INFO("%s: HDR10+ not supported, treat as hdr10\n",
-				__func__);
+			HDMITX_INFO("hdr: [%s]: hdr10plus not supported, treat as hdr10\n",
+					__func__);
 		}
 	}
 
@@ -901,49 +946,63 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		drm_hb[1] = 0;
 		drm_hb[2] = 0;
 		drm_db[0] = 0;
+		hdev->hdr_transfer_feature = T_UNKNOWN;
+		hdev->hdr_color_feature = C_UNKNOWN;
 		hdev->colormetry = 0;
+		hdev->tx_comm.hdmi_current_hdr_mode = 0;
+		hdev->tx_comm.hdmi_last_hdr_mode = 0;
 		hdmi_drm_infoframe_set(NULL);
 		hdmi_avi_infoframe_config(CONF_AVI_BT2020, hdev->colormetry);
+		HDMITX_INFO("hdr: [%s]: disable drm pkt\n", __func__);
 		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
 		return;
 	}
 
-	/*SDR*/
+	/* SDR */
 	if (hdev->hdr_transfer_feature == T_BT709 &&
 		hdev->hdr_color_feature == C_BT709) {
 		/* send zero drm only for HDR->SDR transition */
 		if (hdmi_hdr_status == HDMI_HDR_SMPTE_2084 || hdmi_hdr_status == HDMI_HDR_HLG) {
-			HDMITX_INFO("%s: HDR->SDR, hdmi_hdr_status=%d\n",
-				__func__, hdmi_hdr_status);
+			if (hdmi_hdr_status == HDMI_HDR_SMPTE_2084)
+				HDMITX_INFO("hdr: [%s]: HDR10->SDR\n", __func__);
+			else
+				HDMITX_INFO("hdr: [%s]: HLG->SDR\n", __func__);
+			hdev->colormetry = 0;
+			hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);
+			schedule_work(&hdev->work_hdr);
+			hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer, HDMITX_HDR_MODE_SDR);
+			drm_db[0] = 0;
+		} else if (hdev->tx_comm.ready == 0) {
+			/*
+			 * only for hdr.sdr packet send after mode setting,
+			 * for sync purpose, should not use work queue,
+			 * no uevent/trace for such case
+			 */
+			HDMITX_INFO("%s: hdr.sdr pkt sent\n", __func__);
 			hdev->colormetry = 0;
 			hdmi_avi_infoframe_config(CONF_AVI_BT2020, 0);
-			schedule_work(&hdev->work_hdr);
-			hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
-						HDMITX_HDR_MODE_SDR);
-			drm_db[0] = 0;
+			hdmi_drm_infoframe_init(&hdev->infoframes.drm.drm);
+			hdmi_drm_infoframe_set(&hdev->infoframes.drm.drm);
+			spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
+			return;
 		}
 		/* back to previous cs */
-		/* currently output y444,8bit or rgb,8bit, if exit playing,
+		/*
+		 * currently output y444,8bit or rgb,8bit, if exit playing,
 		 * then switch back to 8bit mode
 		 */
 		if (hdev->tx_comm.fmt_para.cs == HDMI_COLORSPACE_YUV444 &&
 			hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B) {
-			/* hdev->hwop.cntlconfig(hdev, */
-			/* CONF_AVI_RGBYCC_INDIC, */
-			/* COLORSPACE_YUV444); */
 			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONFIG_CSC,
 				CSC_Y444_8BIT | CSC_UPDATE_AVI_CS);
-				HDMITX_INFO("%s: switch back to cs:%d, cd:%d\n",
+			HDMITX_INFO("hdr: [%s]: switch back to cs:%d, cd:%d\n",
 				__func__, hdev->tx_comm.fmt_para.cs,
 				hdev->tx_comm.fmt_para.cd);
 		} else if (hdev->tx_comm.fmt_para.cs == HDMI_COLORSPACE_RGB &&
 			hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B) {
-			/* hdev->hwop.cntlconfig(hdev, */
-			/* CONF_AVI_RGBYCC_INDIC, */
-			/* COLORSPACE_RGB444); */
 			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONFIG_CSC,
 				CSC_RGB_8BIT | CSC_UPDATE_AVI_CS);
-			HDMITX_INFO("%s: switch back to cs:%d, cd:%d\n",
+			HDMITX_INFO("hdr: [%s]: switch back to cs:%d, cd:%d\n",
 				__func__, hdev->tx_comm.fmt_para.cs,
 				hdev->tx_comm.fmt_para.cd);
 		}
@@ -988,7 +1047,8 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 			hdmi_drm_infoframe_rawset(drm_hb, db);
 			hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);
 		} else {
-			drm_db[0] = 0x02; /* SMPTE ST 2084 */
+			/* SMPTE ST 2084 */
+			drm_db[0] = 0x02;
 			hdmi_drm_infoframe_rawset(drm_hb, db);
 			hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);
 		}
@@ -996,7 +1056,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		return;
 	}
 
-	/*must clear hdr mode*/
+	/* must clear hdr mode */
 	hdev->tx_comm.hdmi_current_hdr_mode = 0;
 
 	/* SMPTE ST 2084 and (BT2020 or NON_STANDARD) */
@@ -1009,7 +1069,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 			hdev->tx_comm.hdmi_current_hdr_mode = 2;
 	}
 
-	/*HLG and BT2020*/
+	/* HLG and BT2020 */
 	if (hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0x8) {
 		if (hdev->hdr_color_feature == C_BT2020 &&
 		    (hdev->hdr_transfer_feature == T_BT2020_10 ||
@@ -1018,67 +1078,70 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	}
 	switch (hdev->tx_comm.hdmi_current_hdr_mode) {
 	case 1:
-		/*standard HDR*/
-		drm_db[0] = 0x02; /* SMPTE ST 2084 */
+		/* standard HDR SMPTE ST 2084 */
+		drm_db[0] = 0x02;
 		hdmi_drm_infoframe_rawset(drm_hb, db);
 		hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);
-		hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
-					HDMITX_HDR_MODE_SMPTE2084);
+		hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer, HDMITX_HDR_MODE_SMPTE2084);
 		break;
 	case 2:
-		/*non standard*/
-		drm_db[0] = 0x02; /* no standard SMPTE ST 2084 */
+		/* non standard SMPTE ST 2084 */
+		drm_db[0] = 0x02;
 		hdmi_drm_infoframe_rawset(drm_hb, db);
 		hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);
 		break;
 	case 3:
-		/*HLG*/
-		drm_db[0] = 0x03;/* HLG is 0x03 */
+		/* HLG */
+		drm_db[0] = 0x03;
 		hdmi_drm_infoframe_rawset(drm_hb, db);
 		hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);
-		hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
-					HDMITX_HDR_MODE_HLG);
+		hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer, HDMITX_HDR_MODE_HLG);
 		break;
 	case 0:
 	default:
-		/*other case*/
+		/* other case */
 		hdmi_drm_infoframe_set(NULL);
 		hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);
 		break;
 	}
 
-	/* if sdr/hdr mode change ,notify uevent to userspace*/
+	/* if sdr/hdr mode change ,notify uevent to userspace */
 	if (hdev->tx_comm.hdmi_current_hdr_mode != hdev->tx_comm.hdmi_last_hdr_mode) {
+		save_last_hdr_mode = hdev->tx_comm.hdmi_last_hdr_mode;
 		/* NOTE: for HDR <-> HLG, also need update last mode */
 		hdev->tx_comm.hdmi_last_hdr_mode = hdev->tx_comm.hdmi_current_hdr_mode;
-		if (hdr_mute_frame) {
-			HDMITX_INFO("%s: VID_MUTE\n", __func__);
-			//todo mute in vsync
+		/* only SDR->HDR10/SDR->HLG need mute */
+		if (hdr_mute_frame && save_last_hdr_mode == 0) {
+			/* TODO mute in vsync */
 			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_VIDEO_MUTE_OP, VIDEO_MUTE);
-			HDMITX_INFO("SDR->HDR enter mute\n");
-			/* force unmute after specific frames,
+			HDMITX_INFO("hdr: video mute %d frames\n", hdr_mute_frame);
+			/*
+			 * force unmute after specific frames,
 			 * no need to check hdr status when unmute
 			 */
 			schedule_work(&hdev->work_hdr_unmute);
 		}
 		schedule_work(&hdev->work_hdr);
 	}
+	/* if 8bit hdr mode is enabled, no need small mode switch to y422,12bit */
+	if (hdev->tx_comm.hdr_8bit_en) {
+		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
+		return;
+	}
 	if (hdev->tx_comm.hdmi_current_hdr_mode == 1 ||
 		hdev->tx_comm.hdmi_current_hdr_mode == 2 ||
 		hdev->tx_comm.hdmi_current_hdr_mode == 3) {
-		/* currently output y444,8bit or rgb,8bit, and EDID
+		/*
+		 * currently output y444,8bit or rgb,8bit, and EDID
 		 * support Y422, then switch to y422,12bit mode
 		 */
 		if ((hdev->tx_comm.fmt_para.cs == HDMI_COLORSPACE_YUV444 ||
 			hdev->tx_comm.fmt_para.cs == HDMI_COLORSPACE_RGB) &&
 			hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B &&
 			is_support_y422(prxcap)) {
-			/* hdev->hwop.cntlconfig(hdev,*/
-					/* CONF_AVI_RGBYCC_INDIC, */
-					/* COLORSPACE_YUV422);*/
 			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONFIG_CSC,
 				CSC_Y422_12BIT | CSC_UPDATE_AVI_CS);
-			HDMITX_DEBUG_PACKET("%s: switch to 422,12bit\n", __func__);
+			HDMITX_DEBUG_PACKET("hdr: [%s]: switch to 422,12bit\n", __func__);
 		}
 	}
 	spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
@@ -1139,21 +1202,17 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 	unsigned long flags = 0;
 	struct hdmi_format_para *fmt_para = &hdev->tx_comm.fmt_para;
 
-	HDMITX_DEBUG_PACKET("%s[%d]\n", __func__, __LINE__);
+	HDMITX_DEBUG_PACKET("hdr: [%s]: [%d]\n", __func__, __LINE__);
 	if (!data)
-		memcpy(&vsif_debug_info.data, &para,
-		       sizeof(struct dv_vsif_para));
+		memcpy(&vsif_debug_info.data, &para, sizeof(struct dv_vsif_para));
 	else
-		memcpy(&vsif_debug_info.data, data,
-		       sizeof(struct dv_vsif_para));
-	if (!is_cur_hdmi_mode())
-		return;
+		memcpy(&vsif_debug_info.data, data, sizeof(struct dv_vsif_para));
+
 	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
 	if (hdev->bist_lock) {
 		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
 		return;
 	}
-
 	vsif_debug_info.type = type;
 	vsif_debug_info.tunnel_mode = tunnel_mode;
 	vsif_debug_info.signal_sdr = signal_sdr;
@@ -1164,10 +1223,6 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
 		return;
 	}
-	if (hdev->tx_comm.rxcap.dv_info.ieeeoui != DV_IEEE_OUI) {
-		if (type == 0 && !data && signal_sdr)
-			HDMITX_INFO("TV not support DV, clr dv_vsif\n");
-	}
 
 	if (hdev->hdmi_current_eotf_type != type ||
 		hdev->hdmi_current_tunnel_mode != tunnel_mode ||
@@ -1175,13 +1230,22 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 		hdev->hdmi_current_eotf_type = type;
 		hdev->hdmi_current_tunnel_mode = tunnel_mode;
 		hdev->hdmi_current_signal_sdr = signal_sdr;
-		HDMITX_INFO("%s: type=%d, tunnel_mode=%d, signal_sdr=%d\n",
+		HDMITX_INFO("hdr: [%s]: type = %d, tunnel_mode = %d, signal_sdr = %d\n",
 			__func__, type, tunnel_mode, signal_sdr);
+		if (type == EOTF_T_DOLBYVISION &&
+				tunnel_mode == RGB_8BIT && signal_sdr != true)
+			HDMITX_INFO("hdr: [%s]: SDR->MESON_DOLBYVISION Sink-led\n", __func__);
+		else if (type == EOTF_T_LL_MODE &&
+				tunnel_mode == YUV422_BIT12 && signal_sdr != true)
+			HDMITX_INFO("hdr: [%s]: SDR->MESON_DOLBYVISION Source-led\n", __func__);
 	}
 
-	/* if DRM/HDR packet is enabled, disable it */
+	/* if DRM/HDR packet is enabled but next will output DV, then disable it */
 	hdr_type = hdmitx_hw_get_hdr_st(&hdev->tx_hw.base);
-	if (hdr_type != HDMI_NONE) {
+	if (hdr_type != HDMI_NONE &&
+		(type == EOTF_T_DV_AHEAD ||
+		type == EOTF_T_DOLBYVISION ||
+		type == EOTF_T_LL_MODE)) {
 		hdev->hdr_transfer_feature = T_BT709;
 		hdev->hdr_color_feature = C_BT709;
 		hdev->colormetry = 0;
@@ -1189,14 +1253,12 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 		hdmi_drm_infoframe_set(NULL);
 	}
 
-	hdev->hdmi_current_eotf_type = type;
-	hdev->hdmi_current_tunnel_mode = tunnel_mode;
 	if (vic == HDMI_95_3840x2160p30_16x9 ||
 	    vic == HDMI_94_3840x2160p25_16x9 ||
 	    vic == HDMI_93_3840x2160p24_16x9 ||
 	    vic == HDMI_98_4096x2160p24_256x135)
 		hdmi_vic_4k_flag = 1;
-	/*ver0 and ver1_15 and ver1_12bit with ll= 0 use hdmi 1.4b VSIF*/
+	/* ver0 and ver1_15 and ver1_12bit with ll= 0 use hdmi 1.4b VSIF */
 	if (hdev->tx_comm.rxcap.dv_info.ver == 0 ||
 	    (hdev->tx_comm.rxcap.dv_info.ver == 1 &&
 	    hdev->tx_comm.rxcap.dv_info.length == 0xE) ||
@@ -1232,7 +1294,8 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 				ven_db1[4] = 0x2;
 			else if (vic == HDMI_93_3840x2160p24_16x9)
 				ven_db1[4] = 0x3;
-			else/*vic == HDMI_98_4096x2160p24_256x135*/
+			else
+				/* vic == HDMI_98_4096x2160p24_256x135 */
 				ven_db1[4] = 0x4;
 		}
 		if (type == EOTF_T_DV_AHEAD) {
@@ -1241,22 +1304,23 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			return;
 		}
 		if (type == EOTF_T_DOLBYVISION) {
-			/* disable forced gaming in this mode because if we are
+			/*
+			 * disable forced gaming in this mode because if we are
 			 * here with forced gaming on, it means TV is not DV LL
 			 * capable
 			 */
 			if (hdev->ll_user_set_mode == HDMI_LL_MODE_ENABLE &&
 			   (hdev->tx_comm.allm_mode == 1 || hdev->tx_comm.ct_mode == 1)) {
-				HDMITX_INFO("DV H14b VSIF, disable forced game mode\n");
+				HDMITX_DEBUG_PACKET("hdr: amdv H14b VSIF, disable game mode\n");
 				hdmi_tx_enable_ll_mode(false);
 			}
-			/*first disable drm package*/
+			/* first disable drm package */
 			hdmi_drm_infoframe_set(NULL);
 			hdmi_vend_infoframe_rawset(ven_hb, db1);
 			/* Dolby Vision Source System-on-Chip Platform Kit Version 2.6:
 			 * 4.4.1 Expected AVI-IF for Dolby Vision output, need BT2020 for DV
 			 */
-			hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);/*BT2020*/
+			hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);
 			if (tunnel_mode == RGB_8BIT) {
 				hdmi_avi_infoframe_config(CONF_AVI_CS, HDMI_COLORSPACE_RGB);
 				hdmi_avi_infoframe_config(CONF_AVI_Q01, RGB_RANGE_FUL);
@@ -1269,28 +1333,40 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 							HDMITX_HDR_MODE_DV_LL);
 			}
 		} else {
-			if (hdmi_vic_4k_flag)
+			if (hdmi_vic_4k_flag) {
 				hdmi_vend_infoframe_rawset(ven_hb, db1);
-			else
+				HDMITX_INFO("hdr: amdv exit, send H14b VSIF with hdmi_vic: %d\n",
+						ven_db1[4]);
+			} else {
 				/* hdmi_vend_infoframe_set(NULL); */
 				hdmi_vend_infoframe_rawset(NULL, NULL);
+				HDMITX_INFO("hdr: amdv exit, disable H14b VSIF\n");
+			}
 			if (signal_sdr) {
-				HDMITX_INFO("DV H14b VSIF, switching signal to SDR\n");
+				HDMITX_INFO("hdr: [%s]: switch signal to SDR\n", __func__);
 				hdmi_avi_infoframe_config(CONF_AVI_CS, fmt_para->cs);
 				hdmi_avi_infoframe_config(CONF_AVI_Q01, RGB_RANGE_LIM);
 				hdmi_avi_infoframe_config(CONF_AVI_YQ01, YCC_RANGE_LIM);
-				hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);/*BT709*/
+				/* BT709 */
+				hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);
+
+				/* if TV support traditional SDR, then recover hdr.sdr packet */
+				/* if (hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0x1) { */
+				/* HDMITX_DEBUG_PACKET("%s: recover hdr.sdr pkt\n", __func__); */
+				/* hdmi_drm_infoframe_init(&hdev->infoframes.drm.drm); */
+				/* hdmi_drm_infoframe_set(&hdev->infoframes.drm.drm); */
+				/* } */
 				/* re-enable forced game mode if selected by the user */
 				if (hdev->ll_user_set_mode == HDMI_LL_MODE_ENABLE) {
-					HDMITX_INFO("DV H14b VSIF OFF,re-enable force game mode\n");
+					HDMITX_INFO("hdr: amdv H14b VSIF OFF, enable game mode\n");
 					hdmi_tx_enable_ll_mode(true);
 				}
 				hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
-							HDMITX_HDR_MODE_SDR);
+						HDMITX_HDR_MODE_SDR);
 			}
 		}
 	}
-	/*ver1_12  with low_latency = 1 and ver2 use Dolby VSIF*/
+	/* ver1_12  with low_latency = 1 and ver2 use Dolby VSIF */
 	if (hdev->tx_comm.rxcap.dv_info.ver == 2 ||
 	    (hdev->tx_comm.rxcap.dv_info.ver == 1 &&
 	     hdev->tx_comm.rxcap.dv_info.length == 0xB &&
@@ -1320,10 +1396,11 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			ven_db2[3] = data->vers.ver2_l11.low_latency |
 				     data->vers.ver2_l11.dobly_vision_signal << 1 |
 				     data->vers.ver2_l11.src_dm_version << 5;
+			/* L11_MD_Present */
 			ven_db2[4] = data->vers.ver2_l11.eff_tmax_PQ_hi
 				     | data->vers.ver2_l11.auxiliary_MD_present << 6
 				     | data->vers.ver2_l11.backlt_ctrl_MD_present << 7
-				     | 0x20; /*L11_MD_Present*/
+				     | 0x20;
 			ven_db2[5] = data->vers.ver2_l11.eff_tmax_PQ_low;
 			ven_db2[6] = data->vers.ver2_l11.auxiliary_runmode;
 			ven_db2[7] = data->vers.ver2_l11.auxiliary_runversion;
@@ -1351,30 +1428,33 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
 			return;
 		}
-		/*Dolby Vision standard case*/
+		/* Dolby Vision standard case */
 		if (type == EOTF_T_DOLBYVISION) {
-			/* disable forced gaming in this mode because if we are
+			/*
+			 * disable forced gaming in this mode because if we are
 			 * here with forced gaming on, it means TV is not DV LL
 			 * capable
 			 */
 			if (hdev->ll_user_set_mode == HDMI_LL_MODE_ENABLE &&
 			   (hdev->tx_comm.allm_mode == 1 || hdev->tx_comm.ct_mode == 1)) {
-				HDMITX_INFO("Dolby VSIF, disable forced game mode\n");
+				HDMITX_DEBUG_PACKET("hdr: amdv VSIF, disable game mode\n");
 				hdmi_tx_enable_ll_mode(false);
 			}
-			/*first disable drm package*/
+			/* first disable drm package */
 			hdmi_drm_infoframe_set(NULL);
 			hdmi_vend_infoframe_rawset(ven_hb, db2);
 			/* Dolby Vision Source System-on-Chip Platform Kit Version 2.6:
 			 * 4.4.1 Expected AVI-IF for Dolby Vision output, need BT2020 for DV
 			 */
-			hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);/*BT.2020*/
-			if (tunnel_mode == RGB_8BIT) {/*RGB444*/
+			hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);
+			/* RGB444 */
+			if (tunnel_mode == RGB_8BIT) {
 				hdmi_avi_infoframe_config(CONF_AVI_CS, HDMI_COLORSPACE_RGB);
 				hdmi_avi_infoframe_config(CONF_AVI_Q01, RGB_RANGE_FUL);
 				hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
 							HDMITX_HDR_MODE_DV_STD);
-			} else {/*YUV422*/
+			} else {
+				/* YUV422 */
 				hdmi_avi_infoframe_config(CONF_AVI_CS, HDMI_COLORSPACE_YUV422);
 				hdmi_avi_infoframe_config(CONF_AVI_YQ01, YCC_RANGE_FUL);
 				hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
@@ -1383,18 +1463,19 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			if (hdmi_vic_4k_flag)
 				hdmi_avi_infoframe_config(CONF_AVI_VIC, vic & 0xff);
 		}
-		/*Dolby Vision low-latency case*/
+		/* Dolby Vision low-latency case */
 		else if (type == EOTF_T_LL_MODE) {
-			/* make sure forced game mode is enabled as there could be DV std
+			/*
+			 * make sure forced game mode is enabled as there could be DV std
 			 * to DV LL transition during uboot to kernel transition because
 			 * of game mode forced enabled by user.
 			 */
 			if (hdev->ll_user_set_mode == HDMI_LL_MODE_ENABLE &&
 			    hdev->tx_comm.allm_mode == 0 && hdev->tx_comm.ct_mode == 0) {
-				pr_debug("hdmitx: Dolby LL VSIF, enable forced game mode\n");
+				HDMITX_INFO("hdr: amdv LL VSIF, enable forced game mode\n");
 				hdmi_tx_enable_ll_mode(true);
 			}
-			/*first disable drm package*/
+			/* first disable drm package */
 			hdmi_drm_infoframe_set(NULL);
 			hdmi_vend_infoframe_rawset(ven_hb, db2);
 			/* Dolby vision HDMI Signaling Case25,
@@ -1402,25 +1483,27 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			 * need to forcely send BT.2020
 			 */
 			hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);
-			if (tunnel_mode == RGB_10_12BIT) {/*10/12bit RGB444*/
+			if (tunnel_mode == RGB_10_12BIT) {
+				/* 10/12bit RGB444 */
 				hdmi_avi_infoframe_config(CONF_AVI_CS, HDMI_COLORSPACE_RGB);
 				hdmi_avi_infoframe_config(CONF_AVI_Q01, RGB_RANGE_LIM);
 			} else if (tunnel_mode == YUV444_10_12BIT) {
-				/*10/12bit YUV444*/
+				/* 10/12bit YUV444 */
 				hdmi_avi_infoframe_config(CONF_AVI_CS, HDMI_COLORSPACE_YUV444);
 				hdmi_avi_infoframe_config(CONF_AVI_YQ01, YCC_RANGE_LIM);
-			} else {/*YUV422*/
+			} else {
+				/* YUV422 */
 				hdmi_avi_infoframe_config(CONF_AVI_CS, HDMI_COLORSPACE_YUV422);
 				hdmi_avi_infoframe_config(CONF_AVI_YQ01, YCC_RANGE_LIM);
 			}
-			/* save vic to AVI when send DV_VSIF*/
+			/* save vic to AVI when send DV_VSIF */
 			if (hdmi_vic_4k_flag)
 				hdmi_avi_infoframe_config(CONF_AVI_VIC, vic & 0xff);
-			hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
-						HDMITX_HDR_MODE_DV_LL);
-		} else { /*SDR case*/
+			hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer, HDMITX_HDR_MODE_DV_LL);
+		} else {
+			/* SDR case */
 			if (hdmi_vic_4k_flag) {
-				/* recover HDMI1.4b_VSIF*/
+				/* recover HDMI1.4b_VSIF */
 				ven_hb[2] = 0x5;
 				ven_db1[0] = 0x03;
 				ven_db1[1] = 0x0c;
@@ -1435,26 +1518,33 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 				else if (vic == HDMI_98_4096x2160p24_256x135)
 					ven_db1[4] = 0x4;
 				hdmi_vend_infoframe_rawset(ven_hb, db1);
-				/* clear vic from AVI*/
+				HDMITX_INFO("hdr: amdv exit, send H14b VSIF with hdmi_vic: %d\n",
+						ven_db1[4]);
+				/* clear vic from AVI */
 				hdmi_avi_infoframe_config(CONF_AVI_VIC, 0);
 			} else {
-				HDMITX_INFO("Dolby VSIF, ven_db2[3]) = %d\n", ven_db2[3]);
+				HDMITX_INFO("hdr: amdv exit, amdv_signal = %d\n", ven_db2[3]);
 				hdmi_vend_infoframe_rawset(ven_hb, db2);
 			}
 			if (signal_sdr) {
-				HDMITX_INFO("Dolby VSIF, switching signal to SDR\n");
-				HDMITX_INFO("vic:%d, cd:%d, cs:%d, cr:%d\n",
-					fmt_para->timing.vic, fmt_para->cd,
-					fmt_para->cs, fmt_para->cr);
+				HDMITX_INFO("hdr: [%s]: switch signal to SDR\n", __func__);
 				hdmi_avi_infoframe_config(CONF_AVI_CS, fmt_para->cs);
 				hdmi_avi_infoframe_config(CONF_AVI_Q01, RGB_RANGE_DEFAULT);
 				hdmi_avi_infoframe_config(CONF_AVI_YQ01, YCC_RANGE_LIM);
-				hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);/*BT709*/
+				/* BT709 */
+				hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);
+
+				/* if TV support traditional SDR, then recover hdr.sdr packet */
+				/* if (hdev->tx_comm.rxcap.hdr_info2.hdr_support & 0x1) { */
+				/* HDMITX_DEBUG_PACKET("%s: recover hdr.sdr pkt\n", __func__); */
+				/* hdmi_drm_infoframe_init(&hdev->infoframes.drm.drm); */
+				/* hdmi_drm_infoframe_set(&hdev->infoframes.drm.drm); */
+				/* } */
 				hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
-							HDMITX_HDR_MODE_SDR);
+						HDMITX_HDR_MODE_SDR);
 				/* re-enable forced game mode if selected by the user */
 				if (hdev->ll_user_set_mode == HDMI_LL_MODE_ENABLE) {
-					HDMITX_INFO("DV VSIF disabled,re-enable force game mode\n");
+					HDMITX_INFO("hdr: amdv VSIF disabled, enable game mode\n");
 					hdmi_tx_enable_ll_mode(true);
 				}
 			}
@@ -1476,42 +1566,40 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 	u8 *ven_db = &db[1];
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 
-	HDMITX_DEBUG_PACKET("%s[%d]\n", __func__, __LINE__);
+	HDMITX_DEBUG_PACKET("hdr: [%s]: [%d]\n", __func__, __LINE__);
 	if (data)
-		memcpy(&hdr10p_config_data, data,
-		       sizeof(struct hdr10plus_para));
+		memcpy(&hdr10p_config_data, data, sizeof(struct hdr10plus_para));
 	else
-		memset(&hdr10p_config_data, 0,
-		       sizeof(struct hdr10plus_para));
-	if (!is_cur_hdmi_mode())
-		return;
+		memset(&hdr10p_config_data, 0, sizeof(struct hdr10plus_para));
+
 	if (hdev->bist_lock)
 		return;
 	/* if ready is 0, only can clear pkt */
 	if (hdev->tx_comm.ready == 0 && data)
 		return;
-	/* save vic to AVI when send HDR10P_VSIF*/
+	/* save vic to AVI when send HDR10P_VSIF */
 	if (vic == HDMI_95_3840x2160p30_16x9 ||
 		vic == HDMI_94_3840x2160p25_16x9 ||
 		vic == HDMI_93_3840x2160p24_16x9 ||
 		vic == HDMI_98_4096x2160p24_256x135)
 		hdmi_vic_4k_flag = 1;
-	/* if currently output 8bit, and EDID don't
-	 * support Y422, and config_csc_en is 0, switch to SDR output
+
+	/*
+	 * if currently output 8bit, and EDID don't support Y422, and config_csc_en is 0,
+	 * switch to SDR output; if hdr_8bit_en is 1, switch to HDR output
 	 */
-	if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B) {
+	if (hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B && !hdev->tx_comm.hdr_8bit_en) {
 		if (!(hdev->tx_comm.config_csc_en && is_support_y422(prxcap))) {
 			hdev->hdr_transfer_feature = T_BT709;
 			hdev->hdr_color_feature = C_BT709;
+			hdev->colormetry = 0;
 			schedule_work(&hdev->work_hdr);
-			hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
-					HDMITX_HDR_MODE_SDR);
 			return;
 		}
 	}
 	if (flag == HDR10_PLUS_ZERO_VSIF) {
-		/* needed during hdr10+ to sdr transition */
-		HDMITX_INFO("%s: zero vsif\n", __func__);
+		/* needed during hdr10plus to sdr transition */
+		HDMITX_INFO("hdr: [%s]: HDR10PLUS->SDR, sned zero vsif pkt\n", __func__);
 		hdmi_vend_infoframe_rawset(ven_hb, db);
 		hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);
 		hdev->hdr10plus_feature = 0;
@@ -1526,8 +1614,16 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 		return;
 	}
 
+	if (hdev->hdr10plus_feature != flag) {
+		hdev->hdr10plus_feature = flag;
+		if (flag == HDR10_PLUS_ENABLE_VSIF)
+			HDMITX_INFO("hdr: [%s]: SDR->HDR10PLUS\n", __func__);
+		else if (flag == HDR10_PLUS_DISABLE_VSIF)
+			HDMITX_INFO("hdr: [%s]: HDR10PLUS->SDR\n", __func__);
+	}
+
 	if (!data || !flag) {
-		HDMITX_INFO("%s: null vsif\n", __func__);
+		HDMITX_INFO("hdr: [%s]: disable hdr10plus vsif pkt\n", __func__);
 		/* hdmi_vend_infoframe_set(NULL); */
 		hdmi_vend_infoframe_rawset(NULL, NULL);
 		hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);
@@ -1538,9 +1634,6 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 		return;
 	}
 
-	if (hdev->hdr10plus_feature != 1)
-		HDMITX_INFO("%s: flag = %d\n", __func__, flag);
-	hdev->hdr10plus_feature = 1;
 	ven_db[0] = 0x8b;
 	ven_db[1] = 0x84;
 	ven_db[2] = 0x90;
@@ -1580,21 +1673,6 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 		hdmi_avi_infoframe_config(CONF_AVI_VIC, vic & 0xff);
 	hdmitx_tracer_write_event(hdev->tx_comm.tx_tracer,
 				HDMITX_HDR_MODE_HDR10PLUS);
-
-	/* currently output y444,8bit or rgb,8bit, and EDID
-	 * support Y422, then switch to y422,12bit mode
-	 */
-	if ((hdev->tx_comm.fmt_para.cs == HDMI_COLORSPACE_YUV444 ||
-		hdev->tx_comm.fmt_para.cs == HDMI_COLORSPACE_RGB) &&
-		hdev->tx_comm.fmt_para.cd == COLORDEPTH_24B &&
-		is_support_y422(prxcap)) {
-		/* hdev->hwop.cntlconfig(hdev,*/
-		/* CONF_AVI_RGBYCC_INDIC, */
-		/* COLORSPACE_YUV422);*/
-		hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONFIG_CSC,
-			CSC_Y422_12BIT | CSC_UPDATE_AVI_CS);
-		HDMITX_DEBUG_PACKET("%s: switch to 422,12bit\n", __func__);
-	}
 }
 
 static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data)
@@ -1608,8 +1686,6 @@ static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data)
 	unsigned char *ven_db = &db[1];
 	unsigned int ieee_code;
 
-	if (!is_cur_hdmi_mode())
-		return;
 	if (vic == HDMI_95_3840x2160p30_16x9 ||
 		vic == HDMI_94_3840x2160p25_16x9 ||
 		vic == HDMI_93_3840x2160p24_16x9 ||
@@ -1617,7 +1693,7 @@ static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data)
 		hdmi_vic_4k_flag = 1;
 	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
 	if (!data) {
-		ieee_code = hdmitx21_get_vender_infoframe_ieee();
+		ieee_code = hdmitx21_get_vendor_infoframe_ieee();
 		if (ieee_code == CUVA_IEEEOUI) {
 			if (hdmi_vic_4k_flag) {
 				ven_hb[2] = 0x5;
@@ -1635,10 +1711,10 @@ static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data)
 					ven_db[4] = 0x4;
 				hdmi_vend_infoframe_rawset(ven_hb, db);
 				hdmi_avi_infoframe_config(CONF_AVI_VIC, 0);
-				HDMITX_INFO("%s: recover hdmi1.4b_vsif\n", __func__);
+				HDMITX_INFO("hdr: [%s]: recover hdmi1.4b_vsif\n", __func__);
 			} else {
 				hdmi_vend_infoframe_rawset(NULL, NULL);
-				HDMITX_INFO("%s: clear vender infoframe\n", __func__);
+				HDMITX_INFO("hdr: [%s]: clear vendor infoframe\n", __func__);
 			}
 		}
 		spin_unlock_irqrestore(&hdev->tx_comm.edid_spinlock, flags);
@@ -1664,8 +1740,6 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	int max_size;
 
-	if (!is_cur_hdmi_mode())
-		return;
 	memset(vs_emds, 0, sizeof(vs_emds));
 	spin_lock_irqsave(&hdev->tx_comm.edid_spinlock, flags);
 	if (!data) {
@@ -1678,14 +1752,21 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 	max_size = sizeof(struct hdmi_packet_t) * 3;
 	vs_emds[0].hb[0] = 0x7f;
 	vs_emds[0].hb[1] = 1 << 7;
-	vs_emds[0].hb[2] = 0; /* Sequence_Index */
+	/* Sequence_Index */
+	vs_emds[0].hb[2] = 0;
 	vs_emds[0].pb[0] = (1 << 7) | (1 << 4) | (1 << 2) | (1 << 1);
-	vs_emds[0].pb[1] = 0; /* rsvd */
-	vs_emds[0].pb[2] = 0; /* Organization_ID */
-	vs_emds[0].pb[3] = 0; /* Data_Set_Tag_MSB */
-	vs_emds[0].pb[4] = 2; /* Data_Set_Tag_LSB */
-	vs_emds[0].pb[5] = 0; /* Data_Set_Length_MSB */
-	vs_emds[0].pb[6] = 0x38; /* Data_Set_Length_LSB */
+	/* rsvd */
+	vs_emds[0].pb[1] = 0;
+	/* Organization_ID */
+	vs_emds[0].pb[2] = 0;
+	/* Data_Set_Tag_MSB */
+	vs_emds[0].pb[3] = 0;
+	/* Data_Set_Tag_LSB */
+	vs_emds[0].pb[4] = 2;
+	/* Data_Set_Length_MSB */
+	vs_emds[0].pb[5] = 0;
+	/* Data_Set_Length_LSB */
+	vs_emds[0].pb[6] = 0x38;
 	vs_emds[0].pb[7] = GET_OUI_BYTE0(CUVA_IEEEOUI);
 	vs_emds[0].pb[8] = GET_OUI_BYTE1(CUVA_IEEEOUI);
 	vs_emds[0].pb[9] = GET_OUI_BYTE2(CUVA_IEEEOUI);
@@ -1712,7 +1793,8 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 	vs_emds[0].pb[27] = data->base_param_m_b & 0xff;
 	vs_emds[1].hb[0] = 0x7f;
 	vs_emds[1].hb[1] = 0;
-	vs_emds[1].hb[2] = 1; /* Sequence_Index */
+	/* Sequence_Index */
+	vs_emds[1].hb[2] = 1;
 	vs_emds[1].pb[0] = data->base_param_m_n & 0x3f;
 	vs_emds[1].pb[1] = (((data->base_param_k[0] & 3) << 4) |
 			   ((data->base_param_k[1] & 3) << 2) |
@@ -1751,12 +1833,14 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 	vs_emds[1].pb[27] = data->color_saturation_gain[4];
 	vs_emds[2].hb[0] = 0x7f;
 	vs_emds[2].hb[1] = (1 << 6);
-	vs_emds[2].hb[2] = 2; /* Sequence_Index */
+	/* Sequence_Index */
+	vs_emds[2].hb[2] = 2;
 	vs_emds[2].pb[0] = data->color_saturation_gain[5];
 	vs_emds[2].pb[1] = data->color_saturation_gain[6];
 	vs_emds[2].pb[2] = data->color_saturation_gain[7];
 	vs_emds[2].pb[3] = data->graphic_src_display_value;
-	vs_emds[2].pb[4] = 0; /* Reserved */
+	/* Reserved */
+	vs_emds[2].pb[4] = 0;
 	vs_emds[2].pb[5] = data->max_display_mastering_lum >> 8;
 	vs_emds[2].pb[6] = data->max_display_mastering_lum & 0xff;
 
@@ -1766,23 +1850,33 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 				HDMITX_HDR_MODE_CUVA);
 }
 
-//SBTM PKT test
+/* SBTM PKT test */
 void hdmitx21_send_sbtm_pkt(void)
 {
 	u8 hb[3] = {0x0};
 	u8 pb[28] = {0x0};
 
-	hb[0] = 0x7f; //header[7:0] packet type; EMP packet = 0x7f
-	hb[1] = 0xc0; //header[15:8]; [7]:first; [6]:last
-	hb[2] = 0x00; //sequence_index;
+	/* header[7:0] packet type; EMP packet = 0x7f */
+	hb[0] = 0x7f;
+	/* header[15:8]; [7]:first; [6]:last */
+	hb[1] = 0xc0;
+	/* sequence_index */
+	hb[2] = 0x00;
 
-	pb[0] = 0x96; //[7]:new; [6]:end; [5:4]:DS_type; [3]:AFR; [2]:VFR;
-	pb[1] = 0x00; //reserved
-	pb[2] = 0x01; //Organization_ID
-	pb[3] = 0x00; //data_set_tag(msb)
-	pb[4] = 0x03; //data_set_tag(lsb)
-	pb[5] = 0x00; //data_set_length(msb) when ID>0, then length = 0
-	pb[6] = 0x00; //data_set_length(lsb)
+	/* [7]:new; [6]:end; [5:4]:DS_type; [3]:AFR; [2]:VFR */
+	pb[0] = 0x96;
+	/* reserved */
+	pb[1] = 0x00;
+	/* Organization_ID */
+	pb[2] = 0x01;
+	/* data_set_tag(msb) */
+	pb[3] = 0x00;
+	/* data_set_tag(lsb) */
+	pb[4] = 0x03;
+	/* data_set_length(msb) when ID>0, then length = 0 */
+	pb[5] = 0x00;
+	/* data_set_length(lsb) */
+	pb[6] = 0x00;
 
 	pb[7] = 0x11;
 	pb[8] = 0x12;
@@ -1874,7 +1968,8 @@ static ssize_t config_store(struct device *dev,
 			hdmi21_set_3d(hdev, T3D_DISABLE, 0);
 		}
 	} else if (strncmp(buf, "sdr_hdr_dov", 11) == 0) {
-		/* firstly stay at SDR state, then send hdr->dv packet to
+		/*
+		 * firstly stay at SDR state, then send hdr->dv packet to
 		 * emulate SDR->HDR->DV switch, DRM-TX-47
 		 */
 		/* step1: SDR-->HDR */
@@ -1902,7 +1997,8 @@ static ssize_t config_store(struct device *dev,
 			.sbtm_type = 0x1,
 			.grdm_min = 0x1,
 			.grdm_lum = 2,
-			.frmpblimitint = 0xdcba, /* MD2/3 */
+			/* MD2/3 */
+			.frmpblimitint = 0xdcba,
 		};
 		hdmitx_set_sbtm_pkt(&sbtm);
 	} else if (strncmp(buf, "hlg", 3) == 0) {
@@ -1968,7 +2064,7 @@ static ssize_t config_store(struct device *dev,
 static void hdmitx21_ext_set_audio_output(bool enable)
 {
 	hdmitx21_audio_mute_op(enable, AUDIO_MUTE_PATH_1);
-	HDMITX_INFO("%s enable:%d\n", __func__, enable);
+	HDMITX_INFO("audio: enable:%d\n", enable);
 }
 
 static int hdmitx21_ext_get_audio_status(void)
@@ -2044,7 +2140,6 @@ static ssize_t vid_mute_store(struct device *dev,
 	return count;
 }
 
-/**/
 static ssize_t lipsync_cap_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
@@ -2052,13 +2147,12 @@ static ssize_t lipsync_cap_show(struct device *dev,
 	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "Lipsync(in ms)\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "%d, %d\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "Lipsync(in ms)\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "%d, %d\n",
 				prxcap->vLatency, prxcap->aLatency);
 	return pos;
 }
 
-/**/
 static ssize_t hdmi_hdr_status_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
@@ -2070,35 +2164,35 @@ static ssize_t hdmi_hdr_status_show(struct device *dev,
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR10P, 0);
 	if (type) {
 		if (type == HDMI_HDR10P_DV_VSIF) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10Plus-VSIF");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10Plus-VSIF");
 			return pos;
 		}
 	}
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_DV, 0);
 	if (type) {
 		if (type == HDMI_DV_VSIF_STD) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "DolbyVision-Std");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "DolbyVision-Std");
 			return pos;
 		} else if (type == HDMI_DV_VSIF_LL) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "DolbyVision-Lowlatency");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "DolbyVision-Lowlatency");
 			return pos;
 		}
 	}
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR, 0);
 	if (type) {
 		if (type == HDMI_HDR_SMPTE_2084) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-GAMMA_ST2084");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10-GAMMA_ST2084");
 			return pos;
 		} else if (type == HDMI_HDR_HLG) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-GAMMA_HLG");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10-GAMMA_HLG");
 			return pos;
 		} else if (type == HDMI_HDR_HDR) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-others");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10-others");
 			return pos;
 		}
 	}
 	/* default is SDR */
-	pos += snprintf(buf + pos, PAGE_SIZE, "SDR");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "SDR");
 
 	return pos;
 }
@@ -2146,7 +2240,8 @@ static void hdmi_tx_enable_ll_mode(bool enable)
 
 	if (enable) {
 		if (tx_comm->rxcap.allm) {
-			/* DV CTS case89 requirement: if IFDB with no
+			/*
+			 * DV CTS case89 requirement: if IFDB with no
 			 * additional VSIF support in EDID, then only
 			 * send DV-VSIF, not send HF-VSIF
 			 */
@@ -2166,7 +2261,7 @@ static void hdmi_tx_enable_ll_mode(bool enable)
 			tx_comm->it_content = 0;
 			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_CT_MODE, SET_CT_OFF);
 		} else if (tx_comm->rxcap.cnc3) {
-		    /* disable ALLM first if enabled*/
+			/* disable ALLM first if enabled */
 			if (tx_comm->allm_mode == 1) {
 				tx_comm->allm_mode = 0;
 				HDMITX_INFO("%s: first dis-ALLM, enable:%d, allm:%d, cnc3:%d\n",
@@ -2177,7 +2272,8 @@ static void hdmi_tx_enable_ll_mode(bool enable)
 					!hdmitx_hdr10p_en(tx_comm->tx_hw))
 					hdmitx_common_setup_vsif_packet(tx_comm,
 						VT_HDMI14_4K, 1, NULL);
-				/* if not hdmi1.4 4k, need to sent > 4 frames and shorter than 1S
+				/*
+				 * if not hdmi1.4 4k, need to sent > 4 frames and shorter than 1S
 				 * HF-VSIF with allm_mode = 0, and then disable HF-VSIF according
 				 * 10.2.1 HF-VSIF Transitions in hdmi2.1a. TODO:
 				 */
@@ -2235,7 +2331,8 @@ static void hdmi_tx_enable_ll_mode(bool enable)
 	}
 }
 
-/* for decoder/hwc or sysctl to control the low latency mode,
+/*
+ * for decoder/hwc or sysctl to control the low latency mode,
  * as they don't care if sink support ALLM OR HDMI1.X game mode
  * so need hdmitx driver to device to send ALLM OR HDMI1.X game
  * mode according to capability of EDID
@@ -2248,23 +2345,26 @@ static ssize_t ll_mode_show(struct device *dev,
 
 	if (hdev->tx_comm.rxcap.allm) {
 		if (hdev->tx_comm.allm_mode == 1)
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDMI2.1_ALLM_ENABLED\n\r");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDMI2.1_ALLM_ENABLED\n\r");
 		else
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDMI2.1_ALLM_DISABLED\n\r");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDMI2.1_ALLM_DISABLED\n\r");
 	}
 	if (hdev->tx_comm.rxcap.cnc3) {
 		if (hdev->tx_comm.ct_mode == 1)
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDMI1.x_GAME_MODE_ENABLED\n\r");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"HDMI1.x_GAME_MODE_ENABLED\n\r");
 		else
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDMI1.x_GAME_MODE_DISABLED\n\r");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"HDMI1.x_GAME_MODE_DISABLED\n\r");
 	}
 
 	if (!hdev->tx_comm.rxcap.allm && !hdev->tx_comm.rxcap.cnc3)
-		pos += snprintf(buf + pos, PAGE_SIZE, "HDMI_LATENCY_MODE_UNKNOWN\n\r");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDMI_LATENCY_MODE_UNKNOWN\n\r");
 	return pos;
 }
 
-/* 1.echo 1 to enable ALLM OR HDMI1.X game mode
+/*
+ * 1.echo 1 to enable ALLM OR HDMI1.X game mode
  * if sink support ALLM, then output ALLM mode;
  * else if support HDMI1.X game mode, then output
  * HDMI1.X game mode; else, do nothing
@@ -2291,8 +2391,7 @@ static ssize_t ll_mode_store(struct device *dev,
 	return count;
 }
 
-/* for user to force enable/disable low-latency modes
- */
+/* for user to force enable/disable low-latency modes */
 static ssize_t ll_user_mode_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
@@ -2301,20 +2400,21 @@ static ssize_t ll_user_mode_show(struct device *dev,
 
 	switch (hdev->ll_user_set_mode) {
 	case HDMI_LL_MODE_ENABLE:
-		pos += snprintf(buf + pos, PAGE_SIZE, "HDMI_LL_MODE_ENABLE\n\r");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDMI_LL_MODE_ENABLE\n\r");
 		break;
 	case HDMI_LL_MODE_DISABLE:
-		pos += snprintf(buf + pos, PAGE_SIZE, "HDMI_LL_MODE_DISABLE\n\r");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDMI_LL_MODE_DISABLE\n\r");
 		break;
 	case HDMI_LL_MODE_AUTO:
 	default:
-		pos += snprintf(buf + pos, PAGE_SIZE, "HDMI_LL_MODE_AUTO\n\r");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDMI_LL_MODE_AUTO\n\r");
 		break;
 	}
 	return pos;
 }
 
-/* 1.echo enable to enable ALLM OR HDMI1.X game mode
+/*
+ * 1.echo enable to enable ALLM OR HDMI1.X game mode
  * if sink support ALLM, then output ALLM mode;
  * else if support HDMI1.X game mode, then output
  * HDMI1.X game mode; else, do nothing
@@ -2343,7 +2443,8 @@ static ssize_t ll_user_mode_store(struct device *dev,
 	return count;
 }
 
-/* for game console-> hdmirx -> hdmitx -> TV
+/*
+ * for game console-> hdmirx -> hdmitx -> TV
  * interface for hdmirx module
  * ret: false if not update, true if updated
  */
@@ -2352,7 +2453,8 @@ bool hdmitx_update_latency_info(struct tvin_latency_s *latency_info)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
 	bool it_content = false;
-	/* when switch between hdmirx source(ALLM) and hdmitx home(non-ALLM),
+	/*
+	 * when switch between hdmirx source(ALLM) and hdmitx home(non-ALLM),
 	 * the ALLM/1.4 Game will change, need to mute before change
 	 */
 	bool video_mute = false;
@@ -2395,7 +2497,7 @@ bool hdmitx_update_latency_info(struct tvin_latency_s *latency_info)
 			//}
 			if (!get_rx_active_sts()) {
 				video_mute = true;
-				//hdmitx21_video_mute_op(0, VIDEO_MUTE_PATH_4);
+				/* hdmitx21_video_mute_op(0, VIDEO_MUTE_PATH_4); */
 				hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_VIDEO_MUTE_OP,
 					VIDEO_MUTE);
 			}
@@ -2409,7 +2511,7 @@ bool hdmitx_update_latency_info(struct tvin_latency_s *latency_info)
 	} else {
 		if (!get_rx_active_sts()) {
 			video_mute = true;
-			//hdmitx21_video_mute_op(0, VIDEO_MUTE_PATH_4);
+			/* hdmitx21_video_mute_op(0, VIDEO_MUTE_PATH_4); */
 			hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_VIDEO_MUTE_OP, VIDEO_MUTE);
 		}
 		/* disable ALLM firstly */
@@ -2474,13 +2576,13 @@ static ssize_t vrr_mode_show(struct device *dev,
 
 	switch (hdev->vrr_mode) {
 	case T_VRR_GAME:
-		pos += snprintf(buf + pos, PAGE_SIZE, "%s\n", "game-vrr");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "%s\n", "game-vrr");
 		break;
 	case T_VRR_QMS:
-		pos += snprintf(buf + pos, PAGE_SIZE, "%s\n", "qms-vrr");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "%s\n", "qms-vrr");
 		break;
 	default:
-		pos += snprintf(buf + pos, PAGE_SIZE, "%s\n", "none");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "%s\n", "none");
 		break;
 	}
 	return pos;
@@ -2556,7 +2658,8 @@ static ssize_t rxsense_policy_show(struct device *dev,
 	return pos;
 }
 
-/* cedst_policy: 0, no CED feature
+/*
+ * cedst_policy: 0, no CED feature
  *	       1, auto mode, depends on RX scdc_present
  *	       2, forced CED feature
  */
@@ -2573,7 +2676,8 @@ static ssize_t cedst_policy_store(struct device *dev,
 		HDMITX_INFO("set cedst_policy as %d\n", val);
 		if (val == 0 || val == 1 || val == 2) {
 			hdev->tx_comm.cedst_policy = val;
-			if (val == 1) { /* Auto mode, depends on Rx */
+			/* Auto mode, depends on Rx */
+			if (val == 1) {
 				/* check RX scdc_present */
 				if (hdev->tx_comm.rxcap.scdc_present)
 					hdev->tx_comm.cedst_en = 1;
@@ -2619,29 +2723,29 @@ static ssize_t cedst_count_show(struct device *dev,
 
 	frl_rate = hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_GET_FRL_MODE, 0);
 	if (!frl_rate && !ch_st->clock_detected)
-		pos += snprintf(buf + pos, PAGE_SIZE, "clock undetected\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "clock undetected\n");
 	if (!ch_st->ch0_locked)
-		pos += snprintf(buf + pos, PAGE_SIZE, "CH0 unlocked\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "CH0 unlocked\n");
 	if (!ch_st->ch1_locked)
-		pos += snprintf(buf + pos, PAGE_SIZE, "CH1 unlocked\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "CH1 unlocked\n");
 	if (!ch_st->ch2_locked)
-		pos += snprintf(buf + pos, PAGE_SIZE, "CH2 unlocked\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "CH2 unlocked\n");
 	if (frl_rate && !ch_st->ch3_locked)
-		pos += snprintf(buf + pos, PAGE_SIZE, "CH3 unlocked\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "CH3 unlocked\n");
 	if (ced->ch0_valid && ced->ch0_cnt)
-		pos += snprintf(buf + pos, PAGE_SIZE, "CH0 ErrCnt 0x%x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "CH0 ErrCnt 0x%x\n",
 			ced->ch0_cnt);
 	if (ced->ch1_valid && ced->ch1_cnt)
-		pos += snprintf(buf + pos, PAGE_SIZE, "CH1 ErrCnt 0x%x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "CH1 ErrCnt 0x%x\n",
 			ced->ch1_cnt);
 	if (ced->ch2_valid && ced->ch2_cnt)
-		pos += snprintf(buf + pos, PAGE_SIZE, "CH2 ErrCnt 0x%x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "CH2 ErrCnt 0x%x\n",
 			ced->ch2_cnt);
 	if (frl_rate >= FRL_6G4L && ced->ch3_valid && ced->ch3_cnt)
-		pos += snprintf(buf + pos, PAGE_SIZE, "CH3 ErrCnt 0x%x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "CH3 ErrCnt 0x%x\n",
 			ced->ch3_cnt);
 	if (frl_rate && ced->rs_c_valid && ced->rs_c_cnt)
-		pos += snprintf(buf + pos, PAGE_SIZE, "RSCC ErrCnt 0x%x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "RSCC ErrCnt 0x%x\n",
 			ced->rs_c_cnt);
 
 	memset(ced, 0, sizeof(*ced));
@@ -2712,12 +2816,12 @@ static ssize_t hdcp_lstore_show(struct device *dev,
 			lstore |= BIT(0);
 	}
 	if ((lstore & 0x3) == 0x3) {
-		pos += snprintf(buf + pos, PAGE_SIZE, "22+14\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "22+14\n");
 	} else {
 		if (lstore & 0x1)
-			pos += snprintf(buf + pos, PAGE_SIZE, "14\n");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "14\n");
 		if (lstore & 0x2)
-			pos += snprintf(buf + pos, PAGE_SIZE, "22\n");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "22\n");
 	}
 	return pos;
 }
@@ -2728,7 +2832,8 @@ static ssize_t hdcp_lstore_store(struct device *dev,
 {
 	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
 
-	/* debug usage for key store check
+	/*
+	 * debug usage for key store check
 	 * echo value > hdcp_lstore. value can be
 	 * -1: automatically check stored key when enable hdcp
 	 * 0: same as no hdcp key stored
@@ -2763,13 +2868,13 @@ static ssize_t hdcp_mode_show(struct device *dev,
 
 	switch (hdcp_mode) {
 	case 1:
-		pos += snprintf(buf + pos, PAGE_SIZE, "14");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "14");
 		break;
 	case 2:
-		pos += snprintf(buf + pos, PAGE_SIZE, "22");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "22");
 		break;
 	default:
-		pos += snprintf(buf + pos, PAGE_SIZE, "off");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "off");
 		break;
 	}
 
@@ -2781,9 +2886,9 @@ static ssize_t hdcp_mode_show(struct device *dev,
 		else
 			hdcp_ret = 0;
 		if (hdcp_ret == 1)
-			pos += snprintf(buf + pos, PAGE_SIZE, ": succeed\n");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, ": succeed\n");
 		else
-			pos += snprintf(buf + pos, PAGE_SIZE, ": fail\n");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, ": fail\n");
 	}
 
 	return pos;
@@ -2888,7 +2993,8 @@ static ssize_t cont_smng_method_show(struct device *dev,
 	return pos;
 }
 
-/* content stream management update method:
+/*
+ * content stream management update method:
  * when upstream side received new content stream
  * management message, there're two method to
  * update content stream type that propagated
@@ -2969,25 +3075,25 @@ static ssize_t frl_rate_show(struct device *dev,
 	int pos = 0;
 	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n", hdev->frl_rate);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "%d\n", hdev->frl_rate);
 	switch (hdev->frl_rate) {
 	case FRL_3G3L:
-		pos += snprintf(buf + pos, PAGE_SIZE, "FRL_3G3L\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "FRL_3G3L\n");
 		break;
 	case FRL_6G3L:
-		pos += snprintf(buf + pos, PAGE_SIZE, "FRL_6G3L\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "FRL_6G3L\n");
 		break;
 	case FRL_6G4L:
-		pos += snprintf(buf + pos, PAGE_SIZE, "FRL_6G4L\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "FRL_6G4L\n");
 		break;
 	case FRL_8G4L:
-		pos += snprintf(buf + pos, PAGE_SIZE, "FRL_8G4L\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "FRL_8G4L\n");
 		break;
 	case FRL_10G4L:
-		pos += snprintf(buf + pos, PAGE_SIZE, "FRL_10G4L\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "FRL_10G4L\n");
 		break;
 	case FRL_12G4L:
-		pos += snprintf(buf + pos, PAGE_SIZE, "FRL_12G4L\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "FRL_12G4L\n");
 		break;
 	default:
 		break;
@@ -3037,7 +3143,8 @@ static ssize_t dsc_en_show(struct device *dev,
 	return pos;
 }
 
-/* dsc_policy:
+/*
+ * dsc_policy:
  * 0 automatically enable dsc if necessary, but not support 8k Y444/rgb,12bit
  * or 4k100/120hz Y444/rgb,12bit
  * 1 force enable dsc for mode that can be supported both with dsc/non-dsc
@@ -3113,14 +3220,15 @@ static ssize_t hdcp_ver_show(struct device *dev,
 
 	if (!tx_comm->hpd_state) {
 		HDMITX_INFO("%s: hpd low, just return 14\n", __func__);
-		pos += snprintf(buf + pos, PAGE_SIZE, "14\n\r");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "14\n\r");
 		return pos;
 	}
 	if (rx_hdcp2_ver) {
-		pos += snprintf(buf + pos, PAGE_SIZE, "22\n\r");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "22\n\r");
 	} else {
-		//on hotplug case
-		/* note that, when do hdcp repeater1.4 CTS,
+		/*
+		 * on hotplug case
+		 * note that, when do hdcp repeater1.4 CTS,
 		 * hdcp port access will affect item 3a-02 Irregular
 		 * procedure: (First part of authentication) HDCP port
 		 * access. Refer to hdcp1.4 cts spec: "If DUT does
@@ -3144,7 +3252,7 @@ static ssize_t hdcp_ver_show(struct device *dev,
 			HDMITX_INFO("%s: currently should not read hdcp version\n", __func__);
 		} else if (hdmitx21_get_hdcp_mode() == 0) {
 			if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
-				pos += snprintf(buf + pos, PAGE_SIZE, "22\n\r");
+				pos += snprintf(buf + pos, PAGE_SIZE - pos, "22\n\r");
 				rx_hdcp2_ver = 1;
 			}
 			HDMITX_INFO("%s: hdev->tx_comm.hdcp_mode: 0, rx_hdcp2_ver = %d\n",
@@ -3152,7 +3260,7 @@ static ssize_t hdcp_ver_show(struct device *dev,
 		}
 	}
 	/* Here, must assume RX support HDCP14, otherwise affect 1A-03 */
-	pos += snprintf(buf + pos, PAGE_SIZE, "14\n\r");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "14\n\r");
 
 	return pos;
 }
@@ -3182,19 +3290,19 @@ static ssize_t hdmitx_basic_config_show(struct device *dev,
 	enum hdmi_tf_type type = HDMI_NONE;
 	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "************\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdmi_config_info\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "************\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "************\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdmi_config_info\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "************\n");
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "display_mode in:%s\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "display_mode in:%s\n",
 		get_vout_mode_internal());
 
 	vic = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_VIDEO_VIC, 0);
-	pos += snprintf(buf + pos, PAGE_SIZE, "display_mode out:%s\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "display_mode out:%s\n",
 		hdmitx_mode_get_timing_name(vic));
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "attr in:%s\n\r", hdev->tx_comm.fmt_attr);
-	pos += snprintf(buf + pos, PAGE_SIZE, "attr out:");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "attr in:%s\n\r", hdev->tx_comm.fmt_attr);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "attr out:");
 	cs = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_VIDEO_CS, 0);
 	switch (cs & 0x3) {
 	case 0:
@@ -3210,7 +3318,7 @@ static ssize_t hdmitx_basic_config_show(struct device *dev,
 		conf = "420";
 		break;
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "%s,", conf);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "%s,", conf);
 	cd = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_VIDEO_CD, 0);
 	switch (cd) {
 	case 4:
@@ -3228,43 +3336,43 @@ static ssize_t hdmitx_basic_config_show(struct device *dev,
 	default:
 		conf = "reserved";
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "%s\n", conf);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "%s\n", conf);
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdr_status:");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdr_status:");
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR10P, 0);
 	if (type) {
 		if (type == HDMI_HDR10P_DV_VSIF)
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10Plus-VSIF");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10Plus-VSIF");
 	}
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_DV, 0);
 	if (type) {
 		if (type == HDMI_DV_VSIF_STD)
-			pos += snprintf(buf + pos, PAGE_SIZE, "DolbyVision-Std");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "DolbyVision-Std");
 		else if (type == HDMI_DV_VSIF_LL)
-			pos += snprintf(buf + pos, PAGE_SIZE, "DolbyVision-Lowlatency");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "DolbyVision-Lowlatency");
 	}
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR, 0);
 	if (type) {
 		if (type == HDMI_HDR_SMPTE_2084)
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-GAMMA_ST2084");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10-GAMMA_ST2084");
 		else if (type == HDMI_HDR_HLG)
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-GAMMA_HLG");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10-GAMMA_HLG");
 		else if (type == HDMI_HDR_HDR)
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-others");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10-others");
 	}
 	/* default is SDR */
-	pos += snprintf(buf + pos, PAGE_SIZE, "SDR");
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "SDR");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "******config******\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "cur_VIC: %d\n", hdev->tx_comm.fmt_para.vic);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "******config******\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "cur_VIC: %d\n", hdev->tx_comm.fmt_para.vic);
 	pos += hdmitx_format_para_print(&hdev->tx_comm.fmt_para, buf + pos);
 
 	if (hdev->tx_comm.cur_audio_param.aud_output_en)
 		conf = "on";
 	else
 		conf = "off";
-	pos += snprintf(buf + pos, PAGE_SIZE, "audio config: %s\n", conf);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "audio config: %s\n", conf);
 
 	pos += hdmitx_audio_para_print(&hdev->tx_comm.cur_audio_param, buf + pos);
 
@@ -3276,117 +3384,120 @@ static ssize_t hdmitx_basic_config_show(struct device *dev,
 		conf = "TopButtom";
 	else
 		conf = "off";
-	pos += snprintf(buf + pos, PAGE_SIZE, "3D config: %s\n", conf);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "3D config: %s\n", conf);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "******hdcp******\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdcp mode:");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "******hdcp******\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdcp mode:");
 	pos += hdcp_mode_show(dev, attr, buf + pos);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n hdcp_lstore:");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n hdcp_lstore:");
 	pos += hdcp_lstore_show(dev, attr, buf + pos);
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdcp_ver:");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdcp_ver:");
 	pos += hdcp_ver_show(dev, attr, buf + pos);
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdcp ksv info:");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdcp ksv info:");
 	hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_GET_BKSV,
 			(unsigned long)bksv_buf);
-	pos += snprintf(buf + pos, PAGE_SIZE, "HDCP14 BKSV: ");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDCP14 BKSV: ");
 	for (i = 0; i < 5; i++) {
-		pos += snprintf(buf + pos, PAGE_SIZE, "%02x",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "%02x",
 			bksv_buf[i]);
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "  %s\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "  %s\n",
 		hdcp1x_ksv_valid(bksv_buf) ? "Valid" : "Invalid");
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdcp_ctl_lvl:%d\n", hdev->tx_comm.hdcp_ctl_lvl);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdcp_ctl_lvl:%d\n",
+		hdev->tx_comm.hdcp_ctl_lvl);
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "******scdc******\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "div40:%d\n", hdev->pre_tmds_clk_div40);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "******scdc******\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "div40:%d\n", hdev->pre_tmds_clk_div40);
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "******hdmi_pll******\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "sspll:%d\n", hdev->sspll);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "******hdmi_pll******\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "sspll:%d\n", hdev->sspll);
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "******dv_vsif_info******\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "******dv_vsif_info******\n");
 	data = &vsif_debug_info.data;
-	pos += snprintf(buf + pos, PAGE_SIZE, "type: %u, tunnel: %u, sigsdr: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "type: %u, tunnel: %u, sigsdr: %u\n",
 		vsif_debug_info.type,
 		vsif_debug_info.tunnel_mode,
 		vsif_debug_info.signal_sdr);
-	pos += snprintf(buf + pos, PAGE_SIZE, "dv_vsif_para:\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "ver: %u len: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "dv_vsif_para:\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "ver: %u len: %u\n",
 		data->ver, data->length);
-	pos += snprintf(buf + pos, PAGE_SIZE, "ll: %u dvsig: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "ll: %u dvsig: %u\n",
 		data->vers.ver2.low_latency,
 		data->vers.ver2.dobly_vision_signal);
-	pos += snprintf(buf + pos, PAGE_SIZE, "bcMD: %u axMD: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "bcMD: %u axMD: %u\n",
 		data->vers.ver2.backlt_ctrl_MD_present,
 		data->vers.ver2.auxiliary_MD_present);
-	pos += snprintf(buf + pos, PAGE_SIZE, "PQhi: %u PQlow: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "PQhi: %u PQlow: %u\n",
 		data->vers.ver2.eff_tmax_PQ_hi,
 		data->vers.ver2.eff_tmax_PQ_low);
-	pos += snprintf(buf + pos, PAGE_SIZE, "axrm: %u, axrv: %u, ",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "axrm: %u, axrv: %u, ",
 		data->vers.ver2.auxiliary_runmode,
 		data->vers.ver2.auxiliary_runversion);
-	pos += snprintf(buf + pos, PAGE_SIZE, "axdbg: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "axdbg: %u\n",
 		data->vers.ver2.auxiliary_debug0);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "***drm_config_data***\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "***drm_config_data***\n");
 	hdr_transfer_feature = (drm_config_data.features >> 8) & 0xff;
 	hdr_color_feature = (drm_config_data.features >> 16) & 0xff;
 	colormetry = (drm_config_data.features >> 30) & 0x1;
-	pos += snprintf(buf + pos, PAGE_SIZE, "tf=%u, cf=%u, colormetry=%u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "tf=%u, cf=%u, colormetry=%u\n",
 		hdr_transfer_feature, hdr_color_feature,
 		colormetry);
-	pos += snprintf(buf + pos, PAGE_SIZE, "primaries:\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "primaries:\n");
 	for (vcnt = 0; vcnt < 3; vcnt++) {
 		for (hcnt = 0; hcnt < 2; hcnt++)
-			pos += snprintf(buf + pos, PAGE_SIZE, "%u, ",
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "%u, ",
 			drm_config_data.primaries[vcnt][hcnt]);
-		pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "white_point: ");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "white_point: ");
 	for (hcnt = 0; hcnt < 2; hcnt++)
-		pos += snprintf(buf + pos, PAGE_SIZE, "%u, ",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "%u, ",
 		drm_config_data.white_point[hcnt]);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "luminance: ");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "luminance: ");
 	for (hcnt = 0; hcnt < 2; hcnt++)
-		pos += snprintf(buf + pos, PAGE_SIZE, "%u, ", drm_config_data.luminance[hcnt]);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "max_content: %u, ", drm_config_data.max_content);
-	pos += snprintf(buf + pos, PAGE_SIZE, "max_frame_average: %u\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "%u, ",
+			drm_config_data.luminance[hcnt]);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "max_content: %u, ",
+		drm_config_data.max_content);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "max_frame_average: %u\n",
 		drm_config_data.max_frame_average);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "***hdr10p_config_data***\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "appver: %u, tlum: %u, avgrgb: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "***hdr10p_config_data***\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "appver: %u, tlum: %u, avgrgb: %u\n",
 		hdr10p_config_data.application_version,
 		hdr10p_config_data.targeted_max_lum,
 		hdr10p_config_data.average_maxrgb);
 	tmp = hdr10p_config_data.distribution_values;
-	pos += snprintf(buf + pos, PAGE_SIZE, "distribution_values:\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "distribution_values:\n");
 	for (vcnt = 0; vcnt < 3; vcnt++) {
 		for (hcnt = 0; hcnt < 3; hcnt++)
-			pos += snprintf(buf + pos, PAGE_SIZE, "%u, ", tmp[vcnt * 3 + hcnt]);
-		pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "%u, ", tmp[vcnt * 3 + hcnt]);
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "nbca: %u, knpx: %u, knpy: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "nbca: %u, knpx: %u, knpy: %u\n",
 		hdr10p_config_data.num_bezier_curve_anchors,
 		hdr10p_config_data.knee_point_x,
 		hdr10p_config_data.knee_point_y);
 	tmp = hdr10p_config_data.bezier_curve_anchors;
-	pos += snprintf(buf + pos, PAGE_SIZE, "bezier_curve_anchors:\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "bezier_curve_anchors:\n");
 	for (vcnt = 0; vcnt < 3; vcnt++) {
 		for (hcnt = 0; hcnt < 3; hcnt++)
-			pos += snprintf(buf + pos, PAGE_SIZE, "%u, ", tmp[vcnt * 3 + hcnt]);
-		pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "%u, ", tmp[vcnt * 3 + hcnt]);
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "gof: %u, ndf: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "gof: %u, ndf: %u\n",
 		hdr10p_config_data.graphics_overlay_flag,
 		hdr10p_config_data.no_delay_flag);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "***hdmiaud_config_data***\n");
-		pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "***hdmiaud_config_data***\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"type: %u, chnum: %u, samrate: %u, samsize: %u\n",
 			hdmi21aud_config_data.type,
 			hdmi21aud_config_data.chs,
@@ -3455,7 +3566,8 @@ static ssize_t hdr_priority_mode_show(struct device *dev,
 	return pos;
 }
 
-/* hide or enable HDR capabilities.
+/*
+ * hide or enable HDR capabilities.
  * 0 : No HDR capabilities are hidden
  * 1 : DV Capabilities are hidden
  * 2 : All HDR capabilities are hidden
@@ -3484,7 +3596,8 @@ static ssize_t hdr_priority_mode_store(struct device *dev,
 	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
 	tx_comm->hdr_priority = val;
 	/* hdmitx21_event_notify(HDMITX_HDR_PRIORITY, &hdev->hdr_priority); */
-	/* force trigger plugin event
+	/*
+	 * force trigger plugin event
 	 * hdmitx21_set_uevent_state(HDMITX_HPD_EVENT, 0);
 	 * hdmitx21_set_uevent(HDMITX_HPD_EVENT, 1);
 	 */
@@ -3492,7 +3605,8 @@ static ssize_t hdr_priority_mode_store(struct device *dev,
 	return count;
 }
 
-/* hdcp fail event method 1: add hdcp fail uevent filter
+/*
+ * hdcp fail event method 1: add hdcp fail uevent filter
  * below need_filter_hdcp_off and filter_hdcp_off_period
  * sysfs node are for this filter
  */
@@ -3508,7 +3622,8 @@ static ssize_t need_filter_hdcp_off_show(struct device *dev,
 	return pos;
 }
 
-/* if need to filter hdcp fail uevent, systemcontrol
+/*
+ * if need to filter hdcp fail uevent, systemcontrol
  * write 1 to this node. for example:
  * when start player game movie, it switch from DV STD to DV LL,
  * before switch mode, write 1 to this node. it means that it
@@ -3533,7 +3648,8 @@ static ssize_t need_filter_hdcp_off_store(struct device *dev,
 	return count;
 }
 
-/* if hdcp fail but retry auth pass during this period(unit: second),
+/*
+ * if hdcp fail but retry auth pass during this period(unit: second),
  * then won't sent hdcp fail uevent. the default is 6 second
  */
 static ssize_t filter_hdcp_off_period_show(struct device *dev,
@@ -3564,7 +3680,8 @@ static ssize_t filter_hdcp_off_period_store(struct device *dev,
 }
 
 /* hdcp fail event method 2: don't stop-restart hdcp auth */
-/* when start play game movie, it will switch from
+/*
+ * when start play game movie, it will switch from
  * DV STD to DV LL, hdcp will stop and restart after
  * mode setting done.
  * now provide an option: when DV STD <-> DV LL
@@ -3653,7 +3770,8 @@ static int hdmitx21_pre_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_f
 #endif
 	enum frl_rate_enum source_test_frl_rate = FRL_NONE;
 
-	/* disable hdcp before set mode if hdcp enabled.
+	/*
+	 * disable hdcp before set mode if hdcp enabled.
 	 * normally hdcp is disabled before setting mode
 	 * when disable phy, but for special case of bootup,
 	 * if mode changed as it's different with uboot mode,
@@ -3705,13 +3823,15 @@ static int hdmitx21_pre_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_f
 
 #ifdef CONFIG_AMLOGIC_DSC
 	if (hdev->dsc_en) {
-		/* notify hdmitx format to dsc, and dsc module will
+		/*
+		 * notify hdmitx format to dsc, and dsc module will
 		 * calculate pps data and venc/pixel clock
 		 */
 		dsc_notifier_data.pic_width = para->timing.h_active;
 		dsc_notifier_data.pic_height = para->timing.v_active;
 		dsc_notifier_data.color_format = para->cs;
-		/* note: for y422 need set bpc to 8 in pps,
+		/*
+		 * note: for y422 need set bpc to 8 in pps,
 		 * otherwise y422 iter in cts HFR1-85 will fail
 		 */
 		if (para->cs == HDMI_COLORSPACE_YUV422)
@@ -3785,7 +3905,8 @@ static int hdmitx21_post_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_
 	struct hdmitx_dev *hdev = to_hdmitx21_dev(tx_comm);
 	struct vinfo_s *vinfo = NULL;
 
-	/* wait for TV detect signal stable,
+	/*
+	 * wait for TV detect signal stable,
 	 * otherwise hdcp may easily auth fail
 	 */
 	if (hdev->not_restart_hdcp) {
@@ -3793,13 +3914,15 @@ static int hdmitx21_post_enable_mode(struct hdmitx_common *tx_comm, struct hdmi_
 		hdev->not_restart_hdcp = 0;
 		HDMITX_INFO("special mode switch, not start hdcp\n");
 	} else {
-		/* below is only for tmds mode, for FRL mode
+		/*
+		 * below is only for tmds mode, for FRL mode
 		 * hdcp is started after training passed
 		 */
 		if (hdev->frl_rate == FRL_NONE) {
 			if (get_hdcp2_lstore())
 				hdev->dw_hdcp22_cap = is_rx_hdcp2ver();
-			/* 0: for hdmitx driver control hdcp
+			/*
+			 * 0: for hdmitx driver control hdcp
 			 * 1/2: drm driver or app control hdcp
 			 */
 			if (tx_comm->hdcp_ctl_lvl == 0)
@@ -3896,83 +4019,9 @@ static struct hdmitx_ctrl_ops tx21_ctrl_ops = {
 	.clear_pkt = hdmitx21_clear_packets,
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	.disable_21_work = hdmitx21_disable_21_work,
+	.disable_frl_work = hdmitx21_disable_frl_work,
 #endif
 };
-
-static bool drm_hdmitx_get_vrr_cap(void)
-{
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-
-	if (hdev->tx_comm.rxcap.qms) {
-		HDMITX_INFO("%s support vrr\n", __func__);
-		return true;
-	}
-
-	HDMITX_INFO("%s not support vrr\n", __func__);
-	return false;
-}
-
-static bool is_rx_supported_vic(enum hdmi_vic brr_vic)
-{
-	int i;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
-
-	for (i = 0; i < prxcap->VIC_count; i++) {
-		if (brr_vic == prxcap->VIC[i])
-			return 1;
-	}
-
-	return 0;
-}
-
-static void add_vic_to_group(enum hdmi_vic vic, struct drm_vrr_mode_group *group)
-{
-	const struct hdmi_timing *timing;
-
-	timing = hdmitx_mode_vic_to_hdmi_timing(vic);
-	if (!timing)
-		return;
-	group->brr_vic = vic;
-	group->width = timing->h_active;
-	group->height = timing->v_active;
-	group->vrr_min = 24; /* fixed value */
-	group->vrr_max = timing->v_freq / 1000;
-}
-
-static int drm_hdmitx_get_vrr_mode_group(struct drm_vrr_mode_group *group, int max_group)
-{
-	int i = 0, j = 0;
-	const struct hdmi_timing *timing;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-	enum hdmi_vic brr_vic[] = {
-		HDMI_16_1920x1080p60_16x9,
-		HDMI_63_1920x1080p120_16x9,
-		HDMI_4_1280x720p60_16x9,
-		HDMI_47_1280x720p120_16x9,
-		HDMI_97_3840x2160p60_16x9,
-		HDMI_102_4096x2160p60_256x135,
-	};
-
-	if (!group || max_group == 0)
-		return 0;
-	/* check RX VRR capabilities */
-	if (!drm_hdmitx_get_vrr_cap())
-		return 0;
-	for (i = 0, j = 0; i < ARRAY_SIZE(brr_vic); i++) {
-		timing = hdmitx_mode_vic_to_hdmi_timing(brr_vic[i]);
-		if (!timing)
-			continue;
-		/* check both TX and RX support current vic */
-		if ((hdmitx_common_validate_vic(&hdev->tx_comm, brr_vic[i]) >= 0) &&
-			is_rx_supported_vic(brr_vic[i])) {
-			add_vic_to_group(brr_vic[i], group + j);
-			j++;
-		}
-	}
-
-	return j;
-}
 
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 
@@ -4025,7 +4074,7 @@ static void hdmitx_process_plugin(struct hdmitx_dev *hdev, bool set_audio)
 	/* step1: SW: EDID read/parse, notify client modules */
 	hdmitx_plugin_common_work(&hdev->tx_comm);
 
-	/* TODO: need remove/optimised, keep it temporarily */
+	/* only bootup plugin will set audio mode, other plugin will not do that */
 	if (set_audio) {
 		info = hdmitx_get_current_vinfo(NULL);
 		if (info && info->mode == VMODE_HDMI)
@@ -4036,7 +4085,8 @@ static void hdmitx_process_plugin(struct hdmitx_dev *hdev, bool set_audio)
 	hdmitx_common_notify_hpd_status(&hdev->tx_comm, false);
 }
 
-/* action which is done in lock, it copy the flow of plugin handler.
+/*
+ * action which is done in lock, it copy the flow of plugin handler.
  * only set audio if it's already enable in uboot, only check edid
  * if hdmitx output is enabled under uboot.
  * uboot_output_state is indicated in ready flag, can be replaced by
@@ -4064,7 +4114,8 @@ static void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
 
 	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
 
-	/* this may happen when just queue plugin work,
+	/*
+	 * this may happen when just queue plugin work,
 	 * but plugout event happen at this time. no need
 	 * to continue plugin work.
 	 */
@@ -4073,7 +4124,8 @@ static void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		return;
 	}
-	/* only happen in such case:
+	/*
+	 * only happen in such case:
 	 * hpd high when suspend->plugout->plugin->late resume, the
 	 * last plugin/resume flow sequence is unknown, will do
 	 * plugin handler only once
@@ -4088,7 +4140,7 @@ static void hdmitx_hpd_plugin_irq_handler(struct work_struct *work)
 
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 
-	/*notify to drm hdmi*/
+	/* notify to drm hdmi */
 	hdmitx_fire_drm_hpd_cb_unlocked(&hdev->tx_comm);
 }
 
@@ -4099,8 +4151,16 @@ static void hdmitx_process_plugout(struct hdmitx_dev *hdev)
 	hdmitx21_reset_hdcp_param(&hdev->tx_comm);
 	/* for vsync loss when HPD loss */
 	hdmitx21_vid_pll_clk_check(hdev);
-	hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_SET_TOPO_INFO, 0);
-	/* Reset the ll_enabled_in_auto_mode flag used for auto mode
+	/*
+	 * after suspend, hdcp auth state(including topo info) should
+	 * keep not changed, thus that encrypted video stream can
+	 * recover playing normally after resume, specially for hdcp
+	 * repeater case
+	 */
+	if (!hdev->tx_comm.suspend_flag)
+		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_SET_TOPO_INFO, 0);
+	/*
+	 * Reset the ll_enabled_in_auto_mode flag used for auto mode
 	 * status. If we are in auto mode, gaming signal should be enabled
 	 * when the request arrives again from the input device or playback
 	 * and not on hotplug.
@@ -4237,10 +4297,13 @@ void hdmitx21_hdcp_status(int hdmi_authenticated)
 
 static int amhdmitx21_device_init(struct hdmitx_dev *hdev)
 {
+	const char *hdmi_ver = NULL;
+
 	if (!hdev)
 		return 1;
 
-	HDMITX_INFO("Ver: %s\n", HDMITX_VER);
+	GET_HDMITX_VER(hdmi_ver);
+	HDMITX_INFO("Ver: %s\n", hdmi_ver);
 
 	hdev->hdtx_dev = NULL;
 
@@ -4248,7 +4311,8 @@ static int amhdmitx21_device_init(struct hdmitx_dev *hdev)
 	hdev->tx_comm.hdmi_last_hdr_mode = 0;
 	hdev->tx_comm.hdmi_current_hdr_mode = 0;
 
-	/* hdr/vsif packet status init, no need to get actual status,
+	/*
+	 * hdr/vsif packet status init, no need to get actual status,
 	 * force to print function callback for confirmation.
 	 */
 	hdev->hdr_transfer_feature = T_UNKNOWN;
@@ -4259,7 +4323,9 @@ static int amhdmitx21_device_init(struct hdmitx_dev *hdev)
 	hdev->hdmi_current_signal_sdr = true;
 
 	hdev->tx_comm.ready = 0;
-	hdev->tx_comm.rxsense_policy = 0; /* no RxSense by default */
+	hdev->tx_comm.hdcp_user = 0;
+	/* no RxSense by default */
+	hdev->tx_comm.rxsense_policy = 0;
 	/* enable or disable HDMITX SSPLL, enable by default */
 	hdev->sspll = 1;
 	/*
@@ -4292,12 +4358,50 @@ static int amhdmitx21_device_init(struct hdmitx_dev *hdev)
 	return 0;
 }
 
+static int hdmitx_get_connector(void)
+{
+	int i = 0;
+	int j = 0;
+	static const char * const hdmi_types[] = {
+		/* venc0 */
+		"HDMI-A-A",
+		/* venc1 */
+		"HDMI-A-B",
+		/* venc2 */
+		"HDMI-A-C",
+	};
+	char *conn_types[3] = {};
+	char *type;
+
+	conn_types[0] = get_uboot_connector0_type();
+	conn_types[1] = get_uboot_connector1_type();
+	conn_types[2] = get_uboot_connector2_type();
+	if (conn_types[0])
+		pr_info("%s[%d] %s\n", __func__, __LINE__, conn_types[0]);
+	if (conn_types[1])
+		pr_info("%s[%d] %s\n", __func__, __LINE__, conn_types[1]);
+	if (conn_types[2])
+		pr_info("%s[%d] %s\n", __func__, __LINE__, conn_types[2]);
+
+	for (j = 0; j < ARRAY_SIZE(conn_types); j++) {
+		type = conn_types[j];
+		if (!type)
+			continue;
+		for (i = 0; i < ARRAY_SIZE(hdmi_types); i++) {
+			if (strncmp(type, hdmi_types[i], strlen(hdmi_types[i])) == 0)
+				return i;
+		}
+	}
+	if (i < ARRAY_SIZE(hdmi_types))
+		return i;
+
+	return 0;
+}
+
 static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev *hdev)
 {
 	int ret = 0;
 	struct pinctrl *pin;
-	//const char *pin_name;
-	//const struct of_device_id *of_id;
 
 #ifdef CONFIG_OF
 	int val;
@@ -4314,7 +4418,6 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 		return -1;
 	}
 	HDMITX_INFO("get matched device\n");
-	//hdev->tx_hw.chip_data = match->data;
 
 	/* pinmux set */
 	if (pdev->dev.of_node) {
@@ -4342,15 +4445,15 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 	tx_hw_base = &hdev->tx_hw.base;
 	tx_hw_base->hdmitx_gpios_hpd = of_get_named_gpio(pdev->dev.of_node,
 		"hdmitx-gpios-hpd", 0);
-	if (tx_hw_base->hdmitx_gpios_hpd == -EPROBE_DEFER)
+	if (tx_hw_base->hdmitx_gpios_hpd < 0)
 		HDMITX_ERROR("get hdmitx-gpios-hpd error\n");
 	tx_hw_base->hdmitx_gpios_scl = of_get_named_gpio(pdev->dev.of_node,
 		"hdmitx-gpios-scl", 0);
-	if (tx_hw_base->hdmitx_gpios_scl == -EPROBE_DEFER)
+	if (tx_hw_base->hdmitx_gpios_scl < 0)
 		HDMITX_ERROR("get hdmitx-gpios-scl error\n");
 	tx_hw_base->hdmitx_gpios_sda = of_get_named_gpio(pdev->dev.of_node,
 		"hdmitx-gpios-sda", 0);
-	if (tx_hw_base->hdmitx_gpios_sda == -EPROBE_DEFER)
+	if (tx_hw_base->hdmitx_gpios_sda < 0)
 		HDMITX_ERROR("get hdmitx-gpios-sda error\n");
 
 #ifdef CONFIG_OF
@@ -4394,7 +4497,8 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 		ret = of_property_read_u32(pdev->dev.of_node, "res_1080p",
 			&hdev->tx_comm.res_1080p);
 		hdev->tx_comm.res_1080p = !!hdev->tx_comm.res_1080p;
-		/* the max tmds cap is 600Mhz by default,
+		/*
+		 * the max tmds cap is 600Mhz by default,
 		 * if soc limit to 1080p maximum, then the
 		 * max tmds cap is 225Mhz
 		 */
@@ -4451,13 +4555,9 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev, struct hdmitx_dev 
 			if (val == 1)
 				;
 		}
-		ret = of_property_read_u32(pdev->dev.of_node,
-					   "enc_idx", &val);
-		hdev->tx_comm.enc_idx = 0; /* default 0 */
-		if (!ret) {
-			if (val == 2)
-				hdev->tx_comm.enc_idx = 2;
-		}
+
+		hdev->tx_comm.enc_idx = hdmitx_get_connector();
+		HDMITX_INFO("enc_idx %d\n", hdev->tx_comm.enc_idx);
 
 		/* hdcp ctrl 0:sysctrl, 1: drv, 2: linux app */
 		ret = of_property_read_u32(pdev->dev.of_node,
@@ -4556,37 +4656,27 @@ static void amhdmitx_clktree_probe(struct device *hdmitx_dev, struct hdmitx_dev 
 	struct clk *venci_top_gate, *venci_0_gate, *venci_1_gate;
 
 	hdmi_clk_vapb = devm_clk_get(hdmitx_dev, "hdmi_vapb_clk");
-	if (IS_ERR(hdmi_clk_vapb)) {
-		pr_warn("vapb_clk failed to probe\n");
-	} else {
+	if (!IS_ERR(hdmi_clk_vapb)) {
 		hdev->hdmitx_clk_tree.hdmi_clk_vapb = hdmi_clk_vapb;
 		clk_prepare_enable(hdev->hdmitx_clk_tree.hdmi_clk_vapb);
 	}
 
 	hdmi_clk_vpu = devm_clk_get(hdmitx_dev, "hdmi_vpu_clk");
-	if (IS_ERR(hdmi_clk_vpu)) {
-		pr_warn("vpu_clk failed to probe\n");
-	} else {
+	if (!IS_ERR(hdmi_clk_vpu)) {
 		hdev->hdmitx_clk_tree.hdmi_clk_vpu = hdmi_clk_vpu;
 		clk_prepare_enable(hdev->hdmitx_clk_tree.hdmi_clk_vpu);
 	}
 
 	venci_top_gate = devm_clk_get(hdmitx_dev, "venci_top_gate");
-	if (IS_ERR(venci_top_gate))
-		pr_warn("venci_top_gate failed to probe\n");
-	else
+	if (!IS_ERR(venci_top_gate))
 		hdev->hdmitx_clk_tree.venci_top_gate = venci_top_gate;
 
 	venci_0_gate = devm_clk_get(hdmitx_dev, "venci_0_gate");
-	if (IS_ERR(venci_0_gate))
-		pr_warn("venci_0_gate failed to probe\n");
-	else
+	if (!IS_ERR(venci_0_gate))
 		hdev->hdmitx_clk_tree.venci_0_gate = venci_0_gate;
 
 	venci_1_gate = devm_clk_get(hdmitx_dev, "venci_1_gate");
-	if (IS_ERR(venci_1_gate))
-		pr_warn("venci_1_gate failed to probe\n");
-	else
+	if (!IS_ERR(venci_1_gate))
 		hdev->hdmitx_clk_tree.venci_1_gate = venci_1_gate;
 }
 
@@ -4624,9 +4714,12 @@ static int hdmitx21_status_check(void *data)
 		return 0;
 
 	/* for S5, here need check the clk index 89 & 16 */
-	idx[0] = 92; /* cts_htx_tmds_clk */
-	idx[1] = 16; /* vid_pll0_clk */
-	idx[2] = 89; /* htx_tmds20_clk */
+	/* cts_htx_tmds_clk */
+	idx[0] = 92;
+	/* vid_pll0_clk */
+	idx[1] = 16;
+	/* htx_tmds20_clk */
+	idx[2] = 89;
 
 	while (1) {
 		msleep_interruptible(1000);
@@ -4674,16 +4767,20 @@ static void hdmitx21_vid_pll_clk_check(struct hdmitx_dev *hdev)
 
 	if (hdev->tx_hw.chip_data->chip_type != MESON_CPU_ID_S5)
 		return;
-	/* frl mode use fpll or gp2 pll, and won't go through
+	/*
+	 * frl mode use fpll or gp2 pll, and won't go through
 	 * vid_clk0_div_top/tmds20_clk_div_top, no need to check.
 	 */
 	if (hdmitx_hw_cntl_misc(&hdev->tx_hw.base, MISC_GET_FRL_MODE, 0))
 		return;
 
 	/* for S5, here need check the clk index 89 & 16 */
-	idx[0] = 92; /* cts_htx_tmds_clk */
-	idx[1] = 16; /* vid_pll0_clk */
-	idx[2] = 89; /* htx_tmds20_clk */
+	/* cts_htx_tmds_clk */
+	idx[0] = 92;
+	/* vid_pll0_clk */
+	idx[1] = 16;
+	/* htx_tmds20_clk */
+	idx[2] = 89;
 
 	clk[0] = meson_clk_measure(idx[0]);
 	clk[1] = meson_clk_measure(idx[1]);
@@ -4714,7 +4811,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	struct hdmitx_event_mgr *tx_event_mgr;
 	bool hpd_state;
 
-	pr_debug("amhdmitx_probe_start\n");
+	pr_info("amhdmitx_probe_start\n");
 
 	hdev = devm_kzalloc(device, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
@@ -4735,7 +4832,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		/* return ret; */
 
 	amhdmitx_clktree_probe(&pdev->dev, hdev);
-	if (0) /* TODO */
+	if (0)
+		/* TODO */
 		amhdmitx21_vpu_dev_register(hdev);
 
 	r = alloc_chrdev_region(&hdev->hdmitx_id, 0, HDMI_TX_COUNT,
@@ -4750,11 +4848,12 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		return -1;
 	}
 
+	/* kernel>=2.6.27 */
 	dev = device_create(hdmitx_class, NULL, hdev->hdmitx_id, hdev,
-			    "amhdmitx%d", 0); /* kernel>=2.6.27 */
+			    "amhdmitx%d", 0);
 
 	if (!dev) {
-		HDMITX_INFO("device_create create error\n");
+		HDMITX_ERROR("device_create create error\n");
 		class_destroy(hdmitx_class);
 		r = -EEXIST;
 		return r;
@@ -4819,21 +4918,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	/* init HW */
 	hdmitx21_meson_init(hdev);
-	/*load fmt para from hw info.*/
-	hdmitx_common_init_bootup_format_para(tx_comm, &tx_comm->fmt_para);
-	/* TODO: not consider VESA mode witch HW VIC = 0 */
-	if (tx_comm->fmt_para.vic != HDMI_0_UNKNOWN)
-		hdev->tx_comm.ready = 1;
-	/* update fmt_attr string from fmt_para, note that fmt_attr is already
-	 * set by hdmitx_common_init() with boot arg, and below is un-necessary,
-	 * and it will set attr sysfs node as empty if hdmitx not enabled under
-	 * uboot as fmt para is in reset state
-	 */
-	hdmitx_format_para_rebuild_fmtattr_str(&hdev->tx_comm.fmt_para,
-		hdev->tx_comm.fmt_attr, sizeof(hdev->tx_comm.fmt_attr));
-	/* load init hdr state for HW info */
-	hdmitx_hdr_state_init(&hdev->tx_comm);
-
 	hdmitx_vout_init(tx_comm, &hdev->tx_hw.base);
 
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
@@ -4902,6 +4986,31 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		hdmitx_bootup_plugin_handler(hdev);
 	else
 		hdmitx_bootup_plugout_handler(hdev);
+
+	/*
+	 * When Sink-led output, the Color Space read from AVI Packet is RGB,
+	 * but the input to HDMITX is YUV444, so it is necessary to judge that
+	 * the Color Space is configured to be YUV444 when the current output
+	 * is Sink-led, this logic judgment needs to be executed after parsing
+	 * the EDID, refer to the SWPL-180597 for details
+	 *
+	 * load fmt para from hw info
+	 */
+	hdmitx_common_init_bootup_format_para(tx_comm, &tx_comm->fmt_para);
+	/* TODO: not consider VESA mode witch HW VIC = 0 */
+	if (tx_comm->fmt_para.vic != HDMI_0_UNKNOWN)
+		hdev->tx_comm.ready = 1;
+	/*
+	 * update fmt_attr string from fmt_para, note that fmt_attr is already
+	 * set by hdmitx_common_init() with boot arg, and below is un-necessary,
+	 * and it will set attr sysfs node as empty if hdmitx not enabled under
+	 * uboot as fmt para is in reset state
+	 */
+	hdmitx_format_para_rebuild_fmtattr_str(&hdev->tx_comm.fmt_para,
+		hdev->tx_comm.fmt_attr, sizeof(hdev->tx_comm.fmt_attr));
+	/* load init hdr state for HW info */
+	hdmitx_hdr_state_init(&hdev->tx_comm);
+
 	/* after unlock, now can take actions of bottom half of hpd irq */
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 	/* notify to drm hdmi */
@@ -4914,9 +5023,13 @@ static int amhdmitx_probe(struct platform_device *pdev)
 				      "kthread_hdmist_check");
 
 	pr_debug("%s end\n", __func__);
-	/*everything is ready, create sysfs here.*/
+	/* everything is ready, create sysfs here */
 	hdmitx_sysfs_common_create(dev, &hdev->tx_comm, &hdev->tx_hw.base);
 	hdev->hdmi_init = 1;
+
+	/* enable analog frequency division by default on S6 */
+	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6)
+		hdev->tx_hw.s7_clk_config = 1;
 
 	return r;
 }
@@ -4926,11 +5039,11 @@ static void amhdmitx_remove(struct platform_device *pdev)
 	struct hdmitx_dev *hdev = dev_get_drvdata(&pdev->dev);
 	struct device *dev = hdev->hdtx_dev;
 
-	/*remove sysfs before uninit/*/
+	/* remove sysfs before uninit */
 	hdmitx_sysfs_common_destroy(dev);
 
 	tee_comm_dev_unreg(hdev);
-	/*unbind from drm.*/
+	/* unbind from drm */
 	hdmitx_unhook_drm(&pdev->dev);
 
 	cancel_work_sync(&hdev->work_hdr);
@@ -5023,7 +5136,8 @@ static void amhdmitx_shutdown(struct platform_device *pdev)
 	hdmitx_clk_ctrl(hdev, 0);
 }
 
-/* there's corner case:
+/*
+ * there's corner case:
  * when deep suspend, RTC wakeup kernel-->
  * hdmi plugout/in interrupt-->
  * plugin bottom handle, edid...
@@ -5039,10 +5153,17 @@ static int amhdmitx_suspend(struct platform_device *pdev,
 {
 	struct hdmitx_dev *hdev = dev_get_drvdata(&pdev->dev);
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
 
 	hdmitx_clk_ctrl(hdev, 0);
+	/*
+	 * after suspend, VPU power domain will be powered off,
+	 * so hdcp1.4 key otp/crc need to be loaded again
+	 */
+	p_hdcp->hdcp14_key_loaded = false;
 	hdmitx_event_mgr_suspend(tx_comm->event_mgr, true);
-	/* if HPD is high before suspend, and there were hpd
+	/*
+	 * if HPD is high before suspend, and there were hpd
 	 * plugout -> in event happened in deep suspend stage,
 	 * now resume and stay in early resume stage, still
 	 * need to respond to plugin irq and read/update EDID.
@@ -5063,11 +5184,13 @@ static int amhdmitx_resume(struct platform_device *pdev)
 
 	HDMITX_INFO("amhdmitx: resume\n");
 	hdmitx_clk_ctrl(hdev, 1);
-	/* When s7 is in standby and wakes up, it will turn off and on the vpu power domain.
-	 * When it is turned off, the reg of the relevant modules will be reset. When it wakes up,
-	 * the hdmitx driver needs to reinitialize the required top register.
+	/*
+	 * Since the S7 chip, in order to optimize power consumption, it will turn off and on the
+	 * vpu power domain when standby and wakes up.When it is turned off, the reg of the relevant
+	 * modules will be reset. When it wakes up,the hdmitx driver needs to reinitialize the
+	 * required top register.
 	 */
-	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7)
+	if (hdev->tx_hw.chip_data->chip_type >= MESON_CPU_ID_S7)
 		hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_HW_INIT, 0);
 	mutex_lock(&tx_comm->hdmimode_mutex);
 	hdmitx_event_mgr_suspend(tx_comm->event_mgr, false);
@@ -5139,7 +5262,8 @@ int  __init amhdmitx21_init(void)
 
 void __exit amhdmitx21_exit(void)
 {
-	// TODO stop hdcp
+	HDMITX_INFO("%s\n", __func__);
+	/* TODO stop hdcp */
 	platform_driver_unregister(&amhdmitx_driver);
 }
 
@@ -5148,8 +5272,9 @@ void __exit amhdmitx21_exit(void)
 //MODULE_VERSION("1.0.0");
 
 /*************DRM connector API**************/
-/*hdcp functions*/
-/* should sync with hdmitx21_enable_hdcp() and hdmitx_start_hdcp_handler()
+/* hdcp functions */
+/*
+ * should sync with hdmitx21_enable_hdcp() and hdmitx_start_hdcp_handler()
  * hdmi mode setting/hdcp enable or disable should be mutexed.
  * time delay may be needed after hdmi mode setting and before hdcp enable
  * so that hdcp auth is conducted under TV signal detection stable.
@@ -5176,7 +5301,8 @@ static void drm_hdmitx_hdcp_enable(int hdcp_type)
 		HDMITX_ERROR("%s enabled HDCP_NULL\n", __func__);
 		break;
 	case HDCP_MODE14:
-		/* hdcp1.4 auth may pass->fail->pass as hdmi signal detection
+		/*
+		 * hdcp1.4 auth may pass->fail->pass as hdmi signal detection
 		 * need some time on TV side, so need postpone auth time to
 		 * wait TV side signal detection stable
 		 */
@@ -5205,7 +5331,7 @@ static void drm_hdmitx_hdcp_disable(void)
 	hdmitx21_disable_hdcp(hdev);
 	hdev->drm_hdcp.hdcp_auth_result = HDCP_AUTH_UNKNOWN;
 	hdev->drm_hdcp.hdcp_fail_cnt = 0;
-	HDMITX_INFO("%s\n", drm_hdmitx_hdcp_disable);
+	HDMITX_INFO("%s\n", __func__);
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 }
 
@@ -5214,13 +5340,14 @@ static void drm_hdmitx_hdcp_disconnect(void)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	mutex_lock(&hdev->tx_comm.hdmimode_mutex);
-	/* for hdmitx20 driver, need update disconnect state to
+	/*
+	 * for hdmitx20 driver, need update disconnect state to
 	 * hdcp_tx22 daemon, but for hdmitx21 driver, hdcp is
 	 * disabled when hdmitx driver plugout, no need disable again
 	 */
 	hdev->drm_hdcp.hdcp_auth_result = HDCP_AUTH_UNKNOWN;
 	hdev->drm_hdcp.hdcp_fail_cnt = 0;
-	HDMITX_INFO("%s\n", drm_hdmitx_hdcp_disconnect);
+	HDMITX_INFO("%s\n", __func__);
 	mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 }
 
@@ -5234,7 +5361,7 @@ static void drm_hdmitx_hdcp_init(void)
 	hdev->drm_hdcp.test_hdcp_enable = drm_hdmitx_hdcp_enable;
 	hdev->drm_hdcp.test_hdcp_disable = drm_hdmitx_hdcp_disable;
 	hdev->drm_hdcp.test_hdcp_disconnect = drm_hdmitx_hdcp_disconnect;
-	HDMITX_DEBUG_HDCP("%s\n", drm_hdmitx_hdcp_init);
+	HDMITX_DEBUG_HDCP("%s\n", __func__);
 }
 
 static void drm_hdmitx_hdcp_exit(void)
@@ -5248,7 +5375,7 @@ static void drm_hdmitx_hdcp_exit(void)
 	hdev->drm_hdcp.test_hdcp_enable = NULL;
 	hdev->drm_hdcp.test_hdcp_disable = NULL;
 	hdev->drm_hdcp.test_hdcp_disconnect = NULL;
-	HDMITX_DEBUG_HDCP("%s\n", drm_hdmitx_hdcp_exit);
+	HDMITX_DEBUG_HDCP("%s\n", __func__);
 }
 
 static unsigned int drm_hdmitx_get_tx_hdcp_cap(void)
@@ -5276,7 +5403,8 @@ unsigned int drm_hdmitx_get_rx_hdcp_cap(void)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
-	/* note that during hdcp1.4 authentication, read hdcp version
+	/*
+	 * note that during hdcp1.4 authentication, read hdcp version
 	 * of connected TV set(capable of hdcp2.2) may cause TV
 	 * switch its hdcp mode, and flash screen. should not
 	 * read hdcp version of sink during hdcp1.4 authentication.
@@ -5306,13 +5434,40 @@ static void drm_hdmitx_register_hdcp_notify(struct connector_hdcp_cb *cb)
 	hdev->drm_hdcp.drm_hdcp_cb.hdcp_notify = cb->hdcp_notify;
 	hdev->drm_hdcp.drm_hdcp_cb.data = cb->data;
 
-	HDMITX_DEBUG("%s\n", drm_hdmitx_register_hdcp_notify);
+	HDMITX_DEBUG("%s\n", __func__);
+}
+
+static int drm_hdmitx_validate_hdcp_key(int hdcp_mode)
+{
+	int ret = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (hdcp_mode == 2) {
+		/* consider hdcp2.2 key always valid if key length match */
+		if (get_hdcp2_lstore())
+			ret = 1;
+	} else if (hdcp_mode == 1) {
+		if (get_hdcp1_lstore()) {
+			ret = hdmitx_hw_cntl_misc(hdev->tx_comm.tx_hw,
+				MISC_VALIDATE_HDCP14_KEY, 0);
+		}
+	}
+
+	return ret;
+}
+
+static unsigned char drm_hdmitx_get_hdcp_topo_info(void)
+{
+	bool hdcp22_topo = get_hdcp2_topo();
+
+	HDMITX_DEBUG("%s %d\n", __func__, hdcp22_topo);
+	return hdcp22_topo;
 }
 
 static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_hdmi_hdr_status = hdmi_hdr_status_to_drm,
 
-	/*hdcp apis*/
+	/* hdcp apis */
 	.hdcp_init = drm_hdmitx_hdcp_init,
 	.hdcp_exit = drm_hdmitx_hdcp_exit,
 	.hdcp_enable = drm_hdmitx_hdcp_enable,
@@ -5321,10 +5476,11 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_tx_hdcp_cap = drm_hdmitx_get_tx_hdcp_cap,
 	.get_rx_hdcp_cap = drm_hdmitx_get_rx_hdcp_cap,
 	.register_hdcp_notify = drm_hdmitx_register_hdcp_notify,
+	.get_dw_hdcp_topo_info = drm_hdmitx_get_hdcp_topo_info,
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	.get_vrr_cap = drm_hdmitx_get_vrr_cap,
 	.get_vrr_mode_group = drm_hdmitx_get_vrr_mode_group,
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-	.set_vframe_rate_hint = hdmitx_set_fr_hint,
+	.set_vframe_rate_hint = hdmitx_set_vrr_rate,
 #endif
 };
 
@@ -5350,7 +5506,7 @@ int hdmitx_unhook_drm(struct device *device)
 
 /*************DRM connector API end**************/
 
-/****** tee_hdcp key related start ******/
+/* tee_hdcp key related start */
 static long hdcp_comm_ioctl(struct file *file,
 	unsigned int cmd,
 	unsigned long arg)
@@ -5359,6 +5515,9 @@ static long hdcp_comm_ioctl(struct file *file,
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	u8 hdcp_key_store = 0;
 	void *cb_data = hdev->drm_hdcp.drm_hdcp_cb.data;
+	int key_valid;
+	int hdcp_key = 0;
+	void __user *argp = (void __user *)arg;
 
 	switch (cmd) {
 	case TEE_HDCP_IOC_START:
@@ -5391,6 +5550,25 @@ static long hdcp_comm_ioctl(struct file *file,
 				hdmitx21_enable_hdcp(hdev);
 			}
 		}
+		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+		break;
+	case TEE_HDCP_IOC_VALIDATE_KEY:
+		mutex_lock(&hdev->tx_comm.hdmimode_mutex);
+		if (copy_from_user(&hdcp_key, argp, _IOC_SIZE(cmd))) {
+			mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
+			return -EINVAL;
+		}
+		/* 14/1: hdcp1.4 key, 22/2: hdcp2.2 key */
+		if (hdcp_key == 14 || hdcp_key == 1)
+			key_valid = drm_hdmitx_validate_hdcp_key(0x1);
+		else if (hdcp_key == 22 || hdcp_key == 2)
+			key_valid = drm_hdmitx_validate_hdcp_key(0x2);
+		else
+			key_valid = 0;
+		HDMITX_INFO("%ul key valid:%d\n", arg, key_valid);
+		rtn_val = copy_to_user((void __user *)arg, (void *)&key_valid, sizeof(key_valid));
+		if (rtn_val != 0)
+			rtn_val = -EFAULT;
 		mutex_unlock(&hdev->tx_comm.hdmimode_mutex);
 		break;
 	default:
@@ -5426,5 +5604,4 @@ static void tee_comm_dev_unreg(struct hdmitx_dev *hdev)
 	misc_deregister(&hdev->hdcp_comm_device);
 }
 
-/****** tee_hdcp key related end ******/
-
+/* tee_hdcp key related end */

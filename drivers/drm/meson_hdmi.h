@@ -73,6 +73,32 @@ struct am_hdmi_tx {
 	struct drm_property *contenttype_cap_prop;
 	struct drm_property *allm_prop;
 	struct drm_property *ready_prop;
+	/*
+	 * Whether the current edid is valid
+	 * 0:edid is invalid
+	 * 1:edid is valid
+	 */
+	struct drm_property *edid_valid_prop;
+	/*
+	 * HWC enable hdcp flow
+	 * 0: IVCX chip don't need: T7/S5/S6/S7/S7D/S1A
+	 * 1: SNPS chip need: SC2/S4/G12/SM1
+	 */
+	struct drm_property *hdcp_user_prop;
+	struct drm_property *frac_rate_policy_prop;
+	/*
+	 * if HDMI plugin even once time, then set 1
+	 * if never hdmi plugin, then keep as 0
+	 */
+	struct drm_property *hdmi_used_prop;
+
+	/*
+	 * the current HDMI RX device type
+	 * 1 none
+	 * 2 repeater
+	 * 4 sink
+	 */
+	struct drm_property *sink_type_prop;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;
@@ -97,6 +123,7 @@ struct am_hdmitx_connector_state {
 	bool color_force : 1;
 	bool avmute : 1;
 	bool ready : 1;
+	bool frac_rate_policy : 1;
 	int allm_mode;
 };
 

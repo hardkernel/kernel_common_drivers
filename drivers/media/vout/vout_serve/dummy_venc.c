@@ -482,6 +482,7 @@ static void dummy_encp_vinfo_update(struct dummy_venc_driver_s *venc_drv)
 		venc_drv->vinfo->aspect_ratio_den = vinfo->aspect_ratio_num;
 		venc_drv->vinfo->sync_duration_num = vinfo->sync_duration_num;
 		venc_drv->vinfo->sync_duration_den = vinfo->sync_duration_den;
+		venc_drv->vinfo->brr_duration = vinfo->brr_duration;
 		venc_drv->vinfo->video_clk = vinfo->video_clk;
 		venc_drv->vinfo->htotal = vinfo->vtotal;
 		venc_drv->vinfo->vtotal = vinfo->htotal;
@@ -494,6 +495,7 @@ static void dummy_encp_vinfo_update(struct dummy_venc_driver_s *venc_drv)
 		venc_drv->vinfo->aspect_ratio_den = vinfo->aspect_ratio_den;
 		venc_drv->vinfo->sync_duration_num = vinfo->sync_duration_num;
 		venc_drv->vinfo->sync_duration_den = vinfo->sync_duration_den;
+		venc_drv->vinfo->brr_duration = vinfo->brr_duration;
 		venc_drv->vinfo->video_clk = vinfo->video_clk;
 		venc_drv->vinfo->htotal = vinfo->htotal;
 		venc_drv->vinfo->vtotal = vinfo->vtotal;

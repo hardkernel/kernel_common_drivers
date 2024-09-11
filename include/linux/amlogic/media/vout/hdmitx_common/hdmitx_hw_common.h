@@ -101,6 +101,8 @@
 #define MISC_CLK_DIV_RST        (CMD_MISC_OFFSET + 0x20)
 #define MISC_HPD_IRQ_TOP_HALF   (CMD_MISC_OFFSET + 0x21)
 #define MISC_HDMI_CLKS_CTRL		(CMD_MISC_OFFSET + 0X22)
+#define MISC_VALIDATE_HDCP14_KEY	(CMD_MISC_OFFSET + 0x23)
+#define MISC_CLR_FRL_MODE		(CMD_MISC_OFFSET + 0x24)
 
 /***********************************************************************
  *                          Get State //getstate
@@ -119,7 +121,7 @@
 #define STAT_TX_HDR10P			(CMD_STAT_OFFSET + 0x23) /*hdmitx_get_cur_hdr10p_st*/
 #define STAT_TX_PHY				(CMD_STAT_OFFSET + 0x30)
 #define STAT_TX_OUTPUT			(CMD_STAT_OFFSET + 0x31) /*if hdmitx have output*/
-#define STAT_TX_DSC_EN (CMD_STAT_OFFSET + 0x32) /* if hdmitx have enable dsc */
+#define STAT_TX_DSC_EN			(CMD_STAT_OFFSET + 0x32) /* if hdmitx have enable dsc */
 
 /***********************************************************************
  *             CONFIG CONTROL //cntlconfig
@@ -279,7 +281,7 @@ struct hdmitx_hw_common {
 	int (*getstate)(struct hdmitx_hw_common *tx_hw, u32 cmd, u32 arg);
 
 	/*validate if vic is supported by hw ip/phy*/
-	int (*validatemode)(struct hdmitx_hw_common *tx_hw, u32 vic);
+	int (*validatemode)(struct hdmitx_hw_common *tx_hw, u32 vic, u32 max_refreshrate);
 	/*calc formatpara hw info config*/
 	int (*calc_format_para)(struct hdmitx_hw_common *tx_hw, struct hdmi_format_para *para);
 
@@ -317,7 +319,7 @@ int hdmitx_hw_cntl(struct hdmitx_hw_common *tx_hw,
 int hdmitx_hw_get_state(struct hdmitx_hw_common *tx_hw,
 	u32 cmd, u32 arg);
 int hdmitx_hw_validate_mode(struct hdmitx_hw_common *tx_hw,
-	u32 vic);
+	u32 vic, u32 max_refreshrate);
 int hdmitx_hw_calc_format_para(struct hdmitx_hw_common *tx_hw,
 	struct hdmi_format_para *para);
 int hdmitx_hw_set_packet(struct hdmitx_hw_common *tx_hw,

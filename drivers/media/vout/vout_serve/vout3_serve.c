@@ -53,6 +53,7 @@ static DEFINE_MUTEX(vout3_serve_mutex);
 static char vout3_mode[VMODE_NAME_LEN_MAX];
 static char local_name[VMODE_NAME_LEN_MAX] = {0};
 static char vout3_mode_uboot[VMODE_NAME_LEN_MAX] = "null";
+static char connector2_type[VMODE_NAME_LEN_MAX];
 static unsigned int vout3_init_vmode = VMODE_INIT_NULL;
 static int uboot_display;
 static unsigned int bist_mode3;
@@ -204,6 +205,12 @@ char *get_vout3_mode_uboot(void)
 	return vout3_mode_uboot;
 }
 EXPORT_SYMBOL(get_vout3_mode_uboot);
+
+char *get_uboot_connector2_type(void)
+{
+	return connector2_type;
+}
+EXPORT_SYMBOL(get_uboot_connector2_type);
 
 int get_vout3_mode_uboot_state(void)
 {
@@ -535,6 +542,7 @@ static ssize_t vout3_vinfo_show(const struct class *class,
 		"    screen_real_height:    %d\n"
 		"    sync_duration_num:     %d\n"
 		"    sync_duration_den:     %d\n"
+		"    brr_duration:          %d\n"
 		"    std_duration:          %d\n"
 		"    vfreq_max:             %d\n"
 		"    vfreq_min:             %d\n"
@@ -550,10 +558,11 @@ static ssize_t vout3_vinfo_show(const struct class *class,
 		info->aspect_ratio_num, info->aspect_ratio_den,
 		info->screen_real_width, info->screen_real_height,
 		info->sync_duration_num, info->sync_duration_den,
+		info->brr_duration,
 		info->std_duration, info->vfreq_max, info->vfreq_min,
 		info->htotal, info->vtotal, info->video_clk,
-		info->fr_adj_type, info->viu_color_fmt,
-		info->viu_mux, info->cur_enc_ppc);
+		info->fr_adj_type, info->viu_color_fmt, info->viu_mux,
+		info->cur_enc_ppc);
 	len += sprintf(buf + len, "master_display_info:\n"
 		"    present_flag          %d\n"
 		"    features              0x%x\n"
@@ -1113,6 +1122,17 @@ static int get_vout3_init_mode(char *str)
 	return 0;
 }
 __setup("vout3=", get_vout3_init_mode);
+
+static int get_connector2_type(char *str)
+{
+	if (str)
+		sprintf(connector2_type, "%s", str);
+
+	VOUTPR("connector2_type: %s\n", connector2_type);
+	return 0;
+}
+
+__setup("connector2_type=", get_connector2_type);
 
 //MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 //MODULE_DESCRIPTION("vout3 Server Module");

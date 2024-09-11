@@ -11,6 +11,6 @@ bool hdmitx_find_vendor_ratio(unsigned char *edid_buf);
 bool hdmitx_find_vendor_null_pkt(unsigned char *edid_buf);
 bool hdmitx_find_vendor_phy_delay(unsigned char *edid_buf);
 bool hdmitx_find_hdr_pkt_delay_to_vsync(unsigned char *edid_buf);
-
+bool hdmitx_find_vendor_hdcp22_non_std(unsigned char *edid_buf);
 #endif
 

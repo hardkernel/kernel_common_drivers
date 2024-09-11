@@ -17,7 +17,9 @@
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_types.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_tracer.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_event_mgr.h>
+#include <linux/amlogic/media/vout/hdmitx_common/hdmitx_version.h>
 #include <linux/jiffies.h>
+#include <linux/amlogic/media/vout/dsc.h>
 
 struct hdmitx_common_state {
 	struct hdmi_format_para para;
@@ -39,6 +41,7 @@ struct hdmitx_ctrl_ops {
 	void (*disable_hdcp)(struct hdmitx_common *tx_comm);
 	void (*clear_pkt)(struct hdmitx_hw_common *tx_hw_base);
 	void (*disable_21_work)(void);
+	void (*disable_frl_work)(void);
 };
 
 struct st_debug_param {
@@ -91,6 +94,7 @@ struct hdmitx_common {
 	 * handler and mode setting sequentially.
 	 */
 	struct mutex hdmimode_mutex;
+	struct mutex valid_mutex;	/* check valid mode need mutex */
 
 	/* save the last plug out/in work done state */
 	enum hdmi_event_t last_hpd_handle_done_stat;
@@ -104,6 +108,11 @@ struct hdmitx_common {
 
 	/* indicate hdmitx output ready, sw/hw mode setting done */
 	bool ready;
+	/*
+	 * 1 :HWC to enable hdcp flow in SNPS chip
+	 * 0 :IVCX chip don't need
+	 */
+	bool hdcp_user;
 
 	/*if hdmitx is in early suspend.*/
 	bool suspend_flag;
@@ -181,6 +190,11 @@ struct hdmitx_common {
 	struct hdmitx_tracer *tx_tracer;
 	struct hdmitx_event_mgr *event_mgr;
 	struct st_debug_param debug_param;
+	/*
+	 * the qms_log_id is referred from hw_sequence_id
+	 * if value is not changed, the skip massive qms log
+	 */
+	u64 qms_log_id;
 };
 
 void hdmitx_get_init_state(struct hdmitx_common *tx_common,
@@ -193,23 +207,6 @@ int hdmitx_common_destroy(struct hdmitx_common *tx_common);
  * return the vic of mode, if failed return HDMI_0_UNKNOWN;
  */
 int hdmitx_common_parse_vic_in_edid(struct hdmitx_common *tx_comm, const char *mode);
-/* validate if vic can supported. return 0 if can support, return < 0 with error reason;
- * This function used by get_mode_list;
- */
-int hdmitx_common_validate_vic(struct hdmitx_common *tx_comm, u32 vic);
-/* for some non-std TV, it declare 4k while MAX_TMDS_CLK
- * not match 4K format, so filter out mode list by
- * check if basic color space/depth is supported
- * or not under this resolution;
- * return 0 when can found valid cs/cd configs, or return < 0;
- */
-int hdmitx_common_check_valid_para_of_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic);
-/* validate if hdmi_format_para can support, return 0 if can support or return < 0;
- * vic should already validate by hdmitx_common_validate_mode(), will not check if vic
- * support by rx. This function used to verify hdmi setting config from userspace;
- */
-int hdmitx_common_validate_format_para(struct hdmitx_common *tx_comm,
-	struct hdmi_format_para *para);
 
 /* create hdmi_format_para from config and also calc setting from hw; */
 int hdmitx_common_build_format_para(struct hdmitx_common *tx_comm,
@@ -219,14 +216,7 @@ int hdmitx_common_build_format_para(struct hdmitx_common *tx_comm,
 /* For bootup init: init hdmi_format_para from hw configs.*/
 int hdmitx_common_init_bootup_format_para(struct hdmitx_common *tx_comm,
 		struct hdmi_format_para *para);
-
 /*edid valid api*/
-int hdmitx_edid_validate_format_para(struct tx_cap *hdmi_tx_cap,
-		struct rx_cap *prxcap, struct hdmi_format_para *para);
-bool hdmitx_edid_check_y420_support(struct rx_cap *prxcap,
-	enum hdmi_vic vic);
-
-bool hdmitx_edid_validate_mode(struct rx_cap *rxcap, u32 vic);
 bool hdmitx_edid_only_support_sd(struct rx_cap *prxcap);
 
 /* Attach platform related functions to hdmitx_common;
@@ -293,6 +283,10 @@ int hdmitx_get_hpd_state(struct hdmitx_common *tx_comm);
 u64 hdmitx_get_hpd_hw_sequence_id(struct hdmitx_common *tx_comm);
 unsigned char *hdmitx_get_raw_edid(struct hdmitx_common *tx_comm);
 bool hdmitx_common_get_ready_state(struct hdmitx_common *tx_comm);
+bool hdmitx_common_get_edid_valid_state(struct hdmitx_common *tx_comm);
+bool hdmitx_common_get_hdcp_user_state(struct hdmitx_common *tx_comm);
+bool hdmitx_common_get_hdmi_used_state(struct hdmitx_common *tx_comm);
+
 int hdmitx_setup_attr(struct hdmitx_common *tx_comm, const char *buf);
 int hdmitx_get_attr(struct hdmitx_common *tx_comm, char attr[16]);
 
@@ -330,6 +324,18 @@ void hdrinfo_to_vinfo(struct hdr_info *hdrinfo, struct hdmitx_common *tx_comm);
 void set_dummy_dv_info(struct vout_device_s *vdev);
 void hdmitx_build_fmt_attr_str(struct hdmitx_common *tx_comm);
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+/*
+ * HDR10plus is only supported by OTT when is_hdr10plus_enable is true
+ * add weak function declaration to prevent compilation errors
+ */
+bool is_hdr10plus_enable(void);
+__weak bool is_hdr10plus_enable(void)
+{
+	return false;
+}
+#endif
+
 /* common work for plugin/resume, which is done in lock */
 void hdmitx_plugin_common_work(struct hdmitx_common *tx_comm);
 /* common work for plugout */
@@ -358,7 +364,7 @@ void hdmitx_audio_notify_callback(struct hdmitx_common *tx_comm,
 	unsigned long cmd, void *para);
 void get_hdmi_efuse(struct hdmitx_common *tx_comm);
 enum hdmi_color_depth get_hdmi_colordepth(const struct vinfo_s *vinfo);
-bool is_cur_hdmi_mode(void);
 enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic);
+enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode);
 
 #endif

@@ -64,6 +64,7 @@ enum hdcptx_oprcmd {
 	HDCP22_GET_TOPO,
 	CONF_ENC_IDX, /* 0: get idx; 1: set idx */
 	HDMITX_GET_RTERM, /* get the rterm value */
+	HDCP_SET_SUS_FLAG
 };
 
 /* DDC bus error codes */
@@ -85,7 +86,7 @@ void hdmitx21_hdcp_exit(void);
 bool hdmitx21_uboot_audio_en(void);
 
 int hdmitx21_init_reg_map(struct platform_device *pdev);
-void hdmitx21_set_audioclk(u8 hdmitx_aud_clk_div);
+void hdmitx21_set_audioclk(bool en);
 void hdmitx21_disable_clk(struct hdmitx_dev *hdev);
 u32 hdcp21_rd_hdcp22_ver(void);
 void hdmitx_infoframe_send(u16 info_type, u8 *body);
@@ -218,6 +219,8 @@ struct tx_vrr_params {
 	/* the member conf_params is critical and may change at anytime */
 	spinlock_t lock;
 	struct vrr_conf_para conf_params;
+	/* vrr_para_tmp is used for saving conf_params if conf_params is updated */
+	struct vrr_conf_para vrr_para_tmp;
 	const struct mvrr_const_val *mconst_val; /* for qms */
 	struct mvrr_const_val game_val; /* for game */
 	struct emp_packet_st emp_vrr_pkt;
@@ -370,6 +373,10 @@ struct hdcp_t {
 	/* flag: csm already updated by single csm message */
 	bool csm_updated;
 	bool hdcp14_second_part_pass;
+	/* hdcp1.4 key only need to be loaded once when bootup/resume,
+	 * set this flag true after hdcp1.4 key loaded
+	 */
+	bool hdcp14_key_loaded;
 };
 
 /* hdcp related */
@@ -378,6 +385,7 @@ bool get_hdcp1_lstore(void);
 bool get_hdcp2_lstore(void);
 bool get_hdcp1_result(void);
 bool get_hdcp2_result(void);
+bool hdcptx1_load_key(void);
 bool is_rx_hdcp2ver(void);
 void hdcp_mode_set(unsigned int mode);
 void hdcp_enable_intrs(bool en);
@@ -428,8 +436,6 @@ bool hdcp_need_control_by_upstream(struct hdmitx_dev *hdev);
 u32 hdmitx21_get_hdcp_mode(void);
 void hdcptx_en_aes_dualpipe(bool en);
 void pr_hdcp_info(const char *fmt, ...);
-void set_hdcp2_topo(u32 topo_type);
-bool get_hdcp2_topo(void);
 extern unsigned long hdcp_reauth_dbg;
 extern unsigned long streamtype_dbg;
 extern unsigned long en_fake_rcv_id;
@@ -437,7 +443,7 @@ void hdmitx_top_intr_handler(struct work_struct *work);
 void hdmitx_setupirqs(struct hdmitx_dev *phdev);
 void intr_status_init_clear(void);
 void ddc_toggle_sw_tpi(void);
-bool hdmitx_ddcm_read(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 *p_buf, u16 len);
+bool hdmitx_ddcm_read(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 *p_buf, u16 len, u8 read_cmd);
 bool hdmitx_ddcm_write(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 data);
 bool ddc_bus_wait_free(void);
 
@@ -447,7 +453,7 @@ void tx_vrr_params_init(void);
 void hdmitx_set_vrr_para(const struct vrr_conf_para *para);
 void hdmitx_vrr_set_maxlncnt(u32 max_lcnt);
 u32 hdmitx_vrr_get_maxlncnt(void);
-int hdmitx_set_fr_hint(int duration, void *data);
+int hdmitx_set_vrr_rate(int duration, void *data);
 void hdmitx_unregister_vrr(struct hdmitx_dev *hdev);
 void hdmitx_register_vrr(struct hdmitx_dev *hdev);
 ssize_t _vrr_cap_show(struct device *dev, struct device_attribute *attr,
@@ -545,10 +551,14 @@ void frl_tx_lts_1_hdmi21_config(void);
 void frl_tx_training_handler(struct hdmitx_dev *hdev);
 void frl_tx_stop(void);
 unsigned int drm_hdmitx_get_rx_hdcp_cap(void);
+u32 drm_hdmitx_get_vrr_cap(void);
+int drm_hdmitx_get_vrr_mode_group(struct drm_vrr_mode_group *group, int max_group);
 bool frl_check_full_bw(enum hdmi_colorspace cs, enum hdmi_color_depth cd, u32 pixel_clock,
 	u32 h_active, enum frl_rate_enum frl_rate, u32 *tri_bytes);
 void fifo_flow_enable_intrs(bool en);
 void hdmitx_soft_reset(u32 bits);
+void hdmitx_set_frl_rate_none(struct hdmitx_dev *hdev);
+
 /* dsc related */
 #ifdef CONFIG_AMLOGIC_DSC
 irqreturn_t hdmitx_emp_vsync_handler(struct hdmitx_dev *hdev);
@@ -557,7 +567,7 @@ void hdmitx_dsc_cvtem_pkt_send(struct dsc_pps_data_s *pps,
 void hdmitx_dsc_cvtem_pkt_disable(void);
 #endif
 
-unsigned int hdmitx21_get_vender_infoframe_ieee(void);
+unsigned int hdmitx21_get_vendor_infoframe_ieee(void);
 bool hdmitx21_edid_only_support_sd(struct hdmitx_dev *hdev);
 /* bool is_4k_sink(struct hdmitx_dev *hdev); */
 void hdmitx_clks_gate_ctrl(bool en);

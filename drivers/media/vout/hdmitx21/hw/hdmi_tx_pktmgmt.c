@@ -42,6 +42,9 @@ static void tpi_info_send(u8 sel, u8 *data, bool no_chksum_flag)
 	spin_lock_irqsave(&tpi_lock, flags);
 	hdmitx21_wr_reg(TPI_INFO_FSEL_IVCTX, sel); // buf selection
 	if (!data) {
+		for (i = 0; i < 31; i++)
+			hdmitx21_wr_reg(TPI_INFO_B0_IVCTX + i, 0);
+
 		hdmitx21_wr_reg(TPI_INFO_EN_IVCTX, 0);
 		spin_unlock_irqrestore(&tpi_lock, flags);
 		return;
@@ -71,6 +74,9 @@ static void tpi_packet_send(u8 sel, u8 *data)
 	spin_lock_irqsave(&tpi_lock, flags);
 	hdmitx21_wr_reg(TPI_INFO_FSEL_IVCTX, sel); // buf selection
 	if (!data) {
+		for (i = 0; i < 31; i++)
+			hdmitx21_wr_reg(TPI_INFO_B0_IVCTX + i, 0);
+
 		hdmitx21_wr_reg(TPI_INFO_EN_IVCTX, 0);
 		spin_unlock_irqrestore(&tpi_lock, flags);
 		return;

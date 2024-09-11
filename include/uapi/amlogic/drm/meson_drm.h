@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
- * Copyright (c)  2019-2022 Amlogic Inc.
+ * Copyright (c) 2019-2022 Amlogic Inc.
  */
 
 #ifndef _MESON_DRM_H_
@@ -27,10 +27,8 @@
 #define FBIOGET_DISPLAY_MODE             0x4580
 
 #define MAX_VRR_MODE_GROUP 12
-/* 40 bpp RGB */
 #define DRM_FORMAT_ABGR10101010	fourcc_code('A', 'B', '4', '0')
 		/* [39:0] A:B:G:R 10:10:10:10 little endian */
-
 /**
  * User-desired buffer creation information structure.
  *
@@ -59,14 +57,25 @@ struct drm_meson_fbdev_rect {
 	__u32 mask;
 };
 
+#define MAX_QMS_GROUP_NUM 8
+
 struct drm_vrr_mode_group {
-	__u32 brr_vic;
+	__u32 brr_vic; /* brr vic for hdmitx */
 	__u32 width;
 	__u32 height;
-	__u32 vrr_min;
+	__u32 vrr_min; /* QMS_VRR range, Unit: 0.01, for example, 2397, 2400, 5994, ... etc */
 	__u32 vrr_max;
+
+	/* the list will be limited to qms_vrr_min ~ max */
+	/* the TFR contains 13 items, but 2397 and 2400 will be merged to 2400's vic */
+	__u16 qms_vic_lists[MAX_QMS_GROUP_NUM];
+
+	__u32 game_vrr_min; /* GAME_VRR range */
+	__u32 game_vrr_max;
+
 	__u32 brr;
 	char modename[DRM_DISPLAY_MODE_LEN];
+	__u32 reserv[16];
 };
 
 struct drm_vrr_mode_groups {

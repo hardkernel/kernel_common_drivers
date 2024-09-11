@@ -37,7 +37,6 @@ struct drm_hdmitx_timing_para {
 
 struct meson_connector_dev {
 	int ver;
-
 	/*copy from vout_op_s*/
 	struct vinfo_s *(*get_vinfo)(void *data);
 	int (*set_vmode)(enum vmode_e vmode, void *data);
@@ -65,6 +64,12 @@ enum {
 	HDCP_MODE14 = 1 << 0,
 	HDCP_MODE22 = 1 << 1,
 	HDCP_KEY_UPDATE = 1 << 2
+};
+
+enum vrr_types_e {
+	QMS_VRR_SUP = BIT(0),
+	GAMING_VRR_SUP = BIT(1),
+	UI_VRR_SUP = BIT(2),
 };
 
 enum {
@@ -98,9 +103,15 @@ struct meson_hdmitx_dev {
 	unsigned int (*get_tx_hdcp_cap)(void);
 	unsigned int (*get_rx_hdcp_cap)(void);
 	void (*register_hdcp_notify)(struct connector_hdcp_cb *cb);
+	/*
+	 * get downstream hdcp topo info:
+	 * return 1 if downstream devices are all capable of hdcp2.2/2.3
+	 * return 0 if downstream contains hdcp1.4 or hdcp2.0 legacy device
+	 */
+	unsigned char (*get_dw_hdcp_topo_info)(void);
 
 	/*vrr apis*/
-	bool (*get_vrr_cap)(void);
+	u32 (*get_vrr_cap)(void);
 	int (*get_vrr_mode_group)(struct drm_vrr_mode_group *groups, int max_group);
 	int (*set_vframe_rate_hint)(int duration, void *data);
 
@@ -168,6 +179,16 @@ enum {
 
 	DRM_MODE_CONNECTOR_MESON_EDP_A = 0x130,
 	DRM_MODE_CONNECTOR_MESON_EDP_B = 0x131,
+};
+
+enum {
+	DRM_MODE_CONNECTOR_MESON_HDMIA_A = 160,
+	DRM_MODE_CONNECTOR_MESON_HDMIA_B = 161,
+	DRM_MODE_CONNECTOR_MESON_HDMIA_C = 162,
+
+	DRM_MODE_CONNECTOR_MESON_HDMIB_A = 170,
+	DRM_MODE_CONNECTOR_MESON_HDMIB_B = 171,
+	DRM_MODE_CONNECTOR_MESON_HDMIB_C = 172,
 };
 
 #endif

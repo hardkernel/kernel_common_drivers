@@ -34,7 +34,7 @@ int hdmitx21_init_reg_map(struct platform_device *pdev)
 
 	for (i = 0; i < REG_IDX_END; i++) {
 		if (of_address_to_resource(np, i, &res)) {
-			HDMITX_ERROR("not get regbase index %d\n", i);
+			HDMITX_INFO("not get regbase index %d\n", i);
 			return 0;
 		}
 
@@ -65,7 +65,7 @@ inline bool cor_reg_addr_mask(u32 addr)
 		if ((addr >= 0x0330 && addr <= 0x03ff) ||
 			(addr >= 0x0800 && addr <= 0x08ff) ||
 			(addr >= 0x0940 && addr <= 0x09ff) ||
-			//(addr >= 0x0b00 && addr <= 0x0dff) ||
+			/* (addr >= 0x0b00 && addr <= 0x0dff) || */
 			(addr >= 0x0f00 && addr <= 0x0fff))
 			return 1;
 
@@ -206,7 +206,7 @@ static u32 hdmitx_rd_top(u32 addr)
 
 	data = sec_rd(base_offset + addr);
 	return data;
-} /* hdmitx_rd_top */
+}
 
 static u8 hdmitx_rd_cor(u32 addr)
 {
@@ -219,7 +219,7 @@ static u8 hdmitx_rd_cor(u32 addr)
 	base_offset = reg21_maps[1].phy_addr;
 	data = sec_rd8(base_offset + addr);
 	return data;
-} /* hdmitx_rd_cor */
+}
 
 static void hdmitx_wr_top(u32 addr, u32 data)
 {
@@ -227,7 +227,7 @@ static void hdmitx_wr_top(u32 addr, u32 data)
 
 	base_offset = reg21_maps[2].phy_addr;
 	sec_wr(base_offset + addr, data);
-} /* hdmitx_wr_top */
+}
 
 static void hdmitx_wr_cor(u32 addr, u8 data)
 {
@@ -238,7 +238,7 @@ static void hdmitx_wr_cor(u32 addr, u8 data)
 
 	base_offset = reg21_maps[1].phy_addr;
 	sec_wr8(base_offset + addr, data);
-} /* hdmitx_wr_cor */
+}
 
 static DEFINE_SPINLOCK(reg_lock);
 
@@ -350,8 +350,9 @@ void hdmitx21_poll_reg(u32 addr, u8 exp_data, u8 mask, ulong timeout)
 		usleep_range(10, 20);
 	}
 	if (done == 0)
-		HDMITX_INFO("%s 0x%x poll time-out!\n", __func__, addr);
-} /* hdmitx21_poll_reg */
+		HDMITX_ERROR("%s addr:0x%x exp_data:0x%x rd_data:0x%x poll time-out!\n",
+				__func__, addr, exp_data, rd_data);
+}
 EXPORT_SYMBOL(hdmitx21_poll_reg);
 
 void hdmitx21_seq_rd_reg(u16 offset, u8 *buf, u16 cnt)

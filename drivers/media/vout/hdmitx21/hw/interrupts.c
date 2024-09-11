@@ -188,7 +188,8 @@ void hdcp_enable_intrs(bool en)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
-		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) {
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D ||
+		hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6) {
 		if (hdev->tx_comm.hdcp_mode == 1) {
 			_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.tpi_intr, en);
 		} else if (hdev->tx_comm.hdcp_mode == 2) {
@@ -270,7 +271,7 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 				dat_top &= ~(1 << 1);
 		}
 		/* bit[2:1] of dat_top means HPD falling and rising */
-		if ((dat_top & 0x6) && hdev->tx_hw.base.hdmitx_gpios_hpd != -EPROBE_DEFER) {
+		if ((dat_top & 0x6) && hdev->tx_hw.base.hdmitx_gpios_hpd >= 0) {
 			struct timespec64 kts;
 			struct rtc_time tm;
 
@@ -352,7 +353,8 @@ static void intr_status_save_and_clear(void)
 
 	for (i = 0; i < sizeof(union intr_u) / sizeof(struct intr_t); i++, pint++) {
 		if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
-			hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) {
+			hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D ||
+			hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6) {
 			if (!(gate_status & BIT_HDMITX_TOP_CLK_GATE_HDCP1X)) {
 				if (pint->intr_st_reg == TPI_INTR_ST0_IVCTX)
 					continue;
@@ -398,7 +400,8 @@ void intr_status_init_clear(void)
 
 	for (i = 0; i < sizeof(union intr_u) / sizeof(struct intr_t); i++, pint++) {
 		if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7 ||
-			hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D) {
+			hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S7D ||
+			hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_S6) {
 			if (!(gate_status & BIT_HDMITX_TOP_CLK_GATE_HDCP1X)) {
 				if (pint->intr_st_reg == TPI_INTR_ST0_IVCTX)
 					continue;

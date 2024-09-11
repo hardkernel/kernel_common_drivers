@@ -8,7 +8,13 @@
 #include <linux/printk.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_edid.h>
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+#include <linux/amlogic/media/amvecm/amvecm.h>
+#endif
+
 #include "hdmitx_log.h"
+#include "hdmitx_check_valid.h"
 
 const struct hdmi_timing *hdmitx_mode_match_timing_name(const char *name);
 static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data);
@@ -47,6 +53,14 @@ void hdrinfo_to_vinfo(struct hdr_info *hdrinfo, struct hdmitx_common *tx_comm)
 {
 	memcpy(hdrinfo, &tx_comm->rxcap.hdr_info, sizeof(struct hdr_info));
 	hdrinfo->colorimetry_support = tx_comm->rxcap.colorimetry_data;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	/* HDR10plus is only supported by OTT when is_hdr10plus_enable is true */
+	if (!is_hdr10plus_enable()) {
+		hdrinfo->hdr10plus_info.ieeeoui = 0;
+		hdrinfo->hdr10plus_info.length = 0;
+		hdrinfo->hdr10plus_info.application_version = 0;
+	}
+#endif
 }
 
 void rxlatency_to_vinfo(struct hdmitx_common *tx_comm)
@@ -121,6 +135,7 @@ static int calc_vinfo_from_hdmi_timing(const struct hdmi_timing *timing, struct 
 		tx_vinfo->sync_duration_num = timing->v_freq;
 		tx_vinfo->sync_duration_den = 1000;
 	}
+	tx_vinfo->brr_duration = 0;
 	tx_vinfo->video_clk = timing->pixel_freq;
 	tx_vinfo->htotal = timing->h_total;
 	tx_vinfo->vtotal = timing->v_total;
@@ -164,6 +179,7 @@ static void reset_vinfo(struct vinfo_s *tx_vinfo)
 static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
 					 struct hdmi_format_para *para)
 {
+	mutex_lock(&tx_comm->valid_mutex);
 	if (tx_comm->ready)
 		HDMITX_ERROR("Should run disable_mode before enable new mode.\n");
 
@@ -171,6 +187,7 @@ static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
 		HDMITX_ERROR("%s current hpd_state/suspend (%d,%d), exit\n",
 			__func__, tx_comm->hpd_state, tx_comm->suspend_flag);
 		hdmitx_tracer_write_event(tx_comm->tx_tracer, HDMITX_KMS_SKIP);
+		mutex_unlock(&tx_comm->valid_mutex);
 		return -1;
 	}
 
@@ -180,16 +197,19 @@ static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
 	/*check if vic supported by rx*/
 	if (!hdmitx_edid_validate_mode(&tx_comm->rxcap, tx_comm->fmt_para.vic)) {
 		HDMITX_ERROR("edid invalid vic-%d return error\n", tx_comm->fmt_para.vic);
+		mutex_unlock(&tx_comm->valid_mutex);
 		return -EINVAL;
 	}
 
 	if (hdmitx_common_validate_vic(tx_comm, tx_comm->fmt_para.vic)) {
 		HDMITX_ERROR("validate vic-%d return error\n", tx_comm->fmt_para.vic);
+		mutex_unlock(&tx_comm->valid_mutex);
 		return -EINVAL;
 	}
 
 	if (hdmitx_common_validate_format_para(tx_comm, &tx_comm->fmt_para)) {
 		HDMITX_ERROR("format para check fail.\n");
+		mutex_unlock(&tx_comm->valid_mutex);
 		return -EINVAL;
 	}
 
@@ -200,6 +220,7 @@ static int hdmitx_common_pre_enable_mode(struct hdmitx_common *tx_comm,
 	if (tx_comm->ctrl_ops->pre_enable_mode)
 		tx_comm->ctrl_ops->pre_enable_mode(tx_comm, para);
 
+	mutex_unlock(&tx_comm->valid_mutex);
 	return 0;
 }
 
@@ -226,6 +247,13 @@ static int hdmitx_common_post_enable_mode(struct hdmitx_common *tx_comm,
 	tx_comm->ready = 1;
 	edidinfo_attach_to_vinfo(tx_comm);
 	update_vinfo_from_formatpara(tx_comm);
+
+	/*
+	 * need set audio mode again when set video mode, so send the event
+	 * to audio hal to reset alsa and set audio mode
+	 */
+	hdmitx_event_mgr_send_uevent(tx_comm->event_mgr,
+		HDMITX_VMODE_AUDIO_EVENT, true, true);
 
 	return 0;
 }
@@ -441,8 +469,10 @@ void hdmitx_common_output_disable(struct hdmitx_common *tx_comm,
 		hdmitx_common_edid_clear(tx_comm);
 
 	/* step4: HW: clear packets */
-	if (pkt_clear)
+	if (pkt_clear) {
+		HDMITX_INFO("%s: clear hdmitx pkt\n", __func__);
 		tx_comm->ctrl_ops->clear_pkt(tx_hw_base);
+	}
 
 	/* step5: reset hdcp */
 	if (hdcp_reset)
@@ -668,32 +698,128 @@ static struct vout_server_s hdmitx_vout3_server = {
 };
 #endif
 
+static int is_valid_hdmi(const char *input)
+{
+	static const char * const valid_hdmi_modes[] = {
+			"HDMI-A-A", /* venc0 */
+			"HDMI-A-B", /* venc1 */
+			"HDMI-A-C"  /* venc2 */
+	};
+
+	int num_modes = ARRAY_SIZE(valid_hdmi_modes);
+	int i;
+
+	for (i = 0; i < num_modes; i++) {
+		if (strcmp(input, valid_hdmi_modes[i]) == 0)
+			return 1; // Found a match
+	}
+	return 0; // No match found
+}
+
 void hdmitx_vout_init(struct hdmitx_common *tx_comm, struct hdmitx_hw_common *tx_hw)
 {
 	global_tx_common = tx_comm;
 	global_tx_hw = tx_hw;
-#ifdef CONFIG_AMLOGIC_VOUT_SERVE
-	vout_register_server(&hdmitx_vout_server);
-#endif
+	char *connector0_type;
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	vout2_register_server(&hdmitx_vout2_server);
+	char *connector1_type;
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	vout3_register_server(&hdmitx_vout3_server);
+	char *connector2_type;
 #endif
+	bool is_register = false;
+
+	connector0_type = get_uboot_connector0_type();
+	if (connector0_type && (is_valid_hdmi(connector0_type) ||
+		(strncmp("TV", connector0_type, 2) == 0))) {
+		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout_server.name);
+		vout_register_server(&hdmitx_vout_server);
+		is_register = true;
+	}
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	connector1_type = get_uboot_connector1_type();
+	if (connector1_type && (is_valid_hdmi(connector1_type) ||
+		(strncmp("TV", connector1_type, 2) == 0))) {
+		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout2_server.name);
+		vout2_register_server(&hdmitx_vout2_server);
+		is_register = true;
+	}
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	connector2_type = get_uboot_connector2_type();
+	if (connector2_type && (is_valid_hdmi(connector2_type) ||
+		(strncmp("TV", connector2_type, 2) == 0))) {
+		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout3_server.name);
+		vout3_register_server(&hdmitx_vout3_server);
+		is_register = true;
+	}
+#endif
+
+	/*
+	 * g12a/g12b chip: uboot2015 & kernel5.15
+	 * connector_type env is not defined in uboot2015.
+	 * However, in some projects, HDMI output on the vout2 server.
+	 * So if no server has been registered, register all valid servers
+	 */
+	if (!is_register) {
+		HDMITX_INFO("vout register all valid server\n");
+		vout_register_server(&hdmitx_vout_server);
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+		vout2_register_server(&hdmitx_vout2_server);
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+		vout3_register_server(&hdmitx_vout3_server);
+#endif
+	}
 }
 
 void hdmitx_vout_uninit(void)
 {
-#ifdef CONFIG_AMLOGIC_VOUT_SERVE
-	vout_unregister_server(&hdmitx_vout_server);
-#endif
+	char *connector0_type;
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-	vout2_unregister_server(&hdmitx_vout2_server);
+	char *connector1_type;
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-	vout3_unregister_server(&hdmitx_vout3_server);
+	char *connector2_type;
 #endif
+	bool is_register = false;
+
+	connector0_type = get_uboot_connector0_type();
+	if (connector0_type && (is_valid_hdmi(connector0_type) ||
+		(strncmp("TV", connector0_type, 2) == 0))) {
+		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout_server.name);
+		vout_unregister_server(&hdmitx_vout_server);
+		is_register = true;
+	}
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	connector1_type = get_uboot_connector1_type();
+	if (connector1_type && (is_valid_hdmi(connector1_type) ||
+		(strncmp("TV", connector1_type, 2) == 0))) {
+		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout2_server.name);
+		vout2_unregister_server(&hdmitx_vout2_server);
+		is_register = true;
+	}
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	connector2_type = get_uboot_connector2_type();
+	if (connector2_type && (is_valid_hdmi(connector2_type) ||
+		(strncmp("TV", connector2_type, 2) == 0))) {
+		HDMITX_INFO("%s:%s\n", __func__, hdmitx_vout3_server.name);
+		vout3_unregister_server(&hdmitx_vout3_server);
+		is_register = true;
+	}
+#endif
+
+	if (!is_register) {
+		HDMITX_INFO("vout register all valid server\n");
+		vout_unregister_server(&hdmitx_vout_server);
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+		vout2_unregister_server(&hdmitx_vout2_server);
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+		vout3_unregister_server(&hdmitx_vout3_server);
+#endif
+	}
 }
 
 /* common work for plugin/resume, which is done in lock */
@@ -759,7 +885,7 @@ void hdmitx_plugout_common_work(struct hdmitx_common *tx_comm)
 	HDMITX_INFO("plug out sequence id: %lld\n", tx_comm->tx_hw->hw_sequence_id);
 
 	/* step1: disable output */
-	hdmitx_common_output_disable(tx_comm, true, true, true, true);
+	hdmitx_common_output_disable(tx_comm, true, true, true, tx_comm->forced_edid ? 0 : 1);
 	/* as this function may be called in deep suspend/resume
 	 * (hot plugout when resume), not update topo info
 	 * here, update in plugout handler instead
@@ -791,3 +917,13 @@ void hdmitx_common_late_resume(struct hdmitx_common *tx_comm)
 		HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP, false);
 }
 
+void hdmitx_ext_plugin_handler(void)
+{
+	/*read edid*/
+	if (global_tx_common) {
+		mutex_lock(&global_tx_common->hdmimode_mutex);
+		hdmitx_common_get_edid(global_tx_common);
+		mutex_unlock(&global_tx_common->hdmimode_mutex);
+	}
+}
+EXPORT_SYMBOL(hdmitx_ext_plugin_handler);

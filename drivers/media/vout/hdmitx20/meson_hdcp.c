@@ -22,51 +22,17 @@
 #include "meson_hdcp.h"
 #include "meson_drm_hdmitx.h"
 
-/* ioctl numbers */
-enum {
-	TEE_HDCP_START,
-	TEE_HDCP_END,
-	HDCP_DAEMON_LOAD_END,
-	HDCP_DAEMON_REPORT,
-	HDCP_EXE_VER_SET,
-	HDCP_TX_VER_REPORT,
-	HDCP_DOWNSTR_VER_REPORT,
-	HDCP_EXE_VER_REPORT
-};
-
-#define TEE_HDCP_IOC_START    _IOW('P', TEE_HDCP_START, int)
-#define TEE_HDCP_IOC_END    _IOW('P', TEE_HDCP_END, int)
-#define HDCP_DAEMON_IOC_LOAD_END    _IOW('P', HDCP_DAEMON_LOAD_END, int)
-#define HDCP_DAEMON_IOC_REPORT    _IOR('P', HDCP_DAEMON_REPORT, int)
-#define HDCP_EXE_VER_IOC_SET    _IOW('P', HDCP_EXE_VER_SET, int)
-#define HDCP_TX_VER_IOC_REPORT    _IOR('P', HDCP_TX_VER_REPORT, int)
-#define HDCP_DOWNSTR_VER_IOC_REPORT    _IOR('P', HDCP_DOWNSTR_VER_REPORT, int)
-#define HDCP_EXE_VER_IOC_REPORT    _IOR('P', HDCP_EXE_VER_REPORT, int)
-
-enum {
-	HDCP_TX22_DISCONNECT = 0,
-	HDCP_TX22_START,
-	HDCP_TX22_STOP
-};
-
-enum {
-	HDCP22_DAEMON_LOADING = 0,
-	HDCP22_DAEMON_DONE,
-	HDCP22_DAEMON_TIMEOUT
-};
-
-#define HDCP_AUTH_TIMEOUT (40) /*40*200ms = 8s*/
-#define HDCP22_LOAD_TIMEOUT (160)
-#define TIMER_CHECK	(1 * HZ / 2)
-#define TIMER_CHK_CNT 60
-
 struct meson_hdmitx_hdcp {
 	struct miscdevice hdcp_comm_device;
 	wait_queue_head_t hdcp_comm_queue;
-	unsigned int hdcp_tx_type;/*bit0:hdcp14 bit 1:hdcp22*/
-	unsigned int hdcp_downstream_type;/*bit0:hdcp14 bit 1:hdcp22*/
-	unsigned int hdcp_execute_type;/*0: null hdcp 1: hdcp14 2: hdcp22*/
-	unsigned int hdcp_debug_type;/*0: null hdcp 1: hdcp14 2: hdcp22*/
+	/* bit0:hdcp14 bit 1:hdcp22 */
+	unsigned int hdcp_tx_type;
+	/* bit0:hdcp14 bit 1:hdcp22 */
+	unsigned int hdcp_downstream_type;
+	/* 0: null hdcp 1: hdcp14 2: hdcp22 */
+	unsigned int hdcp_execute_type;
+	/* 0: null hdcp 1: hdcp14 2: hdcp22 */
+	unsigned int hdcp_debug_type;
 
 	unsigned int hdcp_en;
 	int hdcp_poll_report;
@@ -168,29 +134,37 @@ void meson_hdcp_disable(void)
 		return;
 
 	DRM_INFO("[%s]: %d\n", __func__, meson_hdcp.hdcp_execute_type);
+	/*
+	 * when switch mode under hdcp1.4, should not
+	 * trigger hdcp_tx22 daemon to change status.
+	 * otherwise, it may exit idle state and
+	 * enter polling(driver hdcp2.2 start) per 5ms
+	 * which cause high cpu CPU utilization
+	 */
 	if (meson_hdcp.hdcp_execute_type == HDCP_MODE22) {
-		/* when switch mode under hdcp1.4, should not
-		 * trigger hdcp_tx22 daemon to change status.
-		 * otherwise, it may exit idle state and
-		 * enter polling(driver hdcp2.2 start) per 5ms
-		 * which cause high cpu CPU utilization
-		 */
-		meson_hdcp.hdcp_report = HDCP_TX22_DISCONNECT;
-		/* wait for tx22 to enter unconnected state */
-		msleep(200);
-		meson_hdcp.hdcp_report = HDCP_TX22_STOP;
-		/* wakeup hdcp_tx22 to stop hdcp22 */
-		wake_up(&meson_hdcp.hdcp_comm_queue);
-		/* wait for hdcp_tx22 stop hdcp22 done */
-		msleep(200);
+		if (meson_hdcp.hdcp_report == HDCP_TX22_START) {
+			/* notify hdcp_tx22 to stop hdcp22 */
+			meson_hdcp.hdcp_report = HDCP_TX22_STOP;
+			wake_up(&meson_hdcp.hdcp_comm_queue);
+			/* wait for hdcp_tx22 stop hdcp22 done */
+			msleep_interruptible(200);
+		}
 		drm_hdmitx_disable_hdcp_mode(HDCP_MODE22);
-	} else if (meson_hdcp.hdcp_execute_type  == HDCP_MODE14) {
+		/* notify hdcp_tx22 to enter hdcp22 init state(DISCONNECT) */
+		meson_hdcp.hdcp_report = HDCP_TX22_DISCONNECT;
+		wake_up(&meson_hdcp.hdcp_comm_queue);
+	} else if (meson_hdcp.hdcp_execute_type == HDCP_MODE14) {
 		drm_hdmitx_disable_hdcp_mode(HDCP_MODE14);
 	}
 	meson_hdcp.hdcp_execute_type = HDCP_NULL;
 	meson_hdcp.hdcp_auth_result = HDCP_AUTH_UNKNOWN;
 	meson_hdcp.hdcp_en = 0;
 	meson_hdcp.hdcp_fail_cnt = 0;
+}
+
+bool is_hdcp22_stop_state(void)
+{
+	return meson_hdcp.hdcp_report == HDCP_TX22_STOP;
 }
 
 void meson_hdcp_disconnect(void)
@@ -201,7 +175,8 @@ void meson_hdcp_disconnect(void)
 		/* drm_hdmitx_disable_hdcp_mode(HDCP_MODE14); */
 	meson_hdcp.hdcp_report = HDCP_TX22_DISCONNECT;
 	meson_hdcp.hdcp_downstream_type = 0;
-	/* TODO: for suspend/resume, need to stop/start hdcp22
+	/*
+	 * TODO: for suspend/resume, need to stop/start hdcp22
 	 * need to keep exe type
 	 */
 	meson_hdcp.hdcp_execute_type = HDCP_NULL;
@@ -292,7 +267,8 @@ static long hdcp_comm_ioctl(struct file *file,
 		rtn_val = 0;
 		meson_hdcp.hdcp_tx_type = meson_hdcp_get_tx_key_version();
 		if (meson_hdcp.hdcp_tx_type & 0x2) {
-			/* when bootup, if hdcp22 init after hdcp14 auth,
+			/*
+			 * when bootup, if hdcp22 init after hdcp14 auth,
 			 * hdcp path will switch to hdcp22. need to delay
 			 * hdcp auth to covery this issue.
 			 */
@@ -398,7 +374,7 @@ static const struct file_operations hdcp_comm_file_operations = {
 	.poll = hdcp_comm_poll,
 };
 
-/***** debug interface begin *****/
+/* debug interface begin */
 static void am_hdmitx_set_hdcp_mode(unsigned int user_type)
 {
 	meson_hdcp.hdcp_debug_type = user_type;
@@ -412,7 +388,7 @@ static void am_hdmitx_set_hdmi_mode(void)
 	if (vmode == VMODE_HDMI) {
 		HDMITX_INFO("set_hdmi_mode manually\n");
 	} else {
-		HDMITX_INFO("set_hdmi_mode manually fail! vmode:%d\n", vmode);
+		HDMITX_ERROR("set_hdmi_mode manually fail! vmode:%d\n", vmode);
 		return;
 	}
 
@@ -432,7 +408,7 @@ static void am_hdmitx_set_out_mode(void)
 	if (vmode == VMODE_HDMI) {
 		HDMITX_INFO("set_out_mode\n");
 	} else {
-		HDMITX_INFO("set_out_mode fail! vmode:%d\n", vmode);
+		HDMITX_ERROR("set_out_mode fail! vmode:%d\n", vmode);
 		return;
 	}
 
@@ -558,7 +534,7 @@ void meson_hdcp_init(void)
 
 	ret = misc_register(&meson_hdcp.hdcp_comm_device);
 	if (ret < 0)
-		HDMITX_INFO("%s [ERROR] misc_register fail\n", __func__);
+		HDMITX_ERROR("%s misc_register fail\n", __func__);
 
 	hdcp_cb.callback = meson_hdmitx_hdcp_cb;
 	hdcp_cb.data = &meson_hdcp;
@@ -606,7 +582,8 @@ unsigned int meson_hdcp_get_rx_cap(void)
 	unsigned int ver = 0x0;
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
-	/* note that during hdcp1.4 authentication, read hdcp version
+	/*
+	 * note that during hdcp1.4 authentication, read hdcp version
 	 * of connected TV set(capable of hdcp2.2) may cause TV
 	 * switch its hdcp mode, and flash screen. should not
 	 * read hdcp version of sink during hdcp1.4 authentication.
@@ -658,7 +635,8 @@ void drm_hdmitx_enable_hdcp_mode(unsigned int content_type)
 	} else if (content_type == 2) {
 		hdev->tx_comm.hdcp_mode = 2;
 		hdmitx_hdcp_do_work(hdev);
-		/* for drm hdcp_tx22, esm init only once
+		/*
+		 * for drm hdcp_tx22, esm init only once
 		 * don't do HDCP22 IP reset after init done!
 		 */
 		hdmitx_hw_cntl_ddc(&hdev->tx_hw.base,
@@ -687,3 +665,10 @@ void drm_hdmitx_disable_hdcp_mode(unsigned int content_type)
 	hdmitx_current_status(HDMITX_HDCP_NOT_ENABLED);
 }
 
+unsigned char drm_hdmitx_get_hdcp_topo_info(void)
+{
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	HDMITX_DEBUG("%s %d\n", __func__, hdev->hdcp22_type);
+	return hdev->hdcp22_type;
+}

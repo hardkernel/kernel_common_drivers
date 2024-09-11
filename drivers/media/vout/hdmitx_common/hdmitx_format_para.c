@@ -189,7 +189,7 @@ int hdmitx_format_para_rebuild_fmtattr_str(struct hdmi_format_para *para, char *
 	}
 
 	if (!conf) {
-		HDMITX_ERROR("UNKNOWN cs %d\n", para->cs);
+		HDMITX_INFO("UNKNOWN cs %d\n", para->cs);
 		attr_str[0] = 0;
 		return -EINVAL;
 	}

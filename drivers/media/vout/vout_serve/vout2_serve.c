@@ -52,6 +52,7 @@ static DEFINE_MUTEX(vout2_serve_mutex);
 static char vout2_mode[VMODE_NAME_LEN_MAX];
 static char local_name[VMODE_NAME_LEN_MAX] = {0};
 static char vout2_mode_uboot[VMODE_NAME_LEN_MAX] = "null";
+static char connector1_type[VMODE_NAME_LEN_MAX];
 static unsigned int vout2_init_vmode = VMODE_INIT_NULL;
 static int uboot_display;
 static unsigned int bist_mode2;
@@ -209,6 +210,12 @@ int get_vout2_mode_uboot_state(void)
 	return uboot_display;
 }
 EXPORT_SYMBOL(get_vout2_mode_uboot_state);
+
+char *get_uboot_connector1_type(void)
+{
+	return connector1_type;
+}
+EXPORT_SYMBOL(get_uboot_connector1_type);
 
 #define MAX_UEVENT_LEN 64
 int vout2_set_uevent(unsigned int vout_event, int val)
@@ -534,6 +541,7 @@ static ssize_t vout2_vinfo_show(const struct class *class,
 		"    screen_real_height:    %d\n"
 		"    sync_duration_num:     %d\n"
 		"    sync_duration_den:     %d\n"
+		"    brr_duration:          %d\n"
 		"    std_duration:          %d\n"
 		"    vfreq_max:             %d\n"
 		"    vfreq_min:             %d\n"
@@ -543,16 +551,17 @@ static ssize_t vout2_vinfo_show(const struct class *class,
 		"    fr_adj_type:           %d\n"
 		"    viu_color_fmt:         %d\n"
 		"    viu_mux:               0x%x\n"
-		"    cur_enc_ppc:           %d\n\n",
+		"    cur_enc_ppc:           0x%x\n\n",
 		info->name, info->mode, info->frac,
 		info->width, info->height, info->field_height,
 		info->aspect_ratio_num, info->aspect_ratio_den,
 		info->screen_real_width, info->screen_real_height,
 		info->sync_duration_num, info->sync_duration_den,
+		info->brr_duration,
 		info->std_duration, info->vfreq_max, info->vfreq_min,
 		info->htotal, info->vtotal, info->video_clk,
-		info->fr_adj_type, info->viu_color_fmt,
-		info->viu_mux, info->cur_enc_ppc);
+		info->fr_adj_type, info->viu_color_fmt, info->viu_mux,
+		info->cur_enc_ppc);
 	len += sprintf(buf + len, "master_display_info:\n"
 		"    present_flag          %d\n"
 		"    features              0x%x\n"
@@ -1112,6 +1121,17 @@ static int get_vout2_init_mode(char *str)
 	return 0;
 }
 __setup("vout2=", get_vout2_init_mode);
+
+static int get_connector1_type(char *str)
+{
+	if (str)
+		sprintf(connector1_type, "%s", str);
+
+	VOUTPR("connector1_type: %s\n", connector1_type);
+	return 0;
+}
+
+__setup("connector1_type=", get_connector1_type);
 
 //MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 //MODULE_DESCRIPTION("VOUT2 Server Module");
