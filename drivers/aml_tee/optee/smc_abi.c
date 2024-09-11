@@ -1620,10 +1620,11 @@ static int optee_restore(struct device *dev)
 			arg_cache_flags = OPTEE_SHM_ARG_SHARED;
 		else
 			arg_cache_flags = OPTEE_SHM_ARG_ALLOC_PRIV;
-	}
-	if (sec_caps & OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM) {
-		arg_cache_flags = OPTEE_SHM_ARG_SHARED |
-				  OPTEE_SHM_ARG_ALLOC_PRIV;
+	} else {
+		if (sec_caps & OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM) {
+			arg_cache_flags = OPTEE_SHM_ARG_SHARED |
+					  OPTEE_SHM_ARG_ALLOC_PRIV;
+		}
 	}
 	optee_shm_arg_cache_init(optee, arg_cache_flags);
 	optee_disable_unmapped_shm_cache(optee);
