@@ -1358,11 +1358,11 @@ static const char * const gen_clk_groups[] = {
 	"gen_clk_x", "gen_clk_z", "gen_clk_a"
 };
 
-static const char * const spidf_in_groups[] = {
+static const char * const spdif_in_groups[] = {
 	"spdif_in_f", "spdif_in_h", "spdif_in_a12", "spdif_in_a14"
 };
 
-static const char * const spidf_out_groups[] = {
+static const char * const spdif_out_groups[] = {
 	"spdif_out_d", "spdif_out_h", "spdif_out_a"
 };
 
@@ -1518,8 +1518,8 @@ static struct meson_pmx_func meson_s6_periphs_functions[] __initdata = {
 	FUNCTION(pwm_b_hiz),
 	FUNCTION(pwm_c_hiz),
 	FUNCTION(gen_clk),
-	FUNCTION(spidf_in),
-	FUNCTION(spidf_out),
+	FUNCTION(spdif_in),
+	FUNCTION(spdif_out),
 	FUNCTION(tsin_a),
 	FUNCTION(tsin_b),
 	FUNCTION(tsin_c),
