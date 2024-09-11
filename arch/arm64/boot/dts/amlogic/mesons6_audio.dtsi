@@ -554,7 +554,7 @@
 	spdif_out_a_h4_pins: spdifout_a_h4 {
 		mux { /* GPIOH_4 */
 			groups = "spdif_out_h";
-			function = "spidf_out";
+			function = "spdif_out";
 		};
 	};
 
