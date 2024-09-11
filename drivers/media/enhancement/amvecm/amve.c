@@ -4212,6 +4212,8 @@ void vsr_pq_config(enum vsr_pq_cfg_e vsr_cfg,
 	enum wr_md_e mode, int vpp_index)
 {
 	unsigned int data32 = 0;
+	if (chip_type_id == chip_t6d)
+		return;
 
 	switch (vsr_cfg) {
 	case RES_480P:
