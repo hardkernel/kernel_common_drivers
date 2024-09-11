@@ -949,11 +949,7 @@
 		wifi_static_buf = <1>;	//static buf level
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm_d_pins1>;
-		pwm_config = <&wifi_pwm_conf>;
-		//single_pwm;
-	};
 
-	wifi_pwm_conf:wifi_pwm_conf{
 		pwm_channel1_conf {
 			pwms = <&pwm_cd MESON_PWM_1 30541 0>;
 			duty-cycle = <15270>;

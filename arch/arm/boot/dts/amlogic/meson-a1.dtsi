@@ -946,22 +946,16 @@
 	aml_bt: aml_bt {
 		compatible = "amlogic, aml-bt";
 		status = "disabled";
-		reset-gpios = <&gpio       GPIOX_16       GPIO_ACTIVE_HIGH>;
 	};
 
 	aml_wifi: aml_wifi {
 		compatible = "amlogic, aml-wifi";
 		status = "disabled";
 		irq_trigger_type = "IRQF_TRIGGER_LOW";
-		power_on-gpios = <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
 		wifi_static_buf = <1>;	//static buf level
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm_d_pins1>;
-		pwm_config = <&wifi_pwm_conf>;
-		//single_pwm;
-	};
 
-	wifi_pwm_conf:wifi_pwm_conf{
 		pwm_channel1_conf {
 			pwms = <&pwm_cd MESON_PWM_1 30541 0>;
 			duty-cycle = <15270>;
