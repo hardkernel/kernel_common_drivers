@@ -12971,8 +12971,13 @@ static void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type, char *buf)
 	case SATUR_LUT:
 		for (i = 0; i < 31 ; i++) {
 			tmp = READ_VPP_REG(reg_sat0 + i);
-			tmp1 = (tmp >> adr) & 0xfff;
-			tmp2 = tmp & 0xfff;
+			if (chip_type_id == chip_t6d) {
+				tmp2 = (tmp >> adr) & 0xfff;
+				tmp1 = tmp & 0xfff;
+			} else {
+				tmp1 = (tmp >> adr) & 0xfff;
+				tmp2 = tmp & 0xfff;
+			}
 			pr_info("reg_lc_satur_lut[%d] =%4d.\n",
 				2 * i, tmp1);
 			pr_info("reg_lc_satur_lut[%d] =%4d.\n",
@@ -13103,8 +13108,13 @@ dump_as_string:
 	case SATUR_LUT:
 		for (i = 0; i < 31 ; i++) {
 			tmp = READ_VPP_REG(reg_sat0 + i);
-			tmp1 = (tmp >> adr) & 0xfff;
-			tmp2 = tmp & 0xfff;
+			if (chip_type_id == chip_t6d) {
+				tmp2 = (tmp >> adr) & 0xfff;
+				tmp1 = tmp & 0xfff;
+			} else {
+				tmp1 = (tmp >> adr) & 0xfff;
+				tmp2 = tmp & 0xfff;
+			}
 			lut_data[2 * i] = tmp1;
 			lut_data[2 * i + 1] = tmp2;
 		}
@@ -13234,7 +13244,10 @@ static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 			for (i = 0; i < 31; i++) {
 				tmp1 = *(p + 2 * i);
 				tmp2 = *(p + 2 * i + 1);
-				tmp = ((tmp1 & 0xfff) << adr) | (tmp2 & 0xfff);
+				if (chip_type_id == chip_t6d)
+					tmp = ((tmp2 & 0xfff) << adr) | (tmp1 & 0xfff);
+				else
+					tmp = ((tmp1 & 0xfff) << adr) | (tmp2 & 0xfff);
 				WRITE_VPP_REG(reg_sat0 + i, tmp);
 			}
 			tmp = (*(p + 62)) & 0xfff;
