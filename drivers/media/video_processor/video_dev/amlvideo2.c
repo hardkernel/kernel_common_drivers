@@ -5506,10 +5506,9 @@ int amlvideo2_notify_callback(struct notifier_block *block, unsigned long cmd,
 
 	switch (cmd) {
 	case  VOUT_EVENT_MODE_CHANGE:
-		pr_info("mode changed in amlvideo2 .\n");
-		vfp = vf_get_provider(node->recv.name);
-		if (!vfp || !node->fh->is_streamed_on) {
-			pr_info("driver is not ready or not need to screencap.\n");
+		pr_info("mode changed in amlvideo2.\n");
+		if (!node->fh->is_streamed_on) {
+			pr_info("driver not need to screencap.\n");
 			return ret;
 		}
 		node->pflag = true;
@@ -5547,11 +5546,15 @@ int amlvideo2_notify_callback(struct notifier_block *block, unsigned long cmd,
 				states.buf_recycle_num, states.buf_avail_num);
 			}
 		}
-		ret = amlvideo2_stop_tvin_service(node);
-		if (ret < 0) {
-			pr_err("stop tvin service failed.\n");
-			node->pflag = false;
-			return ret;
+
+		//0x2 for judge vdin1 if already start
+		if (get_vdin_status(0) & 0x2) {
+			ret = amlvideo2_stop_tvin_service(node);
+			if (ret < 0) {
+				pr_err("stop tvin service failed.\n");
+				node->pflag = false;
+				return ret;
+			}
 		}
 
 		if (node->r_type == AML_RECEIVER_NONE)
