@@ -833,7 +833,7 @@
 	mbox_devfs {
 		status = "okay";
 		compatible = "amlogic, mbox-devfs";
-		mbox-nums = <3>;
+		mbox-nums = <4>;
 		mbox-names = "dsp_dev",
 			     "dspa2ree",
 			     "dspb_dev",
