@@ -1051,7 +1051,7 @@
 		product_desc = "T6D"; /* Max Chars: 16    */
 		cec_osd_string = "AML_TV"; /* Max Chars: 14    */
 		cec_version = <5>;/*5:1.4;6:2.0*/
-		port_num = <4>;
+		port_num = <2>;
 		output = <0>;
 		cec_sel = <1>;/*1:use one ip, 2:use 2 ip*/
 		ee_cec; /*use cec a or b*/
