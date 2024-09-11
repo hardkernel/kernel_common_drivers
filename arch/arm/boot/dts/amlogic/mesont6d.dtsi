@@ -1395,6 +1395,7 @@
 		#thermal-sensor-cells = <1>;
 		reset-names = "ts_rst";
 		resets = <&reset RESET_TS_CPU>;
+		cust_governor = "power_allocator";
 	};
 
 	top_tsensor: top_tsensor@fe01c000 {
@@ -1431,10 +1432,10 @@
 				ddr_reg = <0xfe0364b4 0xfe0365b4>;
 				ddr_status = <13>;
 				ddr_bits = <0 15>,<0 15>;
-				ddr_data = <6232 6232 4985 3895 3116 2492 1947 1780
-					1558 1246 1038 890 779>;
-				gpu_data = <3116 3116 2492 1947 1558 1246 973 890
-					779 623 519 445 389>;
+				ddr_data = <0x1858 0x1858 0x1858 0x1858 0x1858 0x1858 0x1379 0xf37
+					0xf37 0xc2c 0x9bc 0x79b 0x616>;
+				gpu_data = <0xc2c 0xc2c 0xc2c 0xc2c 0xc2c 0xc2c 0x9bc 0x79b
+					0x79b 0x616 0x4de 0x3cd 0x30b>;
 				node_name = "ddr_cool0";
 				device_type = "ddr";
 			};
@@ -1452,7 +1453,7 @@
 		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
-			sustainable-power = <5160>;
+			sustainable-power = <2244>;
 			thermal-sensors = <&cpu_tsensor 0>;
 			trips {
 				cpu_switch_on: trip-point@0 {
@@ -1498,7 +1499,7 @@
 		top_thermal: top_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
-			sustainable-power = <960>;
+			sustainable-power = <2244>;
 			thermal-sensors = <&top_tsensor 1>;
 			trips {
 				top_switch_on: trip-point@0 {
