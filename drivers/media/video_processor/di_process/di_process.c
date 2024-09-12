@@ -1603,6 +1603,7 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 	struct dma_buf *dmabuf;
 	struct vframe_s *vf;
 	int frame_index = -1;
+	bool need_put_dw = false;
 
 	file_vf = fget(fd);
 	if (!file_vf) {
@@ -1634,20 +1635,31 @@ static int di_process_q_output(struct di_process_dev *dev, u32 fd)
 			__func__, private_data->file);
 		di_p = (struct di_buffer *)(private_data->vf_p);
 		/*di vf has dec vf, need put dec file*/
-		if (di_p->vf &&
-		    ((di_p->vf->flag & VFRAME_FLAG_DOUBLE_FRAM) ||
-		    ((di_p->vf->type & VIDTYPE_DI_PW) && (di_p->vf->type & VIDTYPE_COMPRESS)))) {
+		if (di_p->vf) {
 			/*decoder vf maybe free, so should not to use vf struct*/
-			vf = private_data->vf_ext_p;
-			if (vf && private_data->file) {
-				frame_index = vf->frame_index;
-				dp_put_file(dev, private_data->file);
+			if (di_p->vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+				need_put_dw = true;
+				vf = di_p->vf->vf_ext;
+			} else if ((di_p->vf->type & VIDTYPE_DI_PW) &&
+				(di_p->vf->type & VIDTYPE_COMPRESS)) {
+				need_put_dw = true;
+				vf = private_data->vf_ext_p;
 			} else {
-				dp_print(dev->index, PRINT_ERROR,
-					"%s: has dec vf, but vf/file is null vf=%px.\n",
-					__func__, vf);
+				need_put_dw = false;
+				vf = NULL;
 			}
-			private_data->file = NULL;
+
+			if (need_put_dw) {
+				if (vf && private_data->file) {
+					frame_index = vf->frame_index;
+					dp_put_file(dev, private_data->file);
+				} else {
+					dp_print(dev->index, PRINT_ERROR,
+						"%s: has dec vf, but vf/file is null vf=%px.\n",
+						__func__, vf);
+				}
+				private_data->file = NULL;
+			}
 		}
 		queue_outbuf_to_di(dev, di_p);
 	} else if (private_data->flag & V4LVIDEO_FLAG_DI_BYPASS) {
