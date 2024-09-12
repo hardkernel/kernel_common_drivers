@@ -6048,26 +6048,50 @@ void amve_vsr_config_update(struct vframe_s *vf, int vpp_index)
 		width_in = (vf->type & VIDTYPE_COMPRESS) ?
 			vf->compWidth : vf->width;
 
-	if ((chip_type_id == chip_s7d  ||
+	if (chip_type_id == chip_s7d  ||
 		chip_type_id == chip_s6 ||
-		chip_type_id == chip_t6d) &&
-		(height_out <= 2160 &&
-		width_out <= 3840)) {
-		if (width_in <= 1024) {
-			if ((vf->type_original & 0xf) != VIDTYPE_PROGRESSIVE)
-				cur_vsr_cfg = RES_480I;
-			else
-				cur_vsr_cfg = RES_480P;
-		} else if (width_in < 1920) {
-			if ((vf->type_original & 0xf) != VIDTYPE_PROGRESSIVE)
-				cur_vsr_cfg = RES_720I;
-			else
-				cur_vsr_cfg = RES_720P;
+		chip_type_id == chip_t6d) {
+		if (width_out > 1920 &&
+		width_out <= 3840) {
+		/* 4k out*/
+			if (width_in <= 1024) {
+				if ((vf->type_original & 0xf) != VIDTYPE_PROGRESSIVE)
+					cur_vsr_cfg = RES_480I;
+				else
+					cur_vsr_cfg = RES_480P;
+			} else if (width_in < 1920) {
+				if ((vf->type_original & 0xf) != VIDTYPE_PROGRESSIVE)
+					cur_vsr_cfg = RES_720I;
+				else
+					cur_vsr_cfg = RES_720P;
+			} else {
+				if ((vf->type_original & 0xf) != VIDTYPE_PROGRESSIVE)
+					cur_vsr_cfg = RES_1080I;
+				else
+					cur_vsr_cfg = RES_1080P;
+			}
+		} else if (width_out > 1280 &&
+		width_out <= 1920) {
+		/* 2k out*/
+			if (width_in <= 1024) {
+				if ((vf->type_original & 0xf) != VIDTYPE_PROGRESSIVE)
+					cur_vsr_cfg = RES_480I;
+				else
+					cur_vsr_cfg = RES_480P;
+			} else if (width_in < 1920) {
+				if ((vf->type_original & 0xf) != VIDTYPE_PROGRESSIVE)
+					cur_vsr_cfg = RES_720I;
+				else
+					cur_vsr_cfg = RES_720P;
+			}
 		} else {
-			if ((vf->type_original & 0xf) != VIDTYPE_PROGRESSIVE)
-				cur_vsr_cfg = RES_1080I;
-			else
-				cur_vsr_cfg = RES_1080P;
+		/*sd out*/
+			if (width_in <= 1024) {
+				if ((vf->type_original & 0xf) != VIDTYPE_PROGRESSIVE)
+					cur_vsr_cfg = RES_480I;
+				else
+					cur_vsr_cfg = RES_480P;
+			}
 		}
 
 		pr_amve_dbg("\n[%s] vf->type_original = %x,cur_vsr_cfg=%d\n",
