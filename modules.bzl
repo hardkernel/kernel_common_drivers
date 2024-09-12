@@ -126,6 +126,7 @@ AMLOGIC_COMMON_MODULES = [
     "drivers/regulator/pwm-regulator.ko",
     "net/mac80211/mac80211.ko",
     "net/wireless/cfg80211.ko",
+    "common_drivers/drivers/pwm/amlogic-pwm.ko",
 ]
 
 AMLOGIC_UPGRADE_COMMON_MODULES = [
