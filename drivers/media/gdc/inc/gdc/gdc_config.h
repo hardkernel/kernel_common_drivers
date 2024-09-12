@@ -20,6 +20,9 @@
 #include "gdc_dmabuf.h"
 #include "system_log.h"
 
+#define GDC_STATE_IDLE                 0
+#define GDC_STATE_RUNNING              1
+
 struct gdc_context_s;
 
 enum {
@@ -93,7 +96,6 @@ struct meson_gdc_dev_t {
 
 struct gdc_event_s {
 	struct completion d_com;
-	struct completion process_complete[CORE_NUM];
 	/* for queue switch and create destroy queue. */
 	spinlock_t sem_lock;
 	struct semaphore cmd_in_sem;
