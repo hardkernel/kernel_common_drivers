@@ -45,6 +45,13 @@ bool is_amdv_enable(void)
 	return false;
 }
 
+#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
+int get_dv_support_info(void)
+{
+	return 0;
+}
+#endif
+
 void set_amdv_ll_policy(int policy)
 {
 }
@@ -394,6 +401,9 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->nonblock_by_vblank_property) {
 		*val = crtc_state->nonblock_by_vblank;
 		return 0;
+	} else if (property == meson_crtc->dv_support_info) {
+		*val = get_dv_support_info();
+		return 0;
 	}
 
 	return ret;
@@ -484,6 +494,7 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tnum_plane_video=%u\n", mvps->num_plane_video);
 	drm_printf(p, "\t\tglobal_afbc=%u\n", mvps->global_afbc);
 	drm_printf(p, "\t\tdrm_policy_mask=%llu\n", priv->of_conf.drm_policy_mask);
+	drm_printf(p, "\t\tdv_support_info=%d\n", get_dv_support_info());
 
 	if (priv->vpu_data && priv->vpu_data->has_gfcd) {
 		drm_printf(p, "\t\tgfcd_enable=%u\n",
@@ -1224,6 +1235,20 @@ static void meson_crtc_init_nonblock_by_vblank_property(struct drm_device *drm_d
 	}
 }
 
+static void meson_crtc_init_dv_support_info_property(struct drm_device *drm_dev,
+						  struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0, "dv_support_info", 0, 15);
+	if (prop) {
+		amcrtc->dv_support_info = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to dv_support_info property\n");
+	}
+}
+
 struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 {
 	struct am_meson_crtc *amcrtc;
@@ -1301,6 +1326,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	meson_crtc_init_hdr_conversion_ctrl_property(priv->drm, amcrtc);
 	meson_crtc_init_drm_policy_property(priv->drm, amcrtc);
 	meson_crtc_init_nonblock_by_vblank_property(priv->drm, amcrtc);
+	meson_crtc_init_dv_support_info_property(priv->drm, amcrtc);
 	amcrtc->pipeline = pipeline;
 	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
 	priv->crtcs[priv->num_crtcs++] = amcrtc;
