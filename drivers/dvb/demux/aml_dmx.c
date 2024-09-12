@@ -787,8 +787,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 
 	feed->temi_index = -1;
 
-	pr_dbg("%s pid:0x%0x\n", __func__, pid);
-
+	pr_dbg("%s dmx id:%d pid:0x%0x\n", __func__, demux->id, pid);
 	if (pid > SWDMX_MAX_PID && pid != 0x2000)
 		return -EINVAL;
 
@@ -808,6 +807,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			d_node = kmalloc(sizeof(*d_node), GFP_KERNEL);
 			if (!d_node) {
 				mutex_unlock(demux->pmutex);
+				pr_dbg("%s pid:0x%0x kmalloc fail\n", __func__, pid);
 				return -ENOMEM;
 			}
 
@@ -840,6 +840,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			feed->type = OTHER_TYPE;
 
 			mutex_unlock(demux->pmutex);
+			pr_dbg("%s pid:0x%0x done\n", __func__, pid);
 			return 0;
 		}
 	}
@@ -847,6 +848,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	if (ts_type & TS_DECODER) {
 		if (pes_type >= DMX_PES_OTHER) {
 			mutex_unlock(demux->pmutex);
+			pr_dbg("%s pid:0x%0x error parameters\n", __func__, pid);
 			return -EINVAL;
 		}
 	}
@@ -915,6 +917,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 				feed->type = OTHER_TYPE;
 
 				mutex_unlock(demux->pmutex);
+				pr_dbg("%s pid:0x%0x done\n", __func__, pid);
 				return 0;
 			}
 
@@ -972,6 +975,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 				feed->ts_out_elem = NULL;
 				feed->type = OTHER_TYPE;
 				mutex_unlock(demux->pmutex);
+				pr_dbg("%s pid:0x%0x done\n", __func__, pid);
 				return 0;
 			}
 
@@ -993,6 +997,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		}
 
 		mutex_unlock(demux->pmutex);
+		pr_dbg("%s pid:0x%0x done\n", __func__, pid);
 		return 0;
 	}
 
@@ -1013,6 +1018,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			feed->cb_id = cb_id;
 
 			mutex_unlock(demux->pmutex);
+			pr_dbg("%s pid:0x%0x done\n", __func__, pid);
 			return 0;
 		}
 
@@ -1056,7 +1062,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 
 		feed->cb_id = cb_id;
 		mutex_unlock(demux->pmutex);
-
+		pr_dbg("%s pid:0x%0x done\n", __func__, pid);
 		return 0;
 	}
 
@@ -1130,6 +1136,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		node = kmalloc(sizeof(*node), GFP_KERNEL);
 		if (!node) {
 			mutex_unlock(demux->pmutex);
+			pr_dbg("%s pid:0x%0x kmalloc fail\n", __func__, pid);
 			return -ENOMEM;
 		}
 
@@ -1186,6 +1193,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 					 format, 0, demux->id);
 			feed->cb_id = cb_id;
 			mutex_unlock(demux->pmutex);
+			pr_dbg("%s pid:0x%0x done\n", __func__, pid);
 			return 0;
 		}
 	}
@@ -1217,6 +1225,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			ts_output_close(feed->ts_out_elem);
 			feed->ts_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
+			pr_dbg("%s pid:0x%0x set mem fail\n", __func__, pid);
 			return -ENOMEM;
 		}
 		if (feed->pid == 0x2000) {
@@ -1232,6 +1241,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			ts_output_close(feed->ts_out_elem);
 			feed->ts_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
+			pr_dbg("%s pid:0x%0x add pid fail\n", __func__, pid);
 			return -EBUSY;
 		}
 		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed,
@@ -1254,6 +1264,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	}
 
 	mutex_unlock(demux->pmutex);
+	pr_dbg("%s pid:0x%0x done\n", __func__, pid);
 	return 0;
 }
 
@@ -1418,7 +1429,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 	int cb_id = 0;
 	int ret = 0;
 
-	pr_dbg("%s dmx id:%d\n", __func__, demux->id);
+	pr_dbg("%s dmx id:%d pid:0x%0x\n", __func__, demux->id, sec_feed->pid);
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
 
@@ -1514,6 +1525,8 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 			ts_output_close(sec_feed->sec_out_elem);
 			sec_feed->sec_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
+			pr_dbg("%s dmx id:%d pid:0x%0x set mem fail\n",
+				__func__, demux->id, sec_feed->pid);
 			return -ENOMEM;
 		}
 		ret = ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0,
@@ -1522,6 +1535,8 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 			ts_output_close(sec_feed->sec_out_elem);
 			sec_feed->sec_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
+			pr_dbg("%s dmx id:%d pid:0x%0x add pid fail\n",
+				__func__, demux->id, sec_feed->pid);
 			return -EBUSY;
 		}
 		ts_output_add_cb(sec_feed->sec_out_elem,
@@ -1534,7 +1549,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 	}
 	pr_dbg("sec_out_elem:0x%lx\n", (unsigned long)(sec_feed->sec_out_elem));
 	mutex_unlock(demux->pmutex);
-
+	pr_dbg("%s dmx id:%d pid:0x%0x done\n", __func__, demux->id, sec_feed->pid);
 	return 0;
 }
 
@@ -1782,7 +1797,7 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
 
-	pr_dbg("%s pid:%d\n", __func__, feed->pid);
+	pr_dbg("%s dmx id:%d pid:0x%0x\n", __func__, demux->id, feed->pid);
 
 	if (feed->pes_type >= DMX_DUMP_DVR_TYPE) {
 		if (feed->pes_type == DMX_DUMP_INPUT_TYPE) {

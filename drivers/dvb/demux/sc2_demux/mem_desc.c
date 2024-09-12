@@ -46,6 +46,11 @@ static struct chan_id chan_id_table_r[R_MAX_MEM_CHAN_NUM];
 	dprintk(LOG_ERROR, debug_mem_desc, "mem_desc:" fmt, ## args)
 #define pr_dbg(fmt, args...)     \
 	dprintk(LOG_DBG, debug_mem_desc, "mem_desc:" fmt, ## args)
+#define pr_dbg_mem(fmt, args...)     \
+	do {\
+		if (debug_mem_desc == 2)\
+			dprintk(LOG_DBG, 1, "mem_desc:" fmt, ## args);\
+	} while (0)
 
 MODULE_PARM_DESC(debug_mem_desc, "\n\t\t Enable debug mem desc information");
 static int debug_mem_desc;
@@ -167,6 +172,7 @@ static int cache_init(int cache_level)
 		flags = CODEC_MM_FLAGS_DMA_CPU;
 		buf_page_num = PAGE_ALIGN(total_size) / PAGE_SIZE;
 
+		pr_dbg_mem("%s size:%d\n", __func__, total_size);
 		second_cache->start_phys =
 		    codec_mm_alloc_for_dma("dmx_cache", buf_page_num,
 					4 + PAGE_SHIFT, flags);
@@ -176,6 +182,7 @@ static int cache_init(int cache_level)
 			dprint("%s second cache fail\n", __func__);
 			return -1;
 		}
+		pr_dbg_mem("%s size:%d alloc finish\n", __func__, total_size);
 		second_cache->start_virt =
 		(unsigned long)codec_mm_phys_to_virt(second_cache->start_phys);
 		if (IS_ERR_OR_NULL((const void *)second_cache->start_phys)) {
@@ -184,6 +191,7 @@ static int cache_init(int cache_level)
 			dprint("phys to virt addr failed\n");
 			return -1;
 		}
+		pr_dbg_mem("%s size:%d done\n", __func__, total_size);
 	}
 	return 0;
 }
@@ -386,19 +394,21 @@ static int dmc_range_init(struct dmc_range *range, int sec_level)
 
 	buf_page_num = PAGE_ALIGN(len) / PAGE_SIZE;
 
+	pr_dbg_mem("%s size:%d\n", __func__, len);
 	buf_start =
 	    codec_mm_alloc_for_dma("dmx", buf_page_num, 4 + PAGE_SHIFT, flags);
 	if (!buf_start) {
 		dprint("%s fail\n", __func__);
 		return -1;
 	}
+	pr_dbg_mem("%s size:%d alloc finish\n", __func__, len);
 	buf_start_virt = (unsigned long)codec_mm_phys_to_virt(buf_start);
 	if (IS_ERR_OR_NULL((const void *)buf_start_virt)) {
 		codec_mm_free_for_dma("dmx", buf_start);
 		dprint("phys to virt addr failed\n");
 		return -1;
 	}
-	pr_dbg("dmc mem init phy:0x%lx, virt:0x%lx, len:%d\n",
+	pr_dbg_mem("dmc mem init phy:0x%lx, virt:0x%lx, len:%d\n",
 		buf_start, buf_start_virt, len);
 	memset((char *)buf_start_virt, 0, len);
 	codec_mm_dma_flush((void *)buf_start_virt, len, DMA_TO_DEVICE);
@@ -857,19 +867,21 @@ int _alloc_buff(unsigned int len, int sec_level,
 
 	buf_page_num = PAGE_ALIGN(len) / PAGE_SIZE;
 
+	pr_dbg_mem("%s size:%d\n", __func__, len);
 	buf_start =
 	    codec_mm_alloc_for_dma("dmx", buf_page_num, 4 + PAGE_SHIFT, flags);
 	if (!buf_start) {
 		dprint("%s fail\n", __func__);
 		return -1;
 	}
+	pr_dbg_mem("%s size:%d alloc finish\n", __func__, len);
 	buf_start_virt = (unsigned long)codec_mm_phys_to_virt(buf_start);
 	if (IS_ERR_OR_NULL((const void *)buf_start_virt)) {
 		codec_mm_free_for_dma("dmx", buf_start);
 		dprint("phys to virt addr failed\n");
 		return -1;
 	}
-	pr_dbg("init phy:0x%lx, virt:0x%lx, len:%d\n",
+	pr_dbg_mem("init phy:0x%lx, virt:0x%lx, len:%d\n",
 			buf_start, buf_start_virt, len);
 	memset((char *)buf_start_virt, 0xa5, len);
 
