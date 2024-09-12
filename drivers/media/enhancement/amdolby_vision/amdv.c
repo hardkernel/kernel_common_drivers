@@ -17710,6 +17710,10 @@ static int amdv_drv_suspend(struct device *dev)
 		amdv_reg_list[2] = READ_VPP_DV_REG(AMDV_CORE2A_CLKGATE_CTRL);
 		amdv_reg_list[3] = READ_VPP_DV_REG(AMDV_CORE3_CLKGATE_CTRL);
 	}
+	if (is_aml_t3x()) {
+		amdv_reg_list[0] = READ_VPP_DV_REG(VPU_DOLBY_WRAP_GCLK);
+		amdv_reg_list[1] = READ_VPP_DV_REG(VPU_CLK_GATE);
+	}
 	pr_dv_dbg("amdv suspend\n");
 	return 0;
 }
@@ -17721,6 +17725,10 @@ static int amdv_drv_resume(struct device *dev)
 		WRITE_VPP_DV_REG(AMDV_CORE1A_CLKGATE_CTRL, amdv_reg_list[1]);
 		WRITE_VPP_DV_REG(AMDV_CORE2A_CLKGATE_CTRL, amdv_reg_list[2]);
 		WRITE_VPP_DV_REG(AMDV_CORE3_CLKGATE_CTRL, amdv_reg_list[3]);
+	}
+	if (is_aml_t3x()) {
+		WRITE_VPP_DV_REG(VPU_DOLBY_WRAP_GCLK, amdv_reg_list[0]);
+		WRITE_VPP_DV_REG(VPU_CLK_GATE, amdv_reg_list[1]);
 	}
 	pr_dv_dbg("amdv resume\n");
 	return 0;
@@ -18330,9 +18338,162 @@ static int __exit amdolby_vision_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void amdolby_vision_shutdown(struct platform_device *pdev)
+{
+	struct amdolby_vision_dev_s *devp = &amdolby_vision_dev;
+	int i;
+
+	if (pq_config_buf) {
+		vfree(pq_config_buf);
+		pq_config_buf = NULL;
+	}
+	for (i = 0; i < 2; i++) {
+		if (md_buf[i]) {
+			vfree(md_buf[i]);
+			md_buf[i] = NULL;
+		}
+		if (comp_buf[i]) {
+			vfree(comp_buf[i]);
+			comp_buf[i] = NULL;
+		}
+		if (drop_md_buf[i]) {
+			vfree(drop_md_buf[i]);
+			drop_md_buf[i] = NULL;
+		}
+		if (drop_comp_buf[i]) {
+			vfree(drop_comp_buf[i]);
+			drop_comp_buf[i] = NULL;
+		}
+	}
+	if (vsem_if_buf) {
+		vfree(vsem_if_buf);
+		vsem_if_buf = NULL;
+	}
+	if (vsem_md_buf) {
+		vfree(vsem_md_buf);
+		vsem_md_buf = NULL;
+	}
+	if (is_aml_hw5()) {
+		if (top1_v_info.metadata_parser) {
+			if (p_funcs_tv && p_funcs_tv->multi_mp_release)
+				p_funcs_tv->multi_mp_release
+					(&top1_v_info.metadata_parser);
+			top1_v_info.metadata_parser = NULL;
+		}
+		if (top2_v_info.metadata_parser) {
+			if (p_funcs_tv && p_funcs_tv->multi_mp_release)
+				p_funcs_tv->multi_mp_release
+					(&top2_v_info.metadata_parser);
+			top2_v_info.metadata_parser = NULL;
+		}
+		for (i = 0; i < 2; i++) {
+			if (top1_v_info.md_buf[i]) {
+				vfree(top1_v_info.md_buf[i]);
+				top1_v_info.md_buf[i] = NULL;
+			}
+			if (top1_v_info.comp_buf[i]) {
+				vfree(top1_v_info.comp_buf[i]);
+				top1_v_info.comp_buf[i] = NULL;
+			}
+			if (top2_v_info.md_buf[i]) {
+				vfree(top2_v_info.md_buf[i]);
+				top2_v_info.md_buf[i] = NULL;
+			}
+			if (top2_v_info.comp_buf[i]) {
+				vfree(top2_v_info.comp_buf[i]);
+				top2_v_info.comp_buf[i] = NULL;
+			}
+		}
+		if (tv_hw5_setting && tv_hw5_setting->top1_ext) {
+			vfree(tv_hw5_setting->top1_ext);
+			tv_hw5_setting->top1_ext = NULL;
+		}
+		if (tv_hw5_setting && tv_hw5_setting->top2_ext) {
+			vfree(tv_hw5_setting->top2_ext);
+			tv_hw5_setting->top2_ext = NULL;
+		}
+		if (bin_to_cfg_dvp) {
+			vfree(bin_to_cfg_dvp);
+			bin_to_cfg_dvp = NULL;
+		}
+		if (pq_config_dvp_fake) {
+			vfree(pq_config_dvp_fake);
+			pq_config_dvp_fake = NULL;
+		}
+		if (pq_config_dvp_fake_top1) {
+			vfree((pq_config_dvp_fake_top1));
+			pq_config_dvp_fake_top1 = NULL;
+		}
+	} else {
+		if (multi_dv_mode) {
+			for (i = 0; i < NUM_INST; i++) {
+				if (dv_inst[i].metadata_parser) {
+					if (p_funcs_stb && p_funcs_stb->multi_mp_release)
+						p_funcs_stb->multi_mp_release
+							(&dv_inst[i].metadata_parser);
+					else if (p_funcs_tv && p_funcs_tv->multi_mp_release)
+						p_funcs_tv->multi_mp_release
+							(&dv_inst[i].metadata_parser);
+					dv_inst[i].metadata_parser = NULL;
+				}
+				if (dv_inst[i].md_buf[0]) {
+					vfree(dv_inst[i].md_buf[0]);
+					dv_inst[i].md_buf[0] = NULL;
+				}
+				if (dv_inst[i].comp_buf[0]) {
+					vfree(dv_inst[i].comp_buf[0]);
+					dv_inst[i].comp_buf[0] = NULL;
+				}
+				if (dv_inst[i].md_buf[1]) {
+					vfree(dv_inst[i].md_buf[1]);
+					dv_inst[i].md_buf[1] = NULL;
+				}
+				if (dv_inst[i].comp_buf[1]) {
+					vfree(dv_inst[i].comp_buf[1]);
+					dv_inst[i].comp_buf[1] = NULL;
+				}
+			}
+		} else {
+			if (metadata_parser) {
+				if (p_funcs_stb && p_funcs_stb->metadata_parser_release)
+					p_funcs_stb->metadata_parser_release();
+				else if (p_funcs_tv && p_funcs_tv->metadata_parser_release)
+					p_funcs_tv->metadata_parser_release();
+				metadata_parser = NULL;
+			}
+		}
+		if (is_aml_tvmode()) {
+			if (bin_to_cfg) {
+				vfree(bin_to_cfg);
+				bin_to_cfg = NULL;
+			}
+			if (pq_config_fake) {
+				vfree(pq_config_fake);
+				pq_config_fake = NULL;
+			}
+		}
+	}
+	if (graphic_md_buf) {
+		vfree(graphic_md_buf);
+		graphic_md_buf = NULL;
+	}
+	if (bin_data) {
+		vfree(bin_data);
+		bin_data = NULL;
+	}
+	if (cfg_data) {
+		vfree(cfg_data);
+		cfg_data = NULL;
+	}
+	device_destroy(devp->clsp, devp->devno);
+	cdev_del(&devp->cdev);
+	class_destroy(devp->clsp);
+	unregister_chrdev_region(devp->devno, 1);
+	pr_info("amdv shutdown\n");
+}
+
 static const struct dev_pm_ops amdv_pm_ops = {
-	.suspend = amdv_drv_suspend,
-	.resume = amdv_drv_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(amdv_drv_suspend, amdv_drv_resume)
 };
 
 static struct platform_driver aml_amdolby_vision_driver = {
@@ -18343,6 +18504,7 @@ static struct platform_driver aml_amdolby_vision_driver = {
 		.pm = &amdv_pm_ops,
 	},
 	.probe = amdolby_vision_probe,
+	.shutdown = amdolby_vision_shutdown,
 	.remove = __exit_p(amdolby_vision_remove),
 };
 

@@ -1215,8 +1215,8 @@ void enable_amdv_hw5(int enable)
 						(T3X_VD1_S1_DV_BYPASS_CTRL, 0);
 					top1_info.core_on = false;
 					top2_info.core_on = false;
-					//VSYNC_WR_DV_REG(VPU_DOLBY_WRAP_GCLK, 0x55);
-					//dv_mem_power_off(VPU_DOLBY0);
+					VSYNC_WR_DV_REG(VPU_DOLBY_WRAP_GCLK, 0x55);
+					/* dv_mem_power_off(VPU_DOLBY0); */
 				}
 			}
 			if (dolby_vision_flags & FLAG_CERTIFICATION) {
@@ -1291,8 +1291,8 @@ void enable_amdv_hw5(int enable)
 					(T3X_VD1_S0_DV_BYPASS_CTRL, 0);
 					VSYNC_WR_DV_REG
 					(T3X_VD1_S1_DV_BYPASS_CTRL, 0);
-					//VSYNC_WR_DV_REG(VPU_DOLBY_WRAP_GCLK, 0x55);//todo
-					//dv_mem_power_off(VPU_DOLBY0);//todo
+					VSYNC_WR_DV_REG(VPU_DOLBY_WRAP_GCLK, 0x55);
+					/* dv_mem_power_off(VPU_DOLBY0); todo */
 				}
 				top1_info.core_on = false;
 				top1_info.core_on_cnt = 0;
@@ -1316,9 +1316,9 @@ void enable_amdv_hw5(int enable)
 					(T3X_VD1_S0_DV_BYPASS_CTRL, 0);
 					VSYNC_WR_DV_REG
 					(T3X_VD1_S1_DV_BYPASS_CTRL, 0);
-					//VSYNC_WR_DV_REG(VPU_DOLBY_WRAP_GCLK, 0x55);
-					//dv_mem_power_off(VPU_DOLBY0); //todo
-					//vpu_module_clk_disable(0, DV_TVCORE, 0);
+					VSYNC_WR_DV_REG(VPU_DOLBY_WRAP_GCLK, 0x55);
+					/* dv_mem_power_off(VPU_DOLBY0); to do */
+					vpu_module_clk_disable(0, DV_TVCORE, 0);
 				}
 				if (p_funcs_tv) { /* destroy ctx */
 					p_funcs_tv->tv_hw5_control_path
