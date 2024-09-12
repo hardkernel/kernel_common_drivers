@@ -57,6 +57,11 @@
 #define EDID_CLK_DIV 9 /* sys clk/(9+1) = 20M */
 #define HDCP_KEY_WR_TRIES		(5)
 
+/* i2c monitor */
+#define I2C_BUFF_SIZE 0x100000 //1M byte
+int sda_filter = 0x2005; // min pulse:2 * 5 clk
+int clk_div;
+
 /*------------------------variable define------------------------------*/
 static DEFINE_SPINLOCK(reg_rw_lock);
 /* should enable fast switching, since some devices in non-current port */
@@ -7725,5 +7730,302 @@ void rx_i2c_mux_cfg(u8 port)
 	default:
 		break;
 	}
+}
+
+void rx_i2c_dbg_monitor(void)
+{
+	u32 data32;
+
+	if (rx_info.chip_id != CHIP_ID_T3X && rx_info.chip_id != CHIP_ID_T6D)
+		return;
+	data32 = rd_reg_clk_ctl(I2C_MONITOR_INTR_STATUS);
+
+	if (data32 & 1) { //ignore start abnormal
+		wr_reg_clk_ctl(I2C_MONITOR_SMP_START, 0x0);
+		rx_i2c_dump();
+		wr_reg_clk_ctl(I2C_MONITOR_INTR_STATUS, data32);
+	}
+}
+
+static void rx_parse_i2c_data(u8 *buf, int size)
+{
+	static const char * const ack_print[] = {"ACK", "NAK"};
+	static const char * const wr_print[] = {"Write", "Read"};
+	u8 type, data, ack, wr;
+	int i;
+
+	if (!buf || size < 4)
+		return;
+	for (i = 0; i < size; i += 4) {
+		/*
+		 * |31..29|28.......9|8..1|  0|
+		 * |type  |delta time|data|ack|
+		 */
+		if (!buf[i] && !buf[i + 1] && !buf[i + 2] && !buf[i + 3])
+			break;
+		type = (buf[i + 3] & MSK(3, 5)) >> 5;
+		data = (buf[i] & MSK(7, 1)) >> 1 | (buf[i + 1] & 0x1) << 7;
+		ack = buf[i] & 0x1;
+		wr = data & 0x1;
+
+		switch (type) {
+		case E_DATA:
+			rx_pr("0x%x + %s\n", data, ack_print[ack]);
+			break;
+		case E_START_DATA:
+			rx_pr("%s to [0x%x] + %s\n", wr_print[wr], data, ack_print[ack]);
+			break;
+		case E_STOP_DATA:
+			rx_pr("0x%x + %s + Stop\n", data, ack_print[ack]);
+			break;
+		case E_START_DATA_STOP:
+			rx_pr("%s to [0x%x] + %s + Stop\n", wr_print[wr], data, ack_print[ack]);
+			break;
+		case E_STOP_ABNORMAL:
+			rx_pr("!!STOP Abnormal(incomplete data)\n");
+			break;
+		case E_START_ABNORMAL:
+			if (ack) {
+				rx_pr("!!Start Abnormal: %s to [0x%x] + %s\n",
+					wr_print[wr], data, ack_print[ack]);
+			} else {
+				rx_pr("!!Start Abnormal(incomplete data)\n");
+			}
+			break;
+		case E_TIME_OUT:
+			if (ack)
+				rx_pr("!!time out(no data)\n");
+			else
+				rx_pr("!!time out + 0x%x\n", data);
+			break;
+		default:
+			if ((data >> 5) == 0) {
+				if (ack)
+					rx_pr("HPD rise\n");
+				else
+					rx_pr("HPD fall\n");
+			} else {
+				rx_pr("!!other type:0x%x\n", data);
+			}
+			break;
+		}
+	}
+	rx_pr("i:0x%x\n", i);
+}
+
+void rx_i2c_monitor(u8 sel, u8 smp_mod, u8 trig_mod, u8 dump_mod)
+{
+	u8 *src = NULL;
+	u32 data32;
+
+	rx_info.i2c_buff.mode = smp_mod;
+	if (rx_info.chip_id == CHIP_ID_T3X)
+		rx_info.i2c_buff.addr_base = T3X_I2C_MONITOR_BASE;
+	else if (rx_info.chip_id == CHIP_ID_T6D)
+		rx_info.i2c_buff.addr_base = T6D_I2C_MONITOR_BASE;
+	else
+		return;
+	data32 = 0;
+	data32 |= (smp_mod == 3 ? 1 : 0) << 31; //[31]  bist_mode  exist bug, can't use
+	data32 |= (dump_mod & 0x1f) << 16; //[20-16]dump mode
+	data32 |= 0x1 << 4; //[4]   clk_free
+	data32 |= (smp_mod & 0x3) << 2; //[3:2] smp_mode
+	data32 |= 0x1 << 1; //[1]   hpd_en
+	data32 |= (trig_mod & 0x1) << 0; //[0]   trig_mode
+	wr_reg_clk_ctl(I2C_MONITOR_SMP_CNTL, data32);
+
+	data32 = 0;
+	data32 |= (sel >= 6 ? 1 << (sel - 6) : 0) << 24; //[31:24] sel input hpd to monitor
+	if (rx_info.chip_id == CHIP_ID_T3X)
+		data32 |= (1 << sel) <<  0; //[23:0]  sel input scl to monitor
+	else if (rx_info.chip_id == CHIP_ID_T6D)
+		data32 |= (1 << (sel - 2)) <<  0; //[23:0]  sel input scl to monitor
+	wr_reg_clk_ctl(I2C_MONITOR_SMP_SEL, data32);
+
+	data32 = 0;
+	data32 |= 0x2008 << 16; //[31:16] scl filter control
+	data32 |= sda_filter << 0;  //[15: 0] sda filter control
+	wr_reg_clk_ctl(I2C_MONITOR_SMP_FLT, data32);
+
+	data32 = 0;
+	data32 |= 0x7 << 0; //[15: 0] sda filter control
+	wr_reg_clk_ctl(I2C_MONITOR_SMP_FLT_HPD, data32);
+
+	data32 = 0;
+	data32 |= 0xa << 16; //[31:16] time tick in smp_clk
+	data32 |= 0x1 << 8; //[    8] smp_clk enable
+	if (smp_mod == E_FUNC_SAMPLE)
+		clk_div = 0x5; //smp_rate: 24M/(0x5+1) = 4M
+	else if (smp_mod == E_CEC_WAVE_SAMPLE)
+		clk_div = 0xef; //smp_rate: 24M/(0xef+1) = 100k
+	data32 |= clk_div << 0; //[ 7: 0] smp_clk div, cec sample:0x48
+	wr_reg_clk_ctl(I2C_MONITOR_SMP_CLK, data32);
+
+	data32 = 0;
+	data32 |= 0x3ff << 0; //[10:0]
+	wr_reg_clk_ctl(I2C_MONITOR_INTR_MASK, data32);
+
+	rx_info.i2c_buff.pg_addr = alloc_pages(GFP_KERNEL, 8);
+	if (!rx_info.i2c_buff.pg_addr) {
+		rx_pr("i2c monitor alloc_pages err\n");
+		return;
+	}
+	src = (u8 *)kmap_atomic(rx_info.i2c_buff.pg_addr);
+	memset(src, 0x0, I2C_BUFF_SIZE);
+	kunmap_atomic(src);
+	rx_info.i2c_buff.phy_addr = page_to_phys(rx_info.i2c_buff.pg_addr);
+
+	if (rx_info.i2c_buff.phy_addr) {
+		if (rx_info.chip_id == CHIP_ID_T3X) {
+			wr_reg_clk_ctl(I2C_MONITOR_DDR_START_ADDR,
+				rx_info.i2c_buff.phy_addr >> 4);
+			wr_reg_clk_ctl(I2C_MONITOR_DDR_END_ADDR,
+				(rx_info.i2c_buff.phy_addr + I2C_BUFF_SIZE) >> 4);
+		} else if (rx_info.chip_id == CHIP_ID_T6D) {
+			wr_reg_clk_ctl(I2C_MONITOR_DDR_START_ADDR,
+				(rx_info.i2c_buff.phy_addr & MSK(28, 2)) >> 2);
+			wr_reg_clk_ctl(I2C_MONITOR_DDR_END_ADDR,
+				((rx_info.i2c_buff.phy_addr & MSK(28, 2)) >> 2) +
+				(rx_info.i2c_buff.phy_addr >> 30) +
+				(I2C_BUFF_SIZE >> 2));
+		} else {
+			//TODO
+		}
+	}
+
+	data32 = 0;
+	if (smp_mod == E_FUNC_SAMPLE)
+		data32 |= 0x1 << 4; //[  4] endian in 32 bit
+	else if (smp_mod == E_CEC_WAVE_SAMPLE)
+		data32 |= 0x0 << 4; //[  4] endian in 32 bit
+	data32 |= 0x3 << 0; //[3:0] burst length
+	wr_reg_clk_ctl(I2C_MONITOR_DDR_CNTL, data32);
+
+	//smp start,config this bit after all the other reg has been ready
+	wr_reg_clk_ctl(I2C_MONITOR_SMP_START, 0x1);
+}
+
+static void rx_i2c_reg_dump(void)
+{
+	rx_pr("I2C_MONITOR_SMP_CNTL: 0x%x-0x%x\n", I2C_MONITOR_SMP_CNTL,
+		rd_reg_clk_ctl(I2C_MONITOR_SMP_CNTL));
+	rx_pr("I2C_MONITOR_SMP_SEL: 0x%x-0x%x\n", I2C_MONITOR_SMP_SEL,
+		rd_reg_clk_ctl(I2C_MONITOR_SMP_SEL));
+	rx_pr("I2C_MONITOR_SMP_FLT: 0x%x-0x%x\n", I2C_MONITOR_SMP_FLT,
+		rd_reg_clk_ctl(I2C_MONITOR_SMP_FLT));
+	rx_pr("I2C_MONITOR_SMP_FLT_HPD: 0x%x-0x%x\n", I2C_MONITOR_SMP_FLT_HPD,
+		rd_reg_clk_ctl(I2C_MONITOR_SMP_FLT_HPD));
+	rx_pr("I2C_MONITOR_SMP_CLK: 0x%x-0x%x\n", I2C_MONITOR_SMP_CLK,
+		rd_reg_clk_ctl(I2C_MONITOR_SMP_CLK));
+	rx_pr("I2C_MONITOR_INTR_MASK: 0x%x-0x%x\n", I2C_MONITOR_INTR_MASK,
+		rd_reg_clk_ctl(I2C_MONITOR_INTR_MASK));
+	rx_pr("I2C_MONITOR_DDR_START_ADDR: 0x%x-0x%x\n", I2C_MONITOR_DDR_START_ADDR,
+		rd_reg_clk_ctl(I2C_MONITOR_DDR_START_ADDR));
+	rx_pr("I2C_MONITOR_DDR_END_ADDR: 0x%x-0x%x\n", I2C_MONITOR_DDR_END_ADDR,
+		rd_reg_clk_ctl(I2C_MONITOR_DDR_END_ADDR));
+	rx_pr("I2C_MONITOR_DDR_WPTR: 0x%x-0x%x\n", I2C_MONITOR_DDR_WPTR,
+		rd_reg_clk_ctl(I2C_MONITOR_DDR_WPTR));
+	rx_pr("I2C_MONITOR_DDR_CNTL: 0x%x-0x%x\n", I2C_MONITOR_DDR_CNTL,
+		rd_reg_clk_ctl(I2C_MONITOR_DDR_CNTL));
+}
+
+#ifdef I2C_MONITOR_DUMP_FILE
+static void rx_i2c_byte_swap(u8 *src, u32 len)
+{
+	u8 temp;
+	u32 i, j;
+
+	/*
+	 * CEC sampling, 128 bits (16 bytes) per group, reverse output required within each group
+	 * | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | a | b | c | d | e | f | 0 | 1 |...
+	 * | f | e | d | c | b | a | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | f | e |...
+	 */
+	for (i = 0; i < len; i += 16) {
+		for (j = 0; j < 16 / 2; j++) {
+			temp = src[i + j];
+			src[i + j] = src[i + 15 - j];
+			src[i + 15 - j] = temp;
+		}
+	}
+}
+#endif
+
+void rx_i2c_dump(void)
+{
+	u8 *src_buf = NULL;
+	int buf_cnt = 0;
+#ifdef I2C_MONITOR_DUMP_FILE
+	struct file *file;
+	ssize_t ret;
+	loff_t pos;
+#else
+	//int i, j;
+#endif
+
+	if (!rx_info.i2c_buff.pg_addr) {
+		rx_pr("buf alloc err, can't dump anything\n");
+		return;
+	}
+	wr_reg_clk_ctl(I2C_MONITOR_SMP_START, 0x0); //stop smp
+	if (log_level & REG_LOG)
+		rx_i2c_reg_dump();
+
+#ifdef I2C_MONITOR_DUMP_FILE
+	file = filp_open("/data/i2c/i2c_dump.bin", O_CREAT | O_TRUNC | O_WRONLY, 0644);
+	if (IS_ERR(file)) {
+		rx_pr("Failed to open file\n");
+		return;
+	}
+#endif
+	src_buf = (u8 *)kmap_atomic(rx_info.i2c_buff.pg_addr);
+
+	if (rx_info.chip_id == CHIP_ID_T3X)
+		buf_cnt = (rd_reg_clk_ctl(I2C_MONITOR_DDR_WPTR) -
+			rd_reg_clk_ctl(I2C_MONITOR_DDR_START_ADDR)) << 4;
+	else if (rx_info.chip_id == CHIP_ID_T6D)
+		buf_cnt = (rd_reg_clk_ctl(I2C_MONITOR_DDR_WPTR) << 4) -
+			rx_info.i2c_buff.phy_addr;
+	if (buf_cnt > 0 && buf_cnt < I2C_BUFF_SIZE)
+		rx_pr("I2C_MONITOR_DDR_BOUND_CNT: 0x%x:0x%x, buf_cnt:0x%x\n",
+			I2C_MONITOR_DDR_BOUND_CNT,
+			rd_reg_clk_ctl(I2C_MONITOR_DDR_BOUND_CNT), buf_cnt);
+	else
+		goto EXIT;
+
+#ifndef I2C_MONITOR_DUMP_FILE
+	/*
+	 *for (i = 0; i < 64; i++) {
+	 *	for (j = 0; j < 64; j++) {
+	 *		if (rx_info.i2c_buff.mode == E_CEC_WAVE_SAMPLE)
+	 *			//need to flip per 16 bytes for cec sample
+	 *			pr_cont("%02X ", src_buf[i * 64 + j - (j % 16) + 15 - (j % 16)]);
+	 *		else if (rx_info.i2c_buff.mode == E_FUNC_SAMPLE)
+	 *			pr_cont("%02X ", src_buf[i * 64 + j]);
+	 *		else
+	 *			; //TODO
+	 *	}
+	 *	rx_pr("\n");
+	 *}
+	 */
+#else
+
+	if (rx_info.i2c_buff.mode == E_CEC_WAVE_SAMPLE)
+		rx_i2c_byte_swap(src_buf, buf_cnt);
+	ret = kernel_write(file, src_buf, buf_cnt, &pos);
+	if (ret < 0) {
+		rx_pr("Failed to write data to file: %zd\n", ret);
+		goto EXIT;
+	}
+
+#endif
+	if (rx_info.i2c_buff.mode == E_FUNC_SAMPLE)
+		rx_parse_i2c_data(src_buf, I2C_BUFF_SIZE);
+EXIT:
+	kunmap_atomic(src_buf);
+	if (rx_info.i2c_buff.pg_addr)
+		__free_pages(rx_info.i2c_buff.pg_addr, 8);
+#ifdef I2C_MONITOR_DUMP_FILE
+	filp_close(file, NULL);
+#endif
 }
 

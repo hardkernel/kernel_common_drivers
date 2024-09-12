@@ -191,6 +191,9 @@
 
 #define PACKET_TYPE_MAX 256
 
+//for dump i2c_monitor data to file
+//#define I2C_MONITOR_DUMP_FILE
+
 enum chip_id_e {
 	CHIP_ID_NONE,
 	CHIP_ID_GXTVBB,
@@ -862,9 +865,18 @@ struct emp_info_s {
 	u8 data_ver;
 };
 
+enum i2c_sample_mode_e {
+	E_FUNC_SAMPLE,
+	E_I2C_WAVE_SAMPLE,
+	E_CEC_WAVE_SAMPLE,
+	E_BIST_MODE
+};
+
 struct i2c_info_s {
 	phys_addr_t phy_addr;
 	struct page *pg_addr;
+	enum i2c_sample_mode_e mode;
+	u32 addr_base;
 };
 
 struct spkts_rcvd_sts {

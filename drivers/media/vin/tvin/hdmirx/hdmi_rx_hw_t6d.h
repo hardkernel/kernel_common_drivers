@@ -75,6 +75,9 @@
 #define T6D_RG_RX20PLL_0		0x000
 #define T6D_RG_RX20PLL_1		0x004
 
+/* i2c monitor reg */
+#define T6D_I2C_MONITOR_BASE		0x2c000
+
 extern int tapx_value;
 extern int agc_enable;
 extern u32 afe_value;

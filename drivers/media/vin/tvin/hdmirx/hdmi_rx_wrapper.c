@@ -3004,6 +3004,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(de_err_max, i++);
 	pr_var(clk_unstable_max, i++);
 	pr_var(clk_stable_max, i++);
+	pr_var(sda_filter, i++);
 	pr_var(wait_no_sig_max, i++);
 	pr_var(vrr_func_en, i++);
 	pr_var(allm_func_en, i++);
@@ -3315,6 +3316,10 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(clk_stable_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(wait_no_sig_max), &wait_no_sig_max, value))
 		return pr_var(wait_no_sig_max, index);
+	if (set_pr_var(tmpbuf, var_to_str(sda_filter), &sda_filter, value))
+		return pr_var(sda_filter, index);
+	if (set_pr_var(tmpbuf, var_to_str(clk_div), &clk_div, value))
+		return pr_var(clk_div, index);
 	if (set_pr_var(tmpbuf, var_to_str(vrr_func_en), &vrr_func_en, value))
 		return pr_var(vrr_func_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(allm_func_en), &allm_func_en, value))
@@ -7305,7 +7310,7 @@ int hdmirx_debug(const char *buf, int size)
 				rx_reg_maps[i].phy_addr, size, rx_reg_maps[i].p);
 		}
 	} else if (strncmp(tmpbuf, "i2c_monitor", 10) == 0) {
-		rx_i2c_monitor(6 + port, E_FUNC_SAMPLE, E_SW_TRIGGER, E_DUMP_ALL);
+		rx_i2c_monitor(6 + port, tmpbuf[11] - '0', E_SW_TRIGGER, E_DUMP_ALL);
 		rx_pr("i2c_monitor start\n");
 	} else if (strncmp(tmpbuf, "i2c_dump", 7) == 0) {
 		rx_pr("i2c_dump\n");
@@ -7633,7 +7638,7 @@ void hdmirx_timer_handler(struct timer_list *t)
 	rx_clkmsr_monitor();
 	rx_hpd_monitor();
 	rx_edid_monitor();
-	rx_i2c_dbg_monitor();
+	//rx_i2c_dbg_monitor();
 	if (rx_info.chip_id == CHIP_ID_T3X)
 		hdmirx_timer_t3x();
 	else

@@ -3144,6 +3144,50 @@
 #define SR_DLL_CDR_ST_DPHY_IVCRX	0x000070f1
 #define SARAH_CKDT_CTL_DPHY_IVCRX	0x000070fd
 
+#define I2C_MONITOR_SMP_START		(rx_info.i2c_buff.addr_base + (0x000 << 2))
+#define I2C_MONITOR_SMP_SEL		(rx_info.i2c_buff.addr_base + (0x001 << 2))
+#define I2C_MONITOR_SMP_CNTL		(rx_info.i2c_buff.addr_base + (0x002 << 2))
+#define I2C_MONITOR_SMP_FLT		(rx_info.i2c_buff.addr_base + (0x003 << 2))
+#define I2C_MONITOR_SMP_FLT_HPD		(rx_info.i2c_buff.addr_base + (0x004 << 2))
+#define I2C_MONITOR_SMP_I2C_TIMEOUT_TH	(rx_info.i2c_buff.addr_base + (0x005 << 2))
+#define I2C_MONITOR_SMP_CLK		(rx_info.i2c_buff.addr_base + (0x006 << 2))
+#define I2C_MONITOR_DDR_START_ADDR	(rx_info.i2c_buff.addr_base + (0x007 << 2))
+#define I2C_MONITOR_DDR_END_ADDR	(rx_info.i2c_buff.addr_base + (0x008 << 2))
+#define I2C_MONITOR_DDR_CNTL		(rx_info.i2c_buff.addr_base + (0x009 << 2))
+#define I2C_MONITOR_INTR_MASK		(rx_info.i2c_buff.addr_base + (0x00a << 2))
+#define I2C_MONITOR_DDR_WPTR		(rx_info.i2c_buff.addr_base + (0x00b << 2))
+#define I2C_MONITOR_DDR_BOUND_CNT	(rx_info.i2c_buff.addr_base + (0x00c << 2))
+#define I2C_MONITOR_AXI_CMD_PENDING	(rx_info.i2c_buff.addr_base + (0x00d << 2))
+#define I2C_MONITOR_SMP_STATUS		(rx_info.i2c_buff.addr_base + (0x00e << 2))
+#define I2C_MONITOR_SMP_I2C_BUSY_CNT	(rx_info.i2c_buff.addr_base + (0x00f << 2))
+#define I2C_MONITOR_AXI_STATUS		(rx_info.i2c_buff.addr_base + (0x010 << 2))
+#define I2C_MONITOR_INTR_STATUS		(rx_info.i2c_buff.addr_base + (0x011 << 2))
+#define I2C_MONITOR_AXI_CMD_CNT		(rx_info.i2c_buff.addr_base + (0x012 << 2))
+
+enum i2c_trigger_mode_e {
+	E_HW_TRIGGER,
+	E_SW_TRIGGER
+};
+
+enum i2c_dump_mode_e {
+	E_ABNORMAL_START0 = 0x1,
+	E_ABNORMAL_START1 = 0x2,
+	E_ABNORMAL_STOP = 0x4,
+	E_I2C_TIMEOUT = 0x8,
+	E_HPD_CHANGE = 0x10,
+	E_DUMP_ALL = 0x1f
+};
+
+enum i2c_data_type_e {
+	E_DATA,
+	E_START_DATA,
+	E_STOP_DATA,
+	E_START_DATA_STOP,
+	E_STOP_ABNORMAL,
+	E_START_ABNORMAL,
+	E_TIME_OUT
+};
+
 enum measure_clk_top_e {
 	TOP_HDMI_TMDSCLK = 0,
 	TOP_HDMI_CABLECLK,
@@ -3319,6 +3363,9 @@ extern int audio_debug;
 extern int edid_auto_debug;
 extern int clk_msr_param;
 extern int fpll_clk_sel;
+/* i2c monitor */
+extern int sda_filter;
+extern int clk_div;
 void hdmirx_set_vp_mapping(enum colorspace_e cs, u8 port);
 void rx_get_best_eq_setting(u8 port);
 void wr_reg_hhi(unsigned int offset, unsigned int val);
@@ -3573,4 +3620,10 @@ bool rx_is_need_edid_reset(u8 port);
 
 bool rx_is_phy_power_off(u8 port);
 void rx_hdcp_access_on_ddc_en(bool en);
+
+/* i2c monitor */
+void rx_i2c_dbg_monitor(void);
+void rx_i2c_monitor(u8 sel, u8 smp_mod, u8 trig_mod, u8 dump_mod);
+void rx_i2c_dump(void);
+
 #endif

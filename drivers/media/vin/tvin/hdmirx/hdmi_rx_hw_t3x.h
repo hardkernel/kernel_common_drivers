@@ -138,57 +138,7 @@
 #define T3X_CLKCTRL_AUD21_PLL_STS		(0x02ee  << 2)
 
 /* i2c monitor reg */
-#define T3X_I2C_MONITOR_BASE			0xfe014000
-#define T3X_I2C_MONITOR_SMP_START		(0x14000 + (0x000 << 2))
-#define T3X_I2C_MONITOR_SMP_SEL			(0x14000 + (0x001 << 2))
-#define T3X_I2C_MONITOR_SMP_CNTL		(0x14000 + (0x002 << 2))
-#define T3X_I2C_MONITOR_SMP_FLT			(0x14000 + (0x003 << 2))
-#define T3X_I2C_MONITOR_SMP_FLT_HPD		(0x14000 + (0x004 << 2))
-#define T3X_I2C_MONITOR_SMP_I2C_TIMEOUT_TH	(0x14000 + (0x005 << 2))
-#define T3X_I2C_MONITOR_SMP_CLK			(0x14000 + (0x006 << 2))
-#define T3X_I2C_MONITOR_DDR_START_ADDR		(0x14000 + (0x007 << 2))
-#define T3X_I2C_MONITOR_DDR_END_ADDR		(0x14000 + (0x008 << 2))
-#define T3X_I2C_MONITOR_DDR_CNTL		(0x14000 + (0x009 << 2))
-#define T3X_I2C_MONITOR_INTR_MASK		(0x14000 + (0x00a << 2))
-#define T3X_I2C_MONITOR_DDR_WPTR		(0x14000 + (0x00b << 2))
-#define T3X_I2C_MONITOR_DDR_BOUND_CNT		(0x14000 + (0x00c << 2))
-#define T3X_I2C_MONITOR_AXI_CMD_PENDING		(0x14000 + (0x00d << 2))
-#define T3X_I2C_MONITOR_SMP_STATUS		(0x14000 + (0x00e << 2))
-#define T3X_I2C_MONITOR_SMP_I2C_BUSY_CNT	(0x14000 + (0x00f << 2))
-#define T3X_I2C_MONITOR_AXI_STATUS		(0x14000 + (0x010 << 2))
-#define T3X_I2C_MONITOR_INTR_STATUS		(0x14000 + (0x011 << 2))
-#define T3X_I2C_MONITOR_AXI_CMD_CNT		(0x14000 + (0x012 << 2))
-
-enum i2c_sample_mode_e {
-	E_FUNC_SAMPLE,
-	E_I2C_WAVE_SAMPLE,
-	E_CEC_WAVE_SAMPLE,
-	E_BIST_MODE
-};
-
-enum i2c_trigger_mode_e {
-	E_HW_TRIGGER,
-	E_SW_TRIGGER
-};
-
-enum i2c_dump_mode_e {
-	E_ABNORMAL_START0 = 0x1,
-	E_ABNORMAL_START1 = 0x2,
-	E_ABNORMAL_STOP = 0x4,
-	E_I2C_TIMEOUT = 0x8,
-	E_HPD_CHANGE = 0x10,
-	E_DUMP_ALL = 0x1f
-};
-
-enum i2c_data_type_e {
-	E_DATA,
-	E_START_DATA,
-	E_STOP_DATA,
-	E_START_DATA_STOP,
-	E_STOP_ABNORMAL,
-	E_START_ABNORMAL,
-	E_TIME_OUT
-};
+#define T3X_I2C_MONITOR_BASE			0x14000
 
 enum frl_train_sts_e {
 	E_FRL_TRAIN_START,
@@ -221,7 +171,6 @@ extern int vga_tuning_max;
 extern int cal_phy_time;
 extern int pll_band;
 extern int cdr_bw;
-
 /*--------------------------function declare------------------*/
 /* T3X */
 void aml_phy_init_t3x(u8 port);
@@ -289,10 +238,6 @@ void rx_mute_t3x(bool en, u8 port_type);
 
 bool rx_get_clkready_sts(u8 port);
 bool rx_get_valid_m_sts(u8 port);
-
-void rx_i2c_dbg_monitor(void);
-void rx_i2c_monitor(u8 sel, u8 smp_mod, u8 trig_mod, u8 dump_mod);
-void rx_i2c_dump(void);
 bool rx_is_power_off_t3x(u8 port);
 
 //void reset_pcs(void);
