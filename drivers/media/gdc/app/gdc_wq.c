@@ -162,6 +162,7 @@ static inline struct gdc_queue_item_s *find_an_item_from_pool(void)
 			goto unlock;
 		}
 
+		pcontext->wq_state = GDC_STATE_RUNNING;
 		/* get this item and delete it from work_queue */
 		list_del(item);
 
@@ -328,6 +329,8 @@ struct gdc_context_s *create_gdc_work_queue(u32 dev_type)
 	init_waitqueue_head(&gdc_work_queue->cmd_complete);
 	mutex_init(&gdc_work_queue->d_mutext);
 	spin_lock_init(&gdc_work_queue->lock);  /* for process lock. */
+	init_completion(&gdc_work_queue->process_complete);
+	mutex_init(&gdc_work_queue->destroy_lock);
 
 	/* put this process queue  into manager queue list. */
 	/* maybe process queue is changing . */
@@ -341,31 +344,12 @@ struct gdc_context_s *create_gdc_work_queue(u32 dev_type)
 }
 EXPORT_SYMBOL(create_gdc_work_queue);
 
-static int queue_busy_on_core_id(struct gdc_context_s *gdc_work_queue)
-{
-	struct gdc_context_s *busy_wq = NULL;
-	struct gdc_queue_item_s *busy_item = NULL;
-	u32 dev_type = gdc_work_queue->cmd.dev_type;
-	int i;
-
-	for (i = 0; i < CORE_NUM; i++) {
-		busy_item = GDC_DEV_T(dev_type)->current_item[i];
-		if (busy_item)
-			busy_wq = busy_item->context;
-		if (busy_wq == gdc_work_queue)
-			break;
-	}
-
-	return (i >= CORE_NUM ? -1 : i);
-}
-
 int destroy_gdc_work_queue(struct gdc_context_s *gdc_work_queue)
 {
 	struct gdc_queue_item_s *pitem, *tmp;
 	struct list_head		*head;
 	int empty, timeout = 0;
 	struct completion *process_com = NULL;
-	int core_index;
 
 	if (gdc_work_queue) {
 		/* first detach it from the process queue,then delete it . */
@@ -375,18 +359,22 @@ int destroy_gdc_work_queue(struct gdc_context_s *gdc_work_queue)
 		empty = list_empty(&gdc_manager.process_queue);
 		spin_unlock(&gdc_manager.event.sem_lock);
 
-		core_index = queue_busy_on_core_id(gdc_work_queue);
-		if (core_index >= 0) {
+		mutex_lock(&gdc_work_queue->destroy_lock);
+		if (gdc_work_queue->wq_state == GDC_STATE_RUNNING) {
 			process_com =
-				&gdc_manager.event.process_complete[core_index];
+				&gdc_work_queue->process_complete;
 			gdc_work_queue->gdc_request_exit = 1;
+			mutex_unlock(&gdc_work_queue->destroy_lock);
 			timeout = wait_for_completion_timeout
 					(process_com, msecs_to_jiffies(500));
 			if (!timeout)
 				gdc_log(LOG_ERR, "wait timeout\n");
 			/* condition so complex ,simplify it . */
 			gdc_manager.last_wq = NULL;
-		} /* else we can delete it safely. */
+		} else {
+			mutex_unlock(&gdc_work_queue->destroy_lock);
+		}
+		/* we can delete it safely. */
 
 		head = &gdc_work_queue->work_queue;
 		list_for_each_entry_safe(pitem, tmp, head, list) {
@@ -457,8 +445,13 @@ void gdc_finish_item(struct gdc_queue_item_s *pitem)
 		up(&gdc_manager.event.cmd_in_sem);
 
 	/* if context is tring to exit */
-	if (current_wq->gdc_request_exit)
-		complete(&gdc_manager.event.process_complete[core_id]);
+	mutex_lock(&current_wq->destroy_lock);
+	if (current_wq && list_empty(&current_wq->work_queue)) {
+		if (current_wq->gdc_request_exit)
+			complete(&current_wq->process_complete);
+		current_wq->wq_state = GDC_STATE_IDLE;
+	}
+	mutex_unlock(&current_wq->destroy_lock);
 }
 
 u32 gdc_time_cost(struct gdc_queue_item_s *pitem)
@@ -544,16 +537,12 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 
 int gdc_wq_init(void)
 {
-	int i;
-
 	gdc_log(LOG_INFO, "init gdc device\n");
 
 	/* prepare bottom half */
 	spin_lock_init(&gdc_manager.event.sem_lock);
 	sema_init(&gdc_manager.event.cmd_in_sem, 1);
 	init_completion(&gdc_manager.event.d_com);
-	for (i = 0; i < CORE_NUM; i++)
-		init_completion(&gdc_manager.event.process_complete[i]);
 	/* coverity[Data race condition] init not need lock */
 	INIT_LIST_HEAD(&gdc_manager.process_queue);
 	gdc_manager.last_wq = NULL;

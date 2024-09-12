@@ -149,7 +149,10 @@ struct gdc_context_s {
 	struct list_head free_queue;
 	wait_queue_head_t cmd_complete;
 	int gdc_request_exit;
+	struct completion process_complete;
+	int wq_state;
 	spinlock_t lock; /* for get and release item. */
+	struct mutex destroy_lock;
 };
 
 /* format type and format bit width mask
