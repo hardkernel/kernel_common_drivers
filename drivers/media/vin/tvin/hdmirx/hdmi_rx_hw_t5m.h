@@ -79,7 +79,7 @@ void aml_phy_init_t5m(void);
 u32 aml_eq_eye_monitor_t5m(void);
 void dump_reg_phy_t5m(void);
 void dump_aml_phy_sts_t5m(void);
-void aml_phy_short_bist_t5m(void);
+int aml_phy_short_bist_t5m(void);
 bool aml_get_tmds_valid_t5m(void);
 void aml_phy_power_off_t5m(void);
 void aml_phy_switch_port_t5m(void);
@@ -101,6 +101,7 @@ void clk_init_cor_t5m(void);
 void rx_dig_clk_en_t5m(bool en);
 void aml_phy_get_trim_val_t5m(void);
 void aml_phy_offset_cal_t5m(void);
+bool rx_check_tap0(void);
 /*function declare end*/
 
 #endif /*_HDMI_RX_T5M_H*/

@@ -3298,9 +3298,9 @@ void rx_hdcp_access_on_ddc_en(bool en)
 		data8 = 0x0;
 	hdmirx_wr_bits_cor(RX_SYS_SWTCHC_AON_IVCRX, MSK(2, 1), data8, E_PORT0);
 	if (rx_info.chip_id == CHIP_ID_T3X) {
-		hdmirx_wr_bits_cor(RX_SYS_SWTCHC_AON_IVCRX, MSK(2, data8), 1, E_PORT1);
-		hdmirx_wr_bits_cor(RX_SYS_SWTCHC_AON_IVCRX, MSK(2, data8), 1, E_PORT2);
-		hdmirx_wr_bits_cor(RX_SYS_SWTCHC_AON_IVCRX, MSK(2, data8), 1, E_PORT3);
+		hdmirx_wr_bits_cor(RX_SYS_SWTCHC_AON_IVCRX, MSK(2, 1), data8, E_PORT1);
+		hdmirx_wr_bits_cor(RX_SYS_SWTCHC_AON_IVCRX, MSK(2, 1), data8, E_PORT2);
+		hdmirx_wr_bits_cor(RX_SYS_SWTCHC_AON_IVCRX, MSK(2, 1), data8, E_PORT3);
 	}
 }
 /*
@@ -6681,7 +6681,7 @@ void hdmirx_phy_init(u8 port)
 		snps_phyg3_init();
 }
 
-void rx_phy_short_bist(u8 port)
+int rx_phy_short_bist(u8 port)
 {
 	if (rx_info.phy_ver == PHY_VER_TL1)
 		aml_phy_short_bist_tl1();
@@ -6692,13 +6692,14 @@ void rx_phy_short_bist(u8 port)
 	else if (rx_info.phy_ver >= PHY_VER_T7 && rx_info.phy_ver <= PHY_VER_T5W)
 		aml_phy_short_bist_t7();
 	else if (rx_info.phy_ver == PHY_VER_T5M)
-		aml_phy_short_bist_t5m();
+		return aml_phy_short_bist_t5m();
 	else if (rx_info.phy_ver == PHY_VER_T6D)
 		aml_phy_short_bist_t6d();
 	else if (rx_info.phy_ver == PHY_VER_T3X)
 		aml_phy_short_bist_t3x(port);
 	else if (rx_info.phy_ver == PHY_VER_TXHD2)
 		aml_phy_short_bist_txhd2();
+	return 0;
 }
 
 u32 aml_phy_pll_lock_tm2(void)

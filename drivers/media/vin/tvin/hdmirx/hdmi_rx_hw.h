@@ -14,7 +14,8 @@
 /* 2024.08.06 optimize phy bandwidth definition */
 /* 2024.08.22 modify hdcp_rx22 definition type */
 /* 2024.08.24 disable tap0 error checking function */
-#define RX_HW_VER "ver.2024/08/22"
+/* 2024.09.13 optimize t5m bist & slt flow */
+#define RX_HW_VER "ver.2024/09/13"
 
 #define K_TEST_CHK_ERR_CNT
 
@@ -3517,7 +3518,7 @@ void aml_phy_init_handler_port1(struct work_struct *work);
 void aml_phy_init_handler_port2(struct work_struct *work);
 void aml_phy_init_handler_port3(struct work_struct *work);
 bool is_tmds_clk_stable(u8 port);
-void rx_phy_short_bist(u8 port);
+int rx_phy_short_bist(u8 port);
 void aml_phy_iq_skew_monitor(void);
 void aml_eq_eye_monitor(u8 port);
 void aml_phy_power_off(void);
