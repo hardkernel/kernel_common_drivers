@@ -110,12 +110,9 @@ adjust_config_action
 build_part_of_kernel
 
 if [[ "${FULL_KERNEL_VERSION}" != "common13-5.15" && "${ARCH}" = "arm64" && ${BAZEL} == 1 ]]; then
-	args="$@ --config=stamp"
-	if [[ -n ${FAST_BUILD} ]]; then
-		args="${args} --config=fast --lto=none"
-	else
-		[[ -z ${PREBUILT_GKI} ]] && args="${args} --lto=${LTO}"
-	fi
+	args="$@ --config=stamp --config=fast"
+	[[ -z ${PREBUILT_GKI} ]] && args="${args} --lto=${LTO}"
+	[[ -n ${FAST_BUILD} ]] && args="${args} --lto=none"
 	[[ -z ${GKI_CONFIG} ||  -n ${FAST_BUILD} ]] && args="${args} --notrim --nokmi_symbol_list_strict_mode"
 
 	PROJECT_DIR=${ROOT_DIR}/${KERNEL_DIR}/${COMMON_DRIVERS_DIR}/project
