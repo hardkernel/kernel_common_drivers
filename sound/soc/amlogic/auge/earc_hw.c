@@ -45,7 +45,7 @@ void earctx_dmac_mute(struct regmap *dmac_map, bool is_mute)
 		val = 3;
 
 	aml_earc_auto_gain_enable(dmac_map, !is_mute);
-	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x3 << 21, val << 21);
+	mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL4, 0x1 << 21, val << 21);
 
 }
 
@@ -53,7 +53,7 @@ int earctx_get_dmac_mute(struct regmap *dmac_map)
 {
 	int mute, gain_enable;
 
-	mute = mmio_read(dmac_map, EARCTX_SPDIFOUT_CTRL0) & (0x3 << 21);
+	mute = mmio_read(dmac_map, EARCTX_ERR_CORRT_CTRL4) & (0x1 << 21);
 	gain_enable = mmio_read(dmac_map, 0x20) & 0xFF;
 	return mute | gain_enable;
 }
@@ -2038,12 +2038,51 @@ void earctx_cmdc_earc_mode(struct regmap *cmdc_map, bool enable)
 	}
 }
 
-void earctx_dmac_hold_bus_and_mute(struct regmap *dmac_map, bool enable)
+void earctx_dmac_mute_and_hold_bus(struct regmap *dmac_map, bool enable)
 {
-	if (enable)
-		mmio_write(dmac_map, EARCTX_ERR_CORRT_CTRL2, 0x40089202);
-	else
-		mmio_write(dmac_map, EARCTX_FE_CTRL0, 0xc8000000);
+	if (enable) {
+		/* when cs_mute_hold_last_err_corrt valid,
+		 * clear work enable, initial biphase encode
+		 * same source need remove it, it make no sound as after
+		 * hold bus, it can't get frddr data.
+		 */
+		/* mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x1 << 16, 0x1 << 16); */
+		mmio_update_bits(dmac_map, EARCTX_FE_CTRL0,
+					0x1 << 28 | /* hold min time enable */
+					/* hold min time tick select
+					 * 0: 1us, 1: 10us, 2: 100us, 3:1ms
+					 */
+					0x7 << 24 |
+					0xffffff,   /* hold min time */
+					0x1 << 28 |
+					0x3 << 24 |
+					0x78);
+		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL2,
+					0xfff << 16 | /* mute block number */
+					0xff << 8   | /* mute bit at channel statue which bit */
+					0x1 << 2    | /* mute data select, 0 data 1 reg */
+					/* 0: always mute
+					 * 1:mute block number and dis mute
+					 * 2:mute block number and hold bus
+					 */
+					0x3,
+					0x5 << 16 |
+					146 << 8  |
+					0x1 << 2  |
+					0x2);
+		/* mute start, pluse */
+		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL2, 0x1 << 30, 0x1 << 30);
+	} else {
+		/* biphase work start, pluse
+		 * same source need remove it, it make no sound as after
+		 * hold bus, it can't get frddr data.
+		 * Also need add FE CTRLO bit 31 and bit 27.
+		 */
+		/* mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x1 << 31, 0x1 << 31); */
+		mmio_update_bits(dmac_map, EARCTX_FE_CTRL0,
+			0x1 << 31 | 0x1 << 27, 0x1 << 31 | 0x1 << 27);
+	}
+
 }
 
 void earctx_dmac_force_mode(struct regmap *dmac_map, bool enable)
