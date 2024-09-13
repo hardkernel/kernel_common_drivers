@@ -108,7 +108,7 @@ enum charge_cap_level {
 
 static const struct reg_default t6d_acodec_init_list[] = {
 	{ACODEC_0, 0x3400bff0},
-	{ACODEC_1, 0x50500909},
+	{ACODEC_1, 0x46460b0b},
 	{ACODEC_2, 0xf8f87400},
 	/*default LP/RP(headphone)	 LN/RN(lineout->spk)*/
 	/*dual output*/
@@ -118,6 +118,17 @@ static const struct reg_default t6d_acodec_init_list[] = {
 	{ACODEC_6, 0x0},
 	{ACODEC_7, 0x0},
 	{ACODEC_8, 0x14000000},
+	{ACODEC_ALC_0, 0x80001000},
+	{ACODEC_ALC_1, 0x7d03e8},
+	{ACODEC_ALC_2, 0x79999a},
+	{ACODEC_ALC_3, 0x50a3d7},
+	{ACODEC_ALC_4, 0x15165},
+	{ACODEC_ALC_5, 0x6bb2d6},
+	{ACODEC_ALC_6, 0x8020d7},
+	{ACODEC_ALC_7, 0x4ae9b},
+	{ACODEC_ALC_8, 0x1f412c},
+	{ACODEC_ALC_9, 0xa33e83e8},
+	{ACODEC_ALC_10, 0x800000},
 };
 
 static struct am_acodec_chipinfo acodec_cinfo_v3 = {
@@ -654,6 +665,13 @@ static int Headphone_mute_set(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new am_acodec_snd_controls[] = {
+	/*ALC  Switch*/
+	SOC_SINGLE("ALC Switch", ACODEC_ALC_0, REG_ALC_EN, 1, 0),
+
+	/*ALC PGA_IN Gain Index*/
+	SOC_SINGLE_TLV("ALC PGA Gain", ACODEC_ALC_4,
+			REG_PGA_GAIN_INDEX, 0x1f, 0, pga_in_tlv),
+
 	/*PGA_IN Gain */
 	SOC_DOUBLE_TLV
 			("PGA IN Gain", ACODEC_1,
@@ -700,7 +718,7 @@ static const struct snd_kcontrol_new am_acodec_snd_controls[] = {
 static const struct snd_kcontrol_new am_acodec_snd_dac2_controls[] = {
 	/*DAC 2 Digital Volume control */
 	SOC_DOUBLE_TLV
-			("DAC 2 Digital Playback Volume",
+			("DAC2 Digital Playback Volume",
 			ACODEC_5,
 			DAC2L_VC, DAC2R_VC,
 			0xff, 0, dac2_vol_tlv),
@@ -1016,7 +1034,7 @@ static const struct regmap_config am_acodec_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
-	.max_register = 0x20,
+	.max_register = 0x68,
 	.reg_defaults = t6d_acodec_init_list,
 	.num_reg_defaults = ARRAY_SIZE(t6d_acodec_init_list),
 	.cache_type = REGCACHE_RBTREE,
@@ -1195,7 +1213,7 @@ static int aml_am_acodec_probe(struct platform_device *pdev)
 			"adc_pga_gain",
 			&aml_acodec->adc_pga_gain);
 	if (ret < 0)
-		aml_acodec->adc_pga_gain = 9;
+		aml_acodec->adc_pga_gain = 11;
 	ret = of_property_read_u32(pdev->dev.of_node,
 			"charger_current_cap", &aml_acodec->charger_current_cap);
 	if (ret < 0)

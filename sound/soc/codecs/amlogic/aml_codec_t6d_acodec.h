@@ -23,8 +23,20 @@
 #define ACODEC_7   ACODEC_TOP_ADDR(0x1C)
 #define ACODEC_8   ACODEC_TOP_ADDR(0x20)
 
-/* ACODEC_0 ~ ACODEC_8 */
-#define ACODEC_REG_NUM              9
+#define ACODEC_ALC_0   ACODEC_TOP_ADDR(0x40)
+#define ACODEC_ALC_1   ACODEC_TOP_ADDR(0x44)
+#define ACODEC_ALC_2   ACODEC_TOP_ADDR(0x48)
+#define ACODEC_ALC_3   ACODEC_TOP_ADDR(0x4c)
+#define ACODEC_ALC_4   ACODEC_TOP_ADDR(0x50)
+#define ACODEC_ALC_5   ACODEC_TOP_ADDR(0x54)
+#define ACODEC_ALC_6   ACODEC_TOP_ADDR(0x58)
+#define ACODEC_ALC_7   ACODEC_TOP_ADDR(0x5c)
+#define ACODEC_ALC_8   ACODEC_TOP_ADDR(0x60)
+#define ACODEC_ALC_9   ACODEC_TOP_ADDR(0x64)
+#define ACODEC_ALC_10  ACODEC_TOP_ADDR(0x68)
+
+/* ACODEC_0 ~ ACODEC_8 and ACODEC_ALC_0 ~ ACODEC_ALC_10*/
+#define ACODEC_REG_NUM              20
 
 /* AML TL1 CODEC register-bitfield define */
 
@@ -160,6 +172,12 @@
 #define HDPLN_MODE_EN               31
 #define HDPLP_MODE_EN               30
 #define DVR_RES_SEL                 29
+
+// bitfield def of ACODEC_ALC_0
+#define REG_ALC_EN                  31 /* bit 31 */
+
+// bitfield def of ACODEC_ALC_4
+#define REG_PGA_GAIN_INDEX          5 /* bit 5~10 */
 
 #define DVR_EN                      28
 #define DVL_RES_SEL                 27
