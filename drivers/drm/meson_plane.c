@@ -1648,7 +1648,7 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 	plane_info = &mvps->video_plane_info[video_plane->plane_index];
 	plane_info->plane_index = video_plane->plane_index;
 	plane_info->vfm_mode = video_plane->vfm_mode;
-	plane_info->zorder = state->zpos + plane_info->plane_index;
+	plane_info->zorder = state->zpos;
 	plane_info->rotation = state->rotation;
 
 	plane_state = to_am_meson_video_plane_state(state);
