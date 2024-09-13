@@ -5,6 +5,7 @@
 
 #include "ldim_reg.h"
 #include "../../lcd_reg.h"
+#include <linux/amlogic/media/rdma/rdma_mgr.h>
 
 void ldim_wr_vcbus(unsigned int addr, unsigned int val)
 {
@@ -38,21 +39,21 @@ void ldim_wr_reg_bits(unsigned int addr, unsigned int val,
 {
 	unsigned int data;
 
-	data = VSYNC_RD_MPEG_REG(addr);
+	data = VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, addr);
 	data = (data & (~(((1 << len) - 1) << start))) |
 		((val & ((1 << len) - 1)) << start);
-	VSYNC_WR_MPEG_REG(addr, data);
+	VSYNC_WR_TABLE_REG(VIDEO_PARTITION_TABLE, addr, data);
 }
 EXPORT_SYMBOL(ldim_wr_reg_bits);
 
 void ldim_wr_reg(unsigned int addr, unsigned int val)
 {
-	VSYNC_WR_MPEG_REG(addr, val);
+	VSYNC_WR_TABLE_REG(VIDEO_PARTITION_TABLE, addr, val);
 }
 EXPORT_SYMBOL(ldim_wr_reg);
 
 unsigned int ldim_rd_reg(unsigned int addr)
 {
-	return VSYNC_RD_MPEG_REG(addr);
+	return VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, addr);
 }
 EXPORT_SYMBOL(ldim_rd_reg);

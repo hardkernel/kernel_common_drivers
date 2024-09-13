@@ -13349,6 +13349,104 @@ static void init_mosaic_layer_canvas(u32 canvas_index1, u32 canvas_index2)
 	}
 }
 
+int get_video_reg_table_s5(u32 *check_item)
+{
+	int i;
+	int vd_reg_cnt = 0;
+
+	for (i = 0; i < MAX_VD_LAYER_S5; i++) {
+		memcpy(check_item, &vd_proc_reg.vd_afbc_reg[i],
+				sizeof(struct vd_afbc_reg_s));
+		vd_reg_cnt += sizeof(struct vd_afbc_reg_s) / sizeof(u32);
+		check_item += sizeof(struct vd_afbc_reg_s) / sizeof(u32);
+		memcpy(check_item, &vd_proc_reg.vd_mif_reg[i],
+				sizeof(struct vd_mif_reg_s));
+		vd_reg_cnt += sizeof(struct vd_mif_reg_s) / sizeof(u32);
+		check_item += sizeof(struct vd_mif_reg_s) / sizeof(u32);
+		memcpy(check_item, &vd_proc_reg.vd_mif_linear_reg[i],
+				sizeof(struct vd_mif_linear_reg_s));
+		vd_reg_cnt += sizeof(struct vd_mif_linear_reg_s) / sizeof(u32);
+		check_item += sizeof(struct vd_mif_linear_reg_s) / sizeof(u32);
+		memcpy(check_item, &vd_proc_reg.vd_fg_reg[i],
+				sizeof(struct vd_fg_reg_s));
+		vd_reg_cnt += sizeof(struct vd_fg_reg_s) / sizeof(u32);
+		check_item += sizeof(struct vd_fg_reg_s) / sizeof(u32);
+	}
+	for (i = 0; i < MAX_VD_LAYER_S5 + 1; i++) {
+		memcpy(check_item, &vd_proc_reg.vd_pps_reg[i],
+				sizeof(struct vd_pps_reg_s));
+		vd_reg_cnt += sizeof(struct vd_pps_reg_s) / sizeof(u32);
+		check_item += sizeof(struct vd_pps_reg_s) / sizeof(u32);
+	}
+	for (i = 0; i < SLICE_NUM; i++) {
+		memcpy(check_item, &vd_proc_reg.vd_proc_slice_reg[i],
+				sizeof(struct vd_proc_slice_reg_s));
+		vd_reg_cnt += sizeof(struct vd_proc_slice_reg_s) / sizeof(u32);
+		check_item += sizeof(struct vd_proc_slice_reg_s) / sizeof(u32);
+		memcpy(check_item, &vd_proc_reg.vd1_slice_pad_size0_reg[i],
+				sizeof(struct vd1_slice_pad_reg_s));
+		vd_reg_cnt += sizeof(struct vd1_slice_pad_reg_s) / sizeof(u32);
+		check_item += sizeof(struct vd1_slice_pad_reg_s) / sizeof(u32);
+		memcpy(check_item, &vd_proc_reg.vd1_slice_pad_size1_reg[i],
+				sizeof(struct vd1_slice_pad_reg_s));
+		vd_reg_cnt += sizeof(struct vd1_slice_pad_reg_s) / sizeof(u32);
+		check_item += sizeof(struct vd1_slice_pad_reg_s) / sizeof(u32);
+	}
+	for (i = 0; i < MAX_VD_CHAN_S5; i++) {
+		memcpy(check_item, &vd_proc_reg.vd_pip_alpha_reg[i],
+				sizeof(struct vd_pip_alpha_reg_s));
+		vd_reg_cnt += sizeof(struct vd_pip_alpha_reg_s) / sizeof(u32);
+		check_item += sizeof(struct vd_pip_alpha_reg_s) / sizeof(u32);
+	}
+	memcpy(check_item, &vd_proc_reg.vd_proc_sr_reg,
+			sizeof(struct vd_proc_sr_reg_s));
+	vd_reg_cnt += sizeof(struct vd_proc_sr_reg_s) / sizeof(u32);
+	check_item += sizeof(struct vd_proc_sr_reg_s) / sizeof(u32);
+	memcpy(check_item, &vd_proc_reg.vd_proc_blend_reg,
+			sizeof(struct vd_proc_blend_reg_s));
+	vd_reg_cnt += sizeof(struct vd_proc_blend_reg_s) / sizeof(u32);
+	check_item += sizeof(struct vd_proc_blend_reg_s) / sizeof(u32);
+	memcpy(check_item, &vd_proc_reg.aisr_reshape_reg,
+			sizeof(struct vd_aisr_reshape_reg_s));
+	vd_reg_cnt += sizeof(struct vd_aisr_reshape_reg_s) / sizeof(u32);
+	check_item += sizeof(struct vd_aisr_reshape_reg_s) / sizeof(u32);
+	memcpy(check_item, &vd_proc_reg.vd2_pre_blend_reg,
+			sizeof(struct vd2_pre_blend_reg_s));
+	vd_reg_cnt += sizeof(struct vd2_pre_blend_reg_s) / sizeof(u32);
+	check_item += sizeof(struct vd2_pre_blend_reg_s) / sizeof(u32);
+	memcpy(check_item, &vd_proc_reg.vd2_proc_misc_reg,
+			sizeof(struct vd2_proc_misc_reg_s));
+	vd_reg_cnt += sizeof(struct vd2_proc_misc_reg_s) / sizeof(u32);
+	check_item += sizeof(struct vd2_proc_misc_reg_s) / sizeof(u32);
+	memcpy(check_item, &vd_proc_reg.vd_proc_misc_reg,
+			sizeof(struct vd_proc_misc_reg_s));
+	vd_reg_cnt += sizeof(struct vd_proc_misc_reg_s) / sizeof(u32);
+	check_item += sizeof(struct vd_proc_misc_reg_s) / sizeof(u32);
+	memcpy(check_item, &vpp_post_reg.vpp_post_blend_reg,
+			sizeof(struct vpp_post_blend_reg_s));
+	vd_reg_cnt += sizeof(struct vpp_post_blend_reg_s) / sizeof(u32);
+	check_item += sizeof(struct vpp_post_blend_reg_s) / sizeof(u32);
+	memcpy(check_item, &vpp_post_reg.vpp_post_misc_reg,
+			sizeof(struct vpp_post_misc_reg_s));
+	vd_reg_cnt += sizeof(struct vpp_post_misc_reg_s) / sizeof(u32);
+	check_item += sizeof(struct vpp_post_misc_reg_s) / sizeof(u32);
+	if (!is_meson_s5_cpu()) {
+		memcpy(check_item, &vpp_post_reg.vpp1_post_blend_reg,
+				sizeof(struct vpp1_post_blend_reg_s));
+		vd_reg_cnt += sizeof(struct vpp1_post_blend_reg_s) / sizeof(u32);
+		check_item += sizeof(struct vpp1_post_blend_reg_s) / sizeof(u32);
+		memcpy(check_item, &vpp_post_reg.vpp_post_in_padcut_reg,
+				sizeof(struct vpp_post_in_padcut_reg_s));
+		vd_reg_cnt += sizeof(struct vpp_post_in_padcut_reg_s) / sizeof(u32);
+		check_item += sizeof(struct vpp_post_in_padcut_reg_s) / sizeof(u32);
+	}
+	memcpy(check_item, &venc_regs[0],
+		sizeof(struct vpu_venc_regs_s) * VPP_NUM);
+	vd_reg_cnt += (sizeof(struct vpu_venc_regs_s) * VPP_NUM) / sizeof(u32);
+	check_item += (sizeof(struct vpu_venc_regs_s) * VPP_NUM) / sizeof(u32);
+	return vd_reg_cnt;
+}
+
 int video_early_init_s5(struct amvideo_device_data_s *p_amvideo)
 {
 	int r = 0, i = 0;

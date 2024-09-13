@@ -30,6 +30,7 @@
 
 #include <linux/dma-map-ops.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
+#include <linux/amlogic/media/rdma/rdma_mgr.h>
 
 //#ifdef TEST_PRE_VPP_LINK
 //#define DIM_PRE_VPP_NAME	"deinterlace"//"dimulti.1" //"di_pre_vpp"
@@ -613,7 +614,7 @@ void dbg_cvs_addr_show(struct seq_file *s)
 
 	seq_printf(s, "cvs->addr:%s\n", spltb);
 	/*input */
-	tmp = VSYNC_RD_MPEG_REG(DI_INP_CANVAS0);
+	tmp = VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, DI_INP_CANVAS0);
 	cvs0 = tmp & 0xff;
 	cvs1 = (tmp & 0xff00) >> 8;
 	addr = canvas_get_addr(cvs0);
@@ -623,7 +624,7 @@ void dbg_cvs_addr_show(struct seq_file *s)
 	seq_printf(s, "\tcvs1[%d], 0x%lx\n", cvs1, addr);
 
 	/* mem */
-	tmp = VSYNC_RD_MPEG_REG(DI_MEM_CANVAS0);
+	tmp = VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, DI_MEM_CANVAS0);
 	cvs0 = tmp & 0xff;
 	cvs1 = (tmp & 0xff00) >> 8;
 	addr = canvas_get_addr(cvs0);
@@ -633,7 +634,7 @@ void dbg_cvs_addr_show(struct seq_file *s)
 	seq_printf(s, "\tcvs1[%d], 0x%lx\n", cvs1, addr);
 
 	/*nr */
-	tmp = VSYNC_RD_MPEG_REG(DI_NRWR_CTRL);
+	tmp = VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, DI_NRWR_CTRL);
 	cvs0 = tmp & 0xff;
 	cvs1 = (tmp & 0xff00) >> 8;
 	addr = canvas_get_addr(cvs0);
@@ -913,7 +914,7 @@ int dpvpp_itf_show(struct seq_file *s, void *what)
 
 static void VS_REG_WR(unsigned int addr, unsigned int val)
 {
-	VSYNC_WR_MPEG_REG(addr, val);
+	VSYNC_WR_TABLE_REG(VIDEO_PARTITION_TABLE, addr, val);
 }
 
 /* dim_VSYNC_WR_MPEG_REG_BITS */
@@ -921,14 +922,14 @@ static void VS_REG_WR(unsigned int addr, unsigned int val)
 static unsigned int VS_REG_WRB(unsigned int addr, unsigned int val,
 			       unsigned int start, unsigned int len)
 {
-	VSYNC_WR_MPEG_REG_BITS(addr, val, start, len);
+	VSYNC_WR_TABLE_REG_BITS(VIDEO_PARTITION_TABLE, addr, val, start, len);
 
 	return 0;
 }
 
 static unsigned int VS_REG_RD(unsigned int addr)
 {
-	return VSYNC_RD_MPEG_REG(addr);
+	return VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, addr);
 }
 
 static unsigned int get_reg_bits(unsigned int val, unsigned int bstart,
@@ -2171,9 +2172,9 @@ static bool dpvpp_reg(struct dimn_itf_s *itf)
 	dimn_que_int(&ds->lk_que_kback, &qcfg);
 	/* check define */
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-	dbg_plink1("define check:%s:yes\n", "VSYNC_WR_MPEG_REG");
+	dbg_plink1("define check:%s:yes\n", "VSYNC_WR_TABLE_REG");
 #else
-	PR_ERR("define check:%s:no\n", "VSYNC_WR_MPEG_REG");
+	PR_ERR("define check:%s:no\n", "VSYNC_WR_TABLE_REG");
 #endif
 	/* check que if ready */
 	if (!ds->lk_que_idle.flg	||

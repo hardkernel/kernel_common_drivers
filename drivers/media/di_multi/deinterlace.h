@@ -24,6 +24,7 @@
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/di/di.h>
 #include <linux/amlogic/media/di/di_interface.h>
+#include <linux/amlogic/media/rdma/rdma_mgr.h>
 
 #include "../di_local/di_local.h"
 //#include "di_local.h"

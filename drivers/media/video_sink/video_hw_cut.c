@@ -9122,6 +9122,39 @@ void int_vpu_delay_work(void)
 	INIT_WORK(&vpu_delay_work, do_vpu_delay_work);
 }
 
+int get_video_reg_table_cut(u32 *check_item)
+{
+	int i;
+	int vd_reg_cnt = 0;
+
+	for (i = 0; i < cur_dev->max_vd_layers; i++) {
+		memcpy(check_item, &vd_layer[i].vd_afbc_reg,
+				sizeof(struct hw_afbc_reg_s));
+		vd_reg_cnt += sizeof(struct hw_afbc_reg_s) / sizeof(u32);
+		check_item += sizeof(struct hw_afbc_reg_s) / sizeof(u32);
+		memcpy(check_item, &vd_layer[i].vd_mif_reg,
+				sizeof(struct hw_vd_reg_s));
+		vd_reg_cnt += sizeof(struct hw_vd_reg_s) / sizeof(u32);
+		check_item += sizeof(struct hw_vd_reg_s) / sizeof(u32);
+		memcpy(check_item, &vd_layer[i].fg_reg,
+				sizeof(struct hw_fg_reg_s));
+		vd_reg_cnt += sizeof(struct hw_fg_reg_s) / sizeof(u32);
+		check_item += sizeof(struct hw_fg_reg_s) / sizeof(u32);
+		if (video_is_meson_s4_cpu() ||
+				video_is_meson_s1a_cpu()) {
+			memcpy(check_item, &vd_layer[i].pps_reg,
+					sizeof(struct hw_pps_reg_s));
+			vd_reg_cnt += sizeof(struct hw_pps_reg_s) / sizeof(u32);
+			check_item += sizeof(struct hw_pps_reg_s) / sizeof(u32);
+		}
+		memcpy(check_item, &vd_layer[i].vpp_blend_reg,
+				sizeof(struct hw_vpp_blend_reg_s));
+		vd_reg_cnt += sizeof(struct hw_vpp_blend_reg_s) / sizeof(u32);
+		check_item += sizeof(struct hw_vpp_blend_reg_s) / sizeof(u32);
+	}
+	return vd_reg_cnt;
+}
+
 int video_early_init(struct amvideo_device_data_s *p_amvideo)
 {
 	int r = 0, i;

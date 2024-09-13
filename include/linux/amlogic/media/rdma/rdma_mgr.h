@@ -11,6 +11,34 @@ struct rdma_op_s {
 	void *arg;
 };
 
+enum {
+	VIDEO_PARTITION_TABLE    = 0,
+	AMVECM_PARTITION_TABLE_0 = 1,
+	AMVECM_PARTITION_TABLE_1 = 2,
+	AMVECM_PARTITION_TABLE_2 = 3,
+	AMVECM_PARTITION_TABLE_3 = 4,
+	AMLDV_PARTITION_TABLE_0  = 5,
+	AMLDV_PARTITION_TABLE_1  = 6,
+	AMLDV_PARTITION_TABLE_2  = 7,
+	AMLDV_PARTITION_TABLE_3  = 8,
+	AMLDV_PARTITION_TABLE_4  = 9,
+	AMLDV_PARTITION_TABLE_5  = 10,
+	AMLDV_PARTITION_TABLE_6  = 11,
+	PARTITION_TABLE_NUM      = 12,
+};
+
+struct rdma_partition_ins_s {
+	int table_index;
+	int max_reg_cnt;
+	bool flag;
+	u32 *rdma_item;
+	bool reg_range_check;
+	u32 check_start_addr;
+	u32 check_end_addr;
+	u32 rdma_item_count;
+	u32 vpp_index;
+};
+
 #define RDMA_TRIGGER_VSYNC_INPUT 0x1
 #define RDMA_TRIGGER_LINE_INPUT  BIT(8)
 #define RDMA_TRIGGER_VPP1_VSYNC_INPUT BIT(9)
@@ -45,6 +73,14 @@ enum cpu_ver_e {
 	CPU_T7,
 };
 
+enum rdma_vpp_e {
+	RDMA_VPP0,
+	RDMA_VPP1,
+	RDMA_VPP2,
+	RDMA_PRE_VSYNC,
+	RDMA_VPP_MAX,
+};
+
 struct rdma_device_data_s {
 	enum cpu_ver_e cpu_type;
 	enum rdma_ver_e rdma_ver;
@@ -73,6 +109,26 @@ u32 rdma_read_reg(int handle, u32 adr);
 int rdma_write_reg(int handle, u32 adr, u32 val);
 
 int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len);
+
+int rdma_part_table_register(struct rdma_partition_ins_s *rdma_part_ins);
+
+void video_reg_write_check_table_init(void);
+
+void set_part_flag_status(int vpp_index, int tbl_index, bool set_flag);
+
+u32 VSYNC_RD_TABLE_REG(int tbl_idx, u32 adr);
+
+int VSYNC_WR_TABLE_REG(int tbl_idx, u32 adr, u32 val);
+
+int VSYNC_WR_TABLE_REG_BITS(int tbl_idx, u32 adr, u32 val, u32 start, u32 len);
+
+u32 PRE_VSYNC_RD_TABLE_REG(int tbl_idx, u32 adr);
+
+int PRE_VSYNC_WR_TABLE_REG(int tbl_idx, u32 adr, u32 val);
+
+int PRE_VSYNC_WR_TABLE_REG_BITS(int tbl_idx, u32 adr, u32 val, u32 start, u32 len);
+
+struct rdma_partition_ins_s *get_part_table_ins(int vpp_index, int tbl_index);
 
 int rdma_update_reg_buf(int handle, u32 *rdma_item, u32 count);
 

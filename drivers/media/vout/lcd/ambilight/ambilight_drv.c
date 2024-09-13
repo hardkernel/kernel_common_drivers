@@ -29,6 +29,7 @@
 #include <linux/sched/clock.h>
 #include <linux/amlogic/pm.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
+#include <linux/amlogic/media/rdma/rdma_mgr.h>
 #include "ambilight.h"
 #include "../lcd_reg.h"
 
@@ -54,15 +55,15 @@ static void amblt_wr_reg_bits(unsigned int addr, unsigned int val,
 {
 	unsigned int data;
 
-	data = VSYNC_RD_MPEG_REG(addr);
+	data = VSYNC_RD_TABLE_REG(VIDEO_PARTITION_TABLE, addr);
 	data = (data & (~(((1 << len) - 1) << start))) |
 		((val & ((1 << len) - 1)) << start);
-	VSYNC_WR_MPEG_REG(addr, data);
+	VSYNC_WR_TABLE_REG(VIDEO_PARTITION_TABLE, addr, data);
 }
 
 static void amblt_wr_reg(unsigned int addr, unsigned int val)
 {
-	VSYNC_WR_MPEG_REG(addr, val);
+	VSYNC_WR_TABLE_REG(VIDEO_PARTITION_TABLE, addr, val);
 }
 
 static void vpu_lut_dma_clr_fcnt(struct vpu_lut_dma_wr_s *lut_dma)
