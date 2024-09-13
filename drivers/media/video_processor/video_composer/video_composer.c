@@ -1676,6 +1676,9 @@ static u32 need_switch_buffer(struct dst_buf_t *buf, bool is_tvp, struct compose
 {
 	int flags, ret;
 	bool vicp_fbc_out_en = false;
+	u32 *virt_addr = NULL;
+	u32 temp_body_addr;
+	u32 offset_body_addr;
 
 	if (IS_ERR_OR_NULL(buf) || IS_ERR_OR_NULL(dev)) {
 		vc_print(dev->index, PRINT_ERROR, "%s: NULL param.\n", __func__);
@@ -1708,10 +1711,18 @@ static u32 need_switch_buffer(struct dst_buf_t *buf, bool is_tvp, struct compose
 		if (buf->afbc_table_addr > 0) {
 			vc_print(dev->index, PRINT_OTHER, "%s: free table buffer 0x%lx\n", __func__,
 				buf->afbc_table_addr);
-			codec_mm_free_for_dma(ports[dev->index].name, buf->afbc_table_addr);
+			codec_mm_dma_free_coherent(buf->afbc_table_handle);
 		}
-		buf->afbc_table_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
-					buf->afbc_table_size / PAGE_SIZE, 0, flags);
+		virt_addr = (u32 *)codec_mm_dma_alloc_coherent(&buf->afbc_table_handle,
+			&buf->afbc_table_addr, buf->afbc_table_size, dev->port->name);
+		temp_body_addr = buf->afbc_body_addr & 0xffffffff;
+		memset(virt_addr, 0, buf->afbc_table_size);
+		for (offset_body_addr = 0; offset_body_addr < buf->afbc_body_size;
+			offset_body_addr += 4096) {
+			*virt_addr = ((offset_body_addr + temp_body_addr) >> 12) & 0x000fffff;
+			virt_addr++;
+		}
+
 		vc_print(dev->index, PRINT_ERROR, "%s: alloc buffer 0x%lx\n", __func__,
 			buf->afbc_table_addr);
 	}
