@@ -291,8 +291,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 				WRITE_VPP_REG(matrix_coef20_21, 0x1e8701c2);
 				WRITE_VPP_REG(matrix_coef22, 0x1fb70000);
 				if (bitdepth == 10) {
-					WRITE_VPP_REG(matrix_offset0_1, 0x02000040);
-					WRITE_VPP_REG(matrix_clip, 0x3ff0000);
+					WRITE_VPP_REG(matrix_offset0_1, 0x0200040);
+					WRITE_VPP_REG(matrix_clip, 0x3ff000);
 				} else {
 					WRITE_VPP_REG(matrix_offset0_1, 0x01000800);
 					WRITE_VPP_REG(matrix_clip, 0xfff);
@@ -366,8 +366,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 				}
 
 				if (chip_type_id == chip_t6d) {
-					WRITE_VPP_REG(matrix_pre_offset0_1, 0x02000040);
-					WRITE_VPP_REG(matrix_clip, 0x3ff0000);
+					WRITE_VPP_REG(matrix_pre_offset0_1, 0x0200040);
+					WRITE_VPP_REG(matrix_clip, 0x3ff000);
 				} else {
 					WRITE_VPP_REG(matrix_pre_offset0_1, 0x00400200);
 					WRITE_VPP_REG(matrix_clip, 0x3ff);
@@ -426,7 +426,7 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 				WRITE_VPP_REG(matrix_coef02_10, 0x1f99003f);
 				WRITE_VPP_REG(matrix_coef11_12, 0x01c21ea6);
 				WRITE_VPP_REG(matrix_coef20_21, 0x1e6701c2);
-				WRITE_VPP_REG(matrix_coef22, 0x1fd70000);
+				WRITE_VPP_REG(matrix_coef22, 0x1fd7);
 				if (bitdepth == 10) {
 					WRITE_VPP_REG(matrix_offset0_1, 0x200040);
 					WRITE_VPP_REG(matrix_clip, 0x3ff000);
@@ -543,8 +543,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 				WRITE_VPP_REG(matrix_coef20_21, 0x1e2f0200);
 				WRITE_VPP_REG(matrix_coef22, 0x1fd10000);
 				if (bitdepth == 10) {
-					WRITE_VPP_REG(matrix_offset0_1, 0x2000000);
-					WRITE_VPP_REG(matrix_clip, 0x3ff0000);
+					WRITE_VPP_REG(matrix_offset0_1, 0x200000);
+					WRITE_VPP_REG(matrix_clip, 0x3ff000);
 				} else {
 					WRITE_VPP_REG(matrix_offset0_1, 0x800);
 					WRITE_VPP_REG(matrix_clip, 0xfff);
@@ -617,8 +617,8 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 					}
 				}
 				if (chip_type_id == chip_t6d) {
-					WRITE_VPP_REG(matrix_pre_offset0_1, 0x2000000);
-					WRITE_VPP_REG(matrix_clip, 0x3ff0000);
+					WRITE_VPP_REG(matrix_pre_offset0_1, 0x200000);
+					WRITE_VPP_REG(matrix_clip, 0x3ff000);
 				} else {
 					WRITE_VPP_REG(matrix_pre_offset0_1, 0x200);
 					WRITE_VPP_REG(matrix_clip, 0x3ff);
@@ -1216,7 +1216,8 @@ void lc_config(int enable,
 	width = sps_w_in;
 	height = sps_h_in;
 
-	if (chip_type_id == chip_txhd2)
+	if (chip_type_id == chip_txhd2 ||
+		chip_type_id == chip_t6d)
 		in_sel = 5;
 	else
 		in_sel = 4;
@@ -2302,9 +2303,15 @@ void lc_init(int bitdepth)
 		/*default LC low parameters*/
 		WRITE_VPP_REG(LC_CURVE_CONTRAST_LH, 0x000b000b);
 		WRITE_VPP_REG(LC_CURVE_CONTRAST_SCL_LH, 0x00000b0b);
-		WRITE_VPP_REG(LC_CURVE_MISC0, 0x00023028);
+		if (chip_type_id == chip_t6d)
+			WRITE_VPP_REG(LC_CURVE_MISC0, 0x13038);
+		else
+			WRITE_VPP_REG(LC_CURVE_MISC0, 0x00023028);
 		WRITE_VPP_REG(LC_CURVE_YPKBV_RAT, 0x8cc0c060);
-		WRITE_VPP_REG(LC_CURVE_YPKBV_SLP_LMT, 0x00000b3a);
+		if (chip_type_id == chip_t6d)
+			WRITE_VPP_REG(LC_CURVE_YPKBV_SLP_LMT, 0x0c60);
+		else
+			WRITE_VPP_REG(LC_CURVE_YPKBV_SLP_LMT, 0x00000b3a);
 
 		if (cpu_after_eq_t7()) {
 			WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1, 0x0030005d);
