@@ -1071,7 +1071,7 @@ static struct ahash_alg sha3_algs[] = {
 			.statesize =
 				sizeof(struct aml_sha3_reqctx),
 			.base	= {
-				.cra_name	  = "sha3-224",
+				.cra_name	  = "sha3-224-aml",
 				.cra_driver_name  = "aml-sha3-224",
 				.cra_priority	  = 100,
 				.cra_flags	  = CRYPTO_ALG_ASYNC,
@@ -1097,7 +1097,7 @@ static struct ahash_alg sha3_algs[] = {
 			.statesize =
 				sizeof(struct aml_sha3_reqctx),
 			.base	= {
-				.cra_name	  = "sha3-256",
+				.cra_name	  = "sha3-256-aml",
 				.cra_driver_name  = "aml-sha3-256",
 				.cra_priority	  = 100,
 				.cra_flags	  = CRYPTO_ALG_ASYNC,
@@ -1123,7 +1123,7 @@ static struct ahash_alg sha3_algs[] = {
 			.statesize =
 				sizeof(struct aml_sha3_reqctx),
 			.base	= {
-				.cra_name	  = "sha3-384",
+				.cra_name	  = "sha3-384-aml",
 				.cra_driver_name  = "aml-sha3-384",
 				.cra_priority	  = 100,
 				.cra_flags	  = CRYPTO_ALG_ASYNC,
@@ -1149,7 +1149,7 @@ static struct ahash_alg sha3_algs[] = {
 			.statesize =
 				sizeof(struct aml_sha3_reqctx),
 			.base	= {
-				.cra_name	  = "sha3-512",
+				.cra_name	  = "sha3-512-aml",
 				.cra_driver_name  = "aml-sha3-512",
 				.cra_priority	  = 100,
 				.cra_flags	  = CRYPTO_ALG_ASYNC,
@@ -1177,7 +1177,7 @@ static struct ahash_alg sha3_algs[] = {
 			.statesize =
 				sizeof(struct aml_sha3_reqctx),
 			.base	= {
-				.cra_name	  = "shake-128",
+				.cra_name	  = "shake-128-aml",
 				.cra_driver_name  = "aml-shake-128",
 				.cra_priority	  = 100,
 				.cra_flags	  = CRYPTO_ALG_ASYNC,
@@ -1204,7 +1204,7 @@ static struct ahash_alg sha3_algs[] = {
 			.statesize =
 				sizeof(struct aml_sha3_reqctx),
 			.base	= {
-				.cra_name	  = "shake-256",
+				.cra_name	  = "shake-256-aml",
 				.cra_driver_name  = "aml-shake-256",
 				.cra_priority	  = 100,
 				.cra_flags	  = CRYPTO_ALG_ASYNC,
