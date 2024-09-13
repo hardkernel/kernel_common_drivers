@@ -14,6 +14,8 @@ static inline bool cma_forbidden_mask(gfp_t gfp_flags)
 		return true;
 	return false;
 }
+#else
+#define __GFP_NO_CMA	(__GFP_CMA | 1)
 #endif
 
 /* the highest bit of total_migrate_scanned in struct compact_control */

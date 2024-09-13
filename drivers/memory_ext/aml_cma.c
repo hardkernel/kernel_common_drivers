@@ -57,11 +57,10 @@
 #ifdef CONFIG_PAGE_OWNER
 #include <linux/page_owner.h>
 #endif
+#include <cma.h>
 
 /* from mm/ path */
 #include <internal.h>
-#include <linux/sched.h>
-#include <linux/gfp.h>
 
 #if IS_ENABLED(CONFIG_AMLOGIC_PAGE_TRACE)
 #include <linux/amlogic/page_trace.h>
@@ -83,7 +82,6 @@ struct work_cma {
 	unsigned long pfn;
 	unsigned long count;
 	struct task_struct *host;
-	int ret;
 };
 
 struct cma_pcp {
@@ -91,6 +89,7 @@ struct cma_pcp {
 	struct completion end;
 	struct task_struct *task;
 	int cpu;
+	int ret;
 };
 
 static DEFINE_MUTEX(cma_mutex);
@@ -112,52 +111,19 @@ unsigned long ion_cma_allocated;
 #endif
 
 #if IS_MODULE(CONFIG_AMLOGIC_CMA)
-struct dummy_cma {
-	unsigned long   base_pfn;
-	unsigned long   count;
-	unsigned long   *bitmap;
-	unsigned int order_per_bit; /* Order of pages represented by one bit */
-	spinlock_t	lock;
-#ifdef CONFIG_CMA_DEBUGFS
-	struct hlist_head mem_head;
-	spinlock_t mem_head_lock; /* for cma debugfs */
-	struct debugfs_u32_array dfs_bitmap;
-#endif
-	char name[CMA_MAX_NAME];
 #ifdef CONFIG_CMA_SYSFS
-	/* the number of CMA page successful allocations */
-	atomic64_t nr_pages_succeeded;
-	/* the number of CMA page allocation failures */
-	atomic64_t nr_pages_failed;
-	/* kobject requires dynamic object */
-	struct cma_kobject *cma_kobj;
-#endif
-	bool reserve_pages_on_error;
-};
-
-static inline unsigned long cma_bitmap_maxno(struct dummy_cma *cma)
-{
-	return cma->count >> cma->order_per_bit;
-}
-
-#ifdef CONFIG_CMA_SYSFS
-static void cma_sysfs_account_success_pages(struct dummy_cma *cma, unsigned long nr_pages)
+void cma_sysfs_account_success_pages(struct cma *cma, unsigned long nr_pages)
 {
 	atomic64_add(nr_pages, &cma->nr_pages_succeeded);
 }
 
-static void cma_sysfs_account_fail_pages(struct dummy_cma *cma, unsigned long nr_pages)
+static void cma_sysfs_account_fail_pages(struct cma *cma, unsigned long nr_pages)
 {
 	atomic64_add(nr_pages, &cma->nr_pages_failed);
 }
-#else
-static inline void cma_sysfs_account_success_pages(struct dummy_cma *cma,
-						   unsigned long nr_pages) {};
-static inline void cma_sysfs_account_fail_pages(struct dummy_cma *cma,
-						unsigned long nr_pages) {};
 #endif
 
-static unsigned long cma_bitmap_aligned_mask(const struct dummy_cma *cma,
+static unsigned long cma_bitmap_aligned_mask(const struct cma *cma,
 					     unsigned int align_order)
 {
 	if (align_order <= cma->order_per_bit)
@@ -169,20 +135,20 @@ static unsigned long cma_bitmap_aligned_mask(const struct dummy_cma *cma,
  * Find the offset of the base PFN from the specified align_order.
  * The value returned is represented in order_per_bits.
  */
-static unsigned long cma_bitmap_aligned_offset(const struct dummy_cma *cma,
+static unsigned long cma_bitmap_aligned_offset(const struct cma *cma,
 					       unsigned int align_order)
 {
 	return (cma->base_pfn & ((1UL << align_order) - 1))
 		>> cma->order_per_bit;
 }
 
-static unsigned long cma_bitmap_pages_to_bits(const struct dummy_cma *cma,
+static unsigned long cma_bitmap_pages_to_bits(const struct cma *cma,
 					      unsigned long pages)
 {
 	return ALIGN(pages, 1UL << cma->order_per_bit) >> cma->order_per_bit;
 }
 
-static void cma_clear_bitmap(struct dummy_cma *cma, unsigned long pfn,
+static void cma_clear_bitmap(struct cma *cma, unsigned long pfn,
 			     unsigned long count)
 {
 	unsigned long bitmap_no, bitmap_count;
@@ -434,15 +400,11 @@ static void update_cma_page_trace(struct page *page, unsigned long cnt)
 		pr_info("c a p:%lx, c:%ld, f:%ps\n",
 			page_to_pfn(page), cnt, (void *)fun);
 	for (i = 0; i < cnt; i++) {
-	#if IS_BUILTIN(CONFIG_AMLOGIC_NO_CMA)
 		set_page_trace(page, 0, __GFP_NO_CMA, (void *)fun);
-	#else
-		set_page_trace(page, 0, 0, (void *)fun);
-	#endif
 		page++;
 	}
 }
-#endif /* CONFIG_AMLOGIC_PAGE_TRACE */
+#endif
 
 void aml_cma_alloc_pre_hook(int *dummy, int count, unsigned long *tick)
 {
@@ -469,7 +431,7 @@ void aml_cma_alloc_post_hook(int *dummy, int count, struct page *page,
 #if (IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE) && IS_MODULE(CONFIG_AMLOGIC_CMA)) || \
 	(IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE) && IS_BUILTIN(CONFIG_AMLOGIC_CMA))
 	update_cma_page_trace(page, count);
-#endif /* CONFIG_AMLOGIC_PAGE_TRACE */
+#endif
 }
 
 #if IS_BUILTIN(CONFIG_AMLOGIC_CMA)
@@ -732,6 +694,7 @@ static struct folio *get_migrate_page(struct folio *src, unsigned long private)
 	if (nid == NUMA_NO_NODE)
 		nid = folio_nid(src);
 
+#ifdef CONFIG_AMLOGIC_CMA_DIS
 	if (folio_test_hugetlb(src)) {
 		struct hstate *h = folio_hstate(src);
 
@@ -739,6 +702,7 @@ static struct folio *get_migrate_page(struct folio *src, unsigned long private)
 		return alloc_hugetlb_folio_nodemask(h, nid,
 						mtc->nmask, gfp_mask);
 	}
+#endif
 
 	if (folio_test_large(src)) {
 		/*
@@ -992,18 +956,17 @@ again:
 		end      = pfn + job->count;
 		ret      = aml_alloc_contig_migrate_range(&cc, pfn, end,
 							  1, job->host);
-		job->ret = ret;
+		c_work->ret = ret;
 		if (!ret) {
 			goto again;
 		} else if (ret == -EBUSY) {
 			spin_lock(&work_list_lock);
-			job->ret = 0;
 			list_add(&job->list, &work_list);
 			spin_unlock(&work_list_lock);
-			cma_debug(1, pfn_to_page(pfn), "contig migrate failed\n");
+			cma_debug(1, pfn_to_page(pfn), "contig migrate ebusy\n");
 			goto again;
 		} else {
-			pr_err("failed, ret:%d\n", ret);
+			pr_err("cma alloc contig failed, ret:%d\n", ret);
 		}
 next:
 		complete(&c_work->end);
@@ -1090,12 +1053,11 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 	}
 	spin_lock(&work_list_lock);
 	if (!list_empty(&work_list))
-		list_del_init(&work_list);
+		INIT_LIST_HEAD(&work_list);
 	for (i = 0; i < cnt; i++) {
 		INIT_LIST_HEAD(&job[i].list);
 		job[i].pfn   = start_pfn + i * delta;
 		job[i].count = delta;
-		job[i].ret   = 0;
 		job[i].host  = current;
 		if (i == cnt - 1)
 			job[i].count = count - i * delta;
@@ -1121,8 +1083,8 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 	for_each_cpu(cpu, &has_work) {
 		work = &per_cpu(cma_pcp_thread, cpu);
 		wait_for_completion(&work->end);
-		if (job[cpu].ret) {
-			if (job[cpu].ret != -EBUSY)
+		if (work->ret) {
+			if (work->ret != -EBUSY)
 				einv++;
 			else
 				ebusy++;
@@ -1383,7 +1345,7 @@ try_again:
 	order = 0;
 	outer_start = start;
 	while (!PageBuddy(pfn_to_page(outer_start))) {
-		if (++order >= MAX_ORDER) {
+		if (++order >= NR_PAGE_ORDERS) {
 			outer_start = start;
 			break;
 		}
@@ -1477,7 +1439,7 @@ static int aml_cma_get_page_order(unsigned long pfn)
 {
 	int i, mask = 1;
 
-	for (i = 0; i < (MAX_ORDER - 1); i++) {
+	for (i = 0; i < (NR_PAGE_ORDERS - 1); i++) {
 		if (pfn & (mask << i))
 			break;
 	}
@@ -1613,7 +1575,7 @@ static ssize_t cma_debug_write(struct file *file, const char __user *buffer,
 	struct cma_pcp *work;
 	char *buf;
 
-	buf = kmalloc(count, GFP_KERNEL);
+	buf = kzalloc(count + 1, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -1708,7 +1670,7 @@ arch_initcall(aml_cma_init);
  * This function allocates part of contiguous memory on specific
  * contiguous memory area.
  */
-struct page *aml_cma_alloc(struct dummy_cma *cma, unsigned long count,
+struct page *aml_cma_alloc(struct cma *cma, unsigned long count,
 		       unsigned int align, bool no_warn)
 {
 	unsigned long mask, offset;
@@ -1862,7 +1824,7 @@ out:
  * It returns false when provided pages do not belong to contiguous area and
  * true otherwise.
  */
-bool aml_cma_release(struct dummy_cma *cma, const struct page *pages,
+bool aml_cma_release(struct cma *cma, const struct page *pages,
 		 unsigned long count)
 {
 	unsigned long pfn;
@@ -1923,7 +1885,7 @@ __module_param(low_cma_pfn, ulong, 0644);
 struct cma;
 static int low_cma_func(struct cma *cma, void *data)
 {
-	struct dummy_cma *d_cma = (struct dummy_cma *)cma;
+	struct cma *d_cma = (struct cma *)cma;
 
 	if (d_cma->base_pfn < low_cma_pfn)
 		low_cma_pfn = d_cma->base_pfn;
@@ -1945,12 +1907,17 @@ static __nocfi void low_cma_init(void)
 static int __nocfi __kprobes compaction_alloc_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 #ifdef CONFIG_ARM64
+	struct folio *src = (struct folio *)regs->regs[0];
 	struct compact_control *cc = (struct compact_control *)regs->regs[1];
-#elif CONFIG_ARM
-	struct compact_control *cc = (struct compact_control *)regs->ARM_r1;
 #endif
+	int start_order;
+	int order = folio_order(src);
 
-	if (list_empty(&cc->freepages)) {
+	for (start_order = order; start_order < NR_PAGE_ORDERS; start_order++)
+		if (!list_empty(&cc->freepages[start_order]))
+			break;
+
+	if (start_order == NR_PAGE_ORDERS) {
 		if (cc->free_pfn >= low_cma_pfn) {
 			if (compaction_alloc_debug)
 				pr_info("compaction_alloc: set free_pfn %lx->%lx\n",
