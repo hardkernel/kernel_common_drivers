@@ -201,17 +201,17 @@
 	gpio_leds {
 		compatible = "gpio-leds";
 		status = "okay";
-		pwr_led {
-			label = "pwr_led";
+		red {
+			label = "red";
+			gpios = <&gpio GPIODV_6 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
 
-		bt_led {
-			label = "bt_led";
-			gpios = <&gpio GPIODV_6 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
+		blue {
+			label = "blue";
+			gpios = <&gpio GPIODV_5 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
 		};
-
 	};
 
 	ionvideo {
