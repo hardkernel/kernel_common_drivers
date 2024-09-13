@@ -11,6 +11,7 @@
 #include <linux/uaccess.h>
 #include <dev_ion.h>
 #include <linux/dma-heap.h>
+#include <linux/vmalloc.h>
 
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/video_sink/v4lvideo_ext.h>

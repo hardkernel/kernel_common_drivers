@@ -2122,7 +2122,7 @@ failed1:
 	return ret;
 }
 
-static int ge2d_remove(struct platform_device *pdev)
+static void ge2d_remove(struct platform_device *pdev)
 {
 	ge2d_log_info("%s\n", __func__);
 
@@ -2130,7 +2130,6 @@ static int ge2d_remove(struct platform_device *pdev)
 		release_cmd_queue_buffer(&pdev->dev, max_cmd_cnt);
 	ge2d_wq_deinit();
 	remove_ge2d_device();
-	return 0;
 }
 
 static struct platform_driver ge2d_driver = {

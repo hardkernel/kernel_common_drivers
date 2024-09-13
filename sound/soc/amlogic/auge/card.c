@@ -815,7 +815,7 @@ static int aml_card_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *sdai;
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai_link *dai_link = aml_priv_to_link(priv, rtd->num);
 	struct aml_dai_props *dai_props = aml_priv_to_props(priv, rtd->num);
@@ -855,7 +855,7 @@ static int aml_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *sdai;
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct aml_dai_props *dai_props = aml_priv_to_props(priv, rtd->num);
 	static int hp_mic_detect_cnt;
 	bool idle_clk = false;
@@ -1556,7 +1556,7 @@ err:
 	return ret;
 }
 
-static int aml_card_remove(struct platform_device *pdev)
+static void aml_card_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
@@ -1573,7 +1573,7 @@ static int aml_card_remove(struct platform_device *pdev)
 	if (priv->irq_exception64 > 0)
 		free_irq(priv->irq_exception64, NULL);
 
-	return aml_card_clean_reference(card);
+	aml_card_clean_reference(card);
 }
 
 static void aml_card_platform_shutdown(struct platform_device *pdev)

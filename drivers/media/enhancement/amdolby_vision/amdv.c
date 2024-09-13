@@ -18014,7 +18014,7 @@ fail_alloc_region:
 	return ret;
 }
 
-static int __exit amdolby_vision_remove(struct platform_device *pdev)
+static void __exit amdolby_vision_remove(struct platform_device *pdev)
 {
 	struct amdolby_vision_dev_s *devp = &amdolby_vision_dev;
 	int i;
@@ -18138,7 +18138,6 @@ static int __exit amdolby_vision_remove(struct platform_device *pdev)
 	class_destroy(devp->clsp);
 	unregister_chrdev_region(devp->devno, 1);
 	pr_info("[ amdolby_vision.] :  amdolby_vision_exit.\n");
-	return 0;
 }
 
 static const struct dev_pm_ops amdv_pm_ops = {

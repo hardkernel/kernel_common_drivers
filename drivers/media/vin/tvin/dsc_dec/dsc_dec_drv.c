@@ -18,7 +18,9 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/clk.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
+
 #include <linux/amlogic/iomap.h>
 #include "dsc_dec_drv.h"
 #include "dsc_dec_reg.h"
@@ -246,13 +248,13 @@ static int dsc_dec_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dsc_dec_remove(struct platform_device *pdev)
+static void dsc_dec_remove(struct platform_device *pdev)
 {
 	int i;
 	struct aml_dsc_dec_drv_s *dsc_dec_drv = platform_get_drvdata(pdev);
 
 	if (!dsc_dec_drv)
-		return 0;
+		return;
 
 	for (i = 0; i < DSC_DEC_MAP_MAX; i++) {
 		if (dsc_dec_drv->dsc_dec_reg_base[i]) {
@@ -270,8 +272,6 @@ static int dsc_dec_remove(struct platform_device *pdev)
 	dsc_dec_drv = NULL;
 
 	dsc_dec_global_remove_once();
-
-	return 0;
 }
 
 static int dsc_dec_resume(struct platform_device *pdev)

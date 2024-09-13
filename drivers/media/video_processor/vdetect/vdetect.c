@@ -1281,7 +1281,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 
 	strcpy(cap->driver, "vdetect");
 	strcpy(cap->card, "vdetect");
-	strlcpy(cap->bus_info,
+	strscpy(cap->bus_info,
 		dev->v4l2_dev.name,
 		sizeof(cap->bus_info));
 	cap->version = VDETECT_VERSION;

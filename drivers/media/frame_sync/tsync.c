@@ -657,18 +657,11 @@ u8 tsync_get_first_demux_pcr(u32 *first_pcr)
 }
 EXPORT_SYMBOL(tsync_get_first_demux_pcr);
 
-void tsync_get_buf_by_type_for_newarch(u8 type, struct stream_buf_s *pbuf)
-{
-	pbuf = NULL;
-}
-EXPORT_SYMBOL(tsync_get_buf_by_type_for_newarch);
-
-u8 tsync_get_buf_by_type(u8 type, struct stream_buf_s *pbuf)
+u8 tsync_get_buf_by_type(u8 type,  __maybe_unused struct stream_buf_s *pbuf)
 {
 	u8 ret = 0;
 
 	if (new_arch) {
-		tsync_get_buf_by_type_for_newarch(type, pbuf);
 		ret = 0;
 	} else {
 		if (get_buf_by_type_cb) {

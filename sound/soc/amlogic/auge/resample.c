@@ -1101,7 +1101,7 @@ static void resample_platform_shutdown(struct platform_device *pdev)
 }
 
 /*don't use devm_kzalloc, when use global pointer*/
-int resample_platform_remove(struct platform_device *pdev)
+void resample_platform_remove(struct platform_device *pdev)
 {
 	struct audioresample *p_resample = dev_get_drvdata(&pdev->dev);
 
@@ -1116,7 +1116,6 @@ int resample_platform_remove(struct platform_device *pdev)
 		}
 		kfree(p_resample);
 	}
-	return 0;
 }
 
 static struct platform_driver resample_platform_driver = {

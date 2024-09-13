@@ -2358,15 +2358,13 @@ failed_alloc_dev:
 	return ret;
 }
 
-static int vt_remove(struct platform_device *pdev)
+static void vt_remove(struct platform_device *pdev)
 {
 	class_unregister(&video_tunnel_class);
 	idr_destroy(&vdev->instance_idr);
 	debugfs_remove_recursive(vdev->debug_root);
 	misc_deregister(&vdev->mdev);
 	kfree(vdev);
-
-	return 0;
 }
 
 static const struct of_device_id meson_vt_match[] = {

@@ -34,7 +34,7 @@ DECLARE_EVENT_CLASS(di_event_class,
 		__field(unsigned long, time)
 	),
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->field_cnt = field_cnt;
 		__entry->time = time;
 	),

@@ -15988,13 +15988,12 @@ void update_aipq_data(void)
 }
 EXPORT_SYMBOL_GPL(update_aipq_data);
 
-static int amvideom_remove(struct platform_device *pdev)
+static void amvideom_remove(struct platform_device *pdev)
 {
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	unregister_early_suspend(&video_early_suspend_handler);
 #endif
 	video_keeper_exit();
-	return 0;
 }
 
 static int amvideo_freeze(struct device *dev)

@@ -3039,7 +3039,7 @@ static int vpu_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vpu_remove(struct platform_device *pdev)
+static void vpu_remove(struct platform_device *pdev)
 {
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	unregister_early_suspend(&vpu_early_suspend_handler);
@@ -3050,8 +3050,6 @@ static int vpu_remove(struct platform_device *pdev)
 #endif
 	kfree(vpu_conf.clk_vmod);
 	vpu_conf.clk_vmod = NULL;
-
-	return 0;
 }
 
 static void vpu_shutdown(struct platform_device *pdev)

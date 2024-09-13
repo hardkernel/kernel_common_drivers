@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/of_device.h>
-
+#include <linux/of_platform.h>
 #include <linux/notifier.h>
 #include <linux/suspend.h>
 #include <linux/delay.h>

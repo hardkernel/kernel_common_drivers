@@ -218,8 +218,6 @@ u8 tsync_get_video_pid_valid_for_newarch(void);
 
 u8 tsync_get_video_pid_valid(void);
 
-void tsync_get_buf_by_type_for_newarch(u8 type, struct stream_buf_s *pbuf);
-
 u8 tsync_get_buf_by_type(u8 type, struct stream_buf_s *pbuf);
 
 void tsync_get_stbuf_level_for_newarch(struct stream_buf_s *pbuf,
@@ -497,10 +495,6 @@ u8 __weak tsync_get_video_pid_valid_for_newarch(void)
 u8 __weak tsync_get_video_pid_valid(void)
 {
 	return -1;
-}
-
-void __weak tsync_get_buf_by_type_for_newarch(u8 type, struct stream_buf_s *pbuf)
-{
 }
 
 u8 __weak tsync_get_buf_by_type(u8 type, struct stream_buf_s *pbuf)

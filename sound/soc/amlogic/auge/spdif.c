@@ -1055,9 +1055,9 @@ static int aml_spdif_open(struct snd_soc_component *component,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct device *dev = asoc_rtd_to_cpu(rtd, 0)->dev;
+	struct device *dev = snd_soc_rtd_to_cpu(rtd, 0)->dev;
 	struct aml_spdif *p_spdif = (struct aml_spdif *)
-		snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+		snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	int ret = 0;
 
 	snd_soc_set_runtime_hwparams(substream, &aml_spdif_hardware);
@@ -1239,7 +1239,7 @@ static int aml_spdif_new(struct snd_soc_component *component, struct snd_soc_pcm
 {
 	struct aml_spdif *p_spdif;
 
-	p_spdif = (struct aml_spdif *)dev_get_drvdata(asoc_rtd_to_cpu(rtd, 0)->dev);
+	p_spdif = (struct aml_spdif *)dev_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0)->dev);
 
 	pr_debug("%s spdif_%s, clk continuous:%d\n",
 		__func__,

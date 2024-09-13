@@ -602,7 +602,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = &formats[f->index];
 
-	strlcpy(f->description, fmt->name, sizeof(f->description));
+	strscpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
 	return 0;
 }
@@ -1438,13 +1438,12 @@ error1:
 	return ret;
 }
 
-static int ionvideo_drv_remove(struct platform_device *pdev)
+static void ionvideo_drv_remove(struct platform_device *pdev)
 {
 	ionvideo_v4l2_release();
 	device_destroy(&ionvideo_class, MKDEV(IONVIDEO_MAJOR, 0));
 	unregister_chrdev(IONVIDEO_MAJOR, IONVIDEO_DEVICE_NAME);
 	class_unregister(&ionvideo_class);
-	return 0;
 }
 
 static const struct of_device_id ionvideo_dt_match[] = {

@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
@@ -524,9 +525,9 @@ static irqreturn_t aml_pdm_isr_handler(int irq, void *data)
 	struct snd_pcm_substream *substream =
 		(struct snd_pcm_substream *)data;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct device *dev = asoc_rtd_to_cpu(rtd, 0)->dev;
+	struct device *dev = snd_soc_rtd_to_cpu(rtd, 0)->dev;
 	struct aml_pdm *p_pdm = (struct aml_pdm *)
-		snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+		snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	unsigned int status;
 	int train_sts = 0;
 
@@ -560,8 +561,8 @@ static int aml_pdm_open(struct snd_soc_component *component, struct snd_pcm_subs
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct device *dev = asoc_rtd_to_cpu(rtd, 0)->dev;
-	struct aml_pdm *p_pdm = (struct aml_pdm *)snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+	struct device *dev = snd_soc_rtd_to_cpu(rtd, 0)->dev;
+	struct aml_pdm *p_pdm = (struct aml_pdm *)snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	int ret;
 
 	pr_debug("%s, stream:%d\n", __func__, substream->stream);
@@ -1398,7 +1399,7 @@ err:
 
 }
 
-static int aml_pdm_platform_remove(struct platform_device *pdev)
+static void aml_pdm_platform_remove(struct platform_device *pdev)
 {
 	struct aml_pdm *p_pdm = dev_get_drvdata(&pdev->dev);
 	clk_disable_unprepare(p_pdm->sysclk_srcpll);
@@ -1414,8 +1415,6 @@ static int aml_pdm_platform_remove(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&pdm_platform_early_suspend_handler[p_pdm->pdm_id]);
 #endif
-
-	return 0;
 }
 
 static int pdm_platform_suspend(struct platform_device *pdev, pm_message_t state)

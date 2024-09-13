@@ -22,7 +22,7 @@
 #include <linux/sched/clock.h>
 #include <linux/delay.h>
 #include <linux/dma-buf.h>
-
+#include <linux/vmalloc.h>
 #include <linux/sync_file.h>
 
 #include <linux/amlogic/media/vfm/vframe.h>

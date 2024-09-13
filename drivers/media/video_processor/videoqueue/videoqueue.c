@@ -2175,13 +2175,12 @@ error1:
 	return ret;
 }
 
-static int video_queue_remove(struct platform_device *pdev)
+static void video_queue_remove(struct platform_device *pdev)
 {
 	video_queue_release();
 	device_destroy(&videoqueue_class, MKDEV(VIDEOQUEUE_MAJOR, 0));
 	unregister_chrdev(VIDEOQUEUE_MAJOR, videoqueue_DEVICE_NAME);
 	class_unregister(&videoqueue_class);
-	return 0;
 }
 
 static const struct of_device_id video_queue_dt_match[] = {

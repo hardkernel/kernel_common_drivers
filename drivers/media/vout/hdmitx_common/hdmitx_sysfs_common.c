@@ -7,6 +7,8 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <linux/vmalloc.h>
+
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include "hdmitx_sysfs_common.h"

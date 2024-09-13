@@ -24,10 +24,12 @@
 #include <linux/uaccess.h>
 #include <linux/file.h>
 #include <uapi/linux/sched/types.h>
-#include <linux/amlogic/meson_uvm_core.h>
 #include <linux/sched/clock.h>
 #include <linux/sync_file.h>
 #include <linux/delay.h>
+#include <linux/vmalloc.h>
+
+#include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/aml_sync_api.h>
 #include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
 #include <linux/compat.h>
@@ -1988,7 +1990,7 @@ error1:
 	return ret;
 }
 
-static int di_process_remove(struct platform_device *pdev)
+static void di_process_remove(struct platform_device *pdev)
 {
 	int i;
 	struct di_process_port_s *st;
@@ -2000,7 +2002,6 @@ static int di_process_remove(struct platform_device *pdev)
 
 	unregister_chrdev(DI_PROCESS_MAJOR, DI_PROCESS_DEVICE_NAME);
 	class_destroy(&di_process_class);
-	return 0;
 };
 
 static struct platform_driver di_process_driver = {

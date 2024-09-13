@@ -22,6 +22,7 @@
 #include <linux/cma.h>
 #include <linux/kasan.h>
 #include <linux/iosys-map.h>
+#include <linux/vmalloc.h>
 
 #include "system_log.h"
 #include "gdc_dmabuf.h"

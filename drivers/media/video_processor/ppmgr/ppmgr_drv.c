@@ -1385,13 +1385,12 @@ static int __init ppmgr_mem_setup(struct reserved_mem *rmem)
 	return 0;
 }
 
-static int ppmgr_drv_remove(struct platform_device *plat_dev)
+static void ppmgr_drv_remove(struct platform_device *plat_dev)
 {
 	/*struct rtc_device *rtc = platform_get_drvdata(plat_dev);*/
 	/*rtc_device_unregister(rtc);*/
 	/*device_remove_file(&plat_dev->dev, &dev_attr_irq);*/
 	uninit_ppmgr_device();
-	return 0;
 }
 
 /* general interface for a linux driver .*/

@@ -33,12 +33,14 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/reboot.h>
 #include <linux/i2c.h>
 #include <linux/miscdevice.h>
 #include <linux/vmalloc.h>
+
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
@@ -3947,7 +3949,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	return r;
 }
 
-static int amhdmitx_remove(struct platform_device *pdev)
+static void amhdmitx_remove(struct platform_device *pdev)
 {
 	struct hdmitx_dev *hdev = dev_get_drvdata(&pdev->dev);
 	struct device *dev = hdev->hdtx_dev;
@@ -4013,7 +4015,6 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	unregister_chrdev_region(hdev->hdmitx_id, HDMI_TX_COUNT);
 
 	hdmitx_common_destroy(&hdev->tx_comm);
-	return 0;
 }
 
 static void _amhdmitx_suspend(struct hdmitx_dev *hdev)

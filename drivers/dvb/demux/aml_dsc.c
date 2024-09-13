@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/vmalloc.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/pinctrl/consumer.h>

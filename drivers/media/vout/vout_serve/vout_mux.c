@@ -558,10 +558,9 @@ static int vout_mux_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vout_mux_remove(struct platform_device *pdev)
+static void vout_mux_remove(struct platform_device *pdev)
 {
 	VOUTPR("%s\n", __func__);
-	return 0;
 }
 
 static struct platform_driver vout_mux_platform_driver = {

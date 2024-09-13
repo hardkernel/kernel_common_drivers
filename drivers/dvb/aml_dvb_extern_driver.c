@@ -1550,12 +1550,12 @@ fail_proc_dir:
 	return ret;
 }
 
-static int aml_dvb_extern_remove(struct platform_device *pdev)
+static void aml_dvb_extern_remove(struct platform_device *pdev)
 {
 	struct dvb_extern_device *dvbdev = platform_get_drvdata(pdev);
 
 	if (IS_ERR_OR_NULL(dvbdev))
-		return -EFAULT;
+		return;
 
 	dvb_tuner_ops_destroy_all();
 	dvb_demod_ops_destroy_all();
@@ -1574,8 +1574,6 @@ static int aml_dvb_extern_remove(struct platform_device *pdev)
 	dvb_extern_dev = NULL;
 
 	pr_info("%s OK\n", __func__);
-
-	return 0;
 }
 
 static void aml_dvb_extern_shutdown(struct platform_device *pdev)

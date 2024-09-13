@@ -314,7 +314,7 @@ static void bl_set_pwm_normal(struct bl_pwm_config_s *bl_pwm,
 		pwm_constant_enable(bl_pwm->pwm_data.meson,
 				    bl_pwm->pwm_data.meson_index);
 	}
-	pwm_apply_state(bl_pwm->pwm_data.pwm, &bl_pwm->pwm_data.state);
+	pwm_apply_might_sleep(bl_pwm->pwm_data.pwm, &bl_pwm->pwm_data.state);
 }
 
 void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
@@ -403,7 +403,7 @@ void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
 			pstate.period = bl_pwm->pwm_data.state.period;
 			if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV)
 				bl_pwm_normal_state_print(&pstate);
-			pwm_apply_state(bl_pwm->pwm_data.pwm, &(pstate));
+			pwm_apply_might_sleep(bl_pwm->pwm_data.pwm, &(pstate));
 			break;
 		case BL_PWM_VS:
 			bl_set_pwm_vs(bl_pwm, pol, 0);

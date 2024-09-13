@@ -1025,7 +1025,7 @@ fail_alloc_region:
 	return ret;
 }
 
-static int __exit aml_vdac_remove(struct platform_device *pdev)
+static void __exit aml_vdac_remove(struct platform_device *pdev)
 {
 	struct amvdac_dev_s *devp = &amvdac_dev;
 
@@ -1038,8 +1038,6 @@ static int __exit aml_vdac_remove(struct platform_device *pdev)
 	mutex_destroy(&vdac_mutex);
 
 	pr_info("%s: amvdac_exit.\n", __func__);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

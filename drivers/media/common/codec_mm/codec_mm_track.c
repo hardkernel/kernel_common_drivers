@@ -319,31 +319,6 @@ static ulong get_dbuf_addr(struct dma_buf *dbuf)
 	return addr;
 }
 
-struct file *find_next_fd_rcu(struct task_struct *task, u32 *ret_fd)
-{
-	/* Must be called with rcu_read_lock held */
-	struct files_struct *files;
-	u32 fd = *ret_fd;
-	struct file *file = NULL;
-
-	task_lock(task);
-
-	files = task->files;
-	if (files) {
-		for (; fd < files_fdtable(files)->max_fds; fd++) {
-			file = files_lookup_fd_rcu(files, fd);
-			if (file)
-				break;
-		}
-	}
-
-	task_unlock(task);
-
-	*ret_fd = fd;
-
-	return file;
-}
-
 static bool find_match_file(struct task_struct *tsk,
 			   struct file *file,
 			   struct seq_file *m)
@@ -361,7 +336,7 @@ static bool find_match_file(struct task_struct *tsk,
 	rcu_read_lock();
 
 	for (;; fd++) {
-		f = find_next_fd_rcu(tsk, &fd);
+		f = task_lookup_next_fdget_rcu(tsk, &fd);
 		if (!f)
 			break;
 
@@ -931,7 +906,7 @@ static int find_dma_buf_in_tsk(struct task_struct *tsk,
 	rcu_read_lock();
 
 	for (;; fd++) {
-		f = find_next_fd_rcu(tsk, &fd);
+		f = task_lookup_next_fdget_rcu(tsk, &fd);
 		if (!f)
 			break;
 

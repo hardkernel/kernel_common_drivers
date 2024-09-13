@@ -165,7 +165,7 @@ static irqreturn_t extn_ddr_isr(int irq, void *devid)
 	struct snd_pcm_substream *substream =
 		(struct snd_pcm_substream *)devid;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct device *dev = asoc_rtd_to_cpu(rtd, 0)->dev;
+	struct device *dev = snd_soc_rtd_to_cpu(rtd, 0)->dev;
 	struct extn *p_extn = (struct extn *)dev_get_drvdata(dev);
 	unsigned int period_dur_ms = 0;
 
@@ -243,7 +243,7 @@ static int extn_open(struct snd_soc_component *component, struct snd_pcm_substre
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct device *dev = asoc_rtd_to_cpu(rtd, 0)->dev;
+	struct device *dev = snd_soc_rtd_to_cpu(rtd, 0)->dev;
 	struct extn *p_extn;
 	int ret = 0;
 

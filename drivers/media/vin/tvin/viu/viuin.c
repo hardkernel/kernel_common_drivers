@@ -1018,7 +1018,7 @@ static int viuin_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int viuin_remove(struct platform_device *pdev)
+static void viuin_remove(struct platform_device *pdev)
 {
 	struct viuin_s *devp = platform_get_drvdata(pdev);
 
@@ -1026,7 +1026,6 @@ static int viuin_remove(struct platform_device *pdev)
 		tvin_unreg_frontend(&devp->frontend);
 		kfree(devp);
 	}
-	return 0;
 }
 
 static struct platform_driver viuin_driver = {

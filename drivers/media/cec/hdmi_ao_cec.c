@@ -3030,7 +3030,7 @@ tag_cec_devm_err:
 	return ret;
 }
 
-static int aml_cec_remove(struct platform_device *pdev)
+static void aml_cec_remove(struct platform_device *pdev)
 {
 	/*CEC_INFO("%s\n", __func__);*/
 	if (cec_dev->cec_num > ENABLE_ONE_CEC) {
@@ -3071,7 +3071,6 @@ static int aml_cec_remove(struct platform_device *pdev)
 	unregister_chrdev(cec_dev->cec_info.dev_no, CEC_DEV_NAME);
 	class_unregister(&aocec_class);
 	kfree(cec_dev);
-	return 0;
 }
 
 #ifdef CONFIG_PM

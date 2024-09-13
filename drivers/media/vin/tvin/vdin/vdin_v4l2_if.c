@@ -1933,7 +1933,7 @@ int vdin_v4l2_probe(struct platform_device *pl_dev,
 	mutex_init(&devp->lock);
 	spin_lock_init(&devp->list_head_lock);
 
-	strlcpy(video_dev->name, VDIN_V4L_DV_NAME, sizeof(video_dev->name));
+	strscpy(video_dev->name, VDIN_V4L_DV_NAME, sizeof(video_dev->name));
 	video_dev->fops = &vdin_v4l2_fops,
 	video_dev->ioctl_ops = &vdin_v4l2_ioctl_ops,
 	video_dev->release = vdin_vdev_release;

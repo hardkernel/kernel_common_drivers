@@ -19,6 +19,8 @@
 #ifndef _VDAC_DEV_H_
 #define _VDAC_DEV_H_
 
+#include <linux/of.h>
+
 #define HHI_VDAC_CNTL0        0xbd
 #define HHI_VDAC_CNTL1        0xbe
 #define HHI_VDAC_CNTL0_G12A   0xbb

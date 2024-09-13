@@ -240,12 +240,11 @@ err0:
 	return PTR_ERR(ptr_err);
 }
 
-static int audio_data_remove(struct platform_device *pdev)
+static void audio_data_remove(struct platform_device *pdev)
 {
 	unregister_chrdev_region(major_audio_data, 1);
 	device_destroy(class_audio_data, MKDEV(major_audio_data, 0));
 	class_destroy(class_audio_data);
-	return 0;
 }
 
 static const struct of_device_id amlogic_audio_data_dt_match[] = {

@@ -31,6 +31,7 @@
 #include <linux/list_sort.h>
 #include <linux/sort.h>
 #include <linux/swap.h>
+#include <linux/vmalloc.h>
 
 #include "codec_mm_priv.h"
 #include "codec_mm_scatter_priv.h"

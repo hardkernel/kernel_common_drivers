@@ -17,6 +17,7 @@
 #include <linux/sched.h>
 #include <linux/fcntl.h>
 #include <asm/irq.h>
+#include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinmux.h>
@@ -3196,7 +3197,7 @@ static int smc_probe(struct platform_device *pdev)
 	return smc ? 0 : -1;
 }
 
-static int smc_remove(struct platform_device *pdev)
+static void smc_remove(struct platform_device *pdev)
 {
 	struct smc_dev *smc = (struct smc_dev *)dev_get_drvdata(&pdev->dev);
 
@@ -3205,8 +3206,6 @@ static int smc_remove(struct platform_device *pdev)
 	smc_dev_deinit(smc);
 
 	mutex_unlock(&smc_lock);
-
-	return 0;
 }
 
 static struct platform_driver smc_driver = {

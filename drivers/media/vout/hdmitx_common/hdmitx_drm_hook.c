@@ -3,6 +3,8 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+#include <linux/vmalloc.h>
+
 #include <linux/amlogic/media/vout/hdmitx_common/hdmitx_common.h>
 #include <drm/amlogic/meson_drm_bind.h>
 #include <linux/component.h>

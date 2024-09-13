@@ -6,7 +6,10 @@
 #ifndef _VIDEOBUF_RES_H
 #define _VIDEOBUF_RES_H
 
+// Todo: need owner to review
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 15606
 #include <media/videobuf-core.h>
+#endif
 
 struct videobuf_res_privdata {
 	/* const* char dev_name; */

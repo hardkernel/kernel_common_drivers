@@ -7,7 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-
+#include <linux/vmalloc.h>
 #include <linux/wait.h>
 #include <linux/string.h>
 #include <linux/interrupt.h>
@@ -707,7 +707,7 @@ struct dvb_adapter *aml_get_dvb_adapter(void)
 }
 EXPORT_SYMBOL(aml_get_dvb_adapter);
 
-static int aml_dvb_remove(struct platform_device *pdev)
+static void aml_dvb_remove(struct platform_device *pdev)
 {
 	struct aml_dvb *advb;
 	struct dvb_adapter *padapter;
@@ -745,8 +745,6 @@ static int aml_dvb_remove(struct platform_device *pdev)
 	aml_dvb_put_adapter(padapter);
 	class_unregister(&aml_stb_class);
 	dmx_unregist_dmx_class();
-
-	return 0;
 }
 
 static int get_first_valid_ts(struct aml_dvb *advb)

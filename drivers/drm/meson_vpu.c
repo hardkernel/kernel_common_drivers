@@ -624,11 +624,9 @@ static int am_meson_vpu_probe(struct platform_device *pdev)
 	return component_add(dev, &am_meson_vpu_component_ops);
 }
 
-static int am_meson_vpu_remove(struct platform_device *pdev)
+static void am_meson_vpu_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &am_meson_vpu_component_ops);
-
-	return 0;
 }
 
 static struct platform_driver am_meson_vpu_platform_driver = {

@@ -2328,7 +2328,11 @@ int amdv_parse_metadata_hw5(struct vframe_s *vf,
 		//metadata_parser = NULL;
 		//pr_dv_dbg("parser release\n");
 	//}
-
+// Todo: need owner to review
+#if CONFIG_AMLOGIC_KERNEL_VERSION > 15606
+	if (!bypass_release)
+		pr_dv_dbg("parser release\n");
+#endif
 	if (drop_flag) {
 		pr_dv_dbg("drop frame_count %d\n", v_inst_info->frame_count);
 		return 2;

@@ -4223,7 +4223,7 @@ fail_kmalloc_dev:
 	return ret;
 }
 
-static int dim_remove(struct platform_device *pdev)
+static void dim_remove(struct platform_device *pdev)
 {
 	struct di_dev_s *di_devp = NULL;
 	int i;
@@ -4300,7 +4300,6 @@ static int dim_remove(struct platform_device *pdev)
 	unregister_media_cooling();
 #endif
 	PR_INF("%s:finish\n", __func__);
-	return 0;
 }
 
 static void dim_shutdown(struct platform_device *pdev)

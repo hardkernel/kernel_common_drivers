@@ -1369,7 +1369,7 @@ static s32 aucpu_probe(struct platform_device *pdev)
 	return aucpu_init_try(pdev);
 }
 
-static s32 aucpu_remove(struct platform_device *pdev)
+static void aucpu_remove(struct platform_device *pdev)
 {
 	aucpu_pr(LOG_DEBUG, "aupu_remove\n");
 
@@ -1397,7 +1397,6 @@ static s32 aucpu_remove(struct platform_device *pdev)
 	aucpu_dev = NULL;
 	aucpu_pdev = NULL;
 	aucpu_pr(LOG_DEBUG, "aupu_remove done\n");
-	return 0;
 }
 
 static const struct of_device_id aml_aucpu_dt_match[] = {

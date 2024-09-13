@@ -10,6 +10,7 @@
 #include <linux/timer.h>
 #include <uapi/linux/time.h>
 #include <linux/time.h>
+#include <linux/vmalloc.h>
 #include <linux/of_reserved_mem.h>
 #ifdef CONFIG_AMLOGIC_VOUT
 #include <linux/amlogic/media/vout/vinfo.h>
@@ -39,11 +40,11 @@
 #include <linux/platform_device.h>
 #include "picdec.h"
 #include <linux/videodev2.h>
-#include <media/videobuf-core.h>
+//#include <media/videobuf-core.h>
 #include <media/videobuf2-core.h>
-#include <media/videobuf-dma-contig.h>
-#include <media/videobuf-vmalloc.h>
-#include <media/videobuf-dma-sg.h>
+//#include <media/videobuf-dma-contig.h>
+//#include <media/videobuf-vmalloc.h>
+//#include <media/videobuf-dma-sg.h>
 #if defined(CONFIG_AMLOGIC_MEDIA_VDIN)
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
 #endif
@@ -2305,14 +2306,13 @@ static int __init picdec_mem_setup(struct reserved_mem *rmem)
 	return 0;
 }
 
-static int picdec_drv_remove(struct platform_device *plat_dev)
+static void picdec_drv_remove(struct platform_device *plat_dev)
 {
 	uninit_picdec_device();
 	if (picdec_device.use_reserved) {
 		if (picdec_device.mapping)
 			io_mapping_free(picdec_device.mapping);
 	}
-	return 0;
 }
 
 static const struct of_device_id amlogic_picdec_dt_match[] = {

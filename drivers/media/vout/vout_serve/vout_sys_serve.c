@@ -162,9 +162,8 @@ static int aml_vs_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int aml_vs_remove(struct platform_device *pdev)
+static void aml_vs_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 static struct platform_driver aml_vs_driver = {

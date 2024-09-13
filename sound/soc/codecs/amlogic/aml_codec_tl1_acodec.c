@@ -1189,7 +1189,7 @@ static int aml_tl1_acodec_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int aml_tl1_acodec_remove(struct platform_device *pdev)
+static void aml_tl1_acodec_remove(struct platform_device *pdev)
 {
 	struct tl1_acodec_priv *aml_acodec;
 
@@ -1199,8 +1199,6 @@ static int aml_tl1_acodec_remove(struct platform_device *pdev)
 		clk_disable_unprepare(aml_acodec->acodec_clk);
 
 	snd_soc_unregister_component(&pdev->dev);
-
-	return 0;
 }
 
 static void aml_tl1_acodec_shutdown(struct platform_device *pdev)

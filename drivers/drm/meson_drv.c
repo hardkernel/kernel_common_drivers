@@ -154,8 +154,14 @@ int am_meson_get_vrr_range_ioctl(struct drm_device *dev,
 
 static const struct drm_ioctl_desc meson_ioctls[] = {
 	#ifdef CONFIG_AMLOGIC_DRM_USE_ION
+// Todo: need owner to review
+#if CONFIG_AMLOGIC_KERNEL_VERSION > 15606
+	DRM_IOCTL_DEF_DRV(MESON_GEM_CREATE, am_meson_gem_create_ioctl,
+			  DRM_AUTH | DRM_RENDER_ALLOW),
+#else
 	DRM_IOCTL_DEF_DRV(MESON_GEM_CREATE, am_meson_gem_create_ioctl,
 			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
+#endif
 	#endif
 	DRM_IOCTL_DEF_DRV(MESON_ASYNC_ATOMIC, meson_async_atomic_ioctl,
 			  0),
@@ -620,13 +626,14 @@ static int am_meson_drv_probe(struct platform_device *pdev)
 	return component_master_add_with_match(dev, &am_meson_drm_ops, match);
 }
 
-static int am_meson_drv_remove(struct platform_device *pdev)
+static void am_meson_drv_remove(struct platform_device *pdev)
 {
-	if (am_meson_drv_use_osd())
-		return am_meson_drv_remove_prune(pdev);
+	if (am_meson_drv_use_osd()) {
+		am_meson_drv_remove_prune(pdev);
+		return;
+	}
 
 	component_master_del(&pdev->dev, &am_meson_drm_ops);
-	return 0;
 }
 
 static const struct of_device_id am_meson_drm_dt_match[] = {

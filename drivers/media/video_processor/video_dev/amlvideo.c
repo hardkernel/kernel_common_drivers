@@ -440,7 +440,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 
 	strcpy(cap->driver, "amlvideo");
 	strcpy(cap->card, "amlvideo");
-	strlcpy(cap->bus_info, dev->v4l2_dev.name, sizeof(cap->bus_info));
+	strscpy(cap->bus_info, dev->v4l2_dev.name, sizeof(cap->bus_info));
 	cap->version = AMLVIDEO_VERSION;
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING
 			| V4L2_CAP_READWRITE;
@@ -458,7 +458,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = &formats[f->index];
 
-	strlcpy(f->description, fmt->name, sizeof(f->description));
+	strscpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
 	return 0;
 }

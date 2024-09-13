@@ -21,6 +21,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
+#include <linux/vmalloc.h>
+
 #include <linux/amlogic/media/vout/lcd/aml_lcd.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_extern.h>

@@ -533,10 +533,9 @@ static int aml_vclk_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int aml_vclk_remove(struct platform_device *pdev)
+static void aml_vclk_remove(struct platform_device *pdev)
 {
 	vclk_iounmap(pdev);
-	return 0;
 }
 
 static struct platform_driver aml_vclk_driver = {

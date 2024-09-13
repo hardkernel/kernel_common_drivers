@@ -21,6 +21,7 @@
 #include <linux/cma.h>
 #include <linux/kasan.h>
 #include <linux/iosys-map.h>
+#include <linux/vmalloc.h>
 
 #include "ge2d_log.h"
 #include "ge2d_dmabuf.h"

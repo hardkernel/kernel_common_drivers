@@ -19,7 +19,7 @@
 #include "meson_vpu.h"
 #include "meson_drv.h"
 #include "meson_vpu_pipeline.h"
-#include "meson_osd_afbc.h"
+#include "vpu-hw/meson_osd_afbc.h"
 #include "meson_gem.h"
 #include "meson_logo.h"
 

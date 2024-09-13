@@ -379,7 +379,7 @@ err1:
 }
 
 /* static int __devexit canvas_remove(struct platform_device *pdev) */
-static int canvas_remove(struct platform_device *pdev)
+static void canvas_remove(struct platform_device *pdev)
 {
 	int i;
 	struct canvas_device_info *info = canvas_info;
@@ -394,8 +394,6 @@ static int canvas_remove(struct platform_device *pdev)
 	kfree(info);
 	info = NULL;
 	pr_error("Canvas driver removed.\n");
-
-	return 0;
 }
 
 static const struct of_device_id canvas_dt_match[] = {

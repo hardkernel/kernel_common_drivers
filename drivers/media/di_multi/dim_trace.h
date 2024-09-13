@@ -33,7 +33,7 @@ DECLARE_EVENT_CLASS(di_event_class, TP_PROTO(const char *name, int field_cnt,
 						   __field(int, field_cnt)
 						   __field(unsigned long, time)
 						   ),
-				  TP_fast_assign(__assign_str(name, name);
+				  TP_fast_assign(__assign_str(name);
 						 __entry->field_cnt =
 						 field_cnt;
 						 __entry->time = time;

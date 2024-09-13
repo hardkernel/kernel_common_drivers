@@ -1394,12 +1394,12 @@ fail_alloc_data_fail:
 	return ret;
 }
 
-static int __exit frc_remove(struct platform_device *pdev)
+static void __exit frc_remove(struct platform_device *pdev)
 {
 	struct frc_dev_s *frc_devp = &frc_dev;
 
 	if (!frc_devp || !frc_devp->probe_ok)
-		return -1;
+		return;
 
 	PR_FRC("%s:module remove\n", __func__);
 	// frc_devp = platform_get_drvdata(pdev);
@@ -1433,7 +1433,6 @@ static int __exit frc_remove(struct platform_device *pdev)
 	// kfree(frc_dev);
 	// frc_dev = NULL;
 	PR_FRC("%s:module remove done\n", __func__);
-	return 0;
 }
 
 static void frc_shutdown(struct platform_device *pdev)

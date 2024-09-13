@@ -1373,7 +1373,7 @@ fail_alloc_cdev_region:
 	return ret;
 }
 
-static int amvdec_656in_remove(struct platform_device *pdev)
+static void amvdec_656in_remove(struct platform_device *pdev)
 {
 	struct am656in_dev_s *devp;
 	int index;
@@ -1390,8 +1390,6 @@ static int amvdec_656in_remove(struct platform_device *pdev)
 	}
 	class_destroy(am656in_clsp);
 	unregister_chrdev_region(am656in_devno, hw_cnt);
-
-	return 0;
 }
 
 static int amvdec_656in_resume(struct platform_device *pdev)

@@ -2545,7 +2545,7 @@ free_config:
 	return rc;
 }
 
-static int gdc_platform_remove(struct platform_device *pdev)
+static void gdc_platform_remove(struct platform_device *pdev)
 {
 	struct meson_gdc_dev_t *gdc_dev =
 			(struct meson_gdc_dev_t *)platform_get_drvdata(pdev);
@@ -2565,7 +2565,6 @@ static int gdc_platform_remove(struct platform_device *pdev)
 	gdc_wq_deinit();
 	gdc_pwr_remove(gdc_dev->pd);
 	misc_deregister(misc_dev);
-	return 0;
 }
 
 static struct platform_driver gdc_platform_driver = {

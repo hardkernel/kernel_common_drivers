@@ -1130,10 +1130,9 @@ static int mua_probe(struct platform_device *pdev)
 	return misc_register(&mua_dev->dev);
 }
 
-static int mua_remove(struct platform_device *pdev)
+static void mua_remove(struct platform_device *pdev)
 {
 	misc_deregister(&mua_dev->dev);
-	return 0;
 }
 
 static const struct of_device_id mua_match[] = {

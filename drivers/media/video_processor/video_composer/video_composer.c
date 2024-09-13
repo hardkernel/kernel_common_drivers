@@ -5929,7 +5929,7 @@ error1:
 	return ret;
 }
 
-static int video_composer_remove(struct platform_device *pdev)
+static void video_composer_remove(struct platform_device *pdev)
 {
 	int i;
 	struct video_composer_port_s *st;
@@ -5941,7 +5941,6 @@ static int video_composer_remove(struct platform_device *pdev)
 
 	unregister_chrdev(VIDEO_COMPOSER_MAJOR, VIDEO_COMPOSER_DEVICE_NAME);
 	class_destroy(&video_composer_class);
-	return 0;
 };
 
 static struct platform_driver video_composer_driver = {

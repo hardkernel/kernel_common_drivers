@@ -1776,7 +1776,7 @@ static const struct file_operations adc_fops = {
 #endif
 };
 
-static int adc_remove(struct platform_device *pdev)
+static void adc_remove(struct platform_device *pdev)
 {
 	if (probe_finish && adc_devp) {
 		device_destroy(&adc_class, MKDEV(adc_devp->dev_no, 0));
@@ -1787,8 +1787,6 @@ static int adc_remove(struct platform_device *pdev)
 		mutex_destroy(&adc_devp->filter_mutex);
 		kfree(adc_devp);
 	}
-
-	return 0;
 }
 
 static void adc_shutdown(struct platform_device *pdev)

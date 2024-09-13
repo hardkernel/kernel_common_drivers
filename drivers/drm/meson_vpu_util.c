@@ -5,7 +5,7 @@
 
 #include <linux/ktime.h>
 #include "meson_vpu_util.h"
-#include "meson_vpu_reg.h"
+#include "vpu-hw/meson_vpu_reg.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
 #include <common/rdma/rdma.h>

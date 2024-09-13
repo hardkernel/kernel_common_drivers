@@ -1606,7 +1606,7 @@ fail_alloc_region:
 	return ret;
 }
 
-static int __exit aml_dtvdemod_remove(struct platform_device *pdev)
+static void __exit aml_dtvdemod_remove(struct platform_device *pdev)
 {
 	struct amldtvdemod_device_s *devp =
 			(struct amldtvdemod_device_s *)platform_get_drvdata(pdev);
@@ -1616,7 +1616,7 @@ static int __exit aml_dtvdemod_remove(struct platform_device *pdev)
 	if (!devp) {
 		mutex_unlock(&amldtvdemod_device_mutex);
 
-		return -EFAULT;
+		return;
 	}
 
 	dtvdemod_clktree_remove(&pdev->dev);
@@ -1641,8 +1641,6 @@ static int __exit aml_dtvdemod_remove(struct platform_device *pdev)
 	PR_INFO("%s:remove.\n", __func__);
 
 	mutex_unlock(&amldtvdemod_device_mutex);
-
-	return 0;
 }
 
 static void aml_dtvdemod_shutdown(struct platform_device *pdev)

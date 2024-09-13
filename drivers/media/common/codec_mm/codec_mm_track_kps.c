@@ -21,6 +21,7 @@
 #include <linux/kallsyms.h>
 #include <linux/dma-buf.h>
 #include <linux/ptrace.h>
+#include <linux/vmalloc.h>
 
 #include "codec_mm_track_kps.h"
 #include "codec_mm_track_priv.h"
@@ -64,6 +65,11 @@ static void kp_fd_install_post(struct kprobe *p, struct pt_regs *regs,
 		unsigned long flags)
 {
 	//
+}
+
+static inline bool fd_is_open(unsigned int fd, const struct fdtable *fdt)
+{
+	return test_bit(fd, fdt->open_fds);
 }
 
 static int kp_do_dup2_pre(struct kprobe *p, struct pt_regs *regs)

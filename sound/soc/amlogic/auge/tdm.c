@@ -1124,7 +1124,7 @@ static irqreturn_t aml_tdm_ddr_isr(int irq, void *devid)
 	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)devid;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct aml_tdm *p_tdm =
-		(struct aml_tdm *)snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+		(struct aml_tdm *)snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 
 	if (!snd_pcm_running(substream))
 		return IRQ_HANDLED;
@@ -1326,9 +1326,9 @@ static int aml_tdm_open(struct snd_soc_component *component, struct snd_pcm_subs
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct device *dev = asoc_rtd_to_cpu(rtd, 0)->dev;
+	struct device *dev = snd_soc_rtd_to_cpu(rtd, 0)->dev;
 	struct aml_tdm *p_tdm =
-		(struct aml_tdm *)snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+		(struct aml_tdm *)snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	int ret = 0;
 
 	snd_soc_set_runtime_hwparams(substream, &aml_tdm_hardware);

@@ -1249,7 +1249,7 @@ static int lut_dma_resume(struct platform_device *dev)
 #endif
 
 /* static int __devexit rdma_remove(struct platform_device *pdev) */
-static int lut_dma_remove(struct platform_device *pdev)
+static void lut_dma_remove(struct platform_device *pdev)
 {
 	int i;
 	struct lut_dma_device_info *info = &lut_dma_info;
@@ -1262,7 +1262,6 @@ static int lut_dma_remove(struct platform_device *pdev)
 		vpu_dev_mem_power_down(vpu_dma);
 	info->clsp = NULL;
 	lut_dma_probed = 0;
-	return 0;
 }
 
 static struct platform_driver lut_dma_driver = {

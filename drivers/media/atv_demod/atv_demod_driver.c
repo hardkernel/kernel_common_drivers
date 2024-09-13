@@ -797,12 +797,12 @@ fail_class_register:
 	return ret;
 }
 
-static int aml_atvdemod_remove(struct platform_device *pdev)
+static void aml_atvdemod_remove(struct platform_device *pdev)
 {
 	struct aml_atvdemod_device *dev = platform_get_drvdata(pdev);
 
 	if (dev == NULL)
-		return -1;
+		return;
 
 	v4l2_unregister_frontend(&dev->v4l2_fe);
 	aml_detach_demod_tuner(dev);
@@ -814,8 +814,6 @@ static int aml_atvdemod_remove(struct platform_device *pdev)
 	kfree(dev);
 
 	pr_info("%s: OK.\n", __func__);
-
-	return 0;
 }
 
 static void aml_atvdemod_shutdown(struct platform_device *pdev)

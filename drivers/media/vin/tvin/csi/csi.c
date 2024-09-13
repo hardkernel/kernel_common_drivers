@@ -485,7 +485,7 @@ fail_kmalloc_dev:
 	return ret;
 }
 
-static int amvdec_csi_remove(struct platform_device *pdev)
+static void amvdec_csi_remove(struct platform_device *pdev)
 {
 	struct amcsi_dev_s *devp;
 
@@ -499,7 +499,6 @@ static int amvdec_csi_remove(struct platform_device *pdev)
 	dev_set_drvdata(devp->dev, NULL);
 	platform_set_drvdata(pdev, NULL);
 	kfree(devp);
-	return 0;
 }
 
 static const struct of_device_id csi_dt_match[] = {

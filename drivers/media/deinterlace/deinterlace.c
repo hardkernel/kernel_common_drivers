@@ -8898,7 +8898,7 @@ fail_alloc_cdev_region:
 #endif
 }
 
-static int di_remove(struct platform_device *pdev)
+static void di_remove(struct platform_device *pdev)
 {
 	struct di_dev_s *di_devp = NULL;
 
@@ -8964,7 +8964,6 @@ static int di_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	di_pr_info("%s:ok\n", __func__);
-	return 0;
 }
 
 static void di_shutdown(struct platform_device *pdev)

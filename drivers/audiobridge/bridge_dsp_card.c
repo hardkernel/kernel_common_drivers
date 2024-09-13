@@ -262,15 +262,15 @@ struct aml_aprocess *aml_aprocess_init(struct device *dev, const char *pcm_name,
 		if (err < 0)
 			goto snd_fail;
 
-		strlcpy(pcm->name, pcm_name, sizeof(pcm->name));
+		strscpy(pcm->name, pcm_name, sizeof(pcm->name));
 		pcm->private_data = aprocess_card;
 		aprocess_card->pcm = pcm;
 
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &aml_aprocess_ops);
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &aml_aprocess_ops);
 
-		strlcpy(card->driver, card_name, sizeof(card->driver));
-		strlcpy(card->shortname, card_name, sizeof(card->shortname));
+		strscpy(card->driver, card_name, sizeof(card->driver));
+		strscpy(card->shortname, card_name, sizeof(card->shortname));
 		sprintf(card->longname, "%s %i", card_name, card->dev->id);
 
 		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,

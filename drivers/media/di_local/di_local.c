@@ -534,7 +534,7 @@ static int dil_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dil_remove(struct platform_device *pdev)
+static void dil_remove(struct platform_device *pdev)
 {
 	PR_INF("%s.\n", __func__);
 
@@ -543,7 +543,6 @@ static int dil_remove(struct platform_device *pdev)
 	pdv = NULL;
 
 	PR_INF("%s ok.\n", __func__);
-	return 0;
 }
 
 static void dil_shutdown(struct platform_device *pdev)

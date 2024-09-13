@@ -19,7 +19,7 @@
 #include <linux/dma-map-ops.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/dma-buf.h>
-
+#include <linux/vmalloc.h>
 #include <linux/of_address.h>
 #include <api/gdc_api.h>
 #include "system_log.h"

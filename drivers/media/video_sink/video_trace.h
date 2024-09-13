@@ -24,7 +24,7 @@ DECLARE_EVENT_CLASS
 		 __field(int, bottom)
 	),
 	TP_fast_assign
-		(__assign_str(name, name);
+		(__assign_str(name);
 		 __entry->left = left;
 		 __entry->top = top;
 		 __entry->right = right;
@@ -59,7 +59,7 @@ DECLARE_EVENT_CLASS
 		 __field(int, duration)
 	),
 	TP_fast_assign
-		(__assign_str(name, name);
+		(__assign_str(name);
 		 __entry->time1 = time1;
 		 __entry->time2 = time2;
 		 __entry->time3 = time3;
@@ -94,8 +94,8 @@ DECLARE_EVENT_CLASS
 		 __field(int, cur_line)
 	),
 	TP_fast_assign
-		(__assign_str(name, name);
-		 __assign_str(sub_name, sub_name);
+		(__assign_str(name);
+		 __assign_str(sub_name);
 		 __entry->start_line = start_line;
 		 __entry->cur_line = cur_line;
 	),
@@ -127,8 +127,8 @@ DECLARE_EVENT_CLASS
 		 __field(int, cnt2)
 	),
 	TP_fast_assign
-		(__assign_str(name, name);
-		 __assign_str(sub_name, sub_name);
+		(__assign_str(name);
+		 __assign_str(sub_name);
 		 __entry->cur_state = cur_state;
 		 __entry->new_state = new_state;
 		 __entry->flag = flag;
@@ -163,7 +163,7 @@ DECLARE_EVENT_CLASS
 		 __field(int, cnt)
 	),
 	TP_fast_assign
-		(__assign_str(name, name);
+		(__assign_str(name);
 		 __entry->vf = vf;
 		 __entry->arg1 = arg1;
 		 __entry->arg2 = arg2;

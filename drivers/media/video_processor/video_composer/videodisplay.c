@@ -15,6 +15,9 @@
  * more details.
  *
  */
+
+#include <linux/vmalloc.h>
+
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/media/utils/am_com.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>

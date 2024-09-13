@@ -20,7 +20,9 @@
 #include <linux/reboot.h>
 #include <linux/compat.h>
 #include <linux/clk.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
+
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -1444,13 +1446,13 @@ vrr_probe_err:
 	return -1;
 }
 
-static int vrr_remove(struct platform_device *pdev)
+static void vrr_remove(struct platform_device *pdev)
 {
 	struct aml_vrr_drv_s *vdrv = platform_get_drvdata(pdev);
 	int index;
 
 	if (!vdrv)
-		return 0;
+		return;
 
 	index = vdrv->index;
 
@@ -1464,8 +1466,6 @@ static int vrr_remove(struct platform_device *pdev)
 	vrr_drv[index] = NULL;
 
 	vrr_global_remove_once();
-
-	return 0;
 }
 
 static int vrr_resume(struct platform_device *pdev)

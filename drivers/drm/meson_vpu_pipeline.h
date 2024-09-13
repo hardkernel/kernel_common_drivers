@@ -10,7 +10,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <dt-bindings/display/meson-drm-ids.h>
-#include "meson_vpu_reg.h"
+#include "vpu-hw/meson_vpu_reg.h"
 #include "meson_drv.h"
 #include "meson_vpu_util.h"
 #include "meson_plane.h"

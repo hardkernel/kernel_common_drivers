@@ -717,7 +717,7 @@ fail_create_class:
 	return ret;
 }
 
-static int vpu_security_remove(struct platform_device *pdev)
+static void vpu_security_remove(struct platform_device *pdev)
 {
 	int i;
 	struct vpu_security_device_info *info = &vpu_security_info;
@@ -728,7 +728,6 @@ static int vpu_security_remove(struct platform_device *pdev)
 	class_destroy(info->clsp);
 	info->clsp = NULL;
 	info->probed = 0;
-	return 0;
 }
 
 static struct platform_driver vpu_security_driver = {

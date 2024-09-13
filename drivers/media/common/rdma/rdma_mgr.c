@@ -2387,7 +2387,7 @@ static const struct dev_pm_ops rdma_pm_ops = {
 #endif
 
 /* static int __devexit rdma_remove(struct platform_device *pdev) */
-static int rdma_remove(struct platform_device *pdev)
+static void rdma_remove(struct platform_device *pdev)
 {
 	pr_error("RDMA driver removed.\n");
 	remove_rdma_mgr_class();
@@ -2396,7 +2396,6 @@ static int rdma_remove(struct platform_device *pdev)
 	vpu_dev_mem_power_down(rdma_vpu_dev);
 	vpu_dev_unregister(rdma_vpu_dev);
 #endif
-	return 0;
 }
 
 static struct platform_driver rdma_driver = {

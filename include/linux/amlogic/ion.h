@@ -147,7 +147,7 @@ struct ion_heap {
 	const char *name;
 
 	/* deferred free support */
-	struct shrinker shrinker;
+	struct shrinker *shrinker;
 	struct list_head free_list;
 	size_t free_list_size;
 	/* protects the free list*/

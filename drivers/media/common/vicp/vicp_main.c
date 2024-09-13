@@ -1253,14 +1253,12 @@ error:
 	return ret;
 }
 
-static int vicp_remove(struct platform_device *pdev)
+static void vicp_remove(struct platform_device *pdev)
 {
 	vicp_param_uninit();
 	pm_runtime_put_sync(&pdev->dev);
 	uninit_vicp_device();
 	vicp_clock_config(0);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

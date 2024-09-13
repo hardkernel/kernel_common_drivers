@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-
+#include <linux/of_platform.h>
 #include <sound/pcm_params.h>
 
 #include <linux/amlogic/pm.h>
@@ -206,7 +206,7 @@ static irqreturn_t loopback_ddr_isr(int irq, void *data)
 	struct snd_pcm_substream *ss = (struct snd_pcm_substream *)data;
 	struct snd_soc_pcm_runtime *rtd = ss->private_data;
 	struct loopback *p_loopback = (struct loopback *)
-		snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+		snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	unsigned int status;
 	bool vad_running = vad_lb_is_running(p_loopback->id);
 
@@ -237,7 +237,7 @@ static int loopback_open(struct snd_soc_component *component, struct snd_pcm_sub
 	struct snd_pcm_runtime *runtime = ss->runtime;
 	struct snd_soc_pcm_runtime *rtd = ss->private_data;
 	struct loopback *p_loopback = (struct loopback *)
-		snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+		snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	int ret = 0;
 	struct device *dev = p_loopback->dev;
 

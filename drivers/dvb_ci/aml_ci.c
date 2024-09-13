@@ -421,7 +421,7 @@ static int aml_ci_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int aml_ci_remove(struct platform_device *pdev)
+static void aml_ci_remove(struct platform_device *pdev)
 {
 	aml_ci_unregister_class(ci_dev);
 	platform_set_drvdata(pdev, NULL);
@@ -434,7 +434,6 @@ static int aml_ci_remove(struct platform_device *pdev)
 	}
 
 	aml_ci_exit(ci_dev);
-	return 0;
 }
 
 static int aml_ci_suspend(struct platform_device *pdev, pm_message_t state)

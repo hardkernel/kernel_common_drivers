@@ -180,9 +180,8 @@ static int dev_ion_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int dev_ion_remove(struct platform_device *pdev)
+static void dev_ion_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 static const struct of_device_id amlogic_ion_dev_dt_match[] = {
