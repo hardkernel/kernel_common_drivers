@@ -13,8 +13,6 @@
 #include "../lcd_reg.h"
 #include "lcd_phy_config.h"
 
-static struct lcd_phy_ctrl_s *phy_ctrl_p;
-
 static int lcd_phy_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
 	int len = 0;
@@ -32,9 +30,6 @@ static int lcd_phy_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
 	unsigned int lane;
-
-	if (status == LCD_PHY_LOCK_LANE)
-		return;
 
 	if (status) {
 		/* HHI_MIPI_CNTL0 */
@@ -68,8 +63,6 @@ static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 
 static struct lcd_phy_ctrl_s lcd_phy_ctrl_g12a = {
 	.lane_num = 5,
-	.ctrl_bit_on = 0,
-	.lane_lock = 0,
 
 	.phy_vswing_level_to_val = NULL,
 	.phy_amp_dft_val = NULL,
@@ -87,6 +80,5 @@ static struct lcd_phy_ctrl_s lcd_phy_ctrl_g12a = {
 
 struct lcd_phy_ctrl_s *lcd_phy_config_init_g12(struct aml_lcd_drv_s *pdrv)
 {
-	phy_ctrl_p = &lcd_phy_ctrl_g12a;
-	return phy_ctrl_p;
+	return &lcd_phy_ctrl_g12a;
 }

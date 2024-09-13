@@ -543,8 +543,12 @@ struct phy_config_s {
 	unsigned int preem_level;
 	unsigned int weakly_pull_down;
 	unsigned int low_common_mode;
+	unsigned int clk_phase;
 	unsigned int ckdi;
-	unsigned int valid_lane;
+
+	unsigned int lane_valid; //(valid & mask)<<offset
+	unsigned int lane_offset;
+	unsigned int lane_mask; //local mask for lane range
 	unsigned int state;
 };
 

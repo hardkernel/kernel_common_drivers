@@ -4211,7 +4211,6 @@ static ssize_t lcd_phy_debug_show(struct device *dev, struct device_attribute *a
 	ret = lcd_phy_param_get(pdrv, &local_phy);
 	if (ret)
 		return sprintf(buf, "for_tool:error, phy_param_get error\n");
-	lcd_lane_sel_get(pdrv, &local_phy);
 
 	switch (phy_debug_type & 0xff) {
 	case PHY_DEBUG_VSWING:

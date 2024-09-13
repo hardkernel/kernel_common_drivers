@@ -48,8 +48,6 @@ static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 		lcd_ana_write(ANACTRL_MIPIDSI_CTRL0_S6, 0);
 		lcd_ana_write(ANACTRL_MIPIDSI_CTRL0_S6, 0);
 		return;
-	} else if (status == LCD_PHY_LOCK_LANE) {
-		return;
 	}
 
 	// 1.5G: PHY_CNTL0[0xfe0083d4] = 0x393b8055; PHY_CNTL1[0xfe0083d8] = 0xe134031f;
@@ -109,8 +107,6 @@ static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 
 static struct lcd_phy_ctrl_s lcd_phy_ctrl_s6 = {
 	.lane_num = 5,
-	.lane_lock = 0,
-	.ctrl_bit_on = 1,
 
 	.phy_vswing_level_to_val = NULL,
 	.phy_amp_dft_val = NULL,
