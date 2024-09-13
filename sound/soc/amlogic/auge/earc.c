@@ -146,6 +146,7 @@ struct earc {
 	struct delayed_work send_uevent;
 	struct delayed_work gain_disable;
 	struct delayed_work rx_stable_work;
+	struct delayed_work rx_pll_detect_work;
 
 	struct samesource_info ss_info;
 
@@ -573,6 +574,49 @@ static void valid_auto_work_func(struct work_struct *p_work)
 	earcrx_pll_reset(p_earc);
 }
 
+static void earcrx_pll_detect(struct earc *p_earc)
+{
+	int i = 0, count = 0;
+	int valid, valid_auto;
+
+	/* max loop count is 10000 */
+	while (i++ < 10000) {
+		valid = earcrx_get_pll_valid(p_earc->rx_top_map);
+		valid_auto = earcrx_get_pll_valid_auto(p_earc->rx_top_map);
+		/* EARCRX_PLL_STAT0 bit 31 and bit 30 is 1, exit */
+		if (valid && valid_auto)
+			break;
+
+		/* there are 2 times continues bit 31 is 0 and bit 30 is 1,
+		 * set pll lock force.
+		 */
+		if (!valid && valid_auto &&
+		    earcrx_div_afc_out(p_earc->rx_top_map) == 0x1f)
+			count++;
+		else
+			count = 0;
+
+		if (count >= 2)
+			earcrx_pll_lock_force(p_earc->rx_top_map, true);
+
+		usleep_range(450, 500);
+
+		/* disable pll lock force after sometime(500us) */
+		if (count >= 2) {
+			earcrx_pll_lock_force(p_earc->rx_top_map, false);
+			count = 0;
+		}
+	}
+}
+
+static void rx_pll_detect_work_func(struct work_struct *p_work)
+{
+	struct earc *p_earc = container_of(to_delayed_work(p_work),
+			struct earc, rx_pll_detect_work);
+
+	earcrx_pll_detect(p_earc);
+}
+
 static irqreturn_t rx_handler(int irq, void *data)
 {
 	struct earc *p_earc = (struct earc *)data;
@@ -646,6 +690,9 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 	if (p_earc->rx_status0 & INT_EARCRX_CMDC_DISC1)
 		dev_info(p_earc->dev, "EARCRX_CMDC_DISC1\n");
 	if (p_earc->rx_status0 & INT_EARCRX_CMDC_EARC) {
+		if (p_earc->chipinfo->rx_pll_new)
+			schedule_delayed_work(&p_earc->rx_pll_detect_work, msecs_to_jiffies(50));
+
 		p_earc->bit_status_check = 0x81;
 		p_earc->rx_state = 0;
 		earcrx_cmdc_set_cds(p_earc->rx_cmdc_map, p_earc->rx_cds_data);
@@ -3407,6 +3454,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 		if (earcrx_cmdc_get_attended_type(p_earc->rx_cmdc_map) == ATNDTYP_EARC)
 			earcrx_cmdc_set_cds(p_earc->rx_cmdc_map, p_earc->rx_cds_data);
 		INIT_DELAYED_WORK(&p_earc->rx_stable_work, rx_stable_work_func);
+		INIT_DELAYED_WORK(&p_earc->rx_pll_detect_work, rx_pll_detect_work_func);
 		if (!p_earc->chipinfo->ana_auto_cal)
 			earcrx_efuse_trim_set(p_earc->rx_top_map);
 	}

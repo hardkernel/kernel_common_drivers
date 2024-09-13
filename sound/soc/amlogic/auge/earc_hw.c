@@ -126,6 +126,12 @@ void earcrx_cmdc_int_mask(struct regmap *top_map)
 		  );
 }
 
+void earcrx_pll_lock_force(struct regmap *top_map, bool en)
+{
+	/* earcrx_pll_lock_f, lock force, 1 enable */
+	mmio_update_bits(top_map, EARCRX_PLL_CTRL2, 0x1 << 11, en << 11);
+}
+
 void earcrx_cmdc_init(struct regmap *top_map, bool en, bool rx_dmac_sync_int,
 	bool rterm_on, bool rx_pll_new)
 {
@@ -757,6 +763,14 @@ int earcrx_dmac_get_irqs(struct regmap *top_map)
 int earcrx_dmac_get_mask(struct regmap *top_map)
 {
 	return mmio_read(top_map, EARCRX_DMAC_INT_MASK);
+}
+
+int earcrx_div_afc_out(struct regmap *top_map)
+{
+	/* eacrx_div_afc_out[4:0] */
+	unsigned int pll_status0 = mmio_read(top_map, EARCRX_PLL_STAT0);
+
+	return (pll_status0 >> 24) & 0x1f;
 }
 
 bool earcrx_pll_dmac_valid(struct regmap *top_map)
@@ -1942,6 +1956,7 @@ bool earcrx_get_pll_valid(struct regmap *top_map)
 	int stat0 = 0;
 	unsigned int value = 0;
 
+	/* from s6/s7d, bit 31, earcrx_pll_lock_flag */
 	value = mmio_read(top_map, EARCRX_PLL_STAT0);
 
 	stat0 = (value & 0x80000000) >> 31;
@@ -1954,6 +1969,9 @@ bool earcrx_get_pll_valid_auto(struct regmap *top_map)
 	int stat0 = 0;
 	unsigned int value = 0;
 
+	/* from s6/s7d, bit 30, earcrx_pll_afc_done
+	 * afc = auto frequency calculation
+	 */
 	value = mmio_read(top_map, EARCRX_PLL_STAT0);
 
 	stat0 = (value & 0x40000000) >> 30;

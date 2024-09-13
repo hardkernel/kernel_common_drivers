@@ -256,6 +256,7 @@ void earcrx_pll_refresh(struct regmap *top_map,
 			bool level,
 			bool arcin_new);
 void earcrx_cmdc_int_mask(struct regmap *top_map);
+void earcrx_pll_lock_force(struct regmap *top_map, bool en);
 void earcrx_cmdc_init(struct regmap *top_map, bool en, bool rx_dmac_sync_int,
 			bool rterm_on,
 			bool rx_pll_new);
@@ -284,6 +285,7 @@ void earcrx_dmac_sync_clr_irqs(struct regmap *top_map);
 void earcrx_dmac_clr_irqs(struct regmap *top_map, int clr);
 int earcrx_dmac_get_irqs(struct regmap *top_map);
 int earcrx_dmac_get_mask(struct regmap *top_map);
+int earcrx_div_afc_out(struct regmap *top_map);
 bool earcrx_pll_dmac_valid(struct regmap *top_map);
 void earcrx_reset(struct regmap *dmac_map);
 void earcrx_set_dmac_sync_ctrl(struct regmap *dmac_map, bool is_earc, bool enable);
