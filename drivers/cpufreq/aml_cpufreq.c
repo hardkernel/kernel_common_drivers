@@ -541,6 +541,25 @@ static int aml_cpufreq_resume(struct cpufreq_policy *policy)
 	return cpufreq_generic_suspend(policy);
 }
 
+static void aml_cpufreq_ready(struct cpufreq_policy *policy)
+{
+	/*
+	 * NOTE: Some chips only adjust the frequency but not the voltage,
+	 * which may lead to the same "cost" calculated in the energy model.
+	 * In the energy model, a frequency with the same "cost" and lower
+	 * frequency is labeled as "EM_PERF_STATE_INEFFICIENT".
+	 * policy->efficiencies_available is also set to true. By default,
+	 * cpufreq will filter out frequencies marked as inefficient when
+	 * calculating the frequency for the next adjustment. This causes
+	 * cpufreq to remain at the highest frequency even when cpufreq governor
+	 * is set to "schedutil" and the load is low.
+	 *
+	 * Here, policy->efficiencies_available is force set to false to avoid
+	 * this situation.
+	 */
+	policy->efficiencies_available = false;
+}
+
 static struct cpufreq_driver aml_cpufreq_driver = {
 	.name			= "aml-cpufreq",
 	.flags			= CPUFREQ_IS_COOLING_DEV |
@@ -555,6 +574,7 @@ static struct cpufreq_driver aml_cpufreq_driver = {
 	.suspend		= aml_cpufreq_suspend,
 	.resume			= aml_cpufreq_resume,
 	.register_em	= cpufreq_register_em_with_opp,
+	.ready			= aml_cpufreq_ready,
 };
 
 static int aml_cpuclk_ready(struct device_node *np)

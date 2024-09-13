@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+/ {
+	cpu_opp_table0: cpu_opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <128000000>;
+			opp-microvolt = <800000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <256000000>;
+			opp-microvolt = <800000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <512000000>;
+			opp-microvolt = <800000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <768000000>;
+			opp-microvolt = <800000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <800000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <800000>;
+		};
+	};
+
+	meson-cpufreq {
+		compatible = "amlogic, aml-cpufreq";
+		status = "okay";
+
+		cluster0 {
+			clocks = <&clkc CLKID_CPU_CLK>;
+			clock-names = "cpuclk";
+			skip_volt_scaling;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
+			cluster_cores = <0 1>;
+		};
+	};
+};/* end of / */
+
+&cpu0 {
+	#cooling-cells = <2>;
+	operating-points-v2 = <&cpu_opp_table0>;
+};

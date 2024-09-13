@@ -37,20 +37,8 @@
 			enable-method = "psci";
 			/*cpu-idle-states = <&SYSTEM_SLEEP_0>;*/
 			next-level-cache = <&l2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>;
-			clock-names = "core_clk",
-					"low_freq_clk_parent",
-					"high_freq_clk_parent";
-			operating-points-v2 = <&cpu_opp_table0>;
-			cpufreq_voltage_set_skip;
-			voltage-tolerance = <0>;
-			clock-latency = <50000>;
-			mid-rate = <768000>;
 			capacity-dmips-mhz = <400>;
 			dynamic-power-coefficient = <80>;
-			#cooling-cells = <2>;
 		};
 
 		cpu1: cpu@1 {
@@ -60,20 +48,8 @@
 			enable-method = "psci";
 			/*cpu-idle-states = <&CPU_SLEEP_0>;*/
 			next-level-cache = <&l2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>;
-			clock-names = "core_clk",
-					"low_freq_clk_parent",
-					"high_freq_clk_parent";
-			operating-points-v2 = <&cpu_opp_table0>;
-			cpufreq_voltage_set_skip;
-			voltage-tolerance = <0>;
-			clock-latency = <50000>;
-			mid-rate = <768000>;
 			capacity-dmips-mhz = <400>;
 			dynamic-power-coefficient = <80>;
-			#cooling-cells = <2>;
 		};
 
 		idle-states {
@@ -1031,41 +1007,6 @@
 		status = "disabled";
 	};
 
-	cpu_opp_table0: cpu_opp_table0 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <128000000>;
-			opp-microvolt = <800000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <256000000>;
-			opp-microvolt = <800000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <512000000>;
-			opp-microvolt = <800000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <768000000>;
-			opp-microvolt = <800000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <800000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <800000>;
-		};
-	};
-
-	cpufreq-meson {
-		compatible = "amlogic, cpufreq-meson";
-		status = "okay";
-	};
-
 	ddr_bandwidth {
 		/* for a1, no dmc mon function */
 		compatible = "amlogic,ddr-bandwidth-a1";
@@ -1722,3 +1663,5 @@
 		};
 	};
 };
+
+#include "mesona1_cpufreq.dtsi"
