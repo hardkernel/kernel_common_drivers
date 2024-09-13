@@ -23,19 +23,14 @@
 #include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/amlogic/page_trace.h>
-#ifdef CONFIG_AMLOGIC_CMA
+#if IS_ENABLED(CONFIG_AMLOGIC_CMA)
 #include <linux/amlogic/aml_cma.h>
 #endif
 #include <asm/stacktrace.h>
 #include <asm/sections.h>
 #include <trace/hooks/mm.h>
-#include <linux/scs.h>
 
-#ifndef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
 #define DEBUG_PAGE_TRACE	0
-#else
-#define DEBUG_PAGE_TRACE	0
-#endif
 
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 #include <linux/nodemask.h>
@@ -82,7 +77,6 @@ static bool merge_function = 1;
 static int page_trace_filter = 64; /* not print size < page_trace_filter */
 static int page_trace_filter_slab;
 static struct proc_dir_entry *d_pagetrace;
-#ifndef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
 struct page_trace *trace_buffer;
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
 EXPORT_SYMBOL(trace_buffer);
@@ -93,7 +87,6 @@ unsigned int trace_step = 1;
 EXPORT_SYMBOL(trace_step);
 #endif
 static bool page_trace_disable __initdata;
-#endif
 
 struct alloc_caller {
 	unsigned long func_start_addr;
@@ -113,8 +106,9 @@ static struct alloc_caller common_caller[COMMON_CALLER_SIZE];
  * be record in page trace, parse for back trace should keep from these
  * functions
  */
+#if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
 static struct fun_symbol common_func[] = {
-	{"__alloc_pages",		1, 0},
+	{"__alloc_pages_noprof",	1, 0},
 	{"__folio_alloc",		1, 0},
 	{"kmem_cache_alloc",		1, 0},
 	{"__get_free_pages",		1, 0},
@@ -155,6 +149,7 @@ static struct fun_symbol common_func[] = {
 	{"__kretprobe_trampoline_handler", 1, 0},
 	{"trampoline_probe_handler",	1, 0},
 	{"kretprobe_trampoline",	1, 0},
+	{"kretprobe_trampoline_handler",	1, 0},
 #endif
 	{"module_alloc",		1, 0},
 	{"load_module",			1, 0},
@@ -176,6 +171,7 @@ static struct fun_symbol common_func[] = {
 #endif
 	{}		/* tail */
 };
+#endif
 
 /* ----------------------------------- */
 
@@ -202,9 +198,9 @@ static struct kprobe kp_lookup_name = {
 /* ----------------------------------- */
 
 static char func_comp_alloc[NAME_MAX] = "compaction_alloc";
-static char func_alloc_pages[NAME_MAX] = "__alloc_pages";
+static char func_alloc_pages[NAME_MAX] = "__alloc_pages_noprof";
 #if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
-static char func_free_prep[NAME_MAX] = "free_unref_page_prepare";
+static char func_free_prep[NAME_MAX] = "free_pages_prepare";
 #else
 static char func_free_prep[NAME_MAX] = "free_pcp_prepare";
 #endif
@@ -366,7 +362,7 @@ static inline bool page_trace_invalid(struct page_trace *trace)
 	return trace->order == IP_INVALID;
 }
 
-#if !defined(CONFIG_AMLOGIC_PAGE_TRACE_INLINE) && IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
+#if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
 static int __init early_page_trace_param(char *buf)
 {
 	if (!buf)
@@ -435,12 +431,6 @@ static bool check_trace_valid(struct page_trace *trace)
 }
 #endif /* DEBUG_PAGE_TRACE */
 
-#ifdef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
-static void push_ip(struct page_trace *base, struct page_trace *ip)
-{
-	*base = *ip;
-}
-#else
 static void push_ip(struct page_trace *base, struct page_trace *ip)
 {
 	int i;
@@ -458,7 +448,6 @@ static void push_ip(struct page_trace *base, struct page_trace *ip)
 
 	base[0] = *ip;
 }
-#endif /* CONFIG_AMLOGIC_PAGE_TRACE_INLINE */
 
 /*
  * set up information for common caller in memory allocate API
@@ -495,19 +484,23 @@ static int __nocfi setup_common_caller(unsigned long kaddr)
 	return -1;
 }
 
+static int max_high;
+
 static void dump_common_caller(void)
 {
 	int i;
 
 	for (i = 0; i < COMMON_CALLER_SIZE; i++) {
 		if (common_caller[i].func_start_addr)
-			pr_debug("%2d, addr:%lx + %4lx, %ps\n", i,
+			pr_debug("dump: %2d, addr:%lx + %4lx, %ps\n", i,
 				common_caller[i].func_start_addr,
 				common_caller[i].size,
 				(void *)common_caller[i].func_start_addr);
 		else
 			break;
 	}
+	max_high = i - 1;
+	pr_info("max high: %d\n", max_high);
 }
 
 static int  sym_cmp(const void *x1, const void *x2)
@@ -642,44 +635,12 @@ static int kallsyms_for_each_symbol(int (*fn)(void *, const char *,
 	}
 	return 0;
 }
-#else
-static int __nocfi match_common_caller(void)
-{
-	int i;
-	struct fun_symbol *s;
-	unsigned long addr;
-
-	for (i = 0; i < ARRAY_SIZE(common_func); i++) {
-		s = &common_func[i];
-		if (!s->name)
-			break;		/* end */
-		addr = aml_kallsyms_lookup_name(s->name);
-		if (addr)
-			setup_common_caller(addr);
-	}
-	return 0;
-}
 #endif
-
-static int find_static_common_symbol(void *data)
-{
-	memset(common_caller, 0, sizeof(common_caller));
-#if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
-	kallsyms_for_each_symbol(match_common_caller, NULL);
-#else
-	match_common_caller();
-#endif
-	sort(common_caller, COMMON_CALLER_SIZE, sizeof(struct alloc_caller),
-		sym_cmp, NULL);
-	dump_common_caller();
-
-	return 0;
-}
 
 static int is_common_caller(struct alloc_caller *caller, unsigned long pc)
 {
 	int ret = 0;
-	int low = 0, high = COMMON_CALLER_SIZE - 1, mid;
+	int low = 0, high = max_high, mid;
 	unsigned long add_l, add_h;
 
 	while (1) {
@@ -702,8 +663,8 @@ static int is_common_caller(struct alloc_caller *caller, unsigned long pc)
 		/* fix range */
 		if (high < 0)
 			high = 0;
-		if (low > (COMMON_CALLER_SIZE - 1))
-			low = COMMON_CALLER_SIZE - 1;
+		if (low > max_high)
+			low = max_high;
 	}
 	return ret;
 }
@@ -727,7 +688,7 @@ EXPORT_SYMBOL(unpack_ip);
  * We can only safely access per-cpu stacks from current in a non-preemptible
  * context.
  */
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
+#if !IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 static bool aml_on_accessible_stack(const struct task_struct *tsk,
 				unsigned long sp, unsigned long size,
 				struct stack_info *info)
@@ -739,12 +700,10 @@ static bool aml_on_accessible_stack(const struct task_struct *tsk,
 		return true;
 	if (tsk != current || preemptible())
 		return false;
-#if !IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 	if (on_irq_stack(sp, size, info))
 		return true;
 	if (on_overflow_stack(sp, size, info))
 		return true;
-#endif
 	if (on_sdei_stack(sp, size, info))
 		return true;
 
@@ -752,62 +711,368 @@ static bool aml_on_accessible_stack(const struct task_struct *tsk,
 }
 #endif
 
-#if CONFIG_AMLOGIC_KERNEL_VERSION >= 15606
-#ifdef CONFIG_SHADOW_CALL_STACK
-#define SCS_MASK (~(SCS_SIZE - 1))
+#if CONFIG_AMLOGIC_KERNEL_VERSION >= 14515
+#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
+#include <linux/proc_fs.h>
 
-static unsigned long get_lr_val(unsigned long lr, unsigned long offset)
-{
-	unsigned long lr_mask = lr & SCS_MASK;
+static void (*f_arch_stack_walk)(stack_trace_consume_fn consume_entry,
+		void *cookie, struct task_struct *task, struct pt_regs *regs);
 
-	return ((lr - offset) & SCS_MASK) == lr_mask ? *(u64 *)(lr - offset) : 0x0;
-}
-#endif
-#elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
-/*
- * Unwind from one frame record (A) to the next frame record (B).
- *
- * We terminate early if the location of B indicates a malformed chain of frame
- * records (e.g. a cycle), determined based on the location and fp value of A
- * and the location (but not the fp value) of B.
- */
-static int notrace unwind_next(struct unwind_state *state)
-{
-	struct task_struct *tsk = state->task;
-	unsigned long fp = state->fp;
-	struct stack_info info;
-	int err;
+struct ksymbol {
+	const char *name;
+	unsigned long data;
+};
 
-	/* Final frame; nothing to unwind */
-	if (fp == (unsigned long)task_pt_regs(tsk)->stackframe)
-		return -ENOENT;
-
-	err = unwind_next_common(state, &info, aml_on_accessible_stack, NULL);
-	if (err)
-		return err;
-
-	state->pc = ptrauth_strip_insn_pac(state->pc);
-
-#if defined(CONFIG_FUNCTION_GRAPH_TRACER) && IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
-	if (tsk->ret_stack &&
-		(state->pc == (unsigned long)return_to_handler)) {
-		unsigned long orig_pc;
-		/*
-		 * This is a case where function graph tracer has
-		 * modified a return address (LR) in a stack frame
-		 * to hook a function return.
-		 * So replace it to an original value.
-		 */
-		orig_pc = ftrace_graph_ret_addr(tsk, NULL, state->pc,
-						(void *)state->fp);
-		if (WARN_ON_ONCE(state->pc == orig_pc))
-			return -EINVAL;
-		state->pc = orig_pc;
+#define KSYM_FUN(sym)			\
+	{				\
+		.name = #sym,		\
+		.data = &f_##sym,	\
 	}
-#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
+#define KSYM_FUN2(sym)			\
+	{				\
+		.name = #sym,		\
+		.data = 0,		\
+	}
+
+#define KSYM_CFI(sym)			\
+	{				\
+		.name = #sym ".cfi_jt",	\
+		.data = &f_##sym,	\
+	}
+
+#define KSYM_OBJ(sym)			\
+	{				\
+		.name = #sym,		\
+		.data = &sym##_t,	\
+	}
+
+//KSYM_FUN2(unwind_next_frame_record),
+
+static struct ksymbol module_symbols[] = {
+	KSYM_FUN2(arch_stack_walk),
+	KSYM_FUN2(__kretprobe_trampoline_handler),
+	KSYM_FUN2(kretprobe_breakpoint_handler),
+	KSYM_FUN2(__alloc_pages_noprof),
+	KSYM_FUN2(cma_alloc),
+	KSYM_FUN2(dma_alloc_from_contiguous),
+	KSYM_FUN2(dma_alloc_contiguous),
+	KSYM_FUN2(sk_prot_alloc),
+	KSYM_FUN2(__alloc_skb),
+	KSYM_FUN2(kstrdup_const),
+	KSYM_FUN2(load_module),
+	KSYM_FUN2(___slab_alloc),
+	KSYM_FUN2(allocate_slab),
+	KSYM_FUN2(do_debug_exception),
+	KSYM_FUN2(el1_dbg),
+	KSYM_FUN2(el1h_64_sync_handler),
+	KSYM_FUN2(el1h_64_sync),
+	KSYM_FUN2(__kretprobe_trampoline),
+	KSYM_FUN2(kmem_cache_alloc_noprof),
+	KSYM_FUN2(kmem_cache_alloc_node_noprof),
+	KSYM_FUN2(__vmalloc_node_range_noprof),
+	KSYM_FUN2(__kmalloc_noprof),
+	KSYM_FUN2(kmem_cache_alloc_lru_noprof),
+	KSYM_FUN2(__kmalloc_node_noprof),
+	KSYM_FUN2(__kmalloc_node_track_caller_noprof),
+	KSYM_FUN2(__kvmalloc_node_noprof),
+	KSYM_FUN2(do_pte_missing),
+	KSYM_FUN2(do_page_fault),
+	KSYM_FUN2(do_translation_fault),
+	KSYM_FUN2(sk_alloc),
+	KSYM_FUN2(__kmalloc_cache_noprof),
+	KSYM_FUN2(do_mem_abort),
+	KSYM_FUN2(el0_da),
+	KSYM_FUN2(el1_abort),
+	KSYM_FUN2(__folio_alloc_noprof),
+	{}
+};
+
+/* see struct proc_dir_entry in fs/proc/internal.h */
+struct proc_node {
+	atomic_t in_use;
+	refcount_t refcnt;
+	struct list_head pde_openers;
+	spinlock_t pde_unload_lock;
+	struct completion *pde_unload_completion;
+	const struct inode_operations *proc_iops;
+	union {
+		const struct proc_ops *proc_ops;
+		const struct file_operations *proc_dir_ops;
+	};
+	const struct dentry_operations *proc_dops;
+	union {
+		const struct seq_operations *seq_ops;
+		int (*single_show)(struct seq_file *, void *);
+	};
+	proc_write_t write;
+	void *data;
+	unsigned int state_size;
+	unsigned int low_ino;
+	nlink_t nlink;
+	kuid_t uid;
+	kgid_t gid;
+	loff_t size;
+	struct proc_node *parent;
+	struct rb_root subdir;
+	struct rb_node subdir_node;
+	char *name;
+	umode_t mode;
+	u8 flags;
+	u8 namelen;
+	char inline_name[];
+} __randomize_layout;
+
+static struct proc_node *find_subnode(struct proc_node *parent, char *name)
+{
+	struct proc_node *pd = NULL;
+
+	pd = rb_entry_safe(rb_first(&parent->subdir), struct proc_node, subdir_node);
+	while (1) {
+		if (!pd)
+			break;
+		if (!strcmp(pd->name, name))
+			break;
+		pd = rb_entry_safe(rb_next(&pd->subdir_node), struct proc_node, subdir_node);
+	}
+	return pd;
+}
+
+static int name_cmpare(const char *name1, int len1, const char *name2, int len2)
+{
+	int cmp;
+
+	cmp = memcmp(name1, name2, min(len1, len2));
+	if (cmp == 0)
+		cmp = len1 - len2;
+	return cmp;
+}
+
+static int proc_handle(const struct ctl_table *table, int write,
+		  void *buffer, size_t *lenp, loff_t *ppos)
+{
+	return 0;
+}
+
+static struct ctl_table *disable_kstr_ptr(int *old)
+{
+	struct ctl_table tmp[] = {
+		{
+			.procname = "get_symbol",
+			.proc_handler = proc_handle,
+			.mode = 0666,
+			.data = NULL,
+		},
+	};
+	struct ctl_table_header *hdr, *head;
+	struct rb_node *node;
+	struct ctl_table *entry = NULL;
+	struct ctl_dir *dir;
+
+	hdr = register_sysctl("kernel", tmp);
+	if (!hdr) {
+		pr_err("%s, register failed\n", __func__);
+		return NULL;
+	}
+
+	dir = hdr->parent;
+	node = dir->root.rb_node;
+	while (node) {
+		struct ctl_node *ctl_node;
+		const char *procname;
+		int cmp;
+
+		ctl_node = rb_entry(node, struct ctl_node, node);
+		head = ctl_node->header;
+		entry = &head->ctl_table[ctl_node - head->node];
+		procname = entry->procname;
+
+		cmp = name_cmpare("perf_event_paranoid", 13, procname, strlen(procname));
+		if (cmp < 0)
+			node = node->rb_left;
+		else if (cmp > 0)
+			node = node->rb_right;
+		else
+			break;
+	}
+	unregister_sysctl_table(hdr);
+	if (entry) {
+		*old = *(int *)entry->data;
+		pr_debug("get entry:%px, %s, value:%d\n",
+			entry, entry->procname, *old);
+		*(int *)entry->data = 0;
+		return entry;
+	}
+	return NULL;
+}
+
+static int fill_symbol(char *line, struct ksymbol *sym)
+{
+	int finish = 2;
+	unsigned long value;
+	int ret, find = 0, len;
+
+	while (sym->name) {
+		if (sym->data) {
+			sym++;
+			continue;
+		} else {
+			finish = 0;
+		}
+
+		len = strlen(sym->name);
+		if (!strncmp(line + 19, sym->name, len)) {
+			if (line[19 + len + 1]) {	// not terminate
+				sym++;
+				continue;
+			}
+			line[16] = '\0';
+			ret = kstrtoul(line, 16, &value);
+			pr_debug("=======find sym:%lx %s\n", value, sym->name);
+			if (ret)
+				return ret;
+			sym->data = value;
+			find = 1;
+			break;
+		}
+		sym++;
+	}
+	if (finish == 2)
+		return 2;
+	return find;
+}
+
+static struct super_block _s = {};
+
+static struct inode _i = {
+	.i_sb = &_s,
+};
+
+static struct address_space _a = {
+	.host = &_i,
+};
+
+static struct file f = {
+	.f_mapping = &_a,
+	.f_inode = &_i,
+};
+
+static int fill_module_symbols(struct proc_node *node, struct ksymbol *sym)
+{
+	struct proc_ops *ops;
+	struct seq_file *s;
+	char line_buf[256] = {};
+	int ret = 0;
+	loff_t off = 0;
+
+	ops = (struct proc_ops *)node->proc_ops;
+	ret = ops->proc_open(NULL, &f);
+	if (ret) {
+		pr_info("open fail\n");
+		return -1;
+	}
+	s = f.private_data;
+	s->op->start(s, &off);
+	s->buf = line_buf;
+	while (1) {
+		s->count = 0;
+		s->size  = sizeof(line_buf);
+		memset(line_buf, 0, sizeof(line_buf));
+		ret = s->op->show(s, NULL);
+		if (ret < 0) {
+			pr_info("read fail:%d\n", ret);
+			break;
+		}
+		s->count = 0;
+		pr_debug("line:%s", line_buf);
+		ret = fill_symbol(line_buf, sym);
+		if (ret == 2)
+			break;
+		s->op->next(s, NULL, &off);
+	}
+	s->buf = NULL;
+	ops->proc_release(NULL, &f);
+	return ret;
+}
+
+int symbol_fix(void)
+{
+	struct proc_dir_entry *entry;
+	struct proc_node *parent, *tmp;
+	const struct proc_ops temp = {};
+	struct ctl_table *kptr;
+	int ret = 0, old = -1;
+
+	entry = proc_create("get_symbol", 0444, NULL, &temp);
+	if (!entry) {
+		pr_err("%s, create proc failed\n", __func__);
+		return -1;
+	}
+	parent = ((struct proc_node *)entry)->parent;
+	if (!parent) {
+		pr_err("%s, NULL parent\n", __func__);
+		return -1;
+	}
+
+	kptr = disable_kstr_ptr(&old);
+	if (!kptr) {
+		pr_err("get kptr failed\n");
+		return -1;
+	}
+	tmp = find_subnode(parent, "kallsyms");
+	if (!tmp) {
+		pr_err("get kallsyms failed\n");
+		return -1;
+	}
+
+	ret = fill_module_symbols(tmp, module_symbols);
+
+	*(int *)kptr->data = old;
+
+	f_arch_stack_walk = (void (*)(stack_trace_consume_fn consume_entry, void *cookie,
+		struct task_struct *task, struct pt_regs *regs))module_symbols[0].data;
+
+	proc_remove(entry);
 
 	return 0;
 }
+
+#if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
+static int __nocfi match_common_caller(void)
+{
+	int i;
+	struct ksymbol *s;
+	unsigned long addr;
+
+	for (i = 0; i < ARRAY_SIZE(module_symbols); i++) {
+		s = &module_symbols[i];
+		if (!s->name)
+			break;		/* end */
+		//addr = aml_kallsyms_lookup_name(s->name);
+		addr = s->data;
+		if (addr)
+			setup_common_caller(addr);
+	}
+	return 0;
+}
+#endif
+
+static int find_static_common_symbol(void *data)
+{
+	memset(common_caller, 0, sizeof(common_caller));
+#if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
+	kallsyms_for_each_symbol(match_common_caller, NULL);
+#else
+	match_common_caller();
+#endif
+	sort(common_caller, COMMON_CALLER_SIZE, sizeof(struct alloc_caller),
+		sym_cmp, NULL);
+	dump_common_caller();
+
+	return 0;
+}
+
+#endif
 #else
 /*
  * Unwind from one frame record (A) to the next frame record (B).
@@ -890,45 +1155,38 @@ static int notrace aml_unwind_frame(struct task_struct *tsk, struct stackframe *
 #endif
 #endif
 
-unsigned long find_back_trace(void)
-{
 #if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
-	struct stack_info stacks[] = {
-		stackinfo_get_task(current),
-	};
-	struct unwind_state frame = {
-		.stacks = stacks,
-		.nr_stacks = ARRAY_SIZE(stacks),
-	};
-#else
-	struct stackframe frame;
+unsigned long backtrace_pc, backtrace_skip;
+
+static bool aml_dump_backtrace_entry(void *arg, unsigned long where)
+{
+	if (!is_common_caller(common_caller, where)) {
+		backtrace_pc = where;
+		backtrace_skip++;
+		if (backtrace_skip > 5)
+			return false;
+	}
+	return true;
+}
 #endif
+
+unsigned long __nocfi find_back_trace(void)
+{
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
+	struct stackframe frame;
 	int ret, step = 0;
+#endif
 
 #ifdef CONFIG_ARM64
-#if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
-#ifdef CONFIG_SHADOW_CALL_STACK
-	unsigned long lr;
-	unsigned int offset = 5;
-#endif
-#endif
+#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	frame.fp = (unsigned long)__builtin_frame_address(1);
 	frame.pc = (unsigned long)__builtin_return_address(0);
-#if CONFIG_AMLOGIC_KERNEL_VERSION <= 14515
 	bitmap_zero(frame.stacks_done, __NR_STACK_TYPES);
 	frame.prev_fp = 0;
 	frame.prev_type = STACK_TYPE_UNKNOWN;
 #endif
 
-#if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
-#ifdef CONFIG_SHADOW_CALL_STACK
-	/* get lr from scs */
-	asm volatile("mov %0, x18\n"
-		: "=&r" (lr));
-#endif
-	frame.stack = stackinfo_get_unknown();
-	frame.task = current;
-#elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
+#if CONFIG_AMLOGIC_KERNEL_VERSION == 14515
 	frame.task = current;
 #else
 #if defined(CONFIG_FUNCTION_GRAPH_TRACER) && IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
@@ -941,21 +1199,17 @@ unsigned long find_back_trace(void)
 	frame.lr = (unsigned long)__builtin_return_address(0);
 	frame.pc = (unsigned long)find_back_trace;
 #endif
+
+#if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
+	backtrace_pc = 0;
+	backtrace_skip = 0;
+	f_arch_stack_walk(aml_dump_backtrace_entry, KERN_DEFAULT, current, NULL);
+	if (backtrace_pc)
+		return backtrace_pc;
+#else
 	while (1) {
 	#ifdef CONFIG_ARM64
-	#if CONFIG_AMLOGIC_KERNEL_VERSION > 14515
-	#ifdef CONFIG_SHADOW_CALL_STACK
-		frame.pc = get_lr_val(lr, offset * sizeof(unsigned long));
-		offset++;
-		ret = 0;
-	#else
-		ret = -1;
-	#endif
-	#elif CONFIG_AMLOGIC_KERNEL_VERSION == 14515
-		ret = unwind_next(&frame);
-	#else
 		ret = aml_unwind_frame(current, &frame);
-	#endif
 	#elif defined(CONFIG_ARM)
 		ret = unwind_frame(&frame);
 	#else	/* not supported */
@@ -963,12 +1217,16 @@ unsigned long find_back_trace(void)
 	#endif
 		if (ret < 0)
 			return 0;
+		frame.pc = ptrauth_strip_kernel_insn_pac(frame.pc);
 		step++;
 		if (!is_common_caller(common_caller, frame.pc) && step > 1)
 			return frame.pc;
 	}
+#endif
+#if DEBUG_PAGE_TRACE
 	pr_info("can't get pc\n");
 	dump_stack();
+#endif
 	return 0;
 }
 
@@ -1021,15 +1279,6 @@ static struct zone *aml_next_zone(struct zone *zone)
 			; /* do nothing */			\
 		else
 
-#ifdef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
-struct page_trace *find_page_base(struct page *page)
-{
-	struct page_trace *trace;
-
-	trace = (struct page_trace *)&page->trace;
-	return trace;
-}
-#else
 struct page_trace *find_page_base(struct page *page)
 {
 	unsigned long pfn, zone_offset = 0, offset;
@@ -1056,7 +1305,6 @@ struct page_trace *find_page_base(struct page *page)
 
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 EXPORT_SYMBOL(find_page_base);
-#endif
 #endif
 
 unsigned long get_page_trace(struct page *page)
@@ -1088,7 +1336,6 @@ static int aml_gfp_migratetype(const gfp_t gfp_flags)
 	return (gfp_flags & AML_GFP_MOVABLE_MASK) >> AML_GFP_MOVABLE_SHIFT;
 }
 
-#ifndef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
 static void __init set_init_page_trace(struct page *page, unsigned int order, gfp_t flag)
 {
 	unsigned long text;
@@ -1106,7 +1353,6 @@ static void __init set_init_page_trace(struct page *page, unsigned int order, gf
 		push_ip(base, &trace);
 	}
 }
-#endif
 
 unsigned long pack_ip(unsigned long ip, unsigned int order, gfp_t flag)
 {
@@ -1114,14 +1360,10 @@ unsigned long pack_ip(unsigned long ip, unsigned int order, gfp_t flag)
 	struct page_trace trace = {};
 
 	trace.ret_ip = (ip - text) >> 2;
-#ifdef CONFIG_AMLOGIC_NO_CMA
 	if (flag == __GFP_NO_CMA)
 		trace.migrate_type = MIGRATE_CMA;
 	else
 		trace.migrate_type = aml_gfp_migratetype(flag);
-#else
-	trace.migrate_type = aml_gfp_migratetype(flag);
-#endif /* CONFIG_AMLOGIC_CMA */
 	trace.order = order;
 #if DEBUG_PAGE_TRACE
 	pr_debug("%s, base:%p, page:%lx, _ip:%x, o:%d, f:%x, ip:%lx\n",
@@ -1140,19 +1382,17 @@ void set_page_trace(struct page *page, unsigned int order, gfp_t flag, void *fun
 
 	if (!page)
 		return;
-#ifndef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
 	if (!trace_buffer)
 		return;
 
 	ip = PAGE_TRACE_OFFSET;
-#endif
 	if (!func)
 		ip = find_back_trace();
 	else
 		ip = (unsigned long)func;
 
 	if (!ip) {
-	#if !defined(CONFIG_ARM64) || defined(CONFIG_SHADOW_CALL_STACK)
+	#if !defined(CONFIG_ARM64)
 		pr_err("can't find backtrace for page:%lx\n",
 			 page_to_pfn(page));
 	#endif
@@ -1165,11 +1405,7 @@ void set_page_trace(struct page *page, unsigned int order, gfp_t flag, void *fun
 		/* in order to easy get trace for high order alloc */
 		val = pack_ip(ip, 0, flag);
 		for (i = 1; i < (1 << order); i++) {
-		#ifdef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
-			base = find_page_base(++page);
-		#else
 			base += (trace_step);
-		#endif
 			push_ip(base, (struct page_trace *)&val);
 		}
 	}
@@ -1179,24 +1415,6 @@ void set_page_trace(struct page *page, unsigned int order, gfp_t flag, void *fun
 EXPORT_SYMBOL(set_page_trace);
 #endif
 
-#ifdef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
-void reset_page_trace(struct page *page, unsigned int order)
-{
-	struct page_trace *base;
-	struct page *p;
-	int i, cnt;
-
-	if (page) {
-		cnt = 1 << order;
-		p = page;
-		for (i = 0; i < cnt; i++) {
-			base = find_page_base(p);
-			base->order = IP_INVALID;
-			p++;
-		}
-	}
-}
-#else
 void reset_page_trace(struct page *page, unsigned int order)
 {
 	struct page_trace *base;
@@ -1219,7 +1437,6 @@ void reset_page_trace(struct page *page, unsigned int order)
 		}
 	}
 }
-#endif
 
 void replace_page_trace(struct page *new, struct page *old)
 {
@@ -1237,7 +1454,6 @@ void replace_page_trace(struct page *new, struct page *old)
 EXPORT_SYMBOL(replace_page_trace);
 #endif
 
-#ifndef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
 /*
  * move page out of buddy and make sure they are not malloced by
  * other module
@@ -1285,7 +1501,6 @@ static int __init page_trace_pre_work(unsigned long size)
 	}
 	return 0;
 }
-#endif
 
 /*--------------------------sysfs node -------------------------------*/
 #define LARGE	1024
@@ -1535,12 +1750,10 @@ static int pagetrace_show(struct seq_file *m, void *arg)
 	int ret, size = sizeof(struct page_summary) * SHOW_CNT;
 	struct pagetrace_summary *sum;
 
-#ifndef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
 	if (!trace_buffer) {
 		seq_puts(m, "page trace not enabled\n");
 		return 0;
 	}
-#endif
 	sum = kzalloc(sizeof(*sum), GFP_KERNEL);
 	if (!sum)
 		return -ENOMEM;
@@ -1703,12 +1916,10 @@ static void __kprobes dump_header_handler_post(struct kprobe *p,
 	int ret, size = sizeof(struct page_summary) * SHOW_CNT;
 	struct pagetrace_summary *sum;
 
-#ifndef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
 	if (!trace_buffer) {
 		pr_info("page trace not enabled\n");
 		return;
 	}
-#endif
 
 	sum = kzalloc(sizeof(*sum), GFP_KERNEL);
 	if (!sum)
@@ -1751,14 +1962,9 @@ static int __init page_trace_module_init(void)
 	int size = sizeof(struct page_summary) * SHOW_CNT;
 #endif
 
-#ifdef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
-	d_pagetrace = proc_create("pagetrace", 0444,
-				  NULL, &pagetrace_proc_ops);
-#else
 	if (!page_trace_disable)
 		d_pagetrace = proc_create("pagetrace", 0444,
 					  NULL, &pagetrace_proc_ops);
-#endif
 	if (IS_ERR_OR_NULL(d_pagetrace)) {
 		pr_err("%s, create pagetrace failed\n", __func__);
 		return -1;
@@ -1785,6 +1991,13 @@ static int __init page_trace_module_init(void)
 
 	aml_kallsyms_lookup_name = (unsigned long (*)(const char *name))kp_lookup_name.addr;
 
+#if (CONFIG_AMLOGIC_KERNEL_VERSION >= 14515) && defined(CONFIG_ARM64)
+	if (symbol_fix()) {
+		pr_info("%s, %d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+#endif
+
 	page_trace_mem_init();
 
 	dump_sum = vzalloc(size);
@@ -1796,10 +2009,8 @@ static int __init page_trace_module_init(void)
 	}
 #endif
 
-#ifndef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
 	if (!trace_buffer)
 		return -ENOMEM;
-#endif
 
 #if IS_MODULE(CONFIG_AMLOGIC_PAGE_TRACE)
 	comp_alloc_kretprobe.kp.symbol_name = func_comp_alloc;
@@ -1881,10 +2092,8 @@ module_exit(page_trace_module_exit);
 #if IS_BUILTIN(CONFIG_AMLOGIC_PAGE_TRACE)
 void __init page_trace_mem_init(void)
 {
-#ifndef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
 	struct zone *zone;
 	unsigned long total_page = 0;
-#endif
 
 	find_static_common_symbol(NULL);
 #ifdef CONFIG_KASAN	/* open multi_shot for kasan */
@@ -1896,16 +2105,6 @@ void __init page_trace_mem_init(void)
 	kasan_save_enable_multi_shot();
 #endif
 #endif
-#ifdef CONFIG_AMLOGIC_PAGE_TRACE_INLINE
-	/*
-	 * if this compiler error occurs, that means there are over 32 page
-	 * flags, you should disable AMLOGIC_PAGE_TRACE or reduce some page
-	 * flags.
-	 */
-	BUILD_BUG_ON((__NR_PAGEFLAGS + ZONES_WIDTH    +
-		      NODES_WIDTH    + SECTIONS_WIDTH +
-		      LAST_CPUPID_SHIFT) > 32);
-#else
 	if (page_trace_disable)
 		return;
 
@@ -1922,7 +2121,6 @@ void __init page_trace_mem_init(void)
 		pr_err("%s reserve memory failed\n", __func__);
 		return;
 	}
-#endif
 }
 #else
 static void mark_free_pages(struct zone *zone)
