@@ -199,6 +199,15 @@
 		interrupts = <0 137 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	iotm {
+		compatible = "amlogic, iotm";
+		status = "disabled";
+		/* a53_dbg: CSSYS_BASE_ADDR + iotm & coresight */
+		reg = <0x0 0xfe800000 0x0 0x8000>;
+		memory-region = <&debug_reserved>;
+		interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	pwrdm: power-domains {
 		compatible = "amlogic,t6d-power-domain";
 		#power-domain-cells = <1>;

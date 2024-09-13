@@ -73,7 +73,6 @@
 			smc-size = <0x1000>;
 			misc-size = <0x1000>;
 			iotm-size = <0xbb80>;
-			status = "okay";
 		};
 
 		secmon_reserved:linux,secmon {

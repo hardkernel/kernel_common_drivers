@@ -20,15 +20,16 @@
 #include <linux/amlogic/gki_module.h>
 #include <trace/hooks/traps.h>
 #include <linux/amlogic/aml_iotm.h>
-#include <linux/amlogic/gki_module.h>
-#include <linux/sched/clock.h>
 #include <linux/arm-smccc.h>
 #include <linux/panic_notifier.h>
 #include <linux/timer.h>
+#include <linux/syscore_ops.h>
+#include <linux/hardirq.h>
 #include "iotm_hw.h"
 
 static int iotm_irq_to_exception;
 static struct iotm iotm;
+static int iotm_supported;
 
 int get_iotm_monitor_mode(void)
 {
@@ -41,7 +42,7 @@ static int iotm_enabled;
 int get_iotm_en_ddr_size(int *iotm_ddr_size)
 {
 	*iotm_ddr_size = iotm.buf_end - iotm.buf_start + 1;
-	return iotm_enabled;
+	return iotm_supported;
 }
 EXPORT_SYMBOL(get_iotm_en_ddr_size);
 
@@ -51,21 +52,28 @@ static int iotm_disable_set(const char *val, const struct kernel_param *kp)
 {
 	unsigned int iotm_ctrl_mode_val;
 
+	if (!iotm_supported) {
+		pr_err("IOTM:not support in this board\n");
+		return -EINVAL;
+	}
+
 	if (kstrtoint(val, 0, &iotm_disable)) {
 		pr_err("IOTM:iotm_disable error: %s\n", val);
 		return -EINVAL;
 	}
+	iotm_ctrl_mode_val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
+
 	if (iotm_disable == 1) {
-		iotm_ctrl_mode_val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
 		iotm_ctrl_mode_val |= IOTM_CTRL_MODE_TRACE_DISABLE;
-		writel(iotm_ctrl_mode_val, iotm.cssys_base + IOTM_CTRL_MODE);
 		iotm_enabled = 0;
 		pr_info("IOTM:has been disabled\n");
 	} else if (iotm_disable == 0) {
-		iotm_coresight_init();
+		iotm_ctrl_mode_val |= IOTM_CTRL_MODE_TRACE_ENABLE;
 		iotm_enabled = 1;
 		pr_info("IOTM:has been enabled\n");
 	}
+
+	writel(iotm_ctrl_mode_val, iotm.cssys_base + IOTM_CTRL_MODE);
 
 	return 0;
 }
@@ -402,6 +410,14 @@ static int iotm_exception_handler(struct notifier_block *nb,
 
 	print_timeout_data();
 
+	/*
+	 * arm64 calls nmi_enter() before do_serror(),
+	 * it will cause printk entered deferred mode
+	 * and not outputs to console immediately.
+	 */
+	if (in_nmi())
+		__preempt_count_sub(NMI_OFFSET + HARDIRQ_OFFSET);
+
 	dump_iotm_trace();
 
 	return 0;
@@ -455,8 +471,13 @@ static void iotm_coresight_init(void)
 	unsigned int val, i;
 	struct arm_smccc_res smccc;
 
+	/* stop iotm. */
+	val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
+	val |= IOTM_CTRL_MODE_TRACE_DISABLE;
+	writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
+
 	/* init iotm and reset coresight */
-	arm_smccc_smc(AML_IOTM_SMC_CMD, AML_IOTM_INIT_SMC_ARG, 0, 0, 0, 0, 0, 0, &smccc);
+	__arm_smccc_smc(AML_IOTM_SMC_CMD, AML_IOTM_INIT_SMC_ARG, 0, 0, 0, 0, 0, 0, &smccc, NULL);
 
 	/* exclude a53_dbg CSSYS_BASE_ADDR + iotm & coresight registers */
 	iotm.range[6].start = iotm.cssys_base_phy;
@@ -469,8 +490,8 @@ static void iotm_coresight_init(void)
 	/* do exclude registers */
 	for (i = 0; i < MAX_EXCLUDE_RANGE; i++) {
 		if (iotm.range[i].start != 0)
-			arm_smccc_smc(AML_IOTM_SMC_CMD, AML_IOTM_RANGE_SMC_ARG, i,
-				iotm.range[i].start, iotm.range[i].end, 0, 0, 0, &smccc);
+			__arm_smccc_smc(AML_IOTM_SMC_CMD, AML_IOTM_RANGE_SMC_ARG, i,
+				iotm.range[i].start, iotm.range[i].end, 0, 0, 0, &smccc, NULL);
 	}
 
 	if (iotm.monitor_mode == AXI_MODE) {
@@ -525,7 +546,13 @@ static irqreturn_t iotm_irq_handler(int irq, void *data)
 		pr_err("IOTM:full irq! IOTM_IRQ_CTRL = 0x%x\n", val);
 		writel(val | IOTM_IRQ_CTRL_PACK_IRQ_CLEAR | IOTM_IRQ_CTRL_VAPB4_FULL_CLEAR |
 				IOTM_IRQ_CTRL_CAPU_FULL_CLEAR, iotm.cssys_base + IOTM_IRQ_CTRL);
-		iotm_coresight_init();
+
+		/* restart trace data */
+		val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
+		val |= (IOTM_CTRL_MODE_CAPU_ENABLE | IOTM_CTRL_MODE_VAPB4_ENABLE |
+			IOTM_CTRL_MODE_TRACE_ENABLE);
+		writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
+
 		iotm_enabled = 1;
 	}
 
@@ -563,6 +590,39 @@ static int get_iotm_ddr_range(struct platform_device *pdev)
 
 	return 0;
 }
+
+static int iotm_syscore_suspend(void)
+{
+	unsigned int iotm_ctrl_mode_val;
+
+	iotm_enabled = 0;
+	iotm_ctrl_mode_val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
+	iotm_ctrl_mode_val |= IOTM_CTRL_MODE_TRACE_DISABLE;
+	writel(iotm_ctrl_mode_val, iotm.cssys_base + IOTM_CTRL_MODE);
+
+	return 0;
+}
+
+static void iotm_syscore_resume(void)
+{
+	unsigned int iotm_ctrl_mode_val;
+
+	iotm_ctrl_mode_val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
+	iotm_ctrl_mode_val |= IOTM_CTRL_MODE_TRACE_ENABLE;
+	writel(iotm_ctrl_mode_val, iotm.cssys_base + IOTM_CTRL_MODE);
+	iotm_enabled = 1;
+}
+
+static void iotm_syscore_shutdown(void)
+{
+	iotm_syscore_suspend();
+}
+
+static struct syscore_ops iotm_syscore_ops = {
+	.suspend = iotm_syscore_suspend,
+	.resume = iotm_syscore_resume,
+	.shutdown = iotm_syscore_shutdown,
+};
 
 static int iotm_probe(struct platform_device *pdev)
 {
@@ -612,7 +672,9 @@ static int iotm_probe(struct platform_device *pdev)
 	/* print iotm trace */
 	atomic_notifier_chain_register(&panic_notifier_list, &iotm_panic_notifier);
 
+	register_syscore_ops(&iotm_syscore_ops);
 	iotm_enabled = 1;
+	iotm_supported = 1;
 
 	return 0;
 }

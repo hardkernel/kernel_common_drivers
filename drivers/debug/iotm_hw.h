@@ -152,7 +152,7 @@ struct detect_range {
 
 struct iotm {
 	void __iomem *cssys_base;
-	phys_addr_t cssys_base_phy;
+	unsigned int cssys_base_phy;
 	size_t cssys_size;
 	unsigned int monitor_mode;
 	struct detect_range range[MAX_EXCLUDE_RANGE];
