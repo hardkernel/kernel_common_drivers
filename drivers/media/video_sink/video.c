@@ -12204,6 +12204,10 @@ static ssize_t aisr_demo_en_store(struct class *cla,
 	}
 	if (res != cur_dev->aisr_demo_en) {
 		cur_dev->aisr_demo_en = res;
+		if (cur_dev->aisr_demo_en)
+			amve_safa_demo_ctrl(1);
+		else
+			amve_safa_demo_ctrl(0);
 		vd_layer[0].property_changed = true;
 	}
 	return count;
