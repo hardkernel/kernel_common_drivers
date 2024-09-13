@@ -137,8 +137,9 @@
 // frc_20240815 frc handles NULL pointer call
 // frc_20240819 t5m dlg modify n2m to 1:1
 // frc_20240902 fix pps adjust abnormal (need test)
+// frc_20240906 disable frc when out fr is 165hz
 
-#define FRC_FW_VER			"2024-0906 disable frc when out fr is 165hz"
+#define FRC_FW_VER			"2024-0913 frc_re_cfg_cnt set 0"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
@@ -255,8 +256,8 @@ extern int frc_dbg_en;
 #define FRC_VD_FPS_30    30
 #define FRC_VD_FPS_25    25
 #define FRC_VD_FPS_24    24
-#define FRC_VD_FPS_120   120
 #define FRC_VD_FPS_100   100
+#define FRC_VD_FPS_120   120
 #define FRC_VD_FPS_144   144
 #define FRC_VD_FPS_165   165
 #define FRC_VD_FPS_200   200

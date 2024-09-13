@@ -63,7 +63,7 @@ int frc_disable_cnt = 1;
 module_param(frc_disable_cnt, int, 0664);
 MODULE_PARM_DESC(frc_disable_cnt, "frc disable counter");
 
-int frc_re_cfg_cnt = 3;/*need bigger than frc_disable_cnt 3, 15*/
+int frc_re_cfg_cnt;/*need bigger than frc_disable_cnt 3, 15*/
 module_param(frc_re_cfg_cnt, int, 0664);
 MODULE_PARM_DESC(frc_re_cfg_cnt, "frc reconfig counter");
 
@@ -1192,8 +1192,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 		if (((devp->in_sts.frc_vf_rate == FRC_VD_FPS_100 ||
 			devp->in_sts.frc_vf_rate == FRC_VD_FPS_120) &&
 			devp->out_sts.out_framerate <= FRC_VD_FPS_120) ||
-			devp->in_sts.frc_vf_rate == FRC_VD_FPS_200 ||
-			devp->in_sts.frc_vf_rate == FRC_VD_FPS_240) {
+			devp->in_sts.frc_vf_rate > FRC_VD_FPS_120) {
 			if ((devp->in_sts.st_flag & FRC_FLAG_HIGH_FREQ) !=
 						FRC_FLAG_HIGH_FREQ) {
 				devp->in_sts.st_flag =
