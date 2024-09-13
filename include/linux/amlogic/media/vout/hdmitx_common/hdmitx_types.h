@@ -116,12 +116,6 @@ enum hdmi_phy_para {
 	HDMI_PHYPARA_270M, /* 480p60hz 444 8bit */
 };
 
-enum vrr_type {
-	T_VRR_NONE,
-	T_VRR_GAME,
-	T_VRR_QMS,
-};
-
 enum emp_type {
 	EMP_TYPE_NONE,
 	EMP_TYPE_VRR_GAME = T_VRR_GAME,

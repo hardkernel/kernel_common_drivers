@@ -68,12 +68,20 @@ struct drm_meson_fbdev_rect {
 	__u32 mask;
 };
 
+enum drm_vrr_type {
+	DRM_VRR_QMS,
+	DRM_VRR_GAME,
+};
+
 struct drm_vrr_mode_group {
 	__u32 brr_vic;
 	__u32 width;
 	__u32 height;
 	__u32 vrr_min;
 	__u32 vrr_max;
+	__u32 game_vrr_min;
+	__u32 game_vrr_max;
+	__u32 game_brr_vic;
 	__u32 brr;
 	char modename[DRM_DISPLAY_MODE_LEN];
 };
@@ -85,7 +93,7 @@ struct drm_vrr_mode_groups {
 };
 
 struct hdmitx_vrr_mode_group {
-	__u32 brr_vic; /* brr vic for hdmitx */
+	__u32 brr_vic; /* brr vic for hdmitx QMS-VRR */
 	__u32 width;
 	__u32 height;
 	__u32 vrr_min; /* QMS_VRR range, Unit: 0.01, for example, 2397, 2400, 5994, ... etc */
@@ -98,9 +106,10 @@ struct hdmitx_vrr_mode_group {
 	__u32 game_vrr_min; /* GAME_VRR range */
 	__u32 game_vrr_max;
 
-	__u32 brr;
+	__u32 brr; /* brr for Panel usage */
 	char modename[DRM_DISPLAY_MODE_LEN];
 	__u32 reserv[16];
+	__u32 game_brr_vic; /* for hdmitx GAME-VRR */
 };
 
 /**

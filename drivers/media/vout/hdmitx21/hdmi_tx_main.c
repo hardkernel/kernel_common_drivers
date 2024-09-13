@@ -2048,6 +2048,20 @@ static ssize_t config_store(struct device *dev,
 		hdmi_audio_infoframe_rawset(hb, pb);
 	} else if (strncmp(buf, "t_sbtm", 6) == 0) {
 		hdmitx21_send_sbtm_pkt();
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	} else if (strncmp(buf, "t_vrr", 5) == 0) {
+		/*
+		 * t_vrr14000: game, 40.00hz
+		 * t_vrr23000: qms, tfr 30hz
+		 * t_vrr00: exit game/qms mode
+		 */
+		struct vrr_setting_info data;
+		unsigned long rate;
+
+		data.type = buf[5] - '0';
+		if (kstrtoul(buf + 6, 10, &rate) == 0)
+			hdmitx_set_vrr_rate((int)rate, &data);
+#endif
 	}
 	return count;
 }

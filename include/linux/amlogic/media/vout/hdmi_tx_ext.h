@@ -20,6 +20,18 @@
 #define HDMITX_PHY_ADDR_VALID		3
 #define HDMITX_KSVLIST	4
 
+enum vrr_type {
+	T_VRR_NONE,
+	T_VRR_GAME,
+	T_VRR_QMS,
+	T_VRR_MAX,
+};
+
+struct vrr_setting_info {
+	enum vrr_type type; /* if type is T_VRR_NONE, means exit VRR mode */
+	bool gpu_drive_vsync; /* reserved, not support now */
+};
+
 enum hdcp_ver_e {
 	HDCPVER_NONE = 0,
 	HDCPVER_14,

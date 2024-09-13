@@ -716,6 +716,11 @@ static u32 reduce_0p1_percent(u32 value)
 	return value;
 }
 
+static u32 reduce_1p3_percent(u32 value)
+{
+	return DIV_ROUND_CLOSEST_ULL(mul_u32_u32(value, 10000), 10131);
+}
+
 /*
  * debug only, should be positive value. if it is N, then vysnc_handler
  * will handle N frames, then it will be 0, and vysnc_handler is pending
@@ -1122,45 +1127,45 @@ ssize_t _vrr_cap_show(struct device *dev,
 	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
 	struct vrr_device_s *vrr = &hdev->hdmitx_vrr_dev;
 
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"neg_mvrr: %d\n", prxcap->neg_mvrr);
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"fva: %d\n", prxcap->fva);
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"allm: %d\n", prxcap->allm);
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"fapa_start_location: %d\n", prxcap->fapa_start_loc);
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"qms: %d\n", prxcap->qms);
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"qms_tfr_max: %d\n", prxcap->qms_tfr_max);
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"qms_tfr_min: %d\n", prxcap->qms_tfr_min);
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"mdelta: %d\n", prxcap->mdelta);
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"vrr_max: %d\n", prxcap->vrr_max);
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"vrr_min: %d\n", prxcap->vrr_min);
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"vrr.vfreq_max: %d\n", vrr->vfreq_max);
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"vrr.vfreq_min: %d\n", vrr->vfreq_min);
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"vrr.vline_max: %d\n", vrr->vline_max);
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"vrr.vline_min: %d\n", vrr->vline_min);
-	pos += _vrr_groups_show_(pos, buf + pos);
+	pos += _vrr_groups_show_(pos, buf);
 	return pos;
 }
 
-static int _vrr_groups_show_(int _pos, char *buf)
+static int _vrr_groups_show_(int pos, char *buf)
 {
 #ifndef HDMI_NO_VERBOSE_INFO
 	struct hdmitx_vrr_mode_group *groups;
 	int i;
 	int j;
-	int pos = 0;
+	const struct hdmi_timing *timing;
 
 	/* check the VRR range group */
 	groups = kcalloc(MAX_VRR_MODE_GROUP, sizeof(*groups), GFP_KERNEL);
@@ -1173,23 +1178,27 @@ static int _vrr_groups_show_(int _pos, char *buf)
 	for (i = 0; i < MAX_VRR_MODE_GROUP; i++) {
 		if (!groups[i].brr_vic)
 			continue;
-		pos += snprintf(buf + _pos, PAGE_SIZE, "VRR Group%d\n", i);
-		pos += snprintf(buf + pos, PAGE_SIZE, "  brr vic %d\n", groups[i].brr_vic);
-		pos += snprintf(buf + pos, PAGE_SIZE, "vrr_min/max %d %d\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "VRR Group%d\n", i);
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "  brr vic %d\n", groups[i].brr_vic);
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "  vrr_min/max %d %d\n",
 			groups[i].vrr_min, groups[i].vrr_max);
 		for (j = 0; j < MAX_QMS_GROUP_NUM; j++) {
-			const struct hdmi_timing *timing;
-
 			if (!groups[i].qms_vic_lists[j])
 				continue;
 			timing = hdmitx_mode_vic_to_hdmi_timing(groups[i].qms_vic_lists[j]);
 			if (!timing)
 				continue;
-			pos += snprintf(buf + pos, PAGE_SIZE, "    [%d] %s %d\n",
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "    [%d] %s %d\n",
 				j,
 				timing->sname ? timing->sname : timing->name,
 				groups[i].qms_vic_lists[j]);
 		}
+		timing = hdmitx_mode_vic_to_hdmi_timing(groups[i].game_brr_vic);
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "  game_brr: %s %d\n",
+			timing ? (timing->sname ? timing->sname : timing->name) : (u8 *)"",
+			groups[i].game_brr_vic);
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "  game_vrr_min/max %d %d\n",
+			groups[i].game_vrr_min, groups[i].game_vrr_max);
 	}
 	kfree(groups);
 	return pos;
@@ -1198,7 +1207,8 @@ static int _vrr_groups_show_(int _pos, char *buf)
 #endif
 }
 
-static const enum hdmi_vic brr_list[] = {
+/* for QMS BRR list */
+static const enum hdmi_vic qms_brr_list[] = {
 	HDMI_63_1920x1080p120_16x9,
 	HDMI_16_1920x1080p60_16x9,
 	HDMI_47_1280x720p120_16x9,
@@ -1206,6 +1216,23 @@ static const enum hdmi_vic brr_list[] = {
 	HDMI_118_3840x2160p120_16x9,
 	HDMI_97_3840x2160p60_16x9,
 	HDMI_219_4096x2160p120_256x135,
+	HDMI_102_4096x2160p60_256x135,
+	HDMI_199_7680x4320p60_16x9,
+};
+
+/* for GAME BRR list */
+static const enum hdmi_vic game_brr_list[] = {
+	HDMI_63_1920x1080p120_16x9,
+	HDMI_64_1920x1080p100_16x9,
+	HDMI_16_1920x1080p60_16x9,
+	HDMI_47_1280x720p120_16x9,
+	HDMI_41_1280x720p100_16x9,
+	HDMI_4_1280x720p60_16x9,
+	HDMI_118_3840x2160p120_16x9,
+	HDMI_117_3840x2160p100_16x9,
+	HDMI_97_3840x2160p60_16x9,
+	HDMI_219_4096x2160p120_256x135,
+	HDMI_218_4096x2160p100_256x135,
 	HDMI_102_4096x2160p60_256x135,
 	HDMI_199_7680x4320p60_16x9,
 };
@@ -1285,14 +1312,14 @@ static void calc_vrr_range(struct rx_cap *prxcap,
 	case 0x02:
 		group->vrr_min = 0;
 		group->vrr_max = 0;
-		group->game_vrr_min = prxcap->vrr_min;
+		group->game_vrr_min = prxcap->vrr_min * 100;
 		group->game_vrr_max = brr_vfreq;
 		break;
 	case 0x03:
 		group->vrr_min = 0;
 		group->vrr_max = 0;
-		group->game_vrr_min = prxcap->vrr_min;
-		group->game_vrr_max = prxcap->vrr_max;
+		group->game_vrr_min = prxcap->vrr_min * 100;
+		group->game_vrr_max = prxcap->vrr_max * 100;
 		break;
 	case 0x10:
 		group->vrr_min = reduce_0p1_percent(4800);
@@ -1376,6 +1403,19 @@ static void calc_vrr_range(struct rx_cap *prxcap,
 			qms, qms_tfr_min, qms_tfr_max, prxcap->vrr_min, prxcap->vrr_max);
 		break;
 	}
+	HDMITX_DEBUG("qms: %d qms_tfr_min/max %d %d vrr_min/max %d %d game_min/max %d %d\n",
+	qms, qms_tfr_min, qms_tfr_max, prxcap->vrr_min, prxcap->vrr_max,
+	group->game_vrr_min, group->game_vrr_max);
+	/*
+	 * Values of 49-63 are reserved.
+	 * Sources shall interpret values higher than 48 as a value of 48.
+	 * The actual limit is approximately 1.31% below this integer value in order
+	 * to support fractional frame rates (e.g., 24/1.001) and pixel clock extremes。
+	 */
+	if (prxcap->vrr_min >= 49 && prxcap->vrr_min <= 63)
+		group->game_vrr_min = 4800;
+	if (group->game_vrr_min)
+		group->game_vrr_min = reduce_1p3_percent(group->game_vrr_min);
 }
 
 static void add_brr_vic_lists(struct hdmitx_vrr_mode_group *group)
@@ -1427,7 +1467,8 @@ static void add_brr_vic_lists(struct hdmitx_vrr_mode_group *group)
 	}
 }
 
-static void add_vic_to_group(enum hdmi_vic vic, struct hdmitx_vrr_mode_group *group, bool log_en)
+static void add_qms_vic_to_group(enum hdmi_vic vic,
+	struct hdmitx_vrr_mode_group *group, bool log_en)
 {
 	const struct hdmi_timing *timing;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -1453,9 +1494,9 @@ static void add_vic_to_group(enum hdmi_vic vic, struct hdmitx_vrr_mode_group *gr
 	calc_vrr_range(prxcap, group, timing->v_freq / 10);
 	add_brr_vic_lists(group);
 	if (log_en)
-		HDMITX_DEBUG("qms: brr vic %d W/H %d %d qms min/max %d %d game min/max %d %d\n",
+		HDMITX_DEBUG("qms: qms brr %d W/H %d %d min/max %d %d game brr %d min/max %d %d\n",
 			group->brr_vic, group->width, group->height,
-			group->vrr_min, group->vrr_max,
+			group->vrr_min, group->vrr_max, group->game_brr_vic,
 			group->game_vrr_min, group->game_vrr_max);
 	memset(str_vics, 0, sizeof(str_vics));
 	for (i = 0; i < MAX_QMS_GROUP_NUM; i++)
@@ -1464,6 +1505,40 @@ static void add_vic_to_group(enum hdmi_vic vic, struct hdmitx_vrr_mode_group *gr
 				group->qms_vic_lists[i]);
 	if (prxcap->qms && log_en && str_vics[0])
 		HDMITX_INFO("qms: qms range group %s\n", str_vics);
+}
+
+static void add_game_vic_to_group(enum hdmi_vic qms_brr_vic,
+	struct hdmitx_vrr_mode_group *group, bool log_en)
+{
+	int i;
+	const struct hdmi_timing *qms_timing = hdmitx_mode_vic_to_hdmi_timing(qms_brr_vic);
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct rx_cap *prxcap = &hdev->tx_comm.rxcap;
+	const struct hdmi_timing *game_timing = NULL;
+
+	if (!qms_brr_vic || !qms_timing || !group)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(game_brr_list); i++) {
+		game_timing = hdmitx_mode_vic_to_hdmi_timing(game_brr_list[i]);
+		if (prxcap->vrr_max != 0) {
+			if (game_timing->v_freq / 1000 > prxcap->vrr_max)
+				continue;
+			if (qms_timing->v_freq / 1000 > prxcap->vrr_max)
+				continue;
+		}
+		if (qms_timing->h_active != game_timing->h_active)
+			continue;
+		if (qms_timing->v_active != game_timing->v_active)
+			continue;
+		if ((hdmitx_common_validate_vic(&hdev->tx_comm, game_brr_list[i]) >= 0) &&
+			is_rx_supported_vic(game_brr_list[i])) {
+			group->game_brr_vic = game_brr_list[i];
+			if (prxcap->vrr_max == 0)
+				group->vrr_max = game_timing->v_freq / 1000;
+			break;
+		}
+	}
 }
 
 int drm_hdmitx_get_vrr_mode_group(struct hdmitx_vrr_mode_group *group, int max_group)
@@ -1482,17 +1557,19 @@ int drm_hdmitx_get_vrr_mode_group(struct hdmitx_vrr_mode_group *group, int max_g
 
 	log_en = check_hpd_hw_id(hdev);
 
-	for (i = 0, j = 0; i < ARRAY_SIZE(brr_list) && j < max_group; i++) {
-		timing = hdmitx_mode_vic_to_hdmi_timing(brr_list[i]);
+	for (i = 0, j = 0; i < ARRAY_SIZE(qms_brr_list) && j < max_group; i++) {
+		timing = hdmitx_mode_vic_to_hdmi_timing(qms_brr_list[i]);
 		if (!timing)
 			continue;
+		if (prxcap->vrr_min)
+			add_game_vic_to_group(qms_brr_list[i], group + j, log_en);
 		/* if RX not support QMS tfr_max, then skip 120 */
 		if (!prxcap->qms_tfr_max && timing->v_freq == 120000)
 			continue;
 		/* check both TX and RX support current vic */
-		if ((hdmitx_common_validate_vic(&hdev->tx_comm, brr_list[i]) >= 0) &&
-			is_rx_supported_vic(brr_list[i])) {
-			add_vic_to_group(brr_list[i], group + j, log_en);
+		if ((hdmitx_common_validate_vic(&hdev->tx_comm, qms_brr_list[i]) >= 0) &&
+			is_rx_supported_vic(qms_brr_list[i])) {
+			add_qms_vic_to_group(qms_brr_list[i], group + j, log_en);
 			j++;
 			/* if RX support tfr_max and BRR is 120, then skip 60 */
 			if (prxcap->qms_tfr_max && timing->v_freq == 120000)
@@ -1507,8 +1584,8 @@ static bool check_qms_brr_format(const enum hdmi_vic vic)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(brr_list); i++) {
-		if (vic == brr_list[i])
+	for (i = 0; i < ARRAY_SIZE(qms_brr_list); i++) {
+		if (vic == qms_brr_list[i])
 			return 1;
 	}
 
@@ -1537,8 +1614,13 @@ static void updata_vinfo_sync_duration(struct vinfo_s *vinfo,
 	vinfo->brr_duration = brr_rate;
 }
 
-/* rate: Unit *100. Example, 1080p23.976Hz, rate = 2397 */
-int hdmitx_set_vrr_rate(int rate, void *data)
+/*
+ * rate: Unit *100. Example, 1080p23.976Hz, rate = 2397
+ * GAME: rate is 4000 ~ 120000, valid; rate is 0, generated by VRR_CTRL
+ * QMS: rate is 23 ~ 60000, valie; rate is 0, exit QMS-VRR
+ * exit VRR: vrr_info->type = T_VRR_NONE
+ */
+int hdmitx_set_vrr_rate(int _rate, void *data)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct hdmitx_common *tx_comm = &hdev->tx_comm;
@@ -1547,9 +1629,19 @@ int hdmitx_set_vrr_rate(int rate, void *data)
 	enum TARGET_FRAME_RATE tfr = TFR_QMSVRR_INACTIVE;
 	int tmp_rate;
 	struct hdmi_format_para *fmt_para = &hdev->tx_comm.fmt_para;
+	struct vrr_setting_info *vrr_info = NULL;
+	const int rate = _rate;
 
 	vrr_debug_info("qms: %s[%d] rate %d\n", __func__, __LINE__, rate);
 	hdmitx_vrr_disable();
+
+	if (data)
+		vrr_info = (struct vrr_setting_info *)data;
+	if (vrr_info->type >= T_VRR_MAX) {
+		HDMITX_INFO("vrr: invalid type %d\n", vrr_info->type);
+		return -1;
+	}
+	hdev->vrr_mode = vrr_info ? vrr_info->type : T_VRR_QMS;
 
 	/* check current rate, should less or equal than current rate of BRR */
 	tmp_rate = fmt_para->timing.v_freq / 10;
@@ -1561,28 +1653,35 @@ int hdmitx_set_vrr_rate(int rate, void *data)
 	if (tmp_rate > 5990 * 2 && tmp_rate < 6010 * 2)
 		tmp_rate = 12000;
 	/* if rate is 0, then disable VRR packet */
-	if (rate == 0) {
+	if (vrr_info->type == T_VRR_NONE || (rate == 0 && vrr_info->type != T_VRR_GAME)) {
 		/* When disable VRR, here must clear vrr_para_tmp.
 		 * So when enter VRR next time, vrr packet will be updated again
 		 */
 		memset(&vrr_para.vrr_para_tmp, 0, sizeof(vrr_para.vrr_para_tmp));
-		if (hdev->vrr_mode == T_VRR_QMS || hdev->vrr_mode == T_VRR_GAME)
-			hdmi_vrr_disable_emp_packet(&vrr_para);
+		hdmi_vrr_disable_emp_packet(&vrr_para);
+		hdmitx_vrr_set_maxlncnt(fmt_para->timing.v_total);
 		HDMITX_INFO("qms: disable EMP packet\n");
 		return 0;
 	}
-	if (rate < 2397 || rate > 12000 || rate > tmp_rate) {
-		HDMITX_INFO("qms: vrr rate over range %d [2397~%d]\n", rate, tmp_rate);
-		return 0;
-	}
 
-	/* TODO, hard code vrr_mode */
-	hdev->vrr_mode = T_VRR_QMS;
 	if (hdev->vrr_mode == T_VRR_GAME || hdev->vrr_mode == T_VRR_QMS) {
 		para.type = hdev->vrr_mode;
 	} else {
 		para.vrr_enabled = 0;
 		return 0;
+	}
+	if (para.type == T_VRR_QMS && (rate < 2397 || rate > 12000 || rate > tmp_rate)) {
+		HDMITX_INFO("qms: vrr rate over range %d [2397~%d]\n", rate, tmp_rate);
+		return -1;
+	}
+	if (para.type == T_VRR_GAME) {
+		u32 min = reduce_1p3_percent(prxcap->vrr_min * 100);
+
+		/* rate = 0, drive by VRR_CTRL */
+		if (rate > 0 && (rate < min || rate > tmp_rate)) {
+			HDMITX_INFO("game: vrr rate over range %d [%d~%d]\n", rate, min, tmp_rate);
+			return -1;
+		}
 	}
 
 	para.duration = rate;
@@ -1591,14 +1690,14 @@ int hdmitx_set_vrr_rate(int rate, void *data)
 		tfr = vsync_match_to_tfr(rate);
 		if (tfr == TFR_QMSVRR_INACTIVE || tfr == TFR_MAX) {
 			HDMITX_INFO("qms: unsupport current rate %d\n", rate);
-			return 0;
+			return -1;
 		}
 		if (!check_qms_brr_format(para.brr_vic)) {
 			HDMITX_INFO("qms: only support BRR %s\n",
 				"720p60/120hz,1080p60/120hz,2160p60hz\n");
 			HDMITX_INFO("qms: current vic %d\n", para.brr_vic);
 			para.vrr_enabled = 0;
-			return 0;
+			return -1;
 		}
 		if (!prxcap->qms)
 			HDMITX_INFO("qms: rx not support qms\n");
@@ -1608,7 +1707,7 @@ int hdmitx_set_vrr_rate(int rate, void *data)
 		 * QMS: 1080p24   set frac_rate_policy as 0 and fr_hint as 24
 		 * QMS: 1080p23.976   set frac_rate_policy as 1 and fr_hint as 24
 		 */
-		if (tx_comm->frac_rate_policy) {
+		if (tx_comm->frac_rate_policy && para.type == T_VRR_QMS) {
 			switch (rate) {
 			case 2400:
 			case 3000:
@@ -1625,7 +1724,7 @@ int hdmitx_set_vrr_rate(int rate, void *data)
 		para.duration = rate;
 	}
 	updata_vinfo_sync_duration(&tx_comm->hdmitx_vinfo, rate,
-		tx_comm->frac_rate_policy,
+		hdev->vrr_mode == T_VRR_GAME ? 0 : tx_comm->frac_rate_policy,
 		(fmt_para->timing.v_freq + 999) / 1000);
 
 	para.vrr_enabled = 1;
@@ -1706,12 +1805,13 @@ static void hdmitx_vrr_game_handler(struct hdmitx_dev *hdev)
 		return;
 	}
 	vtotal_tmp = timing->v_total * timing->v_freq / 10;
-	vtotal_tmp = vtotal_tmp / conf->duration;
+	vtotal_tmp = conf->duration ? (vtotal_tmp / conf->duration) : 0;
 	vrr->game_val.vtotal_fixed = vtotal_tmp;
 	vrr_debug_info("game-vrr vtotal = %d\n", vrr->game_val.vtotal_fixed);
 
 	hdmi_emp_infoframe_set(EMP_TYPE_VRR_GAME, &vrr->emp_vrr_pkt);
-	hdmitx_vrr_set_maxlncnt(vrr->game_val.vtotal_fixed);
+	if (vrr->game_val.vtotal_fixed)
+		hdmitx_vrr_set_maxlncnt(vrr->game_val.vtotal_fixed);
 	vrr_cur_vtotal_debug(vrr->frame_cnt, m_const, vrr->game_val.vtotal_fixed);
 	vrr->frame_cnt++;
 }
