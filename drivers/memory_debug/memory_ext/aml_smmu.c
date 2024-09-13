@@ -180,7 +180,7 @@ static struct iommu_device *aml_smmu_add_device(struct device *dev)
 	return 0;
 }
 
-static int aml_smmu_of_xlate(struct device *dev, struct of_phandle_args *args)
+static int aml_smmu_of_xlate(struct device *dev, const struct of_phandle_args *args)
 {
 	dev->iommu_group = (struct iommu_group *)aml_global_group;
 	return 0;
@@ -760,7 +760,7 @@ static int __nocfi aml_atomic_pool_expand(struct device *dev, struct gen_pool *p
 	int ret = -ENOMEM;
 
 	/* Cannot allocate larger than MAX_ORDER-1 */
-	order = min(get_order(pool_size), MAX_ORDER - 1);
+	order = min(get_order(pool_size), NR_PAGE_ORDERS - 1);
 
 	page = aml_dma_alloc_from_contiguous(dev, 1 << order,
 						order, false);

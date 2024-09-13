@@ -55,32 +55,28 @@ struct aml_watch_points {
 struct aml_watch_points *awp;
 
 #ifdef CONFIG_ARM64
-#define READ_WB_REG_CASE(OFF, N, REG, VAL)		\
-	do {						\
-		case (OFF + N):				\
-			AARCH64_DBG_READ(N, REG, VAL);	\
-			break;				\
-	} while (0)
+#define READ_WB_REG_CASE(OFF, N, REG, VAL)	\
+	case (OFF + N):				\
+		AARCH64_DBG_READ(N, REG, VAL);	\
+		break
 
-#define GEN_READ_WB_REG_CASES(OFF, REG, VAL)		\
-	do {						\
-		READ_WB_REG_CASE(OFF,  0, REG, VAL);	\
-		READ_WB_REG_CASE(OFF,  1, REG, VAL);	\
-		READ_WB_REG_CASE(OFF,  2, REG, VAL);	\
-		READ_WB_REG_CASE(OFF,  3, REG, VAL);	\
-		READ_WB_REG_CASE(OFF,  4, REG, VAL);	\
-		READ_WB_REG_CASE(OFF,  5, REG, VAL);	\
-		READ_WB_REG_CASE(OFF,  6, REG, VAL);	\
-		READ_WB_REG_CASE(OFF,  7, REG, VAL);	\
-		READ_WB_REG_CASE(OFF,  8, REG, VAL);	\
-		READ_WB_REG_CASE(OFF,  9, REG, VAL);	\
-		READ_WB_REG_CASE(OFF, 10, REG, VAL);	\
-		READ_WB_REG_CASE(OFF, 11, REG, VAL);	\
-		READ_WB_REG_CASE(OFF, 12, REG, VAL);	\
-		READ_WB_REG_CASE(OFF, 13, REG, VAL);	\
-		READ_WB_REG_CASE(OFF, 14, REG, VAL);	\
-		READ_WB_REG_CASE(OFF, 15, REG, VAL);	\
-	} while (0)
+#define GEN_READ_WB_REG_CASES(OFF, REG, VAL)	\
+	READ_WB_REG_CASE(OFF,  0, REG, VAL);	\
+	READ_WB_REG_CASE(OFF,  1, REG, VAL);	\
+	READ_WB_REG_CASE(OFF,  2, REG, VAL);	\
+	READ_WB_REG_CASE(OFF,  3, REG, VAL);	\
+	READ_WB_REG_CASE(OFF,  4, REG, VAL);	\
+	READ_WB_REG_CASE(OFF,  5, REG, VAL);	\
+	READ_WB_REG_CASE(OFF,  6, REG, VAL);	\
+	READ_WB_REG_CASE(OFF,  7, REG, VAL);	\
+	READ_WB_REG_CASE(OFF,  8, REG, VAL);	\
+	READ_WB_REG_CASE(OFF,  9, REG, VAL);	\
+	READ_WB_REG_CASE(OFF, 10, REG, VAL);	\
+	READ_WB_REG_CASE(OFF, 11, REG, VAL);	\
+	READ_WB_REG_CASE(OFF, 12, REG, VAL);	\
+	READ_WB_REG_CASE(OFF, 13, REG, VAL);	\
+	READ_WB_REG_CASE(OFF, 14, REG, VAL);	\
+	READ_WB_REG_CASE(OFF, 15, REG, VAL)
 
 #ifdef CONFIG_CC_IS_CLANG
 #pragma clang diagnostic push
@@ -134,32 +130,28 @@ static int aml_get_num_wrps(void)
 #endif
 }
 #else
-#define READ_WB_REG_CASE(OP2, M, VAL)				\
-	do {							\
-		case ((OP2 << 4) + M):				\
-			ARM_DBG_READ(c0, c ## M, OP2, VAL);	\
-			break;					\
-	} while (0)
+#define READ_WB_REG_CASE(OP2, M, VAL)			\
+	case ((OP2 << 4) + M):				\
+		ARM_DBG_READ(c0, c ## M, OP2, VAL);	\
+		break
 
-#define GEN_READ_WB_REG_CASES(OP2, VAL)			\
-	do {						\
-		READ_WB_REG_CASE(OP2, 0, VAL);		\
-		READ_WB_REG_CASE(OP2, 1, VAL);		\
-		READ_WB_REG_CASE(OP2, 2, VAL);		\
-		READ_WB_REG_CASE(OP2, 3, VAL);		\
-		READ_WB_REG_CASE(OP2, 4, VAL);		\
-		READ_WB_REG_CASE(OP2, 5, VAL);		\
-		READ_WB_REG_CASE(OP2, 6, VAL);		\
-		READ_WB_REG_CASE(OP2, 7, VAL);		\
-		READ_WB_REG_CASE(OP2, 8, VAL);		\
-		READ_WB_REG_CASE(OP2, 9, VAL);		\
-		READ_WB_REG_CASE(OP2, 10, VAL);		\
-		READ_WB_REG_CASE(OP2, 11, VAL);		\
-		READ_WB_REG_CASE(OP2, 12, VAL);		\
-		READ_WB_REG_CASE(OP2, 13, VAL);		\
-		READ_WB_REG_CASE(OP2, 14, VAL);		\
-		READ_WB_REG_CASE(OP2, 15, VAL);		\
-	} while (0)
+#define GEN_READ_WB_REG_CASES(OP2, VAL)		\
+	READ_WB_REG_CASE(OP2, 0, VAL);		\
+	READ_WB_REG_CASE(OP2, 1, VAL);		\
+	READ_WB_REG_CASE(OP2, 2, VAL);		\
+	READ_WB_REG_CASE(OP2, 3, VAL);		\
+	READ_WB_REG_CASE(OP2, 4, VAL);		\
+	READ_WB_REG_CASE(OP2, 5, VAL);		\
+	READ_WB_REG_CASE(OP2, 6, VAL);		\
+	READ_WB_REG_CASE(OP2, 7, VAL);		\
+	READ_WB_REG_CASE(OP2, 8, VAL);		\
+	READ_WB_REG_CASE(OP2, 9, VAL);		\
+	READ_WB_REG_CASE(OP2, 10, VAL);		\
+	READ_WB_REG_CASE(OP2, 11, VAL);		\
+	READ_WB_REG_CASE(OP2, 12, VAL);		\
+	READ_WB_REG_CASE(OP2, 13, VAL);		\
+	READ_WB_REG_CASE(OP2, 14, VAL);		\
+	READ_WB_REG_CASE(OP2, 15, VAL)
 
 static u32 read_wb_reg(int n)
 {
