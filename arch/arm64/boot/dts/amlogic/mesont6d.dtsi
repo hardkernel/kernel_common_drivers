@@ -201,7 +201,7 @@
 
 	iotm {
 		compatible = "amlogic, iotm";
-		status = "disabled";
+		status = "okay";
 		/* a53_dbg: CSSYS_BASE_ADDR + iotm & coresight */
 		reg = <0x0 0xfe800000 0x0 0x8000>;
 		memory-region = <&debug_reserved>;
