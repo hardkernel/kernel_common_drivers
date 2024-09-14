@@ -69,6 +69,7 @@
 			operating-points-v2 = <&cpu_opp_table0>;
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
+			dynamic-power-coefficient = <110>;
 			clock-latency = <50000>;
 			#cooling-cells = <2>;
 		};
