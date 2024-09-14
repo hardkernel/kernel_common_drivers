@@ -96,10 +96,10 @@ AMLOGIC_COMMON_MODULES = [
     "common_drivers/drivers/spi/amlogic-spi.ko",
     "common_drivers/drivers/tee/amlogic-tee.ko",
 #    "common_drivers/drivers/thermal/amlogic-thermal.ko",
-#    "common_drivers/drivers/usb/amlogic-usb.ko",
-#    "common_drivers/drivers/usb/dwc_otg.ko",
+    "common_drivers/drivers/usb/amlogic-usb.ko",
+    "common_drivers/drivers/usb/dwc_otg.ko",
     "common_drivers/drivers/watchdog/amlogic-watchdog.ko",
-#    "common_drivers/drivers/wireless/amlogic-wireless.ko",
+    "common_drivers/drivers/wireless/amlogic-wireless.ko",
     "common_drivers/drivers/seckey/amlogic-seckey.ko",
 #    "common_drivers/sound/soc/amlogic/amlogic-snd-soc.ko",
 #    "common_drivers/sound/soc/codecs/amlogic/amlogic-snd-codec-ad82128.ko",
@@ -126,7 +126,6 @@ AMLOGIC_COMMON_MODULES = [
     "drivers/regulator/pwm-regulator.ko",
     "net/mac80211/mac80211.ko",
     "net/wireless/cfg80211.ko",
-    "common_drivers/drivers/pwm/amlogic-pwm.ko",
 ]
 
 AMLOGIC_UPGRADE_COMMON_MODULES = [
