@@ -467,7 +467,8 @@ void get_eq_val_t6d(void)
 	eq_boost0 = data32 & 0x1f;
 	eq_boost1 = (data32 >> 8)  & 0x1f;
 	eq_boost2 = (data32 >> 16)      & 0x1f;
-	rx_pr("eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
+	if (log_level & PHY_LOG)
+		rx_pr("eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
 }
 
 void dump_cdr_info_t6d(void)
@@ -532,7 +533,6 @@ void aml_eq_cfg_t6d(void)
 	aml_eq_retry_t6d();
 	aml_dfe_en_t6d();
 	hdmirx_wr_bits_amlphy(T6D_HDMIRX20PHY_DCHD_CDR, T6D_CDR_LKDET_EN, 1);
-	rx_pr("tmds valid\n");
 }
 
 void aml_phy_get_trim_val_t6d(void)

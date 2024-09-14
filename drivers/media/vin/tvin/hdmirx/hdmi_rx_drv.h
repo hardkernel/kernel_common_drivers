@@ -73,7 +73,8 @@
 //2024.08.28 add hdr10p licence detection
 //2024.08.30 disable hdcp when suspend
 //2024.09.18 remove warning print
-#define RX_VER0 "ver.2024/08/28"
+//2024.09.24 reduce rx boot print
+#define RX_VER0 "ver.2024/09/24"
 
 
 /*print type*/
@@ -104,6 +105,9 @@
 
 #define FRAME_RATE_MIN 20
 #define FRAME_RATE_MAX 300
+
+#define BOOT_INFO_NUM			10
+#define BOOT_INFO_LEN			50
 
 /* fix 3d timing issue and panasonic 1080p */
 /* 0323: t3x bringup*/
@@ -1136,7 +1140,8 @@ extern struct tasklet_struct rx_tasklet;
 extern struct device *hdmirx_dev;
 extern struct rx_s rx[4];
 extern struct rx_info_s rx_info;
-extern char boot_info[30][128];
+extern char boot_info[BOOT_INFO_NUM][BOOT_INFO_LEN];
+extern int boot_info_num;
 //extern struct phy_port_data aml_phy_dwork;
 //extern u8 port_idx;
 
@@ -1228,6 +1233,7 @@ u8 rx_get_port_type(u8 port);
 bool rx_is_pip_on(void);
 int rx_set_global_variable(const char *buf, int size);
 void rx_get_global_variable(const char *buf);
+int rx_sprintf(int *index, const char *format, ...);
 int rx_pr(const char *fmt, ...);
 unsigned int hdmirx_hw_dump_reg(unsigned char *buf, int size);
 unsigned int hdmirx_show_info(unsigned char *buf, int size, u8 port);

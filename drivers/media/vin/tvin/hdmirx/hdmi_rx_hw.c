@@ -3009,6 +3009,15 @@ void scdc_dwork_handler(struct work_struct *work)
 int rx_set_port_hpd(u8 port_id, bool val)
 {
 	if (port_id < rx_info.port_num) {
+		if (val != hdmirx_rd_bits_top_common(TOP_HPD_PWR5V, _BIT(port_id)))
+			rx_pr("%s, port:%d, val:%d\n", __func__, port_id, val);
+	} else if (port_id == ALL_PORTS) {
+		if (val != hdmirx_rd_bits_top_common(TOP_HPD_PWR5V, MSK(4, 0)))
+			rx_pr("%s, port:%d, val:%d\n", __func__, port_id, val);
+	} else {
+		return -1;
+	}
+	if (port_id < rx_info.port_num) {
 		if (val) {
 			hdmirx_wr_bits_top_common(TOP_HPD_PWR5V, _BIT(port_id), 1);
 			rx_i2c_edid_cfg_with_port(0xf, true);
@@ -3030,7 +3039,7 @@ int rx_set_port_hpd(u8 port_id, bool val)
 	} else {
 		return -1;
 	}
-	if (log_level & LOG_EN)
+	if (log_level & EDID_LOG)
 		rx_pr("%s, port:%d, val:%d\n", __func__, port_id, val);
 	return 0;
 }
@@ -3129,9 +3138,6 @@ void rx_force_rxsense_cfg(u8 level)
 void rx_force_hpd_rxsense_cfg(u8 level)
 {
 	rx_force_hpd_cfg(level);
-	rx_force_rxsense_cfg(level);
-	if (log_level & LOG_EN)
-		rx_pr("hpd & rxsense force val:%d\n", level);
 }
 
 /*
@@ -4603,7 +4609,7 @@ void hdmirx_hw_probe(void)
 	rx_emp_to_ddr_init(port);
 	if (rx_info.chip_id >= CHIP_ID_T3X)
 		rx_emp1_to_ddr_init(port);
-	hdmi_rx_top_edid_update();
+	//hdmi_rx_top_edid_update();
 	if (rx_info.chip_id >= CHIP_ID_TL1)
 		aml_phy_switch_port(port);
 
@@ -6915,7 +6921,6 @@ void rx_emp_to_ddr_init(u8 port)
 		return;
 
 	if (rx_info.emp_buff_a.hw_addr) {
-		rx_pr("%s\n", __func__);
 		/*disable field done and last pkt interrupt*/
 		data32 = hdmirx_rd_top(TOP_INTR_MASKN, port);
 		if (rx_info.chip_id >= CHIP_ID_T3X) {
@@ -7703,10 +7708,6 @@ void aml_phy_get_def_trim_value(void)
 	default:
 		break;
 	}
-	rx_pr("rterm trim 2.0=0x%x-%d\n", rx_info.aml_phy.rterm_val, rx_info.aml_phy.rterm_flag);
-	if (rx_info.chip_id == CHIP_ID_T3X)
-		rx_pr("rterm trim 2.1=0x%x-%d\n", rx_info.aml_phy_21.rterm_val,
-			rx_info.aml_phy_21.rterm_flag);
 }
 
 bool rx_is_edid_seg(u8 port)

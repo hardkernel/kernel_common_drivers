@@ -134,7 +134,8 @@ struct kthread_work frl1_work;
 /* TX does work_hpd_plugin work until RX resumes */
 wait_queue_head_t tx_wait_queue;
 
-char boot_info[30][128];
+char boot_info[BOOT_INFO_NUM][BOOT_INFO_LEN];
+int boot_info_num;
 unsigned int hdmirx_addr_port;
 unsigned int hdmirx_data_port;
 unsigned int hdmirx_ctrl_port;
@@ -418,7 +419,6 @@ int rx_init_reg_map(struct platform_device *pdev)
 	for (i = 0; i < MAP_ADDR_MODULE_NUM; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res) {
-			rx_pr("missing memory resource\n");
 			ret = -ENOMEM;
 			break;
 		}
@@ -447,14 +447,11 @@ int rx_init_irq(struct platform_device *pdev, struct hdmirx_dev_s *hdevp)
 	for (i = 0; i < 4; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
 		ret[i] = res ? 0 : -ENXIO;
-		if (!res) {
-			rx_pr("%s: can't get irq resource\n", __func__);
+		if (!res)
 			break;
-		}
 		hdevp->irq[i] = res->start;
 		snprintf(hdevp->irq_name[i], sizeof(hdevp->irq_name[i]),
 			"hdmirx%d-irq", i);
-		rx_pr("hdevp irq: %d, %d\n", i, hdevp->irq[i]);
 		if (request_irq(hdevp->irq[i], irq_handler[i],
 			IRQF_SHARED, hdevp->irq_name[i], (void *)&rx))
 			rx_pr(__func__, "RX IRQ request");
@@ -525,7 +522,6 @@ bool hdmirx_repeat_support(void)
 int hdmirx_dec_support(struct tvin_frontend_s *fe, enum tvin_port_e port)
 {
 	if (port >= TVIN_PORT_HDMI0 && port <= TVIN_PORT_HDMI7) {
-		rx_pr("hdmirx support\n");
 		return 0;
 	} else {
 		return -1;
@@ -994,7 +990,6 @@ int hdmirx_set_cec_cfg(u32 cfg)
 		break;
 	}
 	rx_info.boot_flag = false;
-	rx_pr("cec cfg = %d\n", cfg);
 	return 0;
 }
 EXPORT_SYMBOL(hdmirx_set_cec_cfg);
@@ -1967,7 +1962,8 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 			mutex_unlock(&devp->rx_lock);
 			break;
 		}
-		rx_pr("port%d_hpd_low\n", port_idx);
+		if (log_level & EDID_LOG)
+			rx_pr("port%d_hpd_low\n", port_idx);
 		if (rx_info.main_port == port_idx)
 			pre_port = 0xff;
 		if (!rx_info.main_port_open) {
@@ -2299,6 +2295,29 @@ int rx_pr_buf(char *buf, int len)
 	return pos;
 }
 
+int rx_sprintf(int *index, const char *format, ...)
+{
+	va_list args;
+	char temp[BOOT_INFO_LEN];
+	int needed;
+	int written;
+
+	if (*index >= BOOT_INFO_NUM)
+		return -1;
+	va_start(args, format);
+	needed = vsnprintf(temp, sizeof(temp), format, args);
+	va_end(args);
+	if (needed >= BOOT_INFO_LEN)
+		return -2;
+	va_start(args, format);
+	written = vsnprintf(boot_info[*index], BOOT_INFO_LEN, format, args);
+	va_end(args);
+	if (written < 0)
+		return -3;
+	(*index)++;
+	return 0;
+}
+
 int rx_pr(const char *fmt, ...)
 {
 	va_list args;
@@ -2625,6 +2644,12 @@ static ssize_t cec_show(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
 {
+	if (hdmi_cec_en && tv_auto_power_on)
+		rx_pr("cec cfg = 2\n");
+	else if (hdmi_cec_en && !tv_auto_power_on)
+		rx_pr("cec cfg = 1\n");
+	else
+		rx_pr("cec cfg = 0\n");
 	return 0;
 }
 
@@ -2853,7 +2878,6 @@ static ssize_t vrr_func_ctrl_store(struct device *dev,
 		return -EINVAL;
 
 	vrr_func_en = tmp;
-	rx_pr("set vrr_func_en to: %d\n", vrr_func_en);
 	return count;
 }
 
@@ -3607,7 +3631,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	int port = 0;
-	u8 i = 0;
 	struct hdmirx_dev_s *hdevp;
 	//struct resource *res;
 	struct clk *xtal_clk;
@@ -3646,18 +3669,17 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx_info.port_num = hdevp->data->port_num;
 		rx_info.main_port = 0;
 		rx_info.sub_port = 0xff;
-		rx_pr("chip id:%d\n", rx_info.chip_id);
-		rx_pr("phy ver:%d\n", rx_info.hdmirx_dev->data->phy_ver);
 	} else {
 		rx_info.chip_id = CHIP_ID_T3;
-		rx_pr("err: hdevp->data null\n");
 	}
 	ret = rx_get_top_irq_table(rx_info.chip_id);
 	if (ret < 0)
-		rx_pr("failed to get top irq for chip:%d, default t7\n", rx_info.chip_id);
+		rx_sprintf(&boot_info_num,
+		"failed to get top irq for chip:%d, default t7", rx_info.chip_id);
 	ret = rx_init_reg_map(pdev);
 	if (ret < 0) {
-		rx_pr("failed to ioremap\n");
+		if (rx_info.chip_id == CHIP_ID_TXHD2)
+			rx_sprintf(&boot_info_num, "failed to ioremap");
 		/*goto fail_ioremap;*/
 	}
 	hdmirx_get_base_addr(pdev->dev.of_node);
@@ -3844,75 +3866,78 @@ static int hdmirx_probe(struct platform_device *pdev)
 			   hdevp->index);
 	snprintf(hdevp->frontend.name, strlen(TVHDMI_NAME) + 1, "%s", TVHDMI_NAME);
 	if (tvin_reg_frontend(&hdevp->frontend) < 0)
-		rx_pr("hdmirx: driver probe error!!!\n");
-
+		rx_sprintf(&boot_info_num, "hdmirx: driver probe error!!!");
 	dev_set_drvdata(hdevp->dev, hdevp);
 	platform_set_drvdata(pdev, hdevp);
 
 	xtal_clk = clk_get(&pdev->dev, "xtal");
 	if (IS_ERR(xtal_clk))
-		rx_pr("get xtal err\n");
+		;//rx_sprintf(&boot_info_num, "get xtal err");
 	else
 		clk_rate = clk_get_rate(xtal_clk);
 	fclk_div3_clk = clk_get(&pdev->dev, "fclk_div3");
 	if (IS_ERR(fclk_div3_clk))
-		rx_pr("get fclk_div3_clk err\n");
+		;//rx_sprintf(&boot_info_num, "get fclk_div3_clk err");
 	else
 		clk_rate = clk_get_rate(fclk_div3_clk);
 	fclk_div5_clk = clk_get(&pdev->dev, "fclk_div5");
 	if (IS_ERR(fclk_div5_clk))
-		rx_pr("get fclk_div5_clk err\n");
+		;//rx_sprintf(&boot_info_num, "get fclk_div5_clk err");
 	else
 		clk_rate = clk_get_rate(fclk_div5_clk);
 	fclk_div7_clk = clk_get(&pdev->dev, "fclk_div7");
 	if (IS_ERR(fclk_div7_clk))
-		rx_pr("get fclk_div7_clk err\n");
+		;//rx_sprintf(&boot_info_num, "get fclk_div7_clk err");
 	else
 		clk_rate = clk_get_rate(fclk_div7_clk);
 	hdevp->modet_clk = clk_get(&pdev->dev, "hdmirx_modet_clk");
 	if (IS_ERR(hdevp->modet_clk)) {
-		rx_pr("get modet_clk err\n");
+		;//rx_sprintf(&boot_info_num, "get modet_clk err");
 	} else {
 		/* clk_set_parent(hdevp->modet_clk, xtal_clk); */
 		ret = clk_set_rate(hdevp->modet_clk, 24000000);
 		if (ret)
-			rx_pr("clk_set_rate:modet err-%d\n", __LINE__);
+			rx_sprintf(&boot_info_num,
+			"clk_set_rate:modet err-%d\n", __LINE__);
 		clk_prepare_enable(hdevp->modet_clk);
 		clk_rate = clk_get_rate(hdevp->modet_clk);
 	}
 	hdevp->cfg_clk = clk_get(&pdev->dev, "hdmirx_cfg_clk");
 	if (IS_ERR(hdevp->cfg_clk)) {
-		rx_pr("get cfg_clk err\n");
+		;//rx_sprintf(&boot_info_num, "get cfg_clk err");
 	} else {
 		if (rx_info.chip_id >= CHIP_ID_T7)
 			ret = clk_set_rate(hdevp->cfg_clk, 50000000);
 		else
 			ret = clk_set_rate(hdevp->cfg_clk, 133333333);
 		if (ret)
-			rx_pr("clk_set_rate:cfg err-%d\n", __LINE__);
+			rx_sprintf(&boot_info_num,
+			"clk_set_rate:cfg err-%d\n", __LINE__);
 		clk_prepare_enable(hdevp->cfg_clk);
 		clk_rate = clk_get_rate(hdevp->cfg_clk);
 	}
 	if (rx_info.chip_id < CHIP_ID_T7) {
 		hdevp->esm_clk = clk_get(&pdev->dev, "hdcp_rx22_esm");
 		if (IS_ERR(hdevp->esm_clk)) {
-			rx_pr("get esm_clk err\n");
+			;//rx_sprintf(&boot_info_num, "get esm_clk err");
 		} else {
 			/* clk_set_parent(hdevp->esm_clk, fclk_div7_clk); */
 			ret = clk_set_rate(hdevp->esm_clk, 285714285);
 			if (ret)
-				rx_pr("clk_set_rate:esm err-%d\n", __LINE__);
+				rx_sprintf(&boot_info_num,
+				"clk_set_rate:esm err-%d\n", __LINE__);
 			clk_prepare_enable(hdevp->esm_clk);
 			clk_rate = clk_get_rate(hdevp->esm_clk);
 		}
 		hdevp->skp_clk = clk_get(&pdev->dev, "hdcp_rx22_skp");
 		if (IS_ERR(hdevp->skp_clk)) {
-			rx_pr("get skp_clk err\n");
+			;//rx_sprintf(&boot_info_num, "get skp_clk err");
 		} else {
 			/* clk_set_parent(hdevp->skp_clk, xtal_clk); */
 			ret = clk_set_rate(hdevp->skp_clk, 24000000);
 			if (ret)
-				rx_pr("clk_set_rate:skp err-%d\n", __LINE__);
+				rx_sprintf(&boot_info_num,
+				"clk_set_rate:skp err-%d\n", __LINE__);
 			clk_prepare_enable(hdevp->skp_clk);
 			clk_rate = clk_get_rate(hdevp->skp_clk);
 		}
@@ -3921,23 +3946,25 @@ static int hdmirx_probe(struct platform_device *pdev)
 		/*for audio clk measure*/
 		hdevp->meter_clk = clk_get(&pdev->dev, "cts_hdmirx_meter_clk");
 		if (IS_ERR(hdevp->meter_clk)) {
-			rx_pr("get cts hdmirx meter clk err\n");
+			;//rx_sprintf(&boot_info_num, "get cts hdmirx meter clk err");
 		} else {
 			/* clk_set_parent(hdevp->meter_clk, xtal_clk); */
 			ret = clk_set_rate(hdevp->meter_clk, 24000000);
 			if (ret)
-				rx_pr("clk_set_rate:meter err-%d\n", __LINE__);
+				rx_sprintf(&boot_info_num,
+				"clk_set_rate:meter err-%d", __LINE__);
 			clk_prepare_enable(hdevp->meter_clk);
 			clk_rate = clk_get_rate(hdevp->meter_clk);
 		}
 		/*for emp data to ddr*/
 		hdevp->axi_clk = clk_get(&pdev->dev, "cts_hdmi_axi_clk");
 		if (IS_ERR(hdevp->axi_clk)) {
-			rx_pr("get cts axi clk err\n");
+			;//rx_sprintf(&boot_info_num, "get cts axi clk err");
 		} else {
 			ret = clk_set_rate(hdevp->axi_clk, 667000000);
 			if (ret)
-				rx_pr("clk_set_rate:meter err-%d\n", __LINE__);
+				rx_sprintf(&boot_info_num,
+				"clk_set_rate:meter err-%d", __LINE__);
 			clk_prepare_enable(hdevp->axi_clk);
 			clk_rate = clk_get_rate(hdevp->axi_clk);
 		}
@@ -3946,25 +3973,26 @@ static int hdmirx_probe(struct platform_device *pdev)
 					   "term_lvl",
 					   &rx_info.aml_phy.rterm_dts_lvl);
 		if (ret) {
-			rx_pr("term_lvl not found.\n");
+			rx_sprintf(&boot_info_num, "term_lvl not found.");
 			rx_info.aml_phy.rterm_dts_lvl = 0x8;
 		}
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "term_lvl_t3x_21",
 					   &rx_info.aml_phy_21.rterm_dts_lvl);
 		if (ret) {
-			rx_pr("term_lvl_t3x_21 not found.\n");
+			rx_sprintf(&boot_info_num, "term_lvl_t3x_21 not found.");
 			rx_info.aml_phy_21.rterm_dts_lvl = 0x8;
 		}
 	} else {
 		hdevp->audmeas_clk = clk_get(&pdev->dev, "hdmirx_audmeas_clk");
 		if (IS_ERR(hdevp->audmeas_clk)) {
-			rx_pr("get audmeas_clk err\n");
+			;//rx_sprintf(&boot_info_num, "get audmeas_clk err");
 		} else {
 			/* clk_set_parent(hdevp->audmeas_clk, fclk_div5_clk); */
 			ret = clk_set_rate(hdevp->audmeas_clk, 200000000);
 			if (ret)
-				rx_pr("clk_set_rate:audmeas err-%d\n", __LINE__);
+				rx_sprintf(&boot_info_num,
+				"clk_set_rate:audmeas err-%d", __LINE__);
 			clk_rate = clk_get_rate(hdevp->audmeas_clk);
 		}
 	}
@@ -3972,39 +4000,42 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (rx_info.chip_id >= CHIP_ID_T7) {
 		hdevp->cts_hdmirx_5m_clk = clk_get(&pdev->dev, "cts_hdmirx_5m_clk");
 		if (IS_ERR(hdevp->cts_hdmirx_5m_clk)) {
-			rx_pr("get cts_hdmirx_5m_clk err\n");
+			;//rx_sprintf(&boot_info_num, "get cts_hdmirx_5m_clk err");
 		} else {
 			/* clk_set_parent(hdevp->meter_clk, xtal_clk); */
 			ret = clk_set_rate(hdevp->cts_hdmirx_5m_clk, 5000000);
 			if (ret)
-				rx_pr("clk_set_rate:meter err-%d\n", __LINE__);
+				rx_sprintf(&boot_info_num,
+				"clk_set_rate:meter err-%d", __LINE__);
 			clk_prepare_enable(hdevp->cts_hdmirx_5m_clk);
 			clk_rate = clk_get_rate(hdevp->cts_hdmirx_5m_clk);
 		}
 		hdevp->cts_hdmirx_2m_clk = clk_get(&pdev->dev, "cts_hdmirx_2m_clk");
 		if (IS_ERR(hdevp->cts_hdmirx_2m_clk)) {
-			rx_pr("get cts_hdmirx_2m_clk err\n");
+			;//rx_sprintf(&boot_info_num, "get cts_hdmirx_2m_clk err");
 		} else {
 			/* clk_set_parent(hdevp->meter_clk, xtal_clk); */
 			ret = clk_set_rate(hdevp->cts_hdmirx_2m_clk, 2000000);
 			if (ret)
-				rx_pr("clk_set_rate:meter err-%d\n", __LINE__);
+				rx_sprintf(&boot_info_num,
+				"clk_set_rate:meter err-%d", __LINE__);
 			clk_prepare_enable(hdevp->cts_hdmirx_2m_clk);
 			clk_rate = clk_get_rate(hdevp->cts_hdmirx_2m_clk);
 		}
 		/*for emp data to ddr*/
 		hdevp->cts_hdmirx_hdcp2x_eclk = clk_get(&pdev->dev, "cts_hdmirx_hdcp2x_eclk");
 		if (IS_ERR(hdevp->cts_hdmirx_hdcp2x_eclk)) {
-			rx_pr("get cts_hdmirx_hdcp2x_eclk err\n");
+			;//rx_sprintf(&boot_info_num, "get cts_hdmirx_hdcp2x_eclk err");
 		} else {
 			if (clk_set_rate(hdevp->cts_hdmirx_hdcp2x_eclk, 25000000) < 0)
-				rx_pr("clk_set_rate:meter err-%d\n", __LINE__);
+				rx_sprintf(&boot_info_num,
+				"clk_set_rate:meter err-%d", __LINE__);
 			clk_prepare_enable(hdevp->cts_hdmirx_hdcp2x_eclk);
 			clk_rate = clk_get_rate(hdevp->cts_hdmirx_hdcp2x_eclk);
 		}
 		fclk_div4_clk = clk_get(&pdev->dev, "fclk_div4");
 		if (IS_ERR(fclk_div4_clk))
-			rx_pr("get fclk_div4_clk err\n");
+			;//rx_sprintf(&boot_info_num, "get fclk_div4_clk err");
 		else
 			clk_rate = clk_get_rate(fclk_div4_clk);
 	}
@@ -4081,13 +4112,13 @@ static int hdmirx_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node,
 					   "ops_port", &ops_port);
 	if (ret) {
-		sprintf(boot_info[i++], "ops_port not found.");
+		rx_sprintf(&boot_info_num, "ops_port not found.");
 		ops_port = 0xf0;
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "en_4k_2_2k", &en_4k_2_2k);
 	if (ret) {
-		sprintf(boot_info[i++], "en_4k_2_2k not found.");
+		rx_sprintf(&boot_info_num, "en_4k_2_2k not found.");
 		en_4k_2_2k = 0;
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
@@ -4098,13 +4129,13 @@ static int hdmirx_probe(struct platform_device *pdev)
 				   "vrr_range_dynamic_update_en", &vrr_range_dynamic_update_en);
 	if (ret) {
 		vrr_range_dynamic_update_en = 0;
-		sprintf(boot_info[i++], "vrr_range_dynamic_update_en not found.");
+		rx_sprintf(&boot_info_num, "vrr_range_dynamic_update_en not found.");
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "allm_update_en", &allm_update_en);
 	if (ret) {
 		allm_update_en = 0;
-		sprintf(boot_info[i++], "allm_update_en not found.");
+		rx_sprintf(&boot_info_num, "allm_update_en not found.");
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "hpd_low_cec_off", &hpd_low_cec_off);
@@ -4115,7 +4146,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (ret) {
 		/* default arc port is port B */
 		rx_info.arc_port = 0x1;
-		sprintf(boot_info[i++], "not find arc_port, portB by default.");
+		rx_sprintf(&boot_info_num, "not find arc_port, portB by default.");
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node,
@@ -4123,32 +4154,34 @@ static int hdmirx_probe(struct platform_device *pdev)
 		&rpt_edid_selection);
 	if (ret) {
 		rpt_edid_selection = use_edid_repeater;
-		sprintf(boot_info[i++], "not find aud_compose_type, soundbar by default.");
+		rx_sprintf(&boot_info_num,
+		"not find aud_compose_type, soundbar by default.");
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
 		"rpt_only_mode",
 		&rpt_only_mode);
 	if (ret) {
 		rpt_only_mode = 0;
-		sprintf(boot_info[i++], "not find rpt_only_mode, soundbar by default.");
+		rx_sprintf(&boot_info_num,
+		"not find rpt_only_mode, soundbar by default.");
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
 		"disable_hdr",
 		&disable_hdr);
 	if (ret) {
 		disable_hdr = 0;
-		sprintf(boot_info[i++], "not find disable_hdr, hdr enable by default.");
+		rx_sprintf(&boot_info_num,
+		"not find disable_hdr, hdr enable by default.");
 	}
 	ret = of_property_read_u32(pdev->dev.of_node,
 		"rx_5v_wake_up_en",
 		&rx_5v_wake_up_en);
 	if (ret) {
 		rx_5v_wake_up_en = 0;
-		sprintf(boot_info[i++], "not find rx_5v_wake_up_en, soundbar by default.");
 	}
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0)
-		rx_pr("warning: no rev cmd mem\n");
+		rx_sprintf(&boot_info_num, "warning: no rev cmd mem\n");
 	rx_is_hdcp22_support();
 	hdmirx_wr_bits_top_common(TOP_EDID_RAM_OVR0_DATA, _BIT(0), 0);
 	if (rx_5v_wake_up_en)
@@ -4200,7 +4233,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 		input_dev->id.version = 0x0001;
 		ret = input_register_device(input_dev);
 		if (ret < 0) {
-			rx_pr("input_register_device failed: %d\n", ret);
+			rx_sprintf(&boot_info_num,
+				"input_register_device failed: %d\n", ret);
 			input_free_device(input_dev);
 		} else {
 			hdevp->hdmirx_input_dev = input_dev;

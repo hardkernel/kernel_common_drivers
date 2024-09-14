@@ -4440,8 +4440,10 @@ void rx_main_state_machine(void)
 		if (rx[port].cur_5v_sts == 0)
 			break;
 		if (rx[port].cableclk_stb_flg && !rx[port].ddc_filter_en) {
-			if (rx[port].var.clk_unstable_cnt != 0)
-				rx_pr("wait clk cnt %d\n", rx[port].var.clk_unstable_cnt);
+			if (rx[port].var.clk_unstable_cnt != 0) {
+				if (log_level & DBG_LOG)
+					rx_pr("wait clk cnt %d\n", rx[port].var.clk_unstable_cnt);
+			}
 			if (rx[port].var.clk_stable_cnt < clk_stable_max) {
 				rx[port].var.clk_stable_cnt++;
 				break;
@@ -4450,7 +4452,8 @@ void rx_main_state_machine(void)
 			rx[port].state = FSM_EQ_START;
 			rx[port].var.clk_stable_cnt = 0;
 			rx[port].var.clk_unstable_cnt = 0;
-			rx_pr("clk stable=%d\n", rx[port].clk.cable_clk);
+			if (log_level & DBG_LOG)
+				rx_pr("clk stable=%d\n", rx[port].clk.cable_clk);
 			rx_irq_en(IRQ_EN_HDCP, port);
 		} else {
 			rx[port].var.clk_stable_cnt = 0;
@@ -4680,7 +4683,8 @@ void rx_main_state_machine(void)
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
 				rx_pr("Sig ready\n");
-				dump_state(RX_DUMP_VIDEO, port);
+				if (log_level & VIDEO_LOG)
+					dump_state(RX_DUMP_VIDEO, port);
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
@@ -4936,9 +4940,11 @@ void rx_port0_main_state_machine(void)
 		if (rx[port].cur_5v_sts == 0)
 			break;
 		if (rx[port].cableclk_stb_flg) {
-			if (rx[port].var.clk_unstable_cnt != 0)
-				rx_pr("port%d wait clk cnt %d\n",
-					port, rx[port].var.clk_unstable_cnt);
+			if (rx[port].var.clk_unstable_cnt != 0) {
+				if (log_level & DBG_LOG)
+					rx_pr("port%d wait clk cnt %d\n",
+						port, rx[port].var.clk_unstable_cnt);
+			}
 			if (rx[port].var.clk_stable_cnt < clk_stable_max) {
 				rx[port].var.clk_stable_cnt++;
 				break;
@@ -4947,7 +4953,8 @@ void rx_port0_main_state_machine(void)
 			rx[port].state = FSM_EQ_START;
 			rx[port].var.clk_stable_cnt = 0;
 			rx[port].var.clk_unstable_cnt = 0;
-			rx_pr("port%d clk stable=%d\n", port, rx[port].clk.cable_clk);
+			if (log_level & DBG_LOG)
+				rx_pr("port%d clk stable=%d\n", port, rx[port].clk.cable_clk);
 			rx_irq_en(IRQ_EN_HDCP, port);//todo
 		} else {
 			rx[port].var.clk_stable_cnt = 0;
@@ -5128,7 +5135,8 @@ void rx_port0_main_state_machine(void)
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
 				rx_pr("port%d Sig ready\n", port);
-				dump_state(RX_DUMP_VIDEO, port);
+				if (log_level & VIDEO_LOG)
+					dump_state(RX_DUMP_VIDEO, port);
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
@@ -5333,9 +5341,11 @@ void rx_port1_main_state_machine(void)
 		if (rx[port].cur_5v_sts == 0)
 			break;
 		if (rx[port].cableclk_stb_flg) {
-			if (rx[port].var.clk_unstable_cnt != 0)
-				rx_pr("port%d wait clk cnt %d\n",
-					port, rx[port].var.clk_unstable_cnt);
+			if (rx[port].var.clk_unstable_cnt != 0) {
+				if (log_level & DBG_LOG)
+					rx_pr("port%d wait clk cnt %d\n",
+						port, rx[port].var.clk_unstable_cnt);
+			}
 			if (rx[port].var.clk_stable_cnt < clk_stable_max) {
 				rx[port].var.clk_stable_cnt++;
 				break;
@@ -5344,7 +5354,8 @@ void rx_port1_main_state_machine(void)
 			rx[port].state = FSM_EQ_START;
 			rx[port].var.clk_stable_cnt = 0;
 			rx[port].var.clk_unstable_cnt = 0;
-			rx_pr("port%d clk stable=%d\n", port, rx[port].clk.cable_clk);
+			if (log_level & DBG_LOG)
+				rx_pr("port%d clk stable=%d\n", port, rx[port].clk.cable_clk);
 			rx_irq_en(IRQ_EN_HDCP, port);//todo
 		} else {
 			rx[port].var.clk_stable_cnt = 0;
@@ -5525,7 +5536,8 @@ void rx_port1_main_state_machine(void)
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
 				rx_pr("port%d Sig ready\n", port);
-				dump_state(RX_DUMP_VIDEO, port);
+				if (log_level & VIDEO_LOG)
+					dump_state(RX_DUMP_VIDEO, port);
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
@@ -5792,9 +5804,11 @@ void rx_port2_main_state_machine(void)
 		if (rx[port].cur_5v_sts == 0)
 			break;
 		if (rx[port].cableclk_stb_flg) {
-			if (rx[port].var.clk_unstable_cnt != 0)
-				rx_pr("port%d wait clk cnt %d\n",
-					port, rx[port].var.clk_unstable_cnt);
+			if (rx[port].var.clk_unstable_cnt != 0) {
+				if (log_level & DBG_LOG)
+					rx_pr("port%d wait clk cnt %d\n",
+						port, rx[port].var.clk_unstable_cnt);
+			}
 			if (rx[port].var.clk_stable_cnt < clk_stable_max) {
 				rx[port].var.clk_stable_cnt++;
 				break;
@@ -6004,7 +6018,8 @@ void rx_port2_main_state_machine(void)
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
 				rx_pr("port%d Sig ready\n", port);
-				dump_state(RX_DUMP_VIDEO, port);
+				if (log_level & VIDEO_LOG)
+					dump_state(RX_DUMP_VIDEO, port);
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
@@ -6274,9 +6289,11 @@ void rx_port3_main_state_machine(void)
 		if (rx[port].cur_5v_sts == 0)
 			break;
 		if (rx[port].cableclk_stb_flg) {
-			if (rx[port].var.clk_unstable_cnt != 0)
-				rx_pr("port%d wait clk cnt %d\n",
-					port, rx[port].var.clk_unstable_cnt);
+			if (rx[port].var.clk_unstable_cnt != 0) {
+				if (log_level & DBG_LOG)
+					rx_pr("port%d wait clk cnt %d\n",
+						port, rx[port].var.clk_unstable_cnt);
+			}
 			if (rx[port].var.clk_stable_cnt < clk_stable_max) {
 				rx[port].var.clk_stable_cnt++;
 				break;
@@ -6485,7 +6502,8 @@ void rx_port3_main_state_machine(void)
 				rx[port].hdcp.hdcp_pre_ver = rx[port].hdcp.hdcp_version;
 				rx[port].stable_timestamp = rx_info.timestamp;
 				rx_pr("port%d Sig ready\n", port);
-				dump_state(RX_DUMP_VIDEO, port);
+				if (log_level & VIDEO_LOG)
+					dump_state(RX_DUMP_VIDEO, port);
 				rx[port].var.sig_stable_err_cnt = 0;
 			}
 		} else {
@@ -6643,11 +6661,16 @@ static void show_boot_info(void)
 		rx_pr("phy_addr = 0x%x, size = 0x%x, maped:%px\n",
 			rx_reg_maps[i].phy_addr, rx_reg_maps[i].size,
 			rx_reg_maps[i].p);
-	for (i = 0; i < 30; ++i) {
+	for (i = 0; i < BOOT_INFO_NUM; ++i) {
 		if (boot_info[i][0] == '\0')
 			break;
 		rx_pr("%s\n", boot_info[i]);
 	}
+	rx_pr("rterm trim 2.0=0x%x-%d\n",
+	rx_info.aml_phy.rterm_val, rx_info.aml_phy.rterm_flag);
+	if (rx_info.chip_id == CHIP_ID_T3X)
+		rx_pr("rterm trim 2.1=0x%x-%d\n",
+		rx_info.aml_phy_21.rterm_val, rx_info.aml_phy_21.rterm_flag);
 	rx_pr("pkt_buffa_a=0x%p\n", rx_info.emp_buff_a.store_a);
 	rx_pr("pkt_buffa_b=0x%p\n", rx_info.emp_buff_a.store_b);
 	//page_address
@@ -7389,7 +7412,8 @@ void frate_monitor(void)
 	rx[port].var.frl_rate = hdmirx_rd_cor(SCDCS_CONFIG1_SCDC_IVCRX, port) & 0xf;
 	lock = hdmirx_rd_cor(SCDCS_STATUS_FLAGS0_SCDC_IVCRX, port);
 	if (lock != pre_lock) {
-		rx_pr("lock = 0x%x\n", lock);
+		if (log_level & DBG_LOG)
+			rx_pr("lock = 0x%x\n", lock);
 		pre_lock = lock;
 	}
 	if (rx[port].var.frl_rate != frate_flg) {
@@ -7459,7 +7483,8 @@ void frate_monitor1(void)
 	rx[port].var.frl_rate = hdmirx_rd_cor(SCDCS_CONFIG1_SCDC_IVCRX, port) & 0xf;
 	lock = hdmirx_rd_cor(SCDCS_STATUS_FLAGS0_SCDC_IVCRX, port);
 	if (lock != pre_lock) {
-		rx_pr("lock = 0x%x\n", lock);
+		if (log_level & DBG_LOG)
+			rx_pr("lock = 0x%x\n", lock);
 		pre_lock = lock;
 	}
 	if (rx[port].var.frl_rate != frate_flg1) {

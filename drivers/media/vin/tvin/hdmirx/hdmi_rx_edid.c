@@ -513,12 +513,10 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 
 	port_num = (buf[0] & 0x0f) - 1;
 	edid_type = buf[0] >> 0x4;
-	rx_pr("port%d edid size %d\n", port_num, size);
 
 	if (hdmi_cec_en == 1) {
 		port_hpd_rst_flag |= 1 << port_num;
 		rx_set_port_hpd(port_num, 0);
-		rx_pr("port%d_hpd_low\n", port_num);
 	}
 	if (size < 257) {
 		rx_pr("Incomplete edid\n");
@@ -614,7 +612,7 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 			rx_pr("2.0 edid error\n");
 	break;
 	}
-	rx_pr("EDID port%d - size %d\n", port_num, size);
+	rx_sprintf(&boot_info_num, "EDID port%d - size %d\n", port_num, size);
 	if (log_level & EDID_LOG) {
 		for (i = 0; i * 16 < size; i++) {
 			for (j = 0; j < 16; j++)
