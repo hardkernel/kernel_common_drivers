@@ -4175,7 +4175,7 @@ static struct platform_driver meson_mmc_driver = {
 static int caps2_setup(char *p)
 {
 	caps2_quirks = p;
-	return 0;
+	return 1;
 }
 
 __setup("meson-gx-mmc.caps2_quirks=", caps2_setup);

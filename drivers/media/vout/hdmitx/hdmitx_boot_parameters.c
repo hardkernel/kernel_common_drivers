@@ -155,7 +155,7 @@ static int parse_hdmitx_boot_para(char *s)
 	HDMITX_DEBUG("hdmitx_param:[init_state]=[%x]\n",
 		tx_params.init_state);
 
-	return 0;
+	return 1;
 }
 __setup("hdmitx=",    parse_hdmitx_boot_para);
 
@@ -174,7 +174,7 @@ static int parse_hdmitx_fraction_rate(char *str)
 	HDMITX_DEBUG("hdmitx_param:[fraction_rate]=[%d]\n",
 		tx_params.fraction_refreshrate);
 
-	return 0;
+	return 1;
 }
 __setup("frac_rate_policy=", parse_hdmitx_fraction_rate);
 
@@ -199,7 +199,7 @@ static int parse_hdmitx_hdr_priority(char *str)
 
 	HDMITX_DEBUG("hdmitx_param:[hdr_priority]=[%d]\n",
 		tx_params.hdr_mask);
-	return 0;
+	return 1;
 }
 __setup("hdr_priority=", parse_hdmitx_hdr_priority);
 
@@ -213,7 +213,7 @@ static int parse_hdmitx_checksum(char *str)
 	snprintf(tx_params.edid_chksum, sizeof(tx_params.edid_chksum), "%s", str);
 	HDMITX_DEBUG("hdmitx_param:[checksum]=[%s]\n", tx_params.edid_chksum);
 
-	return 0;
+	return 1;
 }
 __setup("hdmichecksum=", parse_hdmitx_checksum);
 
@@ -228,8 +228,9 @@ static int hdmitx_config_csc_en(char *str)
 		tx_params.config_csc = true;
 	else
 		tx_params.config_csc = false;
+
 	HDMITX_DEBUG("config_csc_en:[config_csc_en]=[%d]\n", tx_params.config_csc);
-	return 0;
+	return 1;
 }
 __setup("config_csc_en=", hdmitx_config_csc_en);
 
@@ -249,7 +250,7 @@ static int hdmitx_boot_edid_check(char *str)
 		HDMITX_DEBUG("hdmitx_param:[edid_check]=[%d]\n", val);
 	}
 
-	return 0;
+	return 1;
 }
 __setup("edid_check=", hdmitx_boot_edid_check);
 
@@ -274,7 +275,7 @@ static int hdmitx_boot_dsc_policy(char *str)
 		/* default policy */
 		tx_params.dsc_policy = 0;
 	}
-	return 0;
+	return 1;
 }
 __setup("dsc_policy=", hdmitx_boot_dsc_policy);
 

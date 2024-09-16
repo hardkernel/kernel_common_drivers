@@ -2428,7 +2428,7 @@ static int lcd_panel_name_para_setup(char *str)
 		sprintf(lcd_panel_name[0], "%s", str);
 
 	LCDPR("panel_name: %s\n", lcd_panel_name[0]);
-	return 0;
+	return 1;
 }
 
 static int lcd1_panel_name_para_setup(char *str)
@@ -2437,7 +2437,7 @@ static int lcd1_panel_name_para_setup(char *str)
 		sprintf(lcd_panel_name[1], "%s", str);
 
 	LCDPR("panel_name: %s\n", lcd_panel_name[1]);
-	return 0;
+	return 1;
 }
 
 static int lcd2_panel_name_para_setup(char *str)
@@ -2446,7 +2446,7 @@ static int lcd2_panel_name_para_setup(char *str)
 		sprintf(lcd_panel_name[2], "%s", str);
 
 	LCDPR("panel_name: %s\n", lcd_panel_name[2]);
-	return 0;
+	return 1;
 }
 
 static int lcd_panel_type_para_setup(char *str)
@@ -2455,7 +2455,7 @@ static int lcd_panel_type_para_setup(char *str)
 		sprintf(lcd_propname[0], "%s", str);
 
 	LCDPR("panel_type: %s\n", lcd_propname[0]);
-	return 0;
+	return 1;
 }
 
 static int lcd1_panel_type_para_setup(char *str)
@@ -2464,7 +2464,7 @@ static int lcd1_panel_type_para_setup(char *str)
 		sprintf(lcd_propname[1], "%s", str);
 
 	LCDPR("panel1_type: %s\n", lcd_propname[1]);
-	return 0;
+	return 1;
 }
 
 static int lcd2_panel_type_para_setup(char *str)
@@ -2473,7 +2473,7 @@ static int lcd2_panel_type_para_setup(char *str)
 		sprintf(lcd_propname[2], "%s", str);
 
 	LCDPR("panel2_type: %s\n", lcd_propname[2]);
-	return 0;
+	return 1;
 }
 
 static int lcd_boot_ctrl_setup(char *str)
@@ -2500,7 +2500,7 @@ static int lcd_boot_ctrl_setup(char *str)
 	boot_ctrl->ppc = (data32 >> 20) & 0x3;
 	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
 	boot_ctrl->base_frame_rate = (data32 >> 24) & 0xff;
-	return 0;
+	return 1;
 }
 
 static int lcd1_boot_ctrl_setup(char *str)
@@ -2527,7 +2527,7 @@ static int lcd1_boot_ctrl_setup(char *str)
 	boot_ctrl->ppc = (data32 >> 20) & 0x3;
 	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
 	boot_ctrl->base_frame_rate = (data32 >> 24) & 0xff;
-	return 0;
+	return 1;
 }
 
 static int lcd2_boot_ctrl_setup(char *str)
@@ -2554,7 +2554,7 @@ static int lcd2_boot_ctrl_setup(char *str)
 	boot_ctrl->ppc = (data32 >> 20) & 0x3;
 	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
 	boot_ctrl->base_frame_rate = (data32 >> 24) & 0xff;
-	return 0;
+	return 1;
 }
 
 static int lcd_debug_ctrl_setup(char *str)
@@ -2577,7 +2577,9 @@ static int lcd_debug_ctrl_setup(char *str)
 	debug_ctrl->debug_test_pattern = (data32 >> 8) & 0xff;
 	debug_ctrl->debug_para_source = (data32 >> 28) & 0x3;
 	debug_ctrl->debug_lcd_mode = (data32 >> 30) & 0x3;
-	return 0;
+	lcd_debug_print_flag = debug_ctrl->debug_print_flag;
+
+	return 1;
 }
 
 __setup("panel_name=", lcd_panel_name_para_setup);

@@ -45,7 +45,7 @@ static int freqmax0_param_v2(char *buff)
 	if (kstrtoint(buff, 0, &freqmax[0]))
 		return -EINVAL;
 
-	return 0;
+	return 1;
 }
 
 static int freqmax1_param_v2(char *buff)
@@ -56,7 +56,7 @@ static int freqmax1_param_v2(char *buff)
 	if (kstrtoint(buff, 0, &freqmax[1]))
 		return -EINVAL;
 
-	return 0;
+	return 1;
 }
 
 __setup("freqmax0=", freqmax0_param_v2);

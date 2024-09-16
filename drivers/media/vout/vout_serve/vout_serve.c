@@ -1363,7 +1363,7 @@ int get_vout_init_mode(char *str)
 		vout_init_mode_parse(option);
 	}
 
-	return 0;
+	return 1;
 }
 __setup("vout=", get_vout_init_mode);
 

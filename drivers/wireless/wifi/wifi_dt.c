@@ -998,6 +998,18 @@ static struct platform_driver wifi_plat_driver = {
 	.resume = wifi_resume,
 };
 
+static int get_usb2t_mode(char *str)
+{
+	int ret;
+
+	ret = kstrtouint(str, 10, &usb2t_mode);
+	if (ret)
+		return -EINVAL;
+	return 1;
+}
+
+__setup("usb2t_mode=", get_usb2t_mode);
+
 int __init wifi_dt_init(void)
 {
 	int ret;

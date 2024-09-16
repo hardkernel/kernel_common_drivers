@@ -413,7 +413,7 @@ static int dptx0_boot_ctrl_setup(char *str)
 	}
 
 	LCDPR("dptx0_boot_ctrl: 0x%08x\n", dptx_boot_ctrl[0]);
-	return 0;
+	return 1;
 }
 
 static int dptx1_boot_ctrl_setup(char *str)
@@ -430,7 +430,7 @@ static int dptx1_boot_ctrl_setup(char *str)
 	}
 
 	LCDPR("dptx1_boot_ctrl: 0x%08x\n", dptx_boot_ctrl[1]);
-	return 0;
+	return 1;
 }
 
 __setup("dptx0_ctrl=", dptx0_boot_ctrl_setup);

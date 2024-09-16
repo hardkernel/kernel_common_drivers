@@ -63,7 +63,7 @@ static int ramoops_io_blacklist_setup(char *buf)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("ramoops_io_blacklist=", ramoops_io_blacklist_setup);
 
@@ -165,7 +165,7 @@ static int reg_check_panic_setup(char *buf)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("reg_check_panic=", reg_check_panic_setup);
 
@@ -253,7 +253,7 @@ static int check_reg_setup(char *ptr)
 
 	reg_check_flag = true;
 
-	return 0;
+	return 1;
 }
 
 __setup("check_reg=", check_reg_setup);
@@ -276,7 +276,7 @@ static int check_mask_setup(char *ptr)
 		}
 	} while (str_entry && i < MAX_DETECT_REG);
 
-	return 0;
+	return 1;
 }
 
 __setup("check_mask=", check_mask_setup);

@@ -20,7 +20,7 @@ static int bypass_power_off_setup(char *buf)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("bypass_power_off=", bypass_power_off_setup);
 

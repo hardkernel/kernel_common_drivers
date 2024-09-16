@@ -64,7 +64,7 @@ static int isolcpus_setup(char *str)
 {
 	have_isolcpus = 1;
 
-	return 0;
+	return 1;
 }
 __setup("isolcpus=", isolcpus_setup);
 
@@ -80,7 +80,7 @@ static int aml_isolcpus_setup(char *str)
 	cpumask_andnot(&aml_house_keeping_mask, cpu_possible_mask, &isolcpus_mask);
 
 	//pr_info("aml_isolcpus_setup() mask=%lx\n", *(unsigned long*)&aml_house_keeping_mask);
-	return 0;
+	return 1;
 }
 __setup("aml_isolcpus=", aml_isolcpus_setup);
 
@@ -118,7 +118,7 @@ static int isolcpus_speedup_boot_setup(char *str)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("isolcpus_speedup_boot=", isolcpus_speedup_boot_setup);
 

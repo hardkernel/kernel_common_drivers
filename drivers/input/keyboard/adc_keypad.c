@@ -747,7 +747,7 @@ static int __init adc_key_mode_para_setup(char *s)
 	if (s)
 		sprintf(adc_key_mode_name, "%s", s);
 
-	return 0;
+	return 1;
 }
 __setup("adckeyswitch=", adc_key_mode_para_setup);
 
@@ -756,7 +756,7 @@ static int __init kernel_keypad_enable_setup(char *s)
 	if (s)
 		sprintf(kernelkey_en_name, "%s", s);
 
-	return 0;
+	return 1;
 }
 __setup("kernelkey_enable=", kernel_keypad_enable_setup);
 

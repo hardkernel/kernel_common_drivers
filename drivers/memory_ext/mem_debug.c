@@ -248,7 +248,7 @@ static int early_pagemap(char *buf)
 	pr_info("%s pagemap for %s build\n",
 		pagemap_en ? "enable" : "disable", buf);
 
-	return 0;
+	return 1;
 }
 __setup("buildvariant=", early_pagemap);
 #endif
