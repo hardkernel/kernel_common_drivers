@@ -116,7 +116,7 @@ static int early_amfc_clk_set(char *buf)
 		if (clk == amfc_clk[i]) {
 			pr_emerg("set amfc_clk to %d Hz\n", clk);
 			init_clk = clk;
-			return 0;
+			return 1;
 		}
 	}
 	return -EINVAL;

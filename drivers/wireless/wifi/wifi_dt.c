@@ -1024,7 +1024,7 @@ static int get_usb2t_mode(char *str)
 	ret = kstrtouint(str, 10, &usb2t_mode);
 	if (ret)
 		return -EINVAL;
-	return 0;
+	return 1;
 }
 
 __setup("usb2t_mode=", get_usb2t_mode);

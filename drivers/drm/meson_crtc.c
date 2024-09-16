@@ -69,7 +69,7 @@ static int gamma_boot_ctl(char *str)
 	else
 		gamma_ctl = 1;
 
-	return 0;
+	return 1;
 }
 
 __setup("gamma=", gamma_boot_ctl);

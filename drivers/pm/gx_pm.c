@@ -91,7 +91,7 @@ static int suspend_get_pm_env(char *buf)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("initcall_debug=", suspend_get_pm_env);
 
@@ -316,7 +316,7 @@ static int suspend_get_debug_env(char *buf)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 
 __setup("suspend_debug=", suspend_get_debug_env);

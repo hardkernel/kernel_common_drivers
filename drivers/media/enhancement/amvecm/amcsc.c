@@ -560,7 +560,7 @@ int boot_hdr_policy(char *str)
 		hdr_policy = 4; /*force policy for u*/
 		pr_debug("boot hdr_policy: 4\n");
 	}
-	return 0;
+	return 1;
 }
 __setup("hdr_policy=", boot_hdr_policy);
 
@@ -597,7 +597,7 @@ int boot_hdr_debug(char *str)
 	}
 	if (cur_debug_csc)
 		pr_info("enable hdr_debug: %d\n", cur_debug_csc);
-	return 0;
+	return 1;
 }
 __setup("hdr_debug=", boot_hdr_debug);
 #endif
@@ -625,7 +625,7 @@ int boot_hdr_force_mode(char *str)
 		force_output = 5; /*force hlg*/
 		pr_debug("boot output format: hlg\n");
 	}
-	return 0;
+	return 1;
 }
 __setup("hdr_force_mode=", boot_hdr_force_mode);
 

@@ -535,7 +535,7 @@ static int get_tsensor_debug_enable(char *str)
 		g_tsensor_debug_enable = 0;
 		return -EINVAL;
 	}
-	return 0;
+	return 1;
 }
 __setup("tsensor_debug=", get_tsensor_debug_enable);
 

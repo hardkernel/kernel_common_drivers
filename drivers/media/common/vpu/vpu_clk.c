@@ -146,7 +146,7 @@ static int get_vpu_overclock(char *str)
 
 	ret = kstrtoint(str, 0, &vpu_conf.vpu_overclock);
 	VPUPR("vpu_overclock=%d\n", vpu_conf.vpu_overclock);
-	return 0;
+	return 1;
 }
 
 __setup("vpu_overclock=", get_vpu_overclock);

@@ -79,7 +79,13 @@ module_param(wdt_debug, int, 0644);
 static unsigned int watchdog_enabled = 1;
 static int get_watchdog_enabled_env(char *str)
 {
-	return kstrtouint(str, 0, &watchdog_enabled);
+	int ret;
+
+	ret = kstrtouint(str, 0, &watchdog_enabled);
+	if (ret)
+		return ret;
+
+	return 1;
 }
 __setup("watchdog_enabled=", get_watchdog_enabled_env);
 
@@ -88,7 +94,13 @@ module_param(stop_after_panic, int, 0644);
 MODULE_PARM_DESC(stop_after_panic, "Stop watchdog after panic (0=keep watching, 1=stop)");
 static int get_stop_after_panic_env(char *str)
 {
-	return kstrtoint(str, 0, &stop_after_panic);
+	int ret;
+
+	ret = kstrtoint(str, 0, &stop_after_panic);
+	if (ret)
+		return ret;
+
+	return 1;
 }
 __setup("wdt_stop_after_panic=", get_stop_after_panic_env);
 

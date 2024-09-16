@@ -264,7 +264,7 @@ static int cma_alloc_trace_setup(char *str)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("cma_alloc_trace=", cma_alloc_trace_setup);
 
@@ -275,7 +275,7 @@ static int cma_debug_level_setup(char *str)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("cma_debug_level=", cma_debug_level_setup);
 
@@ -960,7 +960,7 @@ static int cma_enabled_setup(char *str)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("cma_enabled=", cma_enabled_setup);
 
@@ -974,7 +974,7 @@ static int cma_enabled_swap_ratio_setup(char *str)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("cma_enabled_swap_ratio=", cma_enabled_swap_ratio_setup);
 

@@ -94,7 +94,7 @@ static int iotm_disable_setup(char *buf)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("iotm_disable=", iotm_disable_setup);
 
@@ -109,7 +109,7 @@ static int iotm_monitor_mode_setup(char *buf)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("iotm.monitor_mode=", iotm_monitor_mode_setup);
 
@@ -150,7 +150,7 @@ static int iotm_monitor_range_setup(char *buf)
 			iotm.range[3].start, iotm.range[3].end,
 			iotm.range[4].start, iotm.range[4].end);
 
-	return 0;
+	return 1;
 err:
 	for (i = 0; i < 5; i++) {
 		iotm.range[i].start = 0;

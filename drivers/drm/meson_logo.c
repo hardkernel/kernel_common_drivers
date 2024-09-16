@@ -89,7 +89,9 @@ static int drm_logo_bpp_setup(char *str)
 	int ret;
 
 	ret = kstrtoint(str, 0, &drm_logo_bpp);
-	return ret;
+	if (ret)
+		return ret;
+	return 1;
 }
 __setup("display_bpp=", drm_logo_bpp_setup);
 
@@ -103,7 +105,9 @@ static int drm_logo_width_setup(char *str)
 	int ret;
 
 	ret = kstrtoint(str, 0, &drm_logo_width);
-	return ret;
+	if (ret)
+		return ret;
+	return 1;
 }
 __setup("fb_width=", drm_logo_width_setup);
 
@@ -117,7 +121,9 @@ static int drm_logo_height_setup(char *str)
 	int ret;
 
 	ret = kstrtoint(str, 0, &drm_logo_height);
-	return ret;
+	if (ret)
+		return ret;
+	return 1;
 }
 __setup("fb_height=", drm_logo_height_setup);
 
@@ -255,7 +261,7 @@ static int drm_logo_reverse_setup(char *str)
 		str2lower(option);
 		install_osd_reverse_info(init_osd_info, option);
 	}
-	return 0;
+	return 1;
 }
 __setup("osd_reverse=", drm_logo_reverse_setup);
 

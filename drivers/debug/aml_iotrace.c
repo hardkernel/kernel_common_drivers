@@ -57,7 +57,7 @@ static int ramoops_trace_mask_setup(char *buf)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("ramoops_trace_mask=", ramoops_trace_mask_setup);
 
@@ -76,7 +76,7 @@ static int ramoops_io_skip_setup(char *buf)
 	if (ramoops_io_skip > 2)
 		ramoops_io_skip = 2;
 
-	return 0;
+	return 1;
 }
 __setup("ramoops_io_skip=", ramoops_io_skip_setup);
 
@@ -92,7 +92,7 @@ static int ramoops_io_stack_setup(char *buf)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("ramoops_io_stack=", ramoops_io_stack_setup);
 
@@ -108,7 +108,7 @@ static int ramoops_io_en_setup(char *buf)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("ramoops_io_en=", ramoops_io_en_setup);
 
@@ -124,7 +124,7 @@ static int ramoops_io_dump_setup(char *buf)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("ramoops_io_dump=", ramoops_io_dump_setup);
 
@@ -143,7 +143,7 @@ static int ramoops_io_dump_delay_secs_setup(char *buf)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("ramoops_io_dump_delay_secs=", ramoops_io_dump_delay_secs_setup);
 
@@ -343,7 +343,7 @@ static int reboot_mode_setup(char *s)
 	if (s)
 		snprintf(reboot_mode, sizeof(reboot_mode), "%s", s);
 
-	return 0;
+	return 1;
 }
 __setup("reboot_mode=", reboot_mode_setup);
 

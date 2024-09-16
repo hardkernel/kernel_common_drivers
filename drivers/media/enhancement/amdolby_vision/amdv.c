@@ -18348,7 +18348,7 @@ static int get_amdv_uboot_on(char *str)
 		amdv_on_in_uboot = 1;
 		dolby_vision_enable = 1;
 	}
-	return 0;
+	return 1;
 }
 __setup("dolby_vision_on=", get_amdv_uboot_on);
 
@@ -18373,7 +18373,7 @@ static int get_amdv_uboot_policy(char *str)
 		if (debug_dolby & 1)
 			pr_info("boot dolby_vision_policy: 2\n");
 	}
-	return 0;
+	return 1;
 }
 __setup("hdr_policy=", get_amdv_uboot_policy);
 
@@ -18398,7 +18398,7 @@ static int get_amdv_uboot_status(char *str)
 		if (debug_dolby & 1)
 			pr_info("boot dolby_status: 2\n");
 	}
-	return 0;
+	return 1;
 }
 __setup("dolby_status=", get_amdv_uboot_status);
 
@@ -18411,7 +18411,7 @@ static int recovery_mode_check(char *str)
 
 	if (strlen(recovery_status) > 0)
 		recovery_mode = true;
-	return 0;
+	return 1;
 }
 __setup("recovery_part=", recovery_mode_check);
 

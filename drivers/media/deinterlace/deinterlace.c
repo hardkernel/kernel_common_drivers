@@ -787,7 +787,7 @@ static int di_read_canvas_reverse(char *str)
 		overturn = false;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("video_reverse=", di_read_canvas_reverse);
 

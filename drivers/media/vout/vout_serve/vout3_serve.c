@@ -1123,7 +1123,7 @@ static int get_vout3_init_mode(char *str)
 		vout3_init_mode_parse(option);
 	}
 
-	return 0;
+	return 1;
 }
 __setup("vout3=", get_vout3_init_mode);
 
@@ -1133,7 +1133,7 @@ static int get_connector2_type(char *str)
 		sprintf(connector2_type, "%s", str);
 
 	VOUTPR("connector2_type: %s\n", connector2_type);
-	return 0;
+	return 1;
 }
 
 __setup("connector2_type=", get_connector2_type);

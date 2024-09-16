@@ -49,8 +49,10 @@ static int get_u2phy_speed(char *str)
 	int ret;
 
 	ret = kstrtobool(str, &aml_usb2_phy_960m);
+	if (ret)
+		return ret;
 
-	return ret;
+	return 1;
 }
 
 __setup("usb2t_mode=", get_u2phy_speed);

@@ -138,7 +138,9 @@ static int dummy_encp_timing_flip_setup(char *str)
 	int ret;
 
 	ret = kstrtoint(str, 0, &dummyp_timing_flip);
-	return ret;
+	if (ret)
+		return ret;
+	return 1;
 }
 __setup("dummyp_timing_flip=", dummy_encp_timing_flip_setup);
 

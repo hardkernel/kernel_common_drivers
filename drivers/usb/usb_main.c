@@ -31,7 +31,7 @@ static int force_otg_mode(char *s)
 		force_device_mode = 0;
 	else
 		force_device_mode = 1;
-	return 0;
+	return 1;
 }
 __setup("otg_device=", force_otg_mode);
 

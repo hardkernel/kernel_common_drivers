@@ -19,7 +19,7 @@ static int bypass_clk_disable_setup(char *buf)
 		return -EINVAL;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("bypass_clk_disable=", bypass_clk_disable_setup);
 

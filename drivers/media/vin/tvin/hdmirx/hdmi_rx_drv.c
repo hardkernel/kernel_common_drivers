@@ -4294,7 +4294,7 @@ int get_tx_boot_hdr_priority(char *str)
 		tx_hdr_priority = val;
 		pr_info("tx_hdr_priority: %d\n", val);
 	}
-	return 0;
+	return 1;
 }
 __setup("hdr_priority=", get_tx_boot_hdr_priority);
 #endif

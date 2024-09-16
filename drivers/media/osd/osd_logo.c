@@ -147,7 +147,7 @@ static int logo_setup(char *str)
 		str2lower(option);
 		logo_info_init(option);
 	}
-	return 0;
+	return 1;
 }
 
 static int get_logo_width(char *str)
@@ -156,7 +156,7 @@ static int get_logo_width(char *str)
 
 	ret = kstrtoint(str, 0, &logo_info.fb_width);
 	pr_info("logo_info.fb_width=%d\n", logo_info.fb_width);
-	return 0;
+	return 1;
 }
 
 static int get_logo_height(char *str)
@@ -165,7 +165,7 @@ static int get_logo_height(char *str)
 
 	ret = kstrtoint(str, 0, &logo_info.fb_height);
 	pr_info("logo_info.fb_height=%d\n", logo_info.fb_height);
-	return 0;
+	return 1;
 }
 
 static u32 display_bpp;
@@ -176,7 +176,7 @@ static int logo_display_bpp_setup(char *str)
 
 	ret = kstrtoint(str, 0, &display_bpp);
 	pr_info("logo_info.bpp=%d\n", display_bpp);
-	return 0;
+	return 1;
 }
 
 u32 get_logo_fb_width(void)

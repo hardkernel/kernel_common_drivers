@@ -104,7 +104,7 @@ static int early_dmc_param(char *buf)
 	pr_info("%s, buf:%s, %lx-%lx, %lx, %lx\n",
 		__func__, buf, s_addr, e_addr, mask, debug);
 
-	return 0;
+	return 1;
 }
 __setup("dmc_monitor=", early_dmc_param);
 
@@ -121,7 +121,7 @@ static int early_dmc_filter(char *buf)
 	snprintf(dmc_filter_early_buf, 1024, "%s", buf);
 	pr_info("dmc_filter, buf:%s\n", buf);
 
-	return 0;
+	return 1;
 }
 __setup("dmc_filter=", early_dmc_filter);
 
@@ -156,7 +156,7 @@ static int early_dmc_irq_thread(char *buf)
 			init_dmc_irq_thread_en, init_dmc_irq_check_ns,
 			init_dmc_irq_ratio, init_dmc_irq_usleep, init_thread_recheck_ns);
 
-	return 0;
+	return 1;
 }
 __setup("dmc_irq_thread=", early_dmc_irq_thread);
 

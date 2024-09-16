@@ -74,7 +74,7 @@ static int scramble_reg_setup(char *buf)
 	}
 
 	pr_info("scramble_reg=%x\n", scramble_reg);
-	return 0;
+	return 1;
 }
 __setup("scramble_reg=", scramble_reg_setup);
 

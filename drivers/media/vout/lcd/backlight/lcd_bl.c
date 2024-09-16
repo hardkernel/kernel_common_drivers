@@ -4646,10 +4646,12 @@ static int aml_bl_level_setup(char *str)
 
 	if (str) {
 		ret = kstrtouint(str, 10, &bl_level[0]);
+		if (ret)
+			return ret;
 		BLPR("bl_level: %d\n", bl_level[0]);
 	}
 
-	return ret;
+	return 1;
 }
 __setup("bl_level=", aml_bl_level_setup);
 

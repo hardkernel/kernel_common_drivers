@@ -38,7 +38,7 @@ static int get_irenv(char *str)
 	ret = kstrtouint(str, 10, &disable_ir);
 	if (ret)
 		return -EINVAL;
-	return 0;
+	return 1;
 }
 
 __setup("disable_ir=", get_irenv);

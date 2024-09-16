@@ -665,7 +665,7 @@ int __init amvecm_load_pq_val(char *str)
 			return 0;
 	}
 
-	return 0;
+	return 1;
 }
 __setup("pq=", amvecm_load_pq_val);
 

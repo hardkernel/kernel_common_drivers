@@ -4267,7 +4267,7 @@ static int osd_info_setup(char *str)
 		str2lower(option);
 		install_osd_reverse_info(init_osd_info, option);
 	}
-	return 0;
+	return 1;
 }
 
 __setup("osd_reverse=", osd_info_setup);

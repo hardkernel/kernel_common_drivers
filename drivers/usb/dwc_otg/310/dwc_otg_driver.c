@@ -256,7 +256,7 @@ static int dwc_force_otg_mode(char *s)
 		dwc_force_device_mode = 0;
 	else
 		dwc_force_device_mode = 1;
-	return 0;
+	return 1;
 }
 __setup("otg_device=", dwc_force_otg_mode);
 #else

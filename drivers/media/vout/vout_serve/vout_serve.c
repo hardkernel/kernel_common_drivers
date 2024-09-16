@@ -1354,7 +1354,7 @@ int get_vout_init_mode(char *str)
 		vout_init_mode_parse(option);
 	}
 
-	return 0;
+	return 1;
 }
 __setup("vout=", get_vout_init_mode);
 
@@ -1364,7 +1364,7 @@ static int get_connector0_type(char *str)
 		sprintf(connector0_type, "%s", str);
 
 	VOUTPR("connector0_type: %s\n", connector0_type);
-	return 0;
+	return 1;
 }
 
 __setup("connector0_type=", get_connector0_type);
@@ -1387,7 +1387,7 @@ static int get_connector_type_to_compat(char *str)
 		connector0_type[ret - connector0_type] = '-';
 
 	VOUTPR("connector_type(compact): %s\n", connector0_type);
-	return 0;
+	return 1;
 }
 
 __setup("connector_type=", get_connector_type_to_compat);

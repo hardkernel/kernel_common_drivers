@@ -204,7 +204,7 @@ static int vdin_get_video_reverse(char *str)
 	pr_info("%s: bootargs is %s.\n", __func__, str);
 	if (strstr(ptr, "1"))
 		panel_reverse = 1;
-	return 0;
+	return 1;
 }
 __setup("video_reverse=", vdin_get_video_reverse);
 

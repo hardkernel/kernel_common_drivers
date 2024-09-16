@@ -165,7 +165,7 @@ EXPORT_SYMBOL_GPL(aml_nand_get_rsv_cmdline);
 int mtdrsvpart_setup(char *s)
 {
 	rsv_cmdline = s;
-	return 0;
+	return 1;
 }
 
 __setup("mtdrsvparts=", mtdrsvpart_setup);
@@ -173,7 +173,7 @@ __setup("mtdrsvparts=", mtdrsvpart_setup);
 int mtdbootpart_setup(char *s)
 {
 	cmdline = s;
-	return 0;
+	return 1;
 }
 
 __setup("mtdbootparts=", mtdbootpart_setup);

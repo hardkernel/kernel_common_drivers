@@ -72,7 +72,7 @@ static int check_reboot_mode(char *str)
 		recovery_mode = 0;
 	}
 
-	return 0;
+	return 1;
 }
 
 __setup("reboot_mode=", check_reboot_mode);

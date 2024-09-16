@@ -13932,7 +13932,7 @@ static int vpp_axis_reverse(char *str)
 		video_mirror = 0;
 	}
 
-	return 0;
+	return 1;
 }
 
 __setup("video_reverse=", vpp_axis_reverse);
