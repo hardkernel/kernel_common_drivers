@@ -39,11 +39,10 @@
 #include "atsc_frontend.h"
 #include <linux/amlogic/aml_dtvdemod.h>
 
-#define ATSC_TIME_CHECK_SIGNAL 400
+#define ATSC_TIME_CHECK_SIGNAL 500
 #define ATSC_TIME_START_CCI 1500
 
 //atsc-c
-
 MODULE_PARM_DESC(std_lock_timeout, "");
 static unsigned int std_lock_timeout = 1000;
 module_param(std_lock_timeout, int, 0644);
@@ -57,13 +56,21 @@ MODULE_PARM_DESC(atsc_t_lock_continuous_cnt, "");
 static unsigned int atsc_t_lock_continuous_cnt = 1;
 module_param(atsc_t_lock_continuous_cnt, int, 0644);
 
-MODULE_PARM_DESC(atsc_check_signal_time, "");
-static unsigned int atsc_check_signal_time = ATSC_TIME_CHECK_SIGNAL;
-module_param(atsc_check_signal_time, int, 0644);
-
 MODULE_PARM_DESC(atsc_t_lost_continuous_cnt, "");
 static unsigned int atsc_t_lost_continuous_cnt = 15;
 module_param(atsc_t_lost_continuous_cnt, int, 0644);
+
+static unsigned int atsc_check_signal_time = ATSC_TIME_CHECK_SIGNAL;
+MODULE_PARM_DESC(atsc_check_signal_time, "");
+module_param(atsc_check_signal_time, int, 0644);
+
+static unsigned char atsc_check_rst = 1;
+MODULE_PARM_DESC(atsc_check_rst, "");
+module_param(atsc_check_rst, byte, 0644);
+
+static unsigned char atsc_check_fsm = 3;
+MODULE_PARM_DESC(atsc_check_fsm, "");
+module_param(atsc_check_fsm, byte, 0644);
 
 void gxtv_demod_atsc_release(struct dvb_frontend *fe)
 {
@@ -450,14 +457,15 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 	int lost_continuous_cnt = atsc_t_lost_continuous_cnt > 1 ? atsc_t_lost_continuous_cnt : 1;
 	int check_signal_time = atsc_check_signal_time > 1 ? atsc_check_signal_time :
 		ATSC_TIME_CHECK_SIGNAL;
+	check_signal_time = atsc_check_rst ? (check_signal_time * 2) : (check_signal_time * 3 / 2);
 	int tuner_strength_threshold = THRD_TUNER_STRENGTH_ATSC;
 
 	if (re_tune) {
 		lock_status = 0;
 		demod->last_status = 0;
 		peak = 0;
-		chk_fsm = 1;
-		first_chk = 1;
+		chk_fsm = atsc_check_fsm ? 1 : 0;
+		first_chk = atsc_check_rst;
 		demod->time_start = jiffies_to_msecs(jiffies);
 		*status = 0;
 		atsc_optimize_cn(true);
@@ -498,7 +506,7 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 				chk_fsm = 0;
 			} else {
 				chk_fsm++;
-				if (chk_fsm == 3) {
+				if (chk_fsm == atsc_check_fsm) {
 					chk_fsm = 0;
 					*status = FE_TIMEDOUT;
 					PR_ATSC("fsm check failed\n");
@@ -512,11 +520,11 @@ void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned 
 			peak = 1;//atsc signal
 
 		if (sys_sts >= ATSC_SYNC_LOCK ||
-			demod->time_passed <= (check_signal_time * 2) ||
+			demod->time_passed <= check_signal_time ||
 			(demod->time_passed <= TIMEOUT_ATSC && peak)) {
 			fsm_status = 0;
 
-			if (!peak && first_chk && demod->time_passed >= check_signal_time) {
+			if (!peak && first_chk && demod->time_passed >= (check_signal_time / 2)) {
 				first_chk = 0;
 				atsc_rst();
 				PR_ATSC("do a reset for check @%dHz\n", c->frequency);
