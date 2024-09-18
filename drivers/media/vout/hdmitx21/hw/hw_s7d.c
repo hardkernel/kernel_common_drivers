@@ -28,7 +28,7 @@
 			} \
 		} \
 		if (cnt < 9) \
-			HDMITX_DEBUG("pll[0x%x] reset %d times\n", reg, 9 - cnt);\
+			HDMITX_INFO("pll[0x%x] reset %d times\n", reg, 9 - cnt);\
 	} while (0)
 
 static const char od_map[9] = {
