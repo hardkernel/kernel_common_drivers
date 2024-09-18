@@ -2898,6 +2898,81 @@ static int lcd2_boot_ctrl_setup(char *str)
 	return 1;
 }
 
+__setup("panel_name=", lcd_panel_name_para_setup);
+__setup("panel1_name=", lcd1_panel_name_para_setup);
+__setup("panel2_name=", lcd2_panel_name_para_setup);
+__setup("panel_type=", lcd_panel_type_para_setup);
+__setup("panel1_type=", lcd1_panel_type_para_setup);
+__setup("panel2_type=", lcd2_panel_type_para_setup);
+__setup("lcd_ctrl=",  lcd_boot_ctrl_setup);
+__setup("lcd1_ctrl=", lcd1_boot_ctrl_setup);
+__setup("lcd2_ctrl=", lcd2_boot_ctrl_setup);
+// consider remove in future
+
+// lcdX={lcd_ctrl},{name},{type}
+static int lcd_boot_str_setup(unsigned char idx, char *str)
+{
+	int ret = 0;
+	unsigned int data32 = 0;
+	const char *ptr, *ptr2;
+	char temp_str[12];
+	struct lcd_boot_ctrl_s *boot_ctrl = &lcd_boot_ctrl_config[idx];
+
+	if (!str)
+		return -EINVAL;
+
+	ptr = strstr(str, ",");
+	if (!ptr || ptr == str) {
+		LCDERR("[%u]: %s: invalid boot ctrl str: %s\n", idx, __func__, str);
+		return -EINVAL;
+	}
+	snprintf(temp_str, (ptr - str > 11) ? 11 : ptr - str + 1, "%s", str);
+	ret = kstrtouint(temp_str, 16, &data32);
+	if (ret) {
+		LCDERR("[%u]: %s: invalid data\n", idx, __func__);
+		return -EINVAL;
+	}
+
+	ptr++;
+	ptr2 = strstr(ptr, ",");
+	if (ptr2) {
+		if (ptr2 > ptr)
+			snprintf(lcd_panel_name[idx], ptr2 - ptr + 1, "%s", ptr);
+		ptr2++;
+		if (str + strlen(str) > ptr2)
+			snprintf(lcd_propname[idx], 24, "%s", ptr2);
+	}
+
+	boot_ctrl->lcd_type = data32 & 0xf;
+	boot_ctrl->lcd_bits = (data32 >> 4) & 0xf;
+	boot_ctrl->advanced_flag = (data32 >> 8) & 0xff;
+	boot_ctrl->custom_pinmux = (data32 >> 16) & 0x1;
+	boot_ctrl->dccd_flag = (data32 >> 17) & 0x1;
+	boot_ctrl->init_level = (data32 >> 18) & 0x3;
+	boot_ctrl->ppc = (data32 >> 20) & 0x3;
+	boot_ctrl->clk_mode = (data32 >> 22) & 0x3;
+	boot_ctrl->base_frame_rate = (data32 >> 24) & 0xff;
+
+	LCDPR("[%u]: [0x%08x] [%s] [%s]\n", idx, data32, lcd_panel_name[idx], lcd_propname[idx]);
+
+	return 0;
+}
+
+static int lcd0_boot_setup(char *str)
+{
+	return lcd_boot_str_setup(0, str);
+}
+
+static int lcd1_boot_setup(char *str)
+{
+	return lcd_boot_str_setup(1, str);
+}
+
+static int lcd2_boot_setup(char *str)
+{
+	return lcd_boot_str_setup(2, str);
+}
+
 static int lcd_debug_ctrl_setup(char *str)
 {
 	int ret = 0;
@@ -2923,15 +2998,9 @@ static int lcd_debug_ctrl_setup(char *str)
 	return 1;
 }
 
-__setup("panel_name=", lcd_panel_name_para_setup);
-__setup("panel1_name=", lcd1_panel_name_para_setup);
-__setup("panel2_name=", lcd2_panel_name_para_setup);
-__setup("panel_type=", lcd_panel_type_para_setup);
-__setup("panel1_type=", lcd1_panel_type_para_setup);
-__setup("panel2_type=", lcd2_panel_type_para_setup);
-__setup("lcd_ctrl=", lcd_boot_ctrl_setup);
-__setup("lcd1_ctrl=", lcd1_boot_ctrl_setup);
-__setup("lcd2_ctrl=", lcd2_boot_ctrl_setup);
+__setup("lcd0=", lcd0_boot_setup);
+__setup("lcd1=", lcd1_boot_setup);
+__setup("lcd2=", lcd2_boot_setup);
 __setup("lcd_debug=", lcd_debug_ctrl_setup);
 
 //MODULE_DESCRIPTION("Meson LCD Panel Driver");
