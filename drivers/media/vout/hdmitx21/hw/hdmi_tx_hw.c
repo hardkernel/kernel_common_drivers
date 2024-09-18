@@ -381,12 +381,22 @@ void hdmitx21_sys_reset(void)
  */
 static bool hdmitx21_uboot_already_display(void)
 {
-/*	if (hdev->pxp_mode) */
-/*		return 0; */
+	bool tmds_pixel_clk_en = false;
+
+	/*
+	 * if (hdev->pxp_mode)
+	 *return 0;
+	 */
+	if (global_tx_hw->chip_data->chip_type == MESON_CPU_ID_S5)
+		tmds_pixel_clk_en = (hdmitx21_rd_reg(HDMITX_TOP_CLK_CNTL) & 0x7) == 0x7;
+	else
+		tmds_pixel_clk_en = (hdmitx21_rd_reg(HDMITX_TOP_CLK_CNTL) & 0x3) == 0x3;
+	if (!tmds_pixel_clk_en)
+		return false;
 
 	if (hd21_read_reg(ANACTRL_HDMIPHY_CTRL0))
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 static enum hdmi_color_depth _get_colordepth(void)
@@ -495,6 +505,19 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 	}
 
 	HDMITX_INFO("%s%d\n", __func__, __LINE__);
+
+	if (!hdmitx21_is_basic_clk_en())
+		hdmitx21_set_default_clk();
+
+	/* Bring HDMITX MEM output of power down */
+	hd21_set_reg_bits(PWRCTRL_MEM_PD11, 0, 8, 8);
+	/* Bring out of reset */
+	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, 0);
+	/* Test after initial out of reset, cannot write to IP register, unless enable access */
+	hdmitx21_wr_reg(INTR3_MASK_IVCTX, 0xff);
+	/* enable access core reg */
+	hdmitx21_wr_reg(HDMITX_TOP_SEC_SCRATCH, 1);
+
 	if (!reset && hdmitx21_uboot_already_display()) {
 		HDMITX_INFO("uboot already enabled hdmitx\n");
 		/* enable fifo intr if uboot hdmitx output ready */
@@ -522,7 +545,6 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 		hd21_set_reg_bits(PADCTRL_PIN_MUX_REGN, 1, 28, 4);
 	}
 
-	hdmitx21_set_default_clk();    // set MPEG, audio and default video
 	// [8]      hdcp_topology_err
 	// [7]      rxsense_fall
 	// [6]      rxsense_rise
@@ -3145,7 +3167,7 @@ static int hdmitx_cntl_config(struct hdmitx_hw_common *tx_hw, u32 cmd,
 	case CONF_EMP_PHY_ADDR:
 		break;
 	case CONF_HW_INIT:
-		hdmi_hwp_init(hdev, 1);
+		hdmi_hwp_init(hdev, argv);
 		break;
 	case CONFIG_CSC_EN:
 		if (argv == CSC_ENABLE)

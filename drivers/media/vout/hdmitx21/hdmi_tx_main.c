@@ -5194,7 +5194,7 @@ static int amhdmitx_resume(struct platform_device *pdev)
 	 * required top register.
 	 */
 	if (hdev->tx_hw.chip_data->chip_type >= MESON_CPU_ID_S7)
-		hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_HW_INIT, 0);
+		hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_HW_INIT, 1);
 	mutex_lock(&tx_comm->hdmimode_mutex);
 	hdmitx_event_mgr_suspend(tx_comm->event_mgr, false);
 	/* need to update EDID in case TV changed during suspend */
@@ -5228,9 +5228,66 @@ static int amhdmitx_pm_resume(struct device *dev)
 	return amhdmitx_resume(pdev);
 }
 
+/* After suspend to disk and resume, only global/static values
+ * will be restored, HW registers will be cleared because of
+ * power down operations. When restore, it will not do
+ * probe if driver is insmod by ko instead of built-in.
+ * If hdmi HW reg/clk is not set in uboot, or even HW reg/clk
+ * is set in uboot, but powered down after enter kernel somehow,
+ * then need to do HW init again when pm restore.
+ */
+static int amhdmitx_pm_restore(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct hdmitx_dev *hdev = dev_get_drvdata(&pdev->dev);
+	struct hdmitx_common *tx_comm = &hdev->tx_comm;
+	struct hdmitx_hw_common *tx_hw_base = tx_comm->tx_hw;
+
+	HDMITX_INFO("%s restore\n", __func__);
+	mutex_lock(&tx_comm->hdmimode_mutex);
+	/*
+	 * if hdmitx init and display already, then should not do
+	 * HW init again as it may change clk settings, otherwise
+	 * need to do hw init as did in driver probe in case HW is
+	 * in power down or unknown state
+	 */
+	hdmitx_hw_cntl_config(&hdev->tx_hw.base, CONF_HW_INIT, 0);
+	/*
+	 * after suspend to disk and before resume, it may change TV set,
+	 * need to update EDID/HPD/fmt_para by current HW status
+	 * as which did in driver probe
+	 */
+	tx_comm->hpd_state = !!(hdmitx_hw_cntl_misc(tx_hw_base, MISC_HPD_GPI_ST, 0));
+	if (tx_comm->hpd_state)
+		hdmitx_plugin_common_work(tx_comm);
+	else
+		hdmitx_plugout_common_work(tx_comm);
+
+	/* load fmt para from hw info */
+	hdmitx_common_init_bootup_format_para(tx_comm, &tx_comm->fmt_para);
+	if (tx_comm->fmt_para.vic != HDMI_0_UNKNOWN)
+		tx_comm->ready = 1;
+	else
+		tx_comm->ready = 0;
+	/* rebuild fmt attr */
+	hdmitx_format_para_rebuild_fmtattr_str(&tx_comm->fmt_para,
+		tx_comm->fmt_attr, sizeof(tx_comm->fmt_attr));
+	/* load init hdr state for HW info */
+	hdmitx_hdr_state_init(tx_comm);
+	hdmitx_common_notify_hpd_status(tx_comm, false);
+	mutex_unlock(&tx_comm->hdmimode_mutex);
+	/* in case TV set changed after suspend, need to update vinfo */
+	if (tx_comm->ready == 1)
+		hdmitx21_init_uboot_mode(VMODE_INIT_BIT_MASK);
+	/* notify to drm hdmi */
+	hdmitx_fire_drm_hpd_cb_unlocked(tx_comm);
+	return 0;
+}
+
 const struct dev_pm_ops hdmitx21_pm = {
 	.suspend	= amhdmitx_pm_suspend,
 	.resume		= amhdmitx_pm_resume,
+	.restore	= amhdmitx_pm_restore,
 };
 #endif
 

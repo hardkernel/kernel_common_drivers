@@ -134,14 +134,23 @@ void hdmitx21_set_default_clk(void)
 
 	if (hdev->tx_hw.chip_data->chip_type == MESON_CPU_ID_T7)
 		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 7, 0, 3);
+}
 
-	// Bring HDMITX MEM output of power down
-	hd21_set_reg_bits(PWRCTRL_MEM_PD11, 0, 8, 8);
-	// Bring out of reset
-	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, 0);
-	// Test after initial out of reset, cannot write to IP register, unless enable access
-	hdmitx21_wr_reg(INTR3_MASK_IVCTX, 0xff);
-	hdmitx21_wr_reg(HDMITX_TOP_SEC_SCRATCH, 1);
+bool hdmitx21_is_basic_clk_en(void)
+{
+	u32 data32;
+
+	/* cts_hdmitx_sys_clk gate */
+	data32 = hd21_read_reg(CLKCTRL_HDMI_CLK_CTRL);
+	if (!(data32 & BIT(8)))
+		return false;
+
+	/* cts_hdmitx_200m_clk and cts_hdmitx_prif_clk gate */
+	data32 = hd21_read_reg(CLKCTRL_HTX_CLK_CTRL0);
+	if (!(data32 & BIT(8)) || !(data32 & BIT(24)))
+		return false;
+
+	return true;
 }
 
 void hdmitx21_set_cts_hdcp22_clk(struct hdmitx_dev *hdev)

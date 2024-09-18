@@ -4165,6 +4165,8 @@ static int amhdmitx_pm_resume(struct device *dev)
 const struct dev_pm_ops hdmitx20_pm = {
 	.suspend	= amhdmitx_pm_suspend,
 	.resume		= amhdmitx_pm_resume,
+	/* no application for now */
+	.restore    = NULL,
 };
 #endif
 
