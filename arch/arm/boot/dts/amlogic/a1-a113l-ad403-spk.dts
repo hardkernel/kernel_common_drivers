@@ -36,6 +36,21 @@
 		#size-cells = <1>;
 		ranges;
 
+		ramdump_bl33z@00000000 {
+			reg = <0x0 0x1800000>; /* 0 ~ 24M */
+			status = "disabled";
+		};
+
+		/* global autoconfigured region for contiguous allocations */
+		ramoops@6f00000 {
+			compatible = "ramoops";
+			status = "okay";
+			reg = <0x06f00000 0x00100000>;
+			record-size = <0x20000>;
+			console-size = <0x40000>;
+			ftrace-size = <0x80000>;
+		};
+
 		dmc_reserved:linux,dmc_monitor {
 			compatible = "amlogic,dmc_monitor-reserved";
 			reg = <0x0 0x0>;
