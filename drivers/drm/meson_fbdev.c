@@ -54,8 +54,8 @@ static size_t cal_fbdev_afbc_size(struct fb_info *info)
 	buf_size = stride * aligned_height +
 		ALIGN(block_count * AFBC_HEADER_BYTES_PER_BLOCKENTRY, AFBC_BODY_BYTE_ALIGNMENT);
 	buf_num = info->var.yres_virtual / info->var.yres;
+	buf_size = roundup(buf_size, BIT(CONFIG_CMA_ALIGNMENT) * PAGE_SIZE);
 	size = buf_size * buf_num;
-	size = roundup(size, (4 * 1024));
 
 	return size;
 }
