@@ -287,6 +287,7 @@ unsigned char *hdmitx_get_raw_edid(struct hdmitx_common *tx_comm);
 bool hdmitx_common_get_ready_state(struct hdmitx_common *tx_comm);
 bool hdmitx_common_get_edid_valid_state(struct hdmitx_common *tx_comm);
 bool hdmitx_common_get_hdcp_user_state(struct hdmitx_common *tx_comm);
+bool hdmitx_common_get_hdmi_used_state(struct hdmitx_common *tx_comm);
 
 int hdmitx_setup_attr(struct hdmitx_common *tx_comm, const char *buf);
 int hdmitx_get_attr(struct hdmitx_common *tx_comm, char attr[16]);

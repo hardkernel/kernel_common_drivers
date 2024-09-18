@@ -313,6 +313,12 @@ bool hdmitx_common_get_hdcp_user_state(struct hdmitx_common *tx_comm)
 }
 EXPORT_SYMBOL(hdmitx_common_get_hdcp_user_state);
 
+bool hdmitx_common_get_hdmi_used_state(struct hdmitx_common *tx_comm)
+{
+	return tx_comm->already_used;
+}
+EXPORT_SYMBOL(hdmitx_common_get_hdmi_used_state);
+
 int hdmitx_setup_attr(struct hdmitx_common *tx_comm, const char *buf)
 {
 	char attr[16] = {0};

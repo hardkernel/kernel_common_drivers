@@ -90,6 +90,11 @@ struct am_hdmi_tx {
 	struct drm_property *hdcp_user_prop;
 	int hdmi_type;
 	struct drm_property *frac_rate_policy_prop;
+	/*
+	 * if HDMI plugin even once time, then set 1
+	 * if never hdmi plugin, then keep as 0
+	 */
+	struct drm_property *hdmi_used_prop;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;

@@ -861,6 +861,9 @@ static int am_hdmitx_connector_atomic_get_property
 	} else if (property == am_hdmi->frac_rate_policy_prop) {
 		*val = hdmitx_state->frac_rate_policy;
 		return 0;
+	} else if (property == am_hdmi->hdmi_used_prop) {
+		*val = hdmitx_common_get_hdmi_used_state(tx_comm);
+		return 0;
 	}
 
 	return -EINVAL;
@@ -2244,6 +2247,20 @@ static void meson_hdmitx_init_frac_rate_policy_property(struct drm_device *drm_d
 	}
 }
 
+static void meson_hdmitx_init_hdmi_used_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "hdmi_used");
+	if (prop) {
+		am_hdmi->hdmi_used_prop = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to init hdmi_used property\n");
+	}
+}
+
 static void meson_hdmitx_init_contenttype_cap_property(struct drm_device *drm_dev,
 						  struct am_hdmi_tx *am_hdmi)
 {
@@ -2535,6 +2552,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_edid_valid_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_user_prop(drm, am_hdmi);
 	meson_hdmitx_init_frac_rate_policy_property(drm, am_hdmi);
+	meson_hdmitx_init_hdmi_used_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;
