@@ -361,7 +361,7 @@ void aml_pll_bw_cfg_t3x_20(u8 port)
 	u32 clk_rate;
 
 	clk_rate = rx_get_scdc_clkrate_sts(port);
-	idx = aml_phy_pll_band(rx[port].clk.cable_clk, clk_rate);
+	idx = rx_get_bandwidth(rx[port].clk.cable_clk, clk_rate, PLL_BAND);
 	if (!is_clk_stable(port) || !cableclk)
 		return;
 	if (log_level & PHY_LOG)
@@ -1847,7 +1847,7 @@ void aml_pll_bw_cfg_t3x_21(int f_rate, u8 port)
 	if (log_level & PHY_LOG)
 		rx_pr("clk rate = %d\n", clk_rate);
 	//rx_clkmsr_handler();
-	idx = aml_phy_pll_band(rx[port].clk.cable_clk, clk_rate);
+	idx = rx_get_bandwidth(rx[port].clk.cable_clk, clk_rate, PLL_BAND);
 	if (log_level & PHY_LOG)
 		rx_pr("idx = %d\n", idx);
 	if (f_rate == FRL_OFF) {

@@ -343,7 +343,7 @@ void aml_pll_bw_cfg_t5m(void)
 	u32 clk_rate;
 
 	clk_rate = rx_get_scdc_clkrate_sts(port);
-	idx = aml_phy_pll_band(rx[port].clk.cable_clk, clk_rate);
+	idx = rx_get_bandwidth(rx[port].clk.cable_clk, clk_rate, PLL_BAND);
 	if (!is_clk_stable(port) || !cableclk)
 		return;
 	if (log_level & PHY_LOG)
@@ -1366,7 +1366,7 @@ void aml_phy_cfg_t5m(void)
 		rx_pr("phy start\n");
 	if (rx_info.aml_phy.pre_int) {
 		clk_rate = rx_get_scdc_clkrate_sts(port);
-		idx = aml_cable_clk_band(rx[port].clk.cable_clk, clk_rate);
+		idx = rx_get_bandwidth(rx[port].clk.cable_clk, clk_rate, PHY_BAND);
 		if (log_level & PHY_LOG)
 			rx_pr("\nphy reg bw: %d\n", idx);
 		if (rx_info.aml_phy.ofst_en)

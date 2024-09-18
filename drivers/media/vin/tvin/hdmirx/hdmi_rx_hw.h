@@ -3226,6 +3226,11 @@ enum pll_frq_band {
 	PLL_BW_NULL = 0xf,
 };
 
+enum rx_band {
+	PLL_BAND = 0,
+	PHY_BAND = 1,
+};
+
 enum frl_rate_e {
 	FRL_OFF,
 	FRL_3G_3LANE,
@@ -3491,8 +3496,7 @@ void dump_reg_phy(u8 port);
 int rx_get_clock(enum measure_clk_top_e clk_src, u8 port);
 unsigned int clk_util_clk_msr(unsigned int clk_mux);
 void aml_phy_init(u8 port);
-u32 aml_cable_clk_band(u32 cableclk, u32 clkrate);
-u32 aml_phy_pll_band(u32 cableclk, u32 clkrate);
+u32 rx_get_bandwidth(u32 cable_clk, u32 clk_rate, u32 band_type);
 void aml_phy_switch_port(u8 port);
 void aml_phy_bw_switch(void);
 unsigned int aml_phy_pll_lock(u8 port);

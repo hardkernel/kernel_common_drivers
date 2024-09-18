@@ -245,8 +245,8 @@ void aml_pll_bw_cfg_t6d(void)
 	u32 clk_rate;
 
 	clk_rate = rx_get_scdc_clkrate_sts(port);
-	idx = aml_phy_pll_band(rx[port].clk.cable_clk, clk_rate);
-	phy_bw = aml_cable_clk_band(rx[port].clk.cable_clk, clk_rate);
+	idx = rx_get_bandwidth(rx[port].clk.cable_clk, clk_rate, PLL_BAND);
+	phy_bw = rx_get_bandwidth(rx[port].clk.cable_clk, clk_rate, PHY_BAND);
 	if (!is_clk_stable(port) || !cableclk)
 		return;
 
