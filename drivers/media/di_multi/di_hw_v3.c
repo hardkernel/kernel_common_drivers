@@ -567,10 +567,16 @@ void di_mif1_linear_rd_cfg(struct DI_SIM_MIF_S *mif,
 {
 	unsigned int stride;
 	const struct reg_acc *op = &di_pre_regset;
+	unsigned int x_size;
 
-	dbg_ic("%s:\n", __func__);
+//	dbg_ic("%s:\n", __func__);
 	//di_mif1_stride(mif, &stride);
-	di_mif1_stride2(mif->per_bits,  (mif->end_x - mif->start_x + 1), &stride);
+	if (mif->buf_hsize)
+		x_size = mif->buf_hsize;
+	else
+		x_size = mif->end_x - mif->start_x + 1;
+	dbg_ic("%s:%d,%d\n", __func__, mif->buf_hsize, x_size);
+	di_mif1_stride2(mif->per_bits,  x_size, &stride);
 	op->bwr(CTRL1, 1, 3, 1);//linear_mode
 	op->bwr(CTRL2, stride, 0, 13);//stride
 	op->wr(BADDR, mif->addr >> 4);//base_addr
@@ -622,12 +628,18 @@ void di_mcmif_linear_rd_cfg(struct DI_MC_MIF_s *mif,
 {
 	unsigned int stride;
 	const struct reg_acc *op = &di_pst_regset;
+	unsigned int x_size;
 
 	if (op_in)
 		op = op_in;
-	dbg_ic("%s:\n", __func__);
+//	dbg_ic("%s:\n", __func__);
 	//di_mif1_stride(mif, &stride);
-	di_mif1_stride2(mif->per_bits, mif->size_x, &stride);
+	if (mif->buf_hsize)
+		x_size = mif->buf_hsize;
+	else
+		x_size = mif->size_x;
+	dbg_ic("%s:%d,%d\n", __func__, mif->buf_hsize, x_size);
+	di_mif1_stride2(mif->per_bits, x_size, &stride);
 	op->bwr(CTRL1, 1, 3, 1);//linear_mode
 	op->bwr(CTRL2, stride, 0, 13);//stride
 	op->wr(BADDR, mif->addr >> 4);//base_addr

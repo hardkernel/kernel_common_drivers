@@ -1069,6 +1069,7 @@ static int dpvpp_post_process_update(struct dimn_itf_s *itf, struct di_buf_s *di
 	struct di_ch_s *pch;
 	bool cur_overturn;
 	unsigned int cur_pst_size;
+	unsigned int x_size_ori;
 
 	dimp_inc(edi_mp_post_cnt);
 	dim_mp_update_post();
@@ -1263,6 +1264,9 @@ static int dpvpp_post_process_update(struct dimn_itf_s *itf, struct di_buf_s *di
 			di_buf->pd_config.global_mode = PULL_DOWN_EI;
 	}
 
+	x_size_ori = di_buf->di_buf_dup_p[1]->vframe->width;
+	ppost->di_mtnprd_mif.buf_hsize = x_size_ori;
+	ppost->di_mcvecrd_mif.buf_hsize = (x_size_ori + 4) / 5;
 	ppost->canvas_id = ppost->next_canvas_id;
 	dimp_set(edi_mp_post_blend, di_buf->pd_config.global_mode);
 	dim_print("%s:ch[%d]\n", __func__, channel);

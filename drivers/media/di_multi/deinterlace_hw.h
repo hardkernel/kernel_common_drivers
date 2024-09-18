@@ -427,6 +427,7 @@ struct DI_MC_MIF_s {
 	bool linear;
 	bool urgent; //2024-05-07
 	bool reverse; //204-05-07
+	unsigned int buf_hsize;
 };
 
 enum gate_mode_e {

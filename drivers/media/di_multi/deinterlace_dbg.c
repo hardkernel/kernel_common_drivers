@@ -270,9 +270,10 @@ void dump_mif_state_seq(struct DI_MIF_S *mif,
 		   mif->buf_crop_en,
 		   mif->buf_hsize,
 		   mif->block_mode);
-	seq_printf(seq, "\tbit_mode [%u] set_separate_en[%u]\n",
+	seq_printf(seq, "\tbit_mode [%u] set_separate_en[%u] hold_line[%u]\n",
 		   mif->bit_mode,
-		   mif->set_separate_en);
+		   mif->set_separate_en,
+		   mif->hold_line);	//2024-07-19
 	seq_printf(seq, "\tvideo_mode [%u] src_prog[%u]\n",
 		   mif->video_mode,
 		   mif->src_prog);
@@ -348,8 +349,8 @@ static void dump_mc_mif_state_seq(struct DI_MC_MIF_s *mc_mif,
 	seq_printf(seq, "\tlinear[%d],addr[0x%lx]\n",
 		   mc_mif->linear,
 		   mc_mif->addr);
-	seq_printf(seq, "\tper_bits[%d]\n",
-		   mc_mif->per_bits);
+	seq_printf(seq, "\tper_bits[%d] buf_hsize:%d\n",
+		   mc_mif->per_bits, mc_mif->buf_hsize);
 }
 
 void dim_dump_pre_stru(struct di_pre_stru_s *ppre)

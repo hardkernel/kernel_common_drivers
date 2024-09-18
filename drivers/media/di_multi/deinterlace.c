@@ -3756,6 +3756,13 @@ void dim_pre_de_process(unsigned int channel)
 		ppre->di_mcinford_mif.linear = 1;
 		ppre->di_mcinfowr_mif.linear = 1;
 		ppre->di_mcvecwr_mif.linear = 1;
+		ppre->di_contp2rd_mif.buf_hsize = 0;
+		ppre->di_contprd_mif.buf_hsize = 0;
+		ppre->di_contwr_mif.buf_hsize = 0;
+		ppre->di_mtnwr_mif.buf_hsize = 0;
+		ppre->di_mcvecwr_mif.buf_hsize = 0;
+		ppre->di_mcinfowr_mif.buf_hsize = 0;
+		ppre->di_mcinfowr_mif.buf_hsize = 0;
 	}
 	if (ppre->di_wr_buf->flg_nv21) {
 		//cvss = &get_datal()->cvs;
@@ -8333,6 +8340,8 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 
 				ppost->di_mtnprd_mif.linear = 1;
 				ppost->di_mcvecrd_mif.linear = 1;
+				ppost->di_mtnprd_mif.buf_hsize = 0; //add for crop issue
+				ppost->di_mcvecrd_mif.buf_hsize = 0; //add for crop issue
 			}
 		}
 		pst->last_pst_size = ((di_width - 1) | ((di_height - 1) << 16));
