@@ -19,3 +19,6 @@
 # amlogic-clk.ko
   clk_save_context
   clk_restore_context
+
+# aml_drm.ko
+  drm_property_create_blob

@@ -538,6 +538,16 @@ int hdmitx_get_hdrinfo(struct hdmitx_common *tx_comm, struct hdr_info *hdrinfo)
 	return 0;
 }
 
+int hdmitx_get_hdrinfo_rx(struct hdmitx_common *tx_comm, struct hdr_info *hdrinfo)
+{
+	struct rx_cap *prxcap = &tx_comm->rxcap;
+
+	memcpy(hdrinfo, &prxcap->hdr_info2, sizeof(struct hdr_info));
+	hdrinfo->colorimetry_support = prxcap->colorimetry_data;
+
+	return 0;
+}
+
 enum hdmi_vic hdmitx_get_prefer_vic(struct hdmitx_common *tx_comm, enum hdmi_vic vic)
 {
 	int i = 0;

@@ -33,6 +33,18 @@ struct hdmitx_color_attr {
 	int bitdepth;
 };
 
+struct meson_hdr_static_metadata {
+	u8 lumi_max;
+	u8 lumi_min;
+	u8 lumi_avg;
+};
+
+/* To differ hdr_info/hdr_info2 and dv_info/dv_info2 */
+enum hdmi_info_index {
+	hdmi_info_1 = 0,
+	hdmi_info_2 = 1,
+};
+
 struct am_hdmi_tx {
 	struct meson_connector base;
 	struct drm_encoder encoder;
@@ -66,8 +78,11 @@ struct am_hdmi_tx {
 	struct drm_property *color_depth_prop;
 	struct drm_property *avmute_prop;
 	struct drm_property *hdmi_hdr_status_prop;
+	/* May be changed by hdr_priority */
 	struct drm_property *hdr_cap_property;
 	struct drm_property *dv_cap_property;
+	/* TV's real dv capability that not changed by hdr_priority */
+	struct drm_property *dv_cap_rx_property;
 	struct drm_property *hdcp_ver_prop;
 	struct drm_property *hdcp_mode_property;
 	struct drm_property *hdcp_topo_property;
@@ -102,6 +117,9 @@ struct am_hdmi_tx {
 	 * 4 sink
 	 */
 	struct drm_property *sink_type_prop;
+	/* TV's real hdr capability that not changed by hdr_priority */
+	struct drm_property *hdr_cap_rx_prop;
+	struct drm_property *static_meta_property;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;
@@ -128,6 +146,7 @@ struct am_hdmitx_connector_state {
 	bool ready : 1;
 	bool frac_rate_policy : 1;
 	int allm_mode;
+	struct drm_property_blob *metadata;
 };
 
 #define to_am_hdmitx_connector_state(x)	container_of(x, struct am_hdmitx_connector_state, base)

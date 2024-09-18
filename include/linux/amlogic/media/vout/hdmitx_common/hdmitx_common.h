@@ -293,6 +293,7 @@ int hdmitx_setup_attr(struct hdmitx_common *tx_comm, const char *buf);
 int hdmitx_get_attr(struct hdmitx_common *tx_comm, char attr[16]);
 
 int hdmitx_get_hdrinfo(struct hdmitx_common *tx_comm, struct hdr_info *hdrinfo);
+int hdmitx_get_hdrinfo_rx(struct hdmitx_common *tx_comm, struct hdr_info *hdrinfo);
 
 int hdmitx_set_hdr_priority(struct hdmitx_common *tx_comm, u32 hdr_priority);
 int hdmitx_get_hdr_priority(struct hdmitx_common *tx_comm, u32 *hdr_priority);
@@ -344,7 +345,9 @@ unsigned int hdmitx_get_frame_duration(void);
 unsigned int hdmitx_common_get_contenttypes(void);
 int hdmitx_common_set_contenttype(int content_type);
 const struct dv_info *hdmitx_common_get_dv_info(void);
+const struct dv_info *hdmitx_common_get_dv_info_rx(void);
 const struct hdr_info *hdmitx_common_get_hdr_info(void);
+const struct hdr_info *hdmitx_common_get_hdr_info_rx(void);
 int hdmitx_common_get_vic_list(int **vics);
 bool hdmitx_common_chk_mode_attr_sup(char *mode, char *attr);
 int hdmitx_common_get_timing_para(int vic, struct drm_hdmitx_timing_para *para);
