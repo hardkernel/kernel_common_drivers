@@ -331,22 +331,6 @@ static void lcd_venc_enable_ctrl(struct aml_lcd_drv_s *pdrv, int flag)
 		lcd_vcbus_write(ENCL_VIDEO_EN, 0);
 }
 
-static void lcd_venc_mute_set(struct aml_lcd_drv_s *pdrv, unsigned char flag)
-{
-	if (flag) {
-		lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL, 3);
-		lcd_vcbus_write(ENCL_TST_MDSEL, 0);
-		lcd_vcbus_write(ENCL_TST_Y, 0);
-		lcd_vcbus_write(ENCL_TST_CB, 0);
-		lcd_vcbus_write(ENCL_TST_CR, 0);
-		lcd_vcbus_write(ENCL_TST_EN, 1);
-		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV, 0, 3, 1);
-	} else {
-		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV, 1, 3, 1);
-		lcd_vcbus_write(ENCL_TST_EN, 0);
-	}
-}
-
 static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf = &pdrv->config;
@@ -480,7 +464,6 @@ int lcd_venc_op_init_dft(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_
 	venc_op->venc_set = lcd_venc_set;
 	venc_op->venc_change = lcd_venc_change_timing;
 	venc_op->venc_enable = lcd_venc_enable_ctrl;
-	venc_op->mute_set = lcd_venc_mute_set;
 	venc_op->get_venc_init_config = lcd_venc_get_init_config;
 	venc_op->venc_vrr_recovery = lcd_venc_set_vrr_recovery;
 	venc_op->get_encl_line_cnt = lcd_venc_get_encl_line_cnt;

@@ -103,10 +103,17 @@ void lcd_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num)
 
 void lcd_screen_restore(struct aml_lcd_drv_s *pdrv)
 {
-	if (pdrv->viu_sel == 1) {
+	unsigned long flags = 0;
+
+	if (lcd_venc_op.mute_set) {
+		spin_lock_irqsave(&pdrv->isr_lock, flags);
+		pdrv->mute_flag = 0;
+		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	} else if (pdrv->viu_sel == 1) {
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 		set_output_mute(false);
-		pdrv->mute_state = 0;
+		pdrv->mute_flag = 0;
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 #endif
 	}
@@ -114,10 +121,17 @@ void lcd_screen_restore(struct aml_lcd_drv_s *pdrv)
 
 void lcd_screen_black(struct aml_lcd_drv_s *pdrv)
 {
-	if (pdrv->viu_sel == 1) {
+	unsigned long flags = 0;
+
+	if (lcd_venc_op.mute_set) {
+		spin_lock_irqsave(&pdrv->isr_lock, flags);
+		pdrv->mute_flag = 1;
+		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	} else if (pdrv->viu_sel == 1) {
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 		set_output_mute(true);
-		pdrv->mute_state = 1;
+		pdrv->mute_flag = 1;
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 #endif
 	}
@@ -179,13 +193,29 @@ void lcd_venc_enable(struct aml_lcd_drv_s *pdrv, int flag)
 
 void lcd_mute_set(struct aml_lcd_drv_s *pdrv,  unsigned char flag)
 {
-	if (!lcd_venc_op.mute_set) {
-		LCDERR("[%d]: %s: invalid\n", pdrv->index, __func__);
+	if (!lcd_venc_op.mute_set)
 		return;
-	}
 
 	lcd_venc_op.mute_set(pdrv, flag);
-	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, flag);
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, flag);
+}
+
+int lcd_mute_state_get(struct aml_lcd_drv_s *pdrv)
+{
+	int flag = 0;
+	unsigned long irq_flags = 0;
+
+	if (lcd_venc_op.mute_set) {
+		spin_lock_irqsave(&pdrv->isr_lock, irq_flags);
+		flag = pdrv->mute_state;
+		spin_unlock_irqrestore(&pdrv->isr_lock, irq_flags);
+	} else if (pdrv->viu_sel == 1) {
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+		flag = get_output_mute();
+#endif
+	}
+	return flag;
 }
 
 int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv)

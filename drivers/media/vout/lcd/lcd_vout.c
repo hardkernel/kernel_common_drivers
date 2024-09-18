@@ -618,7 +618,7 @@ static void lcd_ufr_switch_mode_off(struct aml_lcd_drv_s *pdrv)
 		pdrv->mute_wait_cnt = pdrv->mute_cnt_test;
 	else
 		pdrv->mute_wait_cnt = pdrv->mute_cnt;
-	pdrv->mute_flag = 1;
+	pdrv->mute_switch = 1;
 	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 	LCDPR("[%d]: %s: mute_wait_cnt: %d\n", pdrv->index, __func__, pdrv->mute_wait_cnt);
 	//wait for mute apply
@@ -806,7 +806,7 @@ static void lcd_screen_restore_work(struct work_struct *work)
 		pdrv->mute_wait_cnt = pdrv->unmute_cnt + pdrv->unmute_cnt_added;
 	/*unmute_cnt_added take effect only once, auto clean here*/
 	pdrv->unmute_cnt_added = 0;
-	pdrv->mute_flag = 1;
+	pdrv->mute_switch = 1;
 	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 	LCDPR("[%d]: %s: unmute_wait_cnt: %d\n", pdrv->index, __func__, pdrv->mute_wait_cnt);
 	ret = wait_for_completion_timeout(&pdrv->vsync_done, msecs_to_jiffies(500));
@@ -910,13 +910,18 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 	}
 
 	spin_lock_irqsave(&pdrv->isr_lock, flags);
-	if (pdrv->mute_flag) {
+	if (pdrv->mute_switch) {
 		if (pdrv->mute_wait_cnt > 0) {
 			pdrv->mute_wait_cnt--;
 		} else if (pdrv->mute_wait_cnt == 0) {
 			complete(&pdrv->vsync_done);
-			pdrv->mute_flag = 0;
+			pdrv->mute_switch = 0;
 		}
+	}
+
+	if (pdrv->mute_state != pdrv->mute_flag) {
+		pdrv->mute_state = pdrv->mute_flag;
+		lcd_mute_set(pdrv, pdrv->mute_state);
 	}
 
 	if (pdrv->test_flag != pdrv->test_state) {
@@ -2130,8 +2135,9 @@ static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int val;
 
-	pdrv->mute_state = 0;
 	pdrv->mute_flag = 0;
+	pdrv->mute_state = 0;
+	pdrv->mute_switch = 0;
 	pdrv->mute_wait_cnt = 0;
 	pdrv->mute_cnt = 3;
 	pdrv->unmute_cnt = 4;

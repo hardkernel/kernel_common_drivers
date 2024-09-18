@@ -509,9 +509,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 	pconf = &pdrv->config;
 	sync_duration = pconf->timing.act_timing.sync_duration_num * 100;
 	sync_duration = sync_duration / pconf->timing.act_timing.sync_duration_den;
-#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
-	mute_state = (pdrv->viu_sel == 1) ? get_output_mute() : 0;
-#endif
+	mute_state = lcd_mute_state_get(pdrv);
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
@@ -531,7 +529,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		pconf->fr_auto_flag, pdrv->fr_mode, pdrv->fr_duration,
 		pconf->timing.act_timing.frame_rate,
 		pdrv->fr_auto_policy, pconf->fr_auto_cus, pconf->custom_pinmux,
-		pdrv->mute_state, mute_state, pdrv->test_flag,
+		pdrv->mute_flag, mute_state, pdrv->test_flag,
 		pdrv->key_valid, pdrv->config_load);
 
 	n = lcd_debug_info_len(len + offset);
@@ -2334,14 +2332,8 @@ lcd_debug_test_store_next:
 
 static ssize_t lcd_debug_mute_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
-#endif
-	int flag = 0;
-
-#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
-	flag = (pdrv->viu_sel == 1) ? get_output_mute() : 0;
-#endif
+	int flag = lcd_mute_state_get(pdrv);
 
 	return sprintf(buf, "get lcd mute state: %d\n", flag);
 }
