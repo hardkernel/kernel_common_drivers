@@ -2100,7 +2100,7 @@
 				};
 				gpufreq_cool {
 					dyn_coeff = <215>;
-					node_name = "gpufreq_cool0";
+					node_name = "bifrost";
 					device_type = "gpufreq";
 				};
 				gpucore_cool {
@@ -2109,9 +2109,6 @@
 				};
 			};
 			cpucore_cool0:cpucore_cool0 {
-				#cooling-cells = <2>; /* min followed by max */
-			};
-			gpufreq_cool0:gpufreq_cool0 {
 				#cooling-cells = <2>; /* min followed by max */
 			};
 			gpucore_cool0:gpucore_cool0 {
@@ -2163,7 +2160,7 @@
 				};
 				gpufreq_cooling_map {
 					trip = <&pcontrol>;
-					cooling-device = <&gpufreq_cool0 0
+					cooling-device = <&gpu 0
 							  THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};

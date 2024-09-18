@@ -2938,6 +2938,13 @@
 					type = "critical";
 				};
 			};
+			cooling-maps {
+				gpufreq_cooling_map {
+					trip = <&gpucontrol>;
+					cooling-device = <&gpu 0 3>;
+					contribution = <1024>;
+				};
+			};
 		};
 		nna_thermal: nna_thermal {
 			polling-delay = <2000>;
