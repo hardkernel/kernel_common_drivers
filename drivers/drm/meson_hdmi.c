@@ -2140,7 +2140,7 @@ static int meson_hdmitx_encoder_atomic_check(struct drm_encoder *encoder,
 			crtc_state->vrr_enabled = true;
 	}
 
-	if (am_hdmi_info.android_path && crtc_state->vrr_enabled &&
+	if (crtc_state->vrr_enabled &&
 		!(adj_mode->flags & DRM_MODE_FLAG_INTERLACE)) {
 		meson_hdmitx_cal_brr(&am_hdmi_info, meson_crtc_state, adj_mode);
 		modename = meson_crtc_state->brr_mode;
