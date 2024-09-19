@@ -1728,28 +1728,28 @@
 
 &spicc0 {	//for TCON
 	status = "disabled";
-	pinctrl-names = "default";
+	pinctrl-names = "default", "ctrl_cs";
 	pinctrl-0 = <&spicc0_pins_h>;
-	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
+	pinctrl-1 = <&spicc0_pins_h &spicc0_cs_pins>;
+	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_LOW>;
 	latency = <4>;
 };
 
 &spicc1 {	//for UWB/LocalDimm
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spicc1_pins &spicc1_cs_pins>;
-	//cs-gpios = <&gpio GPIOH_22 GPIO_ACTIVE_HIGH>;
-	cs2clk-us = <2>;
-	clk2cs-us = <12>;
+	pinctrl-names = "default", "ctrl_cs";
+	pinctrl-0 = <&spicc1_pins_h>;
+	pinctrl-1 = <&spicc1_pins_h &spicc1_cs_pins>;
+	cs-gpios = <&gpio GPIOH_22 GPIO_ACTIVE_LOW>;
 };
 
 &spicc2 {
 	status = "disabled";
-	pinctrl-names = "default";
+	pinctrl-names = "default", "ctrl_cs";
 	pinctrl-0 = <&spicc2_pins_c>;
-	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
+	pinctrl-1 = <&spicc2_pins_c &spicc2_cs_pins>;
+	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_LOW>;
 };
-
 &periphs_pinctrl {
 	pdmin: pdmin {
 		mux { /* GPIOH_19, GPIOH_18 */

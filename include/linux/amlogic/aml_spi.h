@@ -24,11 +24,12 @@ enum {
 struct spicc_controller_data {
 	unsigned int	controller_version;
 	unsigned int	controller_capabilities;
+	unsigned	use_ctrl_cs:1;
 	unsigned	use_dirspi:1;
 	unsigned	ccxfer_en:1;
 	unsigned	timing_en:1;
-	unsigned	ss_leading_gap:4;
-	unsigned	ss_trailing_gap:4;
+	unsigned	ss_leading_gap:16;
+	unsigned	ss_trailing_gap:15;
 	unsigned	tx_tuning:4;
 	unsigned	rx_tuning:4;
 	unsigned	dummy_ctl:1;

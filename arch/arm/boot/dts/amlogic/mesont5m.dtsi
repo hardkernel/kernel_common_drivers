@@ -3468,6 +3468,19 @@
 		};
 	};
 
+	spicc0_gpio_periphs_pins_h: spicc0_gpio_periphs_pins_h {
+		mux {
+				groups = "GPIOH_8",
+					"GPIOH_9",
+					"GPIOH_10",
+					"GPIOH_11";
+				function = "gpio_periphs";
+				bias-disable;
+				low-power-enable;
+				drive-strength-microamp = <500>;
+		};
+	};
+
 	spicc0_pins_m: spicc0_pins_m {
 		mux {
 			groups = "spi0_mosi_m",
@@ -3476,6 +3489,19 @@
 				 "spi0_clk_m";
 			function = "spi0";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	spicc0_gpio_periphs_pins_m: spicc0_gpio_periphs_pins_m {
+		mux {
+				groups = "GPIOM_19",
+					"GPIOM20",
+					"GPIOM_21",
+					"GPIOM_22";
+				function = "gpio_periphs";
+				bias-disable;
+				low-power-enable;
+				drive-strength-microamp = <500>;
 		};
 	};
 
@@ -3490,7 +3516,20 @@
 		};
 	};
 
-	spicc1_pins: spicc1_pins {
+	spicc0_gpio_periphs_pins_z: spicc0_gpio_periphs_pins_z {
+		mux {
+				groups = "GPIOZ_0",
+					"GPIOZ_1",
+					"GPIOZ_2",
+					"GPIOZ_3";
+				function = "gpio_periphs";
+				bias-disable;
+				low-power-enable;
+				drive-strength-microamp = <500>;
+		};
+	};
+
+	spicc1_pins_h: spicc1_pins_h {
 		mux {
 			groups = "spi1_mosi_h",
 				 "spi1_miso_h",
@@ -3511,6 +3550,19 @@
 		};
 	};
 
+	spicc1_gpio_periphs_pins_h: spicc1_gpio_periphs_pins_h {
+		mux {
+				groups = "GPIOH_22",
+					"GPIOH_23",
+					"GPIOH_24",
+					"GPIOH_25";
+				function = "gpio_periphs";
+				bias-disable;
+				low-power-enable;
+				drive-strength-microamp = <500>;
+		};
+	};
+
 	spicc2_pins_c: spicc2_pins_c {
 		mux {
 			groups = "spi2_mosi_c",
@@ -3519,6 +3571,28 @@
 				 "spi2_clk_c";
 			function = "spi2";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	spicc2_cs_pins: spicc2_cs_pins {
+		mux {
+			groups = "spi2_ss0_c";
+			function = "spi1";
+			drive-strength-microamp = <3000>;
+			bias-pull-up;
+		};
+	};
+
+	spicc2_gpio_periphs_pins_c: spicc2_gpio_periphs_pins_c {
+		mux {
+				groups = "GPIOC_0",
+					"GPIOC_1",
+					"GPIOC_2",
+					"GPIOC_3";
+				function = "gpio_periphs";
+				bias-disable;
+				low-power-enable;
+				drive-strength-microamp = <500>;
 		};
 	};
 
@@ -3533,6 +3607,19 @@
 		};
 	};
 
+	spicc2_gpio_periphs_pins_m: spicc2_gpio_periphs_pins_m {
+		mux {
+				groups = "GPIOM_0",
+					"GPIOM_1",
+					"GPIOM_2",
+					"GPIOM_3";
+				function = "gpio_periphs";
+				bias-disable;
+				low-power-enable;
+				drive-strength-microamp = <500>;
+		};
+	};
+
 	spicc2_pins_p: spicc2_pins_p {
 		mux {
 			groups = "spi2_mosi_p",
@@ -3541,6 +3628,19 @@
 						"spi2_clk_p";
 			function = "spi2";
 			drive-strength-microamp = <3000>;
+		};
+	};
+
+	spicc2_gpio_periphs_pins_p: spicc2_gpio_periphs_pins_p {
+		mux {
+				groups = "GPIOP_0",
+					"GPIOP_1",
+					"GPIOP_2",
+					"GPIOP_3";
+				function = "gpio_periphs";
+				bias-disable;
+				low-power-enable;
+				drive-strength-microamp = <500>;
 		};
 	};
 

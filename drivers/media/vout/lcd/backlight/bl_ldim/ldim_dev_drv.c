@@ -48,14 +48,15 @@ struct bl_gpio_s ldim_gpio[BL_GPIO_NUM_MAX] = {
 };
 
 static struct spicc_controller_data ldim_spi_controller_data = {
+	.use_ctrl_cs = 0,
 	.use_dirspi = 1,
 	.ccxfer_en = 0,
 	.timing_en = 1,
-	.ss_leading_gap = 1,
-	.ss_trailing_gap = 0,
 	.tx_tuning = 0,
 	.rx_tuning = 7,
 	.dummy_ctl = 0,
+	.ss_leading_gap = 2,
+	.ss_trailing_gap = 2,
 };
 
 static struct spi_board_info ldim_spi_info = {
@@ -541,6 +542,7 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 			"spi_bus_num           = %d\n"
 			"spi_chip_select       = %d\n"
 			"spi_dma_support       = %d\n"
+			"use_ctrl_cs			= %d\n"
 			"cs_hold_delay         = %d\n"
 			"cs_clk_delay          = %d\n"
 			"lamp_err_gpio         = %d\n"
@@ -559,6 +561,7 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 			ldim_drv->dev_drv->spi_info->bus_num,
 			ldim_drv->dev_drv->spi_info->chip_select,
 			ldim_drv->dev_drv->dma_support,
+			ldim_spi_controller_data.use_ctrl_cs,
 			ldim_drv->dev_drv->cs_hold_delay,
 			ldim_drv->dev_drv->cs_clk_delay,
 			ldim_drv->dev_drv->lamp_err_gpio,
@@ -1066,9 +1069,13 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 		if (ret) {
 			dev_drv->cs_hold_delay = 0;
 			dev_drv->cs_clk_delay = 0;
+			ldim_spi_controller_data.ss_leading_gap = 0;
+			ldim_spi_controller_data.ss_trailing_gap = 0;
 		} else {
 			dev_drv->cs_hold_delay = temp[0];
 			dev_drv->cs_clk_delay = temp[1];
+			ldim_spi_controller_data.ss_leading_gap = temp[0];
+			ldim_spi_controller_data.ss_trailing_gap = temp[1];
 		}
 		break;
 	default:
@@ -1232,9 +1239,11 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 	if (ret) {
 		dev_drv->spi_sync = SPI_ASYNC;
 		dev_drv->spi_line_n = 0;
+		ldim_spi_controller_data.use_ctrl_cs = 0;
 	} else {
 		dev_drv->spi_sync = SPI_DMA_TRIG;
 		dev_drv->spi_line_n = (unsigned int)val;
+		ldim_spi_controller_data.use_ctrl_cs = 1;
 	}
 	LDIMPR("spi_sync:%d, spi_line_n: %d\n", dev_drv->spi_sync, dev_drv->spi_line_n);
 
@@ -1440,6 +1449,8 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 		dev_drv->cs_clk_delay =
 			(*(p + LCD_UKEY_LDIM_DEV_IF_ATTR_5) |
 			((*(p + LCD_UKEY_LDIM_DEV_IF_ATTR_5 + 1)) << 8));
+		ldim_spi_controller_data.ss_leading_gap = dev_drv->cs_hold_delay;
+		ldim_spi_controller_data.ss_trailing_gap = dev_drv->cs_clk_delay;
 		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
 			LDIMPR("spi bus_num: %d\n", ldim_spi_info.bus_num);
 			LDIMPR("spi chip_select: %d\n",
@@ -1602,9 +1613,11 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 	if (temp == 0) {
 		dev_drv->spi_sync = SPI_ASYNC;
 		dev_drv->spi_line_n = 0;
+		ldim_spi_controller_data.use_ctrl_cs = 0;
 	} else {
 		dev_drv->spi_sync = SPI_DMA_TRIG;
 		dev_drv->spi_line_n = temp;
+		ldim_spi_controller_data.use_ctrl_cs = 1;
 	}
 	LDIMPR("spi_sync: %d ,spi_line_n: %d\n", dev_drv->spi_sync, dev_drv->spi_line_n);
 

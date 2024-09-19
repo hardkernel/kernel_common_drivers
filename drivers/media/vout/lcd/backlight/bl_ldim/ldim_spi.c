@@ -458,6 +458,8 @@ static int ldim_spi_dev_probe(struct spi_device *spi)
 	if (spi->controller->mode_bits & SPI_LSB_FIRST)
 		spi->mode |= SPI_LSB_FIRST;
 
+	spi->cs_setup.value = dev_drv->cs_hold_delay;
+	spi->cs_hold.value = dev_drv->cs_clk_delay;
 	ret = spi_setup(spi);
 	if (ret)
 		LDIMERR("spi setup failed\n");
