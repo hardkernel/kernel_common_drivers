@@ -1806,7 +1806,7 @@ struct reg_name_set_s {
 #define CLKCTRL_VIID_CLK_DIV_S6    0x0033
 #define CLKCTRL_VIID_CLK_CTRL_S6   0x0034
 #define CLKCTRL_VID_CLK_CTRL2_S6   0x0031
-#define CLKCTRL_DSI_PLL_CLK_DIV_S6 0x0031
+#define CLKCTRL_DSI_PLL_CLK_DIV_S6 0x0045
 
 /* ***********************************************
  * register access api

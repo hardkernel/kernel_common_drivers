@@ -140,35 +140,42 @@ static void dsi_dphy_cfg_print(struct lcd_config_s *pconf)
 static void dsi_table_print(u8 *dsi_table, u16 n_max)
 {
 	u16 i = 0, n = 0, j, len;
-	char _str[256];
+	char *_str;
+
+	_str = kcalloc(PR_BUF_MAX, sizeof(char), GFP_KERNEL);
+	if (!_str) {
+		LCDERR("%s: buf malloc error\n", __func__);
+		return;
+	}
 
 	while ((i + 1) < n_max) {
 		n = dsi_table[i + 1];
 		if (dsi_table[i] == LCD_EXT_CMD_TYPE_END) {
 			pr_info("  0x%02x, %d\n", dsi_table[i], dsi_table[i + 1]);
-			return;
+			break;
 		} else if ((dsi_table[i] & 0xf) == 0x0) {
 			pr_info("  wrong data_type: 0x%02x\n", dsi_table[i]);
-			return;
+			break;
 		}
 
-		memset(_str, 0, sizeof(char) * 256);
-		len = snprintf(_str, 255, "  0x%02x, %d, ", dsi_table[i], n);
+		memset(_str, 0, sizeof(char) * PR_BUF_MAX);
+		len = snprintf(_str, PR_BUF_MAX, "  0x%02x, %d, ", dsi_table[i], n);
 
 		if (dsi_table[i] == LCD_EXT_CMD_TYPE_GPIO ||
 		    dsi_table[i] == LCD_EXT_CMD_TYPE_DELAY) {
 			for (j = 0; j < n; j++)
-				len += snprintf(_str + len, 255 - len,
+				len += snprintf(_str + len, PR_BUF_MAX - len,
 					"%d, ", dsi_table[i + 2 + j]);
 		} else {
 			for (j = 0; j < n; j++)
-				len += snprintf(_str + len, 255 - len,
+				len += snprintf(_str + len, PR_BUF_MAX - len,
 					"0x%02x, ", dsi_table[i + 2 + j]);
 		}
 
 		pr_info("%s\n", _str);
 		i += (n + 2);
 	}
+	kfree(_str);
 }
 
 void dsi_init_table_print(struct dsi_config_s *dconf)

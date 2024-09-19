@@ -225,10 +225,9 @@ static void lcd_set_vclk_crt(struct aml_lcd_drv_s *pdrv)
 	if (!cconf)
 		return;
 
-	lcd_clk_setb(CLKCTRL_VIID_CLK_DIV_S6, 0, VCLK2_EN, 1);
+	lcd_clk_setb(CLKCTRL_VIID_CLK_CTRL_S6, 0, VCLK2_EN, 1);
 	udelay(2);
 
-	// cconf->div_sel = CLK_DIV_SEL_3p5;
 	lcd_set_vid_pll_div_s6(pdrv);
 
 	/* setup the XD divider value */
@@ -236,7 +235,7 @@ static void lcd_set_vclk_crt(struct aml_lcd_drv_s *pdrv)
 	udelay(5);
 
 	/* select dsi_pll_clk */
-	lcd_clk_setb(CLKCTRL_VIID_CLK_DIV_S6, cconf->data->vclk_sel, VCLK2_CLK_IN_SEL, 3);
+	lcd_clk_setb(CLKCTRL_VIID_CLK_CTRL_S6, cconf->data->vclk_sel, VCLK2_CLK_IN_SEL, 3);
 
 	/* [15:12] encl_clk_sel, select vclk2_div1 */
 	lcd_clk_setb(CLKCTRL_VIID_CLK_DIV_S6, 8, ENCL_CLK_SEL, 4);
@@ -244,27 +243,27 @@ static void lcd_set_vclk_crt(struct aml_lcd_drv_s *pdrv)
 	lcd_clk_setb(CLKCTRL_VIID_CLK_DIV_S6, 1, VCLK2_XD_EN, 2);
 	udelay(5);
 
-	lcd_clk_setb(CLKCTRL_VIID_CLK_DIV_S6, 1, VCLK2_DIV1_EN, 1);
-	lcd_clk_setb(CLKCTRL_VIID_CLK_DIV_S6, 1, VCLK2_SOFT_RST, 1);
-	lcd_clk_setb(CLKCTRL_VIID_CLK_DIV_S6, 0, VCLK2_SOFT_RST, 1);
+	lcd_clk_setb(CLKCTRL_VIID_CLK_CTRL_S6, 1, VCLK2_DIV1_EN, 1);
+	lcd_clk_setb(CLKCTRL_VIID_CLK_CTRL_S6, 1, VCLK2_SOFT_RST, 1);
+	lcd_clk_setb(CLKCTRL_VIID_CLK_CTRL_S6, 0, VCLK2_SOFT_RST, 1);
 	udelay(5);
 
 	/* enable CTS_ENCL clk gate */
 	lcd_clk_setb(CLKCTRL_VID_CLK_CTRL2_S6, 1, ENCL_GATE_VCLK, 1);
 
-	lcd_clk_setb(CLKCTRL_VIID_CLK_DIV_S6, 1, VCLK2_EN, 1);
+	lcd_clk_setb(CLKCTRL_VIID_CLK_CTRL_S6, 1, VCLK2_EN, 1);
 	udelay(2);
 }
 
 static void lcd_clk_disable_s6(struct aml_lcd_drv_s *pdrv)
 {
-	lcd_clk_setb(CLKCTRL_VIID_CLK_CTRL_S6, 0, VCLK2_EN, 1);
+	lcd_clk_setb(CLKCTRL_VIID_CLK_DIV_S6, 0, VCLK2_EN, 1);
 	lcd_clk_setb(CLKCTRL_VID_CLK_CTRL2_S6, 0, ENCL_GATE_VCLK, 1);
 
 	lcd_ana_write(ANACTRL_DSIPLL_CTRL0, 0x0);
-	lcd_ana_write(ANACTRL_DSIPLL_CTRL0, 0x0);
 	lcd_ana_write(ANACTRL_DSIPLL_CTRL1, 0x0);
 	lcd_ana_write(ANACTRL_DSIPLL_CTRL2, 0x0);
+	lcd_ana_write(ANACTRL_DSIPLL_CTRL3, 0x0);
 }
 
 // ANACTRL_DSIPLL_CTRL3
@@ -313,9 +312,15 @@ static int lcd_clk_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		ANACTRL_DSIPLL_STS
 	};
 	unsigned int clk_reg_table[] = {
+		CLKCTRL_DSI_PLL_CLK_DIV_S6,
+		CLKCTRL_VID_CLK_CTRL2_S6,
 		CLKCTRL_VIID_CLK_DIV_S6,
 		CLKCTRL_VIID_CLK_CTRL_S6
 	};
+
+	static const char * const key_clk_msr_name[] = {
+		"dsi_pll_div_clk_out", "dsi_pll_clk", "cts_encl", "cts_dsi_meas", "cts_dsi_phy"};
+	unsigned int key_clk_msr_id[] = {29, 30, 53, 70, 71};
 
 	if (!pdrv)
 		return 0;
@@ -336,6 +341,13 @@ static int lcd_clk_reg_dump(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 			table[i], lcd_clk_read(table[i]));
 	}
 
+	table = key_clk_msr_id;
+	size = ARRAY_SIZE(key_clk_msr_id);
+	for (i = 0; i < size; i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "%-*s = %u MHz\n", 20,
+			key_clk_msr_name[i], meson_clk_measure(key_clk_msr_id[i]));
+	}
 	return len;
 }
 
