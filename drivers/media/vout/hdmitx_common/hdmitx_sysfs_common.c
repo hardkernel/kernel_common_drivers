@@ -27,15 +27,15 @@ static ssize_t hdmi_efuse_state_show(struct device *dev,
 {
 	int pos = 0;
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDMI_60HZ = %d\n\r",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "FEAT_DISABLE_HDMI_60HZ = %d\n\r",
 		global_tx_common->efuse_dis_hdmi_4k60);
-	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_OUTPUT_4K = %d\n\r",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "FEAT_DISABLE_OUTPUT_4K = %d\n\r",
 		global_tx_common->efuse_dis_output_4k);
-	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDCP_TX_22 = %d\n\r",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "FEAT_DISABLE_HDCP_TX_22 = %d\n\r",
 		global_tx_common->efuse_dis_hdcp_tx22);
-	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDMI_TX_3D = %d\n\r",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "FEAT_DISABLE_HDMI_TX_3D = %d\n\r",
 		global_tx_common->efuse_dis_hdmi_tx3d);
-	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDMI = %d\n\r",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "FEAT_DISABLE_HDMI = %d\n\r",
 		global_tx_common->efuse_dis_hdcp_tx14);
 	return pos;
 }
@@ -80,21 +80,27 @@ static ssize_t test_attr_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(test_attr);
 
-static ssize_t hpd_state_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+static ssize_t _hpd_state_show(struct device *dev,
+			      struct device_attribute *attr, char *buf, int size)
 {
 	int pos = 0;
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "%d",
+	pos += snprintf(buf + pos, size, "%d",
 		global_tx_common->hpd_state);
 	return pos;
+}
+
+static ssize_t hpd_state_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	return _hpd_state_show(dev, attr, buf, PAGE_SIZE);
 }
 
 static DEVICE_ATTR_RO(hpd_state);
 
 /* rawedid attr */
-static ssize_t rawedid_show(struct device *dev,
-			    struct device_attribute *attr, char *buf)
+static ssize_t _rawedid_show(struct device *dev,
+			    struct device_attribute *attr, char *buf, int size)
 {
 	int pos = 0;
 	int i;
@@ -108,12 +114,17 @@ static ssize_t rawedid_show(struct device *dev,
 		num = 8 * 128;
 
 	for (i = 0; i < num; i++)
-		pos += snprintf(buf + pos, PAGE_SIZE, "%02x",
+		pos += snprintf(buf + pos, size - pos, "%02x",
 			global_tx_common->EDID_buf[i]);
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
-
+	pos += snprintf(buf + pos, size - pos, "\n");
 	return pos;
+}
+
+static ssize_t rawedid_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	return _rawedid_show(dev, attr, buf, PAGE_SIZE);
 }
 
 static DEVICE_ATTR_RO(rawedid);
@@ -127,18 +138,24 @@ static DEVICE_ATTR_RO(rawedid);
  * But it does not affect  edid_parsing.
  * Therefore, we consider the RX edid data are all correct, return "OK"
  */
-static ssize_t edid_parsing_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t _edid_parsing_show(struct device *dev,
+				 struct device_attribute *attr, char *buf, int size)
 {
 	int pos = 0;
 
 	if (hdmitx_edid_check_data_valid(global_tx_common->rxcap.edid_check,
 		global_tx_common->EDID_buf))
-		pos += snprintf(buf + pos, PAGE_SIZE, "ok\n");
+		pos += snprintf(buf + pos, size - pos, "ok\n");
 	else
-		pos += snprintf(buf + pos, PAGE_SIZE, "ng\n");
+		pos += snprintf(buf + pos, size - pos, "ng\n");
 
 	return pos;
+}
+
+static ssize_t edid_parsing_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	return _edid_parsing_show(dev, attr, buf, PAGE_SIZE);
 }
 
 static DEVICE_ATTR_RO(edid_parsing);
@@ -341,13 +358,13 @@ static ssize_t contenttype_cap_show(struct device *dev,
 	struct rx_cap *prxcap = &global_tx_common->rxcap;
 
 	if (prxcap->cnc0)
-		pos += snprintf(buf + pos, PAGE_SIZE, "graphics\n\r");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "graphics\n\r");
 	if (prxcap->cnc1)
-		pos += snprintf(buf + pos, PAGE_SIZE, "photo\n\r");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "photo\n\r");
 	if (prxcap->cnc2)
-		pos += snprintf(buf + pos, PAGE_SIZE, "cinema\n\r");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "cinema\n\r");
 	if (prxcap->cnc3)
-		pos += snprintf(buf + pos, PAGE_SIZE, "game\n\r");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "game\n\r");
 
 	return pos;
 }
@@ -357,7 +374,7 @@ static DEVICE_ATTR_RO(contenttype_cap);
 static ssize_t _hdr_cap_show(struct device *dev,
 			     struct device_attribute *attr,
 			     char *buf,
-			     const struct hdr_info *hdr)
+			     const struct hdr_info *hdr, int size)
 {
 	int pos = 0;
 	unsigned int i, j;
@@ -371,158 +388,158 @@ static ssize_t _hdr_cap_show(struct device *dev,
 		hdr10p->application_version != 0xFF &&
 		is_hdr10plus_enable())
 		hdr10plugsupported = 1;
-	pos += snprintf(buf + pos, PAGE_SIZE, "HDR10Plus Supported: %d\n",
+	pos += snprintf(buf + pos, size - pos, "HDR10Plus Supported: %d\n",
 		hdr10plugsupported);
-	pos += snprintf(buf + pos, PAGE_SIZE, "HDR Static Metadata:\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "    Supported EOTF:\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "        Traditional SDR: %d\n",
+	pos += snprintf(buf + pos, size - pos, "HDR Static Metadata:\n");
+	pos += snprintf(buf + pos, size - pos, "    Supported EOTF:\n");
+	pos += snprintf(buf + pos, size - pos, "        Traditional SDR: %d\n",
 		!!(hdr->hdr_support & 0x1));
-	pos += snprintf(buf + pos, PAGE_SIZE, "        Traditional HDR: %d\n",
+	pos += snprintf(buf + pos, size - pos, "        Traditional HDR: %d\n",
 		!!(hdr->hdr_support & 0x2));
-	pos += snprintf(buf + pos, PAGE_SIZE, "        SMPTE ST 2084: %d\n",
+	pos += snprintf(buf + pos, size - pos, "        SMPTE ST 2084: %d\n",
 		!!(hdr->hdr_support & 0x4));
-	pos += snprintf(buf + pos, PAGE_SIZE, "        Hybrid Log-Gamma: %d\n",
+	pos += snprintf(buf + pos, size - pos, "        Hybrid Log-Gamma: %d\n",
 		!!(hdr->hdr_support & 0x8));
-	pos += snprintf(buf + pos, PAGE_SIZE, "    Supported SMD type1: %d\n",
+	pos += snprintf(buf + pos, size - pos, "    Supported SMD type1: %d\n",
 		hdr->static_metadata_type1);
-	pos += snprintf(buf + pos, PAGE_SIZE, "    Luminance Data\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "        Max: %d\n",
+	pos += snprintf(buf + pos, size - pos, "    Luminance Data\n");
+	pos += snprintf(buf + pos, size - pos, "        Max: %d\n",
 		hdr->lumi_max);
-	pos += snprintf(buf + pos, PAGE_SIZE, "        Avg: %d\n",
+	pos += snprintf(buf + pos, size - pos, "        Avg: %d\n",
 		hdr->lumi_avg);
-	pos += snprintf(buf + pos, PAGE_SIZE, "        Min: %d\n\n",
+	pos += snprintf(buf + pos, size - pos, "        Min: %d\n\n",
 		hdr->lumi_min);
-	pos += snprintf(buf + pos, PAGE_SIZE, "HDR Dynamic Metadata:");
+	pos += snprintf(buf + pos, size - pos, "HDR Dynamic Metadata:");
 
 	for (i = 0; i < 4; i++) {
 		if (hdr->dynamic_info[i].type == 0)
 			continue;
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"\n    metadata_version: %x\n",
 			hdr->dynamic_info[i].type);
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"        support_flags: %x\n",
 			hdr->dynamic_info[i].support_flags);
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"        optional_fields:");
 		for (j = 0; j <
 			(hdr->dynamic_info[i].of_len - 3); j++)
-			pos += snprintf(buf + pos, PAGE_SIZE, " %x",
+			pos += snprintf(buf + pos, size - pos, " %x",
 				hdr->dynamic_info[i].optional_fields[j]);
 	}
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n\ncolorimetry_data: %x\n",
+	pos += snprintf(buf + pos, size - pos, "\n\ncolorimetry_data: %x\n",
 		hdr->colorimetry_support);
 	if (cuva->ieeeoui == CUVA_IEEEOUI) {
-		pos += snprintf(buf + pos, PAGE_SIZE, "CUVA supported: 1\n");
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos, "CUVA supported: 1\n");
+		pos += snprintf(buf + pos, size - pos,
 			"  system_start_code: %u\n", cuva->system_start_code);
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"  version_code: %u\n", cuva->version_code);
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"  display_maximum_luminance: %u\n",
 			cuva->display_max_lum);
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"  display_minimum_luminance: %u\n",
 			cuva->display_min_lum);
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"  monitor_mode_support: %u\n", cuva->monitor_mode_sup);
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"  rx_mode_support: %u\n", cuva->rx_mode_sup);
 		for (i = 0; i < (cuva->length + 1); i++)
-			pos += snprintf(buf + pos, PAGE_SIZE, "%02x",
+			pos += snprintf(buf + pos, size - pos, "%02x",
 				cuva->rawdata[i]);
-		pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+		pos += snprintf(buf + pos, size - pos, "\n");
 	}
 	/* sbtm capability show */
 	if (sbtm->sbtm_support) {
-		pos += snprintf(buf + pos, PAGE_SIZE, "SBTM supported: 1\n");
+		pos += snprintf(buf + pos, size - pos, "SBTM supported: 1\n");
 		if (sbtm->max_sbtm_ver)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  Max_SBTM_Ver: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  Max_SBTM_Ver: 0x%x\n",
 				sbtm->max_sbtm_ver);
 		if (sbtm->grdm_support)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  grdm_support: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  grdm_support: 0x%x\n",
 				sbtm->grdm_support);
 		if (sbtm->drdm_ind)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  drdm_ind: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  drdm_ind: 0x%x\n",
 				sbtm->drdm_ind);
 		if (sbtm->hgig_cat_drdm_sel)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  hgig_cat_drdm_sel: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  hgig_cat_drdm_sel: 0x%x\n",
 				sbtm->hgig_cat_drdm_sel);
 		if (sbtm->use_hgig_drdm)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  use_hgig_drdm: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  use_hgig_drdm: 0x%x\n",
 				sbtm->use_hgig_drdm);
 		if (sbtm->maxrgb)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  maxrgb: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  maxrgb: 0x%x\n",
 				sbtm->maxrgb);
 		if (sbtm->gamut)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  gamut: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  gamut: 0x%x\n",
 				sbtm->gamut);
 		if (sbtm->red_x)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  red_x: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  red_x: 0x%x\n",
 				sbtm->red_x);
 		if (sbtm->red_y)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  red_y: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  red_y: 0x%x\n",
 				sbtm->red_y);
 		if (sbtm->green_x)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  green_x: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  green_x: 0x%x\n",
 				sbtm->green_x);
 		if (sbtm->green_y)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  green_y: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  green_y: 0x%x\n",
 				sbtm->green_y);
 		if (sbtm->blue_x)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  blue_x: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  blue_x: 0x%x\n",
 				sbtm->blue_x);
 		if (sbtm->blue_y)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  blue_y: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  blue_y: 0x%x\n",
 				sbtm->blue_y);
 		if (sbtm->white_x)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  white_x: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  white_x: 0x%x\n",
 				sbtm->white_x);
 		if (sbtm->white_y)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  white_y: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  white_y: 0x%x\n",
 				sbtm->white_y);
 		if (sbtm->min_bright_10)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  min_bright_10: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  min_bright_10: 0x%x\n",
 				sbtm->min_bright_10);
 		if (sbtm->peak_bright_100)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  peak_bright_100: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  peak_bright_100: 0x%x\n",
 				sbtm->peak_bright_100);
 		if (sbtm->p0_exp)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  p0_exp: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  p0_exp: 0x%x\n",
 				sbtm->p0_exp);
 		if (sbtm->p0_mant)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  p0_mant: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  p0_mant: 0x%x\n",
 				sbtm->p0_mant);
 		if (sbtm->peak_bright_p0)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  peak_bright_p0: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  peak_bright_p0: 0x%x\n",
 				sbtm->peak_bright_p0);
 		if (sbtm->p1_exp)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  p1_exp: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  p1_exp: 0x%x\n",
 				sbtm->p1_exp);
 		if (sbtm->p1_mant)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  p1_mant: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  p1_mant: 0x%x\n",
 				sbtm->p1_mant);
 		if (sbtm->peak_bright_p1)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  peak_bright_p1: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  peak_bright_p1: 0x%x\n",
 				sbtm->peak_bright_p1);
 		if (sbtm->p2_exp)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  p2_exp: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  p2_exp: 0x%x\n",
 				sbtm->p2_exp);
 		if (sbtm->p2_mant)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  p2_mant: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  p2_mant: 0x%x\n",
 				sbtm->p2_mant);
 		if (sbtm->peak_bright_p2)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  peak_bright_p2: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  peak_bright_p2: 0x%x\n",
 				sbtm->peak_bright_p2);
 		if (sbtm->p3_exp)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  p3_exp: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  p3_exp: 0x%x\n",
 				sbtm->p3_exp);
 		if (sbtm->p3_mant)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  p3_mant: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  p3_mant: 0x%x\n",
 				sbtm->p3_mant);
 		if (sbtm->peak_bright_p3)
-			pos += snprintf(buf + pos, PAGE_SIZE, "  peak_bright_p3: 0x%x\n",
+			pos += snprintf(buf + pos, size - pos, "  peak_bright_p3: 0x%x\n",
 				sbtm->peak_bright_p3);
 	}
 	return pos;
@@ -533,7 +550,7 @@ static ssize_t hdr_cap_show(struct device *dev,
 {
 	const struct hdr_info *info = &global_tx_common->rxcap.hdr_info;
 
-	return _hdr_cap_show(dev, attr, buf, info);
+	return _hdr_cap_show(dev, attr, buf, info, PAGE_SIZE);
 }
 
 static DEVICE_ATTR_RO(hdr_cap);
@@ -544,7 +561,7 @@ static ssize_t hdr_cap2_show(struct device *dev,
 {
 	const struct hdr_info *info2 = &global_tx_common->rxcap.hdr_info2;
 
-	return _hdr_cap_show(dev, attr, buf, info2);
+	return _hdr_cap_show(dev, attr, buf, info2, PAGE_SIZE);
 }
 
 static DEVICE_ATTR_RO(hdr_cap2);
@@ -552,105 +569,105 @@ static DEVICE_ATTR_RO(hdr_cap2);
 static ssize_t _show_dv_cap(struct device *dev,
 			    struct device_attribute *attr,
 			    char *buf,
-			    const struct dv_info *dv)
+			    const struct dv_info *dv, int size)
 {
 	int pos = 0;
 	int i;
 
 	if (dv->ieeeoui != DV_IEEE_OUI || dv->block_flag != CORRECT) {
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"The Rx don't support DolbyVision\n");
 		return pos;
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, size - pos,
 		"DolbyVision RX support list:\n");
 
 	if (dv->ver == 0) {
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"VSVDB Version: V%d\n", dv->ver);
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"2160p%shz: 1\n",
 			dv->sup_2160p60hz ? "60" : "30");
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"Support mode:\n");
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"  DV_RGB_444_8BIT\n");
 		if (dv->sup_yuv422_12bit)
-			pos += snprintf(buf + pos, PAGE_SIZE,
+			pos += snprintf(buf + pos, size - pos,
 				"  DV_YCbCr_422_12BIT\n");
 	}
 	if (dv->ver == 1) {
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"VSVDB Version: V%d(%d-byte)\n",
 			dv->ver, dv->length + 1);
 		if (dv->length == 0xB) {
-			pos += snprintf(buf + pos, PAGE_SIZE,
+			pos += snprintf(buf + pos, size - pos,
 				"2160p%shz: 1\n",
 				dv->sup_2160p60hz ? "60" : "30");
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"Support mode:\n");
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"  DV_RGB_444_8BIT\n");
 		if (dv->sup_yuv422_12bit)
-			pos += snprintf(buf + pos, PAGE_SIZE,
+			pos += snprintf(buf + pos, size - pos,
 			"  DV_YCbCr_422_12BIT\n");
 		if (dv->low_latency == 0x01)
-			pos += snprintf(buf + pos, PAGE_SIZE,
+			pos += snprintf(buf + pos, size - pos,
 				"  LL_YCbCr_422_12BIT\n");
 		}
 
 		if (dv->length == 0xE) {
-			pos += snprintf(buf + pos, PAGE_SIZE,
+			pos += snprintf(buf + pos, size - pos,
 				"2160p%shz: 1\n",
 				dv->sup_2160p60hz ? "60" : "30");
-			pos += snprintf(buf + pos, PAGE_SIZE,
+			pos += snprintf(buf + pos, size - pos,
 				"Support mode:\n");
-			pos += snprintf(buf + pos, PAGE_SIZE,
+			pos += snprintf(buf + pos, size - pos,
 				"  DV_RGB_444_8BIT\n");
 			if (dv->sup_yuv422_12bit)
-				pos += snprintf(buf + pos, PAGE_SIZE,
+				pos += snprintf(buf + pos, size - pos,
 				"  DV_YCbCr_422_12BIT\n");
 		}
 	}
 	if (dv->ver == 2) {
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"VSVDB Version: V%d\n", dv->ver);
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"2160p%shz: 1\n",
 			dv->sup_2160p60hz ? "60" : "30");
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"Parity: %d\n", dv->parity);
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"Support mode:\n");
 		if (dv->Interface != 0x00 && dv->Interface != 0x01) {
-			pos += snprintf(buf + pos, PAGE_SIZE,
+			pos += snprintf(buf + pos, size - pos,
 				"  DV_RGB_444_8BIT\n");
 			if (dv->sup_yuv422_12bit)
-				pos += snprintf(buf + pos, PAGE_SIZE,
+				pos += snprintf(buf + pos, size - pos,
 					"  DV_YCbCr_422_12BIT\n");
 		}
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, size - pos,
 			"  LL_YCbCr_422_12BIT\n");
 		if (dv->Interface == 0x01 || dv->Interface == 0x03) {
 			if (dv->sup_10b_12b_444 == 0x1) {
-				pos += snprintf(buf + pos, PAGE_SIZE,
+				pos += snprintf(buf + pos, size - pos,
 					"  LL_RGB_444_10BIT\n");
 			}
 			if (dv->sup_10b_12b_444 == 0x2) {
-				pos += snprintf(buf + pos, PAGE_SIZE,
+				pos += snprintf(buf + pos, size - pos,
 					"  LL_RGB_444_12BIT\n");
 			}
 		}
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, size - pos,
 		"IEEEOUI: 0x%06x\n", dv->ieeeoui);
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, size - pos,
 		"EMP: %d\n", dv->dv_emp_cap);
-	pos += snprintf(buf + pos, PAGE_SIZE, "VSVDB: ");
+	pos += snprintf(buf + pos, size - pos, "VSVDB: ");
 	for (i = 0; i < (dv->length + 1); i++)
-		pos += snprintf(buf + pos, PAGE_SIZE, "%02x",
+		pos += snprintf(buf + pos, size - pos, "%02x",
 		dv->rawdata[i]);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+	pos += snprintf(buf + pos, size - pos, "\n");
 	return pos;
 }
 
@@ -660,7 +677,7 @@ static ssize_t dv_cap_show(struct device *dev,
 {
 	const struct dv_info *dv = &global_tx_common->rxcap.dv_info;
 
-	return _show_dv_cap(dev, attr, buf, dv);
+	return _show_dv_cap(dev, attr, buf, dv, PAGE_SIZE);
 }
 
 static DEVICE_ATTR_RO(dv_cap);
@@ -671,7 +688,7 @@ static ssize_t dv_cap2_show(struct device *dev,
 {
 	const struct dv_info *dv2 = &global_tx_common->rxcap.dv_info2;
 
-	return _show_dv_cap(dev, attr, buf, dv2);
+	return _show_dv_cap(dev, attr, buf, dv2, PAGE_SIZE);
 }
 
 static DEVICE_ATTR_RO(dv_cap2);
@@ -847,9 +864,9 @@ static DEVICE_ATTR_RW(contenttype_mode);
  * step3, build format with basic mode/attr and check
  * if it's supported by EDID/hdmitx_cap
  */
-static ssize_t disp_cap_show(struct device *dev,
+static ssize_t _disp_cap_show(struct device *dev,
 			     struct device_attribute *attr,
-			     char *buf)
+			     char *buf, int size)
 {
 	struct rx_cap *prxcap = &global_tx_common->rxcap;
 	const struct hdmi_timing *timing = NULL;
@@ -906,16 +923,23 @@ static ssize_t disp_cap_show(struct device *dev,
 
 		mode_name = timing->sname ? timing->sname : timing->name;
 
-		pos += snprintf(buf + pos, PAGE_SIZE, "%s", mode_name);
+		pos += snprintf(buf + pos, size - pos, "%s", mode_name);
 		if (vic == prxcap->native_vic)
-			pos += snprintf(buf + pos, PAGE_SIZE, "*\n");
+			pos += snprintf(buf + pos, size - pos, "*\n");
 		else
-			pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+			pos += snprintf(buf + pos, size - pos, "\n");
 	}
 
 	vfree(edid_vics);
 	mutex_unlock(&global_tx_common->valid_mutex);
 	return pos;
+}
+
+static ssize_t disp_cap_show(struct device *dev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	return _disp_cap_show(dev, attr, buf, PAGE_SIZE);
 }
 
 static DEVICE_ATTR_RO(disp_cap);
@@ -942,7 +966,7 @@ static ssize_t vesa_cap_show(struct device *dev,
 		const struct hdmi_timing *timing = hdmitx_mode_vic_to_hdmi_timing(vesa_t[i]);
 
 		if (timing && timing->vic >= HDMITX_VESA_OFFSET)
-			pos += snprintf(buf + pos, PAGE_SIZE, "%s\n",
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "%s\n",
 					timing->name);
 	}
 	return pos;
@@ -950,8 +974,8 @@ static ssize_t vesa_cap_show(struct device *dev,
 
 static DEVICE_ATTR_RO(vesa_cap);
 
-static ssize_t dc_cap_show(struct device *dev,
-			   struct device_attribute *attr, char *buf)
+static ssize_t _dc_cap_show(struct device *dev,
+			   struct device_attribute *attr, char *buf, int size)
 {
 	int pos = 0;
 	struct rx_cap *prxcap = &global_tx_common->rxcap;
@@ -961,18 +985,18 @@ static ssize_t dc_cap_show(struct device *dev,
 
 	/* DVI case, only rgb,8bit */
 	if (prxcap->ieeeoui != HDMI_IEEE_OUI) {
-		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,8bit\n");
+		pos += snprintf(buf + pos, size - pos, "rgb,8bit\n");
 		return pos;
 	}
 
 	if (prxcap->dc_36bit_420)
-		pos += snprintf(buf + pos, PAGE_SIZE, "420,12bit\n");
+		pos += snprintf(buf + pos, size - pos, "420,12bit\n");
 	if (prxcap->dc_30bit_420)
-		pos += snprintf(buf + pos, PAGE_SIZE, "420,10bit\n");
+		pos += snprintf(buf + pos, size - pos, "420,10bit\n");
 
 	for (i = 0; i < Y420_VIC_MAX_NUM; i++) {
 		if (prxcap->y420_vic[i]) {
-			pos += snprintf(buf + pos, PAGE_SIZE,
+			pos += snprintf(buf + pos, size - pos,
 				"420,8bit\n");
 			break;
 		}
@@ -982,26 +1006,32 @@ static ssize_t dc_cap_show(struct device *dev,
 		if (prxcap->dc_y444) {
 			if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
 			    dv2->sup_10b_12b_444 == 0x2)
-				pos += snprintf(buf + pos, PAGE_SIZE, "444,12bit\n");
+				pos += snprintf(buf + pos, size - pos, "444,12bit\n");
 			if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1 ||
 			    dv2->sup_10b_12b_444 == 0x1) {
-				pos += snprintf(buf + pos, PAGE_SIZE, "444,10bit\n");
+				pos += snprintf(buf + pos, size - pos, "444,10bit\n");
 			}
 		}
-		pos += snprintf(buf + pos, PAGE_SIZE, "444,8bit\n");
+		pos += snprintf(buf + pos, size - pos, "444,8bit\n");
 	}
 	/* y422, not check dc */
 	if (prxcap->native_Mode & (1 << 4))
-		pos += snprintf(buf + pos, PAGE_SIZE, "422,12bit\n");
+		pos += snprintf(buf + pos, size - pos, "422,12bit\n");
 
 	if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
 	    dv2->sup_10b_12b_444 == 0x2)
-		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,12bit\n");
+		pos += snprintf(buf + pos, size - pos, "rgb,12bit\n");
 	if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1 ||
 	    dv2->sup_10b_12b_444 == 0x1)
-		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,10bit\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "rgb,8bit\n");
+		pos += snprintf(buf + pos, size - pos, "rgb,10bit\n");
+	pos += snprintf(buf + pos, size - pos, "rgb,8bit\n");
 	return pos;
+}
+
+static ssize_t dc_cap_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	return _dc_cap_show(dev, attr, buf, PAGE_SIZE);
 }
 
 static DEVICE_ATTR_RO(dc_cap);
@@ -1011,7 +1041,7 @@ static ssize_t aud_cap_show(struct device *dev,
 {
 	struct rx_cap *prxcap = &global_tx_common->rxcap;
 
-	return _show_aud_cap(prxcap, buf);
+	return _show_aud_cap(prxcap, buf, PAGE_SIZE);
 }
 
 static DEVICE_ATTR_RO(aud_cap);
@@ -1259,45 +1289,50 @@ static ssize_t hdmirx_info_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
+	const struct dv_info *dv = &global_tx_common->rxcap.dv_info;
+	const struct hdr_info *info = &global_tx_common->rxcap.hdr_info;
+	struct rx_cap *prxcap = &global_tx_common->rxcap;
 
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 		"************hdmirx_info************\n");
 
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"******hpd_edid_parsing******\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "hpd:");
-	pos += hpd_state_show(dev, attr, buf + pos);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\nedid_parsing:");
-	pos += edid_parsing_show(dev, attr, buf + pos);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hpd:");
+	pos += _hpd_state_show(dev, attr, buf + pos, PAGE_SIZE - pos);
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n******edid******\n");
-	pos += edid_show(dev, attr, buf + pos);
-
-	pos += snprintf(buf + pos, PAGE_SIZE,
-		"\n******dc_cap******\n");
-	pos += dc_cap_show(dev, attr, buf + pos);
-
-	pos += snprintf(buf + pos, PAGE_SIZE,
-		"\n******disp_cap******\n");
-	pos += disp_cap_show(dev, attr, buf + pos);
-
-	pos += snprintf(buf + pos, PAGE_SIZE,
-		"\n******dv_cap******\n");
-	pos += dv_cap_show(dev, attr, buf + pos);
-
-	pos += snprintf(buf + pos, PAGE_SIZE,
-		"\n******hdr_cap******\n");
-	pos += hdr_cap_show(dev, attr, buf + pos);
-
-	pos += snprintf(buf + pos, PAGE_SIZE,
-		"\n******aud_cap******\n");
-	pos += aud_cap_show(dev, attr, buf + pos);
-
-	pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
 		"\n******rawedid******\n");
-	pos += rawedid_show(dev, attr, buf + pos);
+	pos += _rawedid_show(dev, attr, buf + pos, PAGE_SIZE - pos);
 
-	return pos;
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\nedid_parsing:");
+	pos += _edid_parsing_show(dev, attr, buf + pos, PAGE_SIZE - pos);
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n******edid******\n");
+	pos += hdmitx_edid_print_sink_cap(&global_tx_common->rxcap,
+		buf + pos, PAGE_SIZE - pos);
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"\n******dc_cap******\n");
+	pos += _dc_cap_show(dev, attr, buf + pos, PAGE_SIZE - pos);
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"\n******disp_cap******\n");
+	pos += _disp_cap_show(dev, attr, buf + pos, PAGE_SIZE - pos);
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"\n******dv_cap******\n");
+	pos += _show_dv_cap(dev, attr, buf + pos, dv, PAGE_SIZE - pos);
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"\n******hdr_cap******\n");
+	pos +=  _hdr_cap_show(dev, attr, buf + pos, info, PAGE_SIZE - pos);
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+		"\n******aud_cap******\n");
+	pos += _show_aud_cap(prxcap, buf + pos, PAGE_SIZE - pos);
+
+	return pos > PAGE_SIZE ? PAGE_SIZE : pos;
 }
 
 static DEVICE_ATTR_RO(hdmirx_info);

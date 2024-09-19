@@ -371,7 +371,7 @@ static ssize_t hdcp_topo_info_show(struct device *dev,
 	struct hdcprp_topo *topoinfo = hdev->topo_info;
 
 	if (!hdev->tx_comm.hdcp_mode) {
-		pos += snprintf(buf + pos, PAGE_SIZE, "hdcp mode: 0\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdcp mode: 0\n");
 		return pos;
 	}
 	if (!topoinfo)
@@ -383,36 +383,36 @@ static ssize_t hdcp_topo_info_show(struct device *dev,
 			(unsigned long)&topoinfo->topo.topo14);
 	}
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdcp mode: %s\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdcp mode: %s\n",
 		hdev->tx_comm.hdcp_mode == 1 ? "14" : "22");
 	if (hdev->tx_comm.hdcp_mode == 2) {
 		topoinfo->hdcp_ver = HDCPVER_22;
-		pos += snprintf(buf + pos, PAGE_SIZE, "max_devs_exceeded: %d\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "max_devs_exceeded: %d\n",
 			topoinfo->topo.topo22.max_devs_exceeded);
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"max_cascade_exceeded: %d\n",
 			topoinfo->topo.topo22.max_cascade_exceeded);
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, PAGE_SIZE - pos,
 				"v2_0_repeater_down: %d\n",
 			topoinfo->topo.topo22.v2_0_repeater_down);
-		pos += snprintf(buf + pos, PAGE_SIZE, "v1_X_device_down: %d\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "v1_X_device_down: %d\n",
 			topoinfo->topo.topo22.v1_X_device_down);
-		pos += snprintf(buf + pos, PAGE_SIZE, "device_count: %d\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "device_count: %d\n",
 			topoinfo->topo.topo22.device_count);
-		pos += snprintf(buf + pos, PAGE_SIZE, "depth: %d\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "depth: %d\n",
 			topoinfo->topo.topo22.depth);
 		return pos;
 	}
 	if (hdev->tx_comm.hdcp_mode == 1) {
 		topoinfo->hdcp_ver = HDCPVER_14;
-		pos += snprintf(buf + pos, PAGE_SIZE, "max_devs_exceeded: %d\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "max_devs_exceeded: %d\n",
 			topoinfo->topo.topo14.max_devs_exceeded);
-		pos += snprintf(buf + pos, PAGE_SIZE,
+		pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"max_cascade_exceeded: %d\n",
 			topoinfo->topo.topo14.max_cascade_exceeded);
-		pos += snprintf(buf + pos, PAGE_SIZE, "device_count: %d\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "device_count: %d\n",
 			topoinfo->topo.topo14.device_count);
-		pos += snprintf(buf + pos, PAGE_SIZE, "depth: %d\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "depth: %d\n",
 			topoinfo->topo.topo14.depth);
 		return pos;
 	}
@@ -1873,35 +1873,35 @@ static ssize_t hdmi_hdr_status_show(struct device *dev,
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR10P, 0);
 	if (type) {
 		if (type == HDMI_HDR10P_DV_VSIF) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10Plus-VSIF");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10Plus-VSIF");
 			return pos;
 		}
 	}
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_DV, 0);
 	if (type) {
 		if (type == HDMI_DV_VSIF_STD) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "DolbyVision-Std");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "DolbyVision-Std");
 			return pos;
 		} else if (type == HDMI_DV_VSIF_LL) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "DolbyVision-Lowlatency");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "DolbyVision-Lowlatency");
 			return pos;
 		}
 	}
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR, 0);
 	if (type) {
 		if (type == HDMI_HDR_SMPTE_2084) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-GAMMA_ST2084");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10-GAMMA_ST2084");
 			return pos;
 		} else if (type == HDMI_HDR_HLG) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-GAMMA_HLG");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10-GAMMA_HLG");
 			return pos;
 		} else if (type == HDMI_HDR_HDR) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-others");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10-others");
 			return pos;
 		}
 	}
 	/* default is SDR */
-	pos += snprintf(buf + pos, PAGE_SIZE, "SDR");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "SDR");
 
 	return pos;
 }
@@ -2037,21 +2037,21 @@ static ssize_t cedst_count_show(struct device *dev,
 	struct scdc_locked_st *ch_st = &hdev->chlocked_st;
 
 	if (!ch_st->clock_detected)
-		pos += snprintf(buf + pos, PAGE_SIZE, "clock undetected\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "clock undetected\n");
 	if (!ch_st->ch0_locked)
-		pos += snprintf(buf + pos, PAGE_SIZE, "CH0 unlocked\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "CH0 unlocked\n");
 	if (!ch_st->ch1_locked)
-		pos += snprintf(buf + pos, PAGE_SIZE, "CH1 unlocked\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "CH1 unlocked\n");
 	if (!ch_st->ch2_locked)
-		pos += snprintf(buf + pos, PAGE_SIZE, "CH2 unlocked\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "CH2 unlocked\n");
 	if (ced->ch0_valid && ced->ch0_cnt)
-		pos += snprintf(buf + pos, PAGE_SIZE, "CH0 ErrCnt 0x%x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "CH0 ErrCnt 0x%x\n",
 			ced->ch0_cnt);
 	if (ced->ch1_valid && ced->ch1_cnt)
-		pos += snprintf(buf + pos, PAGE_SIZE, "CH1 ErrCnt 0x%x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "CH1 ErrCnt 0x%x\n",
 			ced->ch1_cnt);
 	if (ced->ch2_valid && ced->ch2_cnt)
-		pos += snprintf(buf + pos, PAGE_SIZE, "CH2 ErrCnt 0x%x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "CH2 ErrCnt 0x%x\n",
 			ced->ch2_cnt);
 	memset(ced, 0, sizeof(*ced));
 
@@ -2180,7 +2180,7 @@ static ssize_t hdcp_lstore_show(struct device *dev,
 	/* if current TX is RP-TX, then return lstore as 00 */
 	/* hdcp_lstore is used under only TX */
 	if (hdev->tx_hw.base.hdcp_repeater_en == 1) {
-		pos += snprintf(buf + pos, PAGE_SIZE, "00\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "00\n");
 		return pos;
 	}
 
@@ -2197,14 +2197,14 @@ static ssize_t hdcp_lstore_show(struct device *dev,
 			hdmitx_current_status(HDMITX_HDCP_AUTH_NO_22_KEYS_ERROR);
 	}
 	if ((hdev->lstore & 0x3) == 0x3) {
-		pos += snprintf(buf + pos, PAGE_SIZE, "14+22\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "14+22\n");
 	} else {
 		if (hdev->lstore & 0x1)
-			pos += snprintf(buf + pos, PAGE_SIZE, "14\n");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "14\n");
 		if (hdev->lstore & 0x2)
-			pos += snprintf(buf + pos, PAGE_SIZE, "22\n");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "22\n");
 		if ((hdev->lstore & 0xf) == 0)
-			pos += snprintf(buf + pos, PAGE_SIZE, "00\n");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "00\n");
 	}
 	return pos;
 }
@@ -2240,13 +2240,13 @@ static ssize_t hdcp_mode_show(struct device *dev,
 
 	switch (hdev->tx_comm.hdcp_mode) {
 	case 1:
-		pos += snprintf(buf + pos, PAGE_SIZE, "14");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "14");
 		break;
 	case 2:
-		pos += snprintf(buf + pos, PAGE_SIZE, "22");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "22");
 		break;
 	default:
-		pos += snprintf(buf + pos, PAGE_SIZE, "off");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "off");
 		break;
 	}
 	if (hdev->tx_comm.hdcp_ctl_lvl > 0 &&
@@ -2254,9 +2254,9 @@ static ssize_t hdcp_mode_show(struct device *dev,
 		hdcp_ret = hdmitx_hw_cntl_ddc(&hdev->tx_hw.base,
 						      DDC_HDCP_GET_AUTH, 0);
 		if (hdcp_ret == 1)
-			pos += snprintf(buf + pos, PAGE_SIZE, ": succeed\n");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, ": succeed\n");
 		else
-			pos += snprintf(buf + pos, PAGE_SIZE, ": fail\n");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, ": fail\n");
 	}
 
 	return pos;
@@ -2380,8 +2380,8 @@ static ssize_t hdcp_ver_show(struct device *dev,
 	u32 ver = meson_hdcp_get_rx_cap();
 
 	if (ver == 0x3)
-		pos += snprintf(buf + pos, PAGE_SIZE, "22\n\r");
-	pos += snprintf(buf + pos, PAGE_SIZE, "14\n\r");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "22\n\r");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "14\n\r");
 	return pos;
 }
 
@@ -2395,12 +2395,12 @@ static ssize_t hdcp_ksv_info_show(struct device *dev,
 	hdmitx_hw_cntl_ddc(&hdev->tx_hw.base, DDC_HDCP_GET_BKSV,
 		(unsigned long)bksv_buf);
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "HDCP14 BKSV: ");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDCP14 BKSV: ");
 	for (i = 0; i < 5; i++) {
-		pos += snprintf(buf + pos, PAGE_SIZE, "%02x",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "%02x",
 			bksv_buf[i]);
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "  %s\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "  %s\n",
 		hdcp_ksv_valid(bksv_buf) ? "Valid" : "Invalid");
 
 	return pos;
@@ -2562,19 +2562,19 @@ static ssize_t hdmitx_basic_config_show(struct device *dev,
 	struct hdmitx_dev *hdev = dev_get_drvdata(dev);
 	enum hdmi_tf_type type = HDMI_NONE;
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "************\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdmi_config_info\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "************\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "************\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdmi_config_info\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "************\n");
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "display_mode in:%s\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "display_mode in:%s\n",
 		get_vout_mode_internal());
 
 	vic = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_VIDEO_VIC, 0);
-	pos += snprintf(buf + pos, PAGE_SIZE, "display_mode out:%s\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "display_mode out:%s\n",
 		hdmitx_mode_get_timing_name(vic));
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "attr in:%s\n\r", hdev->tx_comm.fmt_attr);
-	pos += snprintf(buf + pos, PAGE_SIZE, "attr out:");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "attr in:%s\n\r", hdev->tx_comm.fmt_attr);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "attr out:");
 
 	reg_addr = HDMITX_DWC_FC_AVICONF0;
 	reg_val = hdmitx_rd_reg(reg_addr);
@@ -2591,7 +2591,7 @@ static ssize_t hdmitx_basic_config_show(struct device *dev,
 	case 3:
 		conf = "420";
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "%s,", conf);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "%s,", conf);
 
 	reg_addr = HDMITX_DWC_VP_PR_CD;
 	reg_val = hdmitx_rd_reg(reg_addr);
@@ -2613,38 +2613,38 @@ static ssize_t hdmitx_basic_config_show(struct device *dev,
 	default:
 		conf = "reserved";
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "%s\n", conf);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "%s\n", conf);
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdr_status in:");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdr_status in:");
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR10P, 0);
 	if (type) {
 		if (type == HDMI_HDR10P_DV_VSIF)
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10Plus-VSIF");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10Plus-VSIF");
 	}
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_DV, 0);
 	if (type) {
 		if (type == HDMI_DV_VSIF_STD)
-			pos += snprintf(buf + pos, PAGE_SIZE, "DolbyVision-Std");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "DolbyVision-Std");
 		else if (type == HDMI_DV_VSIF_LL)
-			pos += snprintf(buf + pos, PAGE_SIZE, "DolbyVision-Lowlatency");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "DolbyVision-Lowlatency");
 	}
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_HDR, 0);
 	if (type) {
 		if (type == HDMI_HDR_SMPTE_2084)
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-GAMMA_ST2084");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10-GAMMA_ST2084");
 		else if (type == HDMI_HDR_HLG)
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-GAMMA_HLG");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10-GAMMA_HLG");
 		else if (type == HDMI_HDR_HDR)
-			pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-others");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "HDR10-others");
 		else if (type == HDMI_HDR_SDR)
-			pos += snprintf(buf + pos, PAGE_SIZE, "SDR");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "SDR");
 	}
 	if (type == HDMI_NONE)
 		/* default is SDR */
-		pos += snprintf(buf + pos, PAGE_SIZE, "SDR");
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "SDR");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdr_status out:");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdr_status out:");
 	type = hdmitx_hw_get_state(&hdev->tx_hw.base, STAT_TX_DV, 0);
 	if (type) {
 		reg_addr = HDMITX_DWC_FC_VSDIEEEID0;
@@ -2660,7 +2660,7 @@ static ssize_t hdmitx_basic_config_show(struct device *dev,
 		/*hdmi 1.4b VSIF only Support DolbyVision-Std*/
 		if (vsd_ieee_id[0] == 0x03 && vsd_ieee_id[1] == 0x0C &&
 		    vsd_ieee_id[2] == 0x00) {
-			pos += snprintf(buf + pos, PAGE_SIZE,
+			pos += snprintf(buf + pos, PAGE_SIZE - pos,
 					"DolbyVision-Std_hdmi 1.4b VSIF");
 		} else if ((vsd_ieee_id[0] == 0x46) &&
 			   (vsd_ieee_id[1] == 0xD0) &&
@@ -2674,11 +2674,11 @@ static ssize_t hdmitx_basic_config_show(struct device *dev,
 				reg_val = hdmitx_rd_reg(reg_addr);
 				/* FULL */
 				if (((reg_val & 0xc) >> 2) == 2)
-					pos += snprintf(buf + pos, PAGE_SIZE,
+					pos += snprintf(buf + pos, PAGE_SIZE - pos,
 									"DolbyVision-Std");
 				else
 					/* LIM */
-					pos += snprintf(buf + pos, PAGE_SIZE,
+					pos += snprintf(buf + pos, PAGE_SIZE - pos,
 									"DolbyVision-Lowlatency");
 			} else if ((reg_val & 0x3) == 1) {
 				/* 422 */
@@ -2687,19 +2687,19 @@ static ssize_t hdmitx_basic_config_show(struct device *dev,
 
 				if (((reg_val & 0xc) >> 2) == 0)
 					/*LIM*/
-					pos += snprintf(buf + pos, PAGE_SIZE,
+					pos += snprintf(buf + pos, PAGE_SIZE - pos,
 									"DolbyVision-Lowlatency");
 				else
 					/*FULL*/
-					pos += snprintf(buf + pos, PAGE_SIZE,
+					pos += snprintf(buf + pos, PAGE_SIZE - pos,
 									"DolbyVision-Std");
 			} else if ((reg_val & 0x3) == 2) {
 				/* 444 only one probability: DolbyVision-Lowlatency */
-				pos += snprintf(buf + pos, PAGE_SIZE,
+				pos += snprintf(buf + pos, PAGE_SIZE - pos,
 						"DolbyVision-Lowlatency");
 			}
 		} else {
-			pos += snprintf(buf + pos, PAGE_SIZE, "SDR");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "SDR");
 		}
 	} else {
 		reg_addr = HDMITX_DWC_FC_DRM_PB00;
@@ -2721,19 +2721,19 @@ static ssize_t hdmitx_basic_config_show(struct device *dev,
 		default:
 			conf = "SDR";
 		}
-		pos += snprintf(buf + pos, PAGE_SIZE, "%s\n", conf);
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "%s\n", conf);
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "******config******\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "cur_VIC: %d\n", hdev->tx_comm.fmt_para.vic);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "******config******\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "cur_VIC: %d\n", hdev->tx_comm.fmt_para.vic);
 	pos += hdmitx_format_para_print(&hdev->tx_comm.fmt_para, buf + pos);
 
 	if (hdev->tx_comm.cur_audio_param.aud_output_en)
 		conf = "on";
 	else
 		conf = "off";
-	pos += snprintf(buf + pos, PAGE_SIZE, "audio config: %s\n", conf);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "audio config: %s\n", conf);
 
 	pos += hdmitx_audio_para_print(&hdev->tx_comm.cur_audio_param, buf + pos);
 
@@ -2745,134 +2745,138 @@ static ssize_t hdmitx_basic_config_show(struct device *dev,
 		conf = "TopButtom";
 	else
 		conf = "off";
-	pos += snprintf(buf + pos, PAGE_SIZE, "3D config: %s\n", conf);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "3D config: %s\n", conf);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "******hdcp******\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdcp mode:");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "******hdcp******\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdcp mode:");
 	pos += hdcp_mode_show(dev, attr, buf + pos);
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdcp_lstore:");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdcp_lstore:");
 	pos += hdcp_lstore_show(dev, attr, buf + pos);
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdcp_ver:");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdcp_ver:");
 	pos += hdcp_ver_show(dev, attr, buf + pos);
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdcp ksv info:");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdcp ksv info:");
 	pos += hdcp_ksv_info_show(dev, attr, buf + pos);
-	pos += snprintf(buf + pos, PAGE_SIZE, "hdcp_ctl_lvl:%d\n", hdev->tx_comm.hdcp_ctl_lvl);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "hdcp_ctl_lvl:%d\n",
+		hdev->tx_comm.hdcp_ctl_lvl);
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "******scdc******\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "div40:%d\n", hdev->pre_tmds_clk_div40);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "******scdc******\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "div40:%d\n", hdev->pre_tmds_clk_div40);
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "******hdmi_pll******\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "sspll:%d\n", hdev->sspll);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "******hdmi_pll******\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "sspll:%d\n", hdev->sspll);
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "******dv_vsif_info******\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "******dv_vsif_info******\n");
 	data = &vsif_debug_info.data;
-	pos += snprintf(buf + pos, PAGE_SIZE, "type: %u, tunnel: %u, sigsdr: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "type: %u, tunnel: %u, sigsdr: %u\n",
 		vsif_debug_info.type,
 		vsif_debug_info.tunnel_mode,
 		vsif_debug_info.signal_sdr);
-	pos += snprintf(buf + pos, PAGE_SIZE, "dv_vsif_para:\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "ver: %u len: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "dv_vsif_para:\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "ver: %u len: %u\n",
 		data->ver, data->length);
-	pos += snprintf(buf + pos, PAGE_SIZE, "ll: %u dvsig: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "ll: %u dvsig: %u\n",
 		data->vers.ver2.low_latency,
 		data->vers.ver2.dobly_vision_signal);
-	pos += snprintf(buf + pos, PAGE_SIZE, "bcMD: %u axMD: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "bcMD: %u axMD: %u\n",
 		data->vers.ver2.backlt_ctrl_MD_present,
 		data->vers.ver2.auxiliary_MD_present);
-	pos += snprintf(buf + pos, PAGE_SIZE, "PQhi: %u PQlow: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "PQhi: %u PQlow: %u\n",
 		data->vers.ver2.eff_tmax_PQ_hi,
 		data->vers.ver2.eff_tmax_PQ_low);
-	pos += snprintf(buf + pos, PAGE_SIZE, "axrm: %u, axrv: %u, ",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "axrm: %u, axrv: %u, ",
 		data->vers.ver2.auxiliary_runmode,
 		data->vers.ver2.auxiliary_runversion);
 	pos += snprintf(buf + pos, PAGE_SIZE, "axdbg: %u\n",
 		data->vers.ver2.auxiliary_debug0);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "***drm_config_data***\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "***drm_config_data***\n");
 	hdr_transfer_feature = (drm_config_data.features >> 8) & 0xff;
 	hdr_color_feature = (drm_config_data.features >> 16) & 0xff;
 	colormetry = (drm_config_data.features >> 30) & 0x1;
-	pos += snprintf(buf + pos, PAGE_SIZE, "tf=%u, cf=%u, colormetry=%u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "tf=%u, cf=%u, colormetry=%u\n",
 		hdr_transfer_feature, hdr_color_feature,
 		colormetry);
-	pos += snprintf(buf + pos, PAGE_SIZE, "primaries:\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "primaries:\n");
 	for (vcnt = 0; vcnt < 3; vcnt++) {
 		for (hcnt = 0; hcnt < 2; hcnt++)
-			pos += snprintf(buf + pos, PAGE_SIZE, "%u, ",
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "%u, ",
 			drm_config_data.primaries[vcnt][hcnt]);
-		pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "white_point: ");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "white_point: ");
 	for (hcnt = 0; hcnt < 2; hcnt++)
-		pos += snprintf(buf + pos, PAGE_SIZE, "%u, ",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "%u, ",
 		drm_config_data.white_point[hcnt]);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "luminance: ");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "luminance: ");
 	for (hcnt = 0; hcnt < 2; hcnt++)
-		pos += snprintf(buf + pos, PAGE_SIZE, "%u, ", drm_config_data.luminance[hcnt]);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "max_content: %u, ", drm_config_data.max_content);
-	pos += snprintf(buf + pos, PAGE_SIZE, "max_frame_average: %u\n",
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "%u, ",
+		drm_config_data.luminance[hcnt]);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "max_content: %u, ",
+		drm_config_data.max_content);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "max_frame_average: %u\n",
 		drm_config_data.max_frame_average);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "***hdr10p_config_data***\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "appver: %u, tlum: %u, avgrgb: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "***hdr10p_config_data***\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "appver: %u, tlum: %u, avgrgb: %u\n",
 		hdr10p_config_data.application_version,
 		hdr10p_config_data.targeted_max_lum,
 		hdr10p_config_data.average_maxrgb);
 	tmp = hdr10p_config_data.distribution_values;
-	pos += snprintf(buf + pos, PAGE_SIZE, "distribution_values:\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "distribution_values:\n");
 	for (vcnt = 0; vcnt < 3; vcnt++) {
 		for (hcnt = 0; hcnt < 3; hcnt++)
-			pos += snprintf(buf + pos, PAGE_SIZE, "%u, ", tmp[vcnt * 3 + hcnt]);
-		pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "%u, ", tmp[vcnt * 3 + hcnt]);
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "nbca: %u, knpx: %u, knpy: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "nbca: %u, knpx: %u, knpy: %u\n",
 		hdr10p_config_data.num_bezier_curve_anchors,
 		hdr10p_config_data.knee_point_x,
 		hdr10p_config_data.knee_point_y);
 	tmp = hdr10p_config_data.bezier_curve_anchors;
-	pos += snprintf(buf + pos, PAGE_SIZE, "bezier_curve_anchors:\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "bezier_curve_anchors:\n");
 	for (vcnt = 0; vcnt < 3; vcnt++) {
 		for (hcnt = 0; hcnt < 3; hcnt++)
-			pos += snprintf(buf + pos, PAGE_SIZE, "%u, ", tmp[vcnt * 3 + hcnt]);
-		pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "%u, ", tmp[vcnt * 3 + hcnt]);
+		pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "gof: %u, ndf: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "gof: %u, ndf: %u\n",
 		hdr10p_config_data.graphics_overlay_flag,
 		hdr10p_config_data.no_delay_flag);
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "***hdmiaud_config_data***\n");
-		pos += snprintf(buf + pos, PAGE_SIZE,
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "***hdmiaud_config_data***\n");
+		pos += snprintf(buf + pos, PAGE_SIZE - pos,
 			"type: %u, chnum: %u, samrate: %u, samsize: %u\n",
 			hdmiaud_config_data.type,
 			hdmiaud_config_data.chs,
 			hdmiaud_config_data.rate,
 			hdmiaud_config_data.size);
 	emp_data = emp_config_data.data;
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "***emp_config_data***\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "type: %u, size: %u\n",
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "***emp_config_data***\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "type: %u, size: %u\n",
 		emp_config_data.type,
 		emp_config_data.size);
-	pos += snprintf(buf + pos, PAGE_SIZE, "data:\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "data:\n");
 
 	size = emp_config_data.size;
 	for (vcnt = 0; vcnt < 8; vcnt++) {
 		for (hcnt = 0; hcnt < 16; hcnt++) {
 			if (vcnt * 16 + hcnt >= size)
 				break;
-			pos += snprintf(buf + pos, PAGE_SIZE, "%u, ", emp_data[vcnt * 16 + hcnt]);
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "%u, ",
+				emp_data[vcnt * 16 + hcnt]);
 		}
 		if (vcnt * 16 + hcnt < size)
-			pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+			pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 		else
 			break;
 	}
-	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "\n");
 	return pos;
 }
 
