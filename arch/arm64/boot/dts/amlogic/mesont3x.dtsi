@@ -4714,6 +4714,28 @@
 		};
 	};
 
+	hdmirx_pin_sleep:hdmirx_pin_sleep {
+		mux {
+			groups = "GPIOW_0",
+				"GPIOW_1",
+				"GPIOW_2",
+				"GPIOW_3",
+				"GPIOW_4",
+				"GPIOW_5",
+				"GPIOW_6",
+				"GPIOW_7",
+				"GPIOW_8",
+				"GPIOW_9",
+				"GPIOW_10",
+				"GPIOW_11",
+				"GPIOW_12",
+				"GPIOW_13",
+				"GPIOW_14",
+				"GPIOW_15";
+			function = "gpio_periphs";
+		};
+	};
+
 	cec_a: cec_a {
 		mux {
 			groups = "cec_a";

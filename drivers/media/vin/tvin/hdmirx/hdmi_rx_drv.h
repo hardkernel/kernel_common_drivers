@@ -75,7 +75,8 @@
 //2024.09.18 remove warning print
 //2024.09.24 reduce rx boot print
 //2024.09.30 update fsm when update edid
-#define RX_VER0 "ver.2024/09/30"
+//2024.10.09 t3x/t7c hdmirx support std hibernate
+#define RX_VER0 "ver.2024/10/09"
 
 /*print type*/
 #define COR1_LOG	0x10000

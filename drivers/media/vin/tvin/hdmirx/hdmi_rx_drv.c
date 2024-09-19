@@ -4468,7 +4468,7 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 	rx_dig_clk_en(0);
 	rx_emp_hw_enable(false);
 	rx_info.suspend_flag = true;
-	rx_pr("hdmirx: suspend success\n");
+	rx_pr("hdmirx pm: suspend success\n");
 	return 0;
 }
 
@@ -4490,7 +4490,7 @@ static int hdmirx_resume(struct platform_device *pdev)
 	rx_hdcp_access_on_ddc_en(true);
 	rx[rx_info.main_port].resume_flag = true;
 	rx[rx_info.main_port].state = FSM_HPD_LOW;
-	rx_pr("hdmirx: resume\n");
+	rx_pr("hdmirx pm: resume\n");
 	/* for wakeup by pwr5v pin, only available on T7 for now */
 	if (get_resume_method() == HDMI_RX_WAKEUP &&
 	    hdevp->hdmirx_input_dev) {
@@ -4533,9 +4533,34 @@ static void hdmirx_shutdown(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
+static int hdmirx_freeze(struct device *dev)
+{
+	struct pinctrl *pin;
+	struct hdmirx_dev_s *hdevp;
+	struct platform_device *pdev = to_platform_device(dev);
+
+	hdevp = platform_get_drvdata(pdev);
+	//std hibernate should not save timer object
+	//or it will crash when resume an inactive timer
+	del_timer_sync(&hdevp->timer);
+	//it will check pinctrl state when pinctrl restore pinmux
+	//freeze -- sleep   restore -- hdmirx_pin
+	pin = devm_pinctrl_get_select(dev, "sleep");
+	rx_pr("hdmirx pm: freeze\n");
+	return 0;
+}
+
 static int hdmirx_restore(struct device *dev)
 {
-	/* queue_delayed_work(eq_wq, &eq_dwork, msecs_to_jiffies(5)); */
+	struct platform_device *pdev = to_platform_device(dev);
+
+	//all register will be clear when std power off
+	//hdmirx dts related clk will be restore by clk driver
+	//hdmirx private clk & pinmux should restore here
+	hdmirx_hw_probe();
+	hdmirx_switch_pinmux(dev);
+	rx_pr("hdmirx pm: restore\n");
+	hdmirx_resume(pdev);
 	return 0;
 }
 
@@ -4554,6 +4579,7 @@ static int hdmirx_pm_resume(struct device *dev)
 }
 
 const struct dev_pm_ops hdmirx_pm = {
+	.freeze     = hdmirx_freeze,
 	.restore	= hdmirx_restore,
 	.suspend	= hdmirx_pm_suspend,
 	.resume		= hdmirx_pm_resume,
