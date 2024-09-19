@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+/dts-v1/;
+
+#include "s7d_s905x5m_odroidc5.dts"
+#include "firmware_ab.dtsi"
