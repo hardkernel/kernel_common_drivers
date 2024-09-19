@@ -10,8 +10,8 @@
 #include "mesons6_audio.dtsi"
 #include "firmware_ab.dtsi"
 / {
-	amlogic-dt-id = "s6_s905x5_bn201-4g";
-	compatible = "s6_s905x5_bn201";
+	amlogic-dt-id = "s6_s905x5l_bn201-4g";
+	compatible = "s6_s905x5l_bn201";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -1402,6 +1402,7 @@
 &ext_mdio {
 	status = "okay";
 };
+
 &ethmac {
 	pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
 	pinctrl-names = "default";
