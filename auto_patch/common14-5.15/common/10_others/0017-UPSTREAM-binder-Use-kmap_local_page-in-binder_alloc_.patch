@@ -1,0 +1,50 @@
+From c98f48fc78277a399383b3edf8c8fcd4c25729ca Mon Sep 17 00:00:00 2001
+From: "Fabio M. De Francesco" <fmdefrancesco@gmail.com>
+Date: Mon, 25 Apr 2022 19:57:53 +0200
+Subject: [PATCH] UPSTREAM: binder: Use kmap_local_page() in
+ binder_alloc_copy_user_to_buffer()
+
+The use of kmap() is being deprecated in favor of kmap_local_page()
+where it is feasible. With kmap_local_page(), the mapping is per
+thread, CPU local and not globally visible.
+
+binder_alloc_copy_user_to_buffer() is a function where the use of
+kmap_local_page() in place of kmap() is correctly suited because
+the mapping is local to the thread.
+
+Therefore, use kmap_local_page() / kunmap_local().
+
+Cc: Christophe JAILLET <christophe.jaillet@wanadoo.fr>
+Acked-by: Todd Kjos <tkjos@google.com>
+Signed-off-by: Fabio M. De Francesco <fmdefrancesco@gmail.com>
+Link: https://lore.kernel.org/r/20220425175754.8180-3-fmdefrancesco@gmail.com
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+Bug: 365876437
+Bug: 367895677
+(cherry picked from commit 1d625960e41907af706f573a3cd097595a0ade63)
+Change-Id: I49739365cf5dcf584be1aab0c93848aa9ce886a8
+Signed-off-by: Carlos Llamas <cmllamas@google.com>
+---
+ drivers/android/binder_alloc.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/android/binder_alloc.c b/drivers/android/binder_alloc.c
+index f1aee7371e03..ecbca2aaada8 100644
+--- a/drivers/android/binder_alloc.c
++++ b/drivers/android/binder_alloc.c
+@@ -1247,9 +1247,9 @@ binder_alloc_copy_user_to_buffer(struct binder_alloc *alloc,
+ 		page = binder_alloc_get_page(alloc, buffer,
+ 					     buffer_offset, &pgoff);
+ 		size = min_t(size_t, bytes, PAGE_SIZE - pgoff);
+-		kptr = kmap(page) + pgoff;
++		kptr = kmap_local_page(page) + pgoff;
+ 		ret = copy_from_user(kptr, from, size);
+-		kunmap(page);
++		kunmap_local(kptr);
+ 		if (ret)
+ 			return bytes - size + ret;
+ 		bytes -= size;
+-- 
+2.46.0
+

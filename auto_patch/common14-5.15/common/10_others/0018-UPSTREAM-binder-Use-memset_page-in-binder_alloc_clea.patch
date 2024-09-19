@@ -1,0 +1,57 @@
+From 81556353269e800ec41aa3636b78338fdd0c8527 Mon Sep 17 00:00:00 2001
+From: "Fabio M. De Francesco" <fmdefrancesco@gmail.com>
+Date: Mon, 25 Apr 2022 19:57:52 +0200
+Subject: [PATCH] UPSTREAM: binder: Use memset_page() in
+ binder_alloc_clear_buf()
+
+The use of kmap() is being deprecated in favor of kmap_local_page()
+where it is feasible. With kmap_local_page(), the mapping is per
+thread, CPU local and not globally visible.
+
+binder_alloc_clear_buf() is a function where the use of kmap_local_page()
+in place of kmap() is correctly suited because the mapping is local to the
+thread.
+
+Therefore, use kmap_local_page() / kunmap_local() but, instead of open
+coding these two functions and adding a memset() of the virtual address
+of the mapping, prefer memset_page().
+
+Cc: Christophe JAILLET <christophe.jaillet@wanadoo.fr>
+Acked-by: Todd Kjos <tkjos@google.com>
+Signed-off-by: Fabio M. De Francesco <fmdefrancesco@gmail.com>
+Link: https://lore.kernel.org/r/20220425175754.8180-2-fmdefrancesco@gmail.com
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+Bug: 368205746
+Bug: 365876437
+(cherry picked from commit 26eff2d66aff33527c7872277ab9c9d8478a978c)
+Change-Id: I7bc041db662ee1e8758c173861b2229d6ad8eb1e
+Signed-off-by: yenchia.chen <yenchia.chen@mediatek.com>
+Signed-off-by: Carlos Llamas <cmllamas@google.com>
+---
+ drivers/android/binder_alloc.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/drivers/android/binder_alloc.c b/drivers/android/binder_alloc.c
+index ecbca2aaada8..69ff79825ff9 100644
+--- a/drivers/android/binder_alloc.c
++++ b/drivers/android/binder_alloc.c
+@@ -765,14 +765,11 @@ static void binder_alloc_clear_buf(struct binder_alloc *alloc,
+ 		unsigned long size;
+ 		struct page *page;
+ 		pgoff_t pgoff;
+-		void *kptr;
+ 
+ 		page = binder_alloc_get_page(alloc, buffer,
+ 					     buffer_offset, &pgoff);
+ 		size = min_t(size_t, bytes, PAGE_SIZE - pgoff);
+-		kptr = kmap(page) + pgoff;
+-		memset(kptr, 0, size);
+-		kunmap(page);
++		memset_page(page, pgoff, 0, size);
+ 		bytes -= size;
+ 		buffer_offset += size;
+ 	}
+-- 
+2.46.0
+
