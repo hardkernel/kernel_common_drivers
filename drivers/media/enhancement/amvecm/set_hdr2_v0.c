@@ -5240,7 +5240,8 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T5W ||
 		chip_type_id == chip_t5m ||
 		chip_type_id == chip_t3x ||
-		chip_type_id == chip_txhd2)
+		chip_type_id == chip_txhd2 ||
+		chip_type_id == chip_t6d)
 		bit_depth = 10;
 
 	if ((chip_type_id == chip_s7d ||
