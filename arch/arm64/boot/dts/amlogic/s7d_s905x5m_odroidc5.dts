@@ -826,7 +826,7 @@
 
 /* SDIO */
 &sd_emmc_a {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&sdio_pins>;
 	pinctrl-1 = <&sdio_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -841,14 +841,6 @@
 
 	non-removable;
 	disable-wp;
-
-	//vmmc-supply = <&vddao_3v3>;
-	//vqmmc-supply = <&vddio_ao1v8>;
-
-	brcmf: wifi@1 {
-		reg = <1>;
-		compatible = "brcm,bcm4329-fmac";
-	};
 };
 
 /* SD card */
