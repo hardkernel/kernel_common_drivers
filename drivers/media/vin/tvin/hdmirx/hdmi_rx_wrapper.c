@@ -1154,14 +1154,8 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT, port);
 	/* top interrupt handler */
 	if (rx_info.chip_id >= CHIP_ID_TL1) {
 		if (hdmirx_top_intr_stat & top_irq_tab[IRQ_SQOF_FALL]) {
-			if (video_mute_enabled(port)) {
-				rx[port].vpp_mute = true;
-				rx_mute_vpp(rx_get_port_type(port));
-				set_video_mute(HDMI_RX_MUTE_SET, true);
-				rx[port].var.mute_cnt = 0;
-				if (log_level & 0x100)
-					rx_pr("vpp mute\n");
-			}
+			if (video_mute_enabled(port))
+				hdmirx_mute_vpp(true, port);
 			skip_frame(skip_frame_cnt, port, "irq0 sqofclk_fall");
 			if (log_level & 0x100)
 				rx_pr("[isr] sqofclk_fall\n");
@@ -4063,7 +4057,7 @@ void hdmirx_close_port_t3x(u8 port)
 		/* clear vpp mute, such as after unplug */
 		if (vpp_mute_enable) {
 			if (get_video_mute_val(HDMI_RX_MUTE_SET))
-				set_video_mute(HDMI_RX_MUTE_SET, false);
+				hdmirx_mute_vpp(false, port);
 		}
 	}
 	rx_irq_en(0, port);
@@ -4094,7 +4088,7 @@ void hdmirx_close_port(u8 port)
 	/* clear vpp mute, such as after unplug */
 	if (vpp_mute_enable) {
 		if (get_video_mute_val(HDMI_RX_MUTE_SET))
-			set_video_mute(HDMI_RX_MUTE_SET, false);
+			hdmirx_mute_vpp(false, port);
 	}
 	rx_irq_en(0, port);
 	if (hdmirx_repeat_support())
@@ -4753,8 +4747,7 @@ void rx_main_state_machine(void)
 			//Color space changes, no need to do EQ training
 			skip_frame(skip_frame_cnt, port, "fsm color skip");
 			if (video_mute_enabled(port)) {
-				set_video_mute(HDMI_RX_MUTE_SET, true);
-				rx_mute_vpp(rx_get_port_type(port));
+				hdmirx_mute_vpp(true, port);
 				rx[port].vpp_mute = true;
 				rx[port].var.mute_cnt = 0;
 				if (log_level & 0x100)
@@ -4807,7 +4800,7 @@ void rx_main_state_machine(void)
 						break;
 					rx[port].var.mute_cnt = 0;
 					rx[port].vpp_mute = false;
-					set_video_mute(HDMI_RX_MUTE_SET, false);
+					hdmirx_mute_vpp(false, port);
 				}
 			}
 		}
@@ -5196,14 +5189,8 @@ void rx_port0_main_state_machine(void)
 		} else if (!rx_is_avi_stable(port)) {
 			//Color space changes, no need to do EQ training
 			skip_frame(skip_frame_cnt, port, "fsm0 color skip");
-			if (video_mute_enabled(port)) {
-				set_video_mute(HDMI_RX_MUTE_SET, true);
-				rx_mute_vpp(rx_get_port_type(port));
-				rx[port].vpp_mute = true;
-				rx[port].var.mute_cnt = 0;
-				if (log_level & 0x100)
-					rx_pr("port%d vpp mute1\n", port);
-			}
+			if (video_mute_enabled(port))
+				hdmirx_mute_vpp(true, port);
 			if (sig_unready_max)
 				chk_cnt = sig_unready_max;
 			else
@@ -5599,14 +5586,8 @@ void rx_port1_main_state_machine(void)
 		} else if (!rx_is_avi_stable(port)) {
 			//Color space changes, no need to do EQ training
 			skip_frame(skip_frame_cnt, port, "fsm1 color skip");
-			if (video_mute_enabled(port)) {
-				set_video_mute(HDMI_RX_MUTE_SET, true);
-				rx_mute_vpp(rx_get_port_type(port));
-				rx[port].vpp_mute = true;
-				rx[port].var.mute_cnt = 0;
-				if (log_level & 0x100)
-					rx_pr("port%d vpp mute1\n", port);
-			}
+			if (video_mute_enabled(port))
+				hdmirx_mute_vpp(true, port);
 			if (sig_unready_max)
 				chk_cnt = sig_unready_max;
 			else
@@ -6025,9 +6006,8 @@ void rx_port2_main_state_machine(void)
 		/* video info change */
 		if (!is_tmds_valid(port)) {
 			rx[port].clk.t_clk_pre = rx[port].clk.tclk;
-			if (video_mute_enabled(port)) {
+			if (video_mute_enabled(port))
 				hdmirx_mute_vpp(true, port);
-			}
 			skip_frame(skip_frame_cnt, port, "fsm2 tmds skip");
 			rx[port].unready_timestamp = rx_info.timestamp;
 			dump_unnormal_info(port);
@@ -6087,14 +6067,8 @@ void rx_port2_main_state_machine(void)
 		} else if (!rx_is_avi_stable(port)) {
 			//Color space changes, no need to do EQ training
 			skip_frame(skip_frame_cnt, port, "fsm2 color skip");
-			if (video_mute_enabled(port)) {
-				set_video_mute(HDMI_RX_MUTE_SET, true);
-				rx_mute_vpp(rx_get_port_type(port));
-				rx[port].vpp_mute = true;
-				rx[port].var.mute_cnt = 0;
-				if (log_level & 0x100)
-					rx_pr("port%d vpp mute1\n", port);
-			}
+			if (video_mute_enabled(port))
+				hdmirx_mute_vpp(true, port);
 			if (sig_unready_max)
 				chk_cnt = sig_unready_max;
 			else
@@ -6512,9 +6486,8 @@ void rx_port3_main_state_machine(void)
 		#endif
 		/* video info change */
 		if (!is_tmds_valid(port)) {
-			if (video_mute_enabled(port)) {
+			if (video_mute_enabled(port))
 				hdmirx_mute_vpp(true, port);
-			}
 			skip_frame(skip_frame_cnt, port, "fsm3 tmds skip");
 			rx[port].unready_timestamp = rx_info.timestamp;
 			dump_unnormal_info(port);
@@ -6573,14 +6546,8 @@ void rx_port3_main_state_machine(void)
 		} else if (!rx_is_avi_stable(port)) {
 			//Color space changes, no need to do EQ training
 			skip_frame(skip_frame_cnt, port, "fsm3 color skip");
-			if (video_mute_enabled(port)) {
-				set_video_mute(HDMI_RX_MUTE_SET, true);
-				rx_mute_vpp(rx_get_port_type(port));
-				rx[port].vpp_mute = true;
-				rx[port].var.mute_cnt = 0;
-				if (log_level & 0x100)
-					rx_pr("port%d vpp mute1\n", port);
-			}
+			if (video_mute_enabled(port))
+				hdmirx_mute_vpp(true, port);
 			if (sig_unready_max)
 				chk_cnt = sig_unready_max;
 			else

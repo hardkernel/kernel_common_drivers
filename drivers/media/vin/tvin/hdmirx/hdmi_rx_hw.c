@@ -2831,12 +2831,8 @@ bool rx_clr_tmds_valid(u8 port)
 		return ret;
 	if (rx[port].state >= FSM_SIG_STABLE) {
 		rx[port].state = FSM_WAIT_CLK_STABLE;
-		if (vpp_mute_enable && port != rx_info.sub_port) {
-			rx_mute_vpp(rx_get_port_type(port));
-			rx[port].vpp_mute = true;
-			set_video_mute(HDMI_RX_MUTE_SET, true);
-			rx_pr("vpp mute\n");
-		}
+		if (vpp_mute_enable && port != rx_info.sub_port)
+			hdmirx_mute_vpp(true, port);
 		hdmirx_output_en(false);
 		rx_irq_en(0, port);
 		rx_aud_pll_ctl(0, port);

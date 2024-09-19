@@ -34,7 +34,8 @@
 /* 2024.08.22 Fix the issue of flashing green screen at the end of SDR playback */
 /* 2024.08.30 fix hpd time too short */
 /* 2024.09.04 optimize drm pkt handle flow in irq */
-#define RX_WRAPPER_VER "ver.2024/09/04"
+/* 2024.09.26 fix rx can not unmute on t3x */
+#define RX_WRAPPER_VER "ver.2024/09/26"
 
 struct freq_ref_s {
 	bool interlace;

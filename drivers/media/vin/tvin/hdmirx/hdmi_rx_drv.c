@@ -649,7 +649,7 @@ int hdmirx_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64,
 				rx[port].avmute_skip += 1;
 				rx[port].vpp_mute_cnt = vpp_mute_cnt;
 				gcp_mute_flag[port] = 1;
-				set_video_mute(HDMI_RX_MUTE_SET, true);
+				hdmirx_mute_vpp(true, port);
 				hdmirx_set_video_mute(1, port);
 				//skip_frame(2, port);
 				/* return TVIN_BUF_SKIP; */
