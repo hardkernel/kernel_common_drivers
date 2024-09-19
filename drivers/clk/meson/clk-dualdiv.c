@@ -139,10 +139,18 @@ static void meson_clk_dualdiv_restore_context(struct clk_hw *hw)
 {
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_dualdiv_data *dualdiv = meson_clk_dualdiv_data(clk);
+	unsigned long parent_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
 	int ret = 0;
 
-	ret = meson_clk_dualdiv_set_rate(hw, dualdiv->saved_rate,
-	      clk_hw_get_rate(clk_hw_get_parent(hw)));
+	/*
+	 * FIXME: If dualdiv clk is not configured, 32K table should not
+	 * be used to restore dualdiv clk.
+	 */
+	if (meson_clk_dualdiv_round_rate(hw, dualdiv->saved_rate, &parent_rate) !=
+	    dualdiv->saved_rate)
+		return;
+
+	ret = meson_clk_dualdiv_set_rate(hw, dualdiv->saved_rate, parent_rate);
 	if (ret)
 		pr_err("%s: failed to restore %s saved_rate %lu\n",
 		       __func__, clk_hw_get_name(hw), dualdiv->saved_rate);
