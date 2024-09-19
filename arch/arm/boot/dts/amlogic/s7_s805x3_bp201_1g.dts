@@ -895,22 +895,25 @@
 
 &i2c3 {
 	status = "disabled";
-	pinctrl-names="default";
+	pinctrl-names = "default","sleep";
 	pinctrl-0=<&i2c3_pins2>;
+	pinctrl-1 = <&i2c3_pins2_sleep>;
 	clock-frequency = <300000>;
 };
 
 &i2c4 {
 	status = "disabled";
-	pinctrl-names="default";
+	pinctrl-names = "default","sleep";
 	pinctrl-0=<&i2c4_pins3>;
+	pinctrl-1 = <&i2c4_pins3_sleep>;
 	clock-frequency = <300000>;
 };
 
 &i2c1 {
 	status = "disabled";
-	pinctrl-names="default";
+	pinctrl-names = "default","sleep";
 	pinctrl-0=<&i2c1_pins2>;
+	pinctrl-1 = <&i2c1_pins2_sleep>;
 	clock-frequency = <300000>; /* default 100k */
 
 	tlc59116: tlc59116@60 {
