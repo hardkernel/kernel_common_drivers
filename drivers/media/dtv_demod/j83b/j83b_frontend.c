@@ -59,7 +59,7 @@ int dtvdemod_j83b_init(struct aml_dtvdemod *demod)
 
 	memset(&sys, 0, sizeof(sys));
 	memset(&demod->demod_status, 0, sizeof(demod->demod_status));
-	demod->demod_status.delsys = SYS_ATSC;
+	demod->demod_status.delsys = SYS_DVBC_ANNEX_B;
 	sys.adc_clk = ADC_CLK_24M;
 
 	PR_DBG("%s modulation: %d\n", __func__, c->modulation);
@@ -128,7 +128,7 @@ int gxtv_demod_j83b_set_frontend(struct dvb_frontend *fe)
 		/* sys clk = 167M */
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x502);
 
-		demod_set_mode_ts(demod, SYS_DVBC_ANNEX_A);
+		demod_set_mode_ts(demod, SYS_DVBC_ANNEX_B);
 		if (devp->data->hw_ver == DTVDEMOD_HW_S4D ||
 			devp->data->hw_ver == DTVDEMOD_HW_S1A) {
 			demod_top_write_reg(DEMOD_TOP_REG0, 0x00);
@@ -477,7 +477,7 @@ int j83b_set_frontend_mode(struct dvb_frontend *fe, int mode)
 
 	c->frequency = temp_freq;
 	tuner_set_params(fe);
-	demod_set_mode_ts(demod, SYS_DVBC_ANNEX_A);
+	demod_set_mode_ts(demod, SYS_DVBC_ANNEX_B);
 	param_j83b.ch_freq = temp_freq / 1000;
 	param_j83b.mode = amdemod_qam(c->modulation);
 	if (param_j83b.mode == QAM_MODE_AUTO ||

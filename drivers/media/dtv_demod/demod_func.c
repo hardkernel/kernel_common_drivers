@@ -1679,7 +1679,6 @@ void demod_set_mode_ts(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 
 	case SYS_ATSC:
 	case SYS_ATSCMH:
-	case SYS_DVBC_ANNEX_B:
 		cfg0.b.ts_sel = 1<<2;
 		cfg0.b.mode = 1<<2;
 		cfg0.b.adc_format = 0;
@@ -1690,6 +1689,7 @@ void demod_set_mode_ts(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 		break;
 
 	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_B:
 	case SYS_DVBC_ANNEX_C:
 #ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu()) {
@@ -2386,8 +2386,12 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 				front_write_bits(AFIFO_ADC, nco_rate,
 					AFIFO_NCO_RATE_BIT,
 					AFIFO_NCO_RATE_WID);
-				if (devp->data->hw_ver == DTVDEMOD_HW_T6D)
-					demod_top_write_reg(DEMOD_TOP_CFG_REG_5, 0x400000);
+				if (devp->data->hw_ver == DTVDEMOD_HW_T6D) {
+					if (demod->demod_status.delsys == SYS_DVBC_ANNEX_B)
+						demod_top_write_reg(DEMOD_TOP_CFG_REG_5, 0x800000);
+					else
+						demod_top_write_reg(DEMOD_TOP_CFG_REG_5, 0x400000);
+				}
 			}
 			front_write_bits(AFIFO_ADC, 1, ADC_2S_COMPLEMENT_BIT,
 					 ADC_2S_COMPLEMENT_WID);
