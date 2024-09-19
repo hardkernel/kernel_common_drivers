@@ -448,7 +448,7 @@ static int arc_set_enable(struct snd_kcontrol *kcontrol,
 }
 
 static const char *const arc_src_texts[] = {
-	"earctx_spdif", "spdif_a", "spdif_b", "hdmirx_spdif"
+	"NULL", "spdif_a", "spdif_b", "NULL"
 };
 
 const struct soc_enum arc_src_enum =
@@ -471,11 +471,14 @@ int arc_source_set_enum(struct snd_kcontrol *kcontrol,
 	struct extn *p_extn = snd_kcontrol_chip(kcontrol);
 	int src = ucontrol->value.enumerated.item[0];
 
+	if (!p_extn)
+		return 0;
 	if (src > 3) {
 		pr_err("bad parameter for arc src set\n");
 		return -1;
 	}
-	arc_earc_source_select(src);
+	if (src == SPDIFA_TO_HDMIRX || src == SPDIFB_TO_HDMIRX)
+		arc_earc_source_select(src);
 	p_extn->arc_src = src;
 
 	return 0;
