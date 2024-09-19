@@ -596,7 +596,7 @@ void aml_phy_offset_cal_t5(void)
 	data32 = phy_misci_t5[idx][1];
 	if (rx_info.aml_phy.rterm_flag) {
 		data32 &= (~(0xf << 12));
-		data32 |= (t5_t7_rlevel[rx_info.aml_phy.rterm_dts_lvl] << 12);
+		data32 |= (rx_info.aml_phy.rterm_val << 12);
 		data32 |= rx_info.aml_phy.rterm_flag << 0;
 	}
 	/* step2-0xd8 */
@@ -886,7 +886,7 @@ void aml_phy_cfg_t5(void)
 		aml_phy_get_trim_val_t5();
 		if (rx_info.aml_phy.rterm_flag) {
 			data32 &= (~(0xf << 12));
-			data32 |= (t5_t7_rlevel[rx_info.aml_phy.rterm_dts_lvl] << 12);
+			data32 |= (rx_info.aml_phy.rterm_val << 12);
 			data32 |= rx_info.aml_phy.rterm_flag << 0;
 		}
 		/* step2-0xd8 */

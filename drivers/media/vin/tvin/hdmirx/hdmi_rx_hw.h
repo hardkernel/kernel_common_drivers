@@ -15,7 +15,8 @@
 /* 2024.08.22 modify hdcp_rx22 definition type */
 /* 2024.08.24 disable tap0 error checking function */
 /* 2024.09.13 optimize t5m bist & slt flow */
-#define RX_HW_VER "ver.2024/09/13"
+/* 2024.09.24 optimize getting phy trim value flow */
+#define RX_HW_VER "ver.2024/09/24"
 
 #define K_TEST_CHK_ERR_CNT
 
