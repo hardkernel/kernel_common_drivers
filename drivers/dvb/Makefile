@@ -5,6 +5,8 @@ PR_FMT = $(subst amlogic-,,$(MODULE_NAME))
 PR_FMT_DEFINE="-Dpr_fmt(fmt)= \"[$(PR_FMT)]: \" fmt"
 ccflags-y += $(PR_FMT_DEFINE)
 
+#ccflags-y += -DAML_DVB_EXTERN_EN_EARLY_SUSPEND
+
 ccflags-y += -I.
 ccflags-y += -I$(srctree)/drivers/media/dvb-core
 ccflags-y += -I$(srctree)/include/media

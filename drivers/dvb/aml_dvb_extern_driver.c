@@ -23,7 +23,7 @@
 #include "aml_dvb_extern_driver.h"
 
 #define AML_DVB_EXTERN_DEVICE_NAME "aml_dvb_extern"
-#define AML_DVB_EXTERN_VERSION     "V1.22"
+#define AML_DVB_EXTERN_VERSION     "V1.23"
 
 static struct dvb_extern_device *dvb_extern_dev;
 static struct mutex dvb_extern_mutex;
@@ -1320,6 +1320,7 @@ struct device *aml_get_dvb_extern_dev(void)
 	return dvb_extern_dev->dev;
 }
 
+#ifdef AML_DVB_EXTERN_EN_EARLY_SUSPEND
 #if IS_ENABLED(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND)
 static void aml_dvb_early_suspend(struct early_suspend *h)
 {
@@ -1362,6 +1363,7 @@ static void aml_dvb_early_resume(struct early_suspend *h)
 
 	pr_info("%s: OK.\n", __func__);
 }
+#endif
 #endif
 
 static int aml_dvb_extern_probe(struct platform_device *pdev)
@@ -1581,12 +1583,14 @@ PROPERTY_DEMOD:
 	INIT_WORK(&dvbdev->resume_work, aml_dvb_extern_resume_work);
 	INIT_WORK(&dvbdev->attach_work.work, aml_dvb_extern_attach_work);
 
+#ifdef AML_DVB_EXTERN_EN_EARLY_SUSPEND
 #if IS_ENABLED(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND)
 	dvbdev->suspend.suspend = aml_dvb_early_suspend;
 	dvbdev->suspend.resume = aml_dvb_early_resume;
 	dvbdev->suspend.param = dvbdev;
 
 	register_early_suspend(&dvbdev->suspend);
+#endif
 #endif
 
 PROPERTY_DONE:
@@ -1630,8 +1634,10 @@ static int aml_dvb_extern_remove(struct platform_device *pdev)
 	if (dvbdev->debug_proc_dir)
 		proc_remove(dvbdev->debug_proc_dir);
 
+#ifdef AML_DVB_EXTERN_EN_EARLY_SUSPEND
 #if IS_ENABLED(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND)
 	unregister_early_suspend(&dvbdev->suspend);
+#endif
 #endif
 
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 0);
