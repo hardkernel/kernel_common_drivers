@@ -1211,11 +1211,18 @@ static void set_vsr_input_size(struct vsr_setting_s *vsr)
 	u32 vsize_in = vsr->vsr_top.vsize_in;
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
 
+	rdma_wr(VPP_IN_H_V_SIZE,
+		((hsize_in & 0x1fff) << 16)
+		| (vsize_in & 0x1fff));
 	if (vsr->vsr_top.vsr_en) {
 		rdma_wr(VPP_LINE_IN_LENGTH, hsize_in);
 		rdma_wr(VPP_PIC_IN_HEIGHT, vsize_in);
 		rdma_wr(VPP_PREBLEND_H_SIZE, vsize_in << 16 | hsize_in);
 	}
+	if (cur_dev->display_module == T7_DISPLAY_MODULE)
+		rdma_wr(VD1_HDR_IN_SIZE,
+			(vsize_in << 16)
+			| hsize_in);
 }
 
 static void set_vd1_frm2fld_en(struct vsr_setting_s *vsr)
