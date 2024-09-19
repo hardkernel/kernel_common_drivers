@@ -9,6 +9,9 @@
 #include "mesons7d_drm.dtsi"
 #include "mesons7d_audio.dtsi"
 
+/delete-node/ &internal_ephy;
+/delete-node/ &pcie;
+
 / {
 	model = "Hardkernel ODROID-C5";
 	compatible = "s7d_s905x5m_bm201";
@@ -172,26 +175,6 @@
 			size = <0x0 0x1000000>;
 			alignment = <0x0 0x100000>;
 		};
-		/*  vdin0 CMA pool */
-		//vdin0_cma_reserved:linux,vdin0_cma {
-		//	compatible = "shared-dma-pool";
-		//	reusable;
-			/* up to 1920x1080 yuv422 8bit and 5 buffers
-			 * 1920x1080x2x5 = 20 M
-			 */
-		//	size = <0x0 0x01400000>;
-		//	alignment = <0x0 0x400000>;
-		//};
-		/*  vdin1 CMA pool */
-		vdin1_cma_reserved:linux,vdin1_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* up to 1280x720 nv21 8bit and 4 buffers
-			 * 1280x720x1.5x4 = 8 M
-			 */
-			size = <0x0 0x00800000>;
-			alignment = <0x0 0x400000>;
-		};
 		/* global autoconfigured region for contiguous allocations */
 		linux,cma {
 			compatible = "shared-dma-pool";
@@ -353,34 +336,6 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		post_nub = <10>;
-	};
-
-	aml_dtv_demod {
-		compatible = "amlogic, ddemod-s4";
-		dev_name = "aml_dtv_demod";
-		status = "disabled";
-		/* diseqc_name = "sgm_41286"; */
-		pinctrl-names="if_agc_pins", "if_agc2_pins";
-		pinctrl-0=<&dtvdemod_if_agc_pins>;
-		pinctrl-1=<&dtvdemod_if_agc2_pins>;
-		/* pinctrl-2=<&diseqc_out>; */
-		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
-		/* lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>; */
-		/* interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>; */
-		/* interrupt-names = "demod_isr"; */
-
-		//power-domains = <&pwrdm PDID_S4_DEMOD>;
-		/* clocks = <&clkc CLKID_DAC_CLK>; */
-		/* clock-names = "vdac_clk_gate"; */
-
-		reg = <0x0 0xfe350000 0x0 0x10000	/* dtv demod base */
-			   0x0 0xfe000000 0x0 0x2000	/* div base */
-			   0x0 0xff800000 0x0 0x1000	/* io_aobus_base */
-			   0x0 0xffd01000 0x0 0x1000	/* reset */
-			>;
-
-		spectrum = <1>;
-		cma_mem_size = <0>; //MB
 	};
 
 	provisionkey {
@@ -638,7 +593,7 @@
 			};
 			tdmccodec: codec {
 				prefix-names = "AMP";
-				sound-dai = <&sy602x_54 &amlogic_codec>;
+				sound-dai = <&amlogic_codec>;
 			};
 		};
 
@@ -729,33 +684,6 @@
 		dividor = <49>; /* locker's parent */
 		status = "disabled";
 	};/* Audio Related end */
-
-	adc_keypad {
-		compatible = "amlogic, adc_keypad";
-		status = "okay";
-		key_name = "vol-", "vol+", "power";
-		key_num = <3>;
-		io-channels = <&saradc 0>;
-		io-channel-names = "key-chan-0";
-		key_chan = <SARADC_CH0 SARADC_CH0 SARADC_CH0>;
-		key_code = <KEY_VOLUMEDOWN KEY_VOLUMEUP KEY_POWER>;
-		key_val = <1109 1601 35>;	/* Unit: millivolt */
-		key_tolerance = <70 70 70>;	/* Unit: millivolt */
-	};
-
-	gpio_keypad {
-		compatible = "amlogic, gpio_keypad";
-		status = "okay";
-		scan_period = <20>;
-		key_num = <2>;
-		key_name = "bluetooth", "mute";
-		key_code = <600 SW_MUTE_DEVICE>;
-		key_type = <EV_KEY EV_SW>;
-		key-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_HIGH
-			     &gpio GPIOD_3 GPIO_ACTIVE_HIGH>;
-		/* 0:polling mode, 1:irq mode */
-		detect_mode = <0>;
-	};
 
 	vin_12v_reg: fixed@vin_12v_reg {
 		compatible = "regulator-fixed";
@@ -871,68 +799,16 @@
 	};
 };
 
-&i2c4 {
+&i2c3 {
 	status = "disabled";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c4_pins3>;
-	clock-frequency = <300000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3_pins1>;
 };
 
-&i2c3 {
-	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c3_pins2>;
-	clock-frequency = <300000>; /* default 100k */
-
-	sy602x_54: sy602x_54@2a {
-		compatible = "silergy,sy602x";
-		#sound-dai-cells = <0>;
-		reg = <0x2a>;
-		status = "okay";
-		reset_pin = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
-	};
-
-	aw9523: aw9523_led@5b {
-		compatible = "amlogic,aw9523b_led";
-		reg = <0x5b>;
-		status = "okay";
-		// reset-gpio = <&gpio GPIOD_4 GPIO_ACTIVE_HIGH>;
-		platform = <10>;
-
-		led1 {
-			default_colors = <0 0 0>;
-			r_io_number = <2>;
-			g_io_number = <12>;
-			b_io_number = <7>;
-		};
-
-		led2 {
-			default_colors = <0 0 0>;
-			r_io_number = <4>;
-			g_io_number = <10>;
-			b_io_number = <9>;
-		};
-
-		led3 {
-			default_colors = <0 0 0>;
-			r_io_number = <3>;
-			g_io_number = <11>;
-			b_io_number = <8>;
-		};
-
-		led4 {
-			default_colors = <0 0 0>;
-			r_io_number = <0>;
-			g_io_number = <14>;
-			b_io_number = <5>;
-		};
-		led9 {
-			default_colors = <0 0 0>;
-			r_io_number = <1>;
-			g_io_number = <13>;
-			b_io_number = <6>;
-		};
-	};
+&i2c4 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4_pins2>;
 };
 
 &vddcpu0 {
@@ -946,18 +822,6 @@
 				<&cpu_opp_table2>,
 				<&cpu_opp_table3>;
 };
-
-&periphs_pinctrl {
-	dvb_s_ts0_pins: dvb_s_ts0_pins {
-		tsin_a {
-			groups = "tsin_a_sop",
-				"tsin_a_valid",
-				"tsin_a_clk",
-				"tsin_a_d0";
-			function = "tsin";
-		};
-	};
-}; /* end of periphs_pinctrl */
 
 &audio_data {
 	status = "okay";
@@ -998,11 +862,6 @@
 
 &crg {
 	status = "okay";
-};
-
-&pcie {
-	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
-	status = "disable";
 };
 
 /* SDIO */
@@ -1106,10 +965,6 @@
 	};
 };
 
-&internal_ephy {
-	status = "disabled";
-};
-
 &ethmac {
 	status = "okay";
 	pinctrl-0 = <&eth_pins>, <&eth_rgmii_pins>;
@@ -1146,7 +1001,6 @@
 &drm_vpu {
 	status = "okay";
 	logo_addr = "0x1f800000";
-
 };
 
 &amhdmitx {
@@ -1156,39 +1010,6 @@
 &drm_amhdmitx {
 	status = "okay";
 	hdcp = "disabled";
-};
-
-/*if you want to use vdin just modify status to "ok"*/
-&vdin0 {
-	/*compatible = "amlogic, vdin-s7d";*/
-	/*memory-region = <&vdin0_cma_reserved>;*/
-	/*status = "disabled";*/
-	/* up to 1920x1080 yuv422 8bit and 5 buffers
-	 * 1920x1080x2x5 = 20 M
-	 */
-	cma_size = <20>;
-	/*vdin write mem color depth support:
-	 *bit0:support 8bit
-	 *bit1:support 9bit
-	 *bit2:support 10bit
-	 *bit3:support 12bit
-	 *bit4:support yuv422 10bit full pack mode (from txl new add)
-	 */
-	tv_bit_mode = <0x1>;
-};
-
-&vdin1 {
-	/*compatible = "amlogic, vdin-s7d";*/
-	memory-region = <&vdin1_cma_reserved>;
-	frame_buff_num = <4>;
-	/*status = "disabled";*/
-	/*vdin write mem color depth support:
-	 *bit0:support 8bit
-	 *bit1:support 9bit
-	 *bit2:support 10bit
-	 *bit3:support 12bit
-	 */
-	tv_bit_mode = <1>;
 };
 
 &pwm_e {
