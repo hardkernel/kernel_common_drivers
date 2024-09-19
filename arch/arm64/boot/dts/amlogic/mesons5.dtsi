@@ -2510,7 +2510,7 @@
 			status = "okay";
 			polling-delay = <2000>;
 			polling-delay-passive = <500>;
-			sustainable-power = <5160>;
+			sustainable-power = <581>;
 			thermal-sensors = <&gpu_tsensor 1>;
 			trips {
 				gpuswitch_on: trip-point@0 {
@@ -2551,7 +2551,7 @@
 			status = "okay";
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
-			sustainable-power = <960>;
+			sustainable-power = <3846>;
 			thermal-sensors = <&a55_tsensor 0>;
 			trips {
 				a55switch_on: trip-point@0 {

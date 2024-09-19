@@ -3009,7 +3009,7 @@
 		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
-			sustainable-power = <5160>;
+			sustainable-power = <4560>;
 			thermal-sensors = <&a73_tsensor 0>;
 			trips {
 				a73switch_on: trip-point@0 {
@@ -3039,7 +3039,7 @@
 		a53_thermal: a53_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
-			sustainable-power = <960>;
+			sustainable-power = <796>;
 			thermal-sensors = <&a53_tsensor 1>;
 			trips {
 				a53switch_on: trip-point@0 {
