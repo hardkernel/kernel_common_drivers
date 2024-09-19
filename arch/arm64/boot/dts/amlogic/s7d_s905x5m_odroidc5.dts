@@ -814,7 +814,7 @@
 
 /* SDIO */
 &sd_emmc_a {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&sdio_pins>;
 	pinctrl-1 = <&sdio_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
