@@ -598,21 +598,6 @@
 		};
 
 		aml-audio-card,dai-link@3 {
-			mclk-fs = <64>;
-			/* suffix-name, sync with android audio hal
-			 * what's the dai link used for
-			 */
-			suffix-name = "alsaPORT-pdm-builtinmic";
-			cpu {
-				sound-dai = <&pdma>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
-			};
-		};
-
-#if 0
-		aml-audio-card,dai-link@4 {
 			mclk-fs = <128>;
 			continuous-clock;
 			/* suffix-name, sync with android audio hal used for */
@@ -625,8 +610,9 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
+
 		/* spdif_b to hdmi, only playback */
-		aml-audio-card,dai-link@5 {
+		aml-audio-card,dai-link@4 {
 			mclk-fs = <128>;
 			continuous-clock;
 			/* suffix-name, sync with android audio hal
@@ -641,32 +627,6 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
-#endif
-		aml-audio-card,dai-link@6 {
-			mclk-fs = <256>;
-			continuous-clock;
-			suffix-name = "alsaPORT-loopback";
-			cpu {
-				sound-dai = <&loopbacka>;
-				system-clock-frequency = <12288000>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
-			};
-		};
-
-		/* aml-audio-card,dai-link@7 {
-		 *	mclk-fs = <256>;
-		 *	suffix-name = "alsaPORT-earc";
-		 *	cpu {
-		 *		sound-dai = <&earc>;
-		 *		system-clock-frequency = <12288000>;
-		 *	};
-		 *	codec {
-		 *		sound-dai = <&dummy_codec>;
-		 *	};
-		 *};
-		 */
 	};
 
 	picdec {
@@ -1027,10 +987,26 @@
 	fbdev_sizes = <1280 720 1280 1440 32>;
 };
 
-&spdifa {
+&pdma {
 	status = "disabled";
 };
 
-&spdifb {
+&spdifa {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-1;
+};
+
+&tdma {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+};
+
+&tdmc {
+	/delete-property/ pinctrl-names;
+	/delete-property/ pinctrl-0;
+};
+
+&loopbacka {
 	status = "disabled";
 };
