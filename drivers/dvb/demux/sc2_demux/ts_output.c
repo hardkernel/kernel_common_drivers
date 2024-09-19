@@ -933,7 +933,7 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	else
 		pheader->len = cur_es_bytes - last_es_bytes;
 
-	if ((cur_header[2] & 0x2) && !(cur_header[2] & 0xc)) {
+	if ((cur_header[2] & 0x2) && !(cur_header[2] & 0x4)) {
 		pout->cur_pts = cur_header[3] >> 1 & 0x1;
 		pout->cur_pts <<= 32;
 		pout->cur_pts |= ((__u64)cur_header[15]) << 24
@@ -2251,8 +2251,7 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 			memcpy(&es_params->last_header, pcur_header,
 					sizeof(es_params->last_header));
 			if (get_demux_feature(SUPPORT_PSCP)) {
-				if (!(pheader->pts_dts_flag & 0x4) &&
-					!(pheader->pts_dts_flag & 0x8))
+				if (!(pheader->pts_dts_flag & 0x4))
 					return 0;
 
 				if (pout->output_mode) {
@@ -3498,7 +3497,7 @@ int ts_output_get_newest_pts(struct out_elem *pout,
 			mutex_unlock(&pout->pts_mutex);
 			return -2;
 		}
-		if (newest_header[2] & 0xc) {
+		if (newest_header[2] & 0x4) {
 //			dprint("%s scrambled es, invalid\n", __func__);
 			mutex_unlock(&pout->pts_mutex);
 			return -2;
