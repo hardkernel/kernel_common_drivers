@@ -1198,25 +1198,16 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 		if (frc_devp->auto_n2m == 1) {
 			if (frc_devp->out_sts.out_framerate > 90) {
 				if ((frc_devp->use_pre_vsync & PRE_VSYNC_120HZ) ==
-					PRE_VSYNC_120HZ) {
+					PRE_VSYNC_120HZ)
 					frc_set_n2m(FRC_RATIO_1_2);
-					set_vsync_2to1_mode(0);
-					set_pre_vsync_mode(1);
-				} else {
-					set_vsync_2to1_mode(1);
-					set_pre_vsync_mode(1);
-				}
+				else
+					frc_set_n2m(FRC_RATIO_1_1);
 			} else if (frc_devp->out_sts.out_framerate < 70) {
 				if ((frc_devp->use_pre_vsync & PRE_VSYNC_060HZ) ==
-					PRE_VSYNC_060HZ) {
+					PRE_VSYNC_060HZ)
 					frc_set_n2m(FRC_RATIO_1_2);
-					set_vsync_2to1_mode(0);
-					set_pre_vsync_mode(1);
-				} else {
+				else
 					frc_set_n2m(FRC_RATIO_1_1);
-					set_vsync_2to1_mode(0);
-					set_pre_vsync_mode(1);
-				}
 			}
 		}
 		pr_frc(1, "vout:w-%d,h-%d,rate-%d.%d\n",

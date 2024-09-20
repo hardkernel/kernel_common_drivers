@@ -138,8 +138,9 @@
 // frc_20240819 t5m dlg modify n2m to 1:1
 // frc_20240902 fix pps adjust abnormal (need test)
 // frc_20240906 disable frc when out fr is 165hz
+// frc_20240913 frc_re_cfg_cnt set 0
 
-#define FRC_FW_VER			"2024-0913 frc_re_cfg_cnt set 0"
+#define FRC_FW_VER			"2024-0924 not set pre_vsync T5M"
 #define FRC_KERDRV_VER		3500
 
 #define FRC_DEVNO	1
