@@ -1221,7 +1221,8 @@
 
 &pwm_e {
 	pinctrl-0 = <&pwm_e_pins1>;
-	pinctrl-names = "default";
+	pinctrl-1 = <&pwm_e_pins1_sleep>;
+	pinctrl-names = "default","sleep";
 	status = "okay";
 };
 

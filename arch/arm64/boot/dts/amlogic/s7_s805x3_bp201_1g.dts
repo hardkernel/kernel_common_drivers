@@ -901,8 +901,9 @@
 };
 
 &i2c3 {
-	status = "disabled";
-	pinctrl-names="default";
+	pinctrl-0 = <&pwm_e_pins1>;
+	pinctrl-1 = <&pwm_e_pins1_sleep>;
+	pinctrl-names = "default","sleep";
 	pinctrl-0=<&i2c3_pins2>;
 	clock-frequency = <300000>;
 };
