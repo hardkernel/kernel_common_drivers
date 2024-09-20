@@ -6,15 +6,14 @@
 /dts-v1/;
 
 #include "meson-s6.dtsi"
-#include "hdr10plus.dtsi"
 #include "mesons6_drm.dtsi"
 #include "mesons6_audio.dtsi"
 #include "partition_normal_linux.dtsi"
 #include <dt-bindings/input/input.h>
 #include "meson-ir-map-linux.dtsi"
 / {
-	amlogic-dt-id = "s6_s905x5_bl201-4g";
-	compatible = "s6_s905x5_bl201";
+	amlogic-dt-id = "s6_s905x5l_bn201-4g";
+	compatible = "s6_s905x5l_bn201";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -632,6 +631,16 @@
 		memory-region = <&ppmgr_reserved>;
 		dev_name = "ppmgr";
 		status = "disabled";
+	};
+
+	amlvecm {
+		compatible = "amlogic, vecm-s6";
+		dev_name = "aml_vecm";
+		status = "okay";
+		gamma_en = <0>;/*1:enable ;0:disable*/
+		wb_en = <0>;/*1:enable ;0:disable*/
+		/*0: 709/601  1: bt2020*/
+		tx_op_color_primary = <0>;
 	};
 
 	thermal-zones {
@@ -1482,6 +1491,11 @@
 
 };
 
+&adla {
+	status = "okay";
+	adla_core_clk_rate = <800000000>;
+};
+
 &drm_subsystem {
 	status = "okay";
 	fbdev_sizes = <1920 1080 1920 2160 32>;
@@ -1571,14 +1585,4 @@
 &pdma {
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
-};
-
-&amlvecm {
-	compatible = "amlogic, vecm-s6";
-	dev_name = "aml_vecm";
-	status = "okay";
-	gamma_en = <0>;/*1:enable ;0:disable*/
-	wb_en = <0>;/*1:enable ;0:disable*/
-	/*0: 709/601  1: bt2020*/
-	tx_op_color_primary = <0>;
 };
