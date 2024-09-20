@@ -917,7 +917,7 @@
 	};
 };
 
-&vddcpu0 {
+&vddcpu0_board2 {
 	status = "disabled";
 };
 
