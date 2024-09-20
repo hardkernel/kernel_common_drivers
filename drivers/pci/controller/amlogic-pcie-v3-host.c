@@ -660,7 +660,7 @@ err_deinit_port:
 	amlogic_pcie_deinit_phys(amlogic);
 err_disable_clk:
 	if (pcie_test)
-		return err;
+		return 0;
 
 	amlogic_pcie_disable_clocks(amlogic);
 	return err;
@@ -711,8 +711,10 @@ static int amlogic_pcie_rc_remove(struct platform_device *pdev)
 	struct amlogic_pcie_rc *rc = platform_get_drvdata(pdev);
 	struct amlogic_pcie *amlogic = &rc->amlogic;
 
-	pci_stop_root_bus(rc->root_bus);
-	pci_remove_root_bus(rc->root_bus);
+	if (rc->root_bus) {
+		pci_stop_root_bus(rc->root_bus);
+		pci_remove_root_bus(rc->root_bus);
+	}
 	amlogic_pcie_free_irq_domain(rc);
 	amlogic_pcie_deinit_phys(amlogic);
 	amlogic_pcie_disable_clocks(amlogic);
@@ -742,6 +744,7 @@ static struct platform_driver amlogic_pcie_v3_driver = {
 		.name = "amlogic-pcie-v3",
 		.of_match_table = amlogic_pcie_v3_of_match,
 		.pm = &amlogic_pcie_pm_ops,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = amlogic_pcie_rc_probe,
 	.remove = amlogic_pcie_rc_remove,
