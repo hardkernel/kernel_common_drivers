@@ -828,8 +828,14 @@ static int meson8b_resume(struct device *dev)
 			input_sync(dwmac->input_dev);
 		}
 
-		pr_info("exeth hold wakelock 5s\n");
-		pm_wakeup_event(dev, 5000);
+		if (ret < 0) {
+			pr_info("exeth hold wakelock 10s\n");
+			pm_wakeup_event(dev, 10000);
+		}
+		else {
+			pr_info("exeth hold wakelock 5s\n");
+			pm_wakeup_event(dev, 5000);
+		}
 	}
 
 	return ret;
