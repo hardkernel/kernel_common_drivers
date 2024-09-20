@@ -211,7 +211,7 @@ out_unlock:
 
 static void aml_check_preempt_wakeup(void *data, struct rq *rq, struct task_struct *p, bool *preempt, bool *nopreempt,
 				     int wake_flags, struct sched_entity *se, struct sched_entity *pse,
-				     int next_buddy_marked)
+				     int next_buddy_marked, unsigned int granularity)
 {
 	struct task_struct *curr = rq->curr;
 	unsigned long delta_exec = curr->se.sum_exec_runtime - curr->se.prev_sum_exec_runtime;
@@ -366,8 +366,7 @@ static struct sched_entity *__aml_pick_next_task(struct cfs_rq *cfs_rq, unsigned
 	return ret;
 }
 
-static void aml_pick_next_task(void *data, struct rq *rq, struct task_struct **p_new, struct sched_entity **se_new,
-			       bool *repick, bool simple, struct task_struct *prev)
+static void aml_pick_next_task(void *data, struct rq *rq, struct task_struct **p_new, struct task_struct *prev)
 {
 	struct sched_entity *ret, *p;
 	struct sched_entity *se;
@@ -384,7 +383,7 @@ static void aml_pick_next_task(void *data, struct rq *rq, struct task_struct **p
 	max_score = 0;
 
 	//if current task is big-group interactive task, select it again
-	if (!simple && prev->on_rq && prev->se.depth == 1 && prev->se.parent->my_q->tg->shares >= sched_big_weight * NICE_0_LOAD &&
+	if (prev->on_rq && prev->se.depth == 1 && prev->se.parent->my_q->tg->shares >= sched_big_weight * NICE_0_LOAD &&
 	    task_interactive_score(prev, prev->se.parent->my_q->tg->shares, 1)) {
 		if (sched_pick_next_task_debug)
 			aml_trace_printk("try_again:%s/%d -> %s/%d\n", (*p_new)->comm, (*p_new)->pid, prev->comm, prev->pid);
@@ -418,31 +417,13 @@ static void aml_pick_next_task(void *data, struct rq *rq, struct task_struct **p
 	if (!ret)
 		return;
 
-	if (simple) {
-		aml_se = ret;
-		aml_p = task_of(aml_se);
+	aml_se = ret;
+	aml_p = task_of(aml_se);
 
-		*p_new = aml_p;
+	if (sched_pick_next_task_debug)
+		aml_trace_printk("select: %s/%d\n", aml_p->comm, aml_p->pid);
 
-		if (sched_pick_next_task_debug)
-			aml_trace_printk("select_simple: %s/%d\n", aml_p->comm, aml_p->pid);
-
-		while (aml_se) {
-			set_next_entity(cfs_rq_of(aml_se), aml_se);
-			aml_se = parent_entity(aml_se);
-		}
-
-		*repick = 1;
-	} else {
-		aml_se = ret;
-		aml_p = task_of(aml_se);
-
-		if (sched_pick_next_task_debug)
-			aml_trace_printk("select: %s/%d\n", aml_p->comm, aml_p->pid);
-
-		*p_new = aml_p;
-		*se_new = aml_se;
-	}
+	*p_new = aml_p;
 }
 #endif
 

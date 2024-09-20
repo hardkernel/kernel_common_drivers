@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/smp.h>
 #include <linux/irqflags.h>
-#include <linux/sched.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/moduleparam.h>
 #include <linux/debugfs.h>
 #include <linux/module.h>

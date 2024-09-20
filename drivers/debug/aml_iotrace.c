@@ -25,6 +25,8 @@
 #include <linux/rbtree.h>
 #include <linux/sched/clock.h>
 #include <linux/delay.h>
+#include <linux/vmalloc.h>
+
 #define AML_PERSISTENT_RAM_SIG (0x4c4d41) /* AML */
 
 int ramoops_ftrace_en;

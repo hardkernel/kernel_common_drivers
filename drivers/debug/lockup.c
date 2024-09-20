@@ -792,6 +792,7 @@ void fiq_debug_entry(void)
 	struct fiq_regs *pregs  = NULL;
 	struct fiq_regs fiq_regs;
 	struct pt_regs regs;
+	struct lockup_info *info;
 
 	cpu = get_cpu();
 	put_cpu();
@@ -799,6 +800,10 @@ void fiq_debug_entry(void)
 	pregs = (struct fiq_regs *)(fiq_virt_addr +
 						cpu * fiq_percpu_size);
 	memcpy(&fiq_regs, pregs, sizeof(struct fiq_regs));
+
+	info = per_cpu_ptr(infos, cpu);
+	if (info->idle_enter_time)
+		return;
 
 #ifdef CONFIG_ARM64
 	/* sp_el0 */
@@ -931,16 +936,24 @@ rt_throttle_func(void *data, int cpu, u64 clock, ktime_t rt_period, u64 rt_runti
 		s64 rt_period_timer_expires)
 {
 	u64 exec_runtime;
-	u64 rt_time;
 	struct rq *rq = cpu_rq(cpu);
+#ifdef CONFIG_RT_GROUP_SCHED
+	u64 rt_time;
 	struct rt_rq *rt_rq = &rq->rt;
 
-	exec_runtime = rq->curr->se.sum_exec_runtime;
 	rt_time = rt_rq->rt_time;
-	do_div(exec_runtime, 1000000);
 	do_div(rt_time, 1000000);
-	pr_warn("RT throttling on cpu:%d rt_time:%llums, curr:%s/%d prio:%d sum_runtime:%llums\n",
+#endif
+	exec_runtime = rq->curr->se.sum_exec_runtime;
+	do_div(exec_runtime, 1000000);
+	printk_deferred(KERN_WARNING
+#ifdef CONFIG_RT_GROUP_SCHED
+		"RT throttling on cpu:%d rt_time:%llums, curr:%s/%d prio:%d sum_runtime:%llums\n",
 		cpu, rt_time, rq->curr->comm, rq->curr->pid,
+#else
+		"RT throttling on cpu:%d rt_time:950ms, curr:%s/%d prio:%d sum_runtime:%llums\n",
+		cpu, rq->curr->comm, rq->curr->pid,
+#endif
 		rq->curr->prio, exec_runtime);
 }
 
