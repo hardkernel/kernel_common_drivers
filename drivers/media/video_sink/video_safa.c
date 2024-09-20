@@ -1131,8 +1131,6 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 			0, 19, 1);
 	}
-	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
-		safa_pps_top_en, 8, 1);
 	//scale down or input hsize over 1024/2048 disable analy_en
 	if ((vsr->vsr_top.hsize_in > vsr->vsr_top.hsize_out ||
 		vsr->vsr_top.vsize_in > vsr->vsr_top.vsize_out) ||
@@ -1141,9 +1139,21 @@ void set_safa_pps(struct vsr_setting_s *vsr)
 		analy_en = 0;
 	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
 		analy_en, 4, 1);
-	if (cur_dev->dejaggy_support)
+	if (cur_dev->dejaggy_support) {
+		/*
+		 * if input output 1:1 need enable safa_pps_top_en and disable postsc_en
+		 */
+		if (!safa_pps_top_en) {
+			safa_pps_top_en = 1;
+			postsc_en = 0;
+		}
+		rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+			postsc_en, 2, 1);
 		rdma_wr_bits(vsr_reg->safa_pps_dejaggy_ctrl,
 			vsr_safa->dejaggy_en, 31, 1);
+	}
+	rdma_wr_bits(vsr_reg->safa_pps_hw_ctrl,
+		safa_pps_top_en, 8, 1);
 }
 
 static void set_vsr_input_format(struct vsr_setting_s *vsr)
