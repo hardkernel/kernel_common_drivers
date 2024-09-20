@@ -4337,20 +4337,16 @@ static int vdin_open(struct inode *inode, struct file *file)
 			pr_info("%s vdin.%d simple request_irq\n", __func__,
 				devp->index);
 	} else {
-		if (devp->hw_core == VDIN_HW_CORE_NORMAL)
+		if (devp->hw_core == VDIN_HW_CORE_NORMAL) {
 			ret = request_irq(devp->irq, vdin_isr, IRQF_SHARED,
 					devp->irq_name, (void *)devp);
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
-		else
-			ret = request_irq(devp->irq, vdin_v4l2_isr, IRQF_SHARED,
-					devp->irq_name, (void *)devp);
-#endif
 
-		if (ret)
-			pr_err("err:req vs irq fail\n");
-		else
-			pr_info("vdin%d req vs irq %d\n",
-				devp->index, devp->irq);
+			if (ret)
+				pr_err("err:req vs irq fail\n");
+			else
+				pr_info("vdin%d req vs irq %d\n",
+					devp->index, devp->irq);
+		}
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->index == 0 &&
 		    devp->vpu_crash_irq > 0) {
 			ret = request_irq(devp->vpu_crash_irq, vpu_crash_isr,
@@ -4390,10 +4386,13 @@ static int vdin_open(struct inode *inode, struct file *file)
 		}
 #endif
 	}
-	devp->flags |= VDIN_FLAG_ISR_REQ;
-	devp->flags &= (~VDIN_FLAG_ISR_EN);
-	/*disable irq until vdin is configured completely*/
-	disable_irq(devp->irq);
+
+	if (devp->hw_core == VDIN_HW_CORE_NORMAL) {
+		devp->flags |= VDIN_FLAG_ISR_REQ;
+		devp->flags &= (~VDIN_FLAG_ISR_EN);
+		/*disable irq until vdin is configured completely*/
+		disable_irq(devp->irq);
+	}
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->index == 0 &&
 	    devp->vpu_crash_irq > 0)
 		disable_irq(devp->vpu_crash_irq);
@@ -5361,11 +5360,12 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			pr_info("TVIN_IOC_S_CANVAS_ADDR vdin0\n");
 			break;
 		}
-
+		mutex_lock(&devp->fe_lock);
 		if (copy_from_user(vdin_set_canvas, argp,
 				   sizeof(struct vdin_set_canvas_s) *
 					  VDIN_CANVAS_MAX_CNT)) {
 			pr_info("TVIN_IOC_S_CANVAS_ADDR copy fail\n");
+			mutex_unlock(&devp->fe_lock);
 			return -EFAULT;
 		}
 
@@ -5421,6 +5421,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		devp->set_canvas_manual = 1;
 		devp->cma_config_flag = 0x100;
 		devp->hv_reverse_en = 1;
+		mutex_unlock(&devp->fe_lock);
 		break;
 
 	case TVIN_IOC_S_CANVAS_RECOVERY:
