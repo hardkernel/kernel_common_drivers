@@ -270,6 +270,8 @@
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &secure_vdec_reserved>;
 		dev_name = "codec_mm";
+		/* secure memory controller para <switch  align_2n> */
+		secure_ctrl_para = <1 16>;
 		/*
 		 * scatter_alloc_mode: the mode of scatter memory allocation
 		 * 0: default mode, alloc from system and cma

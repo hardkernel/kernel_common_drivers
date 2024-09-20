@@ -215,6 +215,9 @@ int cma_mmu_op(struct page *page, int count, bool set)
 #endif
 #include <linux/amlogic/cpu_version.h>
 
+static bool secure_mem_ctrl;
+static u32 secure_mem_align2n;
+
 #define TVP_POOL_NAME "TVP_POOL"
 #define CMA_RES_POOL_NAME "CMA_RES"
 
@@ -475,6 +478,10 @@ struct codec_mm_mgt_s {
 	struct codec_state_node cs;
 	void *trk_h;
 	struct work_struct	tvp_alloc_wrk;
+	ulong *tee_sectbl_bitmap;
+	u32 tee_sectbl_size;
+	/* spin lock for sectbl bitmap update */
+	spinlock_t tee_sectbl_lock;
 };
 
 #define PHY_OFF() offsetof(struct codec_mm_s, phy_addr)
@@ -511,6 +518,34 @@ static struct codec_mm_mgt_s *get_mem_mgt(void)
 	}
 	return &mgt;
 };
+
+void set_sectbl_bitmap(ulong phy_addr, int buffer_size)
+{
+	unsigned long bitmap_no, bitmap_count;
+	unsigned long flags;
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	bitmap_no = (phy_addr - cma_get_base(dev_get_cma_area(mgt->dev))) >> secure_mem_align2n;
+	bitmap_count = ALIGN(buffer_size, 1UL << secure_mem_align2n) >> secure_mem_align2n;
+
+	spin_lock_irqsave(&mgt->tee_sectbl_lock, flags);
+	bitmap_set(mgt->tee_sectbl_bitmap, bitmap_no, bitmap_count);
+	spin_unlock_irqrestore(&mgt->tee_sectbl_lock, flags);
+}
+
+void clear_sectbl_bitmap(ulong phy_addr, int buffer_size)
+{
+	unsigned long bitmap_no, bitmap_count;
+	unsigned long flags;
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	bitmap_no = (phy_addr - cma_get_base(dev_get_cma_area(mgt->dev))) >> secure_mem_align2n;
+	bitmap_count = ALIGN(buffer_size, 1UL << secure_mem_align2n) >> secure_mem_align2n;
+
+	spin_lock_irqsave(&mgt->tee_sectbl_lock, flags);
+	bitmap_clear(mgt->tee_sectbl_bitmap, bitmap_no, bitmap_count);
+	spin_unlock_irqrestore(&mgt->tee_sectbl_lock, flags);
+}
 
 static void *codec_mm_extpool_alloc(struct extpool_mgt_s *tvp_pool,
 				    void **from_pool, int size)
@@ -1810,14 +1845,21 @@ static int codec_mm_tvp_pool_protect(struct extpool_mgt_s *tvp_pool)
 
 	for (i = 0; i < tvp_pool->slot_num; i++) {
 		if (tvp_pool->mm[i]->tvp_handle == -1) {
-			ret = tee_protect_tvp_mem
-				(tvp_pool->mm[i]->phy_addr,
-				tvp_pool->mm[i]->buffer_size,
-				&tvp_pool->mm[i]->tvp_handle);
-			pr_info("protect tvp %d %d ret %d %lx %x\n",
-				i, tvp_pool->mm[i]->tvp_handle, ret,
-				tvp_pool->mm[i]->phy_addr,
-				tvp_pool->mm[i]->buffer_size);
+			if (secure_mem_ctrl) {
+				ret = tee_sectbl_secmem_set(tvp_pool->mm[i]->phy_addr,
+					tvp_pool->mm[i]->buffer_size, 1);
+				set_sectbl_bitmap(tvp_pool->mm[i]->phy_addr,
+					tvp_pool->mm[i]->buffer_size);
+				tvp_pool->mm[i]->tvp_handle = i;
+			} else {
+				ret = tee_protect_tvp_mem
+					(tvp_pool->mm[i]->phy_addr,
+					tvp_pool->mm[i]->buffer_size,
+					&tvp_pool->mm[i]->tvp_handle);
+			}
+			pr_info("protect tvp %d %d ret %d %lx %x\n", i, tvp_pool->mm[i]->tvp_handle,
+				ret, tvp_pool->mm[i]->phy_addr, tvp_pool->mm[i]->buffer_size);
+
 			if (ret)
 				break;
 		} else {
@@ -1848,10 +1890,17 @@ static int codec_mm_extpool_pool_release_inner(int slot_num_start,
 		int slot_mem_size = 0;
 
 		if (gpool) {
-			if (tvp_pool->mm[i] && tvp_pool->mm[i]->tvp_handle > 0) {
+			if (tvp_pool->mm[i] && tvp_pool->mm[i]->tvp_handle >= 0) {
 				pr_info("unprotect tvp %d handle is %d\n", i,
 					tvp_pool->mm[i]->tvp_handle);
-				tee_unprotect_tvp_mem(tvp_pool->mm[i]->tvp_handle);
+				if (secure_mem_ctrl) {
+					tee_sectbl_secmem_set(tvp_pool->mm[i]->phy_addr,
+						tvp_pool->mm[i]->buffer_size, 0);
+					clear_sectbl_bitmap(tvp_pool->mm[i]->phy_addr,
+						tvp_pool->mm[i]->buffer_size);
+				} else {
+					tee_unprotect_tvp_mem(tvp_pool->mm[i]->tvp_handle);
+				}
 				tvp_pool->mm[i]->tvp_handle = -1;
 			}
 			slot_mem_size = gen_pool_size(gpool);
@@ -2389,11 +2438,17 @@ static int codec_mm_tvp_pool_unprotect_and_release(struct extpool_mgt_s *tvp_poo
 			gen_pool_destroy(tvp_pool->gen_pool[i]);
 			if (tvp_pool->mm[i]) {
 				struct page *mm = tvp_pool->mm[i]->mem_handle;
-
 				pr_info("unprotect tvp %d handle is %d\n",
 					i, tvp_pool->mm[i]->tvp_handle);
-				if (tvp_pool->mm[i]->tvp_handle > 0) {
-					tee_unprotect_tvp_mem(tvp_pool->mm[i]->tvp_handle);
+				if (tvp_pool->mm[i]->tvp_handle >= 0) {
+					if (secure_mem_ctrl) {
+						tee_sectbl_secmem_set(tvp_pool->mm[i]->phy_addr,
+							tvp_pool->mm[i]->buffer_size, 0);
+						clear_sectbl_bitmap(tvp_pool->mm[i]->phy_addr,
+							tvp_pool->mm[i]->buffer_size);
+					} else {
+						tee_unprotect_tvp_mem(tvp_pool->mm[i]->tvp_handle);
+					}
 					tvp_pool->mm[i]->tvp_handle = -1;
 				}
 
@@ -2793,6 +2848,32 @@ static int dump_free_mem_infos(void *buf, int size)
 	pr_info("total_free_size %x\n", total_free_size);
 	kfree(usedb);
 	return 0;
+}
+
+void set_secure_controller_mode(struct codec_mm_mgt_s *mgt)
+{
+	u32 temp[2] = { 0 };
+	int ret = of_property_read_u32_array(mgt->dev->of_node, "secure_ctrl_para",
+		temp, ARRAY_SIZE(temp));
+
+	if (ret)
+		return;
+
+	secure_mem_ctrl = temp[0];
+	if (secure_mem_ctrl) {
+		phys_addr_t cma_base = cma_get_base(dev_get_cma_area(mgt->dev));
+		ulong cma_size = cma_get_size(dev_get_cma_area(mgt->dev));
+
+		secure_mem_align2n = temp[1];
+		tee_sectbl_mem_map(cma_base, cma_size, 1 << secure_mem_align2n, 0, 0, 0);
+
+		mgt->tee_sectbl_size = (cma_size >> secure_mem_align2n) >> 3;
+		mgt->tee_sectbl_bitmap = vzalloc(ALIGN(mgt->tee_sectbl_size, 4));
+		spin_lock_init(&mgt->tee_sectbl_lock);
+
+		pr_info("codec_mm secure_mem_align2n is %d tee_sectbl_size is %d bytes\n",
+			secure_mem_align2n, mgt->tee_sectbl_size);
+	}
 }
 
 static void codec_mm_tvp_segment_init(void)
@@ -3292,6 +3373,7 @@ int codec_mm_mgt_init(struct device *dev)
 		MESON_CPU_MAJOR_ID_G12A)
 		tvp_dynamic_increase_disable = 1;
 	default_tvp_4k_size = 0;
+	set_secure_controller_mode(mgt);
 	codec_mm_tvp_segment_init();
 	default_cma_res_size = mgt->total_cma_size;
 	mgt->global_memid = 0;
@@ -3598,6 +3680,39 @@ static int codec_mm_mem_dump(unsigned long addr, int isphy, int len)
 	return 0;
 }
 
+static void dump_tee_sectbl_info(void)
+{
+	u32 ret;
+	struct tee_sectbl_info tbl_info = { 0 };
+
+	if (!secure_mem_ctrl)
+		return;
+
+	ret = tee_sectbl_get_info(&tbl_info);
+	if (ret) {
+		pr_info("get tee_sectbl info fail ret %u\n", ret);
+		return;
+	}
+
+	pr_info("codec_mm tee_info addr 0x%llx size 0x%llx blk_size 0x%x secure_bits %u sectbl_crc 0x%x\n",
+		tbl_info.tbl0_sta, tbl_info.tbl0_size, tbl_info.tbl0_blk_size,
+		tbl_info.secure_bits, tbl_info.sectbl_crc);
+}
+
+static void dump_tee_sectbl_bitmap(void)
+{
+	int i;
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	if (!secure_mem_ctrl)
+		return;
+
+	pr_info("Start dump tee sectbl bitmap\n");
+	for (i = 0; i < mgt->tee_sectbl_size / 4; i++)
+		pr_err("line%d 0x%08lx\n", i, *(mgt->tee_sectbl_bitmap + i));
+	pr_info("End dump tee sectbl bitmap\n");
+}
+
 static ssize_t debug_store(struct class *class,
 		struct class_attribute *attr,
 		const char *buf, size_t size)
@@ -3642,6 +3757,12 @@ static ssize_t debug_store(struct class *class,
 		break;
 	case 12:
 		dump_free_mem_infos(NULL, 0);
+		break;
+	case 13:
+		dump_tee_sectbl_info();
+		break;
+	case 14:
+		dump_tee_sectbl_bitmap();
 		break;
 	case 20: {
 		int cmd = 0, len = 0;
