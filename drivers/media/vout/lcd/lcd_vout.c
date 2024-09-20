@@ -2254,7 +2254,7 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 		}
 	}
 
-	if (pdrv->key_valid) {
+	if (pdrv->key_valid && !lcd_unifykey_init_get()) {
 		lcd_queue_delayed_work(&pdrv->config_probe_dly_work, 0);
 	} else {
 		ret = lcd_mode_probe(pdrv);

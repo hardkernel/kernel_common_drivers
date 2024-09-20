@@ -27,6 +27,8 @@
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/compat.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
+#include <linux/amlogic/media/vout/lcd/lcd_resman.h>
+
 #include <linux/sched/clock.h>
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
 #include <linux/amlogic/media/vout/lcd/aml_bl_extern.h>
@@ -4365,7 +4367,7 @@ static void aml_bl_config_probe_work(struct work_struct *p_work)
 	bdrv = container_of(d_work, struct aml_bl_drv_s, config_probe_dly_work);
 
 	index = bdrv->index;
-	if (bdrv->key_valid) {
+	if (bdrv->key_valid && !lcd_unifykey_init_get()) {
 		is_init = lcd_unifykey_init_get();
 		if (!is_init) {
 			if (bdrv->retry_cnt++ < LCD_UNIFYKEY_WAIT_TIMEOUT) {

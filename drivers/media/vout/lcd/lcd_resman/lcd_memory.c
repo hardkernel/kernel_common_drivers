@@ -636,6 +636,88 @@ unsigned int lrm_bootargs_get_number(const char *name, unsigned int dft)
 		return dft;
 }
 
+struct lrm_transmit_mem_s {
+	char *name;
+	unsigned char *mem;
+	unsigned int size;
+};
+
+/* transmit_mems: for uboot transmit datas to kernel
+ * "panel_config": panel parameter sets, include ukey data, panel_json file, tcon_bin ...
+ *	you can put max 63 data sets to "panel_config" use panel_param_mem_put() in uboot
+ *	and use panel_param_mem_get() in kernel to get datas
+ * you can add new transmit data declared as {.name = "your_data", .mem = NULL, .size = 0}
+ * and driver will parse mem addr and size, and other drivers (like lcd_driver)
+ * can get this memory by func: vaddr = lcd_transmit_mem_get("your_data", &size);
+ * and lcd_transmit_mem_release("your_data"); to release this memory
+ * if no longer needed to give it back to system
+ */
+static struct lrm_transmit_mem_s lrm_transmit_mems[] = {
+	{.name = "panel_config", .mem = NULL, .size = 0},
+};
+
+static void lrm_transmit_mem_match_load(struct lcd_rsvd_mem_s *lrm, struct lcd_mem_info_s *info)
+{
+	unsigned char *vaddr = NULL;
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(lrm_transmit_mems); i++) {
+		if (strcmp(info->name, lrm_transmit_mems[i].name) == 0) {
+			vaddr = lrm_phys_to_virt(lrm->pstart + info->offset, info->size);
+			if (vaddr) {
+				lrm_transmit_mems[i].mem = kmalloc(info->size, GFP_KERNEL);
+				if (lrm_transmit_mems[i].mem) {
+					memcpy(lrm_transmit_mems[i].mem, vaddr, info->size);
+					lrm_transmit_mems[i].size = info->size;
+				}
+				lrm_virt_free(vaddr);
+			}
+		}
+	}
+}
+
+static void lrm_transmit_mem_prefetch(struct lcd_rsvd_mem_s *lrm)
+{
+	struct lcd_mem_list_s *pos;
+
+	if (!lrm || list_empty(&lrm->mem_list))
+		return;
+
+	list_for_each_entry_reverse(pos, &lrm->mem_list, list) {
+		if (pos->info.attr & LCD_ATTR_TAIL)
+			lrm_transmit_mem_match_load(lrm, &pos->info);
+	}
+}
+
+unsigned char *lcd_transmit_mem_get(char *name, u32 *size)
+{
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(lrm_transmit_mems); i++) {
+		if (strcmp(name, lrm_transmit_mems[i].name) == 0) {
+			if (lrm_transmit_mems[i].mem) {
+				*size = lrm_transmit_mems[i].size;
+				return lrm_transmit_mems[i].mem;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+void lcd_transmit_mem_release(char *name)
+{
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(lrm_transmit_mems); i++) {
+		if (strcmp(name, lrm_transmit_mems[i].name) == 0) {
+			kfree(lrm_transmit_mems[i].mem);
+			lrm_transmit_mems[i].mem = NULL;
+			lrm_transmit_mems[i].size = 0;
+		}
+	}
+}
+
 /*==============================================================================================*/
 /*
  *|used1****|used2*****|free--------------------------------|--4k for pass param end--|
@@ -702,8 +784,10 @@ int lrm_update_bootloader(struct lcd_rsvd_mem_s *lrm)
 	/* here copy uboot alloc tail memorys, and will free these kind of memorys
 	 * tcon_bin_path/panel_parameter/tcon_data_bin used in uboot....
 	 */
+	lrm_transmit_mem_prefetch(lrm);
+	lcd_panel_file_pre_proc();
 
-	/* uboot alloc tail memory free */
+	/* uboot alloc tail memory free (transmit mems)*/
 	list_for_each_entry_safe_reverse(mem, temp, &lrm->mem_list, list) {
 		if (mem->info.attr & LCD_ATTR_TAIL) {
 			list_del(&mem->list);

@@ -36,5 +36,13 @@ int lcd_reserved_memory_init(struct platform_device *pdev);
 bool lrm_no_map(void);
 int lrm_exist(void);
 
+unsigned char *lcd_transmit_mem_get(char *name, u32 *size);
+void lcd_transmit_mem_release(char *name);
+
+/*lcd_panel*/
+int is_ukey_in_param_mem(void);
+unsigned char *panel_param_mem_get(const char *name, u32 *len);
+int lcd_panel_file_pre_proc(void);
+
 #endif
 

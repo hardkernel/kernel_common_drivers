@@ -1493,9 +1493,31 @@ static int lcd_extern_config_load(struct lcd_extern_driver_s *edrv)
 	}
 	EXTPR("[%d]: key_valid: %d\n", edrv->index, edrv->key_valid);
 
-	if (edrv->key_valid) {
+	if (edrv->key_valid && !lcd_unifykey_init_get()) {
 		edrv->config_load = 1;
 		lcd_queue_delayed_work(&edrv->dev_probe_dly_work, 0);
+	} else if (edrv->key_valid && lcd_unifykey_init_get()) {
+		dev_index = 0;
+
+		edrv->dev[edrv->dev_cnt] = lcd_extern_dev_malloc(dev_index);
+		EXTPR("[%d]: %s: from panel ini\n", edrv->index, __func__);
+		ret = lcd_extern_get_config_unifykey(edrv, edrv->dev[edrv->dev_cnt]);
+		if (ret) {
+			lcd_extern_dev_free(edrv->dev[edrv->dev_cnt]);
+			edrv->dev[edrv->dev_cnt] = NULL;
+			lcd_resource_ready(edrv->index, LCD_RES_EXTERN, dev_index);
+			return -1;
+		}
+		lcd_extern_config_update(edrv, edrv->dev[edrv->dev_cnt]);
+		ret = lcd_extern_add_dev(edrv, edrv->dev[edrv->dev_cnt]);
+		if (ret) {
+			lcd_extern_dev_free(edrv->dev[edrv->dev_cnt]);
+			edrv->dev[edrv->dev_cnt] = NULL;
+		} else {
+			edrv->dev_cnt++;
+		}
+		lcd_resource_ready(edrv->index, LCD_RES_EXTERN, dev_index);
+		return ret;
 	} else {
 		edrv->config_load = 0;
 		EXTPR("[%d]: %s from dts\n", edrv->index, __func__);
