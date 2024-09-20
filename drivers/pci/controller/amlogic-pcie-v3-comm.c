@@ -1675,9 +1675,20 @@ static int amlogic_pcie_init_port_for_aml_phy(struct amlogic_pcie *amlogic)
 	/* tx rtem odt */
 	writel(0x3a98, amlogic->phy_base + SAMPLE_3RD_TIME);
 
+	/* tx detect RX decrease delay to 8us */
+	writel(0x1900190, amlogic->phy_base + SAMPLE_1ST_2ND_TIME);
+
 	/* Improved TX signal quality */
 	for (i = 0; i < 3; i++)
 		writel(0x54da54da, amlogic->phy_base + UPCTX_CONT1_REG2 + i * 4);
+
+	/* modify CDR PH_DIV and FR_DIV */
+	for (i = 0; i < 3; i++) {
+		val = readl(amlogic->phy_base + REG_DCHD_CDR_GEN1_REG + i * 4);
+		val &= ~GENMASK(7, 0);
+		val |= 0xa4;
+		writel(val, amlogic->phy_base + REG_DCHD_CDR_GEN1_REG + i * 4);
+	}
 
 	/* RX and TX trim */
 	efuse_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pci-efuse");
@@ -1742,6 +1753,9 @@ static int amlogic_pcie_init_port_for_aml_phy(struct amlogic_pcie *amlogic)
 	if (ret)
 		return ret;
 
+	/* close RC EQ */
+	amlogic_pcieinter_write(amlogic, 0, PHYMAC_CFG);
+
 	return 0;
 }
 
@@ -1767,9 +1781,6 @@ int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
 		ret = amlogic_pcie_init_port_for_m31_phy(amlogic);
 		break;
 	}
-
-	/* close EQ */
-	amlogic_pcieinter_write(amlogic, 0, PHYMAC_CFG);
 
 	val = amlogic_pciectrl_read(amlogic, PCIE_A_CTRL0);
 	if (amlogic->is_rc)

@@ -137,6 +137,7 @@
 #define REG_DCHD_EQ_GEN1_REG			(0x0033 << 2)
 #define REG_DCHD_EQ_GEN2_REG			(0x0034 << 2)
 #define REG_DCHD_EQ_GEN3_REG			(0x0035 << 2)
+#define SAMPLE_1ST_2ND_TIME			(0x0042 << 2)
 #define SW_CTRL_PMA_REG0			(0x0044 << 2)
 #define SAMPLE_3RD_TIME				(0x0043 << 2)
 #define EQVAL_CTRL_REG				(0x0061 << 2)
