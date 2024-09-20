@@ -1136,16 +1136,37 @@
 	clock-frequency = <300000>; /* default 100k */
 };
 
-&vddcpu0 {
+&i2c0 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c0_pins4>;
+	clock-frequency = <300000>; /* default 100k */
+	tas5707_1b: tas5707_1b@1b {
+		compatible = "ti,tas5707";
+		#sound-dai-cells = <0>;
+		reg = <0x1b>;
+		status = "okay";
+		reset_pin = <&gpio GPIOF_2 0>;
+	};
+	tas5707_1d: tas5707_1d@1d {
+		compatible = "ti,tas5707";
+		#sound-dai-cells = <0>;
+		reg = <0x1d>;
+		status = "okay";
+		//reset_pin = <&gpio GPIOF_2 0>;
+	};
+};
+
+&vddcpu0_board2 {
 	status = "okay";
 };
 
-&tdmc {
-
-};
-
-&spdifa {
-
+&CPU0 {
+	#cooling-cells = <2>;
+	operating-points-v2 = <&cpu_opp_table0>,
+						<&cpu_opp_table1>,
+						<&cpu_opp_table2_2400>,
+						<&cpu_opp_table3_2400>;
 };
 
 &periphs_pinctrl {
