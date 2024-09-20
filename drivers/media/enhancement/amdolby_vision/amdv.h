@@ -135,6 +135,11 @@
 #define CP_FLAG_CONST_TC2		0x200000
 #define CP_FLAG_CHANGE_ALL		0xffffffff
 
+#define USE_OLD_RDMA_TABLE  0x1
+#define USE_OLD_RDMA_TABLE_VPP 0x2
+#define PRINT_RDMA_TABLE_REG_BASIC 0x4
+#define PRINT_RDMA_TABLE_REG_MORE 0x8
+
 enum core1_switch_type {
 	NO_SWITCH = 0,
 	SWITCH_BEFORE_DVCORE_1,

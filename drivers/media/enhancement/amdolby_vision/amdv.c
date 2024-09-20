@@ -67,6 +67,7 @@
 #include <linux/amlogic/media/utils/am_com.h>
 #include "../../common/vfm/vfm.h"
 #include <linux/amlogic/media/utils/vdec_reg.h>
+#include <linux/amlogic/media/rdma/rdma_mgr.h>
 
 DEFINE_SPINLOCK(amdv_lock);
 
@@ -615,6 +616,21 @@ u32 hlg_min = HLG_MIN;
 
 static u32 amdv_reg_list[4];
 
+#define MAX_RDMA_TABLE_CNT 7
+#define MAX_REG_CNT 256
+#define LAST_PART_INS (MAX_RDMA_TABLE_CNT - 1)
+
+static struct rdma_partition_ins_s amdv_rdma_part_ins[MAX_RDMA_TABLE_CNT];
+static struct rdma_partition_ins_s *vpp_rdma_part;
+static bool use_rdma_part_table = true;
+
+bool amdv_rdma_init;
+u32 vpp_reg[MAX_REG_CNT];
+u32 other_reg[MAX_REG_CNT];
+/*bit0: 1=> use old rdma api. use new api by default*/
+/*bit1: 1=> print_info*/
+u32 amdv_debug;
+
 bool is_aml_gxm(void)
 {
 	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_GXM)
@@ -900,6 +916,297 @@ bool core1_detunnel(void)
 		return 0;
 }
 
+void init_amdv_rdma_part_ins(void)
+{
+	int i;
+
+	if (amdv_rdma_init)
+		return;
+
+	for (i = 0; i < MAX_RDMA_TABLE_CNT; i++)
+		amdv_rdma_part_ins[0].table_index = -1;
+
+	if (is_aml_g12() || is_aml_tm2() || is_aml_t7() ||
+		is_aml_sc2() || is_aml_s4d() || is_aml_s6() || is_aml_s7d()) {
+		/*core1a*/
+		amdv_rdma_part_ins[0].vpp_index = RDMA_VPP0;
+		amdv_rdma_part_ins[0].table_index = AMLDV_PARTITION_TABLE_0;
+		amdv_rdma_part_ins[0].flag = use_rdma_part_table;
+		amdv_rdma_part_ins[0].max_reg_cnt = 1600;/*larger than 256+256x5*/
+		amdv_rdma_part_ins[0].reg_range_check = true;
+		amdv_rdma_part_ins[0].check_start_addr = 0x3300;
+		amdv_rdma_part_ins[0].check_end_addr = 0x33ff;
+		rdma_part_table_register(&amdv_rdma_part_ins[0]);
+
+		/*core2a*/
+		amdv_rdma_part_ins[1].vpp_index = RDMA_VPP0;
+		amdv_rdma_part_ins[1].table_index = AMLDV_PARTITION_TABLE_1;
+		amdv_rdma_part_ins[1].flag = use_rdma_part_table;
+		amdv_rdma_part_ins[1].max_reg_cnt = 1600;/*larger than 256+256x5*/
+		amdv_rdma_part_ins[1].reg_range_check = true;
+		amdv_rdma_part_ins[1].check_start_addr = 0x3400;
+		amdv_rdma_part_ins[1].check_end_addr = 0x34ff;
+		rdma_part_table_register(&amdv_rdma_part_ins[1]);
+
+		/*core3*/
+		amdv_rdma_part_ins[2].vpp_index = RDMA_VPP0;
+		amdv_rdma_part_ins[2].table_index = AMLDV_PARTITION_TABLE_2;
+		amdv_rdma_part_ins[2].flag = use_rdma_part_table;
+		amdv_rdma_part_ins[2].max_reg_cnt = 320;/*larger than 256*/
+		amdv_rdma_part_ins[2].reg_range_check = true;
+		amdv_rdma_part_ins[2].check_start_addr = 0x3600;
+		amdv_rdma_part_ins[2].check_end_addr = 0x36ff;
+		rdma_part_table_register(&amdv_rdma_part_ins[2]);
+
+		if (is_aml_t7()) {
+			/*core1b*/
+			amdv_rdma_part_ins[3].vpp_index = RDMA_VPP0;
+			amdv_rdma_part_ins[3].table_index = AMLDV_PARTITION_TABLE_3;
+			amdv_rdma_part_ins[3].flag = use_rdma_part_table;
+			amdv_rdma_part_ins[3].max_reg_cnt = 1600; /*larger than 256+256x5*/
+			amdv_rdma_part_ins[3].reg_range_check = true;
+			amdv_rdma_part_ins[3].check_start_addr = 0x4400;
+			amdv_rdma_part_ins[3].check_end_addr = 0x44ff;
+			rdma_part_table_register(&amdv_rdma_part_ins[3]);
+
+			/*core2c*/
+			amdv_rdma_part_ins[4].vpp_index = RDMA_VPP0;
+			amdv_rdma_part_ins[4].table_index = AMLDV_PARTITION_TABLE_4;
+			amdv_rdma_part_ins[4].flag = use_rdma_part_table;
+			amdv_rdma_part_ins[4].max_reg_cnt = 1600; /*larger than 256+256x5*/
+			amdv_rdma_part_ins[4].reg_range_check = true;
+			amdv_rdma_part_ins[4].check_start_addr = 0x6100;
+			amdv_rdma_part_ins[4].check_end_addr = 0x61ff;
+			rdma_part_table_register(&amdv_rdma_part_ins[4]);
+
+			/*core1c*/
+			amdv_rdma_part_ins[5].vpp_index = RDMA_VPP0;
+			amdv_rdma_part_ins[5].table_index = AMLDV_PARTITION_TABLE_5;
+			amdv_rdma_part_ins[5].flag = use_rdma_part_table;
+			amdv_rdma_part_ins[5].max_reg_cnt = 1600; /*larger than 256+256x5*/
+			amdv_rdma_part_ins[5].reg_range_check = true;
+			amdv_rdma_part_ins[5].check_start_addr = 0x6000;
+			amdv_rdma_part_ins[5].check_end_addr = 0x60ff;
+			rdma_part_table_register(&amdv_rdma_part_ins[5]);
+		}
+	} else if (is_aml_s5()) {
+		/*core1a*/
+		amdv_rdma_part_ins[0].vpp_index = RDMA_VPP0;
+		amdv_rdma_part_ins[0].table_index = AMLDV_PARTITION_TABLE_0;
+		amdv_rdma_part_ins[0].flag = use_rdma_part_table;
+		amdv_rdma_part_ins[0].max_reg_cnt = 1600; /*larger than 256+256x5*/
+		amdv_rdma_part_ins[0].reg_range_check = true;
+		amdv_rdma_part_ins[0].check_start_addr = 0x3300;
+		amdv_rdma_part_ins[0].check_end_addr = 0x33ff;
+		rdma_part_table_register(&amdv_rdma_part_ins[0]);
+
+		/*core2a*/
+		amdv_rdma_part_ins[1].vpp_index = RDMA_VPP0;
+		amdv_rdma_part_ins[1].table_index = AMLDV_PARTITION_TABLE_1;
+		amdv_rdma_part_ins[1].flag = use_rdma_part_table;
+		amdv_rdma_part_ins[1].max_reg_cnt = 1600;/*larger than 256+256x5*/
+		amdv_rdma_part_ins[1].reg_range_check = true;
+		amdv_rdma_part_ins[1].check_start_addr = 0x0b00;
+		amdv_rdma_part_ins[1].check_end_addr = 0x0bff;
+		rdma_part_table_register(&amdv_rdma_part_ins[1]);
+
+		/*core3, 4slice 0x0e00-0x0fff;0x1200-0x13ff;*/
+		amdv_rdma_part_ins[2].vpp_index = RDMA_VPP0;
+		amdv_rdma_part_ins[2].table_index = AMLDV_PARTITION_TABLE_2;
+		amdv_rdma_part_ins[2].flag = use_rdma_part_table;
+		amdv_rdma_part_ins[2].max_reg_cnt = 1536;/*larger than 256*4*/
+		amdv_rdma_part_ins[2].reg_range_check = true;
+		amdv_rdma_part_ins[2].check_start_addr = 0x0e00;
+		amdv_rdma_part_ins[2].check_end_addr = 0x13ff;
+		rdma_part_table_register(&amdv_rdma_part_ins[2]);
+
+		/*core1b*/
+		amdv_rdma_part_ins[3].vpp_index = RDMA_VPP0;
+		amdv_rdma_part_ins[3].table_index = AMLDV_PARTITION_TABLE_3;
+		amdv_rdma_part_ins[3].flag = use_rdma_part_table;
+		amdv_rdma_part_ins[3].max_reg_cnt = 1600; /*larger than 256+256x5*/
+		amdv_rdma_part_ins[3].reg_range_check = true;
+		amdv_rdma_part_ins[3].check_start_addr = 0x0a00;
+		amdv_rdma_part_ins[3].check_end_addr = 0x0aff;
+		rdma_part_table_register(&amdv_rdma_part_ins[3]);
+
+		/*core2c*/
+		amdv_rdma_part_ins[4].vpp_index = RDMA_VPP0;
+		amdv_rdma_part_ins[4].table_index = AMLDV_PARTITION_TABLE_4;
+		amdv_rdma_part_ins[4].flag = use_rdma_part_table;
+		amdv_rdma_part_ins[4].max_reg_cnt = 1600; /*larger than 256+256x5*/
+		amdv_rdma_part_ins[4].reg_range_check = true;
+		amdv_rdma_part_ins[4].check_start_addr = 0x0d00;
+		amdv_rdma_part_ins[4].check_end_addr = 0x0dff;
+		rdma_part_table_register(&amdv_rdma_part_ins[4]);
+	} else if (is_aml_tm2() || is_aml_t3() || is_aml_t5m() ||
+		is_aml_t5w() || is_aml_t7()) {
+		/*tvcore*/
+		amdv_rdma_part_ins[0].vpp_index = RDMA_VPP0;
+		amdv_rdma_part_ins[0].table_index = AMLDV_PARTITION_TABLE_0;
+		amdv_rdma_part_ins[0].flag = use_rdma_part_table;
+		amdv_rdma_part_ins[0].max_reg_cnt = 320; /*larger than 256*/
+		amdv_rdma_part_ins[0].reg_range_check = true;
+		amdv_rdma_part_ins[0].check_start_addr = 0x4300;
+		amdv_rdma_part_ins[0].check_end_addr = 0x43ff;
+		rdma_part_table_register(&amdv_rdma_part_ins[0]);
+	} else if (is_aml_t3x()) {
+		/*wrap 0x0900-0x0936;0x0a00-0x0a3e;*/
+		amdv_rdma_part_ins[0].vpp_index = RDMA_VPP0;
+		amdv_rdma_part_ins[0].table_index = AMLDV_PARTITION_TABLE_0;
+		amdv_rdma_part_ins[0].flag = use_rdma_part_table;
+		amdv_rdma_part_ins[0].max_reg_cnt = 512;
+		amdv_rdma_part_ins[0].reg_range_check = true;
+		amdv_rdma_part_ins[0].check_start_addr = 0x0900;
+		amdv_rdma_part_ins[0].check_end_addr = 0x0a3e;
+		rdma_part_table_register(&amdv_rdma_part_ins[0]);
+
+		/*wrap 0x0c00-0x0c1f*/
+		amdv_rdma_part_ins[1].vpp_index = RDMA_VPP0;
+		amdv_rdma_part_ins[1].table_index = AMLDV_PARTITION_TABLE_1;
+		amdv_rdma_part_ins[1].flag = use_rdma_part_table;
+		amdv_rdma_part_ins[1].max_reg_cnt = 256;
+		amdv_rdma_part_ins[1].reg_range_check = true;
+		amdv_rdma_part_ins[1].check_start_addr = 0x0c00;
+		amdv_rdma_part_ins[1].check_end_addr = 0x0c1f;
+		rdma_part_table_register(&amdv_rdma_part_ins[1]);
+
+		/*top1 core1 + core1b 0x0b00-0x0bd0;0x0bd1-0x0bdb */
+		amdv_rdma_part_ins[2].vpp_index = RDMA_VPP0;
+		amdv_rdma_part_ins[2].table_index = AMLDV_PARTITION_TABLE_2;
+		amdv_rdma_part_ins[2].flag = use_rdma_part_table;
+		amdv_rdma_part_ins[2].max_reg_cnt = 512;
+		amdv_rdma_part_ins[2].reg_range_check = true;
+		amdv_rdma_part_ins[2].check_start_addr = 0x0b00;
+		amdv_rdma_part_ins[2].check_end_addr = 0x0bdb;
+		rdma_part_table_register(&amdv_rdma_part_ins[2]);
+
+		/*top2 0x0d00-0x0f66*/
+		amdv_rdma_part_ins[3].vpp_index = RDMA_VPP0;
+		amdv_rdma_part_ins[3].table_index = AMLDV_PARTITION_TABLE_3;
+		amdv_rdma_part_ins[3].flag = use_rdma_part_table;
+		amdv_rdma_part_ins[3].max_reg_cnt = 1024;
+		amdv_rdma_part_ins[3].reg_range_check = true;
+		amdv_rdma_part_ins[3].check_start_addr = 0x0d00;
+		amdv_rdma_part_ins[3].check_end_addr = 0x0f66;
+		rdma_part_table_register(&amdv_rdma_part_ins[3]);
+	}
+	/*other reg, use last AMLDV_PARTITION_TABLE*/
+	i = 0;
+	other_reg[i++] = VPU_DOLBY_TOP_CTRL;
+	other_reg[i++] = VPU_DOLBY_GATE_CTRL;
+	other_reg[i++] = OSD_DOLBY_BYPASS_EN;
+
+	amdv_rdma_part_ins[LAST_PART_INS].vpp_index = RDMA_VPP0;
+	amdv_rdma_part_ins[LAST_PART_INS].table_index = AMLDV_PARTITION_TABLE_6;
+	amdv_rdma_part_ins[LAST_PART_INS].flag = use_rdma_part_table;
+	amdv_rdma_part_ins[LAST_PART_INS].max_reg_cnt = 256;
+	amdv_rdma_part_ins[LAST_PART_INS].reg_range_check = false;
+	amdv_rdma_part_ins[LAST_PART_INS].check_start_addr = 0;
+	amdv_rdma_part_ins[LAST_PART_INS].check_end_addr = 0;
+	rdma_part_table_register(&amdv_rdma_part_ins[LAST_PART_INS]);
+
+	/*VPP, use VIDEO_PARTITION_TABLE*/
+	i = 0;
+	vpp_reg[i++] = AMDV_PATH_CTRL;
+	vpp_reg[i++] = VPP_AMDV_CTRL;
+	vpp_reg[i++] = VPP_DAT_CONV_PARA0;
+	vpp_reg[i++] = VPP_DAT_CONV_PARA1;
+	vpp_reg[i++] = VPP_VADJ_CTRL;
+	vpp_reg[i++] = VIU_SW_RESET;
+	vpp_reg[i++] = VIU_SW_RESET0;
+	vpp_reg[i++] = VPP_DUMMY_DATA1;
+	vpp_reg[i++] = VPP_MATRIX_CTRL;
+	vpp_reg[i++] = VPP_GAINOFF_CTRL0;
+	vpp_reg[i++] = VD1_S0_DV_BYPASS_CTRL;
+	vpp_reg[i++] = VD2_DV_BYPASS_CTRL;
+	vpp_reg[i++] = S5_VPP_DOLBY_CTRL;
+	vpp_reg[i++] = VPP_SLICE1_DOLBY_CTRL;
+	vpp_reg[i++] = VPP_SLICE2_DOLBY_CTRL;
+	vpp_reg[i++] = VPP_SLICE3_DOLBY_CTRL;
+	vpp_reg[i++] = VD_PROC_BYPASS_CTRL;
+	vpp_reg[i++] = VIU_MISC_CTRL1;
+	vpp_reg[i++] = AMDV_PATH_SWAP_CTRL1;
+	vpp_reg[i++] = AMDV_PATH_SWAP_CTRL2;
+	vpp_reg[i++] = VPP_VD1_DSC_CTRL;
+	vpp_reg[i++] = VPP_VD2_DSC_CTRL;
+	vpp_reg[i++] = VPP_VD3_DSC_CTRL;
+	vpp_reg[i++] = VIU_VD1_PATH_CTRL;
+	vpp_reg[i++] = VPP_TOP_CTRL;
+	vpp_reg[i++] = VPP_MISC;
+	vpp_reg[i++] = VPU_422T0444_RST;
+	vpp_reg[i++] = VPU_422T0444_CTRL1;
+	vpp_reg[i++] = T3X_VD1_S0_DV_BYPASS_CTRL;
+	vpp_reg[i++] = T3X_VD1_S1_DV_BYPASS_CTRL;
+	vpp_reg[i++] = T3X_VPP_DOLBY_CTRL;
+	vpp_reg[i++] = T3X_VD_PROC_BYPASS_CTRL;
+	vpp_reg[i++] = VPU_TOP_MISC;
+	vpp_reg[i++] = T3X_VD1_BLEND_SRC_CTRL;
+	vpp_reg[i++] = VPU_RDARB_UGT_L2C1;
+	vpp_reg[i++] = VPU_WRARB_UGT_L2C1;
+	vpp_reg[i++] = T3X_VENC_CRC;
+	vpp_reg[i++] = VPP_SLICE3_DOLBY_CTRL;
+	vpp_rdma_part = get_part_table_ins(RDMA_VPP0, VIDEO_PARTITION_TABLE);
+
+	amdv_rdma_init = true;
+}
+
+/*return -1: map error, use older api*/
+int map_reg_to_rdma_table_index(u32 reg)
+{
+	int i;
+	bool find_reg = false;
+
+	if (!amdv_rdma_init)
+		return -1;
+
+	if (dv_meson_dev.cpu_id < _CPU_MAJOR_ID_T5W ||
+		dv_meson_dev.cpu_id > _CPU_MAJOR_ID_S6)
+		return -1;
+
+	for (i = 0; i < MAX_RDMA_TABLE_CNT; i++) {
+		if (reg >= amdv_rdma_part_ins[i].check_start_addr &&
+			reg <= amdv_rdma_part_ins[i].check_end_addr) {
+			find_reg = true;
+			if (amdv_debug & PRINT_RDMA_TABLE_REG_MORE)
+				pr_dv_dbg("success find %x in table[%d %d]%x-%x,flag %d\n",
+						reg, i, amdv_rdma_part_ins[i].table_index,
+						amdv_rdma_part_ins[i].check_start_addr,
+						amdv_rdma_part_ins[i].check_end_addr,
+						amdv_rdma_part_ins[i].flag);
+			if (!(amdv_debug & USE_OLD_RDMA_TABLE))
+				return amdv_rdma_part_ins[i].table_index;
+			break;
+		}
+	}
+	if (!find_reg) {
+		for (i = 0; i < MAX_REG_CNT; i++) {
+			if (other_reg[i] == reg) {
+				if (amdv_debug & PRINT_RDMA_TABLE_REG_MORE)
+					pr_dv_dbg("success find 0x%x in table[%d %d],flag %d\n",
+						reg, LAST_PART_INS,
+						amdv_rdma_part_ins[LAST_PART_INS].table_index,
+						amdv_rdma_part_ins[LAST_PART_INS].flag);
+				if (!(amdv_debug & USE_OLD_RDMA_TABLE))
+					return amdv_rdma_part_ins[LAST_PART_INS].table_index;
+				break;
+			} else if (vpp_reg[i] == reg && vpp_rdma_part) {
+				if (amdv_debug & PRINT_RDMA_TABLE_REG_MORE)
+					pr_dv_dbg("success find 0x%x in rdma vpp table%d, flag %d\n",
+						reg,
+						vpp_rdma_part->table_index,
+						vpp_rdma_part->flag);
+				if (vpp_rdma_part->flag && !(amdv_debug & USE_OLD_RDMA_TABLE_VPP))
+					return vpp_rdma_part->table_index;
+				break;
+			}
+		}
+	}
+	if (amdv_debug & PRINT_RDMA_TABLE_REG_BASIC)
+		pr_dv_dbg("0x%x use old rdma table\n", reg);
+	return -1;
+}
+
 static u32 CORE1A_BASE;
 static u32 CORE1B_BASE;
 static u32 CORE1C_BASE;
@@ -994,49 +1301,110 @@ static u32 addr_map(u32 adr)
 
 u32 VSYNC_RD_DV_REG(u32 adr)
 {
-	adr = addr_map(adr);
-	if (vpp_vsync_id == 0)
-		return VSYNC_RD_MPEG_REG(adr);
-	else if (vpp_vsync_id == 1)
-		return VSYNC_RD_MPEG_REG_VPP1(adr);
-	else if (vpp_vsync_id == 2)
-		return VSYNC_RD_MPEG_REG_VPP2(adr);
-	else if (vpp_vsync_id == 3)
-		return PRE_VSYNC_RD_MPEG_REG(adr);
+	int table_index = -1;
 
-	pr_dv_error("error vpp_vsync_id %d\n", vpp_vsync_id);
+	adr = addr_map(adr);
+	table_index = map_reg_to_rdma_table_index(adr);
+
+	/*new rdma api is prior to old api*/
+	if (vpp_vsync_id == 0) {
+		if (table_index >= 0)
+			return VSYNC_RD_TABLE_REG(table_index, adr);
+		else
+			return VSYNC_RD_MPEG_REG(adr);
+	} else if (vpp_vsync_id == 1) {
+		return VSYNC_RD_MPEG_REG_VPP1(adr);
+	} else if (vpp_vsync_id == 2) {
+		return VSYNC_RD_MPEG_REG_VPP2(adr);
+	} else if (vpp_vsync_id == 3) {
+		if (table_index >= 0)
+			return PRE_VSYNC_RD_TABLE_REG(table_index, adr);
+		else
+			return PRE_VSYNC_RD_MPEG_REG(adr);
+	} else {
+		pr_dv_error("error vpp_vsync_id %d\n", vpp_vsync_id);
+	}
 	return 0;
 }
 
 int VSYNC_WR_DV_REG(u32 adr, u32 val)
 {
+	int table_index = -1;
+	unsigned long time_use = 0;
+	struct timeval begin;
+	struct timeval end;
+
 	adr = addr_map(adr);
-	if (vpp_vsync_id == 0)
-		VSYNC_WR_MPEG_REG(adr, val);
-	else if (vpp_vsync_id == 1)
+	table_index = map_reg_to_rdma_table_index(adr);
+
+	if (debug_dolby & 0x400)
+		do_gettimeofday(&begin);
+
+	/*new rdma api is prior to old api*/
+	if (vpp_vsync_id == 0) {
+		if (table_index >= 0)
+			VSYNC_WR_TABLE_REG(table_index, adr, val);
+		else
+			VSYNC_WR_MPEG_REG(adr, val);
+	} else if (vpp_vsync_id == 1) {
 		VSYNC_WR_MPEG_REG_VPP1(adr, val);
-	else if (vpp_vsync_id == 2)
+	} else if (vpp_vsync_id == 2) {
 		VSYNC_WR_MPEG_REG_VPP2(adr, val);
-	else if (vpp_vsync_id == 3)
-		PRE_VSYNC_WR_MPEG_REG(adr, val);
-	else
+	} else if (vpp_vsync_id == 3) {
+		if (table_index >= 0)
+			PRE_VSYNC_WR_TABLE_REG(table_index, adr, val);
+		else
+			PRE_VSYNC_WR_MPEG_REG(adr, val);
+	} else {
 		pr_dv_error("error vpp_vsync_id %d\n", vpp_vsync_id);
+	}
+	if (debug_dolby & 0x400) {
+		do_gettimeofday(&end);
+		time_use = (end.tv_sec - begin.tv_sec) * 1000000 +
+				(end.tv_usec - begin.tv_usec);
+		//if (time_use > 10)
+			pr_info("[0x%04x]WR write time: %5ld us\n", adr, time_use);
+	}
 	return 0;
 }
 
 int VSYNC_WR_DV_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 {
+	int table_index = -1;
+	unsigned long time_use = 0;
+	struct timeval begin;
+	struct timeval end;
+
 	adr = addr_map(adr);
-	if (vpp_vsync_id == 0)
-		VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
-	else if (vpp_vsync_id == 1)
+	table_index = map_reg_to_rdma_table_index(adr);
+
+	if (debug_dolby & 0x400)
+		do_gettimeofday(&begin);
+
+	if (vpp_vsync_id == 0) {
+		if (table_index >= 0)
+			VSYNC_WR_TABLE_REG_BITS(table_index, adr, val, start, len);
+		else
+			VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
+	} else if (vpp_vsync_id == 1) {
 		VSYNC_WR_MPEG_REG_BITS_VPP1(adr, val, start, len);
-	else if (vpp_vsync_id == 2)
+	} else if (vpp_vsync_id == 2) {
 		VSYNC_WR_MPEG_REG_BITS_VPP2(adr, val, start, len);
-	else if (vpp_vsync_id == 3)
-		PRE_VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
-	else
+	} else if (vpp_vsync_id == 3) {
+		if (table_index >= 0)
+			PRE_VSYNC_WR_TABLE_REG_BITS(table_index, adr, val, start, len);
+		else
+			PRE_VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
+	} else {
 		pr_dv_error("error vpp_vsync_id %d\n", vpp_vsync_id);
+	}
+	if (debug_dolby & 0x400) {
+		do_gettimeofday(&end);
+		time_use = (end.tv_sec - begin.tv_sec) * 1000000 +
+				(end.tv_usec - begin.tv_usec);
+		//if (time_use > 10)
+			pr_info("[0x%04x]BITS write time: %5ld us\n", adr, time_use);
+	}
 	return 0;
 }
 
@@ -1157,7 +1525,7 @@ void dump_tv_setting(void *p_setting,
 		} else if (is_aml_t3_tvmode() ||
 			is_aml_t5w() || is_aml_t5m()) {
 			pr_info("t3/5w_tv reg: TV select 0x2749(bit16) val = 0x%x\n",
-				READ_VPP_DV_REG(VPP_TOP_VTRL));
+				READ_VPP_DV_REG(VPP_TOP_CTRL));
 			pr_info("t3/5w_tv reg: SWAP_CTRL1 0x1a70 val = 0x%x\n",
 				READ_VPP_DV_REG(AMDV_PATH_SWAP_CTRL1));
 			pr_info("t3/5w_tv reg: SWAP_CTRL2 0x1a71 val = 0x%x\n",
@@ -14789,6 +15157,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		pr_info("error:(%s) dv probe fail cannot register\n", __func__);
 		return -ENOMEM;
 	}
+	init_amdv_rdma_part_ins();
 	multi_dv_mode = false;
 	/*when dv ko load into kernel, this flag will be disabled
 	 *otherwise it will effect hdr module
@@ -15337,7 +15706,7 @@ void amdv_insert_crc(bool print)
 		pr_info("%s\n", str);
 	crc_count++;
 
-	if ((debug_dolby & 0x10000) && is_aml_tvmode()) {
+	if ((debug_dolby & 0x2) && is_aml_tvmode()) {
 		if (is_aml_t3x())
 			pr_info("tvcore crc 0x%x, 0x%x, ctrl 0x%x\n",
 				READ_VPP_DV_REG(DOLBY5_CORE2_CRC_IN_FRM),
@@ -15347,7 +15716,7 @@ void amdv_insert_crc(bool print)
 			pr_info("tvcore crc 0x%x, diag ctrl 0x%x\n",
 				READ_VPP_DV_REG(AMDV_TV_OUTPUT_DM_CRC),
 				READ_VPP_DV_REG(AMDV_TV_DIAG_CTRL));
-	} else if ((debug_dolby & 0x10000) && is_amdv_stb_mode()) {
+	} else if ((debug_dolby & 0x2) && is_amdv_stb_mode()) {
 		pr_info("core1 bl crc 0x%x,dm 0x%x,core3 in 0x%x,out 0x%x,enable %d,off %d\n",
 			READ_VPP_DV_REG(AMDV_CORE1_BL_CRC),
 			READ_VPP_DV_REG(AMDV_CORE1_CSC_OUTPUT_CRC),
@@ -16914,6 +17283,71 @@ static ssize_t amdv_probe_data_show(const struct class *cla,
 	return len;
 }
 
+static ssize_t	amdolby_vision_rdma_table_info_show
+	(const struct class *cla,
+	const struct class_attribute *attr, char *buf)
+{
+	int i;
+	ssize_t len = 0;
+
+	if (amdv_rdma_init) {
+		for (i = 0; i < MAX_RDMA_TABLE_CNT; i++)
+			len += sprintf(buf + len, "table[%d]:index %d,flag %d,%x-%x\n",
+					i, amdv_rdma_part_ins[i].table_index,
+					amdv_rdma_part_ins[i].flag,
+					amdv_rdma_part_ins[i].check_start_addr,
+					amdv_rdma_part_ins[i].check_end_addr);
+	}
+	len +=  sprintf(buf + len, "amdv_debug: 0x%x\n",
+			amdv_debug);
+	return len;
+}
+
+static ssize_t	amdolby_vision_amdv_debug_show
+	(const struct class *cla,
+	const struct class_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+
+	len += sprintf(buf + len, "USE_OLD_RDMA_TABLE  0x1\n");
+	len += sprintf(buf + len, "USE_OLD_RDMA_TABLE_VPP 0x2\n");
+	len += sprintf(buf + len, "PRINT_RDMA_TABLE_REG_BASIC 0x4\n");
+	len += sprintf(buf + len, "PRINT_RDMA_TABLE_REG_MORE 0x8\n");
+
+	len +=  sprintf(buf + len, "current amdv_debug: 0x%x\n",
+			amdv_debug);
+	return len;
+}
+
+static ssize_t amdolby_vision_amdv_debug_store
+	(const struct class *cla,
+	const struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	long val = 0;
+	int i;
+	int index;
+
+	if (!buf)
+		return count;
+
+	if (kstrtoul(buf, 16, &val) < 0)
+		return -EINVAL;
+
+	amdv_debug = val;
+	for (i = 0; i < MAX_RDMA_TABLE_CNT; i++) {
+		if (amdv_debug & USE_OLD_RDMA_TABLE)
+			amdv_rdma_part_ins[i].flag = 0;
+		else
+			amdv_rdma_part_ins[i].flag = 1;
+		index = amdv_rdma_part_ins[i].table_index;
+		if (index >= AMLDV_PARTITION_TABLE_0 &&
+			index <= AMLDV_PARTITION_TABLE_6)
+			set_part_flag_status(RDMA_VPP0, index, amdv_rdma_part_ins[i].flag);
+	}
+	return count;
+}
+
 /* supported mode: IPT_TUNNEL/HDR10/SDR10 */
 static const int dv_mode_table[6] = {
 	5, /*AMDV_OUTPUT_MODE_BYPASS*/
@@ -17464,7 +17898,7 @@ static ssize_t amdolby_vision_core2_sel_store
 static ssize_t  amdolby_vision_crc_show(const struct class *cla,
 		const struct class_attribute *attr, char *buf)
 {
-	if ((debug_dolby & 0x10000))
+	if ((debug_dolby & 0x2))
 		pr_dv_dbg("get crc %s\n", cur_crc);
 	return sprintf(buf, "%s\n", cur_crc);
 }
@@ -18343,6 +18777,12 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(dolby_vision_flags, 0644,
 	       amdolby_vision_flags_show,
 	       amdolby_vision_flags_store),
+	__ATTR(rdma_table_info, 0644,
+	       amdolby_vision_rdma_table_info_show,
+	       NULL),
+	__ATTR(amdv_debug, 0644,
+	       amdolby_vision_amdv_debug_show,
+	       amdolby_vision_amdv_debug_store),
 	__ATTR_NULL
 };
 
