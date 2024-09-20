@@ -307,6 +307,9 @@ static void stmmac_amlogic_task(struct work_struct *work)
 			}
 		}
 #endif
+	} else if (priv->amlogic_task_action == 101) {
+		msleep(3000);
+		stmmac_global_err(priv);
 	}
 	priv->amlogic_task_action = 0;
 }
@@ -7590,7 +7593,15 @@ int stmmac_resume(struct device *dev)
 	stmmac_free_tx_skbufs(priv);
 	stmmac_clear_descriptors(priv);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	ret = stmmac_hw_setup(ndev, false);
+	if (ret < 0) {
+		priv->amlogic_task_action = 101;
+		stmmac_trigger_amlogic_task(priv);
+	}
+#else
 	stmmac_hw_setup(ndev, false);
+#endif
 	stmmac_init_coalesce(priv);
 	stmmac_set_rx_mode(ndev);
 
@@ -7618,7 +7629,11 @@ int stmmac_resume(struct device *dev)
 
 	netif_device_attach(ndev);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	return ret;
+#else
 	return 0;
+#endif
 }
 EXPORT_SYMBOL_GPL(stmmac_resume);
 
