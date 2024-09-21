@@ -160,7 +160,5 @@ struct iotm {
 	unsigned int buf_end;
 };
 
-static void iotm_coresight_init(void);
-
 #endif  /* __DEBUG_IOTM_HW_H_ */
 

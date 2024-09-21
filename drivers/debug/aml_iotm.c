@@ -68,7 +68,10 @@ static int iotm_disable_set(const char *val, const struct kernel_param *kp)
 		iotm_enabled = 0;
 		pr_info("IOTM:has been disabled\n");
 	} else if (iotm_disable == 0) {
-		iotm_ctrl_mode_val |= IOTM_CTRL_MODE_TRACE_ENABLE;
+		/* monitor vapb4 and capu bus then start trace data */
+		iotm_ctrl_mode_val |= (IOTM_CTRL_MODE_CAPU_ENABLE |
+			IOTM_CTRL_MODE_VAPB4_ENABLE | IOTM_CTRL_MODE_TRACE_ENABLE);
+
 		iotm_enabled = 1;
 		pr_info("IOTM:has been enabled\n");
 	}
@@ -466,10 +469,11 @@ static void watchdog_dump_iotm_trace(void)
 	}
 }
 
-static void iotm_coresight_init(void)
+static int iotm_coresight_init(void)
 {
 	unsigned int val, i;
 	struct arm_smccc_res smccc;
+	unsigned long flags;
 
 	/* stop iotm. */
 	val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
@@ -480,8 +484,8 @@ static void iotm_coresight_init(void)
 	__arm_smccc_smc(AML_IOTM_SMC_CMD, AML_IOTM_INIT_SMC_ARG, 0, 0, 0, 0, 0, 0, &smccc, NULL);
 
 	/* exclude a53_dbg CSSYS_BASE_ADDR + iotm & coresight registers */
-	iotm.range[6].start = iotm.cssys_base_phy;
-	iotm.range[6].end = iotm.range[6].start + iotm.cssys_size;
+	//iotm.range[6].start = iotm.cssys_base_phy;
+	//iotm.range[6].end = iotm.range[6].start + iotm.cssys_size;
 
 	/* exclude uart register */
 	iotm.range[5].start = UART_REG_START;
@@ -520,10 +524,41 @@ static void iotm_coresight_init(void)
 	val &= ~IOTM_CTRL_MODE_TS;
 	val |= IOTM_CTRL_MODE_TS_27;
 
+	if (iotm.monitor_mode == AXI_MODE) {
+		/* confirm IOTM_AXI_ADDR can point to the correct ddr address */
+		for (i = 0; i < 20; i++) {
+			val |= IOTM_CTRL_MODE_TRACE_ENABLE;
+			writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
+			udelay(10);
+
+			val &= ~IOTM_CTRL_MODE_TRACE_ENABLE;
+			writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
+		}
+	}
+
+	local_irq_save(flags);
 	/* monitor vapb4 and capu bus then start trace data */
 	val |= (IOTM_CTRL_MODE_CAPU_ENABLE | IOTM_CTRL_MODE_VAPB4_ENABLE |
 			IOTM_CTRL_MODE_TRACE_ENABLE);
 	writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
+
+	if (iotm.monitor_mode == AXI_MODE) {
+		/* Check whether 0x0 is written in the trace */
+		val = readl(iotm.cssys_base + IOTM_AXI_ADDR);
+		val = readl(iotm.cssys_base + IOTM_AXI_ADDR);
+		if (val < iotm.buf_start || val >= iotm.buf_end) {
+			pr_err("IOTM:AXI_ADDR = 0x%x is wrong,close iotm\n", val);
+
+			val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
+			val |= IOTM_CTRL_MODE_TRACE_DISABLE;
+			writel(val, iotm.cssys_base + IOTM_CTRL_MODE);
+
+			local_irq_restore(flags);
+			return -1;
+		}
+	}
+	local_irq_restore(flags);
+	return 0;
 }
 
 static irqreturn_t iotm_irq_handler(int irq, void *data)
@@ -608,7 +643,8 @@ static void iotm_syscore_resume(void)
 	unsigned int iotm_ctrl_mode_val;
 
 	iotm_ctrl_mode_val = readl(iotm.cssys_base + IOTM_CTRL_MODE);
-	iotm_ctrl_mode_val |= IOTM_CTRL_MODE_TRACE_ENABLE;
+	iotm_ctrl_mode_val |= (IOTM_CTRL_MODE_CAPU_ENABLE |
+			IOTM_CTRL_MODE_VAPB4_ENABLE | IOTM_CTRL_MODE_TRACE_ENABLE);
 	writel(iotm_ctrl_mode_val, iotm.cssys_base + IOTM_CTRL_MODE);
 	iotm_enabled = 1;
 }
@@ -655,7 +691,9 @@ static int iotm_probe(struct platform_device *pdev)
 
 	spin_lock_init(&iotm_record_lock);
 
-	iotm_coresight_init();
+	ret = iotm_coresight_init();
+	if (ret)
+		return ret;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
