@@ -44,6 +44,24 @@ struct hdmitx_ctrl_ops {
 	void (*disable_frl_work)(void);
 };
 
+struct drm_hdcp_ctrl_ops {
+	/*hdcp apis*/
+	void (*hdcp_init)(void);
+	void (*hdcp_exit)(void);
+	void (*hdcp_enable)(int hdcp_type);
+	void (*hdcp_disable)(void);
+	void (*hdcp_disconnect)(void);
+
+	unsigned int (*get_tx_hdcp_cap)(void);
+	unsigned int (*get_rx_hdcp_cap)(void);
+	void (*register_hdcp_notify)(struct connector_hdcp_cb *cb);
+	/* get downstream hdcp topo info:
+	 * return 1 if downstream devices are all capable of hdcp2.2/2.3
+	 * return 0 if downstream contains hdcp1.4 or hdcp2.0 legacy device
+	 */
+	unsigned char (*get_dw_hdcp_topo_info)(void);
+};
+
 struct st_debug_param {
 	unsigned int avmute_frame;
 };
@@ -73,6 +91,7 @@ static const u8 dsc_max_slices_num[] = {
 struct hdmitx_common {
 	struct hdmitx_hw_common *tx_hw;
 	struct hdmitx_ctrl_ops *ctrl_ops;
+	struct drm_hdcp_ctrl_ops *drm_hdcp_ctrl_ops;
 	struct connector_hpd_cb drm_hpd_cb;/*drm hpd notify*/
 
 	char fmt_attr[16];
@@ -273,6 +292,19 @@ int hdmitx_common_setup_vsif_packet(struct hdmitx_common *tx_comm,
 	enum vsif_type type, int on, void *param);
 
 unsigned int hdmitx_get_frame_duration(void);
+
+/* drm hdcp api */
+int drm_hdmitx_common_hdcp_init(void);
+int drm_hdmitx_common_hdcp_exit(void);
+int drm_hdmitx_common_hdcp_enable(int hdcp_type);
+int drm_hdmitx_common_hdcp_disable(void);
+int drm_hdmitx_common_hdcp_disconnect(void);
+unsigned int drm_hdmitx_common_get_tx_hdcp_cap(void);
+unsigned int drm_hdmitx_common_get_rx_hdcp_cap(void);
+int drm_hdmitx_common_register_hdcp_notify(struct connector_hdcp_cb *cb);
+int drm_hdmitx_common_get_dw_hdcp_topo_info(void);
+void set_hdcp_common_instance(struct hdmitx_common *tx_comm);
+
 /*******************************hdmitx common api end*******************************/
 
 int hdmitx_register_hpd_cb(struct hdmitx_common *tx_comm, struct connector_hpd_cb *hpd_cb);

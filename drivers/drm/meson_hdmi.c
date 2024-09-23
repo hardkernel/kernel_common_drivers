@@ -856,7 +856,7 @@ static int am_hdmitx_connector_atomic_get_property
 		*val = get_hdcp_mode();
 		return 0;
 	} else if (property == am_hdmi->hdcp_topo_property) {
-		*val = am_hdmi_info.hdmitx_dev->get_dw_hdcp_topo_info();
+		*val = drm_hdmitx_common_get_dw_hdcp_topo_info();
 		return 0;
 	} else if (property == am_hdmi->contenttype_cap_prop) {
 		*val = hdmitx_common_get_contenttypes();
@@ -1193,7 +1193,7 @@ static void meson_hdmitx_start_hdcp(int hdcp_mode)
 
 	am_hdmi_info.hdcp_mode = hdcp_mode;
 	am_hdmi_info.hdcp_state = HDCP_STATE_START;
-	am_hdmi_info.hdmitx_dev->hdcp_enable(hdcp_mode);
+	drm_hdmitx_common_hdcp_enable(hdcp_mode);
 	DRM_DEBUG("start hdcp [%d-%d]...\n",
 		am_hdmi_info.hdcp_request_content_type, am_hdmi_info.hdcp_mode);
 }
@@ -1201,7 +1201,7 @@ static void meson_hdmitx_start_hdcp(int hdcp_mode)
 static void meson_hdmitx_stop_hdcp(void)
 {
 	if (meson_hdmitx_is_hdcp_running()) {
-		am_hdmi_info.hdmitx_dev->hdcp_disable();
+		drm_hdmitx_common_hdcp_disable();
 		am_hdmi_info.hdcp_state = HDCP_STATE_STOP;
 		am_hdmi_info.hdcp_mode = HDCP_NULL;
 		meson_hdmitx_set_hdcp_result(HDCP_AUTH_UNKNOWN);
@@ -1211,7 +1211,7 @@ static void meson_hdmitx_stop_hdcp(void)
 static void meson_hdmitx_disconnect_hdcp(void)
 {
 	if (meson_hdmitx_is_hdcp_running()) {
-		am_hdmi_info.hdmitx_dev->hdcp_disconnect();
+		drm_hdmitx_common_hdcp_disconnect();
 		am_hdmi_info.hdcp_state = HDCP_STATE_DISCONNECT;
 		am_hdmi_info.hdcp_mode = HDCP_NULL;
 		meson_hdmitx_set_hdcp_result(HDCP_AUTH_UNKNOWN);
@@ -1221,9 +1221,8 @@ static void meson_hdmitx_disconnect_hdcp(void)
 static int meson_hdmitx_get_hdcp_request(struct am_hdmi_tx *tx,
 	int request_type_mask)
 {
-	struct meson_hdmitx_dev *tx_dev = tx->hdmitx_dev;
 	int type;
-	unsigned int hdcp_tx_type = tx_dev->get_tx_hdcp_cap();
+	unsigned int hdcp_tx_type = drm_hdmitx_common_get_tx_hdcp_cap();
 	unsigned int hdcp_rx_type = am_hdmi_info.hdcp_rx_type;
 
 	DRM_INFO("%s usr_type: %d, hdcp cap: %d,%d\n",
@@ -1360,7 +1359,7 @@ static void meson_hdmitx_hdcp_notify(void *data, int type, int result)
 	if (type == HDCP_KEY_UPDATE && result == HDCP_AUTH_UNKNOWN) {
 		DRM_INFO("HDCP statue changed, need re-run hdcp\n");
 		if (hdmitx_get_hpd_state(tx_comm))
-			am_hdmi_info.hdcp_rx_type = am_hdmi_info.hdmitx_dev->get_rx_hdcp_cap();
+			am_hdmi_info.hdcp_rx_type = drm_hdmitx_common_get_rx_hdcp_cap();
 		if (!am_hdmi_info.hdmitx_on)
 			goto end;
 		meson_hdmitx_update_hdcp();
@@ -2405,7 +2404,7 @@ static void meson_hdmitx_hpd_cb(void *data)
 	 *authentication snow screen issue
 	 */
 	if (hdmitx_get_hpd_state(tx_comm))
-		am_hdmi_info.hdcp_rx_type = am_hdmi_info.hdmitx_dev->get_rx_hdcp_cap();
+		am_hdmi_info.hdcp_rx_type = drm_hdmitx_common_get_rx_hdcp_cap();
 
 #ifdef CONFIG_CEC_NOTIFIER
 	if (hdmitx_get_hpd_state(tx_comm)) {
@@ -2453,8 +2452,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 
 	if (hdcp_ctl_lvl == 0) {
 		am_hdmi_info.android_path = true;
-	} else if (am_hdmi_info.hdmitx_dev->hdcp_init) {
-		am_hdmi_info.hdmitx_dev->hdcp_init();
+	} else if (drm_hdmitx_common_hdcp_init() == 0) {
 		if (hdcp_ctl_lvl == 1) {
 			/*TODO: for westeros start hdcp by driver, will move to userspace.*/
 			am_hdmi_info.hdcp_request_content_type =
@@ -2567,7 +2565,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 		drm_connector_attach_content_protection_property(connector, true);
 		hdcp_cb.hdcp_notify = meson_hdmitx_hdcp_notify;
 		hdcp_cb.data = &am_hdmi_info;
-		am_hdmi_info.hdmitx_dev->register_hdcp_notify(&hdcp_cb);
+		drm_hdmitx_common_register_hdcp_notify(&hdcp_cb);
 		am_hdmi_info.hdcp_mode = HDCP_NULL;
 		am_hdmi_info.hdcp_state = HDCP_STATE_DISCONNECT;
 	}
@@ -2635,8 +2633,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 int meson_hdmitx_dev_unbind(struct drm_device *drm,
 	int type, int connector_id)
 {
-	if (am_hdmi_info.hdmitx_dev->hdcp_exit)
-		am_hdmi_info.hdmitx_dev->hdcp_exit();
+	drm_hdmitx_common_hdcp_exit();
 
 #ifdef CONFIG_CEC_NOTIFIER
 	if (am_hdmi_info.cec_notifier) {

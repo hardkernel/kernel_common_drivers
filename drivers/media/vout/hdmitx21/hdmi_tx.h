@@ -426,6 +426,8 @@ void hdcptx2_smng_auto(bool en);
 u8 hdcp2x_get_state_st(void);
 void hdcptx1_query_aksv(struct hdcp_ksv_t *p_val);
 
+void tee_comm_dev_reg(struct hdmitx_dev *hdev);
+void tee_comm_dev_unreg(struct hdmitx_dev *hdev);
 u8 hdmitx_reauth_request(u8 hdcp_version);
 void set_hdcp2_topo(u32 topo_type);
 bool get_hdcp2_topo(void);

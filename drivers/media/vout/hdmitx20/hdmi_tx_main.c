@@ -59,7 +59,6 @@
 #include "hw/reg_ops.h"
 #include "hdmi_tx_hdcp.h"
 #include "meson_drm_hdmitx.h"
-#include "meson_hdcp.h"
 
 #include <linux/component.h>
 #include <uapi/drm/drm_mode.h>
@@ -3971,6 +3970,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 					 WQ_SYSFS | WQ_FREEZABLE, 0);
 	INIT_DELAYED_WORK(&hdev->tx_comm.work_cedst, hdmitx_cedst_process);
 
+	set_hdcp_common_instance(&hdev->tx_comm);
 	hdmitx_hdcp_init(hdev);
 	/* bind drm before hdmi event */
 	hdmitx_hook_drm(&pdev->dev);
@@ -4217,16 +4217,6 @@ void __exit amhdmitx_exit(void)
 /*************DRM connector API**************/
 static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_hdmi_hdr_status = hdmi_hdr_status_to_drm,
-	/* hdcp apis */
-	.hdcp_init = meson_hdcp_init,
-	.hdcp_exit = meson_hdcp_exit,
-	.hdcp_enable = meson_hdcp_enable,
-	.hdcp_disable = meson_hdcp_disable,
-	.hdcp_disconnect = meson_hdcp_disconnect,
-	.get_tx_hdcp_cap = meson_hdcp_get_tx_cap,
-	.get_rx_hdcp_cap = meson_hdcp_get_rx_cap,
-	.register_hdcp_notify = meson_hdcp_reg_result_notify,
-	.get_dw_hdcp_topo_info = drm_hdmitx_get_hdcp_topo_info,
 };
 
 int hdmitx_hook_drm(struct device *device)
