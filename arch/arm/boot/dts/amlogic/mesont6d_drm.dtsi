@@ -45,6 +45,7 @@
 		vfm_mode = <1>; /** 0:drm mode 1:composer mode */
 		memory-region = <&logo_reserved>;
 		crtc_masks = <0 1 1>; /*for encoder: 0:hdmi 1:lcd 2:cvbs*/
+		creat_rdma_table = <1>;
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {
