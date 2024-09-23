@@ -45,7 +45,7 @@ int z_erofs_load_crypto_config(struct super_block *sb,
 				crypto->crypto_name, sbi->crypto);
 			return -EINVAL;
 		}
-		pr_info("%s, max pcluster:%d, distance:%d, %d, crypto:%s\n",
+		pr_debug("%s, max pcluster:%d, distance:%d, %d, crypto:%s\n",
 			__func__, crypto->max_pclusterblks,
 			crypto->max_distance, crypto_max_distance_pages,
 			crypto->crypto_name);
@@ -73,9 +73,8 @@ static void *z_erofs_crypto_handle_inplace_io(struct z_erofs_decompress_req *rq,
 	nrpages_out = ofull >> PAGE_SHIFT;
 
 	if (rq->inplace_io) {
-		if (rq->partial_decoding)
-			goto docopy;
-
+		//if (rq->partial_decoding)
+		//	goto docopy;
 		for (i = 0; i < nrpages_in; ++i) {
 			WARN_ON(!rq->in[i]);
 			for (j = 0; j < nrpages_out; ++j) {
@@ -143,6 +142,8 @@ static int z_erofs_crypto_decompress_mem(struct z_erofs_decompress_req *rq, u8 *
 
 	sbi = EROFS_SB(rq->sb);
 
+#if 0
+	/* AMFC hardware support skip leading 0 */
 	/* decompression inplace is only safe when 0padding is enabled */
 	if (erofs_sb_has_lz4_0padding(EROFS_SB(rq->sb))) {
 		support_0padding = true;
@@ -157,6 +158,7 @@ static int z_erofs_crypto_decompress_mem(struct z_erofs_decompress_req *rq, u8 *
 			return -EIO;
 		}
 	}
+#endif
 
 	rq->inputsize -= inputmargin;
 	src = z_erofs_crypto_handle_inplace_io(rq, headpage, &inputmargin,

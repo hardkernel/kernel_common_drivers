@@ -152,18 +152,17 @@ struct amfc {
 	struct page *pages[4];
 
 	/* statistics */
-	unsigned long long ctick, total_ctick;	/* time ticks for performance */
-	unsigned long long dtick, total_dtick;
+	unsigned long long total_ctick, total_dtick;	/* time ticks for performance */
+	unsigned long long z_dtick, e_dtick;
 	unsigned long long cin, cout;		/* compressed size            */
-	unsigned long long din, dout;
-	unsigned long long fail_compress_size;
-	unsigned long cerror, derror;		/* hardware errors            */
-	unsigned long fail_compress_cnt;	/* source can't compress      */
+	unsigned long long din, z_dout, e_dout;
+	unsigned long c_count, d_count;
+	unsigned long c_congestion, d_congestion;
 
 	unsigned long rate;			/* hz */
 	struct clk *clk;
-	unsigned int chip;
-	unsigned int work_mode;			/* 0: irq mode, 1: poll mode  */
+	unsigned char chip;
+	unsigned char work_mode;		/* 0: irq mode, 1: poll mode  */
 	unsigned char log;
 };
 #endif
