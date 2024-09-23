@@ -3107,7 +3107,7 @@ void sharpness_gain_update(int vpp_index)
 			if (chip_type_id == chip_s6 ||
 				chip_type_id == chip_s7d) {
 				VSYNC_WRITE_VPP_REG_BITS(VPP_PK_FINAL_GAIN,
-					sr_gain[0], 0, 16);
+					sr_gain[0], 0, 32);
 			} else {
 				VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_FINALGAIN_HP_BP,
 					sr_gain[0], 0, 16);

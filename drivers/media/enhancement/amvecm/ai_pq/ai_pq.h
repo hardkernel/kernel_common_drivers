@@ -44,6 +44,8 @@ struct adap_peaking_param_s {
 	int sr0_bp_final_gain;
 	int sr0_final_pgains;
 	int sr0_final_ngains;
+	int sr0_final_dgains;
+	int sr0_final_cgains;
 	int sr1_hp_final_gain;
 	int sr1_bp_final_gain;
 	/*offset from customer*/
