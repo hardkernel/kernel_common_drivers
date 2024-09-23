@@ -1007,15 +1007,38 @@ unsigned int hdmirx_get_base_fps(unsigned int hw_vic)
 {
 	unsigned int fps = 0;
 
-	if ((hw_vic >= 1 && hw_vic <= 16)  ||
-		hw_vic == 35  || hw_vic == 36  ||
-		hw_vic == 69  || hw_vic == 76  ||
-		hw_vic == 83  || hw_vic == 90  ||
-		hw_vic == 97  || hw_vic == 102 ||
-		hw_vic == 107 || hw_vic == 126 ||
-		hw_vic == 199 || hw_vic == 207 ||
-		hw_vic == 215)
-		fps = 60;
+	if (hw_vic == 60 || hw_vic == 65 ||
+		hw_vic == 32 || hw_vic == 72 ||
+		hw_vic == 79 || hw_vic == 86 ||
+		hw_vic == 93 || hw_vic == 103 ||
+		hw_vic == 98 || hw_vic == 121 ||
+		hw_vic == 194 || hw_vic == 202 ||
+		hw_vic == 210)
+		fps = 24;
+	else if (hw_vic == 61 || hw_vic == 66 ||
+		hw_vic == 33 || hw_vic == 73 ||
+		hw_vic == 80 || hw_vic == 87 ||
+		hw_vic == 94 || hw_vic == 104 ||
+		hw_vic == 99 || hw_vic == 122 ||
+		hw_vic == 195 || hw_vic == 203 ||
+		hw_vic == 211)
+		fps = 25;
+	else if (hw_vic == 62 || hw_vic == 67 ||
+		hw_vic == 34 || hw_vic == 74 ||
+		hw_vic == 81 || hw_vic == 88 ||
+		hw_vic == 95 || hw_vic == 105 ||
+		hw_vic == 100 || hw_vic == 123 ||
+		hw_vic == 196 || hw_vic == 204 ||
+		hw_vic == 212)
+		fps = 30;
+	else if (hw_vic == 108 || hw_vic == 109 ||
+		hw_vic == 111 || hw_vic == 112 ||
+		hw_vic == 110 || hw_vic == 113 ||
+		hw_vic == 114 || hw_vic == 116 ||
+		hw_vic == 115 || hw_vic == 124 ||
+		hw_vic == 197 || hw_vic == 205 ||
+		hw_vic == 213)
+		fps = 48;
 	else if ((hw_vic >= 17 && hw_vic <= 31) ||
 		(hw_vic >= 37 && hw_vic <= 39) ||
 		hw_vic == 68  || hw_vic == 75  ||
@@ -1025,6 +1048,15 @@ unsigned int hdmirx_get_base_fps(unsigned int hw_vic)
 		hw_vic == 198 || hw_vic == 206 ||
 		hw_vic == 214)
 		fps = 50;
+	else if ((hw_vic >= 1 && hw_vic <= 16)  ||
+		hw_vic == 35  || hw_vic == 36  ||
+		hw_vic == 69  || hw_vic == 76  ||
+		hw_vic == 83  || hw_vic == 90  ||
+		hw_vic == 97  || hw_vic == 102 ||
+		hw_vic == 107 || hw_vic == 126 ||
+		hw_vic == 199 || hw_vic == 207 ||
+		hw_vic == 215)
+		fps = 60;
 	else if ((hw_vic >= 40 && hw_vic <= 45) ||
 		hw_vic == 64  || hw_vic == 70  ||
 		hw_vic == 77  || hw_vic == 84  ||
@@ -1045,6 +1077,8 @@ unsigned int hdmirx_get_base_fps(unsigned int hw_vic)
 		fps = 200;
 	else if (hw_vic >= 56 && hw_vic <= 59)
 		fps = 240;
+	else
+		fps = 0;
 
 	return fps;
 }

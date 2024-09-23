@@ -7793,12 +7793,12 @@ int vdin_get_base_fr(struct vdin_dev_s *devp)
 		return ret;
 
 	if (devp->prop.vtem_data.vrr_en) { /* vrr */
-		if (devp->prop.vtem_data.base_framerate) {
-			fps = devp->prop.vtem_data.base_framerate;
-		} else if (devp->prop.hw_vic != 0) {
+		if (devp->prop.hw_vic != 0) {
 		#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 			fps = hdmirx_get_base_fps(devp->prop.hw_vic);
 		#endif
+		} else if (devp->prop.vtem_data.base_framerate) {
+			fps = devp->prop.vtem_data.base_framerate;
 		} else {
 			fps = devp->parm.info.fps;
 		}
@@ -7823,13 +7823,11 @@ int vdin_get_base_fr(struct vdin_dev_s *devp)
 
 		devp->vin_base_fps = fps;
 	} else {
-		if (devp->prop.hw_vic != 0) {
-		#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
-			fps = hdmirx_get_base_fps(devp->prop.hw_vic);
-		#endif
-		} else {
+	#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+		fps = hdmirx_get_base_fps(devp->prop.hw_vic);
+	#endif
+		if (!fps)
 			fps = devp->prop.fps;
-		}
 	}
 
 	if (fps) {
