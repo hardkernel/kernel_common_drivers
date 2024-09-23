@@ -189,7 +189,12 @@ ssize_t audio_utils_read(struct file *file, char __user *buf,
 
 	pr_debug("%s off:%lx, size:%ld\n",
 		 __func__, (unsigned long)*ppos, (unsigned long)size);
-	page = list_first_entry(&code_list, struct page, lru);
+	page = list_first_entry_or_null(&code_list, struct page, lru);
+	if (!page) {
+		pr_err("%s list is empty\n", __func__);
+		return -EINVAL;
+	}
+
 	while (off < *ppos) {
 		off += PAGE_SIZE;
 		page = list_next_entry(page, lru);
