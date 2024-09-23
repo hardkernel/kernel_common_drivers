@@ -17,15 +17,15 @@
 #define CODEC_MM_FLAGS_CPU 2
 #define CODEC_MM_FLAGS_TVP 4
 
-#define CODEC_MM_FLAGS_RESERVED 0x100
+#define CODEC_MM_FLAGS_RESERVED		0x100
 #define CODEC_MM_FLAGS_CMA		0x200
-
 /*
  *alloc from cma first,
  *cma->then ..reserved.
  *for less memory fragment;
  */
-#define CODEC_MM_FLAGS_CMA_FIRST 0x400
+#define CODEC_MM_FLAGS_CMA_FIRST	0x400
+#define CODEC_MM_FLAGS_RESERVED_EXT	0x800
 
 /*
  *flags can used for DRM:
@@ -88,6 +88,7 @@ struct codec_mm_s {
 #define AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP 5
 #define AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES 6
 #define AMPORTS_MEM_FLAGS_FROM_GET_FROM_COHERENT 7
+#define AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED_EXT 8
 	int from_flags;
 	/*may can be shared on many user..*/
 	   /*decoder/di/ppmgr,*/

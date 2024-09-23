@@ -199,7 +199,7 @@
 			 */
 			size = <0x0 0x1bc00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+			alloc-ranges = <0x3 0x0 0x0 0xe0000000>;
 			linux,contiguous-region;
 		};
 
@@ -209,6 +209,13 @@
 			size = <0x0 0x0>;
 			alignment = <0x0 0x100000>;
 			//no-map;
+		};
+
+		codec_mm_reserved_ext:linux,codec_mm_reserved_ext {
+			compatible = "amlogic, codec-mm-reserved_ext";
+			size = <0x00000000 0x000c00000>;
+			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		secure_vdec_reserved:linux,secure_vdec_reserved {
@@ -268,7 +275,8 @@
 
 	codec_mm {
 		compatible = "amlogic, codec, mm";
-		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
+		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved\
+			&codec_mm_reserved_ext>;
 		dev_name = "codec_mm";
 		status = "okay";
 		/*

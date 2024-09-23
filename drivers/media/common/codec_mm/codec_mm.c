@@ -50,6 +50,7 @@ unsigned char get_meson_cpu_version(int level)
 #if IS_BUILTIN(CONFIG_AMLOGIC_MEDIA_MODULE)
 #include <linux/amlogic/aml_cma.h>
 #endif
+#define CONFIG_CODEC_MM_EXT_POOL
 
 #include "codec_mm_priv.h"
 #include "codec_mm_scatter_priv.h"
@@ -263,6 +264,9 @@ static void dump_mem_infos(struct seq_file *m);
 static int dump_free_mem_infos(void *buf, int size);
 static int secure_vdec_res_setup(struct reserved_mem *rmem);
 static int codec_mm_res_setup(struct reserved_mem *rmem);
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+static int codec_mm_res_ext_setup(struct reserved_mem *rmem);
+#endif
 
 static inline u32 codec_mm_align_up2n(u32 addr, u32 alg2n)
 {
@@ -430,6 +434,12 @@ struct codec_mm_mgt_s {
 	struct extpool_mgt_s tvp_pool;
 	struct extpool_mgt_s cma_res_pool;
 	struct reserved_mem rmem;
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	struct reserved_mem rmem_ext;
+	struct gen_pool *res_ext_pool;
+	int total_reserved_ext_size;
+	int alloced_res_ext_size;
+#endif
 	int total_codec_mem_size;
 	int total_alloced_size;
 	int total_cma_size;
@@ -856,6 +866,44 @@ void codec_mm_dev_set_dma_mask(u64 bits)
 }
 EXPORT_SYMBOL(codec_mm_dev_set_dma_mask);
 
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+static int codec_mm_alloc_first(struct codec_mm_mgt_s *mgt,
+							struct codec_mm_s *mem)
+{
+	if (!(mem->flags & CODEC_MM_FLAGS_RESERVED_EXT))
+		return 0;
+
+	if (mgt->total_reserved_ext_size > mem->buffer_size &&
+		  mem->align2n <= RESERVE_MM_ALIGNED_2N) {
+		int aligned_buffer_size = ALIGN(mem->buffer_size,
+			(1 << RESERVE_MM_ALIGNED_2N));
+		if (mem->flags & CODEC_MM_FLAGS_TVP)
+			// to do..
+			;
+		mem->mem_handle = (void *)gen_pool_alloc(mgt->res_ext_pool,
+						aligned_buffer_size);
+		mem->from_flags =
+			AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED_EXT;
+		if (mem->mem_handle) {
+			/*default is no map */
+			mem->vbuffer = NULL;
+			mem->phy_addr = (unsigned long)mem->mem_handle;
+			mem->buffer_size = aligned_buffer_size;
+			if (debug_mode & 0x10)
+				pr_info("alloc flags:%d,align=%d,pages:%d,s:%d\n",
+					mem->flags,
+					mem->align2n,
+					mem->page_count,
+					mem->buffer_size);
+			return 0;
+		} else {
+			return -ENOMEM;
+		}
+	}
+	return -ENOMEM;
+}
+#endif
+
 static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 {
 	int try_alloced_from_sys = 0;
@@ -896,6 +944,11 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 		can_from_res = 0;
 		can_from_cma = 0;
 	}
+
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	if (mem->flags & CODEC_MM_FLAGS_RESERVED_EXT)
+		return codec_mm_alloc_first(mgt, mem);
+#endif
 
 	have_space = codec_mm_alloc_pre_check_in(mgt, mem->buffer_size, mem->flags);
 	if (!have_space)
@@ -1170,6 +1223,14 @@ static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 				      mem->mem_handle,
 				      mem->buffer_size);
 	}
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	else if (mem->from_flags ==
+		AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED_EXT) {
+		gen_pool_free(mgt->res_ext_pool,
+				  (unsigned long)mem->mem_handle,
+				  mem->buffer_size);
+	}
+#endif
 	spin_lock_irqsave(&mgt->lock, flags);
 	if (!(mem->flags & CODEC_MM_FLAGS_FOR_LOCAL_MGR))
 		mgt->total_alloced_size -= mem->buffer_size;
@@ -1193,6 +1254,12 @@ static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 	} else if (mem->from_flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES) {
 		mgt->cma_res_pool.alloced_size -= mem->buffer_size;
 	}
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	else if (mem->from_flags ==
+		AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED_EXT) {
+		mgt->alloced_res_ext_size -= mem->buffer_size;
+	}
+#endif
 
 	spin_unlock_irqrestore(&mgt->lock, flags);
 	if (mem->from_flags == AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP &&
@@ -1337,6 +1404,11 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	case AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES:
 		mgt->cma_res_pool.alloced_size += mem->buffer_size;
 		break;
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	case AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED_EXT:
+		mgt->alloced_res_ext_size += mem->buffer_size;
+		break;
+#endif
 	default:
 		pr_err("error alloc flags %d\n", mem->from_flags);
 	}
@@ -2578,6 +2650,13 @@ static void dump_mem_infos(struct seq_file *m)
 		(mgt->phys_vmaped_page_cnt << PAGE_SHIFT) / SZ_1M);
 	pbuf += get_string_offset(&buf_len, &tsize, s);
 
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	s = snprintf(pbuf, buf_size - tsize,
+		"\tRES_EXT:%d MB\n",
+		mgt->alloced_res_ext_size / SZ_1M);
+	pbuf += get_string_offset(&buf_len, &tsize, s);
+#endif
+
 	if (mgt->res_pool) {
 		s = snprintf(pbuf, buf_size - tsize,
 				"\t[%d]RES size:%d MB,alloced:%d MB free:%d MB\n",
@@ -3185,6 +3264,32 @@ int codec_mm_mgt_init(struct device *dev)
 		mgt->res_mem_flags |= RES_MEM_FLAGS_HAVE_MAPED;
 #endif
 	}
+
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	if (mgt->rmem_ext.size > 0) {
+		unsigned long aligned_addr;
+		int aligned_size;
+		/*mem aligned, */
+		mgt->res_ext_pool = gen_pool_create(RESERVE_MM_ALIGNED_2N, -1);
+		if (!mgt->res_ext_pool)
+			return -ENOMEM;
+		aligned_addr = ((unsigned long)mgt->rmem_ext.base +
+			((1 << RESERVE_MM_ALIGNED_2N) - 1)) &
+			(~((1 << RESERVE_MM_ALIGNED_2N) - 1));
+		aligned_size = mgt->rmem_ext.size -
+			(int)(aligned_addr - (unsigned long)mgt->rmem_ext.base);
+		ret = gen_pool_add(mgt->res_ext_pool,
+				 aligned_addr, aligned_size, -1);
+		if (ret < 0) {
+			gen_pool_destroy(mgt->res_ext_pool);
+			return -1;
+		}
+		pr_debug("add reserve ext memory %p(aligned %p) size=%x(aligned %x)\n",
+			 (void *)mgt->rmem_ext.base, (void *)aligned_addr,
+			 (int)mgt->rmem_ext.size, (int)aligned_size);
+		mgt->total_reserved_ext_size = aligned_size;
+	}
+#endif
 
 	mgt->total_cma_size = codec_mm_get_cma_size_int_byte(mgt->dev);
 	mgt->total_codec_mem_size += mgt->total_cma_size;
@@ -4217,6 +4322,9 @@ static int codec_mm_probe(struct platform_device *pdev)
 
 	codec_mm_parse_reserved_mem(pdev, "linux,secure_vdec_reserved", secure_vdec_res_setup);
 	codec_mm_parse_reserved_mem(pdev, "linux,codec_mm_reserved", codec_mm_res_setup);
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+	codec_mm_parse_reserved_mem(pdev, "linux,codec_mm_reserved_ext", codec_mm_res_ext_setup);
+#endif
 
 	mgt = get_mem_mgt();
 	pdev->dev.platform_data = mgt;
@@ -4403,6 +4511,34 @@ static int secure_vdec_res_setup(struct reserved_mem *rmem)
 
 RESERVEDMEM_OF_DECLARE(secure_vdec_reserved, "amlogic, secure-vdec-reserved",
 			secure_vdec_res_setup);
+
+#ifdef CONFIG_CODEC_MM_EXT_POOL
+static int codec_mm_reserved_ext_init(struct reserved_mem *rmem, struct device *dev)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	mgt->rmem_ext = *rmem;
+	pr_debug("%s %p->%p\n", __func__,
+		 (void *)mgt->rmem_ext.base,
+		 (void *)mgt->rmem_ext.base + mgt->rmem_ext.size);
+	return 0;
+}
+
+static const struct reserved_mem_ops codec_mm_rmem_ext_vdec_ops = {
+	.device_init = codec_mm_reserved_ext_init,
+};
+
+static int codec_mm_res_ext_setup(struct reserved_mem *rmem)
+{
+	rmem->ops = &codec_mm_rmem_ext_vdec_ops;
+	pr_debug("vdec: reserved mem setup\n");
+
+	return 0;
+}
+
+RESERVEDMEM_OF_DECLARE(codec_mm_reserved_ext, "amlogic, codec-mm-reserved_ext",
+			codec_mm_res_ext_setup);
+#endif
 
 module_param(debug_mode, uint, 0664);
 MODULE_PARM_DESC(debug_mode, "\n debug module\n");

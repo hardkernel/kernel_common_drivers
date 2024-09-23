@@ -211,6 +211,13 @@
 			//no-map;
 		};
 
+		codec_mm_reserved_ext:linux,codec_mm_reserved_ext {
+			compatible = "amlogic, codec-mm-reserved_ext";
+			size = <0x00000000 0x000c00000>;
+			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
 		secure_vdec_reserved:linux,secure_vdec_reserved {
 			compatible = "amlogic, secure-vdec-reserved";
 			no-map;
@@ -268,7 +275,8 @@
 
 	codec_mm {
 		compatible = "amlogic, codec, mm";
-		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
+		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved\
+			&codec_mm_reserved_ext>;
 		dev_name = "codec_mm";
 		status = "okay";
 		/*
