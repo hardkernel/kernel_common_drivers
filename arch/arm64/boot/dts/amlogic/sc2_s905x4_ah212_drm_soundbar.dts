@@ -1274,6 +1274,7 @@
 }; /* end of audiobus */
 
 &earc {
+	hdmitx_5v-gpios = <&gpio GPIOH_8 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 };
 
