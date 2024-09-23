@@ -6644,6 +6644,7 @@ static int amlvideo2_close(struct file *file)
 	struct v4l2_fh *vfh = file->private_data;
 	struct amlvideo2_fh *fh = container_of(vfh, struct amlvideo2_fh, fh);
 	struct amlvideo2_node *node = fh->node;
+	struct amlvideo2_node_dmaqueue *dma_q = &node->vidq;
 	struct video_device *vdev = video_devdata(file);
 	int temp_canvas;
 	int i;
@@ -6654,6 +6655,8 @@ static int amlvideo2_close(struct file *file)
 	v4l2_fh_del(&fh->fh);
 	v4l2_fh_exit(&fh->fh);
 	file->private_data = NULL;
+	if (dma_q->kthread)
+		vidioc_streamoff(file, NULL, 0);
 
 	for (i = 0; i < 2 * BUFFER_COUNT; i++) {
 		if (amlvideo2_canvas[node->vid][i] >= 0) {
