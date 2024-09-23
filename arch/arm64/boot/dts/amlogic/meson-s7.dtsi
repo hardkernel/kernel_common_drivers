@@ -1485,10 +1485,10 @@
 					ddr_reg = <0xfe0364b4 0xfe0365b4>;
 					ddr_status = <13>;
 					ddr_bits = <0 15>,<0 15>;
-					ddr_data = <6232 6232 4985 3895 3116 2492 1947 1780
-						1558 1246 1038 890 779>;
-					gpu_data = <3116 3116 2492 1947 1558 1246 973 890
-						779 623 519 445 389>;
+					ddr_data = <0x1819 0x1819 0x1819 0x1819 0x1819 0x1819 0x1347
+						0xF10 0xF10 0xC0C 0x9A3 0x788	0x606>;
+					gpu_data = <0xC0C 0xC0C	0xC0C 0xC0C 0xC0C 0xC0C 0x9A3 0x788
+						0x788 0x606 0x4D1 0x3C4 0x303>;
 					node_name = "ddr_cool0";
 					device_type = "ddr";
 				};
