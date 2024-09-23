@@ -1300,9 +1300,11 @@
 		dev_name = "vcodec_dos_dev";
 		status = "okay";
 		reg = <0xfe320000 0x10000>,
-			<0xfe036000 0x2000>;
+			<0xfe036000 0x2000>,
+			<0xfe010000 0x2000>;
 		reg-names = "dosbus",
-			"dmcbus";
+			"dmcbus",
+			"sysctrl";
 		clocks = <&clkc CLKID_SYS_DOS
 			&clkc CLKID_HEVCB>;
 		clock-names = "vdec",
