@@ -13861,7 +13861,7 @@ void video_secure_set(u8 vpp_index)
 	u32 secure_enable = 0;
 	u32 fg_secure_enable = 0;
 	u32 video_enable = 0;
-	static bool disable_update = true;
+	static bool disable_update[4] = {true, true, true, true};
 	struct video_layer_s *layer = NULL;
 
 	for (i = 0; i < MAX_VD_LAYERS; i++) {
@@ -13903,11 +13903,11 @@ void video_secure_set(u8 vpp_index)
 
 	if (video_enable) {
 		secure_config(VIDEO_MODULE, secure_src, vpp_index);
-		disable_update = true;
+		disable_update[vpp_index] = true;
 	} else {
-		if (disable_update) {
+		if (disable_update[vpp_index]) {
 			secure_config(VIDEO_MODULE, secure_src, vpp_index);
-			disable_update = false;
+			disable_update[vpp_index] = false;
 		}
 	}
 #endif
@@ -14284,7 +14284,15 @@ static int _video_hw_init(void)
 			WRITE_VCBUS_REG(VD3_PPS_DUMMY_DATA, 0x4080200);
 		}
 	}
+	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
+		WRITE_VCBUS_REG_BITS(VPP_VD1_DSC_CTRL, 0x1, 4, 1);
+		WRITE_VCBUS_REG_BITS(VPP_VD2_DSC_CTRL, 0x1, 4, 1);
+		WRITE_VCBUS_REG_BITS(VPP_VD3_DSC_CTRL, 0x1, 4, 1);
 
+		WRITE_VCBUS_REG_BITS(VPP_VD1_DSC_CTRL, 0x0, 5, 1);
+		WRITE_VCBUS_REG_BITS(VPP_VD2_DSC_CTRL, 0x0, 5, 1);
+		WRITE_VCBUS_REG_BITS(VPP_VD3_DSC_CTRL, 0x0, 5, 1);
+	}
 	/* set vpp1/2 holdline
 	 * if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 	 *	if (cur_dev->has_vpp1)

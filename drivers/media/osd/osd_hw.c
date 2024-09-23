@@ -14767,9 +14767,6 @@ static void fix_vpu_clk2_default_regs(void)
 		osd_reg_set_bits(VPP_OSD4_SCALE_CTRL, 0x3, 0, 3);
 
 		/* default: osd byp dolby */
-		osd_reg_set_bits(VPP_VD1_DSC_CTRL, 0x1, 4, 1);
-		osd_reg_set_bits(VPP_VD2_DSC_CTRL, 0x1, 4, 1);
-		osd_reg_set_bits(VPP_VD3_DSC_CTRL, 0x1, 4, 1);
 		/* move the control into uboot for osd dolby vision */
 		/* osd_reg_set_bits(MALI_AFBCD_TOP_CTRL, 0x1, 14, 1); */
 		osd_reg_set_bits(MALI_AFBCD_TOP_CTRL, 0x1, 19, 1);
@@ -14777,9 +14774,6 @@ static void fix_vpu_clk2_default_regs(void)
 		osd_reg_set_bits(MALI_AFBCD2_TOP_CTRL, 0x1, 19, 1);
 
 		/* default: osd 12bit path */
-		osd_reg_set_bits(VPP_VD1_DSC_CTRL, 0x0, 5, 1);
-		osd_reg_set_bits(VPP_VD2_DSC_CTRL, 0x0, 5, 1);
-		osd_reg_set_bits(VPP_VD3_DSC_CTRL, 0x0, 5, 1);
 		osd_reg_set_bits(MALI_AFBCD_TOP_CTRL, 0x0, 15, 1);
 		osd_reg_set_bits(MALI_AFBCD_TOP_CTRL, 0x0, 20, 1);
 		osd_reg_set_bits(MALI_AFBCD1_TOP_CTRL, 0x0, 20, 1);
