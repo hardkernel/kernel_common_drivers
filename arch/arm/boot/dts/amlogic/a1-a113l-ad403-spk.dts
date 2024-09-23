@@ -773,7 +773,7 @@
 &dwc2_a {
 	status = "okay";
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
-	controller-type = <3>;
+	controller-type = <1>;
 };
 
 &dwc3 {
@@ -788,10 +788,6 @@
 &usb3_phy_v2 {
 	status = "okay";
 	portnum = <0>;
-	otg = <2>;
-	gpio-vbus-power = "GPIOP_3";
-	gpios = <&gpio GPIOP_3 GPIO_ACTIVE_HIGH
-			&gpio GPIOP_2  GPIO_ACTIVE_LOW>;
 };
 
 &aml_bt {
