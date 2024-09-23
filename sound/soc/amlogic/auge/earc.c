@@ -29,6 +29,7 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/clk-provider.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/gpio.h>
 
 #include <linux/amlogic/media/sound/hdmi_earc.h>
 #include "resample.h"
@@ -127,6 +128,8 @@ struct earc {
 	struct regmap *rx_dmac_map;
 	struct regmap *rx_top_map;
 
+	struct gpio_desc *hdmitx_5v_desc;
+
 	struct toddr *tddr;
 	struct frddr *fddr;
 
@@ -144,10 +147,11 @@ struct earc {
 	struct work_struct tx_hold_bus_work;
 	struct work_struct earctx_reg_init_work;
 	struct delayed_work tx_resume_work;
-	struct delayed_work send_uevent;
-	struct delayed_work gain_disable;
+	struct delayed_work send_uevent_work;
+	struct delayed_work gain_disable_work;
 	struct delayed_work rx_stable_work;
 	struct delayed_work rx_pll_detect_work;
+	struct delayed_work hdmitx_5v_work;
 
 	struct samesource_info ss_info;
 
@@ -430,14 +434,14 @@ static void earctx_init(int earc_port, bool st)
 	schedule_work(&p_earc->earctx_reg_init_work);
 	st = st && p_earc->tx_ui_flag;
 	if (!st)
-		schedule_delayed_work(&p_earc->send_uevent, 0);
+		schedule_delayed_work(&p_earc->send_uevent_work, 0);
 	if (!p_earc->tx_bootup_auto_cal) {
 		p_earc->tx_bootup_auto_cal = true;
 		p_earc->event |= EVENT_TX_ANA_AUTO_CAL;
 		schedule_work(&p_earc->work);
 	}
 	if (st && !p_earc->tx_earc_mode)
-		schedule_delayed_work(&p_earc->send_uevent, msecs_to_jiffies(700));
+		schedule_delayed_work(&p_earc->send_uevent_work, msecs_to_jiffies(700));
 }
 
 static void earcrx_init(bool st)
@@ -895,7 +899,7 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 	}
 
 	if (status0 & INT_EARCTX_CMDC_EARC) {
-		schedule_delayed_work(&p_earc->send_uevent, msecs_to_jiffies(200));
+		schedule_delayed_work(&p_earc->send_uevent_work, msecs_to_jiffies(200));
 		p_earc->tx_reset_hpd = false;
 		dev_info(p_earc->dev, "EARCTX_CMDC_EARC\n");
 	}
@@ -2284,6 +2288,13 @@ static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode)
 #endif
 }
 
+static void hdmitx_5v_work_func(struct work_struct *p_work)
+{
+	struct earc *p_earc = container_of(p_work, struct earc, hdmitx_5v_work.work);
+
+	gpiod_set_value(p_earc->hdmitx_5v_desc, 1);
+}
+
 static void earc_resume(void)
 {
 	struct earc *p_earc = s_earc;
@@ -2293,6 +2304,11 @@ static void earc_resume(void)
 
 	earc_clock_enable();
 
+	if (p_earc->chipinfo->rx_enable) {
+		/* keep 5v low for 300ms */
+		gpiod_set_value(p_earc->hdmitx_5v_desc, 0);
+		schedule_delayed_work(&p_earc->hdmitx_5v_work, msecs_to_jiffies(300));
+	}
 	if (!p_earc->chipinfo->tx_enable)
 		return;
 
@@ -2351,7 +2367,7 @@ int earctx_earc_mode_put(struct snd_kcontrol *kcontrol,
 	p_earc->tx_earc_mode = earc_mode;
 	earctx_set_earc_mode(p_earc, earc_mode);
 	if (!earc_mode && earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_ARC)
-		schedule_delayed_work(&p_earc->send_uevent, msecs_to_jiffies(700));
+		schedule_delayed_work(&p_earc->send_uevent_work, msecs_to_jiffies(700));
 
 	return 0;
 }
@@ -2691,7 +2707,7 @@ static int arc_spdifout_mute_get(struct snd_kcontrol *kcontrol,
 
 static void gain_disable_work_func(struct work_struct *p_work)
 {
-	struct earc *p_earc = container_of(p_work, struct earc, gain_disable.work);
+	struct earc *p_earc = container_of(p_work, struct earc, gain_disable_work.work);
 	unsigned long flags;
 
 	dev_info(p_earc->dev, "%s\n", __func__);
@@ -2716,7 +2732,7 @@ static int arc_spdifout_mute_put(struct snd_kcontrol *kcontrol,
 			!ucontrol->value.integer.value[0]);
 	}
 	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
-	schedule_delayed_work(&p_earc->gain_disable, msecs_to_jiffies(2000));
+	schedule_delayed_work(&p_earc->gain_disable_work, msecs_to_jiffies(2000));
 
 	return 0;
 }
@@ -3118,7 +3134,7 @@ static int earcrx_cmdc_setup(struct earc *p_earc)
 
 static void send_uevent_work_func(struct work_struct *p_work)
 {
-	struct earc *p_earc = container_of(p_work, struct earc, send_uevent.work);
+	struct earc *p_earc = container_of(p_work, struct earc, send_uevent_work.work);
 	enum attend_type type = earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map);
 
 	mutex_lock(&earc_mutex);
@@ -3347,6 +3363,9 @@ static int earc_platform_probe(struct platform_device *pdev)
 			}
 		}
 
+		p_earc->hdmitx_5v_desc = gpiod_get(dev, "hdmitx_5v", GPIOF_OUT_INIT_HIGH);
+		gpiod_direction_output(p_earc->hdmitx_5v_desc, GPIOF_OUT_INIT_HIGH);
+
 		p_earc->irq_earc_rx =
 			platform_get_irq_byname(pdev, "earc_rx");
 		if (p_earc->irq_earc_rx < 0)
@@ -3433,10 +3452,10 @@ static int earc_platform_probe(struct platform_device *pdev)
 		earctx_ss_ops.private = p_earc;
 		register_samesrc_ops(SHAREBUFFER_EARCTX, &earctx_ss_ops);
 		INIT_DELAYED_WORK(&p_earc->tx_resume_work, tx_resume_work_func);
-		INIT_DELAYED_WORK(&p_earc->send_uevent, send_uevent_work_func);
+		INIT_DELAYED_WORK(&p_earc->send_uevent_work, send_uevent_work_func);
 		INIT_WORK(&p_earc->tx_hold_bus_work, tx_hold_bus_work_func);
 		INIT_WORK(&p_earc->earctx_reg_init_work, earctx_reg_init_work_func);
-		INIT_DELAYED_WORK(&p_earc->gain_disable, gain_disable_work_func);
+		INIT_DELAYED_WORK(&p_earc->gain_disable_work, gain_disable_work_func);
 	}
 
 	if ((!IS_ERR(p_earc->rx_top_map)) ||
@@ -3456,6 +3475,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 			earcrx_cmdc_set_cds(p_earc->rx_cmdc_map, p_earc->rx_cds_data);
 		INIT_DELAYED_WORK(&p_earc->rx_stable_work, rx_stable_work_func);
 		INIT_DELAYED_WORK(&p_earc->rx_pll_detect_work, rx_pll_detect_work_func);
+		INIT_DELAYED_WORK(&p_earc->hdmitx_5v_work, hdmitx_5v_work_func);
 		if (!p_earc->chipinfo->ana_auto_cal)
 			earcrx_efuse_trim_set(p_earc->rx_top_map);
 	}
@@ -3493,6 +3513,18 @@ static int earc_platform_suspend(struct platform_device *pdev,
 	pm_message_t state)
 {
 	struct earc *p_earc = dev_get_drvdata(&pdev->dev);
+
+	/* cancel delay work */
+	if (p_earc->chipinfo->rx_enable) {
+		cancel_delayed_work(&p_earc->rx_stable_work);
+		cancel_delayed_work(&p_earc->rx_pll_detect_work);
+		cancel_delayed_work(&p_earc->hdmitx_5v_work);
+	}
+	if (p_earc->chipinfo->tx_enable) {
+		cancel_delayed_work(&p_earc->tx_resume_work);
+		cancel_delayed_work(&p_earc->send_uevent_work);
+		cancel_delayed_work(&p_earc->gain_disable_work);
+	}
 
 	mutex_lock(&earc_mutex);
 	if (p_earc->suspend_clk_off) {
