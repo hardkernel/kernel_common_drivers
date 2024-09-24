@@ -116,15 +116,15 @@
 		dmaheap_cma_reserved:heap-gfx {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 4k STB androidU size 320M */
-			size = <0x0 0x14000000>;
+			/* 1080p STB androidU size 88M */
+			size = <0x0 0x5800000>;
 			alignment = <0x0 0x400000>;
 		};
 		dmaheap_fb_reserved:heap-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 4k STB androidU size 212M */
-			size = <0x0 0xd400000>;
+			/* 1080p STB androidU size 56M */
+			size = <0x0 0x3800000>;
 			alignment = <0x0 0x400000>;
 		};
 		dmaheap_secure_reserved:heap-secure {
@@ -188,7 +188,14 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x13400000>;
+			/*
+			 * Scenario: CTS P010 case
+			 * Total size: 548M
+			 * Note:
+			 *  setting to 496M if scatter_alloc_mode is 0.
+			 *  setting to 444M if scatter_alloc_mode is 1.
+			 */
+			size = <0x0 0x1bc00000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 			linux,contiguous-region;
@@ -239,12 +246,35 @@
 			linux,cma-default;
 			alloc-ranges = <0x0 0x0 0x0 0x30000000>;
 		};
+
+		pcie_dma_ops_mm:linux,pcie_dma_ops {
+			compatible = "shared-dma-pool";
+			status = "okay";
+			reusable;
+			size = <0x0 0x1000000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
 	};
+
+	smmu: aml_smmu {
+		compatible = "amlogic,smmu";
+		status = "okay";
+		#iommu-cells = <1>;
+		memory-region = <&pcie_dma_ops_mm>;
+	};
+
 	codec_mm {
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
 		dev_name = "codec_mm";
 		status = "okay";
+		/*
+		 * scatter_alloc_mode: the mode of scatter memory allocation
+		 * 0: default mode, alloc from system and cma
+		 * 1: only alloc from system
+		 */
+		scatter_alloc_mode = <1>;
 	};
 	encmem_rev {
 		compatible = "encmem_rev";
@@ -575,31 +605,6 @@
 		cma_mode = <1>;
 	};
 
-	aml_cams {
-		compatible = "amlogic, cams_prober-s6";
-		status = "okay";
-
-		// using cm_mclk_0 24M
-		clocks = <&clkc CLKID_MCLK0>;
-		clock-names = "mclk0";
-
-		cam_0{
-			cam_name = "ov5640";
-			front_back = <0>;
-			camera-i2c-bus = <&i2c5>;
-			gpio_pwdn-gpios = <&gpio GPIOX_5 GPIO_ACTIVE_HIGH>;
-			gpio_rst-gpios = <&gpio GPIOX_4 GPIO_ACTIVE_HIGH>;
-			mirror_flip = <1>;
-			vertical_flip = <1>;
-			spread_spectrum = <0>;
-			bt_path = "csi";
-			interface = "mipi";
-			clk_channel = "a";
-			bt_path_count = <1>;
-			status = "okay";
-		};
-	};
-
 	amvdec_csi {
 		compatible = "amlogic, amvdec_csi-s6";
 		status = "okay";
@@ -616,9 +621,8 @@
 		clock-names = "cts_csi_adapt_clk_composite",
 			"cts_csi_phy_clk_composite";
 
-		// depends on power domain. ID expect to be PDID_S6_CSI2_ADAPT
-		// maybe. always on; need to be tested.
-		//power-domains = <&pwrdm PDID_S6_CSI2_ADAPT>;
+		// depends on power domain.
+		power-domains = <&pwrdm PDID_S6_ADAPT>;
 
 		// 88 for csi2_adap_int
 		interrupts = <GIC_SPI 88 IRQ_TYPE_EDGE_RISING>;
@@ -1001,33 +1005,30 @@
 		regulator-always-on;
 	};
 
-	vcc5v_reg: gpio-regulator@vcc5v_reg {
+	vcc5v_reg: fixed@vcc5v_reg {
 		vin-supply = <&vddao_5v_reg>;
-		compatible = "regulator-gpio";
+		compatible = "regulator-fixed";
 		regulator-name = "VCC5V";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		pinctrl-names = "default";
-		// GPIOH_7(Down) Output H/L= Enable/Disable VCC3V3
+		// GPIOH_7(Down) Output H/L= Enable/Disable VCC5V
 		gpio = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
-		gpios-states = <1>;
-		states = <5000000 1 0 0>;
+		enable-active-high;
 		startup-delay-us = <7000>;
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
-	vcc3v3_reg: gpio-regulator@vcc3v3_reg {
+	vcc3v3_reg: fixed@vcc3v3_reg {
 		vin-supply = <&vdd3v3_ao_reg>;
-		compatible = "regulator-gpio";
+		compatible = "regulator-fixed";
 		regulator-name = "VCC3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		pinctrl-names = "default";
 		// GPIOF_2(Down) Output L/H= Enable/Disable VCC3V3
 		gpio = <&gpio GPIOF_2 GPIO_ACTIVE_HIGH>;
-		gpios-states = <0>;
-		states = <3300000 0 0 1>;
 		startup-delay-us = <7000>;
 		regulator-boot-on;
 		regulator-always-on;
@@ -1073,9 +1074,27 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c5_pins3>;
 	clock-frequency = <100000>;
-	ov5640@3c {
-		compatible = "ov5640";
-		reg = <0x3c>;
+
+	amlsens_0: sensor0@1a {
+		compatible = "amlogic, sensor";
+		index = <1>;
+		reg = <0x1a>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		// using cm_mclk_0 24M
+		clocks = <&clkc CLKID_MCLK0>;
+		clock-names = "mclk0";
+
+		pwdn-gpios = <&gpio GPIOX_5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio GPIOX_4 GPIO_ACTIVE_HIGH>;
+
+		port {
+			amlsens_0_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				link-frequencies = /bits/ 64 <222750000>;
+			};
+		};
 	};
 };
 
@@ -1136,6 +1155,14 @@
 
 &vddcpu0 {
 	status = "okay";
+};
+
+&tdma {
+	pinctrl-names = "tdm_pins";
+	pinctrl-0 = <&bt_pcm_gpio_x_pins
+		&tdm_d1_pins
+		&tdm_d0_pins
+		&tdma_clk_pins>;
 };
 
 &tdmc {
@@ -1206,6 +1233,7 @@
 &pcie {
 	reset-gpio = <&gpio GPIOX_0 GPIO_ACTIVE_HIGH>;
 	max-link-speed=<1>;
+	iommu-map = <0x100 &smmu 0x5 0x10>;
 	status = "okay";
 };
 
@@ -1403,6 +1431,8 @@
 	amlogic,tx-delay-ns = <2>;
 	internal_phy = <2>;
 	cali_val = <0x290000>;
+	wol = <1>;
+	mdns_wkup = <1>;
 };
 
 /*inphy setting*/
@@ -1414,6 +1444,8 @@
 //	phy-handle = <&internal_ephy>;
 //	phy-mode = "rmii";
 //	internal_phy = <1>;
+//	mac_wol = <1>;
+//	mdns_wkup = <1>;
 //};
 
 &ir {
@@ -1448,11 +1480,6 @@
 	status = "okay";
 	logo_addr = "0x1fc00000";
 
-};
-
-&adla {
-	status = "okay";
-	adla_core_clk_rate = <800000000>;
 };
 
 &drm_subsystem {
@@ -1537,6 +1564,11 @@
 &amlogic_codec {
 	tocodec_inout = <1>;
 	tdmout_index = <1>;
+};
+
+&pdma {
+	pinctrl-names = "pdm_pins";
+	pinctrl-0 = <&pdmin>;
 };
 
 &amlvecm {
