@@ -785,6 +785,79 @@
 				<&cpu_opp_table3>;
 };
 
+&periphs_pinctrl {
+	pwm_a_gpio_dv1: pwm_a_gpio_dv1 {
+		mux {
+			groups = "pwm_a_dv1";
+			function = "pwm_a";
+		};
+	};
+
+	pwm_a_gpio_x6: pwm_a_gpio_x6 {
+		mux {
+			groups = "pwm_a_x6";
+			function = "pwm_a";
+		};
+	};
+
+	pwm_b_gpio_d4: pwm_b_gpio_d4 {
+		mux {
+			groups = "pwm_b_d4";
+			function = "pwm_b";
+		};
+	};
+
+	pwm_c_gpio_dv2: pwm_c_gpio_dv2 {
+		mux {
+			groups = "pwm_c_dv2";
+			function = "pwm_c";
+		};
+	};
+
+	pwm_c_gpio_x8: pwm_c_gpio_x8 {
+		mux {
+			groups = "pwm_c_x8";
+			function = "pwm_c";
+		};
+	};
+
+	pwm_e_gpio_x16: pwm_e_gpio_x16 {
+		mux {
+			groups = "pwm_e_x16";
+			function = "pwm_e";
+		};
+	};
+
+	pwm_f_gpio_x7: pwm_f_gpio_x7 {
+		mux {
+			groups = "pwm_f_x7";
+			function = "pwm_f";
+		};
+	};
+
+	spi0_pins: spicc0_pins {
+		mux {
+			groups = "spi_a_mosi_x8",
+					 "spi_a_miso_x9",
+					 "spi_a_ss0_x10",
+					 "spi_a_clk_x11";
+			function = "spi_a";
+			drive-strength = <3>;
+		};
+	};
+
+	spi0_pins_sw: spicc0_pins_sw {
+		mux {
+			groups = "spi_a_mosi_x8",
+					 "spi_a_miso_x9",
+//					 "spi_a_ss0_x10",
+					 "spi_a_clk_x11";
+			function = "spi_a";
+			drive-strength = <3>;
+		};
+	};
+}; /* end of periphs_pinctrl */
+
 &audio_data {
 	status = "okay";
 };
@@ -967,10 +1040,34 @@
 	hdcp = "disabled";
 };
 
-&pwm_e {
-	pinctrl-0 = <&pwm_e_pins1>;
+&pwm_a {
+	pinctrl-0 = <&pwm_a_gpio_x6>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
+};
+
+&pwm_b {
+	pinctrl-0 = <&pwm_b_gpio_d4>;
+	pinctrl-names = "default";
+	status = "disabled";
+};
+
+&pwm_c {
+	pinctrl-0 = <&pwm_c_gpio_dv2>;
+	pinctrl-names = "default";
+	status = "disabled";
+};
+
+&pwm_e {
+	pinctrl-0 = <&pwm_e_gpio_x16>;
+	pinctrl-names = "default";
+	status = "disabled";
+};
+
+&pwm_f {
+	pinctrl-0 = <&pwm_f_gpio_x7>;
+	pinctrl-names = "default";
+	status = "disabled";
 };
 
 &uart_A {
