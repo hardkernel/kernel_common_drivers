@@ -3574,7 +3574,10 @@ void config_di_mif(struct DI_MIF_S *di_mif, struct di_buf_s *di_buf,
 				di_mif->luma_x_start0 = 0;
 				di_mif->luma_x_end0 =
 					di_buf->vframe->width - 1;
-				di_mif->luma_y_start0 = 0;
+				if (di_reverse && (DIM_IS_IC(T5DB) || DIM_IS_IC(T5)))
+					di_mif->luma_y_start0 = 1;
+				else
+					di_mif->luma_y_start0 = 0;
 				di_mif->luma_y_end0 =
 					di_buf->vframe->height - 1;
 				di_mif->chroma_x_start0 = 0;
@@ -3589,9 +3592,17 @@ void config_di_mif(struct DI_MIF_S *di_mif, struct di_buf_s *di_buf,
 				di_mif->luma_x_start0 = 0;
 				di_mif->luma_x_end0 =
 					di_buf->vframe->width - 1;
-				di_mif->luma_y_start0 = 1;
-				di_mif->luma_y_end0 =
-					di_buf->vframe->height - 1;
+				if (di_reverse && (DIM_IS_IC(T5DB) || DIM_IS_IC(T5)))
+					di_mif->luma_y_start0 = 0;
+				else
+					di_mif->luma_y_start0 = 1;
+
+				if (di_reverse && (DIM_IS_IC(T5DB) || DIM_IS_IC(T5)))
+					di_mif->luma_y_end0 =
+						di_buf->vframe->height - 1 - 1;
+				else
+					di_mif->luma_y_end0 =
+						di_buf->vframe->height - 1;
 				di_mif->chroma_x_start0 = 0;
 				di_mif->chroma_x_end0 =
 					di_buf->vframe->width / 2 - 1;
@@ -5897,6 +5908,17 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		if ((((invert_top_bot & 0x2) != 0)	||
 		     ppre->invert_flag)			&&
 		    (!is_progressive(vframe))) {
+			if ((vframe->type & VIDTYPE_TYPEMASK) ==
+			    VIDTYPE_INTERLACE_TOP) {
+				vframe->type &= (~VIDTYPE_TYPEMASK);
+				vframe->type |= VIDTYPE_INTERLACE_BOTTOM;
+			} else {
+				vframe->type &= (~VIDTYPE_TYPEMASK);
+				vframe->type |= VIDTYPE_INTERLACE_TOP;
+			}
+		}
+		if (di_reverse && (!is_progressive(vframe)) &&
+			(DIM_IS_IC(T5DB) || DIM_IS_IC(T5))) {
 			if ((vframe->type & VIDTYPE_TYPEMASK) ==
 			    VIDTYPE_INTERLACE_TOP) {
 				vframe->type &= (~VIDTYPE_TYPEMASK);
